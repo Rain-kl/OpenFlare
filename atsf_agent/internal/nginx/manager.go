@@ -2,6 +2,8 @@ package nginx
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"os"
@@ -13,6 +15,7 @@ import (
 type Executor interface {
 	Test(ctx context.Context) error
 	Reload(ctx context.Context) error
+	EnsureRuntime(ctx context.Context, recreate bool) error
 }
 
 type CommandRunner interface {
@@ -48,6 +51,10 @@ func (e *PathExecutor) Reload(ctx context.Context) error {
 	return nil
 }
 
+func (e *PathExecutor) EnsureRuntime(ctx context.Context, recreate bool) error {
+	return nil
+}
+
 type DockerExecutor struct {
 	DockerBinary   string
 	ContainerName  string
@@ -57,7 +64,7 @@ type DockerExecutor struct {
 }
 
 func (e *DockerExecutor) Test(ctx context.Context) error {
-	if err := e.ensureContainer(ctx); err != nil {
+	if err := e.EnsureRuntime(ctx, false); err != nil {
 		return err
 	}
 	output, err := e.Runner.Run(ctx, e.DockerBinary, "exec", e.ContainerName, "nginx", "-t")
@@ -68,7 +75,7 @@ func (e *DockerExecutor) Test(ctx context.Context) error {
 }
 
 func (e *DockerExecutor) Reload(ctx context.Context) error {
-	if err := e.ensureContainer(ctx); err != nil {
+	if err := e.EnsureRuntime(ctx, false); err != nil {
 		return err
 	}
 	output, err := e.Runner.Run(ctx, e.DockerBinary, "exec", e.ContainerName, "nginx", "-s", "reload")
@@ -78,19 +85,39 @@ func (e *DockerExecutor) Reload(ctx context.Context) error {
 	return nil
 }
 
-func (e *DockerExecutor) ensureContainer(ctx context.Context) error {
+func (e *DockerExecutor) EnsureRuntime(ctx context.Context, recreate bool) error {
 	output, err := e.Runner.Run(ctx, e.DockerBinary, "inspect", "-f", "{{.State.Running}}", e.ContainerName)
 	if err == nil {
+		if recreate {
+			if err := e.removeContainer(ctx); err != nil {
+				return err
+			}
+			return e.runContainer(ctx)
+		}
 		if strings.TrimSpace(string(output)) == "true" {
 			return nil
 		}
-		startOutput, startErr := e.Runner.Run(ctx, e.DockerBinary, "start", e.ContainerName)
-		if startErr != nil {
-			return fmt.Errorf("docker start nginx failed: %w: %s", startErr, string(startOutput))
+		if err := e.removeContainer(ctx); err != nil {
+			return err
 		}
-		return nil
+		return e.runContainer(ctx)
 	}
+	return e.runContainer(ctx)
+}
 
+func (e *DockerExecutor) removeContainer(ctx context.Context) error {
+	output, err := e.Runner.Run(ctx, e.DockerBinary, "rm", "-f", e.ContainerName)
+	if err != nil {
+		text := string(output)
+		if strings.Contains(text, "No such container") {
+			return nil
+		}
+		return fmt.Errorf("docker rm nginx failed: %w: %s", err, text)
+	}
+	return nil
+}
+
+func (e *DockerExecutor) runContainer(ctx context.Context) error {
 	runArgs := []string{
 		"run", "-d",
 		"--name", e.ContainerName,
@@ -131,6 +158,28 @@ func (m *Manager) Apply(ctx context.Context, content string) error {
 		_ = os.Remove(backupPath)
 	}
 	return nil
+}
+
+func (m *Manager) EnsureRuntime(ctx context.Context, recreate bool) error {
+	if m.Executor == nil {
+		return errors.New("executor 未配置")
+	}
+	return m.Executor.EnsureRuntime(ctx, recreate)
+}
+
+func (m *Manager) CurrentChecksum() (string, error) {
+	if m.RouteConfigPath == "" {
+		return "", errors.New("route config path 不能为空")
+	}
+	data, err := os.ReadFile(m.RouteConfigPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return "", nil
+		}
+		return "", err
+	}
+	sum := sha256.Sum256(data)
+	return hex.EncodeToString(sum[:]), nil
 }
 
 type ExecutorOptions struct {

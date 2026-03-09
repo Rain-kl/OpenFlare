@@ -22,12 +22,24 @@ type fakeClient struct {
 	reports []protocol.ApplyLogPayload
 }
 
+type fakeManager struct {
+	applyErr           error
+	currentChecksum    string
+	currentChecksumErr error
+	ensureCalls        []bool
+	applyContents      []string
+}
+
 func (f *fakeExecutor) Test(ctx context.Context) error {
 	return f.testErr
 }
 
 func (f *fakeExecutor) Reload(ctx context.Context) error {
 	return f.reloadErr
+}
+
+func (f *fakeExecutor) EnsureRuntime(ctx context.Context, recreate bool) error {
+	return nil
 }
 
 func (f *fakeClient) GetActiveConfig(ctx context.Context) (*protocol.ActiveConfigResponse, error) {
@@ -37,6 +49,20 @@ func (f *fakeClient) GetActiveConfig(ctx context.Context) (*protocol.ActiveConfi
 func (f *fakeClient) ReportApplyLog(ctx context.Context, payload protocol.ApplyLogPayload) error {
 	f.reports = append(f.reports, payload)
 	return nil
+}
+
+func (m *fakeManager) Apply(ctx context.Context, content string) error {
+	m.applyContents = append(m.applyContents, content)
+	return m.applyErr
+}
+
+func (m *fakeManager) EnsureRuntime(ctx context.Context, recreate bool) error {
+	m.ensureCalls = append(m.ensureCalls, recreate)
+	return nil
+}
+
+func (m *fakeManager) CurrentChecksum() (string, error) {
+	return m.currentChecksum, m.currentChecksumErr
 }
 
 func TestSyncOnceSuccess(t *testing.T) {
@@ -146,5 +172,43 @@ func TestSyncOnceRollbackOnNginxFailure(t *testing.T) {
 	}
 	if len(client.reports) != 1 || client.reports[0].Result != ApplyResultFailed {
 		t.Fatal("expected failed apply report to be sent")
+	}
+}
+
+func TestSyncOnStartupRecreatesRuntimeWhenChecksumMatches(t *testing.T) {
+	client := &fakeClient{
+		config: protocol.ActiveConfigResponse{
+			Version:        "20260309-003",
+			Checksum:       "checksum-3",
+			RenderedConfig: "server { listen 82; }",
+			CreatedAt:      time.Now().Format(time.RFC3339),
+		},
+	}
+	stateStore := state.NewStore(filepath.Join(t.TempDir(), "state.json"))
+	nodeID, err := stateStore.EnsureNodeID()
+	if err != nil {
+		t.Fatalf("EnsureNodeID failed: %v", err)
+	}
+	if err = stateStore.Save(&state.Snapshot{NodeID: nodeID}); err != nil {
+		t.Fatalf("failed to seed state: %v", err)
+	}
+
+	manager := &fakeManager{currentChecksum: "checksum-3"}
+	service := New(client, manager, stateStore)
+	if err = service.SyncOnStartup(context.Background()); err != nil {
+		t.Fatalf("SyncOnStartup failed: %v", err)
+	}
+	if len(manager.ensureCalls) != 1 || !manager.ensureCalls[0] {
+		t.Fatal("expected startup sync to recreate runtime")
+	}
+	if len(client.reports) != 0 {
+		t.Fatal("expected no apply report when checksum already matches")
+	}
+	snapshot, err := stateStore.Load()
+	if err != nil {
+		t.Fatalf("failed to load state: %v", err)
+	}
+	if snapshot.CurrentChecksum != "checksum-3" || snapshot.CurrentVersion != "20260309-003" {
+		t.Fatal("expected snapshot to be refreshed from active config")
 	}
 }

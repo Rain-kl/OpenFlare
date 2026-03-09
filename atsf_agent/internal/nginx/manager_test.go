@@ -50,6 +50,16 @@ func TestPathExecutorCommands(t *testing.T) {
 	}
 }
 
+func TestPathExecutorEnsureRuntimeNoop(t *testing.T) {
+	executor := &PathExecutor{
+		Path:   "/opt/nginx/sbin/nginx",
+		Runner: &fakeRunner{},
+	}
+	if err := executor.EnsureRuntime(context.Background(), true); err != nil {
+		t.Fatalf("EnsureRuntime failed: %v", err)
+	}
+}
+
 func TestDockerExecutorStartsContainerWhenMissing(t *testing.T) {
 	runner := &fakeRunner{
 		runFn: func(name string, args ...string) ([]byte, error) {
@@ -103,14 +113,48 @@ func TestDockerExecutorStartsStoppedContainer(t *testing.T) {
 		t.Fatalf("Reload failed: %v", err)
 	}
 
+	if len(runner.calls) != 4 {
+		t.Fatalf("expected 4 calls, got %d", len(runner.calls))
+	}
+	if runner.calls[1].args[0] != "rm" {
+		t.Fatalf("expected docker rm on second call, got %#v", runner.calls[1])
+	}
+	if runner.calls[2].args[0] != "run" {
+		t.Fatalf("expected docker run on third call, got %#v", runner.calls[2])
+	}
+	if runner.calls[3].args[0] != "exec" {
+		t.Fatalf("expected docker exec on fourth call, got %#v", runner.calls[3])
+	}
+}
+
+func TestDockerExecutorRecreatesContainerOnStartup(t *testing.T) {
+	runner := &fakeRunner{
+		runFn: func(name string, args ...string) ([]byte, error) {
+			if len(args) >= 1 && args[0] == "inspect" {
+				return []byte("true"), nil
+			}
+			return []byte("ok"), nil
+		},
+	}
+	executor := &DockerExecutor{
+		DockerBinary:   "docker",
+		ContainerName:  "atsflare-nginx",
+		Image:          "nginx:stable-alpine",
+		RouteConfigDir: filepath.Clean("/tmp/routes"),
+		Runner:         runner,
+	}
+
+	if err := executor.EnsureRuntime(context.Background(), true); err != nil {
+		t.Fatalf("EnsureRuntime failed: %v", err)
+	}
 	if len(runner.calls) != 3 {
 		t.Fatalf("expected 3 calls, got %d", len(runner.calls))
 	}
-	if runner.calls[1].args[0] != "start" {
-		t.Fatalf("expected docker start on second call, got %#v", runner.calls[1])
+	if runner.calls[1].args[0] != "rm" {
+		t.Fatalf("expected docker rm on second call, got %#v", runner.calls[1])
 	}
-	if runner.calls[2].args[0] != "exec" {
-		t.Fatalf("expected docker exec on third call, got %#v", runner.calls[2])
+	if runner.calls[2].args[0] != "run" {
+		t.Fatalf("expected docker run on third call, got %#v", runner.calls[2])
 	}
 }
 

@@ -67,6 +67,8 @@ Agent 使用 Go 单体程序：
 * 未配置 `nginx_path` 时，默认通过 Docker 运行独立 Nginx 容器
 * 管理本机 Nginx 路由配置文件和 reload
 * Agent 生成资源默认统一落在 `./data`，也允许通过单个基路径配置覆盖
+* Agent 启动时会校验本地路由文件哈希与控制面激活版本是否一致
+* Docker 模式启动时会重建独立 Nginx 容器，避免复用故障容器
 
 ### Nginx 管理边界
 

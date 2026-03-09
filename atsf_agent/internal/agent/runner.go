@@ -23,10 +23,10 @@ func (r *Runner) Run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	if err = r.HeartbeatService.Register(ctx, r.nodePayload(nodeID)); err != nil {
+	if err = r.SyncService.SyncOnStartup(ctx); err != nil {
 		return err
 	}
-	if err = r.SyncService.SyncOnce(ctx); err != nil {
+	if err = r.HeartbeatService.Register(ctx, r.nodePayload(nodeID)); err != nil {
 		return err
 	}
 

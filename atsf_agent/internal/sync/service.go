@@ -3,7 +3,6 @@ package sync
 import (
 	"context"
 
-	"atsflare-agent/internal/nginx"
 	"atsflare-agent/internal/protocol"
 	"atsflare-agent/internal/state"
 )
@@ -18,13 +17,19 @@ type ConfigClient interface {
 	ReportApplyLog(ctx context.Context, payload protocol.ApplyLogPayload) error
 }
 
+type NginxManager interface {
+	Apply(ctx context.Context, content string) error
+	EnsureRuntime(ctx context.Context, recreate bool) error
+	CurrentChecksum() (string, error)
+}
+
 type Service struct {
 	client       ConfigClient
-	nginxManager *nginx.Manager
+	nginxManager NginxManager
 	stateStore   *state.Store
 }
 
-func New(client ConfigClient, nginxManager *nginx.Manager, stateStore *state.Store) *Service {
+func New(client ConfigClient, nginxManager NginxManager, stateStore *state.Store) *Service {
 	return &Service{
 		client:       client,
 		nginxManager: nginxManager,
@@ -33,6 +38,14 @@ func New(client ConfigClient, nginxManager *nginx.Manager, stateStore *state.Sto
 }
 
 func (s *Service) SyncOnce(ctx context.Context) error {
+	return s.sync(ctx, false)
+}
+
+func (s *Service) SyncOnStartup(ctx context.Context) error {
+	return s.sync(ctx, true)
+}
+
+func (s *Service) sync(ctx context.Context, startup bool) error {
 	snapshot, err := s.stateStore.Load()
 	if err != nil {
 		return err
@@ -41,7 +54,22 @@ func (s *Service) SyncOnce(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	if snapshot.CurrentVersion == config.Version && snapshot.CurrentChecksum == config.Checksum {
+	currentChecksum, err := s.nginxManager.CurrentChecksum()
+	if err != nil {
+		return err
+	}
+	if currentChecksum == config.Checksum {
+		if startup {
+			if err = s.nginxManager.EnsureRuntime(ctx, true); err != nil {
+				return err
+			}
+		}
+		snapshot.CurrentVersion = config.Version
+		snapshot.CurrentChecksum = config.Checksum
+		snapshot.LastError = ""
+		return s.stateStore.Save(snapshot)
+	}
+	if snapshot.CurrentVersion == config.Version && snapshot.CurrentChecksum == config.Checksum && !startup {
 		return nil
 	}
 	if err = s.nginxManager.Apply(ctx, config.RenderedConfig); err != nil {
