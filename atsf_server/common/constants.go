@@ -45,6 +45,8 @@ var WeChatAccountQRCodeImageURL = ""
 
 var TurnstileSiteKey = ""
 var TurnstileSecretKey = ""
+var AgentToken = ""
+var NodeOfflineThreshold = 2 * time.Minute
 
 const (
 	RoleGuestUser  = 0

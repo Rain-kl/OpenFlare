@@ -50,6 +50,9 @@ func init() {
 	if os.Getenv("UPLOAD_PATH") != "" {
 		UploadPath = os.Getenv("UPLOAD_PATH")
 	}
+	if os.Getenv("AGENT_TOKEN") != "" {
+		AgentToken = os.Getenv("AGENT_TOKEN")
+	}
 	if *LogDir != "" {
 		var err error
 		*LogDir, err = filepath.Abs(*LogDir)

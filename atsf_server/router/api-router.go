@@ -78,5 +78,23 @@ func SetApiRouter(router *gin.Engine) {
 			configVersionRoute.POST("/publish", controller.PublishConfigVersion)
 			configVersionRoute.PUT("/:id/activate", controller.ActivateConfigVersion)
 		}
+		nodeRoute := apiRouter.Group("/nodes")
+		nodeRoute.Use(middleware.AdminAuth())
+		{
+			nodeRoute.GET("/", controller.GetNodes)
+		}
+		applyLogRoute := apiRouter.Group("/apply-logs")
+		applyLogRoute.Use(middleware.AdminAuth())
+		{
+			applyLogRoute.GET("/", controller.GetApplyLogs)
+		}
+		agentRoute := apiRouter.Group("/agent")
+		agentRoute.Use(middleware.AgentAuth())
+		{
+			agentRoute.POST("/nodes/register", controller.AgentRegister)
+			agentRoute.POST("/nodes/heartbeat", controller.AgentHeartbeat)
+			agentRoute.GET("/config-versions/active", controller.AgentGetActiveConfig)
+			agentRoute.POST("/apply-logs", controller.AgentReportApplyLog)
+		}
 	}
 }

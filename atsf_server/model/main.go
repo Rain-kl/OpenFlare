@@ -72,6 +72,14 @@ func InitDB() (err error) {
 		if err != nil {
 			return err
 		}
+		err = db.AutoMigrate(&Node{})
+		if err != nil {
+			return err
+		}
+		err = db.AutoMigrate(&ApplyLog{})
+		if err != nil {
+			return err
+		}
 		err = createRootAccountIfNeed()
 		return err
 	} else {
