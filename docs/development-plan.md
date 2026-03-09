@@ -150,6 +150,7 @@
 * 写入前会备份旧路由配置文件
 * `nginx -t` 或 reload 失败后会回滚
 * 回滚结果会回传给 Server
+* Agent 可使用独立 Nginx 路径或 Docker Nginx 容器运行
 
 ### Phase 4 检查项
 

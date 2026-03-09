@@ -1,0 +1,14 @@
+{
+  "server_url": "http://127.0.0.1:3000",
+  "agent_token": "123",
+  "node_name": "edge-01",
+  "node_ip": "10.0.0.8",
+  "agent_version": "0.1.0",
+  "nginx_version": "1.25.5",
+  "route_config_path": "./etc/nginx/conf.d/atsflare_routes.conf",
+  "state_path": "./var/lib/atsflare/agent-state.json",
+  "nginx_binary": "nginx",
+  "heartbeat_interval": 30000000000,
+  "sync_interval": 30000000000,
+  "request_timeout": 10000000000
+}

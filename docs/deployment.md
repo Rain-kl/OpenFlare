@@ -70,9 +70,11 @@ go run .
   "node_ip": "10.0.0.8",
   "agent_version": "0.1.0",
   "nginx_version": "1.25.5",
+  "nginx_path": "/opt/nginx/sbin/nginx",
+  "nginx_container_name": "atsflare-nginx",
+  "nginx_docker_image": "nginx:stable-alpine",
   "route_config_path": "/etc/nginx/conf.d/atsflare_routes.conf",
   "state_path": "/var/lib/atsflare/agent-state.json",
-  "nginx_binary": "nginx",
   "heartbeat_interval": 30000000000,
   "sync_interval": 30000000000,
   "request_timeout": 10000000000
@@ -84,6 +86,9 @@ go run .
 - 时间字段单位是纳秒，因为当前实现直接使用 Go 的 `time.Duration` JSON 反序列化
 - `agent_token` 必须与 Server 侧 `AGENT_TOKEN` 完全一致
 - `route_config_path` 只应指向 ATSFlare 独立管理的路由文件
+- `nginx_path` 用于显式指定独立 Nginx 可执行文件路径
+- 如果未指定 `nginx_path`，Agent 会尝试通过 Docker 启动独立 Nginx 容器
+- Docker 模式默认使用 `nginx_container_name` 和 `nginx_docker_image`
 
 ### 3.2 启动 Agent
 
@@ -126,9 +131,10 @@ go build -o atsflare-agent ./cmd/agent
 1. Agent 首次注册节点
 2. Agent 拉取当前激活版本
 3. Agent 写入 `route_config_path`
-4. Agent 执行 `nginx -t`
-5. Agent 执行 `nginx -s reload`
-6. Agent 上报成功结果
+4. Agent 使用 `nginx_path` 指向的独立 Nginx，或自动准备 Docker Nginx 容器
+5. Agent 执行 `nginx -t`
+6. Agent 执行 `nginx -s reload`
+7. Agent 上报成功结果
 
 ### 4.4 验证管理端状态
 
@@ -181,6 +187,7 @@ npm run build
 - Agent 运行器当前任一心跳或同步失败会直接退出，需要结合进程管理器拉起
 - 尚未提供 systemd unit 文件
 - 尚未提供 Docker Compose 或一键部署脚本
+- Docker 模式当前默认直接启动单容器 Nginx，挂载与端口策略仍是 MVP 水平
 - 前端页面已可用，但交互和校验仍是 MVP 水平
 - 目前联调说明以手工步骤为主，未内置完整自动化端到端脚本
 

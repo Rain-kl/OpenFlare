@@ -33,9 +33,13 @@ func main() {
 		HeartbeatService: heartbeat.New(client),
 		SyncService: syncservice.New(client, &nginx.Manager{
 			RouteConfigPath: cfg.RouteConfigPath,
-			Executor: &nginx.ShellExecutor{
-				Binary: cfg.NginxBinary,
-			},
+			Executor: nginx.NewExecutor(nginx.ExecutorOptions{
+				NginxPath:       cfg.NginxPath,
+				DockerBinary:    cfg.DockerBinary,
+				ContainerName:   cfg.NginxContainerName,
+				Image:           cfg.NginxDockerImage,
+				RouteConfigPath: cfg.RouteConfigPath,
+			}),
 		}, stateStore),
 	}
 

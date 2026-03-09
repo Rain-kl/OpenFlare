@@ -1,0 +1,6 @@
+{
+  "node_id": "node-272a017338e3b01c",
+  "current_version": "",
+  "current_checksum": "",
+  "last_error": "nginx -t failed: exec: \"nginx\": executable file not found in $PATH: "
+}

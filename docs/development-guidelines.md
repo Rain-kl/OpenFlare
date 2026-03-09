@@ -47,7 +47,9 @@ Agent 放在 `atsf_agent`，使用 Go 单体程序开发。
 
 * 单二进制
 * systemd 运行
-* 本地调用 `nginx`
+* 优先调用独立 Nginx，不依赖系统全局 Nginx
+* 支持通过 `nginx_path` 显式指定独立 Nginx 可执行文件
+* 未指定 `nginx_path` 时，默认通过 Docker 启动独立 Nginx 容器
 * 负责本机 Nginx 路由配置写入、校验、reload、状态上报
 
 ### 2.3 Nginx 配置边界
@@ -88,6 +90,7 @@ Agent 放在 `atsf_agent`，使用 Go 单体程序开发。
 * 调用 `nginx -t` 和 `nginx -s reload`
 * 失败回滚
 * 上报应用结果
+* 管理独立 Nginx 路径或 Docker Nginx 容器
 
 ### 3.3 `docs`
 
@@ -260,6 +263,8 @@ Agent 必须满足以下行为：
 * 校验通过后执行 `nginx -s reload`
 * 失败时回滚备份并再次校验和 reload
 * 上报最终应用结果
+* 优先使用 `nginx_path`
+* 未配置 `nginx_path` 时自动准备并使用 Docker Nginx 容器
 
 ### 7.3 容错规范
 

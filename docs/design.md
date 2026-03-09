@@ -62,7 +62,9 @@ Agent 使用 Go 单体程序：
 
 * 单二进制
 * systemd 管理
-* 本地调用 `nginx`
+* 优先调用独立 Nginx，而不是依赖系统全局 Nginx
+* 显式配置 `nginx_path` 时，直接调用该路径下的 Nginx
+* 未配置 `nginx_path` 时，默认通过 Docker 运行独立 Nginx 容器
 * 管理本机 Nginx 路由配置文件和 reload
 
 ### Nginx 管理边界
@@ -71,6 +73,7 @@ Agent 使用 Go 单体程序：
 
 * 重点生成独立的 Nginx 路由配置文件，例如 `/etc/nginx/conf.d/atsflare_routes.conf`
 * `nginx.conf`、TLS 证书、缓存细节、upstream 高级配置先保持节点本地静态配置
+* Agent 可以管理独立安装路径下的 Nginx，或者独立 Docker Nginx 容器
 
 也就是说，MVP 先把 Nginx 当成“可集中配置的反向代理”，不是完整网关平台。
 
