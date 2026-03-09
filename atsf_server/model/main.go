@@ -64,6 +64,14 @@ func InitDB() (err error) {
 		if err != nil {
 			return err
 		}
+		err = db.AutoMigrate(&ProxyRoute{})
+		if err != nil {
+			return err
+		}
+		err = db.AutoMigrate(&ConfigVersion{})
+		if err != nil {
+			return err
+		}
 		err = createRootAccountIfNeed()
 		return err
 	} else {

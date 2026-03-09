@@ -1,0 +1,103 @@
+package service
+
+import (
+	"errors"
+	"gin-template/model"
+	"net/url"
+	"strings"
+)
+
+type ProxyRouteInput struct {
+	Domain    string `json:"domain"`
+	OriginURL string `json:"origin_url"`
+	Enabled   bool   `json:"enabled"`
+	Remark    string `json:"remark"`
+}
+
+func ListProxyRoutes() ([]*model.ProxyRoute, error) {
+	return model.ListProxyRoutes()
+}
+
+func CreateProxyRoute(input ProxyRouteInput) (*model.ProxyRoute, error) {
+	route, err := buildProxyRoute(nil, input)
+	if err != nil {
+		return nil, err
+	}
+	if err = route.Insert(); err != nil {
+		if isUniqueConstraintError(err) {
+			return nil, errors.New("域名已存在")
+		}
+		return nil, err
+	}
+	return route, nil
+}
+
+func UpdateProxyRoute(id uint, input ProxyRouteInput) (*model.ProxyRoute, error) {
+	route, err := model.GetProxyRouteByID(id)
+	if err != nil {
+		return nil, err
+	}
+	route, err = buildProxyRoute(route, input)
+	if err != nil {
+		return nil, err
+	}
+	if err = route.Update(); err != nil {
+		if isUniqueConstraintError(err) {
+			return nil, errors.New("域名已存在")
+		}
+		return nil, err
+	}
+	return route, nil
+}
+
+func DeleteProxyRoute(id uint) error {
+	route, err := model.GetProxyRouteByID(id)
+	if err != nil {
+		return err
+	}
+	return route.Delete()
+}
+
+func buildProxyRoute(route *model.ProxyRoute, input ProxyRouteInput) (*model.ProxyRoute, error) {
+	domain := strings.ToLower(strings.TrimSpace(input.Domain))
+	originURL := strings.TrimSpace(input.OriginURL)
+	remark := strings.TrimSpace(input.Remark)
+	if domain == "" {
+		return nil, errors.New("域名不能为空")
+	}
+	if strings.Contains(domain, "://") || strings.Contains(domain, "/") {
+		return nil, errors.New("域名格式不合法")
+	}
+	if err := validateOriginURL(originURL); err != nil {
+		return nil, err
+	}
+	if route == nil {
+		route = &model.ProxyRoute{}
+	}
+	route.Domain = domain
+	route.OriginURL = originURL
+	route.Enabled = input.Enabled
+	route.Remark = remark
+	return route, nil
+}
+
+func validateOriginURL(raw string) error {
+	if raw == "" {
+		return errors.New("源站地址不能为空")
+	}
+	parsed, err := url.ParseRequestURI(raw)
+	if err != nil {
+		return errors.New("源站地址格式不合法")
+	}
+	if parsed.Scheme != "http" && parsed.Scheme != "https" {
+		return errors.New("源站地址必须以 http:// 或 https:// 开头")
+	}
+	if parsed.Host == "" {
+		return errors.New("源站地址格式不合法")
+	}
+	return nil
+}
+
+func isUniqueConstraintError(err error) bool {
+	return err != nil && strings.Contains(strings.ToLower(err.Error()), "unique")
+}

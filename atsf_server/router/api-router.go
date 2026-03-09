@@ -62,5 +62,21 @@ func SetApiRouter(router *gin.Engine) {
 			fileRoute.POST("/", middleware.UploadRateLimit(), controller.UploadFile)
 			fileRoute.DELETE("/:id", controller.DeleteFile)
 		}
+		proxyRoute := apiRouter.Group("/proxy-routes")
+		proxyRoute.Use(middleware.AdminAuth())
+		{
+			proxyRoute.GET("/", controller.GetProxyRoutes)
+			proxyRoute.POST("/", controller.CreateProxyRoute)
+			proxyRoute.PUT("/:id", controller.UpdateProxyRoute)
+			proxyRoute.DELETE("/:id", controller.DeleteProxyRoute)
+		}
+		configVersionRoute := apiRouter.Group("/config-versions")
+		configVersionRoute.Use(middleware.AdminAuth())
+		{
+			configVersionRoute.GET("/", controller.GetConfigVersions)
+			configVersionRoute.GET("/active", controller.GetActiveConfigVersion)
+			configVersionRoute.POST("/publish", controller.PublishConfigVersion)
+			configVersionRoute.PUT("/:id/activate", controller.ActivateConfigVersion)
+		}
 	}
 }

@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 var (
@@ -26,7 +27,9 @@ func printHelp() {
 }
 
 func init() {
-	flag.Parse()
+	if !strings.HasSuffix(os.Args[0], ".test") {
+		flag.Parse()
+	}
 
 	if *PrintVersion {
 		fmt.Println(Version)
