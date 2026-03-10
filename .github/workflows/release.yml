@@ -23,7 +23,11 @@ jobs:
       - name: Resolve version metadata
         id: version
         run: |
-          VERSION="$(git describe --tags)"
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            VERSION="${GITHUB_REF_NAME}"
+          else
+            VERSION="$(git describe --tags)"
+          fi
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           if [[ "$VERSION" =~ ^v[0-9]+(\.[0-9]+)*$ ]]; then
             echo "is_prerelease=false" >> "$GITHUB_OUTPUT"
@@ -164,10 +168,11 @@ jobs:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
           ASSET_NAME: ${{ matrix.asset_name }}
+          VERSION: ${{ needs.prepare.outputs.version }}
         run: |
           go mod download
           mkdir -p ../dist
-          go build -trimpath -ldflags "-s -w" -o "../dist/$ASSET_NAME" ./cmd/agent
+          go build -trimpath -ldflags "-s -w -X 'atsflare-agent/internal/config.AgentVersion=$VERSION'" -o "../dist/$ASSET_NAME" ./cmd/agent
 
       - name: Upload Agent Artifact
         uses: actions/upload-artifact@v4

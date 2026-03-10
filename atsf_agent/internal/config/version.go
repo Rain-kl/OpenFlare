@@ -1,3 +1,3 @@
 package config
 
-const AgentVersion = "0.3.0"
+var AgentVersion = "0.3.0"

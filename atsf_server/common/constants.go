@@ -8,7 +8,7 @@ import (
 )
 
 var StartTime = time.Now().Unix() // unit: second
-var Version = "v0.2.0"            // this hard coding will be replaced automatically when building, no need to manually change
+var Version = "dev"               // release builds inject the tag version via ldflags
 var SystemName = "ATSFlare"
 var ServerAddress = "http://localhost:3000"
 var Footer = ""
