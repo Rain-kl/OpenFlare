@@ -254,8 +254,10 @@ func (m *Manager) backup() (*backupState, error) {
 	if err := os.MkdirAll(filepath.Dir(m.RouteConfigPath), 0o755); err != nil {
 		return nil, err
 	}
-	if err := os.MkdirAll(m.CertDir, 0o755); err != nil {
-		return nil, err
+	if m.CertDir != "" {
+		if err := os.MkdirAll(m.CertDir, 0o755); err != nil {
+			return nil, err
+		}
 	}
 	state := &backupState{}
 	data, err := os.ReadFile(m.RouteConfigPath)
@@ -284,6 +286,9 @@ func (m *Manager) restore(state *backupState) error {
 	} else if err := os.Remove(m.RouteConfigPath); err != nil && !os.IsNotExist(err) {
 		return err
 	}
+	if m.CertDir == "" {
+		return nil
+	}
 	if err := os.RemoveAll(m.CertDir); err != nil && !os.IsNotExist(err) {
 		return err
 	}
@@ -303,6 +308,9 @@ func (m *Manager) restore(state *backupState) error {
 }
 
 func (m *Manager) writeSupportFiles(supportFiles []protocol.SupportFile) error {
+	if m.CertDir == "" {
+		return nil
+	}
 	if err := os.RemoveAll(m.CertDir); err != nil && !os.IsNotExist(err) {
 		return err
 	}

@@ -4,7 +4,9 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
+	pathpkg "path"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -70,18 +72,18 @@ func applyDefaults(cfg *Config, baseDir string) {
 		cfg.DataDir = filepath.Join(baseDir, "data")
 	}
 	if cfg.NginxPath == "" {
-		cfg.RouteConfigPath = filepath.Join(cfg.DataDir, defaultDockerRouteConfigRelativePath)
-		cfg.StatePath = filepath.Join(cfg.DataDir, defaultDockerStateRelativePath)
+		cfg.RouteConfigPath = joinManagedPath(cfg.DataDir, defaultDockerRouteConfigRelativePath)
+		cfg.StatePath = joinManagedPath(cfg.DataDir, defaultDockerStateRelativePath)
 	} else {
 		if cfg.RouteConfigPath == "" {
-			cfg.RouteConfigPath = filepath.Join(cfg.DataDir, defaultDockerRouteConfigRelativePath)
+			cfg.RouteConfigPath = joinManagedPath(cfg.DataDir, defaultDockerRouteConfigRelativePath)
 		}
 		if cfg.StatePath == "" {
-			cfg.StatePath = filepath.Join(cfg.DataDir, defaultDockerStateRelativePath)
+			cfg.StatePath = joinManagedPath(cfg.DataDir, defaultDockerStateRelativePath)
 		}
 	}
 	if cfg.CertDir == "" {
-		cfg.CertDir = filepath.Join(cfg.DataDir, defaultCertDirRelativePath)
+		cfg.CertDir = joinManagedPath(cfg.DataDir, defaultCertDirRelativePath)
 	}
 	if cfg.NginxCertDir == "" {
 		if cfg.NginxPath != "" {
@@ -99,6 +101,36 @@ func applyDefaults(cfg *Config, baseDir string) {
 	if cfg.RequestTimeout <= 0 {
 		cfg.RequestTimeout = 10 * time.Second
 	}
+	normalizeManagedPaths(cfg)
+}
+
+func normalizeManagedPaths(cfg *Config) {
+	if cfg == nil {
+		return
+	}
+	if usesSlashPath(cfg.DataDir) {
+		cfg.DataDir = filepath.ToSlash(cfg.DataDir)
+	}
+	if usesSlashPath(cfg.RouteConfigPath) {
+		cfg.RouteConfigPath = filepath.ToSlash(cfg.RouteConfigPath)
+	}
+	if usesSlashPath(cfg.CertDir) {
+		cfg.CertDir = filepath.ToSlash(cfg.CertDir)
+	}
+	if usesSlashPath(cfg.StatePath) {
+		cfg.StatePath = filepath.ToSlash(cfg.StatePath)
+	}
+}
+
+func usesSlashPath(path string) bool {
+	return strings.HasPrefix(path, "/")
+}
+
+func joinManagedPath(base string, relative string) string {
+	if usesSlashPath(base) {
+		return pathpkg.Join(filepath.ToSlash(base), relative)
+	}
+	return filepath.Join(base, relative)
 }
 
 func validate(cfg *Config) error {

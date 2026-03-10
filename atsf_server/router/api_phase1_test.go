@@ -14,8 +14,8 @@ import (
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
-	"mime/multipart"
 	"math/big"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -213,6 +213,7 @@ func setupTestDB(t *testing.T) {
 	t.Helper()
 	dbPath := filepath.Join(t.TempDir(), "phase1.db")
 	common.SQLitePath = dbPath
+	common.AgentToken = "phase1-agent-token"
 	if err := model.InitDB(); err != nil {
 		t.Fatalf("failed to init db: %v", err)
 	}

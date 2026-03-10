@@ -27,7 +27,8 @@ func printHelp() {
 }
 
 func init() {
-	if !strings.HasSuffix(os.Args[0], ".test") {
+	executableName := strings.ToLower(filepath.Base(os.Args[0]))
+	if !strings.Contains(executableName, ".test") {
 		flag.Parse()
 	}
 
