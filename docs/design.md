@@ -57,12 +57,13 @@
 * 控制面新增证书管理与域名管理页面
 * 在反代规则编辑时，输入域名后自动匹配可用证书（包含通配符匹配）
 
-**2.5.3 Agent Token 管理**
+**2.5.3 Agent 管理与自动发现**
 
-* 新增 `agent_tokens` 表：支持创建多个命名 Token，记录备注、创建人、过期时间
-* 认证中间件改为查表验证，不再依赖单个全局环境变量
-* 提供 Token CRUD 管理 API 及前端页面
-* 旧的全局 Token 环境变量作为引导 Token，仅在数据库无 Token 记录时生效（bootstrap 模式）
+* 管理端支持手工创建节点、编辑节点名、删除节点
+* `nodes` 表增加 Agent 鉴权 Token 与自动发现 Token 字段
+* 首次接入不再依赖全局环境变量 Token，而是依赖管理端为节点生成的自动发现 Token
+* Agent 首次注册成功后，Server 下发节点专属 Agent Token，Agent 本地完成 Token 置换
+* Agent 默认自动探测主机名与 IP，也允许通过配置覆盖
 
 **2.5.4 路由增强**
 
@@ -284,20 +285,20 @@ Agent 使用 Go 单体程序：
 * `created_at`
 * `updated_at`
 
-### 5.7 agent_tokens（第二版新增）
+### 5.7 nodes（第二版扩展）
 
-Agent Token 管理表，替代全局单一 Token。
+节点表在第二版增加节点管理与自动发现字段。
 
-建议字段：
+新增字段建议：
 
-* `id`
-* `token` — Token 值，唯一，不可变
-* `name` — Token 备注名称
-* `created_by` — 创建人
-* `expires_at` — 过期时间（nullable，null 表示永不过期）
-* `is_active` — 是否有效
-* `created_at`
-* `updated_at`
+* `agent_token` — 节点专属 Agent Token，用于注册完成后的正式鉴权
+* `discovery_token` — 自动发现 Token，仅用于首次接入
+
+约束：
+
+* `agent_token` 与 `discovery_token` 都应为随机生成值
+* `discovery_token` 仅用于首次接入，注册成功后应失效或清空
+* 删除节点后，该节点关联的 Token 必须立即失效
 
 ---
 
@@ -553,8 +554,9 @@ Agent（第一版）：
 
 Agent（第二版）：
 
-* Token 改为查 `agent_tokens` 表验证
-* 环境变量 Token 仅作 bootstrap 引导 Token，数据库有记录时不再使用
+* Agent 正式鉴权改为查 `nodes.agent_token`
+* 首次注册使用 `nodes.discovery_token`
+* 不再依赖全局环境变量 Agent Token
 * 后续可升级 mTLS
 
 ---
@@ -620,19 +622,23 @@ Agent（第二版）：
 * 错误信息
 * 时间
 
-### 12.6 Token 管理页（第二版新增）
+### 12.6 节点管理页（第二版增强）
 
 展示：
 
-* Token 名称
-* 创建人
-* 过期时间
-* 是否有效
+* 节点名
+* Node ID
+* 自动发现 Token（仅待接入节点展示）
+* 在线状态
+* 当前版本
+* 最后心跳时间
+* 最近错误
 
 动作：
 
-* 创建 Token
-* 撤销 Token
+* 创建节点
+* 编辑节点名
+* 删除节点
 
 ### 12.7 证书管理页（第二版新增）
 
@@ -697,18 +703,17 @@ atsf_server/
   controller/
     tls_certificate.go # 证书管理
     managed_domain.go  # 域名管理
-    agent_token.go     # Token 管理
+    node.go            # 节点管理
   model/
     tls_certificate.go # TLSCertificate 模型
     managed_domain.go  # ManagedDomain 模型
-    agent_token.go     # AgentToken 模型
   service/
     tls_certificate.go # 证书导入与匹配逻辑
     managed_domain.go  # 域名管理逻辑
-    agent_token.go     # Token 创建与验证
+    node.go            # 节点管理与自动发现逻辑
     renderer.go        # 抽离渲染逻辑（HTTPS 支持扩展）
   middleware/
-    agent-auth.go      # 改为查表验证
+    agent-auth.go      # 改为查节点专属 Token 验证
 ```
 
 ### Agent（第一版，已实现）
@@ -751,7 +756,7 @@ atsf_agent/
 
 1. HTTPS/TLS 支持（ProxyRoute 扩展字段 + 渲染器 + 前端表单）
 2. 域名管理与证书托管（managed_domains/tls_certificates + 证书导入 + 自动匹配）
-3. Agent Token 管理（agent_tokens 表 + 中间件改造 + 前端 Token 管理页）
+3. Agent 管理（节点 CRUD + discovery token + 节点专属 agent token）
 4. 路由增强（custom_headers 字段 + 渲染器注入 + 前端表单）
 5. 配置预览与变更摘要（preview 接口 + diff 接口 + 前端发布确认弹窗）
 
@@ -779,12 +784,12 @@ atsf_agent/
 
 * HTTPS 支持由控制面托管证书，但只支持导入，不做自动签发与自动续期
 * 第二版不做节点分组，所有节点继续消费同一份激活版本
-* Token 管理不做细粒度权限（如只读 Token），第二版所有 Token 权限一致
+* 节点专属 Token 不做额外权限分级，第二版仅区分 discovery token 与 agent token 两种用途
 * 路由自定义头不做模板变量，只支持静态 key-value，避免过早引入 DSL
 * 配置预览只展示渲染结果，不实际验证 Nginx 语法，真实校验仍由 Agent 完成
 
 第二版成功标准：
 
 ```text
-HTTPS 路由可生效 + 控制面可托管证书并按域名自动匹配（含通配符）+ Token 可在界面管理 + 发布前可预览变更
+HTTPS 路由可生效 + 控制面可托管证书并按域名自动匹配（含通配符）+ 节点可通过 discovery token 自动接入并完成 token 置换 + 发布前可预览变更
 ```

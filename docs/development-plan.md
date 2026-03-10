@@ -111,27 +111,30 @@ MVP 已于第一版完成。当前进入第二版迭代。
 * 通配符证书可匹配子域名（如 `api.example.com` 匹配 `*.example.com`）
 * 无匹配证书时前端给出明确提示
 
-### V2 Phase 3: Agent Token 管理
+### V2 Phase 3: Agent 管理
 
 目标：
 
-* 支持多个命名 Token
-* Token 可通过管理界面创建和撤销
-* 中间件改为查库验证
+* 实现对节点的增删改查
+* 实现节点自动发现机制
+
 
 交付：
 
-* `agent_tokens` 表与模型
 * agent-auth 中间件改造（查表验证）
-* 全局 Token 环境变量降级为 bootstrap 模式
-* Token CRUD API
-* 前端 Token 管理页
+* 移除全局 Token 环境变量, 节点不再通过该方式连接server
+* 引入自动发现TOKEN, 需要用户手动在节点页创建, 持有该TOKEN的节点会自动连接到SERVER
+* Node CRUD API
+* 前端 节点 管理页
 
 完成标准：
 
-* 新建 Token 后 Agent 可用该 Token 访问 Agent API
-* 撤销 Token 后 Agent 请求立即返回 401
-* 全局环境变量 Token 仅在数据库无有效记录时生效
+* 用户启动server后需要手动在节点页添加节点, 此时会生成随机TOKEN, 持有该TOKEN的节点可以加入server. server可以修改节点的名称
+* 用户可以编辑节点, 包括节点名
+* 删除节点后 Agent 请求立即返回 401
+* 节点配置文件不再要求填写节点名和IP地址, 节点名默认从主机名获取, IP也是自动获取. 手动指定则为覆盖
+* 节点配置文件agent_token为空, 自动发现TOKEN配置为server生成值后, 会自己向server注册, 注册后会进行TOKEN置换, 更新节点配置文件agent_token
+
 
 ### V2 Phase 4: 路由自定义头
 
@@ -175,7 +178,7 @@ MVP 已于第一版完成。当前进入第二版迭代。
 
 1. HTTPS/TLS 支持（对现有渲染链路影响最小，独立可测）
 2. 域名管理与证书自动匹配（与 HTTPS 强相关，尽早完成闭环）
-3. Agent Token 管理（安全性改善，早做早稳）
+3. Agent 管理（节点 CRUD + 自动发现 + token 置换）
 4. 路由自定义头（纯增量，对现有结构影响小）
 5. 配置预览与变更摘要（纯只读接口，最后补充）
 
@@ -205,10 +208,11 @@ MVP 已于第一版完成。当前进入第二版迭代。
 
 ### V2 Phase 3 检查项
 
-* 可通过管理界面创建 Token
-* 新 Token 可被 Agent 使用
-* 撤销 Token 后访问立即失败
-* 全局 Token 环境变量在数据库有记录时失效
+* 可通过管理界面创建节点并生成 discovery token
+* Agent 可使用 discovery token 自动接入并完成 agent token 置换
+* 用户可编辑节点名并删除节点
+* 删除节点后 Agent 请求立即失败
+* Agent 在未显式配置节点名/IP 时可自动探测
 
 ### V2 Phase 4 检查项
 

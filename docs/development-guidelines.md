@@ -15,7 +15,7 @@
 * HTTPS/TLS 路由支持
 * 证书托管（手动导入与文件导入）
 * 域名管理与证书自动匹配（支持 `*.example.com`）
-* Agent Token 管理
+* Agent 管理与自动发现
 * 路由自定义请求头
 * 配置预览与变更摘要
 
@@ -141,7 +141,10 @@ Agent 放在 `atsf_agent`，使用 Go 单体程序开发。
 
 * `tls_certificates` — 证书托管
 * `managed_domains` — 域名管理与证书绑定
-* `agent_tokens` — Agent Token 管理
+
+第二版扩展实体：
+
+* `nodes` — 增加 `agent_token`、`discovery_token`，用于节点管理与自动发现
 
 约束（全版本）：
 
@@ -150,8 +153,9 @@ Agent 放在 `atsf_agent`，使用 Go 单体程序开发。
 * `config_versions` 必须保存完整快照和渲染后的 Nginx 路由配置
 * 激活版本全局只能有一个，不引入分组维度
 * 回滚通过"激活旧版本"实现，不直接修改历史记录
-* `agent_tokens` 中的 Token 值不可更新，只能创建或撤销
 * 域名到证书匹配必须支持精确匹配和通配符匹配（如 `*.example.com`）
+* `nodes.discovery_token` 仅用于首次接入，接入成功后必须失效
+* 删除节点必须立即使该节点凭证失效
 
 如需新增表，必须先证明它服务于当前迭代版本的主链路。
 
@@ -210,10 +214,10 @@ Agent（第一版）：
 
 Agent（第二版）：
 
-* Token 改为查 `agent_tokens` 表验证
-* 环境变量 Token 降级为 bootstrap 模式：数据库存在有效 Token 记录时，环境变量 Token 不再有效
-* Token 创建时生成随机值，不允许外部传入
-* Token 值不可更新，仅支持撤销（设 `is_active=false`）
+* 首次接入使用 `discovery_token`
+* 注册成功后下发节点专属 `agent_token`
+* 后续请求改为查 `nodes.agent_token` 验证
+* 不再依赖全局环境变量 Agent Token
 
 注意：
 
@@ -284,6 +288,8 @@ atsf_agent/
 Agent 必须满足以下行为：
 
 * 启动后生成或读取本地 `node_id`
+* 未显式配置 `node_name` 时自动获取主机名
+* 未显式配置 `node_ip` 时自动获取本机 IP
 * 周期性心跳
 * 周期性检查激活版本
 * 发现新版本后先备份旧文件
@@ -296,6 +302,7 @@ Agent 必须满足以下行为：
 * 未配置 `nginx_path` 时自动准备并使用 Docker Nginx 容器
 * 启动时先校验本地路由文件 checksum 与控制面激活版本是否一致
 * Docker 模式启动时应重建容器，而不是继续复用异常停止的旧容器
+* 若本地 `agent_token` 为空且配置了 `discovery_token`，则应自动发起首次注册并完成 Token 置换
 
 ### 7.3 容错规范
 
@@ -393,9 +400,11 @@ Server 新增覆盖：
 * 证书导入逻辑（手动导入、文件导入）和 PEM 校验逻辑
 * 域名证书匹配逻辑（精确匹配与 `*.example.com` 通配符匹配）
 * `custom_headers` 注入到渲染结果的正确性
-* `agent_tokens` 创建与查表验证逻辑
-* Token 撤销后验证失败
-* bootstrap Token 降级行为（数据库有 Token 时环境变量 Token 失效）
+* 节点创建、编辑、删除逻辑
+* `discovery_token` 首次接入成功后失效
+* 删除节点后 Agent 请求立即返回 401
+* Agent 自动探测主机名与 IP，且允许配置覆盖
+* Agent 首次注册成功后完成本地 token 置换
 * 预览接口不写库
 * diff 接口变更摘要计算正确性
 
@@ -413,8 +422,8 @@ Server 新增覆盖：
 1. 创建含 HTTPS 字段的路由并发布，Nginx 能以 HTTPS 正确转发
 2. 控制面可手动导入和文件导入证书，导入后可被路由选择
 3. 反代规则输入域名后可自动匹配证书，且支持 `*.example.com`
-4. 通过管理界面创建 Token，Agent 使用新 Token 成功访问
-5. 撤销 Token 后 Agent 请求返回 401
+4. 通过管理界面创建节点并生成 discovery token，Agent 使用 discovery token 成功接入
+5. 删除节点后 Agent 请求返回 401
 6. 路由配置自定义头后，渲染结果包含对应指令
 7. 发布页预览展示正确渲染结果
 8. 变更摘要正确列出域名变化
