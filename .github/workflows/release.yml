@@ -1,17 +1,38 @@
-name: Server Release
+name: Release
 permissions:
   contents: write
 
 on:
+  workflow_dispatch:
   push:
-    tags:
-      - "*"
-
-env:
-  VERSION: ${{ github.ref_name }}
+    branches: ["main"]
+    tags: ["v*"]
 
 jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      is_prerelease: ${{ steps.version.outputs.is_prerelease }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve version metadata
+        id: version
+        run: |
+          VERSION="$(git describe --tags)"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          if [[ "$VERSION" =~ ^v[0-9]+(\.[0-9]+)*$ ]]; then
+            echo "is_prerelease=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "is_prerelease=true" >> "$GITHUB_OUTPUT"
+          fi
+
   build-frontend:
+    needs: prepare
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -27,6 +48,7 @@ jobs:
       - name: Build Frontend
         env:
           CI: ""
+          VERSION: ${{ needs.prepare.outputs.version }}
         run: |
           cd atsf_server/web
           npm install
@@ -40,7 +62,9 @@ jobs:
           retention-days: 1
 
   build-binaries:
-    needs: build-frontend
+    needs:
+      - prepare
+      - build-frontend
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -86,6 +110,7 @@ jobs:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
           ASSET_NAME: ${{ matrix.asset_name }}
+          VERSION: ${{ needs.prepare.outputs.version }}
         run: |
           go mod download
           mkdir -p ../dist
@@ -98,34 +123,82 @@ jobs:
           path: dist/${{ matrix.asset_name }}
           retention-days: 1
 
+  build-agent-binaries:
+    needs: prepare
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - goos: linux
+            goarch: amd64
+            asset_name: atsflare-agent-linux-amd64
+          - goos: linux
+            goarch: arm64
+            asset_name: atsflare-agent-linux-arm64
+          - goos: darwin
+            goarch: amd64
+            asset_name: atsflare-agent-darwin-amd64
+          - goos: darwin
+            goarch: arm64
+            asset_name: atsflare-agent-darwin-arm64
+          - goos: windows
+            goarch: amd64
+            asset_name: atsflare-agent-windows-amd64.exe
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: atsf_agent/go.mod
+
+      - name: Build Agent
+        working-directory: atsf_agent
+        env:
+          CGO_ENABLED: 0
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          ASSET_NAME: ${{ matrix.asset_name }}
+        run: |
+          go mod download
+          mkdir -p ../dist
+          go build -trimpath -ldflags "-s -w" -o "../dist/$ASSET_NAME" ./cmd/agent
+
+      - name: Upload Agent Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: dist/${{ matrix.asset_name }}
+          retention-days: 1
+
   release:
-    needs: build-binaries
+    needs:
+      - prepare
+      - build-binaries
+      - build-agent-binaries
     runs-on: ubuntu-latest
     steps:
       - name: Download Binary Artifacts
         uses: actions/download-artifact@v4
         with:
-          pattern: server-*
+          pattern: "*-*"
           path: dist
           merge-multiple: true
 
-      - name: Determine prerelease
-        id: prerelease
-        run: |
-          TAG="$VERSION"
-          if [[ "$TAG" == *alpha* ]] || [[ "$TAG" == *beta* ]] || [[ "$TAG" == *rc* ]]; then
-            echo "is_prerelease=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "is_prerelease=false" >> "$GITHUB_OUTPUT"
-          fi
-
       - name: Release
         uses: softprops/action-gh-release@v1
-        if: startsWith(github.ref, 'refs/tags/')
         with:
+          tag_name: ${{ needs.prepare.outputs.version }}
+          name: ${{ needs.prepare.outputs.version }}
+          target_commitish: ${{ github.sha }}
           files: dist/*
           draft: false
-          prerelease: ${{ steps.prerelease.outputs.is_prerelease }}
+          prerelease: ${{ needs.prepare.outputs.is_prerelease == 'true' }}
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

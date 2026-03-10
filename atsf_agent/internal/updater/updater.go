@@ -3,7 +3,6 @@ package updater
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -11,7 +10,6 @@ import (
 	"os"
 	"runtime"
 	"strings"
-	"syscall"
 	"time"
 
 	"atsflare-agent/internal/config"
@@ -59,7 +57,7 @@ func (s *Service) CheckAndUpdate(ctx context.Context, repo string) error {
 	}
 
 	log.Printf("agent update available: %s -> %s", localVersion, remoteVersion)
-	assetName := fmt.Sprintf("atsflare-agent-%s-%s", runtime.GOOS, runtime.GOARCH)
+	assetName := assetNameForGOOSGOARCH(runtime.GOOS, runtime.GOARCH)
 
 	var downloadURL string
 	for _, asset := range release.Assets {
@@ -77,12 +75,10 @@ func (s *Service) CheckAndUpdate(ctx context.Context, repo string) error {
 	if err != nil {
 		return fmt.Errorf("get executable path: %w", err)
 	}
-	if err = s.downloadAndReplace(ctx, downloadURL, execPath); err != nil {
-		return fmt.Errorf("download and replace: %w", err)
+	if err = s.downloadAndRestart(ctx, downloadURL, execPath); err != nil {
+		return fmt.Errorf("download and restart: %w", err)
 	}
-
-	log.Printf("agent binary updated, restarting...")
-	return s.restart(execPath)
+	return nil
 }
 
 func (s *Service) getLatestRelease(ctx context.Context, repo string) (*githubRelease, error) {
@@ -113,7 +109,7 @@ func (s *Service) getLatestRelease(ctx context.Context, repo string) (*githubRel
 	return &release, nil
 }
 
-func (s *Service) downloadAndReplace(ctx context.Context, url string, targetPath string) error {
+func (s *Service) downloadAndRestart(ctx context.Context, url string, targetPath string) error {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return err
@@ -129,6 +125,9 @@ func (s *Service) downloadAndReplace(ctx context.Context, url string, targetPath
 	}
 
 	tmpPath := targetPath + ".update"
+	if runtime.GOOS == "windows" && !strings.HasSuffix(strings.ToLower(tmpPath), ".exe") {
+		tmpPath += ".exe"
+	}
 	tmpFile, err := os.OpenFile(tmpPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o755)
 	if err != nil {
 		return err
@@ -140,27 +139,16 @@ func (s *Service) downloadAndReplace(ctx context.Context, url string, targetPath
 	}
 	tmpFile.Close()
 
-	backupPath := targetPath + ".bak"
-	os.Remove(backupPath)
-	if err = os.Rename(targetPath, backupPath); err != nil {
-		os.Remove(tmpPath)
-		return fmt.Errorf("backup current binary: %w", err)
-	}
-	if err = os.Rename(tmpPath, targetPath); err != nil {
-		// Attempt to restore backup
-		os.Rename(backupPath, targetPath)
-		return fmt.Errorf("replace binary: %w", err)
-	}
-	os.Remove(backupPath)
-	return nil
+	log.Printf("agent binary updated, restarting...")
+	return replaceAndRestart(targetPath, tmpPath)
 }
 
-func (s *Service) restart(execPath string) error {
-	argv := os.Args
-	if err := syscall.Exec(execPath, argv, os.Environ()); err != nil {
-		return fmt.Errorf("exec restart: %w", err)
+func assetNameForGOOSGOARCH(goos string, goarch string) string {
+	name := fmt.Sprintf("atsflare-agent-%s-%s", goos, goarch)
+	if goos == "windows" {
+		return name + ".exe"
 	}
-	return errors.New("unreachable after exec")
+	return name
 }
 
 func normalizeVersion(v string) string {
