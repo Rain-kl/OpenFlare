@@ -1,8 +1,8 @@
 package router_test
 
 import (
-	"gin-template/common"
-	"gin-template/router"
+	"atsflare/common"
+	"atsflare/router"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"

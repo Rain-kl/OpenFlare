@@ -1,8 +1,8 @@
 package middleware
 
 import (
+	"atsflare/common"
 	"encoding/json"
-	"gin-template/common"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 	"net/http"

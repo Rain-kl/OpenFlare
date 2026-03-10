@@ -18,16 +18,13 @@ const Footer = () => {
         ) : (
           <div className='custom-footer'>
             <a
-              href='https://github.com/songquanpeng/gin-template'
+              href='https://github.com/Rain-kl/ATSFlare'
               target='_blank'
+              rel='noreferrer'
             >
               {systemName} {process.env.REACT_APP_VERSION}{' '}
             </a>
-            由{' '}
-            <a href='https://github.com/songquanpeng' target='_blank'>
-              JustSong
-            </a>{' '}
-            构建，源代码遵循{' '}
+            开源于 GitHub，源代码遵循{' '}
             <a href='https://opensource.org/licenses/mit-license.php'>
               MIT 协议
             </a>

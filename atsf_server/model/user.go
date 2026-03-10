@@ -1,8 +1,8 @@
 package model
 
 import (
+	"atsflare/common"
 	"errors"
-	"gin-template/common"
 	"strings"
 )
 

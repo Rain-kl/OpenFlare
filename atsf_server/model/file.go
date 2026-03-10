@@ -1,7 +1,7 @@
 package model
 
 import (
-	"gin-template/common"
+	"atsflare/common"
 	"gorm.io/gorm"
 	"os"
 	"path"

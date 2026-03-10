@@ -1,8 +1,8 @@
 package controller
 
 import (
+	"atsflare/service"
 	"encoding/json"
-	"gin-template/service"
 	"github.com/gin-gonic/gin"
 	"net/http"
 	"strconv"

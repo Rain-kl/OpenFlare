@@ -40,13 +40,13 @@ npm run build
 ```bash
 cd atsf_server
 export SESSION_SECRET='replace-with-random-string'
-export SQLITE_PATH='./gin-template.db'
+export SQLITE_PATH='./atsflare.db'
 go run .
 ```
 
 说明：
 
-- 如果未设置 `SQLITE_PATH`，默认也会落到 `atsf_server/gin-template.db`
+- 如果未设置 `SQLITE_PATH`，默认也会落到 `atsf_server/atsflare.db`
 - 当前不再依赖全局 `AGENT_TOKEN` 环境变量
 - 节点接入凭证改由数据库保存：节点专属 `agent_token` + 系统级 `discovery token`
 - 当前默认监听端口为 `3000`

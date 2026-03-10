@@ -94,12 +94,12 @@
 
 ### Server
 
-控制中心直接基于现有 `atsf_server` 的 `gin-template` 工程开发：
+控制中心直接基于现有 `atsf_server` 的 `ATSFlare` 工程开发：
 
 * Web 框架：Gin
 * ORM：GORM
 * 前端：沿用现有 web 管理端
-* 鉴权：沿用 gin-template 登录体系
+* 鉴权：沿用 ATSFlare 登录体系
 
 ### 数据库
 
@@ -139,7 +139,7 @@ Agent 使用 Go 单体程序：
 ```text
                 ┌────────────────────────────┐
                 │       ATSFlare Server      │
-                │  gin-template + SQLite     │
+                │     ATSFlare + SQLite      │
                 │  Admin UI + Admin API      │
                 └──────────────┬─────────────┘
                                │
@@ -548,7 +548,7 @@ Agent 每次上报：
 
 管理端：
 
-* 直接沿用 gin-template 的登录态
+* 直接沿用 ATSFlare 的登录态
 
 Agent（第一版）：
 
@@ -567,7 +567,7 @@ Agent（第二版）：
 
 ### 12.1 登录页
 
-沿用 gin-template 现有登录。
+沿用 ATSFlare 现有登录。
 
 ### 12.2 反代规则页（第一版，已实现）
 

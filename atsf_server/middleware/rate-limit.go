@@ -1,9 +1,9 @@
 package middleware
 
 import (
+	"atsflare/common"
 	"context"
 	"fmt"
-	"gin-template/common"
 	"github.com/gin-gonic/gin"
 	"net/http"
 	"time"

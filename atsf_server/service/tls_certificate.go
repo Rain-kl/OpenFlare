@@ -1,10 +1,10 @@
 package service
 
 import (
+	"atsflare/model"
 	"crypto/tls"
 	"errors"
 	"fmt"
-	"gin-template/model"
 	"mime/multipart"
 	"strings"
 )

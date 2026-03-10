@@ -1,10 +1,10 @@
 package service
 
 import (
+	"atsflare/common"
+	"atsflare/model"
 	"encoding/json"
 	"errors"
-	"gin-template/common"
-	"gin-template/model"
 	"strings"
 	"time"
 

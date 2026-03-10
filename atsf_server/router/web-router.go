@@ -1,10 +1,10 @@
 package router
 
 import (
+	"atsflare/common"
+	"atsflare/controller"
+	"atsflare/middleware"
 	"embed"
-	"gin-template/common"
-	"gin-template/controller"
-	"gin-template/middleware"
 	"github.com/gin-contrib/static"
 	"github.com/gin-gonic/gin"
 	"net/http"

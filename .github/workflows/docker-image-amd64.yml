@@ -42,7 +42,7 @@ jobs:
         uses: docker/metadata-action@v4
         with:
           images: |
-            justsong/gin-template
+            ghcr.io/rain-kl/atsflare
             ghcr.io/${{ github.repository }}
 
       - name: Build and push Docker images

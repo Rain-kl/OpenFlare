@@ -1,9 +1,9 @@
 package controller
 
 import (
+	"atsflare/common"
+	"atsflare/model"
 	"encoding/json"
-	"gin-template/common"
-	"gin-template/model"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"

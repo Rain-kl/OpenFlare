@@ -1,9 +1,9 @@
 package controller
 
 import (
+	"atsflare/common"
+	"atsflare/model"
 	"fmt"
-	"gin-template/common"
-	"gin-template/model"
 	"github.com/gin-gonic/gin"
 	"net/http"
 	"path/filepath"

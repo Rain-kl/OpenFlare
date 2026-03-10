@@ -41,7 +41,7 @@
 * ORM：GORM
 * 数据库：SQLite
 * 前端：现有 `atsf_server/web`
-* 登录体系：沿用 gin-template 现有能力
+* 登录体系：沿用 ATSFlare 现有能力
 
 约束：
 
@@ -126,7 +126,7 @@ Agent 放在 `atsf_agent`，使用 Go 单体程序开发。
 * 所有发布都是"新版本激活"，不是在线覆盖编辑。
 * 第一版与第二版：所有节点默认拉同一份全量配置，不做节点分组差异化下发。
 * 能用 SQLite 解决的问题，不引入额外中间件。
-* 新功能优先复用现有 gin-template 结构，不平行造第二套框架。
+* 新功能优先复用现有 ATSFlare 结构，不平行造第二套框架。
 
 ## 5. 数据模型规范
 
@@ -205,7 +205,7 @@ Server 代码按以下职责拆分：
 
 管理端：
 
-* 继续复用 gin-template 的登录、角色和 session 体系
+* 继续复用 ATSFlare 的登录、角色和 session 体系
 
 Agent（第一版）：
 

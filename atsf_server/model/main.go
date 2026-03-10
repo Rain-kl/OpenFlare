@@ -1,7 +1,7 @@
 package model
 
 import (
-	"gin-template/common"
+	"atsflare/common"
 	"github.com/glebarez/sqlite"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"

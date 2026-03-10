@@ -1,11 +1,11 @@
 package controller
 
 import (
+	"atsflare/common"
+	"atsflare/model"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"gin-template/common"
-	"gin-template/model"
 	"github.com/gin-gonic/gin"
 	"net/http"
 	"strconv"

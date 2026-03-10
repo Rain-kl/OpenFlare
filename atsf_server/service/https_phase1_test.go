@@ -1,13 +1,13 @@
 package service
 
 import (
+	"atsflare/common"
+	"atsflare/model"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
-	"gin-template/common"
-	"gin-template/model"
 	"math/big"
 	"path/filepath"
 	"strings"

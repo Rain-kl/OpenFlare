@@ -3,43 +3,38 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/songquanpeng/gin-template"><img src="https://raw.githubusercontent.com/songquanpeng/gin-template/main/web/public/logo.png" width="150" height="150" alt="gin-template logo"></a>
+  <a href="https://github.com/Rain-kl/ATSFlare"><img src="https://raw.githubusercontent.com/Rain-kl/ATSFlare/main/atsf_server/web/public/logo.png" width="150" height="150" alt="ATSFlare logo"></a>
 </p>
 
 <div align="center">
 
-# Gin Template
+# ATSFlare
 
-_✨ Template for Gin & React projects ✨_
+_✨ Internal Nginx control plane for reverse proxy management ✨_
 
 </div>
 
 <p align="center">
-  <a href="https://raw.githubusercontent.com/songquanpeng/gin-template/main/LICENSE">
-    <img src="https://img.shields.io/github/license/songquanpeng/gin-template?color=brightgreen" alt="license">
+  <a href="https://raw.githubusercontent.com/Rain-kl/ATSFlare/main/LICENSE">
+    <img src="https://img.shields.io/github/license/Rain-kl/ATSFlare?color=brightgreen" alt="license">
   </a>
-  <a href="https://github.com/songquanpeng/gin-template/releases/latest">
-    <img src="https://img.shields.io/github/v/release/songquanpeng/gin-template?color=brightgreen&include_prereleases" alt="release">
+  <a href="https://github.com/Rain-kl/ATSFlare/releases/latest">
+    <img src="https://img.shields.io/github/v/release/Rain-kl/ATSFlare?color=brightgreen&include_prereleases" alt="release">
   </a>
-  <a href="https://hub.docker.com/repository/docker/justsong/gin-template">
-    <img src="https://img.shields.io/docker/pulls/justsong/gin-template?color=brightgreen" alt="docker pull">
+  <a href="https://github.com/Rain-kl/ATSFlare/releases/latest">
+    <img src="https://img.shields.io/github/downloads/Rain-kl/ATSFlare/total?color=brightgreen&include_prereleases" alt="release">
   </a>
-  <a href="https://github.com/songquanpeng/gin-template/releases/latest">
-    <img src="https://img.shields.io/github/downloads/songquanpeng/gin-template/total?color=brightgreen&include_prereleases" alt="release">
-  </a>
-  <a href="https://goreportcard.com/report/github.com/songquanpeng/go-file">
-    <img src="https://goreportcard.com/badge/github.com/songquanpeng/gin-template" alt="GoReportCard">
+  <a href="https://goreportcard.com/report/github.com/Rain-kl/ATSFlare">
+    <img src="https://goreportcard.com/badge/github.com/Rain-kl/ATSFlare" alt="GoReportCard">
   </a>
 </p>
 
 <p align="center">
-  <a href="https://github.com/songquanpeng/gin-template/releases">Download</a>
+  <a href="https://github.com/Rain-kl/ATSFlare/releases">Download</a>
   ·
-  <a href="https://github.com/songquanpeng/gin-template/blob/main/README.en.md#deployment">Tutorial</a>
+  <a href="https://github.com/Rain-kl/ATSFlare/blob/main/README.en.md#deployment">Tutorial</a>
   ·
-  <a href="https://github.com/songquanpeng/gin-template/issues">Feedback</a>
-  ·
-  <a href="https://gin-template.vercel.app/">Demo</a>
+  <a href="https://github.com/Rain-kl/ATSFlare/issues">Feedback</a>
 </p>
 
 ## Features
@@ -57,23 +52,23 @@ _✨ Template for Gin & React projects ✨_
 
 ## Deployment
 ### Manual deployment
-1. Download built binary from [GitHub Releases](https://github.com/songquanpeng/gin-template/releases/latest) or build from source:
+1. Download built binary from [GitHub Releases](https://github.com/Rain-kl/ATSFlare/releases/latest) or build from source:
    ```shell
-   git clone https://github.com/songquanpeng/gin-template.git
+  git clone https://github.com/Rain-kl/ATSFlare.git
    go mod download
-   go build -ldflags "-s -w" -o gin-template
+  go build -ldflags "-s -w" -o atsflare
    ````
 2. Run it:
    ```shell
-   chmod u+x gin-template
-   ./gin-template --port 3000 --log-dir ./logs
+  chmod u+x atsflare
+  ./atsflare --port 3000 --log-dir ./logs
    ```
 3. Visit [http://localhost:3000/](http://localhost:3000/) and login. The username for the initial account is `root` and the password is `123456`.
 
 ### Deploy with Docker
-Execute: `docker run -d --restart always -p 3000:3000 -v /home/ubuntu/data/gin-template:/data -v /etc/ssl/certs:/etc/ssl/certs:ro justsong/gin-template`
+Execute: `docker run -d --restart always -p 3000:3000 -v /home/ubuntu/data/atsflare:/data -v /etc/ssl/certs:/etc/ssl/certs:ro ghcr.io/rain-kl/atsflare`
 
-Data will be saved in `/home/ubuntu/data/gin-template`.
+Data will be saved in `/home/ubuntu/data/atsflare`.
 
 ## Configurations
 The system works out of the box.
@@ -88,7 +83,7 @@ After the system starts, use `root` user to log in to the system and do further 
 2. `SESSION_SECRET`: when set, a fixed session key will be used so that the logged-in users' cookie remains valid across system reboots.
    + Example: `SESSION_SECRET=random_string`
 3. `SQL_DSN`: when set, the target SQL database will be used instead of SQLite.
-   + Example: `SQL_DSN=root:123456@tcp(localhost:3306)/gin-template`
+  + Example: `SQL_DSN=root:123456@tcp(localhost:3306)/atsflare`
 
 ### Command line Arguments
 1. `--port <port_number>`: specify the port number, the default value is `3000`.

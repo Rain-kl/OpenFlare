@@ -1,6 +1,10 @@
 package router_test
 
 import (
+	"atsflare/common"
+	"atsflare/model"
+	"atsflare/router"
+	"atsflare/service"
 	"bytes"
 	"crypto/rand"
 	"crypto/rsa"
@@ -8,10 +12,6 @@ import (
 	"crypto/x509/pkix"
 	"encoding/json"
 	"encoding/pem"
-	"gin-template/common"
-	"gin-template/model"
-	"gin-template/router"
-	"gin-template/service"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"

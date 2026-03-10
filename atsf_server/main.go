@@ -1,12 +1,12 @@
 package main
 
 import (
+	"atsflare/common"
+	"atsflare/middleware"
+	"atsflare/model"
+	"atsflare/router"
 	"embed"
 	"fmt"
-	"gin-template/common"
-	"gin-template/middleware"
-	"gin-template/model"
-	"gin-template/router"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-contrib/sessions/redis"
@@ -24,7 +24,7 @@ var indexPage []byte
 
 func main() {
 	common.SetupGinLog()
-	common.SysLog("Gin Template " + common.Version + " started")
+	common.SysLog("ATSFlare " + common.Version + " started")
 	if os.Getenv("GIN_MODE") != "debug" {
 		gin.SetMode(gin.ReleaseMode)
 	}

@@ -1,9 +1,9 @@
 package service
 
 import (
+	"atsflare/model"
 	"encoding/json"
 	"errors"
-	"gin-template/model"
 	"net/url"
 	"regexp"
 	"strings"

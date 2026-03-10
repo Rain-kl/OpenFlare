@@ -1,12 +1,12 @@
 package controller
 
 import (
+	"atsflare/common"
+	"atsflare/model"
 	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"gin-template/common"
-	"gin-template/model"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 	"net/http"

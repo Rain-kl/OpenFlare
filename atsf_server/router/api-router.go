@@ -1,8 +1,8 @@
 package router
 
 import (
-	"gin-template/controller"
-	"gin-template/middleware"
+	"atsflare/controller"
+	"atsflare/middleware"
 	"github.com/gin-gonic/gin"
 )
 

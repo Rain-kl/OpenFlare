@@ -1,9 +1,9 @@
 package service
 
 import (
+	"atsflare/model"
 	"errors"
 	"fmt"
-	"gin-template/model"
 	"sort"
 	"strings"
 	"unicode"

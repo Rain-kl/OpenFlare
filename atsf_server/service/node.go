@@ -1,11 +1,11 @@
 package service
 
 import (
+	"atsflare/common"
+	"atsflare/model"
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
-	"gin-template/common"
-	"gin-template/model"
 	"strings"
 	"time"
 )
