@@ -39,6 +39,38 @@ func GetActiveConfigVersion(c *gin.Context) {
 	})
 }
 
+func PreviewConfigVersion(c *gin.Context) {
+	preview, err := service.PreviewConfigVersion()
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "",
+		"data":    preview,
+	})
+}
+
+func DiffConfigVersion(c *gin.Context) {
+	diff, err := service.DiffConfigVersion()
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "",
+		"data":    diff,
+	})
+}
+
 func PublishConfigVersion(c *gin.Context) {
 	username := c.GetString("username")
 	result, err := service.PublishConfigVersion(username)

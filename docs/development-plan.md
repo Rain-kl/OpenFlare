@@ -111,7 +111,7 @@ MVP 已于第一版完成。当前进入第二版迭代。
 * 通配符证书可匹配子域名（如 `api.example.com` 匹配 `*.example.com`）
 * 无匹配证书时前端给出明确提示
 
-### V2 Phase 3: Agent 管理
+### V2 Phase 3: Agent 管理 ✅
 
 目标：
 

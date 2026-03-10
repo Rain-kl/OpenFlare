@@ -12,6 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 )
@@ -151,6 +152,69 @@ func TestPhase2AgentLifecycle(t *testing.T) {
 	engine.ServeHTTP(deniedRecorder, deniedReq)
 	if deniedRecorder.Code != http.StatusUnauthorized {
 		t.Fatalf("expected deleted node token to be rejected, got %d", deniedRecorder.Code)
+	}
+}
+
+func TestPhase2CustomHeadersPreviewAndDiffLifecycle(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	common.RedisEnabled = false
+	setupTestDB(t)
+
+	engine := gin.New()
+	engine.Use(sessions.Sessions("session", cookie.NewStore([]byte("test-secret"))))
+	router.SetApiRouter(engine)
+
+	token := prepareRootToken(t)
+
+	createResp := performJSONRequest(t, engine, token, http.MethodPost, "/api/proxy-routes/", map[string]any{
+		"domain":     "preview.example.com",
+		"origin_url": "https://origin-a.internal",
+		"enabled":    true,
+		"custom_headers": []map[string]any{
+			{"key": "X-Trace-Id", "value": "$request_id"},
+		},
+	})
+	var createdRoute model.ProxyRoute
+	decodeResponseData(t, createResp, &createdRoute)
+	if !strings.Contains(createdRoute.CustomHeaders, "X-Trace-Id") {
+		t.Fatalf("expected custom headers to be stored as json, got %s", createdRoute.CustomHeaders)
+	}
+
+	performJSONRequest(t, engine, token, http.MethodPost, "/api/config-versions/publish", nil)
+
+	performJSONRequest(t, engine, token, http.MethodPut, "/api/proxy-routes/"+toString(createdRoute.ID), map[string]any{
+		"domain":     "preview.example.com",
+		"origin_url": "https://origin-b.internal",
+		"enabled":    true,
+		"custom_headers": []map[string]any{
+			{"key": "X-Trace-Id", "value": "$request_id"},
+			{"key": "X-Release", "value": "candidate"},
+		},
+	})
+	performJSONRequest(t, engine, token, http.MethodPost, "/api/proxy-routes/", map[string]any{
+		"domain":     "new-preview.example.com",
+		"origin_url": "https://origin-new.internal",
+		"enabled":    true,
+	})
+
+	previewResp := performJSONRequest(t, engine, token, http.MethodGet, "/api/config-versions/preview", nil)
+	var preview map[string]any
+	decodeResponseData(t, previewResp, &preview)
+	renderedConfig, _ := preview["rendered_config"].(string)
+	if !strings.Contains(renderedConfig, `proxy_set_header X-Release "candidate";`) {
+		t.Fatalf("expected preview endpoint to return custom header, got %s", renderedConfig)
+	}
+
+	diffResp := performJSONRequest(t, engine, token, http.MethodGet, "/api/config-versions/diff", nil)
+	var diff map[string]any
+	decodeResponseData(t, diffResp, &diff)
+	modifiedDomains, ok := diff["modified_domains"].([]any)
+	if !ok || len(modifiedDomains) != 1 || modifiedDomains[0].(string) != "preview.example.com" {
+		t.Fatalf("unexpected modified domains: %#v", diff["modified_domains"])
+	}
+	addedDomains, ok := diff["added_domains"].([]any)
+	if !ok || len(addedDomains) != 1 || addedDomains[0].(string) != "new-preview.example.com" {
+		t.Fatalf("unexpected added domains: %#v", diff["added_domains"])
 	}
 }
 

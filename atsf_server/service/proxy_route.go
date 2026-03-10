@@ -1,20 +1,30 @@
 package service
 
 import (
+	"encoding/json"
 	"errors"
 	"gin-template/model"
 	"net/url"
+	"regexp"
 	"strings"
 )
 
+var proxyHeaderKeyPattern = regexp.MustCompile(`^[A-Za-z0-9_-]+$`)
+
+type ProxyRouteCustomHeaderInput struct {
+	Key   string `json:"key"`
+	Value string `json:"value"`
+}
+
 type ProxyRouteInput struct {
-	Domain       string `json:"domain"`
-	OriginURL    string `json:"origin_url"`
-	Enabled      bool   `json:"enabled"`
-	EnableHTTPS  bool   `json:"enable_https"`
-	CertID       *uint  `json:"cert_id"`
-	RedirectHTTP bool   `json:"redirect_http"`
-	Remark       string `json:"remark"`
+	Domain        string                        `json:"domain"`
+	OriginURL     string                        `json:"origin_url"`
+	Enabled       bool                          `json:"enabled"`
+	EnableHTTPS   bool                          `json:"enable_https"`
+	CertID        *uint                         `json:"cert_id"`
+	RedirectHTTP  bool                          `json:"redirect_http"`
+	CustomHeaders []ProxyRouteCustomHeaderInput `json:"custom_headers"`
+	Remark        string                        `json:"remark"`
 }
 
 func ListProxyRoutes() ([]*model.ProxyRoute, error) {
@@ -65,6 +75,14 @@ func buildProxyRoute(route *model.ProxyRoute, input ProxyRouteInput) (*model.Pro
 	domain := strings.ToLower(strings.TrimSpace(input.Domain))
 	originURL := strings.TrimSpace(input.OriginURL)
 	remark := strings.TrimSpace(input.Remark)
+	customHeaders, err := normalizeCustomHeaders(input.CustomHeaders)
+	if err != nil {
+		return nil, err
+	}
+	customHeadersJSON, err := json.Marshal(customHeaders)
+	if err != nil {
+		return nil, err
+	}
 	if domain == "" {
 		return nil, errors.New("域名不能为空")
 	}
@@ -98,8 +116,49 @@ func buildProxyRoute(route *model.ProxyRoute, input ProxyRouteInput) (*model.Pro
 	route.EnableHTTPS = input.EnableHTTPS
 	route.CertID = input.CertID
 	route.RedirectHTTP = input.RedirectHTTP
+	route.CustomHeaders = string(customHeadersJSON)
 	route.Remark = remark
 	return route, nil
+}
+
+func normalizeCustomHeaders(headers []ProxyRouteCustomHeaderInput) ([]ProxyRouteCustomHeaderInput, error) {
+	if len(headers) == 0 {
+		return []ProxyRouteCustomHeaderInput{}, nil
+	}
+	normalized := make([]ProxyRouteCustomHeaderInput, 0, len(headers))
+	for _, header := range headers {
+		key := strings.TrimSpace(header.Key)
+		value := strings.TrimSpace(header.Value)
+		if key == "" && value == "" {
+			continue
+		}
+		if key == "" {
+			return nil, errors.New("自定义请求头名称不能为空")
+		}
+		if !proxyHeaderKeyPattern.MatchString(key) {
+			return nil, errors.New("自定义请求头名称格式不合法")
+		}
+		if strings.ContainsAny(key, "\r\n") || strings.ContainsAny(value, "\r\n") {
+			return nil, errors.New("自定义请求头不能包含换行")
+		}
+		normalized = append(normalized, ProxyRouteCustomHeaderInput{
+			Key:   key,
+			Value: value,
+		})
+	}
+	return normalized, nil
+}
+
+func decodeStoredCustomHeaders(raw string) ([]ProxyRouteCustomHeaderInput, error) {
+	text := strings.TrimSpace(raw)
+	if text == "" {
+		return []ProxyRouteCustomHeaderInput{}, nil
+	}
+	var headers []ProxyRouteCustomHeaderInput
+	if err := json.Unmarshal([]byte(text), &headers); err != nil {
+		return nil, errors.New("自定义请求头配置格式不合法")
+	}
+	return normalizeCustomHeaders(headers)
 }
 
 func validateOriginURL(raw string) error {

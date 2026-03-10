@@ -3,16 +3,17 @@ package model
 import "time"
 
 type ProxyRoute struct {
-	ID           uint      `json:"id" gorm:"primaryKey"`
-	Domain       string    `json:"domain" gorm:"uniqueIndex;size:255;not null"`
-	OriginURL    string    `json:"origin_url" gorm:"size:2048;not null"`
-	Enabled      bool      `json:"enabled" gorm:"not null;default:true"`
-	EnableHTTPS  bool      `json:"enable_https" gorm:"not null;default:false"`
-	CertID       *uint     `json:"cert_id"`
-	RedirectHTTP bool      `json:"redirect_http" gorm:"not null;default:false"`
-	Remark       string    `json:"remark" gorm:"size:255"`
-	CreatedAt    time.Time `json:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at"`
+	ID            uint      `json:"id" gorm:"primaryKey"`
+	Domain        string    `json:"domain" gorm:"uniqueIndex;size:255;not null"`
+	OriginURL     string    `json:"origin_url" gorm:"size:2048;not null"`
+	Enabled       bool      `json:"enabled" gorm:"not null;default:true"`
+	EnableHTTPS   bool      `json:"enable_https" gorm:"not null;default:false"`
+	CertID        *uint     `json:"cert_id"`
+	RedirectHTTP  bool      `json:"redirect_http" gorm:"not null;default:false"`
+	CustomHeaders string    `json:"custom_headers" gorm:"type:text;not null;default:'[]'"`
+	Remark        string    `json:"remark" gorm:"size:255"`
+	CreatedAt     time.Time `json:"created_at"`
+	UpdatedAt     time.Time `json:"updated_at"`
 }
 
 func ListProxyRoutes() (routes []*ProxyRoute, err error) {
@@ -36,7 +37,7 @@ func (route *ProxyRoute) Insert() error {
 }
 
 func (route *ProxyRoute) Update() error {
-	return DB.Model(route).Select("domain", "origin_url", "enabled", "enable_https", "cert_id", "redirect_http", "remark").Updates(route).Error
+	return DB.Model(route).Select("domain", "origin_url", "enabled", "enable_https", "cert_id", "redirect_http", "custom_headers", "remark").Updates(route).Error
 }
 
 func (route *ProxyRoute) Delete() error {

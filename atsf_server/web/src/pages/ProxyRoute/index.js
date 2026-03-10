@@ -5,12 +5,30 @@ import {
   Form,
   Header,
   Icon,
+  Input,
   Label,
   Segment,
   Table,
   TextArea,
 } from 'semantic-ui-react';
 import { API, showError, showSuccess, formatDateTime } from '../../helpers';
+
+const emptyHeader = () => ({ key: '', value: '' });
+
+const parseCustomHeaders = (rawValue) => {
+  if (Array.isArray(rawValue)) {
+    return rawValue;
+  }
+  if (!rawValue) {
+    return [];
+  }
+  try {
+    const parsed = JSON.parse(rawValue);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (error) {
+    return [];
+  }
+};
 
 const initialForm = {
   domain: '',
@@ -19,6 +37,7 @@ const initialForm = {
   enable_https: false,
   cert_id: '',
   redirect_http: false,
+  custom_headers: [emptyHeader()],
   remark: '',
 };
 
@@ -106,6 +125,7 @@ const ProxyRoute = () => {
       domain: form.domain.trim(),
       origin_url: form.origin_url.trim(),
       cert_id: form.enable_https && form.cert_id ? Number(form.cert_id) : null,
+      custom_headers: (form.custom_headers || []).filter((item) => item.key.trim() || item.value.trim()),
       remark: form.remark.trim(),
     };
     const res = editingId
@@ -145,6 +165,7 @@ const ProxyRoute = () => {
   };
 
   const beginEdit = (route) => {
+    const customHeaders = parseCustomHeaders(route.custom_headers);
     setEditingId(route.id);
     setForm({
       domain: route.domain,
@@ -153,9 +174,36 @@ const ProxyRoute = () => {
       enable_https: route.enable_https || false,
       cert_id: route.cert_id || '',
       redirect_http: route.redirect_http || false,
+      custom_headers: customHeaders.length > 0 ? customHeaders : [emptyHeader()],
       remark: route.remark || '',
     });
     setMatchResult(null);
+  };
+
+  const updateCustomHeader = (index, field, value) => {
+    setForm((current) => ({
+      ...current,
+      custom_headers: current.custom_headers.map((item, itemIndex) => (
+        itemIndex === index ? { ...item, [field]: value } : item
+      )),
+    }));
+  };
+
+  const addCustomHeader = () => {
+    setForm((current) => ({
+      ...current,
+      custom_headers: [...(current.custom_headers || []), emptyHeader()],
+    }));
+  };
+
+  const removeCustomHeader = (index) => {
+    setForm((current) => {
+      const nextHeaders = (current.custom_headers || []).filter((item, itemIndex) => itemIndex !== index);
+      return {
+        ...current,
+        custom_headers: nextHeaders.length > 0 ? nextHeaders : [emptyHeader()],
+      };
+    });
   };
 
   const certificateOptions = certificates.map((certificate) => ({
@@ -254,6 +302,34 @@ const ProxyRoute = () => {
             style={{ alignSelf: 'flex-end', marginBottom: '1rem' }}
           />
         </Form.Group>
+        <Form.Field>
+          <label>自定义请求头</label>
+          {(form.custom_headers || []).map((header, index) => (
+            <Form.Group widths='equal' key={`header-${index}`}>
+              <Form.Field
+                control={Input}
+                label={index === 0 ? 'Header 名称' : undefined}
+                placeholder='X-Trace-Id'
+                value={header.key}
+                onChange={(e, { value }) => updateCustomHeader(index, 'key', value)}
+              />
+              <Form.Field
+                control={Input}
+                label={index === 0 ? 'Header 值' : undefined}
+                placeholder='$request_id'
+                value={header.value}
+                onChange={(e, { value }) => updateCustomHeader(index, 'value', value)}
+              />
+              <Form.Field style={{ display: 'flex', alignItems: index === 0 ? 'flex-end' : 'center' }}>
+                <Button type='button' icon='trash' negative basic onClick={() => removeCustomHeader(index)} />
+              </Form.Field>
+            </Form.Group>
+          ))}
+          <Button type='button' basic icon labelPosition='left' onClick={addCustomHeader}>
+            <Icon name='plus' />
+            添加请求头
+          </Button>
+        </Form.Field>
         <Button primary type='submit'>
           {editingId ? '保存修改' : '新增规则'}
         </Button>
@@ -270,6 +346,7 @@ const ProxyRoute = () => {
             <Table.HeaderCell>域名</Table.HeaderCell>
             <Table.HeaderCell>源站地址</Table.HeaderCell>
             <Table.HeaderCell>HTTPS</Table.HeaderCell>
+            <Table.HeaderCell>自定义头</Table.HeaderCell>
             <Table.HeaderCell>状态</Table.HeaderCell>
             <Table.HeaderCell>备注</Table.HeaderCell>
             <Table.HeaderCell>更新时间</Table.HeaderCell>
@@ -286,6 +363,13 @@ const ProxyRoute = () => {
                   <Label color='blue'>{route.redirect_http ? 'HTTPS + 重定向' : 'HTTPS'}</Label>
                 ) : (
                   <Label>HTTP</Label>
+                )}
+              </Table.Cell>
+              <Table.Cell>
+                {parseCustomHeaders(route.custom_headers).length > 0 ? (
+                  <Label color='teal'>{parseCustomHeaders(route.custom_headers).length} 条</Label>
+                ) : (
+                  <Label>无</Label>
                 )}
               </Table.Cell>
               <Table.Cell>

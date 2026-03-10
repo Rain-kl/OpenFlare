@@ -79,6 +79,127 @@ func TestCreateProxyRouteRejectsHTTPSWithoutCertificate(t *testing.T) {
 	}
 }
 
+func TestPublishConfigVersionRendersCustomHeaders(t *testing.T) {
+	setupServiceTestDB(t)
+
+	_, err := CreateProxyRoute(ProxyRouteInput{
+		Domain:    "custom.example.com",
+		OriginURL: "https://origin.internal",
+		Enabled:   true,
+		CustomHeaders: []ProxyRouteCustomHeaderInput{
+			{Key: "X-Trace-Id", Value: "$request_id"},
+			{Key: "X-Env", Value: "staging edge"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("CreateProxyRoute failed: %v", err)
+	}
+
+	result, err := PublishConfigVersion("root")
+	if err != nil {
+		t.Fatalf("PublishConfigVersion failed: %v", err)
+	}
+	if !strings.Contains(result.Version.RenderedConfig, `proxy_set_header X-Trace-Id "$request_id";`) {
+		t.Fatal("expected rendered config to include custom header")
+	}
+	if !strings.Contains(result.Version.RenderedConfig, `proxy_set_header X-Env "staging edge";`) {
+		t.Fatal("expected rendered config to include quoted custom header value")
+	}
+	if !strings.Contains(result.Version.SnapshotJSON, "custom_headers") {
+		t.Fatal("expected snapshot to include custom headers")
+	}
+}
+
+func TestPreviewAndDiffConfigVersion(t *testing.T) {
+	setupServiceTestDB(t)
+
+	stableRoute, err := CreateProxyRoute(ProxyRouteInput{
+		Domain:    "stable.example.com",
+		OriginURL: "https://origin-a.internal",
+		Enabled:   true,
+	})
+	if err != nil {
+		t.Fatalf("CreateProxyRoute stable failed: %v", err)
+	}
+	modifiedRoute, err := CreateProxyRoute(ProxyRouteInput{
+		Domain:    "api.example.com",
+		OriginURL: "https://origin-api-a.internal",
+		Enabled:   true,
+	})
+	if err != nil {
+		t.Fatalf("CreateProxyRoute modified failed: %v", err)
+	}
+	removedRoute, err := CreateProxyRoute(ProxyRouteInput{
+		Domain:    "old.example.com",
+		OriginURL: "https://origin-old.internal",
+		Enabled:   true,
+	})
+	if err != nil {
+		t.Fatalf("CreateProxyRoute removed failed: %v", err)
+	}
+	if _, err = PublishConfigVersion("root"); err != nil {
+		t.Fatalf("initial PublishConfigVersion failed: %v", err)
+	}
+
+	if _, err = UpdateProxyRoute(modifiedRoute.ID, ProxyRouteInput{
+		Domain:    "api.example.com",
+		OriginURL: "https://origin-api-b.internal",
+		Enabled:   true,
+		CustomHeaders: []ProxyRouteCustomHeaderInput{
+			{Key: "X-Release", Value: "candidate"},
+		},
+	}); err != nil {
+		t.Fatalf("UpdateProxyRoute failed: %v", err)
+	}
+	if _, err = UpdateProxyRoute(removedRoute.ID, ProxyRouteInput{
+		Domain:    "old.example.com",
+		OriginURL: "https://origin-old.internal",
+		Enabled:   false,
+	}); err != nil {
+		t.Fatalf("disable removed route failed: %v", err)
+	}
+	if _, err = CreateProxyRoute(ProxyRouteInput{
+		Domain:    "new.example.com",
+		OriginURL: "https://origin-new.internal",
+		Enabled:   true,
+	}); err != nil {
+		t.Fatalf("CreateProxyRoute new failed: %v", err)
+	}
+	if _, err = UpdateProxyRoute(stableRoute.ID, ProxyRouteInput{
+		Domain:    stableRoute.Domain,
+		OriginURL: stableRoute.OriginURL,
+		Enabled:   true,
+		Remark:    "remark only change",
+	}); err != nil {
+		t.Fatalf("UpdateProxyRoute stable failed: %v", err)
+	}
+
+	preview, err := PreviewConfigVersion()
+	if err != nil {
+		t.Fatalf("PreviewConfigVersion failed: %v", err)
+	}
+	if !strings.Contains(preview.RenderedConfig, `proxy_set_header X-Release "candidate";`) {
+		t.Fatal("expected preview config to include modified custom header")
+	}
+	if preview.RouteCount != 3 {
+		t.Fatalf("expected 3 enabled routes in preview, got %d", preview.RouteCount)
+	}
+
+	diff, err := DiffConfigVersion()
+	if err != nil {
+		t.Fatalf("DiffConfigVersion failed: %v", err)
+	}
+	if len(diff.AddedDomains) != 1 || diff.AddedDomains[0] != "new.example.com" {
+		t.Fatalf("unexpected added domains: %#v", diff.AddedDomains)
+	}
+	if len(diff.RemovedDomains) != 1 || diff.RemovedDomains[0] != "old.example.com" {
+		t.Fatalf("unexpected removed domains: %#v", diff.RemovedDomains)
+	}
+	if len(diff.ModifiedDomains) != 1 || diff.ModifiedDomains[0] != "api.example.com" {
+		t.Fatalf("unexpected modified domains: %#v", diff.ModifiedDomains)
+	}
+}
+
 func TestCreateTLSCertificateRejectsInvalidPEM(t *testing.T) {
 	setupServiceTestDB(t)
 
