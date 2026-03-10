@@ -12,9 +12,9 @@
 
 ---
 
-## 2. 第一版范围
+## 2. 第一版范围（已完成）
 
-### 要做
+### 已做
 
 * Web 管理端维护反代规则
 * 配置发布生成版本
@@ -23,7 +23,7 @@
 * 节点注册、心跳、在线状态展示
 * 展示每个节点当前生效版本和最近一次应用结果
 
-### 不做
+### 不做（第一版）
 
 * 多租户
 * WAF、限流、Bot、防刷
@@ -35,6 +35,56 @@
 * mid-tier / 分层缓存
 
 第一版默认所有节点消费同一份全量配置，不做差异化下发。
+
+---
+
+## 2.5 第二版范围
+
+在 MVP 闭环稳定运行的基础上，第二版聚焦以下增量能力。
+
+### 要做
+
+**2.5.1 HTTPS/TLS 支持**
+
+* `proxy_routes` 增加 HTTPS 相关字段：`enable_https`、`ssl_cert_path`、`ssl_key_path`
+* 渲染器根据字段生成 HTTPS `server` 块（443 端口），并可选生成 HTTP → HTTPS 重定向块
+* 证书文件仍由节点本地预先准备，控制面只记录路径，不托管证书
+
+**2.5.2 节点分组与差异化下发**
+
+* 新增 `node_groups` 表：管理分组（如 staging、production）
+* `nodes` 增加 `group_id` 字段，节点可归属某个分组
+* 发布时可选择目标分组，生成面向该分组的版本
+* 不指定分组时，默认行为与第一版相同（全量下发）
+* Agent 在心跳时携带自身分组信息，Server 按分组返回对应激活版本
+
+**2.5.3 Agent Token 管理**
+
+* 新增 `agent_tokens` 表：支持创建多个命名 Token，记录备注、创建人、过期时间
+* 认证中间件改为查表验证，不再依赖单个全局环境变量
+* 提供 Token CRUD 管理 API 及前端页面
+* 旧的全局 Token 环境变量作为引导 Token，仅在数据库无 Token 记录时生效（bootstrap 模式）
+
+**2.5.4 路由增强**
+
+* `proxy_routes` 增加 `custom_headers` 字段（JSON 格式），支持每条路由追加自定义 `proxy_set_header` 指令
+* 渲染器按 `custom_headers` 内容注入到对应 `server` 块
+
+**2.5.5 配置预览与变更摘要**
+
+* 新增"配置预览"接口：在不实际发布的情况下，返回基于当前启用规则渲染的 Nginx 配置
+* 新增"变更摘要"接口：对比当前激活版本与新渲染结果，返回新增、删除、修改的域名列表
+* 前端发布页接入预览与变更摘要，让管理员在点击发布前确认变化
+
+### 仍不做（第二版）
+
+* 多租户
+* WAF、限流、Bot、防刷
+* 对象存储、消息队列、Redis、Prometheus
+* 证书托管与自动签发
+* Purge、中台审计、审批流
+* mid-tier / 分层缓存
+* 复杂缓存策略配置
 
 ---
 
@@ -120,9 +170,7 @@ Agent 使用 Go 单体程序：
 
 ## 5. 核心对象
 
-第一版只保留最少的数据模型。
-
-### 5.1 proxy_routes
+### 5.1 proxy_routes（第一版）
 
 反代规则表，控制 `Host -> Origin` 映射。
 
@@ -142,7 +190,15 @@ Agent 使用 Go 单体程序：
 * `origin_url` 必须是合法的 `http://` 或 `https://`
 * 第一版一条域名只对应一个源站，不做源站池
 
-### 5.2 config_versions
+第二版新增字段：
+
+* `enable_https` — 是否启用 HTTPS（bool，默认 false）
+* `ssl_cert_path` — 节点本地证书文件路径（string）
+* `ssl_key_path` — 节点本地私钥文件路径（string）
+* `redirect_http` — 是否将 HTTP 重定向到 HTTPS（bool，默认 false）
+* `custom_headers` — 自定义 `proxy_set_header` 指令（JSON 格式，存字符串）
+
+### 5.2 config_versions（第一版）
 
 发布版本表，保存不可变快照。
 
@@ -163,7 +219,11 @@ Agent 使用 Go 单体程序：
 * `rendered_config` 保存渲染后的 Nginx 路由配置
 * 第一版直接存 SQLite，不单独上对象存储
 
-### 5.3 nodes
+第二版新增字段：
+
+* `group_id` — 关联目标分组（nullable，null 表示全量发布）
+
+### 5.3 nodes（第一版）
 
 节点表，保存当前状态。
 
@@ -182,7 +242,11 @@ Agent 使用 Go 单体程序：
 * `created_at`
 * `updated_at`
 
-### 5.4 apply_logs
+第二版新增字段：
+
+* `group_id` — 所属节点分组（nullable，无分组时为 null）
+
+### 5.4 apply_logs（第一版）
 
 节点应用记录。
 
@@ -194,6 +258,33 @@ Agent 使用 Go 单体程序：
 * `result`
 * `message`
 * `created_at`
+
+### 5.5 node_groups（第二版新增）
+
+节点分组表，用于差异化下发。
+
+建议字段：
+
+* `id`
+* `name` — 分组名称，唯一（如 `staging`、`production`）
+* `remark` — 备注
+* `created_at`
+* `updated_at`
+
+### 5.6 agent_tokens（第二版新增）
+
+Agent Token 管理表，替代全局单一 Token。
+
+建议字段：
+
+* `id`
+* `token` — Token 值，唯一，不可变
+* `name` — Token 备注名称
+* `created_by` — 创建人
+* `expires_at` — 过期时间（nullable，null 表示永不过期）
+* `is_active` — 是否有效
+* `created_at`
+* `updated_at`
 
 ---
 
@@ -399,49 +490,63 @@ Agent 每次上报：
 
 ## 11. API 设计
 
-### 11.1 管理端 API
+### 11.1 管理端 API（第一版，已实现）
 
-* `GET /api/routes`
-* `POST /api/routes`
-* `PUT /api/routes/:id`
-* `DELETE /api/routes/:id`
-* `GET /api/versions`
-* `POST /api/versions/publish`
-* `POST /api/versions/:id/activate`
-* `GET /api/nodes`
-* `GET /api/apply-logs`
+* `GET /api/proxy-routes/`
+* `POST /api/proxy-routes/`
+* `PUT /api/proxy-routes/:id`
+* `DELETE /api/proxy-routes/:id`
+* `GET /api/config-versions/`
+* `GET /api/config-versions/active`
+* `POST /api/config-versions/publish`
+* `PUT /api/config-versions/:id/activate`
+* `GET /api/nodes/`
+* `GET /api/apply-logs/`
 
-### 11.2 Agent API
+### 11.2 Agent API（第一版，已实现）
 
-* `POST /api/agent/register`
-* `POST /api/agent/heartbeat`
-* `GET /api/agent/version/active`
-* `GET /api/agent/versions/:version`
-* `POST /api/agent/apply-result`
+* `POST /api/agent/nodes/register`
+* `POST /api/agent/nodes/heartbeat`
+* `GET /api/agent/config-versions/active`
+* `POST /api/agent/apply-logs`
 
-### 11.3 鉴权方案
+### 11.3 第二版新增管理端 API
+
+* `GET /api/node-groups/` — 分组列表
+* `POST /api/node-groups/` — 创建分组
+* `PUT /api/node-groups/:id` — 更新分组
+* `DELETE /api/node-groups/:id` — 删除分组
+* `GET /api/agent-tokens/` — Token 列表
+* `POST /api/agent-tokens/` — 创建 Token
+* `DELETE /api/agent-tokens/:id` — 撤销 Token
+* `GET /api/config-versions/preview` — 预览当前启用规则的渲染结果（不写库）
+* `GET /api/config-versions/diff` — 对比当前激活版本与待发布的变更摘要
+
+### 11.4 鉴权方案
 
 管理端：
 
 * 直接沿用 gin-template 的登录态
 
-Agent：
+Agent（第一版）：
 
-* 第一版使用预共享 Token
-* 例如请求头 `X-Agent-Token`
-* 后续再升级 mTLS
+* 预共享 Token，请求头 `X-Agent-Token`，Token 值来自环境变量
+
+Agent（第二版）：
+
+* Token 改为查 `agent_tokens` 表验证
+* 环境变量 Token 仅作 bootstrap 引导 Token，数据库有记录时不再使用
+* 后续可升级 mTLS
 
 ---
 
 ## 12. 页面设计
 
-第一版只保留最少页面。
-
 ### 12.1 登录页
 
 沿用 gin-template 现有登录。
 
-### 12.2 反代规则页
+### 12.2 反代规则页（第一版，已实现）
 
 展示和编辑：
 
@@ -450,7 +555,15 @@ Agent：
 * 是否启用
 * 备注
 
-### 12.3 发布版本页
+第二版新增字段：
+
+* 是否启用 HTTPS
+* SSL 证书路径
+* SSL 私钥路径
+* 是否 HTTP → HTTPS 重定向
+* 自定义请求头（JSON 编辑器）
+
+### 12.3 发布版本页（第一版，已实现）
 
 展示：
 
@@ -464,7 +577,12 @@ Agent：
 * 立即发布
 * 激活旧版本
 
-### 12.4 节点页
+第二版新增：
+
+* 发布目标分组选择（可选，不选则全量）
+* 发布前展示配置预览与变更摘要
+
+### 12.4 节点页（第一版，已实现）
 
 展示：
 
@@ -475,7 +593,11 @@ Agent：
 * 最后心跳时间
 * 最近错误
 
-### 12.5 应用记录页
+第二版新增：
+
+* 所属分组
+
+### 12.5 应用记录页（第一版，已实现）
 
 展示：
 
@@ -485,19 +607,45 @@ Agent：
 * 错误信息
 * 时间
 
+### 12.6 Token 管理页（第二版新增）
+
+展示：
+
+* Token 名称
+* 创建人
+* 过期时间
+* 是否有效
+
+动作：
+
+* 创建 Token
+* 撤销 Token
+
+### 12.7 节点分组页（第二版新增）
+
+展示：
+
+* 分组名称
+* 备注
+* 该分组下节点数
+
+动作：
+
+* 创建分组
+* 编辑分组
+* 删除分组
+
 ---
 
 ## 13. 代码组织建议
 
-### Server
-
-建议直接在现有 `atsf_server` 下新增以下内容：
+### Server（第一版，已实现）
 
 ```text
 atsf_server/
   controller/
-    route.go
-    version.go
+    proxy_route.go
+    config_version.go
     node.go
     agent.go
   model/
@@ -508,58 +656,73 @@ atsf_server/
   router/
     api-router.go
   service/
-    publisher.go
-    renderer.go
+    proxy_route.go
+    config_version.go
+    agent.go
 ```
 
-### Agent
+### Server（第二版新增）
 
-建议新建独立目录：
+```text
+atsf_server/
+  controller/
+    node_group.go      # 节点分组 CRUD
+    agent_token.go     # Token 管理
+  model/
+    node_group.go      # NodeGroup 模型
+    agent_token.go     # AgentToken 模型
+  service/
+    node_group.go      # 分组逻辑
+    agent_token.go     # Token 创建与验证
+    renderer.go        # 抽离渲染逻辑（HTTPS 支持扩展）
+  middleware/
+    agent-auth.go      # 改为查表验证
+```
+
+### Agent（第一版，已实现）
 
 ```text
 atsf_agent/
   cmd/agent/main.go
   internal/config/config.go
-  internal/heartbeat/heartbeat.go
-  internal/sync/sync.go
-  internal/nginx/nginx.go
+  internal/heartbeat/service.go
+  internal/sync/service.go
+  internal/nginx/manager.go
   internal/state/state.go
+  internal/httpclient/client.go
+  internal/protocol/agent_api.go
 ```
+
+### Agent（第二版）
+
+第二版 Agent 无需新增模块，只需在现有模块内扩展：
+
+* `config`: 新增 `group_id` 配置项
+* `heartbeat`: 心跳请求中携带 `group_id`
+* `sync`: 按分组获取对应激活版本（Server 端路由区分）
 
 ---
 
 ## 14. 开发顺序
 
-按下面的顺序最稳。
+### 第一版（已完成）
 
-### 第一阶段
+1. Server 建表、AutoMigrate
+2. 反代规则 CRUD 与发布逻辑
+3. Agent API 与节点状态表
+4. Agent 同步、落盘、reload、回滚
+5. 管理端页面
+6. 联调和部署文档
 
-先把 Server 跑通：
+### 第二版（当前阶段）
 
-* 建表
-* 反代规则 CRUD
-* 发布版本表
-* 版本渲染逻辑
+按以下顺序执行，前项完成后再推进下一项：
 
-### 第二阶段
-
-做 Agent 最小闭环：
-
-* 注册
-* 心跳
-* 拉取激活版本
-* 写入 Nginx 路由配置
-* `nginx -t && nginx -s reload`
-* 应用结果上报
-
-### 第三阶段
-
-补管理端页面：
-
-* 规则页
-* 版本页
-* 节点页
-* 应用日志页
+1. HTTPS/TLS 支持（ProxyRoute 扩展字段 + 渲染器 + 前端表单）
+2. Agent Token 管理（agent_tokens 表 + 中间件改造 + 前端 Token 管理页）
+3. 节点分组与差异化下发（node_groups 表 + 发布分组逻辑 + Agent 携带 group_id）
+4. 路由增强（custom_headers 字段 + 渲染器注入 + 前端表单）
+5. 配置预览与变更摘要（preview 接口 + diff 接口 + 前端发布确认弹窗）
 
 ---
 
@@ -580,3 +743,17 @@ atsf_agent/
 ```
 
 这就是当前阶段最需要的 MVP。
+
+### 第二版取舍
+
+* HTTPS 支持不托管证书，只记录本地路径，避免引入证书存储和签发复杂度
+* 节点分组不做跨分组继承，每个分组独立一套激活版本，降低理解负担
+* Token 管理不做细粒度权限（如只读 Token），第二版所有 Token 权限一致
+* 路由自定义头不做模板变量，只支持静态 key-value，避免过早引入 DSL
+* 配置预览只展示渲染结果，不实际验证 Nginx 语法，真实校验仍由 Agent 完成
+
+第二版成功标准：
+
+```text
+HTTPS 路由可生效 + 节点可按分组差异化下发 + Token 可在界面管理 + 发布前可预览变更
+```
