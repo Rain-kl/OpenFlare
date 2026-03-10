@@ -70,6 +70,14 @@ func SetApiRouter(router *gin.Engine) {
 			proxyRoute.PUT("/:id", controller.UpdateProxyRoute)
 			proxyRoute.DELETE("/:id", controller.DeleteProxyRoute)
 		}
+		tlsCertificateRoute := apiRouter.Group("/tls-certificates")
+		tlsCertificateRoute.Use(middleware.AdminAuth())
+		{
+			tlsCertificateRoute.GET("/", controller.GetTLSCertificates)
+			tlsCertificateRoute.POST("/", controller.CreateTLSCertificate)
+			tlsCertificateRoute.POST("/import-file", controller.ImportTLSCertificateFile)
+			tlsCertificateRoute.DELETE("/:id", controller.DeleteTLSCertificate)
+		}
 		configVersionRoute := apiRouter.Group("/config-versions")
 		configVersionRoute.Use(middleware.AdminAuth())
 		{

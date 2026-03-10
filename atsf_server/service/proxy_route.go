@@ -8,10 +8,13 @@ import (
 )
 
 type ProxyRouteInput struct {
-	Domain    string `json:"domain"`
-	OriginURL string `json:"origin_url"`
-	Enabled   bool   `json:"enabled"`
-	Remark    string `json:"remark"`
+	Domain       string `json:"domain"`
+	OriginURL    string `json:"origin_url"`
+	Enabled      bool   `json:"enabled"`
+	EnableHTTPS  bool   `json:"enable_https"`
+	CertID       *uint  `json:"cert_id"`
+	RedirectHTTP bool   `json:"redirect_http"`
+	Remark       string `json:"remark"`
 }
 
 func ListProxyRoutes() ([]*model.ProxyRoute, error) {
@@ -71,12 +74,30 @@ func buildProxyRoute(route *model.ProxyRoute, input ProxyRouteInput) (*model.Pro
 	if err := validateOriginURL(originURL); err != nil {
 		return nil, err
 	}
+	if !input.EnableHTTPS {
+		input.RedirectHTTP = false
+		input.CertID = nil
+	}
+	if input.EnableHTTPS {
+		if input.CertID == nil || *input.CertID == 0 {
+			return nil, errors.New("启用 HTTPS 时必须选择证书")
+		}
+		if _, err := model.GetTLSCertificateByID(*input.CertID); err != nil {
+			return nil, errors.New("所选证书不存在")
+		}
+	}
+	if input.RedirectHTTP && !input.EnableHTTPS {
+		return nil, errors.New("仅启用 HTTPS 后才能开启 HTTP 重定向")
+	}
 	if route == nil {
 		route = &model.ProxyRoute{}
 	}
 	route.Domain = domain
 	route.OriginURL = originURL
 	route.Enabled = input.Enabled
+	route.EnableHTTPS = input.EnableHTTPS
+	route.CertID = input.CertID
+	route.RedirectHTTP = input.RedirectHTTP
 	route.Remark = remark
 	return route, nil
 }

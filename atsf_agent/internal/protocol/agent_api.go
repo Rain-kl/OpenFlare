@@ -24,8 +24,14 @@ type ApplyLogPayload struct {
 }
 
 type ActiveConfigResponse struct {
-	Version        string `json:"version"`
-	Checksum       string `json:"checksum"`
-	RenderedConfig string `json:"rendered_config"`
-	CreatedAt      string `json:"created_at"`
+	Version        string        `json:"version"`
+	Checksum       string        `json:"checksum"`
+	RenderedConfig string        `json:"rendered_config"`
+	SupportFiles   []SupportFile `json:"support_files"`
+	CreatedAt      string        `json:"created_at"`
+}
+
+type SupportFile struct {
+	Path    string `json:"path"`
+	Content string `json:"content"`
 }

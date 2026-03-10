@@ -36,6 +36,12 @@ func TestLoadDockerModeUsesManagedPaths(t *testing.T) {
 	if cfg.RouteConfigPath != filepath.Join(dir, "data", defaultDockerRouteConfigRelativePath) {
 		t.Fatalf("unexpected route config path: %s", cfg.RouteConfigPath)
 	}
+	if cfg.CertDir != filepath.Join(dir, "data", defaultCertDirRelativePath) {
+		t.Fatalf("unexpected cert dir: %s", cfg.CertDir)
+	}
+	if cfg.NginxCertDir != defaultDockerNginxCertDir {
+		t.Fatalf("unexpected nginx cert dir: %s", cfg.NginxCertDir)
+	}
 	if cfg.StatePath != filepath.Join(dir, "data", defaultDockerStateRelativePath) {
 		t.Fatalf("unexpected state path: %s", cfg.StatePath)
 	}
@@ -72,6 +78,9 @@ func TestLoadPathModeKeepsExplicitPaths(t *testing.T) {
 	if cfg.StatePath != "/tmp/agent-state.json" {
 		t.Fatalf("unexpected state path: %s", cfg.StatePath)
 	}
+	if cfg.NginxCertDir != cfg.CertDir {
+		t.Fatalf("expected path mode nginx cert dir to equal cert dir, got %s / %s", cfg.NginxCertDir, cfg.CertDir)
+	}
 }
 
 func TestLoadUsesCustomDataDirForGeneratedFiles(t *testing.T) {
@@ -103,5 +112,8 @@ func TestLoadUsesCustomDataDirForGeneratedFiles(t *testing.T) {
 	}
 	if cfg.StatePath != "/srv/atsflare/"+defaultDockerStateRelativePath {
 		t.Fatalf("unexpected state path: %s", cfg.StatePath)
+	}
+	if cfg.CertDir != "/srv/atsflare/"+defaultCertDirRelativePath {
+		t.Fatalf("unexpected cert dir: %s", cfg.CertDir)
 	}
 }

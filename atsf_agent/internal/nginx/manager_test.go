@@ -3,10 +3,13 @@ package nginx
 import (
 	"context"
 	"errors"
+	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
+
+	"atsflare-agent/internal/protocol"
 )
 
 type runCall struct {
@@ -19,12 +22,29 @@ type fakeRunner struct {
 	runFn func(name string, args ...string) ([]byte, error)
 }
 
+type fakeExecutor struct {
+	testErr   error
+	reloadErr error
+}
+
 func (r *fakeRunner) Run(ctx context.Context, name string, args ...string) ([]byte, error) {
 	r.calls = append(r.calls, runCall{name: name, args: append([]string{}, args...)})
 	if r.runFn != nil {
 		return r.runFn(name, args...)
 	}
 	return nil, nil
+}
+
+func (e *fakeExecutor) Test(ctx context.Context) error {
+	return e.testErr
+}
+
+func (e *fakeExecutor) Reload(ctx context.Context) error {
+	return e.reloadErr
+}
+
+func (e *fakeExecutor) EnsureRuntime(ctx context.Context, recreate bool) error {
+	return nil
 }
 
 func TestPathExecutorCommands(t *testing.T) {
@@ -74,6 +94,8 @@ func TestDockerExecutorStartsContainerWhenMissing(t *testing.T) {
 		ContainerName:  "atsflare-nginx",
 		Image:          "nginx:stable-alpine",
 		RouteConfigDir: filepath.Clean("/tmp/routes"),
+		CertDir:        filepath.Clean("/tmp/certs"),
+		NginxCertDir:   "/etc/nginx/atsflare-certs",
 		Runner:         runner,
 	}
 
@@ -103,6 +125,8 @@ func TestDockerExecutorStartsStoppedContainer(t *testing.T) {
 		ContainerName:  "atsflare-nginx",
 		Image:          "nginx:stable-alpine",
 		RouteConfigDir: filepath.Clean("/tmp/routes"),
+		CertDir:        filepath.Clean("/tmp/certs"),
+		NginxCertDir:   "/etc/nginx/atsflare-certs",
 		Runner:         runner,
 	}
 
@@ -138,6 +162,8 @@ func TestDockerExecutorRecreatesContainerOnStartup(t *testing.T) {
 		ContainerName:  "atsflare-nginx",
 		Image:          "nginx:stable-alpine",
 		RouteConfigDir: filepath.Clean("/tmp/routes"),
+		CertDir:        filepath.Clean("/tmp/certs"),
+		NginxCertDir:   "/etc/nginx/atsflare-certs",
 		Runner:         runner,
 	}
 
@@ -161,6 +187,8 @@ func TestNewExecutorUsesAbsoluteDockerMountPath(t *testing.T) {
 		ContainerName:   "atsflare-nginx",
 		Image:           "nginx:stable-alpine",
 		RouteConfigPath: "./data/etc/nginx/conf.d/atsflare_routes.conf",
+		CertDir:         "./data/etc/nginx/certs",
+		NginxCertDir:    "/etc/nginx/atsflare-certs",
 	})
 
 	dockerExecutor, ok := executor.(*DockerExecutor)
@@ -172,5 +200,83 @@ func TestNewExecutorUsesAbsoluteDockerMountPath(t *testing.T) {
 	}
 	if !strings.HasSuffix(dockerExecutor.RouteConfigDir, filepath.Clean("data/etc/nginx/conf.d")) {
 		t.Fatalf("unexpected route config dir: %s", dockerExecutor.RouteConfigDir)
+	}
+}
+
+func TestManagerApplyWritesSupportFilesAndReplacesPlaceholder(t *testing.T) {
+	tempDir := t.TempDir()
+	manager := &Manager{
+		RouteConfigPath: filepath.Join(tempDir, "routes.conf"),
+		CertDir:         filepath.Join(tempDir, "certs"),
+		NginxCertDir:    "/etc/nginx/atsflare-certs",
+		Executor:        &fakeExecutor{},
+	}
+
+	err := manager.Apply(context.Background(), "ssl_certificate __ATSF_CERT_DIR__/1.crt;", []protocol.SupportFile{
+		{Path: "1.crt", Content: "cert-data"},
+		{Path: "1.key", Content: "key-data"},
+	})
+	if err != nil {
+		t.Fatalf("Apply failed: %v", err)
+	}
+
+	routeData, err := os.ReadFile(manager.RouteConfigPath)
+	if err != nil {
+		t.Fatalf("failed to read route config: %v", err)
+	}
+	if !strings.Contains(string(routeData), "/etc/nginx/atsflare-certs/1.crt") {
+		t.Fatalf("expected placeholder replacement in route config, got %s", string(routeData))
+	}
+	certData, err := os.ReadFile(filepath.Join(manager.CertDir, "1.crt"))
+	if err != nil {
+		t.Fatalf("failed to read cert file: %v", err)
+	}
+	if string(certData) != "cert-data" {
+		t.Fatalf("unexpected cert file content: %s", string(certData))
+	}
+}
+
+func TestManagerRollbackRestoresSupportFiles(t *testing.T) {
+	tempDir := t.TempDir()
+	routePath := filepath.Join(tempDir, "routes.conf")
+	certDir := filepath.Join(tempDir, "certs")
+	if err := os.MkdirAll(certDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll failed: %v", err)
+	}
+	if err := os.WriteFile(routePath, []byte("old-route"), 0o644); err != nil {
+		t.Fatalf("WriteFile failed: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(certDir, "1.crt"), []byte("old-cert"), 0o600); err != nil {
+		t.Fatalf("WriteFile failed: %v", err)
+	}
+	manager := &Manager{
+		RouteConfigPath: routePath,
+		CertDir:         certDir,
+		NginxCertDir:    "/etc/nginx/atsflare-certs",
+		Executor: &fakeExecutor{
+			testErr: errors.New("nginx test failed"),
+		},
+	}
+
+	err := manager.Apply(context.Background(), "new-route", []protocol.SupportFile{
+		{Path: "1.crt", Content: "new-cert"},
+	})
+	if err == nil {
+		t.Fatal("expected Apply to fail")
+	}
+
+	routeData, err := os.ReadFile(routePath)
+	if err != nil {
+		t.Fatalf("failed to read route config: %v", err)
+	}
+	if string(routeData) != "old-route" {
+		t.Fatalf("expected route rollback, got %s", string(routeData))
+	}
+	certData, err := os.ReadFile(filepath.Join(certDir, "1.crt"))
+	if err != nil {
+		t.Fatalf("failed to read cert file: %v", err)
+	}
+	if string(certData) != "old-cert" {
+		t.Fatalf("expected cert rollback, got %s", string(certData))
 	}
 }

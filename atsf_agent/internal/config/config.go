@@ -10,7 +10,9 @@ import (
 
 const (
 	defaultDockerRouteConfigRelativePath = "etc/nginx/conf.d/atsflare_routes.conf"
+	defaultCertDirRelativePath           = "etc/nginx/certs"
 	defaultDockerStateRelativePath       = "var/lib/atsflare/agent-state.json"
+	defaultDockerNginxCertDir            = "/etc/nginx/atsflare-certs"
 )
 
 type Config struct {
@@ -26,6 +28,8 @@ type Config struct {
 	DockerBinary       string        `json:"docker_binary"`
 	DataDir            string        `json:"data_dir"`
 	RouteConfigPath    string        `json:"route_config_path"`
+	CertDir            string        `json:"cert_dir"`
+	NginxCertDir       string        `json:"nginx_cert_dir"`
 	StatePath          string        `json:"state_path"`
 	HeartbeatInterval  time.Duration `json:"heartbeat_interval"`
 	SyncInterval       time.Duration `json:"sync_interval"`
@@ -74,6 +78,16 @@ func applyDefaults(cfg *Config, baseDir string) {
 		}
 		if cfg.StatePath == "" {
 			cfg.StatePath = filepath.Join(cfg.DataDir, defaultDockerStateRelativePath)
+		}
+	}
+	if cfg.CertDir == "" {
+		cfg.CertDir = filepath.Join(cfg.DataDir, defaultCertDirRelativePath)
+	}
+	if cfg.NginxCertDir == "" {
+		if cfg.NginxPath != "" {
+			cfg.NginxCertDir = cfg.CertDir
+		} else {
+			cfg.NginxCertDir = defaultDockerNginxCertDir
 		}
 	}
 	if cfg.HeartbeatInterval <= 0 {

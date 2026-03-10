@@ -28,6 +28,7 @@ type fakeManager struct {
 	currentChecksumErr error
 	ensureCalls        []bool
 	applyContents      []string
+	applyFiles         [][]protocol.SupportFile
 }
 
 func (f *fakeExecutor) Test(ctx context.Context) error {
@@ -51,8 +52,9 @@ func (f *fakeClient) ReportApplyLog(ctx context.Context, payload protocol.ApplyL
 	return nil
 }
 
-func (m *fakeManager) Apply(ctx context.Context, content string) error {
+func (m *fakeManager) Apply(ctx context.Context, content string, supportFiles []protocol.SupportFile) error {
 	m.applyContents = append(m.applyContents, content)
+	m.applyFiles = append(m.applyFiles, append([]protocol.SupportFile(nil), supportFiles...))
 	return m.applyErr
 }
 
@@ -71,6 +73,7 @@ func TestSyncOnceSuccess(t *testing.T) {
 			Version:        "20260309-001",
 			Checksum:       "checksum-1",
 			RenderedConfig: "server { listen 80; }",
+			SupportFiles:   []protocol.SupportFile{{Path: "1.crt", Content: "cert"}},
 			CreatedAt:      time.Now().Format(time.RFC3339),
 		},
 	}
@@ -121,6 +124,7 @@ func TestSyncOnceRollbackOnNginxFailure(t *testing.T) {
 			Version:        "20260309-002",
 			Checksum:       "checksum-2",
 			RenderedConfig: "server { listen 81; }",
+			SupportFiles:   []protocol.SupportFile{{Path: "1.crt", Content: "cert"}},
 			CreatedAt:      time.Now().Format(time.RFC3339),
 		},
 	}
@@ -181,6 +185,7 @@ func TestSyncOnStartupRecreatesRuntimeWhenChecksumMatches(t *testing.T) {
 			Version:        "20260309-003",
 			Checksum:       "checksum-3",
 			RenderedConfig: "server { listen 82; }",
+			SupportFiles:   []protocol.SupportFile{{Path: "1.crt", Content: "cert"}},
 			CreatedAt:      time.Now().Format(time.RFC3339),
 		},
 	}

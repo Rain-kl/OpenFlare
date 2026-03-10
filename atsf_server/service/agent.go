@@ -1,6 +1,7 @@
 package service
 
 import (
+	"encoding/json"
 	"errors"
 	"gin-template/common"
 	"gin-template/model"
@@ -35,10 +36,11 @@ type ApplyLogPayload struct {
 }
 
 type AgentConfigResponse struct {
-	Version        string    `json:"version"`
-	Checksum       string    `json:"checksum"`
-	RenderedConfig string    `json:"rendered_config"`
-	CreatedAt      time.Time `json:"created_at"`
+	Version        string        `json:"version"`
+	Checksum       string        `json:"checksum"`
+	RenderedConfig string        `json:"rendered_config"`
+	SupportFiles   []SupportFile `json:"support_files"`
+	CreatedAt      time.Time     `json:"created_at"`
 }
 
 type NodeView struct {
@@ -72,10 +74,17 @@ func GetActiveConfigForAgent() (*AgentConfigResponse, error) {
 	if err != nil {
 		return nil, err
 	}
+	var supportFiles []SupportFile
+	if version.SupportFilesJSON != "" {
+		if err = json.Unmarshal([]byte(version.SupportFilesJSON), &supportFiles); err != nil {
+			return nil, err
+		}
+	}
 	return &AgentConfigResponse{
 		Version:        version.Version,
 		Checksum:       version.Checksum,
 		RenderedConfig: version.RenderedConfig,
+		SupportFiles:   supportFiles,
 		CreatedAt:      version.CreatedAt,
 	}, nil
 }

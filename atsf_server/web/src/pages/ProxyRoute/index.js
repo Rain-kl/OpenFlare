@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
   Button,
+  Dropdown,
   Form,
   Header,
   Icon,
@@ -15,11 +16,15 @@ const initialForm = {
   domain: '',
   origin_url: '',
   enabled: true,
+  enable_https: false,
+  cert_id: '',
+  redirect_http: false,
   remark: '',
 };
 
 const ProxyRoute = () => {
   const [routes, setRoutes] = useState([]);
+  const [certificates, setCertificates] = useState([]);
   const [loading, setLoading] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [form, setForm] = useState(initialForm);
@@ -37,8 +42,19 @@ const ProxyRoute = () => {
     setLoading(false);
   };
 
+  const loadCertificates = async () => {
+    const res = await API.get('/api/tls-certificates/');
+    const { success, message, data } = res.data;
+    if (success) {
+      setCertificates(data || []);
+    } else {
+      showError(message);
+    }
+  };
+
   useEffect(() => {
     loadRoutes().then();
+    loadCertificates().then();
   }, []);
 
   const resetForm = () => {
@@ -51,6 +67,7 @@ const ProxyRoute = () => {
       ...form,
       domain: form.domain.trim(),
       origin_url: form.origin_url.trim(),
+      cert_id: form.enable_https && form.cert_id ? Number(form.cert_id) : null,
       remark: form.remark.trim(),
     };
     const res = editingId
@@ -95,9 +112,18 @@ const ProxyRoute = () => {
       domain: route.domain,
       origin_url: route.origin_url,
       enabled: route.enabled,
+      enable_https: route.enable_https || false,
+      cert_id: route.cert_id || '',
+      redirect_http: route.redirect_http || false,
       remark: route.remark || '',
     });
   };
+
+  const certificateOptions = certificates.map((certificate) => ({
+    key: certificate.id,
+    text: `${certificate.name} (${certificate.not_after ? formatDateTime(certificate.not_after) : 'unknown'})`,
+    value: certificate.id,
+  }));
 
   return (
     <Segment loading={loading}>
@@ -128,6 +154,33 @@ const ProxyRoute = () => {
           />
         </Form.Group>
         <Form.Group widths='equal'>
+          <Form.Checkbox
+            toggle
+            label='启用 HTTPS'
+            checked={form.enable_https}
+            onChange={(e, { checked }) =>
+              setForm({
+                ...form,
+                enable_https: checked,
+                cert_id: checked ? form.cert_id : '',
+                redirect_http: checked ? form.redirect_http : false,
+              })
+            }
+            style={{ alignSelf: 'flex-end', marginBottom: '1rem' }}
+          />
+          <Form.Field
+            control={Dropdown}
+            selection
+            clearable
+            disabled={!form.enable_https}
+            label='TLS 证书'
+            placeholder='选择已导入证书'
+            options={certificateOptions}
+            value={form.cert_id}
+            onChange={(e, { value }) => setForm({ ...form, cert_id: value || '' })}
+          />
+        </Form.Group>
+        <Form.Group widths='equal'>
           <Form.Field
             control={TextArea}
             label='备注'
@@ -140,6 +193,14 @@ const ProxyRoute = () => {
             label='启用规则'
             checked={form.enabled}
             onChange={(e, { checked }) => setForm({ ...form, enabled: checked })}
+            style={{ alignSelf: 'flex-end', marginBottom: '1rem' }}
+          />
+          <Form.Checkbox
+            toggle
+            label='HTTP 跳转 HTTPS'
+            checked={form.redirect_http}
+            disabled={!form.enable_https}
+            onChange={(e, { checked }) => setForm({ ...form, redirect_http: checked })}
             style={{ alignSelf: 'flex-end', marginBottom: '1rem' }}
           />
         </Form.Group>
@@ -158,6 +219,7 @@ const ProxyRoute = () => {
           <Table.Row>
             <Table.HeaderCell>域名</Table.HeaderCell>
             <Table.HeaderCell>源站地址</Table.HeaderCell>
+            <Table.HeaderCell>HTTPS</Table.HeaderCell>
             <Table.HeaderCell>状态</Table.HeaderCell>
             <Table.HeaderCell>备注</Table.HeaderCell>
             <Table.HeaderCell>更新时间</Table.HeaderCell>
@@ -169,6 +231,13 @@ const ProxyRoute = () => {
             <Table.Row key={route.id}>
               <Table.Cell>{route.domain}</Table.Cell>
               <Table.Cell>{route.origin_url}</Table.Cell>
+              <Table.Cell>
+                {route.enable_https ? (
+                  <Label color='blue'>{route.redirect_http ? 'HTTPS + 重定向' : 'HTTPS'}</Label>
+                ) : (
+                  <Label>HTTP</Label>
+                )}
+              </Table.Cell>
               <Table.Cell>
                 {route.enabled ? <Label color='green'>启用</Label> : <Label>停用</Label>}
               </Table.Cell>

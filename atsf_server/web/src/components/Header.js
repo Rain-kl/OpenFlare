@@ -45,6 +45,12 @@ const headerButtons = [
     admin: true,
   },
   {
+    name: '证书',
+    to: '/tls-certificate',
+    icon: 'lock',
+    admin: true,
+  },
+  {
     name: '文件',
     to: '/file',
     icon: 'file',

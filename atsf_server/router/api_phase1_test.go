@@ -2,18 +2,27 @@ package router_test
 
 import (
 	"bytes"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
+	"crypto/x509/pkix"
 	"encoding/json"
+	"encoding/pem"
 	"gin-template/common"
 	"gin-template/model"
 	"gin-template/router"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
+	"mime/multipart"
+	"math/big"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"testing"
+	"time"
 )
 
 type apiResponse struct {
@@ -125,6 +134,81 @@ func TestPhase1PublishLifecycle(t *testing.T) {
 	}
 }
 
+func TestPhase1HTTPSAndCertificateImportLifecycle(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	common.RedisEnabled = false
+	setupTestDB(t)
+
+	engine := gin.New()
+	engine.Use(sessions.Sessions("session", cookie.NewStore([]byte("test-secret"))))
+	router.SetApiRouter(engine)
+
+	token := prepareRootToken(t)
+	certPEM, keyPEM := generateCertificatePairForRouterTest(t, []string{"secure.example.com"})
+
+	manualResp := performJSONRequest(t, engine, token, http.MethodPost, "/api/tls-certificates/", map[string]any{
+		"name":     "secure-example",
+		"cert_pem": certPEM,
+		"key_pem":  keyPEM,
+		"remark":   "manual import",
+	})
+	var manualCertificate model.TLSCertificate
+	decodeResponseData(t, manualResp, &manualCertificate)
+	if manualCertificate.ID == 0 {
+		t.Fatal("expected manual certificate import to persist certificate")
+	}
+
+	fileCertPEM, fileKeyPEM := generateCertificatePairForRouterTest(t, []string{"upload.example.com"})
+	multipartResp := performMultipartRequest(t, engine, token, "/api/tls-certificates/import-file", map[string]string{
+		"name":   "upload-example",
+		"remark": "upload import",
+	}, map[string]string{
+		"cert_file": fileCertPEM,
+		"key_file":  fileKeyPEM,
+	})
+	var uploadedCertificate model.TLSCertificate
+	decodeResponseData(t, multipartResp, &uploadedCertificate)
+	if uploadedCertificate.ID == 0 {
+		t.Fatal("expected file certificate import to persist certificate")
+	}
+
+	resp := performJSONRequest(t, engine, token, http.MethodPost, "/api/proxy-routes/", map[string]any{
+		"domain":        "secure.example.com",
+		"origin_url":    "https://origin-secure.internal",
+		"enabled":       true,
+		"enable_https":  true,
+		"cert_id":       manualCertificate.ID,
+		"redirect_http": true,
+		"remark":        "https route",
+	})
+	var route model.ProxyRoute
+	decodeResponseData(t, resp, &route)
+	if !route.EnableHTTPS || route.CertID == nil || *route.CertID != manualCertificate.ID {
+		t.Fatal("expected route to persist https certificate binding")
+	}
+
+	resp = performJSONRequest(t, engine, token, http.MethodPost, "/api/config-versions/publish", nil)
+	var version model.ConfigVersion
+	decodeResponseData(t, resp, &version)
+	if !strings.Contains(version.RenderedConfig, "listen 443 ssl;") {
+		t.Fatal("expected active config to render https listener")
+	}
+	if !strings.Contains(version.RenderedConfig, "return 301 https://$host$request_uri;") {
+		t.Fatal("expected active config to render redirect server")
+	}
+	if !strings.Contains(version.SupportFilesJSON, ".crt") || !strings.Contains(version.SupportFilesJSON, ".key") {
+		t.Fatal("expected support files json to contain certificate artifacts")
+	}
+
+	agentResp := performAgentJSONRequest(t, engine, http.MethodGet, "/api/agent/config-versions/active", nil)
+	var activeConfig map[string]any
+	decodeResponseData(t, agentResp, &activeConfig)
+	supportFiles, ok := activeConfig["support_files"].([]any)
+	if !ok || len(supportFiles) != 2 {
+		t.Fatalf("expected active config to expose 2 support files, got %#v", activeConfig["support_files"])
+	}
+}
+
 func setupTestDB(t *testing.T) {
 	t.Helper()
 	dbPath := filepath.Join(t.TempDir(), "phase1.db")
@@ -191,4 +275,69 @@ func decodeResponseData(t *testing.T, resp apiResponse, target any) {
 
 func toString(id uint) string {
 	return strconv.FormatUint(uint64(id), 10)
+}
+
+func performMultipartRequest(t *testing.T, engine http.Handler, token string, path string, fields map[string]string, files map[string]string) apiResponse {
+	t.Helper()
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	for key, value := range fields {
+		if err := writer.WriteField(key, value); err != nil {
+			t.Fatalf("failed to write multipart field: %v", err)
+		}
+	}
+	for fieldName, content := range files {
+		part, err := writer.CreateFormFile(fieldName, fieldName+".pem")
+		if err != nil {
+			t.Fatalf("failed to create multipart file: %v", err)
+		}
+		if _, err = part.Write([]byte(content)); err != nil {
+			t.Fatalf("failed to write multipart file content: %v", err)
+		}
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatalf("failed to close multipart writer: %v", err)
+	}
+	req := httptest.NewRequest(http.MethodPost, path, &body)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	req.Header.Set("Authorization", "Bearer "+token)
+	recorder := httptest.NewRecorder()
+	engine.ServeHTTP(recorder, req)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("unexpected status %d for multipart %s: %s", recorder.Code, path, recorder.Body.String())
+	}
+	var resp apiResponse
+	if err := json.Unmarshal(recorder.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("failed to unmarshal multipart response: %v", err)
+	}
+	if !resp.Success {
+		t.Fatalf("multipart request %s failed: %s", path, resp.Message)
+	}
+	return resp
+}
+
+func generateCertificatePairForRouterTest(t *testing.T, dnsNames []string) (string, string) {
+	t.Helper()
+	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatalf("GenerateKey failed: %v", err)
+	}
+	template := &x509.Certificate{
+		SerialNumber: big.NewInt(time.Now().UnixNano()),
+		Subject: pkix.Name{
+			CommonName: dnsNames[0],
+		},
+		DNSNames:    dnsNames,
+		NotBefore:   time.Now().Add(-time.Hour),
+		NotAfter:    time.Now().Add(24 * time.Hour),
+		KeyUsage:    x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+	}
+	certDER, err := x509.CreateCertificate(rand.Reader, template, template, &privateKey.PublicKey, privateKey)
+	if err != nil {
+		t.Fatalf("CreateCertificate failed: %v", err)
+	}
+	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certDER})
+	keyPEM := pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(privateKey)})
+	return string(certPEM), string(keyPEM)
 }

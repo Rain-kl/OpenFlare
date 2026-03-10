@@ -9,8 +9,13 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
+
+	"atsflare-agent/internal/protocol"
 )
+
+const CertDirPlaceholder = "__ATSF_CERT_DIR__"
 
 type Executor interface {
 	Test(ctx context.Context) error
@@ -60,6 +65,8 @@ type DockerExecutor struct {
 	ContainerName  string
 	Image          string
 	RouteConfigDir string
+	CertDir        string
+	NginxCertDir   string
 	Runner         CommandRunner
 }
 
@@ -71,6 +78,8 @@ func (e *DockerExecutor) Test(ctx context.Context) error {
 		"--rm",
 		"-v",
 		fmt.Sprintf("%s:/etc/nginx/conf.d", e.RouteConfigDir),
+		"-v",
+		fmt.Sprintf("%s:%s", e.CertDir, e.NginxCertDir),
 		e.Image,
 		"nginx",
 		"-t",
@@ -124,6 +133,7 @@ func (e *DockerExecutor) runContainer(ctx context.Context) error {
 		"-p", "80:80",
 		"-p", "443:443",
 		"-v", fmt.Sprintf("%s:/etc/nginx/conf.d", e.RouteConfigDir),
+		"-v", fmt.Sprintf("%s:%s", e.CertDir, e.NginxCertDir),
 		e.Image,
 	}
 	runOutput, runErr := e.Runner.Run(ctx, e.DockerBinary, runArgs...)
@@ -135,27 +145,32 @@ func (e *DockerExecutor) runContainer(ctx context.Context) error {
 
 type Manager struct {
 	RouteConfigPath string
+	CertDir         string
+	NginxCertDir    string
 	Executor        Executor
 }
 
-func (m *Manager) Apply(ctx context.Context, content string) error {
-	backupPath, hadExisting, err := m.backup()
+func (m *Manager) Apply(ctx context.Context, content string, supportFiles []protocol.SupportFile) error {
+	backup, err := m.backup()
 	if err != nil {
 		return err
 	}
-	if err = os.WriteFile(m.RouteConfigPath, []byte(content), 0o644); err != nil {
+	if err = m.writeSupportFiles(supportFiles); err != nil {
+		_ = m.restore(backup)
+		return err
+	}
+	renderedContent := m.renderConfig(content)
+	if err = os.WriteFile(m.RouteConfigPath, []byte(renderedContent), 0o644); err != nil {
+		_ = m.restore(backup)
 		return err
 	}
 	if err = m.Executor.Test(ctx); err != nil {
-		_ = m.restore(backupPath, hadExisting)
+		_ = m.restore(backup)
 		return err
 	}
 	if err = m.Executor.Reload(ctx); err != nil {
-		_ = m.restore(backupPath, hadExisting)
+		_ = m.restore(backup)
 		return err
-	}
-	if backupPath != "" {
-		_ = os.Remove(backupPath)
 	}
 	return nil
 }
@@ -178,8 +193,15 @@ func (m *Manager) CurrentChecksum() (string, error) {
 		}
 		return "", err
 	}
-	sum := sha256.Sum256(data)
-	return hex.EncodeToString(sum[:]), nil
+	normalized := string(data)
+	if m.NginxCertDir != "" {
+		normalized = strings.ReplaceAll(normalized, m.NginxCertDir, CertDirPlaceholder)
+	}
+	files, err := m.readSupportFiles()
+	if err != nil {
+		return "", err
+	}
+	return bundleChecksum(normalized, files), nil
 }
 
 type ExecutorOptions struct {
@@ -188,6 +210,8 @@ type ExecutorOptions struct {
 	ContainerName   string
 	Image           string
 	RouteConfigPath string
+	CertDir         string
+	NginxCertDir    string
 }
 
 func NewExecutor(options ExecutorOptions) Executor {
@@ -202,46 +226,167 @@ func NewExecutor(options ExecutorOptions) Executor {
 	if absDir, err := filepath.Abs(routeConfigDir); err == nil {
 		routeConfigDir = absDir
 	}
+	certDir := options.CertDir
+	if absDir, err := filepath.Abs(certDir); err == nil {
+		certDir = absDir
+	}
 	return &DockerExecutor{
 		DockerBinary:   options.DockerBinary,
 		ContainerName:  options.ContainerName,
 		Image:          options.Image,
 		RouteConfigDir: routeConfigDir,
+		CertDir:        certDir,
+		NginxCertDir:   options.NginxCertDir,
 		Runner:         runner,
 	}
 }
 
-func (m *Manager) backup() (string, bool, error) {
-	if m.RouteConfigPath == "" {
-		return "", false, errors.New("route config path 不能为空")
-	}
-	if err := os.MkdirAll(filepath.Dir(m.RouteConfigPath), 0o755); err != nil {
-		return "", false, err
-	}
-	data, err := os.ReadFile(m.RouteConfigPath)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return "", false, nil
-		}
-		return "", false, err
-	}
-	backupPath := m.RouteConfigPath + ".bak"
-	if err = os.WriteFile(backupPath, data, 0o644); err != nil {
-		return "", false, err
-	}
-	return backupPath, true, nil
+type backupState struct {
+	RouteExisted bool
+	RouteData    []byte
+	Files        []protocol.SupportFile
 }
 
-func (m *Manager) restore(backupPath string, hadExisting bool) error {
-	if hadExisting {
-		data, err := os.ReadFile(backupPath)
+func (m *Manager) backup() (*backupState, error) {
+	if m.RouteConfigPath == "" {
+		return nil, errors.New("route config path 不能为空")
+	}
+	if err := os.MkdirAll(filepath.Dir(m.RouteConfigPath), 0o755); err != nil {
+		return nil, err
+	}
+	if err := os.MkdirAll(m.CertDir, 0o755); err != nil {
+		return nil, err
+	}
+	state := &backupState{}
+	data, err := os.ReadFile(m.RouteConfigPath)
+	if err == nil {
+		state.RouteExisted = true
+		state.RouteData = data
+	} else if !os.IsNotExist(err) {
+		return nil, err
+	}
+	files, err := m.readSupportFiles()
+	if err != nil {
+		return nil, err
+	}
+	state.Files = files
+	return state, nil
+}
+
+func (m *Manager) restore(state *backupState) error {
+	if state == nil {
+		return nil
+	}
+	if state.RouteExisted {
+		if err := os.WriteFile(m.RouteConfigPath, state.RouteData, 0o644); err != nil {
+			return err
+		}
+	} else if err := os.Remove(m.RouteConfigPath); err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	if err := os.RemoveAll(m.CertDir); err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	if err := os.MkdirAll(m.CertDir, 0o755); err != nil {
+		return err
+	}
+	for _, file := range state.Files {
+		targetPath := filepath.Join(m.CertDir, filepath.Clean(file.Path))
+		if err := os.MkdirAll(filepath.Dir(targetPath), 0o755); err != nil {
+			return err
+		}
+		if err := os.WriteFile(targetPath, []byte(file.Content), 0o600); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (m *Manager) writeSupportFiles(supportFiles []protocol.SupportFile) error {
+	if err := os.RemoveAll(m.CertDir); err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	if err := os.MkdirAll(m.CertDir, 0o755); err != nil {
+		return err
+	}
+	for _, file := range supportFiles {
+		targetPath := filepath.Join(m.CertDir, filepath.Clean(file.Path))
+		if err := os.MkdirAll(filepath.Dir(targetPath), 0o755); err != nil {
+			return err
+		}
+		if err := os.WriteFile(targetPath, []byte(file.Content), 0o600); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (m *Manager) readSupportFiles() ([]protocol.SupportFile, error) {
+	if m.CertDir == "" {
+		return nil, nil
+	}
+	if _, err := os.Stat(m.CertDir); err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	files := make([]protocol.SupportFile, 0)
+	err := filepath.Walk(m.CertDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
-		return os.WriteFile(m.RouteConfigPath, data, 0o644)
+		if info.IsDir() {
+			return nil
+		}
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		relativePath, err := filepath.Rel(m.CertDir, path)
+		if err != nil {
+			return err
+		}
+		files = append(files, protocol.SupportFile{
+			Path:    filepath.ToSlash(relativePath),
+			Content: string(data),
+		})
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
-	if err := os.Remove(m.RouteConfigPath); err != nil && !os.IsNotExist(err) {
-		return err
+	sort.Slice(files, func(i int, j int) bool {
+		return files[i].Path < files[j].Path
+	})
+	return files, nil
+}
+
+func (m *Manager) renderConfig(content string) string {
+	if m.NginxCertDir == "" {
+		return content
 	}
-	return nil
+	return strings.ReplaceAll(content, CertDirPlaceholder, m.NginxCertDir)
+}
+
+func checksum(content string) string {
+	sum := sha256.Sum256([]byte(content))
+	return hex.EncodeToString(sum[:])
+}
+
+func bundleChecksum(renderedConfig string, supportFiles []protocol.SupportFile) string {
+	files := append([]protocol.SupportFile(nil), supportFiles...)
+	sort.Slice(files, func(i int, j int) bool {
+		return files[i].Path < files[j].Path
+	})
+	var builder strings.Builder
+	builder.WriteString(renderedConfig)
+	builder.WriteString("\n--support-files--\n")
+	for _, file := range files {
+		builder.WriteString(file.Path)
+		builder.WriteString("\n")
+		builder.WriteString(file.Content)
+		builder.WriteString("\n")
+	}
+	return checksum(builder.String())
 }

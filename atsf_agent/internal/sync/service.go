@@ -18,7 +18,7 @@ type ConfigClient interface {
 }
 
 type NginxManager interface {
-	Apply(ctx context.Context, content string) error
+	Apply(ctx context.Context, content string, supportFiles []protocol.SupportFile) error
 	EnsureRuntime(ctx context.Context, recreate bool) error
 	CurrentChecksum() (string, error)
 }
@@ -72,7 +72,7 @@ func (s *Service) sync(ctx context.Context, startup bool) error {
 	if snapshot.CurrentVersion == config.Version && snapshot.CurrentChecksum == config.Checksum && !startup {
 		return nil
 	}
-	if err = s.nginxManager.Apply(ctx, config.RenderedConfig); err != nil {
+	if err = s.nginxManager.Apply(ctx, config.RenderedConfig, config.SupportFiles); err != nil {
 		snapshot.LastError = err.Error()
 		_ = s.stateStore.Save(snapshot)
 		reportErr := s.client.ReportApplyLog(ctx, protocol.ApplyLogPayload{
