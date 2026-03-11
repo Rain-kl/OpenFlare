@@ -191,6 +191,19 @@ cd atsf_server/web
 npm run build
 ```
 
+### 6.4 发布工作流
+
+当前仓库维护两套独立的 Release 工作流：
+
+* GitHub 使用 [.github/workflows/release.yml](.github/workflows/release.yml)，保留制品上传/下载分阶段流程
+* Gitea 使用 [.gitea/workflows/release.yml](.gitea/workflows/release.yml)，在单个 Job 内完成前端构建、服务端/Agent 多平台编译与 Release 发布，避免依赖 Gitea 目前不兼容的 `upload-artifact@v4`、`download-artifact@v4`
+
+Docker 镜像发布使用 [.github/workflows/docker-image.yml](.github/workflows/docker-image.yml)：
+
+* 仅构建 `atsf_server` 服务端镜像
+* 发布到 GitHub Container Registry（`ghcr.io/<owner>/<repo>:<tag>`）
+* 单个工作流同时产出 `linux/amd64` 与 `linux/arm64` 多架构镜像
+
 ---
 
 ## 7. Agent 一键部署（V3）

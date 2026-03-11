@@ -1,22 +1,28 @@
-FROM node:16 as builder
+ARG VERSION=dev
+
+FROM node:18 AS builder
+
+ARG VERSION
 
 WORKDIR /build
-COPY ./web .
-COPY ./VERSION .
+COPY ./web/package*.json ./
 RUN npm install
-RUN REACT_APP_VERSION=$(cat VERSION) npm run build
+COPY ./web ./
+RUN REACT_APP_VERSION="$VERSION" npm run build
 
-FROM golang AS builder2
+FROM golang:1.22 AS builder2
+
+ARG VERSION
 
 ENV GO111MODULE=on \
-    CGO_ENABLED=1 \
+    CGO_ENABLED=0 \
     GOOS=linux
 
 WORKDIR /build
 COPY . .
 COPY --from=builder /build/build ./web/build
 RUN go mod download
-RUN go build -ldflags "-s -w -X 'atsflare/common.Version=$(cat VERSION)' -extldflags '-static'" -o atsflare
+RUN go build -trimpath -ldflags "-s -w -X 'atsflare/common.Version=$VERSION'" -o atsflare
 
 FROM alpine
 
