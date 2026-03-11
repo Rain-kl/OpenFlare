@@ -348,6 +348,11 @@ Agent 接口当前覆盖：
   * `AgentSyncInterval`：Agent 配置同步间隔（毫秒），默认 30000
   * `NodeOfflineThreshold`：节点离线判定阈值（毫秒），默认 120000
   * `AgentUpdateRepo`：Agent 自动更新 GitHub 仓库地址，默认 `Rain-kl/ATSFlare`
+  * `GlobalApiRateLimitNum` / `GlobalApiRateLimitDuration`：全局 API 限流次数与窗口（秒）
+  * `GlobalWebRateLimitNum` / `GlobalWebRateLimitDuration`：全局 Web 限流次数与窗口（秒）
+  * `UploadRateLimitNum` / `UploadRateLimitDuration`：上传接口限流次数与窗口（秒）
+  * `DownloadRateLimitNum` / `DownloadRateLimitDuration`：下载接口限流次数与窗口（秒）
+  * `CriticalRateLimitNum` / `CriticalRateLimitDuration`：登录、注册、验证码等敏感接口限流次数与窗口（秒）
 * 环境变量类设置（`SESSION_SECRET`、`SQLITE_PATH`、`PORT`）不迁移，保留原有方式
 * 前端在设置页面新增「运维设置」Tab
 

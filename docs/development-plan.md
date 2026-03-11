@@ -54,6 +54,11 @@
    * `AgentSyncInterval`（默认 30000ms）
    * `NodeOfflineThreshold`（默认 120000ms）
    * `AgentUpdateRepo`（默认 `Rain-kl/ATSFlare`）
+   * `GlobalApiRateLimitNum` / `GlobalApiRateLimitDuration`
+   * `GlobalWebRateLimitNum` / `GlobalWebRateLimitDuration`
+   * `UploadRateLimitNum` / `UploadRateLimitDuration`
+   * `DownloadRateLimitNum` / `DownloadRateLimitDuration`
+   * `CriticalRateLimitNum` / `CriticalRateLimitDuration`
 2. 在 `model/option.go` 的 `InitOptionMap()` 注册新选项
 3. 在 `model/option.go` 的 `updateOptionMap()` 增加对新选项的同步
 4. 修改 `service/agent.go` 中 `computeNodeStatus()` 使用动态 `NodeOfflineThreshold`
@@ -64,6 +69,7 @@
 * 运维设置在设置页面可查看和修改
 * 修改后立即生效，无需重启 Server
 * `NodeOfflineThreshold` 变更后节点状态判定使用新阈值
+* 限流阈值与时间窗口可在设置页调整，并即时影响对应中间件
 
 ### 3.2 阶段二：Server 下发 Agent 设置 + Agent 接收
 

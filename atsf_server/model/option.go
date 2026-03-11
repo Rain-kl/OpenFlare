@@ -55,6 +55,16 @@ func InitOptionMap() {
 	common.OptionMap["AgentSyncInterval"] = strconv.Itoa(common.AgentSyncInterval)
 	common.OptionMap["NodeOfflineThreshold"] = strconv.Itoa(int(common.NodeOfflineThreshold.Milliseconds()))
 	common.OptionMap["AgentUpdateRepo"] = common.AgentUpdateRepo
+	common.OptionMap["GlobalApiRateLimitNum"] = strconv.Itoa(common.GlobalApiRateLimitNum)
+	common.OptionMap["GlobalApiRateLimitDuration"] = strconv.FormatInt(common.GlobalApiRateLimitDuration, 10)
+	common.OptionMap["GlobalWebRateLimitNum"] = strconv.Itoa(common.GlobalWebRateLimitNum)
+	common.OptionMap["GlobalWebRateLimitDuration"] = strconv.FormatInt(common.GlobalWebRateLimitDuration, 10)
+	common.OptionMap["UploadRateLimitNum"] = strconv.Itoa(common.UploadRateLimitNum)
+	common.OptionMap["UploadRateLimitDuration"] = strconv.FormatInt(common.UploadRateLimitDuration, 10)
+	common.OptionMap["DownloadRateLimitNum"] = strconv.Itoa(common.DownloadRateLimitNum)
+	common.OptionMap["DownloadRateLimitDuration"] = strconv.FormatInt(common.DownloadRateLimitDuration, 10)
+	common.OptionMap["CriticalRateLimitNum"] = strconv.Itoa(common.CriticalRateLimitNum)
+	common.OptionMap["CriticalRateLimitDuration"] = strconv.FormatInt(common.CriticalRateLimitDuration, 10)
 	common.OptionMapRWMutex.Unlock()
 	options, _ := AllOption()
 	for _, option := range options {
@@ -164,6 +174,46 @@ func updateOptionMap(key string, value string) {
 	case "AgentUpdateRepo":
 		if value != "" {
 			common.AgentUpdateRepo = value
+		}
+	case "GlobalApiRateLimitNum":
+		if v, err := strconv.Atoi(value); err == nil && v > 0 {
+			common.GlobalApiRateLimitNum = v
+		}
+	case "GlobalApiRateLimitDuration":
+		if v, err := strconv.ParseInt(value, 10, 64); err == nil && v > 0 {
+			common.GlobalApiRateLimitDuration = v
+		}
+	case "GlobalWebRateLimitNum":
+		if v, err := strconv.Atoi(value); err == nil && v > 0 {
+			common.GlobalWebRateLimitNum = v
+		}
+	case "GlobalWebRateLimitDuration":
+		if v, err := strconv.ParseInt(value, 10, 64); err == nil && v > 0 {
+			common.GlobalWebRateLimitDuration = v
+		}
+	case "UploadRateLimitNum":
+		if v, err := strconv.Atoi(value); err == nil && v > 0 {
+			common.UploadRateLimitNum = v
+		}
+	case "UploadRateLimitDuration":
+		if v, err := strconv.ParseInt(value, 10, 64); err == nil && v > 0 {
+			common.UploadRateLimitDuration = v
+		}
+	case "DownloadRateLimitNum":
+		if v, err := strconv.Atoi(value); err == nil && v > 0 {
+			common.DownloadRateLimitNum = v
+		}
+	case "DownloadRateLimitDuration":
+		if v, err := strconv.ParseInt(value, 10, 64); err == nil && v > 0 {
+			common.DownloadRateLimitDuration = v
+		}
+	case "CriticalRateLimitNum":
+		if v, err := strconv.Atoi(value); err == nil && v > 0 {
+			common.CriticalRateLimitNum = v
+		}
+	case "CriticalRateLimitDuration":
+		if v, err := strconv.ParseInt(value, 10, 64); err == nil && v > 0 {
+			common.CriticalRateLimitDuration = v
 		}
 	}
 }

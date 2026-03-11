@@ -339,20 +339,6 @@ export function ProxyRoutesPage() {
     [certificates],
   );
 
-  const summary = useMemo(() => {
-    const routes = routesQuery.data || [];
-
-    return [
-      { label: '规则总数', value: routes.length },
-      { label: '已启用', value: routes.filter((item) => item.enabled).length },
-      { label: 'HTTPS 规则', value: routes.filter((item) => item.enable_https).length },
-      {
-        label: '自定义请求头',
-        value: routes.reduce((count, route) => count + parseCustomHeaders(route.custom_headers).length, 0),
-      },
-    ];
-  }, [routesQuery.data]);
-
   const handleReset = () => {
     setFeedback(null);
     setEditingRouteId(null);
@@ -409,37 +395,18 @@ export function ProxyRoutesPage() {
         title='反代规则'
         description='维护域名到源站的映射、HTTPS 证书绑定与自定义请求头，并可直接触发配置发布。'
         action={
-          <PrimaryButton type='button' onClick={handleCreate}>
-            新增规则
-          </PrimaryButton>
+          <>
+            <PrimaryButton type='button' onClick={() => publishMutation.mutate()} disabled={publishMutation.isPending}>
+              {publishMutation.isPending ? '发布中...' : '发布当前规则'}
+            </PrimaryButton>
+            <SecondaryButton type='button' onClick={handleCreate}>
+              新增规则
+            </SecondaryButton>
+          </>
         }
       />
 
       {feedback ? <InlineMessage tone={feedback.tone} message={feedback.message} /> : null}
-
-      <AppCard
-        title='发布与摘要'
-        description='规则维护动作改为按钮+弹窗模式，列表不再被长表单挤压。'
-        action={
-          <PrimaryButton type='button' onClick={() => publishMutation.mutate()} disabled={publishMutation.isPending}>
-            {publishMutation.isPending ? '发布中...' : '发布当前规则'}
-          </PrimaryButton>
-        }
-      >
-        <div className='grid gap-4 md:grid-cols-2 xl:grid-cols-4'>
-          {summary.map((item) => (
-            <div
-              key={item.label}
-              className='rounded-2xl border border-[var(--border-default)] bg-[var(--surface-elevated)] px-4 py-4'
-            >
-              <p className='text-xs uppercase tracking-[0.2em] text-[var(--foreground-muted)]'>
-                {item.label}
-              </p>
-              <p className='mt-2 text-lg font-semibold text-[var(--foreground-primary)]'>{item.value}</p>
-            </div>
-          ))}
-        </div>
-      </AppCard>
 
       <AppCard title='规则列表' description='支持查看启用状态、HTTPS 配置、自定义请求头数量及最近更新时间。'>
         {routesQuery.isLoading ? (

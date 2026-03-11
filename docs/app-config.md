@@ -11,6 +11,8 @@ Server 当前支持两类启动配置：
 1. 命令行参数
 2. 环境变量
 
+此外，部分运行时参数已迁入数据库 `Option` 表，可在管理端设置页中热更新，例如 Agent 运行参数与限流阈值。
+
 ### 1.1 Server 命令行参数
 
 启动示例：
@@ -93,6 +95,27 @@ volumes:
 * `SESSION_SECRET` 未固定时，每次重启都会生成新的随机值，已登录用户的 Cookie 会失效
 * `REDIS_CONN_STRING` 未配置时，相关能力将回退为进程内实现
 * `UPLOAD_PATH` 目录在启动时若不存在会自动创建
+
+### 1.2.1 设置页可热更新的运行时配置
+
+以下配置不依赖环境变量，保存在数据库 `Option` 表中，可在管理端设置页的「运维设置」中调整，并在保存后立即生效：
+
+| 配置项 | 作用 | 默认值 |
+| --- | --- | --- |
+| `AgentHeartbeatInterval` | Agent 心跳间隔（毫秒） | `30000` |
+| `AgentSyncInterval` | Agent 同步间隔（毫秒） | `30000` |
+| `NodeOfflineThreshold` | 节点离线判定阈值（毫秒） | `120000` |
+| `AgentUpdateRepo` | Agent 自更新仓库 | `Rain-kl/ATSFlare` |
+| `GlobalApiRateLimitNum` / `GlobalApiRateLimitDuration` | 全局 API 限流次数 / 时间窗口（秒） | `300` / `180` |
+| `GlobalWebRateLimitNum` / `GlobalWebRateLimitDuration` | 全局 Web 限流次数 / 时间窗口（秒） | `300` / `180` |
+| `UploadRateLimitNum` / `UploadRateLimitDuration` | 上传接口限流次数 / 时间窗口（秒） | `50` / `60` |
+| `DownloadRateLimitNum` / `DownloadRateLimitDuration` | 下载接口限流次数 / 时间窗口（秒） | `50` / `60` |
+| `CriticalRateLimitNum` / `CriticalRateLimitDuration` | 登录、注册、验证码等敏感接口限流次数 / 时间窗口（秒） | `100` / `1200` |
+
+说明：
+
+* 限流窗口上限不能超过 `RateLimitKeyExpirationDuration`，当前为 20 分钟
+* 限流按来源 IP 统计，若前置了 Nginx/CDN/LB，应正确透传真实客户端 IP
 
 ### 1.3 前端构建环境变量
 

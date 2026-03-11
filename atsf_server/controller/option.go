@@ -4,10 +4,36 @@ import (
 	"atsflare/common"
 	"atsflare/model"
 	"encoding/json"
+	"fmt"
 	"github.com/gin-gonic/gin"
 	"net/http"
+	"strconv"
 	"strings"
 )
+
+func validateRateLimitOption(key string, value string) error {
+	maxDurationSeconds := int(common.RateLimitKeyExpirationDuration.Seconds())
+
+	switch key {
+	case "GlobalApiRateLimitNum", "GlobalWebRateLimitNum", "UploadRateLimitNum", "DownloadRateLimitNum", "CriticalRateLimitNum":
+		intValue, err := strconv.Atoi(value)
+		if err != nil || intValue <= 0 {
+			return fmt.Errorf("%s 必须为大于 0 的整数", key)
+		}
+		return nil
+	case "GlobalApiRateLimitDuration", "GlobalWebRateLimitDuration", "UploadRateLimitDuration", "DownloadRateLimitDuration", "CriticalRateLimitDuration":
+		intValue, err := strconv.Atoi(value)
+		if err != nil || intValue <= 0 {
+			return fmt.Errorf("%s 必须为大于 0 的整数秒", key)
+		}
+		if intValue > maxDurationSeconds {
+			return fmt.Errorf("%s 不能大于 %d 秒", key, maxDurationSeconds)
+		}
+		return nil
+	default:
+		return nil
+	}
+}
 
 // GetOptions godoc
 // @Summary List editable options
@@ -80,6 +106,13 @@ func UpdateOption(c *gin.Context) {
 			})
 			return
 		}
+	}
+	if err = validateRateLimitOption(option.Key, option.Value); err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+		return
 	}
 	err = model.UpdateOption(option.Key, option.Value)
 	if err != nil {

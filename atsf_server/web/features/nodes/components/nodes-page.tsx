@@ -276,15 +276,6 @@ export function NodesPage() {
 		return nodes.find((item) => item.id === selectedNode.id) ?? selectedNode;
 	}, [nodes, selectedNode]);
 
-	const summary = useMemo(() => {
-		return [
-			{ label: '节点总数', value: nodes.length },
-			{ label: '在线节点', value: nodes.filter((item) => item.status === 'online').length },
-			{ label: '待接入节点', value: nodes.filter((item) => item.status === 'pending').length },
-			{ label: '自动更新', value: nodes.filter((item) => item.auto_update_enabled).length },
-		];
-	}, [nodes]);
-
 	const handleReset = () => {
 		setFeedback(null);
 		setEditingNodeId(null);
@@ -377,33 +368,6 @@ export function NodesPage() {
 
 			{feedback ? <InlineMessage tone={feedback.tone} message={feedback.message} /> : null}
 
-			<AppCard
-				title='节点摘要'
-				description='节点创建、编辑和更新动作均已收敛到列表页与弹窗，便于在生产环境快速处理。'
-				action={
-					<SecondaryButton
-						type='button'
-						onClick={() => void queryClient.invalidateQueries({ queryKey: nodesQueryKey })}
-					>
-						刷新列表
-					</SecondaryButton>
-				}
-			>
-				<div className='grid gap-4 md:grid-cols-2 xl:grid-cols-4'>
-					{summary.map((item) => (
-						<div
-							key={item.label}
-							className='rounded-2xl border border-[var(--border-default)] bg-[var(--surface-elevated)] px-4 py-4'
-						>
-							<p className='text-xs uppercase tracking-[0.2em] text-[var(--foreground-muted)]'>
-								{item.label}
-							</p>
-							<p className='mt-2 text-lg font-semibold text-[var(--foreground-primary)]'>{item.value}</p>
-						</div>
-					))}
-				</div>
-			</AppCard>
-
 			<div className='grid gap-6 xl:grid-cols-[1fr_1fr]'>
 				<AppCard
 					title='Discovery Token 部署'
@@ -494,7 +458,18 @@ export function NodesPage() {
 				</AppCard>
 			</div>
 
-			<AppCard title='节点列表' description='展示心跳、最近应用结果、版本信息与更新状态，可直接执行管理动作。'>
+			<AppCard
+				title='节点列表'
+				description='展示心跳、最近应用结果、版本信息与更新状态，可直接执行管理动作。'
+				action={
+					<SecondaryButton
+						type='button'
+						onClick={() => void queryClient.invalidateQueries({ queryKey: nodesQueryKey })}
+					>
+						刷新列表
+					</SecondaryButton>
+				}
+			>
 				{nodesQuery.isLoading ? (
 					<LoadingState />
 				) : nodesQuery.isError ? (

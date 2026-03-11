@@ -17,6 +17,75 @@ import (
 	"time"
 )
 
+func TestPhase2RateLimitOptionsHotReload(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	common.RedisEnabled = false
+	setupTestDB(t)
+
+	oldGlobalApiRateLimitNum := common.GlobalApiRateLimitNum
+	oldGlobalApiRateLimitDuration := common.GlobalApiRateLimitDuration
+	oldCriticalRateLimitNum := common.CriticalRateLimitNum
+	oldCriticalRateLimitDuration := common.CriticalRateLimitDuration
+	t.Cleanup(func() {
+		common.GlobalApiRateLimitNum = oldGlobalApiRateLimitNum
+		common.GlobalApiRateLimitDuration = oldGlobalApiRateLimitDuration
+		common.CriticalRateLimitNum = oldCriticalRateLimitNum
+		common.CriticalRateLimitDuration = oldCriticalRateLimitDuration
+	})
+
+	engine := gin.New()
+	engine.Use(sessions.Sessions("session", cookie.NewStore([]byte("test-secret"))))
+	router.SetApiRouter(engine)
+
+	token := prepareRootToken(t)
+
+	performJSONRequest(t, engine, token, http.MethodPut, "/api/option/", map[string]any{
+		"key":   "GlobalApiRateLimitNum",
+		"value": "450",
+	})
+	performJSONRequest(t, engine, token, http.MethodPut, "/api/option/", map[string]any{
+		"key":   "GlobalApiRateLimitDuration",
+		"value": "240",
+	})
+	performJSONRequest(t, engine, token, http.MethodPut, "/api/option/", map[string]any{
+		"key":   "CriticalRateLimitNum",
+		"value": "150",
+	})
+	performJSONRequest(t, engine, token, http.MethodPut, "/api/option/", map[string]any{
+		"key":   "CriticalRateLimitDuration",
+		"value": "900",
+	})
+
+	if common.GlobalApiRateLimitNum != 450 {
+		t.Fatalf("expected GlobalApiRateLimitNum to be hot reloaded, got %d", common.GlobalApiRateLimitNum)
+	}
+	if common.GlobalApiRateLimitDuration != 240 {
+		t.Fatalf("expected GlobalApiRateLimitDuration to be hot reloaded, got %d", common.GlobalApiRateLimitDuration)
+	}
+	if common.CriticalRateLimitNum != 150 {
+		t.Fatalf("expected CriticalRateLimitNum to be hot reloaded, got %d", common.CriticalRateLimitNum)
+	}
+	if common.CriticalRateLimitDuration != 900 {
+		t.Fatalf("expected CriticalRateLimitDuration to be hot reloaded, got %d", common.CriticalRateLimitDuration)
+	}
+
+	resp := performJSONRequest(t, engine, token, http.MethodGet, "/api/option/", nil)
+	var options []model.Option
+	decodeResponseData(t, resp, &options)
+
+	optionMap := make(map[string]string, len(options))
+	for _, option := range options {
+		optionMap[option.Key] = option.Value
+	}
+
+	if optionMap["GlobalApiRateLimitNum"] != "450" {
+		t.Fatalf("expected option payload to include GlobalApiRateLimitNum=450, got %q", optionMap["GlobalApiRateLimitNum"])
+	}
+	if optionMap["CriticalRateLimitDuration"] != "900" {
+		t.Fatalf("expected option payload to include CriticalRateLimitDuration=900, got %q", optionMap["CriticalRateLimitDuration"])
+	}
+}
+
 func TestPhase2AgentLifecycle(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	common.RedisEnabled = false

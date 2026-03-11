@@ -1,7 +1,7 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 
 import { EmptyState } from '@/components/feedback/empty-state';
 import { ErrorState } from '@/components/feedback/error-state';
@@ -249,20 +249,6 @@ export function ConfigVersionsPage() {
     },
   });
 
-  const summary = useMemo(() => {
-    const versions = versionsQuery.data || [];
-    const activeCount = versions.filter((item) => item.is_active).length;
-
-    return [
-      { label: '版本总数', value: versions.length },
-      { label: '激活版本', value: activeCount },
-      {
-        label: '最近创建时间',
-        value: versions[0]?.created_at ? formatDateTime(versions[0].created_at) : '—',
-      },
-    ];
-  }, [versionsQuery.data]);
-
   const handleOpenPublishPreview = async () => {
     setFeedback(null);
     setIsPreviewLoading(true);
@@ -297,35 +283,16 @@ export function ConfigVersionsPage() {
       <PageHeader
         title='配置版本'
         description='查看历史快照、预览待发布配置差异，并在需要时重新激活旧版本。'
+        action={
+          <PrimaryButton type='button' onClick={handleOpenPublishPreview} disabled={isPreviewLoading}>
+            {isPreviewLoading ? '加载预览中...' : '预览并发布'}
+          </PrimaryButton>
+        }
       />
 
       {feedback ? <InlineMessage tone={feedback.tone} message={feedback.message} /> : null}
 
-      <div className='grid gap-6 xl:grid-cols-[0.8fr_1.2fr]'>
-        <AppCard
-          title='版本摘要'
-          description='阶段 3 已接入发布前预览、历史版本明细与激活动作。'
-          action={
-            <PrimaryButton type='button' onClick={handleOpenPublishPreview} disabled={isPreviewLoading}>
-              {isPreviewLoading ? '加载预览中...' : '预览并发布'}
-            </PrimaryButton>
-          }
-        >
-          <div className='grid gap-4 md:grid-cols-3 xl:grid-cols-1'>
-            {summary.map((item) => (
-              <div
-                key={item.label}
-                className='rounded-2xl border border-[var(--border-default)] bg-[var(--surface-elevated)] px-4 py-4'
-              >
-                <p className='text-xs uppercase tracking-[0.2em] text-[var(--foreground-muted)]'>
-                  {item.label}
-                </p>
-                <p className='mt-2 text-sm font-semibold text-[var(--foreground-primary)]'>{item.value}</p>
-              </div>
-            ))}
-          </div>
-        </AppCard>
-
+      <div className='grid gap-6'>
         {publishPreview ? (
           <PublishPreviewCard
             preview={publishPreview.preview}

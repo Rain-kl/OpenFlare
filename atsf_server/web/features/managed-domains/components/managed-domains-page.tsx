@@ -174,16 +174,6 @@ export function ManagedDomainsPage() {
     [certificates],
   );
 
-  const summary = useMemo(
-    () => [
-      { label: '域名规则', value: domains.length },
-      { label: '已启用', value: domains.filter((item) => item.enabled).length },
-      { label: '通配符规则', value: domains.filter((item) => item.domain.startsWith('*.')).length },
-      { label: '已绑证书', value: domains.filter((item) => item.cert_id).length },
-    ],
-    [domains],
-  );
-
   const currentCertificate = watchedCertId ? certificateMap.get(Number(watchedCertId)) : null;
 
   const handleReset = () => {
@@ -235,22 +225,6 @@ export function ManagedDomainsPage() {
       />
 
       {feedback ? <InlineMessage tone={feedback.tone} message={feedback.message} /> : null}
-
-      <AppCard title='规则摘要' description='域名维护动作已改为弹窗操作，列表专注展示状态与证书绑定关系。'>
-        <div className='grid gap-4 md:grid-cols-2 xl:grid-cols-4'>
-          {summary.map((item) => (
-            <div
-              key={item.label}
-              className='rounded-2xl border border-[var(--border-default)] bg-[var(--surface-elevated)] px-4 py-4'
-            >
-              <p className='text-xs uppercase tracking-[0.2em] text-[var(--foreground-muted)]'>
-                {item.label}
-              </p>
-              <p className='mt-2 text-lg font-semibold text-[var(--foreground-primary)]'>{item.value}</p>
-            </div>
-          ))}
-        </div>
-      </AppCard>
 
       <AppCard
         title='域名规则列表'

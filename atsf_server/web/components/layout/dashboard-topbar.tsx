@@ -1,71 +1,117 @@
 'use client';
 
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
 
 import { useAuth } from '@/components/providers/auth-provider';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
-import { getCurrentNavigationItem } from '@/lib/utils/navigation';
 import { publicEnv } from '@/lib/env/public-env';
 import { useAppShellStore } from '@/store/app-shell';
-import { usePathname } from 'next/navigation';
 
 export function DashboardTopbar() {
   const router = useRouter();
-  const pathname = usePathname();
-  const currentPath = pathname ?? '/';
   const { logout, user } = useAuth();
   const toggleSidebar = useAppShellStore((state) => state.toggleSidebar);
-  const currentItem = getCurrentNavigationItem(currentPath);
+  const isMobileSidebarOpen = useAppShellStore((state) => state.isMobileSidebarOpen);
+  const setMobileSidebarOpen = useAppShellStore((state) => state.setMobileSidebarOpen);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!isUserMenuOpen) {
+      return;
+    }
+
+    const handlePointerDown = (event: MouseEvent) => {
+      if (!menuRef.current?.contains(event.target as Node)) {
+        setIsUserMenuOpen(false);
+      }
+    };
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsUserMenuOpen(false);
+      }
+    };
+
+    window.addEventListener('mousedown', handlePointerDown);
+    window.addEventListener('keydown', handleEscape);
+
+    return () => {
+      window.removeEventListener('mousedown', handlePointerDown);
+      window.removeEventListener('keydown', handleEscape);
+    };
+  }, [isUserMenuOpen]);
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
+    setIsUserMenuOpen(false);
     await logout();
     router.replace('/login');
   };
 
+  const handleSidebarToggle = () => {
+    if (window.innerWidth < 1000) {
+      setMobileSidebarOpen(!isMobileSidebarOpen);
+      return;
+    }
+
+    toggleSidebar();
+  };
+
   return (
-    <header className='sticky top-0 z-10 border-b border-[var(--border-default)] bg-[var(--surface-panel)]/75 px-4 py-4 backdrop-blur md:px-8'>
-      <div className='flex flex-col gap-4 md:flex-row md:items-center md:justify-between'>
-        <div className='flex items-center gap-3'>
-          <button
-            type='button'
-            onClick={toggleSidebar}
-            className='inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-[var(--border-default)] bg-[var(--control-background)] text-lg text-[var(--foreground-primary)] transition hover:bg-[var(--control-background-hover)]'
-            aria-label='切换侧边栏'
-          >
-            ☰
-          </button>
-          <div>
-            <p className='text-xs uppercase tracking-[0.24em] text-[var(--foreground-secondary)]'>当前模块</p>
-            <h2 className='text-lg font-semibold text-[var(--foreground-primary)]'>
-              {currentItem?.label ?? 'ATSFlare 控制台'}
-            </h2>
-          </div>
-        </div>
+    <header className='sticky top-0 z-20 border-b border-[var(--border-default)] bg-[var(--surface-panel)]/88 px-4 py-4 backdrop-blur md:px-8'>
+      <div className='flex items-center justify-between gap-3'>
+        <button
+          type='button'
+          onClick={handleSidebarToggle}
+          className='inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-[var(--border-default)] bg-[var(--control-background)] text-lg text-[var(--foreground-primary)] transition hover:bg-[var(--control-background-hover)]'
+          aria-label='切换侧边栏'
+        >
+          ☰
+        </button>
 
         <div className='flex items-center gap-3 text-sm text-[var(--foreground-secondary)]'>
-          {user ? (
-            <span className='hidden rounded-full border border-[var(--border-default)] px-3 py-1.5 md:inline-flex'>
-              {user.display_name || user.username}
-            </span>
-          ) : null}
-          <ThemeToggle />
-          <span className='rounded-full border border-[var(--border-default)] px-3 py-1.5'>
-            静态导出模式
-          </span>
-          <span className='rounded-full border border-[var(--border-default)] px-3 py-1.5'>
+          <span className='hidden rounded-full border border-[var(--border-default)] px-3 py-1.5 sm:inline-flex'>
             版本 {publicEnv.appVersion}
           </span>
-          <button
-            type='button'
-            onClick={() => void handleLogout()}
-            disabled={isLoggingOut}
-            className='inline-flex rounded-full border border-[var(--border-default)] bg-[var(--control-background)] px-3 py-1.5 text-[var(--foreground-primary)] transition hover:bg-[var(--control-background-hover)] disabled:cursor-not-allowed disabled:opacity-60'
-          >
-            {isLoggingOut ? '退出中...' : '退出登录'}
-          </button>
+          <ThemeToggle />
+          <div className='relative' ref={menuRef}>
+            <button
+              type='button'
+              onClick={() => setIsUserMenuOpen((value) => !value)}
+              className='inline-flex h-11 items-center gap-2 rounded-2xl border border-[var(--border-default)] bg-[var(--control-background)] px-3 text-[var(--foreground-primary)] transition hover:bg-[var(--control-background-hover)]'
+              aria-expanded={isUserMenuOpen}
+              aria-haspopup='menu'
+            >
+              <span className='inline-flex h-7 w-7 items-center justify-center rounded-full bg-[var(--accent-soft)] text-xs font-semibold'>
+                {(user?.display_name || user?.username || 'U').slice(0, 1).toUpperCase()}
+              </span>
+              <span className='hidden sm:inline'>{user?.display_name || user?.username || '用户'}</span>
+            </button>
+
+            {isUserMenuOpen ? (
+              <div className='absolute right-0 top-[calc(100%+0.5rem)] w-52 rounded-2xl border border-[var(--border-default)] bg-[var(--surface-panel)] p-2 shadow-[var(--shadow-lg)]'>
+                <div className='rounded-xl px-3 py-2'>
+                  <p className='text-sm font-semibold text-[var(--foreground-primary)]'>
+                    {user?.display_name || user?.username || '用户'}
+                  </p>
+                  {user?.username ? (
+                    <p className='mt-1 text-xs text-[var(--foreground-secondary)]'>@{user.username}</p>
+                  ) : null}
+                </div>
+                <button
+                  type='button'
+                  onClick={() => void handleLogout()}
+                  disabled={isLoggingOut}
+                  className='flex w-full items-center rounded-xl px-3 py-2 text-left text-sm text-[var(--status-danger-foreground)] transition hover:bg-[var(--status-danger-soft)] disabled:cursor-not-allowed disabled:opacity-60'
+                >
+                  {isLoggingOut ? '退出中...' : '退出登录'}
+                </button>
+              </div>
+            ) : null}
+          </div>
         </div>
       </div>
     </header>

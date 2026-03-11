@@ -74,6 +74,16 @@ const defaultOperationFields = {
   AgentSyncInterval: '30000',
   NodeOfflineThreshold: '120000',
   AgentUpdateRepo: 'Rain-kl/ATSFlare',
+  GlobalApiRateLimitNum: '300',
+  GlobalApiRateLimitDuration: '180',
+  GlobalWebRateLimitNum: '300',
+  GlobalWebRateLimitDuration: '180',
+  UploadRateLimitNum: '50',
+  UploadRateLimitDuration: '60',
+  DownloadRateLimitNum: '50',
+  DownloadRateLimitDuration: '60',
+  CriticalRateLimitNum: '100',
+  CriticalRateLimitDuration: '1200',
   ServerAddress: '',
 };
 
@@ -132,6 +142,23 @@ function formatDurationLabel(value: string) {
   }
 
   return `${milliseconds / 1000} 秒`;
+}
+
+function formatSecondsLabel(value: string) {
+  const seconds = Number.parseInt(value, 10);
+  if (Number.isNaN(seconds)) {
+    return value;
+  }
+
+  if (seconds >= 3600 && seconds % 3600 === 0) {
+    return `${seconds / 3600} 小时`;
+  }
+
+  if (seconds >= 60 && seconds % 60 === 0) {
+    return `${seconds / 60} 分钟`;
+  }
+
+  return `${seconds} 秒`;
 }
 
 function buildDiscoveryCommand(serverUrl: string, discoveryToken: string) {
@@ -257,6 +284,16 @@ export function SettingsPage() {
       AgentSyncInterval: optionMap.AgentSyncInterval ?? '30000',
       NodeOfflineThreshold: optionMap.NodeOfflineThreshold ?? '120000',
       AgentUpdateRepo: optionMap.AgentUpdateRepo ?? 'Rain-kl/ATSFlare',
+      GlobalApiRateLimitNum: optionMap.GlobalApiRateLimitNum ?? '300',
+      GlobalApiRateLimitDuration: optionMap.GlobalApiRateLimitDuration ?? '180',
+      GlobalWebRateLimitNum: optionMap.GlobalWebRateLimitNum ?? '300',
+      GlobalWebRateLimitDuration: optionMap.GlobalWebRateLimitDuration ?? '180',
+      UploadRateLimitNum: optionMap.UploadRateLimitNum ?? '50',
+      UploadRateLimitDuration: optionMap.UploadRateLimitDuration ?? '60',
+      DownloadRateLimitNum: optionMap.DownloadRateLimitNum ?? '50',
+      DownloadRateLimitDuration: optionMap.DownloadRateLimitDuration ?? '60',
+      CriticalRateLimitNum: optionMap.CriticalRateLimitNum ?? '100',
+      CriticalRateLimitDuration: optionMap.CriticalRateLimitDuration ?? '1200',
       ServerAddress: optionMap.ServerAddress ?? publicStatusQuery.data?.server_address ?? '',
     });
 
@@ -765,6 +802,167 @@ export function SettingsPage() {
               </ResourceField>
             </AppCard>
           </div>
+
+          <AppCard
+            title='请求限流设置'
+            description='按来源 IP 生效，保存后立即影响 Web、API、上传下载及登录注册等敏感接口。时间单位均为秒。'
+            action={
+              <PrimaryButton
+                type='button'
+                onClick={() =>
+                  void runBusyAction('operation-rate-limit', async () => {
+                    const entries = [
+                      ['GlobalApiRateLimitNum', operationFields.GlobalApiRateLimitNum],
+                      ['GlobalApiRateLimitDuration', operationFields.GlobalApiRateLimitDuration],
+                      ['GlobalWebRateLimitNum', operationFields.GlobalWebRateLimitNum],
+                      ['GlobalWebRateLimitDuration', operationFields.GlobalWebRateLimitDuration],
+                      ['UploadRateLimitNum', operationFields.UploadRateLimitNum],
+                      ['UploadRateLimitDuration', operationFields.UploadRateLimitDuration],
+                      ['DownloadRateLimitNum', operationFields.DownloadRateLimitNum],
+                      ['DownloadRateLimitDuration', operationFields.DownloadRateLimitDuration],
+                      ['CriticalRateLimitNum', operationFields.CriticalRateLimitNum],
+                      ['CriticalRateLimitDuration', operationFields.CriticalRateLimitDuration],
+                    ] as const;
+
+                    for (const [key, rawValue] of entries) {
+                      const parsedValue = Number.parseInt(rawValue, 10);
+                      if (Number.isNaN(parsedValue) || parsedValue <= 0) {
+                        throw new Error(`${key} 必须为大于 0 的整数。`);
+                      }
+                      if (key.endsWith('Duration') && parsedValue > 1200) {
+                        throw new Error(`${key} 不能超过 1200 秒。`);
+                      }
+                    }
+
+                    await saveOptionEntries(entries.map(([key, value]) => [key, String(Number.parseInt(value, 10))]), '限流设置已保存。');
+                  })
+                }
+                disabled={busyKey === 'operation-rate-limit'}
+              >
+                {busyKey === 'operation-rate-limit' ? '保存中...' : '保存限流设置'}
+              </PrimaryButton>
+            }
+          >
+            <div className='grid gap-4 lg:grid-cols-2'>
+              <div className='rounded-2xl border border-[var(--border-default)] bg-[var(--surface-elevated)] p-5'>
+                <p className='text-sm font-semibold text-[var(--foreground-primary)]'>全局 API 限流</p>
+                <p className='mt-1 text-sm text-[var(--foreground-muted)]'>作用于 `/api` 下的通用请求。</p>
+                <div className='mt-4 grid gap-4 sm:grid-cols-2'>
+                  <ResourceField label='请求次数'>
+                    <ResourceInput
+                      type='number'
+                      value={operationFields.GlobalApiRateLimitNum}
+                      onChange={(event) =>
+                        setOperationFields((previous) => ({ ...previous, GlobalApiRateLimitNum: event.target.value }))
+                      }
+                    />
+                  </ResourceField>
+                  <ResourceField label={`时间窗口 (${formatSecondsLabel(operationFields.GlobalApiRateLimitDuration)})`}>
+                    <ResourceInput
+                      type='number'
+                      value={operationFields.GlobalApiRateLimitDuration}
+                      onChange={(event) =>
+                        setOperationFields((previous) => ({ ...previous, GlobalApiRateLimitDuration: event.target.value }))
+                      }
+                    />
+                  </ResourceField>
+                </div>
+              </div>
+
+              <div className='rounded-2xl border border-[var(--border-default)] bg-[var(--surface-elevated)] p-5'>
+                <p className='text-sm font-semibold text-[var(--foreground-primary)]'>全局 Web 限流</p>
+                <p className='mt-1 text-sm text-[var(--foreground-muted)]'>作用于页面和静态资源请求，过低会更容易触发 429。</p>
+                <div className='mt-4 grid gap-4 sm:grid-cols-2'>
+                  <ResourceField label='请求次数'>
+                    <ResourceInput
+                      type='number'
+                      value={operationFields.GlobalWebRateLimitNum}
+                      onChange={(event) =>
+                        setOperationFields((previous) => ({ ...previous, GlobalWebRateLimitNum: event.target.value }))
+                      }
+                    />
+                  </ResourceField>
+                  <ResourceField label={`时间窗口 (${formatSecondsLabel(operationFields.GlobalWebRateLimitDuration)})`}>
+                    <ResourceInput
+                      type='number'
+                      value={operationFields.GlobalWebRateLimitDuration}
+                      onChange={(event) =>
+                        setOperationFields((previous) => ({ ...previous, GlobalWebRateLimitDuration: event.target.value }))
+                      }
+                    />
+                  </ResourceField>
+                </div>
+              </div>
+
+              <div className='rounded-2xl border border-[var(--border-default)] bg-[var(--surface-elevated)] p-5'>
+                <p className='text-sm font-semibold text-[var(--foreground-primary)]'>上传 / 下载限流</p>
+                <p className='mt-1 text-sm text-[var(--foreground-muted)]'>用于文件上传与下载接口，建议保留相对严格的阈值。</p>
+                <div className='mt-4 grid gap-4 sm:grid-cols-2'>
+                  <ResourceField label='上传请求次数'>
+                    <ResourceInput
+                      type='number'
+                      value={operationFields.UploadRateLimitNum}
+                      onChange={(event) =>
+                        setOperationFields((previous) => ({ ...previous, UploadRateLimitNum: event.target.value }))
+                      }
+                    />
+                  </ResourceField>
+                  <ResourceField label={`上传窗口 (${formatSecondsLabel(operationFields.UploadRateLimitDuration)})`}>
+                    <ResourceInput
+                      type='number'
+                      value={operationFields.UploadRateLimitDuration}
+                      onChange={(event) =>
+                        setOperationFields((previous) => ({ ...previous, UploadRateLimitDuration: event.target.value }))
+                      }
+                    />
+                  </ResourceField>
+                  <ResourceField label='下载请求次数'>
+                    <ResourceInput
+                      type='number'
+                      value={operationFields.DownloadRateLimitNum}
+                      onChange={(event) =>
+                        setOperationFields((previous) => ({ ...previous, DownloadRateLimitNum: event.target.value }))
+                      }
+                    />
+                  </ResourceField>
+                  <ResourceField label={`下载窗口 (${formatSecondsLabel(operationFields.DownloadRateLimitDuration)})`}>
+                    <ResourceInput
+                      type='number'
+                      value={operationFields.DownloadRateLimitDuration}
+                      onChange={(event) =>
+                        setOperationFields((previous) => ({ ...previous, DownloadRateLimitDuration: event.target.value }))
+                      }
+                    />
+                  </ResourceField>
+                </div>
+              </div>
+
+              <div className='rounded-2xl border border-[var(--border-default)] bg-[var(--surface-elevated)] p-5'>
+                <p className='text-sm font-semibold text-[var(--foreground-primary)]'>敏感接口限流</p>
+                <p className='mt-1 text-sm text-[var(--foreground-muted)]'>用于登录、注册、验证码、重置密码和 OAuth 等接口。</p>
+                <div className='mt-4 grid gap-4 sm:grid-cols-2'>
+                  <ResourceField label='请求次数'>
+                    <ResourceInput
+                      type='number'
+                      value={operationFields.CriticalRateLimitNum}
+                      onChange={(event) =>
+                        setOperationFields((previous) => ({ ...previous, CriticalRateLimitNum: event.target.value }))
+                      }
+                    />
+                  </ResourceField>
+                  <ResourceField label={`时间窗口 (${formatSecondsLabel(operationFields.CriticalRateLimitDuration)})`}>
+                    <ResourceInput
+                      type='number'
+                      value={operationFields.CriticalRateLimitDuration}
+                      onChange={(event) =>
+                        setOperationFields((previous) => ({ ...previous, CriticalRateLimitDuration: event.target.value }))
+                      }
+                    />
+                  </ResourceField>
+                </div>
+              </div>
+            </div>
+          </AppCard>
 
           <div className='grid gap-6 xl:grid-cols-[1fr_1fr]'>
             <AppCard

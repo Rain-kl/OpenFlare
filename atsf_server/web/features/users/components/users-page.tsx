@@ -198,15 +198,6 @@ export function UsersPage() {
   const activeQuery = searchKeyword.length > 0 ? searchQuery : usersQuery;
   const users = useMemo(() => activeQuery.data ?? [], [activeQuery.data]);
 
-  const summary = useMemo(() => {
-    return [
-      { label: searchKeyword ? '搜索结果' : '当前页用户', value: users.length },
-      { label: '管理员', value: users.filter((item) => item.role >= 10).length },
-      { label: '已激活', value: users.filter((item) => item.status === 1).length },
-      { label: '已封禁', value: users.filter((item) => item.status !== 1).length },
-    ];
-  }, [searchKeyword, users]);
-
   const handleSearchSubmit = () => {
     setFeedback(null);
     setPage(0);
@@ -295,22 +286,6 @@ export function UsersPage() {
       />
 
       {feedback ? <InlineMessage tone={feedback.tone} message={feedback.message} /> : null}
-
-      <AppCard title='用户概览' description='当前视图会根据分页或搜索结果实时刷新，新增和编辑统一在弹窗中完成。'>
-        <div className='grid gap-4 md:grid-cols-2 xl:grid-cols-4'>
-          {summary.map((item) => (
-            <div
-              key={item.label}
-              className='rounded-2xl border border-[var(--border-default)] bg-[var(--surface-elevated)] px-4 py-4'
-            >
-              <p className='text-xs uppercase tracking-[0.2em] text-[var(--foreground-muted)]'>
-                {item.label}
-              </p>
-              <p className='mt-2 text-lg font-semibold text-[var(--foreground-primary)]'>{item.value}</p>
-            </div>
-          ))}
-        </div>
-      </AppCard>
 
       <AppCard
         title='用户列表'

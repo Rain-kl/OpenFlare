@@ -179,32 +179,6 @@ export function TlsCertificatesPage() {
   });
 
   const certificates = useMemo(() => certificatesQuery.data ?? [], [certificatesQuery.data]);
-  const summary = useMemo(
-    () => [
-      { label: '证书总数', value: certificates.length },
-      {
-        label: '30 天内到期',
-        value: certificates.filter((item) => {
-          const expiresAt = new Date(item.not_after).getTime();
-          if (Number.isNaN(expiresAt)) {
-            return false;
-          }
-
-          const diffMs = expiresAt - Date.now();
-          return diffMs >= 0 && diffMs <= 30 * 24 * 60 * 60 * 1000;
-        }).length,
-      },
-      {
-        label: '已过期',
-        value: certificates.filter((item) => {
-          const expiresAt = new Date(item.not_after).getTime();
-          return !Number.isNaN(expiresAt) && expiresAt < Date.now();
-        }).length,
-      },
-      { label: '最近更新', value: certificates[0] ? formatDateTime(certificates[0].updated_at) : '—' },
-    ],
-    [certificates],
-  );
 
   const handleManualSubmit = manualForm.handleSubmit((values) => {
     setFeedback(null);
@@ -244,20 +218,6 @@ export function TlsCertificatesPage() {
       />
 
       {feedback ? <InlineMessage tone={feedback.tone} message={feedback.message} /> : null}
-
-      <AppCard title='证书概览' description='上线前可先检查证书存量、过期风险与最近更新时间。'>
-        <div className='grid gap-4 md:grid-cols-2 xl:grid-cols-4'>
-          {summary.map((item) => (
-            <div
-              key={item.label}
-              className='rounded-2xl border border-[var(--border-default)] bg-[var(--surface-elevated)] px-4 py-4'
-            >
-              <p className='text-xs uppercase tracking-[0.2em] text-[var(--foreground-muted)]'>{item.label}</p>
-              <p className='mt-2 text-lg font-semibold text-[var(--foreground-primary)]'>{item.value}</p>
-            </div>
-          ))}
-        </div>
-      </AppCard>
 
       <AppCard
         title='证书列表'
