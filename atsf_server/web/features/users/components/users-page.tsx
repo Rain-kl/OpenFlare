@@ -2,7 +2,6 @@
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -95,7 +94,6 @@ function toPayload(values: UserFormValues): UserMutationPayload {
 
 export function UsersPage() {
   const queryClient = useQueryClient();
-  const searchParams = useSearchParams();
   const { user: currentUser } = useAuth();
   const [page, setPage] = useState(0);
   const [searchInput, setSearchInput] = useState('');
@@ -138,26 +136,6 @@ export function UsersPage() {
       });
     }
   }, [editingUserQuery.data, form]);
-
-  useEffect(() => {
-    const editParam = searchParams?.get('edit');
-    const modeParam = searchParams?.get('mode');
-
-    if (editParam) {
-      const parsedUserId = Number.parseInt(editParam, 10);
-      if (!Number.isNaN(parsedUserId) && parsedUserId > 0) {
-        setFeedback(null);
-        setEditingUserId(parsedUserId);
-      }
-      return;
-    }
-
-    if (modeParam === 'create') {
-      setFeedback(null);
-      setEditingUserId(null);
-      form.reset(defaultValues);
-    }
-  }, [form, searchParams]);
 
   const saveMutation = useMutation({
     mutationFn: async (values: UserFormValues) => {
