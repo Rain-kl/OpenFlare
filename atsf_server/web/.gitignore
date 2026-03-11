@@ -28,3 +28,4 @@ package-lock.json
 yarn.lock
 
 *.db
+/tsconfig.tsbuildinfo
