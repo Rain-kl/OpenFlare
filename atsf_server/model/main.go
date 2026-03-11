@@ -10,6 +10,16 @@ import (
 
 var DB *gorm.DB
 
+func migrateProxyRouteEnableHTTPSColumn(db *gorm.DB) error {
+	if !db.Migrator().HasTable(&ProxyRoute{}) {
+		return nil
+	}
+	if db.Migrator().HasColumn(&ProxyRoute{}, "enable_https") || !db.Migrator().HasColumn(&ProxyRoute{}, "enable_http_s") {
+		return nil
+	}
+	return db.Migrator().RenameColumn(&ProxyRoute{}, "enable_http_s", "enable_https")
+}
+
 func createRootAccountIfNeed() error {
 	var user User
 	//if user.Status != common.UserStatusEnabled {
@@ -52,6 +62,9 @@ func InitDB() (err error) {
 	}
 	if err == nil {
 		DB = db
+		if err = migrateProxyRouteEnableHTTPSColumn(db); err != nil {
+			return err
+		}
 		err := db.AutoMigrate(&File{})
 		if err != nil {
 			return err

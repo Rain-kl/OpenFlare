@@ -7,7 +7,7 @@ type ProxyRoute struct {
 	Domain        string    `json:"domain" gorm:"uniqueIndex;size:255;not null"`
 	OriginURL     string    `json:"origin_url" gorm:"size:2048;not null"`
 	Enabled       bool      `json:"enabled" gorm:"not null;default:true"`
-	EnableHTTPS   bool      `json:"enable_https" gorm:"not null;default:false"`
+	EnableHTTPS   bool      `json:"enable_https" gorm:"column:enable_https;not null;default:false"`
 	CertID        *uint     `json:"cert_id"`
 	RedirectHTTP  bool      `json:"redirect_http" gorm:"not null;default:false"`
 	CustomHeaders string    `json:"custom_headers" gorm:"type:text;not null;default:'[]'"`
