@@ -14,6 +14,9 @@
 3. [docs/deployment.md](./docs/deployment.md)
    作用：理解当前的部署方式和联调步骤，确保开发过程中产出的功能能够成功部署和验证。
 
+4. [docs/app-config.md](./docs/app-config.md)
+   作用：系统启动时支持的环境变量和配置项说明，确保开发过程中新增的配置项能够正确使用和文档化。
+
 
 ## 执行要求
 
@@ -21,20 +24,13 @@
 * 如果实现方式违反 `docs/development-guidelines.md`，应优先调整方案，而不是绕过规范。
 * 如果需求与当前开发阶段冲突，优先遵守 `docs/development-plan.md` 的阶段顺序。
 
-## 文档优先级
-
-当多个文档内容冲突时，按以下顺序处理：
-
-1. `AGENTS.md`
-2. `docs/design.md`
-3. `docs/development-guidelines.md`
-4. `docs/development-plan.md`
 
 ## 文档维护要求
 
 当以下内容发生变化时，应同步更新对应文档：
 
-* 产品启动配置部署方式发生变化时: 更新 `docs/deployment.md`
+* 产品启动配置部署方式发生变化时: 更新 `docs/deployment.md`和 `README.md`
 * 产品范围或系统边界变化：更新 `docs/design.md`
 * 开发约束、代码规范、接口约定变化：更新 `docs/development-guidelines.md`
 * 阶段目标、顺序、验收标准变化：更新 `docs/development-plan.md`
+* 环境变量或配置项变化：更新 `docs/app-config.md`

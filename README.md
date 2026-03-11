@@ -1,5 +1,5 @@
 <p align="right">
-    <a href="./README.md">中文</a> | <strong>English</strong>
+  <strong>中文</strong> | <a href="./README.en.md">English</a>
 </p>
 
 [//]: # (<p align="center">)
@@ -58,9 +58,35 @@ _✨ control plane for reverse proxy management ✨_
 
 ### 1. 启动 Server
 
-先按部署文档启动控制面，默认访问地址为 `http://localhost:3000`。
+可直接使用 GHCR 镜像通过 Docker Compose 启动控制面：
+
+```yaml
+services:
+  atsflare:
+    image: ghcr.io/rain-kl/atsflare:latest
+    container_name: atsflare
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      SESSION_SECRET: replace-with-random-string
+      SQLITE_PATH: /data/atsflare.db
+      GIN_MODE: release
+    volumes:
+      - atsflare-data:/data
+
+volumes:
+  atsflare-data:
+```
+
+```bash
+docker compose up -d
+```
+
+默认访问地址：`http://localhost:3000`。
 
 - [docs/deployment.md](./docs/deployment.md)
+
 
 ### 2. 使用 Discovery Token 一键部署 Agent
 
@@ -87,6 +113,20 @@ curl -fsSL https://raw.githubusercontent.com/Rain-kl/ATSFlare/main/scripts/insta
 * `--server-url` 替换为实际控制面地址，例如 `http://192.168.1.10:3000`
 * Linux 默认安装到 `/opt/atsflare-agent`，并创建 `atsflare-agent` systemd 服务
 * 重复执行相同命令可用于升级 Agent 到最新 Release
+
+
+## 部署说明
+
+当前仓库的交付形式：
+
+* Server 二进制发布到 GitHub Releases
+* Server Docker 镜像发布到 GitHub Container Registry：`ghcr.io/rain-kl/atsflare`
+* Agent 二进制发布到 GitHub Releases
+
+详细文档：
+
+* [docs/deployment.md](./docs/deployment.md)
+* [docs/design.md](./docs/design.md)
 
 
 ## 贡献

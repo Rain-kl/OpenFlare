@@ -46,7 +46,45 @@ go run .
 * 节点接入凭证由数据库维护：节点专属 `agent_token` + 全局 `discovery_token`
 * 默认监听端口为 `3000`
 
-### 2.3 首次登录
+### 2.3 使用 docker-compose 启动 Server
+
+适用于直接使用已发布的 Server 镜像部署控制面。
+
+示例 `docker-compose.yml`：
+
+```yaml
+services:
+  atsflare:
+    image: ghcr.io/rain-kl/atsflare:latest
+    container_name: atsflare
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      SESSION_SECRET: replace-with-random-string
+      SQLITE_PATH: /data/atsflare.db
+      GIN_MODE: release
+    volumes:
+      - atsflare-data:/data
+
+volumes:
+  atsflare-data:
+```
+
+启动命令：
+
+```bash
+docker compose up -d
+```
+
+说明：
+
+* `SESSION_SECRET` 必须替换为随机字符串
+* SQLite 数据文件持久化到 Docker volume `atsflare-data`
+* 镜像默认监听容器内 `3000` 端口
+* 若要固定版本，可将 `latest` 替换为具体 tag，例如 `ghcr.io/rain-kl/atsflare:v0.3.0`
+
+### 2.4 首次登录
 
 访问 `http://localhost:3000`
 
