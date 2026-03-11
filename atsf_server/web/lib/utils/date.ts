@@ -17,7 +17,8 @@ function toDate(value: string | Date | null | undefined) {
     return null;
   }
 
-  const date = value instanceof Date ? value : new Date(value);
+  const normalizedValue = typeof value === 'string' ? value.replace(' ', 'T') : value;
+  const date = normalizedValue instanceof Date ? normalizedValue : new Date(normalizedValue);
   return Number.isNaN(date.getTime()) ? null : date;
 }
 

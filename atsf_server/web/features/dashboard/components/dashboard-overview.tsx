@@ -14,8 +14,8 @@ const readinessItems = [
     description: '登录、注册、重置密码、鉴权守卫与后台布局已迁移到新前端。',
   },
   {
-    title: '核心模块',
-    description: '阶段 3 已接入反代规则、配置版本与节点页面，其余核心模块可继续按优先级接入。',
+    title: '业务模块',
+    description: '核心链路与阶段 4 的设置、用户、文件模块都已接入真实数据与交互。',
   },
 ];
 
@@ -23,9 +23,9 @@ export function DashboardOverview() {
   return (
     <div className='space-y-6'>
       <AppCard
-        title='阶段 3 进行中'
-        description='当前已完成新版管理端基础工程与认证骨架，可继续推进核心业务模块迁移。'
-        action={<StatusBadge label='继续迁移主链路' variant='success' />}
+        title='阶段 4 进行中'
+        description='当前已完成新版管理端基础工程、核心模块和大部分边缘模块迁移，可继续推进联调与回归。'
+        action={<StatusBadge label='准备联调回归' variant='success' />}
       >
         <div className='grid gap-4 lg:grid-cols-3'>
           {readinessItems.map((item) => (
@@ -43,7 +43,7 @@ export function DashboardOverview() {
       </AppCard>
 
       <div className='grid gap-6 xl:grid-cols-[1.3fr_0.9fr]'>
-        <AppCard title='模块入口' description='核心页面已开始接入真实数据与交互，其余模块按阶段逐步替换占位页面。'>
+        <AppCard title='模块入口' description='新版导航中的业务页面均已接入真实数据，设置与边缘模块也已可直接使用。'>
           <div className='grid gap-3 md:grid-cols-2'>
             {dashboardNavigation.slice(1).map((item) => (
               <Link
@@ -60,11 +60,11 @@ export function DashboardOverview() {
           </div>
         </AppCard>
 
-        <AppCard title='下一步建议' description='按前端改造计划，阶段 3 后续优先补齐其余核心主链路页面。'>
+        <AppCard title='下一步建议' description='按前端改造计划，当前可以开始阶段 5 的联调、回归与默认入口切换准备。'>
           <ol className='space-y-3 text-sm leading-6 text-[var(--foreground-secondary)]'>
-            <li>1. 继续迁移节点、域名、证书与应用记录页面。</li>
-            <li>2. 为核心动作补齐确认、反馈与错误提示的一致体验。</li>
-            <li>3. 补充模块测试与静态构建回归验证。</li>
+            <li>1. 对照旧前端完成设置、用户、文件与关于页的联调回归。</li>
+            <li>2. 补齐关键页面的测试覆盖与构建验收。</li>
+            <li>3. 评估默认入口切换与旧前端回滚预案。</li>
           </ol>
         </AppCard>
       </div>

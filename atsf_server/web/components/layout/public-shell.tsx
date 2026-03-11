@@ -17,7 +17,7 @@ export function PublicShell({ children }: PublicShellProps) {
             <p className='text-sm font-medium uppercase tracking-[0.24em] text-[var(--brand-primary)]'>ATSFlare</p>
             <h1 className='mt-2 text-3xl font-semibold text-[var(--foreground-primary)]'>欢迎使用 ATSFlare 管理端</h1>
             <p className='mt-2 text-sm leading-6 text-[var(--foreground-secondary)]'>
-              当前已接入登录、注册、密码重置与 GitHub OAuth 基础流程，后续将继续完善鉴权与业务模块体验。
+              当前已接入认证入口、核心业务模块以及阶段 4 的设置、用户、文件与关于页迁移。
             </p>
           </div>
           <div className='flex flex-col items-start gap-3 text-sm text-[var(--foreground-secondary)] md:items-end'>
@@ -31,9 +31,14 @@ export function PublicShell({ children }: PublicShellProps) {
         <div className='space-y-6'>{children}</div>
 
         <div className='mt-8 border-t border-[var(--border-default)] pt-6 text-sm text-[var(--foreground-secondary)]'>
-          <Link href='/' className='text-[var(--brand-primary)] transition hover:opacity-80'>
-            返回新版总览
-          </Link>
+          <div className='flex flex-wrap gap-4'>
+            <Link href='/' className='text-[var(--brand-primary)] transition hover:opacity-80'>
+              返回新版总览
+            </Link>
+            <Link href='/about' className='text-[var(--brand-primary)] transition hover:opacity-80'>
+              查看关于页
+            </Link>
+          </div>
         </div>
       </div>
     </div>

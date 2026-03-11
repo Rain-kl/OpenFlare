@@ -17,12 +17,15 @@ export function getApiUrl(path: string) {
 }
 
 export async function apiRequest<T>(path: string, init?: RequestInit) {
+  const headers = new Headers(init?.headers ?? {});
+
+  if (!(init?.body instanceof FormData) && !headers.has('Content-Type')) {
+    headers.set('Content-Type', 'application/json');
+  }
+
   const response = await fetch(getApiUrl(path), {
     credentials: 'include',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(init?.headers ?? {}),
-    },
+    headers,
     ...init,
   });
 

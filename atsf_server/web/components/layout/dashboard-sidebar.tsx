@@ -66,7 +66,7 @@ export function DashboardSidebar() {
 
         {!isSidebarCollapsed ? (
           <div className='rounded-2xl border border-[var(--status-success-border)] bg-[var(--status-success-soft)] px-4 py-4 text-xs leading-6 text-[var(--status-success-foreground)]'>
-            阶段 1 已完成目录骨架、静态导出与基础布局初始化。
+            阶段 4 已接入设置、用户、文件等边缘模块，旧前端仅保留少量兼容兜底价值。
           </div>
         ) : null}
       </div>

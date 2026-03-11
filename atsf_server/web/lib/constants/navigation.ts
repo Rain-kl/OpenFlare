@@ -47,18 +47,18 @@ export const dashboardNavigation: NavigationItem[] = [
     href: '/files',
     label: '文件管理',
     shortLabel: '文件',
-    description: '阶段 4 接入列表、下载与管理动作。',
+    description: '已接入上传、下载、复制链接、搜索与删除动作。',
   },
   {
     href: '/users',
     label: '用户管理',
     shortLabel: '用户',
-    description: '阶段 4 接入用户列表、角色与搜索体验。',
+    description: '已接入搜索、创建、编辑、封禁与权限调整。',
   },
   {
     href: '/settings',
     label: '设置',
     shortLabel: '设置',
-    description: '阶段 4 接入系统设置、运维设置与个人设置。',
+    description: '已接入个人、运维、系统与关于内容维护。',
   },
 ];

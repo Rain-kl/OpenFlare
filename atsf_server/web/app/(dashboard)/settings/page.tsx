@@ -1,10 +1,5 @@
-import { ModulePageSkeleton } from '@/features/shared/components/module-page-skeleton';
+import { SettingsPage } from '@/features/settings/components/settings-page';
 
-export default function SettingsPage() {
-  return (
-    <ModulePageSkeleton
-      title='设置'
-      description='阶段 4 将在此接入系统设置、运维设置与个人设置重组。'
-    />
-  );
+export default function SettingsRoute() {
+  return <SettingsPage />;
 }
