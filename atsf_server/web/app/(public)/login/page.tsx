@@ -1,10 +1,12 @@
-import { PublicRoutePlaceholder } from '@/features/auth/components/public-route-placeholder';
+import { Suspense } from 'react';
+
+import { LoadingState } from '@/components/feedback/loading-state';
+import { LoginForm } from '@/features/auth/components/login-form';
 
 export default function LoginPage() {
   return (
-    <PublicRoutePlaceholder
-      title='登录页占位'
-      description='阶段 2 将在此接入真实登录表单、Session 兼容与登录后跳转。'
-    />
+    <Suspense fallback={<LoadingState />}>
+      <LoginForm />
+    </Suspense>
   );
 }

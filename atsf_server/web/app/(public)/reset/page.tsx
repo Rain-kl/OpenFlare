@@ -1,10 +1,12 @@
-import { PublicRoutePlaceholder } from '@/features/auth/components/public-route-placeholder';
+import { Suspense } from 'react';
+
+import { LoadingState } from '@/components/feedback/loading-state';
+import { PasswordResetRequestForm } from '@/features/auth/components/password-reset-request-form';
 
 export default function ResetPasswordPage() {
   return (
-    <PublicRoutePlaceholder
-      title='重置密码页占位'
-      description='阶段 2 将在此接入找回密码与重置流程。'
-    />
+    <Suspense fallback={<LoadingState />}>
+      <PasswordResetRequestForm />
+    </Suspense>
   );
 }

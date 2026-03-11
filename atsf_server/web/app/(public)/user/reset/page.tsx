@@ -1,12 +1,12 @@
 import { Suspense } from 'react';
 
 import { LoadingState } from '@/components/feedback/loading-state';
-import { GitHubOAuthCallback } from '@/features/auth/components/github-oauth-callback';
+import { PasswordResetConfirmForm } from '@/features/auth/components/password-reset-confirm-form';
 
-export default function GithubOAuthPage() {
+export default function LegacyResetPasswordPage() {
   return (
     <Suspense fallback={<LoadingState />}>
-      <GitHubOAuthCallback />
+      <PasswordResetConfirmForm />
     </Suspense>
   );
 }

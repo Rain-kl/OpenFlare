@@ -62,9 +62,9 @@ export function DashboardOverview() {
 
         <AppCard title='下一步建议' description='按前端改造计划，后续优先进入认证与框架层迁移。'>
           <ol className='space-y-3 text-sm leading-6 text-[var(--foreground-secondary)]'>
-            <li>1. 接入登录、注册、重置密码与 OAuth 回调页面。</li>
-            <li>2. 增加统一鉴权守卫、未登录跳转与消息反馈容器。</li>
-            <li>3. 在业务模块中逐步接入 Query 与 API 资源层。</li>
+            <li>1. 继续完善认证页细节与第三方登录体验。</li>
+            <li>2. 在业务模块中逐步接入 Query 与 API 资源层。</li>
+            <li>3. 为主链路页面补齐真实列表、表单与动作反馈。</li>
           </ol>
         </AppCard>
       </div>

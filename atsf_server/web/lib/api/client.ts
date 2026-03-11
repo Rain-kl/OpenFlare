@@ -26,11 +26,21 @@ export async function apiRequest<T>(path: string, init?: RequestInit) {
     ...init,
   });
 
-  if (!response.ok) {
-    throw new ApiError(`请求失败（${response.status}）`, response.status);
+  let payload: ApiEnvelope<T> | null = null;
+
+  try {
+    payload = (await response.json()) as ApiEnvelope<T>;
+  } catch {
+    payload = null;
   }
 
-  const payload = (await response.json()) as ApiEnvelope<T>;
+  if (!response.ok) {
+    throw new ApiError(payload?.message || `请求失败（${response.status}）`, response.status);
+  }
+
+  if (!payload) {
+    throw new ApiError('响应格式无效', response.status);
+  }
 
   if (!payload.success) {
     throw new ApiError(payload.message || '请求失败', response.status);

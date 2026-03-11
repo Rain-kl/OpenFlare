@@ -1,10 +1,12 @@
-import { PublicRoutePlaceholder } from '@/features/auth/components/public-route-placeholder';
+import { Suspense } from 'react';
+
+import { LoadingState } from '@/components/feedback/loading-state';
+import { RegisterForm } from '@/features/auth/components/register-form';
 
 export default function RegisterPage() {
   return (
-    <PublicRoutePlaceholder
-      title='注册页占位'
-      description='阶段 2 将在此接入注册表单、字段校验与提交流程。'
-    />
+    <Suspense fallback={<LoadingState />}>
+      <RegisterForm />
+    </Suspense>
   );
 }
