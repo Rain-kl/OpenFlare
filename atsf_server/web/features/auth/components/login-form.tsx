@@ -79,7 +79,7 @@ export function LoginForm() {
 
   return (
     <PublicAuthGuard>
-      <AppCard title='用户登录' description='使用现有 ATSFlare 账户登录新版管理端。'>
+      <AppCard title='用户登录'>
         <form className='space-y-4' onSubmit={handleSubmit}>
           <AuthFormField label='用户名'>
             <AuthInput placeholder='请输入用户名' {...form.register('username')} />
@@ -115,11 +115,11 @@ export function LoginForm() {
 
         <div className='mt-6 flex flex-wrap gap-3 text-sm text-[var(--foreground-secondary)]'>
           <Link href='/reset' className='text-[var(--brand-primary)] transition hover:opacity-80'>
-            忘记密码？点击重置
+            忘记密码？
           </Link>
           <span>·</span>
           <Link href='/register' className='text-[var(--brand-primary)] transition hover:opacity-80'>
-            没有账户？点击注册
+            注册
           </Link>
         </div>
       </AppCard>

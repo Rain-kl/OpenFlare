@@ -1,8 +1,6 @@
 import { apiRequest } from '@/lib/api/client';
 
 import type {
-  BootstrapTokenPayload,
-  LatestReleaseInfo,
   OptionItem,
   SettingsProfile,
   UpdateSelfPayload,
@@ -17,20 +15,6 @@ export function updateOption(key: string, value: string) {
     method: 'PUT',
     body: JSON.stringify({ key, value }),
   });
-}
-
-export function getBootstrapToken() {
-  return apiRequest<BootstrapTokenPayload>('/nodes/bootstrap-token');
-}
-
-export function rotateBootstrapToken() {
-  return apiRequest<BootstrapTokenPayload>('/nodes/bootstrap-token/rotate', {
-    method: 'POST',
-  });
-}
-
-export function getLatestRelease() {
-  return apiRequest<LatestReleaseInfo>('/update/latest-release');
 }
 
 export function getSettingsProfile() {
@@ -49,7 +33,9 @@ export function generateAccessToken() {
 }
 
 export function bindWeChat(code: string) {
-  return apiRequest<void>(`/oauth/wechat/bind?code=${encodeURIComponent(code)}`);
+  return apiRequest<void>(
+    `/oauth/wechat/bind?code=${encodeURIComponent(code)}`,
+  );
 }
 
 export function bindEmail(email: string, code: string) {

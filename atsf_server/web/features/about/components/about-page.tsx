@@ -94,9 +94,6 @@ export function AboutPage() {
       )}
 
       <div className='flex flex-wrap gap-3 text-sm'>
-        <Link href='/' className='text-[var(--brand-primary)] transition hover:opacity-80'>
-          返回新版总览
-        </Link>
         <Link href='/login' className='text-[var(--brand-primary)] transition hover:opacity-80'>
           前往登录
         </Link>

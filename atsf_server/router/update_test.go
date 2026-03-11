@@ -2,8 +2,8 @@ package router_test
 
 import (
 	"atsflare/common"
-	"atsflare/controller"
 	"atsflare/router"
+	"atsflare/service"
 	"bytes"
 	"encoding/json"
 	"io"
@@ -28,8 +28,8 @@ func TestLatestReleaseProxy(t *testing.T) {
 	common.RedisEnabled = false
 	setupTestDB(t)
 
-	originalClient := controller.UpdateHTTPClientForTest()
-	controller.SetUpdateHTTPClientForTest(&http.Client{
+	originalClient := service.UpdateHTTPClientForTest()
+	service.SetUpdateHTTPClientForTest(&http.Client{
 		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
 			if req.URL.String() != "https://api.github.com/repos/Rain-kl/ATSFlare/releases/latest" {
 				t.Fatalf("unexpected request url: %s", req.URL.String())
@@ -53,7 +53,7 @@ func TestLatestReleaseProxy(t *testing.T) {
 		}),
 	})
 	t.Cleanup(func() {
-		controller.SetUpdateHTTPClientForTest(originalClient)
+		service.SetUpdateHTTPClientForTest(originalClient)
 	})
 
 	engine := gin.New()
@@ -100,5 +100,8 @@ func TestLatestReleaseProxy(t *testing.T) {
 	}
 	if data["tag_name"] != "v1.2.3" {
 		t.Fatalf("unexpected tag_name: %#v", data["tag_name"])
+	}
+	if data["current_version"] != common.Version {
+		t.Fatalf("unexpected current_version: %#v", data["current_version"])
 	}
 }

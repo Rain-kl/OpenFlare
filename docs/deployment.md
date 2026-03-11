@@ -91,6 +91,12 @@ docker compose up -d
 * 镜像默认监听容器内 `3000` 端口
 * 若要固定版本，可将 `latest` 替换为具体 tag，例如 `ghcr.io/rain-kl/atsflare:v0.3.0`
 
+版本升级说明：
+
+* Root 用户可在管理端顶栏点击「版本」检查 GitHub 最新 Release
+* 当前运行的是 Release 二进制且二进制目录可写时，可直接在弹窗内触发 Server 自升级
+* 自升级会下载匹配当前平台的 `atsflare-server-*` 资产，替换当前二进制并自动重启进程
+
 ### 2.4 首次登录
 
 访问 `http://localhost:3000`

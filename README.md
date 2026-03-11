@@ -113,6 +113,7 @@ curl -fsSL https://raw.githubusercontent.com/Rain-kl/ATSFlare/main/scripts/insta
 * `--server-url` 替换为实际控制面地址，例如 `http://192.168.1.10:3000`
 * Linux 默认安装到 `/opt/atsflare-agent`，并创建 `atsflare-agent` systemd 服务
 * 重复执行相同命令可用于升级 Agent 到最新 Release
+* Root 用户可在管理端顶栏点击“版本”检查最新 Release，并在 Release 二进制部署场景下直接触发 Server 自升级
 
 
 ## 部署说明
