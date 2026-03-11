@@ -89,10 +89,13 @@ const OtherSetting = () => {
   };
 
   const checkUpdate = async () => {
-    const res = await API.get(
-      'https://api.github.com/repos/Rain-kl/ATSFlare/releases/latest'
-    );
-    const { tag_name, body } = res.data;
+    const res = await API.get('/api/update/latest-release');
+    const { success, message, data } = res.data;
+    if (!success) {
+      showError(message);
+      return;
+    }
+    const { tag_name, body } = data;
     if (
       hasBuildVersion() &&
       normalizeVersion(tag_name) === getBuildVersion()

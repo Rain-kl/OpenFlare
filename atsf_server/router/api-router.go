@@ -55,6 +55,11 @@ func SetApiRouter(router *gin.Engine) {
 			optionRoute.GET("/", controller.GetOptions)
 			optionRoute.PUT("/", controller.UpdateOption)
 		}
+		updateRoute := apiRouter.Group("/update")
+		updateRoute.Use(middleware.RootAuth(), middleware.NoTokenAuth())
+		{
+			updateRoute.GET("/latest-release", controller.GetLatestRelease)
+		}
 		fileRoute := apiRouter.Group("/file")
 		fileRoute.Use(middleware.AdminAuth())
 		{
