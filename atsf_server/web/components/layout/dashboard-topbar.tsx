@@ -186,20 +186,20 @@ export function DashboardTopbar() {
     upgradeMutation.mutate(selectedReleaseChannel);
   };
 
-  const handleCheckStableRelease = () => {
-    setSelectedReleaseChannel('stable');
+  const handleCheckRelease = () => {
     setVersionFeedback(null);
     if (isRoot) {
-      void stableReleaseQuery.refetch();
+      if (selectedReleaseChannel === 'preview') {
+        void previewReleaseQuery.refetch();
+      } else {
+        void stableReleaseQuery.refetch();
+      }
     }
   };
 
-  const handleCheckPreviewRelease = () => {
-    setSelectedReleaseChannel('preview');
+  const handleReleaseChannelChange = (channel: ReleaseChannel) => {
+    setSelectedReleaseChannel(channel);
     setVersionFeedback(null);
-    if (isRoot) {
-      void previewReleaseQuery.refetch();
-    }
   };
 
   const handleUploadBinary = (binary: File) => {
@@ -347,8 +347,8 @@ export function DashboardTopbar() {
         isUpgrading={upgradeMutation.isPending}
         isUploadingBinary={uploadBinaryMutation.isPending}
         isConfirmingManualUpgrade={confirmManualUpgradeMutation.isPending}
-        onCheckStable={handleCheckStableRelease}
-        onCheckPreview={handleCheckPreviewRelease}
+        onChannelChange={handleReleaseChannelChange}
+        onCheck={handleCheckRelease}
         onUpgrade={handleUpgrade}
         onUploadBinary={handleUploadBinary}
         onConfirmManualUpgrade={handleConfirmManualUpgrade}

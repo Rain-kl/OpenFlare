@@ -40,8 +40,8 @@ interface VersionUpgradeModalProps {
   isUpgrading: boolean;
   isUploadingBinary: boolean;
   isConfirmingManualUpgrade: boolean;
-  onCheckStable: () => void;
-  onCheckPreview: () => void;
+  onChannelChange: (channel: ReleaseChannel) => void;
+  onCheck: () => void;
   onUpgrade: () => void;
   onUploadBinary: (file: File) => void;
   onConfirmManualUpgrade: () => void;
@@ -78,8 +78,8 @@ export function VersionUpgradeModal({
   isUpgrading,
   isUploadingBinary,
   isConfirmingManualUpgrade,
-  onCheckStable,
-  onCheckPreview,
+  onChannelChange,
+  onCheck,
   onUpgrade,
   onUploadBinary,
   onConfirmManualUpgrade,
@@ -88,6 +88,13 @@ export function VersionUpgradeModal({
   const [selectedBinary, setSelectedBinary] = useState<File | null>(null);
   const selectedChannelLabel =
     selectedChannel === 'preview' ? '预览版' : '正式版';
+  const toggleChannel = () => {
+    onChannelChange(selectedChannel === 'preview' ? 'stable' : 'preview');
+  };
+  const canConfirmManualUpgrade = Boolean(
+    uploadedBinary?.ready_to_upgrade && uploadedBinary.upload_token,
+  );
+  const showConfirmManualUpgradeAction = canConfirmManualUpgrade;
 
   useEffect(() => {
     if (!isOpen) {
@@ -102,78 +109,6 @@ export function VersionUpgradeModal({
       title="版本"
       description="默认检查正式版更新；你也可以手动检查 preview 发布并选择升级，或上传 Server 二进制确认升级。升级开始后服务会短暂重启。"
       size="lg"
-      footer={
-        canUpgrade ? (
-          <div className="flex flex-wrap justify-end gap-3">
-            <SecondaryButton
-              type="button"
-              onClick={onCheckStable}
-              disabled={isChecking || isUpgrading || isUploadingBinary}
-            >
-              {isChecking && selectedChannel === 'stable'
-                ? '检查中...'
-                : '检查正式版'}
-            </SecondaryButton>
-            <SecondaryButton
-              type="button"
-              onClick={onCheckPreview}
-              disabled={isChecking || isUpgrading || isUploadingBinary}
-            >
-              {isChecking && selectedChannel === 'preview'
-                ? '检查中...'
-                : '检查预览版'}
-            </SecondaryButton>
-            <PrimaryButton
-              type="button"
-              onClick={() => {
-                if (selectedBinary) {
-                  onUploadBinary(selectedBinary);
-                }
-              }}
-              disabled={
-                !selectedBinary ||
-                isUploadingBinary ||
-                isConfirmingManualUpgrade
-              }
-            >
-              {isUploadingBinary ? '上传检查中...' : '上传并检查'}
-            </PrimaryButton>
-            <PrimaryButton
-              type="button"
-              onClick={onConfirmManualUpgrade}
-              disabled={
-                !uploadedBinary?.ready_to_upgrade ||
-                !uploadedBinary.upload_token ||
-                isConfirmingManualUpgrade ||
-                isUploadingBinary ||
-                isUpgrading
-              }
-            >
-              {isConfirmingManualUpgrade ? '升级中...' : '确认手动升级'}
-            </PrimaryButton>
-            <PrimaryButton
-              type="button"
-              onClick={onUpgrade}
-              disabled={
-                !release?.has_update ||
-                release.in_progress ||
-                isUpgrading ||
-                !release.upgrade_supported ||
-                isUploadingBinary ||
-                isConfirmingManualUpgrade
-              }
-            >
-              {isUpgrading
-                ? '升级中...'
-                : release?.in_progress
-                  ? '升级中...'
-                  : selectedChannel === 'preview'
-                    ? '升级到预览版'
-                    : '升级到正式版'}
-            </PrimaryButton>
-          </div>
-        ) : undefined
-      }
     >
       <div className="space-y-6">
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -194,20 +129,42 @@ export function VersionUpgradeModal({
             </div>
           </AppCard>
           <AppCard title="最新版本">
-            <div className="flex flex-wrap items-center gap-3">
-              <p className="text-sm font-medium text-[var(--foreground-primary)]">
-                {release?.tag_name || '未检查'}
-              </p>
-              <StatusBadge
-                label={selectedChannelLabel}
-                variant={selectedChannel === 'preview' ? 'warning' : 'info'}
-              />
+            <div className="space-y-4">
+              <div className="flex flex-wrap items-center gap-3">
+                <p className="text-sm font-medium text-[var(--foreground-primary)]">
+                  {release?.tag_name || '未检查'}
+                </p>
+                <StatusBadge
+                  label={selectedChannelLabel}
+                  variant={selectedChannel === 'preview' ? 'warning' : 'info'}
+                />
+              </div>
+              {canUpgrade ? (
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-xs text-[var(--foreground-secondary)]">
+                      点击标签切换通道
+                    </span>
+                    <StatusBadge
+                      label={selectedChannelLabel}
+                      variant={
+                        selectedChannel === 'preview' ? 'warning' : 'info'
+                      }
+                      onClick={toggleChannel}
+                      disabled={isChecking || isUpgrading || isUploadingBinary}
+                    />
+                  </div>
+                  <SecondaryButton
+                    type="button"
+                    onClick={onCheck}
+                    disabled={isChecking || isUpgrading || isUploadingBinary}
+                    className="w-full md:w-auto"
+                  >
+                    {isChecking ? '检查中...' : '检查'}
+                  </SecondaryButton>
+                </div>
+              ) : null}
             </div>
-          </AppCard>
-          <AppCard title="启动时间">
-            <p className="text-sm font-medium text-[var(--foreground-primary)]">
-              {startTime ? formatDateTime(new Date(startTime * 1000)) : '未知'}
-            </p>
           </AppCard>
         </div>
 
@@ -267,6 +224,30 @@ export function VersionUpgradeModal({
               >
                 查看发布详情
               </a>
+              {canUpgrade ? (
+                <div className="flex justify-end">
+                  <PrimaryButton
+                    type="button"
+                    onClick={onUpgrade}
+                    disabled={
+                      !release.has_update ||
+                      release.in_progress ||
+                      isUpgrading ||
+                      !release.upgrade_supported ||
+                      isUploadingBinary ||
+                      isConfirmingManualUpgrade
+                    }
+                  >
+                    {isUpgrading
+                      ? '升级中...'
+                      : release.in_progress
+                        ? '升级中...'
+                        : selectedChannel === 'preview'
+                          ? '升级到预览版'
+                          : '升级到正式版'}
+                  </PrimaryButton>
+                </div>
+              ) : null}
             </div>
           </AppCard>
         ) : null}
@@ -290,6 +271,39 @@ export function VersionUpgradeModal({
                   disabled={isUploadingBinary || isConfirmingManualUpgrade}
                 />
               </ResourceField>
+
+              <div className="flex justify-end">
+                {showConfirmManualUpgradeAction ? (
+                  <PrimaryButton
+                    type="button"
+                    onClick={onConfirmManualUpgrade}
+                    disabled={
+                      !canConfirmManualUpgrade ||
+                      isConfirmingManualUpgrade ||
+                      isUploadingBinary ||
+                      isUpgrading
+                    }
+                  >
+                    {isConfirmingManualUpgrade ? '升级中...' : '升级'}
+                  </PrimaryButton>
+                ) : (
+                  <PrimaryButton
+                    type="button"
+                    onClick={() => {
+                      if (selectedBinary) {
+                        onUploadBinary(selectedBinary);
+                      }
+                    }}
+                    disabled={
+                      !selectedBinary ||
+                      isUploadingBinary ||
+                      isConfirmingManualUpgrade
+                    }
+                  >
+                    {isUploadingBinary ? '上传检查中...' : '上传并检查'}
+                  </PrimaryButton>
+                )}
+              </div>
 
               {manualErrorMessage ? (
                 <ErrorState
