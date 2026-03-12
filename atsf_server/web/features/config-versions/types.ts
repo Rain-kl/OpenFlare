@@ -33,4 +33,11 @@ export interface ConfigDiffResult {
   modified_domains: string[];
   main_config_changed: boolean;
   changed_option_keys: string[];
+  changed_option_details: ConfigOptionDiffItem[];
+}
+
+export interface ConfigOptionDiffItem {
+  key: string;
+  previous_value: string;
+  current_value: string;
 }

@@ -35,10 +35,14 @@ type AgentNodePayload struct {
 }
 
 type ApplyLogPayload struct {
-	NodeID  string `json:"node_id"`
-	Version string `json:"version"`
-	Result  string `json:"result"`
-	Message string `json:"message"`
+	NodeID              string `json:"node_id"`
+	Version             string `json:"version"`
+	Result              string `json:"result"`
+	Message             string `json:"message"`
+	Checksum            string `json:"checksum"`
+	MainConfigChecksum  string `json:"main_config_checksum"`
+	RouteConfigChecksum string `json:"route_config_checksum"`
+	SupportFileCount    int    `json:"support_file_count"`
 }
 
 type AgentConfigResponse struct {
@@ -88,6 +92,10 @@ type NodeView struct {
 	LastError                 string     `json:"last_error"`
 	LatestApplyResult         string     `json:"latest_apply_result"`
 	LatestApplyMessage        string     `json:"latest_apply_message"`
+	LatestApplyChecksum       string     `json:"latest_apply_checksum"`
+	LatestMainConfigChecksum  string     `json:"latest_main_config_checksum"`
+	LatestRouteConfigChecksum string     `json:"latest_route_config_checksum"`
+	LatestSupportFileCount    int        `json:"latest_support_file_count"`
 	LatestApplyAt             *time.Time `json:"latest_apply_at"`
 	CreatedAt                 time.Time  `json:"created_at"`
 	UpdatedAt                 time.Time  `json:"updated_at"`
@@ -161,6 +169,9 @@ func ReportApplyLog(payload ApplyLogPayload) (*model.ApplyLog, error) {
 	payload.Version = strings.TrimSpace(payload.Version)
 	payload.Result = strings.TrimSpace(strings.ToLower(payload.Result))
 	payload.Message = strings.TrimSpace(payload.Message)
+	payload.Checksum = strings.TrimSpace(payload.Checksum)
+	payload.MainConfigChecksum = strings.TrimSpace(payload.MainConfigChecksum)
+	payload.RouteConfigChecksum = strings.TrimSpace(payload.RouteConfigChecksum)
 	if payload.NodeID == "" {
 		return nil, errors.New("node_id 不能为空")
 	}
@@ -173,11 +184,15 @@ func ReportApplyLog(payload ApplyLogPayload) (*model.ApplyLog, error) {
 	common.SysLog("agent apply log received: node_id=" + payload.NodeID + " version=" + payload.Version + " result=" + payload.Result)
 
 	log := &model.ApplyLog{
-		NodeID:    payload.NodeID,
-		Version:   payload.Version,
-		Result:    payload.Result,
-		Message:   payload.Message,
-		CreatedAt: now,
+		NodeID:              payload.NodeID,
+		Version:             payload.Version,
+		Result:              payload.Result,
+		Message:             payload.Message,
+		Checksum:            payload.Checksum,
+		MainConfigChecksum:  payload.MainConfigChecksum,
+		RouteConfigChecksum: payload.RouteConfigChecksum,
+		SupportFileCount:    payload.SupportFileCount,
+		CreatedAt:           now,
 	}
 	err := model.DB.Transaction(func(tx *gorm.DB) error {
 		node := &model.Node{}
@@ -230,6 +245,10 @@ func ListNodeViews() ([]*NodeView, error) {
 		if log, err := model.GetLatestApplyLog(node.NodeID); err == nil {
 			view.LatestApplyResult = log.Result
 			view.LatestApplyMessage = log.Message
+			view.LatestApplyChecksum = log.Checksum
+			view.LatestMainConfigChecksum = log.MainConfigChecksum
+			view.LatestRouteConfigChecksum = log.RouteConfigChecksum
+			view.LatestSupportFileCount = log.SupportFileCount
 			view.LatestApplyAt = &log.CreatedAt
 		}
 		views = append(views, view)

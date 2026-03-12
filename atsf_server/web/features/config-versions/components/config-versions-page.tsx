@@ -8,7 +8,6 @@ import { ErrorState } from '@/components/feedback/error-state';
 import { InlineMessage } from '@/components/feedback/inline-message';
 import { LoadingState } from '@/components/feedback/loading-state';
 import { PageHeader } from '@/components/layout/page-header';
-import { AppModal } from '@/components/ui/app-modal';
 import { AppCard } from '@/components/ui/app-card';
 import { StatusBadge } from '@/components/ui/status-badge';
 import {
@@ -18,7 +17,9 @@ import {
   getConfigVersions,
   publishConfigVersion,
 } from '@/features/config-versions/api/config-versions';
+import { ConfigVersionSnapshotModal } from '@/features/config-versions/components/config-version-snapshot-modal';
 import type {
+  ConfigOptionDiffItem,
   ConfigDiffResult,
   ConfigPreviewResult,
   ConfigVersionItem,
@@ -121,84 +122,46 @@ function SupportFilesList({ files }: { files: SupportFile[] }) {
   );
 }
 
-function SnapshotModal({
-  version,
-  onClose,
-}: {
-  version: ConfigVersionItem | null;
-  onClose: () => void;
-}) {
-  return (
-    <AppModal
-      isOpen={Boolean(version)}
-      onClose={onClose}
-      title={version ? `版本 ${version.version}` : '查看快照'}
-      description="在弹窗中查看快照 JSON 与渲染结果，避免把版本页主视图撑长。"
-      size="xl"
-      footer={
-        <div className="flex justify-end">
-          <SecondaryButton type="button" onClick={onClose}>
-            关闭
-          </SecondaryButton>
-        </div>
-      }
-    >
-      {version ? (
-        <div className="space-y-5">
-          <div className="grid gap-4 md:grid-cols-3">
-            <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-elevated)] px-4 py-4">
-              <p className="text-xs tracking-[0.2em] text-[var(--foreground-muted)] uppercase">
-                Checksum
-              </p>
-              <p className="mt-2 text-sm break-all text-[var(--foreground-primary)]">
-                {version.checksum}
-              </p>
-            </div>
-            <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-elevated)] px-4 py-4">
-              <p className="text-xs tracking-[0.2em] text-[var(--foreground-muted)] uppercase">
-                创建人
-              </p>
-              <p className="mt-2 text-sm text-[var(--foreground-primary)]">
-                {version.created_by || '系统'}
-              </p>
-            </div>
-            <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-elevated)] px-4 py-4">
-              <p className="text-xs tracking-[0.2em] text-[var(--foreground-muted)] uppercase">
-                创建时间
-              </p>
-              <p className="mt-2 text-sm text-[var(--foreground-primary)]">
-                {formatDateTime(version.created_at)}
-              </p>
-            </div>
-          </div>
+function renderOptionValue(value: string) {
+  return value === '' ? '空' : value;
+}
 
-          <div>
-            <p className="mb-2 text-sm font-semibold text-[var(--foreground-primary)]">
-              快照 JSON
-            </p>
-            <CodeBlock className="max-h-96 whitespace-pre-wrap">
-              {version.snapshot_json}
-            </CodeBlock>
-          </div>
-          <div>
-            <p className="mb-2 text-sm font-semibold text-[var(--foreground-primary)]">
-              主配置
-            </p>
-            <CodeBlock className="max-h-96 whitespace-pre-wrap">
-              {version.main_config}
-            </CodeBlock>
-          </div>
-          <div>
-            <p className="mb-2 text-sm font-semibold text-[var(--foreground-primary)]">
-              路由配置
-            </p>
-            <CodeBlock className="max-h-[32rem] whitespace-pre-wrap">
-              {version.rendered_config}
-            </CodeBlock>
-          </div>
-        </div>
-      ) : null}
-    </AppModal>
+function OptionDiffTable({ items }: { items: ConfigOptionDiffItem[] }) {
+  if (items.length === 0) {
+    return (
+      <p className="text-sm text-[var(--foreground-secondary)]">
+        当前无 OpenResty 性能参数变化。
+      </p>
+    );
+  }
+
+  return (
+    <div className="overflow-x-auto rounded-2xl border border-[var(--border-default)]">
+      <table className="min-w-full divide-y divide-[var(--border-default)] text-left text-sm">
+        <thead>
+          <tr className="bg-[var(--surface-elevated)] text-[var(--foreground-secondary)]">
+            <th className="px-3 py-3 font-medium">参数</th>
+            <th className="px-3 py-3 font-medium">当前激活值</th>
+            <th className="px-3 py-3 font-medium">待发布值</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-[var(--border-default)]">
+          {items.map((item) => (
+            <tr key={item.key} className="align-top">
+              <td className="px-3 py-3 font-medium text-[var(--foreground-primary)]">
+                {item.key}
+              </td>
+              <td className="px-3 py-3 text-[var(--foreground-secondary)]">
+                <code>{renderOptionValue(item.previous_value)}</code>
+              </td>
+              <td className="px-3 py-3 text-[var(--foreground-secondary)]">
+                <code>{renderOptionValue(item.current_value)}</code>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }
 
@@ -295,22 +258,7 @@ function PublishPreviewCard({
               variant={diff.changed_option_keys.length > 0 ? 'info' : 'warning'}
             />
           </div>
-          {diff.changed_option_keys.length > 0 ? (
-            <div className="flex flex-wrap gap-2">
-              {diff.changed_option_keys.map((item) => (
-                <span
-                  key={item}
-                  className="rounded-full border border-[var(--border-default)] bg-[var(--surface-elevated)] px-3 py-1 text-xs text-[var(--foreground-secondary)]"
-                >
-                  {item}
-                </span>
-              ))}
-            </div>
-          ) : (
-            <p className="text-sm text-[var(--foreground-secondary)]">
-              当前无 OpenResty 性能参数变化。
-            </p>
-          )}
+          <OptionDiffTable items={diff.changed_option_details} />
         </div>
 
         <div>
@@ -579,7 +527,7 @@ export function ConfigVersionsPage() {
         </AppCard>
       </div>
 
-      <SnapshotModal
+      <ConfigVersionSnapshotModal
         version={selectedVersion}
         onClose={() => setSelectedVersionId(null)}
       />

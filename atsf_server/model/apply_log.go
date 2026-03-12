@@ -3,12 +3,16 @@ package model
 import "time"
 
 type ApplyLog struct {
-	ID        uint      `json:"id" gorm:"primaryKey"`
-	NodeID    string    `json:"node_id" gorm:"index;size:64;not null"`
-	Version   string    `json:"version" gorm:"size:32;not null"`
-	Result    string    `json:"result" gorm:"size:32;not null"`
-	Message   string    `json:"message" gorm:"size:1024"`
-	CreatedAt time.Time `json:"created_at"`
+	ID                  uint      `json:"id" gorm:"primaryKey"`
+	NodeID              string    `json:"node_id" gorm:"index;size:64;not null"`
+	Version             string    `json:"version" gorm:"size:32;not null"`
+	Result              string    `json:"result" gorm:"size:32;not null"`
+	Message             string    `json:"message" gorm:"size:1024"`
+	Checksum            string    `json:"checksum" gorm:"size:64;not null;default:''"`
+	MainConfigChecksum  string    `json:"main_config_checksum" gorm:"size:64;not null;default:''"`
+	RouteConfigChecksum string    `json:"route_config_checksum" gorm:"size:64;not null;default:''"`
+	SupportFileCount    int       `json:"support_file_count" gorm:"not null;default:0"`
+	CreatedAt           time.Time `json:"created_at"`
 }
 
 func ListApplyLogs(nodeID string) (logs []*ApplyLog, err error) {

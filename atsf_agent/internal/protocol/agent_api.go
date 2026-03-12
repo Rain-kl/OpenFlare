@@ -49,10 +49,14 @@ type RegisterNodeResponse struct {
 }
 
 type ApplyLogPayload struct {
-	NodeID  string `json:"node_id"`
-	Version string `json:"version"`
-	Result  string `json:"result"`
-	Message string `json:"message"`
+	NodeID              string `json:"node_id"`
+	Version             string `json:"version"`
+	Result              string `json:"result"`
+	Message             string `json:"message"`
+	Checksum            string `json:"checksum"`
+	MainConfigChecksum  string `json:"main_config_checksum"`
+	RouteConfigChecksum string `json:"route_config_checksum"`
+	SupportFileCount    int    `json:"support_file_count"`
 }
 
 type ActiveConfigResponse struct {

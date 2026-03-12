@@ -221,6 +221,21 @@ func TestPreviewAndDiffConfigVersion(t *testing.T) {
 	if len(diff.ChangedOptionKeys) == 0 || diff.ChangedOptionKeys[0] == "" {
 		t.Fatal("expected changed OpenResty option keys to be reported")
 	}
+	if len(diff.ChangedOptionDetails) == 0 {
+		t.Fatal("expected changed OpenResty option details to be reported")
+	}
+	found := false
+	for _, item := range diff.ChangedOptionDetails {
+		if item.Key == "OpenRestyProxyReadTimeout" {
+			found = true
+			if item.PreviousValue != "60" || item.CurrentValue != "120" {
+				t.Fatalf("unexpected option diff values: %+v", item)
+			}
+		}
+	}
+	if !found {
+		t.Fatal("expected OpenRestyProxyReadTimeout diff detail")
+	}
 }
 
 func TestCreateTLSCertificateRejectsInvalidPEM(t *testing.T) {

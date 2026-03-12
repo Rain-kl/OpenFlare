@@ -16,6 +16,9 @@ import { PageHeader } from '@/components/layout/page-header';
 import { AppModal } from '@/components/ui/app-modal';
 import { AppCard } from '@/components/ui/app-card';
 import { StatusBadge } from '@/components/ui/status-badge';
+import { getConfigVersions } from '@/features/config-versions/api/config-versions';
+import { ConfigVersionSnapshotModal } from '@/features/config-versions/components/config-version-snapshot-modal';
+import type { ConfigVersionItem } from '@/features/config-versions/types';
 import { getApplyLogs } from '@/features/apply-logs/api/apply-logs';
 import {
   deleteNode,
@@ -97,6 +100,7 @@ export function NodeDetailPage({ nodeId }: { nodeId: string }) {
   const [feedback, setFeedback] = useState<FeedbackState | null>(null);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [isAgentUpdateModalOpen, setIsAgentUpdateModalOpen] = useState(false);
+  const [isTargetSnapshotOpen, setIsTargetSnapshotOpen] = useState(false);
   const [selectedReleaseChannel, setSelectedReleaseChannel] =
     useState<ReleaseChannel>('stable');
   const [agentUpdateFeedback, setAgentUpdateFeedback] =
@@ -141,6 +145,12 @@ export function NodeDetailPage({ nodeId }: { nodeId: string }) {
     queryKey: ['apply-logs', node?.node_id ?? ''],
     queryFn: () => getApplyLogs(node?.node_id),
     enabled: Boolean(node?.node_id),
+    refetchInterval: 5000,
+  });
+
+  const configVersionsQuery = useQuery({
+    queryKey: ['config-versions'],
+    queryFn: getConfigVersions,
     refetchInterval: 5000,
   });
 
@@ -279,6 +289,12 @@ export function NodeDetailPage({ nodeId }: { nodeId: string }) {
     }
   };
 
+  const activeConfigVersion = useMemo<ConfigVersionItem | null>(() => {
+    return (
+      (configVersionsQuery.data ?? []).find((item) => item.is_active) ?? null
+    );
+  }, [configVersionsQuery.data]);
+
   if (nodesQuery.isLoading) {
     return <LoadingState />;
   }
@@ -320,6 +336,9 @@ export function NodeDetailPage({ nodeId }: { nodeId: string }) {
       ? previewAgentReleaseQuery.isFetching
       : stableAgentReleaseQuery.isFetching;
   const applyLogs = applyLogsQuery.data ?? [];
+  const isTargetVersionApplied =
+    activeConfigVersion !== null &&
+    activeConfigVersion.version === node.current_version;
 
   const handleOpenAgentUpdateModal = () => {
     setAgentUpdateFeedback(null);
@@ -352,6 +371,9 @@ export function NodeDetailPage({ nodeId }: { nodeId: string }) {
       queryClient.invalidateQueries({ queryKey: nodesQueryKey }),
       queryClient.invalidateQueries({
         queryKey: ['apply-logs', node.node_id],
+      }),
+      queryClient.invalidateQueries({
+        queryKey: ['config-versions'],
       }),
     ]);
   };
@@ -460,9 +482,94 @@ export function NodeDetailPage({ nodeId }: { nodeId: string }) {
                     )} · ${formatDateTime(node.latest_apply_at)}`
                   : '暂无应用记录'}
               </p>
+              {node.latest_apply_checksum ? (
+                <div className="space-y-1 text-sm text-[var(--foreground-secondary)]">
+                  <p>目标 Checksum：{node.latest_apply_checksum}</p>
+                  <p>支持文件：{node.latest_support_file_count}</p>
+                </div>
+              ) : null}
             </div>
           </AppCard>
         </div>
+
+        <AppCard
+          title="当前目标版本"
+          description="展示当前全局激活配置版本，便于直接核对节点应追上的主配置与路由配置。"
+          action={
+            activeConfigVersion ? (
+              <SecondaryButton
+                type="button"
+                onClick={() => setIsTargetSnapshotOpen(true)}
+              >
+                查看目标快照
+              </SecondaryButton>
+            ) : null
+          }
+        >
+          {configVersionsQuery.isLoading ? (
+            <LoadingState />
+          ) : configVersionsQuery.isError ? (
+            <InlineMessage
+              tone="danger"
+              message={getErrorMessage(configVersionsQuery.error)}
+            />
+          ) : activeConfigVersion ? (
+            <div className="grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)]">
+              <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-elevated)] px-4 py-4">
+                <p className="text-xs tracking-[0.2em] text-[var(--foreground-muted)] uppercase">
+                  追平状态
+                </p>
+                <div className="mt-3 flex flex-wrap items-center gap-3">
+                  <StatusBadge
+                    label={
+                      isTargetVersionApplied
+                        ? '已追平目标版本'
+                        : '待追平目标版本'
+                    }
+                    variant={isTargetVersionApplied ? 'success' : 'warning'}
+                  />
+                </div>
+                <p className="mt-3 text-sm text-[var(--foreground-secondary)]">
+                  {isTargetVersionApplied
+                    ? '当前节点已应用全局激活配置。'
+                    : '当前节点版本落后于全局激活配置，可结合应用记录定位原因。'}
+                </p>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-3">
+                <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-elevated)] px-4 py-4">
+                  <p className="text-xs tracking-[0.2em] text-[var(--foreground-muted)] uppercase">
+                    目标版本
+                  </p>
+                  <p className="mt-2 text-sm text-[var(--foreground-primary)]">
+                    {activeConfigVersion.version}
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-elevated)] px-4 py-4">
+                  <p className="text-xs tracking-[0.2em] text-[var(--foreground-muted)] uppercase">
+                    Target Checksum
+                  </p>
+                  <p className="mt-2 text-sm break-all text-[var(--foreground-primary)]">
+                    {activeConfigVersion.checksum}
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-elevated)] px-4 py-4">
+                  <p className="text-xs tracking-[0.2em] text-[var(--foreground-muted)] uppercase">
+                    激活时间
+                  </p>
+                  <p className="mt-2 text-sm text-[var(--foreground-primary)]">
+                    {formatDateTime(activeConfigVersion.created_at)}
+                  </p>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <InlineMessage
+              tone="info"
+              message="当前还没有全局激活配置版本，无法展示目标快照。"
+            />
+          )}
+        </AppCard>
 
         <AppCard
           title="OpenResty 健康与控制"
@@ -643,6 +750,7 @@ export function NodeDetailPage({ nodeId }: { nodeId: string }) {
                   <tr className="text-[var(--foreground-secondary)]">
                     <th className="px-3 py-3 font-medium">版本</th>
                     <th className="px-3 py-3 font-medium">结果</th>
+                    <th className="px-3 py-3 font-medium">Checksum</th>
                     <th className="px-3 py-3 font-medium">时间</th>
                     <th className="px-3 py-3 font-medium">消息</th>
                   </tr>
@@ -661,14 +769,35 @@ export function NodeDetailPage({ nodeId }: { nodeId: string }) {
                           }
                         />
                       </td>
+                      <td
+                        className="px-3 py-4 text-[var(--foreground-secondary)]"
+                        title={log.checksum}
+                      >
+                        {log.checksum ? `${log.checksum.slice(0, 12)}...` : '—'}
+                      </td>
                       <td className="px-3 py-4 text-[var(--foreground-secondary)]">
                         {formatRelativeTime(log.created_at)} ·{' '}
                         {formatDateTime(log.created_at)}
                       </td>
                       <td className="px-3 py-4 text-[var(--foreground-secondary)]">
-                        <p className="max-w-80 break-words whitespace-pre-wrap">
-                          {log.message || '—'}
-                        </p>
+                        <div className="max-w-80 space-y-2 break-words whitespace-pre-wrap">
+                          <p>
+                            {log.main_config_checksum
+                              ? `主配置：${log.main_config_checksum}`
+                              : ''}
+                          </p>
+                          <p>
+                            {log.route_config_checksum
+                              ? `路由配置：${log.route_config_checksum}`
+                              : ''}
+                          </p>
+                          <p>
+                            {log.support_file_count
+                              ? `支持文件：${log.support_file_count}`
+                              : ''}
+                          </p>
+                          <p>{log.message || '—'}</p>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -678,6 +807,11 @@ export function NodeDetailPage({ nodeId }: { nodeId: string }) {
           )}
         </AppCard>
       </div>
+
+      <ConfigVersionSnapshotModal
+        version={isTargetSnapshotOpen ? activeConfigVersion : null}
+        onClose={() => setIsTargetSnapshotOpen(false)}
+      />
 
       <AppModal
         isOpen={isEditorOpen}

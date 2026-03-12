@@ -36,12 +36,19 @@ type ConfigPreviewResult struct {
 }
 
 type ConfigDiffResult struct {
-	ActiveVersion     string   `json:"active_version,omitempty"`
-	AddedDomains      []string `json:"added_domains"`
-	RemovedDomains    []string `json:"removed_domains"`
-	ModifiedDomains   []string `json:"modified_domains"`
-	MainConfigChanged bool     `json:"main_config_changed"`
-	ChangedOptionKeys []string `json:"changed_option_keys"`
+	ActiveVersion        string                 `json:"active_version,omitempty"`
+	AddedDomains         []string               `json:"added_domains"`
+	RemovedDomains       []string               `json:"removed_domains"`
+	ModifiedDomains      []string               `json:"modified_domains"`
+	MainConfigChanged    bool                   `json:"main_config_changed"`
+	ChangedOptionKeys    []string               `json:"changed_option_keys"`
+	ChangedOptionDetails []ConfigOptionDiffItem `json:"changed_option_details"`
+}
+
+type ConfigOptionDiffItem struct {
+	Key           string `json:"key"`
+	PreviousValue string `json:"previous_value"`
+	CurrentValue  string `json:"current_value"`
 }
 
 type snapshotRoute struct {
@@ -139,10 +146,11 @@ func DiffConfigVersion() (*ConfigDiffResult, error) {
 		return nil, err
 	}
 	result := &ConfigDiffResult{
-		AddedDomains:      []string{},
-		RemovedDomains:    []string{},
-		ModifiedDomains:   []string{},
-		ChangedOptionKeys: []string{},
+		AddedDomains:         []string{},
+		RemovedDomains:       []string{},
+		ModifiedDomains:      []string{},
+		ChangedOptionKeys:    []string{},
+		ChangedOptionDetails: []ConfigOptionDiffItem{},
 	}
 	activeVersion, err := model.GetActiveConfigVersion()
 	if err != nil {
@@ -152,6 +160,7 @@ func DiffConfigVersion() (*ConfigDiffResult, error) {
 			}
 			result.MainConfigChanged = true
 			result.ChangedOptionKeys = openRestyOptionKeys()
+			result.ChangedOptionDetails = buildInitialOpenRestyOptionDiffs(bundle.OpenRestyConfig)
 			return result, nil
 		}
 		return nil, err
@@ -185,7 +194,8 @@ func DiffConfigVersion() (*ConfigDiffResult, error) {
 		}
 	}
 	result.MainConfigChanged = activeVersion.MainConfig != bundle.MainConfig
-	result.ChangedOptionKeys = diffOpenRestyOptionKeys(activeSnapshot.OpenRestyConfig, bundle.OpenRestyConfig)
+	result.ChangedOptionDetails = diffOpenRestyOptionDetails(activeSnapshot.OpenRestyConfig, bundle.OpenRestyConfig)
+	result.ChangedOptionKeys = extractOptionDiffKeys(result.ChangedOptionDetails)
 	sort.Strings(result.AddedDomains)
 	sort.Strings(result.RemovedDomains)
 	sort.Strings(result.ModifiedDomains)
@@ -426,42 +436,68 @@ func buildOpenRestyConfigSnapshot() openRestyConfigSnapshot {
 }
 
 func diffOpenRestyOptionKeys(left openRestyConfigSnapshot, right openRestyConfigSnapshot) []string {
-	changes := make([]string, 0)
-	appendIfChanged := func(key string, changed bool) {
-		if changed {
-			changes = append(changes, key)
-		}
+	details := diffOpenRestyOptionDetails(left, right)
+	return extractOptionDiffKeys(details)
+}
+
+func buildInitialOpenRestyOptionDiffs(current openRestyConfigSnapshot) []ConfigOptionDiffItem {
+	details := diffOpenRestyOptionDetails(openRestyConfigSnapshot{}, current)
+	for index := range details {
+		details[index].PreviousValue = ""
 	}
-	appendIfChanged("OpenRestyWorkerProcesses", left.WorkerProcesses != right.WorkerProcesses)
-	appendIfChanged("OpenRestyWorkerConnections", left.WorkerConnections != right.WorkerConnections)
-	appendIfChanged("OpenRestyWorkerRlimitNofile", left.WorkerRlimitNofile != right.WorkerRlimitNofile)
-	appendIfChanged("OpenRestyEventsUse", left.EventsUse != right.EventsUse)
-	appendIfChanged("OpenRestyEventsMultiAcceptEnabled", left.EventsMultiAcceptEnabled != right.EventsMultiAcceptEnabled)
-	appendIfChanged("OpenRestyKeepaliveTimeout", left.KeepaliveTimeout != right.KeepaliveTimeout)
-	appendIfChanged("OpenRestyKeepaliveRequests", left.KeepaliveRequests != right.KeepaliveRequests)
-	appendIfChanged("OpenRestyClientHeaderTimeout", left.ClientHeaderTimeout != right.ClientHeaderTimeout)
-	appendIfChanged("OpenRestyClientBodyTimeout", left.ClientBodyTimeout != right.ClientBodyTimeout)
-	appendIfChanged("OpenRestySendTimeout", left.SendTimeout != right.SendTimeout)
-	appendIfChanged("OpenRestyProxyConnectTimeout", left.ProxyConnectTimeout != right.ProxyConnectTimeout)
-	appendIfChanged("OpenRestyProxySendTimeout", left.ProxySendTimeout != right.ProxySendTimeout)
-	appendIfChanged("OpenRestyProxyReadTimeout", left.ProxyReadTimeout != right.ProxyReadTimeout)
-	appendIfChanged("OpenRestyProxyBufferingEnabled", left.ProxyBufferingEnabled != right.ProxyBufferingEnabled)
-	appendIfChanged("OpenRestyProxyBuffers", left.ProxyBuffers != right.ProxyBuffers)
-	appendIfChanged("OpenRestyProxyBufferSize", left.ProxyBufferSize != right.ProxyBufferSize)
-	appendIfChanged("OpenRestyProxyBusyBuffersSize", left.ProxyBusyBuffersSize != right.ProxyBusyBuffersSize)
-	appendIfChanged("OpenRestyGzipEnabled", left.GzipEnabled != right.GzipEnabled)
-	appendIfChanged("OpenRestyGzipMinLength", left.GzipMinLength != right.GzipMinLength)
-	appendIfChanged("OpenRestyGzipCompLevel", left.GzipCompLevel != right.GzipCompLevel)
-	appendIfChanged("OpenRestyCacheEnabled", left.CacheEnabled != right.CacheEnabled)
-	appendIfChanged("OpenRestyCachePath", left.CachePath != right.CachePath)
-	appendIfChanged("OpenRestyCacheLevels", left.CacheLevels != right.CacheLevels)
-	appendIfChanged("OpenRestyCacheInactive", left.CacheInactive != right.CacheInactive)
-	appendIfChanged("OpenRestyCacheMaxSize", left.CacheMaxSize != right.CacheMaxSize)
-	appendIfChanged("OpenRestyCacheKeyTemplate", left.CacheKeyTemplate != right.CacheKeyTemplate)
-	appendIfChanged("OpenRestyCacheLockEnabled", left.CacheLockEnabled != right.CacheLockEnabled)
-	appendIfChanged("OpenRestyCacheLockTimeout", left.CacheLockTimeout != right.CacheLockTimeout)
-	appendIfChanged("OpenRestyCacheUseStale", left.CacheUseStale != right.CacheUseStale)
+	return details
+}
+
+func diffOpenRestyOptionDetails(left openRestyConfigSnapshot, right openRestyConfigSnapshot) []ConfigOptionDiffItem {
+	changes := make([]ConfigOptionDiffItem, 0)
+	appendIfChanged := func(key string, previous string, current string) {
+		if previous == current {
+			return
+		}
+		changes = append(changes, ConfigOptionDiffItem{
+			Key:           key,
+			PreviousValue: previous,
+			CurrentValue:  current,
+		})
+	}
+	appendIfChanged("OpenRestyWorkerProcesses", left.WorkerProcesses, right.WorkerProcesses)
+	appendIfChanged("OpenRestyWorkerConnections", fmt.Sprintf("%d", left.WorkerConnections), fmt.Sprintf("%d", right.WorkerConnections))
+	appendIfChanged("OpenRestyWorkerRlimitNofile", fmt.Sprintf("%d", left.WorkerRlimitNofile), fmt.Sprintf("%d", right.WorkerRlimitNofile))
+	appendIfChanged("OpenRestyEventsUse", left.EventsUse, right.EventsUse)
+	appendIfChanged("OpenRestyEventsMultiAcceptEnabled", fmt.Sprintf("%t", left.EventsMultiAcceptEnabled), fmt.Sprintf("%t", right.EventsMultiAcceptEnabled))
+	appendIfChanged("OpenRestyKeepaliveTimeout", fmt.Sprintf("%d", left.KeepaliveTimeout), fmt.Sprintf("%d", right.KeepaliveTimeout))
+	appendIfChanged("OpenRestyKeepaliveRequests", fmt.Sprintf("%d", left.KeepaliveRequests), fmt.Sprintf("%d", right.KeepaliveRequests))
+	appendIfChanged("OpenRestyClientHeaderTimeout", fmt.Sprintf("%d", left.ClientHeaderTimeout), fmt.Sprintf("%d", right.ClientHeaderTimeout))
+	appendIfChanged("OpenRestyClientBodyTimeout", fmt.Sprintf("%d", left.ClientBodyTimeout), fmt.Sprintf("%d", right.ClientBodyTimeout))
+	appendIfChanged("OpenRestySendTimeout", fmt.Sprintf("%d", left.SendTimeout), fmt.Sprintf("%d", right.SendTimeout))
+	appendIfChanged("OpenRestyProxyConnectTimeout", fmt.Sprintf("%d", left.ProxyConnectTimeout), fmt.Sprintf("%d", right.ProxyConnectTimeout))
+	appendIfChanged("OpenRestyProxySendTimeout", fmt.Sprintf("%d", left.ProxySendTimeout), fmt.Sprintf("%d", right.ProxySendTimeout))
+	appendIfChanged("OpenRestyProxyReadTimeout", fmt.Sprintf("%d", left.ProxyReadTimeout), fmt.Sprintf("%d", right.ProxyReadTimeout))
+	appendIfChanged("OpenRestyProxyBufferingEnabled", fmt.Sprintf("%t", left.ProxyBufferingEnabled), fmt.Sprintf("%t", right.ProxyBufferingEnabled))
+	appendIfChanged("OpenRestyProxyBuffers", left.ProxyBuffers, right.ProxyBuffers)
+	appendIfChanged("OpenRestyProxyBufferSize", left.ProxyBufferSize, right.ProxyBufferSize)
+	appendIfChanged("OpenRestyProxyBusyBuffersSize", left.ProxyBusyBuffersSize, right.ProxyBusyBuffersSize)
+	appendIfChanged("OpenRestyGzipEnabled", fmt.Sprintf("%t", left.GzipEnabled), fmt.Sprintf("%t", right.GzipEnabled))
+	appendIfChanged("OpenRestyGzipMinLength", fmt.Sprintf("%d", left.GzipMinLength), fmt.Sprintf("%d", right.GzipMinLength))
+	appendIfChanged("OpenRestyGzipCompLevel", fmt.Sprintf("%d", left.GzipCompLevel), fmt.Sprintf("%d", right.GzipCompLevel))
+	appendIfChanged("OpenRestyCacheEnabled", fmt.Sprintf("%t", left.CacheEnabled), fmt.Sprintf("%t", right.CacheEnabled))
+	appendIfChanged("OpenRestyCachePath", left.CachePath, right.CachePath)
+	appendIfChanged("OpenRestyCacheLevels", left.CacheLevels, right.CacheLevels)
+	appendIfChanged("OpenRestyCacheInactive", left.CacheInactive, right.CacheInactive)
+	appendIfChanged("OpenRestyCacheMaxSize", left.CacheMaxSize, right.CacheMaxSize)
+	appendIfChanged("OpenRestyCacheKeyTemplate", left.CacheKeyTemplate, right.CacheKeyTemplate)
+	appendIfChanged("OpenRestyCacheLockEnabled", fmt.Sprintf("%t", left.CacheLockEnabled), fmt.Sprintf("%t", right.CacheLockEnabled))
+	appendIfChanged("OpenRestyCacheLockTimeout", left.CacheLockTimeout, right.CacheLockTimeout)
+	appendIfChanged("OpenRestyCacheUseStale", left.CacheUseStale, right.CacheUseStale)
 	return changes
+}
+
+func extractOptionDiffKeys(details []ConfigOptionDiffItem) []string {
+	keys := make([]string, 0, len(details))
+	for _, item := range details {
+		keys = append(keys, item.Key)
+	}
+	return keys
 }
 
 func openRestyOptionKeys() []string {

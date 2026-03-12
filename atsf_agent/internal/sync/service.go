@@ -2,6 +2,8 @@ package sync
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"log"
 
 	"atsflare-agent/internal/protocol"
@@ -92,6 +94,8 @@ func (s *Service) sync(ctx context.Context, startup bool) error {
 	if routeConfig == "" {
 		routeConfig = config.RenderedConfig
 	}
+	mainConfigChecksum := checksumString(config.MainConfig)
+	routeConfigChecksum := checksumString(routeConfig)
 	log.Printf("applying new openresty config: mode=%s from_version=%s to_version=%s old_checksum=%s new_checksum=%s", mode, snapshot.CurrentVersion, config.Version, currentChecksum, config.Checksum)
 	if err = s.nginxManager.Apply(ctx, config.MainConfig, routeConfig, config.SupportFiles); err != nil {
 		log.Printf("apply openresty config failed: mode=%s version=%s error=%v", mode, config.Version, err)
@@ -100,10 +104,14 @@ func (s *Service) sync(ctx context.Context, startup bool) error {
 		snapshot.OpenrestyMessage = err.Error()
 		_ = s.stateStore.Save(snapshot)
 		reportErr := s.client.ReportApplyLog(ctx, protocol.ApplyLogPayload{
-			NodeID:  snapshot.NodeID,
-			Version: config.Version,
-			Result:  ApplyResultFailed,
-			Message: err.Error(),
+			NodeID:              snapshot.NodeID,
+			Version:             config.Version,
+			Result:              ApplyResultFailed,
+			Message:             err.Error(),
+			Checksum:            config.Checksum,
+			MainConfigChecksum:  mainConfigChecksum,
+			RouteConfigChecksum: routeConfigChecksum,
+			SupportFileCount:    len(config.SupportFiles),
 		})
 		if reportErr != nil {
 			log.Printf("report failed apply log failed: version=%s error=%v", config.Version, reportErr)
@@ -122,14 +130,23 @@ func (s *Service) sync(ctx context.Context, startup bool) error {
 		return err
 	}
 	if err = s.client.ReportApplyLog(ctx, protocol.ApplyLogPayload{
-		NodeID:  snapshot.NodeID,
-		Version: config.Version,
-		Result:  ApplyResultSuccess,
-		Message: "apply success",
+		NodeID:              snapshot.NodeID,
+		Version:             config.Version,
+		Result:              ApplyResultSuccess,
+		Message:             "apply success",
+		Checksum:            config.Checksum,
+		MainConfigChecksum:  mainConfigChecksum,
+		RouteConfigChecksum: routeConfigChecksum,
+		SupportFileCount:    len(config.SupportFiles),
 	}); err != nil {
 		log.Printf("report successful apply log failed: version=%s error=%v", config.Version, err)
 		return err
 	}
 	log.Printf("successful apply log reported: version=%s", config.Version)
 	return nil
+}
+
+func checksumString(content string) string {
+	sum := sha256.Sum256([]byte(content))
+	return hex.EncodeToString(sum[:])
 }
