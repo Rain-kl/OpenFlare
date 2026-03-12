@@ -119,6 +119,7 @@ func TestDockerExecutorCheckHealthFailsWhenContainerStopped(t *testing.T) {
 		DockerBinary:   "docker",
 		ContainerName:  "atsflare-openresty",
 		Image:          "openresty/openresty:alpine",
+		MainConfigPath: filepath.Clean("/tmp/nginx.conf"),
 		RouteConfigDir: filepath.Clean("/tmp/routes"),
 		CertDir:        filepath.Clean("/tmp/certs"),
 		NginxCertDir:   "/etc/nginx/atsflare-certs",
@@ -142,6 +143,7 @@ func TestDockerExecutorStartsContainerWhenMissing(t *testing.T) {
 		DockerBinary:   "docker",
 		ContainerName:  "atsflare-openresty",
 		Image:          "openresty/openresty:alpine",
+		MainConfigPath: filepath.Clean("/tmp/nginx.conf"),
 		RouteConfigDir: filepath.Clean("/tmp/routes"),
 		CertDir:        filepath.Clean("/tmp/certs"),
 		NginxCertDir:   "/etc/nginx/atsflare-certs",
@@ -176,6 +178,7 @@ func TestDockerExecutorStartsStoppedContainer(t *testing.T) {
 		DockerBinary:   "docker",
 		ContainerName:  "atsflare-openresty",
 		Image:          "openresty/openresty:alpine",
+		MainConfigPath: filepath.Clean("/tmp/nginx.conf"),
 		RouteConfigDir: filepath.Clean("/tmp/routes"),
 		CertDir:        filepath.Clean("/tmp/certs"),
 		NginxCertDir:   "/etc/nginx/atsflare-certs",
@@ -213,6 +216,7 @@ func TestDockerExecutorRecreatesContainerOnStartup(t *testing.T) {
 		DockerBinary:   "docker",
 		ContainerName:  "atsflare-openresty",
 		Image:          "openresty/openresty:alpine",
+		MainConfigPath: filepath.Clean("/tmp/nginx.conf"),
 		RouteConfigDir: filepath.Clean("/tmp/routes"),
 		CertDir:        filepath.Clean("/tmp/certs"),
 		NginxCertDir:   "/etc/nginx/atsflare-certs",
@@ -238,6 +242,7 @@ func TestNewExecutorUsesAbsoluteDockerMountPath(t *testing.T) {
 		DockerBinary:    "docker",
 		ContainerName:   "atsflare-openresty",
 		Image:           "openresty/openresty:alpine",
+		MainConfigPath:  "./data/etc/nginx/nginx.conf",
 		RouteConfigPath: "./data/etc/nginx/conf.d/atsflare_routes.conf",
 		CertDir:         "./data/etc/nginx/certs",
 		NginxCertDir:    "/etc/nginx/atsflare-certs",
@@ -268,6 +273,59 @@ func TestDetectVersionFromBinary(t *testing.T) {
 	}
 	if version != "1.27.1.2" {
 		t.Fatalf("unexpected version: %s", version)
+	}
+}
+
+func TestManagerApplyAndChecksumIncludeMainConfig(t *testing.T) {
+	tempDir := t.TempDir()
+	mainPath := filepath.Join(tempDir, "nginx.conf")
+	routePath := filepath.Join(tempDir, "conf.d", "atsflare_routes.conf")
+	certDir := filepath.Join(tempDir, "certs")
+	manager := &Manager{
+		MainConfigPath:  mainPath,
+		RouteConfigPath: routePath,
+		CertDir:         certDir,
+		NginxCertDir:    "/etc/nginx/atsflare-certs",
+		Executor:        &fakeExecutor{},
+	}
+
+	err := manager.Apply(
+		context.Background(),
+		"include __ATSF_ROUTE_CONFIG__;\n",
+		"ssl_certificate __ATSF_CERT_DIR__/1.crt;\n",
+		[]protocol.SupportFile{{Path: "1.crt", Content: "cert"}},
+	)
+	if err != nil {
+		t.Fatalf("Apply failed: %v", err)
+	}
+
+	mainData, err := os.ReadFile(mainPath)
+	if err != nil {
+		t.Fatalf("failed to read main config: %v", err)
+	}
+	if string(mainData) != "include "+routePath+";\n" {
+		t.Fatalf("unexpected main config: %s", string(mainData))
+	}
+
+	routeData, err := os.ReadFile(routePath)
+	if err != nil {
+		t.Fatalf("failed to read route config: %v", err)
+	}
+	if string(routeData) != "ssl_certificate /etc/nginx/atsflare-certs/1.crt;\n" {
+		t.Fatalf("unexpected route config: %s", string(routeData))
+	}
+
+	value, err := manager.CurrentChecksum()
+	if err != nil {
+		t.Fatalf("CurrentChecksum failed: %v", err)
+	}
+	expected := bundleChecksum(
+		"include __ATSF_ROUTE_CONFIG__;\n",
+		"ssl_certificate __ATSF_CERT_DIR__/1.crt;\n",
+		[]protocol.SupportFile{{Path: "1.crt", Content: "cert"}},
+	)
+	if value != expected {
+		t.Fatalf("unexpected checksum: got %s want %s", value, expected)
 	}
 }
 
@@ -311,13 +369,14 @@ func TestParseNginxVersionIgnoresDockerEntrypointPaths(t *testing.T) {
 func TestManagerApplyWritesSupportFilesAndReplacesPlaceholder(t *testing.T) {
 	tempDir := t.TempDir()
 	manager := &Manager{
+		MainConfigPath:  filepath.Join(tempDir, "nginx.conf"),
 		RouteConfigPath: filepath.Join(tempDir, "routes.conf"),
 		CertDir:         filepath.Join(tempDir, "certs"),
 		NginxCertDir:    "/etc/nginx/atsflare-certs",
 		Executor:        &fakeExecutor{},
 	}
 
-	err := manager.Apply(context.Background(), "ssl_certificate __ATSF_CERT_DIR__/1.crt;", []protocol.SupportFile{
+	err := manager.Apply(context.Background(), "include __ATSF_ROUTE_CONFIG__;", "ssl_certificate __ATSF_CERT_DIR__/1.crt;", []protocol.SupportFile{
 		{Path: "1.crt", Content: "cert-data"},
 		{Path: "1.key", Content: "key-data"},
 	})
@@ -344,9 +403,13 @@ func TestManagerApplyWritesSupportFilesAndReplacesPlaceholder(t *testing.T) {
 func TestManagerRollbackRestoresSupportFiles(t *testing.T) {
 	tempDir := t.TempDir()
 	routePath := filepath.Join(tempDir, "routes.conf")
+	mainPath := filepath.Join(tempDir, "nginx.conf")
 	certDir := filepath.Join(tempDir, "certs")
 	if err := os.MkdirAll(certDir, 0o755); err != nil {
 		t.Fatalf("MkdirAll failed: %v", err)
+	}
+	if err := os.WriteFile(mainPath, []byte("old-main"), 0o644); err != nil {
+		t.Fatalf("WriteFile failed: %v", err)
 	}
 	if err := os.WriteFile(routePath, []byte("old-route"), 0o644); err != nil {
 		t.Fatalf("WriteFile failed: %v", err)
@@ -355,6 +418,7 @@ func TestManagerRollbackRestoresSupportFiles(t *testing.T) {
 		t.Fatalf("WriteFile failed: %v", err)
 	}
 	manager := &Manager{
+		MainConfigPath:  mainPath,
 		RouteConfigPath: routePath,
 		CertDir:         certDir,
 		NginxCertDir:    "/etc/nginx/atsflare-certs",
@@ -363,13 +427,20 @@ func TestManagerRollbackRestoresSupportFiles(t *testing.T) {
 		},
 	}
 
-	err := manager.Apply(context.Background(), "new-route", []protocol.SupportFile{
+	err := manager.Apply(context.Background(), "new-main", "new-route", []protocol.SupportFile{
 		{Path: "1.crt", Content: "new-cert"},
 	})
 	if err == nil {
 		t.Fatal("expected Apply to fail")
 	}
 
+	mainData, err := os.ReadFile(mainPath)
+	if err != nil {
+		t.Fatalf("failed to read main config: %v", err)
+	}
+	if string(mainData) != "old-main" {
+		t.Fatalf("expected main rollback, got %s", string(mainData))
+	}
 	routeData, err := os.ReadFile(routePath)
 	if err != nil {
 		t.Fatalf("failed to read route config: %v", err)

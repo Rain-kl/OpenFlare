@@ -1,6 +1,7 @@
 package service
 
 import (
+	"atsflare/common"
 	"atsflare/model"
 	"crypto/sha256"
 	"encoding/hex"
@@ -26,6 +27,8 @@ type SupportFile struct {
 
 type ConfigPreviewResult struct {
 	SnapshotJSON   string        `json:"snapshot_json"`
+	MainConfig     string        `json:"main_config"`
+	RouteConfig    string        `json:"route_config"`
 	RenderedConfig string        `json:"rendered_config"`
 	SupportFiles   []SupportFile `json:"support_files"`
 	Checksum       string        `json:"checksum"`
@@ -33,10 +36,12 @@ type ConfigPreviewResult struct {
 }
 
 type ConfigDiffResult struct {
-	ActiveVersion   string   `json:"active_version,omitempty"`
-	AddedDomains    []string `json:"added_domains"`
-	RemovedDomains  []string `json:"removed_domains"`
-	ModifiedDomains []string `json:"modified_domains"`
+	ActiveVersion     string   `json:"active_version,omitempty"`
+	AddedDomains      []string `json:"added_domains"`
+	RemovedDomains    []string `json:"removed_domains"`
+	ModifiedDomains   []string `json:"modified_domains"`
+	MainConfigChanged bool     `json:"main_config_changed"`
+	ChangedOptionKeys []string `json:"changed_option_keys"`
 }
 
 type snapshotRoute struct {
@@ -50,16 +55,59 @@ type snapshotRoute struct {
 	Remark        string                        `json:"remark,omitempty"`
 }
 
-type configBundle struct {
-	Routes         []*model.ProxyRoute
-	SnapshotRoutes []snapshotRoute
-	SnapshotJSON   string
-	RenderedConfig string
-	SupportFiles   []SupportFile
-	Checksum       string
+type openRestyConfigSnapshot struct {
+	WorkerProcesses          string `json:"worker_processes"`
+	WorkerConnections        int    `json:"worker_connections"`
+	WorkerRlimitNofile       int    `json:"worker_rlimit_nofile"`
+	EventsUse                string `json:"events_use,omitempty"`
+	EventsMultiAcceptEnabled bool   `json:"events_multi_accept_enabled"`
+	KeepaliveTimeout         int    `json:"keepalive_timeout"`
+	KeepaliveRequests        int    `json:"keepalive_requests"`
+	ClientHeaderTimeout      int    `json:"client_header_timeout"`
+	ClientBodyTimeout        int    `json:"client_body_timeout"`
+	SendTimeout              int    `json:"send_timeout"`
+	ProxyConnectTimeout      int    `json:"proxy_connect_timeout"`
+	ProxySendTimeout         int    `json:"proxy_send_timeout"`
+	ProxyReadTimeout         int    `json:"proxy_read_timeout"`
+	ProxyBufferingEnabled    bool   `json:"proxy_buffering_enabled"`
+	ProxyBuffers             string `json:"proxy_buffers"`
+	ProxyBufferSize          string `json:"proxy_buffer_size"`
+	ProxyBusyBuffersSize     string `json:"proxy_busy_buffers_size"`
+	GzipEnabled              bool   `json:"gzip_enabled"`
+	GzipMinLength            int    `json:"gzip_min_length"`
+	GzipCompLevel            int    `json:"gzip_comp_level"`
+	CacheEnabled             bool   `json:"cache_enabled"`
+	CachePath                string `json:"cache_path,omitempty"`
+	CacheLevels              string `json:"cache_levels"`
+	CacheInactive            string `json:"cache_inactive"`
+	CacheMaxSize             string `json:"cache_max_size"`
+	CacheKeyTemplate         string `json:"cache_key_template"`
+	CacheLockEnabled         bool   `json:"cache_lock_enabled"`
+	CacheLockTimeout         string `json:"cache_lock_timeout"`
+	CacheUseStale            string `json:"cache_use_stale"`
 }
 
-const nginxCertDirPlaceholder = "__ATSF_CERT_DIR__"
+type snapshotDocument struct {
+	Routes          []snapshotRoute         `json:"routes"`
+	OpenRestyConfig openRestyConfigSnapshot `json:"openresty_config"`
+}
+
+type configBundle struct {
+	Routes            []*model.ProxyRoute
+	SnapshotRoutes    []snapshotRoute
+	OpenRestyConfig   openRestyConfigSnapshot
+	SnapshotJSON      string
+	MainConfig        string
+	RouteConfig       string
+	SupportFiles      []SupportFile
+	Checksum          string
+	ChangedOptionKeys []string
+}
+
+const (
+	nginxCertDirPlaceholder     = "__ATSF_CERT_DIR__"
+	nginxRouteConfigPlaceholder = "__ATSF_ROUTE_CONFIG__"
+)
 
 func ListConfigVersions() ([]*model.ConfigVersion, error) {
 	return model.ListConfigVersions()
@@ -76,7 +124,9 @@ func PreviewConfigVersion() (*ConfigPreviewResult, error) {
 	}
 	return &ConfigPreviewResult{
 		SnapshotJSON:   bundle.SnapshotJSON,
-		RenderedConfig: bundle.RenderedConfig,
+		MainConfig:     bundle.MainConfig,
+		RouteConfig:    bundle.RouteConfig,
+		RenderedConfig: bundle.RouteConfig,
 		SupportFiles:   bundle.SupportFiles,
 		Checksum:       bundle.Checksum,
 		RouteCount:     len(bundle.Routes),
@@ -89,9 +139,10 @@ func DiffConfigVersion() (*ConfigDiffResult, error) {
 		return nil, err
 	}
 	result := &ConfigDiffResult{
-		AddedDomains:    []string{},
-		RemovedDomains:  []string{},
-		ModifiedDomains: []string{},
+		AddedDomains:      []string{},
+		RemovedDomains:    []string{},
+		ModifiedDomains:   []string{},
+		ChangedOptionKeys: []string{},
 	}
 	activeVersion, err := model.GetActiveConfigVersion()
 	if err != nil {
@@ -99,12 +150,14 @@ func DiffConfigVersion() (*ConfigDiffResult, error) {
 			for _, route := range bundle.SnapshotRoutes {
 				result.AddedDomains = append(result.AddedDomains, route.Domain)
 			}
+			result.MainConfigChanged = true
+			result.ChangedOptionKeys = openRestyOptionKeys()
 			return result, nil
 		}
 		return nil, err
 	}
 	result.ActiveVersion = activeVersion.Version
-	activeRoutes, err := parseSnapshotRoutes(activeVersion.SnapshotJSON)
+	activeSnapshot, err := parseSnapshotDocument(activeVersion.SnapshotJSON)
 	if err != nil {
 		return nil, err
 	}
@@ -112,8 +165,8 @@ func DiffConfigVersion() (*ConfigDiffResult, error) {
 	for _, route := range bundle.SnapshotRoutes {
 		currentMap[route.Domain] = route
 	}
-	activeMap := make(map[string]snapshotRoute, len(activeRoutes))
-	for _, route := range activeRoutes {
+	activeMap := make(map[string]snapshotRoute, len(activeSnapshot.Routes))
+	for _, route := range activeSnapshot.Routes {
 		activeMap[route.Domain] = route
 	}
 	for domain, currentRoute := range currentMap {
@@ -131,9 +184,12 @@ func DiffConfigVersion() (*ConfigDiffResult, error) {
 			result.RemovedDomains = append(result.RemovedDomains, domain)
 		}
 	}
+	result.MainConfigChanged = activeVersion.MainConfig != bundle.MainConfig
+	result.ChangedOptionKeys = diffOpenRestyOptionKeys(activeSnapshot.OpenRestyConfig, bundle.OpenRestyConfig)
 	sort.Strings(result.AddedDomains)
 	sort.Strings(result.RemovedDomains)
 	sort.Strings(result.ModifiedDomains)
+	sort.Strings(result.ChangedOptionKeys)
 	return result, nil
 }
 
@@ -178,7 +234,8 @@ func PublishConfigVersion(createdBy string) (*ReleaseResult, error) {
 	record := &model.ConfigVersion{
 		Version:          version,
 		SnapshotJSON:     bundle.SnapshotJSON,
-		RenderedConfig:   bundle.RenderedConfig,
+		MainConfig:       bundle.MainConfig,
+		RenderedConfig:   bundle.RouteConfig,
 		SupportFilesJSON: string(supportFilesJSON),
 		Checksum:         bundle.Checksum,
 		IsActive:         true,
@@ -226,19 +283,222 @@ func ActivateConfigVersion(id uint) (*model.ConfigVersion, error) {
 	return version, nil
 }
 
-func renderSnapshot(routes []*model.ProxyRoute) (string, error) {
-	items, err := buildSnapshotRoutes(routes)
+func buildCurrentConfigBundle(requireRoutes bool) (*configBundle, error) {
+	routes, err := model.GetEnabledProxyRoutes()
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	data, err := json.Marshal(items)
+	if requireRoutes && len(routes) == 0 {
+		return nil, errors.New("没有可发布的启用规则")
+	}
+	snapshotRoutes, err := buildSnapshotRoutes(routes)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	return string(data), nil
+	openRestyConfig := buildOpenRestyConfigSnapshot()
+	snapshotDoc := snapshotDocument{
+		Routes:          snapshotRoutes,
+		OpenRestyConfig: openRestyConfig,
+	}
+	snapshotJSON, err := json.Marshal(snapshotDoc)
+	if err != nil {
+		return nil, err
+	}
+	routeConfig, supportFiles, err := renderRouteConfig(routes)
+	if err != nil {
+		return nil, err
+	}
+	mainConfig := renderMainConfig(openRestyConfig)
+	return &configBundle{
+		Routes:            routes,
+		SnapshotRoutes:    snapshotRoutes,
+		OpenRestyConfig:   openRestyConfig,
+		SnapshotJSON:      string(snapshotJSON),
+		MainConfig:        mainConfig,
+		RouteConfig:       routeConfig,
+		SupportFiles:      supportFiles,
+		Checksum:          checksumBundle(mainConfig, routeConfig, supportFiles),
+		ChangedOptionKeys: openRestyOptionKeys(),
+	}, nil
 }
 
-func renderNginxConfig(routes []*model.ProxyRoute) (string, []SupportFile, error) {
+func buildSnapshotRoutes(routes []*model.ProxyRoute) ([]snapshotRoute, error) {
+	items := make([]snapshotRoute, 0, len(routes))
+	for _, route := range routes {
+		customHeaders, err := decodeStoredCustomHeaders(route.CustomHeaders)
+		if err != nil {
+			return nil, fmt.Errorf("路由 %s 自定义请求头无效", route.Domain)
+		}
+		items = append(items, snapshotRoute{
+			Domain:        route.Domain,
+			OriginURL:     route.OriginURL,
+			Enabled:       route.Enabled,
+			EnableHTTPS:   route.EnableHTTPS,
+			CertID:        route.CertID,
+			RedirectHTTP:  route.RedirectHTTP,
+			CustomHeaders: customHeaders,
+			Remark:        route.Remark,
+		})
+	}
+	return items, nil
+}
+
+func parseSnapshotDocument(snapshotJSON string) (*snapshotDocument, error) {
+	text := strings.TrimSpace(snapshotJSON)
+	if text == "" {
+		return &snapshotDocument{Routes: []snapshotRoute{}}, nil
+	}
+	if strings.HasPrefix(text, "[") {
+		var routes []snapshotRoute
+		if err := json.Unmarshal([]byte(text), &routes); err != nil {
+			return nil, errors.New("历史版本快照格式不合法")
+		}
+		return &snapshotDocument{Routes: normalizeSnapshotRoutes(routes)}, nil
+	}
+	var snapshot snapshotDocument
+	if err := json.Unmarshal([]byte(text), &snapshot); err != nil {
+		return nil, errors.New("历史版本快照格式不合法")
+	}
+	snapshot.Routes = normalizeSnapshotRoutes(snapshot.Routes)
+	return &snapshot, nil
+}
+
+func normalizeSnapshotRoutes(routes []snapshotRoute) []snapshotRoute {
+	if len(routes) == 0 {
+		return []snapshotRoute{}
+	}
+	for index := range routes {
+		normalizedHeaders, err := normalizeCustomHeaders(routes[index].CustomHeaders)
+		if err == nil {
+			routes[index].CustomHeaders = normalizedHeaders
+		}
+	}
+	return routes
+}
+
+func snapshotRouteConfigEqual(left snapshotRoute, right snapshotRoute) bool {
+	if left.Domain != right.Domain || left.OriginURL != right.OriginURL || left.EnableHTTPS != right.EnableHTTPS || left.RedirectHTTP != right.RedirectHTTP || !uintPointerEqual(left.CertID, right.CertID) {
+		return false
+	}
+	if len(left.CustomHeaders) != len(right.CustomHeaders) {
+		return false
+	}
+	for index := range left.CustomHeaders {
+		if left.CustomHeaders[index] != right.CustomHeaders[index] {
+			return false
+		}
+	}
+	return true
+}
+
+func buildOpenRestyConfigSnapshot() openRestyConfigSnapshot {
+	return openRestyConfigSnapshot{
+		WorkerProcesses:          common.OpenRestyWorkerProcesses,
+		WorkerConnections:        common.OpenRestyWorkerConnections,
+		WorkerRlimitNofile:       common.OpenRestyWorkerRlimitNofile,
+		EventsUse:                common.OpenRestyEventsUse,
+		EventsMultiAcceptEnabled: common.OpenRestyEventsMultiAcceptEnabled,
+		KeepaliveTimeout:         common.OpenRestyKeepaliveTimeout,
+		KeepaliveRequests:        common.OpenRestyKeepaliveRequests,
+		ClientHeaderTimeout:      common.OpenRestyClientHeaderTimeout,
+		ClientBodyTimeout:        common.OpenRestyClientBodyTimeout,
+		SendTimeout:              common.OpenRestySendTimeout,
+		ProxyConnectTimeout:      common.OpenRestyProxyConnectTimeout,
+		ProxySendTimeout:         common.OpenRestyProxySendTimeout,
+		ProxyReadTimeout:         common.OpenRestyProxyReadTimeout,
+		ProxyBufferingEnabled:    common.OpenRestyProxyBufferingEnabled,
+		ProxyBuffers:             common.OpenRestyProxyBuffers,
+		ProxyBufferSize:          common.OpenRestyProxyBufferSize,
+		ProxyBusyBuffersSize:     common.OpenRestyProxyBusyBuffersSize,
+		GzipEnabled:              common.OpenRestyGzipEnabled,
+		GzipMinLength:            common.OpenRestyGzipMinLength,
+		GzipCompLevel:            common.OpenRestyGzipCompLevel,
+		CacheEnabled:             common.OpenRestyCacheEnabled,
+		CachePath:                common.OpenRestyCachePath,
+		CacheLevels:              common.OpenRestyCacheLevels,
+		CacheInactive:            common.OpenRestyCacheInactive,
+		CacheMaxSize:             common.OpenRestyCacheMaxSize,
+		CacheKeyTemplate:         common.OpenRestyCacheKeyTemplate,
+		CacheLockEnabled:         common.OpenRestyCacheLockEnabled,
+		CacheLockTimeout:         common.OpenRestyCacheLockTimeout,
+		CacheUseStale:            common.OpenRestyCacheUseStale,
+	}
+}
+
+func diffOpenRestyOptionKeys(left openRestyConfigSnapshot, right openRestyConfigSnapshot) []string {
+	changes := make([]string, 0)
+	appendIfChanged := func(key string, changed bool) {
+		if changed {
+			changes = append(changes, key)
+		}
+	}
+	appendIfChanged("OpenRestyWorkerProcesses", left.WorkerProcesses != right.WorkerProcesses)
+	appendIfChanged("OpenRestyWorkerConnections", left.WorkerConnections != right.WorkerConnections)
+	appendIfChanged("OpenRestyWorkerRlimitNofile", left.WorkerRlimitNofile != right.WorkerRlimitNofile)
+	appendIfChanged("OpenRestyEventsUse", left.EventsUse != right.EventsUse)
+	appendIfChanged("OpenRestyEventsMultiAcceptEnabled", left.EventsMultiAcceptEnabled != right.EventsMultiAcceptEnabled)
+	appendIfChanged("OpenRestyKeepaliveTimeout", left.KeepaliveTimeout != right.KeepaliveTimeout)
+	appendIfChanged("OpenRestyKeepaliveRequests", left.KeepaliveRequests != right.KeepaliveRequests)
+	appendIfChanged("OpenRestyClientHeaderTimeout", left.ClientHeaderTimeout != right.ClientHeaderTimeout)
+	appendIfChanged("OpenRestyClientBodyTimeout", left.ClientBodyTimeout != right.ClientBodyTimeout)
+	appendIfChanged("OpenRestySendTimeout", left.SendTimeout != right.SendTimeout)
+	appendIfChanged("OpenRestyProxyConnectTimeout", left.ProxyConnectTimeout != right.ProxyConnectTimeout)
+	appendIfChanged("OpenRestyProxySendTimeout", left.ProxySendTimeout != right.ProxySendTimeout)
+	appendIfChanged("OpenRestyProxyReadTimeout", left.ProxyReadTimeout != right.ProxyReadTimeout)
+	appendIfChanged("OpenRestyProxyBufferingEnabled", left.ProxyBufferingEnabled != right.ProxyBufferingEnabled)
+	appendIfChanged("OpenRestyProxyBuffers", left.ProxyBuffers != right.ProxyBuffers)
+	appendIfChanged("OpenRestyProxyBufferSize", left.ProxyBufferSize != right.ProxyBufferSize)
+	appendIfChanged("OpenRestyProxyBusyBuffersSize", left.ProxyBusyBuffersSize != right.ProxyBusyBuffersSize)
+	appendIfChanged("OpenRestyGzipEnabled", left.GzipEnabled != right.GzipEnabled)
+	appendIfChanged("OpenRestyGzipMinLength", left.GzipMinLength != right.GzipMinLength)
+	appendIfChanged("OpenRestyGzipCompLevel", left.GzipCompLevel != right.GzipCompLevel)
+	appendIfChanged("OpenRestyCacheEnabled", left.CacheEnabled != right.CacheEnabled)
+	appendIfChanged("OpenRestyCachePath", left.CachePath != right.CachePath)
+	appendIfChanged("OpenRestyCacheLevels", left.CacheLevels != right.CacheLevels)
+	appendIfChanged("OpenRestyCacheInactive", left.CacheInactive != right.CacheInactive)
+	appendIfChanged("OpenRestyCacheMaxSize", left.CacheMaxSize != right.CacheMaxSize)
+	appendIfChanged("OpenRestyCacheKeyTemplate", left.CacheKeyTemplate != right.CacheKeyTemplate)
+	appendIfChanged("OpenRestyCacheLockEnabled", left.CacheLockEnabled != right.CacheLockEnabled)
+	appendIfChanged("OpenRestyCacheLockTimeout", left.CacheLockTimeout != right.CacheLockTimeout)
+	appendIfChanged("OpenRestyCacheUseStale", left.CacheUseStale != right.CacheUseStale)
+	return changes
+}
+
+func openRestyOptionKeys() []string {
+	return []string{
+		"OpenRestyWorkerProcesses",
+		"OpenRestyWorkerConnections",
+		"OpenRestyWorkerRlimitNofile",
+		"OpenRestyEventsUse",
+		"OpenRestyEventsMultiAcceptEnabled",
+		"OpenRestyKeepaliveTimeout",
+		"OpenRestyKeepaliveRequests",
+		"OpenRestyClientHeaderTimeout",
+		"OpenRestyClientBodyTimeout",
+		"OpenRestySendTimeout",
+		"OpenRestyProxyConnectTimeout",
+		"OpenRestyProxySendTimeout",
+		"OpenRestyProxyReadTimeout",
+		"OpenRestyProxyBufferingEnabled",
+		"OpenRestyProxyBuffers",
+		"OpenRestyProxyBufferSize",
+		"OpenRestyProxyBusyBuffersSize",
+		"OpenRestyGzipEnabled",
+		"OpenRestyGzipMinLength",
+		"OpenRestyGzipCompLevel",
+		"OpenRestyCacheEnabled",
+		"OpenRestyCachePath",
+		"OpenRestyCacheLevels",
+		"OpenRestyCacheInactive",
+		"OpenRestyCacheMaxSize",
+		"OpenRestyCacheKeyTemplate",
+		"OpenRestyCacheLockEnabled",
+		"OpenRestyCacheLockTimeout",
+		"OpenRestyCacheUseStale",
+	}
+}
+
+func renderRouteConfig(routes []*model.ProxyRoute) (string, []SupportFile, error) {
 	var builder strings.Builder
 	builder.WriteString("# This file is generated by ATSFlare. Do not edit manually.\n")
 	supportFiles := make([]SupportFile, 0)
@@ -272,89 +532,59 @@ func renderNginxConfig(routes []*model.ProxyRoute) (string, []SupportFile, error
 	return builder.String(), dedupeSupportFiles(supportFiles), nil
 }
 
-func buildCurrentConfigBundle(requireRoutes bool) (*configBundle, error) {
-	routes, err := model.GetEnabledProxyRoutes()
-	if err != nil {
-		return nil, err
+func renderMainConfig(cfg openRestyConfigSnapshot) string {
+	var builder strings.Builder
+	builder.WriteString("# This file is generated by ATSFlare. Do not edit manually.\n")
+	builder.WriteString(fmt.Sprintf("worker_processes %s;\n", cfg.WorkerProcesses))
+	builder.WriteString(fmt.Sprintf("worker_rlimit_nofile %d;\n", cfg.WorkerRlimitNofile))
+	builder.WriteString("pid logs/nginx.pid;\n\n")
+	builder.WriteString("events {\n")
+	builder.WriteString(fmt.Sprintf("    worker_connections %d;\n", cfg.WorkerConnections))
+	if strings.TrimSpace(cfg.EventsUse) != "" {
+		builder.WriteString(fmt.Sprintf("    use %s;\n", cfg.EventsUse))
 	}
-	if requireRoutes && len(routes) == 0 {
-		return nil, errors.New("没有可发布的启用规则")
+	if cfg.EventsMultiAcceptEnabled {
+		builder.WriteString("    multi_accept on;\n")
 	}
-	snapshotRoutes, err := buildSnapshotRoutes(routes)
-	if err != nil {
-		return nil, err
+	builder.WriteString("}\n\n")
+	builder.WriteString("http {\n")
+	builder.WriteString("    include       mime.types;\n")
+	builder.WriteString("    default_type  application/octet-stream;\n")
+	builder.WriteString("    sendfile on;\n")
+	builder.WriteString("    tcp_nopush on;\n")
+	builder.WriteString("    tcp_nodelay on;\n")
+	builder.WriteString(fmt.Sprintf("    keepalive_timeout %d;\n", cfg.KeepaliveTimeout))
+	builder.WriteString(fmt.Sprintf("    keepalive_requests %d;\n", cfg.KeepaliveRequests))
+	builder.WriteString(fmt.Sprintf("    client_header_timeout %d;\n", cfg.ClientHeaderTimeout))
+	builder.WriteString(fmt.Sprintf("    client_body_timeout %d;\n", cfg.ClientBodyTimeout))
+	builder.WriteString(fmt.Sprintf("    send_timeout %d;\n", cfg.SendTimeout))
+	builder.WriteString(fmt.Sprintf("    proxy_connect_timeout %d;\n", cfg.ProxyConnectTimeout))
+	builder.WriteString(fmt.Sprintf("    proxy_send_timeout %d;\n", cfg.ProxySendTimeout))
+	builder.WriteString(fmt.Sprintf("    proxy_read_timeout %d;\n", cfg.ProxyReadTimeout))
+	builder.WriteString(fmt.Sprintf("    proxy_buffering %s;\n", onOff(cfg.ProxyBufferingEnabled)))
+	builder.WriteString(fmt.Sprintf("    proxy_buffers %s;\n", cfg.ProxyBuffers))
+	builder.WriteString(fmt.Sprintf("    proxy_buffer_size %s;\n", cfg.ProxyBufferSize))
+	builder.WriteString(fmt.Sprintf("    proxy_busy_buffers_size %s;\n", cfg.ProxyBusyBuffersSize))
+	builder.WriteString(fmt.Sprintf("    gzip %s;\n", onOff(cfg.GzipEnabled)))
+	builder.WriteString(fmt.Sprintf("    gzip_min_length %d;\n", cfg.GzipMinLength))
+	builder.WriteString(fmt.Sprintf("    gzip_comp_level %d;\n", cfg.GzipCompLevel))
+	if cfg.CacheEnabled {
+		builder.WriteString(fmt.Sprintf("    proxy_cache_path %s levels=%s keys_zone=atsflare_cache:10m inactive=%s max_size=%s;\n", cfg.CachePath, cfg.CacheLevels, cfg.CacheInactive, cfg.CacheMaxSize))
+		builder.WriteString(fmt.Sprintf("    proxy_cache_key \"%s\";\n", cfg.CacheKeyTemplate))
+		builder.WriteString(fmt.Sprintf("    proxy_cache_lock %s;\n", onOff(cfg.CacheLockEnabled)))
+		builder.WriteString(fmt.Sprintf("    proxy_cache_lock_timeout %s;\n", cfg.CacheLockTimeout))
+		builder.WriteString(fmt.Sprintf("    proxy_cache_use_stale %s;\n", cfg.CacheUseStale))
 	}
-	snapshotJSON, err := json.Marshal(snapshotRoutes)
-	if err != nil {
-		return nil, err
-	}
-	renderedConfig, supportFiles, err := renderNginxConfig(routes)
-	if err != nil {
-		return nil, err
-	}
-	return &configBundle{
-		Routes:         routes,
-		SnapshotRoutes: snapshotRoutes,
-		SnapshotJSON:   string(snapshotJSON),
-		RenderedConfig: renderedConfig,
-		SupportFiles:   supportFiles,
-		Checksum:       checksumBundle(renderedConfig, supportFiles),
-	}, nil
+	builder.WriteString(fmt.Sprintf("    include %s;\n", nginxRouteConfigPlaceholder))
+	builder.WriteString("}\n")
+	return builder.String()
 }
 
-func buildSnapshotRoutes(routes []*model.ProxyRoute) ([]snapshotRoute, error) {
-	items := make([]snapshotRoute, 0, len(routes))
-	for _, route := range routes {
-		customHeaders, err := decodeStoredCustomHeaders(route.CustomHeaders)
-		if err != nil {
-			return nil, fmt.Errorf("路由 %s 自定义请求头无效", route.Domain)
-		}
-		items = append(items, snapshotRoute{
-			Domain:        route.Domain,
-			OriginURL:     route.OriginURL,
-			Enabled:       route.Enabled,
-			EnableHTTPS:   route.EnableHTTPS,
-			CertID:        route.CertID,
-			RedirectHTTP:  route.RedirectHTTP,
-			CustomHeaders: customHeaders,
-			Remark:        route.Remark,
-		})
+func onOff(value bool) string {
+	if value {
+		return "on"
 	}
-	return items, nil
-}
-
-func parseSnapshotRoutes(snapshotJSON string) ([]snapshotRoute, error) {
-	text := strings.TrimSpace(snapshotJSON)
-	if text == "" {
-		return []snapshotRoute{}, nil
-	}
-	var routes []snapshotRoute
-	if err := json.Unmarshal([]byte(text), &routes); err != nil {
-		return nil, errors.New("历史版本快照格式不合法")
-	}
-	for index := range routes {
-		normalizedHeaders, err := normalizeCustomHeaders(routes[index].CustomHeaders)
-		if err != nil {
-			return nil, err
-		}
-		routes[index].CustomHeaders = normalizedHeaders
-	}
-	return routes, nil
-}
-
-func snapshotRouteConfigEqual(left snapshotRoute, right snapshotRoute) bool {
-	if left.Domain != right.Domain || left.OriginURL != right.OriginURL || left.EnableHTTPS != right.EnableHTTPS || left.RedirectHTTP != right.RedirectHTTP || !uintPointerEqual(left.CertID, right.CertID) {
-		return false
-	}
-	if len(left.CustomHeaders) != len(right.CustomHeaders) {
-		return false
-	}
-	for index := range left.CustomHeaders {
-		if left.CustomHeaders[index] != right.CustomHeaders[index] {
-			return false
-		}
-	}
-	return true
+	return "off"
 }
 
 func uintPointerEqual(left *uint, right *uint) bool {
@@ -369,9 +599,11 @@ func checksum(content string) string {
 	return hex.EncodeToString(sum[:])
 }
 
-func checksumBundle(renderedConfig string, supportFiles []SupportFile) string {
+func checksumBundle(mainConfig string, routeConfig string, supportFiles []SupportFile) string {
 	var builder strings.Builder
-	builder.WriteString(renderedConfig)
+	builder.WriteString(mainConfig)
+	builder.WriteString("\n--route-config--\n")
+	builder.WriteString(routeConfig)
 	builder.WriteString("\n--support-files--\n")
 	files := dedupeSupportFiles(supportFiles)
 	sort.Slice(files, func(i int, j int) bool {
@@ -417,6 +649,9 @@ func renderProxyHeaderBlock(customHeaders []ProxyRouteCustomHeaderInput) string 
 	builder.WriteString("        proxy_set_header X-Forwarded-Proto $scheme;\n")
 	for _, header := range customHeaders {
 		builder.WriteString(fmt.Sprintf("        proxy_set_header %s %s;\n", header.Key, quoteNginxHeaderValue(header.Value)))
+	}
+	if common.OpenRestyCacheEnabled {
+		builder.WriteString("        proxy_cache atsflare_cache;\n")
 	}
 	return builder.String()
 }

@@ -33,6 +33,9 @@ func TestLoadDockerModeUsesManagedPaths(t *testing.T) {
 	if cfg.DataDir != filepath.Join(dir, "data") {
 		t.Fatalf("unexpected data dir: %s", cfg.DataDir)
 	}
+	if cfg.MainConfigPath != filepath.Join(dir, "data", defaultDockerMainConfigRelativePath) {
+		t.Fatalf("unexpected main config path: %s", cfg.MainConfigPath)
+	}
 	if cfg.RouteConfigPath != filepath.Join(dir, "data", defaultDockerRouteConfigRelativePath) {
 		t.Fatalf("unexpected route config path: %s", cfg.RouteConfigPath)
 	}
@@ -62,6 +65,7 @@ func TestLoadPathModeKeepsExplicitPaths(t *testing.T) {
 		"node_name":         "edge-01",
 		"node_ip":           "10.0.0.8",
 		"openresty_path":    "/usr/local/openresty/nginx/sbin/openresty",
+		"main_config_path":  "/tmp/nginx.conf",
 		"route_config_path": "/tmp/routes.conf",
 		"state_path":        "/tmp/agent-state.json",
 	}
@@ -78,6 +82,9 @@ func TestLoadPathModeKeepsExplicitPaths(t *testing.T) {
 		t.Fatalf("Load failed: %v", err)
 	}
 
+	if cfg.MainConfigPath != "/tmp/nginx.conf" {
+		t.Fatalf("unexpected main config path: %s", cfg.MainConfigPath)
+	}
 	if cfg.RouteConfigPath != "/tmp/routes.conf" {
 		t.Fatalf("unexpected route config path: %s", cfg.RouteConfigPath)
 	}
@@ -114,6 +121,9 @@ func TestLoadUsesCustomDataDirForGeneratedFiles(t *testing.T) {
 
 	if cfg.RouteConfigPath != "/srv/atsflare/"+defaultDockerRouteConfigRelativePath {
 		t.Fatalf("unexpected route config path: %s", cfg.RouteConfigPath)
+	}
+	if cfg.MainConfigPath != "/srv/atsflare/"+defaultDockerMainConfigRelativePath {
+		t.Fatalf("unexpected main config path: %s", cfg.MainConfigPath)
 	}
 	if cfg.StatePath != "/srv/atsflare/"+defaultDockerStateRelativePath {
 		t.Fatalf("unexpected state path: %s", cfg.StatePath)

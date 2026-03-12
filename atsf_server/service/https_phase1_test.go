@@ -51,6 +51,9 @@ func TestCreateTLSCertificateAndRenderHTTPSConfig(t *testing.T) {
 	if err != nil {
 		t.Fatalf("PublishConfigVersion failed: %v", err)
 	}
+	if !strings.Contains(result.Version.MainConfig, "include __ATSF_ROUTE_CONFIG__;") {
+		t.Fatal("expected main config to include managed route config placeholder")
+	}
 	if !strings.Contains(result.Version.RenderedConfig, "listen 443 ssl;") {
 		t.Fatal("expected rendered config to include https server block")
 	}
@@ -178,6 +181,9 @@ func TestPreviewAndDiffConfigVersion(t *testing.T) {
 	if err != nil {
 		t.Fatalf("PreviewConfigVersion failed: %v", err)
 	}
+	if !strings.Contains(preview.MainConfig, "include __ATSF_ROUTE_CONFIG__;") {
+		t.Fatal("expected preview main config to include managed route config placeholder")
+	}
 	if !strings.Contains(preview.RenderedConfig, `proxy_set_header X-Release "candidate";`) {
 		t.Fatal("expected preview config to include modified custom header")
 	}
@@ -197,6 +203,23 @@ func TestPreviewAndDiffConfigVersion(t *testing.T) {
 	}
 	if len(diff.ModifiedDomains) != 1 || diff.ModifiedDomains[0] != "api.example.com" {
 		t.Fatalf("unexpected modified domains: %#v", diff.ModifiedDomains)
+	}
+	if diff.MainConfigChanged {
+		t.Fatal("expected main config to remain unchanged when only routes change")
+	}
+
+	if err = model.UpdateOption("OpenRestyProxyReadTimeout", "120"); err != nil {
+		t.Fatalf("UpdateOption failed: %v", err)
+	}
+	diff, err = DiffConfigVersion()
+	if err != nil {
+		t.Fatalf("DiffConfigVersion after option change failed: %v", err)
+	}
+	if !diff.MainConfigChanged {
+		t.Fatal("expected main config change after OpenResty option update")
+	}
+	if len(diff.ChangedOptionKeys) == 0 || diff.ChangedOptionKeys[0] == "" {
+		t.Fatal("expected changed OpenResty option keys to be reported")
 	}
 }
 

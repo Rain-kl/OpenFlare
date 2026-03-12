@@ -12,6 +12,7 @@ import (
 )
 
 const (
+	defaultDockerMainConfigRelativePath  = "etc/nginx/nginx.conf"
 	defaultDockerRouteConfigRelativePath = "etc/nginx/conf.d/atsflare_routes.conf"
 	defaultCertDirRelativePath           = "etc/nginx/certs"
 	defaultDockerStateRelativePath       = "var/lib/atsflare/agent-state.json"
@@ -19,26 +20,27 @@ const (
 )
 
 type Config struct {
-	ServerURL          string              `json:"server_url"`
-	AgentToken         string              `json:"agent_token"`
-	DiscoveryToken     string              `json:"discovery_token"`
-	NodeName           string              `json:"node_name"`
-	NodeIP             string              `json:"node_ip"`
-	AgentVersion       string              `json:"-"`
-	NginxVersion       string              `json:"-"`
-	OpenrestyPath      string              `json:"openresty_path"`
-	OpenrestyContainerName string          `json:"openresty_container_name"`
-	OpenrestyDockerImage   string          `json:"openresty_docker_image"`
-	DockerBinary       string              `json:"docker_binary"`
-	DataDir            string              `json:"data_dir"`
-	RouteConfigPath    string              `json:"route_config_path"`
-	CertDir            string              `json:"cert_dir"`
-	OpenrestyCertDir   string              `json:"openresty_cert_dir"`
-	StatePath          string              `json:"state_path"`
-	HeartbeatInterval  MillisecondDuration `json:"heartbeat_interval"`
-	SyncInterval       MillisecondDuration `json:"sync_interval"`
-	RequestTimeout     MillisecondDuration `json:"request_timeout"`
-	configPath         string
+	ServerURL              string              `json:"server_url"`
+	AgentToken             string              `json:"agent_token"`
+	DiscoveryToken         string              `json:"discovery_token"`
+	NodeName               string              `json:"node_name"`
+	NodeIP                 string              `json:"node_ip"`
+	AgentVersion           string              `json:"-"`
+	NginxVersion           string              `json:"-"`
+	OpenrestyPath          string              `json:"openresty_path"`
+	OpenrestyContainerName string              `json:"openresty_container_name"`
+	OpenrestyDockerImage   string              `json:"openresty_docker_image"`
+	DockerBinary           string              `json:"docker_binary"`
+	DataDir                string              `json:"data_dir"`
+	MainConfigPath         string              `json:"main_config_path"`
+	RouteConfigPath        string              `json:"route_config_path"`
+	CertDir                string              `json:"cert_dir"`
+	OpenrestyCertDir       string              `json:"openresty_cert_dir"`
+	StatePath              string              `json:"state_path"`
+	HeartbeatInterval      MillisecondDuration `json:"heartbeat_interval"`
+	SyncInterval           MillisecondDuration `json:"sync_interval"`
+	RequestTimeout         MillisecondDuration `json:"request_timeout"`
+	configPath             string
 }
 
 type configFile struct {
@@ -52,6 +54,7 @@ type configFile struct {
 	OpenrestyDockerImage   string              `json:"openresty_docker_image"`
 	DockerBinary           string              `json:"docker_binary"`
 	DataDir                string              `json:"data_dir"`
+	MainConfigPath         string              `json:"main_config_path"`
 	RouteConfigPath        string              `json:"route_config_path"`
 	CertDir                string              `json:"cert_dir"`
 	OpenrestyCertDir       string              `json:"openresty_cert_dir"`
@@ -81,6 +84,7 @@ func Load(path string) (*Config, error) {
 		OpenrestyDockerImage:   file.OpenrestyDockerImage,
 		DockerBinary:           file.DockerBinary,
 		DataDir:                file.DataDir,
+		MainConfigPath:         file.MainConfigPath,
 		RouteConfigPath:        file.RouteConfigPath,
 		CertDir:                file.CertDir,
 		OpenrestyCertDir:       file.OpenrestyCertDir,
@@ -119,9 +123,13 @@ func applyDefaults(cfg *Config, baseDir string) {
 		cfg.NodeIP = detectNodeIP()
 	}
 	if cfg.OpenrestyPath == "" {
+		cfg.MainConfigPath = joinManagedPath(cfg.DataDir, defaultDockerMainConfigRelativePath)
 		cfg.RouteConfigPath = joinManagedPath(cfg.DataDir, defaultDockerRouteConfigRelativePath)
 		cfg.StatePath = joinManagedPath(cfg.DataDir, defaultDockerStateRelativePath)
 	} else {
+		if cfg.MainConfigPath == "" {
+			cfg.MainConfigPath = joinManagedPath(cfg.DataDir, defaultDockerMainConfigRelativePath)
+		}
 		if cfg.RouteConfigPath == "" {
 			cfg.RouteConfigPath = joinManagedPath(cfg.DataDir, defaultDockerRouteConfigRelativePath)
 		}
@@ -157,6 +165,9 @@ func normalizeManagedPaths(cfg *Config) {
 	}
 	if usesSlashPath(cfg.DataDir) {
 		cfg.DataDir = filepath.ToSlash(cfg.DataDir)
+	}
+	if usesSlashPath(cfg.MainConfigPath) {
+		cfg.MainConfigPath = filepath.ToSlash(cfg.MainConfigPath)
 	}
 	if usesSlashPath(cfg.RouteConfigPath) {
 		cfg.RouteConfigPath = filepath.ToSlash(cfg.RouteConfigPath)

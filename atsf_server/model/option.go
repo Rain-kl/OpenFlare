@@ -121,6 +121,9 @@ func UpdateOption(key string, value string) error {
 func updateOptionMap(key string, value string) {
 	common.OptionMapRWMutex.Lock()
 	defer common.OptionMapRWMutex.Unlock()
+	if common.OptionMap == nil {
+		common.OptionMap = make(map[string]string)
+	}
 	common.OptionMap[key] = value
 	if strings.HasSuffix(key, "Permission") {
 		intValue, _ := strconv.Atoi(value)

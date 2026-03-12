@@ -6,6 +6,7 @@ type ConfigVersion struct {
 	ID               uint      `json:"id" gorm:"primaryKey"`
 	Version          string    `json:"version" gorm:"uniqueIndex;size:32;not null"`
 	SnapshotJSON     string    `json:"snapshot_json" gorm:"type:text;not null"`
+	MainConfig       string    `json:"main_config" gorm:"type:text;not null;default:''"`
 	RenderedConfig   string    `json:"rendered_config" gorm:"type:text;not null"`
 	SupportFilesJSON string    `json:"support_files_json" gorm:"type:text;not null;default:'[]'"`
 	Checksum         string    `json:"checksum" gorm:"size:64;not null"`

@@ -18,6 +18,8 @@ import (
 )
 
 const CertDirPlaceholder = "__ATSF_CERT_DIR__"
+const RouteConfigPlaceholder = "__ATSF_ROUTE_CONFIG__"
+const DockerMainConfigPath = "/usr/local/openresty/nginx/conf/nginx.conf"
 
 const dockerRuntimeCommand = "openresty"
 
@@ -95,6 +97,7 @@ type DockerExecutor struct {
 	DockerBinary   string
 	ContainerName  string
 	Image          string
+	MainConfigPath string
 	RouteConfigDir string
 	CertDir        string
 	NginxCertDir   string
@@ -174,6 +177,7 @@ func (e *DockerExecutor) runContainer(ctx context.Context) error {
 		"--name", e.ContainerName,
 		"-p", "80:80",
 		"-p", "443:443",
+		"-v", fmt.Sprintf("%s:%s", e.MainConfigPath, DockerMainConfigPath),
 		"-v", fmt.Sprintf("%s:/etc/nginx/conf.d", e.RouteConfigDir),
 		"-v", fmt.Sprintf("%s:%s", e.CertDir, e.NginxCertDir),
 		e.Image,
@@ -187,14 +191,15 @@ func (e *DockerExecutor) runContainer(ctx context.Context) error {
 }
 
 type Manager struct {
+	MainConfigPath  string
 	RouteConfigPath string
 	CertDir         string
 	NginxCertDir    string
 	Executor        Executor
 }
 
-func (m *Manager) Apply(ctx context.Context, content string, supportFiles []protocol.SupportFile) error {
-	log.Printf("openresty apply started: route_config=%s support_files=%d", m.RouteConfigPath, len(supportFiles))
+func (m *Manager) Apply(ctx context.Context, mainConfig string, routeConfig string, supportFiles []protocol.SupportFile) error {
+	log.Printf("openresty apply started: main_config=%s route_config=%s support_files=%d", m.MainConfigPath, m.RouteConfigPath, len(supportFiles))
 	backup, err := m.backup()
 	if err != nil {
 		return err
@@ -204,8 +209,14 @@ func (m *Manager) Apply(ctx context.Context, content string, supportFiles []prot
 		_ = m.restore(backup)
 		return err
 	}
-	renderedContent := m.renderConfig(content)
-	if err = os.WriteFile(m.RouteConfigPath, []byte(renderedContent), 0o644); err != nil {
+	renderedMainConfig := m.renderMainConfig(mainConfig)
+	if err = os.WriteFile(m.MainConfigPath, []byte(renderedMainConfig), 0o644); err != nil {
+		log.Printf("writing openresty main config failed, restoring backup: error=%v", err)
+		_ = m.restore(backup)
+		return err
+	}
+	renderedRouteConfig := m.renderRouteConfig(routeConfig)
+	if err = os.WriteFile(m.RouteConfigPath, []byte(renderedRouteConfig), 0o644); err != nil {
 		log.Printf("writing openresty route config failed, restoring backup: error=%v", err)
 		_ = m.restore(backup)
 		return err
@@ -220,7 +231,7 @@ func (m *Manager) Apply(ctx context.Context, content string, supportFiles []prot
 		_ = m.restore(backup)
 		return err
 	}
-	log.Printf("openresty apply completed successfully: route_config=%s", m.RouteConfigPath)
+	log.Printf("openresty apply completed successfully: main_config=%s route_config=%s", m.MainConfigPath, m.RouteConfigPath)
 	return nil
 }
 
@@ -251,6 +262,16 @@ func (m *Manager) CurrentChecksum() (string, error) {
 	if m.RouteConfigPath == "" {
 		return "", errors.New("route config path 不能为空")
 	}
+	if m.MainConfigPath == "" {
+		return "", errors.New("main config path 不能为空")
+	}
+	mainData, err := os.ReadFile(m.MainConfigPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return "", nil
+		}
+		return "", err
+	}
 	data, err := os.ReadFile(m.RouteConfigPath)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -258,16 +279,20 @@ func (m *Manager) CurrentChecksum() (string, error) {
 		}
 		return "", err
 	}
-	normalized := string(data)
+	normalizedMain := string(mainData)
+	if m.RouteConfigPath != "" {
+		normalizedMain = strings.ReplaceAll(normalizedMain, m.RouteConfigPath, RouteConfigPlaceholder)
+	}
+	normalizedRoute := string(data)
 	if m.NginxCertDir != "" {
-		normalized = strings.ReplaceAll(normalized, m.NginxCertDir, CertDirPlaceholder)
+		normalizedRoute = strings.ReplaceAll(normalizedRoute, m.NginxCertDir, CertDirPlaceholder)
 	}
 	files, err := m.readSupportFiles()
 	if err != nil {
 		return "", err
 	}
-	result := bundleChecksum(normalized, files)
-	log.Printf("openresty current checksum calculated: route_config=%s checksum=%s support_files=%d", m.RouteConfigPath, result, len(files))
+	result := bundleChecksum(normalizedMain, normalizedRoute, files)
+	log.Printf("openresty current checksum calculated: main_config=%s route_config=%s checksum=%s support_files=%d", m.MainConfigPath, m.RouteConfigPath, result, len(files))
 	return result, nil
 }
 
@@ -276,6 +301,7 @@ type ExecutorOptions struct {
 	DockerBinary    string
 	ContainerName   string
 	Image           string
+	MainConfigPath  string
 	RouteConfigPath string
 	CertDir         string
 	NginxCertDir    string
@@ -301,6 +327,7 @@ func NewExecutor(options ExecutorOptions) Executor {
 		DockerBinary:   options.DockerBinary,
 		ContainerName:  options.ContainerName,
 		Image:          options.Image,
+		MainConfigPath: options.MainConfigPath,
 		RouteConfigDir: routeConfigDir,
 		CertDir:        certDir,
 		NginxCertDir:   options.NginxCertDir,
@@ -371,6 +398,8 @@ func (e *DockerExecutor) runEphemeralRuntimeCommandWithBinary(ctx context.Contex
 		"run",
 		"--rm",
 		"-v",
+		fmt.Sprintf("%s:%s", e.MainConfigPath, DockerMainConfigPath),
+		"-v",
 		fmt.Sprintf("%s:/etc/nginx/conf.d", e.RouteConfigDir),
 		"-v",
 		fmt.Sprintf("%s:%s", e.CertDir, e.NginxCertDir),
@@ -386,14 +415,22 @@ func runDockerVersionProbe(ctx context.Context, runner CommandRunner, dockerBina
 }
 
 type backupState struct {
+	MainExisted  bool
+	MainData     []byte
 	RouteExisted bool
 	RouteData    []byte
 	Files        []protocol.SupportFile
 }
 
 func (m *Manager) backup() (*backupState, error) {
+	if m.MainConfigPath == "" {
+		return nil, errors.New("main config path 不能为空")
+	}
 	if m.RouteConfigPath == "" {
 		return nil, errors.New("route config path 不能为空")
+	}
+	if err := os.MkdirAll(filepath.Dir(m.MainConfigPath), 0o755); err != nil {
+		return nil, err
 	}
 	if err := os.MkdirAll(filepath.Dir(m.RouteConfigPath), 0o755); err != nil {
 		return nil, err
@@ -404,6 +441,13 @@ func (m *Manager) backup() (*backupState, error) {
 		}
 	}
 	state := &backupState{}
+	mainData, err := os.ReadFile(m.MainConfigPath)
+	if err == nil {
+		state.MainExisted = true
+		state.MainData = mainData
+	} else if !os.IsNotExist(err) {
+		return nil, err
+	}
 	data, err := os.ReadFile(m.RouteConfigPath)
 	if err == nil {
 		state.RouteExisted = true
@@ -416,7 +460,7 @@ func (m *Manager) backup() (*backupState, error) {
 		return nil, err
 	}
 	state.Files = files
-	log.Printf("backup captured: route_exists=%t support_files=%d", state.RouteExisted, len(state.Files))
+	log.Printf("backup captured: main_exists=%t route_exists=%t support_files=%d", state.MainExisted, state.RouteExisted, len(state.Files))
 	return state, nil
 }
 
@@ -424,7 +468,14 @@ func (m *Manager) restore(state *backupState) error {
 	if state == nil {
 		return nil
 	}
-	log.Printf("restoring nginx backup: route_existed=%t support_files=%d", state.RouteExisted, len(state.Files))
+	log.Printf("restoring nginx backup: main_existed=%t route_existed=%t support_files=%d", state.MainExisted, state.RouteExisted, len(state.Files))
+	if state.MainExisted {
+		if err := os.WriteFile(m.MainConfigPath, state.MainData, 0o644); err != nil {
+			return err
+		}
+	} else if err := os.Remove(m.MainConfigPath); err != nil && !os.IsNotExist(err) {
+		return err
+	}
 	if state.RouteExisted {
 		if err := os.WriteFile(m.RouteConfigPath, state.RouteData, 0o644); err != nil {
 			return err
@@ -516,11 +567,18 @@ func (m *Manager) readSupportFiles() ([]protocol.SupportFile, error) {
 	return files, nil
 }
 
-func (m *Manager) renderConfig(content string) string {
+func (m *Manager) renderRouteConfig(content string) string {
 	if m.NginxCertDir == "" {
 		return content
 	}
 	return strings.ReplaceAll(content, CertDirPlaceholder, m.NginxCertDir)
+}
+
+func (m *Manager) renderMainConfig(content string) string {
+	if m.RouteConfigPath == "" {
+		return content
+	}
+	return strings.ReplaceAll(content, RouteConfigPlaceholder, m.RouteConfigPath)
 }
 
 func checksum(content string) string {
@@ -528,13 +586,15 @@ func checksum(content string) string {
 	return hex.EncodeToString(sum[:])
 }
 
-func bundleChecksum(renderedConfig string, supportFiles []protocol.SupportFile) string {
+func bundleChecksum(mainConfig string, routeConfig string, supportFiles []protocol.SupportFile) string {
 	files := append([]protocol.SupportFile(nil), supportFiles...)
 	sort.Slice(files, func(i int, j int) bool {
 		return files[i].Path < files[j].Path
 	})
 	var builder strings.Builder
-	builder.WriteString(renderedConfig)
+	builder.WriteString(mainConfig)
+	builder.WriteString("\n--route-config--\n")
+	builder.WriteString(routeConfig)
 	builder.WriteString("\n--support-files--\n")
 	for _, file := range files {
 		builder.WriteString(file.Path)

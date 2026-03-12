@@ -32,6 +32,7 @@ func main() {
 			DockerBinary:    cfg.DockerBinary,
 			ContainerName:   cfg.OpenrestyContainerName,
 			Image:           cfg.OpenrestyDockerImage,
+			MainConfigPath:  cfg.MainConfigPath,
 			RouteConfigPath: cfg.RouteConfigPath,
 			CertDir:         cfg.CertDir,
 			NginxCertDir:    cfg.OpenrestyCertDir,
@@ -42,6 +43,7 @@ func main() {
 	client := httpclient.New(cfg.ServerURL, cfg.InitialAuthToken(), cfg.RequestTimeout.Duration())
 	stateStore := state.NewStore(cfg.StatePath)
 	runtimeManager := &nginx.Manager{
+		MainConfigPath:  cfg.MainConfigPath,
 		RouteConfigPath: cfg.RouteConfigPath,
 		CertDir:         cfg.CertDir,
 		NginxCertDir:    cfg.OpenrestyCertDir,
@@ -50,6 +52,7 @@ func main() {
 			DockerBinary:    cfg.DockerBinary,
 			ContainerName:   cfg.OpenrestyContainerName,
 			Image:           cfg.OpenrestyDockerImage,
+			MainConfigPath:  cfg.MainConfigPath,
 			RouteConfigPath: cfg.RouteConfigPath,
 			CertDir:         cfg.CertDir,
 			NginxCertDir:    cfg.OpenrestyCertDir,

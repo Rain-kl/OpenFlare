@@ -28,7 +28,8 @@ type fakeManager struct {
 	currentChecksumErr error
 	ensureErr          error
 	ensureCalls        []bool
-	applyContents      []string
+	applyMainContents  []string
+	applyRouteContents []string
 	applyFiles         [][]protocol.SupportFile
 }
 
@@ -61,8 +62,9 @@ func (f *fakeClient) ReportApplyLog(ctx context.Context, payload protocol.ApplyL
 	return nil
 }
 
-func (m *fakeManager) Apply(ctx context.Context, content string, supportFiles []protocol.SupportFile) error {
-	m.applyContents = append(m.applyContents, content)
+func (m *fakeManager) Apply(ctx context.Context, mainConfig string, routeConfig string, supportFiles []protocol.SupportFile) error {
+	m.applyMainContents = append(m.applyMainContents, mainConfig)
+	m.applyRouteContents = append(m.applyRouteContents, routeConfig)
 	m.applyFiles = append(m.applyFiles, append([]protocol.SupportFile(nil), supportFiles...))
 	return m.applyErr
 }
@@ -81,6 +83,8 @@ func TestSyncOnceSuccess(t *testing.T) {
 		config: protocol.ActiveConfigResponse{
 			Version:        "20260309-001",
 			Checksum:       "checksum-1",
+			MainConfig:     "worker_processes auto;",
+			RouteConfig:    "server { listen 80; }",
 			RenderedConfig: "server { listen 80; }",
 			SupportFiles:   []protocol.SupportFile{{Path: "1.crt", Content: "cert"}},
 			CreatedAt:      time.Now().Format(time.RFC3339),
@@ -100,6 +104,7 @@ func TestSyncOnceSuccess(t *testing.T) {
 
 	routePath := filepath.Join(t.TempDir(), "routes.conf")
 	service := New(client, &nginx.Manager{
+		MainConfigPath:  filepath.Join(filepath.Dir(routePath), "nginx.conf"),
 		RouteConfigPath: routePath,
 		Executor:        &fakeExecutor{},
 	}, stateStore)
@@ -114,6 +119,13 @@ func TestSyncOnceSuccess(t *testing.T) {
 	}
 	if string(data) != "server { listen 80; }" {
 		t.Fatal("expected rendered config to be written to route file")
+	}
+	mainData, err := os.ReadFile(filepath.Join(filepath.Dir(routePath), "nginx.conf"))
+	if err != nil {
+		t.Fatalf("failed to read main config: %v", err)
+	}
+	if string(mainData) != "worker_processes auto;" {
+		t.Fatal("expected main config to be written")
 	}
 	snapshot, err = stateStore.Load()
 	if err != nil {
@@ -132,6 +144,8 @@ func TestSyncOnceRollbackOnNginxFailure(t *testing.T) {
 		config: protocol.ActiveConfigResponse{
 			Version:        "20260309-002",
 			Checksum:       "checksum-2",
+			MainConfig:     "worker_processes 2;",
+			RouteConfig:    "server { listen 81; }",
 			RenderedConfig: "server { listen 81; }",
 			SupportFiles:   []protocol.SupportFile{{Path: "1.crt", Content: "cert"}},
 			CreatedAt:      time.Now().Format(time.RFC3339),
@@ -139,7 +153,11 @@ func TestSyncOnceRollbackOnNginxFailure(t *testing.T) {
 	}
 
 	tempDir := t.TempDir()
+	mainPath := filepath.Join(tempDir, "nginx.conf")
 	routePath := filepath.Join(tempDir, "routes.conf")
+	if err := os.WriteFile(mainPath, []byte("worker_processes auto;"), 0o644); err != nil {
+		t.Fatalf("failed to seed main file: %v", err)
+	}
 	if err := os.WriteFile(routePath, []byte("server { listen 80; }"), 0o644); err != nil {
 		t.Fatalf("failed to seed route file: %v", err)
 	}
@@ -158,6 +176,7 @@ func TestSyncOnceRollbackOnNginxFailure(t *testing.T) {
 	}
 
 	service := New(client, &nginx.Manager{
+		MainConfigPath:  mainPath,
 		RouteConfigPath: routePath,
 		Executor: &fakeExecutor{
 			testErr: context.DeadlineExceeded,
@@ -176,6 +195,13 @@ func TestSyncOnceRollbackOnNginxFailure(t *testing.T) {
 	if string(data) != "server { listen 80; }" {
 		t.Fatal("expected original route config to be restored after rollback")
 	}
+	mainData, readErr := os.ReadFile(mainPath)
+	if readErr != nil {
+		t.Fatalf("failed to read main file after rollback: %v", readErr)
+	}
+	if string(mainData) != "worker_processes auto;" {
+		t.Fatal("expected original main config to be restored after rollback")
+	}
 	snapshot, loadErr := stateStore.Load()
 	if loadErr != nil {
 		t.Fatalf("failed to load state: %v", loadErr)
@@ -193,6 +219,8 @@ func TestSyncOnStartupRecreatesRuntimeWhenChecksumMatches(t *testing.T) {
 		config: protocol.ActiveConfigResponse{
 			Version:        "20260309-003",
 			Checksum:       "checksum-3",
+			MainConfig:     "worker_processes auto;",
+			RouteConfig:    "server { listen 82; }",
 			RenderedConfig: "server { listen 82; }",
 			SupportFiles:   []protocol.SupportFile{{Path: "1.crt", Content: "cert"}},
 			CreatedAt:      time.Now().Format(time.RFC3339),
@@ -235,6 +263,8 @@ func TestSyncOnStartupRecordsRuntimeFailure(t *testing.T) {
 		config: protocol.ActiveConfigResponse{
 			Version:        "20260309-004",
 			Checksum:       "checksum-4",
+			MainConfig:     "worker_processes 4;",
+			RouteConfig:    "server { listen 83; }",
 			RenderedConfig: "server { listen 83; }",
 			CreatedAt:      time.Now().Format(time.RFC3339),
 		},

@@ -19,7 +19,7 @@ type ConfigClient interface {
 }
 
 type NginxManager interface {
-	Apply(ctx context.Context, content string, supportFiles []protocol.SupportFile) error
+	Apply(ctx context.Context, mainConfig string, routeConfig string, supportFiles []protocol.SupportFile) error
 	EnsureRuntime(ctx context.Context, recreate bool) error
 	CurrentChecksum() (string, error)
 }
@@ -88,8 +88,12 @@ func (s *Service) sync(ctx context.Context, startup bool) error {
 		log.Printf("skipping apply because state already records target version/checksum: version=%s checksum=%s", config.Version, config.Checksum)
 		return nil
 	}
+	routeConfig := config.RouteConfig
+	if routeConfig == "" {
+		routeConfig = config.RenderedConfig
+	}
 	log.Printf("applying new openresty config: mode=%s from_version=%s to_version=%s old_checksum=%s new_checksum=%s", mode, snapshot.CurrentVersion, config.Version, currentChecksum, config.Checksum)
-	if err = s.nginxManager.Apply(ctx, config.RenderedConfig, config.SupportFiles); err != nil {
+	if err = s.nginxManager.Apply(ctx, config.MainConfig, routeConfig, config.SupportFiles); err != nil {
 		log.Printf("apply openresty config failed: mode=%s version=%s error=%v", mode, config.Version, err)
 		snapshot.LastError = err.Error()
 		snapshot.OpenrestyStatus = protocol.OpenrestyStatusUnhealthy

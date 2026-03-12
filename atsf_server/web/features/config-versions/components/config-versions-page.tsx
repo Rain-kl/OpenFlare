@@ -55,6 +55,8 @@ function hasConfigDiff(diff: ConfigDiffResult) {
     diff.added_domains.length > 0 ||
     diff.removed_domains.length > 0 ||
     diff.modified_domains.length > 0 ||
+    diff.main_config_changed ||
+    diff.changed_option_keys.length > 0 ||
     !diff.active_version
   );
 }
@@ -180,7 +182,15 @@ function SnapshotModal({
           </div>
           <div>
             <p className="mb-2 text-sm font-semibold text-[var(--foreground-primary)]">
-              渲染结果
+              主配置
+            </p>
+            <CodeBlock className="max-h-96 whitespace-pre-wrap">
+              {version.main_config}
+            </CodeBlock>
+          </div>
+          <div>
+            <p className="mb-2 text-sm font-semibold text-[var(--foreground-primary)]">
+              路由配置
             </p>
             <CodeBlock className="max-h-[32rem] whitespace-pre-wrap">
               {version.rendered_config}
@@ -252,6 +262,14 @@ function PublishPreviewCard({
               {diff.modified_domains.length}
             </p>
           </div>
+          <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-elevated)] px-4 py-4">
+            <p className="text-xs tracking-[0.2em] text-[var(--foreground-muted)] uppercase">
+              主配置变化
+            </p>
+            <p className="mt-2 text-lg font-semibold text-[var(--foreground-primary)]">
+              {diff.main_config_changed ? '已变化' : '无变化'}
+            </p>
+          </div>
         </div>
 
         {!canPublish ? (
@@ -267,13 +285,52 @@ function PublishPreviewCard({
           <DiffList title="修改域名" items={diff.modified_domains} />
         </div>
 
+        <div className="space-y-3">
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-sm font-semibold text-[var(--foreground-primary)]">
+              OpenResty 参数变化
+            </p>
+            <StatusBadge
+              label={`${diff.changed_option_keys.length} 项`}
+              variant={diff.changed_option_keys.length > 0 ? 'info' : 'warning'}
+            />
+          </div>
+          {diff.changed_option_keys.length > 0 ? (
+            <div className="flex flex-wrap gap-2">
+              {diff.changed_option_keys.map((item) => (
+                <span
+                  key={item}
+                  className="rounded-full border border-[var(--border-default)] bg-[var(--surface-elevated)] px-3 py-1 text-xs text-[var(--foreground-secondary)]"
+                >
+                  {item}
+                </span>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-[var(--foreground-secondary)]">
+              当前无 OpenResty 性能参数变化。
+            </p>
+          )}
+        </div>
+
         <div>
           <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm font-semibold text-[var(--foreground-primary)]">
-              渲染结果
+              主配置
             </p>
             <p className="text-xs text-[var(--foreground-secondary)]">
               Checksum：{preview.checksum}
+            </p>
+          </div>
+          <CodeBlock className="max-h-[32rem] whitespace-pre-wrap">
+            {preview.main_config}
+          </CodeBlock>
+        </div>
+
+        <div>
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm font-semibold text-[var(--foreground-primary)]">
+              路由配置
             </p>
           </div>
           <CodeBlock className="max-h-[32rem] whitespace-pre-wrap">

@@ -44,6 +44,8 @@ type ApplyLogPayload struct {
 type AgentConfigResponse struct {
 	Version        string        `json:"version"`
 	Checksum       string        `json:"checksum"`
+	MainConfig     string        `json:"main_config"`
+	RouteConfig    string        `json:"route_config"`
 	RenderedConfig string        `json:"rendered_config"`
 	SupportFiles   []SupportFile `json:"support_files"`
 	CreatedAt      time.Time     `json:"created_at"`
@@ -145,6 +147,8 @@ func GetActiveConfigForAgent() (*AgentConfigResponse, error) {
 	return &AgentConfigResponse{
 		Version:        version.Version,
 		Checksum:       version.Checksum,
+		MainConfig:     version.MainConfig,
+		RouteConfig:    version.RenderedConfig,
 		RenderedConfig: version.RenderedConfig,
 		SupportFiles:   supportFiles,
 		CreatedAt:      version.CreatedAt,

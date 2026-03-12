@@ -72,6 +72,9 @@ func TestPhase1PublishLifecycle(t *testing.T) {
 	if version1.SnapshotJSON == "" || version1.RenderedConfig == "" || version1.Checksum == "" {
 		t.Fatal("expected published version to contain snapshot, rendered config and checksum")
 	}
+	if version1.MainConfig == "" {
+		t.Fatal("expected published version to contain main config")
+	}
 
 	repeatPublishReq := httptest.NewRequest(http.MethodPost, "/api/config-versions/publish", nil)
 	repeatPublishReq.Header.Set("Authorization", "Bearer "+token)
@@ -92,6 +95,7 @@ func TestPhase1PublishLifecycle(t *testing.T) {
 	}
 
 	initialSnapshot := version1.SnapshotJSON
+	initialMainConfig := version1.MainConfig
 	initialRendered := version1.RenderedConfig
 
 	updateBody := map[string]any{
@@ -141,6 +145,9 @@ func TestPhase1PublishLifecycle(t *testing.T) {
 	}
 	if storedVersion1.SnapshotJSON != initialSnapshot {
 		t.Fatal("expected version1 snapshot to remain immutable")
+	}
+	if storedVersion1.MainConfig != initialMainConfig {
+		t.Fatal("expected version1 main config to remain immutable")
 	}
 	if storedVersion1.RenderedConfig != initialRendered {
 		t.Fatal("expected version1 rendered config to remain immutable")
@@ -257,6 +264,9 @@ func TestPhase1HTTPSAndCertificateImportLifecycle(t *testing.T) {
 	resp = performJSONRequest(t, engine, token, http.MethodPost, "/api/config-versions/publish", nil)
 	var version model.ConfigVersion
 	decodeResponseData(t, resp, &version)
+	if !strings.Contains(version.MainConfig, "include __ATSF_ROUTE_CONFIG__;") {
+		t.Fatal("expected active config to render managed main config")
+	}
 	if !strings.Contains(version.RenderedConfig, "listen 443 ssl;") {
 		t.Fatal("expected active config to render https listener")
 	}
@@ -282,6 +292,10 @@ func TestPhase1HTTPSAndCertificateImportLifecycle(t *testing.T) {
 	agentResp := performAgentJSONRequestWithToken(t, engine, common.AgentToken, http.MethodGet, "/api/agent/config-versions/active", nil)
 	var activeConfig map[string]any
 	decodeResponseData(t, agentResp, &activeConfig)
+	mainConfig, ok := activeConfig["main_config"].(string)
+	if !ok || !strings.Contains(mainConfig, "include __ATSF_ROUTE_CONFIG__;") {
+		t.Fatalf("expected active config to expose main_config, got %#v", activeConfig["main_config"])
+	}
 	supportFiles, ok := activeConfig["support_files"].([]any)
 	if !ok || len(supportFiles) != 2 {
 		t.Fatalf("expected active config to expose 2 support files, got %#v", activeConfig["support_files"])
