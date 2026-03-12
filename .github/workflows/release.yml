@@ -27,7 +27,7 @@ jobs:
           POINTED_TAG="$(git tag --points-at HEAD --list 'v*' | sort -V | tail -n1)"
 
           if [[ "${GITHUB_REF}" == refs/heads/main ]] && [[ -n "$POINTED_TAG" ]]; then
-            SHOULD_RUN=false
+#            SHOULD_RUN=false
             VERSION="$POINTED_TAG"
           elif [[ "${GITHUB_REF}" == refs/tags/* ]]; then
             VERSION="${GITHUB_REF_NAME}"
