@@ -22,14 +22,9 @@ export const dashboardNavigation: NavigationItem[] = [
     icon: 'release',
   },
   {
-    href: '/managed-domain',
-    label: '域名',
-    icon: 'domain',
-  },
-  {
-    href: '/tls-certificate',
-    label: '证书',
-    icon: 'certificate',
+    href: '/website',
+    label: '网站',
+    icon: 'website',
   },
   {
     href: '/user',

@@ -10,7 +10,7 @@ describe('navigation utils', () => {
 
   it('resolves current navigation item for nested paths', () => {
     expect(getCurrentNavigationItem('/node/abc')?.label).toBe('节点');
-    expect(getCurrentNavigationItem('/managed-domain')?.label).toBe('域名');
+    expect(getCurrentNavigationItem('/website')?.label).toBe('网站');
     expect(getCurrentNavigationItem('/performance')?.label).toBe('性能');
     expect(getCurrentNavigationItem('/setting')?.label).toBe('设置');
   });

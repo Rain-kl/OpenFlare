@@ -569,7 +569,6 @@ export function PerformancePage() {
 
           <AppCard
             title="OpenResty 连接与事件"
-            description="第五版第一批结构化性能项。保存后进入统一发布链路，不会在节点即时生效。"
             action={
               <PrimaryButton
                 type="button"
@@ -638,7 +637,7 @@ export function PerformancePage() {
               </ResourceField>
               <ToggleField
                 label="multi_accept"
-                description="是否启用 multi_accept on。"
+                description=""
                 checked={performanceFields.OpenRestyEventsMultiAcceptEnabled}
                 onChange={(checked) =>
                   setPerformanceFields((previous) => ({

@@ -59,7 +59,7 @@ function SummaryCard({
       action={
         <Link
           href={href}
-          className='inline-flex items-center rounded-full border border-[var(--border-default)] px-3 py-1.5 text-xs text-[var(--foreground-primary)] transition hover:bg-[var(--control-background-hover)]'
+          className="inline-flex items-center rounded-full border border-[var(--border-default)] px-3 py-1.5 text-xs text-[var(--foreground-primary)] transition hover:bg-[var(--control-background-hover)]"
         >
           进入模块
         </Link>
@@ -68,18 +68,23 @@ function SummaryCard({
       {status === 'pending' ? (
         <LoadingState />
       ) : status === 'error' ? (
-        <ErrorState title={`${title}加载失败`} description={getErrorMessage(error)} />
+        <ErrorState
+          title={`${title}加载失败`}
+          description={getErrorMessage(error)}
+        />
       ) : (
-        <div className='grid gap-3 sm:grid-cols-2'>
+        <div className="grid gap-3 sm:grid-cols-2">
           {items.map((item) => (
             <div
               key={item.label}
-              className='rounded-2xl border border-[var(--border-default)] bg-[var(--surface-muted)] px-4 py-4'
+              className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-muted)] px-4 py-4"
             >
-              <p className='text-xs uppercase tracking-[0.2em] text-[var(--foreground-muted)]'>
+              <p className="text-xs tracking-[0.2em] text-[var(--foreground-muted)] uppercase">
                 {item.label}
               </p>
-              <p className='mt-2 text-lg font-semibold text-[var(--foreground-primary)]'>{item.value}</p>
+              <p className="mt-2 text-lg font-semibold text-[var(--foreground-primary)]">
+                {item.value}
+              </p>
             </div>
           ))}
         </div>
@@ -99,9 +104,18 @@ export function DashboardOverview() {
   ] = useQueries({
     queries: [
       { queryKey: ['dashboard', 'nodes'], queryFn: getNodes },
-      { queryKey: ['dashboard', 'config-versions'], queryFn: getConfigVersions },
-      { queryKey: ['dashboard', 'managed-domains'], queryFn: getManagedDomains },
-      { queryKey: ['dashboard', 'tls-certificates'], queryFn: getTlsCertificates },
+      {
+        queryKey: ['dashboard', 'config-versions'],
+        queryFn: getConfigVersions,
+      },
+      {
+        queryKey: ['dashboard', 'managed-domains'],
+        queryFn: getManagedDomains,
+      },
+      {
+        queryKey: ['dashboard', 'tls-certificates'],
+        queryFn: getTlsCertificates,
+      },
       { queryKey: ['dashboard', 'proxy-routes'], queryFn: getProxyRoutes },
       {
         queryKey: ['dashboard', 'users'],
@@ -125,7 +139,11 @@ export function DashboardOverview() {
 
   const expiringCertificates = certificates.filter((item) => {
     const expiresAt = new Date(item.not_after).getTime();
-    return !Number.isNaN(expiresAt) && expiresAt >= Date.now() && expiresAt - Date.now() <= 30 * 24 * 60 * 60 * 1000;
+    return (
+      !Number.isNaN(expiresAt) &&
+      expiresAt >= Date.now() &&
+      expiresAt - Date.now() <= 30 * 24 * 60 * 60 * 1000
+    );
   }).length;
 
   const expiredCertificates = certificates.filter((item) => {
@@ -142,9 +160,18 @@ export function DashboardOverview() {
       error: nodesQuery.error,
       items: [
         { label: '节点总数', value: nodes.length },
-        { label: '在线节点', value: nodes.filter((item) => item.status === 'online').length },
-        { label: '待接入节点', value: nodes.filter((item) => item.status === 'pending').length },
-        { label: '自动更新', value: nodes.filter((item) => item.auto_update_enabled).length },
+        {
+          label: '在线节点',
+          value: nodes.filter((item) => item.status === 'online').length,
+        },
+        {
+          label: '待接入节点',
+          value: nodes.filter((item) => item.status === 'pending').length,
+        },
+        {
+          label: '自动更新',
+          value: nodes.filter((item) => item.auto_update_enabled).length,
+        },
       ],
     },
     {
@@ -155,34 +182,56 @@ export function DashboardOverview() {
       error: versionsQuery.error,
       items: [
         { label: '版本总数', value: versions.length },
-        { label: '激活版本', value: versions.filter((item) => item.is_active).length },
-        { label: '最近创建', value: versions[0]?.created_at ? formatDateTime(versions[0].created_at) : '—' },
+        {
+          label: '激活版本',
+          value: versions.filter((item) => item.is_active).length,
+        },
+        {
+          label: '最近创建',
+          value: versions[0]?.created_at
+            ? formatDateTime(versions[0].created_at)
+            : '—',
+        },
       ],
     },
     {
       title: '规则摘要',
       description: '查看域名规则启用状态、通配符覆盖和证书绑定规模。',
-      href: '/managed-domain',
+      href: '/website',
       status: managedDomainsQuery.status,
       error: managedDomainsQuery.error,
       items: [
         { label: '域名规则', value: domains.length },
-        { label: '已启用', value: domains.filter((item) => item.enabled).length },
-        { label: '通配符规则', value: domains.filter((item) => item.domain.startsWith('*.')).length },
-        { label: '已绑证书', value: domains.filter((item) => item.cert_id).length },
+        {
+          label: '已启用',
+          value: domains.filter((item) => item.enabled).length,
+        },
+        {
+          label: '通配符规则',
+          value: domains.filter((item) => item.domain.startsWith('*.')).length,
+        },
+        {
+          label: '已绑证书',
+          value: domains.filter((item) => item.cert_id).length,
+        },
       ],
     },
     {
       title: '证书概览',
       description: '快速识别证书存量、近 30 天到期风险和过期情况。',
-      href: '/tls-certificate',
+      href: '/website',
       status: certificatesQuery.status,
       error: certificatesQuery.error,
       items: [
         { label: '证书总数', value: certificates.length },
         { label: '30 天内到期', value: expiringCertificates },
         { label: '已过期', value: expiredCertificates },
-        { label: '最近更新', value: certificates[0]?.updated_at ? formatDateTime(certificates[0].updated_at) : '—' },
+        {
+          label: '最近更新',
+          value: certificates[0]?.updated_at
+            ? formatDateTime(certificates[0].updated_at)
+            : '—',
+        },
       ],
     },
     {
@@ -193,11 +242,21 @@ export function DashboardOverview() {
       error: proxyRoutesQuery.error,
       items: [
         { label: '规则总数', value: routes.length },
-        { label: '已启用', value: routes.filter((item) => item.enabled).length },
-        { label: 'HTTPS 规则', value: routes.filter((item) => item.enable_https).length },
+        {
+          label: '已启用',
+          value: routes.filter((item) => item.enabled).length,
+        },
+        {
+          label: 'HTTPS 规则',
+          value: routes.filter((item) => item.enable_https).length,
+        },
         {
           label: '自定义请求头',
-          value: routes.reduce((count, route) => count + parseCustomHeaders(route.custom_headers).length, 0),
+          value: routes.reduce(
+            (count, route) =>
+              count + parseCustomHeaders(route.custom_headers).length,
+            0,
+          ),
         },
       ],
     },
@@ -209,16 +268,25 @@ export function DashboardOverview() {
       error: usersQuery.error,
       items: [
         { label: '用户总数', value: users.length },
-        { label: '管理员', value: users.filter((item) => item.role >= 10).length },
-        { label: '已激活', value: users.filter((item) => item.status === 1).length },
-        { label: '已封禁', value: users.filter((item) => item.status !== 1).length },
+        {
+          label: '管理员',
+          value: users.filter((item) => item.role >= 10).length,
+        },
+        {
+          label: '已激活',
+          value: users.filter((item) => item.status === 1).length,
+        },
+        {
+          label: '已封禁',
+          value: users.filter((item) => item.status !== 1).length,
+        },
       ],
     },
   ] as const;
 
   return (
-    <div className='space-y-6'>
-      <div className='grid gap-6 xl:grid-cols-2'>
+    <div className="space-y-6">
+      <div className="grid gap-6 xl:grid-cols-2">
         {dashboardCards.map((card) => (
           <SummaryCard key={card.title} {...card} />
         ))}
