@@ -1,6 +1,7 @@
 import { apiRequest } from '@/lib/api/client';
 
 import type {
+  BootstrapTokenPayload,
   OptionItem,
   SettingsProfile,
   UpdateSelfPayload,
@@ -14,6 +15,16 @@ export function updateOption(key: string, value: string) {
   return apiRequest<void>('/option/', {
     method: 'PUT',
     body: JSON.stringify({ key, value }),
+  });
+}
+
+export function getBootstrapToken() {
+  return apiRequest<BootstrapTokenPayload>('/nodes/bootstrap-token');
+}
+
+export function rotateBootstrapToken() {
+  return apiRequest<BootstrapTokenPayload>('/nodes/bootstrap-token/rotate', {
+    method: 'POST',
   });
 }
 

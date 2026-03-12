@@ -18,12 +18,18 @@ import {
   bindEmail,
   bindWeChat,
   generateAccessToken,
+  getBootstrapToken,
   getOptions,
   getSettingsProfile,
+  rotateBootstrapToken,
   updateOption,
   updateSelf,
 } from '@/features/settings/api/settings';
-import type { OptionItem, UpdateSelfPayload } from '@/features/settings/types';
+import type {
+  BootstrapTokenPayload,
+  OptionItem,
+  UpdateSelfPayload,
+} from '@/features/settings/types';
 import {
   CodeBlock,
   PrimaryButton,
@@ -36,6 +42,8 @@ import {
 import { formatDateTime } from '@/lib/utils/date';
 
 const settingsQueryKey = ['settings', 'options'] as const;
+const installerScriptUrl =
+  'https://raw.githubusercontent.com/Rain-kl/ATSFlare/main/scripts/install-agent.sh';
 
 const defaultSystemFields = {
   ServerAddress: '',
@@ -124,6 +132,14 @@ function normalizeServerUrl(value: string) {
   return value.trim().replace(/\/+$/, '');
 }
 
+function getBrowserOrigin() {
+  if (typeof window === 'undefined') {
+    return '';
+  }
+
+  return normalizeServerUrl(window.location.origin);
+}
+
 function formatDurationLabel(value: string) {
   const milliseconds = Number.parseInt(value, 10);
   if (Number.isNaN(milliseconds)) {
@@ -152,6 +168,14 @@ function formatSecondsLabel(value: string) {
   }
 
   return `${seconds} 秒`;
+}
+
+function buildDiscoveryCommand(serverUrl: string, discoveryToken: string) {
+  return [
+    `curl -fsSL ${installerScriptUrl} | bash -s -- \\`,
+    `  --server-url ${normalizeServerUrl(serverUrl)} \\`,
+    `  --discovery-token ${discoveryToken}`,
+  ].join('\n');
 }
 
 async function copyToClipboard(value: string) {
@@ -194,6 +218,12 @@ export function SettingsPage() {
     enabled: isRoot,
   });
 
+  const bootstrapQuery = useQuery({
+    queryKey: ['settings', 'bootstrap-token'],
+    queryFn: getBootstrapToken,
+    enabled: isRoot,
+  });
+
   useEffect(() => {
     if (profileQuery.data) {
       setProfileFields({
@@ -211,9 +241,12 @@ export function SettingsPage() {
       return;
     }
 
+    const resolvedServerAddress =
+      publicStatus.server_address || getBrowserOrigin();
+
     setSystemFields((previous) => ({
       ...previous,
-      ServerAddress: publicStatus.server_address || previous.ServerAddress,
+      ServerAddress: resolvedServerAddress || previous.ServerAddress,
       GitHubClientId: publicStatus.github_client_id || previous.GitHubClientId,
       WeChatAccountQRCodeImageURL:
         publicStatus.wechat_qrcode || previous.WeChatAccountQRCodeImageURL,
@@ -228,7 +261,7 @@ export function SettingsPage() {
     }));
     setOperationFields((previous) => ({
       ...previous,
-      ServerAddress: publicStatus.server_address || previous.ServerAddress,
+      ServerAddress: resolvedServerAddress || previous.ServerAddress,
     }));
   }, [publicStatusQuery.data]);
 
@@ -238,9 +271,13 @@ export function SettingsPage() {
     }
 
     const optionMap = optionsToMap(optionsQuery.data);
+    const resolvedServerAddress =
+      optionMap.ServerAddress ||
+      publicStatusQuery.data?.server_address ||
+      getBrowserOrigin();
 
     setSystemFields({
-      ServerAddress: optionMap.ServerAddress ?? '',
+      ServerAddress: resolvedServerAddress,
       PasswordLoginEnabled: toBoolean(optionMap.PasswordLoginEnabled, true),
       PasswordRegisterEnabled: toBoolean(
         optionMap.PasswordRegisterEnabled,
@@ -282,8 +319,7 @@ export function SettingsPage() {
       DownloadRateLimitDuration: optionMap.DownloadRateLimitDuration ?? '60',
       CriticalRateLimitNum: optionMap.CriticalRateLimitNum ?? '100',
       CriticalRateLimitDuration: optionMap.CriticalRateLimitDuration ?? '1200',
-      ServerAddress:
-        optionMap.ServerAddress ?? publicStatusQuery.data?.server_address ?? '',
+      ServerAddress: resolvedServerAddress,
     });
 
     setOtherFields({
@@ -294,6 +330,26 @@ export function SettingsPage() {
       Footer: optionMap.Footer ?? '',
     });
   }, [optionsQuery.data, publicStatusQuery.data?.server_address]);
+
+  const rotateTokenMutation = useMutation({
+    mutationFn: rotateBootstrapToken,
+    onSuccess: async (data: BootstrapTokenPayload) => {
+      setFeedback({ tone: 'success', message: 'Discovery Token 已重新生成。' });
+      await queryClient.invalidateQueries({
+        queryKey: ['settings', 'bootstrap-token'],
+      });
+      if (data.discovery_token) {
+        try {
+          await copyToClipboard(data.discovery_token);
+        } catch {
+          // ignore clipboard errors
+        }
+      }
+    },
+    onError: (error) => {
+      setFeedback({ tone: 'danger', message: getErrorMessage(error) });
+    },
+  });
 
   const accessTokenMutation = useMutation({
     mutationFn: generateAccessToken,
@@ -309,6 +365,12 @@ export function SettingsPage() {
     },
   });
 
+  const discoveryToken = bootstrapQuery.data?.discovery_token ?? '';
+  const discoveryCommand =
+    isRoot && operationFields.ServerAddress && discoveryToken
+      ? buildDiscoveryCommand(operationFields.ServerAddress, discoveryToken)
+      : '';
+
   const tabs = useMemo(
     () => [
       {
@@ -321,7 +383,7 @@ export function SettingsPage() {
             {
               key: 'operation' as const,
               label: '运维设置',
-              description: 'Agent 参数、更新仓库与接口限流设置。',
+              description: 'Agent 参数、Discovery Token 与部署命令。',
             },
             {
               key: 'system' as const,
@@ -924,6 +986,73 @@ export function SettingsPage() {
                   placeholder="Rain-kl/ATSFlare"
                 />
               </ResourceField>
+            </AppCard>
+            <AppCard
+              title="Discovery Token 与部署命令"
+              description="适用于新节点首次接入。可直接复制一键安装命令。"
+              action={
+                <div className="flex flex-wrap gap-2">
+                  <SecondaryButton
+                    type="button"
+                    onClick={() => rotateTokenMutation.mutate()}
+                    disabled={rotateTokenMutation.isPending}
+                  >
+                    {rotateTokenMutation.isPending
+                      ? '生成中...'
+                      : '重新生成 Token'}
+                  </SecondaryButton>
+                  {discoveryCommand ? (
+                    <PrimaryButton
+                      type="button"
+                      onClick={() => void copyToClipboard(discoveryCommand)}
+                    >
+                      复制命令
+                    </PrimaryButton>
+                  ) : null}
+                </div>
+              }
+            >
+              {bootstrapQuery.isLoading ? (
+                <LoadingState />
+              ) : bootstrapQuery.isError ? (
+                <ErrorState
+                  title="Discovery Token 加载失败"
+                  description={getErrorMessage(bootstrapQuery.error)}
+                />
+              ) : (
+                <div className="space-y-4">
+                  <ResourceField
+                    label="Server URL"
+                    hint="默认使用当前 ServerAddress，可按需改为外部访问地址。"
+                  >
+                    <ResourceInput
+                      value={operationFields.ServerAddress}
+                      onChange={(event) =>
+                        setOperationFields((previous) => ({
+                          ...previous,
+                          ServerAddress: event.target.value,
+                        }))
+                      }
+                    />
+                  </ResourceField>
+                  <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-elevated)] px-4 py-4">
+                    <p className="text-xs uppercase tracking-[0.2em] text-[var(--foreground-muted)]">
+                      Discovery Token
+                    </p>
+                    <p className="mt-2 break-all text-sm text-[var(--foreground-primary)]">
+                      {discoveryToken || '未生成'}
+                    </p>
+                  </div>
+                  <ResourceField
+                    label="一键部署命令"
+                    hint="命令会使用安装脚本自动注册 Agent，并在首次注册后换发专属 agent_token。"
+                  >
+                    <CodeBlock className="break-all whitespace-pre-wrap">
+                      {discoveryCommand || '请先填写可访问的 Server URL。'}
+                    </CodeBlock>
+                  </ResourceField>
+                </div>
+              )}
             </AppCard>
             <AppCard
               title="版本与构建信息"

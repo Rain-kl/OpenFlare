@@ -5,6 +5,10 @@ export interface OptionItem {
   value: string;
 }
 
+export interface BootstrapTokenPayload {
+  discovery_token: string;
+}
+
 export interface UpdateSelfPayload {
   username: string;
   display_name: string;
