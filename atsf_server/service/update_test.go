@@ -140,6 +140,36 @@ func TestBuildLatestServerReleaseViewPreview(t *testing.T) {
 	}
 }
 
+// TestBuildLatestServerReleaseViewPreviewBypassVersionCheck verifies that switching to
+// the preview channel always reports has_update=true, even when the preview tag uses a
+// "major.minor.patch-git-<commit>" scheme that would otherwise compare as equal-or-older
+// than the currently running stable version.
+func TestBuildLatestServerReleaseViewPreviewBypassVersionCheck(t *testing.T) {
+	originalVersion := common.Version
+	common.Version = "v1.0.0"
+	t.Cleanup(func() {
+		common.Version = originalVersion
+		resetServerUpgradeTestState(t)
+	})
+
+	// A typical preview tag: same base version as stable but with a git-commit suffix.
+	// Without the bypass, isVersionNewer("v1.0.0", "v1.0.0-git-abc1234") returns false
+	// because a version without a prerelease identifier is considered higher than one
+	// with a prerelease identifier under semver rules.
+	view := buildLatestServerReleaseView(&githubReleaseResponse{
+		TagName:     "v1.0.0-git-abc1234",
+		Prerelease:  true,
+		PublishedAt: "2026-03-12T00:00:00Z",
+	}, ReleaseChannelPreview)
+
+	if !view.HasUpdate {
+		t.Fatal("expected preview channel to bypass version comparison and report has_update=true")
+	}
+	if view.Channel != ReleaseChannelPreview.String() {
+		t.Fatalf("unexpected channel: %s", view.Channel)
+	}
+}
+
 func TestUploadManualServerBinary(t *testing.T) {
 	originalVersion := common.Version
 	common.Version = "v0.4.0"

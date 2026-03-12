@@ -34,6 +34,7 @@ interface VersionUpgradeModalProps {
     isChecking: boolean;
     isUpgrading: boolean;
     isUploadingBinary: boolean;
+    uploadProgress: number;
     isConfirmingManualUpgrade: boolean;
     onChannelChange: (channel: ReleaseChannel) => void;
     onCheck: () => void;
@@ -71,6 +72,7 @@ export function VersionUpgradeModal({
                                         isChecking,
                                         isUpgrading,
                                         isUploadingBinary,
+                                        uploadProgress,
                                         isConfirmingManualUpgrade,
                                         onChannelChange,
                                         onCheck,
@@ -289,6 +291,21 @@ export function VersionUpgradeModal({
                                     </PrimaryButton>
                                 )}
                             </div>
+
+                            {isUploadingBinary ? (
+                                <div className="space-y-1">
+                                    <div className="flex items-center justify-between text-xs text-[var(--foreground-secondary)]">
+                                        <span>上传中...</span>
+                                        <span>{uploadProgress}%</span>
+                                    </div>
+                                    <div className="h-2 w-full overflow-hidden rounded-full bg-[var(--border-default)]">
+                                        <div
+                                            className="h-full rounded-full bg-[var(--brand-primary)] transition-all duration-200"
+                                            style={{width: `${uploadProgress}%`}}
+                                        />
+                                    </div>
+                                </div>
+                            ) : null}
 
                             {manualErrorMessage ? (
                                 <ErrorState

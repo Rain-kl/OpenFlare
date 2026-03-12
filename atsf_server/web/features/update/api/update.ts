@@ -1,4 +1,5 @@
-import { apiRequest } from '@/lib/api/client';
+import { ApiError, apiRequest, getApiUrl } from '@/lib/api/client';
+import type { ApiEnvelope } from '@/types/api';
 
 import type {
   LatestReleaseInfo,
@@ -19,13 +20,63 @@ export function upgradeServer(channel: ReleaseChannel = 'stable') {
   });
 }
 
-export function uploadServerBinary(binary: File) {
+export function uploadServerBinary(
+  binary: File,
+  onProgress?: (progress: number) => void,
+): Promise<UploadedServerBinaryInfo> {
   const formData = new FormData();
   formData.append('binary', binary);
 
-  return apiRequest<UploadedServerBinaryInfo>('/update/manual-upload', {
-    method: 'POST',
-    body: formData,
+  if (!onProgress) {
+    return apiRequest<UploadedServerBinaryInfo>('/update/manual-upload', {
+      method: 'POST',
+      body: formData,
+    });
+  }
+
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', getApiUrl('/update/manual-upload'));
+    xhr.withCredentials = true;
+
+    xhr.upload.addEventListener('progress', (event) => {
+      if (event.lengthComputable) {
+        onProgress(Math.round((event.loaded / event.total) * 100));
+      }
+    });
+
+    xhr.addEventListener('load', () => {
+      let payload: ApiEnvelope<UploadedServerBinaryInfo> | null = null;
+      try {
+        payload = JSON.parse(xhr.responseText) as ApiEnvelope<UploadedServerBinaryInfo>;
+      } catch {
+        payload = null;
+      }
+      if (xhr.status < 200 || xhr.status >= 300) {
+        reject(
+          new ApiError(
+            payload?.message || `请求失败（${xhr.status}）`,
+            xhr.status,
+          ),
+        );
+        return;
+      }
+      if (!payload) {
+        reject(new ApiError('响应格式无效', xhr.status));
+        return;
+      }
+      if (!payload.success) {
+        reject(new ApiError(payload.message || '请求失败', xhr.status));
+        return;
+      }
+      resolve(payload.data);
+    });
+
+    xhr.addEventListener('error', () => {
+      reject(new ApiError('上传过程中网络连接中断，请检查网络后重试', 0));
+    });
+
+    xhr.send(formData);
   });
 }
 

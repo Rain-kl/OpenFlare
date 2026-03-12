@@ -45,6 +45,7 @@ export function DashboardTopbar() {
   );
   const [uploadedBinary, setUploadedBinary] =
     useState<UploadedServerBinaryInfo | null>(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const isRoot = (user?.role ?? 0) >= 100;
   const upgradeStatusPollInterval = 3000;
@@ -102,14 +103,19 @@ export function DashboardTopbar() {
   });
 
   const uploadBinaryMutation = useMutation({
-    mutationFn: uploadServerBinary,
+    mutationFn: (binary: File) =>
+      uploadServerBinary(binary, (progress) => {
+        setUploadProgress(progress);
+      }),
     onSuccess: (candidate) => {
+      setUploadProgress(0);
       setVersionFeedback(null);
       setManualUpgradeError(null);
       setUploadedBinary(candidate);
       setManualUpgradeStatus(candidate.comparison_message);
     },
     onError: (error) => {
+      setUploadProgress(0);
       setUploadedBinary(null);
       setManualUpgradeStatus(null);
       setManualUpgradeError(
@@ -217,6 +223,7 @@ export function DashboardTopbar() {
   };
 
   const handleUploadBinary = (binary: File) => {
+    setUploadProgress(0);
     setManualUpgradeStatus(null);
     setManualUpgradeError(null);
     uploadBinaryMutation.mutate(binary);
@@ -359,6 +366,7 @@ export function DashboardTopbar() {
         }
         isUpgrading={upgradeMutation.isPending}
         isUploadingBinary={uploadBinaryMutation.isPending}
+        uploadProgress={uploadProgress}
         isConfirmingManualUpgrade={confirmManualUpgradeMutation.isPending}
         onChannelChange={handleReleaseChannelChange}
         onCheck={handleCheckRelease}

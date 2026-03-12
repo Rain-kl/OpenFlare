@@ -376,7 +376,15 @@ func buildLatestServerReleaseView(release *githubReleaseResponse, channel Releas
 	isDevBuild := currentVersion == "" || strings.EqualFold(currentVersion, "dev")
 	hasUpdate := false
 	if release != nil && !isDevBuild {
-		hasUpdate = isVersionNewer(currentVersion, release.TagName)
+		if channel == ReleaseChannelPreview {
+			// Preview releases use a "major.minor.patch-git-<commit>" scheme that cannot
+			// be meaningfully compared against the running stable version, so we skip the
+			// version check and always allow upgrading when the user explicitly selects
+			// the preview channel.
+			hasUpdate = true
+		} else {
+			hasUpdate = isVersionNewer(currentVersion, release.TagName)
+		}
 	}
 
 	serverUpgradeState.Lock()
