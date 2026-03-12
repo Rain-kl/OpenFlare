@@ -124,10 +124,21 @@ jobs:
         working-directory: /tmp/digests
         shell: bash
         run: |
+          shopt -s nullglob
+          references=()
+          for digest in *; do
+            references+=("${IMAGE}@sha256:${digest}")
+          done
+
+          if [ ${#references[@]} -eq 0 ]; then
+            echo "No digests found in /tmp/digests" >&2
+            exit 1
+          fi
+
           docker buildx imagetools create \
             -t "${IMAGE}:${VERSION}" \
             -t "${IMAGE}:latest" \
-            $(printf '%s@sha256:%s ' "${IMAGE}" *)
+            "${references[@]}"
 
       - name: Inspect image
         run: docker buildx imagetools inspect "${IMAGE}:${VERSION}"
