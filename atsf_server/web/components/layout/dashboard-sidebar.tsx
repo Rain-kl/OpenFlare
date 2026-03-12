@@ -199,13 +199,6 @@ function SidebarContent({
                     ))}
                 </div>
             </nav>
-
-            {showLabel ? (
-                <div
-                    className='rounded-2xl border border-[var(--status-success-border)] bg-[var(--status-success-soft)] px-3 py-3 text-xs leading-6 text-[var(--status-success-foreground)]'>
-                    已连接 ATSFlare Server
-                </div>
-            ) : null}
         </div>
     );
 }
