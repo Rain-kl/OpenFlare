@@ -19,6 +19,8 @@ import (
 
 const CertDirPlaceholder = "__ATSF_CERT_DIR__"
 
+const dockerRuntimeCommand = "openresty"
+
 type Executor interface {
 	Test(ctx context.Context) error
 	Reload(ctx context.Context) error
@@ -43,22 +45,22 @@ type PathExecutor struct {
 }
 
 func (e *PathExecutor) Test(ctx context.Context) error {
-	log.Printf("running nginx test with binary: %s", e.Path)
+	log.Printf("running openresty test with binary: %s", e.Path)
 	output, err := e.Runner.Run(ctx, e.Path, "-t")
 	if err != nil {
-		return fmt.Errorf("nginx -t failed: %w: %s", err, string(output))
+		return fmt.Errorf("openresty -t failed: %w: %s", err, string(output))
 	}
-	log.Printf("nginx test succeeded with binary: %s", e.Path)
+	log.Printf("openresty test succeeded with binary: %s", e.Path)
 	return nil
 }
 
 func (e *PathExecutor) Reload(ctx context.Context) error {
-	log.Printf("running nginx reload with binary: %s", e.Path)
+	log.Printf("running openresty reload with binary: %s", e.Path)
 	output, err := e.Runner.Run(ctx, e.Path, "-s", "reload")
 	if err != nil {
-		return fmt.Errorf("nginx reload failed: %w: %s", err, string(output))
+		return fmt.Errorf("openresty reload failed: %w: %s", err, string(output))
 	}
-	log.Printf("nginx reload succeeded with binary: %s", e.Path)
+	log.Printf("openresty reload succeeded with binary: %s", e.Path)
 	return nil
 }
 
@@ -77,24 +79,12 @@ type DockerExecutor struct {
 }
 
 func (e *DockerExecutor) Test(ctx context.Context) error {
-	log.Printf("running docker nginx test: container=%s image=%s", e.ContainerName, e.Image)
-	output, err := e.Runner.Run(
-		ctx,
-		e.DockerBinary,
-		"run",
-		"--rm",
-		"-v",
-		fmt.Sprintf("%s:/etc/nginx/conf.d", e.RouteConfigDir),
-		"-v",
-		fmt.Sprintf("%s:%s", e.CertDir, e.NginxCertDir),
-		e.Image,
-		"nginx",
-		"-t",
-	)
+	log.Printf("running docker openresty test: container=%s image=%s", e.ContainerName, e.Image)
+	output, err := e.runEphemeralRuntimeCommand(ctx, "-t")
 	if err != nil {
-		return fmt.Errorf("docker nginx -t failed: %w: %s", err, string(output))
+		return fmt.Errorf("docker %s -t failed: %w: %s", dockerRuntimeCommand, err, string(output))
 	}
-	log.Printf("docker nginx test succeeded: container=%s", e.ContainerName)
+	log.Printf("docker openresty test succeeded: container=%s runtime=%s", e.ContainerName, dockerRuntimeCommand)
 	return nil
 }
 
@@ -103,7 +93,7 @@ func (e *DockerExecutor) Reload(ctx context.Context) error {
 }
 
 func (e *DockerExecutor) EnsureRuntime(ctx context.Context, recreate bool) error {
-	log.Printf("ensuring docker nginx runtime: container=%s recreate=%t", e.ContainerName, recreate)
+	log.Printf("ensuring docker openresty runtime: container=%s recreate=%t", e.ContainerName, recreate)
 	output, err := e.Runner.Run(ctx, e.DockerBinary, "inspect", "-f", "{{.State.Running}}", e.ContainerName)
 	if err == nil {
 		if recreate {
@@ -113,7 +103,7 @@ func (e *DockerExecutor) EnsureRuntime(ctx context.Context, recreate bool) error
 			return e.runContainer(ctx)
 		}
 		if strings.TrimSpace(string(output)) == "true" {
-			log.Printf("docker nginx runtime already healthy: container=%s", e.ContainerName)
+			log.Printf("docker openresty runtime already healthy: container=%s", e.ContainerName)
 			return nil
 		}
 		if err := e.removeContainer(ctx); err != nil {
@@ -125,21 +115,21 @@ func (e *DockerExecutor) EnsureRuntime(ctx context.Context, recreate bool) error
 }
 
 func (e *DockerExecutor) removeContainer(ctx context.Context) error {
-	log.Printf("removing docker nginx container: container=%s", e.ContainerName)
+	log.Printf("removing docker openresty container: container=%s", e.ContainerName)
 	output, err := e.Runner.Run(ctx, e.DockerBinary, "rm", "-f", e.ContainerName)
 	if err != nil {
 		text := string(output)
 		if strings.Contains(text, "No such container") {
 			return nil
 		}
-		return fmt.Errorf("docker rm nginx failed: %w: %s", err, text)
+		return fmt.Errorf("docker rm openresty failed: %w: %s", err, text)
 	}
-	log.Printf("docker nginx container removed: container=%s", e.ContainerName)
+	log.Printf("docker openresty container removed: container=%s", e.ContainerName)
 	return nil
 }
 
 func (e *DockerExecutor) runContainer(ctx context.Context) error {
-	log.Printf("starting docker nginx container: container=%s image=%s", e.ContainerName, e.Image)
+	log.Printf("starting docker openresty container: container=%s image=%s", e.ContainerName, e.Image)
 	runArgs := []string{
 		"run", "-d",
 		"--name", e.ContainerName,
@@ -151,9 +141,9 @@ func (e *DockerExecutor) runContainer(ctx context.Context) error {
 	}
 	runOutput, runErr := e.Runner.Run(ctx, e.DockerBinary, runArgs...)
 	if runErr != nil {
-		return fmt.Errorf("docker run nginx failed: %w: %s", runErr, string(runOutput))
+		return fmt.Errorf("docker run openresty failed: %w: %s", runErr, string(runOutput))
 	}
-	log.Printf("docker nginx container started: container=%s", e.ContainerName)
+	log.Printf("docker openresty container started: container=%s", e.ContainerName)
 	return nil
 }
 
@@ -165,7 +155,7 @@ type Manager struct {
 }
 
 func (m *Manager) Apply(ctx context.Context, content string, supportFiles []protocol.SupportFile) error {
-	log.Printf("nginx apply started: route_config=%s support_files=%d", m.RouteConfigPath, len(supportFiles))
+	log.Printf("openresty apply started: route_config=%s support_files=%d", m.RouteConfigPath, len(supportFiles))
 	backup, err := m.backup()
 	if err != nil {
 		return err
@@ -177,21 +167,21 @@ func (m *Manager) Apply(ctx context.Context, content string, supportFiles []prot
 	}
 	renderedContent := m.renderConfig(content)
 	if err = os.WriteFile(m.RouteConfigPath, []byte(renderedContent), 0o644); err != nil {
-		log.Printf("writing nginx route config failed, restoring backup: error=%v", err)
+		log.Printf("writing openresty route config failed, restoring backup: error=%v", err)
 		_ = m.restore(backup)
 		return err
 	}
 	if err = m.Executor.Test(ctx); err != nil {
-		log.Printf("nginx test failed after config write, restoring backup: error=%v", err)
+		log.Printf("openresty test failed after config write, restoring backup: error=%v", err)
 		_ = m.restore(backup)
 		return err
 	}
 	if err = m.Executor.Reload(ctx); err != nil {
-		log.Printf("nginx reload failed after config write, restoring backup: error=%v", err)
+		log.Printf("openresty reload failed after config write, restoring backup: error=%v", err)
 		_ = m.restore(backup)
 		return err
 	}
-	log.Printf("nginx apply completed successfully: route_config=%s", m.RouteConfigPath)
+	log.Printf("openresty apply completed successfully: route_config=%s", m.RouteConfigPath)
 	return nil
 }
 
@@ -199,7 +189,7 @@ func (m *Manager) EnsureRuntime(ctx context.Context, recreate bool) error {
 	if m.Executor == nil {
 		return errors.New("executor 未配置")
 	}
-	log.Printf("nginx ensure runtime requested: recreate=%t", recreate)
+	log.Printf("openresty ensure runtime requested: recreate=%t", recreate)
 	return m.Executor.EnsureRuntime(ctx, recreate)
 }
 
@@ -223,7 +213,7 @@ func (m *Manager) CurrentChecksum() (string, error) {
 		return "", err
 	}
 	result := bundleChecksum(normalized, files)
-	log.Printf("nginx current checksum calculated: route_config=%s checksum=%s support_files=%d", m.RouteConfigPath, result, len(files))
+	log.Printf("openresty current checksum calculated: route_config=%s checksum=%s support_files=%d", m.RouteConfigPath, result, len(files))
 	return result, nil
 }
 
@@ -267,10 +257,10 @@ func NewExecutor(options ExecutorOptions) Executor {
 func DetectVersion(ctx context.Context, options ExecutorOptions) string {
 	version, err := detectVersion(ctx, options, &OSCommandRunner{})
 	if err != nil {
-		log.Printf("detect nginx version failed: %v", err)
+		log.Printf("detect openresty version failed: %v", err)
 		return ""
 	}
-	log.Printf("detected nginx version: %s", version)
+	log.Printf("detected openresty version: %s", version)
 	return version
 }
 
@@ -281,21 +271,21 @@ func detectVersion(ctx context.Context, options ExecutorOptions, runner CommandR
 	if options.NginxPath != "" {
 		output, err := runner.Run(ctx, options.NginxPath, "-v")
 		if err != nil {
-			return "", fmt.Errorf("run nginx -v failed: %w: %s", err, string(output))
+			return "", fmt.Errorf("run runtime -v failed: %w: %s", err, string(output))
 		}
 		version := parseNginxVersion(string(output))
 		if version == "" {
-			return "", errors.New("cannot parse nginx version from binary output")
+			return "", errors.New("cannot parse runtime version from binary output")
 		}
 		return version, nil
 	}
-	output, err := runner.Run(ctx, options.DockerBinary, "run", "--rm", options.Image, "nginx", "-v")
+	output, err := runDockerVersionProbe(ctx, runner, options.DockerBinary, options.Image)
 	if err != nil {
-		return "", fmt.Errorf("run docker nginx -v failed: %w: %s", err, string(output))
+		return "", fmt.Errorf("run docker %s -v failed: %w: %s", dockerRuntimeCommand, err, string(output))
 	}
 	version := parseNginxVersion(string(output))
 	if version == "" {
-		return "", errors.New("cannot parse nginx version from docker output")
+		return "", errors.New("cannot parse runtime version from docker output")
 	}
 	return version, nil
 }
@@ -308,7 +298,30 @@ func parseNginxVersion(output string) string {
 	return matches[1]
 }
 
-var nginxVersionPattern = regexp.MustCompile(`(?im)nginx version:\s*nginx/([^\s]+)`)
+var nginxVersionPattern = regexp.MustCompile(`(?im)(?:nginx|openresty) version:\s*(?:nginx|openresty)/([^\s]+)`)
+
+func (e *DockerExecutor) runEphemeralRuntimeCommand(ctx context.Context, args ...string) ([]byte, error) {
+	return e.runEphemeralRuntimeCommandWithBinary(ctx, dockerRuntimeCommand, args...)
+}
+
+func (e *DockerExecutor) runEphemeralRuntimeCommandWithBinary(ctx context.Context, runtimeBinary string, args ...string) ([]byte, error) {
+	runtimeArgs := []string{
+		"run",
+		"--rm",
+		"-v",
+		fmt.Sprintf("%s:/etc/nginx/conf.d", e.RouteConfigDir),
+		"-v",
+		fmt.Sprintf("%s:%s", e.CertDir, e.NginxCertDir),
+		e.Image,
+		runtimeBinary,
+	}
+	runtimeArgs = append(runtimeArgs, args...)
+	return e.Runner.Run(ctx, e.DockerBinary, runtimeArgs...)
+}
+
+func runDockerVersionProbe(ctx context.Context, runner CommandRunner, dockerBinary string, image string) ([]byte, error) {
+	return runner.Run(ctx, dockerBinary, "run", "--rm", image, dockerRuntimeCommand, "-v")
+}
 
 type backupState struct {
 	RouteExisted bool

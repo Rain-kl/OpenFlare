@@ -50,7 +50,7 @@ func (e *fakeExecutor) EnsureRuntime(ctx context.Context, recreate bool) error {
 func TestPathExecutorCommands(t *testing.T) {
 	runner := &fakeRunner{}
 	executor := &PathExecutor{
-		Path:   "/opt/nginx/sbin/nginx",
+		Path:   "/usr/local/openresty/nginx/sbin/openresty",
 		Runner: runner,
 	}
 
@@ -62,8 +62,8 @@ func TestPathExecutorCommands(t *testing.T) {
 	}
 
 	expected := []runCall{
-		{name: "/opt/nginx/sbin/nginx", args: []string{"-t"}},
-		{name: "/opt/nginx/sbin/nginx", args: []string{"-s", "reload"}},
+		{name: "/usr/local/openresty/nginx/sbin/openresty", args: []string{"-t"}},
+		{name: "/usr/local/openresty/nginx/sbin/openresty", args: []string{"-s", "reload"}},
 	}
 	if !reflect.DeepEqual(runner.calls, expected) {
 		t.Fatalf("unexpected calls: %#v", runner.calls)
@@ -72,7 +72,7 @@ func TestPathExecutorCommands(t *testing.T) {
 
 func TestPathExecutorEnsureRuntimeNoop(t *testing.T) {
 	executor := &PathExecutor{
-		Path:   "/opt/nginx/sbin/nginx",
+		Path:   "/usr/local/openresty/nginx/sbin/openresty",
 		Runner: &fakeRunner{},
 	}
 	if err := executor.EnsureRuntime(context.Background(), true); err != nil {
@@ -91,8 +91,8 @@ func TestDockerExecutorStartsContainerWhenMissing(t *testing.T) {
 	}
 	executor := &DockerExecutor{
 		DockerBinary:   "docker",
-		ContainerName:  "atsflare-nginx",
-		Image:          "nginx:stable-alpine",
+		ContainerName:  "atsflare-openresty",
+		Image:          "openresty/openresty:alpine",
 		RouteConfigDir: filepath.Clean("/tmp/routes"),
 		CertDir:        filepath.Clean("/tmp/certs"),
 		NginxCertDir:   "/etc/nginx/atsflare-certs",
@@ -109,6 +109,9 @@ func TestDockerExecutorStartsContainerWhenMissing(t *testing.T) {
 	if runner.calls[0].args[0] != "run" || runner.calls[0].args[1] != "--rm" {
 		t.Fatalf("expected docker run --rm for test, got %#v", runner.calls[0])
 	}
+	if runner.calls[0].args[len(runner.calls[0].args)-2] != "openresty" {
+		t.Fatalf("expected docker test command to invoke openresty, got %#v", runner.calls[0])
+	}
 }
 
 func TestDockerExecutorStartsStoppedContainer(t *testing.T) {
@@ -122,8 +125,8 @@ func TestDockerExecutorStartsStoppedContainer(t *testing.T) {
 	}
 	executor := &DockerExecutor{
 		DockerBinary:   "docker",
-		ContainerName:  "atsflare-nginx",
-		Image:          "nginx:stable-alpine",
+		ContainerName:  "atsflare-openresty",
+		Image:          "openresty/openresty:alpine",
 		RouteConfigDir: filepath.Clean("/tmp/routes"),
 		CertDir:        filepath.Clean("/tmp/certs"),
 		NginxCertDir:   "/etc/nginx/atsflare-certs",
@@ -159,8 +162,8 @@ func TestDockerExecutorRecreatesContainerOnStartup(t *testing.T) {
 	}
 	executor := &DockerExecutor{
 		DockerBinary:   "docker",
-		ContainerName:  "atsflare-nginx",
-		Image:          "nginx:stable-alpine",
+		ContainerName:  "atsflare-openresty",
+		Image:          "openresty/openresty:alpine",
 		RouteConfigDir: filepath.Clean("/tmp/routes"),
 		CertDir:        filepath.Clean("/tmp/certs"),
 		NginxCertDir:   "/etc/nginx/atsflare-certs",
@@ -184,8 +187,8 @@ func TestDockerExecutorRecreatesContainerOnStartup(t *testing.T) {
 func TestNewExecutorUsesAbsoluteDockerMountPath(t *testing.T) {
 	executor := NewExecutor(ExecutorOptions{
 		DockerBinary:    "docker",
-		ContainerName:   "atsflare-nginx",
-		Image:           "nginx:stable-alpine",
+		ContainerName:   "atsflare-openresty",
+		Image:           "openresty/openresty:alpine",
 		RouteConfigPath: "./data/etc/nginx/conf.d/atsflare_routes.conf",
 		CertDir:         "./data/etc/nginx/certs",
 		NginxCertDir:    "/etc/nginx/atsflare-certs",
@@ -205,16 +208,16 @@ func TestNewExecutorUsesAbsoluteDockerMountPath(t *testing.T) {
 
 func TestDetectVersionFromBinary(t *testing.T) {
 	version, err := detectVersion(context.Background(), ExecutorOptions{
-		NginxPath: "/opt/nginx/sbin/nginx",
+		NginxPath: "/usr/local/openresty/nginx/sbin/openresty",
 	}, &fakeRunner{
 		runFn: func(name string, args ...string) ([]byte, error) {
-			return []byte("nginx version: nginx/1.25.5\n"), nil
+			return []byte("nginx version: openresty/1.27.1.2\n"), nil
 		},
 	})
 	if err != nil {
 		t.Fatalf("detectVersion failed: %v", err)
 	}
-	if version != "1.25.5" {
+	if version != "1.27.1.2" {
 		t.Fatalf("unexpected version: %s", version)
 	}
 }
@@ -222,23 +225,23 @@ func TestDetectVersionFromBinary(t *testing.T) {
 func TestDetectVersionFromDockerImage(t *testing.T) {
 	runner := &fakeRunner{
 		runFn: func(name string, args ...string) ([]byte, error) {
-			return []byte("nginx version: nginx/1.27.4\n"), nil
+			return []byte("nginx version: openresty/1.27.1.2\n"), nil
 		},
 	}
 	version, err := detectVersion(context.Background(), ExecutorOptions{
 		DockerBinary: "docker",
-		Image:        "nginx:stable-alpine",
+		Image:        "openresty/openresty:alpine",
 	}, runner)
 	if err != nil {
 		t.Fatalf("detectVersion failed: %v", err)
 	}
-	if version != "1.27.4" {
+	if version != "1.27.1.2" {
 		t.Fatalf("unexpected version: %s", version)
 	}
 	if len(runner.calls) != 1 {
 		t.Fatalf("expected one command call, got %d", len(runner.calls))
 	}
-	expectedArgs := []string{"run", "--rm", "nginx:stable-alpine", "nginx", "-v"}
+	expectedArgs := []string{"run", "--rm", "openresty/openresty:alpine", "openresty", "-v"}
 	if !reflect.DeepEqual(runner.calls[0].args, expectedArgs) {
 		t.Fatalf("unexpected docker args: %#v", runner.calls[0].args)
 	}
@@ -247,11 +250,11 @@ func TestDetectVersionFromDockerImage(t *testing.T) {
 func TestParseNginxVersionIgnoresDockerEntrypointPaths(t *testing.T) {
 	output := strings.Join([]string{
 		"/docker-entrypoint.sh: /docker-entrypoint.d/10-listen-on-ipv6-by-default.sh: info: can not modify /etc/nginx/conf.d/default.conf (read-only file system?)",
-		"nginx version: nginx/1.27.4",
+		"nginx version: openresty/1.27.1.2",
 	}, "\n")
 
 	version := parseNginxVersion(output)
-	if version != "1.27.4" {
+	if version != "1.27.1.2" {
 		t.Fatalf("unexpected version: %s", version)
 	}
 }
@@ -307,7 +310,7 @@ func TestManagerRollbackRestoresSupportFiles(t *testing.T) {
 		CertDir:         certDir,
 		NginxCertDir:    "/etc/nginx/atsflare-certs",
 		Executor: &fakeExecutor{
-			testErr: errors.New("nginx test failed"),
+			testErr: errors.New("openresty test failed"),
 		},
 	}
 

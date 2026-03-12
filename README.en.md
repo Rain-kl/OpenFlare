@@ -28,7 +28,7 @@ _✨ control plane for reverse proxy management ✨_
 ## Repository layout
 
 - `atsf_server`: Gin + GORM + SQLite control plane, including admin API, Agent API and Web UI
-- `atsf_agent`: single-binary Go Agent for registration, heartbeat, config sync and Nginx reload
+- `atsf_agent`: single-binary Go Agent for registration, heartbeat, config sync and OpenResty reload
 - `docs`: design, development guidelines, implementation plan and deployment docs
 
 ## Quick start

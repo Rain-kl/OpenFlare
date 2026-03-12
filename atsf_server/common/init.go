@@ -20,7 +20,7 @@ var (
 var UploadPath = "upload"
 
 func printHelp() {
-	fmt.Println("ATSFlare " + Version + " - Internal Nginx Control Plane.")
+	fmt.Println("ATSFlare " + Version + " - Internal OpenResty Control Plane.")
 	fmt.Println("Copyright (C) 2023 JustSong. All rights reserved.")
 	fmt.Println("GitHub: https://github.com/Rain-kl/ATSFlare")
 	fmt.Println("Usage: atsflare [--port <port>] [--log-dir <log directory>] [--version] [--help]")

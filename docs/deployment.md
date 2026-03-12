@@ -16,7 +16,7 @@
 
 * Go 1.18+
 * 对 Agent 数据目录有写权限
-* 若使用独立 Nginx 模式：可执行 `nginx -t` 与 `nginx -s reload`
+* 若使用独立 OpenResty 模式：可执行 `openresty -t` 与 `openresty -s reload`
 * 若使用 Docker 模式：具备 Docker 执行权限
 
 ---
@@ -146,8 +146,8 @@ swag init -g main.go -o docs
   "server_url": "http://127.0.0.1:3000",
   "agent_token": "replace-with-node-auth-token",
   "data_dir": "./data",
-  "nginx_container_name": "atsflare-nginx",
-  "nginx_docker_image": "nginx:stable-alpine",
+  "openresty_container_name": "atsflare-openresty",
+  "openresty_docker_image": "openresty/openresty:alpine",
   "heartbeat_interval": 30000,
   "sync_interval": 30000,
   "request_timeout": 10000
@@ -161,8 +161,8 @@ swag init -g main.go -o docs
   "server_url": "http://127.0.0.1:3000",
   "discovery_token": "replace-with-global-discovery-token",
   "data_dir": "./data",
-  "nginx_container_name": "atsflare-nginx",
-  "nginx_docker_image": "nginx:stable-alpine",
+  "openresty_container_name": "atsflare-openresty",
+  "openresty_docker_image": "openresty/openresty:alpine",
   "heartbeat_interval": 30000,
   "sync_interval": 30000,
   "request_timeout": 10000
@@ -172,12 +172,12 @@ swag init -g main.go -o docs
 说明：
 
 * `agent_version` 由 Agent 代码内常量提供，升级时同步修改代码
-* `nginx_version` 由 Agent 启动时执行命令自动探测
+* 为兼容现有 Agent / Server API，运行时版本仍通过 `openresty_version` 字段上报，但其值现在表示 OpenResty 版本
 * 时间字段使用毫秒整数
 * `agent_token` 与 `discovery_token` 至少填写一个
 * 若 `agent_token` 为空且 `discovery_token` 存在，Agent 会自动注册并写回新的专属 `agent_token`
 * `node_name` 与 `node_ip` 可省略，未填写时自动探测
-* 未配置 `nginx_path` 时，默认使用 Docker Nginx 容器
+* 未配置 `openresty_path` 时，默认使用 Docker OpenResty 容器
 
 ---
 
@@ -223,8 +223,8 @@ go build -o atsflare-agent ./cmd/agent
 2. 自动注册模式下完成 Token 置换
 3. 拉取激活版本
 4. 写入路由配置与必要证书文件
-5. 执行 `nginx -t`
-6. 执行 `nginx -s reload`
+5. 执行 `openresty -t`
+6. 执行 `openresty -s reload`
 7. 上报应用结果
 
 ### 5.4 验证管理端状态
@@ -238,7 +238,7 @@ go build -o atsflare-agent ./cmd/agent
 
 ### 5.5 验证失败回滚
 
-人为制造 `nginx -t` 失败后再次发布，预期：
+人为制造 `openresty -t` 失败后再次发布，预期：
 
 * Agent 回滚旧配置
 * 节点 `last_error` 更新

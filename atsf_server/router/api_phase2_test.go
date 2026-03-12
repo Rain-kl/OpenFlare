@@ -190,7 +190,7 @@ func TestPhase2AgentLifecycle(t *testing.T) {
 		"name":            "shanghai-edge-1",
 		"ip":              "10.0.0.9",
 		"agent_version":   "0.1.1",
-		"nginx_version":   "1.25.5",
+		"nginx_version":   "1.27.1.2",
 		"current_version": "",
 		"last_error":      "",
 	}
@@ -224,7 +224,7 @@ func TestPhase2AgentLifecycle(t *testing.T) {
 		"node_id": "spoofed-node-id",
 		"version": activeConfig.Version,
 		"result":  service.ApplyResultFailed,
-		"message": "nginx reload failed",
+		"message": "openresty reload failed",
 	})
 	var failedApplyLog model.ApplyLog
 	decodeResponseData(t, failedApplyResp, &failedApplyLog)
@@ -244,13 +244,13 @@ func TestPhase2AgentLifecycle(t *testing.T) {
 	if nodes[0].AgentToken != createdNode.AgentToken {
 		t.Fatal("expected node auth token to remain stable after occupancy")
 	}
-	if nodes[0].LatestApplyResult != service.ApplyResultFailed || nodes[0].LatestApplyMessage != "nginx reload failed" {
+	if nodes[0].LatestApplyResult != service.ApplyResultFailed || nodes[0].LatestApplyMessage != "openresty reload failed" {
 		t.Fatal("expected node list to expose latest apply status")
 	}
 	if nodes[0].CurrentVersion != activeConfig.Version {
 		t.Fatal("expected node current_version to remain at last successful version")
 	}
-	if nodes[0].LastError != "nginx reload failed" {
+	if nodes[0].LastError != "openresty reload failed" {
 		t.Fatal("expected node last_error to reflect failed apply")
 	}
 

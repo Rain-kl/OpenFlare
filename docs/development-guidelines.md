@@ -36,8 +36,8 @@
 
 * 单二进制
 * 节点本地执行
-* `nginx_path` 优先
-* 无 `nginx_path` 时默认 Docker Nginx
+* `openresty_path` 优先
+* 无 `openresty_path` 时默认 Docker OpenResty
 * 生成资源默认写入 `./data`，由 `data_dir` 统一覆盖
 
 ### 2.3 Frontend
@@ -81,7 +81,7 @@
 * `config`
 * `heartbeat`
 * `sync`
-* `nginx`
+* `openresty`（保留目录名，内部负责 OpenResty 运行时管理）
 * `state`
 * `httpclient`
 * `protocol`
@@ -170,7 +170,7 @@ Agent：
 
 禁止：
 
-* 将本地 Nginx 操作暴露为远程执行接口
+* 将本地 OpenResty 操作暴露为远程执行接口
 * 在日志中打印完整 Token
 
 ---
@@ -180,7 +180,7 @@ Agent：
 发布逻辑必须保持以下事实：
 
 * 发布时读取全部启用的 `proxy_routes`
-* 生成完整 Nginx 配置
+* 生成完整 OpenResty 配置
 * 计算 `checksum`
 * 写入 `config_versions`
 * 通过切换 `is_active` 激活版本
@@ -205,8 +205,8 @@ Agent 必须满足：
 * 周期性心跳与同步
 * 发现新版本时先备份旧文件
 * 写入新路由与必要证书文件
-* 先执行 `nginx -t`
-* 成功后执行 `nginx -s reload`
+* 先执行 `openresty -t`
+* 成功后执行 `openresty -s reload`
 * 失败时自动回滚并上报最终结果
 * 支持自动注册与 Token 置换
 * 支持接收 Server 下发运行参数
@@ -249,7 +249,7 @@ Agent 必须满足：
 * Agent 注册
 * 心跳异常
 * 配置下载失败
-* Nginx 校验或 reload 成功/失败
+* OpenResty 校验或 reload 成功/失败
 * 回滚触发
 
 要求：

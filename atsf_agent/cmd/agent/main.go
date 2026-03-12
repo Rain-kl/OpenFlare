@@ -28,13 +28,13 @@ func main() {
 	cfg.NginxVersion = nginx.DetectVersion(
 		context.Background(),
 		nginx.ExecutorOptions{
-			NginxPath:       cfg.NginxPath,
+			NginxPath:       cfg.OpenrestyPath,
 			DockerBinary:    cfg.DockerBinary,
-			ContainerName:   cfg.NginxContainerName,
-			Image:           cfg.NginxDockerImage,
+			ContainerName:   cfg.OpenrestyContainerName,
+			Image:           cfg.OpenrestyDockerImage,
 			RouteConfigPath: cfg.RouteConfigPath,
 			CertDir:         cfg.CertDir,
-			NginxCertDir:    cfg.NginxCertDir,
+			NginxCertDir:    cfg.OpenrestyCertDir,
 		},
 	)
 	log.Printf("agent config loaded: server=%s node=%s ip=%s heartbeat_interval=%s sync_interval=%s route_config=%s cert_dir=%s", cfg.ServerURL, cfg.NodeName, cfg.NodeIP, cfg.HeartbeatInterval, cfg.SyncInterval, cfg.RouteConfigPath, cfg.CertDir)
@@ -48,15 +48,15 @@ func main() {
 		SyncService: syncservice.New(client, &nginx.Manager{
 			RouteConfigPath: cfg.RouteConfigPath,
 			CertDir:         cfg.CertDir,
-			NginxCertDir:    cfg.NginxCertDir,
+			NginxCertDir:    cfg.OpenrestyCertDir,
 			Executor: nginx.NewExecutor(nginx.ExecutorOptions{
-				NginxPath:       cfg.NginxPath,
+				NginxPath:       cfg.OpenrestyPath,
 				DockerBinary:    cfg.DockerBinary,
-				ContainerName:   cfg.NginxContainerName,
-				Image:           cfg.NginxDockerImage,
+				ContainerName:   cfg.OpenrestyContainerName,
+				Image:           cfg.OpenrestyDockerImage,
 				RouteConfigPath: cfg.RouteConfigPath,
 				CertDir:         cfg.CertDir,
-				NginxCertDir:    cfg.NginxCertDir,
+				NginxCertDir:    cfg.OpenrestyCertDir,
 			}),
 		}, stateStore),
 		Updater: updater.New(),

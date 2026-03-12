@@ -2,8 +2,8 @@
   "server_url": "http://127.0.0.1:3000",
   "agent_token": "123",
   "data_dir": "./data",
-  "nginx_container_name": "atsflare-nginx",
-  "nginx_docker_image": "nginx:stable-alpine",
+  "openresty_container_name": "atsflare-openresty",
+  "openresty_docker_image": "openresty/openresty:alpine",
   "heartbeat_interval": 30000,
   "sync_interval": 30000,
   "request_timeout": 10000

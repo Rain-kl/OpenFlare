@@ -68,13 +68,13 @@ func (s *Service) sync(ctx context.Context, startup bool) error {
 	}
 	log.Printf("current local checksum loaded: mode=%s checksum=%s", mode, currentChecksum)
 	if currentChecksum == config.Checksum {
-		log.Printf("local nginx config already up to date: mode=%s version=%s", mode, config.Version)
+		log.Printf("local openresty config already up to date: mode=%s version=%s", mode, config.Version)
 		if startup {
-			log.Printf("ensuring nginx runtime on startup: version=%s", config.Version)
+			log.Printf("ensuring openresty runtime on startup: version=%s", config.Version)
 			if err = s.nginxManager.EnsureRuntime(ctx, true); err != nil {
 				return err
 			}
-			log.Printf("nginx runtime ensured on startup: version=%s", config.Version)
+			log.Printf("openresty runtime ensured on startup: version=%s", config.Version)
 		}
 		snapshot.CurrentVersion = config.Version
 		snapshot.CurrentChecksum = config.Checksum
@@ -86,9 +86,9 @@ func (s *Service) sync(ctx context.Context, startup bool) error {
 		log.Printf("skipping apply because state already records target version/checksum: version=%s checksum=%s", config.Version, config.Checksum)
 		return nil
 	}
-	log.Printf("applying new nginx config: mode=%s from_version=%s to_version=%s old_checksum=%s new_checksum=%s", mode, snapshot.CurrentVersion, config.Version, currentChecksum, config.Checksum)
+	log.Printf("applying new openresty config: mode=%s from_version=%s to_version=%s old_checksum=%s new_checksum=%s", mode, snapshot.CurrentVersion, config.Version, currentChecksum, config.Checksum)
 	if err = s.nginxManager.Apply(ctx, config.RenderedConfig, config.SupportFiles); err != nil {
-		log.Printf("apply nginx config failed: mode=%s version=%s error=%v", mode, config.Version, err)
+		log.Printf("apply openresty config failed: mode=%s version=%s error=%v", mode, config.Version, err)
 		snapshot.LastError = err.Error()
 		_ = s.stateStore.Save(snapshot)
 		reportErr := s.client.ReportApplyLog(ctx, protocol.ApplyLogPayload{
@@ -104,7 +104,7 @@ func (s *Service) sync(ctx context.Context, startup bool) error {
 		log.Printf("failed apply log reported: version=%s", config.Version)
 		return err
 	}
-	log.Printf("nginx config applied successfully: mode=%s version=%s", mode, config.Version)
+	log.Printf("openresty config applied successfully: mode=%s version=%s", mode, config.Version)
 	snapshot.CurrentVersion = config.Version
 	snapshot.CurrentChecksum = config.Checksum
 	snapshot.LastError = ""

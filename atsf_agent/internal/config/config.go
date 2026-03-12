@@ -15,7 +15,7 @@ const (
 	defaultDockerRouteConfigRelativePath = "etc/nginx/conf.d/atsflare_routes.conf"
 	defaultCertDirRelativePath           = "etc/nginx/certs"
 	defaultDockerStateRelativePath       = "var/lib/atsflare/agent-state.json"
-	defaultDockerNginxCertDir            = "/etc/nginx/atsflare-certs"
+	defaultDockerOpenRestyCertDir        = "/etc/nginx/atsflare-certs"
 )
 
 type Config struct {
@@ -26,14 +26,14 @@ type Config struct {
 	NodeIP             string              `json:"node_ip"`
 	AgentVersion       string              `json:"-"`
 	NginxVersion       string              `json:"-"`
-	NginxPath          string              `json:"nginx_path"`
-	NginxContainerName string              `json:"nginx_container_name"`
-	NginxDockerImage   string              `json:"nginx_docker_image"`
+	OpenrestyPath      string              `json:"openresty_path"`
+	OpenrestyContainerName string          `json:"openresty_container_name"`
+	OpenrestyDockerImage   string          `json:"openresty_docker_image"`
 	DockerBinary       string              `json:"docker_binary"`
 	DataDir            string              `json:"data_dir"`
 	RouteConfigPath    string              `json:"route_config_path"`
 	CertDir            string              `json:"cert_dir"`
-	NginxCertDir       string              `json:"nginx_cert_dir"`
+	OpenrestyCertDir   string              `json:"openresty_cert_dir"`
 	StatePath          string              `json:"state_path"`
 	HeartbeatInterval  MillisecondDuration `json:"heartbeat_interval"`
 	SyncInterval       MillisecondDuration `json:"sync_interval"`
@@ -41,14 +41,53 @@ type Config struct {
 	configPath         string
 }
 
+type configFile struct {
+	ServerURL              string              `json:"server_url"`
+	AgentToken             string              `json:"agent_token"`
+	DiscoveryToken         string              `json:"discovery_token"`
+	NodeName               string              `json:"node_name"`
+	NodeIP                 string              `json:"node_ip"`
+	OpenrestyPath          string              `json:"openresty_path"`
+	OpenrestyContainerName string              `json:"openresty_container_name"`
+	OpenrestyDockerImage   string              `json:"openresty_docker_image"`
+	DockerBinary           string              `json:"docker_binary"`
+	DataDir                string              `json:"data_dir"`
+	RouteConfigPath        string              `json:"route_config_path"`
+	CertDir                string              `json:"cert_dir"`
+	OpenrestyCertDir       string              `json:"openresty_cert_dir"`
+	StatePath              string              `json:"state_path"`
+	HeartbeatInterval      MillisecondDuration `json:"heartbeat_interval"`
+	SyncInterval           MillisecondDuration `json:"sync_interval"`
+	RequestTimeout         MillisecondDuration `json:"request_timeout"`
+}
+
 func Load(path string) (*Config, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
-	cfg := &Config{}
-	if err = json.Unmarshal(data, cfg); err != nil {
+	file := &configFile{}
+	if err = json.Unmarshal(data, file); err != nil {
 		return nil, err
+	}
+	cfg := &Config{
+		ServerURL:              file.ServerURL,
+		AgentToken:             file.AgentToken,
+		DiscoveryToken:         file.DiscoveryToken,
+		NodeName:               file.NodeName,
+		NodeIP:                 file.NodeIP,
+		OpenrestyPath:          file.OpenrestyPath,
+		OpenrestyContainerName: file.OpenrestyContainerName,
+		OpenrestyDockerImage:   file.OpenrestyDockerImage,
+		DockerBinary:           file.DockerBinary,
+		DataDir:                file.DataDir,
+		RouteConfigPath:        file.RouteConfigPath,
+		CertDir:                file.CertDir,
+		OpenrestyCertDir:       file.OpenrestyCertDir,
+		StatePath:              file.StatePath,
+		HeartbeatInterval:      file.HeartbeatInterval,
+		SyncInterval:           file.SyncInterval,
+		RequestTimeout:         file.RequestTimeout,
 	}
 	cfg.configPath = path
 	applyDefaults(cfg, filepath.Dir(path))
@@ -61,11 +100,11 @@ func Load(path string) (*Config, error) {
 func applyDefaults(cfg *Config, baseDir string) {
 	baseDir = filepath.Clean(baseDir)
 	cfg.AgentVersion = AgentVersion
-	if cfg.NginxContainerName == "" {
-		cfg.NginxContainerName = "atsflare-nginx"
+	if cfg.OpenrestyContainerName == "" {
+		cfg.OpenrestyContainerName = "atsflare-openresty"
 	}
-	if cfg.NginxDockerImage == "" {
-		cfg.NginxDockerImage = "nginx:stable-alpine"
+	if cfg.OpenrestyDockerImage == "" {
+		cfg.OpenrestyDockerImage = "openresty/openresty:alpine"
 	}
 	if cfg.DockerBinary == "" {
 		cfg.DockerBinary = "docker"
@@ -79,7 +118,7 @@ func applyDefaults(cfg *Config, baseDir string) {
 	if cfg.NodeIP == "" {
 		cfg.NodeIP = detectNodeIP()
 	}
-	if cfg.NginxPath == "" {
+	if cfg.OpenrestyPath == "" {
 		cfg.RouteConfigPath = joinManagedPath(cfg.DataDir, defaultDockerRouteConfigRelativePath)
 		cfg.StatePath = joinManagedPath(cfg.DataDir, defaultDockerStateRelativePath)
 	} else {
@@ -93,11 +132,11 @@ func applyDefaults(cfg *Config, baseDir string) {
 	if cfg.CertDir == "" {
 		cfg.CertDir = joinManagedPath(cfg.DataDir, defaultCertDirRelativePath)
 	}
-	if cfg.NginxCertDir == "" {
-		if cfg.NginxPath != "" {
-			cfg.NginxCertDir = cfg.CertDir
+	if cfg.OpenrestyCertDir == "" {
+		if cfg.OpenrestyPath != "" {
+			cfg.OpenrestyCertDir = cfg.CertDir
 		} else {
-			cfg.NginxCertDir = defaultDockerNginxCertDir
+			cfg.OpenrestyCertDir = defaultDockerOpenRestyCertDir
 		}
 	}
 	if cfg.HeartbeatInterval <= 0 {

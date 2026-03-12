@@ -95,7 +95,7 @@ func TestRunnerKeepsHeartbeatWhenStartupSyncFails(t *testing.T) {
 		},
 	}
 	syncService := &fakeSyncService{
-		startupErr: errors.New("当前没有激活版本，保持当前 Nginx 配置"),
+		startupErr: errors.New("当前没有激活版本，保持当前 OpenResty 配置"),
 	}
 	runner := &Runner{
 		Config: &config.Config{
@@ -103,7 +103,7 @@ func TestRunnerKeepsHeartbeatWhenStartupSyncFails(t *testing.T) {
 			NodeName:          "edge-01",
 			NodeIP:            "10.0.0.8",
 			AgentVersion:      config.AgentVersion,
-			NginxVersion:      "1.25.5",
+			NginxVersion:      "1.27.1.2",
 			HeartbeatInterval: config.MillisecondDuration(10 * time.Millisecond),
 			SyncInterval:      config.MillisecondDuration(20 * time.Millisecond),
 		},
@@ -126,7 +126,7 @@ func TestRunnerKeepsHeartbeatWhenStartupSyncFails(t *testing.T) {
 	if loadErr != nil {
 		t.Fatalf("failed to load state: %v", loadErr)
 	}
-	if snapshot.LastError != "当前没有激活版本，保持当前 Nginx 配置" {
+	if snapshot.LastError != "当前没有激活版本，保持当前 OpenResty 配置" {
 		t.Fatalf("expected startup sync error to be recorded, got %q", snapshot.LastError)
 	}
 }
@@ -141,7 +141,7 @@ func TestRunnerDoesNotExitOnHeartbeatOrSyncError(t *testing.T) {
 		heartbeatErrs: []error{errors.New("heartbeat timeout")},
 	}
 	syncService := &fakeSyncService{
-		syncOnceErr: errors.New("nginx reload failed"),
+		syncOnceErr: errors.New("openresty reload failed"),
 		onSyncOnceCall: func(callCount int) {
 			if callCount >= 1 {
 				cancel()
@@ -154,7 +154,7 @@ func TestRunnerDoesNotExitOnHeartbeatOrSyncError(t *testing.T) {
 			NodeName:          "edge-01",
 			NodeIP:            "10.0.0.8",
 			AgentVersion:      config.AgentVersion,
-			NginxVersion:      "1.25.5",
+			NginxVersion:      "1.27.1.2",
 			HeartbeatInterval: config.MillisecondDuration(10 * time.Millisecond),
 			SyncInterval:      config.MillisecondDuration(10 * time.Millisecond),
 		},
@@ -177,7 +177,7 @@ func TestRunnerDoesNotExitOnHeartbeatOrSyncError(t *testing.T) {
 	if loadErr != nil {
 		t.Fatalf("failed to load state: %v", loadErr)
 	}
-	if snapshot.LastError != "nginx reload failed" {
+	if snapshot.LastError != "openresty reload failed" {
 		t.Fatalf("expected sync error to be recorded, got %q", snapshot.LastError)
 	}
 }
@@ -215,7 +215,7 @@ func TestRunnerDiscoveryRegisterUpdatesTokenAndNodeID(t *testing.T) {
 			NodeName:          cfg.NodeName,
 			NodeIP:            cfg.NodeIP,
 			AgentVersion:      config.AgentVersion,
-			NginxVersion:      "1.25.5",
+			NginxVersion:      "1.27.1.2",
 			HeartbeatInterval: config.MillisecondDuration(10 * time.Millisecond),
 			SyncInterval:      config.MillisecondDuration(20 * time.Millisecond),
 		},
@@ -225,7 +225,7 @@ func TestRunnerDiscoveryRegisterUpdatesTokenAndNodeID(t *testing.T) {
 	}
 	runner.Config = cfg
 	runner.Config.AgentVersion = config.AgentVersion
-	runner.Config.NginxVersion = "1.25.5"
+	runner.Config.NginxVersion = "1.27.1.2"
 	runner.Config.HeartbeatInterval = config.MillisecondDuration(10 * time.Millisecond)
 	runner.Config.SyncInterval = config.MillisecondDuration(20 * time.Millisecond)
 

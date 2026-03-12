@@ -172,8 +172,8 @@ go run ./cmd/agent -config ./agent.json
 	"server_url": "http://127.0.0.1:3000",
 	"discovery_token": "replace-with-global-discovery-token",
 	"data_dir": "./data",
-	"nginx_container_name": "atsflare-nginx",
-	"nginx_docker_image": "nginx:stable-alpine",
+	"openresty_container_name": "atsflare-openresty",
+	"openresty_docker_image": "openresty/openresty:alpine",
 	"heartbeat_interval": 30000,
 	"sync_interval": 30000,
 	"request_timeout": 10000
@@ -189,10 +189,10 @@ go run ./cmd/agent -config ./agent.json
 	"node_name": "node-01",
 	"node_ip": "192.168.1.20",
 	"data_dir": "./data",
-	"nginx_path": "/usr/sbin/nginx",
-	"route_config_path": "/etc/nginx/conf.d/atsflare_routes.conf",
-	"cert_dir": "/etc/nginx/certs",
-	"nginx_cert_dir": "/etc/nginx/certs",
+	"openresty_path": "/usr/local/openresty/nginx/sbin/openresty",
+	"route_config_path": "/usr/local/openresty/nginx/conf/conf.d/atsflare_routes.conf",
+	"cert_dir": "/usr/local/openresty/nginx/conf/certs",
+	"openresty_cert_dir": "/usr/local/openresty/nginx/conf/certs",
 	"state_path": "./data/agent-state.json",
 	"heartbeat_interval": 30000,
 	"sync_interval": 30000,
@@ -209,14 +209,14 @@ go run ./cmd/agent -config ./agent.json
 | `discovery_token` | 全局发现 Token，用于节点首次自动注册 | 与 `agent_token` 二选一 | 空 | `discovery-token-xxx` |
 | `node_name` | 节点名称 | 否 | 自动使用主机名 | `node-01` |
 | `node_ip` | 节点 IP | 否 | 自动探测第一个可用 IPv4 | `192.168.1.20` |
-| `nginx_path` | 本机 Nginx 可执行文件路径；设置后按本机 Nginx 模式运行 | 否 | 空；未设置时按 Docker Nginx 模式处理 | `/usr/sbin/nginx` |
-| `nginx_container_name` | Docker 模式下的 Nginx 容器名 | 否 | `atsflare-nginx` | `atsflare-nginx` |
-| `nginx_docker_image` | Docker 模式下用于初始化/管理的 Nginx 镜像 | 否 | `nginx:stable-alpine` | `nginx:stable-alpine` |
+| `openresty_path` | 本机 OpenResty 可执行文件路径；设置后按本机 OpenResty 模式运行 | 否 | 空；未设置时按 Docker OpenResty 模式处理 | `/usr/local/openresty/nginx/sbin/openresty` |
+| `openresty_container_name` | Docker 模式下的 OpenResty 容器名 | 否 | `atsflare-openresty` | `atsflare-openresty` |
+| `openresty_docker_image` | Docker 模式下用于初始化/管理的 OpenResty 镜像 | 否 | `openresty/openresty:alpine` | `openresty/openresty:alpine` |
 | `docker_binary` | Docker 可执行文件名或路径 | 否 | `docker` | `/usr/bin/docker` |
 | `data_dir` | Agent 数据目录，用于存储托管配置、证书和状态文件 | 否 | 配置文件所在目录下的 `data` 子目录 | `./data` |
 | `route_config_path` | 路由配置文件写入路径 | 否 | 默认为 `data_dir` 下托管路径 | `/etc/nginx/conf.d/atsflare_routes.conf` |
 | `cert_dir` | Agent 在本机写入证书文件的目录 | 否 | 默认为 `data_dir` 下托管证书目录 | `./data/etc/nginx/certs` |
-| `nginx_cert_dir` | Nginx 实际读取证书的目录 | 否 | 本机模式默认等于 `cert_dir`；Docker 模式默认 `/etc/nginx/atsflare-certs` | `/etc/nginx/certs` |
+| `openresty_cert_dir` | OpenResty 实际读取证书的目录 | 否 | 本机模式默认等于 `cert_dir`；Docker 模式默认 `/etc/nginx/atsflare-certs` | `/usr/local/openresty/nginx/conf/certs` |
 | `state_path` | Agent 本地状态文件路径 | 否 | 默认为 `data_dir` 下托管状态文件 | `./data/agent-state.json` |
 | `heartbeat_interval` | 心跳间隔 | 否 | `30000` 毫秒 | `30000` |
 | `sync_interval` | 配置同步间隔 | 否 | `30000` 毫秒 | `30000` |
@@ -229,8 +229,9 @@ go run ./cmd/agent -config ./agent.json
 	* 毫秒整数，例如 `30000`
 	* Go duration 字符串，例如 `"30s"`
 * `node_name` 与 `node_ip` 未填写时会自动探测；若自动探测失败，配置校验会报错
-* 未配置 `nginx_path` 时，默认为 Docker Nginx 模式
+* 未配置 `openresty_path` 时，默认为 Docker OpenResty 模式
 * 配置保存时，`agent_version`、`nginx_version` 由程序运行时维护，不需要写入 JSON
+* 本机模式下的 `route_config_path` 需与节点主配置文件的 include 规则保持一致
 
 ### 2.4 Agent 托管路径默认值
 
@@ -242,17 +243,17 @@ go run ./cmd/agent -config ./agent.json
 | `cert_dir` | `data_dir/etc/nginx/certs` |
 | `state_path` | `data_dir/var/lib/atsflare/agent-state.json` |
 
-Docker Nginx 模式下：
+Docker OpenResty 模式下：
 
 | 字段 | 默认值 |
 | --- | --- |
-| `nginx_cert_dir` | `/etc/nginx/atsflare-certs` |
+| `openresty_cert_dir` | `/etc/nginx/atsflare-certs` |
 
 ### 2.5 Agent 启动示例
 
-#### Docker Nginx 模式
+#### Docker OpenResty 模式
 
-适用于节点本机不直接管理宿主机 Nginx，而是通过 Docker 容器运行 Nginx。
+适用于节点本机不直接管理宿主机 OpenResty，而是通过 Docker 容器运行 OpenResty。
 
 ```json
 {
@@ -262,18 +263,18 @@ Docker Nginx 模式下：
 }
 ```
 
-#### 本机 Nginx 模式
+#### 本机 OpenResty 模式
 
-适用于节点已经安装了宿主机 Nginx，且 Agent 直接执行 `nginx -t` 与 `nginx -s reload`。
+适用于节点已经安装了宿主机 OpenResty，且 Agent 直接执行 `openresty -t` 与 `openresty -s reload`。
 
 ```json
 {
 	"server_url": "http://127.0.0.1:3000",
 	"agent_token": "replace-with-node-auth-token",
-	"nginx_path": "/usr/sbin/nginx",
-	"route_config_path": "/etc/nginx/conf.d/atsflare_routes.conf",
-	"cert_dir": "/etc/nginx/certs",
-	"nginx_cert_dir": "/etc/nginx/certs"
+	"openresty_path": "/usr/local/openresty/nginx/sbin/openresty",
+	"route_config_path": "/usr/local/openresty/nginx/conf/conf.d/atsflare_routes.conf",
+	"cert_dir": "/usr/local/openresty/nginx/conf/certs",
+	"openresty_cert_dir": "/usr/local/openresty/nginx/conf/certs"
 }
 ```
 

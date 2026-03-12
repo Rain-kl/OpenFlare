@@ -39,8 +39,14 @@ func TestLoadDockerModeUsesManagedPaths(t *testing.T) {
 	if cfg.CertDir != filepath.Join(dir, "data", defaultCertDirRelativePath) {
 		t.Fatalf("unexpected cert dir: %s", cfg.CertDir)
 	}
-	if cfg.NginxCertDir != defaultDockerNginxCertDir {
-		t.Fatalf("unexpected nginx cert dir: %s", cfg.NginxCertDir)
+	if cfg.OpenrestyContainerName != "atsflare-openresty" {
+		t.Fatalf("unexpected openresty container name: %s", cfg.OpenrestyContainerName)
+	}
+	if cfg.OpenrestyDockerImage != "openresty/openresty:alpine" {
+		t.Fatalf("unexpected openresty image: %s", cfg.OpenrestyDockerImage)
+	}
+	if cfg.OpenrestyCertDir != defaultDockerOpenRestyCertDir {
+		t.Fatalf("unexpected openresty cert dir: %s", cfg.OpenrestyCertDir)
 	}
 	if cfg.StatePath != filepath.Join(dir, "data", defaultDockerStateRelativePath) {
 		t.Fatalf("unexpected state path: %s", cfg.StatePath)
@@ -55,7 +61,7 @@ func TestLoadPathModeKeepsExplicitPaths(t *testing.T) {
 		"agent_token":       "token",
 		"node_name":         "edge-01",
 		"node_ip":           "10.0.0.8",
-		"nginx_path":        "/opt/nginx/sbin/nginx",
+		"openresty_path":    "/usr/local/openresty/nginx/sbin/openresty",
 		"route_config_path": "/tmp/routes.conf",
 		"state_path":        "/tmp/agent-state.json",
 	}
@@ -78,8 +84,8 @@ func TestLoadPathModeKeepsExplicitPaths(t *testing.T) {
 	if cfg.StatePath != "/tmp/agent-state.json" {
 		t.Fatalf("unexpected state path: %s", cfg.StatePath)
 	}
-	if cfg.NginxCertDir != cfg.CertDir {
-		t.Fatalf("expected path mode nginx cert dir to equal cert dir, got %s / %s", cfg.NginxCertDir, cfg.CertDir)
+	if cfg.OpenrestyCertDir != cfg.CertDir {
+		t.Fatalf("expected path mode openresty cert dir to equal cert dir, got %s / %s", cfg.OpenrestyCertDir, cfg.CertDir)
 	}
 }
 
@@ -164,7 +170,7 @@ func TestSavePersistsMillisecondsAndOmitsRuntimeVersions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Load failed: %v", err)
 	}
-	cfg.NginxVersion = "1.25.5"
+	cfg.NginxVersion = "1.27.1.2"
 	cfg.HeartbeatInterval = MillisecondDuration(5 * time.Second)
 	cfg.SyncInterval = MillisecondDuration(6 * time.Second)
 	cfg.RequestTimeout = MillisecondDuration(7 * time.Second)
@@ -195,6 +201,9 @@ func TestSavePersistsMillisecondsAndOmitsRuntimeVersions(t *testing.T) {
 	}
 	if decoded["request_timeout"] != float64(7000) {
 		t.Fatalf("unexpected request timeout: %#v", decoded["request_timeout"])
+	}
+	if _, ok := decoded["nginx_path"]; ok {
+		t.Fatal("legacy nginx_path should not be persisted")
 	}
 }
 
