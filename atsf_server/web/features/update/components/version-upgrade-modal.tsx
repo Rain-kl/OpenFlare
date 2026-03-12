@@ -27,7 +27,6 @@ interface VersionUpgradeModalProps {
   onClose: () => void;
   currentVersion: string;
   frontendVersion: string;
-  startTime?: number;
   release: LatestReleaseInfo | null | undefined;
   selectedChannel: ReleaseChannel;
   uploadedBinary: UploadedServerBinaryInfo | null;
@@ -65,7 +64,6 @@ export function VersionUpgradeModal({
   onClose,
   currentVersion,
   frontendVersion,
-  startTime,
   release,
   selectedChannel,
   uploadedBinary,
