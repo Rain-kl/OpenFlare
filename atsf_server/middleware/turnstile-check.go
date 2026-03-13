@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
+	"log/slog"
 	"net/http"
 	"net/url"
 )
@@ -37,7 +38,7 @@ func TurnstileCheck() gin.HandlerFunc {
 				"remoteip": {c.ClientIP()},
 			})
 			if err != nil {
-				common.SysError(err.Error())
+				slog.Error("turnstile verification request failed", "error", err)
 				c.JSON(http.StatusOK, gin.H{
 					"success": false,
 					"message": err.Error(),
@@ -49,7 +50,7 @@ func TurnstileCheck() gin.HandlerFunc {
 			var res turnstileCheckResponse
 			err = json.NewDecoder(rawRes.Body).Decode(&res)
 			if err != nil {
-				common.SysError(err.Error())
+				slog.Error("decode turnstile verification response failed", "error", err)
 				c.JSON(http.StatusOK, gin.H{
 					"success": false,
 					"message": err.Error(),

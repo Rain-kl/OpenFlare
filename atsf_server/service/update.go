@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/exec"
@@ -136,7 +137,7 @@ func ScheduleServerUpgrade(channel string) (*LatestServerRelease, error) {
 	go func(task *preparedServerUpgrade) {
 		time.Sleep(serverUpgradeDispatchDelay)
 		if err := executeServerUpgrade(task); err != nil {
-			common.SysError(fmt.Sprintf("server self-update failed: %v", err))
+			slog.Error("server self-update failed", "error", err)
 			serverUpgradeState.Lock()
 			serverUpgradeState.inProgress = false
 			serverUpgradeState.Unlock()
@@ -250,7 +251,7 @@ func ConfirmManualServerUpgrade(uploadToken string) (*UploadedServerBinary, erro
 	go func(task *manualServerBinaryCandidate) {
 		time.Sleep(serverUpgradeDispatchDelay)
 		if err := executeManualServerUpgrade(task); err != nil {
-			common.SysError(fmt.Sprintf("server manual upgrade failed: %v", err))
+			slog.Error("server manual upgrade failed", "error", err)
 			serverUpgradeState.Lock()
 			serverUpgradeState.inProgress = false
 			serverUpgradeState.Unlock()
@@ -501,12 +502,12 @@ func executeServerUpgrade(task *preparedServerUpgrade) error {
 		return err
 	}
 
-	common.SysLog("server self-update starting: from=" + strings.TrimSpace(common.Version) + " to=" + task.release.TagName)
+	slog.Info("server self-update starting", "from", strings.TrimSpace(common.Version), "to", task.release.TagName)
 	return serverBinaryUpgradeExecutor(task.execPath, tmpPath)
 }
 
 func executeManualServerUpgrade(task *manualServerBinaryCandidate) error {
-	common.SysLog("server manual self-update starting: from=" + strings.TrimSpace(task.CurrentVersion) + " to=" + strings.TrimSpace(task.DetectedVersion))
+	slog.Info("server manual self-update starting", "from", strings.TrimSpace(task.CurrentVersion), "to", strings.TrimSpace(task.DetectedVersion))
 	return serverBinaryUpgradeExecutor(task.ExecPath, task.TempPath)
 }
 

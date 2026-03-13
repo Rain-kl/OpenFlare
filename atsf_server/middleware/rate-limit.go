@@ -4,6 +4,7 @@ import (
 	"atsflare/common"
 	"context"
 	"github.com/gin-gonic/gin"
+	"log/slog"
 	"net/http"
 	"time"
 )
@@ -18,7 +19,7 @@ func redisRateLimiter(c *gin.Context, maxRequestNum int, duration int64, mark st
 	key := "rateLimit:" + mark + c.ClientIP()
 	listLength, err := rdb.LLen(ctx, key).Result()
 	if err != nil {
-		common.SysError(err.Error())
+		slog.Error("redis rate limiter llen failed", "error", err)
 		c.Status(http.StatusInternalServerError)
 		c.Abort()
 		return
@@ -30,7 +31,7 @@ func redisRateLimiter(c *gin.Context, maxRequestNum int, duration int64, mark st
 		oldTimeStr, _ := rdb.LIndex(ctx, key, -1).Result()
 		oldTime, err := time.Parse(timeFormat, oldTimeStr)
 		if err != nil {
-			common.SysError(err.Error())
+			slog.Error("parse redis rate limiter old timestamp failed", "error", err)
 			c.Status(http.StatusInternalServerError)
 			c.Abort()
 			return
@@ -38,7 +39,7 @@ func redisRateLimiter(c *gin.Context, maxRequestNum int, duration int64, mark st
 		nowTimeStr := time.Now().Format(timeFormat)
 		nowTime, err := time.Parse(timeFormat, nowTimeStr)
 		if err != nil {
-			common.SysError(err.Error())
+			slog.Error("parse redis rate limiter current timestamp failed", "error", err)
 			c.Status(http.StatusInternalServerError)
 			c.Abort()
 			return

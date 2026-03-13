@@ -3,6 +3,7 @@ package model
 import (
 	"atsflare/common"
 	"github.com/glebarez/sqlite"
+	"log/slog"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	"os"
@@ -24,7 +25,7 @@ func createRootAccountIfNeed() error {
 	var user User
 	//if user.Status != common.UserStatusEnabled {
 	if err := DB.First(&user).Error; err != nil {
-		common.SysLog("no user exists, create a root user for you: username is root, password is 123456")
+		slog.Info("no user exists, create a root user", "username", "root")
 		hashedPassword, err := common.Password2Hash("123456")
 		if err != nil {
 			return err
@@ -58,7 +59,7 @@ func InitDB() (err error) {
 		db, err = gorm.Open(sqlite.Open(common.SQLitePath), &gorm.Config{
 			PrepareStmt: true, // precompile SQL
 		})
-		common.SysLog("SQL_DSN not set, using SQLite as database")
+		slog.Info("SQL_DSN not set, using SQLite as database")
 	}
 	if err == nil {
 		DB = db
@@ -104,7 +105,8 @@ func InitDB() (err error) {
 		err = createRootAccountIfNeed()
 		return err
 	} else {
-		common.FatalLog(err)
+		slog.Error("open database failed", "error", err)
+		os.Exit(1)
 	}
 	return err
 }

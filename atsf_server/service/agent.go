@@ -5,6 +5,7 @@ import (
 	"atsflare/model"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -111,7 +112,7 @@ func RegisterNode(node *model.Node, payload AgentNodePayload) (*AgentRegistratio
 }
 
 func HeartbeatNode(node *model.Node, payload AgentNodePayload) (*HeartbeatResponse, error) {
-	common.SysLog("agent heartbeat received: node_id=" + node.NodeID + " current_version=" + strings.TrimSpace(payload.CurrentVersion))
+	slog.Info("agent heartbeat received", "node_id", node.NodeID, "current_version", strings.TrimSpace(payload.CurrentVersion))
 	payload.NodeID = node.NodeID
 	payload = normalizeAgentNodePayload(payload)
 	if err := validateAgentNodePayload(payload); err != nil {
@@ -165,7 +166,7 @@ func GetActiveConfigMetaForAgent() (*ActiveConfigMeta, error) {
 func GetActiveConfigForAgent() (*AgentConfigResponse, error) {
 	version, err := model.GetActiveConfigVersion()
 	if err != nil {
-		common.SysError("agent requested active config but no active version is available")
+		slog.Error("agent requested active config but no active version is available")
 		return nil, err
 	}
 	var supportFiles []SupportFile
@@ -174,7 +175,7 @@ func GetActiveConfigForAgent() (*AgentConfigResponse, error) {
 			return nil, err
 		}
 	}
-	common.SysLog("agent fetched active config: version=" + version.Version + " checksum=" + version.Checksum)
+	slog.Info("agent fetched active config", "version", version.Version, "checksum", version.Checksum)
 	return &AgentConfigResponse{
 		Version:        version.Version,
 		Checksum:       version.Checksum,
@@ -204,7 +205,7 @@ func ReportApplyLog(payload ApplyLogPayload) (*model.ApplyLog, error) {
 	if payload.Result != ApplyResultOK && payload.Result != ApplyResultFailed {
 		return nil, errors.New("result 仅支持 success 或 failed")
 	}
-	common.SysLog("agent apply log received: node_id=" + payload.NodeID + " version=" + payload.Version + " result=" + payload.Result)
+	slog.Info("agent apply log received", "node_id", payload.NodeID, "version", payload.Version, "result", payload.Result)
 
 	log := &model.ApplyLog{
 		NodeID:              payload.NodeID,
@@ -239,9 +240,9 @@ func ReportApplyLog(payload ApplyLogPayload) (*model.ApplyLog, error) {
 		return nil, err
 	}
 	if payload.Result == ApplyResultOK {
-		common.SysLog("agent apply reported success: node_id=" + payload.NodeID + " version=" + payload.Version)
+		slog.Info("agent apply reported success", "node_id", payload.NodeID, "version", payload.Version)
 	} else {
-		common.SysError("agent apply reported failure: node_id=" + payload.NodeID + " version=" + payload.Version + " message=" + payload.Message)
+		slog.Error("agent apply reported failure", "node_id", payload.NodeID, "version", payload.Version, "message", payload.Message)
 	}
 	return log, nil
 }
@@ -256,9 +257,9 @@ func ListNodeViews() ([]*NodeView, error) {
 		computedStatus := computeNodeStatus(node)
 		if node.Status != computedStatus {
 			if computedStatus == NodeStatusOffline {
-				common.SysError("node offline: node_id=" + node.NodeID + " name=" + node.Name + " ip=" + node.IP + " last_seen_at=" + node.LastSeenAt.Format(time.RFC3339))
+				slog.Error("node offline", "node_id", node.NodeID, "name", node.Name, "ip", node.IP, "last_seen_at", node.LastSeenAt.Format(time.RFC3339))
 			} else if computedStatus == NodeStatusOnline {
-				common.SysLog("node online: node_id=" + node.NodeID + " name=" + node.Name + " ip=" + node.IP)
+				slog.Info("node online", "node_id", node.NodeID, "name", node.Name, "ip", node.IP)
 			}
 			_ = model.DB.Model(node).Update("status", computedStatus).Error
 			node.Status = computedStatus

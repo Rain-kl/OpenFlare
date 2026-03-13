@@ -3,6 +3,7 @@ package common
 import (
 	"context"
 	"github.com/go-redis/redis/v8"
+	"log/slog"
 	"os"
 	"time"
 )
@@ -14,7 +15,7 @@ var RedisEnabled = true
 func InitRedisClient() (err error) {
 	if os.Getenv("REDIS_CONN_STRING") == "" {
 		RedisEnabled = false
-		SysLog("REDIS_CONN_STRING not set, Redis is not enabled")
+		slog.Info("redis disabled because REDIS_CONN_STRING is not set")
 		return nil
 	}
 	opt, err := redis.ParseURL(os.Getenv("REDIS_CONN_STRING"))

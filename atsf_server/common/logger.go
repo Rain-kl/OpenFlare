@@ -192,25 +192,6 @@ func SetupGinLog() {
 	ensureLogger()
 }
 
-func SysLog(s string) {
-	if !shouldLog(logLevelInfo) {
-		return
-	}
-	ensureLogger().Info(s)
-}
-
-func SysError(s string) {
-	if !shouldLog(logLevelError) {
-		return
-	}
-	ensureLogger().Error(s)
-}
-
-func FatalLog(v ...any) {
-	ensureLogger().Error("fatal error", "details", v)
-	os.Exit(1)
-}
-
 func levelLabel(level slog.Level) string {
 	switch {
 	case level <= slog.LevelDebug:

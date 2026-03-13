@@ -12,6 +12,7 @@ import (
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-contrib/sessions/redis"
 	"github.com/gin-gonic/gin"
+	"log/slog"
 	"os"
 	"strconv"
 )
@@ -37,26 +38,29 @@ var indexPage []byte
 // @description Agent API 使用节点专属 Agent Token 或全局 Discovery Token
 func main() {
 	common.SetupGinLog()
-	common.SysLog("ATSFlare " + common.Version + " started")
+	slog.Info("ATSFlare started", "version", common.Version)
 	if os.Getenv("GIN_MODE") != "debug" {
 		gin.SetMode(gin.ReleaseMode)
 	}
 	// Initialize SQL Database
 	err := model.InitDB()
 	if err != nil {
-		common.FatalLog(err)
+		slog.Error("initialize database failed", "error", err)
+		os.Exit(1)
 	}
 	defer func() {
 		err := model.CloseDB()
 		if err != nil {
-			common.FatalLog(err)
+			slog.Error("close database failed", "error", err)
+			os.Exit(1)
 		}
 	}()
 
 	// Initialize Redis
 	err = common.InitRedisClient()
 	if err != nil {
-		common.FatalLog(err)
+		slog.Error("initialize redis failed", "error", err)
+		os.Exit(1)
 	}
 
 	// Initialize options
@@ -82,11 +86,11 @@ func main() {
 	if port == "" {
 		port = strconv.Itoa(*common.Port)
 	}
-	common.SysLog(fmt.Sprintf("server config: port=%s gin_mode=%s log_level=%s sqlite_path=%s redis_enabled=%t upload_path=%s log_dir=%s agent_token_configured=%t node_offline_threshold=%s", port, gin.Mode(), common.GetLogLevel(), common.SQLitePath, common.RedisEnabled, common.UploadPath, valueOrDefault(*common.LogDir, "stdout"), common.AgentToken != "", common.NodeOfflineThreshold))
-	common.SysLog(fmt.Sprintf("server listening on :%s", port))
+	slog.Info("server config", "port", port, "gin_mode", gin.Mode(), "log_level", common.GetLogLevel(), "sqlite_path", common.SQLitePath, "redis_enabled", common.RedisEnabled, "upload_path", common.UploadPath, "log_dir", valueOrDefault(*common.LogDir, "stdout"), "agent_token_configured", common.AgentToken != "", "node_offline_threshold", common.NodeOfflineThreshold)
+	slog.Info("server listening", "address", fmt.Sprintf(":%s", port))
 	err = server.Run(":" + port)
 	if err != nil {
-		common.SysError(err.Error())
+		slog.Error("server run failed", "error", err)
 	}
 }
 
