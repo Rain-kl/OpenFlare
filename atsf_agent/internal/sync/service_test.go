@@ -18,8 +18,9 @@ type fakeExecutor struct {
 }
 
 type fakeClient struct {
-	config  protocol.ActiveConfigResponse
-	reports []protocol.ApplyLogPayload
+	config     protocol.ActiveConfigResponse
+	reports    []protocol.ApplyLogPayload
+	fetchCalls int
 }
 
 type fakeManager struct {
@@ -54,6 +55,7 @@ func (f *fakeExecutor) Restart(ctx context.Context) error {
 }
 
 func (f *fakeClient) GetActiveConfig(ctx context.Context) (*protocol.ActiveConfigResponse, error) {
+	f.fetchCalls++
 	return &f.config, nil
 }
 
@@ -109,7 +111,10 @@ func TestSyncOnceSuccess(t *testing.T) {
 		Executor:        &fakeExecutor{},
 	}, stateStore)
 
-	if err = service.SyncOnce(context.Background()); err != nil {
+	if err = service.SyncOnce(context.Background(), &protocol.ActiveConfigMeta{
+		Version:  client.config.Version,
+		Checksum: client.config.Checksum,
+	}); err != nil {
 		t.Fatalf("SyncOnce failed: %v", err)
 	}
 
@@ -192,7 +197,10 @@ func TestSyncOnceRollbackOnNginxFailure(t *testing.T) {
 		},
 	}, stateStore)
 
-	err = service.SyncOnce(context.Background())
+	err = service.SyncOnce(context.Background(), &protocol.ActiveConfigMeta{
+		Version:  client.config.Version,
+		Checksum: client.config.Checksum,
+	})
 	if err == nil {
 		t.Fatal("expected SyncOnce to fail when nginx test fails")
 	}
@@ -255,7 +263,10 @@ func TestSyncOnStartupRecreatesRuntimeWhenChecksumMatches(t *testing.T) {
 
 	manager := &fakeManager{currentChecksum: "checksum-3"}
 	service := New(client, manager, stateStore)
-	if err = service.SyncOnStartup(context.Background()); err != nil {
+	if err = service.SyncOnStartup(context.Background(), &protocol.ActiveConfigMeta{
+		Version:  client.config.Version,
+		Checksum: client.config.Checksum,
+	}); err != nil {
 		t.Fatalf("SyncOnStartup failed: %v", err)
 	}
 	if len(manager.ensureCalls) != 1 || !manager.ensureCalls[0] {
@@ -301,7 +312,10 @@ func TestSyncOnStartupRecordsRuntimeFailure(t *testing.T) {
 		ensureErr:       context.DeadlineExceeded,
 	}
 	service := New(client, manager, stateStore)
-	if err = service.SyncOnStartup(context.Background()); err == nil {
+	if err = service.SyncOnStartup(context.Background(), &protocol.ActiveConfigMeta{
+		Version:  client.config.Version,
+		Checksum: client.config.Checksum,
+	}); err == nil {
 		t.Fatal("expected SyncOnStartup to fail when runtime recreation fails")
 	}
 	snapshot, err := stateStore.Load()
@@ -313,5 +327,45 @@ func TestSyncOnStartupRecordsRuntimeFailure(t *testing.T) {
 	}
 	if snapshot.OpenrestyMessage == "" {
 		t.Fatal("expected runtime error message to be recorded")
+	}
+}
+
+func TestSyncOnceSkipsFetchWhenHeartbeatChecksumMatches(t *testing.T) {
+	client := &fakeClient{
+		config: protocol.ActiveConfigResponse{
+			Version:        "20260309-005",
+			Checksum:       "checksum-5",
+			MainConfig:     "worker_processes auto;",
+			RouteConfig:    "server { listen 84; }",
+			RenderedConfig: "server { listen 84; }",
+			CreatedAt:      time.Now().Format(time.RFC3339),
+		},
+	}
+	stateStore := state.NewStore(filepath.Join(t.TempDir(), "state.json"))
+	nodeID, err := stateStore.EnsureNodeID()
+	if err != nil {
+		t.Fatalf("EnsureNodeID failed: %v", err)
+	}
+	if err = stateStore.Save(&state.Snapshot{
+		NodeID:          nodeID,
+		CurrentVersion:  client.config.Version,
+		CurrentChecksum: client.config.Checksum,
+	}); err != nil {
+		t.Fatalf("failed to seed state: %v", err)
+	}
+
+	manager := &fakeManager{currentChecksum: client.config.Checksum}
+	service := New(client, manager, stateStore)
+	if err = service.SyncOnce(context.Background(), &protocol.ActiveConfigMeta{
+		Version:  client.config.Version,
+		Checksum: client.config.Checksum,
+	}); err != nil {
+		t.Fatalf("SyncOnce failed: %v", err)
+	}
+	if client.fetchCalls != 0 {
+		t.Fatalf("expected no active config fetch when heartbeat checksum matches, got %d", client.fetchCalls)
+	}
+	if len(client.reports) != 0 {
+		t.Fatal("expected no apply log when no config change is needed")
 	}
 }

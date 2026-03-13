@@ -57,7 +57,6 @@ type AgentConfigResponse struct {
 
 type AgentSettings struct {
 	HeartbeatInterval   int    `json:"heartbeat_interval"`
-	SyncInterval        int    `json:"sync_interval"`
 	AutoUpdate          bool   `json:"auto_update"`
 	UpdateRepo          string `json:"update_repo"`
 	UpdateNow           bool   `json:"update_now"`
@@ -66,9 +65,15 @@ type AgentSettings struct {
 	RestartOpenrestyNow bool   `json:"restart_openresty_now"`
 }
 
+type ActiveConfigMeta struct {
+	Version  string `json:"version"`
+	Checksum string `json:"checksum"`
+}
+
 type HeartbeatResponse struct {
-	Node          *model.Node    `json:"node"`
-	AgentSettings *AgentSettings `json:"agent_settings"`
+	Node          *model.Node       `json:"node"`
+	AgentSettings *AgentSettings    `json:"agent_settings"`
+	ActiveConfig  *ActiveConfigMeta `json:"active_config"`
 }
 
 type NodeView struct {
@@ -124,11 +129,14 @@ func HeartbeatNode(node *model.Node, payload AgentNodePayload) (*HeartbeatRespon
 	if err := model.DB.Model(node).Select("ip", "agent_version", "nginx_version", "openresty_status", "openresty_message", "status", "current_version", "last_seen_at", "last_error", "update_requested", "update_channel", "update_tag", "restart_openresty_requested").Updates(node).Error; err != nil {
 		return nil, err
 	}
+	activeConfig, err := GetActiveConfigMetaForAgent()
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, err
+	}
 	return &HeartbeatResponse{
 		Node: node,
 		AgentSettings: &AgentSettings{
 			HeartbeatInterval:   common.AgentHeartbeatInterval,
-			SyncInterval:        common.AgentSyncInterval,
 			AutoUpdate:          node.AutoUpdateEnabled,
 			UpdateRepo:          common.AgentUpdateRepo,
 			UpdateNow:           updateNow,
@@ -136,6 +144,21 @@ func HeartbeatNode(node *model.Node, payload AgentNodePayload) (*HeartbeatRespon
 			UpdateTag:           updateTag,
 			RestartOpenrestyNow: restartOpenrestyNow,
 		},
+		ActiveConfig: activeConfig,
+	}, nil
+}
+
+func GetActiveConfigMetaForAgent() (*ActiveConfigMeta, error) {
+	version, err := model.GetActiveConfigVersion()
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, err
+		}
+		return nil, err
+	}
+	return &ActiveConfigMeta{
+		Version:  version.Version,
+		Checksum: version.Checksum,
 	}, nil
 }
 

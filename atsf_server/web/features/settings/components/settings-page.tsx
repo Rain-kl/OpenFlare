@@ -68,8 +68,7 @@ const defaultSystemFields = {
 };
 
 const defaultOperationFields = {
-  AgentHeartbeatInterval: '30000',
-  AgentSyncInterval: '30000',
+  AgentHeartbeatInterval: '10000',
   NodeOfflineThreshold: '120000',
   AgentUpdateRepo: 'Rain-kl/ATSFlare',
   OpenRestyWorkerProcesses: 'auto',
@@ -335,8 +334,7 @@ export function SettingsPage() {
     });
 
     setOperationFields({
-      AgentHeartbeatInterval: optionMap.AgentHeartbeatInterval ?? '30000',
-      AgentSyncInterval: optionMap.AgentSyncInterval ?? '30000',
+      AgentHeartbeatInterval: optionMap.AgentHeartbeatInterval ?? '10000',
       NodeOfflineThreshold: optionMap.NodeOfflineThreshold ?? '120000',
       AgentUpdateRepo: optionMap.AgentUpdateRepo ?? 'Rain-kl/ATSFlare',
       OpenRestyWorkerProcesses: optionMap.OpenRestyWorkerProcesses ?? 'auto',
@@ -942,10 +940,6 @@ export function SettingsPage() {
                           operationFields.AgentHeartbeatInterval,
                           10,
                         );
-                        const sync = Number.parseInt(
-                          operationFields.AgentSyncInterval,
-                          10,
-                        );
                         const offline = Number.parseInt(
                           operationFields.NodeOfflineThreshold,
                           10,
@@ -954,9 +948,6 @@ export function SettingsPage() {
                         if (Number.isNaN(heartbeat) || heartbeat < 5000) {
                           throw new Error('心跳间隔不能小于 5000 毫秒。');
                         }
-                        if (Number.isNaN(sync) || sync < 5000) {
-                          throw new Error('同步间隔不能小于 5000 毫秒。');
-                        }
                         if (Number.isNaN(offline) || offline < 10000) {
                           throw new Error('离线阈值不能小于 10000 毫秒。');
                         }
@@ -964,7 +955,6 @@ export function SettingsPage() {
                         await saveOptionEntries(
                           [
                             ['AgentHeartbeatInterval', String(heartbeat)],
-                            ['AgentSyncInterval', String(sync)],
                             ['NodeOfflineThreshold', String(offline)],
                           ],
                           'Agent 运行参数已保存。',
@@ -980,7 +970,7 @@ export function SettingsPage() {
                 </div>
               }
             >
-              <div className="grid gap-5 md:grid-cols-3">
+              <div className="grid gap-5 md:grid-cols-2">
                 <ResourceField
                   label={`心跳间隔 (${formatDurationLabel(operationFields.AgentHeartbeatInterval)})`}
                 >
@@ -991,20 +981,6 @@ export function SettingsPage() {
                       setOperationFields((previous) => ({
                         ...previous,
                         AgentHeartbeatInterval: event.target.value,
-                      }))
-                    }
-                  />
-                </ResourceField>
-                <ResourceField
-                  label={`同步间隔 (${formatDurationLabel(operationFields.AgentSyncInterval)})`}
-                >
-                  <ResourceInput
-                    type="number"
-                    value={operationFields.AgentSyncInterval}
-                    onChange={(event) =>
-                      setOperationFields((previous) => ({
-                        ...previous,
-                        AgentSyncInterval: event.target.value,
                       }))
                     }
                   />

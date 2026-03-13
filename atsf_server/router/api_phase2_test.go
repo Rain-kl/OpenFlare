@@ -284,9 +284,10 @@ func TestPhase2AgentLifecycle(t *testing.T) {
 		t.Fatalf("unexpected heartbeat status %d: %s", restartHeartbeatRecorder.Code, restartHeartbeatRecorder.Body.String())
 	}
 	var restartHeartbeatBody struct {
-		Success       bool                  `json:"success"`
-		Message       string                `json:"message"`
-		AgentSettings service.AgentSettings `json:"agent_settings"`
+		Success       bool                      `json:"success"`
+		Message       string                    `json:"message"`
+		AgentSettings service.AgentSettings     `json:"agent_settings"`
+		ActiveConfig  *service.ActiveConfigMeta `json:"active_config"`
 	}
 	if err = json.Unmarshal(restartHeartbeatRecorder.Body.Bytes(), &restartHeartbeatBody); err != nil {
 		t.Fatalf("failed to decode heartbeat response: %v", err)
@@ -296,6 +297,9 @@ func TestPhase2AgentLifecycle(t *testing.T) {
 	}
 	if !restartHeartbeatBody.AgentSettings.RestartOpenrestyNow {
 		t.Fatal("expected heartbeat response to instruct openresty restart")
+	}
+	if restartHeartbeatBody.ActiveConfig == nil || restartHeartbeatBody.ActiveConfig.Version == "" || restartHeartbeatBody.ActiveConfig.Checksum == "" {
+		t.Fatal("expected heartbeat response to include active config summary")
 	}
 
 	logsResp := performJSONRequest(t, engine, adminToken, http.MethodGet, "/api/apply-logs/?node_id="+createdNode.NodeID, nil)

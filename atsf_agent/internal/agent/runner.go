@@ -14,13 +14,13 @@ import (
 
 type HeartbeatService interface {
 	Register(ctx context.Context, payload protocol.NodePayload) (*protocol.RegisterNodeResponse, error)
-	Heartbeat(ctx context.Context, payload protocol.NodePayload) (*protocol.AgentSettings, error)
+	Heartbeat(ctx context.Context, payload protocol.NodePayload) (*protocol.HeartbeatResult, error)
 	SetToken(token string)
 }
 
 type SyncService interface {
-	SyncOnStartup(ctx context.Context) error
-	SyncOnce(ctx context.Context) error
+	SyncOnStartup(ctx context.Context, target *protocol.ActiveConfigMeta) error
+	SyncOnce(ctx context.Context, target *protocol.ActiveConfigMeta) error
 }
 
 type Updater interface {
@@ -61,20 +61,24 @@ func (r *Runner) Run(ctx context.Context) error {
 	}
 	log.Printf("agent runner started: node_id=%s node=%s ip=%s", nodeID, r.Config.NodeName, r.Config.NodeIP)
 	if r.hasAgentToken() {
-		if err = r.SyncService.SyncOnStartup(ctx); err != nil {
-			r.recordSyncError(err)
-			log.Printf("agent startup sync failed: %v", err)
-		} else {
-			log.Printf("agent startup sync completed")
-		}
 		r.refreshOpenrestyHealth(ctx)
-		settings, hbErr := r.HeartbeatService.Heartbeat(ctx, r.nodePayload(nodeID))
+		heartbeatResult, hbErr := r.HeartbeatService.Heartbeat(ctx, r.nodePayload(nodeID))
 		if hbErr != nil {
 			log.Printf("agent startup heartbeat failed: %v", hbErr)
 		} else {
+			if heartbeatResult == nil {
+				heartbeatResult = &protocol.HeartbeatResult{}
+			}
 			log.Printf("agent startup heartbeat succeeded: node_id=%s", nodeID)
-			r.applySettings(settings)
+			r.applySettings(heartbeatResult.AgentSettings)
+			if err = r.SyncService.SyncOnStartup(ctx, heartbeatResult.ActiveConfig); err != nil {
+				r.recordSyncError(err)
+				log.Printf("agent startup sync failed: %v", err)
+			} else {
+				log.Printf("agent startup sync completed")
+			}
 			r.tryRestartOpenresty(ctx)
+			r.tryAutoUpdate(ctx)
 		}
 	} else if err = r.tryRegister(ctx, &nodeID); err != nil {
 		log.Printf("agent initial discovery register failed: %v", err)
@@ -82,8 +86,6 @@ func (r *Runner) Run(ctx context.Context) error {
 
 	heartbeatTicker := time.NewTicker(r.Config.HeartbeatInterval.Duration())
 	defer heartbeatTicker.Stop()
-	syncTicker := time.NewTicker(r.Config.SyncInterval.Duration())
-	defer syncTicker.Stop()
 
 	for {
 		select {
@@ -98,24 +100,22 @@ func (r *Runner) Run(ctx context.Context) error {
 				continue
 			}
 			r.refreshOpenrestyHealth(ctx)
-			settings, hbErr := r.HeartbeatService.Heartbeat(ctx, r.nodePayload(nodeID))
+			heartbeatResult, hbErr := r.HeartbeatService.Heartbeat(ctx, r.nodePayload(nodeID))
 			if hbErr != nil {
 				log.Printf("agent heartbeat failed: %v", hbErr)
 			} else {
-				if changed := r.applySettings(settings); changed {
+				if heartbeatResult == nil {
+					heartbeatResult = &protocol.HeartbeatResult{}
+				}
+				if changed := r.applySettings(heartbeatResult.AgentSettings); changed {
 					heartbeatTicker.Reset(r.Config.HeartbeatInterval.Duration())
-					syncTicker.Reset(r.Config.SyncInterval.Duration())
+				}
+				if err = r.SyncService.SyncOnce(ctx, heartbeatResult.ActiveConfig); err != nil {
+					r.recordSyncError(err)
+					log.Printf("agent sync failed: %v", err)
 				}
 				r.tryRestartOpenresty(ctx)
 				r.tryAutoUpdate(ctx)
-			}
-		case <-syncTicker.C:
-			if !r.hasAgentToken() {
-				continue
-			}
-			if err = r.SyncService.SyncOnce(ctx); err != nil {
-				r.recordSyncError(err)
-				log.Printf("agent sync failed: %v", err)
 			}
 		}
 	}
@@ -135,14 +135,6 @@ func (r *Runner) applySettings(settings *protocol.AgentSettings) bool {
 		if newInterval != r.Config.HeartbeatInterval {
 			log.Printf("agent heartbeat interval updated: %s -> %s", r.Config.HeartbeatInterval, newInterval)
 			r.Config.HeartbeatInterval = newInterval
-			changed = true
-		}
-	}
-	if settings.SyncInterval > 0 {
-		newInterval := config.MillisecondDuration(time.Duration(settings.SyncInterval) * time.Millisecond)
-		if newInterval != r.Config.SyncInterval {
-			log.Printf("agent sync interval updated: %s -> %s", r.Config.SyncInterval, newInterval)
-			r.Config.SyncInterval = newInterval
 			changed = true
 		}
 	}
@@ -226,12 +218,24 @@ func (r *Runner) tryRegister(ctx context.Context, nodeID *string) error {
 	r.HeartbeatService.SetToken(response.AgentToken)
 	*nodeID = response.NodeID
 	log.Printf("agent discovery registration succeeded: node_id=%s", response.NodeID)
-	if err = r.SyncService.SyncOnStartup(ctx); err != nil {
+	r.refreshOpenrestyHealth(ctx)
+	heartbeatResult, heartbeatErr := r.HeartbeatService.Heartbeat(ctx, r.nodePayload(*nodeID))
+	if heartbeatErr != nil {
+		log.Printf("agent post-register heartbeat failed: %v", heartbeatErr)
+		return nil
+	}
+	if heartbeatResult == nil {
+		heartbeatResult = &protocol.HeartbeatResult{}
+	}
+	r.applySettings(heartbeatResult.AgentSettings)
+	if err = r.SyncService.SyncOnStartup(ctx, heartbeatResult.ActiveConfig); err != nil {
 		r.recordSyncError(err)
 		log.Printf("agent post-register startup sync failed: %v", err)
 	} else {
 		log.Printf("agent post-register startup sync completed")
 	}
+	r.tryRestartOpenresty(ctx)
+	r.tryAutoUpdate(ctx)
 	return nil
 }
 

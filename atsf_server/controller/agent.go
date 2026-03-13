@@ -91,6 +91,7 @@ func AgentHeartbeat(c *gin.Context) {
 		"message":        "",
 		"data":           node.Node,
 		"agent_settings": node.AgentSettings,
+		"active_config":  node.ActiveConfig,
 	})
 }
 

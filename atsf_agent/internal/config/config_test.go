@@ -142,7 +142,6 @@ func TestLoadUsesMillisecondsForIntervals(t *testing.T) {
 		"node_name":          "edge-01",
 		"node_ip":            "10.0.0.8",
 		"heartbeat_interval": 30000,
-		"sync_interval":      45000,
 		"request_timeout":    1500,
 	}
 	data, err := json.Marshal(payload)
@@ -160,9 +159,6 @@ func TestLoadUsesMillisecondsForIntervals(t *testing.T) {
 
 	if cfg.HeartbeatInterval.Duration() != 30*time.Second {
 		t.Fatalf("unexpected heartbeat interval: %s", cfg.HeartbeatInterval)
-	}
-	if cfg.SyncInterval.Duration() != 45*time.Second {
-		t.Fatalf("unexpected sync interval: %s", cfg.SyncInterval)
 	}
 	if cfg.RequestTimeout.Duration() != 1500*time.Millisecond {
 		t.Fatalf("unexpected request timeout: %s", cfg.RequestTimeout)
@@ -182,7 +178,6 @@ func TestSavePersistsMillisecondsAndOmitsRuntimeVersions(t *testing.T) {
 	}
 	cfg.NginxVersion = "1.27.1.2"
 	cfg.HeartbeatInterval = MillisecondDuration(5 * time.Second)
-	cfg.SyncInterval = MillisecondDuration(6 * time.Second)
 	cfg.RequestTimeout = MillisecondDuration(7 * time.Second)
 
 	if err = cfg.Save(); err != nil {
@@ -205,9 +200,6 @@ func TestSavePersistsMillisecondsAndOmitsRuntimeVersions(t *testing.T) {
 	}
 	if decoded["heartbeat_interval"] != float64(5000) {
 		t.Fatalf("unexpected heartbeat interval: %#v", decoded["heartbeat_interval"])
-	}
-	if decoded["sync_interval"] != float64(6000) {
-		t.Fatalf("unexpected sync interval: %#v", decoded["sync_interval"])
 	}
 	if decoded["request_timeout"] != float64(7000) {
 		t.Fatalf("unexpected request timeout: %#v", decoded["request_timeout"])

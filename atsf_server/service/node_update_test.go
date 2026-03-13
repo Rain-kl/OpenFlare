@@ -78,6 +78,17 @@ func TestHeartbeatNodeReturnsPreviewUpdateSettings(t *testing.T) {
 	if err := node.Insert(); err != nil {
 		t.Fatalf("failed to seed node: %v", err)
 	}
+	if err := model.DB.Create(&model.ConfigVersion{
+		Version:        "20260313-001",
+		SnapshotJSON:   "{}",
+		MainConfig:     "worker_processes auto;",
+		RenderedConfig: "server { listen 80; }",
+		Checksum:       "checksum-active-1",
+		IsActive:       true,
+		CreatedBy:      "root",
+	}).Error; err != nil {
+		t.Fatalf("failed to seed active config version: %v", err)
+	}
 
 	resp, err := HeartbeatNode(node, AgentNodePayload{
 		NodeID:           node.NodeID,
@@ -93,6 +104,12 @@ func TestHeartbeatNodeReturnsPreviewUpdateSettings(t *testing.T) {
 	}
 	if resp.AgentSettings == nil {
 		t.Fatal("expected agent settings in heartbeat response")
+	}
+	if resp.ActiveConfig == nil {
+		t.Fatal("expected active config summary in heartbeat response")
+	}
+	if resp.ActiveConfig.Version == "" || resp.ActiveConfig.Checksum == "" {
+		t.Fatal("expected active config summary to include version and checksum")
 	}
 	if !resp.AgentSettings.UpdateNow {
 		t.Fatal("expected update_now to be true")

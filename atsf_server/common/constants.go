@@ -51,8 +51,7 @@ var AgentDiscoveryToken = ""
 var NodeOfflineThreshold = 2 * time.Minute
 
 // V3 operational settings (hot-reloadable via Option table)
-var AgentHeartbeatInterval = 30000 // milliseconds
-var AgentSyncInterval = 30000      // milliseconds
+var AgentHeartbeatInterval = 10000 // milliseconds
 var AgentUpdateRepo = "Rain-kl/ATSFlare"
 
 // V5 OpenResty performance settings (hot-reloadable via Option table)

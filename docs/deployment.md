@@ -152,8 +152,7 @@ swag init -g main.go -o docs
   "data_dir": "./data",
   "openresty_container_name": "atsflare-openresty",
   "openresty_docker_image": "openresty/openresty:alpine",
-  "heartbeat_interval": 30000,
-  "sync_interval": 30000,
+  "heartbeat_interval": 10000,
   "request_timeout": 10000
 }
 ```
@@ -167,8 +166,7 @@ swag init -g main.go -o docs
   "data_dir": "./data",
   "openresty_container_name": "atsflare-openresty",
   "openresty_docker_image": "openresty/openresty:alpine",
-  "heartbeat_interval": 30000,
-  "sync_interval": 30000,
+  "heartbeat_interval": 10000,
   "request_timeout": 10000
 }
 ```
@@ -232,9 +230,9 @@ go build -o atsflare-agent ./cmd/agent
 
 预期行为：
 
-1. Agent 完成心跳与同步
+1. Agent 完成心跳
 2. 自动注册模式下完成 Token 置换
-3. 拉取激活版本
+3. 心跳响应返回激活版本摘要；若版本或 checksum 不一致，则拉取激活版本
 4. 写入主配置、路由配置与必要证书文件
 5. 执行 `openresty -t`
 6. 执行 `openresty -s reload`
@@ -448,7 +446,6 @@ GitHub Release 中的 Agent 二进制命名格式：
 | 参数                   | 说明                 | Agent 字段         |
 | ---------------------- | -------------------- | ------------------ |
 | AgentHeartbeatInterval | 心跳间隔（毫秒）     | heartbeat_interval |
-| AgentSyncInterval      | 同步间隔（毫秒）     | sync_interval      |
 | NodeOfflineThreshold   | 节点离线阈值（毫秒） | -                  |
 | AgentUpdateRepo        | 自动更新仓库         | update_repo        |
 

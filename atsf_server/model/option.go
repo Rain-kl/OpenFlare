@@ -52,7 +52,6 @@ func InitOptionMap() {
 	common.OptionMap["TurnstileSecretKey"] = ""
 	common.OptionMap["AgentDiscoveryToken"] = ""
 	common.OptionMap["AgentHeartbeatInterval"] = strconv.Itoa(common.AgentHeartbeatInterval)
-	common.OptionMap["AgentSyncInterval"] = strconv.Itoa(common.AgentSyncInterval)
 	common.OptionMap["NodeOfflineThreshold"] = strconv.Itoa(int(common.NodeOfflineThreshold.Milliseconds()))
 	common.OptionMap["AgentUpdateRepo"] = common.AgentUpdateRepo
 	common.OptionMap["OpenRestyWorkerProcesses"] = common.OpenRestyWorkerProcesses
@@ -198,10 +197,6 @@ func updateOptionMap(key string, value string) {
 	case "AgentHeartbeatInterval":
 		if v, err := strconv.Atoi(value); err == nil && v > 0 {
 			common.AgentHeartbeatInterval = v
-		}
-	case "AgentSyncInterval":
-		if v, err := strconv.Atoi(value); err == nil && v > 0 {
-			common.AgentSyncInterval = v
 		}
 	case "NodeOfflineThreshold":
 		if v, err := strconv.Atoi(value); err == nil && v > 0 {

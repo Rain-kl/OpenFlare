@@ -4,7 +4,6 @@
   "data_dir": "./data",
   "openresty_container_name": "atsflare-openresty",
   "openresty_docker_image": "openresty/openresty:alpine",
-  "heartbeat_interval": 30000,
-  "sync_interval": 30000,
+  "heartbeat_interval": 10000,
   "request_timeout": 10000
 }

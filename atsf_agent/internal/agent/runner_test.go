@@ -21,7 +21,7 @@ type fakeHeartbeatService struct {
 	registerErr       error
 	registerResp      *protocol.RegisterNodeResponse
 	heartbeatErrs     []error
-	heartbeatSettings []*protocol.AgentSettings
+	heartbeatResults  []*protocol.HeartbeatResult
 	heartbeatPayloads []protocol.NodePayload
 	onHeartbeat       func(int)
 	lastToken         string
@@ -34,7 +34,7 @@ func (f *fakeHeartbeatService) Register(ctx context.Context, payload protocol.No
 	return f.registerResp, f.registerErr
 }
 
-func (f *fakeHeartbeatService) Heartbeat(ctx context.Context, payload protocol.NodePayload) (*protocol.AgentSettings, error) {
+func (f *fakeHeartbeatService) Heartbeat(ctx context.Context, payload protocol.NodePayload) (*protocol.HeartbeatResult, error) {
 	f.mu.Lock()
 	f.heartbeatCalls++
 	callIndex := f.heartbeatCalls
@@ -43,16 +43,16 @@ func (f *fakeHeartbeatService) Heartbeat(ctx context.Context, payload protocol.N
 	if len(f.heartbeatErrs) >= callIndex {
 		err = f.heartbeatErrs[callIndex-1]
 	}
-	var settings *protocol.AgentSettings
-	if len(f.heartbeatSettings) >= callIndex {
-		settings = f.heartbeatSettings[callIndex-1]
+	var result *protocol.HeartbeatResult
+	if len(f.heartbeatResults) >= callIndex {
+		result = f.heartbeatResults[callIndex-1]
 	}
 	onHeartbeat := f.onHeartbeat
 	f.mu.Unlock()
 	if onHeartbeat != nil {
 		onHeartbeat(callIndex)
 	}
-	return settings, err
+	return result, err
 }
 
 func (f *fakeHeartbeatService) SetToken(token string) {
@@ -94,14 +94,14 @@ func (f *fakeRuntimeManager) Restart(ctx context.Context) error {
 	return f.restartErr
 }
 
-func (f *fakeSyncService) SyncOnStartup(ctx context.Context) error {
+func (f *fakeSyncService) SyncOnStartup(ctx context.Context, target *protocol.ActiveConfigMeta) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.startupCalls++
 	return f.startupErr
 }
 
-func (f *fakeSyncService) SyncOnce(ctx context.Context) error {
+func (f *fakeSyncService) SyncOnce(ctx context.Context, target *protocol.ActiveConfigMeta) error {
 	f.mu.Lock()
 	f.syncOnceCalls++
 	callIndex := f.syncOnceCalls
@@ -119,6 +119,7 @@ func TestRunnerKeepsHeartbeatWhenStartupSyncFails(t *testing.T) {
 
 	stateStore := state.NewStore(filepath.Join(t.TempDir(), "state.json"))
 	heartbeatService := &fakeHeartbeatService{
+		heartbeatResults: []*protocol.HeartbeatResult{{}},
 		onHeartbeat: func(callCount int) {
 			if callCount >= 2 {
 				cancel()
@@ -136,7 +137,6 @@ func TestRunnerKeepsHeartbeatWhenStartupSyncFails(t *testing.T) {
 			AgentVersion:      config.AgentVersion,
 			NginxVersion:      "1.27.1.2",
 			HeartbeatInterval: config.MillisecondDuration(10 * time.Millisecond),
-			SyncInterval:      config.MillisecondDuration(20 * time.Millisecond),
 		},
 		StateStore:       stateStore,
 		HeartbeatService: heartbeatService,
@@ -170,6 +170,9 @@ func TestRunnerDoesNotExitOnHeartbeatOrSyncError(t *testing.T) {
 	heartbeatService := &fakeHeartbeatService{
 		registerErr:   errors.New("register timeout"),
 		heartbeatErrs: []error{errors.New("heartbeat timeout")},
+		heartbeatResults: []*protocol.HeartbeatResult{
+			{},
+		},
 	}
 	syncService := &fakeSyncService{
 		syncOnceErr: errors.New("openresty reload failed"),
@@ -187,7 +190,6 @@ func TestRunnerDoesNotExitOnHeartbeatOrSyncError(t *testing.T) {
 			AgentVersion:      config.AgentVersion,
 			NginxVersion:      "1.27.1.2",
 			HeartbeatInterval: config.MillisecondDuration(10 * time.Millisecond),
-			SyncInterval:      config.MillisecondDuration(10 * time.Millisecond),
 		},
 		StateStore:       stateStore,
 		HeartbeatService: heartbeatService,
@@ -225,7 +227,9 @@ func TestRunnerReportsOpenrestyHealthAndExecutesRestart(t *testing.T) {
 		t.Fatalf("failed to seed state: %v", err)
 	}
 	heartbeatService := &fakeHeartbeatService{
-		heartbeatSettings: []*protocol.AgentSettings{{RestartOpenrestyNow: true}},
+		heartbeatResults: []*protocol.HeartbeatResult{{
+			AgentSettings: &protocol.AgentSettings{RestartOpenrestyNow: true},
+		}},
 		onHeartbeat: func(callCount int) {
 			if callCount >= 1 {
 				cancel()
@@ -244,7 +248,6 @@ func TestRunnerReportsOpenrestyHealthAndExecutesRestart(t *testing.T) {
 			AgentVersion:      config.AgentVersion,
 			NginxVersion:      "1.27.1.2",
 			HeartbeatInterval: config.MillisecondDuration(10 * time.Millisecond),
-			SyncInterval:      config.MillisecondDuration(100 * time.Millisecond),
 		},
 		StateStore:       stateStore,
 		HeartbeatService: heartbeatService,
@@ -289,6 +292,7 @@ func TestRunnerDiscoveryRegisterUpdatesTokenAndNodeID(t *testing.T) {
 			AgentToken: "agent-token-issued",
 			Name:       "edge-01",
 		},
+		heartbeatResults: []*protocol.HeartbeatResult{{}},
 		onHeartbeat: func(callCount int) {
 			if callCount >= 1 {
 				cancel()
@@ -313,7 +317,6 @@ func TestRunnerDiscoveryRegisterUpdatesTokenAndNodeID(t *testing.T) {
 			AgentVersion:      config.AgentVersion,
 			NginxVersion:      "1.27.1.2",
 			HeartbeatInterval: config.MillisecondDuration(10 * time.Millisecond),
-			SyncInterval:      config.MillisecondDuration(20 * time.Millisecond),
 		},
 		StateStore:       stateStore,
 		HeartbeatService: heartbeatService,
@@ -323,7 +326,6 @@ func TestRunnerDiscoveryRegisterUpdatesTokenAndNodeID(t *testing.T) {
 	runner.Config.AgentVersion = config.AgentVersion
 	runner.Config.NginxVersion = "1.27.1.2"
 	runner.Config.HeartbeatInterval = config.MillisecondDuration(10 * time.Millisecond)
-	runner.Config.SyncInterval = config.MillisecondDuration(20 * time.Millisecond)
 
 	err = runner.Run(ctx)
 	if !errors.Is(err, context.Canceled) {

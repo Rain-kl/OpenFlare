@@ -8,7 +8,7 @@ import (
 
 type Client interface {
 	RegisterNode(ctx context.Context, payload protocol.NodePayload) (*protocol.RegisterNodeResponse, error)
-	Heartbeat(ctx context.Context, payload protocol.NodePayload) (*protocol.AgentSettings, error)
+	Heartbeat(ctx context.Context, payload protocol.NodePayload) (*protocol.HeartbeatResult, error)
 	SetToken(token string)
 }
 
@@ -24,7 +24,7 @@ func (s *Service) Register(ctx context.Context, payload protocol.NodePayload) (*
 	return s.client.RegisterNode(ctx, payload)
 }
 
-func (s *Service) Heartbeat(ctx context.Context, payload protocol.NodePayload) (*protocol.AgentSettings, error) {
+func (s *Service) Heartbeat(ctx context.Context, payload protocol.NodePayload) (*protocol.HeartbeatResult, error) {
 	return s.client.Heartbeat(ctx, payload)
 }
 

@@ -422,7 +422,7 @@ export function WebsitesPage() {
       <div className="space-y-6">
         <PageHeader
           title="网站"
-          description="在同一页完成网站录入、默认证书绑定、证书导入和资产巡检，减少域名页与证书页之间的来回切换。"
+          description="管理域名和TLS证书。"
         />
 
         {feedback ? (
@@ -432,7 +432,6 @@ export function WebsitesPage() {
         <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
           <AppCard
             title={editingDomainId ? '编辑网站' : '快速添加网站'}
-            description="录入域名后即可直接绑定默认证书。若证书尚未导入，可在右侧先导入再回到这里选择。"
             action={
               <div className="flex flex-wrap gap-2">
                 {editingDomainId ? (
@@ -517,8 +516,7 @@ export function WebsitesPage() {
           </AppCard>
 
           <AppCard
-            title="证书快捷入口"
-            description="先导入证书，再回到左侧立即绑定到网站。无需跳转到单独页面。"
+            title="证书"
             action={
               <div className="flex flex-wrap gap-2">
                 <SecondaryButton

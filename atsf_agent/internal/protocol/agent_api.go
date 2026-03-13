@@ -7,15 +7,20 @@ type APIResponse[T any] struct {
 }
 
 type HeartbeatAPIResponse struct {
-	Success       bool           `json:"success"`
-	Message       string         `json:"message"`
-	Data          any            `json:"data"`
-	AgentSettings *AgentSettings `json:"agent_settings,omitempty"`
+	Success       bool              `json:"success"`
+	Message       string            `json:"message"`
+	Data          any               `json:"data"`
+	AgentSettings *AgentSettings    `json:"agent_settings,omitempty"`
+	ActiveConfig  *ActiveConfigMeta `json:"active_config,omitempty"`
+}
+
+type HeartbeatResult struct {
+	AgentSettings *AgentSettings
+	ActiveConfig  *ActiveConfigMeta
 }
 
 type AgentSettings struct {
 	HeartbeatInterval   int    `json:"heartbeat_interval"`
-	SyncInterval        int    `json:"sync_interval"`
 	AutoUpdate          bool   `json:"auto_update"`
 	UpdateRepo          string `json:"update_repo"`
 	UpdateNow           bool   `json:"update_now"`
@@ -67,6 +72,11 @@ type ActiveConfigResponse struct {
 	RenderedConfig string        `json:"rendered_config"`
 	SupportFiles   []SupportFile `json:"support_files"`
 	CreatedAt      string        `json:"created_at"`
+}
+
+type ActiveConfigMeta struct {
+	Version  string `json:"version"`
+	Checksum string `json:"checksum"`
 }
 
 type SupportFile struct {

@@ -104,8 +104,7 @@ volumes:
 
 | 配置项 | 作用 | 默认值 |
 | --- | --- | --- |
-| `AgentHeartbeatInterval` | Agent 心跳间隔（毫秒） | `30000` |
-| `AgentSyncInterval` | Agent 同步间隔（毫秒） | `30000` |
+| `AgentHeartbeatInterval` | Agent 心跳间隔（毫秒） | `10000` |
 | `NodeOfflineThreshold` | 节点离线判定阈值（毫秒） | `120000` |
 | `AgentUpdateRepo` | Agent 自更新仓库 | `Rain-kl/ATSFlare` |
 | `GlobalApiRateLimitNum` / `GlobalApiRateLimitDuration` | 全局 API 限流次数 / 时间窗口（秒） | `300` / `180` |
@@ -219,8 +218,7 @@ go run ./cmd/agent -config ./agent.json
 	"data_dir": "./data",
 	"openresty_container_name": "atsflare-openresty",
 	"openresty_docker_image": "openresty/openresty:alpine",
-	"heartbeat_interval": 30000,
-	"sync_interval": 30000,
+	"heartbeat_interval": 10000,
 	"request_timeout": 10000
 }
 ```
@@ -240,8 +238,7 @@ go run ./cmd/agent -config ./agent.json
 	"cert_dir": "/usr/local/openresty/nginx/conf/certs",
 	"openresty_cert_dir": "/usr/local/openresty/nginx/conf/certs",
 	"state_path": "./data/agent-state.json",
-	"heartbeat_interval": 30000,
-	"sync_interval": 30000,
+	"heartbeat_interval": 10000,
 	"request_timeout": 10000
 }
 ```
@@ -265,15 +262,14 @@ go run ./cmd/agent -config ./agent.json
 | `cert_dir` | Agent 在本机写入证书文件的目录 | 否 | 默认为 `data_dir` 下托管证书目录 | `./data/etc/nginx/certs` |
 | `openresty_cert_dir` | OpenResty 实际读取证书的目录 | 否 | 本机模式默认等于 `cert_dir`；Docker 模式默认 `/etc/nginx/atsflare-certs` | `/usr/local/openresty/nginx/conf/certs` |
 | `state_path` | Agent 本地状态文件路径 | 否 | 默认为 `data_dir` 下托管状态文件 | `./data/agent-state.json` |
-| `heartbeat_interval` | 心跳间隔 | 否 | `30000` 毫秒 | `30000` |
-| `sync_interval` | 配置同步间隔 | 否 | `30000` 毫秒 | `30000` |
+| `heartbeat_interval` | 心跳间隔 | 否 | `10000` 毫秒 | `10000` |
 | `request_timeout` | HTTP 请求超时时间 | 否 | `10000` 毫秒 | `10000` |
 
 说明：
 
 * `agent_token` 与 `discovery_token` 不能同时为空
-* `heartbeat_interval`、`sync_interval`、`request_timeout` 支持两种写法：
-	* 毫秒整数，例如 `30000`
+* `heartbeat_interval`、`request_timeout` 支持两种写法：
+	* 毫秒整数，例如 `10000`
 	* Go duration 字符串，例如 `"30s"`
 * `node_name` 与 `node_ip` 未填写时会自动探测；若自动探测失败，配置校验会报错
 * 未配置 `openresty_path` 时，默认为 Docker OpenResty 模式

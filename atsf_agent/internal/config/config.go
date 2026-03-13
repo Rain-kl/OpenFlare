@@ -38,7 +38,6 @@ type Config struct {
 	OpenrestyCertDir       string              `json:"openresty_cert_dir"`
 	StatePath              string              `json:"state_path"`
 	HeartbeatInterval      MillisecondDuration `json:"heartbeat_interval"`
-	SyncInterval           MillisecondDuration `json:"sync_interval"`
 	RequestTimeout         MillisecondDuration `json:"request_timeout"`
 	configPath             string
 }
@@ -60,7 +59,6 @@ type configFile struct {
 	OpenrestyCertDir       string              `json:"openresty_cert_dir"`
 	StatePath              string              `json:"state_path"`
 	HeartbeatInterval      MillisecondDuration `json:"heartbeat_interval"`
-	SyncInterval           MillisecondDuration `json:"sync_interval"`
 	RequestTimeout         MillisecondDuration `json:"request_timeout"`
 }
 
@@ -90,7 +88,6 @@ func Load(path string) (*Config, error) {
 		OpenrestyCertDir:       file.OpenrestyCertDir,
 		StatePath:              file.StatePath,
 		HeartbeatInterval:      file.HeartbeatInterval,
-		SyncInterval:           file.SyncInterval,
 		RequestTimeout:         file.RequestTimeout,
 	}
 	cfg.configPath = path
@@ -148,10 +145,7 @@ func applyDefaults(cfg *Config, baseDir string) {
 		}
 	}
 	if cfg.HeartbeatInterval <= 0 {
-		cfg.HeartbeatInterval = MillisecondDuration(30 * time.Second)
-	}
-	if cfg.SyncInterval <= 0 {
-		cfg.SyncInterval = MillisecondDuration(30 * time.Second)
+		cfg.HeartbeatInterval = MillisecondDuration(10 * time.Second)
 	}
 	if cfg.RequestTimeout <= 0 {
 		cfg.RequestTimeout = MillisecondDuration(10 * time.Second)

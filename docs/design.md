@@ -127,6 +127,7 @@ ATSFlare Agent (register / heartbeat / sync / apply / update)
 * Agent 负责本地落盘、校验、reload、回滚、自更新，不负责维护独立于 Server 的主配置真相
 * 发布通过“生成完整版本并激活”完成
 * 历史版本不可变
+* Agent 常规轮询以 heartbeat 为主；heartbeat 响应返回当前激活版本的 `version` 与 `checksum` 摘要，Agent 仅在发现不一致时再拉取完整配置
 
 ---
 
