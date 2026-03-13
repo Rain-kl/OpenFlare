@@ -891,7 +891,7 @@ export function PerformancePage() {
                                 >
                                     {busyKey === 'performance-proxy'
                                         ? '保存中...'
-                                        : '保存代理调优'}
+                                        : '保存'}
                                 </PrimaryButton>
                             }
                         >
@@ -1031,8 +1031,8 @@ export function PerformancePage() {
                                             }
                                         >
                                             {performanceFields.OpenRestyCacheEnabled
-                                                ? '先关闭缓存'
-                                                : '先启用缓存'}
+                                                ? '关闭'
+                                                : '启用'}
                                         </SecondaryButton>
                                         <PrimaryButton
                                             type="button"
@@ -1040,10 +1040,7 @@ export function PerformancePage() {
                                             disabled={busyKey === 'performance-cache'}
                                         >
                                             {busyKey === 'performance-cache'
-                                                ? '保存中...'
-                                                : performanceFields.OpenRestyCacheEnabled
-                                                    ? '保存缓存设置'
-                                                    : '保存为关闭状态'}
+                                                ? '保存中...' : '保存'}
                                         </PrimaryButton>
                                     </div>
                                 }
@@ -1199,7 +1196,7 @@ export function PerformancePage() {
                                     >
                                         {busyKey === 'performance-gzip'
                                             ? '保存中...'
-                                            : '保存压缩设置'}
+                                            : '保存'}
                                     </PrimaryButton>
                                 }
                             >
