@@ -53,6 +53,7 @@ cd atsf_server
 export SESSION_SECRET='replace-with-random-string'
 export SQLITE_PATH='./atsflare.db'
 export GIN_MODE='release'
+export LOG_LEVEL='info'
 export PORT='3000'
 go run .
 ```
@@ -70,6 +71,7 @@ services:
 			SESSION_SECRET: replace-with-random-string
 			SQLITE_PATH: /data/atsflare.db
 			GIN_MODE: release
+			LOG_LEVEL: info
 			PORT: "3000"
 		volumes:
 			- atsflare-data:/data
@@ -84,6 +86,7 @@ volumes:
 | --- | --- | --- | --- |
 | `PORT` | 指定 Server 实际监听端口 | `3000` | `PORT=3000` |
 | `GIN_MODE` | 指定 Gin 运行模式；仅当值为 `debug` 时启用 debug，其余情况按 release 运行 | 非 `debug` 默认按 release 运行 | `GIN_MODE=release` |
+| `LOG_LEVEL` | 指定系统日志等级；支持 `debug`/`info`/`warn`/`error`（`warning` 兼容为 `warn`） | `info` | `LOG_LEVEL=warn` |
 | `SESSION_SECRET` | Session 签名密钥；生产环境必须显式设置，避免重启后会话失效 | 启动时随机生成 UUID | `SESSION_SECRET=replace-with-random-string` |
 | `SQLITE_PATH` | SQLite 数据库文件路径 | `atsflare.db` | `SQLITE_PATH=/data/atsflare.db` |
 | `SQL_DSN` | MySQL DSN；设置后优先使用 MySQL，而不是 SQLite | 未设置时使用 SQLite | `SQL_DSN=user:pass@tcp(127.0.0.1:3306)/atsflare` |
@@ -95,6 +98,7 @@ volumes:
 
 * `SQL_DSN` 与 `SQLITE_PATH` 同时存在时，优先使用 `SQL_DSN`
 * `SESSION_SECRET` 未固定时，每次重启都会生成新的随机值，已登录用户的 Cookie 会失效
+* `LOG_LEVEL` 未设置或设置为不支持的值时，将回退为 `info`
 * `REDIS_CONN_STRING` 未配置时，相关能力将回退为进程内实现
 * `UPLOAD_PATH` 目录在启动时若不存在会自动创建
 

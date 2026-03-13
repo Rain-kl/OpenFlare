@@ -54,6 +54,7 @@ func init() {
 	if os.Getenv("AGENT_TOKEN") != "" {
 		AgentToken = os.Getenv("AGENT_TOKEN")
 	}
+	SetLogLevel(os.Getenv("LOG_LEVEL"))
 	if *LogDir != "" {
 		var err error
 		*LogDir, err = filepath.Abs(*LogDir)

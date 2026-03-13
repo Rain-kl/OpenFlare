@@ -7,8 +7,47 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 )
+
+type logLevel int
+
+const (
+	logLevelDebug logLevel = iota
+	logLevelInfo
+	logLevelWarn
+	logLevelError
+)
+
+var currentLogLevel = logLevelInfo
+var currentLogLevelName = "info"
+
+func SetLogLevel(level string) {
+	normalized := strings.TrimSpace(strings.ToLower(level))
+	switch normalized {
+	case "debug":
+		currentLogLevel = logLevelDebug
+		currentLogLevelName = "debug"
+	case "warn", "warning":
+		currentLogLevel = logLevelWarn
+		currentLogLevelName = "warn"
+	case "error":
+		currentLogLevel = logLevelError
+		currentLogLevelName = "error"
+	default:
+		currentLogLevel = logLevelInfo
+		currentLogLevelName = "info"
+	}
+}
+
+func GetLogLevel() string {
+	return currentLogLevelName
+}
+
+func shouldLog(level logLevel) bool {
+	return level >= currentLogLevel
+}
 
 func SetupGinLog() {
 	if *LogDir != "" {
@@ -28,11 +67,17 @@ func SetupGinLog() {
 }
 
 func SysLog(s string) {
+	if !shouldLog(logLevelInfo) {
+		return
+	}
 	t := time.Now()
 	_, _ = fmt.Fprintf(gin.DefaultWriter, "[SYS] %v | %s \n", t.Format("2006/01/02 - 15:04:05"), s)
 }
 
 func SysError(s string) {
+	if !shouldLog(logLevelError) {
+		return
+	}
 	t := time.Now()
 	_, _ = fmt.Fprintf(gin.DefaultErrorWriter, "[SYS] %v | %s \n", t.Format("2006/01/02 - 15:04:05"), s)
 }
