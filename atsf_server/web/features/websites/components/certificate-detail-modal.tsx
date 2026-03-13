@@ -1,9 +1,11 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
 
 import { EmptyState } from '@/components/feedback/empty-state';
 import { ErrorState } from '@/components/feedback/error-state';
+import { InlineMessage } from '@/components/feedback/inline-message';
 import { LoadingState } from '@/components/feedback/loading-state';
 import { AppModal } from '@/components/ui/app-modal';
 import { StatusBadge } from '@/components/ui/status-badge';
@@ -37,6 +39,8 @@ export function CertificateDetailModal({
   onDelete,
   deleting = false,
 }: CertificateDetailModalProps) {
+  const [copyMessage, setCopyMessage] = useState<string | null>(null);
+
   const certificateQuery = useQuery({
     queryKey: ['tls-certificates', 'detail', certificateId],
     queryFn: () => getTlsCertificate(certificateId as number),
@@ -53,10 +57,22 @@ export function CertificateDetailModal({
   const content = contentQuery.data;
   const status = certificate ? getCertificateStatus(certificate) : null;
 
+  const handleCopy = async (value: string, message: string) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopyMessage(message);
+    } catch (error) {
+      setCopyMessage(getErrorMessage(error));
+    }
+  };
+
   return (
     <AppModal
       isOpen={isOpen}
-      onClose={onClose}
+      onClose={() => {
+        setCopyMessage(null);
+        onClose();
+      }}
       title="证书详情"
       description="查看证书元信息、备注以及当前保存的 PEM 内容。"
       size="xl"
@@ -82,6 +98,10 @@ export function CertificateDetailModal({
         </div>
       }
     >
+      {copyMessage ? (
+        <InlineMessage tone="success" message={copyMessage} />
+      ) : null}
+
       {certificateQuery.isLoading || contentQuery.isLoading ? (
         <LoadingState />
       ) : certificateQuery.isError || contentQuery.isError ? (
@@ -146,17 +166,39 @@ export function CertificateDetailModal({
 
           <div className="space-y-4">
             <div>
-              <p className="mb-2 text-sm font-medium text-[var(--foreground-primary)]">
-                证书 PEM
-              </p>
+              <div className="mb-2 flex items-center justify-between gap-3">
+                <p className="text-sm font-medium text-[var(--foreground-primary)]">
+                  证书 PEM
+                </p>
+                <SecondaryButton
+                  type="button"
+                  className="px-3 py-2 text-xs"
+                  onClick={() =>
+                    void handleCopy(content.cert_pem, '证书 PEM 已复制。')
+                  }
+                >
+                  复制
+                </SecondaryButton>
+              </div>
               <CodeBlock className="max-h-56 overflow-y-auto whitespace-pre-wrap break-all">
                 {content.cert_pem}
               </CodeBlock>
             </div>
             <div>
-              <p className="mb-2 text-sm font-medium text-[var(--foreground-primary)]">
-                私钥 PEM
-              </p>
+              <div className="mb-2 flex items-center justify-between gap-3">
+                <p className="text-sm font-medium text-[var(--foreground-primary)]">
+                  私钥 PEM
+                </p>
+                <SecondaryButton
+                  type="button"
+                  className="px-3 py-2 text-xs"
+                  onClick={() =>
+                    void handleCopy(content.key_pem, '私钥 PEM 已复制。')
+                  }
+                >
+                  复制
+                </SecondaryButton>
+              </div>
               <CodeBlock className="max-h-56 overflow-y-auto whitespace-pre-wrap break-all">
                 {content.key_pem}
               </CodeBlock>
