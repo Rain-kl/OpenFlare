@@ -762,7 +762,6 @@ export function PerformancePage() {
                             </ResourceField>
                             <ToggleField
                                 label="multi_accept"
-                                description=""
                                 tooltip={performanceFieldTooltips.multi_accept}
                                 checked={performanceFields.OpenRestyEventsMultiAcceptEnabled}
                                 onChange={(checked) =>

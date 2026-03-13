@@ -119,7 +119,7 @@ export function WebsitesPage() {
 
         <AppCard
           title="网站列表"
-          description="查看网站绑定的证书、启用状态和更新时间。进入详情页可继续查看关联规则并编辑网站。"
+          description="查看网站绑定的证书、启用状态和更新时间。"
         >
           {managedDomainsQuery.isLoading ? (
             <LoadingState />
@@ -181,7 +181,7 @@ export function WebsitesPage() {
                         </div>
                       </div>
 
-                      <div className="flex flex-col gap-2">
+                      <div className="flex flex-row gap-2">
                         <Link
                           href={`/website/detail?id=${domain.id}`}
                           className="inline-flex items-center justify-center rounded-2xl border border-[var(--border-default)] bg-[var(--control-background)] px-4 py-3 text-sm font-medium text-[var(--foreground-primary)] transition hover:bg-[var(--control-background-hover)]"

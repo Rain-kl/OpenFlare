@@ -180,13 +180,13 @@ export function ToggleField({
         onChange={(event) => onChange(event.target.checked)}
         className="mt-1 h-4 w-4 rounded border-[var(--border-default)] accent-[var(--brand-primary)]"
       />
-      <span className="space-y-1">
+      <span className="flex flex-col">
         <span className="flex items-center gap-2 text-sm font-medium text-[var(--foreground-primary)]">
           <span>{label}</span>
           {tooltip ? <FieldTooltip content={tooltip} /> : null}
         </span>
         {description ? (
-          <span className="block text-xs leading-5 text-[var(--foreground-secondary)]">
+          <span className="mt-1 block text-xs leading-5 text-[var(--foreground-secondary)]">
             {description}
           </span>
         ) : null}
