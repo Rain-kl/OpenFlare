@@ -2,10 +2,6 @@ package controller
 
 import (
 	"atsflare/service"
-	"encoding/json"
-	"errors"
-	"io"
-	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -28,26 +24,17 @@ type nodeAgentUpdateRequest struct {
 // @Router /api/nodes/ [post]
 func CreateNode(c *gin.Context) {
 	var input service.NodeInput
-	if err := json.NewDecoder(c.Request.Body).Decode(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"message": "无效的参数",
-		})
+	if err := decodeJSONBody(c.Request.Body, &input); err != nil {
+		respondBadRequest(c, "")
 		return
 	}
+
 	node, err := service.CreateNode(input)
 	if err != nil {
-		c.JSON(http.StatusOK, gin.H{
-			"success": false,
-			"message": err.Error(),
-		})
+		respondFailure(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"message": "",
-		"data":    node,
-	})
+	respondSuccess(c, node)
 }
 
 // GetNodeBootstrapToken godoc
@@ -60,17 +47,10 @@ func CreateNode(c *gin.Context) {
 func GetNodeBootstrapToken(c *gin.Context) {
 	bootstrap, err := service.GetNodeBootstrapView()
 	if err != nil {
-		c.JSON(http.StatusOK, gin.H{
-			"success": false,
-			"message": err.Error(),
-		})
+		respondFailure(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"message": "",
-		"data":    bootstrap,
-	})
+	respondSuccess(c, bootstrap)
 }
 
 // RotateNodeBootstrapToken godoc
@@ -83,17 +63,10 @@ func GetNodeBootstrapToken(c *gin.Context) {
 func RotateNodeBootstrapToken(c *gin.Context) {
 	bootstrap, err := service.RotateGlobalDiscoveryToken()
 	if err != nil {
-		c.JSON(http.StatusOK, gin.H{
-			"success": false,
-			"message": err.Error(),
-		})
+		respondFailure(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"message": "",
-		"data":    bootstrap,
-	})
+	respondSuccess(c, bootstrap)
 }
 
 // UpdateNode godoc
@@ -110,33 +83,22 @@ func RotateNodeBootstrapToken(c *gin.Context) {
 func UpdateNode(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil || id == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"message": "无效的参数",
-		})
+		respondBadRequest(c, "")
 		return
 	}
+
 	var input service.NodeInput
-	if err = json.NewDecoder(c.Request.Body).Decode(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"message": "无效的参数",
-		})
+	if err = decodeJSONBody(c.Request.Body, &input); err != nil {
+		respondBadRequest(c, "")
 		return
 	}
+
 	node, err := service.UpdateNode(uint(id), input)
 	if err != nil {
-		c.JSON(http.StatusOK, gin.H{
-			"success": false,
-			"message": err.Error(),
-		})
+		respondFailure(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"message": "",
-		"data":    node,
-	})
+	respondSuccess(c, node)
 }
 
 // DeleteNode godoc
@@ -151,23 +113,15 @@ func UpdateNode(c *gin.Context) {
 func DeleteNode(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil || id == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"message": "无效的参数",
-		})
+		respondBadRequest(c, "")
 		return
 	}
+
 	if err = service.DeleteNode(uint(id)); err != nil {
-		c.JSON(http.StatusOK, gin.H{
-			"success": false,
-			"message": err.Error(),
-		})
+		respondFailure(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"message": "",
-	})
+	respondSuccessMessage(c, "")
 }
 
 // RequestNodeAgentUpdate godoc
@@ -182,38 +136,27 @@ func DeleteNode(c *gin.Context) {
 func RequestNodeAgentUpdate(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil || id == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"message": "无效的参数",
-		})
+		respondBadRequest(c, "")
 		return
 	}
+
 	var request nodeAgentUpdateRequest
 	if c.Request.ContentLength > 0 {
-		if err = json.NewDecoder(c.Request.Body).Decode(&request); err != nil && !errors.Is(err, io.EOF) {
-			c.JSON(http.StatusBadRequest, gin.H{
-				"success": false,
-				"message": "无效的参数",
-			})
+		if err = decodeOptionalJSONBody(c.Request.Body, &request); err != nil {
+			respondBadRequest(c, "")
 			return
 		}
 	}
+
 	node, err := service.RequestNodeAgentUpdate(uint(id), service.NodeAgentUpdateInput{
 		Channel: request.Channel,
 		TagName: request.TagName,
 	})
 	if err != nil {
-		c.JSON(http.StatusOK, gin.H{
-			"success": false,
-			"message": err.Error(),
-		})
+		respondFailure(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"message": "",
-		"data":    node,
-	})
+	respondSuccess(c, node)
 }
 
 // RequestNodeOpenrestyRestart godoc
@@ -228,25 +171,16 @@ func RequestNodeAgentUpdate(c *gin.Context) {
 func RequestNodeOpenrestyRestart(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil || id == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"message": "无效的参数",
-		})
+		respondBadRequest(c, "")
 		return
 	}
+
 	node, err := service.RequestNodeOpenrestyRestart(uint(id))
 	if err != nil {
-		c.JSON(http.StatusOK, gin.H{
-			"success": false,
-			"message": err.Error(),
-		})
+		respondFailure(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"message": "",
-		"data":    node,
-	})
+	respondSuccess(c, node)
 }
 
 // GetNodeAgentRelease godoc
@@ -262,23 +196,14 @@ func RequestNodeOpenrestyRestart(c *gin.Context) {
 func GetNodeAgentRelease(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil || id == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"message": "无效的参数",
-		})
+		respondBadRequest(c, "")
 		return
 	}
+
 	release, err := service.GetNodeAgentRelease(c.Request.Context(), uint(id), c.Query("channel"))
 	if err != nil {
-		c.JSON(http.StatusOK, gin.H{
-			"success": false,
-			"message": err.Error(),
-		})
+		respondFailure(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"message": "",
-		"data":    release,
-	})
+	respondSuccess(c, release)
 }
