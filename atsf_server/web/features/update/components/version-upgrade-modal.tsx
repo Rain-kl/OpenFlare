@@ -80,6 +80,10 @@ export function VersionUpgradeModal({
                                     }: VersionUpgradeModalProps) {
     const upgradeBadge = getUpgradeBadge(release);
     const [selectedBinary, setSelectedBinary] = useState<File | null>(null);
+    const uploadPhaseLabel =
+        uploadProgress >= 100
+            ? '已上传，正在服务端校验版本...'
+            : '上传中...';
     const selectedChannelLabel =
         selectedChannel === 'preview' ? '预览版' : '正式版';
     const toggleChannel = () => {
@@ -285,7 +289,11 @@ export function VersionUpgradeModal({
                                             isConfirmingManualUpgrade
                                         }
                                     >
-                                        {isUploadingBinary ? '上传检查中...' : '上传并检查'}
+                                        {isUploadingBinary
+                                            ? uploadProgress >= 100
+                                                ? '服务端校验中...'
+                                                : '上传中...'
+                                            : '上传并检查'}
                                     </PrimaryButton>
                                 )}
                             </div>
@@ -293,7 +301,7 @@ export function VersionUpgradeModal({
                             {isUploadingBinary ? (
                                 <div className="space-y-1">
                                     <div className="flex items-center justify-between text-xs text-[var(--foreground-secondary)]">
-                                        <span>上传中...</span>
+                                        <span>{uploadPhaseLabel}</span>
                                         <span>{uploadProgress}%</span>
                                     </div>
                                     <div className="h-2 w-full overflow-hidden rounded-full bg-[var(--border-default)]">
