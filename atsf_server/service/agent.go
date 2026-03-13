@@ -112,7 +112,7 @@ func RegisterNode(node *model.Node, payload AgentNodePayload) (*AgentRegistratio
 }
 
 func HeartbeatNode(node *model.Node, payload AgentNodePayload) (*HeartbeatResponse, error) {
-	slog.Info("agent heartbeat received", "node_id", node.NodeID, "current_version", strings.TrimSpace(payload.CurrentVersion))
+	slog.Debug("agent heartbeat received", "node_id", node.NodeID, "current_version", strings.TrimSpace(payload.CurrentVersion))
 	payload.NodeID = node.NodeID
 	payload = normalizeAgentNodePayload(payload)
 	if err := validateAgentNodePayload(payload); err != nil {
