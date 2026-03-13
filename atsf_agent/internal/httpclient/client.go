@@ -5,7 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"log"
+	"log/slog"
 	"net/http"
 	"strings"
 	"time"
@@ -30,7 +30,7 @@ func New(baseURL string, token string, timeout time.Duration) *Client {
 }
 
 func (c *Client) RegisterNode(ctx context.Context, payload protocol.NodePayload) (*protocol.RegisterNodeResponse, error) {
-	log.Printf("http register node request: node_id=%s current_version=%s", payload.NodeID, payload.CurrentVersion)
+	slog.Info("http register node request", "node_id", payload.NodeID, "current_version", payload.CurrentVersion)
 	resp := protocol.APIResponse[protocol.RegisterNodeResponse]{}
 	if err := c.postJSON(ctx, "/api/agent/nodes/register", payload, &resp); err != nil {
 		return nil, err
@@ -38,7 +38,7 @@ func (c *Client) RegisterNode(ctx context.Context, payload protocol.NodePayload)
 	if !resp.Success {
 		return nil, errors.New(resp.Message)
 	}
-	log.Printf("http register node response: node_id=%s", resp.Data.NodeID)
+	slog.Info("http register node response", "node_id", resp.Data.NodeID)
 	return &resp.Data, nil
 }
 
@@ -64,18 +64,18 @@ func (c *Client) GetActiveConfig(ctx context.Context) (*protocol.ActiveConfigRes
 	if !resp.Success {
 		return nil, errors.New(resp.Message)
 	}
-	log.Printf("http get active config response: version=%s checksum=%s support_files=%d", resp.Data.Version, resp.Data.Checksum, len(resp.Data.SupportFiles))
+	slog.Info("http get active config response", "version", resp.Data.Version, "checksum", resp.Data.Checksum, "support_files", len(resp.Data.SupportFiles))
 	return &resp.Data, nil
 }
 
 func (c *Client) ReportApplyLog(ctx context.Context, payload protocol.ApplyLogPayload) error {
-	log.Printf("http report apply log request: node_id=%s version=%s result=%s", payload.NodeID, payload.Version, payload.Result)
+	slog.Info("http report apply log request", "node_id", payload.NodeID, "version", payload.Version, "result", payload.Result)
 	return c.postJSON(ctx, "/api/agent/apply-logs", payload, nil)
 }
 
 func (c *Client) SetToken(token string) {
 	c.token = strings.TrimSpace(token)
-	log.Printf("http client token updated")
+	slog.Info("http client token updated")
 }
 
 func (c *Client) getJSON(ctx context.Context, path string, target any) error {
@@ -104,28 +104,28 @@ func (c *Client) postJSON(ctx context.Context, path string, body any, target any
 func (c *Client) do(req *http.Request, target any) error {
 	res, err := c.httpClient.Do(req)
 	if err != nil {
-		log.Printf("http request failed: method=%s path=%s error=%v", req.Method, req.URL.Path, err)
+		slog.Error("http request failed", "method", req.Method, "path", req.URL.Path, "error", err)
 		return err
 	}
 	defer res.Body.Close()
 	if res.StatusCode != http.StatusOK {
-		log.Printf("http request returned non-200: method=%s path=%s status=%s", req.Method, req.URL.Path, res.Status)
+		slog.Warn("http request returned non-200", "method", req.Method, "path", req.URL.Path, "status", res.Status)
 		return errors.New(res.Status)
 	}
 	if target == nil {
 		var wrapper protocol.APIResponse[json.RawMessage]
 		if err = json.NewDecoder(res.Body).Decode(&wrapper); err != nil {
-			log.Printf("http response decode failed: method=%s path=%s error=%v", req.Method, req.URL.Path, err)
+			slog.Error("http response decode failed", "method", req.Method, "path", req.URL.Path, "error", err)
 			return err
 		}
 		if !wrapper.Success {
-			log.Printf("http api response failed: method=%s path=%s message=%s", req.Method, req.URL.Path, wrapper.Message)
+			slog.Warn("http api response failed", "method", req.Method, "path", req.URL.Path, "message", wrapper.Message)
 			return errors.New(wrapper.Message)
 		}
 		return nil
 	}
 	if err = json.NewDecoder(res.Body).Decode(target); err != nil {
-		log.Printf("http response decode failed: method=%s path=%s error=%v", req.Method, req.URL.Path, err)
+		slog.Error("http response decode failed", "method", req.Method, "path", req.URL.Path, "error", err)
 		return err
 	}
 	return nil

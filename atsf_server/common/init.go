@@ -3,7 +3,6 @@ package common
 import (
 	"flag"
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -59,12 +58,12 @@ func init() {
 		var err error
 		*LogDir, err = filepath.Abs(*LogDir)
 		if err != nil {
-			log.Fatal(err)
+			FatalLog(err)
 		}
 		if _, err := os.Stat(*LogDir); os.IsNotExist(err) {
 			err = os.Mkdir(*LogDir, 0777)
 			if err != nil {
-				log.Fatal(err)
+				FatalLog(err)
 			}
 		}
 	}

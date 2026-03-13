@@ -6,7 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -50,22 +50,22 @@ type PathExecutor struct {
 }
 
 func (e *PathExecutor) Test(ctx context.Context) error {
-	log.Printf("running openresty test with binary: %s", e.Path)
+	slog.Info("running openresty test with binary", "path", e.Path)
 	output, err := e.Runner.Run(ctx, e.Path, "-t")
 	if err != nil {
 		return fmt.Errorf("openresty -t failed: %w: %s", err, string(output))
 	}
-	log.Printf("openresty test succeeded with binary: %s", e.Path)
+	slog.Info("openresty test succeeded with binary", "path", e.Path)
 	return nil
 }
 
 func (e *PathExecutor) Reload(ctx context.Context) error {
-	log.Printf("running openresty reload with binary: %s", e.Path)
+	slog.Info("running openresty reload with binary", "path", e.Path)
 	output, err := e.Runner.Run(ctx, e.Path, "-s", "reload")
 	if err != nil {
 		return fmt.Errorf("openresty reload failed: %w: %s", err, string(output))
 	}
-	log.Printf("openresty reload succeeded with binary: %s", e.Path)
+	slog.Info("openresty reload succeeded with binary", "path", e.Path)
 	return nil
 }
 
@@ -78,7 +78,7 @@ func (e *PathExecutor) CheckHealth(ctx context.Context) error {
 }
 
 func (e *PathExecutor) Restart(ctx context.Context) error {
-	log.Printf("restarting openresty with binary: %s", e.Path)
+	slog.Info("restarting openresty with binary", "path", e.Path)
 	output, err := e.Runner.Run(ctx, e.Path, "-s", "quit")
 	if err != nil {
 		text := string(output)
@@ -90,7 +90,7 @@ func (e *PathExecutor) Restart(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("openresty start failed: %w: %s", err, string(output))
 	}
-	log.Printf("openresty restart succeeded with binary: %s", e.Path)
+	slog.Info("openresty restart succeeded with binary", "path", e.Path)
 	return nil
 }
 
@@ -106,12 +106,12 @@ type DockerExecutor struct {
 }
 
 func (e *DockerExecutor) Test(ctx context.Context) error {
-	log.Printf("running docker openresty test: container=%s image=%s", e.ContainerName, e.Image)
+	slog.Info("running docker openresty test", "container", e.ContainerName, "image", e.Image)
 	output, err := e.runEphemeralRuntimeCommand(ctx, "-t")
 	if err != nil {
 		return fmt.Errorf("docker %s -t failed: %w: %s", dockerRuntimeCommand, err, string(output))
 	}
-	log.Printf("docker openresty test succeeded: container=%s runtime=%s", e.ContainerName, dockerRuntimeCommand)
+	slog.Info("docker openresty test succeeded", "container", e.ContainerName, "runtime", dockerRuntimeCommand)
 	return nil
 }
 
@@ -120,7 +120,7 @@ func (e *DockerExecutor) Reload(ctx context.Context) error {
 }
 
 func (e *DockerExecutor) EnsureRuntime(ctx context.Context, recreate bool) error {
-	log.Printf("ensuring docker openresty runtime: container=%s recreate=%t", e.ContainerName, recreate)
+	slog.Info("ensuring docker openresty runtime", "container", e.ContainerName, "recreate", recreate)
 	output, err := e.Runner.Run(ctx, e.DockerBinary, "inspect", "-f", "{{.State.Running}}", e.ContainerName)
 	if err == nil {
 		if recreate {
@@ -130,7 +130,7 @@ func (e *DockerExecutor) EnsureRuntime(ctx context.Context, recreate bool) error
 			return e.runContainer(ctx)
 		}
 		if strings.TrimSpace(string(output)) == "true" {
-			log.Printf("docker openresty runtime already healthy: container=%s", e.ContainerName)
+			slog.Info("docker openresty runtime already healthy", "container", e.ContainerName)
 			return nil
 		}
 		if err := e.removeContainer(ctx); err != nil {
@@ -142,7 +142,7 @@ func (e *DockerExecutor) EnsureRuntime(ctx context.Context, recreate bool) error
 }
 
 func (e *DockerExecutor) CheckHealth(ctx context.Context) error {
-	log.Printf("checking docker openresty runtime health: container=%s", e.ContainerName)
+	slog.Debug("checking docker openresty runtime health", "container", e.ContainerName)
 	output, err := e.Runner.Run(ctx, e.DockerBinary, "inspect", "-f", "{{.State.Running}}", e.ContainerName)
 	if err != nil {
 		return fmt.Errorf("docker inspect openresty failed: %w: %s", err, string(output))
@@ -158,7 +158,7 @@ func (e *DockerExecutor) Restart(ctx context.Context) error {
 }
 
 func (e *DockerExecutor) removeContainer(ctx context.Context) error {
-	log.Printf("removing docker openresty container: container=%s", e.ContainerName)
+	slog.Info("removing docker openresty container", "container", e.ContainerName)
 	output, err := e.Runner.Run(ctx, e.DockerBinary, "rm", "-f", e.ContainerName)
 	if err != nil {
 		text := string(output)
@@ -167,12 +167,12 @@ func (e *DockerExecutor) removeContainer(ctx context.Context) error {
 		}
 		return fmt.Errorf("docker rm openresty failed: %w: %s", err, text)
 	}
-	log.Printf("docker openresty container removed: container=%s", e.ContainerName)
+	slog.Info("docker openresty container removed", "container", e.ContainerName)
 	return nil
 }
 
 func (e *DockerExecutor) runContainer(ctx context.Context) error {
-	log.Printf("starting docker openresty container: container=%s image=%s", e.ContainerName, e.Image)
+	slog.Info("starting docker openresty container", "container", e.ContainerName, "image", e.Image)
 	runArgs := []string{
 		"run", "-d",
 		"--name", e.ContainerName,
@@ -187,7 +187,7 @@ func (e *DockerExecutor) runContainer(ctx context.Context) error {
 	if runErr != nil {
 		return fmt.Errorf("docker run openresty failed: %w: %s", runErr, string(runOutput))
 	}
-	log.Printf("docker openresty container started: container=%s", e.ContainerName)
+	slog.Info("docker openresty container started", "container", e.ContainerName)
 	return nil
 }
 
@@ -201,39 +201,39 @@ type Manager struct {
 }
 
 func (m *Manager) Apply(ctx context.Context, mainConfig string, routeConfig string, supportFiles []protocol.SupportFile) error {
-	log.Printf("openresty apply started: main_config=%s route_config=%s support_files=%d", m.MainConfigPath, m.RouteConfigPath, len(supportFiles))
+	slog.Info("openresty apply started", "main_config", m.MainConfigPath, "route_config", m.RouteConfigPath, "support_files", len(supportFiles))
 	backup, err := m.backup()
 	if err != nil {
 		return err
 	}
 	if err = m.writeSupportFiles(supportFiles); err != nil {
-		log.Printf("writing support files failed, restoring backup: error=%v", err)
+		slog.Error("writing support files failed, restoring backup", "error", err)
 		_ = m.restore(backup)
 		return err
 	}
 	renderedMainConfig := m.renderMainConfig(mainConfig)
 	if err = os.WriteFile(m.MainConfigPath, []byte(renderedMainConfig), 0o644); err != nil {
-		log.Printf("writing openresty main config failed, restoring backup: error=%v", err)
+		slog.Error("writing openresty main config failed, restoring backup", "error", err)
 		_ = m.restore(backup)
 		return err
 	}
 	renderedRouteConfig := m.renderRouteConfig(routeConfig)
 	if err = os.WriteFile(m.RouteConfigPath, []byte(renderedRouteConfig), 0o644); err != nil {
-		log.Printf("writing openresty route config failed, restoring backup: error=%v", err)
+		slog.Error("writing openresty route config failed, restoring backup", "error", err)
 		_ = m.restore(backup)
 		return err
 	}
 	if err = m.Executor.Test(ctx); err != nil {
-		log.Printf("openresty test failed after config write, restoring backup: error=%v", err)
+		slog.Error("openresty test failed after config write, restoring backup", "error", err)
 		_ = m.restore(backup)
 		return err
 	}
 	if err = m.Executor.Reload(ctx); err != nil {
-		log.Printf("openresty reload failed after config write, restoring backup: error=%v", err)
+		slog.Error("openresty reload failed after config write, restoring backup", "error", err)
 		_ = m.restore(backup)
 		return err
 	}
-	log.Printf("openresty apply completed successfully: main_config=%s route_config=%s", m.MainConfigPath, m.RouteConfigPath)
+	slog.Info("openresty apply completed successfully", "main_config", m.MainConfigPath, "route_config", m.RouteConfigPath)
 	return nil
 }
 
@@ -241,7 +241,7 @@ func (m *Manager) EnsureRuntime(ctx context.Context, recreate bool) error {
 	if m.Executor == nil {
 		return errors.New("executor 未配置")
 	}
-	log.Printf("openresty ensure runtime requested: recreate=%t", recreate)
+	slog.Info("openresty ensure runtime requested", "recreate", recreate)
 	return m.Executor.EnsureRuntime(ctx, recreate)
 }
 
@@ -256,7 +256,7 @@ func (m *Manager) Restart(ctx context.Context) error {
 	if m.Executor == nil {
 		return errors.New("executor 未配置")
 	}
-	log.Printf("openresty restart requested")
+	slog.Info("openresty restart requested")
 	return m.Executor.Restart(ctx)
 }
 
@@ -294,7 +294,7 @@ func (m *Manager) CurrentChecksum() (string, error) {
 		return "", err
 	}
 	result := bundleChecksum(normalizedMain, normalizedRoute, files)
-	log.Printf("openresty current checksum calculated: main_config=%s route_config=%s checksum=%s support_files=%d", m.MainConfigPath, m.RouteConfigPath, result, len(files))
+	slog.Info("openresty current checksum calculated", "main_config", m.MainConfigPath, "route_config", m.RouteConfigPath, "checksum", result, "support_files", len(files))
 	return result, nil
 }
 
@@ -344,10 +344,10 @@ func NewExecutor(options ExecutorOptions) Executor {
 func DetectVersion(ctx context.Context, options ExecutorOptions) string {
 	version, err := detectVersion(ctx, options, &OSCommandRunner{})
 	if err != nil {
-		log.Printf("detect openresty version failed: %v", err)
+		slog.Error("detect openresty version failed", "error", err)
 		return ""
 	}
-	log.Printf("detected openresty version: %s", version)
+	slog.Info("detected openresty version", "version", version)
 	return version
 }
 
@@ -466,7 +466,7 @@ func (m *Manager) backup() (*backupState, error) {
 		return nil, err
 	}
 	state.Files = files
-	log.Printf("backup captured: main_exists=%t route_exists=%t support_files=%d", state.MainExisted, state.RouteExisted, len(state.Files))
+	slog.Info("backup captured", "main_exists", state.MainExisted, "route_exists", state.RouteExisted, "support_files", len(state.Files))
 	return state, nil
 }
 
@@ -474,7 +474,7 @@ func (m *Manager) restore(state *backupState) error {
 	if state == nil {
 		return nil
 	}
-	log.Printf("restoring nginx backup: main_existed=%t route_existed=%t support_files=%d", state.MainExisted, state.RouteExisted, len(state.Files))
+	slog.Warn("restoring nginx backup", "main_existed", state.MainExisted, "route_existed", state.RouteExisted, "support_files", len(state.Files))
 	if state.MainExisted {
 		if err := os.WriteFile(m.MainConfigPath, state.MainData, 0o644); err != nil {
 			return err

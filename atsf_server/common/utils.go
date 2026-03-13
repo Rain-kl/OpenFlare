@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/google/uuid"
 	"html/template"
-	"log"
 	"net"
 	"os/exec"
 	"runtime"
@@ -24,14 +23,14 @@ func OpenBrowser(url string) {
 		err = exec.Command("open", url).Start()
 	}
 	if err != nil {
-		log.Println(err)
+		SysError(err.Error())
 	}
 }
 
 func GetIp() (ip string) {
 	ips, err := net.InterfaceAddrs()
 	if err != nil {
-		log.Println(err)
+		SysError(err.Error())
 		return ip
 	}
 

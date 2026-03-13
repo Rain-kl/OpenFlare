@@ -21,6 +21,7 @@
 
 `atsf_server` 继续作为单体控制面：
 
+* Go 1.23+
 * Gin
 * GORM
 * SQLite
@@ -36,6 +37,7 @@
 
 `atsf_agent` 继续作为 Go 单体程序：
 
+* Go 1.23+
 * 单二进制
 * 节点本地执行
 * `openresty_path` 优先
@@ -275,6 +277,7 @@ Agent 必须满足：
 
 要求：
 
+* Server 与 Agent 统一使用 `slog` 输出结构化日志
 * 日志足够定位问题
 * 不打印敏感凭证完整值
 

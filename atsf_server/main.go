@@ -12,7 +12,6 @@ import (
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-contrib/sessions/redis"
 	"github.com/gin-gonic/gin"
-	"log"
 	"os"
 	"strconv"
 )
@@ -87,7 +86,7 @@ func main() {
 	common.SysLog(fmt.Sprintf("server listening on :%s", port))
 	err = server.Run(":" + port)
 	if err != nil {
-		log.Println(err)
+		common.SysError(err.Error())
 	}
 }
 

@@ -3,7 +3,8 @@ package main
 import (
 	"context"
 	"flag"
-	"log"
+	"log/slog"
+	"os"
 	"os/signal"
 	"syscall"
 
@@ -11,6 +12,7 @@ import (
 	"atsflare-agent/internal/config"
 	"atsflare-agent/internal/heartbeat"
 	"atsflare-agent/internal/httpclient"
+	"atsflare-agent/internal/logging"
 	"atsflare-agent/internal/nginx"
 	"atsflare-agent/internal/state"
 	syncservice "atsflare-agent/internal/sync"
@@ -18,12 +20,15 @@ import (
 )
 
 func main() {
+	logging.Setup()
+
 	configPath := flag.String("config", "./agent.json", "agent config path")
 	flag.Parse()
 
 	cfg, err := config.Load(*configPath)
 	if err != nil {
-		log.Fatal(err)
+		slog.Error("load agent config failed", "error", err)
+		os.Exit(1)
 	}
 	cfg.NginxVersion = nginx.DetectVersion(
 		context.Background(),
@@ -38,7 +43,14 @@ func main() {
 			NginxCertDir:    cfg.OpenrestyCertDir,
 		},
 	)
-	log.Printf("agent config loaded: server=%s node=%s ip=%s heartbeat_interval=%s route_config=%s cert_dir=%s", cfg.ServerURL, cfg.NodeName, cfg.NodeIP, cfg.HeartbeatInterval, cfg.RouteConfigPath, cfg.CertDir)
+	slog.Info("agent config loaded",
+		"server", cfg.ServerURL,
+		"node", cfg.NodeName,
+		"ip", cfg.NodeIP,
+		"heartbeat_interval", cfg.HeartbeatInterval,
+		"route_config", cfg.RouteConfigPath,
+		"cert_dir", cfg.CertDir,
+	)
 
 	client := httpclient.New(cfg.ServerURL, cfg.InitialAuthToken(), cfg.RequestTimeout.Duration())
 	stateStore := state.NewStore(cfg.StatePath)
@@ -74,10 +86,11 @@ func main() {
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
-	log.Printf("agent process started")
+	slog.Info("agent process started")
 
 	if err = runner.Run(ctx); err != nil && err != context.Canceled {
-		log.Fatal(err)
+		slog.Error("agent process exited with error", "error", err)
+		os.Exit(1)
 	}
-	log.Printf("agent process stopped")
+	slog.Info("agent process stopped")
 }

@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"runtime"
@@ -64,7 +64,7 @@ func (s *Service) CheckAndUpdate(ctx context.Context, repo string, options agent
 		return nil
 	}
 
-	log.Printf("agent update available: %s -> %s", localVersion, remoteVersion)
+	slog.Info("agent update available", "from", localVersion, "to", remoteVersion)
 	assetName := assetNameForGOOSGOARCH(runtime.GOOS, runtime.GOARCH)
 
 	var downloadURL string
@@ -219,7 +219,7 @@ func (s *Service) downloadAndRestart(ctx context.Context, url string, targetPath
 	}
 	tmpFile.Close()
 
-	log.Printf("agent binary updated, restarting...")
+	slog.Info("agent binary updated, restarting")
 	return replaceAndRestart(targetPath, tmpPath)
 }
 

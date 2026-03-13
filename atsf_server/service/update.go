@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"os"
 	"os/exec"
@@ -137,7 +136,7 @@ func ScheduleServerUpgrade(channel string) (*LatestServerRelease, error) {
 	go func(task *preparedServerUpgrade) {
 		time.Sleep(serverUpgradeDispatchDelay)
 		if err := executeServerUpgrade(task); err != nil {
-			log.Printf("server self-update failed: %v", err)
+			common.SysError(fmt.Sprintf("server self-update failed: %v", err))
 			serverUpgradeState.Lock()
 			serverUpgradeState.inProgress = false
 			serverUpgradeState.Unlock()
@@ -251,7 +250,7 @@ func ConfirmManualServerUpgrade(uploadToken string) (*UploadedServerBinary, erro
 	go func(task *manualServerBinaryCandidate) {
 		time.Sleep(serverUpgradeDispatchDelay)
 		if err := executeManualServerUpgrade(task); err != nil {
-			log.Printf("server manual upgrade failed: %v", err)
+			common.SysError(fmt.Sprintf("server manual upgrade failed: %v", err))
 			serverUpgradeState.Lock()
 			serverUpgradeState.inProgress = false
 			serverUpgradeState.Unlock()

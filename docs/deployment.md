@@ -8,13 +8,13 @@
 
 ### 1.1 Server
 
-* Go 1.18+
+* Go 1.23+
 * Node.js 18+
 * 可写 SQLite 文件目录
 
 ### 1.2 Agent
 
-* Go 1.18+
+* Go 1.23+
 * 对 Agent 数据目录有写权限
 * 若使用独立 OpenResty 模式：可执行 `openresty -t` 与 `openresty -s reload`
 * 若使用 Docker 模式：具备 Docker 执行权限
@@ -45,6 +45,7 @@ pnpm build
 cd atsf_server
 export SESSION_SECRET='replace-with-random-string'
 export SQLITE_PATH='./atsflare.db'
+export LOG_LEVEL='info'
 go run .
 ```
 
@@ -53,6 +54,7 @@ go run .
 * 默认不依赖全局 `AGENT_TOKEN`
 * 节点接入凭证由数据库维护：节点专属 `agent_token` + 全局 `discovery_token`
 * 默认监听端口为 `3000`
+* `LOG_LEVEL` 支持 `debug` / `info` / `warn` / `error`
 
 ### 2.3 使用 docker-compose 启动 Server
 
@@ -198,6 +200,7 @@ swag init -g main.go -o docs
 
 ```bash
 cd atsf_agent
+export LOG_LEVEL='info'
 go run ./cmd/agent -config /path/to/agent.json
 ```
 
@@ -206,6 +209,7 @@ go run ./cmd/agent -config /path/to/agent.json
 ```bash
 cd atsf_agent
 go build -o atsflare-agent ./cmd/agent
+export LOG_LEVEL='info'
 ./atsflare-agent -config /path/to/agent.json
 ```
 

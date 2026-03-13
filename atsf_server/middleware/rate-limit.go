@@ -3,7 +3,6 @@ package middleware
 import (
 	"atsflare/common"
 	"context"
-	"fmt"
 	"github.com/gin-gonic/gin"
 	"net/http"
 	"time"
@@ -19,7 +18,7 @@ func redisRateLimiter(c *gin.Context, maxRequestNum int, duration int64, mark st
 	key := "rateLimit:" + mark + c.ClientIP()
 	listLength, err := rdb.LLen(ctx, key).Result()
 	if err != nil {
-		fmt.Println(err.Error())
+		common.SysError(err.Error())
 		c.Status(http.StatusInternalServerError)
 		c.Abort()
 		return
@@ -31,7 +30,7 @@ func redisRateLimiter(c *gin.Context, maxRequestNum int, duration int64, mark st
 		oldTimeStr, _ := rdb.LIndex(ctx, key, -1).Result()
 		oldTime, err := time.Parse(timeFormat, oldTimeStr)
 		if err != nil {
-			fmt.Println(err)
+			common.SysError(err.Error())
 			c.Status(http.StatusInternalServerError)
 			c.Abort()
 			return
@@ -39,7 +38,7 @@ func redisRateLimiter(c *gin.Context, maxRequestNum int, duration int64, mark st
 		nowTimeStr := time.Now().Format(timeFormat)
 		nowTime, err := time.Parse(timeFormat, nowTimeStr)
 		if err != nil {
-			fmt.Println(err)
+			common.SysError(err.Error())
 			c.Status(http.StatusInternalServerError)
 			c.Abort()
 			return
