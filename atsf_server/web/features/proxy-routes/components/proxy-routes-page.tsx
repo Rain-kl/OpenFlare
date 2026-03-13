@@ -141,6 +141,24 @@ const routesQueryKey = ['proxy-routes'];
 const certificatesQueryKey = ['tls-certificates'];
 const versionsQueryKey = ['config-versions'];
 
+function hasConfigChanges(diff: {
+  active_version?: string;
+  added_domains: string[];
+  removed_domains: string[];
+  modified_domains: string[];
+  main_config_changed: boolean;
+  changed_option_keys: string[];
+}) {
+  return (
+    diff.added_domains.length > 0 ||
+    diff.removed_domains.length > 0 ||
+    diff.modified_domains.length > 0 ||
+    diff.main_config_changed ||
+    diff.changed_option_keys.length > 0 ||
+    !diff.active_version
+  );
+}
+
 function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : '请求失败，请稍后重试。';
 }
@@ -314,13 +332,7 @@ export function ProxyRoutesPage() {
 
     try {
       const diff = await getConfigVersionDiff();
-      const hasChanges =
-        diff.added_domains.length > 0 ||
-        diff.removed_domains.length > 0 ||
-        diff.modified_domains.length > 0 ||
-        !diff.active_version;
-
-      if (!hasChanges) {
+      if (!hasConfigChanges(diff)) {
         setFeedback({
           tone: 'info',
           message: '当前规则没有变更，已阻止重复发布。',

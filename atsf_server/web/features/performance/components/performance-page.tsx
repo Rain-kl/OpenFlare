@@ -879,7 +879,7 @@ export function PerformancePage() {
                         </div>
                     </AppCard>
 
-                    <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
+                    <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
                         <AppCard
                             title="OpenResty 反代缓冲与超时"
                             description="用于控制 upstream 连接、发送、读取超时，以及常用代理缓冲参数。"
@@ -1013,7 +1013,7 @@ export function PerformancePage() {
                             </div>
                         </AppCard>
 
-                        <div className="space-y-6">
+                        <div className="grid content-start gap-6">
 
                             <AppCard
                                 title="OpenResty 缓存"

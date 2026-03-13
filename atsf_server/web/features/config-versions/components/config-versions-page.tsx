@@ -168,12 +168,14 @@ function OptionDiffTable({ items }: { items: ConfigOptionDiffItem[] }) {
 function PublishPreviewCard({
   preview,
   diff,
+  activeVersion,
   isPublishing,
   onConfirm,
   onCancel,
 }: {
   preview: ConfigPreviewResult;
   diff: ConfigDiffResult;
+  activeVersion: ConfigVersionItem | null;
   isPublishing: boolean;
   onConfirm: () => void;
   onCancel: () => void;
@@ -261,6 +263,67 @@ function PublishPreviewCard({
           <OptionDiffTable items={diff.changed_option_details} />
         </div>
 
+        {diff.main_config_changed && activeVersion ? (
+          <div className="grid gap-5 xl:grid-cols-2">
+            <div>
+              <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
+                <p className="text-sm font-semibold text-[var(--foreground-primary)]">
+                  Current Active Main Config
+                </p>
+                <StatusBadge label={activeVersion.version} variant="info" />
+              </div>
+              <CodeBlock className="max-h-[32rem] whitespace-pre-wrap">
+                {activeVersion.main_config}
+              </CodeBlock>
+            </div>
+            <div>
+              <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
+                <p className="text-sm font-semibold text-[var(--foreground-primary)]">
+                  Pending Main Config
+                </p>
+                <p className="text-xs text-[var(--foreground-secondary)]">
+                  {`Checksum: ${preview.checksum}`}
+                </p>
+              </div>
+              <CodeBlock className="max-h-[32rem] whitespace-pre-wrap">
+                {preview.main_config}
+              </CodeBlock>
+            </div>
+          </div>
+        ) : null}
+
+        {/* Legacy duplicated main config preview block kept commented out while
+            we replace it with an explicit active-vs-pending comparison above.
+        {diff.main_config_changed && activeVersion ? (
+          <div className="grid gap-5 xl:grid-cols-2">
+            <div>
+              <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
+                <p className="text-sm font-semibold text-[var(--foreground-primary)]">
+                  褰撳墠婵€娲讳富閰嶇疆
+                </p>
+                <StatusBadge label={activeVersion.version} variant="info" />
+              </div>
+              <CodeBlock className="max-h-[32rem] whitespace-pre-wrap">
+                {activeVersion.main_config}
+              </CodeBlock>
+            </div>
+            <div>
+              <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
+                <p className="text-sm font-semibold text-[var(--foreground-primary)]">
+                  寰呭彂甯冧富閰嶇疆
+                </p>
+                <p className="text-xs text-[var(--foreground-secondary)]">
+                  Checksum锛歿preview.checksum}
+                </p>
+              </div>
+              <CodeBlock className="max-h-[32rem] whitespace-pre-wrap">
+                {preview.main_config}
+              </CodeBlock>
+            </div>
+          </div>
+        ) : null}
+        */}
+
         <div>
           <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm font-semibold text-[var(--foreground-primary)]">
@@ -334,6 +397,10 @@ export function ConfigVersionsPage() {
   const versions = useMemo(
     () => versionsQuery.data ?? [],
     [versionsQuery.data],
+  );
+  const activeVersion = useMemo(
+    () => versions.find((item) => item.is_active) ?? null,
+    [versions],
   );
   const selectedVersion = useMemo(
     () => versions.find((item) => item.id === selectedVersionId) ?? null,
@@ -426,6 +493,7 @@ export function ConfigVersionsPage() {
           <PublishPreviewCard
             preview={publishPreview.preview}
             diff={publishPreview.diff}
+            activeVersion={activeVersion}
             isPublishing={publishMutation.isPending}
             onConfirm={() => publishMutation.mutate()}
             onCancel={() => setPublishPreview(null)}
