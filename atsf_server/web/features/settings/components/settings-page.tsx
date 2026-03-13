@@ -1872,7 +1872,6 @@ export function SettingsPage() {
     <div className="space-y-6">
       <PageHeader
         title="设置"
-        description="集中维护账号、Agent、系统、限流与品牌配置。OpenResty 专项能力已迁移到侧边栏“性能”页面。"
       />
 
       {feedback ? (

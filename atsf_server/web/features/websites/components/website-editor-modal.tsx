@@ -262,7 +262,6 @@ export function WebsiteEditorModal({
 
         <ResourceField
           label="备注"
-          hint="可选，用于记录归属、用途或生效说明。"
           error={form.formState.errors.remark?.message}
         >
           <ResourceInput

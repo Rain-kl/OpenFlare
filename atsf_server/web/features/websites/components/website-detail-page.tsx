@@ -325,7 +325,7 @@ export function WebsiteDetailPage({ websiteId }: { websiteId: string }) {
                 type="button"
                 onClick={() => setIsCertificateImportOpen(true)}
               >
-                添加证书
+                添加
               </PrimaryButton>
             }
           >
@@ -348,13 +348,13 @@ export function WebsiteDetailPage({ websiteId }: { websiteId: string }) {
                     type="button"
                     onClick={() => setIsCertificateDetailOpen(true)}
                   >
-                    查看证书
+                    查看
                   </SecondaryButton>
                   <SecondaryButton
                     type="button"
                     onClick={() => setIsCertificateEditorOpen(true)}
                   >
-                    编辑证书
+                    编辑
                   </SecondaryButton>
                 </div>
                 <DangerButton
@@ -362,7 +362,7 @@ export function WebsiteDetailPage({ websiteId }: { websiteId: string }) {
                   onClick={handleDeleteCertificate}
                   disabled={deleteCertificateMutation.isPending}
                 >
-                  删除证书
+                  删除
                 </DangerButton>
               </div>
             ) : (
@@ -376,8 +376,7 @@ export function WebsiteDetailPage({ websiteId }: { websiteId: string }) {
 
         <AppCard
           title="关联规则"
-          description="参考节点详情页，这里集中展示该网站命中的规则以及 HTTPS、源站、证书等关键信息。"
-        >
+            >
           {relatedRoutes.length === 0 ? (
             <EmptyState
               title="暂无关联规则"

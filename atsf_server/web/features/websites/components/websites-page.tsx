@@ -167,7 +167,7 @@ export function WebsitesPage() {
                           </p>
                         </div>
 
-                        <div className="grid gap-3 md:grid-cols-2">
+                        <div className="grid gap-3 md:grid-cols-1">
                           <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-panel)] px-4 py-3">
                             <p className="text-xs uppercase tracking-[0.18em] text-[var(--foreground-muted)]">
                               绑定证书
@@ -176,14 +176,6 @@ export function WebsitesPage() {
                               {certificate
                                 ? buildCertificateLabel(certificate)
                                 : '未绑定证书'}
-                            </p>
-                          </div>
-                          <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-panel)] px-4 py-3">
-                            <p className="text-xs uppercase tracking-[0.18em] text-[var(--foreground-muted)]">
-                              更新时间
-                            </p>
-                            <p className="mt-2 text-sm text-[var(--foreground-primary)]">
-                              {formatDateTime(domain.updated_at)}
                             </p>
                           </div>
                         </div>
