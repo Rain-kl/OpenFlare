@@ -172,7 +172,7 @@ export function ToggleField({
   onChange,
 }: ToggleFieldProps) {
   return (
-    <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-[var(--border-default)] bg-[var(--surface-elevated)] px-4 py-3">
+    <label className="flex self-start cursor-pointer items-start gap-3 rounded-2xl border border-[var(--border-default)] bg-[var(--surface-elevated)] px-4 py-3">
       <input
         type="checkbox"
         checked={checked}
