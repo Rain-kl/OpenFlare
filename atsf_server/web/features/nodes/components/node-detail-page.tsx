@@ -526,6 +526,15 @@ export function NodeDetailPage({ nodeId }: { nodeId: string }) {
       ),
     [observability?.traffic_reports],
   );
+  const dominantStatusCode = statusCodeDistribution[0] ?? null;
+  const dominantDomain = topDomains[0] ?? null;
+  const resolvedHealthEvents = useMemo(
+    () =>
+      observability?.health_events.filter(
+        (event) => event.status === 'resolved',
+      ) ?? [],
+    [observability?.health_events],
+  );
   const memoryUsageRatio = formatUsageRatio(
     latestMetricSnapshot?.memory_used_bytes,
     latestMetricSnapshot?.memory_total_bytes,
@@ -972,6 +981,46 @@ export function NodeDetailPage({ nodeId }: { nodeId: string }) {
             title="请求结构分布"
             description="聚合最近 24 小时窗口上报，帮助判断错误集中在哪些状态码、流量集中在哪些域名。"
           >
+            <div className="mb-6 grid gap-4 md:grid-cols-3">
+              <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-elevated)] px-4 py-4">
+                <p className="text-xs tracking-[0.2em] text-[var(--foreground-muted)] uppercase">
+                  主状态码
+                </p>
+                <p className="mt-3 text-2xl font-semibold text-[var(--foreground-primary)]">
+                  {dominantStatusCode?.label ?? '—'}
+                </p>
+                <p className="mt-2 text-sm text-[var(--foreground-secondary)]">
+                  {dominantStatusCode
+                    ? `${dominantStatusCode.value} 次`
+                    : '暂无状态码聚合'}
+                </p>
+              </div>
+              <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-elevated)] px-4 py-4">
+                <p className="text-xs tracking-[0.2em] text-[var(--foreground-muted)] uppercase">
+                  Top Domain
+                </p>
+                <p className="mt-3 truncate text-2xl font-semibold text-[var(--foreground-primary)]">
+                  {dominantDomain?.label ?? '—'}
+                </p>
+                <p className="mt-2 text-sm text-[var(--foreground-secondary)]">
+                  {dominantDomain
+                    ? `${dominantDomain.value} 次`
+                    : '暂无域名聚合'}
+                </p>
+              </div>
+              <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-elevated)] px-4 py-4">
+                <p className="text-xs tracking-[0.2em] text-[var(--foreground-muted)] uppercase">
+                  已恢复事件
+                </p>
+                <p className="mt-3 text-2xl font-semibold text-[var(--foreground-primary)]">
+                  {resolvedHealthEvents.length}
+                </p>
+                <p className="mt-2 text-sm text-[var(--foreground-secondary)]">
+                  最近 24 小时已恢复健康事件
+                </p>
+              </div>
+            </div>
+
             <div className="grid gap-6 xl:grid-cols-2">
               <div>
                 <p className="mb-4 text-xs tracking-[0.2em] text-[var(--foreground-muted)] uppercase">

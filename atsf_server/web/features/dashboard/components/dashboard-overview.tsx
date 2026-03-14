@@ -76,11 +76,13 @@ function RiskSignal({
   value,
   tone,
   hint,
+  href,
 }: {
   label: string;
   value: number;
   tone: 'danger' | 'warning' | 'info' | 'success';
   hint: string;
+  href?: string;
 }) {
   const toneClass =
     tone === 'danger'
@@ -91,12 +93,23 @@ function RiskSignal({
           ? 'border-emerald-400/30 bg-emerald-500/10 text-emerald-100'
           : 'border-sky-400/30 bg-sky-500/10 text-sky-100';
 
-  return (
+  const content = (
     <div className={`rounded-3xl border px-4 py-4 ${toneClass}`}>
       <p className="text-xs tracking-[0.22em] uppercase opacity-75">{label}</p>
       <p className="mt-3 text-3xl font-semibold">{value}</p>
       <p className="mt-2 text-sm opacity-80">{hint}</p>
     </div>
+  );
+  if (!href) {
+    return content;
+  }
+  return (
+    <Link
+      href={href}
+      className="block transition hover:opacity-90"
+    >
+      {content}
+    </Link>
   );
 }
 
@@ -104,12 +117,14 @@ function PeakCard({
   label,
   value,
   hint,
+  href,
 }: {
   label: string;
   value: string;
   hint: string;
+  href?: string;
 }) {
-  return (
+  const content = (
     <div className="rounded-3xl border border-[var(--border-default)] bg-[var(--surface-elevated)] px-4 py-4">
       <p className="text-xs tracking-[0.22em] text-[var(--foreground-muted)] uppercase">
         {label}
@@ -119,6 +134,17 @@ function PeakCard({
       </p>
       <p className="mt-2 text-sm text-[var(--foreground-secondary)]">{hint}</p>
     </div>
+  );
+  if (!href) {
+    return content;
+  }
+  return (
+    <Link
+      href={href}
+      className="block transition hover:[&_div]:border-[var(--border-strong)] hover:[&_div]:bg-[var(--surface-muted)]"
+    >
+      {content}
+    </Link>
   );
 }
 
@@ -133,6 +159,13 @@ function formatPeakNode(node: DashboardPeakNode | null) {
     title: node.node_name,
     hint: `请求 ${node.request_count} · 错误 ${node.error_count} · CPU ${formatPercent(node.cpu_usage_percent)}`,
   };
+}
+
+function buildNodeDetailHref(id?: number | null) {
+  if (!id) {
+    return '/node';
+  }
+  return `/node/detail?id=${id}`;
 }
 
 function OverviewMetric({
@@ -163,7 +196,10 @@ function OverviewMetric({
 
 function NodeHealthRow({ node }: { node: DashboardNodeHealth }) {
   return (
-    <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-elevated)] px-4 py-4">
+    <Link
+      href={buildNodeDetailHref(node.id)}
+      className="block rounded-2xl border border-[var(--border-default)] bg-[var(--surface-elevated)] px-4 py-4 transition hover:border-[var(--border-strong)] hover:bg-[var(--surface-muted)]"
+    >
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="text-sm font-semibold text-[var(--foreground-primary)]">
@@ -229,7 +265,7 @@ function NodeHealthRow({ node }: { node: DashboardNodeHealth }) {
             : ' 暂无'}
         </p>
       </div>
-    </div>
+    </Link>
   );
 }
 
@@ -262,6 +298,10 @@ export function DashboardOverview() {
       />
     );
   }
+
+  const nodeIdMap = new Map(
+    overview.nodes.map((node) => [node.node_id, node.id] as const),
+  );
 
   return (
     <div className="space-y-6">
@@ -326,12 +366,14 @@ export function DashboardOverview() {
               value={overview.risk.lagging_nodes}
               tone="info"
               hint="当前版本未追平全局激活配置"
+              href="/node?risk=lagging"
             />
             <RiskSignal
               label="OpenResty 异常"
               value={overview.risk.unhealthy_nodes}
               tone="danger"
               hint="运行态已出现不健康节点"
+              href="/node?risk=unhealthy"
             />
             <RiskSignal
               label="高 CPU / 内存"
@@ -346,6 +388,13 @@ export function DashboardOverview() {
               value={overview.risk.high_storage_nodes}
               tone="warning"
               hint={`${overview.risk.offline_nodes} 个离线节点`}
+            />
+            <RiskSignal
+              label="离线节点"
+              value={overview.risk.offline_nodes}
+              tone="warning"
+              hint="节点长时间未心跳或已失联"
+              href="/node?risk=offline"
             />
           </div>
         </AppCard>
@@ -373,11 +422,17 @@ export function DashboardOverview() {
               label="最忙节点"
               value={formatPeakNode(overview.peaks.busiest_node).title}
               hint={formatPeakNode(overview.peaks.busiest_node).hint}
+              href={buildNodeDetailHref(
+                nodeIdMap.get(overview.peaks.busiest_node?.node_id ?? ''),
+              )}
             />
             <PeakCard
               label="优先排查节点"
               value={formatPeakNode(overview.peaks.riskiest_node).title}
               hint={formatPeakNode(overview.peaks.riskiest_node).hint}
+              href={buildNodeDetailHref(
+                nodeIdMap.get(overview.peaks.riskiest_node?.node_id ?? ''),
+              )}
             />
           </div>
         </AppCard>
@@ -510,9 +565,10 @@ export function DashboardOverview() {
             ) : (
               <div className="space-y-3">
                 {overview.active_alerts.map((alert) => (
-                  <div
+                  <Link
                     key={`${alert.node_id}-${alert.event_type}-${alert.last_triggered_at}`}
-                    className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-elevated)] px-4 py-4"
+                    href={buildNodeDetailHref(nodeIdMap.get(alert.node_id))}
+                    className="block rounded-2xl border border-[var(--border-default)] bg-[var(--surface-elevated)] px-4 py-4 transition hover:border-[var(--border-strong)] hover:bg-[var(--surface-muted)]"
                   >
                     <div className="flex flex-wrap items-center gap-2">
                       <StatusBadge
@@ -530,7 +586,7 @@ export function DashboardOverview() {
                       {formatRelativeTime(alert.last_triggered_at)} ·{' '}
                       {formatDateTime(alert.last_triggered_at)}
                     </p>
-                  </div>
+                  </Link>
                 ))}
               </div>
             )}
