@@ -499,6 +499,53 @@ export function NodeDetailPage({ nodeId }: { nodeId: string }) {
     );
   }, [configVersionsQuery.data]);
 
+  const observability = observabilityQuery.data ?? null;
+  const latestMetricSnapshot = observability?.metric_snapshots?.[0] ?? null;
+  const activeHealthEvents = useMemo(
+    () =>
+      observability?.health_events.filter((event) => event.status === 'active') ??
+      [],
+    [observability?.health_events],
+  );
+  const statusCodeDistribution = useMemo(
+    () =>
+      aggregateTrafficBreakdown(
+        observability?.traffic_reports ?? [],
+        'status_codes_json',
+      ),
+    [observability?.traffic_reports],
+  );
+  const topDomains = useMemo(
+    () =>
+      aggregateTrafficBreakdown(
+        observability?.traffic_reports ?? [],
+        'top_domains_json',
+      ),
+    [observability?.traffic_reports],
+  );
+  const resolvedHealthEvents = useMemo(
+    () =>
+      observability?.health_events.filter(
+        (event) => event.status === 'resolved',
+      ) ?? [],
+    [observability?.health_events],
+  );
+  const filteredHealthEvents = useMemo(() => {
+    switch (healthEventFilter) {
+      case 'active':
+        return activeHealthEvents;
+      case 'resolved':
+        return resolvedHealthEvents;
+      default:
+        return observability?.health_events ?? [];
+    }
+  }, [
+    activeHealthEvents,
+    healthEventFilter,
+    observability?.health_events,
+    resolvedHealthEvents,
+  ]);
+
   if (nodesQuery.isLoading) {
     return <LoadingState />;
   }
@@ -540,28 +587,6 @@ export function NodeDetailPage({ nodeId }: { nodeId: string }) {
       ? previewAgentReleaseQuery.isFetching
       : stableAgentReleaseQuery.isFetching;
   const applyLogs = applyLogsQuery.data ?? [];
-  const observability = observabilityQuery.data ?? null;
-  const latestMetricSnapshot = observability?.metric_snapshots?.[0] ?? null;
-  const latestTrafficReport = observability?.traffic_reports?.[0] ?? null;
-  const activeHealthEvents =
-    observability?.health_events.filter((event) => event.status === 'active') ??
-    [];
-  const statusCodeDistribution = useMemo(
-    () =>
-      aggregateTrafficBreakdown(
-        observability?.traffic_reports ?? [],
-        'status_codes_json',
-      ),
-    [observability?.traffic_reports],
-  );
-  const topDomains = useMemo(
-    () =>
-      aggregateTrafficBreakdown(
-        observability?.traffic_reports ?? [],
-        'top_domains_json',
-      ),
-    [observability?.traffic_reports],
-  );
   const dominantStatusCode = statusCodeDistribution[0] ?? null;
   const dominantDomain = topDomains[0] ?? null;
   const topSourceCountry =
@@ -569,28 +594,6 @@ export function NodeDetailPage({ nodeId }: { nodeId: string }) {
   const trafficSummary = observability?.analytics.traffic ?? null;
   const healthSummary = observability?.analytics.health ?? null;
   const latestHealthEvent = activeHealthEvents[0] ?? null;
-  const resolvedHealthEvents = useMemo(
-    () =>
-      observability?.health_events.filter(
-        (event) => event.status === 'resolved',
-      ) ?? [],
-    [observability?.health_events],
-  );
-  const filteredHealthEvents = useMemo(() => {
-    switch (healthEventFilter) {
-      case 'active':
-        return activeHealthEvents;
-      case 'resolved':
-        return resolvedHealthEvents;
-      default:
-        return observability?.health_events ?? [];
-    }
-  }, [
-    activeHealthEvents,
-    healthEventFilter,
-    observability?.health_events,
-    resolvedHealthEvents,
-  ]);
   const memoryUsageRatio = formatUsageRatio(
     latestMetricSnapshot?.memory_used_bytes,
     latestMetricSnapshot?.memory_total_bytes,

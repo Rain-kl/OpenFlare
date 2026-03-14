@@ -18,20 +18,24 @@ type RankChartProps = {
 
 const defaultFormatter = (value: number) => value.toLocaleString('zh-CN');
 
+function getChartValue(params: unknown) {
+  if (typeof params !== 'object' || params === null || !('value' in params)) {
+    return 0;
+  }
+  const rawValue = (params as { value?: unknown }).value;
+  if (Array.isArray(rawValue)) {
+    const candidate = rawValue[0];
+    return typeof candidate === 'number' ? candidate : 0;
+  }
+  return typeof rawValue === 'number' ? rawValue : 0;
+}
+
 export function RankChart({
   items,
   color,
   valueFormatter = defaultFormatter,
   emptyMessage = '暂无分布数据',
 }: RankChartProps) {
-  if (items.length === 0) {
-    return (
-      <div className="flex h-[220px] items-center justify-center rounded-3xl border border-dashed border-[var(--border-default)] bg-[var(--surface-muted)] text-sm text-[var(--foreground-secondary)]">
-        {emptyMessage}
-      </div>
-    );
-  }
-
   const option = useMemo<EChartsOption>(
     () => ({
       animationDuration: 400,
@@ -100,20 +104,21 @@ export function RankChart({
             show: true,
             position: 'right',
             color: '#e2e8f0',
-            formatter: (params: any) => {
-              const rawValue = Array.isArray(params.value)
-                ? params.value[0]
-                : params.value;
-              return valueFormatter(
-                typeof rawValue === 'number' ? rawValue : 0,
-              );
-            },
+            formatter: (params: unknown) => valueFormatter(getChartValue(params)),
           },
         },
       ],
     }),
     [color, items, valueFormatter],
   );
+
+  if (items.length === 0) {
+    return (
+      <div className="flex h-[220px] items-center justify-center rounded-3xl border border-dashed border-[var(--border-default)] bg-[var(--surface-muted)] text-sm text-[var(--foreground-secondary)]">
+        {emptyMessage}
+      </div>
+    );
+  }
 
   return (
     <ReactECharts

@@ -84,7 +84,7 @@ func AgentHeartbeat(c *gin.Context) {
 func AgentGetActiveConfig(c *gin.Context) {
 	config, err := service.GetActiveConfigForAgent()
 	if err != nil {
-		respondFailure(c, "褰撳墠娌℃湁婵€娲荤増鏈?")
+		respondFailure(c, "当前没有激活版本")
 		return
 	}
 	respondSuccess(c, config)

@@ -22,14 +22,6 @@ type TrendChartProps = {
 const defaultFormatter = (value: number) => value.toLocaleString('zh-CN');
 
 export function TrendChart({ labels, series, height = 220 }: TrendChartProps) {
-  if (labels.length === 0 || series.length === 0) {
-    return (
-      <div className="flex h-[220px] items-center justify-center rounded-3xl border border-dashed border-[var(--border-default)] bg-[var(--surface-muted)] text-sm text-[var(--foreground-secondary)]">
-        暂无趋势数据
-      </div>
-    );
-  }
-
   const option = useMemo<EChartsOption>(() => {
     const maxValue =
       Math.max(
@@ -119,6 +111,14 @@ export function TrendChart({ labels, series, height = 220 }: TrendChartProps) {
       })),
     };
   }, [labels, series]);
+
+  if (labels.length === 0 || series.length === 0) {
+    return (
+      <div className="flex h-[220px] items-center justify-center rounded-3xl border border-dashed border-[var(--border-default)] bg-[var(--surface-muted)] text-sm text-[var(--foreground-secondary)]">
+        暂无趋势数据
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
