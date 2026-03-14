@@ -368,11 +368,13 @@ func TestOpenRestyProxyRequestBufferingDefaultsToOff(t *testing.T) {
 
 func setupServiceTestDB(t *testing.T) {
 	t.Helper()
+	nodeAgentTokenCache.reset()
 	common.SQLitePath = filepath.Join(t.TempDir(), "service.db")
 	if err := model.InitDB(); err != nil {
 		t.Fatalf("failed to init db: %v", err)
 	}
 	t.Cleanup(func() {
+		nodeAgentTokenCache.reset()
 		if err := model.CloseDB(); err != nil {
 			t.Fatalf("failed to close db: %v", err)
 		}

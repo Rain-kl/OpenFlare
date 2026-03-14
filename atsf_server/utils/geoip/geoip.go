@@ -9,6 +9,8 @@ import (
 	"sync"
 	"time"
 	"unicode"
+
+	ristretto "github.com/dgraph-io/ristretto/v2"
 )
 
 var CurrentProvider GeoIPService
@@ -49,47 +51,47 @@ type cachedGeoInfo struct {
 }
 
 type providerCache struct {
-	mu       sync.RWMutex
-	items    map[string]cachedGeoInfo
+	items    *ristretto.Cache[string, cachedGeoInfo]
 	duration time.Duration
 }
 
 func newProviderCache(duration time.Duration) *providerCache {
+	items, err := ristretto.NewCache(&ristretto.Config[string, cachedGeoInfo]{
+		NumCounters: 1e5,
+		MaxCost:     2e4,
+		BufferItems: 64,
+	})
+	if err != nil {
+		panic(err)
+	}
 	return &providerCache{
-		items:    make(map[string]cachedGeoInfo),
+		items:    items,
 		duration: duration,
 	}
 }
 
 func (c *providerCache) Get(key string) (*GeoInfo, bool) {
-	c.mu.RLock()
-	entry, ok := c.items[key]
-	c.mu.RUnlock()
+	entry, ok := c.items.Get(key)
 	if !ok {
 		return nil, false
 	}
 	if time.Now().After(entry.expiresAt) {
-		c.mu.Lock()
-		delete(c.items, key)
-		c.mu.Unlock()
+		c.items.Del(key)
 		return nil, false
 	}
 	return entry.info, true
 }
 
 func (c *providerCache) Set(key string, info *GeoInfo) {
-	c.mu.Lock()
-	c.items[key] = cachedGeoInfo{
+	c.items.Set(key, cachedGeoInfo{
 		info:      info,
 		expiresAt: time.Now().Add(c.duration),
-	}
-	c.mu.Unlock()
+	}, 1)
+	c.items.Wait()
 }
 
 func (c *providerCache) Flush() {
-	c.mu.Lock()
-	c.items = make(map[string]cachedGeoInfo)
-	c.mu.Unlock()
+	c.items.Clear()
 }
 
 func GetRegionUnicodeEmoji(isoCode string) string {

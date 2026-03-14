@@ -144,6 +144,7 @@ func HeartbeatNode(node *model.Node, payload AgentNodePayload) (*HeartbeatRespon
 			return nil, err
 		}
 	}
+	refreshAgentTokenCache(node)
 	persistHeartbeatObservability(node.NodeID, payload, node.LastSeenAt)
 	activeConfig, err := GetActiveConfigMetaForAgent()
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {

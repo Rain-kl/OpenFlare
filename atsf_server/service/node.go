@@ -87,6 +87,7 @@ func CreateNode(input NodeInput) (*NodeView, error) {
 		}
 		return nil, err
 	}
+	refreshAgentTokenCache(node)
 	slog.Info("node created", "name", node.Name, "node_id", node.NodeID)
 	return buildNodeView(node), nil
 }
@@ -113,6 +114,7 @@ func UpdateNode(id uint, input NodeInput) (*NodeView, error) {
 	if err = node.Update(); err != nil {
 		return nil, err
 	}
+	refreshAgentTokenCache(node)
 	slog.Info("node updated", "name", node.Name, "node_id", node.NodeID)
 	return buildNodeView(node), nil
 }
@@ -123,7 +125,11 @@ func DeleteNode(id uint) error {
 		return err
 	}
 	slog.Info("node deleted", "name", node.Name, "node_id", node.NodeID)
-	return node.Delete()
+	if err := node.Delete(); err != nil {
+		return err
+	}
+	invalidateAgentTokenCache(node.AgentToken)
+	return nil
 }
 
 func GetNodeAgentRelease(ctx context.Context, id uint, channel string) (*NodeAgentReleaseInfo, error) {
@@ -163,6 +169,7 @@ func RequestNodeAgentUpdate(id uint, input NodeAgentUpdateInput) (*NodeView, err
 	if err = model.DB.Model(node).Select("update_requested", "update_channel", "update_tag").Updates(node).Error; err != nil {
 		return nil, err
 	}
+	refreshAgentTokenCache(node)
 	slog.Info("agent manual update requested", "node_id", node.NodeID, "name", node.Name, "channel", channel.String(), "tag", tagName)
 	return buildNodeView(node), nil
 }
@@ -176,6 +183,7 @@ func RequestNodeOpenrestyRestart(id uint) (*NodeView, error) {
 	if err = model.DB.Model(node).Select("restart_openresty_requested").Updates(node).Error; err != nil {
 		return nil, err
 	}
+	refreshAgentTokenCache(node)
 	slog.Info("openresty restart requested", "node_id", node.NodeID, "name", node.Name)
 	return buildNodeView(node), nil
 }
@@ -185,7 +193,7 @@ func AuthenticateAgentToken(token string) (*model.Node, error) {
 	if token == "" {
 		return nil, errors.New("缺少 Agent Token")
 	}
-	return model.GetNodeByAgentToken(token)
+	return authenticateAgentTokenWithCache(token)
 }
 
 func ValidateDiscoveryToken(token string) error {
@@ -357,6 +365,7 @@ func RegisterNodeWithAgentToken(node *model.Node, payload AgentNodePayload) (*Ag
 	if err := node.Update(); err != nil {
 		return nil, err
 	}
+	refreshAgentTokenCache(node)
 	slog.Info("agent register succeeded on reserved node", "node_id", node.NodeID, "name", node.Name)
 	return &AgentRegistrationResponse{
 		NodeID:     node.NodeID,
@@ -394,6 +403,7 @@ func RegisterNodeWithDiscovery(payload AgentNodePayload) (*AgentRegistrationResp
 		}
 		return nil, err
 	}
+	refreshAgentTokenCache(node)
 	slog.Info("agent discovery register succeeded", "node_id", node.NodeID, "name", node.Name)
 	return &AgentRegistrationResponse{
 		NodeID:     node.NodeID,
