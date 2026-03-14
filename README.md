@@ -161,7 +161,8 @@ curl -fsSL https://raw.githubusercontent.com/Rain-kl/ATSFlare/main/scripts/insta
 * `--server-url` 替换为实际控制面地址，例如 `http://192.168.1.10:3000`
 * 默认安装目录为 `/opt/atsflare-agent`
 * 脚本会创建 `atsflare-agent.service` 并启动 systemd 服务
-* 重复执行安装命令可用于升级 Agent 到最新 Release
+* 重复执行安装命令可用于重装或升级 Agent 到最新 Release
+* 重装时会先删除整个安装目录，再重新生成 `agent.json`、本地状态和二进制；旧数据不会保留
 
 ## 典型使用流程
 

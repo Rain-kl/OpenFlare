@@ -37,6 +37,10 @@ Examples:
 
   # Install with node-specific token
   install-agent.sh --server-url http://10.0.0.1:3000 --agent-token node-token-xyz
+
+Notes:
+  Reinstall will remove the entire install directory before installing again,
+  including the old agent.json, local state, cached data, and downloaded binary.
 EOF
   exit 0
 }
@@ -99,13 +103,9 @@ fi
 TAG=$(echo "$RELEASE_INFO" | grep -o '"tag_name"[[:space:]]*:[[:space:]]*"[^"]*"' | grep -o '"[^"]*"$' | tr -d '"')
 echo "Latest release: ${TAG}"
 
-# Create install directory
-echo "Installing to ${INSTALL_DIR}..."
-mkdir -p "${INSTALL_DIR}/data"
-
 # Download binary
 echo "Downloading ${ASSET_NAME}..."
-TMP_BINARY="$(mktemp "${INSTALL_DIR}/atsflare-agent.tmp.XXXXXX")"
+TMP_BINARY="$(mktemp "/tmp/atsflare-agent.tmp.XXXXXX")"
 cleanup() {
   rm -f "$TMP_BINARY"
 }
@@ -117,19 +117,26 @@ chmod +x "$TMP_BINARY"
 SERVICE_WAS_ACTIVE="false"
 if [[ "$OS" == "linux" && "$SYSTEMCTL_AVAILABLE" == "true" ]] && systemctl is-active --quiet "$SERVICE_NAME"; then
   SERVICE_WAS_ACTIVE="true"
-  echo "Stopping running service before upgrade..."
+  echo "Stopping running service before reinstall..."
   systemctl stop "$SERVICE_NAME"
 fi
+
+if [[ -d "$INSTALL_DIR" ]]; then
+  echo "Removing existing installation directory: ${INSTALL_DIR}"
+  rm -rf "$INSTALL_DIR"
+fi
+
+echo "Installing to ${INSTALL_DIR}..."
+mkdir -p "${INSTALL_DIR}/data"
 
 mv -f "$TMP_BINARY" "${INSTALL_DIR}/atsflare-agent"
 trap - EXIT
 
 # Generate config
 CONFIG_FILE="${INSTALL_DIR}/agent.json"
-if [[ ! -f "$CONFIG_FILE" ]]; then
-  echo "Generating agent.json..."
-  if [[ -n "$AGENT_TOKEN" ]]; then
-    cat > "$CONFIG_FILE" <<CFGEOF
+echo "Generating agent.json..."
+if [[ -n "$AGENT_TOKEN" ]]; then
+  cat > "$CONFIG_FILE" <<CFGEOF
 {
   "server_url": "${SERVER_URL}",
   "agent_token": "${AGENT_TOKEN}",
@@ -139,8 +146,8 @@ if [[ ! -f "$CONFIG_FILE" ]]; then
   "request_timeout": 10000
 }
 CFGEOF
-  else
-    cat > "$CONFIG_FILE" <<CFGEOF
+else
+  cat > "$CONFIG_FILE" <<CFGEOF
 {
   "server_url": "${SERVER_URL}",
   "discovery_token": "${DISCOVERY_TOKEN}",
@@ -150,9 +157,6 @@ CFGEOF
   "request_timeout": 10000
 }
 CFGEOF
-  fi
-else
-  echo "Config file already exists, skipping generation"
 fi
 
 # Create systemd service
