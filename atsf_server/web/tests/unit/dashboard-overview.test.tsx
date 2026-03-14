@@ -2,10 +2,17 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { ThemeProvider } from '@/components/providers/theme-provider';
 import { DashboardOverview } from '@/features/dashboard/components/dashboard-overview';
 
 vi.mock('echarts-for-react', () => ({
   default: () => <div data-testid="echarts-mock" />,
+}));
+
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({
+    push: vi.fn(),
+  }),
 }));
 
 describe('DashboardOverview', () => {
@@ -13,7 +20,38 @@ describe('DashboardOverview', () => {
     vi.unstubAllGlobals();
   });
 
+  function stubMatchMedia() {
+    vi.stubGlobal(
+      'matchMedia',
+      vi.fn().mockImplementation(() => ({
+        matches: false,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      })),
+    );
+  }
+
+  function renderDashboardOverview() {
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: {
+          retry: false,
+        },
+      },
+    });
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider>
+          <DashboardOverview />
+        </ThemeProvider>
+      </QueryClientProvider>,
+    );
+  }
+
   it('renders dashboard summary cards', async () => {
+    stubMatchMedia();
+
     vi.stubGlobal(
       'fetch',
       vi.fn((input: RequestInfo | URL) => {
@@ -203,19 +241,7 @@ describe('DashboardOverview', () => {
       }),
     );
 
-    const queryClient = new QueryClient({
-      defaultOptions: {
-        queries: {
-          retry: false,
-        },
-      },
-    });
-
-    render(
-      <QueryClientProvider client={queryClient}>
-        <DashboardOverview />
-      </QueryClientProvider>,
-    );
+    renderDashboardOverview();
 
     expect(await screen.findByText('全球态势板')).toBeInTheDocument();
     expect(await screen.findByText('系统健康摘要')).toBeInTheDocument();
@@ -225,5 +251,104 @@ describe('DashboardOverview', () => {
     expect(await screen.findByText('Top 节点榜单')).toBeInTheDocument();
     expect(await screen.findByText('处置建议')).toBeInTheDocument();
     expect(await screen.findByText('节点健康列表')).toBeInTheDocument();
+  });
+
+  it('renders empty state when dashboard arrays are returned as null', async () => {
+    stubMatchMedia();
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((input: RequestInfo | URL) => {
+        const url = String(input);
+
+        if (url.includes('/dashboard/overview')) {
+          return Promise.resolve(
+            new Response(
+              JSON.stringify({
+                success: true,
+                message: '',
+                data: {
+                  generated_at: '2026-03-14T08:00:00Z',
+                  summary: {
+                    total_nodes: 0,
+                    online_nodes: 0,
+                    offline_nodes: 0,
+                    pending_nodes: 0,
+                    unhealthy_nodes: 0,
+                    active_alerts: 0,
+                    lagging_nodes: 0,
+                  },
+                  traffic: {
+                    request_count: 0,
+                    unique_visitors: 0,
+                    error_count: 0,
+                    estimated_qps: 0,
+                    reported_nodes: 0,
+                  },
+                  capacity: {
+                    average_cpu_usage_percent: 0,
+                    average_memory_usage_percent: 0,
+                    high_cpu_nodes: 0,
+                    high_memory_nodes: 0,
+                    high_storage_nodes: 0,
+                  },
+                  config: {
+                    active_version: '',
+                    lagging_nodes: 0,
+                    pending_nodes: 0,
+                  },
+                  risk: {
+                    critical_alerts: 0,
+                    warning_alerts: 0,
+                    info_alerts: 0,
+                    offline_nodes: 0,
+                    unhealthy_nodes: 0,
+                    lagging_nodes: 0,
+                    high_cpu_nodes: 0,
+                    high_memory_nodes: 0,
+                    high_storage_nodes: 0,
+                  },
+                  peaks: {
+                    peak_request_hour: {
+                      bucket_started_at: '',
+                      request_count: 0,
+                      error_count: 0,
+                    },
+                    peak_error_hour: {
+                      bucket_started_at: '',
+                      request_count: 0,
+                      error_count: 0,
+                    },
+                    busiest_node: null,
+                    riskiest_node: null,
+                  },
+                  distributions: {
+                    source_countries: null,
+                    status_codes: null,
+                    top_domains: null,
+                  },
+                  trends: {
+                    traffic_24h: null,
+                    capacity_24h: null,
+                    network_24h: null,
+                    disk_io_24h: null,
+                  },
+                  nodes: null,
+                  active_alerts: null,
+                },
+              }),
+            ),
+          );
+        }
+
+        return Promise.reject(new Error(`Unhandled fetch: ${url}`));
+      }),
+    );
+
+    renderDashboardOverview();
+
+    expect(await screen.findByText('暂无活动异常')).toBeInTheDocument();
+    expect(await screen.findByText('暂无节点')).toBeInTheDocument();
+    expect(await screen.findByText('暂无来源分布数据')).toBeInTheDocument();
   });
 });

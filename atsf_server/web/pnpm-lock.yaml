@@ -23,6 +23,9 @@ importers:
       echarts-for-react:
         specifier: ^3.0.6
         version: 3.0.6(echarts@6.0.0)(react@19.0.0)
+      echarts-maps:
+        specifier: ^1.1.0
+        version: 1.1.0
       marked:
         specifier: ^17.0.4
         version: 17.0.4
@@ -1432,6 +1435,9 @@ packages:
     peerDependencies:
       echarts: ^3.0.0 || ^4.0.0 || ^5.0.0 || ^6.0.0
       react: ^15.0.0 || >=16.0.0
+
+  echarts-maps@1.1.0:
+    resolution: {integrity: sha512-kr3rP50zETiib4QUQZBep9VdfE0i3NKL+6UfTcxyV1mpYzokW2RJmx3WnYeY6ColOsvtUkL9fAdsFz5jUDhCeA==}
 
   echarts@6.0.0:
     resolution: {integrity: sha512-Tte/grDQRiETQP4xz3iZWSvoHrkCQtwqd6hs+mifXcjrCuo2iKWbajFObuLJVBlDIJlOzgQPd1hsaKt/3+OMkQ==}
@@ -4161,6 +4167,8 @@ snapshots:
       fast-deep-equal: 3.1.3
       react: 19.0.0
       size-sensor: 1.0.3
+
+  echarts-maps@1.1.0: {}
 
   echarts@6.0.0:
     dependencies:

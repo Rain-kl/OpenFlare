@@ -160,6 +160,7 @@ func GetDashboardOverview() (*DashboardOverviewView, error) {
 	view := &DashboardOverviewView{
 		GeneratedAt:   now,
 		Nodes:         make([]DashboardNodeHealth, 0, len(nodes)),
+		ActiveAlerts:  make([]DashboardAlert, 0),
 		Distributions: buildTrafficDistributions(reports, 8),
 		Trends: DashboardTrends{
 			Traffic24h:  buildTrafficTrendPoints(now, reports),

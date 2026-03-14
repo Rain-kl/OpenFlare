@@ -879,3 +879,18 @@ func TestGetDashboardOverview(t *testing.T) {
 		t.Fatalf("unexpected riskiest node: %+v", view.Peaks.RiskiestNode)
 	}
 }
+
+func TestGetDashboardOverviewReturnsEmptyAlertSlice(t *testing.T) {
+	setupServiceTestDB(t)
+
+	view, err := GetDashboardOverview()
+	if err != nil {
+		t.Fatalf("GetDashboardOverview failed: %v", err)
+	}
+	if view.ActiveAlerts == nil {
+		t.Fatalf("expected active alerts to be an empty slice, got nil")
+	}
+	if len(view.ActiveAlerts) != 0 {
+		t.Fatalf("expected empty active alerts, got %+v", view.ActiveAlerts)
+	}
+}
