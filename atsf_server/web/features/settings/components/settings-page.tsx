@@ -35,6 +35,7 @@ import {
   PrimaryButton,
   ResourceField,
   ResourceInput,
+  ResourceSelect,
   ResourceTextarea,
   SecondaryButton,
   ToggleField,
@@ -71,6 +72,7 @@ const defaultOperationFields = {
   AgentHeartbeatInterval: '10000',
   NodeOfflineThreshold: '120000',
   AgentUpdateRepo: 'Rain-kl/ATSFlare',
+  GeoIPProvider: 'disabled',
   OpenRestyWorkerProcesses: 'auto',
   OpenRestyWorkerConnections: '4096',
   OpenRestyWorkerRlimitNofile: '65535',
@@ -337,6 +339,7 @@ export function SettingsPage() {
       AgentHeartbeatInterval: optionMap.AgentHeartbeatInterval ?? '10000',
       NodeOfflineThreshold: optionMap.NodeOfflineThreshold ?? '120000',
       AgentUpdateRepo: optionMap.AgentUpdateRepo ?? 'Rain-kl/ATSFlare',
+      GeoIPProvider: optionMap.GeoIPProvider ?? 'disabled',
       OpenRestyWorkerProcesses: optionMap.OpenRestyWorkerProcesses ?? 'auto',
       OpenRestyWorkerConnections:
         optionMap.OpenRestyWorkerConnections ?? '4096',
@@ -1038,6 +1041,47 @@ export function SettingsPage() {
                   }
                   placeholder="Rain-kl/ATSFlare"
                 />
+              </ResourceField>
+            </AppCard>
+            <AppCard
+              title="IP 归属方式"
+              description="控制世界地图等场景使用的 IP 归属解析来源。选择 MaxMind 时会按需下载本地 mmdb 数据库。"
+              action={
+                <PrimaryButton
+                  type="button"
+                  onClick={() =>
+                    void runBusyAction('operation-geoip', async () => {
+                      await saveOptionEntries(
+                        [['GeoIPProvider', operationFields.GeoIPProvider]],
+                        'IP 归属方式已保存。',
+                      );
+                    })
+                  }
+                  disabled={busyKey === 'operation-geoip'}
+                >
+                  {busyKey === 'operation-geoip' ? '保存中...' : '保存归属方式'}
+                </PrimaryButton>
+              }
+            >
+              <ResourceField
+                label="归属方式"
+                hint="disabled 关闭解析；mmdb 使用本地数据库；其余选项调用外部 GeoIP 服务。"
+              >
+                <ResourceSelect
+                  value={operationFields.GeoIPProvider}
+                  onChange={(event) =>
+                    setOperationFields((previous) => ({
+                      ...previous,
+                      GeoIPProvider: event.target.value,
+                    }))
+                  }
+                >
+                  <option value="disabled">关闭</option>
+                  <option value="mmdb">MaxMind mmdb</option>
+                  <option value="ip-api">ip-api.com</option>
+                  <option value="geojs">geojs.io</option>
+                  <option value="ipinfo">ipinfo.io</option>
+                </ResourceSelect>
               </ResourceField>
             </AppCard>
             <AppCard

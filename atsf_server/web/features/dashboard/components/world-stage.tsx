@@ -9,6 +9,7 @@ import { useEffect, useMemo, useState } from 'react';
 
 import { EmptyState } from '@/components/feedback/empty-state';
 import { useTheme } from '@/components/providers/theme-provider';
+import worldGeoJson from '@/features/dashboard/data/world-geo.json';
 import { StatusBadge } from '@/components/ui/status-badge';
 import type {
   DashboardConfig,
@@ -70,6 +71,56 @@ type MapNodeDatum = {
     };
   };
 };
+
+type WorldGeoJson = {
+  type: string;
+  features?: unknown[];
+};
+
+let worldMapRegistrationAttempted = false;
+let worldMapRegistrationSucceeded = false;
+let worldMapRegistrationError: Error | null = null;
+
+function ensureWorldMapRegistered() {
+  if (worldMapRegistrationSucceeded || echarts.getMap('world')) {
+    worldMapRegistrationSucceeded = true;
+    worldMapRegistrationError = null;
+    return true;
+  }
+
+  if (worldMapRegistrationAttempted) {
+    return false;
+  }
+
+  worldMapRegistrationAttempted = true;
+
+  try {
+    const geoJson = worldGeoJson as WorldGeoJson;
+
+    if (geoJson.type !== 'FeatureCollection' || !Array.isArray(geoJson.features)) {
+      throw new Error('invalid world geojson payload');
+    }
+
+    echarts.registerMap(
+      'world',
+      geoJson as unknown as Parameters<typeof echarts.registerMap>[1],
+    );
+
+    if (!echarts.getMap('world')) {
+      throw new Error('world map registration failed');
+    }
+
+    worldMapRegistrationSucceeded = true;
+    worldMapRegistrationError = null;
+    return true;
+  } catch (error) {
+    worldMapRegistrationSucceeded = false;
+    worldMapRegistrationError =
+      error instanceof Error ? error : new Error('unknown world map registration error');
+    console.error('Failed to register ECharts world map', worldMapRegistrationError);
+    return false;
+  }
+}
 
 function formatPercent(value: number) {
   if (!Number.isFinite(value)) {
@@ -271,32 +322,9 @@ export function WorldStage({
   const [mapFailed, setMapFailed] = useState(false);
 
   useEffect(() => {
-    let disposed = false;
-
-    import('@/features/dashboard/data/world-geo.json')
-      .then(({ default: worldGeoJson }) => {
-        if (!echarts.getMap('world')) {
-          echarts.registerMap('world', worldGeoJson);
-        }
-        if (!echarts.getMap('world')) {
-          throw new Error('world map registration failed');
-        }
-        if (!disposed) {
-          setMapReady(true);
-          setMapFailed(false);
-        }
-      })
-      .catch((error) => {
-        console.error('Failed to register ECharts world map', error);
-        if (!disposed) {
-          setMapReady(false);
-          setMapFailed(true);
-        }
-      });
-
-    return () => {
-      disposed = true;
-    };
+    const ready = ensureWorldMapRegistered();
+    setMapReady(ready);
+    setMapFailed(!ready);
   }, []);
 
   const onlineRate =
