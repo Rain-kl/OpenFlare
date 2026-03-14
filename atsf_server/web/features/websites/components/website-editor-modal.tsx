@@ -108,13 +108,12 @@ export function WebsiteEditorModal({
       return;
     }
 
-    saveMutation.reset();
     form.reset(
       initialDomain
         ? toManagedDomainFormValues(initialDomain)
         : defaultManagedDomainValues,
     );
-  }, [form, initialDomain, isOpen, saveMutation]);
+  }, [form, initialDomain, isOpen]);
 
   useEffect(() => {
     if (!isOpen || !preferredCertificateId) {
