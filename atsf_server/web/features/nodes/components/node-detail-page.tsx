@@ -23,6 +23,7 @@ import { getApplyLogs } from '@/features/apply-logs/api/apply-logs';
 import {
   deleteNode,
   getNodeAgentRelease,
+  getNodeObservability,
   getNodes,
   requestNodeOpenrestyRestart,
   requestNodeAgentUpdate,
@@ -31,6 +32,7 @@ import {
 import type {
   NodeAgentReleaseInfo,
   NodeMutationPayload,
+  NodeObservability,
 } from '@/features/nodes/types';
 import {
   CodeBlock,
@@ -94,6 +96,112 @@ async function copyToClipboard(value: string) {
   await navigator.clipboard.writeText(value);
 }
 
+function formatBytes(value?: number | null) {
+  if (!value || value <= 0) {
+    return '—';
+  }
+
+  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+  let current = value;
+  let index = 0;
+  while (current >= 1024 && index < units.length - 1) {
+    current /= 1024;
+    index += 1;
+  }
+  return `${current.toFixed(current >= 100 || index === 0 ? 0 : 1)} ${units[index]}`;
+}
+
+function formatPercent(value?: number | null) {
+  if (value === undefined || value === null || Number.isNaN(value)) {
+    return '—';
+  }
+  return `${value.toFixed(1)}%`;
+}
+
+function formatUsageRatio(used?: number | null, total?: number | null) {
+  if (!used || !total || total <= 0) {
+    return null;
+  }
+  return Math.max(0, Math.min(100, (used / total) * 100));
+}
+
+function formatUptime(seconds?: number | null) {
+  if (!seconds || seconds <= 0) {
+    return '—';
+  }
+
+  const days = Math.floor(seconds / 86400);
+  const hours = Math.floor((seconds % 86400) / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+
+  if (days > 0) {
+    return `${days} 天 ${hours} 小时`;
+  }
+  if (hours > 0) {
+    return `${hours} 小时 ${minutes} 分钟`;
+  }
+  return `${minutes} 分钟`;
+}
+
+function getHealthEventVariant(
+  event: NodeObservability['health_events'][number],
+): 'success' | 'warning' | 'danger' | 'info' {
+  if (event.status === 'resolved') {
+    return 'success';
+  }
+  if (event.severity === 'critical') {
+    return 'danger';
+  }
+  if (event.severity === 'warning') {
+    return 'warning';
+  }
+  return 'info';
+}
+
+function getHealthEventLabel(
+  event: NodeObservability['health_events'][number],
+) {
+  return event.event_type.replaceAll('_', ' ');
+}
+
+function MetricBar({
+  label,
+  value,
+  progress,
+  hint,
+}: {
+  label: string;
+  value: string;
+  progress?: number | null;
+  hint?: string;
+}) {
+  return (
+    <div className="space-y-2 rounded-2xl border border-[var(--border-default)] bg-[var(--surface-elevated)] px-4 py-4">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-xs tracking-[0.2em] text-[var(--foreground-muted)] uppercase">
+            {label}
+          </p>
+          {hint ? (
+            <p className="mt-1 text-xs text-[var(--foreground-muted)]">
+              {hint}
+            </p>
+          ) : null}
+        </div>
+        <p className="text-sm font-semibold text-[var(--foreground-primary)]">
+          {value}
+        </p>
+      </div>
+      <div className="h-2 overflow-hidden rounded-full bg-[var(--surface-muted)]">
+        <div
+          className="h-full rounded-full bg-[var(--status-info-foreground)] transition-[width]"
+          style={{ width: `${progress ?? 0}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
 export function NodeDetailPage({ nodeId }: { nodeId: string }) {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -152,6 +260,14 @@ export function NodeDetailPage({ nodeId }: { nodeId: string }) {
     queryKey: ['config-versions'],
     queryFn: getConfigVersions,
     refetchInterval: 5000,
+  });
+
+  const observabilityQuery = useQuery({
+    queryKey: ['node-observability', nodeId],
+    queryFn: () =>
+      getNodeObservability(Number(nodeId), { hours: 24, limit: 48 }),
+    enabled: Boolean(nodeId),
+    refetchInterval: 10000,
   });
 
   useEffect(() => {
@@ -336,6 +452,20 @@ export function NodeDetailPage({ nodeId }: { nodeId: string }) {
       ? previewAgentReleaseQuery.isFetching
       : stableAgentReleaseQuery.isFetching;
   const applyLogs = applyLogsQuery.data ?? [];
+  const observability = observabilityQuery.data ?? null;
+  const latestMetricSnapshot = observability?.metric_snapshots?.[0] ?? null;
+  const latestTrafficReport = observability?.traffic_reports?.[0] ?? null;
+  const activeHealthEvents =
+    observability?.health_events.filter((event) => event.status === 'active') ??
+    [];
+  const memoryUsageRatio = formatUsageRatio(
+    latestMetricSnapshot?.memory_used_bytes,
+    latestMetricSnapshot?.memory_total_bytes,
+  );
+  const storageUsageRatio = formatUsageRatio(
+    latestMetricSnapshot?.storage_used_bytes,
+    latestMetricSnapshot?.storage_total_bytes,
+  );
   const isTargetVersionApplied =
     activeConfigVersion !== null &&
     activeConfigVersion.version === node.current_version;
@@ -363,7 +493,10 @@ export function NodeDetailPage({ nodeId }: { nodeId: string }) {
     updateAgentMutation.mutate(selectedAgentRelease ?? null);
   };
 
-  const isRefreshing = nodesQuery.isFetching || applyLogsQuery.isFetching;
+  const isRefreshing =
+    nodesQuery.isFetching ||
+    applyLogsQuery.isFetching ||
+    observabilityQuery.isFetching;
 
   const handleRefresh = async () => {
     setFeedback(null);
@@ -374,6 +507,9 @@ export function NodeDetailPage({ nodeId }: { nodeId: string }) {
       }),
       queryClient.invalidateQueries({
         queryKey: ['config-versions'],
+      }),
+      queryClient.invalidateQueries({
+        queryKey: ['node-observability', nodeId],
       }),
     ]);
   };
@@ -427,32 +563,273 @@ export function NodeDetailPage({ nodeId }: { nodeId: string }) {
           <InlineMessage tone={feedback.tone} message={feedback.message} />
         ) : null}
 
-        <div className="grid gap-4 xl:grid-cols-4">
-          <AppCard title="连接状态">
-            <div className="space-y-3">
-              <StatusBadge
-                label={getNodeStatusLabel(node.status)}
-                variant={getNodeStatusVariant(node.status)}
+        <div className="grid gap-6 xl:grid-cols-[1.1fr_1.1fr_0.8fr]">
+          <AppCard
+            title="系统画像"
+            description="展示节点当前上报的主机事实信息，便于快速识别机器环境。"
+          >
+            {observabilityQuery.isLoading ? (
+              <LoadingState />
+            ) : observabilityQuery.isError ? (
+              <InlineMessage
+                tone="danger"
+                message={getErrorMessage(observabilityQuery.error)}
               />
-              <p className="text-sm text-[var(--foreground-secondary)]">
-                最近心跳：
-                {isMeaningfulTime(node.last_seen_at)
-                  ? ` ${formatRelativeTime(
-                      node.last_seen_at,
-                    )} · ${formatDateTime(node.last_seen_at)}`
-                  : ' 暂无'}
-              </p>
-            </div>
+            ) : observability?.profile ? (
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-4 rounded-2xl border border-[var(--border-default)] bg-[var(--surface-elevated)] px-4 py-4">
+                  <div>
+                    <p className="text-xs tracking-[0.2em] text-[var(--foreground-muted)] uppercase">
+                      主机名
+                    </p>
+                    <p className="mt-2 text-sm text-[var(--foreground-primary)]">
+                      {observability.profile.hostname || node.name}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs tracking-[0.2em] text-[var(--foreground-muted)] uppercase">
+                      操作系统
+                    </p>
+                    <p className="mt-2 text-sm text-[var(--foreground-primary)]">
+                      {observability.profile.os_name || 'unknown'}
+                      {observability.profile.os_version
+                        ? ` ${observability.profile.os_version}`
+                        : ''}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs tracking-[0.2em] text-[var(--foreground-muted)] uppercase">
+                      内核 / 架构
+                    </p>
+                    <p className="mt-2 text-sm text-[var(--foreground-primary)]">
+                      {observability.profile.kernel_version || 'unknown'} ·{' '}
+                      {observability.profile.architecture || 'unknown'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs tracking-[0.2em] text-[var(--foreground-muted)] uppercase">
+                      在线时长
+                    </p>
+                    <p className="mt-2 text-sm text-[var(--foreground-primary)]">
+                      {formatUptime(observability.profile.uptime_seconds)}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-4 rounded-2xl border border-[var(--border-default)] bg-[var(--surface-elevated)] px-4 py-4">
+                  <div>
+                    <p className="text-xs tracking-[0.2em] text-[var(--foreground-muted)] uppercase">
+                      CPU
+                    </p>
+                    <p className="mt-2 text-sm text-[var(--foreground-primary)]">
+                      {observability.profile.cpu_model || 'unknown'}
+                    </p>
+                    <p className="mt-1 text-xs text-[var(--foreground-muted)]">
+                      {observability.profile.cpu_cores || 0} 核
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs tracking-[0.2em] text-[var(--foreground-muted)] uppercase">
+                      总内存
+                    </p>
+                    <p className="mt-2 text-sm text-[var(--foreground-primary)]">
+                      {formatBytes(observability.profile.total_memory_bytes)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs tracking-[0.2em] text-[var(--foreground-muted)] uppercase">
+                      总存储
+                    </p>
+                    <p className="mt-2 text-sm text-[var(--foreground-primary)]">
+                      {formatBytes(observability.profile.total_disk_bytes)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs tracking-[0.2em] text-[var(--foreground-muted)] uppercase">
+                      上报时间
+                    </p>
+                    <p className="mt-2 text-sm text-[var(--foreground-primary)]">
+                      {isMeaningfulTime(observability.profile.reported_at)
+                        ? formatDateTime(observability.profile.reported_at)
+                        : '—'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <EmptyState
+                title="暂无系统画像"
+                description="节点已经接入，但还没有上报完整系统画像。"
+              />
+            )}
           </AppCard>
 
-          <AppCard title="版本信息">
-            <div className="space-y-2 text-sm text-[var(--foreground-secondary)]">
-              <p>Agent：{node.agent_version || 'unknown'}</p>
-              <p>Nginx：{node.nginx_version || 'unknown'}</p>
-              <p>当前配置：{node.current_version || '未应用'}</p>
-            </div>
+          <AppCard
+            title="实时资源"
+            description="读取节点最近一次快照，快速判断资源压力与吞吐情况。"
+          >
+            {observabilityQuery.isLoading ? (
+              <LoadingState />
+            ) : observabilityQuery.isError ? (
+              <InlineMessage
+                tone="danger"
+                message={getErrorMessage(observabilityQuery.error)}
+              />
+            ) : latestMetricSnapshot ? (
+              <div className="space-y-4">
+                <div className="grid gap-4 md:grid-cols-2">
+                  <MetricBar
+                    label="CPU"
+                    value={formatPercent(
+                      latestMetricSnapshot.cpu_usage_percent,
+                    )}
+                    progress={latestMetricSnapshot.cpu_usage_percent}
+                    hint={
+                      isMeaningfulTime(latestMetricSnapshot.captured_at)
+                        ? `快照 ${formatRelativeTime(latestMetricSnapshot.captured_at)}`
+                        : undefined
+                    }
+                  />
+                  <MetricBar
+                    label="内存"
+                    value={`${formatBytes(
+                      latestMetricSnapshot.memory_used_bytes,
+                    )} / ${formatBytes(latestMetricSnapshot.memory_total_bytes)}`}
+                    progress={memoryUsageRatio}
+                  />
+                  <MetricBar
+                    label="存储"
+                    value={`${formatBytes(
+                      latestMetricSnapshot.storage_used_bytes,
+                    )} / ${formatBytes(
+                      latestMetricSnapshot.storage_total_bytes,
+                    )}`}
+                    progress={storageUsageRatio}
+                  />
+                  <MetricBar
+                    label="连接数"
+                    value={
+                      latestMetricSnapshot.openresty_connections
+                        ? `${latestMetricSnapshot.openresty_connections}`
+                        : '—'
+                    }
+                    progress={null}
+                    hint="OpenResty 当前连接"
+                  />
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-elevated)] px-4 py-4">
+                    <p className="text-xs tracking-[0.2em] text-[var(--foreground-muted)] uppercase">
+                      网络流量
+                    </p>
+                    <div className="mt-3 space-y-2 text-sm text-[var(--foreground-secondary)]">
+                      <p>
+                        入站：
+                        {formatBytes(latestMetricSnapshot.network_rx_bytes)}
+                      </p>
+                      <p>
+                        出站：
+                        {formatBytes(latestMetricSnapshot.network_tx_bytes)}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-elevated)] px-4 py-4">
+                    <p className="text-xs tracking-[0.2em] text-[var(--foreground-muted)] uppercase">
+                      磁盘 IO
+                    </p>
+                    <div className="mt-3 space-y-2 text-sm text-[var(--foreground-secondary)]">
+                      <p>
+                        读取：
+                        {formatBytes(latestMetricSnapshot.disk_read_bytes)}
+                      </p>
+                      <p>
+                        写入：
+                        {formatBytes(latestMetricSnapshot.disk_write_bytes)}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <EmptyState
+                title="暂无资源快照"
+                description="节点已经接入，但还没有上报资源快照。"
+              />
+            )}
           </AppCard>
 
+          <AppCard
+            title="运行状态"
+            description="汇总节点在线状态、OpenResty 健康与当前异常。"
+          >
+            <div className="space-y-4">
+              <div className="flex flex-wrap gap-3">
+                <StatusBadge
+                  label={getNodeStatusLabel(node.status)}
+                  variant={getNodeStatusVariant(node.status)}
+                />
+                <StatusBadge
+                  label={getOpenrestyStatusLabel(node.openresty_status)}
+                  variant={getOpenrestyStatusVariant(node.openresty_status)}
+                />
+                <StatusBadge
+                  label={
+                    activeHealthEvents.length
+                      ? `${activeHealthEvents.length} 个活动异常`
+                      : '无活动异常'
+                  }
+                  variant={activeHealthEvents.length ? 'warning' : 'success'}
+                />
+              </div>
+
+              <div className="space-y-2 text-sm text-[var(--foreground-secondary)]">
+                <p>
+                  最近心跳：
+                  {isMeaningfulTime(node.last_seen_at)
+                    ? ` ${formatRelativeTime(node.last_seen_at)} · ${formatDateTime(node.last_seen_at)}`
+                    : ' 暂无'}
+                </p>
+                <p>IP：{node.ip || '暂无'}</p>
+                <p>当前配置：{node.current_version || '未应用'}</p>
+                {latestTrafficReport ? (
+                  <p>
+                    最近窗口请求：{latestTrafficReport.request_count} · UV{' '}
+                    {latestTrafficReport.unique_visitor_count} · 错误{' '}
+                    {latestTrafficReport.error_count}
+                  </p>
+                ) : null}
+              </div>
+
+              <div className="space-y-2">
+                {activeHealthEvents.slice(0, 3).map((event) => (
+                  <div
+                    key={`${event.event_type}-${event.last_triggered_at}`}
+                    className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-elevated)] px-4 py-3"
+                  >
+                    <div className="flex flex-wrap items-center gap-2">
+                      <StatusBadge
+                        label={getHealthEventLabel(event)}
+                        variant={getHealthEventVariant(event)}
+                      />
+                    </div>
+                    <p className="mt-2 text-sm text-[var(--foreground-secondary)]">
+                      {event.message || '暂无详细消息'}
+                    </p>
+                  </div>
+                ))}
+
+                {activeHealthEvents.length === 0 ? (
+                  <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-elevated)] px-4 py-4 text-sm text-[var(--foreground-secondary)]">
+                    当前没有活动中的健康事件。
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          </AppCard>
+        </div>
+
+        <div className="grid gap-4 xl:grid-cols-3">
           <AppCard title="更新模式">
             <div className="space-y-3">
               <StatusBadge
@@ -466,6 +843,14 @@ export function NodeDetailPage({ nodeId }: { nodeId: string }) {
                     ? '节点已启用正式版自动更新。'
                     : '当前仅支持手动触发更新。'}
               </p>
+            </div>
+          </AppCard>
+
+          <AppCard title="版本信息">
+            <div className="space-y-2 text-sm text-[var(--foreground-secondary)]">
+              <p>Agent：{node.agent_version || 'unknown'}</p>
+              <p>Nginx：{node.nginx_version || 'unknown'}</p>
+              <p>当前配置：{node.current_version || '未应用'}</p>
             </div>
           </AppCard>
 
