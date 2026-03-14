@@ -998,6 +998,68 @@ export function PerformancePage() {
                         </AppCard>
 
                         <div className="grid content-start gap-6">
+                            <AppCard
+                                title="OpenResty 压缩"
+                                action={
+                                    <PrimaryButton
+                                        type="button"
+                                        onClick={handleGzipSave}
+                                        disabled={busyKey === 'performance-gzip'}
+                                    >
+                                        {busyKey === 'performance-gzip'
+                                            ? '保存中...'
+                                            : '保存'}
+                                    </PrimaryButton>
+                                }
+                            >
+                                <div className="space-y-5">
+                                    <div className="grid gap-5 md:grid-cols-2">
+                                        <ToggleField
+                                            label="gzip"
+                                            tooltip={performanceFieldTooltips.gzip}
+                                            checked={performanceFields.OpenRestyGzipEnabled}
+                                            onChange={(checked) =>
+                                                setPerformanceFields((previous) => ({
+                                                    ...previous,
+                                                    OpenRestyGzipEnabled: checked,
+                                                }))
+                                            }
+                                        />
+                                        <ResourceField
+                                            label="gzip_min_length"
+                                            tooltip={performanceFieldTooltips.gzip_min_length}
+                                        >
+                                            <ResourceInput
+                                                type="number"
+                                                value={performanceFields.OpenRestyGzipMinLength}
+                                                onChange={(event) =>
+                                                    setPerformanceFields((previous) => ({
+                                                        ...previous,
+                                                        OpenRestyGzipMinLength: event.target.value,
+                                                    }))
+                                                }
+                                            />
+                                        </ResourceField>
+                                        <ResourceField
+                                            label="gzip_comp_level"
+                                            tooltip={performanceFieldTooltips.gzip_comp_level}
+                                        >
+                                            <ResourceInput
+                                                type="number"
+                                                min="1"
+                                                max="9"
+                                                value={performanceFields.OpenRestyGzipCompLevel}
+                                                onChange={(event) =>
+                                                    setPerformanceFields((previous) => ({
+                                                        ...previous,
+                                                        OpenRestyGzipCompLevel: event.target.value,
+                                                    }))
+                                                }
+                                            />
+                                        </ResourceField>
+                                    </div>
+                                </div>
+                            </AppCard>
 
                             <AppCard
                                 title="OpenResty 缓存"
@@ -1163,68 +1225,6 @@ export function PerformancePage() {
                                                     setPerformanceFields((previous) => ({
                                                         ...previous,
                                                         OpenRestyCacheUseStale: event.target.value,
-                                                    }))
-                                                }
-                                            />
-                                        </ResourceField>
-                                    </div>
-                                </div>
-                            </AppCard>
-                            <AppCard
-                                title="OpenResty 压缩"
-                                action={
-                                    <PrimaryButton
-                                        type="button"
-                                        onClick={handleGzipSave}
-                                        disabled={busyKey === 'performance-gzip'}
-                                    >
-                                        {busyKey === 'performance-gzip'
-                                            ? '保存中...'
-                                            : '保存'}
-                                    </PrimaryButton>
-                                }
-                            >
-                                <div className="space-y-5">
-                                    <div className="grid gap-5 md:grid-cols-2">
-                                        <ToggleField
-                                            label="gzip"
-                                            tooltip={performanceFieldTooltips.gzip}
-                                            checked={performanceFields.OpenRestyGzipEnabled}
-                                            onChange={(checked) =>
-                                                setPerformanceFields((previous) => ({
-                                                    ...previous,
-                                                    OpenRestyGzipEnabled: checked,
-                                                }))
-                                            }
-                                        />
-                                        <ResourceField
-                                            label="gzip_min_length"
-                                            tooltip={performanceFieldTooltips.gzip_min_length}
-                                        >
-                                            <ResourceInput
-                                                type="number"
-                                                value={performanceFields.OpenRestyGzipMinLength}
-                                                onChange={(event) =>
-                                                    setPerformanceFields((previous) => ({
-                                                        ...previous,
-                                                        OpenRestyGzipMinLength: event.target.value,
-                                                    }))
-                                                }
-                                            />
-                                        </ResourceField>
-                                        <ResourceField
-                                            label="gzip_comp_level"
-                                            tooltip={performanceFieldTooltips.gzip_comp_level}
-                                        >
-                                            <ResourceInput
-                                                type="number"
-                                                min="1"
-                                                max="9"
-                                                value={performanceFields.OpenRestyGzipCompLevel}
-                                                onChange={(event) =>
-                                                    setPerformanceFields((previous) => ({
-                                                        ...previous,
-                                                        OpenRestyGzipCompLevel: event.target.value,
                                                     }))
                                                 }
                                             />
