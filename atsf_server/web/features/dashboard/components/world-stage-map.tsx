@@ -7,7 +7,7 @@ import { ScatterChart } from 'echarts/charts';
 import { GeoComponent, TooltipComponent } from 'echarts/components';
 import { CanvasRenderer } from 'echarts/renderers';
 import { useRouter } from 'next/navigation';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { EmptyState } from '@/components/feedback/empty-state';
 import worldGeoJson from '@/features/dashboard/data/world-geo.json';
@@ -90,6 +90,9 @@ type CountryRegionDatum = {
 
 let worldMapRegistrationAttempted = false;
 let worldMapRegistrationSucceeded = false;
+
+const baseWorldMapLayoutSizePercent = 180;
+const baseWorldMapZoom = 1;
 
 function buildNodeDetailHref(id?: number | null) {
   if (!id) {
@@ -248,13 +251,50 @@ export function WorldStageMap({
   nodes: DashboardNodeHealth[];
 }) {
   const router = useRouter();
+  const chartContainerRef = useRef<HTMLDivElement | null>(null);
   const [mapReady, setMapReady] = useState(false);
   const [mapFailed, setMapFailed] = useState(false);
+  const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
 
   useEffect(() => {
     const ready = ensureWorldMapRegistered();
     setMapReady(ready);
     setMapFailed(!ready);
+  }, []);
+
+  useEffect(() => {
+    const container = chartContainerRef.current;
+    if (!container) {
+      return;
+    }
+
+    const updateSize = () => {
+      const nextWidth = container.clientWidth;
+      const nextHeight = container.clientHeight;
+      setContainerSize((previous) =>
+        previous.width === nextWidth && previous.height === nextHeight
+          ? previous
+          : { width: nextWidth, height: nextHeight },
+      );
+    };
+
+    updateSize();
+
+    if (typeof ResizeObserver === 'undefined') {
+      window.addEventListener('resize', updateSize);
+      return () => {
+        window.removeEventListener('resize', updateSize);
+      };
+    }
+
+    const observer = new ResizeObserver(() => {
+      updateSize();
+    });
+    observer.observe(container);
+
+    return () => {
+      observer.disconnect();
+    };
   }, []);
 
   const mapPalette = useMemo(
@@ -389,6 +429,27 @@ export function WorldStageMap({
     });
   }, [mapPalette, nodes]);
 
+  const responsiveMapScale = useMemo(() => {
+    const { width, height } = containerSize;
+    if (width <= 0 || height <= 0) {
+      return 1;
+    }
+
+    const widthScale = Math.min(Math.max(width / 960, 0.76), 1.18);
+    const heightScale = Math.min(Math.max(height / 520, 0.82), 1.12);
+
+    return Number(Math.min(widthScale, heightScale).toFixed(3));
+  }, [containerSize]);
+
+  const computedLayoutSize = useMemo(
+    () => `${Math.round(baseWorldMapLayoutSizePercent * responsiveMapScale)}%`,
+    [responsiveMapScale],
+  );
+  const computedZoom = useMemo(
+    () => Number((baseWorldMapZoom * responsiveMapScale).toFixed(3)),
+    [responsiveMapScale],
+  );
+
   const mapOption = useMemo<EChartsCoreOption>(
     () => ({
       animation: false,
@@ -431,8 +492,8 @@ export function WorldStageMap({
         roam: false,
         silent: true,
         layoutCenter: ['50%', '50%'],
-        layoutSize: '180%',
-        zoom: 1,
+        layoutSize: computedLayoutSize,
+        zoom: computedZoom,
         regions: countryRegions,
         itemStyle: {
           areaColor: mapPalette.areaColor,
@@ -453,7 +514,8 @@ export function WorldStageMap({
           largeThreshold: 24,
           symbolSize: (value: unknown) => {
             const size = Array.isArray(value) && typeof value[2] === 'number' ? value[2] : 1;
-            return Math.max(8, Math.min(18, 8 + Math.log10(size + 1) * 3.6));
+            const responsiveBase = 8 + Math.log10(size + 1) * 3.6;
+            return Math.max(7, Math.min(18, responsiveBase * Math.max(responsiveMapScale, 0.88)));
           },
           label: {
             show: false,
@@ -481,7 +543,7 @@ export function WorldStageMap({
         },
       ],
     }),
-    [countryRegions, isDark, mapNodes, mapPalette],
+    [computedLayoutSize, computedZoom, countryRegions, isDark, mapNodes, mapPalette, responsiveMapScale],
   );
 
   if (!mapReady) {
@@ -500,20 +562,22 @@ export function WorldStageMap({
   }
 
   return (
-    <ReactEChartsCore
-      echarts={echarts}
-      option={mapOption}
-      notMerge
-      lazyUpdate
-      opts={{ renderer: 'canvas' }}
-      onEvents={{
-        click: (params: { data?: MapNodeDatum }) => {
-          if (params.data?.route) {
-            router.push(params.data.route);
-          }
-        },
-      }}
-      style={{ height: '100%', width: '100%' }}
-    />
+    <div ref={chartContainerRef} className="h-full w-full">
+      <ReactEChartsCore
+        echarts={echarts}
+        option={mapOption}
+        notMerge
+        lazyUpdate
+        opts={{ renderer: 'canvas' }}
+        onEvents={{
+          click: (params: { data?: MapNodeDatum }) => {
+            if (params.data?.route) {
+              router.push(params.data.route);
+            }
+          },
+        }}
+        style={{ height: '100%', width: '100%' }}
+      />
+    </div>
   );
 }

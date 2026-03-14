@@ -27,6 +27,8 @@ import {
 
 const settingsQueryKey = ['settings', 'options'] as const;
 const previewQueryKey = ['performance', 'preview'] as const;
+const templatePanelClassName =
+    'h-[560px] w-full box-border overflow-auto rounded-2xl border border-[var(--border-default)] bg-[var(--surface-elevated)] px-4 py-3 font-mono text-xs leading-6';
 
 const defaultPerformanceFields = {
     OpenRestyWorkerProcesses: 'auto',
@@ -1266,7 +1268,7 @@ export function PerformancePage() {
                             </div>
                         }
                     >
-                        <div className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
+                        <div className="grid gap-6 xl:grid-cols-2">
                             <div className="space-y-4">
                                 <ResourceField
                                     label="模板原文"
@@ -1275,7 +1277,8 @@ export function PerformancePage() {
                                     <ResourceTextarea
                                         value={templateContent}
                                         onChange={(event) => setTemplateContent(event.target.value)}
-                                        className="min-h-[560px] font-mono text-xs leading-6"
+                                        spellCheck={false}
+                                        className={`${templatePanelClassName} resize-none`}
                                         placeholder="请输入受控 nginx.conf 模板"
                                     />
                                 </ResourceField>
@@ -1297,7 +1300,7 @@ export function PerformancePage() {
                                     />
                                 </div>
                                 <CodeBlock
-                                    className="max-h-[560px] overflow-auto text-xs leading-6 whitespace-pre-wrap">
+                                    className={`${templatePanelClassName} whitespace-pre-wrap break-words`}>
                                     {preview.main_config}
                                 </CodeBlock>
                             </div>
