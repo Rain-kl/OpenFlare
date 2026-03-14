@@ -24,19 +24,20 @@ const (
 )
 
 type AgentNodePayload struct {
-	NodeID           string                   `json:"node_id"`
-	Name             string                   `json:"name"`
-	IP               string                   `json:"ip"`
-	AgentVersion     string                   `json:"agent_version"`
-	NginxVersion     string                   `json:"nginx_version"`
-	CurrentVersion   string                   `json:"current_version"`
-	LastError        string                   `json:"last_error"`
-	OpenrestyStatus  string                   `json:"openresty_status"`
-	OpenrestyMessage string                   `json:"openresty_message"`
-	Profile          *AgentNodeSystemProfile  `json:"profile,omitempty"`
-	Snapshot         *AgentNodeMetricSnapshot `json:"snapshot,omitempty"`
-	TrafficReport    *AgentNodeTrafficReport  `json:"traffic_report,omitempty"`
-	HealthEvents     []AgentNodeHealthEvent   `json:"health_events"`
+	NodeID                string                             `json:"node_id"`
+	Name                  string                             `json:"name"`
+	IP                    string                             `json:"ip"`
+	AgentVersion          string                             `json:"agent_version"`
+	NginxVersion          string                             `json:"nginx_version"`
+	CurrentVersion        string                             `json:"current_version"`
+	LastError             string                             `json:"last_error"`
+	OpenrestyStatus       string                             `json:"openresty_status"`
+	OpenrestyMessage      string                             `json:"openresty_message"`
+	Profile               *AgentNodeSystemProfile            `json:"profile,omitempty"`
+	Snapshot              *AgentNodeMetricSnapshot           `json:"snapshot,omitempty"`
+	TrafficReport         *AgentNodeTrafficReport            `json:"traffic_report,omitempty"`
+	BufferedObservability []AgentBufferedObservabilityRecord `json:"buffered_observability,omitempty"`
+	HealthEvents          []AgentNodeHealthEvent             `json:"health_events"`
 }
 
 type ApplyLogPayload struct {

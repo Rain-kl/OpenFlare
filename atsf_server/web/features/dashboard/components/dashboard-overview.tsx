@@ -43,6 +43,13 @@ function formatBytes(value?: number | null) {
   return `${current.toFixed(current >= 100 || index === 0 ? 0 : 1)} ${units[index]}`;
 }
 
+function formatBytesPerSecond(value?: number | null, windowSeconds = 1) {
+  if (!value || value <= 0 || windowSeconds <= 0) {
+    return '—';
+  }
+  return `${formatBytes(value / windowSeconds)}/s`;
+}
+
 function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : '请求失败，请稍后重试。';
 }
@@ -281,7 +288,7 @@ export function DashboardOverview() {
                   values: overview.trends.network_24h.map(
                     (point) => point.openresty_rx_bytes,
                   ),
-                  valueFormatter: formatBytes,
+                  valueFormatter: (value) => formatBytesPerSecond(value, 3600),
                 },
                 {
                   label: 'OpenResty 出站',
@@ -289,7 +296,7 @@ export function DashboardOverview() {
                   values: overview.trends.network_24h.map(
                     (point) => point.openresty_tx_bytes,
                   ),
-                  valueFormatter: formatBytes,
+                  valueFormatter: (value) => formatBytesPerSecond(value, 3600),
                 },
               ]}
             />

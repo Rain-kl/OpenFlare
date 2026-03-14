@@ -216,6 +216,8 @@ Docker 镜像工作流仅构建 `atsf_server`，并产出 `linux/amd64` 与 `lin
 | `data_dir` | Agent 托管数据目录 |
 | `support_dir` | Agent 存放受管附属文件的目录，当前包含证书与 Lua 观测脚本 |
 | `openresty_observability_port` | Agent 读取 OpenResty Lua 本地观测指标的 loopback 端口 |
+| `observability_buffer_path` | Agent 本地观测补报缓冲文件路径 |
+| `observability_replay_minutes` | Agent 恢复 heartbeat 后允许自动补传的最近观测窗口分钟数 |
 | `nginx_path` | 本机 Nginx 路径，设置后走本机模式 |
 | `nginx_container_name` | Docker 模式下的 Nginx 容器名 |
 

@@ -311,7 +311,7 @@ func TestRunnerHeartbeatPayloadIncludesObservabilityExtensions(t *testing.T) {
 	}
 	if err := os.WriteFile(
 		filepath.Join(filepath.Dir(runner.Config.RouteConfigPath), "atsflare_access.log"),
-		[]byte("{\"ts\":\"2026-03-14T10:00:00Z\",\"host\":\"edge.example.com\",\"remote_addr\":\"10.0.0.8\",\"status\":200}\n"),
+		[]byte("{\"ts\":\""+time.Now().UTC().Format(time.RFC3339)+"\",\"host\":\"edge.example.com\",\"remote_addr\":\"10.0.0.8\",\"status\":200}\n"),
 		0o644,
 	); err != nil {
 		t.Fatalf("failed to prepare access log: %v", err)
@@ -340,6 +340,81 @@ func TestRunnerHeartbeatPayloadIncludesObservabilityExtensions(t *testing.T) {
 	}
 	if secondPayload.TrafficReport != nil {
 		t.Fatalf("expected unchanged traffic window to be omitted on subsequent heartbeat, got %+v", secondPayload.TrafficReport)
+	}
+}
+
+func TestRunnerReplaysBufferedObservabilityAfterHeartbeatRecovery(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	tempDir := t.TempDir()
+	stateStore := state.NewStore(filepath.Join(tempDir, "state.json"))
+	bufferStore := state.NewObservabilityBufferStore(filepath.Join(tempDir, "observability-buffer.json"))
+	nowUnix := time.Now().UTC().Unix()
+	bufferWindow := nowUnix - (nowUnix % 60) - 60
+	if err := bufferStore.Upsert(state.ObservabilityBufferRecord{
+		WindowStartedAtUnix: bufferWindow,
+		Snapshot:            &protocol.NodeMetricSnapshot{CapturedAtUnix: bufferWindow + 5, CPUUsagePercent: 30},
+		TrafficReport:       &protocol.NodeTrafficReport{WindowStartedAtUnix: bufferWindow, WindowEndedAtUnix: bufferWindow + 60, RequestCount: 8},
+		QueuedAtUnix:        bufferWindow + 60,
+	}, 0); err != nil {
+		t.Fatalf("failed to seed observability buffer: %v", err)
+	}
+	heartbeatService := &fakeHeartbeatService{
+		heartbeatErrs:    []error{errors.New("server offline"), nil},
+		heartbeatResults: []*protocol.HeartbeatResult{{}, {}},
+		onHeartbeat: func(callCount int) {
+			if callCount >= 2 {
+				cancel()
+			}
+		},
+	}
+	runner := &Runner{
+		Config: &config.Config{
+			AgentToken:                 "agent-token",
+			NodeName:                   "edge-buffer-01",
+			NodeIP:                     "10.0.0.52",
+			AgentVersion:               config.AgentVersion,
+			NginxVersion:               "1.27.1.2",
+			DataDir:                    tempDir,
+			RouteConfigPath:            filepath.Join(tempDir, "conf.d", "atsflare_routes.conf"),
+			HeartbeatInterval:          config.MillisecondDuration(10 * time.Millisecond),
+			ObservabilityReplayMinutes: 15,
+		},
+		StateStore:          stateStore,
+		ObservabilityBuffer: bufferStore,
+		HeartbeatService:    heartbeatService,
+		SyncService:         &fakeSyncService{},
+	}
+	if err := os.MkdirAll(filepath.Dir(runner.Config.RouteConfigPath), 0o755); err != nil {
+		t.Fatalf("failed to prepare route config dir: %v", err)
+	}
+	if err := os.WriteFile(
+		filepath.Join(filepath.Dir(runner.Config.RouteConfigPath), "atsflare_access.log"),
+		[]byte("{\"ts\":\""+time.Now().UTC().Format(time.RFC3339)+"\",\"host\":\"edge.example.com\",\"remote_addr\":\"10.0.0.8\",\"status\":200}\n"),
+		0o644,
+	); err != nil {
+		t.Fatalf("failed to prepare access log: %v", err)
+	}
+
+	runErr := runner.Run(ctx)
+	if runErr != context.Canceled {
+		t.Fatalf("expected run to stop by context cancellation, got %v", runErr)
+	}
+	if len(heartbeatService.heartbeatPayloads) != 2 {
+		t.Fatalf("expected two heartbeat payloads, got %d", len(heartbeatService.heartbeatPayloads))
+	}
+	secondPayload := heartbeatService.heartbeatPayloads[1]
+	if len(secondPayload.BufferedObservability) != 1 {
+		t.Fatalf("expected second heartbeat to replay one buffered observation, got %+v", secondPayload.BufferedObservability)
+	}
+
+	replayable, err := bufferStore.Replayable(0, 0)
+	if err != nil {
+		t.Fatalf("Replayable after recovery failed: %v", err)
+	}
+	if len(replayable) != 0 {
+		t.Fatalf("expected buffer to be acked after successful heartbeat, got %+v", replayable)
 	}
 }
 

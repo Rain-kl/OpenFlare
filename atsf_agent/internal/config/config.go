@@ -12,12 +12,14 @@ import (
 )
 
 const (
-	defaultDockerMainConfigRelativePath  = "etc/nginx/nginx.conf"
-	defaultDockerRouteConfigRelativePath = "etc/nginx/conf.d/atsflare_routes.conf"
-	defaultSupportDirRelativePath        = "etc/nginx/support"
-	defaultDockerStateRelativePath       = "var/lib/atsflare/agent-state.json"
-	defaultDockerOpenRestySupportDir     = "/etc/nginx/atsflare-support"
-	defaultOpenRestyObservabilityPort    = 18081
+	defaultDockerMainConfigRelativePath    = "etc/nginx/nginx.conf"
+	defaultDockerRouteConfigRelativePath   = "etc/nginx/conf.d/atsflare_routes.conf"
+	defaultSupportDirRelativePath          = "etc/nginx/support"
+	defaultDockerStateRelativePath         = "var/lib/atsflare/agent-state.json"
+	defaultObservabilityBufferRelativePath = "var/lib/atsflare/observability-buffer.json"
+	defaultDockerOpenRestySupportDir       = "/etc/nginx/atsflare-support"
+	defaultOpenRestyObservabilityPort      = 18081
+	defaultObservabilityReplayMinutes      = 15
 )
 
 type Config struct {
@@ -38,6 +40,8 @@ type Config struct {
 	SupportDir                 string              `json:"support_dir"`
 	OpenrestySupportDir        string              `json:"openresty_support_dir"`
 	OpenrestyObservabilityPort int                 `json:"openresty_observability_port"`
+	ObservabilityBufferPath    string              `json:"observability_buffer_path"`
+	ObservabilityReplayMinutes int                 `json:"observability_replay_minutes"`
 	StatePath                  string              `json:"state_path"`
 	HeartbeatInterval          MillisecondDuration `json:"heartbeat_interval"`
 	RequestTimeout             MillisecondDuration `json:"request_timeout"`
@@ -62,6 +66,8 @@ type configFile struct {
 	LegacyCertDir              string              `json:"cert_dir"`
 	LegacyOpenrestyCertDir     string              `json:"openresty_cert_dir"`
 	OpenrestyObservabilityPort int                 `json:"openresty_observability_port"`
+	ObservabilityBufferPath    string              `json:"observability_buffer_path"`
+	ObservabilityReplayMinutes int                 `json:"observability_replay_minutes"`
 	StatePath                  string              `json:"state_path"`
 	HeartbeatInterval          MillisecondDuration `json:"heartbeat_interval"`
 	RequestTimeout             MillisecondDuration `json:"request_timeout"`
@@ -92,6 +98,8 @@ func Load(path string) (*Config, error) {
 		SupportDir:                 firstNonEmpty(file.SupportDir, file.LegacyCertDir),
 		OpenrestySupportDir:        firstNonEmpty(file.OpenrestySupportDir, file.LegacyOpenrestyCertDir),
 		OpenrestyObservabilityPort: file.OpenrestyObservabilityPort,
+		ObservabilityBufferPath:    file.ObservabilityBufferPath,
+		ObservabilityReplayMinutes: file.ObservabilityReplayMinutes,
 		StatePath:                  file.StatePath,
 		HeartbeatInterval:          file.HeartbeatInterval,
 		RequestTimeout:             file.RequestTimeout,
@@ -153,6 +161,12 @@ func applyDefaults(cfg *Config, baseDir string) {
 	if cfg.OpenrestyObservabilityPort <= 0 {
 		cfg.OpenrestyObservabilityPort = defaultOpenRestyObservabilityPort
 	}
+	if cfg.ObservabilityBufferPath == "" {
+		cfg.ObservabilityBufferPath = joinManagedPath(cfg.DataDir, defaultObservabilityBufferRelativePath)
+	}
+	if cfg.ObservabilityReplayMinutes <= 0 {
+		cfg.ObservabilityReplayMinutes = defaultObservabilityReplayMinutes
+	}
 	if cfg.HeartbeatInterval <= 0 {
 		cfg.HeartbeatInterval = MillisecondDuration(10 * time.Second)
 	}
@@ -184,6 +198,9 @@ func normalizeManagedPaths(cfg *Config) {
 	if usesSlashPath(cfg.StatePath) {
 		cfg.StatePath = filepath.ToSlash(cfg.StatePath)
 	}
+	if usesSlashPath(cfg.ObservabilityBufferPath) {
+		cfg.ObservabilityBufferPath = filepath.ToSlash(cfg.ObservabilityBufferPath)
+	}
 }
 
 func usesSlashPath(path string) bool {
@@ -212,6 +229,9 @@ func validate(cfg *Config) error {
 	}
 	if cfg.OpenrestyObservabilityPort <= 0 || cfg.OpenrestyObservabilityPort > 65535 {
 		return errors.New("openresty_observability_port 必须在 1-65535 之间")
+	}
+	if cfg.ObservabilityReplayMinutes <= 0 {
+		return errors.New("observability_replay_minutes 必须大于 0")
 	}
 	return nil
 }

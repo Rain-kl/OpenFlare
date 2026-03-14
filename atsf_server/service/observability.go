@@ -60,6 +60,12 @@ type AgentNodeTrafficReport struct {
 	SourceCountries     map[string]int64 `json:"source_countries"`
 }
 
+type AgentBufferedObservabilityRecord struct {
+	WindowStartedAtUnix int64                    `json:"window_started_at_unix"`
+	Snapshot            *AgentNodeMetricSnapshot `json:"snapshot,omitempty"`
+	TrafficReport       *AgentNodeTrafficReport  `json:"traffic_report,omitempty"`
+}
+
 type AgentNodeHealthEvent struct {
 	EventType       string            `json:"event_type"`
 	Severity        string            `json:"severity"`
@@ -72,12 +78,15 @@ func persistHeartbeatObservability(nodeID string, payload AgentNodePayload, repo
 	if strings.TrimSpace(nodeID) == "" {
 		return
 	}
-	if payload.Profile == nil && payload.Snapshot == nil && payload.TrafficReport == nil && payload.HealthEvents == nil {
+	if payload.Profile == nil && payload.Snapshot == nil && payload.TrafficReport == nil && len(payload.BufferedObservability) == 0 && payload.HealthEvents == nil {
 		return
 	}
 
 	if err := model.DB.Transaction(func(tx *gorm.DB) error {
 		if err := persistNodeSystemProfile(tx, nodeID, payload.Profile, reportedAt); err != nil {
+			return err
+		}
+		if err := persistBufferedObservability(tx, nodeID, payload.BufferedObservability, reportedAt); err != nil {
 			return err
 		}
 		if err := persistNodeMetricSnapshot(tx, nodeID, payload.Snapshot, reportedAt); err != nil {
@@ -95,6 +104,18 @@ func persistHeartbeatObservability(nodeID string, payload AgentNodePayload, repo
 	}); err != nil {
 		slog.Error("persist heartbeat observability failed", "node_id", nodeID, "error", err)
 	}
+}
+
+func persistBufferedObservability(tx *gorm.DB, nodeID string, records []AgentBufferedObservabilityRecord, reportedAt time.Time) error {
+	for _, record := range records {
+		if err := persistNodeMetricSnapshot(tx, nodeID, record.Snapshot, reportedAt); err != nil {
+			return err
+		}
+		if err := persistNodeTrafficReport(tx, nodeID, record.TrafficReport, reportedAt); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func persistNodeSystemProfile(tx *gorm.DB, nodeID string, profile *AgentNodeSystemProfile, reportedAt time.Time) error {
@@ -140,7 +161,7 @@ func persistNodeMetricSnapshot(tx *gorm.DB, nodeID string, snapshot *AgentNodeMe
 		OpenrestyConnections: snapshot.OpenrestyConnections,
 		RawJSON:              marshalJSON(snapshot),
 	}
-	return tx.Create(record).Error
+	return tx.Where("node_id = ? AND captured_at = ?", nodeID, record.CapturedAt).Assign(record).FirstOrCreate(record).Error
 }
 
 func persistNodeTrafficReport(tx *gorm.DB, nodeID string, report *AgentNodeTrafficReport, reportedAt time.Time) error {
@@ -162,7 +183,7 @@ func persistNodeTrafficReport(tx *gorm.DB, nodeID string, report *AgentNodeTraff
 		SourceCountriesJSON: marshalJSON(report.SourceCountries),
 		RawJSON:             marshalJSON(report),
 	}
-	return tx.Create(record).Error
+	return tx.Where("node_id = ? AND window_started_at = ? AND window_ended_at = ?", nodeID, record.WindowStartedAt, record.WindowEndedAt).Assign(record).FirstOrCreate(record).Error
 }
 
 func reconcileNodeHealthEvents(tx *gorm.DB, nodeID string, events []AgentNodeHealthEvent, reportedAt time.Time) error {

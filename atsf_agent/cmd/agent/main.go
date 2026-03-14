@@ -55,6 +55,7 @@ func main() {
 
 	client := httpclient.New(cfg.ServerURL, cfg.InitialAuthToken(), cfg.RequestTimeout.Duration())
 	stateStore := state.NewStore(cfg.StatePath)
+	observabilityBuffer := state.NewObservabilityBufferStore(cfg.ObservabilityBufferPath)
 	runtimeRouteConfigPath := cfg.RouteConfigPath
 	if cfg.OpenrestyPath == "" {
 		runtimeRouteConfigPath = nginx.DockerRouteConfigPath
@@ -80,12 +81,13 @@ func main() {
 		}),
 	}
 	runner := &agent.Runner{
-		Config:           cfg,
-		StateStore:       stateStore,
-		HeartbeatService: heartbeat.New(client),
-		SyncService:      syncservice.New(client, runtimeManager, stateStore),
-		Updater:          updater.New(),
-		RuntimeManager:   runtimeManager,
+		Config:              cfg,
+		StateStore:          stateStore,
+		ObservabilityBuffer: observabilityBuffer,
+		HeartbeatService:    heartbeat.New(client),
+		SyncService:         syncservice.New(client, runtimeManager, stateStore),
+		Updater:             updater.New(),
+		RuntimeManager:      runtimeManager,
 	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)

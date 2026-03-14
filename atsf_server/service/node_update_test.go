@@ -666,6 +666,135 @@ func TestHeartbeatNodePersistsObservabilityPayload(t *testing.T) {
 	}
 }
 
+func TestHeartbeatNodePersistsBufferedObservabilityPayload(t *testing.T) {
+	setupServiceTestDB(t)
+
+	node := &model.Node{
+		NodeID:       "node-observe-buffered",
+		Name:         "observe-buffered-edge",
+		IP:           "10.0.0.32",
+		AgentToken:   "token-observe-buffered",
+		AgentVersion: "v0.6.0",
+		NginxVersion: "1.27.1.2",
+		Status:       NodeStatusOnline,
+	}
+	if err := node.Insert(); err != nil {
+		t.Fatalf("failed to seed node: %v", err)
+	}
+
+	now := time.Now().UTC()
+	_, err := HeartbeatNode(node, AgentNodePayload{
+		NodeID:       node.NodeID,
+		Name:         node.Name,
+		IP:           node.IP,
+		AgentVersion: node.AgentVersion,
+		NginxVersion: node.NginxVersion,
+		Snapshot: &AgentNodeMetricSnapshot{
+			CapturedAtUnix:   now.Unix(),
+			CPUUsagePercent:  25,
+			MemoryUsedBytes:  2 * 1024 * 1024 * 1024,
+			MemoryTotalBytes: 8 * 1024 * 1024 * 1024,
+		},
+		TrafficReport: &AgentNodeTrafficReport{
+			WindowStartedAtUnix: now.Add(-time.Minute).Unix(),
+			WindowEndedAtUnix:   now.Unix(),
+			RequestCount:        20,
+			ErrorCount:          1,
+			UniqueVisitorCount:  10,
+			StatusCodes:         map[string]int64{"200": 19, "500": 1},
+			TopDomains:          map[string]int64{"edge.example.com": 20},
+			SourceCountries:     map[string]int64{"CN": 12},
+		},
+		BufferedObservability: []AgentBufferedObservabilityRecord{
+			{
+				WindowStartedAtUnix: now.Add(-2 * time.Minute).Unix(),
+				Snapshot: &AgentNodeMetricSnapshot{
+					CapturedAtUnix:   now.Add(-2 * time.Minute).Unix(),
+					CPUUsagePercent:  30,
+					MemoryUsedBytes:  3 * 1024 * 1024 * 1024,
+					MemoryTotalBytes: 8 * 1024 * 1024 * 1024,
+				},
+				TrafficReport: &AgentNodeTrafficReport{
+					WindowStartedAtUnix: now.Add(-2 * time.Minute).Unix(),
+					WindowEndedAtUnix:   now.Add(-time.Minute).Unix(),
+					RequestCount:        40,
+					ErrorCount:          2,
+					UniqueVisitorCount:  18,
+					StatusCodes:         map[string]int64{"200": 38, "500": 2},
+					TopDomains:          map[string]int64{"edge.example.com": 40},
+					SourceCountries:     map[string]int64{"CN": 20},
+				},
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("expected heartbeat to succeed: %v", err)
+	}
+
+	snapshots, err := model.ListNodeMetricSnapshots(node.NodeID, time.Time{}, 10)
+	if err != nil {
+		t.Fatalf("expected node snapshots query to succeed: %v", err)
+	}
+	if len(snapshots) != 2 {
+		t.Fatalf("expected current and buffered snapshots, got %+v", snapshots)
+	}
+
+	reports, err := model.ListNodeRequestReports(node.NodeID, time.Time{}, 10)
+	if err != nil {
+		t.Fatalf("expected node request reports query to succeed: %v", err)
+	}
+	if len(reports) != 2 {
+		t.Fatalf("expected current and buffered reports, got %+v", reports)
+	}
+
+	_, err = HeartbeatNode(node, AgentNodePayload{
+		NodeID:       node.NodeID,
+		Name:         node.Name,
+		IP:           node.IP,
+		AgentVersion: node.AgentVersion,
+		NginxVersion: node.NginxVersion,
+		BufferedObservability: []AgentBufferedObservabilityRecord{
+			{
+				WindowStartedAtUnix: now.Add(-2 * time.Minute).Unix(),
+				Snapshot: &AgentNodeMetricSnapshot{
+					CapturedAtUnix:   now.Add(-2 * time.Minute).Unix(),
+					CPUUsagePercent:  30,
+					MemoryUsedBytes:  3 * 1024 * 1024 * 1024,
+					MemoryTotalBytes: 8 * 1024 * 1024 * 1024,
+				},
+				TrafficReport: &AgentNodeTrafficReport{
+					WindowStartedAtUnix: now.Add(-2 * time.Minute).Unix(),
+					WindowEndedAtUnix:   now.Add(-time.Minute).Unix(),
+					RequestCount:        40,
+					ErrorCount:          2,
+					UniqueVisitorCount:  18,
+					StatusCodes:         map[string]int64{"200": 38, "500": 2},
+					TopDomains:          map[string]int64{"edge.example.com": 40},
+					SourceCountries:     map[string]int64{"CN": 20},
+				},
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("expected heartbeat replay dedupe to succeed: %v", err)
+	}
+
+	snapshots, err = model.ListNodeMetricSnapshots(node.NodeID, time.Time{}, 10)
+	if err != nil {
+		t.Fatalf("expected node snapshots query to succeed after replay: %v", err)
+	}
+	if len(snapshots) != 2 {
+		t.Fatalf("expected replay dedupe to keep snapshot count stable, got %+v", snapshots)
+	}
+	reports, err = model.ListNodeRequestReports(node.NodeID, time.Time{}, 10)
+	if err != nil {
+		t.Fatalf("expected node request reports query to succeed after replay: %v", err)
+	}
+	if len(reports) != 2 {
+		t.Fatalf("expected replay dedupe to keep report count stable, got %+v", reports)
+	}
+}
+
 func TestHeartbeatNodeResolvesMissingHealthEvents(t *testing.T) {
 	setupServiceTestDB(t)
 
@@ -756,6 +885,23 @@ func TestGetNodeObservability(t *testing.T) {
 	}
 	if err := (&model.NodeMetricSnapshot{
 		NodeID:            node.NodeID,
+		CapturedAt:        time.Now().Add(-time.Hour),
+		CPUUsagePercent:   60,
+		MemoryUsedBytes:   14 * 1024 * 1024 * 1024,
+		MemoryTotalBytes:  16 * 1024 * 1024 * 1024,
+		StorageUsedBytes:  90 * 1024 * 1024 * 1024,
+		StorageTotalBytes: 100 * 1024 * 1024 * 1024,
+		DiskReadBytes:     0,
+		DiskWriteBytes:    0,
+		NetworkRxBytes:    2048,
+		NetworkTxBytes:    4096,
+		OpenrestyRxBytes:  8192,
+		OpenrestyTxBytes:  16384,
+	}).Insert(); err != nil {
+		t.Fatalf("failed to insert node metric baseline snapshot: %v", err)
+	}
+	if err := (&model.NodeMetricSnapshot{
+		NodeID:            node.NodeID,
 		CapturedAt:        time.Now(),
 		CPUUsagePercent:   81,
 		MemoryUsedBytes:   15 * 1024 * 1024 * 1024,
@@ -807,8 +953,11 @@ func TestGetNodeObservability(t *testing.T) {
 	if view.Profile == nil || view.Profile.OSName != "Ubuntu" {
 		t.Fatalf("unexpected profile: %+v", view.Profile)
 	}
-	if len(view.MetricSnapshots) != 1 {
-		t.Fatalf("expected 1 metric snapshot, got %d", len(view.MetricSnapshots))
+	if len(view.MetricSnapshots) != 2 {
+		t.Fatalf("expected 2 metric snapshots, got %d", len(view.MetricSnapshots))
+	}
+	if view.MetricSnapshots[0].DiskWriteBytes != 2048 {
+		t.Fatalf("expected latest metric snapshot to stay intact, got %+v", view.MetricSnapshots[0])
 	}
 	if len(view.TrafficReports) != 1 || view.TrafficReports[0].RequestCount != 123 {
 		t.Fatalf("unexpected traffic reports: %+v", view.TrafficReports)
@@ -925,6 +1074,23 @@ func TestGetDashboardOverview(t *testing.T) {
 
 	if err := (&model.NodeMetricSnapshot{
 		NodeID:            "node-dashboard-a",
+		CapturedAt:        now.Add(-time.Hour),
+		CPUUsagePercent:   40,
+		MemoryUsedBytes:   4 * 1024 * 1024 * 1024,
+		MemoryTotalBytes:  8 * 1024 * 1024 * 1024,
+		StorageUsedBytes:  48 * 1024 * 1024 * 1024,
+		StorageTotalBytes: 100 * 1024 * 1024 * 1024,
+		DiskReadBytes:     0,
+		DiskWriteBytes:    0,
+		NetworkRxBytes:    100,
+		NetworkTxBytes:    150,
+		OpenrestyRxBytes:  300,
+		OpenrestyTxBytes:  450,
+	}).Insert(); err != nil {
+		t.Fatalf("failed to insert node a baseline metric snapshot: %v", err)
+	}
+	if err := (&model.NodeMetricSnapshot{
+		NodeID:            "node-dashboard-a",
 		CapturedAt:        now,
 		CPUUsagePercent:   45,
 		MemoryUsedBytes:   4 * 1024 * 1024 * 1024,
@@ -939,6 +1105,23 @@ func TestGetDashboardOverview(t *testing.T) {
 		OpenrestyTxBytes:  900,
 	}).Insert(); err != nil {
 		t.Fatalf("failed to insert node a metric snapshot: %v", err)
+	}
+	if err := (&model.NodeMetricSnapshot{
+		NodeID:            "node-dashboard-b",
+		CapturedAt:        now.Add(-time.Hour),
+		CPUUsagePercent:   88,
+		MemoryUsedBytes:   14 * 1024 * 1024 * 1024,
+		MemoryTotalBytes:  16 * 1024 * 1024 * 1024,
+		StorageUsedBytes:  93 * 1024 * 1024 * 1024,
+		StorageTotalBytes: 100 * 1024 * 1024 * 1024,
+		DiskReadBytes:     0,
+		DiskWriteBytes:    0,
+		NetworkRxBytes:    200,
+		NetworkTxBytes:    300,
+		OpenrestyRxBytes:  500,
+		OpenrestyTxBytes:  700,
+	}).Insert(); err != nil {
+		t.Fatalf("failed to insert node b baseline metric snapshot: %v", err)
 	}
 	if err := (&model.NodeMetricSnapshot{
 		NodeID:            "node-dashboard-b",

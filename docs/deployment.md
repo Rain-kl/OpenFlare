@@ -155,6 +155,7 @@ swag init -g main.go -o docs
   "openresty_container_name": "atsflare-openresty",
   "openresty_docker_image": "openresty/openresty:alpine",
   "openresty_observability_port": 18081,
+  "observability_replay_minutes": 15,
   "heartbeat_interval": 10000,
   "request_timeout": 10000
 }
@@ -170,6 +171,7 @@ swag init -g main.go -o docs
   "openresty_container_name": "atsflare-openresty",
   "openresty_docker_image": "openresty/openresty:alpine",
   "openresty_observability_port": 18081,
+  "observability_replay_minutes": 15,
   "heartbeat_interval": 10000,
   "request_timeout": 10000
 }
@@ -185,6 +187,7 @@ swag init -g main.go -o docs
 * `node_name` 与 `node_ip` 可省略，未填写时自动探测
 * 未配置 `openresty_path` 时，默认使用 Docker OpenResty 容器
 * Agent 会在受管 OpenResty 中注入 Lua 观测脚本，并通过 `openresty_observability_port` 对本机暴露最近窗口指标与 `stub_status`
+* Agent 还会把最近 `observability_replay_minutes` 分钟内未成功上报的观测窗口落盘到本地缓冲文件，待 server 恢复后自动批量补传
 
 ### 3.3 第五版新增部署约束
 
@@ -193,6 +196,7 @@ swag init -g main.go -o docs
 * 本机 OpenResty 模式需要为 Agent 显式提供主配置文件写入路径
 * Docker OpenResty 模式需要保证主配置、路由配置和证书目录位于同一套受管挂载路径中
 * Docker OpenResty 模式会额外挂载一个仅本机可访问的 `127.0.0.1:<openresty_observability_port>` 观测端口，用于 Agent 在 heartbeat 前抓取 Lua 窗口指标
+* Docker / 本机两种模式都会在 `data_dir/var/lib/atsflare/observability-buffer.json` 保留最近待补传窗口；若节点磁盘是临时盘，重启后该缓冲也会丢失
 * 节点现存手工维护的主配置如继续保留，必须先迁移为 Server 渲染模板的等价配置，再切换到受管模式
 * 主配置切换前必须预留回滚副本，并通过一次 `openresty -t` 失败演练验证回滚
 

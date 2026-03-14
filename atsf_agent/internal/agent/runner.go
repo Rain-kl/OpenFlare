@@ -40,12 +40,13 @@ type UpdateOptions struct {
 }
 
 type Runner struct {
-	Config           *config.Config
-	StateStore       *state.Store
-	HeartbeatService HeartbeatService
-	SyncService      SyncService
-	Updater          Updater
-	RuntimeManager   RuntimeManager
+	Config              *config.Config
+	StateStore          *state.Store
+	ObservabilityBuffer *state.ObservabilityBufferStore
+	HeartbeatService    HeartbeatService
+	SyncService         SyncService
+	Updater             Updater
+	RuntimeManager      RuntimeManager
 
 	autoUpdate          bool
 	updateNow           bool
@@ -63,10 +64,12 @@ func (r *Runner) Run(ctx context.Context) error {
 	slog.Info("agent runner started", "node_id", nodeID, "node", r.Config.NodeName, "ip", r.Config.NodeIP)
 	if r.hasAgentToken() {
 		r.refreshOpenrestyHealth(ctx)
-		heartbeatResult, hbErr := r.HeartbeatService.Heartbeat(ctx, r.nodePayload(nodeID))
+		payload, ackWindows := r.prepareHeartbeatPayload(nodeID)
+		heartbeatResult, hbErr := r.HeartbeatService.Heartbeat(ctx, payload)
 		if hbErr != nil {
 			slog.Error("agent startup heartbeat failed", "error", hbErr)
 		} else {
+			r.ackObservabilityWindows(ackWindows)
 			if heartbeatResult == nil {
 				heartbeatResult = &protocol.HeartbeatResult{}
 			}
@@ -101,10 +104,12 @@ func (r *Runner) Run(ctx context.Context) error {
 				continue
 			}
 			r.refreshOpenrestyHealth(ctx)
-			heartbeatResult, hbErr := r.HeartbeatService.Heartbeat(ctx, r.nodePayload(nodeID))
+			payload, ackWindows := r.prepareHeartbeatPayload(nodeID)
+			heartbeatResult, hbErr := r.HeartbeatService.Heartbeat(ctx, payload)
 			if hbErr != nil {
 				slog.Error("agent heartbeat failed", "error", hbErr)
 			} else {
+				r.ackObservabilityWindows(ackWindows)
 				if heartbeatResult == nil {
 					heartbeatResult = &protocol.HeartbeatResult{}
 				}
@@ -220,11 +225,13 @@ func (r *Runner) tryRegister(ctx context.Context, nodeID *string) error {
 	*nodeID = response.NodeID
 	slog.Info("agent discovery registration succeeded", "node_id", response.NodeID)
 	r.refreshOpenrestyHealth(ctx)
-	heartbeatResult, heartbeatErr := r.HeartbeatService.Heartbeat(ctx, r.nodePayload(*nodeID))
+	payload, ackWindows := r.prepareHeartbeatPayload(*nodeID)
+	heartbeatResult, heartbeatErr := r.HeartbeatService.Heartbeat(ctx, payload)
 	if heartbeatErr != nil {
 		slog.Error("agent post-register heartbeat failed", "error", heartbeatErr)
 		return nil
 	}
+	r.ackObservabilityWindows(ackWindows)
 	if heartbeatResult == nil {
 		heartbeatResult = &protocol.HeartbeatResult{}
 	}
@@ -330,5 +337,62 @@ func (r *Runner) nodePayload(nodeID string) protocol.NodePayload {
 		Snapshot:         metricSnapshot,
 		TrafficReport:    trafficReport,
 		HealthEvents:     healthEvents,
+	}
+}
+
+func (r *Runner) prepareHeartbeatPayload(nodeID string) (protocol.NodePayload, []int64) {
+	payload := r.nodePayload(nodeID)
+	if r.ObservabilityBuffer == nil || payload.Snapshot == nil {
+		return payload, nil
+	}
+	now := time.Now().UTC()
+	retainAfterUnix := now.Add(-time.Duration(r.Config.ObservabilityReplayMinutes) * time.Minute).Unix()
+	windowStartedAtUnix := state.ObservabilityWindowStartedAt(payload.Snapshot, payload.TrafficReport)
+	if windowStartedAtUnix <= 0 {
+		return payload, nil
+	}
+
+	record := state.ObservabilityBufferRecord{
+		WindowStartedAtUnix: windowStartedAtUnix,
+		Snapshot:            payload.Snapshot,
+		TrafficReport:       payload.TrafficReport,
+		QueuedAtUnix:        now.Unix(),
+	}
+	if err := r.ObservabilityBuffer.Upsert(record, retainAfterUnix); err != nil {
+		slog.Error("upsert observability buffer failed", "error", err)
+		return payload, nil
+	}
+
+	records, err := r.ObservabilityBuffer.Replayable(windowStartedAtUnix, retainAfterUnix)
+	if err != nil {
+		slog.Error("load replayable observability buffer failed", "error", err)
+		return payload, []int64{windowStartedAtUnix}
+	}
+
+	ackWindows := make([]int64, 0, len(records)+1)
+	buffered := make([]protocol.BufferedObservabilityRecord, 0, len(records))
+	for _, item := range records {
+		if item.WindowStartedAtUnix <= 0 {
+			continue
+		}
+		buffered = append(buffered, protocol.BufferedObservabilityRecord{
+			WindowStartedAtUnix: item.WindowStartedAtUnix,
+			Snapshot:            item.Snapshot,
+			TrafficReport:       item.TrafficReport,
+		})
+		ackWindows = append(ackWindows, item.WindowStartedAtUnix)
+	}
+	payload.BufferedObservability = buffered
+	ackWindows = append(ackWindows, windowStartedAtUnix)
+	return payload, ackWindows
+}
+
+func (r *Runner) ackObservabilityWindows(windowStartedAtUnix []int64) {
+	if r.ObservabilityBuffer == nil || len(windowStartedAtUnix) == 0 {
+		return
+	}
+	retainAfterUnix := time.Now().UTC().Add(-time.Duration(r.Config.ObservabilityReplayMinutes) * time.Minute).Unix()
+	if err := r.ObservabilityBuffer.Ack(windowStartedAtUnix, retainAfterUnix); err != nil {
+		slog.Error("ack observability buffer failed", "error", err)
 	}
 }

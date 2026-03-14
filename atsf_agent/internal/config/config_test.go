@@ -54,8 +54,14 @@ func TestLoadDockerModeUsesManagedPaths(t *testing.T) {
 	if cfg.StatePath != filepath.Join(dir, "data", defaultDockerStateRelativePath) {
 		t.Fatalf("unexpected state path: %s", cfg.StatePath)
 	}
+	if cfg.ObservabilityBufferPath != filepath.Join(dir, "data", defaultObservabilityBufferRelativePath) {
+		t.Fatalf("unexpected observability buffer path: %s", cfg.ObservabilityBufferPath)
+	}
 	if cfg.OpenrestyObservabilityPort != defaultOpenRestyObservabilityPort {
 		t.Fatalf("unexpected openresty observability port: %d", cfg.OpenrestyObservabilityPort)
+	}
+	if cfg.ObservabilityReplayMinutes != defaultObservabilityReplayMinutes {
+		t.Fatalf("unexpected observability replay minutes: %d", cfg.ObservabilityReplayMinutes)
 	}
 }
 
@@ -93,6 +99,9 @@ func TestLoadPathModeKeepsExplicitPaths(t *testing.T) {
 	}
 	if cfg.StatePath != "/tmp/agent-state.json" {
 		t.Fatalf("unexpected state path: %s", cfg.StatePath)
+	}
+	if cfg.ObservabilityBufferPath != filepath.Join(dir, "data", defaultObservabilityBufferRelativePath) {
+		t.Fatalf("unexpected observability buffer path: %s", cfg.ObservabilityBufferPath)
 	}
 	if cfg.OpenrestySupportDir != cfg.SupportDir {
 		t.Fatalf("expected path mode openresty support dir to equal support dir, got %s / %s", cfg.OpenrestySupportDir, cfg.SupportDir)
@@ -133,6 +142,9 @@ func TestLoadUsesCustomDataDirForGeneratedFiles(t *testing.T) {
 	}
 	if cfg.StatePath != "/srv/atsflare/"+defaultDockerStateRelativePath {
 		t.Fatalf("unexpected state path: %s", cfg.StatePath)
+	}
+	if cfg.ObservabilityBufferPath != "/srv/atsflare/"+defaultObservabilityBufferRelativePath {
+		t.Fatalf("unexpected observability buffer path: %s", cfg.ObservabilityBufferPath)
 	}
 	if cfg.SupportDir != "/srv/atsflare/"+defaultSupportDirRelativePath {
 		t.Fatalf("unexpected support dir: %s", cfg.SupportDir)
@@ -212,6 +224,9 @@ func TestSavePersistsMillisecondsAndOmitsRuntimeVersions(t *testing.T) {
 	}
 	if decoded["openresty_observability_port"] != float64(defaultOpenRestyObservabilityPort) {
 		t.Fatalf("unexpected observability port: %#v", decoded["openresty_observability_port"])
+	}
+	if decoded["observability_replay_minutes"] != float64(defaultObservabilityReplayMinutes) {
+		t.Fatalf("unexpected observability replay minutes: %#v", decoded["observability_replay_minutes"])
 	}
 	if _, ok := decoded["nginx_path"]; ok {
 		t.Fatal("legacy nginx_path should not be persisted")

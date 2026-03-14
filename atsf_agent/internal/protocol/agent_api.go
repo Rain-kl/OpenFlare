@@ -36,19 +36,20 @@ const (
 )
 
 type NodePayload struct {
-	NodeID           string              `json:"node_id"`
-	Name             string              `json:"name"`
-	IP               string              `json:"ip"`
-	AgentVersion     string              `json:"agent_version"`
-	NginxVersion     string              `json:"nginx_version"`
-	CurrentVersion   string              `json:"current_version"`
-	LastError        string              `json:"last_error"`
-	OpenrestyStatus  string              `json:"openresty_status"`
-	OpenrestyMessage string              `json:"openresty_message"`
-	Profile          *NodeSystemProfile  `json:"profile,omitempty"`
-	Snapshot         *NodeMetricSnapshot `json:"snapshot,omitempty"`
-	TrafficReport    *NodeTrafficReport  `json:"traffic_report,omitempty"`
-	HealthEvents     []NodeHealthEvent   `json:"health_events"`
+	NodeID                string                        `json:"node_id"`
+	Name                  string                        `json:"name"`
+	IP                    string                        `json:"ip"`
+	AgentVersion          string                        `json:"agent_version"`
+	NginxVersion          string                        `json:"nginx_version"`
+	CurrentVersion        string                        `json:"current_version"`
+	LastError             string                        `json:"last_error"`
+	OpenrestyStatus       string                        `json:"openresty_status"`
+	OpenrestyMessage      string                        `json:"openresty_message"`
+	Profile               *NodeSystemProfile            `json:"profile,omitempty"`
+	Snapshot              *NodeMetricSnapshot           `json:"snapshot,omitempty"`
+	TrafficReport         *NodeTrafficReport            `json:"traffic_report,omitempty"`
+	BufferedObservability []BufferedObservabilityRecord `json:"buffered_observability,omitempty"`
+	HealthEvents          []NodeHealthEvent             `json:"health_events"`
 }
 
 type NodeSystemProfile struct {
@@ -90,6 +91,12 @@ type NodeTrafficReport struct {
 	StatusCodes         map[string]int64 `json:"status_codes"`
 	TopDomains          map[string]int64 `json:"top_domains"`
 	SourceCountries     map[string]int64 `json:"source_countries"`
+}
+
+type BufferedObservabilityRecord struct {
+	WindowStartedAtUnix int64               `json:"window_started_at_unix"`
+	Snapshot            *NodeMetricSnapshot `json:"snapshot,omitempty"`
+	TrafficReport       *NodeTrafficReport  `json:"traffic_report,omitempty"`
 }
 
 type NodeHealthEvent struct {

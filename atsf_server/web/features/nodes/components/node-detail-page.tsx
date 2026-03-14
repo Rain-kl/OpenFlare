@@ -89,6 +89,13 @@ function formatBytes(value?: number | null) {
   return `${current.toFixed(current >= 100 || index === 0 ? 0 : 1)} ${units[index]}`;
 }
 
+function formatBytesPerSecond(value?: number | null, windowSeconds = 1) {
+  if (!value || value <= 0 || windowSeconds <= 0) {
+    return '—';
+  }
+  return `${formatBytes(value / windowSeconds)}/s`;
+}
+
 function formatPercent(value?: number | null) {
   if (value === undefined || value === null || Number.isNaN(value)) {
     return '—';
@@ -929,11 +936,17 @@ export function NodeDetailPage({ nodeId }: { nodeId: string }) {
                     <div className="mt-3 space-y-2 text-sm text-[var(--foreground-secondary)]">
                       <p>
                         入站：
-                        {formatBytes(latestMetricSnapshot.openresty_rx_bytes)}
+                        {formatBytesPerSecond(
+                          latestMetricSnapshot.openresty_rx_bytes,
+                          60,
+                        )}
                       </p>
                       <p>
                         出站：
-                        {formatBytes(latestMetricSnapshot.openresty_tx_bytes)}
+                        {formatBytesPerSecond(
+                          latestMetricSnapshot.openresty_tx_bytes,
+                          60,
+                        )}
                       </p>
                     </div>
                   </div>
@@ -1087,7 +1100,7 @@ export function NodeDetailPage({ nodeId }: { nodeId: string }) {
                     observability?.trends.network_24h.map(
                       (point) => point.openresty_rx_bytes,
                     ) ?? [],
-                  valueFormatter: formatBytes,
+                  valueFormatter: (value) => formatBytesPerSecond(value, 3600),
                 },
                 {
                   label: 'OpenResty 出站',
@@ -1096,7 +1109,7 @@ export function NodeDetailPage({ nodeId }: { nodeId: string }) {
                     observability?.trends.network_24h.map(
                       (point) => point.openresty_tx_bytes,
                     ) ?? [],
-                  valueFormatter: formatBytes,
+                  valueFormatter: (value) => formatBytesPerSecond(value, 3600),
                 },
               ]}
             />

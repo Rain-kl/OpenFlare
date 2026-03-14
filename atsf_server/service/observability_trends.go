@@ -2,6 +2,7 @@ package service
 
 import (
 	"atsflare/model"
+	"sort"
 	"time"
 )
 
@@ -148,13 +149,53 @@ func buildDiskIOTrendPoints(now time.Time, snapshots []*model.NodeMetricSnapshot
 		accumulators[index].nodes = make(map[string]struct{})
 	}
 
+	sort.Slice(snapshots, func(i int, j int) bool {
+		if snapshots[i].CapturedAt.Equal(snapshots[j].CapturedAt) {
+			return snapshots[i].NodeID < snapshots[j].NodeID
+		}
+		return snapshots[i].CapturedAt.Before(snapshots[j].CapturedAt)
+	})
+
+	type diskCounterState struct {
+		read  int64
+		write int64
+		seen  bool
+	}
+
+	previousByNode := make(map[string]diskCounterState, len(snapshots))
+
 	for _, snapshot := range snapshots {
+		nodeKey := snapshot.NodeID
+		if nodeKey == "" {
+			nodeKey = "__unknown__"
+		}
+
+		previous := previousByNode[nodeKey]
+		previousByNode[nodeKey] = diskCounterState{
+			read:  snapshot.DiskReadBytes,
+			write: snapshot.DiskWriteBytes,
+			seen:  true,
+		}
+		if !previous.seen {
+			continue
+		}
+
 		index, ok := trendBucketIndex(snapshot.CapturedAt, start)
 		if !ok {
 			continue
 		}
-		points[index].DiskReadBytes += snapshot.DiskReadBytes
-		points[index].DiskWriteBytes += snapshot.DiskWriteBytes
+
+		readDelta := snapshot.DiskReadBytes - previous.read
+		writeDelta := snapshot.DiskWriteBytes - previous.write
+		if readDelta < 0 {
+			readDelta = 0
+		}
+		if writeDelta < 0 {
+			writeDelta = 0
+		}
+
+		points[index].DiskReadBytes += readDelta
+		points[index].DiskWriteBytes += writeDelta
 		if snapshot.NodeID != "" {
 			accumulators[index].nodes[snapshot.NodeID] = struct{}{}
 		}
