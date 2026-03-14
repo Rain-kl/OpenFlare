@@ -2,6 +2,7 @@ package model
 
 import (
 	"atsflare/common"
+	"atsflare/utils/geoip"
 	"strconv"
 	"strings"
 	"time"
@@ -54,6 +55,7 @@ func InitOptionMap() {
 	common.OptionMap["AgentHeartbeatInterval"] = strconv.Itoa(common.AgentHeartbeatInterval)
 	common.OptionMap["NodeOfflineThreshold"] = strconv.Itoa(int(common.NodeOfflineThreshold.Milliseconds()))
 	common.OptionMap["AgentUpdateRepo"] = common.AgentUpdateRepo
+	common.OptionMap["GeoIPProvider"] = common.GeoIPProvider
 	common.OptionMap["OpenRestyWorkerProcesses"] = common.OpenRestyWorkerProcesses
 	common.OptionMap["OpenRestyWorkerConnections"] = strconv.Itoa(common.OpenRestyWorkerConnections)
 	common.OptionMap["OpenRestyWorkerRlimitNofile"] = strconv.Itoa(common.OpenRestyWorkerRlimitNofile)
@@ -122,8 +124,8 @@ func UpdateOption(key string, value string) error {
 }
 
 func updateOptionMap(key string, value string) {
+	shouldRefreshGeoIP := false
 	common.OptionMapRWMutex.Lock()
-	defer common.OptionMapRWMutex.Unlock()
 	if common.OptionMap == nil {
 		common.OptionMap = make(map[string]string)
 	}
@@ -205,6 +207,11 @@ func updateOptionMap(key string, value string) {
 	case "AgentUpdateRepo":
 		if value != "" {
 			common.AgentUpdateRepo = value
+		}
+	case "GeoIPProvider":
+		if geoip.IsValidProvider(value) {
+			common.GeoIPProvider = value
+			shouldRefreshGeoIP = true
 		}
 	case "OpenRestyWorkerProcesses":
 		if strings.TrimSpace(value) != "" {
@@ -362,5 +369,9 @@ func updateOptionMap(key string, value string) {
 		if v, err := strconv.ParseInt(value, 10, 64); err == nil && v > 0 {
 			common.CriticalRateLimitDuration = v
 		}
+	}
+	common.OptionMapRWMutex.Unlock()
+	if shouldRefreshGeoIP {
+		geoip.InitGeoIP()
 	}
 }

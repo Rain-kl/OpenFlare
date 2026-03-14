@@ -5,6 +5,7 @@ import (
 	"atsflare/model"
 	"atsflare/service"
 	"atsflare/utils"
+	"atsflare/utils/geoip"
 	"encoding/json"
 	"fmt"
 	"github.com/gin-gonic/gin"
@@ -60,6 +61,16 @@ func validateBooleanOption(key string, value string) error {
 	default:
 		return fmt.Errorf("%s 必须为 true 或 false", key)
 	}
+}
+
+func validateGeoIPOption(key string, value string) error {
+	if key != "GeoIPProvider" {
+		return nil
+	}
+	if !geoip.IsValidProvider(value) {
+		return fmt.Errorf("%s 仅支持 disabled、mmdb、ip-api、geojs、ipinfo", key)
+	}
+	return nil
 }
 
 func validateOpenRestyOption(key string, value string) error {
@@ -244,6 +255,13 @@ func UpdateOption(c *gin.Context) {
 		return
 	}
 	if err = validateOpenRestyOption(option.Key, option.Value); err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+		return
+	}
+	if err = validateGeoIPOption(option.Key, option.Value); err != nil {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
 			"message": err.Error(),

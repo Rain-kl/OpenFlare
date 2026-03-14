@@ -111,6 +111,7 @@ volumes:
 | `AgentHeartbeatInterval` | Agent 心跳间隔（毫秒） | `10000` |
 | `NodeOfflineThreshold` | 节点离线判定阈值（毫秒） | `120000` |
 | `AgentUpdateRepo` | Agent 自更新仓库 | `Rain-kl/ATSFlare` |
+| `GeoIPProvider` | IP 归属解析方式；支持 `disabled`、`mmdb`、`ip-api`、`geojs`、`ipinfo` | `disabled` |
 | `GlobalApiRateLimitNum` / `GlobalApiRateLimitDuration` | 全局 API 限流次数 / 时间窗口（秒） | `300` / `180` |
 | `GlobalWebRateLimitNum` / `GlobalWebRateLimitDuration` | 全局 Web 限流次数 / 时间窗口（秒） | `300` / `180` |
 | `UploadRateLimitNum` / `UploadRateLimitDuration` | 上传接口限流次数 / 时间窗口（秒） | `50` / `60` |
@@ -121,6 +122,7 @@ volumes:
 
 * 限流窗口上限不能超过 `RateLimitKeyExpirationDuration`，当前为 20 分钟
 * 限流按来源 IP 统计，若前置了 Nginx/CDN/LB，应正确透传真实客户端 IP
+* `GeoIPProvider=mmdb` 时，Server 会按需下载并使用本地 MaxMind Country 数据库；其余非 `disabled` 选项会直接请求对应外部 GeoIP 服务
 
 ### 1.2.2 第五版当前支持的 OpenResty 优化配置项
 

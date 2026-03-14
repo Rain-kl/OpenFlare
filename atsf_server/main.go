@@ -6,6 +6,7 @@ import (
 	"atsflare/middleware"
 	"atsflare/model"
 	"atsflare/router"
+	"atsflare/utils/geoip"
 	"embed"
 	"fmt"
 	"github.com/gin-contrib/sessions"
@@ -65,6 +66,7 @@ func main() {
 
 	// Initialize options
 	model.InitOptionMap()
+	geoip.InitGeoIP()
 
 	// Initialize HTTP server
 	server := gin.Default()
