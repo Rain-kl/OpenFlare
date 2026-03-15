@@ -3,7 +3,6 @@ package geoip
 import (
 	"fmt"
 	"io"
-	"log/slog"
 	"net"
 	"net/http"
 	"os"
@@ -146,6 +145,5 @@ func (s *MaxMindGeoIPService) Close() error {
 			return fmt.Errorf("error closing MaxMind database: %w", err)
 		}
 	}
-	slog.Info("MaxMind GeoIP service closed.")
 	return nil
 }
