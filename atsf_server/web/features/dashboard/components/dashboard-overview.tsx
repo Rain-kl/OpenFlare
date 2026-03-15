@@ -313,7 +313,7 @@ export function DashboardOverview() {
           title="Top 节点榜单"
           description="把流量、错误与容量压力节点并排展示，保留快速定位热点与瓶颈的入口。"
         >
-          <div className="grid gap-6 xl:grid-cols-3">
+          <div className="grid gap-6 xl:grid-cols-1">
             <div>
               <p className="mb-3 text-xs tracking-[0.22em] text-[var(--foreground-muted)] uppercase">
                 流量最高节点
@@ -325,19 +325,6 @@ export function DashboardOverview() {
                 )}
                 color="#38bdf8"
                 emptyMessage="暂无流量榜单"
-              />
-            </div>
-            <div>
-              <p className="mb-3 text-xs tracking-[0.22em] text-[var(--foreground-muted)] uppercase">
-                错误热点节点
-              </p>
-              <RankChart
-                items={buildNodeRankItems(
-                  overview.nodes,
-                  (node) => node.error_count,
-                )}
-                color="#f97316"
-                emptyMessage="暂无错误热点"
               />
             </div>
             <div>
