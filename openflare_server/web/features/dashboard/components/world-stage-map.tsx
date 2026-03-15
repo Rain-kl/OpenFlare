@@ -3,7 +3,7 @@
 import ReactEChartsCore from 'echarts-for-react/lib/core';
 import type { EChartsCoreOption } from 'echarts/core';
 import * as echarts from 'echarts/core';
-import { ScatterChart } from 'echarts/charts';
+import { MapChart, ScatterChart } from 'echarts/charts';
 import { GeoComponent, TooltipComponent } from 'echarts/components';
 import { CanvasRenderer } from 'echarts/renderers';
 import { useRouter } from 'next/navigation';
@@ -20,7 +20,13 @@ import {
   getOpenrestyStatusLabel,
 } from '@/features/nodes/utils';
 
-echarts.use([GeoComponent, TooltipComponent, ScatterChart, CanvasRenderer]);
+echarts.use([
+  GeoComponent,
+  TooltipComponent,
+  MapChart,
+  ScatterChart,
+  CanvasRenderer,
+]);
 
 const fallbackCoordinates = [
   [-122.4194, 37.7749],
