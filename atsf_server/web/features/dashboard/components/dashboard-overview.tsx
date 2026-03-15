@@ -20,35 +20,11 @@ import {
   getOpenrestyStatusVariant,
 } from '@/features/nodes/utils';
 import { formatDateTime, formatRelativeTime } from '@/lib/utils/date';
-
-function formatPercent(value?: number | null) {
-  if (value === undefined || value === null || Number.isNaN(value)) {
-    return '—';
-  }
-  return `${value.toFixed(1)}%`;
-}
-
-function formatBytes(value?: number | null) {
-  if (!value || value <= 0) {
-    return '—';
-  }
-
-  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
-  let current = value;
-  let index = 0;
-  while (current >= 1024 && index < units.length - 1) {
-    current /= 1024;
-    index += 1;
-  }
-  return `${current.toFixed(current >= 100 || index === 0 ? 0 : 1)} ${units[index]}`;
-}
-
-function formatBytesPerSecond(value?: number | null, windowSeconds = 1) {
-  if (!value || value <= 0 || windowSeconds <= 0) {
-    return '—';
-  }
-  return `${formatBytes(value / windowSeconds)}/s`;
-}
+import {
+  formatBytes,
+  formatBytesPerSecond,
+  formatPercent,
+} from '@/lib/utils/metrics';
 
 function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : '请求失败，请稍后重试。';
@@ -244,6 +220,7 @@ export function DashboardOverview() {
             labels={overview.trends.capacity_24h.map((point) =>
               formatTrendHour(point.bucket_started_at),
             )}
+            yAxisValueFormatter={formatPercent}
             series={[
               {
                 label: '平均 CPU',
@@ -279,6 +256,7 @@ export function DashboardOverview() {
                 formatTrendHour(point.bucket_started_at),
               )}
               height={180}
+              yAxisValueFormatter={(value) => formatBytesPerSecond(value, 3600)}
               series={[
                 {
                   label: 'OpenResty 入站',
@@ -306,6 +284,7 @@ export function DashboardOverview() {
                 formatTrendHour(point.bucket_started_at),
               )}
               height={180}
+              yAxisValueFormatter={formatBytes}
               series={[
                 {
                   label: '磁盘读',
@@ -366,16 +345,14 @@ export function DashboardOverview() {
                 容量压力节点
               </p>
               <RankChart
-                items={buildNodeRankItems(
-                  overview.nodes,
-                  (node) =>
-                    Math.round(
-                      Math.max(
-                        node.cpu_usage_percent,
-                        node.memory_usage_percent,
-                        node.storage_usage_percent,
-                      ),
+                items={buildNodeRankItems(overview.nodes, (node) =>
+                  Math.round(
+                    Math.max(
+                      node.cpu_usage_percent,
+                      node.memory_usage_percent,
+                      node.storage_usage_percent,
                     ),
+                  ),
                 )}
                 color="#ef4444"
                 valueFormatter={(value) => `${value}%`}

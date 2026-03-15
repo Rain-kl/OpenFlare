@@ -44,6 +44,11 @@ import {
 import type { ReleaseChannel } from '@/features/update/types';
 import { formatDateTime, formatRelativeTime } from '@/lib/utils/date';
 import {
+  formatBytes,
+  formatBytesPerSecond,
+  formatPercent,
+} from '@/lib/utils/metrics';
+import {
   buildNodeInstallCommand,
   getApplyLabel,
   getApplyVariant,
@@ -72,35 +77,6 @@ function getErrorMessage(error: unknown) {
 
 async function copyToClipboard(value: string) {
   await navigator.clipboard.writeText(value);
-}
-
-function formatBytes(value?: number | null) {
-  if (!value || value <= 0) {
-    return '—';
-  }
-
-  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
-  let current = value;
-  let index = 0;
-  while (current >= 1024 && index < units.length - 1) {
-    current /= 1024;
-    index += 1;
-  }
-  return `${current.toFixed(current >= 100 || index === 0 ? 0 : 1)} ${units[index]}`;
-}
-
-function formatBytesPerSecond(value?: number | null, windowSeconds = 1) {
-  if (!value || value <= 0 || windowSeconds <= 0) {
-    return '—';
-  }
-  return `${formatBytes(value / windowSeconds)}/s`;
-}
-
-function formatPercent(value?: number | null) {
-  if (value === undefined || value === null || Number.isNaN(value)) {
-    return '—';
-  }
-  return `${value.toFixed(1)}%`;
 }
 
 function formatUsageRatio(used?: number | null, total?: number | null) {
@@ -445,8 +421,9 @@ export function NodeDetailPage({ nodeId }: { nodeId: string }) {
   const latestMetricSnapshot = observability?.metric_snapshots?.[0] ?? null;
   const activeHealthEvents = useMemo(
     () =>
-      observability?.health_events.filter((event) => event.status === 'active') ??
-      [],
+      observability?.health_events.filter(
+        (event) => event.status === 'active',
+      ) ?? [],
     [observability?.health_events],
   );
   const statusCodeDistribution = useMemo(
@@ -484,8 +461,8 @@ export function NodeDetailPage({ nodeId }: { nodeId: string }) {
   }, [
     activeHealthEvents,
     healthEventFilter,
-      observability?.health_events,
-      resolvedHealthEvents,
+    observability?.health_events,
+    resolvedHealthEvents,
   ]);
   const tabs = useMemo(
     () =>
@@ -684,1005 +661,1022 @@ export function NodeDetailPage({ nodeId }: { nodeId: string }) {
 
         {activeTab === 'dashboard' ? (
           <>
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <SummaryStat
-            label="运行诊断"
-            value={
-              activeHealthEvents.length
-                ? `${activeHealthEvents.length} 个活动异常`
-                : '运行稳定'
-            }
-            hint={
-              latestHealthEvent
-                ? `${getHealthEventLabel(latestHealthEvent)} · ${latestHealthEvent.message || '等待处理'}`
-                : '当前没有活动中的健康事件'
-            }
-          />
-          <SummaryStat
-            label="当前窗口请求"
-            value={
-              trafficSummary
-                ? trafficSummary.request_count.toLocaleString('zh-CN')
-                : '—'
-            }
-            hint={
-              trafficSummary
-                ? `QPS ${trafficSummary.estimated_qps.toFixed(1)} · 错误率 ${trafficSummary.error_rate_percent.toFixed(1)}%`
-                : '当前没有可展示的请求窗口摘要'
-            }
-          />
-          <SummaryStat
-            label="容量压力"
-            value={
-              healthSummary?.has_capacity_risk ? '需要关注' : '正常范围'
-            }
-            hint={
-              latestMetricSnapshot
-                ? `CPU ${formatPercent(latestMetricSnapshot.cpu_usage_percent)} · 存储 ${formatPercent(storageUsageRatio)}`
-                : '当前没有资源快照'
-            }
-          />
-          <SummaryStat
-            label="来源信号"
-            value={topSourceCountry?.key ?? '—'}
-            hint={
-              topSourceCountry
-                ? `${topSourceCountry.value.toLocaleString('zh-CN')} 次请求`
-                : '当前没有来源分布数据'
-            }
-          />
-        </div>
-
-        <div className="grid gap-6 xl:grid-cols-3">
-          <AppCard
-            title="系统信息"
-          >
-            {observabilityQuery.isLoading ? (
-              <LoadingState />
-            ) : observabilityQuery.isError ? (
-              <InlineMessage
-                tone="danger"
-                message={getErrorMessage(observabilityQuery.error)}
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              <SummaryStat
+                label="运行诊断"
+                value={
+                  activeHealthEvents.length
+                    ? `${activeHealthEvents.length} 个活动异常`
+                    : '运行稳定'
+                }
+                hint={
+                  latestHealthEvent
+                    ? `${getHealthEventLabel(latestHealthEvent)} · ${latestHealthEvent.message || '等待处理'}`
+                    : '当前没有活动中的健康事件'
+                }
               />
-            ) : observability?.profile ? (
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-4 rounded-2xl border border-[var(--border-default)] bg-[var(--surface-elevated)] px-4 py-4">
-                  <div>
-                    <p className="text-xs tracking-[0.2em] text-[var(--foreground-muted)] uppercase">
-                      主机名
-                    </p>
-                    <p className="mt-2 text-sm text-[var(--foreground-primary)]">
-                      {observability.profile.hostname || node.name}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs tracking-[0.2em] text-[var(--foreground-muted)] uppercase">
-                      操作系统
-                    </p>
-                    <p className="mt-2 text-sm text-[var(--foreground-primary)]">
-                      {observability.profile.os_name || 'unknown'}
-                      {observability.profile.os_version
-                        ? ` ${observability.profile.os_version}`
-                        : ''}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs tracking-[0.2em] text-[var(--foreground-muted)] uppercase">
-                      内核 / 架构
-                    </p>
-                    <p className="mt-2 text-sm text-[var(--foreground-primary)]">
-                      {observability.profile.kernel_version || 'unknown'} ·{' '}
-                      {observability.profile.architecture || 'unknown'}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs tracking-[0.2em] text-[var(--foreground-muted)] uppercase">
-                      在线时长
-                    </p>
-                    <p className="mt-2 text-sm text-[var(--foreground-primary)]">
-                      {formatUptime(observability.profile.uptime_seconds)}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="space-y-4 rounded-2xl border border-[var(--border-default)] bg-[var(--surface-elevated)] px-4 py-4">
-                  <div>
-                    <p className="text-xs tracking-[0.2em] text-[var(--foreground-muted)] uppercase">
-                      CPU
-                    </p>
-                    <p className="mt-2 text-sm text-[var(--foreground-primary)]">
-                      {observability.profile.cpu_model || 'unknown'}
-                    </p>
-                    <p className="mt-1 text-xs text-[var(--foreground-muted)]">
-                      {observability.profile.cpu_cores || 0} 核
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs tracking-[0.2em] text-[var(--foreground-muted)] uppercase">
-                      总内存
-                    </p>
-                    <p className="mt-2 text-sm text-[var(--foreground-primary)]">
-                      {formatBytes(observability.profile.total_memory_bytes)}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs tracking-[0.2em] text-[var(--foreground-muted)] uppercase">
-                      总存储
-                    </p>
-                    <p className="mt-2 text-sm text-[var(--foreground-primary)]">
-                      {formatBytes(observability.profile.total_disk_bytes)}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs tracking-[0.2em] text-[var(--foreground-muted)] uppercase">
-                      上报时间
-                    </p>
-                    <p className="mt-2 text-sm text-[var(--foreground-primary)]">
-                      {isMeaningfulTime(observability.profile.reported_at)
-                        ? formatDateTime(observability.profile.reported_at)
-                        : '—'}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <EmptyState
-                title="暂无系统画像"
-                description="节点已经接入，但还没有上报完整系统画像。"
+              <SummaryStat
+                label="当前窗口请求"
+                value={
+                  trafficSummary
+                    ? trafficSummary.request_count.toLocaleString('zh-CN')
+                    : '—'
+                }
+                hint={
+                  trafficSummary
+                    ? `QPS ${trafficSummary.estimated_qps.toFixed(1)} · 错误率 ${trafficSummary.error_rate_percent.toFixed(1)}%`
+                    : '当前没有可展示的请求窗口摘要'
+                }
               />
-            )}
-          </AppCard>
-
-          <AppCard
-            title="实时资源"
-            description="读取节点最近一次快照，快速判断资源压力与吞吐情况。"
-          >
-            {observabilityQuery.isLoading ? (
-              <LoadingState />
-            ) : observabilityQuery.isError ? (
-              <InlineMessage
-                tone="danger"
-                message={getErrorMessage(observabilityQuery.error)}
+              <SummaryStat
+                label="容量压力"
+                value={
+                  healthSummary?.has_capacity_risk ? '需要关注' : '正常范围'
+                }
+                hint={
+                  latestMetricSnapshot
+                    ? `CPU ${formatPercent(latestMetricSnapshot.cpu_usage_percent)} · 存储 ${formatPercent(storageUsageRatio)}`
+                    : '当前没有资源快照'
+                }
               />
-            ) : latestMetricSnapshot ? (
-              <div className="space-y-4">
-                <div className="grid gap-4 md:grid-cols-2">
-                  <MetricBar
-                    label="CPU"
-                    value={formatPercent(
-                      latestMetricSnapshot.cpu_usage_percent,
-                    )}
-                    progress={latestMetricSnapshot.cpu_usage_percent}
-                    hint={
-                      isMeaningfulTime(latestMetricSnapshot.captured_at)
-                        ? `快照 ${formatRelativeTime(latestMetricSnapshot.captured_at)}`
-                        : undefined
-                    }
-                  />
-                  <MetricBar
-                    label="内存"
-                    value={`${formatBytes(
-                      latestMetricSnapshot.memory_used_bytes,
-                    )} / ${formatBytes(latestMetricSnapshot.memory_total_bytes)}`}
-                    progress={memoryUsageRatio}
-                  />
-                  <MetricBar
-                    label="存储"
-                    value={`${formatBytes(
-                      latestMetricSnapshot.storage_used_bytes,
-                    )} / ${formatBytes(
-                      latestMetricSnapshot.storage_total_bytes,
-                    )}`}
-                    progress={storageUsageRatio}
-                  />
-                  <MetricBar
-                    label="连接数"
-                    value={
-                      latestMetricSnapshot.openresty_connections
-                        ? `${latestMetricSnapshot.openresty_connections}`
-                        : '—'
-                    }
-                    progress={null}
-                    hint="OpenResty 当前连接"
-                  />
-                </div>
-              </div>
-            ) : (
-              <EmptyState
-                title="暂无资源快照"
-                description="节点已经接入，但还没有上报资源快照。"
+              <SummaryStat
+                label="来源信号"
+                value={topSourceCountry?.key ?? '—'}
+                hint={
+                  topSourceCountry
+                    ? `${topSourceCountry.value.toLocaleString('zh-CN')} 次请求`
+                    : '当前没有来源分布数据'
+                }
               />
-            )}
-          </AppCard>
-
-          <AppCard
-            title="网络流量"
-            description="首屏优先看 OpenResty 吞吐、节点网络与最近窗口流量，快速判断是否存在网络或流量异常。"
-          >
-            {observabilityQuery.isLoading ? (
-              <LoadingState />
-            ) : observabilityQuery.isError ? (
-              <InlineMessage
-                tone="danger"
-                message={getErrorMessage(observabilityQuery.error)}
-              />
-            ) : latestMetricSnapshot ? (
-              <div className="space-y-4">
-                <div className="flex flex-wrap gap-3">
-                  <StatusBadge
-                    label={getNodeStatusLabel(node.status)}
-                    variant={getNodeStatusVariant(node.status)}
-                  />
-                  <StatusBadge
-                    label={getOpenrestyStatusLabel(node.openresty_status)}
-                    variant={getOpenrestyStatusVariant(node.openresty_status)}
-                  />
-                  <StatusBadge
-                    label={
-                      activeHealthEvents.length
-                        ? `${activeHealthEvents.length} 个活动异常`
-                        : '无活动异常'
-                    }
-                    variant={activeHealthEvents.length ? 'warning' : 'success'}
-                  />
-                </div>
-
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-elevated)] px-4 py-4">
-                    <p className="text-xs tracking-[0.2em] text-[var(--foreground-muted)] uppercase">
-                      OpenResty 吞吐
-                    </p>
-                    <div className="mt-3 space-y-2 text-sm text-[var(--foreground-secondary)]">
-                      <p>
-                        入站：
-                        {formatBytesPerSecond(
-                          latestMetricSnapshot.openresty_rx_bytes,
-                          60,
-                        )}
-                      </p>
-                      <p>
-                        出站：
-                        {formatBytesPerSecond(
-                          latestMetricSnapshot.openresty_tx_bytes,
-                          60,
-                        )}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-elevated)] px-4 py-4">
-                    <p className="text-xs tracking-[0.2em] text-[var(--foreground-muted)] uppercase">
-                      节点网络
-                    </p>
-                    <div className="mt-3 space-y-2 text-sm text-[var(--foreground-secondary)]">
-                      <p>
-                        入站：
-                        {formatBytes(latestMetricSnapshot.network_rx_bytes)}
-                      </p>
-                      <p>
-                        出站：
-                        {formatBytes(latestMetricSnapshot.network_tx_bytes)}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-elevated)] px-4 py-4">
-                    <p className="text-xs tracking-[0.2em] text-[var(--foreground-muted)] uppercase">
-                      最近窗口请求
-                    </p>
-                    <p className="mt-3 text-2xl font-semibold text-[var(--foreground-primary)]">
-                      {trafficSummary
-                        ? trafficSummary.request_count.toLocaleString('zh-CN')
-                        : '—'}
-                    </p>
-                    <p className="mt-2 text-sm text-[var(--foreground-secondary)]">
-                      {trafficSummary
-                        ? `QPS ${trafficSummary.estimated_qps.toFixed(1)} · UV ${trafficSummary.unique_visitor_count}`
-                        : '暂无窗口流量摘要'}
-                    </p>
-                  </div>
-                  <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-elevated)] px-4 py-4">
-                    <p className="text-xs tracking-[0.2em] text-[var(--foreground-muted)] uppercase">
-                      最近窗口错误
-                    </p>
-                    <p className="mt-3 text-2xl font-semibold text-[var(--foreground-primary)]">
-                      {trafficSummary
-                        ? trafficSummary.error_count.toLocaleString('zh-CN')
-                        : '—'}
-                    </p>
-                    <p className="mt-2 text-sm text-[var(--foreground-secondary)]">
-                      {trafficSummary
-                        ? `错误率 ${trafficSummary.error_rate_percent.toFixed(1)}%`
-                        : '暂无错误率摘要'}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <EmptyState
-                title="暂无网络流量快照"
-                description="节点已经接入，但还没有上报网络流量相关快照。"
-              />
-            )}
-          </AppCard>
-        </div>
-
-        <div className="grid gap-6 xl:grid-cols-2">
-          <AppCard
-            title="24 小时请求趋势"
-            description="按小时聚合该节点的请求量和错误量，判断是否存在突发流量或持续异常。"
-          >
-            <TrendChart
-              labels={
-                observability?.trends.traffic_24h.map((point) =>
-                  formatTrendHour(point.bucket_started_at),
-                ) ?? []
-              }
-              series={[
-                {
-                  label: '请求量',
-                  color: '#f59e0b',
-                  fillColor: 'rgba(245, 158, 11, 0.18)',
-                  variant: 'area',
-                  values:
-                    observability?.trends.traffic_24h.map(
-                      (point) => point.request_count,
-                    ) ?? [],
-                },
-                {
-                  label: '错误量',
-                  color: '#ef4444',
-                  values:
-                    observability?.trends.traffic_24h.map(
-                      (point) => point.error_count,
-                    ) ?? [],
-                },
-              ]}
-            />
-          </AppCard>
-
-          <AppCard
-            title="24 小时容量趋势"
-            description="观察该节点 CPU 与内存使用率在 24 小时内的变化，辅助扩容和排障。"
-          >
-            <TrendChart
-              labels={
-                observability?.trends.capacity_24h.map((point) =>
-                  formatTrendHour(point.bucket_started_at),
-                ) ?? []
-              }
-              series={[
-                {
-                  label: '平均 CPU',
-                  color: '#0f766e',
-                  fillColor: 'rgba(15, 118, 110, 0.15)',
-                  variant: 'area',
-                  values:
-                    observability?.trends.capacity_24h.map(
-                      (point) => point.average_cpu_usage_percent,
-                    ) ?? [],
-                  valueFormatter: formatPercent,
-                },
-                {
-                  label: '平均内存',
-                  color: '#2563eb',
-                  values:
-                    observability?.trends.capacity_24h.map(
-                      (point) => point.average_memory_usage_percent,
-                    ) ?? [],
-                  valueFormatter: formatPercent,
-                },
-              ]}
-            />
-          </AppCard>
-        </div>
-
-        <div className="grid gap-6 xl:grid-cols-2">
-          <AppCard
-            title="24 小时网络趋势"
-            description="观察 OpenResty 入站/出站吞吐的变化，辅助识别回源压力、突发流量或出口异常。"
-          >
-            <TrendChart
-              labels={
-                observability?.trends.network_24h.map((point) =>
-                  formatTrendHour(point.bucket_started_at),
-                ) ?? []
-              }
-              series={[
-                {
-                  label: 'OpenResty 入站',
-                  color: '#22c55e',
-                  fillColor: 'rgba(34, 197, 94, 0.14)',
-                  variant: 'area',
-                  values:
-                    observability?.trends.network_24h.map(
-                      (point) => point.openresty_rx_bytes,
-                    ) ?? [],
-                  valueFormatter: (value) => formatBytesPerSecond(value, 3600),
-                },
-                {
-                  label: 'OpenResty 出站',
-                  color: '#38bdf8',
-                  values:
-                    observability?.trends.network_24h.map(
-                      (point) => point.openresty_tx_bytes,
-                    ) ?? [],
-                  valueFormatter: (value) => formatBytesPerSecond(value, 3600),
-                },
-              ]}
-            />
-          </AppCard>
-
-          <AppCard
-            title="24 小时磁盘 IO 趋势"
-            description="观察磁盘读写变化，辅助判断日志放大、缓存抖动或磁盘压力。"
-          >
-            <TrendChart
-              labels={
-                observability?.trends.disk_io_24h.map((point) =>
-                  formatTrendHour(point.bucket_started_at),
-                ) ?? []
-              }
-              series={[
-                {
-                  label: '磁盘读',
-                  color: '#a78bfa',
-                  fillColor: 'rgba(167, 139, 250, 0.14)',
-                  variant: 'area',
-                  values:
-                    observability?.trends.disk_io_24h.map(
-                      (point) => point.disk_read_bytes,
-                    ) ?? [],
-                  valueFormatter: formatBytes,
-                },
-                {
-                  label: '磁盘写',
-                  color: '#fb7185',
-                  values:
-                    observability?.trends.disk_io_24h.map(
-                      (point) => point.disk_write_bytes,
-                    ) ?? [],
-                  valueFormatter: formatBytes,
-                },
-              ]}
-            />
-          </AppCard>
-        </div>
-
-        <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
-          <AppCard
-            title="请求结构分布"
-            description="聚合最近 24 小时窗口上报，帮助判断错误集中在哪些状态码、流量集中在哪些域名。"
-          >
-            <div className="mb-6 grid gap-4 md:grid-cols-3">
-              <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-elevated)] px-4 py-4">
-                <p className="text-xs tracking-[0.2em] text-[var(--foreground-muted)] uppercase">
-                  主状态码
-                </p>
-                <p className="mt-3 text-2xl font-semibold text-[var(--foreground-primary)]">
-                  {dominantStatusCode?.label ?? '—'}
-                </p>
-                <p className="mt-2 text-sm text-[var(--foreground-secondary)]">
-                  {dominantStatusCode
-                    ? `${dominantStatusCode.value} 次`
-                    : '暂无状态码聚合'}
-                </p>
-              </div>
-              <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-elevated)] px-4 py-4">
-                <p className="text-xs tracking-[0.2em] text-[var(--foreground-muted)] uppercase">
-                  Top Domain
-                </p>
-                <p className="mt-3 truncate text-2xl font-semibold text-[var(--foreground-primary)]">
-                  {dominantDomain?.label ?? '—'}
-                </p>
-                <p className="mt-2 text-sm text-[var(--foreground-secondary)]">
-                  {dominantDomain
-                    ? `${dominantDomain.value} 次`
-                    : '暂无域名聚合'}
-                </p>
-              </div>
-              <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-elevated)] px-4 py-4">
-                <p className="text-xs tracking-[0.2em] text-[var(--foreground-muted)] uppercase">
-                  已恢复事件
-                </p>
-                <p className="mt-3 text-2xl font-semibold text-[var(--foreground-primary)]">
-                  {resolvedHealthEvents.length}
-                </p>
-                <p className="mt-2 text-sm text-[var(--foreground-secondary)]">
-                  最近 24 小时已恢复健康事件
-                </p>
-              </div>
             </div>
 
-            <div className="grid gap-6 xl:grid-cols-2">
-              <div>
-                <p className="mb-4 text-xs tracking-[0.2em] text-[var(--foreground-muted)] uppercase">
-                  状态码分布
-                </p>
-                <RankChart
-                  items={statusCodeDistribution}
-                  color="#f59e0b"
-                  emptyMessage="暂无状态码分布"
-                />
-              </div>
-              <div>
-                <p className="mb-4 text-xs tracking-[0.2em] text-[var(--foreground-muted)] uppercase">
-                  Top Domain
-                </p>
-                <RankChart
-                  items={topDomains}
-                  color="#2563eb"
-                  emptyMessage="暂无域名分布"
-                />
-              </div>
-            </div>
-          </AppCard>
+            <div className="grid gap-6 xl:grid-cols-3">
+              <AppCard title="系统信息">
+                {observabilityQuery.isLoading ? (
+                  <LoadingState />
+                ) : observabilityQuery.isError ? (
+                  <InlineMessage
+                    tone="danger"
+                    message={getErrorMessage(observabilityQuery.error)}
+                  />
+                ) : observability?.profile ? (
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-4 rounded-2xl border border-[var(--border-default)] bg-[var(--surface-elevated)] px-4 py-4">
+                      <div>
+                        <p className="text-xs tracking-[0.2em] text-[var(--foreground-muted)] uppercase">
+                          主机名
+                        </p>
+                        <p className="mt-2 text-sm text-[var(--foreground-primary)]">
+                          {observability.profile.hostname || node.name}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs tracking-[0.2em] text-[var(--foreground-muted)] uppercase">
+                          操作系统
+                        </p>
+                        <p className="mt-2 text-sm text-[var(--foreground-primary)]">
+                          {observability.profile.os_name || 'unknown'}
+                          {observability.profile.os_version
+                            ? ` ${observability.profile.os_version}`
+                            : ''}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs tracking-[0.2em] text-[var(--foreground-muted)] uppercase">
+                          内核 / 架构
+                        </p>
+                        <p className="mt-2 text-sm text-[var(--foreground-primary)]">
+                          {observability.profile.kernel_version || 'unknown'} ·{' '}
+                          {observability.profile.architecture || 'unknown'}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs tracking-[0.2em] text-[var(--foreground-muted)] uppercase">
+                          在线时长
+                        </p>
+                        <p className="mt-2 text-sm text-[var(--foreground-primary)]">
+                          {formatUptime(observability.profile.uptime_seconds)}
+                        </p>
+                      </div>
+                    </div>
 
-          <AppCard
-            title="健康事件时间线"
-            description="保留活动与已恢复事件，帮助判断问题是持续中、间歇性还是已经恢复。"
-          >
-            {observability?.health_events.length ? (
-              <div className="space-y-4">
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setHealthEventFilter('all')}
-                    className={`inline-flex items-center rounded-full border px-3 py-1.5 text-xs transition ${
-                      healthEventFilter === 'all'
-                        ? 'border-[var(--border-strong)] bg-[var(--accent-soft)] text-[var(--foreground-primary)]'
-                        : 'border-[var(--border-default)] text-[var(--foreground-secondary)] hover:bg-[var(--control-background-hover)]'
-                    }`}
-                  >
-                    全部事件
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setHealthEventFilter('active')}
-                    className={`inline-flex items-center rounded-full border px-3 py-1.5 text-xs transition ${
-                      healthEventFilter === 'active'
-                        ? 'border-[var(--border-strong)] bg-[var(--accent-soft)] text-[var(--foreground-primary)]'
-                        : 'border-[var(--border-default)] text-[var(--foreground-secondary)] hover:bg-[var(--control-background-hover)]'
-                    }`}
-                  >
-                    活动中
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setHealthEventFilter('resolved')}
-                    className={`inline-flex items-center rounded-full border px-3 py-1.5 text-xs transition ${
-                      healthEventFilter === 'resolved'
-                        ? 'border-[var(--border-strong)] bg-[var(--accent-soft)] text-[var(--foreground-primary)]'
-                        : 'border-[var(--border-default)] text-[var(--foreground-secondary)] hover:bg-[var(--control-background-hover)]'
-                    }`}
-                  >
-                    已恢复
-                  </button>
-                </div>
+                    <div className="space-y-4 rounded-2xl border border-[var(--border-default)] bg-[var(--surface-elevated)] px-4 py-4">
+                      <div>
+                        <p className="text-xs tracking-[0.2em] text-[var(--foreground-muted)] uppercase">
+                          CPU
+                        </p>
+                        <p className="mt-2 text-sm text-[var(--foreground-primary)]">
+                          {observability.profile.cpu_model || 'unknown'}
+                        </p>
+                        <p className="mt-1 text-xs text-[var(--foreground-muted)]">
+                          {observability.profile.cpu_cores || 0} 核
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs tracking-[0.2em] text-[var(--foreground-muted)] uppercase">
+                          总内存
+                        </p>
+                        <p className="mt-2 text-sm text-[var(--foreground-primary)]">
+                          {formatBytes(
+                            observability.profile.total_memory_bytes,
+                          )}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs tracking-[0.2em] text-[var(--foreground-muted)] uppercase">
+                          总存储
+                        </p>
+                        <p className="mt-2 text-sm text-[var(--foreground-primary)]">
+                          {formatBytes(observability.profile.total_disk_bytes)}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs tracking-[0.2em] text-[var(--foreground-muted)] uppercase">
+                          上报时间
+                        </p>
+                        <p className="mt-2 text-sm text-[var(--foreground-primary)]">
+                          {isMeaningfulTime(observability.profile.reported_at)
+                            ? formatDateTime(observability.profile.reported_at)
+                            : '—'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <EmptyState
+                    title="暂无系统画像"
+                    description="节点已经接入，但还没有上报完整系统画像。"
+                  />
+                )}
+              </AppCard>
 
-                {filteredHealthEvents.slice(0, 8).map((event) => (
-                  <div
-                    key={`${event.event_type}-${event.last_triggered_at}-${event.status}`}
-                    className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-elevated)] px-4 py-4"
-                  >
-                    <div className="flex flex-wrap items-center gap-2">
+              <AppCard
+                title="实时资源"
+                description="读取节点最近一次快照，快速判断资源压力与吞吐情况。"
+              >
+                {observabilityQuery.isLoading ? (
+                  <LoadingState />
+                ) : observabilityQuery.isError ? (
+                  <InlineMessage
+                    tone="danger"
+                    message={getErrorMessage(observabilityQuery.error)}
+                  />
+                ) : latestMetricSnapshot ? (
+                  <div className="space-y-4">
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <MetricBar
+                        label="CPU"
+                        value={formatPercent(
+                          latestMetricSnapshot.cpu_usage_percent,
+                        )}
+                        progress={latestMetricSnapshot.cpu_usage_percent}
+                        hint={
+                          isMeaningfulTime(latestMetricSnapshot.captured_at)
+                            ? `快照 ${formatRelativeTime(latestMetricSnapshot.captured_at)}`
+                            : undefined
+                        }
+                      />
+                      <MetricBar
+                        label="内存"
+                        value={`${formatBytes(
+                          latestMetricSnapshot.memory_used_bytes,
+                        )} / ${formatBytes(latestMetricSnapshot.memory_total_bytes)}`}
+                        progress={memoryUsageRatio}
+                      />
+                      <MetricBar
+                        label="存储"
+                        value={`${formatBytes(
+                          latestMetricSnapshot.storage_used_bytes,
+                        )} / ${formatBytes(
+                          latestMetricSnapshot.storage_total_bytes,
+                        )}`}
+                        progress={storageUsageRatio}
+                      />
+                      <MetricBar
+                        label="连接数"
+                        value={
+                          latestMetricSnapshot.openresty_connections
+                            ? `${latestMetricSnapshot.openresty_connections}`
+                            : '—'
+                        }
+                        progress={null}
+                        hint="OpenResty 当前连接"
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <EmptyState
+                    title="暂无资源快照"
+                    description="节点已经接入，但还没有上报资源快照。"
+                  />
+                )}
+              </AppCard>
+
+              <AppCard
+                title="网络流量"
+                description="首屏优先看 OpenResty 吞吐、节点网络与最近窗口流量，快速判断是否存在网络或流量异常。"
+              >
+                {observabilityQuery.isLoading ? (
+                  <LoadingState />
+                ) : observabilityQuery.isError ? (
+                  <InlineMessage
+                    tone="danger"
+                    message={getErrorMessage(observabilityQuery.error)}
+                  />
+                ) : latestMetricSnapshot ? (
+                  <div className="space-y-4">
+                    <div className="flex flex-wrap gap-3">
                       <StatusBadge
-                        label={getHealthEventLabel(event)}
-                        variant={getHealthEventVariant(event)}
+                        label={getNodeStatusLabel(node.status)}
+                        variant={getNodeStatusVariant(node.status)}
                       />
                       <StatusBadge
-                        label={event.status === 'active' ? '活动中' : '已恢复'}
+                        label={getOpenrestyStatusLabel(node.openresty_status)}
+                        variant={getOpenrestyStatusVariant(
+                          node.openresty_status,
+                        )}
+                      />
+                      <StatusBadge
+                        label={
+                          activeHealthEvents.length
+                            ? `${activeHealthEvents.length} 个活动异常`
+                            : '无活动异常'
+                        }
                         variant={
-                          event.status === 'active' ? 'warning' : 'success'
+                          activeHealthEvents.length ? 'warning' : 'success'
                         }
                       />
                     </div>
-                    <p className="mt-3 text-sm text-[var(--foreground-secondary)]">
-                      {event.message || '暂无详细消息'}
-                    </p>
-                    <div className="mt-3 grid gap-2 text-xs text-[var(--foreground-muted)] md:grid-cols-3">
-                      <p>
-                        首次触发：
-                        {isMeaningfulTime(event.first_triggered_at)
-                          ? ` ${formatDateTime(event.first_triggered_at)}`
-                          : ' —'}
-                      </p>
-                      <p>
-                        最近触发：
-                        {isMeaningfulTime(event.last_triggered_at)
-                          ? ` ${formatDateTime(event.last_triggered_at)}`
-                          : ' —'}
-                      </p>
-                      <p>
-                        恢复时间：
-                        {isMeaningfulTime(event.resolved_at)
-                          ? ` ${formatDateTime(event.resolved_at)}`
-                          : ' —'}
-                      </p>
+
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-elevated)] px-4 py-4">
+                        <p className="text-xs tracking-[0.2em] text-[var(--foreground-muted)] uppercase">
+                          OpenResty 吞吐
+                        </p>
+                        <div className="mt-3 space-y-2 text-sm text-[var(--foreground-secondary)]">
+                          <p>
+                            入站：
+                            {formatBytesPerSecond(
+                              latestMetricSnapshot.openresty_rx_bytes,
+                              60,
+                            )}
+                          </p>
+                          <p>
+                            出站：
+                            {formatBytesPerSecond(
+                              latestMetricSnapshot.openresty_tx_bytes,
+                              60,
+                            )}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-elevated)] px-4 py-4">
+                        <p className="text-xs tracking-[0.2em] text-[var(--foreground-muted)] uppercase">
+                          节点网络
+                        </p>
+                        <div className="mt-3 space-y-2 text-sm text-[var(--foreground-secondary)]">
+                          <p>
+                            入站：
+                            {formatBytes(latestMetricSnapshot.network_rx_bytes)}
+                          </p>
+                          <p>
+                            出站：
+                            {formatBytes(latestMetricSnapshot.network_tx_bytes)}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-elevated)] px-4 py-4">
+                        <p className="text-xs tracking-[0.2em] text-[var(--foreground-muted)] uppercase">
+                          最近窗口请求
+                        </p>
+                        <p className="mt-3 text-2xl font-semibold text-[var(--foreground-primary)]">
+                          {trafficSummary
+                            ? trafficSummary.request_count.toLocaleString(
+                                'zh-CN',
+                              )
+                            : '—'}
+                        </p>
+                        <p className="mt-2 text-sm text-[var(--foreground-secondary)]">
+                          {trafficSummary
+                            ? `QPS ${trafficSummary.estimated_qps.toFixed(1)} · UV ${trafficSummary.unique_visitor_count}`
+                            : '暂无窗口流量摘要'}
+                        </p>
+                      </div>
+                      <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-elevated)] px-4 py-4">
+                        <p className="text-xs tracking-[0.2em] text-[var(--foreground-muted)] uppercase">
+                          最近窗口错误
+                        </p>
+                        <p className="mt-3 text-2xl font-semibold text-[var(--foreground-primary)]">
+                          {trafficSummary
+                            ? trafficSummary.error_count.toLocaleString('zh-CN')
+                            : '—'}
+                        </p>
+                        <p className="mt-2 text-sm text-[var(--foreground-secondary)]">
+                          {trafficSummary
+                            ? `错误率 ${trafficSummary.error_rate_percent.toFixed(1)}%`
+                            : '暂无错误率摘要'}
+                        </p>
+                      </div>
                     </div>
                   </div>
-                ))}
-                {filteredHealthEvents.length === 0 ? (
-                  <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-elevated)] px-4 py-4 text-sm text-[var(--foreground-secondary)]">
-                    当前筛选下没有健康事件。
+                ) : (
+                  <EmptyState
+                    title="暂无网络流量快照"
+                    description="节点已经接入，但还没有上报网络流量相关快照。"
+                  />
+                )}
+              </AppCard>
+            </div>
+
+            <div className="grid gap-6 xl:grid-cols-2">
+              <AppCard
+                title="24 小时请求趋势"
+                description="按小时聚合该节点的请求量和错误量，判断是否存在突发流量或持续异常。"
+              >
+                <TrendChart
+                  labels={
+                    observability?.trends.traffic_24h.map((point) =>
+                      formatTrendHour(point.bucket_started_at),
+                    ) ?? []
+                  }
+                  series={[
+                    {
+                      label: '请求量',
+                      color: '#f59e0b',
+                      fillColor: 'rgba(245, 158, 11, 0.18)',
+                      variant: 'area',
+                      values:
+                        observability?.trends.traffic_24h.map(
+                          (point) => point.request_count,
+                        ) ?? [],
+                    },
+                    {
+                      label: '错误量',
+                      color: '#ef4444',
+                      values:
+                        observability?.trends.traffic_24h.map(
+                          (point) => point.error_count,
+                        ) ?? [],
+                    },
+                  ]}
+                />
+              </AppCard>
+
+              <AppCard
+                title="24 小时容量趋势"
+                description="观察该节点 CPU 与内存使用率在 24 小时内的变化，辅助扩容和排障。"
+              >
+                <TrendChart
+                  labels={
+                    observability?.trends.capacity_24h.map((point) =>
+                      formatTrendHour(point.bucket_started_at),
+                    ) ?? []
+                  }
+                  yAxisValueFormatter={formatPercent}
+                  series={[
+                    {
+                      label: '平均 CPU',
+                      color: '#0f766e',
+                      fillColor: 'rgba(15, 118, 110, 0.15)',
+                      variant: 'area',
+                      values:
+                        observability?.trends.capacity_24h.map(
+                          (point) => point.average_cpu_usage_percent,
+                        ) ?? [],
+                      valueFormatter: formatPercent,
+                    },
+                    {
+                      label: '平均内存',
+                      color: '#2563eb',
+                      values:
+                        observability?.trends.capacity_24h.map(
+                          (point) => point.average_memory_usage_percent,
+                        ) ?? [],
+                      valueFormatter: formatPercent,
+                    },
+                  ]}
+                />
+              </AppCard>
+            </div>
+
+            <div className="grid gap-6 xl:grid-cols-2">
+              <AppCard
+                title="24 小时网络趋势"
+                description="观察 OpenResty 入站/出站吞吐的变化，辅助识别回源压力、突发流量或出口异常。"
+              >
+                <TrendChart
+                  labels={
+                    observability?.trends.network_24h.map((point) =>
+                      formatTrendHour(point.bucket_started_at),
+                    ) ?? []
+                  }
+                  yAxisValueFormatter={(value) =>
+                    formatBytesPerSecond(value, 3600)
+                  }
+                  series={[
+                    {
+                      label: 'OpenResty 入站',
+                      color: '#22c55e',
+                      fillColor: 'rgba(34, 197, 94, 0.14)',
+                      variant: 'area',
+                      values:
+                        observability?.trends.network_24h.map(
+                          (point) => point.openresty_rx_bytes,
+                        ) ?? [],
+                      valueFormatter: (value) =>
+                        formatBytesPerSecond(value, 3600),
+                    },
+                    {
+                      label: 'OpenResty 出站',
+                      color: '#38bdf8',
+                      values:
+                        observability?.trends.network_24h.map(
+                          (point) => point.openresty_tx_bytes,
+                        ) ?? [],
+                      valueFormatter: (value) =>
+                        formatBytesPerSecond(value, 3600),
+                    },
+                  ]}
+                />
+              </AppCard>
+
+              <AppCard
+                title="24 小时磁盘 IO 趋势"
+                description="观察磁盘读写变化，辅助判断日志放大、缓存抖动或磁盘压力。"
+              >
+                <TrendChart
+                  labels={
+                    observability?.trends.disk_io_24h.map((point) =>
+                      formatTrendHour(point.bucket_started_at),
+                    ) ?? []
+                  }
+                  yAxisValueFormatter={formatBytes}
+                  series={[
+                    {
+                      label: '磁盘读',
+                      color: '#a78bfa',
+                      fillColor: 'rgba(167, 139, 250, 0.14)',
+                      variant: 'area',
+                      values:
+                        observability?.trends.disk_io_24h.map(
+                          (point) => point.disk_read_bytes,
+                        ) ?? [],
+                      valueFormatter: formatBytes,
+                    },
+                    {
+                      label: '磁盘写',
+                      color: '#fb7185',
+                      values:
+                        observability?.trends.disk_io_24h.map(
+                          (point) => point.disk_write_bytes,
+                        ) ?? [],
+                      valueFormatter: formatBytes,
+                    },
+                  ]}
+                />
+              </AppCard>
+            </div>
+
+            <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
+              <AppCard
+                title="请求结构分布"
+                description="聚合最近 24 小时窗口上报，帮助判断错误集中在哪些状态码、流量集中在哪些域名。"
+              >
+                <div className="mb-6 grid gap-4 md:grid-cols-3">
+                  <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-elevated)] px-4 py-4">
+                    <p className="text-xs tracking-[0.2em] text-[var(--foreground-muted)] uppercase">
+                      主状态码
+                    </p>
+                    <p className="mt-3 text-2xl font-semibold text-[var(--foreground-primary)]">
+                      {dominantStatusCode?.label ?? '—'}
+                    </p>
+                    <p className="mt-2 text-sm text-[var(--foreground-secondary)]">
+                      {dominantStatusCode
+                        ? `${dominantStatusCode.value} 次`
+                        : '暂无状态码聚合'}
+                    </p>
                   </div>
-                ) : null}
-              </div>
-            ) : (
-              <EmptyState
-                title="暂无健康事件时间线"
-                description="节点当前还没有上报可展示的健康事件记录。"
-              />
-            )}
-          </AppCard>
-        </div>
+                  <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-elevated)] px-4 py-4">
+                    <p className="text-xs tracking-[0.2em] text-[var(--foreground-muted)] uppercase">
+                      Top Domain
+                    </p>
+                    <p className="mt-3 truncate text-2xl font-semibold text-[var(--foreground-primary)]">
+                      {dominantDomain?.label ?? '—'}
+                    </p>
+                    <p className="mt-2 text-sm text-[var(--foreground-secondary)]">
+                      {dominantDomain
+                        ? `${dominantDomain.value} 次`
+                        : '暂无域名聚合'}
+                    </p>
+                  </div>
+                  <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-elevated)] px-4 py-4">
+                    <p className="text-xs tracking-[0.2em] text-[var(--foreground-muted)] uppercase">
+                      已恢复事件
+                    </p>
+                    <p className="mt-3 text-2xl font-semibold text-[var(--foreground-primary)]">
+                      {resolvedHealthEvents.length}
+                    </p>
+                    <p className="mt-2 text-sm text-[var(--foreground-secondary)]">
+                      最近 24 小时已恢复健康事件
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid gap-6 xl:grid-cols-2">
+                  <div>
+                    <p className="mb-4 text-xs tracking-[0.2em] text-[var(--foreground-muted)] uppercase">
+                      状态码分布
+                    </p>
+                    <RankChart
+                      items={statusCodeDistribution}
+                      color="#f59e0b"
+                      emptyMessage="暂无状态码分布"
+                    />
+                  </div>
+                  <div>
+                    <p className="mb-4 text-xs tracking-[0.2em] text-[var(--foreground-muted)] uppercase">
+                      Top Domain
+                    </p>
+                    <RankChart
+                      items={topDomains}
+                      color="#2563eb"
+                      emptyMessage="暂无域名分布"
+                    />
+                  </div>
+                </div>
+              </AppCard>
+
+              <AppCard
+                title="健康事件时间线"
+                description="保留活动与已恢复事件，帮助判断问题是持续中、间歇性还是已经恢复。"
+              >
+                {observability?.health_events.length ? (
+                  <div className="space-y-4">
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setHealthEventFilter('all')}
+                        className={`inline-flex items-center rounded-full border px-3 py-1.5 text-xs transition ${
+                          healthEventFilter === 'all'
+                            ? 'border-[var(--border-strong)] bg-[var(--accent-soft)] text-[var(--foreground-primary)]'
+                            : 'border-[var(--border-default)] text-[var(--foreground-secondary)] hover:bg-[var(--control-background-hover)]'
+                        }`}
+                      >
+                        全部事件
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setHealthEventFilter('active')}
+                        className={`inline-flex items-center rounded-full border px-3 py-1.5 text-xs transition ${
+                          healthEventFilter === 'active'
+                            ? 'border-[var(--border-strong)] bg-[var(--accent-soft)] text-[var(--foreground-primary)]'
+                            : 'border-[var(--border-default)] text-[var(--foreground-secondary)] hover:bg-[var(--control-background-hover)]'
+                        }`}
+                      >
+                        活动中
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setHealthEventFilter('resolved')}
+                        className={`inline-flex items-center rounded-full border px-3 py-1.5 text-xs transition ${
+                          healthEventFilter === 'resolved'
+                            ? 'border-[var(--border-strong)] bg-[var(--accent-soft)] text-[var(--foreground-primary)]'
+                            : 'border-[var(--border-default)] text-[var(--foreground-secondary)] hover:bg-[var(--control-background-hover)]'
+                        }`}
+                      >
+                        已恢复
+                      </button>
+                    </div>
+
+                    {filteredHealthEvents.slice(0, 8).map((event) => (
+                      <div
+                        key={`${event.event_type}-${event.last_triggered_at}-${event.status}`}
+                        className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-elevated)] px-4 py-4"
+                      >
+                        <div className="flex flex-wrap items-center gap-2">
+                          <StatusBadge
+                            label={getHealthEventLabel(event)}
+                            variant={getHealthEventVariant(event)}
+                          />
+                          <StatusBadge
+                            label={
+                              event.status === 'active' ? '活动中' : '已恢复'
+                            }
+                            variant={
+                              event.status === 'active' ? 'warning' : 'success'
+                            }
+                          />
+                        </div>
+                        <p className="mt-3 text-sm text-[var(--foreground-secondary)]">
+                          {event.message || '暂无详细消息'}
+                        </p>
+                        <div className="mt-3 grid gap-2 text-xs text-[var(--foreground-muted)] md:grid-cols-3">
+                          <p>
+                            首次触发：
+                            {isMeaningfulTime(event.first_triggered_at)
+                              ? ` ${formatDateTime(event.first_triggered_at)}`
+                              : ' —'}
+                          </p>
+                          <p>
+                            最近触发：
+                            {isMeaningfulTime(event.last_triggered_at)
+                              ? ` ${formatDateTime(event.last_triggered_at)}`
+                              : ' —'}
+                          </p>
+                          <p>
+                            恢复时间：
+                            {isMeaningfulTime(event.resolved_at)
+                              ? ` ${formatDateTime(event.resolved_at)}`
+                              : ' —'}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                    {filteredHealthEvents.length === 0 ? (
+                      <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-elevated)] px-4 py-4 text-sm text-[var(--foreground-secondary)]">
+                        当前筛选下没有健康事件。
+                      </div>
+                    ) : null}
+                  </div>
+                ) : (
+                  <EmptyState
+                    title="暂无健康事件时间线"
+                    description="节点当前还没有上报可展示的健康事件记录。"
+                  />
+                )}
+              </AppCard>
+            </div>
           </>
         ) : null}
 
         {activeTab === 'info' ? (
           <>
-        <div className="grid gap-4 xl:grid-cols-3">
-          <AppCard title="更新模式">
-            <div className="space-y-3">
-              <StatusBadge
-                label={updateMode.label}
-                variant={updateMode.variant}
-              />
-              <p className="text-sm text-[var(--foreground-secondary)]">
-                {node.update_requested
-                  ? `已等待节点在下一次心跳后执行${node.update_channel === 'preview' ? '预览版' : '正式版'}更新。`
-                  : node.auto_update_enabled
-                    ? '节点已启用正式版自动更新。'
-                    : '当前仅支持手动触发更新。'}
-              </p>
-            </div>
-          </AppCard>
-
-          <AppCard title="版本信息">
-            <div className="space-y-2 text-sm text-[var(--foreground-secondary)]">
-              <p>Agent：{node.agent_version || 'unknown'}</p>
-              <p>Nginx：{node.nginx_version || 'unknown'}</p>
-              <p>当前配置：{node.current_version || '未应用'}</p>
-            </div>
-          </AppCard>
-
-          <AppCard title="最近应用">
-            <div className="space-y-3">
-              <StatusBadge
-                label={getApplyLabel(node.latest_apply_result)}
-                variant={getApplyVariant(node.latest_apply_result)}
-              />
-              <p className="text-sm text-[var(--foreground-secondary)]">
-                {isMeaningfulTime(node.latest_apply_at)
-                  ? `${formatRelativeTime(
-                      node.latest_apply_at,
-                    )} · ${formatDateTime(node.latest_apply_at)}`
-                  : '暂无应用记录'}
-              </p>
-              {node.latest_apply_checksum ? (
-                <div className="space-y-1 text-sm text-[var(--foreground-secondary)]">
-                  <p>支持文件：{node.latest_support_file_count}</p>
-                </div>
-              ) : null}
-            </div>
-          </AppCard>
-        </div>
-
-        <AppCard
-          title="当前目标版本"
-          description="展示当前全局激活配置版本，便于直接核对节点应追上的主配置与路由配置。"
-          action={
-            activeConfigVersion ? (
-              <SecondaryButton
-                type="button"
-                onClick={() => setIsTargetSnapshotOpen(true)}
-              >
-                查看目标快照
-              </SecondaryButton>
-            ) : null
-          }
-        >
-          {configVersionsQuery.isLoading ? (
-            <LoadingState />
-          ) : configVersionsQuery.isError ? (
-            <InlineMessage
-              tone="danger"
-              message={getErrorMessage(configVersionsQuery.error)}
-            />
-          ) : activeConfigVersion ? (
-            <div className="grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)]">
-              <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-elevated)] px-4 py-4">
-                <p className="text-xs tracking-[0.2em] text-[var(--foreground-muted)] uppercase">
-                  追平状态
-                </p>
-                <div className="mt-3 flex flex-wrap items-center gap-3">
+            <div className="grid gap-4 xl:grid-cols-3">
+              <AppCard title="更新模式">
+                <div className="space-y-3">
                   <StatusBadge
-                    label={
-                      isTargetVersionApplied
-                        ? '已追平目标版本'
-                        : '待追平目标版本'
-                    }
-                    variant={isTargetVersionApplied ? 'success' : 'warning'}
+                    label={updateMode.label}
+                    variant={updateMode.variant}
                   />
-                </div>
-                <p className="mt-3 text-sm text-[var(--foreground-secondary)]">
-                  {isTargetVersionApplied
-                    ? '当前节点已应用全局激活配置。'
-                    : '当前节点版本落后于全局激活配置，可结合应用记录定位原因。'}
-                </p>
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-3">
-                <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-elevated)] px-4 py-4">
-                  <p className="text-xs tracking-[0.2em] text-[var(--foreground-muted)] uppercase">
-                    目标版本
-                  </p>
-                  <p className="mt-2 text-sm text-[var(--foreground-primary)]">
-                    {activeConfigVersion.version}
+                  <p className="text-sm text-[var(--foreground-secondary)]">
+                    {node.update_requested
+                      ? `已等待节点在下一次心跳后执行${node.update_channel === 'preview' ? '预览版' : '正式版'}更新。`
+                      : node.auto_update_enabled
+                        ? '节点已启用正式版自动更新。'
+                        : '当前仅支持手动触发更新。'}
                   </p>
                 </div>
-                <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-elevated)] px-4 py-4">
-                  <p className="text-xs tracking-[0.2em] text-[var(--foreground-muted)] uppercase">
-                    Target Checksum
-                  </p>
-                  <p className="mt-2 text-sm break-all text-[var(--foreground-primary)]">
-                    {activeConfigVersion.checksum}
-                  </p>
+              </AppCard>
+
+              <AppCard title="版本信息">
+                <div className="space-y-2 text-sm text-[var(--foreground-secondary)]">
+                  <p>Agent：{node.agent_version || 'unknown'}</p>
+                  <p>Nginx：{node.nginx_version || 'unknown'}</p>
+                  <p>当前配置：{node.current_version || '未应用'}</p>
                 </div>
-                <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-elevated)] px-4 py-4">
-                  <p className="text-xs tracking-[0.2em] text-[var(--foreground-muted)] uppercase">
-                    激活时间
+              </AppCard>
+
+              <AppCard title="最近应用">
+                <div className="space-y-3">
+                  <StatusBadge
+                    label={getApplyLabel(node.latest_apply_result)}
+                    variant={getApplyVariant(node.latest_apply_result)}
+                  />
+                  <p className="text-sm text-[var(--foreground-secondary)]">
+                    {isMeaningfulTime(node.latest_apply_at)
+                      ? `${formatRelativeTime(
+                          node.latest_apply_at,
+                        )} · ${formatDateTime(node.latest_apply_at)}`
+                      : '暂无应用记录'}
                   </p>
-                  <p className="mt-2 text-sm text-[var(--foreground-primary)]">
-                    {formatDateTime(activeConfigVersion.created_at)}
-                  </p>
+                  {node.latest_apply_checksum ? (
+                    <div className="space-y-1 text-sm text-[var(--foreground-secondary)]">
+                      <p>支持文件：{node.latest_support_file_count}</p>
+                    </div>
+                  ) : null}
                 </div>
-              </div>
-            </div>
-          ) : (
-            <InlineMessage
-              tone="info"
-              message="当前还没有全局激活配置版本，无法展示目标快照。"
-            />
-          )}
-        </AppCard>
-
-        <AppCard
-          title="OpenResty 健康与控制"
-          description="OpenResty 当前健康状态。"
-          action={
-            <div className="flex flex-wrap gap-3">
-              <PrimaryButton
-                type="button"
-                onClick={handleRestartOpenresty}
-                disabled={restartOpenrestyMutation.isPending}
-              >
-                {restartOpenrestyMutation.isPending
-                  ? '下发重启中...'
-                  : node.restart_openresty_requested
-                    ? '等待 OpenResty 重启'
-                    : '重启 OpenResty'}
-              </PrimaryButton>
-            </div>
-          }
-        >
-          <div className="grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)]">
-            <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-elevated)] px-4 py-4">
-              <p className="text-xs tracking-[0.2em] text-[var(--foreground-muted)] uppercase">
-                健康状态
-              </p>
-              <div className="mt-3 flex flex-wrap items-center gap-3">
-                <StatusBadge
-                  label={getOpenrestyStatusLabel(node.openresty_status)}
-                  variant={getOpenrestyStatusVariant(node.openresty_status)}
-                />
-                {node.restart_openresty_requested ? (
-                  <StatusBadge label="等待重启执行" variant="warning" />
-                ) : null}
-              </div>
-              <p className="mt-3 text-sm text-[var(--foreground-secondary)]">
-                {node.restart_openresty_requested
-                  ? '已等待节点在下一次心跳后执行 OpenResty 重启。'
-                  : '系统会在每次心跳前自动采集健康状态。'}
-              </p>
+              </AppCard>
             </div>
 
-            <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-elevated)] px-4 py-4">
-              <p className="text-xs tracking-[0.2em] text-[var(--foreground-muted)] uppercase">
-                状态消息
-              </p>
-              <p className="mt-3 text-sm leading-6 break-words whitespace-pre-wrap text-[var(--foreground-secondary)]">
-                {node.openresty_message || '当前未上报额外错误。'}
-              </p>
-            </div>
-          </div>
-        </AppCard>
-
-        <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-          <AppCard
-            title="节点标识与部署"
-            action={
-              nodeInstallCommand ? (
-                <PrimaryButton
-                  type="button"
-                  onClick={() =>
-                    void handleCopy(
-                      nodeInstallCommand,
-                      '节点专属部署命令已复制。',
-                    )
-                  }
-                >
-                  复制部署命令
-                </PrimaryButton>
-              ) : null
-            }
-          >
-            <div className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-elevated)] px-4 py-4">
-                  <p className="text-xs tracking-[0.2em] text-[var(--foreground-muted)] uppercase">
-                    Node ID
-                  </p>
-                  <p className="mt-2 text-sm break-all text-[var(--foreground-primary)]">
-                    {node.node_id}
-                  </p>
-                </div>
-                <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-elevated)] px-4 py-4">
-                  <p className="text-xs tracking-[0.2em] text-[var(--foreground-muted)] uppercase">
-                    Agent Token
-                  </p>
-                  <p className="mt-2 text-sm break-all text-[var(--foreground-primary)]">
-                    {node.agent_token || '暂无'}
-                  </p>
-                </div>
-              </div>
-
-              <ResourceField
-                label="Server URL"
-                hint="默认使用当前控制面来源地址，可按需改为外部访问地址。"
-              >
-                <ResourceInput
-                  value={serverUrl}
-                  onChange={(event) => setServerUrl(event.target.value)}
-                />
-              </ResourceField>
-
-              {nodeInstallCommand ? (
-                <CodeBlock className="whitespace-pre-wrap">
-                  {nodeInstallCommand}
-                </CodeBlock>
-              ) : null}
-            </div>
-          </AppCard>
-
-          <AppCard title="运行信息">
-            <div className="space-y-4 text-sm text-[var(--foreground-secondary)]">
-              <div>
-                <p className="font-medium text-[var(--foreground-primary)]">
-                  IP 地址
-                </p>
-                <p className="mt-1">{node.ip || '暂无'}</p>
-              </div>
-              <div>
-                <p className="font-medium text-[var(--foreground-primary)]">
-                  最近错误
-                </p>
-                <p className="mt-1 break-words whitespace-pre-wrap">
-                  {node.last_error || '无'}
-                </p>
-              </div>
-              <div>
-                <p className="font-medium text-[var(--foreground-primary)]">
-                  OpenResty 状态消息
-                </p>
-                <p className="mt-1 break-words whitespace-pre-wrap">
-                  {node.openresty_message || '无'}
-                </p>
-              </div>
-              <div>
-                <p className="font-medium text-[var(--foreground-primary)]">
-                  创建时间
-                </p>
-                <p className="mt-1">{formatDateTime(node.created_at)}</p>
-              </div>
-              <div>
-                <p className="font-medium text-[var(--foreground-primary)]">
-                  更新时间
-                </p>
-                <p className="mt-1">{formatDateTime(node.updated_at)}</p>
-              </div>
-            </div>
-          </AppCard>
-        </div>
-
-        <AppCard
-          title="最近应用记录"
-          description="仅展示当前节点的应用历史。"
-          action={
-            <Link
-              href={`/apply-log?node_id=${encodeURIComponent(node.node_id)}`}
-              className="inline-flex items-center justify-center rounded-2xl border border-[var(--border-default)] bg-[var(--control-background)] px-4 py-3 text-sm font-medium text-[var(--foreground-primary)] transition hover:bg-[var(--control-background-hover)]"
+            <AppCard
+              title="当前目标版本"
+              description="展示当前全局激活配置版本，便于直接核对节点应追上的主配置与路由配置。"
+              action={
+                activeConfigVersion ? (
+                  <SecondaryButton
+                    type="button"
+                    onClick={() => setIsTargetSnapshotOpen(true)}
+                  >
+                    查看目标快照
+                  </SecondaryButton>
+                ) : null
+              }
             >
-              查看完整记录
-            </Link>
-          }
-        >
-          {applyLogsQuery.isLoading ? (
-            <LoadingState />
-          ) : applyLogsQuery.isError ? (
-            <ErrorState
-              title="应用记录加载失败"
-              description={getErrorMessage(applyLogsQuery.error)}
-            />
-          ) : applyLogs.length === 0 ? (
-            <EmptyState
-              title="暂无应用记录"
-              description="当前节点还没有上报过配置应用结果。"
-            />
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-[var(--border-default)] text-left text-sm">
-                <thead>
-                  <tr className="text-[var(--foreground-secondary)]">
-                    <th className="px-3 py-3 font-medium">版本</th>
-                    <th className="px-3 py-3 font-medium">结果</th>
-                    <th className="px-3 py-3 font-medium">Checksum</th>
-                    <th className="px-3 py-3 font-medium">时间</th>
-                    <th className="px-3 py-3 font-medium">消息</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[var(--border-default)]">
-                  {applyLogs.slice(0, 10).map((log) => (
-                    <tr key={log.id} className="align-top">
-                      <td className="px-3 py-4 text-[var(--foreground-primary)]">
-                        {log.version}
-                      </td>
-                      <td className="px-3 py-4">
-                        <StatusBadge
-                          label={log.result === 'success' ? '成功' : '失败'}
-                          variant={
-                            log.result === 'success' ? 'success' : 'danger'
-                          }
-                        />
-                      </td>
-                      <td
-                        className="px-3 py-4 text-[var(--foreground-secondary)]"
-                        title={log.checksum}
-                      >
-                        {log.checksum ? `${log.checksum.slice(0, 12)}...` : '—'}
-                      </td>
-                      <td className="px-3 py-4 text-[var(--foreground-secondary)]">
-                        {formatRelativeTime(log.created_at)} ·{' '}
-                        {formatDateTime(log.created_at)}
-                      </td>
-                      <td className="px-3 py-4 text-[var(--foreground-secondary)]">
-                        <div className="max-w-80 space-y-2 break-words whitespace-pre-wrap">
-                          <p>
-                            {log.main_config_checksum
-                              ? `主配置：${log.main_config_checksum}`
-                              : ''}
-                          </p>
-                          <p>
-                            {log.route_config_checksum
-                              ? `路由配置：${log.route_config_checksum}`
-                              : ''}
-                          </p>
-                          <p>
-                            {log.support_file_count
-                              ? `支持文件：${log.support_file_count}`
-                              : ''}
-                          </p>
-                          <p>{log.message || '—'}</p>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              {configVersionsQuery.isLoading ? (
+                <LoadingState />
+              ) : configVersionsQuery.isError ? (
+                <InlineMessage
+                  tone="danger"
+                  message={getErrorMessage(configVersionsQuery.error)}
+                />
+              ) : activeConfigVersion ? (
+                <div className="grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)]">
+                  <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-elevated)] px-4 py-4">
+                    <p className="text-xs tracking-[0.2em] text-[var(--foreground-muted)] uppercase">
+                      追平状态
+                    </p>
+                    <div className="mt-3 flex flex-wrap items-center gap-3">
+                      <StatusBadge
+                        label={
+                          isTargetVersionApplied
+                            ? '已追平目标版本'
+                            : '待追平目标版本'
+                        }
+                        variant={isTargetVersionApplied ? 'success' : 'warning'}
+                      />
+                    </div>
+                    <p className="mt-3 text-sm text-[var(--foreground-secondary)]">
+                      {isTargetVersionApplied
+                        ? '当前节点已应用全局激活配置。'
+                        : '当前节点版本落后于全局激活配置，可结合应用记录定位原因。'}
+                    </p>
+                  </div>
+
+                  <div className="grid gap-4 md:grid-cols-3">
+                    <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-elevated)] px-4 py-4">
+                      <p className="text-xs tracking-[0.2em] text-[var(--foreground-muted)] uppercase">
+                        目标版本
+                      </p>
+                      <p className="mt-2 text-sm text-[var(--foreground-primary)]">
+                        {activeConfigVersion.version}
+                      </p>
+                    </div>
+                    <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-elevated)] px-4 py-4">
+                      <p className="text-xs tracking-[0.2em] text-[var(--foreground-muted)] uppercase">
+                        Target Checksum
+                      </p>
+                      <p className="mt-2 text-sm break-all text-[var(--foreground-primary)]">
+                        {activeConfigVersion.checksum}
+                      </p>
+                    </div>
+                    <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-elevated)] px-4 py-4">
+                      <p className="text-xs tracking-[0.2em] text-[var(--foreground-muted)] uppercase">
+                        激活时间
+                      </p>
+                      <p className="mt-2 text-sm text-[var(--foreground-primary)]">
+                        {formatDateTime(activeConfigVersion.created_at)}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <InlineMessage
+                  tone="info"
+                  message="当前还没有全局激活配置版本，无法展示目标快照。"
+                />
+              )}
+            </AppCard>
+
+            <AppCard
+              title="OpenResty 健康与控制"
+              description="OpenResty 当前健康状态。"
+              action={
+                <div className="flex flex-wrap gap-3">
+                  <PrimaryButton
+                    type="button"
+                    onClick={handleRestartOpenresty}
+                    disabled={restartOpenrestyMutation.isPending}
+                  >
+                    {restartOpenrestyMutation.isPending
+                      ? '下发重启中...'
+                      : node.restart_openresty_requested
+                        ? '等待 OpenResty 重启'
+                        : '重启 OpenResty'}
+                  </PrimaryButton>
+                </div>
+              }
+            >
+              <div className="grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)]">
+                <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-elevated)] px-4 py-4">
+                  <p className="text-xs tracking-[0.2em] text-[var(--foreground-muted)] uppercase">
+                    健康状态
+                  </p>
+                  <div className="mt-3 flex flex-wrap items-center gap-3">
+                    <StatusBadge
+                      label={getOpenrestyStatusLabel(node.openresty_status)}
+                      variant={getOpenrestyStatusVariant(node.openresty_status)}
+                    />
+                    {node.restart_openresty_requested ? (
+                      <StatusBadge label="等待重启执行" variant="warning" />
+                    ) : null}
+                  </div>
+                  <p className="mt-3 text-sm text-[var(--foreground-secondary)]">
+                    {node.restart_openresty_requested
+                      ? '已等待节点在下一次心跳后执行 OpenResty 重启。'
+                      : '系统会在每次心跳前自动采集健康状态。'}
+                  </p>
+                </div>
+
+                <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-elevated)] px-4 py-4">
+                  <p className="text-xs tracking-[0.2em] text-[var(--foreground-muted)] uppercase">
+                    状态消息
+                  </p>
+                  <p className="mt-3 text-sm leading-6 break-words whitespace-pre-wrap text-[var(--foreground-secondary)]">
+                    {node.openresty_message || '当前未上报额外错误。'}
+                  </p>
+                </div>
+              </div>
+            </AppCard>
+
+            <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+              <AppCard
+                title="节点标识与部署"
+                action={
+                  nodeInstallCommand ? (
+                    <PrimaryButton
+                      type="button"
+                      onClick={() =>
+                        void handleCopy(
+                          nodeInstallCommand,
+                          '节点专属部署命令已复制。',
+                        )
+                      }
+                    >
+                      复制部署命令
+                    </PrimaryButton>
+                  ) : null
+                }
+              >
+                <div className="space-y-4">
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-elevated)] px-4 py-4">
+                      <p className="text-xs tracking-[0.2em] text-[var(--foreground-muted)] uppercase">
+                        Node ID
+                      </p>
+                      <p className="mt-2 text-sm break-all text-[var(--foreground-primary)]">
+                        {node.node_id}
+                      </p>
+                    </div>
+                    <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-elevated)] px-4 py-4">
+                      <p className="text-xs tracking-[0.2em] text-[var(--foreground-muted)] uppercase">
+                        Agent Token
+                      </p>
+                      <p className="mt-2 text-sm break-all text-[var(--foreground-primary)]">
+                        {node.agent_token || '暂无'}
+                      </p>
+                    </div>
+                  </div>
+
+                  <ResourceField
+                    label="Server URL"
+                    hint="默认使用当前控制面来源地址，可按需改为外部访问地址。"
+                  >
+                    <ResourceInput
+                      value={serverUrl}
+                      onChange={(event) => setServerUrl(event.target.value)}
+                    />
+                  </ResourceField>
+
+                  {nodeInstallCommand ? (
+                    <CodeBlock className="whitespace-pre-wrap">
+                      {nodeInstallCommand}
+                    </CodeBlock>
+                  ) : null}
+                </div>
+              </AppCard>
+
+              <AppCard title="运行信息">
+                <div className="space-y-4 text-sm text-[var(--foreground-secondary)]">
+                  <div>
+                    <p className="font-medium text-[var(--foreground-primary)]">
+                      IP 地址
+                    </p>
+                    <p className="mt-1">{node.ip || '暂无'}</p>
+                  </div>
+                  <div>
+                    <p className="font-medium text-[var(--foreground-primary)]">
+                      最近错误
+                    </p>
+                    <p className="mt-1 break-words whitespace-pre-wrap">
+                      {node.last_error || '无'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="font-medium text-[var(--foreground-primary)]">
+                      OpenResty 状态消息
+                    </p>
+                    <p className="mt-1 break-words whitespace-pre-wrap">
+                      {node.openresty_message || '无'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="font-medium text-[var(--foreground-primary)]">
+                      创建时间
+                    </p>
+                    <p className="mt-1">{formatDateTime(node.created_at)}</p>
+                  </div>
+                  <div>
+                    <p className="font-medium text-[var(--foreground-primary)]">
+                      更新时间
+                    </p>
+                    <p className="mt-1">{formatDateTime(node.updated_at)}</p>
+                  </div>
+                </div>
+              </AppCard>
             </div>
-          )}
-        </AppCard>
+
+            <AppCard
+              title="最近应用记录"
+              description="仅展示当前节点的应用历史。"
+              action={
+                <Link
+                  href={`/apply-log?node_id=${encodeURIComponent(node.node_id)}`}
+                  className="inline-flex items-center justify-center rounded-2xl border border-[var(--border-default)] bg-[var(--control-background)] px-4 py-3 text-sm font-medium text-[var(--foreground-primary)] transition hover:bg-[var(--control-background-hover)]"
+                >
+                  查看完整记录
+                </Link>
+              }
+            >
+              {applyLogsQuery.isLoading ? (
+                <LoadingState />
+              ) : applyLogsQuery.isError ? (
+                <ErrorState
+                  title="应用记录加载失败"
+                  description={getErrorMessage(applyLogsQuery.error)}
+                />
+              ) : applyLogs.length === 0 ? (
+                <EmptyState
+                  title="暂无应用记录"
+                  description="当前节点还没有上报过配置应用结果。"
+                />
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-[var(--border-default)] text-left text-sm">
+                    <thead>
+                      <tr className="text-[var(--foreground-secondary)]">
+                        <th className="px-3 py-3 font-medium">版本</th>
+                        <th className="px-3 py-3 font-medium">结果</th>
+                        <th className="px-3 py-3 font-medium">Checksum</th>
+                        <th className="px-3 py-3 font-medium">时间</th>
+                        <th className="px-3 py-3 font-medium">消息</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[var(--border-default)]">
+                      {applyLogs.slice(0, 10).map((log) => (
+                        <tr key={log.id} className="align-top">
+                          <td className="px-3 py-4 text-[var(--foreground-primary)]">
+                            {log.version}
+                          </td>
+                          <td className="px-3 py-4">
+                            <StatusBadge
+                              label={log.result === 'success' ? '成功' : '失败'}
+                              variant={
+                                log.result === 'success' ? 'success' : 'danger'
+                              }
+                            />
+                          </td>
+                          <td
+                            className="px-3 py-4 text-[var(--foreground-secondary)]"
+                            title={log.checksum}
+                          >
+                            {log.checksum
+                              ? `${log.checksum.slice(0, 12)}...`
+                              : '—'}
+                          </td>
+                          <td className="px-3 py-4 text-[var(--foreground-secondary)]">
+                            {formatRelativeTime(log.created_at)} ·{' '}
+                            {formatDateTime(log.created_at)}
+                          </td>
+                          <td className="px-3 py-4 text-[var(--foreground-secondary)]">
+                            <div className="max-w-80 space-y-2 break-words whitespace-pre-wrap">
+                              <p>
+                                {log.main_config_checksum
+                                  ? `主配置：${log.main_config_checksum}`
+                                  : ''}
+                              </p>
+                              <p>
+                                {log.route_config_checksum
+                                  ? `路由配置：${log.route_config_checksum}`
+                                  : ''}
+                              </p>
+                              <p>
+                                {log.support_file_count
+                                  ? `支持文件：${log.support_file_count}`
+                                  : ''}
+                              </p>
+                              <p>{log.message || '—'}</p>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </AppCard>
           </>
         ) : null}
       </div>

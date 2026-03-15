@@ -4,6 +4,8 @@ import { useMemo } from 'react';
 import type { EChartsOption } from 'echarts';
 import ReactECharts from 'echarts-for-react';
 
+import { calculateNiceAxisMax, formatCompactNumber } from '@/lib/utils/metrics';
+
 type TrendChartSeries = {
   label: string;
   color: string;
@@ -17,17 +19,29 @@ type TrendChartProps = {
   labels: string[];
   series: TrendChartSeries[];
   height?: number;
+  yAxisValueFormatter?: (value: number) => string;
 };
 
-const defaultFormatter = (value: number) => value.toLocaleString('zh-CN');
+type TooltipParam = {
+  axisValueLabel?: string;
+  color?: string;
+  seriesName?: string;
+  value?: number | string | Array<number | string>;
+};
 
-export function TrendChart({ labels, series, height = 220 }: TrendChartProps) {
+const defaultFormatter = (value: number) => formatCompactNumber(value);
+
+export function TrendChart({
+  labels,
+  series,
+  height = 220,
+  yAxisValueFormatter,
+}: TrendChartProps) {
   const option = useMemo<EChartsOption>(() => {
-    const maxValue =
-      Math.max(
-        1,
-        ...series.flatMap((item) => item.values.map((value) => value || 0)),
-      ) * 1.1;
+    const axisFormatter = yAxisValueFormatter ?? defaultFormatter;
+    const maxValue = calculateNiceAxisMax(
+      series.flatMap((item) => item.values),
+    );
 
     return {
       animationDuration: 500,
@@ -46,6 +60,38 @@ export function TrendChart({ labels, series, height = 220 }: TrendChartProps) {
         textStyle: {
           color: '#e2e8f0',
           fontSize: 12,
+        },
+        formatter: (params: unknown) => {
+          const items = Array.isArray(params) ? (params as TooltipParam[]) : [];
+          if (items.length === 0) {
+            return '';
+          }
+
+          const header = items[0]?.axisValueLabel ?? '';
+          const rows = items.map((item) => {
+            const matchedSeries = series.find(
+              (seriesItem) => seriesItem.label === item.seriesName,
+            );
+            const formatter =
+              matchedSeries?.valueFormatter ??
+              yAxisValueFormatter ??
+              defaultFormatter;
+            const rawValue = Array.isArray(item.value)
+              ? item.value[1]
+              : item.value;
+            const numericValue =
+              typeof rawValue === 'number' ? rawValue : Number(rawValue ?? 0);
+
+            return [
+              '<span style="display:inline-flex;align-items:center;gap:8px;">',
+              `<span style="display:inline-block;width:8px;height:8px;border-radius:9999px;background:${item.color ?? '#94a3b8'};"></span>`,
+              `<span>${item.seriesName ?? ''}</span>`,
+              `<strong style="margin-left:8px;">${formatter(numericValue)}</strong>`,
+              '</span>',
+            ].join('');
+          });
+
+          return [header, ...rows].join('<br/>');
         },
       },
       legend: {
@@ -75,6 +121,7 @@ export function TrendChart({ labels, series, height = 220 }: TrendChartProps) {
         splitNumber: 4,
         axisLabel: {
           color: '#94a3b8',
+          formatter: (value: number) => axisFormatter(value),
         },
         splitLine: {
           lineStyle: {
@@ -110,7 +157,7 @@ export function TrendChart({ labels, series, height = 220 }: TrendChartProps) {
         data: item.values,
       })),
     };
-  }, [labels, series]);
+  }, [labels, series, yAxisValueFormatter]);
 
   if (labels.length === 0 || series.length === 0) {
     return (
