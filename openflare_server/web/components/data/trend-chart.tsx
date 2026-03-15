@@ -1,214 +1,208 @@
 'use client';
 
-import { useId } from 'react';
+import { useMemo } from 'react';
+import type { EChartsOption } from 'echarts';
+import ReactECharts from 'echarts-for-react';
 
 import { calculateNiceAxisMax, formatCompactNumber } from '@/lib/utils/metrics';
 
-type TrendSeries = {
+type TrendChartSeries = {
   label: string;
   color: string;
-  values: number[];
   fillColor?: string;
+  values: number[];
   variant?: 'line' | 'area';
   valueFormatter?: (value: number) => string;
 };
 
-function clamp(value: number, min: number, max: number) {
-  return Math.min(Math.max(value, min), max);
-}
-
-function buildPath(points: Array<[number, number]>) {
-  if (points.length === 0) {
-    return '';
-  }
-
-  return points
-    .map(([x, y], index) => `${index === 0 ? 'M' : 'L'} ${x} ${y}`)
-    .join(' ');
-}
-
-export function TrendChart({
-  labels,
-  series,
-  height = 240,
-  yAxisValueFormatter = formatCompactNumber,
-}: {
+type TrendChartProps = {
   labels: string[];
-  series: TrendSeries[];
+  series: TrendChartSeries[];
   height?: number;
   yAxisValueFormatter?: (value: number) => string;
-}) {
-  const chartId = useId();
-  const width = 720;
-  const paddingTop = 18;
-  const paddingRight = 18;
-  const paddingBottom = 42;
-  const paddingLeft = 54;
-  const innerWidth = width - paddingLeft - paddingRight;
-  const innerHeight = height - paddingTop - paddingBottom;
+};
 
-  const normalizedSeries = series.filter((entry) =>
-    entry.values.some((value) => Number.isFinite(value)),
-  );
-  const pointCount = Math.max(
-    labels.length,
-    ...normalizedSeries.map((entry) => entry.values.length),
-    0,
-  );
-  const allValues = normalizedSeries.flatMap((entry) =>
-    entry.values.filter((value) => Number.isFinite(value)),
-  );
-  const axisMax = calculateNiceAxisMax(allValues);
-  const yTicks = 4;
+type TooltipParam = {
+  axisValueLabel?: string;
+  color?: string;
+  seriesName?: string;
+  value?: number | string | Array<number | string>;
+};
 
-  if (normalizedSeries.length === 0 || pointCount === 0) {
+const defaultFormatter = (value: number) => formatCompactNumber(value);
+
+export function TrendChart({
+                             labels,
+                             series,
+                             height = 220,
+                             yAxisValueFormatter,
+                           }: TrendChartProps) {
+  const option = useMemo<EChartsOption>(() => {
+    const axisFormatter = yAxisValueFormatter ?? defaultFormatter;
+    const maxValue = calculateNiceAxisMax(
+        series.flatMap((item) => item.values),
+    );
+
+    return {
+      animationDuration: 500,
+      animationEasing: 'cubicOut',
+      grid: {
+        left: 16,
+        right: 16,
+        top: 20,
+        bottom: 20,
+        containLabel: true,
+      },
+      tooltip: {
+        trigger: 'axis',
+        backgroundColor: 'rgba(15, 23, 42, 0.92)',
+        borderWidth: 0,
+        textStyle: {
+          color: '#e2e8f0',
+          fontSize: 12,
+        },
+        formatter: (params: unknown) => {
+          const items = Array.isArray(params) ? (params as TooltipParam[]) : [];
+          if (items.length === 0) {
+            return '';
+          }
+
+          const header = items[0]?.axisValueLabel ?? '';
+          const rows = items.map((item) => {
+            const matchedSeries = series.find(
+                (seriesItem) => seriesItem.label === item.seriesName,
+            );
+            const formatter =
+                matchedSeries?.valueFormatter ??
+                yAxisValueFormatter ??
+                defaultFormatter;
+            const rawValue = Array.isArray(item.value)
+                ? item.value[1]
+                : item.value;
+            const numericValue =
+                typeof rawValue === 'number' ? rawValue : Number(rawValue ?? 0);
+
+            return [
+              '<span style="display:inline-flex;align-items:center;gap:8px;">',
+              `<span style="display:inline-block;width:8px;height:8px;border-radius:9999px;background:${item.color ?? '#94a3b8'};"></span>`,
+              `<span>${item.seriesName ?? ''}</span>`,
+              `<strong style="margin-left:8px;">${formatter(numericValue)}</strong>`,
+              '</span>',
+            ].join('');
+          });
+
+          return [header, ...rows].join('<br/>');
+        },
+      },
+      legend: {
+        show: false,
+      },
+      xAxis: {
+        type: 'category',
+        boundaryGap: false,
+        data: labels,
+        axisLine: {
+          lineStyle: {
+            color: 'rgba(148, 163, 184, 0.24)',
+          },
+        },
+        axisTick: {
+          show: false,
+        },
+        axisLabel: {
+          color: '#94a3b8',
+          margin: 14,
+        },
+      },
+      yAxis: {
+        type: 'value',
+        min: 0,
+        max: maxValue,
+        splitNumber: 4,
+        axisLabel: {
+          color: '#94a3b8',
+          formatter: (value: number) => axisFormatter(value),
+        },
+        splitLine: {
+          lineStyle: {
+            color: 'rgba(148, 163, 184, 0.16)',
+            type: 'dashed',
+          },
+        },
+      },
+      series: series.map((item) => ({
+        name: item.label,
+        type: 'line',
+        smooth: true,
+        showSymbol: false,
+        symbol: 'circle',
+        symbolSize: 8,
+        lineStyle: {
+          color: item.color,
+          width: 3,
+        },
+        itemStyle: {
+          color: item.color,
+        },
+        areaStyle:
+            item.variant === 'area'
+                ? {
+                  color: item.fillColor ?? `${item.color}33`,
+                }
+                : undefined,
+        emphasis: {
+          focus: 'series',
+          scale: true,
+        },
+        data: item.values,
+      })),
+    };
+  }, [labels, series, yAxisValueFormatter]);
+
+  if (labels.length === 0 || series.length === 0) {
     return (
-      <div className="flex min-h-56 items-center justify-center rounded-3xl border border-dashed border-[var(--border-default)] bg-[var(--surface-elevated)] px-6 py-8 text-sm text-[var(--foreground-muted)]">
-        暂无趋势数据
-      </div>
+        <div className="flex h-[220px] items-center justify-center rounded-3xl border border-dashed border-[var(--border-default)] bg-[var(--surface-muted)] text-sm text-[var(--foreground-secondary)]">
+          暂无趋势数据
+        </div>
     );
   }
 
-  const xStep = pointCount > 1 ? innerWidth / (pointCount - 1) : innerWidth / 2;
-
   return (
-    <div className="space-y-4">
-      <div className="overflow-hidden rounded-[28px] border border-[var(--border-default)] bg-[var(--surface-elevated)] px-3 py-3">
-        <svg
-          viewBox={`0 0 ${width} ${height}`}
-          className="h-auto w-full"
-          role="img"
-          aria-label="趋势图"
-        >
-          {Array.from({ length: yTicks + 1 }, (_, index) => {
-            const value = axisMax - (axisMax / yTicks) * index;
-            const y = paddingTop + (innerHeight / yTicks) * index;
-
+      <div className="space-y-4">
+        <div className="flex flex-wrap gap-3">
+          {series.map((item) => {
+            const latestValue = item.values[item.values.length - 1] ?? 0;
+            const formatter = item.valueFormatter ?? defaultFormatter;
             return (
-              <g key={`tick-${index}`}>
-                <line
-                  x1={paddingLeft}
-                  y1={y}
-                  x2={width - paddingRight}
-                  y2={y}
-                  stroke="var(--border-default)"
-                  strokeDasharray="4 6"
-                  strokeOpacity="0.7"
-                />
-                <text
-                  x={paddingLeft - 10}
-                  y={y + 4}
-                  textAnchor="end"
-                  fontSize="11"
-                  fill="var(--foreground-muted)"
+                <div
+                    key={item.label}
+                    className="min-w-[140px] rounded-2xl border border-[var(--border-default)] bg-[var(--surface-elevated)] px-4 py-3"
                 >
-                  {yAxisValueFormatter(value)}
-                </text>
-              </g>
-            );
-          })}
-
-          {labels.map((label, index) => {
-            const x =
-              pointCount > 1
-                ? paddingLeft + xStep * index
-                : paddingLeft + innerWidth / 2;
-
-            return (
-              <text
-                key={`${label}-${index}`}
-                x={x}
-                y={height - 14}
-                textAnchor={index === 0 ? 'start' : index === labels.length - 1 ? 'end' : 'middle'}
-                fontSize="11"
-                fill="var(--foreground-muted)"
-              >
-                {label}
-              </text>
-            );
-          })}
-
-          {normalizedSeries.map((entry, seriesIndex) => {
-            const points = entry.values.map((value, index) => {
-              const x =
-                pointCount > 1
-                  ? paddingLeft + xStep * index
-                  : paddingLeft + innerWidth / 2;
-              const safeValue = Number.isFinite(value) ? value : 0;
-              const y =
-                paddingTop +
-                innerHeight -
-                (clamp(safeValue, 0, axisMax) / axisMax) * innerHeight;
-              return [x, y] as [number, number];
-            });
-
-            const linePath = buildPath(points);
-            const areaPath =
-              points.length > 0
-                ? `${linePath} L ${points[points.length - 1][0]} ${paddingTop + innerHeight} L ${points[0][0]} ${paddingTop + innerHeight} Z`
-                : '';
-            const gradientId = `${chartId}-gradient-${seriesIndex}`;
-
-            return (
-              <g key={`${entry.label}-${seriesIndex}`}>
-                {entry.variant === 'area' && entry.fillColor ? (
-                  <>
-                    <defs>
-                      <linearGradient
-                        id={gradientId}
-                        x1="0"
-                        y1="0"
-                        x2="0"
-                        y2="1"
-                      >
-                        <stop offset="0%" stopColor={entry.fillColor} />
-                        <stop offset="100%" stopColor="transparent" />
-                      </linearGradient>
-                    </defs>
-                    <path d={areaPath} fill={`url(#${gradientId})`} />
-                  </>
-                ) : null}
-
-                <path
-                  d={linePath}
-                  fill="none"
-                  stroke={entry.color}
-                  strokeWidth="3"
-                  strokeLinejoin="round"
-                  strokeLinecap="round"
+                  <div className="flex items-center gap-2">
+                <span
+                    className="h-2.5 w-2.5 rounded-full"
+                    style={{ backgroundColor: item.color }}
                 />
-
-                {points.map(([x, y], pointIndex) => {
-                  const value = entry.values[pointIndex] ?? 0;
-                  const label = labels[pointIndex] ?? `点 ${pointIndex + 1}`;
-                  const formatter = entry.valueFormatter ?? yAxisValueFormatter;
-
-                  return (
-                    <circle key={`${entry.label}-${pointIndex}`} cx={x} cy={y} r="3.5" fill={entry.color}>
-                      <title>{`${entry.label} · ${label} · ${formatter(value)}`}</title>
-                    </circle>
-                  );
-                })}
-              </g>
+                    <p className="text-xs tracking-[0.18em] text-[var(--foreground-muted)] uppercase">
+                      {item.label}
+                    </p>
+                  </div>
+                  <p className="mt-2 text-lg font-semibold text-[var(--foreground-primary)]">
+                    {formatter(latestValue)}
+                  </p>
+                </div>
             );
           })}
-        </svg>
-      </div>
+        </div>
 
-      <div className="flex flex-wrap gap-3">
-        {normalizedSeries.map((entry) => (
-          <div
-            key={entry.label}
-            className="inline-flex items-center gap-2 rounded-full border border-[var(--border-default)] bg-[var(--surface-elevated)] px-3 py-1.5 text-xs text-[var(--foreground-secondary)]"
-          >
-            <span
-              className="h-2.5 w-2.5 rounded-full"
-              style={{ backgroundColor: entry.color }}
-            />
-            {entry.label}
-          </div>
-        ))}
+        <div className="overflow-hidden rounded-[28px] border border-[var(--border-default)] bg-[linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0))] px-4 py-4">
+          <ReactECharts
+              option={option}
+              notMerge
+              lazyUpdate
+              style={{ height, width: '100%' }}
+          />
+        </div>
       </div>
-    </div>
   );
 }

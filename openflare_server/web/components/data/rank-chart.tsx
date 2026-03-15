@@ -1,77 +1,131 @@
 'use client';
 
-import { formatCompactNumber } from '@/lib/utils/metrics';
+import { useMemo } from 'react';
+import type { EChartsOption } from 'echarts';
+import ReactECharts from 'echarts-for-react';
 
 type RankChartItem = {
   label: string;
   value: number;
 };
 
-function clamp(value: number, min: number, max: number) {
-  return Math.min(Math.max(value, min), max);
-}
-
-export function RankChart({
-  items,
-  color,
-  valueFormatter = formatCompactNumber,
-  emptyMessage = '暂无数据',
-}: {
+type RankChartProps = {
   items: RankChartItem[];
   color: string;
   valueFormatter?: (value: number) => string;
   emptyMessage?: string;
-}) {
-  const validItems = items.filter(
-    (item) => item.label.trim() !== '' && Number.isFinite(item.value),
-  );
-  const maxValue = Math.max(1, ...validItems.map((item) => item.value));
+};
 
-  if (validItems.length === 0) {
+const defaultFormatter = (value: number) => value.toLocaleString('zh-CN');
+
+function getChartValue(params: unknown) {
+  if (typeof params !== 'object' || params === null || !('value' in params)) {
+    return 0;
+  }
+  const rawValue = (params as { value?: unknown }).value;
+  if (Array.isArray(rawValue)) {
+    const candidate = rawValue[0];
+    return typeof candidate === 'number' ? candidate : 0;
+  }
+  return typeof rawValue === 'number' ? rawValue : 0;
+}
+
+export function RankChart({
+                            items,
+                            color,
+                            valueFormatter = defaultFormatter,
+                            emptyMessage = '暂无分布数据',
+                          }: RankChartProps) {
+  const option = useMemo<EChartsOption>(
+      () => ({
+        animationDuration: 400,
+        grid: {
+          left: 16,
+          right: 24,
+          top: 12,
+          bottom: 12,
+          containLabel: true,
+        },
+        tooltip: {
+          trigger: 'axis',
+          axisPointer: {
+            type: 'shadow',
+          },
+          backgroundColor: 'rgba(15, 23, 42, 0.92)',
+          borderWidth: 0,
+          textStyle: {
+            color: '#e2e8f0',
+            fontSize: 12,
+          },
+          formatter: (params: unknown) => {
+            const item = Array.isArray(params) ? params[0] : params;
+            const data = item as { name?: string; value?: number };
+            return `${data.name ?? ''}<br/>${valueFormatter(data.value ?? 0)}`;
+          },
+        },
+        xAxis: {
+          type: 'value',
+          axisLabel: {
+            color: '#94a3b8',
+          },
+          splitLine: {
+            lineStyle: {
+              color: 'rgba(148, 163, 184, 0.16)',
+              type: 'dashed',
+            },
+          },
+        },
+        yAxis: {
+          type: 'category',
+          data: items.map((item) => item.label),
+          axisTick: { show: false },
+          axisLine: { show: false },
+          axisLabel: {
+            color: '#cbd5e1',
+            width: 120,
+            overflow: 'truncate',
+          },
+        },
+        series: [
+          {
+            type: 'bar',
+            data: items.map((item) => item.value),
+            barWidth: 12,
+            showBackground: true,
+            backgroundStyle: {
+              color: 'rgba(148, 163, 184, 0.12)',
+              borderRadius: 999,
+            },
+            itemStyle: {
+              color,
+              borderRadius: 999,
+            },
+            label: {
+              show: true,
+              position: 'right',
+              color: '#e2e8f0',
+              formatter: (params: unknown) => valueFormatter(getChartValue(params)),
+            },
+          },
+        ],
+      }),
+      [color, items, valueFormatter],
+  );
+
+  if (items.length === 0) {
     return (
-      <div className="flex min-h-44 items-center justify-center rounded-3xl border border-dashed border-[var(--border-default)] bg-[var(--surface-elevated)] px-6 py-8 text-sm text-[var(--foreground-muted)]">
-        {emptyMessage}
-      </div>
+        <div className="flex h-[220px] items-center justify-center rounded-3xl border border-dashed border-[var(--border-default)] bg-[var(--surface-muted)] text-sm text-[var(--foreground-secondary)]">
+          {emptyMessage}
+        </div>
     );
   }
 
   return (
-    <div className="space-y-3">
-      {validItems.map((item, index) => {
-        const width = clamp((item.value / maxValue) * 100, 6, 100);
-
-        return (
-          <div
-            key={`${item.label}-${index}`}
-            className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-elevated)] px-4 py-4"
-          >
-            <div className="flex items-center justify-between gap-4">
-              <div className="min-w-0">
-                <p className="text-xs tracking-[0.18em] text-[var(--foreground-muted)] uppercase">
-                  #{index + 1}
-                </p>
-                <p className="mt-2 truncate text-sm font-medium text-[var(--foreground-primary)]">
-                  {item.label}
-                </p>
-              </div>
-              <p className="shrink-0 text-sm font-semibold text-[var(--foreground-primary)]">
-                {valueFormatter(item.value)}
-              </p>
-            </div>
-
-            <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-[var(--surface-muted)]">
-              <div
-                className="h-full rounded-full transition-[width]"
-                style={{
-                  width: `${width}%`,
-                  backgroundColor: color,
-                  boxShadow: `0 0 24px ${color}33`,
-                }}
-              />
-            </div>
-          </div>
-        );
-      })}
-    </div>
+      <ReactECharts
+          option={option}
+          notMerge
+          lazyUpdate
+          style={{ height: Math.max(220, items.length * 44), width: '100%' }}
+      />
   );
 }
