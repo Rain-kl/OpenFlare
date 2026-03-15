@@ -143,6 +143,7 @@ volumes:
 | `OpenRestyProxyConnectTimeout` | `proxy_connect_timeout` 秒数 | `5` |
 | `OpenRestyProxySendTimeout` | `proxy_send_timeout` 秒数 | `60` |
 | `OpenRestyProxyReadTimeout` | `proxy_read_timeout` 秒数 | `60` |
+| `OpenRestyWebsocketEnabled` | 是否自动注入 WebSocket 升级所需代理头 | `true` |
 | `OpenRestyProxyRequestBufferingEnabled` | 是否启用 `proxy_request_buffering` | `false` |
 | `OpenRestyProxyBufferingEnabled` | 是否启用 `proxy_buffering` | `true` |
 | `OpenRestyProxyBuffers` | `proxy_buffers` 组合值，例如 `16 16k` | `16 16k` |

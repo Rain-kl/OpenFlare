@@ -96,6 +96,9 @@ func TestCreateProxyRouteRejectsHTTPSWithoutCertificate(t *testing.T) {
 
 func TestPublishConfigVersionRendersCustomHeaders(t *testing.T) {
 	setupServiceTestDB(t)
+	if err := model.UpdateOption("OpenRestyWebsocketEnabled", "true"); err != nil {
+		t.Fatalf("UpdateOption OpenRestyWebsocketEnabled failed: %v", err)
+	}
 
 	_, err := CreateProxyRoute(ProxyRouteInput{
 		Domain:    "custom.example.com",
@@ -123,10 +126,52 @@ func TestPublishConfigVersionRendersCustomHeaders(t *testing.T) {
 	if !strings.Contains(result.Version.SnapshotJSON, "custom_headers") {
 		t.Fatal("expected snapshot to include custom headers")
 	}
+	if !strings.Contains(result.Version.RenderedConfig, "proxy_http_version 1.1;") {
+		t.Fatal("expected rendered config to enable HTTP/1.1 proxying for websocket upgrades")
+	}
+	if !strings.Contains(result.Version.RenderedConfig, "proxy_set_header Upgrade $http_upgrade;") {
+		t.Fatal("expected rendered config to forward websocket upgrade header")
+	}
+	if !strings.Contains(result.Version.RenderedConfig, "proxy_set_header Connection $http_connection;") {
+		t.Fatal("expected rendered config to forward websocket connection header")
+	}
+}
+
+func TestPreviewConfigVersionCanDisableWebsocketHeaders(t *testing.T) {
+	setupServiceTestDB(t)
+
+	_, err := CreateProxyRoute(ProxyRouteInput{
+		Domain:    "ws-off.example.com",
+		OriginURL: "https://origin.internal",
+		Enabled:   true,
+	})
+	if err != nil {
+		t.Fatalf("CreateProxyRoute failed: %v", err)
+	}
+	if err := model.UpdateOption("OpenRestyWebsocketEnabled", "false"); err != nil {
+		t.Fatalf("UpdateOption OpenRestyWebsocketEnabled failed: %v", err)
+	}
+
+	preview, err := PreviewConfigVersion()
+	if err != nil {
+		t.Fatalf("PreviewConfigVersion failed: %v", err)
+	}
+	if strings.Contains(preview.RenderedConfig, "proxy_http_version 1.1;") {
+		t.Fatal("expected preview config to omit websocket proxy_http_version when disabled")
+	}
+	if strings.Contains(preview.RenderedConfig, "proxy_set_header Upgrade $http_upgrade;") {
+		t.Fatal("expected preview config to omit websocket upgrade header when disabled")
+	}
+	if strings.Contains(preview.RenderedConfig, "proxy_set_header Connection $http_connection;") {
+		t.Fatal("expected preview config to omit websocket connection header when disabled")
+	}
 }
 
 func TestPreviewAndDiffConfigVersion(t *testing.T) {
 	setupServiceTestDB(t)
+	if err := model.UpdateOption("OpenRestyWebsocketEnabled", "true"); err != nil {
+		t.Fatalf("UpdateOption OpenRestyWebsocketEnabled failed: %v", err)
+	}
 
 	stableRoute, err := CreateProxyRoute(ProxyRouteInput{
 		Domain:    "stable.example.com",
@@ -226,6 +271,9 @@ func TestPreviewAndDiffConfigVersion(t *testing.T) {
 	if err = model.UpdateOption("OpenRestyProxyReadTimeout", "120"); err != nil {
 		t.Fatalf("UpdateOption failed: %v", err)
 	}
+	if err = model.UpdateOption("OpenRestyWebsocketEnabled", "false"); err != nil {
+		t.Fatalf("UpdateOption OpenRestyWebsocketEnabled failed: %v", err)
+	}
 	diff, err = DiffConfigVersion()
 	if err != nil {
 		t.Fatalf("DiffConfigVersion after option change failed: %v", err)
@@ -240,6 +288,7 @@ func TestPreviewAndDiffConfigVersion(t *testing.T) {
 		t.Fatal("expected changed OpenResty option details to be reported")
 	}
 	found := false
+	foundWebsocket := false
 	for _, item := range diff.ChangedOptionDetails {
 		if item.Key == "OpenRestyProxyReadTimeout" {
 			found = true
@@ -247,9 +296,18 @@ func TestPreviewAndDiffConfigVersion(t *testing.T) {
 				t.Fatalf("unexpected option diff values: %+v", item)
 			}
 		}
+		if item.Key == "OpenRestyWebsocketEnabled" {
+			foundWebsocket = true
+			if item.PreviousValue != "true" || item.CurrentValue != "false" {
+				t.Fatalf("unexpected websocket option diff values: %+v", item)
+			}
+		}
 	}
 	if !found {
 		t.Fatal("expected OpenRestyProxyReadTimeout diff detail")
+	}
+	if !foundWebsocket {
+		t.Fatal("expected OpenRestyWebsocketEnabled diff detail")
 	}
 }
 

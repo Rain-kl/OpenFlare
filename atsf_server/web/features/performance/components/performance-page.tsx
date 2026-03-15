@@ -46,6 +46,7 @@ const defaultPerformanceFields = {
     OpenRestyProxyConnectTimeout: '5',
     OpenRestyProxySendTimeout: '60',
     OpenRestyProxyReadTimeout: '60',
+    OpenRestyWebsocketEnabled: true,
     OpenRestyProxyRequestBufferingEnabled: false,
     OpenRestyProxyBufferingEnabled: true,
     OpenRestyProxyBuffers: '16 16k',
@@ -89,6 +90,8 @@ const performanceFieldTooltips: Record<string, string> = {
     proxy_connect_timeout: '连接上游源站的超时时间，单位秒。',
     proxy_send_timeout: '向上游发送请求的超时时间，单位秒。',
     proxy_read_timeout: '等待上游返回响应的超时时间，单位秒。',
+    websocket:
+        '控制是否为反向代理规则自动注入 WebSocket 升级所需的 HTTP/1.1、Upgrade 和 Connection 头。',
     proxy_request_buffering:
         '控制请求体是否先在 Nginx 侧缓冲后再转发给上游，上传和流式场景经常会用到。',
     proxy_buffering:
@@ -219,6 +222,10 @@ export function PerformancePage() {
                 optionMap.OpenRestyProxyConnectTimeout ?? '5',
             OpenRestyProxySendTimeout: optionMap.OpenRestyProxySendTimeout ?? '60',
             OpenRestyProxyReadTimeout: optionMap.OpenRestyProxyReadTimeout ?? '60',
+            OpenRestyWebsocketEnabled: toBoolean(
+                optionMap.OpenRestyWebsocketEnabled,
+                true,
+            ),
             OpenRestyProxyRequestBufferingEnabled: toBoolean(
                 optionMap.OpenRestyProxyRequestBufferingEnabled,
                 false,
@@ -412,6 +419,10 @@ export function PerformancePage() {
                     [
                         'OpenRestyProxyReadTimeout',
                         performanceFields.OpenRestyProxyReadTimeout.trim(),
+                    ],
+                    [
+                        'OpenRestyWebsocketEnabled',
+                        String(performanceFields.OpenRestyWebsocketEnabled),
                     ],
                     [
                         'OpenRestyProxyRequestBufferingEnabled',
@@ -927,6 +938,17 @@ export function PerformancePage() {
                                         }
                                     />
                                 </ResourceField>
+                                <ToggleField
+                                    label="websocket"
+                                    tooltip={performanceFieldTooltips.websocket}
+                                    checked={performanceFields.OpenRestyWebsocketEnabled}
+                                    onChange={(checked) =>
+                                        setPerformanceFields((previous) => ({
+                                            ...previous,
+                                            OpenRestyWebsocketEnabled: checked,
+                                        }))
+                                    }
+                                />
                                 <ToggleField
                                     label="proxy_request_buffering"
                                     tooltip={performanceFieldTooltips.proxy_request_buffering}

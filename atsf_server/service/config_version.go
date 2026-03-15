@@ -78,6 +78,7 @@ type openRestyConfigSnapshot struct {
 	ProxyConnectTimeout      int    `json:"proxy_connect_timeout"`
 	ProxySendTimeout         int    `json:"proxy_send_timeout"`
 	ProxyReadTimeout         int    `json:"proxy_read_timeout"`
+	WebsocketEnabled         bool   `json:"websocket_enabled"`
 	ProxyRequestBuffering    bool   `json:"proxy_request_buffering"`
 	ProxyBufferingEnabled    bool   `json:"proxy_buffering_enabled"`
 	ProxyBuffers             string `json:"proxy_buffers"`
@@ -454,6 +455,7 @@ func buildOpenRestyConfigSnapshot() openRestyConfigSnapshot {
 		ProxyConnectTimeout:      common.OpenRestyProxyConnectTimeout,
 		ProxySendTimeout:         common.OpenRestyProxySendTimeout,
 		ProxyReadTimeout:         common.OpenRestyProxyReadTimeout,
+		WebsocketEnabled:         common.OpenRestyWebsocketEnabled,
 		ProxyRequestBuffering:    common.OpenRestyProxyRequestBufferingEnabled,
 		ProxyBufferingEnabled:    common.OpenRestyProxyBufferingEnabled,
 		ProxyBuffers:             common.OpenRestyProxyBuffers,
@@ -514,6 +516,7 @@ func diffOpenRestyOptionDetails(left openRestyConfigSnapshot, right openRestyCon
 	appendIfChanged("OpenRestyProxyConnectTimeout", fmt.Sprintf("%d", left.ProxyConnectTimeout), fmt.Sprintf("%d", right.ProxyConnectTimeout))
 	appendIfChanged("OpenRestyProxySendTimeout", fmt.Sprintf("%d", left.ProxySendTimeout), fmt.Sprintf("%d", right.ProxySendTimeout))
 	appendIfChanged("OpenRestyProxyReadTimeout", fmt.Sprintf("%d", left.ProxyReadTimeout), fmt.Sprintf("%d", right.ProxyReadTimeout))
+	appendIfChanged("OpenRestyWebsocketEnabled", fmt.Sprintf("%t", left.WebsocketEnabled), fmt.Sprintf("%t", right.WebsocketEnabled))
 	appendIfChanged("OpenRestyProxyRequestBufferingEnabled", fmt.Sprintf("%t", left.ProxyRequestBuffering), fmt.Sprintf("%t", right.ProxyRequestBuffering))
 	appendIfChanged("OpenRestyProxyBufferingEnabled", fmt.Sprintf("%t", left.ProxyBufferingEnabled), fmt.Sprintf("%t", right.ProxyBufferingEnabled))
 	appendIfChanged("OpenRestyProxyBuffers", left.ProxyBuffers, right.ProxyBuffers)
@@ -559,6 +562,7 @@ func openRestyOptionKeys() []string {
 		"OpenRestyProxyConnectTimeout",
 		"OpenRestyProxySendTimeout",
 		"OpenRestyProxyReadTimeout",
+		"OpenRestyWebsocketEnabled",
 		"OpenRestyProxyRequestBufferingEnabled",
 		"OpenRestyProxyBufferingEnabled",
 		"OpenRestyProxyBuffers",
@@ -762,6 +766,11 @@ func renderProxyHeaderBlock(customHeaders []ProxyRouteCustomHeaderInput) string 
 	builder.WriteString("        proxy_set_header X-Real-IP $remote_addr;\n")
 	builder.WriteString("        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\n")
 	builder.WriteString("        proxy_set_header X-Forwarded-Proto $scheme;\n")
+	if common.OpenRestyWebsocketEnabled {
+		builder.WriteString("        proxy_http_version 1.1;\n")
+		builder.WriteString("        proxy_set_header Upgrade $http_upgrade;\n")
+		builder.WriteString("        proxy_set_header Connection $http_connection;\n")
+	}
 	for _, header := range customHeaders {
 		builder.WriteString(fmt.Sprintf("        proxy_set_header %s %s;\n", header.Key, quoteNginxHeaderValue(header.Value)))
 	}

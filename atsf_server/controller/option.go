@@ -114,6 +114,7 @@ func validateOpenRestyOption(key string, value string) error {
 			return fmt.Errorf("%s 仅支持 epoll、kqueue、poll、select、rtsig、/dev/poll、eventport 或留空", key)
 		}
 	case "OpenRestyEventsMultiAcceptEnabled",
+		"OpenRestyWebsocketEnabled",
 		"OpenRestyProxyRequestBufferingEnabled",
 		"OpenRestyProxyBufferingEnabled",
 		"OpenRestyGzipEnabled",

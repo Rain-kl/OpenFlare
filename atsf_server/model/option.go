@@ -71,6 +71,7 @@ func InitOptionMap() {
 	common.OptionMap["OpenRestyProxyConnectTimeout"] = strconv.Itoa(common.OpenRestyProxyConnectTimeout)
 	common.OptionMap["OpenRestyProxySendTimeout"] = strconv.Itoa(common.OpenRestyProxySendTimeout)
 	common.OptionMap["OpenRestyProxyReadTimeout"] = strconv.Itoa(common.OpenRestyProxyReadTimeout)
+	common.OptionMap["OpenRestyWebsocketEnabled"] = strconv.FormatBool(common.OpenRestyWebsocketEnabled)
 	common.OptionMap["OpenRestyProxyRequestBufferingEnabled"] = strconv.FormatBool(common.OpenRestyProxyRequestBufferingEnabled)
 	common.OptionMap["OpenRestyProxyBufferingEnabled"] = strconv.FormatBool(common.OpenRestyProxyBufferingEnabled)
 	common.OptionMap["OpenRestyProxyBuffers"] = common.OpenRestyProxyBuffers
@@ -269,6 +270,8 @@ func updateOptionMap(key string, value string) {
 		if v, err := strconv.Atoi(value); err == nil && v > 0 {
 			common.OpenRestyProxyReadTimeout = v
 		}
+	case "OpenRestyWebsocketEnabled":
+		common.OpenRestyWebsocketEnabled = value == "true"
 	case "OpenRestyProxyRequestBufferingEnabled":
 		common.OpenRestyProxyRequestBufferingEnabled = value == "true"
 	case "OpenRestyProxyBufferingEnabled":

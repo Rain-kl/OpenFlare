@@ -59,6 +59,28 @@ function getUpgradeBadge(release: LatestReleaseInfo | null | undefined) {
     return {label: '最新', variant: 'success' as const};
 }
 
+function formatLogTimestamp(value: string) {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+        return '0000-00-00 00:00:00.000';
+    }
+
+    const year = date.getFullYear();
+    const month = `${date.getMonth() + 1}`.padStart(2, '0');
+    const day = `${date.getDate()}`.padStart(2, '0');
+    const hour = `${date.getHours()}`.padStart(2, '0');
+    const minute = `${date.getMinutes()}`.padStart(2, '0');
+    const second = `${date.getSeconds()}`.padStart(2, '0');
+    const millisecond = `${date.getMilliseconds()}`.padStart(3, '0');
+
+    return `${year}-${month}-${day} ${hour}:${minute}:${second}.${millisecond}`;
+}
+
+function formatLogLevel(level: string) {
+    const normalized = (level || 'info').toUpperCase();
+    return normalized.padEnd(8, ' ');
+}
+
 export function VersionUpgradeModal({
                                         isOpen,
                                         onClose,
@@ -275,20 +297,24 @@ export function VersionUpgradeModal({
                                         }
                                     />
                                 </div>
-                                <div className="max-h-72 space-y-2 overflow-y-auto rounded-2xl border border-[var(--border-default)] bg-[var(--surface-elevated)] p-4">
+                                <div className="max-h-72 overflow-y-auto rounded-2xl border border-[var(--border-default)] bg-[#0f172a] px-4 py-3">
                                     {upgradeLogs.map((log, index) => (
-                                        <div
+                                        <pre
                                             key={`${log.created_at}-${index}`}
-                                            className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-panel)] px-4 py-3"
+                                            className="overflow-x-auto border-b border-white/8 py-2 font-mono text-[12px] leading-6 text-slate-200 last:border-b-0"
                                         >
-                                            <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-[var(--foreground-secondary)]">
-                                                <span>{formatDateTime(log.created_at)}</span>
-                                                <span className="uppercase">{log.level || 'info'}</span>
-                                            </div>
-                                            <p className="mt-2 text-sm leading-6 whitespace-pre-wrap text-[var(--foreground-primary)]">
+                                            <span className="text-slate-400">
+                                                {formatLogTimestamp(log.created_at)}
+                                            </span>
+                                            <span className="text-slate-500"> | </span>
+                                            <span className="text-cyan-300">
+                                                {formatLogLevel(log.level)}
+                                            </span>
+                                            <span className="text-slate-500"> | </span>
+                                            <span className="whitespace-pre-wrap break-all text-slate-100">
                                                 {log.message}
-                                            </p>
-                                        </div>
+                                            </span>
+                                        </pre>
                                     ))}
                                 </div>
                             </div>

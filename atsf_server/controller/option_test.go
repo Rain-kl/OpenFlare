@@ -24,6 +24,8 @@ func TestValidateOpenRestyOption(t *testing.T) {
 		{name: "large client header buffers invalid", key: "OpenRestyLargeClientHeaderBuffers", value: "4x16k", wantErr: true},
 		{name: "proxy request buffering valid", key: "OpenRestyProxyRequestBufferingEnabled", value: "true"},
 		{name: "proxy request buffering invalid", key: "OpenRestyProxyRequestBufferingEnabled", value: "on", wantErr: true},
+		{name: "websocket valid", key: "OpenRestyWebsocketEnabled", value: "false"},
+		{name: "websocket invalid", key: "OpenRestyWebsocketEnabled", value: "off", wantErr: true},
 		{name: "cache inactive valid", key: "OpenRestyCacheInactive", value: "30m"},
 		{name: "cache inactive invalid", key: "OpenRestyCacheInactive", value: "30", wantErr: true},
 		{name: "cache use stale valid", key: "OpenRestyCacheUseStale", value: "error timeout http_500"},
