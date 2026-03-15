@@ -580,10 +580,12 @@ func isVersionNewer(current string, latest string) bool {
 }
 
 type versionInfo struct {
-	Valid      bool
-	IsDev      bool
-	Numbers    []int
-	Prerelease []string
+	Valid               bool
+	IsDev               bool
+	Numbers             []int
+	Prerelease          []string
+	GitDescribeDistance int
+	GitDescribeTail     []string
 }
 
 func parseVersionInfo(version string) versionInfo {
@@ -626,9 +628,30 @@ func parseVersionInfo(version string) versionInfo {
 	}
 	info := versionInfo{Valid: len(parts) > 0, Numbers: parts}
 	if prerelease != "" {
-		info.Prerelease = splitPrereleaseIdentifiers(prerelease)
+		identifiers := splitPrereleaseIdentifiers(prerelease)
+		if distance, tail, ok := parseGitDescribeIdentifiers(identifiers); ok {
+			info.GitDescribeDistance = distance
+			info.GitDescribeTail = tail
+		} else {
+			info.Prerelease = identifiers
+		}
 	}
 	return info
+}
+
+func parseGitDescribeIdentifiers(identifiers []string) (int, []string, bool) {
+	if len(identifiers) < 2 {
+		return 0, nil, false
+	}
+	distance, err := strconv.Atoi(strings.TrimSpace(identifiers[0]))
+	if err != nil || distance <= 0 {
+		return 0, nil, false
+	}
+	commitToken := strings.TrimSpace(identifiers[1])
+	if commitToken == "" || !strings.HasPrefix(strings.ToLower(commitToken), "g") {
+		return 0, nil, false
+	}
+	return distance, identifiers[1:], true
 }
 
 func splitPrereleaseIdentifiers(value string) []string {
@@ -665,6 +688,34 @@ func compareVersionInfo(left versionInfo, right versionInfo) int {
 		if leftValue > rightValue {
 			return 1
 		}
+	}
+
+	if left.GitDescribeDistance != right.GitDescribeDistance {
+		if left.GitDescribeDistance < right.GitDescribeDistance {
+			return -1
+		}
+		return 1
+	}
+	if left.GitDescribeDistance > 0 || right.GitDescribeDistance > 0 {
+		maxLen = len(left.GitDescribeTail)
+		if len(right.GitDescribeTail) > maxLen {
+			maxLen = len(right.GitDescribeTail)
+		}
+		for index := 0; index < maxLen; index++ {
+			if index >= len(left.GitDescribeTail) {
+				return -1
+			}
+			if index >= len(right.GitDescribeTail) {
+				return 1
+			}
+			if left.GitDescribeTail[index] < right.GitDescribeTail[index] {
+				return -1
+			}
+			if left.GitDescribeTail[index] > right.GitDescribeTail[index] {
+				return 1
+			}
+		}
+		return 0
 	}
 
 	if len(left.Prerelease) == 0 && len(right.Prerelease) == 0 {

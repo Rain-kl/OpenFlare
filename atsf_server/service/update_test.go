@@ -53,6 +53,8 @@ func TestIsVersionNewer(t *testing.T) {
 		{name: "stable newer than prerelease", current: "v1.2.3-rc.1", latest: "v1.2.3", expected: true},
 		{name: "prerelease not newer than same stable", current: "v1.2.3", latest: "v1.2.3-rc.1", expected: false},
 		{name: "newer prerelease sequence", current: "v1.2.3-rc.1", latest: "v1.2.3-rc.2", expected: true},
+		{name: "git describe newer than same tag", current: "v0.6.3", latest: "v0.6.3-2-gf4d36be", expected: true},
+		{name: "git describe distance compares numerically", current: "v0.6.3-2-gf4d36be", latest: "v0.6.3-5-gabc1234", expected: true},
 		{name: "dev build", current: "dev", latest: "v0.4.0", expected: true},
 	}
 
@@ -222,6 +224,13 @@ func TestUploadManualServerBinary(t *testing.T) {
 	}
 	if filepath.Dir(candidate.TempPath) != filepath.Dir(execPath) {
 		t.Fatalf("expected temporary binary in executable dir, got %s want %s", filepath.Dir(candidate.TempPath), filepath.Dir(execPath))
+	}
+}
+
+func TestBuildUploadedServerBinaryViewAcceptsGitDescribeNewerThanTag(t *testing.T) {
+	info := buildUploadedServerBinaryView("atsflare-server-test", "v0.6.3", "v0.6.3-2-gf4d36be", time.Now())
+	if !info.HasUpdate || !info.ReadyToUpgrade {
+		t.Fatalf("expected git describe binary to be upgradeable: %+v", info)
 	}
 }
 
