@@ -1537,6 +1537,9 @@ const docTemplate = `{
                 "origin_url": {
                     "type": "string"
                 },
+                "origin_host": {
+                    "type": "string"
+                },
                 "redirect_http": {
                     "type": "boolean"
                 },

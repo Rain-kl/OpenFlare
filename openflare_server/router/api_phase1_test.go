@@ -44,16 +44,20 @@ func TestPhase1PublishLifecycle(t *testing.T) {
 	token := prepareRootToken(t)
 
 	createBody := map[string]any{
-		"domain":     "app.example.com",
-		"origin_url": "https://origin-a.internal",
-		"enabled":    true,
-		"remark":     "primary route",
+		"domain":      "app.example.com",
+		"origin_url":  "https://origin-a.internal",
+		"origin_host": "origin-a.internal",
+		"enabled":     true,
+		"remark":      "primary route",
 	}
 	resp := performJSONRequest(t, engine, token, http.MethodPost, "/api/proxy-routes/", createBody)
 	var createdRoute model.ProxyRoute
 	decodeResponseData(t, resp, &createdRoute)
 	if createdRoute.Domain != "app.example.com" {
 		t.Fatalf("unexpected created route domain: %s", createdRoute.Domain)
+	}
+	if createdRoute.OriginHost != "origin-a.internal" {
+		t.Fatalf("unexpected created route origin host: %s", createdRoute.OriginHost)
 	}
 
 	resp = performJSONRequest(t, engine, token, http.MethodGet, "/api/proxy-routes/", nil)
@@ -99,16 +103,20 @@ func TestPhase1PublishLifecycle(t *testing.T) {
 	initialRendered := version1.RenderedConfig
 
 	updateBody := map[string]any{
-		"domain":     "app.example.com",
-		"origin_url": "https://origin-b.internal",
-		"enabled":    true,
-		"remark":     "updated route",
+		"domain":      "app.example.com",
+		"origin_url":  "https://origin-b.internal",
+		"origin_host": "origin-b.internal",
+		"enabled":     true,
+		"remark":      "updated route",
 	}
 	routePath := "/api/proxy-routes/" + toString(createdRoute.ID)
 	resp = performJSONRequest(t, engine, token, http.MethodPut, routePath, updateBody)
 	decodeResponseData(t, resp, &createdRoute)
 	if createdRoute.OriginURL != "https://origin-b.internal" {
 		t.Fatalf("unexpected updated route origin: %s", createdRoute.OriginURL)
+	}
+	if createdRoute.OriginHost != "origin-b.internal" {
+		t.Fatalf("unexpected updated route origin host: %s", createdRoute.OriginHost)
 	}
 
 	resp = performJSONRequest(t, engine, token, http.MethodPost, "/api/config-versions/publish", nil)

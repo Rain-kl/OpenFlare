@@ -382,9 +382,10 @@ func TestPhase2CustomHeadersPreviewAndDiffLifecycle(t *testing.T) {
 	token := prepareRootToken(t)
 
 	createResp := performJSONRequest(t, engine, token, http.MethodPost, "/api/proxy-routes/", map[string]any{
-		"domain":     "preview.example.com",
-		"origin_url": "https://origin-a.internal",
-		"enabled":    true,
+		"domain":      "preview.example.com",
+		"origin_url":  "https://origin-a.internal",
+		"origin_host": "preview-origin.internal",
+		"enabled":     true,
 		"custom_headers": []map[string]any{
 			{"key": "X-Trace-Id", "value": "$request_id"},
 		},
@@ -394,13 +395,17 @@ func TestPhase2CustomHeadersPreviewAndDiffLifecycle(t *testing.T) {
 	if !strings.Contains(createdRoute.CustomHeaders, "X-Trace-Id") {
 		t.Fatalf("expected custom headers to be stored as json, got %s", createdRoute.CustomHeaders)
 	}
+	if createdRoute.OriginHost != "preview-origin.internal" {
+		t.Fatalf("expected origin_host to be stored, got %s", createdRoute.OriginHost)
+	}
 
 	performJSONRequest(t, engine, token, http.MethodPost, "/api/config-versions/publish", nil)
 
 	performJSONRequest(t, engine, token, http.MethodPut, "/api/proxy-routes/"+toString(createdRoute.ID), map[string]any{
-		"domain":     "preview.example.com",
-		"origin_url": "https://origin-b.internal",
-		"enabled":    true,
+		"domain":      "preview.example.com",
+		"origin_url":  "https://origin-b.internal",
+		"origin_host": "preview-upstream.internal",
+		"enabled":     true,
 		"custom_headers": []map[string]any{
 			{"key": "X-Trace-Id", "value": "$request_id"},
 			{"key": "X-Release", "value": "candidate"},
@@ -418,6 +423,9 @@ func TestPhase2CustomHeadersPreviewAndDiffLifecycle(t *testing.T) {
 	renderedConfig, _ := preview["rendered_config"].(string)
 	if !strings.Contains(renderedConfig, `proxy_set_header X-Release "candidate";`) {
 		t.Fatalf("expected preview endpoint to return custom header, got %s", renderedConfig)
+	}
+	if !strings.Contains(renderedConfig, `proxy_set_header Host "preview-upstream.internal";`) {
+		t.Fatalf("expected preview endpoint to return overridden host header, got %s", renderedConfig)
 	}
 
 	diffResp := performJSONRequest(t, engine, token, http.MethodGet, "/api/config-versions/diff", nil)

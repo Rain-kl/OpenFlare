@@ -69,6 +69,24 @@ const proxyRouteSchema = z
           return false;
         }
       }, '请输入合法的源站地址'),
+    origin_host: z
+      .string()
+      .trim()
+      .refine(
+        (value) =>
+          !value ||
+          (!/[\/\\\s]/.test(value) &&
+            !value.includes('://') &&
+            (() => {
+              try {
+                const parsed = new URL(`http://${value}`);
+                return parsed.host === value && Boolean(parsed.hostname);
+              } catch {
+                return false;
+              }
+            })()),
+        '请输入合法的回源主机名',
+      ),
     enabled: z.boolean(),
     enable_https: z.boolean(),
     cert_id: z.string(),
@@ -129,6 +147,7 @@ type FeedbackState = {
 const defaultValues: ProxyRouteFormValues = {
   domain: '',
   origin_url: '',
+  origin_host: '',
   enabled: true,
   enable_https: false,
   cert_id: '',
@@ -186,6 +205,7 @@ function toPayload(values: ProxyRouteFormValues): ProxyRouteMutationPayload {
   return {
     domain: values.domain.trim(),
     origin_url: values.origin_url.trim(),
+    origin_host: values.origin_host.trim(),
     enabled: values.enabled,
     enable_https: values.enable_https,
     cert_id:
@@ -204,6 +224,7 @@ function toFormValues(route: ProxyRouteItem): ProxyRouteFormValues {
   return {
     domain: route.domain,
     origin_url: route.origin_url,
+    origin_host: route.origin_host || '',
     enabled: route.enabled,
     enable_https: route.enable_https,
     cert_id: route.cert_id ? String(route.cert_id) : '',
@@ -510,7 +531,12 @@ export function ProxyRoutesPage() {
                           {route.domain}
                         </td>
                         <td className="px-3 py-4 text-[var(--foreground-secondary)]">
-                          {route.origin_url}
+                          <div className="space-y-1">
+                            <p>{route.origin_url}</p>
+                            <p className="text-xs text-[var(--foreground-muted)]">
+                              回源主机名: {route.origin_host || '$host'}
+                            </p>
+                          </div>
                         </td>
                         <td className="px-3 py-4">
                           {route.enable_https ? (
@@ -632,6 +658,16 @@ export function ProxyRoutesPage() {
               />
             </ResourceField>
           </div>
+
+          <ResourceField
+            label="回源主机名"
+            hint="可选。填写后将覆盖回源请求的 Host，留空则默认使用访问域名 $host"
+            error={form.formState.errors.origin_host?.message}
+          >
+            <ResourceInput
+              {...form.register('origin_host')}
+            />
+          </ResourceField>
 
           <div className="grid gap-4 lg:grid-cols-2">
             <ToggleField

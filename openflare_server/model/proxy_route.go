@@ -6,6 +6,7 @@ type ProxyRoute struct {
 	ID            uint      `json:"id" gorm:"primaryKey"`
 	Domain        string    `json:"domain" gorm:"uniqueIndex;size:255;not null"`
 	OriginURL     string    `json:"origin_url" gorm:"size:2048;not null"`
+	OriginHost    string    `json:"origin_host" gorm:"size:255"`
 	Enabled       bool      `json:"enabled" gorm:"not null;default:true"`
 	EnableHTTPS   bool      `json:"enable_https" gorm:"column:enable_https;not null;default:false"`
 	CertID        *uint     `json:"cert_id"`
@@ -40,6 +41,7 @@ func (route *ProxyRoute) Update() error {
 	return DB.Model(&ProxyRoute{}).Where("id = ?", route.ID).Updates(map[string]any{
 		"domain":         route.Domain,
 		"origin_url":     route.OriginURL,
+		"origin_host":    route.OriginHost,
 		"enabled":        route.Enabled,
 		"enable_https":   route.EnableHTTPS,
 		"cert_id":        route.CertID,

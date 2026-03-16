@@ -7,6 +7,7 @@ export interface ProxyRouteItem {
   id: number;
   domain: string;
   origin_url: string;
+  origin_host: string;
   enabled: boolean;
   enable_https: boolean;
   cert_id: number | null;
@@ -20,6 +21,7 @@ export interface ProxyRouteItem {
 export interface ProxyRouteMutationPayload {
   domain: string;
   origin_url: string;
+  origin_host: string;
   enabled: boolean;
   enable_https: boolean;
   cert_id: number | null;

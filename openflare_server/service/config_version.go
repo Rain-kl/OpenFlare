@@ -54,6 +54,7 @@ type ConfigOptionDiffItem struct {
 type snapshotRoute struct {
 	Domain        string                        `json:"domain"`
 	OriginURL     string                        `json:"origin_url"`
+	OriginHost    string                        `json:"origin_host,omitempty"`
 	Enabled       bool                          `json:"enabled"`
 	EnableHTTPS   bool                          `json:"enable_https"`
 	CertID        *uint                         `json:"cert_id,omitempty"`
@@ -379,6 +380,7 @@ func buildSnapshotRoutes(routes []*model.ProxyRoute) ([]snapshotRoute, error) {
 		items = append(items, snapshotRoute{
 			Domain:        route.Domain,
 			OriginURL:     route.OriginURL,
+			OriginHost:    route.OriginHost,
 			Enabled:       route.Enabled,
 			EnableHTTPS:   route.EnableHTTPS,
 			CertID:        route.CertID,
@@ -424,7 +426,7 @@ func normalizeSnapshotRoutes(routes []snapshotRoute) []snapshotRoute {
 }
 
 func snapshotRouteConfigEqual(left snapshotRoute, right snapshotRoute) bool {
-	if left.Domain != right.Domain || left.OriginURL != right.OriginURL || left.EnableHTTPS != right.EnableHTTPS || left.RedirectHTTP != right.RedirectHTTP || !uintPointerEqual(left.CertID, right.CertID) {
+	if left.Domain != right.Domain || left.OriginURL != right.OriginURL || left.OriginHost != right.OriginHost || left.EnableHTTPS != right.EnableHTTPS || left.RedirectHTTP != right.RedirectHTTP || !uintPointerEqual(left.CertID, right.CertID) {
 		return false
 	}
 	if len(left.CustomHeaders) != len(right.CustomHeaders) {
@@ -593,7 +595,7 @@ func renderRouteConfig(routes []*model.ProxyRoute) (string, []SupportFile, error
 			return "", nil, fmt.Errorf("路由 %s 自定义请求头无效", route.Domain)
 		}
 		if !route.EnableHTTPS {
-			builder.WriteString(renderHTTPProxyServer(route.Domain, route.OriginURL, customHeaders))
+			builder.WriteString(renderHTTPProxyServer(route.Domain, route.OriginURL, route.OriginHost, customHeaders))
 			continue
 		}
 		if route.CertID == nil || *route.CertID == 0 {
@@ -610,9 +612,9 @@ func renderRouteConfig(routes []*model.ProxyRoute) (string, []SupportFile, error
 		if route.RedirectHTTP {
 			builder.WriteString(renderHTTPRedirectServer(route.Domain))
 		} else {
-			builder.WriteString(renderHTTPProxyServer(route.Domain, route.OriginURL, customHeaders))
+			builder.WriteString(renderHTTPProxyServer(route.Domain, route.OriginURL, route.OriginHost, customHeaders))
 		}
-		builder.WriteString(renderHTTPSServer(route.Domain, route.OriginURL, certificate.ID, customHeaders))
+		builder.WriteString(renderHTTPSServer(route.Domain, route.OriginURL, route.OriginHost, certificate.ID, customHeaders))
 	}
 	return builder.String(), dedupeSupportFiles(supportFiles), nil
 }
@@ -746,27 +748,31 @@ func nextVersionNumber(now time.Time) (string, error) {
 	return fmt.Sprintf("%s-%03d", prefix, count+1), nil
 }
 
-func renderHTTPProxyServer(domain string, originURL string, customHeaders []ProxyRouteCustomHeaderInput) string {
-	return fmt.Sprintf("server {\n    listen 80;\n    server_name %s;\n%s\n    location / {\n%s        proxy_pass %s;\n    }\n}\n\n", domain, renderExactHostGuard(domain), renderProxyHeaderBlock(customHeaders), originURL)
+func renderHTTPProxyServer(domain string, originURL string, originHost string, customHeaders []ProxyRouteCustomHeaderInput) string {
+	return fmt.Sprintf("server {\n    listen 80;\n    server_name %s;\n%s\n    location / {\n%s        proxy_pass %s;\n    }\n}\n\n", domain, renderExactHostGuard(domain), renderProxyHeaderBlock(originHost, customHeaders), originURL)
 }
 
 func renderHTTPRedirectServer(domain string) string {
 	return fmt.Sprintf("server {\n    listen 80;\n    server_name %s;\n%s\n    return 301 https://$host$request_uri;\n}\n\n", domain, renderExactHostGuard(domain))
 }
 
-func renderHTTPSServer(domain string, originURL string, certificateID uint, customHeaders []ProxyRouteCustomHeaderInput) string {
+func renderHTTPSServer(domain string, originURL string, originHost string, certificateID uint, customHeaders []ProxyRouteCustomHeaderInput) string {
 	certPath := fmt.Sprintf("%s/%s", nginxCertDirPlaceholder, certificateCertFileName(certificateID))
 	keyPath := fmt.Sprintf("%s/%s", nginxCertDirPlaceholder, certificateKeyFileName(certificateID))
-	return fmt.Sprintf("server {\n    listen 443 ssl;\n    server_name %s;\n    ssl_certificate %s;\n    ssl_certificate_key %s;\n%s\n    location / {\n%s        proxy_pass %s;\n    }\n}\n\n", domain, certPath, keyPath, renderExactHostGuard(domain), renderProxyHeaderBlock(customHeaders), originURL)
+	return fmt.Sprintf("server {\n    listen 443 ssl;\n    server_name %s;\n    ssl_certificate %s;\n    ssl_certificate_key %s;\n%s\n    location / {\n%s        proxy_pass %s;\n    }\n}\n\n", domain, certPath, keyPath, renderExactHostGuard(domain), renderProxyHeaderBlock(originHost, customHeaders), originURL)
 }
 
 func renderExactHostGuard(domain string) string {
 	return fmt.Sprintf("    if ($host != %q) {\n        return 404;\n    }\n", domain)
 }
 
-func renderProxyHeaderBlock(customHeaders []ProxyRouteCustomHeaderInput) string {
+func renderProxyHeaderBlock(originHost string, customHeaders []ProxyRouteCustomHeaderInput) string {
 	var builder strings.Builder
-	builder.WriteString("        proxy_set_header Host $host;\n")
+	if strings.TrimSpace(originHost) != "" {
+		builder.WriteString(fmt.Sprintf("        proxy_set_header Host %s;\n", quoteNginxHeaderValue(originHost)))
+	} else {
+		builder.WriteString("        proxy_set_header Host $host;\n")
+	}
 	builder.WriteString("        proxy_set_header X-Real-IP $remote_addr;\n")
 	builder.WriteString("        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\n")
 	builder.WriteString("        proxy_set_header X-Forwarded-Proto $scheme;\n")

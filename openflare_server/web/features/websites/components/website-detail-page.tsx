@@ -397,7 +397,12 @@ export function WebsiteDetailPage({websiteId}: { websiteId: string }) {
                                                 </div>
                                             </td>
                                             <td className="px-3 py-4 text-[var(--foreground-secondary)]">
-                                                <p className="max-w-72 break-all">{route.origin_url}</p>
+                                                <div className="max-w-72 space-y-1 break-all">
+                                                    <p>{route.origin_url}</p>
+                                                    <p className="text-xs text-[var(--foreground-muted)]">
+                                                        回源主机名: {route.origin_host || '$host'}
+                                                    </p>
+                                                </div>
                                             </td>
                                             <td className="px-3 py-4">
                                                 <div className="flex flex-wrap gap-2">

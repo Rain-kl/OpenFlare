@@ -116,6 +116,7 @@
 
 * 不新增平台化对象，除非设计文档明确要求
 * `proxy_routes` 维持一条域名对应一个 `origin_url`
+* `proxy_routes.origin_host` 为可选字段，仅用于覆盖回源 `Host` 请求头，不引入新的平台化对象
 * `config_versions` 必须保存完整快照与渲染结果
 * 全局同时只能有一个激活版本
 * 回滚通过重新激活旧版本实现

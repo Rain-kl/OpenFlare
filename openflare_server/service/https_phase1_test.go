@@ -140,6 +140,31 @@ func TestPublishConfigVersionRendersCustomHeaders(t *testing.T) {
 	}
 }
 
+func TestPublishConfigVersionOverridesOriginHostHeader(t *testing.T) {
+	setupServiceTestDB(t)
+
+	_, err := CreateProxyRoute(ProxyRouteInput{
+		Domain:     "git.arctel.de",
+		OriginURL:  "https://git.arctel.net",
+		OriginHost: "git.arctel.net",
+		Enabled:    true,
+	})
+	if err != nil {
+		t.Fatalf("CreateProxyRoute failed: %v", err)
+	}
+
+	result, err := PublishConfigVersion("root")
+	if err != nil {
+		t.Fatalf("PublishConfigVersion failed: %v", err)
+	}
+	if !strings.Contains(result.Version.RenderedConfig, `proxy_set_header Host "git.arctel.net";`) {
+		t.Fatal("expected rendered config to override host header for origin routing")
+	}
+	if !strings.Contains(result.Version.SnapshotJSON, `"origin_host":"git.arctel.net"`) {
+		t.Fatal("expected snapshot to include origin_host override")
+	}
+}
+
 func TestPreviewConfigVersionCanDisableWebsocketHeaders(t *testing.T) {
 	setupServiceTestDB(t)
 

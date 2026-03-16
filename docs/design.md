@@ -120,6 +120,7 @@ Origin
 稳定约束：
 
 * 一个域名只对应一个 `origin_url`
+* `proxy_routes.origin_host` 为可选字段，用于回源时覆盖 `Host` 请求头；未设置时默认透传访问域名
 * `proxy_routes.domain` 必须唯一
 * `origin_url` 必须为合法 `http://` 或 `https://`
 * `config_versions` 必须保存完整快照、渲染结果与 `checksum`

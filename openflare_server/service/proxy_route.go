@@ -19,6 +19,7 @@ type ProxyRouteCustomHeaderInput struct {
 type ProxyRouteInput struct {
 	Domain        string                        `json:"domain"`
 	OriginURL     string                        `json:"origin_url"`
+	OriginHost    string                        `json:"origin_host"`
 	Enabled       bool                          `json:"enabled"`
 	EnableHTTPS   bool                          `json:"enable_https"`
 	CertID        *uint                         `json:"cert_id"`
@@ -74,6 +75,7 @@ func DeleteProxyRoute(id uint) error {
 func buildProxyRoute(route *model.ProxyRoute, input ProxyRouteInput) (*model.ProxyRoute, error) {
 	domain := strings.ToLower(strings.TrimSpace(input.Domain))
 	originURL := strings.TrimSpace(input.OriginURL)
+	originHost := strings.TrimSpace(input.OriginHost)
 	remark := strings.TrimSpace(input.Remark)
 	customHeaders, err := normalizeCustomHeaders(input.CustomHeaders)
 	if err != nil {
@@ -90,6 +92,9 @@ func buildProxyRoute(route *model.ProxyRoute, input ProxyRouteInput) (*model.Pro
 		return nil, errors.New("域名格式不合法")
 	}
 	if err := validateOriginURL(originURL); err != nil {
+		return nil, err
+	}
+	if err := validateOriginHost(originHost); err != nil {
 		return nil, err
 	}
 	if !input.EnableHTTPS {
@@ -112,6 +117,7 @@ func buildProxyRoute(route *model.ProxyRoute, input ProxyRouteInput) (*model.Pro
 	}
 	route.Domain = domain
 	route.OriginURL = originURL
+	route.OriginHost = originHost
 	route.Enabled = input.Enabled
 	route.EnableHTTPS = input.EnableHTTPS
 	route.CertID = input.CertID
@@ -174,6 +180,23 @@ func validateOriginURL(raw string) error {
 	}
 	if parsed.Host == "" {
 		return errors.New("源站地址格式不合法")
+	}
+	return nil
+}
+
+func validateOriginHost(raw string) error {
+	if raw == "" {
+		return nil
+	}
+	if strings.ContainsAny(raw, "/\\ \t\r\n") || strings.Contains(raw, "://") {
+		return errors.New("回源主机名格式不合法")
+	}
+	parsed, err := url.Parse("//" + raw)
+	if err != nil || parsed.Host == "" || parsed.Host != raw {
+		return errors.New("回源主机名格式不合法")
+	}
+	if parsed.Hostname() == "" {
+		return errors.New("回源主机名格式不合法")
 	}
 	return nil
 }
