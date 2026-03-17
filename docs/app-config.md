@@ -33,14 +33,17 @@ go run . --port 3000 --log-dir ./logs
 | `LOG_LEVEL` | 日志等级 | `info` |
 | `SESSION_SECRET` | Session 签名密钥 | 启动时随机生成 |
 | `SQLITE_PATH` | SQLite 数据库文件路径 | `openflare.db` |
-| `SQL_DSN` | MySQL DSN，设置后优先于 SQLite | 空 |
+| `DSN` | PostgreSQL DSN，设置后优先于 SQLite | 空 |
+| `SQL_DSN` | 兼容旧命名的 PostgreSQL DSN，优先级低于 `DSN` | 空 |
 | `REDIS_CONN_STRING` | Redis 连接串 | 空 |
 | `UPLOAD_PATH` | 上传目录 | `upload` |
 | `AGENT_TOKEN` | 兼容旧部署的全局 Agent Token | 空 |
 
 说明：
 
-* `SQL_DSN` 与 `SQLITE_PATH` 同时存在时优先使用 `SQL_DSN`
+* `DSN` 与 `SQL_DSN` 同时存在时优先使用 `DSN`
+* `DSN` 或 `SQL_DSN` 与 `SQLITE_PATH` 同时存在时优先使用 PostgreSQL
+* 当目标 PostgreSQL 数据库为空且本地 `SQLITE_PATH` 文件存在时，Server 启动阶段会自动迁移 SQLite 数据，并在日志中输出按表迁移进度
 * `SESSION_SECRET` 生产环境必须显式配置
 * `REDIS_CONN_STRING` 未配置时，相关能力回退为进程内实现
 

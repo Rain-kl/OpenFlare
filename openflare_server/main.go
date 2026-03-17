@@ -88,7 +88,11 @@ func main() {
 	if port == "" {
 		port = strconv.Itoa(*common.Port)
 	}
-	slog.Info("server config", "port", port, "gin_mode", gin.Mode(), "log_level", common.GetLogLevel(), "sqlite_path", common.SQLitePath, "redis_enabled", common.RedisEnabled, "upload_path", common.UploadPath, "log_dir", valueOrDefault(*common.LogDir, "stdout"), "agent_token_configured", common.AgentToken != "", "node_offline_threshold", common.NodeOfflineThreshold)
+	dbBackend := "sqlite"
+	if common.SQLDSN != "" {
+		dbBackend = "postgres"
+	}
+	slog.Info("server config", "port", port, "gin_mode", gin.Mode(), "log_level", common.GetLogLevel(), "db_backend", dbBackend, "sqlite_path", common.SQLitePath, "redis_enabled", common.RedisEnabled, "upload_path", common.UploadPath, "log_dir", valueOrDefault(*common.LogDir, "stdout"), "agent_token_configured", common.AgentToken != "", "node_offline_threshold", common.NodeOfflineThreshold)
 	slog.Info("server listening", "address", fmt.Sprintf(":%s", port))
 	err = server.Run(":" + port)
 	if err != nil {

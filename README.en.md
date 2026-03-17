@@ -54,7 +54,7 @@ It is not trying to be a CDN SaaS platform, a multi-tenant control plane, or a g
 ## Architecture
 
 ```text
-OpenFlare Server (Gin + GORM + SQLite + Web UI)
+OpenFlare Server (Gin + GORM + SQLite/PostgreSQL + Web UI)
         |
         | HTTP API / Config Pull
         v
@@ -93,14 +93,33 @@ Responsibilities:
 
 ```yaml
 services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: openflare
+      POSTGRES_USER: openflare
+      POSTGRES_PASSWORD: replace-with-strong-password
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U openflare -d openflare"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   openflare:
     image: ghcr.io/rain-kl/openflare:latest
     restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
     ports:
       - "3000:3000"
     environment:
       SESSION_SECRET: replace-with-random-string
       SQLITE_PATH: /data/openflare.db
+      DSN: postgres://openflare:replace-with-strong-password@postgres:5432/openflare?sslmode=disable
       GIN_MODE: release
       LOG_LEVEL: info
       PORT: "3000"
@@ -108,6 +127,7 @@ services:
       - openflare-data:/data
 
 volumes:
+  postgres-data:
   openflare-data:
 ```
 
@@ -153,7 +173,7 @@ Version numbers follow `YYYYMMDD-NNN`. Versions are immutable; rollback is imple
 
 ## Repository Layout
 
-* `openflare_server`: monolithic control plane built with Gin, GORM, and SQLite
+* `openflare_server`: monolithic control plane built with Gin, GORM, and SQLite/PostgreSQL
 * `openflare_server/web`: admin frontend built with Next.js 15 App Router
 * `openflare_agent`: Go Agent
 * `scripts`: install and helper scripts
@@ -167,6 +187,10 @@ Version numbers follow `YYYYMMDD-NNN`. Versions are immutable; rollback is imple
 cd openflare_server
 export SESSION_SECRET='replace-with-random-string'
 export SQLITE_PATH='./openflare.db'
+# Optional: switch to PostgreSQL by setting either DSN or SQL_DSN.
+# If the PostgreSQL database is empty and ./openflare.db exists,
+# OpenFlare migrates SQLite data automatically at startup.
+# export DSN='postgres://openflare:secret@127.0.0.1:5432/openflare?sslmode=disable'
 go run .
 ```
 

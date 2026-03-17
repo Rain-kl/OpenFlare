@@ -13,7 +13,7 @@
 * Go 1.24+
 * Gin
 * GORM
-* SQLite
+* SQLite / PostgreSQL
 * 现有登录体系
 
 ### 1.2 Agent

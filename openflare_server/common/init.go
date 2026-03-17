@@ -48,6 +48,12 @@ func init() {
 	if os.Getenv("SQLITE_PATH") != "" {
 		SQLitePath = os.Getenv("SQLITE_PATH")
 	}
+	if os.Getenv("SQL_DSN") != "" {
+		SQLDSN = os.Getenv("SQL_DSN")
+	}
+	if os.Getenv("DSN") != "" {
+		SQLDSN = os.Getenv("DSN")
+	}
 	if os.Getenv("UPLOAD_PATH") != "" {
 		UploadPath = os.Getenv("UPLOAD_PATH")
 	}

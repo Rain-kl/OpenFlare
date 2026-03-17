@@ -54,7 +54,7 @@ OpenFlare 解决的是一类朴素但高频的运维问题：
 ## 系统架构
 
 ```text
-OpenFlare Server (Gin + GORM + SQLite + Web UI)
+OpenFlare Server (Gin + GORM + SQLite/PostgreSQL + Web UI)
         |
         | HTTP API / Config Pull
         v
@@ -93,14 +93,33 @@ Origin
 
 ```yaml
 services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: openflare
+      POSTGRES_USER: openflare
+      POSTGRES_PASSWORD: replace-with-strong-password
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U openflare -d openflare"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   openflare:
     image: ghcr.io/rain-kl/openflare:latest
     restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
     ports:
       - "3000:3000"
     environment:
       SESSION_SECRET: replace-with-random-string
       SQLITE_PATH: /data/openflare.db
+      DSN: postgres://openflare:replace-with-strong-password@postgres:5432/openflare?sslmode=disable
       GIN_MODE: release
       LOG_LEVEL: info
       PORT: "3000"
@@ -108,6 +127,7 @@ services:
       - openflare-data:/data
 
 volumes:
+  postgres-data:
   openflare-data:
 ```
 
@@ -153,7 +173,7 @@ curl -fsSL https://raw.githubusercontent.com/Rain-kl/OpenFlare/main/scripts/inst
 
 ## 仓库结构
 
-* `openflare_server`：Gin + GORM + SQLite 单体控制面
+* `openflare_server`：Gin + GORM + SQLite/PostgreSQL 单体控制面
 * `openflare_server/web`：Next.js 15 App Router 管理端前端
 * `openflare_agent`：Go 单体 Agent
 * `scripts`：安装脚本与辅助脚本
@@ -167,6 +187,9 @@ curl -fsSL https://raw.githubusercontent.com/Rain-kl/OpenFlare/main/scripts/inst
 cd openflare_server
 export SESSION_SECRET='replace-with-random-string'
 export SQLITE_PATH='./openflare.db'
+# 可选：设置 DSN 或 SQL_DSN 后切换到 PostgreSQL。
+# 如果 PostgreSQL 为空且 ./openflare.db 存在，启动时会自动迁移 SQLite 数据。
+# export DSN='postgres://openflare:secret@127.0.0.1:5432/openflare?sslmode=disable'
 go run .
 ```
 

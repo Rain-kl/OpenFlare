@@ -8,7 +8,7 @@
 
 * Go 1.24+
 * Node.js 18+
-* 可写 SQLite 文件目录
+* 可写 SQLite 文件目录，或可访问的 PostgreSQL 实例
 
 ### 1.2 Agent
 
@@ -37,6 +37,9 @@ cd openflare_server
 export SESSION_SECRET='replace-with-random-string'
 export SQLITE_PATH='./openflare.db'
 export LOG_LEVEL='info'
+# 可选：设置后优先使用 PostgreSQL。
+# 如果 PostgreSQL 为空且本地 SQLite 文件存在，启动时会自动迁移数据。
+# export DSN='postgres://openflare:secret@127.0.0.1:5432/openflare?sslmode=disable'
 go run .
 ```
 
@@ -46,21 +49,41 @@ go run .
 
 ```yaml
 services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: openflare
+      POSTGRES_USER: openflare
+      POSTGRES_PASSWORD: replace-with-strong-password
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U openflare -d openflare"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   openflare:
     image: ghcr.io/rain-kl/openflare:latest
     container_name: openflare
     restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
     ports:
       - "3000:3000"
     environment:
       SESSION_SECRET: replace-with-random-string
       SQLITE_PATH: /data/openflare.db
+      DSN: postgres://openflare:replace-with-strong-password@postgres:5432/openflare?sslmode=disable
       GIN_MODE: release
       LOG_LEVEL: info
     volumes:
       - openflare-data:/data
 
 volumes:
+  postgres-data:
   openflare-data:
 ```
 

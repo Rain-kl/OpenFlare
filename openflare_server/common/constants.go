@@ -18,6 +18,7 @@ var HomePageLink = ""
 
 var SessionSecret = uuid.New().String()
 var SQLitePath = "openflare.db"
+var SQLDSN = ""
 
 var OptionMap map[string]string
 var OptionMapRWMutex sync.RWMutex
