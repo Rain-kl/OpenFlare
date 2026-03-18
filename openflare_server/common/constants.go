@@ -81,6 +81,7 @@ var OpenRestyProxyBusyBuffersSize = "64k"
 var OpenRestyGzipEnabled = true
 var OpenRestyGzipMinLength = 1024
 var OpenRestyGzipCompLevel = 5
+var OpenRestyResolvers = ""
 var OpenRestyCacheEnabled = false
 var OpenRestyCachePath = ""
 var OpenRestyCacheLevels = "1:2"

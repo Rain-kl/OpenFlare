@@ -32,6 +32,9 @@ func TestValidateOpenRestyOption(t *testing.T) {
 		{name: "cache use stale invalid", key: "OpenRestyCacheUseStale", value: "error whatever", wantErr: true},
 		{name: "gzip level valid", key: "OpenRestyGzipCompLevel", value: "9"},
 		{name: "gzip level invalid", key: "OpenRestyGzipCompLevel", value: "10", wantErr: true},
+		{name: "resolvers empty", key: "OpenRestyResolvers", value: ""},
+		{name: "resolvers valid", key: "OpenRestyResolvers", value: "1.1.1.1, 8.8.8.8"},
+		{name: "resolvers invalid", key: "OpenRestyResolvers", value: "dns.internal", wantErr: true},
 	}
 
 	for _, testCase := range testCases {

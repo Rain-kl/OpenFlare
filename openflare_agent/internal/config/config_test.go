@@ -120,6 +120,40 @@ func TestLoadPathModeKeepsExplicitPaths(t *testing.T) {
 	}
 }
 
+func TestLoadNormalizesExplicitResolvers(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "agent.json")
+	payload := map[string]any{
+		"server_url":          "http://127.0.0.1:3000",
+		"agent_token":         "token",
+		"node_name":           "edge-01",
+		"node_ip":             "10.0.0.8",
+		"openresty_resolvers": []string{" 10.0.0.2 ", "10.0.0.2", "", "1.1.1.1"},
+	}
+	data, err := json.Marshal(payload)
+	if err != nil {
+		t.Fatalf("failed to marshal config: %v", err)
+	}
+	if err = os.WriteFile(configPath, data, 0o644); err != nil {
+		t.Fatalf("failed to write config: %v", err)
+	}
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load failed: %v", err)
+	}
+
+	expected := []string{"10.0.0.2", "1.1.1.1"}
+	if len(cfg.OpenrestyResolvers) != len(expected) {
+		t.Fatalf("unexpected resolver count: %#v", cfg.OpenrestyResolvers)
+	}
+	for index, value := range expected {
+		if cfg.OpenrestyResolvers[index] != value {
+			t.Fatalf("unexpected resolver at %d: got %q want %q", index, cfg.OpenrestyResolvers[index], value)
+		}
+	}
+}
+
 func TestLoadUsesCustomDataDirForGeneratedFiles(t *testing.T) {
 	dir := t.TempDir()
 	configPath := filepath.Join(dir, "agent.json")
@@ -209,6 +243,7 @@ func TestSavePersistsMillisecondsAndOmitsRuntimeVersions(t *testing.T) {
 	cfg.NginxVersion = "1.27.1.2"
 	cfg.HeartbeatInterval = MillisecondDuration(5 * time.Second)
 	cfg.RequestTimeout = MillisecondDuration(7 * time.Second)
+	cfg.OpenrestyResolvers = []string{"10.0.0.2", "1.1.1.1"}
 
 	if err = cfg.Save(); err != nil {
 		t.Fatalf("Save failed: %v", err)
@@ -233,6 +268,10 @@ func TestSavePersistsMillisecondsAndOmitsRuntimeVersions(t *testing.T) {
 	}
 	if decoded["request_timeout"] != float64(7000) {
 		t.Fatalf("unexpected request timeout: %#v", decoded["request_timeout"])
+	}
+	resolvers, ok := decoded["openresty_resolvers"].([]any)
+	if !ok || len(resolvers) != 2 || resolvers[0] != "10.0.0.2" || resolvers[1] != "1.1.1.1" {
+		t.Fatalf("unexpected resolvers: %#v", decoded["openresty_resolvers"])
 	}
 	if decoded["openresty_observability_port"] != float64(defaultOpenRestyObservabilityPort) {
 		t.Fatalf("unexpected observability port: %#v", decoded["openresty_observability_port"])

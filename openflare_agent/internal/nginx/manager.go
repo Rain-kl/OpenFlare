@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"io/fs"
 	"log/slog"
+	"net"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -393,6 +395,9 @@ func (m *Manager) writeTargetFiles(mainConfig string, routeConfig string, suppor
 	}
 	if err := m.writeCertFiles(supportFiles); err != nil {
 		return err
+	}
+	if strings.TrimSpace(m.OpenrestyResolverDirective) == "" && strings.Contains(routeConfig, "set $openflare_upstream ") {
+		slog.Warn("runtime-resolved hostname upstreams detected without available resolvers; hostname origin requests may fail until resolvers are configured")
 	}
 	renderedMainConfig := m.renderMainConfig(mainConfig)
 	if err := os.WriteFile(m.MainConfigPath, []byte(renderedMainConfig), 0o644); err != nil {
@@ -1022,23 +1027,27 @@ func ObservabilityListenAddress(openrestyPath string, port int) string {
 	return fmt.Sprintf("%d", port)
 }
 
-func ResolverDirective(openrestyPath string) string {
-	resolvers := resolverAddresses(openrestyPath)
+func ResolverDirective(openrestyPath string, explicitResolvers []string) string {
+	resolvers := resolverAddresses(openrestyPath, explicitResolvers)
 	if len(resolvers) == 0 {
 		return ""
 	}
 	return fmt.Sprintf("    resolver %s valid=30s ipv6=off;\n    resolver_timeout 5s;\n", strings.Join(resolvers, " "))
 }
 
-func resolverAddresses(openrestyPath string) []string {
-	if strings.TrimSpace(openrestyPath) == "" {
-		return []string{"127.0.0.11"}
+func resolverAddresses(openrestyPath string, explicitResolvers []string) []string {
+	if resolvers := normalizeResolverAddresses(explicitResolvers); len(resolvers) > 0 {
+		return resolvers
 	}
 	data, err := os.ReadFile("/etc/resolv.conf")
 	if err != nil {
 		return nil
 	}
-	lines := strings.Split(string(data), "\n")
+	return parseResolverAddresses(string(data), strings.TrimSpace(openrestyPath) == "")
+}
+
+func parseResolverAddresses(content string, dockerMode bool) []string {
+	lines := strings.Split(content, "\n")
 	resolvers := make([]string, 0, 2)
 	seen := make(map[string]struct{})
 	for _, line := range lines {
@@ -1050,6 +1059,9 @@ func resolverAddresses(openrestyPath string) []string {
 		if addr == "" {
 			continue
 		}
+		if dockerMode && !isUsableDockerResolver(addr) {
+			continue
+		}
 		if _, ok := seen[addr]; ok {
 			continue
 		}
@@ -1057,6 +1069,45 @@ func resolverAddresses(openrestyPath string) []string {
 		resolvers = append(resolvers, addr)
 	}
 	return resolvers
+}
+
+func isUsableDockerResolver(addr string) bool {
+	ip := net.ParseIP(addr)
+	if ip == nil {
+		return false
+	}
+	return !ip.IsLoopback() && !ip.IsUnspecified()
+}
+
+func normalizeResolverAddresses(values []string) []string {
+	if len(values) == 0 {
+		return nil
+	}
+	resolvers := make([]string, 0, len(values))
+	seen := make(map[string]struct{}, len(values))
+	for _, value := range values {
+		addr := strings.TrimSpace(value)
+		if addr == "" {
+			continue
+		}
+		if _, ok := seen[addr]; ok {
+			continue
+		}
+		seen[addr] = struct{}{}
+		resolvers = append(resolvers, addr)
+	}
+	if len(resolvers) == 0 {
+		return nil
+	}
+	return resolvers
+}
+
+func RequiresRuntimeResolver(originURL string) bool {
+	parsed, err := url.Parse(strings.TrimSpace(originURL))
+	if err != nil || parsed.Hostname() == "" {
+		return false
+	}
+	return net.ParseIP(parsed.Hostname()) == nil
 }
 
 func (m *Manager) routeConfigIncludePath() string {

@@ -33,6 +33,7 @@ type Config struct {
 	AgentVersion               string              `json:"-"`
 	NginxVersion               string              `json:"-"`
 	OpenrestyPath              string              `json:"openresty_path"`
+	OpenrestyResolvers         []string            `json:"openresty_resolvers,omitempty"`
 	OpenrestyContainerName     string              `json:"openresty_container_name"`
 	OpenrestyDockerImage       string              `json:"openresty_docker_image"`
 	DockerBinary               string              `json:"docker_binary"`
@@ -59,6 +60,7 @@ type configFile struct {
 	NodeName                   string              `json:"node_name"`
 	NodeIP                     string              `json:"node_ip"`
 	OpenrestyPath              string              `json:"openresty_path"`
+	OpenrestyResolvers         []string            `json:"openresty_resolvers"`
 	OpenrestyContainerName     string              `json:"openresty_container_name"`
 	OpenrestyDockerImage       string              `json:"openresty_docker_image"`
 	DockerBinary               string              `json:"docker_binary"`
@@ -93,6 +95,7 @@ func Load(path string) (*Config, error) {
 		NodeName:                   file.NodeName,
 		NodeIP:                     file.NodeIP,
 		OpenrestyPath:              file.OpenrestyPath,
+		OpenrestyResolvers:         append([]string{}, file.OpenrestyResolvers...),
 		OpenrestyContainerName:     file.OpenrestyContainerName,
 		OpenrestyDockerImage:       file.OpenrestyDockerImage,
 		DockerBinary:               file.DockerBinary,
@@ -121,6 +124,7 @@ func Load(path string) (*Config, error) {
 func applyDefaults(cfg *Config, baseDir string) {
 	baseDir = filepath.Clean(baseDir)
 	cfg.AgentVersion = AgentVersion
+	cfg.OpenrestyResolvers = normalizeResolverList(cfg.OpenrestyResolvers)
 	if cfg.OpenrestyContainerName == "" {
 		cfg.OpenrestyContainerName = "openflare-openresty"
 	}
@@ -288,6 +292,29 @@ func detectHostname() string {
 		return ""
 	}
 	return strings.TrimSpace(host)
+}
+
+func normalizeResolverList(values []string) []string {
+	if len(values) == 0 {
+		return nil
+	}
+	result := make([]string, 0, len(values))
+	seen := make(map[string]struct{}, len(values))
+	for _, value := range values {
+		trimmed := strings.TrimSpace(value)
+		if trimmed == "" {
+			continue
+		}
+		if _, ok := seen[trimmed]; ok {
+			continue
+		}
+		seen[trimmed] = struct{}{}
+		result = append(result, trimmed)
+	}
+	if len(result) == 0 {
+		return nil
+	}
+	return result
 }
 
 func firstNonEmpty(values ...string) string {

@@ -762,10 +762,55 @@ func TestManagerApplyWritesSupportFilesAndReplacesPlaceholder(t *testing.T) {
 	}
 }
 
-func TestResolverDirectiveForDockerMode(t *testing.T) {
-	got := ResolverDirective("")
-	if !strings.Contains(got, "resolver 127.0.0.11") {
-		t.Fatalf("expected docker resolver directive, got %q", got)
+func TestResolverDirectiveUsesExplicitResolvers(t *testing.T) {
+	got := ResolverDirective("", []string{"10.0.0.2", "1.1.1.1"})
+	if !strings.Contains(got, "resolver 10.0.0.2 1.1.1.1") {
+		t.Fatalf("expected explicit resolver directive, got %q", got)
+	}
+}
+
+func TestParseResolverAddressesFiltersLoopbackForDocker(t *testing.T) {
+	content := strings.Join([]string{
+		"nameserver 127.0.0.53",
+		"nameserver 10.0.0.2",
+		"nameserver ::1",
+		"nameserver 1.1.1.1",
+	}, "\n")
+	got := parseResolverAddresses(content, true)
+	expected := []string{"10.0.0.2", "1.1.1.1"}
+	if !reflect.DeepEqual(got, expected) {
+		t.Fatalf("unexpected docker resolvers: got %#v want %#v", got, expected)
+	}
+}
+
+func TestParseResolverAddressesKeepsLoopbackForLocalBinary(t *testing.T) {
+	content := strings.Join([]string{
+		"nameserver 127.0.0.53",
+		"nameserver 10.0.0.2",
+	}, "\n")
+	got := parseResolverAddresses(content, false)
+	expected := []string{"127.0.0.53", "10.0.0.2"}
+	if !reflect.DeepEqual(got, expected) {
+		t.Fatalf("unexpected local resolvers: got %#v want %#v", got, expected)
+	}
+}
+
+func TestRequiresRuntimeResolver(t *testing.T) {
+	testCases := []struct {
+		name      string
+		originURL string
+		want      bool
+	}{
+		{name: "hostname", originURL: "https://origin.internal", want: true},
+		{name: "ipv4", originURL: "https://10.0.0.8", want: false},
+		{name: "ipv6", originURL: "https://[2001:db8::1]", want: false},
+		{name: "invalid", originURL: "://bad", want: false},
+	}
+
+	for _, testCase := range testCases {
+		if got := RequiresRuntimeResolver(testCase.originURL); got != testCase.want {
+			t.Fatalf("%s: got %v want %v", testCase.name, got, testCase.want)
+		}
 	}
 }
 

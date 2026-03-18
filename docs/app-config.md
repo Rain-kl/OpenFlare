@@ -76,12 +76,14 @@ OpenResty 性能参数与缓存参数继续统一保存在 `Option` 表。当前
 * `OpenRestyProxyReadTimeout`
 * `OpenRestyProxyBufferingEnabled`
 * `OpenRestyGzipEnabled`
+* `OpenRestyResolvers`
 * `OpenRestyCacheEnabled`
 * `OpenRestyCachePath`
 * `OpenRestyCacheMaxSize`
 
 这类参数必须以结构化方式校验、保存并参与版本渲染。
 
+* `OpenRestyResolvers` 由管理端性能页面维护，支持填写多个 DNS 服务器 IP；留空时不额外生成 `resolver` 指令。
 ### 1.5 前端构建环境变量
 
 | 环境变量 | 作用 | 默认值 |

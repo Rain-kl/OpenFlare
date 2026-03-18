@@ -63,8 +63,8 @@ func TestCreateTLSCertificateAndRenderHTTPSConfig(t *testing.T) {
 	if !strings.Contains(result.Version.MainConfig, "listen __OPENFLARE_OBSERVABILITY_LISTEN__;") {
 		t.Fatal("expected main config to include managed openresty observability listen placeholder")
 	}
-	if !strings.Contains(result.Version.MainConfig, "__OPENFLARE_RESOLVER_DIRECTIVE__") {
-		t.Fatal("expected main config to include managed resolver directive placeholder")
+	if strings.Contains(result.Version.MainConfig, "resolver ") {
+		t.Fatal("expected main config to omit resolver directive when no resolvers are configured")
 	}
 	if strings.Contains(result.Version.MainConfig, "allow 127.0.0.1;") {
 		t.Fatal("expected main config to avoid hard-coded allow rules on observability server")
@@ -141,11 +141,11 @@ func TestPublishConfigVersionRendersCustomHeaders(t *testing.T) {
 	if !strings.Contains(result.Version.RenderedConfig, "proxy_set_header Connection $http_connection;") {
 		t.Fatal("expected rendered config to forward websocket connection header")
 	}
-	if !strings.Contains(result.Version.RenderedConfig, `set $openflare_upstream "https://origin.internal";`) {
-		t.Fatal("expected rendered config to defer upstream resolution via variable proxy_pass")
+	if !strings.Contains(result.Version.RenderedConfig, "proxy_pass https://origin.internal;") {
+		t.Fatal("expected rendered config to keep direct proxy_pass when no resolvers are configured")
 	}
-	if !strings.Contains(result.Version.RenderedConfig, "proxy_pass $openflare_upstream$request_uri;") {
-		t.Fatal("expected rendered config to proxy via runtime-resolved upstream variable")
+	if strings.Contains(result.Version.RenderedConfig, "proxy_pass $openflare_upstream$request_uri;") {
+		t.Fatal("expected rendered config to avoid runtime-resolved proxy_pass when no resolvers are configured")
 	}
 }
 
@@ -175,11 +175,65 @@ func TestPublishConfigVersionOverridesOriginHostHeader(t *testing.T) {
 	if !strings.Contains(result.Version.RenderedConfig, `proxy_ssl_name "git.arctel.net";`) {
 		t.Fatal("expected rendered config to set proxy ssl name from origin host override")
 	}
-	if !strings.Contains(result.Version.RenderedConfig, `set $openflare_upstream "https://git.arctel.net";`) {
-		t.Fatal("expected rendered config to avoid resolving https upstream during config load")
+	if !strings.Contains(result.Version.RenderedConfig, "proxy_pass https://git.arctel.net;") {
+		t.Fatal("expected rendered config to keep direct proxy_pass for hostname origin when resolvers are blank")
 	}
 	if !strings.Contains(result.Version.SnapshotJSON, `"origin_host":"git.arctel.net"`) {
 		t.Fatal("expected snapshot to include origin_host override")
+	}
+}
+
+func TestPublishConfigVersionUsesRuntimeResolverWhenConfigured(t *testing.T) {
+	setupServiceTestDB(t)
+	if err := model.UpdateOption("OpenRestyResolvers", "1.1.1.1, 8.8.8.8"); err != nil {
+		t.Fatalf("UpdateOption OpenRestyResolvers failed: %v", err)
+	}
+
+	_, err := CreateProxyRoute(ProxyRouteInput{
+		Domain:    "resolver.example.com",
+		OriginURL: "https://origin.internal",
+		Enabled:   true,
+	})
+	if err != nil {
+		t.Fatalf("CreateProxyRoute failed: %v", err)
+	}
+
+	result, err := PublishConfigVersion("root")
+	if err != nil {
+		t.Fatalf("PublishConfigVersion failed: %v", err)
+	}
+	if !strings.Contains(result.Version.MainConfig, "resolver 1.1.1.1 8.8.8.8 valid=30s ipv6=off;") {
+		t.Fatal("expected main config to render configured resolver directive")
+	}
+	if !strings.Contains(result.Version.RenderedConfig, `set $openflare_upstream "https://origin.internal";`) {
+		t.Fatal("expected rendered config to use runtime upstream variable when resolvers are configured")
+	}
+	if !strings.Contains(result.Version.RenderedConfig, "proxy_pass $openflare_upstream$request_uri;") {
+		t.Fatal("expected rendered config to proxy via runtime-resolved upstream variable when resolvers are configured")
+	}
+}
+
+func TestPublishConfigVersionKeepsDirectProxyPassForIPOrigins(t *testing.T) {
+	setupServiceTestDB(t)
+
+	_, err := CreateProxyRoute(ProxyRouteInput{
+		Domain:    "ip-origin.example.com",
+		OriginURL: "http://10.0.0.8:8080",
+		Enabled:   true,
+	})
+	if err != nil {
+		t.Fatalf("CreateProxyRoute failed: %v", err)
+	}
+
+	result, err := PublishConfigVersion("root")
+	if err != nil {
+		t.Fatalf("PublishConfigVersion failed: %v", err)
+	}
+	if !strings.Contains(result.Version.RenderedConfig, "proxy_pass http://10.0.0.8:8080;") {
+		t.Fatal("expected rendered config to keep direct proxy_pass for IP origin")
+	}
+	if strings.Contains(result.Version.RenderedConfig, `set $openflare_upstream "http://10.0.0.8:8080"`) {
+		t.Fatal("expected rendered config to avoid runtime resolver variables for IP origin")
 	}
 }
 

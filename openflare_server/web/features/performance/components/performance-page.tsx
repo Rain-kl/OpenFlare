@@ -55,6 +55,7 @@ const defaultPerformanceFields = {
     OpenRestyGzipEnabled: true,
     OpenRestyGzipMinLength: '1024',
     OpenRestyGzipCompLevel: '5',
+    OpenRestyResolvers: '',
     OpenRestyCacheEnabled: false,
     OpenRestyCachePath: '',
     OpenRestyCacheLevels: '1:2',
@@ -103,6 +104,8 @@ const performanceFieldTooltips: Record<string, string> = {
     gzip_min_length:
         '只有响应体超过该字节数时才会启用 gzip，避免对极小响应做无意义压缩。',
     gzip_comp_level: 'gzip 压缩等级，1 更省 CPU，9 压缩更高但更耗 CPU。',
+    resolvers:
+        '可选填写运行时 DNS 解析器 IP，支持逗号、空格或换行分隔；留空时不额外生成 resolver 指令。',
     proxy_cache_path: '缓存目录路径，对应 proxy_cache_path 指令中的磁盘位置。',
     levels: '缓存目录层级，例如 1:2，可控制缓存文件的目录分布。',
     inactive: '缓存对象在未命中访问时的失活时间，例如 30m。',
@@ -241,6 +244,7 @@ export function PerformancePage() {
             OpenRestyGzipEnabled: toBoolean(optionMap.OpenRestyGzipEnabled, true),
             OpenRestyGzipMinLength: optionMap.OpenRestyGzipMinLength ?? '1024',
             OpenRestyGzipCompLevel: optionMap.OpenRestyGzipCompLevel ?? '5',
+            OpenRestyResolvers: optionMap.OpenRestyResolvers ?? '',
             OpenRestyCacheEnabled: toBoolean(optionMap.OpenRestyCacheEnabled, false),
             OpenRestyCachePath: optionMap.OpenRestyCachePath ?? '',
             OpenRestyCacheLevels: optionMap.OpenRestyCacheLevels ?? '1:2',
@@ -420,6 +424,7 @@ export function PerformancePage() {
                         'OpenRestyProxyReadTimeout',
                         performanceFields.OpenRestyProxyReadTimeout.trim(),
                     ],
+                    ['OpenRestyResolvers', performanceFields.OpenRestyResolvers.trim()],
                     [
                         'OpenRestyWebsocketEnabled',
                         String(performanceFields.OpenRestyWebsocketEnabled),
@@ -936,6 +941,23 @@ export function PerformancePage() {
                                                 OpenRestyProxyReadTimeout: event.target.value,
                                             }))
                                         }
+                                    />
+                                </ResourceField>
+                                <ResourceField
+                                    label="resolver"
+                                    tooltip={performanceFieldTooltips.resolvers}
+                                    hint="留空时走 OpenResty 默认行为；填写时请使用 DNS 服务器 IP。"
+                                >
+                                    <ResourceTextarea
+                                        value={performanceFields.OpenRestyResolvers}
+                                        onChange={(event) =>
+                                            setPerformanceFields((previous) => ({
+                                                ...previous,
+                                                OpenRestyResolvers: event.target.value,
+                                            }))
+                                        }
+                                        placeholder="例如：10.0.0.2, 1.1.1.1"
+                                        minRows={3}
                                     />
                                 </ResourceField>
                                 <ToggleField

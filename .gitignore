@@ -1,4 +1,5 @@
 .cache
+.gocache*
 .idea
 .vscode
 upload
