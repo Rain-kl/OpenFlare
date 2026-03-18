@@ -27,6 +27,8 @@ export interface DistributionItem {
   value: number;
 }
 
+export type CompactDistributionItem = [string, number];
+
 export interface TrafficTrendPoint {
   bucket_started_at: string;
   request_count: number;
@@ -98,4 +100,54 @@ export interface DashboardOverview {
   distributions: TrafficDistributions;
   trends: DashboardTrends;
   nodes: DashboardNodeHealth[];
+}
+
+export type CompactTrafficTrendPoint = [string, number, number, number];
+export type CompactCapacityTrendPoint = [string, number, number, number];
+export type CompactNetworkTrendPoint = [
+  string,
+  number,
+  number,
+  number,
+  number,
+  number,
+];
+export type CompactDiskIOTrendPoint = [string, number, number, number];
+export type CompactDashboardNodeHealth = [
+  number,
+  string,
+  string,
+  string,
+  number | null,
+  number | null,
+  DashboardNodeHealth['status'],
+  DashboardNodeHealth['openresty_status'],
+  string,
+  string,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+];
+
+export interface DashboardOverviewCompact {
+  generated_at: string;
+  summary: DashboardSummary;
+  traffic: DashboardTraffic;
+  capacity: DashboardCapacity;
+  distributions: {
+    status_codes: CompactDistributionItem[];
+    top_domains: CompactDistributionItem[];
+    source_countries: CompactDistributionItem[];
+  };
+  trends: {
+    traffic_24h: CompactTrafficTrendPoint[];
+    capacity_24h: CompactCapacityTrendPoint[];
+    network_24h: CompactNetworkTrendPoint[];
+    disk_io_24h: CompactDiskIOTrendPoint[];
+  };
+  nodes: CompactDashboardNodeHealth[];
 }
