@@ -679,6 +679,61 @@ func TestResolverDirectiveForDockerMode(t *testing.T) {
 	}
 }
 
+func TestWriteCertFilesKeepsBaseDirAndRemovesStaleFiles(t *testing.T) {
+	tempDir := t.TempDir()
+	certDir := filepath.Join(tempDir, "certs")
+	if err := os.MkdirAll(filepath.Join(certDir, "stale"), 0o755); err != nil {
+		t.Fatalf("MkdirAll failed: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(certDir, "stale", "old.crt"), []byte("old"), 0o644); err != nil {
+		t.Fatalf("WriteFile failed: %v", err)
+	}
+	manager := &Manager{CertDir: certDir}
+
+	if err := manager.writeCertFiles([]protocol.SupportFile{
+		{Path: "1.crt", Content: "cert"},
+		{Path: "1.key", Content: "key"},
+	}); err != nil {
+		t.Fatalf("writeCertFiles failed: %v", err)
+	}
+
+	if _, err := os.Stat(certDir); err != nil {
+		t.Fatalf("expected cert dir to persist, stat err = %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(certDir, "stale", "old.crt")); !os.IsNotExist(err) {
+		t.Fatalf("expected stale cert file to be removed, stat err = %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(certDir, "1.crt")); err != nil {
+		t.Fatalf("expected new cert file to exist, stat err = %v", err)
+	}
+}
+
+func TestEnsureLuaAssetsKeepsBaseDirAndRemovesStaleFiles(t *testing.T) {
+	tempDir := t.TempDir()
+	luaDir := filepath.Join(tempDir, "lua")
+	if err := os.MkdirAll(filepath.Join(luaDir, "stale"), 0o755); err != nil {
+		t.Fatalf("MkdirAll failed: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(luaDir, "stale", "old.lua"), []byte("old"), 0o644); err != nil {
+		t.Fatalf("WriteFile failed: %v", err)
+	}
+	manager := &Manager{LuaDir: luaDir}
+
+	if err := manager.EnsureLuaAssets(); err != nil {
+		t.Fatalf("EnsureLuaAssets failed: %v", err)
+	}
+
+	if _, err := os.Stat(luaDir); err != nil {
+		t.Fatalf("expected lua dir to persist, stat err = %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(luaDir, "stale", "old.lua")); !os.IsNotExist(err) {
+		t.Fatalf("expected stale lua file to be removed, stat err = %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(luaDir, "log.lua")); err != nil {
+		t.Fatalf("expected managed lua file to exist, stat err = %v", err)
+	}
+}
+
 func TestCertFileMode(t *testing.T) {
 	testCases := []struct {
 		path string
