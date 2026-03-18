@@ -8,6 +8,7 @@ export interface ProxyRouteItem {
   domain: string;
   origin_url: string;
   origin_host: string;
+  upstreams: string;
   enabled: boolean;
   enable_https: boolean;
   cert_id: number | null;
@@ -25,6 +26,7 @@ export interface ProxyRouteMutationPayload {
   domain: string;
   origin_url: string;
   origin_host: string;
+  upstreams: string[];
   enabled: boolean;
   enable_https: boolean;
   cert_id: number | null;

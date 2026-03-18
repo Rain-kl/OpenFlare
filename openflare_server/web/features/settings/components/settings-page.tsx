@@ -80,12 +80,12 @@ const defaultOperationFields = {
   OpenRestyWorkerRlimitNofile: '65535',
   OpenRestyEventsUse: 'epoll',
   OpenRestyEventsMultiAcceptEnabled: true,
-  OpenRestyKeepaliveTimeout: '65',
+  OpenRestyKeepaliveTimeout: '20',
   OpenRestyKeepaliveRequests: '1000',
   OpenRestyClientHeaderTimeout: '15',
   OpenRestyClientBodyTimeout: '15',
   OpenRestySendTimeout: '30',
-  OpenRestyProxyConnectTimeout: '5',
+  OpenRestyProxyConnectTimeout: '3',
   OpenRestyProxySendTimeout: '60',
   OpenRestyProxyReadTimeout: '60',
   OpenRestyProxyBufferingEnabled: true,
@@ -100,7 +100,7 @@ const defaultOperationFields = {
   OpenRestyCacheLevels: '1:2',
   OpenRestyCacheInactive: '30m',
   OpenRestyCacheMaxSize: '1g',
-  OpenRestyCacheKeyTemplate: '$scheme$proxy_host$request_uri',
+  OpenRestyCacheKeyTemplate: '$scheme$host$request_uri',
   OpenRestyCacheLockEnabled: true,
   OpenRestyCacheLockTimeout: '5s',
   OpenRestyCacheUseStale:
@@ -353,7 +353,7 @@ export function SettingsPage() {
         optionMap.OpenRestyEventsMultiAcceptEnabled,
         true,
       ),
-      OpenRestyKeepaliveTimeout: optionMap.OpenRestyKeepaliveTimeout ?? '65',
+      OpenRestyKeepaliveTimeout: optionMap.OpenRestyKeepaliveTimeout ?? '20',
       OpenRestyKeepaliveRequests:
         optionMap.OpenRestyKeepaliveRequests ?? '1000',
       OpenRestyClientHeaderTimeout:
@@ -361,7 +361,7 @@ export function SettingsPage() {
       OpenRestyClientBodyTimeout: optionMap.OpenRestyClientBodyTimeout ?? '15',
       OpenRestySendTimeout: optionMap.OpenRestySendTimeout ?? '30',
       OpenRestyProxyConnectTimeout:
-        optionMap.OpenRestyProxyConnectTimeout ?? '5',
+        optionMap.OpenRestyProxyConnectTimeout ?? '3',
       OpenRestyProxySendTimeout: optionMap.OpenRestyProxySendTimeout ?? '60',
       OpenRestyProxyReadTimeout: optionMap.OpenRestyProxyReadTimeout ?? '60',
       OpenRestyProxyBufferingEnabled: toBoolean(
@@ -381,7 +381,7 @@ export function SettingsPage() {
       OpenRestyCacheInactive: optionMap.OpenRestyCacheInactive ?? '30m',
       OpenRestyCacheMaxSize: optionMap.OpenRestyCacheMaxSize ?? '1g',
       OpenRestyCacheKeyTemplate:
-        optionMap.OpenRestyCacheKeyTemplate ?? '$scheme$proxy_host$request_uri',
+        optionMap.OpenRestyCacheKeyTemplate ?? '$scheme$host$request_uri',
       OpenRestyCacheLockEnabled: toBoolean(
         optionMap.OpenRestyCacheLockEnabled,
         true,

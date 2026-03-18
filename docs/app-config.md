@@ -85,6 +85,8 @@ OpenResty 性能参数与缓存参数继续统一保存在 `Option` 表。当前
 
 * `OpenRestyResolvers` 由管理端性能页面维护，支持填写多个 DNS 服务器 IP；留空时不额外生成 `resolver` 指令。
 * `OpenRestyCacheEnabled` 用于启用缓存基础设施与全局默认参数；实际是否缓存、按 URL / 后缀 / 路径等命中策略由各条 `proxy_routes` 单独决定，不再默认对所有规则开启缓存。
+* 默认缓存 Key 为 `$scheme$host$request_uri`，更贴近代理域名维度；如需按其他维度命中，可在性能页显式覆盖。
+* 默认 `keepalive_timeout` 为 `20` 秒，默认 `proxy_connect_timeout` 为 `3` 秒，优先兼顾资源占用与回源失败切换速度。
 * 默认事件模型为 `epoll`，并默认开启 `multi_accept`；HTTPS 监听默认附带 `reuseport`，以改善多 worker 下的连接分发。
 ### 1.5 前端构建环境变量
 

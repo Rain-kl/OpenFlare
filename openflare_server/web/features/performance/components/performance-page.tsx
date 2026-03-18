@@ -36,14 +36,14 @@ const defaultPerformanceFields = {
     OpenRestyWorkerRlimitNofile: '65535',
     OpenRestyEventsUse: 'epoll',
     OpenRestyEventsMultiAcceptEnabled: true,
-    OpenRestyKeepaliveTimeout: '65',
+    OpenRestyKeepaliveTimeout: '20',
     OpenRestyKeepaliveRequests: '1000',
     OpenRestyClientHeaderTimeout: '15',
     OpenRestyClientBodyTimeout: '15',
     OpenRestyClientMaxBodySize: '64m',
     OpenRestyLargeClientHeaderBuffers: '4 16k',
     OpenRestySendTimeout: '30',
-    OpenRestyProxyConnectTimeout: '5',
+    OpenRestyProxyConnectTimeout: '3',
     OpenRestyProxySendTimeout: '60',
     OpenRestyProxyReadTimeout: '60',
     OpenRestyWebsocketEnabled: true,
@@ -61,7 +61,7 @@ const defaultPerformanceFields = {
     OpenRestyCacheLevels: '1:2',
     OpenRestyCacheInactive: '30m',
     OpenRestyCacheMaxSize: '1g',
-    OpenRestyCacheKeyTemplate: '$scheme$proxy_host$request_uri',
+    OpenRestyCacheKeyTemplate: '$scheme$host$request_uri',
     OpenRestyCacheLockEnabled: true,
     OpenRestyCacheLockTimeout: '5s',
     OpenRestyCacheUseStale:
@@ -211,7 +211,7 @@ export function PerformancePage() {
                 optionMap.OpenRestyEventsMultiAcceptEnabled,
                 true,
             ),
-            OpenRestyKeepaliveTimeout: optionMap.OpenRestyKeepaliveTimeout ?? '65',
+            OpenRestyKeepaliveTimeout: optionMap.OpenRestyKeepaliveTimeout ?? '20',
             OpenRestyKeepaliveRequests:
                 optionMap.OpenRestyKeepaliveRequests ?? '1000',
             OpenRestyClientHeaderTimeout:
@@ -222,7 +222,7 @@ export function PerformancePage() {
                 optionMap.OpenRestyLargeClientHeaderBuffers ?? '4 16k',
             OpenRestySendTimeout: optionMap.OpenRestySendTimeout ?? '30',
             OpenRestyProxyConnectTimeout:
-                optionMap.OpenRestyProxyConnectTimeout ?? '5',
+                optionMap.OpenRestyProxyConnectTimeout ?? '3',
             OpenRestyProxySendTimeout: optionMap.OpenRestyProxySendTimeout ?? '60',
             OpenRestyProxyReadTimeout: optionMap.OpenRestyProxyReadTimeout ?? '60',
             OpenRestyWebsocketEnabled: toBoolean(
@@ -251,7 +251,7 @@ export function PerformancePage() {
             OpenRestyCacheInactive: optionMap.OpenRestyCacheInactive ?? '30m',
             OpenRestyCacheMaxSize: optionMap.OpenRestyCacheMaxSize ?? '1g',
             OpenRestyCacheKeyTemplate:
-                optionMap.OpenRestyCacheKeyTemplate ?? '$scheme$proxy_host$request_uri',
+                optionMap.OpenRestyCacheKeyTemplate ?? '$scheme$host$request_uri',
             OpenRestyCacheLockEnabled: toBoolean(
                 optionMap.OpenRestyCacheLockEnabled,
                 true,

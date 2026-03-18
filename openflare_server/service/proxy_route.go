@@ -27,6 +27,7 @@ type ProxyRouteInput struct {
 	Domain        string                        `json:"domain"`
 	OriginURL     string                        `json:"origin_url"`
 	OriginHost    string                        `json:"origin_host"`
+	Upstreams     []string                      `json:"upstreams"`
 	Enabled       bool                          `json:"enabled"`
 	EnableHTTPS   bool                          `json:"enable_https"`
 	CertID        *uint                         `json:"cert_id"`
@@ -87,6 +88,10 @@ func buildProxyRoute(route *model.ProxyRoute, input ProxyRouteInput) (*model.Pro
 	originURL := strings.TrimSpace(input.OriginURL)
 	originHost := strings.TrimSpace(input.OriginHost)
 	remark := strings.TrimSpace(input.Remark)
+	upstreams, err := normalizeUpstreams(originURL, input.Upstreams)
+	if err != nil {
+		return nil, err
+	}
 	cachePolicy := strings.TrimSpace(input.CachePolicy)
 	cacheRules, err := normalizeCacheRules(input.CacheEnabled, cachePolicy, input.CacheRules)
 	if err != nil {
@@ -100,6 +105,10 @@ func buildProxyRoute(route *model.ProxyRoute, input ProxyRouteInput) (*model.Pro
 	if err != nil {
 		return nil, err
 	}
+	upstreamsJSON, err := json.Marshal(upstreams)
+	if err != nil {
+		return nil, err
+	}
 	customHeadersJSON, err := json.Marshal(customHeaders)
 	if err != nil {
 		return nil, err
@@ -109,9 +118,6 @@ func buildProxyRoute(route *model.ProxyRoute, input ProxyRouteInput) (*model.Pro
 	}
 	if strings.Contains(domain, "://") || strings.Contains(domain, "/") {
 		return nil, errors.New("域名格式不合法")
-	}
-	if err := validateOriginURL(originURL); err != nil {
-		return nil, err
 	}
 	if err := validateOriginHost(originHost); err != nil {
 		return nil, err
@@ -135,8 +141,9 @@ func buildProxyRoute(route *model.ProxyRoute, input ProxyRouteInput) (*model.Pro
 		route = &model.ProxyRoute{}
 	}
 	route.Domain = domain
-	route.OriginURL = originURL
+	route.OriginURL = upstreams[0]
 	route.OriginHost = originHost
+	route.Upstreams = string(upstreamsJSON)
 	route.Enabled = input.Enabled
 	route.EnableHTTPS = input.EnableHTTPS
 	route.CertID = input.CertID
@@ -173,6 +180,59 @@ func normalizeCustomHeaders(headers []ProxyRouteCustomHeaderInput) ([]ProxyRoute
 			Key:   key,
 			Value: value,
 		})
+	}
+	return normalized, nil
+}
+
+func normalizeUpstreams(originURL string, upstreams []string) ([]string, error) {
+	candidates := make([]string, 0, len(upstreams)+1)
+	if strings.TrimSpace(originURL) != "" {
+		candidates = append(candidates, originURL)
+	}
+	candidates = append(candidates, upstreams...)
+	trimmed := make([]string, 0, len(candidates))
+	for _, candidate := range candidates {
+		item := strings.TrimSpace(candidate)
+		if item == "" {
+			continue
+		}
+		trimmed = append(trimmed, item)
+	}
+	unique := make([]string, 0, len(trimmed))
+	seen := make(map[string]struct{}, len(trimmed))
+	for _, item := range trimmed {
+		if _, ok := seen[item]; ok {
+			continue
+		}
+		seen[item] = struct{}{}
+		unique = append(unique, item)
+	}
+	normalized := make([]string, 0, len(unique))
+	var scheme string
+	multiUpstream := len(unique) > 1
+	for _, item := range unique {
+		if err := validateOriginURL(item); err != nil {
+			return nil, err
+		}
+		parsed, err := url.ParseRequestURI(item)
+		if err != nil {
+			return nil, errors.New("源站地址格式不合法")
+		}
+		if multiUpstream && parsed.Path != "" && parsed.Path != "/" {
+			return nil, errors.New("多上游模式暂不支持带路径的源站地址")
+		}
+		if multiUpstream && parsed.RawQuery != "" {
+			return nil, errors.New("多上游模式暂不支持带查询参数的源站地址")
+		}
+		if scheme == "" {
+			scheme = parsed.Scheme
+		} else if scheme != parsed.Scheme {
+			return nil, errors.New("同一规则的多个上游必须使用相同协议")
+		}
+		normalized = append(normalized, item)
+	}
+	if len(normalized) == 0 {
+		return nil, errors.New("至少填写一个上游地址")
 	}
 	return normalized, nil
 }
@@ -289,6 +349,18 @@ func decodeStoredCacheRules(raw string) ([]string, error) {
 		normalized = append(normalized, item)
 	}
 	return normalized, nil
+}
+
+func decodeStoredUpstreams(raw string, fallbackOriginURL string) ([]string, error) {
+	text := strings.TrimSpace(raw)
+	if text == "" {
+		return normalizeUpstreams(fallbackOriginURL, nil)
+	}
+	var upstreams []string
+	if err := json.Unmarshal([]byte(text), &upstreams); err != nil {
+		return nil, errors.New("上游配置格式不合法")
+	}
+	return normalizeUpstreams(fallbackOriginURL, upstreams)
 }
 
 func validateOriginURL(raw string) error {

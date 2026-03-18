@@ -46,6 +46,7 @@ func TestPhase1PublishLifecycle(t *testing.T) {
 	createBody := map[string]any{
 		"domain":        "app.example.com",
 		"origin_url":    "https://origin-a.internal",
+		"upstreams":     []string{"https://origin-a-backup.internal"},
 		"origin_host":   "origin-a.internal",
 		"enabled":       true,
 		"cache_enabled": true,
@@ -64,6 +65,9 @@ func TestPhase1PublishLifecycle(t *testing.T) {
 	}
 	if !createdRoute.CacheEnabled || createdRoute.CachePolicy != "path_prefix" {
 		t.Fatalf("expected route cache settings to persist, got %+v", createdRoute)
+	}
+	if !strings.Contains(createdRoute.Upstreams, "origin-a-backup.internal") {
+		t.Fatalf("expected route upstream list to persist, got %s", createdRoute.Upstreams)
 	}
 	if !strings.Contains(createdRoute.CacheRules, "/assets") {
 		t.Fatalf("expected route cache rules to persist, got %s", createdRoute.CacheRules)
@@ -114,6 +118,7 @@ func TestPhase1PublishLifecycle(t *testing.T) {
 	updateBody := map[string]any{
 		"domain":        "app.example.com",
 		"origin_url":    "https://origin-b.internal",
+		"upstreams":     []string{"https://origin-b-backup.internal"},
 		"origin_host":   "origin-b.internal",
 		"enabled":       true,
 		"cache_enabled": true,
@@ -132,6 +137,9 @@ func TestPhase1PublishLifecycle(t *testing.T) {
 	}
 	if createdRoute.CachePolicy != "path_exact" || !strings.Contains(createdRoute.CacheRules, "/robots.txt") {
 		t.Fatalf("expected updated route cache rules to persist, got %+v", createdRoute)
+	}
+	if !strings.Contains(createdRoute.Upstreams, "origin-b-backup.internal") {
+		t.Fatalf("expected updated route upstream list to persist, got %s", createdRoute.Upstreams)
 	}
 
 	resp = performJSONRequest(t, engine, token, http.MethodPost, "/api/config-versions/publish", nil)

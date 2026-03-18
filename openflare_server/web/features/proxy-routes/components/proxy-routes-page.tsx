@@ -89,6 +89,7 @@ const proxyRouteSchema = z
             })()),
         '请输入合法的回源主机名',
       ),
+    upstreams_text: z.string(),
     enabled: z.boolean(),
     enable_https: z.boolean(),
     cert_id: z.string(),
@@ -105,6 +106,15 @@ const proxyRouteSchema = z
         code: z.ZodIssueCode.custom,
         path: ['cert_id'],
         message: '启用 HTTPS 时必须选择证书',
+      });
+    }
+
+    const upstreams = parseUpstreamsText(value.origin_url, value.upstreams_text);
+    if (upstreams.length === 0) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['origin_url'],
+        message: '至少需要一个上游地址',
       });
     }
 
@@ -164,6 +174,7 @@ const defaultValues: ProxyRouteFormValues = {
   domain: '',
   origin_url: '',
   origin_host: '',
+  upstreams_text: '',
   enabled: true,
   enable_https: false,
   cert_id: '',
@@ -234,6 +245,25 @@ function parseCacheRulesText(value: string) {
     .filter(Boolean);
 }
 
+function parseUpstreams(rawValue: string) {
+  if (!rawValue) {
+    return [] as string[];
+  }
+
+  try {
+    const parsed = JSON.parse(rawValue) as string[];
+    return Array.isArray(parsed) ? parsed.filter(Boolean) : [];
+  } catch {
+    return [];
+  }
+}
+
+function parseUpstreamsText(primary: string, value: string) {
+  return [primary.trim(), ...value.split(/\r?\n/)]
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
 function buildCachePolicyLabel(policy: string) {
   switch (policy) {
     case 'suffix':
@@ -271,6 +301,7 @@ function toPayload(values: ProxyRouteFormValues): ProxyRouteMutationPayload {
     domain: values.domain.trim(),
     origin_url: values.origin_url.trim(),
     origin_host: values.origin_host.trim(),
+    upstreams: parseUpstreamsText(values.origin_url, values.upstreams_text).slice(1),
     enabled: values.enabled,
     enable_https: values.enable_https,
     cert_id:
@@ -291,11 +322,13 @@ function toPayload(values: ProxyRouteFormValues): ProxyRouteMutationPayload {
 function toFormValues(route: ProxyRouteItem): ProxyRouteFormValues {
   const headers = parseCustomHeaders(route.custom_headers);
   const cacheRules = parseCacheRules(route.cache_rules);
+  const upstreams = parseUpstreams(route.upstreams);
 
   return {
     domain: route.domain,
     origin_url: route.origin_url,
     origin_host: route.origin_host || '',
+    upstreams_text: upstreams.slice(1).join('\n'),
     enabled: route.enabled,
     enable_https: route.enable_https,
     cert_id: route.cert_id ? String(route.cert_id) : '',
@@ -608,6 +641,7 @@ export function ProxyRoutesPage() {
                   {routes.map((route) => {
                     const headers = parseCustomHeaders(route.custom_headers);
                     const cacheRules = parseCacheRules(route.cache_rules);
+                    const upstreams = parseUpstreams(route.upstreams);
 
                     return (
                       <tr key={route.id} className="align-top">
@@ -619,6 +653,9 @@ export function ProxyRoutesPage() {
                             <p>{route.origin_url}</p>
                             <p className="text-xs text-[var(--foreground-muted)]">
                               回源主机名: {route.origin_host || '$host'}
+                            </p>
+                            <p className="text-xs text-[var(--foreground-muted)]">
+                              上游数量: {Math.max(upstreams.length, 1)}
                             </p>
                           </div>
                         </td>
@@ -767,6 +804,17 @@ export function ProxyRoutesPage() {
           >
             <ResourceInput
               {...form.register('origin_host')}
+            />
+          </ResourceField>
+
+          <ResourceField
+            label="附加上游"
+            hint="可选。每行一个上游地址，用于同一规则下的负载均衡；需与主上游保持相同协议，且不能带路径或查询参数。"
+            error={form.formState.errors.upstreams_text?.message}
+          >
+            <ResourceTextarea
+              placeholder={'https://origin-b.internal\nhttps://origin-c.internal'}
+              {...form.register('upstreams_text')}
             />
           </ResourceField>
 

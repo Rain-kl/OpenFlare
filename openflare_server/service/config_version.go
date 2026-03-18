@@ -62,6 +62,7 @@ type snapshotRoute struct {
 	Domain        string                        `json:"domain"`
 	OriginURL     string                        `json:"origin_url"`
 	OriginHost    string                        `json:"origin_host,omitempty"`
+	Upstreams     []string                      `json:"upstreams,omitempty"`
 	Enabled       bool                          `json:"enabled"`
 	EnableHTTPS   bool                          `json:"enable_https"`
 	CertID        *uint                         `json:"cert_id,omitempty"`
@@ -82,7 +83,7 @@ type routeCacheConfig struct {
 type routeUpstreamConfig struct {
 	Name              string
 	Scheme            string
-	Address           string
+	Addresses         []string
 	UsesNamedUpstream bool
 }
 
@@ -408,6 +409,10 @@ func buildSnapshotRoutes(routes []*model.ProxyRoute) ([]snapshotRoute, error) {
 		if err != nil {
 			return nil, fmt.Errorf("路由 %s 自定义请求头无效", route.Domain)
 		}
+		upstreams, err := decodeStoredUpstreams(route.Upstreams, route.OriginURL)
+		if err != nil {
+			return nil, fmt.Errorf("路由 %s 上游配置无效", route.Domain)
+		}
 		cacheRules, err := decodeStoredCacheRules(route.CacheRules)
 		if err != nil {
 			return nil, fmt.Errorf("路由 %s 缓存规则无效", route.Domain)
@@ -416,6 +421,7 @@ func buildSnapshotRoutes(routes []*model.ProxyRoute) ([]snapshotRoute, error) {
 			Domain:        route.Domain,
 			OriginURL:     route.OriginURL,
 			OriginHost:    route.OriginHost,
+			Upstreams:     upstreams,
 			Enabled:       route.Enabled,
 			EnableHTTPS:   route.EnableHTTPS,
 			CertID:        route.CertID,
@@ -459,6 +465,11 @@ func normalizeSnapshotRoutes(routes []snapshotRoute) []snapshotRoute {
 		if err == nil {
 			routes[index].CustomHeaders = normalizedHeaders
 		}
+		normalizedUpstreams, err := normalizeUpstreams(routes[index].OriginURL, routes[index].Upstreams)
+		if err == nil {
+			routes[index].OriginURL = normalizedUpstreams[0]
+			routes[index].Upstreams = normalizedUpstreams
+		}
 		normalizedCacheRules, err := normalizeCacheRules(routes[index].CacheEnabled, routes[index].CachePolicy, routes[index].CacheRules)
 		if err == nil {
 			routes[index].CachePolicy = normalizeCachePolicy(routes[index].CacheEnabled, routes[index].CachePolicy)
@@ -471,6 +482,14 @@ func normalizeSnapshotRoutes(routes []snapshotRoute) []snapshotRoute {
 func snapshotRouteConfigEqual(left snapshotRoute, right snapshotRoute) bool {
 	if left.Domain != right.Domain || left.OriginURL != right.OriginURL || left.OriginHost != right.OriginHost || left.EnableHTTPS != right.EnableHTTPS || left.RedirectHTTP != right.RedirectHTTP || left.CacheEnabled != right.CacheEnabled || left.CachePolicy != right.CachePolicy || !uintPointerEqual(left.CertID, right.CertID) {
 		return false
+	}
+	if len(left.Upstreams) != len(right.Upstreams) {
+		return false
+	}
+	for index := range left.Upstreams {
+		if left.Upstreams[index] != right.Upstreams[index] {
+			return false
+		}
 	}
 	if len(left.CacheRules) != len(right.CacheRules) {
 		return false
@@ -648,6 +667,10 @@ func renderRouteConfig(routes []*model.ProxyRoute, cfg openRestyConfigSnapshot) 
 		if err != nil {
 			return "", nil, fmt.Errorf("路由 %s 自定义请求头无效", route.Domain)
 		}
+		upstreams, err := decodeStoredUpstreams(route.Upstreams, route.OriginURL)
+		if err != nil {
+			return "", nil, fmt.Errorf("路由 %s 上游配置无效", route.Domain)
+		}
 		cacheRules, err := decodeStoredCacheRules(route.CacheRules)
 		if err != nil {
 			return "", nil, fmt.Errorf("路由 %s 缓存规则无效", route.Domain)
@@ -657,7 +680,7 @@ func renderRouteConfig(routes []*model.ProxyRoute, cfg openRestyConfigSnapshot) 
 			Policy:  route.CachePolicy,
 			Rules:   cacheRules,
 		}
-		upstreamConfig := buildRouteUpstreamConfig(route, cfg)
+		upstreamConfig := buildRouteUpstreamConfig(route, upstreams, cfg)
 		if upstreamConfig.UsesNamedUpstream {
 			builder.WriteString(renderNamedUpstreamBlock(upstreamConfig))
 		}
@@ -965,24 +988,55 @@ func renderProxyPassBlock(originURL string, upstreamConfig routeUpstreamConfig, 
 	return builder.String()
 }
 
-func buildRouteUpstreamConfig(route *model.ProxyRoute, cfg openRestyConfigSnapshot) routeUpstreamConfig {
-	parsed, err := url.Parse(strings.TrimSpace(route.OriginURL))
-	if err != nil || parsed.Host == "" || parsed.Scheme == "" {
+func buildRouteUpstreamConfig(route *model.ProxyRoute, upstreams []string, cfg openRestyConfigSnapshot) routeUpstreamConfig {
+	if len(upstreams) == 0 {
 		return routeUpstreamConfig{}
 	}
-	if shouldUseRuntimeResolver(route.OriginURL, cfg.Resolvers) {
-		return routeUpstreamConfig{}
+	if len(upstreams) == 1 {
+		parsed, err := url.Parse(strings.TrimSpace(upstreams[0]))
+		if err != nil || parsed.Host == "" || parsed.Scheme == "" {
+			return routeUpstreamConfig{}
+		}
+		if shouldUseRuntimeResolver(upstreams[0], cfg.Resolvers) {
+			return routeUpstreamConfig{}
+		}
+		if strings.TrimSpace(parsed.EscapedPath()) != "" && strings.TrimSpace(parsed.EscapedPath()) != "/" {
+			return routeUpstreamConfig{}
+		}
+		if parsed.RawQuery != "" {
+			return routeUpstreamConfig{}
+		}
+		return routeUpstreamConfig{
+			Name:              buildRouteUpstreamName(route),
+			Scheme:            parsed.Scheme,
+			Addresses:         []string{parsed.Host},
+			UsesNamedUpstream: true,
+		}
 	}
-	if strings.TrimSpace(parsed.EscapedPath()) != "" && strings.TrimSpace(parsed.EscapedPath()) != "/" {
-		return routeUpstreamConfig{}
-	}
-	if parsed.RawQuery != "" {
-		return routeUpstreamConfig{}
+	addresses := make([]string, 0, len(upstreams))
+	var scheme string
+	for _, upstream := range upstreams {
+		parsed, err := url.Parse(strings.TrimSpace(upstream))
+		if err != nil || parsed.Host == "" || parsed.Scheme == "" {
+			return routeUpstreamConfig{}
+		}
+		if strings.TrimSpace(parsed.EscapedPath()) != "" && strings.TrimSpace(parsed.EscapedPath()) != "/" {
+			return routeUpstreamConfig{}
+		}
+		if parsed.RawQuery != "" {
+			return routeUpstreamConfig{}
+		}
+		if scheme == "" {
+			scheme = parsed.Scheme
+		} else if scheme != parsed.Scheme {
+			return routeUpstreamConfig{}
+		}
+		addresses = append(addresses, parsed.Host)
 	}
 	return routeUpstreamConfig{
 		Name:              buildRouteUpstreamName(route),
-		Scheme:            parsed.Scheme,
-		Address:           parsed.Host,
+		Scheme:            scheme,
+		Addresses:         addresses,
 		UsesNamedUpstream: true,
 	}
 }
@@ -1008,7 +1062,13 @@ func buildRouteUpstreamName(route *model.ProxyRoute) string {
 }
 
 func renderNamedUpstreamBlock(upstreamConfig routeUpstreamConfig) string {
-	return fmt.Sprintf("upstream %s {\n    server %s max_fails=3 fail_timeout=10s;\n    keepalive 128;\n}\n\n", upstreamConfig.Name, upstreamConfig.Address)
+	var builder strings.Builder
+	builder.WriteString(fmt.Sprintf("upstream %s {\n", upstreamConfig.Name))
+	for _, address := range upstreamConfig.Addresses {
+		builder.WriteString(fmt.Sprintf("    server %s max_fails=3 fail_timeout=10s;\n", address))
+	}
+	builder.WriteString("    keepalive 128;\n}\n\n")
+	return builder.String()
 }
 
 func shouldUseRuntimeResolver(originURL string, resolvers string) bool {

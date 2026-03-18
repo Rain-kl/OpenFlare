@@ -7,6 +7,7 @@ type ProxyRoute struct {
 	Domain        string    `json:"domain" gorm:"uniqueIndex;size:255;not null"`
 	OriginURL     string    `json:"origin_url" gorm:"size:2048;not null"`
 	OriginHost    string    `json:"origin_host" gorm:"size:255"`
+	Upstreams     string    `json:"upstreams" gorm:"type:text;not null;default:'[]'"`
 	Enabled       bool      `json:"enabled" gorm:"not null;default:true"`
 	EnableHTTPS   bool      `json:"enable_https" gorm:"column:enable_https;not null;default:false"`
 	CertID        *uint     `json:"cert_id"`
@@ -45,6 +46,7 @@ func (route *ProxyRoute) Update() error {
 		"domain":         route.Domain,
 		"origin_url":     route.OriginURL,
 		"origin_host":    route.OriginHost,
+		"upstreams":      route.Upstreams,
 		"enabled":        route.Enabled,
 		"enable_https":   route.EnableHTTPS,
 		"cert_id":        route.CertID,

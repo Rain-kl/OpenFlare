@@ -119,10 +119,11 @@ Origin
 
 稳定约束：
 
-* 一个域名只对应一个 `origin_url`
+* 一个域名只对应一条 `proxy_routes` 规则
+* `proxy_routes` 至少包含一个上游地址；为兼容历史数据保留 `origin_url` 主上游字段，也允许在同一规则内补充多个上游做负载均衡
 * `proxy_routes.origin_host` 为可选字段，用于回源时覆盖 `Host` 请求头；未设置时默认透传访问域名
 * `proxy_routes.domain` 必须唯一
-* `origin_url` 必须为合法 `http://` 或 `https://`
+* 所有上游地址都必须为合法 `http://` 或 `https://`
 * `config_versions` 必须保存完整快照、渲染结果与 `checksum`
 * 全局同时只能有一个激活版本
 * 回滚通过重新激活旧版本实现

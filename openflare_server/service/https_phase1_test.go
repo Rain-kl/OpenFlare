@@ -72,6 +72,12 @@ func TestCreateTLSCertificateAndRenderHTTPSConfig(t *testing.T) {
 	if !strings.Contains(result.Version.MainConfig, "multi_accept on;") {
 		t.Fatal("expected main config to default multi_accept to on")
 	}
+	if !strings.Contains(result.Version.MainConfig, "keepalive_timeout 20;") {
+		t.Fatal("expected main config to default keepalive_timeout to 20")
+	}
+	if !strings.Contains(result.Version.MainConfig, "proxy_connect_timeout 3;") {
+		t.Fatal("expected main config to default proxy_connect_timeout to 3")
+	}
 	if strings.Contains(result.Version.MainConfig, "allow 127.0.0.1;") {
 		t.Fatal("expected main config to avoid hard-coded allow rules on observability server")
 	}
@@ -212,6 +218,9 @@ func TestPublishConfigVersionRendersRouteLevelCachePolicy(t *testing.T) {
 	if !strings.Contains(result.Version.MainConfig, "proxy_cache_path /var/cache/openresty/openflare") {
 		t.Fatal("expected main config to include cache zone when cache infra is enabled")
 	}
+	if !strings.Contains(result.Version.MainConfig, `proxy_cache_key "$scheme$host$request_uri";`) {
+		t.Fatal("expected main config to default cache key to host dimension")
+	}
 	if !strings.Contains(result.Version.RenderedConfig, "proxy_cache_methods GET;") {
 		t.Fatal("expected rendered config to only cache GET requests")
 	}
@@ -241,6 +250,50 @@ func TestPublishConfigVersionRendersRouteLevelCachePolicy(t *testing.T) {
 	}
 	if !strings.Contains(result.Version.SnapshotJSON, `"cache_policy":"suffix"`) {
 		t.Fatal("expected snapshot to include route cache policy")
+	}
+}
+
+func TestPublishConfigVersionRendersMultipleUpstreams(t *testing.T) {
+	setupServiceTestDB(t)
+
+	route, err := CreateProxyRoute(ProxyRouteInput{
+		Domain:     "lb.example.com",
+		OriginURL:  "http://c1:39010",
+		Upstreams:  []string{"http://c2:39010", "http://c3:39010"},
+		Enabled:    true,
+		OriginHost: "lb.example.com",
+	})
+	if err != nil {
+		t.Fatalf("CreateProxyRoute failed: %v", err)
+	}
+	if !strings.Contains(route.Upstreams, "c2:39010") {
+		t.Fatalf("expected route upstreams to persist, got %s", route.Upstreams)
+	}
+
+	result, err := PublishConfigVersion("root")
+	if err != nil {
+		t.Fatalf("PublishConfigVersion failed: %v", err)
+	}
+	if !strings.Contains(result.Version.RenderedConfig, "upstream backend_lb_example_com_1 {") {
+		t.Fatal("expected rendered config to define upstream block for load balancing route")
+	}
+	if strings.Count(result.Version.RenderedConfig, "server c") < 3 {
+		t.Fatal("expected rendered config to include every upstream server")
+	}
+	if !strings.Contains(result.Version.RenderedConfig, "server c1:39010 max_fails=3 fail_timeout=10s;") {
+		t.Fatal("expected rendered config to include primary upstream server")
+	}
+	if !strings.Contains(result.Version.RenderedConfig, "server c2:39010 max_fails=3 fail_timeout=10s;") {
+		t.Fatal("expected rendered config to include secondary upstream server")
+	}
+	if !strings.Contains(result.Version.RenderedConfig, "server c3:39010 max_fails=3 fail_timeout=10s;") {
+		t.Fatal("expected rendered config to include tertiary upstream server")
+	}
+	if !strings.Contains(result.Version.RenderedConfig, "proxy_pass http://backend_lb_example_com_1;") {
+		t.Fatal("expected rendered config to proxy through load balancing upstream")
+	}
+	if !strings.Contains(result.Version.SnapshotJSON, `"upstreams":["http://c1:39010","http://c2:39010","http://c3:39010"]`) {
+		t.Fatal("expected snapshot to include upstream list")
 	}
 }
 
