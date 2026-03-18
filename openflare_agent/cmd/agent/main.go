@@ -73,6 +73,7 @@ func main() {
 		NginxLuaDir:                  cfg.OpenrestyLuaDir,
 		OpenrestyObservabilityListen: nginx.ObservabilityListenAddress(cfg.OpenrestyPath, cfg.OpenrestyObservabilityPort),
 		OpenrestyObservabilityPort:   cfg.OpenrestyObservabilityPort,
+		OpenrestyResolverDirective:   nginx.ResolverDirective(cfg.OpenrestyPath),
 		Executor: nginx.NewExecutor(nginx.ExecutorOptions{
 			NginxPath:                  cfg.OpenrestyPath,
 			DockerBinary:               cfg.DockerBinary,

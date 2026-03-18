@@ -24,6 +24,7 @@ const AccessLogPlaceholder = "__OPENFLARE_ACCESS_LOG__"
 const LuaDirPlaceholder = "__OPENFLARE_LUA_DIR__"
 const ObservabilityListenPlaceholder = "__OPENFLARE_OBSERVABILITY_LISTEN__"
 const ObservabilityPortPlaceholder = "__OPENFLARE_OBSERVABILITY_PORT__"
+const ResolverDirectivePlaceholder = "__OPENFLARE_RESOLVER_DIRECTIVE__"
 const DockerMainConfigPath = "/usr/local/openresty/nginx/conf/nginx.conf"
 const DockerRouteConfigPath = "/etc/nginx/conf.d/openflare_routes.conf"
 const DockerAccessLogPath = "/etc/nginx/conf.d/openflare_access.log"
@@ -171,7 +172,7 @@ func (e *DockerExecutor) CheckHealth(ctx context.Context) error {
 		return fmt.Errorf("docker inspect openresty failed: %w: %s", err, string(output))
 	}
 	if strings.TrimSpace(string(output)) != "true" {
-		return errors.New("docker openresty container is not running")
+		return e.containerNotRunningError(ctx)
 	}
 	return nil
 }
@@ -235,6 +236,46 @@ func (e *DockerExecutor) validateMountSources() error {
 	return nil
 }
 
+func (e *DockerExecutor) containerNotRunningError(ctx context.Context) error {
+	inspectSummary := ""
+	inspectOutput, inspectErr := e.Runner.Run(ctx, e.DockerBinary, "inspect", "-f", "status={{.State.Status}} exit_code={{.State.ExitCode}} error={{printf \"%q\" .State.Error}} oom_killed={{.State.OOMKilled}} finished_at={{.State.FinishedAt}}", e.ContainerName)
+	if inspectErr == nil {
+		inspectSummary = strings.TrimSpace(string(inspectOutput))
+	}
+
+	logTail := ""
+	logOutput, logErr := e.Runner.Run(ctx, e.DockerBinary, "logs", "--tail", "50", e.ContainerName)
+	if logErr == nil {
+		logTail = strings.TrimSpace(string(logOutput))
+	}
+
+	message := "docker openresty container is not running"
+	if inspectSummary != "" {
+		message += ": " + inspectSummary
+	}
+	if logTail != "" {
+		message += "; recent logs: " + compactDiagnosticText(logTail)
+	}
+	return errors.New(message)
+}
+
+func compactDiagnosticText(text string) string {
+	trimmed := strings.TrimSpace(text)
+	if trimmed == "" {
+		return ""
+	}
+	lines := strings.Split(trimmed, "\n")
+	if len(lines) > 8 {
+		lines = lines[len(lines)-8:]
+	}
+	joined := strings.Join(lines, " | ")
+	joined = strings.Join(strings.Fields(joined), " ")
+	if len(joined) > 800 {
+		return joined[len(joined)-800:]
+	}
+	return joined
+}
+
 func ensureRegularFile(path string, label string) error {
 	cleanPath := strings.TrimSpace(path)
 	if cleanPath == "" {
@@ -281,6 +322,7 @@ type Manager struct {
 	NginxLuaDir                  string
 	OpenrestyObservabilityListen string
 	OpenrestyObservabilityPort   int
+	OpenrestyResolverDirective   string
 	Executor                     Executor
 }
 
@@ -405,6 +447,9 @@ func (m *Manager) CurrentChecksum() (string, error) {
 	}
 	if m.OpenrestyObservabilityPort > 0 {
 		normalizedMain = strings.ReplaceAll(normalizedMain, fmt.Sprintf("%d", m.OpenrestyObservabilityPort), ObservabilityPortPlaceholder)
+	}
+	if resolverDirective := strings.TrimSpace(m.OpenrestyResolverDirective); resolverDirective != "" {
+		normalizedMain = strings.ReplaceAll(normalizedMain, resolverDirective, ResolverDirectivePlaceholder)
 	}
 	normalizedRoute := string(data)
 	if m.NginxCertDir != "" {
@@ -807,6 +852,9 @@ func (m *Manager) renderMainConfig(content string) string {
 	if m.OpenrestyObservabilityPort > 0 {
 		rendered = strings.ReplaceAll(rendered, ObservabilityPortPlaceholder, fmt.Sprintf("%d", m.OpenrestyObservabilityPort))
 	}
+	if resolverDirective := strings.TrimSpace(m.OpenrestyResolverDirective); resolverDirective != "" {
+		rendered = strings.ReplaceAll(rendered, ResolverDirectivePlaceholder, resolverDirective)
+	}
 	return rendered
 }
 
@@ -818,6 +866,43 @@ func ObservabilityListenAddress(openrestyPath string, port int) string {
 		return fmt.Sprintf("127.0.0.1:%d", port)
 	}
 	return fmt.Sprintf("%d", port)
+}
+
+func ResolverDirective(openrestyPath string) string {
+	resolvers := resolverAddresses(openrestyPath)
+	if len(resolvers) == 0 {
+		return ""
+	}
+	return fmt.Sprintf("    resolver %s valid=30s ipv6=off;\n    resolver_timeout 5s;\n", strings.Join(resolvers, " "))
+}
+
+func resolverAddresses(openrestyPath string) []string {
+	if strings.TrimSpace(openrestyPath) == "" {
+		return []string{"127.0.0.11"}
+	}
+	data, err := os.ReadFile("/etc/resolv.conf")
+	if err != nil {
+		return nil
+	}
+	lines := strings.Split(string(data), "\n")
+	resolvers := make([]string, 0, 2)
+	seen := make(map[string]struct{})
+	for _, line := range lines {
+		fields := strings.Fields(strings.TrimSpace(line))
+		if len(fields) < 2 || fields[0] != "nameserver" {
+			continue
+		}
+		addr := strings.TrimSpace(fields[1])
+		if addr == "" {
+			continue
+		}
+		if _, ok := seen[addr]; ok {
+			continue
+		}
+		seen[addr] = struct{}{}
+		resolvers = append(resolvers, addr)
+	}
+	return resolvers
 }
 
 func (m *Manager) routeConfigIncludePath() string {

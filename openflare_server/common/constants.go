@@ -125,7 +125,7 @@ http {
     gzip {{OpenRestyGzip}};
     gzip_min_length {{OpenRestyGzipMinLength}};
     gzip_comp_level {{OpenRestyGzipCompLevel}};
-{{OpenRestyCacheBlock}}    include {{OpenRestyRouteConfigInclude}};
+{{OpenRestyResolverDirective}}{{OpenRestyCacheBlock}}    include {{OpenRestyRouteConfigInclude}};
 }
 `
 

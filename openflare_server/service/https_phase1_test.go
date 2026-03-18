@@ -63,6 +63,9 @@ func TestCreateTLSCertificateAndRenderHTTPSConfig(t *testing.T) {
 	if !strings.Contains(result.Version.MainConfig, "listen __OPENFLARE_OBSERVABILITY_LISTEN__;") {
 		t.Fatal("expected main config to include managed openresty observability listen placeholder")
 	}
+	if !strings.Contains(result.Version.MainConfig, "__OPENFLARE_RESOLVER_DIRECTIVE__") {
+		t.Fatal("expected main config to include managed resolver directive placeholder")
+	}
 	if strings.Contains(result.Version.MainConfig, "allow 127.0.0.1;") {
 		t.Fatal("expected main config to avoid hard-coded allow rules on observability server")
 	}
@@ -138,6 +141,12 @@ func TestPublishConfigVersionRendersCustomHeaders(t *testing.T) {
 	if !strings.Contains(result.Version.RenderedConfig, "proxy_set_header Connection $http_connection;") {
 		t.Fatal("expected rendered config to forward websocket connection header")
 	}
+	if !strings.Contains(result.Version.RenderedConfig, `set $openflare_upstream "https://origin.internal";`) {
+		t.Fatal("expected rendered config to defer upstream resolution via variable proxy_pass")
+	}
+	if !strings.Contains(result.Version.RenderedConfig, "proxy_pass $openflare_upstream$request_uri;") {
+		t.Fatal("expected rendered config to proxy via runtime-resolved upstream variable")
+	}
 }
 
 func TestPublishConfigVersionOverridesOriginHostHeader(t *testing.T) {
@@ -165,6 +174,9 @@ func TestPublishConfigVersionOverridesOriginHostHeader(t *testing.T) {
 	}
 	if !strings.Contains(result.Version.RenderedConfig, `proxy_ssl_name "git.arctel.net";`) {
 		t.Fatal("expected rendered config to set proxy ssl name from origin host override")
+	}
+	if !strings.Contains(result.Version.RenderedConfig, `set $openflare_upstream "https://git.arctel.net";`) {
+		t.Fatal("expected rendered config to avoid resolving https upstream during config load")
 	}
 	if !strings.Contains(result.Version.SnapshotJSON, `"origin_host":"git.arctel.net"`) {
 		t.Fatal("expected snapshot to include origin_host override")

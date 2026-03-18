@@ -113,6 +113,15 @@ func TestPathExecutorRestartIgnoresMissingPID(t *testing.T) {
 func TestDockerExecutorCheckHealthFailsWhenContainerStopped(t *testing.T) {
 	runner := &fakeRunner{
 		runFn: func(name string, args ...string) ([]byte, error) {
+			if len(args) >= 4 && args[0] == "inspect" && args[2] == "{{.State.Running}}" {
+				return []byte("false"), nil
+			}
+			if len(args) >= 4 && args[0] == "inspect" {
+				return []byte("status=exited exit_code=1 error=\"\" oom_killed=false finished_at=2026-03-18T10:08:30Z"), nil
+			}
+			if len(args) >= 1 && args[0] == "logs" {
+				return []byte("nginx: [emerg] host not found in upstream \"c1\" in /etc/nginx/conf.d/openflare_routes.conf:30"), nil
+			}
 			return []byte("false"), nil
 		},
 	}
@@ -130,6 +139,14 @@ func TestDockerExecutorCheckHealthFailsWhenContainerStopped(t *testing.T) {
 	}
 	if err := executor.CheckHealth(context.Background()); err == nil {
 		t.Fatal("expected CheckHealth to fail when container is not running")
+	} else {
+		text := err.Error()
+		if !strings.Contains(text, "exit_code=1") {
+			t.Fatalf("expected exit code in health error, got %v", err)
+		}
+		if !strings.Contains(text, "host not found in upstream") {
+			t.Fatalf("expected recent docker logs in health error, got %v", err)
+		}
 	}
 }
 
@@ -610,10 +627,11 @@ func TestManagerApplyWritesSupportFilesAndReplacesPlaceholder(t *testing.T) {
 		LuaDir:                       filepath.Join(tempDir, "lua"),
 		NginxLuaDir:                  "/etc/nginx/openflare-lua",
 		OpenrestyObservabilityListen: "18081",
+		OpenrestyResolverDirective:   "    resolver 127.0.0.11 valid=30s ipv6=off;\n    resolver_timeout 5s;\n",
 		Executor:                     &fakeExecutor{},
 	}
 
-	err := manager.Apply(context.Background(), "include __OPENFLARE_ROUTE_CONFIG__;\nserver { listen __OPENFLARE_OBSERVABILITY_LISTEN__; }", "ssl_certificate __OPENFLARE_CERT_DIR__/1.crt;", []protocol.SupportFile{
+	err := manager.Apply(context.Background(), "include __OPENFLARE_ROUTE_CONFIG__;\n__OPENFLARE_RESOLVER_DIRECTIVE__server { listen __OPENFLARE_OBSERVABILITY_LISTEN__; }", "ssl_certificate __OPENFLARE_CERT_DIR__/1.crt;", []protocol.SupportFile{
 		{Path: "1.crt", Content: "cert-data"},
 		{Path: "1.key", Content: "key-data"},
 	})
@@ -635,6 +653,9 @@ func TestManagerApplyWritesSupportFilesAndReplacesPlaceholder(t *testing.T) {
 	if !strings.Contains(string(mainData), "listen 18081;") {
 		t.Fatalf("expected observability listen placeholder replacement in main config, got %s", string(mainData))
 	}
+	if !strings.Contains(string(mainData), "resolver 127.0.0.11 valid=30s ipv6=off;") {
+		t.Fatalf("expected resolver directive placeholder replacement in main config, got %s", string(mainData))
+	}
 	certData, err := os.ReadFile(filepath.Join(manager.CertDir, "1.crt"))
 	if err != nil {
 		t.Fatalf("failed to read cert file: %v", err)
@@ -648,6 +669,13 @@ func TestManagerApplyWritesSupportFilesAndReplacesPlaceholder(t *testing.T) {
 	}
 	if luaInfo.Mode().Perm() != 0o644 {
 		t.Fatalf("unexpected lua mode: %o", luaInfo.Mode().Perm())
+	}
+}
+
+func TestResolverDirectiveForDockerMode(t *testing.T) {
+	got := ResolverDirective("")
+	if !strings.Contains(got, "resolver 127.0.0.11") {
+		t.Fatalf("expected docker resolver directive, got %q", got)
 	}
 }
 
