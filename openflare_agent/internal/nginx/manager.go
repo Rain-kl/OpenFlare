@@ -116,6 +116,9 @@ type DockerExecutor struct {
 
 func (e *DockerExecutor) Test(ctx context.Context) error {
 	slog.Debug("running docker openresty test", "container", e.ContainerName, "image", e.Image)
+	if err := e.validateMountSources(); err != nil {
+		return err
+	}
 	output, err := e.runEphemeralRuntimeCommand(ctx, "-t")
 	if err != nil {
 		return fmt.Errorf("docker %s -t failed: %w: %s", dockerRuntimeCommand, err, string(output))
@@ -182,6 +185,9 @@ func (e *DockerExecutor) removeContainer(ctx context.Context) error {
 
 func (e *DockerExecutor) runContainer(ctx context.Context) error {
 	slog.Info("starting docker openresty container", "container", e.ContainerName, "image", e.Image)
+	if err := e.validateMountSources(); err != nil {
+		return err
+	}
 	runArgs := []string{
 		"run", "-d",
 		"--name", e.ContainerName,
@@ -199,6 +205,58 @@ func (e *DockerExecutor) runContainer(ctx context.Context) error {
 		return fmt.Errorf("docker run openresty failed: %w: %s", runErr, string(runOutput))
 	}
 	slog.Info("docker openresty container started", "container", e.ContainerName)
+	return nil
+}
+
+func (e *DockerExecutor) validateMountSources() error {
+	if err := ensureRegularFile(e.MainConfigPath, "openresty main config"); err != nil {
+		return err
+	}
+	if err := ensureDirectory(e.RouteConfigDir, "openresty route config dir"); err != nil {
+		return err
+	}
+	if err := ensureDirectory(e.CertDir, "openresty cert dir"); err != nil {
+		return err
+	}
+	if err := ensureDirectory(e.LuaDir, "openresty lua dir"); err != nil {
+		return err
+	}
+	return nil
+}
+
+func ensureRegularFile(path string, label string) error {
+	cleanPath := strings.TrimSpace(path)
+	if cleanPath == "" {
+		return fmt.Errorf("%s path is empty", label)
+	}
+	info, err := os.Stat(cleanPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return fmt.Errorf("%s %q does not exist; run a config apply first so Docker does not create a directory mount source", label, cleanPath)
+		}
+		return fmt.Errorf("stat %s %q failed: %w", label, cleanPath, err)
+	}
+	if info.IsDir() {
+		return fmt.Errorf("%s %q is a directory; expected a file for Docker bind mount", label, cleanPath)
+	}
+	return nil
+}
+
+func ensureDirectory(path string, label string) error {
+	cleanPath := strings.TrimSpace(path)
+	if cleanPath == "" {
+		return fmt.Errorf("%s path is empty", label)
+	}
+	info, err := os.Stat(cleanPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return fmt.Errorf("%s %q does not exist; expected a directory for Docker bind mount", label, cleanPath)
+		}
+		return fmt.Errorf("stat %s %q failed: %w", label, cleanPath, err)
+	}
+	if !info.IsDir() {
+		return fmt.Errorf("%s %q is not a directory; expected a directory for Docker bind mount", label, cleanPath)
+	}
 	return nil
 }
 

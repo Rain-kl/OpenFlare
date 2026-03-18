@@ -133,7 +133,27 @@ func TestDockerExecutorCheckHealthFailsWhenContainerStopped(t *testing.T) {
 	}
 }
 
+func prepareDockerMountSources(t *testing.T) (string, string, string, string) {
+	t.Helper()
+	tempDir := t.TempDir()
+	mainConfigPath := filepath.Join(tempDir, "nginx.conf")
+	routeConfigDir := filepath.Join(tempDir, "conf.d")
+	certDir := filepath.Join(tempDir, "certs")
+	luaDir := filepath.Join(tempDir, "lua")
+
+	if err := os.WriteFile(mainConfigPath, []byte("events {}\nhttp {}\n"), 0o644); err != nil {
+		t.Fatalf("WriteFile failed: %v", err)
+	}
+	for _, dir := range []string{routeConfigDir, certDir, luaDir} {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatalf("MkdirAll failed: %v", err)
+		}
+	}
+	return mainConfigPath, routeConfigDir, certDir, luaDir
+}
+
 func TestDockerExecutorStartsContainerWhenMissing(t *testing.T) {
+	mainConfigPath, routeConfigDir, certDir, luaDir := prepareDockerMountSources(t)
 	runner := &fakeRunner{
 		runFn: func(name string, args ...string) ([]byte, error) {
 			if len(args) >= 1 && args[0] == "inspect" {
@@ -146,11 +166,11 @@ func TestDockerExecutorStartsContainerWhenMissing(t *testing.T) {
 		DockerBinary:   "docker",
 		ContainerName:  "openflare-openresty",
 		Image:          "openresty/openresty:alpine",
-		MainConfigPath: filepath.Clean("/tmp/nginx.conf"),
-		RouteConfigDir: filepath.Clean("/tmp/routes"),
-		CertDir:        filepath.Clean("/tmp/certs"),
+		MainConfigPath: mainConfigPath,
+		RouteConfigDir: routeConfigDir,
+		CertDir:        certDir,
 		NginxCertDir:   "/etc/nginx/openflare-certs",
-		LuaDir:         filepath.Clean("/tmp/lua"),
+		LuaDir:         luaDir,
 		NginxLuaDir:    "/etc/nginx/openflare-lua",
 		Runner:         runner,
 	}
@@ -171,6 +191,7 @@ func TestDockerExecutorStartsContainerWhenMissing(t *testing.T) {
 }
 
 func TestDockerExecutorStartsStoppedContainer(t *testing.T) {
+	mainConfigPath, routeConfigDir, certDir, luaDir := prepareDockerMountSources(t)
 	runner := &fakeRunner{
 		runFn: func(name string, args ...string) ([]byte, error) {
 			if len(args) >= 2 && args[0] == "inspect" {
@@ -183,11 +204,11 @@ func TestDockerExecutorStartsStoppedContainer(t *testing.T) {
 		DockerBinary:   "docker",
 		ContainerName:  "openflare-openresty",
 		Image:          "openresty/openresty:alpine",
-		MainConfigPath: filepath.Clean("/tmp/nginx.conf"),
-		RouteConfigDir: filepath.Clean("/tmp/routes"),
-		CertDir:        filepath.Clean("/tmp/certs"),
+		MainConfigPath: mainConfigPath,
+		RouteConfigDir: routeConfigDir,
+		CertDir:        certDir,
 		NginxCertDir:   "/etc/nginx/openflare-certs",
-		LuaDir:         filepath.Clean("/tmp/lua"),
+		LuaDir:         luaDir,
 		NginxLuaDir:    "/etc/nginx/openflare-lua",
 		Runner:         runner,
 	}
@@ -211,10 +232,7 @@ func TestDockerExecutorStartsStoppedContainer(t *testing.T) {
 }
 
 func TestDockerExecutorRunContainerMountsManagedFiles(t *testing.T) {
-	mainConfigPath := filepath.Clean("/tmp/managed/nginx.conf")
-	routeConfigDir := filepath.Clean("/tmp/managed/conf.d")
-	certDir := filepath.Clean("/tmp/managed/certs")
-	luaDir := filepath.Clean("/tmp/managed/lua")
+	mainConfigPath, routeConfigDir, certDir, luaDir := prepareDockerMountSources(t)
 	runner := &fakeRunner{}
 	executor := &DockerExecutor{
 		DockerBinary:               "docker",
@@ -256,6 +274,7 @@ func TestDockerExecutorRunContainerMountsManagedFiles(t *testing.T) {
 }
 
 func TestDockerExecutorRecreatesContainerOnStartup(t *testing.T) {
+	mainConfigPath, routeConfigDir, certDir, luaDir := prepareDockerMountSources(t)
 	runner := &fakeRunner{
 		runFn: func(name string, args ...string) ([]byte, error) {
 			if len(args) >= 1 && args[0] == "inspect" {
@@ -268,11 +287,11 @@ func TestDockerExecutorRecreatesContainerOnStartup(t *testing.T) {
 		DockerBinary:               "docker",
 		ContainerName:              "openflare-openresty",
 		Image:                      "openresty/openresty:alpine",
-		MainConfigPath:             filepath.Clean("/tmp/nginx.conf"),
-		RouteConfigDir:             filepath.Clean("/tmp/routes"),
-		CertDir:                    filepath.Clean("/tmp/certs"),
+		MainConfigPath:             mainConfigPath,
+		RouteConfigDir:             routeConfigDir,
+		CertDir:                    certDir,
 		NginxCertDir:               "/etc/nginx/openflare-certs",
-		LuaDir:                     filepath.Clean("/tmp/lua"),
+		LuaDir:                     luaDir,
 		NginxLuaDir:                "/etc/nginx/openflare-lua",
 		OpenrestyObservabilityPort: 18081,
 		Runner:                     runner,
@@ -289,6 +308,73 @@ func TestDockerExecutorRecreatesContainerOnStartup(t *testing.T) {
 	}
 	if runner.calls[2].args[0] != "run" {
 		t.Fatalf("expected docker run on third call, got %#v", runner.calls[2])
+	}
+}
+
+func TestDockerExecutorRunContainerRejectsMissingMainConfigFile(t *testing.T) {
+	tempDir := t.TempDir()
+	routeConfigDir := filepath.Join(tempDir, "conf.d")
+	certDir := filepath.Join(tempDir, "certs")
+	luaDir := filepath.Join(tempDir, "lua")
+	for _, dir := range []string{routeConfigDir, certDir, luaDir} {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatalf("MkdirAll failed: %v", err)
+		}
+	}
+
+	executor := &DockerExecutor{
+		DockerBinary:   "docker",
+		ContainerName:  "openflare-openresty",
+		Image:          "openresty/openresty:alpine",
+		MainConfigPath: filepath.Join(tempDir, "nginx.conf"),
+		RouteConfigDir: routeConfigDir,
+		CertDir:        certDir,
+		NginxCertDir:   "/etc/nginx/openflare-certs",
+		LuaDir:         luaDir,
+		NginxLuaDir:    "/etc/nginx/openflare-lua",
+		Runner:         &fakeRunner{},
+	}
+
+	err := executor.runContainer(context.Background())
+	if err == nil {
+		t.Fatal("expected missing main config file to be rejected")
+	}
+	if !strings.Contains(err.Error(), "run a config apply first") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestDockerExecutorRunContainerRejectsMainConfigDirectory(t *testing.T) {
+	tempDir := t.TempDir()
+	mainConfigPath := filepath.Join(tempDir, "nginx.conf")
+	routeConfigDir := filepath.Join(tempDir, "conf.d")
+	certDir := filepath.Join(tempDir, "certs")
+	luaDir := filepath.Join(tempDir, "lua")
+	for _, dir := range []string{mainConfigPath, routeConfigDir, certDir, luaDir} {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatalf("MkdirAll failed: %v", err)
+		}
+	}
+
+	executor := &DockerExecutor{
+		DockerBinary:   "docker",
+		ContainerName:  "openflare-openresty",
+		Image:          "openresty/openresty:alpine",
+		MainConfigPath: mainConfigPath,
+		RouteConfigDir: routeConfigDir,
+		CertDir:        certDir,
+		NginxCertDir:   "/etc/nginx/openflare-certs",
+		LuaDir:         luaDir,
+		NginxLuaDir:    "/etc/nginx/openflare-lua",
+		Runner:         &fakeRunner{},
+	}
+
+	err := executor.runContainer(context.Background())
+	if err == nil {
+		t.Fatal("expected main config directory to be rejected")
+	}
+	if !strings.Contains(err.Error(), "expected a file") {
+		t.Fatalf("unexpected error: %v", err)
 	}
 }
 
