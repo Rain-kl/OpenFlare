@@ -17,7 +17,7 @@ const (
 	NodeHealthSeverityInfo        = "info"
 	NodeHealthSeverityWarning     = "warning"
 	NodeHealthSeverityCritical    = "critical"
-	nodeAccessLogRetentionWindow  = 24 * time.Hour
+	nodeAccessLogRetentionWindow  = nodeAccessLogRetentionDays * 24 * time.Hour
 )
 
 type AgentNodeSystemProfile struct {

@@ -64,7 +64,7 @@ func TestListAccessLogsIncludesSummaryTotals(t *testing.T) {
 		t.Fatalf("failed to seed access logs: %v", err)
 	}
 
-	result, err := ListAccessLogs("", 0, 2)
+	result, err := ListAccessLogs(AccessLogQuery{Page: 0, PageSize: 2})
 	if err != nil {
 		t.Fatalf("ListAccessLogs failed: %v", err)
 	}
@@ -84,7 +84,7 @@ func TestListAccessLogsIncludesSummaryTotals(t *testing.T) {
 		t.Fatal("expected has_more to be true")
 	}
 
-	filtered, err := ListAccessLogs("node-a", 0, 50)
+	filtered, err := ListAccessLogs(AccessLogQuery{NodeID: "node-a", Page: 0, PageSize: 50})
 	if err != nil {
 		t.Fatalf("ListAccessLogs filtered failed: %v", err)
 	}
@@ -125,7 +125,7 @@ func TestListAccessLogsUsesDefaultPageSize(t *testing.T) {
 		t.Fatalf("failed to seed access logs: %v", err)
 	}
 
-	result, err := ListAccessLogs("", 0, 0)
+	result, err := ListAccessLogs(AccessLogQuery{})
 	if err != nil {
 		t.Fatalf("ListAccessLogs failed: %v", err)
 	}
@@ -137,5 +137,124 @@ func TestListAccessLogsUsesDefaultPageSize(t *testing.T) {
 	}
 	if !result.HasMore {
 		t.Fatal("expected has_more to be true")
+	}
+}
+
+func TestListFoldedAccessLogsAndIPSummaries(t *testing.T) {
+	setupServiceTestDB(t)
+
+	now := time.Now().UTC()
+	if err := model.DB.Create(&model.Node{
+		NodeID: "node-folded",
+		Name:   "edge-folded",
+	}).Error; err != nil {
+		t.Fatalf("failed to seed node: %v", err)
+	}
+	logs := []*model.NodeAccessLog{
+		{
+			NodeID:     "node-folded",
+			LoggedAt:   now.Add(-4 * time.Minute),
+			RemoteAddr: "203.0.113.1",
+			Host:       "alpha.example.com",
+			Path:       "/first",
+			StatusCode: 200,
+		},
+		{
+			NodeID:     "node-folded",
+			LoggedAt:   now.Add(-3 * time.Minute),
+			RemoteAddr: "203.0.113.1",
+			Host:       "alpha.example.com",
+			Path:       "/second",
+			StatusCode: 502,
+		},
+		{
+			NodeID:     "node-folded",
+			LoggedAt:   now.Add(-2 * time.Minute),
+			RemoteAddr: "203.0.113.2",
+			Host:       "beta.example.com",
+			Path:       "/third",
+			StatusCode: 404,
+		},
+	}
+	if err := model.DB.Create(&logs).Error; err != nil {
+		t.Fatalf("failed to seed access logs: %v", err)
+	}
+
+	folded, err := ListFoldedAccessLogs(AccessLogQuery{
+		NodeID:      "node-folded",
+		Page:        0,
+		PageSize:    10,
+		FoldMinutes: 5,
+	})
+	if err != nil {
+		t.Fatalf("ListFoldedAccessLogs failed: %v", err)
+	}
+	if len(folded.Items) != 2 {
+		t.Fatalf("expected two folded buckets, got %+v", folded.Items)
+	}
+	if folded.TotalRecord != 3 || folded.TotalBucket != 2 {
+		t.Fatalf("unexpected folded totals: %+v", folded)
+	}
+	if folded.Items[0].RequestCount+folded.Items[1].RequestCount != 3 {
+		t.Fatalf("unexpected folded request count sum: %+v", folded.Items)
+	}
+
+	ipSummaries, err := ListAccessLogIPSummaries(AccessLogIPSummaryQuery{
+		NodeID:    "node-folded",
+		Page:      0,
+		PageSize:  10,
+		SortBy:    "total_requests",
+		SortOrder: "desc",
+	})
+	if err != nil {
+		t.Fatalf("ListAccessLogIPSummaries failed: %v", err)
+	}
+	if len(ipSummaries.Items) != 2 {
+		t.Fatalf("expected two ip summary rows, got %+v", ipSummaries.Items)
+	}
+	if ipSummaries.Items[0].RemoteAddr != "203.0.113.1" || ipSummaries.Items[0].TotalRequests != 2 {
+		t.Fatalf("unexpected top ip summary row: %+v", ipSummaries.Items[0])
+	}
+}
+
+func TestCleanupAccessLogsDeletesExpiredData(t *testing.T) {
+	setupServiceTestDB(t)
+
+	now := time.Now().UTC()
+	if err := model.DB.Create([]*model.NodeAccessLog{
+		{
+			NodeID:     "node-cleanup",
+			LoggedAt:   now.Add(-10 * 24 * time.Hour),
+			RemoteAddr: "203.0.113.9",
+			Host:       "cleanup.example.com",
+			Path:       "/old",
+			StatusCode: 200,
+		},
+		{
+			NodeID:     "node-cleanup",
+			LoggedAt:   now.Add(-2 * 24 * time.Hour),
+			RemoteAddr: "203.0.113.10",
+			Host:       "cleanup.example.com",
+			Path:       "/recent",
+			StatusCode: 200,
+		},
+	}).Error; err != nil {
+		t.Fatalf("failed to seed cleanup logs: %v", err)
+	}
+
+	result, err := CleanupAccessLogs(AccessLogCleanupInput{RetentionDays: 7})
+	if err != nil {
+		t.Fatalf("CleanupAccessLogs failed: %v", err)
+	}
+	if result.DeletedCount != 1 {
+		t.Fatalf("expected 1 deleted record, got %+v", result)
+	}
+
+	remaining, err := ListAccessLogs(AccessLogQuery{Page: 0, PageSize: 10, NodeID: "node-cleanup"})
+	if err != nil {
+		t.Fatalf("ListAccessLogs failed after cleanup: %v", err)
+	}
+	if len(remaining.Items) != 1 || remaining.Items[0].Path != "/recent" {
+		t.Fatalf("unexpected remaining logs after cleanup: %+v", remaining.Items)
 	}
 }

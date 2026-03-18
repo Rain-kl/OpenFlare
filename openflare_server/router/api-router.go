@@ -139,6 +139,10 @@ func SetApiRouter(router *gin.Engine) {
 		accessLogRoute.Use(middleware.AdminAuth())
 		{
 			accessLogRoute.GET("/", controller.GetAccessLogs)
+			accessLogRoute.GET("/folds", controller.GetFoldedAccessLogs)
+			accessLogRoute.GET("/ip-summary", controller.GetAccessLogIPSummaries)
+			accessLogRoute.GET("/ip-summary/trend", controller.GetAccessLogIPTrend)
+			accessLogRoute.POST("/cleanup", controller.CleanupAccessLogs)
 		}
 		agentRoute := apiRouter.Group("/agent")
 		{

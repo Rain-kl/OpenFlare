@@ -708,7 +708,12 @@ func TestHeartbeatNodePersistsObservabilityPayload(t *testing.T) {
 		t.Fatalf("unexpected request reports: %+v", reports)
 	}
 
-	accessLogs, err := model.ListNodeAccessLogs(node.NodeID, time.Time{}, 0, 10)
+	accessLogs, err := model.ListNodeAccessLogs(model.NodeAccessLogQuery{
+		NodeID:   node.NodeID,
+		Since:    time.Time{},
+		Page:     0,
+		PageSize: 10,
+	})
 	if err != nil {
 		t.Fatalf("expected node access logs query to succeed: %v", err)
 	}
@@ -822,7 +827,12 @@ func TestHeartbeatNodePersistsBufferedObservabilityPayload(t *testing.T) {
 		t.Fatalf("expected current and buffered reports, got %+v", reports)
 	}
 
-	accessLogs, err := model.ListNodeAccessLogs(node.NodeID, time.Time{}, 0, 10)
+	accessLogs, err := model.ListNodeAccessLogs(model.NodeAccessLogQuery{
+		NodeID:   node.NodeID,
+		Since:    time.Time{},
+		Page:     0,
+		PageSize: 10,
+	})
 	if err != nil {
 		t.Fatalf("expected node access logs query to succeed: %v", err)
 	}
@@ -930,7 +940,11 @@ func TestListAccessLogsUsesPagination(t *testing.T) {
 		t.Fatalf("failed to seed access logs: %v", err)
 	}
 
-	pageOne, err := ListAccessLogs(node.NodeID, 0, 2)
+	pageOne, err := ListAccessLogs(AccessLogQuery{
+		NodeID:   node.NodeID,
+		Page:     0,
+		PageSize: 2,
+	})
 	if err != nil {
 		t.Fatalf("ListAccessLogs page 1 failed: %v", err)
 	}
@@ -944,7 +958,11 @@ func TestListAccessLogsUsesPagination(t *testing.T) {
 		t.Fatalf("expected paged access log region to be returned, got %+v", pageOne.Items[0])
 	}
 
-	pageTwo, err := ListAccessLogs(node.NodeID, 1, 2)
+	pageTwo, err := ListAccessLogs(AccessLogQuery{
+		NodeID:   node.NodeID,
+		Page:     1,
+		PageSize: 2,
+	})
 	if err != nil {
 		t.Fatalf("ListAccessLogs page 2 failed: %v", err)
 	}
