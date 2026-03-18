@@ -173,6 +173,7 @@ Origin
 * 主配置、路由配置、证书与 Lua 资源写入
 * 执行 `openresty -t` / `openresty -s reload`
 * 失败回滚
+* 对已失败并回退的目标版本做本地熔断，直到控制面出现新的激活版本
 * 节点观测采集与结果上报
 
 ### 7.3 `openflare_server/web`

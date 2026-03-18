@@ -1,5 +1,12 @@
 basePath: /
 definitions:
+  controller.geoIPLookupRequest:
+    properties:
+      ip:
+        type: string
+      provider:
+        type: string
+    type: object
   model.Option:
     properties:
       key:
@@ -7,12 +14,94 @@ definitions:
       value:
         type: string
     type: object
+  service.AgentBufferedObservabilityRecord:
+    properties:
+      access_logs:
+        items:
+          $ref: '#/definitions/service.AgentNodeAccessLog'
+        type: array
+      snapshot:
+        $ref: '#/definitions/service.AgentNodeMetricSnapshot'
+      traffic_report:
+        $ref: '#/definitions/service.AgentNodeTrafficReport'
+      window_started_at_unix:
+        type: integer
+    type: object
+  service.AgentNodeAccessLog:
+    properties:
+      host:
+        type: string
+      logged_at_unix:
+        type: integer
+      path:
+        type: string
+      remote_addr:
+        type: string
+      status_code:
+        type: integer
+    type: object
+  service.AgentNodeHealthEvent:
+    properties:
+      event_type:
+        type: string
+      message:
+        type: string
+      metadata:
+        additionalProperties:
+          type: string
+        type: object
+      severity:
+        type: string
+      triggered_at_unix:
+        type: integer
+    type: object
+  service.AgentNodeMetricSnapshot:
+    properties:
+      captured_at_unix:
+        type: integer
+      cpu_usage_percent:
+        type: number
+      disk_read_bytes:
+        type: integer
+      disk_write_bytes:
+        type: integer
+      memory_total_bytes:
+        type: integer
+      memory_used_bytes:
+        type: integer
+      network_rx_bytes:
+        type: integer
+      network_tx_bytes:
+        type: integer
+      openresty_connections:
+        type: integer
+      openresty_rx_bytes:
+        type: integer
+      openresty_tx_bytes:
+        type: integer
+      storage_total_bytes:
+        type: integer
+      storage_used_bytes:
+        type: integer
+    type: object
   service.AgentNodePayload:
     properties:
+      access_logs:
+        items:
+          $ref: '#/definitions/service.AgentNodeAccessLog'
+        type: array
       agent_version:
         type: string
+      buffered_observability:
+        items:
+          $ref: '#/definitions/service.AgentBufferedObservabilityRecord'
+        type: array
       current_version:
         type: string
+      health_events:
+        items:
+          $ref: '#/definitions/service.AgentNodeHealthEvent'
+        type: array
       ip:
         type: string
       last_error:
@@ -27,15 +116,82 @@ definitions:
         type: string
       openresty_status:
         type: string
+      profile:
+        $ref: '#/definitions/service.AgentNodeSystemProfile'
+      snapshot:
+        $ref: '#/definitions/service.AgentNodeMetricSnapshot'
+      traffic_report:
+        $ref: '#/definitions/service.AgentNodeTrafficReport'
+    type: object
+  service.AgentNodeSystemProfile:
+    properties:
+      architecture:
+        type: string
+      cpu_cores:
+        type: integer
+      cpu_model:
+        type: string
+      hostname:
+        type: string
+      kernel_version:
+        type: string
+      os_name:
+        type: string
+      os_version:
+        type: string
+      reported_at_unix:
+        type: integer
+      total_disk_bytes:
+        type: integer
+      total_memory_bytes:
+        type: integer
+      uptime_seconds:
+        type: integer
+    type: object
+  service.AgentNodeTrafficReport:
+    properties:
+      error_count:
+        type: integer
+      request_count:
+        type: integer
+      source_countries:
+        additionalProperties:
+          format: int64
+          type: integer
+        type: object
+      status_codes:
+        additionalProperties:
+          format: int64
+          type: integer
+        type: object
+      top_domains:
+        additionalProperties:
+          format: int64
+          type: integer
+        type: object
+      unique_visitor_count:
+        type: integer
+      window_ended_at_unix:
+        type: integer
+      window_started_at_unix:
+        type: integer
     type: object
   service.ApplyLogPayload:
     properties:
+      checksum:
+        type: string
+      main_config_checksum:
+        type: string
       message:
         type: string
       node_id:
         type: string
       result:
         type: string
+      route_config_checksum:
+        type: string
+      support_file_count:
+        type: integer
       version:
         type: string
     type: object
@@ -54,6 +210,16 @@ definitions:
     properties:
       auto_update_enabled:
         type: boolean
+      geo_latitude:
+        type: number
+      geo_longitude:
+        type: number
+      geo_manual_override:
+        type: boolean
+      geo_name:
+        type: string
+      ip:
+        type: string
       name:
         type: string
     type: object
@@ -66,6 +232,14 @@ definitions:
     type: object
   service.ProxyRouteInput:
     properties:
+      cache_enabled:
+        type: boolean
+      cache_policy:
+        type: string
+      cache_rules:
+        items:
+          type: string
+        type: array
       cert_id:
         type: integer
       custom_headers:
@@ -78,14 +252,18 @@ definitions:
         type: boolean
       enabled:
         type: boolean
-      origin_url:
-        type: string
       origin_host:
+        type: string
+      origin_url:
         type: string
       redirect_http:
         type: boolean
       remark:
         type: string
+      upstreams:
+        items:
+          type: string
+        type: array
     type: object
   service.TLSCertificateInput:
     properties:
@@ -104,6 +282,204 @@ info:
   title: OpenFlare Server API
   version: "3.0"
 paths:
+  /api/access-logs/:
+    get:
+      parameters:
+      - description: Node ID
+        in: query
+        name: node_id
+        type: string
+      - description: Remote address
+        in: query
+        name: remote_addr
+        type: string
+      - description: Host
+        in: query
+        name: host
+        type: string
+      - description: Path
+        in: query
+        name: path
+        type: string
+      - description: Page index
+        in: query
+        name: p
+        type: integer
+      - description: Page size
+        in: query
+        name: page_size
+        type: integer
+      - description: Sort by
+        in: query
+        name: sort_by
+        type: string
+      - description: Sort order
+        in: query
+        name: sort_order
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List access logs
+      tags:
+      - AccessLogs
+  /api/access-logs/cleanup:
+    post:
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Cleanup access logs by retention days
+      tags:
+      - AccessLogs
+  /api/access-logs/folds:
+    get:
+      parameters:
+      - description: Node ID
+        in: query
+        name: node_id
+        type: string
+      - description: Remote address
+        in: query
+        name: remote_addr
+        type: string
+      - description: Host
+        in: query
+        name: host
+        type: string
+      - description: Path
+        in: query
+        name: path
+        type: string
+      - description: Page index
+        in: query
+        name: p
+        type: integer
+      - description: Page size
+        in: query
+        name: page_size
+        type: integer
+      - description: Sort by
+        in: query
+        name: sort_by
+        type: string
+      - description: Sort order
+        in: query
+        name: sort_order
+        type: string
+      - description: Fold minutes
+        in: query
+        name: fold_minutes
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List folded access logs
+      tags:
+      - AccessLogs
+  /api/access-logs/ip-summary:
+    get:
+      parameters:
+      - description: Node ID
+        in: query
+        name: node_id
+        type: string
+      - description: Remote address
+        in: query
+        name: remote_addr
+        type: string
+      - description: Host
+        in: query
+        name: host
+        type: string
+      - description: Page index
+        in: query
+        name: p
+        type: integer
+      - description: Page size
+        in: query
+        name: page_size
+        type: integer
+      - description: Sort by
+        in: query
+        name: sort_by
+        type: string
+      - description: Sort order
+        in: query
+        name: sort_order
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List access log IP summaries
+      tags:
+      - AccessLogs
+  /api/access-logs/ip-summary/trend:
+    get:
+      parameters:
+      - description: Node ID
+        in: query
+        name: node_id
+        type: string
+      - description: Remote address
+        in: query
+        name: remote_addr
+        required: true
+        type: string
+      - description: Host
+        in: query
+        name: host
+        type: string
+      - description: Hours
+        in: query
+        name: hours
+        type: integer
+      - description: Bucket minutes
+        in: query
+        name: bucket_minutes
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get access log IP trend
+      tags:
+      - AccessLogs
   /api/agent/apply-logs:
     post:
       consumes:
@@ -226,6 +602,23 @@ paths:
       summary: List apply logs
       tags:
       - ApplyLogs
+  /api/apply-logs/cleanup:
+    post:
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Cleanup apply logs
+      tags:
+      - ApplyLogs
   /api/config-versions/:
     get:
       produces:
@@ -241,8 +634,34 @@ paths:
       summary: List config versions
       tags:
       - ConfigVersions
+  /api/config-versions/{id}:
+    get:
+      parameters:
+      - description: Version ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get config version detail
+      tags:
+      - ConfigVersions
   /api/config-versions/{id}/activate:
-    put:
+    post:
       parameters:
       - description: Version ID
         in: path
@@ -327,6 +746,26 @@ paths:
       summary: Publish a new config version
       tags:
       - ConfigVersions
+  /api/dashboard/overview:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get dashboard overview
+      tags:
+      - Dashboard
   /api/managed-domains/:
     get:
       produces:
@@ -370,8 +809,8 @@ paths:
       summary: Create managed domain
       tags:
       - ManagedDomains
-  /api/managed-domains/{id}:
-    delete:
+  /api/managed-domains/{id}/delete:
+    post:
       parameters:
       - description: Managed domain ID
         in: path
@@ -396,7 +835,8 @@ paths:
       summary: Delete managed domain
       tags:
       - ManagedDomains
-    put:
+  /api/managed-domains/{id}/update:
+    post:
       consumes:
       - application/json
       parameters:
@@ -493,65 +933,6 @@ paths:
       summary: Create node
       tags:
       - Nodes
-  /api/nodes/{id}:
-    delete:
-      parameters:
-      - description: Node ID
-        in: path
-        name: id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            additionalProperties: true
-            type: object
-        "400":
-          description: Bad Request
-          schema:
-            additionalProperties: true
-            type: object
-      security:
-      - BearerAuth: []
-      summary: Delete node
-      tags:
-      - Nodes
-    put:
-      consumes:
-      - application/json
-      parameters:
-      - description: Node ID
-        in: path
-        name: id
-        required: true
-        type: integer
-      - description: Node payload
-        in: body
-        name: payload
-        required: true
-        schema:
-          $ref: '#/definitions/service.NodeInput'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            additionalProperties: true
-            type: object
-        "400":
-          description: Bad Request
-          schema:
-            additionalProperties: true
-            type: object
-      security:
-      - BearerAuth: []
-      summary: Update node
-      tags:
-      - Nodes
   /api/nodes/{id}/agent-release:
     get:
       parameters:
@@ -608,6 +989,92 @@ paths:
       summary: Request agent self-update on node
       tags:
       - Nodes
+  /api/nodes/{id}/delete:
+    post:
+      parameters:
+      - description: Node ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete node
+      tags:
+      - Nodes
+  /api/nodes/{id}/observability:
+    get:
+      parameters:
+      - description: Node ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Lookback window in hours
+        in: query
+        name: hours
+        type: integer
+      - description: Max records per section
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get node observability details
+      tags:
+      - Nodes
+  /api/nodes/{id}/observability/cleanup:
+    post:
+      parameters:
+      - description: Node ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Cleanup node health events
+      tags:
+      - Nodes
   /api/nodes/{id}/openresty-restart:
     post:
       parameters:
@@ -632,6 +1099,40 @@ paths:
       security:
       - BearerAuth: []
       summary: Request openresty restart on node
+      tags:
+      - Nodes
+  /api/nodes/{id}/update:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Node ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Node payload
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/service.NodeInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update node
       tags:
       - Nodes
   /api/nodes/bootstrap-token:
@@ -677,7 +1178,35 @@ paths:
       summary: List editable options
       tags:
       - Options
-    put:
+  /api/option/geoip/lookup:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: GeoIP lookup payload
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/controller.geoIPLookupRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Test GeoIP lookup
+      tags:
+      - Options
+  /api/option/update:
+    post:
       consumes:
       - application/json
       parameters:
@@ -746,8 +1275,8 @@ paths:
       summary: Create proxy route
       tags:
       - ProxyRoutes
-  /api/proxy-routes/{id}:
-    delete:
+  /api/proxy-routes/{id}/delete:
+    post:
       parameters:
       - description: Route ID
         in: path
@@ -772,7 +1301,8 @@ paths:
       summary: Delete proxy route
       tags:
       - ProxyRoutes
-    put:
+  /api/proxy-routes/{id}/update:
+    post:
       consumes:
       - application/json
       parameters:
@@ -862,7 +1392,59 @@ paths:
       tags:
       - TLSCertificates
   /api/tls-certificates/{id}:
-    delete:
+    get:
+      parameters:
+      - description: Certificate ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get TLS certificate detail
+      tags:
+      - TLSCertificates
+  /api/tls-certificates/{id}/content:
+    get:
+      parameters:
+      - description: Certificate ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get TLS certificate PEM content
+      tags:
+      - TLSCertificates
+  /api/tls-certificates/{id}/delete:
+    post:
       parameters:
       - description: Certificate ID
         in: path
@@ -885,6 +1467,40 @@ paths:
       security:
       - BearerAuth: []
       summary: Delete TLS certificate
+      tags:
+      - TLSCertificates
+  /api/tls-certificates/{id}/update:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Certificate ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: TLS certificate payload
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/service.TLSCertificateInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update TLS certificate from PEM
       tags:
       - TLSCertificates
   /api/tls-certificates/import-file:
@@ -940,6 +1556,12 @@ paths:
             additionalProperties: true
             type: object
       summary: Get latest GitHub release
+      tags:
+      - Update
+  /api/update/logs/ws:
+    get:
+      responses: {}
+      summary: Stream server upgrade logs over websocket
       tags:
       - Update
   /api/update/manual-upgrade:

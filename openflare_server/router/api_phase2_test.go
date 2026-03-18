@@ -281,11 +281,40 @@ func TestPhase2AgentLifecycle(t *testing.T) {
 		t.Fatal("expected node list to expose openresty message")
 	}
 
+	if err := model.DB.Create(&model.NodeHealthEvent{
+		NodeID:           createdNode.NodeID,
+		EventType:        "openresty_down",
+		Severity:         service.NodeHealthSeverityCritical,
+		Status:           service.NodeHealthEventStatusActive,
+		Message:          "docker run openresty failed: bind 80 already allocated",
+		FirstTriggeredAt: time.Now().Add(-2 * time.Minute),
+		LastTriggeredAt:  time.Now().Add(-time.Minute),
+		ReportedAt:       time.Now().Add(-time.Minute),
+	}).Error; err != nil {
+		t.Fatalf("failed to insert node health event: %v", err)
+	}
+
 	observabilityResp := performJSONRequest(t, engine, adminToken, http.MethodGet, "/api/nodes/"+toString(createdNode.ID)+"/observability?hours=24&limit=20", nil)
 	var observability service.NodeObservabilityView
 	decodeResponseData(t, observabilityResp, &observability)
 	if observability.NodeID != createdNode.NodeID {
 		t.Fatalf("expected observability response for node %s, got %s", createdNode.NodeID, observability.NodeID)
+	}
+	if len(observability.HealthEvents) != 1 {
+		t.Fatalf("expected observability response to include health events, got %+v", observability.HealthEvents)
+	}
+
+	cleanupHealthResp := performJSONRequest(t, engine, adminToken, http.MethodPost, "/api/nodes/"+toString(createdNode.ID)+"/observability/cleanup", nil)
+	var cleanupHealthResult service.NodeHealthEventCleanupResult
+	decodeResponseData(t, cleanupHealthResp, &cleanupHealthResult)
+	if cleanupHealthResult.NodeID != createdNode.NodeID || cleanupHealthResult.DeletedCount != 1 {
+		t.Fatalf("unexpected node health cleanup result: %+v", cleanupHealthResult)
+	}
+
+	observabilityAfterCleanupResp := performJSONRequest(t, engine, adminToken, http.MethodGet, "/api/nodes/"+toString(createdNode.ID)+"/observability?hours=24&limit=20", nil)
+	decodeResponseData(t, observabilityAfterCleanupResp, &observability)
+	if len(observability.HealthEvents) != 0 {
+		t.Fatalf("expected health events to be cleaned up, got %+v", observability.HealthEvents)
 	}
 
 	restartResp := performJSONRequest(t, engine, adminToken, http.MethodPost, "/api/nodes/"+toString(createdNode.ID)+"/openresty-restart", nil)

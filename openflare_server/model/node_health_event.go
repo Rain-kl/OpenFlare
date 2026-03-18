@@ -40,3 +40,8 @@ func ListActiveNodeHealthEvents() (events []*NodeHealthEvent, err error) {
 	err = DB.Where("status = ?", "active").Order("last_triggered_at desc").Find(&events).Error
 	return events, err
 }
+
+func DeleteNodeHealthEvents(nodeID string) (deleted int64, err error) {
+	result := DB.Where("node_id = ?", nodeID).Delete(&NodeHealthEvent{})
+	return result.RowsAffected, result.Error
+}

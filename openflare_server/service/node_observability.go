@@ -42,6 +42,11 @@ type NodeObservabilityTrends struct {
 	DiskIO24h   []DiskIOTrendPoint   `json:"disk_io_24h"`
 }
 
+type NodeHealthEventCleanupResult struct {
+	NodeID       string `json:"node_id"`
+	DeletedCount int64  `json:"deleted_count"`
+}
+
 func GetNodeObservability(id uint, query NodeObservabilityQuery) (*NodeObservabilityView, error) {
 	now := time.Now()
 	node, err := model.GetNodeByID(id)
@@ -102,6 +107,21 @@ func GetNodeObservability(id uint, query NodeObservabilityQuery) (*NodeObservabi
 			Network24h:  buildNetworkTrendPoints(now, trendSnapshots),
 			DiskIO24h:   buildDiskIOTrendPoints(now, trendSnapshots),
 		},
+	}, nil
+}
+
+func CleanupNodeHealthEvents(id uint) (*NodeHealthEventCleanupResult, error) {
+	node, err := model.GetNodeByID(id)
+	if err != nil {
+		return nil, err
+	}
+	deletedCount, err := model.DeleteNodeHealthEvents(node.NodeID)
+	if err != nil {
+		return nil, err
+	}
+	return &NodeHealthEventCleanupResult{
+		NodeID:       node.NodeID,
+		DeletedCount: deletedCount,
 	}, nil
 }
 

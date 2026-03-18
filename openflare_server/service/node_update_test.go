@@ -1201,6 +1201,66 @@ func TestGetNodeObservabilityAllowsMissingProfile(t *testing.T) {
 	}
 }
 
+func TestCleanupNodeHealthEvents(t *testing.T) {
+	setupServiceTestDB(t)
+
+	node := &model.Node{
+		NodeID:       "node-health-cleanup",
+		Name:         "health-cleanup-edge",
+		IP:           "10.0.0.72",
+		AgentToken:   "token-health-cleanup",
+		AgentVersion: "v0.6.0",
+		NginxVersion: "1.27.1.2",
+		Status:       NodeStatusOnline,
+	}
+	if err := node.Insert(); err != nil {
+		t.Fatalf("failed to insert node: %v", err)
+	}
+
+	resolvedAt := time.Now().Add(-4 * time.Minute)
+	if err := model.DB.Create(&model.NodeHealthEvent{
+		NodeID:           node.NodeID,
+		EventType:        "sync_error",
+		Severity:         NodeHealthSeverityWarning,
+		Status:           NodeHealthEventStatusActive,
+		Message:          "checksum mismatch",
+		FirstTriggeredAt: time.Now().Add(-2 * time.Minute),
+		LastTriggeredAt:  time.Now().Add(-time.Minute),
+		ReportedAt:       time.Now().Add(-time.Minute),
+	}).Error; err != nil {
+		t.Fatalf("failed to insert first node health event: %v", err)
+	}
+	if err := model.DB.Create(&model.NodeHealthEvent{
+		NodeID:           node.NodeID,
+		EventType:        "openresty_down",
+		Severity:         NodeHealthSeverityCritical,
+		Status:           NodeHealthEventStatusResolved,
+		Message:          "openresty exited unexpectedly",
+		FirstTriggeredAt: time.Now().Add(-10 * time.Minute),
+		LastTriggeredAt:  time.Now().Add(-5 * time.Minute),
+		ReportedAt:       time.Now().Add(-5 * time.Minute),
+		ResolvedAt:       &resolvedAt,
+	}).Error; err != nil {
+		t.Fatalf("failed to insert second node health event: %v", err)
+	}
+
+	result, err := CleanupNodeHealthEvents(node.ID)
+	if err != nil {
+		t.Fatalf("CleanupNodeHealthEvents failed: %v", err)
+	}
+	if result.NodeID != node.NodeID || result.DeletedCount != 2 {
+		t.Fatalf("unexpected cleanup result: %+v", result)
+	}
+
+	events, err := model.ListNodeHealthEvents(node.NodeID, false, 10)
+	if err != nil {
+		t.Fatalf("failed to list node health events after cleanup: %v", err)
+	}
+	if len(events) != 0 {
+		t.Fatalf("expected node health events to be removed, got %+v", events)
+	}
+}
+
 func TestGetDashboardOverview(t *testing.T) {
 	setupServiceTestDB(t)
 

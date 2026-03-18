@@ -15,6 +15,317 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/api/access-logs/": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "AccessLogs"
+                ],
+                "summary": "List access logs",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Node ID",
+                        "name": "node_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Remote address",
+                        "name": "remote_addr",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Host",
+                        "name": "host",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Path",
+                        "name": "path",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page index",
+                        "name": "p",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page size",
+                        "name": "page_size",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Sort by",
+                        "name": "sort_by",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Sort order",
+                        "name": "sort_order",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/access-logs/cleanup": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "AccessLogs"
+                ],
+                "summary": "Cleanup access logs by retention days",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/access-logs/folds": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "AccessLogs"
+                ],
+                "summary": "List folded access logs",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Node ID",
+                        "name": "node_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Remote address",
+                        "name": "remote_addr",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Host",
+                        "name": "host",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Path",
+                        "name": "path",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page index",
+                        "name": "p",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page size",
+                        "name": "page_size",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Sort by",
+                        "name": "sort_by",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Sort order",
+                        "name": "sort_order",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Fold minutes",
+                        "name": "fold_minutes",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/access-logs/ip-summary": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "AccessLogs"
+                ],
+                "summary": "List access log IP summaries",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Node ID",
+                        "name": "node_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Remote address",
+                        "name": "remote_addr",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Host",
+                        "name": "host",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page index",
+                        "name": "p",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page size",
+                        "name": "page_size",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Sort by",
+                        "name": "sort_by",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Sort order",
+                        "name": "sort_order",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/access-logs/ip-summary/trend": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "AccessLogs"
+                ],
+                "summary": "Get access log IP trend",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Node ID",
+                        "name": "node_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Remote address",
+                        "name": "remote_addr",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Host",
+                        "name": "host",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Hours",
+                        "name": "hours",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Bucket minutes",
+                        "name": "bucket_minutes",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
         "/api/agent/apply-logs": {
             "post": {
                 "security": [
@@ -211,6 +522,34 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/apply-logs/cleanup": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "ApplyLogs"
+                ],
+                "summary": "Cleanup apply logs",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
         "/api/config-versions/": {
             "get": {
                 "security": [
@@ -336,8 +675,49 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/config-versions/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "ConfigVersions"
+                ],
+                "summary": "Get config version detail",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Version ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
         "/api/config-versions/{id}/activate": {
-            "put": {
+            "post": {
                 "security": [
                     {
                         "BearerAuth": []
@@ -359,6 +739,38 @@ const docTemplate = `{
                         "required": true
                     }
                 ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/dashboard/overview": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Dashboard"
+                ],
+                "summary": "Get dashboard overview",
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -480,8 +892,49 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/managed-domains/{id}": {
-            "put": {
+        "/api/managed-domains/{id}/delete": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "ManagedDomains"
+                ],
+                "summary": "Delete managed domain",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Managed domain ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/managed-domains/{id}/update": {
+            "post": {
                 "security": [
                     {
                         "BearerAuth": []
@@ -513,45 +966,6 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/service.ManagedDomainInput"
                         }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    }
-                }
-            },
-            "delete": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "ManagedDomains"
-                ],
-                "summary": "Delete managed domain",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "Managed domain ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
                     }
                 ],
                 "responses": {
@@ -691,98 +1105,6 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/nodes/{id}": {
-            "put": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Nodes"
-                ],
-                "summary": "Update node",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "Node ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Node payload",
-                        "name": "payload",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/service.NodeInput"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    }
-                }
-            },
-            "delete": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Nodes"
-                ],
-                "summary": "Delete node",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "Node ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    }
-                }
-            }
-        },
         "/api/nodes/{id}/agent-release": {
             "get": {
                 "security": [
@@ -871,6 +1193,141 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/nodes/{id}/delete": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Nodes"
+                ],
+                "summary": "Delete node",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Node ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/nodes/{id}/observability": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Nodes"
+                ],
+                "summary": "Get node observability details",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Node ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Lookback window in hours",
+                        "name": "hours",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Max records per section",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/nodes/{id}/observability/cleanup": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Nodes"
+                ],
+                "summary": "Cleanup node health events",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Node ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
         "/api/nodes/{id}/openresty-restart": {
             "post": {
                 "security": [
@@ -912,6 +1369,59 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/nodes/{id}/update": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Nodes"
+                ],
+                "summary": "Update node",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Node ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Node payload",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/service.NodeInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
         "/api/option/": {
             "get": {
                 "produces": [
@@ -930,8 +1440,51 @@ const docTemplate = `{
                         }
                     }
                 }
-            },
-            "put": {
+            }
+        },
+        "/api/option/geoip/lookup": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Options"
+                ],
+                "summary": "Test GeoIP lookup",
+                "parameters": [
+                    {
+                        "description": "GeoIP lookup payload",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/controller.geoIPLookupRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/option/update": {
+            "post": {
                 "consumes": [
                     "application/json"
                 ],
@@ -1040,8 +1593,49 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/proxy-routes/{id}": {
-            "put": {
+        "/api/proxy-routes/{id}/delete": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "ProxyRoutes"
+                ],
+                "summary": "Delete proxy route",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Route ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/proxy-routes/{id}/update": {
+            "post": {
                 "security": [
                     {
                         "BearerAuth": []
@@ -1073,45 +1667,6 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/service.ProxyRouteInput"
                         }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    }
-                }
-            },
-            "delete": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "ProxyRoutes"
-                ],
-                "summary": "Delete proxy route",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "Route ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
                     }
                 ],
                 "responses": {
@@ -1286,7 +1841,89 @@ const docTemplate = `{
             }
         },
         "/api/tls-certificates/{id}": {
-            "delete": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "TLSCertificates"
+                ],
+                "summary": "Get TLS certificate detail",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Certificate ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/tls-certificates/{id}/content": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "TLSCertificates"
+                ],
+                "summary": "Get TLS certificate PEM content",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Certificate ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/tls-certificates/{id}/delete": {
+            "post": {
                 "security": [
                     {
                         "BearerAuth": []
@@ -1326,6 +1963,59 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/tls-certificates/{id}/update": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "TLSCertificates"
+                ],
+                "summary": "Update TLS certificate from PEM",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Certificate ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "TLS certificate payload",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/service.TLSCertificateInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
         "/api/update/latest-release": {
             "get": {
                 "produces": [
@@ -1344,6 +2034,15 @@ const docTemplate = `{
                         }
                     }
                 }
+            }
+        },
+        "/api/update/logs/ws": {
+            "get": {
+                "tags": [
+                    "Update"
+                ],
+                "summary": "Stream server upgrade logs over websocket",
+                "responses": {}
             }
         },
         "/api/update/manual-upgrade": {
@@ -1414,6 +2113,17 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "controller.geoIPLookupRequest": {
+            "type": "object",
+            "properties": {
+                "ip": {
+                    "type": "string"
+                },
+                "provider": {
+                    "type": "string"
+                }
+            }
+        },
         "model.Option": {
             "type": "object",
             "properties": {
@@ -1425,14 +2135,139 @@ const docTemplate = `{
                 }
             }
         },
+        "service.AgentBufferedObservabilityRecord": {
+            "type": "object",
+            "properties": {
+                "access_logs": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/service.AgentNodeAccessLog"
+                    }
+                },
+                "snapshot": {
+                    "$ref": "#/definitions/service.AgentNodeMetricSnapshot"
+                },
+                "traffic_report": {
+                    "$ref": "#/definitions/service.AgentNodeTrafficReport"
+                },
+                "window_started_at_unix": {
+                    "type": "integer"
+                }
+            }
+        },
+        "service.AgentNodeAccessLog": {
+            "type": "object",
+            "properties": {
+                "host": {
+                    "type": "string"
+                },
+                "logged_at_unix": {
+                    "type": "integer"
+                },
+                "path": {
+                    "type": "string"
+                },
+                "remote_addr": {
+                    "type": "string"
+                },
+                "status_code": {
+                    "type": "integer"
+                }
+            }
+        },
+        "service.AgentNodeHealthEvent": {
+            "type": "object",
+            "properties": {
+                "event_type": {
+                    "type": "string"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "metadata": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "severity": {
+                    "type": "string"
+                },
+                "triggered_at_unix": {
+                    "type": "integer"
+                }
+            }
+        },
+        "service.AgentNodeMetricSnapshot": {
+            "type": "object",
+            "properties": {
+                "captured_at_unix": {
+                    "type": "integer"
+                },
+                "cpu_usage_percent": {
+                    "type": "number"
+                },
+                "disk_read_bytes": {
+                    "type": "integer"
+                },
+                "disk_write_bytes": {
+                    "type": "integer"
+                },
+                "memory_total_bytes": {
+                    "type": "integer"
+                },
+                "memory_used_bytes": {
+                    "type": "integer"
+                },
+                "network_rx_bytes": {
+                    "type": "integer"
+                },
+                "network_tx_bytes": {
+                    "type": "integer"
+                },
+                "openresty_connections": {
+                    "type": "integer"
+                },
+                "openresty_rx_bytes": {
+                    "type": "integer"
+                },
+                "openresty_tx_bytes": {
+                    "type": "integer"
+                },
+                "storage_total_bytes": {
+                    "type": "integer"
+                },
+                "storage_used_bytes": {
+                    "type": "integer"
+                }
+            }
+        },
         "service.AgentNodePayload": {
             "type": "object",
             "properties": {
+                "access_logs": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/service.AgentNodeAccessLog"
+                    }
+                },
                 "agent_version": {
                     "type": "string"
                 },
+                "buffered_observability": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/service.AgentBufferedObservabilityRecord"
+                    }
+                },
                 "current_version": {
                     "type": "string"
+                },
+                "health_events": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/service.AgentNodeHealthEvent"
+                    }
                 },
                 "ip": {
                     "type": "string"
@@ -1454,12 +2289,106 @@ const docTemplate = `{
                 },
                 "openresty_status": {
                     "type": "string"
+                },
+                "profile": {
+                    "$ref": "#/definitions/service.AgentNodeSystemProfile"
+                },
+                "snapshot": {
+                    "$ref": "#/definitions/service.AgentNodeMetricSnapshot"
+                },
+                "traffic_report": {
+                    "$ref": "#/definitions/service.AgentNodeTrafficReport"
+                }
+            }
+        },
+        "service.AgentNodeSystemProfile": {
+            "type": "object",
+            "properties": {
+                "architecture": {
+                    "type": "string"
+                },
+                "cpu_cores": {
+                    "type": "integer"
+                },
+                "cpu_model": {
+                    "type": "string"
+                },
+                "hostname": {
+                    "type": "string"
+                },
+                "kernel_version": {
+                    "type": "string"
+                },
+                "os_name": {
+                    "type": "string"
+                },
+                "os_version": {
+                    "type": "string"
+                },
+                "reported_at_unix": {
+                    "type": "integer"
+                },
+                "total_disk_bytes": {
+                    "type": "integer"
+                },
+                "total_memory_bytes": {
+                    "type": "integer"
+                },
+                "uptime_seconds": {
+                    "type": "integer"
+                }
+            }
+        },
+        "service.AgentNodeTrafficReport": {
+            "type": "object",
+            "properties": {
+                "error_count": {
+                    "type": "integer"
+                },
+                "request_count": {
+                    "type": "integer"
+                },
+                "source_countries": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "integer",
+                        "format": "int64"
+                    }
+                },
+                "status_codes": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "integer",
+                        "format": "int64"
+                    }
+                },
+                "top_domains": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "integer",
+                        "format": "int64"
+                    }
+                },
+                "unique_visitor_count": {
+                    "type": "integer"
+                },
+                "window_ended_at_unix": {
+                    "type": "integer"
+                },
+                "window_started_at_unix": {
+                    "type": "integer"
                 }
             }
         },
         "service.ApplyLogPayload": {
             "type": "object",
             "properties": {
+                "checksum": {
+                    "type": "string"
+                },
+                "main_config_checksum": {
+                    "type": "string"
+                },
                 "message": {
                     "type": "string"
                 },
@@ -1468,6 +2397,12 @@ const docTemplate = `{
                 },
                 "result": {
                     "type": "string"
+                },
+                "route_config_checksum": {
+                    "type": "string"
+                },
+                "support_file_count": {
+                    "type": "integer"
                 },
                 "version": {
                     "type": "string"
@@ -1497,6 +2432,21 @@ const docTemplate = `{
                 "auto_update_enabled": {
                     "type": "boolean"
                 },
+                "geo_latitude": {
+                    "type": "number"
+                },
+                "geo_longitude": {
+                    "type": "number"
+                },
+                "geo_manual_override": {
+                    "type": "boolean"
+                },
+                "geo_name": {
+                    "type": "string"
+                },
+                "ip": {
+                    "type": "string"
+                },
                 "name": {
                     "type": "string"
                 }
@@ -1516,6 +2466,18 @@ const docTemplate = `{
         "service.ProxyRouteInput": {
             "type": "object",
             "properties": {
+                "cache_enabled": {
+                    "type": "boolean"
+                },
+                "cache_policy": {
+                    "type": "string"
+                },
+                "cache_rules": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "cert_id": {
                     "type": "integer"
                 },
@@ -1534,10 +2496,10 @@ const docTemplate = `{
                 "enabled": {
                     "type": "boolean"
                 },
-                "origin_url": {
+                "origin_host": {
                     "type": "string"
                 },
-                "origin_host": {
+                "origin_url": {
                     "type": "string"
                 },
                 "redirect_http": {
@@ -1545,6 +2507,12 @@ const docTemplate = `{
                 },
                 "remark": {
                     "type": "string"
+                },
+                "upstreams": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 }
             }
         },
@@ -1592,6 +2560,8 @@ var SwaggerInfo = &swag.Spec{
 	Description:      "OpenFlare Server 管理端与 Agent API 文档。",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
+	LeftDelim:        "{{",
+	RightDelim:       "}}",
 }
 
 func init() {

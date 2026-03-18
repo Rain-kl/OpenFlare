@@ -85,3 +85,12 @@ export function getNodeObservability(
     `/nodes/${id}/observability${query ? `?${query}` : ''}`,
   );
 }
+
+export function cleanupNodeHealthEvents(id: number) {
+  return apiRequest<{ node_id: string; deleted_count: number }>(
+    `/nodes/${id}/observability/cleanup`,
+    {
+      method: 'POST',
+    },
+  );
+}

@@ -247,3 +247,27 @@ func GetNodeObservability(c *gin.Context) {
 	}
 	respondSuccess(c, view)
 }
+
+// CleanupNodeHealthEvents godoc
+// @Summary Cleanup node health events
+// @Tags Nodes
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "Node ID"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{}
+// @Router /api/nodes/{id}/observability/cleanup [post]
+func CleanupNodeHealthEvents(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil || id == 0 {
+		respondBadRequest(c, "")
+		return
+	}
+
+	result, err := service.CleanupNodeHealthEvents(uint(id))
+	if err != nil {
+		respondFailure(c, err.Error())
+		return
+	}
+	respondSuccess(c, result)
+}

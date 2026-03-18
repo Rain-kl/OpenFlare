@@ -203,6 +203,9 @@ func TestSyncOnceRollbackOnNginxFailure(t *testing.T) {
 	if snapshot.CurrentVersion != "20260309-001" {
 		t.Fatal("expected failed sync not to overwrite current version")
 	}
+	if snapshot.BlockedVersion != "20260309-002" || snapshot.BlockedChecksum != "checksum-2" {
+		t.Fatalf("expected failed target version to be blocked, got %+v", snapshot)
+	}
 	if snapshot.OpenrestyStatus != protocol.OpenrestyStatusUnhealthy {
 		t.Fatalf("expected unhealthy openresty status, got %q", snapshot.OpenrestyStatus)
 	}
@@ -266,6 +269,9 @@ func TestSyncOnceReportsWarningWhenRollbackKeepsOpenrestyHealthy(t *testing.T) {
 	}
 	if snapshot.CurrentVersion != "20260309-001" || snapshot.CurrentChecksum != "checksum-1" {
 		t.Fatal("expected warning apply to keep previous version state")
+	}
+	if snapshot.BlockedVersion != "20260309-002" || snapshot.BlockedChecksum != "checksum-2" {
+		t.Fatalf("expected rolled-back target version to be blocked, got %+v", snapshot)
 	}
 	if snapshot.OpenrestyStatus != protocol.OpenrestyStatusHealthy {
 		t.Fatalf("expected healthy openresty after rollback, got %q", snapshot.OpenrestyStatus)
@@ -365,6 +371,165 @@ func TestSyncOnStartupRecordsRuntimeFailure(t *testing.T) {
 	}
 	if snapshot.OpenrestyMessage == "" {
 		t.Fatal("expected runtime error message to be recorded")
+	}
+}
+
+func TestSyncOnceSkipsPreviouslyBlockedVersion(t *testing.T) {
+	client := &fakeClient{
+		config: protocol.ActiveConfigResponse{
+			Version:        "20260309-006",
+			Checksum:       "checksum-6",
+			MainConfig:     "worker_processes 6;",
+			RouteConfig:    "server { listen 86; }",
+			RenderedConfig: "server { listen 86; }",
+			CreatedAt:      time.Now().Format(time.RFC3339),
+		},
+	}
+	stateStore := state.NewStore(filepath.Join(t.TempDir(), "state.json"))
+	nodeID, err := stateStore.EnsureNodeID()
+	if err != nil {
+		t.Fatalf("EnsureNodeID failed: %v", err)
+	}
+	if err = stateStore.Save(&state.Snapshot{
+		NodeID:          nodeID,
+		CurrentVersion:  "20260309-005",
+		CurrentChecksum: "checksum-5",
+		BlockedVersion:  "20260309-006",
+		BlockedChecksum: "checksum-6",
+		BlockedReason:   "apply failed, rolled back to previous config",
+		LastError:       "apply failed, rolled back to previous config",
+	}); err != nil {
+		t.Fatalf("failed to seed state: %v", err)
+	}
+
+	manager := &fakeManager{currentChecksum: "checksum-5"}
+	service := New(client, manager, stateStore)
+	if err = service.SyncOnce(context.Background(), &protocol.ActiveConfigMeta{
+		Version:  "20260309-006",
+		Checksum: "checksum-6",
+	}); err != nil {
+		t.Fatalf("expected blocked version to be skipped, got %v", err)
+	}
+	if client.fetchCalls != 0 {
+		t.Fatalf("expected blocked version to skip fetch, got %d", client.fetchCalls)
+	}
+	if len(manager.applyMainContents) != 0 {
+		t.Fatal("expected blocked version to skip apply")
+	}
+	if len(client.reports) != 0 {
+		t.Fatal("expected blocked version to skip reporting duplicate apply result")
+	}
+}
+
+func TestSyncOnStartupKeepsBlockedVersionSuppressedUntilNewTargetArrives(t *testing.T) {
+	client := &fakeClient{
+		config: protocol.ActiveConfigResponse{
+			Version:        "20260309-007",
+			Checksum:       "checksum-7",
+			MainConfig:     "worker_processes 7;",
+			RouteConfig:    "server { listen 87; }",
+			RenderedConfig: "server { listen 87; }",
+			CreatedAt:      time.Now().Format(time.RFC3339),
+		},
+	}
+	stateStore := state.NewStore(filepath.Join(t.TempDir(), "state.json"))
+	nodeID, err := stateStore.EnsureNodeID()
+	if err != nil {
+		t.Fatalf("EnsureNodeID failed: %v", err)
+	}
+	if err = stateStore.Save(&state.Snapshot{
+		NodeID:           nodeID,
+		CurrentVersion:   "20260309-005",
+		CurrentChecksum:  "checksum-5",
+		BlockedVersion:   "20260309-007",
+		BlockedChecksum:  "checksum-7",
+		BlockedReason:    "apply failed, rolled back to previous config",
+		OpenrestyStatus:  protocol.OpenrestyStatusUnhealthy,
+		OpenrestyMessage: "apply failed, rolled back to previous config",
+		LastError:        "apply failed, rolled back to previous config",
+	}); err != nil {
+		t.Fatalf("failed to seed state: %v", err)
+	}
+
+	manager := &fakeManager{currentChecksum: "checksum-5"}
+	service := New(client, manager, stateStore)
+	if err = service.SyncOnStartup(context.Background(), &protocol.ActiveConfigMeta{
+		Version:  "20260309-007",
+		Checksum: "checksum-7",
+	}); err != nil {
+		t.Fatalf("expected blocked startup target to be skipped, got %v", err)
+	}
+	if len(manager.ensureCalls) != 1 || !manager.ensureCalls[0] {
+		t.Fatal("expected startup skip to ensure runtime with current local config")
+	}
+	if client.fetchCalls != 0 {
+		t.Fatalf("expected blocked startup target to skip fetch, got %d", client.fetchCalls)
+	}
+	if len(client.reports) != 0 {
+		t.Fatal("expected blocked startup target to skip duplicate apply report")
+	}
+	snapshot, err := stateStore.Load()
+	if err != nil {
+		t.Fatalf("failed to load state: %v", err)
+	}
+	if snapshot.BlockedVersion != "20260309-007" || snapshot.BlockedChecksum != "checksum-7" {
+		t.Fatalf("expected blocked target to remain recorded, got %+v", snapshot)
+	}
+	if snapshot.OpenrestyStatus != protocol.OpenrestyStatusHealthy {
+		t.Fatalf("expected startup runtime recovery to mark openresty healthy, got %q", snapshot.OpenrestyStatus)
+	}
+}
+
+func TestSyncOnceClearsBlockedTargetWhenNewVersionArrives(t *testing.T) {
+	client := &fakeClient{
+		config: protocol.ActiveConfigResponse{
+			Version:        "20260309-008",
+			Checksum:       "checksum-8",
+			MainConfig:     "worker_processes 8;",
+			RouteConfig:    "server { listen 88; }",
+			RenderedConfig: "server { listen 88; }",
+			CreatedAt:      time.Now().Format(time.RFC3339),
+		},
+	}
+	stateStore := state.NewStore(filepath.Join(t.TempDir(), "state.json"))
+	nodeID, err := stateStore.EnsureNodeID()
+	if err != nil {
+		t.Fatalf("EnsureNodeID failed: %v", err)
+	}
+	if err = stateStore.Save(&state.Snapshot{
+		NodeID:          nodeID,
+		CurrentVersion:  "20260309-005",
+		CurrentChecksum: "checksum-5",
+		BlockedVersion:  "20260309-007",
+		BlockedChecksum: "checksum-7",
+		BlockedReason:   "apply failed, rolled back to previous config",
+	}); err != nil {
+		t.Fatalf("failed to seed state: %v", err)
+	}
+
+	manager := &fakeManager{}
+	service := New(client, manager, stateStore)
+	if err = service.SyncOnce(context.Background(), &protocol.ActiveConfigMeta{
+		Version:  "20260309-008",
+		Checksum: "checksum-8",
+	}); err != nil {
+		t.Fatalf("expected new target version to be applied, got %v", err)
+	}
+	if client.fetchCalls != 1 {
+		t.Fatalf("expected new target to trigger fetch, got %d", client.fetchCalls)
+	}
+	if len(manager.applyMainContents) != 1 {
+		t.Fatal("expected new target to trigger apply")
+	}
+	snapshot, err := stateStore.Load()
+	if err != nil {
+		t.Fatalf("failed to load state: %v", err)
+	}
+	if snapshot.BlockedVersion != "" || snapshot.BlockedChecksum != "" {
+		t.Fatalf("expected blocked target to be cleared after new version succeeds, got %+v", snapshot)
+	}
+	if snapshot.CurrentVersion != "20260309-008" || snapshot.CurrentChecksum != "checksum-8" {
+		t.Fatalf("expected current version to move to new target, got %+v", snapshot)
 	}
 }
 

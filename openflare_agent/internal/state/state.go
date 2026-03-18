@@ -13,6 +13,9 @@ type Snapshot struct {
 	NodeID                 string `json:"node_id"`
 	CurrentVersion         string `json:"current_version"`
 	CurrentChecksum        string `json:"current_checksum"`
+	BlockedVersion         string `json:"blocked_version"`
+	BlockedChecksum        string `json:"blocked_checksum"`
+	BlockedReason          string `json:"blocked_reason"`
 	LastError              string `json:"last_error"`
 	OpenrestyStatus        string `json:"openresty_status"`
 	OpenrestyMessage       string `json:"openresty_message"`

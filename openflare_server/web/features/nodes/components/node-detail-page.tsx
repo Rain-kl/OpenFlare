@@ -20,6 +20,7 @@ import { ConfigVersionSnapshotModal } from '@/features/config-versions/component
 import type { ConfigVersionSummary } from '@/features/config-versions/types';
 import { getApplyLogs } from '@/features/apply-logs/api/apply-logs';
 import {
+  cleanupNodeHealthEvents,
   deleteNode,
   getNodeAgentRelease,
   getNodeObservability,
@@ -250,6 +251,8 @@ export function NodeDetailPage({ nodeId }: { nodeId: string }) {
   const [healthEventFilter, setHealthEventFilter] =
     useState<HealthEventFilter>('all');
   const [activeTab, setActiveTab] = useState<NodeDetailTab>('dashboard');
+  const [isHealthEventCleanupModalOpen, setHealthEventCleanupModalOpen] =
+    useState(false);
 
   const nodesQuery = useQuery({
     queryKey: nodesQueryKey,
@@ -367,6 +370,27 @@ export function NodeDetailPage({ nodeId }: { nodeId: string }) {
       setFeedback({ tone: 'success', message: '节点已删除。' });
       await queryClient.invalidateQueries({ queryKey: nodesQueryKey });
       router.push('/node');
+    },
+    onError: (error) => {
+      setFeedback({ tone: 'danger', message: getErrorMessage(error) });
+    },
+  });
+
+  const cleanupHealthEventsMutation = useMutation({
+    mutationFn: () => cleanupNodeHealthEvents(Number(nodeId)),
+    onSuccess: async (result) => {
+      setFeedback({
+        tone: 'success',
+        message:
+          result.deleted_count > 0
+            ? `已清理 ${result.deleted_count} 条健康事件日志。`
+            : '当前没有可清理的健康事件日志。',
+      });
+      setHealthEventCleanupModalOpen(false);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['node-observability', nodeId] }),
+        queryClient.invalidateQueries({ queryKey: ['dashboard', 'overview'] }),
+      ]);
     },
     onError: (error) => {
       setFeedback({ tone: 'danger', message: getErrorMessage(error) });
@@ -1215,6 +1239,20 @@ export function NodeDetailPage({ nodeId }: { nodeId: string }) {
               <AppCard
                 title="健康事件时间线"
                 description="保留活动与已恢复事件，帮助判断问题是持续中、间歇性还是已经恢复。"
+                action={
+                  <DangerButton
+                    type="button"
+                    disabled={
+                      cleanupHealthEventsMutation.isPending ||
+                      !observability?.health_events.length
+                    }
+                    onClick={() => setHealthEventCleanupModalOpen(true)}
+                  >
+                    {cleanupHealthEventsMutation.isPending
+                      ? '清理中...'
+                      : '清理日志'}
+                  </DangerButton>
+                }
               >
                 {observability?.health_events.length ? (
                   <div className="space-y-4">
@@ -1702,6 +1740,49 @@ export function NodeDetailPage({ nodeId }: { nodeId: string }) {
           saveMutation.mutate(payload);
         }}
       />
+
+      <AppModal
+        isOpen={isHealthEventCleanupModalOpen}
+        onClose={() => setHealthEventCleanupModalOpen(false)}
+        title="清理健康事件日志"
+        description={
+          node
+            ? `确认清理节点“${node.name}”的健康事件时间线吗？已清理的历史记录将立即从当前页面移除，后续只有新的节点上报才会再次出现。`
+            : '确认清理当前节点的健康事件时间线吗？'
+        }
+        footer={
+          <div className="flex flex-wrap justify-end gap-3">
+            <SecondaryButton
+              type="button"
+              onClick={() => setHealthEventCleanupModalOpen(false)}
+            >
+              取消
+            </SecondaryButton>
+            <DangerButton
+              type="button"
+              disabled={cleanupHealthEventsMutation.isPending}
+              onClick={() => {
+                setFeedback(null);
+                cleanupHealthEventsMutation.mutate();
+              }}
+            >
+              {cleanupHealthEventsMutation.isPending ? '清理中...' : '确认清理'}
+            </DangerButton>
+          </div>
+        }
+      >
+        {cleanupHealthEventsMutation.isError ? (
+          <ErrorState
+            title="健康事件清理失败"
+            description={getErrorMessage(cleanupHealthEventsMutation.error)}
+          />
+        ) : (
+          <div className="space-y-3 text-sm text-[var(--foreground-secondary)]">
+            <p>该操作会删除当前节点已记录的全部健康事件，包括活动中与已恢复事件。</p>
+            <p>这不会影响节点后续继续上报新的健康事件，但现有时间线与相关摘要会立即刷新。</p>
+          </div>
+        )}
+      </AppModal>
 
       <AppModal
         isOpen={isAgentUpdateModalOpen}
