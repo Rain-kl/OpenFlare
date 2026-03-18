@@ -34,6 +34,14 @@ func ListNodes() (nodes []*Node, err error) {
 	return nodes, err
 }
 
+func ListNodesByNodeIDs(nodeIDs []string) (nodes []*Node, err error) {
+	if len(nodeIDs) == 0 {
+		return []*Node{}, nil
+	}
+	err = DB.Where("node_id IN ?", nodeIDs).Find(&nodes).Error
+	return nodes, err
+}
+
 func GetNodeByNodeID(nodeID string) (*Node, error) {
 	node := &Node{}
 	err := DB.Where("node_id = ?", nodeID).First(node).Error

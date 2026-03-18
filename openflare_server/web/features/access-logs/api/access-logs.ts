@@ -2,7 +2,7 @@ import { apiRequest } from '@/lib/api/client';
 
 import type { AccessLogList } from '@/features/access-logs/types';
 
-export function getAccessLogs(page: number, nodeId?: string, pageSize = 50) {
+export function getAccessLogs(page: number, nodeId?: string, pageSize = 20) {
   const normalizedNodeId = nodeId?.trim();
   const searchParams = new URLSearchParams({
     p: String(Math.max(page, 0)),

@@ -15,11 +15,14 @@ import type { AccessLogItem } from '@/features/access-logs/types';
 import {
   PrimaryButton,
   ResourceInput,
+  ResourceSelect,
   SecondaryButton,
 } from '@/features/shared/components/resource-primitives';
 import { formatDateTime, formatRelativeTime } from '@/lib/utils/date';
 
 const accessLogsQueryKey = (nodeId: string) => ['access-logs', nodeId] as const;
+const defaultPageSize = 20;
+const accessLogPageSizeOptions = [20, 50, 100, 200];
 
 function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : '请求失败，请稍后重试。';
@@ -47,15 +50,16 @@ export function AccessLogsPage() {
   const [nodeFilterInput, setNodeFilterInput] = useState('');
   const [nodeFilter, setNodeFilter] = useState('');
   const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState(defaultPageSize);
 
   const logsQuery = useQuery({
-    queryKey: [...accessLogsQueryKey(nodeFilter), page],
-    queryFn: () => getAccessLogs(page, nodeFilter),
+    queryKey: [...accessLogsQueryKey(nodeFilter), page, pageSize],
+    queryFn: () => getAccessLogs(page, nodeFilter, pageSize),
+    placeholderData: (previousData) => previousData,
   });
 
   const logs = useMemo(() => logsQuery.data?.items ?? [], [logsQuery.data]);
   const hasMore = logsQuery.data?.has_more ?? false;
-  const pageSize = logsQuery.data?.page_size ?? 50;
   const summary = useMemo(
     () =>
       buildSummary(
@@ -125,6 +129,21 @@ export function AccessLogsPage() {
               placeholder="输入 node_id 过滤访问日志"
               className="lg:max-w-md"
             />
+            <ResourceSelect
+              value={String(pageSize)}
+              onChange={(event) => {
+                setPageSize(Number(event.target.value) || defaultPageSize);
+                setPage(0);
+              }}
+              className="lg:w-40"
+              aria-label="每页条数"
+            >
+              {accessLogPageSizeOptions.map((option) => (
+                <option key={option} value={option}>
+                  每页 {option} 条
+                </option>
+              ))}
+            </ResourceSelect>
             <div className="flex flex-wrap gap-2">
               <PrimaryButton
                 type="button"

@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	defaultAccessLogPageSize = 50
+	defaultAccessLogPageSize = 20
 	maxAccessLogPageSize     = 200
 )
 
@@ -51,7 +51,19 @@ func ListAccessLogs(nodeID string, page int, pageSize int) (*AccessLogList, erro
 	if err != nil {
 		return nil, err
 	}
-	nodes, err := model.ListNodes()
+	nodeIDs := make([]string, 0, len(logs))
+	seenNodeIDs := make(map[string]struct{}, len(logs))
+	for _, item := range logs {
+		if item == nil {
+			continue
+		}
+		if _, exists := seenNodeIDs[item.NodeID]; exists {
+			continue
+		}
+		seenNodeIDs[item.NodeID] = struct{}{}
+		nodeIDs = append(nodeIDs, item.NodeID)
+	}
+	nodes, err := model.ListNodesByNodeIDs(nodeIDs)
 	if err != nil {
 		return nil, err
 	}

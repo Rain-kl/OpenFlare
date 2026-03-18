@@ -98,3 +98,44 @@ func TestListAccessLogsIncludesSummaryTotals(t *testing.T) {
 		t.Fatalf("expected filtered items=2, got %d", len(filtered.Items))
 	}
 }
+
+func TestListAccessLogsUsesDefaultPageSize(t *testing.T) {
+	setupServiceTestDB(t)
+
+	now := time.Now()
+	if err := model.DB.Create(&model.Node{
+		NodeID: "node-default-page-size",
+		Name:   "edge-default-page-size",
+	}).Error; err != nil {
+		t.Fatalf("failed to seed node: %v", err)
+	}
+
+	logs := make([]*model.NodeAccessLog, 0, 25)
+	for index := range 25 {
+		logs = append(logs, &model.NodeAccessLog{
+			NodeID:     "node-default-page-size",
+			LoggedAt:   now.Add(-time.Duration(index) * time.Minute),
+			RemoteAddr: "1.1.1.1",
+			Host:       "example.com",
+			Path:       "/default-page-size",
+			StatusCode: 200,
+		})
+	}
+	if err := model.DB.Create(&logs).Error; err != nil {
+		t.Fatalf("failed to seed access logs: %v", err)
+	}
+
+	result, err := ListAccessLogs("", 0, 0)
+	if err != nil {
+		t.Fatalf("ListAccessLogs failed: %v", err)
+	}
+	if result.PageSize != 20 {
+		t.Fatalf("expected default page_size=20, got %d", result.PageSize)
+	}
+	if len(result.Items) != 20 {
+		t.Fatalf("expected current page items=20, got %d", len(result.Items))
+	}
+	if !result.HasMore {
+		t.Fatal("expected has_more to be true")
+	}
+}
