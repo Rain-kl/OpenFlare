@@ -2,6 +2,7 @@ package model
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/glebarez/sqlite"
 	"gorm.io/driver/postgres"
@@ -23,6 +24,13 @@ type dbModel struct {
 	hasIDPK   bool
 }
 
+type databaseSchemaMigration struct {
+	fromVersion int
+	toVersion   int
+	migrate     func(db *gorm.DB, backend string) error
+	validate    func(db *gorm.DB, backend string) error
+}
+
 func registeredModels() []any {
 	return []any{
 		&File{},
@@ -39,6 +47,12 @@ func registeredModels() []any {
 		&NodeHealthEvent{},
 		&TLSCertificate{},
 		&ManagedDomain{},
+	}
+}
+
+func schemaMetadataModels() []any {
+	return []any{
+		&DatabaseSchemaVersion{},
 	}
 }
 
@@ -123,6 +137,15 @@ func autoMigrateAll(db *gorm.DB) error {
 	return nil
 }
 
+func autoMigrateSchemaMetadata(db *gorm.DB) error {
+	for _, item := range schemaMetadataModels() {
+		if err := db.AutoMigrate(item); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func migrateTextColumns(db *gorm.DB, backend string) error {
 	if backend != "postgres" {
 		return nil
@@ -194,10 +217,196 @@ func migrateObservabilityLegacyColumns(db *gorm.DB) error {
 	return nil
 }
 
+func applyCurrentSchema(db *gorm.DB, backend string) error {
+	if err := autoMigrateSchemaMetadata(db); err != nil {
+		return err
+	}
+	if err := migrateProxyRouteEnableHTTPSColumn(db); err != nil {
+		return err
+	}
+	if err := autoMigrateAll(db); err != nil {
+		return err
+	}
+	if err := migrateTextColumns(db, backend); err != nil {
+		return err
+	}
+	if err := migrateObservabilityLegacyColumns(db); err != nil {
+		return err
+	}
+	return nil
+}
+
+func loadDatabaseSchemaVersion(db *gorm.DB) (int, bool, error) {
+	if db == nil {
+		return 0, false, nil
+	}
+	if !db.Migrator().HasTable(&DatabaseSchemaVersion{}) {
+		return 0, false, nil
+	}
+	var state DatabaseSchemaVersion
+	err := db.Where("id = ?", databaseSchemaVersionRowID).First(&state).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return 0, false, nil
+	}
+	if err != nil {
+		return 0, false, err
+	}
+	return state.Version, true, nil
+}
+
+func saveDatabaseSchemaVersion(db *gorm.DB, version int) error {
+	return db.Save(&DatabaseSchemaVersion{
+		ID:      databaseSchemaVersionRowID,
+		Version: version,
+	}).Error
+}
+
+func validateDatabaseSchemaV2(db *gorm.DB, backend string) error {
+	if db == nil {
+		return fmt.Errorf("database handle is nil")
+	}
+	if !db.Migrator().HasTable(&DatabaseSchemaVersion{}) {
+		return fmt.Errorf("table %s is missing", (&DatabaseSchemaVersion{}).TableName())
+	}
+	models, err := buildDBModels()
+	if err != nil {
+		return err
+	}
+	for _, item := range models {
+		if isShardedObservabilityTable(item.tableName) {
+			for _, table := range observabilityShardTables(item.tableName) {
+				if !db.Migrator().HasTable(table) {
+					return fmt.Errorf("sharded table %s is missing", table)
+				}
+			}
+			continue
+		}
+		if !db.Migrator().HasTable(item.value) {
+			return fmt.Errorf("table %s is missing", item.tableName)
+		}
+	}
+	if !db.Migrator().HasColumn(&NodeHealthEvent{}, "metadata_json") {
+		return fmt.Errorf("column node_health_events.metadata_json is missing")
+	}
+	_ = backend
+	return nil
+}
+
+func databaseSchemaMigrations() []databaseSchemaMigration {
+	return []databaseSchemaMigration{
+		{
+			fromVersion: 1,
+			toVersion:   2,
+			migrate:     applyCurrentSchema,
+			validate:    validateDatabaseSchemaV2,
+		},
+	}
+}
+
+func databaseSchemaMigrationMap() map[int]databaseSchemaMigration {
+	migrations := make(map[int]databaseSchemaMigration, len(databaseSchemaMigrations()))
+	for _, item := range databaseSchemaMigrations() {
+		migrations[item.fromVersion] = item
+	}
+	return migrations
+}
+
+func runDatabaseSchemaMigration(db *gorm.DB, backend string, migration databaseSchemaMigration) error {
+	return db.Transaction(func(tx *gorm.DB) error {
+		if err := migration.migrate(tx, backend); err != nil {
+			return fmt.Errorf("migrate database schema from v%d to v%d failed: %w", migration.fromVersion, migration.toVersion, err)
+		}
+		if err := migration.validate(tx, backend); err != nil {
+			return fmt.Errorf("validate database schema v%d failed: %w", migration.toVersion, err)
+		}
+		if err := saveDatabaseSchemaVersion(tx, migration.toVersion); err != nil {
+			return fmt.Errorf("persist database schema version v%d failed: %w", migration.toVersion, err)
+		}
+		return nil
+	})
+}
+
+func upgradeDatabaseSchema(db *gorm.DB, backend string, version int) error {
+	if version > currentDatabaseSchemaVersion {
+		return fmt.Errorf("database schema version %d is newer than application version %d", version, currentDatabaseSchemaVersion)
+	}
+	if version == currentDatabaseSchemaVersion {
+		return nil
+	}
+	migrationMap := databaseSchemaMigrationMap()
+	for version < currentDatabaseSchemaVersion {
+		migration, ok := migrationMap[version]
+		if !ok {
+			return fmt.Errorf("database schema migration from v%d is not defined", version)
+		}
+		if err := runDatabaseSchemaMigration(db, backend, migration); err != nil {
+			return err
+		}
+		version = migration.toVersion
+	}
+	return nil
+}
+
+func initializeFreshDatabaseSchema(db *gorm.DB, backend string) error {
+	if err := applyCurrentSchema(db, backend); err != nil {
+		return err
+	}
+	if err := migrateSQLiteDataIfNeeded(db, backend); err != nil {
+		return err
+	}
+	if err := validateDatabaseSchemaV2(db, backend); err != nil {
+		return err
+	}
+	return saveDatabaseSchemaVersion(db, currentDatabaseSchemaVersion)
+}
+
+func ensureDatabaseSchemaUpToDate(db *gorm.DB, backend string) error {
+	version, exists, err := loadDatabaseSchemaVersion(db)
+	if err != nil {
+		return err
+	}
+	if exists {
+		return upgradeDatabaseSchema(db, backend, version)
+	}
+	empty, err := isDatabaseEmpty(db)
+	if err != nil {
+		return err
+	}
+	if empty {
+		return initializeFreshDatabaseSchema(db, backend)
+	}
+	if err := autoMigrateSchemaMetadata(db); err != nil {
+		return err
+	}
+	return upgradeDatabaseSchema(db, backend, legacyDatabaseSchemaVersion)
+}
+
 func isDatabaseEmpty(db *gorm.DB) (bool, error) {
-	for _, item := range registeredModels() {
+	models, err := buildDBModels()
+	if err != nil {
+		return false, err
+	}
+	for _, item := range models {
+		if isShardedObservabilityTable(item.tableName) {
+			for _, table := range observabilityShardTables(item.tableName) {
+				if !db.Migrator().HasTable(table) {
+					continue
+				}
+				var count int64
+				if err := db.Table(table).Limit(1).Count(&count).Error; err != nil {
+					return false, err
+				}
+				if count > 0 {
+					return false, nil
+				}
+			}
+			continue
+		}
+		if !db.Migrator().HasTable(item.value) {
+			continue
+		}
 		var count int64
-		if err := db.Model(item).Limit(1).Count(&count).Error; err != nil {
+		if err := db.Model(item.value).Limit(1).Count(&count).Error; err != nil {
 			return false, err
 		}
 		if count > 0 {
@@ -346,19 +555,7 @@ func InitDB() (err error) {
 	if err = registerSharding(db, backend); err != nil {
 		return err
 	}
-	if err = migrateProxyRouteEnableHTTPSColumn(db); err != nil {
-		return err
-	}
-	if err = autoMigrateAll(db); err != nil {
-		return err
-	}
-	if err = migrateTextColumns(db, backend); err != nil {
-		return err
-	}
-	if err = migrateObservabilityLegacyColumns(db); err != nil {
-		return err
-	}
-	if err = migrateSQLiteDataIfNeeded(db, backend); err != nil {
+	if err = ensureDatabaseSchemaUpToDate(db, backend); err != nil {
 		return err
 	}
 	return createRootAccountIfNeed()

@@ -10,15 +10,12 @@ import (
 	"gorm.io/gorm"
 )
 
-func openTestSQLiteDB(t *testing.T, name string) *gorm.DB {
+func openBareTestSQLiteDB(t *testing.T, name string) *gorm.DB {
 	t.Helper()
 
 	db, err := gorm.Open(sqlite.Open(filepath.Join(t.TempDir(), name)), &gorm.Config{})
 	if err != nil {
 		t.Fatalf("open sqlite db: %v", err)
-	}
-	if err := autoMigrateAll(db); err != nil {
-		t.Fatalf("auto migrate db: %v", err)
 	}
 	sqlDB, err := db.DB()
 	if err != nil {
@@ -27,6 +24,16 @@ func openTestSQLiteDB(t *testing.T, name string) *gorm.DB {
 	t.Cleanup(func() {
 		_ = sqlDB.Close()
 	})
+	return db
+}
+
+func openTestSQLiteDB(t *testing.T, name string) *gorm.DB {
+	t.Helper()
+
+	db := openBareTestSQLiteDB(t, name)
+	if err := autoMigrateAll(db); err != nil {
+		t.Fatalf("auto migrate db: %v", err)
+	}
 	return db
 }
 
@@ -125,17 +132,7 @@ func TestMigrateTableDataCopiesRows(t *testing.T) {
 }
 
 func TestRegisterShardingAutoMigratesShardTables(t *testing.T) {
-	db, err := gorm.Open(sqlite.Open(filepath.Join(t.TempDir(), "sharded.db")), &gorm.Config{})
-	if err != nil {
-		t.Fatalf("open sqlite db: %v", err)
-	}
-	sqlDB, err := db.DB()
-	if err != nil {
-		t.Fatalf("get sql db: %v", err)
-	}
-	t.Cleanup(func() {
-		_ = sqlDB.Close()
-	})
+	db := openBareTestSQLiteDB(t, "sharded.db")
 	if err := registerSharding(db, "sqlite"); err != nil {
 		t.Fatalf("register sharding: %v", err)
 	}
@@ -200,5 +197,87 @@ func TestMigrateObservabilityLegacyColumnsBackfillsHealthEventMetadata(t *testin
 	}
 	if got.MetadataJSON == "" {
 		t.Fatal("expected metadata_json to be backfilled")
+	}
+}
+
+func TestEnsureDatabaseSchemaUpToDateInitializesFreshDatabase(t *testing.T) {
+	db := openBareTestSQLiteDB(t, "fresh-schema.db")
+	if err := registerSharding(db, "sqlite"); err != nil {
+		t.Fatalf("register sharding: %v", err)
+	}
+
+	if err := ensureDatabaseSchemaUpToDate(db, "sqlite"); err != nil {
+		t.Fatalf("ensureDatabaseSchemaUpToDate: %v", err)
+	}
+
+	version, exists, err := loadDatabaseSchemaVersion(db)
+	if err != nil {
+		t.Fatalf("loadDatabaseSchemaVersion: %v", err)
+	}
+	if !exists {
+		t.Fatal("expected database schema version to be recorded")
+	}
+	if version != currentDatabaseSchemaVersion {
+		t.Fatalf("unexpected schema version: got %d want %d", version, currentDatabaseSchemaVersion)
+	}
+}
+
+func TestEnsureDatabaseSchemaUpToDateUpgradesLegacyDatabase(t *testing.T) {
+	db := openBareTestSQLiteDB(t, "legacy-schema.db")
+	if err := registerSharding(db, "sqlite"); err != nil {
+		t.Fatalf("register sharding: %v", err)
+	}
+	if err := autoMigrateAll(db); err != nil {
+		t.Fatalf("auto migrate db: %v", err)
+	}
+	if err := db.Create(&User{
+		Username:    "legacy",
+		Password:    "secret",
+		DisplayName: "Legacy User",
+		Role:        1,
+		Status:      1,
+	}).Error; err != nil {
+		t.Fatalf("seed legacy user: %v", err)
+	}
+
+	if err := ensureDatabaseSchemaUpToDate(db, "sqlite"); err != nil {
+		t.Fatalf("ensureDatabaseSchemaUpToDate: %v", err)
+	}
+
+	version, exists, err := loadDatabaseSchemaVersion(db)
+	if err != nil {
+		t.Fatalf("loadDatabaseSchemaVersion: %v", err)
+	}
+	if !exists {
+		t.Fatal("expected legacy database to gain a schema version record")
+	}
+	if version != currentDatabaseSchemaVersion {
+		t.Fatalf("unexpected schema version: got %d want %d", version, currentDatabaseSchemaVersion)
+	}
+}
+
+func TestRunDatabaseSchemaMigrationDoesNotAdvanceVersionWhenValidationFails(t *testing.T) {
+	db := openBareTestSQLiteDB(t, "failed-validation.db")
+
+	err := runDatabaseSchemaMigration(db, "sqlite", databaseSchemaMigration{
+		fromVersion: legacyDatabaseSchemaVersion,
+		toVersion:   currentDatabaseSchemaVersion,
+		migrate: func(tx *gorm.DB, backend string) error {
+			return autoMigrateSchemaMetadata(tx)
+		},
+		validate: func(tx *gorm.DB, backend string) error {
+			return gorm.ErrInvalidDB
+		},
+	})
+	if err == nil {
+		t.Fatal("expected migration validation to fail")
+	}
+
+	_, exists, loadErr := loadDatabaseSchemaVersion(db)
+	if loadErr != nil {
+		t.Fatalf("loadDatabaseSchemaVersion: %v", loadErr)
+	}
+	if exists {
+		t.Fatal("expected schema version to remain unset after failed validation")
 	}
 }
