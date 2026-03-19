@@ -99,17 +99,13 @@ func CountTable(tableName string) (num int64) {
 
 func openDatabase() (*gorm.DB, string, error) {
 	if common.SQLDSN != "" {
-		db, err := gorm.Open(postgres.Open(common.SQLDSN), &gorm.Config{
-			PrepareStmt: true,
-		})
+		db, err := gorm.Open(postgres.Open(common.SQLDSN), &gorm.Config{})
 		if err != nil {
 			return nil, "", err
 		}
 		return db, "postgres", nil
 	}
-	db, err := gorm.Open(sqlite.Open(common.SQLitePath), &gorm.Config{
-		PrepareStmt: true,
-	})
+	db, err := gorm.Open(sqlite.Open(common.SQLitePath), &gorm.Config{})
 	if err != nil {
 		return nil, "", err
 	}
@@ -265,8 +261,17 @@ func migrateTableData(source *gorm.DB, target *gorm.DB, item dbModel) error {
 		if batchLen == 0 {
 			break
 		}
-		if err := target.Create(batchPtr.Interface()).Error; err != nil {
-			return fmt.Errorf("write target table %s failed: %w", item.tableName, err)
+		if isShardedObservabilityTable(item.tableName) {
+			for index := 0; index < batchLen; index++ {
+				record := batchPtr.Elem().Index(index)
+				if err := target.Create(record.Addr().Interface()).Error; err != nil {
+					return fmt.Errorf("write target sharded table %s failed: %w", item.tableName, err)
+				}
+			}
+		} else {
+			if err := target.Create(batchPtr.Interface()).Error; err != nil {
+				return fmt.Errorf("write target table %s failed: %w", item.tableName, err)
+			}
 		}
 		migrated += int64(batchLen)
 		offset += batchLen
@@ -293,6 +298,9 @@ func InitDB() (err error) {
 		os.Exit(1)
 	}
 	DB = db
+	if err = registerSharding(db, backend); err != nil {
+		return err
+	}
 	if err = migrateProxyRouteEnableHTTPSColumn(db); err != nil {
 		return err
 	}

@@ -327,18 +327,28 @@ type trafficCountItem struct {
 	value int64
 }
 
+const accessLogPathMaxRunes = 100
+
 func normalizeAccessLogPath(value string) string {
 	trimmed := strings.TrimSpace(value)
 	if trimmed == "" {
 		return ""
 	}
 	if strings.HasPrefix(trimmed, "http://") || strings.HasPrefix(trimmed, "https://") {
-		return trimmed
+		return truncateAccessLogPath(trimmed)
 	}
 	if strings.HasPrefix(trimmed, "/") {
-		return trimmed
+		return truncateAccessLogPath(trimmed)
 	}
-	return "/" + trimmed
+	return truncateAccessLogPath("/" + trimmed)
+}
+
+func truncateAccessLogPath(value string) string {
+	runes := []rune(value)
+	if len(runes) <= accessLogPathMaxRunes {
+		return value
+	}
+	return string(runes[:accessLogPathMaxRunes])
 }
 
 func topCounts(values map[string]int64, limit int) map[string]int64 {

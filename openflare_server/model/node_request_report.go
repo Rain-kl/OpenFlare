@@ -1,6 +1,11 @@
 package model
 
-import "time"
+import (
+	"sort"
+	"time"
+
+	"gorm.io/gorm"
+)
 
 type NodeRequestReport struct {
 	ID                  uint      `json:"id" gorm:"primaryKey"`
@@ -34,10 +39,25 @@ func ListNodeRequestReports(nodeID string, since time.Time, limit int) (reports 
 }
 
 func ListRequestReportsSince(since time.Time) (reports []*NodeRequestReport, err error) {
-	query := DB.Order("window_ended_at desc")
-	if !since.IsZero() {
-		query = query.Where("window_ended_at >= ?", since)
+	rows, err := queryAcrossShards("node_request_reports", func(tx *gorm.DB) ([]*NodeRequestReport, error) {
+		var shardRows []*NodeRequestReport
+		query := tx.Order("window_ended_at desc")
+		if !since.IsZero() {
+			query = query.Where("window_ended_at >= ?", since)
+		}
+		if err := query.Find(&shardRows).Error; err != nil {
+			return nil, err
+		}
+		return shardRows, nil
+	})
+	if err != nil {
+		return nil, err
 	}
-	err = query.Find(&reports).Error
-	return reports, err
+	sort.Slice(rows, func(i int, j int) bool {
+		if rows[i].WindowEndedAt.Equal(rows[j].WindowEndedAt) {
+			return rows[i].ID > rows[j].ID
+		}
+		return rows[i].WindowEndedAt.After(rows[j].WindowEndedAt)
+	})
+	return rows, nil
 }

@@ -1,6 +1,11 @@
 package model
 
-import "time"
+import (
+	"sort"
+	"time"
+
+	"gorm.io/gorm"
+)
 
 type NodeMetricSnapshot struct {
 	ID                   uint      `json:"id" gorm:"primaryKey"`
@@ -39,10 +44,25 @@ func ListNodeMetricSnapshots(nodeID string, since time.Time, limit int) (snapsho
 }
 
 func ListMetricSnapshotsSince(since time.Time) (snapshots []*NodeMetricSnapshot, err error) {
-	query := DB.Order("captured_at desc")
-	if !since.IsZero() {
-		query = query.Where("captured_at >= ?", since)
+	rows, err := queryAcrossShards("node_metric_snapshots", func(tx *gorm.DB) ([]*NodeMetricSnapshot, error) {
+		var shardRows []*NodeMetricSnapshot
+		query := tx.Order("captured_at desc")
+		if !since.IsZero() {
+			query = query.Where("captured_at >= ?", since)
+		}
+		if err := query.Find(&shardRows).Error; err != nil {
+			return nil, err
+		}
+		return shardRows, nil
+	})
+	if err != nil {
+		return nil, err
 	}
-	err = query.Find(&snapshots).Error
-	return snapshots, err
+	sort.Slice(rows, func(i int, j int) bool {
+		if rows[i].CapturedAt.Equal(rows[j].CapturedAt) {
+			return rows[i].ID > rows[j].ID
+		}
+		return rows[i].CapturedAt.After(rows[j].CapturedAt)
+	})
+	return rows, nil
 }

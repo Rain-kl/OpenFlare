@@ -908,7 +908,7 @@ func TestListAccessLogsUsesPagination(t *testing.T) {
 	}
 
 	now := time.Now().UTC()
-	if err := model.DB.Create([]*model.NodeAccessLog{
+	for _, item := range []*model.NodeAccessLog{
 		{
 			NodeID:     node.NodeID,
 			LoggedAt:   now.Add(-10 * time.Second),
@@ -936,8 +936,10 @@ func TestListAccessLogsUsesPagination(t *testing.T) {
 			Path:       "/three",
 			StatusCode: 502,
 		},
-	}).Error; err != nil {
-		t.Fatalf("failed to seed access logs: %v", err)
+	} {
+		if err := model.DB.Create(item).Error; err != nil {
+			t.Fatalf("failed to seed access logs: %v", err)
+		}
 	}
 
 	pageOne, err := ListAccessLogs(AccessLogQuery{
@@ -1404,7 +1406,7 @@ func TestGetDashboardOverview(t *testing.T) {
 	}).Insert(); err != nil {
 		t.Fatalf("failed to insert node b traffic report: %v", err)
 	}
-	if err := model.DB.Create([]*model.NodeAccessLog{
+	for _, item := range []*model.NodeAccessLog{
 		{
 			NodeID:     "node-dashboard-a",
 			LoggedAt:   now.Add(-30 * time.Minute),
@@ -1432,8 +1434,10 @@ func TestGetDashboardOverview(t *testing.T) {
 			Path:       "/edge",
 			StatusCode: 502,
 		},
-	}).Error; err != nil {
-		t.Fatalf("failed to seed dashboard access logs: %v", err)
+	} {
+		if err := model.DB.Create(item).Error; err != nil {
+			t.Fatalf("failed to seed dashboard access logs: %v", err)
+		}
 	}
 
 	if err := model.DB.Create(&model.NodeHealthEvent{

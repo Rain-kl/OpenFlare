@@ -2,6 +2,7 @@ package service
 
 import (
 	"openflare/model"
+	"strings"
 	"testing"
 	"time"
 )
@@ -60,9 +61,7 @@ func TestListAccessLogsIncludesSummaryTotals(t *testing.T) {
 			StatusCode: 200,
 		},
 	}
-	if err := model.DB.Create(&logs).Error; err != nil {
-		t.Fatalf("failed to seed access logs: %v", err)
-	}
+	seedNodeAccessLogs(t, logs)
 
 	result, err := ListAccessLogs(AccessLogQuery{Page: 0, PageSize: 2})
 	if err != nil {
@@ -121,9 +120,7 @@ func TestListAccessLogsUsesDefaultPageSize(t *testing.T) {
 			StatusCode: 200,
 		})
 	}
-	if err := model.DB.Create(&logs).Error; err != nil {
-		t.Fatalf("failed to seed access logs: %v", err)
-	}
+	seedNodeAccessLogs(t, logs)
 
 	result, err := ListAccessLogs(AccessLogQuery{})
 	if err != nil {
@@ -143,7 +140,7 @@ func TestListAccessLogsUsesDefaultPageSize(t *testing.T) {
 func TestListFoldedAccessLogsAndIPSummaries(t *testing.T) {
 	setupServiceTestDB(t)
 
-	now := time.Now().UTC()
+	now := time.Date(2026, 3, 19, 8, 12, 30, 0, time.UTC)
 	if err := model.DB.Create(&model.Node{
 		NodeID: "node-folded",
 		Name:   "edge-folded",
@@ -176,9 +173,7 @@ func TestListFoldedAccessLogsAndIPSummaries(t *testing.T) {
 			StatusCode: 404,
 		},
 	}
-	if err := model.DB.Create(&logs).Error; err != nil {
-		t.Fatalf("failed to seed access logs: %v", err)
-	}
+	seedNodeAccessLogs(t, logs)
 
 	folded, err := ListFoldedAccessLogs(AccessLogQuery{
 		NodeID:      "node-folded",
@@ -221,7 +216,7 @@ func TestCleanupAccessLogsDeletesExpiredData(t *testing.T) {
 	setupServiceTestDB(t)
 
 	now := time.Now().UTC()
-	if err := model.DB.Create([]*model.NodeAccessLog{
+	seedNodeAccessLogs(t, []*model.NodeAccessLog{
 		{
 			NodeID:     "node-cleanup",
 			LoggedAt:   now.Add(-10 * 24 * time.Hour),
@@ -238,9 +233,7 @@ func TestCleanupAccessLogsDeletesExpiredData(t *testing.T) {
 			Path:       "/recent",
 			StatusCode: 200,
 		},
-	}).Error; err != nil {
-		t.Fatalf("failed to seed cleanup logs: %v", err)
-	}
+	})
 
 	result, err := CleanupAccessLogs(AccessLogCleanupInput{RetentionDays: 7})
 	if err != nil {
@@ -256,5 +249,47 @@ func TestCleanupAccessLogsDeletesExpiredData(t *testing.T) {
 	}
 	if len(remaining.Items) != 1 || remaining.Items[0].Path != "/recent" {
 		t.Fatalf("unexpected remaining logs after cleanup: %+v", remaining.Items)
+	}
+}
+
+func TestPersistNodeAccessLogsTruncatesLongPath(t *testing.T) {
+	setupServiceTestDB(t)
+
+	longPath := "/" + strings.Repeat("a", 140)
+	reportedAt := time.Now().UTC()
+	if err := persistNodeAccessLogs(model.DB, "node-truncate", []AgentNodeAccessLog{
+		{
+			LoggedAtUnix: reportedAt.Unix(),
+			RemoteAddr:   "203.0.113.10",
+			Host:         "truncate.example.com",
+			Path:         longPath,
+			StatusCode:   200,
+		},
+	}, reportedAt); err != nil {
+		t.Fatalf("persistNodeAccessLogs failed: %v", err)
+	}
+
+	logs, err := model.ListNodeAccessLogs(model.NodeAccessLogQuery{
+		NodeID:   "node-truncate",
+		Page:     0,
+		PageSize: 10,
+	})
+	if err != nil {
+		t.Fatalf("ListNodeAccessLogs failed: %v", err)
+	}
+	if len(logs) != 1 {
+		t.Fatalf("expected one stored log, got %+v", logs)
+	}
+	if got := len([]rune(logs[0].Path)); got != nodeAccessLogPathMaxLength {
+		t.Fatalf("expected truncated path length %d, got %d (%q)", nodeAccessLogPathMaxLength, got, logs[0].Path)
+	}
+}
+
+func seedNodeAccessLogs(t *testing.T, logs []*model.NodeAccessLog) {
+	t.Helper()
+	for _, item := range logs {
+		if err := model.DB.Create(item).Error; err != nil {
+			t.Fatalf("failed to seed access log: %v", err)
+		}
 	}
 }

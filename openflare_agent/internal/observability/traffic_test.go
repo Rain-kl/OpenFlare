@@ -3,6 +3,7 @@ package observability
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"openflare-agent/internal/config"
@@ -105,6 +106,31 @@ func TestBuildTrafficObservabilityReturnsAccessLogs(t *testing.T) {
 	}
 	if accessLogs[0].Path != "/login" || accessLogs[1].Path != "/v1/ping" {
 		t.Fatalf("unexpected access log paths: %+v", accessLogs)
+	}
+}
+
+func TestBuildTrafficObservabilityTruncatesLongAccessLogPath(t *testing.T) {
+	tempDir := t.TempDir()
+	routeConfigPath := filepath.Join(tempDir, "conf.d", "openflare_routes.conf")
+	if err := os.MkdirAll(filepath.Dir(routeConfigPath), 0o755); err != nil {
+		t.Fatalf("MkdirAll failed: %v", err)
+	}
+	logPath := filepath.Join(filepath.Dir(routeConfigPath), "openflare_access.log")
+	longPath := "/" + strings.Repeat("a", 140)
+	content := []byte(
+		"{\"ts\":\"2026-03-14T08:00:00Z\",\"host\":\"app.example.com\",\"path\":\"" + longPath + "\",\"remote_addr\":\"10.0.0.1\",\"status\":200}\n",
+	)
+	if err := os.WriteFile(logPath, content, 0o644); err != nil {
+		t.Fatalf("WriteFile failed: %v", err)
+	}
+
+	stateStore := state.NewStore(filepath.Join(tempDir, "state.json"))
+	_, accessLogs, _ := BuildTrafficObservability(&config.Config{RouteConfigPath: routeConfigPath}, stateStore, nil)
+	if len(accessLogs) != 1 {
+		t.Fatalf("expected one access log, got %+v", accessLogs)
+	}
+	if got := len([]rune(accessLogs[0].Path)); got != accessLogPathMaxRunes {
+		t.Fatalf("expected truncated path length %d, got %d (%q)", accessLogPathMaxRunes, got, accessLogs[0].Path)
 	}
 }
 

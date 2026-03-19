@@ -121,3 +121,36 @@ func TestMigrateTableDataCopiesRows(t *testing.T) {
 		t.Fatalf("unexpected migrated option value: %s", gotOption.Value)
 	}
 }
+
+func TestRegisterShardingAutoMigratesShardTables(t *testing.T) {
+	db, err := gorm.Open(sqlite.Open(filepath.Join(t.TempDir(), "sharded.db")), &gorm.Config{})
+	if err != nil {
+		t.Fatalf("open sqlite db: %v", err)
+	}
+	sqlDB, err := db.DB()
+	if err != nil {
+		t.Fatalf("get sql db: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = sqlDB.Close()
+	})
+	if err := registerSharding(db, "sqlite"); err != nil {
+		t.Fatalf("register sharding: %v", err)
+	}
+	if err := autoMigrateAll(db); err != nil {
+		t.Fatalf("auto migrate db: %v", err)
+	}
+
+	for _, table := range []string{
+		"node_metric_snapshots_00",
+		"node_metric_snapshots_09",
+		"node_request_reports_00",
+		"node_request_reports_09",
+		"node_access_logs_00",
+		"node_access_logs_09",
+	} {
+		if !db.Migrator().HasTable(table) {
+			t.Fatalf("expected sharded table %s to exist", table)
+		}
+	}
+}

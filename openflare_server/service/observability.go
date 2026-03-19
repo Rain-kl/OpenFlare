@@ -18,6 +18,7 @@ const (
 	NodeHealthSeverityWarning     = "warning"
 	NodeHealthSeverityCritical    = "critical"
 	nodeAccessLogRetentionWindow  = nodeAccessLogRetentionDays * 24 * time.Hour
+	nodeAccessLogPathMaxLength    = 100
 )
 
 type AgentNodeSystemProfile struct {
@@ -177,7 +178,7 @@ func persistNodeMetricSnapshot(tx *gorm.DB, nodeID string, snapshot *AgentNodeMe
 		OpenrestyConnections: snapshot.OpenrestyConnections,
 		RawJSON:              marshalJSON(snapshot),
 	}
-	return tx.Where("node_id = ? AND captured_at = ?", nodeID, record.CapturedAt).Assign(record).FirstOrCreate(record).Error
+	return tx.Where("node_id = ? AND captured_at = ?", nodeID, record.CapturedAt).FirstOrCreate(record).Error
 }
 
 func persistNodeTrafficReport(tx *gorm.DB, nodeID string, report *AgentNodeTrafficReport, reportedAt time.Time) error {
@@ -199,7 +200,7 @@ func persistNodeTrafficReport(tx *gorm.DB, nodeID string, report *AgentNodeTraff
 		SourceCountriesJSON: marshalJSON(report.SourceCountries),
 		RawJSON:             marshalJSON(report),
 	}
-	return tx.Where("node_id = ? AND window_started_at = ? AND window_ended_at = ?", nodeID, record.WindowStartedAt, record.WindowEndedAt).Assign(record).FirstOrCreate(record).Error
+	return tx.Where("node_id = ? AND window_started_at = ? AND window_ended_at = ?", nodeID, record.WindowStartedAt, record.WindowEndedAt).FirstOrCreate(record).Error
 }
 
 func persistNodeAccessLogs(tx *gorm.DB, nodeID string, logs []AgentNodeAccessLog, reportedAt time.Time) error {
@@ -220,7 +221,7 @@ func persistNodeAccessLogs(tx *gorm.DB, nodeID string, logs []AgentNodeAccessLog
 			RemoteAddr: strings.TrimSpace(item.RemoteAddr),
 			Region:     "",
 			Host:       strings.TrimSpace(item.Host),
-			Path:       strings.TrimSpace(item.Path),
+			Path:       truncateForDatabase(strings.TrimSpace(item.Path), nodeAccessLogPathMaxLength),
 			StatusCode: item.StatusCode,
 			RawJSON:    marshalJSON(item),
 		}
@@ -235,7 +236,7 @@ func persistNodeAccessLogs(tx *gorm.DB, nodeID string, logs []AgentNodeAccessLog
 			record.Host,
 			record.Path,
 			record.StatusCode,
-		).Assign(record).FirstOrCreate(record).Error; err != nil {
+		).FirstOrCreate(record).Error; err != nil {
 			return err
 		}
 	}
