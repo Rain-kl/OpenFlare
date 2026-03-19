@@ -156,17 +156,14 @@ definitions:
         type: integer
       source_countries:
         additionalProperties:
-          format: int64
           type: integer
         type: object
       status_codes:
         additionalProperties:
-          format: int64
           type: integer
         type: object
       top_domains:
         additionalProperties:
-          format: int64
           type: integer
         type: object
       unique_visitor_count:
@@ -1176,6 +1173,23 @@ paths:
             additionalProperties: true
             type: object
       summary: List editable options
+      tags:
+      - Options
+  /api/option/database/cleanup:
+    post:
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Cleanup observability tables
       tags:
       - Options
   /api/option/geoip/lookup:

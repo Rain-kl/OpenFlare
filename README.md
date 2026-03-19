@@ -112,12 +112,9 @@ services:
       DSN: postgres://openflare:replace-with-strong-password@postgres:5432/openflare?sslmode=disable
       GIN_MODE: release
       LOG_LEVEL: info
-    volumes:
-      - openflare-data:/data
 
 volumes:
   postgres-data:
-  openflare-data:
 ```
 
 ```bash
@@ -199,17 +196,6 @@ cd openflare_agent
 go run ./cmd/agent -config /path/to/agent.json
 ```
 
-## 文档导航
-
-建议按以下顺序阅读：
-
-1. [docs/design.md](./docs/design.md)
-2. [docs/development-guidelines.md](./docs/development-guidelines.md)
-3. [docs/development-plan.md](./docs/development-plan.md)
-4. [docs/frontend-development-guidelines.md](./docs/frontend-development-guidelines.md)
-5. [docs/deployment.md](./docs/deployment.md)
-6. [docs/app-config.md](./docs/app-config.md)
-
 ## 管理端与接口
 
 管理端当前覆盖：
@@ -225,9 +211,6 @@ go run ./cmd/agent -config /path/to/agent.json
 * 版本更新
 
 登录管理端后，可访问 Swagger UI：`/swagger/index.html`
-
-如需重新生成 Swagger 文档，请使用与服务端依赖一致的版本：
-`go install github.com/swaggo/swag/cmd/swag@v1.16.4`
 
 ## 开源协议
 
