@@ -240,14 +240,13 @@ func ListNodeAccessLogIPTrend(query NodeAccessLogIPTrendQuery) (items []*NodeAcc
 }
 
 func DeleteNodeAccessLogsBefore(before time.Time) (deleted int64, err error) {
-	for _, table := range observabilityShardTables("node_access_logs") {
-		result := DB.Table(table).Where("logged_at < ?", before).Delete(&NodeAccessLog{})
-		if result.Error != nil {
-			return deleted, result.Error
-		}
-		deleted += result.RowsAffected
-	}
-	return deleted, nil
+	return deleteAcrossShards(DB, "node_access_logs", &NodeAccessLog{}, func(tx *gorm.DB) *gorm.DB {
+		return tx.Where("logged_at < ?", before)
+	})
+}
+
+func DeleteAllNodeAccessLogs(db *gorm.DB) (deleted int64, err error) {
+	return deleteAcrossShards(db, "node_access_logs", &NodeAccessLog{}, nil)
 }
 
 func NodeAccessLogExists(db *gorm.DB, record *NodeAccessLog) (bool, error) {
@@ -279,15 +278,9 @@ func NodeAccessLogExists(db *gorm.DB, record *NodeAccessLog) (bool, error) {
 }
 
 func DeleteNodeAccessLogsByNodeBefore(db *gorm.DB, nodeID string, before time.Time) (deleted int64, err error) {
-	db = normalizeShardedDB(db)
-	for _, table := range observabilityShardTables("node_access_logs") {
-		result := db.Table(table).Where("node_id = ? AND logged_at < ?", nodeID, before).Delete(&NodeAccessLog{})
-		if result.Error != nil {
-			return deleted, result.Error
-		}
-		deleted += result.RowsAffected
-	}
-	return deleted, nil
+	return deleteAcrossShards(db, "node_access_logs", &NodeAccessLog{}, func(tx *gorm.DB) *gorm.DB {
+		return tx.Where("node_id = ? AND logged_at < ?", nodeID, before)
+	})
 }
 
 func buildNodeAccessLogQuery(db *gorm.DB, query NodeAccessLogQuery) *gorm.DB {

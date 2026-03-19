@@ -55,6 +55,8 @@ var NodeOfflineThreshold = 2 * time.Minute
 var AgentHeartbeatInterval = 10000 // milliseconds
 var AgentUpdateRepo = "Rain-kl/OpenFlare"
 var GeoIPProvider = "ipinfo"
+var DatabaseAutoCleanupEnabled = false
+var DatabaseAutoCleanupRetentionDays = 30
 
 // V5 OpenResty performance settings (hot-reloadable via Option table)
 var OpenRestyWorkerProcesses = "auto"

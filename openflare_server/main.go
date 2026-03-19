@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"embed"
 	"fmt"
 	"github.com/gin-contrib/sessions"
@@ -13,6 +14,7 @@ import (
 	"openflare/middleware"
 	"openflare/model"
 	"openflare/router"
+	"openflare/service"
 	"openflare/utils/geoip"
 	"os"
 	"strconv"
@@ -67,6 +69,9 @@ func main() {
 	// Initialize options
 	model.InitOptionMap()
 	geoip.InitGeoIP()
+	backgroundCtx, cancelBackgroundTasks := context.WithCancel(context.Background())
+	defer cancelBackgroundTasks()
+	service.StartDatabaseAutoCleanupScheduler(backgroundCtx)
 
 	// Initialize HTTP server
 	server := gin.Default()

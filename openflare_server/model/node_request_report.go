@@ -99,3 +99,13 @@ func NodeRequestReportExists(db *gorm.DB, nodeID string, windowStartedAt time.Ti
 	}
 	return false, nil
 }
+
+func DeleteNodeRequestReportsBefore(db *gorm.DB, before time.Time) (int64, error) {
+	return deleteAcrossShards(db, "node_request_reports", &NodeRequestReport{}, func(tx *gorm.DB) *gorm.DB {
+		return tx.Where("window_ended_at < ?", before)
+	})
+}
+
+func DeleteAllNodeRequestReports(db *gorm.DB) (int64, error) {
+	return deleteAcrossShards(db, "node_request_reports", &NodeRequestReport{}, nil)
+}

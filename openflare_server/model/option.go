@@ -56,6 +56,8 @@ func InitOptionMap() {
 	common.OptionMap["NodeOfflineThreshold"] = strconv.Itoa(int(common.NodeOfflineThreshold.Milliseconds()))
 	common.OptionMap["AgentUpdateRepo"] = common.AgentUpdateRepo
 	common.OptionMap["GeoIPProvider"] = common.GeoIPProvider
+	common.OptionMap["DatabaseAutoCleanupEnabled"] = strconv.FormatBool(common.DatabaseAutoCleanupEnabled)
+	common.OptionMap["DatabaseAutoCleanupRetentionDays"] = strconv.Itoa(common.DatabaseAutoCleanupRetentionDays)
 	common.OptionMap["OpenRestyWorkerProcesses"] = common.OpenRestyWorkerProcesses
 	common.OptionMap["OpenRestyWorkerConnections"] = strconv.Itoa(common.OpenRestyWorkerConnections)
 	common.OptionMap["OpenRestyWorkerRlimitNofile"] = strconv.Itoa(common.OpenRestyWorkerRlimitNofile)
@@ -218,6 +220,12 @@ func updateOptionMap(key string, value string) {
 		if geoip.IsValidProvider(value) {
 			common.GeoIPProvider = value
 			shouldRefreshGeoIP = true
+		}
+	case "DatabaseAutoCleanupEnabled":
+		common.DatabaseAutoCleanupEnabled = value == "true"
+	case "DatabaseAutoCleanupRetentionDays":
+		if v, err := strconv.Atoi(value); err == nil && v >= 1 {
+			common.DatabaseAutoCleanupRetentionDays = v
 		}
 	case "OpenRestyWorkerProcesses":
 		if strings.TrimSpace(value) != "" {

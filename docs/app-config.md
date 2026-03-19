@@ -57,11 +57,18 @@ go run . --port 3000 --log-dir ./logs
 | `NodeOfflineThreshold` | 节点离线阈值（毫秒） | `120000` |
 | `AgentUpdateRepo` | Agent 自更新仓库 | `Rain-kl/OpenFlare` |
 | `GeoIPProvider` | 节点/IP 归属解析方式 | `ipinfo` |
+| `DatabaseAutoCleanupEnabled` | 是否启用每日自动清理观测数据 | `false` |
+| `DatabaseAutoCleanupRetentionDays` | 自动清理保留天数（至少 1 天） | `30` |
 | `GlobalApiRateLimitNum` / `GlobalApiRateLimitDuration` | 全局 API 限流次数 / 时间窗口 | `300` / `180` |
 | `GlobalWebRateLimitNum` / `GlobalWebRateLimitDuration` | 全局 Web 限流次数 / 时间窗口 | `300` / `180` |
 | `UploadRateLimitNum` / `UploadRateLimitDuration` | 上传接口限流次数 / 时间窗口 | `50` / `60` |
 | `DownloadRateLimitNum` / `DownloadRateLimitDuration` | 下载接口限流次数 / 时间窗口 | `50` / `60` |
 | `CriticalRateLimitNum` / `CriticalRateLimitDuration` | 敏感接口限流次数 / 时间窗口 | `100` / `1200` |
+
+说明：
+
+* `DatabaseAutoCleanupEnabled` 开启后，Server 会在每天凌晨 3 点自动清理 `node_access_logs`、`node_metric_snapshots`、`node_request_reports` 三类观测数据
+* `DatabaseAutoCleanupRetentionDays` 为统一保留天数，必须大于等于 1；管理端支持手动清理时留空保留天数，以直接删除对应数据集的全部历史记录
 
 ### 1.4 OpenResty 参数
 

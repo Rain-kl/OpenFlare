@@ -205,6 +205,25 @@ func queryAcrossShardsWithDB[T any](db *gorm.DB, baseTable string, query func(tx
 	return items, nil
 }
 
+func deleteAcrossShards(db *gorm.DB, baseTable string, model any, apply func(tx *gorm.DB) *gorm.DB) (int64, error) {
+	db = normalizeShardedDB(db)
+	var deleted int64
+	for _, table := range observabilityShardTables(baseTable) {
+		tx := db.Table(table)
+		if apply != nil {
+			tx = apply(tx)
+		} else {
+			tx = tx.Session(&gorm.Session{AllowGlobalUpdate: true})
+		}
+		result := tx.Delete(model)
+		if result.Error != nil {
+			return deleted, result.Error
+		}
+		deleted += result.RowsAffected
+	}
+	return deleted, nil
+}
+
 func sortShardRows[T any](items []T, less func(left T, right T) bool) {
 	sort.Slice(items, func(i int, j int) bool {
 		return less(items[i], items[j])

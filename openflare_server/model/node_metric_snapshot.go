@@ -104,3 +104,13 @@ func NodeMetricSnapshotExists(db *gorm.DB, nodeID string, capturedAt time.Time) 
 	}
 	return false, nil
 }
+
+func DeleteNodeMetricSnapshotsBefore(db *gorm.DB, before time.Time) (int64, error) {
+	return deleteAcrossShards(db, "node_metric_snapshots", &NodeMetricSnapshot{}, func(tx *gorm.DB) *gorm.DB {
+		return tx.Where("captured_at < ?", before)
+	})
+}
+
+func DeleteAllNodeMetricSnapshots(db *gorm.DB) (int64, error) {
+	return deleteAcrossShards(db, "node_metric_snapshots", &NodeMetricSnapshot{}, nil)
+}

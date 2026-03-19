@@ -55,6 +55,7 @@ func SetApiRouter(router *gin.Engine) {
 			optionRoute.GET("/", controller.GetOptions)
 			optionRoute.POST("/update", controller.UpdateOption)
 			optionRoute.POST("/geoip/lookup", controller.LookupGeoIP)
+			optionRoute.POST("/database/cleanup", controller.CleanupDatabaseObservability)
 		}
 		updateRoute := apiRouter.Group("/update")
 		updateRoute.Use(middleware.RootAuth(), middleware.NoTokenAuth())

@@ -2,6 +2,8 @@ import { apiRequest } from '@/lib/api/client';
 
 import type {
   BootstrapTokenPayload,
+  DatabaseCleanupPayload,
+  DatabaseCleanupResult,
   GeoIPLookupResult,
   OptionItem,
   SettingsProfile,
@@ -23,6 +25,13 @@ export function lookupGeoIP(provider: string, ip: string) {
   return apiRequest<GeoIPLookupResult>('/option/geoip/lookup', {
     method: 'POST',
     body: JSON.stringify({ provider, ip }),
+  });
+}
+
+export function cleanupDatabaseObservability(payload: DatabaseCleanupPayload) {
+  return apiRequest<DatabaseCleanupResult>('/option/database/cleanup', {
+    method: 'POST',
+    body: JSON.stringify(payload),
   });
 }
 

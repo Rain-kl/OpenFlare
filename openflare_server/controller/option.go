@@ -73,6 +73,21 @@ func validateGeoIPOption(key string, value string) error {
 	return nil
 }
 
+func validateDatabaseCleanupOption(key string, value string) error {
+	switch key {
+	case "DatabaseAutoCleanupEnabled":
+		return validateBooleanOption(key, value)
+	case "DatabaseAutoCleanupRetentionDays":
+		intValue, err := strconv.Atoi(value)
+		if err != nil || intValue < 1 {
+			return fmt.Errorf("%s 必须为大于等于 1 的整数天", key)
+		}
+		return nil
+	default:
+		return nil
+	}
+}
+
 func validateOpenRestyOption(key string, value string) error {
 	trimmed := strings.TrimSpace(value)
 
@@ -265,6 +280,13 @@ func UpdateOption(c *gin.Context) {
 		return
 	}
 	if err = validateGeoIPOption(option.Key, option.Value); err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+		return
+	}
+	if err = validateDatabaseCleanupOption(option.Key, option.Value); err != nil {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
 			"message": err.Error(),

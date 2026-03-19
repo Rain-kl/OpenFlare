@@ -7,6 +7,7 @@ import { EmptyState } from '@/components/feedback/empty-state';
 import { ErrorState } from '@/components/feedback/error-state';
 import { InlineMessage } from '@/components/feedback/inline-message';
 import { LoadingState } from '@/components/feedback/loading-state';
+import { AppModal } from '@/components/ui/app-modal';
 import { TurnstileWidget } from '@/components/forms/turnstile-widget';
 import { useAuth } from '@/components/providers/auth-provider';
 import { PageHeader } from '@/components/layout/page-header';
@@ -17,6 +18,7 @@ import { getPublicStatus } from '@/features/auth/api/public';
 import {
   bindEmail,
   bindWeChat,
+  cleanupDatabaseObservability,
   generateAccessToken,
   getBootstrapToken,
   getOptions,
@@ -28,12 +30,15 @@ import {
 } from '@/features/settings/api/settings';
 import type {
   BootstrapTokenPayload,
+  DatabaseCleanupResult,
+  DatabaseCleanupTarget,
   GeoIPLookupResult,
   OptionItem,
   UpdateSelfPayload,
 } from '@/features/settings/types';
 import {
   CodeBlock,
+  DangerButton,
   PrimaryButton,
   ResourceField,
   ResourceInput,
@@ -126,6 +131,11 @@ const defaultOtherFields = {
   Footer: '',
 };
 
+const defaultDatabaseFields = {
+  DatabaseAutoCleanupEnabled: false,
+  DatabaseAutoCleanupRetentionDays: '30',
+};
+
 const defaultProfileFields: UpdateSelfPayload = {
   username: '',
   display_name: '',
@@ -137,7 +147,17 @@ type FeedbackState = {
   message: string;
 };
 
-type SettingsTab = 'personal' | 'operation' | 'system' | 'other';
+type CleanupModalState = {
+  target: DatabaseCleanupTarget;
+  label: string;
+};
+
+type SettingsTab =
+  | 'personal'
+  | 'operation'
+  | 'database'
+  | 'system'
+  | 'other';
 
 function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : '请求失败，请稍后重试。';
@@ -227,12 +247,16 @@ export function SettingsPage() {
     defaultOperationFields,
   );
   const [otherFields, setOtherFields] = useState(defaultOtherFields);
+  const [databaseFields, setDatabaseFields] = useState(defaultDatabaseFields);
   const [accessToken, setAccessToken] = useState('');
   const [wechatCode, setWeChatCode] = useState('');
   const [emailAddress, setEmailAddress] = useState('');
   const [emailCode, setEmailCode] = useState('');
   const [emailTurnstileToken, setEmailTurnstileToken] = useState('');
   const [geoIPTestIP, setGeoIPTestIP] = useState('8.8.8.8');
+  const [cleanupModalState, setCleanupModalState] =
+    useState<CleanupModalState | null>(null);
+  const [cleanupRetentionDays, setCleanupRetentionDays] = useState('');
 
   const isRoot = (user?.role ?? 0) >= 100;
 
@@ -410,6 +434,14 @@ export function SettingsPage() {
       About: optionMap.About ?? '',
       Footer: optionMap.Footer ?? '',
     });
+    setDatabaseFields({
+      DatabaseAutoCleanupEnabled: toBoolean(
+        optionMap.DatabaseAutoCleanupEnabled,
+        false,
+      ),
+      DatabaseAutoCleanupRetentionDays:
+        optionMap.DatabaseAutoCleanupRetentionDays ?? '30',
+    });
   }, [optionsQuery.data, publicStatusQuery.data?.server_address]);
 
   const rotateTokenMutation = useMutation({
@@ -451,6 +483,23 @@ export function SettingsPage() {
       lookupGeoIP(provider, ip),
   });
 
+  const databaseCleanupMutation = useMutation({
+    mutationFn: cleanupDatabaseObservability,
+    onSuccess: (result: DatabaseCleanupResult) => {
+      setCleanupModalState(null);
+      setCleanupRetentionDays('');
+      setFeedback({
+        tone: 'success',
+        message: result.delete_all
+          ? `已清空${result.target_label}数据，共删除 ${result.deleted_count} 条。`
+          : `已清理${result.target_label}中超出保留期的数据，共删除 ${result.deleted_count} 条。`,
+      });
+    },
+    onError: (error) => {
+      setFeedback({ tone: 'danger', message: getErrorMessage(error) });
+    },
+  });
+
   const discoveryToken = bootstrapQuery.data?.discovery_token ?? '';
   const discoveryCommand =
     isRoot && operationFields.ServerAddress && discoveryToken
@@ -475,6 +524,11 @@ export function SettingsPage() {
               key: 'system' as const,
               label: '系统设置',
               description: '登录注册、SMTP、OAuth、限流与风控开关。',
+            },
+            {
+              key: 'database' as const,
+              label: '数据库',
+              description: '观测数据清理与每日自动保留策略。',
             },
             {
               key: 'other' as const,
@@ -1270,6 +1324,166 @@ export function SettingsPage() {
       );
     }
 
+    if (activeTab === 'database') {
+      return (
+        <div className="space-y-6">
+          <AppCard
+            title="自动数据清理"
+            description="每天凌晨 3 点自动清理超出保留期的观测数据，统一作用于访问日志、性能快照和请求聚合。"
+            action={
+              <PrimaryButton
+                type="button"
+                onClick={() =>
+                  void runBusyAction('database-auto-cleanup', async () => {
+                    const retentionDays = Number.parseInt(
+                      databaseFields.DatabaseAutoCleanupRetentionDays,
+                      10,
+                    );
+                    if (Number.isNaN(retentionDays) || retentionDays < 1) {
+                      throw new Error('自动清理保留天数至少为 1 天。');
+                    }
+                    await saveOptionEntries(
+                      [
+                        [
+                          'DatabaseAutoCleanupEnabled',
+                          String(databaseFields.DatabaseAutoCleanupEnabled),
+                        ],
+                        [
+                          'DatabaseAutoCleanupRetentionDays',
+                          String(retentionDays),
+                        ],
+                      ],
+                      '数据库自动清理设置已保存。',
+                    );
+                  })
+                }
+                disabled={busyKey === 'database-auto-cleanup'}
+              >
+                {busyKey === 'database-auto-cleanup'
+                  ? '保存中...'
+                  : '保存自动清理'}
+              </PrimaryButton>
+            }
+          >
+            <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
+              <ToggleField
+                label="启用每日自动清理"
+                description="开启后，服务端每天自动删除保留天数之外的观测数据。"
+                checked={databaseFields.DatabaseAutoCleanupEnabled}
+                onChange={(checked) =>
+                  setDatabaseFields((previous) => ({
+                    ...previous,
+                    DatabaseAutoCleanupEnabled: checked,
+                  }))
+                }
+              />
+              <div className="space-y-4 rounded-2xl border border-[var(--border-default)] bg-[var(--surface-elevated)] p-5">
+                <ResourceField
+                  label="自动清理保留天数"
+                  hint="必须至少保留 1 天，服务端不允许配置为 24 小时以内。"
+                >
+                  <ResourceInput
+                    type="number"
+                    min={1}
+                    value={databaseFields.DatabaseAutoCleanupRetentionDays}
+                    onChange={(event) =>
+                      setDatabaseFields((previous) => ({
+                        ...previous,
+                        DatabaseAutoCleanupRetentionDays: event.target.value,
+                      }))
+                    }
+                    placeholder="例如 30"
+                  />
+                </ResourceField>
+                <div className="grid gap-4 md:grid-cols-3">
+                  <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-base)] px-4 py-4">
+                    <p className="text-xs tracking-[0.2em] uppercase text-[var(--foreground-muted)]">
+                      触发频率
+                    </p>
+                    <p className="mt-2 text-sm font-semibold text-[var(--foreground-primary)]">
+                      每天一次
+                    </p>
+                  </div>
+                  <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-base)] px-4 py-4">
+                    <p className="text-xs tracking-[0.2em] uppercase text-[var(--foreground-muted)]">
+                      默认执行时间
+                    </p>
+                    <p className="mt-2 text-sm font-semibold text-[var(--foreground-primary)]">
+                      凌晨 3:00
+                    </p>
+                  </div>
+                  <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-base)] px-4 py-4">
+                    <p className="text-xs tracking-[0.2em] uppercase text-[var(--foreground-muted)]">
+                      生效范围
+                    </p>
+                    <p className="mt-2 text-sm font-semibold text-[var(--foreground-primary)]">
+                      三类观测表
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </AppCard>
+
+          <AppCard
+            title="数据清理"
+            description="用于手动清理单类观测数据。保留天数留空时会直接删除该类数据的全部历史记录。"
+          >
+            <div className="grid gap-5 xl:grid-cols-3">
+              {[
+                {
+                  target: 'node_access_logs' as const,
+                  label: '访问日志',
+                  description:
+                    '清理 node_access_logs，影响访问明细、IP 汇总与相关趋势查询。',
+                },
+                {
+                  target: 'node_metric_snapshots' as const,
+                  label: '性能快照',
+                  description:
+                    '清理 node_metric_snapshots，影响节点资源趋势和总览资源统计。',
+                },
+                {
+                  target: 'node_request_reports' as const,
+                  label: '请求聚合',
+                  description:
+                    '清理 node_request_reports，影响请求量、错误量与来源聚合展示。',
+                },
+              ].map((item) => (
+                <div
+                  key={item.target}
+                  className="rounded-[28px] border border-[var(--border-default)] bg-[var(--surface-elevated)] p-5"
+                >
+                  <div className="space-y-3">
+                    <div>
+                      <p className="text-lg font-semibold text-[var(--foreground-primary)]">
+                        {item.label}
+                      </p>
+                      <p className="mt-2 text-sm leading-6 text-[var(--foreground-secondary)]">
+                        {item.description}
+                      </p>
+                    </div>
+                    <DangerButton
+                      type="button"
+                      onClick={() => {
+                        setCleanupRetentionDays('');
+                        setCleanupModalState({
+                          target: item.target,
+                          label: item.label,
+                        });
+                      }}
+                    >
+                      清理数据
+                    </DangerButton>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </AppCard>
+        </div>
+      );
+    }
+
     if (activeTab === 'system') {
       return (
         <div className="space-y-6">
@@ -2032,6 +2246,83 @@ export function SettingsPage() {
       </div>
 
       {renderTabContent()}
+
+      <AppModal
+        isOpen={cleanupModalState !== null}
+        title={`清理${cleanupModalState?.label ?? ''}`}
+        description="输入保留天数后，将只保留该天数范围内的数据；如果留空，则会直接删除该类数据的全部历史记录。"
+        onClose={() => {
+          if (databaseCleanupMutation.isPending) {
+            return;
+          }
+          setCleanupModalState(null);
+        }}
+        footer={
+          <div className="flex flex-wrap justify-end gap-2">
+            <SecondaryButton
+              type="button"
+              onClick={() => setCleanupModalState(null)}
+              disabled={databaseCleanupMutation.isPending}
+            >
+              取消
+            </SecondaryButton>
+            <DangerButton
+              type="button"
+              disabled={databaseCleanupMutation.isPending}
+              onClick={() => {
+                if (!cleanupModalState) {
+                  return;
+                }
+                const trimmed = cleanupRetentionDays.trim();
+                if (trimmed !== '') {
+                  const retentionDays = Number.parseInt(trimmed, 10);
+                  if (Number.isNaN(retentionDays) || retentionDays < 1) {
+                    setFeedback({
+                      tone: 'danger',
+                      message: '手动清理保留天数至少为 1 天。',
+                    });
+                    return;
+                  }
+                  databaseCleanupMutation.mutate({
+                    target: cleanupModalState.target,
+                    retention_days: retentionDays,
+                  });
+                  return;
+                }
+                databaseCleanupMutation.mutate({
+                  target: cleanupModalState.target,
+                });
+              }}
+            >
+              {databaseCleanupMutation.isPending ? '清理中...' : '确认清理'}
+            </DangerButton>
+          </div>
+        }
+      >
+        <div className="space-y-5">
+          <div className="rounded-2xl border border-[var(--status-danger-border)] bg-[var(--status-danger-soft)] px-4 py-4 text-sm leading-6 text-[var(--status-danger-foreground)]">
+            该操作会直接删除数据库中的历史观测数据，删除后无法恢复，请确认当前选择的数据类型和保留范围无误。
+          </div>
+          <ResourceField
+            label="保留天数"
+            hint="留空表示全部删除；填写时必须为大于等于 1 的整数。"
+          >
+            <ResourceInput
+              type="number"
+              min={1}
+              value={cleanupRetentionDays}
+              onChange={(event) => setCleanupRetentionDays(event.target.value)}
+              placeholder="例如 30；留空则全部删除"
+            />
+          </ResourceField>
+          {databaseCleanupMutation.isError ? (
+            <ErrorState
+              title="数据库清理失败"
+              description={getErrorMessage(databaseCleanupMutation.error)}
+            />
+          ) : null}
+        </div>
+      </AppModal>
     </div>
   );
 }
