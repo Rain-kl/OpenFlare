@@ -3,6 +3,7 @@ package model
 import (
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -25,8 +26,14 @@ func registerSharding(db *gorm.DB, backend string) error {
 	}
 	_ = backend
 	if err := db.Use(sharding.Register(sharding.Config{
-		ShardingKey:         "id",
-		NumberOfShards:      observabilityShardCount,
+		ShardingKey:    "id",
+		NumberOfShards: observabilityShardCount,
+		ShardingAlgorithm: func(value any) (string, error) {
+			return observabilityShardSuffixForValue(value)
+		},
+		ShardingAlgorithmByPrimaryKey: func(id int64) string {
+			return observabilityShardSuffixForInt64(id)
+		},
 		PrimaryKeyGenerator: sharding.PKCustom,
 		PrimaryKeyGeneratorFn: func(tableIdx int64) int64 {
 			return 0
@@ -82,6 +89,46 @@ func observabilityShardSuffixForID(id uint) string {
 	return fmt.Sprintf("_%02d", uint64(id)%uint64(observabilityShardCount))
 }
 
+func observabilityShardSuffixForInt64(id int64) string {
+	if id < 0 {
+		id = -id
+	}
+	return fmt.Sprintf("_%02d", uint64(id)%uint64(observabilityShardCount))
+}
+
+func observabilityShardSuffixForValue(value any) (string, error) {
+	switch typed := value.(type) {
+	case int:
+		return observabilityShardSuffixForInt64(int64(typed)), nil
+	case int8:
+		return observabilityShardSuffixForInt64(int64(typed)), nil
+	case int16:
+		return observabilityShardSuffixForInt64(int64(typed)), nil
+	case int32:
+		return observabilityShardSuffixForInt64(int64(typed)), nil
+	case int64:
+		return observabilityShardSuffixForInt64(typed), nil
+	case uint:
+		return observabilityShardSuffixForID(typed), nil
+	case uint8:
+		return observabilityShardSuffixForID(uint(typed)), nil
+	case uint16:
+		return observabilityShardSuffixForID(uint(typed)), nil
+	case uint32:
+		return observabilityShardSuffixForID(uint(typed)), nil
+	case uint64:
+		return fmt.Sprintf("_%02d", typed%uint64(observabilityShardCount)), nil
+	case string:
+		id, err := strconv.ParseUint(strings.TrimSpace(typed), 10, 64)
+		if err != nil {
+			return "", fmt.Errorf("invalid sharding id %q", typed)
+		}
+		return fmt.Sprintf("_%02d", id%uint64(observabilityShardCount)), nil
+	default:
+		return "", fmt.Errorf("unsupported observability sharding value type %T", value)
+	}
+}
+
 func observabilityShardTableForID(baseTable string, id uint) string {
 	return baseTable + observabilityShardSuffixForID(id)
 }
@@ -95,6 +142,24 @@ func normalizeShardedDB(db *gorm.DB) *gorm.DB {
 		return db
 	}
 	return DB
+}
+
+func sessionIgnoringSharding(db *gorm.DB) *gorm.DB {
+	db = normalizeShardedDB(db)
+	if db == nil {
+		return nil
+	}
+	return db.Session(&gorm.Session{}).Set(sharding.ShardingIgnoreStoreKey, true)
+}
+
+func baseDialector(db *gorm.DB) gorm.Dialector {
+	if db == nil {
+		return nil
+	}
+	if dialector, ok := db.Dialector.(sharding.ShardingDialector); ok {
+		return dialector.Dialector
+	}
+	return db.Dialector
 }
 
 func nextObservabilityID() (uint, error) {
