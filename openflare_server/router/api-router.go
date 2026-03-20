@@ -82,6 +82,15 @@ func SetApiRouter(router *gin.Engine) {
 			proxyRoute.POST("/:id/update", controller.UpdateProxyRoute)
 			proxyRoute.POST("/:id/delete", controller.DeleteProxyRoute)
 		}
+		originRoute := apiRouter.Group("/origins")
+		originRoute.Use(middleware.AdminAuth())
+		{
+			originRoute.GET("/", controller.GetOrigins)
+			originRoute.GET("/:id", controller.GetOrigin)
+			originRoute.POST("/", controller.CreateOrigin)
+			originRoute.POST("/:id/update", controller.UpdateOrigin)
+			originRoute.POST("/:id/delete", controller.DeleteOrigin)
+		}
 		managedDomainRoute := apiRouter.Group("/managed-domains")
 		managedDomainRoute.Use(middleware.AdminAuth())
 		{

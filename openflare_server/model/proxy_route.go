@@ -5,6 +5,7 @@ import "time"
 type ProxyRoute struct {
 	ID            uint      `json:"id" gorm:"primaryKey"`
 	Domain        string    `json:"domain" gorm:"uniqueIndex;size:255;not null"`
+	OriginID      *uint     `json:"origin_id" gorm:"index"`
 	OriginURL     string    `json:"origin_url" gorm:"size:2048;not null"`
 	OriginHost    string    `json:"origin_host" gorm:"size:255"`
 	Upstreams     string    `json:"upstreams" gorm:"type:text;not null;default:'[]'"`
@@ -37,6 +38,11 @@ func GetProxyRouteByID(id uint) (*ProxyRoute, error) {
 	return route, err
 }
 
+func ListProxyRoutesByOriginID(originID uint) (routes []*ProxyRoute, err error) {
+	err = DB.Where("origin_id = ?", originID).Order("id desc").Find(&routes).Error
+	return routes, err
+}
+
 func (route *ProxyRoute) Insert() error {
 	return DB.Create(route).Error
 }
@@ -44,6 +50,7 @@ func (route *ProxyRoute) Insert() error {
 func (route *ProxyRoute) Update() error {
 	return DB.Model(&ProxyRoute{}).Where("id = ?", route.ID).Updates(map[string]any{
 		"domain":         route.Domain,
+		"origin_id":      route.OriginID,
 		"origin_url":     route.OriginURL,
 		"origin_host":    route.OriginHost,
 		"upstreams":      route.Upstreams,

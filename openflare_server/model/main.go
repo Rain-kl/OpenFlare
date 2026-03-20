@@ -9,10 +9,13 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/schema"
 	"log/slog"
+	"net"
+	"net/url"
 	"openflare/common"
 	"openflare/utils/security"
 	"os"
 	"reflect"
+	"strings"
 	"sync"
 )
 
@@ -36,6 +39,7 @@ func registeredModels() []any {
 		&File{},
 		&User{},
 		&Option{},
+		&Origin{},
 		&ProxyRoute{},
 		&ConfigVersion{},
 		&Node{},
@@ -307,6 +311,19 @@ func validateDatabaseSchemaV3(db *gorm.DB, backend string) error {
 	return nil
 }
 
+func validateDatabaseSchemaV4(db *gorm.DB, backend string) error {
+	if err := validateDatabaseSchemaV3(db, backend); err != nil {
+		return err
+	}
+	if !db.Migrator().HasTable(&Origin{}) {
+		return fmt.Errorf("table origins is missing")
+	}
+	if !db.Migrator().HasColumn(&ProxyRoute{}, "origin_id") {
+		return fmt.Errorf("column proxy_routes.origin_id is missing")
+	}
+	return nil
+}
+
 func renameLegacyObservabilityShardTables(db *gorm.DB) error {
 	for _, baseTable := range shardedObservabilityBaseTables() {
 		for _, table := range observabilityShardTables(baseTable) {
@@ -549,6 +566,91 @@ func migrateObservabilityShardsToID(db *gorm.DB, backend string) error {
 	return dropLegacyObservabilityShardTables(db)
 }
 
+func normalizeOriginAddressForMigration(raw string) string {
+	return strings.ToLower(strings.TrimSpace(raw))
+}
+
+func extractOriginAddressForMigration(rawURL string) string {
+	parsed, err := url.ParseRequestURI(strings.TrimSpace(rawURL))
+	if err != nil {
+		return ""
+	}
+	return normalizeOriginAddressForMigration(parsed.Hostname())
+}
+
+func backfillOriginsFromProxyRoutes(db *gorm.DB) error {
+	if db == nil {
+		return fmt.Errorf("database handle is nil")
+	}
+	if !db.Migrator().HasTable(&Origin{}) || !db.Migrator().HasTable(&ProxyRoute{}) {
+		return nil
+	}
+
+	var routes []ProxyRoute
+	if err := db.Order("id asc").Find(&routes).Error; err != nil {
+		return fmt.Errorf("list proxy routes for origin backfill failed: %w", err)
+	}
+
+	type originSeed struct {
+		ID      uint
+		Address string
+	}
+
+	originByAddress := make(map[string]originSeed)
+	var origins []Origin
+	if err := db.Order("id asc").Find(&origins).Error; err != nil {
+		return fmt.Errorf("list origins for backfill failed: %w", err)
+	}
+	for _, origin := range origins {
+		address := normalizeOriginAddressForMigration(origin.Address)
+		if address == "" {
+			continue
+		}
+		originByAddress[address] = originSeed{ID: origin.ID, Address: address}
+	}
+
+	for _, route := range routes {
+		address := extractOriginAddressForMigration(route.OriginURL)
+		if address == "" {
+			continue
+		}
+		origin, ok := originByAddress[address]
+		if !ok {
+			name := address
+			if ip := net.ParseIP(address); ip != nil {
+				name = ip.String()
+			}
+			record := Origin{
+				Name:    name,
+				Address: address,
+				Remark:  "",
+			}
+			if err := db.Create(&record).Error; err != nil {
+				return fmt.Errorf("create origin for address %s failed: %w", address, err)
+			}
+			origin = originSeed{ID: record.ID, Address: address}
+			originByAddress[address] = origin
+		}
+		if route.OriginID != nil && *route.OriginID == origin.ID {
+			continue
+		}
+		if err := db.Model(&ProxyRoute{}).
+			Where("id = ?", route.ID).
+			Update("origin_id", origin.ID).Error; err != nil {
+			return fmt.Errorf("backfill proxy route %d origin_id failed: %w", route.ID, err)
+		}
+	}
+
+	return nil
+}
+
+func migrateOriginsSchema(db *gorm.DB, backend string) error {
+	if err := applyCurrentSchema(db, backend); err != nil {
+		return err
+	}
+	return backfillOriginsFromProxyRoutes(db)
+}
+
 func databaseSchemaMigrations() []databaseSchemaMigration {
 	return []databaseSchemaMigration{
 		{
@@ -563,6 +665,12 @@ func databaseSchemaMigrations() []databaseSchemaMigration {
 			migrate:     migrateObservabilityShardsToID,
 			validate:    validateDatabaseSchemaV3,
 		},
+		{
+			fromVersion: 3,
+			toVersion:   4,
+			migrate:     migrateOriginsSchema,
+			validate:    validateDatabaseSchemaV4,
+		},
 	}
 }
 
@@ -575,6 +683,19 @@ func databaseSchemaMigrationMap() map[int]databaseSchemaMigration {
 }
 
 func runDatabaseSchemaMigration(db *gorm.DB, backend string, migration databaseSchemaMigration) error {
+	if backend == "sqlite" {
+		if err := migration.migrate(db, backend); err != nil {
+			return fmt.Errorf("migrate database schema from v%d to v%d failed: %w", migration.fromVersion, migration.toVersion, err)
+		}
+		if err := migration.validate(db, backend); err != nil {
+			return fmt.Errorf("validate database schema v%d failed: %w", migration.toVersion, err)
+		}
+		if err := saveDatabaseSchemaVersion(db, migration.toVersion); err != nil {
+			return fmt.Errorf("persist database schema version v%d failed: %w", migration.toVersion, err)
+		}
+		return nil
+	}
+
 	return db.Transaction(func(tx *gorm.DB) error {
 		if err := migration.migrate(tx, backend); err != nil {
 			return fmt.Errorf("migrate database schema from v%d to v%d failed: %w", migration.fromVersion, migration.toVersion, err)
@@ -614,10 +735,13 @@ func initializeFreshDatabaseSchema(db *gorm.DB, backend string) error {
 	if err := applyCurrentSchema(db, backend); err != nil {
 		return err
 	}
+	if err := backfillOriginsFromProxyRoutes(db); err != nil {
+		return err
+	}
 	if err := migrateSQLiteDataIfNeeded(db, backend); err != nil {
 		return err
 	}
-	if err := validateDatabaseSchemaV3(db, backend); err != nil {
+	if err := validateDatabaseSchemaV4(db, backend); err != nil {
 		return err
 	}
 	return saveDatabaseSchemaVersion(db, currentDatabaseSchemaVersion)

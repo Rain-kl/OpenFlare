@@ -6,6 +6,7 @@ export interface ProxyRouteCustomHeader {
 export interface ProxyRouteItem {
   id: number;
   domain: string;
+  origin_id: number | null;
   origin_url: string;
   origin_host: string;
   upstreams: string;
@@ -24,7 +25,12 @@ export interface ProxyRouteItem {
 
 export interface ProxyRouteMutationPayload {
   domain: string;
+  origin_id: number | null;
   origin_url: string;
+  origin_scheme: 'http' | 'https';
+  origin_address: string;
+  origin_port: string;
+  origin_uri: string;
   origin_host: string;
   upstreams: string[];
   enabled: boolean;

@@ -87,6 +87,18 @@ describe('ProxyRoutesPage', () => {
           );
         }
 
+        if (url.includes('/origins/')) {
+          return Promise.resolve(
+            new Response(
+              JSON.stringify({
+                success: true,
+                message: '',
+                data: [],
+              }),
+            ),
+          );
+        }
+
         if (url.includes('/tls-certificates/')) {
           return Promise.resolve(
             new Response(
@@ -161,6 +173,18 @@ describe('ProxyRoutesPage', () => {
                     updated_at: '2026-03-20T08:00:00Z',
                   },
                 ],
+              }),
+            ),
+          );
+        }
+
+        if (url.includes('/origins/')) {
+          return Promise.resolve(
+            new Response(
+              JSON.stringify({
+                success: true,
+                message: '',
+                data: [],
               }),
             ),
           );

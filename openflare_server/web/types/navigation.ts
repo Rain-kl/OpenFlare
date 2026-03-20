@@ -2,6 +2,7 @@ export type NavigationIconKey =
   | 'home'
   | 'node'
   | 'website'
+  | 'origin'
   | 'domain'
   | 'certificate'
   | 'proxy'

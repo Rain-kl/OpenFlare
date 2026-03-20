@@ -47,6 +47,13 @@ function SidebarIcon({ icon }: { icon: NavigationIconKey }) {
           <path d="M12 3.5c2.4 2.2 3.8 5.2 3.8 8.5S14.4 18.3 12 20.5C9.6 18.3 8.2 15.3 8.2 12S9.6 5.7 12 3.5Z" />
         </svg>
       );
+    case 'origin':
+      return (
+        <svg {...commonProps}>
+          <path d="M12 4.5c3.3 0 6 2.5 6 5.6 0 4.4-6 9.4-6 9.4s-6-5-6-9.4c0-3.1 2.7-5.6 6-5.6Z" />
+          <circle cx="12" cy="10.1" r="1.9" />
+        </svg>
+      );
     case 'domain':
       return (
         <svg {...commonProps}>

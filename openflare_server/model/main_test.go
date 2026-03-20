@@ -409,6 +409,61 @@ func TestEnsureDatabaseSchemaUpToDateMigratesObservabilityShardsToID(t *testing.
 	}
 }
 
+func TestMigrateOriginsSchemaBackfillsOrigins(t *testing.T) {
+	db := openBareTestSQLiteDB(t, "legacy-origins.db")
+	if err := registerSharding(db, "sqlite"); err != nil {
+		t.Fatalf("register sharding: %v", err)
+	}
+	if err := applyCurrentSchema(db, "sqlite"); err != nil {
+		t.Fatalf("applyCurrentSchema: %v", err)
+	}
+	now := time.Now().UTC()
+	route := &ProxyRoute{
+		Domain:    "app.example.com",
+		OriginURL: "https://origin-a.internal:8443/api",
+		Upstreams: `["https://origin-a.internal:8443/api"]`,
+		Enabled:   true,
+		CreatedAt: now,
+		UpdatedAt: now,
+	}
+	if err := db.Create(route).Error; err != nil {
+		t.Fatalf("seed proxy route: %v", err)
+	}
+	if err := db.Exec(`DELETE FROM origins`).Error; err != nil {
+		t.Fatalf("clear origins: %v", err)
+	}
+	if err := db.Model(&ProxyRoute{}).Where("id = ?", route.ID).Update("origin_id", nil).Error; err != nil {
+		t.Fatalf("clear route origin_id: %v", err)
+	}
+
+	if err := backfillOriginsFromProxyRoutes(db); err != nil {
+		t.Fatalf("backfillOriginsFromProxyRoutes: %v", err)
+	}
+
+	if !db.Migrator().HasTable(&Origin{}) {
+		t.Fatal("expected origins table to exist")
+	}
+	if !db.Migrator().HasColumn(&ProxyRoute{}, "origin_id") {
+		t.Fatal("expected proxy_routes.origin_id column to exist")
+	}
+
+	reloadedRoute := &ProxyRoute{}
+	if err := db.First(reloadedRoute, route.ID).Error; err != nil {
+		t.Fatalf("query proxy route: %v", err)
+	}
+	if reloadedRoute.OriginID == nil || *reloadedRoute.OriginID == 0 {
+		t.Fatal("expected migrated route to be linked to a backfilled origin")
+	}
+
+	origin := &Origin{}
+	if err := db.First(origin, *reloadedRoute.OriginID).Error; err != nil {
+		t.Fatalf("query origin: %v", err)
+	}
+	if origin.Address != "origin-a.internal" {
+		t.Fatalf("unexpected backfilled origin address: %s", origin.Address)
+	}
+}
+
 func TestRunDatabaseSchemaMigrationDoesNotAdvanceVersionWhenValidationFails(t *testing.T) {
 	db := openBareTestSQLiteDB(t, "failed-validation.db")
 

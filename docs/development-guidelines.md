@@ -99,6 +99,7 @@
 当前有效实体：
 
 * `proxy_routes`
+* `origins`
 * `config_versions`
 * `nodes`
 * `node_system_profiles`
@@ -115,7 +116,9 @@
 通用约束：
 
 * 不新增平台化对象，除非设计文档明确要求
+* `origins` 仅作为可复用源站地址目录，字段保持轻量；协议、端口、路径与查询参数继续归属具体 `proxy_routes`
 * `proxy_routes` 维持一条域名对应一条规则；规则内允许保存一个或多个上游地址用于负载均衡，但不引入独立 `origin_pool`
+* `proxy_routes` 如关联 `origins`，必须同时保存可直接渲染的 `origin_url`；源站地址变更时，由 service 负责同步更新引用该源站的规则快照
 * `proxy_routes` 的上游统一使用 named `upstream` + keepalive；单上游如带 base path 或 query，应在 `proxy_pass` 上补回 URI，多上游仅允许纯 `scheme://host[:port]`
 * `proxy_routes.origin_host` 为可选字段，仅用于覆盖回源 `Host` 请求头，不引入新的平台化对象
 * `config_versions` 必须保存完整快照与渲染结果

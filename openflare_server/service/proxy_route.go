@@ -7,6 +7,8 @@ import (
 	"openflare/model"
 	"regexp"
 	"strings"
+
+	"gorm.io/gorm"
 )
 
 var proxyHeaderKeyPattern = regexp.MustCompile(`^[A-Za-z0-9_-]+$`)
@@ -25,7 +27,12 @@ type ProxyRouteCustomHeaderInput struct {
 
 type ProxyRouteInput struct {
 	Domain        string                        `json:"domain"`
+	OriginID      *uint                         `json:"origin_id"`
 	OriginURL     string                        `json:"origin_url"`
+	OriginScheme  string                        `json:"origin_scheme"`
+	OriginAddress string                        `json:"origin_address"`
+	OriginPort    string                        `json:"origin_port"`
+	OriginURI     string                        `json:"origin_uri"`
 	OriginHost    string                        `json:"origin_host"`
 	Upstreams     []string                      `json:"upstreams"`
 	Enabled       bool                          `json:"enabled"`
@@ -85,7 +92,10 @@ func DeleteProxyRoute(id uint) error {
 
 func buildProxyRoute(route *model.ProxyRoute, input ProxyRouteInput) (*model.ProxyRoute, error) {
 	domain := strings.ToLower(strings.TrimSpace(input.Domain))
-	originURL := strings.TrimSpace(input.OriginURL)
+	originURL, originID, err := resolveProxyRoutePrimaryOrigin(input)
+	if err != nil {
+		return nil, err
+	}
 	originHost := strings.TrimSpace(input.OriginHost)
 	remark := strings.TrimSpace(input.Remark)
 	upstreams, err := normalizeUpstreams(originURL, input.Upstreams)
@@ -141,6 +151,7 @@ func buildProxyRoute(route *model.ProxyRoute, input ProxyRouteInput) (*model.Pro
 		route = &model.ProxyRoute{}
 	}
 	route.Domain = domain
+	route.OriginID = originID
 	route.OriginURL = upstreams[0]
 	route.OriginHost = originHost
 	route.Upstreams = string(upstreamsJSON)
@@ -154,6 +165,78 @@ func buildProxyRoute(route *model.ProxyRoute, input ProxyRouteInput) (*model.Pro
 	route.CustomHeaders = string(customHeadersJSON)
 	route.Remark = remark
 	return route, nil
+}
+
+func resolveProxyRoutePrimaryOrigin(input ProxyRouteInput) (string, *uint, error) {
+	if hasStructuredOriginInput(input) {
+		scheme, err := normalizeOriginScheme(input.OriginScheme)
+		if err != nil {
+			return "", nil, err
+		}
+		port, err := normalizeOriginPort(input.OriginPort)
+		if err != nil {
+			return "", nil, err
+		}
+		uri, err := normalizeOriginURI(input.OriginURI)
+		if err != nil {
+			return "", nil, err
+		}
+		if input.OriginID != nil && *input.OriginID != 0 {
+			origin, err := model.GetOriginByID(*input.OriginID)
+			if err != nil {
+				return "", nil, errors.New("所选源站不存在")
+			}
+			originURL, err := buildOriginURLFromParts(
+				scheme,
+				origin.Address,
+				port,
+				uri,
+			)
+			if err != nil {
+				return "", nil, err
+			}
+			return originURL, &origin.ID, nil
+		}
+
+		address := normalizeOriginAddress(input.OriginAddress)
+		if err := validateOriginAddress(address); err != nil {
+			return "", nil, err
+		}
+		originURL, err := buildOriginURLFromParts(scheme, address, port, uri)
+		if err != nil {
+			return "", nil, err
+		}
+		origin, err := getOrCreateOriginByAddress(address)
+		if err != nil {
+			return "", nil, err
+		}
+		return originURL, &origin.ID, nil
+	}
+
+	originURL := strings.TrimSpace(input.OriginURL)
+	if originURL == "" {
+		return "", nil, errors.New("源站地址不能为空")
+	}
+	address, err := extractOriginAddress(originURL)
+	if err != nil {
+		return "", nil, err
+	}
+	origin, findErr := model.GetOriginByAddress(address)
+	if findErr == nil {
+		return originURL, &origin.ID, nil
+	}
+	if !errors.Is(findErr, gorm.ErrRecordNotFound) {
+		return "", nil, findErr
+	}
+	return originURL, nil, nil
+}
+
+func hasStructuredOriginInput(input ProxyRouteInput) bool {
+	return (input.OriginID != nil && *input.OriginID != 0) ||
+		strings.TrimSpace(input.OriginScheme) != "" ||
+		strings.TrimSpace(input.OriginAddress) != "" ||
+		strings.TrimSpace(input.OriginPort) != "" ||
+		strings.TrimSpace(input.OriginURI) != ""
 }
 
 func normalizeCustomHeaders(headers []ProxyRouteCustomHeaderInput) ([]ProxyRouteCustomHeaderInput, error) {

@@ -20,6 +20,8 @@ import {
 } from '@/features/config-versions/api/config-versions';
 import { getManagedDomains } from '@/features/managed-domains/api/managed-domains';
 import type { ManagedDomainItem } from '@/features/managed-domains/types';
+import { getOrigins } from '@/features/origins/api/origins';
+import type { OriginItem } from '@/features/origins/types';
 import {
   createProxyRoute,
   deleteProxyRoute,
@@ -63,27 +65,17 @@ const cachePolicyValues = [
   'path_prefix',
   'path_exact',
 ] as const;
+const originProtocolValues = ['http', 'https'] as const;
 
 const proxyRouteSchema = z
   .object({
     managed_domain_id: z.string().trim().min(1, '请选择网站'),
     subdomain_label: z.string(),
-    origin_url: z
-      .string()
-      .trim()
-      .min(1, '请输入源站地址')
-      .refine(
-        (value) => /^https?:\/\//.test(value),
-        '源站地址必须以 http:// 或 https:// 开头',
-      )
-      .refine((value) => {
-        try {
-          new URL(value);
-          return true;
-        } catch {
-          return false;
-        }
-      }, '请输入合法的源站地址'),
+    origin_id: z.string(),
+    origin_scheme: z.enum(originProtocolValues),
+    origin_address: z.string().trim().min(1, '请输入源站地址'),
+    origin_port: z.string().trim().min(1, '请输入端口'),
+    origin_uri: z.string(),
     origin_host: z
       .string()
       .trim()
@@ -146,14 +138,70 @@ const proxyRouteSchema = z
       });
     }
 
+    const normalizedOriginAddress = value.origin_address.trim();
+    if (
+      normalizedOriginAddress &&
+      (/[/?#]/.test(normalizedOriginAddress) ||
+        normalizedOriginAddress.includes('://'))
+    ) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['origin_address'],
+        message: '源站地址仅支持 IP、域名或主机名',
+      });
+    }
+
+    const normalizedOriginPort = value.origin_port.trim();
+    const portNumber = Number(normalizedOriginPort);
+    if (
+      normalizedOriginPort &&
+      (!/^\d+$/.test(normalizedOriginPort) ||
+        !Number.isInteger(portNumber) ||
+        portNumber < 1 ||
+        portNumber > 65535)
+    ) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['origin_port'],
+        message: '端口需为 1 到 65535 的整数',
+      });
+    }
+
+    const normalizedOriginURI = value.origin_uri.trim();
+    if (
+      normalizedOriginURI &&
+      !normalizedOriginURI.startsWith('/') &&
+      !normalizedOriginURI.startsWith('?')
+    ) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['origin_uri'],
+        message: '源站路径需以 / 或 ? 开头',
+      });
+    }
+
+    const primaryOriginURL = buildOriginUrl(
+      value.origin_scheme,
+      value.origin_address,
+      value.origin_port,
+      value.origin_uri,
+    );
+    if (!primaryOriginURL) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['origin_address'],
+        message: '请输入完整的源站信息',
+      });
+    }
+
     const upstreams = parseUpstreamsText(
-      value.origin_url,
+      primaryOriginURL,
       value.upstreams_text,
     );
     if (upstreams.length === 0) {
       context.addIssue({
         code: z.ZodIssueCode.custom,
-        path: ['origin_url'],
+        path: ['origin_address'],
         message: '至少需要一个上游地址',
       });
     }
@@ -213,7 +261,11 @@ type FeedbackState = {
 const defaultValues: ProxyRouteFormValues = {
   managed_domain_id: '',
   subdomain_label: '',
-  origin_url: '',
+  origin_id: '',
+  origin_scheme: 'https',
+  origin_address: '',
+  origin_port: '',
+  origin_uri: '',
   origin_host: '',
   upstreams_text: '',
   enabled: true,
@@ -230,6 +282,7 @@ const defaultValues: ProxyRouteFormValues = {
 const routesQueryKey = ['proxy-routes'];
 const certificatesQueryKey = ['tls-certificates'];
 const managedDomainsQueryKey = ['managed-domains'];
+const originsQueryKey = ['origins'];
 const versionsQueryKey = ['config-versions'];
 
 function hasConfigChanges(diff: {
@@ -338,13 +391,66 @@ function buildCertificateLabel(certificate: TlsCertificateItem) {
     : certificate.name;
 }
 
+function buildOriginUrl(
+  scheme: 'http' | 'https',
+  address: string,
+  port: string,
+  uri: string,
+) {
+  const normalizedAddress = address.trim();
+  const normalizedPort = port.trim();
+  if (!normalizedAddress || !normalizedPort) {
+    return '';
+  }
+
+  const host =
+    normalizedAddress.includes(':') && !normalizedAddress.startsWith('[')
+      ? `[${normalizedAddress}]`
+      : normalizedAddress;
+  const normalizedURI = uri.trim();
+
+  return `${scheme}://${host}:${normalizedPort}${normalizedURI}`;
+}
+
+function parseOriginUrl(rawValue: string) {
+  try {
+    const parsed = new URL(rawValue);
+    const uri = parsed.pathname === '/' ? '' : parsed.pathname;
+    return {
+      scheme: (parsed.protocol.replace(':', '') || 'https') as 'http' | 'https',
+      address: parsed.hostname,
+      port: parsed.port || (parsed.protocol === 'http:' ? '80' : '443'),
+      uri: parsed.search ? `${uri}${parsed.search}` || parsed.search : uri,
+    };
+  } catch {
+    return {
+      scheme: 'https' as const,
+      address: '',
+      port: '',
+      uri: '',
+    };
+  }
+}
+
 function toPayload(values: ProxyRouteFormValues): ProxyRouteMutationPayload {
+  const primaryOriginUrl = buildOriginUrl(
+    values.origin_scheme,
+    values.origin_address,
+    values.origin_port,
+    values.origin_uri,
+  );
+
   return {
     domain: buildRouteDomain(values.managed_domain_id, values.subdomain_label),
-    origin_url: values.origin_url.trim(),
+    origin_id: values.origin_id ? Number(values.origin_id) : null,
+    origin_url: primaryOriginUrl,
+    origin_scheme: values.origin_scheme,
+    origin_address: values.origin_address.trim(),
+    origin_port: values.origin_port.trim(),
+    origin_uri: values.origin_uri.trim(),
     origin_host: values.origin_host.trim(),
     upstreams: parseUpstreamsText(
-      values.origin_url,
+      primaryOriginUrl,
       values.upstreams_text,
     ).slice(1),
     enabled: values.enabled,
@@ -382,10 +488,16 @@ function toFormValues(
     );
   }
 
+  const parsedOrigin = parseOriginUrl(route.origin_url);
+
   return {
     managed_domain_id: managedDomainMatch.managedDomainId,
     subdomain_label: managedDomainMatch.subdomainLabel,
-    origin_url: route.origin_url,
+    origin_id: route.origin_id ? String(route.origin_id) : '',
+    origin_scheme: parsedOrigin.scheme,
+    origin_address: parsedOrigin.address,
+    origin_port: parsedOrigin.port,
+    origin_uri: parsedOrigin.uri,
     origin_host: route.origin_host || '',
     upstreams_text: upstreams.slice(1).join('\n'),
     enabled: route.enabled,
@@ -453,6 +565,22 @@ export function ProxyRoutesPage() {
     control: form.control,
     name: 'subdomain_label',
   });
+  const watchedOriginAddress = useWatch({
+    control: form.control,
+    name: 'origin_address',
+  });
+  const watchedOriginScheme = useWatch({
+    control: form.control,
+    name: 'origin_scheme',
+  });
+  const watchedOriginPort = useWatch({
+    control: form.control,
+    name: 'origin_port',
+  });
+  const watchedOriginURI = useWatch({
+    control: form.control,
+    name: 'origin_uri',
+  });
   const watchedEnabled = useWatch({ control: form.control, name: 'enabled' });
   const watchedEnableHttps = useWatch({
     control: form.control,
@@ -487,6 +615,11 @@ export function ProxyRoutesPage() {
     queryFn: getManagedDomains,
   });
 
+  const originsQuery = useQuery({
+    queryKey: originsQueryKey,
+    queryFn: getOrigins,
+  });
+
   const saveMutation = useMutation({
     mutationFn: async (values: ProxyRouteFormValues) => {
       const payload = toPayload(values);
@@ -506,6 +639,7 @@ export function ProxyRoutesPage() {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: routesQueryKey }),
         queryClient.invalidateQueries({ queryKey: managedDomainsQueryKey }),
+        queryClient.invalidateQueries({ queryKey: originsQueryKey }),
       ]);
     },
     onError: (error) => {
@@ -561,6 +695,17 @@ export function ProxyRoutesPage() {
     () => managedDomainsQuery.data ?? [],
     [managedDomainsQuery.data],
   );
+  const origins = useMemo(() => originsQuery.data ?? [], [originsQuery.data]);
+
+  const matchedOrigin = useMemo(
+    () =>
+      origins.find(
+        (item) =>
+          item.address.toLowerCase() ===
+          watchedOriginAddress.trim().toLowerCase(),
+      ) ?? null,
+    [origins, watchedOriginAddress],
+  );
 
   const selectedManagedDomain = useMemo(
     () =>
@@ -578,6 +723,19 @@ export function ProxyRoutesPage() {
     selectedManagedDomainValue,
     watchedSubdomainLabel,
   );
+  const primaryOriginPreview = buildOriginUrl(
+    watchedOriginScheme,
+    watchedOriginAddress,
+    watchedOriginPort,
+    watchedOriginURI,
+  );
+
+  useEffect(() => {
+    form.setValue('origin_id', matchedOrigin ? String(matchedOrigin.id) : '', {
+      shouldDirty: true,
+      shouldValidate: false,
+    });
+  }, [form, matchedOrigin]);
 
   useEffect(() => {
     if (!watchedEnableHttps) {
@@ -911,13 +1069,57 @@ export function ProxyRoutesPage() {
               </ResourceSelect>
             </ResourceField>
             <ResourceField
-              label="源站地址"
-              hint="示例：https://origin.internal"
-              error={form.formState.errors.origin_url?.message}
+              label="源站协议"
+              hint="先选择回源协议，再选择或输入源站地址。"
+            >
+              <ResourceSelect
+                value={watchedOriginScheme}
+                onChange={(event) =>
+                  form.setValue(
+                    'origin_scheme',
+                    event.target.value as ProxyRouteFormValues['origin_scheme'],
+                    {
+                      shouldDirty: true,
+                      shouldValidate: true,
+                    },
+                  )
+                }
+              >
+                <option value="https">https</option>
+                <option value="http">http</option>
+              </ResourceSelect>
+            </ResourceField>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-[1.2fr_0.8fr]">
+            <ResourceField
+              label="源站"
+              hint="可从已有源站中选择，也可以直接输入新地址；保存规则后会自动创建不存在的源站。"
+              error={form.formState.errors.origin_address?.message}
             >
               <ResourceInput
-                placeholder="https://origin.internal"
-                {...form.register('origin_url')}
+                list="proxy-route-origin-addresses"
+                placeholder="origin.internal"
+                {...form.register('origin_address')}
+              />
+              <datalist id="proxy-route-origin-addresses">
+                {origins.map((origin) => (
+                  <option
+                    key={origin.id}
+                    value={origin.address}
+                    label={origin.name}
+                  />
+                ))}
+              </datalist>
+            </ResourceField>
+            <ResourceField
+              label="端口"
+              hint="规则主源站的访问端口。"
+              error={form.formState.errors.origin_port?.message}
+            >
+              <ResourceInput
+                placeholder="443"
+                {...form.register('origin_port')}
               />
             </ResourceField>
           </div>
@@ -957,6 +1159,32 @@ export function ProxyRoutesPage() {
               </AppCard>
             )
           ) : null}
+
+          <div className="grid gap-4 md:grid-cols-[1fr_1fr]">
+            <ResourceField
+              label="源站路径"
+              hint="可选，用于保留已有带路径或查询参数的回源能力，例如 /api 或 ?token=demo。"
+              error={form.formState.errors.origin_uri?.message}
+            >
+              <ResourceInput
+                placeholder="/api"
+                {...form.register('origin_uri')}
+              />
+            </ResourceField>
+            <AppCard
+              title="主源站预览"
+              description={
+                matchedOrigin
+                  ? `当前会复用已存在的源站 ${matchedOrigin.name}。`
+                  : '如果这里的地址尚未收录，保存规则时会自动创建一个新源站。'
+              }
+            >
+              <p className="text-sm leading-6 text-[var(--foreground-secondary)]">
+                {primaryOriginPreview ||
+                  '选择协议、输入源站和端口后，这里会显示最终主源站地址。'}
+              </p>
+            </AppCard>
+          </div>
 
           <ResourceField
             label="回源主机名"
