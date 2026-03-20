@@ -54,8 +54,6 @@ func SetApiRouter(router *gin.Engine) {
 		{
 			optionRoute.GET("/", controller.GetOptions)
 			optionRoute.POST("/update", controller.UpdateOption)
-			optionRoute.POST("/geoip/lookup", controller.LookupGeoIP)
-			optionRoute.POST("/database/cleanup", controller.CleanupDatabaseObservability)
 		}
 		updateRoute := apiRouter.Group("/update")
 		updateRoute.Use(middleware.RootAuth(), middleware.NoTokenAuth())
@@ -73,95 +71,6 @@ func SetApiRouter(router *gin.Engine) {
 			fileRoute.GET("/search", controller.SearchFiles)
 			fileRoute.POST("/", middleware.UploadRateLimit(), controller.UploadFile)
 			fileRoute.POST("/:id/delete", controller.DeleteFile)
-		}
-		proxyRoute := apiRouter.Group("/proxy-routes")
-		proxyRoute.Use(middleware.AdminAuth())
-		{
-			proxyRoute.GET("/", controller.GetProxyRoutes)
-			proxyRoute.POST("/", controller.CreateProxyRoute)
-			proxyRoute.POST("/:id/update", controller.UpdateProxyRoute)
-			proxyRoute.POST("/:id/delete", controller.DeleteProxyRoute)
-		}
-		managedDomainRoute := apiRouter.Group("/managed-domains")
-		managedDomainRoute.Use(middleware.AdminAuth())
-		{
-			managedDomainRoute.GET("/", controller.GetManagedDomains)
-			managedDomainRoute.GET("/match", controller.MatchManagedDomainCertificate)
-			managedDomainRoute.POST("/", controller.CreateManagedDomain)
-			managedDomainRoute.POST("/:id/update", controller.UpdateManagedDomain)
-			managedDomainRoute.POST("/:id/delete", controller.DeleteManagedDomain)
-		}
-		tlsCertificateRoute := apiRouter.Group("/tls-certificates")
-		tlsCertificateRoute.Use(middleware.AdminAuth())
-		{
-			tlsCertificateRoute.GET("/", controller.GetTLSCertificates)
-			tlsCertificateRoute.GET("/:id", controller.GetTLSCertificate)
-			tlsCertificateRoute.GET("/:id/content", controller.GetTLSCertificateContent)
-			tlsCertificateRoute.POST("/", controller.CreateTLSCertificate)
-			tlsCertificateRoute.POST("/:id/update", controller.UpdateTLSCertificate)
-			tlsCertificateRoute.POST("/import-file", controller.ImportTLSCertificateFile)
-			tlsCertificateRoute.POST("/:id/delete", controller.DeleteTLSCertificate)
-		}
-		configVersionRoute := apiRouter.Group("/config-versions")
-		configVersionRoute.Use(middleware.AdminAuth())
-		{
-			configVersionRoute.GET("/", controller.GetConfigVersions)
-			configVersionRoute.GET("/active", controller.GetActiveConfigVersion)
-			configVersionRoute.GET("/preview", controller.PreviewConfigVersion)
-			configVersionRoute.GET("/diff", controller.DiffConfigVersion)
-			configVersionRoute.GET("/:id", controller.GetConfigVersion)
-			configVersionRoute.POST("/publish", controller.PublishConfigVersion)
-			configVersionRoute.POST("/:id/activate", controller.ActivateConfigVersion)
-		}
-		dashboardRoute := apiRouter.Group("/dashboard")
-		dashboardRoute.Use(middleware.AdminAuth())
-		{
-			dashboardRoute.GET("/overview", controller.GetDashboardOverview)
-		}
-		nodeRoute := apiRouter.Group("/nodes")
-		nodeRoute.Use(middleware.AdminAuth())
-		{
-			nodeRoute.GET("/bootstrap-token", controller.GetNodeBootstrapToken)
-			nodeRoute.POST("/bootstrap-token/rotate", controller.RotateNodeBootstrapToken)
-			nodeRoute.GET("/", controller.GetNodes)
-			nodeRoute.POST("/", controller.CreateNode)
-			nodeRoute.GET("/:id/agent-release", controller.GetNodeAgentRelease)
-			nodeRoute.GET("/:id/observability", controller.GetNodeObservability)
-			nodeRoute.POST("/:id/observability/cleanup", controller.CleanupNodeHealthEvents)
-			nodeRoute.POST("/:id/agent-update", controller.RequestNodeAgentUpdate)
-			nodeRoute.POST("/:id/openresty-restart", controller.RequestNodeOpenrestyRestart)
-			nodeRoute.POST("/:id/update", controller.UpdateNode)
-			nodeRoute.POST("/:id/delete", controller.DeleteNode)
-		}
-		applyLogRoute := apiRouter.Group("/apply-logs")
-		applyLogRoute.Use(middleware.AdminAuth())
-		{
-			applyLogRoute.GET("/", controller.GetApplyLogs)
-			applyLogRoute.POST("/cleanup", controller.CleanupApplyLogs)
-		}
-		accessLogRoute := apiRouter.Group("/access-logs")
-		accessLogRoute.Use(middleware.AdminAuth())
-		{
-			accessLogRoute.GET("/", controller.GetAccessLogs)
-			accessLogRoute.GET("/folds", controller.GetFoldedAccessLogs)
-			accessLogRoute.GET("/ip-summary", controller.GetAccessLogIPSummaries)
-			accessLogRoute.GET("/ip-summary/trend", controller.GetAccessLogIPTrend)
-			accessLogRoute.POST("/cleanup", controller.CleanupAccessLogs)
-		}
-		agentRoute := apiRouter.Group("/agent")
-		{
-			discoveryRoute := agentRoute.Group("/")
-			discoveryRoute.Use(middleware.AgentRegisterAuth())
-			{
-				discoveryRoute.POST("/nodes/register", controller.AgentRegister)
-			}
-			authorizedRoute := agentRoute.Group("/")
-			authorizedRoute.Use(middleware.AgentAuth())
-			{
-				authorizedRoute.POST("/nodes/heartbeat", controller.AgentHeartbeat)
-				authorizedRoute.GET("/config-versions/active", controller.AgentGetActiveConfig)
-				authorizedRoute.POST("/apply-logs", controller.AgentReportApplyLog)
-			}
 		}
 	}
 }
