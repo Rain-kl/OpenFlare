@@ -20,10 +20,8 @@ var (
 var UploadPath = "upload"
 
 func printHelp() {
-	fmt.Println("OpenFlare " + Version + " - Internal OpenResty Control Plane.")
-	fmt.Println("Copyright (C) 2023 JustSong. All rights reserved.")
-	fmt.Println("GitHub: https://github.com/Rain-kl/OpenFlare")
-	fmt.Println("Usage: openflare [--port <port>] [--log-dir <log directory>] [--version] [--help]")
+	fmt.Println("GinNextTemplate " + Version + " - Reusable Gin template backend.")
+	fmt.Println("Usage: ginnexttemplate [--port <port>] [--log-dir <log directory>] [--version] [--help]")
 }
 
 func init() {
@@ -56,9 +54,6 @@ func init() {
 	}
 	if os.Getenv("UPLOAD_PATH") != "" {
 		UploadPath = os.Getenv("UPLOAD_PATH")
-	}
-	if os.Getenv("AGENT_TOKEN") != "" {
-		AgentToken = os.Getenv("AGENT_TOKEN")
 	}
 	SetLogLevel(os.Getenv("LOG_LEVEL"))
 	if *LogDir != "" {

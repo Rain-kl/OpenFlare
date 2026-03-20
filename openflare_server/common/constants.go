@@ -9,7 +9,7 @@ import (
 
 var StartTime = time.Now().Unix() // unit: second
 var Version = "dev"               // release builds inject the tag version via ldflags
-var SystemName = "OpenFlare"
+var SystemName = "GinNextTemplate"
 var ServerAddress = "http://localhost:3000"
 var Footer = ""
 var HomePageLink = ""
@@ -17,7 +17,7 @@ var HomePageLink = ""
 // Any options with "Secret", "Token" in its key won't be return by GetOptions
 
 var SessionSecret = uuid.New().String()
-var SQLitePath = "openflare.db"
+var SQLitePath = "ginnexttemplate.db"
 var SQLDSN = ""
 
 var OptionMap map[string]string

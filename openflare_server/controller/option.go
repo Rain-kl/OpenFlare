@@ -22,6 +22,56 @@ var (
 	openRestyDurationTokenPattern = regexp.MustCompile(`^\d+[smhdwSMHDW]$`)
 )
 
+var removedTemplateOptionKeys = map[string]struct{}{
+	"AgentDiscoveryToken":                   {},
+	"AgentHeartbeatInterval":                {},
+	"NodeOfflineThreshold":                  {},
+	"AgentUpdateRepo":                       {},
+	"GeoIPProvider":                         {},
+	"DatabaseAutoCleanupEnabled":            {},
+	"DatabaseAutoCleanupRetentionDays":      {},
+	"OpenRestyWorkerProcesses":              {},
+	"OpenRestyWorkerConnections":            {},
+	"OpenRestyWorkerRlimitNofile":           {},
+	"OpenRestyEventsUse":                    {},
+	"OpenRestyEventsMultiAcceptEnabled":     {},
+	"OpenRestyKeepaliveTimeout":             {},
+	"OpenRestyKeepaliveRequests":            {},
+	"OpenRestyClientHeaderTimeout":          {},
+	"OpenRestyClientBodyTimeout":            {},
+	"OpenRestyClientMaxBodySize":            {},
+	"OpenRestyLargeClientHeaderBuffers":     {},
+	"OpenRestySendTimeout":                  {},
+	"OpenRestyProxyConnectTimeout":          {},
+	"OpenRestyProxySendTimeout":             {},
+	"OpenRestyProxyReadTimeout":             {},
+	"OpenRestyWebsocketEnabled":             {},
+	"OpenRestyProxyRequestBufferingEnabled": {},
+	"OpenRestyProxyBufferingEnabled":        {},
+	"OpenRestyProxyBuffers":                 {},
+	"OpenRestyProxyBufferSize":              {},
+	"OpenRestyProxyBusyBuffersSize":         {},
+	"OpenRestyGzipEnabled":                  {},
+	"OpenRestyGzipMinLength":                {},
+	"OpenRestyGzipCompLevel":                {},
+	"OpenRestyCacheEnabled":                 {},
+	"OpenRestyCachePath":                    {},
+	"OpenRestyCacheLevels":                  {},
+	"OpenRestyCacheInactive":                {},
+	"OpenRestyCacheMaxSize":                 {},
+	"OpenRestyCacheKeyTemplate":             {},
+	"OpenRestyCacheLockEnabled":             {},
+	"OpenRestyCacheLockTimeout":             {},
+	"OpenRestyCacheUseStale":                {},
+	"OpenRestyMainConfigTemplate":           {},
+	"OpenRestyResolvers":                    {},
+}
+
+func isRemovedTemplateOption(key string) bool {
+	_, ok := removedTemplateOptionKeys[key]
+	return ok
+}
+
 func validateRateLimitOption(key string, value string) error {
 	maxDurationSeconds := int(common.RateLimitKeyExpirationDuration.Seconds())
 
@@ -264,6 +314,13 @@ func UpdateOption(c *gin.Context) {
 			})
 			return
 		}
+	}
+	if isRemovedTemplateOption(option.Key) {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": fmt.Sprintf("%s 已从 GinNextTemplate 模板配置中移除", option.Key),
+		})
+		return
 	}
 	if err = validateRateLimitOption(option.Key, option.Value); err != nil {
 		c.JSON(http.StatusOK, gin.H{
