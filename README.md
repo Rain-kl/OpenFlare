@@ -1,124 +1,59 @@
 <p align="right">
-  <strong>中文</strong> | <a href="./README.en.md">English</a>
+  <strong>中文</strong>
 </p>
 
 <div align="center">
 
-[//]: # (  <img src="./openflare_server/web/public/logo.png" width="120" height="120" alt="OpenFlare logo">)
+# GinNextTemplate
 
-# OpenFlare
-
-轻量、自托管的 OpenResty 控制面，用于管理反向代理规则、配置发布、节点同步、TLS 证书与基础可观测能力。
-
+Gin + Next.js 的后台管理模板工程，保留用户、邮箱、文件上传、安全和服务端升级等基础能力，适合作为新项目的起点。
 </div>
 
-<p align="center">
-  <a href="https://raw.githubusercontent.com/Rain-kl/OpenFlare/main/LICENSE">
-    <img src="https://img.shields.io/github/license/Rain-kl/OpenFlare?color=brightgreen" alt="license">
-  </a>
-  <a href="https://github.com/Rain-kl/OpenFlare/releases/latest">
-    <img src="https://img.shields.io/github/v/release/Rain-kl/OpenFlare?color=brightgreen&include_prereleases" alt="release">
-  </a>
-  <a href="https://github.com/Rain-kl/OpenFlare/pkgs/container/openflare">
-    <img src="https://img.shields.io/badge/GHCR-ghcr.io%2Frain--kl%2Fopenflare-brightgreen" alt="ghcr">
-  </a>
-</p>
+## 项目定位
 
-## 为什么存在
+`GinNextTemplate` 是从历史 OpenFlare 工程裁剪而来的模板工程。当前主线不是继续扩展 OpenFlare，而是沉淀一套可复用、可维护、可继续二次开发的全栈基础底座。
 
-OpenFlare 解决的是一类朴素但高频的运维问题：
+当前长期保留模块：
 
-* 在一个管理端里维护域名到源站的反向代理规则
-* 生成完整 OpenResty 配置并以不可变版本发布
-* 让节点侧 Agent 自动拉取、校验、reload 与失败回滚
-* 统一托管证书、域名、节点凭证与版本状态
-* 提供足够实用的总览、节点详情与访问分析能力
+* 用户与认证
+* 邮箱能力
+* 文件上传
+* 安全能力
+* 服务端版本升级
 
-## 核心能力
+当前正在移除的历史模块：
 
-* 配置版本化：支持预览、发布、激活、历史回滚
-* Agent 自动应用：周期性同步、落盘、`openresty -t`、`openresty -s reload`、失败自动回滚
-* OpenResty 托管：统一管理主配置模板、性能参数、缓存参数与受管路由
-* TLS 与域名管理：支持证书托管、域名资产维护、精确匹配与通配符匹配
-* 访问与节点观测：支持请求窗口聚合、状态码分布、来源分布、节点资源与健康事件展示
+* Agent
+* 节点与心跳同步
+* 配置版本分发
+* OpenResty 代理能力
+* 域名与证书分发
+* 观测分析与看板
 
-## 系统架构
+## 当前工程目标
 
-```text
-OpenFlare Server (Gin + GORM + SQLite/PostgreSQL + Web UI)
-        |
-        | HTTP API / Config Pull
-        v
-OpenFlare Agent (register / heartbeat / sync / apply / update)
-        |
-        v
-Local OpenResty or Docker OpenResty
-        |
-        v
-Origin
-```
-
-职责划分：
-
-* `openflare_server`：管理端 UI、管理 API、Agent API、配置渲染、版本发布与状态存储
-* `openflare_agent`：节点注册、心跳、同步、本地写入、校验、reload、回滚、自更新
-* `openflare_server/web`：新版管理端前端，静态导出后由 Go Server 托管
-
-## 界面预览
-
-### 仪表盘总览
-
-![OpenFlare dashboard overview](./docs/assets/readme/dashboard-overview.png)
-
-### 节点详情
-
-![OpenFlare node detail](./docs/assets/readme/node-detail.png)
-
-### 配置新增
-
-![OpenFlare version release](./docs/assets/readme/version-release.png)
+* 统一项目名称为 `GinNextTemplate`
+* 服务端严格遵循 MVC 开发
+* 目录结构逐步迁移到标准 Go 布局：`cmd/`、`internal/`、`pkg/`
+* 接口与界面同步裁剪，避免残留历史入口
 
 ## 快速开始
 
 ### 1. 启动 Server
 
-```yaml
-services:
-  postgres:
-    image: postgres:17-alpine
-    restart: unless-stopped
-    environment:
-      POSTGRES_DB: openflare
-      POSTGRES_USER: openflare
-      POSTGRES_PASSWORD: replace-with-strong-password
-    volumes:
-      - postgres-data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U openflare -d openflare"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  openflare:
-    image: ghcr.io/rain-kl/openflare:latest
-    restart: unless-stopped
-    depends_on:
-      postgres:
-        condition: service_healthy
-    ports:
-      - "3000:3000"
-    environment:
-      SESSION_SECRET: replace-with-random-string
-      DSN: postgres://openflare:replace-with-strong-password@postgres:5432/openflare?sslmode=disable
-      GIN_MODE: release
-      LOG_LEVEL: info
-
-volumes:
-  postgres-data:
+```bash
+cd openflare_server/web
+corepack enable
+pnpm install
+pnpm build
 ```
 
 ```bash
-docker compose up -d
+cd openflare_server
+export SESSION_SECRET='replace-with-random-string'
+export SQLITE_PATH='./ginnexttemplate.db'
+export LOG_LEVEL='info'
+go run .
 ```
 
 访问地址：`http://localhost:3000`
@@ -128,60 +63,16 @@ docker compose up -d
 * 用户名：`root`
 * 密码：`123456`
 
-### 2. 接入 Agent
+### 2. 本地开发
 
-**注意:** 安装agent前需确保存已经安装了Docker, 虽然支持裸Openresty,但未得到充分验证,可能存在未知问题.
-
-使用 `discovery_token` 接入：
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/Rain-kl/OpenFlare/main/scripts/install-agent.sh | bash -s -- \
-  --server-url http://your-server:3000 \
-  --discovery-token YOUR_DISCOVERY_TOKEN
-```
-
-使用节点专属 `agent_token`：
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/Rain-kl/OpenFlare/main/scripts/install-agent.sh | bash -s -- \
-  --server-url http://your-server:3000 \
-  --agent-token YOUR_AGENT_TOKEN
-```
-
-安装脚本默认写入 `/opt/openflare-agent`，创建 `openflare-agent.service`，并可重复执行以重装或升级 Agent。
-
-### 3. 发布第一份配置
-
-1. 登录管理端并新增反代规则
-2. 在发布前查看预览或变更摘要
-3. 激活新版本
-4. 等待 Agent 在后续 heartbeat 中拉取并应用配置
-
-版本号格式固定为 `YYYYMMDD-NNN`，历史版本不可变，回滚通过重新激活旧版本完成。
-
-## 仓库结构
-
-* `openflare_server`：Gin + GORM + SQLite/PostgreSQL 单体控制面
-* `openflare_server/web`：Next.js 15 App Router 管理端前端
-* `openflare_agent`：Go 单体 Agent
-* `scripts`：安装脚本与辅助脚本
-* `docs`：设计、规范、部署与配置文档
-
-## 本地开发
-
-### Server
+Server：
 
 ```bash
 cd openflare_server
-export SESSION_SECRET='replace-with-random-string'
-export SQLITE_PATH='./openflare.db'
-# 可选：设置 DSN 或 SQL_DSN 后切换到 PostgreSQL。
-# 如果 PostgreSQL 为空且 ./openflare.db 存在，启动时会自动迁移 SQLite 数据。
-# export DSN='postgres://openflare:secret@127.0.0.1:5432/openflare?sslmode=disable'
 go run .
 ```
 
-### Frontend
+Frontend：
 
 ```bash
 cd openflare_server/web
@@ -189,28 +80,52 @@ pnpm install
 pnpm dev
 ```
 
-### Agent
+## 仓库结构
+
+当前仓库仍在迁移过程中，现有目录主要包括：
+
+* `openflare_server`：当前服务端代码
+* `openflare_server/web`：当前管理端前端代码
+* `docs`：设计、规范、计划、部署和配置文档
+
+目标结构会逐步迁移到：
+
+* `cmd/`
+* `internal/handler`
+* `internal/service`
+* `internal/repository`
+* `internal/model`
+* `internal/dto`
+* `internal/middleware`
+* `internal/pkg`
+* `pkg/`
+
+## 常用命令
+
+Server 测试：
 
 ```bash
-cd openflare_agent
-go run ./cmd/agent -config /path/to/agent.json
+cd openflare_server
+go test ./...
 ```
 
-## 管理端与接口
+Frontend 构建：
 
-管理端当前覆盖：
+```bash
+cd openflare_server/web
+pnpm build
+```
 
-* 反代规则
-* 配置版本
-* 节点管理
-* 应用记录
-* TLS 证书
-* 域名管理
-* 用户管理
-* 设置
-* 版本更新
+## 文档
 
-登录管理端后，可访问 Swagger UI：`/swagger/index.html`
+建议按以下顺序阅读：
+
+1. [docs/template-refactor-plan.md](./docs/template-refactor-plan.md)
+2. [docs/design.md](./docs/design.md)
+3. [docs/development-guidelines.md](./docs/development-guidelines.md)
+4. [docs/development-plan.md](./docs/development-plan.md)
+5. [docs/deployment.md](./docs/deployment.md)
+6. [docs/app-config.md](./docs/app-config.md)
 
 ## 开源协议
 
