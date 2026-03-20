@@ -1,12 +1,12 @@
 'use client';
 
-import { Input, Textarea } from '@heroui/input';
 import { Select, SelectItem, SelectSection } from '@heroui/select';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useFieldArray, useForm, useWatch } from 'react-hook-form';
 import { z } from 'zod';
+import { Separator } from "@/components/ui/separator"
 
 import { EmptyState } from '@/components/feedback/empty-state';
 import { ErrorState } from '@/components/feedback/error-state';
@@ -14,8 +14,12 @@ import { InlineMessage } from '@/components/feedback/inline-message';
 import { LoadingState } from '@/components/feedback/loading-state';
 import { PageHeader } from '@/components/layout/page-header';
 import { AppCard } from '@/components/ui/app-card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { AppModal } from '@/components/ui/app-modal';
 import { StatusBadge } from '@/components/ui/status-badge';
+import { Switch } from '@/components/ui/switch';
+import { Textarea } from '@/components/ui/textarea';
 import {
   getConfigVersionDiff,
   publishConfigVersion,
@@ -274,20 +278,6 @@ type SectionIconProps = {
 const INPUT_CLASS_NAME = 'h-10 rounded-xl px-3 py-2 text-sm';
 const PANEL_CLASS_NAME =
   'rounded-2xl border border-[var(--border-default)] bg-[color:color-mix(in_srgb,var(--surface-elevated)_82%,white_18%)] p-4 shadow-[var(--shadow-soft)]';
-const HERO_INPUT_CLASS_NAMES = {
-  base: 'w-full',
-  mainWrapper: 'w-full',
-  inputWrapper:
-    'min-h-10 rounded-xl border border-[var(--border-default)] shadow-none',
-  input: 'text-sm',
-} as const;
-const HERO_TEXTAREA_CLASS_NAMES = {
-  base: 'w-full',
-  mainWrapper: 'w-full',
-  inputWrapper:
-    'min-h-28 rounded-xl border border-[var(--border-default)] shadow-none',
-  input: 'text-sm',
-} as const;
 const HERO_SELECT_CLASS_NAMES = {
   base: 'w-full',
   trigger: cn(
@@ -1078,13 +1068,7 @@ function HeroTextInput(
 
   return (
     <Input
-      variant="bordered"
-      size="sm"
-      radius="lg"
-      classNames={{
-        ...HERO_INPUT_CLASS_NAMES,
-        base: cn(HERO_INPUT_CLASS_NAMES.base, className),
-      }}
+      className={cn(INPUT_CLASS_NAME, className)}
       {...restProps}
     />
   );
@@ -1097,13 +1081,7 @@ function HeroTextArea(
 
   return (
     <Textarea
-      variant="bordered"
-      size="sm"
-      radius="lg"
-      classNames={{
-        ...HERO_TEXTAREA_CLASS_NAMES,
-        base: cn(HERO_TEXTAREA_CLASS_NAMES.base, className),
-      }}
+      className={className}
       {...restProps}
     />
   );
@@ -1151,6 +1129,42 @@ function HeroSelectField({
   );
 }
 
+function HeroSwitchField({
+  id,
+  label,
+  description,
+  checked,
+  disabled,
+  onChange,
+}: {
+  id: string;
+  label: string;
+  description?: string;
+  checked: boolean;
+  disabled?: boolean;
+  onChange: (checked: boolean) => void;
+}) {
+  return (
+    <div className="flex items-start justify-between gap-4 rounded-2xl border border-[var(--border-default)] bg-[color:color-mix(in_srgb,var(--surface-elevated)_82%,white_18%)] px-4 py-4">
+      <div className="space-y-1">
+        <Label htmlFor={id}>{label}</Label>
+        {description ? (
+          <p className="text-sm leading-5 text-[var(--foreground-secondary)]">
+            {description}
+          </p>
+        ) : null}
+      </div>
+      <Switch
+        id={id}
+        checked={checked}
+        disabled={disabled}
+        aria-label={label}
+        onCheckedChange={onChange}
+      />
+    </div>
+  );
+}
+
 export function ProxyRoutesPage() {
   const queryClient = useQueryClient();
   const [feedback, setFeedback] = useState<FeedbackState | null>(null);
@@ -1159,7 +1173,7 @@ export function ProxyRoutesPage() {
   const [matchResult, setMatchResult] =
     useState<ManagedDomainMatchResult | null>(null);
   const [isMatching, setIsMatching] = useState(false);
-  const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
+  const [isAdvancedOpen, setIsAdvancedOpen] = useState(true);
 
   const form = useForm<ProxyRouteFormValues>({
     resolver: zodResolver(proxyRouteSchema),
@@ -1270,23 +1284,6 @@ export function ProxyRoutesPage() {
 
   const primaryOriginRow =
     watchedOriginRows?.[0] ?? defaultValues.origin_rows[0];
-  const matchedOrigin = useMemo(
-    () =>
-      origins.find(
-        (item) =>
-          item.address.toLowerCase() ===
-          primaryOriginRow.address.trim().toLowerCase(),
-      ) ?? null,
-    [origins, primaryOriginRow.address],
-  );
-
-  const primaryOriginPreview = buildOriginUrl(
-    primaryOriginRow.scheme,
-    primaryOriginRow.address,
-    primaryOriginRow.port,
-    watchedOriginURI,
-  );
-
   const saveMutation = useMutation({
     mutationFn: async (values: ProxyRouteFormValues) => {
       const payload = toPayload(values, origins);
@@ -1688,8 +1685,18 @@ export function ProxyRoutesPage() {
           className="space-y-6"
           onSubmit={handleSubmit}
         >
+          <HeroSwitchField
+            id="proxy-route-enabled"
+            label="启用规则"
+            description="关闭后该规则不会参与配置渲染与发布。"
+            checked={watchedEnabled}
+            onChange={(checked) =>
+              form.setValue('enabled', checked, { shouldDirty: true })
+            }
+          />
+
           <ProxyRuleSection
-            title="域名设置"
+            title="Domain"
             icon={<GlobeIcon className="h-4 w-4" />}
           >
             <div className="space-y-4">
@@ -1726,7 +1733,7 @@ export function ProxyRoutesPage() {
           </ProxyRuleSection>
 
           <ProxyRuleSection
-            title="Origin Settings"
+            title="Origin"
             icon={<ServerIcon className="h-4 w-4" />}
             action={
               <button
@@ -1841,41 +1848,20 @@ export function ProxyRoutesPage() {
                             ?.message}
                       </p>
                     )}
+
+                    {index === 0 ? (
+                        <div>
+                          <span className="sr-only">Origin Path / Query</span>
+                          <HeroTextInput
+                              aria-label="Origin Path / Query"
+                              placeholder="/api"
+                              {...form.register('origin_uri')}
+                          />
+                        </div>
+                    ) : null}
                   </div>
                 );
               })}
-
-              <div className="grid gap-4 md:grid-cols-[1fr_1fr]">
-                <ResourceField
-                  label="Primary Origin Preview"
-                  hint={
-                    matchedOrigin
-                      ? `当前会复用已存在的源站 ${matchedOrigin.name}。`
-                      : '如果地址尚未收录，保存规则时会自动创建一个新源站。'
-                  }
-                >
-                  <div
-                    className={cn(
-                      'flex items-center rounded-xl border border-dashed border-[var(--border-default)] bg-[var(--surface-panel)] px-3 font-mono text-sm text-[var(--foreground-secondary)]',
-                      INPUT_CLASS_NAME,
-                    )}
-                  >
-                    {primaryOriginPreview || '填写主源站后显示完整回源地址'}
-                  </div>
-                </ResourceField>
-
-                <ResourceField
-                  label="Origin Path / Query"
-                  hint="保留原有高级能力，可选填写 /api 或 ?token=demo。"
-                  error={form.formState.errors.origin_uri?.message}
-                >
-                  <HeroTextInput
-                    aria-label="Origin Path / Query"
-                    placeholder="/api"
-                    {...form.register('origin_uri')}
-                  />
-                </ResourceField>
-              </div>
             </div>
           </ProxyRuleSection>
 
@@ -1884,49 +1870,57 @@ export function ProxyRoutesPage() {
             icon={<ShieldIcon className="h-4 w-4" />}
           >
             <div className="space-y-4">
-              <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
-                <ToggleField
-                  label="HTTPS Access"
-                  description="若所选域名已有证书，系统会默认开启；开启后即可选择或调整证书。"
-                  checked={watchedEnableHttps}
-                  onChange={(checked) => {
-                    form.setValue('enable_https', checked, {
-                      shouldDirty: true,
-                      shouldValidate: true,
-                    });
-
-                    if (checked && !form.getValues('cert_id') && selectedManagedDomain?.cert_id) {
-                      form.setValue('cert_id', String(selectedManagedDomain.cert_id), {
+              <div className="rounded-2xl border border-[var(--border-default)] bg-[color:color-mix(in_srgb,var(--surface-elevated)_82%,white_18%)] p-4">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="space-y-1">
+                    <p className="text-sm font-semibold text-[var(--foreground-primary)]">
+                      HTTPS Access
+                    </p>
+                    <p className="text-sm leading-5 text-[var(--foreground-secondary)]">
+                      Enforce secure TLS connections for this rule.
+                    </p>
+                  </div>
+                  <Switch
+                    id="proxy-route-enable-https"
+                    checked={watchedEnableHttps}
+                    aria-label="HTTPS Access"
+                    onCheckedChange={(checked) => {
+                      form.setValue('enable_https', checked, {
                         shouldDirty: true,
                         shouldValidate: true,
                       });
-                    }
 
-                    if (!checked) {
-                      form.setValue('cert_id', '', {
-                        shouldDirty: true,
-                        shouldValidate: true,
-                      });
-                      form.setValue('redirect_http', false, {
-                        shouldDirty: true,
-                        shouldValidate: true,
-                      });
-                    }
-                  }}
-                />
+                      if (
+                        checked &&
+                        !form.getValues('cert_id') &&
+                        selectedManagedDomain?.cert_id
+                      ) {
+                        form.setValue(
+                          'cert_id',
+                          String(selectedManagedDomain.cert_id),
+                          {
+                            shouldDirty: true,
+                            shouldValidate: true,
+                          },
+                        );
+                      }
 
-                <ToggleField
-                  label="启用规则"
-                  description="关闭后该规则不会参与配置渲染与发布。"
-                  checked={watchedEnabled}
-                  onChange={(checked) =>
-                    form.setValue('enabled', checked, { shouldDirty: true })
-                  }
-                />
-              </div>
+                      if (!checked) {
+                        form.setValue('cert_id', '', {
+                          shouldDirty: true,
+                          shouldValidate: true,
+                        });
+                        form.setValue('redirect_http', false, {
+                          shouldDirty: true,
+                          shouldValidate: true,
+                        });
+                      }
+                    }}
+                  />
+                </div>
 
-              {watchedEnableHttps ? (
-                <div className="grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
+                {watchedEnableHttps ? (
+                  <div className="mt-5 space-y-4">
                   <ResourceField
                     label="Select Certificate"
                     hint={getMatchMessage(
@@ -1974,20 +1968,21 @@ export function ProxyRoutesPage() {
                     </HeroSelectField>
                   </ResourceField>
 
-                  <ToggleField
-                    label="HTTP 跳转 HTTPS"
-                    description="开启后会将 HTTP 请求重定向到 HTTPS。"
-                    checked={watchedRedirectHttp}
-                    disabled={!watchedEnableHttps}
-                    onChange={(checked) =>
-                      form.setValue('redirect_http', checked, {
-                        shouldDirty: true,
-                        shouldValidate: true,
-                      })
-                    }
-                  />
-                </div>
-              ) : null}
+                    <ToggleField
+                      label="HTTP 跳转 HTTPS"
+                      description="开启后会将 HTTP 请求重定向到 HTTPS。"
+                      checked={watchedRedirectHttp}
+                      disabled={!watchedEnableHttps}
+                      onChange={(checked) =>
+                        form.setValue('redirect_http', checked, {
+                          shouldDirty: true,
+                          shouldValidate: true,
+                        })
+                      }
+                    />
+                  </div>
+                ) : null}
+              </div>
 
               {matchResult?.matched && matchResult.candidates.length > 1 ? (
                 <div className="flex flex-wrap gap-2">
@@ -2016,7 +2011,7 @@ export function ProxyRoutesPage() {
                   <SlidersIcon className="h-4 w-4" />
                 </span>
                 <h3 className="text-sm font-semibold uppercase tracking-[0.16em]">
-                  Advanced Settings
+                  Advanced
                 </h3>
               </div>
               <ChevronIcon
@@ -2027,7 +2022,7 @@ export function ProxyRoutesPage() {
 
             {isAdvancedOpen ? (
               <div className={cn(PANEL_CLASS_NAME, 'space-y-4')}>
-                <div className="grid gap-4 lg:grid-cols-2">
+                <div className="grid gap-4 lg:grid-cols-1">
                   <div className="space-y-4">
                     <ResourceField
                       label="Origin Host Header"
@@ -2101,7 +2096,7 @@ export function ProxyRoutesPage() {
                       </div>
                     </div>
                   </div>
-
+                  <Separator />
                   <div className="space-y-4">
                     <ToggleField
                       label="Enable Rule Caching"

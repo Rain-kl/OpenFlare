@@ -6,6 +6,10 @@ import { AppProviders } from '@/components/providers/app-providers';
 import { getThemeInitScript } from '@/lib/theme/theme';
 
 import './globals.css';
+import { Geist } from "next/font/google";
+import { cn } from "@/lib/utils";
+
+const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 
 export const metadata: Metadata = {
   title: {
@@ -22,7 +26,7 @@ interface RootLayoutProps {
 
 export default function RootLayout({ children }: RootLayoutProps) {
   return (
-    <html lang='zh-CN' suppressHydrationWarning>
+    <html lang='zh-CN' suppressHydrationWarning className={cn("font-sans", geist.variable)}>
       <body>
         <Script id='theme-init' strategy='beforeInteractive'>
           {getThemeInitScript()}
