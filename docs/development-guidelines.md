@@ -1,32 +1,22 @@
-# OpenFlare 开发规范
+# 模板工程开发规范
 
-本文档描述 OpenFlare `1.0.0` 正式版之后的开发基线。
+本文档描述当前模板工程改造阶段的开发基线。
 
-超出 [docs/design.md](./design.md) 边界的需求，必须先更新设计文档。
+如果需求超出 `docs/design.md` 和 `docs/template-refactor-plan.md` 的边界，必须先更新设计与计划文档，再进入实现。
 
 ## 1. 技术基线
 
 ### 1.1 Server
 
-`openflare_server` 继续作为单体控制面：
+服务端继续基于：
 
 * Go 1.24+
 * Gin
 * GORM
 * SQLite / PostgreSQL
-* 现有登录体系
+* 现有 Session 登录体系
 
-### 1.2 Agent
-
-`openflare_agent` 继续作为 Go 单体程序：
-
-* Go 1.23+
-* 单二进制
-* 节点本地执行
-* `openresty_path` 优先
-* 无 `openresty_path` 时默认 Docker OpenResty
-
-### 1.3 Frontend
+### 1.2 Frontend
 
 前端基线以 `openflare_server/web` 为准：
 
@@ -36,117 +26,132 @@
 * Tailwind CSS 4
 * TanStack Query
 * React Hook Form + Zod
-* Zustand 仅用于轻量客户端状态
+* Zustand 仅用于轻量客户端 UI 状态
 
 前端细则见 [docs/frontend-development-guidelines.md](./frontend-development-guidelines.md)。
 
-## 2. 分层与目录约束
+### 1.3 Agent
 
-### 2.1 Server
+`openflare_agent` 已不再作为长期保留模块。
 
-* `controller/`：参数解析、调用 service、返回响应
-* `service/`：业务逻辑、校验、事务编排、渲染
-* `model/`：模型定义与持久化
-* `router/`：路由注册
-* `middleware/`：认证、鉴权、限流等横切逻辑
-* `common/`：配置、全局状态与初始化入口
-* `utils/`：纯工具函数与通用 helper
+要求：
+
+* 模板工程阶段不再新增 Agent 能力
+* 如需调整 Agent，只允许为平稳删除、迁移或清理残留依赖服务
+
+## 2. 工程结构规范
+
+本次改造不仅是业务裁剪，还要同步推进工程规范化与目录结构重组。服务端应逐步迁移到以下标准 Go 工程布局：
+
+```text
+project/
+├── cmd/
+├── internal/
+│   ├── handler/
+│   ├── service/
+│   ├── repository/
+│   ├── model/
+│   ├── dto/
+│   ├── middleware/
+│   └── pkg/
+└── pkg/
+```
+
+说明：
+
+* `cmd/`：应用入口
+* `internal/handler/`：HTTP 处理器
+* `internal/service/`：业务逻辑层
+* `internal/repository/`：数据访问层
+* `internal/model/`：领域模型/数据模型
+* `internal/dto/`：数据传输对象
+* `internal/middleware/`：中间件
+* `internal/pkg/`：项目内公共能力，如 `utils/`、`database/`
+* `pkg/`：仅在存在明确对外复用诉求时使用
+
+要求：
+
+* 新增代码优先落到目标目录结构
+* 裁剪过程中不继续扩张旧式平铺目录
+* 目录迁移要和模块裁剪、MVC 分层同时推进
+
+## 3. MVC 分层约束
+
+服务端必须严格遵循 MVC 扩展版分层：
+
+* Handler：请求入参解析、权限入口控制、调用 service、输出统一响应
+* Service：业务规则、流程编排、事务边界
+* Repository：数据库读写与查询封装
+* Model：领域对象、数据库模型表达
+* DTO：请求/响应载荷和内部传输对象
 
 禁止：
 
-* 在 `controller/` 堆积业务逻辑
-* 在 `middleware/` 实现业务流程
-* 为简单需求新增平台层抽象
-
-### 2.2 Agent
-
-保持现有模块边界：
-
-* `config`
-* `heartbeat`
-* `sync`
-* `openresty`
-* `state`
-* `httpclient`
-* `protocol`
-* `internal/updater`
+* 在 Handler 中堆积业务逻辑
+* 在 Middleware 中实现具体业务流程
+* 在 Router 中实现业务判断
+* 在 Model 中编排跨模块业务流程
+* 直接在 Handler 中替代 Repository 或 Service
 
 要求：
 
-* 每个模块职责单一
-* 外部命令调用集中封装
-* 状态落盘与配置落盘分离
+* Handler 只负责接口层逻辑
+* Service 负责核心业务编排
+* Repository 负责持久化访问细节
+* Model 负责结构表达，不承载接口逻辑
+* DTO 负责传输对象定义，避免直接暴露数据库模型到接口层
 
-### 2.3 Frontend
+## 4. 模块裁剪约束
 
-前端分层保持：
+当前模板工程保留的基础模块：
 
-* `app/`
-* `features/`
-* `components/`
-* `lib/`
-* `store/`
-* `types/`
+* 用户模块
+* 版本升级模块
+* 邮箱模块
+* 文件上传模块
+* 安全模块
+
+当前模板工程待移除的 OpenFlare 业务模块：
+
+* Agent
+* 节点管理与心跳同步
+* 配置版本发布与分发
+* OpenResty 代理规则
+* 域名与证书分发
+* 访问日志、观测分析、看板
 
 要求：
 
-* 页面路由与布局放在 `app/`
-* API 请求统一收敛到 `lib/api/`
-* 业务逻辑优先放在 `features/`
+* 删除业务模块时，必须同时处理后端、前端、Swagger、配置项与文档
+* 接口与界面必须同步移除、同步收敛
+* 不允许保留失效导航、失效页面、失效 API client、失效类型定义或 Swagger 残留说明
 
-## 3. 数据模型规范
+## 5. 数据模型与数据库规范
 
-当前有效实体：
+要求：
 
-* `proxy_routes`
-* `config_versions`
-* `nodes`
-* `node_system_profiles`
-* `apply_logs`
-* `tls_certificates`
-* `managed_domains`
-* `node_request_reports`
-* `node_access_logs`
-* `node_metric_snapshots`
-* `traffic_analytics_rollups`
-* `node_health_events`
-* `options`
+* 数据模型只保留模板工程当前需要的实体
+* 不新增新的 OpenFlare 领域对象
+* 所有涉及表结构、索引、列类型、内部元数据的修改，都必须同步处理数据库版本与迁移
 
-通用约束：
+### 5.1 数据库迁移
 
-* 不新增平台化对象，除非设计文档明确要求
-* `proxy_routes` 维持一条域名对应一条规则；规则内允许保存一个或多个上游地址用于负载均衡，但不引入独立 `origin_pool`
-* `proxy_routes` 的上游统一使用 named `upstream` + keepalive；单上游如带 base path 或 query，应在 `proxy_pass` 上补回 URI，多上游仅允许纯 `scheme://host[:port]`
-* `proxy_routes.origin_host` 为可选字段，仅用于覆盖回源 `Host` 请求头，不引入新的平台化对象
-* `config_versions` 必须保存完整快照与渲染结果
-* 全局同时只能有一个激活版本
-* 回滚通过重新激活旧版本实现
-* `nodes` 只保留控制面状态与低频摘要
-* 观测数据必须按节点与时间窗口关联
-* 快照与聚合结果采用追加式模型，不覆盖历史
-* 原始访问明细必须有受控保留策略
+* 数据库版本号定义在服务端模型层
+* 不得仅依赖 `AutoMigrate` 隐式升级存量数据库
+* 每次提升数据库版本号时，必须补充显式迁移方法
+* 迁移方法必须包含升级后的校验逻辑
+* 启动时必须先检查数据库当前版本，再按顺序升级
+* 如果迁移失败或校验失败，启动流程必须中止
 
-### 3.1 数据库版本与迁移
+## 6. API 与鉴权规范
 
-* 任何涉及表结构、索引、列类型、分表规则或内部持久化元数据的修改，都必须同步提升数据库版本号
-* 数据库版本号定义在 `openflare_server/model`，不得只依赖 `AutoMigrate` 隐式升级存量数据库
-* 每次提升数据库版本号时，必须补充从上一版本升级到新版本的显式迁移方法
-* 迁移方法必须包含升级后的校验逻辑；只有校验通过，才能写入新的数据库版本记录
-* 新包启动后必须先检查数据库当前版本，再按顺序逐步升级到目标版本；禁止跳过中间升级步骤直接写目标版本
-* 空库初始化可以直接建立当前版本结构，但初始化完成后仍必须执行同版本校验，并落库当前数据库版本
-* 数据库版本元数据属于内部控制信息，必须保存在独立内部表中，不能混入业务配置表
-* 如果迁移失败或校验失败，启动流程必须中止，且不得提升数据库版本记录
-* 涉及数据库版本变更的提交，必须补充对应的迁移测试或等效回归测试
+### 6.1 API
 
-## 4. API 与鉴权规范
-
-### 4.1 API
-
-* 管理端与 Agent API 统一使用 JSON
+* 管理端 API 统一使用 JSON
 * 成功与失败都必须返回清晰 `message`
-* Agent API 固定放在 `/api/agent/*`
-* 总览与节点详情优先使用专用聚合接口
-* 管理端变更类接口统一使用 `POST`；只读接口使用 `GET`
+* 变更类接口统一使用 `POST`
+* 只读接口使用 `GET`
+* 删除后端接口时，必须同步删除对应前端页面、导航入口、请求封装、类型定义和 Swagger 描述
 
 统一响应结构：
 
@@ -158,66 +163,40 @@
 }
 ```
 
-### 4.2 鉴权
+### 6.2 鉴权
 
 管理端：
 
 * 继续复用现有登录、角色与 Session
 
-Agent：
+安全要求：
 
-* 正式请求统一使用节点专属 `agent_token`
-* 首次接入可使用全局 `discovery_token`
-* 请求头统一使用 `X-Agent-Token`
+* 不暴露远程 shell 或任意命令执行入口
+* 不在日志中打印完整 Token、验证码、敏感密钥
+* 不绕过统一鉴权中间件新增临时后门接口
 
-禁止：
+## 7. 配置规范
 
-* 暴露远程 shell 或任意命令执行入口
-* 在日志中打印完整 Token
-* 允许绕过占位符约束保存不可渲染的主配置模板
+要求：
 
-## 5. 发布与运行规范
+* 配置项必须围绕模板工程保留模块收敛
+* 删除 OpenFlare 业务模块时，必须同步删除对应环境变量、运行时配置、默认值和文档说明
+* 新增配置项时，必须同步更新 `docs/app-config.md`
+* 配置项变更影响部署方式时，必须同步更新 `docs/deployment.md` 和 `README.md`
 
-发布逻辑必须保持以下事实：
-
-* 发布时读取全部启用的 `proxy_routes`
-* 同时读取 OpenResty 主配置参数、反代性能参数与缓存参数
-* 生成完整 OpenResty 配置
-* 计算 `checksum`
-* 写入 `config_versions`
-* 通过切换 `is_active` 激活版本
-
-版本约束：
-
-* 版本号格式固定为 `YYYYMMDD-NNN`
-* 不在线修改历史版本
-* 不做按节点分组的差异化版本
-* 预览与 diff 是只读能力，不产生发布记录
-
-Agent 必须满足：
-
-* 启动后读取或生成本地 `node_id`
-* 周期性心跳与同步
-* 常规同步优先依据 heartbeat 返回的版本摘要判断
-* 发现新版本时先备份旧文件
-* 写入主配置、路由配置与必要证书文件
-* 写入新配置后以运行态恢复为目标执行激活，Docker 模式优先重建容器并确认容器保持运行
-* 新配置激活失败时必须先尝试用目标配置恢复运行，再回滚到旧配置并重新拉起 OpenResty
-* 回滚后 OpenResty 恢复正常时上报警告；回滚后仍无法恢复运行时上报失败
-* 某个目标 `version + checksum` 一旦应用失败并回退，Agent 必须在本地状态中阻断该目标的重复应用；只有远端激活版本或 checksum 发生变化时，才允许再次尝试
-
-## 6. 测试与交付要求
+## 8. 测试与交付要求
 
 * 关键业务逻辑必须有单元测试或等效回归测试
-* Agent 主链路修改必须验证同步、应用与回滚
-* 前端页面至少覆盖加载态、空态、错误态与成功反馈
-* Go 版本调整时，同步检查 `go.mod`、Dockerfile 与 CI 工作流
+* 模板工程裁剪时，必须验证接口删除与界面删除是否同步完成
+* 目录迁移后必须至少完成一次编译、启动或等效验证
+* 服务端启动、前端构建、核心保留模块可用，是每轮裁剪后的最低验收线
 
-## 7. 文档维护要求
+## 9. 文档维护要求
 
-当以下内容变化时，必须同步更新对应文档：
+以下内容变化时，必须同步更新对应文档：
 
-* 产品范围或系统边界变化：更新 `docs/design.md`
-* 开发约束、接口约定、测试基线变化：更新本文档
+* 模板工程范围或系统边界变化：更新 `docs/design.md`
+* 裁剪计划、阶段目标、保留/删除清单变化：更新 `docs/template-refactor-plan.md`
+* 开发约束、接口约定、MVC 分层规则、目录结构规则变化：更新本文档
 * 前端工程约束变化：更新 `docs/frontend-development-guidelines.md`
-* 配置项或部署方式变化：更新 `docs/app-config.md`、`docs/deployment.md` 与 `README.md`
+* 配置项或部署方式变化：更新 `docs/app-config.md`、`docs/deployment.md` 和 `README.md`
