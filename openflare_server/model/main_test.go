@@ -10,6 +10,30 @@ import (
 	"gorm.io/gorm"
 )
 
+type legacyProxyRouteV4 struct {
+	ID            uint   `gorm:"primaryKey"`
+	Domain        string `gorm:"uniqueIndex;size:255;not null"`
+	OriginID      *uint  `gorm:"index"`
+	OriginURL     string `gorm:"size:2048;not null"`
+	OriginHost    string `gorm:"size:255"`
+	Upstreams     string `gorm:"type:text;not null;default:'[]'"`
+	Enabled       bool   `gorm:"not null;default:true"`
+	EnableHTTPS   bool   `gorm:"column:enable_https;not null;default:false"`
+	CertID        *uint
+	RedirectHTTP  bool   `gorm:"not null;default:false"`
+	CacheEnabled  bool   `gorm:"not null;default:false"`
+	CachePolicy   string `gorm:"size:32;not null;default:''"`
+	CacheRules    string `gorm:"type:text;not null;default:'[]'"`
+	CustomHeaders string `gorm:"type:text;not null;default:'[]'"`
+	Remark        string `gorm:"size:255"`
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
+}
+
+func (legacyProxyRouteV4) TableName() string {
+	return "proxy_routes"
+}
+
 func openBareTestSQLiteDB(t *testing.T, name string) *gorm.DB {
 	t.Helper()
 
@@ -461,6 +485,78 @@ func TestMigrateOriginsSchemaBackfillsOrigins(t *testing.T) {
 	}
 	if origin.Address != "origin-a.internal" {
 		t.Fatalf("unexpected backfilled origin address: %s", origin.Address)
+	}
+}
+
+func TestEnsureDatabaseSchemaUpToDateBackfillsProxyRouteSiteFields(t *testing.T) {
+	db := openBareTestSQLiteDB(t, "legacy-proxy-route-sites.db")
+	if err := registerSharding(db, "sqlite"); err != nil {
+		t.Fatalf("register sharding: %v", err)
+	}
+	if err := autoMigrateSchemaMetadata(db); err != nil {
+		t.Fatalf("auto migrate schema metadata: %v", err)
+	}
+
+	for _, item := range registeredModels() {
+		if _, ok := item.(*ProxyRoute); ok {
+			continue
+		}
+		if err := db.AutoMigrate(item); err != nil {
+			t.Fatalf("auto migrate supporting table: %v", err)
+		}
+	}
+	if err := db.AutoMigrate(&legacyProxyRouteV4{}); err != nil {
+		t.Fatalf("auto migrate legacy proxy_routes: %v", err)
+	}
+
+	now := time.Now().UTC()
+	if err := db.Create(&legacyProxyRouteV4{
+		Domain:        "app.example.com",
+		OriginURL:     "https://origin-a.internal:8443",
+		Upstreams:     `["https://origin-a.internal:8443","https://origin-b.internal:8443"]`,
+		Enabled:       true,
+		EnableHTTPS:   false,
+		RedirectHTTP:  false,
+		CacheEnabled:  false,
+		CachePolicy:   "",
+		CacheRules:    `[]`,
+		CustomHeaders: `[]`,
+		CreatedAt:     now,
+		UpdatedAt:     now,
+	}).Error; err != nil {
+		t.Fatalf("seed legacy proxy route: %v", err)
+	}
+	if err := saveDatabaseSchemaVersion(db, 4); err != nil {
+		t.Fatalf("save schema version: %v", err)
+	}
+
+	previousDB := DB
+	DB = db
+	t.Cleanup(func() {
+		DB = previousDB
+	})
+
+	if err := ensureDatabaseSchemaUpToDate(db, "sqlite"); err != nil {
+		t.Fatalf("ensureDatabaseSchemaUpToDate: %v", err)
+	}
+
+	var route ProxyRoute
+	if err := db.First(&route).Error; err != nil {
+		t.Fatalf("query migrated proxy route: %v", err)
+	}
+	if route.SiteName != "app.example.com" {
+		t.Fatalf("unexpected site_name after migration: %s", route.SiteName)
+	}
+	if route.Domain != "app.example.com" {
+		t.Fatalf("unexpected domain mirror after migration: %s", route.Domain)
+	}
+
+	var domains []string
+	if err := json.Unmarshal([]byte(route.Domains), &domains); err != nil {
+		t.Fatalf("decode migrated domains: %v", err)
+	}
+	if len(domains) != 1 || domains[0] != "app.example.com" {
+		t.Fatalf("unexpected migrated domains: %#v", domains)
 	}
 }
 

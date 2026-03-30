@@ -4,7 +4,9 @@ import "time"
 
 type ProxyRoute struct {
 	ID            uint      `json:"id" gorm:"primaryKey"`
+	SiteName      string    `json:"site_name" gorm:"size:255;not null;default:''"`
 	Domain        string    `json:"domain" gorm:"uniqueIndex;size:255;not null"`
+	Domains       string    `json:"domains" gorm:"type:text;not null;default:'[]'"`
 	OriginID      *uint     `json:"origin_id" gorm:"index"`
 	OriginURL     string    `json:"origin_url" gorm:"size:2048;not null"`
 	OriginHost    string    `json:"origin_host" gorm:"size:255"`
@@ -28,7 +30,7 @@ func ListProxyRoutes() (routes []*ProxyRoute, err error) {
 }
 
 func GetEnabledProxyRoutes() (routes []*ProxyRoute, err error) {
-	err = DB.Where("enabled = ?", true).Order("domain asc").Find(&routes).Error
+	err = DB.Where("enabled = ?", true).Order("site_name asc").Order("domain asc").Find(&routes).Error
 	return routes, err
 }
 
@@ -49,7 +51,9 @@ func (route *ProxyRoute) Insert() error {
 
 func (route *ProxyRoute) Update() error {
 	return DB.Model(&ProxyRoute{}).Where("id = ?", route.ID).Updates(map[string]any{
+		"site_name":      route.SiteName,
 		"domain":         route.Domain,
+		"domains":        route.Domains,
 		"origin_id":      route.OriginID,
 		"origin_url":     route.OriginURL,
 		"origin_host":    route.OriginHost,

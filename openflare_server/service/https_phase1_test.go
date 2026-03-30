@@ -115,6 +115,29 @@ func TestCreateProxyRouteRejectsHTTPSWithoutCertificate(t *testing.T) {
 	}
 }
 
+func TestCreateProxyRouteSupportsWebsiteDomains(t *testing.T) {
+	setupServiceTestDB(t)
+
+	route, err := CreateProxyRoute(ProxyRouteInput{
+		SiteName:  "main-site",
+		Domains:   []string{"app.example.com", "www.example.com"},
+		OriginURL: "https://origin.internal",
+		Enabled:   true,
+	})
+	if err != nil {
+		t.Fatalf("CreateProxyRoute failed: %v", err)
+	}
+	if route.SiteName != "main-site" {
+		t.Fatalf("unexpected site name: %s", route.SiteName)
+	}
+	if route.Domain != "app.example.com" {
+		t.Fatalf("expected primary domain mirror, got %s", route.Domain)
+	}
+	if !strings.Contains(route.Domains, "www.example.com") {
+		t.Fatalf("expected domains payload to contain alias, got %s", route.Domains)
+	}
+}
+
 func TestPublishConfigVersionRendersCustomHeaders(t *testing.T) {
 	setupServiceTestDB(t)
 	if err := model.UpdateOption("OpenRestyWebsocketEnabled", "true"); err != nil {
@@ -297,6 +320,94 @@ func TestPublishConfigVersionRendersMultipleUpstreams(t *testing.T) {
 	}
 	if !strings.Contains(result.Version.SnapshotJSON, `"upstreams":["http://10.0.0.11:39010","http://10.0.0.12:39010","http://10.0.0.13:39010"]`) {
 		t.Fatal("expected snapshot to include upstream list")
+	}
+}
+
+func TestPublishConfigVersionRendersMultiDomainWebsite(t *testing.T) {
+	setupServiceTestDB(t)
+
+	certPEM, keyPEM := generateCertificatePair(t, []string{"app.example.com", "www.example.com"})
+	certificate, err := CreateTLSCertificate(TLSCertificateInput{
+		Name:    "multi-domain",
+		CertPEM: certPEM,
+		KeyPEM:  keyPEM,
+	})
+	if err != nil {
+		t.Fatalf("CreateTLSCertificate failed: %v", err)
+	}
+
+	_, err = CreateProxyRoute(ProxyRouteInput{
+		SiteName:      "marketing-site",
+		Domains:       []string{"app.example.com", "www.example.com"},
+		OriginURL:     "https://origin.internal",
+		Enabled:       true,
+		EnableHTTPS:   true,
+		CertID:        &certificate.ID,
+		RedirectHTTP:  true,
+		CacheEnabled:  true,
+		CachePolicy:   proxyRouteCachePolicyPathPrefix,
+		CacheRules:    []string{"/assets"},
+		CustomHeaders: []ProxyRouteCustomHeaderInput{{Key: "X-Site", Value: "marketing"}},
+	})
+	if err != nil {
+		t.Fatalf("CreateProxyRoute failed: %v", err)
+	}
+
+	result, err := PublishConfigVersion("root")
+	if err != nil {
+		t.Fatalf("PublishConfigVersion failed: %v", err)
+	}
+	if !strings.Contains(result.Version.RenderedConfig, "server_name app.example.com www.example.com;") {
+		t.Fatal("expected rendered config to include all domains in one server_name")
+	}
+	if strings.Contains(result.Version.RenderedConfig, "server_name app.example.com;") {
+		t.Fatal("expected rendered config to avoid standalone primary-domain server block")
+	}
+	if strings.Contains(result.Version.RenderedConfig, "server_name www.example.com;") {
+		t.Fatal("expected rendered config to avoid standalone alias server block")
+	}
+	if !strings.Contains(result.Version.SnapshotJSON, `"site_name":"marketing-site"`) {
+		t.Fatal("expected snapshot to include site_name")
+	}
+	if !strings.Contains(result.Version.SnapshotJSON, `"domains":["app.example.com","www.example.com"]`) {
+		t.Fatal("expected snapshot to include domain list")
+	}
+}
+
+func TestDiffConfigVersionTracksAddedDomainWithinWebsite(t *testing.T) {
+	setupServiceTestDB(t)
+
+	route, err := CreateProxyRoute(ProxyRouteInput{
+		SiteName:  "main-site",
+		Domains:   []string{"app.example.com"},
+		OriginURL: "https://origin.internal",
+		Enabled:   true,
+	})
+	if err != nil {
+		t.Fatalf("CreateProxyRoute failed: %v", err)
+	}
+	if _, err := PublishConfigVersion("root"); err != nil {
+		t.Fatalf("PublishConfigVersion failed: %v", err)
+	}
+
+	if _, err := UpdateProxyRoute(route.ID, ProxyRouteInput{
+		SiteName:  "main-site",
+		Domains:   []string{"app.example.com", "www.example.com"},
+		OriginURL: "https://origin.internal",
+		Enabled:   true,
+	}); err != nil {
+		t.Fatalf("UpdateProxyRoute failed: %v", err)
+	}
+
+	diff, err := DiffConfigVersion()
+	if err != nil {
+		t.Fatalf("DiffConfigVersion failed: %v", err)
+	}
+	if len(diff.AddedDomains) != 1 || diff.AddedDomains[0] != "www.example.com" {
+		t.Fatalf("unexpected added domains: %#v", diff.AddedDomains)
+	}
+	if len(diff.ModifiedDomains) != 1 || diff.ModifiedDomains[0] != "app.example.com" {
+		t.Fatalf("unexpected modified domains: %#v", diff.ModifiedDomains)
 	}
 }
 

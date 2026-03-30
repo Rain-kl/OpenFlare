@@ -3,6 +3,7 @@ package service
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/url"
 	"openflare/model"
 	"regexp"
@@ -26,7 +27,9 @@ type ProxyRouteCustomHeaderInput struct {
 }
 
 type ProxyRouteInput struct {
+	SiteName      string                        `json:"site_name"`
 	Domain        string                        `json:"domain"`
+	Domains       []string                      `json:"domains"`
 	OriginID      *uint                         `json:"origin_id"`
 	OriginURL     string                        `json:"origin_url"`
 	OriginScheme  string                        `json:"origin_scheme"`
@@ -91,7 +94,13 @@ func DeleteProxyRoute(id uint) error {
 }
 
 func buildProxyRoute(route *model.ProxyRoute, input ProxyRouteInput) (*model.ProxyRoute, error) {
-	domain := strings.ToLower(strings.TrimSpace(input.Domain))
+	domains, err := normalizeProxyRouteDomainsInput(route, input.Domain, input.Domains)
+	if err != nil {
+		return nil, err
+	}
+	domain := domains[0]
+	siteName := normalizeProxyRouteSiteNameInput(route, input.SiteName, domain)
+
 	originURL, originID, err := resolveProxyRoutePrimaryOrigin(input)
 	if err != nil {
 		return nil, err
@@ -123,11 +132,16 @@ func buildProxyRoute(route *model.ProxyRoute, input ProxyRouteInput) (*model.Pro
 	if err != nil {
 		return nil, err
 	}
-	if domain == "" {
-		return nil, errors.New("域名不能为空")
+	domainsJSON, err := json.Marshal(domains)
+	if err != nil {
+		return nil, err
 	}
-	if strings.Contains(domain, "://") || strings.Contains(domain, "/") {
-		return nil, errors.New("域名格式不合法")
+
+	if err := validateProxyRouteSiteName(siteName); err != nil {
+		return nil, err
+	}
+	if err := validateProxyRouteIdentityUniqueness(route, siteName, domains); err != nil {
+		return nil, err
 	}
 	if err := validateOriginHost(originHost); err != nil {
 		return nil, err
@@ -147,10 +161,13 @@ func buildProxyRoute(route *model.ProxyRoute, input ProxyRouteInput) (*model.Pro
 	if input.RedirectHTTP && !input.EnableHTTPS {
 		return nil, errors.New("仅启用 HTTPS 后才能开启 HTTP 重定向")
 	}
+
 	if route == nil {
 		route = &model.ProxyRoute{}
 	}
+	route.SiteName = siteName
 	route.Domain = domain
+	route.Domains = string(domainsJSON)
 	route.OriginID = originID
 	route.OriginURL = upstreams[0]
 	route.OriginHost = originHost
@@ -165,6 +182,115 @@ func buildProxyRoute(route *model.ProxyRoute, input ProxyRouteInput) (*model.Pro
 	route.CustomHeaders = string(customHeadersJSON)
 	route.Remark = remark
 	return route, nil
+}
+
+func normalizeProxyRouteSiteNameInput(route *model.ProxyRoute, raw string, primaryDomain string) string {
+	siteName := strings.TrimSpace(raw)
+	if siteName != "" {
+		return siteName
+	}
+	if route != nil && strings.TrimSpace(route.SiteName) != "" {
+		return strings.TrimSpace(route.SiteName)
+	}
+	return primaryDomain
+}
+
+func normalizeProxyRouteDomainValue(raw string) string {
+	return strings.ToLower(strings.TrimSpace(raw))
+}
+
+func normalizeProxyRouteDomainsInput(route *model.ProxyRoute, rawDomain string, rawDomains []string) ([]string, error) {
+	if len(rawDomains) > 0 {
+		domains, err := normalizeProxyRouteDomains(rawDomains)
+		if err != nil {
+			return nil, err
+		}
+		domain := normalizeProxyRouteDomainValue(rawDomain)
+		if domain != "" && domain != domains[0] {
+			return nil, errors.New("domain must match domains[0]")
+		}
+		return domains, nil
+	}
+
+	if route != nil {
+		existingDomains, err := decodeStoredDomains(route.Domains, route.Domain)
+		if err == nil && len(existingDomains) > 0 {
+			domain := normalizeProxyRouteDomainValue(rawDomain)
+			if domain == "" || domain == existingDomains[0] {
+				return existingDomains, nil
+			}
+		}
+	}
+
+	return normalizeProxyRouteDomains([]string{rawDomain})
+}
+
+func normalizeProxyRouteDomains(rawDomains []string) ([]string, error) {
+	normalized := make([]string, 0, len(rawDomains))
+	seen := make(map[string]struct{}, len(rawDomains))
+	for _, rawDomain := range rawDomains {
+		domain := normalizeProxyRouteDomainValue(rawDomain)
+		if domain == "" {
+			continue
+		}
+		if strings.Contains(domain, "://") || strings.Contains(domain, "/") {
+			return nil, errors.New("域名格式不合法")
+		}
+		if _, ok := seen[domain]; ok {
+			continue
+		}
+		seen[domain] = struct{}{}
+		normalized = append(normalized, domain)
+	}
+	if len(normalized) == 0 {
+		return nil, errors.New("至少填写一个域名")
+	}
+	return normalized, nil
+}
+
+func validateProxyRouteSiteName(siteName string) error {
+	if strings.TrimSpace(siteName) == "" {
+		return errors.New("站点标识不能为空")
+	}
+	return nil
+}
+
+func validateProxyRouteIdentityUniqueness(route *model.ProxyRoute, siteName string, domains []string) error {
+	routes, err := model.ListProxyRoutes()
+	if err != nil {
+		return err
+	}
+
+	currentID := uint(0)
+	if route != nil {
+		currentID = route.ID
+	}
+
+	for _, item := range routes {
+		if item == nil || item.ID == currentID {
+			continue
+		}
+		existingSiteName := normalizeProxyRouteSiteNameInput(item, item.SiteName, item.Domain)
+		if existingSiteName == siteName {
+			return errors.New("站点标识已存在")
+		}
+
+		existingDomains, err := decodeStoredDomains(item.Domains, item.Domain)
+		if err != nil {
+			return fmt.Errorf("existing route %d domains are invalid: %w", item.ID, err)
+		}
+		existingSet := make(map[string]struct{}, len(existingDomains))
+		for _, existingDomain := range existingDomains {
+			existingSet[existingDomain] = struct{}{}
+		}
+		for _, domain := range domains {
+			if _, ok := existingSet[domain]; ok {
+				return fmt.Errorf("域名 %s 已存在", domain)
+			}
+		}
+	}
+
+	return nil
 }
 
 func resolveProxyRoutePrimaryOrigin(input ProxyRouteInput) (string, *uint, error) {
@@ -444,6 +570,18 @@ func decodeStoredUpstreams(raw string, fallbackOriginURL string) ([]string, erro
 		return nil, errors.New("上游配置格式不合法")
 	}
 	return normalizeUpstreams(fallbackOriginURL, upstreams)
+}
+
+func decodeStoredDomains(raw string, fallbackDomain string) ([]string, error) {
+	text := strings.TrimSpace(raw)
+	if text == "" {
+		return normalizeProxyRouteDomains([]string{fallbackDomain})
+	}
+	var domains []string
+	if err := json.Unmarshal([]byte(text), &domains); err != nil {
+		return nil, errors.New("域名配置格式不合法")
+	}
+	return normalizeProxyRouteDomains(domains)
 }
 
 func validateOriginURL(raw string) error {

@@ -58,7 +58,9 @@ type ConfigOptionDiffItem struct {
 }
 
 type snapshotRoute struct {
+	SiteName      string                        `json:"site_name,omitempty"`
 	Domain        string                        `json:"domain"`
+	Domains       []string                      `json:"domains,omitempty"`
 	OriginURL     string                        `json:"origin_url"`
 	OriginHost    string                        `json:"origin_host,omitempty"`
 	Upstreams     []string                      `json:"upstreams,omitempty"`
@@ -224,7 +226,7 @@ func DiffConfigVersion() (*ConfigDiffResult, error) {
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			for _, route := range bundle.SnapshotRoutes {
-				result.AddedDomains = append(result.AddedDomains, route.Domain)
+				result.AddedDomains = append(result.AddedDomains, route.Domains...)
 			}
 			result.MainConfigChanged = true
 			result.ChangedOptionKeys = openRestyOptionKeys()
@@ -238,14 +240,8 @@ func DiffConfigVersion() (*ConfigDiffResult, error) {
 	if err != nil {
 		return nil, err
 	}
-	currentMap := make(map[string]snapshotRoute, len(bundle.SnapshotRoutes))
-	for _, route := range bundle.SnapshotRoutes {
-		currentMap[route.Domain] = route
-	}
-	activeMap := make(map[string]snapshotRoute, len(activeSnapshot.Routes))
-	for _, route := range activeSnapshot.Routes {
-		activeMap[route.Domain] = route
-	}
+	currentMap := flattenSnapshotRoutesByDomain(bundle.SnapshotRoutes)
+	activeMap := flattenSnapshotRoutesByDomain(activeSnapshot.Routes)
 	for domain, currentRoute := range currentMap {
 		activeRoute, ok := activeMap[domain]
 		if !ok {
@@ -403,6 +399,10 @@ func buildCurrentConfigBundle(requireRoutes bool) (*configBundle, error) {
 func buildSnapshotRoutes(routes []*model.ProxyRoute) ([]snapshotRoute, error) {
 	items := make([]snapshotRoute, 0, len(routes))
 	for _, route := range routes {
+		domains, err := decodeStoredDomains(route.Domains, route.Domain)
+		if err != nil {
+			return nil, fmt.Errorf("route %s domains are invalid", route.Domain)
+		}
 		customHeaders, err := decodeStoredCustomHeaders(route.CustomHeaders)
 		if err != nil {
 			return nil, fmt.Errorf("路由 %s 自定义请求头无效", route.Domain)
@@ -416,7 +416,9 @@ func buildSnapshotRoutes(routes []*model.ProxyRoute) ([]snapshotRoute, error) {
 			return nil, fmt.Errorf("路由 %s 缓存规则无效", route.Domain)
 		}
 		items = append(items, snapshotRoute{
-			Domain:        route.Domain,
+			SiteName:      normalizeProxyRouteSiteNameInput(route, route.SiteName, domains[0]),
+			Domain:        domains[0],
+			Domains:       domains,
 			OriginURL:     route.OriginURL,
 			OriginHost:    route.OriginHost,
 			Upstreams:     upstreams,
@@ -459,6 +461,19 @@ func normalizeSnapshotRoutes(routes []snapshotRoute) []snapshotRoute {
 		return []snapshotRoute{}
 	}
 	for index := range routes {
+		normalizedDomains, err := decodeStoredDomains("", routes[index].Domain)
+		if len(routes[index].Domains) > 0 {
+			normalizedDomains, err = normalizeProxyRouteDomains(routes[index].Domains)
+		}
+		if err == nil && len(normalizedDomains) > 0 {
+			routes[index].Domains = normalizedDomains
+			routes[index].Domain = normalizedDomains[0]
+			routes[index].SiteName = normalizeProxyRouteSiteNameInput(
+				&model.ProxyRoute{SiteName: routes[index].SiteName},
+				routes[index].SiteName,
+				normalizedDomains[0],
+			)
+		}
 		normalizedHeaders, err := normalizeCustomHeaders(routes[index].CustomHeaders)
 		if err == nil {
 			routes[index].CustomHeaders = normalizedHeaders
@@ -477,9 +492,29 @@ func normalizeSnapshotRoutes(routes []snapshotRoute) []snapshotRoute {
 	return routes
 }
 
+func flattenSnapshotRoutesByDomain(routes []snapshotRoute) map[string]snapshotRoute {
+	domainMap := make(map[string]snapshotRoute)
+	for _, route := range normalizeSnapshotRoutes(routes) {
+		for _, domain := range route.Domains {
+			item := route
+			item.Domain = domain
+			domainMap[domain] = item
+		}
+	}
+	return domainMap
+}
+
 func snapshotRouteConfigEqual(left snapshotRoute, right snapshotRoute) bool {
-	if left.Domain != right.Domain || left.OriginURL != right.OriginURL || left.OriginHost != right.OriginHost || left.EnableHTTPS != right.EnableHTTPS || left.RedirectHTTP != right.RedirectHTTP || left.CacheEnabled != right.CacheEnabled || left.CachePolicy != right.CachePolicy || !uintPointerEqual(left.CertID, right.CertID) {
+	if left.SiteName != right.SiteName || left.Domain != right.Domain || left.OriginURL != right.OriginURL || left.OriginHost != right.OriginHost || left.EnableHTTPS != right.EnableHTTPS || left.RedirectHTTP != right.RedirectHTTP || left.CacheEnabled != right.CacheEnabled || left.CachePolicy != right.CachePolicy || !uintPointerEqual(left.CertID, right.CertID) {
 		return false
+	}
+	if len(left.Domains) != len(right.Domains) {
+		return false
+	}
+	for index := range left.Domains {
+		if left.Domains[index] != right.Domains[index] {
+			return false
+		}
 	}
 	if len(left.Upstreams) != len(right.Upstreams) {
 		return false
@@ -658,6 +693,15 @@ func renderRouteConfig(routes []*model.ProxyRoute, cfg openRestyConfigSnapshot) 
 	builder.WriteString("# This file is generated by OpenFlare. Do not edit manually.\n")
 	supportFiles := make([]SupportFile, 0)
 	for _, route := range routes {
+		domains, err := decodeStoredDomains(route.Domains, route.Domain)
+		if err != nil {
+			return "", nil, fmt.Errorf("route %s domains are invalid", route.Domain)
+		}
+		serverNames := renderServerNames(domains)
+		displayName := route.SiteName
+		if strings.TrimSpace(displayName) == "" {
+			displayName = domains[0]
+		}
 		customHeaders, err := decodeStoredCustomHeaders(route.CustomHeaders)
 		if err != nil {
 			return "", nil, fmt.Errorf("路由 %s 自定义请求头无效", route.Domain)
@@ -680,7 +724,7 @@ func renderRouteConfig(routes []*model.ProxyRoute, cfg openRestyConfigSnapshot) 
 			builder.WriteString(renderNamedUpstreamBlock(upstreamConfig))
 		}
 		if !route.EnableHTTPS {
-			builder.WriteString(renderHTTPProxyServer(route.Domain, route.OriginURL, route.OriginHost, customHeaders, cacheConfig, upstreamConfig, cfg))
+			builder.WriteString(renderHTTPProxyServer(serverNames, route.OriginURL, route.OriginHost, customHeaders, cacheConfig, upstreamConfig, cfg))
 			continue
 		}
 		if route.CertID == nil || *route.CertID == 0 {
@@ -690,16 +734,19 @@ func renderRouteConfig(routes []*model.ProxyRoute, cfg openRestyConfigSnapshot) 
 		if err != nil {
 			return "", nil, fmt.Errorf("路由 %s 关联证书不存在", route.Domain)
 		}
+		if err := validateCertificateCoverage(certificate, domains); err != nil {
+			return "", nil, fmt.Errorf("site %s certificate validation failed: %w", displayName, err)
+		}
 		supportFiles = append(supportFiles,
 			SupportFile{Path: certificateCertFileName(certificate.ID), Content: normalizePEM(certificate.CertPEM)},
 			SupportFile{Path: certificateKeyFileName(certificate.ID), Content: normalizePEM(certificate.KeyPEM)},
 		)
 		if route.RedirectHTTP {
-			builder.WriteString(renderHTTPRedirectServer(route.Domain))
+			builder.WriteString(renderHTTPRedirectServer(serverNames))
 		} else {
-			builder.WriteString(renderHTTPProxyServer(route.Domain, route.OriginURL, route.OriginHost, customHeaders, cacheConfig, upstreamConfig, cfg))
+			builder.WriteString(renderHTTPProxyServer(serverNames, route.OriginURL, route.OriginHost, customHeaders, cacheConfig, upstreamConfig, cfg))
 		}
-		builder.WriteString(renderHTTPSServer(route.Domain, route.OriginURL, route.OriginHost, certificate.ID, customHeaders, cacheConfig, upstreamConfig, cfg))
+		builder.WriteString(renderHTTPSServer(serverNames, route.OriginURL, route.OriginHost, certificate.ID, customHeaders, cacheConfig, upstreamConfig, cfg))
 	}
 	return builder.String(), dedupeSupportFiles(supportFiles), nil
 }
@@ -836,18 +883,38 @@ func nextVersionNumber(now time.Time) (string, error) {
 	return fmt.Sprintf("%s-%03d", prefix, count+1), nil
 }
 
-func renderHTTPProxyServer(domain string, originURL string, originHost string, customHeaders []ProxyRouteCustomHeaderInput, cacheConfig routeCacheConfig, upstreamConfig routeUpstreamConfig, cfg openRestyConfigSnapshot) string {
-	return fmt.Sprintf("server {\n    listen 80;\n    server_name %s;\n\n    location / {\n%s%s%s    }\n}\n\n", domain, renderProxyHeaderBlock(originURL, originHost, customHeaders, upstreamConfig), renderRouteCacheBlock(cacheConfig, cfg), renderProxyPassBlock(originURL, upstreamConfig))
+func renderHTTPProxyServer(serverNames string, originURL string, originHost string, customHeaders []ProxyRouteCustomHeaderInput, cacheConfig routeCacheConfig, upstreamConfig routeUpstreamConfig, cfg openRestyConfigSnapshot) string {
+	return fmt.Sprintf("server {\n    listen 80;\n    server_name %s;\n\n    location / {\n%s%s%s    }\n}\n\n", serverNames, renderProxyHeaderBlock(originURL, originHost, customHeaders, upstreamConfig), renderRouteCacheBlock(cacheConfig, cfg), renderProxyPassBlock(originURL, upstreamConfig))
 }
 
-func renderHTTPRedirectServer(domain string) string {
-	return fmt.Sprintf("server {\n    listen 80;\n    server_name %s;\n\n    return 301 https://$host$request_uri;\n}\n\n", domain)
+func renderHTTPRedirectServer(serverNames string) string {
+	return fmt.Sprintf("server {\n    listen 80;\n    server_name %s;\n\n    return 301 https://$host$request_uri;\n}\n\n", serverNames)
 }
 
-func renderHTTPSServer(domain string, originURL string, originHost string, certificateID uint, customHeaders []ProxyRouteCustomHeaderInput, cacheConfig routeCacheConfig, upstreamConfig routeUpstreamConfig, cfg openRestyConfigSnapshot) string {
+func renderHTTPSServer(serverNames string, originURL string, originHost string, certificateID uint, customHeaders []ProxyRouteCustomHeaderInput, cacheConfig routeCacheConfig, upstreamConfig routeUpstreamConfig, cfg openRestyConfigSnapshot) string {
 	certPath := fmt.Sprintf("%s/%s", nginxCertDirPlaceholder, certificateCertFileName(certificateID))
 	keyPath := fmt.Sprintf("%s/%s", nginxCertDirPlaceholder, certificateKeyFileName(certificateID))
-	return fmt.Sprintf("server {\n    listen 443 ssl;\n    http2 on;\n    server_name %s;\n    ssl_certificate %s;\n    ssl_certificate_key %s;\n\n    location / {\n%s%s%s    }\n}\n\n", domain, certPath, keyPath, renderProxyHeaderBlock(originURL, originHost, customHeaders, upstreamConfig), renderRouteCacheBlock(cacheConfig, cfg), renderProxyPassBlock(originURL, upstreamConfig))
+	return fmt.Sprintf("server {\n    listen 443 ssl;\n    http2 on;\n    server_name %s;\n    ssl_certificate %s;\n    ssl_certificate_key %s;\n\n    location / {\n%s%s%s    }\n}\n\n", serverNames, certPath, keyPath, renderProxyHeaderBlock(originURL, originHost, customHeaders, upstreamConfig), renderRouteCacheBlock(cacheConfig, cfg), renderProxyPassBlock(originURL, upstreamConfig))
+}
+
+func renderServerNames(domains []string) string {
+	return strings.Join(domains, " ")
+}
+
+func validateCertificateCoverage(certificate *model.TLSCertificate, domains []string) error {
+	if certificate == nil {
+		return errors.New("certificate is nil")
+	}
+	leaf, err := parseLeafCertificate(certificate.CertPEM)
+	if err != nil {
+		return err
+	}
+	for _, domain := range domains {
+		if err := leaf.VerifyHostname(domain); err != nil {
+			return fmt.Errorf("certificate does not cover domain %s", domain)
+		}
+	}
+	return nil
 }
 
 func renderConnectionUpgradeMap() string {
@@ -1022,6 +1089,10 @@ func buildUpstreamProxyPassURI(parsed *url.URL) string {
 }
 
 func buildRouteUpstreamName(route *model.ProxyRoute) string {
+	identity := strings.TrimSpace(route.SiteName)
+	if identity == "" {
+		identity = route.Domain
+	}
 	sanitized := strings.Map(func(r rune) rune {
 		switch {
 		case r >= 'a' && r <= 'z':
@@ -1033,7 +1104,7 @@ func buildRouteUpstreamName(route *model.ProxyRoute) string {
 		default:
 			return '_'
 		}
-	}, route.Domain)
+	}, identity)
 	sanitized = strings.Trim(sanitized, "_")
 	if sanitized == "" {
 		sanitized = "backend"

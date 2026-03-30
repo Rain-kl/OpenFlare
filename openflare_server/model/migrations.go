@@ -211,6 +211,179 @@ func validateDatabaseSchemaV4(db *gorm.DB, backend string) error {
 	return nil
 }
 
+func normalizeProxyRouteDomainForMigration(raw string) string {
+	return strings.ToLower(strings.TrimSpace(raw))
+}
+
+func normalizeProxyRouteSiteNameForMigration(raw string, primaryDomain string) string {
+	siteName := strings.TrimSpace(raw)
+	if siteName != "" {
+		return siteName
+	}
+	return primaryDomain
+}
+
+func decodeProxyRouteDomainsForMigration(raw string, fallbackDomain string) ([]string, error) {
+	primaryDomain := normalizeProxyRouteDomainForMigration(fallbackDomain)
+	text := strings.TrimSpace(raw)
+	if text == "" {
+		if primaryDomain == "" {
+			return nil, fmt.Errorf("proxy route primary domain is empty")
+		}
+		return []string{primaryDomain}, nil
+	}
+
+	var domains []string
+	if err := json.Unmarshal([]byte(text), &domains); err != nil {
+		return nil, fmt.Errorf("decode proxy route domains failed: %w", err)
+	}
+
+	normalized := make([]string, 0, len(domains))
+	seen := make(map[string]struct{}, len(domains))
+	for _, domain := range domains {
+		item := normalizeProxyRouteDomainForMigration(domain)
+		if item == "" {
+			continue
+		}
+		if _, ok := seen[item]; ok {
+			continue
+		}
+		seen[item] = struct{}{}
+		normalized = append(normalized, item)
+	}
+	if len(normalized) == 0 {
+		if primaryDomain == "" {
+			return nil, fmt.Errorf("proxy route domains are empty")
+		}
+		return []string{primaryDomain}, nil
+	}
+	if primaryDomain == "" {
+		primaryDomain = normalized[0]
+	}
+	if normalized[0] != primaryDomain {
+		rest := make([]string, 0, len(normalized))
+		for _, domain := range normalized {
+			if domain == primaryDomain {
+				continue
+			}
+			rest = append(rest, domain)
+		}
+		normalized = append([]string{primaryDomain}, rest...)
+	}
+	return normalized, nil
+}
+
+func backfillProxyRouteSiteFields(db *gorm.DB) error {
+	if db == nil {
+		return fmt.Errorf("database handle is nil")
+	}
+	if !db.Migrator().HasTable(&ProxyRoute{}) {
+		return nil
+	}
+	if !db.Migrator().HasColumn(&ProxyRoute{}, "site_name") || !db.Migrator().HasColumn(&ProxyRoute{}, "domains") {
+		return nil
+	}
+
+	var routes []ProxyRoute
+	if err := db.Order("id asc").Find(&routes).Error; err != nil {
+		return fmt.Errorf("list proxy routes for site field backfill failed: %w", err)
+	}
+	for _, route := range routes {
+		domains, err := decodeProxyRouteDomainsForMigration(route.Domains, route.Domain)
+		if err != nil {
+			return fmt.Errorf("normalize proxy route %d domains failed: %w", route.ID, err)
+		}
+		domainsJSON, err := json.Marshal(domains)
+		if err != nil {
+			return fmt.Errorf("encode proxy route %d domains failed: %w", route.ID, err)
+		}
+
+		primaryDomain := domains[0]
+		siteName := normalizeProxyRouteSiteNameForMigration(route.SiteName, primaryDomain)
+		updates := make(map[string]any, 3)
+		if route.Domain != primaryDomain {
+			updates["domain"] = primaryDomain
+		}
+		if route.SiteName != siteName {
+			updates["site_name"] = siteName
+		}
+		if strings.TrimSpace(route.Domains) != string(domainsJSON) {
+			updates["domains"] = string(domainsJSON)
+		}
+		if len(updates) == 0 {
+			continue
+		}
+		if err := db.Model(&ProxyRoute{}).Where("id = ?", route.ID).Updates(updates).Error; err != nil {
+			return fmt.Errorf("update proxy route %d site fields failed: %w", route.ID, err)
+		}
+	}
+	return nil
+}
+
+func ensureProxyRouteSiteNameUniqueIndex(db *gorm.DB) error {
+	if db == nil {
+		return fmt.Errorf("database handle is nil")
+	}
+	if !db.Migrator().HasTable(&ProxyRoute{}) || !db.Migrator().HasColumn(&ProxyRoute{}, "site_name") {
+		return nil
+	}
+	return db.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_proxy_routes_site_name ON proxy_routes(site_name)`).Error
+}
+
+func validateDatabaseSchemaV5(db *gorm.DB, backend string) error {
+	if err := validateDatabaseSchemaV4(db, backend); err != nil {
+		return err
+	}
+	if !db.Migrator().HasColumn(&ProxyRoute{}, "site_name") {
+		return fmt.Errorf("column proxy_routes.site_name is missing")
+	}
+	if !db.Migrator().HasColumn(&ProxyRoute{}, "domains") {
+		return fmt.Errorf("column proxy_routes.domains is missing")
+	}
+
+	var routes []ProxyRoute
+	if err := db.Order("id asc").Find(&routes).Error; err != nil {
+		return fmt.Errorf("list proxy routes for validation failed: %w", err)
+	}
+
+	siteNames := make(map[string]uint, len(routes))
+	domainOwners := make(map[string]uint, len(routes))
+	for _, route := range routes {
+		domains, err := decodeProxyRouteDomainsForMigration(route.Domains, route.Domain)
+		if err != nil {
+			return fmt.Errorf("proxy route %d domains are invalid: %w", route.ID, err)
+		}
+		if len(domains) == 0 {
+			return fmt.Errorf("proxy route %d domains are empty", route.ID)
+		}
+		if route.Domain != domains[0] {
+			return fmt.Errorf("proxy route %d primary domain mirror is invalid", route.ID)
+		}
+
+		siteName := normalizeProxyRouteSiteNameForMigration(route.SiteName, domains[0])
+		if siteName == "" {
+			return fmt.Errorf("proxy route %d site_name is empty", route.ID)
+		}
+		if existingID, ok := siteNames[siteName]; ok && existingID != route.ID {
+			return fmt.Errorf("proxy route site_name %s is duplicated", siteName)
+		}
+		siteNames[siteName] = route.ID
+
+		localSeen := make(map[string]struct{}, len(domains))
+		for _, domain := range domains {
+			if _, ok := localSeen[domain]; ok {
+				return fmt.Errorf("proxy route %d contains duplicated domain %s", route.ID, domain)
+			}
+			localSeen[domain] = struct{}{}
+			if existingID, ok := domainOwners[domain]; ok && existingID != route.ID {
+				return fmt.Errorf("proxy route domain %s is duplicated", domain)
+			}
+			domainOwners[domain] = route.ID
+		}
+	}
+	return nil
+}
+
 func renameLegacyObservabilityShardTables(db *gorm.DB) error {
 	for _, baseTable := range shardedObservabilityBaseTables() {
 		for _, table := range observabilityShardTables(baseTable) {
@@ -549,11 +722,28 @@ func migrateV4(db *gorm.DB, backend string) error {
 	return backfillOriginsFromProxyRoutes(db)
 }
 
+// migrateV5 upgrades proxy_routes to website-level identity fields by
+// backfilling site_name and domains while keeping domain as the primary-domain
+// compatibility mirror.
+func migrateV5(db *gorm.DB, backend string) error {
+	if err := applyCurrentSchema(db, backend); err != nil {
+		return err
+	}
+	if err := backfillOriginsFromProxyRoutes(db); err != nil {
+		return err
+	}
+	if err := backfillProxyRouteSiteFields(db); err != nil {
+		return err
+	}
+	return ensureProxyRouteSiteNameUniqueIndex(db)
+}
+
 func databaseSchemaMigrations() []databaseSchemaMigration {
 	return []databaseSchemaMigration{
 		{fromVersion: 1, toVersion: 2, migrate: migrateV2, validate: validateDatabaseSchemaV2},
 		{fromVersion: 2, toVersion: 3, migrate: migrateV3, validate: validateDatabaseSchemaV3},
 		{fromVersion: 3, toVersion: 4, migrate: migrateV4, validate: validateDatabaseSchemaV4},
+		{fromVersion: 4, toVersion: 5, migrate: migrateV5, validate: validateDatabaseSchemaV5},
 	}
 }
 
@@ -618,13 +808,19 @@ func initializeFreshDatabaseSchema(db *gorm.DB, backend string) error {
 	if err := applyCurrentSchema(db, backend); err != nil {
 		return err
 	}
-	if err := backfillOriginsFromProxyRoutes(db); err != nil {
-		return err
-	}
 	if err := migrateSQLiteDataIfNeeded(db, backend); err != nil {
 		return err
 	}
-	if err := validateDatabaseSchemaV4(db, backend); err != nil {
+	if err := backfillOriginsFromProxyRoutes(db); err != nil {
+		return err
+	}
+	if err := backfillProxyRouteSiteFields(db); err != nil {
+		return err
+	}
+	if err := ensureProxyRouteSiteNameUniqueIndex(db); err != nil {
+		return err
+	}
+	if err := validateDatabaseSchemaV5(db, backend); err != nil {
 		return err
 	}
 	return saveDatabaseSchemaVersion(db, currentDatabaseSchemaVersion)
