@@ -54,6 +54,7 @@ func SetApiRouter(router *gin.Engine) {
 		{
 			optionRoute.GET("/", controller.GetOptions)
 			optionRoute.POST("/update", controller.UpdateOption)
+			optionRoute.POST("/update-batch", controller.UpdateOptionsBatch)
 			optionRoute.POST("/geoip/lookup", controller.LookupGeoIP)
 			optionRoute.POST("/database/cleanup", controller.CleanupDatabaseObservability)
 		}

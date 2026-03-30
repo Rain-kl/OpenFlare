@@ -5,6 +5,10 @@ export interface OptionItem {
   value: string;
 }
 
+export interface OptionBatchPayload {
+  options: OptionItem[];
+}
+
 export interface BootstrapTokenPayload {
   discovery_token: string;
 }

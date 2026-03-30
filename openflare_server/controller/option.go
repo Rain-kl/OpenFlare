@@ -22,6 +22,10 @@ var (
 	openRestyDurationTokenPattern = regexp.MustCompile(`^\d+[smhdwSMHDW]$`)
 )
 
+type optionBatchPayload struct {
+	Options []model.Option `json:"options"`
+}
+
 func validateRateLimitOption(key string, value string) error {
 	maxDurationSeconds := int(common.RateLimitKeyExpirationDuration.Seconds())
 
@@ -193,6 +197,69 @@ func validateOpenRestyOption(key string, value string) error {
 	}
 }
 
+func buildOptionValidationState(options []model.Option) map[string]string {
+	common.OptionMapRWMutex.RLock()
+	state := make(map[string]string, len(common.OptionMap)+len(options))
+	for key, value := range common.OptionMap {
+		state[key] = value
+	}
+	common.OptionMapRWMutex.RUnlock()
+
+	for _, option := range options {
+		state[option.Key] = option.Value
+	}
+	return state
+}
+
+func validateOptionWithState(option model.Option, state map[string]string) error {
+	switch option.Key {
+	case "GitHubOAuthEnabled":
+		if option.Value == "true" && strings.TrimSpace(state["GitHubClientId"]) == "" {
+			return fmt.Errorf("鏃犳硶鍚敤 GitHub OAuth锛岃鍏堝～鍏?GitHub Client ID 浠ュ強 GitHub Client Secret锛?")
+		}
+	case "WeChatAuthEnabled":
+		if option.Value == "true" && strings.TrimSpace(state["WeChatServerAddress"]) == "" {
+			return fmt.Errorf("鏃犳硶鍚敤寰俊鐧诲綍锛岃鍏堝～鍏ュ井淇＄櫥褰曠浉鍏抽厤缃俊鎭紒")
+		}
+	case "TurnstileCheckEnabled":
+		if option.Value == "true" && strings.TrimSpace(state["TurnstileSiteKey"]) == "" {
+			return fmt.Errorf("鏃犳硶鍚敤 Turnstile 鏍￠獙锛岃鍏堝～鍏?Turnstile 鏍￠獙鐩稿叧閰嶇疆淇℃伅锛?")
+		}
+	}
+
+	if err := validateRateLimitOption(option.Key, option.Value); err != nil {
+		return err
+	}
+	if err := validateOpenRestyOption(option.Key, option.Value); err != nil {
+		return err
+	}
+	if err := validateGeoIPOption(option.Key, option.Value); err != nil {
+		return err
+	}
+	if err := validateDatabaseCleanupOption(option.Key, option.Value); err != nil {
+		return err
+	}
+	return nil
+}
+
+func updateOptions(options []model.Option) error {
+	if len(options) == 0 {
+		return fmt.Errorf("鏃犳晥鐨勫弬鏁?")
+	}
+
+	state := buildOptionValidationState(options)
+	for _, option := range options {
+		if strings.TrimSpace(option.Key) == "" {
+			return fmt.Errorf("鏃犳晥鐨勫弬鏁?")
+		}
+		if err := validateOptionWithState(option, state); err != nil {
+			return err
+		}
+	}
+
+	return model.UpdateOptions(options)
+}
+
 // GetOptions godoc
 // @Summary List editable options
 // @Tags Options
@@ -306,4 +373,37 @@ func UpdateOption(c *gin.Context) {
 		"message": "",
 	})
 	return
+}
+
+// UpdateOptionsBatch godoc
+// @Summary Batch update options
+// @Tags Options
+// @Accept json
+// @Produce json
+// @Param payload body optionBatchPayload true "Batch option payload"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{}
+// @Router /api/option/update-batch [post]
+func UpdateOptionsBatch(c *gin.Context) {
+	var payload optionBatchPayload
+	if err := json.NewDecoder(c.Request.Body).Decode(&payload); err != nil || len(payload.Options) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "鏃犳晥鐨勫弬鏁?",
+		})
+		return
+	}
+
+	if err := updateOptions(payload.Options); err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "",
+	})
 }

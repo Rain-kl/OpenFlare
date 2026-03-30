@@ -41,21 +41,25 @@ func TestPhase2RateLimitOptionsHotReload(t *testing.T) {
 
 	loginCookie := loginAsRoot(t, engine)
 
-	performSessionJSONRequest(t, engine, loginCookie, http.MethodPost, "/api/option/update", map[string]any{
-		"key":   "GlobalApiRateLimitNum",
-		"value": "450",
-	})
-	performSessionJSONRequest(t, engine, loginCookie, http.MethodPost, "/api/option/update", map[string]any{
-		"key":   "GlobalApiRateLimitDuration",
-		"value": "240",
-	})
-	performSessionJSONRequest(t, engine, loginCookie, http.MethodPost, "/api/option/update", map[string]any{
-		"key":   "CriticalRateLimitNum",
-		"value": "150",
-	})
-	performSessionJSONRequest(t, engine, loginCookie, http.MethodPost, "/api/option/update", map[string]any{
-		"key":   "CriticalRateLimitDuration",
-		"value": "900",
+	performSessionJSONRequest(t, engine, loginCookie, http.MethodPost, "/api/option/update-batch", map[string]any{
+		"options": []map[string]any{
+			{
+				"key":   "GlobalApiRateLimitNum",
+				"value": "450",
+			},
+			{
+				"key":   "GlobalApiRateLimitDuration",
+				"value": "240",
+			},
+			{
+				"key":   "CriticalRateLimitNum",
+				"value": "150",
+			},
+			{
+				"key":   "CriticalRateLimitDuration",
+				"value": "900",
+			},
+		},
 	})
 
 	if common.GlobalApiRateLimitNum != 450 {
@@ -85,6 +89,115 @@ func TestPhase2RateLimitOptionsHotReload(t *testing.T) {
 	}
 	if optionMap["CriticalRateLimitDuration"] != "900" {
 		t.Fatalf("expected option payload to include CriticalRateLimitDuration=900, got %q", optionMap["CriticalRateLimitDuration"])
+	}
+}
+
+func TestPhase2BatchOptionUpdateIsAtomic(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	common.RedisEnabled = false
+	setupTestDB(t)
+	model.InitOptionMap()
+
+	oldGlobalAPI := common.GlobalApiRateLimitNum
+	t.Cleanup(func() {
+		common.GlobalApiRateLimitNum = oldGlobalAPI
+	})
+
+	engine := gin.New()
+	engine.Use(sessions.Sessions("session", cookie.NewStore([]byte("test-secret"))))
+	router.SetApiRouter(engine)
+
+	loginCookie := loginAsRoot(t, engine)
+
+	payload, err := json.Marshal(map[string]any{
+		"options": []map[string]any{
+			{
+				"key":   "GlobalApiRateLimitNum",
+				"value": "451",
+			},
+			{
+				"key":   "CriticalRateLimitDuration",
+				"value": "1800",
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("failed to marshal batch payload: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/api/option/update-batch", bytes.NewReader(payload))
+	req.Header.Set("Content-Type", "application/json")
+	req.AddCookie(loginCookie)
+
+	recorder := httptest.NewRecorder()
+	engine.ServeHTTP(recorder, req)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("unexpected status %d: %s", recorder.Code, recorder.Body.String())
+	}
+
+	var resp apiResponse
+	if err = json.Unmarshal(recorder.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("failed to unmarshal response: %v", err)
+	}
+	if resp.Success {
+		t.Fatal("expected invalid batch update to fail")
+	}
+
+	if common.GlobalApiRateLimitNum != oldGlobalAPI {
+		t.Fatalf("expected GlobalApiRateLimitNum to remain %d after failed batch, got %d", oldGlobalAPI, common.GlobalApiRateLimitNum)
+	}
+
+	resp = performSessionJSONRequest(t, engine, loginCookie, http.MethodGet, "/api/option/", nil)
+	var options []model.Option
+	decodeResponseData(t, resp, &options)
+
+	optionMap := make(map[string]string, len(options))
+	for _, option := range options {
+		optionMap[option.Key] = option.Value
+	}
+
+	if optionMap["GlobalApiRateLimitNum"] == "451" {
+		t.Fatal("expected failed batch update to avoid persisting partial values")
+	}
+}
+
+func TestPhase2BatchOptionUpdateValidatesMergedState(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	common.RedisEnabled = false
+	setupTestDB(t)
+	model.InitOptionMap()
+
+	oldGitHubClientID := common.GitHubClientId
+	oldGitHubOAuthEnabled := common.GitHubOAuthEnabled
+	t.Cleanup(func() {
+		common.GitHubClientId = oldGitHubClientID
+		common.GitHubOAuthEnabled = oldGitHubOAuthEnabled
+	})
+
+	engine := gin.New()
+	engine.Use(sessions.Sessions("session", cookie.NewStore([]byte("test-secret"))))
+	router.SetApiRouter(engine)
+
+	loginCookie := loginAsRoot(t, engine)
+
+	performSessionJSONRequest(t, engine, loginCookie, http.MethodPost, "/api/option/update-batch", map[string]any{
+		"options": []map[string]any{
+			{
+				"key":   "GitHubClientId",
+				"value": "client-id-from-batch",
+			},
+			{
+				"key":   "GitHubOAuthEnabled",
+				"value": "true",
+			},
+		},
+	})
+
+	if common.GitHubClientId != "client-id-from-batch" {
+		t.Fatalf("expected GitHubClientId to be updated from batch, got %q", common.GitHubClientId)
+	}
+	if !common.GitHubOAuthEnabled {
+		t.Fatal("expected GitHubOAuthEnabled to be enabled by merged batch state")
 	}
 }
 

@@ -25,7 +25,7 @@ import {
   getSettingsProfile,
   lookupGeoIP,
   rotateBootstrapToken,
-  updateOption,
+  updateOptions,
   updateSelf,
 } from '@/features/settings/api/settings';
 import type {
@@ -558,9 +558,7 @@ export function SettingsPage() {
     entries: Array<[string, string]>,
     successMessage: string,
   ) => {
-    for (const [key, value] of entries) {
-      await updateOption(key, value);
-    }
+    await updateOptions(entries.map(([key, value]) => ({ key, value })));
 
     await queryClient.invalidateQueries({ queryKey: settingsQueryKey });
     await queryClient.invalidateQueries({ queryKey: ['public-status'] });

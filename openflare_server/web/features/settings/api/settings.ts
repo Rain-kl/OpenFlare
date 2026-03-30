@@ -5,6 +5,7 @@ import type {
   DatabaseCleanupPayload,
   DatabaseCleanupResult,
   GeoIPLookupResult,
+  OptionBatchPayload,
   OptionItem,
   SettingsProfile,
   UpdateSelfPayload,
@@ -18,6 +19,13 @@ export function updateOption(key: string, value: string) {
   return apiRequest<void>('/option/update', {
     method: 'POST',
     body: JSON.stringify({ key, value }),
+  });
+}
+
+export function updateOptions(options: OptionBatchPayload['options']) {
+  return apiRequest<void>('/option/update-batch', {
+    method: 'POST',
+    body: JSON.stringify({ options }),
   });
 }
 

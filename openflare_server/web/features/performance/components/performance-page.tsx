@@ -12,7 +12,7 @@ import {useAuth} from '@/components/providers/auth-provider';
 import {AppCard} from '@/components/ui/app-card';
 import {StatusBadge} from '@/components/ui/status-badge';
 import {getConfigVersionPreview} from '@/features/config-versions/api/config-versions';
-import {getOptions, updateOption} from '@/features/settings/api/settings';
+import {getOptions, updateOptions} from '@/features/settings/api/settings';
 import type {OptionItem} from '@/features/settings/types';
 import {
     CodeBlock,
@@ -277,9 +277,7 @@ export function PerformancePage() {
         entries: Array<[string, string]>,
         successMessage: string,
     ) => {
-        for (const [key, value] of entries) {
-            await updateOption(key, value);
-        }
+        await updateOptions(entries.map(([key, value]) => ({key, value})));
 
         await Promise.all([
             queryClient.invalidateQueries({queryKey: settingsQueryKey}),

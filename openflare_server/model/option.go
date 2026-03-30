@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"gorm.io/gorm"
 )
 
 type Option struct {
@@ -110,19 +112,38 @@ func InitOptionMap() {
 }
 
 func UpdateOption(key string, value string) error {
-	// Save to database first
-	option := Option{
-		Key: key,
+	return UpdateOptions([]Option{{
+		Key:   key,
+		Value: value,
+	}})
+}
+
+func UpdateOptions(options []Option) error {
+	if len(options) == 0 {
+		return nil
 	}
-	// https://gorm.io/docs/update.html#Save-All-Fields
-	DB.FirstOrCreate(&option, Option{Key: key})
-	option.Value = value
-	// Save is a combination function.
-	// If save value does not contain primary key, it will execute Create,
-	// otherwise it will execute Update (with all fields).
-	DB.Save(&option)
-	// Update OptionMap
-	updateOptionMap(key, value)
+
+	if err := DB.Transaction(func(tx *gorm.DB) error {
+		for _, item := range options {
+			option := Option{
+				Key: item.Key,
+			}
+			if err := tx.FirstOrCreate(&option, Option{Key: item.Key}).Error; err != nil {
+				return err
+			}
+			option.Value = item.Value
+			if err := tx.Save(&option).Error; err != nil {
+				return err
+			}
+		}
+		return nil
+	}); err != nil {
+		return err
+	}
+
+	for _, item := range options {
+		updateOptionMap(item.Key, item.Value)
+	}
 	return nil
 }
 
