@@ -117,10 +117,14 @@
 
 * 不新增平台化对象，除非设计文档明确要求
 * `origins` 仅作为可复用源站地址目录，字段保持轻量；协议、端口、路径与查询参数继续归属具体 `proxy_routes`
-* `proxy_routes` 维持一条域名对应一条规则；规则内允许保存一个或多个上游地址用于负载均衡，但不引入独立 `origin_pool`
+* `proxy_routes` 以“网站配置”作为聚合边界，必须包含唯一 `site_name` 与非空 `domains` 列表；数据库内部 `id` 可继续作为技术主键，但不能替代 `site_name` 的业务唯一性
+* `proxy_routes.domains` 中的每个域名都必须全局唯一；列表第一项视为主域名，创建时若未显式填写 `site_name`，则默认使用主域名
+* `proxy_routes` 继续允许保存一个或多个上游地址用于负载均衡，但不引入独立 `origin_pool`
+* 迁移期如保留遗留 `domain` 字段，只能作为 `domains[0]` 的兼容镜像；新代码不得继续以该字段作为唯一业务输入
 * `proxy_routes` 如关联 `origins`，必须同时保存可直接渲染的 `origin_url`；源站地址变更时，由 service 负责同步更新引用该源站的规则快照
 * `proxy_routes` 的上游统一使用 named `upstream` + keepalive；单上游如带 base path 或 query，应在 `proxy_pass` 上补回 URI，多上游仅允许纯 `scheme://host[:port]`
 * `proxy_routes.origin_host` 为可选字段，仅用于覆盖回源 `Host` 请求头，不引入新的平台化对象
+* 流量限制、反向代理、HTTPS 与缓存配置当前都归属站点级 `proxy_routes`，同一网站内不拆分域名级差异配置
 * `config_versions` 必须保存完整快照与渲染结果
 * 全局同时只能有一个激活版本
 * 回滚通过重新激活旧版本实现

@@ -48,3 +48,14 @@
 * 部署与配置变动：更新 `README.md`、`docs/deployment.md`、`docs/app-config.md`
 
 如果未来出现明确的新阶段目标，再单独新增专项计划文档；不要把已完成的历史计划继续堆回本文件。
+
+## 6. 当前专项计划
+
+已确认需要推进“网站级规则与配置界面改造”专项，详细需求、实施顺序与验收标准见 [docs/website-configuration-redesign.md](./website-configuration-redesign.md)。
+
+本专项的执行顺序固定为：
+
+1. 先完成数据模型与配置渲染兼容方案
+2. 再调整接口、校验与版本 diff 语义
+3. 然后改造规则列表与网站配置子页面
+4. 最后补齐迁移、回归测试与文档联动
