@@ -109,7 +109,9 @@ Origin
 * `proxy_routes` 至少包含一个上游地址；为兼容历史数据保留 `origin_url` 主上游字段，也允许在同一规则内补充多个上游做负载均衡
 * `proxy_routes` 上游统一渲染为带 keepalive 的 named `upstream`；单上游可附带 base path 或 query 并在 `proxy_pass` 中追加，多上游仍限定为纯 `scheme://host[:port]`
 * `proxy_routes.origin_host` 为可选字段，用于回源时覆盖 `Host` 请求头；未设置时默认透传访问域名
-* 网站级流量限制、反向代理、HTTPS 与缓存配置当前按站点共享，不在同一网站内做域名级差异化配置；但 HTTPS 允许为同一站点绑定多张证书，由服务端在同一 `server` 块内联合渲染并按域名完成覆盖校验
+* 网站级流量限制、反向代理与缓存配置当前按站点共享，不在同一网站内做域名级差异化配置；但 HTTPS 允许在同一站点内按域名绑定证书
+* `proxy_routes.domain_cert_ids` 用于记录与 `domains` 平行的域名证书绑定；值为 `0` 表示该域名不启用 HTTPS，仅保留 HTTP
+* 发布渲染时，带证书的域名按证书分组输出独立 `443 ssl` `server` 块；未绑定证书的域名不得被自动带入 HTTPS
 * 发布渲染时必须将 `proxy_routes.domains` 中的全部域名一并纳入同一站点配置，避免同站点在版本快照中被拆散
 * 所有上游地址都必须为合法 `http://` 或 `https://`
 * `config_versions` 必须保存完整快照、渲染结果与 `checksum`

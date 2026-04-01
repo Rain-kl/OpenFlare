@@ -44,6 +44,7 @@ type ProxyRouteInput struct {
 	EnableHTTPS        bool                          `json:"enable_https"`
 	CertID             *uint                         `json:"cert_id"`
 	CertIDs            []uint                        `json:"cert_ids"`
+	DomainCertIDs      []uint                        `json:"domain_cert_ids"`
 	RedirectHTTP       bool                          `json:"redirect_http"`
 	LimitConnPerServer int                           `json:"limit_conn_per_server"`
 	LimitConnPerIP     int                           `json:"limit_conn_per_ip"`
@@ -71,6 +72,7 @@ type ProxyRouteView struct {
 	EnableHTTPS        bool                          `json:"enable_https"`
 	CertID             *uint                         `json:"cert_id"`
 	CertIDs            []uint                        `json:"cert_ids"`
+	DomainCertIDs      []uint                        `json:"domain_cert_ids"`
 	RedirectHTTP       bool                          `json:"redirect_http"`
 	LimitConnPerServer int                           `json:"limit_conn_per_server"`
 	LimitConnPerIP     int                           `json:"limit_conn_per_ip"`
@@ -194,11 +196,30 @@ func buildProxyRoute(route *model.ProxyRoute, input ProxyRouteInput) (*model.Pro
 	if err != nil {
 		return nil, err
 	}
-	certIDs, err := normalizeProxyRouteCertificateIDs(input.EnableHTTPS, input.CertID, input.CertIDs)
+	if !input.EnableHTTPS {
+		input.RedirectHTTP = false
+		input.CertID = nil
+		input.CertIDs = nil
+		input.DomainCertIDs = nil
+	}
+	domainCertIDs, certIDs, primaryCertID, err := normalizeProxyRouteDomainCertificateIDs(
+		domains,
+		input.EnableHTTPS,
+		input.DomainCertIDs,
+		input.CertID,
+		input.CertIDs,
+	)
 	if err != nil {
 		return nil, err
 	}
+	if err := validateProxyRouteDomainCertificateCoverage(domains, domainCertIDs); err != nil {
+		return nil, err
+	}
 	certIDsJSON, err := json.Marshal(certIDs)
+	if err != nil {
+		return nil, err
+	}
+	domainCertIDsJSON, err := json.Marshal(domainCertIDs)
 	if err != nil {
 		return nil, err
 	}
@@ -216,15 +237,9 @@ func buildProxyRoute(route *model.ProxyRoute, input ProxyRouteInput) (*model.Pro
 	if err := validateOriginHost(originHost); err != nil {
 		return nil, err
 	}
-	if !input.EnableHTTPS {
-		input.RedirectHTTP = false
-		input.CertID = nil
-		input.CertIDs = nil
-	}
+	input.DomainCertIDs = domainCertIDs
 	input.CertIDs = certIDs
-	if len(certIDs) > 0 {
-		input.CertID = &certIDs[0]
-	}
+	input.CertID = primaryCertID
 	if input.RedirectHTTP && !input.EnableHTTPS {
 		return nil, errors.New("redirect_http requires enable_https")
 	}
@@ -243,6 +258,7 @@ func buildProxyRoute(route *model.ProxyRoute, input ProxyRouteInput) (*model.Pro
 	route.EnableHTTPS = input.EnableHTTPS
 	route.CertID = input.CertID
 	route.CertIDs = string(certIDsJSON)
+	route.DomainCertIDs = string(domainCertIDsJSON)
 	route.RedirectHTTP = input.RedirectHTTP
 	route.LimitConnPerServer = limitConnPerServer
 	route.LimitConnPerIP = limitConnPerIP
@@ -291,6 +307,10 @@ func buildProxyRouteView(route *model.ProxyRoute) (*ProxyRouteView, error) {
 	if err != nil {
 		return nil, err
 	}
+	domainCertIDs, err := resolveProxyRouteDomainCertIDs(route, domains, certIDs)
+	if err != nil {
+		return nil, err
+	}
 	var certID *uint
 	if len(certIDs) > 0 {
 		certID = &certIDs[0]
@@ -312,6 +332,7 @@ func buildProxyRouteView(route *model.ProxyRoute) (*ProxyRouteView, error) {
 		EnableHTTPS:        route.EnableHTTPS,
 		CertID:             certID,
 		CertIDs:            certIDs,
+		DomainCertIDs:      domainCertIDs,
 		RedirectHTTP:       route.RedirectHTTP,
 		LimitConnPerServer: route.LimitConnPerServer,
 		LimitConnPerIP:     route.LimitConnPerIP,
@@ -474,6 +495,185 @@ func normalizeProxyRouteCertificateIDs(enableHTTPS bool, certID *uint, certIDs [
 		return nil, errors.New("must select a certificate when HTTPS is enabled")
 	}
 	return normalized, nil
+}
+
+func normalizeProxyRouteDomainCertificateIDs(
+	domains []string,
+	enableHTTPS bool,
+	rawDomainCertIDs []uint,
+	certID *uint,
+	certIDs []uint,
+) ([]uint, []uint, *uint, error) {
+	if !enableHTTPS {
+		return []uint{}, []uint{}, nil, nil
+	}
+
+	if len(rawDomainCertIDs) > 0 {
+		if len(rawDomainCertIDs) != len(domains) {
+			return nil, nil, nil, errors.New("domain_cert_ids must match domains length")
+		}
+
+		normalizedDomainCertIDs := make([]uint, len(rawDomainCertIDs))
+		uniqueCertIDs := make([]uint, 0, len(rawDomainCertIDs))
+		seen := make(map[uint]struct{}, len(rawDomainCertIDs))
+		hasAssignedCertificate := false
+		for index, item := range rawDomainCertIDs {
+			if item == 0 {
+				continue
+			}
+			if _, err := model.GetTLSCertificateByID(item); err != nil {
+				return nil, nil, nil, errors.New("selected certificate does not exist")
+			}
+			normalizedDomainCertIDs[index] = item
+			hasAssignedCertificate = true
+			if _, ok := seen[item]; ok {
+				continue
+			}
+			seen[item] = struct{}{}
+			uniqueCertIDs = append(uniqueCertIDs, item)
+		}
+		if !hasAssignedCertificate {
+			return nil, nil, nil, errors.New("must select a certificate when HTTPS is enabled")
+		}
+
+		primaryCertID := &uniqueCertIDs[0]
+		return normalizedDomainCertIDs, uniqueCertIDs, primaryCertID, nil
+	}
+
+	normalizedCertIDs, err := normalizeProxyRouteCertificateIDs(
+		enableHTTPS,
+		certID,
+		certIDs,
+	)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	switch {
+	case len(normalizedCertIDs) == 0:
+		return nil, nil, nil, errors.New("must select a certificate when HTTPS is enabled")
+	case len(normalizedCertIDs) == 1:
+		domainCertIDs := make([]uint, len(domains))
+		for index := range domainCertIDs {
+			domainCertIDs[index] = normalizedCertIDs[0]
+		}
+		primaryCertID := &normalizedCertIDs[0]
+		return domainCertIDs, normalizedCertIDs, primaryCertID, nil
+	case len(normalizedCertIDs) == len(domains):
+		domainCertIDs := make([]uint, len(normalizedCertIDs))
+		copy(domainCertIDs, normalizedCertIDs)
+		primaryCertID := &normalizedCertIDs[0]
+		return domainCertIDs, normalizedCertIDs, primaryCertID, nil
+	default:
+		domainCertIDs, err := deriveDomainCertIDsFromCertificateSet(
+			domains,
+			normalizedCertIDs,
+		)
+		if err != nil {
+			return nil, nil, nil, err
+		}
+		primaryCertID := &normalizedCertIDs[0]
+		return domainCertIDs, normalizedCertIDs, primaryCertID, nil
+	}
+}
+
+func validateProxyRouteDomainCertificateCoverage(
+	domains []string,
+	domainCertIDs []uint,
+) error {
+	if len(domainCertIDs) == 0 {
+		return nil
+	}
+
+	domainsByCertID := make(map[uint][]string)
+	for index, certID := range domainCertIDs {
+		if certID == 0 {
+			continue
+		}
+		domainsByCertID[certID] = append(domainsByCertID[certID], domains[index])
+	}
+
+	for certID, assignedDomains := range domainsByCertID {
+		certificate, err := model.GetTLSCertificateByID(certID)
+		if err != nil {
+			return errors.New("selected certificate does not exist")
+		}
+		if err := validateCertificateCoverage(certificate, assignedDomains); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func deriveDomainCertIDsFromCertificateSet(
+	domains []string,
+	certIDs []uint,
+) ([]uint, error) {
+	certificates, err := loadTLSCertificates(certIDs)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]uint, len(domains))
+	for domainIndex, domain := range domains {
+		if domainIndex < len(certificates) &&
+			certificates[domainIndex] != nil &&
+			validateCertificateCoverage(certificates[domainIndex], []string{domain}) == nil {
+			result[domainIndex] = certificates[domainIndex].ID
+			continue
+		}
+
+		assigned := uint(0)
+		for _, certificate := range certificates {
+			if certificate != nil &&
+				validateCertificateCoverage(certificate, []string{domain}) == nil {
+				assigned = certificate.ID
+				break
+			}
+		}
+		if assigned == 0 {
+			return nil, fmt.Errorf("certificate does not cover domain %s", domain)
+		}
+		result[domainIndex] = assigned
+	}
+	return result, nil
+}
+
+func decodeStoredDomainCertIDs(raw string, domainCount int) ([]uint, error) {
+	text := strings.TrimSpace(raw)
+	if text == "" {
+		return []uint{}, nil
+	}
+
+	var domainCertIDs []uint
+	if err := json.Unmarshal([]byte(text), &domainCertIDs); err != nil {
+		return nil, errors.New("domain_cert_ids payload is invalid")
+	}
+	if len(domainCertIDs) == 0 {
+		return []uint{}, nil
+	}
+	if domainCount > 0 && len(domainCertIDs) != domainCount {
+		return nil, errors.New("domain_cert_ids length does not match domains")
+	}
+
+	normalized := make([]uint, len(domainCertIDs))
+	copy(normalized, domainCertIDs)
+	return normalized, nil
+}
+
+func resolveProxyRouteDomainCertIDs(
+	route *model.ProxyRoute,
+	domains []string,
+	certIDs []uint,
+) ([]uint, error) {
+	domainCertIDs, err := decodeStoredDomainCertIDs(route.DomainCertIDs, len(domains))
+	if err != nil {
+		return nil, err
+	}
+	if len(domainCertIDs) > 0 || len(certIDs) == 0 {
+		return domainCertIDs, nil
+	}
+	return deriveDomainCertIDsFromCertificateSet(domains, certIDs)
 }
 
 func normalizeProxyRouteLimitRate(raw string) (string, error) {

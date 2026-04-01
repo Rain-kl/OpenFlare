@@ -90,10 +90,20 @@ function buildDomainSuggestions(
 
 export function buildDomainRowsFromRoute(
   domains: string[],
+  domainCertIDs: number[],
   certIDs: number[],
 ): DomainListRow[] {
   if (domains.length === 0) {
     return ensureRows([]);
+  }
+
+  if (domainCertIDs.length === domains.length) {
+    return domains.map((domain, index) => ({
+      domain,
+      certificateId: domainCertIDs[index]
+        ? String(domainCertIDs[index])
+        : '',
+    }));
   }
 
   if (certIDs.length === 0) {

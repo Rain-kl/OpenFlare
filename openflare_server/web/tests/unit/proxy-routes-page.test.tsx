@@ -50,6 +50,7 @@ function buildRoute(overrides: Record<string, unknown> = {}) {
     enable_https: true,
     cert_id: 1,
     cert_ids: [1],
+    domain_cert_ids: [1, 0],
     redirect_http: true,
     limit_conn_per_server: 120,
     limit_conn_per_ip: 12,
@@ -185,6 +186,7 @@ describe('Proxy route website pages', () => {
             enable_https: payload.enable_https,
             cert_id: payload.cert_id,
             cert_ids: payload.cert_ids ?? [],
+            domain_cert_ids: payload.domain_cert_ids ?? [],
             redirect_http: payload.redirect_http,
             limit_conn_per_server: 0,
             limit_conn_per_ip: 0,
@@ -337,6 +339,7 @@ describe('Proxy route website pages', () => {
                   enable_https: payload.enable_https,
                   cert_id: payload.cert_id,
                   cert_ids: payload.cert_ids,
+                  domain_cert_ids: payload.domain_cert_ids,
                   redirect_http: payload.redirect_http,
                 }),
               }),
@@ -404,7 +407,7 @@ describe('Proxy route website pages', () => {
     await user.type(secondaryDomainInput, 'www.brand.example.com');
 
     await user.selectOptions(screen.getByLabelText('证书 1'), '1');
-    await user.selectOptions(screen.getByLabelText('证书 2'), '1');
+    await user.selectOptions(screen.getByLabelText('证书 2'), '');
 
     const saveButton = document.querySelector(
       'button[form="proxy-route-domains-form"]',
@@ -427,6 +430,7 @@ describe('Proxy route website pages', () => {
       enable_https: true,
       cert_id: 1,
       cert_ids: [1],
+      domain_cert_ids: [1, 0],
       redirect_http: true,
     });
   });

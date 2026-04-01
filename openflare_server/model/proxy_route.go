@@ -15,6 +15,7 @@ type ProxyRoute struct {
 	EnableHTTPS        bool      `json:"enable_https" gorm:"column:enable_https;not null;default:false"`
 	CertID             *uint     `json:"cert_id"`
 	CertIDs            string    `json:"cert_ids" gorm:"type:text;not null;default:'[]'"`
+	DomainCertIDs      string    `json:"domain_cert_ids" gorm:"type:text;not null;default:'[]'"`
 	RedirectHTTP       bool      `json:"redirect_http" gorm:"not null;default:false"`
 	LimitConnPerServer int       `json:"limit_conn_per_server" gorm:"not null;default:0"`
 	LimitConnPerIP     int       `json:"limit_conn_per_ip" gorm:"not null;default:0"`
@@ -66,6 +67,7 @@ func (route *ProxyRoute) Update() error {
 		"enable_https":          route.EnableHTTPS,
 		"cert_id":               route.CertID,
 		"cert_ids":              route.CertIDs,
+		"domain_cert_ids":       route.DomainCertIDs,
 		"redirect_http":         route.RedirectHTTP,
 		"limit_conn_per_server": route.LimitConnPerServer,
 		"limit_conn_per_ip":     route.LimitConnPerIP,

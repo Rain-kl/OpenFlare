@@ -95,10 +95,22 @@ function normalizeSelectedCertificateIDs(rows: DomainListRow[]) {
   return Array.from(
     new Set(
       rows
+        .filter((item) => item.domain.trim() !== '')
         .map((item) => Number(item.certificateId))
         .filter((item) => Number.isFinite(item) && item > 0),
     ),
   );
+}
+
+function buildDomainCertificateIDs(rows: DomainListRow[]) {
+  return rows
+    .filter((item) => item.domain.trim() !== '')
+    .map((item) => {
+      const certificateID = Number(item.certificateId);
+      return Number.isFinite(certificateID) && certificateID > 0
+        ? certificateID
+        : 0;
+    });
 }
 
 export function ProxyRouteCreateDrawer({
@@ -143,6 +155,7 @@ export function ProxyRouteCreateDrawer({
       const domains = values.domain_rows
         .map((item) => item.domain.trim().toLowerCase())
         .filter(Boolean);
+      const domainCertIDs = buildDomainCertificateIDs(values.domain_rows);
       const selectedCertIDs = normalizeSelectedCertificateIDs(values.domain_rows);
       const { urls } = parseOriginUrls(values.origin_urls_text);
       const primaryOrigin = parseOriginUrl(urls[0]);
@@ -168,6 +181,7 @@ export function ProxyRouteCreateDrawer({
         enable_https: selectedCertIDs.length > 0,
         cert_id: selectedCertIDs[0] ?? null,
         cert_ids: selectedCertIDs,
+        domain_cert_ids: domainCertIDs,
         redirect_http: selectedCertIDs.length > 0 ? values.redirect_http : false,
         limit_conn_per_server: 0,
         limit_conn_per_ip: 0,

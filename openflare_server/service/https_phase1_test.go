@@ -403,7 +403,7 @@ func TestPublishConfigVersionRendersMultipleCertificatesForMultiDomainWebsite(t 
 		OriginURL:     "https://origin.internal",
 		Enabled:       true,
 		EnableHTTPS:   true,
-		CertIDs:       []uint{appCertificate.ID, wwwCertificate.ID},
+		DomainCertIDs: []uint{appCertificate.ID, wwwCertificate.ID},
 		RedirectHTTP:  true,
 		CacheEnabled:  true,
 		CachePolicy:   proxyRouteCachePolicyPathPrefix,
@@ -418,6 +418,9 @@ func TestPublishConfigVersionRendersMultipleCertificatesForMultiDomainWebsite(t 
 	}
 	if len(route.CertIDs) != 2 || route.CertIDs[0] != appCertificate.ID || route.CertIDs[1] != wwwCertificate.ID {
 		t.Fatalf("expected cert_ids to persist in order, got %#v", route.CertIDs)
+	}
+	if len(route.DomainCertIDs) != 2 || route.DomainCertIDs[0] != appCertificate.ID || route.DomainCertIDs[1] != wwwCertificate.ID {
+		t.Fatalf("expected domain_cert_ids to persist per domain, got %#v", route.DomainCertIDs)
 	}
 
 	result, err := PublishConfigVersion("root")
@@ -438,6 +441,59 @@ func TestPublishConfigVersionRendersMultipleCertificatesForMultiDomainWebsite(t 
 	}
 	if !strings.Contains(result.Version.SnapshotJSON, `"cert_ids":[`) {
 		t.Fatal("expected snapshot to include cert_ids")
+	}
+	if !strings.Contains(result.Version.SnapshotJSON, `"domain_cert_ids":[`) {
+		t.Fatal("expected snapshot to include domain_cert_ids")
+	}
+}
+
+func TestPublishConfigVersionSkipsHTTPSForDomainsWithoutCertificate(t *testing.T) {
+	setupServiceTestDB(t)
+
+	appCertPEM, appKeyPEM := generateCertificatePair(t, []string{"app.example.com"})
+	appCertificate, err := CreateTLSCertificate(TLSCertificateInput{
+		Name:    "app-only",
+		CertPEM: appCertPEM,
+		KeyPEM:  appKeyPEM,
+	})
+	if err != nil {
+		t.Fatalf("CreateTLSCertificate app-only failed: %v", err)
+	}
+
+	route, err := CreateProxyRoute(ProxyRouteInput{
+		SiteName:      "partial-https-site",
+		Domains:       []string{"app.example.com", "www.example.com"},
+		OriginURL:     "https://origin.internal",
+		Enabled:       true,
+		EnableHTTPS:   true,
+		DomainCertIDs: []uint{appCertificate.ID, 0},
+		RedirectHTTP:  true,
+	})
+	if err != nil {
+		t.Fatalf("CreateProxyRoute failed: %v", err)
+	}
+	if len(route.CertIDs) != 1 || route.CertIDs[0] != appCertificate.ID {
+		t.Fatalf("expected website cert_ids to keep used certificates only, got %#v", route.CertIDs)
+	}
+	if len(route.DomainCertIDs) != 2 || route.DomainCertIDs[0] != appCertificate.ID || route.DomainCertIDs[1] != 0 {
+		t.Fatalf("expected domain_cert_ids to preserve unassigned domains, got %#v", route.DomainCertIDs)
+	}
+
+	result, err := PublishConfigVersion("root")
+	if err != nil {
+		t.Fatalf("PublishConfigVersion failed: %v", err)
+	}
+	if strings.Contains(result.Version.RenderedConfig, "listen 443 ssl;\n    http2 on;\n    server_name app.example.com www.example.com;") {
+		t.Fatal("expected https server block to exclude domains without certificate")
+	}
+	if !strings.Contains(result.Version.RenderedConfig, "listen 443 ssl;\n    http2 on;\n    server_name app.example.com;") {
+		t.Fatal("expected https server block to contain only the certified domain")
+	}
+	if !strings.Contains(result.Version.RenderedConfig, "listen 80;\n    server_name app.example.com;\n\n    return 301 https://$host$request_uri;") {
+		t.Fatal("expected certified domain to keep http redirect")
+	}
+	if !strings.Contains(result.Version.RenderedConfig, "listen 80;\n    server_name www.example.com;") {
+		t.Fatal("expected non-certified domain to stay on plain http")
 	}
 }
 

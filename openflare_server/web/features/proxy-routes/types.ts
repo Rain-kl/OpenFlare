@@ -19,6 +19,7 @@ export interface ProxyRouteItem {
   enable_https: boolean;
   cert_id: number | null;
   cert_ids: number[];
+  domain_cert_ids: number[];
   redirect_http: boolean;
   limit_conn_per_server: number;
   limit_conn_per_ip: number;
@@ -50,6 +51,7 @@ export interface ProxyRouteMutationPayload {
   enable_https: boolean;
   cert_id: number | null;
   cert_ids?: number[];
+  domain_cert_ids?: number[];
   redirect_http: boolean;
   limit_conn_per_server?: number;
   limit_conn_per_ip?: number;

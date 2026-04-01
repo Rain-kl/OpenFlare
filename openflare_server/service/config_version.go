@@ -74,6 +74,7 @@ type snapshotRoute struct {
 	EnableHTTPS        bool                          `json:"enable_https"`
 	CertID             *uint                         `json:"cert_id,omitempty"`
 	CertIDs            []uint                        `json:"cert_ids,omitempty"`
+	DomainCertIDs      []uint                        `json:"domain_cert_ids,omitempty"`
 	RedirectHTTP       bool                          `json:"redirect_http"`
 	LimitConnPerServer int                           `json:"limit_conn_per_server,omitempty"`
 	LimitConnPerIP     int                           `json:"limit_conn_per_ip,omitempty"`
@@ -472,6 +473,7 @@ func buildSnapshotRoutes(routes []*model.ProxyRoute) ([]snapshotRoute, error) {
 			EnableHTTPS:        route.EnableHTTPS,
 			CertID:             route.CertID,
 			CertIDs:            mustDecodeSnapshotCertIDs(route),
+			DomainCertIDs:      mustDecodeSnapshotDomainCertIDs(route, domains),
 			RedirectHTTP:       route.RedirectHTTP,
 			LimitConnPerServer: route.LimitConnPerServer,
 			LimitConnPerIP:     route.LimitConnPerIP,
@@ -495,6 +497,24 @@ func mustDecodeSnapshotCertIDs(route *model.ProxyRoute) []uint {
 		return []uint{}
 	}
 	return certIDs
+}
+
+func mustDecodeSnapshotDomainCertIDs(
+	route *model.ProxyRoute,
+	domains []string,
+) []uint {
+	if route == nil {
+		return []uint{}
+	}
+	certIDs, err := decodeStoredCertIDs(route.CertIDs, route.CertID)
+	if err != nil {
+		return []uint{}
+	}
+	domainCertIDs, err := resolveProxyRouteDomainCertIDs(route, domains, certIDs)
+	if err != nil {
+		return []uint{}
+	}
+	return domainCertIDs
 }
 
 func parseSnapshotDocument(snapshotJSON string) (*snapshotDocument, error) {
@@ -544,6 +564,14 @@ func normalizeSnapshotRoutes(routes []snapshotRoute) []snapshotRoute {
 			routes[index].CertID = primaryCertID
 			routes[index].CertIDs = normalizedCertIDs
 		}
+		normalizedDomainCertIDs, err := normalizeSnapshotDomainCertificateIDs(
+			routes[index].Domains,
+			routes[index].CertIDs,
+			routes[index].DomainCertIDs,
+		)
+		if err == nil {
+			routes[index].DomainCertIDs = normalizedDomainCertIDs
+		}
 		normalizedUpstreams, err := normalizeUpstreams(routes[index].OriginURL, routes[index].Upstreams)
 		if err == nil {
 			routes[index].OriginURL = normalizedUpstreams[0]
@@ -583,7 +611,7 @@ func flattenSnapshotRoutesByDomain(routes []snapshotRoute) map[string]snapshotRo
 }
 
 func snapshotRouteConfigEqual(left snapshotRoute, right snapshotRoute) bool {
-	if left.SiteName != right.SiteName || left.Domain != right.Domain || left.OriginURL != right.OriginURL || left.OriginHost != right.OriginHost || left.EnableHTTPS != right.EnableHTTPS || left.RedirectHTTP != right.RedirectHTTP || left.LimitConnPerServer != right.LimitConnPerServer || left.LimitConnPerIP != right.LimitConnPerIP || left.LimitRate != right.LimitRate || left.CacheEnabled != right.CacheEnabled || left.CachePolicy != right.CachePolicy || !uintSliceEqual(left.CertIDs, right.CertIDs) {
+	if left.SiteName != right.SiteName || left.Domain != right.Domain || left.OriginURL != right.OriginURL || left.OriginHost != right.OriginHost || left.EnableHTTPS != right.EnableHTTPS || left.RedirectHTTP != right.RedirectHTTP || left.LimitConnPerServer != right.LimitConnPerServer || left.LimitConnPerIP != right.LimitConnPerIP || left.LimitRate != right.LimitRate || left.CacheEnabled != right.CacheEnabled || left.CachePolicy != right.CachePolicy || !uintSliceEqual(left.CertIDs, right.CertIDs) || !uintSliceEqual(left.DomainCertIDs, right.DomainCertIDs) {
 		return false
 	}
 	if len(left.Domains) != len(right.Domains) {
@@ -814,48 +842,79 @@ func renderRouteConfig(routes []*model.ProxyRoute, cfg openRestyConfigSnapshot) 
 		if err != nil {
 			return "", nil, fmt.Errorf("route %s cert_ids are invalid: %w", route.Domain, err)
 		}
-		if len(certIDs) > 0 {
-			certificates, err := loadTLSCertificates(certIDs)
-			if err != nil {
-				return "", nil, fmt.Errorf("route %s certificate lookup failed: %w", route.Domain, err)
-			}
-			if err := validateCertificateCoverageSet(certificates, domains); err != nil {
-				return "", nil, fmt.Errorf("site %s certificate validation failed: %w", displayName, err)
-			}
-			for _, certificate := range certificates {
-				supportFiles = append(supportFiles,
-					SupportFile{Path: certificateCertFileName(certificate.ID), Content: normalizePEM(certificate.CertPEM)},
-					SupportFile{Path: certificateKeyFileName(certificate.ID), Content: normalizePEM(certificate.KeyPEM)},
-				)
-			}
-			if route.RedirectHTTP {
-				builder.WriteString(renderHTTPRedirectServer(serverNames))
-			} else {
-				builder.WriteString(renderHTTPProxyServer(serverNames, route.OriginURL, route.OriginHost, customHeaders, cacheConfig, limitConfig, upstreamConfig, cfg))
-			}
-			builder.WriteString(renderHTTPSServerWithCertificates(serverNames, route.OriginURL, route.OriginHost, certIDs, customHeaders, cacheConfig, limitConfig, upstreamConfig, cfg))
-			continue
+		domainCertIDs, err := resolveProxyRouteDomainCertIDs(route, domains, certIDs)
+		if err != nil {
+			return "", nil, fmt.Errorf("route %s domain_cert_ids are invalid: %w", route.Domain, err)
 		}
 		if route.CertID == nil || *route.CertID == 0 {
 			return "", nil, fmt.Errorf("路由 %s 未配置证书", route.Domain)
 		}
-		certificate, err := model.GetTLSCertificateByID(*route.CertID)
+		if len(certIDs) == 0 {
+			return "", nil, fmt.Errorf("路由 %s 未配置证书", route.Domain)
+		}
+		certificates, err := loadTLSCertificates(certIDs)
 		if err != nil {
-			return "", nil, fmt.Errorf("路由 %s 关联证书不存在", route.Domain)
+			return "", nil, fmt.Errorf("route %s certificate lookup failed: %w", route.Domain, err)
 		}
-		if err := validateCertificateCoverage(certificate, domains); err != nil {
-			return "", nil, fmt.Errorf("site %s certificate validation failed: %w", displayName, err)
+		certificateByID := make(map[uint]*model.TLSCertificate, len(certificates))
+		for _, certificate := range certificates {
+			if certificate == nil {
+				continue
+			}
+			certificateByID[certificate.ID] = certificate
+			supportFiles = append(supportFiles,
+				SupportFile{Path: certificateCertFileName(certificate.ID), Content: normalizePEM(certificate.CertPEM)},
+				SupportFile{Path: certificateKeyFileName(certificate.ID), Content: normalizePEM(certificate.KeyPEM)},
+			)
 		}
-		supportFiles = append(supportFiles,
-			SupportFile{Path: certificateCertFileName(certificate.ID), Content: normalizePEM(certificate.CertPEM)},
-			SupportFile{Path: certificateKeyFileName(certificate.ID), Content: normalizePEM(certificate.KeyPEM)},
-		)
+
+		httpOnlyDomains := make([]string, 0, len(domains))
+		domainsByCertID := make(map[uint][]string, len(certIDs))
+		for index, domain := range domains {
+			if index >= len(domainCertIDs) || domainCertIDs[index] == 0 {
+				httpOnlyDomains = append(httpOnlyDomains, domain)
+				continue
+			}
+			domainsByCertID[domainCertIDs[index]] = append(
+				domainsByCertID[domainCertIDs[index]],
+				domain,
+			)
+		}
+		for _, certID := range certIDs {
+			assignedDomains := domainsByCertID[certID]
+			if len(assignedDomains) == 0 {
+				continue
+			}
+			certificate := certificateByID[certID]
+			if certificate == nil {
+				return "", nil, fmt.Errorf("route %s certificate %d does not exist", route.Domain, certID)
+			}
+			if err := validateCertificateCoverage(certificate, assignedDomains); err != nil {
+				return "", nil, fmt.Errorf("site %s certificate validation failed: %w", displayName, err)
+			}
+		}
+
 		if route.RedirectHTTP {
-			builder.WriteString(renderHTTPRedirectServer(serverNames))
+			if len(httpOnlyDomains) > 0 {
+				builder.WriteString(renderHTTPProxyServer(renderServerNames(httpOnlyDomains), route.OriginURL, route.OriginHost, customHeaders, cacheConfig, limitConfig, upstreamConfig, cfg))
+			}
+			for _, certID := range certIDs {
+				assignedDomains := domainsByCertID[certID]
+				if len(assignedDomains) == 0 {
+					continue
+				}
+				builder.WriteString(renderHTTPRedirectServer(renderServerNames(assignedDomains)))
+			}
 		} else {
 			builder.WriteString(renderHTTPProxyServer(serverNames, route.OriginURL, route.OriginHost, customHeaders, cacheConfig, limitConfig, upstreamConfig, cfg))
 		}
-		builder.WriteString(renderHTTPSServer(serverNames, route.OriginURL, route.OriginHost, certificate.ID, customHeaders, cacheConfig, limitConfig, upstreamConfig, cfg))
+		for _, certID := range certIDs {
+			assignedDomains := domainsByCertID[certID]
+			if len(assignedDomains) == 0 {
+				continue
+			}
+			builder.WriteString(renderHTTPSServer(renderServerNames(assignedDomains), route.OriginURL, route.OriginHost, certID, customHeaders, cacheConfig, limitConfig, upstreamConfig, cfg))
+		}
 	}
 	return builder.String(), dedupeSupportFiles(supportFiles), nil
 }
@@ -986,6 +1045,37 @@ func normalizeSnapshotCertificateIDs(primaryCertID *uint, certIDs []uint) ([]uin
 		normalizedPrimary = &normalized[0]
 	}
 	return normalized, normalizedPrimary, nil
+}
+
+func normalizeSnapshotDomainCertificateIDs(
+	domains []string,
+	certIDs []uint,
+	domainCertIDs []uint,
+) ([]uint, error) {
+	if len(domainCertIDs) > 0 {
+		if len(domains) > 0 && len(domainCertIDs) != len(domains) {
+			return nil, errors.New("snapshot domain_cert_ids length is invalid")
+		}
+		normalized := make([]uint, len(domainCertIDs))
+		copy(normalized, domainCertIDs)
+		return normalized, nil
+	}
+	if len(certIDs) == 0 {
+		return []uint{}, nil
+	}
+	if len(certIDs) == 1 {
+		normalized := make([]uint, len(domains))
+		for index := range normalized {
+			normalized[index] = certIDs[0]
+		}
+		return normalized, nil
+	}
+	if len(certIDs) == len(domains) {
+		normalized := make([]uint, len(certIDs))
+		copy(normalized, certIDs)
+		return normalized, nil
+	}
+	return []uint{}, nil
 }
 
 func uintPointerEqual(left *uint, right *uint) bool {

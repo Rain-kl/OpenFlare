@@ -89,6 +89,36 @@ func (legacyProxyRouteV6) TableName() string {
 	return "proxy_routes"
 }
 
+type legacyProxyRouteV7 struct {
+	ID                 uint   `gorm:"primaryKey"`
+	SiteName           string `gorm:"size:255;not null;default:''"`
+	Domain             string `gorm:"uniqueIndex;size:255;not null"`
+	Domains            string `gorm:"type:text;not null;default:'[]'"`
+	OriginID           *uint  `gorm:"index"`
+	OriginURL          string `gorm:"size:2048;not null"`
+	OriginHost         string `gorm:"size:255"`
+	Upstreams          string `gorm:"type:text;not null;default:'[]'"`
+	Enabled            bool   `gorm:"not null;default:true"`
+	EnableHTTPS        bool   `gorm:"column:enable_https;not null;default:false"`
+	CertID             *uint
+	CertIDs            string `gorm:"type:text;not null;default:'[]'"`
+	RedirectHTTP       bool   `gorm:"not null;default:false"`
+	LimitConnPerServer int    `gorm:"not null;default:0"`
+	LimitConnPerIP     int    `gorm:"not null;default:0"`
+	LimitRate          string `gorm:"size:32;not null;default:''"`
+	CacheEnabled       bool   `gorm:"not null;default:false"`
+	CachePolicy        string `gorm:"size:32;not null;default:''"`
+	CacheRules         string `gorm:"type:text;not null;default:'[]'"`
+	CustomHeaders      string `gorm:"type:text;not null;default:'[]'"`
+	Remark             string `gorm:"size:255"`
+	CreatedAt          time.Time
+	UpdatedAt          time.Time
+}
+
+func (legacyProxyRouteV7) TableName() string {
+	return "proxy_routes"
+}
+
 func openBareTestSQLiteDB(t *testing.T, name string) *gorm.DB {
 	t.Helper()
 
@@ -751,6 +781,80 @@ func TestEnsureDatabaseSchemaUpToDateAddsProxyRouteCertificateListFields(t *test
 	}
 	if len(certIDs) != 1 || certIDs[0] != certID {
 		t.Fatalf("unexpected migrated cert_ids: %#v", certIDs)
+	}
+}
+
+func TestEnsureDatabaseSchemaUpToDateAddsProxyRouteDomainCertificateFields(t *testing.T) {
+	db := openBareTestSQLiteDB(t, "legacy-proxy-route-domain-cert-ids.db")
+	if err := registerSharding(db, "sqlite"); err != nil {
+		t.Fatalf("register sharding: %v", err)
+	}
+	if err := autoMigrateSchemaMetadata(db); err != nil {
+		t.Fatalf("auto migrate schema metadata: %v", err)
+	}
+
+	for _, item := range registeredModels() {
+		if _, ok := item.(*ProxyRoute); ok {
+			continue
+		}
+		if err := db.AutoMigrate(item); err != nil {
+			t.Fatalf("auto migrate supporting table: %v", err)
+		}
+	}
+	if err := db.AutoMigrate(&legacyProxyRouteV7{}); err != nil {
+		t.Fatalf("auto migrate legacy proxy_routes v7: %v", err)
+	}
+
+	now := time.Now().UTC()
+	certID := uint(9)
+	if err := db.Create(&legacyProxyRouteV7{
+		SiteName:           "secure-site",
+		Domain:             "secure.example.com",
+		Domains:            `["secure.example.com","www.secure.example.com"]`,
+		OriginURL:          "https://origin-secure.internal:8443",
+		Upstreams:          `["https://origin-secure.internal:8443"]`,
+		Enabled:            true,
+		EnableHTTPS:        true,
+		CertID:             &certID,
+		CertIDs:            `[9]`,
+		RedirectHTTP:       true,
+		LimitConnPerServer: 120,
+		LimitConnPerIP:     12,
+		LimitRate:          "512k",
+		CacheEnabled:       false,
+		CachePolicy:        "",
+		CacheRules:         `[]`,
+		CustomHeaders:      `[]`,
+		CreatedAt:          now,
+		UpdatedAt:          now,
+	}).Error; err != nil {
+		t.Fatalf("seed legacy proxy route v7: %v", err)
+	}
+	if err := saveDatabaseSchemaVersion(db, 7); err != nil {
+		t.Fatalf("save schema version: %v", err)
+	}
+
+	previousDB := DB
+	DB = db
+	t.Cleanup(func() {
+		DB = previousDB
+	})
+
+	if err := ensureDatabaseSchemaUpToDate(db, "sqlite"); err != nil {
+		t.Fatalf("ensureDatabaseSchemaUpToDate: %v", err)
+	}
+
+	var route ProxyRoute
+	if err := db.First(&route).Error; err != nil {
+		t.Fatalf("query migrated proxy route: %v", err)
+	}
+
+	var domainCertIDs []uint
+	if err := json.Unmarshal([]byte(route.DomainCertIDs), &domainCertIDs); err != nil {
+		t.Fatalf("decode migrated domain_cert_ids: %v", err)
+	}
+	if len(domainCertIDs) != 2 || domainCertIDs[0] != certID || domainCertIDs[1] != certID {
+		t.Fatalf("unexpected migrated domain_cert_ids: %#v", domainCertIDs)
 	}
 }
 

@@ -216,10 +216,22 @@ function normalizeSelectedCertificateIDs(rows: DomainListRow[]) {
   return Array.from(
     new Set(
       rows
+        .filter((item) => item.domain.trim() !== '')
         .map((item) => Number(item.certificateId))
         .filter((item) => Number.isFinite(item) && item > 0),
     ),
   );
+}
+
+function buildDomainCertificateIDs(rows: DomainListRow[]) {
+  return rows
+    .filter((item) => item.domain.trim() !== '')
+    .map((item) => {
+      const certificateID = Number(item.certificateId);
+      return Number.isFinite(certificateID) && certificateID > 0
+        ? certificateID
+        : 0;
+    });
 }
 
 function buildDomainRows(route: ProxyRouteItem) {
@@ -230,7 +242,11 @@ function buildDomainRows(route: ProxyRouteItem) {
         ? [route.cert_id]
         : [];
 
-  return buildDomainRowsFromRoute(route.domains, selectedCertIDs);
+  return buildDomainRowsFromRoute(
+    route.domains,
+    route.domain_cert_ids,
+    selectedCertIDs,
+  );
 }
 
 function ConfigSectionShell({
@@ -311,6 +327,7 @@ function DomainSettingsSection({
           const domains = values.domain_rows
             .map((item) => item.domain.trim().toLowerCase())
             .filter(Boolean);
+          const domainCertIDs = buildDomainCertificateIDs(values.domain_rows);
           const certIDs = normalizeSelectedCertificateIDs(values.domain_rows);
 
           onSave(
@@ -322,6 +339,7 @@ function DomainSettingsSection({
               enable_https: certIDs.length > 0,
               cert_id: certIDs[0] ?? null,
               cert_ids: certIDs,
+              domain_cert_ids: domainCertIDs,
               redirect_http: certIDs.length > 0 ? values.redirect_http : false,
             }),
             { message: '域名设置已保存。' },

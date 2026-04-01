@@ -125,6 +125,15 @@ func DeleteTLSCertificate(id uint) error {
 				return errors.New("certificate is still referenced by proxy routes")
 			}
 		}
+		domainCertIDs, err := decodeStoredDomainCertIDs(route.DomainCertIDs, 0)
+		if err != nil {
+			return fmt.Errorf("proxy route %d domain_cert_ids payload is invalid: %w", route.ID, err)
+		}
+		for _, certID := range domainCertIDs {
+			if certID == id {
+				return errors.New("certificate is still referenced by proxy routes")
+			}
+		}
 	}
 
 	certificate, err := model.GetTLSCertificateByID(id)
