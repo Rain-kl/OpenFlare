@@ -2,7 +2,7 @@
 
 import { useMutation } from '@tanstack/react-query';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { InlineMessage } from '@/components/feedback/inline-message';
 import { LoadingState } from '@/components/feedback/loading-state';
@@ -14,8 +14,10 @@ export function GitHubOAuthCallback() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { setUser } = useAuth();
+  const handledCodeRef = useRef<string | null>(null);
   const [prompt, setPrompt] = useState('正在处理 GitHub 授权结果...');
   const [message, setMessage] = useState<{ tone: 'danger' | 'success'; text: string } | null>(null);
+  const code = searchParams?.get('code')?.trim() ?? '';
 
   const mutation = useMutation({
     mutationFn: exchangeGitHubCode,
@@ -31,15 +33,19 @@ export function GitHubOAuthCallback() {
   });
 
   useEffect(() => {
-    const code = searchParams?.get('code');
     if (!code) {
       setPrompt('缺少授权 code');
       setMessage({ tone: 'danger', text: '未收到 GitHub 授权参数，请返回登录页重试。' });
       return;
     }
 
+    if (handledCodeRef.current === code) {
+      return;
+    }
+
+    handledCodeRef.current = code;
     mutation.mutate(code);
-  }, [mutation, searchParams]);
+  }, [code, mutation]);
 
   return (
     <AppCard title='GitHub OAuth 回调' description={prompt}>

@@ -165,7 +165,7 @@ curl -fsSL https://raw.githubusercontent.com/Rain-kl/OpenFlare/main/scripts/unin
 卸载脚本会先停止并移除 `openflare-agent.service`、删除整个 `/opt/openflare-agent` 目录，然后根据卸载前保存的 `agent.json` 判断 OpenResty 安装方式：
 
 * Docker 模式：删除对应 OpenResty 容器，并尝试移除镜像
-* 本机 `openresty_path` 模式：不改动本机 OpenResty
+* 本机 `openresty_path` 模式：不改动本机 OpenResty，只提示用户手动卸载
 
 ### 3. 发布第一份配置
 
