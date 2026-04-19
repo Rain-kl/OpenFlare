@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
 	"net/url"
 	"openflare/model"
 	"regexp"
@@ -53,6 +54,8 @@ type ProxyRouteInput struct {
 	CachePolicy        string                        `json:"cache_policy"`
 	CacheRules         []string                      `json:"cache_rules"`
 	CustomHeaders      []ProxyRouteCustomHeaderInput `json:"custom_headers"`
+	PoWEnabled         bool                          `json:"pow_enabled"`
+	PoWConfig          string                        `json:"pow_config"`
 	Remark             string                        `json:"remark"`
 }
 
@@ -83,6 +86,8 @@ type ProxyRouteView struct {
 	CacheRuleList      []string                      `json:"cache_rule_list"`
 	CustomHeaders      string                        `json:"custom_headers"`
 	CustomHeaderList   []ProxyRouteCustomHeaderInput `json:"custom_header_list"`
+	PoWEnabled         bool                          `json:"pow_enabled"`
+	PoWConfig          *ProxyRoutePoWConfig          `json:"pow_config"`
 	Remark             string                        `json:"remark"`
 	CreatedAt          time.Time                     `json:"created_at"`
 	UpdatedAt          time.Time                     `json:"updated_at"`
@@ -196,6 +201,16 @@ func buildProxyRoute(route *model.ProxyRoute, input ProxyRouteInput) (*model.Pro
 	if err != nil {
 		return nil, err
 	}
+
+	powConfig, err := normalizePoWConfig(input.PoWEnabled, input.PoWConfig)
+	if err != nil {
+		return nil, err
+	}
+	powConfigJSON, err := json.Marshal(powConfig)
+	if err != nil {
+		return nil, err
+	}
+
 	if !input.EnableHTTPS {
 		input.RedirectHTTP = false
 		input.CertID = nil
@@ -267,6 +282,8 @@ func buildProxyRoute(route *model.ProxyRoute, input ProxyRouteInput) (*model.Pro
 	route.CachePolicy = normalizeCachePolicy(input.CacheEnabled, cachePolicy)
 	route.CacheRules = string(cacheRulesJSON)
 	route.CustomHeaders = string(customHeadersJSON)
+	route.PoWEnabled = input.PoWEnabled
+	route.PoWConfig = string(powConfigJSON)
 	route.Remark = remark
 	return route, nil
 }
@@ -300,6 +317,10 @@ func buildProxyRouteView(route *model.ProxyRoute) (*ProxyRouteView, error) {
 		return nil, err
 	}
 	customHeaders, err := decodeStoredCustomHeaders(route.CustomHeaders)
+	if err != nil {
+		return nil, err
+	}
+	powConfig, err := decodeStoredPoWConfig(route.PoWEnabled, route.PoWConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -343,6 +364,8 @@ func buildProxyRouteView(route *model.ProxyRoute) (*ProxyRouteView, error) {
 		CacheRuleList:      cacheRules,
 		CustomHeaders:      route.CustomHeaders,
 		CustomHeaderList:   customHeaders,
+		PoWEnabled:         route.PoWEnabled,
+		PoWConfig:          powConfig,
 		Remark:             route.Remark,
 		CreatedAt:          route.CreatedAt,
 		UpdatedAt:          route.UpdatedAt,
@@ -1047,4 +1070,133 @@ func validateOriginHost(raw string) error {
 
 func isUniqueConstraintError(err error) bool {
 	return err != nil && strings.Contains(strings.ToLower(err.Error()), "unique")
+}
+
+// PoW configuration types and validation
+
+type ProxyRoutePoWListConfig struct {
+	IPs         []string `json:"ips"`
+	IPCidrs     []string `json:"ip_cidrs"`
+	Paths       []string `json:"paths"`
+	PathRegexes []string `json:"path_regexes"`
+	UserAgents  []string `json:"user_agents"`
+}
+
+type ProxyRoutePoWConfig struct {
+	Difficulty   int                     `json:"difficulty"`
+	Algorithm    string                  `json:"algorithm"`
+	SessionTTL   int                     `json:"session_ttl"`
+	ChallengeTTL int                     `json:"challenge_ttl"`
+	Whitelist    ProxyRoutePoWListConfig `json:"whitelist"`
+	Blacklist    ProxyRoutePoWListConfig `json:"blacklist"`
+}
+
+var powAlgorithmValues = map[string]bool{"fast": true, "slow": true}
+
+func defaultPoWConfig() ProxyRoutePoWConfig {
+	return ProxyRoutePoWConfig{
+		Difficulty:   4,
+		Algorithm:    "fast",
+		SessionTTL:   86400,
+		ChallengeTTL: 300,
+		Whitelist:    ProxyRoutePoWListConfig{IPs: []string{}, IPCidrs: []string{}, Paths: []string{}, PathRegexes: []string{}, UserAgents: []string{}},
+		Blacklist:    ProxyRoutePoWListConfig{IPs: []string{}, IPCidrs: []string{}, Paths: []string{}, PathRegexes: []string{}, UserAgents: []string{}},
+	}
+}
+
+func normalizePoWConfig(enabled bool, raw string) (ProxyRoutePoWConfig, error) {
+	if !enabled {
+		return defaultPoWConfig(), nil
+	}
+
+	cfg := defaultPoWConfig()
+	text := strings.TrimSpace(raw)
+	if text != "" && text != "{}" {
+		if err := json.Unmarshal([]byte(text), &cfg); err != nil {
+			return cfg, errors.New("pow_config 格式无效")
+		}
+	}
+
+	if cfg.Difficulty < 1 || cfg.Difficulty > 16 {
+		return cfg, errors.New("pow_config.difficulty 必须在 1-16 之间")
+	}
+	if !powAlgorithmValues[cfg.Algorithm] {
+		return cfg, errors.New("pow_config.algorithm 必须为 fast 或 slow")
+	}
+	if cfg.SessionTTL < 60 {
+		return cfg, errors.New("pow_config.session_ttl 不能小于 60 秒")
+	}
+	if cfg.ChallengeTTL < 30 {
+		return cfg, errors.New("pow_config.challenge_ttl 不能小于 30 秒")
+	}
+
+	for _, cidr := range cfg.Whitelist.IPCidrs {
+		if _, _, err := net.ParseCIDR(cidr); err != nil {
+			return cfg, fmt.Errorf("pow_config 白名单 IP CIDR 格式无效: %s", cidr)
+		}
+	}
+	for _, cidr := range cfg.Blacklist.IPCidrs {
+		if _, _, err := net.ParseCIDR(cidr); err != nil {
+			return cfg, fmt.Errorf("pow_config 黑名单 IP CIDR 格式无效: %s", cidr)
+		}
+	}
+
+	for _, re := range cfg.Whitelist.PathRegexes {
+		if _, err := regexp.Compile(re); err != nil {
+			return cfg, fmt.Errorf("pow_config 白名单路径正则格式无效: %s", re)
+		}
+	}
+	for _, re := range cfg.Blacklist.PathRegexes {
+		if _, err := regexp.Compile(re); err != nil {
+			return cfg, fmt.Errorf("pow_config 黑名单路径正则格式无效: %s", re)
+		}
+	}
+
+	for _, ip := range cfg.Whitelist.IPs {
+		if net.ParseIP(ip) == nil {
+			return cfg, fmt.Errorf("pow_config 白名单 IP 格式无效: %s", ip)
+		}
+	}
+	for _, ip := range cfg.Blacklist.IPs {
+		if net.ParseIP(ip) == nil {
+			return cfg, fmt.Errorf("pow_config 黑名单 IP 格式无效: %s", ip)
+		}
+	}
+
+	type dimension struct {
+		name string
+		wl   []string
+		bl   []string
+	}
+	dimensions := []dimension{
+		{"IP", cfg.Whitelist.IPs, cfg.Blacklist.IPs},
+		{"IP CIDR", cfg.Whitelist.IPCidrs, cfg.Blacklist.IPCidrs},
+		{"路径", cfg.Whitelist.Paths, cfg.Blacklist.Paths},
+		{"路径正则", cfg.Whitelist.PathRegexes, cfg.Blacklist.PathRegexes},
+		{"User-Agent", cfg.Whitelist.UserAgents, cfg.Blacklist.UserAgents},
+	}
+	for _, dim := range dimensions {
+		if len(dim.wl) > 0 && len(dim.bl) > 0 {
+			return cfg, fmt.Errorf("pow_config %s 不能同时配置白名单和黑名单", dim.name)
+		}
+	}
+
+	return cfg, nil
+}
+
+func decodeStoredPoWConfig(enabled bool, raw string) (*ProxyRoutePoWConfig, error) {
+	if !enabled {
+		cfg := defaultPoWConfig()
+		return &cfg, nil
+	}
+	text := strings.TrimSpace(raw)
+	if text == "" || text == "{}" {
+		cfg := defaultPoWConfig()
+		return &cfg, nil
+	}
+	var cfg ProxyRoutePoWConfig
+	if err := json.Unmarshal([]byte(text), &cfg); err != nil {
+		return nil, errors.New("pow_config 格式无效")
+	}
+	return &cfg, nil
 }

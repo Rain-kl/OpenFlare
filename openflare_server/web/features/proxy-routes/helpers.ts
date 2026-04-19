@@ -25,6 +25,11 @@ export const websiteConfigSections = [
     label: '缓存',
     description: '配置站点缓存策略。',
   },
+  {
+    key: 'pow',
+    label: 'PoW 防护',
+    description: '配置 Proof-of-Work 反爬虫策略。',
+  },
 ] as const;
 
 export type WebsiteConfigSectionKey =
@@ -285,6 +290,8 @@ export function buildPayloadFromRoute(
     cache_rules: route.cache_rule_list,
     custom_headers: route.custom_header_list,
     remark: route.remark || '',
+    pow_enabled: route.pow_enabled,
+    pow_config: JSON.stringify(route.pow_config),
     ...overrides,
   };
 }

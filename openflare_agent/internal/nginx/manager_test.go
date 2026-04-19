@@ -736,6 +736,13 @@ func TestManagerApplyWritesSupportFilesAndReplacesPlaceholder(t *testing.T) {
 	if !strings.Contains(string(routeData), "/etc/nginx/openflare-certs/1.crt") {
 		t.Fatalf("expected placeholder replacement in route config, got %s", string(routeData))
 	}
+	renderedRoute := manager.renderRouteConfig("access_by_lua_file __OPENFLARE_LUA_DIR__/pow/check.lua;\nlocation /.within.website/x/cmd/anubis/static/ { alias __OPENFLARE_POW_STATIC_DIR__/; }\n")
+	if !strings.Contains(renderedRoute, "access_by_lua_file /etc/nginx/openflare-lua/pow/check.lua;") {
+		t.Fatalf("expected lua dir placeholder replacement in route config, got %s", renderedRoute)
+	}
+	if !strings.Contains(renderedRoute, "alias /etc/nginx/openflare-lua/pow/static/;") {
+		t.Fatalf("expected pow static dir placeholder replacement in route config, got %s", renderedRoute)
+	}
 	mainData, err := os.ReadFile(manager.MainConfigPath)
 	if err != nil {
 		t.Fatalf("failed to read main config: %v", err)
@@ -867,6 +874,12 @@ func TestEnsureLuaAssetsKeepsBaseDirAndRemovesStaleFiles(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(luaDir, "log.lua")); err != nil {
 		t.Fatalf("expected managed lua file to exist, stat err = %v", err)
 	}
+	if _, err := os.Stat(filepath.Join(luaDir, "pow", "check.lua")); err != nil {
+		t.Fatalf("expected managed pow lua file to exist, stat err = %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(luaDir, "pow", "static", "js", "main.mjs")); err != nil {
+		t.Fatalf("expected managed pow static asset to exist, stat err = %v", err)
+	}
 }
 
 func TestCertFileMode(t *testing.T) {
@@ -905,6 +918,93 @@ func TestManagerEnsureLuaAssetsWritesReadableFiles(t *testing.T) {
 	}
 	if luaInfo.Mode().Perm() != 0o644 {
 		t.Fatalf("unexpected lua mode: %o", luaInfo.Mode().Perm())
+	}
+	if _, err := os.Stat(filepath.Join(manager.LuaDir, "pow", "check.lua")); err != nil {
+		t.Fatalf("failed to stat pow lua file: %v", err)
+	}
+}
+
+func TestEnsureLuaAssetsPreservesPowConfig(t *testing.T) {
+	tempDir := t.TempDir()
+	luaDir := filepath.Join(tempDir, "lua")
+	if err := os.MkdirAll(luaDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll failed: %v", err)
+	}
+	powConfigPath := filepath.Join(luaDir, "pow_config.json")
+	want := `[{"domains":["pow.example.com"],"enabled":true}]`
+	if err := os.WriteFile(powConfigPath, []byte(want), 0o644); err != nil {
+		t.Fatalf("WriteFile failed: %v", err)
+	}
+	manager := &Manager{LuaDir: luaDir}
+
+	if err := manager.EnsureLuaAssets(); err != nil {
+		t.Fatalf("EnsureLuaAssets failed: %v", err)
+	}
+
+	got, err := os.ReadFile(powConfigPath)
+	if err != nil {
+		t.Fatalf("expected pow_config.json to remain after EnsureLuaAssets: %v", err)
+	}
+	if string(got) != want {
+		t.Fatalf("unexpected pow_config.json content: got %s want %s", string(got), want)
+	}
+}
+
+func TestManagerCurrentChecksumIncludesPowConfig(t *testing.T) {
+	tempDir := t.TempDir()
+	mainPath := filepath.Join(tempDir, "nginx.conf")
+	routePath := filepath.Join(tempDir, "routes.conf")
+	luaDir := filepath.Join(tempDir, "lua")
+	manager := &Manager{
+		MainConfigPath:  mainPath,
+		RouteConfigPath: routePath,
+		LuaDir:          luaDir,
+		NginxLuaDir:     "/etc/nginx/openflare-lua",
+		Executor:        &fakeExecutor{},
+	}
+
+	outcome := manager.Apply(
+		context.Background(),
+		"access_log __OPENFLARE_ACCESS_LOG__ openflare_json;\n",
+		"location /.within.website/x/cmd/anubis/static/ { alias __OPENFLARE_POW_STATIC_DIR__/; }\n",
+		[]protocol.SupportFile{{Path: "pow_config.json", Content: `[{"domains":["pow.example.com"],"enabled":true}]`}},
+	)
+	if outcome.Status != ApplyStatusSuccess {
+		t.Fatalf("Apply failed: %#v", outcome)
+	}
+
+	value, err := manager.CurrentChecksum()
+	if err != nil {
+		t.Fatalf("CurrentChecksum failed: %v", err)
+	}
+	expected := bundleChecksum(
+		"access_log __OPENFLARE_ACCESS_LOG__ openflare_json;\n",
+		"location /.within.website/x/cmd/anubis/static/ { alias __OPENFLARE_POW_STATIC_DIR__/; }\n",
+		[]protocol.SupportFile{{Path: "pow_config.json", Content: `[{"domains":["pow.example.com"],"enabled":true}]`}},
+	)
+	if value != expected {
+		t.Fatalf("unexpected checksum with pow config: got %s want %s", value, expected)
+	}
+}
+
+func TestManagedPowLuaFilesUseInternalChallengeFlow(t *testing.T) {
+	if !strings.Contains(openRestyPowCheckLua, `return ngx.exec("/.within.website/x/cmd/anubis/api/make-challenge")`) {
+		t.Fatal("expected check.lua to internally execute make-challenge instead of issuing a 302 redirect")
+	}
+	if strings.Contains(openRestyPowCheckLua, "ngx.redirect(") {
+		t.Fatal("expected check.lua to avoid external redirects for challenge rendering")
+	}
+	if !strings.Contains(openRestyPowChallengeLua, `<h1 id="title" class="centered-div">`) {
+		t.Fatal("expected challenge html to include Anubis-compatible title node")
+	}
+	if !strings.Contains(openRestyPowChallengeLua, `<div id="progress" role="progressbar" aria-labelledby="status"><div class="bar-inner"></div></div>`) {
+		t.Fatal("expected challenge html to include Anubis-compatible progress markup")
+	}
+	if !strings.Contains(openRestyPowChallengeLua, `<script id="anubis_public_url" type="application/json">"__openflare_internal__"</script>`) {
+		t.Fatal("expected challenge html to force Anubis frontend to reuse the current URL as redir target")
+	}
+	if !strings.Contains(openRestyPowVerifyLua, `if ngx.var.scheme == "https" then`) {
+		t.Fatal("expected verify.lua to only mark the session cookie as Secure for HTTPS requests")
 	}
 }
 

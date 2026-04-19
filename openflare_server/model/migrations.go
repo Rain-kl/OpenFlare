@@ -1196,6 +1196,39 @@ func migrateV8(db *gorm.DB, backend string) error {
 	return backfillProxyRouteDomainCertificateFields(db)
 }
 
+// migrateV9 adds PoW (Proof-of-Work) anti-bot protection fields to proxy_routes.
+func migrateV9(db *gorm.DB, backend string) error {
+	if err := applyCurrentSchema(db, backend); err != nil {
+		return err
+	}
+	if err := backfillOriginsFromProxyRoutes(db); err != nil {
+		return err
+	}
+	if err := backfillProxyRouteSiteFields(db); err != nil {
+		return err
+	}
+	if err := ensureProxyRouteSiteNameUniqueIndex(db); err != nil {
+		return err
+	}
+	if err := backfillProxyRouteCertificateFields(db); err != nil {
+		return err
+	}
+	return backfillProxyRouteDomainCertificateFields(db)
+}
+
+func validateDatabaseSchemaV9(db *gorm.DB, backend string) error {
+	if err := validateDatabaseSchemaV8(db, backend); err != nil {
+		return err
+	}
+	if !db.Migrator().HasColumn(&ProxyRoute{}, "pow_enabled") {
+		return fmt.Errorf("column proxy_routes.pow_enabled is missing")
+	}
+	if !db.Migrator().HasColumn(&ProxyRoute{}, "pow_config") {
+		return fmt.Errorf("column proxy_routes.pow_config is missing")
+	}
+	return nil
+}
+
 func databaseSchemaMigrations() []databaseSchemaMigration {
 	return []databaseSchemaMigration{
 		{fromVersion: 1, toVersion: 2, migrate: migrateV2, validate: validateDatabaseSchemaV2},
@@ -1205,6 +1238,7 @@ func databaseSchemaMigrations() []databaseSchemaMigration {
 		{fromVersion: 5, toVersion: 6, migrate: migrateV6, validate: validateDatabaseSchemaV6},
 		{fromVersion: 6, toVersion: 7, migrate: migrateV7, validate: validateDatabaseSchemaV7},
 		{fromVersion: 7, toVersion: 8, migrate: migrateV8, validate: validateDatabaseSchemaV8},
+		{fromVersion: 8, toVersion: 9, migrate: migrateV9, validate: validateDatabaseSchemaV9},
 	}
 }
 
@@ -1287,7 +1321,7 @@ func initializeFreshDatabaseSchema(db *gorm.DB, backend string) error {
 	if err := backfillProxyRouteDomainCertificateFields(db); err != nil {
 		return err
 	}
-	if err := validateDatabaseSchemaV8(db, backend); err != nil {
+	if err := validateDatabaseSchemaV9(db, backend); err != nil {
 		return err
 	}
 	return saveDatabaseSchemaVersion(db, currentDatabaseSchemaVersion)

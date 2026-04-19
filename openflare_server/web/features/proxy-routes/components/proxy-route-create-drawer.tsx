@@ -190,6 +190,8 @@ export function ProxyRouteCreateDrawer({
         cache_policy: 'url',
         cache_rules: [],
         custom_headers: [],
+        pow_enabled: false,
+        pow_config: '{}',
         remark: values.remark.trim(),
       });
     },

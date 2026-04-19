@@ -27,6 +27,7 @@ const LuaDirPlaceholder = "__OPENFLARE_LUA_DIR__"
 const ObservabilityListenPlaceholder = "__OPENFLARE_OBSERVABILITY_LISTEN__"
 const ObservabilityPortPlaceholder = "__OPENFLARE_OBSERVABILITY_PORT__"
 const ResolverDirectivePlaceholder = "__OPENFLARE_RESOLVER_DIRECTIVE__"
+const PowStaticDirPlaceholder = "__OPENFLARE_POW_STATIC_DIR__"
 const DockerMainConfigPath = "/usr/local/openresty/nginx/conf/nginx.conf"
 const DockerRouteConfigPath = "/etc/nginx/conf.d/openflare_routes.conf"
 const DockerAccessLogPath = "/etc/nginx/conf.d/openflare_access.log"
@@ -396,6 +397,9 @@ func (m *Manager) writeTargetFiles(mainConfig string, routeConfig string, suppor
 	if err := m.writeCertFiles(supportFiles); err != nil {
 		return err
 	}
+	if err := m.writePowConfig(supportFiles); err != nil {
+		return err
+	}
 	if strings.TrimSpace(m.OpenrestyResolverDirective) == "" && strings.Contains(routeConfig, "set $openflare_upstream ") {
 		slog.Warn("runtime-resolved hostname upstreams detected without available resolvers; hostname origin requests may fail until resolvers are configured")
 	}
@@ -450,8 +454,21 @@ func (m *Manager) EnsureLuaAssets() error {
 	if strings.TrimSpace(m.LuaDir) == "" {
 		return nil
 	}
-	files := make([]managedFile, 0, len(ManagedObservabilityLuaFiles()))
-	for _, file := range ManagedObservabilityLuaFiles() {
+	allSupportFiles := append(ManagedObservabilityLuaFiles(), ManagedPowLuaFiles()...)
+	existingPowConfig, err := m.readPowConfigFile()
+	if err != nil {
+		return err
+	}
+	if existingPowConfig != nil {
+		allSupportFiles = append(allSupportFiles, *existingPowConfig)
+	}
+	powStaticFiles, err := ManagedPowStaticFiles()
+	if err != nil {
+		return fmt.Errorf("load pow static files: %w", err)
+	}
+	allSupportFiles = append(allSupportFiles, powStaticFiles...)
+	files := make([]managedFile, 0, len(allSupportFiles))
+	for _, file := range allSupportFiles {
 		targetPath, err := luaFileTargetPath(m.LuaDir, file.Path)
 		if err != nil {
 			return err
@@ -536,7 +553,11 @@ func (m *Manager) CurrentChecksum() (string, error) {
 	if m.NginxCertDir != "" {
 		normalizedRoute = strings.ReplaceAll(normalizedRoute, m.NginxCertDir, CertDirPlaceholder)
 	}
-	files, err := m.readCertFiles()
+	if luaDir := m.luaRuntimePath(); luaDir != "" {
+		normalizedRoute = strings.ReplaceAll(normalizedRoute, luaDir+"/pow/static", PowStaticDirPlaceholder)
+		normalizedRoute = strings.ReplaceAll(normalizedRoute, luaDir, LuaDirPlaceholder)
+	}
+	files, err := m.readManagedSupportFiles()
 	if err != nil {
 		return "", err
 	}
@@ -693,6 +714,7 @@ type backupState struct {
 	RouteExisted bool
 	RouteData    []byte
 	Files        []protocol.SupportFile
+	PowConfig    *protocol.SupportFile
 }
 
 type managedFile struct {
@@ -739,6 +761,11 @@ func (m *Manager) backup() (*backupState, error) {
 		return nil, err
 	}
 	state.Files = files
+	powConfig, err := m.readPowConfigFile()
+	if err != nil {
+		return nil, err
+	}
+	state.PowConfig = powConfig
 	slog.Debug("backup captured", "main_exists", state.MainExisted, "route_exists", state.RouteExisted, "cert_files", len(state.Files))
 	return state, nil
 }
@@ -762,10 +789,12 @@ func (m *Manager) restore(state *backupState) error {
 	} else if err := os.Remove(m.RouteConfigPath); err != nil && !os.IsNotExist(err) {
 		return err
 	}
-	if m.CertDir == "" {
-		return nil
+	if m.CertDir != "" {
+		if err := m.writeManagedCertFiles(state.Files); err != nil {
+			return err
+		}
 	}
-	return m.writeManagedCertFiles(state.Files)
+	return m.restorePowConfig(state)
 }
 
 func (m *Manager) writeCertFiles(certFiles []protocol.SupportFile) error {
@@ -773,6 +802,26 @@ func (m *Manager) writeCertFiles(certFiles []protocol.SupportFile) error {
 		return nil
 	}
 	return m.writeManagedCertFiles(certFiles)
+}
+
+func (m *Manager) writePowConfig(supportFiles []protocol.SupportFile) error {
+	if m.LuaDir == "" {
+		return nil
+	}
+	configPath := filepath.Join(m.LuaDir, "pow_config.json")
+	for _, file := range supportFiles {
+		if file.Path == "pow_config.json" {
+			if err := os.WriteFile(configPath, []byte(file.Content), 0o644); err != nil {
+				return fmt.Errorf("write pow_config.json: %w", err)
+			}
+			slog.Info("wrote pow config", "path", configPath, "size", len(file.Content))
+			return nil
+		}
+	}
+	if err := os.Remove(configPath); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("remove pow_config.json: %w", err)
+	}
+	return nil
 }
 
 func (m *Manager) writeManagedCertFiles(certFiles []protocol.SupportFile) error {
@@ -834,6 +883,53 @@ func (m *Manager) readCertFiles() ([]protocol.SupportFile, error) {
 		return files[i].Path < files[j].Path
 	})
 	return files, nil
+}
+
+func (m *Manager) readPowConfigFile() (*protocol.SupportFile, error) {
+	if m.LuaDir == "" {
+		return nil, nil
+	}
+	configPath := filepath.Join(m.LuaDir, "pow_config.json")
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &protocol.SupportFile{
+		Path:    "pow_config.json",
+		Content: string(data),
+	}, nil
+}
+
+func (m *Manager) readManagedSupportFiles() ([]protocol.SupportFile, error) {
+	files, err := m.readCertFiles()
+	if err != nil {
+		return nil, err
+	}
+	powConfig, err := m.readPowConfigFile()
+	if err != nil {
+		return nil, err
+	}
+	if powConfig != nil {
+		files = append(files, *powConfig)
+	}
+	return files, nil
+}
+
+func (m *Manager) restorePowConfig(state *backupState) error {
+	if state == nil || m.LuaDir == "" {
+		return nil
+	}
+	configPath := filepath.Join(m.LuaDir, "pow_config.json")
+	if state.PowConfig == nil {
+		if err := os.Remove(configPath); err != nil && !os.IsNotExist(err) {
+			return err
+		}
+		return nil
+	}
+	return os.WriteFile(configPath, []byte(state.PowConfig.Content), 0o644)
 }
 
 func (m *Manager) certFileTargetPath(relativePath string) (string, error) {
@@ -988,10 +1084,15 @@ func removeEmptyManagedDirs(baseDir string) error {
 }
 
 func (m *Manager) renderRouteConfig(content string) string {
-	if m.NginxCertDir == "" {
-		return content
+	rendered := content
+	if m.NginxCertDir != "" {
+		rendered = strings.ReplaceAll(rendered, CertDirPlaceholder, m.NginxCertDir)
 	}
-	return strings.ReplaceAll(content, CertDirPlaceholder, m.NginxCertDir)
+	if luaDir := m.luaRuntimePath(); luaDir != "" {
+		rendered = strings.ReplaceAll(rendered, LuaDirPlaceholder, luaDir)
+		rendered = strings.ReplaceAll(rendered, PowStaticDirPlaceholder, luaDir+"/pow/static")
+	}
+	return rendered
 }
 
 func (m *Manager) renderMainConfig(content string) string {

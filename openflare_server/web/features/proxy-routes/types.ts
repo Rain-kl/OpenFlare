@@ -3,6 +3,23 @@ export interface ProxyRouteCustomHeader {
   value: string;
 }
 
+export interface ProxyRoutePoWListConfig {
+  ips: string[];
+  ip_cidrs: string[];
+  paths: string[];
+  path_regexes: string[];
+  user_agents: string[];
+}
+
+export interface ProxyRoutePoWConfig {
+  difficulty: number;
+  algorithm: 'fast' | 'slow';
+  session_ttl: number;
+  challenge_ttl: number;
+  whitelist: ProxyRoutePoWListConfig;
+  blacklist: ProxyRoutePoWListConfig;
+}
+
 export interface ProxyRouteItem {
   id: number;
   site_name: string;
@@ -30,6 +47,8 @@ export interface ProxyRouteItem {
   cache_rule_list: string[];
   custom_headers: string;
   custom_header_list: ProxyRouteCustomHeader[];
+  pow_enabled: boolean;
+  pow_config: ProxyRoutePoWConfig;
   remark: string;
   created_at: string;
   updated_at: string;
@@ -60,6 +79,8 @@ export interface ProxyRouteMutationPayload {
   cache_policy: string;
   cache_rules: string[];
   custom_headers: ProxyRouteCustomHeader[];
+  pow_enabled: boolean;
+  pow_config: string;
   remark: string;
 }
 

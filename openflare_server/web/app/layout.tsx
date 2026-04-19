@@ -16,7 +16,7 @@ export const metadata: Metadata = {
     default: 'OpenFlare 控制台',
     template: '%s | OpenFlare',
   },
-  description: 'OpenFlare 管理端新版工程骨架',
+  description: 'OpenFlare 管理端',
   applicationName: 'OpenFlare',
 };
 

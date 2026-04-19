@@ -5,6 +5,7 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/json"
 	"encoding/pem"
 	"math/big"
 	"openflare/common"
@@ -920,6 +921,90 @@ func TestPreviewAndDiffConfigVersion(t *testing.T) {
 	}
 	if !foundWebsocket {
 		t.Fatal("expected OpenRestyWebsocketEnabled diff detail")
+	}
+}
+
+func TestPublishConfigVersionDetectsPoWChanges(t *testing.T) {
+	setupServiceTestDB(t)
+
+	route, err := CreateProxyRoute(ProxyRouteInput{
+		Domain:    "pow.example.com",
+		OriginURL: "https://origin.internal",
+		Enabled:   true,
+	})
+	if err != nil {
+		t.Fatalf("CreateProxyRoute failed: %v", err)
+	}
+
+	firstRelease, err := PublishConfigVersion("root")
+	if err != nil {
+		t.Fatalf("initial PublishConfigVersion failed: %v", err)
+	}
+	if !strings.Contains(firstRelease.Version.SupportFilesJSON, `"path":"pow_config.json"`) {
+		t.Fatal("expected publish to include pow_config.json support file")
+	}
+
+	_, err = UpdateProxyRoute(route.ID, ProxyRouteInput{
+		Domain:       route.Domain,
+		OriginURL:    route.OriginURL,
+		Enabled:      true,
+		PoWEnabled:   true,
+		PoWConfig:    `{"difficulty":5,"algorithm":"slow","session_ttl":7200,"challenge_ttl":180,"whitelist":{"ips":["127.0.0.1"],"ip_cidrs":[],"paths":[],"path_regexes":[],"user_agents":[]},"blacklist":{"ips":[],"ip_cidrs":[],"paths":["/login"],"path_regexes":[],"user_agents":[]}}`,
+		RedirectHTTP: false,
+	})
+	if err != nil {
+		t.Fatalf("UpdateProxyRoute failed: %v", err)
+	}
+
+	diff, err := DiffConfigVersion()
+	if err != nil {
+		t.Fatalf("DiffConfigVersion failed: %v", err)
+	}
+	if len(diff.ModifiedDomains) != 1 || diff.ModifiedDomains[0] != "pow.example.com" {
+		t.Fatalf("expected PoW change to mark domain as modified, got %#v", diff.ModifiedDomains)
+	}
+	if len(diff.ModifiedSites) != 1 || diff.ModifiedSites[0] != "pow.example.com" {
+		t.Fatalf("expected PoW change to mark site as modified, got %#v", diff.ModifiedSites)
+	}
+
+	secondRelease, err := PublishConfigVersion("root")
+	if err != nil {
+		t.Fatalf("PublishConfigVersion after PoW change failed: %v", err)
+	}
+	if firstRelease.Version.Checksum == secondRelease.Version.Checksum {
+		t.Fatal("expected PoW change to alter published checksum")
+	}
+	if !strings.Contains(secondRelease.Version.SnapshotJSON, `"pow_enabled":true`) {
+		t.Fatal("expected snapshot to persist PoW enabled state")
+	}
+	if !strings.Contains(secondRelease.Version.MainConfig, "lua_shared_dict openflare_pow_config 1m;") {
+		t.Fatal("expected main config to declare shared dict for pow config")
+	}
+	if !strings.Contains(secondRelease.Version.RenderedConfig, "location /.within.website/x/cmd/anubis/static/ {") {
+		t.Fatal("expected rendered config to expose anubis static location")
+	}
+	if strings.Contains(secondRelease.Version.RenderedConfig, "location /.within.website/x/cmd/anubis/static/static/ {") {
+		t.Fatal("expected rendered config to avoid duplicate static path segment")
+	}
+	if !strings.Contains(secondRelease.Version.SnapshotJSON, `"difficulty":5`) {
+		t.Fatal("expected snapshot to persist PoW config")
+	}
+	var supportFiles []SupportFile
+	if err := json.Unmarshal([]byte(secondRelease.Version.SupportFilesJSON), &supportFiles); err != nil {
+		t.Fatalf("failed to decode support files: %v", err)
+	}
+	foundPowSupportFile := false
+	for _, file := range supportFiles {
+		if file.Path != "pow_config.json" {
+			continue
+		}
+		foundPowSupportFile = true
+		if !strings.Contains(file.Content, `"difficulty":5`) {
+			t.Fatalf("expected pow support file to persist config, got %s", file.Content)
+		}
+	}
+	if !foundPowSupportFile {
+		t.Fatal("expected publish to include pow_config.json support file")
 	}
 }
 

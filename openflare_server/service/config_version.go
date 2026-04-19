@@ -83,6 +83,8 @@ type snapshotRoute struct {
 	CachePolicy        string                        `json:"cache_policy,omitempty"`
 	CacheRules         []string                      `json:"cache_rules,omitempty"`
 	CustomHeaders      []ProxyRouteCustomHeaderInput `json:"custom_headers,omitempty"`
+	PoWEnabled         bool                          `json:"pow_enabled,omitempty"`
+	PoWConfig          *ProxyRoutePoWConfig          `json:"pow_config,omitempty"`
 	Remark             string                        `json:"remark,omitempty"`
 }
 
@@ -429,7 +431,13 @@ func buildCurrentConfigBundle(requireRoutes bool) (*configBundle, error) {
 	if err != nil {
 		return nil, err
 	}
+	powConfigJSON, powSupportFiles, err := renderPowConfigBundle(routes)
+	if err != nil {
+		return nil, err
+	}
+	supportFiles = append(supportFiles, powSupportFiles...)
 	mainConfig := renderMainConfig(openRestyConfig)
+	supportFiles = append(supportFiles, SupportFile{Path: "pow_config.json", Content: powConfigJSON})
 	return &configBundle{
 		Routes:            routes,
 		SnapshotRoutes:    snapshotRoutes,
@@ -462,6 +470,13 @@ func buildSnapshotRoutes(routes []*model.ProxyRoute) ([]snapshotRoute, error) {
 		if err != nil {
 			return nil, fmt.Errorf("路由 %s 缓存规则无效", route.Domain)
 		}
+		powConfig, err := decodeStoredPoWConfig(route.PoWEnabled, route.PoWConfig)
+		if err != nil {
+			return nil, fmt.Errorf("路由 %s PoW 配置无效", route.Domain)
+		}
+		if !route.PoWEnabled {
+			powConfig = nil
+		}
 		items = append(items, snapshotRoute{
 			SiteName:           normalizeProxyRouteSiteNameInput(route, route.SiteName, domains[0]),
 			Domain:             domains[0],
@@ -482,6 +497,8 @@ func buildSnapshotRoutes(routes []*model.ProxyRoute) ([]snapshotRoute, error) {
 			CachePolicy:        route.CachePolicy,
 			CacheRules:         cacheRules,
 			CustomHeaders:      customHeaders,
+			PoWEnabled:         route.PoWEnabled,
+			PoWConfig:          powConfig,
 			Remark:             route.Remark,
 		})
 	}
@@ -586,6 +603,17 @@ func normalizeSnapshotRoutes(routes []snapshotRoute) []snapshotRoute {
 		if err == nil {
 			routes[index].LimitRate = normalizedLimitRate
 		}
+		if routes[index].PoWEnabled {
+			raw, err := json.Marshal(routes[index].PoWConfig)
+			if err == nil {
+				normalizedPoWConfig, err := normalizePoWConfig(true, string(raw))
+				if err == nil {
+					routes[index].PoWConfig = &normalizedPoWConfig
+				}
+			}
+		} else {
+			routes[index].PoWConfig = nil
+		}
 	}
 	return routes
 }
@@ -611,7 +639,7 @@ func flattenSnapshotRoutesByDomain(routes []snapshotRoute) map[string]snapshotRo
 }
 
 func snapshotRouteConfigEqual(left snapshotRoute, right snapshotRoute) bool {
-	if left.SiteName != right.SiteName || left.Domain != right.Domain || left.OriginURL != right.OriginURL || left.OriginHost != right.OriginHost || left.EnableHTTPS != right.EnableHTTPS || left.RedirectHTTP != right.RedirectHTTP || left.LimitConnPerServer != right.LimitConnPerServer || left.LimitConnPerIP != right.LimitConnPerIP || left.LimitRate != right.LimitRate || left.CacheEnabled != right.CacheEnabled || left.CachePolicy != right.CachePolicy || !uintSliceEqual(left.CertIDs, right.CertIDs) || !uintSliceEqual(left.DomainCertIDs, right.DomainCertIDs) {
+	if left.SiteName != right.SiteName || left.Domain != right.Domain || left.OriginURL != right.OriginURL || left.OriginHost != right.OriginHost || left.EnableHTTPS != right.EnableHTTPS || left.RedirectHTTP != right.RedirectHTTP || left.LimitConnPerServer != right.LimitConnPerServer || left.LimitConnPerIP != right.LimitConnPerIP || left.LimitRate != right.LimitRate || left.CacheEnabled != right.CacheEnabled || left.CachePolicy != right.CachePolicy || left.PoWEnabled != right.PoWEnabled || !uintSliceEqual(left.CertIDs, right.CertIDs) || !uintSliceEqual(left.DomainCertIDs, right.DomainCertIDs) {
 		return false
 	}
 	if len(left.Domains) != len(right.Domains) {
@@ -643,6 +671,41 @@ func snapshotRouteConfigEqual(left snapshotRoute, right snapshotRoute) bool {
 	}
 	for index := range left.CustomHeaders {
 		if left.CustomHeaders[index] != right.CustomHeaders[index] {
+			return false
+		}
+	}
+	if !snapshotPoWConfigEqual(left.PoWConfig, right.PoWConfig) {
+		return false
+	}
+	return true
+}
+
+func snapshotPoWConfigEqual(left *ProxyRoutePoWConfig, right *ProxyRoutePoWConfig) bool {
+	if left == nil || right == nil {
+		return left == nil && right == nil
+	}
+	return left.Difficulty == right.Difficulty &&
+		left.Algorithm == right.Algorithm &&
+		left.SessionTTL == right.SessionTTL &&
+		left.ChallengeTTL == right.ChallengeTTL &&
+		stringSliceEqual(left.Whitelist.IPs, right.Whitelist.IPs) &&
+		stringSliceEqual(left.Whitelist.IPCidrs, right.Whitelist.IPCidrs) &&
+		stringSliceEqual(left.Whitelist.Paths, right.Whitelist.Paths) &&
+		stringSliceEqual(left.Whitelist.PathRegexes, right.Whitelist.PathRegexes) &&
+		stringSliceEqual(left.Whitelist.UserAgents, right.Whitelist.UserAgents) &&
+		stringSliceEqual(left.Blacklist.IPs, right.Blacklist.IPs) &&
+		stringSliceEqual(left.Blacklist.IPCidrs, right.Blacklist.IPCidrs) &&
+		stringSliceEqual(left.Blacklist.Paths, right.Blacklist.Paths) &&
+		stringSliceEqual(left.Blacklist.PathRegexes, right.Blacklist.PathRegexes) &&
+		stringSliceEqual(left.Blacklist.UserAgents, right.Blacklist.UserAgents)
+}
+
+func stringSliceEqual(left []string, right []string) bool {
+	if len(left) != len(right) {
+		return false
+	}
+	for index := range left {
+		if left[index] != right[index] {
 			return false
 		}
 	}
@@ -835,7 +898,7 @@ func renderRouteConfig(routes []*model.ProxyRoute, cfg openRestyConfigSnapshot) 
 			builder.WriteString(renderNamedUpstreamBlock(upstreamConfig))
 		}
 		if !route.EnableHTTPS {
-			builder.WriteString(renderHTTPProxyServer(serverNames, route.OriginURL, route.OriginHost, customHeaders, cacheConfig, limitConfig, upstreamConfig, cfg))
+			builder.WriteString(renderHTTPProxyServer(serverNames, route.OriginURL, route.OriginHost, customHeaders, cacheConfig, limitConfig, upstreamConfig, route.PoWEnabled, cfg))
 			continue
 		}
 		certIDs, err := decodeStoredCertIDs(route.CertIDs, route.CertID)
@@ -896,7 +959,7 @@ func renderRouteConfig(routes []*model.ProxyRoute, cfg openRestyConfigSnapshot) 
 
 		if route.RedirectHTTP {
 			if len(httpOnlyDomains) > 0 {
-				builder.WriteString(renderHTTPProxyServer(renderServerNames(httpOnlyDomains), route.OriginURL, route.OriginHost, customHeaders, cacheConfig, limitConfig, upstreamConfig, cfg))
+				builder.WriteString(renderHTTPProxyServer(renderServerNames(httpOnlyDomains), route.OriginURL, route.OriginHost, customHeaders, cacheConfig, limitConfig, upstreamConfig, route.PoWEnabled, cfg))
 			}
 			for _, certID := range certIDs {
 				assignedDomains := domainsByCertID[certID]
@@ -906,14 +969,14 @@ func renderRouteConfig(routes []*model.ProxyRoute, cfg openRestyConfigSnapshot) 
 				builder.WriteString(renderHTTPRedirectServer(renderServerNames(assignedDomains)))
 			}
 		} else {
-			builder.WriteString(renderHTTPProxyServer(serverNames, route.OriginURL, route.OriginHost, customHeaders, cacheConfig, limitConfig, upstreamConfig, cfg))
+			builder.WriteString(renderHTTPProxyServer(serverNames, route.OriginURL, route.OriginHost, customHeaders, cacheConfig, limitConfig, upstreamConfig, route.PoWEnabled, cfg))
 		}
 		for _, certID := range certIDs {
 			assignedDomains := domainsByCertID[certID]
 			if len(assignedDomains) == 0 {
 				continue
 			}
-			builder.WriteString(renderHTTPSServer(renderServerNames(assignedDomains), route.OriginURL, route.OriginHost, certID, customHeaders, cacheConfig, limitConfig, upstreamConfig, cfg))
+			builder.WriteString(renderHTTPSServer(renderServerNames(assignedDomains), route.OriginURL, route.OriginHost, certID, customHeaders, cacheConfig, limitConfig, upstreamConfig, route.PoWEnabled, cfg))
 		}
 	}
 	return builder.String(), dedupeSupportFiles(supportFiles), nil
@@ -1019,6 +1082,32 @@ func onOff(value bool) string {
 	}
 	return "off"
 }
+
+const nginxPowStaticDirPlaceholder = "__OPENFLARE_POW_STATIC_DIR__"
+
+func renderPowAccessBlock(powEnabled bool) string {
+	if !powEnabled {
+		return ""
+	}
+	return fmt.Sprintf("        access_by_lua_file %s/pow/check.lua;\n", nginxLuaDirPlaceholder)
+}
+
+func renderPowLocationBlocks(powEnabled bool) string {
+	if !powEnabled {
+		return ""
+	}
+	return fmt.Sprintf("\n    location = %spass-challenge {\n        content_by_lua_file %s/pow/verify.lua;\n    }\n\n    location = %smake-challenge {\n        content_by_lua_file %s/pow/challenge.lua;\n    }\n\n", anubisAPIPrefix, nginxLuaDirPlaceholder, anubisAPIPrefix, nginxLuaDirPlaceholder)
+}
+
+func renderPowStaticLocationBlock(powEnabled bool) string {
+	if !powEnabled {
+		return ""
+	}
+	return fmt.Sprintf("    location %s {\n        alias %s/;\n    }\n\n", anubisStaticPrefix, nginxPowStaticDirPlaceholder)
+}
+
+const anubisStaticPrefix = "/.within.website/x/cmd/anubis/static/"
+const anubisAPIPrefix = "/.within.website/x/cmd/anubis/api/"
 
 func normalizeSnapshotCertificateIDs(primaryCertID *uint, certIDs []uint) ([]uint, *uint, error) {
 	candidates := make([]uint, 0, len(certIDs)+1)
@@ -1130,18 +1219,18 @@ func nextVersionNumber(now time.Time) (string, error) {
 	return fmt.Sprintf("%s-%03d", prefix, count+1), nil
 }
 
-func renderHTTPProxyServer(serverNames string, originURL string, originHost string, customHeaders []ProxyRouteCustomHeaderInput, cacheConfig routeCacheConfig, limitConfig routeLimitConfig, upstreamConfig routeUpstreamConfig, cfg openRestyConfigSnapshot) string {
-	return fmt.Sprintf("server {\n    listen 80;\n    server_name %s;\n\n    location / {\n%s%s%s%s    }\n}\n\n", serverNames, renderProxyHeaderBlock(originURL, originHost, customHeaders, upstreamConfig), renderRouteLimitBlock(limitConfig), renderRouteCacheBlock(cacheConfig, cfg), renderProxyPassBlock(originURL, upstreamConfig))
+func renderHTTPProxyServer(serverNames string, originURL string, originHost string, customHeaders []ProxyRouteCustomHeaderInput, cacheConfig routeCacheConfig, limitConfig routeLimitConfig, upstreamConfig routeUpstreamConfig, powEnabled bool, cfg openRestyConfigSnapshot) string {
+	return fmt.Sprintf("server {\n    listen 80;\n    server_name %s;\n%s    location / {\n%s%s%s%s%s    }\n%s}\n\n", serverNames, renderPowLocationBlocks(powEnabled), renderPowAccessBlock(powEnabled), renderProxyHeaderBlock(originURL, originHost, customHeaders, upstreamConfig), renderRouteLimitBlock(limitConfig), renderRouteCacheBlock(cacheConfig, cfg), renderProxyPassBlock(originURL, upstreamConfig), renderPowStaticLocationBlock(powEnabled))
 }
 
 func renderHTTPRedirectServer(serverNames string) string {
 	return fmt.Sprintf("server {\n    listen 80;\n    server_name %s;\n\n    return 301 https://$host$request_uri;\n}\n\n", serverNames)
 }
 
-func renderHTTPSServer(serverNames string, originURL string, originHost string, certificateID uint, customHeaders []ProxyRouteCustomHeaderInput, cacheConfig routeCacheConfig, limitConfig routeLimitConfig, upstreamConfig routeUpstreamConfig, cfg openRestyConfigSnapshot) string {
+func renderHTTPSServer(serverNames string, originURL string, originHost string, certificateID uint, customHeaders []ProxyRouteCustomHeaderInput, cacheConfig routeCacheConfig, limitConfig routeLimitConfig, upstreamConfig routeUpstreamConfig, powEnabled bool, cfg openRestyConfigSnapshot) string {
 	certPath := fmt.Sprintf("%s/%s", nginxCertDirPlaceholder, certificateCertFileName(certificateID))
 	keyPath := fmt.Sprintf("%s/%s", nginxCertDirPlaceholder, certificateKeyFileName(certificateID))
-	return fmt.Sprintf("server {\n    listen 443 ssl;\n    http2 on;\n    server_name %s;\n    ssl_certificate %s;\n    ssl_certificate_key %s;\n\n    location / {\n%s%s%s%s    }\n}\n\n", serverNames, certPath, keyPath, renderProxyHeaderBlock(originURL, originHost, customHeaders, upstreamConfig), renderRouteLimitBlock(limitConfig), renderRouteCacheBlock(cacheConfig, cfg), renderProxyPassBlock(originURL, upstreamConfig))
+	return fmt.Sprintf("server {\n    listen 443 ssl;\n    http2 on;\n    server_name %s;\n    ssl_certificate %s;\n    ssl_certificate_key %s;\n%s    location / {\n%s%s%s%s%s    }\n%s}\n\n", serverNames, certPath, keyPath, renderPowLocationBlocks(powEnabled), renderPowAccessBlock(powEnabled), renderProxyHeaderBlock(originURL, originHost, customHeaders, upstreamConfig), renderRouteLimitBlock(limitConfig), renderRouteCacheBlock(cacheConfig, cfg), renderProxyPassBlock(originURL, upstreamConfig), renderPowStaticLocationBlock(powEnabled))
 }
 
 func renderHTTPSServerWithCertificates(serverNames string, originURL string, originHost string, certificateIDs []uint, customHeaders []ProxyRouteCustomHeaderInput, cacheConfig routeCacheConfig, limitConfig routeLimitConfig, upstreamConfig routeUpstreamConfig, cfg openRestyConfigSnapshot) string {
@@ -1504,4 +1593,41 @@ func dedupeSupportFiles(files []SupportFile) []SupportFile {
 		result = append(result, file)
 	}
 	return result
+}
+
+func renderPowConfigBundle(routes []*model.ProxyRoute) (string, []SupportFile, error) {
+	type domainEntry struct {
+		Domains []string               `json:"domains"`
+		Enabled bool                   `json:"enabled"`
+		Config  map[string]interface{} `json:"config"`
+	}
+	entries := make([]domainEntry, 0)
+	hasPow := false
+	for _, route := range routes {
+		if !route.PoWEnabled {
+			continue
+		}
+		hasPow = true
+		domains, err := decodeStoredDomains(route.Domains, route.Domain)
+		if err != nil {
+			return "", nil, err
+		}
+		var cfg map[string]interface{}
+		if err := json.Unmarshal([]byte(route.PoWConfig), &cfg); err != nil {
+			return "", nil, fmt.Errorf("route %s pow_config is invalid", route.Domain)
+		}
+		entries = append(entries, domainEntry{
+			Domains: domains,
+			Enabled: true,
+			Config:  cfg,
+		})
+	}
+	if !hasPow {
+		return "{}", nil, nil
+	}
+	data, err := json.Marshal(entries)
+	if err != nil {
+		return "", nil, err
+	}
+	return string(data), nil, nil
 }

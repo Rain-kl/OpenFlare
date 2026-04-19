@@ -710,6 +710,324 @@ function CacheSection({
   );
 }
 
+type PowListValues = {
+  ips: string;
+  ip_cidrs: string;
+  paths: string;
+  path_regexes: string;
+  user_agents: string;
+};
+
+const defaultPowList: PowListValues = {
+  ips: '',
+  ip_cidrs: '',
+  paths: '',
+  path_regexes: '',
+  user_agents: '',
+};
+
+const powSchema = z
+  .object({
+    pow_enabled: z.boolean(),
+    difficulty: z.coerce.number().int().min(1).max(16),
+    algorithm: z.enum(['fast', 'slow']),
+    session_ttl: z.coerce.number().int().min(60),
+    challenge_ttl: z.coerce.number().int().min(30),
+    whitelist: z.object({
+      ips: z.string(),
+      ip_cidrs: z.string(),
+      paths: z.string(),
+      path_regexes: z.string(),
+      user_agents: z.string(),
+    }),
+    blacklist: z.object({
+      ips: z.string(),
+      ip_cidrs: z.string(),
+      paths: z.string(),
+      path_regexes: z.string(),
+      user_agents: z.string(),
+    }),
+  })
+  .superRefine((value, context) => {
+    if (!value.pow_enabled) return;
+    const dimensions: { key: string; label: string }[] = [
+      { key: 'ips', label: 'IP' },
+      { key: 'ip_cidrs', label: 'IP CIDR' },
+      { key: 'paths', label: '路径' },
+      { key: 'path_regexes', label: '路径正则' },
+      { key: 'user_agents', label: 'User-Agent' },
+    ];
+    for (const dim of dimensions) {
+      const wl = linesFromTextarea(
+        (value.whitelist as Record<string, string>)[dim.key] || '',
+      );
+      const bl = linesFromTextarea(
+        (value.blacklist as Record<string, string>)[dim.key] || '',
+      );
+      if (wl.length > 0 && bl.length > 0) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `${dim.label} 不能同时配置白名单和黑名单`,
+          path: ['blacklist', dim.key],
+        });
+      }
+    }
+  });
+
+type PowValues = z.infer<typeof powSchema>;
+
+function buildPowListFromConfig(
+  list:
+    | { ips?: string[]; ip_cidrs?: string[]; paths?: string[]; path_regexes?: string[]; user_agents?: string[] }
+    | undefined,
+): PowListValues {
+  return {
+    ips: (list?.ips ?? []).join('\n'),
+    ip_cidrs: (list?.ip_cidrs ?? []).join('\n'),
+    paths: (list?.paths ?? []).join('\n'),
+    path_regexes: (list?.path_regexes ?? []).join('\n'),
+    user_agents: (list?.user_agents ?? []).join('\n'),
+  };
+}
+
+function PowSection({
+  route,
+  saving,
+  onSave,
+}: {
+  route: ProxyRouteItem;
+  saving: boolean;
+  onSave: SaveHandler;
+}) {
+  const powConfig = route.pow_config;
+  const form = useForm<PowValues>({
+    resolver: zodResolver(powSchema),
+    defaultValues: {
+      pow_enabled: route.pow_enabled,
+      difficulty: powConfig?.difficulty ?? 4,
+      algorithm: powConfig?.algorithm ?? 'fast',
+      session_ttl: powConfig?.session_ttl ?? 86400,
+      challenge_ttl: powConfig?.challenge_ttl ?? 300,
+      whitelist: buildPowListFromConfig(powConfig?.whitelist),
+      blacklist: buildPowListFromConfig(powConfig?.blacklist),
+    },
+  });
+
+  useEffect(() => {
+    form.reset({
+      pow_enabled: route.pow_enabled,
+      difficulty: powConfig?.difficulty ?? 4,
+      algorithm: powConfig?.algorithm ?? 'fast',
+      session_ttl: powConfig?.session_ttl ?? 86400,
+      challenge_ttl: powConfig?.challenge_ttl ?? 300,
+      whitelist: buildPowListFromConfig(powConfig?.whitelist),
+      blacklist: buildPowListFromConfig(powConfig?.blacklist),
+    });
+  }, [form, route, powConfig]);
+
+  const watchedEnabled = form.watch('pow_enabled');
+
+  const parseList = (text: string): string[] =>
+    linesFromTextarea(text).filter(Boolean);
+
+  return (
+    <ConfigSectionShell
+      title="PoW 防护"
+      description="启用 Proof-of-Work 反爬虫验证。首次访问的浏览器需要完成计算挑战才能继续。"
+      formId="proxy-route-pow-form"
+      saving={saving}
+    >
+      <form
+        id="proxy-route-pow-form"
+        className="space-y-5"
+        onSubmit={form.handleSubmit((values) => {
+          const powConfigPayload = JSON.stringify({
+            difficulty: values.difficulty,
+            algorithm: values.algorithm,
+            session_ttl: values.session_ttl,
+            challenge_ttl: values.challenge_ttl,
+            whitelist: {
+              ips: parseList(values.whitelist.ips),
+              ip_cidrs: parseList(values.whitelist.ip_cidrs),
+              paths: parseList(values.whitelist.paths),
+              path_regexes: parseList(values.whitelist.path_regexes),
+              user_agents: parseList(values.whitelist.user_agents),
+            },
+            blacklist: {
+              ips: parseList(values.blacklist.ips),
+              ip_cidrs: parseList(values.blacklist.ip_cidrs),
+              paths: parseList(values.blacklist.paths),
+              path_regexes: parseList(values.blacklist.path_regexes),
+              user_agents: parseList(values.blacklist.user_agents),
+            },
+          });
+          onSave(
+            buildPayloadFromRoute(route, {
+              pow_enabled: values.pow_enabled,
+              pow_config: powConfigPayload,
+            }),
+            { message: 'PoW 防护设置已保存。' },
+          );
+        })}
+      >
+        <ToggleField
+          label="启用 PoW 防护"
+          description="对访问此站点的请求进行 Proof-of-Work 验证，阻止自动化爬虫。"
+          checked={watchedEnabled}
+          onChange={(checked) =>
+            form.setValue('pow_enabled', checked, { shouldDirty: true })
+          }
+        />
+
+        <ResourceField label="验证算法">
+          <ResourceSelect
+            disabled={!watchedEnabled}
+            {...form.register('algorithm')}
+          >
+            <option value="fast">Fast（WebCrypto SHA-256）</option>
+            <option value="slow">Slow（兼容模式）</option>
+          </ResourceSelect>
+        </ResourceField>
+
+        <ResourceField
+          label="难度"
+          hint="数值越高验证越慢，1-16。推荐 3-5。"
+          error={form.formState.errors.difficulty?.message}
+        >
+          <ResourceInput
+            type="number"
+            min={1}
+            max={16}
+            disabled={!watchedEnabled}
+            {...form.register('difficulty')}
+          />
+        </ResourceField>
+
+        <ResourceField
+          label="会话有效期（秒）"
+          hint="通过验证后 Cookie 的有效期。"
+          error={form.formState.errors.session_ttl?.message}
+        >
+          <ResourceInput
+            type="number"
+            min={60}
+            disabled={!watchedEnabled}
+            {...form.register('session_ttl')}
+          />
+        </ResourceField>
+
+        <ResourceField
+          label="挑战有效期（秒）"
+          hint="挑战令牌的有效期。"
+          error={form.formState.errors.challenge_ttl?.message}
+        >
+          <ResourceInput
+            type="number"
+            min={30}
+            disabled={!watchedEnabled}
+            {...form.register('challenge_ttl')}
+          />
+        </ResourceField>
+
+        <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+          <fieldset disabled={!watchedEnabled} className="space-y-4">
+            <legend className="text-sm font-medium text-[var(--foreground-primary)] mb-2">
+              白名单（匹配的请求跳过 PoW）
+            </legend>
+            <ResourceField label="IP" hint="每行一个 IP 地址">
+              <ResourceTextarea
+                className="min-h-20"
+                placeholder="1.2.3.4&#10;5.6.7.8"
+                {...form.register('whitelist.ips')}
+              />
+            </ResourceField>
+            <ResourceField label="IP CIDR" hint="每行一个 CIDR 范围">
+              <ResourceTextarea
+                className="min-h-20"
+                placeholder="10.0.0.0/8&#10;192.168.0.0/16"
+                {...form.register('whitelist.ip_cidrs')}
+              />
+            </ResourceField>
+            <ResourceField label="路径" hint="每行一个路径通配符">
+              <ResourceTextarea
+                className="min-h-20"
+                placeholder="/.well-known/*&#10;/favicon.ico"
+                {...form.register('whitelist.paths')}
+              />
+            </ResourceField>
+            <ResourceField label="路径正则" hint="每行一个正则表达式">
+              <ResourceTextarea
+                className="min-h-20"
+                placeholder="^/api/public/"
+                {...form.register('whitelist.path_regexes')}
+              />
+            </ResourceField>
+            <ResourceField label="User-Agent" hint="每行一个关键字">
+              <ResourceTextarea
+                className="min-h-20"
+                placeholder="Googlebot&#10;bingbot"
+                {...form.register('whitelist.user_agents')}
+              />
+            </ResourceField>
+          </fieldset>
+
+          <fieldset disabled={!watchedEnabled} className="space-y-4">
+            <legend className="text-sm font-medium text-[var(--foreground-primary)] mb-2">
+              黑名单（匹配的请求必须 PoW）
+            </legend>
+            <ResourceField label="IP" hint="每行一个 IP 地址">
+              <ResourceTextarea
+                className="min-h-20"
+                placeholder="1.2.3.4"
+                {...form.register('blacklist.ips')}
+              />
+            </ResourceField>
+            <ResourceField label="IP CIDR" hint="每行一个 CIDR 范围">
+              <ResourceTextarea
+                className="min-h-20"
+                placeholder="10.0.0.0/8"
+                {...form.register('blacklist.ip_cidrs')}
+              />
+            </ResourceField>
+            <ResourceField label="路径" hint="每行一个路径通配符">
+              <ResourceTextarea
+                className="min-h-20"
+                placeholder="/admin/*"
+                {...form.register('blacklist.paths')}
+              />
+            </ResourceField>
+            <ResourceField label="路径正则" hint="每行一个正则表达式">
+              <ResourceTextarea
+                className="min-h-20"
+                placeholder="^/private/"
+                {...form.register('blacklist.path_regexes')}
+              />
+            </ResourceField>
+            <ResourceField label="User-Agent" hint="每行一个关键字">
+              <ResourceTextarea
+                className="min-h-20"
+                placeholder="bot&#10;crawler"
+                {...form.register('blacklist.user_agents')}
+              />
+            </ResourceField>
+          </fieldset>
+        </div>
+        {form.formState.errors.blacklist && (
+          <p className="text-sm text-[var(--color-danger)]">
+            {Object.values(form.formState.errors.blacklist)
+              .flatMap((e) =>
+                e && typeof e === 'object' && 'message' in e
+                  ? [e.message as string]
+                  : [],
+              )
+              .join('; ')}
+          </p>
+        )}
+      </form>
+    </ConfigSectionShell>
+  );
+}
+
 export function ProxyRouteConfigPage({
   routeId,
   initialSection,
@@ -913,6 +1231,16 @@ export function ProxyRouteConfigPage({
 
           {currentSection === 'cache' ? (
             <CacheSection
+              route={route}
+              saving={saveMutation.isPending}
+              onSave={(payload, context) =>
+                saveMutation.mutate({ payload, context })
+              }
+            />
+          ) : null}
+
+          {currentSection === 'pow' ? (
+            <PowSection
               route={route}
               saving={saveMutation.isPending}
               onSave={(payload, context) =>
