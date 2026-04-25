@@ -1103,7 +1103,7 @@ func renderPowStaticLocationBlock(powEnabled bool) string {
 	if !powEnabled {
 		return ""
 	}
-	return fmt.Sprintf("    location %s {\n        alias %s/;\n    }\n\n", anubisStaticPrefix, nginxPowStaticDirPlaceholder)
+	return fmt.Sprintf("    location %s {\n        alias %s/;\n        types {\n            text/css css;\n            application/javascript js mjs;\n            application/json json;\n            image/webp webp;\n            font/woff2 woff2;\n        }\n    }\n\n", anubisStaticPrefix, nginxPowStaticDirPlaceholder)
 }
 
 const anubisStaticPrefix = "/.within.website/x/cmd/anubis/static/"

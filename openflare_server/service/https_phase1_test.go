@@ -986,6 +986,9 @@ func TestPublishConfigVersionDetectsPoWChanges(t *testing.T) {
 	if strings.Contains(secondRelease.Version.RenderedConfig, "location /.within.website/x/cmd/anubis/static/static/ {") {
 		t.Fatal("expected rendered config to avoid duplicate static path segment")
 	}
+	if !strings.Contains(secondRelease.Version.RenderedConfig, "application/javascript js mjs;") {
+		t.Fatal("expected rendered config to serve Anubis module scripts with a JavaScript MIME type")
+	}
 	if !strings.Contains(secondRelease.Version.SnapshotJSON, `"difficulty":5`) {
 		t.Fatal("expected snapshot to persist PoW config")
 	}

@@ -49,3 +49,4 @@ go.work.sum
 .codex-cache
 /.gomodcache/
 /anubis-1.25.0/
+*.mmdb
