@@ -25,6 +25,14 @@ local policy = require "pow.policy"
 local pow_config_dict = ngx.shared.openflare_pow_config
 local pow_sessions = ngx.shared.openflare_pow_sessions
 
+local function session_cookie(value, ttl)
+    local cookie = "__openflare_pow=" .. value .. "; Path=/; HttpOnly; SameSite=Lax; Max-Age=" .. tostring(ttl)
+    if ngx.var.scheme == "https" then
+        cookie = cookie .. "; Secure"
+    end
+    return cookie
+end
+
 -- Lazy-load pow_config from file; reload when content changes
 local function load_pow_config()
     local config_paths = {
@@ -95,6 +103,7 @@ if not route_config.enabled then
 end
 
 local config = route_config.config or {}
+local session_ttl = config.session_ttl or 600
 local uri = ngx.var.uri or ""
 local ua = ngx.var.http_user_agent or ""
 local remote_ip = ngx.var.remote_addr or ""
@@ -123,8 +132,11 @@ end
 -- Check valid session cookie
 local cookie_val = ngx.var["cookie___openflare_pow"]
 if cookie_val and cookie_val ~= "" then
-    local session_data = pow_sessions:get(host .. ":" .. cookie_val)
+    local session_key = host .. ":" .. cookie_val
+    local session_data = pow_sessions:get(session_key)
     if session_data then
+        pow_sessions:set(session_key, "1", session_ttl)
+        ngx.header["Set-Cookie"] = session_cookie(cookie_val, session_ttl)
         return
     end
 end
@@ -187,7 +199,7 @@ local config = route_config.config or {}
 local difficulty = config.difficulty or 4
 local algorithm = config.algorithm or "fast"
 local challenge_ttl = config.challenge_ttl or 300
-local session_ttl = config.session_ttl or 86400
+local session_ttl = config.session_ttl or 600
 
 -- Generate challenge data without depending on ngx.random_bytes, which is not
 -- available in every OpenResty runtime build.
@@ -307,7 +319,7 @@ end
 local challenge_data = challenge_info.data or ""
 local difficulty = challenge_info.difficulty or 4
 local host = challenge_info.host or ngx.var.host or ""
-local session_ttl = challenge_info.session_ttl or 86400
+local session_ttl = challenge_info.session_ttl or 600
 
 -- Compute SHA-256(challenge_data + nonce)
 local calc_string = challenge_data .. tostring(math.floor(nonce))

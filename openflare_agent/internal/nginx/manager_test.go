@@ -1003,6 +1003,18 @@ func TestManagedPowLuaFilesUseInternalChallengeFlow(t *testing.T) {
 	if !strings.Contains(openRestyPowChallengeLua, `<script id="anubis_public_url" type="application/json">"__openflare_internal__"</script>`) {
 		t.Fatal("expected challenge html to force Anubis frontend to reuse the current URL as redir target")
 	}
+	if !strings.Contains(openRestyPowCheckLua, `pow_sessions:set(session_key, "1", session_ttl)`) {
+		t.Fatal("expected check.lua to refresh the PoW session TTL on each valid request")
+	}
+	if !strings.Contains(openRestyPowCheckLua, `ngx.header["Set-Cookie"] = session_cookie(cookie_val, session_ttl)`) {
+		t.Fatal("expected check.lua to refresh the browser session cookie on each valid request")
+	}
+	if !strings.Contains(openRestyPowChallengeLua, `local session_ttl = config.session_ttl or 600`) {
+		t.Fatal("expected challenge.lua to default session TTL to 10 minutes")
+	}
+	if !strings.Contains(openRestyPowVerifyLua, `local session_ttl = challenge_info.session_ttl or 600`) {
+		t.Fatal("expected verify.lua to default session TTL to 10 minutes")
+	}
 	if !strings.Contains(openRestyPowVerifyLua, `if ngx.var.scheme == "https" then`) {
 		t.Fatal("expected verify.lua to only mark the session cookie as Secure for HTTPS requests")
 	}

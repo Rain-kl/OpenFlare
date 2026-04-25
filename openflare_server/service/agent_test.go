@@ -1,6 +1,9 @@
 package service
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestGetActiveConfigForAgentIncludesPoWConfig(t *testing.T) {
 	setupServiceTestDB(t)
@@ -38,4 +41,38 @@ func TestGetActiveConfigForAgentIncludesPoWConfig(t *testing.T) {
 	if !foundPowConfig {
 		t.Fatal("expected agent config to include pow_config.json support file")
 	}
+}
+
+func TestGetActiveConfigForAgentUsesTenMinutePoWSessionDefault(t *testing.T) {
+	setupServiceTestDB(t)
+
+	_, err := CreateProxyRoute(ProxyRouteInput{
+		Domain:     "pow-default.example.com",
+		OriginURL:  "https://origin.internal",
+		Enabled:    true,
+		PoWEnabled: true,
+		PoWConfig:  `{}`,
+	})
+	if err != nil {
+		t.Fatalf("CreateProxyRoute failed: %v", err)
+	}
+
+	if _, err := PublishConfigVersion("root"); err != nil {
+		t.Fatalf("PublishConfigVersion failed: %v", err)
+	}
+
+	activeConfig, err := GetActiveConfigForAgent()
+	if err != nil {
+		t.Fatalf("GetActiveConfigForAgent failed: %v", err)
+	}
+
+	for _, file := range activeConfig.SupportFiles {
+		if file.Path == "pow_config.json" {
+			if !strings.Contains(file.Content, `"session_ttl":600`) {
+				t.Fatalf("expected default PoW session TTL to be 600 seconds, got %s", file.Content)
+			}
+			return
+		}
+	}
+	t.Fatal("expected agent config to include pow_config.json support file")
 }

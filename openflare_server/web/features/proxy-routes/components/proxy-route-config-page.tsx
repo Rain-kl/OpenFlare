@@ -806,7 +806,7 @@ function PowSection({
       pow_enabled: route.pow_enabled,
       difficulty: powConfig?.difficulty ?? 4,
       algorithm: powConfig?.algorithm ?? 'fast',
-      session_ttl: powConfig?.session_ttl ?? 86400,
+      session_ttl: powConfig?.session_ttl ?? 600,
       challenge_ttl: powConfig?.challenge_ttl ?? 300,
       whitelist: buildPowListFromConfig(powConfig?.whitelist),
       blacklist: buildPowListFromConfig(powConfig?.blacklist),
@@ -818,7 +818,7 @@ function PowSection({
       pow_enabled: route.pow_enabled,
       difficulty: powConfig?.difficulty ?? 4,
       algorithm: powConfig?.algorithm ?? 'fast',
-      session_ttl: powConfig?.session_ttl ?? 86400,
+      session_ttl: powConfig?.session_ttl ?? 600,
       challenge_ttl: powConfig?.challenge_ttl ?? 300,
       whitelist: buildPowListFromConfig(powConfig?.whitelist),
       blacklist: buildPowListFromConfig(powConfig?.blacklist),
@@ -904,8 +904,8 @@ function PowSection({
         </ResourceField>
 
         <ResourceField
-          label="会话有效期（秒）"
-          hint="通过验证后 Cookie 的有效期。"
+          label="会话空闲有效期（秒）"
+          hint="通过验证后，若在此时间内没有新请求，Cookie 会失效；每次访问会自动续期。默认 600 秒。"
           error={form.formState.errors.session_ttl?.message}
         >
           <ResourceInput

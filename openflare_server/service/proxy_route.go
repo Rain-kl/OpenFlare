@@ -1097,7 +1097,7 @@ func defaultPoWConfig() ProxyRoutePoWConfig {
 	return ProxyRoutePoWConfig{
 		Difficulty:   4,
 		Algorithm:    "fast",
-		SessionTTL:   86400,
+		SessionTTL:   600,
 		ChallengeTTL: 300,
 		Whitelist:    ProxyRoutePoWListConfig{IPs: []string{}, IPCidrs: []string{}, Paths: []string{}, PathRegexes: []string{}, UserAgents: []string{}},
 		Blacklist:    ProxyRoutePoWListConfig{IPs: []string{}, IPCidrs: []string{}, Paths: []string{}, PathRegexes: []string{}, UserAgents: []string{}},
