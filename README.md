@@ -47,6 +47,7 @@ OpenFlare 解决的是一类朴素但高频的运维问题：
 * OpenResty 托管：统一管理主配置模板、性能参数、缓存参数与受管路由
 * TLS 与域名管理：支持证书托管、域名资产维护、精确匹配与通配符匹配
 * 访问与节点观测：支持请求窗口聚合、状态码分布、来源分布、节点资源与健康事件展示
+* 网站防护: 支持 POW, 限流功能
 
 ## 系统架构
 
@@ -82,7 +83,7 @@ Origin
 
 ### 配置新增
 
-![OpenFlare version release](./docs/assets/readme/version-release.png)
+![OpenFlare version release](./docs/assets/readme/proxy-route-detail.png)
 
 ## 快速开始
 
@@ -134,7 +135,7 @@ docker compose up -d
 * 用户名：`root`
 * 密码：`123456`
 
-### 2. 接入 Agent
+### 2. 安装 Agent
 
 **注意:** 安装agent前需确保存已经安装了Docker, 虽然支持裸Openresty,但未得到充分验证,可能存在未知问题.
 
@@ -156,6 +157,8 @@ curl -fsSL https://raw.githubusercontent.com/Rain-kl/OpenFlare/main/scripts/inst
 
 安装脚本默认写入 `/opt/openflare-agent`，创建 `openflare-agent.service`，并可重复执行以重装或升级 Agent。
 
+### 3. 卸载 Agent
+
 如需彻底卸载 Agent 并清空本地数据，可执行：
 
 ```bash
@@ -167,7 +170,7 @@ curl -fsSL https://raw.githubusercontent.com/Rain-kl/OpenFlare/main/scripts/unin
 * Docker 模式：删除对应 OpenResty 容器，并尝试移除镜像
 * 本机 `openresty_path` 模式：不改动本机 OpenResty，只提示用户手动卸载
 
-### 3. 发布第一份配置
+### 4. 发布第一份配置
 
 1. 登录管理端并新增反代规则
 2. 在发布前查看预览或变更摘要
@@ -226,6 +229,7 @@ go run ./cmd/agent -config /path/to/agent.json
 * 用户管理
 * 设置
 * 版本更新
+* POW 规则
 
 登录管理端后，可访问 Swagger UI：`/swagger/index.html`
 
