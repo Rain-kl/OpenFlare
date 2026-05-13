@@ -93,34 +93,6 @@ go run .
 
 默认监听 `3000` 端口。
 
-## 认证源登录配置
-
-OpenFlare 支持通过认证源配置 GitHub OAuth 或标准 OIDC 登录入口。认证源保存在数据库中，不通过环境变量配置。
-
-配置步骤：
-
-1. 登录管理端，进入“设置 -> 系统设置 -> 配置认证源”。
-2. 新增认证源，选择 `GitHub` 或 `OIDC`。
-3. 填写 `Name`、展示名称、Client ID、Client Secret。OIDC 还需要填写 Discovery URL。
-4. 在第三方平台配置 Redirect URI / Callback URL。
-5. 回到 OpenFlare 启用认证源。
-
-回调地址格式固定为：
-
-```text
-<OpenFlare 访问地址>/oauth/<认证源 Name>
-```
-
-例如 OpenFlare 访问地址为 `https://openflare.example.com`，认证源 `Name` 为 `github`，则第三方平台中应填写：
-
-```text
-https://openflare.example.com/oauth/github
-```
-
-`Name` 是认证源唯一标识，只能包含字母、数字、短横线或下划线，并且必须以字母或数字开头。修改 `Name` 后，第三方平台中的回调地址也必须同步修改。
-
-启用后的认证源会显示在登录页。第三方账号首次登录时，如果已经绑定本地用户会直接登录；如果未绑定且允许注册，会自动创建普通用户；如果未绑定且关闭注册，需要使用已有本地账号完成绑定。
-
 ## Swagger
 
 登录管理端后访问：

@@ -80,36 +80,7 @@ go run . --port 3000 --log-dir ./logs
 * 管理端支持手动清理时留空保留天数，以直接删除对应数据集的全部历史记录。
 * 第三方登录不再通过 `GitHubOAuthEnabled`、`GitHubClientId`、`GitHubClientSecret` 作为主配置入口；这些旧 Option 仅用于升级时迁移默认 GitHub 认证源。
 * 微信登录旧 Option 保留为兼容字段，但管理端不再提供微信登录配置入口。
-* Turnstile 旧 Option 与后端校验能力保留，已有配置仍会生效；本版本移除了旧 `OAuth / WeChat / Turnstile` 集成卡片。
-
-## 认证源配置
-
-认证源配置保存在数据库 `auth_sources` 表，由管理端“设置 -> 系统设置 -> 配置认证源”维护，不通过环境变量或启动参数配置。
-
-当前支持：
-
-| 类型 | 必填配置 | 默认 Scope | 说明 |
-| --- | --- | --- | --- |
-| `github` | Name、Client ID、Client Secret | `user:email` | 使用 GitHub OAuth 登录 |
-| `oidc` | Name、Client ID、Client Secret、OIDC Discovery URL | `openid profile email` | 适用于 Logto、authentik 等标准 OIDC Provider |
-
-启用后的认证源会通过 `/api/status` 暴露公开字段并显示在登录页。`Client Secret` 不会通过 API 回显。
-
-`Name` 是认证源的唯一标识，也会作为 OAuth/OIDC 回调路径的一部分。第三方平台中的 Redirect URI / Callback URL 应配置为：
-
-```text
-<OpenFlare 访问地址>/oauth/<认证源 Name>
-```
-
-例如 OpenFlare 访问地址为 `https://openflare.example.com`，认证源 `Name` 为 `github` 时，回调地址为：
-
-```text
-https://openflare.example.com/oauth/github
-```
-
-认证源 `Name` 只能包含字母、数字、短横线或下划线，并且必须以字母或数字开头。修改 `Name` 后必须同步更新第三方平台中的回调地址。
-
-外部账号绑定保存在 `external_accounts` 表。第三方账号未绑定时，如果允许注册则自动创建普通用户；如果关闭注册，则只能绑定已有本地账号。
+* Turnstile 旧 Option 与后端校验能力保留，已有配置仍会生效；
 
 ## OpenResty 参数
 
