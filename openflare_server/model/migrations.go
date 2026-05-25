@@ -1344,6 +1344,31 @@ func validateDatabaseSchemaV10(db *gorm.DB, backend string) error {
 	return nil
 }
 
+// migrateV11 adds acme and dns accounts and extends tls_certificates.
+func migrateV11(db *gorm.DB, backend string) error {
+	if err := applyCurrentSchema(db, backend); err != nil {
+		return err
+	}
+	// Default values will be applied by gorm for new columns automatically during AutoMigrate.
+	return nil
+}
+
+func validateDatabaseSchemaV11(db *gorm.DB, backend string) error {
+	if err := validateDatabaseSchemaV10(db, backend); err != nil {
+		return err
+	}
+	if !db.Migrator().HasTable(&AcmeAccount{}) {
+		return fmt.Errorf("table acme_accounts is missing")
+	}
+	if !db.Migrator().HasTable(&DnsAccount{}) {
+		return fmt.Errorf("table dns_accounts is missing")
+	}
+	if !db.Migrator().HasColumn(&TLSCertificate{}, "provider") {
+		return fmt.Errorf("column tls_certificates.provider is missing")
+	}
+	return nil
+}
+
 func databaseSchemaMigrations() []databaseSchemaMigration {
 	return []databaseSchemaMigration{
 		{fromVersion: 1, toVersion: 2, migrate: migrateV2, validate: validateDatabaseSchemaV2},
@@ -1355,6 +1380,7 @@ func databaseSchemaMigrations() []databaseSchemaMigration {
 		{fromVersion: 7, toVersion: 8, migrate: migrateV8, validate: validateDatabaseSchemaV8},
 		{fromVersion: 8, toVersion: 9, migrate: migrateV9, validate: validateDatabaseSchemaV9},
 		{fromVersion: 9, toVersion: 10, migrate: migrateV10, validate: validateDatabaseSchemaV10},
+		{fromVersion: 10, toVersion: 11, migrate: migrateV11, validate: validateDatabaseSchemaV11},
 	}
 }
 
@@ -1440,7 +1466,7 @@ func initializeFreshDatabaseSchema(db *gorm.DB, backend string) error {
 	if err := ensureDefaultGitHubAuthSource(db); err != nil {
 		return err
 	}
-	if err := validateDatabaseSchemaV10(db, backend); err != nil {
+	if err := validateDatabaseSchemaV11(db, backend); err != nil {
 		return err
 	}
 	return saveDatabaseSchemaVersion(db, currentDatabaseSchemaVersion)

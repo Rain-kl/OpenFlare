@@ -863,7 +863,7 @@ func TestRunDatabaseSchemaMigrationDoesNotAdvanceVersionWhenValidationFails(t *t
 
 	err := runDatabaseSchemaMigration(db, "sqlite", databaseSchemaMigration{
 		fromVersion: legacyDatabaseSchemaVersion,
-		toVersion:   currentDatabaseSchemaVersion,
+		toVersion:   11,
 		migrate: func(tx *gorm.DB, backend string) error {
 			return autoMigrateSchemaMetadata(tx)
 		},

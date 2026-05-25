@@ -14,11 +14,13 @@ import { StatusBadge } from '@/components/ui/status-badge';
 import {
   deleteTlsCertificate,
   getTlsCertificates,
+  renewTlsCertificate,
 } from '@/features/tls-certificates/api/tls-certificates';
 import type { TlsCertificateItem } from '@/features/tls-certificates/types';
 import { CertificateDetailModal } from '@/features/websites/components/certificate-detail-modal';
 import { CertificateEditorModal } from '@/features/websites/components/certificate-editor-modal';
 import { CertificateImportModal } from '@/features/websites/components/certificate-import-modal';
+import { CertificateApplyModal } from '@/features/websites/components/certificate-apply-modal';
 import { getCertificateStatus, getErrorMessage } from '@/features/websites/utils';
 import {
   DangerButton,
@@ -38,11 +40,13 @@ export function TlsCertificatesPage() {
   const queryClient = useQueryClient();
   const [feedback, setFeedback] = useState<FeedbackState | null>(null);
   const [isImportOpen, setIsImportOpen] = useState(false);
+  const [isApplyOpen, setIsApplyOpen] = useState(false);
   const [selectedCertificateId, setSelectedCertificateId] = useState<
     number | null
   >(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
+  const [editAcmeCertificate, setEditAcmeCertificate] = useState<TlsCertificateItem | null>(null);
 
   const certificatesQuery = useQuery({
     queryKey: certificatesQueryKey,
@@ -53,6 +57,17 @@ export function TlsCertificatesPage() {
     mutationFn: deleteTlsCertificate,
     onSuccess: async () => {
       setFeedback({ tone: 'success', message: '证书已删除。' });
+      await queryClient.invalidateQueries({ queryKey: ['tls-certificates'] });
+    },
+    onError: (error) => {
+      setFeedback({ tone: 'danger', message: getErrorMessage(error) });
+    },
+  });
+
+  const renewCertificateMutation = useMutation({
+    mutationFn: renewTlsCertificate,
+    onSuccess: async (cert) => {
+      setFeedback({ tone: 'success', message: `证书 ${cert.name} 续期任务已提交。` });
       await queryClient.invalidateQueries({ queryKey: ['tls-certificates'] });
     },
     onError: (error) => {
@@ -74,14 +89,27 @@ export function TlsCertificatesPage() {
     deleteCertificateMutation.mutate(certificate.id);
   };
 
+  const handleRenewCertificate = (certificate: TlsCertificateItem) => {
+    if (!window.confirm(`确认提交证书 ${certificate.name} 的续期申请吗？`)) {
+      return;
+    }
+
+    setFeedback(null);
+    renewCertificateMutation.mutate(certificate.id);
+  };
+
   const handleOpenCertificateDetail = (certificate: TlsCertificateItem) => {
     setSelectedCertificateId(certificate.id);
     setIsDetailOpen(true);
   };
 
   const handleOpenCertificateEditor = (certificate: TlsCertificateItem) => {
-    setSelectedCertificateId(certificate.id);
-    setIsEditorOpen(true);
+    if (certificate.provider === 'acme') {
+      setEditAcmeCertificate(certificate);
+    } else {
+      setSelectedCertificateId(certificate.id);
+      setIsEditorOpen(true);
+    }
   };
 
   return (
@@ -108,8 +136,17 @@ export function TlsCertificatesPage() {
               >
                 刷新证书
               </SecondaryButton>
+              <Link
+                href="/dns-account"
+                className="inline-flex min-h-[46px] items-center justify-center rounded-2xl border border-[var(--border-default)] bg-[var(--control-background)] px-4 py-3 text-sm font-medium text-[var(--foreground-primary)] transition hover:bg-[var(--control-background-hover)]"
+              >
+                DNS 账号
+              </Link>
               <PrimaryButton type="button" onClick={() => setIsImportOpen(true)}>
-                添加证书
+                导入证书
+              </PrimaryButton>
+              <PrimaryButton type="button" onClick={() => setIsApplyOpen(true)}>
+                申请证书
               </PrimaryButton>
             </div>
           }
@@ -159,6 +196,9 @@ export function TlsCertificatesPage() {
                         <div className="text-xs leading-5 text-[var(--foreground-secondary)]">
                           <p>生效：{formatDateTime(certificate.not_before)}</p>
                           <p>到期：{formatDateTime(certificate.not_after)}</p>
+                          <p>来源：{certificate.provider === 'acme' ? 'ACME 申请' : '手动上传'}</p>
+                          {certificate.apply_status === 'applying' && <p className="text-blue-500">状态：申请中...</p>}
+                          {certificate.apply_status === 'error' && <p className="text-red-500">状态：申请失败 ({certificate.apply_message})</p>}
                           <p>备注：{certificate.remark || '暂无备注'}</p>
                         </div>
                       </div>
@@ -178,6 +218,16 @@ export function TlsCertificatesPage() {
                         >
                           编辑
                         </SecondaryButton>
+                        {certificate.provider === 'acme' && (
+                          <SecondaryButton
+                            type="button"
+                            onClick={() => handleRenewCertificate(certificate)}
+                            disabled={renewCertificateMutation.isPending}
+                            className="px-3 py-2 text-xs"
+                          >
+                            续期
+                          </SecondaryButton>
+                        )}
                         <DangerButton
                           type="button"
                           onClick={() => handleDeleteCertificate(certificate)}
@@ -209,6 +259,33 @@ export function TlsCertificatesPage() {
         />
       ) : null}
 
+      {isApplyOpen ? (
+        <CertificateApplyModal
+          isOpen={isApplyOpen}
+          onClose={() => setIsApplyOpen(false)}
+          onApplied={(certificate) => {
+            setFeedback({
+              tone: 'success',
+              message: `证书 ${certificate.name} 申请任务已提交。`,
+            });
+          }}
+        />
+      ) : null}
+
+      {editAcmeCertificate ? (
+        <CertificateApplyModal
+          isOpen={true}
+          onClose={() => setEditAcmeCertificate(null)}
+          editCertificate={editAcmeCertificate}
+          onApplied={(certificate) => {
+            setFeedback({
+              tone: 'success',
+              message: `证书 ${certificate.name} 配置已更新，重新申请中...`,
+            });
+          }}
+        />
+      ) : null}
+
       {isDetailOpen ? (
         <CertificateDetailModal
           certificateId={selectedCertificateId}
@@ -216,7 +293,12 @@ export function TlsCertificatesPage() {
           onClose={() => setIsDetailOpen(false)}
           onEdit={() => {
             setIsDetailOpen(false);
-            setIsEditorOpen(true);
+            const certificate = certificates.find(
+              (item) => item.id === selectedCertificateId,
+            );
+            if (certificate) {
+              handleOpenCertificateEditor(certificate);
+            }
           }}
           onDelete={() => {
             const certificate = certificates.find(

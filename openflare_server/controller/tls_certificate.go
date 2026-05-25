@@ -255,3 +255,114 @@ func DeleteTLSCertificate(c *gin.Context) {
 		"message": "",
 	})
 }
+
+// ApplyTLSCertificate godoc
+// @Summary Apply TLS certificate via ACME
+// @Tags TLSCertificates
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param payload body service.TLSApplyInput true "TLS apply payload"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{}
+// @Router /api/tls-certificates/apply [post]
+func ApplyTLSCertificate(c *gin.Context) {
+	var input service.TLSApplyInput
+	if err := json.NewDecoder(c.Request.Body).Decode(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "无效的参数",
+		})
+		return
+	}
+	certificate, err := service.ApplyTLSCertificate(input)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "",
+		"data":    certificate,
+	})
+}
+
+// UpdateAcmeCertificate godoc
+// @Summary Update ACME TLS certificate
+// @Tags TLSCertificates
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "Certificate ID"
+// @Param payload body service.TLSApplyInput true "TLS apply payload"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{}
+// @Router /api/tls-certificates/{id}/update-acme [post]
+func UpdateAcmeCertificate(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil || id == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "invalid request",
+		})
+		return
+	}
+
+	var input service.TLSApplyInput
+	if err := json.NewDecoder(c.Request.Body).Decode(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "无效的参数",
+		})
+		return
+	}
+	certificate, err := service.UpdateAcmeCertificate(uint(id), input)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "",
+		"data":    certificate,
+	})
+}
+
+// RenewTLSCertificate godoc
+// @Summary Renew TLS certificate
+// @Tags TLSCertificates
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "Certificate ID"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{}
+// @Router /api/tls-certificates/{id}/renew [post]
+func RenewTLSCertificate(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil || id == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "无效的参数",
+		})
+		return
+	}
+	certificate, err := service.RenewTLSCertificate(uint(id))
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "",
+		"data":    certificate,
+	})
+}

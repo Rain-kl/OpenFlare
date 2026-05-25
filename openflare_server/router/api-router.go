@@ -128,8 +128,24 @@ func SetApiRouter(router *gin.Engine) {
 			tlsCertificateRoute.GET("/:id/content", controller.GetTLSCertificateContent)
 			tlsCertificateRoute.POST("/", controller.CreateTLSCertificate)
 			tlsCertificateRoute.POST("/:id/update", controller.UpdateTLSCertificate)
+			tlsCertificateRoute.POST("/:id/update-acme", controller.UpdateAcmeCertificate)
 			tlsCertificateRoute.POST("/import-file", controller.ImportTLSCertificateFile)
 			tlsCertificateRoute.POST("/:id/delete", controller.DeleteTLSCertificate)
+			tlsCertificateRoute.POST("/apply", controller.ApplyTLSCertificate)
+			tlsCertificateRoute.POST("/:id/renew", controller.RenewTLSCertificate)
+		}
+		acmeAccountRoute := apiRouter.Group("/acme-accounts")
+		acmeAccountRoute.Use(middleware.AdminAuth())
+		{
+			acmeAccountRoute.GET("/default", controller.GetDefaultAcmeAccount)
+		}
+		dnsAccountRoute := apiRouter.Group("/dns-accounts")
+		dnsAccountRoute.Use(middleware.AdminAuth())
+		{
+			dnsAccountRoute.GET("/", controller.GetDnsAccounts)
+			dnsAccountRoute.POST("/", controller.CreateDnsAccount)
+			dnsAccountRoute.POST("/:id/update", controller.UpdateDnsAccount)
+			dnsAccountRoute.POST("/:id/delete", controller.DeleteDnsAccount)
 		}
 		configVersionRoute := apiRouter.Group("/config-versions")
 		configVersionRoute.Use(middleware.AdminAuth())

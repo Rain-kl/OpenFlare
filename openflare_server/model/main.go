@@ -41,6 +41,8 @@ func registeredModels() []any {
 		&NodeHealthEvent{},
 		&TLSCertificate{},
 		&ManagedDomain{},
+		&AcmeAccount{},
+		&DnsAccount{},
 	}
 }
 

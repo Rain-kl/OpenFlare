@@ -25,6 +25,21 @@ type TLSCertificateContent struct {
 	Remark  string `json:"remark"`
 }
 
+type TLSApplyInput struct {
+	Name          string `json:"name"`
+	Remark        string `json:"remark"`
+	AcmeAccountID uint   `json:"acme_account_id"`
+	DnsAccountID  uint   `json:"dns_account_id"`
+	KeyAlgorithm  string `json:"key_algorithm"`
+	AutoRenew     bool   `json:"auto_renew"`
+	PrimaryDomain string `json:"primary_domain"`
+	OtherDomains  string `json:"other_domains"`
+	DisableCNAME  bool   `json:"disable_cname"`
+	SkipDNS       bool   `json:"skip_dns"`
+	DNS1          string `json:"dns1"`
+	DNS2          string `json:"dns2"`
+}
+
 func ListTLSCertificates() ([]*model.TLSCertificate, error) {
 	return model.ListTLSCertificates()
 }
@@ -141,6 +156,107 @@ func DeleteTLSCertificate(id uint) error {
 		return err
 	}
 	return certificate.Delete()
+}
+
+func ApplyTLSCertificate(input TLSApplyInput) (*model.TLSCertificate, error) {
+	cert := &model.TLSCertificate{
+		Name:          strings.TrimSpace(input.Name),
+		Remark:        strings.TrimSpace(input.Remark),
+		Provider:      "acme",
+		AcmeAccountID: input.AcmeAccountID,
+		DnsAccountID:  input.DnsAccountID,
+		KeyAlgorithm:  input.KeyAlgorithm,
+		AutoRenew:     input.AutoRenew,
+		PrimaryDomain: strings.TrimSpace(input.PrimaryDomain),
+		OtherDomains:  strings.TrimSpace(input.OtherDomains),
+		DisableCNAME:  input.DisableCNAME,
+		SkipDNS:       input.SkipDNS,
+		DNS1:          strings.TrimSpace(input.DNS1),
+		DNS2:          strings.TrimSpace(input.DNS2),
+		ApplyStatus:   "applying",
+		CertPEM:       " ", // Temporary empty value, since gorm may prevent empty insert
+		KeyPEM:        " ", // Temporary empty value
+	}
+
+	if cert.Name == "" {
+		return nil, errors.New("certificate name cannot be empty")
+	}
+
+	if err := cert.Insert(); err != nil {
+		if isUniqueConstraintError(err) {
+			return nil, errors.New("certificate name already exists")
+		}
+		return nil, err
+	}
+
+	// Async obtain SSL
+	go func(c *model.TLSCertificate) {
+		_ = ObtainSSL(c)
+	}(cert)
+
+	return cert, nil
+}
+
+func UpdateAcmeCertificate(id uint, input TLSApplyInput) (*model.TLSCertificate, error) {
+	cert, err := model.GetTLSCertificateByID(id)
+	if err != nil {
+		return nil, err
+	}
+	if cert.Provider != "acme" {
+		return nil, errors.New("only acme certificates can be updated via this endpoint")
+	}
+
+	cert.Name = strings.TrimSpace(input.Name)
+	if cert.Name == "" {
+		return nil, errors.New("certificate name cannot be empty")
+	}
+
+	cert.Remark = strings.TrimSpace(input.Remark)
+	cert.AcmeAccountID = input.AcmeAccountID
+	cert.DnsAccountID = input.DnsAccountID
+	cert.KeyAlgorithm = input.KeyAlgorithm
+	cert.AutoRenew = input.AutoRenew
+	cert.PrimaryDomain = strings.TrimSpace(input.PrimaryDomain)
+	cert.OtherDomains = strings.TrimSpace(input.OtherDomains)
+	cert.DisableCNAME = input.DisableCNAME
+	cert.SkipDNS = input.SkipDNS
+	cert.DNS1 = strings.TrimSpace(input.DNS1)
+	cert.DNS2 = strings.TrimSpace(input.DNS2)
+	cert.ApplyStatus = "applying"
+
+	if err := cert.Update(); err != nil {
+		if isUniqueConstraintError(err) {
+			return nil, errors.New("certificate name already exists")
+		}
+		return nil, err
+	}
+
+	// Async obtain SSL with updated config
+	go func(c *model.TLSCertificate) {
+		_ = ObtainSSL(c)
+	}(cert)
+
+	return cert, nil
+}
+
+func RenewTLSCertificate(id uint) (*model.TLSCertificate, error) {
+	cert, err := model.GetTLSCertificateByID(id)
+	if err != nil {
+		return nil, err
+	}
+	if cert.Provider != "acme" {
+		return nil, errors.New("only acme certificates can be renewed")
+	}
+
+	// Async obtain SSL
+	go func(c *model.TLSCertificate) {
+		_ = ObtainSSL(c)
+	}(cert)
+
+	cert.ApplyStatus = "applying"
+	cert.Update()
+
+	return cert, nil
 }
 
 func buildTLSCertificate(existing *model.TLSCertificate, input TLSCertificateInput) (*model.TLSCertificate, error) {

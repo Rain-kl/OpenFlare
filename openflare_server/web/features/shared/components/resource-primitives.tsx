@@ -9,8 +9,8 @@ import type {
 import { cn } from '@/lib/utils/cn';
 
 interface ResourceFieldProps {
-  label: string;
-  hint?: string;
+  label: ReactNode;
+  hint?: ReactNode;
   error?: string;
   className?: string;
   tooltip?: string;

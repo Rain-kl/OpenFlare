@@ -11,6 +11,7 @@ import (
 	"log/slog"
 	"openflare/common"
 	_ "openflare/docs"
+	"openflare/job"
 	"openflare/middleware"
 	"openflare/model"
 	"openflare/router"
@@ -72,6 +73,9 @@ func main() {
 	backgroundCtx, cancelBackgroundTasks := context.WithCancel(context.Background())
 	defer cancelBackgroundTasks()
 	service.StartDatabaseAutoCleanupScheduler(backgroundCtx)
+
+	job.InitCronJobs()
+	defer job.StopCronJobs()
 
 	// Initialize HTTP server
 	server := gin.Default()

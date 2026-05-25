@@ -6,6 +6,7 @@ import type {
   TlsCertificateFileImportPayload,
   TlsCertificateItem,
   TlsCertificateMutationPayload,
+  TlsCertificateApplyPayload,
 } from '@/features/tls-certificates/types';
 
 export function getTlsCertificates() {
@@ -52,6 +53,26 @@ export function importTlsCertificateFiles(payload: TlsCertificateFileImportPaylo
 
 export function deleteTlsCertificate(id: number) {
   return apiRequest<void>(`/tls-certificates/${id}/delete`, {
+	method: 'POST',
+  });
+}
+
+export function applyTlsCertificate(payload: TlsCertificateApplyPayload) {
+  return apiRequest<TlsCertificateItem>('/tls-certificates/apply', {
     method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function renewTlsCertificate(id: number) {
+  return apiRequest<TlsCertificateItem>(`/tls-certificates/${id}/renew`, {
+    method: 'POST',
+  });
+}
+
+export function updateAcmeCertificate(id: number, payload: TlsCertificateApplyPayload) {
+  return apiRequest<TlsCertificateItem>(`/tls-certificates/${id}/update-acme`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
   });
 }
