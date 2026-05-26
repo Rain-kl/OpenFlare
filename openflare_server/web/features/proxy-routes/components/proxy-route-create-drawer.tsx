@@ -192,6 +192,9 @@ export function ProxyRouteCreateDrawer({
         custom_headers: [],
         pow_enabled: false,
         pow_config: '{}',
+        basic_auth_enabled: false,
+        basic_auth_username: '',
+        basic_auth_password: '',
         remark: values.remark.trim(),
       });
     },

@@ -26,6 +26,9 @@ type ProxyRoute struct {
 	CustomHeaders      string    `json:"custom_headers" gorm:"type:text;not null;default:'[]'"`
 	PoWEnabled         bool      `json:"pow_enabled" gorm:"column:pow_enabled;not null;default:false"`
 	PoWConfig          string    `json:"pow_config" gorm:"column:pow_config;type:text;not null;default:'{}'"`
+	BasicAuthEnabled   bool      `json:"basic_auth_enabled" gorm:"not null;default:false"`
+	BasicAuthUsername  string    `json:"basic_auth_username" gorm:"size:255;not null;default:''"`
+	BasicAuthPassword  string    `json:"basic_auth_password" gorm:"size:255;not null;default:''"`
 	Remark             string    `json:"remark" gorm:"size:255"`
 	CreatedAt          time.Time `json:"created_at"`
 	UpdatedAt          time.Time `json:"updated_at"`
@@ -80,6 +83,9 @@ func (route *ProxyRoute) Update() error {
 		"custom_headers":        route.CustomHeaders,
 		"pow_enabled":           route.PoWEnabled,
 		"pow_config":            route.PoWConfig,
+		"basic_auth_enabled":    route.BasicAuthEnabled,
+		"basic_auth_username":   route.BasicAuthUsername,
+		"basic_auth_password":   route.BasicAuthPassword,
 		"remark":                route.Remark,
 	}).Error
 }

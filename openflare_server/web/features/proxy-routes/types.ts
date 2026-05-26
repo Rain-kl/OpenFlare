@@ -49,6 +49,9 @@ export interface ProxyRouteItem {
   custom_header_list: ProxyRouteCustomHeader[];
   pow_enabled: boolean;
   pow_config: ProxyRoutePoWConfig;
+  basic_auth_enabled: boolean;
+  basic_auth_username: string;
+  basic_auth_password: string;
   remark: string;
   created_at: string;
   updated_at: string;
@@ -81,6 +84,9 @@ export interface ProxyRouteMutationPayload {
   custom_headers: ProxyRouteCustomHeader[];
   pow_enabled: boolean;
   pow_config: string;
+  basic_auth_enabled: boolean;
+  basic_auth_username?: string;
+  basic_auth_password?: string;
   remark: string;
 }
 

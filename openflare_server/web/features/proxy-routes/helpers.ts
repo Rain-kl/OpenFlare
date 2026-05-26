@@ -30,6 +30,11 @@ export const websiteConfigSections = [
     label: 'PoW 防护',
     description: '配置 Proof-of-Work 反爬虫策略。',
   },
+  {
+    key: 'auth',
+    label: '认证配置',
+    description: '配置基础鉴权访问，需要输入账号密码才能访问网站。',
+  },
 ] as const;
 
 export type WebsiteConfigSectionKey =
@@ -292,6 +297,9 @@ export function buildPayloadFromRoute(
     remark: route.remark || '',
     pow_enabled: route.pow_enabled,
     pow_config: JSON.stringify(route.pow_config),
+    basic_auth_enabled: route.basic_auth_enabled,
+    basic_auth_username: route.basic_auth_username,
+    basic_auth_password: route.basic_auth_password,
     ...overrides,
   };
 }

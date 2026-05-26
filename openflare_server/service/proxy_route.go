@@ -56,6 +56,9 @@ type ProxyRouteInput struct {
 	CustomHeaders      []ProxyRouteCustomHeaderInput `json:"custom_headers"`
 	PoWEnabled         bool                          `json:"pow_enabled"`
 	PoWConfig          string                        `json:"pow_config"`
+	BasicAuthEnabled   bool                          `json:"basic_auth_enabled"`
+	BasicAuthUsername  string                        `json:"basic_auth_username"`
+	BasicAuthPassword  string                        `json:"basic_auth_password"`
 	Remark             string                        `json:"remark"`
 }
 
@@ -88,6 +91,9 @@ type ProxyRouteView struct {
 	CustomHeaderList   []ProxyRouteCustomHeaderInput `json:"custom_header_list"`
 	PoWEnabled         bool                          `json:"pow_enabled"`
 	PoWConfig          *ProxyRoutePoWConfig          `json:"pow_config"`
+	BasicAuthEnabled   bool                          `json:"basic_auth_enabled"`
+	BasicAuthUsername  string                        `json:"basic_auth_username"`
+	BasicAuthPassword  string                        `json:"basic_auth_password"`
 	Remark             string                        `json:"remark"`
 	CreatedAt          time.Time                     `json:"created_at"`
 	UpdatedAt          time.Time                     `json:"updated_at"`
@@ -259,6 +265,17 @@ func buildProxyRoute(route *model.ProxyRoute, input ProxyRouteInput) (*model.Pro
 		return nil, errors.New("redirect_http requires enable_https")
 	}
 
+	if input.BasicAuthEnabled {
+		input.BasicAuthUsername = strings.TrimSpace(input.BasicAuthUsername)
+		input.BasicAuthPassword = strings.TrimSpace(input.BasicAuthPassword)
+		if input.BasicAuthUsername == "" || input.BasicAuthPassword == "" {
+			return nil, errors.New("basic_auth_username and basic_auth_password cannot be empty when basic auth is enabled")
+		}
+	} else {
+		input.BasicAuthUsername = ""
+		input.BasicAuthPassword = ""
+	}
+
 	if route == nil {
 		route = &model.ProxyRoute{}
 	}
@@ -284,6 +301,9 @@ func buildProxyRoute(route *model.ProxyRoute, input ProxyRouteInput) (*model.Pro
 	route.CustomHeaders = string(customHeadersJSON)
 	route.PoWEnabled = input.PoWEnabled
 	route.PoWConfig = string(powConfigJSON)
+	route.BasicAuthEnabled = input.BasicAuthEnabled
+	route.BasicAuthUsername = input.BasicAuthUsername
+	route.BasicAuthPassword = input.BasicAuthPassword
 	route.Remark = remark
 	return route, nil
 }
@@ -366,6 +386,9 @@ func buildProxyRouteView(route *model.ProxyRoute) (*ProxyRouteView, error) {
 		CustomHeaderList:   customHeaders,
 		PoWEnabled:         route.PoWEnabled,
 		PoWConfig:          powConfig,
+		BasicAuthEnabled:   route.BasicAuthEnabled,
+		BasicAuthUsername:  route.BasicAuthUsername,
+		BasicAuthPassword:  route.BasicAuthPassword,
 		Remark:             route.Remark,
 		CreatedAt:          route.CreatedAt,
 		UpdatedAt:          route.UpdatedAt,
