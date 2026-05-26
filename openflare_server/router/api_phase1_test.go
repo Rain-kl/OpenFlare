@@ -8,6 +8,7 @@ import (
 	"crypto/x509/pkix"
 	"encoding/json"
 	"encoding/pem"
+	"errors"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
@@ -387,6 +388,95 @@ func TestPhase1HTTPSAndCertificateImportLifecycle(t *testing.T) {
 	}
 }
 
+func TestTLSCertificateConvertAcmeAPI(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	common.RedisEnabled = false
+	setupTestDB(t)
+
+	engine := gin.New()
+	engine.Use(sessions.Sessions("session", cookie.NewStore([]byte("test-secret"))))
+	router.SetApiRouter(engine)
+
+	token := prepareRootToken(t)
+	certPEM, keyPEM := generateCertificatePairForRouterTest(t, []string{"manual.example.com"})
+	createResp := performJSONRequest(t, engine, token, http.MethodPost, "/api/tls-certificates/", map[string]any{
+		"name":     "manual-example",
+		"cert_pem": certPEM,
+		"key_pem":  keyPEM,
+	})
+	var certificate model.TLSCertificate
+	decodeResponseData(t, createResp, &certificate)
+
+	started := make(chan struct{}, 1)
+	release := make(chan struct{})
+	done := make(chan struct{})
+	restore := service.SetTLSCertificateObtainFuncForTest(func(c *model.TLSCertificate) error {
+		defer close(done)
+		started <- struct{}{}
+		<-release
+		return errors.New("stop test conversion before external ACME call")
+	})
+	t.Cleanup(func() {
+		close(release)
+		<-done
+		restore()
+	})
+
+	convertResp := performJSONRequest(t, engine, token, http.MethodPost, "/api/tls-certificates/"+toString(certificate.ID)+"/convert-acme", map[string]any{
+		"name":            "managed-example",
+		"remark":          "convert via api",
+		"acme_account_id": 1,
+		"dns_account_id":  2,
+		"key_algorithm":   "EC256",
+		"auto_renew":      true,
+		"primary_domain":  "manual.example.com",
+	})
+	var converted model.TLSCertificate
+	decodeResponseData(t, convertResp, &converted)
+	if converted.ID != certificate.ID || converted.Provider != "upload" || converted.ApplyStatus != "applying" {
+		t.Fatalf("expected conversion API to keep upload provider while applying, got %+v", converted)
+	}
+
+	select {
+	case <-started:
+	case <-time.After(time.Second):
+		t.Fatal("expected conversion task to start")
+	}
+
+	duplicateResp := performJSONRequestNoFatal(t, engine, token, http.MethodPost, "/api/tls-certificates/"+toString(certificate.ID)+"/convert-acme", map[string]any{
+		"name":           "managed-example",
+		"primary_domain": "manual.example.com",
+	})
+	if duplicateResp.Success || !strings.Contains(duplicateResp.Message, "already applying") {
+		t.Fatalf("expected duplicate conversion to fail, got %+v", duplicateResp)
+	}
+
+	invalidResp := performJSONRequestNoFatal(t, engine, token, http.MethodPost, "/api/tls-certificates/not-a-number/convert-acme", map[string]any{})
+	if invalidResp.Success || !strings.Contains(invalidResp.Message, "invalid request") {
+		t.Fatalf("expected invalid id to fail, got %+v", invalidResp)
+	}
+
+	acmeCertPEM, acmeKeyPEM := generateCertificatePairForRouterTest(t, []string{"acme.example.com"})
+	acmeResp := performJSONRequest(t, engine, token, http.MethodPost, "/api/tls-certificates/", map[string]any{
+		"name":     "already-acme",
+		"cert_pem": acmeCertPEM,
+		"key_pem":  acmeKeyPEM,
+	})
+	var acmeCertificate model.TLSCertificate
+	decodeResponseData(t, acmeResp, &acmeCertificate)
+	acmeCertificate.Provider = "acme"
+	if err := acmeCertificate.Update(); err != nil {
+		t.Fatalf("failed to mark certificate acme: %v", err)
+	}
+	nonUploadResp := performJSONRequestNoFatal(t, engine, token, http.MethodPost, "/api/tls-certificates/"+toString(acmeCertificate.ID)+"/convert-acme", map[string]any{
+		"name":           "already-acme",
+		"primary_domain": "acme.example.com",
+	})
+	if nonUploadResp.Success || !strings.Contains(nonUploadResp.Message, "only uploaded") {
+		t.Fatalf("expected non-upload conversion to fail, got %+v", nonUploadResp)
+	}
+}
+
 func setupTestDB(t *testing.T) {
 	t.Helper()
 	dbPath := filepath.Join(t.TempDir(), "phase1.db")
@@ -441,6 +531,33 @@ func performJSONRequest(t *testing.T, engine http.Handler, token string, method 
 	}
 	if !resp.Success {
 		t.Fatalf("request %s %s failed: %s", method, path, resp.Message)
+	}
+	return resp
+}
+
+func performJSONRequestNoFatal(t *testing.T, engine http.Handler, token string, method string, path string, body any) apiResponse {
+	t.Helper()
+	var payload []byte
+	var err error
+	if body != nil {
+		payload, err = json.Marshal(body)
+		if err != nil {
+			t.Fatalf("failed to marshal request body: %v", err)
+		}
+	}
+	req := httptest.NewRequest(method, path, bytes.NewReader(payload))
+	if body != nil {
+		req.Header.Set("Content-Type", "application/json")
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+	recorder := httptest.NewRecorder()
+	engine.ServeHTTP(recorder, req)
+	if recorder.Code != http.StatusOK && recorder.Code != http.StatusBadRequest {
+		t.Fatalf("unexpected status %d for %s %s: %s", recorder.Code, method, path, recorder.Body.String())
+	}
+	var resp apiResponse
+	if err = json.Unmarshal(recorder.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("failed to unmarshal response: %v", err)
 	}
 	return resp
 }

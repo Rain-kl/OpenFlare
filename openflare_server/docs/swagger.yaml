@@ -1,11 +1,35 @@
 basePath: /
 definitions:
+  controller.CleanupConfigVersionRequest:
+    properties:
+      keep_count:
+        minimum: 3
+        type: integer
+    required:
+    - keep_count
+    type: object
+  controller.DnsAccountInput:
+    properties:
+      authorization:
+        type: string
+      name:
+        type: string
+      type:
+        type: string
+    type: object
   controller.geoIPLookupRequest:
     properties:
       ip:
         type: string
       provider:
         type: string
+    type: object
+  controller.optionBatchPayload:
+    properties:
+      options:
+        items:
+          $ref: '#/definitions/model.Option'
+        type: array
     type: object
   model.Option:
     properties:
@@ -229,6 +253,12 @@ definitions:
     type: object
   service.ProxyRouteInput:
     properties:
+      basic_auth_enabled:
+        type: boolean
+      basic_auth_password:
+        type: string
+      basic_auth_username:
+        type: string
       cache_enabled:
         type: boolean
       cache_policy:
@@ -239,28 +269,89 @@ definitions:
         type: array
       cert_id:
         type: integer
+      cert_ids:
+        items:
+          type: integer
+        type: array
       custom_headers:
         items:
           $ref: '#/definitions/service.ProxyRouteCustomHeaderInput'
         type: array
       domain:
         type: string
+      domain_cert_ids:
+        items:
+          type: integer
+        type: array
+      domains:
+        items:
+          type: string
+        type: array
       enable_https:
         type: boolean
       enabled:
         type: boolean
+      limit_conn_per_ip:
+        type: integer
+      limit_conn_per_server:
+        type: integer
+      limit_rate:
+        type: string
+      origin_address:
+        type: string
       origin_host:
+        type: string
+      origin_id:
+        type: integer
+      origin_port:
+        type: string
+      origin_scheme:
+        type: string
+      origin_uri:
         type: string
       origin_url:
         type: string
+      pow_config:
+        type: string
+      pow_enabled:
+        type: boolean
       redirect_http:
         type: boolean
       remark:
+        type: string
+      site_name:
         type: string
       upstreams:
         items:
           type: string
         type: array
+    type: object
+  service.TLSApplyInput:
+    properties:
+      acme_account_id:
+        type: integer
+      auto_renew:
+        type: boolean
+      disable_cname:
+        type: boolean
+      dns_account_id:
+        type: integer
+      dns1:
+        type: string
+      dns2:
+        type: string
+      key_algorithm:
+        type: string
+      name:
+        type: string
+      other_domains:
+        type: string
+      primary_domain:
+        type: string
+      remark:
+        type: string
+      skip_dns:
+        type: boolean
     type: object
   service.TLSCertificateInput:
     properties:
@@ -477,6 +568,21 @@ paths:
       summary: Get access log IP trend
       tags:
       - AccessLogs
+  /api/acme-accounts/default:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get default ACME account
+      tags:
+      - AcmeAccounts
   /api/agent/apply-logs:
     post:
       consumes:
@@ -698,6 +804,33 @@ paths:
       summary: Get active config version
       tags:
       - ConfigVersions
+  /api/config-versions/cleanup:
+    post:
+      parameters:
+      - description: Cleanup request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/controller.CleanupConfigVersionRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Cleanup old config versions
+      tags:
+      - ConfigVersions
   /api/config-versions/diff:
     get:
       produces:
@@ -763,6 +896,94 @@ paths:
       summary: Get dashboard overview
       tags:
       - Dashboard
+  /api/dns-accounts/:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List DNS accounts
+      tags:
+      - DnsAccounts
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: DNS account payload
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/controller.DnsAccountInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create DNS account
+      tags:
+      - DnsAccounts
+  /api/dns-accounts/{id}/delete:
+    post:
+      parameters:
+      - description: DNS Account ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete DNS account
+      tags:
+      - DnsAccounts
+  /api/dns-accounts/{id}/update:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: DNS Account ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: DNS account payload
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/controller.DnsAccountInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update DNS account
+      tags:
+      - DnsAccounts
   /api/managed-domains/:
     get:
       produces:
@@ -1246,6 +1467,33 @@ paths:
       summary: Update option
       tags:
       - Options
+  /api/option/update-batch:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Batch option payload
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/controller.optionBatchPayload'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Batch update options
+      tags:
+      - Options
   /api/proxy-routes/:
     get:
       produces:
@@ -1287,6 +1535,32 @@ paths:
       security:
       - BearerAuth: []
       summary: Create proxy route
+      tags:
+      - ProxyRoutes
+  /api/proxy-routes/{id}:
+    get:
+      parameters:
+      - description: Route ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get proxy route detail
       tags:
       - ProxyRoutes
   /api/proxy-routes/{id}/delete:
@@ -1457,6 +1731,40 @@ paths:
       summary: Get TLS certificate PEM content
       tags:
       - TLSCertificates
+  /api/tls-certificates/{id}/convert-acme:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Certificate ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: TLS apply payload
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/service.TLSApplyInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Convert uploaded TLS certificate to ACME managed certificate
+      tags:
+      - TLSCertificates
   /api/tls-certificates/{id}/delete:
     post:
       parameters:
@@ -1481,6 +1789,32 @@ paths:
       security:
       - BearerAuth: []
       summary: Delete TLS certificate
+      tags:
+      - TLSCertificates
+  /api/tls-certificates/{id}/renew:
+    post:
+      parameters:
+      - description: Certificate ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Renew TLS certificate
       tags:
       - TLSCertificates
   /api/tls-certificates/{id}/update:
@@ -1515,6 +1849,69 @@ paths:
       security:
       - BearerAuth: []
       summary: Update TLS certificate from PEM
+      tags:
+      - TLSCertificates
+  /api/tls-certificates/{id}/update-acme:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Certificate ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: TLS apply payload
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/service.TLSApplyInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update ACME TLS certificate
+      tags:
+      - TLSCertificates
+  /api/tls-certificates/apply:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: TLS apply payload
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/service.TLSApplyInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Apply TLS certificate via ACME
       tags:
       - TLSCertificates
   /api/tls-certificates/import-file:

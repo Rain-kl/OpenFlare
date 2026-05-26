@@ -25,7 +25,9 @@ export function getTlsCertificate(id: number) {
 }
 
 export function getTlsCertificateContent(id: number) {
-  return apiRequest<TlsCertificateContentItem>(`/tls-certificates/${id}/content`);
+  return apiRequest<TlsCertificateContentItem>(
+    `/tls-certificates/${id}/content`,
+  );
 }
 
 export function updateTlsCertificate(
@@ -38,7 +40,9 @@ export function updateTlsCertificate(
   });
 }
 
-export function importTlsCertificateFiles(payload: TlsCertificateFileImportPayload) {
+export function importTlsCertificateFiles(
+  payload: TlsCertificateFileImportPayload,
+) {
   const formData = new FormData();
   formData.append('name', payload.name);
   formData.append('remark', payload.remark);
@@ -53,7 +57,7 @@ export function importTlsCertificateFiles(payload: TlsCertificateFileImportPaylo
 
 export function deleteTlsCertificate(id: number) {
   return apiRequest<void>(`/tls-certificates/${id}/delete`, {
-	method: 'POST',
+    method: 'POST',
   });
 }
 
@@ -70,9 +74,25 @@ export function renewTlsCertificate(id: number) {
   });
 }
 
-export function updateAcmeCertificate(id: number, payload: TlsCertificateApplyPayload) {
+export function updateAcmeCertificate(
+  id: number,
+  payload: TlsCertificateApplyPayload,
+) {
   return apiRequest<TlsCertificateItem>(`/tls-certificates/${id}/update-acme`, {
     method: 'POST',
     body: JSON.stringify(payload),
   });
+}
+
+export function convertTlsCertificateToAcme(
+  id: number,
+  payload: TlsCertificateApplyPayload,
+) {
+  return apiRequest<TlsCertificateItem>(
+    `/tls-certificates/${id}/convert-acme`,
+    {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    },
+  );
 }

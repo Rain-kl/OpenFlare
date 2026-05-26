@@ -40,6 +40,16 @@ type TLSApplyInput struct {
 	DNS2          string `json:"dns2"`
 }
 
+var obtainTLSCertificate = ObtainSSL
+
+func SetTLSCertificateObtainFuncForTest(fn func(*model.TLSCertificate) error) func() {
+	previous := obtainTLSCertificate
+	obtainTLSCertificate = fn
+	return func() {
+		obtainTLSCertificate = previous
+	}
+}
+
 func ListTLSCertificates() ([]*model.TLSCertificate, error) {
 	return model.ListTLSCertificates()
 }
@@ -191,7 +201,7 @@ func ApplyTLSCertificate(input TLSApplyInput) (*model.TLSCertificate, error) {
 
 	// Async obtain SSL
 	go func(c *model.TLSCertificate) {
-		_ = ObtainSSL(c)
+		_ = obtainTLSCertificate(c)
 	}(cert)
 
 	return cert, nil
@@ -233,7 +243,64 @@ func UpdateAcmeCertificate(id uint, input TLSApplyInput) (*model.TLSCertificate,
 
 	// Async obtain SSL with updated config
 	go func(c *model.TLSCertificate) {
-		_ = ObtainSSL(c)
+		_ = obtainTLSCertificate(c)
+	}(cert)
+
+	return cert, nil
+}
+
+func ConvertTLSCertificateToAcme(id uint, input TLSApplyInput) (*model.TLSCertificate, error) {
+	cert, err := model.GetTLSCertificateByID(id)
+	if err != nil {
+		return nil, err
+	}
+	if cert.Provider != "upload" {
+		return nil, errors.New("only uploaded certificates can be converted to acme")
+	}
+	if cert.ApplyStatus == "applying" {
+		return nil, errors.New("certificate is already applying")
+	}
+
+	name := strings.TrimSpace(input.Name)
+	if name == "" {
+		return nil, errors.New("certificate name cannot be empty")
+	}
+
+	cert.Name = name
+	cert.Remark = strings.TrimSpace(input.Remark)
+	cert.AcmeAccountID = input.AcmeAccountID
+	cert.DnsAccountID = input.DnsAccountID
+	cert.KeyAlgorithm = input.KeyAlgorithm
+	cert.AutoRenew = input.AutoRenew
+	cert.PrimaryDomain = strings.TrimSpace(input.PrimaryDomain)
+	cert.OtherDomains = strings.TrimSpace(input.OtherDomains)
+	cert.DisableCNAME = input.DisableCNAME
+	cert.SkipDNS = input.SkipDNS
+	cert.DNS1 = strings.TrimSpace(input.DNS1)
+	cert.DNS2 = strings.TrimSpace(input.DNS2)
+	cert.ApplyStatus = "applying"
+	cert.ApplyMessage = ""
+
+	if err := cert.Update(); err != nil {
+		if isUniqueConstraintError(err) {
+			return nil, errors.New("certificate name already exists")
+		}
+		return nil, err
+	}
+
+	go func(c *model.TLSCertificate) {
+		if err := obtainTLSCertificate(c); err != nil {
+			return
+		}
+
+		latest, err := model.GetTLSCertificateByID(c.ID)
+		if err != nil {
+			return
+		}
+		latest.Provider = "acme"
+		latest.ApplyStatus = "ready"
+		latest.ApplyMessage = ""
+		_ = latest.Update()
 	}(cert)
 
 	return cert, nil
@@ -250,7 +317,7 @@ func RenewTLSCertificate(id uint) (*model.TLSCertificate, error) {
 
 	// Async obtain SSL
 	go func(c *model.TLSCertificate) {
-		_ = ObtainSSL(c)
+		_ = obtainTLSCertificate(c)
 	}(cert)
 
 	cert.ApplyStatus = "applying"

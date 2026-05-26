@@ -34,6 +34,7 @@ interface CertificateEditorModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSaved?: (certificate: TlsCertificateItem) => void;
+  onConvert?: (certificate: TlsCertificateItem) => void;
 }
 
 export function CertificateEditorModal({
@@ -41,6 +42,7 @@ export function CertificateEditorModal({
   isOpen,
   onClose,
   onSaved,
+  onConvert,
 }: CertificateEditorModalProps) {
   const queryClient = useQueryClient();
   const form = useForm<ManualImportFormValues>({
@@ -90,6 +92,10 @@ export function CertificateEditorModal({
     onClose();
   };
 
+  const canConvert =
+    certificateQuery.data?.provider === 'upload' &&
+    certificateQuery.data.apply_status !== 'applying';
+
   return (
     <AppModal
       isOpen={isOpen}
@@ -98,21 +104,38 @@ export function CertificateEditorModal({
       description="可以修改证书名称、备注，以及重新上传 PEM 证书和私钥内容。"
       size="xl"
       footer={
-        <div className="flex flex-wrap justify-end gap-3">
-          <SecondaryButton
-            type="button"
-            onClick={handleClose}
-            disabled={updateMutation.isPending}
-          >
-            取消
-          </SecondaryButton>
-          <PrimaryButton
-            type="submit"
-            form="certificate-editor-form"
-            disabled={updateMutation.isPending || certificateQuery.isLoading}
-          >
-            {updateMutation.isPending ? '保存中...' : '保存证书'}
-          </PrimaryButton>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            {canConvert ? (
+              <SecondaryButton
+                type="button"
+                onClick={() => {
+                  if (certificateQuery.data) {
+                    onConvert?.(certificateQuery.data);
+                  }
+                }}
+                disabled={updateMutation.isPending}
+              >
+                转换来源
+              </SecondaryButton>
+            ) : null}
+          </div>
+          <div className="flex flex-wrap justify-end gap-3">
+            <SecondaryButton
+              type="button"
+              onClick={handleClose}
+              disabled={updateMutation.isPending}
+            >
+              取消
+            </SecondaryButton>
+            <PrimaryButton
+              type="submit"
+              form="certificate-editor-form"
+              disabled={updateMutation.isPending || certificateQuery.isLoading}
+            >
+              {updateMutation.isPending ? '保存中...' : '保存证书'}
+            </PrimaryButton>
+          </div>
         </div>
       }
     >
@@ -124,10 +147,7 @@ export function CertificateEditorModal({
           description={getErrorMessage(certificateQuery.error)}
         />
       ) : !certificateQuery.data ? (
-        <EmptyState
-          title="证书不存在"
-          description="当前证书可能已被删除。"
-        />
+        <EmptyState title="证书不存在" description="当前证书可能已被删除。" />
       ) : (
         <form
           id="certificate-editor-form"

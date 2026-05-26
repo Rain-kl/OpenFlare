@@ -21,7 +21,10 @@ import { CertificateDetailModal } from '@/features/websites/components/certifica
 import { CertificateEditorModal } from '@/features/websites/components/certificate-editor-modal';
 import { CertificateImportModal } from '@/features/websites/components/certificate-import-modal';
 import { CertificateApplyModal } from '@/features/websites/components/certificate-apply-modal';
-import { getCertificateStatus, getErrorMessage } from '@/features/websites/utils';
+import {
+  getCertificateStatus,
+  getErrorMessage,
+} from '@/features/websites/utils';
 import {
   DangerButton,
   PrimaryButton,
@@ -35,6 +38,7 @@ type FeedbackState = {
 };
 
 const certificatesQueryKey = ['tls-certificates', 'list'] as const;
+type CertificateApplyMode = 'edit-acme' | 'convert-upload';
 
 export function TlsCertificatesPage() {
   const queryClient = useQueryClient();
@@ -46,7 +50,9 @@ export function TlsCertificatesPage() {
   >(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
-  const [editAcmeCertificate, setEditAcmeCertificate] = useState<TlsCertificateItem | null>(null);
+  const [applyCertificate, setApplyCertificate] =
+    useState<TlsCertificateItem | null>(null);
+  const [applyMode, setApplyMode] = useState<CertificateApplyMode>('edit-acme');
 
   const certificatesQuery = useQuery({
     queryKey: certificatesQueryKey,
@@ -67,7 +73,10 @@ export function TlsCertificatesPage() {
   const renewCertificateMutation = useMutation({
     mutationFn: renewTlsCertificate,
     onSuccess: async (cert) => {
-      setFeedback({ tone: 'success', message: `证书 ${cert.name} 续期任务已提交。` });
+      setFeedback({
+        tone: 'success',
+        message: `证书 ${cert.name} 续期任务已提交。`,
+      });
       await queryClient.invalidateQueries({ queryKey: ['tls-certificates'] });
     },
     onError: (error) => {
@@ -105,7 +114,8 @@ export function TlsCertificatesPage() {
 
   const handleOpenCertificateEditor = (certificate: TlsCertificateItem) => {
     if (certificate.provider === 'acme') {
-      setEditAcmeCertificate(certificate);
+      setApplyMode('edit-acme');
+      setApplyCertificate(certificate);
     } else {
       setSelectedCertificateId(certificate.id);
       setIsEditorOpen(true);
@@ -142,7 +152,10 @@ export function TlsCertificatesPage() {
               >
                 DNS 账号
               </Link>
-              <PrimaryButton type="button" onClick={() => setIsImportOpen(true)}>
+              <PrimaryButton
+                type="button"
+                onClick={() => setIsImportOpen(true)}
+              >
                 导入证书
               </PrimaryButton>
               <PrimaryButton type="button" onClick={() => setIsApplyOpen(true)}>
@@ -196,9 +209,28 @@ export function TlsCertificatesPage() {
                         <div className="text-xs leading-5 text-[var(--foreground-secondary)]">
                           <p>生效：{formatDateTime(certificate.not_before)}</p>
                           <p>到期：{formatDateTime(certificate.not_after)}</p>
-                          <p>来源：{certificate.provider === 'acme' ? 'ACME 申请' : '手动上传'}</p>
-                          {certificate.apply_status === 'applying' && <p className="text-blue-500">状态：申请中...</p>}
-                          {certificate.apply_status === 'error' && <p className="text-red-500">状态：申请失败 ({certificate.apply_message})</p>}
+                          <p>
+                            来源：
+                            {certificate.provider === 'acme'
+                              ? 'ACME 申请'
+                              : '手动上传'}
+                          </p>
+                          {certificate.provider === 'upload' &&
+                          certificate.apply_status === 'applying' ? (
+                            <p className="text-blue-500">状态：转换申请中...</p>
+                          ) : certificate.apply_status === 'applying' ? (
+                            <p className="text-blue-500">状态：申请中...</p>
+                          ) : null}
+                          {certificate.provider === 'upload' &&
+                          certificate.apply_status === 'error' ? (
+                            <p className="text-red-500">
+                              状态：转换失败 ({certificate.apply_message})
+                            </p>
+                          ) : certificate.apply_status === 'error' ? (
+                            <p className="text-red-500">
+                              状态：申请失败 ({certificate.apply_message})
+                            </p>
+                          ) : null}
                           <p>备注：{certificate.remark || '暂无备注'}</p>
                         </div>
                       </div>
@@ -206,14 +238,18 @@ export function TlsCertificatesPage() {
                       <div className="flex flex-wrap gap-2">
                         <SecondaryButton
                           type="button"
-                          onClick={() => handleOpenCertificateDetail(certificate)}
+                          onClick={() =>
+                            handleOpenCertificateDetail(certificate)
+                          }
                           className="px-3 py-2 text-xs"
                         >
                           查看
                         </SecondaryButton>
                         <SecondaryButton
                           type="button"
-                          onClick={() => handleOpenCertificateEditor(certificate)}
+                          onClick={() =>
+                            handleOpenCertificateEditor(certificate)
+                          }
                           className="px-3 py-2 text-xs"
                         >
                           编辑
@@ -272,15 +308,19 @@ export function TlsCertificatesPage() {
         />
       ) : null}
 
-      {editAcmeCertificate ? (
+      {applyCertificate ? (
         <CertificateApplyModal
           isOpen={true}
-          onClose={() => setEditAcmeCertificate(null)}
-          editCertificate={editAcmeCertificate}
+          onClose={() => setApplyCertificate(null)}
+          mode={applyMode}
+          certificate={applyCertificate}
           onApplied={(certificate) => {
             setFeedback({
               tone: 'success',
-              message: `证书 ${certificate.name} 配置已更新，重新申请中...`,
+              message:
+                applyMode === 'convert-upload'
+                  ? `证书 ${certificate.name} 转换申请已提交。`
+                  : `证书 ${certificate.name} 配置已更新，重新申请中...`,
             });
           }}
         />
@@ -323,6 +363,11 @@ export function TlsCertificatesPage() {
               tone: 'success',
               message: `证书 ${certificate.name} 已更新。`,
             });
+          }}
+          onConvert={(certificate) => {
+            setIsEditorOpen(false);
+            setApplyMode('convert-upload');
+            setApplyCertificate(certificate);
           }}
         />
       ) : null}

@@ -121,6 +121,7 @@ func SetApiRouter(router *gin.Engine) {
 			tlsCertificateRoute.POST("/", controller.CreateTLSCertificate)
 			tlsCertificateRoute.POST("/:id/update", controller.UpdateTLSCertificate)
 			tlsCertificateRoute.POST("/:id/update-acme", controller.UpdateAcmeCertificate)
+			tlsCertificateRoute.POST("/:id/convert-acme", controller.ConvertTLSCertificateToAcme)
 			tlsCertificateRoute.POST("/import-file", controller.ImportTLSCertificateFile)
 			tlsCertificateRoute.POST("/:id/delete", controller.DeleteTLSCertificate)
 			tlsCertificateRoute.POST("/apply", controller.ApplyTLSCertificate)

@@ -158,15 +158,15 @@ function DnsAccountCreateModal({ isOpen, onClose, onCreated }: { isOpen: boolean
       <form onSubmit={onSubmit} className="space-y-5">
         {error && <InlineMessage tone="danger" message={error} />}
         <ResourceField label="账号名称" error={formState.errors.name?.message as string}>
-          <ResourceInput placeholder="例如：我的 Cloudflare" {...register('name', { required: '请输入名称' })} />
+          <ResourceInput placeholder="Cloudlfare 邮箱账号" {...register('name', { required: '请输入名称' })} />
         </ResourceField>
         <ResourceField label="DNS 服务商">
           <ResourceSelect {...register('type')}>
             <option value="cloudflare">Cloudflare</option>
           </ResourceSelect>
         </ResourceField>
-        <ResourceField label="API Token (Authorization)" hint="输入对应 DNS 平台提供的 API Token。">
-          <ResourceInput placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxx" {...register('authorization', { required: '请输入 Token' })} />
+        <ResourceField label="API Token" hint="请勿使用 Global API Key">
+          <ResourceInput {...register('authorization', { required: '请输入 Token' })} />
         </ResourceField>
         <PrimaryButton type="submit" disabled={createMutation.isPending}>
           {createMutation.isPending ? '提交中...' : '提交'}

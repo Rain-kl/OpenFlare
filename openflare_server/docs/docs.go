@@ -326,6 +326,31 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/acme-accounts/default": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "AcmeAccounts"
+                ],
+                "summary": "Get default ACME account",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
         "/api/agent/apply-logs": {
             "post": {
                 "security": [
@@ -600,6 +625,49 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/config-versions/cleanup": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "ConfigVersions"
+                ],
+                "summary": "Cleanup old config versions",
+                "parameters": [
+                    {
+                        "description": "Cleanup request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/controller.CleanupConfigVersionRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
         "/api/config-versions/diff": {
             "get": {
                 "security": [
@@ -781,6 +849,148 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/dns-accounts/": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "DnsAccounts"
+                ],
+                "summary": "List DNS accounts",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "DnsAccounts"
+                ],
+                "summary": "Create DNS account",
+                "parameters": [
+                    {
+                        "description": "DNS account payload",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/controller.DnsAccountInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/dns-accounts/{id}/delete": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "DnsAccounts"
+                ],
+                "summary": "Delete DNS account",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "DNS Account ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/dns-accounts/{id}/update": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "DnsAccounts"
+                ],
+                "summary": "Update DNS account",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "DNS Account ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "DNS account payload",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/controller.DnsAccountInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -1552,6 +1762,47 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/option/update-batch": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Options"
+                ],
+                "summary": "Batch update options",
+                "parameters": [
+                    {
+                        "description": "Batch option payload",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/controller.optionBatchPayload"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
         "/api/proxy-routes/": {
             "get": {
                 "security": [
@@ -1601,6 +1852,47 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/service.ProxyRouteInput"
                         }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/proxy-routes/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "ProxyRoutes"
+                ],
+                "summary": "Get proxy route detail",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Route ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
                     }
                 ],
                 "responses": {
@@ -1804,6 +2096,52 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/tls-certificates/apply": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "TLSCertificates"
+                ],
+                "summary": "Apply TLS certificate via ACME",
+                "parameters": [
+                    {
+                        "description": "TLS apply payload",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/service.TLSApplyInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
         "/api/tls-certificates/import-file": {
             "post": {
                 "security": [
@@ -1950,6 +2288,59 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/tls-certificates/{id}/convert-acme": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "TLSCertificates"
+                ],
+                "summary": "Convert uploaded TLS certificate to ACME managed certificate",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Certificate ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "TLS apply payload",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/service.TLSApplyInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
         "/api/tls-certificates/{id}/delete": {
             "post": {
                 "security": [
@@ -1964,6 +2355,47 @@ const docTemplate = `{
                     "TLSCertificates"
                 ],
                 "summary": "Delete TLS certificate",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Certificate ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/tls-certificates/{id}/renew": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "TLSCertificates"
+                ],
+                "summary": "Renew TLS certificate",
                 "parameters": [
                     {
                         "type": "integer",
@@ -2023,6 +2455,59 @@ const docTemplate = `{
                         "required": true,
                         "schema": {
                             "$ref": "#/definitions/service.TLSCertificateInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/tls-certificates/{id}/update-acme": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "TLSCertificates"
+                ],
+                "summary": "Update ACME TLS certificate",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Certificate ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "TLS apply payload",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/service.TLSApplyInput"
                         }
                     }
                 ],
@@ -2141,6 +2626,32 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "controller.CleanupConfigVersionRequest": {
+            "type": "object",
+            "required": [
+                "keep_count"
+            ],
+            "properties": {
+                "keep_count": {
+                    "type": "integer",
+                    "minimum": 3
+                }
+            }
+        },
+        "controller.DnsAccountInput": {
+            "type": "object",
+            "properties": {
+                "authorization": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
         "controller.geoIPLookupRequest": {
             "type": "object",
             "properties": {
@@ -2149,6 +2660,17 @@ const docTemplate = `{
                 },
                 "provider": {
                     "type": "string"
+                }
+            }
+        },
+        "controller.optionBatchPayload": {
+            "type": "object",
+            "properties": {
+                "options": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.Option"
+                    }
                 }
             }
         },
@@ -2491,6 +3013,15 @@ const docTemplate = `{
         "service.ProxyRouteInput": {
             "type": "object",
             "properties": {
+                "basic_auth_enabled": {
+                    "type": "boolean"
+                },
+                "basic_auth_password": {
+                    "type": "string"
+                },
+                "basic_auth_username": {
+                    "type": "string"
+                },
                 "cache_enabled": {
                     "type": "boolean"
                 },
@@ -2506,6 +3037,12 @@ const docTemplate = `{
                 "cert_id": {
                     "type": "integer"
                 },
+                "cert_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
                 "custom_headers": {
                     "type": "array",
                     "items": {
@@ -2515,17 +3052,59 @@ const docTemplate = `{
                 "domain": {
                     "type": "string"
                 },
+                "domain_cert_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "domains": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "enable_https": {
                     "type": "boolean"
                 },
                 "enabled": {
                     "type": "boolean"
                 },
+                "limit_conn_per_ip": {
+                    "type": "integer"
+                },
+                "limit_conn_per_server": {
+                    "type": "integer"
+                },
+                "limit_rate": {
+                    "type": "string"
+                },
+                "origin_address": {
+                    "type": "string"
+                },
                 "origin_host": {
+                    "type": "string"
+                },
+                "origin_id": {
+                    "type": "integer"
+                },
+                "origin_port": {
+                    "type": "string"
+                },
+                "origin_scheme": {
+                    "type": "string"
+                },
+                "origin_uri": {
                     "type": "string"
                 },
                 "origin_url": {
                     "type": "string"
+                },
+                "pow_config": {
+                    "type": "string"
+                },
+                "pow_enabled": {
+                    "type": "boolean"
                 },
                 "redirect_http": {
                     "type": "boolean"
@@ -2533,11 +3112,55 @@ const docTemplate = `{
                 "remark": {
                     "type": "string"
                 },
+                "site_name": {
+                    "type": "string"
+                },
                 "upstreams": {
                     "type": "array",
                     "items": {
                         "type": "string"
                     }
+                }
+            }
+        },
+        "service.TLSApplyInput": {
+            "type": "object",
+            "properties": {
+                "acme_account_id": {
+                    "type": "integer"
+                },
+                "auto_renew": {
+                    "type": "boolean"
+                },
+                "disable_cname": {
+                    "type": "boolean"
+                },
+                "dns1": {
+                    "type": "string"
+                },
+                "dns2": {
+                    "type": "string"
+                },
+                "dns_account_id": {
+                    "type": "integer"
+                },
+                "key_algorithm": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "other_domains": {
+                    "type": "string"
+                },
+                "primary_domain": {
+                    "type": "string"
+                },
+                "remark": {
+                    "type": "string"
+                },
+                "skip_dns": {
+                    "type": "boolean"
                 }
             }
         },

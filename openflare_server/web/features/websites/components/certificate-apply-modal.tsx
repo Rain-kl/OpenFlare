@@ -7,7 +7,11 @@ import { useForm } from 'react-hook-form';
 
 import { InlineMessage } from '@/components/feedback/inline-message';
 import { AppModal } from '@/components/ui/app-modal';
-import { applyTlsCertificate, updateAcmeCertificate } from '@/features/tls-certificates/api/tls-certificates';
+import {
+  applyTlsCertificate,
+  convertTlsCertificateToAcme,
+  updateAcmeCertificate,
+} from '@/features/tls-certificates/api/tls-certificates';
 import type { TlsCertificateItem } from '@/features/tls-certificates/types';
 import { getDnsAccounts } from '@/features/dns-accounts/api/dns-accounts';
 import { getDefaultAcmeAccount } from '@/features/acme-accounts/api/acme-accounts';
@@ -29,17 +33,22 @@ interface CertificateApplyModalProps {
   isOpen: boolean;
   onClose: () => void;
   onApplied?: (certificate: TlsCertificateItem) => void;
-  editCertificate?: TlsCertificateItem | null;
+  mode?: 'create' | 'edit-acme' | 'convert-upload';
+  certificate?: TlsCertificateItem | null;
 }
 
 export function CertificateApplyModal({
   isOpen,
   onClose,
   onApplied,
-  editCertificate,
+  mode = 'create',
+  certificate,
 }: CertificateApplyModalProps) {
   const queryClient = useQueryClient();
-  const [feedback, setFeedback] = useState<{ tone: 'success' | 'danger'; message: string } | null>(null);
+  const [feedback, setFeedback] = useState<{
+    tone: 'success' | 'danger';
+    message: string;
+  } | null>(null);
   const [showAdvanced, setShowAdvanced] = useState(false);
 
   const dnsAccountsQuery = useQuery({
@@ -63,41 +72,59 @@ export function CertificateApplyModal({
     if (!isOpen) return;
     setFeedback(null);
     setShowAdvanced(false);
-    
-    if (editCertificate) {
+
+    if (certificate) {
       form.reset({
-        name: editCertificate.name,
-        primary_domain: editCertificate.primary_domain || '',
-        other_domains: editCertificate.other_domains || '',
-        remark: editCertificate.remark || '',
-        acme_account_id: editCertificate.acme_account_id,
-        dns_account_id: editCertificate.dns_account_id,
-        key_algorithm: editCertificate.key_algorithm as any || 'EC256',
-        auto_renew: editCertificate.auto_renew,
-        dns1: editCertificate.dns1 || '',
-        dns2: editCertificate.dns2 || '',
-        disable_cname: editCertificate.disable_cname,
-        skip_dns: editCertificate.skip_dns,
+        name: certificate.name,
+        primary_domain:
+          mode === 'convert-upload' ? '' : certificate.primary_domain || '',
+        other_domains:
+          mode === 'convert-upload' ? '' : certificate.other_domains || '',
+        remark: certificate.remark || '',
+        acme_account_id: certificate.acme_account_id,
+        dns_account_id:
+          mode === 'convert-upload' ? 0 : certificate.dns_account_id,
+        key_algorithm: certificate.key_algorithm || 'EC256',
+        auto_renew: mode === 'convert-upload' ? true : certificate.auto_renew,
+        dns1: mode === 'convert-upload' ? '' : certificate.dns1 || '',
+        dns2: mode === 'convert-upload' ? '' : certificate.dns2 || '',
+        disable_cname:
+          mode === 'convert-upload' ? false : certificate.disable_cname,
+        skip_dns: mode === 'convert-upload' ? false : certificate.skip_dns,
       });
-      if (editCertificate.dns1 || editCertificate.dns2 || editCertificate.disable_cname || editCertificate.skip_dns) {
+      if (
+        mode !== 'convert-upload' &&
+        (certificate.dns1 ||
+          certificate.dns2 ||
+          certificate.disable_cname ||
+          certificate.skip_dns)
+      ) {
         setShowAdvanced(true);
       }
     } else {
       form.reset(defaultAcmeApplyValues);
     }
-  }, [isOpen, form, editCertificate]);
+  }, [isOpen, form, mode, certificate]);
 
   useEffect(() => {
-    if (defaultAcmeAccountQuery.data) {
+    if (
+      defaultAcmeAccountQuery.data &&
+      form.getValues('acme_account_id') === 0
+    ) {
       form.setValue('acme_account_id', defaultAcmeAccountQuery.data.id);
     }
-  }, [defaultAcmeAccountQuery.data, form]);
+  }, [defaultAcmeAccountQuery.data, form, isOpen]);
 
   const applyMutation = useMutation({
-    mutationFn: (values: AcmeApplyFormValues) => 
-      editCertificate 
-        ? updateAcmeCertificate(editCertificate.id, values)
-        : applyTlsCertificate(values),
+    mutationFn: (values: AcmeApplyFormValues) => {
+      if (mode === 'edit-acme' && certificate) {
+        return updateAcmeCertificate(certificate.id, values);
+      }
+      if (mode === 'convert-upload' && certificate) {
+        return convertTlsCertificateToAcme(certificate.id, values);
+      }
+      return applyTlsCertificate(values);
+    },
     onSuccess: async (certificate) => {
       await queryClient.invalidateQueries({ queryKey: ['tls-certificates'] });
       onApplied?.(certificate);
@@ -117,8 +144,20 @@ export function CertificateApplyModal({
     <AppModal
       isOpen={isOpen}
       onClose={onClose}
-      title={editCertificate ? "编辑并重新申请证书" : "申请证书"}
-      description={editCertificate ? "修改 ACME 证书配置。保存后将使用新配置重新申请证书。" : "使用 ACME (Let's Encrypt 等) 自动申请和续期证书，支持通配符域名。"}
+      title={
+        mode === 'edit-acme'
+          ? '编辑并重新申请证书'
+          : mode === 'convert-upload'
+            ? '转换为申请证书'
+            : '申请证书'
+      }
+      description={
+        mode === 'edit-acme'
+          ? '修改 ACME 证书配置。保存后将使用新配置重新申请证书。'
+          : mode === 'convert-upload'
+            ? '填写 ACME 申请资料。申请成功后，当前手动证书会原地转换为可自动续签的申请证书。'
+            : "使用 ACME (Let's Encrypt 等) 自动申请和续期证书，支持通配符域名。"
+      }
       size="xl"
     >
       <form className="space-y-5" onSubmit={onSubmit}>
@@ -131,13 +170,19 @@ export function CertificateApplyModal({
             label="证书名称"
             error={form.formState.errors.name?.message}
           >
-            <ResourceInput placeholder="例如：主站证书" {...form.register('name')} />
+            <ResourceInput
+              placeholder="例如：主站证书"
+              {...form.register('name')}
+            />
           </ResourceField>
           <ResourceField
             label="主域名"
             error={form.formState.errors.primary_domain?.message}
           >
-            <ResourceInput placeholder="example.com 或 *.example.com" {...form.register('primary_domain')} />
+            <ResourceInput
+              placeholder="example.com 或 *.example.com"
+              {...form.register('primary_domain')}
+            />
           </ResourceField>
         </div>
 
@@ -147,7 +192,7 @@ export function CertificateApplyModal({
           error={form.formState.errors.other_domains?.message}
         >
           <textarea
-            className="w-full rounded-xl border border-[var(--border-default)] bg-[var(--control-background)] px-4 py-3 text-sm text-[var(--foreground-primary)] outline-none transition focus:border-[var(--brand-primary)]"
+            className="w-full rounded-xl border border-[var(--border-default)] bg-[var(--control-background)] px-4 py-3 text-sm text-[var(--foreground-primary)] transition outline-none focus:border-[var(--brand-primary)]"
             rows={3}
             placeholder="example.net"
             {...form.register('other_domains')}
@@ -187,7 +232,10 @@ export function CertificateApplyModal({
             label="备注"
             error={form.formState.errors.remark?.message}
           >
-            <ResourceInput placeholder="可选，用于记录证书用途。" {...form.register('remark')} />
+            <ResourceInput
+              placeholder="可选，用于记录证书用途。"
+              {...form.register('remark')}
+            />
           </ResourceField>
 
           <ToggleField
@@ -198,7 +246,7 @@ export function CertificateApplyModal({
           />
         </div>
 
-        <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-elevated)] overflow-hidden">
+        <div className="overflow-hidden rounded-2xl border border-[var(--border-default)] bg-[var(--surface-elevated)]">
           <button
             type="button"
             className="flex w-full items-center justify-between px-4 py-3 text-sm font-medium text-[var(--foreground-primary)] transition hover:bg-[var(--surface-muted)]"
@@ -211,7 +259,12 @@ export function CertificateApplyModal({
               stroke="currentColor"
               viewBox="0 0 24 24"
             >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M19 9l-7 7-7-7"
+              />
             </svg>
           </button>
           {showAdvanced && (
@@ -222,14 +275,20 @@ export function CertificateApplyModal({
                   hint="可选，如 8.8.8.8"
                   error={form.formState.errors.dns1?.message}
                 >
-                  <ResourceInput placeholder="为空则使用默认权威 DNS" {...form.register('dns1')} />
+                  <ResourceInput
+                    placeholder="为空则使用默认权威 DNS"
+                    {...form.register('dns1')}
+                  />
                 </ResourceField>
                 <ResourceField
                   label="DNS 验证服务器 2"
                   hint="可选，如 1.1.1.1"
                   error={form.formState.errors.dns2?.message}
                 >
-                  <ResourceInput placeholder="为空则使用默认权威 DNS" {...form.register('dns2')} />
+                  <ResourceInput
+                    placeholder="为空则使用默认权威 DNS"
+                    {...form.register('dns2')}
+                  />
                 </ResourceField>
               </div>
               <div className="grid gap-4 md:grid-cols-2">
@@ -237,7 +296,9 @@ export function CertificateApplyModal({
                   label="跳过 CNAME 检查"
                   description="在执行 DNS-01 验证时不追踪 CNAME 记录。"
                   checked={form.watch('disable_cname')}
-                  onChange={(checked) => form.setValue('disable_cname', checked)}
+                  onChange={(checked) =>
+                    form.setValue('disable_cname', checked)
+                  }
                 />
                 <ToggleField
                   label="跳过 DNS 前置检查"
@@ -251,7 +312,13 @@ export function CertificateApplyModal({
         </div>
 
         <PrimaryButton type="submit" disabled={applyMutation.isPending}>
-          {applyMutation.isPending ? '提交中...' : (editCertificate ? '保存并申请' : '开始申请')}
+          {applyMutation.isPending
+            ? '提交中...'
+            : mode === 'edit-acme'
+              ? '保存并申请'
+              : mode === 'convert-upload'
+                ? '开始转换'
+                : '开始申请'}
         </PrimaryButton>
       </form>
     </AppModal>
