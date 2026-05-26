@@ -1,10 +1,15 @@
-name: Preview prerelease tag cleanup
+name: Cleanup prerelease tags
 
 on:
   workflow_dispatch:
+    inputs:
+      confirm:
+        description: "Type cleanup-prerelease-tags to delete all prerelease releases and tags"
+        required: true
+        type: string
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   cleanup:
@@ -29,13 +34,19 @@ jobs:
             echo "is_prerelease=true" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Preview prerelease releases and tags
+      - name: Delete prerelease releases and tags
         if: steps.version.outputs.should_run == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CONFIRM: ${{ github.event.inputs.confirm }}
         run: |
+          if [[ "$CONFIRM" != "cleanup-prerelease-tags" ]]; then
+            echo "confirm input must be exactly cleanup-prerelease-tags" >&2
+            exit 1
+          fi
+
           mapfile -t TAGS < <(git tag --list 'v*' | sort -V)
-          MATCHED=0
+          DELETED=0
 
           for TAG in "${TAGS[@]}"; do
             if [[ "$TAG" =~ ^v[0-9]+(\.[0-9]+)*$ ]]; then
@@ -44,12 +55,15 @@ jobs:
             fi
 
             if gh release view "$TAG" >/dev/null 2>&1; then
-              echo "Would delete prerelease tag and release: $TAG"
+              echo "Delete prerelease release: $TAG"
+              gh release delete "$TAG" --yes
             else
-              echo "Would delete prerelease tag only: $TAG (no GitHub Release found)"
+              echo "No GitHub Release found for $TAG"
             fi
 
-            MATCHED=$((MATCHED + 1))
+            echo "Delete prerelease tag: $TAG"
+            git push origin --delete "refs/tags/$TAG"
+            DELETED=$((DELETED + 1))
           done
 
-          echo "Found $MATCHED prerelease tag(s) that would be deleted."
+          echo "Deleted $DELETED prerelease tag(s)."
