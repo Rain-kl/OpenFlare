@@ -102,6 +102,42 @@ func TestCreateTLSCertificateAndRenderHTTPSConfig(t *testing.T) {
 	}
 }
 
+func TestNextVersionNumberUsesMaxDailySequence(t *testing.T) {
+	setupServiceTestDB(t)
+
+	seed := []model.ConfigVersion{
+		{
+			Version:          "20260526-001",
+			SnapshotJSON:     "{}",
+			RenderedConfig:   "server {}",
+			SupportFilesJSON: "[]",
+			Checksum:         "checksum-1",
+			CreatedBy:        "root",
+		},
+		{
+			Version:          "20260526-003",
+			SnapshotJSON:     "{}",
+			RenderedConfig:   "server {}",
+			SupportFilesJSON: "[]",
+			Checksum:         "checksum-3",
+			CreatedBy:        "root",
+		},
+	}
+	for _, version := range seed {
+		if err := model.DB.Create(&version).Error; err != nil {
+			t.Fatalf("failed to seed config version %s: %v", version.Version, err)
+		}
+	}
+
+	next, err := nextVersionNumber(time.Date(2026, 5, 26, 12, 0, 0, 0, time.Local))
+	if err != nil {
+		t.Fatalf("nextVersionNumber failed: %v", err)
+	}
+	if next != "20260526-004" {
+		t.Fatalf("expected next version to follow max suffix, got %s", next)
+	}
+}
+
 func TestCreateProxyRouteRejectsHTTPSWithoutCertificate(t *testing.T) {
 	setupServiceTestDB(t)
 

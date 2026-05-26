@@ -12,6 +12,7 @@ import (
 	"openflare/model"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -1270,11 +1271,24 @@ func checksumBundle(mainConfig string, routeConfig string, supportFiles []Suppor
 
 func nextVersionNumber(now time.Time) (string, error) {
 	prefix := now.Format("20060102")
-	var count int64
-	if err := model.DB.Model(&model.ConfigVersion{}).Where("version LIKE ?", prefix+"-%").Count(&count).Error; err != nil {
+	var latest model.ConfigVersion
+	err := model.DB.
+		Select("version").
+		Where("version LIKE ?", prefix+"-%").
+		Order("version desc").
+		First(&latest).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return fmt.Sprintf("%s-%03d", prefix, 1), nil
+	}
+	if err != nil {
 		return "", err
 	}
-	return fmt.Sprintf("%s-%03d", prefix, count+1), nil
+	suffix := strings.TrimPrefix(latest.Version, prefix+"-")
+	sequence, err := strconv.Atoi(suffix)
+	if err != nil {
+		return "", fmt.Errorf("invalid config version sequence %q: %w", latest.Version, err)
+	}
+	return fmt.Sprintf("%s-%03d", prefix, sequence+1), nil
 }
 
 func renderHTTPProxyServer(serverNames string, originURL string, originHost string, customHeaders []ProxyRouteCustomHeaderInput, cacheConfig routeCacheConfig, limitConfig routeLimitConfig, upstreamConfig routeUpstreamConfig, powEnabled bool, basicAuthEnabled bool, basicAuthUsername string, basicAuthPassword string, cfg openRestyConfigSnapshot) string {
