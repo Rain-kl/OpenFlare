@@ -34,8 +34,7 @@ curl -fsSL https://raw.githubusercontent.com/Rain-kl/OpenFlare/main/scripts/inst
   "server_url": "http://127.0.0.1:3000",
   "agent_token": "replace-with-node-auth-token",
   "data_dir": "./data",
-  "openresty_container_name": "openflare-openresty",
-  "openresty_docker_image": "openresty/openresty:alpine",
+  "openresty_path": "openresty",
   "openresty_observability_port": 18081,
   "observability_replay_minutes": 15,
   "heartbeat_interval": 10000,
@@ -43,7 +42,18 @@ curl -fsSL https://raw.githubusercontent.com/Rain-kl/OpenFlare/main/scripts/inst
 }
 ```
 
-Without `openresty_path`, Agent uses Docker OpenResty by default.
+Without `openresty_path`, Agent runs `openresty` by default.
+
+## Docker
+
+```bash
+docker run -d --name openflare-agent --restart unless-stopped \
+  -p 80:80 -p 443:443 -p 127.0.0.1:18081:18081 \
+  -v openflare-agent-data:/data \
+  -e OPENFLARE_SERVER_URL=http://your-server:3000 \
+  -e OPENFLARE_AGENT_TOKEN=YOUR_AGENT_TOKEN \
+  ghcr.io/rain-kl/openflare-agent:latest
+```
 
 ## Run from Source
 

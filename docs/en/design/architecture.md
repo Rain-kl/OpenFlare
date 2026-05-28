@@ -10,7 +10,7 @@ OpenFlare Server (Gin + SQLite/PostgreSQL + Web UI)
 OpenFlare Agent (register / heartbeat / sync / apply / update)
         |
         v
-Local OpenResty or Docker OpenResty
+OpenResty binary
         |
         v
 Origin
@@ -24,7 +24,7 @@ It owns the admin UI and API, Agent API, configuration rendering, version publis
 
 ## Agent
 
-`openflare_agent` is a single Go binary that runs locally on each node. It prefers `openresty_path` when configured and uses Docker OpenResty by default otherwise.
+`openflare_agent` is a single Go binary that runs on each node. It controls OpenResty through `openresty_path`, or `openresty` by default. Docker deployments use an Agent image that already includes OpenResty and follows the same binary-control flow.
 
 It handles registration, heartbeat, sync, file writes, `openresty -t`, reload, rollback, self-update, and lightweight collection.
 

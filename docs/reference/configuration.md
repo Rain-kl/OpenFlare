@@ -136,6 +136,16 @@ OpenResty 性能参数与缓存参数继续统一保存在 `Option` 表。当前
 | 环境变量 | 作用 | 默认值 |
 | --- | --- | --- |
 | `LOG_LEVEL` | Agent 日志等级 | `info` |
+| `OPENFLARE_SERVER_URL` | 控制面地址，可覆盖 `agent.json` | 空 |
+| `OPENFLARE_AGENT_TOKEN` | 节点专属认证 Token，可覆盖 `agent.json` | 空 |
+| `OPENFLARE_DISCOVERY_TOKEN` | 首次自动注册 Token，可覆盖 `agent.json` | 空 |
+| `OPENFLARE_NODE_NAME` | 节点名称，可覆盖 `agent.json` | 空 |
+| `OPENFLARE_NODE_IP` | 节点 IP，可覆盖 `agent.json` | 空 |
+| `OPENFLARE_DATA_DIR` | Agent 数据目录，可覆盖 `agent.json` | 空 |
+| `OPENFLARE_OPENRESTY_PATH` | OpenResty 二进制路径，可覆盖 `agent.json` | 空 |
+| `OPENFLARE_HEARTBEAT_INTERVAL` | 心跳间隔，可覆盖 `agent.json` | 空 |
+| `OPENFLARE_REQUEST_TIMEOUT` | 请求超时，可覆盖 `agent.json` | 空 |
+| `OPENFLARE_OPENRESTY_OBSERVABILITY_PORT` | 本地观测端口，可覆盖 `agent.json` | 空 |
 
 ## Agent 命令行参数
 
@@ -152,18 +162,20 @@ OpenResty 性能参数与缓存参数继续统一保存在 `Option` 表。当前
 | `discovery_token` | 首次自动注册使用的全局 Token | 与 `agent_token` 二选一 | 空 |
 | `node_name` | 节点名称 | 否 | 自动使用主机名 |
 | `node_ip` | 节点 IP | 否 | 自动探测，优先选择公网 IPv4；仅无公网地址时退回可用内网地址 |
-| `openresty_path` | 本机 OpenResty 路径 | 否 | 空，未设置时走 Docker 模式 |
-| `openresty_container_name` | Docker 模式下的容器名 | 否 | `openflare-openresty` |
-| `openresty_docker_image` | Docker 模式下的镜像 | 否 | `openresty/openresty:alpine` |
+| `openresty_path` | OpenResty 二进制路径 | 否 | `openresty` |
+| `openresty_container_name` | 旧 Docker 控制字段，仅兼容读取 | 否 | 空 |
+| `openresty_docker_image` | 旧 Docker 控制字段，仅兼容读取 | 否 | 空 |
 | `openresty_observability_port` | 本地观测端口 | 否 | `18081` |
-| `docker_binary` | Docker 可执行文件名或路径 | 否 | `docker` |
+| `docker_binary` | 旧 Docker 控制字段，仅兼容读取 | 否 | 空 |
 | `data_dir` | Agent 数据目录 | 否 | 配置文件所在目录下的 `data` |
-| `main_config_path` | OpenResty 主配置写入路径 | 否 | 本机模式建议显式配置 |
+| `main_config_path` | OpenResty 主配置写入路径 | 否 | `data_dir/etc/nginx/nginx.conf` |
 | `route_config_path` | 路由配置写入路径 | 否 | `data_dir/etc/nginx/conf.d/openflare_routes.conf` |
-| `cert_dir` | 本机证书写入目录 | 否 | `data_dir/etc/nginx/certs` |
-| `openresty_cert_dir` | OpenResty 读取证书目录 | 否 | 随运行模式变化 |
-| `lua_dir` | 本机 Lua 脚本写入目录 | 否 | `data_dir/etc/nginx/lua` |
-| `openresty_lua_dir` | OpenResty 读取 Lua 目录 | 否 | 随运行模式变化 |
+| `access_log_path` | OpenResty 访问日志路径 | 否 | `data_dir/var/log/openflare/access.log` |
+| `cert_dir` | 证书写入目录 | 否 | `data_dir/etc/nginx/certs` |
+| `openresty_cert_dir` | OpenResty 配置中读取证书的目录 | 否 | 同 `cert_dir` |
+| `lua_dir` | Lua 脚本与静态资源写入目录 | 否 | `data_dir/etc/nginx/lua` |
+| `openresty_lua_dir` | OpenResty 配置中读取 Lua 的目录 | 否 | 同 `lua_dir` |
+| `runtime_config_dir` | Agent 运行时配置写入目录，如 `pow_config.json` | 否 | `data_dir/etc/openflare` |
 | `observability_buffer_path` | 观测补报缓冲文件路径 | 否 | `data_dir/var/lib/openflare/observability-buffer.json` |
 | `observability_replay_minutes` | 自动补传最近观测窗口分钟数 | 否 | `15` |
 | `state_path` | Agent 本地状态文件路径 | 否 | `data_dir/var/lib/openflare/agent-state.json` |
@@ -174,9 +186,9 @@ OpenResty 性能参数与缓存参数继续统一保存在 `Option` 表。当前
 
 * `agent_token` 与 `discovery_token` 不能同时为空。
 * `heartbeat_interval` 与 `request_timeout` 支持毫秒整数或 Go duration 字符串。
-* 未配置 `openresty_path` 时默认使用 Docker OpenResty 模式。
+* 未配置 `openresty_path` 时默认调用 `openresty`。
+* 如果 `agent.json` 不存在，但 `OPENFLARE_SERVER_URL` 与 Token 等环境变量足够，Agent 可以直接启动；两者同时存在时环境变量优先。
 * Agent 自动探测到私网 `node_ip` 时，Server 会在注册/心跳阶段优先保留 Agent 直连来源的公网地址，避免 NAT/多网卡场景误登记内网网卡地址。
-* [需要确认：安装脚本当前生成的 `sync_interval` 是否仍应保留；当前 Agent 配置结构未使用该字段。]
 
 ## 常见配置组合
 
@@ -198,32 +210,33 @@ export LOG_LEVEL='debug'
 go run .
 ```
 
-### Agent + Docker OpenResty
+### Agent + 默认 OpenResty
 
 ```json
 {
   "server_url": "http://your-server:3000",
   "agent_token": "replace-with-node-auth-token",
   "data_dir": "/opt/openflare-agent/data",
-  "openresty_container_name": "openflare-openresty",
-  "openresty_docker_image": "openresty/openresty:alpine",
+  "openresty_path": "openresty",
   "heartbeat_interval": 10000,
   "request_timeout": 10000
 }
 ```
 
-### Agent + 本机 OpenResty
+### Agent + 自定义 OpenResty 路径
 
 ```json
 {
   "server_url": "http://your-server:3000",
   "agent_token": "replace-with-node-auth-token",
   "data_dir": "/var/lib/openflare-agent",
-  "openresty_path": "/usr/local/openresty/nginx/sbin/nginx",
-  "main_config_path": "/usr/local/openresty/nginx/conf/nginx.conf",
-  "route_config_path": "/usr/local/openresty/nginx/conf/conf.d/openflare_routes.conf",
-  "cert_dir": "/usr/local/openresty/nginx/conf/openflare-certs",
-  "lua_dir": "/usr/local/openresty/nginx/conf/openflare-lua",
+  "openresty_path": "/usr/local/openresty/nginx/sbin/openresty",
+  "main_config_path": "/var/lib/openflare-agent/etc/nginx/nginx.conf",
+  "route_config_path": "/var/lib/openflare-agent/etc/nginx/conf.d/openflare_routes.conf",
+  "access_log_path": "/var/lib/openflare-agent/var/log/openflare/access.log",
+  "cert_dir": "/var/lib/openflare-agent/etc/nginx/certs",
+  "lua_dir": "/var/lib/openflare-agent/etc/nginx/lua",
+  "runtime_config_dir": "/var/lib/openflare-agent/etc/openflare",
   "heartbeat_interval": 10000,
   "request_timeout": 10000
 }

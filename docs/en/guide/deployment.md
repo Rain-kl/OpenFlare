@@ -2,7 +2,7 @@
 
 You will learn the recommended OpenFlare deployment model, Server and Agent requirements, source startup workflow, integration steps, upgrade paths, and uninstall entry points.
 
-For production, use PostgreSQL for the Server database and set `SESSION_SECRET` explicitly. Agent nodes use Docker OpenResty by default; local OpenResty mode requires `openresty_path` and write paths.
+For production, use PostgreSQL for the Server database and set `SESSION_SECRET` explicitly. Agent controls OpenResty through the OpenResty binary; Docker deployments run the Agent image that already includes OpenResty.
 
 ## Topology
 
@@ -17,7 +17,7 @@ OpenFlare Server :3000
 OpenFlare Agent
   |
   v
-Local OpenResty or Docker OpenResty
+OpenResty binary
   |
   v
 Origin service
@@ -40,8 +40,8 @@ Agent:
 | --- | --- |
 | OS | Install script supports Linux and macOS. systemd service is created only on Linux + systemd. |
 | Architecture | `amd64` or `arm64` |
-| Docker | Required by the default Docker OpenResty mode |
-| Local OpenResty | Required only when `openresty_path` is configured |
+| OpenResty | Required for local Agent installs |
+| Docker | Required only when running the Agent Docker image |
 | Network | Agent node must reach the Server URL |
 
 [Needs confirmation: recommended production CPU, memory, and disk size]
@@ -154,6 +154,7 @@ Supported options:
 | `--discovery-token` | First-registration token, mutually exclusive with `--agent-token` |
 | `--agent-token` | Node-specific token, mutually exclusive with `--discovery-token` |
 | `--install-dir` | Install directory, default `/opt/openflare-agent` |
+| `--openresty-path` | OpenResty binary path, auto-detected when omitted |
 | `--repo` | GitHub repository for Agent downloads, default `Rain-kl/OpenFlare` |
 | `--no-service` | Do not create a systemd service |
 
@@ -190,12 +191,13 @@ Minimal `agent.json`:
   "server_url": "http://127.0.0.1:3000",
   "agent_token": "replace-with-node-auth-token",
   "data_dir": "./data",
+  "openresty_path": "openresty",
   "heartbeat_interval": 10000,
   "request_timeout": 10000
 }
 ```
 
-When `openresty_path` is not configured, Agent uses Docker OpenResty.
+When `openresty_path` is not configured, Agent runs `openresty`.
 
 ## Minimal Integration Flow
 
@@ -227,7 +229,7 @@ Uninstall Agent:
 curl -fsSL https://raw.githubusercontent.com/Rain-kl/OpenFlare/main/scripts/uninstall-agent.sh | bash
 ```
 
-The uninstall script stops Agent, removes the systemd service and install directory, and attempts to remove the Docker OpenResty container/image when Docker mode is detected. Local `openresty_path` mode does not remove the local OpenResty installation.
+The uninstall script stops Agent and removes the systemd service and install directory. It does not remove the local OpenResty installation.
 
 ## Validation Commands
 

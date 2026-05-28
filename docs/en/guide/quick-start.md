@@ -10,13 +10,14 @@ The minimal OpenFlare setup contains:
 | Agent | Runs on proxy nodes, pulls configuration, writes OpenResty files, validates, and reloads |
 | OpenResty | Receives traffic and proxies requests to origins |
 
-By default, the Agent uses Docker OpenResty when `openresty_path` is not configured. Prepare Docker on Agent nodes for this quick start.
+Agent controls OpenResty through the OpenResty binary. Local installs need an `openresty` executable on the node; Docker installs can run the Agent image that already includes OpenResty.
 
 ## Requirements
 
 | Item | Requirement |
 | --- | --- |
-| Docker / Docker Compose | Used to start Server and PostgreSQL, and used by the default Agent Docker OpenResty mode |
+| Docker / Docker Compose | Used to start Server and PostgreSQL; also used if you run the Agent Docker image |
+| OpenResty | Required for local Agent installs unless `--openresty-path` points to a custom binary |
 | Reachable ports | Server listens on `3000` by default. Agent nodes must reach the Server URL. |
 | Browser | Used to open the management UI |
 
@@ -128,7 +129,7 @@ The script defaults to:
 | Install directory | `/opt/openflare-agent` |
 | Config file | `/opt/openflare-agent/agent.json` |
 | systemd service | `openflare-agent.service` |
-| OpenResty mode | Docker OpenResty when `openresty_path` is not configured |
+| OpenResty path | Auto-detects `openresty` unless `--openresty-path` is provided |
 
 Check status:
 
@@ -166,10 +167,7 @@ On the Agent node:
 
 ```bash
 journalctl -u openflare-agent -n 100 --no-pager
-docker ps --filter name=openflare-openresty
 ```
-
-If Docker OpenResty is used, the default container name is `openflare-openresty`.
 
 ## Common Failures
 

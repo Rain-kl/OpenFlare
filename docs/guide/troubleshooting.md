@@ -153,22 +153,21 @@ journalctl -u openflare-agent -f
 | 上游地址不合法 | 确认所有上游都是 `http://` 或 `https://` |
 | 多上游格式不符合约束 | 多上游必须是纯 `scheme://host[:port]` |
 | 证书缺失或路径错误 | 检查域名是否绑定证书，以及 Agent 证书目录是否可写 |
-| 端口被占用 | 检查本机或 Docker 容器的 `80`、`443` 端口 |
+| 端口被占用 | 检查本机 `80`、`443` 端口 |
 
-Docker OpenResty 模式：
-
-```bash
-docker ps --filter name=openflare-openresty
-docker logs --tail 100 openflare-openresty
-```
-
-本机 OpenResty 模式：
+OpenResty 配置校验：
 
 ```bash
-/usr/local/openresty/nginx/sbin/nginx -t
+openresty -t -c /path/to/openflare/data/etc/nginx/nginx.conf
 ```
 
-实际路径以 `agent.json` 中的 `openresty_path` 为准。
+OpenResty 运行状态：
+
+```bash
+ps aux | grep openresty
+```
+
+实际二进制路径和主配置路径以 `agent.json` 中的 `openresty_path` 与 `main_config_path` 为准。
 
 ## HTTPS 不生效
 
@@ -187,7 +186,7 @@ curl -Iv https://your-domain
 ## 访问分析没有数据
 
 1. 确认节点已经成功应用包含观测 Lua 资源的配置。
-2. 确认 Docker OpenResty 容器或本机 OpenResty 正在运行。
+2. 确认 OpenResty 正在运行。
 3. 查看 Agent 日志是否有观测采集或补报失败信息。
 4. 检查 `openresty_observability_port` 是否被占用，默认是 `18081`。
 5. 确认 Server 侧没有因数据库清理策略删除对应时间窗口数据。

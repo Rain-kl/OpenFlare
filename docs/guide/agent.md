@@ -43,6 +43,7 @@ curl -fsSL https://raw.githubusercontent.com/Rain-kl/OpenFlare/main/scripts/inst
 | `--discovery-token` | 首次自动注册 Token |
 | `--agent-token` | 节点专属 Token |
 | `--install-dir` | 安装目录，默认 `/opt/openflare-agent` |
+| `--openresty-path` | OpenResty 二进制路径，未传时自动查找 `openresty` |
 | `--repo` | 下载 Agent 的 GitHub 仓库，默认 `Rain-kl/OpenFlare` |
 | `--no-service` | 不创建 systemd 服务 |
 
@@ -54,15 +55,14 @@ curl -fsSL https://raw.githubusercontent.com/Rain-kl/OpenFlare/main/scripts/inst
 /opt/openflare-agent/agent.json
 ```
 
-Docker OpenResty 模式示例：
+本地配置示例：
 
 ```json
 {
   "server_url": "http://127.0.0.1:3000",
   "agent_token": "replace-with-node-auth-token",
   "data_dir": "./data",
-  "openresty_container_name": "openflare-openresty",
-  "openresty_docker_image": "openresty/openresty:alpine",
+  "openresty_path": "openresty",
   "openresty_observability_port": 18081,
   "observability_replay_minutes": 15,
   "heartbeat_interval": 10000,
@@ -70,24 +70,39 @@ Docker OpenResty 模式示例：
 }
 ```
 
-本机 OpenResty 模式示例：
+自定义 OpenResty 路径示例：
 
 ```json
 {
   "server_url": "http://127.0.0.1:3000",
   "agent_token": "replace-with-node-auth-token",
   "data_dir": "/var/lib/openflare-agent",
-  "openresty_path": "/usr/local/openresty/nginx/sbin/nginx",
-  "main_config_path": "/usr/local/openresty/nginx/conf/nginx.conf",
-  "route_config_path": "/usr/local/openresty/nginx/conf/conf.d/openflare_routes.conf",
-  "cert_dir": "/usr/local/openresty/nginx/conf/openflare-certs",
-  "lua_dir": "/usr/local/openresty/nginx/conf/openflare-lua",
+  "openresty_path": "/usr/local/openresty/nginx/sbin/openresty",
+  "main_config_path": "/var/lib/openflare-agent/etc/nginx/nginx.conf",
+  "route_config_path": "/var/lib/openflare-agent/etc/nginx/conf.d/openflare_routes.conf",
+  "access_log_path": "/var/lib/openflare-agent/var/log/openflare/access.log",
+  "cert_dir": "/var/lib/openflare-agent/etc/nginx/certs",
+  "lua_dir": "/var/lib/openflare-agent/etc/nginx/lua",
+  "runtime_config_dir": "/var/lib/openflare-agent/etc/openflare",
   "heartbeat_interval": 10000,
   "request_timeout": 10000
 }
 ```
 
-如果不配置 `openresty_path`，Agent 默认使用 Docker OpenResty。完整字段见 [配置项参考](../reference/configuration.md#agent-配置字段)。
+如果不配置 `openresty_path`，Agent 默认调用 `openresty`。完整字段见 [配置项参考](../reference/configuration.md#agent-配置字段)。
+
+## Docker 运行
+
+Docker 部署时直接运行内置 OpenResty 的 Agent 镜像：
+
+```bash
+docker run -d --name openflare-agent --restart unless-stopped \
+  -p 80:80 -p 443:443 -p 127.0.0.1:18081:18081 \
+  -v openflare-agent-data:/data \
+  -e OPENFLARE_SERVER_URL=http://your-server:3000 \
+  -e OPENFLARE_AGENT_TOKEN=YOUR_AGENT_TOKEN \
+  ghcr.io/rain-kl/openflare-agent:latest
+```
 
 ## 启动与验证
 
@@ -144,7 +159,7 @@ curl -fsSL https://raw.githubusercontent.com/Rain-kl/OpenFlare/main/scripts/unin
 | `--install-dir` | 安装目录，默认 `/opt/openflare-agent` |
 | `--service-name` | systemd 服务名，默认 `openflare-agent` |
 
-卸载脚本会先读取卸载前的 `agent.json` 判断 OpenResty 模式。Docker 模式会尝试删除对应容器和镜像；本机 `openresty_path` 模式不会删除本机 OpenResty。
+卸载脚本只移除 Agent 服务、进程和安装目录，不会删除本机 OpenResty。
 
 ## 常见问题
 
@@ -152,5 +167,5 @@ curl -fsSL https://raw.githubusercontent.com/Rain-kl/OpenFlare/main/scripts/unin
 | --- | --- |
 | `agent_token 和 discovery_token 不能同时为空` | 检查 `agent.json` 至少配置了一个 Token |
 | 节点一直离线 | 在 Agent 节点执行 `curl -I http://your-server:3000`，确认 Server 地址可达 |
-| Docker OpenResty 没有启动 | 查看 `journalctl -u openflare-agent`，并确认当前用户有 Docker 执行权限 |
+| OpenResty 没有启动 | 查看 `journalctl -u openflare-agent`，确认 `openresty_path` 可执行且 80/443 端口未被占用 |
 | 发布后重复失败 | Agent 会阻断同一 `version + checksum` 的重复应用；需要修正配置后重新发布，或激活旧版本回滚 |

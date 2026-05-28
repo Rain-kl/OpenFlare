@@ -29,7 +29,7 @@
 | `config` | 配置读取与默认值 |
 | `heartbeat` | 心跳与版本摘要判断 |
 | `sync` | 配置拉取与应用编排 |
-| `nginx` / `openresty` | OpenResty 文件写入、校验、reload 与 Docker 模式管理 |
+| `nginx` / `openresty` | OpenResty 文件写入、校验、reload、启动与回滚 |
 | `state` | 本地状态与观测补报缓冲 |
 | `httpclient` | Server 通信 |
 | `protocol` | Agent API 协议类型 |

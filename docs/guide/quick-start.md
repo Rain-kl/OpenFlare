@@ -10,13 +10,14 @@ OpenFlare 的最小运行单元包含：
 | Agent | 运行在代理节点上，拉取配置、写入 OpenResty、执行校验与 reload |
 | OpenResty | 实际接收流量并反向代理到源站 |
 
-默认情况下，Agent 未配置 `openresty_path` 时会使用 Docker OpenResty。因此快速开始建议在 Agent 节点准备 Docker。
+Agent 统一通过 OpenResty 二进制控制运行时。本地部署需要节点上已有 `openresty` 可执行文件；Docker 部署可直接运行内置 OpenResty 的 Agent 镜像。
 
 ## 环境要求
 
 | 项目 | 要求 |
 | --- | --- |
-| Docker / Docker Compose | 用于启动 Server 和 PostgreSQL，也用于 Agent 默认的 Docker OpenResty 模式 |
+| Docker / Docker Compose | 用于启动 Server 和 PostgreSQL；如果采用 Docker Agent 镜像，也用于运行 Agent |
+| OpenResty | 本地安装 Agent 时需要可执行 `openresty`，或在安装脚本中指定路径 |
 | 可访问端口 | Server 默认监听 `3000`，Agent 节点需要能访问 Server 地址 |
 | 浏览器 | 用于访问管理端 |
 
@@ -128,7 +129,7 @@ curl -fsSL https://raw.githubusercontent.com/Rain-kl/OpenFlare/main/scripts/inst
 | 安装目录 | `/opt/openflare-agent` |
 | 配置文件 | `/opt/openflare-agent/agent.json` |
 | systemd 服务 | `openflare-agent.service` |
-| OpenResty 模式 | 未配置 `openresty_path` 时使用 Docker OpenResty |
+| OpenResty 路径 | 未指定时自动查找 `openresty` |
 
 确认 Agent 服务状态：
 
@@ -166,10 +167,7 @@ journalctl -u openflare-agent -f
 
 ```bash
 journalctl -u openflare-agent -n 100 --no-pager
-docker ps --filter name=openflare-openresty
 ```
-
-如果使用 Docker OpenResty，默认容器名是 `openflare-openresty`。
 
 ## 常见失败原因
 

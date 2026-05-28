@@ -153,22 +153,21 @@ Common causes:
 | Invalid upstream URL | Every upstream must be `http://` or `https://` |
 | Invalid multi-upstream format | Multiple upstreams must be plain `scheme://host[:port]` |
 | Missing certificate or wrong path | Check domain certificate binding and Agent certificate directory permissions |
-| Port conflict | Check local or Docker `80` and `443` usage |
+| Port conflict | Check local `80` and `443` usage |
 
-Docker OpenResty mode:
-
-```bash
-docker ps --filter name=openflare-openresty
-docker logs --tail 100 openflare-openresty
-```
-
-Local OpenResty mode:
+OpenResty config test:
 
 ```bash
-/usr/local/openresty/nginx/sbin/nginx -t
+openresty -t -c /path/to/openflare/data/etc/nginx/nginx.conf
 ```
 
-Use the actual path from `openresty_path` in `agent.json`.
+OpenResty runtime:
+
+```bash
+ps aux | grep openresty
+```
+
+Use the actual `openresty_path` and `main_config_path` from `agent.json`.
 
 ## HTTPS Does Not Work
 
@@ -187,7 +186,7 @@ Domains without a bound certificate are not automatically added to HTTPS configu
 ## No Access Analytics
 
 1. Confirm the node applied a configuration that includes observability Lua assets.
-2. Confirm Docker OpenResty or local OpenResty is running.
+2. Confirm OpenResty is running.
 3. Check Agent logs for collection or replay failures.
 4. Check whether `openresty_observability_port` is occupied. The default is `18081`.
 5. Confirm Server cleanup policy did not remove data for that time window.

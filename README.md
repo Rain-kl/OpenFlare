@@ -93,7 +93,7 @@ docker compose up -d
 
 ### 2. 安装 Agent
 
-**注意:** 安装agent前需确保存已经安装了Docker, 虽然支持裸Openresty,但未得到充分验证,可能存在未知问题.
+安装 Agent 前请先在节点上安装 OpenResty，或改用内置 OpenResty 的 Agent Docker 镜像。
 
 使用 `discovery_token` 接入：
 
@@ -111,7 +111,18 @@ curl -fsSL https://raw.githubusercontent.com/Rain-kl/OpenFlare/main/scripts/inst
   --agent-token YOUR_AGENT_TOKEN
 ```
 
-安装脚本默认写入 `/opt/openflare-agent`，创建 `openflare-agent.service`，并可重复执行以重装或升级 Agent。
+安装脚本默认写入 `/opt/openflare-agent`，创建 `openflare-agent.service`，自动查找 `openresty`，并可重复执行以重装或升级 Agent。
+
+Docker 部署可直接运行 Agent 镜像：
+
+```bash
+docker run -d --name openflare-agent --restart unless-stopped \
+  -p 80:80 -p 443:443 -p 127.0.0.1:18081:18081 \
+  -v openflare-agent-data:/data \
+  -e OPENFLARE_SERVER_URL=http://your-server:3000 \
+  -e OPENFLARE_AGENT_TOKEN=YOUR_AGENT_TOKEN \
+  ghcr.io/rain-kl/openflare-agent:latest
+```
 
 ### 3. 卸载 Agent
 
@@ -121,10 +132,7 @@ curl -fsSL https://raw.githubusercontent.com/Rain-kl/OpenFlare/main/scripts/inst
 curl -fsSL https://raw.githubusercontent.com/Rain-kl/OpenFlare/main/scripts/uninstall-agent.sh | bash
 ```
 
-卸载脚本会先停止并移除 `openflare-agent.service`、删除整个 `/opt/openflare-agent` 目录，然后根据卸载前保存的 `agent.json` 判断 OpenResty 安装方式：
-
-* Docker 模式：删除对应 OpenResty 容器，并尝试移除镜像
-* 本机 `openresty_path` 模式：不改动本机 OpenResty，只提示用户手动卸载
+卸载脚本会先停止并移除 `openflare-agent.service`、删除整个 `/opt/openflare-agent` 目录，不会删除本机 OpenResty。
 
 ### 4. 发布第一份配置
 

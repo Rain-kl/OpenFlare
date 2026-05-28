@@ -60,12 +60,14 @@ Agent supports the `-config` CLI flag, an `agent.json` file, and the `LOG_LEVEL`
 | `discovery_token` | Global token for first registration | one of `agent_token` / `discovery_token` | empty |
 | `node_name` | Node name | no | host name |
 | `node_ip` | Node IP | no | auto-detected |
-| `openresty_path` | Local OpenResty path | no | empty; Docker mode |
-| `openresty_container_name` | Docker container name | no | `openflare-openresty` |
-| `openresty_docker_image` | Docker image | no | `openresty/openresty:alpine` |
+| `openresty_path` | OpenResty binary path | no | `openresty` |
+| `openresty_container_name` | Deprecated Docker-control field, read for compatibility only | no | empty |
+| `openresty_docker_image` | Deprecated Docker-control field, read for compatibility only | no | empty |
 | `openresty_observability_port` | Local observability port | no | `18081` |
-| `docker_binary` | Docker binary name or path | no | `docker` |
+| `docker_binary` | Deprecated Docker-control field, read for compatibility only | no | empty |
 | `data_dir` | Agent data directory | no | `data` under config directory |
+| `access_log_path` | OpenResty access log path | no | `data_dir/var/log/openflare/access.log` |
+| `runtime_config_dir` | Runtime config directory, including `pow_config.json` | no | `data_dir/etc/openflare` |
 | `heartbeat_interval` | Heartbeat interval | no | `10000` ms |
 | `request_timeout` | HTTP timeout | no | `10000` ms |
 

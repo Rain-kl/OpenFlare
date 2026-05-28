@@ -21,7 +21,8 @@
 | Go | `1.25+` |
 | Node.js | `18+` |
 | pnpm | 推荐通过 `corepack enable` 使用项目声明版本 |
-| Docker | Agent 默认 Docker OpenResty 模式和本地联调需要 |
+| Docker | Server 容器、本地联调和 Agent Docker 镜像需要 |
+| OpenResty | 本地运行 Agent 时需要可执行 `openresty` |
 | PostgreSQL | 可选；未配置时 Server 使用 SQLite |
 
 ## 初始化前端依赖
@@ -106,7 +107,7 @@ export LOG_LEVEL='debug'
 go run ./cmd/agent -config ./agent.json
 ```
 
-未配置 `openresty_path` 时，Agent 会使用 Docker OpenResty。调试本机 OpenResty 时，显式配置 `openresty_path`、`main_config_path`、`route_config_path`、`cert_dir` 和 `lua_dir`。
+未配置 `openresty_path` 时，Agent 默认调用 `openresty`。调试时可显式配置 `openresty_path`、`main_config_path`、`route_config_path`、`access_log_path`、`cert_dir`、`lua_dir` 和 `runtime_config_dir`。
 
 ## 测试
 
@@ -172,7 +173,7 @@ go build -o openflare-agent ./cmd/agent
 | Agent 日志 | `LOG_LEVEL=debug go run ./cmd/agent -config ./agent.json` |
 | Swagger | `http://localhost:3000/swagger/index.html` |
 | 前端 API 代理 | `NEXT_DEV_BACKEND_URL=http://127.0.0.1:3000 pnpm dev` |
-| Docker OpenResty 容器 | `docker ps --filter name=openflare-openresty` |
+| OpenResty 配置校验 | `openresty -t -c ./data/etc/nginx/nginx.conf` |
 
 ## 代码风格与变更准入
 

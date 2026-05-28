@@ -21,7 +21,8 @@ This page is for contributors. Product boundaries, data model constraints, API c
 | Go | `1.25+` |
 | Node.js | `18+` |
 | pnpm | Use `corepack enable` to follow the project-declared version |
-| Docker | Needed for the default Docker OpenResty Agent mode and local integration |
+| Docker | Needed for Server containers, local integration, and the Agent Docker image |
+| OpenResty | Needed when running Agent locally |
 | PostgreSQL | Optional. The Server uses SQLite when PostgreSQL is not configured. |
 
 ## Install Frontend Dependencies
@@ -106,7 +107,7 @@ export LOG_LEVEL='debug'
 go run ./cmd/agent -config ./agent.json
 ```
 
-When `openresty_path` is not configured, the Agent uses Docker OpenResty. To debug local OpenResty, set `openresty_path`, `main_config_path`, `route_config_path`, `cert_dir`, and `lua_dir`.
+When `openresty_path` is not configured, the Agent runs `openresty`. For debugging, set `openresty_path`, `main_config_path`, `route_config_path`, `access_log_path`, `cert_dir`, `lua_dir`, and `runtime_config_dir` as needed.
 
 ## Tests
 
@@ -172,7 +173,7 @@ go build -o openflare-agent ./cmd/agent
 | Agent logs | `LOG_LEVEL=debug go run ./cmd/agent -config ./agent.json` |
 | Swagger | `http://localhost:3000/swagger/index.html` |
 | Frontend API proxy | `NEXT_DEV_BACKEND_URL=http://127.0.0.1:3000 pnpm dev` |
-| Docker OpenResty container | `docker ps --filter name=openflare-openresty` |
+| OpenResty config test | `openresty -t -c ./data/etc/nginx/nginx.conf` |
 
 ## Change Acceptance
 

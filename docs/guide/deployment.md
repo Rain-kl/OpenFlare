@@ -2,7 +2,7 @@
 
 你会学到：OpenFlare 的推荐部署方式、Server 与 Agent 的运行要求、源码启动方式、联调步骤、升级与卸载入口。
 
-生产环境建议使用 PostgreSQL 作为 Server 数据库，并为 Server 显式配置 `SESSION_SECRET`。Agent 节点默认使用 Docker OpenResty；如果要使用本机 OpenResty，需要额外配置 `openresty_path` 和写入目录。
+生产环境建议使用 PostgreSQL 作为 Server 数据库，并为 Server 显式配置 `SESSION_SECRET`。Agent 统一通过 OpenResty 二进制控制运行时；Docker 部署请直接使用内置 OpenResty 的 Agent 镜像。
 
 ## 部署拓扑
 
@@ -17,7 +17,7 @@ OpenFlare Server :3000
 OpenFlare Agent
   |
   v
-Local OpenResty or Docker OpenResty
+OpenResty binary
   |
   v
 Origin service
@@ -40,8 +40,8 @@ Agent：
 | --- | --- |
 | 系统 | 安装脚本支持 Linux 和 macOS；systemd 服务仅在 Linux + systemd 环境创建 |
 | 架构 | `amd64` 或 `arm64` |
-| Docker | 默认 Docker OpenResty 模式需要 |
-| 本机 OpenResty | 仅在显式配置 `openresty_path` 时需要 |
+| OpenResty | 本地部署需要可执行 `openresty`，或通过 `--openresty-path` 指定路径 |
+| Docker | 仅 Docker 部署 Agent 镜像时需要 |
 | 网络 | Agent 节点必须能访问 Server 地址 |
 
 [需要确认：生产环境推荐的最低 CPU、内存与磁盘容量]
@@ -154,6 +154,7 @@ curl -fsSL https://raw.githubusercontent.com/Rain-kl/OpenFlare/main/scripts/inst
 | `--discovery-token` | 首次自动注册 Token，与 `--agent-token` 二选一 |
 | `--agent-token` | 节点专属 Token，与 `--discovery-token` 二选一 |
 | `--install-dir` | 安装目录，默认 `/opt/openflare-agent` |
+| `--openresty-path` | OpenResty 二进制路径，未传时自动查找 `openresty` |
 | `--repo` | 下载 Agent 的 GitHub 仓库，默认 `Rain-kl/OpenFlare` |
 | `--no-service` | 不创建 systemd 服务 |
 
@@ -162,6 +163,31 @@ curl -fsSL https://raw.githubusercontent.com/Rain-kl/OpenFlare/main/scripts/inst
 ```bash
 systemctl status openflare-agent
 journalctl -u openflare-agent -f
+```
+
+## Docker 运行 Agent
+
+Docker 部署时直接运行 Agent 镜像。该镜像基于 OpenResty 镜像制作，内置 Agent 控制器与 OpenResty 二进制。
+
+挂载配置文件：
+
+```bash
+docker run -d --name openflare-agent --restart unless-stopped \
+  -p 80:80 -p 443:443 -p 127.0.0.1:18081:18081 \
+  -v openflare-agent-data:/data \
+  -v ./agent.json:/etc/openflare/agent.json:ro \
+  ghcr.io/rain-kl/openflare-agent:latest
+```
+
+使用环境变量：
+
+```bash
+docker run -d --name openflare-agent --restart unless-stopped \
+  -p 80:80 -p 443:443 -p 127.0.0.1:18081:18081 \
+  -v openflare-agent-data:/data \
+  -e OPENFLARE_SERVER_URL=http://your-server:3000 \
+  -e OPENFLARE_AGENT_TOKEN=YOUR_AGENT_TOKEN \
+  ghcr.io/rain-kl/openflare-agent:latest
 ```
 
 ## 手动运行 Agent
@@ -190,12 +216,13 @@ export LOG_LEVEL='info'
   "server_url": "http://127.0.0.1:3000",
   "agent_token": "replace-with-node-auth-token",
   "data_dir": "./data",
+  "openresty_path": "openresty",
   "heartbeat_interval": 10000,
   "request_timeout": 10000
 }
 ```
 
-未配置 `openresty_path` 时，Agent 会使用 Docker OpenResty。
+未配置 `openresty_path` 时，Agent 默认调用 `openresty`。
 
 ## 最小联调步骤
 
@@ -227,7 +254,7 @@ Agent：
 curl -fsSL https://raw.githubusercontent.com/Rain-kl/OpenFlare/main/scripts/uninstall-agent.sh | bash
 ```
 
-卸载脚本会停止 Agent、删除 systemd 服务和安装目录；如果检测到 Docker OpenResty 模式，会尝试移除对应容器和镜像。本机 `openresty_path` 模式不会删除本机 OpenResty。
+卸载脚本会停止 Agent、删除 systemd 服务和安装目录，不会删除本机 OpenResty。
 
 ## 常用验证命令
 

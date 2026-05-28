@@ -52,8 +52,8 @@ Agent：
 
 * 单二进制
 * 节点本地执行
-* `openresty_path` 优先
-* 无 `openresty_path` 时默认 Docker OpenResty
+* 通过 `openresty_path` 或默认 `openresty` 控制 OpenResty 二进制
+* Docker 部署使用内置 OpenResty 的 Agent 镜像，不由 Agent 再控制独立 OpenResty 容器
 
 Frontend：
 
@@ -236,7 +236,7 @@ Agent 必须满足：
 * 常规同步优先依据 heartbeat 返回的版本摘要判断。
 * 发现新版本时先备份旧文件。
 * 写入主配置、路由配置与必要证书文件。
-* 写入新配置后以运行态恢复为目标执行激活，Docker 模式优先重建容器并确认容器保持运行。
+* 写入新配置后执行 `openresty -t -c <main_config_path>`，再 reload；reload 发现运行时未启动时允许直接启动 OpenResty。
 * 新配置激活失败时必须先尝试用目标配置恢复运行，再回滚到旧配置并重新拉起 OpenResty。
 * 回滚后 OpenResty 恢复正常时上报警告；回滚后仍无法恢复运行时上报失败。
 * 某个目标 `version + checksum` 一旦应用失败并回退，Agent 必须在本地状态中阻断该目标的重复应用。
