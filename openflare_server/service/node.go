@@ -171,6 +171,11 @@ func RequestNodeAgentUpdate(id uint, input NodeAgentUpdateInput) (*NodeView, err
 		return nil, err
 	}
 	refreshAgentTokenCache(node)
+	if SendAgentWSSettings(node.NodeID, buildAgentSettings(node, true, channel.String(), tagName, node.RestartOpenrestyRequested)) {
+		slog.Debug("agent manual update pushed via ws", "node_id", node.NodeID, "channel", channel.String(), "tag", tagName)
+	} else {
+		slog.Debug("agent manual update waiting for next heartbeat", "node_id", node.NodeID, "channel", channel.String(), "tag", tagName)
+	}
 	slog.Info("agent manual update requested", "node_id", node.NodeID, "name", node.Name, "channel", channel.String(), "tag", tagName)
 	return buildNodeView(node), nil
 }

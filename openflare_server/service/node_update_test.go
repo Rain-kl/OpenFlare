@@ -120,6 +120,9 @@ func TestRequestNodeAgentPreviewUpdate(t *testing.T) {
 		SetUpdateHTTPClientForTest(originalClient)
 	})
 
+	wsClient := RegisterAgentWSClient(node.NodeID)
+	defer UnregisterAgentWSClient(wsClient)
+
 	updated, err := RequestNodeAgentUpdate(node.ID, NodeAgentUpdateInput{
 		Channel: "preview",
 		TagName: "v0.5.0-rc.1",
@@ -135,6 +138,21 @@ func TestRequestNodeAgentPreviewUpdate(t *testing.T) {
 	}
 	if updated.UpdateTag != "v0.5.0-rc.1" {
 		t.Fatalf("unexpected update tag: %s", updated.UpdateTag)
+	}
+	select {
+	case message := <-wsClient.Messages():
+		if message.Type != AgentWSMessageTypeSettings {
+			t.Fatalf("expected settings message, got %s", message.Type)
+		}
+		settings, ok := message.Payload.(*AgentSettings)
+		if !ok {
+			t.Fatalf("expected agent settings payload, got %T", message.Payload)
+		}
+		if !settings.UpdateNow || settings.UpdateChannel != "preview" || settings.UpdateTag != "v0.5.0-rc.1" {
+			t.Fatalf("unexpected pushed settings: %+v", settings)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("expected websocket settings push for manual update")
 	}
 }
 

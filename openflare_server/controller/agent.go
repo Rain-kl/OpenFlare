@@ -223,8 +223,13 @@ func handleAgentWSStatus(c *gin.Context, node *model.Node, message service.Agent
 		slog.Debug("agent ws status payload decode failed", "node_id", node.NodeID, "error", err)
 		return
 	}
+	freshNode, err := model.GetNodeByNodeID(node.NodeID)
+	if err != nil {
+		slog.Debug("agent ws status reload node failed", "node_id", node.NodeID, "error", err)
+		return
+	}
 	payload.IP = service.ResolveReportedNodeIP(payload.IP, c.Request.RemoteAddr)
-	response, err := service.HeartbeatNode(node, payload)
+	response, err := service.HeartbeatNode(freshNode, payload)
 	if err != nil {
 		slog.Debug("agent ws status handling failed", "node_id", node.NodeID, "error", err)
 		return
