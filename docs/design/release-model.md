@@ -58,7 +58,7 @@ Agent 发现新版本后会：
 5. reload；如果运行时未启动，则尝试用当前配置启动 OpenResty。
 6. 上报成功、警告或失败。
 
-如果新配置激活失败，Agent 必须尝试恢复运行；回滚成功时上报警告。若本地没有历史主配置可回滚，Agent 会写入内置安全兜底配置并尝试拉起 OpenResty：该配置只监听 `80` 端口，不包含任何用户路由，统一返回 `503 Service Unavailable` 与 `OpenFlare: No Valid Configuration`。兜底启动成功时仍阻断失败目标版本并上报警告；存在历史主配置但回滚后仍无法恢复运行时上报失败。
+如果新配置激活失败，Agent 必须尝试恢复运行；回滚成功时上报警告。若本地没有历史主配置可回滚，Agent 会写入内置安全兜底配置并尝试拉起 OpenResty：该配置对外只监听 `80` 端口，不包含任何用户路由，统一返回 `503 Service Unavailable` 与 `OpenFlare: No Valid Configuration`，同时保留本地 `stub_status` 健康检查入口。兜底启动成功时仍阻断失败目标版本并上报警告；存在历史主配置但回滚后仍无法恢复运行时上报失败。
 
 某个目标 `version + checksum` 一旦应用失败并回退，Agent 会在本地状态中阻断该目标重复应用。只有远端激活版本或 checksum 发生变化，才允许再次尝试。
 

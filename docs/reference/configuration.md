@@ -166,7 +166,7 @@ OpenResty 性能参数与缓存参数继续统一保存在 `Option` 表。当前
 | `openresty_path` | OpenResty 二进制路径 | 否 | `openresty` |
 | `openresty_container_name` | 旧 Docker 控制字段，仅兼容读取 | 否 | 空 |
 | `openresty_docker_image` | 旧 Docker 控制字段，仅兼容读取 | 否 | 空 |
-| `openresty_observability_port` | 本地观测端口 | 否 | `18081` |
+| `openresty_observability_port` | 本地观测与 OpenResty 健康检查端口 | 否 | `18081` |
 | `docker_binary` | 旧 Docker 控制字段，仅兼容读取 | 否 | 空 |
 | `data_dir` | Agent 数据目录 | 否 | 配置文件所在目录下的 `data` |
 | `main_config_path` | OpenResty 主配置写入路径 | 否 | `data_dir/etc/nginx/nginx.conf` |
@@ -189,6 +189,7 @@ OpenResty 性能参数与缓存参数继续统一保存在 `Option` 表。当前
 * `heartbeat_interval` 与 `request_timeout` 支持毫秒整数或 Go duration 字符串。
 * Server 运行时配置 `AgentWebsocketUpgradeEnabled` 开启时，Agent 会在 HTTP 心跳成功后尝试升级为 WebSocket；连接失败或断开后自动退回 HTTP 心跳。
 * 未配置 `openresty_path` 时默认调用 `openresty`。
+* Agent 周期性健康检查会请求 `http://127.0.0.1:<openresty_observability_port>/openflare/stub_status`，不再通过高频 `openresty -t` 判断运行时健康；配置应用、启动恢复和 reload 前校验仍会执行 `openresty -t -c <main_config_path>`。
 * 如果 `agent.json` 不存在，但 `OPENFLARE_SERVER_URL` 与 Token 等环境变量足够，Agent 可以直接启动；两者同时存在时环境变量优先。
 * Agent 自动探测到私网 `node_ip` 时，Server 会在注册/心跳阶段优先保留 Agent 直连来源的公网地址，避免 NAT/多网卡场景误登记内网网卡地址。
 

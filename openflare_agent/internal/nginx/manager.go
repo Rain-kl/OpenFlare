@@ -9,6 +9,7 @@ import (
 	"io/fs"
 	"log/slog"
 	"net"
+	"net/http"
 	"net/url"
 	"os"
 	"os/exec"
@@ -16,6 +17,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"time"
 
 	"openflare-agent/internal/protocol"
 )
@@ -171,7 +173,20 @@ http {
         server_name _;
         return 503 "OpenFlare: No Valid Configuration\n";
     }
+%s
 }
+`
+
+const safeDefaultFallbackObservabilityServerBlock = `
+    server {
+        listen %s;
+        server_name openflare-observability;
+        access_log off;
+
+        location = /openflare/stub_status {
+            stub_status;
+        }
+    }
 `
 
 type ApplyOutcome struct {
@@ -334,7 +349,10 @@ func (m *Manager) CheckHealth(ctx context.Context) error {
 			return errors.New("openresty config not exists: waiting for initial sync")
 		}
 	}
-	return m.Executor.CheckHealth(ctx)
+	if m.OpenrestyObservabilityPort <= 0 {
+		return m.Executor.CheckHealth(ctx)
+	}
+	return m.checkStubStatus(ctx)
 }
 
 func (m *Manager) Restart(ctx context.Context) error {
@@ -740,8 +758,35 @@ func (m *Manager) writeSafeDefaultFallbackFiles() error {
 	if err := os.WriteFile(m.RouteConfigPath, nil, 0o644); err != nil {
 		return err
 	}
-	if err := os.WriteFile(m.MainConfigPath, []byte(safeDefaultFallbackMainConfig), 0o644); err != nil {
+	if err := os.WriteFile(m.MainConfigPath, []byte(m.safeDefaultFallbackMainConfig()), 0o644); err != nil {
 		return err
+	}
+	return nil
+}
+
+func (m *Manager) safeDefaultFallbackMainConfig() string {
+	observabilityBlock := ""
+	if listen := strings.TrimSpace(m.OpenrestyObservabilityListen); listen != "" {
+		observabilityBlock = fmt.Sprintf(safeDefaultFallbackObservabilityServerBlock, listen)
+	}
+	return fmt.Sprintf(safeDefaultFallbackMainConfig, observabilityBlock)
+}
+
+func (m *Manager) checkStubStatus(ctx context.Context) error {
+	ctx, cancel := context.WithTimeout(ctx, 1500*time.Millisecond)
+	defer cancel()
+	openrestyStubUrl := fmt.Sprintf("http://127.0.0.1:%d/openflare/stub_status", m.OpenrestyObservabilityPort)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, openrestyStubUrl, nil)
+	if err != nil {
+		return err
+	}
+	resp, err := (&http.Client{}).Do(req)
+	if err != nil {
+		return fmt.Errorf("openresty health endpoint unreachable: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("openresty health endpoint returned %s", resp.Status)
 	}
 	return nil
 }

@@ -167,6 +167,8 @@ OpenResty runtime:
 ps aux | grep openresty
 ```
 
+Agent periodic health checks use local `http://127.0.0.1:<openresty_observability_port>/openflare/stub_status` instead of repeatedly running `openresty -t`. If a node is unhealthy, first confirm that the local observability port is listening. If `host not found in upstream` only appears during apply, the failure comes from config validation or reload, not the periodic health probe.
+
 Use the actual `openresty_path` and `main_config_path` from `agent.json`.
 
 ## HTTPS Does Not Work

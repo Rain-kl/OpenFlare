@@ -3,6 +3,8 @@ package nginx
 import (
 	"context"
 	"errors"
+	"net"
+	"net/http"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -325,6 +327,67 @@ func TestManagerApplyWritesSupportFilesAndReplacesPlaceholder(t *testing.T) {
 	}
 	if runtime.GOOS != "windows" && luaInfo.Mode().Perm() != 0o644 {
 		t.Fatalf("unexpected lua mode: %o", luaInfo.Mode().Perm())
+	}
+}
+
+func TestManagerCheckHealthUsesStubStatusInsteadOfConfigTest(t *testing.T) {
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("Listen failed: %v", err)
+	}
+	port := listener.Addr().(*net.TCPAddr).Port
+	server := &http.Server{
+		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path != "/openflare/stub_status" {
+				http.NotFound(w, r)
+				return
+			}
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte("Active connections: 1\n"))
+		}),
+	}
+	go func() {
+		_ = server.Serve(listener)
+	}()
+	defer server.Shutdown(context.Background())
+
+	mainPath := filepath.Join(t.TempDir(), "nginx.conf")
+	if err := os.WriteFile(mainPath, []byte("main"), 0o644); err != nil {
+		t.Fatalf("WriteFile failed: %v", err)
+	}
+	manager := &Manager{
+		MainConfigPath:             mainPath,
+		OpenrestyObservabilityPort: port,
+		Executor: &fakeExecutor{
+			testErr: errors.New("openresty -t should not be called"),
+		},
+	}
+	if err := manager.CheckHealth(context.Background()); err != nil {
+		t.Fatalf("CheckHealth failed: %v", err)
+	}
+}
+
+func TestManagerCheckHealthFailsWhenStubStatusUnavailable(t *testing.T) {
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("Listen failed: %v", err)
+	}
+	port := listener.Addr().(*net.TCPAddr).Port
+	if err := listener.Close(); err != nil {
+		t.Fatalf("listener close failed: %v", err)
+	}
+
+	mainPath := filepath.Join(t.TempDir(), "nginx.conf")
+	if err := os.WriteFile(mainPath, []byte("main"), 0o644); err != nil {
+		t.Fatalf("WriteFile failed: %v", err)
+	}
+	manager := &Manager{
+		MainConfigPath:             mainPath,
+		OpenrestyObservabilityPort: port,
+		Executor:                   &fakeExecutor{},
+	}
+	if err := manager.CheckHealth(context.Background()); err == nil {
+		t.Fatal("expected CheckHealth to fail when stub_status is unavailable")
 	}
 }
 
@@ -748,9 +811,10 @@ func TestManagerApplyStartsSafeFallbackWhenNoRollbackConfigExists(t *testing.T) 
 		testErrors: []error{errors.New("target config failed"), errors.New("rollback config missing"), nil},
 	}
 	manager := &Manager{
-		MainConfigPath:  mainPath,
-		RouteConfigPath: routePath,
-		Executor:        executor,
+		MainConfigPath:               mainPath,
+		RouteConfigPath:              routePath,
+		OpenrestyObservabilityListen: "127.0.0.1:18081",
+		Executor:                     executor,
 	}
 
 	outcome := manager.Apply(context.Background(), "bad-main", "bad-route", nil)
@@ -772,6 +836,12 @@ func TestManagerApplyStartsSafeFallbackWhenNoRollbackConfigExists(t *testing.T) 
 	}
 	if !strings.Contains(string(mainData), "listen 80 default_server") {
 		t.Fatalf("expected fallback to listen on port 80, got %s", string(mainData))
+	}
+	if !strings.Contains(string(mainData), "listen 127.0.0.1:18081") {
+		t.Fatalf("expected fallback to expose local stub_status port, got %s", string(mainData))
+	}
+	if !strings.Contains(string(mainData), "stub_status;") {
+		t.Fatalf("expected fallback to expose stub_status, got %s", string(mainData))
 	}
 	routeData, err := os.ReadFile(routePath)
 	if err != nil {

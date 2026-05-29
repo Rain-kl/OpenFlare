@@ -63,7 +63,7 @@ Agent supports the `-config` CLI flag, an `agent.json` file, and the `LOG_LEVEL`
 | `openresty_path` | OpenResty binary path | no | `openresty` |
 | `openresty_container_name` | Deprecated Docker-control field, read for compatibility only | no | empty |
 | `openresty_docker_image` | Deprecated Docker-control field, read for compatibility only | no | empty |
-| `openresty_observability_port` | Local observability port | no | `18081` |
+| `openresty_observability_port` | Local observability and OpenResty health-check port | no | `18081` |
 | `docker_binary` | Deprecated Docker-control field, read for compatibility only | no | empty |
 | `data_dir` | Agent data directory | no | `data` under config directory |
 | `access_log_path` | OpenResty access log path | no | `data_dir/var/log/openflare/access.log` |
