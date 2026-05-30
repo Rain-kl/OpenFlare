@@ -1025,8 +1025,8 @@ func TestPublishConfigVersionDetectsPoWChanges(t *testing.T) {
 	if !strings.Contains(secondRelease.Version.RenderedConfig, "application/javascript js mjs;") {
 		t.Fatal("expected rendered config to serve Anubis module scripts with a JavaScript MIME type")
 	}
-	if !strings.Contains(secondRelease.Version.RenderedConfig, "    access_by_lua_file __OPENFLARE_LUA_DIR__/pow/check.lua;\n\n    location = /.within.website/x/cmd/anubis/api/pass-challenge") {
-		t.Fatal("expected PoW access handler to render at server scope before PoW locations")
+	if !strings.Contains(secondRelease.Version.RenderedConfig, "        dofile(\"__OPENFLARE_LUA_DIR__/waf/check.lua\")\n        dofile(\"__OPENFLARE_LUA_DIR__/pow/check.lua\")") {
+		t.Fatal("expected combined WAF and PoW access handler to render at server scope")
 	}
 	locationStart := strings.Index(secondRelease.Version.RenderedConfig, "    location / {\n")
 	if locationStart < 0 {
@@ -1037,8 +1037,8 @@ func TestPublishConfigVersionDetectsPoWChanges(t *testing.T) {
 		t.Fatal("expected rendered config to close root proxy location")
 	}
 	rootLocationBlock := secondRelease.Version.RenderedConfig[locationStart : locationStart+locationEnd]
-	if strings.Contains(rootLocationBlock, "access_by_lua_file") {
-		t.Fatal("expected root proxy location to avoid mixing access_by_lua_file with proxy_pass")
+	if strings.Contains(rootLocationBlock, "access_by_lua") {
+		t.Fatal("expected root proxy location to avoid mixing access_by_lua with proxy_pass")
 	}
 	if !strings.Contains(secondRelease.Version.SnapshotJSON, `"difficulty":5`) {
 		t.Fatal("expected snapshot to persist PoW config")
@@ -1102,7 +1102,7 @@ func TestPublishConfigVersionRendersBasicAuthWithPoW(t *testing.T) {
 	if !strings.Contains(result.Version.RenderedConfig, "                return ngx.exit(401)\n            end\n        }\n") {
 		t.Fatal("expected rendered basic auth Lua block to close the if statement before the nginx block")
 	}
-	if !strings.Contains(result.Version.RenderedConfig, "    access_by_lua_file __OPENFLARE_LUA_DIR__/pow/check.lua;") {
+	if !strings.Contains(result.Version.RenderedConfig, "        dofile(\"__OPENFLARE_LUA_DIR__/pow/check.lua\")") {
 		t.Fatal("expected PoW access handler to remain at server scope")
 	}
 	if !strings.Contains(result.Version.RenderedConfig, "proxy_pass http://backend_xbot_example_com_1;") {

@@ -1257,16 +1257,17 @@ func onOff(value bool) string {
 
 const nginxPowStaticDirPlaceholder = "__OPENFLARE_POW_STATIC_DIR__"
 
-func renderPowAccessBlock(powEnabled bool) string {
-	if !powEnabled {
-		return ""
-	}
-	return fmt.Sprintf("    access_by_lua_file %s/pow/check.lua;\n", nginxLuaDirPlaceholder)
-}
-
-func renderWAFAccessBlock(siteName string) string {
+func renderAccessBlock(siteName string, powEnabled bool) string {
 	escapedSiteName := escapeNginxString(siteName)
-	return fmt.Sprintf("    set $openflare_waf_site \"%s\";\n    access_by_lua_file %s/waf/check.lua;\n", escapedSiteName, nginxLuaDirPlaceholder)
+	if !powEnabled {
+		return fmt.Sprintf("    set $openflare_waf_site \"%s\";\n    access_by_lua_file %s/waf/check.lua;\n", escapedSiteName, nginxLuaDirPlaceholder)
+	}
+	return fmt.Sprintf(`    set $openflare_waf_site "%s";
+    access_by_lua_block {
+        dofile("%s/waf/check.lua")
+        dofile("%s/pow/check.lua")
+    }
+`, escapedSiteName, nginxLuaDirPlaceholder, nginxLuaDirPlaceholder)
 }
 
 func renderBasicAuthBlock(enabled bool, username, password string) string {
@@ -1426,7 +1427,7 @@ func nextVersionNumber(now time.Time) (string, error) {
 }
 
 func renderHTTPProxyServer(serverNames string, siteName string, originURL string, originHost string, customHeaders []ProxyRouteCustomHeaderInput, cacheConfig routeCacheConfig, limitConfig routeLimitConfig, upstreamConfig routeUpstreamConfig, powEnabled bool, basicAuthEnabled bool, basicAuthUsername string, basicAuthPassword string, cfg openRestyConfigSnapshot) string {
-	return fmt.Sprintf("server {\n    listen 80;\n    server_name %s;\n%s%s%s    location / {\n%s%s%s%s%s    }\n%s}\n\n", serverNames, renderWAFAccessBlock(siteName), renderPowAccessBlock(powEnabled), renderPowLocationBlocks(powEnabled), renderBasicAuthBlock(basicAuthEnabled, basicAuthUsername, basicAuthPassword), renderProxyHeaderBlock(originURL, originHost, customHeaders, upstreamConfig), renderRouteLimitBlock(limitConfig), renderRouteCacheBlock(cacheConfig, cfg), renderProxyPassBlock(originURL, upstreamConfig), renderPowStaticLocationBlock(powEnabled))
+	return fmt.Sprintf("server {\n    listen 80;\n    server_name %s;\n%s%s    location / {\n%s%s%s%s%s    }\n%s}\n\n", serverNames, renderAccessBlock(siteName, powEnabled), renderPowLocationBlocks(powEnabled), renderBasicAuthBlock(basicAuthEnabled, basicAuthUsername, basicAuthPassword), renderProxyHeaderBlock(originURL, originHost, customHeaders, upstreamConfig), renderRouteLimitBlock(limitConfig), renderRouteCacheBlock(cacheConfig, cfg), renderProxyPassBlock(originURL, upstreamConfig), renderPowStaticLocationBlock(powEnabled))
 }
 
 func renderHTTPRedirectServer(serverNames string, siteName string) string {
@@ -1437,7 +1438,7 @@ func renderHTTPRedirectServer(serverNames string, siteName string) string {
 func renderHTTPSServer(serverNames string, siteName string, originURL string, originHost string, certificateID uint, customHeaders []ProxyRouteCustomHeaderInput, cacheConfig routeCacheConfig, limitConfig routeLimitConfig, upstreamConfig routeUpstreamConfig, powEnabled bool, basicAuthEnabled bool, basicAuthUsername string, basicAuthPassword string, cfg openRestyConfigSnapshot) string {
 	certPath := fmt.Sprintf("%s/%s", nginxCertDirPlaceholder, certificateCertFileName(certificateID))
 	keyPath := fmt.Sprintf("%s/%s", nginxCertDirPlaceholder, certificateKeyFileName(certificateID))
-	return fmt.Sprintf("server {\n    listen 443 ssl;\n    http2 on;\n    server_name %s;\n    ssl_certificate %s;\n    ssl_certificate_key %s;\n%s%s%s    location / {\n%s%s%s%s%s    }\n%s}\n\n", serverNames, certPath, keyPath, renderWAFAccessBlock(siteName), renderPowAccessBlock(powEnabled), renderPowLocationBlocks(powEnabled), renderBasicAuthBlock(basicAuthEnabled, basicAuthUsername, basicAuthPassword), renderProxyHeaderBlock(originURL, originHost, customHeaders, upstreamConfig), renderRouteLimitBlock(limitConfig), renderRouteCacheBlock(cacheConfig, cfg), renderProxyPassBlock(originURL, upstreamConfig), renderPowStaticLocationBlock(powEnabled))
+	return fmt.Sprintf("server {\n    listen 443 ssl;\n    http2 on;\n    server_name %s;\n    ssl_certificate %s;\n    ssl_certificate_key %s;\n%s%s    location / {\n%s%s%s%s%s    }\n%s}\n\n", serverNames, certPath, keyPath, renderAccessBlock(siteName, powEnabled), renderPowLocationBlocks(powEnabled), renderBasicAuthBlock(basicAuthEnabled, basicAuthUsername, basicAuthPassword), renderProxyHeaderBlock(originURL, originHost, customHeaders, upstreamConfig), renderRouteLimitBlock(limitConfig), renderRouteCacheBlock(cacheConfig, cfg), renderProxyPassBlock(originURL, upstreamConfig), renderPowStaticLocationBlock(powEnabled))
 }
 
 func renderHTTPSServerWithCertificates(serverNames string, originURL string, originHost string, certificateIDs []uint, customHeaders []ProxyRouteCustomHeaderInput, cacheConfig routeCacheConfig, limitConfig routeLimitConfig, upstreamConfig routeUpstreamConfig, powEnabled bool, basicAuthEnabled bool, basicAuthUsername string, basicAuthPassword string, cfg openRestyConfigSnapshot) string {
@@ -1448,7 +1449,7 @@ func renderHTTPSServerWithCertificates(serverNames string, originURL string, ori
 		certificateBlock.WriteString(fmt.Sprintf("    ssl_certificate %s;\n", certPath))
 		certificateBlock.WriteString(fmt.Sprintf("    ssl_certificate_key %s;\n", keyPath))
 	}
-	return fmt.Sprintf("server {\n    listen 443 ssl;\n    http2 on;\n    server_name %s;\n%s%s%s\n    location / {\n%s%s%s%s%s    }\n%s}\n\n", serverNames, certificateBlock.String(), renderPowAccessBlock(powEnabled), renderPowLocationBlocks(powEnabled), renderBasicAuthBlock(basicAuthEnabled, basicAuthUsername, basicAuthPassword), renderProxyHeaderBlock(originURL, originHost, customHeaders, upstreamConfig), renderRouteLimitBlock(limitConfig), renderRouteCacheBlock(cacheConfig, cfg), renderProxyPassBlock(originURL, upstreamConfig), renderPowStaticLocationBlock(powEnabled))
+	return fmt.Sprintf("server {\n    listen 443 ssl;\n    http2 on;\n    server_name %s;\n%s%s%s\n    location / {\n%s%s%s%s%s    }\n%s}\n\n", serverNames, certificateBlock.String(), renderAccessBlock(serverNames, powEnabled), renderPowLocationBlocks(powEnabled), renderBasicAuthBlock(basicAuthEnabled, basicAuthUsername, basicAuthPassword), renderProxyHeaderBlock(originURL, originHost, customHeaders, upstreamConfig), renderRouteLimitBlock(limitConfig), renderRouteCacheBlock(cacheConfig, cfg), renderProxyPassBlock(originURL, upstreamConfig), renderPowStaticLocationBlock(powEnabled))
 }
 
 func renderServerNames(domains []string) string {
