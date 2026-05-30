@@ -92,6 +92,7 @@ func (s *Service) sync(ctx context.Context, startup bool, target *protocol.Activ
 
 	if currentChecksum == target.Checksum {
 		slog.Debug("local openresty config already up to date", "mode", mode, "version", target.Version)
+		shouldReport := shouldReportNoopApply(snapshot, target.Version, target.Checksum)
 		if startup {
 			slog.Debug("ensuring openresty runtime on startup", "version", target.Version)
 			if err = s.nginxManager.EnsureRuntime(ctx, true); err != nil {
@@ -103,6 +104,11 @@ func (s *Service) sync(ctx context.Context, startup bool, target *protocol.Activ
 			slog.Debug("openresty runtime ensured on startup", "version", target.Version)
 			snapshot.OpenrestyStatus = protocol.OpenrestyStatusHealthy
 			snapshot.OpenrestyMessage = ""
+		}
+		if shouldReport {
+			if err = s.reportNoopApply(ctx, snapshot.NodeID, target.Version, target.Checksum, "", "", 0); err != nil {
+				return err
+			}
 		}
 		snapshot.CurrentVersion = target.Version
 		snapshot.CurrentChecksum = target.Checksum
@@ -152,6 +158,7 @@ func (s *Service) ForceSyncOnce(ctx context.Context, target *protocol.ActiveConf
 func (s *Service) applyIfNeeded(ctx context.Context, mode string, startup bool, snapshot *state.Snapshot, currentChecksum string, target *protocol.ActiveConfigMeta, config *protocol.ActiveConfigResponse) error {
 	if currentChecksum == config.Checksum {
 		slog.Debug("local openresty config already up to date", "mode", mode, "version", config.Version)
+		shouldReport := shouldReportNoopApply(snapshot, config.Version, config.Checksum)
 		if startup {
 			slog.Debug("ensuring openresty runtime on startup", "version", config.Version)
 			if err := s.nginxManager.EnsureRuntime(ctx, true); err != nil {
@@ -163,6 +170,15 @@ func (s *Service) applyIfNeeded(ctx context.Context, mode string, startup bool, 
 			slog.Debug("openresty runtime ensured on startup", "version", config.Version)
 			snapshot.OpenrestyStatus = protocol.OpenrestyStatusHealthy
 			snapshot.OpenrestyMessage = ""
+		}
+		if shouldReport {
+			routeConfig := config.RouteConfig
+			if routeConfig == "" {
+				routeConfig = config.RenderedConfig
+			}
+			if err := s.reportNoopApply(ctx, snapshot.NodeID, config.Version, config.Checksum, checksumString(config.MainConfig), checksumString(routeConfig), len(config.SupportFiles)); err != nil {
+				return err
+			}
 		}
 		snapshot.CurrentVersion = config.Version
 		snapshot.CurrentChecksum = config.Checksum
@@ -263,6 +279,33 @@ func (s *Service) applyIfNeeded(ctx context.Context, mode string, startup bool, 
 		return outcomeError(config.Version, message)
 	}
 	slog.Debug("apply log reported", "version", config.Version, "result", reportResult)
+	return nil
+}
+
+func shouldReportNoopApply(snapshot *state.Snapshot, version string, checksum string) bool {
+	if snapshot == nil {
+		return false
+	}
+	return strings.TrimSpace(snapshot.CurrentVersion) != strings.TrimSpace(version) ||
+		strings.TrimSpace(snapshot.CurrentChecksum) != strings.TrimSpace(checksum)
+}
+
+func (s *Service) reportNoopApply(ctx context.Context, nodeID string, version string, checksum string, mainConfigChecksum string, routeConfigChecksum string, supportFileCount int) error {
+	message := "local config already matches active version; apply skipped"
+	if err := s.client.ReportApplyLog(ctx, protocol.ApplyLogPayload{
+		NodeID:              nodeID,
+		Version:             strings.TrimSpace(version),
+		Result:              ApplyResultSuccess,
+		Message:             message,
+		Checksum:            strings.TrimSpace(checksum),
+		MainConfigChecksum:  strings.TrimSpace(mainConfigChecksum),
+		RouteConfigChecksum: strings.TrimSpace(routeConfigChecksum),
+		SupportFileCount:    supportFileCount,
+	}); err != nil {
+		slog.Error("report noop apply log failed", "version", version, "error", err)
+		return err
+	}
+	slog.Debug("noop apply log reported", "version", version)
 	return nil
 }
 

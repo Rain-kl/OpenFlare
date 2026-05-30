@@ -631,6 +631,22 @@ func TestPhase2AgentLifecycle(t *testing.T) {
 	if logs.Total != 0 || len(logs.Rows) != 0 || logs.Current != 1 || logs.TotalPage != 0 {
 		t.Fatalf("expected empty apply log page after delete-all cleanup, got %+v", logs)
 	}
+	postDeleteApplyResp := performAgentJSONRequestWithToken(t, engine, createdNode.AgentToken, http.MethodPost, "/api/agent/apply-logs", map[string]any{
+		"version":  activeConfig.Version,
+		"result":   service.ApplyResultOK,
+		"message":  "local config already matches active version; apply skipped",
+		"checksum": activeConfig.Checksum,
+	})
+	var postDeleteApplyLog model.ApplyLog
+	decodeResponseData(t, postDeleteApplyResp, &postDeleteApplyLog)
+	if postDeleteApplyLog.ID == 0 || postDeleteApplyLog.NodeID != createdNode.NodeID {
+		t.Fatalf("expected apply log to be recreated after delete-all cleanup, got %+v", postDeleteApplyLog)
+	}
+	postDeleteLogsResp := performJSONRequest(t, engine, adminToken, http.MethodGet, "/api/apply-logs/?node_id="+createdNode.NodeID, nil)
+	decodeResponseData(t, postDeleteLogsResp, &logs)
+	if logs.Total != 1 || len(logs.Rows) != 1 || logs.Rows[0].ID != postDeleteApplyLog.ID {
+		t.Fatalf("expected new apply log after delete-all cleanup, got %+v", logs)
+	}
 
 	updatedNodeResp := performJSONRequest(t, engine, adminToken, http.MethodPost, "/api/nodes/"+toString(createdNode.ID)+"/update", map[string]any{
 		"name":                "shanghai-edge-1-renamed",

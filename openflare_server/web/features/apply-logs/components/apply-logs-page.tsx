@@ -86,6 +86,18 @@ export function ApplyLogsPage() {
   const [customRetentionDays, setCustomRetentionDays] = useState('30');
   const [feedback, setFeedback] = useState<FeedbackState | null>(null);
 
+  useEffect(() => {
+    const nodeID = new URLSearchParams(window.location.search)
+      .get('node_id')
+      ?.trim();
+    if (!nodeID) {
+      return;
+    }
+    setNodeFilterInput(nodeID);
+    setNodeFilter(nodeID);
+    setPageNo(1);
+  }, []);
+
   const logsQuery = useQuery({
     queryKey: applyLogsQueryKey(nodeFilter, pageNo, pageSize),
     queryFn: () =>

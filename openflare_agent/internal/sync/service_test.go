@@ -323,8 +323,11 @@ func TestSyncOnStartupRecreatesRuntimeWhenChecksumMatches(t *testing.T) {
 	if len(manager.ensureCalls) != 1 || !manager.ensureCalls[0] {
 		t.Fatal("expected startup sync to recreate runtime")
 	}
-	if len(client.reports) != 0 {
-		t.Fatal("expected no apply report when checksum already matches")
+	if len(client.reports) != 1 || client.reports[0].Result != ApplyResultSuccess {
+		t.Fatal("expected startup sync to report noop success when state is refreshed")
+	}
+	if client.reports[0].Message != "local config already matches active version; apply skipped" {
+		t.Fatalf("unexpected noop apply message: %q", client.reports[0].Message)
 	}
 	snapshot, err := stateStore.Load()
 	if err != nil {
@@ -335,6 +338,78 @@ func TestSyncOnStartupRecreatesRuntimeWhenChecksumMatches(t *testing.T) {
 	}
 	if snapshot.OpenrestyStatus != protocol.OpenrestyStatusHealthy || snapshot.OpenrestyMessage != "" {
 		t.Fatal("expected startup sync to mark openresty healthy")
+	}
+}
+
+func TestSyncOnceReportsNoopWhenVersionChangesButChecksumMatches(t *testing.T) {
+	client := &fakeClient{}
+	stateStore := state.NewStore(filepath.Join(t.TempDir(), "state.json"))
+	nodeID, err := stateStore.EnsureNodeID()
+	if err != nil {
+		t.Fatalf("EnsureNodeID failed: %v", err)
+	}
+	if err = stateStore.Save(&state.Snapshot{
+		NodeID:          nodeID,
+		CurrentVersion:  "20260309-002",
+		CurrentChecksum: "checksum-3",
+	}); err != nil {
+		t.Fatalf("failed to seed state: %v", err)
+	}
+
+	manager := &fakeManager{currentChecksum: "checksum-3"}
+	service := New(client, manager, stateStore)
+	if err = service.SyncOnce(context.Background(), &protocol.ActiveConfigMeta{
+		Version:  "20260309-003",
+		Checksum: "checksum-3",
+	}); err != nil {
+		t.Fatalf("SyncOnce failed: %v", err)
+	}
+	if client.fetchCalls != 0 {
+		t.Fatalf("expected checksum match to skip config fetch, got %d", client.fetchCalls)
+	}
+	if len(manager.applyMainContents) != 0 {
+		t.Fatal("expected checksum match to skip apply")
+	}
+	if len(client.reports) != 1 || client.reports[0].Result != ApplyResultSuccess {
+		t.Fatalf("expected noop apply success report, got %+v", client.reports)
+	}
+	if client.reports[0].Version != "20260309-003" || client.reports[0].Checksum != "checksum-3" {
+		t.Fatalf("unexpected noop apply report: %+v", client.reports[0])
+	}
+	snapshot, err := stateStore.Load()
+	if err != nil {
+		t.Fatalf("failed to load state: %v", err)
+	}
+	if snapshot.CurrentVersion != "20260309-003" || snapshot.CurrentChecksum != "checksum-3" {
+		t.Fatalf("expected state to refresh active version, got %+v", snapshot)
+	}
+}
+
+func TestSyncOnceDoesNotRepeatNoopReportWhenStateAlreadyMatches(t *testing.T) {
+	client := &fakeClient{}
+	stateStore := state.NewStore(filepath.Join(t.TempDir(), "state.json"))
+	nodeID, err := stateStore.EnsureNodeID()
+	if err != nil {
+		t.Fatalf("EnsureNodeID failed: %v", err)
+	}
+	if err = stateStore.Save(&state.Snapshot{
+		NodeID:          nodeID,
+		CurrentVersion:  "20260309-003",
+		CurrentChecksum: "checksum-3",
+	}); err != nil {
+		t.Fatalf("failed to seed state: %v", err)
+	}
+
+	manager := &fakeManager{currentChecksum: "checksum-3"}
+	service := New(client, manager, stateStore)
+	if err = service.SyncOnce(context.Background(), &protocol.ActiveConfigMeta{
+		Version:  "20260309-003",
+		Checksum: "checksum-3",
+	}); err != nil {
+		t.Fatalf("SyncOnce failed: %v", err)
+	}
+	if len(client.reports) != 0 {
+		t.Fatalf("expected matching state to skip duplicate noop report, got %+v", client.reports)
 	}
 }
 
