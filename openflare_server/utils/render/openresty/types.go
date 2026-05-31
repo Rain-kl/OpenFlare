@@ -9,7 +9,7 @@ const (
 	ObservabilityPortPlaceholder   = "__OPENFLARE_OBSERVABILITY_PORT__"
 	PowStaticDirPlaceholder        = "__OPENFLARE_POW_STATIC_DIR__"
 
-	SourceConfigFileName = "openresty_source_config.json"
+	SourceConfigFileName = "openresty_config.json"
 )
 
 const (
