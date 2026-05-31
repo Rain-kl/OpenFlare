@@ -2,10 +2,6 @@ package model
 
 import (
 	"fmt"
-	"github.com/glebarez/sqlite"
-	"gorm.io/driver/postgres"
-	"gorm.io/gorm"
-	"gorm.io/gorm/schema"
 	"log/slog"
 	"openflare/common"
 	"openflare/utils/security"
@@ -13,6 +9,11 @@ import (
 	"reflect"
 	"strings"
 	"sync"
+
+	"github.com/glebarez/sqlite"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
+	"gorm.io/gorm/schema"
 )
 
 var DB *gorm.DB
@@ -25,7 +26,6 @@ type dbModel struct {
 
 func registeredModels() []any {
 	return []any{
-		&File{},
 		&User{},
 		&AuthSource{},
 		&ExternalAccount{},

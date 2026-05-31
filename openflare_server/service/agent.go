@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"openflare/common"
 	"openflare/model"
+	"openflare/utils"
 	"strings"
 	"time"
 
@@ -239,16 +240,24 @@ func GetActiveConfigForAgent() (*AgentConfigResponse, error) {
 	}, nil
 }
 
+func normalizeApplyLogPayload(payload ApplyLogPayload) ApplyLogPayload {
+	payload.Result = strings.ToLower(payload.Result)
+	utils.TrimStringFields(
+		&payload.NodeID,
+		&payload.Version,
+		&payload.Result,
+		&payload.Message,
+		&payload.Checksum,
+		&payload.MainConfigChecksum,
+		&payload.RouteConfigChecksum,
+	)
+	payload.Message = truncateForDatabase(payload.Message, 16000)
+	return payload
+}
+
 func ReportApplyLog(payload ApplyLogPayload) (*model.ApplyLog, error) {
 	now := time.Now()
-	payload.NodeID = strings.TrimSpace(payload.NodeID)
-	payload.Version = strings.TrimSpace(payload.Version)
-	payload.Result = strings.TrimSpace(strings.ToLower(payload.Result))
-	payload.Message = strings.TrimSpace(payload.Message)
-	payload.Checksum = strings.TrimSpace(payload.Checksum)
-	payload.MainConfigChecksum = strings.TrimSpace(payload.MainConfigChecksum)
-	payload.RouteConfigChecksum = strings.TrimSpace(payload.RouteConfigChecksum)
-	payload.Message = truncateForDatabase(payload.Message, 16000)
+	payload = normalizeApplyLogPayload(payload)
 	if payload.NodeID == "" {
 		return nil, errors.New("node_id 不能为空")
 	}

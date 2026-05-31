@@ -2,6 +2,7 @@ package model
 
 import (
 	"errors"
+	"openflare/utils"
 	"regexp"
 	"strings"
 	"time"
@@ -56,14 +57,17 @@ type ExternalAccountView struct {
 }
 
 func (source *AuthSource) Normalize() {
-	source.Name = strings.TrimSpace(source.Name)
-	source.Type = strings.TrimSpace(strings.ToLower(source.Type))
-	source.DisplayName = strings.TrimSpace(source.DisplayName)
-	source.ClientID = strings.TrimSpace(source.ClientID)
-	source.ClientSecret = strings.TrimSpace(source.ClientSecret)
-	source.OpenIDDiscoveryURL = strings.TrimSpace(source.OpenIDDiscoveryURL)
-	source.Scopes = strings.TrimSpace(source.Scopes)
-	source.IconURL = strings.TrimSpace(source.IconURL)
+	source.Type = strings.ToLower(source.Type)
+	utils.TrimStringFields(
+		&source.Name,
+		&source.Type,
+		&source.DisplayName,
+		&source.ClientID,
+		&source.ClientSecret,
+		&source.OpenIDDiscoveryURL,
+		&source.Scopes,
+		&source.IconURL,
+	)
 	if source.DisplayName == "" {
 		source.DisplayName = source.Name
 	}
