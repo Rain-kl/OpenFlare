@@ -6,8 +6,10 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net"
 	"net/url"
+	schemamigrate "openflare/model/migrate"
 	"strings"
 
 	"gorm.io/gorm"
@@ -18,6 +20,63 @@ type databaseSchemaMigration struct {
 	toVersion   int
 	migrate     func(db *gorm.DB, backend string) error
 	validate    func(db *gorm.DB, backend string) error
+}
+
+type databaseSchemaMigrationContext struct{}
+
+func (databaseSchemaMigrationContext) ApplyCurrentSchema(db *gorm.DB, backend string) error {
+	return applyCurrentSchema(db, backend)
+}
+
+func (databaseSchemaMigrationContext) BackfillOriginsFromProxyRoutes(db *gorm.DB) error {
+	return backfillOriginsFromProxyRoutes(db)
+}
+
+func (databaseSchemaMigrationContext) BackfillProxyRouteSiteFields(db *gorm.DB) error {
+	return backfillProxyRouteSiteFields(db)
+}
+
+func (databaseSchemaMigrationContext) EnsureProxyRouteSiteNameUniqueIndex(db *gorm.DB) error {
+	return ensureProxyRouteSiteNameUniqueIndex(db)
+}
+
+func (databaseSchemaMigrationContext) BackfillProxyRouteCertificateFields(db *gorm.DB) error {
+	return backfillProxyRouteCertificateFields(db)
+}
+
+func (databaseSchemaMigrationContext) BackfillProxyRouteDomainCertificateFields(db *gorm.DB) error {
+	return backfillProxyRouteDomainCertificateFields(db)
+}
+
+func (databaseSchemaMigrationContext) EnsureDefaultGitHubAuthSource(db *gorm.DB) error {
+	return ensureDefaultGitHubAuthSource(db)
+}
+
+func (databaseSchemaMigrationContext) EnsureDefaultWAFRuleGroup(db *gorm.DB) error {
+	return ensureDefaultWAFRuleGroup(db)
+}
+
+func (databaseSchemaMigrationContext) ValidateDatabaseSchemaVersion(db *gorm.DB, backend string, version int) error {
+	switch version {
+	case 7:
+		return validateDatabaseSchemaV7(db, backend)
+	case 8:
+		return validateDatabaseSchemaV8(db, backend)
+	case 9:
+		return validateDatabaseSchemaV9(db, backend)
+	case 10:
+		return validateDatabaseSchemaV10(db, backend)
+	case 11:
+		return validateDatabaseSchemaV11(db, backend)
+	case 12:
+		return validateDatabaseSchemaV12(db, backend)
+	case 13:
+		return validateDatabaseSchemaV13(db, backend)
+	case 14:
+		return validateDatabaseSchemaV14(db, backend)
+	default:
+		return fmt.Errorf("database schema validation for v%d is not defined", version)
+	}
 }
 
 func autoMigrateSchemaMetadata(db *gorm.DB) error {
@@ -789,225 +848,6 @@ func uintSlicesEqualForMigration(left []uint, right []uint) bool {
 	return true
 }
 
-func renameLegacyObservabilityShardTables(db *gorm.DB) error {
-	for _, baseTable := range shardedObservabilityBaseTables() {
-		for _, table := range observabilityShardTables(baseTable) {
-			legacyTable := legacyObservabilityShardTableName(table)
-			if db.Migrator().HasTable(legacyTable) {
-				return fmt.Errorf("legacy sharded table %s already exists", legacyTable)
-			}
-			if !db.Migrator().HasTable(table) {
-				continue
-			}
-			if err := db.Migrator().RenameTable(table, legacyTable); err != nil {
-				return fmt.Errorf("rename sharded table %s to %s failed: %w", table, legacyTable, err)
-			}
-			if err := dropLegacyObservabilitySecondaryIndexes(db, legacyTable); err != nil {
-				return err
-			}
-		}
-	}
-	return nil
-}
-
-func dropLegacyObservabilitySecondaryIndexes(db *gorm.DB, table string) error {
-	db = sessionIgnoringSharding(db)
-	if db == nil {
-		return fmt.Errorf("database handle is nil")
-	}
-	backend := baseDialector(db).Name()
-	indexes := make([]string, 0)
-	switch backend {
-	case "sqlite":
-		if err := db.Raw(
-			`SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = ? AND name LIKE 'idx_%'`,
-			table,
-		).Scan(&indexes).Error; err != nil {
-			return fmt.Errorf("list indexes for %s failed: %w", table, err)
-		}
-	case "postgres":
-		if err := db.Raw(
-			`SELECT indexname FROM pg_indexes WHERE schemaname = current_schema() AND tablename = ? AND indexname LIKE 'idx_%'`,
-			table,
-		).Scan(&indexes).Error; err != nil {
-			return fmt.Errorf("list indexes for %s failed: %w", table, err)
-		}
-	default:
-		return fmt.Errorf("unsupported database backend %s", backend)
-	}
-	for _, indexName := range indexes {
-		if err := db.Exec(fmt.Sprintf(`DROP INDEX IF EXISTS "%s"`, indexName)).Error; err != nil {
-			return fmt.Errorf("drop legacy index %s failed: %w", indexName, err)
-		}
-	}
-	return nil
-}
-
-func autoMigrateObservabilityShardTables(db *gorm.DB) error {
-	db = sessionIgnoringSharding(db)
-	if db == nil {
-		return fmt.Errorf("database handle is nil")
-	}
-	dialector := baseDialector(db)
-	if dialector == nil {
-		return fmt.Errorf("database dialector is nil")
-	}
-	type shardedTable struct {
-		model any
-		base  string
-	}
-	tables := []shardedTable{
-		{model: &NodeMetricSnapshot{}, base: "node_metric_snapshots"},
-		{model: &NodeRequestReport{}, base: "node_request_reports"},
-		{model: &NodeAccessLog{}, base: "node_access_logs"},
-	}
-	for _, item := range tables {
-		for _, table := range observabilityShardTables(item.base) {
-			tx := db.Table(table)
-			if err := dialector.Migrator(tx).AutoMigrate(item.model); err != nil {
-				return fmt.Errorf("auto migrate sharded table %s failed: %w", table, err)
-			}
-		}
-	}
-	return nil
-}
-
-func dropLegacyObservabilityShardTables(db *gorm.DB) error {
-	db = sessionIgnoringSharding(db)
-	if db == nil {
-		return fmt.Errorf("database handle is nil")
-	}
-	for _, baseTable := range shardedObservabilityBaseTables() {
-		for _, table := range observabilityShardTables(baseTable) {
-			legacyTable := legacyObservabilityShardTableName(table)
-			if !db.Migrator().HasTable(legacyTable) {
-				continue
-			}
-			if err := db.Exec(fmt.Sprintf(`DROP TABLE IF EXISTS "%s"`, legacyTable)).Error; err != nil {
-				return fmt.Errorf("drop legacy sharded table %s failed: %w", legacyTable, err)
-			}
-		}
-	}
-	return nil
-}
-
-func migrateLegacyNodeMetricSnapshots(db *gorm.DB) error {
-	for _, table := range observabilityShardTables("node_metric_snapshots") {
-		legacyTable := legacyObservabilityShardTableName(table)
-		if !db.Migrator().HasTable(legacyTable) {
-			continue
-		}
-		var lastSeenID uint
-		for {
-			var rows []NodeMetricSnapshot
-			query := db.Table(legacyTable).Order("id ASC").Limit(500)
-			if lastSeenID > 0 {
-				query = query.Where("id > ?", lastSeenID)
-			}
-			if err := query.Find(&rows).Error; err != nil {
-				return fmt.Errorf("query legacy sharded table %s failed: %w", legacyTable, err)
-			}
-			if len(rows) == 0 {
-				break
-			}
-			lastSeenID = rows[len(rows)-1].ID
-			grouped := make(map[string][]NodeMetricSnapshot, observabilityShardCount)
-			for index := range rows {
-				rows[index].ID = 0
-				if err := assignObservabilityID(&rows[index].ID); err != nil {
-					return err
-				}
-				targetTable := observabilityShardTableForID("node_metric_snapshots", rows[index].ID)
-				grouped[targetTable] = append(grouped[targetTable], rows[index])
-			}
-			for targetTable, batch := range grouped {
-				if err := db.Table(targetTable).Create(&batch).Error; err != nil {
-					return fmt.Errorf("write migrated rows into %s failed: %w", targetTable, err)
-				}
-			}
-		}
-	}
-	return nil
-}
-
-func migrateLegacyNodeRequestReports(db *gorm.DB) error {
-	for _, table := range observabilityShardTables("node_request_reports") {
-		legacyTable := legacyObservabilityShardTableName(table)
-		if !db.Migrator().HasTable(legacyTable) {
-			continue
-		}
-		var lastSeenID uint
-		for {
-			var rows []NodeRequestReport
-			query := db.Table(legacyTable).Order("id ASC").Limit(500)
-			if lastSeenID > 0 {
-				query = query.Where("id > ?", lastSeenID)
-			}
-			if err := query.Find(&rows).Error; err != nil {
-				return fmt.Errorf("query legacy sharded table %s failed: %w", legacyTable, err)
-			}
-			if len(rows) == 0 {
-				break
-			}
-			lastSeenID = rows[len(rows)-1].ID
-			grouped := make(map[string][]NodeRequestReport, observabilityShardCount)
-			for index := range rows {
-				rows[index].ID = 0
-				if err := assignObservabilityID(&rows[index].ID); err != nil {
-					return err
-				}
-				targetTable := observabilityShardTableForID("node_request_reports", rows[index].ID)
-				grouped[targetTable] = append(grouped[targetTable], rows[index])
-			}
-			for targetTable, batch := range grouped {
-				if err := db.Table(targetTable).Create(&batch).Error; err != nil {
-					return fmt.Errorf("write migrated rows into %s failed: %w", targetTable, err)
-				}
-			}
-		}
-	}
-	return nil
-}
-
-func migrateLegacyNodeAccessLogs(db *gorm.DB) error {
-	for _, table := range observabilityShardTables("node_access_logs") {
-		legacyTable := legacyObservabilityShardTableName(table)
-		if !db.Migrator().HasTable(legacyTable) {
-			continue
-		}
-		var lastSeenID uint
-		for {
-			var rows []NodeAccessLog
-			query := db.Table(legacyTable).Order("id ASC").Limit(500)
-			if lastSeenID > 0 {
-				query = query.Where("id > ?", lastSeenID)
-			}
-			if err := query.Find(&rows).Error; err != nil {
-				return fmt.Errorf("query legacy sharded table %s failed: %w", legacyTable, err)
-			}
-			if len(rows) == 0 {
-				break
-			}
-			lastSeenID = rows[len(rows)-1].ID
-			grouped := make(map[string][]NodeAccessLog, observabilityShardCount)
-			for index := range rows {
-				rows[index].ID = 0
-				if err := assignObservabilityID(&rows[index].ID); err != nil {
-					return err
-				}
-				targetTable := observabilityShardTableForID("node_access_logs", rows[index].ID)
-				grouped[targetTable] = append(grouped[targetTable], rows[index])
-			}
-			for targetTable, batch := range grouped {
-				if err := db.Table(targetTable).Create(&batch).Error; err != nil {
-					return fmt.Errorf("write migrated rows into %s failed: %w", targetTable, err)
-				}
-			}
-		}
-	}
-	return nil
-}
-
 func normalizeOriginAddressForMigration(raw string) string {
 	return strings.ToLower(strings.TrimSpace(raw))
 }
@@ -1084,136 +924,6 @@ func backfillOriginsFromProxyRoutes(db *gorm.DB) error {
 	}
 
 	return nil
-}
-
-// migrateV2 upgrades the legacy schema to the first versioned schema by
-// creating schema metadata, applying the current tables, and backfilling
-// compatibility columns.
-func migrateV2(db *gorm.DB, backend string) error {
-	return applyCurrentSchema(db, backend)
-}
-
-// migrateV3 upgrades observability shard tables from legacy ID layout to the
-// current ID-sharded layout and migrates existing shard data into the new tables.
-func migrateV3(db *gorm.DB, backend string) error {
-	if db == nil {
-		return fmt.Errorf("database handle is nil")
-	}
-	_ = backend
-	if err := renameLegacyObservabilityShardTables(db); err != nil {
-		return err
-	}
-	if err := autoMigrateObservabilityShardTables(db); err != nil {
-		return err
-	}
-	if err := migrateLegacyNodeMetricSnapshots(db); err != nil {
-		return err
-	}
-	if err := migrateLegacyNodeRequestReports(db); err != nil {
-		return err
-	}
-	if err := migrateLegacyNodeAccessLogs(db); err != nil {
-		return err
-	}
-	return dropLegacyObservabilityShardTables(db)
-}
-
-// migrateV4 introduces the origins schema and backfills proxy route origin
-// references from existing origin_url values.
-func migrateV4(db *gorm.DB, backend string) error {
-	if err := applyCurrentSchema(db, backend); err != nil {
-		return err
-	}
-	return backfillOriginsFromProxyRoutes(db)
-}
-
-// migrateV5 upgrades proxy_routes to website-level identity fields by
-// backfilling site_name and domains while keeping domain as the primary-domain
-// compatibility mirror.
-func migrateV5(db *gorm.DB, backend string) error {
-	if err := applyCurrentSchema(db, backend); err != nil {
-		return err
-	}
-	if err := backfillOriginsFromProxyRoutes(db); err != nil {
-		return err
-	}
-	if err := backfillProxyRouteSiteFields(db); err != nil {
-		return err
-	}
-	return ensureProxyRouteSiteNameUniqueIndex(db)
-}
-
-// migrateV6 adds structured website-level rate limit fields to proxy_routes.
-func migrateV6(db *gorm.DB, backend string) error {
-	if err := applyCurrentSchema(db, backend); err != nil {
-		return err
-	}
-	if err := backfillOriginsFromProxyRoutes(db); err != nil {
-		return err
-	}
-	if err := backfillProxyRouteSiteFields(db); err != nil {
-		return err
-	}
-	return ensureProxyRouteSiteNameUniqueIndex(db)
-}
-
-// migrateV7 adds structured website-level certificate lists to proxy_routes
-// while keeping cert_id as the primary certificate compatibility mirror.
-func migrateV7(db *gorm.DB, backend string) error {
-	if err := applyCurrentSchema(db, backend); err != nil {
-		return err
-	}
-	if err := backfillOriginsFromProxyRoutes(db); err != nil {
-		return err
-	}
-	if err := backfillProxyRouteSiteFields(db); err != nil {
-		return err
-	}
-	if err := ensureProxyRouteSiteNameUniqueIndex(db); err != nil {
-		return err
-	}
-	return backfillProxyRouteCertificateFields(db)
-}
-
-// migrateV8 adds per-domain certificate assignments to proxy_routes while
-// keeping cert_ids as the website-level compatibility mirror.
-func migrateV8(db *gorm.DB, backend string) error {
-	if err := applyCurrentSchema(db, backend); err != nil {
-		return err
-	}
-	if err := backfillOriginsFromProxyRoutes(db); err != nil {
-		return err
-	}
-	if err := backfillProxyRouteSiteFields(db); err != nil {
-		return err
-	}
-	if err := ensureProxyRouteSiteNameUniqueIndex(db); err != nil {
-		return err
-	}
-	if err := backfillProxyRouteCertificateFields(db); err != nil {
-		return err
-	}
-	return backfillProxyRouteDomainCertificateFields(db)
-}
-
-// migrateV9 adds PoW (Proof-of-Work) anti-bot protection fields to proxy_routes.
-func migrateV9(db *gorm.DB, backend string) error {
-	if err := applyCurrentSchema(db, backend); err != nil {
-		return err
-	}
-	if err := backfillOriginsFromProxyRoutes(db); err != nil {
-		return err
-	}
-	if err := backfillProxyRouteSiteFields(db); err != nil {
-		return err
-	}
-	if err := ensureProxyRouteSiteNameUniqueIndex(db); err != nil {
-		return err
-	}
-	if err := backfillProxyRouteCertificateFields(db); err != nil {
-		return err
-	}
-	return backfillProxyRouteDomainCertificateFields(db)
 }
 
 func ensureDefaultGitHubAuthSource(db *gorm.DB) error {
@@ -1310,14 +1020,6 @@ func ensureDefaultGitHubAuthSource(db *gorm.DB) error {
 	return nil
 }
 
-// migrateV10 adds configurable auth sources and external account bindings.
-func migrateV10(db *gorm.DB, backend string) error {
-	if err := applyCurrentSchema(db, backend); err != nil {
-		return err
-	}
-	return ensureDefaultGitHubAuthSource(db)
-}
-
 func validateDatabaseSchemaV9(db *gorm.DB, backend string) error {
 	if err := validateDatabaseSchemaV8(db, backend); err != nil {
 		return err
@@ -1344,15 +1046,6 @@ func validateDatabaseSchemaV10(db *gorm.DB, backend string) error {
 	return nil
 }
 
-// migrateV11 adds acme and dns accounts and extends tls_certificates.
-func migrateV11(db *gorm.DB, backend string) error {
-	if err := applyCurrentSchema(db, backend); err != nil {
-		return err
-	}
-	// Default values will be applied by gorm for new columns automatically during AutoMigrate.
-	return nil
-}
-
 func validateDatabaseSchemaV11(db *gorm.DB, backend string) error {
 	if err := validateDatabaseSchemaV10(db, backend); err != nil {
 		return err
@@ -1366,15 +1059,6 @@ func validateDatabaseSchemaV11(db *gorm.DB, backend string) error {
 	if !db.Migrator().HasColumn(&TLSCertificate{}, "provider") {
 		return fmt.Errorf("column tls_certificates.provider is missing")
 	}
-	return nil
-}
-
-// migrateV12 adds basic authentication fields to proxy_routes.
-func migrateV12(db *gorm.DB, backend string) error {
-	if err := applyCurrentSchema(db, backend); err != nil {
-		return err
-	}
-	// Default values will be applied by gorm for new columns automatically during AutoMigrate.
 	return nil
 }
 
@@ -1423,14 +1107,6 @@ func ensureDefaultWAFRuleGroup(db *gorm.DB) error {
 	return nil
 }
 
-// migrateV13 adds WAF rule groups and website bindings.
-func migrateV13(db *gorm.DB, backend string) error {
-	if err := applyCurrentSchema(db, backend); err != nil {
-		return err
-	}
-	return ensureDefaultWAFRuleGroup(db)
-}
-
 func validateDatabaseSchemaV13(db *gorm.DB, backend string) error {
 	if err := validateDatabaseSchemaV12(db, backend); err != nil {
 		return err
@@ -1451,14 +1127,6 @@ func validateDatabaseSchemaV13(db *gorm.DB, backend string) error {
 	return nil
 }
 
-// migrateV14 adds PoW policy fields to WAF rule groups.
-func migrateV14(db *gorm.DB, backend string) error {
-	if err := applyCurrentSchema(db, backend); err != nil {
-		return err
-	}
-	return ensureDefaultWAFRuleGroup(db)
-}
-
 func validateDatabaseSchemaV14(db *gorm.DB, backend string) error {
 	if err := validateDatabaseSchemaV13(db, backend); err != nil {
 		return err
@@ -1472,38 +1140,42 @@ func validateDatabaseSchemaV14(db *gorm.DB, backend string) error {
 	return nil
 }
 
-// migrateV15 adds the node IP manual override flag.
-func migrateV15(db *gorm.DB, backend string) error {
-	return applyCurrentSchema(db, backend)
+func databaseSchemaMigrations() []databaseSchemaMigration {
+	ctx := databaseSchemaMigrationContext{}
+	migrations := []databaseSchemaMigration{}
+	for _, item := range schemamigrate.Migrations() {
+		external := item
+		migrations = append(migrations, databaseSchemaMigration{
+			fromVersion: external.FromVersion,
+			toVersion:   external.ToVersion,
+			migrate: func(db *gorm.DB, backend string) error {
+				return external.Migrate(ctx, db, backend)
+			},
+			validate: func(db *gorm.DB, backend string) error {
+				return validateExternalDatabaseSchema(ctx, db, backend, external.ToVersion)
+			},
+		})
+	}
+	return migrations
 }
 
-func validateDatabaseSchemaV15(db *gorm.DB, backend string) error {
-	if err := validateDatabaseSchemaV14(db, backend); err != nil {
-		return err
+func validateExternalDatabaseSchema(ctx databaseSchemaMigrationContext, db *gorm.DB, backend string, targetVersion int) error {
+	if targetVersion <= schemamigrate.BaseDatabaseSchemaVersion {
+		return ctx.ValidateDatabaseSchemaVersion(db, backend, targetVersion)
 	}
-	if !db.Migrator().HasColumn(&Node{}, "ip_manual_override") {
-		return fmt.Errorf("column nodes.ip_manual_override is missing")
+	for _, migration := range schemamigrate.Migrations() {
+		if migration.ToVersion > targetVersion {
+			continue
+		}
+		if err := migration.Validate(ctx, db, backend); err != nil {
+			return err
+		}
 	}
 	return nil
 }
 
-func databaseSchemaMigrations() []databaseSchemaMigration {
-	return []databaseSchemaMigration{
-		{fromVersion: 1, toVersion: 2, migrate: migrateV2, validate: validateDatabaseSchemaV2},
-		{fromVersion: 2, toVersion: 3, migrate: migrateV3, validate: validateDatabaseSchemaV3},
-		{fromVersion: 3, toVersion: 4, migrate: migrateV4, validate: validateDatabaseSchemaV4},
-		{fromVersion: 4, toVersion: 5, migrate: migrateV5, validate: validateDatabaseSchemaV5},
-		{fromVersion: 5, toVersion: 6, migrate: migrateV6, validate: validateDatabaseSchemaV6},
-		{fromVersion: 6, toVersion: 7, migrate: migrateV7, validate: validateDatabaseSchemaV7},
-		{fromVersion: 7, toVersion: 8, migrate: migrateV8, validate: validateDatabaseSchemaV8},
-		{fromVersion: 8, toVersion: 9, migrate: migrateV9, validate: validateDatabaseSchemaV9},
-		{fromVersion: 9, toVersion: 10, migrate: migrateV10, validate: validateDatabaseSchemaV10},
-		{fromVersion: 10, toVersion: 11, migrate: migrateV11, validate: validateDatabaseSchemaV11},
-		{fromVersion: 11, toVersion: 12, migrate: migrateV12, validate: validateDatabaseSchemaV12},
-		{fromVersion: 12, toVersion: 13, migrate: migrateV13, validate: validateDatabaseSchemaV13},
-		{fromVersion: 13, toVersion: 14, migrate: migrateV14, validate: validateDatabaseSchemaV14},
-		{fromVersion: 14, toVersion: 15, migrate: migrateV15, validate: validateDatabaseSchemaV15},
-	}
+func validateCurrentDatabaseSchema(db *gorm.DB, backend string) error {
+	return validateExternalDatabaseSchema(databaseSchemaMigrationContext{}, db, backend, currentDatabaseSchemaVersion)
 }
 
 func databaseSchemaMigrationMap() map[int]databaseSchemaMigration {
@@ -1545,6 +1217,10 @@ func runDatabaseSchemaMigration(db *gorm.DB, backend string, migration databaseS
 func upgradeDatabaseSchema(db *gorm.DB, backend string, version int) error {
 	if version > currentDatabaseSchemaVersion {
 		return fmt.Errorf("database schema version %d is newer than application version %d", version, currentDatabaseSchemaVersion)
+	}
+	if version < legacyDatabaseSchemaVersion {
+		slog.Warn("database schema version is below supported baseline; treating it as historical initial schema", "version", version, "baseline", legacyDatabaseSchemaVersion)
+		version = legacyDatabaseSchemaVersion
 	}
 	if version == currentDatabaseSchemaVersion {
 		return nil
@@ -1591,7 +1267,7 @@ func initializeFreshDatabaseSchema(db *gorm.DB, backend string) error {
 	if err := ensureDefaultWAFRuleGroup(db); err != nil {
 		return err
 	}
-	if err := validateDatabaseSchemaV15(db, backend); err != nil {
+	if err := validateCurrentDatabaseSchema(db, backend); err != nil {
 		return err
 	}
 	return saveDatabaseSchemaVersion(db, currentDatabaseSchemaVersion)

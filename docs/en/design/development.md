@@ -181,6 +181,8 @@ The database version number is defined in `openflare_server/model`, and it must 
 
 Every time the database version number is upgraded, an explicit migration method from the previous version to the new version must be added. The migration method must contain validation logic after the upgrade; only when the validation passes can the new database version record be written.
 
+Versions 1 through 7 are treated as the historical initial baseline and no longer keep per-version upgrade files. Starting from v8, database migrations must be placed under `openflare_server/model/migrate` and named after the target version, such as `v16.go`. Each version file registers its migration through `init()`, and the current database version is derived from the highest registered target version. Do not change the semantics of released v8+ migrations merely to reorganize files.
+
 After starting the new package, the database's current version must be checked first, and then upgraded step by step in order to the target version; skipping intermediate upgrade steps to directly write the target version is prohibited.
 
 An empty database initialization can directly establish the current version structure, but the same-version validation must still be executed after the initialization is completed, and the current database version must be persisted.

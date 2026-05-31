@@ -1,12 +1,16 @@
 package model
 
-import "time"
+import (
+	"openflare/model/migrate"
+	"time"
+)
 
 const (
-	legacyDatabaseSchemaVersion  = 1
-	currentDatabaseSchemaVersion = 15
-	databaseSchemaVersionRowID   = 1
+	legacyDatabaseSchemaVersion = migrate.BaseDatabaseSchemaVersion
+	databaseSchemaVersionRowID  = 1
 )
+
+var currentDatabaseSchemaVersion = migrate.CurrentVersion()
 
 type DatabaseSchemaVersion struct {
 	ID        uint      `json:"id" gorm:"primaryKey"`
