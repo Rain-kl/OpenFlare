@@ -751,9 +751,9 @@ func compareVersionInfo(left versionInfo, right versionInfo) int {
 			if leftNumber > rightNumber {
 				return 1
 			}
-		case leftErr == nil && rightErr != nil:
+		case leftErr == nil:
 			return -1
-		case leftErr != nil && rightErr == nil:
+		case rightErr == nil:
 			return 1
 		default:
 			if leftPart < rightPart {

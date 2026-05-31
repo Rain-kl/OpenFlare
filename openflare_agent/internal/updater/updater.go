@@ -121,26 +121,7 @@ func (s *Service) getRelease(ctx context.Context, repo string, options agent.Upd
 
 func (s *Service) getLatestStableRelease(ctx context.Context, repo string) (*githubRelease, error) {
 	url := fmt.Sprintf("https://api.github.com/repos/%s/releases/latest", repo)
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Accept", "application/vnd.github+json")
-
-	resp, err := s.httpClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode == http.StatusNotFound {
-		return nil, nil
-	}
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("github api returned %s", resp.Status)
-	}
-
-	return decodeRelease(resp.Body)
+	return s.fetchReleaseFromURL(ctx, url)
 }
 
 func (s *Service) getLatestPreviewRelease(ctx context.Context, repo string) (*githubRelease, error) {
@@ -177,6 +158,10 @@ func (s *Service) getLatestPreviewRelease(ctx context.Context, repo string) (*gi
 
 func (s *Service) getReleaseByTag(ctx context.Context, repo string, tag string) (*githubRelease, error) {
 	url := fmt.Sprintf("https://api.github.com/repos/%s/releases/tags/%s", repo, strings.TrimSpace(tag))
+	return s.fetchReleaseFromURL(ctx, url)
+}
+
+func (s *Service) fetchReleaseFromURL(ctx context.Context, url string) (*githubRelease, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err
@@ -187,7 +172,12 @@ func (s *Service) getReleaseByTag(ctx context.Context, repo string, tag string) 
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+			slog.Error("failed to close response body", "error", err)
+		}
+	}(resp.Body)
 
 	if resp.StatusCode == http.StatusNotFound {
 		return nil, nil
@@ -498,9 +488,9 @@ func compareVersions(local string, remote string) int {
 			if leftNumber > rightNumber {
 				return 1
 			}
-		case leftErr == nil && rightErr != nil:
+		case leftErr == nil:
 			return -1
-		case leftErr != nil && rightErr == nil:
+		case rightErr == nil:
 			return 1
 		default:
 			if leftPart < rightPart {

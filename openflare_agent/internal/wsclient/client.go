@@ -140,7 +140,8 @@ func (conn *Connection) Receive() (protocol.WSMessage, error) {
 	}
 	err := websocket.JSON.Receive(conn.conn, &message)
 	if err != nil {
-		if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
+		var netErr net.Error
+		if errors.As(err, &netErr) && netErr.Timeout() {
 			slog.Debug("agent ws receive timeout waiting for server message", "timeout", conn.readTimeout)
 		}
 		return message, err

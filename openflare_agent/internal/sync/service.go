@@ -103,18 +103,6 @@ func (s *Service) sync(ctx context.Context, startup bool, target *protocol.Activ
 		}
 		slog.Debug("local openresty config already up to date", "mode", mode, "version", target.Version)
 		shouldReport := shouldReportNoopApply(snapshot, target.Version, target.Checksum)
-		if startup {
-			slog.Debug("ensuring openresty runtime on startup", "version", target.Version)
-			if err = s.nginxManager.EnsureRuntime(ctx, true); err != nil {
-				snapshot.OpenrestyStatus = protocol.OpenrestyStatusUnhealthy
-				snapshot.OpenrestyMessage = err.Error()
-				_ = s.stateStore.Save(snapshot)
-				return err
-			}
-			slog.Debug("openresty runtime ensured on startup", "version", target.Version)
-			snapshot.OpenrestyStatus = protocol.OpenrestyStatusHealthy
-			snapshot.OpenrestyMessage = ""
-		}
 		if shouldReport {
 			if err = s.reportNoopApply(ctx, snapshot.NodeID, target.Version, target.Checksum, "", "", 0); err != nil {
 				return err
@@ -178,18 +166,6 @@ func (s *Service) applyIfNeeded(ctx context.Context, mode string, startup bool, 
 	if currentChecksum == config.Checksum && !startup {
 		slog.Debug("local openresty config already up to date", "mode", mode, "version", config.Version)
 		shouldReport := shouldReportNoopApply(snapshot, config.Version, config.Checksum)
-		if startup {
-			slog.Debug("ensuring openresty runtime on startup", "version", config.Version)
-			if err := s.nginxManager.EnsureRuntime(ctx, true); err != nil {
-				snapshot.OpenrestyStatus = protocol.OpenrestyStatusUnhealthy
-				snapshot.OpenrestyMessage = err.Error()
-				_ = s.stateStore.Save(snapshot)
-				return err
-			}
-			slog.Debug("openresty runtime ensured on startup", "version", config.Version)
-			snapshot.OpenrestyStatus = protocol.OpenrestyStatusHealthy
-			snapshot.OpenrestyMessage = ""
-		}
 		if shouldReport {
 			rendered, renderErr := renderActiveConfig(config)
 			if renderErr != nil {
