@@ -85,17 +85,10 @@ func setLoginSession(user *model.User, c *gin.Context) (*model.User, error) {
 func setupLogin(user *model.User, c *gin.Context) {
 	cleanUser, err := setLoginSession(user, c)
 	if err != nil {
-		c.JSON(http.StatusOK, gin.H{
-			"message": "无法保存会话信息，请重试",
-			"success": false,
-		})
+		respondFailure(c, "无法保存会话信息，请重试")
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{
-		"message": "",
-		"success": true,
-		"data":    *cleanUser,
-	})
+	respondSuccess(c, *cleanUser)
 }
 
 func Logout(c *gin.Context) {

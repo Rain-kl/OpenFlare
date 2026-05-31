@@ -49,6 +49,7 @@ var AgentDiscoveryToken = ""
 var NodeOfflineThreshold = 2 * time.Minute
 
 // V3 operational settings (hot-reloadable via Option table)
+
 var AgentHeartbeatInterval = 10000 // milliseconds
 var AgentWebsocketUpgradeEnabled = true
 var AgentUpdateRepo = "Rain-kl/OpenFlare"
@@ -57,6 +58,7 @@ var DatabaseAutoCleanupEnabled = false
 var DatabaseAutoCleanupRetentionDays = 30
 
 // V5 OpenResty performance settings (hot-reloadable via Option table)
+
 var OpenRestyWorkerProcesses = "auto"
 var OpenRestyWorkerConnections = 4096
 var OpenRestyWorkerRlimitNofile = 65535

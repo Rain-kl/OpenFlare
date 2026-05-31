@@ -1,8 +1,9 @@
 package controller
 
 import (
-	"github.com/gin-gonic/gin"
 	"openflare/model"
+
+	"github.com/gin-gonic/gin"
 )
 
 // GetDefaultAcmeAccount godoc

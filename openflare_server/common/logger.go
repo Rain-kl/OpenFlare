@@ -3,7 +3,6 @@ package common
 import (
 	"context"
 	"fmt"
-	"github.com/gin-gonic/gin"
 	"io"
 	"log/slog"
 	"os"
@@ -11,6 +10,8 @@ import (
 	"runtime"
 	"slices"
 	"strings"
+
+	"github.com/gin-gonic/gin"
 )
 
 type logLevel int

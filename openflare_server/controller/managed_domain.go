@@ -1,9 +1,10 @@
 package controller
 
 import (
-	"github.com/gin-gonic/gin"
 	"openflare/service"
 	"strings"
+
+	"github.com/gin-gonic/gin"
 )
 
 // GetManagedDomains godoc

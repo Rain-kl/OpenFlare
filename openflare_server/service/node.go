@@ -247,7 +247,7 @@ func EnsureGlobalDiscoveryToken() (string, error) {
 		model.InitOptionMap()
 	}
 	common.OptionMapRWMutex.RLock()
-	token := strings.TrimSpace(common.OptionMap["AgentDiscoveryToken"])
+	token := strings.TrimSpace(common.AgentDiscoveryToken)
 	common.OptionMapRWMutex.RUnlock()
 	if token != "" {
 		return token, nil
