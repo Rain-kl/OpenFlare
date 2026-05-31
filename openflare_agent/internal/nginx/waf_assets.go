@@ -50,7 +50,7 @@ local function load_config()
 end
 
 local function list_contains(items, value)
-    if not items or not value or value == "" then
+    if not items or type(items) ~= "table" or not value or value == "" then
         return false
     end
     for _, item in ipairs(items) do
@@ -95,7 +95,7 @@ local function ipv4_in_cidr(ip, cidr)
 end
 
 local function ip_matches(items, ip)
-    if not items or not ip or ip == "" then
+    if not items or type(items) ~= "table" or not ip or ip == "" then
         return false
     end
     for _, item in ipairs(items) do
@@ -196,7 +196,7 @@ end
 
 local country = nil
 for _, group in ipairs(groups) do
-    if group.country_whitelist and #group.country_whitelist > 0 then
+    if type(group.country_whitelist) == "table" and #group.country_whitelist > 0 then
         country = country or lookup_country(ip)
         if list_contains(group.country_whitelist, country) then
             return
@@ -211,7 +211,7 @@ for _, group in ipairs(groups) do
 end
 
 for _, group in ipairs(groups) do
-    if group.country_blacklist and #group.country_blacklist > 0 then
+    if type(group.country_blacklist) == "table" and #group.country_blacklist > 0 then
         country = country or lookup_country(ip)
         if list_contains(group.country_blacklist, country) then
             return exit_with_group(group)
