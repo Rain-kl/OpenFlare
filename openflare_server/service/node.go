@@ -83,7 +83,7 @@ func CreateNode(input NodeInput) (*NodeView, error) {
 		applyGeoInfoFromIP(node, node.IP)
 	}
 	if err := node.Insert(); err != nil {
-		if isUniqueConstraintError(err) {
+		if model.IsUniqueConstraintError(err) {
 			return nil, errors.New("节点标识生成冲突，请重试")
 		}
 		return nil, err
@@ -454,7 +454,7 @@ func RegisterNodeWithDiscovery(payload AgentNodePayload) (*AgentRegistrationResp
 	}
 	applyNodeRuntime(node, payload, false)
 	if err = node.Insert(); err != nil {
-		if isUniqueConstraintError(err) {
+		if model.IsUniqueConstraintError(err) {
 			return nil, errors.New("节点标识生成冲突，请重试")
 		}
 		return nil, err

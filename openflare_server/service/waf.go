@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/netip"
 	"openflare/model"
+	"openflare/utils"
 	"sort"
 	"strings"
 	"time"
@@ -413,7 +414,6 @@ func loadWAFBindings() (map[uint][]uint, error) {
 
 func normalizeWAFIPList(items []string) ([]string, error) {
 	normalized := make([]string, 0, len(items))
-	seen := make(map[string]struct{}, len(items))
 	for _, raw := range items {
 		item := strings.TrimSpace(raw)
 		if item == "" {
@@ -432,19 +432,15 @@ func normalizeWAFIPList(items []string) ([]string, error) {
 			}
 			item = addr.String()
 		}
-		if _, ok := seen[item]; ok {
-			continue
-		}
-		seen[item] = struct{}{}
 		normalized = append(normalized, item)
 	}
+	normalized = utils.Unique(normalized)
 	sort.Strings(normalized)
 	return normalized, nil
 }
 
 func normalizeWAFCountryList(items []string) ([]string, error) {
 	normalized := make([]string, 0, len(items))
-	seen := make(map[string]struct{}, len(items))
 	for _, raw := range items {
 		item := strings.ToUpper(strings.TrimSpace(raw))
 		if item == "" {
@@ -453,30 +449,23 @@ func normalizeWAFCountryList(items []string) ([]string, error) {
 		if len(item) != 2 || !unicode.IsLetter(rune(item[0])) || !unicode.IsLetter(rune(item[1])) {
 			return nil, fmt.Errorf("%s 不是合法国家代码", item)
 		}
-		if _, ok := seen[item]; ok {
-			continue
-		}
-		seen[item] = struct{}{}
 		normalized = append(normalized, item)
 	}
+	normalized = utils.Unique(normalized)
 	sort.Strings(normalized)
 	return normalized, nil
 }
 
 func normalizeStringList(items []string) []string {
 	normalized := make([]string, 0, len(items))
-	seen := make(map[string]struct{}, len(items))
 	for _, raw := range items {
 		item := strings.TrimSpace(raw)
 		if item == "" {
 			continue
 		}
-		if _, ok := seen[item]; ok {
-			continue
-		}
-		seen[item] = struct{}{}
 		normalized = append(normalized, item)
 	}
+	normalized = utils.Unique(normalized)
 	sort.Strings(normalized)
 	return normalized
 }
@@ -518,18 +507,14 @@ func normalizeWAFRuleGroupIDs(groupIDs []uint) ([]uint, error) {
 }
 
 func uniqueUintIDs(ids []uint) []uint {
-	seen := make(map[uint]struct{}, len(ids))
 	normalized := make([]uint, 0, len(ids))
 	for _, id := range ids {
 		if id == 0 {
 			continue
 		}
-		if _, ok := seen[id]; ok {
-			continue
-		}
-		seen[id] = struct{}{}
 		normalized = append(normalized, id)
 	}
+	normalized = utils.Unique(normalized)
 	sort.Slice(normalized, func(i, j int) bool { return normalized[i] < normalized[j] })
 	return normalized
 }

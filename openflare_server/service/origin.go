@@ -88,7 +88,7 @@ func CreateOrigin(input OriginInput) (*model.Origin, error) {
 		return nil, err
 	}
 	if err = origin.Insert(); err != nil {
-		if isUniqueConstraintError(err) {
+		if model.IsUniqueConstraintError(err) {
 			return nil, errors.New("源站地址已存在")
 		}
 		return nil, err
@@ -108,7 +108,7 @@ func UpdateOrigin(id uint, input OriginInput) (*model.Origin, error) {
 	}
 	err = model.DB.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Save(nextOrigin).Error; err != nil {
-			if isUniqueConstraintError(err) {
+			if model.IsUniqueConstraintError(err) {
 				return errors.New("源站地址已存在")
 			}
 			return err
@@ -171,7 +171,7 @@ func getOrCreateOriginByAddress(address string) (*model.Origin, error) {
 		Remark:  "",
 	}
 	if err := origin.Insert(); err != nil {
-		if isUniqueConstraintError(err) {
+		if model.IsUniqueConstraintError(err) {
 			return model.GetOriginByAddress(normalizedAddress)
 		}
 		return nil, err

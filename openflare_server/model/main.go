@@ -11,6 +11,7 @@ import (
 	"openflare/utils/security"
 	"os"
 	"reflect"
+	"strings"
 	"sync"
 )
 
@@ -312,4 +313,11 @@ func CloseDB() error {
 	}
 	err = sqlDB.Close()
 	return err
+}
+
+func IsUniqueConstraintError(err error) bool {
+	if err == nil {
+		return false
+	}
+	return strings.Contains(strings.ToLower(err.Error()), "unique")
 }

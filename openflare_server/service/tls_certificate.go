@@ -105,7 +105,7 @@ func CreateTLSCertificate(input TLSCertificateInput) (*model.TLSCertificate, err
 		return nil, err
 	}
 	if err = certificate.Insert(); err != nil {
-		if isUniqueConstraintError(err) {
+		if model.IsUniqueConstraintError(err) {
 			return nil, errors.New("certificate name already exists")
 		}
 		return nil, err
@@ -144,7 +144,7 @@ func UpdateTLSCertificate(id uint, input TLSCertificateInput) (*model.TLSCertifi
 		return nil, err
 	}
 	if err = certificate.Update(); err != nil {
-		if isUniqueConstraintError(err) {
+		if model.IsUniqueConstraintError(err) {
 			return nil, errors.New("certificate name already exists")
 		}
 		return nil, err
@@ -219,7 +219,7 @@ func ApplyTLSCertificate(input TLSApplyInput) (*model.TLSCertificate, error) {
 	}
 
 	if err := cert.Insert(); err != nil {
-		if isUniqueConstraintError(err) {
+		if model.IsUniqueConstraintError(err) {
 			return nil, errors.New("certificate name already exists")
 		}
 		return nil, err
@@ -261,7 +261,7 @@ func UpdateAcmeCertificate(id uint, input TLSApplyInput) (*model.TLSCertificate,
 	cert.ApplyStatus = "applying"
 
 	if err := cert.Update(); err != nil {
-		if isUniqueConstraintError(err) {
+		if model.IsUniqueConstraintError(err) {
 			return nil, errors.New("certificate name already exists")
 		}
 		return nil, err
@@ -308,7 +308,7 @@ func ConvertTLSCertificateToAcme(id uint, input TLSApplyInput) (*model.TLSCertif
 	cert.ApplyMessage = ""
 
 	if err := cert.Update(); err != nil {
-		if isUniqueConstraintError(err) {
+		if model.IsUniqueConstraintError(err) {
 			return nil, errors.New("certificate name already exists")
 		}
 		return nil, err

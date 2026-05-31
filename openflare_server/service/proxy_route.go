@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/url"
 	"openflare/model"
+	"openflare/utils"
 	"regexp"
 	"strings"
 	"time"
@@ -121,7 +122,7 @@ func CreateProxyRoute(input ProxyRouteInput) (*ProxyRouteView, error) {
 		return nil, err
 	}
 	if err = route.Insert(); err != nil {
-		if isUniqueConstraintError(err) {
+		if model.IsUniqueConstraintError(err) {
 			return nil, errors.New("proxy route identity already exists")
 		}
 		return nil, err
@@ -139,7 +140,7 @@ func UpdateProxyRoute(id uint, input ProxyRouteInput) (*ProxyRouteView, error) {
 		return nil, err
 	}
 	if err = route.Update(); err != nil {
-		if isUniqueConstraintError(err) {
+		if model.IsUniqueConstraintError(err) {
 			return nil, errors.New("proxy route identity already exists")
 		}
 		return nil, err
@@ -438,7 +439,6 @@ func normalizeProxyRouteDomainsInput(route *model.ProxyRoute, rawDomain string, 
 
 func normalizeProxyRouteDomains(rawDomains []string) ([]string, error) {
 	normalized := make([]string, 0, len(rawDomains))
-	seen := make(map[string]struct{}, len(rawDomains))
 	for _, rawDomain := range rawDomains {
 		domain := normalizeProxyRouteDomainValue(rawDomain)
 		if domain == "" {
@@ -447,12 +447,9 @@ func normalizeProxyRouteDomains(rawDomains []string) ([]string, error) {
 		if strings.Contains(domain, "://") || strings.Contains(domain, "/") {
 			return nil, errors.New("domain format is invalid")
 		}
-		if _, ok := seen[domain]; ok {
-			continue
-		}
-		seen[domain] = struct{}{}
 		normalized = append(normalized, domain)
 	}
+	normalized = utils.Unique(normalized)
 	if len(normalized) == 0 {
 		return nil, errors.New("at least one domain is required")
 	}
@@ -850,15 +847,7 @@ func normalizeUpstreams(originURL string, upstreams []string) ([]string, error) 
 		}
 		trimmed = append(trimmed, item)
 	}
-	unique := make([]string, 0, len(trimmed))
-	seen := make(map[string]struct{}, len(trimmed))
-	for _, item := range trimmed {
-		if _, ok := seen[item]; ok {
-			continue
-		}
-		seen[item] = struct{}{}
-		unique = append(unique, item)
-	}
+	unique := utils.Unique(trimmed)
 	normalized := make([]string, 0, len(unique))
 	var scheme string
 	multiUpstream := len(unique) > 1
@@ -1089,10 +1078,6 @@ func validateOriginHost(raw string) error {
 		return errors.New("origin_host format is invalid")
 	}
 	return nil
-}
-
-func isUniqueConstraintError(err error) bool {
-	return err != nil && strings.Contains(strings.ToLower(err.Error()), "unique")
 }
 
 // PoW configuration types and validation

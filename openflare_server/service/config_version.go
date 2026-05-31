@@ -412,7 +412,7 @@ func PublishConfigVersion(createdBy string, force bool) (*ReleaseResult, error) 
 		return nil
 	})
 	if err != nil {
-		if isUniqueConstraintError(err) {
+		if model.IsUniqueConstraintError(err) {
 			return nil, errors.New("版本号生成冲突，请重试")
 		}
 		return nil, err
@@ -1095,6 +1095,9 @@ func renderRouteConfig(routes []*model.ProxyRoute, cfg openRestyConfigSnapshot, 
 			builder.WriteString(renderNamedUpstreamBlock(upstreamConfig))
 		}
 		powEnabled, _ := getPoWConfigForRoute(route.ID, wafSnapshot)
+		if route.PoWEnabled {
+			powEnabled = true
+		}
 		if !route.EnableHTTPS {
 			builder.WriteString(renderHTTPProxyServer(serverNames, displayName, route.OriginURL, route.OriginHost, customHeaders, cacheConfig, limitConfig, upstreamConfig, powEnabled, route.BasicAuthEnabled, route.BasicAuthUsername, route.BasicAuthPassword, cfg))
 			continue
@@ -1849,6 +1852,12 @@ func renderPowConfigBundle(routes []*model.ProxyRoute, wafSnapshot snapshotWAFDo
 	hasPow := false
 	for _, route := range routes {
 		powEnabled, powConfig := getPoWConfigForRoute(route.ID, wafSnapshot)
+		if route.PoWEnabled {
+			powEnabled = true
+			if decoded, err := decodeStoredPoWConfig(route.PoWEnabled, route.PoWConfig); err == nil {
+				powConfig = decoded
+			}
+		}
 		if !powEnabled {
 			continue
 		}

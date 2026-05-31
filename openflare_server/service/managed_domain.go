@@ -46,7 +46,7 @@ func CreateManagedDomain(input ManagedDomainInput) (*model.ManagedDomain, error)
 		return nil, err
 	}
 	if err = domain.Insert(); err != nil {
-		if isUniqueConstraintError(err) {
+		if model.IsUniqueConstraintError(err) {
 			return nil, errors.New("域名已存在")
 		}
 		return nil, err
@@ -64,7 +64,7 @@ func UpdateManagedDomain(id uint, input ManagedDomainInput) (*model.ManagedDomai
 		return nil, err
 	}
 	if err = domain.Update(); err != nil {
-		if isUniqueConstraintError(err) {
+		if model.IsUniqueConstraintError(err) {
 			return nil, errors.New("域名已存在")
 		}
 		return nil, err
