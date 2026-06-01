@@ -23,12 +23,17 @@ func printHelp() {
 	fmt.Println("Usage: openflare [--port <port>] [--log-dir <log directory>] [--version] [--help]")
 }
 
-func init() {
+// ParseFlags 在命令行参数被任何 import 链上的 init() 误解析之前，
+// 由各 binary 的 main() 显式调用一次。openflare_server 与 openflare-relay
+// 共用 flag.CommandLine，必须先注册各自的 flag 再调用本函数。
+// 测试场景（go test）下不会执行本函数，单元测试可直接跳过命令行解析。
+func ParseFlags() {
 	executableName := strings.ToLower(filepath.Base(os.Args[0]))
 	isTest := strings.Contains(executableName, ".test") || flag.Lookup("test.v") != nil
-	if !isTest {
-		flag.Parse()
+	if isTest {
+		return
 	}
+	flag.Parse()
 
 	if *PrintVersion {
 		fmt.Println(Version)

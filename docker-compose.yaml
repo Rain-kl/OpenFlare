@@ -35,3 +35,17 @@ services:
       LOG_LEVEL: "debug"
     extra_hosts:
       - "host.docker.internal:host-gateway"
+
+  openflared:
+    build:
+      context: .
+      dockerfile: openflared/Dockerfile
+    container_name: openflared
+    network_mode: host
+    restart: unless-stopped
+    environment:
+      OPENFLARE_SERVER_URL: http://host.docker.internal:3000
+      OPENFLARE_TUNNEL_TOKEN: 85464eeb72c49abc430569d6b9c77f78
+      LOG_LEVEL: "debug"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"

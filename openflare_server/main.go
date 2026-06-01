@@ -4,10 +4,6 @@ import (
 	"context"
 	"embed"
 	"fmt"
-	"github.com/gin-contrib/sessions"
-	"github.com/gin-contrib/sessions/cookie"
-	"github.com/gin-contrib/sessions/redis"
-	"github.com/gin-gonic/gin"
 	"log/slog"
 	"openflare/common"
 	_ "openflare/docs"
@@ -19,6 +15,11 @@ import (
 	"openflare/utils/geoip"
 	"os"
 	"strconv"
+
+	"github.com/gin-contrib/sessions"
+	"github.com/gin-contrib/sessions/cookie"
+	"github.com/gin-contrib/sessions/redis"
+	"github.com/gin-gonic/gin"
 )
 
 //go:embed all:web/build
@@ -41,6 +42,7 @@ var indexPage []byte
 // @name X-Agent-Token
 // @description Agent API 使用节点专属 Agent Token 或全局 Discovery Token
 func main() {
+	common.ParseFlags()
 	common.SetupGinLog()
 	slog.Info("OpenFlare started", "version", common.Version)
 	if os.Getenv("GIN_MODE") != "debug" {
