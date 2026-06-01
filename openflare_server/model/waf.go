@@ -31,6 +31,7 @@ type WAFIPGroup struct {
 	Enabled                 bool       `json:"enabled" gorm:"not null;default:true"`
 	IPList                  string     `json:"ip_list" gorm:"type:text;not null;default:'[]'"`
 	AutoConfig              string     `json:"auto_config" gorm:"type:text;not null;default:'{}'"`
+	ExtIPs                  string     `json:"ext_ips" gorm:"type:text;not null;default:'[]'"`
 	SubscriptionURL         string     `json:"subscription_url" gorm:"size:2048;not null;default:''"`
 	SubscriptionFormat      string     `json:"subscription_format" gorm:"size:32;not null;default:'text'"`
 	SubscriptionMappingRule string     `json:"subscription_mapping_rule" gorm:"size:255;not null;default:''"`
@@ -138,6 +139,7 @@ func (group *WAFIPGroup) Update() error {
 		"enabled":                   group.Enabled,
 		"ip_list":                   group.IPList,
 		"auto_config":               group.AutoConfig,
+		"ext_ips":                   group.ExtIPs,
 		"subscription_url":          group.SubscriptionURL,
 		"subscription_format":       group.SubscriptionFormat,
 		"subscription_mapping_rule": group.SubscriptionMappingRule,
@@ -152,6 +154,7 @@ func (group *WAFIPGroup) Update() error {
 func (group *WAFIPGroup) UpdateSyncResult() error {
 	return DB.Model(&WAFIPGroup{}).Where("id = ?", group.ID).Updates(map[string]any{
 		"ip_list":             group.IPList,
+		"ext_ips":             group.ExtIPs,
 		"last_synced_at":      group.LastSyncedAt,
 		"next_sync_at":        group.NextSyncAt,
 		"last_sync_status":    group.LastSyncStatus,

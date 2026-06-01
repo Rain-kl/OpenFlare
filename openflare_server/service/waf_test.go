@@ -360,6 +360,83 @@ func TestPublishConfigVersionExpandsWAFIPGroupReferences(t *testing.T) {
 	}
 }
 
+func TestWAFIPGroupAutomaticTTLExpiration(t *testing.T) {
+	setupServiceTestDB(t)
+
+	now := time.Now().UTC()
+	// Seed access logs at now
+	seedWAFNodeAccessLogs(t, now, "203.0.113.10", "app.example.com", 120, 100)
+
+	group, err := CreateWAFIPGroup(WAFIPGroupInput{
+		Name:    "auto ttl blacklist",
+		Type:    WAFIPGroupTypeAutomatic,
+		Enabled: true,
+		AutoConfig: json.RawMessage(`{
+			"lookback_minutes": 60,
+			"ttl": 10,
+			"rules": [
+				{"name":"404 Scan","expr":"request_count > 100 && status_404_ratio >= 0.8"}
+			]
+		}`),
+	})
+	if err != nil {
+		t.Fatalf("CreateWAFIPGroup failed: %v", err)
+	}
+
+	groupModel, err := model.GetWAFIPGroupByID(group.ID)
+	if err != nil {
+		t.Fatalf("GetWAFIPGroupByID failed: %v", err)
+	}
+
+	// First Sync (at now): should match 203.0.113.10
+	res1, err := syncWAFIPGroup(groupModel, now)
+	if err != nil {
+		t.Fatalf("First Sync failed: %v", err)
+	}
+	if res1.IPCount != 1 || res1.Group.IPList[0] != "203.0.113.10" {
+		t.Fatalf("expected 203.0.113.10 to be blacklisted, got: %#v", res1.Group.IPList)
+	}
+	if len(res1.Group.ExtIPs) != 1 || res1.Group.ExtIPs[0].IP != "203.0.113.10" {
+		t.Fatalf("expected 203.0.113.10 to be in ExtIPs, got: %#v", res1.Group.ExtIPs)
+	}
+
+	// Second Sync (65 minutes later):
+	// Since 65 minutes is outside the 60 minutes lookback window, the original logs won't match.
+	// And since 65 minutes > 10s TTL, it should be expired and removed!
+	futureTime := now.Add(65 * time.Minute)
+	res2, err := syncWAFIPGroup(groupModel, futureTime)
+	if err != nil {
+		t.Fatalf("Second Sync failed: %v", err)
+	}
+	if res2.IPCount != 0 {
+		t.Fatalf("expected IP to be expired and removed, got: %#v", res2.Group.IPList)
+	}
+	if len(res2.Group.ExtIPs) != 0 {
+		t.Fatalf("expected ExtIPs to be empty after expiration, got: %#v", res2.Group.ExtIPs)
+	}
+
+	// Third Sync: test lease refresh / extension!
+	// Re-run sync at now to get it captured again first
+	_, err = syncWAFIPGroup(groupModel, now)
+	if err != nil {
+		t.Fatalf("Re-sync at now failed: %v", err)
+	}
+
+	// Now run sync at now + 5 seconds (5s < 10s TTL, so not expired, but matched again!):
+	// Since it matches again, it should keep the IP active and extend CapturedAt to now + 5s!
+	futureTime2 := now.Add(5 * time.Second)
+	res3, err := syncWAFIPGroup(groupModel, futureTime2)
+	if err != nil {
+		t.Fatalf("Third Sync failed: %v", err)
+	}
+	if res3.IPCount != 1 || res3.Group.IPList[0] != "203.0.113.10" {
+		t.Fatalf("expected IP to remain active, got: %#v", res3.Group.IPList)
+	}
+	if len(res3.Group.ExtIPs) != 1 || res3.Group.ExtIPs[0].CapturedAt != futureTime2.Format(time.RFC3339) {
+		t.Fatalf("expected CapturedAt to be updated to %v, got %v", futureTime2.Format(time.RFC3339), res3.Group.ExtIPs[0].CapturedAt)
+	}
+}
+
 func seedWAFNodeAccessLogs(t *testing.T, loggedAt time.Time, remoteAddr string, host string, total int, notFound int) {
 	t.Helper()
 	for i := 0; i < total; i++ {

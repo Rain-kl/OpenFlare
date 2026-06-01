@@ -1,7 +1,7 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Download, Play, Plus, Save, Trash2 } from 'lucide-react';
+import { ArrowLeft, Download, Play, Plus, Save, Trash2, Eye } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 
@@ -11,6 +11,7 @@ import { InlineMessage } from '@/components/feedback/inline-message';
 import { LoadingState } from '@/components/feedback/loading-state';
 import { PageHeader } from '@/components/layout/page-header';
 import { AppCard } from '@/components/ui/app-card';
+import { AppModal } from '@/components/ui/app-modal';
 import {
   createWAFIPGroup,
   deleteWAFIPGroup,
@@ -169,6 +170,7 @@ export function WAFIPGroupsPage() {
   const [feedback, setFeedback] = useState<FeedbackState | null>(null);
   const [autoTestResult, setAutoTestResult] =
     useState<WAFIPGroupAutoTestResult | null>(null);
+  const [isCapturedIPsModalOpen, setIsCapturedIPsModalOpen] = useState(false);
 
   const groupsQuery = useQuery({
     queryKey: ['waf', 'ip-groups'],
@@ -394,6 +396,15 @@ export function WAFIPGroupsPage() {
                       : '立即同步'}
                 </SecondaryButton>
               ) : null}
+              {selectedGroup?.type === 'automatic' ? (
+                <SecondaryButton
+                  type="button"
+                  onClick={() => setIsCapturedIPsModalOpen(true)}
+                >
+                  <Eye className="mr-2 h-4 w-4" />
+                  查看已抓取 IP
+                </SecondaryButton>
+              ) : null}
               <PrimaryButton
                 type="button"
                 disabled={saveMutation.isPending}
@@ -519,6 +530,24 @@ export function WAFIPGroupsPage() {
 
             {draft.type === 'automatic' ? (
               <div className="space-y-4">
+                <div className="grid gap-5 xl:grid-cols-2">
+                  <ResourceField
+                    label="同步间隔（分钟）"
+                    hint="定时从请求日志挖掘恶意 IP 的周期。最小 5 分钟，默认 1440 分钟。"
+                  >
+                    <ResourceInput
+                      type="number"
+                      min={5}
+                      value={draft.sync_interval_minutes}
+                      onChange={(event) =>
+                        setDraft((current) => ({
+                          ...current,
+                          sync_interval_minutes: Number(event.target.value),
+                        }))
+                      }
+                    />
+                  </ResourceField>
+                </div>
                 <ResourceField
                   label="预设规则"
                   hint="表达式按单个 IP 的请求日志聚合指标计算。"
@@ -554,7 +583,7 @@ export function WAFIPGroupsPage() {
                 </ResourceField>
                 <ResourceField
                   label="自动配置 JSON"
-                  hint="可用字段：request_count、status_404_count、status_404_ratio、ip_host_count、ip_host_ratio。"
+                  hint="可用字段：request_count、status_404_count、status_404_ratio、ip_host_count、ip_host_ratio。支持 ttl（秒，默认 -1 永久拉黑）。"
                 >
                   <ResourceTextarea
                     value={draft.auto_config_text}
@@ -652,6 +681,79 @@ export function WAFIPGroupsPage() {
           </div>
         </AppCard>
       </div>
+      {selectedGroup?.type === 'automatic' ? (
+        <AppModal
+          isOpen={isCapturedIPsModalOpen}
+          title={`已抓取 IP 列表 - ${selectedGroup.name}`}
+          description="展示当前自动挖掘并放入黑名单的 IP 列表及其到期状态。"
+          size="lg"
+          onClose={() => setIsCapturedIPsModalOpen(false)}
+          footer={
+            <div className="flex justify-end">
+              <SecondaryButton type="button" onClick={() => setIsCapturedIPsModalOpen(false)}>
+                关闭
+              </SecondaryButton>
+            </div>
+          }
+        >
+          <div className="space-y-4">
+            {!selectedGroup.ext_ips || selectedGroup.ext_ips.length === 0 ? (
+              <EmptyState
+                title="暂无抓取记录"
+                description="该自动规则暂未抓取或命中任何恶意 IP，点击「立即执行」手动触发抓取。"
+              />
+            ) : (
+              <div className="overflow-hidden rounded-2xl border border-[var(--border-default)]">
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-[var(--border-default)]">
+                    <thead className="bg-[var(--surface-muted)]">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--foreground-secondary)]">IP 地址</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--foreground-secondary)]">抓取时间</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--foreground-secondary)]">封禁剩余时间</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[var(--border-default)] bg-[var(--surface-elevated)]">
+                      {selectedGroup.ext_ips.map((item) => {
+                        const autoConfig = selectedGroup.auto_config as { ttl?: number } | undefined;
+                        const ttl = autoConfig?.ttl ?? -1;
+                        let expireText = '永久';
+                        if (ttl > 0) {
+                          const capturedDate = new Date(item.captured_at);
+                          const expireDate = new Date(capturedDate.getTime() + ttl * 1000);
+                          const now = new Date();
+                          if (expireDate.getTime() <= now.getTime()) {
+                            expireText = '已过期';
+                          } else {
+                            const diffMs = expireDate.getTime() - now.getTime();
+                            const diffMins = Math.round(diffMs / (60 * 1000));
+                            if (diffMins < 60) {
+                              expireText = `${diffMins} 分钟后`;
+                            } else {
+                              const diffHours = Math.round(diffMins / 60);
+                              expireText = `${diffHours} 小时后`;
+                            }
+                          }
+                        }
+                        return (
+                          <tr key={item.ip}>
+                            <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-[var(--foreground-primary)] font-mono">{item.ip}</td>
+                            <td className="whitespace-nowrap px-4 py-3 text-sm text-[var(--foreground-secondary)]">{new Date(item.captured_at).toLocaleString()}</td>
+                            <td className={cn("whitespace-nowrap px-4 py-3 text-sm font-medium", ttl > 0 ? "text-amber-500" : "text-emerald-500")}>{expireText}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+            <div className="rounded-2xl bg-[var(--surface-muted)] p-4 text-xs text-[var(--foreground-secondary)] leading-relaxed">
+              💡 提示：抓取记录持久化存储在 IP 组的 <code>ext_ips</code> 扩展字段中。未来如需为已抓取到的 IP 记录更多维度的扩展元数据，可直接在此 JSON 对象中添加字段以供扩展。
+            </div>
+          </div>
+        </AppModal>
+      ) : null}
     </div>
   );
 }

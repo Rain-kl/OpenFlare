@@ -80,6 +80,8 @@ func (databaseSchemaMigrationContext) ValidateDatabaseSchemaVersion(db *gorm.DB,
 		return validateDatabaseSchemaV16(db, backend)
 	case 17:
 		return validateDatabaseSchemaV17(db, backend)
+	case 18:
+		return validateDatabaseSchemaV18(db, backend)
 	default:
 		return fmt.Errorf("database schema validation for v%d is not defined", version)
 	}
@@ -1186,6 +1188,16 @@ func validateDatabaseSchemaV17(db *gorm.DB, backend string) error {
 	}
 	if !db.Migrator().HasColumn(&WAFRuleGroup{}, "ip_blacklist_groups") {
 		return fmt.Errorf("column waf_rule_groups.ip_blacklist_groups is missing")
+	}
+	return nil
+}
+
+func validateDatabaseSchemaV18(db *gorm.DB, backend string) error {
+	if err := validateDatabaseSchemaV17(db, backend); err != nil {
+		return err
+	}
+	if !db.Migrator().HasColumn(&WAFIPGroup{}, "ext_ips") {
+		return fmt.Errorf("column waf_ip_groups.ext_ips is missing")
 	}
 	return nil
 }

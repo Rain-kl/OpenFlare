@@ -37,7 +37,18 @@ const (
 
 type wafIPGroupAutoConfig struct {
 	LookbackMinutes int                  `json:"lookback_minutes"`
+	TTL             int                  `json:"ttl"` // in seconds, default -1 (permanent)
 	Rules           []wafIPGroupAutoRule `json:"rules"`
+}
+
+type WAFIPGroupExtIP struct {
+	IP         string    `json:"ip"`
+	CapturedAt time.Time `json:"captured_at"`
+}
+
+type WAFIPGroupExtIPView struct {
+	IP         string `json:"ip"`
+	CapturedAt string `json:"captured_at"`
 }
 
 type wafIPGroupAutoRule struct {
@@ -81,24 +92,25 @@ type WAFIPGroupInput struct {
 }
 
 type WAFIPGroupView struct {
-	ID                      uint            `json:"id"`
-	Name                    string          `json:"name"`
-	Type                    string          `json:"type"`
-	Enabled                 bool            `json:"enabled"`
-	IPList                  []string        `json:"ip_list"`
-	AutoConfig              json.RawMessage `json:"auto_config"`
-	SubscriptionURL         string          `json:"subscription_url"`
-	SubscriptionFormat      string          `json:"subscription_format"`
-	SubscriptionMappingRule string          `json:"subscription_mapping_rule"`
-	SyncIntervalMinutes     int             `json:"sync_interval_minutes"`
-	LastSyncedAt            string          `json:"last_synced_at,omitempty"`
-	NextSyncAt              string          `json:"next_sync_at,omitempty"`
-	LastSyncStatus          string          `json:"last_sync_status"`
-	LastSyncMessage         string          `json:"last_sync_message"`
-	Remark                  string          `json:"remark"`
-	ReferencedByRuleCount   int             `json:"referenced_by_rule_count"`
-	CreatedAt               string          `json:"created_at"`
-	UpdatedAt               string          `json:"updated_at"`
+	ID                      uint                  `json:"id"`
+	Name                    string                `json:"name"`
+	Type                    string                `json:"type"`
+	Enabled                 bool                  `json:"enabled"`
+	IPList                  []string              `json:"ip_list"`
+	AutoConfig              json.RawMessage       `json:"auto_config"`
+	ExtIPs                  []WAFIPGroupExtIPView `json:"ext_ips"`
+	SubscriptionURL         string                `json:"subscription_url"`
+	SubscriptionFormat      string                `json:"subscription_format"`
+	SubscriptionMappingRule string                `json:"subscription_mapping_rule"`
+	SyncIntervalMinutes     int                   `json:"sync_interval_minutes"`
+	LastSyncedAt            string                `json:"last_synced_at,omitempty"`
+	NextSyncAt              string                `json:"next_sync_at,omitempty"`
+	LastSyncStatus          string                `json:"last_sync_status"`
+	LastSyncMessage         string                `json:"last_sync_message"`
+	Remark                  string                `json:"remark"`
+	ReferencedByRuleCount   int                   `json:"referenced_by_rule_count"`
+	CreatedAt               string                `json:"created_at"`
+	UpdatedAt               string                `json:"updated_at"`
 }
 
 type WAFIPGroupSyncResult struct {
@@ -285,6 +297,7 @@ func buildWAFIPGroup(group *model.WAFIPGroup, input WAFIPGroupInput) (*model.WAF
 	ipListJSON, _ := json.Marshal(normalizedIPs)
 	if group == nil {
 		group = &model.WAFIPGroup{}
+		group.ExtIPs = "[]"
 	}
 	group.Name = name
 	group.Type = groupType
@@ -312,6 +325,17 @@ func buildWAFIPGroupView(group *model.WAFIPGroup, referenceCount int) (WAFIPGrou
 	if len(autoConfig) == 0 {
 		autoConfig = json.RawMessage("{}")
 	}
+	var extIPs []WAFIPGroupExtIP
+	if group.ExtIPs != "" && group.ExtIPs != "[]" {
+		_ = json.Unmarshal([]byte(group.ExtIPs), &extIPs)
+	}
+	viewExtIPs := make([]WAFIPGroupExtIPView, 0, len(extIPs))
+	for _, extIP := range extIPs {
+		viewExtIPs = append(viewExtIPs, WAFIPGroupExtIPView{
+			IP:         extIP.IP,
+			CapturedAt: extIP.CapturedAt.Format(time.RFC3339),
+		})
+	}
 	view := WAFIPGroupView{
 		ID:                      group.ID,
 		Name:                    group.Name,
@@ -319,6 +343,7 @@ func buildWAFIPGroupView(group *model.WAFIPGroup, referenceCount int) (WAFIPGrou
 		Enabled:                 group.Enabled,
 		IPList:                  ips,
 		AutoConfig:              autoConfig,
+		ExtIPs:                  viewExtIPs,
 		SubscriptionURL:         group.SubscriptionURL,
 		SubscriptionFormat:      group.SubscriptionFormat,
 		SubscriptionMappingRule: group.SubscriptionMappingRule,
@@ -389,18 +414,70 @@ func syncWAFIPGroupSubscription(group *model.WAFIPGroup, now time.Time) (*WAFIPG
 }
 
 func syncWAFIPGroupAutomatic(group *model.WAFIPGroup, now time.Time) (*WAFIPGroupSyncResult, error) {
-	ips, err := evaluateWAFIPGroupAutoConfig(group.AutoConfig, now)
+	config, err := parseWAFIPGroupAutoConfig(json.RawMessage(group.AutoConfig))
 	if err != nil {
 		recordWAFIPGroupSyncFailure(group, now, err)
 		return nil, err
 	}
-	ipListJSON, _ := json.Marshal(ips)
+
+	var existingExtIPs []WAFIPGroupExtIP
+	if group.ExtIPs != "" && group.ExtIPs != "[]" {
+		_ = json.Unmarshal([]byte(group.ExtIPs), &existingExtIPs)
+	}
+
+	activeExtIPs := make([]WAFIPGroupExtIP, 0, len(existingExtIPs))
+	for _, extIP := range existingExtIPs {
+		if config.TTL > 0 {
+			expirationTime := extIP.CapturedAt.Add(time.Duration(config.TTL) * time.Second)
+			if expirationTime.Before(now) {
+				continue
+			}
+		}
+		activeExtIPs = append(activeExtIPs, extIP)
+	}
+
+	ips, err := evaluateParsedWAFIPGroupAutoConfig(config, now)
+	if err != nil {
+		recordWAFIPGroupSyncFailure(group, now, err)
+		return nil, err
+	}
+
+	extIPMap := make(map[string]int)
+	for idx, extIP := range activeExtIPs {
+		extIPMap[extIP.IP] = idx
+	}
+
+	for _, ip := range ips {
+		if idx, ok := extIPMap[ip]; ok {
+			activeExtIPs[idx].CapturedAt = now
+		} else {
+			activeExtIPs = append(activeExtIPs, WAFIPGroupExtIP{
+				IP:         ip,
+				CapturedAt: now,
+			})
+		}
+	}
+
+	finalIPs := make([]string, 0, len(activeExtIPs))
+	for _, extIP := range activeExtIPs {
+		finalIPs = append(finalIPs, extIP.IP)
+	}
+	finalIPs, err = normalizeWAFIPList(finalIPs)
+	if err != nil {
+		recordWAFIPGroupSyncFailure(group, now, err)
+		return nil, err
+	}
+
+	extIPsJSON, _ := json.Marshal(activeExtIPs)
+	ipListJSON, _ := json.Marshal(finalIPs)
+
 	nextSyncAt := now.Add(time.Duration(normalizeWAFIPGroupSyncInterval(group.SyncIntervalMinutes)) * time.Minute)
 	group.IPList = string(ipListJSON)
+	group.ExtIPs = string(extIPsJSON)
 	group.LastSyncedAt = &now
 	group.NextSyncAt = &nextSyncAt
 	group.LastSyncStatus = "success"
-	group.LastSyncMessage = fmt.Sprintf("自动规则执行成功，共命中 %d 个 IP", len(ips))
+	group.LastSyncMessage = fmt.Sprintf("自动规则执行成功，共命中 %d 个 IP，当前生效 %d 个 IP", len(ips), len(finalIPs))
 	if err := group.UpdateSyncResult(); err != nil {
 		return nil, err
 	}
@@ -410,7 +487,7 @@ func syncWAFIPGroupAutomatic(group *model.WAFIPGroup, now time.Time) (*WAFIPGrou
 	}
 	return &WAFIPGroupSyncResult{
 		Group:      *view,
-		IPCount:    len(ips),
+		IPCount:    len(finalIPs),
 		SyncedAt:   now.Format(time.RFC3339),
 		NextSyncAt: nextSyncAt.Format(time.RFC3339),
 		Status:     group.LastSyncStatus,
@@ -469,6 +546,9 @@ func parseWAFIPGroupAutoConfig(raw json.RawMessage) (wafIPGroupAutoConfig, error
 	}
 	if config.LookbackMinutes > 43200 {
 		config.LookbackMinutes = 43200
+	}
+	if config.TTL == 0 {
+		config.TTL = -1
 	}
 	if config.Rules == nil {
 		config.Rules = []wafIPGroupAutoRule{}

@@ -53,6 +53,11 @@ export interface WAFSiteRuleGroups {
 export type WAFIPGroupType = 'manual' | 'automatic' | 'subscription';
 export type WAFIPGroupSubscriptionFormat = 'text' | 'json';
 
+export interface WAFIPGroupExtIP {
+  ip: string;
+  captured_at: string;
+}
+
 export interface WAFIPGroup {
   id: number;
   name: string;
@@ -60,6 +65,7 @@ export interface WAFIPGroup {
   enabled: boolean;
   ip_list: string[];
   auto_config: Record<string, unknown>;
+  ext_ips?: WAFIPGroupExtIP[];
   subscription_url: string;
   subscription_format: WAFIPGroupSubscriptionFormat;
   subscription_mapping_rule: string;
