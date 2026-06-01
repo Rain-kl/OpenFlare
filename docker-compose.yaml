@@ -36,16 +36,17 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
-  openflared:
+
+  openflare-flared:
     build:
       context: .
       dockerfile: openflared/Dockerfile
-    container_name: openflared
-    network_mode: host
+    container_name: openflare-flared
+    network_mode: "host"
     restart: unless-stopped
+    volumes:
+      - ./openflared/data/:/app/data
     environment:
-      OPENFLARE_SERVER_URL: http://host.docker.internal:3000
-      OPENFLARE_TUNNEL_TOKEN: 85464eeb72c49abc430569d6b9c77f78
-      LOG_LEVEL: "debug"
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+      OPENFLARE_SERVER_URL: "http://host.docker.internal:3000"
+      OPENFLARE_TUNNEL_TOKEN: 4888482fd0e1e3331111e51a8db1333b
+
