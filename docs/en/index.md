@@ -32,4 +32,4 @@ features:
   - icon: 🧩
     title: Anti-CC & Bot Defense (PoW)
     details: Built-in high-performance client-side cryptographic Proof of Work challenges (similar to Turnstile) to intercept botnets and scrapers at the edge.
- ---
+---
