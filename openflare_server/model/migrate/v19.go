@@ -14,6 +14,12 @@ type proxyRouteV19 struct {
 	UpstreamType string `gorm:"column:upstream_type"`
 }
 
+type tunnelV19 struct{}
+
+func (tunnelV19) TableName() string {
+	return "tunnels"
+}
+
 func (proxyRouteV19) TableName() string {
 	return "proxy_routes"
 }
@@ -33,8 +39,8 @@ func V19() Migration {
 
 func migrateV19(ctx Context, db *gorm.DB, backend string) error {
 	// Drop tunnels table
-	if db.Migrator().HasTable("tunnels") {
-		if err := db.Migrator().DropTable("tunnels"); err != nil {
+	if db.Migrator().HasTable(&tunnelV19{}) {
+		if err := db.Migrator().DropTable(&tunnelV19{}); err != nil {
 			return fmt.Errorf("failed to drop tunnels table: %w", err)
 		}
 		slog.Info("dropped tunnels table")
@@ -66,7 +72,7 @@ func validateV19(ctx Context, db *gorm.DB, backend string) error {
 		return err
 	}
 
-	if db.Migrator().HasTable("tunnels") {
+	if db.Migrator().HasTable(&tunnelV19{}) {
 		return fmt.Errorf("table tunnels should be dropped in v19")
 	}
 

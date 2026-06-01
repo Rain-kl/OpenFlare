@@ -113,7 +113,7 @@ func AgentSyncWAFIPGroups(c *gin.Context) {
 // @Success 200 {object} map[string]interface{}
 // @Router /api/agent/config-versions/active [get]
 func AgentGetActiveConfig(c *gin.Context) {
-	authNode, ok := c.Get("node")
+	authNode, ok := c.Get("agent_node")
 	if !ok {
 		respondUnauthorized(c, "Node object missing from context")
 		return
