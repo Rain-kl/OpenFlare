@@ -246,4 +246,46 @@ describe('WAF IP groups', () => {
 
     expect(await screen.findByText(/IP组: edge blacklist/)).toBeInTheDocument();
   });
+
+  it('defaults new rule entries to blacklist', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((input: RequestInfo | URL) => {
+        const url = String(input);
+
+        if (url.includes('/waf/rule-groups')) {
+          return Promise.resolve(
+            new Response(
+              JSON.stringify({
+                success: true,
+                message: '',
+                data: [buildRuleGroup()],
+              }),
+            ),
+          );
+        }
+
+        if (url.includes('/waf/ip-groups') || url.includes('/proxy-routes/')) {
+          return Promise.resolve(
+            new Response(
+              JSON.stringify({ success: true, message: '', data: [] }),
+            ),
+          );
+        }
+
+        return Promise.reject(new Error(`Unhandled fetch: ${url}`));
+      }),
+    );
+
+    renderWithProviders(<WAFPage />);
+
+    await userEvent.click(
+      await screen.findByRole('button', { name: /黑白名单/ }),
+    );
+    await userEvent.click(screen.getByRole('button', { name: /添加/ }));
+
+    expect(
+      await screen.findByRole('heading', { name: '添加黑名单规则' }),
+    ).toBeInTheDocument();
+  });
 });

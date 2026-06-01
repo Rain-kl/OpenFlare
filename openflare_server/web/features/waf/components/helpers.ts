@@ -51,7 +51,7 @@ export const emptyDraft: WAFRuleGroupPayload = {
 
 export const defaultRuleModalState: RuleModalState = {
   open: false,
-  listType: 'whitelist',
+  listType: 'blacklist',
   dimension: 'ip',
   ipValue: '',
   ipGroupIDs: [],

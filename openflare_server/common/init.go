@@ -16,9 +16,6 @@ var (
 	LogDir       = flag.String("log-dir", "", "specify the log directory")
 )
 
-// UploadPath Maybe override by ENV_VAR
-var UploadPath = "upload"
-
 func printHelp() {
 	fmt.Println("OpenFlare " + Version + " - Internal OpenResty Control Plane.")
 	fmt.Println("Copyright (C) 2023 JustSong. All rights reserved.")
@@ -28,7 +25,8 @@ func printHelp() {
 
 func init() {
 	executableName := strings.ToLower(filepath.Base(os.Args[0]))
-	if !strings.Contains(executableName, ".test") {
+	isTest := strings.Contains(executableName, ".test") || flag.Lookup("test.v") != nil
+	if !isTest {
 		flag.Parse()
 	}
 
@@ -54,9 +52,7 @@ func init() {
 	if os.Getenv("DSN") != "" {
 		SQLDSN = os.Getenv("DSN")
 	}
-	if os.Getenv("UPLOAD_PATH") != "" {
-		UploadPath = os.Getenv("UPLOAD_PATH")
-	}
+
 	if os.Getenv("AGENT_TOKEN") != "" {
 		AgentToken = os.Getenv("AGENT_TOKEN")
 	}
@@ -76,7 +72,5 @@ func init() {
 			}
 		}
 	}
-	if _, err := os.Stat(UploadPath); os.IsNotExist(err) {
-		_ = os.Mkdir(UploadPath, 0777)
-	}
+
 }

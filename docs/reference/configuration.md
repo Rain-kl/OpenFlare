@@ -23,7 +23,6 @@ Agent 支持：
 | 组件 | 默认位置 | 说明 |
 | --- | --- | --- |
 | Server SQLite | `openflare.db` | 可通过 `SQLITE_PATH` 修改 |
-| Server 上传目录 | `upload` | 可通过 `UPLOAD_PATH` 修改 |
 | Agent 配置文件 | `./agent.json` | 可通过 `-config` 指定 |
 | 一键安装 Agent 配置 | `/opt/openflare-agent/agent.json` | 安装脚本默认生成 |
 | Agent 数据目录 | 配置文件所在目录下的 `data` | 可通过 `data_dir` 修改 |
@@ -54,7 +53,6 @@ go run . --port 3000 --log-dir ./logs
 | `DSN` | PostgreSQL DSN，设置后优先于 SQLite | 空 |
 | `SQL_DSN` | 兼容旧命名的 PostgreSQL DSN，优先级低于 `DSN` | 空 |
 | `REDIS_CONN_STRING` | Redis 连接串 | 空 |
-| `UPLOAD_PATH` | 上传目录 | `upload` |
 | `AGENT_TOKEN` | 兼容旧部署的全局 Agent Token | 空 |
 
 说明：
