@@ -21,3 +21,17 @@ services:
 
     extra_hosts:
       - "host.docker.internal:host-gateway"
+
+  openflare-relay:
+    build:
+      context: .
+      dockerfile: openflare_relay/Dockerfile
+    container_name: openflare-relay
+    network_mode: host
+    restart: unless-stopped
+    environment:
+      OPENFLARE_SERVER_URL: http://host.docker.internal:3000
+      OPENFLARE_DISCOVERY_TOKEN: 85464eeb72c49abc430569d6b9c77f78
+      LOG_LEVEL: "debug"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
