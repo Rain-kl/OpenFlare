@@ -5,8 +5,6 @@ import { useRouter } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
 
-import { RankChart } from '@/components/data/rank-chart';
-import { TrendChart } from '@/components/data/trend-chart';
 import { EmptyState } from '@/components/feedback/empty-state';
 import { ErrorState } from '@/components/feedback/error-state';
 import { InlineMessage } from '@/components/feedback/inline-message';
@@ -24,9 +22,7 @@ import {
   deleteNode,
   getNodeAgentRelease,
   getNodeObservability,
-  getNodes,
   requestNodeForceSync,
-  requestNodeOpenrestyRestart,
   requestNodeAgentUpdate,
   updateNode,
 } from '@/features/nodes/api/nodes';
@@ -45,31 +41,22 @@ import {
 } from '@/features/shared/components/resource-primitives';
 import type { ReleaseChannel } from '@/features/update/types';
 import { formatDateTime, formatRelativeTime } from '@/lib/utils/date';
+import { formatBytes, formatPercent } from '@/lib/utils/metrics';
 import {
-  formatBytes,
-  formatBytesPerSecond,
-  formatPercent,
-} from '@/lib/utils/metrics';
-import {
-  buildNodeInstallCommand,
-  buildNodeDockerInstallCommand,
+  buildRelayInstallCommand,
+  buildRelayDockerInstallCommand,
   getApplyLabel,
   getApplyVariant,
   getNodeStatusLabel,
   getNodeStatusVariant,
-  getOpenrestyStatusLabel,
-  getOpenrestyStatusVariant,
   getServerUrl,
   getUpdateMode,
   isMeaningfulTime,
 } from '@/features/nodes/utils';
-
 import {
   copyToClipboard,
   formatUsageRatio,
   formatUptime,
-  formatTrendHour,
-  aggregateTrafficBreakdown,
   getErrorMessage,
   getHealthEventLabel,
   getHealthEventVariant,
@@ -79,58 +66,8 @@ import {
   MetricBar,
   SummaryStat,
 } from './node-shared';
-import { RelayDetailPage } from './relay-detail-page';
-import { TunnelDetailPage } from './tunnel-detail-page';
 
-const nodesQueryKey = ['nodes'];
-
-export function NodeDetailPage({ nodeId }: { nodeId: string }) {
-  const nodesQuery = useQuery({
-    queryKey: nodesQueryKey,
-    queryFn: getNodes,
-    refetchInterval: 5000,
-  });
-
-  const node = useMemo(() => {
-    return (
-      (nodesQuery.data ?? []).find((item) => String(item.id) === nodeId) ?? null
-    );
-  }, [nodeId, nodesQuery.data]);
-
-  if (nodesQuery.isLoading) {
-    return <LoadingState />;
-  }
-
-  if (nodesQuery.isError) {
-    return (
-      <ErrorState
-        title="节点详情加载失败"
-        description={getErrorMessage(nodesQuery.error)}
-      />
-    );
-  }
-
-  if (!node) {
-    return (
-      <EmptyState
-        title="节点不存在"
-        description="该节点可能已被删除，或当前 ID 无法匹配到节点记录。"
-      />
-    );
-  }
-
-  if (node.node_type === 'tunnel_relay') {
-    return <RelayDetailPage node={node} />;
-  }
-
-  if (node.node_type === 'tunnel_client') {
-    return <TunnelDetailPage node={node} />;
-  }
-
-  return <EdgeNodeDetailPage node={node} />;
-}
-
-function EdgeNodeDetailPage({ node }: { node: NodeItem }) {
+export function RelayDetailPage({ node }: { node: NodeItem }) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const nodeId = String(node.id);
@@ -195,9 +132,9 @@ function EdgeNodeDetailPage({ node }: { node: NodeItem }) {
     mutationFn: async (payload: Parameters<typeof updateNode>[1]) =>
       updateNode(Number(nodeId), payload),
     onSuccess: async () => {
-      setFeedback({ tone: 'success', message: '节点已更新。' });
+      setFeedback({ tone: 'success', message: '中继节点已更新。' });
       setIsEditorOpen(false);
-      await queryClient.invalidateQueries({ queryKey: nodesQueryKey });
+      await queryClient.invalidateQueries({ queryKey: ['nodes'] });
     },
     onError: (error) => {
       setFeedback({ tone: 'danger', message: getErrorMessage(error) });
@@ -216,13 +153,13 @@ function EdgeNodeDetailPage({ node }: { node: NodeItem }) {
     onSuccess: async (updatedNode) => {
       setFeedback({
         tone: 'success',
-        message: `已向节点 ${updatedNode.name} 下发${updatedNode.update_channel === 'preview' ? '预览版' : '正式版'}更新指令。`,
+        message: `已向中继节点 ${updatedNode.name} 下发${updatedNode.update_channel === 'preview' ? '预览版' : '正式版'}更新指令。`,
       });
       setAgentUpdateFeedback({
         tone: 'success',
-        message: `节点将在下一次心跳后执行${updatedNode.update_channel === 'preview' ? '预览版' : '正式版'} Agent 更新。`,
+        message: `节点将在下一次心跳后执行${updatedNode.update_channel === 'preview' ? '预览版' : '正式版'}中继代理更新。`,
       });
-      await queryClient.invalidateQueries({ queryKey: nodesQueryKey });
+      await queryClient.invalidateQueries({ queryKey: ['nodes'] });
     },
     onError: (error) => {
       const message = getErrorMessage(error);
@@ -231,28 +168,14 @@ function EdgeNodeDetailPage({ node }: { node: NodeItem }) {
     },
   });
 
-  const restartOpenrestyMutation = useMutation({
-    mutationFn: () => requestNodeOpenrestyRestart(Number(nodeId)),
-    onSuccess: async (updatedNode) => {
-      setFeedback({
-        tone: 'success',
-        message: `已向节点 ${updatedNode.name} 下发 OpenResty 重启指令。`,
-      });
-      await queryClient.invalidateQueries({ queryKey: nodesQueryKey });
-    },
-    onError: (error) => {
-      setFeedback({ tone: 'danger', message: getErrorMessage(error) });
-    },
-  });
-
   const forceSyncMutation = useMutation({
     mutationFn: () => requestNodeForceSync(Number(nodeId)),
     onSuccess: async (updatedNode) => {
       setFeedback({
         tone: 'success',
-        message: `已向节点 ${updatedNode.name} 下发强制同步指令，无视当前错误拦截。`,
+        message: `已向中继节点 ${updatedNode.name} 下发强制同步指令，无视当前错误拦截。`,
       });
-      await queryClient.invalidateQueries({ queryKey: nodesQueryKey });
+      await queryClient.invalidateQueries({ queryKey: ['nodes'] });
     },
     onError: (error) => {
       setFeedback({ tone: 'danger', message: getErrorMessage(error) });
@@ -262,8 +185,8 @@ function EdgeNodeDetailPage({ node }: { node: NodeItem }) {
   const deleteMutation = useMutation({
     mutationFn: () => deleteNode(Number(nodeId)),
     onSuccess: async () => {
-      setFeedback({ tone: 'success', message: '节点已删除。' });
-      await queryClient.invalidateQueries({ queryKey: nodesQueryKey });
+      setFeedback({ tone: 'success', message: '中继节点已删除。' });
+      await queryClient.invalidateQueries({ queryKey: ['nodes'] });
       router.push('/node');
     },
     onError: (error) => {
@@ -278,7 +201,7 @@ function EdgeNodeDetailPage({ node }: { node: NodeItem }) {
         tone: 'success',
         message:
           result.deleted_count > 0
-            ? `已清理 ${result.deleted_count} 条健康事件日志。`
+            ? `已清理 ${result.deleted_count} 条中继健康事件日志。`
             : '当前没有可清理的健康事件日志。',
       });
       setHealthEventCleanupModalOpen(false);
@@ -295,29 +218,13 @@ function EdgeNodeDetailPage({ node }: { node: NodeItem }) {
   });
 
   const handleDelete = () => {
-    if (
-      !window.confirm(
-        `确认删除节点“${node.name}”吗？删除后该节点需要重新创建并重新接入。`,
-      )
-    ) {
+    if (!window.confirm(
+      `确认删除中继节点“${node.name}”吗？删除后该节点需要重新创建并重新接入。`,
+    )) {
       return;
     }
-
     setFeedback(null);
     deleteMutation.mutate();
-  };
-
-  const handleRestartOpenresty = () => {
-    if (
-      !window.confirm(
-        `确认向节点“${node.name}”下发 OpenResty 重启指令吗？该指令会在下一次心跳后执行。`,
-      )
-    ) {
-      return;
-    }
-
-    setFeedback(null);
-    restartOpenrestyMutation.mutate();
   };
 
   const handleCopy = async (value: string, message: string) => {
@@ -344,22 +251,6 @@ function EdgeNodeDetailPage({ node }: { node: NodeItem }) {
       ) ?? [],
     [observability?.health_events],
   );
-  const statusCodeDistribution = useMemo(
-    () =>
-      aggregateTrafficBreakdown(
-        observability?.traffic_reports ?? [],
-        'status_codes_json',
-      ),
-    [observability?.traffic_reports],
-  );
-  const topDomains = useMemo(
-    () =>
-      aggregateTrafficBreakdown(
-        observability?.traffic_reports ?? [],
-        'top_domains_json',
-      ),
-    [observability?.traffic_reports],
-  );
   const resolvedHealthEvents = useMemo(
     () =>
       observability?.health_events.filter(
@@ -376,19 +267,15 @@ function EdgeNodeDetailPage({ node }: { node: NodeItem }) {
       default:
         return observability?.health_events ?? [];
     }
-  }, [
-    activeHealthEvents,
-    healthEventFilter,
-    observability?.health_events,
-    resolvedHealthEvents,
-  ]);
+  }, [activeHealthEvents, healthEventFilter, observability?.health_events, resolvedHealthEvents]);
+
   const tabs = useMemo(
     () =>
       [
         {
           key: 'dashboard' as const,
           label: '数据看板',
-          description: '系统画像、资源快照、流量趋势与健康事件。',
+          description: '隧道状态、资源快照与运行诊断。',
         },
         {
           key: 'info' as const,
@@ -404,14 +291,15 @@ function EdgeNodeDetailPage({ node }: { node: NodeItem }) {
   );
 
   const normalizedServerUrl = getServerUrl(serverUrl);
-  const nodeInstallCommand =
+  const relayInstallCommand =
     normalizedServerUrl && node.agent_token
-      ? buildNodeInstallCommand(normalizedServerUrl, node.agent_token)
+      ? buildRelayInstallCommand(normalizedServerUrl, node.agent_token)
       : '';
-  const nodeDockerInstallCommand =
+  const relayDockerInstallCommand =
     normalizedServerUrl && node.agent_token
-      ? buildNodeDockerInstallCommand(normalizedServerUrl, node.agent_token)
+      ? buildRelayDockerInstallCommand(normalizedServerUrl, node.agent_token)
       : '';
+
   const updateMode = getUpdateMode(node);
   const selectedAgentRelease =
     selectedReleaseChannel === 'preview'
@@ -425,13 +313,8 @@ function EdgeNodeDetailPage({ node }: { node: NodeItem }) {
     selectedReleaseChannel === 'preview'
       ? previewAgentReleaseQuery.isFetching
       : stableAgentReleaseQuery.isFetching;
+
   const applyLogs = applyLogsQuery.data?.rows ?? [];
-  const dominantStatusCode = statusCodeDistribution[0] ?? null;
-  const dominantDomain = topDomains[0] ?? null;
-  const topSourceCountry =
-    observability?.analytics.distributions.source_countries[0] ?? null;
-  const trafficSummary = observability?.analytics.traffic ?? null;
-  const healthSummary = observability?.analytics.health ?? null;
   const latestHealthEvent = activeHealthEvents[0] ?? null;
   const memoryUsageRatio = formatUsageRatio(
     latestMetricSnapshot?.memory_used_bytes,
@@ -476,7 +359,7 @@ function EdgeNodeDetailPage({ node }: { node: NodeItem }) {
   const handleRefresh = async () => {
     setFeedback(null);
     await Promise.all([
-      queryClient.invalidateQueries({ queryKey: nodesQueryKey }),
+      queryClient.invalidateQueries({ queryKey: ['nodes'] }),
       queryClient.invalidateQueries({
         queryKey: ['apply-logs', node.node_id],
       }),
@@ -494,7 +377,7 @@ function EdgeNodeDetailPage({ node }: { node: NodeItem }) {
       <div className="space-y-6">
         <PageHeader
           title={node.name}
-          description="边缘代理节点详情 (edge_node)"
+          description="中继节点详情 (frps)"
           action={
             <>
               <Link
@@ -590,42 +473,40 @@ function EdgeNodeDetailPage({ node }: { node: NodeItem }) {
                 }
               />
               <SummaryStat
-                label="当前窗口请求"
+                label="中继代理总数"
                 value={
-                  trafficSummary
-                    ? trafficSummary.request_count.toLocaleString('zh-CN')
+                  observability?.relay_dashboard
+                    ? `${observability.relay_dashboard.total_proxies}`
                     : '—'
                 }
                 hint={
-                  trafficSummary
-                    ? `QPS ${trafficSummary.estimated_qps.toFixed(1)} · 错误率 ${trafficSummary.error_rate_percent.toFixed(1)}%`
-                    : '当前没有可展示的请求窗口摘要'
+                  observability?.relay_dashboard
+                    ? `${observability.relay_dashboard.online_proxies} 个在线，${observability.relay_dashboard.offline_proxies} 个离线`
+                    : '暂无代理通道统计'
                 }
               />
               <SummaryStat
-                label="容量压力"
+                label="活动并发连接数"
                 value={
-                  healthSummary?.has_capacity_risk ? '需要关注' : '正常范围'
+                  observability?.relay_dashboard
+                    ? `${observability.relay_dashboard.total_connections}`
+                    : '—'
                 }
-                hint={
-                  latestMetricSnapshot
-                    ? `CPU ${formatPercent(latestMetricSnapshot.cpu_usage_percent)} · 存储 ${formatPercent(storageUsageRatio)}`
-                    : '当前没有资源快照'
-                }
+                hint="中继代理网络承载的当前活动连接总数"
               />
               <SummaryStat
-                label="来源信号"
-                value={topSourceCountry?.key ?? '—'}
-                hint={
-                  topSourceCountry
-                    ? `${topSourceCountry.value.toLocaleString('zh-CN')} 次请求`
-                    : '当前没有来源分布数据'
+                label="活动客户端"
+                value={
+                  observability?.relay_dashboard
+                    ? `${observability.relay_dashboard.client_counts}`
+                    : '—'
                 }
+                hint="已注册连接到该中继的主动客户端数量"
               />
             </div>
 
             <div className="grid gap-6 xl:grid-cols-3">
-              <AppCard title="系统信息">
+              <AppCard title="系统画像">
                 {observabilityQuery.isLoading ? (
                   <LoadingState />
                 ) : observabilityQuery.isError ? (
@@ -716,13 +597,13 @@ function EdgeNodeDetailPage({ node }: { node: NodeItem }) {
                   </div>
                 ) : (
                   <EmptyState
-                    title="暂无系统画像"
-                    description="节点已经接入，但还没有上报完整系统画像。"
+                    title="暂无中继画像"
+                    description="节点已经接入，但还没有上报完整系统配置。"
                   />
                 )}
               </AppCard>
 
-              <AppCard title="实时资源">
+              <AppCard title="实时中继资源">
                 {observabilityQuery.isLoading ? (
                   <LoadingState />
                 ) : observabilityQuery.isError ? (
@@ -758,356 +639,28 @@ function EdgeNodeDetailPage({ node }: { node: NodeItem }) {
                         progress={storageUsageRatio}
                       />
                       <MetricBar
-                        label="连接数"
+                        label="活动连接"
                         value={
                           latestMetricSnapshot.openresty_connections
                             ? `${latestMetricSnapshot.openresty_connections}`
                             : '—'
                         }
                         progress={null}
-                        hint="OpenResty 当前连接"
+                        hint="中继承载活动连接数"
                       />
                     </div>
                   </div>
                 ) : (
                   <EmptyState
                     title="暂无资源快照"
-                    description="节点已经接入，但还没有上报资源快照。"
+                    description="中继节点已经接入，但还没有上报资源快照。"
                   />
                 )}
               </AppCard>
 
-              <AppCard title="网络流量">
-                {observabilityQuery.isLoading ? (
-                  <LoadingState />
-                ) : observabilityQuery.isError ? (
-                  <InlineMessage
-                    tone="danger"
-                    message={getErrorMessage(observabilityQuery.error)}
-                  />
-                ) : latestMetricSnapshot ? (
-                  <div className="space-y-4">
-                    <div className="flex flex-wrap gap-3">
-                      <StatusBadge
-                        label={getNodeStatusLabel(node.status)}
-                        variant={getNodeStatusVariant(node.status)}
-                      />
-                      <StatusBadge
-                        label={getOpenrestyStatusLabel(node.openresty_status)}
-                        variant={getOpenrestyStatusVariant(node.openresty_status)}
-                      />
-                      <StatusBadge
-                        label={
-                          activeHealthEvents.length
-                            ? `${activeHealthEvents.length} 个活动异常`
-                            : '无活动异常'
-                        }
-                        variant={activeHealthEvents.length ? 'warning' : 'success'}
-                      />
-                    </div>
-
-                    <div className="grid gap-4 md:grid-cols-2">
-                      <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-elevated)] px-4 py-4">
-                        <p className="text-xs tracking-[0.2em] text-[var(--foreground-muted)] uppercase">
-                          OpenResty 吞吐
-                        </p>
-                        <div className="mt-3 space-y-2 text-sm text-[var(--foreground-secondary)]">
-                          <p>
-                            入站：
-                            {formatBytesPerSecond(
-                              latestMetricSnapshot.openresty_rx_bytes,
-                              60,
-                            )}
-                          </p>
-                          <p>
-                            出站：
-                            {formatBytesPerSecond(
-                              latestMetricSnapshot.openresty_tx_bytes,
-                              60,
-                            )}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-elevated)] px-4 py-4">
-                        <p className="text-xs tracking-[0.2em] text-[var(--foreground-muted)] uppercase">
-                          节点网络
-                        </p>
-                        <div className="mt-3 space-y-2 text-sm text-[var(--foreground-secondary)]">
-                          <p>
-                            入站：
-                            {formatBytes(latestMetricSnapshot.network_rx_bytes)}
-                          </p>
-                          <p>
-                            出站：
-                            {formatBytes(latestMetricSnapshot.network_tx_bytes)}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="grid gap-4 md:grid-cols-2">
-                      <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-elevated)] px-4 py-4">
-                        <p className="text-xs tracking-[0.2em] text-[var(--foreground-muted)] uppercase">
-                          最近窗口请求
-                        </p>
-                        <p className="mt-3 text-2xl font-semibold text-[var(--foreground-primary)]">
-                          {trafficSummary
-                            ? trafficSummary.request_count.toLocaleString('zh-CN')
-                            : '—'}
-                        </p>
-                        <p className="mt-2 text-sm text-[var(--foreground-secondary)]">
-                          {trafficSummary
-                            ? `QPS ${trafficSummary.estimated_qps.toFixed(1)} · UV ${trafficSummary.unique_visitor_count}`
-                            : '暂无窗口流量摘要'}
-                        </p>
-                      </div>
-                      <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-elevated)] px-4 py-4">
-                        <p className="text-xs tracking-[0.2em] text-[var(--foreground-muted)] uppercase">
-                          最近窗口错误
-                        </p>
-                        <p className="mt-3 text-2xl font-semibold text-[var(--foreground-primary)]">
-                          {trafficSummary
-                            ? trafficSummary.error_count.toLocaleString('zh-CN')
-                            : '—'}
-                        </p>
-                        <p className="mt-2 text-sm text-[var(--foreground-secondary)]">
-                          {trafficSummary
-                            ? `错误率 ${trafficSummary.error_rate_percent.toFixed(1)}%`
-                            : '暂无错误率摘要'}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <EmptyState
-                    title="暂无网络流量快照"
-                    description="节点已经接入，但还没有上报网络流量相关快照。"
-                  />
-                )}
-              </AppCard>
-            </div>
-
-            <div className="grid gap-6 xl:grid-cols-2">
               <AppCard
-                title="24 小时请求趋势"
-                description="按小时聚合该节点的请求量和错误量。"
-              >
-                <TrendChart
-                  labels={
-                    observability?.trends.traffic_24h.map((point) =>
-                      formatTrendHour(point.bucket_started_at),
-                    ) ?? []
-                  }
-                  series={[
-                    {
-                      label: '请求量',
-                      color: '#f59e0b',
-                      fillColor: 'rgba(245, 158, 11, 0.18)',
-                      variant: 'area',
-                      values:
-                        observability?.trends.traffic_24h.map(
-                          (point) => point.request_count,
-                        ) ?? [],
-                    },
-                    {
-                      label: '错误量',
-                      color: '#ef4444',
-                      values:
-                        observability?.trends.traffic_24h.map(
-                          (point) => point.error_count,
-                        ) ?? [],
-                    },
-                  ]}
-                />
-              </AppCard>
-
-              <AppCard
-                title="24 小时容量趋势"
-                description="观察该节点 CPU 与内存使用率在 24 小时内的变化。"
-              >
-                <TrendChart
-                  labels={
-                    observability?.trends.capacity_24h.map((point) =>
-                      formatTrendHour(point.bucket_started_at),
-                    ) ?? []
-                  }
-                  yAxisValueFormatter={formatPercent}
-                  series={[
-                    {
-                      label: '平均 CPU',
-                      color: '#0f766e',
-                      fillColor: 'rgba(15, 118, 110, 0.15)',
-                      variant: 'area',
-                      values:
-                        observability?.trends.capacity_24h.map(
-                          (point) => point.average_cpu_usage_percent,
-                        ) ?? [],
-                      valueFormatter: formatPercent,
-                    },
-                    {
-                      label: '平均内存',
-                      color: '#2563eb',
-                      values:
-                        observability?.trends.capacity_24h.map(
-                          (point) => point.average_memory_usage_percent,
-                        ) ?? [],
-                      valueFormatter: formatPercent,
-                    },
-                  ]}
-                />
-              </AppCard>
-            </div>
-
-            <div className="grid gap-6 xl:grid-cols-2">
-              <AppCard
-                title="24 小时网络趋势"
-                description="观察 OpenResty 入站/出站吞吐的变化，辅助识别回源压力、突发流量或出口异常。"
-              >
-                <TrendChart
-                  labels={
-                    observability?.trends.network_24h.map((point) =>
-                      formatTrendHour(point.bucket_started_at),
-                    ) ?? []
-                  }
-                  yAxisValueFormatter={(value) =>
-                    formatBytesPerSecond(value, 3600)
-                  }
-                  series={[
-                    {
-                      label: 'OpenResty 入站',
-                      color: '#22c55e',
-                      fillColor: 'rgba(34, 197, 94, 0.14)',
-                      variant: 'area',
-                      values:
-                        observability?.trends.network_24h.map(
-                          (point) => point.openresty_rx_bytes,
-                        ) ?? [],
-                      valueFormatter: (value) =>
-                        formatBytesPerSecond(value, 3600),
-                    },
-                    {
-                      label: 'OpenResty 出站',
-                      color: '#38bdf8',
-                      values:
-                        observability?.trends.network_24h.map(
-                          (point) => point.openresty_tx_bytes,
-                        ) ?? [],
-                      valueFormatter: (value) =>
-                        formatBytesPerSecond(value, 3600),
-                    },
-                  ]}
-                />
-              </AppCard>
-
-              <AppCard
-                title="24 小时磁盘 IO 趋势"
-                description="观察磁盘读写变化，辅助判断日志放大、缓存抖动或磁盘压力。"
-              >
-                <TrendChart
-                  labels={
-                    observability?.trends.disk_io_24h.map((point) =>
-                      formatTrendHour(point.bucket_started_at),
-                    ) ?? []
-                  }
-                  yAxisValueFormatter={formatBytes}
-                  series={[
-                    {
-                      label: '磁盘读',
-                      color: '#a78bfa',
-                      fillColor: 'rgba(167, 139, 250, 0.14)',
-                      variant: 'area',
-                      values:
-                        observability?.trends.disk_io_24h.map(
-                          (point) => point.disk_read_bytes,
-                        ) ?? [],
-                      valueFormatter: formatBytes,
-                    },
-                    {
-                      label: '磁盘写',
-                      color: '#fb7185',
-                      values:
-                        observability?.trends.disk_io_24h.map(
-                          (point) => point.disk_write_bytes,
-                        ) ?? [],
-                      valueFormatter: formatBytes,
-                    },
-                  ]}
-                />
-              </AppCard>
-            </div>
-
-            <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
-              <AppCard
-                title="请求结构分布"
-                description="聚合最近 24 小时窗口上报，帮助判断错误集中在哪些状态码、流量集中在哪些域名。"
-              >
-                <div className="mb-6 grid gap-4 md:grid-cols-3">
-                  <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-elevated)] px-4 py-4">
-                    <p className="text-xs tracking-[0.2em] text-[var(--foreground-muted)] uppercase">
-                      主状态码
-                    </p>
-                    <p className="mt-3 text-2xl font-semibold text-[var(--foreground-primary)]">
-                      {dominantStatusCode?.label ?? '—'}
-                    </p>
-                    <p className="mt-2 text-sm text-[var(--foreground-secondary)]">
-                      {dominantStatusCode
-                        ? `${dominantStatusCode.value} 次`
-                        : '暂无状态码配置'}
-                    </p>
-                  </div>
-                  <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-elevated)] px-4 py-4">
-                    <p className="text-xs tracking-[0.2em] text-[var(--foreground-muted)] uppercase">
-                      Top Domain
-                    </p>
-                    <p className="mt-3 truncate text-2xl font-semibold text-[var(--foreground-primary)]">
-                      {dominantDomain?.label ?? '—'}
-                    </p>
-                    <p className="mt-2 text-sm text-[var(--foreground-secondary)]">
-                      {dominantDomain
-                        ? `${dominantDomain.value} 次`
-                        : '暂无域名配置'}
-                    </p>
-                  </div>
-                  <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-elevated)] px-4 py-4">
-                    <p className="text-xs tracking-[0.2em] text-[var(--foreground-muted)] uppercase">
-                      已恢复事件
-                    </p>
-                    <p className="mt-3 text-2xl font-semibold text-[var(--foreground-primary)]">
-                      {resolvedHealthEvents.length}
-                    </p>
-                    <p className="mt-2 text-sm text-[var(--foreground-secondary)]">
-                      最近 24 小时已恢复健康事件
-                    </p>
-                  </div>
-                </div>
-
-                <div className="grid gap-6 xl:grid-cols-2">
-                  <div>
-                    <p className="mb-4 text-xs tracking-[0.2em] text-[var(--foreground-muted)] uppercase">
-                      状态码分布
-                    </p>
-                    <RankChart
-                      items={statusCodeDistribution}
-                      color="#f59e0b"
-                      emptyMessage="暂无状态码分布"
-                    />
-                  </div>
-                  <div>
-                    <p className="mb-4 text-xs tracking-[0.2em] text-[var(--foreground-muted)] uppercase">
-                      Top Domain
-                    </p>
-                    <RankChart
-                      items={topDomains}
-                      color="#2563eb"
-                      emptyMessage="暂无域名分布"
-                    />
-                  </div>
-                </div>
-              </AppCard>
-
-              <AppCard
-                title="健康事件时间线"
-                description="保留活动与已恢复事件，帮助判断运行状态。"
+                title="诊断事件时间线"
+                description="保留活动与已恢复异常事件。"
                 action={
                   <DangerButton
                     type="button"
@@ -1135,7 +688,7 @@ function EdgeNodeDetailPage({ node }: { node: NodeItem }) {
                             : 'border-[var(--border-default)] text-[var(--foreground-secondary)] hover:bg-[var(--control-background-hover)]'
                         }`}
                       >
-                        全部事件
+                        全部
                       </button>
                       <button
                         type="button"
@@ -1209,8 +762,55 @@ function EdgeNodeDetailPage({ node }: { node: NodeItem }) {
                   </div>
                 ) : (
                   <EmptyState
-                    title="暂无健康事件时间线"
-                    description="节点当前还没有上报可展示的健康事件记录。"
+                    title="暂无健康诊断事件"
+                    description="节点当前还没有上报健康事件记录。"
+                  />
+                )}
+              </AppCard>
+            </div>
+
+            <div className="grid gap-6 xl:grid-cols-1">
+              <AppCard title="隧道活跃通道状态" description="展示中继节点上活跃并连接的 frps 网络隧道代理。">
+                {observability?.relay_dashboard?.proxies?.length ? (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-sm text-[var(--foreground-secondary)]">
+                      <thead className="border-b border-[var(--border-default)]">
+                        <tr>
+                          <th className="px-4 py-3 font-medium">代理名称 (Proxy Name)</th>
+                          <th className="px-4 py-3 font-medium">代理类型</th>
+                          <th className="px-4 py-3 font-medium">在线状态</th>
+                          <th className="px-4 py-3 font-medium">客户端接入地址</th>
+                          <th className="px-4 py-3 font-medium">最近连接时间</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-[var(--border-default)]">
+                        {observability.relay_dashboard.proxies.map((proxy) => (
+                          <tr key={proxy.name}>
+                            <td className="px-4 py-3 font-medium text-[var(--foreground-primary)]">
+                              {proxy.name}
+                            </td>
+                            <td className="px-4 py-3">{proxy.type}</td>
+                            <td className="px-4 py-3">
+                              <StatusBadge
+                                label={proxy.status === 'online' ? '在线' : '离线'}
+                                variant={proxy.status === 'online' ? 'success' : 'info'}
+                              />
+                            </td>
+                            <td className="px-4 py-3">{proxy.client_addr}</td>
+                            <td className="px-4 py-3">
+                              {isMeaningfulTime(proxy.last_start_time)
+                                ? formatRelativeTime(proxy.last_start_time)
+                                : '—'}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <EmptyState
+                    title="暂无通道活动"
+                    description="当前没有隧道客户端连接到该中继节点。"
                   />
                 )}
               </AppCard>
@@ -1231,21 +831,21 @@ function EdgeNodeDetailPage({ node }: { node: NodeItem }) {
                     {node.update_requested
                       ? `已等待节点在下一次心跳后执行${node.update_channel === 'preview' ? '预览版' : '正式版'}更新。`
                       : node.auto_update_enabled
-                        ? '节点已启用正式版自动更新。'
+                        ? '节点已启用自动更新。'
                         : '当前仅支持手动触发更新。'}
                   </p>
                 </div>
               </AppCard>
 
-              <AppCard title="版本信息">
+              <AppCard title="版本状态">
                 <div className="space-y-2 text-sm text-[var(--foreground-secondary)]">
-                  <p>Agent：{node.agent_version || 'unknown'}</p>
-                  <p>Nginx：{node.nginx_version || 'unknown'}</p>
-                  <p>当前配置：{node.current_version || '未应用'}</p>
+                  <p>Relay 中继版本：{node.relay_version || 'unknown'}</p>
+                  <p>frps 核心版本：{node.relay_frp_version || 'unknown'}</p>
+                  <p>中继网络接入：{node.relay_agent_access_addr || '—'}</p>
                 </div>
               </AppCard>
 
-              <AppCard title="最近应用">
+              <AppCard title="最近应用配置">
                 <div className="space-y-3">
                   <StatusBadge
                     label={getApplyLabel(node.latest_apply_result)}
@@ -1260,7 +860,7 @@ function EdgeNodeDetailPage({ node }: { node: NodeItem }) {
                   </p>
                   {node.latest_apply_checksum ? (
                     <div className="space-y-1 text-sm text-[var(--foreground-secondary)]">
-                      <p>支持文件：{node.latest_support_file_count}</p>
+                      <p>同步文件：{node.latest_support_file_count} 个</p>
                     </div>
                   ) : null}
                 </div>
@@ -1268,8 +868,8 @@ function EdgeNodeDetailPage({ node }: { node: NodeItem }) {
             </div>
 
             <AppCard
-              title="当前目标版本"
-              description="展示当前全局激活配置版本。"
+              title="配置应用版本追平"
+              description="展示全局最新配置应用状态。"
               action={
                 activeConfigVersion ? (
                   <SecondaryButton
@@ -1296,25 +896,21 @@ function EdgeNodeDetailPage({ node }: { node: NodeItem }) {
                     </p>
                     <div className="mt-3 flex flex-wrap items-center gap-3">
                       <StatusBadge
-                        label={
-                          isTargetVersionApplied
-                            ? '已追平目标版本'
-                            : '待追平目标版本'
-                        }
+                        label={isTargetVersionApplied ? '已追平目标版本' : '同步落后'}
                         variant={isTargetVersionApplied ? 'success' : 'warning'}
                       />
                     </div>
                     <p className="mt-3 text-sm text-[var(--foreground-secondary)]">
                       {isTargetVersionApplied
-                        ? '当前节点已应用全局激活配置。'
-                        : '当前节点版本落后于全局激活配置，可结合应用记录定位原因。'}
+                        ? '当前节点已应用全局最新配置。'
+                        : '当前中继代理版本落后于全局激活配置，请检查下面配置应用历史。'}
                     </p>
                   </div>
 
                   <div className="grid gap-4 md:grid-cols-3">
                     <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-elevated)] px-4 py-4">
                       <p className="text-xs tracking-[0.2em] text-[var(--foreground-muted)] uppercase">
-                        目标版本
+                        目标配置版本
                       </p>
                       <p className="mt-2 text-sm text-[var(--foreground-primary)]">
                         {activeConfigVersion.version}
@@ -1322,7 +918,7 @@ function EdgeNodeDetailPage({ node }: { node: NodeItem }) {
                     </div>
                     <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-elevated)] px-4 py-4">
                       <p className="text-xs tracking-[0.2em] text-[var(--foreground-muted)] uppercase">
-                        Target Checksum
+                        配置校验和
                       </p>
                       <p className="mt-2 text-sm break-all text-[var(--foreground-primary)]">
                         {activeConfigVersion.checksum}
@@ -1330,7 +926,7 @@ function EdgeNodeDetailPage({ node }: { node: NodeItem }) {
                     </div>
                     <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-elevated)] px-4 py-4">
                       <p className="text-xs tracking-[0.2em] text-[var(--foreground-muted)] uppercase">
-                        激活时间
+                        全局激活时间
                       </p>
                       <p className="mt-2 text-sm text-[var(--foreground-primary)]">
                         {formatDateTime(activeConfigVersion.created_at)}
@@ -1341,86 +937,35 @@ function EdgeNodeDetailPage({ node }: { node: NodeItem }) {
               ) : (
                 <InlineMessage
                   tone="info"
-                  message="当前还没有全局激活配置版本，无法展示目标快照。"
+                  message="当前全局没有激活的配置版本。"
                 />
               )}
             </AppCard>
 
-            <AppCard
-              title="OpenResty 健康与控制"
-              description="OpenResty 当前健康状态。"
-              action={
-                <div className="flex flex-wrap gap-3">
-                  <PrimaryButton
-                    type="button"
-                    onClick={handleRestartOpenresty}
-                    disabled={restartOpenrestyMutation.isPending}
-                  >
-                    {restartOpenrestyMutation.isPending
-                      ? '下发重启中...'
-                      : node.restart_openresty_requested
-                        ? '等待 OpenResty 重启'
-                        : '重启 OpenResty'}
-                  </PrimaryButton>
-                </div>
-              }
-            >
-              <div className="grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)]">
-                <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-elevated)] px-4 py-4">
-                  <p className="text-xs tracking-[0.2em] text-[var(--foreground-muted)] uppercase">
-                    健康状态
-                  </p>
-                  <div className="mt-3 flex flex-wrap items-center gap-3">
-                    <StatusBadge
-                      label={getOpenrestyStatusLabel(node.openresty_status)}
-                      variant={getOpenrestyStatusVariant(node.openresty_status)}
-                    />
-                    {node.restart_openresty_requested ? (
-                      <StatusBadge label="等待重启执行" variant="warning" />
-                    ) : null}
-                  </div>
-                  <p className="mt-3 text-sm text-[var(--foreground-secondary)]">
-                    {node.restart_openresty_requested
-                      ? '已等待节点在下一次心跳后执行 OpenResty 重启。'
-                      : '系统会在每次心跳前自动采集健康状态。'}
-                  </p>
-                </div>
-
-                <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-elevated)] px-4 py-4">
-                  <p className="text-xs tracking-[0.2em] text-[var(--foreground-muted)] uppercase">
-                    状态消息
-                  </p>
-                  <p className="mt-3 text-sm leading-6 break-words whitespace-pre-wrap text-[var(--foreground-secondary)]">
-                    {node.openresty_message || '当前未上报额外错误。'}
-                  </p>
-                </div>
-              </div>
-            </AppCard>
-
             <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
               <AppCard
-                title="节点标识与部署"
+                title="中继节点部署与标识"
                 action={
                   <div className="flex gap-2">
-                    {nodeInstallCommand ? (
+                    {relayInstallCommand ? (
                       <PrimaryButton
                         type="button"
                         onClick={() =>
                           void handleCopy(
-                            nodeInstallCommand,
-                            '脚本部署命令已复制。',
+                            relayInstallCommand,
+                            '部署脚本命令已复制。',
                           )
                         }
                       >
                         复制脚本命令
                       </PrimaryButton>
                     ) : null}
-                    {nodeDockerInstallCommand ? (
+                    {relayDockerInstallCommand ? (
                       <PrimaryButton
                         type="button"
                         onClick={() =>
                           void handleCopy(
-                            nodeDockerInstallCommand,
+                            relayDockerInstallCommand,
                             'Docker 部署命令已复制。',
                           )
                         }
@@ -1443,7 +988,7 @@ function EdgeNodeDetailPage({ node }: { node: NodeItem }) {
                     </div>
                     <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-elevated)] px-4 py-4">
                       <p className="text-xs tracking-[0.2em] text-[var(--foreground-muted)] uppercase">
-                        Agent Token
+                        Discovery Token (中继注册 Token)
                       </p>
                       <p className="mt-2 text-sm break-all text-[var(--foreground-primary)]">
                         {node.agent_token || '暂无'}
@@ -1452,8 +997,8 @@ function EdgeNodeDetailPage({ node }: { node: NodeItem }) {
                   </div>
 
                   <ResourceField
-                    label="Server URL"
-                    hint="默认使用当前控制面来源地址，可按需改为外部访问地址。"
+                    label="Server URL (全局控制面访问地址)"
+                    hint="中继运行脚本或容器通过此地址连通控制端。"
                   >
                     <ResourceInput
                       value={serverUrl}
@@ -1461,55 +1006,53 @@ function EdgeNodeDetailPage({ node }: { node: NodeItem }) {
                     />
                   </ResourceField>
 
-                  {nodeInstallCommand ? (
+                  {relayInstallCommand ? (
                     <div>
                       <p className="mb-2 text-sm font-medium text-[var(--foreground-primary)]">
-                        脚本部署 (Linux / macOS)
+                        一键脚本部署 (Linux / macOS)
                       </p>
                       <CodeBlock className="whitespace-pre-wrap">
-                        {nodeInstallCommand}
+                        {relayInstallCommand}
                       </CodeBlock>
                     </div>
                   ) : null}
 
-                  {nodeDockerInstallCommand ? (
+                  {relayDockerInstallCommand ? (
                     <div>
                       <p className="mb-2 text-sm font-medium text-[var(--foreground-primary)]">
-                        Docker 部署
+                        Docker 容器部署
                       </p>
                       <CodeBlock className="whitespace-pre-wrap">
-                        {nodeDockerInstallCommand}
+                        {relayDockerInstallCommand}
                       </CodeBlock>
                     </div>
                   ) : null}
                 </div>
               </AppCard>
 
-              <AppCard title="运行信息">
+              <AppCard title="中继网络与属性">
                 <div className="space-y-4 text-sm text-[var(--foreground-secondary)]">
                   <div>
                     <p className="font-medium text-[var(--foreground-primary)]">
-                      IP 地址
+                      中继 IP 地址
                     </p>
                     <p className="mt-1">
-                      {node.ip || '暂无'}
+                      {node.ip || '暂无上报'}
                       {node.ip_manual_override ? '（管理端锁定）' : ''}
                     </p>
                   </div>
                   <div>
                     <p className="font-medium text-[var(--foreground-primary)]">
-                      最近错误
+                      绑定控制端口
                     </p>
-                    <p className="mt-1 break-words whitespace-pre-wrap">
-                      {node.last_error || '无'}
-                    </p>
+                    <p className="mt-1">{node.relay_bind_port || '—'}</p>
                   </div>
                   <div>
                     <p className="font-medium text-[var(--foreground-primary)]">
-                      状态消息
+                      中继节点最近错误
                     </p>
                     <p className="mt-1 break-words whitespace-pre-wrap">
-                      {node.openresty_message || '无'}
+                      {node.last_error || '无'}
                     </p>
                   </div>
                   <div>
@@ -1529,8 +1072,8 @@ function EdgeNodeDetailPage({ node }: { node: NodeItem }) {
             </div>
 
             <AppCard
-              title="最近应用记录"
-              description="仅展示当前节点的应用历史。"
+              title="配置应用历史"
+              description="仅展示此节点的应用历史记录。"
               action={
                 <Link
                   href={`/apply-log?node_id=${encodeURIComponent(node.node_id)}`}
@@ -1550,17 +1093,17 @@ function EdgeNodeDetailPage({ node }: { node: NodeItem }) {
               ) : applyLogs.length === 0 ? (
                 <EmptyState
                   title="暂无应用记录"
-                  description="当前节点还没有上报过配置应用结果。"
+                  description="中继节点当前还没有同步应用过任何配置。"
                 />
               ) : (
                 <div className="overflow-x-auto">
                   <table className="min-w-full divide-y divide-[var(--border-default)] text-left text-sm">
                     <thead>
                       <tr className="text-[var(--foreground-secondary)]">
-                        <th className="px-3 py-3 font-medium">版本</th>
+                        <th className="px-3 py-3 font-medium">配置版本</th>
                         <th className="px-3 py-3 font-medium">结果</th>
-                        <th className="px-3 py-3 font-medium">Checksum</th>
-                        <th className="px-3 py-3 font-medium">时间</th>
+                        <th className="px-3 py-3 font-medium">校验和</th>
+                        <th className="px-3 py-3 font-medium">应用时间</th>
                         <th className="px-3 py-3 font-medium">消息</th>
                       </tr>
                     </thead>
@@ -1592,21 +1135,6 @@ function EdgeNodeDetailPage({ node }: { node: NodeItem }) {
                           </td>
                           <td className="px-3 py-4 text-[var(--foreground-secondary)]">
                             <div className="max-w-80 space-y-2 break-words whitespace-pre-wrap">
-                              <p>
-                                {log.main_config_checksum
-                                  ? `主配置：${log.main_config_checksum}`
-                                  : ''}
-                              </p>
-                              <p>
-                                {log.route_config_checksum
-                                  ? `路由配置：${log.route_config_checksum}`
-                                  : ''}
-                              </p>
-                              <p>
-                                {log.support_file_count
-                                  ? `支持文件：${log.support_file_count}`
-                                  : ''}
-                              </p>
                               <p>{log.message || '—'}</p>
                             </div>
                           </td>
@@ -1631,8 +1159,8 @@ function EdgeNodeDetailPage({ node }: { node: NodeItem }) {
         node={node}
         isSubmitting={saveMutation.isPending}
         onClose={() => setIsEditorOpen(false)}
-        title="编辑节点"
-        description="更新模式和节点名都在详情页维护。"
+        title="编辑中继节点"
+        description="可以修改中继节点名、中继控制端口等信息。"
         submitLabel="保存修改"
         onSubmit={(payload) => {
           setFeedback(null);
@@ -1643,12 +1171,8 @@ function EdgeNodeDetailPage({ node }: { node: NodeItem }) {
       <AppModal
         isOpen={isHealthEventCleanupModalOpen}
         onClose={() => setHealthEventCleanupModalOpen(false)}
-        title="清理健康事件日志"
-        description={
-          node
-            ? `确认清理节点“${node.name}”的健康事件时间线吗？已清理的历史记录将立即从当前页面移除，后续只有新的节点上报才会再次出现。`
-            : '确认清理当前节点的健康事件时间线吗？'
-        }
+        title="清理运行诊断日志"
+        description={`确认清理中继节点“${node.name}”的健康诊断事件日志吗？`}
         footer={
           <div className="flex flex-wrap justify-end gap-3">
             <SecondaryButton
@@ -1678,10 +1202,10 @@ function EdgeNodeDetailPage({ node }: { node: NodeItem }) {
         ) : (
           <div className="space-y-3 text-sm text-[var(--foreground-secondary)]">
             <p>
-              该操作会删除当前节点已记录的全部健康事件，包括活动中与已恢复事件。
+              该操作会删除此中继节点在控制端记录的所有健康诊断事件历史。
             </p>
             <p>
-              这不会影响节点后续继续上报新的健康事件，但现有时间线与相关摘要会立即刷新。
+              这不会影响节点在后续运行中继续捕捉并上报新的故障。
             </p>
           </div>
         )}
@@ -1690,8 +1214,8 @@ function EdgeNodeDetailPage({ node }: { node: NodeItem }) {
       <AppModal
         isOpen={isAgentUpdateModalOpen}
         onClose={() => setIsAgentUpdateModalOpen(false)}
-        title="Agent 更新"
-        description="默认检查正式版；你也可以手动检查 preview 发布，并选择向当前节点下发对应版本的升级指令。"
+        title="中继代理升级"
+        description="管理当前中继软件 (relay/agent) 版本。"
         footer={
           <div className="flex flex-wrap justify-end gap-3">
             <SecondaryButton
@@ -1740,7 +1264,7 @@ function EdgeNodeDetailPage({ node }: { node: NodeItem }) {
           ) : null}
 
           <div className="grid gap-4 md:grid-cols-3">
-            <AppCard title="当前 Agent 版本">
+            <AppCard title="当前版本">
               <p className="text-sm font-medium text-[var(--foreground-primary)]">
                 {node.agent_version || 'unknown'}
               </p>
@@ -1751,12 +1275,8 @@ function EdgeNodeDetailPage({ node }: { node: NodeItem }) {
                   {selectedReleaseChannel === 'preview' ? '预览版' : '正式版'}
                 </p>
                 <StatusBadge
-                  label={
-                    selectedReleaseChannel === 'preview' ? 'Preview' : 'Stable'
-                  }
-                  variant={
-                    selectedReleaseChannel === 'preview' ? 'warning' : 'info'
-                  }
+                  label={selectedReleaseChannel === 'preview' ? 'Preview' : 'Stable'}
+                  variant={selectedReleaseChannel === 'preview' ? 'warning' : 'info'}
                 />
               </div>
             </AppCard>
@@ -1779,7 +1299,7 @@ function EdgeNodeDetailPage({ node }: { node: NodeItem }) {
           ) : null}
           {!isCheckingAgentRelease && selectedAgentReleaseError ? (
             <ErrorState
-              title="Agent 版本检查失败"
+              title="版本检查失败"
               description={getErrorMessage(selectedAgentReleaseError)}
             />
           ) : null}
@@ -1787,8 +1307,8 @@ function EdgeNodeDetailPage({ node }: { node: NodeItem }) {
           !selectedAgentReleaseError &&
           !selectedAgentRelease ? (
             <EmptyState
-              title="尚未检查 Agent 更新"
-              description="点击“检查正式版”或“检查预览版”后，会在这里显示对应发布信息。"
+              title="尚未检查中继更新"
+              description="选择上面的通道进行中继软件版本检查。"
             />
           ) : null}
 
@@ -1797,7 +1317,7 @@ function EdgeNodeDetailPage({ node }: { node: NodeItem }) {
               title={`GitHub ${selectedReleaseChannel === 'preview' ? '预览版' : '正式版'} · ${selectedAgentRelease.tag_name || '未找到版本'}`}
               description={
                 selectedAgentRelease.published_at
-                  ? `发布时间：${formatRelativeTime(selectedAgentRelease.published_at)} · ${formatDateTime(selectedAgentRelease.published_at)}`
+                  ? `发布时间：${formatRelativeTime(selectedAgentRelease.published_at)}`
                   : '未提供发布时间'
               }
             >
@@ -1809,27 +1329,19 @@ function EdgeNodeDetailPage({ node }: { node: NodeItem }) {
                         ? '发现可升级版本'
                         : '当前已是最新版本'
                     }
-                    variant={
-                      selectedAgentRelease.has_update ? 'warning' : 'success'
-                    }
+                    variant={selectedAgentRelease.has_update ? 'warning' : 'success'}
                   />
                   {selectedAgentRelease.prerelease ? (
                     <StatusBadge label="Preview 发布" variant="warning" />
                   ) : (
                     <StatusBadge label="正式发布" variant="info" />
                   )}
-                  {node.update_requested ? (
-                    <StatusBadge
-                      label={`已下发${node.update_channel === 'preview' ? '预览版' : '正式版'}更新`}
-                      variant="warning"
-                    />
-                  ) : null}
                 </div>
 
                 <div className="grid gap-4 md:grid-cols-2">
                   <div>
                     <p className="text-xs text-[var(--foreground-secondary)]">
-                      当前版本
+                      当前中继软件版本
                     </p>
                     <p className="mt-1 text-sm font-medium text-[var(--foreground-primary)]">
                       {selectedAgentRelease.current_version || 'unknown'}
@@ -1837,7 +1349,7 @@ function EdgeNodeDetailPage({ node }: { node: NodeItem }) {
                   </div>
                   <div>
                     <p className="text-xs text-[var(--foreground-secondary)]">
-                      目标版本
+                      最新发布版本
                     </p>
                     <p className="mt-1 text-sm font-medium text-[var(--foreground-primary)]">
                       {selectedAgentRelease.tag_name || '未找到'}

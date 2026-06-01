@@ -243,3 +243,29 @@ export function buildRelayDockerInstallCommand(
     `  ${image}`,
   ].join('\n');
 }
+
+export function buildTunnelInstallCommand(serverUrl: string, tunnelToken: string) {
+  const flaredInstallerScriptUrl =
+    'https://raw.githubusercontent.com/Rain-kl/OpenFlare/main/scripts/install-flared.sh';
+  return [
+    `curl -fsSL ${flaredInstallerScriptUrl} | bash -s -- \\`,
+    `  --server-url ${serverUrl} \\`,
+    `  --tunnel-token ${tunnelToken}`,
+  ].join('\n');
+}
+
+export function buildTunnelDockerInstallCommand(
+  serverUrl: string,
+  tunnelToken: string,
+) {
+  const image = 'ghcr.io/rain-kl/openflare-flared:latest';
+
+  return [
+    `docker pull ${image}`,
+    `docker rm -f openflare-flared 2>/dev/null || true`,
+    `docker run -d --name openflare-flared --restart unless-stopped \\`,
+    `  -e OPENFLARE_SERVER_URL=${serverUrl} \\`,
+    `  -e OPENFLARE_TUNNEL_TOKEN=${tunnelToken} \\`,
+    `  ${image}`,
+  ].join('\n');
+}

@@ -48,5 +48,5 @@ services:
       - ./openflared/data/:/app/data
     environment:
       OPENFLARE_SERVER_URL: "http://host.docker.internal:3000"
-      OPENFLARE_TUNNEL_TOKEN: 4888482fd0e1e3331111e51a8db1333b
+      OPENFLARE_TUNNEL_TOKEN: deb0783ac1e264a9d86440169aca0f09
 
