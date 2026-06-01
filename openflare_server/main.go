@@ -37,7 +37,7 @@ var indexPage []byte
 // @in header
 // @name Authorization
 // @description 管理端可使用 Bearer Token，例如：Bearer <token>
-// @securityDefinitions.apikey AgentTokenAuth
+// @securityDefinitions.apikey AccessTokenAuth
 // @in header
 // @name X-Agent-Token
 // @description Agent API 使用节点专属 Agent Token 或全局 Discovery Token
@@ -103,7 +103,7 @@ func main() {
 	if common.SQLDSN != "" {
 		dbBackend = "postgres"
 	}
-	slog.Info("server config", "port", port, "gin_mode", gin.Mode(), "log_level", common.GetLogLevel(), "db_backend", dbBackend, "sqlite_path", common.SQLitePath, "redis_enabled", common.RedisEnabled, "log_dir", valueOrDefault(*common.LogDir, "stdout"), "agent_token_configured", common.AgentToken != "", "node_offline_threshold", common.NodeOfflineThreshold)
+	slog.Info("server config", "port", port, "gin_mode", gin.Mode(), "log_level", common.GetLogLevel(), "db_backend", dbBackend, "sqlite_path", common.SQLitePath, "redis_enabled", common.RedisEnabled, "log_dir", valueOrDefault(*common.LogDir, "stdout"), "access_token_configured", common.AccessToken != "", "node_offline_threshold", common.NodeOfflineThreshold)
 	slog.Info("server listening", "address", fmt.Sprintf(":%s", port))
 	err = server.Run(":" + port)
 	if err != nil {

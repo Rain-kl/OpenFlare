@@ -44,7 +44,7 @@ var WeChatServerAddress = ""
 var WeChatServerToken = ""
 var WeChatAccountQRCodeImageURL = ""
 
-var AgentToken = ""
+var AccessToken = ""
 var AgentDiscoveryToken = ""
 var NodeOfflineThreshold = 2 * time.Minute
 

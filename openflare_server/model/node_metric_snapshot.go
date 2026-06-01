@@ -8,22 +8,19 @@ import (
 )
 
 type NodeMetricSnapshot struct {
-	ID                   uint      `json:"id" gorm:"primaryKey"`
-	NodeID               string    `json:"node_id" gorm:"index;size:64;not null"`
-	CapturedAt           time.Time `json:"captured_at" gorm:"index"`
-	CPUUsagePercent      float64   `json:"cpu_usage_percent"`
-	MemoryUsedBytes      int64     `json:"memory_used_bytes"`
-	MemoryTotalBytes     int64     `json:"memory_total_bytes"`
-	StorageUsedBytes     int64     `json:"storage_used_bytes"`
-	StorageTotalBytes    int64     `json:"storage_total_bytes"`
-	DiskReadBytes        int64     `json:"disk_read_bytes"`
-	DiskWriteBytes       int64     `json:"disk_write_bytes"`
-	NetworkRxBytes       int64     `json:"network_rx_bytes"`
-	NetworkTxBytes       int64     `json:"network_tx_bytes"`
-	OpenrestyRxBytes     int64     `json:"openresty_rx_bytes"`
-	OpenrestyTxBytes     int64     `json:"openresty_tx_bytes"`
-	OpenrestyConnections int64     `json:"openresty_connections"`
-	CreatedAt            time.Time `json:"created_at"`
+	ID                uint      `json:"id" gorm:"primaryKey"`
+	NodeID            string    `json:"node_id" gorm:"index;size:64;not null"`
+	CapturedAt        time.Time `json:"captured_at" gorm:"index"`
+	CPUUsagePercent   float64   `json:"cpu_usage_percent"`
+	MemoryUsedBytes   int64     `json:"memory_used_bytes"`
+	MemoryTotalBytes  int64     `json:"memory_total_bytes"`
+	StorageUsedBytes  int64     `json:"storage_used_bytes"`
+	StorageTotalBytes int64     `json:"storage_total_bytes"`
+	DiskReadBytes     int64     `json:"disk_read_bytes"`
+	DiskWriteBytes    int64     `json:"disk_write_bytes"`
+	NetworkRxBytes    int64     `json:"network_rx_bytes"`
+	NetworkTxBytes    int64     `json:"network_tx_bytes"`
+	CreatedAt         time.Time `json:"created_at"`
 }
 
 func (snapshot *NodeMetricSnapshot) GetID() uint {

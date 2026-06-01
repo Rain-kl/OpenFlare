@@ -32,7 +32,7 @@ func main() {
 		slog.Error("load agent config failed", "error", err)
 		os.Exit(1)
 	}
-	cfg.NginxVersion = nginx.DetectVersion(
+	cfg.ExtVersion = nginx.DetectVersion(
 		context.Background(),
 		nginx.ExecutorOptions{
 			NginxPath:                  cfg.OpenrestyPath,

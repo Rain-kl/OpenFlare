@@ -93,6 +93,11 @@ func GetDashboardOverview() (*DashboardOverviewView, error) {
 		return nil, err
 	}
 
+	openrestySnapshots, err := model.ListNodeObservationOpenresty("", since, 0)
+	if err != nil {
+		return nil, err
+	}
+
 	view := &DashboardOverviewView{
 		GeneratedAt:   now,
 		Nodes:         make([]DashboardNodeHealth, 0, len(nodes)),
@@ -100,7 +105,7 @@ func GetDashboardOverview() (*DashboardOverviewView, error) {
 		Trends: DashboardTrends{
 			Traffic24h:  buildTrafficTrendPoints(now, reports),
 			Capacity24h: buildCapacityTrendPoints(now, snapshots),
-			Network24h:  buildNetworkTrendPoints(now, snapshots),
+			Network24h:  buildNetworkTrendPoints(now, snapshots, openrestySnapshots),
 			DiskIO24h:   buildDiskIOTrendPoints(now, snapshots),
 		},
 	}

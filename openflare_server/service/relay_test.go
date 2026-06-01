@@ -10,14 +10,14 @@ func TestHeartbeatRelayPersistsRuntimeAndObservability(t *testing.T) {
 	setupServiceTestDB(t)
 
 	node := &model.Node{
-		NodeID:       "node-relay-observe",
-		Name:         "relay-1",
-		IP:           "",
-		AgentToken:   "relay-token",
-		Status:       NodeStatusPending,
-		NodeType:     "tunnel_relay",
-		RelayStatus:  "unknown",
-		RelayVersion: "",
+		NodeID:      "node-relay-observe",
+		Name:        "relay-1",
+		IP:          "",
+		AccessToken: "relay-token",
+		Status:      NodeStatusPending,
+		NodeType:    "tunnel_relay",
+		RelayStatus: "unknown",
+		Version:     "",
 	}
 	if err := node.Insert(); err != nil {
 		t.Fatalf("failed to seed relay node: %v", err)
@@ -25,8 +25,8 @@ func TestHeartbeatRelayPersistsRuntimeAndObservability(t *testing.T) {
 
 	now := time.Now().UTC()
 	_, err := HeartbeatRelay(node, RelayHeartbeatPayload{
-		RelayVersion:   "v0.1.0",
-		FrpVersion:     "0.61.0",
+		Version:        "v0.1.0",
+		ExtVersion:     "0.61.0",
 		RelayStatus:    "healthy",
 		FrpsConnCount:  7,
 		FrpsProxyCount: 3,
@@ -62,11 +62,8 @@ func TestHeartbeatRelayPersistsRuntimeAndObservability(t *testing.T) {
 	if updated.IP != "203.0.113.9" {
 		t.Fatalf("expected relay IP to be updated, got %q", updated.IP)
 	}
-	if updated.RelayVersion != "v0.1.0" || updated.RelayFrpVersion != "0.61.0" {
-		t.Fatalf("expected relay versions to be updated, got relay=%q frp=%q", updated.RelayVersion, updated.RelayFrpVersion)
-	}
-	if updated.RelayFrpsConnections != 7 || updated.RelayFrpsProxyCount != 3 {
-		t.Fatalf("expected relay counters to be stored, got connections=%d proxies=%d", updated.RelayFrpsConnections, updated.RelayFrpsProxyCount)
+	if updated.Version != "v0.1.0" || updated.ExtVersion != "0.61.0" {
+		t.Fatalf("expected relay versions to be updated, got relay=%q frp=%q", updated.Version, updated.ExtVersion)
 	}
 
 	profile, err := model.GetNodeSystemProfile(node.NodeID)

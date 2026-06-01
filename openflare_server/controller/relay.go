@@ -16,7 +16,7 @@ import (
 // @Tags Relay
 // @Accept json
 // @Produce json
-// @Security AgentTokenAuth
+// @Security AccessTokenAuth
 // @Param payload body service.RelayHeartbeatPayload true "Relay heartbeat payload"
 // @Success 200 {object} map[string]interface{}
 // @Failure 400 {object} map[string]interface{}
@@ -44,7 +44,7 @@ func RelayHeartbeat(c *gin.Context) {
 // RelayWebSocket godoc
 // @Summary Upgrade relay connection to websocket
 // @Tags Relay
-// @Security AgentTokenAuth
+// @Security AccessTokenAuth
 // @Router /api/relay/ws [get]
 func RelayWebSocket(c *gin.Context) {
 	authNode, ok := c.Get("relay_node")

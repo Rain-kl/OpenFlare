@@ -194,11 +194,11 @@ func TestRunnerKeepsHeartbeatWhenStartupSyncFails(t *testing.T) {
 	}
 	runner := &Runner{
 		Config: &config.Config{
-			AgentToken:        "agent-token",
+			AccessToken:       "agent-token",
 			NodeName:          "edge-01",
 			NodeIP:            "10.0.0.8",
-			AgentVersion:      config.AgentVersion,
-			NginxVersion:      "1.27.1.2",
+			Version:           config.Version,
+			ExtVersion:        "1.27.1.2",
 			HeartbeatInterval: config.MillisecondDuration(10 * time.Millisecond),
 		},
 		StateStore:       stateStore,
@@ -247,11 +247,11 @@ func TestRunnerDoesNotExitOnHeartbeatOrSyncError(t *testing.T) {
 	}
 	runner := &Runner{
 		Config: &config.Config{
-			AgentToken:        "agent-token",
+			AccessToken:       "agent-token",
 			NodeName:          "edge-01",
 			NodeIP:            "10.0.0.8",
-			AgentVersion:      config.AgentVersion,
-			NginxVersion:      "1.27.1.2",
+			Version:           config.Version,
+			ExtVersion:        "1.27.1.2",
 			HeartbeatInterval: config.MillisecondDuration(10 * time.Millisecond),
 		},
 		StateStore:       stateStore,
@@ -305,11 +305,11 @@ func TestRunnerReportsOpenrestyHealthAndExecutesRestart(t *testing.T) {
 	}
 	runner := &Runner{
 		Config: &config.Config{
-			AgentToken:        "agent-token",
+			AccessToken:       "agent-token",
 			NodeName:          "edge-01",
 			NodeIP:            "10.0.0.8",
-			AgentVersion:      config.AgentVersion,
-			NginxVersion:      "1.27.1.2",
+			Version:           config.Version,
+			ExtVersion:        "1.27.1.2",
 			HeartbeatInterval: config.MillisecondDuration(10 * time.Millisecond),
 		},
 		StateStore:       stateStore,
@@ -361,8 +361,8 @@ func TestRunnerHeartbeatPayloadIncludesObservabilityExtensions(t *testing.T) {
 		Config: &config.Config{
 			NodeName:          "edge-observe-1",
 			NodeIP:            "10.0.0.51",
-			AgentVersion:      config.AgentVersion,
-			NginxVersion:      "1.27.1.2",
+			Version:           config.Version,
+			ExtVersion:        "1.27.1.2",
 			DataDir:           tempDir,
 			RouteConfigPath:   filepath.Join(tempDir, "conf.d", "openflare_routes.conf"),
 			AccessLogPath:     filepath.Join(tempDir, "var", "log", "openflare", "access.log"),
@@ -441,11 +441,11 @@ func TestRunnerReplaysBufferedObservabilityAfterHeartbeatRecovery(t *testing.T) 
 	}
 	runner := &Runner{
 		Config: &config.Config{
-			AgentToken:                 "agent-token",
+			AccessToken:                "agent-token",
 			NodeName:                   "edge-buffer-01",
 			NodeIP:                     "10.0.0.52",
-			AgentVersion:               config.AgentVersion,
-			NginxVersion:               "1.27.1.2",
+			Version:                    config.Version,
+			ExtVersion:                 "1.27.1.2",
 			DataDir:                    tempDir,
 			RouteConfigPath:            filepath.Join(tempDir, "conf.d", "openflare_routes.conf"),
 			HeartbeatInterval:          config.MillisecondDuration(10 * time.Millisecond),
@@ -498,9 +498,9 @@ func TestRunnerDiscoveryRegisterUpdatesTokenAndNodeID(t *testing.T) {
 	stateStore := state.NewStore(filepath.Join(t.TempDir(), "state.json"))
 	heartbeatService := &fakeHeartbeatService{
 		registerResp: &protocol.RegisterNodeResponse{
-			NodeID:     "node-server-assigned",
-			AgentToken: "agent-token-issued",
-			Name:       "edge-01",
+			NodeID:      "node-server-assigned",
+			AccessToken: "agent-token-issued",
+			Name:        "edge-01",
 		},
 		heartbeatResults: []*protocol.HeartbeatResult{{}},
 		onHeartbeat: func(callCount int) {
@@ -524,8 +524,8 @@ func TestRunnerDiscoveryRegisterUpdatesTokenAndNodeID(t *testing.T) {
 			DiscoveryToken:    cfg.DiscoveryToken,
 			NodeName:          cfg.NodeName,
 			NodeIP:            cfg.NodeIP,
-			AgentVersion:      config.AgentVersion,
-			NginxVersion:      "1.27.1.2",
+			Version:           config.Version,
+			ExtVersion:        "1.27.1.2",
 			HeartbeatInterval: config.MillisecondDuration(10 * time.Millisecond),
 		},
 		StateStore:       stateStore,
@@ -533,8 +533,8 @@ func TestRunnerDiscoveryRegisterUpdatesTokenAndNodeID(t *testing.T) {
 		SyncService:      syncService,
 	}
 	runner.Config = cfg
-	runner.Config.AgentVersion = config.AgentVersion
-	runner.Config.NginxVersion = "1.27.1.2"
+	runner.Config.Version = config.Version
+	runner.Config.ExtVersion = "1.27.1.2"
 	runner.Config.HeartbeatInterval = config.MillisecondDuration(10 * time.Millisecond)
 
 	err = runner.Run(ctx)
@@ -554,7 +554,7 @@ func TestRunnerDiscoveryRegisterUpdatesTokenAndNodeID(t *testing.T) {
 	if snapshot.NodeID != "node-server-assigned" {
 		t.Fatalf("expected node id to be replaced, got %q", snapshot.NodeID)
 	}
-	if runner.Config.AgentToken != "agent-token-issued" || runner.Config.DiscoveryToken != "" {
+	if runner.Config.AccessToken != "agent-token-issued" || runner.Config.DiscoveryToken != "" {
 		t.Fatal("expected config token rotation to complete")
 	}
 }

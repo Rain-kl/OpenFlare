@@ -57,9 +57,9 @@ type NodeBootstrapView struct {
 }
 
 type AgentRegistrationResponse struct {
-	NodeID     string `json:"node_id"`
-	AgentToken string `json:"agent_token"`
-	Name       string `json:"name"`
+	NodeID      string `json:"node_id"`
+	AccessToken string `json:"access_token"`
+	Name        string `json:"name"`
 }
 
 func CreateNode(input NodeInput) (*NodeView, error) {
@@ -76,8 +76,8 @@ func CreateNode(input NodeInput) (*NodeView, error) {
 		GeoLatitude:       geoLatitude,
 		GeoLongitude:      geoLongitude,
 		GeoManualOverride: geoManualOverride,
-		AgentVersion:      "",
-		NginxVersion:      "",
+		Version:           "",
+		ExtVersion:        "",
 		Status:            NodeStatusPending,
 		AutoUpdateEnabled: input.AutoUpdateEnabled,
 		NodeType:          normalizeNodeType(input.NodeType),
@@ -86,7 +86,7 @@ func CreateNode(input NodeInput) (*NodeView, error) {
 	if err != nil {
 		return nil, err
 	}
-	node.AgentToken, err = newRandomToken()
+	node.AccessToken, err = newRandomToken()
 	if err != nil {
 		return nil, err
 	}
@@ -110,7 +110,7 @@ func CreateNode(input NodeInput) (*NodeView, error) {
 		}
 		return nil, err
 	}
-	refreshAgentTokenCache(node)
+	refreshAccessTokenCache(node)
 	slog.Info("node created", "name", node.Name, "node_id", node.NodeID)
 	return buildNodeView(node), nil
 }
@@ -150,7 +150,7 @@ func UpdateNode(id uint, input NodeInput) (*NodeView, error) {
 	if err = node.Update(); err != nil {
 		return nil, err
 	}
-	refreshAgentTokenCache(node)
+	refreshAccessTokenCache(node)
 	slog.Info("node updated", "name", node.Name, "node_id", node.NodeID)
 	return buildNodeView(node), nil
 }
@@ -164,7 +164,7 @@ func DeleteNode(id uint) error {
 	if err := node.Delete(); err != nil {
 		return err
 	}
-	invalidateAgentTokenCache(node.AgentToken)
+	invalidateAccessTokenCache(node.AccessToken)
 	DisconnectAgentWSClient(node.NodeID)
 	return nil
 }
@@ -206,7 +206,7 @@ func RequestNodeAgentUpdate(id uint, input NodeAgentUpdateInput) (*NodeView, err
 	if err = model.DB.Model(node).Select("update_requested", "update_channel", "update_tag").Updates(node).Error; err != nil {
 		return nil, err
 	}
-	refreshAgentTokenCache(node)
+	refreshAccessTokenCache(node)
 	if SendAgentWSSettings(node.NodeID, buildAgentSettings(node, true, channel.String(), tagName, node.RestartOpenrestyRequested)) {
 		slog.Debug("agent manual update pushed via ws", "node_id", node.NodeID, "channel", channel.String(), "tag", tagName)
 	} else {
@@ -225,7 +225,7 @@ func RequestNodeOpenrestyRestart(id uint) (*NodeView, error) {
 	if err = model.DB.Model(node).Select("restart_openresty_requested").Updates(node).Error; err != nil {
 		return nil, err
 	}
-	refreshAgentTokenCache(node)
+	refreshAccessTokenCache(node)
 	slog.Info("openresty restart requested", "node_id", node.NodeID, "name", node.Name)
 	return buildNodeView(node), nil
 }
@@ -246,12 +246,12 @@ func RequestNodeForceSync(id uint) (*NodeView, error) {
 	return buildNodeView(node), nil
 }
 
-func AuthenticateAgentToken(token string) (*model.Node, error) {
+func AuthenticateAccessToken(token string) (*model.Node, error) {
 	token = strings.TrimSpace(token)
 	if token == "" {
 		return nil, errors.New("缺少 Agent Token")
 	}
-	return authenticateAgentTokenWithCache(token)
+	return authenticateAccessTokenWithCache(token)
 }
 
 func ValidateDiscoveryToken(token string) error {
@@ -323,12 +323,12 @@ func buildNodeView(node *model.Node) *NodeView {
 		GeoLatitude:               node.GeoLatitude,
 		GeoLongitude:              node.GeoLongitude,
 		GeoManualOverride:         node.GeoManualOverride,
-		AgentToken:                node.AgentToken,
+		AccessToken:               node.AccessToken,
 		UpdateChannel:             strings.TrimSpace(node.UpdateChannel),
 		UpdateTag:                 strings.TrimSpace(node.UpdateTag),
 		RestartOpenrestyRequested: node.RestartOpenrestyRequested,
-		AgentVersion:              node.AgentVersion,
-		NginxVersion:              node.NginxVersion,
+		Version:                   node.Version,
+		ExtVersion:                node.ExtVersion,
 		OpenrestyStatus:           normalizeOpenrestyStatus(node.OpenrestyStatus),
 		OpenrestyMessage:          strings.TrimSpace(node.OpenrestyMessage),
 		Status:                    status,
@@ -353,10 +353,8 @@ func buildNodeView(node *model.Node) *NodeView {
 	view.RelayClientAccessAddr = node.RelayClientAccessAddr
 	view.RelayClientProxyURL = node.RelayClientProxyURL
 	view.RelayStatus = node.RelayStatus
-	view.RelayFrpVersion = node.RelayFrpVersion
-	view.RelayVersion = node.RelayVersion
-	view.RelayFrpsConnections = node.RelayFrpsConnections
-	view.RelayFrpsProxyCount = node.RelayFrpsProxyCount
+	view.Version = node.Version
+	view.ExtVersion = node.ExtVersion
 	return view
 }
 
@@ -455,7 +453,7 @@ func isPublicNodeIP(raw string) bool {
 }
 
 func buildNodeAgentReleaseView(node *model.Node, release *githubReleaseResponse, channel ReleaseChannel) *NodeAgentReleaseInfo {
-	currentVersion := strings.TrimSpace(node.AgentVersion)
+	currentVersion := strings.TrimSpace(node.Version)
 	view := &NodeAgentReleaseInfo{
 		CurrentVersion:   currentVersion,
 		Channel:          channel.String(),
@@ -475,7 +473,7 @@ func buildNodeAgentReleaseView(node *model.Node, release *githubReleaseResponse,
 	return view
 }
 
-func RegisterNodeWithAgentToken(node *model.Node, payload AgentNodePayload) (*AgentRegistrationResponse, error) {
+func RegisterNodeWithAccessToken(node *model.Node, payload AgentNodePayload) (*AgentRegistrationResponse, error) {
 	payload = normalizeAgentNodePayload(payload)
 	if node == nil {
 		return nil, errors.New("节点不存在")
@@ -487,12 +485,12 @@ func RegisterNodeWithAgentToken(node *model.Node, payload AgentNodePayload) (*Ag
 	if err := node.Update(); err != nil {
 		return nil, err
 	}
-	refreshAgentTokenCache(node)
+	refreshAccessTokenCache(node)
 	slog.Info("agent register succeeded on reserved node", "node_id", node.NodeID, "name", node.Name)
 	return &AgentRegistrationResponse{
-		NodeID:     node.NodeID,
-		AgentToken: node.AgentToken,
-		Name:       node.Name,
+		NodeID:      node.NodeID,
+		AccessToken: node.AccessToken,
+		Name:        node.Name,
 	}, nil
 }
 
@@ -514,9 +512,9 @@ func RegisterNodeWithDiscovery(payload AgentNodePayload) (*AgentRegistrationResp
 		nodeName = nodeID
 	}
 	node := &model.Node{
-		NodeID:     nodeID,
-		Name:       nodeName,
-		AgentToken: agentToken,
+		NodeID:      nodeID,
+		Name:        nodeName,
+		AccessToken: agentToken,
 	}
 	applyNodeRuntime(node, payload, false)
 	if err = node.Insert(); err != nil {
@@ -525,20 +523,20 @@ func RegisterNodeWithDiscovery(payload AgentNodePayload) (*AgentRegistrationResp
 		}
 		return nil, err
 	}
-	refreshAgentTokenCache(node)
+	refreshAccessTokenCache(node)
 	slog.Info("agent discovery register succeeded", "node_id", node.NodeID, "name", node.Name)
 	return &AgentRegistrationResponse{
-		NodeID:     node.NodeID,
-		AgentToken: node.AgentToken,
-		Name:       node.Name,
+		NodeID:      node.NodeID,
+		AccessToken: node.AccessToken,
+		Name:        node.Name,
 	}, nil
 }
 
 func normalizeAgentNodePayload(payload AgentNodePayload) AgentNodePayload {
 	payload.Name = strings.TrimSpace(payload.Name)
 	payload.IP = strings.TrimSpace(payload.IP)
-	payload.AgentVersion = strings.TrimSpace(payload.AgentVersion)
-	payload.NginxVersion = strings.TrimSpace(payload.NginxVersion)
+	payload.Version = strings.TrimSpace(payload.Version)
+	payload.ExtVersion = strings.TrimSpace(payload.ExtVersion)
 	payload.CurrentVersion = strings.TrimSpace(payload.CurrentVersion)
 	payload.LastError = truncateForDatabase(payload.LastError, 16000)
 	payload.OpenrestyStatus = normalizeOpenrestyStatus(payload.OpenrestyStatus)
@@ -553,8 +551,8 @@ func validateAgentNodePayload(payload AgentNodePayload) error {
 	if net.ParseIP(payload.IP) == nil {
 		return errors.New("ip 格式无效")
 	}
-	if payload.AgentVersion == "" {
-		return errors.New("agent_version 不能为空")
+	if payload.Version == "" {
+		return errors.New("version 不能为空")
 	}
 	return nil
 }
@@ -568,8 +566,8 @@ func applyNodeRuntime(node *model.Node, payload AgentNodePayload, preserveName b
 	if !node.IPManualOverride {
 		node.IP = strings.TrimSpace(payload.IP)
 	}
-	node.AgentVersion = strings.TrimSpace(payload.AgentVersion)
-	node.NginxVersion = strings.TrimSpace(payload.NginxVersion)
+	node.Version = strings.TrimSpace(payload.Version)
+	node.ExtVersion = strings.TrimSpace(payload.ExtVersion)
 	node.OpenrestyStatus = normalizeOpenrestyStatus(payload.OpenrestyStatus)
 	node.OpenrestyMessage = truncateForDatabase(payload.OpenrestyMessage, 16000)
 	node.Status = NodeStatusOnline

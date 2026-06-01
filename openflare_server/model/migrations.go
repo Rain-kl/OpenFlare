@@ -86,6 +86,8 @@ func (databaseSchemaMigrationContext) ValidateDatabaseSchemaVersion(db *gorm.DB,
 		return validateDatabaseSchemaV19(db, backend)
 	case 20:
 		return validateDatabaseSchemaV20(db, backend)
+	case 21:
+		return validateDatabaseSchemaV21(db, backend)
 	default:
 		return fmt.Errorf("database schema validation for v%d is not defined", version)
 	}
@@ -1264,11 +1266,8 @@ func validateExternalDatabaseSchema(ctx databaseSchemaMigrationContext, db *gorm
 		return ctx.ValidateDatabaseSchemaVersion(db, backend, targetVersion)
 	}
 	for _, migration := range schemamigrate.Migrations() {
-		if migration.ToVersion > targetVersion {
-			continue
-		}
-		if err := migration.Validate(ctx, db, backend); err != nil {
-			return err
+		if migration.ToVersion == targetVersion {
+			return migration.Validate(ctx, db, backend)
 		}
 	}
 	return nil
@@ -1371,6 +1370,22 @@ func initializeFreshDatabaseSchema(db *gorm.DB, backend string) error {
 		return err
 	}
 	return saveDatabaseSchemaVersion(db, currentDatabaseSchemaVersion)
+}
+
+func validateDatabaseSchemaV21(db *gorm.DB, backend string) error {
+	if err := validateDatabaseSchemaV19(db, backend); err != nil {
+		return err
+	}
+	if !db.Migrator().HasColumn(&Node{}, "access_token") {
+		return fmt.Errorf("column nodes.access_token is missing")
+	}
+	if !db.Migrator().HasColumn(&Node{}, "version") {
+		return fmt.Errorf("column nodes.version is missing")
+	}
+	if !db.Migrator().HasColumn(&Node{}, "ext_version") {
+		return fmt.Errorf("column nodes.ext_version is missing")
+	}
+	return nil
 }
 
 func ensureDatabaseSchemaUpToDate(db *gorm.DB, backend string) error {

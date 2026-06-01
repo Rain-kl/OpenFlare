@@ -355,7 +355,7 @@ const docTemplate = `{
             "post": {
                 "security": [
                     {
-                        "AgentTokenAuth": []
+                        "AccessTokenAuth": []
                     }
                 ],
                 "consumes": [
@@ -401,7 +401,7 @@ const docTemplate = `{
             "get": {
                 "security": [
                     {
-                        "AgentTokenAuth": []
+                        "AccessTokenAuth": []
                     }
                 ],
                 "produces": [
@@ -426,7 +426,7 @@ const docTemplate = `{
             "post": {
                 "security": [
                     {
-                        "AgentTokenAuth": []
+                        "AccessTokenAuth": []
                     }
                 ],
                 "consumes": [
@@ -472,7 +472,7 @@ const docTemplate = `{
             "post": {
                 "security": [
                     {
-                        "AgentTokenAuth": []
+                        "AccessTokenAuth": []
                     }
                 ],
                 "consumes": [
@@ -2801,7 +2801,7 @@ const docTemplate = `{
                         "$ref": "#/definitions/service.AgentNodeAccessLog"
                     }
                 },
-                "agent_version": {
+                "version": {
                     "type": "string"
                 },
                 "buffered_observability": {
@@ -2828,7 +2828,7 @@ const docTemplate = `{
                 "name": {
                     "type": "string"
                 },
-                "nginx_version": {
+                "ext_version": {
                     "type": "string"
                 },
                 "node_id": {
@@ -3186,7 +3186,7 @@ const docTemplate = `{
         }
     },
     "securityDefinitions": {
-        "AgentTokenAuth": {
+        "AccessTokenAuth": {
             "description": "Agent API 使用节点专属 Agent Token 或全局 Discovery Token",
             "type": "apiKey",
             "name": "X-Agent-Token",

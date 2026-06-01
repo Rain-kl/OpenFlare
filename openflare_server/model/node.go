@@ -12,14 +12,14 @@ type Node struct {
 	GeoLatitude               *float64  `json:"geo_latitude"`
 	GeoLongitude              *float64  `json:"geo_longitude"`
 	GeoManualOverride         bool      `json:"geo_manual_override" gorm:"not null;default:false"`
-	AgentToken                string    `json:"-" gorm:"size:128;index"`
+	AccessToken               string    `json:"-" gorm:"column:access_token;size:128;index"`
 	AutoUpdateEnabled         bool      `json:"auto_update_enabled" gorm:"not null;default:false"`
 	UpdateRequested           bool      `json:"update_requested" gorm:"not null;default:false"`
 	UpdateChannel             string    `json:"update_channel" gorm:"size:16;not null;default:'stable'"`
 	UpdateTag                 string    `json:"update_tag" gorm:"size:64"`
 	RestartOpenrestyRequested bool      `json:"restart_openresty_requested" gorm:"not null;default:false"`
-	AgentVersion              string    `json:"agent_version" gorm:"size:64;not null"`
-	NginxVersion              string    `json:"nginx_version" gorm:"size:64"`
+	Version                   string    `json:"version" gorm:"size:64;not null"`
+	ExtVersion                string    `json:"ext_version" gorm:"size:64"`
 	OpenrestyStatus           string    `json:"openresty_status" gorm:"size:16;not null;default:'unknown'"`
 	OpenrestyMessage          string    `json:"openresty_message" gorm:"type:text"`
 	Status                    string    `json:"status" gorm:"size:16;not null;default:'offline'"`
@@ -28,7 +28,7 @@ type Node struct {
 	LastError                 string    `json:"last_error" gorm:"type:text"`
 	CreatedAt                 time.Time `json:"created_at"`
 	UpdatedAt                 time.Time `json:"updated_at"`
-	// Node type: edge_node (default) | tunnel_relay
+	// Node type: edge_node (default) | tunnel_relay | tunnel_client
 	NodeType string `json:"node_type" gorm:"size:32;not null;default:'edge_node'"`
 	// TunnelRelay specific fields
 	RelayBindPort         int    `json:"relay_bind_port" gorm:"not null;default:0"`
@@ -38,10 +38,6 @@ type Node struct {
 	RelayClientAccessAddr string `json:"relay_client_access_addr" gorm:"size:255"`
 	RelayClientProxyURL   string `json:"relay_client_proxy_url" gorm:"size:512"`
 	RelayStatus           string `json:"relay_status" gorm:"size:16;not null;default:'unknown'"`
-	RelayFrpVersion       string `json:"relay_frp_version" gorm:"size:64"`
-	RelayVersion          string `json:"relay_version" gorm:"size:64"`
-	RelayFrpsConnections  int    `json:"relay_frps_connections" gorm:"not null;default:0"`
-	RelayFrpsProxyCount   int    `json:"relay_frps_proxy_count" gorm:"not null;default:0"`
 }
 
 func ListNodes() (nodes []*Node, err error) {
@@ -69,9 +65,9 @@ func GetNodeByID(id uint) (*Node, error) {
 	return node, err
 }
 
-func GetNodeByAgentToken(token string) (*Node, error) {
+func GetNodeByAccessToken(token string) (*Node, error) {
 	node := &Node{}
-	err := DB.Where("agent_token = ?", token).First(node).Error
+	err := DB.Where("access_token = ?", token).First(node).Error
 	return node, err
 }
 

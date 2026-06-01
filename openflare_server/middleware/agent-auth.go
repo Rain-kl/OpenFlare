@@ -9,7 +9,7 @@ import (
 func AgentAuth() func(c *gin.Context) {
 	return func(c *gin.Context) {
 		token := c.GetHeader("X-Agent-Token")
-		node, err := service.AuthenticateAgentToken(token)
+		node, err := service.AuthenticateAccessToken(token)
 		if err != nil {
 			c.JSON(http.StatusUnauthorized, gin.H{
 				"success": false,
@@ -26,7 +26,7 @@ func AgentAuth() func(c *gin.Context) {
 func AgentRegisterAuth() func(c *gin.Context) {
 	return func(c *gin.Context) {
 		token := c.GetHeader("X-Agent-Token")
-		if node, err := service.AuthenticateAgentToken(token); err == nil {
+		if node, err := service.AuthenticateAccessToken(token); err == nil {
 			c.Set("agent_node", node)
 			c.Next()
 			return

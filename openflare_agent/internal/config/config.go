@@ -40,12 +40,12 @@ var (
 
 type Config struct {
 	ServerURL                  string              `json:"server_url"`
-	AgentToken                 string              `json:"agent_token"`
+	AccessToken                string              `json:"agent_token"`
 	DiscoveryToken             string              `json:"discovery_token"`
 	NodeName                   string              `json:"node_name"`
 	NodeIP                     string              `json:"node_ip"`
-	AgentVersion               string              `json:"-"`
-	NginxVersion               string              `json:"-"`
+	Version                    string              `json:"-"`
+	ExtVersion                 string              `json:"-"`
 	OpenrestyPath              string              `json:"openresty_path"`
 	OpenrestyResolvers         []string            `json:"openresty_resolvers,omitempty"`
 	DataDir                    string              `json:"data_dir"`
@@ -71,7 +71,7 @@ type Config struct {
 
 type configFile struct {
 	ServerURL                  string              `json:"server_url"`
-	AgentToken                 string              `json:"agent_token"`
+	AccessToken                string              `json:"agent_token"`
 	DiscoveryToken             string              `json:"discovery_token"`
 	NodeName                   string              `json:"node_name"`
 	NodeIP                     string              `json:"node_ip"`
@@ -113,7 +113,7 @@ func Load(path string) (*Config, error) {
 	}
 	cfg := &Config{
 		ServerURL:                  file.ServerURL,
-		AgentToken:                 file.AgentToken,
+		AccessToken:                file.AccessToken,
 		DiscoveryToken:             file.DiscoveryToken,
 		NodeName:                   file.NodeName,
 		NodeIP:                     file.NodeIP,
@@ -149,7 +149,7 @@ func Load(path string) (*Config, error) {
 
 func applyDefaults(cfg *Config, baseDir string) {
 	baseDir = filepath.Clean(baseDir)
-	cfg.AgentVersion = AgentVersion
+	cfg.Version = Version
 	cfg.OpenrestyResolvers = utils.UniqueAndCleanStringSlice(cfg.OpenrestyResolvers)
 	if cfg.OpenrestyPath == "" {
 		cfg.OpenrestyPath = "openresty"
@@ -275,7 +275,7 @@ func applyEnvOverrides(cfg *Config) {
 		}
 	}
 	overrideString("OPENFLARE_SERVER_URL", &cfg.ServerURL)
-	overrideString("OPENFLARE_AGENT_TOKEN", &cfg.AgentToken)
+	overrideString("OPENFLARE_AGENT_TOKEN", &cfg.AccessToken)
 	overrideString("OPENFLARE_DISCOVERY_TOKEN", &cfg.DiscoveryToken)
 	overrideString("OPENFLARE_NODE_NAME", &cfg.NodeName)
 	overrideString("OPENFLARE_NODE_IP", &cfg.NodeIP)
@@ -336,7 +336,7 @@ func validate(cfg *Config) error {
 	if cfg.ServerURL == "" {
 		return errors.New("server_url 不能为空")
 	}
-	if strings.TrimSpace(cfg.AgentToken) == "" && strings.TrimSpace(cfg.DiscoveryToken) == "" {
+	if strings.TrimSpace(cfg.AccessToken) == "" && strings.TrimSpace(cfg.DiscoveryToken) == "" {
 		return errors.New("agent_token 和 discovery_token 不能同时为空")
 	}
 	if cfg.NodeName == "" {
@@ -361,7 +361,7 @@ func (cfg *Config) InitialAuthToken() string {
 	if cfg == nil {
 		return ""
 	}
-	if token := strings.TrimSpace(cfg.AgentToken); token != "" {
+	if token := strings.TrimSpace(cfg.AccessToken); token != "" {
 		return token
 	}
 	return strings.TrimSpace(cfg.DiscoveryToken)

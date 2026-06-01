@@ -1239,8 +1239,8 @@ function EdgeNodeDetailPage({ node }: { node: NodeItem }) {
 
               <AppCard title="版本信息">
                 <div className="space-y-2 text-sm text-[var(--foreground-secondary)]">
-                  <p>Agent：{node.agent_version || 'unknown'}</p>
-                  <p>Nginx：{node.nginx_version || 'unknown'}</p>
+                  <p>Agent：{node.version || 'unknown'}</p>
+                  <p>Nginx：{node.ext_version || 'unknown'}</p>
                   <p>当前配置：{node.current_version || '未应用'}</p>
                 </div>
               </AppCard>
@@ -1742,7 +1742,7 @@ function EdgeNodeDetailPage({ node }: { node: NodeItem }) {
           <div className="grid gap-4 md:grid-cols-3">
             <AppCard title="当前 Agent 版本">
               <p className="text-sm font-medium text-[var(--foreground-primary)]">
-                {node.agent_version || 'unknown'}
+                {node.version || 'unknown'}
               </p>
             </AppCard>
             <AppCard title="检查通道">

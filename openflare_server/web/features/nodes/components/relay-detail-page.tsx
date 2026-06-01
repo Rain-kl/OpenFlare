@@ -47,8 +47,6 @@ import {
   buildRelayDockerInstallCommand,
   getApplyLabel,
   getApplyVariant,
-  getNodeStatusLabel,
-  getNodeStatusVariant,
   getServerUrl,
   getUpdateMode,
   isMeaningfulTime,
@@ -839,8 +837,8 @@ export function RelayDetailPage({ node }: { node: NodeItem }) {
 
               <AppCard title="版本状态">
                 <div className="space-y-2 text-sm text-[var(--foreground-secondary)]">
-                  <p>Relay 中继版本：{node.relay_version || 'unknown'}</p>
-                  <p>frps 核心版本：{node.relay_frp_version || 'unknown'}</p>
+                  <p>Relay 中继版本：{node.version || 'unknown'}</p>
+                  <p>frps 核心版本：{node.ext_version || 'unknown'}</p>
                   <p>中继网络接入：{node.relay_agent_access_addr || '—'}</p>
                 </div>
               </AppCard>
@@ -1266,7 +1264,7 @@ export function RelayDetailPage({ node }: { node: NodeItem }) {
           <div className="grid gap-4 md:grid-cols-3">
             <AppCard title="当前版本">
               <p className="text-sm font-medium text-[var(--foreground-primary)]">
-                {node.agent_version || 'unknown'}
+                {node.version || 'unknown'}
               </p>
             </AppCard>
             <AppCard title="检查通道">

@@ -48,6 +48,9 @@ func shardedObservabilityTables() []any {
 		&NodeMetricSnapshot{},
 		&NodeRequestReport{},
 		&NodeAccessLog{},
+		&NodeObservationOpenresty{},
+		&NodeObservationFrps{},
+		&NodeObservationFrpc{},
 	}
 }
 
@@ -56,12 +59,15 @@ func shardedObservabilityBaseTables() []string {
 		"node_metric_snapshots",
 		"node_request_reports",
 		"node_access_logs",
+		"node_observation_openresties",
+		"node_observation_frps",
+		"node_observation_frpcs",
 	}
 }
 
 func isShardedObservabilityTable(tableName string) bool {
 	switch strings.TrimSpace(tableName) {
-	case "node_metric_snapshots", "node_request_reports", "node_access_logs":
+	case "node_metric_snapshots", "node_request_reports", "node_access_logs", "node_observation_openresties", "node_observation_frps", "node_observation_frpcs":
 		return true
 	default:
 		return false

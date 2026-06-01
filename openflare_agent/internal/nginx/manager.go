@@ -541,7 +541,7 @@ func detectVersion(ctx context.Context, options ExecutorOptions, runner CommandR
 		if err != nil {
 			return "", fmt.Errorf("run runtime -v failed: %w: %s", err, string(output))
 		}
-		version := parseNginxVersion(string(output))
+		version := parseExtVersion(string(output))
 		if version == "" {
 			return "", errors.New("cannot parse runtime version from binary output")
 		}
@@ -550,7 +550,7 @@ func detectVersion(ctx context.Context, options ExecutorOptions, runner CommandR
 	return "", errors.New("openresty path is empty")
 }
 
-func parseNginxVersion(output string) string {
+func parseExtVersion(output string) string {
 	matches := nginxVersionPattern.FindStringSubmatch(output)
 	if len(matches) != 2 {
 		return ""

@@ -167,9 +167,9 @@ func TestHeartbeatNodeReturnsPreviewUpdateSettings(t *testing.T) {
 		NodeID:                    "node-preview-1",
 		Name:                      "preview-edge-1",
 		IP:                        "10.0.0.8",
-		AgentToken:                "agent-token",
-		AgentVersion:              "v0.4.0",
-		NginxVersion:              "1.27.1.2",
+		AccessToken:               "agent-token",
+		Version:                   "v0.4.0",
+		ExtVersion:                "1.27.1.2",
 		Status:                    NodeStatusOnline,
 		UpdateRequested:           true,
 		UpdateChannel:             "preview",
@@ -196,8 +196,8 @@ func TestHeartbeatNodeReturnsPreviewUpdateSettings(t *testing.T) {
 		NodeID:           node.NodeID,
 		Name:             node.Name,
 		IP:               node.IP,
-		AgentVersion:     node.AgentVersion,
-		NginxVersion:     node.NginxVersion,
+		Version:          node.Version,
+		ExtVersion:       node.ExtVersion,
 		OpenrestyStatus:  OpenrestyStatusUnhealthy,
 		OpenrestyMessage: "port 80 already allocated",
 	})
@@ -381,24 +381,24 @@ func TestHeartbeatNodeResolvesGeoMetadataFromIPWhenNotManuallyOverridden(t *test
 	})
 
 	node := &model.Node{
-		NodeID:       "node-geo-auto",
-		Name:         "geo-auto",
-		IP:           "10.0.0.8",
-		AgentToken:   "agent-token",
-		AgentVersion: "v0.4.0",
-		NginxVersion: "1.27.1.2",
-		Status:       NodeStatusOnline,
+		NodeID:      "node-geo-auto",
+		Name:        "geo-auto",
+		IP:          "10.0.0.8",
+		AccessToken: "agent-token",
+		Version:     "v0.4.0",
+		ExtVersion:  "1.27.1.2",
+		Status:      NodeStatusOnline,
 	}
 	if err := node.Insert(); err != nil {
 		t.Fatalf("failed to seed node: %v", err)
 	}
 
 	resp, err := HeartbeatNode(node, AgentNodePayload{
-		NodeID:       node.NodeID,
-		Name:         node.Name,
-		IP:           "8.8.8.8",
-		AgentVersion: node.AgentVersion,
-		NginxVersion: node.NginxVersion,
+		NodeID:     node.NodeID,
+		Name:       node.Name,
+		IP:         "8.8.8.8",
+		Version:    node.Version,
+		ExtVersion: node.ExtVersion,
 	})
 	if err != nil {
 		t.Fatalf("expected heartbeat to succeed: %v", err)
@@ -430,9 +430,9 @@ func TestHeartbeatNodePreservesManualGeoOverride(t *testing.T) {
 		GeoLatitude:       &latitude,
 		GeoLongitude:      &longitude,
 		GeoManualOverride: true,
-		AgentToken:        "agent-token",
-		AgentVersion:      "v0.4.0",
-		NginxVersion:      "1.27.1.2",
+		AccessToken:       "agent-token",
+		Version:           "v0.4.0",
+		ExtVersion:        "1.27.1.2",
 		Status:            NodeStatusOnline,
 	}
 	if err := node.Insert(); err != nil {
@@ -440,11 +440,11 @@ func TestHeartbeatNodePreservesManualGeoOverride(t *testing.T) {
 	}
 
 	resp, err := HeartbeatNode(node, AgentNodePayload{
-		NodeID:       node.NodeID,
-		Name:         node.Name,
-		IP:           "8.8.8.8",
-		AgentVersion: node.AgentVersion,
-		NginxVersion: node.NginxVersion,
+		NodeID:     node.NodeID,
+		Name:       node.Name,
+		IP:         "8.8.8.8",
+		Version:    node.Version,
+		ExtVersion: node.ExtVersion,
 	})
 	if err != nil {
 		t.Fatalf("expected heartbeat to succeed: %v", err)
@@ -465,9 +465,9 @@ func TestHeartbeatNodePreservesManualIPOverride(t *testing.T) {
 		Name:             "ip-manual",
 		IP:               "203.0.113.10",
 		IPManualOverride: true,
-		AgentToken:       "agent-token",
-		AgentVersion:     "v0.4.0",
-		NginxVersion:     "1.27.1.2",
+		AccessToken:      "agent-token",
+		Version:          "v0.4.0",
+		ExtVersion:       "1.27.1.2",
 		Status:           NodeStatusOnline,
 	}
 	if err := node.Insert(); err != nil {
@@ -478,8 +478,8 @@ func TestHeartbeatNodePreservesManualIPOverride(t *testing.T) {
 		NodeID:          node.NodeID,
 		Name:            node.Name,
 		IP:              "10.0.0.8",
-		AgentVersion:    "v0.5.0",
-		NginxVersion:    "1.27.1.3",
+		Version:         "v0.5.0",
+		ExtVersion:      "1.27.1.3",
 		OpenrestyStatus: OpenrestyStatusHealthy,
 	})
 	if err != nil {
@@ -488,7 +488,7 @@ func TestHeartbeatNodePreservesManualIPOverride(t *testing.T) {
 	if resp.Node.IP != "203.0.113.10" {
 		t.Fatalf("expected manual ip to be preserved, got %s", resp.Node.IP)
 	}
-	if resp.Node.AgentVersion != "v0.5.0" || resp.Node.NginxVersion != "1.27.1.3" {
+	if resp.Node.Version != "v0.5.0" || resp.Node.ExtVersion != "1.27.1.3" {
 		t.Fatalf("expected runtime metadata to update despite locked ip, got %+v", resp.Node)
 	}
 
@@ -505,24 +505,24 @@ func TestHeartbeatNodeUpdatesIPWhenManualOverrideDisabled(t *testing.T) {
 	setupServiceTestDB(t)
 
 	node := &model.Node{
-		NodeID:       "node-ip-auto",
-		Name:         "ip-auto",
-		IP:           "10.0.0.8",
-		AgentToken:   "agent-token",
-		AgentVersion: "v0.4.0",
-		NginxVersion: "1.27.1.2",
-		Status:       NodeStatusOnline,
+		NodeID:      "node-ip-auto",
+		Name:        "ip-auto",
+		IP:          "10.0.0.8",
+		AccessToken: "agent-token",
+		Version:     "v0.4.0",
+		ExtVersion:  "1.27.1.2",
+		Status:      NodeStatusOnline,
 	}
 	if err := node.Insert(); err != nil {
 		t.Fatalf("failed to seed node: %v", err)
 	}
 
 	resp, err := HeartbeatNode(node, AgentNodePayload{
-		NodeID:       node.NodeID,
-		Name:         node.Name,
-		IP:           "8.8.8.8",
-		AgentVersion: node.AgentVersion,
-		NginxVersion: node.NginxVersion,
+		NodeID:     node.NodeID,
+		Name:       node.Name,
+		IP:         "8.8.8.8",
+		Version:    node.Version,
+		ExtVersion: node.ExtVersion,
 	})
 	if err != nil {
 		t.Fatalf("expected heartbeat to succeed: %v", err)
@@ -557,11 +557,11 @@ func TestUpdateNodeCanLockAndUnlockManualIP(t *testing.T) {
 		t.Fatalf("failed to reload node: %v", err)
 	}
 	if _, err = HeartbeatNode(stored, AgentNodePayload{
-		NodeID:       stored.NodeID,
-		Name:         stored.Name,
-		IP:           "8.8.8.8",
-		AgentVersion: "v0.5.0",
-		NginxVersion: "1.27.1.3",
+		NodeID:     stored.NodeID,
+		Name:       stored.Name,
+		IP:         "8.8.8.8",
+		Version:    "v0.5.0",
+		ExtVersion: "1.27.1.3",
 	}); err != nil {
 		t.Fatalf("expected heartbeat to succeed: %v", err)
 	}
@@ -591,11 +591,11 @@ func TestUpdateNodeCanLockAndUnlockManualIP(t *testing.T) {
 		t.Fatalf("failed to reload unlocked node: %v", err)
 	}
 	if _, err = HeartbeatNode(unlockedStored, AgentNodePayload{
-		NodeID:       unlockedStored.NodeID,
-		Name:         unlockedStored.Name,
-		IP:           "8.8.4.4",
-		AgentVersion: "v0.5.1",
-		NginxVersion: "1.27.1.4",
+		NodeID:     unlockedStored.NodeID,
+		Name:       unlockedStored.Name,
+		IP:         "8.8.4.4",
+		Version:    "v0.5.1",
+		ExtVersion: "1.27.1.4",
 	}); err != nil {
 		t.Fatalf("expected heartbeat to succeed after unlock: %v", err)
 	}
@@ -666,25 +666,25 @@ func TestListNodeViewsIncludesLatestApplyLogsForMultipleNodes(t *testing.T) {
 	now := time.Now()
 	nodes := []*model.Node{
 		{
-			NodeID:       "node-a",
-			Name:         "edge-a",
-			IP:           "10.0.0.11",
-			GeoName:      "Shanghai",
-			AgentToken:   "token-a",
-			AgentVersion: "v0.5.0",
-			NginxVersion: "1.27.1.2",
-			Status:       NodeStatusOnline,
-			LastSeenAt:   now,
+			NodeID:      "node-a",
+			Name:        "edge-a",
+			IP:          "10.0.0.11",
+			GeoName:     "Shanghai",
+			AccessToken: "token-a",
+			Version:     "v0.5.0",
+			ExtVersion:  "1.27.1.2",
+			Status:      NodeStatusOnline,
+			LastSeenAt:  now,
 		},
 		{
-			NodeID:       "node-b",
-			Name:         "edge-b",
-			IP:           "10.0.0.12",
-			AgentToken:   "token-b",
-			AgentVersion: "v0.5.0",
-			NginxVersion: "1.27.1.2",
-			Status:       NodeStatusOnline,
-			LastSeenAt:   now,
+			NodeID:      "node-b",
+			Name:        "edge-b",
+			IP:          "10.0.0.12",
+			AccessToken: "token-b",
+			Version:     "v0.5.0",
+			ExtVersion:  "1.27.1.2",
+			Status:      NodeStatusOnline,
+			LastSeenAt:  now,
 		},
 	}
 	for _, node := range nodes {
@@ -732,8 +732,8 @@ func TestCollectNodeHeartbeatChangesOnlyReturnsChangedFields(t *testing.T) {
 	before := &model.Node{
 		Name:                      "edge-1",
 		IP:                        "10.0.0.8",
-		AgentVersion:              "v0.5.0",
-		NginxVersion:              "1.27.1.2",
+		Version:                   "v0.5.0",
+		ExtVersion:                "1.27.1.2",
 		OpenrestyStatus:           OpenrestyStatusHealthy,
 		OpenrestyMessage:          "",
 		Status:                    NodeStatusOnline,
@@ -748,8 +748,8 @@ func TestCollectNodeHeartbeatChangesOnlyReturnsChangedFields(t *testing.T) {
 	after := &model.Node{
 		Name:                      "edge-1",
 		IP:                        "10.0.0.8",
-		AgentVersion:              "v0.5.0",
-		NginxVersion:              "1.27.1.2",
+		Version:                   "v0.5.0",
+		ExtVersion:                "1.27.1.2",
 		OpenrestyStatus:           OpenrestyStatusHealthy,
 		OpenrestyMessage:          "",
 		Status:                    NodeStatusOnline,
@@ -790,14 +790,14 @@ func TestListNodeViewsDoesNotPersistComputedStatus(t *testing.T) {
 	setupServiceTestDB(t)
 
 	node := &model.Node{
-		NodeID:       "node-offline-view",
-		Name:         "edge-offline",
-		IP:           "10.0.0.21",
-		AgentToken:   "token-offline",
-		AgentVersion: "v0.5.0",
-		NginxVersion: "1.27.1.2",
-		Status:       NodeStatusOnline,
-		LastSeenAt:   time.Now().Add(-common.NodeOfflineThreshold - time.Minute),
+		NodeID:      "node-offline-view",
+		Name:        "edge-offline",
+		IP:          "10.0.0.21",
+		AccessToken: "token-offline",
+		Version:     "v0.5.0",
+		ExtVersion:  "1.27.1.2",
+		Status:      NodeStatusOnline,
+		LastSeenAt:  time.Now().Add(-common.NodeOfflineThreshold - time.Minute),
 	}
 	if err := node.Insert(); err != nil {
 		t.Fatalf("failed to insert node: %v", err)
@@ -868,24 +868,24 @@ func TestHeartbeatNodePersistsObservabilityPayload(t *testing.T) {
 	})
 
 	node := &model.Node{
-		NodeID:       "node-observe-1",
-		Name:         "observe-edge-1",
-		IP:           "10.0.0.31",
-		AgentToken:   "token-observe",
-		AgentVersion: "v0.6.0",
-		NginxVersion: "1.27.1.2",
-		Status:       NodeStatusOnline,
+		NodeID:      "node-observe-1",
+		Name:        "observe-edge-1",
+		IP:          "10.0.0.31",
+		AccessToken: "token-observe",
+		Version:     "v0.6.0",
+		ExtVersion:  "1.27.1.2",
+		Status:      NodeStatusOnline,
 	}
 	if err := node.Insert(); err != nil {
 		t.Fatalf("failed to seed node: %v", err)
 	}
 
 	_, err := HeartbeatNode(node, AgentNodePayload{
-		NodeID:       node.NodeID,
-		Name:         node.Name,
-		IP:           node.IP,
-		AgentVersion: node.AgentVersion,
-		NginxVersion: node.NginxVersion,
+		NodeID:     node.NodeID,
+		Name:       node.Name,
+		IP:         node.IP,
+		Version:    node.Version,
+		ExtVersion: node.ExtVersion,
 		Profile: &AgentNodeSystemProfile{
 			Hostname:         "observe-edge-1",
 			OSName:           "Ubuntu",
@@ -900,17 +900,16 @@ func TestHeartbeatNodePersistsObservabilityPayload(t *testing.T) {
 			ReportedAtUnix:   time.Now().Add(-time.Minute).Unix(),
 		},
 		Snapshot: &AgentNodeMetricSnapshot{
-			CapturedAtUnix:       time.Now().Add(-30 * time.Second).Unix(),
-			CPUUsagePercent:      42.5,
-			MemoryUsedBytes:      8 * 1024 * 1024 * 1024,
-			MemoryTotalBytes:     16 * 1024 * 1024 * 1024,
-			StorageUsedBytes:     70 * 1024 * 1024 * 1024,
-			StorageTotalBytes:    200 * 1024 * 1024 * 1024,
-			DiskReadBytes:        1024,
-			DiskWriteBytes:       2048,
-			NetworkRxBytes:       4096,
-			NetworkTxBytes:       8192,
-			OpenrestyConnections: 128,
+			CapturedAtUnix:    time.Now().Add(-30 * time.Second).Unix(),
+			CPUUsagePercent:   42.5,
+			MemoryUsedBytes:   8 * 1024 * 1024 * 1024,
+			MemoryTotalBytes:  16 * 1024 * 1024 * 1024,
+			StorageUsedBytes:  70 * 1024 * 1024 * 1024,
+			StorageTotalBytes: 200 * 1024 * 1024 * 1024,
+			DiskReadBytes:     1024,
+			DiskWriteBytes:    2048,
+			NetworkRxBytes:    4096,
+			NetworkTxBytes:    8192,
 		},
 		TrafficReport: &AgentNodeTrafficReport{
 			WindowStartedAtUnix: time.Now().Add(-time.Minute).Unix(),
@@ -966,7 +965,7 @@ func TestHeartbeatNodePersistsObservabilityPayload(t *testing.T) {
 	if err != nil {
 		t.Fatalf("expected node snapshots query to succeed: %v", err)
 	}
-	if len(snapshots) != 1 || snapshots[0].OpenrestyConnections != 128 {
+	if len(snapshots) != 1 {
 		t.Fatalf("unexpected metric snapshots: %+v", snapshots)
 	}
 
@@ -1021,13 +1020,13 @@ func TestHeartbeatNodePersistsBufferedObservabilityPayload(t *testing.T) {
 	})
 
 	node := &model.Node{
-		NodeID:       "node-observe-buffered",
-		Name:         "observe-buffered-edge",
-		IP:           "10.0.0.32",
-		AgentToken:   "token-observe-buffered",
-		AgentVersion: "v0.6.0",
-		NginxVersion: "1.27.1.2",
-		Status:       NodeStatusOnline,
+		NodeID:      "node-observe-buffered",
+		Name:        "observe-buffered-edge",
+		IP:          "10.0.0.32",
+		AccessToken: "token-observe-buffered",
+		Version:     "v0.6.0",
+		ExtVersion:  "1.27.1.2",
+		Status:      NodeStatusOnline,
 	}
 	if err := node.Insert(); err != nil {
 		t.Fatalf("failed to seed node: %v", err)
@@ -1035,11 +1034,11 @@ func TestHeartbeatNodePersistsBufferedObservabilityPayload(t *testing.T) {
 
 	now := time.Now().UTC()
 	_, err := HeartbeatNode(node, AgentNodePayload{
-		NodeID:       node.NodeID,
-		Name:         node.Name,
-		IP:           node.IP,
-		AgentVersion: node.AgentVersion,
-		NginxVersion: node.NginxVersion,
+		NodeID:     node.NodeID,
+		Name:       node.Name,
+		IP:         node.IP,
+		Version:    node.Version,
+		ExtVersion: node.ExtVersion,
 		Snapshot: &AgentNodeMetricSnapshot{
 			CapturedAtUnix:   now.Unix(),
 			CPUUsagePercent:  25,
@@ -1124,11 +1123,11 @@ func TestHeartbeatNodePersistsBufferedObservabilityPayload(t *testing.T) {
 	}
 
 	_, err = HeartbeatNode(node, AgentNodePayload{
-		NodeID:       node.NodeID,
-		Name:         node.Name,
-		IP:           node.IP,
-		AgentVersion: node.AgentVersion,
-		NginxVersion: node.NginxVersion,
+		NodeID:     node.NodeID,
+		Name:       node.Name,
+		IP:         node.IP,
+		Version:    node.Version,
+		ExtVersion: node.ExtVersion,
 		BufferedObservability: []AgentBufferedObservabilityRecord{
 			{
 				WindowStartedAtUnix: now.Add(-2 * time.Minute).Unix(),
@@ -1196,13 +1195,13 @@ func TestListAccessLogsUsesPagination(t *testing.T) {
 	setupServiceTestDB(t)
 
 	node := &model.Node{
-		NodeID:       "node-access-log-page",
-		Name:         "access-log-edge",
-		IP:           "10.0.0.40",
-		AgentToken:   "token-access-log-page",
-		AgentVersion: "v0.6.0",
-		NginxVersion: "1.27.1.2",
-		Status:       NodeStatusOnline,
+		NodeID:      "node-access-log-page",
+		Name:        "access-log-edge",
+		IP:          "10.0.0.40",
+		AccessToken: "token-access-log-page",
+		Version:     "v0.6.0",
+		ExtVersion:  "1.27.1.2",
+		Status:      NodeStatusOnline,
 	}
 	if err := node.Insert(); err != nil {
 		t.Fatalf("failed to seed node: %v", err)
@@ -1281,24 +1280,24 @@ func TestHeartbeatNodeResolvesMissingHealthEvents(t *testing.T) {
 	setupServiceTestDB(t)
 
 	node := &model.Node{
-		NodeID:       "node-event-1",
-		Name:         "event-edge-1",
-		IP:           "10.0.0.41",
-		AgentToken:   "token-event",
-		AgentVersion: "v0.6.0",
-		NginxVersion: "1.27.1.2",
-		Status:       NodeStatusOnline,
+		NodeID:      "node-event-1",
+		Name:        "event-edge-1",
+		IP:          "10.0.0.41",
+		AccessToken: "token-event",
+		Version:     "v0.6.0",
+		ExtVersion:  "1.27.1.2",
+		Status:      NodeStatusOnline,
 	}
 	if err := node.Insert(); err != nil {
 		t.Fatalf("failed to seed node: %v", err)
 	}
 
 	_, err := HeartbeatNode(node, AgentNodePayload{
-		NodeID:       node.NodeID,
-		Name:         node.Name,
-		IP:           node.IP,
-		AgentVersion: node.AgentVersion,
-		NginxVersion: node.NginxVersion,
+		NodeID:     node.NodeID,
+		Name:       node.Name,
+		IP:         node.IP,
+		Version:    node.Version,
+		ExtVersion: node.ExtVersion,
 		HealthEvents: []AgentNodeHealthEvent{
 			{
 				EventType:       "sync_error",
@@ -1316,8 +1315,8 @@ func TestHeartbeatNodeResolvesMissingHealthEvents(t *testing.T) {
 		NodeID:       node.NodeID,
 		Name:         node.Name,
 		IP:           node.IP,
-		AgentVersion: node.AgentVersion,
-		NginxVersion: node.NginxVersion,
+		Version:      node.Version,
+		ExtVersion:   node.ExtVersion,
 		HealthEvents: []AgentNodeHealthEvent{},
 	})
 	if err != nil {
@@ -1345,13 +1344,13 @@ func TestGetNodeObservability(t *testing.T) {
 	setupServiceTestDB(t)
 
 	node := &model.Node{
-		NodeID:       "node-observability-query",
-		Name:         "query-edge",
-		IP:           "10.0.0.61",
-		AgentToken:   "token-query",
-		AgentVersion: "v0.6.0",
-		NginxVersion: "1.27.1.2",
-		Status:       NodeStatusOnline,
+		NodeID:      "node-observability-query",
+		Name:        "query-edge",
+		IP:          "10.0.0.61",
+		AccessToken: "token-query",
+		Version:     "v0.6.0",
+		ExtVersion:  "1.27.1.2",
+		Status:      NodeStatusOnline,
 	}
 	if err := node.Insert(); err != nil {
 		t.Fatalf("failed to insert node: %v", err)
@@ -1377,8 +1376,6 @@ func TestGetNodeObservability(t *testing.T) {
 		DiskWriteBytes:    0,
 		NetworkRxBytes:    2048,
 		NetworkTxBytes:    4096,
-		OpenrestyRxBytes:  8192,
-		OpenrestyTxBytes:  16384,
 	}).Insert(); err != nil {
 		t.Fatalf("failed to insert node metric baseline snapshot: %v", err)
 	}
@@ -1394,8 +1391,6 @@ func TestGetNodeObservability(t *testing.T) {
 		DiskWriteBytes:    2048,
 		NetworkRxBytes:    4096,
 		NetworkTxBytes:    8192,
-		OpenrestyRxBytes:  16384,
-		OpenrestyTxBytes:  32768,
 	}).Insert(); err != nil {
 		t.Fatalf("failed to insert node metric snapshot: %v", err)
 	}
@@ -1453,7 +1448,7 @@ func TestGetNodeObservability(t *testing.T) {
 	if view.Trends.Traffic24h[len(view.Trends.Traffic24h)-1].RequestCount != 123 {
 		t.Fatalf("unexpected traffic trend tail: %+v", view.Trends.Traffic24h[len(view.Trends.Traffic24h)-1])
 	}
-	if view.Trends.Network24h[len(view.Trends.Network24h)-1].OpenrestyTxBytes != 32768 {
+	if view.Trends.Network24h[len(view.Trends.Network24h)-1].NetworkTxBytes != 8192 {
 		t.Fatalf("unexpected network trend tail: %+v", view.Trends.Network24h[len(view.Trends.Network24h)-1])
 	}
 	if view.Trends.DiskIO24h[len(view.Trends.DiskIO24h)-1].DiskWriteBytes != 2048 {
@@ -1477,13 +1472,13 @@ func TestGetNodeObservabilityAllowsMissingProfile(t *testing.T) {
 	setupServiceTestDB(t)
 
 	node := &model.Node{
-		NodeID:       "node-observability-empty",
-		Name:         "empty-edge",
-		IP:           "10.0.0.62",
-		AgentToken:   "token-empty",
-		AgentVersion: "v0.6.0",
-		NginxVersion: "1.27.1.2",
-		Status:       NodeStatusOnline,
+		NodeID:      "node-observability-empty",
+		Name:        "empty-edge",
+		IP:          "10.0.0.62",
+		AccessToken: "token-empty",
+		Version:     "v0.6.0",
+		ExtVersion:  "1.27.1.2",
+		Status:      NodeStatusOnline,
 	}
 	if err := node.Insert(); err != nil {
 		t.Fatalf("failed to insert node: %v", err)
@@ -1508,13 +1503,13 @@ func TestCleanupNodeHealthEvents(t *testing.T) {
 	setupServiceTestDB(t)
 
 	node := &model.Node{
-		NodeID:       "node-health-cleanup",
-		Name:         "health-cleanup-edge",
-		IP:           "10.0.0.72",
-		AgentToken:   "token-health-cleanup",
-		AgentVersion: "v0.6.0",
-		NginxVersion: "1.27.1.2",
-		Status:       NodeStatusOnline,
+		NodeID:      "node-health-cleanup",
+		Name:        "health-cleanup-edge",
+		IP:          "10.0.0.72",
+		AccessToken: "token-health-cleanup",
+		Version:     "v0.6.0",
+		ExtVersion:  "1.27.1.2",
+		Status:      NodeStatusOnline,
 	}
 	if err := node.Insert(); err != nil {
 		t.Fatalf("failed to insert node: %v", err)
@@ -1586,9 +1581,9 @@ func TestGetDashboardOverview(t *testing.T) {
 			Name:            "edge-a",
 			IP:              "10.0.0.71",
 			GeoName:         "Shanghai",
-			AgentToken:      "token-a",
-			AgentVersion:    "v0.6.0",
-			NginxVersion:    "1.27.1.2",
+			AccessToken:     "token-a",
+			Version:         "v0.6.0",
+			ExtVersion:      "1.27.1.2",
 			OpenrestyStatus: OpenrestyStatusHealthy,
 			Status:          NodeStatusOnline,
 			CurrentVersion:  "20260314-001",
@@ -1599,9 +1594,9 @@ func TestGetDashboardOverview(t *testing.T) {
 			Name:            "edge-b",
 			IP:              "10.0.0.72",
 			GeoName:         "San Francisco",
-			AgentToken:      "token-b",
-			AgentVersion:    "v0.6.0",
-			NginxVersion:    "1.27.1.2",
+			AccessToken:     "token-b",
+			Version:         "v0.6.0",
+			ExtVersion:      "1.27.1.2",
 			OpenrestyStatus: OpenrestyStatusUnhealthy,
 			Status:          NodeStatusOnline,
 			CurrentVersion:  "20260313-001",
@@ -1626,8 +1621,6 @@ func TestGetDashboardOverview(t *testing.T) {
 		DiskWriteBytes:    0,
 		NetworkRxBytes:    100,
 		NetworkTxBytes:    150,
-		OpenrestyRxBytes:  300,
-		OpenrestyTxBytes:  450,
 	}).Insert(); err != nil {
 		t.Fatalf("failed to insert node a baseline metric snapshot: %v", err)
 	}
@@ -1643,8 +1636,6 @@ func TestGetDashboardOverview(t *testing.T) {
 		DiskWriteBytes:    150,
 		NetworkRxBytes:    300,
 		NetworkTxBytes:    500,
-		OpenrestyRxBytes:  700,
-		OpenrestyTxBytes:  900,
 	}).Insert(); err != nil {
 		t.Fatalf("failed to insert node a metric snapshot: %v", err)
 	}
@@ -1659,9 +1650,7 @@ func TestGetDashboardOverview(t *testing.T) {
 		DiskReadBytes:     0,
 		DiskWriteBytes:    0,
 		NetworkRxBytes:    200,
-		NetworkTxBytes:    300,
-		OpenrestyRxBytes:  500,
-		OpenrestyTxBytes:  700,
+		NetworkTxBytes:    400,
 	}).Insert(); err != nil {
 		t.Fatalf("failed to insert node b baseline metric snapshot: %v", err)
 	}
@@ -1676,9 +1665,7 @@ func TestGetDashboardOverview(t *testing.T) {
 		DiskReadBytes:     200,
 		DiskWriteBytes:    400,
 		NetworkRxBytes:    600,
-		NetworkTxBytes:    900,
-		OpenrestyRxBytes:  1200,
-		OpenrestyTxBytes:  1600,
+		NetworkTxBytes:    800,
 	}).Insert(); err != nil {
 		t.Fatalf("failed to insert node b metric snapshot: %v", err)
 	}
@@ -1785,7 +1772,7 @@ func TestGetDashboardOverview(t *testing.T) {
 	if view.Trends.Traffic24h[len(view.Trends.Traffic24h)-1].RequestCount != 900 {
 		t.Fatalf("unexpected dashboard traffic trend tail: %+v", view.Trends.Traffic24h[len(view.Trends.Traffic24h)-1])
 	}
-	if view.Trends.Network24h[len(view.Trends.Network24h)-1].OpenrestyRxBytes != 1900 {
+	if view.Trends.Network24h[len(view.Trends.Network24h)-1].NetworkRxBytes != 900 {
 		t.Fatalf("unexpected dashboard network trend tail: %+v", view.Trends.Network24h[len(view.Trends.Network24h)-1])
 	}
 	if view.Trends.DiskIO24h[len(view.Trends.DiskIO24h)-1].DiskWriteBytes != 550 {

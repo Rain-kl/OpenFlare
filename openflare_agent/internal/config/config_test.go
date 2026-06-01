@@ -226,7 +226,7 @@ func TestLoadUsesEnvConfigWhenFileIsMissing(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Load failed: %v", err)
 	}
-	if cfg.ServerURL != "http://127.0.0.1:3000" || cfg.AgentToken != "token" {
+	if cfg.ServerURL != "http://127.0.0.1:3000" || cfg.AccessToken != "token" {
 		t.Fatalf("unexpected env auth config: %#v", cfg)
 	}
 	if cfg.OpenrestyPath != "/usr/bin/openresty" {
@@ -334,8 +334,8 @@ func TestLoadEnvOverridesConfigFile(t *testing.T) {
 	if cfg.ServerURL != "http://new:3000" {
 		t.Fatalf("expected server url from env, got %s", cfg.ServerURL)
 	}
-	if cfg.AgentToken != "new-token" {
-		t.Fatalf("expected token from env, got %s", cfg.AgentToken)
+	if cfg.AccessToken != "new-token" {
+		t.Fatalf("expected token from env, got %s", cfg.AccessToken)
 	}
 	if cfg.OpenrestyPath != "/new/openresty" {
 		t.Fatalf("expected openresty path from env, got %s", cfg.OpenrestyPath)
@@ -385,7 +385,7 @@ func TestSavePersistsMillisecondsAndOmitsRuntimeVersions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Load failed: %v", err)
 	}
-	cfg.NginxVersion = "1.27.1.2"
+	cfg.ExtVersion = "1.27.1.2"
 	cfg.HeartbeatInterval = MillisecondDuration(5 * time.Second)
 	cfg.RequestTimeout = MillisecondDuration(7 * time.Second)
 	cfg.OpenrestyResolvers = []string{"10.0.0.2", "1.1.1.1"}
@@ -461,7 +461,7 @@ func TestInitialAuthToken(t *testing.T) {
 			var cfg *Config
 			if tt.name != "nil config returns empty string" {
 				cfg = &Config{
-					AgentToken:     tt.agentToken,
+					AccessToken:    tt.agentToken,
 					DiscoveryToken: tt.discoveryToken,
 				}
 			}

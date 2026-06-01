@@ -1,3 +1,3 @@
 package config
 
-var AgentVersion = "dev"
+var Version = "dev"

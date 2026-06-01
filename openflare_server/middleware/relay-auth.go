@@ -11,7 +11,7 @@ import (
 func RelayAuth() func(c *gin.Context) {
 	return func(c *gin.Context) {
 		token := c.GetHeader("X-Agent-Token")
-		node, err := service.AuthenticateAgentToken(token)
+		node, err := service.AuthenticateAccessToken(token)
 		if err != nil {
 			c.JSON(http.StatusUnauthorized, gin.H{
 				"success": false,

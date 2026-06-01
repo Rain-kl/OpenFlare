@@ -14,11 +14,12 @@ import (
 const observabilityBufferWindowSeconds = 60
 
 type ObservabilityBufferRecord struct {
-	WindowStartedAtUnix int64                        `json:"window_started_at_unix"`
-	Snapshot            *protocol.NodeMetricSnapshot `json:"snapshot,omitempty"`
-	TrafficReport       *protocol.NodeTrafficReport  `json:"traffic_report,omitempty"`
-	AccessLogs          []protocol.NodeAccessLog     `json:"access_logs,omitempty"`
-	QueuedAtUnix        int64                        `json:"queued_at_unix"`
+	WindowStartedAtUnix  int64                              `json:"window_started_at_unix"`
+	Snapshot             *protocol.NodeMetricSnapshot       `json:"snapshot,omitempty"`
+	OpenrestyObservation *protocol.NodeOpenrestyObservation `json:"openresty_observation,omitempty"`
+	TrafficReport        *protocol.NodeTrafficReport        `json:"traffic_report,omitempty"`
+	AccessLogs           []protocol.NodeAccessLog           `json:"access_logs,omitempty"`
+	QueuedAtUnix         int64                              `json:"queued_at_unix"`
 }
 
 type ObservabilityBufferStore struct {
@@ -31,7 +32,7 @@ func NewObservabilityBufferStore(path string) *ObservabilityBufferStore {
 }
 
 func (s *ObservabilityBufferStore) Upsert(record ObservabilityBufferRecord, retainAfterUnix int64) error {
-	if s == nil || record.WindowStartedAtUnix <= 0 || (record.Snapshot == nil && record.TrafficReport == nil && len(record.AccessLogs) == 0) {
+	if s == nil || record.WindowStartedAtUnix <= 0 || (record.Snapshot == nil && record.OpenrestyObservation == nil && record.TrafficReport == nil && len(record.AccessLogs) == 0) {
 		return nil
 	}
 	s.mu.Lock()
@@ -64,6 +65,9 @@ func mergeObservabilityBufferRecord(existing ObservabilityBufferRecord, incoming
 	merged := existing
 	if incoming.Snapshot != nil {
 		merged.Snapshot = incoming.Snapshot
+	}
+	if incoming.OpenrestyObservation != nil {
+		merged.OpenrestyObservation = incoming.OpenrestyObservation
 	}
 	if incoming.TrafficReport != nil {
 		merged.TrafficReport = incoming.TrafficReport
@@ -191,9 +195,12 @@ func (s *ObservabilityBufferStore) saveUnlocked(records []ObservabilityBufferRec
 	return os.WriteFile(s.path, data, 0o644)
 }
 
-func ObservabilityWindowStartedAt(snapshot *protocol.NodeMetricSnapshot, traffic *protocol.NodeTrafficReport) int64 {
+func ObservabilityWindowStartedAt(snapshot *protocol.NodeMetricSnapshot, openresty *protocol.NodeOpenrestyObservation, traffic *protocol.NodeTrafficReport) int64 {
 	if traffic != nil && traffic.WindowStartedAtUnix > 0 {
 		return traffic.WindowStartedAtUnix - (traffic.WindowStartedAtUnix % observabilityBufferWindowSeconds)
+	}
+	if openresty != nil && openresty.CapturedAtUnix > 0 {
+		return openresty.CapturedAtUnix - (openresty.CapturedAtUnix % observabilityBufferWindowSeconds)
 	}
 	if snapshot == nil || snapshot.CapturedAtUnix <= 0 {
 		return 0

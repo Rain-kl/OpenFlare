@@ -19,7 +19,7 @@ import (
 // @Tags Agent
 // @Accept json
 // @Produce json
-// @Security AgentTokenAuth
+// @Security AccessTokenAuth
 // @Param payload body service.AgentNodePayload true "Agent node payload"
 // @Success 200 {object} map[string]interface{}
 // @Failure 400 {object} map[string]interface{}
@@ -36,7 +36,7 @@ func AgentRegister(c *gin.Context) {
 		err    error
 	)
 	if authNode, ok := c.Get("agent_node"); ok {
-		result, err = service.RegisterNodeWithAgentToken(authNode.(*model.Node), payload)
+		result, err = service.RegisterNodeWithAccessToken(authNode.(*model.Node), payload)
 	} else {
 		result, err = service.RegisterNodeWithDiscovery(payload)
 	}
@@ -52,7 +52,7 @@ func AgentRegister(c *gin.Context) {
 // @Tags Agent
 // @Accept json
 // @Produce json
-// @Security AgentTokenAuth
+// @Security AccessTokenAuth
 // @Param payload body service.AgentNodePayload true "Agent heartbeat payload"
 // @Success 200 {object} map[string]interface{}
 // @Failure 400 {object} map[string]interface{}
@@ -87,7 +87,7 @@ func AgentHeartbeat(c *gin.Context) {
 // @Tags Agent
 // @Accept json
 // @Produce json
-// @Security AgentTokenAuth
+// @Security AccessTokenAuth
 // @Param payload body service.AgentWAFIPGroupSyncInput true "WAF IP group sync payload"
 // @Success 200 {object} map[string]interface{}
 // @Failure 400 {object} map[string]interface{}
@@ -109,7 +109,7 @@ func AgentSyncWAFIPGroups(c *gin.Context) {
 // @Summary Get active config for agent
 // @Tags Agent
 // @Produce json
-// @Security AgentTokenAuth
+// @Security AccessTokenAuth
 // @Success 200 {object} map[string]interface{}
 // @Router /api/agent/config-versions/active [get]
 func AgentGetActiveConfig(c *gin.Context) {
@@ -143,7 +143,7 @@ func AgentGetActiveConfig(c *gin.Context) {
 // @Tags Agent
 // @Accept json
 // @Produce json
-// @Security AgentTokenAuth
+// @Security AccessTokenAuth
 // @Param payload body service.ApplyLogPayload true "Apply log payload"
 // @Success 200 {object} map[string]interface{}
 // @Failure 400 {object} map[string]interface{}
@@ -169,7 +169,7 @@ func AgentReportApplyLog(c *gin.Context) {
 // AgentWebSocket godoc
 // @Summary Upgrade agent connection to websocket
 // @Tags Agent
-// @Security AgentTokenAuth
+// @Security AccessTokenAuth
 // @Router /api/agent/ws [get]
 func AgentWebSocket(c *gin.Context) {
 	authNode, ok := c.Get("agent_node")

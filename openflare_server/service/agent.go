@@ -29,14 +29,15 @@ type AgentNodePayload struct {
 	NodeID                string                             `json:"node_id"`
 	Name                  string                             `json:"name"`
 	IP                    string                             `json:"ip"`
-	AgentVersion          string                             `json:"agent_version"`
-	NginxVersion          string                             `json:"nginx_version"`
+	Version               string                             `json:"version"`
+	ExtVersion            string                             `json:"ext_version"`
 	CurrentVersion        string                             `json:"current_version"`
 	LastError             string                             `json:"last_error"`
 	OpenrestyStatus       string                             `json:"openresty_status"`
 	OpenrestyMessage      string                             `json:"openresty_message"`
 	Profile               *AgentNodeSystemProfile            `json:"profile,omitempty"`
 	Snapshot              *AgentNodeMetricSnapshot           `json:"snapshot,omitempty"`
+	OpenrestyObservation  *AgentNodeOpenrestyObservation     `json:"openresty_observation,omitempty"`
 	TrafficReport         *AgentNodeTrafficReport            `json:"traffic_report,omitempty"`
 	AccessLogs            []AgentNodeAccessLog               `json:"access_logs,omitempty"`
 	BufferedObservability []AgentBufferedObservabilityRecord `json:"buffered_observability,omitempty"`
@@ -139,14 +140,14 @@ type NodeView struct {
 	GeoLatitude               *float64   `json:"geo_latitude"`
 	GeoLongitude              *float64   `json:"geo_longitude"`
 	GeoManualOverride         bool       `json:"geo_manual_override"`
-	AgentToken                string     `json:"agent_token"`
+	AccessToken               string     `json:"access_token"`
 	AutoUpdateEnabled         bool       `json:"auto_update_enabled"`
 	UpdateRequested           bool       `json:"update_requested"`
 	UpdateChannel             string     `json:"update_channel"`
 	UpdateTag                 string     `json:"update_tag"`
 	RestartOpenrestyRequested bool       `json:"restart_openresty_requested"`
-	AgentVersion              string     `json:"agent_version"`
-	NginxVersion              string     `json:"nginx_version"`
+	Version                   string     `json:"version"`
+	ExtVersion                string     `json:"ext_version"`
 	OpenrestyStatus           string     `json:"openresty_status"`
 	OpenrestyMessage          string     `json:"openresty_message"`
 	Status                    string     `json:"status"`
@@ -170,10 +171,6 @@ type NodeView struct {
 	RelayClientAccessAddr string `json:"relay_client_access_addr"`
 	RelayClientProxyURL   string `json:"relay_client_proxy_url"`
 	RelayStatus           string `json:"relay_status"`
-	RelayFrpVersion       string `json:"relay_frp_version"`
-	RelayVersion          string `json:"relay_version"`
-	RelayFrpsConnections  int    `json:"relay_frps_connections"`
-	RelayFrpsProxyCount   int    `json:"relay_frps_proxy_count"`
 }
 
 func HeartbeatNode(node *model.Node, payload AgentNodePayload) (*HeartbeatResponse, error) {
@@ -199,7 +196,7 @@ func HeartbeatNode(node *model.Node, payload AgentNodePayload) (*HeartbeatRespon
 			return nil, err
 		}
 	}
-	refreshAgentTokenCache(node)
+	refreshAccessTokenCache(node)
 	persistHeartbeatObservability(node.NodeID, payload, node.LastSeenAt)
 	activeConfig, err := GetActiveConfigMetaForAgent()
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
@@ -493,8 +490,8 @@ func collectNodeHeartbeatChanges(previous *model.Node, current *model.Node) map[
 	appendIfChanged("name", previous.Name, current.Name)
 	appendIfChanged("ip", previous.IP, current.IP)
 	appendIfChanged("geo_name", previous.GeoName, current.GeoName)
-	appendIfChanged("agent_version", previous.AgentVersion, current.AgentVersion)
-	appendIfChanged("nginx_version", previous.NginxVersion, current.NginxVersion)
+	appendIfChanged("version", previous.Version, current.Version)
+	appendIfChanged("ext_version", previous.ExtVersion, current.ExtVersion)
 	appendIfChanged("openresty_status", previous.OpenrestyStatus, current.OpenrestyStatus)
 	appendIfChanged("openresty_message", previous.OpenrestyMessage, current.OpenrestyMessage)
 	appendIfChanged("status", previous.Status, current.Status)

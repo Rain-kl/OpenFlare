@@ -32,6 +32,16 @@ func V20() Migration {
 }
 
 func migrateV20(ctx Context, db *gorm.DB, backend string) error {
+	if !db.Migrator().HasColumn(&nodeV20{}, "relay_frps_connections") {
+		if err := db.Migrator().AddColumn(&nodeV20{}, "RelayFrpsConnections"); err != nil {
+			return err
+		}
+	}
+	if !db.Migrator().HasColumn(&nodeV20{}, "relay_frps_proxy_count") {
+		if err := db.Migrator().AddColumn(&nodeV20{}, "RelayFrpsProxyCount"); err != nil {
+			return err
+		}
+	}
 	if err := ctx.ApplyCurrentSchema(db, backend); err != nil {
 		return err
 	}

@@ -11,8 +11,8 @@ import (
 
 // RelayHeartbeatPayload is the payload sent by OpenFlareRelay in each heartbeat.
 type RelayHeartbeatPayload struct {
-	RelayVersion   string                   `json:"relay_version"`
-	FrpVersion     string                   `json:"frp_version"`
+	Version        string                   `json:"version"`
+	ExtVersion     string                   `json:"frp_version"`
 	RelayStatus    string                   `json:"relay_status"`
 	FrpsConnCount  int                      `json:"frps_connections"`
 	FrpsProxyCount int                      `json:"frps_proxy_count"`
@@ -50,8 +50,8 @@ func HeartbeatRelay(node *model.Node, payload RelayHeartbeatPayload) (*RelayHear
 	}
 	slog.Debug("relay heartbeat received", "node_id", node.NodeID)
 
-	payload.RelayVersion = strings.TrimSpace(payload.RelayVersion)
-	payload.FrpVersion = strings.TrimSpace(payload.FrpVersion)
+	payload.Version = strings.TrimSpace(payload.Version)
+	payload.ExtVersion = strings.TrimSpace(payload.ExtVersion)
 	payload.RelayStatus = normalizeRelayStatus(payload.RelayStatus)
 	payload.Name = strings.TrimSpace(payload.Name)
 	payload.IP = strings.TrimSpace(payload.IP)
@@ -63,11 +63,10 @@ func HeartbeatRelay(node *model.Node, payload RelayHeartbeatPayload) (*RelayHear
 		}
 	}
 	now := time.Now()
-	appendRelayChange("relay_version", node.RelayVersion, payload.RelayVersion)
-	appendRelayChange("relay_frp_version", node.RelayFrpVersion, payload.FrpVersion)
+	appendRelayChange("version", node.Version, payload.Version)
+	appendRelayChange("ext_version", node.ExtVersion, payload.ExtVersion)
 	appendRelayChange("relay_status", node.RelayStatus, payload.RelayStatus)
-	appendRelayChange("relay_frps_connections", node.RelayFrpsConnections, payload.FrpsConnCount)
-	appendRelayChange("relay_frps_proxy_count", node.RelayFrpsProxyCount, payload.FrpsProxyCount)
+
 	if payload.Name != "" && strings.TrimSpace(node.Name) == "" {
 		appendRelayChange("name", node.Name, payload.Name)
 		node.Name = payload.Name
@@ -87,11 +86,10 @@ func HeartbeatRelay(node *model.Node, payload RelayHeartbeatPayload) (*RelayHear
 	}
 	changes["status"] = NodeStatusOnline
 
-	node.RelayVersion = payload.RelayVersion
-	node.RelayFrpVersion = payload.FrpVersion
+	node.Version = payload.Version
+	node.ExtVersion = payload.ExtVersion
 	node.RelayStatus = payload.RelayStatus
-	node.RelayFrpsConnections = payload.FrpsConnCount
-	node.RelayFrpsProxyCount = payload.FrpsProxyCount
+
 	node.LastSeenAt = now
 	node.Status = NodeStatusOnline
 
@@ -100,7 +98,7 @@ func HeartbeatRelay(node *model.Node, payload RelayHeartbeatPayload) (*RelayHear
 			return nil, fmt.Errorf("update relay heartbeat: %w", err)
 		}
 	}
-	refreshAgentTokenCache(node)
+	refreshAccessTokenCache(node)
 	persistRelayHeartbeatObservability(node.NodeID, payload, node.LastSeenAt)
 
 	return &RelayHeartbeatResponse{
@@ -115,6 +113,14 @@ func persistRelayHeartbeatObservability(nodeID string, payload RelayHeartbeatPay
 		Snapshot:     payload.Snapshot,
 		HealthEvents: payload.HealthEvents,
 	}, reportedAt)
+
+	frpsObs := &model.NodeObservationFrps{
+		NodeID:          nodeID,
+		CapturedAt:      reportedAt,
+		FrpsConnections: payload.FrpsConnCount,
+		FrpsProxyCount:  payload.FrpsProxyCount,
+	}
+	_ = frpsObs.Insert()
 }
 
 func buildRelayConfig(node *model.Node) *RelayConfig {

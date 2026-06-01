@@ -59,7 +59,7 @@ func ParseFlags() {
 	}
 
 	if os.Getenv("AGENT_TOKEN") != "" {
-		AgentToken = os.Getenv("AGENT_TOKEN")
+		AccessToken = os.Getenv("AGENT_TOKEN")
 	}
 	SetLogLevel(os.Getenv("LOG_LEVEL"))
 	if *LogDir != "" {

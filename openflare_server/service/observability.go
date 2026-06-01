@@ -36,19 +36,23 @@ type AgentNodeSystemProfile struct {
 }
 
 type AgentNodeMetricSnapshot struct {
-	CapturedAtUnix       int64   `json:"captured_at_unix"`
-	CPUUsagePercent      float64 `json:"cpu_usage_percent"`
-	MemoryUsedBytes      int64   `json:"memory_used_bytes"`
-	MemoryTotalBytes     int64   `json:"memory_total_bytes"`
-	StorageUsedBytes     int64   `json:"storage_used_bytes"`
-	StorageTotalBytes    int64   `json:"storage_total_bytes"`
-	DiskReadBytes        int64   `json:"disk_read_bytes"`
-	DiskWriteBytes       int64   `json:"disk_write_bytes"`
-	NetworkRxBytes       int64   `json:"network_rx_bytes"`
-	NetworkTxBytes       int64   `json:"network_tx_bytes"`
-	OpenrestyRxBytes     int64   `json:"openresty_rx_bytes"`
-	OpenrestyTxBytes     int64   `json:"openresty_tx_bytes"`
-	OpenrestyConnections int64   `json:"openresty_connections"`
+	CapturedAtUnix    int64   `json:"captured_at_unix"`
+	CPUUsagePercent   float64 `json:"cpu_usage_percent"`
+	MemoryUsedBytes   int64   `json:"memory_used_bytes"`
+	MemoryTotalBytes  int64   `json:"memory_total_bytes"`
+	StorageUsedBytes  int64   `json:"storage_used_bytes"`
+	StorageTotalBytes int64   `json:"storage_total_bytes"`
+	DiskReadBytes     int64   `json:"disk_read_bytes"`
+	DiskWriteBytes    int64   `json:"disk_write_bytes"`
+	NetworkRxBytes    int64   `json:"network_rx_bytes"`
+	NetworkTxBytes    int64   `json:"network_tx_bytes"`
+}
+
+type AgentNodeOpenrestyObservation struct {
+	CapturedAtUnix       int64 `json:"captured_at_unix"`
+	OpenrestyRxBytes     int64 `json:"openresty_rx_bytes"`
+	OpenrestyTxBytes     int64 `json:"openresty_tx_bytes"`
+	OpenrestyConnections int64 `json:"openresty_connections"`
 }
 
 type AgentNodeTrafficReport struct {
@@ -71,10 +75,11 @@ type AgentNodeAccessLog struct {
 }
 
 type AgentBufferedObservabilityRecord struct {
-	WindowStartedAtUnix int64                    `json:"window_started_at_unix"`
-	Snapshot            *AgentNodeMetricSnapshot `json:"snapshot,omitempty"`
-	TrafficReport       *AgentNodeTrafficReport  `json:"traffic_report,omitempty"`
-	AccessLogs          []AgentNodeAccessLog     `json:"access_logs,omitempty"`
+	WindowStartedAtUnix  int64                          `json:"window_started_at_unix"`
+	Snapshot             *AgentNodeMetricSnapshot       `json:"snapshot,omitempty"`
+	OpenrestyObservation *AgentNodeOpenrestyObservation `json:"openresty_observation,omitempty"`
+	TrafficReport        *AgentNodeTrafficReport        `json:"traffic_report,omitempty"`
+	AccessLogs           []AgentNodeAccessLog           `json:"access_logs,omitempty"`
 }
 
 type AgentNodeHealthEvent struct {
@@ -103,6 +108,9 @@ func persistHeartbeatObservability(nodeID string, payload AgentNodePayload, repo
 		if err := persistNodeMetricSnapshot(tx, nodeID, payload.Snapshot, reportedAt); err != nil {
 			return err
 		}
+		if err := persistNodeOpenrestyObservation(tx, nodeID, payload.OpenrestyObservation, reportedAt); err != nil {
+			return err
+		}
 		if err := persistNodeTrafficReport(tx, nodeID, payload.TrafficReport, reportedAt); err != nil {
 			return err
 		}
@@ -123,6 +131,9 @@ func persistHeartbeatObservability(nodeID string, payload AgentNodePayload, repo
 func persistBufferedObservability(tx *gorm.DB, nodeID string, records []AgentBufferedObservabilityRecord, reportedAt time.Time) error {
 	for _, record := range records {
 		if err := persistNodeMetricSnapshot(tx, nodeID, record.Snapshot, reportedAt); err != nil {
+			return err
+		}
+		if err := persistNodeOpenrestyObservation(tx, nodeID, record.OpenrestyObservation, reportedAt); err != nil {
 			return err
 		}
 		if err := persistNodeTrafficReport(tx, nodeID, record.TrafficReport, reportedAt); err != nil {
@@ -161,20 +172,17 @@ func persistNodeMetricSnapshot(tx *gorm.DB, nodeID string, snapshot *AgentNodeMe
 		return nil
 	}
 	record := &model.NodeMetricSnapshot{
-		NodeID:               nodeID,
-		CapturedAt:           timeFromUnix(snapshot.CapturedAtUnix, reportedAt),
-		CPUUsagePercent:      snapshot.CPUUsagePercent,
-		MemoryUsedBytes:      snapshot.MemoryUsedBytes,
-		MemoryTotalBytes:     snapshot.MemoryTotalBytes,
-		StorageUsedBytes:     snapshot.StorageUsedBytes,
-		StorageTotalBytes:    snapshot.StorageTotalBytes,
-		DiskReadBytes:        snapshot.DiskReadBytes,
-		DiskWriteBytes:       snapshot.DiskWriteBytes,
-		NetworkRxBytes:       snapshot.NetworkRxBytes,
-		NetworkTxBytes:       snapshot.NetworkTxBytes,
-		OpenrestyRxBytes:     snapshot.OpenrestyRxBytes,
-		OpenrestyTxBytes:     snapshot.OpenrestyTxBytes,
-		OpenrestyConnections: snapshot.OpenrestyConnections,
+		NodeID:            nodeID,
+		CapturedAt:        timeFromUnix(snapshot.CapturedAtUnix, reportedAt),
+		CPUUsagePercent:   snapshot.CPUUsagePercent,
+		MemoryUsedBytes:   snapshot.MemoryUsedBytes,
+		MemoryTotalBytes:  snapshot.MemoryTotalBytes,
+		StorageUsedBytes:  snapshot.StorageUsedBytes,
+		StorageTotalBytes: snapshot.StorageTotalBytes,
+		DiskReadBytes:     snapshot.DiskReadBytes,
+		DiskWriteBytes:    snapshot.DiskWriteBytes,
+		NetworkRxBytes:    snapshot.NetworkRxBytes,
+		NetworkTxBytes:    snapshot.NetworkTxBytes,
 	}
 	exists, err := model.NodeMetricSnapshotExists(tx, nodeID, record.CapturedAt)
 	if err != nil {
@@ -182,6 +190,20 @@ func persistNodeMetricSnapshot(tx *gorm.DB, nodeID string, snapshot *AgentNodeMe
 	}
 	if exists {
 		return nil
+	}
+	return tx.Create(record).Error
+}
+
+func persistNodeOpenrestyObservation(tx *gorm.DB, nodeID string, obs *AgentNodeOpenrestyObservation, reportedAt time.Time) error {
+	if obs == nil {
+		return nil
+	}
+	record := &model.NodeObservationOpenresty{
+		NodeID:               nodeID,
+		CapturedAt:           timeFromUnix(obs.CapturedAtUnix, reportedAt),
+		OpenrestyRxBytes:     obs.OpenrestyRxBytes,
+		OpenrestyTxBytes:     obs.OpenrestyTxBytes,
+		OpenrestyConnections: obs.OpenrestyConnections,
 	}
 	return tx.Create(record).Error
 }

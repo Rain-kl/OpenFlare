@@ -75,10 +75,10 @@ func TestGetReleaseByTag(t *testing.T) {
 }
 
 func TestCheckAndUpdateRequiresChecksumAsset(t *testing.T) {
-	originalVersion := config.AgentVersion
-	config.AgentVersion = "v1.0.0"
+	originalVersion := config.Version
+	config.Version = "v1.0.0"
 	t.Cleanup(func() {
-		config.AgentVersion = originalVersion
+		config.Version = originalVersion
 	})
 
 	assetName := assetNameForGOOSGOARCH(runtime.GOOS, runtime.GOARCH)

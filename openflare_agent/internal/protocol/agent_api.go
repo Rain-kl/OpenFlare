@@ -72,14 +72,15 @@ type NodePayload struct {
 	NodeID                string                        `json:"node_id"`
 	Name                  string                        `json:"name"`
 	IP                    string                        `json:"ip"`
-	AgentVersion          string                        `json:"agent_version"`
-	NginxVersion          string                        `json:"nginx_version"`
+	Version               string                        `json:"agent_version"`
+	ExtVersion            string                        `json:"nginx_version"`
 	CurrentVersion        string                        `json:"current_version"`
 	LastError             string                        `json:"last_error"`
 	OpenrestyStatus       string                        `json:"openresty_status"`
 	OpenrestyMessage      string                        `json:"openresty_message"`
 	Profile               *NodeSystemProfile            `json:"profile,omitempty"`
 	Snapshot              *NodeMetricSnapshot           `json:"snapshot,omitempty"`
+	OpenrestyObservation  *NodeOpenrestyObservation     `json:"openresty_observation,omitempty"`
 	TrafficReport         *NodeTrafficReport            `json:"traffic_report,omitempty"`
 	AccessLogs            []NodeAccessLog               `json:"access_logs,omitempty"`
 	BufferedObservability []BufferedObservabilityRecord `json:"buffered_observability,omitempty"`
@@ -102,19 +103,23 @@ type NodeSystemProfile struct {
 }
 
 type NodeMetricSnapshot struct {
-	CapturedAtUnix       int64   `json:"captured_at_unix"`
-	CPUUsagePercent      float64 `json:"cpu_usage_percent"`
-	MemoryUsedBytes      int64   `json:"memory_used_bytes"`
-	MemoryTotalBytes     int64   `json:"memory_total_bytes"`
-	StorageUsedBytes     int64   `json:"storage_used_bytes"`
-	StorageTotalBytes    int64   `json:"storage_total_bytes"`
-	DiskReadBytes        int64   `json:"disk_read_bytes"`
-	DiskWriteBytes       int64   `json:"disk_write_bytes"`
-	NetworkRxBytes       int64   `json:"network_rx_bytes"`
-	NetworkTxBytes       int64   `json:"network_tx_bytes"`
-	OpenrestyRxBytes     int64   `json:"openresty_rx_bytes"`
-	OpenrestyTxBytes     int64   `json:"openresty_tx_bytes"`
-	OpenrestyConnections int64   `json:"openresty_connections"`
+	CapturedAtUnix    int64   `json:"captured_at_unix"`
+	CPUUsagePercent   float64 `json:"cpu_usage_percent"`
+	MemoryUsedBytes   int64   `json:"memory_used_bytes"`
+	MemoryTotalBytes  int64   `json:"memory_total_bytes"`
+	StorageUsedBytes  int64   `json:"storage_used_bytes"`
+	StorageTotalBytes int64   `json:"storage_total_bytes"`
+	DiskReadBytes     int64   `json:"disk_read_bytes"`
+	DiskWriteBytes    int64   `json:"disk_write_bytes"`
+	NetworkRxBytes    int64   `json:"network_rx_bytes"`
+	NetworkTxBytes    int64   `json:"network_tx_bytes"`
+}
+
+type NodeOpenrestyObservation struct {
+	CapturedAtUnix       int64 `json:"captured_at_unix"`
+	OpenrestyRxBytes     int64 `json:"openresty_rx_bytes"`
+	OpenrestyTxBytes     int64 `json:"openresty_tx_bytes"`
+	OpenrestyConnections int64 `json:"openresty_connections"`
 }
 
 type NodeTrafficReport struct {
@@ -137,10 +142,11 @@ type NodeAccessLog struct {
 }
 
 type BufferedObservabilityRecord struct {
-	WindowStartedAtUnix int64               `json:"window_started_at_unix"`
-	Snapshot            *NodeMetricSnapshot `json:"snapshot,omitempty"`
-	TrafficReport       *NodeTrafficReport  `json:"traffic_report,omitempty"`
-	AccessLogs          []NodeAccessLog     `json:"access_logs,omitempty"`
+	WindowStartedAtUnix  int64                     `json:"window_started_at_unix"`
+	Snapshot             *NodeMetricSnapshot       `json:"snapshot,omitempty"`
+	OpenrestyObservation *NodeOpenrestyObservation `json:"openresty_observation,omitempty"`
+	TrafficReport        *NodeTrafficReport        `json:"traffic_report,omitempty"`
+	AccessLogs           []NodeAccessLog           `json:"access_logs,omitempty"`
 }
 
 type NodeHealthEvent struct {
@@ -152,9 +158,9 @@ type NodeHealthEvent struct {
 }
 
 type RegisterNodeResponse struct {
-	NodeID     string `json:"node_id"`
-	AgentToken string `json:"agent_token"`
-	Name       string `json:"name"`
+	NodeID      string `json:"node_id"`
+	AccessToken string `json:"agent_token"`
+	Name        string `json:"name"`
 }
 
 type ApplyLogPayload struct {

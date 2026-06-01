@@ -771,7 +771,7 @@ export function TunnelDetailPage({ node }: { node: NodeItem }) {
 
               <AppCard title="版本与状态">
                 <div className="space-y-2 text-sm text-[var(--foreground-secondary)]">
-                  <p>Client (openflared): {node.agent_version || 'unknown'}</p>
+                  <p>Client (openflared): {node.version || 'unknown'}</p>
                   <p>当前配置版本：{node.current_version || '未应用'}</p>
                   <p>节点类型：隧道客户端 (tunnel_client)</p>
                 </div>
@@ -1192,7 +1192,7 @@ export function TunnelDetailPage({ node }: { node: NodeItem }) {
           <div className="grid gap-4 md:grid-cols-3">
             <AppCard title="当前版本">
               <p className="text-sm font-medium text-[var(--foreground-primary)]">
-                {node.agent_version || 'unknown'}
+                {node.version || 'unknown'}
               </p>
             </AppCard>
             <AppCard title="检查通道">

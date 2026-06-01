@@ -20,31 +20,31 @@ type cachedAgentNode struct {
 	expiresAt time.Time
 }
 
-type cachedMissingAgentToken struct {
+type cachedMissingAccessToken struct {
 	expiresAt time.Time
 }
 
 type agentTokenAuthCache struct {
 	positive        *ristretto.Cache[string, cachedAgentNode]
-	negative        *ristretto.Cache[string, cachedMissingAgentToken]
+	negative        *ristretto.Cache[string, cachedMissingAccessToken]
 	now             func() time.Time
 	loadNodeByToken func(string) (*model.Node, error)
 }
 
-var nodeAgentTokenCache = newAgentTokenAuthCache()
+var nodeAccessTokenCache = newAccessTokenAuthCache()
 
-func newAgentTokenAuthCache() *agentTokenAuthCache {
+func newAccessTokenAuthCache() *agentTokenAuthCache {
 	return &agentTokenAuthCache{
-		positive: mustNewAgentTokenPositiveCache(),
-		negative: mustNewAgentTokenNegativeCache(),
+		positive: mustNewAccessTokenPositiveCache(),
+		negative: mustNewAccessTokenNegativeCache(),
 		now:      time.Now,
 		loadNodeByToken: func(token string) (*model.Node, error) {
-			return model.GetNodeByAgentToken(token)
+			return model.GetNodeByAccessToken(token)
 		},
 	}
 }
 
-func mustNewAgentTokenPositiveCache() *ristretto.Cache[string, cachedAgentNode] {
+func mustNewAccessTokenPositiveCache() *ristretto.Cache[string, cachedAgentNode] {
 	cache, err := ristretto.NewCache(&ristretto.Config[string, cachedAgentNode]{
 		NumCounters: 1e5,
 		MaxCost:     2e4,
@@ -56,8 +56,8 @@ func mustNewAgentTokenPositiveCache() *ristretto.Cache[string, cachedAgentNode] 
 	return cache
 }
 
-func mustNewAgentTokenNegativeCache() *ristretto.Cache[string, cachedMissingAgentToken] {
-	cache, err := ristretto.NewCache(&ristretto.Config[string, cachedMissingAgentToken]{
+func mustNewAccessTokenNegativeCache() *ristretto.Cache[string, cachedMissingAccessToken] {
+	cache, err := ristretto.NewCache(&ristretto.Config[string, cachedMissingAccessToken]{
 		NumCounters: 1e5,
 		MaxCost:     agentTokenNegativeCacheCap,
 		BufferItems: 64,
@@ -130,7 +130,7 @@ func (c *agentTokenAuthCache) storeMissing(token string, expiresAt time.Time) {
 		return
 	}
 	c.positive.Del(token)
-	c.negative.Set(token, cachedMissingAgentToken{
+	c.negative.Set(token, cachedMissingAccessToken{
 		expiresAt: expiresAt,
 	}, 1)
 	c.negative.Wait()
@@ -157,21 +157,21 @@ func cloneCachedNode(node *model.Node) *model.Node {
 	return &cloned
 }
 
-func authenticateAgentTokenWithCache(token string) (*model.Node, error) {
-	return nodeAgentTokenCache.authenticate(token)
+func authenticateAccessTokenWithCache(token string) (*model.Node, error) {
+	return nodeAccessTokenCache.authenticate(token)
 }
 
-func refreshAgentTokenCache(node *model.Node) {
+func refreshAccessTokenCache(node *model.Node) {
 	if node == nil {
 		return
 	}
-	nodeAgentTokenCache.storeNode(
-		node.AgentToken,
+	nodeAccessTokenCache.storeNode(
+		node.AccessToken,
 		node,
-		nodeAgentTokenCache.now().Add(agentTokenPositiveCacheTTL),
+		nodeAccessTokenCache.now().Add(agentTokenPositiveCacheTTL),
 	)
 }
 
-func invalidateAgentTokenCache(token string) {
-	nodeAgentTokenCache.invalidate(token)
+func invalidateAccessTokenCache(token string) {
+	nodeAccessTokenCache.invalidate(token)
 }

@@ -256,13 +256,13 @@ func TestManagerApplyAndChecksumIncludeMainConfig(t *testing.T) {
 	}
 }
 
-func TestParseNginxVersionIgnoresDockerEntrypointPaths(t *testing.T) {
+func TestParseExtVersionIgnoresDockerEntrypointPaths(t *testing.T) {
 	output := strings.Join([]string{
 		"/docker-entrypoint.sh: /docker-entrypoint.d/10-listen-on-ipv6-by-default.sh: info: can not modify /etc/nginx/conf.d/default.conf (read-only file system?)",
 		"nginx version: openresty/1.27.1.2",
 	}, "\n")
 
-	version := parseNginxVersion(output)
+	version := parseExtVersion(output)
 	if version != "1.27.1.2" {
 		t.Fatalf("unexpected version: %s", version)
 	}

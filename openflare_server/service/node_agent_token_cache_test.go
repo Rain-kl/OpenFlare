@@ -10,8 +10,8 @@ import (
 	"gorm.io/gorm"
 )
 
-func TestAgentTokenAuthCacheUsesPositiveCacheUntilLogicalExpiry(t *testing.T) {
-	cache := newAgentTokenAuthCache()
+func TestAccessTokenAuthCacheUsesPositiveCacheUntilLogicalExpiry(t *testing.T) {
+	cache := newAccessTokenAuthCache()
 	cache.reset()
 	baseTime := time.Date(2026, 3, 14, 16, 0, 0, 0, time.UTC)
 	currentTime := baseTime
@@ -23,9 +23,9 @@ func TestAgentTokenAuthCacheUsesPositiveCacheUntilLogicalExpiry(t *testing.T) {
 	cache.loadNodeByToken = func(token string) (*model.Node, error) {
 		loadCount++
 		return &model.Node{
-			NodeID:     fmt.Sprintf("node-%d", loadCount),
-			Name:       "edge",
-			AgentToken: token,
+			NodeID:      fmt.Sprintf("node-%d", loadCount),
+			Name:        "edge",
+			AccessToken: token,
 		}, nil
 	}
 
@@ -61,8 +61,8 @@ func TestAgentTokenAuthCacheUsesPositiveCacheUntilLogicalExpiry(t *testing.T) {
 	}
 }
 
-func TestAgentTokenAuthCacheRefreshesAfterMissingEntryExpires(t *testing.T) {
-	cache := newAgentTokenAuthCache()
+func TestAccessTokenAuthCacheRefreshesAfterMissingEntryExpires(t *testing.T) {
+	cache := newAccessTokenAuthCache()
 	cache.reset()
 	baseTime := time.Date(2026, 3, 14, 16, 30, 0, 0, time.UTC)
 	currentTime := baseTime
@@ -77,9 +77,9 @@ func TestAgentTokenAuthCacheRefreshesAfterMissingEntryExpires(t *testing.T) {
 			return nil, gorm.ErrRecordNotFound
 		}
 		return &model.Node{
-			NodeID:     "node-recovered",
-			Name:       "edge",
-			AgentToken: token,
+			NodeID:      "node-recovered",
+			Name:        "edge",
+			AccessToken: token,
 		}, nil
 	}
 

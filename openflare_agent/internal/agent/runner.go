@@ -74,7 +74,7 @@ func (r *Runner) Run(ctx context.Context) error {
 		return err
 	}
 	slog.Info("agent runner started", "node_id", nodeID, "node", r.Config.NodeName, "ip", r.Config.NodeIP)
-	if r.hasAgentToken() {
+	if r.hasAccessToken() {
 		if _, hbErr := r.performHeartbeatCycle(ctx, nodeID, true); hbErr != nil {
 			slog.Error("agent startup heartbeat failed", "error", hbErr)
 		}
@@ -119,7 +119,7 @@ func (r *Runner) Run(ctx context.Context) error {
 			delay := wsBackoff.Next()
 			nextWSAttempt = time.Now().Add(delay)
 			slog.Debug("agent ws disconnected; resuming http heartbeat", "retry_after", delay, "error", wsErr)
-			if r.hasAgentToken() {
+			if r.hasAccessToken() {
 				if _, hbErr := r.performHeartbeatCycle(ctx, nodeID, false); hbErr != nil {
 					slog.Error("agent heartbeat after ws disconnect failed", "error", hbErr)
 				}
@@ -128,7 +128,7 @@ func (r *Runner) Run(ctx context.Context) error {
 			if wsDone != nil {
 				continue
 			}
-			if !r.hasAgentToken() {
+			if !r.hasAccessToken() {
 				if err = r.tryRegister(ctx, &nodeID); err != nil {
 					slog.Error("agent discovery register failed", "error", err)
 				}
@@ -181,7 +181,7 @@ func (r *Runner) performHeartbeatCycle(ctx context.Context, nodeID string, start
 }
 
 func (r *Runner) shouldUseWebSocket() bool {
-	enabled := r.WebSocketService != nil && r.websocketUpgradeEnabled && r.hasAgentToken()
+	enabled := r.WebSocketService != nil && r.websocketUpgradeEnabled && r.hasAccessToken()
 	slog.Debug("agent ws upgrade eligibility checked", "enabled", enabled, "server_enabled", r.websocketUpgradeEnabled, "url", r.websocketURL())
 	return enabled
 }
@@ -365,8 +365,8 @@ func (backoff *webSocketBackoff) Reset() {
 	}
 }
 
-func (r *Runner) hasAgentToken() bool {
-	return strings.TrimSpace(r.Config.AgentToken) != ""
+func (r *Runner) hasAccessToken() bool {
+	return strings.TrimSpace(r.Config.AccessToken) != ""
 }
 
 func (r *Runner) applySettings(settings *protocol.AgentSettings) bool {
@@ -447,7 +447,7 @@ func (r *Runner) tryRegister(ctx context.Context, nodeID *string) error {
 	if err != nil {
 		return err
 	}
-	if response == nil || strings.TrimSpace(response.AgentToken) == "" || strings.TrimSpace(response.NodeID) == "" {
+	if response == nil || strings.TrimSpace(response.AccessToken) == "" || strings.TrimSpace(response.NodeID) == "" {
 		return errors.New("discovery register response 缺少 node_id 或 agent_token")
 	}
 	snapshot, err := r.StateStore.Load()
@@ -458,14 +458,14 @@ func (r *Runner) tryRegister(ctx context.Context, nodeID *string) error {
 	if err = r.StateStore.Save(snapshot); err != nil {
 		return err
 	}
-	r.Config.AgentToken = response.AgentToken
+	r.Config.AccessToken = response.AccessToken
 	r.Config.DiscoveryToken = ""
 	if err = r.Config.Save(); err != nil {
 		return err
 	}
-	r.HeartbeatService.SetToken(response.AgentToken)
+	r.HeartbeatService.SetToken(response.AccessToken)
 	if r.WebSocketService != nil {
-		r.WebSocketService.SetToken(response.AgentToken)
+		r.WebSocketService.SetToken(response.AccessToken)
 	}
 	*nodeID = response.NodeID
 	slog.Info("agent discovery registration succeeded", "node_id", response.NodeID)
@@ -573,23 +573,25 @@ func (r *Runner) nodePayload(nodeID string) protocol.NodePayload {
 	if managedOpenRestyMetrics == nil {
 		managedOpenRestyMetrics = fallbackMetrics
 	}
-	metricSnapshot := observability.BuildSnapshot(r.Config, r.StateStore, managedOpenRestyMetrics)
+	metricSnapshot := observability.BuildSnapshot(r.Config, r.StateStore)
+	openrestyObservation := observability.BuildOpenrestyObservation(managedOpenRestyMetrics)
 	healthEvents := observability.BuildHealthEvents(snapshot)
 	payload := protocol.NodePayload{
-		NodeID:           nodeID,
-		Name:             r.Config.NodeName,
-		IP:               r.Config.NodeIP,
-		AgentVersion:     r.Config.AgentVersion,
-		NginxVersion:     r.Config.NginxVersion,
-		CurrentVersion:   snapshot.CurrentVersion,
-		LastError:        snapshot.LastError,
-		OpenrestyStatus:  openrestyStatus,
-		OpenrestyMessage: snapshot.OpenrestyMessage,
-		Profile:          profile,
-		Snapshot:         metricSnapshot,
-		TrafficReport:    trafficReport,
-		AccessLogs:       accessLogs,
-		HealthEvents:     healthEvents,
+		NodeID:               nodeID,
+		Name:                 r.Config.NodeName,
+		IP:                   r.Config.NodeIP,
+		Version:              r.Config.Version,
+		ExtVersion:           r.Config.ExtVersion,
+		CurrentVersion:       snapshot.CurrentVersion,
+		LastError:            snapshot.LastError,
+		OpenrestyStatus:      openrestyStatus,
+		OpenrestyMessage:     snapshot.OpenrestyMessage,
+		Profile:              profile,
+		Snapshot:             metricSnapshot,
+		OpenrestyObservation: openrestyObservation,
+		TrafficReport:        trafficReport,
+		AccessLogs:           accessLogs,
+		HealthEvents:         healthEvents,
 	}
 	if r.SyncService != nil {
 		checksums, err := r.SyncService.WAFIPGroupChecksums()
@@ -619,17 +621,18 @@ func (r *Runner) prepareHeartbeatPayload(nodeID string) (protocol.NodePayload, [
 	}
 	now := time.Now().UTC()
 	retainAfterUnix := now.Add(-time.Duration(r.Config.ObservabilityReplayMinutes) * time.Minute).Unix()
-	windowStartedAtUnix := state.ObservabilityWindowStartedAt(payload.Snapshot, payload.TrafficReport)
+	windowStartedAtUnix := state.ObservabilityWindowStartedAt(payload.Snapshot, payload.OpenrestyObservation, payload.TrafficReport)
 	if windowStartedAtUnix <= 0 {
 		return payload, nil
 	}
 
 	record := state.ObservabilityBufferRecord{
-		WindowStartedAtUnix: windowStartedAtUnix,
-		Snapshot:            payload.Snapshot,
-		TrafficReport:       payload.TrafficReport,
-		AccessLogs:          payload.AccessLogs,
-		QueuedAtUnix:        now.Unix(),
+		WindowStartedAtUnix:  windowStartedAtUnix,
+		Snapshot:             payload.Snapshot,
+		OpenrestyObservation: payload.OpenrestyObservation,
+		TrafficReport:        payload.TrafficReport,
+		AccessLogs:           payload.AccessLogs,
+		QueuedAtUnix:         now.Unix(),
 	}
 	if err := r.ObservabilityBuffer.Upsert(record, retainAfterUnix); err != nil {
 		slog.Error("upsert observability buffer failed", "error", err)
@@ -649,10 +652,11 @@ func (r *Runner) prepareHeartbeatPayload(nodeID string) (protocol.NodePayload, [
 			continue
 		}
 		buffered = append(buffered, protocol.BufferedObservabilityRecord{
-			WindowStartedAtUnix: item.WindowStartedAtUnix,
-			Snapshot:            item.Snapshot,
-			TrafficReport:       item.TrafficReport,
-			AccessLogs:          item.AccessLogs,
+			WindowStartedAtUnix:  item.WindowStartedAtUnix,
+			Snapshot:             item.Snapshot,
+			OpenrestyObservation: item.OpenrestyObservation,
+			TrafficReport:        item.TrafficReport,
+			AccessLogs:           item.AccessLogs,
 		})
 		ackWindows = append(ackWindows, item.WindowStartedAtUnix)
 	}

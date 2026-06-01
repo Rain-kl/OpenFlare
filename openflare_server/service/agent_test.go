@@ -177,7 +177,7 @@ func TestGetActiveConfigForAgentUsesTenMinutePoWSessionDefault(t *testing.T) {
 	}
 }
 
-func TestRegisterNodeWithAgentToken(t *testing.T) {
+func TestRegisterNodeWithAccessToken(t *testing.T) {
 	setupServiceTestDB(t)
 
 	// 1. Success path
@@ -203,17 +203,17 @@ func TestRegisterNodeWithAgentToken(t *testing.T) {
 	payload := AgentNodePayload{
 		Name:            "payload-name-should-be-ignored",
 		IP:              "192.168.1.20",
-		AgentVersion:    "v1.0.1",
-		NginxVersion:    "1.27.1.3",
+		Version:         "v1.0.1",
+		ExtVersion:      "1.27.1.3",
 		OpenrestyStatus: "healthy",
 	}
 
-	resp, err := RegisterNodeWithAgentToken(stored, payload)
+	resp, err := RegisterNodeWithAccessToken(stored, payload)
 	if err != nil {
-		t.Fatalf("RegisterNodeWithAgentToken failed: %v", err)
+		t.Fatalf("RegisterNodeWithAccessToken failed: %v", err)
 	}
 
-	if resp.NodeID != stored.NodeID || resp.AgentToken != stored.AgentToken || resp.Name != "reserved-node-1" {
+	if resp.NodeID != stored.NodeID || resp.AccessToken != stored.AccessToken || resp.Name != "reserved-node-1" {
 		t.Errorf("unexpected response: %+v", resp)
 	}
 
@@ -222,7 +222,7 @@ func TestRegisterNodeWithAgentToken(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to fetch updated node: %v", err)
 	}
-	if updated.AgentVersion != "v1.0.1" || updated.NginxVersion != "1.27.1.3" || updated.OpenrestyStatus != "healthy" {
+	if updated.Version != "v1.0.1" || updated.ExtVersion != "1.27.1.3" || updated.OpenrestyStatus != "healthy" {
 		t.Errorf("node attributes were not updated: %+v", updated)
 	}
 	// Name should be preserved since preserveName is true
@@ -231,7 +231,7 @@ func TestRegisterNodeWithAgentToken(t *testing.T) {
 	}
 
 	// 2. Fail path - Nil Node
-	_, err = RegisterNodeWithAgentToken(nil, payload)
+	_, err = RegisterNodeWithAccessToken(nil, payload)
 	if err == nil || !strings.Contains(err.Error(), "节点不存在") {
 		t.Errorf("expected error '节点不存在', got %v", err)
 	}
@@ -239,16 +239,16 @@ func TestRegisterNodeWithAgentToken(t *testing.T) {
 	// 3. Fail path - Invalid Payload (empty IP)
 	badPayload := payload
 	badPayload.IP = ""
-	_, err = RegisterNodeWithAgentToken(stored, badPayload)
+	_, err = RegisterNodeWithAccessToken(stored, badPayload)
 	if err == nil || !strings.Contains(err.Error(), "ip 不能为空") {
 		t.Errorf("expected error 'ip 不能为空', got %v", err)
 	}
 
 	// 4. Name update if empty
 	emptyNameNode := &model.Node{
-		NodeID:     "node-empty-name",
-		Name:       "",
-		AgentToken: "empty-name-token",
+		NodeID:      "node-empty-name",
+		Name:        "",
+		AccessToken: "empty-name-token",
 	}
 	if err := emptyNameNode.Insert(); err != nil {
 		t.Fatalf("failed to insert emptyNameNode: %v", err)
@@ -256,9 +256,9 @@ func TestRegisterNodeWithAgentToken(t *testing.T) {
 	payloadWithName := payload
 	payloadWithName.Name = "filled-name"
 	payloadWithName.IP = "192.168.1.30"
-	_, err = RegisterNodeWithAgentToken(emptyNameNode, payloadWithName)
+	_, err = RegisterNodeWithAccessToken(emptyNameNode, payloadWithName)
 	if err != nil {
-		t.Fatalf("RegisterNodeWithAgentToken empty name node failed: %v", err)
+		t.Fatalf("RegisterNodeWithAccessToken empty name node failed: %v", err)
 	}
 	updatedEmptyName, err := model.GetNodeByNodeID("node-empty-name")
 	if err != nil {
@@ -276,8 +276,8 @@ func TestRegisterNodeWithDiscovery(t *testing.T) {
 	payload := AgentNodePayload{
 		Name:            "discovery-node",
 		IP:              "192.168.2.10",
-		AgentVersion:    "v1.0.0",
-		NginxVersion:    "1.27.1.3",
+		Version:         "v1.0.0",
+		ExtVersion:      "1.27.1.3",
 		OpenrestyStatus: "healthy",
 	}
 
@@ -286,7 +286,7 @@ func TestRegisterNodeWithDiscovery(t *testing.T) {
 		t.Fatalf("RegisterNodeWithDiscovery failed: %v", err)
 	}
 
-	if resp.NodeID == "" || resp.AgentToken == "" || resp.Name != "discovery-node" {
+	if resp.NodeID == "" || resp.AccessToken == "" || resp.Name != "discovery-node" {
 		t.Errorf("unexpected response: %+v", resp)
 	}
 
@@ -295,7 +295,7 @@ func TestRegisterNodeWithDiscovery(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to fetch node: %v", err)
 	}
-	if node.IP != "192.168.2.10" || node.AgentVersion != "v1.0.0" || node.Name != "discovery-node" {
+	if node.IP != "192.168.2.10" || node.Version != "v1.0.0" || node.Name != "discovery-node" {
 		t.Errorf("unexpected stored node data: %+v", node)
 	}
 
@@ -317,10 +317,10 @@ func TestRegisterNodeWithDiscovery(t *testing.T) {
 
 	// 3. Fail path - Invalid Payload (empty AgentVersion)
 	badPayload := payload
-	badPayload.AgentVersion = ""
+	badPayload.Version = ""
 	_, err = RegisterNodeWithDiscovery(badPayload)
-	if err == nil || !strings.Contains(err.Error(), "agent_version 不能为空") {
-		t.Errorf("expected error 'agent_version 不能为空', got %v", err)
+	if err == nil || !strings.Contains(err.Error(), "version 不能为空") {
+		t.Errorf("expected error 'version 不能为空', got %v", err)
 	}
 }
 
@@ -329,12 +329,12 @@ func TestReportApplyLog_Success(t *testing.T) {
 
 	// Seed node
 	node := &model.Node{
-		NodeID:       "node-apply-1",
-		Name:         "apply-edge",
-		IP:           "192.168.3.10",
-		AgentToken:   "apply-token",
-		AgentVersion: "v1.0.0",
-		Status:       NodeStatusOffline,
+		NodeID:      "node-apply-1",
+		Name:        "apply-edge",
+		IP:          "192.168.3.10",
+		AccessToken: "apply-token",
+		Version:     "v1.0.0",
+		Status:      NodeStatusOffline,
 	}
 	if err := node.Insert(); err != nil {
 		t.Fatalf("failed to insert node: %v", err)
@@ -387,8 +387,8 @@ func TestReportApplyLog_WarningAndFailure(t *testing.T) {
 		NodeID:         "node-apply-2",
 		Name:           "apply-edge-2",
 		IP:             "192.168.3.20",
-		AgentToken:     "apply-token-2",
-		AgentVersion:   "v1.0.0",
+		AccessToken:    "apply-token-2",
+		Version:        "v1.0.0",
 		CurrentVersion: "20260531-001", // Old version
 		Status:         NodeStatusOnline,
 	}
@@ -452,12 +452,12 @@ func TestReportApplyLog_Failures(t *testing.T) {
 
 	// Seed node
 	node := &model.Node{
-		NodeID:       "node-apply-3",
-		Name:         "apply-edge-3",
-		IP:           "192.168.3.30",
-		AgentToken:   "apply-token-3",
-		AgentVersion: "v1.0.0",
-		Status:       NodeStatusOnline,
+		NodeID:      "node-apply-3",
+		Name:        "apply-edge-3",
+		IP:          "192.168.3.30",
+		AccessToken: "apply-token-3",
+		Version:     "v1.0.0",
+		Status:      NodeStatusOnline,
 	}
 	if err := node.Insert(); err != nil {
 		t.Fatalf("failed to insert node: %v", err)
@@ -508,11 +508,11 @@ func TestListAndCleanupApplyLogs(t *testing.T) {
 
 	// Seed node
 	node := &model.Node{
-		NodeID:     "node-logs",
-		Name:       "logs-edge",
-		IP:         "192.168.4.10",
-		AgentToken: "logs-token",
-		Status:     NodeStatusOnline,
+		NodeID:      "node-logs",
+		Name:        "logs-edge",
+		IP:          "192.168.4.10",
+		AccessToken: "logs-token",
+		Status:      NodeStatusOnline,
 	}
 	if err := node.Insert(); err != nil {
 		t.Fatalf("failed to insert node: %v", err)

@@ -363,19 +363,19 @@ func TestPhase1HTTPSAndCertificateImportLifecycle(t *testing.T) {
 		t.Fatal("expected support files json to contain certificate artifacts")
 	}
 	if err := (&model.Node{
-		NodeID:       "phase1-node",
-		Name:         "phase1-node",
-		IP:           "10.0.0.8",
-		AgentToken:   common.AgentToken,
-		AgentVersion: "0.1.0",
-		NginxVersion: "1.25.5",
-		Status:       service.NodeStatusOnline,
-		LastSeenAt:   time.Now(),
+		NodeID:      "phase1-node",
+		Name:        "phase1-node",
+		IP:          "10.0.0.8",
+		AccessToken: common.AccessToken,
+		Version:     "0.1.0",
+		ExtVersion:  "1.25.5",
+		Status:      service.NodeStatusOnline,
+		LastSeenAt:  time.Now(),
 	}).Insert(); err != nil {
 		t.Fatalf("failed to seed phase1 node: %v", err)
 	}
 
-	agentResp := performAgentJSONRequestWithToken(t, engine, common.AgentToken, http.MethodGet, "/api/agent/config-versions/active", nil)
+	agentResp := performAgentJSONRequestWithToken(t, engine, common.AccessToken, http.MethodGet, "/api/agent/config-versions/active", nil)
 	var activeConfig map[string]any
 	decodeResponseData(t, agentResp, &activeConfig)
 	sourceConfigJSON, ok := activeConfig["source_config_json"].(string)
@@ -481,7 +481,7 @@ func setupTestDB(t *testing.T) {
 	t.Helper()
 	dbPath := filepath.Join(t.TempDir(), "phase1.db")
 	common.SQLitePath = dbPath
-	common.AgentToken = "phase1-agent-token"
+	common.AccessToken = "phase1-agent-token"
 	if err := model.InitDB(); err != nil {
 		t.Fatalf("failed to init db: %v", err)
 	}

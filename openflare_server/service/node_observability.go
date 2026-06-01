@@ -101,6 +101,7 @@ func GetNodeObservability(id uint, query NodeObservabilityQuery) (*NodeObservabi
 	if err != nil {
 		return nil, err
 	}
+	trendOpenresty, _ := model.ListNodeObservationOpenresty(node.NodeID, now.Add(-24*time.Hour), 0)
 	trendReports, err := model.ListNodeRequestReports(node.NodeID, now.Add(-24*time.Hour), 0)
 	if err != nil {
 		return nil, err
@@ -124,21 +125,31 @@ func GetNodeObservability(id uint, query NodeObservabilityQuery) (*NodeObservabi
 		Trends: NodeObservabilityTrends{
 			Traffic24h:  buildTrafficTrendPoints(now, trendReports),
 			Capacity24h: buildCapacityTrendPoints(now, trendSnapshots),
-			Network24h:  buildNetworkTrendPoints(now, trendSnapshots),
+			Network24h:  buildNetworkTrendPoints(now, trendSnapshots, trendOpenresty),
 			DiskIO24h:   buildDiskIOTrendPoints(now, trendSnapshots),
 		},
 	}
 	if node.NodeType == "tunnel_relay" {
-		view.RelayDashboard = buildRelayDashboardSnapshot(node)
+		frpsObs, _ := model.ListNodeObservationFrps(node.NodeID, time.Time{}, 1)
+		var latestFrps *model.NodeObservationFrps
+		if len(frpsObs) > 0 {
+			latestFrps = frpsObs[0]
+		}
+		view.RelayDashboard = buildRelayDashboardSnapshot(node, latestFrps)
 	}
 	return view, nil
 }
 
-func buildRelayDashboardSnapshot(node *model.Node) *RelayDashboardSnapshot {
+func buildRelayDashboardSnapshot(node *model.Node, obs *model.NodeObservationFrps) *RelayDashboardSnapshot {
 	if node == nil {
 		return nil
 	}
-	totalProxies := node.RelayFrpsProxyCount
+	totalProxies := 0
+	totalConnections := 0
+	if obs != nil {
+		totalProxies = obs.FrpsProxyCount
+		totalConnections = obs.FrpsConnections
+	}
 	if totalProxies < 0 {
 		totalProxies = 0
 	}
@@ -151,7 +162,7 @@ func buildRelayDashboardSnapshot(node *model.Node) *RelayDashboardSnapshot {
 		OnlineProxies:    onlineProxies,
 		OfflineProxies:   totalProxies - onlineProxies,
 		Proxies:          []RelayProxyStat{},
-		TotalConnections: maxInt(node.RelayFrpsConnections, 0),
+		TotalConnections: maxInt(totalConnections, 0),
 		ClientCounts:     0,
 	}
 }

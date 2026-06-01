@@ -51,8 +51,8 @@ func (s *Service) doHeartbeat(ctx context.Context) {
 
 	runtimeStatus := s.frpsManager.GetRuntimeStatus()
 	payload := service.RelayHeartbeatPayload{
-		RelayVersion:   config.Version,
-		FrpVersion:     s.frpsManager.GetVersion(),
+		Version:        config.Version,
+		ExtVersion:     s.frpsManager.GetVersion(),
 		RelayStatus:    runtimeStatus.Status,
 		FrpsConnCount:  runtimeStatus.Connections,
 		FrpsProxyCount: runtimeStatus.ProxyCount,

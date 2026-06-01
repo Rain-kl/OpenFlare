@@ -56,7 +56,7 @@ func (s *Service) CheckAndUpdate(ctx context.Context, repo string, options agent
 	}
 
 	remoteVersion := normalizeVersion(release.TagName)
-	localVersion := normalizeVersion(config.AgentVersion)
+	localVersion := normalizeVersion(config.Version)
 	checkKey := buildReleaseCheckKey(options, remoteVersion)
 
 	if remoteVersion == localVersion {

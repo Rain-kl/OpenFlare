@@ -89,10 +89,10 @@ func TestObservabilityBufferStoreMergesAccessLogsWithinWindow(t *testing.T) {
 }
 
 func TestObservabilityWindowStartedAt(t *testing.T) {
-	if value := ObservabilityWindowStartedAt(nil, &protocol.NodeTrafficReport{WindowStartedAtUnix: 1710403200}); value != 1710403200 {
+	if value := ObservabilityWindowStartedAt(nil, nil, &protocol.NodeTrafficReport{WindowStartedAtUnix: 1710403200}); value != 1710403200 {
 		t.Fatalf("unexpected traffic window start: %d", value)
 	}
-	if value := ObservabilityWindowStartedAt(&protocol.NodeMetricSnapshot{CapturedAtUnix: 1710403259}, nil); value != 1710403200 {
+	if value := ObservabilityWindowStartedAt(&protocol.NodeMetricSnapshot{CapturedAtUnix: 1710403259}, nil, nil); value != 1710403200 {
 		t.Fatalf("unexpected snapshot-derived window start: %d", value)
 	}
 }

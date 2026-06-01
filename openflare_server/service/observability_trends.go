@@ -110,7 +110,7 @@ func buildCapacityTrendPoints(now time.Time, snapshots []*model.NodeMetricSnapsh
 	return points
 }
 
-func buildNetworkTrendPoints(now time.Time, snapshots []*model.NodeMetricSnapshot) []NetworkTrendPoint {
+func buildNetworkTrendPoints(now time.Time, snapshots []*model.NodeMetricSnapshot, openrestyObs []*model.NodeObservationOpenresty) []NetworkTrendPoint {
 	start := trendWindowStart(now)
 	points := make([]NetworkTrendPoint, observabilityTrendBuckets)
 	accumulators := make([]snapshotTrendAccumulator, observabilityTrendBuckets)
@@ -126,10 +126,20 @@ func buildNetworkTrendPoints(now time.Time, snapshots []*model.NodeMetricSnapsho
 		}
 		points[index].NetworkRxBytes += snapshot.NetworkRxBytes
 		points[index].NetworkTxBytes += snapshot.NetworkTxBytes
-		points[index].OpenrestyRxBytes += snapshot.OpenrestyRxBytes
-		points[index].OpenrestyTxBytes += snapshot.OpenrestyTxBytes
 		if snapshot.NodeID != "" {
 			accumulators[index].nodes[snapshot.NodeID] = struct{}{}
+		}
+	}
+
+	for _, obs := range openrestyObs {
+		index, ok := trendBucketIndex(obs.CapturedAt, start)
+		if !ok {
+			continue
+		}
+		points[index].OpenrestyRxBytes += obs.OpenrestyRxBytes
+		points[index].OpenrestyTxBytes += obs.OpenrestyTxBytes
+		if obs.NodeID != "" {
+			accumulators[index].nodes[obs.NodeID] = struct{}{}
 		}
 	}
 
