@@ -15,7 +15,7 @@ COPY openflare_server ./openflare_server
 COPY openflare_agent ./openflare_agent
 WORKDIR /build/openflare_agent
 RUN go mod download
-RUN go build -trimpath -ldflags "-s -w -X 'openflare-agent/internal/config.AgentVersion=$VERSION'" -o /build/openflare-agent ./cmd/agent
+RUN go build -trimpath -ldflags "-s -w -X 'openflare-agent/internal/config.Version=$VERSION'" -o /build/openflare-agent ./cmd/agent
 
 FROM openresty/openresty:alpine
 
