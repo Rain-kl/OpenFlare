@@ -559,13 +559,13 @@ export function NodeDetailPage({ nodeId }: { nodeId: string }) {
   const normalizedServerUrl = getServerUrl(serverUrl);
   const nodeInstallCommand =
     normalizedServerUrl && node.agent_token
-      ? node.type === 'tunnel_relay'
+      ? node.node_type === 'tunnel_relay'
         ? buildRelayInstallCommand(normalizedServerUrl, node.agent_token)
         : buildNodeInstallCommand(normalizedServerUrl, node.agent_token)
       : '';
   const nodeDockerInstallCommand =
     normalizedServerUrl && node.agent_token
-      ? node.type === 'tunnel_relay'
+      ? node.node_type === 'tunnel_relay'
         ? buildRelayDockerInstallCommand(normalizedServerUrl, node.agent_token)
         : buildNodeDockerInstallCommand(normalizedServerUrl, node.agent_token)
       : '';

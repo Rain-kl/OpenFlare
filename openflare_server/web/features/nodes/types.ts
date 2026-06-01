@@ -3,7 +3,7 @@ import type { ReleaseChannel } from '@/features/update/types';
 export interface NodeItem {
   id: number;
   node_id: string;
-  type: 'edge_node' | 'tunnel_relay';
+  node_type: 'edge_node' | 'tunnel_relay';
   name: string;
   ip: string;
   ip_manual_override: boolean;
@@ -46,7 +46,7 @@ export interface NodeBootstrapToken {
 }
 
 export interface NodeMutationPayload {
-  type: 'edge_node' | 'tunnel_relay';
+  node_type: 'edge_node' | 'tunnel_relay';
   name: string;
   ip: string;
   ip_manual_override: boolean;

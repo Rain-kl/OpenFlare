@@ -211,7 +211,7 @@ function buildFormValues(node?: Partial<NodeItem> | null): NodeEditorValues {
   }
 
   return {
-    type: node.type ?? 'edge_node',
+    type: node.node_type ?? 'edge_node',
     name: node.name ?? '',
     ip: node.ip ?? '',
     ip_manual_override: node.ip_manual_override ?? false,
@@ -235,7 +235,7 @@ function buildFormValues(node?: Partial<NodeItem> | null): NodeEditorValues {
 
 function toPayload(values: NodeEditorValues): NodeMutationPayload {
   const basePayload = {
-    type: values.type,
+    node_type: values.type,
     name: values.name.trim(),
     ip: values.ip.trim(),
     ip_manual_override: values.ip_manual_override,
