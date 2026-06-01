@@ -17,6 +17,8 @@ import {
   getManagedDomains,
 } from '@/features/managed-domains/api/managed-domains';
 import { getProxyRoutes } from '@/features/proxy-routes/api/proxy-routes';
+import { getUpstreamSummary } from '@/features/proxy-routes/helpers';
+
 import {
   deleteTlsCertificate,
   getTlsCertificates,
@@ -539,7 +541,7 @@ export function WebsiteDetailPage({ websiteId }: { websiteId: string }) {
                         </td>
                         <td className="px-3 py-4 text-[var(--foreground-secondary)]">
                           <div className="max-w-72 space-y-1 break-all">
-                            <p>{route.origin_url}</p>
+                            <p>{getUpstreamSummary(route)}</p>
                             <p className="text-xs text-[var(--foreground-muted)]">
                               回源主机名: {route.origin_host || '$host'}
                             </p>

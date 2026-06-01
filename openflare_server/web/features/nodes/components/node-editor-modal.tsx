@@ -47,6 +47,7 @@ const nodeEditorSchema = z
     ip_manual_override: z.boolean(),
     auto_update_enabled: z.boolean(),
     relay_bind_port: z.string().trim(),
+    relay_vhost_http_port: z.string().trim(),
     relay_client_access_addr: z.string().trim(),
     relay_agent_access_addr: z.string().trim(),
     relay_client_proxy_url: z.string().trim(),
@@ -71,6 +72,14 @@ const nodeEditorSchema = z
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           path: ['relay_bind_port'],
+          message: '请填写正确的端口号 (1-65535)',
+        });
+      }
+      const vhostPort = Number(values.relay_vhost_http_port);
+      if (Number.isNaN(vhostPort) || vhostPort < 1 || vhostPort > 65535) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['relay_vhost_http_port'],
           message: '请填写正确的端口号 (1-65535)',
         });
       }
@@ -129,6 +138,7 @@ const defaultValues: NodeEditorValues = {
   ip_manual_override: false,
   auto_update_enabled: false,
   relay_bind_port: '7000',
+  relay_vhost_http_port: '8080',
   relay_client_access_addr: '',
   relay_agent_access_addr: '',
   relay_client_proxy_url: '',
@@ -219,6 +229,7 @@ function buildFormValues(node?: Partial<NodeItem> | null): NodeEditorValues {
     ip_manual_override: node.ip_manual_override ?? false,
     auto_update_enabled: node.auto_update_enabled ?? false,
     relay_bind_port: String(node.relay_bind_port ?? 7000),
+    relay_vhost_http_port: String(node.relay_vhost_http_port ?? 8080),
     relay_client_access_addr: node.relay_client_access_addr ?? '',
     relay_agent_access_addr: node.relay_agent_access_addr ?? '',
     relay_client_proxy_url: node.relay_client_proxy_url ?? '',
@@ -244,6 +255,7 @@ function toPayload(values: NodeEditorValues): NodeMutationPayload {
     ip_manual_override: values.ip_manual_override,
     auto_update_enabled: values.auto_update_enabled,
     relay_bind_port: values.type === 'tunnel_relay' ? Number(values.relay_bind_port) : undefined,
+    relay_vhost_http_port: values.type === 'tunnel_relay' ? Number(values.relay_vhost_http_port) : undefined,
     relay_client_access_addr: values.type === 'tunnel_relay' ? values.relay_client_access_addr.trim() : undefined,
     relay_agent_access_addr: values.type === 'tunnel_relay' ? values.relay_agent_access_addr.trim() : undefined,
     relay_client_proxy_url: values.type === 'tunnel_relay' ? values.relay_client_proxy_url.trim() : undefined,
@@ -381,6 +393,14 @@ export function NodeEditorModal({
               error={form.formState.errors.relay_bind_port?.message}
             >
               <ResourceInput placeholder="7000" {...form.register('relay_bind_port')} />
+            </ResourceField>
+            
+            <ResourceField
+              label="中继 Vhost HTTP 端口 (Vhost HTTP Port)"
+              hint="中继服务端在此端口监听 HTTP 虚拟主机流量，用于 Nginx 转发到中继。"
+              error={form.formState.errors.relay_vhost_http_port?.message}
+            >
+              <ResourceInput placeholder="8080" {...form.register('relay_vhost_http_port')} />
             </ResourceField>
             
             <ResourceField

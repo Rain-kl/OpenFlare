@@ -568,17 +568,18 @@ func buildSnapshotRoutes(routes []*model.ProxyRoute) ([]snapshotRoute, error) {
 }
 
 func resolveTunnelOpenRestyUpstreamURL() string {
-	port := 8080
 	relayNodes, err := model.ListNodesByType("tunnel_relay")
-	if err == nil {
+	if err == nil && len(relayNodes) > 0 {
 		for _, node := range relayNodes {
-			if node != nil && node.RelayVhostHTTPPort > 0 {
-				port = node.RelayVhostHTTPPort
-				break
+			if node != nil {
+				addr := relayAgentAddress(node)
+				if addr != "" {
+					return "http://" + addr
+				}
 			}
 		}
 	}
-	return fmt.Sprintf("http://127.0.0.1:%d", port)
+	return "http://127.0.0.1:8080"
 }
 
 func buildSnapshotWAFDocument(routes []*model.ProxyRoute) (snapshotWAFDocument, error) {

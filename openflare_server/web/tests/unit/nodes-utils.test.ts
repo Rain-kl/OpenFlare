@@ -12,6 +12,7 @@ function buildNode(overrides: Partial<NodeItem> = {}): NodeItem {
     ip: '127.0.0.1',
     ip_manual_override: false,
     relay_bind_port: 7000,
+    relay_vhost_http_port: 8080,
     relay_client_access_addr: '',
     relay_agent_access_addr: '',
     relay_client_proxy_url: '',

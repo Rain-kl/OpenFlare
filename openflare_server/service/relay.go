@@ -436,6 +436,33 @@ func relayClientAddress(node *model.Node) string {
 	return fmt.Sprintf("%s:%d", addr, port)
 }
 
+func relayAgentAddress(node *model.Node) string {
+	if node == nil {
+		return ""
+	}
+	port := node.RelayVhostHTTPPort
+	if port <= 0 {
+		port = 8080
+	}
+	addr := strings.TrimSpace(node.RelayAgentAccessAddr)
+	if addr == "" {
+		addr = strings.TrimSpace(node.RelayClientAccessAddr)
+	}
+	if addr == "" {
+		addr = strings.TrimSpace(node.IP)
+	}
+	if addr == "" {
+		return fmt.Sprintf("127.0.0.1:%d", port)
+	}
+	if _, _, err := net.SplitHostPort(addr); err == nil {
+		return addr
+	}
+	if strings.Contains(addr, ":") && strings.Count(addr, ":") > 1 {
+		return net.JoinHostPort(addr, strconv.Itoa(port))
+	}
+	return fmt.Sprintf("%s:%d", addr, port)
+}
+
 func parseTunnelTargetAddr(addr string) (string, int) {
 	addr = strings.TrimSpace(addr)
 	if addr == "" {

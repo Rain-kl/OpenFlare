@@ -348,7 +348,7 @@ func TestTunnelRoutePublishAndFlaredConfigUseRelayPorts(t *testing.T) {
 	if err != nil {
 		t.Fatalf("PublishConfigVersion failed: %v", err)
 	}
-	if !strings.Contains(result.Version.RenderedConfig, "server 127.0.0.1:18080 max_fails=3 fail_timeout=10s;") {
+	if !strings.Contains(result.Version.RenderedConfig, "server de-e:18080 max_fails=3 fail_timeout=10s;") {
 		t.Fatalf("expected rendered OpenResty upstream to use relay vhost port, got:\n%s", result.Version.RenderedConfig)
 	}
 

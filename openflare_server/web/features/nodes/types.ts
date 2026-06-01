@@ -8,6 +8,7 @@ export interface NodeItem {
   ip: string;
   ip_manual_override: boolean;
   relay_bind_port: number;
+  relay_vhost_http_port: number;
   relay_client_access_addr: string;
   relay_agent_access_addr: string;
   relay_client_proxy_url: string;
@@ -54,6 +55,7 @@ export interface NodeMutationPayload {
   ip: string;
   ip_manual_override: boolean;
   relay_bind_port?: number;
+  relay_vhost_http_port?: number;
   relay_client_access_addr?: string;
   relay_agent_access_addr?: string;
   relay_client_proxy_url?: string;
