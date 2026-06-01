@@ -28,6 +28,10 @@ func (databaseSchemaMigrationContext) ApplyCurrentSchema(db *gorm.DB, backend st
 	return applyCurrentSchema(db, backend)
 }
 
+func (databaseSchemaMigrationContext) ApplyCurrentSchemaExcept(db *gorm.DB, backend string, excludedTables ...string) error {
+	return applyCurrentSchemaExcept(db, backend, excludedTables...)
+}
+
 func (databaseSchemaMigrationContext) BackfillOriginsFromProxyRoutes(db *gorm.DB) error {
 	return backfillOriginsFromProxyRoutes(db)
 }
@@ -184,6 +188,16 @@ func migrateObservabilityLegacyColumns(db *gorm.DB) error {
 }
 
 func applyCurrentSchema(db *gorm.DB, backend string) error {
+	return applyCurrentSchemaExcept(db, backend)
+}
+
+func applyCurrentSchemaExcept(db *gorm.DB, backend string, excludedTables ...string) error {
+	excluded := make(map[string]bool, len(excludedTables))
+	for _, table := range excludedTables {
+		if table != "" {
+			excluded[table] = true
+		}
+	}
 	slog.Info("applyCurrentSchema: step 1/5 - auto migrate schema metadata")
 	if err := autoMigrateSchemaMetadata(db); err != nil {
 		return err
@@ -193,7 +207,7 @@ func applyCurrentSchema(db *gorm.DB, backend string) error {
 		return err
 	}
 	slog.Info("applyCurrentSchema: step 3/5 - auto migrate all models")
-	if err := autoMigrateAll(db); err != nil {
+	if err := autoMigrateAllExcept(db, excluded); err != nil {
 		return err
 	}
 	slog.Info("applyCurrentSchema: step 4/5 - migrate text columns")

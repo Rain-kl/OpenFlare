@@ -10,6 +10,7 @@ const BaseDatabaseSchemaVersion = 7
 
 type Context interface {
 	ApplyCurrentSchema(db *gorm.DB, backend string) error
+	ApplyCurrentSchemaExcept(db *gorm.DB, backend string, excludedTables ...string) error
 	BackfillOriginsFromProxyRoutes(db *gorm.DB) error
 	BackfillProxyRouteSiteFields(db *gorm.DB) error
 	EnsureProxyRouteSiteNameUniqueIndex(db *gorm.DB) error

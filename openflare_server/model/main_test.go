@@ -522,6 +522,76 @@ func TestEnsureDatabaseSchemaUpToDateAddsNodeIPManualOverride(t *testing.T) {
 	}
 }
 
+func TestEnsureDatabaseSchemaUpToDateV21BackfillsNodeColumnsWhenNewColumnsAlreadyExist(t *testing.T) {
+	db := openBareTestSQLiteDB(t, "node-v21-existing-target-columns.db")
+	if err := registerSharding(db, "sqlite"); err != nil {
+		t.Fatalf("register sharding: %v", err)
+	}
+	if err := applyCurrentSchema(db, "sqlite"); err != nil {
+		t.Fatalf("apply current schema: %v", err)
+	}
+	if err := ensureDefaultWAFRuleGroup(db); err != nil {
+		t.Fatalf("ensure default waf rule group: %v", err)
+	}
+	for _, stmt := range []string{
+		`ALTER TABLE nodes ADD COLUMN agent_token text`,
+		`ALTER TABLE nodes ADD COLUMN agent_version text`,
+		`ALTER TABLE nodes ADD COLUMN nginx_version text`,
+		`ALTER TABLE nodes ADD COLUMN relay_version text`,
+		`ALTER TABLE nodes ADD COLUMN relay_frp_version text`,
+		`ALTER TABLE nodes ADD COLUMN relay_frps_connections integer`,
+		`ALTER TABLE nodes ADD COLUMN relay_frps_proxy_count integer`,
+	} {
+		if err := db.Exec(stmt).Error; err != nil {
+			t.Fatalf("prepare legacy node column with %q: %v", stmt, err)
+		}
+	}
+	now := time.Now()
+	if err := db.Exec(`
+		INSERT INTO nodes (
+			node_id, name, ip, access_token, version, ext_version,
+			agent_token, agent_version, nginx_version,
+			status, last_seen_at, created_at, updated_at
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, "node-v21", "Node v21", "127.0.0.1", "", "", "", "legacy-token", "v2.0.0", "openresty/1.25.3", "offline", now, now, now).Error; err != nil {
+		t.Fatalf("seed node with legacy columns: %v", err)
+	}
+	if err := saveDatabaseSchemaVersion(db, 20); err != nil {
+		t.Fatalf("save schema version: %v", err)
+	}
+
+	if err := ensureDatabaseSchemaUpToDate(db, "sqlite"); err != nil {
+		t.Fatalf("ensureDatabaseSchemaUpToDate: %v", err)
+	}
+
+	var node Node
+	if err := db.Where("node_id = ?", "node-v21").First(&node).Error; err != nil {
+		t.Fatalf("query migrated node: %v", err)
+	}
+	if node.AccessToken != "legacy-token" {
+		t.Fatalf("unexpected access_token: got %q", node.AccessToken)
+	}
+	if node.Version != "v2.0.0" {
+		t.Fatalf("unexpected version: got %q", node.Version)
+	}
+	if node.ExtVersion != "openresty/1.25.3" {
+		t.Fatalf("unexpected ext_version: got %q", node.ExtVersion)
+	}
+	if !db.Migrator().HasColumn(&Node{}, "agent_token") {
+		t.Fatal("expected migration to keep legacy nodes.agent_token column")
+	}
+	version, exists, err := loadDatabaseSchemaVersion(db)
+	if err != nil {
+		t.Fatalf("loadDatabaseSchemaVersion: %v", err)
+	}
+	if !exists {
+		t.Fatal("expected schema version record to exist")
+	}
+	if version != currentDatabaseSchemaVersion {
+		t.Fatalf("unexpected schema version: got %d want %d", version, currentDatabaseSchemaVersion)
+	}
+}
+
 func TestAllRegisteredMigrationsHaveValidationDefined(t *testing.T) {
 	ctx := databaseSchemaMigrationContext{}
 	for _, migration := range databaseSchemaMigrations() {

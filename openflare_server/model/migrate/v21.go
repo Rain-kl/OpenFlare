@@ -31,6 +31,10 @@ func migrateV21(ctx Context, db *gorm.DB, backend string) error {
 	slog.Info("starting v21 database migration (Node Optimization & Observation Split)")
 
 	migrator := db.Migrator()
+	dropLegacyNodeColumn := func(col string) error {
+		slog.Info("v21: keeping legacy nodes column to avoid lock-heavy schema rewrite", "backend", backend, "column", col)
+		return nil
+	}
 
 	// Rename agent_token → access_token (target may already exist if AutoMigrate ran earlier)
 	if migrator.HasColumn(&nodeV21{}, "agent_token") {
@@ -39,7 +43,7 @@ func migrateV21(ctx Context, db *gorm.DB, backend string) error {
 			if err := db.Exec(`UPDATE nodes SET access_token = agent_token WHERE access_token IS NULL OR access_token = ''`).Error; err != nil {
 				return fmt.Errorf("failed to backfill access_token from agent_token: %w", err)
 			}
-			if err := migrator.DropColumn(&nodeV21{}, "agent_token"); err != nil {
+			if err := dropLegacyNodeColumn("agent_token"); err != nil {
 				slog.Warn("failed to drop agent_token after backfill", "error", err)
 			}
 		} else {
@@ -57,7 +61,7 @@ func migrateV21(ctx Context, db *gorm.DB, backend string) error {
 			if err := db.Exec(`UPDATE nodes SET version = agent_version WHERE version = ''`).Error; err != nil {
 				return fmt.Errorf("failed to backfill version from agent_version: %w", err)
 			}
-			if err := migrator.DropColumn(&nodeV21{}, "agent_version"); err != nil {
+			if err := dropLegacyNodeColumn("agent_version"); err != nil {
 				slog.Warn("failed to drop agent_version after backfill", "error", err)
 			}
 		} else {
@@ -74,7 +78,7 @@ func migrateV21(ctx Context, db *gorm.DB, backend string) error {
 			if err := db.Exec(`UPDATE nodes SET ext_version = nginx_version WHERE ext_version IS NULL OR ext_version = ''`).Error; err != nil {
 				return fmt.Errorf("failed to backfill ext_version from nginx_version: %w", err)
 			}
-			if err := migrator.DropColumn(&nodeV21{}, "nginx_version"); err != nil {
+			if err := dropLegacyNodeColumn("nginx_version"); err != nil {
 				slog.Warn("failed to drop nginx_version after backfill", "error", err)
 			}
 		} else {
@@ -94,13 +98,13 @@ func migrateV21(ctx Context, db *gorm.DB, backend string) error {
 
 	for _, col := range columnsToDrop {
 		if migrator.HasColumn(&nodeV21{}, col) {
-			if err := migrator.DropColumn(&nodeV21{}, col); err != nil {
+			if err := dropLegacyNodeColumn(col); err != nil {
 				slog.Warn("failed to drop column in v21 migration", "column", col, "error", err)
 			}
 		}
 	}
 
-	if err := ctx.ApplyCurrentSchema(db, backend); err != nil {
+	if err := ctx.ApplyCurrentSchemaExcept(db, backend, "nodes"); err != nil {
 		return err
 	}
 

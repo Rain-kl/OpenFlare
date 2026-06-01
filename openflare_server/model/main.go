@@ -123,9 +123,21 @@ func openDatabase() (*gorm.DB, string, error) {
 }
 
 func autoMigrateAll(db *gorm.DB) error {
+	return autoMigrateAllExcept(db, nil)
+}
+
+func autoMigrateAllExcept(db *gorm.DB, excludedTables map[string]bool) error {
 	models := registeredModels()
 	for i, item := range models {
 		name := fmt.Sprintf("%T", item)
+		tableName, err := tableNameForModel(item)
+		if err != nil {
+			return fmt.Errorf("resolve table name for %s failed: %w", name, err)
+		}
+		if excludedTables[tableName] {
+			slog.Info("autoMigrateAll: skipped model", "index", fmt.Sprintf("%d/%d", i+1, len(models)), "model", name, "table", tableName)
+			continue
+		}
 		slog.Info("autoMigrateAll: migrating model", "index", fmt.Sprintf("%d/%d", i+1, len(models)), "model", name)
 		if err := db.AutoMigrate(item); err != nil {
 			return fmt.Errorf("AutoMigrate %s failed: %w", name, err)
@@ -133,6 +145,16 @@ func autoMigrateAll(db *gorm.DB) error {
 		slog.Info("autoMigrateAll: migrated model", "model", name)
 	}
 	return nil
+}
+
+func tableNameForModel(item any) (string, error) {
+	namer := schema.NamingStrategy{}
+	cache := &sync.Map{}
+	parsed, err := schema.Parse(item, cache, namer)
+	if err != nil {
+		return "", err
+	}
+	return parsed.Table, nil
 }
 
 func isDatabaseEmpty(db *gorm.DB) (bool, error) {
