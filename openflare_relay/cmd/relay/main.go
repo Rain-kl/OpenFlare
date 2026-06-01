@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	"openflare-relay/internal/config"
@@ -20,7 +21,7 @@ import (
 func main() {
 	// Setup simple structured logging
 	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
-		Level: slog.LevelDebug,
+		Level: parseLevel(os.Getenv("LOG_LEVEL")),
 	})))
 
 	configPath := flag.String("config", "./relay.json", "relay config path")
@@ -70,4 +71,17 @@ func main() {
 		os.Exit(1)
 	}
 	slog.Info("relay process stopped")
+}
+
+func parseLevel(value string) slog.Level {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "debug":
+		return slog.LevelDebug
+	case "warn", "warning":
+		return slog.LevelWarn
+	case "error":
+		return slog.LevelError
+	default:
+		return slog.LevelInfo
+	}
 }

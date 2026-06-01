@@ -46,7 +46,7 @@ jobs:
           POINTED_TAG="$(git tag --points-at HEAD --list 'v*' | sort -V | tail -n1)"
           INPUT_VERSION="${INPUT_VERSION//[[:space:]]/}"
 
-          echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}-flared" >> "$GITHUB_ENV"
+          echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/openflared" >> "$GITHUB_ENV"
           if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
             VERSION="${GITHUB_REF_NAME}"
           elif [[ -n "$INPUT_VERSION" ]]; then
@@ -126,7 +126,7 @@ jobs:
           POINTED_TAG="$(git tag --points-at HEAD --list 'v*' | sort -V | tail -n1)"
           INPUT_VERSION="${INPUT_VERSION//[[:space:]]/}"
 
-          echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}-flared" >> "$GITHUB_ENV"
+          echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/openflared" >> "$GITHUB_ENV"
           if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
             VERSION="${GITHUB_REF_NAME}"
           elif [[ -n "$INPUT_VERSION" ]]; then

@@ -285,12 +285,12 @@ export function buildTunnelDockerInstallCommand(
   serverUrl: string,
   tunnelToken: string,
 ) {
-  const image = 'ghcr.io/rain-kl/openflare-flared:latest';
+  const image = 'ghcr.io/rain-kl/openflared:latest';
 
   return [
     `docker pull ${image}`,
-    `docker rm -f openflare-flared 2>/dev/null || true`,
-    `docker run -d --name openflare-flared --restart unless-stopped \\`,
+    `docker rm -f openflared 2>/dev/null || true`,
+    `docker run -d --name openflared --restart unless-stopped \\`,
     `  -e OPENFLARE_SERVER_URL=${serverUrl} \\`,
     `  -e OPENFLARE_TUNNEL_TOKEN=${tunnelToken} \\`,
     `  ${image}`,
