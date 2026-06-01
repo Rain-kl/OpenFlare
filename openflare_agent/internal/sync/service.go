@@ -4,10 +4,12 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
 	openrestyrender "openflare/utils/render/openresty"
+	"sort"
 	"strings"
 
 	"openflare-agent/internal/nginx"
@@ -24,6 +26,7 @@ const (
 type ConfigClient interface {
 	GetActiveConfig(ctx context.Context) (*protocol.ActiveConfigResponse, error)
 	ReportApplyLog(ctx context.Context, payload protocol.ApplyLogPayload) error
+	SyncWAFIPGroups(ctx context.Context, payload protocol.WAFIPGroupSyncRequest) (*protocol.WAFIPGroupSyncResponse, error)
 }
 
 type NginxManager interface {
@@ -31,6 +34,8 @@ type NginxManager interface {
 	EnsureRuntime(ctx context.Context, recreate bool) error
 	EnsureSafeFallbackRuntime(ctx context.Context, reason string) error
 	CurrentChecksum() (string, error)
+	WAFIPGroupChecksums() (map[string]string, error)
+	SyncWAFIPGroups(groups []protocol.WAFIPGroup) error
 }
 
 type Service struct {
@@ -162,6 +167,20 @@ func (s *Service) ForceSyncOnce(ctx context.Context, target *protocol.ActiveConf
 	return s.applyIfNeeded(ctx, "force", true, snapshot, currentChecksum, target, config)
 }
 
+func (s *Service) WAFIPGroupChecksums() (map[string]string, error) {
+	if s.nginxManager == nil {
+		return map[string]string{}, nil
+	}
+	return s.nginxManager.WAFIPGroupChecksums()
+}
+
+func (s *Service) ApplyWAFIPGroups(ctx context.Context, groups []protocol.WAFIPGroup) error {
+	if len(groups) == 0 || s.nginxManager == nil {
+		return nil
+	}
+	return s.nginxManager.SyncWAFIPGroups(groups)
+}
+
 func (s *Service) applyIfNeeded(ctx context.Context, mode string, startup bool, snapshot *state.Snapshot, currentChecksum string, target *protocol.ActiveConfigMeta, config *protocol.ActiveConfigResponse) error {
 	if currentChecksum == config.Checksum && !startup {
 		slog.Debug("local openresty config already up to date", "mode", mode, "version", config.Version)
@@ -273,8 +292,34 @@ func (s *Service) applyIfNeeded(ctx context.Context, mode string, startup bool, 
 		slog.Warn("failed apply log reported", "version", config.Version)
 		return outcomeError(config.Version, message)
 	}
+	if err := s.syncReferencedWAFIPGroups(ctx, rendered.supportFiles); err != nil {
+		slog.Error("sync referenced waf ip groups failed", "version", config.Version, "error", err)
+		return err
+	}
 	slog.Debug("apply log reported", "version", config.Version, "result", reportResult)
 	return nil
+}
+
+func (s *Service) syncReferencedWAFIPGroups(ctx context.Context, supportFiles []protocol.SupportFile) error {
+	ids := referencedWAFIPGroupIDs(supportFiles)
+	if len(ids) == 0 {
+		return nil
+	}
+	checksums, err := s.WAFIPGroupChecksums()
+	if err != nil {
+		return err
+	}
+	response, err := s.client.SyncWAFIPGroups(ctx, protocol.WAFIPGroupSyncRequest{
+		IDs:       ids,
+		Checksums: checksums,
+	})
+	if err != nil {
+		return err
+	}
+	if response == nil || len(response.Groups) == 0 {
+		return nil
+	}
+	return s.ApplyWAFIPGroups(ctx, response.Groups)
 }
 
 type renderedActiveConfig struct {
@@ -324,6 +369,48 @@ func fromOpenRestySupportFiles(files []openrestyrender.SupportFile) []protocol.S
 		result = append(result, protocol.SupportFile{Path: file.Path, Content: file.Content})
 	}
 	return result
+}
+
+func referencedWAFIPGroupIDs(supportFiles []protocol.SupportFile) []uint {
+	var content string
+	for _, file := range supportFiles {
+		if file.Path == "waf_config.json" {
+			content = strings.TrimSpace(file.Content)
+			break
+		}
+	}
+	if content == "" {
+		return []uint{}
+	}
+	var payload struct {
+		RuleGroups []struct {
+			IPWhitelistGroups []uint `json:"ip_whitelist_group_ids"`
+			IPBlacklistGroups []uint `json:"ip_blacklist_group_ids"`
+		} `json:"rule_groups"`
+	}
+	if err := json.Unmarshal([]byte(content), &payload); err != nil {
+		slog.Debug("decode waf_config.json for ip group references failed", "error", err)
+		return []uint{}
+	}
+	seen := make(map[uint]struct{})
+	for _, group := range payload.RuleGroups {
+		for _, id := range group.IPWhitelistGroups {
+			if id > 0 {
+				seen[id] = struct{}{}
+			}
+		}
+		for _, id := range group.IPBlacklistGroups {
+			if id > 0 {
+				seen[id] = struct{}{}
+			}
+		}
+	}
+	ids := make([]uint, 0, len(seen))
+	for id := range seen {
+		ids = append(ids, id)
+	}
+	sort.Slice(ids, func(i, j int) bool { return ids[i] < ids[j] })
+	return ids
 }
 
 func shouldReportNoopApply(snapshot *state.Snapshot, version string, checksum string) bool {

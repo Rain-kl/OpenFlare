@@ -305,7 +305,7 @@ func TestWAFIPGroupAutomaticRejectsInvalidExpr(t *testing.T) {
 	}
 }
 
-func TestPublishConfigVersionExpandsWAFIPGroupReferences(t *testing.T) {
+func TestPublishConfigVersionKeepsWAFIPGroupReferences(t *testing.T) {
 	setupServiceTestDB(t)
 
 	route, err := CreateProxyRoute(ProxyRouteInput{
@@ -345,18 +345,26 @@ func TestPublishConfigVersionExpandsWAFIPGroupReferences(t *testing.T) {
 	if !strings.Contains(result.Version.SnapshotJSON, `"ip_groups"`) {
 		t.Fatal("expected snapshot to include waf ip groups")
 	}
+	if strings.Contains(result.Version.SnapshotJSON, "203.0.113.30") {
+		t.Fatal("expected snapshot to avoid embedding waf ip group members")
+	}
 	var files []SupportFile
 	if err = json.Unmarshal([]byte(result.Version.SupportFilesJSON), &files); err != nil {
 		t.Fatalf("decode support files failed: %v", err)
 	}
-	found := false
+	foundReference := false
 	for _, file := range files {
-		if file.Path == "waf_config.json" && strings.Contains(file.Content, "203.0.113.30") {
-			found = true
+		if file.Path == "waf_config.json" {
+			if strings.Contains(file.Content, "203.0.113.30") {
+				t.Fatalf("expected waf_config.json to avoid expanded IP group members, got %s", file.Content)
+			}
+			if strings.Contains(file.Content, `"ip_blacklist_group_ids":[`) {
+				foundReference = true
+			}
 		}
 	}
-	if !found {
-		t.Fatalf("expected expanded IP group in waf_config.json, got %#v", files)
+	if !foundReference {
+		t.Fatalf("expected IP group reference in waf_config.json, got %#v", files)
 	}
 }
 

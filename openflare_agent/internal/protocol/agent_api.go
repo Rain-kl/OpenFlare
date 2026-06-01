@@ -14,11 +14,13 @@ type HeartbeatAPIResponse struct {
 	Data          any               `json:"data"`
 	AgentSettings *AgentSettings    `json:"agent_settings,omitempty"`
 	ActiveConfig  *ActiveConfigMeta `json:"active_config,omitempty"`
+	WAFIPGroups   []WAFIPGroup      `json:"waf_ip_groups,omitempty"`
 }
 
 type HeartbeatResult struct {
 	AgentSettings *AgentSettings
 	ActiveConfig  *ActiveConfigMeta
+	WAFIPGroups   []WAFIPGroup
 }
 
 type AgentSettings struct {
@@ -37,6 +39,7 @@ const (
 	WSMessageTypeSettings        = "settings"
 	WSMessageTypeActiveConfig    = "active_config"
 	WSMessageTypeForceSyncConfig = "force_sync_config"
+	WSMessageTypeWAFIPGroups     = "waf_ip_groups"
 	WSMessageTypePing            = "ping"
 	WSMessageTypePong            = "pong"
 )
@@ -81,6 +84,7 @@ type NodePayload struct {
 	AccessLogs            []NodeAccessLog               `json:"access_logs,omitempty"`
 	BufferedObservability []BufferedObservabilityRecord `json:"buffered_observability,omitempty"`
 	HealthEvents          []NodeHealthEvent             `json:"health_events"`
+	WAFIPGroupChecksums   map[string]string             `json:"waf_ip_group_checksums,omitempty"`
 }
 
 type NodeSystemProfile struct {
@@ -175,6 +179,24 @@ type ActiveConfigResponse struct {
 type ActiveConfigMeta struct {
 	Version  string `json:"version"`
 	Checksum string `json:"checksum"`
+}
+
+type WAFIPGroup struct {
+	ID       uint     `json:"id"`
+	Name     string   `json:"name"`
+	Type     string   `json:"type"`
+	Enabled  bool     `json:"enabled"`
+	IPList   []string `json:"ip_list"`
+	Checksum string   `json:"checksum"`
+}
+
+type WAFIPGroupSyncRequest struct {
+	IDs       []uint            `json:"ids,omitempty"`
+	Checksums map[string]string `json:"checksums,omitempty"`
+}
+
+type WAFIPGroupSyncResponse struct {
+	Groups []WAFIPGroup `json:"groups"`
 }
 
 type SupportFile struct {

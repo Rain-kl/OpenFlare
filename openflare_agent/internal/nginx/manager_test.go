@@ -915,6 +915,37 @@ func TestManagerApplyRejectsCertFilePathTraversal(t *testing.T) {
 	}
 }
 
+func TestManagerSyncWAFIPGroupsWritesDeltaRuntimeFile(t *testing.T) {
+	manager := &Manager{RuntimeConfigDir: t.TempDir()}
+
+	if err := manager.SyncWAFIPGroups([]protocol.WAFIPGroup{
+		{ID: 1, Enabled: true, IPList: []string{"203.0.113.10"}, Checksum: "sum-1"},
+	}); err != nil {
+		t.Fatalf("SyncWAFIPGroups failed: %v", err)
+	}
+	if err := manager.SyncWAFIPGroups([]protocol.WAFIPGroup{
+		{ID: 2, Enabled: true, IPList: []string{"198.51.100.10"}, Checksum: "sum-2"},
+	}); err != nil {
+		t.Fatalf("SyncWAFIPGroups second delta failed: %v", err)
+	}
+
+	checksums, err := manager.WAFIPGroupChecksums()
+	if err != nil {
+		t.Fatalf("WAFIPGroupChecksums failed: %v", err)
+	}
+	if checksums["1"] != "sum-1" || checksums["2"] != "sum-2" {
+		t.Fatalf("expected merged checksums, got %#v", checksums)
+	}
+	data, err := os.ReadFile(filepath.Join(manager.RuntimeConfigDir, WAFIPGroupsConfigFileName))
+	if err != nil {
+		t.Fatalf("failed to read runtime ip group file: %v", err)
+	}
+	text := string(data)
+	if !strings.Contains(text, "203.0.113.10") || !strings.Contains(text, "198.51.100.10") {
+		t.Fatalf("expected runtime file to keep both groups, got %s", text)
+	}
+}
+
 func TestObservabilityListenAddress(t *testing.T) {
 	if got := ObservabilityListenAddress(18081); got != "127.0.0.1:18081" {
 		t.Fatalf("unexpected default observability listen address: %s", got)

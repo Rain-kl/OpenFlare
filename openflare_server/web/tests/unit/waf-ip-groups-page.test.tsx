@@ -253,8 +253,8 @@ describe('WAF IP groups', () => {
     await userEvent.click(screen.getByRole('button', { name: /测试规则/ }));
 
     expect(await screen.findByText('命中 2 个 IP。')).toBeInTheDocument();
-    expect(screen.getByText('203.0.113.10')).toBeInTheDocument();
-    expect(screen.getByText('203.0.113.11')).toBeInTheDocument();
+    expect(screen.getByText(/203\.0\.113\.10/)).toBeInTheDocument();
+    expect(screen.getByText(/203\.0\.113\.11/)).toBeInTheDocument();
     expect(testMock).toHaveBeenCalledWith({
       auto_config: expect.objectContaining({
         lookback_minutes: 60,

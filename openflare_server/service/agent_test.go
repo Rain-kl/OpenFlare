@@ -3,6 +3,7 @@ package service
 import (
 	"errors"
 	"openflare/model"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -71,6 +72,75 @@ func TestGetActiveConfigForAgentIncludesWAFConfig(t *testing.T) {
 	}
 	if !strings.Contains(activeConfig.SourceConfigJSON, `"waf"`) {
 		t.Fatal("expected agent config source json to include WAF source configuration")
+	}
+}
+
+func TestChangedWAFIPGroupsForAgentReturnsChecksumDelta(t *testing.T) {
+	setupServiceTestDB(t)
+
+	route, err := CreateProxyRoute(ProxyRouteInput{
+		SiteName:  "agent-waf-ip-group",
+		Domains:   []string{"agent-waf-ip-group.example.com"},
+		OriginURL: "https://origin.internal",
+		Enabled:   true,
+	})
+	if err != nil {
+		t.Fatalf("CreateProxyRoute failed: %v", err)
+	}
+	ipGroup, err := CreateWAFIPGroup(WAFIPGroupInput{
+		Name:    "agent runtime group",
+		Type:    WAFIPGroupTypeManual,
+		Enabled: true,
+		IPList:  []string{"203.0.113.44"},
+	})
+	if err != nil {
+		t.Fatalf("CreateWAFIPGroup failed: %v", err)
+	}
+	ruleGroup, err := CreateWAFRuleGroup(WAFRuleGroupInput{
+		Name:              "agent refs",
+		Enabled:           true,
+		IPBlacklistGroups: []uint{ipGroup.ID},
+	})
+	if err != nil {
+		t.Fatalf("CreateWAFRuleGroup failed: %v", err)
+	}
+	if _, err = ReplaceWAFSiteRuleGroups(route.ID, []uint{ruleGroup.ID}); err != nil {
+		t.Fatalf("ReplaceWAFSiteRuleGroups failed: %v", err)
+	}
+	if _, err = PublishConfigVersion("root", false); err != nil {
+		t.Fatalf("PublishConfigVersion failed: %v", err)
+	}
+
+	groups, err := ChangedWAFIPGroupsForAgent(nil, nil)
+	if err != nil {
+		t.Fatalf("ChangedWAFIPGroupsForAgent failed: %v", err)
+	}
+	if len(groups) != 1 || groups[0].ID != ipGroup.ID || groups[0].IPList[0] != "203.0.113.44" || groups[0].Checksum == "" {
+		t.Fatalf("unexpected changed groups: %#v", groups)
+	}
+	groupKey := strconv.FormatUint(uint64(ipGroup.ID), 10)
+	same, err := ChangedWAFIPGroupsForAgent(nil, map[string]string{groupKey: groups[0].Checksum})
+	if err != nil {
+		t.Fatalf("ChangedWAFIPGroupsForAgent with checksum failed: %v", err)
+	}
+	if len(same) != 0 {
+		t.Fatalf("expected no delta for matching checksum, got %#v", same)
+	}
+	updated, err := UpdateWAFIPGroup(ipGroup.ID, WAFIPGroupInput{
+		Name:    "agent runtime group",
+		Type:    WAFIPGroupTypeManual,
+		Enabled: true,
+		IPList:  []string{"203.0.113.45"},
+	})
+	if err != nil {
+		t.Fatalf("UpdateWAFIPGroup failed: %v", err)
+	}
+	delta, err := ChangedWAFIPGroupsForAgent(nil, map[string]string{groupKey: groups[0].Checksum})
+	if err != nil {
+		t.Fatalf("ChangedWAFIPGroupsForAgent after update failed: %v", err)
+	}
+	if len(delta) != 1 || delta[0].ID != updated.ID || delta[0].IPList[0] != "203.0.113.45" || delta[0].Checksum == groups[0].Checksum {
+		t.Fatalf("expected updated group delta, got %#v", delta)
 	}
 }
 

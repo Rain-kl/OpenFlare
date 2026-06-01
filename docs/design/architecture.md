@@ -169,9 +169,9 @@ Client -> OpenResty server block -> WAF Lua -> named upstream -> Origin
 
 网站配置是反向代理聚合边界。一条网站配置可绑定多个域名，并共享站点级流量限制、反向代理和缓存配置。
 
-WAF 在 OpenResty `access_by_lua_file` 阶段执行。规则来自当前激活版本携带的 `waf_config.json`，全局规则组默认生效，网站可叠加自定义规则组。
+WAF 在 OpenResty `access_by_lua_file` 阶段执行。规则来自当前激活版本携带的 `waf_config.json`，全局规则组默认生效，网站可叠加自定义规则组。`waf_config.json` 只保存规则组直接 IP 和 IP 组引用 ID；IP 组成员由 Agent 独立同步到本地 `waf_ip_groups.json`，OpenResty Lua 按引用 ID 合并判断。
 
-WAF IP 组由 Server 管理并在发布时展开到 `waf_config.json`。手动 IP 组直接保存 IP/IP 段列表；自动 IP 组由 Server 定时任务读取请求日志、按单个 IP 聚合指标并执行 Expr 规则；订阅 IP 组由 Server 定时任务同步远程文本或 JSON 源。OpenResty Lua 只读取 Agent 落地的运行时 JSON，不直接访问 Server 数据库、请求日志或远程订阅源。
+WAF IP 组由 Server 管理。手动 IP 组直接保存 IP/IP 段列表；自动 IP 组由 Server 定时任务读取请求日志、按单个 IP 聚合指标并执行 Expr 规则；订阅 IP 组由 Server 定时任务同步远程文本或 JSON 源。Agent 心跳会上报本地 IP 组 checksum，Server 只返回不一致的 IP 组；Server 侧 IP 组更新时会通过 Agent WebSocket 广播变更组。OpenResty Lua 只读取 Agent 落地的运行时 JSON，不直接访问 Server 数据库、请求日志或远程订阅源。
 
 ## 核心对象
 

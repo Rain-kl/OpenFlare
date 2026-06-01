@@ -78,7 +78,31 @@ func AgentHeartbeat(c *gin.Context) {
 	respondSuccessWithExtras(c, node.Node, gin.H{
 		"agent_settings": node.AgentSettings,
 		"active_config":  node.ActiveConfig,
+		"waf_ip_groups":  node.WAFIPGroups,
 	})
+}
+
+// AgentSyncWAFIPGroups godoc
+// @Summary Sync WAF IP groups for agent
+// @Tags Agent
+// @Accept json
+// @Produce json
+// @Security AgentTokenAuth
+// @Param payload body service.AgentWAFIPGroupSyncInput true "WAF IP group sync payload"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{}
+// @Router /api/agent/waf/ip-groups/sync [post]
+func AgentSyncWAFIPGroups(c *gin.Context) {
+	var input service.AgentWAFIPGroupSyncInput
+	if !bindJSON(c, &input) {
+		return
+	}
+	result, err := service.SyncWAFIPGroupsForAgent(input)
+	if err != nil {
+		respondFailure(c, err.Error())
+		return
+	}
+	respondSuccess(c, result)
 }
 
 // AgentGetActiveConfig godoc
@@ -254,12 +278,17 @@ func handleAgentWSStatus(c *gin.Context, node *model.Node, message service.Agent
 	if response.ActiveConfig != nil {
 		activeConfigSent = service.SendAgentWSActiveConfig(node.NodeID, response.ActiveConfig)
 	}
+	wafIPGroupsSent := false
+	if len(response.WAFIPGroups) > 0 {
+		wafIPGroupsSent = service.SendAgentWSWAFIPGroups(node.NodeID, response.WAFIPGroups)
+	}
 	slog.Debug("agent ws status processed",
 		"node_id", node.NodeID,
 		"current_version", payload.CurrentVersion,
 		"openresty_status", payload.OpenrestyStatus,
 		"settings_sent", settingsSent,
 		"active_config_sent", activeConfigSent,
+		"waf_ip_groups_sent", wafIPGroupsSent,
 	)
 }
 

@@ -10,6 +10,7 @@ const (
 	AgentWSMessageTypeSettings        = "settings"
 	AgentWSMessageTypeActiveConfig    = "active_config"
 	AgentWSMessageTypeForceSyncConfig = "force_sync_config"
+	AgentWSMessageTypeWAFIPGroups     = "waf_ip_groups"
 	AgentWSMessageTypePing            = "ping"
 	AgentWSMessageTypePong            = "pong"
 
@@ -77,6 +78,16 @@ func SendAgentWSForceSyncConfig(nodeID string, activeConfig *ActiveConfigMeta) b
 	})
 }
 
+func SendAgentWSWAFIPGroups(nodeID string, groups []AgentWAFIPGroup) bool {
+	if len(groups) == 0 {
+		return false
+	}
+	return DefaultAgentWSHub.SendMessage(nodeID, WSMessage{
+		Type:    AgentWSMessageTypeWAFIPGroups,
+		Payload: groups,
+	})
+}
+
 func SendAgentWSPong(nodeID string) bool {
 	return DefaultAgentWSHub.SendMessage(nodeID, WSMessage{
 		Type: AgentWSMessageTypePong,
@@ -108,6 +119,23 @@ func BroadcastAgentWSActiveConfig(activeConfig *ActiveConfigMeta) AgentWSBroadca
 		"client_count", result.ClientCount,
 		"success_count", result.SuccessCount,
 		"failed_nodes", result.FailedNodes,
+	)
+	return result
+}
+
+func BroadcastAgentWSWAFIPGroups(groups []AgentWAFIPGroup) WSBroadcastResult {
+	if len(groups) == 0 {
+		return WSBroadcastResult{}
+	}
+	result := DefaultAgentWSHub.Broadcast(WSMessage{
+		Type:    AgentWSMessageTypeWAFIPGroups,
+		Payload: groups,
+	})
+	slog.Debug("agent ws broadcast waf ip groups",
+		"group_count", len(groups),
+		"client_count", result.ClientCount,
+		"success_count", result.SuccessCount,
+		"failed_nodes", result.FailedIDs,
 	)
 	return result
 }

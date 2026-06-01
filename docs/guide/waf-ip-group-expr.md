@@ -1,6 +1,6 @@
 # WAF 自动 IP 组规则语法
 
-自动 IP 组用于从请求日志中按单个客户端 IP 聚合指标，再用 Expr 表达式判断是否把该 IP 加入组内名单。自动 IP 组可以被 WAF 规则组的 IP 黑名单或白名单引用；发布配置时，Server 会把启用 IP 组展开到 `waf_config.json`。
+自动 IP 组用于从请求日志中按单个客户端 IP 聚合指标，再用 Expr 表达式判断是否把该 IP 加入组内名单。自动 IP 组可以被 WAF 规则组的 IP 黑名单或白名单引用；发布配置时，Server 只把 IP 组引用 ID 写入 `waf_config.json`，IP 组成员由 Agent 独立同步到本地运行时文件。
 
 ## 配置结构
 
@@ -158,4 +158,4 @@ IP 直连访问异常：
 
 先用较短的回看窗口和较高阈值观察命中结果，再逐步调整阈值。管理端 IP 组页面支持在保存前点击 **测试规则**，直接查看当前回看窗口内命中的 IP；自动 IP 组真正执行后会覆盖该组的 IP 列表。如果要长期保留某些地址，建议放入手动 IP 组，并在 WAF 规则组中同时引用手动组和自动组。
 
-自动 IP 组更新后不会立即改变 Agent 上的运行时配置。需要重新发布并激活配置版本，Agent 才会拉取新的 `waf_config.json`。
+自动 IP 组更新后不需要重新发布配置版本。在线 Agent 会通过 WebSocket 收到变更 IP 组并更新本地 `waf_ip_groups.json`；WebSocket 不可用时，Agent 会在下一次心跳中上报本地 IP 组 checksum，Server 只返回 checksum 不一致的 IP 组。

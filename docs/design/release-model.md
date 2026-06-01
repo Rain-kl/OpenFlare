@@ -18,7 +18,7 @@ Server 发布时必须：
 2. 读取 Server 侧 OpenResty 主配置、性能参数、缓存参数和必要 Lua 资源。
 3. 读取域名与证书绑定关系。
 4. 读取 WAF 全局规则组、自定义规则组、IP 组引用与网站绑定关系。
-5. 使用自动 IP 组最近一次执行后的 IP 列表，并展开 WAF 规则组引用的启用 IP 组，渲染完整 OpenResty 配置与 WAF 运行时配置。
+5. 保留 WAF 规则组引用的 IP 组 ID，渲染完整 OpenResty 配置与 WAF 运行时配置；IP 组成员不进入发布版本。
 6. 计算 `checksum`。
 7. 写入 `config_versions`。
 8. 切换激活版本。
@@ -70,4 +70,10 @@ Agent 发现新版本后会：
 * Agent API 固定使用节点专属 `agent_token`，首次接入可使用 `discovery_token`。
 * Server 不提供远程 shell 或任意命令执行入口。
 * 配置版本必须保存完整快照、渲染结果和 `checksum`。
-* WAF 规则组、IP 组快照和网站绑定关系必须随完整配置版本进入快照与 checksum，回滚时不得依赖当前可变 WAF 配置。
+* WAF 规则组、IP 组引用 ID 和网站绑定关系必须随完整配置版本进入快照与 checksum；IP 组成员由 Agent 独立按 checksum 差异同步，不受版本回滚影响。
+
+## WAF IP 组运行时同步
+
+WAF IP 组成员不纳入配置版本。发布版本只包含规则组直接 IP 与 `ip_whitelist_group_ids` / `ip_blacklist_group_ids`。Agent 应用版本后会从渲染出的 `waf_config.json` 中提取引用 ID，并向 Server 请求缺失或 checksum 不一致的 IP 组数据。
+
+Agent 后续心跳会携带本地 IP 组 checksum。Server 根据当前激活版本引用的 IP 组 ID 对比 checksum，只返回差异组，避免每次心跳传输全部 IP 组。Server 在手动更新、订阅同步或自动规则执行后，会通过 Agent WebSocket 广播发生变化的 IP 组；WS 不可用时，下一次 HTTP heartbeat 仍会按 checksum 差异补齐。

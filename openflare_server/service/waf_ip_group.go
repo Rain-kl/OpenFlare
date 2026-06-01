@@ -2,10 +2,13 @@ package service
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net"
 	"net/http"
 	"net/netip"
@@ -178,7 +181,11 @@ func CreateWAFIPGroup(input WAFIPGroupInput) (*WAFIPGroupView, error) {
 	if err := group.Insert(); err != nil {
 		return nil, err
 	}
-	return GetWAFIPGroup(group.ID)
+	view, err := GetWAFIPGroup(group.ID)
+	if err == nil {
+		broadcastWAFIPGroupToAgents(group.ID)
+	}
+	return view, err
 }
 
 func UpdateWAFIPGroup(id uint, input WAFIPGroupInput) (*WAFIPGroupView, error) {
@@ -193,7 +200,11 @@ func UpdateWAFIPGroup(id uint, input WAFIPGroupInput) (*WAFIPGroupView, error) {
 	if err := group.Update(); err != nil {
 		return nil, err
 	}
-	return GetWAFIPGroup(group.ID)
+	view, err := GetWAFIPGroup(group.ID)
+	if err == nil {
+		broadcastWAFIPGroupToAgents(group.ID)
+	}
+	return view, err
 }
 
 func DeleteWAFIPGroup(id uint) error {
@@ -364,6 +375,151 @@ func buildWAFIPGroupView(group *model.WAFIPGroup, referenceCount int) (WAFIPGrou
 	return view, nil
 }
 
+func ChangedWAFIPGroupsForAgent(ids []uint, checksums map[string]string) ([]AgentWAFIPGroup, error) {
+	targetIDs := uniqueUintIDs(ids)
+	if len(targetIDs) == 0 {
+		activeIDs, err := activeConfigWAFIPGroupIDs()
+		if err != nil {
+			return nil, err
+		}
+		targetIDs = activeIDs
+	}
+	if len(targetIDs) == 0 {
+		return []AgentWAFIPGroup{}, nil
+	}
+	groups, err := buildAgentWAFIPGroups(targetIDs)
+	if err != nil {
+		return nil, err
+	}
+	changed := make([]AgentWAFIPGroup, 0, len(groups))
+	for _, group := range groups {
+		if strings.TrimSpace(checksums[fmt.Sprintf("%d", group.ID)]) == group.Checksum {
+			continue
+		}
+		changed = append(changed, group)
+	}
+	return changed, nil
+}
+
+func SyncWAFIPGroupsForAgent(input AgentWAFIPGroupSyncInput) (*AgentWAFIPGroupSyncResult, error) {
+	groups, err := ChangedWAFIPGroupsForAgent(input.IDs, input.Checksums)
+	if err != nil {
+		return nil, err
+	}
+	return &AgentWAFIPGroupSyncResult{Groups: groups}, nil
+}
+
+func buildAgentWAFIPGroups(ids []uint) ([]AgentWAFIPGroup, error) {
+	ids = uniqueUintIDs(ids)
+	if len(ids) == 0 {
+		return []AgentWAFIPGroup{}, nil
+	}
+	sort.Slice(ids, func(i, j int) bool { return ids[i] < ids[j] })
+	groups, err := model.ListWAFIPGroupsByIDs(ids)
+	if err != nil {
+		return nil, err
+	}
+	groupByID := make(map[uint]*model.WAFIPGroup, len(groups))
+	for _, group := range groups {
+		groupByID[group.ID] = group
+	}
+	result := make([]AgentWAFIPGroup, 0, len(ids))
+	for _, id := range ids {
+		group := groupByID[id]
+		if group == nil {
+			continue
+		}
+		agentGroup, err := buildAgentWAFIPGroup(group)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, agentGroup)
+	}
+	return result, nil
+}
+
+func buildAgentWAFIPGroup(group *model.WAFIPGroup) (AgentWAFIPGroup, error) {
+	if group == nil {
+		return AgentWAFIPGroup{}, errors.New("IP 组不存在")
+	}
+	ips, err := decodeStringList(group.IPList)
+	if err != nil {
+		return AgentWAFIPGroup{}, err
+	}
+	if !group.Enabled {
+		ips = []string{}
+	}
+	agentGroup := AgentWAFIPGroup{
+		ID:      group.ID,
+		Name:    group.Name,
+		Type:    group.Type,
+		Enabled: group.Enabled,
+		IPList:  ips,
+	}
+	agentGroup.Checksum = checksumAgentWAFIPGroup(agentGroup)
+	return agentGroup, nil
+}
+
+func checksumAgentWAFIPGroup(group AgentWAFIPGroup) string {
+	payload := struct {
+		ID      uint     `json:"id"`
+		Enabled bool     `json:"enabled"`
+		IPList  []string `json:"ip_list"`
+	}{
+		ID:      group.ID,
+		Enabled: group.Enabled,
+		IPList:  append([]string{}, group.IPList...),
+	}
+	sort.Strings(payload.IPList)
+	data, _ := json.Marshal(payload)
+	sum := sha256.Sum256(data)
+	return hex.EncodeToString(sum[:])
+}
+
+func activeConfigWAFIPGroupIDs() ([]uint, error) {
+	version, err := model.GetActiveConfigVersion()
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return []uint{}, nil
+		}
+		return nil, err
+	}
+	snapshot, err := parseSnapshotDocument(version.SnapshotJSON)
+	if err != nil {
+		return nil, err
+	}
+	idSet := make(map[uint]struct{})
+	for _, group := range snapshot.WAF.RuleGroups {
+		for _, id := range group.IPWhitelistGroups {
+			if id > 0 {
+				idSet[id] = struct{}{}
+			}
+		}
+		for _, id := range group.IPBlacklistGroups {
+			if id > 0 {
+				idSet[id] = struct{}{}
+			}
+		}
+	}
+	ids := make([]uint, 0, len(idSet))
+	for id := range idSet {
+		ids = append(ids, id)
+	}
+	sort.Slice(ids, func(i, j int) bool { return ids[i] < ids[j] })
+	return ids, nil
+}
+
+func broadcastWAFIPGroupToAgents(id uint) {
+	groups, err := buildAgentWAFIPGroups([]uint{id})
+	if err != nil || len(groups) == 0 {
+		if err != nil {
+			slog.Debug("build waf ip group broadcast payload failed", "id", id, "error", err)
+		}
+		return
+	}
+	BroadcastAgentWSWAFIPGroups(groups)
+}
+
 func syncWAFIPGroup(group *model.WAFIPGroup, now time.Time) (*WAFIPGroupSyncResult, error) {
 	if group == nil {
 		return nil, errors.New("IP 组不存在")
@@ -399,6 +555,7 @@ func syncWAFIPGroupSubscription(group *model.WAFIPGroup, now time.Time) (*WAFIPG
 	if err := group.UpdateSyncResult(); err != nil {
 		return nil, err
 	}
+	broadcastWAFIPGroupToAgents(group.ID)
 	view, err := GetWAFIPGroup(group.ID)
 	if err != nil {
 		return nil, err
@@ -481,6 +638,7 @@ func syncWAFIPGroupAutomatic(group *model.WAFIPGroup, now time.Time) (*WAFIPGrou
 	if err := group.UpdateSyncResult(); err != nil {
 		return nil, err
 	}
+	broadcastWAFIPGroupToAgents(group.ID)
 	view, err := GetWAFIPGroup(group.ID)
 	if err != nil {
 		return nil, err

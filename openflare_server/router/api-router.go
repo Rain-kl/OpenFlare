@@ -222,6 +222,7 @@ func SetApiRouter(router *gin.Engine) {
 				authorizedRoute.GET("/ws", controller.AgentWebSocket)
 				authorizedRoute.POST("/nodes/heartbeat", controller.AgentHeartbeat)
 				authorizedRoute.GET("/config-versions/active", controller.AgentGetActiveConfig)
+				authorizedRoute.POST("/waf/ip-groups/sync", controller.AgentSyncWAFIPGroups)
 				authorizedRoute.POST("/apply-logs", controller.AgentReportApplyLog)
 			}
 		}

@@ -181,7 +181,8 @@ IP 组约束：
 * 手动 IP 组由管理端直接维护 IP/IP 段列表。
 * 自动 IP 组使用 Expr 语法保存自定义规则，由 Server 定时按单个 IP 聚合请求日志并更新 IP 列表。
 * 订阅 IP 组由 Server 定时从 HTTP/HTTPS URL 同步，支持文本列表和 JSON 映射。
-* WAF 运行时不访问数据库；发布时将规则组引用的启用 IP 组展开进完整配置版本。
+* WAF 运行时不访问数据库；发布版本只保存规则组引用的 IP 组 ID，不把 IP 组成员展开进版本快照。
+* Agent 通过心跳上报本地 IP 组 checksum，Server 仅返回 checksum 不一致的 IP 组；Server 侧 IP 组更新时会通过 Agent WebSocket 主动广播变更组，使节点可在不重新发布配置版本的情况下更新 WAF IP 组内容。
 
 自动 IP 组首批内置预设规则：
 

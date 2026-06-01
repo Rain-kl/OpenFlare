@@ -69,6 +69,43 @@ Agent 正式请求统一使用节点专属 `agent_token`，首次接入可使用
 X-Agent-Token: <token>
 ```
 
+### Agent WAF IP 组同步
+
+Agent 心跳 payload 可携带本地 WAF IP 组 checksum：
+
+```json
+{
+  "waf_ip_group_checksums": {
+    "1": "sha256..."
+  }
+}
+```
+
+Server 会根据当前激活版本引用的 IP 组 ID 对比 checksum，并在心跳响应顶层返回差异组：
+
+```json
+{
+  "waf_ip_groups": [
+    {
+      "id": 1,
+      "name": "自动黑名单",
+      "type": "automatic",
+      "enabled": true,
+      "ip_list": ["203.0.113.10"],
+      "checksum": "sha256..."
+    }
+  ]
+}
+```
+
+Agent 也可以在应用新版本后主动请求差异同步：
+
+| 方法 | 路径 | 说明 |
+| --- | --- | --- |
+| `POST` | `/api/agent/waf/ip-groups/sync` | 根据 Agent 上报的 `ids` 与 `checksums` 返回不一致的 IP 组 |
+
+当 Server 侧 IP 组更新时，已连接的 Agent WebSocket 会收到 `type = "waf_ip_groups"` 的消息，payload 为发生变化的 IP 组数组。Agent 应只更新收到的组，不要求 Server 每次下发全部 IP 组。
+
 日志中不得打印完整 Token。
 
 ## Swagger

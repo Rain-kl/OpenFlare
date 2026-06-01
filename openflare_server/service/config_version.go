@@ -652,16 +652,11 @@ func buildSnapshotWAFIPGroups(ruleGroups []snapshotWAFRuleGroup) ([]snapshotWAFI
 		if group == nil {
 			return nil, fmt.Errorf("IP 组 %d 不存在", id)
 		}
-		ips, err := decodeStringList(group.IPList)
-		if err != nil {
-			return nil, fmt.Errorf("IP 组 %s 列表无效: %w", group.Name, err)
-		}
 		snapshots = append(snapshots, snapshotWAFIPGroup{
 			ID:      group.ID,
 			Name:    group.Name,
 			Type:    group.Type,
 			Enabled: group.Enabled,
-			IPList:  ips,
 		})
 	}
 	return snapshots, nil

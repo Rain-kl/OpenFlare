@@ -41,6 +41,7 @@ type AgentNodePayload struct {
 	AccessLogs            []AgentNodeAccessLog               `json:"access_logs,omitempty"`
 	BufferedObservability []AgentBufferedObservabilityRecord `json:"buffered_observability,omitempty"`
 	HealthEvents          []AgentNodeHealthEvent             `json:"health_events"`
+	WAFIPGroupChecksums   map[string]string                  `json:"waf_ip_group_checksums,omitempty"`
 }
 
 type ApplyLogPayload struct {
@@ -107,6 +108,25 @@ type HeartbeatResponse struct {
 	Node          *model.Node       `json:"node"`
 	AgentSettings *AgentSettings    `json:"agent_settings"`
 	ActiveConfig  *ActiveConfigMeta `json:"active_config"`
+	WAFIPGroups   []AgentWAFIPGroup `json:"waf_ip_groups,omitempty"`
+}
+
+type AgentWAFIPGroup struct {
+	ID       uint     `json:"id"`
+	Name     string   `json:"name"`
+	Type     string   `json:"type"`
+	Enabled  bool     `json:"enabled"`
+	IPList   []string `json:"ip_list"`
+	Checksum string   `json:"checksum"`
+}
+
+type AgentWAFIPGroupSyncInput struct {
+	IDs       []uint            `json:"ids"`
+	Checksums map[string]string `json:"checksums"`
+}
+
+type AgentWAFIPGroupSyncResult struct {
+	Groups []AgentWAFIPGroup `json:"groups"`
 }
 
 type NodeView struct {
@@ -183,10 +203,15 @@ func HeartbeatNode(node *model.Node, payload AgentNodePayload) (*HeartbeatRespon
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, err
 	}
+	wafIPGroups, err := ChangedWAFIPGroupsForAgent(nil, payload.WAFIPGroupChecksums)
+	if err != nil {
+		return nil, err
+	}
 	return &HeartbeatResponse{
 		Node:          node,
 		AgentSettings: buildAgentSettings(node, updateNow, updateChannel.String(), updateTag, restartOpenrestyNow),
 		ActiveConfig:  activeConfig,
+		WAFIPGroups:   wafIPGroups,
 	}, nil
 }
 

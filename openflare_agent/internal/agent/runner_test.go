@@ -70,6 +70,8 @@ type fakeSyncService struct {
 	syncOnceCalls  int
 	lastTarget     *protocol.ActiveConfigMeta
 	onSyncOnceCall func(int)
+	wafChecksums   map[string]string
+	wafGroups      []protocol.WAFIPGroup
 }
 
 type fakeRuntimeManager struct {
@@ -133,6 +135,20 @@ func (f *fakeSyncService) ForceSyncOnce(ctx context.Context, target *protocol.Ac
 		callback(callIndex)
 	}
 	return f.syncOnceErr
+}
+
+func (f *fakeSyncService) WAFIPGroupChecksums() (map[string]string, error) {
+	if f.wafChecksums == nil {
+		return map[string]string{}, nil
+	}
+	return f.wafChecksums, nil
+}
+
+func (f *fakeSyncService) ApplyWAFIPGroups(ctx context.Context, groups []protocol.WAFIPGroup) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.wafGroups = append(f.wafGroups, groups...)
+	return nil
 }
 
 type fakeWebSocketConnection struct {

@@ -54,6 +54,7 @@ func (c *Client) Heartbeat(ctx context.Context, payload protocol.NodePayload) (*
 	return &protocol.HeartbeatResult{
 		AgentSettings: resp.AgentSettings,
 		ActiveConfig:  resp.ActiveConfig,
+		WAFIPGroups:   resp.WAFIPGroups,
 	}, nil
 }
 
@@ -72,6 +73,17 @@ func (c *Client) GetActiveConfig(ctx context.Context) (*protocol.ActiveConfigRes
 func (c *Client) ReportApplyLog(ctx context.Context, payload protocol.ApplyLogPayload) error {
 	slog.Debug("http report apply log request", "node_id", payload.NodeID, "version", payload.Version, "result", payload.Result)
 	return c.postJSON(ctx, "/api/agent/apply-logs", payload, nil)
+}
+
+func (c *Client) SyncWAFIPGroups(ctx context.Context, payload protocol.WAFIPGroupSyncRequest) (*protocol.WAFIPGroupSyncResponse, error) {
+	resp := protocol.APIResponse[protocol.WAFIPGroupSyncResponse]{}
+	if err := c.postJSON(ctx, "/api/agent/waf/ip-groups/sync", payload, &resp); err != nil {
+		return nil, err
+	}
+	if !resp.Success {
+		return nil, errors.New(resp.Message)
+	}
+	return &resp.Data, nil
 }
 
 func (c *Client) SetToken(token string) {

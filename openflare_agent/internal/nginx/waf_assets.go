@@ -49,6 +49,36 @@ local function load_config()
     return nil
 end
 
+local function load_ip_groups()
+    local paths = {
+        "__OPENFLARE_RUNTIME_CONFIG_DIR__/waf_ip_groups.json",
+        "/etc/nginx/openflare-lua/waf_ip_groups.json",
+        "/usr/local/openresty/nginx/conf/waf_ip_groups.json"
+    }
+    for _, path in ipairs(paths) do
+        local content = read_file(path)
+        if content and content ~= "" then
+            local hash = ngx.md5(content)
+            if config_dict:get("_ip_groups_hash") == hash then
+                local cached = config_dict:get("_ip_groups_json")
+                if cached then
+                    local decoded = cjson.decode(cached)
+                    if decoded then
+                        return decoded
+                    end
+                end
+            end
+            local decoded = cjson.decode(content)
+            if decoded then
+                config_dict:set("_ip_groups_hash", hash, 0)
+                config_dict:set("_ip_groups_json", content, 0)
+                return decoded
+            end
+        end
+    end
+    return { groups = {} }
+end
+
 local function list_contains(items, value)
     if not items or type(items) ~= "table" or not value or value == "" then
         return false
@@ -103,6 +133,20 @@ local function ip_matches(items, ip)
             return true
         end
         if string.find(item, "/", 1, true) and ipv4_in_cidr(ip, item) then
+            return true
+        end
+    end
+    return false
+end
+
+local function ip_matches_group_ids(group_ids, ip, ip_groups_config)
+    if not group_ids or type(group_ids) ~= "table" or not ip or ip == "" then
+        return false
+    end
+    local groups = (ip_groups_config or {}).groups or {}
+    for _, id in ipairs(group_ids) do
+        local group = groups[tostring(id)]
+        if group and group.enabled and ip_matches(group.ip_list, ip) then
             return true
         end
     end
@@ -181,6 +225,7 @@ end
 
 local ip = ngx.var.remote_addr or ""
 local groups = active_groups(config)
+local ip_groups_config = load_ip_groups()
 if #groups == 0 then
     if config_dict:add("_empty_groups_logged", true, 60) then
         ngx.log(ngx.WARN, "openflare waf has no active rule group for site: ", ngx.var.openflare_waf_site or "")
@@ -189,7 +234,7 @@ if #groups == 0 then
 end
 
 for _, group in ipairs(groups) do
-    if ip_matches(group.ip_whitelist, ip) then
+    if ip_matches(group.ip_whitelist, ip) or ip_matches_group_ids(group.ip_whitelist_group_ids, ip, ip_groups_config) then
         return
     end
 end
@@ -205,7 +250,7 @@ for _, group in ipairs(groups) do
 end
 
 for _, group in ipairs(groups) do
-    if ip_matches(group.ip_blacklist, ip) then
+    if ip_matches(group.ip_blacklist, ip) or ip_matches_group_ids(group.ip_blacklist_group_ids, ip, ip_groups_config) then
         return exit_with_group(group)
     end
 end

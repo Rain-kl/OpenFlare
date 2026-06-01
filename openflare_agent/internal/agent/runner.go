@@ -24,6 +24,8 @@ type SyncService interface {
 	SyncOnStartup(ctx context.Context, target *protocol.ActiveConfigMeta) error
 	SyncOnce(ctx context.Context, target *protocol.ActiveConfigMeta) error
 	ForceSyncOnce(ctx context.Context, target *protocol.ActiveConfigMeta) error
+	WAFIPGroupChecksums() (map[string]string, error)
+	ApplyWAFIPGroups(ctx context.Context, groups []protocol.WAFIPGroup) error
 }
 
 type Updater interface {
@@ -161,6 +163,7 @@ func (r *Runner) performHeartbeatCycle(ctx context.Context, nodeID string, start
 	}
 	slog.Debug("agent heartbeat succeeded", "mode", mode, "node_id", nodeID)
 	changed := r.applySettings(heartbeatResult.AgentSettings)
+	r.applyWAFIPGroups(ctx, heartbeatResult.WAFIPGroups)
 	if startup {
 		if err = r.SyncService.SyncOnStartup(ctx, heartbeatResult.ActiveConfig); err != nil {
 			r.recordSyncError(err)
@@ -306,6 +309,14 @@ func (r *Runner) handleWebSocketMessage(ctx context.Context, message protocol.WS
 			r.recordSyncError(err)
 			slog.Error("agent ws triggered force sync failed", "version", target.Version, "error", err)
 		}
+		return false, nil
+	case protocol.WSMessageTypeWAFIPGroups:
+		var groups []protocol.WAFIPGroup
+		if err := json.Unmarshal(message.Payload, &groups); err != nil {
+			slog.Debug("agent ws waf ip groups decode failed", "error", err)
+			return false, nil
+		}
+		r.applyWAFIPGroups(ctx, groups)
 		return false, nil
 	case protocol.WSMessageTypePing:
 		slog.Debug("agent ws ping received")
@@ -470,6 +481,7 @@ func (r *Runner) tryRegister(ctx context.Context, nodeID *string) error {
 		heartbeatResult = &protocol.HeartbeatResult{}
 	}
 	r.applySettings(heartbeatResult.AgentSettings)
+	r.applyWAFIPGroups(ctx, heartbeatResult.WAFIPGroups)
 	if err = r.SyncService.SyncOnStartup(ctx, heartbeatResult.ActiveConfig); err != nil {
 		r.recordSyncError(err)
 		slog.Error("agent post-register startup sync failed", "error", err)
@@ -563,7 +575,7 @@ func (r *Runner) nodePayload(nodeID string) protocol.NodePayload {
 	}
 	metricSnapshot := observability.BuildSnapshot(r.Config, r.StateStore, managedOpenRestyMetrics)
 	healthEvents := observability.BuildHealthEvents(snapshot)
-	return protocol.NodePayload{
+	payload := protocol.NodePayload{
 		NodeID:           nodeID,
 		Name:             r.Config.NodeName,
 		IP:               r.Config.NodeIP,
@@ -578,6 +590,25 @@ func (r *Runner) nodePayload(nodeID string) protocol.NodePayload {
 		TrafficReport:    trafficReport,
 		AccessLogs:       accessLogs,
 		HealthEvents:     healthEvents,
+	}
+	if r.SyncService != nil {
+		checksums, err := r.SyncService.WAFIPGroupChecksums()
+		if err != nil {
+			slog.Debug("load local waf ip group checksums failed", "error", err)
+		} else if len(checksums) > 0 {
+			payload.WAFIPGroupChecksums = checksums
+		}
+	}
+	return payload
+}
+
+func (r *Runner) applyWAFIPGroups(ctx context.Context, groups []protocol.WAFIPGroup) {
+	if len(groups) == 0 || r.SyncService == nil {
+		return
+	}
+	if err := r.SyncService.ApplyWAFIPGroups(ctx, groups); err != nil {
+		r.recordSyncError(err)
+		slog.Error("agent apply waf ip groups failed", "error", err)
 	}
 }
 

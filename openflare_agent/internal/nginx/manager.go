@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -27,6 +28,7 @@ import (
 
 const RuntimeConfigDirPlaceholder = "__OPENFLARE_RUNTIME_CONFIG_DIR__"
 const ResolverDirectivePlaceholder = "__OPENFLARE_RESOLVER_DIRECTIVE__"
+const WAFIPGroupsConfigFileName = "waf_ip_groups.json"
 
 type Executor interface {
 	Test(ctx context.Context) error
@@ -188,6 +190,10 @@ const safeDefaultFallbackObservabilityServerBlock = `
 type ApplyOutcome struct {
 	Status  ApplyStatus
 	Message string
+}
+
+type wafIPGroupsRuntimeConfig struct {
+	Groups map[string]protocol.WAFIPGroup `json:"groups"`
 }
 
 func (m *Manager) Apply(ctx context.Context, mainConfig string, routeConfig string, supportFiles []protocol.SupportFile) ApplyOutcome {
@@ -423,6 +429,77 @@ func (m *Manager) CurrentChecksum() (string, error) {
 	result := bundleChecksum(normalizedMain, normalizedRoute, files)
 	slog.Debug("openresty current checksum calculated", "main_config", m.MainConfigPath, "route_config", m.RouteConfigPath, "checksum", result, "cert_files", len(files))
 	return result, nil
+}
+
+func (m *Manager) WAFIPGroupChecksums() (map[string]string, error) {
+	config, err := m.readWAFIPGroupsRuntimeConfig()
+	if err != nil {
+		return nil, err
+	}
+	result := make(map[string]string, len(config.Groups))
+	for id, group := range config.Groups {
+		if strings.TrimSpace(group.Checksum) != "" {
+			result[id] = strings.TrimSpace(group.Checksum)
+		}
+	}
+	return result, nil
+}
+
+func (m *Manager) SyncWAFIPGroups(groups []protocol.WAFIPGroup) error {
+	if m.RuntimeConfigDir == "" || len(groups) == 0 {
+		return nil
+	}
+	config, err := m.readWAFIPGroupsRuntimeConfig()
+	if err != nil {
+		return err
+	}
+	if config.Groups == nil {
+		config.Groups = make(map[string]protocol.WAFIPGroup)
+	}
+	for _, group := range groups {
+		if group.ID == 0 {
+			continue
+		}
+		config.Groups[fmt.Sprintf("%d", group.ID)] = group
+	}
+	data, err := json.Marshal(config)
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(m.RuntimeConfigDir, 0o755); err != nil {
+		return err
+	}
+	path := filepath.Join(m.RuntimeConfigDir, WAFIPGroupsConfigFileName)
+	if err := os.WriteFile(path, data, 0o644); err != nil {
+		return fmt.Errorf("write %s: %w", WAFIPGroupsConfigFileName, err)
+	}
+	slog.Info("synced waf ip groups", "path", path, "group_count", len(groups))
+	return nil
+}
+
+func (m *Manager) readWAFIPGroupsRuntimeConfig() (*wafIPGroupsRuntimeConfig, error) {
+	config := &wafIPGroupsRuntimeConfig{Groups: map[string]protocol.WAFIPGroup{}}
+	if m.RuntimeConfigDir == "" {
+		return config, nil
+	}
+	path := filepath.Join(m.RuntimeConfigDir, WAFIPGroupsConfigFileName)
+	data, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return config, nil
+		}
+		return nil, err
+	}
+	if len(data) == 0 {
+		return config, nil
+	}
+	if err := json.Unmarshal(data, config); err != nil {
+		return nil, err
+	}
+	if config.Groups == nil {
+		config.Groups = map[string]protocol.WAFIPGroup{}
+	}
+	return config, nil
 }
 
 type ExecutorOptions struct {

@@ -72,6 +72,10 @@ func (f *fakeClient) ReportApplyLog(ctx context.Context, payload protocol.ApplyL
 	return nil
 }
 
+func (f *fakeClient) SyncWAFIPGroups(ctx context.Context, payload protocol.WAFIPGroupSyncRequest) (*protocol.WAFIPGroupSyncResponse, error) {
+	return &protocol.WAFIPGroupSyncResponse{}, nil
+}
+
 func (m *fakeManager) Apply(ctx context.Context, mainConfig string, routeConfig string, supportFiles []protocol.SupportFile) nginx.ApplyOutcome {
 	m.applyMainContents = append(m.applyMainContents, mainConfig)
 	m.applyRouteContents = append(m.applyRouteContents, routeConfig)
@@ -94,6 +98,14 @@ func (m *fakeManager) EnsureSafeFallbackRuntime(ctx context.Context, reason stri
 
 func (m *fakeManager) CurrentChecksum() (string, error) {
 	return m.currentChecksum, m.currentChecksumErr
+}
+
+func (m *fakeManager) WAFIPGroupChecksums() (map[string]string, error) {
+	return map[string]string{}, nil
+}
+
+func (m *fakeManager) SyncWAFIPGroups(groups []protocol.WAFIPGroup) error {
+	return nil
 }
 
 func TestSyncOnceSuccess(t *testing.T) {
