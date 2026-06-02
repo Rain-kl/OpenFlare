@@ -93,8 +93,17 @@ func (databaseSchemaMigrationContext) ValidateDatabaseSchemaVersion(db *gorm.DB,
 	}
 }
 
-func autoMigrateSchemaMetadata(db *gorm.DB) error {
-	for _, item := range schemaMetadataModels() {
+func autoMigrateCurrentSchemaMetadata(db *gorm.DB) error {
+	for _, item := range currentSchemaMetadataModels() {
+		if err := db.AutoMigrate(item); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func autoMigrateLegacySchemaMetadata(db *gorm.DB) error {
+	for _, item := range legacySchemaMetadataModels() {
 		if err := db.AutoMigrate(item); err != nil {
 			return err
 		}
@@ -245,7 +254,7 @@ func applyCurrentSchemaExcept(db *gorm.DB, backend string, excludedTables ...str
 		}
 	}
 	slog.Info("applyCurrentSchema: step 1/5 - auto migrate schema metadata")
-	if err := autoMigrateSchemaMetadata(db); err != nil {
+	if err := autoMigrateCurrentSchemaMetadata(db); err != nil {
 		return err
 	}
 	slog.Info("applyCurrentSchema: step 2/5 - migrate proxy route https column")
@@ -268,7 +277,7 @@ func applyCurrentSchemaExcept(db *gorm.DB, backend string, excludedTables ...str
 	return nil
 }
 
-func loadDatabaseSchemaVersion(db *gorm.DB) (int, bool, error) {
+func loadLegacyDatabaseSchemaVersion(db *gorm.DB) (int, bool, error) {
 	if db == nil {
 		return 0, false, nil
 	}
@@ -286,19 +295,37 @@ func loadDatabaseSchemaVersion(db *gorm.DB) (int, bool, error) {
 	return state.Version, true, nil
 }
 
-func saveDatabaseSchemaVersion(db *gorm.DB, version int) error {
+func saveLegacyDatabaseSchemaVersion(db *gorm.DB, version int) error {
+	if err := autoMigrateLegacySchemaMetadata(db); err != nil {
+		return err
+	}
 	return db.Save(&DatabaseSchemaVersion{
 		ID:      databaseSchemaVersionRowID,
 		Version: version,
 	}).Error
 }
 
+func loadDatabaseSchemaVersion(db *gorm.DB) (int, bool, error) {
+	version, exists, err := loadGooseDatabaseVersion(db)
+	if err != nil {
+		return 0, false, err
+	}
+	if exists {
+		return version, true, nil
+	}
+	return loadLegacyDatabaseSchemaVersion(db)
+}
+
+func saveDatabaseSchemaVersion(db *gorm.DB, version int) error {
+	return saveLegacyDatabaseSchemaVersion(db, version)
+}
+
 func validateDatabaseSchemaV2(db *gorm.DB, backend string) error {
 	if db == nil {
 		return fmt.Errorf("database handle is nil")
 	}
-	if !db.Migrator().HasTable(&DatabaseSchemaVersion{}) {
-		return fmt.Errorf("table %s is missing", (&DatabaseSchemaVersion{}).TableName())
+	if !db.Migrator().HasTable(&DatabaseSchemaVersion{}) && !db.Migrator().HasTable("goose_db_version") {
+		return fmt.Errorf("neither %s nor goose_db_version exists", (&DatabaseSchemaVersion{}).TableName())
 	}
 	models, err := buildDBModels()
 	if err != nil {
@@ -1385,7 +1412,7 @@ func runDatabaseSchemaMigration(db *gorm.DB, backend string, migration databaseS
 		if err := migration.validate(db, backend); err != nil {
 			return fmt.Errorf("validate database schema v%d failed: %w", migration.toVersion, err)
 		}
-		if err := saveDatabaseSchemaVersion(db, migration.toVersion); err != nil {
+		if err := saveLegacyDatabaseSchemaVersion(db, migration.toVersion); err != nil {
 			return fmt.Errorf("persist database schema version v%d failed: %w", migration.toVersion, err)
 		}
 		return nil
@@ -1398,26 +1425,26 @@ func runDatabaseSchemaMigration(db *gorm.DB, backend string, migration databaseS
 		if err := migration.validate(tx, backend); err != nil {
 			return fmt.Errorf("validate database schema v%d failed: %w", migration.toVersion, err)
 		}
-		if err := saveDatabaseSchemaVersion(tx, migration.toVersion); err != nil {
+		if err := saveLegacyDatabaseSchemaVersion(tx, migration.toVersion); err != nil {
 			return fmt.Errorf("persist database schema version v%d failed: %w", migration.toVersion, err)
 		}
 		return nil
 	})
 }
 
-func upgradeDatabaseSchema(db *gorm.DB, backend string, version int) error {
-	if version > currentDatabaseSchemaVersion {
-		return fmt.Errorf("database schema version %d is newer than application version %d", version, currentDatabaseSchemaVersion)
+func upgradeLegacyDatabaseSchema(db *gorm.DB, backend string, version int) error {
+	if version > legacyMigrationTerminalVersion {
+		return fmt.Errorf("database schema version %d is newer than legacy migration terminal version %d", version, legacyMigrationTerminalVersion)
 	}
 	if version < legacyDatabaseSchemaVersion {
 		slog.Warn("database schema version is below supported baseline; treating it as historical initial schema", "version", version, "baseline", legacyDatabaseSchemaVersion)
 		version = legacyDatabaseSchemaVersion
 	}
-	if version == currentDatabaseSchemaVersion {
+	if version == legacyMigrationTerminalVersion {
 		return nil
 	}
 	migrationMap := databaseSchemaMigrationMap()
-	for version < currentDatabaseSchemaVersion {
+	for version < legacyMigrationTerminalVersion {
 		migration, ok := migrationMap[version]
 		if !ok {
 			return fmt.Errorf("database schema migration from v%d is not defined", version)
@@ -1458,32 +1485,9 @@ func initializeFreshDatabaseSchema(db *gorm.DB, backend string) error {
 	if err := ensureDefaultWAFRuleGroup(db); err != nil {
 		return err
 	}
-	if err := validateCurrentDatabaseSchema(db, backend); err != nil {
-		return err
-	}
-	return saveDatabaseSchemaVersion(db, currentDatabaseSchemaVersion)
+	return nil
 }
 
-func ensureDatabaseSchemaUpToDate(db *gorm.DB, backend string) error {
-	version, exists, err := loadDatabaseSchemaVersion(db)
-	if err != nil {
-		return err
-	}
-	if exists {
-		if err := upgradeDatabaseSchema(db, backend, version); err != nil {
-			return err
-		}
-		return dropLegacyNodeColumns(db, backend)
-	}
-	empty, err := isDatabaseEmpty(db)
-	if err != nil {
-		return err
-	}
-	if empty {
-		return initializeFreshDatabaseSchema(db, backend)
-	}
-	if err := autoMigrateSchemaMetadata(db); err != nil {
-		return err
-	}
-	return upgradeDatabaseSchema(db, backend, legacyDatabaseSchemaVersion)
+func upgradeDatabaseSchema(db *gorm.DB, backend string, version int) error {
+	return upgradeLegacyDatabaseSchema(db, backend, version)
 }

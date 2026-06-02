@@ -54,10 +54,21 @@ func registeredModels() []any {
 	}
 }
 
-func schemaMetadataModels() []any {
+func currentSchemaMetadataModels() []any {
+	return nil
+}
+
+func legacySchemaMetadataModels() []any {
 	return []any{
 		&DatabaseSchemaVersion{},
 	}
+}
+
+func schemaMetadataModels() []any {
+	models := make([]any, 0, len(currentSchemaMetadataModels())+len(legacySchemaMetadataModels()))
+	models = append(models, currentSchemaMetadataModels()...)
+	models = append(models, legacySchemaMetadataModels()...)
+	return models
 }
 
 func buildDBModels() ([]dbModel, error) {

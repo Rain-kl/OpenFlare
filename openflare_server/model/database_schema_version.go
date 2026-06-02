@@ -6,11 +6,14 @@ import (
 )
 
 const (
-	legacyDatabaseSchemaVersion = migrate.BaseDatabaseSchemaVersion
-	databaseSchemaVersionRowID  = 1
+	legacyDatabaseSchemaVersion    = migrate.BaseDatabaseSchemaVersion
+	legacyMigrationTerminalVersion = 17
+	databaseSchemaVersionRowID     = 1
 )
 
-var currentDatabaseSchemaVersion = migrate.CurrentVersion()
+// currentDatabaseSchemaVersion tracks the current physical schema validated by the
+// legacy validator set. Goose owns only post-v17 migrations, and none exist yet.
+var currentDatabaseSchemaVersion = legacyMigrationTerminalVersion
 
 type DatabaseSchemaVersion struct {
 	ID        uint      `json:"id" gorm:"primaryKey"`

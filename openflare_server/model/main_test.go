@@ -195,8 +195,8 @@ func TestUpgradeDatabaseSchemaV15ToV16AppliesCompressedReleaseSchema(t *testing.
 	if err := registerSharding(db, "sqlite"); err != nil {
 		t.Fatalf("register sharding: %v", err)
 	}
-	if err := autoMigrateSchemaMetadata(db); err != nil {
-		t.Fatalf("auto migrate schema metadata: %v", err)
+	if err := autoMigrateLegacySchemaMetadata(db); err != nil {
+		t.Fatalf("auto migrate legacy schema metadata: %v", err)
 	}
 	if err := applyCurrentSchema(db, "sqlite"); err != nil {
 		t.Fatalf("apply current schema: %v", err)
@@ -306,6 +306,12 @@ func TestEnsureDatabaseSchemaUpToDateInitializesFreshDatabase(t *testing.T) {
 	if version != currentDatabaseSchemaVersion {
 		t.Fatalf("unexpected schema version: got %d want %d", version, currentDatabaseSchemaVersion)
 	}
+	if db.Migrator().HasTable(&DatabaseSchemaVersion{}) {
+		t.Fatal("expected fresh database to avoid legacy database_schema_versions table")
+	}
+	if !db.Migrator().HasTable("goose_db_version") {
+		t.Fatal("expected fresh database to initialize goose_db_version")
+	}
 }
 
 func TestEnsureDatabaseSchemaUpToDateUpgradesLegacyDatabase(t *testing.T) {
@@ -339,6 +345,12 @@ func TestEnsureDatabaseSchemaUpToDateUpgradesLegacyDatabase(t *testing.T) {
 	}
 	if version != currentDatabaseSchemaVersion {
 		t.Fatalf("unexpected schema version: got %d want %d", version, currentDatabaseSchemaVersion)
+	}
+	if db.Migrator().HasTable(&DatabaseSchemaVersion{}) {
+		t.Fatal("expected legacy database_schema_versions table to be removed after bridging to goose")
+	}
+	if !db.Migrator().HasTable("goose_db_version") {
+		t.Fatal("expected legacy upgrade to initialize goose_db_version")
 	}
 }
 
@@ -402,8 +414,8 @@ func TestEnsureDatabaseSchemaUpToDateAddsProxyRouteDomainCertificateFields(t *te
 	if err := registerSharding(db, "sqlite"); err != nil {
 		t.Fatalf("register sharding: %v", err)
 	}
-	if err := autoMigrateSchemaMetadata(db); err != nil {
-		t.Fatalf("auto migrate schema metadata: %v", err)
+	if err := autoMigrateLegacySchemaMetadata(db); err != nil {
+		t.Fatalf("auto migrate legacy schema metadata: %v", err)
 	}
 
 	for _, item := range registeredModels() {
@@ -478,7 +490,7 @@ func TestRunDatabaseSchemaMigrationDoesNotAdvanceVersionWhenValidationFails(t *t
 		fromVersion: legacyDatabaseSchemaVersion,
 		toVersion:   11,
 		migrate: func(tx *gorm.DB, backend string) error {
-			return autoMigrateSchemaMetadata(tx)
+			return autoMigrateLegacySchemaMetadata(tx)
 		},
 		validate: func(tx *gorm.DB, backend string) error {
 			return gorm.ErrInvalidDB
@@ -654,6 +666,44 @@ func TestEnsureDatabaseSchemaUpToDateV16DropsLegacyNodeColumnsWhenAlreadyCurrent
 		if exists {
 			t.Fatalf("expected current-schema cleanup to drop legacy nodes.%s column", column)
 		}
+	}
+	if db.Migrator().HasTable(&DatabaseSchemaVersion{}) {
+		t.Fatal("expected current-schema legacy version table to be removed after goose bridge")
+	}
+	if !db.Migrator().HasTable("goose_db_version") {
+		t.Fatal("expected current-schema goose_db_version table to exist")
+	}
+}
+
+func TestEnsureDatabaseSchemaUpToDateKeepsGooseOnlyDatabaseOnReentry(t *testing.T) {
+	db := openBareTestSQLiteDB(t, "goose-only-reentry.db")
+	if err := registerSharding(db, "sqlite"); err != nil {
+		t.Fatalf("register sharding: %v", err)
+	}
+
+	if err := ensureDatabaseSchemaUpToDate(db, "sqlite"); err != nil {
+		t.Fatalf("first ensureDatabaseSchemaUpToDate: %v", err)
+	}
+	if db.Migrator().HasTable(&DatabaseSchemaVersion{}) {
+		t.Fatal("expected first initialization to avoid legacy table")
+	}
+
+	if err := ensureDatabaseSchemaUpToDate(db, "sqlite"); err != nil {
+		t.Fatalf("second ensureDatabaseSchemaUpToDate: %v", err)
+	}
+
+	if db.Migrator().HasTable(&DatabaseSchemaVersion{}) {
+		t.Fatal("expected goose-only database to remain free of legacy version table")
+	}
+	version, exists, err := loadGooseDatabaseVersion(db)
+	if err != nil {
+		t.Fatalf("loadGooseDatabaseVersion: %v", err)
+	}
+	if !exists {
+		t.Fatal("expected goose-only database to keep goose version record")
+	}
+	if version != currentDatabaseSchemaVersion {
+		t.Fatalf("unexpected goose version: got %d want %d", version, currentDatabaseSchemaVersion)
 	}
 }
 
