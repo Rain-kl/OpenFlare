@@ -1,5 +1,6 @@
 .git
 .idea
+.github
 anubis-source
 **/node_modules
 **/.next
@@ -9,3 +10,10 @@ anubis-source
 **/coverage
 **/*.db
 **/*.log
+tmp
+logs
+.DS_Store
+.env
+.env.*
+docker-compose*.yml
+

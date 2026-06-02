@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1.7
 ARG VERSION=dev
 
 FROM golang:1.25-alpine AS builder
@@ -11,11 +12,19 @@ ENV CGO_ENABLED=0 \
     GOARCH=${TARGETARCH}
 
 WORKDIR /build
+COPY openflare_server/go.mod openflare_server/go.sum ./openflare_server/
+COPY openflare_agent/go.mod openflare_agent/go.sum ./openflare_agent/
+WORKDIR /build/openflare_agent
+RUN --mount=type=cache,target=/go/pkg/mod \
+    go mod download
+
+WORKDIR /build
 COPY openflare_server ./openflare_server
 COPY openflare_agent ./openflare_agent
 WORKDIR /build/openflare_agent
-RUN go mod download
-RUN go build -trimpath -ldflags "-s -w -X 'openflare-agent/internal/config.Version=$VERSION'" -o /build/openflare-agent ./cmd/agent
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    go build -trimpath -ldflags "-s -w -X 'openflare-agent/internal/config.Version=$VERSION'" -o /build/openflare-agent ./cmd/agent
 
 FROM openresty/openresty:alpine
 
@@ -32,3 +41,4 @@ COPY --from=builder /build/openflare-agent /usr/local/bin/openflare-agent
 EXPOSE 80 443 18081
 ENTRYPOINT ["/usr/local/bin/openflare-agent"]
 CMD ["-config", "/etc/openflare/agent.json"]
+
