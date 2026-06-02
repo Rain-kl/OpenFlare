@@ -236,8 +236,27 @@ local challenge_info = cjson.encode({
 pow_challenges:set(challenge_id, challenge_info, challenge_ttl)
 
 local static_prefix = "/.within.website/x/cmd/anubis/static/"
-local title = "Making sure you're not a bot!"
+local accept_lang = ngx.var.http_accept_language or ""
 local lang = "en"
+if string.find(accept_lang, "zh") then
+    lang = "zh-CN"
+end
+
+local t_title = "Making sure you're not a bot!"
+local t_status = "Loading..."
+local t_protected = "This site is protected by a Proof-of-Work challenge. Your browser will solve a small puzzle before the upstream response is shown."
+local t_why = "Why am I seeing this?"
+local t_why_desc = "OpenFlare is asking your browser to complete a lightweight computation to distinguish normal browser traffic from automated abuse. This should finish automatically."
+local t_noscript = "JavaScript is required to pass this verification. Please enable JavaScript and reload."
+
+if lang == "zh-CN" then
+    t_title = "正在确认你是不是机器人！"
+    t_status = "加载中..."
+    t_protected = "本网站受工作量证明（Proof-of-Work）挑战保护。在显示源站响应之前，您的浏览器将解决一个微型谜题。"
+    t_why = "为什么我会看到这个？"
+    t_why_desc = "OpenFlare 正在要求您的浏览器完成一项轻量级计算，以区分正常的浏览器流量和自动化的恶意请求。这应该会自动完成。"
+    t_noscript = "很遗憾，您必须启用 JavaScript 才能通过这项验证。请开启 JavaScript 并刷新页面。"
+end
 
 ngx.header.content_type = "text/html; charset=utf-8"
 ngx.say([[<!DOCTYPE html>
@@ -246,7 +265,7 @@ ngx.say([[<!DOCTYPE html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex,nofollow">
-<title>]] .. title .. [[</title>
+<title>]] .. t_title .. [[</title>
 <link rel="stylesheet" href="]] .. static_prefix .. [[css/xess.css">
 <style>
 body,html{height:100%;display:flex;justify-content:center;align-items:center;margin-left:auto;margin-right:auto}
@@ -272,17 +291,17 @@ body,html{height:100%;display:flex;justify-content:center;align-items:center;mar
 </head>
 <body id="top">
 <main>
-<h1 id="title" class="centered-div">]] .. title .. [[</h1>
+<h1 id="title" class="centered-div">]] .. t_title .. [[</h1>
 <div class="centered-div">
 <img id="image" style="width:100%;max-width:256px;" src="]] .. static_prefix .. [[img/pensive.webp?cacheBuster=openflare-pow">
-<p id="status">Loading...</p>
-<p>This site is protected by a Proof-of-Work challenge. Your browser will solve a small puzzle before the upstream response is shown.</p>
+<p id="status">]] .. t_status .. [[</p>
+<p>]] .. t_protected .. [[</p>
 <div id="progress" role="progressbar" aria-labelledby="status"><div class="bar-inner"></div></div>
 <details>
-<summary>Why am I seeing this?</summary>
-<p>OpenFlare is asking your browser to complete a lightweight computation to distinguish normal browser traffic from automated abuse. This should finish automatically.</p>
+<summary>]] .. t_why .. [[</summary>
+<p>]] .. t_why_desc .. [[</p>
 </details>
-<noscript><p>JavaScript is required to pass this verification. Please enable JavaScript and reload.</p></noscript>
+<noscript><p>]] .. t_noscript .. [[</p></noscript>
 </div>
 </main>
 <script type="module" src="]] .. static_prefix .. [[js/main.mjs"></script>
