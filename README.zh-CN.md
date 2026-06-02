@@ -112,7 +112,7 @@ Docker 部署可直接运行 Agent 镜像：
 docker pull ghcr.io/rain-kl/openflare-agent:latest
 docker rm -f openflare-agent 2>/dev/null || true
 docker run -d --name openflare-agent --restart unless-stopped \
-  -p 80:80 -p 443:443 \
+  -p 80:80 -p 443:443/tcp -p 443:443/udp \
   -e OPENFLARE_SERVER_URL=http://your-server:3000 \
   -e OPENFLARE_AGENT_TOKEN=YOUR_AGENT_TOKEN \
   ghcr.io/rain-kl/openflare-agent:latest
