@@ -31,6 +31,7 @@ func (r *Runner) Run(ctx context.Context) error {
 	for {
 		select {
 		case <-ctx.Done():
+			r.FrpcManager.Stop()
 			return ctx.Err()
 		default:
 		}

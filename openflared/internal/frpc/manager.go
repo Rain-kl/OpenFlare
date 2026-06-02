@@ -150,7 +150,10 @@ func (m *Manager) restartProcess(ctx context.Context, relayID string, configPath
 		_ = os.Remove(pidPath)
 	}
 
-	procCtx, cancel := context.WithCancel(context.Background())
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	procCtx, cancel := context.WithCancel(ctx)
 	proc := &Process{
 		RelayID:   relayID,
 		Cancel:    cancel,
@@ -221,6 +224,20 @@ func (m *Manager) restartProcess(ctx context.Context, relayID string, configPath
 			}
 		}
 	}()
+}
+
+func (m *Manager) Stop() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	for relayID, proc := range m.processes {
+		if proc != nil && proc.Cancel != nil {
+			proc.Cancel()
+		}
+		pidPath := filepath.Join(m.cfg.DataDir, fmt.Sprintf("frpc_%s.pid", relayID))
+		_ = os.Remove(pidPath)
+		delete(m.processes, relayID)
+	}
 }
 
 func buildFrpcToml(relay service.FlaredRelayInfo, proxies []service.FlaredProxyEntry) string {

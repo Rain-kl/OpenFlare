@@ -335,3 +335,53 @@ func TestUpdateConfigKillsOrphanProcessBeforeRestart(t *testing.T) {
 	m.mu.RUnlock()
 	proc.Cancel()
 }
+
+func TestStopCancelsRunningProcesses(t *testing.T) {
+	scriptPath, dir := setupDummyScript(t)
+	writeControl(t, dir, 0, 30)
+
+	cfg := &config.Config{
+		ServerURL:   "http://localhost:8080",
+		TunnelToken: "test-token",
+		FrpcPath:    scriptPath,
+		DataDir:     dir,
+		StatePath:   filepath.Join(dir, "flared-state.json"),
+	}
+
+	m := NewManager(cfg)
+	newConfig := &service.FlaredTunnelConfigResponse{
+		Version:  "1",
+		Checksum: "sum1",
+		Relays: []service.FlaredRelayInfo{
+			{
+				RelayNodeID: "relay-1",
+				Address:     "127.0.0.1:7000",
+				AuthToken:   "auth-1",
+			},
+		},
+	}
+
+	if err := m.UpdateConfig(context.Background(), newConfig); err != nil {
+		t.Fatalf("failed to UpdateConfig: %v", err)
+	}
+
+	assertStatusEventually(t, m, "relay-1", "running", 4*time.Second)
+
+	m.mu.RLock()
+	proc := m.processes["relay-1"]
+	if proc == nil || proc.Cmd == nil {
+		m.mu.RUnlock()
+		t.Fatal("expected running process to have a command handle")
+	}
+	cmd := proc.Cmd
+	m.mu.RUnlock()
+
+	m.Stop()
+	assertCommandExitedEventually(t, cmd, 2*time.Second)
+
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	if len(m.processes) != 0 {
+		t.Fatalf("expected no managed processes after stop, got %d", len(m.processes))
+	}
+}
