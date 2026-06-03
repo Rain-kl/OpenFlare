@@ -104,6 +104,10 @@ type snapshotPagesDeployment struct {
 	EntryFile          string `json:"entry_file"`
 	SPAFallbackEnabled bool   `json:"spa_fallback_enabled"`
 	SPAFallbackPath    string `json:"spa_fallback_path"`
+	APIProxyEnabled    bool   `json:"api_proxy_enabled"`
+	APIProxyPath       string `json:"api_proxy_path"`
+	APIProxyPass       string `json:"api_proxy_pass"`
+	APIProxyRewrite    string `json:"api_proxy_rewrite"`
 	LocalRoot          string `json:"local_root"`
 }
 
@@ -615,6 +619,10 @@ func buildSnapshotPagesDeployment(projectID *uint) (*snapshotPagesDeployment, er
 		EntryFile:          deployment.EntryFile,
 		SPAFallbackEnabled: project.SPAFallbackEnabled,
 		SPAFallbackPath:    normalizeStoredPagesFallbackPath(project.SPAFallbackPath),
+		APIProxyEnabled:    project.APIProxyEnabled,
+		APIProxyPath:       project.APIProxyPath,
+		APIProxyPass:       project.APIProxyPass,
+		APIProxyRewrite:    project.APIProxyRewrite,
 		LocalRoot:          fmt.Sprintf("%s/deployments/%d/current", openrestyrender.PagesDirPlaceholder, deployment.ID),
 	}, nil
 }

@@ -421,8 +421,50 @@ func renderHTTPProxyServer(serverNames string, siteName string, originURL string
 	return fmt.Sprintf("server {\n    listen 80;\n    server_name %s;\n%s%s    location / {\n%s%s%s%s%s    }\n%s}\n\n", serverNames, renderAccessBlock(siteName, powEnabled), renderPowLocationBlocks(powEnabled), renderBasicAuthBlock(basicAuthEnabled, basicAuthUsername, basicAuthPassword), renderProxyHeaderBlock(originURL, originHost, customHeaders, upstreamConfig, cfg), renderRouteLimitBlock(limitConfig), renderRouteCacheBlock(cacheConfig, cfg), renderProxyPassBlock(originURL, upstreamConfig), renderPowStaticLocationBlock(powEnabled))
 }
 
+func renderPagesAPIProxyLocationBlock(deployment *PagesDeployment) string {
+	if deployment == nil || !deployment.APIProxyEnabled {
+		return ""
+	}
+	path := strings.TrimSpace(deployment.APIProxyPath)
+	pass := strings.TrimSpace(deployment.APIProxyPass)
+	rewrite := strings.TrimSpace(deployment.APIProxyRewrite)
+	if path == "" || pass == "" {
+		return ""
+	}
+	if !strings.HasPrefix(path, "/") {
+		path = "/" + path
+	}
+	cleanPath := strings.TrimSuffix(path, "/")
+
+	var builder strings.Builder
+	builder.WriteString(fmt.Sprintf("\n    location %s {\n", cleanPath))
+	if rewrite != "" {
+		if !strings.HasPrefix(rewrite, "/") {
+			rewrite = "/" + rewrite
+		}
+		cleanRewrite := strings.TrimSuffix(rewrite, "/")
+		if cleanRewrite == "" {
+			builder.WriteString(fmt.Sprintf("        rewrite ^%s/(.*)$ /$1 break;\n", regexp.QuoteMeta(cleanPath)))
+			builder.WriteString(fmt.Sprintf("        rewrite ^%s$ / break;\n", regexp.QuoteMeta(cleanPath)))
+		} else {
+			builder.WriteString(fmt.Sprintf("        rewrite ^%s/(.*)$ %s/$1 break;\n", regexp.QuoteMeta(cleanPath), cleanRewrite))
+			builder.WriteString(fmt.Sprintf("        rewrite ^%s$ %s break;\n", regexp.QuoteMeta(cleanPath), cleanRewrite))
+		}
+	}
+	builder.WriteString(fmt.Sprintf("        proxy_pass %s;\n", pass))
+	builder.WriteString("        proxy_http_version 1.1;\n")
+	builder.WriteString("        proxy_set_header Host $http_host;\n")
+	builder.WriteString("        proxy_set_header X-Real-IP $remote_addr;\n")
+	builder.WriteString("        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\n")
+	builder.WriteString("        proxy_set_header X-Forwarded-Proto $scheme;\n")
+	builder.WriteString("        proxy_set_header Upgrade $http_upgrade;\n")
+	builder.WriteString("        proxy_set_header Connection $connection_upgrade;\n")
+	builder.WriteString("    }\n")
+	return builder.String()
+}
+
 func renderHTTPPagesServer(serverNames string, siteName string, deployment *PagesDeployment, limitConfig routeLimitConfig, powEnabled bool, basicAuthEnabled bool, basicAuthUsername string, basicAuthPassword string) string {
-	return fmt.Sprintf("server {\n    listen 80;\n    server_name %s;\n%s%s    root %s;\n    index %s;\n\n    location / {\n%s%s    }\n%s}\n\n", serverNames, renderAccessBlock(siteName, powEnabled), renderPowLocationBlocks(powEnabled), quoteNginxStringLiteral(pagesDeploymentRoot(deployment)), quoteNginxStringLiteral(pagesEntryFile(deployment)), renderBasicAuthBlock(basicAuthEnabled, basicAuthUsername, basicAuthPassword), renderPagesLocationBlock(deployment, limitConfig), renderPowStaticLocationBlock(powEnabled))
+	return fmt.Sprintf("server {\n    listen 80;\n    server_name %s;\n%s%s    root %s;\n    index %s;%s\n\n    location / {\n%s%s    }\n%s}\n\n", serverNames, renderAccessBlock(siteName, powEnabled), renderPowLocationBlocks(powEnabled), quoteNginxStringLiteral(pagesDeploymentRoot(deployment)), quoteNginxStringLiteral(pagesEntryFile(deployment)), renderPagesAPIProxyLocationBlock(deployment), renderBasicAuthBlock(basicAuthEnabled, basicAuthUsername, basicAuthPassword), renderPagesLocationBlock(deployment, limitConfig), renderPowStaticLocationBlock(powEnabled))
 }
 
 func renderHTTPRedirectServer(serverNames string) string {
@@ -450,7 +492,7 @@ func renderHTTPSPagesServer(serverNames string, siteName string, certificateID u
 		h3Listen = "    listen 443 quic;\n"
 		h3Header = "    add_header Alt-Svc 'h3=\":443\"; ma=86400';\n"
 	}
-	return fmt.Sprintf("server {\n    listen 443 ssl;\n%s    http2 on;\n    server_name %s;\n    ssl_certificate %s;\n    ssl_certificate_key %s;\n%s%s%s    root %s;\n    index %s;\n\n    location / {\n%s%s    }\n%s}\n\n", h3Listen, serverNames, certPath, keyPath, h3Header, renderAccessBlock(siteName, powEnabled), renderPowLocationBlocks(powEnabled), quoteNginxStringLiteral(pagesDeploymentRoot(deployment)), quoteNginxStringLiteral(pagesEntryFile(deployment)), renderBasicAuthBlock(basicAuthEnabled, basicAuthUsername, basicAuthPassword), renderPagesLocationBlock(deployment, limitConfig), renderPowStaticLocationBlock(powEnabled))
+	return fmt.Sprintf("server {\n    listen 443 ssl;\n%s    http2 on;\n    server_name %s;\n    ssl_certificate %s;\n    ssl_certificate_key %s;\n%s%s%s    root %s;\n    index %s;%s\n\n    location / {\n%s%s    }\n%s}\n\n", h3Listen, serverNames, certPath, keyPath, h3Header, renderAccessBlock(siteName, powEnabled), renderPowLocationBlocks(powEnabled), quoteNginxStringLiteral(pagesDeploymentRoot(deployment)), quoteNginxStringLiteral(pagesEntryFile(deployment)), renderPagesAPIProxyLocationBlock(deployment), renderBasicAuthBlock(basicAuthEnabled, basicAuthUsername, basicAuthPassword), renderPagesLocationBlock(deployment, limitConfig), renderPowStaticLocationBlock(powEnabled))
 }
 
 func renderPagesLocationBlock(deployment *PagesDeployment, limitConfig routeLimitConfig) string {

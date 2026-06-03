@@ -44,6 +44,7 @@ func registeredMigrations(backend string, ctx Context) []*presslygoose.Migration
 		migration202606030001(backend, ctx),
 		migration202606030002(backend, ctx),
 		migration202606030003(backend, ctx),
+		migration202606030004(backend, ctx),
 	}
 }
 

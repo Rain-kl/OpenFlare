@@ -20,6 +20,10 @@ export interface PagesProject {
   enabled: boolean;
   spa_fallback_enabled: boolean;
   spa_fallback_path: string;
+  api_proxy_enabled: boolean;
+  api_proxy_path: string;
+  api_proxy_pass: string;
+  api_proxy_rewrite: string;
   active_deployment_id?: number | null;
   active_deployment?: PagesDeployment | null;
   deployment_count: number;
@@ -34,4 +38,8 @@ export interface PagesProjectPayload {
   enabled: boolean;
   spa_fallback_enabled: boolean;
   spa_fallback_path: string;
+  api_proxy_enabled: boolean;
+  api_proxy_path: string;
+  api_proxy_pass: string;
+  api_proxy_rewrite: string;
 }

@@ -431,6 +431,10 @@ function PagesProjectEditModal({
   const [description, setDescription] = useState(project.description || '');
   const [spaFallbackEnabled, setSpaFallbackEnabled] = useState(project.spa_fallback_enabled);
   const [spaFallbackPath, setSpaFallbackPath] = useState(project.spa_fallback_path);
+  const [apiProxyEnabled, setApiProxyEnabled] = useState(project.api_proxy_enabled || false);
+  const [apiProxyPath, setApiProxyPath] = useState(project.api_proxy_path || '');
+  const [apiProxyPass, setApiProxyPass] = useState(project.api_proxy_pass || '');
+  const [apiProxyRewrite, setApiProxyRewrite] = useState(project.api_proxy_rewrite || '');
 
   useEffect(() => {
     setName(project.name);
@@ -438,6 +442,10 @@ function PagesProjectEditModal({
     setDescription(project.description || '');
     setSpaFallbackEnabled(project.spa_fallback_enabled);
     setSpaFallbackPath(project.spa_fallback_path);
+    setApiProxyEnabled(project.api_proxy_enabled || false);
+    setApiProxyPath(project.api_proxy_path || '');
+    setApiProxyPass(project.api_proxy_pass || '');
+    setApiProxyRewrite(project.api_proxy_rewrite || '');
   }, [project]);
 
   const updateMutation = useMutation({
@@ -449,6 +457,10 @@ function PagesProjectEditModal({
         enabled: project.enabled,
         spa_fallback_enabled: spaFallbackEnabled,
         spa_fallback_path: spaFallbackPath,
+        api_proxy_enabled: apiProxyEnabled,
+        api_proxy_path: apiProxyPath,
+        api_proxy_pass: apiProxyPass,
+        api_proxy_rewrite: apiProxyRewrite,
       }),
     onSuccess: () => {
       onClose();
@@ -527,6 +539,48 @@ function PagesProjectEditModal({
             onChange={(event) => setSpaFallbackPath(event.target.value)}
           />
         </ResourceField>
+        <ToggleField
+          label="启用 API 反向代理"
+          description="允许为该静态站点配置反代后端（例如反代指定 API 路径至您的后端服务）。"
+          checked={apiProxyEnabled}
+          onChange={setApiProxyEnabled}
+        />
+        {apiProxyEnabled && (
+          <>
+            <ResourceField
+              label="反代匹配路径"
+              hint="以 / 开头，例如 /api 或 /api/v1。匹配该前缀的请求将被转发。"
+            >
+              <ResourceInput
+                value={apiProxyPath}
+                placeholder="/api"
+                onChange={(event) => setApiProxyPath(event.target.value)}
+                required
+              />
+            </ResourceField>
+            <ResourceField
+              label="后端服务地址"
+              hint="包含协议和主机的完整 URL，例如 http://127.0.0.1:8080。"
+            >
+              <ResourceInput
+                value={apiProxyPass}
+                placeholder="http://127.0.0.1:8080"
+                onChange={(event) => setApiProxyPass(event.target.value)}
+                required
+              />
+            </ResourceField>
+            <ResourceField
+              label="路径重写目标"
+              hint="可选。如果配置为 /，请求 /api/users 将被重写转发至后端 /users 路径。"
+            >
+              <ResourceInput
+                value={apiProxyRewrite}
+                placeholder="/"
+                onChange={(event) => setApiProxyRewrite(event.target.value)}
+              />
+            </ResourceField>
+          </>
+        )}
         {updateMutation.error ? (
           <p className="text-sm text-[var(--status-danger-foreground)] md:col-span-2">
             {updateMutation.error.message}
@@ -573,6 +627,10 @@ function PagesProjectCreateModal({
         enabled: true,
         spa_fallback_enabled: spaFallbackEnabled,
         spa_fallback_path: spaFallbackPath,
+        api_proxy_enabled: false,
+        api_proxy_path: '',
+        api_proxy_pass: '',
+        api_proxy_rewrite: '',
       }),
     onSuccess: () => {
       resetForm();

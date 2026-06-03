@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"mime/multipart"
+	"net/url"
 	"openflare/common"
 	"openflare/model"
 	"os"
@@ -36,6 +37,10 @@ type PagesProjectInput struct {
 	Enabled            bool   `json:"enabled"`
 	SPAFallbackEnabled bool   `json:"spa_fallback_enabled"`
 	SPAFallbackPath    string `json:"spa_fallback_path"`
+	APIProxyEnabled    bool   `json:"api_proxy_enabled"`
+	APIProxyPath       string `json:"api_proxy_path"`
+	APIProxyPass       string `json:"api_proxy_pass"`
+	APIProxyRewrite    string `json:"api_proxy_rewrite"`
 }
 
 type PagesProjectView struct {
@@ -46,6 +51,10 @@ type PagesProjectView struct {
 	Enabled            bool                 `json:"enabled"`
 	SPAFallbackEnabled bool                 `json:"spa_fallback_enabled"`
 	SPAFallbackPath    string               `json:"spa_fallback_path"`
+	APIProxyEnabled    bool                 `json:"api_proxy_enabled"`
+	APIProxyPath       string               `json:"api_proxy_path"`
+	APIProxyPass       string               `json:"api_proxy_pass"`
+	APIProxyRewrite    string               `json:"api_proxy_rewrite"`
 	ActiveDeploymentID *uint                `json:"active_deployment_id"`
 	ActiveDeployment   *PagesDeploymentView `json:"active_deployment,omitempty"`
 	DeploymentCount    int64                `json:"deployment_count"`
@@ -137,6 +146,10 @@ func UpdatePagesProject(id uint, input PagesProjectInput) (*PagesProjectView, er
 		"enabled":              project.Enabled,
 		"spa_fallback_enabled": project.SPAFallbackEnabled,
 		"spa_fallback_path":    project.SPAFallbackPath,
+		"api_proxy_enabled":    project.APIProxyEnabled,
+		"api_proxy_path":       project.APIProxyPath,
+		"api_proxy_pass":       project.APIProxyPass,
+		"api_proxy_rewrite":    project.APIProxyRewrite,
 	}).Error; err != nil {
 		if model.IsUniqueConstraintError(err) {
 			return nil, errors.New("Pages 项目标识已存在")
@@ -413,6 +426,31 @@ func buildPagesProject(project *model.PagesProject, input PagesProjectInput) (*m
 		return nil, err
 	}
 	project.SPAFallbackPath = fallbackPath
+
+	project.APIProxyEnabled = input.APIProxyEnabled
+	apiProxyPath := strings.TrimSpace(input.APIProxyPath)
+	apiProxyPass := strings.TrimSpace(input.APIProxyPass)
+	apiProxyRewrite := strings.TrimSpace(input.APIProxyRewrite)
+
+	if project.APIProxyEnabled {
+		if apiProxyPath == "" {
+			return nil, errors.New("启用 API 反代时，匹配路径不能为空")
+		}
+		if !strings.HasPrefix(apiProxyPath, "/") {
+			return nil, errors.New("API 反代匹配路径必须以 '/' 开头")
+		}
+		if apiProxyPass == "" {
+			return nil, errors.New("启用 API 反代时，后端服务地址不能为空")
+		}
+		parsedURL, err := url.Parse(apiProxyPass)
+		if err != nil || (parsedURL.Scheme != "http" && parsedURL.Scheme != "https") || parsedURL.Host == "" {
+			return nil, errors.New("API 反代后端服务地址必须是有效的 HTTP/HTTPS URL")
+		}
+	}
+	project.APIProxyPath = apiProxyPath
+	project.APIProxyPass = apiProxyPass
+	project.APIProxyRewrite = apiProxyRewrite
+
 	return project, nil
 }
 
@@ -428,6 +466,10 @@ func buildPagesProjectView(project *model.PagesProject) (*PagesProjectView, erro
 		Enabled:            project.Enabled,
 		SPAFallbackEnabled: project.SPAFallbackEnabled,
 		SPAFallbackPath:    normalizeStoredPagesFallbackPath(project.SPAFallbackPath),
+		APIProxyEnabled:    project.APIProxyEnabled,
+		APIProxyPath:       project.APIProxyPath,
+		APIProxyPass:       project.APIProxyPass,
+		APIProxyRewrite:    project.APIProxyRewrite,
 		ActiveDeploymentID: project.ActiveDeploymentID,
 		CreatedAt:          project.CreatedAt,
 		UpdatedAt:          project.UpdatedAt,

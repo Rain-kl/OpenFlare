@@ -15,6 +15,10 @@ type PagesProject struct {
 	Enabled            bool      `json:"enabled" gorm:"not null;default:true"`
 	SPAFallbackEnabled bool      `json:"spa_fallback_enabled" gorm:"not null;default:false"`
 	SPAFallbackPath    string    `json:"spa_fallback_path" gorm:"size:512;not null;default:'/index.html'"`
+	APIProxyEnabled    bool      `json:"api_proxy_enabled" gorm:"not null;default:false"`
+	APIProxyPath       string    `json:"api_proxy_path" gorm:"size:255;not null;default:''"`
+	APIProxyPass       string    `json:"api_proxy_pass" gorm:"size:2048;not null;default:''"`
+	APIProxyRewrite    string    `json:"api_proxy_rewrite" gorm:"size:255;not null;default:''"`
 	ActiveDeploymentID *uint     `json:"active_deployment_id" gorm:"index"`
 	CreatedAt          time.Time `json:"created_at"`
 	UpdatedAt          time.Time `json:"updated_at"`

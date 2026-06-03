@@ -271,3 +271,57 @@ func TestUploadPagesDeploymentWithTopLevelFolder(t *testing.T) {
 		t.Fatalf("expected EntryFile to be index.html, got %q", deployment.EntryFile)
 	}
 }
+
+func TestPagesProjectAPIProxyValidation(t *testing.T) {
+	setupServiceTestDB(t)
+
+	// 1. Invalid configuration: enabled but empty fields
+	_, err := CreatePagesProject(PagesProjectInput{
+		Name:            "API Proxy 1",
+		Enabled:         true,
+		APIProxyEnabled: true,
+	})
+	if err == nil || !strings.Contains(err.Error(), "匹配路径不能为空") {
+		t.Fatalf("expected error for empty match path, got: %v", err)
+	}
+
+	// 2. Invalid path: must start with '/'
+	_, err = CreatePagesProject(PagesProjectInput{
+		Name:            "API Proxy 2",
+		Enabled:         true,
+		APIProxyEnabled: true,
+		APIProxyPath:    "api",
+		APIProxyPass:    "http://127.0.0.1:8080",
+	})
+	if err == nil || !strings.Contains(err.Error(), "必须以 '/' 开头") {
+		t.Fatalf("expected error for path not starting with /, got: %v", err)
+	}
+
+	// 3. Invalid target URL
+	_, err = CreatePagesProject(PagesProjectInput{
+		Name:            "API Proxy 3",
+		Enabled:         true,
+		APIProxyEnabled: true,
+		APIProxyPath:    "/api",
+		APIProxyPass:    "127.0.0.1:8080",
+	})
+	if err == nil || !strings.Contains(err.Error(), "有效的 HTTP/HTTPS URL") {
+		t.Fatalf("expected error for invalid pass URL, got: %v", err)
+	}
+
+	// 4. Valid configuration
+	project, err := CreatePagesProject(PagesProjectInput{
+		Name:            "API Proxy Valid",
+		Enabled:         true,
+		APIProxyEnabled: true,
+		APIProxyPath:    "/api",
+		APIProxyPass:    "http://127.0.0.1:8080",
+		APIProxyRewrite: "/",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error creating valid project: %v", err)
+	}
+	if !project.APIProxyEnabled || project.APIProxyPath != "/api" || project.APIProxyPass != "http://127.0.0.1:8080" || project.APIProxyRewrite != "/" {
+		t.Fatalf("unexpected project state: %+v", project)
+	}
+}
