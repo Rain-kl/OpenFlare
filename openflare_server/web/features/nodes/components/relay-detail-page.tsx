@@ -60,7 +60,6 @@ import {
   HealthEventFilter,
   NodeDetailTab,
   MetricBar,
-  SummaryStat,
 } from './node-shared';
 
 export function RelayDetailPage({ node }: { node: NodeItem }) {
@@ -318,7 +317,6 @@ export function RelayDetailPage({ node }: { node: NodeItem }) {
       : stableAgentReleaseQuery.isFetching;
 
   const applyLogs = applyLogsQuery.data?.rows ?? [];
-  const latestHealthEvent = activeHealthEvents[0] ?? null;
   const memoryUsageRatio = formatUsageRatio(
     latestMetricSnapshot?.memory_used_bytes,
     latestMetricSnapshot?.memory_total_bytes,

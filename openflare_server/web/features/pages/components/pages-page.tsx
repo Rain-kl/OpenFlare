@@ -728,22 +728,3 @@ function PagesProjectListItem({ project }: { project: PagesProject }) {
   );
 }
 
-function OverviewItem({
-  label,
-  value,
-  hint,
-}: {
-  label: string;
-  value: string;
-  hint: string;
-}) {
-  return (
-    <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-muted)] px-4 py-3">
-      <p className="text-xs text-[var(--foreground-secondary)]">{label}</p>
-      <p className="mt-2 truncate text-sm font-semibold text-[var(--foreground-primary)]">
-        {value}
-      </p>
-      <p className="mt-2 text-xs text-[var(--foreground-secondary)]">{hint}</p>
-    </div>
-  );
-}
