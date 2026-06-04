@@ -170,6 +170,17 @@ func ValidateRegisteredSchema(db *gorm.DB) error {
 }
 
 func EnsureDatabaseSchemaUpToDate(db *gorm.DB, backend string, ctx BridgeContext) error {
+	var startDesc string
+	legacyVer, hasLegacy, _ := loadLegacyDatabaseSchemaVersion(db)
+	gooseVer, hasGoose, _ := LoadDatabaseVersion(db)
+	if hasGoose {
+		startDesc = fmt.Sprintf("goose version %d", gooseVer)
+	} else if hasLegacy {
+		startDesc = fmt.Sprintf("legacy version %d", legacyVer)
+	} else {
+		startDesc = "none (fresh database)"
+	}
+
 	state, err := detectSchemaState(db, ctx)
 	if err != nil {
 		return err
@@ -219,5 +230,15 @@ func EnsureDatabaseSchemaUpToDate(db *gorm.DB, backend string, ctx BridgeContext
 	if err := ctx.ValidateCurrentDatabaseSchema(db, backend); err != nil {
 		return err
 	}
-	return ValidateRegisteredSchema(db)
+	if err := ValidateRegisteredSchema(db); err != nil {
+		return err
+	}
+
+	endVer, _, _ := LoadDatabaseVersion(db)
+	if hasGoose && int64(gooseVer) == int64(endVer) {
+		slog.Info("database schema is already up to date", "version", endVer)
+	} else {
+		slog.Info("database migration completed successfully", "from", startDesc, "to", fmt.Sprintf("goose version %d", endVer))
+	}
+	return nil
 }
