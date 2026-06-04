@@ -612,7 +612,7 @@ func buildSnapshotPagesDeployment(projectID *uint) (*snapshotPagesDeployment, er
 		return nil, errors.New("Pages 激活部署不属于当前项目")
 	}
 	localRoot := fmt.Sprintf("%s/deployments/%d/current", openrestyrender.PagesDirPlaceholder, deployment.ID)
-	cleanedRootDir := strings.TrimSpace(deployment.RootDir)
+	cleanedRootDir := strings.TrimSpace(project.RootDir)
 	if cleanedRootDir != "" {
 		localRoot = path.Join(localRoot, cleanedRootDir)
 	}
@@ -622,7 +622,7 @@ func buildSnapshotPagesDeployment(projectID *uint) (*snapshotPagesDeployment, er
 		DeploymentID:       deployment.ID,
 		DeploymentNumber:   deployment.DeploymentNumber,
 		Checksum:           deployment.Checksum,
-		EntryFile:          deployment.EntryFile,
+		EntryFile:          project.EntryFile,
 		SPAFallbackEnabled: project.SPAFallbackEnabled,
 		SPAFallbackPath:    normalizeStoredPagesFallbackPath(project.SPAFallbackPath),
 		APIProxyEnabled:    project.APIProxyEnabled,

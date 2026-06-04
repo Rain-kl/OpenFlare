@@ -74,8 +74,6 @@ type PagesDeploymentView struct {
 	Status           string     `json:"status"`
 	FileCount        int        `json:"file_count"`
 	TotalSize        int64      `json:"total_size"`
-	RootDir          string     `json:"root_dir"`
-	EntryFile        string     `json:"entry_file"`
 	CreatedBy        string     `json:"created_by"`
 	CreatedAt        time.Time  `json:"created_at"`
 	ActivatedAt      *time.Time `json:"activated_at"`
@@ -288,8 +286,6 @@ func UploadPagesDeployment(projectID uint, fileHeader *multipart.FileHeader, roo
 			ArtifactPath:     artifactPath,
 			FileCount:        manifest.FileCount,
 			TotalSize:        manifest.TotalSize,
-			RootDir:          rootDir,
-			EntryFile:        manifest.EntryFile,
 			CreatedBy:        strings.TrimSpace(createdBy),
 		}
 		if err := tx.Create(deployment).Error; err != nil {
@@ -547,8 +543,6 @@ func buildPagesDeploymentView(deployment *model.PagesDeployment) *PagesDeploymen
 		Status:           deployment.Status,
 		FileCount:        deployment.FileCount,
 		TotalSize:        deployment.TotalSize,
-		RootDir:          deployment.RootDir,
-		EntryFile:        deployment.EntryFile,
 		CreatedBy:        deployment.CreatedBy,
 		CreatedAt:        deployment.CreatedAt,
 		ActivatedAt:      deployment.ActivatedAt,

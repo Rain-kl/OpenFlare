@@ -35,8 +35,6 @@ type PagesDeployment struct {
 	ArtifactPath     string     `json:"artifact_path" gorm:"size:2048;not null"`
 	FileCount        int        `json:"file_count" gorm:"not null;default:0"`
 	TotalSize        int64      `json:"total_size" gorm:"not null;default:0"`
-	RootDir          string     `json:"root_dir" gorm:"size:512;not null;default:''"`
-	EntryFile        string     `json:"entry_file" gorm:"size:512;not null;default:'index.html'"`
 	CreatedBy        string     `json:"created_by" gorm:"size:64;not null;default:''"`
 	CreatedAt        time.Time  `json:"created_at"`
 	ActivatedAt      *time.Time `json:"activated_at"`

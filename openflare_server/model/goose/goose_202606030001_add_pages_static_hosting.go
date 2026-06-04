@@ -52,7 +52,7 @@ func validatePagesStaticHosting(db *gorm.DB) error {
 			return fmt.Errorf("column pages_projects.%s is missing", column)
 		}
 	}
-	for _, column := range []string{"project_id", "checksum", "artifact_path", "entry_file"} {
+	for _, column := range []string{"project_id", "checksum", "artifact_path"} {
 		if !db.Migrator().HasColumn("pages_deployments", column) {
 			return fmt.Errorf("column pages_deployments.%s is missing", column)
 		}

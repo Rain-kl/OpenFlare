@@ -1,8 +1,6 @@
 package goose
 
 import (
-	"fmt"
-
 	presslygoose "github.com/pressly/goose/v3"
 	"gorm.io/gorm"
 )
@@ -23,10 +21,6 @@ func migration202606040001(backend string, ctx Context) *presslygoose.Migration 
 func migratePagesDeploymentRootDir(ctx Context, db *gorm.DB, backend string) error {
 	if err := ctx.ApplyCurrentSchema(db, backend); err != nil {
 		return err
-	}
-	// Verify that the column exists
-	if !db.Migrator().HasColumn("pages_deployments", "root_dir") {
-		return fmt.Errorf("column pages_deployments.root_dir is missing")
 	}
 	return nil
 }

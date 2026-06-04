@@ -268,8 +268,8 @@ func TestUploadPagesDeploymentWithTopLevelFolder(t *testing.T) {
 	if deployment.FileCount != 2 {
 		t.Fatalf("expected 2 files, got %d", deployment.FileCount)
 	}
-	if deployment.EntryFile != "index.html" {
-		t.Fatalf("expected EntryFile to be index.html, got %q", deployment.EntryFile)
+	if project.EntryFile != "index.html" {
+		t.Fatalf("expected EntryFile to be index.html, got %q", project.EntryFile)
 	}
 }
 
@@ -354,11 +354,11 @@ func TestUploadPagesDeploymentWithRootDir(t *testing.T) {
 	if deployment.FileCount != 3 {
 		t.Fatalf("expected 3 files, got %d", deployment.FileCount)
 	}
-	if deployment.RootDir != "build" {
-		t.Fatalf("expected RootDir to be 'build', got %q", deployment.RootDir)
+	if project.RootDir != "build" {
+		t.Fatalf("expected RootDir to be 'build', got %q", project.RootDir)
 	}
-	if deployment.EntryFile != "index.html" {
-		t.Fatalf("expected EntryFile to be 'index.html', got %q", deployment.EntryFile)
+	if project.EntryFile != "index.html" {
+		t.Fatalf("expected EntryFile to be 'index.html', got %q", project.EntryFile)
 	}
 
 	// 2. Update project configuration to a wrong entry file relative to root directory, upload should fail
