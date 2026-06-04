@@ -388,7 +388,8 @@ export function SettingsPage() {
       NodeOfflineThreshold: optionMap.NodeOfflineThreshold ?? '120000',
       AgentUpdateRepo: optionMap.AgentUpdateRepo ?? 'Rain-kl/OpenFlare',
       GeoIPProvider: optionMap.GeoIPProvider ?? 'ipinfo',
-      OpenRestyDefaultServerReturnStatus: optionMap.OpenRestyDefaultServerReturnStatus ?? '421',
+      OpenRestyDefaultServerReturnStatus:
+        optionMap.OpenRestyDefaultServerReturnStatus ?? '421',
       OpenRestyWorkerProcesses: optionMap.OpenRestyWorkerProcesses ?? 'auto',
       OpenRestyWorkerConnections:
         optionMap.OpenRestyWorkerConnections ?? '4096',
@@ -683,10 +684,16 @@ export function SettingsPage() {
 
   const handleUptimeKumaSave = () => {
     void runBusyAction('uptimekuma-save', async () => {
-      const syncInt = Number.parseInt(operationFields.UptimeKumaSyncInterval, 10);
+      const syncInt = Number.parseInt(
+        operationFields.UptimeKumaSyncInterval,
+        10,
+      );
       const interval = Number.parseInt(operationFields.UptimeKumaInterval, 10);
       const retry = Number.parseInt(operationFields.UptimeKumaRetry, 10);
-      const retryInt = Number.parseInt(operationFields.UptimeKumaRetryInterval, 10);
+      const retryInt = Number.parseInt(
+        operationFields.UptimeKumaRetryInterval,
+        10,
+      );
       const timeout = Number.parseInt(operationFields.UptimeKumaTimeout, 10);
 
       if (operationFields.UptimeKumaEnabled) {
@@ -1399,7 +1406,10 @@ export function SettingsPage() {
                   <SecondaryButton
                     type="button"
                     onClick={handleUptimeKumaSync}
-                    disabled={busyKey === 'uptimekuma-sync' || !operationFields.UptimeKumaEnabled}
+                    disabled={
+                      busyKey === 'uptimekuma-sync' ||
+                      !operationFields.UptimeKumaEnabled
+                    }
                   >
                     {busyKey === 'uptimekuma-sync' ? '同步中...' : '立即同步'}
                   </SecondaryButton>
@@ -1429,7 +1439,10 @@ export function SettingsPage() {
                 {operationFields.UptimeKumaEnabled ? (
                   <div className="space-y-5 border-t border-[var(--border-default)] pt-5">
                     <div className="grid gap-5 md:grid-cols-2">
-                      <ResourceField label="Uptime Kuma 地址" hint="例如 http://192.168.1.100:3001">
+                      <ResourceField
+                        label="Uptime Kuma 地址"
+                        hint="例如 http://192.168.1.100:3001"
+                      >
                         <ResourceInput
                           value={operationFields.UptimeKumaUrl}
                           onChange={(event) =>
@@ -1475,14 +1488,14 @@ export function SettingsPage() {
                       </ResourceField>
                       <ResourceField label="同步间隔 (分钟)">
                         <ResourceInput
-                            type="number"
-                            value={operationFields.UptimeKumaSyncInterval}
-                            onChange={(event) =>
-                                setOperationFields((previous) => ({
-                                  ...previous,
-                                  UptimeKumaSyncInterval: event.target.value,
-                                }))
-                            }
+                          type="number"
+                          value={operationFields.UptimeKumaSyncInterval}
+                          onChange={(event) =>
+                            setOperationFields((previous) => ({
+                              ...previous,
+                              UptimeKumaSyncInterval: event.target.value,
+                            }))
+                          }
                         />
                       </ResourceField>
                       <ResourceField label="监控范围">
@@ -1499,32 +1512,40 @@ export function SettingsPage() {
                           <option value="selected">选择站点</option>
                         </ResourceSelect>
                       </ResourceField>
-
-
                     </div>
 
                     {operationFields.UptimeKumaMonitorScope === 'selected' ? (
-                      <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-elevated)] p-4 space-y-3">
+                      <div className="space-y-3 rounded-2xl border border-[var(--border-default)] bg-[var(--surface-elevated)] p-4">
                         <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium text-[var(--foreground-primary)]">已选站点</span>
-                          <SecondaryButton type="button" onClick={() => setUptimeKumaModalOpen(true)}>
+                          <span className="text-sm font-medium text-[var(--foreground-primary)]">
+                            已选站点
+                          </span>
+                          <SecondaryButton
+                            type="button"
+                            onClick={() => setUptimeKumaModalOpen(true)}
+                          >
                             选择监控站点
                           </SecondaryButton>
                         </div>
-                        <div className="text-xs text-[var(--foreground-secondary)] break-all max-h-[80px] overflow-y-auto leading-5">
+                        <div className="max-h-[80px] overflow-y-auto text-xs leading-5 break-all text-[var(--foreground-secondary)]">
                           {operationFields.UptimeKumaSelectedSites
-                            ? operationFields.UptimeKumaSelectedSites.split(',').join(', ')
+                            ? operationFields.UptimeKumaSelectedSites.split(
+                                ',',
+                              ).join(', ')
                             : '未选择任何站点，同步不会执行。'}
                         </div>
                       </div>
                     ) : null}
 
-                    <div className="border-t border-[var(--border-default)] pt-5 space-y-4">
+                    <div className="space-y-4 border-t border-[var(--border-default)] pt-5">
                       <p className="text-sm font-medium text-[var(--foreground-primary)]">
                         Uptime Kuma 属性配置
                       </p>
                       <div className="grid gap-5 md:grid-cols-2">
-                        <ResourceField label="心跳间隔 (检测频率秒)" hint="服务检测频率，单位：秒">
+                        <ResourceField
+                          label="心跳间隔 (检测频率秒)"
+                          hint="服务检测频率，单位：秒"
+                        >
                           <ResourceInput
                             type="number"
                             value={operationFields.UptimeKumaInterval}
@@ -1537,7 +1558,10 @@ export function SettingsPage() {
                           />
                         </ResourceField>
 
-                        <ResourceField label="重试次数" hint="服务被标记为故障前的最大重试次数">
+                        <ResourceField
+                          label="重试次数"
+                          hint="服务被标记为故障前的最大重试次数"
+                        >
                           <ResourceInput
                             type="number"
                             value={operationFields.UptimeKumaRetry}
@@ -1550,7 +1574,10 @@ export function SettingsPage() {
                           />
                         </ResourceField>
 
-                        <ResourceField label="心跳重试间隔 (秒)" hint="重试间隔时间，单位：秒">
+                        <ResourceField
+                          label="心跳重试间隔 (秒)"
+                          hint="重试间隔时间，单位：秒"
+                        >
                           <ResourceInput
                             type="number"
                             value={operationFields.UptimeKumaRetryInterval}
@@ -1563,7 +1590,10 @@ export function SettingsPage() {
                           />
                         </ResourceField>
 
-                        <ResourceField label="请求超时 (秒)" hint="超时断开时间，单位：秒">
+                        <ResourceField
+                          label="请求超时 (秒)"
+                          hint="超时断开时间，单位：秒"
+                        >
                           <ResourceInput
                             type="number"
                             value={operationFields.UptimeKumaTimeout}
@@ -2108,7 +2138,6 @@ export function SettingsPage() {
                   </ResourceField>
                 </div>
               </div>
-
 
               <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-elevated)] p-5">
                 <p className="text-sm font-semibold text-[var(--foreground-primary)]">

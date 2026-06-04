@@ -730,8 +730,6 @@ export function RelayDetailPage({ node }: { node: NodeItem }) {
                 )}
               </AppCard>
             </div>
-
-
           </>
         ) : null}
 
@@ -766,7 +764,7 @@ export function RelayDetailPage({ node }: { node: NodeItem }) {
                         href={`http://${node.ip || '127.0.0.1'}:${node.relay_bind_port + 500}`}
                         target="_blank"
                         rel="noreferrer"
-                        className="text-[var(--accent-strong)] hover:underline font-medium"
+                        className="font-medium text-[var(--accent-strong)] hover:underline"
                       >
                         点击打开 Web 界面
                       </a>

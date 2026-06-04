@@ -1,7 +1,15 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Download, Play, Plus, Save, Trash2, Eye } from 'lucide-react';
+import {
+  ArrowLeft,
+  Download,
+  Play,
+  Plus,
+  Save,
+  Trash2,
+  Eye,
+} from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 
@@ -626,7 +634,7 @@ export function WAFIPGroupsPage() {
                         <div className="mb-2 text-xs font-medium text-[var(--foreground-secondary)]">
                           命中 IP 列表
                         </div>
-                        <pre className="overflow-x-auto whitespace-pre-wrap break-all text-sm text-[var(--foreground-primary)]">
+                        <pre className="overflow-x-auto text-sm break-all whitespace-pre-wrap text-[var(--foreground-primary)]">
                           {autoTestResult.matched_ips.join('\n')}
                         </pre>
                       </div>
@@ -694,7 +702,10 @@ export function WAFIPGroupsPage() {
           onClose={() => setIsCapturedIPsModalOpen(false)}
           footer={
             <div className="flex justify-end">
-              <SecondaryButton type="button" onClick={() => setIsCapturedIPsModalOpen(false)}>
+              <SecondaryButton
+                type="button"
+                onClick={() => setIsCapturedIPsModalOpen(false)}
+              >
                 关闭
               </SecondaryButton>
             </div>
@@ -712,19 +723,29 @@ export function WAFIPGroupsPage() {
                   <table className="min-w-full divide-y divide-[var(--border-default)]">
                     <thead className="bg-[var(--surface-muted)]">
                       <tr>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--foreground-secondary)]">IP 地址</th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--foreground-secondary)]">抓取时间</th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--foreground-secondary)]">封禁剩余时间</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--foreground-secondary)]">
+                          IP 地址
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--foreground-secondary)]">
+                          抓取时间
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--foreground-secondary)]">
+                          封禁剩余时间
+                        </th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[var(--border-default)] bg-[var(--surface-elevated)]">
                       {selectedGroup.ext_ips.map((item) => {
-                        const autoConfig = selectedGroup.auto_config as { ttl?: number } | undefined;
+                        const autoConfig = selectedGroup.auto_config as
+                          | { ttl?: number }
+                          | undefined;
                         const ttl = autoConfig?.ttl ?? -1;
                         let expireText = '永久';
                         if (ttl > 0) {
                           const capturedDate = new Date(item.captured_at);
-                          const expireDate = new Date(capturedDate.getTime() + ttl * 1000);
+                          const expireDate = new Date(
+                            capturedDate.getTime() + ttl * 1000,
+                          );
                           const now = new Date();
                           if (expireDate.getTime() <= now.getTime()) {
                             expireText = '已过期';
@@ -741,9 +762,20 @@ export function WAFIPGroupsPage() {
                         }
                         return (
                           <tr key={item.ip}>
-                            <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-[var(--foreground-primary)] font-mono">{item.ip}</td>
-                            <td className="whitespace-nowrap px-4 py-3 text-sm text-[var(--foreground-secondary)]">{new Date(item.captured_at).toLocaleString()}</td>
-                            <td className={cn("whitespace-nowrap px-4 py-3 text-sm font-medium", ttl > 0 ? "text-amber-500" : "text-emerald-500")}>{expireText}</td>
+                            <td className="px-4 py-3 font-mono text-sm font-medium whitespace-nowrap text-[var(--foreground-primary)]">
+                              {item.ip}
+                            </td>
+                            <td className="px-4 py-3 text-sm whitespace-nowrap text-[var(--foreground-secondary)]">
+                              {new Date(item.captured_at).toLocaleString()}
+                            </td>
+                            <td
+                              className={cn(
+                                'px-4 py-3 text-sm font-medium whitespace-nowrap',
+                                ttl > 0 ? 'text-amber-500' : 'text-emerald-500',
+                              )}
+                            >
+                              {expireText}
+                            </td>
                           </tr>
                         );
                       })}

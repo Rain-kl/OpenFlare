@@ -108,9 +108,11 @@ export function PowTabPanel({
           <select
             value={config.algorithm}
             onChange={(event) =>
-              updateConfig(enabled, { algorithm: event.target.value as 'fast' | 'slow' })
+              updateConfig(enabled, {
+                algorithm: event.target.value as 'fast' | 'slow',
+              })
             }
-            className="w-full rounded-2xl border border-[var(--border-default)] bg-[var(--control-background)] px-4 py-3 text-sm text-[var(--foreground-primary)] outline-none transition focus:border-[var(--border-strong)]"
+            className="w-full rounded-2xl border border-[var(--border-default)] bg-[var(--control-background)] px-4 py-3 text-sm text-[var(--foreground-primary)] transition outline-none focus:border-[var(--border-strong)]"
           >
             <option value="fast">Fast</option>
             <option value="slow">Slow</option>
@@ -143,7 +145,9 @@ export function PowTabPanel({
             min={30}
             value={config.challenge_ttl}
             onChange={(event) =>
-              updateConfig(enabled, { challenge_ttl: Number(event.target.value) })
+              updateConfig(enabled, {
+                challenge_ttl: Number(event.target.value),
+              })
             }
           />
         </ResourceField>

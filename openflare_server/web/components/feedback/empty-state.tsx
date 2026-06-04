@@ -21,4 +21,3 @@ export function EmptyState({ title, description, children }: EmptyStateProps) {
     </div>
   );
 }
-

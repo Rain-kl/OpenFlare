@@ -1,10 +1,13 @@
 import type { NodeItem } from '@/features/nodes/types';
 
 export const WS_CONNECTED_LAST_SEEN = '__OPENFLARE_WS_CONNECTED__';
-export const FLARED_WS_CONNECTED_LAST_SEEN = '__OPENFLARE_FLARED_WS_CONNECTED__';
+export const FLARED_WS_CONNECTED_LAST_SEEN =
+  '__OPENFLARE_FLARED_WS_CONNECTED__';
 
 export function isWSConnectedLastSeen(value: string | null | undefined) {
-  return value === WS_CONNECTED_LAST_SEEN || value === FLARED_WS_CONNECTED_LAST_SEEN;
+  return (
+    value === WS_CONNECTED_LAST_SEEN || value === FLARED_WS_CONNECTED_LAST_SEEN
+  );
 }
 
 export function isMeaningfulTime(value: string | null | undefined) {

@@ -383,32 +383,34 @@ export function ProxyRouteCreateDrawer({
         />
 
         <div className="space-y-3">
-          <label className="text-sm font-medium text-[var(--foreground-primary)] block">回源方式</label>
+          <label className="block text-sm font-medium text-[var(--foreground-primary)]">
+            回源方式
+          </label>
           <div className="flex gap-4">
-            <label className="flex items-center gap-2 text-sm text-[var(--foreground-primary)] cursor-pointer">
+            <label className="flex cursor-pointer items-center gap-2 text-sm text-[var(--foreground-primary)]">
               <input
                 type="radio"
                 value="direct"
                 {...form.register('upstream_type')}
-                className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                className="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500"
               />
               直连上游
             </label>
-            <label className="flex items-center gap-2 text-sm text-[var(--foreground-primary)] cursor-pointer">
+            <label className="flex cursor-pointer items-center gap-2 text-sm text-[var(--foreground-primary)]">
               <input
                 type="radio"
                 value="tunnel"
                 {...form.register('upstream_type')}
-                className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                className="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500"
               />
               内网穿透 (Tunnel)
             </label>
-            <label className="flex items-center gap-2 text-sm text-[var(--foreground-primary)] cursor-pointer">
+            <label className="flex cursor-pointer items-center gap-2 text-sm text-[var(--foreground-primary)]">
               <input
                 type="radio"
                 value="pages"
                 {...form.register('upstream_type')}
-                className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                className="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500"
               />
               Pages 静态站点
             </label>
@@ -430,7 +432,7 @@ export function ProxyRouteCreateDrawer({
             />
           </ResourceField>
         ) : form.watch('upstream_type') === 'tunnel' ? (
-          <div className="p-4 rounded-xl border border-[var(--border-default)] bg-[var(--surface-muted)] space-y-4">
+          <div className="space-y-4 rounded-xl border border-[var(--border-default)] bg-[var(--surface-muted)] p-4">
             <ResourceField
               label="选择内网穿透隧道"
               hint="将请求转发到该隧道连接的客户端节点。"
@@ -438,17 +440,18 @@ export function ProxyRouteCreateDrawer({
             >
               <select
                 {...form.register('tunnel_id')}
-                className="block w-full rounded-xl border border-[var(--border-default)] bg-[var(--control-background)] px-4 py-2.5 text-sm text-[var(--foreground-primary)] placeholder-[var(--foreground-muted)] outline-none transition focus:border-[var(--border-strong)] focus:ring-1 focus:ring-[var(--border-strong)]"
+                className="block w-full rounded-xl border border-[var(--border-default)] bg-[var(--control-background)] px-4 py-2.5 text-sm text-[var(--foreground-primary)] placeholder-[var(--foreground-muted)] transition outline-none focus:border-[var(--border-strong)] focus:ring-1 focus:ring-[var(--border-strong)]"
               >
                 <option value="">请选择...</option>
-                {(tunnelClients).map((tunnel) => (
+                {tunnelClients.map((tunnel) => (
                   <option key={tunnel.id} value={tunnel.id}>
-                    {tunnel.name} ({tunnel.status === 'online' ? '在线' : '离线'})
+                    {tunnel.name} (
+                    {tunnel.status === 'online' ? '在线' : '离线'})
                   </option>
                 ))}
               </select>
             </ResourceField>
-            
+
             <ResourceField
               label="内网服务协议"
               hint="转发到内网服务时使用的协议。"
@@ -456,7 +459,7 @@ export function ProxyRouteCreateDrawer({
             >
               <select
                 {...form.register('tunnel_target_protocol')}
-                className="block w-full rounded-xl border border-[var(--border-default)] bg-[var(--control-background)] px-4 py-2.5 text-sm text-[var(--foreground-primary)] placeholder-[var(--foreground-muted)] outline-none transition focus:border-[var(--border-strong)] focus:ring-1 focus:ring-[var(--border-strong)]"
+                className="block w-full rounded-xl border border-[var(--border-default)] bg-[var(--control-background)] px-4 py-2.5 text-sm text-[var(--foreground-primary)] placeholder-[var(--foreground-muted)] transition outline-none focus:border-[var(--border-strong)] focus:ring-1 focus:ring-[var(--border-strong)]"
               >
                 <option value="http">HTTP</option>
                 <option value="https">HTTPS</option>
@@ -475,7 +478,7 @@ export function ProxyRouteCreateDrawer({
             </ResourceField>
           </div>
         ) : (
-          <div className="p-4 rounded-xl border border-[var(--border-default)] bg-[var(--surface-muted)] space-y-4">
+          <div className="space-y-4 rounded-xl border border-[var(--border-default)] bg-[var(--surface-muted)] p-4">
             <ResourceField
               label="选择 Pages 项目"
               hint="仅显示已启用且已有激活部署的 Pages 项目。"
@@ -483,7 +486,7 @@ export function ProxyRouteCreateDrawer({
             >
               <select
                 {...form.register('pages_project_id')}
-                className="block w-full rounded-xl border border-[var(--border-default)] bg-[var(--control-background)] px-4 py-2.5 text-sm text-[var(--foreground-primary)] placeholder-[var(--foreground-muted)] outline-none transition focus:border-[var(--border-strong)] focus:ring-1 focus:ring-[var(--border-strong)]"
+                className="block w-full rounded-xl border border-[var(--border-default)] bg-[var(--control-background)] px-4 py-2.5 text-sm text-[var(--foreground-primary)] placeholder-[var(--foreground-muted)] transition outline-none focus:border-[var(--border-strong)] focus:ring-1 focus:ring-[var(--border-strong)]"
               >
                 <option value="">请选择...</option>
                 {pagesProjects.map((project) => (

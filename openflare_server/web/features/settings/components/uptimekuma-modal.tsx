@@ -32,7 +32,11 @@ export function UptimeKumaSiteSelectModal({
   const [searchTerm, setSearchTerm] = useState('');
   const [tempSelected, setTempSelected] = useState<Set<string>>(new Set());
 
-  const { data: routes = [], isLoading, error } = useQuery({
+  const {
+    data: routes = [],
+    isLoading,
+    error,
+  } = useQuery({
     queryKey: ['proxy-routes'],
     queryFn: getProxyRoutes,
     enabled: isOpen,
@@ -40,7 +44,9 @@ export function UptimeKumaSiteSelectModal({
 
   useEffect(() => {
     if (isOpen) {
-      setTempSelected(new Set(selectedSites.map(s => s.trim()).filter(Boolean)));
+      setTempSelected(
+        new Set(selectedSites.map((s) => s.trim()).filter(Boolean)),
+      );
       setSearchTerm('');
     }
   }, [isOpen, selectedSites]);
@@ -162,7 +168,10 @@ export function UptimeKumaSiteSelectModal({
                       onClick={() => toggleSite(route.site_name)}
                       className="cursor-pointer hover:bg-[var(--surface-elevated)]"
                     >
-                      <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                      <td
+                        className="px-4 py-3"
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         <input
                           type="checkbox"
                           checked={isChecked}
@@ -192,7 +201,10 @@ export function UptimeKumaSiteSelectModal({
                 })}
                 {filteredRoutes.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="px-4 py-8 text-center text-[var(--foreground-secondary)]">
+                    <td
+                      colSpan={4}
+                      className="px-4 py-8 text-center text-[var(--foreground-secondary)]"
+                    >
                       无匹配的站点
                     </td>
                   </tr>
@@ -201,8 +213,8 @@ export function UptimeKumaSiteSelectModal({
             </table>
           </div>
         ) : null}
-        
-        <div className="text-xs text-[var(--foreground-muted)] text-right">
+
+        <div className="text-right text-xs text-[var(--foreground-muted)]">
           已选择 {tempSelected.size} 个监控站点
         </div>
       </div>

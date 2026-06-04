@@ -257,12 +257,30 @@ function toPayload(values: NodeEditorValues): NodeMutationPayload {
     ip: values.ip.trim(),
     ip_manual_override: values.ip_manual_override,
     auto_update_enabled: values.auto_update_enabled,
-    relay_bind_port: values.type === 'tunnel_relay' ? Number(values.relay_bind_port) : undefined,
-    relay_vhost_http_port: values.type === 'tunnel_relay' ? Number(values.relay_vhost_http_port) : undefined,
-    relay_client_access_addr: values.type === 'tunnel_relay' ? values.relay_client_access_addr.trim() : undefined,
-    relay_agent_access_addr: values.type === 'tunnel_relay' ? values.relay_agent_access_addr.trim() : undefined,
-    relay_client_proxy_url: values.type === 'tunnel_relay' ? values.relay_client_proxy_url.trim() : undefined,
-    relay_web_server_enabled: values.type === 'tunnel_relay' ? values.relay_web_server_enabled : undefined,
+    relay_bind_port:
+      values.type === 'tunnel_relay'
+        ? Number(values.relay_bind_port)
+        : undefined,
+    relay_vhost_http_port:
+      values.type === 'tunnel_relay'
+        ? Number(values.relay_vhost_http_port)
+        : undefined,
+    relay_client_access_addr:
+      values.type === 'tunnel_relay'
+        ? values.relay_client_access_addr.trim()
+        : undefined,
+    relay_agent_access_addr:
+      values.type === 'tunnel_relay'
+        ? values.relay_agent_access_addr.trim()
+        : undefined,
+    relay_client_proxy_url:
+      values.type === 'tunnel_relay'
+        ? values.relay_client_proxy_url.trim()
+        : undefined,
+    relay_web_server_enabled:
+      values.type === 'tunnel_relay'
+        ? values.relay_web_server_enabled
+        : undefined,
   };
 
   if (!values.geo_manual_override) {
@@ -389,30 +407,39 @@ export function NodeEditorModal({
         </ResourceField>
 
         {watchedType === 'tunnel_relay' && (
-          <div className="space-y-5 rounded-lg border border-border p-4 bg-muted/50">
+          <div className="border-border bg-muted/50 space-y-5 rounded-lg border p-4">
             <h4 className="text-sm font-medium">中继配置 (Relay Config)</h4>
             <ResourceField
               label="中继绑定端口 (Bind Port)"
               hint="中继服务端在此端口监听并接受 Flared 客户端连接。"
               error={form.formState.errors.relay_bind_port?.message}
             >
-              <ResourceInput placeholder="7000" {...form.register('relay_bind_port')} />
+              <ResourceInput
+                placeholder="7000"
+                {...form.register('relay_bind_port')}
+              />
             </ResourceField>
-            
+
             <ResourceField
               label="中继 Vhost HTTP 端口 (Vhost HTTP Port)"
               hint="中继服务端在此端口监听 HTTP 虚拟主机流量，用于 Openresty 转发到中继。"
               error={form.formState.errors.relay_vhost_http_port?.message}
             >
-              <ResourceInput placeholder="8080" {...form.register('relay_vhost_http_port')} />
+              <ResourceInput
+                placeholder="8080"
+                {...form.register('relay_vhost_http_port')}
+              />
             </ResourceField>
 
             <ResourceField
-                label="边缘节点接入地址 (Edge Node Access Addr)"
-                hint="用于 Edge Node 转发请求。默认与 Client Access Addr 或 IP + 绑定端口一致。"
-                error={form.formState.errors.relay_agent_access_addr?.message}
+              label="边缘节点接入地址 (Edge Node Access Addr)"
+              hint="用于 Edge Node 转发请求。默认与 Client Access Addr 或 IP + 绑定端口一致。"
+              error={form.formState.errors.relay_agent_access_addr?.message}
             >
-              <ResourceInput placeholder="例如: 10.0.0.1:7000" {...form.register('relay_agent_access_addr')} />
+              <ResourceInput
+                placeholder="例如: 10.0.0.1:7000"
+                {...form.register('relay_agent_access_addr')}
+              />
             </ResourceField>
 
             <ResourceField
@@ -420,7 +447,10 @@ export function NodeEditorModal({
               hint="如果不填默认使用节点的 IP + 绑定端口。"
               error={form.formState.errors.relay_client_access_addr?.message}
             >
-              <ResourceInput placeholder="例如: relay.example.com:7000" {...form.register('relay_client_access_addr')} />
+              <ResourceInput
+                placeholder="例如: relay.example.com:7000"
+                {...form.register('relay_client_access_addr')}
+              />
             </ResourceField>
 
             <ResourceField
@@ -428,7 +458,10 @@ export function NodeEditorModal({
               hint="可选，下发给客户端。当客户端连接中继需要经过 HTTP 代理时使用。"
               error={form.formState.errors.relay_client_proxy_url?.message}
             >
-              <ResourceInput placeholder="例如: http://10.0.0.1:3128" {...form.register('relay_client_proxy_url')} />
+              <ResourceInput
+                placeholder="例如: http://10.0.0.1:3128"
+                {...form.register('relay_client_proxy_url')}
+              />
             </ResourceField>
 
             <ToggleField

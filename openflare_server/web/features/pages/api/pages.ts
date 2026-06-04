@@ -49,10 +49,13 @@ export function uploadPagesDeployment(
     const formData = new FormData();
     formData.append('package', file);
     formData.append('entry_file', entryFile);
-    return apiRequest<PagesDeployment>(`/pages/${projectId}/deployments/upload`, {
-      method: 'POST',
-      body: formData,
-    });
+    return apiRequest<PagesDeployment>(
+      `/pages/${projectId}/deployments/upload`,
+      {
+        method: 'POST',
+        body: formData,
+      },
+    );
   }
 
   return new Promise<PagesDeployment>((resolve, reject) => {
@@ -86,7 +89,12 @@ export function uploadPagesDeployment(
           reject(new ApiError(payload?.message || '请求失败', xhr.status));
         }
       } else {
-        reject(new ApiError(payload?.message || `请求失败（${xhr.status}）`, xhr.status));
+        reject(
+          new ApiError(
+            payload?.message || `请求失败（${xhr.status}）`,
+            xhr.status,
+          ),
+        );
       }
     };
 

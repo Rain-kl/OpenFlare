@@ -214,10 +214,7 @@ export function DashboardTopbar() {
       socket.onmessage = (event) => {
         const snapshot = parseUpgradeStreamSnapshot(String(event.data));
         if (snapshot) {
-          if (
-            snapshot.in_progress ||
-            snapshot.upgrade_status === 'succeeded'
-          ) {
+          if (snapshot.in_progress || snapshot.upgrade_status === 'succeeded') {
             upgradeRefreshPendingRef.current = true;
           }
           if (snapshot.upgrade_status === 'failed') {

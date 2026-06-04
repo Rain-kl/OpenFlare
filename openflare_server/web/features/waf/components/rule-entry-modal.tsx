@@ -188,7 +188,8 @@ export function RuleEntryModal({
                   选择 IP 组
                 </h3>
                 <p className="mt-1 text-xs leading-5 text-[var(--foreground-secondary)]">
-                  发布版本只保存引用 ID，IP 组成员由 Agent 按 checksum 差异同步。
+                  发布版本只保存引用 ID，IP 组成员由 Agent 按 checksum
+                  差异同步。
                 </p>
               </div>
               <span className="rounded-full border border-[var(--border-default)] px-2.5 py-1 text-xs font-medium text-[var(--foreground-secondary)]">

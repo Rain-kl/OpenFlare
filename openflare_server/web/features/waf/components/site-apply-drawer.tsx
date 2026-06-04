@@ -2,7 +2,10 @@ import { useEffect, useMemo, useState } from 'react';
 import { Check, Search } from 'lucide-react';
 import { Drawer } from '@/components/ui/drawer';
 import type { ProxyRouteItem } from '@/features/proxy-routes/types';
-import { PrimaryButton, SecondaryButton } from '@/features/shared/components/resource-primitives';
+import {
+  PrimaryButton,
+  SecondaryButton,
+} from '@/features/shared/components/resource-primitives';
 import type { WAFRuleGroup } from '@/features/waf/types';
 import { cn } from '@/lib/utils/cn';
 

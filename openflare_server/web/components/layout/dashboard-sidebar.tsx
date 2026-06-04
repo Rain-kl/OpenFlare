@@ -221,7 +221,7 @@ function SidebarContent({
         ) : null}
       </div>
 
-      <nav className="min-h-0 flex-1 overflow-y-auto no-scrollbar pr-1 flex flex-col gap-2">
+      <nav className="no-scrollbar flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto pr-1">
         {dashboardNavigation.map((item) => (
           <SidebarNavItem
             key={item.href}

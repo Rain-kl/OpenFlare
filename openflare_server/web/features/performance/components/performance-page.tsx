@@ -206,7 +206,8 @@ export function PerformancePage() {
 
     const optionMap = optionsToMap(optionsQuery.data);
     setPerformanceFields({
-      OpenRestyDefaultServerReturnStatus: optionMap.OpenRestyDefaultServerReturnStatus ?? '421',
+      OpenRestyDefaultServerReturnStatus:
+        optionMap.OpenRestyDefaultServerReturnStatus ?? '421',
       OpenRestyWorkerProcesses: optionMap.OpenRestyWorkerProcesses ?? 'auto',
       OpenRestyWorkerConnections:
         optionMap.OpenRestyWorkerConnections ?? '4096',
@@ -235,10 +236,7 @@ export function PerformancePage() {
         optionMap.OpenRestyWebsocketEnabled,
         true,
       ),
-      OpenRestyHTTP3Enabled: toBoolean(
-        optionMap.OpenRestyHTTP3Enabled,
-        false,
-      ),
+      OpenRestyHTTP3Enabled: toBoolean(optionMap.OpenRestyHTTP3Enabled, false),
       OpenRestyProxyRequestBufferingEnabled: toBoolean(
         optionMap.OpenRestyProxyRequestBufferingEnabled,
         false,

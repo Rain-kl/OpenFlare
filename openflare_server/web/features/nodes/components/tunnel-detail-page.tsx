@@ -27,10 +27,7 @@ import {
   updateNode,
 } from '@/features/nodes/api/nodes';
 import { NodeEditorModal } from '@/features/nodes/components/node-editor-modal';
-import type {
-  NodeItem,
-  NodeAgentReleaseInfo,
-} from '@/features/nodes/types';
+import type { NodeItem, NodeAgentReleaseInfo } from '@/features/nodes/types';
 import {
   CodeBlock,
   DangerButton,
@@ -217,9 +214,11 @@ export function TunnelDetailPage({ node }: { node: NodeItem }) {
   });
 
   const handleDelete = () => {
-    if (!window.confirm(
-      `确认删除节点“${node.name}”吗？删除后该节点需要重新创建并重新接入。`,
-    )) {
+    if (
+      !window.confirm(
+        `确认删除节点“${node.name}”吗？删除后该节点需要重新创建并重新接入。`,
+      )
+    ) {
       return;
     }
     setFeedback(null);
@@ -266,7 +265,12 @@ export function TunnelDetailPage({ node }: { node: NodeItem }) {
       default:
         return observability?.health_events ?? [];
     }
-  }, [activeHealthEvents, healthEventFilter, observability?.health_events, resolvedHealthEvents]);
+  }, [
+    activeHealthEvents,
+    healthEventFilter,
+    observability?.health_events,
+    resolvedHealthEvents,
+  ]);
 
   const tabs = useMemo(
     () =>
@@ -550,7 +554,9 @@ export function TunnelDetailPage({ node }: { node: NodeItem }) {
                           总内存
                         </p>
                         <p className="mt-2 text-sm text-[var(--foreground-primary)]">
-                          {formatBytes(observability.profile.total_memory_bytes)}
+                          {formatBytes(
+                            observability.profile.total_memory_bytes,
+                          )}
                         </p>
                       </div>
                       <div>
@@ -594,7 +600,9 @@ export function TunnelDetailPage({ node }: { node: NodeItem }) {
                     <div className="grid gap-4 md:grid-cols-2">
                       <MetricBar
                         label="CPU"
-                        value={formatPercent(latestMetricSnapshot.cpu_usage_percent)}
+                        value={formatPercent(
+                          latestMetricSnapshot.cpu_usage_percent,
+                        )}
                         progress={latestMetricSnapshot.cpu_usage_percent}
                         hint={
                           isMeaningfulTime(latestMetricSnapshot.captured_at)
@@ -703,8 +711,12 @@ export function TunnelDetailPage({ node }: { node: NodeItem }) {
                             variant={getHealthEventVariant(event)}
                           />
                           <StatusBadge
-                            label={event.status === 'active' ? '活动中' : '已恢复'}
-                            variant={event.status === 'active' ? 'warning' : 'success'}
+                            label={
+                              event.status === 'active' ? '活动中' : '已恢复'
+                            }
+                            variant={
+                              event.status === 'active' ? 'warning' : 'success'
+                            }
                           />
                         </div>
                         <p className="mt-3 text-sm text-[var(--foreground-secondary)]">
@@ -1126,12 +1138,8 @@ export function TunnelDetailPage({ node }: { node: NodeItem }) {
           />
         ) : (
           <div className="space-y-3 text-sm text-[var(--foreground-secondary)]">
-            <p>
-              该操作会物理删除此节点在控制端记录的所有健康诊断事件历史。
-            </p>
-            <p>
-              这不会影响节点在后续运行中继续捕获并上报新的故障。
-            </p>
+            <p>该操作会物理删除此节点在控制端记录的所有健康诊断事件历史。</p>
+            <p>这不会影响节点在后续运行中继续捕获并上报新的故障。</p>
           </div>
         )}
       </AppModal>
@@ -1200,8 +1208,12 @@ export function TunnelDetailPage({ node }: { node: NodeItem }) {
                   {selectedReleaseChannel === 'preview' ? '预览版' : '正式版'}
                 </p>
                 <StatusBadge
-                  label={selectedReleaseChannel === 'preview' ? 'Preview' : 'Stable'}
-                  variant={selectedReleaseChannel === 'preview' ? 'warning' : 'info'}
+                  label={
+                    selectedReleaseChannel === 'preview' ? 'Preview' : 'Stable'
+                  }
+                  variant={
+                    selectedReleaseChannel === 'preview' ? 'warning' : 'info'
+                  }
                 />
               </div>
             </AppCard>
@@ -1254,7 +1266,9 @@ export function TunnelDetailPage({ node }: { node: NodeItem }) {
                         ? '发现可升级版本'
                         : '当前已是最新版本'
                     }
-                    variant={selectedAgentRelease.has_update ? 'warning' : 'success'}
+                    variant={
+                      selectedAgentRelease.has_update ? 'warning' : 'success'
+                    }
                   />
                   {selectedAgentRelease.prerelease ? (
                     <StatusBadge label="Preview 发布" variant="warning" />

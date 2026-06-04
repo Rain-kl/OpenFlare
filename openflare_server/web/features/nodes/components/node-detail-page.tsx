@@ -31,10 +31,7 @@ import {
   updateNode,
 } from '@/features/nodes/api/nodes';
 import { NodeEditorModal } from '@/features/nodes/components/node-editor-modal';
-import type {
-  NodeItem,
-  NodeAgentReleaseInfo,
-} from '@/features/nodes/types';
+import type { NodeItem, NodeAgentReleaseInfo } from '@/features/nodes/types';
 import {
   CodeBlock,
   DangerButton,
@@ -691,7 +688,9 @@ function EdgeNodeDetailPage({ node }: { node: NodeItem }) {
                           总内存
                         </p>
                         <p className="mt-2 text-sm text-[var(--foreground-primary)]">
-                          {formatBytes(observability.profile.total_memory_bytes)}
+                          {formatBytes(
+                            observability.profile.total_memory_bytes,
+                          )}
                         </p>
                       </div>
                       <div>
@@ -735,7 +734,9 @@ function EdgeNodeDetailPage({ node }: { node: NodeItem }) {
                     <div className="grid gap-4 md:grid-cols-2">
                       <MetricBar
                         label="CPU"
-                        value={formatPercent(latestMetricSnapshot.cpu_usage_percent)}
+                        value={formatPercent(
+                          latestMetricSnapshot.cpu_usage_percent,
+                        )}
                         progress={latestMetricSnapshot.cpu_usage_percent}
                         hint={
                           isMeaningfulTime(latestMetricSnapshot.captured_at)
@@ -794,7 +795,9 @@ function EdgeNodeDetailPage({ node }: { node: NodeItem }) {
                       />
                       <StatusBadge
                         label={getOpenrestyStatusLabel(node.openresty_status)}
-                        variant={getOpenrestyStatusVariant(node.openresty_status)}
+                        variant={getOpenrestyStatusVariant(
+                          node.openresty_status,
+                        )}
                       />
                       <StatusBadge
                         label={
@@ -802,7 +805,9 @@ function EdgeNodeDetailPage({ node }: { node: NodeItem }) {
                             ? `${activeHealthEvents.length} 个活动异常`
                             : '无活动异常'
                         }
-                        variant={activeHealthEvents.length ? 'warning' : 'success'}
+                        variant={
+                          activeHealthEvents.length ? 'warning' : 'success'
+                        }
                       />
                     </div>
 
@@ -852,7 +857,9 @@ function EdgeNodeDetailPage({ node }: { node: NodeItem }) {
                         </p>
                         <p className="mt-3 text-2xl font-semibold text-[var(--foreground-primary)]">
                           {trafficSummary
-                            ? trafficSummary.request_count.toLocaleString('zh-CN')
+                            ? trafficSummary.request_count.toLocaleString(
+                                'zh-CN',
+                              )
                             : '—'}
                         </p>
                         <p className="mt-2 text-sm text-[var(--foreground-secondary)]">
@@ -1172,8 +1179,12 @@ function EdgeNodeDetailPage({ node }: { node: NodeItem }) {
                             variant={getHealthEventVariant(event)}
                           />
                           <StatusBadge
-                            label={event.status === 'active' ? '活动中' : '已恢复'}
-                            variant={event.status === 'active' ? 'warning' : 'success'}
+                            label={
+                              event.status === 'active' ? '活动中' : '已恢复'
+                            }
+                            variant={
+                              event.status === 'active' ? 'warning' : 'success'
+                            }
                           />
                         </div>
                         <p className="mt-3 text-sm text-[var(--foreground-secondary)]">
