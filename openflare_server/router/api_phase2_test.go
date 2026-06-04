@@ -127,7 +127,7 @@ func TestPhase2BatchOptionUpdateIsAtomic(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodPost, "/api/option/update-batch", bytes.NewReader(payload))
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("OPENFLARE_TOKEN", loginCookie)
+	req.Header.Set("OpenFlare-Token", loginCookie)
 
 	recorder := httptest.NewRecorder()
 	engine.ServeHTTP(recorder, req)
@@ -351,7 +351,7 @@ func loginAsRoot(t *testing.T, engine http.Handler) string {
 		t.Fatalf("failed to decode login user: %v", err)
 	}
 	if user.Token == "" {
-		t.Fatal("expected OPENFLARE_TOKEN after root login")
+		t.Fatal("expected OpenFlare-Token after root login")
 	}
 	return user.Token
 }
@@ -371,7 +371,7 @@ func performSessionJSONRequest(t *testing.T, engine http.Handler, token string, 
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
-	req.Header.Set("OPENFLARE_TOKEN", token)
+	req.Header.Set("OpenFlare-Token", token)
 
 	recorder := httptest.NewRecorder()
 	engine.ServeHTTP(recorder, req)

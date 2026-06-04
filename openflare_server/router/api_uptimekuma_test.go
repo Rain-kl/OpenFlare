@@ -133,7 +133,7 @@ func TestUptimeKumaSyncDisabled(t *testing.T) {
 
 	// Request sync, should fail
 	req := httptest.NewRequest(http.MethodPost, "/api/uptimekuma/sync", nil)
-	req.Header.Set("OPENFLARE_TOKEN", loginCookie)
+	req.Header.Set("OpenFlare-Token", loginCookie)
 	recorder := httptest.NewRecorder()
 	engine.ServeHTTP(recorder, req)
 
@@ -265,7 +265,7 @@ func TestUptimeKumaSyncSuccess(t *testing.T) {
 	loginCookie := loginAsRoot(t, engine)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/uptimekuma/sync", nil)
-	req.Header.Set("OPENFLARE_TOKEN", loginCookie)
+	req.Header.Set("OpenFlare-Token", loginCookie)
 	recorder := httptest.NewRecorder()
 	engine.ServeHTTP(recorder, req)
 
@@ -405,7 +405,7 @@ func TestUptimeKumaSyncSelectedScope(t *testing.T) {
 	loginCookie := loginAsRoot(t, engine)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/uptimekuma/sync", nil)
-	req.Header.Set("OPENFLARE_TOKEN", loginCookie)
+	req.Header.Set("OpenFlare-Token", loginCookie)
 	recorder := httptest.NewRecorder()
 	engine.ServeHTTP(recorder, req)
 

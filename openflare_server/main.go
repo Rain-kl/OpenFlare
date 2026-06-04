@@ -35,7 +35,7 @@ var indexPage []byte
 // @schemes http https
 // @securityDefinitions.apikey OpenFlareTokenAuth
 // @in header
-// @name OPENFLARE_TOKEN
+// @name OpenFlare-Token
 // @description 管理端 API 使用登录后返回的用户 Token
 // @securityDefinitions.apikey AccessTokenAuth
 // @in header

@@ -24,10 +24,10 @@ export async function apiRequest<T>(path: string, init?: RequestInit) {
   if (!(init?.body instanceof FormData) && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json');
   }
-  if (!headers.has('OPENFLARE_TOKEN')) {
+  if (!headers.has('OpenFlare-Token')) {
     const token = getStoredOpenFlareToken();
     if (token) {
-      headers.set('OPENFLARE_TOKEN', token);
+      headers.set('OpenFlare-Token', token);
     }
   }
 

@@ -1,4 +1,4 @@
-const openFlareTokenStorageKey = 'openflare_token';
+const openFlareTokenStorageKey = 'OpenFlare-Token';
 
 export function getStoredOpenFlareToken() {
   if (typeof window === 'undefined') {

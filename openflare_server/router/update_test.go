@@ -88,11 +88,11 @@ func TestLatestReleaseProxy(t *testing.T) {
 		t.Fatalf("failed to decode login user: %v", err)
 	}
 	if loginUser.Token == "" {
-		t.Fatal("expected OPENFLARE_TOKEN after login")
+		t.Fatal("expected OpenFlare-Token after login")
 	}
 
 	req := httptest.NewRequest(http.MethodGet, "/api/update/latest-release", nil)
-	req.Header.Set("OPENFLARE_TOKEN", loginUser.Token)
+	req.Header.Set("OpenFlare-Token", loginUser.Token)
 
 	recorder := httptest.NewRecorder()
 	engine.ServeHTTP(recorder, req)
@@ -155,7 +155,7 @@ func loginRootAndBuildEngine(t *testing.T) (*gin.Engine, string) {
 		t.Fatalf("failed to decode login user: %v", err)
 	}
 	if loginUser.Token == "" {
-		t.Fatal("expected OPENFLARE_TOKEN after login")
+		t.Fatal("expected OpenFlare-Token after login")
 	}
 
 	return engine, loginUser.Token
@@ -195,7 +195,7 @@ func TestManualUploadRoute(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodPost, "/api/update/manual-upload", body)
 	req.Header.Set("Content-Type", writer.FormDataContentType())
-	req.Header.Set("OPENFLARE_TOKEN", token)
+	req.Header.Set("OpenFlare-Token", token)
 
 	recorder := httptest.NewRecorder()
 	engine.ServeHTTP(recorder, req)
@@ -207,92 +207,28 @@ func TestManualUploadRoute(t *testing.T) {
 	if err = json.Unmarshal(recorder.Body.Bytes(), &resp); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}
-	if !resp.Success {
-		t.Fatalf("expected success response, got message: %s", resp.Message)
+	if resp.Success {
+		t.Fatal("expected failure response for disabled manual upload feature")
 	}
-
-	var data map[string]any
-	if err = json.Unmarshal(resp.Data, &data); err != nil {
-		t.Fatalf("failed to decode response data: %v", err)
-	}
-	if data["detected_version"] != "v0.5.0" {
-		t.Fatalf("unexpected detected_version: %#v", data["detected_version"])
-	}
-	if data["ready_to_upgrade"] != true {
-		t.Fatalf("expected ready_to_upgrade to be true: %#v", data["ready_to_upgrade"])
-	}
-	if data["upload_token"] == "" {
-		t.Fatal("expected upload_token to be returned")
+	if resp.Message != "手动升级功能已禁用" {
+		t.Fatalf("unexpected failure message: %s", resp.Message)
 	}
 }
 
 func TestManualUpgradeConfirmRoute(t *testing.T) {
-	originalVersion := common.Version
-	originalExecutor := service.ServerBinaryUpgradeExecutorForTest()
-	originalDelay := service.ServerUpgradeDispatchDelayForTest()
-	common.Version = "v0.4.0"
-	called := make(chan string, 1)
-	service.SetServerBinaryUpgradeExecutorForTest(func(execPath string, tempPath string) error {
-		called <- tempPath
-		return nil
-	})
-	service.SetServerUpgradeDispatchDelayForTest(0)
-	t.Cleanup(func() {
-		common.Version = originalVersion
-		service.SetServerBinaryUpgradeExecutorForTest(originalExecutor)
-		service.SetServerUpgradeDispatchDelayForTest(originalDelay)
-	})
+	gin.SetMode(gin.TestMode)
+	common.RedisEnabled = false
+	setupTestDB(t)
 
 	engine, token := loginRootAndBuildEngine(t)
-	fileName, content := fakeManualServerBinary("v0.5.0")
 
-	body := &bytes.Buffer{}
-	writer := multipart.NewWriter(body)
-	part, err := writer.CreateFormFile("binary", fileName)
-	if err != nil {
-		t.Fatalf("failed to create form file: %v", err)
-	}
-	if _, err = part.Write(content); err != nil {
-		t.Fatalf("failed to write upload content: %v", err)
-	}
-	if err = writer.Close(); err != nil {
-		t.Fatalf("failed to close multipart writer: %v", err)
-	}
-
-	uploadReq := httptest.NewRequest(http.MethodPost, "/api/update/manual-upload", body)
-	uploadReq.Header.Set("Content-Type", writer.FormDataContentType())
-	uploadReq.Header.Set("OPENFLARE_TOKEN", token)
-
-	uploadRecorder := httptest.NewRecorder()
-	engine.ServeHTTP(uploadRecorder, uploadReq)
-	if uploadRecorder.Code != http.StatusOK {
-		t.Fatalf("unexpected upload status code: %d", uploadRecorder.Code)
-	}
-
-	var uploadResp apiResponse
-	if err = json.Unmarshal(uploadRecorder.Body.Bytes(), &uploadResp); err != nil {
-		t.Fatalf("failed to decode upload response: %v", err)
-	}
-	if !uploadResp.Success {
-		t.Fatalf("expected upload success, got message: %s", uploadResp.Message)
-	}
-
-	var uploadData map[string]any
-	if err = json.Unmarshal(uploadResp.Data, &uploadData); err != nil {
-		t.Fatalf("failed to decode upload response data: %v", err)
-	}
-	uploadToken, _ := uploadData["upload_token"].(string)
-	if uploadToken == "" {
-		t.Fatal("expected upload token in upload response")
-	}
-
-	confirmBody, err := json.Marshal(map[string]string{"upload_token": uploadToken})
+	confirmBody, err := json.Marshal(map[string]string{"upload_token": "fake-token"})
 	if err != nil {
 		t.Fatalf("failed to marshal confirm body: %v", err)
 	}
 	confirmReq := httptest.NewRequest(http.MethodPost, "/api/update/manual-upgrade", bytes.NewReader(confirmBody))
 	confirmReq.Header.Set("Content-Type", "application/json")
-	confirmReq.Header.Set("OPENFLARE_TOKEN", token)
+	confirmReq.Header.Set("OpenFlare-Token", token)
 
 	confirmRecorder := httptest.NewRecorder()
 	engine.ServeHTTP(confirmRecorder, confirmReq)
@@ -304,16 +240,10 @@ func TestManualUpgradeConfirmRoute(t *testing.T) {
 	if err = json.Unmarshal(confirmRecorder.Body.Bytes(), &confirmResp); err != nil {
 		t.Fatalf("failed to decode confirm response: %v", err)
 	}
-	if !confirmResp.Success {
-		t.Fatalf("expected confirm success, got message: %s", confirmResp.Message)
+	if confirmResp.Success {
+		t.Fatal("expected failure response for disabled manual upgrade feature")
 	}
-
-	select {
-	case tempPath := <-called:
-		if tempPath == "" {
-			t.Fatal("expected manual upgrade executor to receive temp path")
-		}
-	case <-time.After(time.Second):
-		t.Fatal("expected manual upgrade executor to be called")
+	if confirmResp.Message != "手动升级功能已禁用" {
+		t.Fatalf("unexpected failure message: %s", confirmResp.Message)
 	}
 }

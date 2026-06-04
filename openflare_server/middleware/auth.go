@@ -7,7 +7,7 @@ import (
 	"openflare/model"
 )
 
-const OpenFlareTokenHeader = "OPENFLARE_TOKEN"
+const OpenFlareTokenHeader = "OpenFlare-Token"
 
 func authHelper(c *gin.Context, minRole int) {
 	token := c.GetHeader(OpenFlareTokenHeader)

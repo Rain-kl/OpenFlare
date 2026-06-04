@@ -72,7 +72,7 @@ func setupLogin(user *model.User, c *gin.Context) {
 }
 
 func Logout(c *gin.Context) {
-	token := c.GetHeader("OPENFLARE_TOKEN")
+	token := c.GetHeader("OpenFlare-Token")
 	if token != "" {
 		user := model.ValidateUserToken(token)
 		if user != nil && user.Id != 0 {
@@ -104,7 +104,7 @@ func ensureUserOpenFlareToken(user *model.User) (string, error) {
 }
 
 func currentUserFromOpenFlareToken(c *gin.Context) *model.User {
-	token := c.GetHeader("OPENFLARE_TOKEN")
+	token := c.GetHeader("OpenFlare-Token")
 	if token == "" {
 		return nil
 	}
