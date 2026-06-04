@@ -20,6 +20,8 @@ type PagesProject struct {
 	APIProxyPass       string    `json:"api_proxy_pass" gorm:"size:2048;not null;default:''"`
 	APIProxyRewrite    string    `json:"api_proxy_rewrite" gorm:"size:255;not null;default:''"`
 	ActiveDeploymentID *uint     `json:"active_deployment_id" gorm:"index"`
+	RootDir            string    `json:"root_dir" gorm:"size:512;not null;default:''"`
+	EntryFile          string    `json:"entry_file" gorm:"size:512;not null;default:'index.html'"`
 	CreatedAt          time.Time `json:"created_at"`
 	UpdatedAt          time.Time `json:"updated_at"`
 }

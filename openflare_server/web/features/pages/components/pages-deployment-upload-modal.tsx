@@ -1,7 +1,8 @@
 'use client';
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useState, useRef } from 'react';
+import { UploadCloud, File as FileIcon, X } from 'lucide-react';
 
 import { AppModal } from '@/components/ui/app-modal';
 import {
@@ -10,10 +11,9 @@ import {
 } from '@/features/pages/api/pages';
 import {
   PrimaryButton,
-  ResourceField,
-  ResourceInput,
   SecondaryButton,
 } from '@/features/shared/components/resource-primitives';
+import { cn } from '@/lib/utils/cn';
 import {
   deploymentsQueryKey,
   projectQueryKey,
@@ -26,6 +26,15 @@ interface PagesDeploymentUploadModalProps {
   projectId: number;
 }
 
+function formatBytes(bytes: number, decimals = 2) {
+  if (bytes === 0) return '0 Bytes';
+  const k = 1024;
+  const dm = decimals < 0 ? 0 : decimals;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+}
+
 export function PagesDeploymentUploadModal({
   isOpen,
   onClose,
@@ -33,22 +42,49 @@ export function PagesDeploymentUploadModal({
 }: PagesDeploymentUploadModalProps) {
   const queryClient = useQueryClient();
   const [file, setFile] = useState<File | null>(null);
-  const [rootDir, setRootDir] = useState('');
-  const [entryFile, setEntryFile] = useState('index.html');
+  const [isDragActive, setIsDragActive] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const resetForm = () => {
     setFile(null);
-    setRootDir('');
-    setEntryFile('index.html');
+    setIsDragActive(false);
     setUploadProgress(null);
     setErrorMessage(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
   };
 
   const handleClose = () => {
     resetForm();
     onClose();
+  };
+
+  const handleDrag = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === 'dragenter' || e.type === 'dragover') {
+      setIsDragActive(true);
+    } else if (e.type === 'dragleave') {
+      setIsDragActive(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragActive(false);
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      const droppedFile = e.dataTransfer.files[0];
+      if (droppedFile.name.toLowerCase().endsWith('.zip')) {
+        setFile(droppedFile);
+        setErrorMessage(null);
+      } else {
+        setErrorMessage('仅支持 zip 格式的文件');
+      }
+    }
   };
 
   const uploadMutation = useMutation({
@@ -62,8 +98,8 @@ export function PagesDeploymentUploadModal({
       const deployment = await uploadPagesDeployment(
         projectId,
         file,
-        rootDir,
-        entryFile,
+        '',
+        'index.html',
         (percent) => {
           setUploadProgress(percent);
         },
@@ -106,7 +142,7 @@ export function PagesDeploymentUploadModal({
       isOpen={isOpen}
       onClose={handleClose}
       title="上传部署包"
-      description="上传已构建的 zip 静态资源包，默认入口为 index.html。"
+      description="上传已构建的 zip 静态资源包。项目将使用配置的根目录与入口文件路径。"
       footer={
         <div className="flex flex-wrap justify-end gap-3">
           <SecondaryButton
@@ -140,36 +176,98 @@ export function PagesDeploymentUploadModal({
       }
     >
       <div className="space-y-4">
-        <ResourceField
-          label="部署包"
-          hint="仅支持 zip，Server 会校验文件数量、体积、路径逃逸和入口文件。"
-          error={errorMessage ?? undefined}
-        >
-          <ResourceInput
-            type="file"
-            accept=".zip,application/zip"
-            onChange={(event) => setFile(event.target.files?.[0] ?? null)}
-          />
-        </ResourceField>
-        <ResourceField
-          label="根目录 (可选)"
-          hint="静态资源的根文件夹路径 (例如 build 或 dist)，若为空则默认为 zip 包根目录。"
-        >
-          <ResourceInput
-            value={rootDir}
-            onChange={(event) => setRootDir(event.target.value)}
-            placeholder="例如: build"
-          />
-        </ResourceField>
-        <ResourceField
-          label="入口文件"
-          hint="基于根目录下的入口文件路径。"
-        >
-          <ResourceInput
-            value={entryFile}
-            onChange={(event) => setEntryFile(event.target.value)}
-          />
-        </ResourceField>
+        {/* Hidden File Input */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".zip,application/zip"
+          onChange={(event) => {
+            const selectedFile = event.target.files?.[0] ?? null;
+            if (selectedFile) {
+              if (selectedFile.name.toLowerCase().endsWith('.zip')) {
+                setFile(selectedFile);
+                setErrorMessage(null);
+              } else {
+                setErrorMessage('仅支持 zip 格式的文件');
+              }
+            }
+          }}
+          className="hidden"
+        />
+
+        <div className="block space-y-2">
+          <span className="flex items-center gap-2 text-sm font-medium text-[var(--foreground-primary)]">
+            <span>部署包</span>
+          </span>
+
+          <div
+            onDragEnter={handleDrag}
+            onDragOver={handleDrag}
+            onDragLeave={handleDrag}
+            onDrop={handleDrop}
+            onClick={() => fileInputRef.current?.click()}
+            className={cn(
+              'group relative flex min-h-48 cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-[var(--border-default)] bg-[var(--surface-elevated)] p-6 text-center transition-all duration-200 hover:border-[var(--brand-primary)] hover:bg-[var(--surface-hover)]',
+              isDragActive &&
+                'scale-[0.99] border-[var(--brand-primary)] bg-[var(--accent-soft)]/20 shadow-inner',
+              file && 'border-solid border-[var(--brand-primary)]',
+            )}
+          >
+            {file ? (
+              <div
+                className="flex flex-col items-center space-y-3"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[var(--accent-soft)] text-[var(--brand-primary)] transition duration-200 group-hover:scale-110">
+                  <FileIcon className="h-6 w-6" />
+                </div>
+                <div className="space-y-1">
+                  <p className="max-w-[300px] truncate text-sm font-medium text-[var(--foreground-primary)]">
+                    {file.name}
+                  </p>
+                  <p className="text-xs text-[var(--foreground-secondary)]">
+                    大小: {formatBytes(file.size)}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFile(null);
+                      if (fileInputRef.current) {
+                        fileInputRef.current.value = '';
+                      }
+                    }}
+                    className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-[var(--border-default)] bg-[var(--control-background)] px-3 text-xs font-medium text-[var(--foreground-primary)] transition hover:border-[var(--status-danger-border)] hover:bg-[var(--status-danger-soft)] hover:text-[var(--status-danger-foreground)]"
+                  >
+                    <X className="h-3 w-3" />
+                    清除文件
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="pointer-events-none flex flex-col items-center space-y-3">
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[var(--surface-muted)] text-[var(--foreground-muted)] transition duration-200 group-hover:scale-110 group-hover:bg-[var(--accent-soft)] group-hover:text-[var(--brand-primary)]">
+                  <UploadCloud className="h-6 w-6" />
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-[var(--foreground-primary)]">
+                    点击或拖拽 zip 部署包到此处
+                  </p>
+                  <p className="text-xs text-[var(--foreground-secondary)]">
+                    仅支持 zip，Server 会校验文件数量、体积、路径逃逸和入口文件
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+          {errorMessage && (
+            <span className="mt-1 block text-xs text-[var(--status-danger-foreground)]">
+              {errorMessage}
+            </span>
+          )}
+        </div>
+
         {uploadProgress !== null && (
           <div className="space-y-2">
             <div className="flex items-center justify-between text-xs font-medium text-[var(--foreground-secondary)]">

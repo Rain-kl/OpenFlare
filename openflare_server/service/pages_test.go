@@ -331,15 +331,17 @@ func TestUploadPagesDeploymentWithRootDir(t *testing.T) {
 	setupServiceTestDB(t)
 
 	project, err := CreatePagesProject(PagesProjectInput{
-		Name:    "App Site",
-		Slug:    "app-site",
-		Enabled: true,
+		Name:      "App Site",
+		Slug:      "app-site",
+		Enabled:   true,
+		RootDir:   "build",
+		EntryFile: "index.html",
 	})
 	if err != nil {
 		t.Fatalf("CreatePagesProject failed: %v", err)
 	}
 
-	// 1. Upload a zip with files inside a subfolder, specifying "build" as rootDir.
+	// 1. Upload a zip with files inside a subfolder.
 	uploadHeader := multipartFileHeader(t, "site.zip", testPagesZip(t, map[string]string{
 		"build/index.html":       "<h1>App Root</h1>",
 		"build/static/bundle.js": "console.log('app')",
@@ -359,10 +361,32 @@ func TestUploadPagesDeploymentWithRootDir(t *testing.T) {
 		t.Fatalf("expected EntryFile to be 'index.html', got %q", deployment.EntryFile)
 	}
 
-	// 2. Try uploading with wrong entry file relative to root directory, should fail
+	// 2. Update project configuration to a wrong entry file relative to root directory, upload should fail
+	project, err = UpdatePagesProject(project.ID, PagesProjectInput{
+		Name:      "App Site",
+		Slug:      "app-site",
+		Enabled:   true,
+		RootDir:   "build",
+		EntryFile: "missing.html",
+	})
+	if err != nil {
+		t.Fatalf("UpdatePagesProject failed: %v", err)
+	}
 	_, err = UploadPagesDeployment(project.ID, uploadHeader, "build", "missing.html", "root")
 	if err == nil || !strings.Contains(err.Error(), "缺少入口文件") {
 		t.Fatalf("expected failure for missing entry file, got %v", err)
+	}
+
+	// Revert to correct config for snapshot check
+	project, err = UpdatePagesProject(project.ID, PagesProjectInput{
+		Name:      "App Site",
+		Slug:      "app-site",
+		Enabled:   true,
+		RootDir:   "build",
+		EntryFile: "index.html",
+	})
+	if err != nil {
+		t.Fatalf("UpdatePagesProject failed: %v", err)
 	}
 
 	// 3. Test config snapshot LocalRoot path rendering

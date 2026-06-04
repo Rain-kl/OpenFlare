@@ -40,6 +40,8 @@ function toFormValues(project?: PagesProject | null): PagesProjectFormValues {
       api_proxy_path: '',
       api_proxy_pass: '',
       api_proxy_rewrite: '',
+      root_dir: '',
+      entry_file: 'index.html',
     };
   }
   return {
@@ -52,6 +54,8 @@ function toFormValues(project?: PagesProject | null): PagesProjectFormValues {
     api_proxy_path: project.api_proxy_path || '',
     api_proxy_pass: project.api_proxy_pass || '',
     api_proxy_rewrite: project.api_proxy_rewrite || '',
+    root_dir: project.root_dir || '',
+    entry_file: project.entry_file || 'index.html',
   };
 }
 
@@ -97,6 +101,8 @@ export function PagesProjectEditorModal({
         api_proxy_rewrite: values.api_proxy_enabled
           ? values.api_proxy_rewrite.trim()
           : '',
+        root_dir: values.root_dir?.trim() || '',
+        entry_file: values.entry_file?.trim() || 'index.html',
       };
       return project
         ? updatePagesProject(project.id, payload)
@@ -183,6 +189,27 @@ export function PagesProjectEditorModal({
           <ResourceInput
             placeholder="这个项目托管的静态站点用途"
             {...form.register('description')}
+          />
+        </ResourceField>
+        <ResourceField
+          label="根目录 (可选)"
+          hint="静态资源的根文件夹路径 (例如 build 或 dist)，若为空则默认为 zip 包根目录。"
+          error={form.formState.errors.root_dir?.message}
+        >
+          <ResourceInput
+            placeholder="例如: build"
+            {...form.register('root_dir')}
+          />
+        </ResourceField>
+        <ResourceField
+          label="入口文件"
+          hint="基于根目录下的入口文件路径。"
+          error={form.formState.errors.entry_file?.message}
+        >
+          <ResourceInput
+            placeholder="index.html"
+            {...form.register('entry_file')}
+            required
           />
         </ResourceField>
         <ToggleField

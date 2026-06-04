@@ -25,6 +25,8 @@ export interface PagesProject {
   api_proxy_path: string;
   api_proxy_pass: string;
   api_proxy_rewrite: string;
+  root_dir?: string;
+  entry_file: string;
   active_deployment_id?: number | null;
   active_deployment?: PagesDeployment | null;
   deployment_count: number;
@@ -43,4 +45,6 @@ export interface PagesProjectPayload {
   api_proxy_path: string;
   api_proxy_pass: string;
   api_proxy_rewrite: string;
+  root_dir?: string;
+  entry_file: string;
 }

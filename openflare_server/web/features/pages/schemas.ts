@@ -25,6 +25,17 @@ export const pagesProjectSchema = z
     api_proxy_path: z.string().trim(),
     api_proxy_pass: z.string().trim(),
     api_proxy_rewrite: z.string().trim(),
+    root_dir: z
+      .string()
+      .trim()
+      .max(512, '根目录不能超过 512 个字符')
+      .optional()
+      .or(z.literal('')),
+    entry_file: z
+      .string()
+      .trim()
+      .min(1, '请输入入口文件')
+      .max(512, '入口文件不能超过 512 个字符'),
   })
   .superRefine((data, ctx) => {
     if (data.spa_fallback_enabled) {

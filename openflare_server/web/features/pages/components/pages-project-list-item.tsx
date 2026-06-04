@@ -42,13 +42,7 @@ export function PagesProjectListItem({ project }: { project: PagesProject }) {
           ) : null}
         </div>
 
-        <div className="grid shrink-0 grid-cols-2 gap-3 text-sm md:min-w-80">
-          <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-muted)] px-4 py-3">
-            <p className="text-xs text-[var(--foreground-secondary)]">部署数</p>
-            <p className="mt-1 font-semibold text-[var(--foreground-primary)]">
-              {project.deployment_count}
-            </p>
-          </div>
+        <div className="grid shrink-0 grid-cols-1 gap-3 text-sm md:min-w-40">
           <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-muted)] px-4 py-3">
             <p className="text-xs text-[var(--foreground-secondary)]">
               当前激活

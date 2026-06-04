@@ -41,6 +41,8 @@ type PagesProjectInput struct {
 	APIProxyPath       string `json:"api_proxy_path"`
 	APIProxyPass       string `json:"api_proxy_pass"`
 	APIProxyRewrite    string `json:"api_proxy_rewrite"`
+	RootDir            string `json:"root_dir"`
+	EntryFile          string `json:"entry_file"`
 }
 
 type PagesProjectView struct {
@@ -55,6 +57,8 @@ type PagesProjectView struct {
 	APIProxyPath       string               `json:"api_proxy_path"`
 	APIProxyPass       string               `json:"api_proxy_pass"`
 	APIProxyRewrite    string               `json:"api_proxy_rewrite"`
+	RootDir            string               `json:"root_dir"`
+	EntryFile          string               `json:"entry_file"`
 	ActiveDeploymentID *uint                `json:"active_deployment_id"`
 	ActiveDeployment   *PagesDeploymentView `json:"active_deployment,omitempty"`
 	DeploymentCount    int64                `json:"deployment_count"`
@@ -151,6 +155,8 @@ func UpdatePagesProject(id uint, input PagesProjectInput) (*PagesProjectView, er
 		"api_proxy_path":       project.APIProxyPath,
 		"api_proxy_pass":       project.APIProxyPass,
 		"api_proxy_rewrite":    project.APIProxyRewrite,
+		"root_dir":             project.RootDir,
+		"entry_file":           project.EntryFile,
 	}).Error; err != nil {
 		if model.IsUniqueConstraintError(err) {
 			return nil, errors.New("Pages 项目标识已存在")
@@ -241,11 +247,11 @@ func UploadPagesDeployment(projectID uint, fileHeader *multipart.FileHeader, roo
 	if !strings.EqualFold(filepath.Ext(fileHeader.Filename), ".zip") {
 		return nil, errors.New("Pages 部署包必须是 .zip 文件")
 	}
-	rootDir, err = validateAndNormalizePagesRootDir(rootDir)
+	rootDir, err = validateAndNormalizePagesRootDir(project.RootDir)
 	if err != nil {
 		return nil, err
 	}
-	entryFile = normalizePagesEntryFile(entryFile)
+	entryFile = normalizePagesEntryFile(project.EntryFile)
 	tempPath, checksum, err := persistPagesUploadTemp(fileHeader)
 	if err != nil {
 		return nil, err
@@ -485,6 +491,13 @@ func buildPagesProject(project *model.PagesProject, input PagesProjectInput) (*m
 	project.APIProxyPass = apiProxyPass
 	project.APIProxyRewrite = apiProxyRewrite
 
+	rootDir, err := validateAndNormalizePagesRootDir(input.RootDir)
+	if err != nil {
+		return nil, err
+	}
+	project.RootDir = rootDir
+	project.EntryFile = normalizePagesEntryFile(input.EntryFile)
+
 	return project, nil
 }
 
@@ -504,6 +517,8 @@ func buildPagesProjectView(project *model.PagesProject) (*PagesProjectView, erro
 		APIProxyPath:       project.APIProxyPath,
 		APIProxyPass:       project.APIProxyPass,
 		APIProxyRewrite:    project.APIProxyRewrite,
+		RootDir:            project.RootDir,
+		EntryFile:          project.EntryFile,
 		ActiveDeploymentID: project.ActiveDeploymentID,
 		CreatedAt:          project.CreatedAt,
 		UpdatedAt:          project.UpdatedAt,
