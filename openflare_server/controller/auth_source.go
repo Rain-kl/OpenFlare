@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"net/url"
 	"openflare/common"
+	"openflare/common/response"
+	"openflare/controller/bind"
 	"openflare/model"
 	"openflare/service"
 	"strconv"
@@ -49,139 +51,139 @@ func (payload authSourcePayload) toModel() model.AuthSource {
 func ListAuthSources(c *gin.Context) {
 	sources, err := model.GetAuthSources()
 	if err != nil {
-		respondFailure(c, err.Error())
+		response.RespondFailure(c, err.Error())
 		return
 	}
-	respondSuccess(c, sources)
+	response.RespondSuccess(c, sources)
 }
 
 func CreateAuthSource(c *gin.Context) {
 	var payload authSourcePayload
-	if err := decodeJSONBody(c.Request.Body, &payload); err != nil {
-		respondBadRequest(c, "无效的参数")
+	if err := bind.DecodeJSONBody(c.Request.Body, &payload); err != nil {
+		response.RespondBadRequest(c, "无效的参数")
 		return
 	}
 	source := payload.toModel()
 	if err := model.CreateAuthSource(&source); err != nil {
-		respondFailure(c, err.Error())
+		response.RespondFailure(c, err.Error())
 		return
 	}
 	source.Sanitize()
-	respondSuccess(c, source)
+	response.RespondSuccess(c, source)
 }
 
 func UpdateAuthSource(c *gin.Context) {
 	id, err := parseAuthSourceID(c)
 	if err != nil {
-		respondBadRequest(c, err.Error())
+		response.RespondBadRequest(c, err.Error())
 		return
 	}
 	var payload authSourcePayload
-	if err := decodeJSONBody(c.Request.Body, &payload); err != nil {
-		respondBadRequest(c, "无效的参数")
+	if err := bind.DecodeJSONBody(c.Request.Body, &payload); err != nil {
+		response.RespondBadRequest(c, "无效的参数")
 		return
 	}
 	source := payload.toModel()
 	source.ID = id
 	keepSecret := strings.TrimSpace(source.ClientSecret) == ""
 	if err := model.UpdateAuthSource(&source, keepSecret); err != nil {
-		respondFailure(c, err.Error())
+		response.RespondFailure(c, err.Error())
 		return
 	}
 	updated, err := model.GetAuthSourceByID(id)
 	if err != nil {
-		respondFailure(c, err.Error())
+		response.RespondFailure(c, err.Error())
 		return
 	}
 	updated.Sanitize()
-	respondSuccess(c, updated)
+	response.RespondSuccess(c, updated)
 }
 
 func DeleteAuthSource(c *gin.Context) {
 	id, err := parseAuthSourceID(c)
 	if err != nil {
-		respondBadRequest(c, err.Error())
+		response.RespondBadRequest(c, err.Error())
 		return
 	}
 	if err := model.DeleteAuthSource(id); err != nil {
-		respondFailure(c, err.Error())
+		response.RespondFailure(c, err.Error())
 		return
 	}
-	respondSuccessMessage(c, "")
+	response.RespondSuccessMessage(c, "")
 }
 
 func ToggleAuthSource(c *gin.Context) {
 	id, err := parseAuthSourceID(c)
 	if err != nil {
-		respondBadRequest(c, err.Error())
+		response.RespondBadRequest(c, err.Error())
 		return
 	}
 	var payload authSourceTogglePayload
-	if err := decodeJSONBody(c.Request.Body, &payload); err != nil {
-		respondBadRequest(c, "无效的参数")
+	if err := bind.DecodeJSONBody(c.Request.Body, &payload); err != nil {
+		response.RespondBadRequest(c, "无效的参数")
 		return
 	}
 	if err := model.ToggleAuthSource(id, payload.IsActive); err != nil {
-		respondFailure(c, err.Error())
+		response.RespondFailure(c, err.Error())
 		return
 	}
-	respondSuccessMessage(c, "")
+	response.RespondSuccessMessage(c, "")
 }
 
 func OAuthAuthorize(c *gin.Context) {
 	source, err := getAuthSourceFromRoute(c)
 	if err != nil {
-		respondBadRequest(c, err.Error())
+		response.RespondBadRequest(c, err.Error())
 		return
 	}
 	if !source.IsActive {
-		respondFailure(c, "认证源未启用")
+		response.RespondFailure(c, "认证源未启用")
 		return
 	}
 	if err := source.Validate(); err != nil {
-		respondFailure(c, err.Error())
+		response.RespondFailure(c, err.Error())
 		return
 	}
 	state, err := service.GenerateOAuthState()
 	if err != nil {
-		respondFailure(c, err.Error())
+		response.RespondFailure(c, err.Error())
 		return
 	}
 	session := sessions.Default(c)
 	session.Set(oauthStateSessionKey(source.ID), state)
 	if err := session.Save(); err != nil {
-		respondFailure(c, "无法保存授权状态，请重试")
+		response.RespondFailure(c, "无法保存授权状态，请重试")
 		return
 	}
 	redirectURL := oauthFrontendCallbackURL(c, source.ID)
 	authorizeURL, err := service.BuildAuthorizeURL(c.Request.Context(), source, redirectURL, state)
 	if err != nil {
-		respondFailure(c, err.Error())
+		response.RespondFailure(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"authorize_url": authorizeURL})
+	response.RespondSuccess(c, gin.H{"authorize_url": authorizeURL})
 }
 
 func OAuthCallback(c *gin.Context) {
 	source, err := getAuthSourceFromRoute(c)
 	if err != nil {
-		respondBadRequest(c, err.Error())
+		response.RespondBadRequest(c, err.Error())
 		return
 	}
 	if !source.IsActive {
-		respondFailure(c, "认证源未启用")
+		response.RespondFailure(c, "认证源未启用")
 		return
 	}
 	session := sessions.Default(c)
 	expectedState, _ := session.Get(oauthStateSessionKey(source.ID)).(string)
 	state := c.Query("state")
 	if expectedState == "" || state == "" || state != expectedState {
-		respondFailure(c, "授权状态无效，请重新登录")
+		response.RespondFailure(c, "授权状态无效，请重新登录")
 		return
 	}
 	session.Delete(oauthStateSessionKey(source.ID))
 	if err := session.Save(); err != nil {
-		respondFailure(c, "无法更新授权状态，请重试")
+		response.RespondFailure(c, "无法更新授权状态，请重试")
 		return
 	}
 	if oauthError := c.Query("error"); oauthError != "" {
@@ -189,13 +191,13 @@ func OAuthCallback(c *gin.Context) {
 		if description == "" {
 			description = oauthError
 		}
-		respondFailure(c, description)
+		response.RespondFailure(c, description)
 		return
 	}
 
 	profile, err := service.ExchangeOAuthProfile(c.Request.Context(), source, c.Query("code"), oauthFrontendCallbackURL(c, source.ID))
 	if err != nil {
-		respondFailure(c, err.Error())
+		response.RespondFailure(c, err.Error())
 		return
 	}
 	var currentUserID *int
@@ -204,91 +206,91 @@ func OAuthCallback(c *gin.Context) {
 	}
 	result, pending, err := service.CompleteOAuthLogin(source, profile, currentUserID)
 	if err != nil {
-		respondFailure(c, err.Error())
+		response.RespondFailure(c, err.Error())
 		return
 	}
 	if pending != nil {
 		raw, err := json.Marshal(pending)
 		if err != nil {
-			respondFailure(c, err.Error())
+			response.RespondFailure(c, err.Error())
 			return
 		}
 		session.Set(pendingExternalAccountSessionKey, string(raw))
 		if err := session.Save(); err != nil {
-			respondFailure(c, "无法保存待绑定账号，请重试")
+			response.RespondFailure(c, "无法保存待绑定账号，请重试")
 			return
 		}
-		respondSuccess(c, result)
+		response.RespondSuccess(c, result)
 		return
 	}
 	if result.User != nil {
 		cleanUser, err := setLoginToken(result.User)
 		if err != nil {
-			respondFailure(c, "无法保存会话信息，请重试")
+			response.RespondFailure(c, "无法保存会话信息，请重试")
 			return
 		}
 		result.User = cleanUser
 	}
-	respondSuccess(c, result)
+	response.RespondSuccess(c, result)
 }
 
 func LinkExistingOAuthAccount(c *gin.Context) {
 	session := sessions.Default(c)
 	raw, _ := session.Get(pendingExternalAccountSessionKey).(string)
 	if raw == "" {
-		respondFailure(c, "待绑定第三方账号已失效，请重新登录")
+		response.RespondFailure(c, "待绑定第三方账号已失效，请重新登录")
 		return
 	}
 	var pending service.PendingExternalAccount
 	if err := json.Unmarshal([]byte(raw), &pending); err != nil {
-		respondFailure(c, "待绑定第三方账号无效，请重新登录")
+		response.RespondFailure(c, "待绑定第三方账号无效，请重新登录")
 		return
 	}
 	var input service.LinkExistingRequest
-	if err := decodeJSONBody(c.Request.Body, &input); err != nil {
-		respondBadRequest(c, "无效的参数")
+	if err := bind.DecodeJSONBody(c.Request.Body, &input); err != nil {
+		response.RespondBadRequest(c, "无效的参数")
 		return
 	}
 	user, err := service.LinkPendingExternalAccount(&pending, input)
 	if err != nil {
-		respondFailure(c, err.Error())
+		response.RespondFailure(c, err.Error())
 		return
 	}
 	session.Delete(pendingExternalAccountSessionKey)
 	if err := session.Save(); err != nil {
-		respondFailure(c, "无法更新会话信息，请重试")
+		response.RespondFailure(c, "无法更新会话信息，请重试")
 		return
 	}
 	cleanUser, err := setLoginToken(user)
 	if err != nil {
-		respondFailure(c, "无法保存会话信息，请重试")
+		response.RespondFailure(c, "无法保存会话信息，请重试")
 		return
 	}
-	respondSuccess(c, service.OAuthCallbackResult{Status: "linked", User: cleanUser})
+	response.RespondSuccess(c, service.OAuthCallbackResult{Status: "linked", User: cleanUser})
 }
 
 func ListExternalAccounts(c *gin.Context) {
 	userID := c.GetInt("id")
 	accounts, err := model.ListExternalAccountsByUserID(userID)
 	if err != nil {
-		respondFailure(c, err.Error())
+		response.RespondFailure(c, err.Error())
 		return
 	}
-	respondSuccess(c, accounts)
+	response.RespondSuccess(c, accounts)
 }
 
 func DeleteExternalAccount(c *gin.Context) {
 	rawID := strings.TrimSpace(c.Param("id"))
 	parsedID, err := strconv.ParseUint(rawID, 10, 64)
 	if err != nil || parsedID == 0 {
-		respondBadRequest(c, "绑定记录 ID 无效")
+		response.RespondBadRequest(c, "绑定记录 ID 无效")
 		return
 	}
 	if err := model.DeleteExternalAccountForUser(uint(parsedID), c.GetInt("id")); err != nil {
-		respondFailure(c, err.Error())
+		response.RespondFailure(c, err.Error())
 		return
 	}
-	respondSuccessMessage(c, "")
+	response.RespondSuccessMessage(c, "")
 }
 
 func parseAuthSourceID(c *gin.Context) (uint, error) {

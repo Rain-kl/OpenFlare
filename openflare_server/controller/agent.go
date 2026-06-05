@@ -5,6 +5,8 @@ import (
 	"log/slog"
 	"net"
 	"openflare/common"
+	"openflare/common/response"
+	"openflare/controller/bind"
 	"openflare/model"
 	"openflare/service"
 	"strconv"
@@ -26,7 +28,7 @@ import (
 // @Router /api/agent/nodes/register [post]
 func AgentRegister(c *gin.Context) {
 	var payload service.AgentNodePayload
-	if !bindJSON(c, &payload) {
+	if !bind.JSON(c, &payload) {
 		return
 	}
 	payload.IP = service.ResolveReportedNodeIP(payload.IP, c.Request.RemoteAddr)
@@ -41,10 +43,10 @@ func AgentRegister(c *gin.Context) {
 		result, err = service.RegisterNodeWithDiscovery(payload)
 	}
 	if err != nil {
-		respondFailure(c, err.Error())
+		response.RespondFailure(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	response.RespondSuccess(c, result)
 }
 
 // AgentHeartbeat godoc
@@ -59,23 +61,23 @@ func AgentRegister(c *gin.Context) {
 // @Router /api/agent/nodes/heartbeat [post]
 func AgentHeartbeat(c *gin.Context) {
 	var payload service.AgentNodePayload
-	if !bindJSON(c, &payload) {
+	if !bind.JSON(c, &payload) {
 		return
 	}
 	payload.IP = service.ResolveReportedNodeIP(payload.IP, c.Request.RemoteAddr)
 
 	authNode, ok := c.Get("agent_node")
 	if !ok {
-		respondUnauthorized(c, "鏃犳潈杩涜姝ゆ搷浣滐紝Agent Token 鏃犳晥")
+		response.RespondUnauthorized(c, "鏃犳潈杩涜姝ゆ搷浣滐紝Agent Token 鏃犳晥")
 		return
 	}
 
 	node, err := service.HeartbeatNode(authNode.(*model.Node), payload)
 	if err != nil {
-		respondFailure(c, err.Error())
+		response.RespondFailure(c, err.Error())
 		return
 	}
-	respondSuccessWithExtras(c, node.Node, gin.H{
+	response.RespondSuccessWithExtras(c, node.Node, gin.H{
 		"agent_settings": node.AgentSettings,
 		"active_config":  node.ActiveConfig,
 		"waf_ip_groups":  node.WAFIPGroups,
@@ -94,15 +96,15 @@ func AgentHeartbeat(c *gin.Context) {
 // @Router /api/agent/waf/ip-groups/sync [post]
 func AgentSyncWAFIPGroups(c *gin.Context) {
 	var input service.AgentWAFIPGroupSyncInput
-	if !bindJSON(c, &input) {
+	if !bind.JSON(c, &input) {
 		return
 	}
 	result, err := service.SyncWAFIPGroupsForAgent(input)
 	if err != nil {
-		respondFailure(c, err.Error())
+		response.RespondFailure(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	response.RespondSuccess(c, result)
 }
 
 // AgentGetActiveConfig godoc
@@ -115,7 +117,7 @@ func AgentSyncWAFIPGroups(c *gin.Context) {
 func AgentGetActiveConfig(c *gin.Context) {
 	authNode, ok := c.Get("agent_node")
 	if !ok {
-		respondUnauthorized(c, "Node object missing from context")
+		response.RespondUnauthorized(c, "Node object missing from context")
 		return
 	}
 	node := authNode.(*model.Node)
@@ -123,19 +125,19 @@ func AgentGetActiveConfig(c *gin.Context) {
 	if node.NodeType == "tunnel_client" {
 		config, err := service.GetFlaredTunnelConfig(node)
 		if err != nil {
-			respondFailure(c, "无法生成隧道配置: "+err.Error())
+			response.RespondFailure(c, "无法生成隧道配置: "+err.Error())
 			return
 		}
-		respondSuccess(c, config)
+		response.RespondSuccess(c, config)
 		return
 	}
 
 	config, err := service.GetActiveConfigForAgent()
 	if err != nil {
-		respondFailure(c, "当前没有激活版本")
+		response.RespondFailure(c, "当前没有激活版本")
 		return
 	}
-	respondSuccess(c, config)
+	response.RespondSuccess(c, config)
 }
 
 // AgentReportApplyLog godoc
@@ -150,7 +152,7 @@ func AgentGetActiveConfig(c *gin.Context) {
 // @Router /api/agent/apply-logs [post]
 func AgentReportApplyLog(c *gin.Context) {
 	var payload service.ApplyLogPayload
-	if !bindJSON(c, &payload) {
+	if !bind.JSON(c, &payload) {
 		return
 	}
 
@@ -160,10 +162,10 @@ func AgentReportApplyLog(c *gin.Context) {
 
 	log, err := service.ReportApplyLog(payload)
 	if err != nil {
-		respondFailure(c, err.Error())
+		response.RespondFailure(c, err.Error())
 		return
 	}
-	respondSuccess(c, log)
+	response.RespondSuccess(c, log)
 }
 
 // AgentWebSocket godoc
@@ -174,7 +176,7 @@ func AgentReportApplyLog(c *gin.Context) {
 func AgentWebSocket(c *gin.Context) {
 	authNode, ok := c.Get("agent_node")
 	if !ok {
-		respondUnauthorized(c, "无权进行此操作，Agent Token 无效")
+		response.RespondUnauthorized(c, "无权进行此操作，Agent Token 无效")
 		return
 	}
 	node := authNode.(*model.Node)
@@ -268,19 +270,19 @@ func handleAgentWSStatus(c *gin.Context, node *model.Node, message service.Agent
 		return
 	}
 	payload.IP = service.ResolveReportedNodeIP(payload.IP, c.Request.RemoteAddr)
-	response, err := service.HeartbeatNode(freshNode, payload)
+	res, err := service.HeartbeatNode(freshNode, payload)
 	if err != nil {
 		slog.Debug("agent ws status handling failed", "node_id", node.NodeID, "error", err)
 		return
 	}
-	settingsSent := service.SendAgentWSSettings(node.NodeID, response.AgentSettings)
+	settingsSent := service.SendAgentWSSettings(node.NodeID, res.AgentSettings)
 	activeConfigSent := false
-	if response.ActiveConfig != nil {
-		activeConfigSent = service.SendAgentWSActiveConfig(node.NodeID, response.ActiveConfig)
+	if res.ActiveConfig != nil {
+		activeConfigSent = service.SendAgentWSActiveConfig(node.NodeID, res.ActiveConfig)
 	}
 	wafIPGroupsSent := false
-	if len(response.WAFIPGroups) > 0 {
-		wafIPGroupsSent = service.SendAgentWSWAFIPGroups(node.NodeID, response.WAFIPGroups)
+	if len(res.WAFIPGroups) > 0 {
+		wafIPGroupsSent = service.SendAgentWSWAFIPGroups(node.NodeID, res.WAFIPGroups)
 	}
 	slog.Debug("agent ws status processed",
 		"node_id", node.NodeID,
@@ -302,10 +304,10 @@ func handleAgentWSStatus(c *gin.Context, node *model.Node, message service.Agent
 func GetNodes(c *gin.Context) {
 	nodes, err := service.ListNodeViews()
 	if err != nil {
-		respondFailure(c, err.Error())
+		response.RespondFailure(c, err.Error())
 		return
 	}
-	respondSuccess(c, nodes)
+	response.RespondSuccess(c, nodes)
 }
 
 // GetApplyLogs godoc
@@ -323,10 +325,10 @@ func GetApplyLogs(c *gin.Context) {
 		PageSize: readIntQueryFallback(c, "pageSize", "page_size"),
 	})
 	if err != nil {
-		respondFailure(c, err.Error())
+		response.RespondFailure(c, err.Error())
 		return
 	}
-	respondSuccess(c, logs)
+	response.RespondSuccess(c, logs)
 }
 
 // CleanupApplyLogs godoc
@@ -339,15 +341,15 @@ func GetApplyLogs(c *gin.Context) {
 // @Router /api/apply-logs/cleanup [post]
 func CleanupApplyLogs(c *gin.Context) {
 	var input service.ApplyLogCleanupInput
-	if !bindJSON(c, &input) {
+	if !bind.JSON(c, &input) {
 		return
 	}
 	result, err := service.CleanupApplyLogs(input)
 	if err != nil {
-		respondFailure(c, err.Error())
+		response.RespondFailure(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	response.RespondSuccess(c, result)
 }
 
 func readIntQueryFallback(c *gin.Context, primary string, secondary string) int {

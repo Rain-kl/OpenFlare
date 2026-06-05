@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"openflare/common"
+	"openflare/common/response"
 	"openflare/model"
 	"time"
 
@@ -84,13 +85,13 @@ func GitHubOAuth(c *gin.Context) {
 	}
 
 	if !common.GitHubOAuthEnabled {
-		respondFailure(c, "管理员未开启通过 GitHub 登录以及注册")
+		response.RespondFailure(c, "管理员未开启通过 GitHub 登录以及注册")
 		return
 	}
 	code := c.Query("code")
 	githubUser, err := getGitHubUserInfoByCode(code)
 	if err != nil {
-		respondFailure(c, err.Error())
+		response.RespondFailure(c, err.Error())
 		return
 	}
 	user := model.User{
@@ -99,16 +100,16 @@ func GitHubOAuth(c *gin.Context) {
 	if model.IsGitHubIdAlreadyTaken(user.GitHubId) {
 		err := user.FillUserByGitHubId()
 		if err != nil {
-			respondFailure(c, err.Error())
+			response.RespondFailure(c, err.Error())
 			return
 		}
 	} else {
-		respondFailure(c, "管理员关闭了新用户注册")
+		response.RespondFailure(c, "管理员关闭了新用户注册")
 		return
 	}
 
 	if user.Status != common.UserStatusEnabled {
-		respondFailure(c, "用户已被封禁")
+		response.RespondFailure(c, "用户已被封禁")
 		return
 	}
 	setupLogin(&user, c)
@@ -116,38 +117,38 @@ func GitHubOAuth(c *gin.Context) {
 
 func GitHubBind(c *gin.Context) {
 	if !common.GitHubOAuthEnabled {
-		respondFailure(c, "管理员未开启通过 GitHub 登录以及注册")
+		response.RespondFailure(c, "管理员未开启通过 GitHub 登录以及注册")
 		return
 	}
 	code := c.Query("code")
 	githubUser, err := getGitHubUserInfoByCode(code)
 	if err != nil {
-		respondFailure(c, err.Error())
+		response.RespondFailure(c, err.Error())
 		return
 	}
 	user := model.User{
 		GitHubId: githubUser.Login,
 	}
 	if model.IsGitHubIdAlreadyTaken(user.GitHubId) {
-		respondFailure(c, "该 GitHub 账户已被绑定")
+		response.RespondFailure(c, "该 GitHub 账户已被绑定")
 		return
 	}
 	currentUser := currentUserFromOpenFlareToken(c)
 	if currentUser == nil {
-		respondFailure(c, "无权进行此操作，未登录或 token 无效")
+		response.RespondFailure(c, "无权进行此操作，未登录或 token 无效")
 		return
 	}
 	user.Id = currentUser.Id
 	err = user.FillUserById()
 	if err != nil {
-		respondFailure(c, err.Error())
+		response.RespondFailure(c, err.Error())
 		return
 	}
 	user.GitHubId = githubUser.Login
 	err = user.Update(false)
 	if err != nil {
-		respondFailure(c, err.Error())
+		response.RespondFailure(c, err.Error())
 		return
 	}
-	respondSuccessMessage(c, "bind")
+	response.RespondSuccessMessage(c, "bind")
 }

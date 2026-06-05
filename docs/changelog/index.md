@@ -26,7 +26,7 @@ sidebar: false
 
 ### 变更
 
-- 提取并新增 `common/response` 通用响应子包，替换 `controller/response.go` 中的响应细节，重构所有中间件中硬编码的 `c.JSON` 响应，统一 API 响应格式并隔离 Gin 依赖。
+- 提取并新增 `common/response` 通用响应子包与 `controller/bind` 参数解析绑定子包，重构所有控制器与中间件中硬编码的 `c.JSON` 及参数绑定逻辑，彻底隔离 Gin 依赖并避免变量遮蔽冲突。
 
 - 将 `usage.md` 改名为 `proxy-config.md`（新建反代配置），重新梳理大纲结构，专注于如何从导入/申请证书开始，一步步新增并发布代理路由规则，并同步更新全部导航与文档引用链接
 - WAF 白名单调整为准入名单语义：存在白名单规则时，未命中白名单的请求会被拦截

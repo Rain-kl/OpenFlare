@@ -1,6 +1,8 @@
 package controller
 
 import (
+	"openflare/common/response"
+	"openflare/controller/bind"
 	"openflare/service"
 
 	"github.com/gin-gonic/gin"
@@ -9,63 +11,63 @@ import (
 func GetOrigins(c *gin.Context) {
 	origins, err := service.ListOrigins()
 	if err != nil {
-		respondFailure(c, err.Error())
+		response.RespondFailure(c, err.Error())
 		return
 	}
-	respondSuccess(c, origins)
+	response.RespondSuccess(c, origins)
 }
 
 func GetOrigin(c *gin.Context) {
-	id, ok := parseIDParam(c)
+	id, ok := bind.IDParam(c)
 	if !ok {
 		return
 	}
 	origin, err := service.GetOriginDetail(id)
 	if err != nil {
-		respondFailure(c, err.Error())
+		response.RespondFailure(c, err.Error())
 		return
 	}
-	respondSuccess(c, origin)
+	response.RespondSuccess(c, origin)
 }
 
 func CreateOrigin(c *gin.Context) {
 	var input service.OriginInput
-	if !bindJSON(c, &input) {
+	if !bind.JSON(c, &input) {
 		return
 	}
 	origin, err := service.CreateOrigin(input)
 	if err != nil {
-		respondFailure(c, err.Error())
+		response.RespondFailure(c, err.Error())
 		return
 	}
-	respondSuccess(c, origin)
+	response.RespondSuccess(c, origin)
 }
 
 func UpdateOrigin(c *gin.Context) {
-	id, ok := parseIDParam(c)
+	id, ok := bind.IDParam(c)
 	if !ok {
 		return
 	}
 	var input service.OriginInput
-	if !bindJSON(c, &input) {
+	if !bind.JSON(c, &input) {
 		return
 	}
 	origin, err := service.UpdateOrigin(id, input)
 	if err != nil {
-		respondFailure(c, err.Error())
+		response.RespondFailure(c, err.Error())
 		return
 	}
-	respondSuccess(c, origin)
+	response.RespondSuccess(c, origin)
 }
 
 func DeleteOrigin(c *gin.Context) {
-	id, ok := parseIDParam(c)
+	id, ok := bind.IDParam(c)
 	if !ok {
 		return
 	}
 	if err := service.DeleteOrigin(id); err != nil {
-		respondFailure(c, err.Error())
+		response.RespondFailure(c, err.Error())
 		return
 	}
-	respondSuccess(c, nil)
+	response.RespondSuccess(c, nil)
 }

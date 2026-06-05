@@ -1,6 +1,8 @@
 package controller
 
 import (
+	"openflare/common/response"
+	"openflare/controller/bind"
 	"openflare/service"
 	"time"
 
@@ -26,10 +28,10 @@ type serverUpgradeRequest struct {
 func GetLatestRelease(c *gin.Context) {
 	release, err := service.GetLatestServerRelease(c.Request.Context(), c.Query("channel"))
 	if err != nil {
-		respondFailure(c, err.Error())
+		response.RespondFailure(c, err.Error())
 		return
 	}
-	respondSuccess(c, release)
+	response.RespondSuccess(c, release)
 }
 
 // UpgradeServer godoc
@@ -41,18 +43,18 @@ func GetLatestRelease(c *gin.Context) {
 func UpgradeServer(c *gin.Context) {
 	var request serverUpgradeRequest
 	if c.Request.ContentLength > 0 {
-		if err := decodeOptionalJSONBody(c.Request.Body, &request); err != nil {
-			respondBadRequest(c, "无效的参数")
+		if err := bind.OptionalJSON(c.Request.Body, &request); err != nil {
+			response.RespondBadRequest(c, "无效的参数")
 			return
 		}
 	}
 	release, err := service.ScheduleServerUpgrade(request.Channel)
 	if err != nil {
-		respondFailure(c, err.Error())
+		response.RespondFailure(c, err.Error())
 		return
 	}
 
-	respondSuccessWithExtras(c, release, gin.H{
+	response.RespondSuccessWithExtras(c, release, gin.H{
 		"message": "服务升级任务已启动，下载完成后将自动重启。",
 	})
 }
@@ -101,18 +103,18 @@ func StreamServerUpgradeLogs(c *gin.Context) {
 // @Success 200 {object} map[string]interface{}
 // @Router /api/update/manual-upload [post]
 func UploadManualServerBinary(c *gin.Context) {
-	respondFailure(c, "手动升级功能已禁用")
+	response.RespondFailure(c, "手动升级功能已禁用")
 	return
 	//
 	//fileHeader, err := c.FormFile("binary")
 	//if err != nil {
-	//	respondFailure(c, "请先选择要上传的服务端二进制文件。")
+	//	response.RespondFailure(c, "请先选择要上传的服务端二进制文件。")
 	//	return
 	//}
 	//
 	//file, err := fileHeader.Open()
 	//if err != nil {
-	//	respondFailure(c, "读取上传文件失败。")
+	//	response.RespondFailure(c, "读取上传文件失败。")
 	//	return
 	//}
 	//defer func() {
@@ -121,7 +123,7 @@ func UploadManualServerBinary(c *gin.Context) {
 	//
 	//info, err := service.UploadManualServerBinary(c.Request.Context(), fileHeader.Filename, file)
 	//if err != nil {
-	//	respondFailure(c, err.Error())
+	//	response.RespondFailure(c, err.Error())
 	//	return
 	//}
 	//
@@ -130,7 +132,7 @@ func UploadManualServerBinary(c *gin.Context) {
 	//	message = "已完成上传并检查升级包版本。"
 	//}
 	//
-	//respondSuccessWithExtras(c, info, gin.H{
+	//response.RespondSuccessWithExtras(c, info, gin.H{
 	//	"message": message,
 	//})
 }
@@ -143,21 +145,21 @@ func UploadManualServerBinary(c *gin.Context) {
 // @Success 200 {object} map[string]interface{}
 // @Router /api/update/manual-upgrade [post]
 func ConfirmManualServerUpgrade(c *gin.Context) {
-	respondFailure(c, "手动升级功能已禁用")
+	response.RespondFailure(c, "手动升级功能已禁用")
 	return
 	//
 	//var request confirmManualUpgradeRequest
-	//if !bindJSON(c, &request) {
+	//if !bind.JSON(c, &request) {
 	//	return
 	//}
 	//
 	//info, err := service.ConfirmManualServerUpgrade(request.UploadToken)
 	//if err != nil {
-	//	respondFailure(c, err.Error())
+	//	response.RespondFailure(c, err.Error())
 	//	return
 	//}
 	//
-	//respondSuccessWithExtras(c, info, gin.H{
+	//response.RespondSuccessWithExtras(c, info, gin.H{
 	//	"message": "服务升级任务已启动，确认无误后将自动重启。",
 	//})
 }

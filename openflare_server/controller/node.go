@@ -1,6 +1,8 @@
 package controller
 
 import (
+	"openflare/common/response"
+	"openflare/controller/bind"
 	"openflare/service"
 
 	"github.com/gin-gonic/gin"
@@ -28,16 +30,16 @@ type nodeObservabilityQuery struct {
 // @Router /api/nodes/ [post]
 func CreateNode(c *gin.Context) {
 	var input service.NodeInput
-	if !bindJSON(c, &input) {
+	if !bind.JSON(c, &input) {
 		return
 	}
 
 	node, err := service.CreateNode(input)
 	if err != nil {
-		respondFailure(c, err.Error())
+		response.RespondFailure(c, err.Error())
 		return
 	}
-	respondSuccess(c, node)
+	response.RespondSuccess(c, node)
 }
 
 // GetNodeBootstrapToken godoc
@@ -50,10 +52,10 @@ func CreateNode(c *gin.Context) {
 func GetNodeBootstrapToken(c *gin.Context) {
 	bootstrap, err := service.GetNodeBootstrapView()
 	if err != nil {
-		respondFailure(c, err.Error())
+		response.RespondFailure(c, err.Error())
 		return
 	}
-	respondSuccess(c, bootstrap)
+	response.RespondSuccess(c, bootstrap)
 }
 
 // RotateNodeBootstrapToken godoc
@@ -66,10 +68,10 @@ func GetNodeBootstrapToken(c *gin.Context) {
 func RotateNodeBootstrapToken(c *gin.Context) {
 	bootstrap, err := service.RotateGlobalDiscoveryToken()
 	if err != nil {
-		respondFailure(c, err.Error())
+		response.RespondFailure(c, err.Error())
 		return
 	}
-	respondSuccess(c, bootstrap)
+	response.RespondSuccess(c, bootstrap)
 }
 
 // UpdateNode godoc
@@ -84,22 +86,22 @@ func RotateNodeBootstrapToken(c *gin.Context) {
 // @Failure 400 {object} map[string]interface{}
 // @Router /api/nodes/{id}/update [post]
 func UpdateNode(c *gin.Context) {
-	id, ok := parseIDParam(c)
+	id, ok := bind.IDParam(c)
 	if !ok {
 		return
 	}
 
 	var input service.NodeInput
-	if !bindJSON(c, &input) {
+	if !bind.JSON(c, &input) {
 		return
 	}
 
 	node, err := service.UpdateNode(id, input)
 	if err != nil {
-		respondFailure(c, err.Error())
+		response.RespondFailure(c, err.Error())
 		return
 	}
-	respondSuccess(c, node)
+	response.RespondSuccess(c, node)
 }
 
 // DeleteNode godoc
@@ -112,16 +114,16 @@ func UpdateNode(c *gin.Context) {
 // @Failure 400 {object} map[string]interface{}
 // @Router /api/nodes/{id}/delete [post]
 func DeleteNode(c *gin.Context) {
-	id, ok := parseIDParam(c)
+	id, ok := bind.IDParam(c)
 	if !ok {
 		return
 	}
 
 	if err := service.DeleteNode(id); err != nil {
-		respondFailure(c, err.Error())
+		response.RespondFailure(c, err.Error())
 		return
 	}
-	respondSuccessMessage(c, "")
+	response.RespondSuccessMessage(c, "")
 }
 
 // RequestNodeAgentUpdate godoc
@@ -134,15 +136,15 @@ func DeleteNode(c *gin.Context) {
 // @Failure 400 {object} map[string]interface{}
 // @Router /api/nodes/{id}/agent-update [post]
 func RequestNodeAgentUpdate(c *gin.Context) {
-	id, ok := parseIDParam(c)
+	id, ok := bind.IDParam(c)
 	if !ok {
 		return
 	}
 
 	var request nodeAgentUpdateRequest
 	if c.Request.ContentLength > 0 {
-		if err := decodeOptionalJSONBody(c.Request.Body, &request); err != nil {
-			respondBadRequest(c, "")
+		if err := bind.OptionalJSON(c.Request.Body, &request); err != nil {
+			response.RespondBadRequest(c, "")
 			return
 		}
 	}
@@ -152,10 +154,10 @@ func RequestNodeAgentUpdate(c *gin.Context) {
 		TagName: request.TagName,
 	})
 	if err != nil {
-		respondFailure(c, err.Error())
+		response.RespondFailure(c, err.Error())
 		return
 	}
-	respondSuccess(c, node)
+	response.RespondSuccess(c, node)
 }
 
 // RequestNodeOpenrestyRestart godoc
@@ -168,17 +170,17 @@ func RequestNodeAgentUpdate(c *gin.Context) {
 // @Failure 400 {object} map[string]interface{}
 // @Router /api/nodes/{id}/openresty-restart [post]
 func RequestNodeOpenrestyRestart(c *gin.Context) {
-	id, ok := parseIDParam(c)
+	id, ok := bind.IDParam(c)
 	if !ok {
 		return
 	}
 
 	node, err := service.RequestNodeOpenrestyRestart(id)
 	if err != nil {
-		respondFailure(c, err.Error())
+		response.RespondFailure(c, err.Error())
 		return
 	}
-	respondSuccess(c, node)
+	response.RespondSuccess(c, node)
 }
 
 // RequestNodeForceSync godoc
@@ -191,17 +193,17 @@ func RequestNodeOpenrestyRestart(c *gin.Context) {
 // @Failure 400 {object} map[string]interface{}
 // @Router /api/nodes/{id}/force-sync [post]
 func RequestNodeForceSync(c *gin.Context) {
-	id, ok := parseIDParam(c)
+	id, ok := bind.IDParam(c)
 	if !ok {
 		return
 	}
 
 	node, err := service.RequestNodeForceSync(id)
 	if err != nil {
-		respondFailure(c, err.Error())
+		response.RespondFailure(c, err.Error())
 		return
 	}
-	respondSuccess(c, node)
+	response.RespondSuccess(c, node)
 }
 
 // GetNodeAgentRelease godoc
@@ -215,17 +217,17 @@ func RequestNodeForceSync(c *gin.Context) {
 // @Failure 400 {object} map[string]interface{}
 // @Router /api/nodes/{id}/agent-release [get]
 func GetNodeAgentRelease(c *gin.Context) {
-	id, ok := parseIDParam(c)
+	id, ok := bind.IDParam(c)
 	if !ok {
 		return
 	}
 
 	release, err := service.GetNodeAgentRelease(c.Request.Context(), id, c.Query("channel"))
 	if err != nil {
-		respondFailure(c, err.Error())
+		response.RespondFailure(c, err.Error())
 		return
 	}
-	respondSuccess(c, release)
+	response.RespondSuccess(c, release)
 }
 
 // GetNodeObservability godoc
@@ -240,14 +242,14 @@ func GetNodeAgentRelease(c *gin.Context) {
 // @Failure 400 {object} map[string]interface{}
 // @Router /api/nodes/{id}/observability [get]
 func GetNodeObservability(c *gin.Context) {
-	id, ok := parseIDParam(c)
+	id, ok := bind.IDParam(c)
 	if !ok {
 		return
 	}
 
 	var query nodeObservabilityQuery
 	if err := c.ShouldBindQuery(&query); err != nil {
-		respondBadRequest(c, "")
+		response.RespondBadRequest(c, "")
 		return
 	}
 
@@ -256,10 +258,10 @@ func GetNodeObservability(c *gin.Context) {
 		Limit: query.Limit,
 	})
 	if err != nil {
-		respondFailure(c, err.Error())
+		response.RespondFailure(c, err.Error())
 		return
 	}
-	respondSuccess(c, view)
+	response.RespondSuccess(c, view)
 }
 
 // CleanupNodeHealthEvents godoc
@@ -272,15 +274,15 @@ func GetNodeObservability(c *gin.Context) {
 // @Failure 400 {object} map[string]interface{}
 // @Router /api/nodes/{id}/observability/cleanup [post]
 func CleanupNodeHealthEvents(c *gin.Context) {
-	id, ok := parseIDParam(c)
+	id, ok := bind.IDParam(c)
 	if !ok {
 		return
 	}
 
 	result, err := service.CleanupNodeHealthEvents(id)
 	if err != nil {
-		respondFailure(c, err.Error())
+		response.RespondFailure(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	response.RespondSuccess(c, result)
 }

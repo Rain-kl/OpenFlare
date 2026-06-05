@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"openflare/common/response"
 	"openflare/service"
 
 	"github.com/gin-gonic/gin"
@@ -40,10 +41,10 @@ type dashboardTrendsPayload struct {
 func GetDashboardOverview(c *gin.Context) {
 	view, err := service.GetDashboardOverview()
 	if err != nil {
-		respondFailure(c, err.Error())
+		response.RespondFailure(c, err.Error())
 		return
 	}
-	respondSuccess(c, compressDashboardOverview(view))
+	response.RespondSuccess(c, compressDashboardOverview(view))
 }
 
 func compressDashboardOverview(view *service.DashboardOverviewView) *dashboardOverviewPayload {

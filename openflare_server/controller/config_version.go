@@ -1,6 +1,8 @@
 package controller
 
 import (
+	"openflare/common/response"
+	"openflare/controller/bind"
 	"openflare/service"
 
 	"github.com/gin-gonic/gin"
@@ -16,10 +18,10 @@ import (
 func GetConfigVersions(c *gin.Context) {
 	versions, err := service.ListConfigVersions()
 	if err != nil {
-		respondFailure(c, err.Error())
+		response.RespondFailure(c, err.Error())
 		return
 	}
-	respondSuccess(c, versions)
+	response.RespondSuccess(c, versions)
 }
 
 // GetConfigVersion godoc
@@ -32,16 +34,16 @@ func GetConfigVersions(c *gin.Context) {
 // @Failure 400 {object} map[string]interface{}
 // @Router /api/config-versions/{id} [get]
 func GetConfigVersion(c *gin.Context) {
-	id, ok := parseIDParam(c)
+	id, ok := bind.IDParam(c)
 	if !ok {
 		return
 	}
 	version, err := service.GetConfigVersionDetail(id)
 	if err != nil {
-		respondFailure(c, err.Error())
+		response.RespondFailure(c, err.Error())
 		return
 	}
-	respondSuccess(c, version)
+	response.RespondSuccess(c, version)
 }
 
 // GetActiveConfigVersion godoc
@@ -54,10 +56,10 @@ func GetConfigVersion(c *gin.Context) {
 func GetActiveConfigVersion(c *gin.Context) {
 	version, err := service.GetActiveConfigVersion()
 	if err != nil {
-		respondFailure(c, "当前没有激活版本")
+		response.RespondFailure(c, "当前没有激活版本")
 		return
 	}
-	respondSuccess(c, version)
+	response.RespondSuccess(c, version)
 }
 
 // PreviewConfigVersion godoc
@@ -70,10 +72,10 @@ func GetActiveConfigVersion(c *gin.Context) {
 func PreviewConfigVersion(c *gin.Context) {
 	preview, err := service.PreviewConfigVersion()
 	if err != nil {
-		respondFailure(c, err.Error())
+		response.RespondFailure(c, err.Error())
 		return
 	}
-	respondSuccess(c, preview)
+	response.RespondSuccess(c, preview)
 }
 
 // DiffConfigVersion godoc
@@ -86,10 +88,10 @@ func PreviewConfigVersion(c *gin.Context) {
 func DiffConfigVersion(c *gin.Context) {
 	diff, err := service.DiffConfigVersion()
 	if err != nil {
-		respondFailure(c, err.Error())
+		response.RespondFailure(c, err.Error())
 		return
 	}
-	respondSuccess(c, diff)
+	response.RespondSuccess(c, diff)
 }
 
 // PublishConfigVersion godoc
@@ -104,10 +106,10 @@ func PublishConfigVersion(c *gin.Context) {
 	force := c.Query("force") == "true"
 	result, err := service.PublishConfigVersion(username, force)
 	if err != nil {
-		respondFailure(c, err.Error())
+		response.RespondFailure(c, err.Error())
 		return
 	}
-	respondSuccess(c, result.Version)
+	response.RespondSuccess(c, result.Version)
 }
 
 // ActivateConfigVersion godoc
@@ -120,16 +122,16 @@ func PublishConfigVersion(c *gin.Context) {
 // @Failure 400 {object} map[string]interface{}
 // @Router /api/config-versions/{id}/activate [post]
 func ActivateConfigVersion(c *gin.Context) {
-	id, ok := parseIDParam(c)
+	id, ok := bind.IDParam(c)
 	if !ok {
 		return
 	}
 	version, err := service.ActivateConfigVersion(id)
 	if err != nil {
-		respondFailure(c, err.Error())
+		response.RespondFailure(c, err.Error())
 		return
 	}
-	respondSuccess(c, version)
+	response.RespondSuccess(c, version)
 }
 
 type CleanupConfigVersionRequest struct {
@@ -147,17 +149,17 @@ type CleanupConfigVersionRequest struct {
 // @Router /api/config-versions/cleanup [post]
 func CleanupConfigVersions(c *gin.Context) {
 	var req CleanupConfigVersionRequest
-	if !bindJSON(c, &req) {
+	if !bind.JSON(c, &req) {
 		return
 	}
 
 	deletedCount, err := service.CleanupConfigVersions(req.KeepCount)
 	if err != nil {
-		respondFailure(c, err.Error())
+		response.RespondFailure(c, err.Error())
 		return
 	}
 
-	respondSuccessWithExtras(c, map[string]interface{}{"deleted_count": deletedCount}, gin.H{
+	response.RespondSuccessWithExtras(c, map[string]interface{}{"deleted_count": deletedCount}, gin.H{
 		"message": "清理成功",
 	})
 }

@@ -2,6 +2,8 @@ package controller
 
 import (
 	"openflare/common"
+	"openflare/common/response"
+	"openflare/controller/bind"
 	"openflare/middleware"
 	"openflare/model"
 	"openflare/utils/security"
@@ -18,17 +20,17 @@ type LoginRequest struct {
 
 func Login(c *gin.Context) {
 	if !common.PasswordLoginEnabled {
-		respondFailure(c, "管理员关闭了密码登录")
+		response.RespondFailure(c, "管理员关闭了密码登录")
 		return
 	}
 	var loginRequest LoginRequest
-	if !bindJSON(c, &loginRequest) {
+	if !bind.JSON(c, &loginRequest) {
 		return
 	}
 	username := loginRequest.Username
 	password := loginRequest.Password
 	if username == "" || password == "" {
-		respondFailure(c, "无效的参数")
+		response.RespondFailure(c, "无效的参数")
 		return
 	}
 	user := model.User{
@@ -37,7 +39,7 @@ func Login(c *gin.Context) {
 	}
 	err := user.ValidateAndFill()
 	if err != nil {
-		respondFailure(c, err.Error())
+		response.RespondFailure(c, err.Error())
 		return
 	}
 	setupLogin(&user, c)
@@ -68,10 +70,10 @@ func setLoginToken(user *model.User) (*model.User, error) {
 func setupLogin(user *model.User, c *gin.Context) {
 	cleanUser, err := setLoginToken(user)
 	if err != nil {
-		respondFailure(c, "无法保存会话信息，请重试")
+		response.RespondFailure(c, "无法保存会话信息，请重试")
 		return
 	}
-	respondSuccess(c, *cleanUser)
+	response.RespondSuccess(c, *cleanUser)
 }
 
 func Logout(c *gin.Context) {
@@ -80,12 +82,12 @@ func Logout(c *gin.Context) {
 		user := model.ValidateUserToken(token)
 		if user != nil && user.Id != 0 {
 			if err := model.DB.Model(user).Update("token", "").Error; err != nil {
-				respondFailure(c, err.Error())
+				response.RespondFailure(c, err.Error())
 				return
 			}
 		}
 	}
-	respondSuccessMessage(c, "")
+	response.RespondSuccessMessage(c, "")
 }
 
 func currentUserFromOpenFlareToken(c *gin.Context) *model.User {
@@ -97,7 +99,7 @@ func currentUserFromOpenFlareToken(c *gin.Context) *model.User {
 }
 
 func Register(c *gin.Context) {
-	respondFailure(c, "非法请求")
+	response.RespondFailure(c, "非法请求")
 }
 
 func GetAllUsers(c *gin.Context) {
@@ -107,99 +109,99 @@ func GetAllUsers(c *gin.Context) {
 	}
 	users, err := model.GetAllUsers(p*common.ItemsPerPage, common.ItemsPerPage)
 	if err != nil {
-		respondFailure(c, err.Error())
+		response.RespondFailure(c, err.Error())
 		return
 	}
-	respondSuccess(c, users)
+	response.RespondSuccess(c, users)
 }
 
 func SearchUsers(c *gin.Context) {
 	keyword := c.Query("keyword")
 	users, err := model.SearchUsers(keyword)
 	if err != nil {
-		respondFailure(c, err.Error())
+		response.RespondFailure(c, err.Error())
 		return
 	}
-	respondSuccess(c, users)
+	response.RespondSuccess(c, users)
 }
 
 func GetUser(c *gin.Context) {
-	id, ok := parseIDParam(c)
+	id, ok := bind.IDParam(c)
 	if !ok {
 		return
 	}
 	user, err := model.GetUserById(int(id), false)
 	if err != nil {
-		respondFailure(c, err.Error())
+		response.RespondFailure(c, err.Error())
 		return
 	}
 	myRole := c.GetInt("role")
 	if myRole <= user.Role {
-		respondFailure(c, "无权获取同级或更高等级用户的信息")
+		response.RespondFailure(c, "无权获取同级或更高等级用户的信息")
 		return
 	}
-	respondSuccess(c, user)
+	response.RespondSuccess(c, user)
 }
 
 func GenerateToken(c *gin.Context) {
 	id := c.GetInt("id")
 	user, err := model.GetUserById(id, true)
 	if err != nil {
-		respondFailure(c, err.Error())
+		response.RespondFailure(c, err.Error())
 		return
 	}
 	// Generate a fresh JWT for the user
 	tokenString, _, err := middleware.JWTMiddleware.TokenGenerator(user)
 	if err != nil {
-		respondFailure(c, "生成 Token 失败: "+err.Error())
+		response.RespondFailure(c, "生成 Token 失败: "+err.Error())
 		return
 	}
 	user.Token = tokenString
 	if err := user.Update(false); err != nil {
-		respondFailure(c, err.Error())
+		response.RespondFailure(c, err.Error())
 		return
 	}
-	respondSuccess(c, user.Token)
+	response.RespondSuccess(c, user.Token)
 }
 
 func GetSelf(c *gin.Context) {
 	id := c.GetInt("id")
 	user, err := model.GetUserById(id, false)
 	if err != nil {
-		respondFailure(c, err.Error())
+		response.RespondFailure(c, err.Error())
 		return
 	}
-	respondSuccess(c, user)
+	response.RespondSuccess(c, user)
 }
 
 func UpdateUser(c *gin.Context) {
 	var updatedUser model.User
-	if !bindJSON(c, &updatedUser) {
+	if !bind.JSON(c, &updatedUser) {
 		return
 	}
 	if updatedUser.Id == 0 {
-		respondFailure(c, "无效的参数")
+		response.RespondFailure(c, "无效的参数")
 		return
 	}
 	if updatedUser.Password == "" {
 		updatedUser.Password = "$I_LOVE_U" // make Validator happy :)
 	}
 	if err := validation.Validate.Struct(&updatedUser); err != nil {
-		respondFailure(c, "输入不合法 "+err.Error())
+		response.RespondFailure(c, "输入不合法 "+err.Error())
 		return
 	}
 	originUser, err := model.GetUserById(updatedUser.Id, false)
 	if err != nil {
-		respondFailure(c, err.Error())
+		response.RespondFailure(c, err.Error())
 		return
 	}
 	myRole := c.GetInt("role")
 	if myRole <= originUser.Role {
-		respondFailure(c, "无权更新同权限等级或更高权限等级的用户信息")
+		response.RespondFailure(c, "无权更新同权限等级或更高权限等级的用户信息")
 		return
 	}
 	if myRole <= updatedUser.Role {
-		respondFailure(c, "无权将其他用户权限等级提升到大于等于自己的权限等级")
+		response.RespondFailure(c, "无权将其他用户权限等级提升到大于等于自己的权限等级")
 		return
 	}
 	if updatedUser.Password == "$I_LOVE_U" {
@@ -207,22 +209,22 @@ func UpdateUser(c *gin.Context) {
 	}
 	updatePassword := updatedUser.Password != ""
 	if err := updatedUser.Update(updatePassword); err != nil {
-		respondFailure(c, err.Error())
+		response.RespondFailure(c, err.Error())
 		return
 	}
-	respondSuccessMessage(c, "")
+	response.RespondSuccessMessage(c, "")
 }
 
 func UpdateSelf(c *gin.Context) {
 	var user model.User
-	if !bindJSON(c, &user) {
+	if !bind.JSON(c, &user) {
 		return
 	}
 	if user.Password == "" {
 		user.Password = "$I_LOVE_U" // make Validator happy :)
 	}
 	if err := validation.Validate.Struct(&user); err != nil {
-		respondFailure(c, "输入不合法 "+err.Error())
+		response.RespondFailure(c, "输入不合法 "+err.Error())
 		return
 	}
 
@@ -238,53 +240,53 @@ func UpdateSelf(c *gin.Context) {
 	}
 	updatePassword := user.Password != ""
 	if err := cleanUser.Update(updatePassword); err != nil {
-		respondFailure(c, err.Error())
+		response.RespondFailure(c, err.Error())
 		return
 	}
 
-	respondSuccessMessage(c, "")
+	response.RespondSuccessMessage(c, "")
 }
 
 func DeleteUser(c *gin.Context) {
-	id, ok := parseIDParam(c)
+	id, ok := bind.IDParam(c)
 	if !ok {
 		return
 	}
 	originUser, err := model.GetUserById(int(id), false)
 	if err != nil {
-		respondFailure(c, err.Error())
+		response.RespondFailure(c, err.Error())
 		return
 	}
 	myRole := c.GetInt("role")
 	if myRole <= originUser.Role {
-		respondFailure(c, "无权删除同权限等级或更高权限等级的用户")
+		response.RespondFailure(c, "无权删除同权限等级或更高权限等级的用户")
 		return
 	}
 	err = model.DeleteUserById(int(id))
 	if err != nil {
-		respondFailure(c, err.Error())
+		response.RespondFailure(c, err.Error())
 		return
 	}
-	respondSuccessMessage(c, "")
+	response.RespondSuccessMessage(c, "")
 }
 
 func DeleteSelf(c *gin.Context) {
 	id := c.GetInt("id")
 	err := model.DeleteUserById(id)
 	if err != nil {
-		respondFailure(c, err.Error())
+		response.RespondFailure(c, err.Error())
 		return
 	}
-	respondSuccessMessage(c, "")
+	response.RespondSuccessMessage(c, "")
 }
 
 func CreateUser(c *gin.Context) {
 	var user model.User
-	if !bindJSON(c, &user) {
+	if !bind.JSON(c, &user) {
 		return
 	}
 	if user.Username == "" || user.Password == "" {
-		respondFailure(c, "无效的参数")
+		response.RespondFailure(c, "无效的参数")
 		return
 	}
 	if user.DisplayName == "" {
@@ -292,7 +294,7 @@ func CreateUser(c *gin.Context) {
 	}
 	myRole := c.GetInt("role")
 	if user.Role >= myRole {
-		respondFailure(c, "无法创建权限大于等于自己的用户")
+		response.RespondFailure(c, "无法创建权限大于等于自己的用户")
 		return
 	}
 	// Even for admin users, we cannot fully trust them!
@@ -302,11 +304,11 @@ func CreateUser(c *gin.Context) {
 		DisplayName: user.DisplayName,
 	}
 	if err := cleanUser.Insert(); err != nil {
-		respondFailure(c, err.Error())
+		response.RespondFailure(c, err.Error())
 		return
 	}
 
-	respondSuccessMessage(c, "")
+	response.RespondSuccessMessage(c, "")
 }
 
 type ManageRequest struct {
@@ -317,7 +319,7 @@ type ManageRequest struct {
 // ManageUser Only admin user can do this
 func ManageUser(c *gin.Context) {
 	var req ManageRequest
-	if !bindJSON(c, &req) {
+	if !bind.JSON(c, &req) {
 		return
 	}
 	user := model.User{
@@ -326,70 +328,70 @@ func ManageUser(c *gin.Context) {
 	// Fill attributes
 	model.DB.Where(&user).First(&user)
 	if user.Id == 0 {
-		respondFailure(c, "用户不存在")
+		response.RespondFailure(c, "用户不存在")
 		return
 	}
 	myRole := c.GetInt("role")
 	if myRole <= user.Role && myRole != common.RoleRootUser {
-		respondFailure(c, "无权更新同权限等级或更高权限等级的用户信息")
+		response.RespondFailure(c, "无权更新同权限等级或更高权限等级的用户信息")
 		return
 	}
 	switch req.Action {
 	case "disable":
 		user.Status = common.UserStatusDisabled
 		if user.Role == common.RoleRootUser {
-			respondFailure(c, "无法禁用超级管理员用户")
+			response.RespondFailure(c, "无法禁用超级管理员用户")
 			return
 		}
 	case "enable":
 		user.Status = common.UserStatusEnabled
 	case "delete":
 		if user.Role == common.RoleRootUser {
-			respondFailure(c, "无法删除超级管理员用户")
+			response.RespondFailure(c, "无法删除超级管理员用户")
 			return
 		}
 		if err := user.Delete(); err != nil {
-			respondFailure(c, err.Error())
+			response.RespondFailure(c, err.Error())
 			return
 		}
 	case "promote":
 		if myRole != common.RoleRootUser {
-			respondFailure(c, "普通管理员用户无法提升其他用户为管理员")
+			response.RespondFailure(c, "普通管理员用户无法提升其他用户为管理员")
 			return
 		}
 		if user.Role >= common.RoleAdminUser {
-			respondFailure(c, "该用户已经是管理员")
+			response.RespondFailure(c, "该用户已经是管理员")
 			return
 		}
 		user.Role = common.RoleAdminUser
 	case "demote":
 		if user.Role == common.RoleRootUser {
-			respondFailure(c, "无法降级超级管理员用户")
+			response.RespondFailure(c, "无法降级超级管理员用户")
 			return
 		}
 		if user.Role == common.RoleCommonUser {
-			respondFailure(c, "该用户已经是普通用户")
+			response.RespondFailure(c, "该用户已经是普通用户")
 			return
 		}
 		user.Role = common.RoleCommonUser
 	}
 
 	if err := user.Update(false); err != nil {
-		respondFailure(c, err.Error())
+		response.RespondFailure(c, err.Error())
 		return
 	}
 	clearUser := model.User{
 		Role:   user.Role,
 		Status: user.Status,
 	}
-	respondSuccess(c, clearUser)
+	response.RespondSuccess(c, clearUser)
 }
 
 func EmailBind(c *gin.Context) {
 	email := c.Query("email")
 	code := c.Query("code")
 	if !security.VerifyCodeWithKey(email, code, security.EmailVerificationPurpose) {
-		respondFailure(c, "验证码错误或已过期")
+		response.RespondFailure(c, "验证码错误或已过期")
 		return
 	}
 	id := c.GetInt("id")
@@ -398,15 +400,15 @@ func EmailBind(c *gin.Context) {
 	}
 	err := user.FillUserById()
 	if err != nil {
-		respondFailure(c, err.Error())
+		response.RespondFailure(c, err.Error())
 		return
 	}
 	user.Email = email
 	// no need to check if this email already taken, because we have used verification code to check it
 	err = user.Update(false)
 	if err != nil {
-		respondFailure(c, err.Error())
+		response.RespondFailure(c, err.Error())
 		return
 	}
-	respondSuccessMessage(c, "")
+	response.RespondSuccessMessage(c, "")
 }

@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"openflare/common/response"
 	"openflare/model"
 
 	"github.com/gin-gonic/gin"
@@ -16,8 +17,8 @@ import (
 func GetDefaultAcmeAccount(c *gin.Context) {
 	account, err := model.GetDefaultAcmeAccount()
 	if err != nil {
-		respondFailure(c, err.Error())
+		response.RespondFailure(c, err.Error())
 		return
 	}
-	respondSuccess(c, account)
+	response.RespondSuccess(c, account)
 }

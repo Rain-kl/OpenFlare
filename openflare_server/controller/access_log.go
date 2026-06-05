@@ -1,6 +1,8 @@
 package controller
 
 import (
+	"openflare/common/response"
+	"openflare/controller/bind"
 	"openflare/service"
 	"strconv"
 
@@ -25,10 +27,10 @@ import (
 func GetAccessLogs(c *gin.Context) {
 	logs, err := service.ListAccessLogs(readAccessLogQuery(c))
 	if err != nil {
-		respondFailure(c, err.Error())
+		response.RespondFailure(c, err.Error())
 		return
 	}
-	respondSuccess(c, logs)
+	response.RespondSuccess(c, logs)
 }
 
 // GetFoldedAccessLogs godoc
@@ -52,10 +54,10 @@ func GetFoldedAccessLogs(c *gin.Context) {
 	query.FoldMinutes = readQueryInt(c, "fold_minutes")
 	logs, err := service.ListFoldedAccessLogs(query)
 	if err != nil {
-		respondFailure(c, err.Error())
+		response.RespondFailure(c, err.Error())
 		return
 	}
-	respondSuccess(c, logs)
+	response.RespondSuccess(c, logs)
 }
 
 // GetFoldedAccessLogIPs godoc
@@ -89,10 +91,10 @@ func GetFoldedAccessLogIPs(c *gin.Context) {
 		SortOrder:       c.Query("sort_order"),
 	})
 	if err != nil {
-		respondFailure(c, err.Error())
+		response.RespondFailure(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	response.RespondSuccess(c, result)
 }
 
 // GetAccessLogIPSummaries godoc
@@ -120,10 +122,10 @@ func GetAccessLogIPSummaries(c *gin.Context) {
 		SortOrder:  c.Query("sort_order"),
 	})
 	if err != nil {
-		respondFailure(c, err.Error())
+		response.RespondFailure(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	response.RespondSuccess(c, result)
 }
 
 // GetAccessLogIPTrend godoc
@@ -147,10 +149,10 @@ func GetAccessLogIPTrend(c *gin.Context) {
 		BucketMinutes: readQueryInt(c, "bucket_minutes"),
 	})
 	if err != nil {
-		respondFailure(c, err.Error())
+		response.RespondFailure(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	response.RespondSuccess(c, result)
 }
 
 // CleanupAccessLogs godoc
@@ -163,15 +165,15 @@ func GetAccessLogIPTrend(c *gin.Context) {
 // @Router /api/access-logs/cleanup [post]
 func CleanupAccessLogs(c *gin.Context) {
 	var input service.AccessLogCleanupInput
-	if !bindJSON(c, &input) {
+	if !bind.JSON(c, &input) {
 		return
 	}
 	result, err := service.CleanupAccessLogs(input)
 	if err != nil {
-		respondFailure(c, err.Error())
+		response.RespondFailure(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	response.RespondSuccess(c, result)
 }
 
 func readAccessLogQuery(c *gin.Context) service.AccessLogQuery {

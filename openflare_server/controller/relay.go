@@ -3,6 +3,8 @@ package controller
 import (
 	"log/slog"
 	"net"
+	"openflare/common/response"
+	"openflare/controller/bind"
 	"openflare/model"
 	"openflare/service"
 	"time"
@@ -23,22 +25,22 @@ import (
 // @Router /api/relay/heartbeat [post]
 func RelayHeartbeat(c *gin.Context) {
 	var payload service.RelayHeartbeatPayload
-	if !bindJSON(c, &payload) {
+	if !bind.JSON(c, &payload) {
 		return
 	}
 	payload.IP = service.ResolveReportedNodeIP(payload.IP, c.Request.RemoteAddr)
 	authNode, ok := c.Get("relay_node")
 	if !ok {
-		respondUnauthorized(c, "无权进行此操作")
+		response.RespondUnauthorized(c, "无权进行此操作")
 		return
 	}
 	node := authNode.(*model.Node)
 	result, err := service.HeartbeatRelay(node, payload)
 	if err != nil {
-		respondFailure(c, err.Error())
+		response.RespondFailure(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	response.RespondSuccess(c, result)
 }
 
 // RelayWebSocket godoc
@@ -49,7 +51,7 @@ func RelayHeartbeat(c *gin.Context) {
 func RelayWebSocket(c *gin.Context) {
 	authNode, ok := c.Get("relay_node")
 	if !ok {
-		respondUnauthorized(c, "无权进行此操作")
+		response.RespondUnauthorized(c, "无权进行此操作")
 		return
 	}
 	node := authNode.(*model.Node)

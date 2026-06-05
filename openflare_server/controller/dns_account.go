@@ -1,6 +1,8 @@
 package controller
 
 import (
+	"openflare/common/response"
+	"openflare/controller/bind"
 	"openflare/model"
 
 	"github.com/gin-gonic/gin"
@@ -22,10 +24,10 @@ type DnsAccountInput struct {
 func GetDnsAccounts(c *gin.Context) {
 	accounts, err := model.ListDnsAccounts()
 	if err != nil {
-		respondFailure(c, err.Error())
+		response.RespondFailure(c, err.Error())
 		return
 	}
-	respondSuccess(c, accounts)
+	response.RespondSuccess(c, accounts)
 }
 
 // CreateDnsAccount godoc
@@ -39,7 +41,7 @@ func GetDnsAccounts(c *gin.Context) {
 // @Router /api/dns-accounts/ [post]
 func CreateDnsAccount(c *gin.Context) {
 	var input DnsAccountInput
-	if !bindJSON(c, &input) {
+	if !bind.JSON(c, &input) {
 		return
 	}
 
@@ -50,11 +52,11 @@ func CreateDnsAccount(c *gin.Context) {
 	}
 
 	if err := account.Insert(); err != nil {
-		respondFailure(c, err.Error())
+		response.RespondFailure(c, err.Error())
 		return
 	}
 
-	respondSuccess(c, account)
+	response.RespondSuccess(c, account)
 }
 
 // UpdateDnsAccount godoc
@@ -68,19 +70,19 @@ func CreateDnsAccount(c *gin.Context) {
 // @Success 200 {object} map[string]interface{}
 // @Router /api/dns-accounts/{id}/update [post]
 func UpdateDnsAccount(c *gin.Context) {
-	id, ok := parseIDParam(c)
+	id, ok := bind.IDParam(c)
 	if !ok {
 		return
 	}
 
 	var input DnsAccountInput
-	if !bindJSON(c, &input) {
+	if !bind.JSON(c, &input) {
 		return
 	}
 
 	account, err := model.GetDnsAccountByID(id)
 	if err != nil {
-		respondFailure(c, err.Error())
+		response.RespondFailure(c, err.Error())
 		return
 	}
 
@@ -89,11 +91,11 @@ func UpdateDnsAccount(c *gin.Context) {
 	account.Authorization = input.Authorization
 
 	if err := account.Update(); err != nil {
-		respondFailure(c, err.Error())
+		response.RespondFailure(c, err.Error())
 		return
 	}
 
-	respondSuccess(c, account)
+	response.RespondSuccess(c, account)
 }
 
 // DeleteDnsAccount godoc
@@ -105,14 +107,14 @@ func UpdateDnsAccount(c *gin.Context) {
 // @Success 200 {object} map[string]interface{}
 // @Router /api/dns-accounts/{id}/delete [post]
 func DeleteDnsAccount(c *gin.Context) {
-	id, ok := parseIDParam(c)
+	id, ok := bind.IDParam(c)
 	if !ok {
 		return
 	}
 
 	account, err := model.GetDnsAccountByID(id)
 	if err != nil {
-		respondFailure(c, err.Error())
+		response.RespondFailure(c, err.Error())
 		return
 	}
 
@@ -120,14 +122,14 @@ func DeleteDnsAccount(c *gin.Context) {
 	var count int64
 	model.DB.Model(&model.TLSCertificate{}).Where("dns_account_id = ?", id).Count(&count)
 	if count > 0 {
-		respondFailure(c, "该 DNS 账号已被证书使用，无法删除")
+		response.RespondFailure(c, "该 DNS 账号已被证书使用，无法删除")
 		return
 	}
 
 	if err := account.Delete(); err != nil {
-		respondFailure(c, err.Error())
+		response.RespondFailure(c, err.Error())
 		return
 	}
 
-	respondSuccess(c, nil)
+	response.RespondSuccess(c, nil)
 }

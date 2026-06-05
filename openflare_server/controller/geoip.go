@@ -1,6 +1,8 @@
 package controller
 
 import (
+	"openflare/common/response"
+	"openflare/controller/bind"
 	"openflare/service"
 
 	"github.com/gin-gonic/gin"
@@ -22,14 +24,14 @@ type geoIPLookupRequest struct {
 // @Router /api/option/geoip/lookup [post]
 func LookupGeoIP(c *gin.Context) {
 	var request geoIPLookupRequest
-	if !bindJSON(c, &request) {
+	if !bind.JSON(c, &request) {
 		return
 	}
 
 	view, err := service.LookupGeoIP(request.Provider, request.IP)
 	if err != nil {
-		respondFailure(c, err.Error())
+		response.RespondFailure(c, err.Error())
 		return
 	}
-	respondSuccess(c, view)
+	response.RespondSuccess(c, view)
 }

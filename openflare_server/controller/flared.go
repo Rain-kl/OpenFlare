@@ -4,6 +4,8 @@ import (
 	"log/slog"
 	"net"
 	"openflare/common"
+	"openflare/common/response"
+	"openflare/controller/bind"
 	"openflare/model"
 	"openflare/service"
 	"time"
@@ -24,21 +26,21 @@ import (
 // @Router /api/flared/heartbeat [post]
 func FlaredHeartbeat(c *gin.Context) {
 	var payload service.FlaredHeartbeatPayload
-	if !bindJSON(c, &payload) {
+	if !bind.JSON(c, &payload) {
 		return
 	}
 	authNode, ok := c.Get("flared_node")
 	if !ok {
-		respondUnauthorized(c, "无权进行此操作，Tunnel Token 无效")
+		response.RespondUnauthorized(c, "无权进行此操作，Tunnel Token 无效")
 		return
 	}
 	node := authNode.(*model.Node)
-	response, err := service.HeartbeatFlared(node, payload)
+	res, err := service.HeartbeatFlared(node, payload)
 	if err != nil {
-		respondFailure(c, err.Error())
+		response.RespondFailure(c, err.Error())
 		return
 	}
-	respondSuccess(c, response)
+	response.RespondSuccess(c, res)
 }
 
 // FlaredGetActiveConfig godoc
@@ -51,16 +53,16 @@ func FlaredHeartbeat(c *gin.Context) {
 func FlaredGetActiveConfig(c *gin.Context) {
 	authNode, ok := c.Get("flared_node")
 	if !ok {
-		respondUnauthorized(c, "无权进行此操作，Tunnel Token 无效")
+		response.RespondUnauthorized(c, "无权进行此操作，Tunnel Token 无效")
 		return
 	}
 	node := authNode.(*model.Node)
 	config, err := service.GetFlaredTunnelConfig(node)
 	if err != nil {
-		respondFailure(c, "无法生成隧道配置: "+err.Error())
+		response.RespondFailure(c, "无法生成隧道配置: "+err.Error())
 		return
 	}
-	respondSuccess(c, config)
+	response.RespondSuccess(c, config)
 }
 
 // FlaredReportApplyLog godoc
@@ -74,7 +76,7 @@ func FlaredGetActiveConfig(c *gin.Context) {
 // @Router /api/flared/apply-log [post]
 func FlaredReportApplyLog(c *gin.Context) {
 	var payload service.ApplyLogPayload
-	if !bindJSON(c, &payload) {
+	if !bind.JSON(c, &payload) {
 		return
 	}
 	if authNode, ok := c.Get("flared_node"); ok {
@@ -82,10 +84,10 @@ func FlaredReportApplyLog(c *gin.Context) {
 	}
 	log, err := service.ReportApplyLog(payload)
 	if err != nil {
-		respondFailure(c, err.Error())
+		response.RespondFailure(c, err.Error())
 		return
 	}
-	respondSuccess(c, log)
+	response.RespondSuccess(c, log)
 }
 
 // FlaredWebSocket godoc
@@ -96,7 +98,7 @@ func FlaredReportApplyLog(c *gin.Context) {
 func FlaredWebSocket(c *gin.Context) {
 	authNode, ok := c.Get("flared_node")
 	if !ok {
-		respondUnauthorized(c, "无权进行此操作，Tunnel Token 无效")
+		response.RespondUnauthorized(c, "无权进行此操作，Tunnel Token 无效")
 		return
 	}
 	node := authNode.(*model.Node)

@@ -3,6 +3,8 @@ package controller
 import (
 	"fmt"
 	"openflare/common"
+	"openflare/common/response"
+	"openflare/controller/bind"
 	"openflare/model"
 	"openflare/service"
 	"openflare/utils/mail"
@@ -23,7 +25,7 @@ func GetStatus(c *gin.Context) {
 	if err != nil {
 		authSources = []service.PublicAuthSource{}
 	}
-	respondSuccess(c, gin.H{
+	response.RespondSuccess(c, gin.H{
 		"version":                   common.Version,
 		"start_time":                common.StartTime,
 		"email_verification":        common.EmailVerificationEnabled,
@@ -43,23 +45,23 @@ func GetStatus(c *gin.Context) {
 func GetNotice(c *gin.Context) {
 	common.OptionMapRWMutex.RLock()
 	defer common.OptionMapRWMutex.RUnlock()
-	respondSuccess(c, common.OptionMap["Notice"])
+	response.RespondSuccess(c, common.OptionMap["Notice"])
 }
 
 func GetAbout(c *gin.Context) {
 	common.OptionMapRWMutex.RLock()
 	defer common.OptionMapRWMutex.RUnlock()
-	respondSuccess(c, common.OptionMap["About"])
+	response.RespondSuccess(c, common.OptionMap["About"])
 }
 
 func SendEmailVerification(c *gin.Context) {
 	email := c.Query("email")
 	if err := validation.Validate.Var(email, "required,email"); err != nil {
-		respondFailure(c, "无效的参数")
+		response.RespondFailure(c, "无效的参数")
 		return
 	}
 	if model.IsEmailAlreadyTaken(email) {
-		respondFailure(c, "邮箱地址已被占用")
+		response.RespondFailure(c, "邮箱地址已被占用")
 		return
 	}
 	code := security.GenerateVerificationCode(6)
@@ -77,20 +79,20 @@ func SendEmailVerification(c *gin.Context) {
 	}
 	err := mail.SendEmail(cfg, subject, email, content)
 	if err != nil {
-		respondFailure(c, err.Error())
+		response.RespondFailure(c, err.Error())
 		return
 	}
-	respondSuccessMessage(c, "")
+	response.RespondSuccessMessage(c, "")
 }
 
 func SendPasswordResetEmail(c *gin.Context) {
 	email := c.Query("email")
 	if err := validation.Validate.Var(email, "required,email"); err != nil {
-		respondFailure(c, "无效的参数")
+		response.RespondFailure(c, "无效的参数")
 		return
 	}
 	if !model.IsEmailAlreadyTaken(email) {
-		respondFailure(c, "该邮箱地址未注册")
+		response.RespondFailure(c, "该邮箱地址未注册")
 		return
 	}
 	code := security.GenerateVerificationCode(0)
@@ -109,10 +111,10 @@ func SendPasswordResetEmail(c *gin.Context) {
 	}
 	err := mail.SendEmail(cfg, subject, email, content)
 	if err != nil {
-		respondFailure(c, err.Error())
+		response.RespondFailure(c, err.Error())
 		return
 	}
-	respondSuccessMessage(c, "")
+	response.RespondSuccessMessage(c, "")
 }
 
 type PasswordResetRequest struct {
@@ -122,23 +124,23 @@ type PasswordResetRequest struct {
 
 func ResetPassword(c *gin.Context) {
 	var req PasswordResetRequest
-	if !bindJSON(c, &req) {
+	if !bind.JSON(c, &req) {
 		return
 	}
 	if req.Email == "" || req.Token == "" {
-		respondFailure(c, "无效的参数")
+		response.RespondFailure(c, "无效的参数")
 		return
 	}
 	if !security.VerifyCodeWithKey(req.Email, req.Token, security.PasswordResetPurpose) {
-		respondFailure(c, "重置链接非法或已过期")
+		response.RespondFailure(c, "重置链接非法或已过期")
 		return
 	}
 	password := security.GenerateVerificationCode(12)
 	err := model.ResetUserPasswordByEmail(req.Email, password)
 	if err != nil {
-		respondFailure(c, err.Error())
+		response.RespondFailure(c, err.Error())
 		return
 	}
 	security.DeleteKey(req.Email, security.PasswordResetPurpose)
-	respondSuccess(c, password)
+	response.RespondSuccess(c, password)
 }

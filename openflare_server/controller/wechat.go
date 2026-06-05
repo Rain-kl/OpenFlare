@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"openflare/common"
+	"openflare/common/response"
 	"openflare/model"
 	"time"
 
@@ -58,13 +59,13 @@ func getWeChatIdByCode(code string) (string, error) {
 
 func WeChatAuth(c *gin.Context) {
 	if !common.WeChatAuthEnabled {
-		respondFailure(c, "管理员未开启通过微信登录以及注册")
+		response.RespondFailure(c, "管理员未开启通过微信登录以及注册")
 		return
 	}
 	code := c.Query("code")
 	wechatId, err := getWeChatIdByCode(code)
 	if err != nil {
-		respondFailure(c, err.Error())
+		response.RespondFailure(c, err.Error())
 		return
 	}
 	user := model.User{
@@ -73,16 +74,16 @@ func WeChatAuth(c *gin.Context) {
 	if model.IsWeChatIdAlreadyTaken(wechatId) {
 		err := user.FillUserByWeChatId()
 		if err != nil {
-			respondFailure(c, err.Error())
+			response.RespondFailure(c, err.Error())
 			return
 		}
 	} else {
-		respondFailure(c, "管理员关闭了新用户注册")
+		response.RespondFailure(c, "管理员关闭了新用户注册")
 		return
 	}
 
 	if user.Status != common.UserStatusEnabled {
-		respondFailure(c, "用户已被封禁")
+		response.RespondFailure(c, "用户已被封禁")
 		return
 	}
 	setupLogin(&user, c)
@@ -90,17 +91,17 @@ func WeChatAuth(c *gin.Context) {
 
 func WeChatBind(c *gin.Context) {
 	if !common.WeChatAuthEnabled {
-		respondFailure(c, "管理员未开启通过微信登录以及注册")
+		response.RespondFailure(c, "管理员未开启通过微信登录以及注册")
 		return
 	}
 	code := c.Query("code")
 	wechatId, err := getWeChatIdByCode(code)
 	if err != nil {
-		respondFailure(c, err.Error())
+		response.RespondFailure(c, err.Error())
 		return
 	}
 	if model.IsWeChatIdAlreadyTaken(wechatId) {
-		respondFailure(c, "该微信账号已被绑定")
+		response.RespondFailure(c, "该微信账号已被绑定")
 		return
 	}
 	id := c.GetInt("id")
@@ -109,15 +110,15 @@ func WeChatBind(c *gin.Context) {
 	}
 	err = user.FillUserById()
 	if err != nil {
-		respondFailure(c, err.Error())
+		response.RespondFailure(c, err.Error())
 		return
 	}
 	user.WeChatId = wechatId
 	err = user.Update(false)
 	if err != nil {
-		respondFailure(c, err.Error())
+		response.RespondFailure(c, err.Error())
 		return
 	}
-	respondSuccessMessage(c, "")
+	response.RespondSuccessMessage(c, "")
 	return
 }

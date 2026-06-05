@@ -1,6 +1,8 @@
 package controller
 
 import (
+	"openflare/common/response"
+	"openflare/controller/bind"
 	"openflare/service"
 
 	"github.com/gin-gonic/gin"
@@ -16,14 +18,14 @@ import (
 // @Router /api/option/database/cleanup [post]
 func CleanupDatabaseObservability(c *gin.Context) {
 	var input service.DatabaseCleanupInput
-	if err := decodeOptionalJSONBody(c.Request.Body, &input); err != nil {
-		respondBadRequest(c, "")
+	if err := bind.OptionalJSON(c.Request.Body, &input); err != nil {
+		response.RespondBadRequest(c, "")
 		return
 	}
 	result, err := service.CleanupDatabaseObservability(input)
 	if err != nil {
-		respondFailure(c, err.Error())
+		response.RespondFailure(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	response.RespondSuccess(c, result)
 }

@@ -3,6 +3,8 @@ package controller
 import (
 	"fmt"
 	"openflare/common"
+	"openflare/common/response"
+	"openflare/controller/bind"
 	"openflare/model"
 	"openflare/service"
 	"openflare/utils"
@@ -356,7 +358,7 @@ func GetOptions(c *gin.Context) {
 		})
 	}
 	common.OptionMapRWMutex.RUnlock()
-	respondSuccess(c, options)
+	response.RespondSuccess(c, options)
 }
 
 // UpdateOption godoc
@@ -370,20 +372,20 @@ func GetOptions(c *gin.Context) {
 // @Router /api/option/update [post]
 func UpdateOption(c *gin.Context) {
 	var option model.Option
-	if !bindJSON(c, &option) {
+	if !bind.JSON(c, &option) {
 		return
 	}
 	state := buildOptionValidationState([]model.Option{option})
 	if err := validateOptionWithState(option, state); err != nil {
-		respondFailure(c, err.Error())
+		response.RespondFailure(c, err.Error())
 		return
 	}
 	err := model.UpdateOption(option.Key, option.Value)
 	if err != nil {
-		respondFailure(c, err.Error())
+		response.RespondFailure(c, err.Error())
 		return
 	}
-	respondSuccessMessage(c, "")
+	response.RespondSuccessMessage(c, "")
 }
 
 // UpdateOptionsBatch godoc
@@ -397,18 +399,18 @@ func UpdateOption(c *gin.Context) {
 // @Router /api/option/update-batch [post]
 func UpdateOptionsBatch(c *gin.Context) {
 	var payload optionBatchPayload
-	if !bindJSON(c, &payload) {
+	if !bind.JSON(c, &payload) {
 		return
 	}
 	if len(payload.Options) == 0 {
-		respondBadRequest(c, "无效的参数")
+		response.RespondBadRequest(c, "无效的参数")
 		return
 	}
 
 	if err := updateOptions(payload.Options); err != nil {
-		respondFailure(c, err.Error())
+		response.RespondFailure(c, err.Error())
 		return
 	}
 
-	respondSuccessMessage(c, "")
+	response.RespondSuccessMessage(c, "")
 }

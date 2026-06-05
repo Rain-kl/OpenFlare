@@ -1,6 +1,8 @@
 package controller
 
 import (
+	"openflare/common/response"
+	"openflare/controller/bind"
 	"openflare/service"
 	"strings"
 
@@ -17,10 +19,10 @@ import (
 func GetManagedDomains(c *gin.Context) {
 	domains, err := service.ListManagedDomains()
 	if err != nil {
-		respondFailure(c, err.Error())
+		response.RespondFailure(c, err.Error())
 		return
 	}
-	respondSuccess(c, domains)
+	response.RespondSuccess(c, domains)
 }
 
 // CreateManagedDomain godoc
@@ -35,15 +37,15 @@ func GetManagedDomains(c *gin.Context) {
 // @Router /api/managed-domains/ [post]
 func CreateManagedDomain(c *gin.Context) {
 	var input service.ManagedDomainInput
-	if !bindJSON(c, &input) {
+	if !bind.JSON(c, &input) {
 		return
 	}
 	domain, err := service.CreateManagedDomain(input)
 	if err != nil {
-		respondFailure(c, err.Error())
+		response.RespondFailure(c, err.Error())
 		return
 	}
-	respondSuccess(c, domain)
+	response.RespondSuccess(c, domain)
 }
 
 // UpdateManagedDomain godoc
@@ -58,20 +60,20 @@ func CreateManagedDomain(c *gin.Context) {
 // @Failure 400 {object} map[string]interface{}
 // @Router /api/managed-domains/{id}/update [post]
 func UpdateManagedDomain(c *gin.Context) {
-	id, ok := parseIDParam(c)
+	id, ok := bind.IDParam(c)
 	if !ok {
 		return
 	}
 	var input service.ManagedDomainInput
-	if !bindJSON(c, &input) {
+	if !bind.JSON(c, &input) {
 		return
 	}
 	domain, err := service.UpdateManagedDomain(id, input)
 	if err != nil {
-		respondFailure(c, err.Error())
+		response.RespondFailure(c, err.Error())
 		return
 	}
-	respondSuccess(c, domain)
+	response.RespondSuccess(c, domain)
 }
 
 // DeleteManagedDomain godoc
@@ -84,15 +86,15 @@ func UpdateManagedDomain(c *gin.Context) {
 // @Failure 400 {object} map[string]interface{}
 // @Router /api/managed-domains/{id}/delete [post]
 func DeleteManagedDomain(c *gin.Context) {
-	id, ok := parseIDParam(c)
+	id, ok := bind.IDParam(c)
 	if !ok {
 		return
 	}
 	if err := service.DeleteManagedDomain(id); err != nil {
-		respondFailure(c, err.Error())
+		response.RespondFailure(c, err.Error())
 		return
 	}
-	respondSuccess(c, nil)
+	response.RespondSuccess(c, nil)
 }
 
 // MatchManagedDomainCertificate godoc
@@ -107,8 +109,8 @@ func MatchManagedDomainCertificate(c *gin.Context) {
 	domain := strings.TrimSpace(c.Query("domain"))
 	result, err := service.MatchManagedDomainCertificate(domain)
 	if err != nil {
-		respondFailure(c, err.Error())
+		response.RespondFailure(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	response.RespondSuccess(c, result)
 }

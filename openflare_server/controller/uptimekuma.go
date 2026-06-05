@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"openflare/common/response"
 	"openflare/service"
 
 	"github.com/gin-gonic/gin"
@@ -17,8 +18,8 @@ import (
 func SyncUptimeKuma(c *gin.Context) {
 	err := service.SyncToUptimeKuma()
 	if err != nil {
-		respondFailure(c, err.Error())
+		response.RespondFailure(c, err.Error())
 		return
 	}
-	respondSuccessMessage(c, "同步成功")
+	response.RespondSuccessMessage(c, "同步成功")
 }
