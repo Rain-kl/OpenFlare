@@ -26,6 +26,11 @@ sidebar: false
 
 ### 变更
 
+- 重构 Go 包依赖结构为统一模块（Monorepo），模块命名为 `github.com/rain-kl/openflare`
+- 移除各子目录下独立的 `go.mod`/`go.sum` 文件，统一由根目录 `go.mod` 进行全局依赖管理与依赖版本锁定
+- 替换全仓库 Go 源文件中的内部引用路径，由本地相对路径迁移为标准 GitHub 绝对导入路径
+- 适配 Docker 镜像构建，所有组件镜像的 Dockerfile 调整为基于根目录的上下文编译
+- 更新 GitHub release 自动化发布流水线，适配全新 monorepo 包结构与符号信息注入路径
 
 ---
 

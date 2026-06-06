@@ -6,13 +6,13 @@ import (
 	"net"
 	"time"
 
-	"openflare-flared/internal/config"
-	"openflare-flared/internal/frpc"
-	"openflare-flared/internal/httpclient"
-	"openflare-flared/internal/updater"
-	"openflare/service"
-	"openflare/utils/geoip"
-	"openflare/utils/geoip/iputil"
+	"github.com/rain-kl/openflare/openflare-server/service"
+	"github.com/rain-kl/openflare/openflare-server/utils/geoip"
+	"github.com/rain-kl/openflare/openflare-server/utils/geoip/iputil"
+	"github.com/rain-kl/openflare/openflared/internal/config"
+	"github.com/rain-kl/openflare/openflared/internal/frpc"
+	"github.com/rain-kl/openflare/openflared/internal/httpclient"
+	"github.com/rain-kl/openflare/openflared/internal/updater"
 )
 
 var (

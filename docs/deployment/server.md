@@ -17,10 +17,10 @@ OpenFlare Server 是 Gin + GORM 单体控制面，负责管理端 UI、管理 AP
 
 ## 构建管理端前端
 
-Go Server 会托管 `openflare_server/web/build` 中的静态产物。源码启动前先构建前端：
+Go Server 会托管 `openflare-server/web/build` 中的静态产物。源码启动前先构建前端：
 
 ```bash
-cd openflare_server/web
+cd openflare-server/web
 corepack enable
 pnpm install
 pnpm build
@@ -37,7 +37,7 @@ pnpm test
 ## 使用 SQLite 启动
 
 ```bash
-cd openflare_server
+cd openflare-server
 export JWT_SECRET='replace-with-a-long-random-string'
 export SQLITE_PATH='./openflare.db'
 export LOG_LEVEL='info'
@@ -53,7 +53,7 @@ http://localhost:3000
 ## 使用 PostgreSQL 启动
 
 ```bash
-cd openflare_server
+cd openflare-server
 export JWT_SECRET='replace-with-a-long-random-string'
 export DSN='postgres://openflare:secret@127.0.0.1:5432/openflare?sslmode=disable'
 export LOG_LEVEL='info'

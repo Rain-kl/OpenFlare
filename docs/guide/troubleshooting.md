@@ -64,7 +64,7 @@ curl -I http://127.0.0.1:3000
 2. 如果是源码运行，确认已经构建前端静态产物：
 
 ```bash
-cd openflare_server/web
+cd openflare-server/web
 pnpm build
 ```
 
@@ -73,7 +73,7 @@ pnpm build
 4. 如果通过前端开发服务器访问，确认后端代理地址：
 
 ```bash
-cd openflare_server/web
+cd openflare-server/web
 NEXT_DEV_BACKEND_URL=http://127.0.0.1:3000 pnpm dev
 ```
 
@@ -220,7 +220,7 @@ curl -Iv https://your-domain
 执行：
 
 ```bash
-cd openflare_server/web
+cd openflare-server/web
 corepack enable
 pnpm install
 pnpm lint

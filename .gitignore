@@ -51,3 +51,5 @@ go.work.sum
 *-source
 *-source.*
 .codex*
+
+/bin/

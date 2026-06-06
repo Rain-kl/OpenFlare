@@ -22,17 +22,17 @@
 按模块或组件列出需要修改的物理文件路径及修改点：
 
 ### 后端 Server
-* #### [NEW] `openflare_server/model/entity.go`
+* #### [NEW] `openflare-server/model/entity.go`
   * 职责：...
-* #### [MODIFY] `openflare_server/service/feature.go`
+* #### [MODIFY] `openflare-server/service/feature.go`
   * 职责：...
 
 ### 边缘 Agent 与 OpenResty
-* #### [MODIFY] `openflare_agent/sync/sync.go`
+* #### [MODIFY] `openflare-agent/sync/sync.go`
   * 职责：...
 
 ### 前端 Web
-* #### [NEW] `openflare_server/web/features/feature-view.tsx`
+* #### [NEW] `openflare-server/web/features/feature-view.tsx`
   * 职责：...
 
 ---

@@ -9,13 +9,13 @@ import (
 	"strings"
 	"syscall"
 
-	"openflare-flared/internal/config"
-	"openflare-flared/internal/flared"
-	"openflare-flared/internal/frpc"
-	"openflare-flared/internal/heartbeat"
-	"openflare-flared/internal/httpclient"
-	"openflare-flared/internal/sync"
-	"openflare-flared/internal/wsclient"
+	"github.com/rain-kl/openflare/openflared/internal/config"
+	"github.com/rain-kl/openflare/openflared/internal/flared"
+	"github.com/rain-kl/openflare/openflared/internal/frpc"
+	"github.com/rain-kl/openflare/openflared/internal/heartbeat"
+	"github.com/rain-kl/openflare/openflared/internal/httpclient"
+	"github.com/rain-kl/openflare/openflared/internal/sync"
+	"github.com/rain-kl/openflare/openflared/internal/wsclient"
 )
 
 func main() {

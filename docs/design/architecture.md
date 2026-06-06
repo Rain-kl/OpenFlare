@@ -77,7 +77,7 @@ OpenResty (Agent, TLS/WAF)
 ## 组件架构与分工
 
 ### 1. Server (控制面)
-`openflare_server` 是 Go 编写的单体控制面：
+`openflare-server` 是 Go 编写的单体控制面：
 * 提供管理端 REST API，通过 `OPENFLARE_TOKEN` 请求头鉴权。
 * 包含配置编译器（Compiler），将数据库中的规则、证书与全局参数统一编译为不可变的配置快照及 OpenResty 物理配置文件文本。
 * 存储 Pages 部署 ZIP 包于本地 Artifacts 目录，并向 Agent 提供受控的下载接口。
@@ -85,7 +85,7 @@ OpenResty (Agent, TLS/WAF)
 * *详细设计请参阅：[Agent 与发布模型设计](./agent-design.md) 以及 [Uptime Kuma 监控同步设计](./kuma-design.md)*
 
 ### 2. Agent (配置落地端)
-`openflare_agent` 是运行在节点本地的守护进程：
+`openflare-agent` 是运行在节点本地的守护进程：
 * 启动后维持与控制面的周期性心跳，并通过可选的 WebSocket 接收实时的配置发布广播。
 * 负责拉取最新激活版本的配置文件及证书，写入本地目录，并通过 `openresty -t` 执行安全校验后平滑重载 (`reload`)。
 * 在本地处理 Pages 部署包的下载、SHA-256 校验与解压缩切换。
@@ -99,7 +99,7 @@ OpenResty (Agent, TLS/WAF)
 
 ### 4. Relay 与 OpenFlared (穿透组件)
 扩展数据面反穿透能力：
-* `openflare_relay` 守护本地 `frps`，接受 Server 的配置派发，自动更新中继端口。
+* `openflare-relay` 守护本地 `frps`，接受 Server 的配置派发，自动更新中继端口。
 * `openflared` 在内网守护一组 `frpc` 客户端进程，实现多中继就近建连与高可用容灾。
 * *详细设计请参阅：[内网穿透隧道设计文档](./tunnel-design.md)*
 

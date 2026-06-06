@@ -5,10 +5,10 @@ import (
 	"log/slog"
 	"time"
 
-	"openflare-flared/internal/config"
-	"openflare-flared/internal/frpc"
-	"openflare-flared/internal/httpclient"
-	"openflare/service"
+	"github.com/rain-kl/openflare/openflare-server/service"
+	"github.com/rain-kl/openflare/openflared/internal/config"
+	"github.com/rain-kl/openflare/openflared/internal/frpc"
+	"github.com/rain-kl/openflare/openflared/internal/httpclient"
 )
 
 type Service struct {

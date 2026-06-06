@@ -46,7 +46,7 @@ The Client (Intranet Client) supports:
 ## Server CLI Arguments
 
 ```bash
-cd openflare_server
+cd openflare-server
 go run . --port 3000 --log-dir ./logs
 ```
 

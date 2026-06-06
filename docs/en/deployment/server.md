@@ -17,10 +17,10 @@ In production environments, we highly recommend explicitly configuring `SESSION_
 
 ## Build the Admin Frontend
 
-The Go Server hosts static assets located in `openflare_server/web/build`. Before starting the Server from source, build the frontend:
+The Go Server hosts static assets located in `openflare-server/web/build`. Before starting the Server from source, build the frontend:
 
 ```bash
-cd openflare_server/web
+cd openflare-server/web
 corepack enable
 pnpm install
 pnpm build
@@ -37,7 +37,7 @@ pnpm test
 ## Start with SQLite
 
 ```bash
-cd openflare_server
+cd openflare-server
 export SESSION_SECRET='replace-with-a-long-random-string'
 export SQLITE_PATH='./openflare.db'
 export LOG_LEVEL='info'
@@ -53,7 +53,7 @@ http://localhost:3000
 ## Start with PostgreSQL
 
 ```bash
-cd openflare_server
+cd openflare-server
 export SESSION_SECRET='replace-with-a-long-random-string'
 export DSN='postgres://openflare:secret@127.0.0.1:5432/openflare?sslmode=disable'
 export LOG_LEVEL='info'

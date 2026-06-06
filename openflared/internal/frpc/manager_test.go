@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"openflare-flared/internal/config"
-	"openflare/service"
+	"github.com/rain-kl/openflare/openflare-server/service"
+	"github.com/rain-kl/openflare/openflared/internal/config"
 )
 
 // Helper to write control file for the dummy script

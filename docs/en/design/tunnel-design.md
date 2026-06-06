@@ -40,7 +40,7 @@ graph TD
     FlaredFrpc -->|Forward Local Request| LocalOrigin[5. Intranet Origin 192.168.x.x]
 
     %% Control Flow & Heartbeats
-    Server[OpenFlare Server Control Plane] <-->|Relay API / Heartbeat| RelayManager[openflare_relay process]
+    Server[OpenFlare Server Control Plane] <-->|Relay API / Heartbeat| RelayManager[openflare-relay process]
     Server <-->|Client API / Heartbeat| ClientManager[openflared process]
 
     RelayManager -.->|Control Process & Config| RelayFrps
@@ -51,14 +51,14 @@ graph TD
     style Server fill:#f96,stroke:#333,stroke-width:2px
 ```
 
-* **Control Plane**: The Server maintains the database state. The `openflare_relay` process on relay nodes and the `openflared` process on intranet servers synchronize tunnel configurations via HTTP heartbeats and long-lived WebSocket connections.
-* **Data Plane**: Public traffic enters the public edge Agent (OpenResty), where the TLS handshake, HTTPS termination, and WAF filtering are executed. It is then forwarded via `proxy_pass` to the co-located `openflare_relay (frps)` on the loopback address. `frps` encapsulates the HTTP requests into the encrypted TCP tunnel and sends them down to the intranet `openflared (frpc)`. Finally, `frpc` unpacks the requests and forwards them to the actual intranet origin service.
+* **Control Plane**: The Server maintains the database state. The `openflare-relay` process on relay nodes and the `openflared` process on intranet servers synchronize tunnel configurations via HTTP heartbeats and long-lived WebSocket connections.
+* **Data Plane**: Public traffic enters the public edge Agent (OpenResty), where the TLS handshake, HTTPS termination, and WAF filtering are executed. It is then forwarded via `proxy_pass` to the co-located `openflare-relay (frps)` on the loopback address. `frps` encapsulates the HTTP requests into the encrypted TCP tunnel and sends them down to the intranet `openflared (frpc)`. Finally, `frpc` unpacks the requests and forwards them to the actual intranet origin service.
 
 ---
 
 ## Relay (Server-side) Design
 
-`openflare_relay` is a relay manager deployed on the public edge, running on nodes of type `tunnel_relay`.
+`openflare-relay` is a relay manager deployed on the public edge, running on nodes of type `tunnel_relay`.
 
 ### 1. Core Architecture & Logic
 * **Process Daemon**: The Relay process embeds the `frps` binary, spawning the `frps -c frps.toml` subprocess via `exec.Command` and using goroutines to asynchronously listen to its exit status. If `frps` exits unexpectedly, it automatically restarts using an exponential backoff policy.
@@ -98,7 +98,7 @@ Admin modifies tunnel/intranet port mappings -> Click Publish -> Generate new Tu
 +-----------------------------------------------------------------------+-----------------------------------------------------------------------+
 |                                                                                                                                               |
 v (Relay Side)                                                                                                                                  v (Client Side)
-openflare_relay heartbeat detects frps port/Token change                                                                                        openflared heartbeat detects tunnel_version change
+openflare-relay heartbeat detects frps port/Token change                                                                                        openflared heartbeat detects tunnel_version change
 Re-render local frps.toml                                                                                                                       Request full proxy configuration details
 Kill and restart the frps process                                                                                                               Re-render frpc_<relay_id>.toml configs
 Report health status as healthy                                                                                                                 Restart or hot-reload changed frpc processes

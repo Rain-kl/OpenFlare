@@ -14,8 +14,8 @@ import (
 	"sync"
 	"time"
 
-	"openflare-flared/internal/config"
-	"openflare/service"
+	"github.com/rain-kl/openflare/openflare-server/service"
+	"github.com/rain-kl/openflare/openflared/internal/config"
 )
 
 type Manager struct {

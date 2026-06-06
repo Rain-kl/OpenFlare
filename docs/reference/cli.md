@@ -7,7 +7,7 @@
 源码启动：
 
 ```bash
-cd openflare_server
+cd openflare-server
 export JWT_SECRET='replace-with-random-string'
 export SQLITE_PATH='./openflare.db'
 export LOG_LEVEL='info'
@@ -23,7 +23,7 @@ go run . --port 3000 --log-dir ./logs
 测试：
 
 ```bash
-cd openflare_server
+cd openflare-server
 GOCACHE=/tmp/openflare-go-cache go test ./...
 ```
 
@@ -32,7 +32,7 @@ GOCACHE=/tmp/openflare-go-cache go test ./...
 开发：
 
 ```bash
-cd openflare_server/web
+cd openflare-server/web
 pnpm install
 pnpm dev
 ```
@@ -40,14 +40,14 @@ pnpm dev
 构建静态产物：
 
 ```bash
-cd openflare_server/web
+cd openflare-server/web
 pnpm build
 ```
 
 检查：
 
 ```bash
-cd openflare_server/web
+cd openflare-server/web
 pnpm lint
 pnpm typecheck
 pnpm test
@@ -58,21 +58,21 @@ pnpm test
 源码运行：
 
 ```bash
-cd openflare_agent
+cd openflare-agent
 go run ./cmd/agent -config /path/to/agent.json
 ```
 
 编译：
 
 ```bash
-cd openflare_agent
+cd openflare-agent
 go build -o openflare-agent ./cmd/agent
 ```
 
 测试：
 
 ```bash
-cd openflare_agent
+cd openflare-agent
 GOCACHE=/tmp/openflare-go-cache go test ./...
 ```
 
@@ -81,14 +81,14 @@ GOCACHE=/tmp/openflare-go-cache go test ./...
 源码运行：
 
 ```bash
-cd openflare_relay
+cd openflare-relay
 go run ./cmd -config /path/to/relay.json
 ```
 
 编译：
 
 ```bash
-cd openflare_relay
+cd openflare-relay
 go build -o openflare-relay ./cmd
 ```
 
@@ -129,7 +129,7 @@ curl -fsSL https://raw.githubusercontent.com/Rain-kl/OpenFlare/main/scripts/unin
 
 ```bash
 go install github.com/swaggo/swag/cmd/swag@v1.16.4
-cd openflare_server
+cd openflare-server
 swag init -g main.go -o docs
 ```
 

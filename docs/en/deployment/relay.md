@@ -1,6 +1,6 @@
 # Deploy Relay (Tunnel Relay)
 
-You will learn: The responsibilities of a TunnelRelay node, `openflare_relay` configuration parameters and environment variables, how to run the Relay via Docker, and how to build and deploy the Relay from source manually.
+You will learn: The responsibilities of a TunnelRelay node, `openflare-relay` configuration parameters and environment variables, how to run the Relay via Docker, and how to build and deploy the Relay from source manually.
 
 In the OpenFlare intranet penetration architecture, the **TunnelRelay node** plays a key role. Unlike standard Edge Nodes, in addition to running the traditional Agent (managing OpenResty for HTTPS/WAF processing), it co-locates the **Relay (frps tunnel manager)** service, responsible for listening to intranet client (OpenFlared) tunnel connections and relaying traffic.
 
@@ -21,7 +21,7 @@ Before deploying a TunnelRelay node, ensure:
 
 ## Configuration & Environment Variables
 
-`openflare_relay` reads `relay.json` in the working directory by default on startup. Overriding options via environment variables is fully supported.
+`openflare-relay` reads `relay.json` in the working directory by default on startup. Overriding options via environment variables is fully supported.
 
 ### Configuration Fields Details
 
@@ -68,7 +68,7 @@ If you prefer to run the Relay directly on a physical host or VM:
 ### 1. Compile the Binary
 
 ```bash
-cd openflare_relay
+cd openflare-relay
 go build -o openflare-relay ./cmd/relay
 ```
 

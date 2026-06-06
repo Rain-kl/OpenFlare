@@ -39,7 +39,7 @@ graph TD
     OpenResty -->|2. 转发 API 代理| BackEnd[4. 后端 API 服务]
 
     %% 控制流与心跳
-    Server[OpenFlare Server 控制面] <-->|Agent API / Heartbeat| Agent[openflare_agent 进程]
+    Server[OpenFlare Server 控制面] <-->|Agent API / Heartbeat| Agent[openflare-agent 进程]
     Server -.->|5. 存储 ZIP 部署包| LocalStore[(Server 本地存储)]
     
     Agent -->|1. 发现新版本| Server

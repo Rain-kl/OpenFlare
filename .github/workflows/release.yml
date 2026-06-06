@@ -79,7 +79,7 @@ jobs:
           CI: ""
           VERSION: ${{ needs.prepare.outputs.version }}
         run: |
-          cd openflare_server/web
+          cd openflare-server/web
           corepack enable
           pnpm install --frozen-lockfile
           NEXT_PUBLIC_APP_VERSION="$VERSION" pnpm build
@@ -88,7 +88,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: frontend-build
-          path: openflare_server/web/build
+          path: openflare-server/web/build
           retention-days: 1
 
   build-binaries:
@@ -127,15 +127,15 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: frontend-build
-          path: openflare_server/web/build
+          path: openflare-server/web/build
 
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version-file: openflare_server/go.mod
+          go-version-file: go.mod
 
       - name: Build Server
-        working-directory: openflare_server
+        working-directory: openflare-server
         env:
           CGO_ENABLED: 0
           GOOS: ${{ matrix.goos }}
@@ -145,7 +145,7 @@ jobs:
         run: |
           go mod download
           mkdir -p ../dist
-          go build -trimpath -ldflags "-s -w -X 'openflare/common.Version=$VERSION'" -o "../dist/$ASSET_NAME" .
+          go build -trimpath -ldflags "-s -w -X 'github.com/rain-kl/openflare/openflare-server/common.Version=$VERSION'" -o "../dist/$ASSET_NAME" .
 
       - name: Upload Binary Artifact
         uses: actions/upload-artifact@v4
@@ -184,10 +184,10 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version-file: openflare_agent/go.mod
+          go-version-file: go.mod
 
       - name: Build Agent
-        working-directory: openflare_agent
+        working-directory: openflare-agent
         env:
           CGO_ENABLED: 0
           GOOS: ${{ matrix.goos }}
@@ -197,7 +197,7 @@ jobs:
         run: |
           go mod download
           mkdir -p ../dist
-          go build -trimpath -ldflags "-s -w -X 'openflare-agent/internal/config.Version=$VERSION'" -o "../dist/$ASSET_NAME" ./cmd/agent
+          go build -trimpath -ldflags "-s -w -X 'github.com/rain-kl/openflare/openflare-agent/internal/config.Version=$VERSION'" -o "../dist/$ASSET_NAME" ./cmd/agent
           (cd ../dist && sha256sum "$ASSET_NAME" > "$ASSET_NAME.sha256")
 
       - name: Upload Agent Artifact
@@ -239,10 +239,10 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version-file: openflare_relay/go.mod
+          go-version-file: go.mod
 
       - name: Build Relay
-        working-directory: openflare_relay
+        working-directory: openflare-relay
         env:
           CGO_ENABLED: 0
           GOOS: ${{ matrix.goos }}
@@ -252,7 +252,7 @@ jobs:
         run: |
           go mod download
           mkdir -p ../dist
-          go build -trimpath -ldflags "-s -w -X 'openflare-relay/internal/config.Version=$VERSION'" -o "../dist/$ASSET_NAME" ./cmd/relay
+          go build -trimpath -ldflags "-s -w -X 'github.com/rain-kl/openflare/openflare-relay/internal/config.Version=$VERSION'" -o "../dist/$ASSET_NAME" ./cmd/relay
           (cd ../dist && sha256sum "$ASSET_NAME" > "$ASSET_NAME.sha256")
 
       - name: Upload Relay Artifact
@@ -294,7 +294,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version-file: openflared/go.mod
+          go-version-file: go.mod
 
       - name: Build Flared
         working-directory: openflared
@@ -307,7 +307,7 @@ jobs:
         run: |
           go mod download
           mkdir -p ../dist
-          go build -trimpath -ldflags "-s -w -X 'openflare-flared/internal/config.Version=$VERSION'" -o "../dist/$ASSET_NAME" ./cmd/flared
+          go build -trimpath -ldflags "-s -w -X 'github.com/rain-kl/openflare/openflared/internal/config.Version=$VERSION'" -o "../dist/$ASSET_NAME" ./cmd/flared
           (cd ../dist && sha256sum "$ASSET_NAME" > "$ASSET_NAME.sha256")
 
       - name: Upload Flared Artifact

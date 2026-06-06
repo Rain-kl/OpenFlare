@@ -5,12 +5,12 @@ import (
 	"log/slog"
 	"time"
 
-	"openflare-flared/internal/config"
-	"openflare-flared/internal/frpc"
-	"openflare-flared/internal/heartbeat"
-	"openflare-flared/internal/httpclient"
-	"openflare-flared/internal/sync"
-	"openflare-flared/internal/wsclient"
+	"github.com/rain-kl/openflare/openflared/internal/config"
+	"github.com/rain-kl/openflare/openflared/internal/frpc"
+	"github.com/rain-kl/openflare/openflared/internal/heartbeat"
+	"github.com/rain-kl/openflare/openflared/internal/httpclient"
+	"github.com/rain-kl/openflare/openflared/internal/sync"
+	"github.com/rain-kl/openflare/openflared/internal/wsclient"
 )
 
 type Runner struct {

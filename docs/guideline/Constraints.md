@@ -76,20 +76,20 @@ Frontend：
 
 任何涉及表结构、索引、列类型、分表规则或内部持久化元数据的修改，都必须同步提升数据库版本号。
 
-数据库版本号定义在 `openflare_server/model`，不得只依赖 `AutoMigrate` 隐式升级存量数据库。
+数据库版本号定义在 `openflare-server/model`，不得只依赖 `AutoMigrate` 隐式升级存量数据库。
 
 每次提升数据库版本号时，必须补充从上一版本升级到新版本的显式迁移方法。迁移方法必须包含升级后的校验逻辑；只有校验通过，才能写入新的数据库版本记录。
 
-数据库升级统一使用 goose。新的 goose provider、桥接逻辑、注册入口和具体迁移文件必须全部放在 `openflare_server/model/goose` 包下，`openflare_server/model` 根包只保留纯净实体类、旧框架兼容适配和必要的上下文注入。每次新增数据库升级都必须新建一个单独的 Go 文件，文件名使用 `openflare_server/model/goose/goose_<timestamp>_<description>.go`，例如 `openflare_server/model/goose/goose_202606020001_add_node_capabilities_json.go`。迁移文件必须同时包含该版本的 goose migration 构造函数、升级逻辑和校验逻辑；`model/goose/migrations.go` 只能作为注册入口和公共构造工具，禁止把具体迁移逻辑集中堆放在该文件中。
+数据库升级统一使用 goose。新的 goose provider、桥接逻辑、注册入口和具体迁移文件必须全部放在 `openflare-server/model/goose` 包下，`openflare-server/model` 根包只保留纯净实体类、旧框架兼容适配和必要的上下文注入。每次新增数据库升级都必须新建一个单独的 Go 文件，文件名使用 `openflare-server/model/goose/goose_<timestamp>_<description>.go`，例如 `openflare-server/model/goose/goose_202606020001_add_node_capabilities_json.go`。迁移文件必须同时包含该版本的 goose migration 构造函数、升级逻辑和校验逻辑；`model/goose/migrations.go` 只能作为注册入口和公共构造工具，禁止把具体迁移逻辑集中堆放在该文件中。
 
 执行数据库升级时必须按以下步骤完成：
 
 1. 判断是否需要升级数据库版本：凡是新增/删除/重命名表、字段、索引、约束、列类型、分表规则，或改变持久化数据语义，都必须升级。
-2. 新增 `openflare_server/model/goose/goose_<timestamp>_<description>.go`，其中 `<timestamp>` 为 goose 版本号。文件头部或迁移构造函数附近必须包含注释，说明本次升级了什么内容，以及为什么需要升级。
-3. 在该文件中实现独立迁移构造函数，并返回通过 `newGORMMigration(...)` 创建的 migration；随后只在 `openflare_server/model/goose/migrations.go` 的 `registeredMigrations(...)` 中新增一条注册项。
+2. 新增 `openflare-server/model/goose/goose_<timestamp>_<description>.go`，其中 `<timestamp>` 为 goose 版本号。文件头部或迁移构造函数附近必须包含注释，说明本次升级了什么内容，以及为什么需要升级。
+3. 在该文件中实现独立迁移构造函数，并返回通过 `newGORMMigration(...)` 创建的 migration；随后只在 `openflare-server/model/goose/migrations.go` 的 `registeredMigrations(...)` 中新增一条注册项。
 4. 在同一个单独迁移文件中写入升级逻辑。可通过 goose `Context` 调用 `ApplyCurrentSchema`、历史 backfill、默认数据初始化等公共能力；复杂数据修复必须显式处理，不得只依赖 `AutoMigrate`。
 5. 在同一个单独迁移文件中写入升级后的校验逻辑。校验至少要覆盖新增表/字段/索引是否存在、关键默认数据是否存在、必要的数据回填是否成功。
-6. 如果新迁移需要新的公共 backfill 或校验辅助函数，优先放在该迁移文件中；只有多个迁移共同复用时，才放到 `openflare_server/model/goose` 包内的公共文件中。不要把新 goose 框架代码放回 `openflare_server/model` 根包。
+6. 如果新迁移需要新的公共 backfill 或校验辅助函数，优先放在该迁移文件中；只有多个迁移共同复用时，才放到 `openflare-server/model/goose` 包内的公共文件中。不要把新 goose 框架代码放回 `openflare-server/model` 根包。
 7. 补充迁移测试：至少覆盖从旧框架终点或上一 goose 版本升级后 schema version、字段/表结构、关键数据回填和校验结果。还应保留旧库从 v15/v17 桥接到 goose 的回归覆盖。
 
 新包启动后必须先检查数据库当前版本，再按顺序逐步升级到目标版本；禁止跳过中间升级步骤直接写目标版本。

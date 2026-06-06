@@ -127,7 +127,7 @@ Manual execution:
 Running from source:
 
 ```bash
-cd openflare_agent
+cd openflare-agent
 export LOG_LEVEL='info'
 go run ./cmd/agent -config /path/to/agent.json
 ```
@@ -135,7 +135,7 @@ go run ./cmd/agent -config /path/to/agent.json
 Running compiled binary:
 
 ```bash
-cd openflare_agent
+cd openflare-agent
 go build -o openflare-agent ./cmd/agent
 export LOG_LEVEL='info'
 ./openflare-agent -config /path/to/agent.json

@@ -4,10 +4,10 @@ You will learn: The responsibilities of Server, Agent, Frontend, scripts, and do
 
 | Path | Responsibility |
 | --- | --- |
-| `openflare_server` | Gin + GORM + SQLite/PostgreSQL single monolithic control plane |
-| `openflare_server/web` | Next.js 15 App Router Admin Frontend, hosted by Go Server |
-| `openflare_agent` | Go monolithic Agent running on the node side |
-| `openflare_relay` | Tunnel relay daemon running on public edges, managing frps processes |
+| `openflare-server` | Gin + GORM + SQLite/PostgreSQL single monolithic control plane |
+| `openflare-server/web` | Next.js 15 App Router Admin Frontend, hosted by Go Server |
+| `openflare-agent` | Go monolithic Agent running on the node side |
+| `openflare-relay` | Tunnel relay daemon running on public edges, managing frps processes |
 | `openflared` | Tunnel client running on intranet servers, managing frpc processes |
 | `scripts` | System helper scripts for installation, self-updating, etc. |
 | `docs` | VitePress documentation website, design baselines, specifications, and configurations |

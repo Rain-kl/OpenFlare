@@ -9,13 +9,14 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
-	"openflare/utils"
 	"os"
 	"runtime"
 	"strings"
 	"time"
 
-	"openflare-flared/internal/config"
+	"github.com/rain-kl/openflare/openflare-server/utils"
+
+	"github.com/rain-kl/openflare/openflared/internal/config"
 )
 
 const maxChecksumAssetSize = 64 * 1024

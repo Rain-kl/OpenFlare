@@ -40,7 +40,7 @@ graph TD
     FlaredFrpc -->|转发本地请求| LocalOrigin[5. 内网源站 192.168.x.x]
 
     %% 控制流与心跳
-    Server[OpenFlare Server 控制面] <-->|Relay API / Heartbeat| RelayManager[openflare_relay 进程]
+    Server[OpenFlare Server 控制面] <-->|Relay API / Heartbeat| RelayManager[openflare-relay 进程]
     Server <-->|Client API / Heartbeat| ClientManager[openflared 进程]
 
     RelayManager -.->|管控进程及配置| RelayFrps
@@ -51,14 +51,14 @@ graph TD
     style Server fill:#f96,stroke:#333,stroke-width:2px
 ```
 
-* **控制面（Control Plane）**：Server 维护数据库状态；中继节点上的 `openflare_relay` 进程与内网服务器上的 `openflared` 进程通过 HTTP 心跳与 WebSocket 长通道同步隧道配置。
-* **数据面（Data Plane）**：公网流量首先进入公网边缘的 Agent (OpenResty)，在此完成 HTTPS 握手、TLS 终止和 WAF 过滤，接着通过 `proxy_pass` 转发到同机部署的 `openflare_relay (frps)`。`frps` 再将请求封包通过与内网 `openflared (frpc)` 建立的持久隧道传输过去，最后由 `frpc` 拆包并分发给内网实际的源站服务。
+* **控制面（Control Plane）**：Server 维护数据库状态；中继节点上的 `openflare-relay` 进程与内网服务器上的 `openflared` 进程通过 HTTP 心跳与 WebSocket 长通道同步隧道配置。
+* **数据面（Data Plane）**：公网流量首先进入公网边缘的 Agent (OpenResty)，在此完成 HTTPS 握手、TLS 终止和 WAF 过滤，接着通过 `proxy_pass` 转发到同机部署的 `openflare-relay (frps)`。`frps` 再将请求封包通过与内网 `openflared (frpc)` 建立的持久隧道传输过去，最后由 `frpc` 拆包并分发给内网实际的源站服务。
 
 ---
 
 ## Relay (中继端) 设计
 
-`openflare_relay` 是部署在公网边缘的中继管理器，运行在 `tunnel_relay` 类型的节点上。
+`openflare-relay` 是部署在公网边缘的中继管理器，运行在 `tunnel_relay` 类型的节点上。
 
 ### 1. 核心架构与逻辑
 * **进程守护**：Relay 进程内部持有 `frps` 二进制，通过 `exec.Command` 拉起 `frps -c frps.toml` 子进程，并启动 goroutine 异步监听其退出状态。如果发现 `frps` 异常退出，会结合退避机制自动拉起。
@@ -98,7 +98,7 @@ graph TD
 +-------------------------------------------+-------------------------------------------+
 |                                                                                       |
 v (中继端)                                                                               v (内网客户端)
-openflare_relay 心跳检测到 frps 端口/Token 变化                                          openflared 心跳检测到 tunnel_version 发生变更
+openflare-relay 心跳检测到 frps 端口/Token 变化                                          openflared 心跳检测到 tunnel_version 发生变更
 重新渲染本地 frps.toml                                                                   请求拉取最新代理映射包
 Kill 并重新拉起 frps 进程                                                               重新渲染 frpc_<relay_id>.toml
 上报健康状态为 healthy                                                                   对有变更的 Relay 进程执行重启与配置热重载

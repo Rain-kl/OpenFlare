@@ -7,7 +7,7 @@ You will learn: Common commands for starting, building, testing, installing, and
 Start from source:
 
 ```bash
-cd openflare_server
+cd openflare-server
 export SESSION_SECRET='replace-with-random-string'
 export SQLITE_PATH='./openflare.db'
 export LOG_LEVEL='info'
@@ -23,7 +23,7 @@ go run . --port 3000 --log-dir ./logs
 Run tests:
 
 ```bash
-cd openflare_server
+cd openflare-server
 GOCACHE=/tmp/openflare-go-cache go test ./...
 ```
 
@@ -32,7 +32,7 @@ GOCACHE=/tmp/openflare-go-cache go test ./...
 Development:
 
 ```bash
-cd openflare_server/web
+cd openflare-server/web
 pnpm install
 pnpm dev
 ```
@@ -40,14 +40,14 @@ pnpm dev
 Build static assets:
 
 ```bash
-cd openflare_server/web
+cd openflare-server/web
 pnpm build
 ```
 
 Linting and testing checks:
 
 ```bash
-cd openflare_server/web
+cd openflare-server/web
 pnpm lint
 pnpm typecheck
 pnpm test
@@ -58,21 +58,21 @@ pnpm test
 Run from source:
 
 ```bash
-cd openflare_agent
+cd openflare-agent
 go run ./cmd/agent -config /path/to/agent.json
 ```
 
 Compile:
 
 ```bash
-cd openflare_agent
+cd openflare-agent
 go build -o openflare-agent ./cmd/agent
 ```
 
 Run tests:
 
 ```bash
-cd openflare_agent
+cd openflare-agent
 GOCACHE=/tmp/openflare-go-cache go test ./...
 ```
 
@@ -81,14 +81,14 @@ GOCACHE=/tmp/openflare-go-cache go test ./...
 Run from source:
 
 ```bash
-cd openflare_relay
+cd openflare-relay
 go run ./cmd -config /path/to/relay.json
 ```
 
 Compile:
 
 ```bash
-cd openflare_relay
+cd openflare-relay
 go build -o openflare-relay ./cmd
 ```
 
@@ -128,7 +128,7 @@ Regenerate Swagger documentation:
 
 ```bash
 go install github.com/swaggo/swag/cmd/swag@v1.16.4
-cd openflare_server
+cd openflare-server
 swag init -g main.go -o docs
 ```
 

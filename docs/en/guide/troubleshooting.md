@@ -64,7 +64,7 @@ curl -I http://127.0.0.1:3000
 2. If running from source, verify that the frontend static assets have been built:
 
 ```bash
-cd openflare_server/web
+cd openflare-server/web
 pnpm build
 ```
 
@@ -73,7 +73,7 @@ pnpm build
 4. If accessing via the frontend dev server, verify the backend proxy configuration:
 
 ```bash
-cd openflare_server/web
+cd openflare-server/web
 NEXT_DEV_BACKEND_URL=http://127.0.0.1:3000 pnpm dev
 ```
 
@@ -220,7 +220,7 @@ Domains without a bound certificate will not be added to the HTTPS configuration
 Execute:
 
 ```bash
-cd openflare_server/web
+cd openflare-server/web
 corepack enable
 pnpm install
 pnpm lint

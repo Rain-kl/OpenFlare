@@ -22,7 +22,7 @@ For details on the physical directory structure and responsibilities of each mod
 ## Initializing Frontend Dependencies
 
 ```bash
-cd openflare_server/web
+cd openflare-server/web
 corepack enable
 pnpm install
 ```
@@ -38,7 +38,7 @@ pnpm build
 SQLite Mode:
 
 ```bash
-cd openflare_server
+cd openflare-server
 export SESSION_SECRET='dev-session-secret'
 export SQLITE_PATH='./openflare-dev.db'
 export LOG_LEVEL='debug'
@@ -48,7 +48,7 @@ go run .
 PostgreSQL Mode:
 
 ```bash
-cd openflare_server
+cd openflare-server
 export SESSION_SECRET='dev-session-secret'
 export DSN='postgres://openflare:secret@127.0.0.1:5432/openflare?sslmode=disable'
 export LOG_LEVEL='debug'
@@ -68,7 +68,7 @@ The default credentials are `root` / `123456`.
 The frontend dev server listens to port `3001` by default and proxies requests to the backend via `NEXT_DEV_BACKEND_URL`:
 
 ```bash
-cd openflare_server/web
+cd openflare-server/web
 export NEXT_DEV_BACKEND_URL='http://127.0.0.1:3000'
 pnpm dev
 ```
@@ -96,7 +96,7 @@ Create a local `agent.json`:
 Run:
 
 ```bash
-cd openflare_agent
+cd openflare-agent
 export LOG_LEVEL='debug'
 go run ./cmd/agent -config ./agent.json
 ```
@@ -108,21 +108,21 @@ If `openresty_path` is not configured, the Agent calls `openresty` by default. F
 Server:
 
 ```bash
-cd openflare_server
+cd openflare-server
 GOCACHE=/tmp/openflare-go-cache go test ./...
 ```
 
 Agent:
 
 ```bash
-cd openflare_agent
+cd openflare-agent
 GOCACHE=/tmp/openflare-go-cache go test ./...
 ```
 
 Frontend:
 
 ```bash
-cd openflare_server/web
+cd openflare-server/web
 pnpm lint
 pnpm typecheck
 pnpm test
@@ -141,21 +141,21 @@ pnpm build
 Admin static assets:
 
 ```bash
-cd openflare_server/web
+cd openflare-server/web
 pnpm build
 ```
 
 Server binary:
 
 ```bash
-cd openflare_server
+cd openflare-server
 go build -o openflare-server .
 ```
 
 Agent binary:
 
 ```bash
-cd openflare_agent
+cd openflare-agent
 go build -o openflare-agent ./cmd/agent
 ```
 

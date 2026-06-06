@@ -28,5 +28,5 @@
 ## 4. 下一步行动指南 (Next Steps)
 新接手 AI 进来后应当立即执行的前 3 步命令或编辑操作：
 1. **第一步**：执行 `go test ./controller/...` 确认环境并复现 Fail 异常。
-2. **第二步**：修改 `openflare_server/controller/xxx.go` 中的逻辑以修复该 Fail。
+2. **第二步**：修改 `openflare-server/controller/xxx.go` 中的逻辑以修复该 Fail。
 3. **第三步**：在管理端前端页面调试 xxx 表单的提交是否正常。

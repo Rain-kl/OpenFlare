@@ -134,7 +134,7 @@ Access `http://localhost:3000` for the first time, using the default credentials
 First, build the admin frontend:
 
 ```bash
-cd openflare_server/web
+cd openflare-server/web
 corepack enable
 pnpm install
 pnpm build
@@ -143,7 +143,7 @@ pnpm build
 Then, launch the Server:
 
 ```bash
-cd openflare_server
+cd openflare-server
 export SESSION_SECRET='replace-with-a-long-random-string'
 export SQLITE_PATH='./openflare.db'
 export LOG_LEVEL='info'
@@ -230,7 +230,7 @@ journalctl -u openflare-agent -f
 Running from source:
 
 ```bash
-cd openflare_agent
+cd openflare-agent
 export LOG_LEVEL='info'
 go run ./cmd/agent -config /path/to/agent.json
 ```
@@ -238,7 +238,7 @@ go run ./cmd/agent -config /path/to/agent.json
 Running compiled binary:
 
 ```bash
-cd openflare_agent
+cd openflare-agent
 go build -o openflare-agent ./cmd/agent
 export LOG_LEVEL='info'
 ./openflare-agent -config /path/to/agent.json

@@ -1,6 +1,6 @@
 # 部署 Relay (Tunnel 中继)
 
-你会学到：TunnelRelay 节点的职责、`openflare_relay` 的配置项与环境变量、使用 Docker 运行 Relay 的方法，以及如何通过源码手动构建并部署 Relay。
+你会学到：TunnelRelay 节点的职责、`openflare-relay` 的配置项与环境变量、使用 Docker 运行 Relay 的方法，以及如何通过源码手动构建并部署 Relay。
 
 在 OpenFlare 的内网穿透体系中，**TunnelRelay 节点** 扮演着关键的角色。它与普通的边缘节点（Edge Node）不同，除了运行传统的 Agent（托管 OpenResty 进行 HTTPS/WAF 处理）外，还同机运行了 **Relay (frps 隧道管理器)** 服务，负责监听内网客户端（OpenFlared）的隧道连接并进行流量中继。
 
@@ -21,7 +21,7 @@
 
 ## 配置文件与环境变量
 
-`openflare_relay` 启动时默认会读取当前目录下的 `relay.json`。同时也完全支持通过环境变量进行覆盖。
+`openflare-relay` 启动时默认会读取当前目录下的 `relay.json`。同时也完全支持通过环境变量进行覆盖。
 
 ### 配置字段详情
 
@@ -68,7 +68,7 @@ docker run -d --name openflare-relay --restart unless-stopped \
 ### 1. 编译二进制
 
 ```bash
-cd openflare_relay
+cd openflare-relay
 go build -o openflare-relay ./cmd/relay
 ```
 

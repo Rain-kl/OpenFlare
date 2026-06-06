@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"openflare/service"
+	"github.com/rain-kl/openflare/openflare-server/service"
 )
 
 type APIResponse[T any] struct {

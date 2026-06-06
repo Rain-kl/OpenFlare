@@ -61,19 +61,19 @@ Internal Service (192.168.x.x)
 
 ## Server
 
-`openflare_server` is the single-control-plane monolith:
+`openflare-server` is the single-control-plane monolith:
 
 * Gin provides the HTTP services.
 * GORM accesses SQLite or PostgreSQL.
 * The existing login system provides Admin Session management.
 * Authentication sources support GitHub OAuth and standard OIDC logins with external account binding.
-* The Go Server hosts the `openflare_server/web` static build assets.
+* The Go Server hosts the `openflare-server/web` static build assets.
 
 The Server does not directly SSH to nodes, nor does it modify node files online. It only stores control plane state, generates complete configuration versions, and lets nodes actively pull them via the Agent API.
 
 ## Agent
 
-`openflare_agent` is a Go monolithic application:
+`openflare-agent` is a Go monolithic application:
 
 * Runs as a single binary on the node side.
 * Reads or generates local node information on startup.
@@ -88,7 +88,7 @@ The node IP is maintained by default through Agent registration and heartbeat re
 
 ## Frontend
 
-`openflare_server/web` is the official Next.js-based frontend:
+`openflare-server/web` is the official Next.js-based frontend:
 
 * Next.js 15 App Router.
 * React 19.

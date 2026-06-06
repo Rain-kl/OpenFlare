@@ -7,16 +7,15 @@ ARG VERSION
 
 WORKDIR /build
 
-COPY openflared/go.mod openflared/go.sum ./
-COPY openflare_server/go.mod openflare_server/go.sum ../openflare_server/
+COPY go.mod go.sum ./
 RUN --mount=type=cache,target=/go/pkg/mod \
     go mod download
 
-COPY openflare_server/ ../openflare_server/
-COPY openflared/ .
+COPY openflare-server/ ./openflare-server/
+COPY openflared/ ./openflared/
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
-    CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags "-s -w -X 'openflare-flared/internal/config.Version=$VERSION'" -o flared ./cmd/flared
+    CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags "-s -w -X 'github.com/rain-kl/openflare/openflared/internal/config.Version=$VERSION'" -o flared ./openflared/cmd/flared
 
 # Final runtime image
 FROM fatedier/frpc:v0.69.0

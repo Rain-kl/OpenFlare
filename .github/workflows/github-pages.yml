@@ -17,7 +17,7 @@ jobs:
         env:
           CI: ""
         run: |
-          cd openflare_server/web
+          cd openflare-server/web
           corepack enable
           pnpm install --frozen-lockfile
           pnpm build
@@ -27,4 +27,4 @@ jobs:
         with:
           ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
           BRANCH: gh-pages # The branch the action should deploy to.
-          FOLDER: openflare_server/web/build # The folder the action should deploy.
+          FOLDER: openflare-server/web/build # The folder the action should deploy.
