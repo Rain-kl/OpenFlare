@@ -32,9 +32,11 @@ sidebar: false
 - 重构 `install-agent.sh` 安装脚本与 `uninstall-agent.sh` 卸载脚本以兼容交互式导引、非交互式命令行参数及 Docker 部署/卸载参数（`--docker`/`--method docker`）
 - 重构 Go 包依赖结构为统一模块（Monorepo），模块命名为 `github.com/rain-kl/openflare`
 - 移除各子目录下独立的 `go.mod`/`go.sum` 文件，统一由根目录 `go.mod` 进行全局依赖管理与依赖版本锁定
-- 替换全仓库 Go 源文件中的内部引用路径，由本地相对路径迁移为标准 GitHub 绝对导入路径
+- 替换全仓库 Go源文件中的内部引用路径，由本地相对路径迁移为标准 GitHub 绝对导入路径
 - 适配 Docker 镜像构建，所有组件镜像的 Dockerfile 调整为基于根目录的上下文编译
 - 更新 GitHub release 自动化发布流水线，适配全新 monorepo 包结构与符号信息注入路径
+- 简化并重构数据库历史迁移校验逻辑，将版本 2 至 6 的中间校验函数合并到基线校验函数 `validateDatabaseSchemaV7` 中，消除冗余代码
+- 重构数据库历史迁移校验架构，引入基于 GORM 反射解析（`schema.Parse`）的通用自动表结构校验，彻底废弃老版本中大量手动编写的 `HasTable`/`HasColumn` 结构字段存在性检测代码
 
 ---
 

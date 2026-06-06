@@ -10,10 +10,12 @@ import (
 	"net"
 	"net/url"
 	"strings"
+	"sync"
 
 	schemamigrate "github.com/rain-kl/openflare/openflare-server/model/migrate"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/schema"
 )
 
 type databaseSchemaMigration struct {
@@ -65,30 +67,64 @@ func (databaseSchemaMigrationContext) DropLegacyNodeColumns(db *gorm.DB, backend
 	return dropLegacyNodeColumns(db, backend)
 }
 
+func validateAllModelsSchema(db *gorm.DB) error {
+	models := registeredModels()
+	namer := schema.NamingStrategy{}
+	cache := &sync.Map{}
+	migrator := db.Migrator()
+
+	for _, model := range models {
+		parsed, err := schema.Parse(model, cache, namer)
+		if err != nil {
+			return fmt.Errorf("parse model schema failed: %w", err)
+		}
+
+		if isShardedObservabilityTable(parsed.Table) {
+			for _, table := range observabilityShardTables(parsed.Table) {
+				if !migrator.HasTable(table) {
+					return fmt.Errorf("sharded table %s is missing", table)
+				}
+				for _, field := range parsed.Fields {
+					if field.DBName != "" && !field.IgnoreMigration {
+						if !migrator.HasColumn(table, field.DBName) {
+							return fmt.Errorf("sharded column %s.%s is missing", table, field.DBName)
+						}
+					}
+				}
+			}
+			continue
+		}
+
+		if !migrator.HasTable(model) {
+			return fmt.Errorf("table %s is missing", parsed.Table)
+		}
+
+		for _, field := range parsed.Fields {
+			if field.DBName != "" && !field.IgnoreMigration {
+				if !migrator.HasColumn(model, field.DBName) {
+					return fmt.Errorf("column %s.%s is missing", parsed.Table, field.DBName)
+				}
+			}
+		}
+	}
+	return nil
+}
+
 func (databaseSchemaMigrationContext) ValidateDatabaseSchemaVersion(db *gorm.DB, backend string, version int) error {
+	if db == nil {
+		return fmt.Errorf("database handle is nil")
+	}
 	switch version {
 	case 7:
 		return validateDatabaseSchemaV7(db, backend)
 	case 8:
 		return validateDatabaseSchemaV8(db, backend)
-	case 9:
-		return validateDatabaseSchemaV9(db, backend)
-	case 10:
-		return validateDatabaseSchemaV10(db, backend)
-	case 11:
-		return validateDatabaseSchemaV11(db, backend)
-	case 12:
-		return validateDatabaseSchemaV12(db, backend)
+	case 9, 10, 11, 12, 14, 15, 17:
+		return nil
 	case 13:
 		return validateDatabaseSchemaV13(db, backend)
-	case 14:
-		return validateDatabaseSchemaV14(db, backend)
-	case 15:
-		return validateDatabaseSchemaV15(db, backend)
 	case 16:
 		return validateDatabaseSchemaV16(db, backend)
-	case 17:
-		return validateDatabaseSchemaV17(db, backend)
 	default:
 		return fmt.Errorf("database schema validation for v%d is not defined", version)
 	}
@@ -319,65 +355,6 @@ func loadDatabaseSchemaVersion(db *gorm.DB) (int, bool, error) {
 
 func saveDatabaseSchemaVersion(db *gorm.DB, version int) error {
 	return saveLegacyDatabaseSchemaVersion(db, version)
-}
-
-func validateDatabaseSchemaV2(db *gorm.DB, backend string) error {
-	if db == nil {
-		return fmt.Errorf("database handle is nil")
-	}
-	if !db.Migrator().HasTable(&DatabaseSchemaVersion{}) && !db.Migrator().HasTable("goose_db_version") {
-		return fmt.Errorf("neither %s nor goose_db_version exists", (&DatabaseSchemaVersion{}).TableName())
-	}
-	models, err := buildDBModels()
-	if err != nil {
-		return err
-	}
-	for _, item := range models {
-		if isShardedObservabilityTable(item.tableName) {
-			for _, table := range observabilityShardTables(item.tableName) {
-				if !db.Migrator().HasTable(table) {
-					return fmt.Errorf("sharded table %s is missing", table)
-				}
-			}
-			continue
-		}
-		if !db.Migrator().HasTable(item.value) {
-			return fmt.Errorf("table %s is missing", item.tableName)
-		}
-	}
-	if !db.Migrator().HasColumn(&NodeHealthEvent{}, "metadata_json") {
-		return fmt.Errorf("column node_health_events.metadata_json is missing")
-	}
-	_ = backend
-	return nil
-}
-
-func validateDatabaseSchemaV3(db *gorm.DB, backend string) error {
-	if err := validateDatabaseSchemaV2(db, backend); err != nil {
-		return err
-	}
-	for _, baseTable := range shardedObservabilityBaseTables() {
-		for _, table := range observabilityShardTables(baseTable) {
-			legacyTable := legacyObservabilityShardTableName(table)
-			if db.Migrator().HasTable(legacyTable) {
-				return fmt.Errorf("legacy sharded table %s still exists", legacyTable)
-			}
-		}
-	}
-	return nil
-}
-
-func validateDatabaseSchemaV4(db *gorm.DB, backend string) error {
-	if err := validateDatabaseSchemaV3(db, backend); err != nil {
-		return err
-	}
-	if !db.Migrator().HasTable(&Origin{}) {
-		return fmt.Errorf("table origins is missing")
-	}
-	if !db.Migrator().HasColumn(&ProxyRoute{}, "origin_id") {
-		return fmt.Errorf("column proxy_routes.origin_id is missing")
-	}
-	return nil
 }
 
 func normalizeProxyRouteDomainForMigration(raw string) string {
@@ -790,17 +767,18 @@ func backfillProxyRouteDomainCertificateFields(db *gorm.DB) error {
 	return nil
 }
 
-func validateDatabaseSchemaV5(db *gorm.DB, backend string) error {
-	if err := validateDatabaseSchemaV4(db, backend); err != nil {
-		return err
-	}
-	if !db.Migrator().HasColumn(&ProxyRoute{}, "site_name") {
-		return fmt.Errorf("column proxy_routes.site_name is missing")
-	}
-	if !db.Migrator().HasColumn(&ProxyRoute{}, "domains") {
-		return fmt.Errorf("column proxy_routes.domains is missing")
+func validateDatabaseSchemaV7(db *gorm.DB, backend string) error {
+	// Validate legacy sharded tables do not exist
+	for _, baseTable := range shardedObservabilityBaseTables() {
+		for _, table := range observabilityShardTables(baseTable) {
+			legacyTable := legacyObservabilityShardTableName(table)
+			if db.Migrator().HasTable(legacyTable) {
+				return fmt.Errorf("legacy sharded table %s still exists", legacyTable)
+			}
+		}
 	}
 
+	// Fetch all proxy routes for data validation (site names, domains, certificates)
 	var routes []ProxyRoute
 	if err := db.Order("id asc").Find(&routes).Error; err != nil {
 		return fmt.Errorf("list proxy routes for validation failed: %w", err)
@@ -808,7 +786,9 @@ func validateDatabaseSchemaV5(db *gorm.DB, backend string) error {
 
 	siteNames := make(map[string]uint, len(routes))
 	domainOwners := make(map[string]uint, len(routes))
+
 	for _, route := range routes {
+		// Domains and Site Name Validation
 		domains, err := decodeProxyRouteDomainsForMigration(route.Domains, route.Domain)
 		if err != nil {
 			return fmt.Errorf("proxy route %d domains are invalid: %w", route.ID, err)
@@ -840,39 +820,8 @@ func validateDatabaseSchemaV5(db *gorm.DB, backend string) error {
 			}
 			domainOwners[domain] = route.ID
 		}
-	}
-	return nil
-}
 
-func validateDatabaseSchemaV6(db *gorm.DB, backend string) error {
-	if err := validateDatabaseSchemaV5(db, backend); err != nil {
-		return err
-	}
-	if !db.Migrator().HasColumn(&ProxyRoute{}, "limit_conn_per_server") {
-		return fmt.Errorf("column proxy_routes.limit_conn_per_server is missing")
-	}
-	if !db.Migrator().HasColumn(&ProxyRoute{}, "limit_conn_per_ip") {
-		return fmt.Errorf("column proxy_routes.limit_conn_per_ip is missing")
-	}
-	if !db.Migrator().HasColumn(&ProxyRoute{}, "limit_rate") {
-		return fmt.Errorf("column proxy_routes.limit_rate is missing")
-	}
-	return nil
-}
-
-func validateDatabaseSchemaV7(db *gorm.DB, backend string) error {
-	if err := validateDatabaseSchemaV6(db, backend); err != nil {
-		return err
-	}
-	if !db.Migrator().HasColumn(&ProxyRoute{}, "cert_ids") {
-		return fmt.Errorf("column proxy_routes.cert_ids is missing")
-	}
-
-	var routes []ProxyRoute
-	if err := db.Order("id asc").Find(&routes).Error; err != nil {
-		return fmt.Errorf("list proxy routes for certificate validation failed: %w", err)
-	}
-	for _, route := range routes {
+		// Certificate Mapping Validation
 		certIDs, err := decodeProxyRouteCertIDsForMigration(route.CertIDs, route.CertID)
 		if err != nil {
 			return fmt.Errorf("proxy route %d cert_ids are invalid: %w", route.ID, err)
@@ -893,17 +842,12 @@ func validateDatabaseSchemaV7(db *gorm.DB, backend string) error {
 			return fmt.Errorf("proxy route %d primary cert_id mirror is invalid", route.ID)
 		}
 	}
+
+	_ = backend
 	return nil
 }
 
 func validateDatabaseSchemaV8(db *gorm.DB, backend string) error {
-	if err := validateDatabaseSchemaV7(db, backend); err != nil {
-		return err
-	}
-	if !db.Migrator().HasColumn(&ProxyRoute{}, "domain_cert_ids") {
-		return fmt.Errorf("column proxy_routes.domain_cert_ids is missing")
-	}
-
 	var routes []ProxyRoute
 	if err := db.Order("id asc").Find(&routes).Error; err != nil {
 		return fmt.Errorf("list proxy routes for domain certificate validation failed: %w", err)
@@ -941,6 +885,7 @@ func validateDatabaseSchemaV8(db *gorm.DB, backend string) error {
 			return fmt.Errorf("proxy route %d primary cert_id mirror is invalid", route.ID)
 		}
 	}
+	_ = backend
 	return nil
 }
 
@@ -1128,70 +1073,6 @@ func ensureDefaultGitHubAuthSource(db *gorm.DB) error {
 	return nil
 }
 
-func validateDatabaseSchemaV9(db *gorm.DB, backend string) error {
-	if err := validateDatabaseSchemaV8(db, backend); err != nil {
-		return err
-	}
-	hasAppliedDropPoW := false
-	if db.Migrator().HasTable("goose_db_version") {
-		var count int64
-		_ = db.Table("goose_db_version").
-			Where("version_id = ? AND is_applied = ?", 202606030003, true).
-			Count(&count).Error
-		if count > 0 {
-			hasAppliedDropPoW = true
-		}
-	}
-	if !hasAppliedDropPoW {
-		if !db.Migrator().HasColumn(&ProxyRoute{}, "pow_enabled") {
-			return fmt.Errorf("column proxy_routes.pow_enabled is missing")
-		}
-		if !db.Migrator().HasColumn(&ProxyRoute{}, "pow_config") {
-			return fmt.Errorf("column proxy_routes.pow_config is missing")
-		}
-	}
-	return nil
-}
-
-func validateDatabaseSchemaV10(db *gorm.DB, backend string) error {
-	if err := validateDatabaseSchemaV9(db, backend); err != nil {
-		return err
-	}
-	if !db.Migrator().HasTable(&AuthSource{}) {
-		return fmt.Errorf("table auth_sources is missing")
-	}
-	if !db.Migrator().HasTable(&ExternalAccount{}) {
-		return fmt.Errorf("table external_accounts is missing")
-	}
-	return nil
-}
-
-func validateDatabaseSchemaV11(db *gorm.DB, backend string) error {
-	if err := validateDatabaseSchemaV10(db, backend); err != nil {
-		return err
-	}
-	if !db.Migrator().HasTable(&AcmeAccount{}) {
-		return fmt.Errorf("table acme_accounts is missing")
-	}
-	if !db.Migrator().HasTable(&DnsAccount{}) {
-		return fmt.Errorf("table dns_accounts is missing")
-	}
-	if !db.Migrator().HasColumn(&TLSCertificate{}, "provider") {
-		return fmt.Errorf("column tls_certificates.provider is missing")
-	}
-	return nil
-}
-
-func validateDatabaseSchemaV12(db *gorm.DB, backend string) error {
-	if err := validateDatabaseSchemaV11(db, backend); err != nil {
-		return err
-	}
-	if !db.Migrator().HasColumn(&ProxyRoute{}, "basic_auth_enabled") {
-		return fmt.Errorf("column proxy_routes.basic_auth_enabled is missing")
-	}
-	return nil
-}
-
 func ensureDefaultWAFRuleGroup(db *gorm.DB) error {
 	if db == nil {
 		return fmt.Errorf("database handle is nil")
@@ -1230,15 +1111,6 @@ func ensureDefaultWAFRuleGroup(db *gorm.DB) error {
 }
 
 func validateDatabaseSchemaV13(db *gorm.DB, backend string) error {
-	if err := validateDatabaseSchemaV12(db, backend); err != nil {
-		return err
-	}
-	if !db.Migrator().HasTable(&WAFRuleGroup{}) {
-		return fmt.Errorf("table waf_rule_groups is missing")
-	}
-	if !db.Migrator().HasTable(&WAFRuleGroupBinding{}) {
-		return fmt.Errorf("table waf_rule_group_bindings is missing")
-	}
 	var count int64
 	if err := db.Model(&WAFRuleGroup{}).Where("is_global = ?", true).Count(&count).Error; err != nil {
 		return fmt.Errorf("count global waf rule groups failed: %w", err)
@@ -1246,75 +1118,16 @@ func validateDatabaseSchemaV13(db *gorm.DB, backend string) error {
 	if count != 1 {
 		return fmt.Errorf("expected exactly one global waf rule group, got %d", count)
 	}
-	return nil
-}
-
-func validateDatabaseSchemaV14(db *gorm.DB, backend string) error {
-	if err := validateDatabaseSchemaV13(db, backend); err != nil {
-		return err
-	}
-	if !db.Migrator().HasColumn(&WAFRuleGroup{}, "pow_enabled") {
-		return fmt.Errorf("column waf_rule_groups.pow_enabled is missing")
-	}
-	if !db.Migrator().HasColumn(&WAFRuleGroup{}, "pow_config") {
-		return fmt.Errorf("column waf_rule_groups.pow_config is missing")
-	}
-	return nil
-}
-
-func validateDatabaseSchemaV15(db *gorm.DB, backend string) error {
-	if err := validateDatabaseSchemaV14(db, backend); err != nil {
-		return err
-	}
-	if !db.Migrator().HasColumn(&Node{}, "ip_manual_override") {
-		return fmt.Errorf("column nodes.ip_manual_override is missing")
-	}
+	_ = backend
 	return nil
 }
 
 func validateDatabaseSchemaV16(db *gorm.DB, backend string) error {
-	if err := validateDatabaseSchemaV15(db, backend); err != nil {
-		return err
-	}
-	if !db.Migrator().HasColumn(&Node{}, "access_token") {
-		return fmt.Errorf("column nodes.access_token is missing")
-	}
-	if !db.Migrator().HasColumn(&Node{}, "version") {
-		return fmt.Errorf("column nodes.version is missing")
-	}
-	if !db.Migrator().HasColumn(&Node{}, "ext_version") {
-		return fmt.Errorf("column nodes.ext_version is missing")
-	}
-	if !db.Migrator().HasColumn(&Node{}, "node_type") {
-		return fmt.Errorf("column nodes.node_type is missing")
-	}
-	for _, column := range []string{
-		"relay_bind_port",
-		"relay_vhost_http_port",
-		"relay_auth_token",
-		"relay_agent_access_addr",
-		"relay_client_access_addr",
-		"relay_client_proxy_url",
-		"relay_status",
-	} {
-		if !db.Migrator().HasColumn(&Node{}, column) {
-			return fmt.Errorf("column nodes.%s is missing", column)
-		}
-	}
-	for _, column := range []string{
-		"upstream_type",
-		"tunnel_node_id",
-		"tunnel_target_addr",
-		"tunnel_target_protocol",
-	} {
-		if !db.Migrator().HasColumn(&ProxyRoute{}, column) {
-			return fmt.Errorf("column proxy_routes.%s is missing", column)
-		}
-	}
-	if db.Migrator().HasTable("tunnels") {
+	migrator := db.Migrator()
+	if migrator.HasTable("tunnels") {
 		return fmt.Errorf("table tunnels should not exist in v16")
 	}
-	if db.Migrator().HasColumn(&ProxyRoute{}, "tunnel_id") {
+	if migrator.HasColumn(&ProxyRoute{}, "tunnel_id") {
 		return fmt.Errorf("column proxy_routes.tunnel_id should not exist in v16")
 	}
 	for _, column := range []string{
@@ -1334,43 +1147,7 @@ func validateDatabaseSchemaV16(db *gorm.DB, backend string) error {
 			return fmt.Errorf("column nodes.%s should not exist in v16", column)
 		}
 	}
-	if !db.Migrator().HasTable(&WAFIPGroup{}) {
-		return fmt.Errorf("table waf_ip_groups is missing")
-	}
-	if !db.Migrator().HasColumn(&WAFRuleGroup{}, "ip_whitelist_groups") {
-		return fmt.Errorf("column waf_rule_groups.ip_whitelist_groups is missing")
-	}
-	if !db.Migrator().HasColumn(&WAFRuleGroup{}, "ip_blacklist_groups") {
-		return fmt.Errorf("column waf_rule_groups.ip_blacklist_groups is missing")
-	}
-	if !db.Migrator().HasColumn(&WAFIPGroup{}, "ext_ips") {
-		return fmt.Errorf("column waf_ip_groups.ext_ips is missing")
-	}
-	return nil
-}
-
-func validateDatabaseSchemaV17(db *gorm.DB, backend string) error {
-	if err := validateDatabaseSchemaV16(db, backend); err != nil {
-		return err
-	}
-	if db == nil {
-		return fmt.Errorf("database handle is nil")
-	}
-
-	migrator := db.Migrator()
-	if !migrator.HasColumn(&Node{}, "relay_web_server_enabled") {
-		return fmt.Errorf("column nodes.relay_web_server_enabled is missing")
-	}
-
-	// Validate columns on a sharded partition table
-	for _, shard := range []string{"node_observation_frps_00"} {
-		for _, column := range []string{"frps_client_count", "frps_proxies"} {
-			if !migrator.HasColumn(shard, column) {
-				return fmt.Errorf("column %s.%s is missing", shard, column)
-			}
-		}
-	}
-
+	_ = backend
 	return nil
 }
 
@@ -1406,6 +1183,9 @@ func validateExternalDatabaseSchema(ctx databaseSchemaMigrationContext, db *gorm
 }
 
 func validateCurrentDatabaseSchema(db *gorm.DB, backend string) error {
+	if err := validateAllModelsSchema(db); err != nil {
+		return err
+	}
 	return validateExternalDatabaseSchema(databaseSchemaMigrationContext{}, db, backend, currentDatabaseSchemaVersion)
 }
 

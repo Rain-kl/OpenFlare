@@ -4,7 +4,9 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
+	"os"
 
 	"gorm.io/gorm"
 )
@@ -169,7 +171,22 @@ func ValidateRegisteredSchema(db *gorm.DB) error {
 	return nil
 }
 
-func EnsureDatabaseSchemaUpToDate(db *gorm.DB, backend string, ctx BridgeContext) error {
+func EnsureDatabaseSchemaUpToDate(db *gorm.DB, backend string, ctx BridgeContext) (returnedErr error) {
+	if backend == "sqlite" {
+		backupPath, restore, err := backupSQLiteDatabase(db)
+		if err != nil {
+			slog.Warn("failed to backup sqlite database before migration", "error", err)
+		} else if backupPath != "" {
+			defer func() {
+				if returnedErr != nil {
+					restore()
+				} else {
+					os.Remove(backupPath)
+				}
+			}()
+		}
+	}
+
 	var startDesc string
 	legacyVer, hasLegacy, _ := loadLegacyDatabaseSchemaVersion(db)
 	gooseVer, hasGoose, _ := LoadDatabaseVersion(db)
@@ -241,4 +258,69 @@ func EnsureDatabaseSchemaUpToDate(db *gorm.DB, backend string, ctx BridgeContext
 		slog.Info("database migration completed successfully", "from", startDesc, "to", fmt.Sprintf("goose version %d", endVer))
 	}
 	return nil
+}
+
+func backupSQLiteDatabase(db *gorm.DB) (string, func(), error) {
+	var dbList []struct {
+		Seq  int
+		Name string
+		File string
+	}
+	if err := db.Raw("PRAGMA database_list").Scan(&dbList).Error; err != nil {
+		return "", nil, err
+	}
+	var dbPath string
+	for _, item := range dbList {
+		if item.Name == "main" && item.File != "" {
+			dbPath = item.File
+			break
+		}
+	}
+	if dbPath == "" {
+		return "", nil, nil
+	}
+
+	backupPath := dbPath + ".bak"
+
+	src, err := os.Open(dbPath)
+	if err != nil {
+		return "", nil, err
+	}
+	defer src.Close()
+
+	dst, err := os.Create(backupPath)
+	if err != nil {
+		return "", nil, err
+	}
+	defer dst.Close()
+
+	if _, err := io.Copy(dst, src); err != nil {
+		return "", nil, err
+	}
+	dst.Sync()
+
+	restoreFunc := func() {
+		src, err := os.Open(backupPath)
+		if err != nil {
+			slog.Error("failed to open sqlite backup for restore", "error", err)
+			return
+		}
+		defer src.Close()
+
+		dst, err := os.OpenFile(dbPath, os.O_WRONLY|os.O_TRUNC, 0644)
+		if err != nil {
+			slog.Error("failed to open sqlite db for restore", "error", err)
+			return
+		}
+		defer dst.Close()
+
+		if _, err := io.Copy(dst, src); err != nil {
+			slog.Error("failed to restore sqlite backup", "error", err)
+		} else {
+			dst.Sync()
+			slog.Warn("restored sqlite database from backup due to migration failure")
+		}
+	}
+
+	return backupPath, restoreFunc, nil
 }
