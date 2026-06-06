@@ -65,7 +65,7 @@ OpenResty (Agent, TLS/WAF)
 
 | 组件            | 职责                                                                   | 详细设计参考 |
 | --------------- | ---------------------------------------------------------------------- | ------------ |
-| **Server**      | 管理端 UI/API、控制面状态持久化、配置编译渲染、发布版本控制、Pages 部署包存储与 Uptime Kuma 监控同步 | [Agent 与发布模型](./agent-design.md) / [Uptime Kuma 监控同步设计](./kuma-design.md) |
+| **Server**      | 管理端 UI/API、控制面状态持久化、配置编译渲染、发布版本控制、Pages 部署包存储、Uptime Kuma 监控同步与登录验证码防护 | [Agent 与发布模型](./agent-design.md) / [Uptime Kuma 监控同步设计](./kuma-design.md) / [登录验证码设计](./login-captcha.md) |
 | **Agent**       | 周期心跳与 WS 同步、静态资源包拉取与解压、OpenResty 配置写入/校验/重载与自愈 | [Agent 与发布模型](./agent-design.md) |
 | **OpenResty**   | 接收真实流量，执行 WAF 过滤、PoW 防护、Basic Auth 认证与静态/反代服务 | [WAF 设计](./waf-design.md) / [Pages 设计](./pages-design.md) |
 | **Relay**       | 部署于边缘节点，管理 `frps` 守护进程生命周期，接受心跳派发的穿透中继配置 | [内网穿透设计](./tunnel-design.md) |

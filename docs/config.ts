@@ -1,4 +1,4 @@
-import { defineAdditionalConfig, type DefaultTheme } from 'vitepress'
+import {type DefaultTheme, defineAdditionalConfig} from 'vitepress'
 
 export default defineAdditionalConfig({
   description:
@@ -129,7 +129,8 @@ function sidebarDesign(): DefaultTheme.SidebarItem[] {
         { text: '内网穿透隧道设计', link: 'tunnel-design' },
         { text: 'WAF 设计', link: 'waf-design' },
         { text: 'Pages 静态托管设计', link: 'pages-design' },
-        { text: 'Uptime Kuma 监控同步设计', link: 'kuma-design' }
+        { text: 'Uptime Kuma 监控同步设计', link: 'kuma-design' },
+        { text: '登录验证码设计', link: 'login-captcha' }
       ]
     }
   ]
