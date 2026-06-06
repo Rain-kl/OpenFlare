@@ -33,8 +33,8 @@ func SetApiRouter(router *gin.Engine) {
 
 		capRoute := apiRouter.Group("/cap")
 		{
-			capRoute.POST("/challenge", middleware.CriticalRateLimit(), controller.GetCapChallenge)
-			capRoute.POST("/redeem", middleware.CriticalRateLimit(), controller.RedeemCapChallenge)
+			capRoute.POST("/:scope/challenge", middleware.CriticalRateLimit(), controller.GetCapChallenge)
+			capRoute.POST("/:scope/redeem", middleware.CriticalRateLimit(), controller.RedeemCapChallenge)
 		}
 
 		userRoute := apiRouter.Group("/user")

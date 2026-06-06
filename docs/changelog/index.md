@@ -33,6 +33,10 @@ sidebar: false
 - 新增 Uptime Kuma 监控同步集成指南（`uptime-kuma.md`），说明同步参数与专属标签隔离机制
 - 完善 WAF IP 组订阅模式使用指南（`waf-usage.md`），补充 JSON 路径提取映射规则与同步参数说明
 
+### 修复
+
+- 修复由于前端验证码组件未携带 `scope` 导致的登录验证码校验失败或过期的问题；通过引入路径参数化路由 `/api/cap/:scope/...` 支持在不同流程中隔离与核销特定 scope 的人机验证难题
+
 ### 变更
 
 - 重构 `install-agent.sh` 安装脚本与 `uninstall-agent.sh` 卸载脚本以兼容交互式导引、非交互式命令行参数及 Docker 部署/卸载参数（`--docker`/`--method docker`）

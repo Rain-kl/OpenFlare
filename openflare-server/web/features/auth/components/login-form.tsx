@@ -160,7 +160,7 @@ export function LoginForm() {
             <div className="flex justify-center py-2">
               <cap-widget
                 ref={capWidgetRef}
-                data-cap-api-endpoint="/api/cap/"
+                data-cap-api-endpoint="/api/cap/login/"
                 onsolve={(e: CustomEvent<{ token: string }>) => {
                   setCapToken(e.detail.token);
                 }}

@@ -11,7 +11,10 @@ import (
 
 // GetCapChallenge generates a new CAPTCHA challenge
 func GetCapChallenge(c *gin.Context) {
-	scope := c.Query("scope")
+	scope := c.Param("scope")
+	if scope == "" {
+		scope = c.Query("scope")
+	}
 	resp, err := service.CapManager.Generate(scope)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -25,7 +28,10 @@ func GetCapChallenge(c *gin.Context) {
 
 // RedeemCapChallenge validates CAPTCHA solutions and yields a one-time redeem token
 func RedeemCapChallenge(c *gin.Context) {
-	scope := c.Query("scope")
+	scope := c.Param("scope")
+	if scope == "" {
+		scope = c.Query("scope")
+	}
 
 	var req cap.RedeemRequest
 	if !bind.JSON(c, &req) {
