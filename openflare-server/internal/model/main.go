@@ -336,6 +336,24 @@ func resetPostgresSequence(db *gorm.DB, tableName string) error {
 	return db.Exec(sql).Error
 }
 
+func InitBenchmarkDB(dsn string) error {
+	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	if err != nil {
+		return err
+	}
+	sqlDB, err := db.DB()
+	if err != nil {
+		return err
+	}
+	sqlDB.SetMaxOpenConns(20)
+	sqlDB.SetMaxIdleConns(10)
+	DB = db
+	if err = registerSharding(db, "postgres"); err != nil {
+		return err
+	}
+	return ensureDatabaseSchemaUpToDate(db, "postgres")
+}
+
 func InitDB() (err error) {
 	db, backend, err := openDatabase()
 	if err != nil {

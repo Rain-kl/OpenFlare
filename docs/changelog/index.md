@@ -18,6 +18,9 @@ sidebar: false
 
 ### 变更
 
+- 访问日志列表查询将分页与计数下推到数据库执行，避免百万级数据全量加载到内存。
+- 访问日志 `total_ip` 统计改为 SQL `UNION` + `COUNT(*)` 下推执行，分片计数与分页查询并行化。
+- 访问日志折叠视图、IP 汇总与趋势改为 SQL `GROUP BY` 聚合；过滤条件改为 `node_id` 精确匹配及其他字段前缀匹配以利用索引。
 - 标准化 Server Go 目录结构，引入 `cmd/server`、`openflare-server/internal` 与根级 `pkg` 分层，并拆分原 `utils` 公共能力包。
 
 ## [v2.3.3] - 2026-06-06
