@@ -58,6 +58,7 @@ sidebar: false
 - 侧栏新增「网站管理」折叠组（shadcn Collapsible + SidebarMenuSub），收纳网站、证书、DNS、源站入口。
 - 移除网站、证书、DNS 页面右上角互相跳转按钮，改由侧栏折叠组统一导航。
 - 侧栏导航改为 `openflareSidebarNav` 单一配置源，折叠组位置由数组顺序决定，移除 `slice(0, 4)` 硬编码切分。
+- 侧栏新增「安全性」折叠组，收纳 WAF 与 IP 组入口；同步移除两页右上角互相跳转按钮。
 - OpenFlare 前端路由去除 `/openflare` 前缀，业务页面直接挂载于 `/`（如 `/nodes`、`/websites`）；侧栏移除「首页」「我的文件」；旧路径 `/openflare/*`、`/home` 永久重定向至新路径。
 
 ## [v2.3.4] - 2026-06-17

@@ -1,8 +1,7 @@
 'use client';
 
-import Link from 'next/link';
 import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query';
-import {Loader2, Network, Plus, RefreshCw, Shield} from 'lucide-react';
+import {Loader2, Plus, RefreshCw, Shield} from 'lucide-react';
 import {useState} from 'react';
 import {toast} from 'sonner';
 
@@ -139,12 +138,6 @@ export default function WafPage() {
           <h1 className="text-2xl font-semibold tracking-tight">WAF</h1>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" className="h-7 text-xs" asChild>
-            <Link href="/waf/ip-groups">
-              <Network className="size-3.5 mr-1" />
-              IP 组
-            </Link>
-          </Button>
           <Button variant="secondary" size="sm" className="h-7 text-xs" onClick={handleCreate}>
             <Plus className="size-3.5 mr-1" />
             新建规则组

@@ -8,7 +8,7 @@ import {
   Route,
   ScrollText,
   Server,
-  Shield,
+  ShieldCheck,
 } from 'lucide-react';
 
 export interface OpenFlareNavItem {
@@ -35,6 +35,16 @@ export type OpenFlareSidebarNavEntry =
   | ({kind: 'item'} & OpenFlareNavItem)
   | ({kind: 'group'} & OpenFlareNavGroup);
 
+/** 安全性折叠组 */
+export const openflareSecurityNavGroup: OpenFlareNavGroup = {
+  title: '安全性',
+  icon: ShieldCheck,
+  items: [
+    {title: 'WAF', url: '/waf'},
+    {title: 'IP 组', url: '/waf/ip-groups'},
+  ],
+};
+
 /** 网站管理折叠组 */
 export const openflareWebsiteNavGroup: OpenFlareNavGroup = {
   title: '网站管理',
@@ -55,8 +65,8 @@ export const openflareSidebarNav: OpenFlareSidebarNavEntry[] = [
   {kind: 'item', title: '数据看板', url: '/', icon: LayoutDashboard},
   {kind: 'item', title: '节点管理', url: '/nodes', icon: Server, childUrls: ['/nodes/detail']},
   {kind: 'item', title: '规则管理', url: '/proxy-routes', icon: Route, childUrls: ['/proxy-routes/detail']},
-  {kind: 'item', title: 'WAF', url: '/waf', icon: Shield, childUrls: ['/waf/ip-groups']},
   {kind: 'group', ...openflareWebsiteNavGroup},
+  {kind: 'group', ...openflareSecurityNavGroup},
   {kind: 'item', title: 'Pages', url: '/pages', icon: FileText, childUrls: ['/pages/detail']},
   {kind: 'item', title: '版本发布', url: '/config-versions', icon: GitBranch},
   {kind: 'item', title: '访问日志', url: '/access-logs', icon: ScrollText},
