@@ -1,11 +1,11 @@
 'use client';
 
 import ReactEChartsCore from 'echarts-for-react/lib/core';
-import type { EChartsCoreOption } from 'echarts/core';
+import type {EChartsCoreOption} from 'echarts/core';
 import * as echarts from 'echarts/core';
-import { MapChart, ScatterChart } from 'echarts/charts';
-import { GeoComponent, TooltipComponent } from 'echarts/components';
-import { CanvasRenderer } from 'echarts/renderers';
+import {MapChart, ScatterChart} from 'echarts/charts';
+import {GeoComponent, TooltipComponent} from 'echarts/components';
+import {CanvasRenderer} from 'echarts/renderers';
 import {useTheme} from 'next-themes';
 import {useRouter} from 'next/navigation';
 import {useEffect, useMemo, useRef, useState} from 'react';
@@ -13,10 +13,7 @@ import {useEffect, useMemo, useRef, useState} from 'react';
 import {EmptyState} from '@/components/layout/empty';
 import type {DashboardNodeHealth, DistributionItem} from '@/lib/services/openflare';
 
-import {
-  getNodeStatusLabel,
-  getOpenrestyStatusLabel,
-} from '../../nodes/components/node-utils';
+import {getNodeStatusLabel, getOpenrestyStatusLabel,} from '../../nodes/components/node-utils';
 import worldGeoJson from './data/world-geo.json';
 
 echarts.use([
@@ -100,9 +97,9 @@ type CountryRegionDatum = {
 let worldMapRegistrationAttempted = false;
 let worldMapRegistrationSucceeded = false;
 
-const baseWorldMapLayoutSizePercent = 108;
+const baseWorldMapLayoutSizePercent = 118;
 const baseWorldMapZoom = 1;
-const worldMapAspectRatio = 2 / 3;
+const worldMapAspectRatio = 5 / 3;
 
 function buildNodeDetailHref(id?: number | null) {
   if (!id) {

@@ -21,9 +21,9 @@ sidebar: false
 - Wavelet 总览仪表盘图表对齐旧前端 ECharts 样式：24 小时请求/容量趋势补充请求量与错误量展示，新增网络与磁盘趋势、Top 节点榜单、来源分布、状态码分布与 Top Domain 板块。
 - Wavelet 总览仪表盘迁移旧前端「全球态势板」：世界地图展示节点健康与来源国家热度，并保留在线覆盖、流量与容量摘要指标。
 - Wavelet 全球态势板视觉对齐系统风格：改用 `Card` / `Badge` / `Progress` 与虚线边框指标卡，地图配色与 tooltip 跟随主题 token。
-- Wavelet 全球态势板布局紧凑化：地图高度降至约 260px，指标改为侧栏密集单元格，图例改为行内色点标注。
+- Wavelet 全球态势板布局重构：关键指标前置为摘要栅格，地图与容量诊断并排展示，移动端自动堆叠。
 - 修复 Wavelet 全球态势板 ECharts 地图在紧凑布局下容器尺寸为 0 导致无法渲染的问题。
-- Wavelet 全球态势板地图容器调整为约 2:3（宽:高）比例，避免世界地图横向过度拉伸。
+- Wavelet 全球态势板地图容器调整为横向看板比例，避免世界地图被压缩成窄竖卡片。
 
 - 将 `openflare-server` 后端业务域迁移至 `Wavelet/internal/apps/openflare/`，通过 `/api/*` legacy 兼容层保持旧前端 API 路径不变。
 - 新增 OpenFlare 业务表 goose 迁移（`of_options`、`of_origins`、`of_proxy_routes`、`of_nodes`、`of_waf_*`、`of_tls_*`、`of_config_versions`、`of_pages_*`、`of_apply_logs` 等）。

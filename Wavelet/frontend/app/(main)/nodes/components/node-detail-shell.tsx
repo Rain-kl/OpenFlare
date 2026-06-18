@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import {usePathname, useRouter, useSearchParams} from 'next/navigation';
-import {useCallback, useMemo, type ReactNode} from 'react';
+import {type ReactNode, useCallback, useMemo} from 'react';
 import type {LucideIcon} from 'lucide-react';
 import {ArrowLeft} from 'lucide-react';
 
@@ -19,7 +19,6 @@ export type NodeDetailTabId = 'overview' | 'dashboard' | 'manage';
 export type NodeDetailTabConfig = {
   id: NodeDetailTabId;
   label: string;
-  description: string;
   icon?: LucideIcon;
 };
 
@@ -33,17 +32,14 @@ const TAB_CONFIGS: NodeDetailTabConfig[] = [
   {
     id: 'overview',
     label: '概览',
-    description: '快速查看节点身份、运行状态与关键指标。',
   },
   {
     id: 'dashboard',
     label: '数据看板',
-    description: '系统画像、资源快照、流量趋势与健康事件时间线。',
   },
   {
     id: 'manage',
     label: '配置与部署',
-    description: '版本同步、部署命令与节点运维配置。',
   },
 ];
 
@@ -150,7 +146,7 @@ export function NodeDetailShell({
         }}
         className="w-full gap-0"
       >
-        <div className="space-y-3 border-b pb-1">
+        <div className="space-y-3 pb-1">
           <TabsList variant="line" className="h-auto w-full justify-start gap-6 bg-transparent p-0">
             {TAB_CONFIGS.map((tab) => (
               <TabsTrigger
@@ -165,7 +161,6 @@ export function NodeDetailShell({
               </TabsTrigger>
             ))}
           </TabsList>
-          <p className="text-sm text-muted-foreground">{activeTabMeta.description}</p>
         </div>
 
         <TabsContent value="overview" className="mt-6 outline-none">

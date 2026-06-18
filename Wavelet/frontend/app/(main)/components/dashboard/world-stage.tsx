@@ -1,26 +1,12 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import {useEffect, useRef, useState, type ComponentType} from 'react';
-import {
-  Activity,
-  Cpu,
-  Globe2,
-  HardDrive,
-  MemoryStick,
-  Server,
-  ShieldCheck,
-} from 'lucide-react';
+import {type ComponentType, useEffect, useRef, useState} from 'react';
+import {Activity, Cpu, Globe2, HardDrive, MemoryStick, Network, Server, ShieldCheck,} from 'lucide-react';
 
 import {EmptyState} from '@/components/layout/empty';
 import {Badge} from '@/components/ui/badge';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+import {Card, CardContent, CardDescription, CardHeader, CardTitle,} from '@/components/ui/card';
 import {Progress} from '@/components/ui/progress';
 import type {
   DashboardCapacity,
@@ -45,7 +31,7 @@ const LEGEND_ITEMS = [
   {dot: 'bg-destructive', label: '异常'},
 ] as const;
 
-function CompactMetric({
+function SummaryMetric({
   label,
   value,
   hint,
@@ -63,21 +49,53 @@ function CompactMetric({
   return (
     <div
       className={cn(
-        'flex min-w-0 flex-col gap-1 rounded-lg border border-dashed bg-muted/15 px-2.5 py-2 lg:rounded-none lg:border-0 lg:bg-transparent lg:px-3 lg:py-2.5',
+        'flex min-w-0 flex-col gap-2 rounded-lg border border-dashed bg-muted/15 p-3',
         className,
       )}
     >
-      <div className="flex items-center justify-between gap-1.5">
-        <span className="truncate text-[10px] text-muted-foreground">{label}</span>
-        <Icon className="size-3 shrink-0 text-primary/60" />
+      <div className="flex items-center justify-between gap-2">
+        <span className="truncate text-xs text-muted-foreground">{label}</span>
+        <Icon className="size-3.5 shrink-0 text-primary/60" />
       </div>
-      <span className="text-base font-semibold tabular-nums leading-none tracking-tight">
+      <span className="text-xl font-semibold tabular-nums leading-none tracking-tight">
         {value}
       </span>
       {typeof progress === 'number' ? (
-        <Progress value={progress} className="h-0.5" />
+        <Progress value={progress} className="h-1" />
       ) : null}
       <span className="truncate text-[10px] text-muted-foreground">{hint}</span>
+    </div>
+  );
+}
+
+function DetailMetric({
+  label,
+  value,
+  hint,
+  icon: Icon,
+  progress,
+}: {
+  label: string;
+  value: string;
+  hint: string;
+  icon: ComponentType<{className?: string}>;
+  progress?: number;
+}) {
+  return (
+    <div className="flex min-w-0 flex-col gap-1 rounded-lg border border-dashed bg-background/60 px-3 py-2.5">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="truncate text-[11px] text-muted-foreground">{label}</p>
+          <p className="mt-1 text-lg font-semibold tabular-nums leading-none tracking-tight">
+            {value}
+          </p>
+        </div>
+        <Icon className="size-3.5 shrink-0 text-muted-foreground" />
+      </div>
+      {typeof progress === 'number' ? (
+        <Progress value={progress} className="h-1" />
+      ) : null}
+      <p className="truncate text-[10px] text-muted-foreground">{hint}</p>
     </div>
   );
 }
@@ -149,7 +167,7 @@ export function WorldStage({
         ? '节点坐标'
         : '覆盖信号';
 
-  const metrics = [
+  const headlineMetrics = [
     {
       label: '在线覆盖',
       value: formatPercent(onlineRate),
@@ -165,11 +183,23 @@ export function WorldStage({
       progress: healthyRate,
     },
     {
-      label: '窗口请求',
+      label: '最近窗口请求',
       value: formatCompactNumber(traffic.request_count),
-      hint: `QPS ${traffic.estimated_qps.toFixed(1)}`,
+      hint: `QPS ${traffic.estimated_qps.toFixed(1)} · ${traffic.reported_nodes} 个节点上报`,
       icon: Activity,
     },
+    {
+      label: '节点坐标',
+      value: formatCompactNumber(geoConfiguredNodes),
+      hint:
+        geoConfiguredNodes > 0
+          ? `${sourceCountries.length} 个来源国家`
+          : '未配置时使用预设落点',
+      icon: Network,
+    },
+  ] as const;
+
+  const detailMetrics = [
     {
       label: '平均 CPU',
       value: formatPercent(capacity.average_cpu_usage_percent),
@@ -193,9 +223,9 @@ export function WorldStage({
   ] as const;
 
   return (
-    <Card className="border-dashed shadow-none">
-      <CardHeader className="gap-2 space-y-0 pb-3">
-        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+    <Card className="overflow-hidden border-dashed shadow-none">
+      <CardHeader className="gap-3 space-y-0 pb-3">
+        <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
           <div className="min-w-0">
             <CardTitle className="flex items-center gap-1.5 text-sm font-semibold">
               <Globe2 className="size-4 shrink-0 text-primary" />
@@ -207,11 +237,11 @@ export function WorldStage({
                 {mapModeLabel}
               </Badge>
             </CardTitle>
-            <CardDescription className="text-xs">
-              节点分布与来源热度
+            <CardDescription className="mt-1 text-xs">
+              汇总节点分布、来源国家热度与最近窗口运行状态。
             </CardDescription>
           </div>
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-full border border-dashed bg-muted/15 px-3 py-1.5">
             {LEGEND_ITEMS.map((item) => (
               <span
                 key={item.label}
@@ -225,12 +255,18 @@ export function WorldStage({
         </div>
       </CardHeader>
 
-      <CardContent className="pt-0">
-        <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_12.5rem] lg:gap-4 lg:items-center">
-          <div className="flex min-w-0 items-center justify-center">
+      <CardContent className="flex flex-col gap-4 pt-0">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          {headlineMetrics.map((metric) => (
+            <SummaryMetric key={metric.label} {...metric} />
+          ))}
+        </div>
+
+        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_18rem] xl:items-stretch">
+          <div className="flex min-w-0 items-center justify-center rounded-lg border border-dashed bg-muted/10 p-3">
             <div
               ref={mapViewportRef}
-              className="relative aspect-[2/3] h-[200px] w-auto overflow-hidden rounded-lg border border-dashed bg-muted/20 sm:h-[228px] lg:h-[252px]"
+              className="relative aspect-[5/3] min-h-[260px] w-full max-w-[720px] overflow-hidden rounded-md bg-background/60 sm:min-h-0"
             >
               {shouldRenderMap ? (
                 <WorldStageMap nodes={nodes} sourceCountries={sourceCountries} />
@@ -254,9 +290,9 @@ export function WorldStage({
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-1 lg:gap-0 lg:divide-y lg:divide-dashed lg:overflow-hidden lg:rounded-lg lg:border lg:border-dashed">
-            {metrics.map((metric) => (
-              <CompactMetric key={metric.label} {...metric} />
+          <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-1">
+            {detailMetrics.map((metric) => (
+              <DetailMetric key={metric.label} {...metric} />
             ))}
           </div>
         </div>
