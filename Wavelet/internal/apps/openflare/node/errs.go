@@ -15,6 +15,7 @@ const (
 	errNodeIDConflict            = "节点标识生成冲突，请重试"
 	errNodeNotFound              = "节点不存在"
 	errNodeForceSyncFailed       = "节点不在线或通过 WebSocket 发送同步指令失败"
+	errNoActiveConfigVersion     = "当前没有激活版本"
 	errAgentPreviewTagInvalid    = "指定版本不是 preview 发布"
 	errAgentStableTagInvalid     = "正式版更新不能选择 preview 发布"
 )

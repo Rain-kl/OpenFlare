@@ -12,7 +12,9 @@ import (
 
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/observability"
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/option"
+	ofws "github.com/Rain-kl/Wavelet/internal/apps/openflare/websocket"
 	"github.com/Rain-kl/Wavelet/internal/model"
+	"gorm.io/gorm"
 )
 
 // Input is the create/update node payload.
@@ -326,13 +328,23 @@ func RequestOpenrestyRestart(ctx context.Context, id uint) (*View, error) {
 	return buildNodeView(node), nil
 }
 
-// RequestForceSync requests a force sync via websocket (stub until T-AGENT).
+// RequestForceSync pushes force_sync_config to a connected agent websocket.
 func RequestForceSync(ctx context.Context, id uint) (*View, error) {
 	node, err := model.GetOpenFlareNodeByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
-	if !sendAgentWSForceSyncConfig(node.NodeID) {
+	activeConfig, err := model.GetActiveConfigVersion(ctx)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("无法获取当前激活的配置版本：%s", errNoActiveConfigVersion)
+		}
+		return nil, fmt.Errorf("无法获取当前激活的配置版本：%v", err)
+	}
+	if !ofws.SendForceSyncConfig(node.NodeID, forceSyncConfigPayload{
+		Version:  activeConfig.Version,
+		Checksum: activeConfig.Checksum,
+	}) {
 		return nil, errors.New(errNodeForceSyncFailed)
 	}
 	return buildNodeView(node), nil
@@ -371,9 +383,9 @@ func ensureGlobalDiscoveryToken(ctx context.Context) (string, error) {
 	return token, nil
 }
 
-func sendAgentWSForceSyncConfig(nodeID string) bool {
-	_ = nodeID
-	return false
+type forceSyncConfigPayload struct {
+	Version  string `json:"version"`
+	Checksum string `json:"checksum"`
 }
 
 // ValidateDiscoveryToken validates the global discovery token.

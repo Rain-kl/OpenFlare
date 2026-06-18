@@ -244,10 +244,26 @@ func TestRequestOpenrestyRestart(t *testing.T) {
 	assert.True(t, updated.RestartOpenrestyRequested)
 }
 
-func TestRequestForceSyncStub(t *testing.T) {
+func seedActiveConfigVersion(t *testing.T, ctx context.Context) {
+	t.Helper()
+	conn := db.DB(ctx)
+	require.NotNil(t, conn)
+	require.NoError(t, conn.AutoMigrate(&model.ConfigVersion{}))
+	require.NoError(t, conn.Create(&model.ConfigVersion{
+		Version:        "20260618-001",
+		SnapshotJSON:   `{}`,
+		RenderedConfig: `server {}`,
+		Checksum:       "abc123",
+		IsActive:       true,
+		CreatedBy:      "test",
+	}).Error)
+}
+
+func TestRequestForceSyncRequiresWebSocket(t *testing.T) {
 	cleanup := setupNodeTestDB(t)
 	defer cleanup()
 	ctx := context.Background()
+	seedActiveConfigVersion(t, ctx)
 
 	created, err := CreateNode(ctx, Input{Name: "edge-sync"})
 	require.NoError(t, err)
@@ -255,6 +271,22 @@ func TestRequestForceSyncStub(t *testing.T) {
 	_, err = RequestForceSync(ctx, created.ID)
 	require.Error(t, err)
 	assert.Equal(t, errNodeForceSyncFailed, err.Error())
+}
+
+func TestRequestForceSyncRequiresActiveConfig(t *testing.T) {
+	cleanup := setupNodeTestDB(t)
+	defer cleanup()
+	ctx := context.Background()
+	conn := db.DB(ctx)
+	require.NotNil(t, conn)
+	require.NoError(t, conn.AutoMigrate(&model.ConfigVersion{}))
+
+	created, err := CreateNode(ctx, Input{Name: "edge-sync-active"})
+	require.NoError(t, err)
+
+	_, err = RequestForceSync(ctx, created.ID)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), errNoActiveConfigVersion)
 }
 
 func TestGetObservabilityStub(t *testing.T) {
