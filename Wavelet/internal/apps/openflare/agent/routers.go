@@ -137,13 +137,17 @@ func DownloadPagesPackageHandler(c *gin.Context) {
 	if !ok {
 		return
 	}
-	filePath, fileName, err := pages.GetDeploymentPackagePath(c.Request.Context(), deploymentID)
+	packageObj, fileName, err := pages.OpenDeploymentPackage(c.Request.Context(), deploymentID)
 	if err != nil {
 		compat.Fail(c, err.Error())
 		return
 	}
+	defer packageObj.Body.Close()
 	c.Header("Content-Disposition", "attachment; filename="+fileName)
-	c.File(filePath)
+	if packageObj.ContentType != "" {
+		c.Header("Content-Type", packageObj.ContentType)
+	}
+	c.DataFromReader(http.StatusOK, packageObj.ContentLength, packageObj.ContentType, packageObj.Body, nil)
 }
 
 func pagesDeploymentIDParam(c *gin.Context) (uint, bool) {

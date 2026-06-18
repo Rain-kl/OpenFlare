@@ -21,6 +21,7 @@ const (
 	errPagesAPIProxyPassRequired     = "启用 API 反代时，后端服务地址不能为空"
 	errPagesAPIProxyPassInvalid      = "API 反代后端服务地址必须是有效的 HTTP/HTTPS URL"
 	errPagesPackagePathEmpty         = "Pages 部署包路径为空"
+	errPagesPackageUploadMissing     = "Pages 部署包上传记录不存在"
 	errPagesPackageNotInActiveConfig = "Pages 部署尚未进入激活配置"
 	errPagesInvalidSnapshotFormat    = "配置快照格式无效"
 )

@@ -8,13 +8,15 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"mime/multipart"
 	"net/http/httptest"
-	"strconv"
+	"os"
 	"testing"
 
 	"github.com/Rain-kl/Wavelet/internal/db"
 	"github.com/Rain-kl/Wavelet/internal/model"
+	"github.com/Rain-kl/Wavelet/internal/storage"
 	"github.com/glebarez/sqlite"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -29,16 +31,65 @@ func setupPagesTestDB(t *testing.T) func() {
 	})
 	require.NoError(t, err)
 	require.NoError(t, sqliteDB.AutoMigrate(
+		&model.User{},
+		&model.Upload{},
+		&model.UploadStat{},
+		&model.TaskExecution{},
 		&model.PagesProject{},
 		&model.PagesDeployment{},
 		&model.PagesDeploymentFile{},
 		&model.ConfigVersion{},
 	))
+	require.NoError(t, sqliteDB.Create(&model.User{
+		ID:       999,
+		Username: "system",
+		Password: "*",
+		Nickname: "系统",
+		IsActive: true,
+	}).Error)
 
 	db.SetDB(sqliteDB)
 	return func() {
 		db.SetDB(nil)
 	}
+}
+
+func setupPagesStorageMock(t *testing.T) (restore func(), disable func()) {
+	t.Helper()
+	mockFiles := make(map[string][]byte)
+	restore = storage.MockStorage(
+		func(_ context.Context, key string, body io.Reader, _ int64, _ string) error {
+			data, err := io.ReadAll(body)
+			if err != nil {
+				return err
+			}
+			mockFiles[key] = data
+			return nil
+		},
+		func(_ context.Context, key string) (*storage.Object, error) {
+			data, ok := mockFiles[key]
+			if !ok {
+				return nil, os.ErrNotExist
+			}
+			return &storage.Object{
+				Body:          io.NopCloser(bytes.NewReader(data)),
+				ContentLength: int64(len(data)),
+				ContentType:   "application/zip",
+			}, nil
+		},
+		func(_ context.Context, key string) error {
+			delete(mockFiles, key)
+			return nil
+		},
+	)
+	storage.IsEnabledFunc = func() bool { return true }
+	storage.ResetCache()
+	disable = func() {
+		storage.IsEnabledFunc = func() bool { return false }
+		storage.ResetCache()
+		restore()
+	}
+	return restore, disable
 }
 
 func TestCreateProject(t *testing.T) {
@@ -90,9 +141,40 @@ func TestCreateProjectRejectsUnsafeFallbackPath(t *testing.T) {
 	assert.Contains(t, err.Error(), "回退路径")
 }
 
-func TestGetDeploymentPackagePathRequiresActiveConfigSnapshot(t *testing.T) {
+func TestUploadDeploymentStoresPackageInUploadFramework(t *testing.T) {
 	cleanup := setupPagesTestDB(t)
 	defer cleanup()
+	_, disableStorage := setupPagesStorageMock(t)
+	defer disableStorage()
+	ctx := context.Background()
+
+	project, err := CreateProject(ctx, Input{
+		Name:    "Upload Framework Site",
+		Slug:    "upload-framework-site",
+		Enabled: true,
+	})
+	require.NoError(t, err)
+
+	deployment, err := UploadDeployment(ctx, project.ID, testPagesMultipartFile(t, "site.zip", testPagesZip(t, map[string]string{
+		"index.html": "ok",
+	})), "root")
+	require.NoError(t, err)
+
+	storedDeployment, err := model.GetPagesDeploymentByID(ctx, deployment.ID)
+	require.NoError(t, err)
+	assert.NotZero(t, storedDeployment.UploadID)
+	assert.Empty(t, storedDeployment.ArtifactPath)
+
+	var uploadCount int64
+	require.NoError(t, db.DB(ctx).Model(&model.Upload{}).Count(&uploadCount).Error)
+	assert.Equal(t, int64(1), uploadCount)
+}
+
+func TestOpenDeploymentPackageRequiresActiveConfigSnapshot(t *testing.T) {
+	cleanup := setupPagesTestDB(t)
+	defer cleanup()
+	_, disableStorage := setupPagesStorageMock(t)
+	defer disableStorage()
 	ctx := context.Background()
 
 	project, err := CreateProject(ctx, Input{
@@ -110,7 +192,7 @@ func TestGetDeploymentPackagePathRequiresActiveConfigSnapshot(t *testing.T) {
 	_, err = ActivateDeployment(ctx, project.ID, deployment.ID)
 	require.NoError(t, err)
 
-	_, _, err = GetDeploymentPackagePath(ctx, deployment.ID)
+	_, _, err = OpenDeploymentPackage(ctx, deployment.ID)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "激活配置")
 
@@ -125,10 +207,17 @@ func TestGetDeploymentPackagePathRequiresActiveConfigSnapshot(t *testing.T) {
 		CreatedBy:        "test",
 	}).Error)
 
-	filePath, fileName, err := GetDeploymentPackagePath(ctx, deployment.ID)
+	packageObj, fileName, err := OpenDeploymentPackage(ctx, deployment.ID)
 	require.NoError(t, err)
-	assert.NotEmpty(t, filePath)
-	assert.Equal(t, "pages-deployment-"+strconv.FormatUint(uint64(deployment.ID), 10)+".zip", fileName)
+	defer packageObj.Body.Close()
+	assert.Equal(t, fmt.Sprintf("pages-deployment-%d.zip", deployment.ID), fileName)
+
+	body, err := io.ReadAll(packageObj.Body)
+	require.NoError(t, err)
+	reader, err := zip.NewReader(bytes.NewReader(body), int64(len(body)))
+	require.NoError(t, err)
+	require.Len(t, reader.File, 1)
+	assert.Equal(t, "index.html", reader.File[0].Name)
 }
 
 func testPagesZip(t *testing.T, files map[string]string) []byte {

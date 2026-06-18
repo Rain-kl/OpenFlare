@@ -47,7 +47,8 @@ type PagesDeployment struct {
 	DeploymentNumber int        `json:"deployment_number" gorm:"not null"`
 	Checksum         string     `json:"checksum" gorm:"size:64;not null;index"`
 	Status           string     `json:"status" gorm:"size:32;not null;default:'uploaded';index"`
-	ArtifactPath     string     `json:"artifact_path" gorm:"size:2048;not null"`
+	UploadID         uint64     `json:"upload_id,string" gorm:"not null;default:0;index"`
+	ArtifactPath     string     `json:"artifact_path,omitempty" gorm:"size:2048;not null;default:''"` // legacy only
 	FileCount        int        `json:"file_count" gorm:"not null;default:0"`
 	TotalSize        int64      `json:"total_size" gorm:"not null;default:0"`
 	CreatedBy        string     `json:"created_by" gorm:"size:64;not null;default:''"`

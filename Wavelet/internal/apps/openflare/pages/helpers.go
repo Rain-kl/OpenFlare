@@ -5,6 +5,7 @@ package pages
 
 import (
 	"archive/zip"
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
@@ -17,8 +18,9 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/Rain-kl/Wavelet/internal/config"
+	"github.com/Rain-kl/Wavelet/internal/apps/upload"
 	"github.com/Rain-kl/Wavelet/internal/model"
+	"github.com/Rain-kl/Wavelet/internal/repository"
 )
 
 const (
@@ -26,6 +28,7 @@ const (
 	pagesMaxDeploymentBytes  = 100 * 1024 * 1024
 	defaultPagesEntryFile    = "index.html"
 	defaultPagesFallbackPath = "/index.html"
+	pagesDeploymentUploadType = "openflare_pages_deployment"
 )
 
 var pagesSlugPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{0,126}[a-z0-9]$|^[a-z0-9]$`)
@@ -144,15 +147,15 @@ func normalizePagesEntryFile(raw string) string {
 	return strings.TrimPrefix(value, "/")
 }
 
-func persistPagesUploadTemp(fileHeader *multipart.FileHeader) (string, string, error) {
+func persistPagesUploadTemp(fileHeader *multipart.FileHeader) (string, string, int64, error) {
 	file, err := fileHeader.Open()
 	if err != nil {
-		return "", "", err
+		return "", "", 0, err
 	}
 	defer file.Close()
 	temp, err := os.CreateTemp("", "openflare-pages-*.zip")
 	if err != nil {
-		return "", "", err
+		return "", "", 0, err
 	}
 	defer temp.Close()
 	hash := sha256.New()
@@ -160,13 +163,64 @@ func persistPagesUploadTemp(fileHeader *multipart.FileHeader) (string, string, e
 	written, err := io.Copy(io.MultiWriter(temp, hash), limited)
 	if err != nil {
 		_ = os.Remove(temp.Name())
-		return "", "", err
+		return "", "", 0, err
 	}
 	if written > pagesMaxDeploymentBytes {
 		_ = os.Remove(temp.Name())
-		return "", "", fmt.Errorf("Pages 部署包不能超过 %d MiB", pagesMaxDeploymentBytes/1024/1024)
+		return "", "", 0, fmt.Errorf("Pages 部署包不能超过 %d MiB", pagesMaxDeploymentBytes/1024/1024)
 	}
-	return temp.Name(), hex.EncodeToString(hash.Sum(nil)), nil
+	return temp.Name(), hex.EncodeToString(hash.Sum(nil)), written, nil
+}
+
+func ingestPagesDeploymentPackage(
+	ctx context.Context,
+	tempPath string,
+	checksum string,
+	size int64,
+	projectSlug string,
+	fileName string,
+) (upload.IngestResult, error) {
+	file, err := os.Open(tempPath)
+	if err != nil {
+		return upload.IngestResult{}, err
+	}
+	defer file.Close()
+
+	systemUser := repository.GetSystemUser(ctx)
+	accessMode := 0
+	return upload.Ingest(ctx, upload.IngestRequest{
+		UserID:             systemUser.ID,
+		Reader:             file,
+		Size:               size,
+		FileName:           fileName,
+		MimeType:           "application/zip",
+		Extension:          "zip",
+		Hash:               checksum,
+		Type:               pagesDeploymentUploadType,
+		AccessMode:         &accessMode,
+		SkipExtensionCheck: true,
+		Policy:             upload.PolicyDedupNewRecord,
+		Metadata: model.UploadMetadata{
+			Extra: map[string]any{
+				"project_slug": projectSlug,
+			},
+		},
+	})
+}
+
+func removeDeploymentArtifact(ctx context.Context, deployment *model.PagesDeployment) {
+	if deployment == nil {
+		return
+	}
+	if deployment.UploadID > 0 {
+		if _, err := upload.Remove(ctx, deployment.UploadID); err != nil {
+			return
+		}
+		return
+	}
+	if strings.TrimSpace(deployment.ArtifactPath) != "" {
+		_ = os.Remove(deployment.ArtifactPath)
+	}
 }
 
 func findCommonRootPrefix(files []*zip.File) (string, error) {
@@ -313,43 +367,4 @@ func checksumZipFile(item *zip.File) (string, error) {
 	return hex.EncodeToString(hash.Sum(nil)), nil
 }
 
-func pagesArtifactPath(projectSlug string, checksum string) (string, error) {
-	root, err := pagesStorageRoot()
-	if err != nil {
-		return "", err
-	}
-	return filepath.Join(root, "artifacts", projectSlug, checksum+".zip"), nil
-}
 
-func pagesStorageRoot() (string, error) {
-	cfg := config.Config.Database
-	if cfg.Enabled {
-		return filepath.Abs(filepath.Join("data", "pages"))
-	}
-	dbPath := strings.TrimSpace(cfg.SQLitePath)
-	if dbPath == "" || dbPath == ":memory:" {
-		return filepath.Abs(filepath.Join("data", "pages"))
-	}
-	dir := filepath.Dir(dbPath)
-	if dir == "." || dir == "" {
-		dir = "data"
-	}
-	return filepath.Abs(filepath.Join(dir, "pages"))
-}
-
-func copyFile(src string, dst string) error {
-	input, err := os.Open(src)
-	if err != nil {
-		return err
-	}
-	defer input.Close()
-	output, err := os.OpenFile(dst, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o644)
-	if err != nil {
-		return err
-	}
-	defer output.Close()
-	if _, err = io.Copy(output, input); err != nil {
-		return err
-	}
-	return output.Sync()
-}

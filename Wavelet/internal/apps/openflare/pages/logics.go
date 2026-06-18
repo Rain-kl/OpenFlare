@@ -15,8 +15,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Rain-kl/Wavelet/internal/apps/upload"
+	uploadstorage "github.com/Rain-kl/Wavelet/internal/apps/upload/storage"
 	"github.com/Rain-kl/Wavelet/internal/db"
 	"github.com/Rain-kl/Wavelet/internal/model"
+	"github.com/Rain-kl/Wavelet/internal/repository"
+	"github.com/Rain-kl/Wavelet/internal/storage"
 	"gorm.io/gorm"
 )
 
@@ -185,8 +189,8 @@ func DeleteProject(ctx context.Context, id uint) error {
 		if err := tx.Delete(project).Error; err != nil {
 			return err
 		}
-		for _, deployment := range deployments {
-			_ = os.Remove(deployment.ArtifactPath)
+		for index := range deployments {
+			removeDeploymentArtifact(ctx, &deployments[index])
 		}
 		return nil
 	})
@@ -248,7 +252,7 @@ func UploadDeployment(ctx context.Context, projectID uint, fileHeader *multipart
 		return nil, err
 	}
 	entryFile := normalizePagesEntryFile(project.EntryFile)
-	tempPath, checksum, err := persistPagesUploadTemp(fileHeader)
+	tempPath, checksum, packageSize, err := persistPagesUploadTemp(fileHeader)
 	if err != nil {
 		return nil, err
 	}
@@ -257,16 +261,23 @@ func UploadDeployment(ctx context.Context, projectID uint, fileHeader *multipart
 	if err != nil {
 		return nil, err
 	}
-	artifactPath, err := pagesArtifactPath(project.Slug, checksum)
+	ingestResult, err := ingestPagesDeploymentPackage(
+		ctx,
+		tempPath,
+		checksum,
+		packageSize,
+		project.Slug,
+		fileHeader.Filename,
+	)
 	if err != nil {
 		return nil, err
 	}
-	if err = os.MkdirAll(filepath.Dir(artifactPath), 0o755); err != nil {
-		return nil, fmt.Errorf("创建 Pages 存储目录失败: %w", err)
-	}
-	if err = copyFile(tempPath, artifactPath); err != nil {
-		return nil, err
-	}
+	ingestCommitted := false
+	defer func() {
+		if !ingestCommitted && ingestResult.Created {
+			_, _ = upload.Remove(ctx, ingestResult.Upload.ID)
+		}
+	}()
 	deployment := &model.PagesDeployment{}
 	err = db.DB(ctx).Transaction(func(tx *gorm.DB) error {
 		var maxNumber int
@@ -281,7 +292,7 @@ func UploadDeployment(ctx context.Context, projectID uint, fileHeader *multipart
 			DeploymentNumber: maxNumber + 1,
 			Checksum:         checksum,
 			Status:           model.PagesDeploymentStatusUploaded,
-			ArtifactPath:     artifactPath,
+			UploadID:         ingestResult.Upload.ID,
 			FileCount:        manifest.FileCount,
 			TotalSize:        manifest.TotalSize,
 			CreatedBy:        strings.TrimSpace(createdBy),
@@ -300,9 +311,9 @@ func UploadDeployment(ctx context.Context, projectID uint, fileHeader *multipart
 		return nil
 	})
 	if err != nil {
-		_ = os.Remove(artifactPath)
 		return nil, err
 	}
+	ingestCommitted = true
 	view := buildDeploymentView(deployment)
 	return &view, nil
 }
@@ -342,22 +353,47 @@ func ActivateDeployment(ctx context.Context, projectID uint, deploymentID uint) 
 	return GetProject(ctx, project.ID)
 }
 
-// GetDeploymentPackagePath returns the on-disk artifact path and download filename for an agent package request.
-func GetDeploymentPackagePath(ctx context.Context, deploymentID uint) (string, string, error) {
+// OpenDeploymentPackage opens the deployment artifact from the upload storage framework.
+func OpenDeploymentPackage(ctx context.Context, deploymentID uint) (*storage.Object, string, error) {
 	deployment, err := model.GetPagesDeploymentByID(ctx, deploymentID)
 	if err != nil {
-		return "", "", err
+		return nil, "", err
 	}
 	if err = ensureDeploymentInActiveSnapshot(ctx, deployment.ID); err != nil {
-		return "", "", err
+		return nil, "", err
+	}
+	fileName := fmt.Sprintf("pages-deployment-%d.zip", deployment.ID)
+	if deployment.UploadID > 0 {
+		uploadRecord, err := repository.GetActiveUploadByID(ctx, deployment.UploadID)
+		if err != nil {
+			return nil, "", errors.New(errPagesPackageUploadMissing)
+		}
+		obj, err := uploadstorage.OpenStoredObject(ctx, &uploadRecord)
+		if err != nil {
+			return nil, "", fmt.Errorf("Pages 部署包不存在: %w", err)
+		}
+		if obj.ContentType == "" {
+			obj.ContentType = "application/zip"
+		}
+		return obj, fileName, nil
 	}
 	if strings.TrimSpace(deployment.ArtifactPath) == "" {
-		return "", "", errors.New(errPagesPackagePathEmpty)
+		return nil, "", errors.New(errPagesPackagePathEmpty)
 	}
-	if _, err = os.Stat(deployment.ArtifactPath); err != nil {
-		return "", "", fmt.Errorf("Pages 部署包不存在: %w", err)
+	file, err := os.Open(deployment.ArtifactPath)
+	if err != nil {
+		return nil, "", fmt.Errorf("Pages 部署包不存在: %w", err)
 	}
-	return deployment.ArtifactPath, fmt.Sprintf("pages-deployment-%d.zip", deployment.ID), nil
+	info, err := file.Stat()
+	if err != nil {
+		_ = file.Close()
+		return nil, "", fmt.Errorf("Pages 部署包不存在: %w", err)
+	}
+	return &storage.Object{
+		Body:          file,
+		ContentLength: info.Size(),
+		ContentType:   "application/zip",
+	}, fileName, nil
 }
 
 func ensureDeploymentInActiveSnapshot(ctx context.Context, deploymentID uint) error {
@@ -436,7 +472,7 @@ func DeleteDeployment(ctx context.Context, projectID uint, deploymentID uint) er
 		if err := tx.Delete(deployment).Error; err != nil {
 			return err
 		}
-		_ = os.Remove(deployment.ArtifactPath)
+		removeDeploymentArtifact(ctx, deployment)
 		return nil
 	})
 }
