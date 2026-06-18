@@ -6,8 +6,9 @@ import * as echarts from 'echarts/core';
 import { MapChart, ScatterChart } from 'echarts/charts';
 import { GeoComponent, TooltipComponent } from 'echarts/components';
 import { CanvasRenderer } from 'echarts/renderers';
-import { useRouter } from 'next/navigation';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import {useTheme} from 'next-themes';
+import {useRouter} from 'next/navigation';
+import {useEffect, useMemo, useRef, useState} from 'react';
 
 import {EmptyState} from '@/components/layout/empty';
 import type {DashboardNodeHealth, DistributionItem} from '@/lib/services/openflare';
@@ -192,14 +193,14 @@ function ensureWorldMapRegistered() {
 }
 
 export function WorldStageMap({
-  isDark,
   nodes,
   sourceCountries,
 }: {
-  isDark: boolean;
   nodes: DashboardNodeHealth[];
   sourceCountries: DistributionItem[];
 }) {
+  const {resolvedTheme} = useTheme();
+  const isDark = resolvedTheme === 'dark';
   const router = useRouter();
   const chartContainerRef = useRef<HTMLDivElement | null>(null);
   const [mapReady, setMapReady] = useState(false);
@@ -251,30 +252,26 @@ export function WorldStageMap({
     () =>
       isDark
         ? {
-            areaColor: '#13233b',
-            borderColor: 'rgba(125,211,252,0.14)',
+            areaColor: '#1c1f26',
+            borderColor: 'rgba(148,163,184,0.16)',
             labelColor: '#e2e8f0',
-            sourceAreaColor: 'rgba(56, 189, 248, 0.18)',
-            sourceAreaBorder: 'rgba(125, 211, 252, 0.45)',
             healthyColor: '#34d399',
             warningColor: '#fbbf24',
-            dangerColor: '#fb7185',
-            healthyBorder: '#bbf7d0',
-            warningBorder: '#fde68a',
-            dangerBorder: '#fecdd3',
+            dangerColor: '#f87171',
+            healthyBorder: '#6ee7b7',
+            warningBorder: '#fcd34d',
+            dangerBorder: '#fca5a5',
           }
         : {
-            areaColor: '#eaf2ff',
-            borderColor: 'rgba(71,85,105,0.12)',
-            labelColor: '#0f172a',
-            sourceAreaColor: 'rgba(14, 165, 233, 0.22)',
-            sourceAreaBorder: 'rgba(14, 165, 233, 0.46)',
+            areaColor: '#f4f4f5',
+            borderColor: 'rgba(148,163,184,0.28)',
+            labelColor: '#18181b',
             healthyColor: '#10b981',
             warningColor: '#f59e0b',
-            dangerColor: '#f43f5e',
-            healthyBorder: '#d1fae5',
-            warningBorder: '#fde68a',
-            dangerBorder: '#fecdd3',
+            dangerColor: '#ef4444',
+            healthyBorder: '#6ee7b7',
+            warningBorder: '#fcd34d',
+            dangerBorder: '#fca5a5',
           },
     [isDark],
   );
@@ -342,11 +339,11 @@ export function WorldStageMap({
         const areaOpacity = Number((0.14 + intensity * 0.58).toFixed(3));
         const borderOpacity = Number((0.22 + intensity * 0.48).toFixed(3));
         const areaColor = isDark
-          ? `rgba(56, 189, 248, ${areaOpacity})`
-          : `rgba(14, 165, 233, ${areaOpacity})`;
+          ? `rgba(96, 165, 250, ${areaOpacity})`
+          : `rgba(59, 130, 246, ${areaOpacity})`;
         const borderColor = isDark
-          ? `rgba(125, 211, 252, ${borderOpacity})`
-          : `rgba(14, 165, 233, ${borderOpacity})`;
+          ? `rgba(147, 197, 253, ${borderOpacity})`
+          : `rgba(59, 130, 246, ${borderOpacity})`;
 
         return {
           name: item.key,
@@ -397,14 +394,14 @@ export function WorldStageMap({
         trigger: 'item',
         transitionDuration: 0,
         backgroundColor: isDark
-          ? 'rgba(15,23,42,0.96)'
-          : 'rgba(255,255,255,0.96)',
+          ? 'rgba(24,24,27,0.96)'
+          : 'rgba(255,255,255,0.98)',
         borderColor: isDark
-          ? 'rgba(148,163,184,0.2)'
-          : 'rgba(148,163,184,0.24)',
+          ? 'rgba(63,63,70,0.8)'
+          : 'rgba(228,228,231,0.9)',
         borderWidth: 1,
         textStyle: {
-          color: isDark ? '#e2e8f0' : '#0f172a',
+          color: isDark ? '#fafafa' : '#18181b',
           fontSize: 12,
         },
         formatter: (params: unknown) => {
@@ -508,11 +505,11 @@ export function WorldStageMap({
               distance: 8,
               formatter: '{b}',
               backgroundColor: isDark
-                ? 'rgba(8,15,31,0.7)'
-                : 'rgba(255,255,255,0.88)',
+                ? 'rgba(24,24,27,0.88)'
+                : 'rgba(255,255,255,0.94)',
               borderColor: isDark
-                ? 'rgba(148,163,184,0.16)'
-                : 'rgba(148,163,184,0.2)',
+                ? 'rgba(63,63,70,0.7)'
+                : 'rgba(228,228,231,0.9)',
               borderWidth: 1,
               borderRadius: 999,
               padding: [4, 8],

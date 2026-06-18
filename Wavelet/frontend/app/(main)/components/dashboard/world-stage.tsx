@@ -1,11 +1,27 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { useEffect, useRef, useState } from 'react';
-
-import {useTheme} from 'next-themes';
+import {useEffect, useRef, useState, type ComponentType} from 'react';
+import {
+  Activity,
+  Cpu,
+  Globe2,
+  HardDrive,
+  MemoryStick,
+  Server,
+  ShieldCheck,
+} from 'lucide-react';
 
 import {EmptyState} from '@/components/layout/empty';
+import {Badge} from '@/components/ui/badge';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import {Progress} from '@/components/ui/progress';
 import type {
   DashboardCapacity,
   DashboardNodeHealth,
@@ -15,99 +31,63 @@ import type {
 } from '@/lib/services/openflare';
 import {cn} from '@/lib/utils';
 
-type Tone = 'healthy' | 'warning' | 'danger' | 'source';
+import {formatCompactNumber, formatPercent} from './dashboard-utils';
 
 const WorldStageMap = dynamic(
-  () =>
-    import('./world-stage-map').then((module) => module.WorldStageMap),
+  () => import('./world-stage-map').then((module) => module.WorldStageMap),
   {ssr: false},
 );
 
-function formatPercent(value: number) {
-  if (!Number.isFinite(value)) {
-    return '0%';
-  }
-  return `${value.toFixed(value >= 100 ? 0 : 1)}%`;
+type LegendTone = 'source' | 'healthy' | 'warning' | 'danger';
+
+const legendToneClass: Record<LegendTone, string> = {
+  source: 'bg-blue-500/10 border-blue-500/20 text-blue-600 dark:text-blue-400',
+  healthy:
+    'bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400',
+  warning:
+    'bg-amber-500/10 border-amber-500/20 text-amber-600 dark:text-amber-400',
+  danger:
+    'bg-destructive/10 border-destructive/20 text-destructive',
+};
+
+function LegendBadge({label, tone}: {label: string; tone: LegendTone}) {
+  return (
+    <Badge
+      variant="outline"
+      className={cn('text-[10px] font-medium', legendToneClass[tone])}
+    >
+      {label}
+    </Badge>
+  );
 }
 
-function HeroMetric({
+function StageMetricCard({
   label,
   value,
   hint,
-  isDark,
+  icon: Icon,
+  progress,
 }: {
   label: string;
   value: string;
   hint: string;
-  isDark: boolean;
+  icon: ComponentType<{className?: string}>;
+  progress?: number;
 }) {
   return (
-    <div
-      className={cn(
-        'rounded-[24px] border px-5 py-5 backdrop-blur',
-        isDark
-          ? 'border-white/10 bg-white/6'
-          : 'border-sky-100/90 bg-white/80 shadow-[0_18px_40px_rgba(148,163,184,0.12)]',
-      )}
-    >
-      <p
-        className={cn(
-          'text-[11px] tracking-[0.26em] uppercase',
-          isDark ? 'text-slate-300' : 'text-slate-500',
-        )}
-      >
-        {label}
-      </p>
-      <p
-        className={cn(
-          'mt-3 text-[30px] leading-none font-semibold',
-          isDark ? 'text-white' : 'text-slate-950',
-        )}
-      >
-        {value}
-      </p>
-      <p
-        className={cn(
-          'mt-2 text-sm',
-          isDark ? 'text-slate-300' : 'text-slate-600',
-        )}
-      >
-        {hint}
-      </p>
-    </div>
-  );
-}
-
-function LegendPill({
-  label,
-  tone,
-  isDark,
-}: {
-  label: string;
-  tone: Tone;
-  isDark: boolean;
-}) {
-  const toneClass =
-    tone === 'healthy'
-      ? isDark
-        ? 'border-emerald-300/20 bg-emerald-400/10 text-emerald-100'
-        : 'border-emerald-200 bg-emerald-50 text-emerald-700'
-      : tone === 'warning'
-        ? isDark
-          ? 'border-amber-300/20 bg-amber-400/10 text-amber-100'
-          : 'border-amber-200 bg-amber-50 text-amber-700'
-        : tone === 'source'
-          ? isDark
-            ? 'border-sky-300/20 bg-sky-400/10 text-sky-100'
-            : 'border-sky-200 bg-sky-50 text-sky-700'
-          : isDark
-            ? 'border-rose-300/20 bg-rose-400/10 text-rose-100'
-            : 'border-rose-200 bg-rose-50 text-rose-700';
-
-  return (
-    <div className={cn('rounded-full border px-3 py-1 text-[11px]', toneClass)}>
-      {label}
-    </div>
+    <Card className="border-dashed shadow-none">
+      <CardHeader className="flex flex-row items-center justify-between pb-2">
+        <span className="text-xs font-medium text-muted-foreground">{label}</span>
+        <Icon className="size-4 text-primary" />
+      </CardHeader>
+      <CardContent className="space-y-2">
+        <div className="text-2xl font-semibold tracking-tight">{value}</div>
+        {typeof progress === 'number' ? (
+          <Progress value={progress} className="h-1.5" />
+        ) : null}
+        <p className="text-[10px] text-muted-foreground">{hint}</p>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -124,8 +104,6 @@ export function WorldStage({
   nodes: DashboardNodeHealth[];
   sourceCountries: DistributionItem[];
 }) {
-  const {resolvedTheme} = useTheme();
-  const isDark = resolvedTheme === 'dark';
   const mapViewportRef = useRef<HTMLDivElement | null>(null);
   const [shouldRenderMap, setShouldRenderMap] = useState(false);
 
@@ -147,7 +125,7 @@ export function WorldStage({
           observer.disconnect();
         }
       },
-      { rootMargin: '180px 0px' },
+      {rootMargin: '180px 0px'},
     );
 
     observer.observe(mapViewport);
@@ -173,171 +151,108 @@ export function WorldStage({
       typeof node.geo_longitude === 'number',
   ).length;
 
+  const mapModeLabel =
+    sourceCountries.length > 0
+      ? '访客来源热度'
+      : geoConfiguredNodes > 0
+        ? '节点地理坐标'
+        : '节点覆盖信号';
+
   return (
-    <section
-      className={cn(
-        'overflow-hidden rounded-[32px] border transition-colors',
-        isDark
-          ? 'border-slate-800/70 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.18),transparent_28%),radial-gradient(circle_at_82%_18%,rgba(56,189,248,0.10),transparent_18%),linear-gradient(135deg,#08111f,#0f172a_45%,#111827)] shadow-[0_32px_80px_rgba(2,6,23,0.35)]'
-          : 'border-sky-100/90 bg-[radial-gradient(circle_at_top_left,rgba(14,165,233,0.18),transparent_28%),radial-gradient(circle_at_82%_18%,rgba(59,130,246,0.12),transparent_20%),linear-gradient(135deg,#f8fbff,#edf5ff_45%,#ffffff)] shadow-[0_32px_80px_rgba(148,163,184,0.18)]',
-      )}
-    >
-      <div
-        className={cn(
-          'border-b px-6 py-6 md:px-7 md:py-7',
-          isDark ? 'border-white/8' : 'border-slate-200/70',
-        )}
-      >
-        <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
-          <div className="space-y-2">
-            <p
-              className={cn(
-                'text-[11px] tracking-[0.34em] uppercase',
-                isDark ? 'text-sky-200/80' : 'text-sky-700/80',
-              )}
-            >
-              Global Stage
-            </p>
-            <h2
-              className={cn(
-                'text-2xl font-semibold',
-                isDark ? 'text-white' : 'text-slate-950',
-              )}
-            >
-              全球态势板
-            </h2>
+    <div className="grid gap-6 xl:grid-cols-[1.32fr_0.88fr]">
+      <Card className="border-dashed shadow-none">
+        <CardHeader className="space-y-3">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <CardTitle className="text-sm font-semibold flex items-center gap-1.5">
+                <Globe2 className="size-4 text-primary" />
+                全球态势板
+              </CardTitle>
+              <CardDescription className="text-xs">
+                节点地理分布与访客来源热度一览
+              </CardDescription>
+            </div>
+            <Badge variant="outline" className="text-[10px] text-muted-foreground">
+              {mapModeLabel}
+            </Badge>
           </div>
-        </div>
-      </div>
-
-      <div className="grid gap-6 px-6 py-7 md:px-7 md:py-8 xl:grid-cols-[1.32fr_0.88fr]">
-        <div className="space-y-5">
+          <div className="flex flex-wrap gap-1.5">
+            <LegendBadge label="国家底色: 来源热度" tone="source" />
+            <LegendBadge label="绿色: 运行正常" tone="healthy" />
+            <LegendBadge label="黄色: 资源承压" tone="warning" />
+            <LegendBadge label="红色: 异常待处理" tone="danger" />
+          </div>
+        </CardHeader>
+        <CardContent>
           <div
-            className={cn(
-              'relative min-h-[540px] overflow-hidden rounded-[28px] border py-6 lg:min-h-[600px]',
-              isDark
-                ? 'border-white/10 bg-[linear-gradient(180deg,rgba(15,23,42,0.16),rgba(15,23,42,0.42))]'
-                : 'border-slate-200/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.88),rgba(239,246,255,0.92))]',
-            )}
+            ref={mapViewportRef}
+            className="relative min-h-[480px] overflow-hidden rounded-lg border border-dashed bg-muted/20 lg:min-h-[540px]"
           >
-            <div
-              className={cn(
-                'absolute top-6 left-6 z-10 rounded-full px-3 py-1 text-[11px] tracking-[0.22em] uppercase backdrop-blur',
-                isDark
-                  ? 'bg-sky-400/20 text-sky-100'
-                  : 'bg-sky-100/90 text-sky-700',
+            <div className="absolute inset-0 flex items-center justify-center p-4">
+              {shouldRenderMap ? (
+                <WorldStageMap nodes={nodes} sourceCountries={sourceCountries} />
+              ) : (
+                <EmptyState
+                  title="全球地图准备中"
+                  description="地图会在进入可视区域后再加载，避免首页滚动和交互被首屏图表拖慢。"
+                  iconSize="sm"
+                />
               )}
-            >
-              {sourceCountries.length > 0
-                ? '访客来源热度'
-                : geoConfiguredNodes > 0
-                  ? '节点地理坐标'
-                  : '节点覆盖信号'}
-            </div>
-
-            <div className="absolute top-4 right-4 z-10 flex flex-wrap gap-2">
-              <LegendPill
-                label="国家底色: 来源热度"
-                tone="source"
-                isDark={isDark}
-              />
-              <LegendPill
-                label="绿色: 运行正常"
-                tone="healthy"
-                isDark={isDark}
-              />
-              <LegendPill
-                label="黄色: 资源承压"
-                tone="warning"
-                isDark={isDark}
-              />
-              <LegendPill
-                label="红色: 异常待处理"
-                tone="danger"
-                isDark={isDark}
-              />
-            </div>
-
-            <div
-              ref={mapViewportRef}
-              className="absolute inset-x-3 top-16 bottom-6 flex items-center justify-center md:inset-x-4 md:top-18 md:bottom-8"
-            >
-              <div className="h-full w-full min-w-0 overflow-hidden">
-                {shouldRenderMap ? (
-                  <WorldStageMap
-                    isDark={isDark}
-                    nodes={nodes}
-                    sourceCountries={sourceCountries}
-                  />
-                ) : (
-                  <div className="flex h-full items-center justify-center">
-                    <EmptyState
-                      title="全球地图准备中"
-                      description="地图会在进入可视区域后再加载，避免首页滚动和交互被首屏图表拖慢。"
-                    />
-                  </div>
-                )}
-              </div>
             </div>
 
             {shouldRenderMap && nodes.length === 0 ? (
-              <div className="pointer-events-none absolute inset-x-6 bottom-10 z-10">
-                <div
-                  className={cn(
-                    'rounded-2xl border border-dashed px-4 py-4 text-sm backdrop-blur',
-                    isDark
-                      ? 'border-white/15 bg-white/5 text-slate-300'
-                      : 'border-slate-300/70 bg-white/78 text-slate-600',
-                  )}
-                >
+              <div className="pointer-events-none absolute inset-x-4 bottom-4 z-10">
+                <div className="rounded-lg border border-dashed bg-background/90 px-4 py-3 text-xs text-muted-foreground backdrop-blur-sm">
                   当前暂无节点接入。地图已完成初始化，后续会在这里展示节点位置与健康状态。
                 </div>
               </div>
             ) : null}
           </div>
-        </div>
+        </CardContent>
+      </Card>
 
-        <div className="space-y-5">
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-2">
-            <HeroMetric
-              label="在线覆盖"
-              value={formatPercent(onlineRate)}
-              hint={`${summary.online_nodes}/${summary.total_nodes} 个节点在线`}
-              isDark={isDark}
-            />
-            <HeroMetric
-              label="运行健康"
-              value={formatPercent(healthyRate)}
-              hint={`${summary.unhealthy_nodes} 个节点存在 OpenResty 异常`}
-              isDark={isDark}
-            />
-            <HeroMetric
-              label="最近窗口请求"
-              value={traffic.request_count.toLocaleString('zh-CN')}
-              hint={`QPS ${traffic.estimated_qps.toFixed(1)} · ${traffic.reported_nodes} 个节点已上报`}
-              isDark={isDark}
-            />
-            <HeroMetric
-              label="平均 CPU"
-              value={formatPercent(capacity.average_cpu_usage_percent)}
-              hint={`${capacity.high_cpu_nodes} 个节点 CPU 偏高`}
-              isDark={isDark}
-            />
-            <HeroMetric
-              label="平均内存"
-              value={formatPercent(capacity.average_memory_usage_percent)}
-              hint={`${capacity.high_memory_nodes} 个高内存节点`}
-              isDark={isDark}
-            />
-            <HeroMetric
-              label="高存储节点"
-              value={capacity.high_storage_nodes.toLocaleString('zh-CN')}
-              hint={`${summary.offline_nodes} 离线 · ${summary.pending_nodes} 待接入`}
-              isDark={isDark}
-            />
-          </div>
-        </div>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <StageMetricCard
+          label="在线覆盖"
+          value={formatPercent(onlineRate)}
+          hint={`${summary.online_nodes}/${summary.total_nodes} 个节点在线`}
+          icon={Server}
+          progress={onlineRate}
+        />
+        <StageMetricCard
+          label="运行健康"
+          value={formatPercent(healthyRate)}
+          hint={`${summary.unhealthy_nodes} 个节点存在 OpenResty 异常`}
+          icon={ShieldCheck}
+          progress={healthyRate}
+        />
+        <StageMetricCard
+          label="最近窗口请求"
+          value={formatCompactNumber(traffic.request_count)}
+          hint={`QPS ${traffic.estimated_qps.toFixed(1)} · ${traffic.reported_nodes} 个节点已上报`}
+          icon={Activity}
+        />
+        <StageMetricCard
+          label="平均 CPU"
+          value={formatPercent(capacity.average_cpu_usage_percent)}
+          hint={`${capacity.high_cpu_nodes} 个节点 CPU 偏高`}
+          icon={Cpu}
+          progress={capacity.average_cpu_usage_percent}
+        />
+        <StageMetricCard
+          label="平均内存"
+          value={formatPercent(capacity.average_memory_usage_percent)}
+          hint={`${capacity.high_memory_nodes} 个高内存节点`}
+          icon={MemoryStick}
+          progress={capacity.average_memory_usage_percent}
+        />
+        <StageMetricCard
+          label="高存储节点"
+          value={formatCompactNumber(capacity.high_storage_nodes)}
+          hint={`${summary.offline_nodes} 离线 · ${summary.pending_nodes} 待接入`}
+          icon={HardDrive}
+        />
       </div>
-    </section>
+    </div>
   );
 }
