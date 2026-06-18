@@ -214,6 +214,10 @@ export function WorldStageMap({
   }, []);
 
   useEffect(() => {
+    if (!mapReady) {
+      return;
+    }
+
     const container = chartContainerRef.current;
     if (!container) {
       return;
@@ -222,18 +226,23 @@ export function WorldStageMap({
     const updateSize = () => {
       const nextWidth = container.clientWidth;
       const nextHeight = container.clientHeight;
+      if (nextWidth <= 0 || nextHeight <= 0) {
+        return;
+      }
       setContainerSize((previous) =>
         previous.width === nextWidth && previous.height === nextHeight
           ? previous
-          : { width: nextWidth, height: nextHeight },
+          : {width: nextWidth, height: nextHeight},
       );
     };
 
     updateSize();
+    const frameId = window.requestAnimationFrame(updateSize);
 
     if (typeof ResizeObserver === 'undefined') {
       window.addEventListener('resize', updateSize);
       return () => {
+        window.cancelAnimationFrame(frameId);
         window.removeEventListener('resize', updateSize);
       };
     }
@@ -244,16 +253,17 @@ export function WorldStageMap({
     observer.observe(container);
 
     return () => {
+      window.cancelAnimationFrame(frameId);
       observer.disconnect();
     };
-  }, []);
+  }, [mapReady]);
 
   const mapPalette = useMemo(
     () =>
       isDark
         ? {
-            areaColor: '#1c1f26',
-            borderColor: 'rgba(148,163,184,0.16)',
+            areaColor: '#1e293b',
+            borderColor: 'rgba(148,163,184,0.32)',
             labelColor: '#e2e8f0',
             healthyColor: '#34d399',
             warningColor: '#fbbf24',
@@ -263,8 +273,8 @@ export function WorldStageMap({
             dangerBorder: '#fca5a5',
           }
         : {
-            areaColor: '#f4f4f5',
-            borderColor: 'rgba(148,163,184,0.28)',
+            areaColor: '#e2e8f0',
+            borderColor: 'rgba(100,116,139,0.45)',
             labelColor: '#18181b',
             healthyColor: '#10b981',
             warningColor: '#f59e0b',
@@ -544,23 +554,38 @@ export function WorldStageMap({
     );
   }
 
+  const chartReady = containerSize.width > 0 && containerSize.height > 0;
+
   return (
-    <div ref={chartContainerRef} className="h-full w-full">
-      <ReactEChartsCore
-        echarts={echarts}
-        option={mapOption}
-        notMerge
-        lazyUpdate
-        opts={{ renderer: 'canvas' }}
-        onEvents={{
-          click: (params: { data?: MapNodeDatum }) => {
-            if (params.data?.route) {
-              router.push(params.data.route);
-            }
-          },
-        }}
-        style={{ height: '100%', width: '100%' }}
-      />
+    <div ref={chartContainerRef} className="h-full min-h-0 w-full">
+      {chartReady ? (
+        <ReactEChartsCore
+          echarts={echarts}
+          option={mapOption}
+          notMerge
+          lazyUpdate
+          opts={{renderer: 'canvas'}}
+          onEvents={{
+            click: (params: {data?: MapNodeDatum}) => {
+              if (params.data?.route) {
+                router.push(params.data.route);
+              }
+            },
+          }}
+          style={{
+            height: containerSize.height,
+            width: containerSize.width,
+          }}
+        />
+      ) : (
+        <div className="flex h-full items-center justify-center">
+          <EmptyState
+            title="全球地图加载中"
+            description="正在测量地图容器尺寸..."
+            iconSize="sm"
+          />
+        </div>
+      )}
     </div>
   );
 }

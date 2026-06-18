@@ -229,21 +229,19 @@ export function WorldStage({
         <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_12.5rem] lg:gap-4">
           <div
             ref={mapViewportRef}
-            className="relative h-[200px] overflow-hidden rounded-lg border border-dashed bg-muted/20 sm:h-[240px] lg:h-[260px]"
+            className="relative h-[200px] min-h-[200px] min-w-0 overflow-hidden rounded-lg border border-dashed bg-muted/20 sm:h-[240px] sm:min-h-[240px] lg:h-[260px] lg:min-h-[260px]"
           >
-            <div className="absolute inset-0">
-              {shouldRenderMap ? (
-                <WorldStageMap nodes={nodes} sourceCountries={sourceCountries} />
-              ) : (
-                <div className="flex h-full items-center justify-center px-4">
-                  <EmptyState
-                    title="地图准备中"
-                    description="进入可视区域后加载"
-                    iconSize="sm"
-                  />
-                </div>
-              )}
-            </div>
+            {shouldRenderMap ? (
+              <WorldStageMap nodes={nodes} sourceCountries={sourceCountries} />
+            ) : (
+              <div className="flex h-full items-center justify-center px-4">
+                <EmptyState
+                  title="地图准备中"
+                  description="进入可视区域后加载"
+                  iconSize="sm"
+                />
+              </div>
+            )}
 
             {shouldRenderMap && nodes.length === 0 ? (
               <div className="pointer-events-none absolute inset-x-3 bottom-2 z-10">
