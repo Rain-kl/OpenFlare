@@ -50,6 +50,8 @@
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
     "date-fns": "^4.1.0",
+    "echarts": "^6.1.0",
+    "echarts-for-react": "^3.0.6",
     "embla-carousel-react": "^8.6.0",
     "input-otp": "^1.4.2",
     "jspdf": "^3.0.4",

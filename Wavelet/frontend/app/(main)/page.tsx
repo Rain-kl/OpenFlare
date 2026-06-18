@@ -11,8 +11,14 @@ import {DashboardService} from '@/lib/services/openflare';
 import {formatDateTime} from '@/lib/utils';
 
 import {CapacityTrendChart} from './components/dashboard/capacity-trend-chart';
-import {GeoDistributionList} from './components/dashboard/geo-distribution-list';
+import {
+  SourceDistributionChart,
+  StatusCodeDistributionChart,
+  TopDomainChart,
+} from './components/dashboard/distribution-rank-charts';
+import {NetworkDiskTrendChart} from './components/dashboard/network-disk-trend-chart';
 import {NodeHealthTable} from './components/dashboard/node-health-table';
+import {NodeRankPanel} from './components/dashboard/node-rank-panel';
 import {DashboardStatCards} from './components/dashboard/stat-cards';
 import {TrafficTrendChart} from './components/dashboard/traffic-trend-chart';
 import {getErrorMessage} from './nodes/components/node-utils';
@@ -82,10 +88,21 @@ export default function OpenFlareDashboardPage() {
             <CapacityTrendChart points={overview.trends.capacity_24h} />
           </div>
 
-          <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
-            <NodeHealthTable nodes={overview.nodes} />
-            <GeoDistributionList items={overview.distributions.source_countries} />
+          <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+            <NetworkDiskTrendChart
+              networkPoints={overview.trends.network_24h}
+              diskPoints={overview.trends.disk_io_24h}
+            />
+            <NodeRankPanel nodes={overview.nodes} />
           </div>
+
+          <div className="grid gap-6 xl:grid-cols-3">
+            <SourceDistributionChart items={overview.distributions.source_countries} />
+            <StatusCodeDistributionChart items={overview.distributions.status_codes} />
+            <TopDomainChart items={overview.distributions.top_domains} />
+          </div>
+
+          <NodeHealthTable nodes={overview.nodes} />
         </>
       )}
     </div>

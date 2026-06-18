@@ -18,6 +18,8 @@ sidebar: false
 
 ### 新增
 
+- Wavelet 总览仪表盘图表对齐旧前端 ECharts 样式：24 小时请求/容量趋势补充请求量与错误量展示，新增网络与磁盘趋势、Top 节点榜单、来源分布、状态码分布与 Top Domain 板块。
+
 - 将 `openflare-server` 后端业务域迁移至 `Wavelet/internal/apps/openflare/`，通过 `/api/*` legacy 兼容层保持旧前端 API 路径不变。
 - 新增 OpenFlare 业务表 goose 迁移（`of_options`、`of_origins`、`of_proxy_routes`、`of_nodes`、`of_waf_*`、`of_tls_*`、`of_config_versions`、`of_pages_*`、`of_apply_logs` 等）。
 - 重叠职能复用 Wavelet 内置用户/OAuth/Cap/认证源能力；新增 `integration` 包覆盖认证、核心链路、安全、Agent 协议集成测试。
