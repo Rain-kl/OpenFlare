@@ -197,8 +197,8 @@ func TestGetSystemConfig(t *testing.T) {
 		var cfg model.SystemConfig
 		_ = json.Unmarshal(dataBytes, &cfg)
 
-		if cfg.Value != "Wavelet" {
-			t.Errorf("expected 'Wavelet', got '%s'", cfg.Value)
+		if cfg.Value != "OpenFlare" {
+			t.Errorf("expected 'OpenFlare', got '%s'", cfg.Value)
 		}
 	})
 

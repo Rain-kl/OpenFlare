@@ -216,7 +216,7 @@ export function SystemTab({ configs, systemConfigsQuery }: SystemTabProps) {
                   type="text"
                   value={siteName}
                   onChange={(e) => setSiteName(e.target.value)}
-                  placeholder="例如: Wavelet"
+                  placeholder="例如: OpenFlare"
                   className="border-dashed bg-card text-xs"
                 />
                 <p className="text-[11px] leading-relaxed text-muted-foreground">

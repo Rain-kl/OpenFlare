@@ -46,7 +46,7 @@ interface AuthHeadingProps {
 export function AuthHeading({
   title,
   description,
-  siteName = "Wavelet",
+  siteName = "OpenFlare",
 }: AuthHeadingProps) {
   return (
     <header className="flex flex-col gap-6 [@media(max-height:700px)]:gap-3">

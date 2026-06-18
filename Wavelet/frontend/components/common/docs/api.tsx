@@ -241,7 +241,7 @@ export const apiSections: PolicySection[] = [
           code={`{
   "error_msg": "",
   "data": {
-    "site_name": "Wavelet",
+    "site_name": "OpenFlare",
     "registration_enabled": "true",
     "password_login_enabled": "true",
     "password_register_enabled": "true",

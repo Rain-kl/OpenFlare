@@ -30,8 +30,8 @@ func TestSystemConfigRAMCacheServesUntilInvalidated(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetSystemConfigByKey(site_name) warm error = %v", err)
 	}
-	if warm.Value != "Wavelet" {
-		t.Fatalf("GetSystemConfigByKey(site_name).Value = %q, want %q", warm.Value, "Wavelet")
+	if warm.Value != "OpenFlare" {
+		t.Fatalf("GetSystemConfigByKey(site_name).Value = %q, want %q", warm.Value, "OpenFlare")
 	}
 
 	if err := dbConn.Model(&model.SystemConfig{}).
@@ -47,8 +47,8 @@ func TestSystemConfigRAMCacheServesUntilInvalidated(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetSystemConfigByKey(site_name) cached error = %v", err)
 	}
-	if cached.Value != "Wavelet" {
-		t.Fatalf("GetSystemConfigByKey(site_name).Value = %q, want stale RAM value %q", cached.Value, "Wavelet")
+	if cached.Value != "OpenFlare" {
+		t.Fatalf("GetSystemConfigByKey(site_name).Value = %q, want stale RAM value %q", cached.Value, "OpenFlare")
 	}
 
 	if err := repository.InvalidateSystemConfigCache(ctx, model.ConfigKeySiteName); err != nil {

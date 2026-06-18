@@ -22,7 +22,7 @@ func init() {
 	otel.SetTextMapPropagator(prop)
 
 	// 初始化 Tracer 实例为 No-op 默认以避免未初始化前或测试环境崩溃
-	Tracer = otel.GetTracerProvider().Tracer("github.com/Rain-kl/Wavelet")
+	Tracer = otel.GetTracerProvider().Tracer("github.com/Rain-kl/OpenFlare")
 }
 
 // Config 链路追踪配置
@@ -44,7 +44,7 @@ func Init(cfg Config) {
 	// 更新 Tracer
 	tracerName := cfg.TracerName
 	if tracerName == "" {
-		tracerName = "github.com/Rain-kl/Wavelet"
+		tracerName = "github.com/Rain-kl/OpenFlare"
 	}
 	Tracer = tracerProvider.Tracer(tracerName)
 }

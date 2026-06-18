@@ -248,10 +248,10 @@ func TestSMTP(c *gin.Context) {
 		Password: password,
 	}
 
-	subject := "Wavelet SMTP Test Mail"
+	subject := "OpenFlare SMTP Test Mail"
 	body := `<h3>SMTP Mail Connection Test</h3>
 <p>If you received this message, your SMTP configuration is correct and mail sending is working properly.</p>
-<p>Sent from Wavelet.</p>`
+<p>Sent from OpenFlare.</p>`
 
 	logs, err := mail.SendMailWithLog(c.Request.Context(), cfg, req.To, subject, body)
 	resp := TestSMTPResponse{

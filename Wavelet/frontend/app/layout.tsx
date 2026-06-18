@@ -11,8 +11,8 @@ import {RobotsMeta} from "@/components/layout/robots-meta";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Wavelet Platform",
-  description: "通用二次开发标准范式平台",
+  title: "OpenFlare",
+  description: "OpenFlare 边缘节点与反向代理管理平台",
 };
 
 export default function RootLayout({

@@ -150,7 +150,7 @@ INSERT INTO system_configs (key, value, type, visibility, description, created_a
     ('smtp_username', '', 'system', 0, 'SMTP 账户（如 sender@example.com）', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
     ('smtp_password', '', 'system', 0, 'SMTP 访问凭证（授权码/密码）', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
     ('upload_allowed_extensions', 'jpg,png,webp', 'system', 1, '允许上传的图片扩展名（逗号分隔）', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-    ('site_name', 'Wavelet', 'system', 1, '系统平台的展示名称', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('site_name', 'OpenFlare', 'system', 1, '系统平台的展示名称', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
     ('password_login_enabled', 'true', 'system', 1, '是否允许使用账号密码登录', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
     ('registration_enabled', 'true', 'system', 1, '控制普通用户是否可以自主注册（true/false）', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
     ('password_register_enabled', 'true', 'system', 1, '是否允许通过密码创建本地账号', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
@@ -160,7 +160,7 @@ INSERT INTO system_configs (key, value, type, visibility, description, created_a
     ('email_register_verification_enabled', 'false', 'system', 1, '是否开启邮箱注册验证（true/false）', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
     ('menu_display_config', '{}', 'system', 1, '目录显示配置（JSON 字符串，格式为 {url: enabled}）', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
     ('search_engine_indexing_enabled', 'false', 'system', 1, '是否允许搜索引擎爬取/检索该站点（true/false）', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-    ('update_upstream_repository', 'Rain-kl/Wavelet', 'system', 0, 'GitHub Actions Release 上游仓库（owner/repo 或 GitHub 仓库地址）', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('update_upstream_repository', 'Rain-kl/OpenFlare', 'system', 0, 'GitHub Actions Release 上游仓库（owner/repo 或 GitHub 仓库地址）', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
     ('storage_config', '{"driver":"local","local":{"root":"."},"s3":{"region":"us-east-1"},"r2":{"region":"auto"},"minio":{"region":"us-east-1","path_style":true},"oss":{},"webdav":{}}', 'system', 0, '文件存储驱动及连接配置（JSON）', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
 ON CONFLICT (key) DO NOTHING;
 
@@ -169,8 +169,8 @@ VALUES (1, 'admin', '12345678', 'Administrator', '', TRUE, TRUE, CURRENT_TIMESTA
 ON CONFLICT (username) DO NOTHING;
 
 INSERT INTO templates (key, name, type, subject, content, description, is_system, created_at, updated_at) VALUES
-    ('login_email', '登录验证码邮件', 'email', 'Wavelet 登录验证码', '<h3>Wavelet 登录验证</h3><p>您的登录验证码为：<strong>{{.Code}}</strong>，5分钟内有效，请勿将验证码泄露给他人。</p>', '用户密码登录时发送的验证码邮件模板，支持变量：{{.Code}}', TRUE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-    ('register_email', '注册验证码邮件', 'email', 'Wavelet 注册验证码', '<h3>Wavelet 注册验证</h3><p>您的注册验证码为：<strong>{{.Code}}</strong>，5分钟内有效，请勿泄露给他人。</p>', '用户注册时发送的验证码邮件模板，支持变量：{{.Code}}', TRUE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+    ('login_email', '登录验证码邮件', 'email', 'OpenFlare 登录验证码', '<h3>OpenFlare 登录验证</h3><p>您的登录验证码为：<strong>{{.Code}}</strong>，5分钟内有效，请勿将验证码泄露给他人。</p>', '用户密码登录时发送的验证码邮件模板，支持变量：{{.Code}}', TRUE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('register_email', '注册验证码邮件', 'email', 'OpenFlare 注册验证码', '<h3>OpenFlare 注册验证</h3><p>您的注册验证码为：<strong>{{.Code}}</strong>，5分钟内有效，请勿泄露给他人。</p>', '用户注册时发送的验证码邮件模板，支持变量：{{.Code}}', TRUE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
 ON CONFLICT (key) DO NOTHING;
 
 -- +goose Down

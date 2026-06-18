@@ -1,4 +1,4 @@
-# wavelet — Full-Stack Boilerplate Config
+# openflare — Platform Config
 # Copy this file to config.yaml and fill in your values.
 # Fields marked with <...> are required; others have sensible defaults.
 
@@ -9,7 +9,7 @@ app:
   addr: ":3000"
   node_id: 1                  # Snowflake node ID (0-1023). Must be unique per instance.
   graceful_shutdown_timeout: 30
-  session_cookie_name: "wavelet_session_id"  # Change to something unique before deploy
+  session_cookie_name: "openflare_session_id"  # Change to something unique before deploy
   session_secret: "<uniq-random-string>"         # Cannot be changed after first start
   session_domain: ""                             # e.g. ".yourdomain.com"
   session_age: 86400                             # Session lifetime in seconds (default: 24h)
@@ -95,7 +95,7 @@ worker:
 # ─── OpenTelemetry Tracing ──────────────────────────────────────────────────────
 otel:
   sampling_rate: 0.0           # Trace sampling rate (0.0 – 1.0)
-  tracer_name: "github.com/Rain-kl/Wavelet" # Global tracer instrumentation name
+  tracer_name: "github.com/Rain-kl/OpenFlare" # Global tracer instrumentation name
 
 
 # ─── ClickHouse (optional) ──────────────────────────────────────────────────────

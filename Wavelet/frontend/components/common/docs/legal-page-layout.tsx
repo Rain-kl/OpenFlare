@@ -395,7 +395,7 @@ export function LegalPageLayout({
                   对这些内容有疑问？
                 </p>
                 <div className="flex justify-center gap-4">
-                  <Link href="https://github.com/Rain-kl/Wavelet/issues" target="_blank">
+                  <Link href="https://github.com/Rain-kl/OpenFlare/issues" target="_blank">
                     <Button variant="outline" className="h-9 text-xs">
                       联系支持
                     </Button>

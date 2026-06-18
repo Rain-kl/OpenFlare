@@ -196,7 +196,7 @@ func (m *manager) fetchRelease(ctx context.Context, repository string) (githubRe
 		return githubRelease{}, releaseAsset{}, fmt.Errorf("%s: %w", errReleaseRequestFailed, err)
 	}
 	req.Header.Set("Accept", "application/vnd.github+json")
-	req.Header.Set("User-Agent", "Wavelet-Updater")
+	req.Header.Set("User-Agent", "OpenFlare-Updater")
 	req.Header.Set("X-GitHub-Api-Version", "2022-11-28")
 
 	resp, err := m.client.Do(req)
@@ -275,7 +275,7 @@ func downloadArchive(ctx context.Context, client releaseClient, asset releaseAss
 	if err != nil {
 		return fmt.Errorf("创建升级下载请求失败: %w", err)
 	}
-	req.Header.Set("User-Agent", "Wavelet-Updater")
+	req.Header.Set("User-Agent", "OpenFlare-Updater")
 
 	resp, err := client.Do(req)
 	if err != nil {

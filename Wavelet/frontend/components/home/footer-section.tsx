@@ -20,15 +20,15 @@ export const FooterSection = React.memo(function FooterSection({ className }: Fo
           <div className="lg:col-span-2 space-y-6">
             <Link href="/" className="flex items-center gap-2">
               <div className="w-10 h-10 p-2 rounded bg-primary text-sm text-primary-foreground flex items-center justify-center font-bold">
-                MP
+                OF
               </div>
-              <span className="text-2xl font-bold tracking-tight text-foreground">Modern Platform</span>
+              <span className="text-2xl font-bold tracking-tight text-foreground">OpenFlare</span>
             </Link>
             <p className="text-muted-foreground text-base leading-relaxed max-w-sm">
-              通用的、现代化的后台管理系统脚手架。基于 Go + React 构建，开箱即用、完整基建、极易扩展。
+              开源边缘节点与反向代理管理平台。基于 Go + React 构建，统一管理 OpenResty 节点、网站规则与 WAF 配置。
             </p>
             <div className="flex gap-4 pt-2">
-              <SocialLink icon={Github} href="https://github.com/Rain-kl/Wavelet/" />
+              <SocialLink icon={Github} href="https://github.com/Rain-kl/OpenFlare/" />
             </div>
           </div>
 
@@ -45,15 +45,15 @@ export const FooterSection = React.memo(function FooterSection({ className }: Fo
             <ul className="space-y-4 text-sm text-muted-foreground">
               <li><FooterLink href="/docs/how-to-use">快速开始</FooterLink></li>
               <li><FooterLink href="/docs/api">API 文档</FooterLink></li>
-              <li><FooterLink href="https://github.com/Rain-kl/Wavelet">源代码</FooterLink></li>
+              <li><FooterLink href="https://github.com/Rain-kl/OpenFlare">源代码</FooterLink></li>
             </ul>
           </div>
 
           <div className="lg:col-span-1">
             <h3 className="font-semibold text-foreground mb-6">社区</h3>
             <ul className="space-y-4 text-sm text-muted-foreground">
-              <li><FooterLink href="https://github.com/Rain-kl/Wavelet/issues">GitHub Issues</FooterLink></li>
-              <li><FooterLink href="https://github.com/Rain-kl/Wavelet/discussions">讨论</FooterLink></li>
+              <li><FooterLink href="https://github.com/Rain-kl/OpenFlare/issues">GitHub Issues</FooterLink></li>
+              <li><FooterLink href="https://github.com/Rain-kl/OpenFlare/discussions">讨论</FooterLink></li>
             </ul>
           </div>
         </div>

@@ -98,7 +98,7 @@ func getSeedConfigsPart1() []model.SystemConfig {
 		},
 		{
 			Key:         model.ConfigKeySiteName,
-			Value:       "Wavelet",
+			Value:       "OpenFlare",
 			Type:        configTypeSystem,
 			Description: "系统平台的展示名称",
 		},
@@ -265,7 +265,7 @@ func getSeedConfigsPart2() []model.SystemConfig {
 		},
 		{
 			Key:         model.ConfigKeyUpdateUpstreamRepository,
-			Value:       "Rain-kl/Wavelet",
+			Value:       "Rain-kl/OpenFlare",
 			Type:        configTypeSystem,
 			Description: "GitHub Actions Release 上游仓库（owner/repo 或 GitHub 仓库地址）",
 		},

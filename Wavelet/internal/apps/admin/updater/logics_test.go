@@ -16,10 +16,10 @@ func TestParseRepository(t *testing.T) {
 		want    string
 		wantErr bool
 	}{
-		{name: "short form", input: "Rain-kl/Wavelet", want: "Rain-kl/Wavelet"},
-		{name: "GitHub URL", input: "https://github.com/Rain-kl/Wavelet.git", want: "Rain-kl/Wavelet"},
-		{name: "unsupported host", input: "https://example.com/Rain-kl/Wavelet", wantErr: true},
-		{name: "missing owner", input: "Wavelet", wantErr: true},
+		{name: "short form", input: "Rain-kl/OpenFlare", want: "Rain-kl/OpenFlare"},
+		{name: "GitHub URL", input: "https://github.com/Rain-kl/OpenFlare.git", want: "Rain-kl/OpenFlare"},
+		{name: "unsupported host", input: "https://example.com/Rain-kl/OpenFlare", wantErr: true},
+		{name: "missing owner", input: "OpenFlare", wantErr: true},
 	}
 
 	for _, tt := range tests {
@@ -67,7 +67,7 @@ func TestSelectLatestRelease(t *testing.T) {
 		},
 	}
 
-	release, asset, err := selectLatestRelease("Rain-kl/Wavelet", releases)
+	release, asset, err := selectLatestRelease("Rain-kl/OpenFlare", releases)
 	if err != nil {
 		t.Fatalf("selectLatestRelease() error = %v", err)
 	}

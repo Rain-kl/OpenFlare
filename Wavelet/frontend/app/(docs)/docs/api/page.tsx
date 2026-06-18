@@ -9,7 +9,7 @@ export default function ApiDocPage() {
       sections={apiSections}
       description={
         <p className="text-muted-foreground text-sm leading-relaxed">
-          Wavelet 提供简单、强大的 API 接口，支持多种编程语言和开发环境。通过标准化的 RESTful 接口，您可以轻松地与后端服务进行集成与二次开发。
+          OpenFlare 提供简单、强大的 API 接口，支持多种编程语言和开发环境。通过标准化的 RESTful 接口，您可以轻松地与后端服务进行集成与二次开发。
         </p>
       }
     />

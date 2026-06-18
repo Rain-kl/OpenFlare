@@ -303,7 +303,7 @@ export function TemplatesManager() {
                   type="text"
                   value={subject}
                   onChange={(e) => setSubject(e.target.value)}
-                  placeholder="例如: Wavelet 登录验证码"
+                  placeholder="例如: OpenFlare 登录验证码"
                   className="bg-card border-dashed text-xs"
                 />
                 <p className="text-[10px] text-muted-foreground leading-normal">

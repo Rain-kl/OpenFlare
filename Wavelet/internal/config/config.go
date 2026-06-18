@@ -113,7 +113,7 @@ func applyDefaults(c *configModel) {
 		c.App.SessionAge = 86400
 	}
 	if c.Otel.TracerName == "" {
-		c.Otel.TracerName = "github.com/Rain-kl/Wavelet"
+		c.Otel.TracerName = "github.com/Rain-kl/OpenFlare"
 	}
 }
 

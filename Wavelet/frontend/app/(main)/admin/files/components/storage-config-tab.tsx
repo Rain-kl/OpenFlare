@@ -306,7 +306,7 @@ export function StorageConfigTab() {
                   <TextField label="用户名" value={config.webdav.username} onChange={(username) => setConfig({...config, webdav: {...config.webdav, username}})} />
                   <TextField label="密码" type="password" value={config.webdav.password} onChange={(password) => setConfig({...config, webdav: {...config.webdav, password}})} />
                   <div className="md:col-span-2">
-                    <TextField label="基础路径" value={config.webdav.base_path} placeholder="wavelet" onChange={(base_path) => setConfig({...config, webdav: {...config.webdav, base_path}})} />
+                    <TextField label="基础路径" value={config.webdav.base_path} placeholder="openflare" onChange={(base_path) => setConfig({...config, webdav: {...config.webdav, base_path}})} />
                   </div>
                 </>
               )}

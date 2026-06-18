@@ -13,7 +13,7 @@ export function SiteTitleUpdater() {
   })
 
   useEffect(() => {
-    const siteName = publicConfigQuery.data?.site_name || "Wavelet Platform"
+    const siteName = publicConfigQuery.data?.site_name || "OpenFlare"
 
     // Determine the page suffix based on path
     let suffix = ""
