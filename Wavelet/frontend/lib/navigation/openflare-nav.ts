@@ -1,11 +1,9 @@
 import type {LucideIcon} from 'lucide-react';
 import {
-  ClipboardList,
   FileText,
   Gauge,
   GitBranch,
   Globe,
-  Info,
   LayoutDashboard,
   MapPin,
   Route,
@@ -24,9 +22,9 @@ export interface OpenFlareNavItem {
 
 /** OpenFlare 业务控制台侧栏导航（子页面通过父级入口或页内链接访问） */
 export const openflareNavItems: OpenFlareNavItem[] = [
-  {title: '总览', url: '/', icon: LayoutDashboard},
-  {title: '节点', url: '/nodes', icon: Server, childUrls: ['/nodes/detail']},
-  {title: '规则', url: '/proxy-routes', icon: Route, childUrls: ['/proxy-routes/detail']},
+  {title: '数据看板', url: '/', icon: LayoutDashboard},
+  {title: '节点管理', url: '/nodes', icon: Server, childUrls: ['/nodes/detail']},
+  {title: '规则管理', url: '/proxy-routes', icon: Route, childUrls: ['/proxy-routes/detail']},
   {title: 'Pages', url: '/pages', icon: FileText, childUrls: ['/pages/detail']},
   {
     title: '网站',
@@ -40,11 +38,9 @@ export const openflareNavItems: OpenFlareNavItem[] = [
   },
   {title: 'WAF', url: '/waf', icon: Shield, childUrls: ['/waf/ip-groups']},
   {title: '源站', url: '/origins', icon: MapPin, childUrls: ['/origins/detail']},
-  {title: '发布', url: '/config-versions', icon: GitBranch},
+  {title: '版本发布', url: '/config-versions', icon: GitBranch},
   {title: '访问日志', url: '/access-logs', icon: ScrollText},
-  {title: '应用日志', url: '/apply-logs', icon: ClipboardList},
-  {title: '性能', url: '/performance', icon: Gauge},
-  {title: '关于', url: '/about', icon: Info},
+  {title: '性能调优', url: '/performance', icon: Gauge},
 ];
 
 /** 网站模块页内二级导航 */

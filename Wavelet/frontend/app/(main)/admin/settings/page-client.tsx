@@ -105,6 +105,9 @@ export function AdminSettingsPageClient() {
       </div>
       <Tabs defaultValue="security" className="w-full">
         <TabsList variant="line" className="w-fit inline-flex gap-8 mb-6">
+          <TabsTrigger value="openflare-ops" className="px-0 pb-2 text-xs font-semibold">
+            OpenFlare
+          </TabsTrigger>
           <TabsTrigger value="security" className="px-0 pb-2 text-xs font-semibold">
             安全设置
           </TabsTrigger>
@@ -122,9 +125,6 @@ export function AdminSettingsPageClient() {
           </TabsTrigger>
           <TabsTrigger value="info" className="px-0 pb-2 text-xs font-semibold">
             系统信息
-          </TabsTrigger>
-          <TabsTrigger value="openflare-ops" className="px-0 pb-2 text-xs font-semibold">
-            OpenFlare 运维
           </TabsTrigger>
         </TabsList>
 
