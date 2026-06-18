@@ -61,6 +61,10 @@ sidebar: false
 - 侧栏新增「安全性」折叠组，收纳 WAF 与 IP 组入口；同步移除两页右上角互相跳转按钮。
 - OpenFlare 前端路由去除 `/openflare` 前缀，业务页面直接挂载于 `/`（如 `/nodes`、`/websites`）；侧栏移除「首页」「我的文件」；旧路径 `/openflare/*`、`/home` 永久重定向至新路径。
 
+### 变更
+
+- 移除 Wavelet 顶栏 OpenFlare 服务端版本入口按钮；版本升级能力保留在 Admin 设置 OpenFlare 运维 Tab。
+
 ## [v2.3.4] - 2026-06-17
 
 ### 变更

@@ -18,7 +18,6 @@ import {
 } from './components/dashboard/distribution-rank-charts';
 import {NetworkDiskTrendChart} from './components/dashboard/network-disk-trend-chart';
 import {NodeHealthTable} from './components/dashboard/node-health-table';
-import {NodeRankPanel} from './components/dashboard/node-rank-panel';
 import {TrafficTrendChart} from './components/dashboard/traffic-trend-chart';
 import {WorldStage} from './components/dashboard/world-stage';
 import {getErrorMessage} from './nodes/components/node-utils';
@@ -90,12 +89,11 @@ export default function OpenFlareDashboardPage() {
             <CapacityTrendChart points={overview.trends.capacity_24h} />
           </div>
 
-          <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+          <div className="grid gap-6">
             <NetworkDiskTrendChart
               networkPoints={overview.trends.network_24h}
               diskPoints={overview.trends.disk_io_24h}
             />
-            <NodeRankPanel nodes={overview.nodes} />
           </div>
 
           <div className="grid gap-6 xl:grid-cols-3">

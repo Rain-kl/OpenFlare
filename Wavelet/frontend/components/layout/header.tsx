@@ -10,7 +10,6 @@ import {useNotificationSettings} from "@/contexts/notification-settings-context"
 import {SidebarTrigger} from "@/components/ui/sidebar"
 import {useTheme} from "next-themes"
 import {useRouter} from "next/navigation"
-import {OpenFlareVersionEntry} from "@/components/layout/openflare-version-entry"
 import {SearchDialog} from "@/components/layout/search-dialog"
 import {Kbd} from "@/components/ui/kbd"
 
@@ -101,7 +100,6 @@ export function SiteHeader({ isFullWidth = false, onToggleFullWidth }: { isFullW
             </span>
           </div>
           <div className="flex items-center gap-1">
-            <OpenFlareVersionEntry />
             <Button variant="ghost" size="icon" className="size-9 text-muted-foreground hover:text-foreground" onClick={() => setSearchOpen(true)}>
               <Search className="size-[18px]" />
               <span className="sr-only">搜索</span>
@@ -127,7 +125,6 @@ export function SiteHeader({ isFullWidth = false, onToggleFullWidth }: { isFullW
           </div>
 
           <div className="ml-auto flex items-center gap-1">
-            <OpenFlareVersionEntry />
             <BellButton />
             <Button variant="ghost" size="icon" className="size-9 text-muted-foreground hover:text-foreground" onClick={() => router.push('/settings')}>
               <Settings className="size-[18px]" />

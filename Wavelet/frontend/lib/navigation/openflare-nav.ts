@@ -109,7 +109,7 @@ export function isNavGroupActive(pathname: string, group: OpenFlareNavGroup): bo
   return group.items.some((item) => matchesNavPath(pathname, item.url, item.childUrls));
 }
 
-/** 判断当前路径是否属于 OpenFlare 业务控制台（用于顶栏版本入口等） */
+/** 判断当前路径是否属于 OpenFlare 业务控制台 */
 export function isOpenFlareConsoleRoute(pathname: string): boolean {
   if (nonConsoleRoutePrefixes.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))) {
     return false;
