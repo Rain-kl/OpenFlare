@@ -39,7 +39,7 @@ func init() {
 func initSQLite() {
 	sqlitePath := config.Config.Database.SQLitePath
 	if sqlitePath == "" {
-		sqlitePath = "./data/wavelet.db"
+		sqlitePath = "./data/openflare.db"
 	}
 
 	var err error

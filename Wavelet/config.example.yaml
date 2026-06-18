@@ -21,12 +21,12 @@ app:
 # Supports Standalone and Primary-Replica (read/write split) modes.
 database:
   enabled: true
-  sqlite_path: "wavelet.db"        # PostgreSQL 禁用时使用此 SQLite 文件路径
+  sqlite_path: "openflare.db"      # PostgreSQL 禁用时使用此 SQLite 文件路径
   host: "127.0.0.1"
   port: 5432
   username: "postgres"
   password: "postgres"
-  database: "wavelet"
+  database: "openflare"
   max_idle_conn: 16
   max_open_conn: 128
   conn_max_lifetime: 1800
@@ -105,7 +105,7 @@ clickhouse:
     - "127.0.0.1:9000"
   username: "default"
   password: ""
-  database: "wavelet"
+  database: "openflare"
   max_idle_conn: 10
   max_open_conn: 100
   conn_max_lifetime: 3600

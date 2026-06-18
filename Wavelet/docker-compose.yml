@@ -30,7 +30,7 @@ services:
     image: postgres:17-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-wavelet}
+      POSTGRES_DB: ${POSTGRES_DB:-openflare}
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       TZ: ${TZ:-Asia/Shanghai}
@@ -39,7 +39,7 @@ services:
     volumes:
       - ./data/postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-wavelet}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-openflare}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -76,7 +76,7 @@ services:
 #    profiles:
 #      - clickhouse
 #    environment:
-#      CLICKHOUSE_DB: ${CLICKHOUSE_DB:-wavelet}
+#      CLICKHOUSE_DB: ${CLICKHOUSE_DB:-openflare}
 #      CLICKHOUSE_USER: ${CLICKHOUSE_USER:-default}
 #      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-123456}
 #      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1

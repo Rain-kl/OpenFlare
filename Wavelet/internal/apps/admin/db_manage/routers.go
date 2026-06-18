@@ -106,7 +106,7 @@ func formatBytes(bytes uint64) string {
 func getSQLiteOverview(gormDB *gorm.DB) (DBOverviewResponse, error) {
 	name := config.Config.Database.SQLitePath
 	if name == "" {
-		name = "./data/wavelet.db"
+		name = "./data/openflare.db"
 	}
 
 	var version string

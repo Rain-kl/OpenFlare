@@ -1,6 +1,6 @@
-CREATE DATABASE IF NOT EXISTS wavelet;
+CREATE DATABASE IF NOT EXISTS openflare;
 
-USE wavelet;
+USE openflare;
 
 CREATE TABLE IF NOT EXISTS w_user_access_logs
 (

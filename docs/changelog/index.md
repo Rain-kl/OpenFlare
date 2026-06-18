@@ -23,6 +23,9 @@ sidebar: false
 - 重叠职能复用 Wavelet 内置用户/OAuth/Cap/认证源能力；新增 `integration` 包覆盖认证、核心链路、安全、Agent 协议集成测试。
 - 修复 Wavelet 引入 `openflare` 模块后 `gomodule/redigo v2.0.0+incompatible` 导致 `redistore` 编译失败的问题。
 - Wavelet 后端默认监听端口由 `:8000` 调整为 `:3000`，与旧 OpenFlare Server 保持一致。
+- 新增 OpenFlare 可观测性表 goose 迁移（`of_node_system_profiles`、`of_node_metric_snapshots`、`of_node_request_reports`、`of_node_health_events`、`of_node_obs_openresty`、`of_node_obs_frps`、`of_node_access_logs`）。
+- Agent heartbeat 恢复可观测性数据持久化（系统画像、指标快照、流量报表、健康事件等）。
+- Wavelet 默认数据库名由 `wavelet` 调整为 `openflare`（PostgreSQL、ClickHouse、SQLite 后备路径同步更新）。
 
 ## [v2.3.4] - 2026-06-17
 

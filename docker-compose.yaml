@@ -16,7 +16,7 @@ services:
 
     environment:
       OPENFLARE_SERVER_URL: "http://host.docker.internal:3000"
-      OPENFLARE_AGENT_TOKEN: "07800f31d3f181e65d18dca1407d821c"
+      OPENFLARE_AGENT_TOKEN: "111675c3b22c8cf39b43639b9305fa0a"
       LOG_LEVEL: "debug"
 
     extra_hosts:

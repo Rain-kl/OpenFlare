@@ -18,16 +18,23 @@ const (
 
 // NodePayload is the agent register/heartbeat payload.
 type NodePayload struct {
-	NodeID              string            `json:"node_id"`
-	Name                string            `json:"name"`
-	IP                  string            `json:"ip"`
-	Version             string            `json:"version"`
-	ExtVersion          string            `json:"ext_version"`
-	CurrentVersion      string            `json:"current_version"`
-	LastError           string            `json:"last_error"`
-	OpenrestyStatus     string            `json:"openresty_status"`
-	OpenrestyMessage    string            `json:"openresty_message"`
-	WAFIPGroupChecksums map[string]string `json:"waf_ip_group_checksums,omitempty"`
+	NodeID                string                        `json:"node_id"`
+	Name                  string                        `json:"name"`
+	IP                    string                        `json:"ip"`
+	Version               string                        `json:"version"`
+	ExtVersion            string                        `json:"ext_version"`
+	CurrentVersion        string                        `json:"current_version"`
+	LastError             string                        `json:"last_error"`
+	OpenrestyStatus       string                        `json:"openresty_status"`
+	OpenrestyMessage      string                        `json:"openresty_message"`
+	Profile               *NodeSystemProfile            `json:"profile,omitempty"`
+	Snapshot              *NodeMetricSnapshot           `json:"snapshot,omitempty"`
+	OpenrestyObservation  *NodeOpenrestyObservation     `json:"openresty_observation,omitempty"`
+	TrafficReport         *NodeTrafficReport            `json:"traffic_report,omitempty"`
+	AccessLogs            []NodeAccessLog               `json:"access_logs,omitempty"`
+	BufferedObservability []BufferedObservabilityRecord `json:"buffered_observability,omitempty"`
+	HealthEvents          []NodeHealthEvent             `json:"health_events"`
+	WAFIPGroupChecksums   map[string]string             `json:"waf_ip_group_checksums,omitempty"`
 }
 
 // ApplyLogPayload is the agent apply log report payload.

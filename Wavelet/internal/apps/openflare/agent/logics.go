@@ -118,6 +118,12 @@ func HeartbeatNode(ctx context.Context, authNode *model.OpenFlareNode, payload N
 
 	refreshAccessTokenCache(ctx, authNode)
 
+	reportedAt := time.Now()
+	if authNode.LastSeenAt != nil {
+		reportedAt = *authNode.LastSeenAt
+	}
+	persistHeartbeatObservability(ctx, authNode.NodeID, payload, reportedAt)
+
 	activeConfig, err := getActiveConfigMeta(ctx)
 	if err != nil && !isActiveConfigNotFound(err) {
 		return nil, err

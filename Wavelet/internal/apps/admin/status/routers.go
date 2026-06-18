@@ -213,7 +213,7 @@ func getSQLiteInfo(ctx context.Context) DatabaseInfoResponse {
 		Version: "SQLite",
 	}
 	if info.Name == "" {
-		info.Name = "./data/wavelet.db"
+		info.Name = "./data/openflare.db"
 	}
 	gormDB := db.DB(ctx)
 	if gormDB == nil {
@@ -287,7 +287,7 @@ func ExportDatabase(c *gin.Context) {
 func exportSQLite(c *gin.Context) {
 	path := config.Config.Database.SQLitePath
 	if path == "" {
-		path = "./data/wavelet.db"
+		path = "./data/openflare.db"
 	}
 
 	f, err := os.Open(path) //nolint:gosec // path is loaded from server startup configuration, not user input
@@ -307,11 +307,11 @@ func exportSQLite(c *gin.Context) {
 		return
 	}
 
-	c.Header("Content-Disposition", `attachment; filename="wavelet.db"`)
+	c.Header("Content-Disposition", `attachment; filename="openflare.db"`)
 	c.Header("Content-Type", "application/octet-stream")
 	c.Header("Content-Length", fmt.Sprintf("%d", fi.Size()))
 	c.Status(http.StatusOK)
-	http.ServeContent(c.Writer, c.Request, "wavelet.db", fi.ModTime(), f)
+	http.ServeContent(c.Writer, c.Request, "openflare.db", fi.ModTime(), f)
 }
 
 // exportPostgres 执行 pg_dump 并将输出流式传输给客户端
@@ -340,7 +340,7 @@ func exportPostgres(c *gin.Context) {
 		cmd.Env = os.Environ()
 	}
 
-	fileName := fmt.Sprintf("wavelet_%s.sql", time.Now().Format("20060102_150405"))
+	fileName := fmt.Sprintf("openflare_%s.sql", time.Now().Format("20060102_150405"))
 	c.Header("Content-Disposition", `attachment; filename="`+fileName+`"`)
 	c.Header("Content-Type", "application/octet-stream")
 	c.Status(http.StatusOK)
