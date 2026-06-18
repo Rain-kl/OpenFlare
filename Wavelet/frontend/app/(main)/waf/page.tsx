@@ -24,7 +24,7 @@ import type {WAFRuleGroup, WAFRuleGroupPayload} from '@/lib/services/openflare';
 import {ProxyRouteService, WafService} from '@/lib/services/openflare';
 
 import {getErrorMessage} from './components/helpers';
-import {RuleGroupDialog} from './components/rule-group-dialog';
+import {RuleGroupSheet} from './components/rule-group-sheet';
 import {RuleGroupsTable} from './components/rule-groups-table';
 import {SiteBindingSheet} from './components/site-binding-sheet';
 
@@ -197,7 +197,7 @@ export default function WafPage() {
         </CardContent>
       </Card>
 
-      <RuleGroupDialog
+      <RuleGroupSheet
         open={editorOpen}
         group={editingGroup}
         ipGroups={ipGroupsQuery.data ?? []}
