@@ -4,7 +4,17 @@ import Link from 'next/link';
 import {useRouter} from 'next/navigation';
 import {useMutation, useQueryClient} from '@tanstack/react-query';
 import {useState} from 'react';
-import {ArrowLeft, FileText, RefreshCw, RotateCcw, Trash2, Upload,} from 'lucide-react';
+import {
+  Activity,
+  FileText,
+  Fingerprint,
+  KeyRound,
+  Package,
+  RefreshCw,
+  RotateCcw,
+  Trash2,
+  Upload,
+} from 'lucide-react';
 import {toast} from 'sonner';
 
 import {
@@ -18,13 +28,18 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import {Button} from '@/components/ui/button';
-import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card';
 import {formatDateTime} from '@/lib/utils';
 import type {NodeAgentReleaseInfo, NodeItem, ReleaseChannel} from '@/lib/services/openflare';
 import {NodeService} from '@/lib/services/openflare';
 
 import {AgentUpdateDialog} from './agent-update-dialog';
 import {InstallCommand} from './install-command';
+import {NodeDetailShell} from './node-detail-shell';
+import {
+  NodeErrorBanner,
+  NodeInfoRow,
+  NodeSectionCard,
+} from './node-detail-primitives';
 import {NodeEditorDialog} from './node-editor-dialog';
 import {NodeObservability} from './node-observability';
 import {NodeStatusBadge} from './node-status-badge';
@@ -109,192 +124,104 @@ export function TunnelNodeDetail({ node }: { node: NodeItem }) {
     ]);
   };
 
-  return (
-    <div className="py-6 px-1 space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <Button variant="ghost" size="sm" className="h-8 px-2" asChild>
-            <Link href="/nodes">
-              <ArrowLeft className="size-4" />
-            </Link>
-          </Button>
-          <h1 className="text-2xl font-semibold tracking-tight">{node.name}</h1>
-          <NodeStatusBadge
-            label={getNodeStatusLabel(node.status)}
-            tone={getNodeStatusTone(node.status)}
-          />
-        </div>
+  const headerActions = (
+    <>
+      <Button variant="outline" size="sm" className="h-8" onClick={() => setEditorOpen(true)}>
+        编辑
+      </Button>
+      <Button variant="outline" size="sm" className="h-8" onClick={handleRefresh}>
+        <RefreshCw className="size-3.5 mr-1.5" />
+        刷新
+      </Button>
+      <Button
+        variant="outline"
+        size="sm"
+        className="h-8"
+        disabled={forceSyncMutation.isPending}
+        onClick={() => forceSyncMutation.mutate()}
+      >
+        <RotateCcw className="size-3.5 mr-1.5" />
+        {forceSyncMutation.isPending ? '同步中...' : '强制同步'}
+      </Button>
+      <Button variant="secondary" size="sm" className="h-8" onClick={() => setUpgradeOpen(true)}>
+        <Upload className="size-3.5 mr-1.5" />
+        {node.update_requested ? '查看升级' : '升级 openflared'}
+      </Button>
+      <Button
+        variant="outline"
+        size="sm"
+        className="h-8 text-destructive hover:text-destructive"
+        onClick={() => setDeleteOpen(true)}
+      >
+        <Trash2 className="size-3.5 mr-1.5" />
+        删除
+      </Button>
+    </>
+  );
 
-        <div className="flex flex-wrap items-center gap-2">
-          <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setEditorOpen(true)}>
-            编辑
-          </Button>
-          <Button variant="outline" size="sm" className="h-7 text-xs" onClick={handleRefresh}>
-            <RefreshCw className="size-3.5 mr-1" />
-            刷新
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-7 text-xs"
-            disabled={forceSyncMutation.isPending}
-            onClick={() => forceSyncMutation.mutate()}
-          >
-            <RotateCcw className="size-3.5 mr-1" />
-            {forceSyncMutation.isPending ? '同步中...' : '强制同步'}
-          </Button>
-          <Button
-            variant="secondary"
-            size="sm"
-            className="h-7 text-xs"
-            onClick={() => setUpgradeOpen(true)}
-          >
-            <Upload className="size-3.5 mr-1" />
-            {node.update_requested ? '查看升级' : '升级 openflared'}
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-7 text-xs text-destructive hover:text-destructive"
-            onClick={() => setDeleteOpen(true)}
-          >
-            <Trash2 className="size-3.5 mr-1" />
-            删除
-          </Button>
-        </div>
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <Card className="border-dashed shadow-none">
-          <CardHeader className="pb-2">
-            <CardDescription>节点 ID</CardDescription>
-            <CardTitle className="text-sm font-medium break-all">{node.node_id}</CardTitle>
-          </CardHeader>
-        </Card>
-        <Card className="border-dashed shadow-none">
-          <CardHeader className="pb-2">
-            <CardDescription>openflared 版本</CardDescription>
-            <CardTitle className="text-sm font-medium">{node.version || 'unknown'}</CardTitle>
-          </CardHeader>
-        </Card>
-        <Card className="border-dashed shadow-none">
-          <CardHeader className="pb-2">
-            <CardDescription>当前配置版本</CardDescription>
-            <CardTitle className="text-sm font-medium">{node.current_version || '未应用'}</CardTitle>
-          </CardHeader>
-        </Card>
-        <Card className="border-dashed shadow-none">
-          <CardHeader className="pb-2">
-            <CardDescription>最近心跳</CardDescription>
-            <CardTitle className="text-sm font-medium">
-              {isWSConnectedLastSeen(node.last_seen_at)
-                ? 'WS 已连接'
-                : isMeaningfulTime(node.last_seen_at)
-                  ? formatRelativeTime(node.last_seen_at)
-                  : '暂无'}
-            </CardTitle>
-          </CardHeader>
-        </Card>
-      </div>
+  const overviewTab = (
+    <div className="space-y-6">
+      {node.last_error ? <NodeErrorBanner message={node.last_error} /> : null}
 
       <div className="grid gap-6 xl:grid-cols-2">
-        <Card className="border-dashed shadow-none">
-          <CardHeader>
-            <CardTitle className="text-base font-semibold">隧道客户端</CardTitle>
-            <CardDescription>隧道客户端节点 (tunnel_client / openflared)</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3 text-sm">
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-muted-foreground">运行状态</span>
+        <NodeSectionCard title="隧道运行状态" description="openflared 连接与在线情况">
+          <div className="divide-y">
+            <NodeInfoRow label="运行状态">
               <NodeStatusBadge
                 label={getNodeStatusLabel(node.status)}
                 tone={getNodeStatusTone(node.status)}
               />
-            </div>
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-muted-foreground">flared 状态</span>
+            </NodeInfoRow>
+            <NodeInfoRow label="flared 状态">
               <NodeStatusBadge
                 label={getFlaredStatusLabel(node)}
                 tone={getFlaredStatusTone(node)}
               />
-            </div>
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-muted-foreground">Tunnel Token</span>
-              <span className="text-right break-all max-w-[60%]">
-                {node.access_token || '暂无'}
-              </span>
-            </div>
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-muted-foreground">IP 地址</span>
-              <span>
-                {node.ip || '—'}
-                {node.ip_manual_override ? '（已锁定）' : ''}
-              </span>
-            </div>
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-muted-foreground">最近应用</span>
-              <NodeStatusBadge
-                label={getApplyLabel(node.latest_apply_result)}
-                tone={getApplyTone(node.latest_apply_result)}
-              />
-            </div>
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-muted-foreground">自动更新</span>
-              <span>{node.auto_update_enabled ? '已启用' : '手动'}</span>
-            </div>
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-muted-foreground">创建时间</span>
-              <span>{formatDateTime(node.created_at)}</span>
-            </div>
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-muted-foreground">更新时间</span>
-              <span>{formatDateTime(node.updated_at)}</span>
-            </div>
-            {node.last_error ? (
-              <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-3 text-destructive">
-                {node.last_error}
-              </div>
-            ) : null}
-          </CardContent>
-        </Card>
+            </NodeInfoRow>
+            <NodeInfoRow label="最近心跳">
+              {isWSConnectedLastSeen(node.last_seen_at)
+                ? 'WebSocket 长连接已建立'
+                : isMeaningfulTime(node.last_seen_at)
+                  ? `${formatRelativeTime(node.last_seen_at)} · ${formatDateTime(node.last_seen_at)}`
+                  : '暂无'}
+            </NodeInfoRow>
+            <NodeInfoRow label="IP 地址">
+              {node.ip || '—'}
+              {node.ip_manual_override ? '（已锁定）' : ''}
+            </NodeInfoRow>
+            <NodeInfoRow label="自动更新">{node.auto_update_enabled ? '已启用' : '手动'}</NodeInfoRow>
+          </div>
+        </NodeSectionCard>
 
-        <Card className="border-dashed shadow-none">
-          <CardHeader className="flex-row items-center justify-between space-y-0">
-            <div>
-              <CardTitle className="text-base font-semibold">同步状态</CardTitle>
-              <CardDescription>配置追平与应用结果</CardDescription>
-            </div>
-            <Button variant="outline" size="sm" className="h-7 text-xs" asChild>
+        <NodeSectionCard
+          title="配置同步"
+          description="隧道客户端配置追平状态"
+          action={
+            <Button variant="outline" size="sm" className="h-8" asChild>
               <Link href={`/apply-logs?node_id=${encodeURIComponent(node.node_id)}`}>
-                <FileText className="size-3.5 mr-1" />
+                <FileText className="size-3.5 mr-1.5" />
                 应用记录
               </Link>
             </Button>
-          </CardHeader>
-          <CardContent className="space-y-3 text-sm">
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-muted-foreground">最近应用结果</span>
+          }
+        >
+          <div className="divide-y">
+            <NodeInfoRow label="当前配置版本">{node.current_version || '未应用'}</NodeInfoRow>
+            <NodeInfoRow label="最近应用">
               <NodeStatusBadge
                 label={getApplyLabel(node.latest_apply_result)}
                 tone={getApplyTone(node.latest_apply_result)}
               />
-            </div>
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-muted-foreground">最近应用时间</span>
-              <span>
-                {isMeaningfulTime(node.latest_apply_at) && node.latest_apply_at
-                  ? `${formatRelativeTime(node.latest_apply_at)} · ${formatDateTime(node.latest_apply_at)}`
-                  : '暂无'}
-              </span>
-            </div>
+            </NodeInfoRow>
+            <NodeInfoRow label="最近应用时间">
+              {isMeaningfulTime(node.latest_apply_at)
+                ? `${formatRelativeTime(node.latest_apply_at)} · ${formatDateTime(node.latest_apply_at)}`
+                : '暂无'}
+            </NodeInfoRow>
             {node.latest_apply_checksum ? (
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-muted-foreground">同步文件数</span>
-                <span>{node.latest_support_file_count} 个</span>
-              </div>
+              <NodeInfoRow label="同步文件数">{node.latest_support_file_count} 个</NodeInfoRow>
             ) : null}
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-muted-foreground">升级状态</span>
+            <NodeInfoRow label="升级状态">
               <NodeStatusBadge
                 label={
                   node.update_requested
@@ -305,27 +232,67 @@ export function TunnelNodeDetail({ node }: { node: NodeItem }) {
                 }
                 tone={node.update_requested ? 'warning' : 'info'}
               />
-            </div>
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-muted-foreground">最近心跳详情</span>
-              <span className="text-right">
-                {isWSConnectedLastSeen(node.last_seen_at)
-                  ? 'WebSocket 长连接已建立'
-                  : isMeaningfulTime(node.last_seen_at)
-                    ? formatDateTime(node.last_seen_at)
-                    : '暂无'}
-              </span>
-            </div>
-          </CardContent>
-        </Card>
+            </NodeInfoRow>
+          </div>
+        </NodeSectionCard>
       </div>
+    </div>
+  );
+
+  const manageTab = (
+    <div className="space-y-6">
+      <NodeSectionCard title="接入凭证" description="隧道客户端接入所需 Token">
+        <div className="divide-y">
+          <NodeInfoRow label="Tunnel Token">
+            <span className="font-mono text-xs break-all">{node.access_token || '暂无'}</span>
+          </NodeInfoRow>
+          <NodeInfoRow label="节点 ID">
+            <span className="font-mono text-xs break-all">{node.node_id}</span>
+          </NodeInfoRow>
+          <NodeInfoRow label="创建时间">{formatDateTime(node.created_at)}</NodeInfoRow>
+          <NodeInfoRow label="更新时间">{formatDateTime(node.updated_at)}</NodeInfoRow>
+        </div>
+      </NodeSectionCard>
 
       <InstallCommand node={node} variant="tunnel" />
+    </div>
+  );
 
-      <NodeObservability
-        nodeId={node.id}
-        variant="compact"
-        connectionHint="隧道并发连接数"
+  return (
+    <>
+      <NodeDetailShell
+        title={node.name}
+        typeLabel="Tunnel"
+        typeTone="info"
+        statusBadges={[
+          { label: getNodeStatusLabel(node.status), tone: getNodeStatusTone(node.status) },
+          { label: getFlaredStatusLabel(node), tone: getFlaredStatusTone(node) },
+        ]}
+        actions={headerActions}
+        kpis={[
+          { label: '节点 ID', value: node.node_id, icon: Fingerprint },
+          { label: 'openflared', value: node.version || 'unknown', icon: Package },
+          { label: '当前配置', value: node.current_version || '未应用', icon: KeyRound },
+          {
+            label: '最近心跳',
+            value: isWSConnectedLastSeen(node.last_seen_at)
+              ? 'WS 已连接'
+              : isMeaningfulTime(node.last_seen_at)
+                ? formatRelativeTime(node.last_seen_at)
+                : '暂无',
+            icon: Activity,
+          },
+        ]}
+        overview={overviewTab}
+        dashboard={
+          <NodeObservability
+            nodeId={node.id}
+            variant="compact"
+            connectionHint="隧道并发连接数"
+          />
+        }
+        manage={manageTab}
+        defaultTab="overview"
       />
 
       <NodeEditorDialog
@@ -368,6 +335,6 @@ export function TunnelNodeDetail({ node }: { node: NodeItem }) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </>
   );
 }

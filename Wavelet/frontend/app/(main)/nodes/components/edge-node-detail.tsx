@@ -4,7 +4,17 @@ import Link from 'next/link';
 import {useRouter} from 'next/navigation';
 import {useMutation, useQueryClient} from '@tanstack/react-query';
 import {useState} from 'react';
-import {ArrowLeft, FileText, RefreshCw, RotateCcw, Trash2, Upload,} from 'lucide-react';
+import {
+  Activity,
+  Cpu,
+  FileText,
+  Fingerprint,
+  Package,
+  RefreshCw,
+  RotateCcw,
+  Trash2,
+  Upload,
+} from 'lucide-react';
 import {toast} from 'sonner';
 
 import {
@@ -18,12 +28,17 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import {Button} from '@/components/ui/button';
-import {Card, CardContent, CardDescription, CardHeader, CardTitle,} from '@/components/ui/card';
 import {formatDateTime} from '@/lib/utils';
 import type {NodeAgentReleaseInfo, NodeItem, ReleaseChannel} from '@/lib/services/openflare';
 import {NodeService} from '@/lib/services/openflare';
 
 import {AgentUpdateDialog} from './agent-update-dialog';
+import {NodeDetailShell} from './node-detail-shell';
+import {
+  NodeErrorBanner,
+  NodeInfoRow,
+  NodeSectionCard,
+} from './node-detail-primitives';
 import {NodeEditorDialog} from './node-editor-dialog';
 import {NodeObservability} from './node-observability';
 import {NodeStatusBadge} from './node-status-badge';
@@ -116,180 +131,189 @@ export function EdgeNodeDetail({ node }: { node: NodeItem }) {
     ]);
   };
 
-  return (
-    <div className="py-6 px-1 space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <Button variant="ghost" size="sm" className="h-8 px-2" asChild>
-            <Link href="/nodes">
-              <ArrowLeft className="size-4" />
-            </Link>
-          </Button>
-          <h1 className="text-2xl font-semibold tracking-tight">{node.name}</h1>
-          <NodeStatusBadge
-            label={getNodeStatusLabel(node.status)}
-            tone={getNodeStatusTone(node.status)}
-          />
-        </div>
+  const headerActions = (
+    <>
+      <Button variant="outline" size="sm" className="h-8" onClick={() => setEditorOpen(true)}>
+        编辑
+      </Button>
+      <Button variant="outline" size="sm" className="h-8" onClick={handleRefresh}>
+        <RefreshCw className="size-3.5 mr-1.5" />
+        刷新
+      </Button>
+      <Button
+        variant="outline"
+        size="sm"
+        className="h-8"
+        disabled={forceSyncMutation.isPending}
+        onClick={() => forceSyncMutation.mutate()}
+      >
+        <RotateCcw className="size-3.5 mr-1.5" />
+        {forceSyncMutation.isPending ? '同步中...' : '强制同步'}
+      </Button>
+      <Button
+        variant="outline"
+        size="sm"
+        className="h-8"
+        disabled={restartMutation.isPending}
+        onClick={() => restartMutation.mutate()}
+      >
+        {restartMutation.isPending ? '下发中...' : '重启 OpenResty'}
+      </Button>
+      <Button variant="secondary" size="sm" className="h-8" onClick={() => setUpgradeOpen(true)}>
+        <Upload className="size-3.5 mr-1.5" />
+        {node.update_requested ? '查看升级' : '升级 Agent'}
+      </Button>
+      <Button
+        variant="outline"
+        size="sm"
+        className="h-8 text-destructive hover:text-destructive"
+        onClick={() => setDeleteOpen(true)}
+      >
+        <Trash2 className="size-3.5 mr-1.5" />
+        删除
+      </Button>
+    </>
+  );
 
-        <div className="flex flex-wrap items-center gap-2">
-          <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setEditorOpen(true)}>
-            编辑
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-7 text-xs"
-            onClick={handleRefresh}
-            disabled={false}
-          >
-            <RefreshCw className="size-3.5 mr-1" />
-            刷新
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-7 text-xs"
-            disabled={forceSyncMutation.isPending}
-            onClick={() => forceSyncMutation.mutate()}
-          >
-            <RotateCcw className="size-3.5 mr-1" />
-            {forceSyncMutation.isPending ? '同步中...' : '强制同步'}
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-7 text-xs"
-            disabled={restartMutation.isPending}
-            onClick={() => restartMutation.mutate()}
-          >
-            {restartMutation.isPending ? '下发中...' : '重启 OpenResty'}
-          </Button>
-          <Button
-            variant="secondary"
-            size="sm"
-            className="h-7 text-xs"
-            onClick={() => setUpgradeOpen(true)}
-          >
-            <Upload className="size-3.5 mr-1" />
-            {node.update_requested ? '查看升级' : '升级 Agent'}
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-7 text-xs text-destructive hover:text-destructive"
-            onClick={() => setDeleteOpen(true)}
-          >
-            <Trash2 className="size-3.5 mr-1" />
-            删除
-          </Button>
-        </div>
-      </div>
+  const overviewTab = (
+    <div className="space-y-6">
+      {node.last_error ? <NodeErrorBanner message={node.last_error} /> : null}
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <Card className="border-dashed shadow-none">
-          <CardHeader className="pb-2">
-            <CardDescription>节点 ID</CardDescription>
-            <CardTitle className="text-sm font-medium break-all">{node.node_id}</CardTitle>
-          </CardHeader>
-        </Card>
-        <Card className="border-dashed shadow-none">
-          <CardHeader className="pb-2">
-            <CardDescription>Agent 版本</CardDescription>
-            <CardTitle className="text-sm font-medium">{node.version || 'unknown'}</CardTitle>
-          </CardHeader>
-        </Card>
-        <Card className="border-dashed shadow-none">
-          <CardHeader className="pb-2">
-            <CardDescription>当前配置版本</CardDescription>
-            <CardTitle className="text-sm font-medium">{node.current_version || '未应用'}</CardTitle>
-          </CardHeader>
-        </Card>
-        <Card className="border-dashed shadow-none">
-          <CardHeader className="pb-2">
-            <CardDescription>最近心跳</CardDescription>
-            <CardTitle className="text-sm font-medium">
+      <div className="grid gap-6 xl:grid-cols-2">
+        <NodeSectionCard title="运行状态" description="节点在线情况与 OpenResty 健康">
+          <div className="divide-y">
+            <NodeInfoRow label="运行状态">
+              <NodeStatusBadge
+                label={getNodeStatusLabel(node.status)}
+                tone={getNodeStatusTone(node.status)}
+              />
+            </NodeInfoRow>
+            <NodeInfoRow label="OpenResty 健康">
+              <NodeStatusBadge
+                label={getOpenrestyStatusLabel(node.openresty_status)}
+                tone={getOpenrestyStatusTone(node.openresty_status)}
+              />
+            </NodeInfoRow>
+            <NodeInfoRow label="最近心跳">
               {isMeaningfulTime(node.last_seen_at)
-                ? formatRelativeTime(node.last_seen_at)
+                ? `${formatRelativeTime(node.last_seen_at)} · ${formatDateTime(node.last_seen_at)}`
                 : '暂无'}
-            </CardTitle>
-          </CardHeader>
-        </Card>
-      </div>
-
-      <Card className="border-dashed shadow-none">
-        <CardHeader className="flex-row items-center justify-between space-y-0">
-          <div>
-            <CardTitle className="text-base font-semibold">节点信息</CardTitle>
-            <CardDescription>边缘代理节点 (edge_node)</CardDescription>
-          </div>
-          <Button variant="outline" size="sm" className="h-7 text-xs" asChild>
-            <Link href={`/apply-logs?node_id=${encodeURIComponent(node.node_id)}`}>
-              <FileText className="size-3.5 mr-1" />
-              应用记录
-            </Link>
-          </Button>
-        </CardHeader>
-        <CardContent className="grid gap-3 text-sm md:grid-cols-2 xl:grid-cols-3">
-          <div className="flex items-center justify-between gap-3">
-            <span className="text-muted-foreground">运行状态</span>
-            <NodeStatusBadge
-              label={getNodeStatusLabel(node.status)}
-              tone={getNodeStatusTone(node.status)}
-            />
-          </div>
-          <div className="flex items-center justify-between gap-3">
-            <span className="text-muted-foreground">OpenResty 健康</span>
-            <NodeStatusBadge
-              label={getOpenrestyStatusLabel(node.openresty_status)}
-              tone={getOpenrestyStatusTone(node.openresty_status)}
-            />
-          </div>
-          <div className="flex items-center justify-between gap-3">
-            <span className="text-muted-foreground">最近应用</span>
-            <NodeStatusBadge
-              label={getApplyLabel(node.latest_apply_result)}
-              tone={getApplyTone(node.latest_apply_result)}
-            />
-          </div>
-          <div className="flex items-center justify-between gap-3">
-            <span className="text-muted-foreground">IP 地址</span>
-            <span>
+            </NodeInfoRow>
+            <NodeInfoRow label="IP 地址">
               {node.ip || '—'}
               {node.ip_manual_override ? '（已锁定）' : ''}
-            </span>
+            </NodeInfoRow>
+            <NodeInfoRow label="地图点位">{node.geo_name || '未配置'}</NodeInfoRow>
           </div>
-          <div className="flex items-center justify-between gap-3">
-            <span className="text-muted-foreground">地图点位</span>
-            <span>{node.geo_name || '未配置'}</span>
+        </NodeSectionCard>
+
+        <NodeSectionCard
+          title="配置同步"
+          description="版本追平与应用结果摘要"
+          action={
+            <Button variant="outline" size="sm" className="h-8" asChild>
+              <Link href={`/apply-logs?node_id=${encodeURIComponent(node.node_id)}`}>
+                <FileText className="size-3.5 mr-1.5" />
+                应用记录
+              </Link>
+            </Button>
+          }
+        >
+          <div className="divide-y">
+            <NodeInfoRow label="当前配置版本">{node.current_version || '未应用'}</NodeInfoRow>
+            <NodeInfoRow label="最近应用">
+              <NodeStatusBadge
+                label={getApplyLabel(node.latest_apply_result)}
+                tone={getApplyTone(node.latest_apply_result)}
+              />
+            </NodeInfoRow>
+            <NodeInfoRow label="最近应用时间">
+              {isMeaningfulTime(node.latest_apply_at)
+                ? `${formatRelativeTime(node.latest_apply_at)} · ${formatDateTime(node.latest_apply_at)}`
+                : '暂无'}
+            </NodeInfoRow>
+            <NodeInfoRow label="Agent 版本">{node.version || 'unknown'}</NodeInfoRow>
+            <NodeInfoRow label="Nginx 版本">{node.ext_version || 'unknown'}</NodeInfoRow>
+            <NodeInfoRow label="自动更新">{node.auto_update_enabled ? '已启用' : '手动'}</NodeInfoRow>
           </div>
-          <div className="flex items-center justify-between gap-3">
-            <span className="text-muted-foreground">OpenResty 状态消息</span>
-            <span className="text-right max-w-[60%] break-words">
-              {node.openresty_message || '无'}
-            </span>
+        </NodeSectionCard>
+      </div>
+    </div>
+  );
+
+  const manageTab = (
+    <div className="space-y-6">
+      <NodeSectionCard title="节点标识" description="用于 Agent 接入与鉴别的核心字段">
+        <div className="divide-y">
+          <NodeInfoRow label="节点 ID">
+            <span className="font-mono text-xs break-all">{node.node_id}</span>
+          </NodeInfoRow>
+          <NodeInfoRow label="Agent Token">
+            <span className="font-mono text-xs break-all">{node.access_token || '暂无'}</span>
+          </NodeInfoRow>
+          <NodeInfoRow label="创建时间">{formatDateTime(node.created_at)}</NodeInfoRow>
+          <NodeInfoRow label="更新时间">{formatDateTime(node.updated_at)}</NodeInfoRow>
+        </div>
+      </NodeSectionCard>
+
+      <NodeSectionCard title="运行消息" description="OpenResty 与 Agent 上报的状态说明">
+        <div className="space-y-4 text-sm">
+          <div>
+            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              OpenResty 状态消息
+            </p>
+            <p className="rounded-lg border bg-muted/30 px-3 py-3 leading-6 break-words whitespace-pre-wrap">
+              {node.openresty_message || '当前未上报额外错误。'}
+            </p>
           </div>
-          <div className="flex items-center justify-between gap-3">
-            <span className="text-muted-foreground">创建时间</span>
-            <span>{formatDateTime(node.created_at)}</span>
-          </div>
-          <div className="flex items-center justify-between gap-3">
-            <span className="text-muted-foreground">更新时间</span>
-            <span>{formatDateTime(node.updated_at)}</span>
-          </div>
-          {node.last_error ? (
-            <div className="md:col-span-2 xl:col-span-3 rounded-lg border border-destructive/20 bg-destructive/5 p-3 text-destructive">
-              {node.last_error}
+          {node.restart_openresty_requested ? (
+            <div className="flex items-center gap-2 text-sm text-amber-700 dark:text-amber-300">
+              <Activity className="size-4" />
+              已等待节点在下一次心跳后执行 OpenResty 重启。
             </div>
           ) : null}
-        </CardContent>
-      </Card>
+        </div>
+      </NodeSectionCard>
+    </div>
+  );
 
-      <NodeObservability
-        nodeId={node.id}
-        node={node}
-        variant="edge"
-        connectionHint="OpenResty 当前连接"
+  return (
+    <>
+      <NodeDetailShell
+        title={node.name}
+        typeLabel="Edge"
+        typeTone="info"
+        statusBadges={[
+          { label: getNodeStatusLabel(node.status), tone: getNodeStatusTone(node.status) },
+          {
+            label: getOpenrestyStatusLabel(node.openresty_status),
+            tone: getOpenrestyStatusTone(node.openresty_status),
+          },
+        ]}
+        actions={headerActions}
+        kpis={[
+          { label: '节点 ID', value: node.node_id, icon: Fingerprint },
+          { label: 'Agent 版本', value: node.version || 'unknown', icon: Cpu },
+          { label: '当前配置', value: node.current_version || '未应用', icon: Package },
+          {
+            label: '最近心跳',
+            value: isMeaningfulTime(node.last_seen_at)
+              ? formatRelativeTime(node.last_seen_at)
+              : '暂无',
+            icon: Activity,
+          },
+        ]}
+        overview={overviewTab}
+        dashboard={
+          <NodeObservability
+            nodeId={node.id}
+            node={node}
+            variant="edge"
+            connectionHint="OpenResty 当前连接"
+          />
+        }
+        manage={manageTab}
+        defaultTab="overview"
       />
 
       <NodeEditorDialog
@@ -332,6 +356,6 @@ export function EdgeNodeDetail({ node }: { node: NodeItem }) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </>
   );
 }
