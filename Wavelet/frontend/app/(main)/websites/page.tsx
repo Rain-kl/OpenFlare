@@ -77,12 +77,6 @@ export default function WebsitesPage() {
           <h1 className="text-2xl font-semibold tracking-tight">网站</h1>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" className="h-7 text-xs" asChild>
-            <Link href="/websites/certificates">证书列表</Link>
-          </Button>
-          <Button variant="outline" size="sm" className="h-7 text-xs" asChild>
-            <Link href="/websites/dns-accounts">DNS 账号</Link>
-          </Button>
           <Button size="sm" className="h-7 text-xs" onClick={() => setEditorOpen(true)}>
             <Plus className="size-3.5 mr-1" />
             新增网站

@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query';
 import {useMemo, useState} from 'react';
 import {Cloud, Plus, Trash2} from 'lucide-react';
@@ -63,12 +62,6 @@ export default function DnsAccountsPage() {
           <h1 className="text-2xl font-semibold tracking-tight">DNS 账号</h1>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" className="h-7 text-xs" asChild>
-            <Link href="/websites">返回网站</Link>
-          </Button>
-          <Button variant="outline" size="sm" className="h-7 text-xs" asChild>
-            <Link href="/websites/certificates">证书</Link>
-          </Button>
           <Button size="sm" className="h-7 text-xs" onClick={() => setCreateOpen(true)}>
             <Plus className="size-3.5 mr-1" />
             添加账号

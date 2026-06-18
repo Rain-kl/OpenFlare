@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query';
 import {useMemo, useState} from 'react';
 import {FileKey, Plus, RefreshCw, Trash2} from 'lucide-react';
@@ -95,12 +94,6 @@ export default function CertificatesPage() {
           <h1 className="text-2xl font-semibold tracking-tight">证书</h1>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" size="sm" className="h-7 text-xs" asChild>
-            <Link href="/websites">返回网站</Link>
-          </Button>
-          <Button variant="outline" size="sm" className="h-7 text-xs" asChild>
-            <Link href="/websites/dns-accounts">DNS 账号</Link>
-          </Button>
           <Button
             variant="outline"
             size="sm"

@@ -41,7 +41,8 @@ sidebar: false
 - 扩展 Relay/Flared heartbeat 载荷与可观测性持久化（frps 观测、健康事件）；新增 `of_node_obs_frpc` 单表。
 - Agent heartbeat 恢复 Geo 自动更新、访问日志地域解析与 90 天保留清理；对齐 config `support_files` 过滤规则。
 - 补全 OAuth 快捷路由（`/api/oauth/github`、`/api/oauth/wechat`、`/api/oauth/wechat/bind`、`/api/oauth/email/bind`）。
-- 新增 `internal/apps/openflare/tasks/` 集中承载 OpenFlare 定时/后台任务业务逻辑；调度已迁入 Wavelet Asynq 任务框架（`async_tasks.go` + `w_schedules` 种子迁移），含数据库可观测性自动清理、WAF IP 组周期同步、UptimeKuma 同步、ACME 证书自动续期。
+- 新增 `internal/apps/openflare/tasks/` 集中承载 OpenFlare 定时/后台任务业务逻辑；调度已迁入 Wavelet Asynq 异步任务框架（`async_tasks.go` + `w_schedules` 种子迁移），含数据库可观测性自动清理、WAF IP 组周期同步、UptimeKuma 同步、ACME 证书自动续期。
+- Pages 部署包上传改为通过 Wavelet `upload.Ingest` 写入本地文件存储框架，部署记录关联 `upload_id`；Agent 下载改为从存储后端流式读取。
 - 实装数据库可观测性手动/自动清理、WAF IP 组订阅/自动同步与测试接口、UptimeKuma 监控同步、TLS ACME 申请/续期（lego DNS-01）。
 - 修复 Wavelet Agent WebSocket 未处理 `status` 消息导致 WS 模式下 `last_seen_at` 停止更新、节点超时显示离线的问题；列表「最近心跳」恢复显示「WS 已连接」。
 - 修复节点「强制同步」仍为 stub 导致始终返回「节点不在线或通过 WebSocket 发送同步指令失败」的问题。
@@ -55,6 +56,7 @@ sidebar: false
 - 节点详情页改为 Tabs 布局（概览 / 数据看板 / 配置与部署），统一 Edge/Relay/Tunnel 详情壳层并支持 `tab` URL 参数深链。
 - 节点详情 24 小时网络/磁盘 IO 趋势图对齐原版 ECharts 样式，恢复系列摘要卡与平滑面积折线图。
 - 侧栏新增「网站管理」折叠组（shadcn Collapsible + SidebarMenuSub），收纳网站、证书、DNS、源站入口。
+- 移除网站、证书、DNS 页面右上角互相跳转按钮，改由侧栏折叠组统一导航。
 - OpenFlare 前端路由去除 `/openflare` 前缀，业务页面直接挂载于 `/`（如 `/nodes`、`/websites`）；侧栏移除「首页」「我的文件」；旧路径 `/openflare/*`、`/home` 永久重定向至新路径。
 
 ## [v2.3.4] - 2026-06-17
