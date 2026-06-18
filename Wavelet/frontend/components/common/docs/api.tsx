@@ -242,9 +242,10 @@ export const apiSections: PolicySection[] = [
   "error_msg": "",
   "data": {
     "site_name": "OpenFlare",
-    "registration_enabled": "true",
+    "registration_enabled": "false",
     "password_login_enabled": "true",
-    "password_register_enabled": "true",
+    "password_register_enabled": "false",
+    "cap_login_enabled": "true",
     "oidc_login_enabled": "true"
   }
 }`}

@@ -83,7 +83,7 @@ export function ProxyRoutesPageClient() {
 
     setDeleting(true);
     try {
-      await ProxyRouteService.delete(deleteTarget.id);
+      await ProxyRouteService.deleteById(deleteTarget.id);
       toast.success('网站已删除');
       setDeleteTarget(null);
       await fetchRoutes();

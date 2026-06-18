@@ -1,4 +1,4 @@
-import {LegacyOpenFlareBaseService} from './legacy-base.service';
+import {OpenFlareBaseService} from './base.service';
 import type {
   DatabaseCleanupPayload,
   DatabaseCleanupResult,
@@ -7,29 +7,29 @@ import type {
   OptionItem,
 } from './types';
 
-export class OptionService extends LegacyOpenFlareBaseService {
-  protected static override readonly basePath = '/api/option';
+export class OptionService extends OpenFlareBaseService {
+  protected static override readonly basePath: string = '/api/v1/custom/openflare/option';
 
   static list(): Promise<OptionItem[]> {
-    return this.legacyGet<OptionItem[]>('/');
+    return this.get<OptionItem[]>('/');
   }
 
   static update(key: string, value: string): Promise<void> {
-    return this.legacyPost<void>('/update', { key, value });
+    return this.post<void>('/update', { key, value });
   }
 
   static updateBatch(options: OptionItem[]): Promise<void> {
     const payload: OptionBatchPayload = { options };
-    return this.legacyPost<void>('/update-batch', payload);
+    return this.post<void>('/update-batch', payload);
   }
 
   static lookupGeoIP(provider: string, ip: string): Promise<GeoIPLookupResult> {
-    return this.legacyPost<GeoIPLookupResult>('/geoip/lookup', { provider, ip });
+    return this.post<GeoIPLookupResult>('/geoip/lookup', { provider, ip });
   }
 
   static cleanupDatabase(
     payload: DatabaseCleanupPayload,
   ): Promise<DatabaseCleanupResult> {
-    return this.legacyPost<DatabaseCleanupResult>('/database/cleanup', payload);
+    return this.post<DatabaseCleanupResult>('/database/cleanup', payload);
   }
 }

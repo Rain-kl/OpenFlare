@@ -1,5 +1,36 @@
 basePath: /
 definitions:
+  apply_log.CleanupInput:
+    properties:
+      delete_all:
+        type: boolean
+      retention_days:
+        type: integer
+    type: object
+  apply_log.CleanupResult:
+    properties:
+      cutoff:
+        type: string
+      delete_all:
+        type: boolean
+      deleted_count:
+        type: integer
+      retention_days:
+        type: integer
+    type: object
+  apply_log.ListResult:
+    properties:
+      current:
+        type: integer
+      rows:
+        items:
+          $ref: '#/definitions/model.OpenFlareApplyLog'
+        type: array
+      total:
+        type: integer
+      totalPage:
+        type: integer
+    type: object
   auth_source.AuthSourceRequest:
     properties:
       client_id:
@@ -75,6 +106,199 @@ definitions:
     required:
     - solutions
     - token
+    type: object
+  config_version.CleanupInput:
+    properties:
+      keep_count:
+        type: integer
+    type: object
+  config_version.CleanupResult:
+    properties:
+      deleted_count:
+        type: integer
+      message:
+        type: string
+    type: object
+  config_version.ConfigDiffResult:
+    properties:
+      active_version:
+        type: string
+      active_website_count:
+        type: integer
+      added_domains:
+        items:
+          type: string
+        type: array
+      added_sites:
+        items:
+          type: string
+        type: array
+      changed_option_details:
+        items:
+          $ref: '#/definitions/config_version.ConfigOptionDiffItem'
+        type: array
+      changed_option_keys:
+        items:
+          type: string
+        type: array
+      current_website_count:
+        type: integer
+      main_config_changed:
+        type: boolean
+      modified_domains:
+        items:
+          type: string
+        type: array
+      modified_sites:
+        items:
+          type: string
+        type: array
+      removed_domains:
+        items:
+          type: string
+        type: array
+      removed_sites:
+        items:
+          type: string
+        type: array
+      waf_config_changed:
+        type: boolean
+    type: object
+  config_version.ConfigOptionDiffItem:
+    properties:
+      current_value:
+        type: string
+      key:
+        type: string
+      previous_value:
+        type: string
+    type: object
+  config_version.ConfigPreviewResult:
+    properties:
+      checksum:
+        type: string
+      main_config:
+        type: string
+      rendered_config:
+        type: string
+      route_config:
+        type: string
+      route_count:
+        type: integer
+      snapshot_json:
+        type: string
+      support_files:
+        items:
+          $ref: '#/definitions/config_version.SupportFile'
+        type: array
+      website_count:
+        type: integer
+    type: object
+  config_version.SupportFile:
+    properties:
+      content:
+        type: string
+      path:
+        type: string
+    type: object
+  dashboard.Capacity:
+    properties:
+      average_cpu_usage_percent:
+        type: number
+      average_memory_usage_percent:
+        type: number
+      high_cpu_nodes:
+        type: integer
+      high_memory_nodes:
+        type: integer
+      high_storage_nodes:
+        type: integer
+    type: object
+  dashboard.OverviewPayload:
+    properties:
+      capacity:
+        $ref: '#/definitions/dashboard.Capacity'
+      distributions:
+        $ref: '#/definitions/dashboard.distributionsPayload'
+      generated_at: {}
+      nodes:
+        items:
+          items: {}
+          type: array
+        type: array
+      summary:
+        $ref: '#/definitions/dashboard.Summary'
+      traffic:
+        $ref: '#/definitions/dashboard.Traffic'
+      trends:
+        $ref: '#/definitions/dashboard.trendsPayload'
+    type: object
+  dashboard.Summary:
+    properties:
+      offline_nodes:
+        type: integer
+      online_nodes:
+        type: integer
+      pending_nodes:
+        type: integer
+      total_nodes:
+        type: integer
+      unhealthy_nodes:
+        type: integer
+    type: object
+  dashboard.Traffic:
+    properties:
+      error_count:
+        type: integer
+      estimated_qps:
+        type: number
+      reported_nodes:
+        type: integer
+      request_count:
+        type: integer
+      unique_visitors:
+        type: integer
+    type: object
+  dashboard.distributionsPayload:
+    properties:
+      source_countries:
+        items:
+          items: {}
+          type: array
+        type: array
+      status_codes:
+        items:
+          items: {}
+          type: array
+        type: array
+      top_domains:
+        items:
+          items: {}
+          type: array
+        type: array
+    type: object
+  dashboard.trendsPayload:
+    properties:
+      capacity_24h:
+        items:
+          items: {}
+          type: array
+        type: array
+      disk_io_24h:
+        items:
+          items: {}
+          type: array
+        type: array
+      network_24h:
+        items:
+          items: {}
+          type: array
+        type: array
+      traffic_24h:
+        items:
+          items: {}
+          type: array
+        type: array
     type: object
   db_manage.DBOverviewResponse:
     properties:
@@ -344,6 +568,19 @@ definitions:
       user_id:
         type: integer
     type: object
+  model.AcmeAccount:
+    properties:
+      created_at:
+        type: string
+      email:
+        type: string
+      id:
+        type: integer
+      updated_at:
+        type: string
+      url:
+        type: string
+    type: object
   model.AuthSource:
     properties:
       client_id:
@@ -371,6 +608,57 @@ definitions:
       updated_at:
         type: string
     type: object
+  model.ConfigVersion:
+    properties:
+      checksum:
+        type: string
+      created_at:
+        type: string
+      created_by:
+        type: string
+      id:
+        type: integer
+      is_active:
+        type: boolean
+      main_config:
+        type: string
+      rendered_config:
+        type: string
+      snapshot_json:
+        type: string
+      support_files_json:
+        type: string
+      version:
+        type: string
+    type: object
+  model.ConfigVersionSummary:
+    properties:
+      checksum:
+        type: string
+      created_at:
+        type: string
+      created_by:
+        type: string
+      id:
+        type: integer
+      is_active:
+        type: boolean
+      version:
+        type: string
+    type: object
+  model.DNSAccount:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      type:
+        type: string
+      updated_at:
+        type: string
+    type: object
   model.ExternalAccountView:
     properties:
       auth_source_id:
@@ -389,6 +677,169 @@ definitions:
         type: string
       id:
         type: integer
+    type: object
+  model.ManagedDomain:
+    properties:
+      cert_id:
+        type: integer
+      created_at:
+        type: string
+      domain:
+        type: string
+      enabled:
+        type: boolean
+      id:
+        type: integer
+      remark:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  model.OpenFlareApplyLog:
+    properties:
+      checksum:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: integer
+      main_config_checksum:
+        type: string
+      message:
+        type: string
+      node_id:
+        type: string
+      result:
+        type: string
+      route_config_checksum:
+        type: string
+      support_file_count:
+        type: integer
+      version:
+        type: string
+    type: object
+  model.OpenFlareHealthEvent:
+    properties:
+      created_at:
+        type: string
+      event_type:
+        type: string
+      first_triggered_at:
+        type: string
+      id:
+        type: integer
+      last_triggered_at:
+        type: string
+      message:
+        type: string
+      metadata_json:
+        type: string
+      node_id:
+        type: string
+      reported_at:
+        type: string
+      resolved_at:
+        type: string
+      severity:
+        type: string
+      status:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  model.OpenFlareMetricSnapshot:
+    properties:
+      captured_at:
+        type: string
+      cpu_usage_percent:
+        type: number
+      created_at:
+        type: string
+      disk_read_bytes:
+        type: integer
+      disk_write_bytes:
+        type: integer
+      id:
+        type: integer
+      memory_total_bytes:
+        type: integer
+      memory_used_bytes:
+        type: integer
+      network_rx_bytes:
+        type: integer
+      network_tx_bytes:
+        type: integer
+      node_id:
+        type: string
+      storage_total_bytes:
+        type: integer
+      storage_used_bytes:
+        type: integer
+    type: object
+  model.OpenFlareNodeSystemProfile:
+    properties:
+      architecture:
+        type: string
+      cpu_cores:
+        type: integer
+      cpu_model:
+        type: string
+      created_at:
+        type: string
+      hostname:
+        type: string
+      id:
+        type: integer
+      kernel_version:
+        type: string
+      node_id:
+        type: string
+      os_name:
+        type: string
+      os_version:
+        type: string
+      reported_at:
+        type: string
+      total_disk_bytes:
+        type: integer
+      total_memory_bytes:
+        type: integer
+      updated_at:
+        type: string
+      uptime_seconds:
+        type: integer
+    type: object
+  model.OpenFlareOption:
+    properties:
+      key:
+        type: string
+      value:
+        type: string
+    type: object
+  model.OpenFlareRequestReport:
+    properties:
+      created_at:
+        type: string
+      error_count:
+        type: integer
+      id:
+        type: integer
+      node_id:
+        type: string
+      request_count:
+        type: integer
+      source_countries_json:
+        type: string
+      status_codes_json:
+        type: string
+      top_domains_json:
+        type: string
+      unique_visitor_count:
+        type: integer
+      window_ended_at:
+        type: string
+      window_started_at:
+        type: string
     type: object
   model.PushChannel:
     properties:
@@ -514,6 +965,49 @@ definitions:
         type: string
       visibility:
         type: integer
+    type: object
+  model.TLSCertificate:
+    properties:
+      acme_account_id:
+        type: integer
+      apply_message:
+        type: string
+      apply_status:
+        type: string
+      auto_renew:
+        type: boolean
+      created_at:
+        type: string
+      disable_cname:
+        type: boolean
+      dns_account_id:
+        type: integer
+      dns1:
+        type: string
+      dns2:
+        type: string
+      id:
+        type: integer
+      key_algorithm:
+        type: string
+      name:
+        type: string
+      not_after:
+        type: string
+      not_before:
+        type: string
+      other_domains:
+        type: string
+      primary_domain:
+        type: string
+      provider:
+        type: string
+      remark:
+        type: string
+      skip_dns:
+        type: boolean
+      updated_at:
+        type: string
     type: object
   model.TaskExecution:
     properties:
@@ -672,10 +1166,198 @@ definitions:
       UploadStatusDeleted: 已删除
       UploadStatusPending: 待使用
       UploadStatusUsed: 已使用
+    x-enum-descriptions:
+    - 待使用
+    - 已使用
+    - 已删除
     x-enum-varnames:
     - UploadStatusPending
     - UploadStatusUsed
     - UploadStatusDeleted
+  node.AgentReleaseInfo:
+    properties:
+      body:
+        type: string
+      channel:
+        type: string
+      current_version:
+        type: string
+      has_update:
+        type: boolean
+      html_url:
+        type: string
+      prerelease:
+        type: boolean
+      published_at:
+        type: string
+      requested_channel:
+        type: string
+      requested_tag:
+        type: string
+      tag_name:
+        type: string
+      update_requested:
+        type: boolean
+    type: object
+  node.AgentUpdateInput:
+    properties:
+      channel:
+        type: string
+      tag_name:
+        type: string
+    type: object
+  node.BootstrapView:
+    properties:
+      discovery_token:
+        type: string
+    type: object
+  node.HealthEventCleanupResult:
+    properties:
+      deleted_count:
+        type: integer
+      node_id:
+        type: string
+    type: object
+  node.Input:
+    properties:
+      auto_update_enabled:
+        type: boolean
+      geo_latitude:
+        type: number
+      geo_longitude:
+        type: number
+      geo_manual_override:
+        type: boolean
+      geo_name:
+        type: string
+      ip:
+        type: string
+      ip_manual_override:
+        type: boolean
+      name:
+        type: string
+      node_type:
+        type: string
+      relay_agent_access_addr:
+        type: string
+      relay_bind_port:
+        type: integer
+      relay_client_access_addr:
+        type: string
+      relay_client_proxy_url:
+        type: string
+      relay_vhost_http_port:
+        type: integer
+      relay_web_server_enabled:
+        type: boolean
+    type: object
+  node.ObservabilityView:
+    properties:
+      analytics:
+        $ref: '#/definitions/observability.NodeAnalytics'
+      health_events:
+        items:
+          $ref: '#/definitions/model.OpenFlareHealthEvent'
+        type: array
+      metric_snapshots:
+        items:
+          $ref: '#/definitions/model.OpenFlareMetricSnapshot'
+        type: array
+      node_id:
+        type: string
+      profile:
+        $ref: '#/definitions/model.OpenFlareNodeSystemProfile'
+      relay_dashboard:
+        $ref: '#/definitions/observability.RelayDashboardSnapshot'
+      traffic_reports:
+        items:
+          $ref: '#/definitions/model.OpenFlareRequestReport'
+        type: array
+      trends:
+        $ref: '#/definitions/observability.NodeTrends'
+    type: object
+  node.View:
+    properties:
+      access_token:
+        type: string
+      auto_update_enabled:
+        type: boolean
+      created_at:
+        type: string
+      current_version:
+        type: string
+      ext_version:
+        type: string
+      geo_latitude:
+        type: number
+      geo_longitude:
+        type: number
+      geo_manual_override:
+        type: boolean
+      geo_name:
+        type: string
+      id:
+        type: integer
+      ip:
+        type: string
+      ip_manual_override:
+        type: boolean
+      last_error:
+        type: string
+      last_seen_at: {}
+      latest_apply_at:
+        type: string
+      latest_apply_checksum:
+        type: string
+      latest_apply_message:
+        type: string
+      latest_apply_result:
+        type: string
+      latest_main_config_checksum:
+        type: string
+      latest_route_config_checksum:
+        type: string
+      latest_support_file_count:
+        type: integer
+      name:
+        type: string
+      node_id:
+        type: string
+      node_type:
+        type: string
+      openresty_message:
+        type: string
+      openresty_status:
+        type: string
+      relay_agent_access_addr:
+        type: string
+      relay_bind_port:
+        type: integer
+      relay_client_access_addr:
+        type: string
+      relay_client_proxy_url:
+        type: string
+      relay_status:
+        type: string
+      relay_vhost_http_port:
+        type: integer
+      relay_web_server_enabled:
+        type: boolean
+      restart_openresty_requested:
+        type: boolean
+      status:
+        type: string
+      update_channel:
+        type: string
+      update_requested:
+        type: boolean
+      update_tag:
+        type: string
+      updated_at:
+        type: string
+      version:
+        type: string
+    type: object
   oauth.AuthSourceView:
     properties:
       client_secret_configured:
@@ -741,6 +1423,794 @@ definitions:
         type: string
       user:
         $ref: '#/definitions/oauth.BasicUserInfo'
+    type: object
+  observability.AccessLogCleanupInput:
+    properties:
+      retention_days:
+        type: integer
+    type: object
+  observability.AccessLogCleanupResult:
+    properties:
+      cutoff:
+        type: string
+      deleted_count:
+        type: integer
+      retention_days:
+        type: integer
+    type: object
+  observability.AccessLogIPSummaryList:
+    properties:
+      has_more:
+        type: boolean
+      items:
+        items:
+          $ref: '#/definitions/observability.AccessLogIPSummaryView'
+        type: array
+      page:
+        type: integer
+      page_size:
+        type: integer
+      sort_by:
+        type: string
+      sort_order:
+        type: string
+      total_ip:
+        type: integer
+    type: object
+  observability.AccessLogIPSummaryView:
+    properties:
+      last_seen_at:
+        type: string
+      recent_requests:
+        type: integer
+      remote_addr:
+        type: string
+      total_requests:
+        type: integer
+    type: object
+  observability.AccessLogIPTrendPoint:
+    properties:
+      bucket_started_at:
+        type: string
+      request_count:
+        type: integer
+    type: object
+  observability.AccessLogIPTrendView:
+    properties:
+      bucket_minutes:
+        type: integer
+      hours:
+        type: integer
+      points:
+        items:
+          $ref: '#/definitions/observability.AccessLogIPTrendPoint'
+        type: array
+      remote_addr:
+        type: string
+    type: object
+  observability.AccessLogList:
+    properties:
+      has_more:
+        type: boolean
+      items:
+        items:
+          $ref: '#/definitions/observability.AccessLogView'
+        type: array
+      page:
+        type: integer
+      page_size:
+        type: integer
+      total_ip:
+        type: integer
+      total_record:
+        type: integer
+    type: object
+  observability.AccessLogView:
+    properties:
+      host:
+        type: string
+      id:
+        type: integer
+      logged_at:
+        type: string
+      node_id:
+        type: string
+      node_name:
+        type: string
+      path:
+        type: string
+      region:
+        type: string
+      remote_addr:
+        type: string
+      status_code:
+        type: integer
+    type: object
+  observability.CapacityTrendPoint:
+    properties:
+      average_cpu_usage_percent:
+        type: number
+      average_memory_usage_percent:
+        type: number
+      bucket_started_at:
+        type: string
+      reported_nodes:
+        type: integer
+    type: object
+  observability.DiskIOTrendPoint:
+    properties:
+      bucket_started_at:
+        type: string
+      disk_read_bytes:
+        type: integer
+      disk_write_bytes:
+        type: integer
+      reported_nodes:
+        type: integer
+    type: object
+  observability.DistributionItem:
+    properties:
+      key:
+        type: string
+      value:
+        type: integer
+    type: object
+  observability.FoldedAccessLogIPList:
+    properties:
+      bucket_started_at:
+        type: string
+      fold_minutes:
+        type: integer
+      has_more:
+        type: boolean
+      items:
+        items:
+          $ref: '#/definitions/observability.FoldedAccessLogIPView'
+        type: array
+      page:
+        type: integer
+      page_size:
+        type: integer
+      sort_by:
+        type: string
+      sort_order:
+        type: string
+      total_ip:
+        type: integer
+    type: object
+  observability.FoldedAccessLogIPView:
+    properties:
+      client_error_count:
+        type: integer
+      last_seen_at:
+        type: string
+      remote_addr:
+        type: string
+      request_count:
+        type: integer
+      server_error_count:
+        type: integer
+      success_count:
+        type: integer
+    type: object
+  observability.FoldedAccessLogList:
+    properties:
+      fold_minutes:
+        type: integer
+      has_more:
+        type: boolean
+      items:
+        items:
+          $ref: '#/definitions/observability.FoldedAccessLogView'
+        type: array
+      page:
+        type: integer
+      page_size:
+        type: integer
+      total_bucket:
+        type: integer
+      total_ip:
+        type: integer
+      total_record:
+        type: integer
+    type: object
+  observability.FoldedAccessLogView:
+    properties:
+      bucket_started_at:
+        type: string
+      client_error_count:
+        type: integer
+      request_count:
+        type: integer
+      server_error_count:
+        type: integer
+      success_count:
+        type: integer
+      unique_host_count:
+        type: integer
+      unique_ip_count:
+        type: integer
+    type: object
+  observability.HealthSummary:
+    properties:
+      active_alerts:
+        type: integer
+      critical_alerts:
+        type: integer
+      has_capacity_risk:
+        type: boolean
+      has_runtime_risk:
+        type: boolean
+      has_traffic_risk:
+        type: boolean
+      info_alerts:
+        type: integer
+      resolved_alerts:
+        type: integer
+      warning_alerts:
+        type: integer
+    type: object
+  observability.NetworkTrendPoint:
+    properties:
+      bucket_started_at:
+        type: string
+      network_rx_bytes:
+        type: integer
+      network_tx_bytes:
+        type: integer
+      openresty_rx_bytes:
+        type: integer
+      openresty_tx_bytes:
+        type: integer
+      reported_nodes:
+        type: integer
+    type: object
+  observability.NodeAnalytics:
+    properties:
+      distributions:
+        $ref: '#/definitions/observability.TrafficDistributions'
+      health:
+        $ref: '#/definitions/observability.HealthSummary'
+      traffic:
+        $ref: '#/definitions/observability.TrafficWindowSummary'
+    type: object
+  observability.NodeTrends:
+    properties:
+      capacity_24h:
+        items:
+          $ref: '#/definitions/observability.CapacityTrendPoint'
+        type: array
+      disk_io_24h:
+        items:
+          $ref: '#/definitions/observability.DiskIOTrendPoint'
+        type: array
+      network_24h:
+        items:
+          $ref: '#/definitions/observability.NetworkTrendPoint'
+        type: array
+      traffic_24h:
+        items:
+          $ref: '#/definitions/observability.TrafficTrendPoint'
+        type: array
+    type: object
+  observability.RelayDashboardSnapshot:
+    properties:
+      client_counts:
+        type: integer
+      offline_proxies:
+        type: integer
+      online_proxies:
+        type: integer
+      proxies:
+        items:
+          $ref: '#/definitions/observability.RelayProxyStat'
+        type: array
+      total_connections:
+        type: integer
+      total_proxies:
+        type: integer
+    type: object
+  observability.RelayProxyStat:
+    properties:
+      client_addr:
+        type: string
+      client_version:
+        type: string
+      last_close_time:
+        type: string
+      last_start_time:
+        type: string
+      name:
+        type: string
+      status:
+        type: string
+      type:
+        type: string
+    type: object
+  observability.TrafficDistributions:
+    properties:
+      source_countries:
+        items:
+          $ref: '#/definitions/observability.DistributionItem'
+        type: array
+      status_codes:
+        items:
+          $ref: '#/definitions/observability.DistributionItem'
+        type: array
+      top_domains:
+        items:
+          $ref: '#/definitions/observability.DistributionItem'
+        type: array
+    type: object
+  observability.TrafficTrendPoint:
+    properties:
+      bucket_started_at:
+        type: string
+      error_count:
+        type: integer
+      request_count:
+        type: integer
+      unique_visitor_count:
+        type: integer
+    type: object
+  observability.TrafficWindowSummary:
+    properties:
+      error_count:
+        type: integer
+      error_rate_percent:
+        type: number
+      estimated_qps:
+        type: number
+      request_count:
+        type: integer
+      unique_visitor_count:
+        type: integer
+      window_ended_at:
+        type: string
+      window_started_at:
+        type: string
+    type: object
+  option.databaseCleanupInput:
+    properties:
+      retention_days:
+        type: integer
+      target:
+        type: string
+    type: object
+  option.databaseCleanupResult:
+    properties:
+      delete_all:
+        type: boolean
+      deleted_count:
+        type: integer
+      retention_days:
+        type: integer
+      target:
+        type: string
+      target_label:
+        type: string
+    type: object
+  option.geoIPLookupRequest:
+    properties:
+      ip:
+        type: string
+      provider:
+        type: string
+    type: object
+  option.geoIPLookupView:
+    properties:
+      ip:
+        type: string
+      iso_code:
+        type: string
+      latitude:
+        type: number
+      longitude:
+        type: number
+      name:
+        type: string
+      provider:
+        type: string
+    type: object
+  option.optionBatchPayload:
+    properties:
+      options:
+        items:
+          $ref: '#/definitions/model.OpenFlareOption'
+        type: array
+    type: object
+  option.publicAuthSourceView:
+    properties:
+      authorize_url:
+        type: string
+      display_name:
+        type: string
+      icon_url:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      type:
+        type: string
+    type: object
+  option.statusView:
+    properties:
+      auth_sources:
+        items:
+          $ref: '#/definitions/option.publicAuthSourceView'
+        type: array
+      cap_login_enabled:
+        type: boolean
+      email_verification:
+        type: boolean
+      footer_html:
+        type: string
+      github_client_id:
+        type: string
+      github_oauth:
+        type: boolean
+      home_page_link:
+        type: string
+      password_register_enabled:
+        type: boolean
+      server_address:
+        type: string
+      start_time:
+        type: integer
+      system_name:
+        type: string
+      version:
+        type: string
+      wechat_login:
+        type: boolean
+      wechat_qrcode:
+        type: string
+    type: object
+  origin.DetailView:
+    properties:
+      address:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      remark:
+        type: string
+      route_count:
+        type: integer
+      routes:
+        items:
+          $ref: '#/definitions/origin.RouteSummary'
+        type: array
+      updated_at:
+        type: string
+    type: object
+  origin.Input:
+    properties:
+      address:
+        type: string
+      name:
+        type: string
+      remark:
+        type: string
+    type: object
+  origin.RouteSummary:
+    properties:
+      domain:
+        type: string
+      enabled:
+        type: boolean
+      id:
+        type: integer
+      origin_url:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  origin.View:
+    properties:
+      address:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      remark:
+        type: string
+      route_count:
+        type: integer
+      updated_at:
+        type: string
+    type: object
+  pages.DeploymentFileView:
+    properties:
+      checksum:
+        type: string
+      created_at:
+        type: string
+      deployment_id:
+        type: integer
+      id:
+        type: integer
+      path:
+        type: string
+      size:
+        type: integer
+    type: object
+  pages.DeploymentView:
+    properties:
+      activated_at:
+        type: string
+      checksum:
+        type: string
+      created_at:
+        type: string
+      created_by:
+        type: string
+      deployment_number:
+        type: integer
+      file_count:
+        type: integer
+      id:
+        type: integer
+      project_id:
+        type: integer
+      status:
+        type: string
+      total_size:
+        type: integer
+    type: object
+  pages.Input:
+    properties:
+      api_proxy_enabled:
+        type: boolean
+      api_proxy_pass:
+        type: string
+      api_proxy_path:
+        type: string
+      api_proxy_rewrite:
+        type: string
+      description:
+        type: string
+      enabled:
+        type: boolean
+      entry_file:
+        type: string
+      name:
+        type: string
+      root_dir:
+        type: string
+      slug:
+        type: string
+      spa_fallback_enabled:
+        type: boolean
+      spa_fallback_path:
+        type: string
+    type: object
+  pages.View:
+    properties:
+      active_deployment:
+        $ref: '#/definitions/pages.DeploymentView'
+      active_deployment_id:
+        type: integer
+      api_proxy_enabled:
+        type: boolean
+      api_proxy_pass:
+        type: string
+      api_proxy_path:
+        type: string
+      api_proxy_rewrite:
+        type: string
+      created_at:
+        type: string
+      deployment_count:
+        type: integer
+      description:
+        type: string
+      enabled:
+        type: boolean
+      entry_file:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      root_dir:
+        type: string
+      slug:
+        type: string
+      spa_fallback_enabled:
+        type: boolean
+      spa_fallback_path:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  proxy_route.CustomHeaderInput:
+    properties:
+      key:
+        type: string
+      value:
+        type: string
+    type: object
+  proxy_route.Input:
+    properties:
+      basic_auth_enabled:
+        type: boolean
+      basic_auth_password:
+        type: string
+      basic_auth_username:
+        type: string
+      cache_enabled:
+        type: boolean
+      cache_policy:
+        type: string
+      cache_rules:
+        items:
+          type: string
+        type: array
+      cert_id:
+        type: integer
+      cert_ids:
+        items:
+          type: integer
+        type: array
+      custom_headers:
+        items:
+          $ref: '#/definitions/proxy_route.CustomHeaderInput'
+        type: array
+      domain:
+        type: string
+      domain_cert_ids:
+        items:
+          type: integer
+        type: array
+      domains:
+        items:
+          type: string
+        type: array
+      enable_https:
+        type: boolean
+      enabled:
+        type: boolean
+      limit_conn_per_ip:
+        type: integer
+      limit_conn_per_server:
+        type: integer
+      limit_rate:
+        type: string
+      origin_address:
+        type: string
+      origin_host:
+        type: string
+      origin_id:
+        type: integer
+      origin_port:
+        type: string
+      origin_scheme:
+        type: string
+      origin_uri:
+        type: string
+      origin_url:
+        type: string
+      pages_project_id:
+        type: integer
+      redirect_http:
+        type: boolean
+      remark:
+        type: string
+      site_name:
+        type: string
+      tunnel_id:
+        type: integer
+      tunnel_node_id:
+        type: integer
+      tunnel_target_addr:
+        type: string
+      tunnel_target_protocol:
+        type: string
+      upstream_type:
+        type: string
+      upstreams:
+        items:
+          type: string
+        type: array
+    type: object
+  proxy_route.View:
+    properties:
+      basic_auth_enabled:
+        type: boolean
+      basic_auth_password:
+        type: string
+      basic_auth_username:
+        type: string
+      cache_enabled:
+        type: boolean
+      cache_policy:
+        type: string
+      cache_rule_list:
+        items:
+          type: string
+        type: array
+      cache_rules:
+        type: string
+      cert_id:
+        type: integer
+      cert_ids:
+        items:
+          type: integer
+        type: array
+      created_at:
+        type: string
+      custom_header_list:
+        items:
+          $ref: '#/definitions/proxy_route.CustomHeaderInput'
+        type: array
+      custom_headers:
+        type: string
+      domain:
+        type: string
+      domain_cert_ids:
+        items:
+          type: integer
+        type: array
+      domain_count:
+        type: integer
+      domains:
+        items:
+          type: string
+        type: array
+      enable_https:
+        type: boolean
+      enabled:
+        type: boolean
+      id:
+        type: integer
+      limit_conn_per_ip:
+        type: integer
+      limit_conn_per_server:
+        type: integer
+      limit_rate:
+        type: string
+      origin_host:
+        type: string
+      origin_id:
+        type: integer
+      origin_url:
+        type: string
+      pages_project_id:
+        type: integer
+      primary_domain:
+        type: string
+      redirect_http:
+        type: boolean
+      remark:
+        type: string
+      site_name:
+        type: string
+      tunnel_id:
+        type: integer
+      tunnel_node_id:
+        type: integer
+      tunnel_target_addr:
+        type: string
+      tunnel_target_protocol:
+        type: string
+      updated_at:
+        type: string
+      upstream_list:
+        items:
+          type: string
+        type: array
+      upstream_type:
+        type: string
+      upstreams:
+        type: string
     type: object
   push.Config:
     properties:
@@ -1217,6 +2687,183 @@ definitions:
     - name
     - type
     type: object
+  tls.ApplyInput:
+    properties:
+      acme_account_id:
+        type: integer
+      auto_renew:
+        type: boolean
+      disable_cname:
+        type: boolean
+      dns_account_id:
+        type: integer
+      dns1:
+        type: string
+      dns2:
+        type: string
+      key_algorithm:
+        type: string
+      name:
+        type: string
+      other_domains:
+        type: string
+      primary_domain:
+        type: string
+      remark:
+        type: string
+      skip_dns:
+        type: boolean
+    type: object
+  tls.CertificateContent:
+    properties:
+      acme_account_id:
+        type: integer
+      apply_message:
+        type: string
+      apply_status:
+        type: string
+      auto_renew:
+        type: boolean
+      cert_pem:
+        type: string
+      disable_cname:
+        type: boolean
+      dns_account_id:
+        type: integer
+      dns1:
+        type: string
+      dns2:
+        type: string
+      id:
+        type: integer
+      key_algorithm:
+        type: string
+      key_pem:
+        type: string
+      name:
+        type: string
+      other_domains:
+        type: string
+      primary_domain:
+        type: string
+      provider:
+        type: string
+      remark:
+        type: string
+      skip_dns:
+        type: boolean
+    type: object
+  tls.CertificateInput:
+    properties:
+      cert_pem:
+        type: string
+      key_pem:
+        type: string
+      name:
+        type: string
+      remark:
+        type: string
+    type: object
+  tls.DNSAccountInput:
+    properties:
+      authorization:
+        type: string
+      name:
+        type: string
+      type:
+        type: string
+    type: object
+  tls.ManagedDomainInput:
+    properties:
+      cert_id:
+        type: integer
+      domain:
+        type: string
+      enabled:
+        type: boolean
+      remark:
+        type: string
+    type: object
+  tls.ManagedDomainMatchCandidate:
+    properties:
+      certificate_id:
+        type: integer
+      certificate_name:
+        type: string
+      domain:
+        type: string
+      managed_domain_id:
+        type: integer
+      match_type:
+        type: string
+    type: object
+  tls.ManagedDomainMatchResult:
+    properties:
+      candidate:
+        $ref: '#/definitions/tls.ManagedDomainMatchCandidate'
+      candidates:
+        items:
+          $ref: '#/definitions/tls.ManagedDomainMatchCandidate'
+        type: array
+      domain:
+        type: string
+      matched:
+        type: boolean
+    type: object
+  update.LatestReleaseView:
+    properties:
+      body:
+        type: string
+      channel:
+        type: string
+      current_version:
+        type: string
+      has_update:
+        type: boolean
+      html_url:
+        type: string
+      in_progress:
+        type: boolean
+      prerelease:
+        type: boolean
+      published_at:
+        type: string
+      tag_name:
+        type: string
+      upgrade_logs:
+        items:
+          $ref: '#/definitions/update.UpgradeLogRecord'
+        type: array
+      upgrade_status:
+        type: string
+      upgrade_supported:
+        type: boolean
+    type: object
+  update.StreamSnapshot:
+    properties:
+      in_progress:
+        type: boolean
+      upgrade_logs:
+        items:
+          $ref: '#/definitions/update.UpgradeLogRecord'
+        type: array
+      upgrade_status:
+        type: string
+    type: object
+  update.UpgradeLogRecord:
+    properties:
+      created_at:
+        type: string
+      level:
+        type: string
+      message:
+        type: string
+    type: object
+  update.upgradeRequest:
+    properties:
+      channel:
+        type: string
+    type: object
   updater.Status:
     properties:
       asset_name:
@@ -1393,15 +3040,311 @@ definitions:
       website:
         type: string
     type: object
+  waf.IDsRequest:
+    properties:
+      ids:
+        items:
+          type: integer
+        type: array
+    type: object
+  waf.IPGroupAutoTestInput:
+    properties:
+      auto_config:
+        items:
+          type: integer
+        type: array
+    type: object
+  waf.IPGroupAutoTestResult:
+    properties:
+      lookback_minutes:
+        type: integer
+      matched_count:
+        type: integer
+      matched_ips:
+        items:
+          type: string
+        type: array
+      rule_count:
+        type: integer
+      tested_at:
+        type: string
+    type: object
+  waf.IPGroupExtIPView:
+    properties:
+      captured_at:
+        type: string
+      ip:
+        type: string
+    type: object
+  waf.IPGroupInput:
+    properties:
+      auto_config:
+        items:
+          type: integer
+        type: array
+      enabled:
+        type: boolean
+      ip_list:
+        items:
+          type: string
+        type: array
+      name:
+        type: string
+      remark:
+        type: string
+      subscription_format:
+        type: string
+      subscription_mapping_rule:
+        type: string
+      subscription_url:
+        type: string
+      sync_interval_minutes:
+        type: integer
+      type:
+        type: string
+    type: object
+  waf.IPGroupSyncResult:
+    properties:
+      group:
+        $ref: '#/definitions/waf.IPGroupView'
+      ip_count:
+        type: integer
+      message:
+        type: string
+      next_sync_at:
+        type: string
+      status:
+        type: string
+      synced_at:
+        type: string
+    type: object
+  waf.IPGroupView:
+    properties:
+      auto_config:
+        items:
+          type: integer
+        type: array
+      created_at:
+        type: string
+      enabled:
+        type: boolean
+      ext_ips:
+        items:
+          $ref: '#/definitions/waf.IPGroupExtIPView'
+        type: array
+      id:
+        type: integer
+      ip_list:
+        items:
+          type: string
+        type: array
+      last_sync_message:
+        type: string
+      last_sync_status:
+        type: string
+      last_synced_at:
+        type: string
+      name:
+        type: string
+      next_sync_at:
+        type: string
+      referenced_by_rule_count:
+        type: integer
+      remark:
+        type: string
+      subscription_format:
+        type: string
+      subscription_mapping_rule:
+        type: string
+      subscription_url:
+        type: string
+      sync_interval_minutes:
+        type: integer
+      type:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  waf.PoWConfig:
+    properties:
+      algorithm:
+        type: string
+      blacklist:
+        $ref: '#/definitions/waf.PoWListConfig'
+      challenge_ttl:
+        type: integer
+      difficulty:
+        type: integer
+      session_ttl:
+        type: integer
+      whitelist:
+        $ref: '#/definitions/waf.PoWListConfig'
+    type: object
+  waf.PoWListConfig:
+    properties:
+      ip_cidrs:
+        items:
+          type: string
+        type: array
+      ips:
+        items:
+          type: string
+        type: array
+      path_regexes:
+        items:
+          type: string
+        type: array
+      paths:
+        items:
+          type: string
+        type: array
+      user_agents:
+        items:
+          type: string
+        type: array
+    type: object
+  waf.RuleGroupInput:
+    properties:
+      block_response_body:
+        type: string
+      block_status_code:
+        type: integer
+      country_blacklist:
+        items:
+          type: string
+        type: array
+      country_whitelist:
+        items:
+          type: string
+        type: array
+      enabled:
+        type: boolean
+      ip_blacklist:
+        items:
+          type: string
+        type: array
+      ip_blacklist_group_ids:
+        items:
+          type: integer
+        type: array
+      ip_whitelist:
+        items:
+          type: string
+        type: array
+      ip_whitelist_group_ids:
+        items:
+          type: integer
+        type: array
+      name:
+        type: string
+      pow_config:
+        items:
+          type: integer
+        type: array
+      pow_enabled:
+        type: boolean
+      region_blacklist:
+        items:
+          type: string
+        type: array
+      region_whitelist:
+        items:
+          type: string
+        type: array
+      remark:
+        type: string
+    type: object
+  waf.RuleGroupView:
+    properties:
+      applied_site_count:
+        type: integer
+      applied_site_ids:
+        items:
+          type: integer
+        type: array
+      block_response_body:
+        type: string
+      block_status_code:
+        type: integer
+      country_blacklist:
+        items:
+          type: string
+        type: array
+      country_whitelist:
+        items:
+          type: string
+        type: array
+      created_at:
+        type: string
+      enabled:
+        type: boolean
+      id:
+        type: integer
+      ip_blacklist:
+        items:
+          type: string
+        type: array
+      ip_blacklist_group_ids:
+        items:
+          type: integer
+        type: array
+      ip_whitelist:
+        items:
+          type: string
+        type: array
+      ip_whitelist_group_ids:
+        items:
+          type: integer
+        type: array
+      is_global:
+        type: boolean
+      name:
+        type: string
+      pow_config:
+        $ref: '#/definitions/waf.PoWConfig'
+      pow_enabled:
+        type: boolean
+      region_blacklist:
+        items:
+          type: string
+        type: array
+      region_whitelist:
+        items:
+          type: string
+        type: array
+      remark:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  waf.SiteRuleGroupsView:
+    properties:
+      applied_ids:
+        items:
+          type: integer
+        type: array
+      applied_rule_groups:
+        items:
+          $ref: '#/definitions/waf.RuleGroupView'
+        type: array
+      global_rule_group:
+        $ref: '#/definitions/waf.RuleGroupView'
+      route_id:
+        type: integer
+      rule_groups:
+        items:
+          $ref: '#/definitions/waf.RuleGroupView'
+        type: array
+    type: object
 info:
   contact:
-    name: Wavelet
-    url: https://github.com/Rain-kl/Wavelet
-  description: Wavelet 平台后端 API，提供用户认证、系统配置、任务调度等通用功能。
+    name: OpenFlare
+    url: https://github.com/Rain-kl/OpenFlare
+  description: OpenFlare 平台后端 API，提供用户认证、系统配置、任务调度与边缘节点管理能力。
   license:
     name: Apache 2.0
     url: http://www.apache.org/licenses/LICENSE-2.0.html
-  title: Wavelet API
+  title: OpenFlare API
   version: 1.0.0
 paths:
   /api/cap/challenge:
@@ -1556,6 +3499,7 @@ paths:
       description: 删除指定认证源及其关联的所有外部帐号绑定记录，警告：删除后相关用户将无法通过该源登录，需要管理员权限
       parameters:
       - description: 认证源 ID 或名称
+        format: int64
         in: path
         name: id
         required: true
@@ -1595,6 +3539,7 @@ paths:
       description: 更新指定 ID 的认证源配置。若 client_secret 字段为空，则保留原有密钥不变，需要管理员权限
       parameters:
       - description: 认证源 ID 或名称
+        format: int64
         in: path
         name: id
         required: true
@@ -1645,6 +3590,7 @@ paths:
       description: 启用或禁用指定认证源。尝试启用时将验证 Client ID 和 Client Secret 是否已配置，需要管理员权限
       parameters:
       - description: 认证源 ID 或名称
+        format: int64
         in: path
         name: id
         required: true
@@ -2141,6 +4087,7 @@ paths:
       description: 根据ID删除消息通道，需要管理员权限
       parameters:
       - description: 通道ID
+        format: int64
         in: path
         name: id
         required: true
@@ -2163,6 +4110,7 @@ paths:
       description: 修改消息通道配置，需要管理员权限
       parameters:
       - description: 通道ID
+        format: int64
         in: path
         name: id
         required: true
@@ -3383,6 +5331,7 @@ paths:
         name: extension
         type: string
       - description: 上传用户 ID
+        format: int64
         in: query
         name: user_id
         type: integer
@@ -3849,6 +5798,4260 @@ paths:
       summary: Sample Hello API
       tags:
       - custom
+  /api/v1/custom/openflare/about:
+    get:
+      description: 返回 OpenFlare 关于页面文本，无需登录
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 关于信息
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  type: string
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "500":
+          description: 内部错误
+          schema:
+            $ref: '#/definitions/response.Any'
+      summary: 获取关于信息
+      tags:
+      - openflare-option
+  /api/v1/custom/openflare/access-logs:
+    get:
+      description: 分页返回 OpenFlare 访问日志，支持按节点、IP、主机与路径筛选，需要管理员权限
+      parameters:
+      - description: 节点 ID
+        in: query
+        name: node_id
+        type: string
+      - description: 客户端 IP
+        in: query
+        name: remote_addr
+        type: string
+      - description: 请求 Host
+        in: query
+        name: host
+        type: string
+      - description: 请求路径
+        in: query
+        name: path
+        type: string
+      - description: 页码
+        in: query
+        name: p
+        type: integer
+      - description: 每页条数
+        in: query
+        name: page_size
+        type: integer
+      - description: 排序字段
+        in: query
+        name: sort_by
+        type: string
+      - description: 排序方向
+        in: query
+        name: sort_order
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 访问日志列表
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/observability.AccessLogList'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "403":
+          description: 无管理员权限
+          schema:
+            $ref: '#/definitions/response.Any'
+        "500":
+          description: 内部错误
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 列出访问日志
+      tags:
+      - openflare-observability
+  /api/v1/custom/openflare/access-logs/cleanup:
+    post:
+      consumes:
+      - application/json
+      description: 按保留天数清理过期访问日志记录，需要管理员权限
+      parameters:
+      - description: 清理参数
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/observability.AccessLogCleanupInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 清理结果
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/observability.AccessLogCleanupResult'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "403":
+          description: 无管理员权限
+          schema:
+            $ref: '#/definitions/response.Any'
+        "500":
+          description: 内部错误
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 清理访问日志
+      tags:
+      - openflare-observability
+  /api/v1/custom/openflare/access-logs/folds:
+    get:
+      description: 按时间桶聚合访问日志并分页返回，需要管理员权限
+      parameters:
+      - description: 节点 ID
+        in: query
+        name: node_id
+        type: string
+      - description: 客户端 IP
+        in: query
+        name: remote_addr
+        type: string
+      - description: 请求 Host
+        in: query
+        name: host
+        type: string
+      - description: 请求路径
+        in: query
+        name: path
+        type: string
+      - description: 折叠时间窗口（分钟）
+        in: query
+        name: fold_minutes
+        type: integer
+      - description: 页码
+        in: query
+        name: p
+        type: integer
+      - description: 每页条数
+        in: query
+        name: page_size
+        type: integer
+      - description: 排序字段
+        in: query
+        name: sort_by
+        type: string
+      - description: 排序方向
+        in: query
+        name: sort_order
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 折叠访问日志列表
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/observability.FoldedAccessLogList'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "403":
+          description: 无管理员权限
+          schema:
+            $ref: '#/definitions/response.Any'
+        "500":
+          description: 内部错误
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 列出折叠访问日志
+      tags:
+      - openflare-observability
+  /api/v1/custom/openflare/access-logs/folds/ip-summary:
+    get:
+      description: 在指定时间桶内按 IP 聚合访问统计，需要管理员权限
+      parameters:
+      - description: 节点 ID
+        in: query
+        name: node_id
+        type: string
+      - description: 客户端 IP
+        in: query
+        name: remote_addr
+        type: string
+      - description: 请求 Host
+        in: query
+        name: host
+        type: string
+      - description: 请求路径
+        in: query
+        name: path
+        type: string
+      - description: 时间桶起始时间
+        in: query
+        name: bucket_started_at
+        type: string
+      - description: 折叠时间窗口（分钟）
+        in: query
+        name: fold_minutes
+        type: integer
+      - description: 页码
+        in: query
+        name: p
+        type: integer
+      - description: 每页条数
+        in: query
+        name: page_size
+        type: integer
+      - description: 排序字段
+        in: query
+        name: sort_by
+        type: string
+      - description: 排序方向
+        in: query
+        name: sort_order
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 折叠 IP 汇总列表
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/observability.FoldedAccessLogIPList'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "403":
+          description: 无管理员权限
+          schema:
+            $ref: '#/definitions/response.Any'
+        "500":
+          description: 内部错误
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 列出折叠访问日志 IP 汇总
+      tags:
+      - openflare-observability
+  /api/v1/custom/openflare/access-logs/ip-summary:
+    get:
+      description: 按 IP 聚合访问日志统计并分页返回，需要管理员权限
+      parameters:
+      - description: 节点 ID
+        in: query
+        name: node_id
+        type: string
+      - description: 客户端 IP
+        in: query
+        name: remote_addr
+        type: string
+      - description: 请求 Host
+        in: query
+        name: host
+        type: string
+      - description: 页码
+        in: query
+        name: p
+        type: integer
+      - description: 每页条数
+        in: query
+        name: page_size
+        type: integer
+      - description: 排序字段
+        in: query
+        name: sort_by
+        type: string
+      - description: 排序方向
+        in: query
+        name: sort_order
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: IP 汇总列表
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/observability.AccessLogIPSummaryList'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "403":
+          description: 无管理员权限
+          schema:
+            $ref: '#/definitions/response.Any'
+        "500":
+          description: 内部错误
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 列出访问日志 IP 汇总
+      tags:
+      - openflare-observability
+  /api/v1/custom/openflare/access-logs/ip-summary/trend:
+    get:
+      description: 返回指定 IP 在时间范围内的访问趋势数据，需要管理员权限
+      parameters:
+      - description: 节点 ID
+        in: query
+        name: node_id
+        type: string
+      - description: 客户端 IP
+        in: query
+        name: remote_addr
+        type: string
+      - description: 请求 Host
+        in: query
+        name: host
+        type: string
+      - description: 统计时间范围（小时）
+        in: query
+        name: hours
+        type: integer
+      - description: 时间桶粒度（分钟）
+        in: query
+        name: bucket_minutes
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: IP 访问趋势
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/observability.AccessLogIPTrendView'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "403":
+          description: 无管理员权限
+          schema:
+            $ref: '#/definitions/response.Any'
+        "500":
+          description: 内部错误
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 获取访问日志 IP 趋势
+      tags:
+      - openflare-observability
+  /api/v1/custom/openflare/acme-accounts/default:
+    get:
+      description: 返回系统默认 ACME 账号配置，需要管理员权限
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 默认 ACME 账号
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.AcmeAccount'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "403":
+          description: 无管理员权限
+          schema:
+            $ref: '#/definitions/response.Any'
+        "404":
+          description: 记录不存在
+          schema:
+            $ref: '#/definitions/response.Any'
+        "500":
+          description: 内部错误
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 获取默认 ACME 账号
+      tags:
+      - openflare-tls
+  /api/v1/custom/openflare/apply-logs:
+    get:
+      description: 分页返回节点配置下发记录，支持按节点 ID 筛选，需要管理员权限
+      parameters:
+      - description: 节点 ID 筛选
+        in: query
+        name: node_id
+        type: string
+      - description: 页码
+        in: query
+        name: pageNo
+        type: integer
+      - description: 页码（别名）
+        in: query
+        name: page_no
+        type: integer
+      - description: 每页数量
+        in: query
+        name: pageSize
+        type: integer
+      - description: 每页数量（别名）
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 下发日志列表
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/apply_log.ListResult'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "404":
+          description: 无权限或不存在
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 获取配置下发日志
+      tags:
+      - openflare-apply-log
+  /api/v1/custom/openflare/apply-logs/cleanup:
+    post:
+      consumes:
+      - application/json
+      description: 按保留天数清理历史下发记录，或删除全部记录，需要管理员权限
+      parameters:
+      - description: 清理参数
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/apply_log.CleanupInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 清理结果
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/apply_log.CleanupResult'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "404":
+          description: 无权限或不存在
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 清理配置下发日志
+      tags:
+      - openflare-apply-log
+  /api/v1/custom/openflare/config-versions:
+    get:
+      description: 返回所有已发布的 OpenResty 配置版本摘要，需要管理员权限
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 配置版本列表
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/model.ConfigVersionSummary'
+                  type: array
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "404":
+          description: 无权限或不存在
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 获取配置版本列表
+      tags:
+      - openflare-config-version
+  /api/v1/custom/openflare/config-versions/{id}:
+    get:
+      description: 返回指定配置版本的完整快照与渲染内容，需要管理员权限
+      parameters:
+      - description: 配置版本 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 配置版本详情
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.ConfigVersion'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "404":
+          description: 无权限或版本不存在
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 获取配置版本详情
+      tags:
+      - openflare-config-version
+  /api/v1/custom/openflare/config-versions/{id}/activate:
+    post:
+      description: 将指定历史版本设为当前活跃配置，需要管理员权限
+      parameters:
+      - description: 配置版本 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 激活成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.ConfigVersion'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "404":
+          description: 无权限或版本不存在
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 激活配置版本
+      tags:
+      - openflare-config-version
+  /api/v1/custom/openflare/config-versions/active:
+    get:
+      description: 返回当前正在使用的配置版本，需要管理员权限
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 活跃配置版本
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.ConfigVersion'
+              type: object
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "404":
+          description: 无权限、不存在或无活跃版本
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 获取当前活跃配置版本
+      tags:
+      - openflare-config-version
+  /api/v1/custom/openflare/config-versions/cleanup:
+    post:
+      consumes:
+      - application/json
+      description: 删除超出保留数量的非活跃配置版本，需要管理员权限
+      parameters:
+      - description: 清理参数
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/config_version.CleanupInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 清理结果
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/config_version.CleanupResult'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "404":
+          description: 无权限或不存在
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 清理历史配置版本
+      tags:
+      - openflare-config-version
+  /api/v1/custom/openflare/config-versions/diff:
+    get:
+      description: 对比当前草稿配置与活跃版本之间的差异，需要管理员权限
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 配置差异
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/config_version.ConfigDiffResult'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "404":
+          description: 无权限或不存在
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 对比草稿与活跃配置
+      tags:
+      - openflare-config-version
+  /api/v1/custom/openflare/config-versions/preview:
+    get:
+      description: 渲染并返回当前草稿配置的预览结果，需要管理员权限
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 配置预览
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/config_version.ConfigPreviewResult'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "404":
+          description: 无权限或不存在
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 预览当前草稿配置
+      tags:
+      - openflare-config-version
+  /api/v1/custom/openflare/config-versions/publish:
+    post:
+      description: 将当前草稿配置发布为新版本，需要管理员权限
+      parameters:
+      - description: 是否强制发布
+        in: query
+        name: force
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 发布成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.ConfigVersion'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "404":
+          description: 无权限或不存在
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 发布配置版本
+      tags:
+      - openflare-config-version
+  /api/v1/custom/openflare/dashboard/overview:
+    get:
+      description: 聚合节点与可观测性数据，返回 OpenFlare 控制台仪表盘概览，需要管理员权限
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 仪表盘概览
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/dashboard.OverviewPayload'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "403":
+          description: 无管理员权限
+          schema:
+            $ref: '#/definitions/response.Any'
+        "500":
+          description: 内部错误
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 获取仪表盘概览
+      tags:
+      - openflare-dashboard
+  /api/v1/custom/openflare/dns-accounts:
+    get:
+      description: 返回全部 DNS 提供商账号，需要管理员权限
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: DNS 账号列表
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/model.DNSAccount'
+                  type: array
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "403":
+          description: 无管理员权限
+          schema:
+            $ref: '#/definitions/response.Any'
+        "500":
+          description: 内部错误
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 列出 DNS 账号
+      tags:
+      - openflare-tls
+    post:
+      consumes:
+      - application/json
+      description: 创建新的 DNS 提供商账号，需要管理员权限
+      parameters:
+      - description: DNS 账号参数
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/tls.DNSAccountInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 创建成功的 DNS 账号
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.DNSAccount'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "403":
+          description: 无管理员权限
+          schema:
+            $ref: '#/definitions/response.Any'
+        "500":
+          description: 内部错误
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 创建 DNS 账号
+      tags:
+      - openflare-tls
+  /api/v1/custom/openflare/dns-accounts/{id}/delete:
+    post:
+      description: 按 ID 删除 DNS 提供商账号，需要管理员权限
+      parameters:
+      - description: DNS 账号 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 删除成功
+          schema:
+            $ref: '#/definitions/response.Any'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "403":
+          description: 无管理员权限
+          schema:
+            $ref: '#/definitions/response.Any'
+        "404":
+          description: 记录不存在
+          schema:
+            $ref: '#/definitions/response.Any'
+        "500":
+          description: 内部错误
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 删除 DNS 账号
+      tags:
+      - openflare-tls
+  /api/v1/custom/openflare/dns-accounts/{id}/update:
+    post:
+      consumes:
+      - application/json
+      description: 按 ID 更新 DNS 提供商账号，需要管理员权限
+      parameters:
+      - description: DNS 账号 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: DNS 账号参数
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/tls.DNSAccountInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新后的 DNS 账号
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.DNSAccount'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "403":
+          description: 无管理员权限
+          schema:
+            $ref: '#/definitions/response.Any'
+        "404":
+          description: 记录不存在
+          schema:
+            $ref: '#/definitions/response.Any'
+        "500":
+          description: 内部错误
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 更新 DNS 账号
+      tags:
+      - openflare-tls
+  /api/v1/custom/openflare/managed-domains:
+    get:
+      description: 返回全部托管域名及关联证书，需要管理员权限
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 托管域名列表
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/model.ManagedDomain'
+                  type: array
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "403":
+          description: 无管理员权限
+          schema:
+            $ref: '#/definitions/response.Any'
+        "500":
+          description: 内部错误
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 列出托管域名
+      tags:
+      - openflare-tls
+    post:
+      consumes:
+      - application/json
+      description: 创建新的托管域名记录，需要管理员权限
+      parameters:
+      - description: 托管域名参数
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/tls.ManagedDomainInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 创建成功的托管域名
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.ManagedDomain'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "403":
+          description: 无管理员权限
+          schema:
+            $ref: '#/definitions/response.Any'
+        "500":
+          description: 内部错误
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 创建托管域名
+      tags:
+      - openflare-tls
+  /api/v1/custom/openflare/managed-domains/{id}/delete:
+    post:
+      description: 按 ID 删除托管域名，需要管理员权限
+      parameters:
+      - description: 托管域名 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 删除成功
+          schema:
+            $ref: '#/definitions/response.Any'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "403":
+          description: 无管理员权限
+          schema:
+            $ref: '#/definitions/response.Any'
+        "404":
+          description: 记录不存在
+          schema:
+            $ref: '#/definitions/response.Any'
+        "500":
+          description: 内部错误
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 删除托管域名
+      tags:
+      - openflare-tls
+  /api/v1/custom/openflare/managed-domains/{id}/update:
+    post:
+      consumes:
+      - application/json
+      description: 按 ID 更新托管域名，需要管理员权限
+      parameters:
+      - description: 托管域名 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 托管域名参数
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/tls.ManagedDomainInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新后的托管域名
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.ManagedDomain'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "403":
+          description: 无管理员权限
+          schema:
+            $ref: '#/definitions/response.Any'
+        "404":
+          description: 记录不存在
+          schema:
+            $ref: '#/definitions/response.Any'
+        "500":
+          description: 内部错误
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 更新托管域名
+      tags:
+      - openflare-tls
+  /api/v1/custom/openflare/managed-domains/match:
+    get:
+      description: 按域名查询可用的证书匹配候选，需要管理员权限
+      parameters:
+      - description: 域名
+        in: query
+        name: domain
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 证书匹配结果
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/tls.ManagedDomainMatchResult'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "403":
+          description: 无管理员权限
+          schema:
+            $ref: '#/definitions/response.Any'
+        "500":
+          description: 内部错误
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 匹配托管域名证书
+      tags:
+      - openflare-tls
+  /api/v1/custom/openflare/nodes:
+    get:
+      description: 返回所有节点及最新配置下发记录，需要管理员权限
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 节点列表
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/node.View'
+                  type: array
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "404":
+          description: 无权限或不存在
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 获取节点列表
+      tags:
+      - openflare-node
+    post:
+      consumes:
+      - application/json
+      description: 创建新的边缘节点记录，需要管理员权限
+      parameters:
+      - description: 节点参数
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/node.Input'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 创建成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/node.View'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "404":
+          description: 无权限或不存在
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 创建节点
+      tags:
+      - openflare-node
+  /api/v1/custom/openflare/nodes/{id}/agent-release:
+    get:
+      description: 返回指定节点可用的最新 Agent 版本信息，需要管理员权限
+      parameters:
+      - description: 节点 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 发布渠道
+        in: query
+        name: channel
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Agent 发布信息
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/node.AgentReleaseInfo'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "404":
+          description: 无权限或节点不存在
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 获取 Agent 发布信息
+      tags:
+      - openflare-node
+  /api/v1/custom/openflare/nodes/{id}/agent-update:
+    post:
+      consumes:
+      - application/json
+      description: 向指定节点下发 Agent 自更新指令，需要管理员权限
+      parameters:
+      - description: 节点 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 更新参数（可选）
+        in: body
+        name: body
+        schema:
+          $ref: '#/definitions/node.AgentUpdateInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新请求已下发
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/node.View'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "404":
+          description: 无权限或节点不存在
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 请求 Agent 更新
+      tags:
+      - openflare-node
+  /api/v1/custom/openflare/nodes/{id}/delete:
+    post:
+      description: 删除指定节点记录，需要管理员权限
+      parameters:
+      - description: 节点 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 删除成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  type: string
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "404":
+          description: 无权限或节点不存在
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 删除节点
+      tags:
+      - openflare-node
+  /api/v1/custom/openflare/nodes/{id}/force-sync:
+    post:
+      description: 向指定节点下发强制同步当前活跃配置的指令，需要管理员权限
+      parameters:
+      - description: 节点 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 同步请求已下发
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/node.View'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "404":
+          description: 无权限或节点不存在
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 请求强制同步配置
+      tags:
+      - openflare-node
+  /api/v1/custom/openflare/nodes/{id}/observability:
+    get:
+      description: 返回指定节点的指标、健康事件与流量分析数据，需要管理员权限
+      parameters:
+      - description: 节点 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 统计时间范围（小时）
+        in: query
+        name: hours
+        type: integer
+      - description: 返回记录数量上限
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 可观测性数据
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/node.ObservabilityView'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "404":
+          description: 无权限或节点不存在
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 获取节点可观测性数据
+      tags:
+      - openflare-node
+  /api/v1/custom/openflare/nodes/{id}/observability/cleanup:
+    post:
+      description: 清理指定节点的历史健康事件记录，需要管理员权限
+      parameters:
+      - description: 节点 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 清理结果
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/node.HealthEventCleanupResult'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "404":
+          description: 无权限或节点不存在
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 清理节点健康事件
+      tags:
+      - openflare-node
+  /api/v1/custom/openflare/nodes/{id}/openresty-restart:
+    post:
+      description: 向指定节点下发 OpenResty 重启指令，需要管理员权限
+      parameters:
+      - description: 节点 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 重启请求已下发
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/node.View'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "404":
+          description: 无权限或节点不存在
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 请求重启 OpenResty
+      tags:
+      - openflare-node
+  /api/v1/custom/openflare/nodes/{id}/update:
+    post:
+      consumes:
+      - application/json
+      description: 更新指定节点的配置信息，需要管理员权限
+      parameters:
+      - description: 节点 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 节点参数
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/node.Input'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/node.View'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "404":
+          description: 无权限或节点不存在
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 更新节点
+      tags:
+      - openflare-node
+  /api/v1/custom/openflare/nodes/bootstrap-token:
+    get:
+      description: 返回全局节点发现引导令牌，需要管理员权限
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 引导令牌
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/node.BootstrapView'
+              type: object
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "404":
+          description: 无权限或不存在
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 获取引导令牌
+      tags:
+      - openflare-node
+  /api/v1/custom/openflare/nodes/bootstrap-token/rotate:
+    post:
+      description: 重新生成全局节点发现引导令牌，需要管理员权限
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 新引导令牌
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/node.BootstrapView'
+              type: object
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "404":
+          description: 无权限或不存在
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 轮换引导令牌
+      tags:
+      - openflare-node
+  /api/v1/custom/openflare/notice:
+    get:
+      description: 返回 OpenFlare 控制台公告文本，无需登录
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 系统公告
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  type: string
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "500":
+          description: 内部错误
+          schema:
+            $ref: '#/definitions/response.Any'
+      summary: 获取系统公告
+      tags:
+      - openflare-option
+  /api/v1/custom/openflare/option:
+    get:
+      description: 返回全部非敏感 OpenFlare 配置项，需要管理员权限
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 配置项列表
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/model.OpenFlareOption'
+                  type: array
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "403":
+          description: 无管理员权限
+          schema:
+            $ref: '#/definitions/response.Any'
+        "500":
+          description: 内部错误
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 列出 OpenFlare 配置项
+      tags:
+      - openflare-option
+  /api/v1/custom/openflare/option/database/cleanup:
+    post:
+      consumes:
+      - application/json
+      description: 按目标与保留天数清理可观测性相关数据表，需要管理员权限
+      parameters:
+      - description: 清理参数
+        in: body
+        name: request
+        schema:
+          $ref: '#/definitions/option.databaseCleanupInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 清理结果
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/option.databaseCleanupResult'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "403":
+          description: 无管理员权限
+          schema:
+            $ref: '#/definitions/response.Any'
+        "500":
+          description: 内部错误
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 清理可观测性数据库
+      tags:
+      - openflare-option
+  /api/v1/custom/openflare/option/geoip/lookup:
+    post:
+      consumes:
+      - application/json
+      description: 按提供商与 IP 查询地理位置信息，需要管理员权限
+      parameters:
+      - description: 查询参数
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/option.geoIPLookupRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: GeoIP 查询结果
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/option.geoIPLookupView'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "403":
+          description: 无管理员权限
+          schema:
+            $ref: '#/definitions/response.Any'
+        "500":
+          description: 内部错误
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: GeoIP 地址查询
+      tags:
+      - openflare-option
+  /api/v1/custom/openflare/option/update:
+    post:
+      consumes:
+      - application/json
+      description: 更新单个 OpenFlare 配置项，需要管理员权限
+      parameters:
+      - description: 配置项
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/model.OpenFlareOption'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新成功
+          schema:
+            $ref: '#/definitions/response.Any'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "403":
+          description: 无管理员权限
+          schema:
+            $ref: '#/definitions/response.Any'
+        "500":
+          description: 内部错误
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 更新 OpenFlare 配置项
+      tags:
+      - openflare-option
+  /api/v1/custom/openflare/option/update-batch:
+    post:
+      consumes:
+      - application/json
+      description: 批量更新多个 OpenFlare 配置项，需要管理员权限
+      parameters:
+      - description: 批量配置项
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/option.optionBatchPayload'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新成功
+          schema:
+            $ref: '#/definitions/response.Any'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "403":
+          description: 无管理员权限
+          schema:
+            $ref: '#/definitions/response.Any'
+        "500":
+          description: 内部错误
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 批量更新 OpenFlare 配置项
+      tags:
+      - openflare-option
+  /api/v1/custom/openflare/origins:
+    get:
+      description: 返回所有源站及关联代理规则数量，需要管理员权限
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 源站列表
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/origin.View'
+                  type: array
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "404":
+          description: 无权限或不存在
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 获取源站列表
+      tags:
+      - openflare-origin
+    post:
+      consumes:
+      - application/json
+      description: 创建新的上游源站记录，需要管理员权限
+      parameters:
+      - description: 源站参数
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/origin.Input'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 创建成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/origin.View'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "404":
+          description: 无权限或不存在
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 创建源站
+      tags:
+      - openflare-origin
+  /api/v1/custom/openflare/origins/{id}:
+    get:
+      description: 返回指定源站信息及关联代理规则摘要，需要管理员权限
+      parameters:
+      - description: 源站 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 源站详情
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/origin.DetailView'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "404":
+          description: 无权限或源站不存在
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 获取源站详情
+      tags:
+      - openflare-origin
+  /api/v1/custom/openflare/origins/{id}/delete:
+    post:
+      description: 删除指定源站记录，需要管理员权限
+      parameters:
+      - description: 源站 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 删除成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  type: string
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "404":
+          description: 无权限或源站不存在
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 删除源站
+      tags:
+      - openflare-origin
+  /api/v1/custom/openflare/origins/{id}/update:
+    post:
+      consumes:
+      - application/json
+      description: 更新指定源站的配置信息，需要管理员权限
+      parameters:
+      - description: 源站 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 源站参数
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/origin.Input'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/origin.View'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "404":
+          description: 无权限或源站不存在
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 更新源站
+      tags:
+      - openflare-origin
+  /api/v1/custom/openflare/pages:
+    get:
+      description: 返回全部 OpenFlare Pages 项目，需要管理员权限
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Pages 项目列表
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/pages.View'
+                  type: array
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "403":
+          description: 无管理员权限
+          schema:
+            $ref: '#/definitions/response.Any'
+        "500":
+          description: 内部错误
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 列出 Pages 项目
+      tags:
+      - openflare-pages
+    post:
+      consumes:
+      - application/json
+      description: 创建新的 OpenFlare Pages 项目，需要管理员权限
+      parameters:
+      - description: 项目参数
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/pages.Input'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 创建成功的项目
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/pages.View'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "403":
+          description: 无管理员权限
+          schema:
+            $ref: '#/definitions/response.Any'
+        "500":
+          description: 内部错误
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 创建 Pages 项目
+      tags:
+      - openflare-pages
+  /api/v1/custom/openflare/pages/{id}:
+    get:
+      description: 按 ID 返回 Pages 项目详情，需要管理员权限
+      parameters:
+      - description: 项目 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Pages 项目详情
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/pages.View'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "403":
+          description: 无管理员权限
+          schema:
+            $ref: '#/definitions/response.Any'
+        "404":
+          description: 项目不存在
+          schema:
+            $ref: '#/definitions/response.Any'
+        "500":
+          description: 内部错误
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 获取 Pages 项目详情
+      tags:
+      - openflare-pages
+  /api/v1/custom/openflare/pages/{id}/delete:
+    post:
+      description: 按 ID 删除 OpenFlare Pages 项目，需要管理员权限
+      parameters:
+      - description: 项目 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 删除成功
+          schema:
+            $ref: '#/definitions/response.Any'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "403":
+          description: 无管理员权限
+          schema:
+            $ref: '#/definitions/response.Any'
+        "404":
+          description: 项目不存在
+          schema:
+            $ref: '#/definitions/response.Any'
+        "500":
+          description: 内部错误
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 删除 Pages 项目
+      tags:
+      - openflare-pages
+  /api/v1/custom/openflare/pages/{id}/deployments:
+    get:
+      description: 返回指定项目的全部部署记录，需要管理员权限
+      parameters:
+      - description: 项目 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 部署列表
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/pages.DeploymentView'
+                  type: array
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "403":
+          description: 无管理员权限
+          schema:
+            $ref: '#/definitions/response.Any'
+        "404":
+          description: 项目不存在
+          schema:
+            $ref: '#/definitions/response.Any'
+        "500":
+          description: 内部错误
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 列出 Pages 部署
+      tags:
+      - openflare-pages
+  /api/v1/custom/openflare/pages/{id}/deployments/{deployment_id}/activate:
+    post:
+      description: 将指定部署设为项目当前生效版本，需要管理员权限
+      parameters:
+      - description: 项目 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 部署 ID
+        in: path
+        name: deployment_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 激活后的项目
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/pages.View'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "403":
+          description: 无管理员权限
+          schema:
+            $ref: '#/definitions/response.Any'
+        "404":
+          description: 项目或部署不存在
+          schema:
+            $ref: '#/definitions/response.Any'
+        "500":
+          description: 内部错误
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 激活 Pages 部署
+      tags:
+      - openflare-pages
+  /api/v1/custom/openflare/pages/{id}/deployments/{deployment_id}/delete:
+    post:
+      description: 删除指定项目的部署记录，需要管理员权限
+      parameters:
+      - description: 项目 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 部署 ID
+        in: path
+        name: deployment_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 删除成功
+          schema:
+            $ref: '#/definitions/response.Any'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "403":
+          description: 无管理员权限
+          schema:
+            $ref: '#/definitions/response.Any'
+        "404":
+          description: 项目或部署不存在
+          schema:
+            $ref: '#/definitions/response.Any'
+        "500":
+          description: 内部错误
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 删除 Pages 部署
+      tags:
+      - openflare-pages
+  /api/v1/custom/openflare/pages/{id}/deployments/upload:
+    post:
+      consumes:
+      - multipart/form-data
+      description: 为指定项目上传 ZIP 部署包，需要管理员权限
+      parameters:
+      - description: 项目 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 部署包 ZIP 文件
+        in: formData
+        name: package
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 部署记录
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/pages.DeploymentView'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "403":
+          description: 无管理员权限
+          schema:
+            $ref: '#/definitions/response.Any'
+        "404":
+          description: 项目不存在
+          schema:
+            $ref: '#/definitions/response.Any'
+        "500":
+          description: 内部错误
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 上传 Pages 部署包
+      tags:
+      - openflare-pages
+  /api/v1/custom/openflare/pages/{id}/update:
+    post:
+      consumes:
+      - application/json
+      description: 按 ID 更新 OpenFlare Pages 项目，需要管理员权限
+      parameters:
+      - description: 项目 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 项目参数
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/pages.Input'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新后的项目
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/pages.View'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "403":
+          description: 无管理员权限
+          schema:
+            $ref: '#/definitions/response.Any'
+        "404":
+          description: 项目不存在
+          schema:
+            $ref: '#/definitions/response.Any'
+        "500":
+          description: 内部错误
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 更新 Pages 项目
+      tags:
+      - openflare-pages
+  /api/v1/custom/openflare/pages/deployments/{deployment_id}/files:
+    get:
+      description: 返回指定部署包含的文件清单，需要管理员权限
+      parameters:
+      - description: 部署 ID
+        in: path
+        name: deployment_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 部署文件列表
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/pages.DeploymentFileView'
+                  type: array
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "403":
+          description: 无管理员权限
+          schema:
+            $ref: '#/definitions/response.Any'
+        "404":
+          description: 部署不存在
+          schema:
+            $ref: '#/definitions/response.Any'
+        "500":
+          description: 内部错误
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 列出 Pages 部署文件
+      tags:
+      - openflare-pages
+  /api/v1/custom/openflare/proxy-routes:
+    get:
+      description: 返回所有代理规则配置，需要管理员权限
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 代理规则列表
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/proxy_route.View'
+                  type: array
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "404":
+          description: 无权限或不存在
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 获取代理规则列表
+      tags:
+      - openflare-proxy-route
+    post:
+      consumes:
+      - application/json
+      description: 创建新的反向代理规则，需要管理员权限
+      parameters:
+      - description: 代理规则参数
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/proxy_route.Input'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 创建成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/proxy_route.View'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "404":
+          description: 无权限或不存在
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 创建代理规则
+      tags:
+      - openflare-proxy-route
+  /api/v1/custom/openflare/proxy-routes/{id}:
+    get:
+      description: 返回指定代理规则的完整配置，需要管理员权限
+      parameters:
+      - description: 代理规则 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 代理规则详情
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/proxy_route.View'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "404":
+          description: 无权限或规则不存在
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 获取代理规则详情
+      tags:
+      - openflare-proxy-route
+  /api/v1/custom/openflare/proxy-routes/{id}/delete:
+    post:
+      description: 删除指定代理规则，需要管理员权限
+      parameters:
+      - description: 代理规则 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 删除成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  type: string
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "404":
+          description: 无权限或规则不存在
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 删除代理规则
+      tags:
+      - openflare-proxy-route
+  /api/v1/custom/openflare/proxy-routes/{id}/update:
+    post:
+      consumes:
+      - application/json
+      description: 更新指定代理规则的配置，需要管理员权限
+      parameters:
+      - description: 代理规则 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 代理规则参数
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/proxy_route.Input'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/proxy_route.View'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "404":
+          description: 无权限或规则不存在
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 更新代理规则
+      tags:
+      - openflare-proxy-route
+  /api/v1/custom/openflare/status:
+    get:
+      description: 返回版本、认证源与系统公开配置，无需登录
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 公开状态
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/option.statusView'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "500":
+          description: 内部错误
+          schema:
+            $ref: '#/definitions/response.Any'
+      summary: 获取 OpenFlare 公开状态
+      tags:
+      - openflare-option
+  /api/v1/custom/openflare/tls-certificates:
+    get:
+      description: 返回全部 TLS 证书（不含 PEM），需要管理员权限
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 证书列表
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/model.TLSCertificate'
+                  type: array
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "403":
+          description: 无管理员权限
+          schema:
+            $ref: '#/definitions/response.Any'
+        "500":
+          description: 内部错误
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 列出 TLS 证书
+      tags:
+      - openflare-tls
+    post:
+      consumes:
+      - application/json
+      description: 从 PEM 文本创建 TLS 证书，需要管理员权限
+      parameters:
+      - description: 证书参数
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/tls.CertificateInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 创建成功的证书
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.TLSCertificate'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "403":
+          description: 无管理员权限
+          schema:
+            $ref: '#/definitions/response.Any'
+        "500":
+          description: 内部错误
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 创建 TLS 证书
+      tags:
+      - openflare-tls
+  /api/v1/custom/openflare/tls-certificates/{id}:
+    get:
+      description: 按 ID 返回 TLS 证书详情（不含 PEM），需要管理员权限
+      parameters:
+      - description: 证书 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 证书详情
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.TLSCertificate'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "403":
+          description: 无管理员权限
+          schema:
+            $ref: '#/definitions/response.Any'
+        "404":
+          description: 记录不存在
+          schema:
+            $ref: '#/definitions/response.Any'
+        "500":
+          description: 内部错误
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 获取 TLS 证书详情
+      tags:
+      - openflare-tls
+  /api/v1/custom/openflare/tls-certificates/{id}/content:
+    get:
+      description: 按 ID 返回证书与私钥 PEM 内容，需要管理员权限
+      parameters:
+      - description: 证书 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 证书 PEM 内容
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/tls.CertificateContent'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "403":
+          description: 无管理员权限
+          schema:
+            $ref: '#/definitions/response.Any'
+        "404":
+          description: 记录不存在
+          schema:
+            $ref: '#/definitions/response.Any'
+        "500":
+          description: 内部错误
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 获取 TLS 证书 PEM 内容
+      tags:
+      - openflare-tls
+  /api/v1/custom/openflare/tls-certificates/{id}/convert-acme:
+    post:
+      consumes:
+      - application/json
+      description: 将已上传证书转换为 ACME 自动续期模式，需要管理员权限
+      parameters:
+      - description: 证书 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: ACME 申请参数
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/tls.ApplyInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 转换后的证书
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.TLSCertificate'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "403":
+          description: 无管理员权限
+          schema:
+            $ref: '#/definitions/response.Any'
+        "404":
+          description: 记录不存在
+          schema:
+            $ref: '#/definitions/response.Any'
+        "500":
+          description: 内部错误
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 将证书转为 ACME 管理
+      tags:
+      - openflare-tls
+  /api/v1/custom/openflare/tls-certificates/{id}/delete:
+    post:
+      description: 按 ID 删除 TLS 证书，需要管理员权限
+      parameters:
+      - description: 证书 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 删除成功
+          schema:
+            $ref: '#/definitions/response.Any'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "403":
+          description: 无管理员权限
+          schema:
+            $ref: '#/definitions/response.Any'
+        "404":
+          description: 记录不存在
+          schema:
+            $ref: '#/definitions/response.Any'
+        "500":
+          description: 内部错误
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 删除 TLS 证书
+      tags:
+      - openflare-tls
+  /api/v1/custom/openflare/tls-certificates/{id}/renew:
+    post:
+      description: 手动触发 ACME 证书续期，需要管理员权限
+      parameters:
+      - description: 证书 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 续期后的证书
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.TLSCertificate'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "403":
+          description: 无管理员权限
+          schema:
+            $ref: '#/definitions/response.Any'
+        "404":
+          description: 记录不存在
+          schema:
+            $ref: '#/definitions/response.Any'
+        "500":
+          description: 内部错误
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 续期 ACME 证书
+      tags:
+      - openflare-tls
+  /api/v1/custom/openflare/tls-certificates/{id}/update:
+    post:
+      consumes:
+      - application/json
+      description: 按 ID 更新 TLS 证书 PEM 信息，需要管理员权限
+      parameters:
+      - description: 证书 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 证书参数
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/tls.CertificateInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新后的证书
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.TLSCertificate'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "403":
+          description: 无管理员权限
+          schema:
+            $ref: '#/definitions/response.Any'
+        "404":
+          description: 记录不存在
+          schema:
+            $ref: '#/definitions/response.Any'
+        "500":
+          description: 内部错误
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 更新 TLS 证书
+      tags:
+      - openflare-tls
+  /api/v1/custom/openflare/tls-certificates/{id}/update-acme:
+    post:
+      consumes:
+      - application/json
+      description: 按 ID 更新 ACME 证书申请配置，需要管理员权限
+      parameters:
+      - description: 证书 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: ACME 申请参数
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/tls.ApplyInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新后的证书
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.TLSCertificate'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "403":
+          description: 无管理员权限
+          schema:
+            $ref: '#/definitions/response.Any'
+        "404":
+          description: 记录不存在
+          schema:
+            $ref: '#/definitions/response.Any'
+        "500":
+          description: 内部错误
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 更新 ACME 证书配置
+      tags:
+      - openflare-tls
+  /api/v1/custom/openflare/tls-certificates/apply:
+    post:
+      consumes:
+      - application/json
+      description: 通过 ACME 申请新的 TLS 证书，需要管理员权限
+      parameters:
+      - description: ACME 申请参数
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/tls.ApplyInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 申请中的证书
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.TLSCertificate'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "403":
+          description: 无管理员权限
+          schema:
+            $ref: '#/definitions/response.Any'
+        "500":
+          description: 内部错误
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 申请 ACME 证书
+      tags:
+      - openflare-tls
+  /api/v1/custom/openflare/tls-certificates/import-file:
+    post:
+      consumes:
+      - multipart/form-data
+      description: 上传证书与私钥文件创建 TLS 证书，需要管理员权限
+      parameters:
+      - description: 证书名称
+        in: formData
+        name: name
+        type: string
+      - description: 备注
+        in: formData
+        name: remark
+        type: string
+      - description: 证书文件
+        in: formData
+        name: cert_file
+        required: true
+        type: file
+      - description: 私钥文件
+        in: formData
+        name: key_file
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 导入成功的证书
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.TLSCertificate'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "403":
+          description: 无管理员权限
+          schema:
+            $ref: '#/definitions/response.Any'
+        "500":
+          description: 内部错误
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 从文件导入 TLS 证书
+      tags:
+      - openflare-tls
+  /api/v1/custom/openflare/update/latest-release:
+    get:
+      description: 查询 OpenFlare 服务端最新 GitHub Release 及升级状态，需要管理员权限
+      parameters:
+      - description: 发布渠道（stable/preview）
+        in: query
+        name: channel
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 最新发布信息
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/update.LatestReleaseView'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "403":
+          description: 无管理员权限
+          schema:
+            $ref: '#/definitions/response.Any'
+        "500":
+          description: 内部错误
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 获取最新服务端发布版本
+      tags:
+      - openflare-update
+  /api/v1/custom/openflare/update/logs/ws:
+    get:
+      description: 通过 WebSocket 推送升级进度快照，需要管理员权限
+      responses:
+        "101":
+          description: WebSocket 升级日志流
+          schema:
+            $ref: '#/definitions/update.StreamSnapshot'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "403":
+          description: 无管理员权限
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 流式获取服务端升级日志
+      tags:
+      - openflare-update
+  /api/v1/custom/openflare/update/manual-upgrade:
+    post:
+      consumes:
+      - application/json
+      description: 确认并执行手动上传的服务端升级（当前功能已禁用），需要管理员权限
+      produces:
+      - application/json
+      responses:
+        "400":
+          description: 功能已禁用或参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "403":
+          description: 无管理员权限
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 确认手动服务端升级
+      tags:
+      - openflare-update
+  /api/v1/custom/openflare/update/manual-upload:
+    post:
+      consumes:
+      - multipart/form-data
+      description: 上传服务端二进制以进行手动升级（当前功能已禁用），需要管理员权限
+      parameters:
+      - description: 服务端二进制文件
+        in: formData
+        name: binary
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "400":
+          description: 功能已禁用或参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "403":
+          description: 无管理员权限
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 上传手动升级二进制
+      tags:
+      - openflare-update
+  /api/v1/custom/openflare/update/upgrade:
+    post:
+      consumes:
+      - application/json
+      description: 从最新 Release 调度 OpenFlare 服务端自动升级，需要管理员权限
+      parameters:
+      - description: 升级参数
+        in: body
+        name: request
+        schema:
+          $ref: '#/definitions/update.upgradeRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 升级任务已调度
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/update.LatestReleaseView'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "403":
+          description: 无管理员权限
+          schema:
+            $ref: '#/definitions/response.Any'
+        "500":
+          description: 内部错误
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 触发服务端自动升级
+      tags:
+      - openflare-update
+  /api/v1/custom/openflare/uptimekuma/sync:
+    post:
+      consumes:
+      - application/json
+      description: 将 OpenFlare 节点同步到 Uptime Kuma，需要管理员权限
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 同步成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  type: string
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "403":
+          description: 无管理员权限
+          schema:
+            $ref: '#/definitions/response.Any'
+        "500":
+          description: 内部错误
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 同步 Uptime Kuma
+      tags:
+      - openflare-option
+  /api/v1/custom/openflare/waf/ip-groups:
+    get:
+      description: 返回全部 WAF IP 组，需要管理员权限
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: IP 组列表
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/waf.IPGroupView'
+                  type: array
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "403":
+          description: 无管理员权限
+          schema:
+            $ref: '#/definitions/response.Any'
+        "500":
+          description: 内部错误
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 列出 WAF IP 组
+      tags:
+      - openflare-waf
+    post:
+      consumes:
+      - application/json
+      description: 创建新的 WAF IP 组，需要管理员权限
+      parameters:
+      - description: IP 组参数
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/waf.IPGroupInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 创建成功的 IP 组
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/waf.IPGroupView'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "403":
+          description: 无管理员权限
+          schema:
+            $ref: '#/definitions/response.Any'
+        "500":
+          description: 内部错误
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 创建 WAF IP 组
+      tags:
+      - openflare-waf
+  /api/v1/custom/openflare/waf/ip-groups/{id}:
+    get:
+      description: 按 ID 返回 WAF IP 组详情，需要管理员权限
+      parameters:
+      - description: IP 组 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: IP 组详情
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/waf.IPGroupView'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "403":
+          description: 无管理员权限
+          schema:
+            $ref: '#/definitions/response.Any'
+        "404":
+          description: 记录不存在
+          schema:
+            $ref: '#/definitions/response.Any'
+        "500":
+          description: 内部错误
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 获取 WAF IP 组详情
+      tags:
+      - openflare-waf
+  /api/v1/custom/openflare/waf/ip-groups/{id}/delete:
+    post:
+      description: 按 ID 删除 WAF IP 组，需要管理员权限
+      parameters:
+      - description: IP 组 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 删除成功
+          schema:
+            $ref: '#/definitions/response.Any'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "403":
+          description: 无管理员权限
+          schema:
+            $ref: '#/definitions/response.Any'
+        "404":
+          description: 记录不存在
+          schema:
+            $ref: '#/definitions/response.Any'
+        "500":
+          description: 内部错误
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 删除 WAF IP 组
+      tags:
+      - openflare-waf
+  /api/v1/custom/openflare/waf/ip-groups/{id}/sync:
+    post:
+      description: 手动触发 WAF IP 组外部 IP 同步，需要管理员权限
+      parameters:
+      - description: IP 组 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 同步结果
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/waf.IPGroupSyncResult'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "403":
+          description: 无管理员权限
+          schema:
+            $ref: '#/definitions/response.Any'
+        "404":
+          description: 记录不存在
+          schema:
+            $ref: '#/definitions/response.Any'
+        "500":
+          description: 内部错误
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 同步 WAF IP 组
+      tags:
+      - openflare-waf
+  /api/v1/custom/openflare/waf/ip-groups/{id}/update:
+    post:
+      consumes:
+      - application/json
+      description: 按 ID 更新 WAF IP 组，需要管理员权限
+      parameters:
+      - description: IP 组 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: IP 组参数
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/waf.IPGroupInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新后的 IP 组
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/waf.IPGroupView'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "403":
+          description: 无管理员权限
+          schema:
+            $ref: '#/definitions/response.Any'
+        "404":
+          description: 记录不存在
+          schema:
+            $ref: '#/definitions/response.Any'
+        "500":
+          description: 内部错误
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 更新 WAF IP 组
+      tags:
+      - openflare-waf
+  /api/v1/custom/openflare/waf/ip-groups/test:
+    post:
+      consumes:
+      - application/json
+      description: 根据自动配置规则测试 IP 匹配结果（桩实现），需要管理员权限
+      parameters:
+      - description: 自动配置参数
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/waf.IPGroupAutoTestInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 测试结果
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/waf.IPGroupAutoTestResult'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "403":
+          description: 无管理员权限
+          schema:
+            $ref: '#/definitions/response.Any'
+        "500":
+          description: 内部错误
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 测试 WAF IP 组自动配置
+      tags:
+      - openflare-waf
+  /api/v1/custom/openflare/waf/rule-groups:
+    get:
+      description: 返回全部 WAF 规则组，需要管理员权限
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 规则组列表
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/waf.RuleGroupView'
+                  type: array
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "403":
+          description: 无管理员权限
+          schema:
+            $ref: '#/definitions/response.Any'
+        "500":
+          description: 内部错误
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 列出 WAF 规则组
+      tags:
+      - openflare-waf
+    post:
+      consumes:
+      - application/json
+      description: 创建新的 WAF 规则组，需要管理员权限
+      parameters:
+      - description: 规则组参数
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/waf.RuleGroupInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 创建成功的规则组
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/waf.RuleGroupView'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "403":
+          description: 无管理员权限
+          schema:
+            $ref: '#/definitions/response.Any'
+        "500":
+          description: 内部错误
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 创建 WAF 规则组
+      tags:
+      - openflare-waf
+  /api/v1/custom/openflare/waf/rule-groups/{id}:
+    get:
+      description: 按 ID 返回 WAF 规则组详情，需要管理员权限
+      parameters:
+      - description: 规则组 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 规则组详情
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/waf.RuleGroupView'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "403":
+          description: 无管理员权限
+          schema:
+            $ref: '#/definitions/response.Any'
+        "404":
+          description: 记录不存在
+          schema:
+            $ref: '#/definitions/response.Any'
+        "500":
+          description: 内部错误
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 获取 WAF 规则组详情
+      tags:
+      - openflare-waf
+  /api/v1/custom/openflare/waf/rule-groups/{id}/delete:
+    post:
+      description: 按 ID 删除 WAF 规则组，需要管理员权限
+      parameters:
+      - description: 规则组 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 删除成功
+          schema:
+            $ref: '#/definitions/response.Any'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "403":
+          description: 无管理员权限
+          schema:
+            $ref: '#/definitions/response.Any'
+        "404":
+          description: 记录不存在
+          schema:
+            $ref: '#/definitions/response.Any'
+        "500":
+          description: 内部错误
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 删除 WAF 规则组
+      tags:
+      - openflare-waf
+  /api/v1/custom/openflare/waf/rule-groups/{id}/sites:
+    post:
+      consumes:
+      - application/json
+      description: 替换 WAF 规则组关联的代理站点列表，需要管理员权限
+      parameters:
+      - description: 规则组 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 站点 ID 列表
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/waf.IDsRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新后的规则组
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/waf.RuleGroupView'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "403":
+          description: 无管理员权限
+          schema:
+            $ref: '#/definitions/response.Any'
+        "404":
+          description: 记录不存在
+          schema:
+            $ref: '#/definitions/response.Any'
+        "500":
+          description: 内部错误
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 替换规则组站点绑定
+      tags:
+      - openflare-waf
+  /api/v1/custom/openflare/waf/rule-groups/{id}/update:
+    post:
+      consumes:
+      - application/json
+      description: 按 ID 更新 WAF 规则组，需要管理员权限
+      parameters:
+      - description: 规则组 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 规则组参数
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/waf.RuleGroupInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新后的规则组
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/waf.RuleGroupView'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "403":
+          description: 无管理员权限
+          schema:
+            $ref: '#/definitions/response.Any'
+        "404":
+          description: 记录不存在
+          schema:
+            $ref: '#/definitions/response.Any'
+        "500":
+          description: 内部错误
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 更新 WAF 规则组
+      tags:
+      - openflare-waf
+  /api/v1/custom/openflare/waf/sites/{route_id}/rule-groups:
+    get:
+      description: 返回代理站点关联的 WAF 规则组绑定，需要管理员权限
+      parameters:
+      - description: 代理路由 ID
+        in: path
+        name: route_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 站点规则组绑定
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/waf.SiteRuleGroupsView'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "403":
+          description: 无管理员权限
+          schema:
+            $ref: '#/definitions/response.Any'
+        "404":
+          description: 记录不存在
+          schema:
+            $ref: '#/definitions/response.Any'
+        "500":
+          description: 内部错误
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 获取站点 WAF 规则组
+      tags:
+      - openflare-waf
+    post:
+      consumes:
+      - application/json
+      description: 替换代理站点关联的 WAF 规则组列表，需要管理员权限
+      parameters:
+      - description: 代理路由 ID
+        in: path
+        name: route_id
+        required: true
+        type: integer
+      - description: 规则组 ID 列表
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/waf.IDsRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新后的站点规则组绑定
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/waf.SiteRuleGroupsView'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "403":
+          description: 无管理员权限
+          schema:
+            $ref: '#/definitions/response.Any'
+        "404":
+          description: 记录不存在
+          schema:
+            $ref: '#/definitions/response.Any'
+        "500":
+          description: 内部错误
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 替换站点 WAF 规则组
+      tags:
+      - openflare-waf
   /api/v1/oauth/{source}/authorize:
     get:
       description: 根据指定认证源名称发起 OAuth 授权，支持 purpose 参数用于区分登录和账号绑定场景。认证源必须已启用。
@@ -3959,6 +10162,7 @@ paths:
       description: 解除当前登录用户与指定外部帐号的绑定关系，需要登录
       parameters:
       - description: 外部帐号绑定记录 ID
+        format: int64
         in: path
         name: id
         required: true

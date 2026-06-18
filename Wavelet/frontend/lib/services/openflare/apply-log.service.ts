@@ -1,8 +1,13 @@
-import {LegacyOpenFlareBaseService} from './legacy-base.service';
-import type {ApplyLogCleanupPayload, ApplyLogCleanupResult, ApplyLogList, ApplyLogListQuery,} from './types';
+import {OpenFlareBaseService} from './base.service';
+import type {
+  ApplyLogCleanupPayload,
+  ApplyLogCleanupResult,
+  ApplyLogList,
+  ApplyLogListQuery,
+} from './types';
 
-export class ApplyLogService extends LegacyOpenFlareBaseService {
-  protected static override readonly basePath = '/api/apply-logs';
+export class ApplyLogService extends OpenFlareBaseService {
+  protected static override readonly basePath: string = '/api/v1/custom/openflare/apply-logs';
 
   static list(query: ApplyLogListQuery = {}): Promise<ApplyLogList> {
     const params: Record<string, unknown> = {};
@@ -18,10 +23,10 @@ export class ApplyLogService extends LegacyOpenFlareBaseService {
       params.pageSize = query.pageSize;
     }
 
-    return this.legacyGet<ApplyLogList>('/', params);
+    return this.get<ApplyLogList>('/', params);
   }
 
   static cleanup(payload: ApplyLogCleanupPayload): Promise<ApplyLogCleanupResult> {
-    return this.legacyPost<ApplyLogCleanupResult>('/cleanup', payload);
+    return this.post<ApplyLogCleanupResult>('/cleanup', payload);
   }
 }

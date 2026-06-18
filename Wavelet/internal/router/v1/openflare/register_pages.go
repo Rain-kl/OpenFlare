@@ -1,21 +1,21 @@
 // Copyright 2026 Arctel.net
 // SPDX-License-Identifier: Apache-2.0
 
-package legacy
+package openflare
 
 import (
-	"github.com/Rain-kl/Wavelet/internal/apps/openflare/compat"
+	"github.com/Rain-kl/Wavelet/internal/apps/openflare/apiutil"
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/pages"
 	"github.com/gin-gonic/gin"
 )
 
 func registerPagesRoutes(apiGroup *gin.RouterGroup) {
 	pagesRoute := apiGroup.Group("/pages")
-	pagesRoute.Use(compat.AdminAuth())
+	pagesRoute.Use(apiutil.AdminRequired())
 	{
-		compat.RegisterCollection(pagesRoute, "GET", pages.ListProjectsHandler)
+		apiutil.RegisterCollection(pagesRoute, "GET", pages.ListProjectsHandler)
 		pagesRoute.GET("/:id", pages.GetProjectHandler)
-		compat.RegisterCollection(pagesRoute, "POST", pages.CreateProjectHandler)
+		apiutil.RegisterCollection(pagesRoute, "POST", pages.CreateProjectHandler)
 		pagesRoute.POST("/:id/update", pages.UpdateProjectHandler)
 		pagesRoute.POST("/:id/delete", pages.DeleteProjectHandler)
 		pagesRoute.GET("/:id/deployments", pages.ListDeploymentsHandler)

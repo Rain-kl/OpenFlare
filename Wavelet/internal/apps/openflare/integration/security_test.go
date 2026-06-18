@@ -15,7 +15,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Rain-kl/Wavelet/internal/apps/openflare/legacy"
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/option"
 	"github.com/Rain-kl/Wavelet/internal/config"
 	"github.com/Rain-kl/Wavelet/internal/db"
@@ -59,8 +58,7 @@ func setupSecurityTest(t *testing.T) (*gin.Engine, adminSeed, func()) {
 	config.Config.App.SessionSecret = "test_session_secret_for_security_integration"
 
 	engine := testhelper.NewTestGinEngine()
-	apiGroup := engine.Group("/api")
-	legacy.RegisterRoutes(apiGroup)
+	mountOpenFlareTestRoutes(engine)
 
 	cleanup := func() {
 		config.Config.App.SessionSecret = oldSecret
@@ -110,7 +108,7 @@ func TestSecurityWAFTLSMigrationFlow(t *testing.T) {
 	)
 
 	t.Run("WAF rule group create", func(t *testing.T) {
-		rec := performLegacyRequest(t, engine, http.MethodPost, "/api/waf/rule-groups", map[string]any{
+		rec := performLegacyRequest(t, engine, http.MethodPost, apiPath("/waf/rule-groups"), map[string]any{
 			"name":              "edge-security",
 			"enabled":           true,
 			"block_status_code": 403,
@@ -121,10 +119,8 @@ func TestSecurityWAFTLSMigrationFlow(t *testing.T) {
 		}, adminAuthHeaders(seed.Token))
 		require.Equal(t, http.StatusOK, rec.Code)
 
-		envelope := decodeEnvelope(t, rec)
-		require.True(t, envelope.Success, envelope.Message)
-
-		data := unmarshalEnvelopeMap(t, envelope.Data)
+		resp := requireAPIOK(t, rec)
+		data := unmarshalAPIMap(t, resp.Data)
 		ruleGroupID = uint(data["id"].(float64))
 		assert.NotZero(t, ruleGroupID)
 		assert.Equal(t, "edge-security", data["name"])
@@ -133,13 +129,11 @@ func TestSecurityWAFTLSMigrationFlow(t *testing.T) {
 	})
 
 	t.Run("WAF rule group list includes global and custom groups", func(t *testing.T) {
-		rec := performLegacyRequest(t, engine, http.MethodGet, "/api/waf/rule-groups", nil, adminAuthHeaders(seed.Token))
+		rec := performLegacyRequest(t, engine, http.MethodGet, apiPath("/waf/rule-groups"), nil, adminAuthHeaders(seed.Token))
 		require.Equal(t, http.StatusOK, rec.Code)
 
-		envelope := decodeEnvelope(t, rec)
-		require.True(t, envelope.Success, envelope.Message)
-
-		groups := unmarshalEnvelopeSlice(t, envelope.Data)
+		resp := requireAPIOK(t, rec)
+		groups := unmarshalAPISlice(t, resp.Data)
 		require.GreaterOrEqual(t, len(groups), 2)
 
 		foundCustom := false
@@ -164,16 +158,14 @@ func TestSecurityWAFTLSMigrationFlow(t *testing.T) {
 			t,
 			engine,
 			http.MethodGet,
-			fmt.Sprintf("/api/waf/rule-groups/%d", ruleGroupID),
+			fmt.Sprintf("%s/waf/rule-groups/%d", apiPath(""), ruleGroupID),
 			nil,
 			adminAuthHeaders(seed.Token),
 		)
 		require.Equal(t, http.StatusOK, rec.Code)
 
-		envelope := decodeEnvelope(t, rec)
-		require.True(t, envelope.Success, envelope.Message)
-
-		data := unmarshalEnvelopeMap(t, envelope.Data)
+		resp := requireAPIOK(t, rec)
+		data := unmarshalAPIMap(t, resp.Data)
 		assert.Equal(t, float64(ruleGroupID), data["id"])
 		assert.Equal(t, "edge-security", data["name"])
 	})
@@ -183,7 +175,7 @@ func TestSecurityWAFTLSMigrationFlow(t *testing.T) {
 			t,
 			engine,
 			http.MethodPost,
-			fmt.Sprintf("/api/waf/rule-groups/%d/update", ruleGroupID),
+			fmt.Sprintf("%s/waf/rule-groups/%d/update", apiPath(""), ruleGroupID),
 			map[string]any{
 				"name":              "edge-security-updated",
 				"enabled":           true,
@@ -194,16 +186,14 @@ func TestSecurityWAFTLSMigrationFlow(t *testing.T) {
 		)
 		require.Equal(t, http.StatusOK, rec.Code)
 
-		envelope := decodeEnvelope(t, rec)
-		require.True(t, envelope.Success, envelope.Message)
-
-		data := unmarshalEnvelopeMap(t, envelope.Data)
+		resp := requireAPIOK(t, rec)
+		data := unmarshalAPIMap(t, resp.Data)
 		assert.Equal(t, "edge-security-updated", data["name"])
 		assert.Equal(t, float64(451), data["block_status_code"])
 	})
 
 	t.Run("WAF IP group create", func(t *testing.T) {
-		rec := performLegacyRequest(t, engine, http.MethodPost, "/api/waf/ip-groups", map[string]any{
+		rec := performLegacyRequest(t, engine, http.MethodPost, apiPath("/waf/ip-groups"), map[string]any{
 			"name":    "blocked-ips",
 			"type":    "manual",
 			"enabled": true,
@@ -212,10 +202,8 @@ func TestSecurityWAFTLSMigrationFlow(t *testing.T) {
 		}, adminAuthHeaders(seed.Token))
 		require.Equal(t, http.StatusOK, rec.Code)
 
-		envelope := decodeEnvelope(t, rec)
-		require.True(t, envelope.Success, envelope.Message)
-
-		data := unmarshalEnvelopeMap(t, envelope.Data)
+		resp := requireAPIOK(t, rec)
+		data := unmarshalAPIMap(t, resp.Data)
 		ipGroupID = uint(data["id"].(float64))
 		assert.NotZero(t, ipGroupID)
 		assert.Equal(t, "blocked-ips", data["name"])
@@ -223,7 +211,7 @@ func TestSecurityWAFTLSMigrationFlow(t *testing.T) {
 	})
 
 	t.Run("create proxy route for WAF binding", func(t *testing.T) {
-		rec := performLegacyRequest(t, engine, http.MethodPost, "/api/proxy-routes/", map[string]any{
+		rec := performLegacyRequest(t, engine, http.MethodPost, apiPath("/proxy-routes/"), map[string]any{
 			"site_name":  "security-site",
 			"domain":     "security.example.com",
 			"origin_url": "http://origin.security.internal:8080",
@@ -231,10 +219,8 @@ func TestSecurityWAFTLSMigrationFlow(t *testing.T) {
 		}, adminAuthHeaders(seed.Token))
 		require.Equal(t, http.StatusOK, rec.Code)
 
-		envelope := decodeEnvelope(t, rec)
-		require.True(t, envelope.Success, envelope.Message)
-
-		data := unmarshalEnvelopeMap(t, envelope.Data)
+		resp := requireAPIOK(t, rec)
+		data := unmarshalAPIMap(t, resp.Data)
 		proxyRouteID = uint(data["id"].(float64))
 		assert.NotZero(t, proxyRouteID)
 		assert.Equal(t, "security.example.com", data["domain"])
@@ -245,7 +231,7 @@ func TestSecurityWAFTLSMigrationFlow(t *testing.T) {
 			t,
 			engine,
 			http.MethodPost,
-			fmt.Sprintf("/api/waf/sites/%d/rule-groups", proxyRouteID),
+			fmt.Sprintf("%s/waf/sites/%d/rule-groups", apiPath(""), proxyRouteID),
 			map[string]any{
 				"ids": []uint{ruleGroupID},
 			},
@@ -253,10 +239,8 @@ func TestSecurityWAFTLSMigrationFlow(t *testing.T) {
 		)
 		require.Equal(t, http.StatusOK, rec.Code)
 
-		envelope := decodeEnvelope(t, rec)
-		require.True(t, envelope.Success, envelope.Message)
-
-		data := unmarshalEnvelopeMap(t, envelope.Data)
+		resp := requireAPIOK(t, rec)
+		data := unmarshalAPIMap(t, resp.Data)
 		assert.Equal(t, float64(proxyRouteID), data["route_id"])
 
 		appliedIDs, ok := data["applied_ids"].([]any)
@@ -270,16 +254,14 @@ func TestSecurityWAFTLSMigrationFlow(t *testing.T) {
 			t,
 			engine,
 			http.MethodGet,
-			fmt.Sprintf("/api/waf/sites/%d/rule-groups", proxyRouteID),
+			fmt.Sprintf("%s/waf/sites/%d/rule-groups", apiPath(""), proxyRouteID),
 			nil,
 			adminAuthHeaders(seed.Token),
 		)
 		require.Equal(t, http.StatusOK, rec.Code)
 
-		envelope := decodeEnvelope(t, rec)
-		require.True(t, envelope.Success, envelope.Message)
-
-		data := unmarshalEnvelopeMap(t, envelope.Data)
+		resp := requireAPIOK(t, rec)
+		data := unmarshalAPIMap(t, resp.Data)
 		assert.NotNil(t, data["global_rule_group"])
 
 		appliedGroups, ok := data["applied_rule_groups"].([]any)
@@ -293,7 +275,7 @@ func TestSecurityWAFTLSMigrationFlow(t *testing.T) {
 	t.Run("create TLS certificate with PEM", func(t *testing.T) {
 		certPEM, keyPEM := generateSelfSignedCertificatePair(t, []string{"security.example.com"})
 
-		rec := performLegacyRequest(t, engine, http.MethodPost, "/api/tls-certificates/", map[string]any{
+		rec := performLegacyRequest(t, engine, http.MethodPost, apiPath("/tls-certificates/"), map[string]any{
 			"name":     "security-cert",
 			"cert_pem": certPEM,
 			"key_pem":  keyPEM,
@@ -301,10 +283,8 @@ func TestSecurityWAFTLSMigrationFlow(t *testing.T) {
 		}, adminAuthHeaders(seed.Token))
 		require.Equal(t, http.StatusOK, rec.Code)
 
-		envelope := decodeEnvelope(t, rec)
-		require.True(t, envelope.Success, envelope.Message)
-
-		data := unmarshalEnvelopeMap(t, envelope.Data)
+		resp := requireAPIOK(t, rec)
+		data := unmarshalAPIMap(t, resp.Data)
 		certID = uint(data["id"].(float64))
 		assert.NotZero(t, certID)
 		assert.Equal(t, "security-cert", data["name"])
@@ -312,7 +292,7 @@ func TestSecurityWAFTLSMigrationFlow(t *testing.T) {
 	})
 
 	t.Run("create managed domain", func(t *testing.T) {
-		rec := performLegacyRequest(t, engine, http.MethodPost, "/api/managed-domains/", map[string]any{
+		rec := performLegacyRequest(t, engine, http.MethodPost, apiPath("/managed-domains/"), map[string]any{
 			"domain":  "security.example.com",
 			"cert_id": certID,
 			"enabled": true,
@@ -320,10 +300,8 @@ func TestSecurityWAFTLSMigrationFlow(t *testing.T) {
 		}, adminAuthHeaders(seed.Token))
 		require.Equal(t, http.StatusOK, rec.Code)
 
-		envelope := decodeEnvelope(t, rec)
-		require.True(t, envelope.Success, envelope.Message)
-
-		data := unmarshalEnvelopeMap(t, envelope.Data)
+		resp := requireAPIOK(t, rec)
+		data := unmarshalAPIMap(t, resp.Data)
 		domainID = uint(data["id"].(float64))
 		assert.NotZero(t, domainID)
 		assert.Equal(t, "security.example.com", data["domain"])
@@ -332,17 +310,15 @@ func TestSecurityWAFTLSMigrationFlow(t *testing.T) {
 	})
 
 	t.Run("create DNS account", func(t *testing.T) {
-		rec := performLegacyRequest(t, engine, http.MethodPost, "/api/dns-accounts/", map[string]any{
+		rec := performLegacyRequest(t, engine, http.MethodPost, apiPath("/dns-accounts/"), map[string]any{
 			"name":          "cloudflare-dns",
 			"type":          "cloudflare",
 			"authorization": "test-api-token-value",
 		}, adminAuthHeaders(seed.Token))
 		require.Equal(t, http.StatusOK, rec.Code)
 
-		envelope := decodeEnvelope(t, rec)
-		require.True(t, envelope.Success, envelope.Message)
-
-		data := unmarshalEnvelopeMap(t, envelope.Data)
+		resp := requireAPIOK(t, rec)
+		data := unmarshalAPIMap(t, resp.Data)
 		dnsAccountID = uint(data["id"].(float64))
 		assert.NotZero(t, dnsAccountID)
 		assert.Equal(t, "cloudflare-dns", data["name"])
@@ -358,26 +334,24 @@ func TestSecurityWAFTLSMigrationFlow(t *testing.T) {
 			t,
 			engine,
 			http.MethodPost,
-			fmt.Sprintf("/api/waf/rule-groups/%d/delete", ruleGroupID),
+			fmt.Sprintf("%s/waf/rule-groups/%d/delete", apiPath(""), ruleGroupID),
 			nil,
 			adminAuthHeaders(seed.Token),
 		)
 		require.Equal(t, http.StatusOK, rec.Code)
-
-		envelope := decodeEnvelope(t, rec)
-		require.True(t, envelope.Success, envelope.Message)
+		requireAPIOK(t, rec)
 
 		detailRec := performLegacyRequest(
 			t,
 			engine,
 			http.MethodGet,
-			fmt.Sprintf("/api/waf/rule-groups/%d", ruleGroupID),
+			fmt.Sprintf("%s/waf/rule-groups/%d", apiPath(""), ruleGroupID),
 			nil,
 			adminAuthHeaders(seed.Token),
 		)
-		require.Equal(t, http.StatusOK, detailRec.Code)
-		detailEnvelope := decodeEnvelope(t, detailRec)
-		assert.False(t, detailEnvelope.Success)
+		require.Equal(t, http.StatusNotFound, detailRec.Code)
+		detailResp := decodeAPIResponse(t, detailRec)
+		assert.NotEmpty(t, detailResp.ErrorMsg)
 	})
 
 	_ = ipGroupID

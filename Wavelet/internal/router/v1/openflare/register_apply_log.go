@@ -1,19 +1,19 @@
 // Copyright 2026 Arctel.net
 // SPDX-License-Identifier: Apache-2.0
 
-package legacy
+package openflare
 
 import (
+	"github.com/Rain-kl/Wavelet/internal/apps/openflare/apiutil"
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/apply_log"
-	"github.com/Rain-kl/Wavelet/internal/apps/openflare/compat"
 	"github.com/gin-gonic/gin"
 )
 
 func registerApplyLogRoutes(apiGroup *gin.RouterGroup) {
 	applyLogRoute := apiGroup.Group("/apply-logs")
-	applyLogRoute.Use(compat.AdminAuth())
+	applyLogRoute.Use(apiutil.AdminRequired())
 	{
-		compat.RegisterCollection(applyLogRoute, "GET", apply_log.GetApplyLogs)
+		apiutil.RegisterCollection(applyLogRoute, "GET", apply_log.GetApplyLogs)
 		applyLogRoute.POST("/cleanup", apply_log.CleanupApplyLogs)
 	}
 }

@@ -1,4 +1,4 @@
-import {LegacyOpenFlareBaseService} from './legacy-base.service';
+import {OpenFlareBaseService} from './base.service';
 import type {
   AcmeAccountItem,
   TlsCertificateApplyPayload,
@@ -9,68 +9,68 @@ import type {
   TlsCertificateMutationPayload,
 } from './types';
 
-class AcmeAccountApi extends LegacyOpenFlareBaseService {
-  protected static readonly basePath = '/api/acme-accounts';
+class AcmeAccountApi extends OpenFlareBaseService {
+  protected static override readonly basePath: string = '/api/v1/custom/openflare/acme-accounts';
 
   static getDefault(): Promise<AcmeAccountItem> {
-    return this.legacyGet<AcmeAccountItem>('/default');
+    return this.get<AcmeAccountItem>('/default');
   }
 }
 
-export class TlsCertificateService extends LegacyOpenFlareBaseService {
-  protected static readonly basePath = '/api/tls-certificates';
+export class TlsCertificateService extends OpenFlareBaseService {
+  protected static override readonly basePath: string = '/api/v1/custom/openflare/tls-certificates';
 
   static async list(): Promise<TlsCertificateItem[]> {
-    return this.legacyGet<TlsCertificateItem[]>('/');
+    return this.get<TlsCertificateItem[]>('/');
   }
 
   static async getById(id: number): Promise<TlsCertificateDetailItem> {
-    return this.legacyGet<TlsCertificateDetailItem>(`/${id}`);
+    return this.get<TlsCertificateDetailItem>(`/${id}`);
   }
 
   static async getContent(id: number): Promise<TlsCertificateContentItem> {
-    return this.legacyGet<TlsCertificateContentItem>(`/${id}/content`);
+    return this.get<TlsCertificateContentItem>(`/${id}/content`);
   }
 
   static async create(
     payload: TlsCertificateMutationPayload,
   ): Promise<TlsCertificateItem> {
-    return this.legacyPost<TlsCertificateItem>('/', payload);
+    return this.post<TlsCertificateItem>('/', payload);
   }
 
   static async update(
     id: number,
     payload: TlsCertificateMutationPayload,
   ): Promise<TlsCertificateItem> {
-    return this.legacyPost<TlsCertificateItem>(`/${id}/update`, payload);
+    return this.post<TlsCertificateItem>(`/${id}/update`, payload);
   }
 
-  static async delete(id: number): Promise<void> {
-    return this.legacyPost<void>(`/${id}/delete`);
+  static async deleteById(id: number): Promise<void> {
+    return this.post<void>(`/${id}/delete`);
   }
 
   static async apply(
     payload: TlsCertificateApplyPayload,
   ): Promise<TlsCertificateItem> {
-    return this.legacyPost<TlsCertificateItem>('/apply', payload);
+    return this.post<TlsCertificateItem>('/apply', payload);
   }
 
   static async renew(id: number): Promise<TlsCertificateItem> {
-    return this.legacyPost<TlsCertificateItem>(`/${id}/renew`);
+    return this.post<TlsCertificateItem>(`/${id}/renew`);
   }
 
   static async updateAcme(
     id: number,
     payload: TlsCertificateApplyPayload,
   ): Promise<TlsCertificateItem> {
-    return this.legacyPost<TlsCertificateItem>(`/${id}/update-acme`, payload);
+    return this.post<TlsCertificateItem>(`/${id}/update-acme`, payload);
   }
 
   static async convertToAcme(
     id: number,
     payload: TlsCertificateApplyPayload,
   ): Promise<TlsCertificateItem> {
-    return this.legacyPost<TlsCertificateItem>(`/${id}/convert-acme`, payload);
+    return this.post<TlsCertificateItem>(`/${id}/convert-acme`, payload);
   }
 
   static async importFile(
@@ -82,7 +82,7 @@ export class TlsCertificateService extends LegacyOpenFlareBaseService {
     formData.append('cert_file', payload.certFile);
     formData.append('key_file', payload.keyFile);
 
-    return this.legacyPost<TlsCertificateItem>('/import-file', formData);
+    return this.post<TlsCertificateItem>('/import-file', formData);
   }
 
   static getDefaultAcmeAccount(): Promise<AcmeAccountItem> {

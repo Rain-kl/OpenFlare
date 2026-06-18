@@ -73,7 +73,7 @@ export function LoginForm({ onOTPStateChange }: { onOTPStateChange?: (show: bool
     queryFn: () => AuthService.getAuthSources(),
   })
 
-  const capEnabled = configBool(publicConfigQuery.data?.cap_login_enabled, false)
+  const capEnabled = configBool(publicConfigQuery.data?.cap_login_enabled, true)
   const capAutoSolve = configBool(publicConfigQuery.data?.cap_auto_solve, true)
 
   const loginMutation = useMutation({
@@ -190,8 +190,8 @@ export function LoginForm({ onOTPStateChange }: { onOTPStateChange?: (show: bool
   }
 
   const registrationEnabled =
-    configBool(publicConfigQuery.data?.registration_enabled, true) &&
-    configBool(publicConfigQuery.data?.password_register_enabled, true)
+    configBool(publicConfigQuery.data?.registration_enabled, false) &&
+    configBool(publicConfigQuery.data?.password_register_enabled, false)
 
   const passwordLoginEnabled = configBool(publicConfigQuery.data?.password_login_enabled, true)
   const oidcLoginEnabled = configBool(publicConfigQuery.data?.oidc_login_enabled, true)

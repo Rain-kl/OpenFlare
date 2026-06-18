@@ -40,12 +40,12 @@ export function OriginDetailPageClient() {
 
   const originQuery = useQuery({
     queryKey: ["openflare", "origins", originId],
-    queryFn: () => OriginService.get(parsedId),
+    queryFn: () => OriginService.getById(parsedId),
     enabled,
   })
 
   const deleteMutation = useMutation({
-    mutationFn: () => OriginService.delete(parsedId),
+    mutationFn: () => OriginService.deleteById(parsedId),
     onSuccess: async () => {
       toast.success("源站已删除")
       await queryClient.invalidateQueries({ queryKey: ["openflare", "origins"] })

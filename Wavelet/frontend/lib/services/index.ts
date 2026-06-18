@@ -184,7 +184,7 @@ export type { PushEvent, PushHistory, PushChannelConfig, ListPushHistoriesReques
 
 export {
   AboutService,
-  LegacyOpenFlareBaseService,
+  OpenFlareBaseService,
   NodeService,
   ProxyRouteService,
   ConfigVersionService,
@@ -204,7 +204,6 @@ export {
 } from './openflare';
 
 export type {
-  LegacyApiResponse,
   NodeItem,
   ProxyRouteItem,
   ProxyRouteConfigSection,

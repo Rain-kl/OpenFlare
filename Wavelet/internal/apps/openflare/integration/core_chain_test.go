@@ -9,10 +9,10 @@ import (
 	"time"
 
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/agent"
-	oflegacy "github.com/Rain-kl/Wavelet/internal/apps/openflare/legacy"
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/option"
 	"github.com/Rain-kl/Wavelet/internal/db"
 	"github.com/Rain-kl/Wavelet/internal/model"
+	"github.com/Rain-kl/Wavelet/internal/testhelper"
 	"github.com/gin-gonic/gin"
 	"github.com/glebarez/sqlite"
 	"github.com/stretchr/testify/assert"
@@ -59,10 +59,8 @@ func setupCoreChainTest(t *testing.T) (*gin.Engine, adminSeed, func()) {
 	seed, err := seedAdminWithAccessToken(sqliteDB)
 	require.NoError(t, err)
 
-	gin.SetMode(gin.TestMode)
-	engine := gin.New()
-	apiGroup := engine.Group("/api")
-	oflegacy.RegisterRoutes(apiGroup)
+	engine := testhelper.NewTestGinEngine()
+	mountOpenFlareTestRoutes(engine)
 
 	cleanup := func() {
 		db.SetDB(nil)
@@ -125,7 +123,7 @@ func TestCoreChainMigrationFlow(t *testing.T) {
 	)
 
 	t.Run("create origin", func(t *testing.T) {
-		rec := performJSONRequest(t, engine, http.MethodPost, "/api/origins/", map[string]any{
+		rec := performJSONRequest(t, engine, http.MethodPost, apiPath("/origins/"), map[string]any{
 			"name":    "Primary Origin",
 			"address": "origin.core-chain.internal",
 			"remark":  "integration upstream",
@@ -134,10 +132,8 @@ func TestCoreChainMigrationFlow(t *testing.T) {
 		})
 		require.Equal(t, http.StatusOK, rec.Code)
 
-		envelope := decodeEnvelope(t, rec)
-		require.True(t, envelope.Success, envelope.Message)
-
-		data := unmarshalEnvelopeMap(t, envelope.Data)
+		resp := requireAPIOK(t, rec)
+		data := unmarshalAPIMap(t, resp.Data)
 		originID = uint(data["id"].(float64))
 		assert.NotZero(t, originID)
 		assert.Equal(t, "Primary Origin", data["name"])
@@ -145,7 +141,7 @@ func TestCoreChainMigrationFlow(t *testing.T) {
 	})
 
 	t.Run("create proxy route linked to origin", func(t *testing.T) {
-		rec := performJSONRequest(t, engine, http.MethodPost, "/api/proxy-routes/", map[string]any{
+		rec := performJSONRequest(t, engine, http.MethodPost, apiPath("/proxy-routes/"), map[string]any{
 			"site_name":     "core-chain-site",
 			"domain":        "core-chain.example.com",
 			"origin_id":     originID,
@@ -157,10 +153,8 @@ func TestCoreChainMigrationFlow(t *testing.T) {
 		})
 		require.Equal(t, http.StatusOK, rec.Code)
 
-		envelope := decodeEnvelope(t, rec)
-		require.True(t, envelope.Success, envelope.Message)
-
-		data := unmarshalEnvelopeMap(t, envelope.Data)
+		resp := requireAPIOK(t, rec)
+		data := unmarshalAPIMap(t, resp.Data)
 		proxyRouteID = uint(data["id"].(float64))
 		assert.NotZero(t, proxyRouteID)
 		assert.Equal(t, "core-chain-site", data["site_name"])
@@ -170,35 +164,32 @@ func TestCoreChainMigrationFlow(t *testing.T) {
 	})
 
 	t.Run("publish config version", func(t *testing.T) {
-		rec := performJSONRequest(t, engine, http.MethodPost, "/api/config-versions/publish", nil, map[string]string{
+		rec := performJSONRequest(t, engine, http.MethodPost, apiPath("/config-versions/publish"), nil, map[string]string{
 			"X-Access-Token": seed.Token,
 		})
 		require.Equal(t, http.StatusOK, rec.Code)
 
-		envelope := decodeEnvelope(t, rec)
-		require.True(t, envelope.Success, envelope.Message)
-
-		data := unmarshalEnvelopeMap(t, envelope.Data)
+		resp := requireAPIOK(t, rec)
+		data := unmarshalAPIMap(t, resp.Data)
 		configVersion, _ = data["version"].(string)
 		configChecksum, _ = data["checksum"].(string)
 		assert.NotEmpty(t, configVersion)
 		assert.NotEmpty(t, configChecksum)
 		assert.Equal(t, true, data["is_active"])
 
-		activeRec := performJSONRequest(t, engine, http.MethodGet, "/api/config-versions/active", nil, map[string]string{
+		activeRec := performJSONRequest(t, engine, http.MethodGet, apiPath("/config-versions/active"), nil, map[string]string{
 			"X-Access-Token": seed.Token,
 		})
 		require.Equal(t, http.StatusOK, activeRec.Code)
-		activeEnvelope := decodeEnvelope(t, activeRec)
-		require.True(t, activeEnvelope.Success, activeEnvelope.Message)
+		activeResp := requireAPIOK(t, activeRec)
 
-		activeData := unmarshalEnvelopeMap(t, activeEnvelope.Data)
+		activeData := unmarshalAPIMap(t, activeResp.Data)
 		assert.Equal(t, configVersion, activeData["version"])
 		assert.Equal(t, configChecksum, activeData["checksum"])
 	})
 
 	t.Run("create node", func(t *testing.T) {
-		rec := performJSONRequest(t, engine, http.MethodPost, "/api/nodes/", map[string]any{
+		rec := performJSONRequest(t, engine, http.MethodPost, apiPath("/nodes/"), map[string]any{
 			"name":                "edge-core-chain",
 			"ip":                  "10.10.0.1",
 			"auto_update_enabled": true,
@@ -207,10 +198,8 @@ func TestCoreChainMigrationFlow(t *testing.T) {
 		})
 		require.Equal(t, http.StatusOK, rec.Code)
 
-		envelope := decodeEnvelope(t, rec)
-		require.True(t, envelope.Success, envelope.Message)
-
-		data := unmarshalEnvelopeMap(t, envelope.Data)
+		resp := requireAPIOK(t, rec)
+		data := unmarshalAPIMap(t, resp.Data)
 		nodeID = uint(data["id"].(float64))
 		nodePublicID, _ = data["node_id"].(string)
 		agentToken, _ = data["access_token"].(string)
@@ -248,7 +237,7 @@ func TestCoreChainMigrationFlow(t *testing.T) {
 			t,
 			engine,
 			http.MethodGet,
-			"/api/apply-logs/?node_id="+nodePublicID+"&pageNo=1&pageSize=10",
+			apiPath("/apply-logs/?node_id="+nodePublicID+"&pageNo=1&pageSize=10"),
 			nil,
 			map[string]string{
 				"X-Access-Token": seed.Token,
@@ -256,10 +245,8 @@ func TestCoreChainMigrationFlow(t *testing.T) {
 		)
 		require.Equal(t, http.StatusOK, listRec.Code)
 
-		listEnvelope := decodeEnvelope(t, listRec)
-		require.True(t, listEnvelope.Success, listEnvelope.Message)
-
-		listData := unmarshalEnvelopeMap(t, listEnvelope.Data)
+		listResp := requireAPIOK(t, listRec)
+		listData := unmarshalAPIMap(t, listResp.Data)
 		assert.Equal(t, float64(1), listData["total"])
 
 		rows, ok := listData["rows"].([]any)
@@ -271,14 +258,13 @@ func TestCoreChainMigrationFlow(t *testing.T) {
 		assert.Equal(t, configVersion, row["version"])
 		assert.Equal(t, "success", row["result"])
 
-		nodeRec := performJSONRequest(t, engine, http.MethodGet, "/api/nodes/", nil, map[string]string{
+		nodeRec := performJSONRequest(t, engine, http.MethodGet, apiPath("/nodes/"), nil, map[string]string{
 			"X-Access-Token": seed.Token,
 		})
 		require.Equal(t, http.StatusOK, nodeRec.Code)
-		nodeEnvelope := decodeEnvelope(t, nodeRec)
-		require.True(t, nodeEnvelope.Success, nodeEnvelope.Message)
+		nodeResp := requireAPIOK(t, nodeRec)
 
-		nodes := unmarshalEnvelopeSlice(t, nodeEnvelope.Data)
+		nodes := unmarshalAPISlice(t, nodeResp.Data)
 		require.Len(t, nodes, 1)
 		nodeView, ok := nodes[0].(map[string]any)
 		require.True(t, ok)

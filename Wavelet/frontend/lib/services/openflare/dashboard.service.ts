@@ -1,4 +1,4 @@
-import {LegacyOpenFlareBaseService} from './legacy-base.service';
+import {OpenFlareBaseService} from './base.service';
 import type {
   CompactCapacityTrendPoint,
   CompactDashboardNodeHealth,
@@ -230,11 +230,11 @@ function normalizeDashboardOverview(
   };
 }
 
-export class DashboardService extends LegacyOpenFlareBaseService {
-  protected static readonly basePath = '/api/dashboard';
+export class DashboardService extends OpenFlareBaseService {
+  protected static override readonly basePath: string = '/api/v1/custom/openflare/dashboard';
 
   static async getOverview(): Promise<DashboardOverview | null> {
-    const overview = await this.legacyGet<
+    const overview = await this.get<
       DashboardOverview | DashboardOverviewCompact
     >('/overview');
     return normalizeDashboardOverview(overview);

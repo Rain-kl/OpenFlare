@@ -1,4 +1,4 @@
-import {LegacyOpenFlareBaseService} from './legacy-base.service';
+import {OpenFlareBaseService} from './base.service';
 import type {
   NodeAgentReleaseInfo,
   NodeAgentUpdatePayload,
@@ -9,60 +9,60 @@ import type {
   ReleaseChannel,
 } from './types';
 
-export class NodeService extends LegacyOpenFlareBaseService {
-  protected static readonly basePath = '/api/nodes';
+export class NodeService extends OpenFlareBaseService {
+  protected static override readonly basePath: string = '/api/v1/custom/openflare/nodes';
 
   static async listNodes(): Promise<NodeItem[]> {
-    return this.legacyGet<NodeItem[]>('/');
+    return this.get<NodeItem[]>('/');
   }
 
   static async createNode(payload: NodeMutationPayload): Promise<NodeItem> {
-    return this.legacyPost<NodeItem>('/', payload);
+    return this.post<NodeItem>('/', payload);
   }
 
   static async updateNode(id: number, payload: NodeMutationPayload): Promise<NodeItem> {
-    return this.legacyPost<NodeItem>(`/${id}/update`, payload);
+    return this.post<NodeItem>(`/${id}/update`, payload);
   }
 
   static async deleteNode(id: number): Promise<void> {
-    return this.legacyPost<void>(`/${id}/delete`);
+    return this.post<void>(`/${id}/delete`);
   }
 
   static async getBootstrapToken(): Promise<NodeBootstrapToken> {
-    return this.legacyGet<NodeBootstrapToken>('/bootstrap-token');
+    return this.get<NodeBootstrapToken>('/bootstrap-token');
   }
 
   static async rotateBootstrapToken(): Promise<NodeBootstrapToken> {
-    return this.legacyPost<NodeBootstrapToken>('/bootstrap-token/rotate');
+    return this.post<NodeBootstrapToken>('/bootstrap-token/rotate');
   }
 
   static async requestAgentUpdate(
     id: number,
     payload?: NodeAgentUpdatePayload,
   ): Promise<NodeItem> {
-    return this.legacyPost<NodeItem>(`/${id}/agent-update`, payload ?? {});
+    return this.post<NodeItem>(`/${id}/agent-update`, payload ?? {});
   }
 
   static async requestForceSync(id: number): Promise<NodeItem> {
-    return this.legacyPost<NodeItem>(`/${id}/force-sync`);
+    return this.post<NodeItem>(`/${id}/force-sync`);
   }
 
   static async requestOpenrestyRestart(id: number): Promise<NodeItem> {
-    return this.legacyPost<NodeItem>(`/${id}/openresty-restart`);
+    return this.post<NodeItem>(`/${id}/openresty-restart`);
   }
 
   static async getAgentRelease(
     id: number,
     channel: ReleaseChannel = 'stable',
   ): Promise<NodeAgentReleaseInfo> {
-    return this.legacyGet<NodeAgentReleaseInfo>(`/${id}/agent-release`, { channel });
+    return this.get<NodeAgentReleaseInfo>(`/${id}/agent-release`, { channel });
   }
 
   static async getObservability(
     id: number,
     options?: { hours?: number; limit?: number },
   ): Promise<NodeObservability> {
-    return this.legacyGet<NodeObservability>(`/${id}/observability`, {
+    return this.get<NodeObservability>(`/${id}/observability`, {
       hours: options?.hours,
       limit: options?.limit,
     });
@@ -71,7 +71,7 @@ export class NodeService extends LegacyOpenFlareBaseService {
   static async cleanupHealthEvents(
     id: number,
   ): Promise<{ node_id: string; deleted_count: number }> {
-    return this.legacyPost<{ node_id: string; deleted_count: number }>(
+    return this.post<{ node_id: string; deleted_count: number }>(
       `/${id}/observability/cleanup`,
     );
   }

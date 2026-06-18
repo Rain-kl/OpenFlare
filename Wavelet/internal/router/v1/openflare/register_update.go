@@ -1,17 +1,17 @@
 // Copyright 2026 Arctel.net
 // SPDX-License-Identifier: Apache-2.0
 
-package legacy
+package openflare
 
 import (
-	"github.com/Rain-kl/Wavelet/internal/apps/openflare/compat"
+	"github.com/Rain-kl/Wavelet/internal/apps/openflare/apiutil"
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/update"
 	"github.com/gin-gonic/gin"
 )
 
-func registerMiscRoutes(apiGroup *gin.RouterGroup) {
+func registerUpdateRoutes(apiGroup *gin.RouterGroup) {
 	updateRoute := apiGroup.Group("/update")
-	updateRoute.Use(compat.RootAuth())
+	updateRoute.Use(apiutil.AdminRequired())
 	{
 		updateRoute.GET("/latest-release", update.GetLatestReleaseHandler)
 		updateRoute.GET("/logs/ws", update.StreamServerUpgradeLogsHandler)

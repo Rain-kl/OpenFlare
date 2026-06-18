@@ -1,6 +1,5 @@
 export { AboutService } from './about.service';
-export { LegacyOpenFlareBaseService } from './legacy-base.service';
-export type { LegacyApiResponse } from './legacy-base.service';
+export { OpenFlareBaseService } from './base.service';
 
 export { NodeService } from './node.service';
 export { ProxyRouteService } from './proxy-route.service';

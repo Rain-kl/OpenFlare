@@ -102,7 +102,7 @@ export function WebsiteDetailPageClient() {
   }, [routesQuery.data, website]);
 
   const deleteDomainMutation = useMutation({
-    mutationFn: (id: number) => WebsiteService.delete(id),
+    mutationFn: (id: number) => WebsiteService.deleteById(id),
     onSuccess: async () => {
       await queryClient.invalidateQueries({queryKey: domainsQueryKey});
       router.push('/websites');
@@ -111,7 +111,7 @@ export function WebsiteDetailPageClient() {
   });
 
   const deleteCertificateMutation = useMutation({
-    mutationFn: (id: number) => TlsCertificateService.delete(id),
+    mutationFn: (id: number) => TlsCertificateService.deleteById(id),
     onSuccess: async () => {
       toast.success('证书已删除');
       setDeleteCertOpen(false);

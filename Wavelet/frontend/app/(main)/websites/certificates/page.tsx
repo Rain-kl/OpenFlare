@@ -52,7 +52,7 @@ export default function CertificatesPage() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: number) => TlsCertificateService.delete(id),
+    mutationFn: (id: number) => TlsCertificateService.deleteById(id),
     onSuccess: async () => {
       toast.success('证书已删除');
       setDeleteTarget(null);

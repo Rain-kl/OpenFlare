@@ -1,17 +1,17 @@
 // Copyright 2026 Arctel.net
 // SPDX-License-Identifier: Apache-2.0
 
-package legacy
+package openflare
 
 import (
-	"github.com/Rain-kl/Wavelet/internal/apps/openflare/compat"
+	"github.com/Rain-kl/Wavelet/internal/apps/openflare/apiutil"
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/waf"
 	"github.com/gin-gonic/gin"
 )
 
 func registerWAFRoutes(apiGroup *gin.RouterGroup) {
 	wafRoute := apiGroup.Group("/waf")
-	wafRoute.Use(compat.AdminAuth())
+	wafRoute.Use(apiutil.AdminRequired())
 	{
 		wafRoute.GET("/ip-groups", waf.ListIPGroupsHandler)
 		wafRoute.GET("/ip-groups/:id", waf.GetIPGroupHandler)

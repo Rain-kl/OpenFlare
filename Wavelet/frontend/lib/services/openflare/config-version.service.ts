@@ -1,6 +1,6 @@
 import type {InternalAxiosRequestConfig} from 'axios';
 
-import {LegacyOpenFlareBaseService} from './legacy-base.service';
+import {OpenFlareBaseService} from './base.service';
 import type {
   ConfigDiffResult,
   ConfigPreviewResult,
@@ -10,31 +10,31 @@ import type {
   ConfigVersionSummary,
 } from './types';
 
-export class ConfigVersionService extends LegacyOpenFlareBaseService {
-  protected static override readonly basePath = '/api/config-versions';
+export class ConfigVersionService extends OpenFlareBaseService {
+  protected static override readonly basePath: string = '/api/v1/custom/openflare/config-versions';
 
   static list(): Promise<ConfigVersionSummary[]> {
-    return this.legacyGet<ConfigVersionSummary[]>('/');
+    return this.get<ConfigVersionSummary[]>('/');
   }
 
   static getActive(): Promise<ConfigVersionDetail> {
-    return this.legacyGet<ConfigVersionDetail>('/active');
+    return this.get<ConfigVersionDetail>('/active');
   }
 
   static preview(): Promise<ConfigPreviewResult> {
-    return this.legacyGet<ConfigPreviewResult>('/preview');
+    return this.get<ConfigPreviewResult>('/preview');
   }
 
   static diff(): Promise<ConfigDiffResult> {
-    return this.legacyGet<ConfigDiffResult>('/diff');
+    return this.get<ConfigDiffResult>('/diff');
   }
 
   static getById(id: number): Promise<ConfigVersionDetail> {
-    return this.legacyGet<ConfigVersionDetail>(`/${id}`);
+    return this.get<ConfigVersionDetail>(`/${id}`);
   }
 
   static publish(force?: boolean): Promise<ConfigVersionDetail> {
-    return this.legacyPost<ConfigVersionDetail>(
+    return this.post<ConfigVersionDetail>(
       '/publish',
       undefined,
       force
@@ -44,12 +44,12 @@ export class ConfigVersionService extends LegacyOpenFlareBaseService {
   }
 
   static activate(id: number): Promise<ConfigVersionDetail> {
-    return this.legacyPost<ConfigVersionDetail>(`/${id}/activate`);
+    return this.post<ConfigVersionDetail>(`/${id}/activate`);
   }
 
   static cleanup(
     payload: ConfigVersionCleanupPayload,
   ): Promise<ConfigVersionCleanupResult> {
-    return this.legacyPost<ConfigVersionCleanupResult>('/cleanup', payload);
+    return this.post<ConfigVersionCleanupResult>('/cleanup', payload);
   }
 }

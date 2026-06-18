@@ -4,52 +4,72 @@
 package pages
 
 import (
-	"errors"
+	"net/http"
 	"strconv"
 
-	"github.com/Rain-kl/Wavelet/internal/apps/openflare/compat"
+	"github.com/Rain-kl/Wavelet/internal/apps/openflare/apiutil"
+	"github.com/Rain-kl/Wavelet/internal/common/response"
 	"github.com/gin-gonic/gin"
-	"gorm.io/gorm"
 )
+
 
 func handleLogicError(c *gin.Context, err error) bool {
 	if err == nil {
 		return false
 	}
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		compat.Fail(c, errPagesProjectNotFound)
-		return true
-	}
-	compat.Fail(c, err.Error())
-	return true
+	return apiutil.AbortNotFoundIfMissing(c, err, errPagesProjectNotFound)
 }
 
 func deploymentIDParam(c *gin.Context) (uint, bool) {
 	raw := c.Param("deployment_id")
 	if raw == "" {
-		compat.Fail(c, "无效的 ID")
+		response.AbortBadRequest(c, "无效的 ID")
 		return 0, false
 	}
 	id64, err := strconv.ParseUint(raw, 10, 64)
 	if err != nil || id64 == 0 {
-		compat.Fail(c, "无效的 ID")
+		response.AbortBadRequest(c, "无效的 ID")
 		return 0, false
 	}
 	return uint(id64), true
 }
 
 // ListProjectsHandler 列出全部 Pages 项目。
+// @Summary 列出 Pages 项目
+// @Description 返回全部 OpenFlare Pages 项目，需要管理员权限
+// @Tags openflare-pages
+// @Produce json
+// @Security SessionCookie
+// @Success 200 {object} response.Any{data=[]pages.View} "Pages 项目列表"
+// @Failure 400 {object} response.Any "参数错误"
+// @Failure 401 {object} response.Any "未登录"
+// @Failure 403 {object} response.Any "无管理员权限"
+// @Failure 500 {object} response.Any "内部错误"
+// @Router /api/v1/custom/openflare/pages [get]
 func ListProjectsHandler(c *gin.Context) {
 	projects, err := ListProjects(c.Request.Context())
 	if handleLogicError(c, err) {
 		return
 	}
-	compat.OK(c, projects)
+	c.JSON(http.StatusOK, response.OK(projects))
 }
 
 // GetProjectHandler 获取 Pages 项目详情。
+// @Summary 获取 Pages 项目详情
+// @Description 按 ID 返回 Pages 项目详情，需要管理员权限
+// @Tags openflare-pages
+// @Produce json
+// @Security SessionCookie
+// @Param id path int true "项目 ID"
+// @Success 200 {object} response.Any{data=pages.View} "Pages 项目详情"
+// @Failure 400 {object} response.Any "参数错误"
+// @Failure 401 {object} response.Any "未登录"
+// @Failure 403 {object} response.Any "无管理员权限"
+// @Failure 404 {object} response.Any "项目不存在"
+// @Failure 500 {object} response.Any "内部错误"
+// @Router /api/v1/custom/openflare/pages/{id} [get]
 func GetProjectHandler(c *gin.Context) {
-	id, ok := compat.IDParam(c)
+	id, ok := apiutil.IDParam(c)
 	if !ok {
 		return
 	}
@@ -57,54 +77,108 @@ func GetProjectHandler(c *gin.Context) {
 	if handleLogicError(c, err) {
 		return
 	}
-	compat.OK(c, project)
+	c.JSON(http.StatusOK, response.OK(project))
 }
 
 // CreateProjectHandler 创建 Pages 项目。
+// @Summary 创建 Pages 项目
+// @Description 创建新的 OpenFlare Pages 项目，需要管理员权限
+// @Tags openflare-pages
+// @Accept json
+// @Produce json
+// @Security SessionCookie
+// @Param request body pages.Input true "项目参数"
+// @Success 200 {object} response.Any{data=pages.View} "创建成功的项目"
+// @Failure 400 {object} response.Any "参数错误"
+// @Failure 401 {object} response.Any "未登录"
+// @Failure 403 {object} response.Any "无管理员权限"
+// @Failure 500 {object} response.Any "内部错误"
+// @Router /api/v1/custom/openflare/pages [post]
 func CreateProjectHandler(c *gin.Context) {
 	var input Input
-	if !compat.BindJSON(c, &input) {
+	if !apiutil.BindJSON(c, &input) {
 		return
 	}
 	project, err := CreateProject(c.Request.Context(), input)
 	if handleLogicError(c, err) {
 		return
 	}
-	compat.OK(c, project)
+	c.JSON(http.StatusOK, response.OK(project))
 }
 
 // UpdateProjectHandler 更新 Pages 项目。
+// @Summary 更新 Pages 项目
+// @Description 按 ID 更新 OpenFlare Pages 项目，需要管理员权限
+// @Tags openflare-pages
+// @Accept json
+// @Produce json
+// @Security SessionCookie
+// @Param id path int true "项目 ID"
+// @Param request body pages.Input true "项目参数"
+// @Success 200 {object} response.Any{data=pages.View} "更新后的项目"
+// @Failure 400 {object} response.Any "参数错误"
+// @Failure 401 {object} response.Any "未登录"
+// @Failure 403 {object} response.Any "无管理员权限"
+// @Failure 404 {object} response.Any "项目不存在"
+// @Failure 500 {object} response.Any "内部错误"
+// @Router /api/v1/custom/openflare/pages/{id}/update [post]
 func UpdateProjectHandler(c *gin.Context) {
-	id, ok := compat.IDParam(c)
+	id, ok := apiutil.IDParam(c)
 	if !ok {
 		return
 	}
 	var input Input
-	if !compat.BindJSON(c, &input) {
+	if !apiutil.BindJSON(c, &input) {
 		return
 	}
 	project, err := UpdateProject(c.Request.Context(), id, input)
 	if handleLogicError(c, err) {
 		return
 	}
-	compat.OK(c, project)
+	c.JSON(http.StatusOK, response.OK(project))
 }
 
 // DeleteProjectHandler 删除 Pages 项目。
+// @Summary 删除 Pages 项目
+// @Description 按 ID 删除 OpenFlare Pages 项目，需要管理员权限
+// @Tags openflare-pages
+// @Produce json
+// @Security SessionCookie
+// @Param id path int true "项目 ID"
+// @Success 200 {object} response.Any "删除成功"
+// @Failure 400 {object} response.Any "参数错误"
+// @Failure 401 {object} response.Any "未登录"
+// @Failure 403 {object} response.Any "无管理员权限"
+// @Failure 404 {object} response.Any "项目不存在"
+// @Failure 500 {object} response.Any "内部错误"
+// @Router /api/v1/custom/openflare/pages/{id}/delete [post]
 func DeleteProjectHandler(c *gin.Context) {
-	id, ok := compat.IDParam(c)
+	id, ok := apiutil.IDParam(c)
 	if !ok {
 		return
 	}
 	if err := DeleteProject(c.Request.Context(), id); handleLogicError(c, err) {
 		return
 	}
-	compat.OK(c, nil)
+	c.JSON(http.StatusOK, response.OKNil())
 }
 
 // ListDeploymentsHandler 列出项目的全部部署。
+// @Summary 列出 Pages 部署
+// @Description 返回指定项目的全部部署记录，需要管理员权限
+// @Tags openflare-pages
+// @Produce json
+// @Security SessionCookie
+// @Param id path int true "项目 ID"
+// @Success 200 {object} response.Any{data=[]pages.DeploymentView} "部署列表"
+// @Failure 400 {object} response.Any "参数错误"
+// @Failure 401 {object} response.Any "未登录"
+// @Failure 403 {object} response.Any "无管理员权限"
+// @Failure 404 {object} response.Any "项目不存在"
+// @Failure 500 {object} response.Any "内部错误"
+// @Router /api/v1/custom/openflare/pages/{id}/deployments [get]
 func ListDeploymentsHandler(c *gin.Context) {
-	id, ok := compat.IDParam(c)
+	id, ok := apiutil.IDParam(c)
 	if !ok {
 		return
 	}
@@ -112,30 +186,59 @@ func ListDeploymentsHandler(c *gin.Context) {
 	if handleLogicError(c, err) {
 		return
 	}
-	compat.OK(c, deployments)
+	c.JSON(http.StatusOK, response.OK(deployments))
 }
 
 // UploadDeploymentHandler 上传 Pages 部署包。
+// @Summary 上传 Pages 部署包
+// @Description 为指定项目上传 ZIP 部署包，需要管理员权限
+// @Tags openflare-pages
+// @Accept multipart/form-data
+// @Produce json
+// @Security SessionCookie
+// @Param id path int true "项目 ID"
+// @Param package formData file true "部署包 ZIP 文件"
+// @Success 200 {object} response.Any{data=pages.DeploymentView} "部署记录"
+// @Failure 400 {object} response.Any "参数错误"
+// @Failure 401 {object} response.Any "未登录"
+// @Failure 403 {object} response.Any "无管理员权限"
+// @Failure 404 {object} response.Any "项目不存在"
+// @Failure 500 {object} response.Any "内部错误"
+// @Router /api/v1/custom/openflare/pages/{id}/deployments/upload [post]
 func UploadDeploymentHandler(c *gin.Context) {
-	id, ok := compat.IDParam(c)
+	id, ok := apiutil.IDParam(c)
 	if !ok {
 		return
 	}
 	file, err := c.FormFile("package")
 	if err != nil {
-		compat.Fail(c, errPagesPackageMissing)
+		response.AbortBadRequest(c, errPagesPackageMissing)
 		return
 	}
 	deployment, err := UploadDeployment(c.Request.Context(), id, file, "")
 	if handleLogicError(c, err) {
 		return
 	}
-	compat.OK(c, deployment)
+	c.JSON(http.StatusOK, response.OK(deployment))
 }
 
 // ActivateDeploymentHandler 激活 Pages 部署。
+// @Summary 激活 Pages 部署
+// @Description 将指定部署设为项目当前生效版本，需要管理员权限
+// @Tags openflare-pages
+// @Produce json
+// @Security SessionCookie
+// @Param id path int true "项目 ID"
+// @Param deployment_id path int true "部署 ID"
+// @Success 200 {object} response.Any{data=pages.View} "激活后的项目"
+// @Failure 400 {object} response.Any "参数错误"
+// @Failure 401 {object} response.Any "未登录"
+// @Failure 403 {object} response.Any "无管理员权限"
+// @Failure 404 {object} response.Any "项目或部署不存在"
+// @Failure 500 {object} response.Any "内部错误"
+// @Router /api/v1/custom/openflare/pages/{id}/deployments/{deployment_id}/activate [post]
 func ActivateDeploymentHandler(c *gin.Context) {
-	projectID, ok := compat.IDParam(c)
+	projectID, ok := apiutil.IDParam(c)
 	if !ok {
 		return
 	}
@@ -147,12 +250,26 @@ func ActivateDeploymentHandler(c *gin.Context) {
 	if handleLogicError(c, err) {
 		return
 	}
-	compat.OK(c, project)
+	c.JSON(http.StatusOK, response.OK(project))
 }
 
 // DeleteDeploymentHandler 删除 Pages 部署。
+// @Summary 删除 Pages 部署
+// @Description 删除指定项目的部署记录，需要管理员权限
+// @Tags openflare-pages
+// @Produce json
+// @Security SessionCookie
+// @Param id path int true "项目 ID"
+// @Param deployment_id path int true "部署 ID"
+// @Success 200 {object} response.Any "删除成功"
+// @Failure 400 {object} response.Any "参数错误"
+// @Failure 401 {object} response.Any "未登录"
+// @Failure 403 {object} response.Any "无管理员权限"
+// @Failure 404 {object} response.Any "项目或部署不存在"
+// @Failure 500 {object} response.Any "内部错误"
+// @Router /api/v1/custom/openflare/pages/{id}/deployments/{deployment_id}/delete [post]
 func DeleteDeploymentHandler(c *gin.Context) {
-	projectID, ok := compat.IDParam(c)
+	projectID, ok := apiutil.IDParam(c)
 	if !ok {
 		return
 	}
@@ -163,10 +280,23 @@ func DeleteDeploymentHandler(c *gin.Context) {
 	if err := DeleteDeployment(c.Request.Context(), projectID, deploymentID); handleLogicError(c, err) {
 		return
 	}
-	compat.OK(c, nil)
+	c.JSON(http.StatusOK, response.OKNil())
 }
 
 // ListDeploymentFilesHandler 列出部署文件清单。
+// @Summary 列出 Pages 部署文件
+// @Description 返回指定部署包含的文件清单，需要管理员权限
+// @Tags openflare-pages
+// @Produce json
+// @Security SessionCookie
+// @Param deployment_id path int true "部署 ID"
+// @Success 200 {object} response.Any{data=[]pages.DeploymentFileView} "部署文件列表"
+// @Failure 400 {object} response.Any "参数错误"
+// @Failure 401 {object} response.Any "未登录"
+// @Failure 403 {object} response.Any "无管理员权限"
+// @Failure 404 {object} response.Any "部署不存在"
+// @Failure 500 {object} response.Any "内部错误"
+// @Router /api/v1/custom/openflare/pages/deployments/{deployment_id}/files [get]
 func ListDeploymentFilesHandler(c *gin.Context) {
 	deploymentID, ok := deploymentIDParam(c)
 	if !ok {
@@ -176,5 +306,5 @@ func ListDeploymentFilesHandler(c *gin.Context) {
 	if handleLogicError(c, err) {
 		return
 	}
-	compat.OK(c, files)
+	c.JSON(http.StatusOK, response.OK(files))
 }

@@ -11,8 +11,28 @@ import (
 	"testing"
 
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/compat"
+	"github.com/Rain-kl/Wavelet/internal/common/response"
+	v1 "github.com/Rain-kl/Wavelet/internal/router/v1"
+	ofrouter "github.com/Rain-kl/Wavelet/internal/router/v1/openflare"
+	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 )
+
+func decodeAPIResponse(t *testing.T, rec *httptest.ResponseRecorder) response.Any {
+	t.Helper()
+
+	var resp response.Any
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	return resp
+}
+
+func requireAPIOK(t *testing.T, rec *httptest.ResponseRecorder) response.Any {
+	t.Helper()
+
+	resp := decodeAPIResponse(t, rec)
+	require.Empty(t, resp.ErrorMsg, "unexpected API error: %s", resp.ErrorMsg)
+	return resp
+}
 
 func decodeEnvelope(t *testing.T, rec *httptest.ResponseRecorder) compat.Envelope {
 	t.Helper()
@@ -22,7 +42,7 @@ func decodeEnvelope(t *testing.T, rec *httptest.ResponseRecorder) compat.Envelop
 	return envelope
 }
 
-func unmarshalEnvelopeData(t *testing.T, data any, target any) {
+func unmarshalAPIData(t *testing.T, data any, target any) {
 	t.Helper()
 
 	payload, err := json.Marshal(data)
@@ -30,20 +50,47 @@ func unmarshalEnvelopeData(t *testing.T, data any, target any) {
 	require.NoError(t, json.Unmarshal(payload, target))
 }
 
-func unmarshalEnvelopeMap(t *testing.T, data any) map[string]any {
+func unmarshalEnvelopeData(t *testing.T, data any, target any) {
+	t.Helper()
+	unmarshalAPIData(t, data, target)
+}
+
+func unmarshalAPIMap(t *testing.T, data any) map[string]any {
 	t.Helper()
 
 	var result map[string]any
-	unmarshalEnvelopeData(t, data, &result)
+	unmarshalAPIData(t, data, &result)
+	return result
+}
+
+func unmarshalEnvelopeMap(t *testing.T, data any) map[string]any {
+	t.Helper()
+	return unmarshalAPIMap(t, data)
+}
+
+func unmarshalAPISlice(t *testing.T, data any) []any {
+	t.Helper()
+
+	var result []any
+	unmarshalAPIData(t, data, &result)
 	return result
 }
 
 func unmarshalEnvelopeSlice(t *testing.T, data any) []any {
 	t.Helper()
+	return unmarshalAPISlice(t, data)
+}
 
-	var result []any
-	unmarshalEnvelopeData(t, data, &result)
-	return result
+func mountOpenFlareTestRoutes(engine *gin.Engine) {
+	api := engine.Group("/api")
+	ofrouter.RegisterRoutes(api)
+
+	apiV1 := api.Group("/v1")
+	v1.RegisterV1Routes(apiV1, api)
+}
+
+func apiPath(subpath string) string {
+	return ofrouter.V1BasePath + subpath
 }
 
 func performJSONRequest(

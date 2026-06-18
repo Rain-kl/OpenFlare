@@ -10,6 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+
 // PostHeartbeat handles POST /flared/heartbeat.
 func PostHeartbeat(c *gin.Context) {
 	var payload HeartbeatPayload

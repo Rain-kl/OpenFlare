@@ -1,7 +1,7 @@
 // Copyright 2026 Arctel.net
 // SPDX-License-Identifier: Apache-2.0
 
-package legacy
+package openflare
 
 import (
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/flared"
@@ -9,14 +9,16 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func registerRelayFlaredRoutes(apiGroup *gin.RouterGroup) {
+func registerRelayRoutes(apiGroup *gin.RouterGroup) {
 	relayRoute := apiGroup.Group("/relay")
 	relayRoute.Use(relay.RelayAuth())
 	{
 		relayRoute.POST("/heartbeat", relay.PostHeartbeat)
 		relayRoute.GET("/ws", relay.GetWebSocket)
 	}
+}
 
+func registerFlaredRoutes(apiGroup *gin.RouterGroup) {
 	flaredRoute := apiGroup.Group("/flared")
 	flaredRoute.Use(flared.TunnelAuth())
 	{

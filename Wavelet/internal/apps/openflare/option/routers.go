@@ -7,128 +7,214 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"net/http"
 
-	"github.com/Rain-kl/Wavelet/internal/apps/openflare/compat"
+	"github.com/Rain-kl/Wavelet/internal/apps/openflare/apiutil"
+	"github.com/Rain-kl/Wavelet/internal/common/response"
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"github.com/gin-gonic/gin"
 )
 
-// RegisterRoutes mounts legacy OpenFlare option and public status routes.
-func RegisterRoutes(apiGroup *gin.RouterGroup) {
-	apiGroup.GET("/status", getStatusHandler)
-	apiGroup.GET("/notice", getNoticeHandler)
-	apiGroup.GET("/about", getAboutHandler)
-
-	optionRoute := apiGroup.Group("/option")
-	optionRoute.Use(compat.RootAuth())
-	{
-		compat.RegisterCollection(optionRoute, "GET", listOptionsHandler)
-		optionRoute.POST("/update", updateOptionHandler)
-		optionRoute.POST("/update-batch", updateOptionsBatchHandler)
-		optionRoute.POST("/geoip/lookup", lookupGeoIPHandler)
-		optionRoute.POST("/database/cleanup", cleanupDatabaseHandler)
-	}
-
-	uptimeKumaRoute := apiGroup.Group("/uptimekuma")
-	uptimeKumaRoute.Use(compat.RootAuth())
-	{
-		uptimeKumaRoute.POST("/sync", syncUptimeKumaHandler)
-	}
-}
-
-func getStatusHandler(c *gin.Context) {
-	view, err := getStatus(c.Request.Context(), "/api")
-	if err != nil {
-		compat.Fail(c, errOptionInitFailed)
+// GetStatusHandler 获取公开运行状态。
+// @Summary 获取 OpenFlare 公开状态
+// @Description 返回版本、认证源与系统公开配置，无需登录
+// @Tags openflare-option
+// @Produce json
+// @Success 200 {object} response.Any{data=option.statusView} "公开状态"
+// @Failure 400 {object} response.Any "参数错误"
+// @Failure 500 {object} response.Any "内部错误"
+// @Router /api/v1/custom/openflare/status [get]
+func GetStatusHandler(c *gin.Context) {
+	view, err := getStatus(c.Request.Context(), "/api/v1/custom/openflare")
+	if apiutil.AbortBadRequestOnError(c, err) {
 		return
 	}
-	compat.OK(c, view)
+	c.JSON(http.StatusOK, response.OK(view))
 }
 
-func getNoticeHandler(c *gin.Context) {
+// getNoticeHandler 获取系统公告。
+// @Summary 获取系统公告
+// @Description 返回 OpenFlare 控制台公告文本，无需登录
+// @Tags openflare-option
+// @Produce json
+// @Success 200 {object} response.Any{data=string} "系统公告"
+// @Failure 400 {object} response.Any "参数错误"
+// @Failure 500 {object} response.Any "内部错误"
+// @Router /api/v1/custom/openflare/notice [get]
+// GetNoticeHandler returns the notice content.
+func GetNoticeHandler(c *gin.Context) {
 	notice, err := getNotice(c.Request.Context())
-	if err != nil {
-		compat.Fail(c, errOptionInitFailed)
+	if apiutil.AbortBadRequestOnError(c, err) {
 		return
 	}
-	compat.OK(c, notice)
+	c.JSON(http.StatusOK, response.OK(notice))
 }
 
-func getAboutHandler(c *gin.Context) {
+// getAboutHandler 获取关于信息。
+// @Summary 获取关于信息
+// @Description 返回 OpenFlare 关于页面文本，无需登录
+// @Tags openflare-option
+// @Produce json
+// @Success 200 {object} response.Any{data=string} "关于信息"
+// @Failure 400 {object} response.Any "参数错误"
+// @Failure 500 {object} response.Any "内部错误"
+// @Router /api/v1/custom/openflare/about [get]
+// GetAboutHandler returns the about content.
+func GetAboutHandler(c *gin.Context) {
 	about, err := getAbout(c.Request.Context())
-	if err != nil {
-		compat.Fail(c, errOptionInitFailed)
+	if apiutil.AbortBadRequestOnError(c, err) {
 		return
 	}
-	compat.OK(c, about)
+	c.JSON(http.StatusOK, response.OK(about))
 }
 
-func listOptionsHandler(c *gin.Context) {
+// listOptionsHandler 列出全部配置项。
+// @Summary 列出 OpenFlare 配置项
+// @Description 返回全部非敏感 OpenFlare 配置项，需要管理员权限
+// @Tags openflare-option
+// @Produce json
+// @Security SessionCookie
+// @Success 200 {object} response.Any{data=[]model.OpenFlareOption} "配置项列表"
+// @Failure 400 {object} response.Any "参数错误"
+// @Failure 401 {object} response.Any "未登录"
+// @Failure 403 {object} response.Any "无管理员权限"
+// @Failure 500 {object} response.Any "内部错误"
+// @Router /api/v1/custom/openflare/option [get]
+// ListOptionsHandler lists OpenFlare options.
+func ListOptionsHandler(c *gin.Context) {
 	options, err := listOptions(c.Request.Context())
-	if err != nil {
-		compat.Fail(c, errOptionInitFailed)
+	if apiutil.AbortBadRequestOnError(c, err) {
 		return
 	}
-	compat.OK(c, options)
+	c.JSON(http.StatusOK, response.OK(options))
 }
 
-func updateOptionHandler(c *gin.Context) {
+// updateOptionHandler 更新单个配置项。
+// @Summary 更新 OpenFlare 配置项
+// @Description 更新单个 OpenFlare 配置项，需要管理员权限
+// @Tags openflare-option
+// @Accept json
+// @Produce json
+// @Security SessionCookie
+// @Param request body model.OpenFlareOption true "配置项"
+// @Success 200 {object} response.Any "更新成功"
+// @Failure 400 {object} response.Any "参数错误"
+// @Failure 401 {object} response.Any "未登录"
+// @Failure 403 {object} response.Any "无管理员权限"
+// @Failure 500 {object} response.Any "内部错误"
+// @Router /api/v1/custom/openflare/option/update [post]
+// UpdateOptionHandler updates a single option.
+func UpdateOptionHandler(c *gin.Context) {
 	var option model.OpenFlareOption
-	if !compat.BindJSON(c, &option) {
+	if !apiutil.BindJSON(c, &option) {
 		return
 	}
-	if err := updateOption(c.Request.Context(), option); err != nil {
-		compat.Fail(c, err.Error())
+	if apiutil.AbortBadRequestOnError(c, updateOption(c.Request.Context(), option)) {
 		return
 	}
-	compat.OKMessage(c, "")
+	c.JSON(http.StatusOK, response.OKNil())
 }
 
-func updateOptionsBatchHandler(c *gin.Context) {
+// updateOptionsBatchHandler 批量更新配置项。
+// @Summary 批量更新 OpenFlare 配置项
+// @Description 批量更新多个 OpenFlare 配置项，需要管理员权限
+// @Tags openflare-option
+// @Accept json
+// @Produce json
+// @Security SessionCookie
+// @Param request body option.optionBatchPayload true "批量配置项"
+// @Success 200 {object} response.Any "更新成功"
+// @Failure 400 {object} response.Any "参数错误"
+// @Failure 401 {object} response.Any "未登录"
+// @Failure 403 {object} response.Any "无管理员权限"
+// @Failure 500 {object} response.Any "内部错误"
+// @Router /api/v1/custom/openflare/option/update-batch [post]
+// UpdateOptionsBatchHandler updates options in batch.
+func UpdateOptionsBatchHandler(c *gin.Context) {
 	var payload optionBatchPayload
-	if !compat.BindJSON(c, &payload) {
+	if !apiutil.BindJSON(c, &payload) {
 		return
 	}
-	if err := updateOptionsBatch(c.Request.Context(), payload); err != nil {
-		compat.Fail(c, err.Error())
+	if apiutil.AbortBadRequestOnError(c, updateOptionsBatch(c.Request.Context(), payload)) {
 		return
 	}
-	compat.OKMessage(c, "")
+	c.JSON(http.StatusOK, response.OKNil())
 }
 
-func lookupGeoIPHandler(c *gin.Context) {
+// lookupGeoIPHandler 查询 GeoIP 信息。
+// @Summary GeoIP 地址查询
+// @Description 按提供商与 IP 查询地理位置信息，需要管理员权限
+// @Tags openflare-option
+// @Accept json
+// @Produce json
+// @Security SessionCookie
+// @Param request body option.geoIPLookupRequest true "查询参数"
+// @Success 200 {object} response.Any{data=option.geoIPLookupView} "GeoIP 查询结果"
+// @Failure 400 {object} response.Any "参数错误"
+// @Failure 401 {object} response.Any "未登录"
+// @Failure 403 {object} response.Any "无管理员权限"
+// @Failure 500 {object} response.Any "内部错误"
+// @Router /api/v1/custom/openflare/option/geoip/lookup [post]
+// LookupGeoIPHandler performs a GeoIP lookup.
+func LookupGeoIPHandler(c *gin.Context) {
 	var request geoIPLookupRequest
-	if !compat.BindJSON(c, &request) {
+	if !apiutil.BindJSON(c, &request) {
 		return
 	}
 	view, err := lookupGeoIP(c.Request.Context(), request.Provider, request.IP)
-	if err != nil {
-		compat.Fail(c, err.Error())
+	if apiutil.AbortBadRequestOnError(c, err) {
 		return
 	}
-	compat.OK(c, view)
+	c.JSON(http.StatusOK, response.OK(view))
 }
 
-func cleanupDatabaseHandler(c *gin.Context) {
+// cleanupDatabaseHandler 清理可观测性数据库数据。
+// @Summary 清理可观测性数据库
+// @Description 按目标与保留天数清理可观测性相关数据表，需要管理员权限
+// @Tags openflare-option
+// @Accept json
+// @Produce json
+// @Security SessionCookie
+// @Param request body option.databaseCleanupInput false "清理参数"
+// @Success 200 {object} response.Any{data=option.databaseCleanupResult} "清理结果"
+// @Failure 400 {object} response.Any "参数错误"
+// @Failure 401 {object} response.Any "未登录"
+// @Failure 403 {object} response.Any "无管理员权限"
+// @Failure 500 {object} response.Any "内部错误"
+// @Router /api/v1/custom/openflare/option/database/cleanup [post]
+// CleanupDatabaseHandler cleans up observability data.
+func CleanupDatabaseHandler(c *gin.Context) {
 	var input databaseCleanupInput
 	if err := bindOptionalJSON(c.Request.Body, &input); err != nil {
-		compat.Fail(c, errInvalidParams)
+		response.AbortBadRequest(c, errInvalidParams)
 		return
 	}
 	result, err := cleanupDatabaseObservability(c.Request.Context(), input)
-	if err != nil {
-		compat.Fail(c, err.Error())
+	if apiutil.AbortBadRequestOnError(c, err) {
 		return
 	}
-	compat.OK(c, result)
+	c.JSON(http.StatusOK, response.OK(result))
 }
 
-func syncUptimeKumaHandler(c *gin.Context) {
-	if err := syncUptimeKuma(c.Request.Context()); err != nil {
-		compat.Fail(c, err.Error())
+// syncUptimeKumaHandler 同步 Uptime Kuma 监控。
+// @Summary 同步 Uptime Kuma
+// @Description 将 OpenFlare 节点同步到 Uptime Kuma，需要管理员权限
+// @Tags openflare-option
+// @Accept json
+// @Produce json
+// @Security SessionCookie
+// @Success 200 {object} response.Any{data=string} "同步成功"
+// @Failure 400 {object} response.Any "参数错误"
+// @Failure 401 {object} response.Any "未登录"
+// @Failure 403 {object} response.Any "无管理员权限"
+// @Failure 500 {object} response.Any "内部错误"
+// @Router /api/v1/custom/openflare/uptimekuma/sync [post]
+// SyncUptimeKumaHandler triggers UptimeKuma sync.
+func SyncUptimeKumaHandler(c *gin.Context) {
+	if apiutil.AbortBadRequestOnError(c, syncUptimeKuma(c.Request.Context())) {
 		return
 	}
-	compat.OKMessage(c, "同步成功")
+	c.JSON(http.StatusOK, response.OK("同步成功"))
 }
 
 func bindOptionalJSON(body io.Reader, target any) error {

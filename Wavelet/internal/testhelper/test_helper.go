@@ -110,13 +110,13 @@ func getSeedConfigsPart1() []model.SystemConfig {
 		},
 		{
 			Key:         model.ConfigKeyRegistrationEnabled,
-			Value:       configValueTrue,
+			Value:       configValueFalse,
 			Type:        configTypeSystem,
 			Description: "控制普通用户是否可以自主注册（true/false）",
 		},
 		{
 			Key:         model.ConfigKeyPasswordRegisterEnabled,
-			Value:       configValueTrue,
+			Value:       configValueFalse,
 			Type:        configTypeSystem,
 			Description: "是否允许通过密码创建本地账号",
 		},
@@ -134,7 +134,7 @@ func getSeedConfigsPart1() []model.SystemConfig {
 		},
 		{
 			Key:         model.ConfigKeyCapLoginEnabled,
-			Value:       configValueFalse,
+			Value:       configValueTrue,
 			Type:        configTypeSystem,
 			Description: "是否启用登录人机验证（true/false）",
 		},

@@ -1,32 +1,32 @@
 // Copyright 2026 Arctel.net
 // SPDX-License-Identifier: Apache-2.0
 
-package legacy
+package openflare
 
 import (
-	"github.com/Rain-kl/Wavelet/internal/apps/openflare/compat"
+	"github.com/Rain-kl/Wavelet/internal/apps/openflare/apiutil"
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/tls"
 	"github.com/gin-gonic/gin"
 )
 
 func registerTLSRoutes(apiGroup *gin.RouterGroup) {
 	managedDomainRoute := apiGroup.Group("/managed-domains")
-	managedDomainRoute.Use(compat.AdminAuth())
+	managedDomainRoute.Use(apiutil.AdminRequired())
 	{
-		compat.RegisterCollection(managedDomainRoute, "GET", tls.GetManagedDomains)
+		apiutil.RegisterCollection(managedDomainRoute, "GET", tls.GetManagedDomains)
 		managedDomainRoute.GET("/match", tls.MatchManagedDomainCertificateHandler)
-		compat.RegisterCollection(managedDomainRoute, "POST", tls.CreateManagedDomainHandler)
+		apiutil.RegisterCollection(managedDomainRoute, "POST", tls.CreateManagedDomainHandler)
 		managedDomainRoute.POST("/:id/update", tls.UpdateManagedDomainHandler)
 		managedDomainRoute.POST("/:id/delete", tls.DeleteManagedDomainHandler)
 	}
 
 	tlsCertificateRoute := apiGroup.Group("/tls-certificates")
-	tlsCertificateRoute.Use(compat.AdminAuth())
+	tlsCertificateRoute.Use(apiutil.AdminRequired())
 	{
-		compat.RegisterCollection(tlsCertificateRoute, "GET", tls.GetCertificates)
+		apiutil.RegisterCollection(tlsCertificateRoute, "GET", tls.GetCertificates)
 		tlsCertificateRoute.GET("/:id", tls.GetCertificateDetail)
 		tlsCertificateRoute.GET("/:id/content", tls.GetCertificateContentHandler)
-		compat.RegisterCollection(tlsCertificateRoute, "POST", tls.CreateCertificateHandler)
+		apiutil.RegisterCollection(tlsCertificateRoute, "POST", tls.CreateCertificateHandler)
 		tlsCertificateRoute.POST("/:id/update", tls.UpdateCertificateHandler)
 		tlsCertificateRoute.POST("/:id/update-acme", tls.UpdateACMECertificateHandler)
 		tlsCertificateRoute.POST("/:id/convert-acme", tls.ConvertCertificateToACMEHandler)
@@ -37,16 +37,16 @@ func registerTLSRoutes(apiGroup *gin.RouterGroup) {
 	}
 
 	acmeAccountRoute := apiGroup.Group("/acme-accounts")
-	acmeAccountRoute.Use(compat.AdminAuth())
+	acmeAccountRoute.Use(apiutil.AdminRequired())
 	{
 		acmeAccountRoute.GET("/default", tls.GetDefaultAcmeAccountHandler)
 	}
 
 	dnsAccountRoute := apiGroup.Group("/dns-accounts")
-	dnsAccountRoute.Use(compat.AdminAuth())
+	dnsAccountRoute.Use(apiutil.AdminRequired())
 	{
-		compat.RegisterCollection(dnsAccountRoute, "GET", tls.GetDNSAccounts)
-		compat.RegisterCollection(dnsAccountRoute, "POST", tls.CreateDNSAccountHandler)
+		apiutil.RegisterCollection(dnsAccountRoute, "GET", tls.GetDNSAccounts)
+		apiutil.RegisterCollection(dnsAccountRoute, "POST", tls.CreateDNSAccountHandler)
 		dnsAccountRoute.POST("/:id/update", tls.UpdateDNSAccountHandler)
 		dnsAccountRoute.POST("/:id/delete", tls.DeleteDNSAccountHandler)
 	}

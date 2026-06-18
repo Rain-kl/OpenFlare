@@ -1,13 +1,3 @@
-/**
- * OpenFlare 遗留业务 API 响应信封
- * 阶段一 `/api/*` 端点使用此格式，与 Wavelet `/api/v1/*` 的 `{error_msg,data}` 不同
- */
-export interface LegacyApiResponse<T = unknown> {
-  success: boolean;
-  message: string;
-  data: T;
-}
-
 export type ReleaseChannel = 'stable' | 'preview';
 
 export type NodeType = 'edge_node' | 'tunnel_relay' | 'tunnel_client';

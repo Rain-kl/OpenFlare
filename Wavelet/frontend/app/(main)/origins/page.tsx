@@ -42,7 +42,7 @@ export default function OriginsPage() {
   const origins = useMemo(() => originsQuery.data ?? [], [originsQuery.data])
 
   const deleteMutation = useMutation({
-    mutationFn: (id: number) => OriginService.delete(id),
+    mutationFn: (id: number) => OriginService.deleteById(id),
     onSuccess: async () => {
       toast.success("源站已删除")
       setDeleteTarget(null)

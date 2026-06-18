@@ -40,7 +40,7 @@ export default function DnsAccountsPage() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: number) => DnsAccountService.delete(id),
+    mutationFn: (id: number) => DnsAccountService.deleteById(id),
     onSuccess: async () => {
       toast.success('DNS 账号已删除');
       setDeleteTarget(null);

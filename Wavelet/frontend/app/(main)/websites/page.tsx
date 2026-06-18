@@ -50,7 +50,7 @@ export default function WebsitesPage() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: number) => WebsiteService.delete(id),
+    mutationFn: (id: number) => WebsiteService.deleteById(id),
     onSuccess: async () => {
       toast.success('网站已删除');
       setDeleteTarget(null);

@@ -1,29 +1,29 @@
-import {LegacyOpenFlareBaseService} from './legacy-base.service';
+import {OpenFlareBaseService} from './base.service';
 import type {ProxyRouteItem, ProxyRouteMutationPayload} from './types';
 
-export class ProxyRouteService extends LegacyOpenFlareBaseService {
-  protected static readonly basePath = '/api/proxy-routes';
+export class ProxyRouteService extends OpenFlareBaseService {
+  protected static override readonly basePath: string = '/api/v1/custom/openflare/proxy-routes';
 
   static async list(): Promise<ProxyRouteItem[]> {
-    return this.legacyGet<ProxyRouteItem[]>('/');
+    return this.get<ProxyRouteItem[]>('/');
   }
 
   static async getById(id: number): Promise<ProxyRouteItem> {
-    return this.legacyGet<ProxyRouteItem>(`/${id}`);
+    return this.get<ProxyRouteItem>(`/${id}`);
   }
 
   static async create(payload: ProxyRouteMutationPayload): Promise<ProxyRouteItem> {
-    return this.legacyPost<ProxyRouteItem>('/', payload);
+    return this.post<ProxyRouteItem>('/', payload);
   }
 
   static async update(
     id: number,
     payload: ProxyRouteMutationPayload,
   ): Promise<ProxyRouteItem> {
-    return this.legacyPost<ProxyRouteItem>(`/${id}/update`, payload);
+    return this.post<ProxyRouteItem>(`/${id}/update`, payload);
   }
 
-  static async delete(id: number): Promise<void> {
-    return this.legacyPost<void>(`/${id}/delete`);
+  static async deleteById(id: number): Promise<void> {
+    return this.post<void>(`/${id}/delete`);
   }
 }

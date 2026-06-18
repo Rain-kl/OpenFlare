@@ -10,11 +10,11 @@ import (
 	"testing"
 
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/agent"
-	oflegacy "github.com/Rain-kl/Wavelet/internal/apps/openflare/legacy"
 	ofnode "github.com/Rain-kl/Wavelet/internal/apps/openflare/node"
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/option"
 	"github.com/Rain-kl/Wavelet/internal/db"
 	"github.com/Rain-kl/Wavelet/internal/model"
+	"github.com/Rain-kl/Wavelet/internal/testhelper"
 	"github.com/gin-gonic/gin"
 	"github.com/glebarez/sqlite"
 	"github.com/stretchr/testify/assert"
@@ -58,10 +58,8 @@ func setupProtocolTestEnv(t *testing.T) (*gin.Engine, func()) {
 	option.ResetInitializationForTest()
 	agent.ResetAuthCacheForTest()
 
-	gin.SetMode(gin.TestMode)
-	engine := gin.New()
-	apiGroup := engine.Group("/api")
-	oflegacy.RegisterRoutes(apiGroup)
+	engine := testhelper.NewTestGinEngine()
+	mountOpenFlareTestRoutes(engine)
 
 	cleanup := func() {
 		db.SetDB(nil)

@@ -1,10 +1,8 @@
-import {LegacyOpenFlareBaseService} from './legacy-base.service';
+import {OpenFlareBaseService} from './base.service';
 import type {OpenFlarePublicStatus} from './types';
 
-export class StatusService extends LegacyOpenFlareBaseService {
-  protected static override readonly basePath = '/api';
-
+export class StatusService extends OpenFlareBaseService {
   static getPublicStatus(): Promise<OpenFlarePublicStatus> {
-    return this.legacyGet<OpenFlarePublicStatus>('/status');
+    return this.get<OpenFlarePublicStatus>('/status');
   }
 }

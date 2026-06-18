@@ -1,19 +1,19 @@
 // Copyright 2026 Arctel.net
 // SPDX-License-Identifier: Apache-2.0
 
-package legacy
+package openflare
 
 import (
-	"github.com/Rain-kl/Wavelet/internal/apps/openflare/compat"
+	"github.com/Rain-kl/Wavelet/internal/apps/openflare/apiutil"
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/config_version"
 	"github.com/gin-gonic/gin"
 )
 
 func registerConfigVersionRoutes(apiGroup *gin.RouterGroup) {
 	configVersionGroup := apiGroup.Group("/config-versions")
-	configVersionGroup.Use(compat.AdminAuth())
+	configVersionGroup.Use(apiutil.AdminRequired())
 	{
-		compat.RegisterCollection(configVersionGroup, "GET", config_version.ListConfigVersionsHandler)
+		apiutil.RegisterCollection(configVersionGroup, "GET", config_version.ListConfigVersionsHandler)
 		configVersionGroup.GET("/active", config_version.GetActiveConfigVersionHandler)
 		configVersionGroup.GET("/preview", config_version.PreviewConfigVersionHandler)
 		configVersionGroup.GET("/diff", config_version.DiffConfigVersionHandler)

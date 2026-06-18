@@ -8,13 +8,14 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/Rain-kl/Wavelet/internal/apps/admin"
+	"github.com/Rain-kl/Wavelet/internal/apps/cap"
 	"github.com/Rain-kl/Wavelet/internal/apps/oauth"
-	"github.com/Rain-kl/Wavelet/internal/apps/openflare/compat"
-	oflegacy "github.com/Rain-kl/Wavelet/internal/apps/openflare/legacy"
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/option"
 	"github.com/Rain-kl/Wavelet/internal/config"
 	"github.com/Rain-kl/Wavelet/internal/db/idgen"
 	"github.com/Rain-kl/Wavelet/internal/model"
+	"github.com/Rain-kl/Wavelet/internal/repository"
 	"github.com/Rain-kl/Wavelet/internal/testhelper"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
@@ -28,11 +29,6 @@ type statusPayload struct {
 	SystemName string `json:"system_name"`
 }
 
-type legacyUserPayload struct {
-	Username string `json:"username"`
-	Token    string `json:"token"`
-}
-
 func setupAuthOptionIntegration(t *testing.T) (*gorm.DB, *gin.Engine) {
 	t.Helper()
 
@@ -42,6 +38,12 @@ func setupAuthOptionIntegration(t *testing.T) (*gorm.DB, *gin.Engine) {
 	require.NoError(t, dbConn.AutoMigrate(&model.OpenFlareOption{}))
 	option.ResetInitializationForTest()
 	t.Cleanup(option.ResetInitializationForTest)
+
+	require.NoError(t, dbConn.Model(&model.SystemConfig{}).
+		Where("key = ?", model.ConfigKeyCapLoginEnabled).
+		Update("value", "false").Error)
+	require.NoError(t, repository.InvalidateSystemConfigCache(context.Background(), model.ConfigKeyCapLoginEnabled))
+	cap.InvalidateRuntimeSettings()
 
 	oldCookieName := config.Config.App.SessionCookieName
 	oldSecret := config.Config.App.SessionSecret
@@ -65,9 +67,7 @@ func setupAuthOptionIntegration(t *testing.T) (*gorm.DB, *gin.Engine) {
 	store := cookie.NewStore([]byte(config.Config.App.SessionSecret))
 	store.Options(oauth.GetSessionOptions(3600))
 	r := testhelper.NewTestGinEngine(sessions.Sessions(config.Config.App.SessionCookieName, store))
-
-	api := r.Group("/api")
-	oflegacy.RegisterRoutes(api)
+	mountOpenFlareTestRoutes(r)
 
 	return dbConn, r
 }
@@ -88,134 +88,88 @@ func seedUser(t *testing.T, dbConn *gorm.DB, username, password string, isAdmin 
 	return user
 }
 
+func seedUserWithAccessToken(t *testing.T, dbConn *gorm.DB, username, password string, isAdmin bool) string {
+	t.Helper()
+
+	user := seedUser(t, dbConn, username, password, isAdmin)
+
+	token, err := model.GenerateTokenString()
+	require.NoError(t, err)
+
+	tokenRecord := model.AccessToken{
+		UserID:      user.ID,
+		Name:        username + "-integration-token",
+		TokenHash:   model.HashToken(token),
+		MaskedToken: model.MaskTokenString(token),
+		IsAdmin:     isAdmin,
+	}
+	require.NoError(t, dbConn.Create(&tokenRecord).Error)
+	return token
+}
+
 func TestGETStatusReturnsSuccessEnvelope(t *testing.T) {
 	_, r := setupAuthOptionIntegration(t)
 
-	w := performJSONRequest(t, r, http.MethodGet, "/api/status", nil, nil)
+	w := performJSONRequest(t, r, http.MethodGet, apiPath("/status"), nil, nil)
 
 	assert.Equal(t, http.StatusOK, w.Code)
-	env := decodeEnvelope(t, w)
-	assert.True(t, env.Success, "message=%s", env.Message)
+	resp := requireAPIOK(t, w)
 
 	var status statusPayload
-	unmarshalEnvelopeData(t, env.Data, &status)
+	unmarshalAPIData(t, resp.Data, &status)
 	assert.NotEmpty(t, status.SystemName)
-}
-
-func TestPOSTUserLoginWithSeededUser(t *testing.T) {
-	dbConn, r := setupAuthOptionIntegration(t)
-	seedUser(t, dbConn, "testuser", "password123", false)
-
-	w := performJSONRequest(t, r, http.MethodPost, "/api/user/login", map[string]string{
-		"username": "testuser",
-		"password": "password123",
-	}, nil)
-
-	assert.Equal(t, http.StatusOK, w.Code)
-	env := decodeEnvelope(t, w)
-	assert.True(t, env.Success, "message=%s", env.Message)
-
-	var user legacyUserPayload
-	unmarshalEnvelopeData(t, env.Data, &user)
-	assert.Equal(t, "testuser", user.Username)
-	assert.NotEmpty(t, user.Token)
-}
-
-func TestGETUserSelfWithToken(t *testing.T) {
-	dbConn, r := setupAuthOptionIntegration(t)
-	seedUser(t, dbConn, "selfuser", "password123", false)
-
-	loginResp := performJSONRequest(t, r, http.MethodPost, "/api/user/login", map[string]string{
-		"username": "selfuser",
-		"password": "password123",
-	}, nil)
-	loginEnv := decodeEnvelope(t, loginResp)
-	require.True(t, loginEnv.Success, "login failed: %s", loginEnv.Message)
-
-	var loginUser legacyUserPayload
-	unmarshalEnvelopeData(t, loginEnv.Data, &loginUser)
-	require.NotEmpty(t, loginUser.Token)
-
-	w := performJSONRequest(t, r, http.MethodGet, "/api/user/self", nil, map[string]string{
-		compat.OpenFlareTokenHeader(): loginUser.Token,
-	})
-
-	assert.Equal(t, http.StatusOK, w.Code)
-	env := decodeEnvelope(t, w)
-	assert.True(t, env.Success, "message=%s", env.Message)
-
-	var self legacyUserPayload
-	unmarshalEnvelopeData(t, env.Data, &self)
-	assert.Equal(t, "selfuser", self.Username)
 }
 
 func TestGETOptionRequiresRootAuth(t *testing.T) {
 	dbConn, r := setupAuthOptionIntegration(t)
-	seedUser(t, dbConn, "commonuser", "password123", false)
-	seedUser(t, dbConn, "rootuser", "password123", true)
-
-	commonToken := loginAndGetToken(t, r, "commonuser", "password123")
-	rootToken := loginAndGetToken(t, r, "rootuser", "password123")
+	commonToken := seedUserWithAccessToken(t, dbConn, "commonuser", "password123", false)
+	rootToken := seedUserWithAccessToken(t, dbConn, "rootuser", "password123", true)
 
 	t.Run("unauthenticated", func(t *testing.T) {
-		w := performJSONRequest(t, r, http.MethodGet, "/api/option/", nil, nil)
+		w := performJSONRequest(t, r, http.MethodGet, apiPath("/option/"), nil, nil)
 		assert.Equal(t, http.StatusUnauthorized, w.Code)
-		env := decodeEnvelope(t, w)
-		assert.False(t, env.Success)
+		resp := decodeAPIResponse(t, w)
+		assert.NotEmpty(t, resp.ErrorMsg)
 	})
 
 	t.Run("common user forbidden", func(t *testing.T) {
-		w := performJSONRequest(t, r, http.MethodGet, "/api/option/", nil, map[string]string{
-			compat.OpenFlareTokenHeader(): commonToken,
-		})
-		assert.Equal(t, http.StatusOK, w.Code)
-		env := decodeEnvelope(t, w)
-		assert.False(t, env.Success)
-		assert.Contains(t, env.Message, "权限不足")
+		w := performJSONRequest(t, r, http.MethodGet, apiPath("/option/"), nil, adminAuthHeaders(commonToken))
+		assert.Equal(t, http.StatusNotFound, w.Code)
+		resp := decodeAPIResponse(t, w)
+		assert.Equal(t, admin.TokenAdminRequired, resp.ErrorMsg)
 	})
 
 	t.Run("root user allowed", func(t *testing.T) {
-		w := performJSONRequest(t, r, http.MethodGet, "/api/option/", nil, map[string]string{
-			compat.OpenFlareTokenHeader(): rootToken,
-		})
+		w := performJSONRequest(t, r, http.MethodGet, apiPath("/option/"), nil, adminAuthHeaders(rootToken))
 		assert.Equal(t, http.StatusOK, w.Code)
-		env := decodeEnvelope(t, w)
-		assert.True(t, env.Success, "message=%s", env.Message)
+		requireAPIOK(t, w)
 	})
 }
 
-func TestGETNodesWithOpenFlareToken(t *testing.T) {
+func TestGETNodesWithAccessToken(t *testing.T) {
 	dbConn, r := setupAuthOptionIntegration(t)
 	require.NoError(t, dbConn.AutoMigrate(&model.OpenFlareNode{}))
-	seedUser(t, dbConn, "admin", "password123", true)
-	rootToken := loginAndGetToken(t, r, "admin", "password123")
+	rootToken := seedUserWithAccessToken(t, dbConn, "admin", "password123", true)
 
-	w := performJSONRequest(t, r, http.MethodGet, "/api/nodes/", nil, map[string]string{
-		compat.OpenFlareTokenHeader(): rootToken,
-	})
+	w := performJSONRequest(t, r, http.MethodGet, apiPath("/nodes/"), nil, adminAuthHeaders(rootToken))
 
 	assert.Equal(t, http.StatusOK, w.Code)
-	env := decodeEnvelope(t, w)
-	assert.True(t, env.Success, "message=%s", env.Message)
+	requireAPIOK(t, w)
 }
 
 func TestOptionHotReloadAfterUpdate(t *testing.T) {
 	dbConn, r := setupAuthOptionIntegration(t)
-	seedUser(t, dbConn, "admin", "password123", true)
-	rootToken := loginAndGetToken(t, r, "admin", "password123")
+	rootToken := seedUserWithAccessToken(t, dbConn, "admin", "password123", true)
 
 	statusBefore := getStatusSystemName(t, r, nil)
 	assert.NotEmpty(t, statusBefore)
 
-	updateResp := performJSONRequest(t, r, http.MethodPost, "/api/option/update", map[string]string{
+	updateResp := performJSONRequest(t, r, http.MethodPost, apiPath("/option/update"), map[string]string{
 		"key":   "SystemName",
 		"value": "HotReloadIntegration",
-	}, map[string]string{
-		compat.OpenFlareTokenHeader(): rootToken,
-	})
+	}, adminAuthHeaders(rootToken))
 	assert.Equal(t, http.StatusOK, updateResp.Code)
-	updateEnv := decodeEnvelope(t, updateResp)
-	assert.True(t, updateEnv.Success, "message=%s", updateEnv.Message)
+	requireAPIOK(t, updateResp)
 
 	statusAfter := getStatusSystemName(t, r, nil)
 	assert.Equal(t, "HotReloadIntegration", statusAfter)
@@ -226,31 +180,14 @@ func TestOptionHotReloadAfterUpdate(t *testing.T) {
 	assert.Equal(t, "HotReloadIntegration", model.OptionValue("SystemName"))
 }
 
-func loginAndGetToken(t *testing.T, r http.Handler, username, password string) string {
-	t.Helper()
-
-	w := performJSONRequest(t, r, http.MethodPost, "/api/user/login", map[string]string{
-		"username": username,
-		"password": password,
-	}, nil)
-	env := decodeEnvelope(t, w)
-	require.True(t, env.Success, "login failed: %s", env.Message)
-
-	var user legacyUserPayload
-	unmarshalEnvelopeData(t, env.Data, &user)
-	require.NotEmpty(t, user.Token)
-	return user.Token
-}
-
 func getStatusSystemName(t *testing.T, r http.Handler, headers map[string]string) string {
 	t.Helper()
 
-	w := performJSONRequest(t, r, http.MethodGet, "/api/status", nil, headers)
+	w := performJSONRequest(t, r, http.MethodGet, apiPath("/status"), nil, headers)
 	require.Equal(t, http.StatusOK, w.Code)
-	env := decodeEnvelope(t, w)
-	require.True(t, env.Success, "message=%s", env.Message)
+	resp := requireAPIOK(t, w)
 
 	var status statusPayload
-	unmarshalEnvelopeData(t, env.Data, &status)
+	unmarshalAPIData(t, resp.Data, &status)
 	return status.SystemName
 }

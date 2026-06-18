@@ -63,12 +63,12 @@ export function RegisterForm() {
   )
 
   const registrationEnabled =
-    configBool(publicConfigQuery.data?.registration_enabled, true) &&
-    configBool(publicConfigQuery.data?.password_register_enabled, true)
+    configBool(publicConfigQuery.data?.registration_enabled, false) &&
+    configBool(publicConfigQuery.data?.password_register_enabled, false)
 
   const emailRegisterEnabled = configBool(publicConfigQuery.data?.email_register_verification_enabled, false)
 
-  const capEnabled = configBool(publicConfigQuery.data?.cap_login_enabled, false)
+  const capEnabled = configBool(publicConfigQuery.data?.cap_login_enabled, true)
   const capAutoSolve = configBool(publicConfigQuery.data?.cap_auto_solve, true)
 
   const [capScope, setCapScope] = useState<'send_email_code' | 'register'>('send_email_code')

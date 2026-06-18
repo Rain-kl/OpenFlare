@@ -2,18 +2,18 @@ import type {InternalAxiosRequestConfig} from 'axios';
 
 import {getApiBaseUrl} from '@/lib/services/core/config';
 import {ApiErrorBase} from '@/lib/services/core/errors';
+import type {ApiResponse} from '@/lib/services/core';
 
-import type {LegacyApiResponse} from './legacy-base.service';
-import {LegacyOpenFlareBaseService} from './legacy-base.service';
-import type {LatestReleaseInfo, ReleaseChannel, UpgradeStreamSnapshot, UploadedServerBinaryInfo,} from './types';
+import {OpenFlareBaseService} from './base.service';
+import type {LatestReleaseInfo, ReleaseChannel, UpgradeStreamSnapshot, UploadedServerBinaryInfo} from './types';
 
 /**
- * OpenFlare 服务端升级 API（遗留 `/api/update/*`）。
+ * OpenFlare 服务端升级 API（`/api/v1/custom/openflare/update/*`）。
  */
-export class UpdateService extends LegacyOpenFlareBaseService {
-  protected static override readonly basePath = '/api/update';
+export class UpdateService extends OpenFlareBaseService {
+  protected static override readonly basePath: string = '/api/v1/custom/openflare/update';
 
-  private static getLegacyApiUrl(path: string): string {
+  private static getApiUrl(path: string): string {
     const baseURL = getApiBaseUrl();
     const fullPath = this.getFullPath(path);
     if (!baseURL) {
@@ -23,11 +23,11 @@ export class UpdateService extends LegacyOpenFlareBaseService {
   }
 
   static getLatestRelease(channel: ReleaseChannel = 'stable'): Promise<LatestReleaseInfo> {
-    return this.legacyGet<LatestReleaseInfo>('/latest-release', { channel });
+    return this.get<LatestReleaseInfo>('/latest-release', { channel });
   }
 
   static upgradeServer(channel: ReleaseChannel = 'stable'): Promise<LatestReleaseInfo> {
-    return this.legacyPost<LatestReleaseInfo>('/upgrade', { channel });
+    return this.post<LatestReleaseInfo>('/upgrade', { channel });
   }
 
   static uploadServerBinary(
@@ -38,14 +38,14 @@ export class UpdateService extends LegacyOpenFlareBaseService {
     formData.append('binary', binary);
 
     if (!onProgress) {
-      return this.legacyPost<UploadedServerBinaryInfo>('/manual-upload', formData, {
+      return this.post<UploadedServerBinaryInfo>('/manual-upload', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       } as InternalAxiosRequestConfig);
     }
 
     return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
-      xhr.open('POST', this.getLegacyApiUrl('/manual-upload'));
+      xhr.open('POST', this.getApiUrl('/manual-upload'));
       xhr.withCredentials = true;
 
       xhr.upload.addEventListener('progress', (event) => {
@@ -55,11 +55,11 @@ export class UpdateService extends LegacyOpenFlareBaseService {
       });
 
       xhr.addEventListener('load', () => {
-        let payload: LegacyApiResponse<UploadedServerBinaryInfo> | null = null;
+        let payload: ApiResponse<UploadedServerBinaryInfo> | null = null;
         try {
           payload = JSON.parse(
             xhr.responseText,
-          ) as LegacyApiResponse<UploadedServerBinaryInfo>;
+          ) as ApiResponse<UploadedServerBinaryInfo>;
         } catch {
           payload = null;
         }
@@ -77,10 +77,6 @@ export class UpdateService extends LegacyOpenFlareBaseService {
           reject(new ApiErrorBase('响应格式无效', undefined, xhr.status));
           return;
         }
-        if (!payload.success) {
-          reject(new ApiErrorBase(payload.message || '请求失败', undefined, xhr.status));
-          return;
-        }
         resolve(payload.data);
       });
 
@@ -93,7 +89,7 @@ export class UpdateService extends LegacyOpenFlareBaseService {
   }
 
   static confirmManualServerUpgrade(uploadToken: string): Promise<UploadedServerBinaryInfo> {
-    return this.legacyPost<UploadedServerBinaryInfo>('/manual-upgrade', {
+    return this.post<UploadedServerBinaryInfo>('/manual-upgrade', {
       upload_token: uploadToken,
     });
   }
@@ -103,7 +99,7 @@ export class UpdateService extends LegacyOpenFlareBaseService {
       return null;
     }
 
-    const apiUrl = this.getLegacyApiUrl('/logs/ws');
+    const apiUrl = this.getApiUrl('/logs/ws');
     const resolvedUrl = apiUrl.startsWith('http://')
       ? `ws://${apiUrl.slice('http://'.length)}`
       : apiUrl.startsWith('https://')

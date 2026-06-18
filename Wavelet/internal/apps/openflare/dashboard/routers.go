@@ -4,24 +4,29 @@
 package dashboard
 
 import (
-	"github.com/Rain-kl/Wavelet/internal/apps/openflare/compat"
+	"net/http"
+
+	"github.com/Rain-kl/Wavelet/internal/apps/openflare/apiutil"
+	"github.com/Rain-kl/Wavelet/internal/common/response"
 	"github.com/gin-gonic/gin"
 )
 
-// RegisterRoutes mounts legacy OpenFlare dashboard routes.
-func RegisterRoutes(apiGroup *gin.RouterGroup) {
-	dashboardRoute := apiGroup.Group("/dashboard")
-	dashboardRoute.Use(compat.AdminAuth())
-	{
-		dashboardRoute.GET("/overview", getOverviewHandler)
-	}
-}
-
-func getOverviewHandler(c *gin.Context) {
+// GetOverviewHandler 获取仪表盘概览数据。
+// @Summary 获取仪表盘概览
+// @Description 聚合节点与可观测性数据，返回 OpenFlare 控制台仪表盘概览，需要管理员权限
+// @Tags openflare-dashboard
+// @Produce json
+// @Security SessionCookie
+// @Success 200 {object} response.Any{data=dashboard.OverviewPayload} "仪表盘概览"
+// @Failure 400 {object} response.Any "参数错误"
+// @Failure 401 {object} response.Any "未登录"
+// @Failure 403 {object} response.Any "无管理员权限"
+// @Failure 500 {object} response.Any "内部错误"
+// @Router /api/v1/custom/openflare/dashboard/overview [get]
+func GetOverviewHandler(c *gin.Context) {
 	overview, err := GetOverview(c.Request.Context())
-	if err != nil {
-		compat.Fail(c, err.Error())
+	if apiutil.AbortBadRequestOnError(c, err) {
 		return
 	}
-	compat.OK(c, overview)
+	c.JSON(http.StatusOK, response.OK(overview))
 }

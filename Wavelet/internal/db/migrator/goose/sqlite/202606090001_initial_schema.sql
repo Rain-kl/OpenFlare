@@ -137,7 +137,7 @@ CREATE INDEX IF NOT EXISTS idx_templates_created_at ON templates (created_at);
 CREATE INDEX IF NOT EXISTS idx_templates_updated_at ON templates (updated_at);
 
 INSERT INTO system_configs (key, value, type, visibility, description, created_at, updated_at) VALUES
-    ('cap_login_enabled', 'false', 'system', 1, '是否启用登录人机验证（true/false）', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('cap_login_enabled', 'true', 'system', 1, '是否启用登录人机验证（true/false）', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
     ('cap_auto_solve', 'true', 'system', 1, '打开页面后是否自动开始计算，关闭则需用户手动点击触发', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
     ('cap_challenge_count', '1', 'system', 0, '客户端需求解的 PoW 难题总数，默认 1，推荐 1～5', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
     ('cap_challenge_size', '32', 'system', 0, '人机验证盐值长度', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
@@ -152,8 +152,8 @@ INSERT INTO system_configs (key, value, type, visibility, description, created_a
     ('upload_allowed_extensions', 'jpg,png,webp', 'system', 1, '允许上传的图片扩展名（逗号分隔）', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
     ('site_name', 'OpenFlare', 'system', 1, '系统平台的展示名称', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
     ('password_login_enabled', 'true', 'system', 1, '是否允许使用账号密码登录', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-    ('registration_enabled', 'true', 'system', 1, '控制普通用户是否可以自主注册（true/false）', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-    ('password_register_enabled', 'true', 'system', 1, '是否允许通过密码创建本地账号', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('registration_enabled', 'false', 'system', 1, '控制普通用户是否可以自主注册（true/false）', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('password_register_enabled', 'false', 'system', 1, '是否允许通过密码创建本地账号', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
     ('oidc_login_enabled', 'true', 'system', 1, '是否允许使用第三方 OIDC 认证源登录', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
     ('max_api_keys_per_user', '5', 'business', 1, '限制每个普通用户可以创建的 API Key 最大数量', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
     ('email_login_verification_enabled', 'false', 'system', 1, '是否开启邮箱登录验证（true/false）', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),

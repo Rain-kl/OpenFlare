@@ -13,28 +13,6 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// RegisterRoutes mounts agent API routes under /agent.
-func RegisterRoutes(apiGroup *gin.RouterGroup) {
-	agentRoute := apiGroup.Group("/agent")
-	{
-		discoveryRoute := agentRoute.Group("/")
-		discoveryRoute.Use(AgentRegisterAuth())
-		{
-			discoveryRoute.POST("/nodes/register", RegisterHandler)
-		}
-
-		authorizedRoute := agentRoute.Group("/")
-		authorizedRoute.Use(AgentAuth())
-		{
-			authorizedRoute.GET("/ws", AgentWebSocketHandler)
-			authorizedRoute.POST("/nodes/heartbeat", HeartbeatHandler)
-			authorizedRoute.GET("/config-versions/active", GetActiveConfigHandler)
-			authorizedRoute.GET("/pages/deployments/:deployment_id/package", DownloadPagesPackageHandler)
-			authorizedRoute.POST("/waf/ip-groups/sync", SyncWAFIPGroupsHandler)
-			authorizedRoute.POST("/apply-logs", ReportApplyLogHandler)
-		}
-	}
-}
 
 // RegisterHandler registers or discovers an agent node.
 func RegisterHandler(c *gin.Context) {

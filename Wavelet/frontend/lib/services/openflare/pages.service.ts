@@ -1,11 +1,10 @@
 import type {AxiosProgressEvent, InternalAxiosRequestConfig} from 'axios';
 
 import apiClient from '@/lib/services/core/api-client';
-import {ApiErrorBase} from '@/lib/services/core/errors';
+import type {ApiResponse} from '@/lib/services/core';
 
-import {LegacyOpenFlareBaseService} from './legacy-base.service';
+import {OpenFlareBaseService} from './base.service';
 import type {
-  LegacyApiResponse,
   PagesDeployment,
   PagesDeploymentFile,
   PagesDeploymentUploadPayload,
@@ -13,41 +12,41 @@ import type {
   PagesProjectPayload,
 } from './types';
 
-export class PagesService extends LegacyOpenFlareBaseService {
-  protected static override readonly basePath = '/api/pages';
+export class PagesService extends OpenFlareBaseService {
+  protected static override readonly basePath: string = '/api/v1/custom/openflare/pages';
 
   static listProjects(): Promise<PagesProject[]> {
-    return this.legacyGet<PagesProject[]>('/');
+    return this.get<PagesProject[]>('/');
   }
 
   static getProject(id: number): Promise<PagesProject> {
-    return this.legacyGet<PagesProject>(`/${id}`);
+    return this.get<PagesProject>(`/${id}`);
   }
 
   static createProject(payload: PagesProjectPayload): Promise<PagesProject> {
-    return this.legacyPost<PagesProject>('/', payload);
+    return this.post<PagesProject>('/', payload);
   }
 
   static updateProject(
     id: number,
     payload: PagesProjectPayload,
   ): Promise<PagesProject> {
-    return this.legacyPost<PagesProject>(`/${id}/update`, payload);
+    return this.post<PagesProject>(`/${id}/update`, payload);
   }
 
   static deleteProject(id: number): Promise<void> {
-    return this.legacyPost<void>(`/${id}/delete`);
+    return this.post<void>(`/${id}/delete`);
   }
 
   static listDeployments(projectId: number): Promise<PagesDeployment[]> {
-    return this.legacyGet<PagesDeployment[]>(`/${projectId}/deployments`);
+    return this.get<PagesDeployment[]>(`/${projectId}/deployments`);
   }
 
   static listDeploymentFiles(
     projectId: number,
     deploymentId: number,
   ): Promise<PagesDeploymentFile[]> {
-    return this.legacyGet<PagesDeploymentFile[]>(
+    return this.get<PagesDeploymentFile[]>(
       `/${projectId}/deployments/${deploymentId}/files`,
     );
   }
@@ -72,7 +71,7 @@ export class PagesService extends LegacyOpenFlareBaseService {
     projectId: number,
     deploymentId: number,
   ): Promise<PagesProject> {
-    return this.legacyPost<PagesProject>(
+    return this.post<PagesProject>(
       `/${projectId}/deployments/${deploymentId}/activate`,
     );
   }
@@ -81,7 +80,7 @@ export class PagesService extends LegacyOpenFlareBaseService {
     projectId: number,
     deploymentId: number,
   ): Promise<void> {
-    return this.legacyPost<void>(
+    return this.post<void>(
       `/${projectId}/deployments/${deploymentId}/delete`,
     );
   }
@@ -91,7 +90,7 @@ export class PagesService extends LegacyOpenFlareBaseService {
     formData: FormData,
     onProgress?: (percent: number) => void,
   ): Promise<T> {
-    const response = await apiClient.post<LegacyApiResponse<T>>(
+    const response = await apiClient.post<ApiResponse<T>>(
       this.getFullPath(path),
       formData,
       {
@@ -103,10 +102,6 @@ export class PagesService extends LegacyOpenFlareBaseService {
         },
       } as InternalAxiosRequestConfig,
     );
-
-    if (!response.data.success) {
-      throw new ApiErrorBase(response.data.message || '请求失败');
-    }
 
     return response.data.data;
   }

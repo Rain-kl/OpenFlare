@@ -1,4 +1,4 @@
-import {LegacyOpenFlareBaseService} from './legacy-base.service';
+import {OpenFlareBaseService} from './base.service';
 import type {
   AccessLogCleanupPayload,
   AccessLogCleanupResult,
@@ -25,17 +25,17 @@ function buildSearchParams(filters: object): Record<string, unknown> {
   return params;
 }
 
-export class AccessLogService extends LegacyOpenFlareBaseService {
-  protected static override readonly basePath = '/api/access-logs';
+export class AccessLogService extends OpenFlareBaseService {
+  protected static override readonly basePath: string = '/api/v1/custom/openflare/access-logs';
 
   static list(filters: AccessLogFilters = {}): Promise<AccessLogList> {
-    return this.legacyGet<AccessLogList>('/', buildSearchParams(filters));
+    return this.get<AccessLogList>('/', buildSearchParams(filters));
   }
 
   static listFolds(
     filters: FoldedAccessLogFilters,
   ): Promise<FoldedAccessLogList> {
-    return this.legacyGet<FoldedAccessLogList>(
+    return this.get<FoldedAccessLogList>(
       '/folds',
       buildSearchParams(filters),
     );
@@ -44,7 +44,7 @@ export class AccessLogService extends LegacyOpenFlareBaseService {
   static listFoldIPs(
     filters: FoldedAccessLogIPFilters,
   ): Promise<FoldedAccessLogIPList> {
-    return this.legacyGet<FoldedAccessLogIPList>(
+    return this.get<FoldedAccessLogIPList>(
       '/folds/ip-summary',
       buildSearchParams(filters),
     );
@@ -53,7 +53,7 @@ export class AccessLogService extends LegacyOpenFlareBaseService {
   static listIPSummaries(
     filters: AccessLogIPSummaryFilters = {},
   ): Promise<AccessLogIPSummaryList> {
-    return this.legacyGet<AccessLogIPSummaryList>(
+    return this.get<AccessLogIPSummaryList>(
       '/ip-summary',
       buildSearchParams(filters),
     );
@@ -62,7 +62,7 @@ export class AccessLogService extends LegacyOpenFlareBaseService {
   static getIPTrend(
     filters: AccessLogIPTrendFilters,
   ): Promise<AccessLogIPTrend> {
-    return this.legacyGet<AccessLogIPTrend>(
+    return this.get<AccessLogIPTrend>(
       '/ip-summary/trend',
       buildSearchParams(filters),
     );
@@ -71,6 +71,6 @@ export class AccessLogService extends LegacyOpenFlareBaseService {
   static cleanup(
     payload: AccessLogCleanupPayload,
   ): Promise<AccessLogCleanupResult> {
-    return this.legacyPost<AccessLogCleanupResult>('/cleanup', payload);
+    return this.post<AccessLogCleanupResult>('/cleanup', payload);
   }
 }
