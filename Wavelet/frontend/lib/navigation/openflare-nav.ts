@@ -31,17 +31,9 @@ export interface OpenFlareNavGroup {
   items: OpenFlareNavSubItem[];
 }
 
-/** OpenFlare 业务控制台侧栏导航（子页面通过父级入口或页内链接访问） */
-export const openflareNavItems: OpenFlareNavItem[] = [
-  {title: '数据看板', url: '/', icon: LayoutDashboard},
-  {title: '节点管理', url: '/nodes', icon: Server, childUrls: ['/nodes/detail']},
-  {title: '规则管理', url: '/proxy-routes', icon: Route, childUrls: ['/proxy-routes/detail']},
-  {title: 'Pages', url: '/pages', icon: FileText, childUrls: ['/pages/detail']},
-  {title: 'WAF', url: '/waf', icon: Shield, childUrls: ['/waf/ip-groups']},
-  {title: '版本发布', url: '/config-versions', icon: GitBranch},
-  {title: '访问日志', url: '/access-logs', icon: ScrollText},
-  {title: '性能调优', url: '/performance', icon: Gauge},
-];
+export type OpenFlareSidebarNavEntry =
+  | ({kind: 'item'} & OpenFlareNavItem)
+  | ({kind: 'group'} & OpenFlareNavGroup);
 
 /** 网站管理折叠组 */
 export const openflareWebsiteNavGroup: OpenFlareNavGroup = {
@@ -54,6 +46,27 @@ export const openflareWebsiteNavGroup: OpenFlareNavGroup = {
     {title: '源站', url: '/origins', childUrls: ['/origins/detail']},
   ],
 };
+
+/**
+ * OpenFlare 侧栏导航顺序（单一配置源）。
+ * 调整菜单顺序或折叠组位置时，只需修改此数组。
+ */
+export const openflareSidebarNav: OpenFlareSidebarNavEntry[] = [
+  {kind: 'item', title: '数据看板', url: '/', icon: LayoutDashboard},
+  {kind: 'item', title: '节点管理', url: '/nodes', icon: Server, childUrls: ['/nodes/detail']},
+  {kind: 'item', title: '规则管理', url: '/proxy-routes', icon: Route, childUrls: ['/proxy-routes/detail']},
+  {kind: 'item', title: 'WAF', url: '/waf', icon: Shield, childUrls: ['/waf/ip-groups']},
+  {kind: 'group', ...openflareWebsiteNavGroup},
+  {kind: 'item', title: 'Pages', url: '/pages', icon: FileText, childUrls: ['/pages/detail']},
+  {kind: 'item', title: '版本发布', url: '/config-versions', icon: GitBranch},
+  {kind: 'item', title: '访问日志', url: '/access-logs', icon: ScrollText},
+  {kind: 'item', title: '性能调优', url: '/performance', icon: Gauge},
+];
+
+/** 扁平菜单项（供路由判断等逻辑复用） */
+export const openflareNavItems: OpenFlareNavItem[] = openflareSidebarNav
+  .filter((entry): entry is {kind: 'item'} & OpenFlareNavItem => entry.kind === 'item')
+  .map(({kind: _kind, ...item}) => item);
 
 /** 网站模块页内二级导航 */
 export const openflareWebsiteSubNav = [
@@ -92,9 +105,11 @@ export function isOpenFlareConsoleRoute(pathname: string): boolean {
     return false;
   }
 
-  if (isNavGroupActive(pathname, openflareWebsiteNavGroup)) {
-    return true;
-  }
+  return openflareSidebarNav.some((entry) => {
+    if (entry.kind === 'group') {
+      return isNavGroupActive(pathname, entry);
+    }
 
-  return openflareNavItems.some((item) => matchesNavPath(pathname, item.url, item.childUrls));
+    return matchesNavPath(pathname, entry.url, entry.childUrls);
+  });
 }

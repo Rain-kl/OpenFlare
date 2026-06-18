@@ -14,12 +14,66 @@ import {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
 } from '@/components/ui/sidebar';
+import type {OpenFlareNavGroup} from '@/lib/navigation/openflare-nav';
 import {
   matchesNavPath,
-  openflareNavItems,
-  openflareWebsiteNavGroup,
+  openflareSidebarNav,
   isNavGroupActive,
 } from '@/lib/navigation/openflare-nav';
+
+function SidebarNavGroupMenuItem({
+  group,
+  pathname,
+  onNavigate,
+}: {
+  group: OpenFlareNavGroup;
+  pathname: string;
+  onNavigate?: () => void;
+}) {
+  const groupActive = isNavGroupActive(pathname, group);
+  const [open, setOpen] = useState(groupActive);
+
+  useEffect(() => {
+    if (groupActive) {
+      setOpen(true);
+    }
+  }, [groupActive]);
+
+  return (
+    <Collapsible
+      asChild
+      open={open}
+      onOpenChange={setOpen}
+      className="group/collapsible"
+    >
+      <SidebarMenuItem>
+        <CollapsibleTrigger asChild>
+          <SidebarMenuButton tooltip={group.title} isActive={groupActive}>
+            <group.icon />
+            <span>{group.title}</span>
+            <ChevronRight className="ml-auto size-4 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+          </SidebarMenuButton>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <SidebarMenuSub>
+            {group.items.map((item) => (
+              <SidebarMenuSubItem key={item.title}>
+                <SidebarMenuSubButton
+                  asChild
+                  isActive={matchesNavPath(pathname, item.url, item.childUrls)}
+                >
+                  <Link href={item.url} onClick={onNavigate}>
+                    <span>{item.title}</span>
+                  </Link>
+                </SidebarMenuSubButton>
+              </SidebarMenuSubItem>
+            ))}
+          </SidebarMenuSub>
+        </CollapsibleContent>
+      </SidebarMenuItem>
+    </Collapsible>
+  );
+}
 
 export function OpenFlareSidebarMenu({
   onNavigate,
@@ -27,85 +81,36 @@ export function OpenFlareSidebarMenu({
   onNavigate?: () => void;
 }) {
   const pathname = usePathname();
-  const websiteGroupActive = isNavGroupActive(pathname, openflareWebsiteNavGroup);
-  const [websiteGroupOpen, setWebsiteGroupOpen] = useState(websiteGroupActive);
-
-  useEffect(() => {
-    if (websiteGroupActive) {
-      setWebsiteGroupOpen(true);
-    }
-  }, [websiteGroupActive]);
-
-  const renderFlatItemsBeforeGroup = openflareNavItems.slice(0, 4);
-  const renderFlatItemsAfterGroup = openflareNavItems.slice(4);
 
   return (
     <SidebarMenu className="gap-1">
-      {renderFlatItemsBeforeGroup.map((item) => (
-        <SidebarMenuItem key={item.title}>
-          <SidebarMenuButton
-            tooltip={item.title}
-            isActive={matchesNavPath(pathname, item.url, item.childUrls)}
-            asChild
-          >
-            <Link href={item.url} onClick={onNavigate}>
-              <item.icon />
-              <span>{item.title}</span>
-            </Link>
-          </SidebarMenuButton>
-        </SidebarMenuItem>
-      ))}
+      {openflareSidebarNav.map((entry) => {
+        if (entry.kind === 'group') {
+          return (
+            <SidebarNavGroupMenuItem
+              key={entry.title}
+              group={entry}
+              pathname={pathname}
+              onNavigate={onNavigate}
+            />
+          );
+        }
 
-      <Collapsible
-        asChild
-        open={websiteGroupOpen}
-        onOpenChange={setWebsiteGroupOpen}
-        className="group/collapsible"
-      >
-        <SidebarMenuItem>
-          <CollapsibleTrigger asChild>
+        return (
+          <SidebarMenuItem key={entry.title}>
             <SidebarMenuButton
-              tooltip={openflareWebsiteNavGroup.title}
-              isActive={websiteGroupActive}
+              tooltip={entry.title}
+              isActive={matchesNavPath(pathname, entry.url, entry.childUrls)}
+              asChild
             >
-              <openflareWebsiteNavGroup.icon />
-              <span>{openflareWebsiteNavGroup.title}</span>
-              <ChevronRight className="ml-auto size-4 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+              <Link href={entry.url} onClick={onNavigate}>
+                <entry.icon />
+                <span>{entry.title}</span>
+              </Link>
             </SidebarMenuButton>
-          </CollapsibleTrigger>
-          <CollapsibleContent>
-            <SidebarMenuSub>
-              {openflareWebsiteNavGroup.items.map((item) => (
-                <SidebarMenuSubItem key={item.title}>
-                  <SidebarMenuSubButton
-                    asChild
-                    isActive={matchesNavPath(pathname, item.url, item.childUrls)}
-                  >
-                    <Link href={item.url} onClick={onNavigate}>
-                      <span>{item.title}</span>
-                    </Link>
-                  </SidebarMenuSubButton>
-                </SidebarMenuSubItem>
-              ))}
-            </SidebarMenuSub>
-          </CollapsibleContent>
-        </SidebarMenuItem>
-      </Collapsible>
-
-      {renderFlatItemsAfterGroup.map((item) => (
-        <SidebarMenuItem key={item.title}>
-          <SidebarMenuButton
-            tooltip={item.title}
-            isActive={matchesNavPath(pathname, item.url, item.childUrls)}
-            asChild
-          >
-            <Link href={item.url} onClick={onNavigate}>
-              <item.icon />
-              <span>{item.title}</span>
-            </Link>
-          </SidebarMenuButton>
-        </SidebarMenuItem>
-      ))}
+          </SidebarMenuItem>
+        );
+      })}
     </SidebarMenu>
   );
 }

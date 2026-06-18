@@ -64,7 +64,7 @@ import {
 import {useUser} from "@/contexts/user-context"
 import {usePublicConfig} from "@/hooks/use-public-config"
 import {OpenFlareSidebarMenu} from "@/components/layout/openflare-sidebar-menu"
-import {openflareNavItems} from "@/lib/navigation/openflare-nav"
+import {openflareSidebarNav} from "@/lib/navigation/openflare-nav"
 
 /* 导航数据 */
 const data = {
@@ -295,7 +295,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           </DropdownMenu>
         </SidebarHeader>
         <SidebarContent className="group-data-[collapsible=icon]">
-          {openflareNavItems.length > 0 && (
+          {openflareSidebarNav.length > 0 && (
             <SidebarGroup className="py-0">
               <SidebarGroupContent className="py-1">
                 <OpenFlareSidebarMenu onNavigate={handleCloseSidebar} />
