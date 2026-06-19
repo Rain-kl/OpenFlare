@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/Rain-kl/Wavelet/internal/model"
-	pkggeoip "github.com/rain-kl/openflare/pkg/geoip"
+	pkggeoip "github.com/Rain-kl/Wavelet/pkg/geoip"
 )
 
 type fakeGeoIPProvider struct {

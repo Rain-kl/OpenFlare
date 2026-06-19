@@ -37,6 +37,15 @@ func TestCapEndpointsAndMiddleware(t *testing.T) {
 		c.JSON(http.StatusOK, response.OK("login success"))
 	})
 
+	// Ensure CAPTCHA is disabled initially for step 2
+	if err := sqliteDB.Model(&model.SystemConfig{}).Where("key = ?", model.ConfigKeyCapLoginEnabled).Update("value", "false").Error; err != nil {
+		t.Fatalf("failed to disable cap_login_enabled in DB: %v", err)
+	}
+	if err := repository.InvalidateSystemConfigCache(context.Background(), model.ConfigKeyCapLoginEnabled); err != nil {
+		t.Fatalf("InvalidateSystemConfigCache() error = %v", err)
+	}
+	InvalidateRuntimeSettings()
+
 	// 1. Test challenge generation
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest("POST", "/api/cap/challenge", nil)

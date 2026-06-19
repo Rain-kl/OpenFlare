@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/Rain-kl/Wavelet/internal/db"
-	openrestyrender "github.com/rain-kl/openflare/pkg/render/openresty"
+	openrestyrender "github.com/Rain-kl/Wavelet/pkg/render/openresty"
 	"gorm.io/gorm"
 )
 

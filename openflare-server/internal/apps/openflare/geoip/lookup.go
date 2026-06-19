@@ -9,7 +9,7 @@ import (
 	"net"
 	"strings"
 
-	pkggeoip "github.com/rain-kl/openflare/pkg/geoip"
+	pkggeoip "github.com/Rain-kl/Wavelet/pkg/geoip"
 )
 
 // LookupView is the legacy OpenFlare GeoIP lookup response shape.

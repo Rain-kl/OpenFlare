@@ -13,7 +13,7 @@ import (
 
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/waf"
 	"github.com/Rain-kl/Wavelet/internal/model"
-	openrestyrender "github.com/rain-kl/openflare/pkg/render/openresty"
+	openrestyrender "github.com/Rain-kl/Wavelet/pkg/render/openresty"
 )
 
 type snapshotRoute struct {

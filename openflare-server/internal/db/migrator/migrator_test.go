@@ -104,11 +104,11 @@ func TestMigrateClearsStaleSystemConfigCache(t *testing.T) {
 	})
 
 	staleConfig := model.SystemConfig{
-		Key:   model.ConfigKeyCapLoginEnabled,
+		Key:   model.ConfigKeyEmailLoginVerificationEnabled,
 		Value: "true",
 		Type:  "system",
 	}
-	if err := db.HSetJSON(context.Background(), repository.SystemConfigRedisHashKey, model.ConfigKeyCapLoginEnabled, &staleConfig); err != nil {
+	if err := db.HSetJSON(context.Background(), repository.SystemConfigRedisHashKey, model.ConfigKeyEmailLoginVerificationEnabled, &staleConfig); err != nil {
 		t.Fatalf("HSetJSON() error = %v", err)
 	}
 
@@ -122,11 +122,11 @@ func TestMigrateClearsStaleSystemConfigCache(t *testing.T) {
 		t.Fatalf("system config cache exists = %d, want 0", exists)
 	}
 
-	enabled, err := repository.GetBoolByKey(context.Background(), model.ConfigKeyCapLoginEnabled)
+	enabled, err := repository.GetBoolByKey(context.Background(), model.ConfigKeyEmailLoginVerificationEnabled)
 	if err != nil {
-		t.Fatalf("GetBoolByKey(%s) error = %v", model.ConfigKeyCapLoginEnabled, err)
+		t.Fatalf("GetBoolByKey(%s) error = %v", model.ConfigKeyEmailLoginVerificationEnabled, err)
 	}
 	if enabled {
-		t.Fatalf("GetBoolByKey(%s) = true, want false", model.ConfigKeyCapLoginEnabled)
+		t.Fatalf("GetBoolByKey(%s) = true, want false", model.ConfigKeyEmailLoginVerificationEnabled)
 	}
 }

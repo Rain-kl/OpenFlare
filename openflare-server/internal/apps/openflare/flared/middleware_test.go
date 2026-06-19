@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/Rain-kl/Wavelet/internal/common/response"
 	"github.com/Rain-kl/Wavelet/internal/db"
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"github.com/gin-gonic/gin"
@@ -53,6 +54,7 @@ func TestTunnelAuthMissingToken(t *testing.T) {
 
 	gin.SetMode(gin.TestMode)
 	engine := gin.New()
+	engine.Use(response.ErrorHandlerMiddleware())
 	engine.GET("/flared/test", TunnelAuth(), func(c *gin.Context) {
 		c.Status(http.StatusOK)
 	})
@@ -71,6 +73,7 @@ func TestTunnelAuthRejectsWrongNodeType(t *testing.T) {
 
 	gin.SetMode(gin.TestMode)
 	engine := gin.New()
+	engine.Use(response.ErrorHandlerMiddleware())
 	engine.GET("/flared/test", TunnelAuth(), func(c *gin.Context) {
 		c.Status(http.StatusOK)
 	})

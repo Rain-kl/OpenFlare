@@ -1,0 +1,1 @@
+{"default_block_status_code":418,"rule_groups":[{"id":1,"name":"全局规则组","is_global":true,"block_status_code":418,"block_response_body":"","ip_whitelist":[],"ip_blacklist":[],"country_whitelist":null,"country_blacklist":null,"region_whitelist":null,"region_blacklist":null,"pow_enabled":false}],"site_rule_groups":{}}

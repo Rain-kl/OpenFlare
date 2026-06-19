@@ -1,0 +1,482 @@
+[
+  {
+    "window_started_at_unix": 1781848200,
+    "snapshot": {
+      "captured_at_unix": 1781848258,
+      "cpu_usage_percent": 0.3127736769673464,
+      "memory_used_bytes": 683499520,
+      "memory_total_bytes": 12601327616,
+      "storage_used_bytes": 113875708018688,
+      "storage_total_bytes": 126562507685888,
+      "disk_read_bytes": 178618413568,
+      "disk_write_bytes": 8236818432,
+      "network_rx_bytes": 992072,
+      "network_tx_bytes": 3133491
+    },
+    "openresty_observation": {
+      "captured_at_unix": 1781848258,
+      "openresty_rx_bytes": 0,
+      "openresty_tx_bytes": 0,
+      "openresty_connections": 1
+    },
+    "traffic_report": {
+      "window_started_at_unix": 1781848200,
+      "window_ended_at_unix": 1781848258,
+      "request_count": 0,
+      "error_count": 0,
+      "unique_visitor_count": 0,
+      "status_codes": {},
+      "top_domains": {},
+      "source_countries": {}
+    },
+    "queued_at_unix": 1781848258
+  },
+  {
+    "window_started_at_unix": 1781848260,
+    "snapshot": {
+      "captured_at_unix": 1781848318,
+      "cpu_usage_percent": 0.36268134067033514,
+      "memory_used_bytes": 683479040,
+      "memory_total_bytes": 12601327616,
+      "storage_used_bytes": 113878183706624,
+      "storage_total_bytes": 126562507685888,
+      "disk_read_bytes": 178736337408,
+      "disk_write_bytes": 8237965312,
+      "network_rx_bytes": 992522,
+      "network_tx_bytes": 3134061
+    },
+    "openresty_observation": {
+      "captured_at_unix": 1781848318,
+      "openresty_rx_bytes": 0,
+      "openresty_tx_bytes": 0,
+      "openresty_connections": 1
+    },
+    "traffic_report": {
+      "window_started_at_unix": 1781848260,
+      "window_ended_at_unix": 1781848318,
+      "request_count": 0,
+      "error_count": 0,
+      "unique_visitor_count": 0,
+      "status_codes": {},
+      "top_domains": {},
+      "source_countries": {}
+    },
+    "queued_at_unix": 1781848318
+  },
+  {
+    "window_started_at_unix": 1781848320,
+    "snapshot": {
+      "captured_at_unix": 1781848378,
+      "cpu_usage_percent": 0.38808212318477714,
+      "memory_used_bytes": 689451008,
+      "memory_total_bytes": 12601327616,
+      "storage_used_bytes": 113856253788160,
+      "storage_total_bytes": 126562507685888,
+      "disk_read_bytes": 178832536064,
+      "disk_write_bytes": 8238546944,
+      "network_rx_bytes": 993014,
+      "network_tx_bytes": 3134673
+    },
+    "openresty_observation": {
+      "captured_at_unix": 1781848378,
+      "openresty_rx_bytes": 0,
+      "openresty_tx_bytes": 0,
+      "openresty_connections": 1
+    },
+    "traffic_report": {
+      "window_started_at_unix": 1781848320,
+      "window_ended_at_unix": 1781848378,
+      "request_count": 0,
+      "error_count": 0,
+      "unique_visitor_count": 0,
+      "status_codes": {},
+      "top_domains": {},
+      "source_countries": {}
+    },
+    "queued_at_unix": 1781848378
+  },
+  {
+    "window_started_at_unix": 1781848380,
+    "snapshot": {
+      "captured_at_unix": 1781848438,
+      "cpu_usage_percent": 0.36263598849568585,
+      "memory_used_bytes": 681353216,
+      "memory_total_bytes": 12601327616,
+      "storage_used_bytes": 113861555388416,
+      "storage_total_bytes": 126562507685888,
+      "disk_read_bytes": 178939171328,
+      "disk_write_bytes": 8239661056,
+      "network_rx_bytes": 993464,
+      "network_tx_bytes": 3135243
+    },
+    "openresty_observation": {
+      "captured_at_unix": 1781848438,
+      "openresty_rx_bytes": 0,
+      "openresty_tx_bytes": 0,
+      "openresty_connections": 1
+    },
+    "traffic_report": {
+      "window_started_at_unix": 1781848380,
+      "window_ended_at_unix": 1781848438,
+      "request_count": 0,
+      "error_count": 0,
+      "unique_visitor_count": 0,
+      "status_codes": {},
+      "top_domains": {},
+      "source_countries": {}
+    },
+    "queued_at_unix": 1781848438
+  },
+  {
+    "window_started_at_unix": 1781848440,
+    "snapshot": {
+      "captured_at_unix": 1781848498,
+      "cpu_usage_percent": 0.23752969121140144,
+      "memory_used_bytes": 694992896,
+      "memory_total_bytes": 12601327616,
+      "storage_used_bytes": 113869457457152,
+      "storage_total_bytes": 126562507685888,
+      "disk_read_bytes": 178986156544,
+      "disk_write_bytes": 8240242688,
+      "network_rx_bytes": 993956,
+      "network_tx_bytes": 3135855
+    },
+    "openresty_observation": {
+      "captured_at_unix": 1781848498,
+      "openresty_rx_bytes": 0,
+      "openresty_tx_bytes": 0,
+      "openresty_connections": 1
+    },
+    "traffic_report": {
+      "window_started_at_unix": 1781848440,
+      "window_ended_at_unix": 1781848498,
+      "request_count": 0,
+      "error_count": 0,
+      "unique_visitor_count": 0,
+      "status_codes": {},
+      "top_domains": {},
+      "source_countries": {}
+    },
+    "queued_at_unix": 1781848498
+  },
+  {
+    "window_started_at_unix": 1781848500,
+    "snapshot": {
+      "captured_at_unix": 1781848558,
+      "cpu_usage_percent": 0.37537537537537535,
+      "memory_used_bytes": 678383616,
+      "memory_total_bytes": 12601327616,
+      "storage_used_bytes": 113875264471040,
+      "storage_total_bytes": 126562507685888,
+      "disk_read_bytes": 179164385792,
+      "disk_write_bytes": 8241356800,
+      "network_rx_bytes": 994406,
+      "network_tx_bytes": 3136425
+    },
+    "openresty_observation": {
+      "captured_at_unix": 1781848558,
+      "openresty_rx_bytes": 0,
+      "openresty_tx_bytes": 0,
+      "openresty_connections": 1
+    },
+    "traffic_report": {
+      "window_started_at_unix": 1781848500,
+      "window_ended_at_unix": 1781848558,
+      "request_count": 0,
+      "error_count": 0,
+      "unique_visitor_count": 0,
+      "status_codes": {},
+      "top_domains": {},
+      "source_countries": {}
+    },
+    "queued_at_unix": 1781848558
+  },
+  {
+    "window_started_at_unix": 1781848560,
+    "snapshot": {
+      "captured_at_unix": 1781848618,
+      "cpu_usage_percent": 0.2625328166020752,
+      "memory_used_bytes": 680759296,
+      "memory_total_bytes": 12601327616,
+      "storage_used_bytes": 113879888691200,
+      "storage_total_bytes": 126562507685888,
+      "disk_read_bytes": 179171258880,
+      "disk_write_bytes": 8242077696,
+      "network_rx_bytes": 994898,
+      "network_tx_bytes": 3137037
+    },
+    "openresty_observation": {
+      "captured_at_unix": 1781848618,
+      "openresty_rx_bytes": 0,
+      "openresty_tx_bytes": 0,
+      "openresty_connections": 1
+    },
+    "traffic_report": {
+      "window_started_at_unix": 1781848560,
+      "window_ended_at_unix": 1781848618,
+      "request_count": 0,
+      "error_count": 0,
+      "unique_visitor_count": 0,
+      "status_codes": {},
+      "top_domains": {},
+      "source_countries": {}
+    },
+    "queued_at_unix": 1781848618
+  },
+  {
+    "window_started_at_unix": 1781848620,
+    "snapshot": {
+      "captured_at_unix": 1781848678,
+      "cpu_usage_percent": 0.42537220067559117,
+      "memory_used_bytes": 682201088,
+      "memory_total_bytes": 12601327616,
+      "storage_used_bytes": 113884578971648,
+      "storage_total_bytes": 126562507685888,
+      "disk_read_bytes": 179309863424,
+      "disk_write_bytes": 8243191808,
+      "network_rx_bytes": 995348,
+      "network_tx_bytes": 3137607
+    },
+    "openresty_observation": {
+      "captured_at_unix": 1781848678,
+      "openresty_rx_bytes": 0,
+      "openresty_tx_bytes": 0,
+      "openresty_connections": 1
+    },
+    "traffic_report": {
+      "window_started_at_unix": 1781848620,
+      "window_ended_at_unix": 1781848678,
+      "request_count": 0,
+      "error_count": 0,
+      "unique_visitor_count": 0,
+      "status_codes": {},
+      "top_domains": {},
+      "source_countries": {}
+    },
+    "queued_at_unix": 1781848678
+  },
+  {
+    "window_started_at_unix": 1781848680,
+    "snapshot": {
+      "captured_at_unix": 1781848738,
+      "cpu_usage_percent": 0.3254882323485228,
+      "memory_used_bytes": 683511808,
+      "memory_total_bytes": 12601327616,
+      "storage_used_bytes": 113863895810048,
+      "storage_total_bytes": 126562507685888,
+      "disk_read_bytes": 179363787264,
+      "disk_write_bytes": 8243838976,
+      "network_rx_bytes": 995798,
+      "network_tx_bytes": 3138177
+    },
+    "openresty_observation": {
+      "captured_at_unix": 1781848738,
+      "openresty_rx_bytes": 0,
+      "openresty_tx_bytes": 0,
+      "openresty_connections": 1
+    },
+    "traffic_report": {
+      "window_started_at_unix": 1781848680,
+      "window_ended_at_unix": 1781848738,
+      "request_count": 0,
+      "error_count": 0,
+      "unique_visitor_count": 0,
+      "status_codes": {},
+      "top_domains": {},
+      "source_countries": {}
+    },
+    "queued_at_unix": 1781848738
+  },
+  {
+    "window_started_at_unix": 1781848740,
+    "snapshot": {
+      "captured_at_unix": 1781848798,
+      "cpu_usage_percent": 0.3253253253253253,
+      "memory_used_bytes": 683442176,
+      "memory_total_bytes": 12601327616,
+      "storage_used_bytes": 113874683559936,
+      "storage_total_bytes": 126562507685888,
+      "disk_read_bytes": 179498406400,
+      "disk_write_bytes": 8244953088,
+      "network_rx_bytes": 996248,
+      "network_tx_bytes": 3138747
+    },
+    "openresty_observation": {
+      "captured_at_unix": 1781848798,
+      "openresty_rx_bytes": 0,
+      "openresty_tx_bytes": 0,
+      "openresty_connections": 1
+    },
+    "traffic_report": {
+      "window_started_at_unix": 1781848740,
+      "window_ended_at_unix": 1781848798,
+      "request_count": 0,
+      "error_count": 0,
+      "unique_visitor_count": 0,
+      "status_codes": {},
+      "top_domains": {},
+      "source_countries": {}
+    },
+    "queued_at_unix": 1781848798
+  },
+  {
+    "window_started_at_unix": 1781848800,
+    "snapshot": {
+      "captured_at_unix": 1781848858,
+      "cpu_usage_percent": 0.2251688766574931,
+      "memory_used_bytes": 683982848,
+      "memory_total_bytes": 12601327616,
+      "storage_used_bytes": 113881640861696,
+      "storage_total_bytes": 126562507685888,
+      "disk_read_bytes": 179556286976,
+      "disk_write_bytes": 8245567488,
+      "network_rx_bytes": 996698,
+      "network_tx_bytes": 3139317
+    },
+    "openresty_observation": {
+      "captured_at_unix": 1781848858,
+      "openresty_rx_bytes": 0,
+      "openresty_tx_bytes": 0,
+      "openresty_connections": 1
+    },
+    "traffic_report": {
+      "window_started_at_unix": 1781848800,
+      "window_ended_at_unix": 1781848858,
+      "request_count": 0,
+      "error_count": 0,
+      "unique_visitor_count": 0,
+      "status_codes": {},
+      "top_domains": {},
+      "source_countries": {}
+    },
+    "queued_at_unix": 1781848858
+  },
+  {
+    "window_started_at_unix": 1781848860,
+    "snapshot": {
+      "captured_at_unix": 1781848918,
+      "cpu_usage_percent": 0.44999999999999996,
+      "memory_used_bytes": 675201024,
+      "memory_total_bytes": 12601327616,
+      "storage_used_bytes": 113889617379328,
+      "storage_total_bytes": 126562507685888,
+      "disk_read_bytes": 179728159232,
+      "disk_write_bytes": 8246779904,
+      "network_rx_bytes": 997148,
+      "network_tx_bytes": 3139887
+    },
+    "openresty_observation": {
+      "captured_at_unix": 1781848918,
+      "openresty_rx_bytes": 0,
+      "openresty_tx_bytes": 0,
+      "openresty_connections": 1
+    },
+    "traffic_report": {
+      "window_started_at_unix": 1781848860,
+      "window_ended_at_unix": 1781848918,
+      "request_count": 0,
+      "error_count": 0,
+      "unique_visitor_count": 0,
+      "status_codes": {},
+      "top_domains": {},
+      "source_countries": {}
+    },
+    "queued_at_unix": 1781848918
+  },
+  {
+    "window_started_at_unix": 1781848920,
+    "snapshot": {
+      "captured_at_unix": 1781848978,
+      "cpu_usage_percent": 0.287464066991626,
+      "memory_used_bytes": 681017344,
+      "memory_total_bytes": 12601327616,
+      "storage_used_bytes": 113892144447488,
+      "storage_total_bytes": 126562507685888,
+      "disk_read_bytes": 179760898560,
+      "disk_write_bytes": 8247394304,
+      "network_rx_bytes": 997598,
+      "network_tx_bytes": 3140457
+    },
+    "openresty_observation": {
+      "captured_at_unix": 1781848978,
+      "openresty_rx_bytes": 0,
+      "openresty_tx_bytes": 0,
+      "openresty_connections": 1
+    },
+    "traffic_report": {
+      "window_started_at_unix": 1781848920,
+      "window_ended_at_unix": 1781848978,
+      "request_count": 0,
+      "error_count": 0,
+      "unique_visitor_count": 0,
+      "status_codes": {},
+      "top_domains": {},
+      "source_countries": {}
+    },
+    "queued_at_unix": 1781848978
+  },
+  {
+    "window_started_at_unix": 1781848980,
+    "snapshot": {
+      "captured_at_unix": 1781849038,
+      "cpu_usage_percent": 0.37537537537537535,
+      "memory_used_bytes": 685330432,
+      "memory_total_bytes": 12601327616,
+      "storage_used_bytes": 113921559101440,
+      "storage_total_bytes": 126562507685888,
+      "disk_read_bytes": 179892072960,
+      "disk_write_bytes": 8248508416,
+      "network_rx_bytes": 998090,
+      "network_tx_bytes": 3141069
+    },
+    "openresty_observation": {
+      "captured_at_unix": 1781849038,
+      "openresty_rx_bytes": 0,
+      "openresty_tx_bytes": 0,
+      "openresty_connections": 1
+    },
+    "traffic_report": {
+      "window_started_at_unix": 1781848980,
+      "window_ended_at_unix": 1781849038,
+      "request_count": 0,
+      "error_count": 0,
+      "unique_visitor_count": 0,
+      "status_codes": {},
+      "top_domains": {},
+      "source_countries": {}
+    },
+    "queued_at_unix": 1781849038
+  },
+  {
+    "window_started_at_unix": 1781849040,
+    "snapshot": {
+      "captured_at_unix": 1781849048,
+      "cpu_usage_percent": 0.2875718929732433,
+      "memory_used_bytes": 711155712,
+      "memory_total_bytes": 12601327616,
+      "storage_used_bytes": 113921939734528,
+      "storage_total_bytes": 126562507685888,
+      "disk_read_bytes": 179897475584,
+      "disk_write_bytes": 8248524800,
+      "network_rx_bytes": 998144,
+      "network_tx_bytes": 3141143
+    },
+    "openresty_observation": {
+      "captured_at_unix": 1781849048,
+      "openresty_rx_bytes": 0,
+      "openresty_tx_bytes": 0,
+      "openresty_connections": 1
+    },
+    "traffic_report": {
+      "window_started_at_unix": 1781849040,
+      "window_ended_at_unix": 1781849048,
+      "request_count": 0,
+      "error_count": 0,
+      "unique_visitor_count": 0,
+      "status_codes": {},
+      "top_domains": {},
+      "source_countries": {}
+    },
+    "queued_at_unix": 1781849048
+  }
+]

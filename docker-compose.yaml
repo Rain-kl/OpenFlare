@@ -1,8 +1,8 @@
 services:
   agent:
     build:
-        context: .
-        dockerfile: openflare-agent/Dockerfile
+        context: ./openflare-server
+        dockerfile: docker/Dockerfile.agent
     container_name: openflare-agent
     restart: unless-stopped
 
@@ -12,7 +12,7 @@ services:
       - "127.0.0.1:18081:18081"
 
     volumes:
-      - ./openflare-agent/data/:/data
+      - ./data/agent/:/data
 
     environment:
       OPENFLARE_SERVER_URL: "http://host.docker.internal:3000"
@@ -24,13 +24,13 @@ services:
 
   relay:
     build:
-      context: .
-      dockerfile: openflare-relay/Dockerfile
+      context: ./openflare-server
+      dockerfile: docker/Dockerfile.relay
     container_name: openflare-relay
     network_mode: host
     restart: unless-stopped
     volumes:
-      - ./openflare-relay/data/:/app/data
+      - ./data/relay/:/app/data
     environment:
       OPENFLARE_SERVER_URL: http://host.docker.internal:3000
       OPENFLARE_DISCOVERY_TOKEN: 85464eeb72c49abc430569d6b9c77f78
@@ -41,14 +41,15 @@ services:
 
   flared:
     build:
-      context: .
-      dockerfile: openflared/Dockerfile
+      context: ./openflare-server
+      dockerfile: docker/Dockerfile.flared
     container_name: openflare-flared
     network_mode: "host"
     restart: unless-stopped
     volumes:
-      - ./openflared/data/:/app/data
+      - ./data/flared/:/app/data
     environment:
       OPENFLARE_SERVER_URL: "http://host.docker.internal:3000"
       OPENFLARE_TUNNEL_TOKEN: deb0783ac1e264a9d86440169aca0f09
+
 

@@ -1,8 +1,0 @@
-{
-  "server_url": "http://127.0.0.1:3000",
-  "agent_token": "373956188ddead1df6dd7c86cd330b73",
-  "data_dir": "./data",
-  "openresty_path": "openresty",
-  "heartbeat_interval": 10000,
-  "request_timeout": 10000
-}

@@ -1,0 +1,11 @@
+bindPort = 17000
+vhostHTTPPort = 8080
+[auth]
+method = "token"
+token = "f977f20f25883e624eb83ee9be84926c"
+
+[webServer]
+addr = "0.0.0.0"
+port = 17500
+user = "admin"
+password = "85464eeb72c49abc430569d6b9c77f78"

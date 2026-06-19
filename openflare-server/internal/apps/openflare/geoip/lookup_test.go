@@ -7,7 +7,7 @@ import (
 	"net"
 	"testing"
 
-	pkggeoip "github.com/rain-kl/openflare/pkg/geoip"
+	pkggeoip "github.com/Rain-kl/Wavelet/pkg/geoip"
 )
 
 type fakeLookupProvider struct{}

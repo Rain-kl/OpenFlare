@@ -4,7 +4,7 @@
 package config_version
 
 import (
-	openrestyrender "github.com/rain-kl/openflare/pkg/render/openresty"
+	openrestyrender "github.com/Rain-kl/Wavelet/pkg/render/openresty"
 )
 
 // SupportFile is a rendered configuration support artifact.

@@ -139,6 +139,11 @@ func TestRegisterCreatesAuthenticatedEncryptedUser(t *testing.T) {
 	dbConn, _, cleanup := testhelper.SetupTestEnvironment(t)
 	defer cleanup()
 
+	// Enable registration for this test
+	dbConn.Model(&model.SystemConfig{}).Where("key = ?", model.ConfigKeyRegistrationEnabled).Update("value", "true")
+	dbConn.Model(&model.SystemConfig{}).Where("key = ?", model.ConfigKeyPasswordRegisterEnabled).Update("value", "true")
+	_ = repository.InvalidateAllSystemConfigCaches(context.Background())
+
 	router := setupUserTestRouter(t)
 	payload := registerRequest{
 		Username: "newuser",

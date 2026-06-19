@@ -13,6 +13,7 @@ import (
 	"github.com/Rain-kl/Wavelet/internal/apps/admin/push"
 	"github.com/Rain-kl/Wavelet/internal/listener"
 	"github.com/Rain-kl/Wavelet/internal/model"
+	"github.com/Rain-kl/Wavelet/internal/repository"
 	"github.com/Rain-kl/Wavelet/internal/task"
 	"github.com/Rain-kl/Wavelet/internal/testhelper"
 	"github.com/hibiken/asynq"
@@ -166,6 +167,7 @@ func TestAdminLoginPushIntegration(t *testing.T) {
 		require.NoError(t, dbConn.Where("event_key = ?", AdminLogin.Key).First(&event).Error)
 		event.Enabled = false
 		require.NoError(t, dbConn.Save(&event).Error)
+		repository.DeleteActivePushEventCache(context.Background(), AdminLogin.Key)
 
 		listener.EmitAdminLoggedIn(context.Background(), adminUser, "10.0.0.1")
 		waitForAsyncTrigger(t)

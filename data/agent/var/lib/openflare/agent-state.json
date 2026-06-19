@@ -1,0 +1,16 @@
+{
+  "node_id": "node-4a2bfffe5a8c8dad",
+  "current_version": "20260618-004",
+  "current_checksum": "cfdda2c756f0e3263b5bb67aea898ff28586682547fb41c78cde82bf3ffb68d6",
+  "blocked_version": "",
+  "blocked_checksum": "",
+  "blocked_reason": "",
+  "last_error": "",
+  "openresty_status": "healthy",
+  "openresty_message": "",
+  "last_profile_fingerprint": "848303a6e044aec69efa18333711c484d711fbff229c72a3c2bc93fd742bc340",
+  "last_cpu_stat_total": 91359492,
+  "last_cpu_stat_idle": 91057341,
+  "last_metric_at_unix": 1781849048,
+  "access_log_offset": 9522
+}

@@ -6,7 +6,7 @@ package agent
 import (
 	"testing"
 
-	openrestyrender "github.com/rain-kl/openflare/pkg/render/openresty"
+	openrestyrender "github.com/Rain-kl/Wavelet/pkg/render/openresty"
 )
 
 func TestIsRuntimeGeneratedSupportFile(t *testing.T) {

@@ -8,7 +8,7 @@ import (
 	"net"
 	"strings"
 
-	pkggeoip "github.com/rain-kl/openflare/pkg/geoip"
+	pkggeoip "github.com/Rain-kl/Wavelet/pkg/geoip"
 )
 
 var accessLogGeoProviderFactory = func() (pkggeoip.GeoIPService, error) {

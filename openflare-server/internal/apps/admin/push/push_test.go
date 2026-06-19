@@ -25,7 +25,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 
+	"github.com/Rain-kl/Wavelet/internal/apps/oauth"
 	"github.com/Rain-kl/Wavelet/internal/common/response"
+	"github.com/Rain-kl/Wavelet/internal/repository"
 )
 
 var adminLoginEvent = EventMetadata{
@@ -191,6 +193,7 @@ func TestEventTrigger(t *testing.T) {
 		event.Targets = []string{"admin_user"}
 		err = dbConn.Save(&event).Error
 		require.NoError(t, err)
+		repository.DeleteActivePushEventCache(context.Background(), "admin_login")
 
 		// Trigger
 		body := map[string]any{
@@ -249,6 +252,7 @@ func TestEventTrigger(t *testing.T) {
 		event.Targets = []string{"user.username"} // 动态目标
 		err = dbConn.Save(&event).Error
 		require.NoError(t, err)
+		repository.DeleteActivePushEventCache(context.Background(), "admin_login")
 
 		// Trigger with empty body (simulates cron scheduler triggering)
 		DefaultTrigger.Trigger(context.Background(), adminLoginEvent, nil)
@@ -372,6 +376,7 @@ func TestPushRouters(t *testing.T) {
 		// 2. 为该事件关联渠道后，再切换开启，应当成功
 		event.Channels = []string{"email"}
 		dbConn.Save(&event)
+		repository.DeleteActivePushEventCache(context.Background(), event.EventKey)
 
 		req2, _ := http.NewRequest("POST", "/api/v1/admin/push/events/"+strconv.FormatUint(event.ID, 10)+"/toggle", nil)
 		w2 := httptest.NewRecorder()

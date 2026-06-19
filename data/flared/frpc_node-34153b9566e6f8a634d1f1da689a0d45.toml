@@ -1,0 +1,12 @@
+serverAddr = "127.0.0.1"
+serverPort = 17000
+auth.method = "token"
+auth.token = "f977f20f25883e624eb83ee9be84926c"
+
+[[proxies]]
+name = "node-d3dbcc88b3cc381c004bf04eafbfbbdb-local2-arctel-de"
+type = "http"
+localIP = "abc"
+localPort = 5666
+customDomains = ["local2.arctel.de"]
+
