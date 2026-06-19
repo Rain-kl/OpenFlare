@@ -59,7 +59,7 @@ func GetNoticeHandler(c *gin.Context) {
 // @Success 200 {object} response.Any{data=[]model.OpenFlareOption} "配置项列表"
 // @Failure 400 {object} response.Any "参数错误"
 // @Failure 401 {object} response.Any "未登录"
-// @Failure 403 {object} response.Any "无管理员权限"
+// @Failure 404 {object} response.Any "无权限或不存在"
 // @Failure 500 {object} response.Any "内部错误"
 // @Router /api/v1/d/option [get]
 // ListOptionsHandler lists OpenFlare options.
@@ -82,7 +82,7 @@ func ListOptionsHandler(c *gin.Context) {
 // @Success 200 {object} response.Any "更新成功"
 // @Failure 400 {object} response.Any "参数错误"
 // @Failure 401 {object} response.Any "未登录"
-// @Failure 403 {object} response.Any "无管理员权限"
+// @Failure 404 {object} response.Any "无权限或不存在"
 // @Failure 500 {object} response.Any "内部错误"
 // @Router /api/v1/d/option/update [post]
 // UpdateOptionHandler updates a single option.
@@ -108,7 +108,7 @@ func UpdateOptionHandler(c *gin.Context) {
 // @Success 200 {object} response.Any "更新成功"
 // @Failure 400 {object} response.Any "参数错误"
 // @Failure 401 {object} response.Any "未登录"
-// @Failure 403 {object} response.Any "无管理员权限"
+// @Failure 404 {object} response.Any "无权限或不存在"
 // @Failure 500 {object} response.Any "内部错误"
 // @Router /api/v1/d/option/update-batch [post]
 // UpdateOptionsBatchHandler updates options in batch.
@@ -134,7 +134,7 @@ func UpdateOptionsBatchHandler(c *gin.Context) {
 // @Success 200 {object} response.Any{data=option.geoIPLookupView} "GeoIP 查询结果"
 // @Failure 400 {object} response.Any "参数错误"
 // @Failure 401 {object} response.Any "未登录"
-// @Failure 403 {object} response.Any "无管理员权限"
+// @Failure 404 {object} response.Any "无权限或不存在"
 // @Failure 500 {object} response.Any "内部错误"
 // @Router /api/v1/d/option/geoip/lookup [post]
 // LookupGeoIPHandler performs a GeoIP lookup.
@@ -161,7 +161,7 @@ func LookupGeoIPHandler(c *gin.Context) {
 // @Success 200 {object} response.Any{data=option.databaseCleanupResult} "清理结果"
 // @Failure 400 {object} response.Any "参数错误"
 // @Failure 401 {object} response.Any "未登录"
-// @Failure 403 {object} response.Any "无管理员权限"
+// @Failure 404 {object} response.Any "无权限或不存在"
 // @Failure 500 {object} response.Any "内部错误"
 // @Router /api/v1/d/option/database/cleanup [post]
 // CleanupDatabaseHandler cleans up observability data.
@@ -188,7 +188,7 @@ func CleanupDatabaseHandler(c *gin.Context) {
 // @Success 200 {object} response.Any{data=string} "同步成功"
 // @Failure 400 {object} response.Any "参数错误"
 // @Failure 401 {object} response.Any "未登录"
-// @Failure 403 {object} response.Any "无管理员权限"
+// @Failure 404 {object} response.Any "无权限或不存在"
 // @Failure 500 {object} response.Any "内部错误"
 // @Router /api/v1/d/uptimekuma/sync [post]
 // SyncUptimeKumaHandler triggers UptimeKuma sync.

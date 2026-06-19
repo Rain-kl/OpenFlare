@@ -20,7 +20,7 @@ import (
 // @Success 200 {object} response.Any{data=dashboard.OverviewPayload} "仪表盘概览"
 // @Failure 400 {object} response.Any "参数错误"
 // @Failure 401 {object} response.Any "未登录"
-// @Failure 403 {object} response.Any "无管理员权限"
+// @Failure 404 {object} response.Any "无权限或不存在"
 // @Failure 500 {object} response.Any "内部错误"
 // @Router /api/v1/d/dashboard/overview [get]
 func GetOverviewHandler(c *gin.Context) {

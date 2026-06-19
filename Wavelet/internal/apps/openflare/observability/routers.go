@@ -29,7 +29,7 @@ import (
 // @Success 200 {object} response.Any{data=observability.AccessLogList} "访问日志列表"
 // @Failure 400 {object} response.Any "参数错误"
 // @Failure 401 {object} response.Any "未登录"
-// @Failure 403 {object} response.Any "无管理员权限"
+// @Failure 404 {object} response.Any "无权限或不存在"
 // @Failure 500 {object} response.Any "内部错误"
 // @Router /api/v1/d/access-logs [get]
 func GetAccessLogsHandler(c *gin.Context) {
@@ -58,7 +58,7 @@ func GetAccessLogsHandler(c *gin.Context) {
 // @Success 200 {object} response.Any{data=observability.FoldedAccessLogList} "折叠访问日志列表"
 // @Failure 400 {object} response.Any "参数错误"
 // @Failure 401 {object} response.Any "未登录"
-// @Failure 403 {object} response.Any "无管理员权限"
+// @Failure 404 {object} response.Any "无权限或不存在"
 // @Failure 500 {object} response.Any "内部错误"
 // @Router /api/v1/d/access-logs/folds [get]
 func GetFoldedAccessLogsHandler(c *gin.Context) {
@@ -90,7 +90,7 @@ func GetFoldedAccessLogsHandler(c *gin.Context) {
 // @Success 200 {object} response.Any{data=observability.FoldedAccessLogIPList} "折叠 IP 汇总列表"
 // @Failure 400 {object} response.Any "参数错误"
 // @Failure 401 {object} response.Any "未登录"
-// @Failure 403 {object} response.Any "无管理员权限"
+// @Failure 404 {object} response.Any "无权限或不存在"
 // @Failure 500 {object} response.Any "内部错误"
 // @Router /api/v1/d/access-logs/folds/ip-summary [get]
 func GetFoldedAccessLogIPsHandler(c *gin.Context) {
@@ -128,7 +128,7 @@ func GetFoldedAccessLogIPsHandler(c *gin.Context) {
 // @Success 200 {object} response.Any{data=observability.AccessLogIPSummaryList} "IP 汇总列表"
 // @Failure 400 {object} response.Any "参数错误"
 // @Failure 401 {object} response.Any "未登录"
-// @Failure 403 {object} response.Any "无管理员权限"
+// @Failure 404 {object} response.Any "无权限或不存在"
 // @Failure 500 {object} response.Any "内部错误"
 // @Router /api/v1/d/access-logs/ip-summary [get]
 func GetAccessLogIPSummariesHandler(c *gin.Context) {
@@ -161,7 +161,7 @@ func GetAccessLogIPSummariesHandler(c *gin.Context) {
 // @Success 200 {object} response.Any{data=observability.AccessLogIPTrendView} "IP 访问趋势"
 // @Failure 400 {object} response.Any "参数错误"
 // @Failure 401 {object} response.Any "未登录"
-// @Failure 403 {object} response.Any "无管理员权限"
+// @Failure 404 {object} response.Any "无权限或不存在"
 // @Failure 500 {object} response.Any "内部错误"
 // @Router /api/v1/d/access-logs/ip-summary/trend [get]
 func GetAccessLogIPTrendHandler(c *gin.Context) {
@@ -189,7 +189,7 @@ func GetAccessLogIPTrendHandler(c *gin.Context) {
 // @Success 200 {object} response.Any{data=observability.AccessLogCleanupResult} "清理结果"
 // @Failure 400 {object} response.Any "参数错误"
 // @Failure 401 {object} response.Any "未登录"
-// @Failure 403 {object} response.Any "无管理员权限"
+// @Failure 404 {object} response.Any "无权限或不存在"
 // @Failure 500 {object} response.Any "内部错误"
 // @Router /api/v1/d/access-logs/cleanup [post]
 func CleanupAccessLogsHandler(c *gin.Context) {

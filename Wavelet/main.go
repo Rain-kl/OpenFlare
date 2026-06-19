@@ -17,6 +17,12 @@ import "github.com/Rain-kl/Wavelet/internal/cmd"
 // @securityDefinitions.apikey SessionCookie
 // @in cookie
 // @name session
+// @securityDefinitions.apikey AgentTokenAuth
+// @in header
+// @name X-Agent-Token
+// @securityDefinitions.apikey TunnelTokenAuth
+// @in header
+// @name X-Tunnel-Token
 func main() {
 	cmd.Execute()
 }

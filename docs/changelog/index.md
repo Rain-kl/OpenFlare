@@ -72,6 +72,7 @@ sidebar: false
 
 ### 变更
 
+- 补齐 OpenFlare Swagger 文档：新增 Agent/Relay/Tunnel 协议端点（13 个 `/api/v1/agent|relay|tunnel/*`）注解与安全定义（`AgentTokenAuth`、`TunnelTokenAuth`）；管理端注解将权限不足响应由 403 统一为 404。
 - Wavelet API 路径统一：管理端由 `/api/v1/openflare/*` 调整为 `/api/v1/d/*`；Agent/Relay/Tunnel 协议路由分别迁移至 `/api/v1/agent/*`、`/api/v1/relay/*`、`/api/v1/tunnel/*`（原 `/api/flared/*`）。同步更新 Wavelet 前端服务层与 `openflare-agent`、`openflare-relay`、`openflared` 客户端连接端点。
 - Agent/Relay/Tunnel 协议 API 响应格式对齐 Wavelet `{error_msg, data}`：服务端移除 `compat` 包，业务错误改为 HTTP 4xx + `error_msg`；同步更新 `openflare-agent`、`openflare-relay`、`openflared` HTTP 客户端解析逻辑。
 - OpenFlare 管理端权限模型对齐 Wavelet：取消旧系统 Admin/Root 三级角色区分，统一以 `user.IsAdmin` 为管理门槛；Access Token 访问敏感接口（Option、Update 等）须 `token_admin=true`；权限不足返回 HTTP 404 + `error_msg`，参数错误返回 HTTP 400 + `error_msg`（`apiutil.AdminMiddlewares` = `oauth.LoginRequired` + `admin.LoginAdminRequired`）。

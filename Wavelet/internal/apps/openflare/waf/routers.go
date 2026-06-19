@@ -43,7 +43,7 @@ func routeIDParam(c *gin.Context) (uint, bool) {
 // @Success 200 {object} response.Any{data=[]waf.RuleGroupView} "规则组列表"
 // @Failure 400 {object} response.Any "参数错误"
 // @Failure 401 {object} response.Any "未登录"
-// @Failure 403 {object} response.Any "无管理员权限"
+// @Failure 404 {object} response.Any "无权限或不存在"
 // @Failure 500 {object} response.Any "内部错误"
 // @Router /api/v1/d/waf/rule-groups [get]
 func ListRuleGroupsHandler(c *gin.Context) {
@@ -64,7 +64,7 @@ func ListRuleGroupsHandler(c *gin.Context) {
 // @Success 200 {object} response.Any{data=waf.RuleGroupView} "规则组详情"
 // @Failure 400 {object} response.Any "参数错误"
 // @Failure 401 {object} response.Any "未登录"
-// @Failure 403 {object} response.Any "无管理员权限"
+// @Failure 404 {object} response.Any "无权限或不存在"
 // @Failure 404 {object} response.Any "记录不存在"
 // @Failure 500 {object} response.Any "内部错误"
 // @Router /api/v1/d/waf/rule-groups/{id} [get]
@@ -91,7 +91,7 @@ func GetRuleGroupHandler(c *gin.Context) {
 // @Success 200 {object} response.Any{data=waf.RuleGroupView} "创建成功的规则组"
 // @Failure 400 {object} response.Any "参数错误"
 // @Failure 401 {object} response.Any "未登录"
-// @Failure 403 {object} response.Any "无管理员权限"
+// @Failure 404 {object} response.Any "无权限或不存在"
 // @Failure 500 {object} response.Any "内部错误"
 // @Router /api/v1/d/waf/rule-groups [post]
 func CreateRuleGroupHandler(c *gin.Context) {
@@ -118,7 +118,7 @@ func CreateRuleGroupHandler(c *gin.Context) {
 // @Success 200 {object} response.Any{data=waf.RuleGroupView} "更新后的规则组"
 // @Failure 400 {object} response.Any "参数错误"
 // @Failure 401 {object} response.Any "未登录"
-// @Failure 403 {object} response.Any "无管理员权限"
+// @Failure 404 {object} response.Any "无权限或不存在"
 // @Failure 404 {object} response.Any "记录不存在"
 // @Failure 500 {object} response.Any "内部错误"
 // @Router /api/v1/d/waf/rule-groups/{id}/update [post]
@@ -148,7 +148,7 @@ func UpdateRuleGroupHandler(c *gin.Context) {
 // @Success 200 {object} response.Any "删除成功"
 // @Failure 400 {object} response.Any "参数错误"
 // @Failure 401 {object} response.Any "未登录"
-// @Failure 403 {object} response.Any "无管理员权限"
+// @Failure 404 {object} response.Any "无权限或不存在"
 // @Failure 404 {object} response.Any "记录不存在"
 // @Failure 500 {object} response.Any "内部错误"
 // @Router /api/v1/d/waf/rule-groups/{id}/delete [post]
@@ -175,7 +175,7 @@ func DeleteRuleGroupHandler(c *gin.Context) {
 // @Success 200 {object} response.Any{data=waf.RuleGroupView} "更新后的规则组"
 // @Failure 400 {object} response.Any "参数错误"
 // @Failure 401 {object} response.Any "未登录"
-// @Failure 403 {object} response.Any "无管理员权限"
+// @Failure 404 {object} response.Any "无权限或不存在"
 // @Failure 404 {object} response.Any "记录不存在"
 // @Failure 500 {object} response.Any "内部错误"
 // @Router /api/v1/d/waf/rule-groups/{id}/sites [post]
@@ -205,7 +205,7 @@ func ReplaceRuleGroupSitesHandler(c *gin.Context) {
 // @Success 200 {object} response.Any{data=waf.SiteRuleGroupsView} "站点规则组绑定"
 // @Failure 400 {object} response.Any "参数错误"
 // @Failure 401 {object} response.Any "未登录"
-// @Failure 403 {object} response.Any "无管理员权限"
+// @Failure 404 {object} response.Any "无权限或不存在"
 // @Failure 404 {object} response.Any "记录不存在"
 // @Failure 500 {object} response.Any "内部错误"
 // @Router /api/v1/d/waf/sites/{route_id}/rule-groups [get]
@@ -233,7 +233,7 @@ func GetSiteRuleGroupsHandler(c *gin.Context) {
 // @Success 200 {object} response.Any{data=waf.SiteRuleGroupsView} "更新后的站点规则组绑定"
 // @Failure 400 {object} response.Any "参数错误"
 // @Failure 401 {object} response.Any "未登录"
-// @Failure 403 {object} response.Any "无管理员权限"
+// @Failure 404 {object} response.Any "无权限或不存在"
 // @Failure 404 {object} response.Any "记录不存在"
 // @Failure 500 {object} response.Any "内部错误"
 // @Router /api/v1/d/waf/sites/{route_id}/rule-groups [post]
@@ -262,7 +262,7 @@ func ReplaceSiteRuleGroupsHandler(c *gin.Context) {
 // @Success 200 {object} response.Any{data=[]waf.IPGroupView} "IP 组列表"
 // @Failure 400 {object} response.Any "参数错误"
 // @Failure 401 {object} response.Any "未登录"
-// @Failure 403 {object} response.Any "无管理员权限"
+// @Failure 404 {object} response.Any "无权限或不存在"
 // @Failure 500 {object} response.Any "内部错误"
 // @Router /api/v1/d/waf/ip-groups [get]
 func ListIPGroupsHandler(c *gin.Context) {
@@ -283,7 +283,7 @@ func ListIPGroupsHandler(c *gin.Context) {
 // @Success 200 {object} response.Any{data=waf.IPGroupView} "IP 组详情"
 // @Failure 400 {object} response.Any "参数错误"
 // @Failure 401 {object} response.Any "未登录"
-// @Failure 403 {object} response.Any "无管理员权限"
+// @Failure 404 {object} response.Any "无权限或不存在"
 // @Failure 404 {object} response.Any "记录不存在"
 // @Failure 500 {object} response.Any "内部错误"
 // @Router /api/v1/d/waf/ip-groups/{id} [get]
@@ -310,7 +310,7 @@ func GetIPGroupHandler(c *gin.Context) {
 // @Success 200 {object} response.Any{data=waf.IPGroupView} "创建成功的 IP 组"
 // @Failure 400 {object} response.Any "参数错误"
 // @Failure 401 {object} response.Any "未登录"
-// @Failure 403 {object} response.Any "无管理员权限"
+// @Failure 404 {object} response.Any "无权限或不存在"
 // @Failure 500 {object} response.Any "内部错误"
 // @Router /api/v1/d/waf/ip-groups [post]
 func CreateIPGroupHandler(c *gin.Context) {
@@ -337,7 +337,7 @@ func CreateIPGroupHandler(c *gin.Context) {
 // @Success 200 {object} response.Any{data=waf.IPGroupView} "更新后的 IP 组"
 // @Failure 400 {object} response.Any "参数错误"
 // @Failure 401 {object} response.Any "未登录"
-// @Failure 403 {object} response.Any "无管理员权限"
+// @Failure 404 {object} response.Any "无权限或不存在"
 // @Failure 404 {object} response.Any "记录不存在"
 // @Failure 500 {object} response.Any "内部错误"
 // @Router /api/v1/d/waf/ip-groups/{id}/update [post]
@@ -367,7 +367,7 @@ func UpdateIPGroupHandler(c *gin.Context) {
 // @Success 200 {object} response.Any "删除成功"
 // @Failure 400 {object} response.Any "参数错误"
 // @Failure 401 {object} response.Any "未登录"
-// @Failure 403 {object} response.Any "无管理员权限"
+// @Failure 404 {object} response.Any "无权限或不存在"
 // @Failure 404 {object} response.Any "记录不存在"
 // @Failure 500 {object} response.Any "内部错误"
 // @Router /api/v1/d/waf/ip-groups/{id}/delete [post]
@@ -392,7 +392,7 @@ func DeleteIPGroupHandler(c *gin.Context) {
 // @Success 200 {object} response.Any{data=waf.IPGroupSyncResult} "同步结果"
 // @Failure 400 {object} response.Any "参数错误"
 // @Failure 401 {object} response.Any "未登录"
-// @Failure 403 {object} response.Any "无管理员权限"
+// @Failure 404 {object} response.Any "无权限或不存在"
 // @Failure 404 {object} response.Any "记录不存在"
 // @Failure 500 {object} response.Any "内部错误"
 // @Router /api/v1/d/waf/ip-groups/{id}/sync [post]
@@ -419,7 +419,7 @@ func SyncIPGroupHandler(c *gin.Context) {
 // @Success 200 {object} response.Any{data=waf.IPGroupAutoTestResult} "测试结果"
 // @Failure 400 {object} response.Any "参数错误"
 // @Failure 401 {object} response.Any "未登录"
-// @Failure 403 {object} response.Any "无管理员权限"
+// @Failure 404 {object} response.Any "无权限或不存在"
 // @Failure 500 {object} response.Any "内部错误"
 // @Router /api/v1/d/waf/ip-groups/test [post]
 func TestIPGroupAutoConfigHandler(c *gin.Context) {

@@ -43,7 +43,7 @@ func deploymentIDParam(c *gin.Context) (uint, bool) {
 // @Success 200 {object} response.Any{data=[]pages.View} "Pages 项目列表"
 // @Failure 400 {object} response.Any "参数错误"
 // @Failure 401 {object} response.Any "未登录"
-// @Failure 403 {object} response.Any "无管理员权限"
+// @Failure 404 {object} response.Any "无权限或不存在"
 // @Failure 500 {object} response.Any "内部错误"
 // @Router /api/v1/d/pages [get]
 func ListProjectsHandler(c *gin.Context) {
@@ -64,7 +64,7 @@ func ListProjectsHandler(c *gin.Context) {
 // @Success 200 {object} response.Any{data=pages.View} "Pages 项目详情"
 // @Failure 400 {object} response.Any "参数错误"
 // @Failure 401 {object} response.Any "未登录"
-// @Failure 403 {object} response.Any "无管理员权限"
+// @Failure 404 {object} response.Any "无权限或不存在"
 // @Failure 404 {object} response.Any "项目不存在"
 // @Failure 500 {object} response.Any "内部错误"
 // @Router /api/v1/d/pages/{id} [get]
@@ -91,7 +91,7 @@ func GetProjectHandler(c *gin.Context) {
 // @Success 200 {object} response.Any{data=pages.View} "创建成功的项目"
 // @Failure 400 {object} response.Any "参数错误"
 // @Failure 401 {object} response.Any "未登录"
-// @Failure 403 {object} response.Any "无管理员权限"
+// @Failure 404 {object} response.Any "无权限或不存在"
 // @Failure 500 {object} response.Any "内部错误"
 // @Router /api/v1/d/pages [post]
 func CreateProjectHandler(c *gin.Context) {
@@ -118,7 +118,7 @@ func CreateProjectHandler(c *gin.Context) {
 // @Success 200 {object} response.Any{data=pages.View} "更新后的项目"
 // @Failure 400 {object} response.Any "参数错误"
 // @Failure 401 {object} response.Any "未登录"
-// @Failure 403 {object} response.Any "无管理员权限"
+// @Failure 404 {object} response.Any "无权限或不存在"
 // @Failure 404 {object} response.Any "项目不存在"
 // @Failure 500 {object} response.Any "内部错误"
 // @Router /api/v1/d/pages/{id}/update [post]
@@ -148,7 +148,7 @@ func UpdateProjectHandler(c *gin.Context) {
 // @Success 200 {object} response.Any "删除成功"
 // @Failure 400 {object} response.Any "参数错误"
 // @Failure 401 {object} response.Any "未登录"
-// @Failure 403 {object} response.Any "无管理员权限"
+// @Failure 404 {object} response.Any "无权限或不存在"
 // @Failure 404 {object} response.Any "项目不存在"
 // @Failure 500 {object} response.Any "内部错误"
 // @Router /api/v1/d/pages/{id}/delete [post]
@@ -173,7 +173,7 @@ func DeleteProjectHandler(c *gin.Context) {
 // @Success 200 {object} response.Any{data=[]pages.DeploymentView} "部署列表"
 // @Failure 400 {object} response.Any "参数错误"
 // @Failure 401 {object} response.Any "未登录"
-// @Failure 403 {object} response.Any "无管理员权限"
+// @Failure 404 {object} response.Any "无权限或不存在"
 // @Failure 404 {object} response.Any "项目不存在"
 // @Failure 500 {object} response.Any "内部错误"
 // @Router /api/v1/d/pages/{id}/deployments [get]
@@ -201,7 +201,7 @@ func ListDeploymentsHandler(c *gin.Context) {
 // @Success 200 {object} response.Any{data=pages.DeploymentView} "部署记录"
 // @Failure 400 {object} response.Any "参数错误"
 // @Failure 401 {object} response.Any "未登录"
-// @Failure 403 {object} response.Any "无管理员权限"
+// @Failure 404 {object} response.Any "无权限或不存在"
 // @Failure 404 {object} response.Any "项目不存在"
 // @Failure 500 {object} response.Any "内部错误"
 // @Router /api/v1/d/pages/{id}/deployments/upload [post]
@@ -233,7 +233,7 @@ func UploadDeploymentHandler(c *gin.Context) {
 // @Success 200 {object} response.Any{data=pages.View} "激活后的项目"
 // @Failure 400 {object} response.Any "参数错误"
 // @Failure 401 {object} response.Any "未登录"
-// @Failure 403 {object} response.Any "无管理员权限"
+// @Failure 404 {object} response.Any "无权限或不存在"
 // @Failure 404 {object} response.Any "项目或部署不存在"
 // @Failure 500 {object} response.Any "内部错误"
 // @Router /api/v1/d/pages/{id}/deployments/{deployment_id}/activate [post]
@@ -264,7 +264,7 @@ func ActivateDeploymentHandler(c *gin.Context) {
 // @Success 200 {object} response.Any "删除成功"
 // @Failure 400 {object} response.Any "参数错误"
 // @Failure 401 {object} response.Any "未登录"
-// @Failure 403 {object} response.Any "无管理员权限"
+// @Failure 404 {object} response.Any "无权限或不存在"
 // @Failure 404 {object} response.Any "项目或部署不存在"
 // @Failure 500 {object} response.Any "内部错误"
 // @Router /api/v1/d/pages/{id}/deployments/{deployment_id}/delete [post]
@@ -293,7 +293,7 @@ func DeleteDeploymentHandler(c *gin.Context) {
 // @Success 200 {object} response.Any{data=[]pages.DeploymentFileView} "部署文件列表"
 // @Failure 400 {object} response.Any "参数错误"
 // @Failure 401 {object} response.Any "未登录"
-// @Failure 403 {object} response.Any "无管理员权限"
+// @Failure 404 {object} response.Any "无权限或不存在"
 // @Failure 404 {object} response.Any "部署不存在"
 // @Failure 500 {object} response.Any "内部错误"
 // @Router /api/v1/d/pages/deployments/{deployment_id}/files [get]

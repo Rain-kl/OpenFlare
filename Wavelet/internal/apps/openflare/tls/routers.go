@@ -29,7 +29,7 @@ func handleLogicError(c *gin.Context, err error) bool {
 // @Success 200 {object} response.Any{data=[]model.TLSCertificate} "证书列表"
 // @Failure 400 {object} response.Any "参数错误"
 // @Failure 401 {object} response.Any "未登录"
-// @Failure 403 {object} response.Any "无管理员权限"
+// @Failure 404 {object} response.Any "无权限或不存在"
 // @Failure 500 {object} response.Any "内部错误"
 // @Router /api/v1/d/tls-certificates [get]
 func GetCertificates(c *gin.Context) {
@@ -50,7 +50,7 @@ func GetCertificates(c *gin.Context) {
 // @Success 200 {object} response.Any{data=model.TLSCertificate} "证书详情"
 // @Failure 400 {object} response.Any "参数错误"
 // @Failure 401 {object} response.Any "未登录"
-// @Failure 403 {object} response.Any "无管理员权限"
+// @Failure 404 {object} response.Any "无权限或不存在"
 // @Failure 404 {object} response.Any "记录不存在"
 // @Failure 500 {object} response.Any "内部错误"
 // @Router /api/v1/d/tls-certificates/{id} [get]
@@ -76,7 +76,7 @@ func GetCertificateDetail(c *gin.Context) {
 // @Success 200 {object} response.Any{data=tls.CertificateContent} "证书 PEM 内容"
 // @Failure 400 {object} response.Any "参数错误"
 // @Failure 401 {object} response.Any "未登录"
-// @Failure 403 {object} response.Any "无管理员权限"
+// @Failure 404 {object} response.Any "无权限或不存在"
 // @Failure 404 {object} response.Any "记录不存在"
 // @Failure 500 {object} response.Any "内部错误"
 // @Router /api/v1/d/tls-certificates/{id}/content [get]
@@ -103,7 +103,7 @@ func GetCertificateContentHandler(c *gin.Context) {
 // @Success 200 {object} response.Any{data=model.TLSCertificate} "创建成功的证书"
 // @Failure 400 {object} response.Any "参数错误"
 // @Failure 401 {object} response.Any "未登录"
-// @Failure 403 {object} response.Any "无管理员权限"
+// @Failure 404 {object} response.Any "无权限或不存在"
 // @Failure 500 {object} response.Any "内部错误"
 // @Router /api/v1/d/tls-certificates [post]
 func CreateCertificateHandler(c *gin.Context) {
@@ -130,7 +130,7 @@ func CreateCertificateHandler(c *gin.Context) {
 // @Success 200 {object} response.Any{data=model.TLSCertificate} "更新后的证书"
 // @Failure 400 {object} response.Any "参数错误"
 // @Failure 401 {object} response.Any "未登录"
-// @Failure 403 {object} response.Any "无管理员权限"
+// @Failure 404 {object} response.Any "无权限或不存在"
 // @Failure 404 {object} response.Any "记录不存在"
 // @Failure 500 {object} response.Any "内部错误"
 // @Router /api/v1/d/tls-certificates/{id}/update [post]
@@ -164,7 +164,7 @@ func UpdateCertificateHandler(c *gin.Context) {
 // @Success 200 {object} response.Any{data=model.TLSCertificate} "导入成功的证书"
 // @Failure 400 {object} response.Any "参数错误"
 // @Failure 401 {object} response.Any "未登录"
-// @Failure 403 {object} response.Any "无管理员权限"
+// @Failure 404 {object} response.Any "无权限或不存在"
 // @Failure 500 {object} response.Any "内部错误"
 // @Router /api/v1/d/tls-certificates/import-file [post]
 func ImportCertificateFile(c *gin.Context) {
@@ -197,7 +197,7 @@ func ImportCertificateFile(c *gin.Context) {
 // @Success 200 {object} response.Any "删除成功"
 // @Failure 400 {object} response.Any "参数错误"
 // @Failure 401 {object} response.Any "未登录"
-// @Failure 403 {object} response.Any "无管理员权限"
+// @Failure 404 {object} response.Any "无权限或不存在"
 // @Failure 404 {object} response.Any "记录不存在"
 // @Failure 500 {object} response.Any "内部错误"
 // @Router /api/v1/d/tls-certificates/{id}/delete [post]
@@ -223,7 +223,7 @@ func DeleteCertificateHandler(c *gin.Context) {
 // @Success 200 {object} response.Any{data=model.TLSCertificate} "申请中的证书"
 // @Failure 400 {object} response.Any "参数错误"
 // @Failure 401 {object} response.Any "未登录"
-// @Failure 403 {object} response.Any "无管理员权限"
+// @Failure 404 {object} response.Any "无权限或不存在"
 // @Failure 500 {object} response.Any "内部错误"
 // @Router /api/v1/d/tls-certificates/apply [post]
 func ApplyCertificateHandler(c *gin.Context) {
@@ -250,7 +250,7 @@ func ApplyCertificateHandler(c *gin.Context) {
 // @Success 200 {object} response.Any{data=model.TLSCertificate} "更新后的证书"
 // @Failure 400 {object} response.Any "参数错误"
 // @Failure 401 {object} response.Any "未登录"
-// @Failure 403 {object} response.Any "无管理员权限"
+// @Failure 404 {object} response.Any "无权限或不存在"
 // @Failure 404 {object} response.Any "记录不存在"
 // @Failure 500 {object} response.Any "内部错误"
 // @Router /api/v1/d/tls-certificates/{id}/update-acme [post]
@@ -282,7 +282,7 @@ func UpdateACMECertificateHandler(c *gin.Context) {
 // @Success 200 {object} response.Any{data=model.TLSCertificate} "转换后的证书"
 // @Failure 400 {object} response.Any "参数错误"
 // @Failure 401 {object} response.Any "未登录"
-// @Failure 403 {object} response.Any "无管理员权限"
+// @Failure 404 {object} response.Any "无权限或不存在"
 // @Failure 404 {object} response.Any "记录不存在"
 // @Failure 500 {object} response.Any "内部错误"
 // @Router /api/v1/d/tls-certificates/{id}/convert-acme [post]
@@ -312,7 +312,7 @@ func ConvertCertificateToACMEHandler(c *gin.Context) {
 // @Success 200 {object} response.Any{data=model.TLSCertificate} "续期后的证书"
 // @Failure 400 {object} response.Any "参数错误"
 // @Failure 401 {object} response.Any "未登录"
-// @Failure 403 {object} response.Any "无管理员权限"
+// @Failure 404 {object} response.Any "无权限或不存在"
 // @Failure 404 {object} response.Any "记录不存在"
 // @Failure 500 {object} response.Any "内部错误"
 // @Router /api/v1/d/tls-certificates/{id}/renew [post]
@@ -337,7 +337,7 @@ func RenewCertificateHandler(c *gin.Context) {
 // @Success 200 {object} response.Any{data=[]model.ManagedDomain} "托管域名列表"
 // @Failure 400 {object} response.Any "参数错误"
 // @Failure 401 {object} response.Any "未登录"
-// @Failure 403 {object} response.Any "无管理员权限"
+// @Failure 404 {object} response.Any "无权限或不存在"
 // @Failure 500 {object} response.Any "内部错误"
 // @Router /api/v1/d/managed-domains [get]
 func GetManagedDomains(c *gin.Context) {
@@ -359,7 +359,7 @@ func GetManagedDomains(c *gin.Context) {
 // @Success 200 {object} response.Any{data=model.ManagedDomain} "创建成功的托管域名"
 // @Failure 400 {object} response.Any "参数错误"
 // @Failure 401 {object} response.Any "未登录"
-// @Failure 403 {object} response.Any "无管理员权限"
+// @Failure 404 {object} response.Any "无权限或不存在"
 // @Failure 500 {object} response.Any "内部错误"
 // @Router /api/v1/d/managed-domains [post]
 func CreateManagedDomainHandler(c *gin.Context) {
@@ -386,7 +386,7 @@ func CreateManagedDomainHandler(c *gin.Context) {
 // @Success 200 {object} response.Any{data=model.ManagedDomain} "更新后的托管域名"
 // @Failure 400 {object} response.Any "参数错误"
 // @Failure 401 {object} response.Any "未登录"
-// @Failure 403 {object} response.Any "无管理员权限"
+// @Failure 404 {object} response.Any "无权限或不存在"
 // @Failure 404 {object} response.Any "记录不存在"
 // @Failure 500 {object} response.Any "内部错误"
 // @Router /api/v1/d/managed-domains/{id}/update [post]
@@ -416,7 +416,7 @@ func UpdateManagedDomainHandler(c *gin.Context) {
 // @Success 200 {object} response.Any "删除成功"
 // @Failure 400 {object} response.Any "参数错误"
 // @Failure 401 {object} response.Any "未登录"
-// @Failure 403 {object} response.Any "无管理员权限"
+// @Failure 404 {object} response.Any "无权限或不存在"
 // @Failure 404 {object} response.Any "记录不存在"
 // @Failure 500 {object} response.Any "内部错误"
 // @Router /api/v1/d/managed-domains/{id}/delete [post]
@@ -441,7 +441,7 @@ func DeleteManagedDomainHandler(c *gin.Context) {
 // @Success 200 {object} response.Any{data=tls.ManagedDomainMatchResult} "证书匹配结果"
 // @Failure 400 {object} response.Any "参数错误"
 // @Failure 401 {object} response.Any "未登录"
-// @Failure 403 {object} response.Any "无管理员权限"
+// @Failure 404 {object} response.Any "无权限或不存在"
 // @Failure 500 {object} response.Any "内部错误"
 // @Router /api/v1/d/managed-domains/match [get]
 func MatchManagedDomainCertificateHandler(c *gin.Context) {
@@ -462,7 +462,7 @@ func MatchManagedDomainCertificateHandler(c *gin.Context) {
 // @Success 200 {object} response.Any{data=[]model.DNSAccount} "DNS 账号列表"
 // @Failure 400 {object} response.Any "参数错误"
 // @Failure 401 {object} response.Any "未登录"
-// @Failure 403 {object} response.Any "无管理员权限"
+// @Failure 404 {object} response.Any "无权限或不存在"
 // @Failure 500 {object} response.Any "内部错误"
 // @Router /api/v1/d/dns-accounts [get]
 func GetDNSAccounts(c *gin.Context) {
@@ -484,7 +484,7 @@ func GetDNSAccounts(c *gin.Context) {
 // @Success 200 {object} response.Any{data=model.DNSAccount} "创建成功的 DNS 账号"
 // @Failure 400 {object} response.Any "参数错误"
 // @Failure 401 {object} response.Any "未登录"
-// @Failure 403 {object} response.Any "无管理员权限"
+// @Failure 404 {object} response.Any "无权限或不存在"
 // @Failure 500 {object} response.Any "内部错误"
 // @Router /api/v1/d/dns-accounts [post]
 func CreateDNSAccountHandler(c *gin.Context) {
@@ -511,7 +511,7 @@ func CreateDNSAccountHandler(c *gin.Context) {
 // @Success 200 {object} response.Any{data=model.DNSAccount} "更新后的 DNS 账号"
 // @Failure 400 {object} response.Any "参数错误"
 // @Failure 401 {object} response.Any "未登录"
-// @Failure 403 {object} response.Any "无管理员权限"
+// @Failure 404 {object} response.Any "无权限或不存在"
 // @Failure 404 {object} response.Any "记录不存在"
 // @Failure 500 {object} response.Any "内部错误"
 // @Router /api/v1/d/dns-accounts/{id}/update [post]
@@ -541,7 +541,7 @@ func UpdateDNSAccountHandler(c *gin.Context) {
 // @Success 200 {object} response.Any "删除成功"
 // @Failure 400 {object} response.Any "参数错误"
 // @Failure 401 {object} response.Any "未登录"
-// @Failure 403 {object} response.Any "无管理员权限"
+// @Failure 404 {object} response.Any "无权限或不存在"
 // @Failure 404 {object} response.Any "记录不存在"
 // @Failure 500 {object} response.Any "内部错误"
 // @Router /api/v1/d/dns-accounts/{id}/delete [post]
@@ -565,7 +565,7 @@ func DeleteDNSAccountHandler(c *gin.Context) {
 // @Success 200 {object} response.Any{data=model.AcmeAccount} "默认 ACME 账号"
 // @Failure 400 {object} response.Any "参数错误"
 // @Failure 401 {object} response.Any "未登录"
-// @Failure 403 {object} response.Any "无管理员权限"
+// @Failure 404 {object} response.Any "无权限或不存在"
 // @Failure 404 {object} response.Any "记录不存在"
 // @Failure 500 {object} response.Any "内部错误"
 // @Router /api/v1/d/acme-accounts/default [get]
