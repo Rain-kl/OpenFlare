@@ -16,6 +16,10 @@ sidebar: false
 
 ## [Unreleased]
 
+### 移除
+
+- 移除 Wavelet 中从旧系统迁移但未实装的全局 API / Web / 敏感接口限流选项（`GlobalApiRateLimit*`、`GlobalWebRateLimit*`、`CriticalRateLimit*`）及相关校验与数据库种子。
+
 ### 新增
 
 - Wavelet 总览仪表盘图表对齐旧前端 ECharts 样式：24 小时请求/容量趋势补充请求量与错误量展示，新增网络与磁盘趋势、Top 节点榜单、来源分布、状态码分布与 Top Domain 板块。

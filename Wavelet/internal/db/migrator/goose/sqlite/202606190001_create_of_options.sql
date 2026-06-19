@@ -60,13 +60,7 @@ INSERT OR IGNORE INTO of_options (key, value) VALUES
     ('OpenRestyCacheKeyTemplate', '$scheme$host$request_uri'),
     ('OpenRestyCacheLockEnabled', 'true'),
     ('OpenRestyCacheLockTimeout', '5s'),
-    ('OpenRestyCacheUseStale', 'error timeout updating http_500 http_502 http_503 http_504'),
-    ('GlobalApiRateLimitNum', '300'),
-    ('GlobalApiRateLimitDuration', '180'),
-    ('GlobalWebRateLimitNum', '300'),
-    ('GlobalWebRateLimitDuration', '180'),
-    ('CriticalRateLimitNum', '100'),
-    ('CriticalRateLimitDuration', '1200');
+    ('OpenRestyCacheUseStale', 'error timeout updating http_500 http_502 http_503 http_504');
 
 -- +goose Down
 DROP TABLE IF EXISTS of_options;

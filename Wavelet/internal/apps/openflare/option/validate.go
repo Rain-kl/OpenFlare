@@ -13,8 +13,6 @@ import (
 	"github.com/Rain-kl/Wavelet/internal/model"
 )
 
-const rateLimitKeyExpirationSeconds = 1200 // 20 minutes
-
 var (
 	openRestySizePattern          = regexp.MustCompile(`^\d+[kKmMgG]?$`)
 	openRestyProxyBuffersPattern  = regexp.MustCompile(`^\d+\s+\d+[kKmMgG]?$`)
@@ -48,9 +46,6 @@ func validateOptionWithState(option model.OpenFlareOption, state map[string]stri
 		}
 	}
 
-	if err := validateRateLimitOption(option.Key, option.Value); err != nil {
-		return err
-	}
 	if err := validateOpenRestyOption(option.Key, option.Value); err != nil {
 		return err
 	}
@@ -64,25 +59,6 @@ func validateOptionWithState(option model.OpenFlareOption, state map[string]stri
 		return err
 	}
 	return validateUptimeKumaOption(option.Key, option.Value, state)
-}
-
-func validateRateLimitOption(key, value string) error {
-	switch key {
-	case "GlobalApiRateLimitNum", "GlobalWebRateLimitNum", "CriticalRateLimitNum":
-		intValue, err := strconv.Atoi(value)
-		if err != nil || intValue <= 0 {
-			return fmt.Errorf("%s 必须为大于 0 的整数", key)
-		}
-	case "GlobalApiRateLimitDuration", "GlobalWebRateLimitDuration", "CriticalRateLimitDuration":
-		intValue, err := strconv.Atoi(value)
-		if err != nil || intValue <= 0 {
-			return fmt.Errorf("%s 必须为大于 0 的整数秒", key)
-		}
-		if intValue > rateLimitKeyExpirationSeconds {
-			return fmt.Errorf("%s 不能大于 %d 秒", key, rateLimitKeyExpirationSeconds)
-		}
-	}
-	return nil
 }
 
 func validatePositiveIntegerOption(key, value string) error {

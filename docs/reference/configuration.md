@@ -92,9 +92,6 @@ go run . --port 3000 --log-dir ./logs
 | `GeoIPProvider` | 节点/IP 归属解析方式 | `ipinfo` |
 | `DatabaseAutoCleanupEnabled` | 是否启用每日自动清理观测数据 | `false` |
 | `DatabaseAutoCleanupRetentionDays` | 自动清理保留天数，至少 1 天 | `30` |
-| `GlobalApiRateLimitNum` / `GlobalApiRateLimitDuration` | 全局 API 限流次数 / 时间窗口 | `300` / `180` |
-| `GlobalWebRateLimitNum` / `GlobalWebRateLimitDuration` | 全局 Web 限流次数 / 时间窗口 | `300` / `180` |
-| `CriticalRateLimitNum` / `CriticalRateLimitDuration` | 敏感接口限流次数 / 时间窗口 | `100` / `1200` |
 | `UptimeKumaEnabled` | 是否启用 Uptime Kuma 自动同步 | `false` |
 | `UptimeKumaUrl` | Uptime Kuma 实例地址 | 空 |
 | `UptimeKumaUsername` | Uptime Kuma 登录用户名 | 空 |
