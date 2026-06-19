@@ -146,13 +146,6 @@ func getNotice(ctx context.Context) (string, error) {
 	return model.OptionValue("Notice"), nil
 }
 
-func getAbout(ctx context.Context) (string, error) {
-	if err := EnsureInitialized(ctx); err != nil {
-		return "", err
-	}
-	return model.OptionValue("About"), nil
-}
-
 func getStatus(ctx context.Context, baseAPIPath string) (*statusView, error) {
 	if err := EnsureInitialized(ctx); err != nil {
 		return nil, err

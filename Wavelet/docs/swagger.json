@@ -3521,50 +3521,6 @@
                 }
             }
         },
-        "/api/v1/d/about": {
-            "get": {
-                "description": "返回 OpenFlare 关于页面文本，无需登录",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "openflare-option"
-                ],
-                "summary": "获取关于信息",
-                "responses": {
-                    "200": {
-                        "description": "关于信息",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/response.Any"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "type": "string"
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    },
-                    "400": {
-                        "description": "参数错误",
-                        "schema": {
-                            "$ref": "#/definitions/response.Any"
-                        }
-                    },
-                    "500": {
-                        "description": "内部错误",
-                        "schema": {
-                            "$ref": "#/definitions/response.Any"
-                        }
-                    }
-                }
-            }
-        },
         "/api/v1/d/access-logs": {
             "get": {
                 "security": [

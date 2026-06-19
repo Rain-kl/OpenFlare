@@ -5169,32 +5169,6 @@ paths:
       summary: Sample Hello API
       tags:
       - custom
-  /api/v1/d/about:
-    get:
-      description: 返回 OpenFlare 关于页面文本，无需登录
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: 关于信息
-          schema:
-            allOf:
-            - $ref: '#/definitions/response.Any'
-            - properties:
-                data:
-                  type: string
-              type: object
-        "400":
-          description: 参数错误
-          schema:
-            $ref: '#/definitions/response.Any'
-        "500":
-          description: 内部错误
-          schema:
-            $ref: '#/definitions/response.Any'
-      summary: 获取关于信息
-      tags:
-      - openflare-option
   /api/v1/d/access-logs:
     get:
       description: 分页返回 OpenFlare 访问日志，支持按节点、IP、主机与路径筛选，需要管理员权限

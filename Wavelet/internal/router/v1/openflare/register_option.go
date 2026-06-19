@@ -12,7 +12,6 @@ import (
 func registerOptionRoutes(apiGroup *gin.RouterGroup) {
 	apiGroup.GET("/status", option.GetStatusHandler)
 	apiGroup.GET("/notice", option.GetNoticeHandler)
-	apiGroup.GET("/about", option.GetAboutHandler)
 
 	optionRoute := apiGroup.Group("/option")
 	optionRoute.Use(apiutil.AdminMiddlewares()...)

@@ -50,24 +50,6 @@ func GetNoticeHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, response.OK(notice))
 }
 
-// getAboutHandler 获取关于信息。
-// @Summary 获取关于信息
-// @Description 返回 OpenFlare 关于页面文本，无需登录
-// @Tags openflare-option
-// @Produce json
-// @Success 200 {object} response.Any{data=string} "关于信息"
-// @Failure 400 {object} response.Any "参数错误"
-// @Failure 500 {object} response.Any "内部错误"
-// @Router /api/v1/d/about [get]
-// GetAboutHandler returns the about content.
-func GetAboutHandler(c *gin.Context) {
-	about, err := getAbout(c.Request.Context())
-	if apiutil.AbortBadRequestOnError(c, err) {
-		return
-	}
-	c.JSON(http.StatusOK, response.OK(about))
-}
-
 // listOptionsHandler 列出全部配置项。
 // @Summary 列出 OpenFlare 配置项
 // @Description 返回全部非敏感 OpenFlare 配置项，需要管理员权限
