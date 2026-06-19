@@ -5,8 +5,10 @@
 package migrator
 
 import (
+	"context"
 	"database/sql"
 	"embed"
+	"io/fs"
 	"log"
 	"time"
 
@@ -55,13 +57,25 @@ func MigrateClickHouse() {
 		BlockBufferSize: cfg.BlockBufferSize,
 	})
 
-	goose.SetBaseFS(clickhouseMigrationFS)
-	if err := goose.SetDialect("clickhouse"); err != nil {
+	subFS, err := fs.Sub(clickhouseMigrationFS, "goose/clickhouse")
+	if err != nil {
 		closeClickHouseDB(sqlDB)
-		log.Fatalf("[ClickHouse] set goose dialect failed: %v\n", err)
+		log.Fatalf("[ClickHouse] get sub fs failed: %v\n", err)
 	}
-	goose.SetTableName(clickhouseGooseVersionTable)
-	if err := goose.Up(sqlDB, clickhouseMigrationDir); err != nil {
+
+	provider, err := goose.NewProvider(
+		"clickhouse",
+		sqlDB,
+		subFS,
+		goose.WithTableName(clickhouseGooseVersionTable),
+		goose.WithDisableGlobalRegistry(true),
+	)
+	if err != nil {
+		closeClickHouseDB(sqlDB)
+		log.Fatalf("[ClickHouse] create goose provider failed: %v\n", err)
+	}
+
+	if _, err := provider.Up(context.Background()); err != nil {
 		closeClickHouseDB(sqlDB)
 		log.Fatalf("[ClickHouse] goose migrate failed: %v\n", err)
 	}

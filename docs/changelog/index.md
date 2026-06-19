@@ -24,6 +24,9 @@ sidebar: false
 
 ### 新增
 
+- 新增 `goose` 数据库平滑升级桥接机制：在全新命名空间中通过数据迁移（而非改表名）迁移合并 legacy 旧版 SQLite/PostgreSQL 生产数据（Schema `202606040004` 及以下），并在完成后清理 `legacy_` 临时表。
+- 新增 SQLite 迁移底层 `goose_db_version` 表的主键 `AUTOINCREMENT` 自动补全修复，避免由于旧版 Goose schema 限制导致的新升级写入冲突。
+- 新增 `goose.NewProvider` 及 `goose.WithDisableGlobalRegistry` 用于隔离 ClickHouse 与 SQLite/PostgreSQL 间的 Go 代码全局迁移污染。
 - 新增 `internal/db/batchwriter` 通用批量写入框架，支持各业务域独立队列实例、按条数/时间 flush、非阻塞入队与优雅停机。
 - 业务层接入批量写入：`risk_control` 审计日志迁移至 `batchwriter`；OpenFlare 可观测时序与节点访问日志通过 `internal/apps/openflare/chwriter` 异步 flush，移除写前 `SELECT count()` 去重。
 
@@ -32,6 +35,9 @@ sidebar: false
 
 ### 修复
 
+- 修复 PostgreSQL 下 legacy 桥接迁移 `202606050001` / `202606200006` 使用 `?` 占位符导致 `syntax error at end of input` 的启动失败问题。
+- 修复 PostgreSQL legacy 数据迁移时旧表可空字段写入新表 `NOT NULL` 列触发约束错误的问题（`INSERT ... SELECT` 不会自动套用列默认值）。
+- 修复 PostgreSQL legacy `dns_accounts` 迁移未转义保留字列名 `authorization` 导致语法错误的问题。
 - 修复总览看板「24 小时请求趋势」摘要误展示 24 小时累计值的问题：趋势图摘要改为「当前小时」桶数据，顶部 24h 统计改为按小时趋势聚合。
 - 修复访问日志 ClickHouse 聚合查询因 `trim(x) AS x` 别名与表列同名导致总览看板地域分布及 IP 统计失败的问题。
 - 修复访问日志页 `count()` 扫描类型不匹配（ClickHouse `UInt64` 写入 `int64`）导致列表计数失败的问题。

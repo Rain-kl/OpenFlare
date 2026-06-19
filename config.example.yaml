@@ -24,8 +24,8 @@ database:
   sqlite_path: "openflare.db"      # PostgreSQL 禁用时使用此 SQLite 文件路径
   host: "127.0.0.1"
   port: 5432
-  username: "postgres"
-  password: "postgres"
+  username: "openflare"
+  password: "replace-with-strong-password"
   database: "openflare"
   max_idle_conn: 16
   max_open_conn: 128
