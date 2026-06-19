@@ -69,26 +69,38 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.10.0
+          run_install: false
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: openflare-server/frontend/pnpm-lock.yaml
 
       - name: Build Frontend
+        working-directory: openflare-server/frontend
         env:
           CI: ""
-          VERSION: ${{ needs.prepare.outputs.version }}
+          NEXT_PUBLIC_APP_VERSION: ${{ needs.prepare.outputs.version }}
         run: |
-          cd openflare-server/web
-          corepack enable
           pnpm install --frozen-lockfile
-          NEXT_PUBLIC_APP_VERSION="$VERSION" pnpm build
+          pnpm build:embed
+
+      - name: Prepare embed directory
+        run: |
+          rm -rf openflare-server/internal/router/root/dist
+          cp -R openflare-server/frontend/out openflare-server/internal/router/root/dist
 
       - name: Upload Frontend Artifact
         uses: actions/upload-artifact@v4
         with:
           name: frontend-build
-          path: openflare-server/web/build
+          path: openflare-server/internal/router/root/dist
           retention-days: 1
 
   build-binaries:
@@ -127,14 +139,16 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: frontend-build
-          path: openflare-server/web/build
+          path: openflare-server/internal/router/root/dist
 
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version-file: go.mod
+          go-version-file: openflare-server/go.mod
+          cache-dependency-path: openflare-server/go.sum
 
       - name: Build Server
+        working-directory: openflare-server
         env:
           CGO_ENABLED: 0
           GOOS: ${{ matrix.goos }}
@@ -143,8 +157,10 @@ jobs:
           VERSION: ${{ needs.prepare.outputs.version }}
         run: |
           go mod download
-          mkdir -p dist
-          go build -trimpath -ldflags "-s -w -X 'github.com/rain-kl/openflare/openflare-server/internal/common.Version=$VERSION'" -o "dist/$ASSET_NAME" ./openflare-server/cmd/server
+          mkdir -p ../dist
+          go build -trimpath -tags embed_frontend \
+            -ldflags "-s -w -X 'github.com/Rain-kl/Wavelet/internal/buildinfo.Version=$VERSION'" \
+            -o "../dist/$ASSET_NAME" ./main.go
 
       - name: Upload Binary Artifact
         uses: actions/upload-artifact@v4

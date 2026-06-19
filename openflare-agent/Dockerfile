@@ -16,7 +16,6 @@ COPY go.mod go.sum ./
 RUN --mount=type=cache,target=/go/pkg/mod \
     go mod download
 
-COPY openflare-server ./openflare-server
 COPY openflare-agent ./openflare-agent
 COPY pkg ./pkg
 RUN --mount=type=cache,target=/go/pkg/mod \

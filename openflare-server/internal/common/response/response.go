@@ -1,82 +1,57 @@
+// Copyright 2025 linux.do
+// Copyright 2026 Arctel.net
+// SPDX-License-Identifier: Apache-2.0
+
+// Package response provides shared HTTP API response structures.
 package response
 
-import (
-	"net/http"
+import "github.com/gin-gonic/gin"
 
-	"github.com/gin-gonic/gin"
-)
-
-const invalidParamsMessage = "参数错误"
-
-// RespondSuccess sends a successful response with data
-func RespondSuccess(c *gin.Context, data any) {
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"message": "",
-		"data":    data,
-	})
+// Response 通用响应体
+type Response[T any] struct {
+	ErrorMsg string `json:"error_msg"`
+	Data     T      `json:"data"`
 }
 
-// RespondSuccessWithExtras sends a successful response with data and extra fields
-func RespondSuccessWithExtras(c *gin.Context, data any, extras gin.H) {
-	payload := gin.H{
-		"success": true,
-		"message": "",
-		"data":    data,
-	}
-	for key, value := range extras {
-		payload[key] = value
-	}
-	c.JSON(http.StatusOK, payload)
+// Any 用于 Swagger 文档的响应类型（非泛型）
+// swag 不支持泛型，使用此类型替代 Response[T]
+type Any struct {
+	ErrorMsg string      `json:"error_msg" example:""`
+	Data     interface{} `json:"data"`
 }
 
-// RespondSuccessMessage sends a successful response with a custom message
-func RespondSuccessMessage(c *gin.Context, message string) {
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"message": message,
-	})
+// APIError 统一的 API 业务错误类型，可被全局错误处理中间件捕获
+type APIError struct {
+	Code int
+	Msg  string
 }
 
-// RespondFailure sends a failed response with http.StatusOK and a failure message
-func RespondFailure(c *gin.Context, message string) {
-	c.JSON(http.StatusOK, gin.H{
-		"success": false,
-		"message": message,
-	})
+func (e *APIError) Error() string {
+	return e.Msg
 }
 
-// RespondBadRequest sends a bad request response (400)
-func RespondBadRequest(c *gin.Context, message string) {
-	if message == "" {
-		message = invalidParamsMessage
-	}
-	c.JSON(http.StatusBadRequest, gin.H{
-		"success": false,
-		"message": message,
-	})
+// NewError 实例化一个 APIError
+func NewError(code int, msg string) *APIError {
+	return &APIError{Code: code, Msg: msg}
 }
 
-// RespondUnauthorized sends an unauthorized response (401)
-func RespondUnauthorized(c *gin.Context, message string) {
-	c.JSON(http.StatusUnauthorized, gin.H{
-		"success": false,
-		"message": message,
-	})
+// AbortWithError 将 API 错误挂载到 Gin Context 并中断执行流
+func AbortWithError(c *gin.Context, code int, msg string) {
+	_ = c.Error(NewError(code, msg))
+	c.Abort()
 }
 
-// RespondForbidden sends a forbidden response (403)
-func RespondForbidden(c *gin.Context, message string) {
-	c.JSON(http.StatusForbidden, gin.H{
-		"success": false,
-		"message": message,
-	})
+// OK 构造成功响应
+func OK[T any](data T) Response[T] {
+	return Response[T]{Data: data}
 }
 
-// RespondErrorWithStatus sends a response with target HTTP status code and a message
-func RespondErrorWithStatus(c *gin.Context, code int, message string) {
-	c.JSON(code, gin.H{
-		"success": false,
-		"message": message,
-	})
+// OKNil 构造成功响应（data 为 null）
+func OKNil() Response[any] {
+	return Response[any]{Data: nil}
+}
+
+// Err 构造错误响应
+func Err(msg string) Response[any] {
+	return Response[any]{ErrorMsg: msg, Data: nil}
 }

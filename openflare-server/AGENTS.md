@@ -250,7 +250,7 @@ func doSomething(c *gin.Context) { response.AbortBadRequest(c, "...") }
 路由与模块：
 
 - 仅在 `internal/router/router.go` 中作为统一高层入口进行路由分发委派，不允许在 `router.go` 中直接挂载业务 Handler。
-- 关于所有的路由归属划分、接口开发隔离防线以及详细的注册和开发步骤，请直接阅读并严格遵循 [new-api](file:///Users/ryan/DEV/Go/Wavelet/.claude/skills/new-api/SKILL.md) 技能。
+- 关于所有的路由归属划分、接口开发隔离防线以及详细的注册和开发步骤，请直接阅读并严格遵循 [new-api](file:///Users/ryan/DEV/Go/OpenFlare/openflare-server/.claude/skills/new-api/SKILL.md) 技能。
 
 应用装配与跨模块集成：
 
@@ -282,7 +282,7 @@ func doSomething(c *gin.Context) { response.AbortBadRequest(c, "...") }
 
 在进行任何 Next.js 工作之前，请在 `node_modules/next/dist/docs/` 中找到并阅读相关文档。您的训练数据已过时 —— 这些文档是唯一的真理来源。
 
-请直接查看并参考项目提供的示例和 Demo 代码：[frontend/app/(main)/admin/demo](file:///Users/ryan/DEV/Go/Wavelet/frontend/app/(main)/admin/demo)。
+请直接查看并参考项目提供的示例和 Demo 代码：[frontend/app/(main)/admin/demo](file:///Users/ryan/DEV/Go/OpenFlare/openflare-server/frontend/app/(main)/admin/demo)。
 
 样式规范：
 

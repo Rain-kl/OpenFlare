@@ -74,8 +74,8 @@ jobs:
         id: build
         uses: docker/build-push-action@v7
         with:
-          context: .
-          file: ./openflare-server/Dockerfile
+          context: ./openflare-server
+          file: ./docker/Dockerfile
           platforms: ${{ matrix.platform }}
           outputs: type=image,name=${{ env.IMAGE }},push-by-digest=true,name-canonical=true,push=true
           build-args: |

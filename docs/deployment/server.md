@@ -4,8 +4,6 @@
 
 OpenFlare Server 是 Gin + GORM 单体控制面，负责管理端 UI、管理 API、Agent API、配置渲染、版本发布、数据存储与聚合查询。
 
-> **迁移说明**：后端业务域正在迁入 [Wavelet](../plan/20260618-openflare-wavelet-backend-migration.md)。阶段一通过 Wavelet 的 `/api/*` legacy 兼容层联调旧前端；下文「Wavelet 后端」一节描述新后端的启动方式。
-
 ## 前置条件
 
 | 项目 | 要求 |
@@ -15,17 +13,17 @@ OpenFlare Server 是 Gin + GORM 单体控制面，负责管理端 UI、管理 AP
 | pnpm | 推荐通过 `corepack enable` 使用项目声明的 pnpm |
 | 数据库 | SQLite 文件目录可写，或可访问的 PostgreSQL 实例 |
 
-生产环境必须显式配置 `JWT_SECRET`，并优先使用 PostgreSQL。
+生产环境必须配置 `session_secret`（或 `SESSION_SECRET`），并优先使用 PostgreSQL 与 Redis。
 
 ## 构建管理端前端
 
-Go Server 会托管 `openflare-server/web/build` 中的静态产物。源码启动前先构建前端：
+Go Server 会嵌入 `openflare-server/frontend/out` 静态产物。源码启动前先构建前端：
 
 ```bash
-cd openflare-server/web
+cd openflare-server/frontend
 corepack enable
 pnpm install
-pnpm build
+pnpm build:embed
 ```
 
 常用前端检查：
@@ -40,10 +38,9 @@ pnpm test
 
 ```bash
 cd openflare-server
-export JWT_SECRET='replace-with-a-long-random-string'
-export SQLITE_PATH='./openflare.db'
-export LOG_LEVEL='info'
-go run .
+cp config.example.yaml config.yaml
+# 编辑 config.yaml：设置 session_secret，并将 database.enabled 设为 false
+go run . all
 ```
 
 默认监听 `3000` 端口，访问：
@@ -56,15 +53,12 @@ http://localhost:3000
 
 ```bash
 cd openflare-server
-export JWT_SECRET='replace-with-a-long-random-string'
-export DSN='postgres://openflare:secret@127.0.0.1:5432/openflare?sslmode=disable'
-export LOG_LEVEL='info'
-go run .
+cp config.example.yaml config.yaml
+# 编辑 config.yaml：设置 session_secret、database.* 与 redis.*
+go run . all
 ```
 
-`DSN` 设置后优先于 SQLite。`DSN` 与兼容旧命名的 `SQL_DSN` 同时存在时，优先使用 `DSN`。
-
-如果目标 PostgreSQL 数据库为空且本地 `SQLITE_PATH` 文件存在，Server 启动阶段会尝试把 SQLite 数据迁移到 PostgreSQL，并在日志中输出迁移进度。
+生产环境推荐分进程部署：`go run . api`、`go run . worker`、`go run . scheduler`。
 
 ## 使用 Docker 启动
 
@@ -173,13 +167,9 @@ go run . --port 3000 --log-dir ./logs
 
 首次登录后请立即修改默认密码。
 
-## Wavelet 后端（迁移中）
+## 配置要点
 
-阶段一将 OpenFlare 业务 API 运行在 Wavelet 框架内（`Wavelet/internal/apps/openflare/`），默认监听 `:3000`，与旧 Server 端口一致。旧前端仍使用 `openflare-server/web/build` 静态产物；API 请求指向 Wavelet 的 `/api/*` 兼容路由。
-
-### 配置要点
-
-复制 `Wavelet/config.example.yaml` 为 `config.yaml`，或使用 `Wavelet/.env.example` 中的环境变量。关键默认值：
+复制 `openflare-server/config.example.yaml` 为 `config.yaml`，或使用 `openflare-server/.env.example` 中的环境变量。关键默认值：
 
 | 项 | 值 |
 | --- | --- |
@@ -189,46 +179,14 @@ go run . --port 3000 --log-dir ./logs
 | `application_name` | `openflare-server` |
 | Redis 键前缀 | `openflare:` |
 
-生产环境需启用 PostgreSQL（`database.enabled: true` 或 `DB_ENABLED=true`），并配置 Redis。
-
-### 启动命令
-
-```bash
-cd Wavelet
-
-# 开发：API + Worker + Scheduler 合一
-go run . all
-
-# 生产：分进程部署
-go run . api       # HTTP API + OpenFlare 定时任务
-go run . worker    # Wavelet Asynq 异步任务
-go run . scheduler # Wavelet Asynq 定时触发
-```
-
-也可使用 `docker compose up`（见 `Wavelet/docker-compose.yml`）拉起 PostgreSQL、Redis 与 Wavelet 服务。
-
-### OpenFlare 定时任务
-
-OpenFlare 业务定时任务集中在 `internal/apps/openflare/tasks/`，通过 `robfig/cron` 在 **API 进程**内运行（非 Asynq）：
-
-| 任务 | 调度 | 说明 |
-| --- | --- | --- |
-| 可观测数据自动清理 | 每日 03:00 | 受 Option `DatabaseAutoCleanupEnabled` 控制 |
-| WAF IP 组同步 | 每 5 分钟 | 向在线 Agent 下发 IP 组变更 |
-| UptimeKuma 同步 | 每分钟检查间隔 | 按 Option 配置的间隔触发 |
-| SSL 自动续期 | 每日 00:00 | ACME 证书续期 |
-
-API 启动后日志中应出现 `[OpenFlareTasks] registered cron job` 行。`worker` 与 `scheduler` 进程不运行上述 cron。
+也可使用 `docker compose up`（见 `openflare-server/docker-compose.yml`）拉起 PostgreSQL、Redis 与 Server。
 
 ### 验证
 
 ```bash
-cd Wavelet
+cd openflare-server
 go build ./...
 go test ./internal/apps/openflare/... -count=1
 
-# 健康检查
 curl http://127.0.0.1:3000/api/status
 ```
-
-更多迁移进度与接手说明见 [AI 接手文档](../plan/handover-openflare-backend-migration.md)。

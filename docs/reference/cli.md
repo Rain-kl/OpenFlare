@@ -8,10 +8,8 @@
 
 ```bash
 cd openflare-server
-export JWT_SECRET='replace-with-random-string'
-export SQLITE_PATH='./openflare.db'
-export LOG_LEVEL='info'
-go run .
+cp config.example.yaml config.yaml
+go run . all
 ```
 
 指定监听端口与日志目录：
@@ -32,7 +30,7 @@ GOCACHE=/tmp/openflare-go-cache go test ./...
 开发：
 
 ```bash
-cd openflare-server/web
+cd openflare-server/frontend
 pnpm install
 pnpm dev
 ```
@@ -40,14 +38,14 @@ pnpm dev
 构建静态产物：
 
 ```bash
-cd openflare-server/web
-pnpm build
+cd openflare-server/frontend
+pnpm build:embed
 ```
 
 检查：
 
 ```bash
-cd openflare-server/web
+cd openflare-server/frontend
 pnpm lint
 pnpm typecheck
 pnpm test
@@ -146,5 +144,5 @@ pnpm dev
 
 ```bash
 cd docs
-pnpm build
+pnpm build:embed
 ```

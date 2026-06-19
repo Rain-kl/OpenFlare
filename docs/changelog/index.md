@@ -18,6 +18,7 @@ sidebar: false
 
 ### 移除
 
+- 删除旧版 `openflare-server/` 单体实现（含 `web/` 前端）；仓库内 `openflare-server/` 现指迁移后的 Wavelet 统一控制面。
 - 移除 Wavelet About 界面相关代码：删除 `AboutService` 与 `GET /api/v1/d/about` 接口（页面从未实现，属冗余遗留）。
 - 移除 Wavelet 中从旧系统迁移但未实装的全局 API / Web / 敏感接口限流选项（`GlobalApiRateLimit*`、`GlobalWebRateLimit*`、`CriticalRateLimit*`）及相关校验与数据库种子。
 - 移除 `internal/apps/openflare/legacy/` 控制台兼容层、`compat/auth.go`（`OpenFlare-Token` JWT 桥接）及前端 `legacy-base.service.ts`；`openflare-server/web` 不再能对接当前 Wavelet 后端管理 API。
@@ -72,6 +73,7 @@ sidebar: false
 
 ### 变更
 
+- 将 `Wavelet/` 目录重命名为 `openflare-server/`，完成 OpenFlare 后端与前端迁移后的仓库结构收敛；同步更新 Server Docker/Release 工作流与部署文档中的路径（`frontend/`、`docker/Dockerfile`）。
 - 补齐 OpenFlare Swagger 文档：新增 Agent/Relay/Tunnel 协议端点（13 个 `/api/v1/agent|relay|tunnel/*`）注解与安全定义（`AgentTokenAuth`、`TunnelTokenAuth`）；管理端注解将权限不足响应由 403 统一为 404。
 - Wavelet API 路径统一：管理端由 `/api/v1/openflare/*` 调整为 `/api/v1/d/*`；Agent/Relay/Tunnel 协议路由分别迁移至 `/api/v1/agent/*`、`/api/v1/relay/*`、`/api/v1/tunnel/*`（原 `/api/flared/*`）。同步更新 Wavelet 前端服务层与 `openflare-agent`、`openflare-relay`、`openflared` 客户端连接端点。
 - Agent/Relay/Tunnel 协议 API 响应格式对齐 Wavelet `{error_msg, data}`：服务端移除 `compat` 包，业务错误改为 HTTP 4xx + `error_msg`；同步更新 `openflare-agent`、`openflare-relay`、`openflared` HTTP 客户端解析逻辑。
