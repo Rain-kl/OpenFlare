@@ -1,6 +1,6 @@
 'use client';
 
-import {useEffect, useState} from 'react';
+import {useEffect} from 'react';
 import {ExternalLink, Loader2} from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -8,26 +8,28 @@ import remarkGfm from 'remark-gfm';
 import {Badge} from '@/components/ui/badge';
 import {Button} from '@/components/ui/button';
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card';
-import {Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,} from '@/components/ui/dialog';
-import {Input} from '@/components/ui/input';
-import {Label} from '@/components/ui/label';
-import {Progress} from '@/components/ui/progress';
-import {Tabs, TabsContent, TabsList, TabsTrigger} from '@/components/ui/tabs';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import {Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle} from '@/components/ui/dialog';
 import {useOpenFlareServerUpgrade} from '@/lib/hooks/use-openflare-server-upgrade';
-import type {LatestReleaseInfo, ReleaseChannel} from '@/lib/services/openflare';
+import type {AppUpdateStatus} from '@/lib/services/admin/types';
 import {formatDateTime} from '@/lib/utils';
 import {formatRelativeTime} from '@/app/(main)/nodes/components/node-utils';
 
-import {UpgradeLogPanel} from './upgrade-log-panel';
-
-function getUpgradeBadge(release: LatestReleaseInfo | null | undefined) {
-  if (!release) {
+function getUpgradeBadge(update: AppUpdateStatus | null | undefined) {
+  if (!update) {
     return { label: '未检查', variant: 'outline' as const };
   }
-  if (release.in_progress) {
-    return { label: '升级中', variant: 'secondary' as const };
-  }
-  if (release.has_update) {
+  if (update.update_available) {
     return { label: '可升级', variant: 'secondary' as const };
   }
   return { label: '最新', variant: 'default' as const };
@@ -44,26 +46,15 @@ export function VersionUpgradeDialog({
 }) {
   const {
     currentVersion,
-    selectedChannel,
-    release,
-    uploadedBinary,
+    update,
     releaseErrorMessage,
-    manualStatusMessage,
-    manualErrorMessage,
     isInitialLoading,
     isChecking,
     isUpgrading,
-    isUploadingBinary,
-    uploadProgress,
-    isConfirmingManualUpgrade,
     handleOpen,
     handleCheckRelease,
-    handleChannelChange,
     handleUpgrade,
-    handleUploadBinary,
-    handleConfirmManualUpgrade,
   } = useOpenFlareServerUpgrade({ open, canUpgrade });
-  const [selectedBinary, setSelectedBinary] = useState<File | null>(null);
 
   useEffect(() => {
     if (open) {
@@ -71,22 +62,8 @@ export function VersionUpgradeDialog({
     }
   }, [open, handleOpen]);
 
-  useEffect(() => {
-    if (!open) {
-      setSelectedBinary(null);
-    }
-  }, [open]);
-
-  const upgradeBadge = getUpgradeBadge(release);
-  const selectedChannelLabel = selectedChannel === 'preview' ? '预览版' : '正式版';
-  const uploadPhaseLabel =
-    uploadProgress >= 100 ? '已上传，正在服务端校验版本...' : '上传中...';
-  const canConfirmManualUpgrade = Boolean(
-    uploadedBinary?.ready_to_upgrade && uploadedBinary.upload_token,
-  );
-
-  const isBusy =
-    isChecking || isUpgrading || isUploadingBinary || isConfirmingManualUpgrade;
+  const upgradeBadge = getUpgradeBadge(update);
+  const isBusy = isChecking || isUpgrading;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -94,7 +71,7 @@ export function VersionUpgradeDialog({
         <DialogHeader>
           <DialogTitle>服务端版本</DialogTitle>
           <DialogDescription>
-            默认检查正式版更新；也可检查 preview 发布或手动上传二进制包。升级开始后服务会短暂重启。
+            检查上游 GitHub Release 并升级当前服务。升级开始后服务会短暂重启。
           </DialogDescription>
         </DialogHeader>
 
@@ -117,23 +94,7 @@ export function VersionUpgradeDialog({
                 <CardTitle className="text-sm">最新版本</CardTitle>
               </CardHeader>
               <CardContent className="px-4 space-y-3">
-                <div className="flex flex-wrap items-center gap-2">
-                  <p className="text-sm font-medium">{release?.tag_name || '未检查'}</p>
-                  {canUpgrade ? (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="h-7 text-xs"
-                      disabled={isBusy}
-                      onClick={() =>
-                        handleChannelChange(selectedChannel === 'preview' ? 'stable' : 'preview')
-                      }
-                    >
-                      {selectedChannelLabel}
-                    </Button>
-                  ) : null}
-                </div>
+                <p className="text-sm font-medium">{update?.latest_version || '未检查'}</p>
                 {canUpgrade ? (
                   <Button
                     type="button"
@@ -142,7 +103,7 @@ export function VersionUpgradeDialog({
                     disabled={isBusy}
                     onClick={handleCheckRelease}
                   >
-                    {isChecking ? '检查中...' : `检查${selectedChannelLabel}`}
+                    {isChecking ? '检查中...' : '检查更新'}
                   </Button>
                 ) : null}
               </CardContent>
@@ -162,240 +123,101 @@ export function VersionUpgradeDialog({
             </div>
           ) : null}
 
-          <Tabs defaultValue="online">
-            <TabsList>
-              <TabsTrigger value="online">在线升级</TabsTrigger>
-              {canUpgrade ? <TabsTrigger value="manual">手动升级</TabsTrigger> : null}
-              {release ? <TabsTrigger value="logs">升级日志</TabsTrigger> : null}
-            </TabsList>
+          {!isInitialLoading && !releaseErrorMessage && !update ? (
+            <div className="rounded-lg border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
+              尚未检查更新，点击「检查更新」后展示 GitHub Release 信息。
+            </div>
+          ) : null}
 
-            <TabsContent value="online" className="space-y-4">
-              {!isInitialLoading && !releaseErrorMessage && !release ? (
-                <div className="rounded-lg border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
-                  尚未检查{selectedChannelLabel}，点击「检查{selectedChannelLabel}」后展示 GitHub Release 信息。
+          {update ? (
+            <Card className="border-dashed shadow-none py-4 gap-3">
+              <CardHeader className="px-4 pb-0">
+                <CardTitle className="text-sm">GitHub Release · {update.latest_version}</CardTitle>
+                <CardDescription>
+                  {update.published_at
+                    ? `发布时间：${formatRelativeTime(update.published_at)} · ${formatDateTime(update.published_at)}`
+                    : '未提供发布时间'}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="px-4 space-y-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge variant={update.update_available ? 'secondary' : 'default'}>
+                    {update.update_available ? '发现新版本' : '已经是最新版本'}
+                  </Badge>
+                  {update.prerelease ? (
+                    <Badge variant="secondary">Preview 发布</Badge>
+                  ) : (
+                    <Badge variant="outline">正式发布</Badge>
+                  )}
+                  {!update.can_upgrade ? (
+                    <Badge variant="destructive">当前平台不支持自动升级</Badge>
+                  ) : null}
                 </div>
-              ) : null}
 
-              {release ? (
-                <Card className="border-dashed shadow-none py-4 gap-3">
-                  <CardHeader className="px-4 pb-0">
-                    <CardTitle className="text-sm">
-                      GitHub {selectedChannelLabel} · {release.tag_name}
-                    </CardTitle>
-                    <CardDescription>
-                      {release.published_at
-                        ? `发布时间：${formatRelativeTime(release.published_at)} · ${formatDateTime(release.published_at)}`
-                        : '未提供发布时间'}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="px-4 space-y-4">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Badge variant={release.has_update ? 'secondary' : 'default'}>
-                        {release.has_update ? '发现新版本' : '已经是最新版本'}
-                      </Badge>
-                      {release.prerelease ? (
-                        <Badge variant="secondary">Preview 发布</Badge>
-                      ) : (
-                        <Badge variant="outline">正式发布</Badge>
-                      )}
-                      {!release.upgrade_supported ? (
-                        <Badge variant="destructive">当前平台不支持自动升级</Badge>
-                      ) : null}
-                      {release.in_progress ? (
-                        <Badge variant="secondary">升级任务执行中</Badge>
-                      ) : null}
-                    </div>
+                <div className="prose prose-sm dark:prose-invert max-w-none text-sm">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    {update.release_notes || '暂无更新说明'}
+                  </ReactMarkdown>
+                </div>
 
-                    <div className="prose prose-sm dark:prose-invert max-w-none text-sm">
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                        {release.body || '暂无更新说明'}
-                      </ReactMarkdown>
-                    </div>
+                {update.release_url ? (
+                  <a
+                    href={update.release_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center text-sm text-primary hover:underline"
+                  >
+                    查看发布详情
+                    <ExternalLink className="size-3 ml-1" />
+                  </a>
+                ) : null}
 
-                    {release.html_url ? (
-                      <a
-                        href={release.html_url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center text-sm text-primary hover:underline"
-                      >
-                        查看发布详情
-                        <ExternalLink className="size-3 ml-1" />
-                      </a>
-                    ) : null}
-
-                    {canUpgrade ? (
-                      <div className="flex justify-end">
+                {canUpgrade ? (
+                  <div className="flex justify-end">
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
                         <Button
                           type="button"
                           disabled={
-                            !release.has_update ||
-                            release.in_progress ||
+                            !update.update_available ||
                             isUpgrading ||
-                            !release.upgrade_supported ||
-                            isUploadingBinary ||
-                            isConfirmingManualUpgrade
+                            !update.can_upgrade ||
+                            isBusy
                           }
-                          onClick={handleUpgrade}
                         >
-                          {isUpgrading || release.in_progress
-                            ? '升级中...'
-                            : selectedChannel === 'preview'
-                              ? '升级预览版'
-                              : '升级正式版'}
+                          {isUpgrading ? '升级中...' : '立即升级'}
                         </Button>
-                      </div>
-                    ) : null}
-                  </CardContent>
-                </Card>
-              ) : null}
-            </TabsContent>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>升级到 {update.latest_version}？</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            服务将下载并校验 {update.asset_name}，随后替换当前二进制并重启。请确保安装目录可写，且服务允许原地重启。
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>取消</AlertDialogCancel>
+                          <AlertDialogAction onClick={handleUpgrade}>确认升级</AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
+                ) : null}
 
-            {canUpgrade ? (
-              <TabsContent value="manual" className="space-y-4">
-                <Card className="border-dashed shadow-none py-4 gap-3">
-                  <CardHeader className="px-4 pb-0">
-                    <CardTitle className="text-sm">手动升级</CardTitle>
-                    <CardDescription>
-                      支持上传已编译好的当前平台 Server 可执行文件。
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="px-4 space-y-4">
-                    <div className="space-y-1.5">
-                      <Label htmlFor="server-binary">服务端二进制</Label>
-                      <Input
-                        id="server-binary"
-                        type="file"
-                        disabled={isUploadingBinary || isConfirmingManualUpgrade}
-                        onChange={(event) => {
-                          setSelectedBinary(event.target.files?.[0] ?? null);
-                        }}
-                      />
-                    </div>
-
-                    <div className="flex justify-end">
-                      {canConfirmManualUpgrade ? (
-                        <Button
-                          type="button"
-                          disabled={
-                            !canConfirmManualUpgrade ||
-                            isConfirmingManualUpgrade ||
-                            isUploadingBinary ||
-                            isUpgrading
-                          }
-                          onClick={handleConfirmManualUpgrade}
-                        >
-                          {isConfirmingManualUpgrade ? '升级中...' : '确认升级'}
-                        </Button>
-                      ) : (
-                        <Button
-                          type="button"
-                          disabled={
-                            !selectedBinary ||
-                            isUploadingBinary ||
-                            isConfirmingManualUpgrade
-                          }
-                          onClick={() => {
-                            if (selectedBinary) {
-                              handleUploadBinary(selectedBinary);
-                            }
-                          }}
-                        >
-                          {isUploadingBinary
-                            ? uploadProgress >= 100
-                              ? '服务端校验中...'
-                              : '上传中...'
-                            : '上传并检查'}
-                        </Button>
-                      )}
-                    </div>
-
-                    {isUploadingBinary ? (
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between text-xs text-muted-foreground">
-                          <span>{uploadPhaseLabel}</span>
-                          <span>{uploadProgress}%</span>
-                        </div>
-                        <Progress value={uploadProgress} />
-                      </div>
-                    ) : null}
-
-                    {manualErrorMessage ? (
-                      <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
-                        {manualErrorMessage}
-                      </div>
-                    ) : null}
-
-                    {!manualErrorMessage && manualStatusMessage ? (
-                      <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-600 dark:text-amber-400">
-                        {manualStatusMessage}
-                      </div>
-                    ) : null}
-
-                    {uploadedBinary ? (
-                      <div className="space-y-4 rounded-lg border border-dashed p-4">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <Badge
-                            variant={uploadedBinary.ready_to_upgrade ? 'secondary' : 'outline'}
-                          >
-                            {uploadedBinary.ready_to_upgrade
-                              ? '可确认升级'
-                              : uploadedBinary.has_update
-                                ? '待确认'
-                                : '不可升级'}
-                          </Badge>
-                          {!uploadedBinary.upgrade_supported ? (
-                            <Badge variant="destructive">当前版本不支持手动升级</Badge>
-                          ) : null}
-                        </div>
-
-                        <div className="grid gap-3 sm:grid-cols-2 text-sm">
-                          <InfoCell label="文件名" value={uploadedBinary.file_name} />
-                          <InfoCell
-                            label="上传时间"
-                            value={
-                              uploadedBinary.uploaded_at
-                                ? formatDateTime(uploadedBinary.uploaded_at)
-                                : '未知'
-                            }
-                          />
-                          <InfoCell label="当前版本" value={uploadedBinary.current_version} />
-                          <InfoCell label="上传版本" value={uploadedBinary.detected_version} />
-                        </div>
-
-                        <p className="text-sm text-muted-foreground">
-                          {uploadedBinary.comparison_message}
-                        </p>
-                      </div>
-                    ) : (
-                      <div className="rounded-lg border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
-                        尚未上传升级包
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              </TabsContent>
-            ) : null}
-
-            {release ? (
-              <TabsContent value="logs">
-                <UpgradeLogPanel release={release} />
-              </TabsContent>
-            ) : null}
-          </Tabs>
+                {!update.can_upgrade ? (
+                  <p className="text-sm text-muted-foreground">
+                    {update.current_version === 'dev'
+                      ? '开发构建没有可比较的 Release 版本，不能执行自动升级。'
+                      : update.update_available
+                        ? '当前平台暂不支持自动替换二进制，请从 Release 页面手动升级。'
+                        : '当前版本无需升级。'}
+                  </p>
+                ) : null}
+              </CardContent>
+            </Card>
+          ) : null}
         </div>
       </DialogContent>
     </Dialog>
   );
 }
-
-function InfoCell({label, value}: {label: string; value: string}) {
-  return (
-    <div>
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="mt-1 font-medium break-all">{value}</p>
-    </div>
-  );
-}
-
-export type {ReleaseChannel};

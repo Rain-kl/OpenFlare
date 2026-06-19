@@ -18,8 +18,10 @@ sidebar: false
 
 ### 移除
 
+- 移除 Wavelet About 界面相关代码：删除 `AboutService` 与 `GET /api/v1/d/about` 接口（页面从未实现，属冗余遗留）。
 - 移除 Wavelet 中从旧系统迁移但未实装的全局 API / Web / 敏感接口限流选项（`GlobalApiRateLimit*`、`GlobalWebRateLimit*`、`CriticalRateLimit*`）及相关校验与数据库种子。
 - 移除 `internal/apps/openflare/legacy/` 控制台兼容层、`compat/auth.go`（`OpenFlare-Token` JWT 桥接）及前端 `legacy-base.service.ts`；`openflare-server/web` 不再能对接当前 Wavelet 后端管理 API。
+- 移除旧 OpenFlare 服务升级兼容层（`/api/v1/openflare/update/*`）；统一使用 Wavelet 框架 `admin/updater`（`/api/v1/admin/update`）。
 
 ### 新增
 

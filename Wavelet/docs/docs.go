@@ -928,6 +928,231 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/admin/logs": {
+            "get": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "description": "分页获取系统历史日志，cursor=0 获取最新日志，cursor\u003e0 获取更早日志",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin"
+                ],
+                "summary": "获取系统日志",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 0,
+                        "description": "日志游标，0=获取最新",
+                        "name": "cursor",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 200,
+                        "description": "每页条数",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "日志列表",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/logs.logsResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "未登录",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    },
+                    "403": {
+                        "description": "无管理员权限",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/logs/access": {
+            "get": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "description": "分页并按照用户、接口路径、时间范围等维度检索 ClickHouse 用户访问日志列表（需要管理员权限，ClickHouse 未启用时报错）",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin"
+                ],
+                "summary": "获取用户访问日志",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "页码",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 20,
+                        "description": "每页条数",
+                        "name": "page_size",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "用户名模糊搜索",
+                        "name": "username",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "接口路径模糊搜索",
+                        "name": "path",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "起始时间（RFC3339 或 YYYY-MM-DD HH:MM:SS）",
+                        "name": "start_time",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "结束时间（RFC3339 或 YYYY-MM-DD HH:MM:SS）",
+                        "name": "end_time",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "访问日志列表",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/logs.accessLogsResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "ClickHouse 未启用或参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    },
+                    "401": {
+                        "description": "未登录",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    },
+                    "403": {
+                        "description": "无管理员权限",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/logs/analytics": {
+            "get": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "description": "聚合统计最近 7 天的每日访问趋势、浏览器分布以及前 10 名最活跃用户排行（需要管理员权限，ClickHouse 未启用时报错）",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin"
+                ],
+                "summary": "获取访问日志分析数据",
+                "responses": {
+                    "200": {
+                        "description": "分析统计数据",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/logs.logsAnalyticsResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "ClickHouse 未启用",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    },
+                    "401": {
+                        "description": "未登录",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    },
+                    "403": {
+                        "description": "无管理员权限",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/logs/ws": {
+            "get": {
+                "description": "通过 WebSocket 实时推送系统日志，需要管理员权限",
+                "tags": [
+                    "admin"
+                ],
+                "summary": "系统日志实时推送",
+                "responses": {}
+            }
+        },
         "/api/v1/admin/push/channels": {
             "get": {
                 "security": [
@@ -3076,6 +3301,362 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/admin/uploads": {
+            "get": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "description": "分页获取系统上传的文件列表，支持文件名关键词、业务类型、扩展名、上传用户ID过滤",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin"
+                ],
+                "summary": "获取文件列表",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "页码（默认 1）",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "每页数量（默认 20，最大 100）",
+                        "name": "page_size",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "文件名关键词（模糊匹配）",
+                        "name": "keyword",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "业务分类过滤",
+                        "name": "type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "扩展名过滤",
+                        "name": "extension",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "format": "int64",
+                        "description": "上传用户 ID",
+                        "name": "user_id",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "查询成功",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/handler.listFilesResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "未登录",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    },
+                    "403": {
+                        "description": "无管理员权限",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/uploads/download/batch": {
+            "post": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "description": "传入多个文件 ID，后台实时将其打包压缩为 ZIP 流并输出，自动处理文件名重复冲突",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/octet-stream"
+                ],
+                "tags": [
+                    "admin"
+                ],
+                "summary": "批量打包下载",
+                "parameters": [
+                    {
+                        "description": "包含文件 ID 数组 of string 的请求体",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.batchDownloadRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "成功下载打包后的 ZIP",
+                        "schema": {
+                            "type": "file"
+                        }
+                    },
+                    "400": {
+                        "description": "参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    },
+                    "500": {
+                        "description": "打包失败",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/uploads/download/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "description": "根据文件 ID 获取文件，以附件形式 (Attachment) 强制开启客户端浏览器下载",
+                "produces": [
+                    "application/octet-stream"
+                ],
+                "tags": [
+                    "admin"
+                ],
+                "summary": "下载单文件",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "文件 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "图片质量 (low, medium, high, origin)，默认为 origin",
+                        "name": "quality",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "成功下载文件",
+                        "schema": {
+                            "type": "file"
+                        }
+                    },
+                    "400": {
+                        "description": "参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    },
+                    "404": {
+                        "description": "文件不存在",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    },
+                    "500": {
+                        "description": "服务内部错误",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/uploads/stats": {
+            "get": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "description": "返回系统级的总文件数、占用大小、最近 7 天新增趋势、文件类型/格式分布等数据",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin"
+                ],
+                "summary": "获取文件统计数据",
+                "responses": {
+                    "200": {
+                        "description": "获取成功",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/handler.fileStatsResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "未登录",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    },
+                    "403": {
+                        "description": "无管理员权限",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    },
+                    "500": {
+                        "description": "内部错误",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/uploads/types": {
+            "get": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "description": "返回数据库中所有已上传文件实际拥有的业务类型列表",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin"
+                ],
+                "summary": "获取文件业务类型列表",
+                "responses": {
+                    "200": {
+                        "description": "业务类型列表",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "string"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "未登录",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    },
+                    "403": {
+                        "description": "无管理员权限",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    },
+                    "500": {
+                        "description": "内部错误",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/uploads/{id}": {
+            "delete": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "description": "将文件状态置为 deleted（软删除），不会立即清理底层存储对象",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin"
+                ],
+                "summary": "删除文件",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "文件 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "删除成功",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    },
+                    "403": {
+                        "description": "无权操作",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    },
+                    "404": {
+                        "description": "文件不存在",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/admin/users": {
             "get": {
                 "security": [
@@ -3523,50 +4104,6 @@ const docTemplate = `{
                                     }
                                 }
                             ]
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/d/about": {
-            "get": {
-                "description": "返回 OpenFlare 关于页面文本，无需登录",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "openflare-option"
-                ],
-                "summary": "获取关于信息",
-                "responses": {
-                    "200": {
-                        "description": "关于信息",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/response.Any"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "type": "string"
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    },
-                    "400": {
-                        "description": "参数错误",
-                        "schema": {
-                            "$ref": "#/definitions/response.Any"
-                        }
-                    },
-                    "500": {
-                        "description": "内部错误",
-                        "schema": {
-                            "$ref": "#/definitions/response.Any"
                         }
                     }
                 }
@@ -9089,272 +9626,6 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/d/update/latest-release": {
-            "get": {
-                "security": [
-                    {
-                        "SessionCookie": []
-                    }
-                ],
-                "description": "查询 OpenFlare 服务端最新 GitHub Release 及升级状态，需要管理员权限",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "openflare-update"
-                ],
-                "summary": "获取最新服务端发布版本",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "发布渠道（stable/preview）",
-                        "name": "channel",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "最新发布信息",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/response.Any"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "$ref": "#/definitions/update.LatestReleaseView"
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    },
-                    "400": {
-                        "description": "参数错误",
-                        "schema": {
-                            "$ref": "#/definitions/response.Any"
-                        }
-                    },
-                    "401": {
-                        "description": "未登录",
-                        "schema": {
-                            "$ref": "#/definitions/response.Any"
-                        }
-                    },
-                    "403": {
-                        "description": "无管理员权限",
-                        "schema": {
-                            "$ref": "#/definitions/response.Any"
-                        }
-                    },
-                    "500": {
-                        "description": "内部错误",
-                        "schema": {
-                            "$ref": "#/definitions/response.Any"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/d/update/logs/ws": {
-            "get": {
-                "security": [
-                    {
-                        "SessionCookie": []
-                    }
-                ],
-                "description": "通过 WebSocket 推送升级进度快照，需要管理员权限",
-                "tags": [
-                    "openflare-update"
-                ],
-                "summary": "流式获取服务端升级日志",
-                "responses": {
-                    "101": {
-                        "description": "WebSocket 升级日志流",
-                        "schema": {
-                            "$ref": "#/definitions/update.StreamSnapshot"
-                        }
-                    },
-                    "401": {
-                        "description": "未登录",
-                        "schema": {
-                            "$ref": "#/definitions/response.Any"
-                        }
-                    },
-                    "403": {
-                        "description": "无管理员权限",
-                        "schema": {
-                            "$ref": "#/definitions/response.Any"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/d/update/manual-upgrade": {
-            "post": {
-                "security": [
-                    {
-                        "SessionCookie": []
-                    }
-                ],
-                "description": "确认并执行手动上传的服务端升级（当前功能已禁用），需要管理员权限",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "openflare-update"
-                ],
-                "summary": "确认手动服务端升级",
-                "responses": {
-                    "400": {
-                        "description": "功能已禁用或参数错误",
-                        "schema": {
-                            "$ref": "#/definitions/response.Any"
-                        }
-                    },
-                    "401": {
-                        "description": "未登录",
-                        "schema": {
-                            "$ref": "#/definitions/response.Any"
-                        }
-                    },
-                    "403": {
-                        "description": "无管理员权限",
-                        "schema": {
-                            "$ref": "#/definitions/response.Any"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/d/update/manual-upload": {
-            "post": {
-                "security": [
-                    {
-                        "SessionCookie": []
-                    }
-                ],
-                "description": "上传服务端二进制以进行手动升级（当前功能已禁用），需要管理员权限",
-                "consumes": [
-                    "multipart/form-data"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "openflare-update"
-                ],
-                "summary": "上传手动升级二进制",
-                "parameters": [
-                    {
-                        "type": "file",
-                        "description": "服务端二进制文件",
-                        "name": "binary",
-                        "in": "formData",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "400": {
-                        "description": "功能已禁用或参数错误",
-                        "schema": {
-                            "$ref": "#/definitions/response.Any"
-                        }
-                    },
-                    "401": {
-                        "description": "未登录",
-                        "schema": {
-                            "$ref": "#/definitions/response.Any"
-                        }
-                    },
-                    "403": {
-                        "description": "无管理员权限",
-                        "schema": {
-                            "$ref": "#/definitions/response.Any"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/d/update/upgrade": {
-            "post": {
-                "security": [
-                    {
-                        "SessionCookie": []
-                    }
-                ],
-                "description": "从最新 Release 调度 OpenFlare 服务端自动升级，需要管理员权限",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "openflare-update"
-                ],
-                "summary": "触发服务端自动升级",
-                "parameters": [
-                    {
-                        "description": "升级参数",
-                        "name": "request",
-                        "in": "body",
-                        "schema": {
-                            "$ref": "#/definitions/update.upgradeRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "升级任务已调度",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/response.Any"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "$ref": "#/definitions/update.LatestReleaseView"
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    },
-                    "400": {
-                        "description": "参数错误",
-                        "schema": {
-                            "$ref": "#/definitions/response.Any"
-                        }
-                    },
-                    "401": {
-                        "description": "未登录",
-                        "schema": {
-                            "$ref": "#/definitions/response.Any"
-                        }
-                    },
-                    "403": {
-                        "description": "无管理员权限",
-                        "schema": {
-                            "$ref": "#/definitions/response.Any"
-                        }
-                    },
-                    "500": {
-                        "description": "内部错误",
-                        "schema": {
-                            "$ref": "#/definitions/response.Any"
-                        }
-                    }
-                }
-            }
-        },
         "/api/v1/d/uptimekuma/sync": {
             "post": {
                 "security": [
@@ -10957,6 +11228,274 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/upload": {
+            "post": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "description": "支持各种类型的通用文件上传，支持自动文件类型检测、哈希计算与“秒传”去重",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "upload"
+                ],
+                "summary": "上传文件",
+                "parameters": [
+                    {
+                        "type": "file",
+                        "description": "要上传的文件",
+                        "name": "file",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "业务分类 (例如: avatar, attachment, doc，默认为 generic)",
+                        "name": "type",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "额外的 JSON 格式元数据",
+                        "name": "metadata",
+                        "in": "formData"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "上传成功",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/model.Upload"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "请求参数错误或文件受限",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    },
+                    "401": {
+                        "description": "未登录",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    },
+                    "500": {
+                        "description": "内部错误",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/upload/my": {
+            "get": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "description": "分页获取当前登录用户上传的文件，支持文件名关键词、业务类型、扩展名过滤",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "upload"
+                ],
+                "summary": "获取我的文件列表",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "页码（默认 1）",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "每页数量（默认 20，最大 100）",
+                        "name": "page_size",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "文件名关键词（模糊匹配）",
+                        "name": "keyword",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "业务分类过滤",
+                        "name": "type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "扩展名过滤",
+                        "name": "extension",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "查询成功",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/handler.listMyFilesResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "未登录",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/upload/{id}": {
+            "put": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "description": "更新当前用户本人的文件名或访问权限模式 (AccessMode)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "upload"
+                ],
+                "summary": "更新我的文件信息",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "文件 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "更新字段",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.updateMyFileRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "更新成功",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/model.Upload"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "403": {
+                        "description": "无权操作",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    },
+                    "404": {
+                        "description": "文件不存在",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "description": "将当前用户本人的文件状态置为 deleted（软删除）",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "upload"
+                ],
+                "summary": "删除我的文件",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "文件 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "删除成功",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    },
+                    "403": {
+                        "description": "无权操作",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    },
+                    "404": {
+                        "description": "文件不存在",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/user-info": {
             "get": {
                 "security": [
@@ -11563,6 +12102,65 @@ const docTemplate = `{
                 }
             }
         },
+        "/f/{id}": {
+            "get": {
+                "description": "根据文件 ID 获取并提供已上传的临时或正式文件，若配置了缓存则优先走本地缓存，否则从 S3 等后端存储读取并流式返回",
+                "produces": [
+                    "application/octet-stream"
+                ],
+                "tags": [
+                    "upload"
+                ],
+                "summary": "获取已上传文件",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "文件 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "图片质量 (low, medium, high, origin)，默认为 origin",
+                        "name": "quality",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "成功获取文件内容",
+                        "schema": {
+                            "type": "file"
+                        }
+                    },
+                    "400": {
+                        "description": "文件 ID 格式错误",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    },
+                    "401": {
+                        "description": "未登录",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    },
+                    "404": {
+                        "description": "文件未找到",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    },
+                    "500": {
+                        "description": "服务内部错误",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    }
+                }
+            }
+        },
         "/robots.txt": {
             "get": {
                 "description": "根据系统配置决定是否允许搜索引擎检索，并返回相应的 robots.txt 文件内容",
@@ -12137,6 +12735,285 @@ const docTemplate = `{
                     "type": "boolean"
                 },
                 "token": {
+                    "type": "string"
+                }
+            }
+        },
+        "handler.batchDownloadRequest": {
+            "type": "object",
+            "required": [
+                "ids"
+            ],
+            "properties": {
+                "ids": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "handler.distributionItem": {
+            "type": "object",
+            "properties": {
+                "count": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "size": {
+                    "type": "integer"
+                }
+            }
+        },
+        "handler.fileStatsResponse": {
+            "type": "object",
+            "properties": {
+                "categories": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/handler.distributionItem"
+                    }
+                },
+                "total_count": {
+                    "type": "integer"
+                },
+                "total_size": {
+                    "type": "integer"
+                },
+                "trend": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/handler.trendItem"
+                    }
+                },
+                "types": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/handler.distributionItem"
+                    }
+                }
+            }
+        },
+        "handler.listFilesResponse": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.Upload"
+                    }
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "page_size": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "handler.listMyFilesResponse": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.Upload"
+                    }
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "page_size": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "handler.trendItem": {
+            "type": "object",
+            "properties": {
+                "count": {
+                    "type": "integer"
+                },
+                "date": {
+                    "type": "string"
+                },
+                "size": {
+                    "type": "integer"
+                }
+            }
+        },
+        "handler.updateMyFileRequest": {
+            "type": "object",
+            "properties": {
+                "access_mode": {
+                    "type": "integer",
+                    "enum": [
+                        0,
+                        1
+                    ]
+                },
+                "file_name": {
+                    "type": "string",
+                    "maxLength": 255
+                }
+            }
+        },
+        "logger.LogEntry": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "description": "一行日志原文（含换行符）",
+                    "type": "string"
+                },
+                "index": {
+                    "description": "全局递增序号",
+                    "type": "integer"
+                }
+            }
+        },
+        "logs.accessLogItem": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "headers": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string",
+                    "example": "0"
+                },
+                "ip": {
+                    "type": "string"
+                },
+                "latency": {
+                    "type": "integer"
+                },
+                "method": {
+                    "type": "string"
+                },
+                "nickname": {
+                    "type": "string"
+                },
+                "path": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "integer"
+                },
+                "user_agent": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "string",
+                    "example": "0"
+                },
+                "username": {
+                    "type": "string"
+                }
+            }
+        },
+        "logs.accessLogsResponse": {
+            "type": "object",
+            "properties": {
+                "list": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/logs.accessLogItem"
+                    }
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "logs.browserItem": {
+            "type": "object",
+            "properties": {
+                "browser": {
+                    "type": "string"
+                },
+                "count": {
+                    "type": "integer"
+                }
+            }
+        },
+        "logs.logsAnalyticsResponse": {
+            "type": "object",
+            "properties": {
+                "browsers": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/logs.browserItem"
+                    }
+                },
+                "top_users": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/logs.topUserItem"
+                    }
+                },
+                "trend": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/logs.trendItem"
+                    }
+                }
+            }
+        },
+        "logs.logsResponse": {
+            "type": "object",
+            "properties": {
+                "has_more": {
+                    "type": "boolean"
+                },
+                "lines": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/logger.LogEntry"
+                    }
+                },
+                "next_cursor": {
+                    "description": "用于加载更早日志的 cursor",
+                    "type": "integer"
+                }
+            }
+        },
+        "logs.topUserItem": {
+            "type": "object",
+            "properties": {
+                "count": {
+                    "type": "integer"
+                },
+                "nickname": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "string",
+                    "example": "0"
+                },
+                "username": {
+                    "type": "string"
+                }
+            }
+        },
+        "logs.trendItem": {
+            "type": "object",
+            "properties": {
+                "count": {
+                    "type": "integer"
+                },
+                "date": {
                     "type": "string"
                 }
             }
@@ -12939,6 +13816,133 @@ const docTemplate = `{
                     "type": "string"
                 }
             }
+        },
+        "model.Upload": {
+            "type": "object",
+            "properties": {
+                "access_mode": {
+                    "type": "integer"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "extension": {
+                    "description": "文件后缀名 (不含点，如 png, pdf)",
+                    "type": "string"
+                },
+                "file_name": {
+                    "description": "原始文件名 (例如: image.png)",
+                    "type": "string"
+                },
+                "file_path": {
+                    "description": "文件相对路径 / S3 Key",
+                    "type": "string"
+                },
+                "file_size": {
+                    "description": "文件大小（字节）",
+                    "type": "integer"
+                },
+                "hash": {
+                    "description": "文件哈希 (SHA-256/MD5，可用于排重)",
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string",
+                    "example": "0"
+                },
+                "metadata": {
+                    "description": "业务扩展元数据",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/model.UploadMetadata"
+                        }
+                    ]
+                },
+                "mime_type": {
+                    "description": "媒体类型 (MIME, 如 image/png)",
+                    "type": "string"
+                },
+                "status": {
+                    "description": "状态",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/model.UploadStatus"
+                        }
+                    ]
+                },
+                "type": {
+                    "description": "业务标识类型 (如 avatar, doc, attachment)",
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "string",
+                    "example": "0"
+                }
+            }
+        },
+        "model.UploadMetadata": {
+            "type": "object",
+            "properties": {
+                "bucket": {
+                    "description": "存储桶名称 (适用于 S3 等)",
+                    "type": "string"
+                },
+                "client_ip": {
+                    "description": "上传者 IP",
+                    "type": "string"
+                },
+                "duration": {
+                    "description": "音视频时长 (s)",
+                    "type": "number"
+                },
+                "extra": {
+                    "description": "其它任意业务自定义元数据",
+                    "type": "object",
+                    "additionalProperties": {}
+                },
+                "height": {
+                    "description": "图像/视频高度 (px)",
+                    "type": "integer"
+                },
+                "original_mime": {
+                    "description": "原始 MIME 类型",
+                    "type": "string"
+                },
+                "user_agent": {
+                    "description": "上传者的 UA",
+                    "type": "string"
+                },
+                "width": {
+                    "description": "图像/视频宽度 (px)",
+                    "type": "integer"
+                }
+            }
+        },
+        "model.UploadStatus": {
+            "type": "string",
+            "enum": [
+                "pending",
+                "used",
+                "deleted"
+            ],
+            "x-enum-comments": {
+                "UploadStatusDeleted": "已删除",
+                "UploadStatusPending": "待使用",
+                "UploadStatusUsed": "已使用"
+            },
+            "x-enum-descriptions": [
+                "待使用",
+                "已使用",
+                "已删除"
+            ],
+            "x-enum-varnames": [
+                "UploadStatusPending",
+                "UploadStatusUsed",
+                "UploadStatusDeleted"
+            ]
         },
         "node.AgentReleaseInfo": {
             "type": "object",
@@ -15402,89 +16406,6 @@ const docTemplate = `{
                 },
                 "matched": {
                     "type": "boolean"
-                }
-            }
-        },
-        "update.LatestReleaseView": {
-            "type": "object",
-            "properties": {
-                "body": {
-                    "type": "string"
-                },
-                "channel": {
-                    "type": "string"
-                },
-                "current_version": {
-                    "type": "string"
-                },
-                "has_update": {
-                    "type": "boolean"
-                },
-                "html_url": {
-                    "type": "string"
-                },
-                "in_progress": {
-                    "type": "boolean"
-                },
-                "prerelease": {
-                    "type": "boolean"
-                },
-                "published_at": {
-                    "type": "string"
-                },
-                "tag_name": {
-                    "type": "string"
-                },
-                "upgrade_logs": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/update.UpgradeLogRecord"
-                    }
-                },
-                "upgrade_status": {
-                    "type": "string"
-                },
-                "upgrade_supported": {
-                    "type": "boolean"
-                }
-            }
-        },
-        "update.StreamSnapshot": {
-            "type": "object",
-            "properties": {
-                "in_progress": {
-                    "type": "boolean"
-                },
-                "upgrade_logs": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/update.UpgradeLogRecord"
-                    }
-                },
-                "upgrade_status": {
-                    "type": "string"
-                }
-            }
-        },
-        "update.UpgradeLogRecord": {
-            "type": "object",
-            "properties": {
-                "created_at": {
-                    "type": "string"
-                },
-                "level": {
-                    "type": "string"
-                },
-                "message": {
-                    "type": "string"
-                }
-            }
-        },
-        "update.upgradeRequest": {
-            "type": "object",
-            "properties": {
-                "channel": {
-                    "type": "string"
                 }
             }
         },

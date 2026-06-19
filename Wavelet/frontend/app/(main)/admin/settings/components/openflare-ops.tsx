@@ -27,9 +27,10 @@ import {Textarea} from "@/components/ui/textarea"
 import {ErrorInline} from "@/components/layout/error"
 import {LoadingStateWithBorder} from "@/components/layout/loading"
 import type {DatabaseCleanupTarget} from "@/lib/services/openflare"
-import {NodeService, OptionService, StatusService, UpdateService, UptimeKumaService,} from "@/lib/services/openflare"
+import {AdminStatusService} from "@/lib/services/admin"
+import {NodeService, OptionService, StatusService, UptimeKumaService,} from "@/lib/services/openflare"
 import {VersionUpgradeDialog} from "@/app/(main)/components/version-upgrade-dialog"
-import {openflareLatestReleaseQueryKey, openflarePublicStatusQueryKey,} from "@/lib/hooks/use-openflare-server-upgrade"
+import {adminUpdateStatusQueryKey, openflarePublicStatusQueryKey,} from "@/lib/hooks/use-openflare-server-upgrade"
 
 import {
   agentOptionEntries,
@@ -102,8 +103,8 @@ export function OpenFlareOpsSettings() {
   })
 
   const releaseQuery = useQuery({
-    queryKey: openflareLatestReleaseQueryKey("stable"),
-    queryFn: () => UpdateService.getLatestRelease("stable"),
+    queryKey: adminUpdateStatusQueryKey,
+    queryFn: () => AdminStatusService.getUpdateStatus(),
   })
 
   useEffect(() => {
@@ -609,7 +610,7 @@ export function OpenFlareOpsSettings() {
           <div>
             <CardTitle className="text-base">版本信息</CardTitle>
             <CardDescription>
-              检查 GitHub Release、在线升级或手动上传服务端二进制包。
+              检查上游 GitHub Release 并升级当前服务。
             </CardDescription>
           </div>
           <Button type="button" size="sm" onClick={() => setVersionDialogOpen(true)}>
@@ -620,12 +621,12 @@ export function OpenFlareOpsSettings() {
           <InfoCell label="当前版本" value={statusQuery.data?.version ?? releaseQuery.data?.current_version ?? "—"} />
           <InfoCell
             label="最新 Release"
-            value={releaseQuery.data?.tag_name ?? "—"}
+            value={releaseQuery.data?.latest_version ?? "—"}
           />
           <div className="rounded-lg border border-dashed px-3 py-2">
             <p className="text-[10px] uppercase tracking-wider text-muted-foreground">更新状态</p>
             <div className="mt-2">
-              {releaseQuery.data?.has_update ? (
+              {releaseQuery.data?.update_available ? (
                 <Badge variant="secondary">有新版本</Badge>
               ) : (
                 <Badge variant="outline">已是最新</Badge>

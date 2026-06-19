@@ -27,7 +27,6 @@ import {PushService} from './push';
 import {AdminUploadService, UploadService} from './upload';
 import {UserService} from './user';
 import {
-  AboutService,
   AccessLogService,
   ApplyLogService,
   ConfigVersionService,
@@ -40,7 +39,6 @@ import {
   ProxyRouteService,
   StatusService,
   TlsCertificateService,
-  UpdateService,
   UptimeKumaService,
   WafService,
   WebsiteService,
@@ -62,7 +60,6 @@ const services = {
   adminUpload: AdminUploadService,
   dbManage: DbManageService,
   push: PushService,
-  openflareAbout: AboutService,
   openflareNode: NodeService,
   openflareProxyRoute: ProxyRouteService,
   openflareConfigVersion: ConfigVersionService,
@@ -77,7 +74,6 @@ const services = {
   openflareAccessLog: AccessLogService,
   openflareOption: OptionService,
   openflareUptimeKuma: UptimeKumaService,
-  openflareUpdate: UpdateService,
   openflareStatus: StatusService,
 } as const;
 
@@ -183,7 +179,6 @@ export type { PushEvent, PushHistory, PushChannelConfig, ListPushHistoriesReques
 // ==================== OpenFlare 业务服务导出 ====================
 
 export {
-  AboutService,
   OpenFlareBaseService,
   NodeService,
   ProxyRouteService,
@@ -199,7 +194,6 @@ export {
   AccessLogService,
   OptionService,
   StatusService,
-  UpdateService,
   UptimeKumaService,
 } from './openflare';
 
@@ -227,6 +221,5 @@ export type {
   OptionItem,
   GeoIPLookupResult,
   DatabaseCleanupResult,
-  LatestReleaseInfo,
   OpenFlarePublicStatus,
 } from './openflare';

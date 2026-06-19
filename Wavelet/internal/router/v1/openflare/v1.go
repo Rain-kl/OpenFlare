@@ -22,5 +22,4 @@ func RegisterV1Routes(apiV1Router *gin.RouterGroup) {
 	registerPagesRoutes(group)
 	registerDashboardRoutes(group)
 	registerObservabilityRoutes(group)
-	registerUpdateRoutes(group)
 }

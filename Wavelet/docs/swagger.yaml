@@ -367,6 +367,190 @@ definitions:
       token:
         type: string
     type: object
+  handler.batchDownloadRequest:
+    properties:
+      ids:
+        items:
+          type: string
+        minItems: 1
+        type: array
+    required:
+    - ids
+    type: object
+  handler.distributionItem:
+    properties:
+      count:
+        type: integer
+      name:
+        type: string
+      size:
+        type: integer
+    type: object
+  handler.fileStatsResponse:
+    properties:
+      categories:
+        items:
+          $ref: '#/definitions/handler.distributionItem'
+        type: array
+      total_count:
+        type: integer
+      total_size:
+        type: integer
+      trend:
+        items:
+          $ref: '#/definitions/handler.trendItem'
+        type: array
+      types:
+        items:
+          $ref: '#/definitions/handler.distributionItem'
+        type: array
+    type: object
+  handler.listFilesResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/model.Upload'
+        type: array
+      page:
+        type: integer
+      page_size:
+        type: integer
+      total:
+        type: integer
+    type: object
+  handler.listMyFilesResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/model.Upload'
+        type: array
+      page:
+        type: integer
+      page_size:
+        type: integer
+      total:
+        type: integer
+    type: object
+  handler.trendItem:
+    properties:
+      count:
+        type: integer
+      date:
+        type: string
+      size:
+        type: integer
+    type: object
+  handler.updateMyFileRequest:
+    properties:
+      access_mode:
+        enum:
+        - 0
+        - 1
+        type: integer
+      file_name:
+        maxLength: 255
+        type: string
+    type: object
+  logger.LogEntry:
+    properties:
+      data:
+        description: 一行日志原文（含换行符）
+        type: string
+      index:
+        description: 全局递增序号
+        type: integer
+    type: object
+  logs.accessLogItem:
+    properties:
+      created_at:
+        type: string
+      headers:
+        type: string
+      id:
+        example: "0"
+        type: string
+      ip:
+        type: string
+      latency:
+        type: integer
+      method:
+        type: string
+      nickname:
+        type: string
+      path:
+        type: string
+      status:
+        type: integer
+      user_agent:
+        type: string
+      user_id:
+        example: "0"
+        type: string
+      username:
+        type: string
+    type: object
+  logs.accessLogsResponse:
+    properties:
+      list:
+        items:
+          $ref: '#/definitions/logs.accessLogItem'
+        type: array
+      total:
+        type: integer
+    type: object
+  logs.browserItem:
+    properties:
+      browser:
+        type: string
+      count:
+        type: integer
+    type: object
+  logs.logsAnalyticsResponse:
+    properties:
+      browsers:
+        items:
+          $ref: '#/definitions/logs.browserItem'
+        type: array
+      top_users:
+        items:
+          $ref: '#/definitions/logs.topUserItem'
+        type: array
+      trend:
+        items:
+          $ref: '#/definitions/logs.trendItem'
+        type: array
+    type: object
+  logs.logsResponse:
+    properties:
+      has_more:
+        type: boolean
+      lines:
+        items:
+          $ref: '#/definitions/logger.LogEntry'
+        type: array
+      next_cursor:
+        description: 用于加载更早日志的 cursor
+        type: integer
+    type: object
+  logs.topUserItem:
+    properties:
+      count:
+        type: integer
+      nickname:
+        type: string
+      user_id:
+        example: "0"
+        type: string
+      username:
+        type: string
+    type: object
+  logs.trendItem:
+    properties:
+      count:
+        type: integer
+      date:
+        type: string
+    type: object
   model.AccessToken:
     properties:
       created_at:
@@ -900,6 +1084,96 @@ definitions:
       updated_at:
         type: string
     type: object
+  model.Upload:
+    properties:
+      access_mode:
+        type: integer
+      created_at:
+        type: string
+      extension:
+        description: 文件后缀名 (不含点，如 png, pdf)
+        type: string
+      file_name:
+        description: '原始文件名 (例如: image.png)'
+        type: string
+      file_path:
+        description: 文件相对路径 / S3 Key
+        type: string
+      file_size:
+        description: 文件大小（字节）
+        type: integer
+      hash:
+        description: 文件哈希 (SHA-256/MD5，可用于排重)
+        type: string
+      id:
+        example: "0"
+        type: string
+      metadata:
+        allOf:
+        - $ref: '#/definitions/model.UploadMetadata'
+        description: 业务扩展元数据
+      mime_type:
+        description: 媒体类型 (MIME, 如 image/png)
+        type: string
+      status:
+        allOf:
+        - $ref: '#/definitions/model.UploadStatus'
+        description: 状态
+      type:
+        description: 业务标识类型 (如 avatar, doc, attachment)
+        type: string
+      updated_at:
+        type: string
+      user_id:
+        example: "0"
+        type: string
+    type: object
+  model.UploadMetadata:
+    properties:
+      bucket:
+        description: 存储桶名称 (适用于 S3 等)
+        type: string
+      client_ip:
+        description: 上传者 IP
+        type: string
+      duration:
+        description: 音视频时长 (s)
+        type: number
+      extra:
+        additionalProperties: {}
+        description: 其它任意业务自定义元数据
+        type: object
+      height:
+        description: 图像/视频高度 (px)
+        type: integer
+      original_mime:
+        description: 原始 MIME 类型
+        type: string
+      user_agent:
+        description: 上传者的 UA
+        type: string
+      width:
+        description: 图像/视频宽度 (px)
+        type: integer
+    type: object
+  model.UploadStatus:
+    enum:
+    - pending
+    - used
+    - deleted
+    type: string
+    x-enum-comments:
+      UploadStatusDeleted: 已删除
+      UploadStatusPending: 待使用
+      UploadStatusUsed: 已使用
+    x-enum-descriptions:
+    - 待使用
+    - 已使用
+    - 已删除
+    x-enum-varnames:
+    - UploadStatusPending
+    - UploadStatusUsed
+    - UploadStatusDeleted
   node.AgentReleaseInfo:
     properties:
       body:
@@ -2536,60 +2810,6 @@ definitions:
       matched:
         type: boolean
     type: object
-  update.LatestReleaseView:
-    properties:
-      body:
-        type: string
-      channel:
-        type: string
-      current_version:
-        type: string
-      has_update:
-        type: boolean
-      html_url:
-        type: string
-      in_progress:
-        type: boolean
-      prerelease:
-        type: boolean
-      published_at:
-        type: string
-      tag_name:
-        type: string
-      upgrade_logs:
-        items:
-          $ref: '#/definitions/update.UpgradeLogRecord'
-        type: array
-      upgrade_status:
-        type: string
-      upgrade_supported:
-        type: boolean
-    type: object
-  update.StreamSnapshot:
-    properties:
-      in_progress:
-        type: boolean
-      upgrade_logs:
-        items:
-          $ref: '#/definitions/update.UpgradeLogRecord'
-        type: array
-      upgrade_status:
-        type: string
-    type: object
-  update.UpgradeLogRecord:
-    properties:
-      created_at:
-        type: string
-      level:
-        type: string
-      message:
-        type: string
-    type: object
-  update.upgradeRequest:
-    properties:
-      channel:
-        type: string
-    type: object
   updater.Status:
     properties:
       asset_name:
@@ -3619,6 +3839,143 @@ paths:
       security:
       - SessionCookie: []
       summary: 获取数据库所有表名
+      tags:
+      - admin
+  /api/v1/admin/logs:
+    get:
+      description: 分页获取系统历史日志，cursor=0 获取最新日志，cursor>0 获取更早日志
+      parameters:
+      - default: 0
+        description: 日志游标，0=获取最新
+        in: query
+        name: cursor
+        type: integer
+      - default: 200
+        description: 每页条数
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 日志列表
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/logs.logsResponse'
+              type: object
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "403":
+          description: 无管理员权限
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 获取系统日志
+      tags:
+      - admin
+  /api/v1/admin/logs/access:
+    get:
+      description: 分页并按照用户、接口路径、时间范围等维度检索 ClickHouse 用户访问日志列表（需要管理员权限，ClickHouse 未启用时报错）
+      parameters:
+      - default: 1
+        description: 页码
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: 每页条数
+        in: query
+        name: page_size
+        type: integer
+      - description: 用户名模糊搜索
+        in: query
+        name: username
+        type: string
+      - description: 接口路径模糊搜索
+        in: query
+        name: path
+        type: string
+      - description: 起始时间（RFC3339 或 YYYY-MM-DD HH:MM:SS）
+        in: query
+        name: start_time
+        type: string
+      - description: 结束时间（RFC3339 或 YYYY-MM-DD HH:MM:SS）
+        in: query
+        name: end_time
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 访问日志列表
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/logs.accessLogsResponse'
+              type: object
+        "400":
+          description: ClickHouse 未启用或参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "403":
+          description: 无管理员权限
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 获取用户访问日志
+      tags:
+      - admin
+  /api/v1/admin/logs/analytics:
+    get:
+      description: 聚合统计最近 7 天的每日访问趋势、浏览器分布以及前 10 名最活跃用户排行（需要管理员权限，ClickHouse 未启用时报错）
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 分析统计数据
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/logs.logsAnalyticsResponse'
+              type: object
+        "400":
+          description: ClickHouse 未启用
+          schema:
+            $ref: '#/definitions/response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "403":
+          description: 无管理员权限
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 获取访问日志分析数据
+      tags:
+      - admin
+  /api/v1/admin/logs/ws:
+    get:
+      description: 通过 WebSocket 实时推送系统日志，需要管理员权限
+      responses: {}
+      summary: 系统日志实时推送
       tags:
       - admin
   /api/v1/admin/push/channels:
@@ -4895,6 +5252,224 @@ paths:
       summary: 下载并应用应用更新
       tags:
       - admin
+  /api/v1/admin/uploads:
+    get:
+      description: 分页获取系统上传的文件列表，支持文件名关键词、业务类型、扩展名、上传用户ID过滤
+      parameters:
+      - description: 页码（默认 1）
+        in: query
+        name: page
+        type: integer
+      - description: 每页数量（默认 20，最大 100）
+        in: query
+        name: page_size
+        type: integer
+      - description: 文件名关键词（模糊匹配）
+        in: query
+        name: keyword
+        type: string
+      - description: 业务分类过滤
+        in: query
+        name: type
+        type: string
+      - description: 扩展名过滤
+        in: query
+        name: extension
+        type: string
+      - description: 上传用户 ID
+        format: int64
+        in: query
+        name: user_id
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/handler.listFilesResponse'
+              type: object
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "403":
+          description: 无管理员权限
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 获取文件列表
+      tags:
+      - admin
+  /api/v1/admin/uploads/{id}:
+    delete:
+      description: 将文件状态置为 deleted（软删除），不会立即清理底层存储对象
+      parameters:
+      - description: 文件 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 删除成功
+          schema:
+            $ref: '#/definitions/response.Any'
+        "403":
+          description: 无权操作
+          schema:
+            $ref: '#/definitions/response.Any'
+        "404":
+          description: 文件不存在
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 删除文件
+      tags:
+      - admin
+  /api/v1/admin/uploads/download/{id}:
+    get:
+      description: 根据文件 ID 获取文件，以附件形式 (Attachment) 强制开启客户端浏览器下载
+      parameters:
+      - description: 文件 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 图片质量 (low, medium, high, origin)，默认为 origin
+        in: query
+        name: quality
+        type: string
+      produces:
+      - application/octet-stream
+      responses:
+        "200":
+          description: 成功下载文件
+          schema:
+            type: file
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "404":
+          description: 文件不存在
+          schema:
+            $ref: '#/definitions/response.Any'
+        "500":
+          description: 服务内部错误
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 下载单文件
+      tags:
+      - admin
+  /api/v1/admin/uploads/download/batch:
+    post:
+      consumes:
+      - application/json
+      description: 传入多个文件 ID，后台实时将其打包压缩为 ZIP 流并输出，自动处理文件名重复冲突
+      parameters:
+      - description: 包含文件 ID 数组 of string 的请求体
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.batchDownloadRequest'
+      produces:
+      - application/octet-stream
+      responses:
+        "200":
+          description: 成功下载打包后的 ZIP
+          schema:
+            type: file
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "500":
+          description: 打包失败
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 批量打包下载
+      tags:
+      - admin
+  /api/v1/admin/uploads/stats:
+    get:
+      description: 返回系统级的总文件数、占用大小、最近 7 天新增趋势、文件类型/格式分布等数据
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/handler.fileStatsResponse'
+              type: object
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "403":
+          description: 无管理员权限
+          schema:
+            $ref: '#/definitions/response.Any'
+        "500":
+          description: 内部错误
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 获取文件统计数据
+      tags:
+      - admin
+  /api/v1/admin/uploads/types:
+    get:
+      description: 返回数据库中所有已上传文件实际拥有的业务类型列表
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 业务类型列表
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  items:
+                    type: string
+                  type: array
+              type: object
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "403":
+          description: 无管理员权限
+          schema:
+            $ref: '#/definitions/response.Any'
+        "500":
+          description: 内部错误
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 获取文件业务类型列表
+      tags:
+      - admin
   /api/v1/admin/users:
     get:
       description: 分页返回用户列表，支持按用户 ID 和用户名筛选，需要管理员权限
@@ -5169,32 +5744,6 @@ paths:
       summary: Sample Hello API
       tags:
       - custom
-  /api/v1/d/about:
-    get:
-      description: 返回 OpenFlare 关于页面文本，无需登录
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: 关于信息
-          schema:
-            allOf:
-            - $ref: '#/definitions/response.Any'
-            - properties:
-                data:
-                  type: string
-              type: object
-        "400":
-          description: 参数错误
-          schema:
-            $ref: '#/definitions/response.Any'
-        "500":
-          description: 内部错误
-          schema:
-            $ref: '#/definitions/response.Any'
-      summary: 获取关于信息
-      tags:
-      - openflare-option
   /api/v1/d/access-logs:
     get:
       description: 分页返回 OpenFlare 访问日志，支持按节点、IP、主机与路径筛选，需要管理员权限
@@ -8533,168 +9082,6 @@ paths:
       summary: 从文件导入 TLS 证书
       tags:
       - openflare-tls
-  /api/v1/d/update/latest-release:
-    get:
-      description: 查询 OpenFlare 服务端最新 GitHub Release 及升级状态，需要管理员权限
-      parameters:
-      - description: 发布渠道（stable/preview）
-        in: query
-        name: channel
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: 最新发布信息
-          schema:
-            allOf:
-            - $ref: '#/definitions/response.Any'
-            - properties:
-                data:
-                  $ref: '#/definitions/update.LatestReleaseView'
-              type: object
-        "400":
-          description: 参数错误
-          schema:
-            $ref: '#/definitions/response.Any'
-        "401":
-          description: 未登录
-          schema:
-            $ref: '#/definitions/response.Any'
-        "403":
-          description: 无管理员权限
-          schema:
-            $ref: '#/definitions/response.Any'
-        "500":
-          description: 内部错误
-          schema:
-            $ref: '#/definitions/response.Any'
-      security:
-      - SessionCookie: []
-      summary: 获取最新服务端发布版本
-      tags:
-      - openflare-update
-  /api/v1/d/update/logs/ws:
-    get:
-      description: 通过 WebSocket 推送升级进度快照，需要管理员权限
-      responses:
-        "101":
-          description: WebSocket 升级日志流
-          schema:
-            $ref: '#/definitions/update.StreamSnapshot'
-        "401":
-          description: 未登录
-          schema:
-            $ref: '#/definitions/response.Any'
-        "403":
-          description: 无管理员权限
-          schema:
-            $ref: '#/definitions/response.Any'
-      security:
-      - SessionCookie: []
-      summary: 流式获取服务端升级日志
-      tags:
-      - openflare-update
-  /api/v1/d/update/manual-upgrade:
-    post:
-      consumes:
-      - application/json
-      description: 确认并执行手动上传的服务端升级（当前功能已禁用），需要管理员权限
-      produces:
-      - application/json
-      responses:
-        "400":
-          description: 功能已禁用或参数错误
-          schema:
-            $ref: '#/definitions/response.Any'
-        "401":
-          description: 未登录
-          schema:
-            $ref: '#/definitions/response.Any'
-        "403":
-          description: 无管理员权限
-          schema:
-            $ref: '#/definitions/response.Any'
-      security:
-      - SessionCookie: []
-      summary: 确认手动服务端升级
-      tags:
-      - openflare-update
-  /api/v1/d/update/manual-upload:
-    post:
-      consumes:
-      - multipart/form-data
-      description: 上传服务端二进制以进行手动升级（当前功能已禁用），需要管理员权限
-      parameters:
-      - description: 服务端二进制文件
-        in: formData
-        name: binary
-        required: true
-        type: file
-      produces:
-      - application/json
-      responses:
-        "400":
-          description: 功能已禁用或参数错误
-          schema:
-            $ref: '#/definitions/response.Any'
-        "401":
-          description: 未登录
-          schema:
-            $ref: '#/definitions/response.Any'
-        "403":
-          description: 无管理员权限
-          schema:
-            $ref: '#/definitions/response.Any'
-      security:
-      - SessionCookie: []
-      summary: 上传手动升级二进制
-      tags:
-      - openflare-update
-  /api/v1/d/update/upgrade:
-    post:
-      consumes:
-      - application/json
-      description: 从最新 Release 调度 OpenFlare 服务端自动升级，需要管理员权限
-      parameters:
-      - description: 升级参数
-        in: body
-        name: request
-        schema:
-          $ref: '#/definitions/update.upgradeRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: 升级任务已调度
-          schema:
-            allOf:
-            - $ref: '#/definitions/response.Any'
-            - properties:
-                data:
-                  $ref: '#/definitions/update.LatestReleaseView'
-              type: object
-        "400":
-          description: 参数错误
-          schema:
-            $ref: '#/definitions/response.Any'
-        "401":
-          description: 未登录
-          schema:
-            $ref: '#/definitions/response.Any'
-        "403":
-          description: 无管理员权限
-          schema:
-            $ref: '#/definitions/response.Any'
-        "500":
-          description: 内部错误
-          schema:
-            $ref: '#/definitions/response.Any'
-      security:
-      - SessionCookie: []
-      summary: 触发服务端自动升级
-      tags:
-      - openflare-update
   /api/v1/d/uptimekuma/sync:
     post:
       consumes:
@@ -9662,6 +10049,169 @@ paths:
       summary: 获取当前登录用户信息
       tags:
       - oauth
+  /api/v1/upload:
+    post:
+      consumes:
+      - multipart/form-data
+      description: 支持各种类型的通用文件上传，支持自动文件类型检测、哈希计算与“秒传”去重
+      parameters:
+      - description: 要上传的文件
+        in: formData
+        name: file
+        required: true
+        type: file
+      - description: '业务分类 (例如: avatar, attachment, doc，默认为 generic)'
+        in: formData
+        name: type
+        type: string
+      - description: 额外的 JSON 格式元数据
+        in: formData
+        name: metadata
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 上传成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.Upload'
+              type: object
+        "400":
+          description: 请求参数错误或文件受限
+          schema:
+            $ref: '#/definitions/response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "500":
+          description: 内部错误
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 上传文件
+      tags:
+      - upload
+  /api/v1/upload/{id}:
+    delete:
+      description: 将当前用户本人的文件状态置为 deleted（软删除）
+      parameters:
+      - description: 文件 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 删除成功
+          schema:
+            $ref: '#/definitions/response.Any'
+        "403":
+          description: 无权操作
+          schema:
+            $ref: '#/definitions/response.Any'
+        "404":
+          description: 文件不存在
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 删除我的文件
+      tags:
+      - upload
+    put:
+      consumes:
+      - application/json
+      description: 更新当前用户本人的文件名或访问权限模式 (AccessMode)
+      parameters:
+      - description: 文件 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 更新字段
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.updateMyFileRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.Upload'
+              type: object
+        "403":
+          description: 无权操作
+          schema:
+            $ref: '#/definitions/response.Any'
+        "404":
+          description: 文件不存在
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 更新我的文件信息
+      tags:
+      - upload
+  /api/v1/upload/my:
+    get:
+      description: 分页获取当前登录用户上传的文件，支持文件名关键词、业务类型、扩展名过滤
+      parameters:
+      - description: 页码（默认 1）
+        in: query
+        name: page
+        type: integer
+      - description: 每页数量（默认 20，最大 100）
+        in: query
+        name: page_size
+        type: integer
+      - description: 文件名关键词（模糊匹配）
+        in: query
+        name: keyword
+        type: string
+      - description: 业务分类过滤
+        in: query
+        name: type
+        type: string
+      - description: 扩展名过滤
+        in: query
+        name: extension
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/handler.listMyFilesResponse'
+              type: object
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 获取我的文件列表
+      tags:
+      - upload
   /api/v1/user-info:
     get:
       description: 返回当前登录用户的基本信息及余额数据，需要登录。包括用户 ID、用户名、信任等级、各类余额信息等。
@@ -10018,6 +10568,45 @@ paths:
       summary: 发送邮箱验证码
       tags:
       - user
+  /f/{id}:
+    get:
+      description: 根据文件 ID 获取并提供已上传的临时或正式文件，若配置了缓存则优先走本地缓存，否则从 S3 等后端存储读取并流式返回
+      parameters:
+      - description: 文件 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 图片质量 (low, medium, high, origin)，默认为 origin
+        in: query
+        name: quality
+        type: string
+      produces:
+      - application/octet-stream
+      responses:
+        "200":
+          description: 成功获取文件内容
+          schema:
+            type: file
+        "400":
+          description: 文件 ID 格式错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "404":
+          description: 文件未找到
+          schema:
+            $ref: '#/definitions/response.Any'
+        "500":
+          description: 服务内部错误
+          schema:
+            $ref: '#/definitions/response.Any'
+      summary: 获取已上传文件
+      tags:
+      - upload
   /robots.txt:
     get:
       description: 根据系统配置决定是否允许搜索引擎检索，并返回相应的 robots.txt 文件内容
