@@ -23,6 +23,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      clickhouse:
+        condition: service_healthy
       jaeger:
         condition: service_started
 
@@ -69,26 +71,23 @@ services:
       - "${JAEGER_UI_PORT:-16686}:16686"
       - "${JAEGER_OTLP_GRPC_PORT:-4317}:4317"
       - "${JAEGER_OTLP_HTTP_PORT:-4318}:4318"
-#
-#  clickhouse:
-#    image: clickhouse/clickhouse-server:25.3-alpine
-#    restart: unless-stopped
-#    profiles:
-#      - clickhouse
-#    environment:
-#      CLICKHOUSE_DB: ${CLICKHOUSE_DB:-openflare}
-#      CLICKHOUSE_USER: ${CLICKHOUSE_USER:-default}
-#      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-123456}
-#      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
-#      TZ: ${TZ:-Asia/Shanghai}
-#    ports:
-#      - "${CLICKHOUSE_HTTP_PORT:-8123}:8123"
-#      - "${CLICKHOUSE_NATIVE_PORT:-9000}:9000"
-#    volumes:
-#      - ./data/clickhouse_data:/var/lib/clickhouse
-#    healthcheck:
-#      test: ["CMD", "clickhouse-client", "--query", "SELECT 1"]
-#      interval: 10s
-#      timeout: 5s
-#      retries: 5
-#      start_period: 15s
+  clickhouse:
+    image: clickhouse/clickhouse-server:25.3-alpine
+    restart: unless-stopped
+    environment:
+      CLICKHOUSE_DB: ${CLICKHOUSE_DB:-openflare}
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER:-default}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-}
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
+      TZ: ${TZ:-Asia/Shanghai}
+    ports:
+      - "${CLICKHOUSE_HTTP_PORT:-8123}:8123"
+      - "${CLICKHOUSE_NATIVE_PORT:-9000}:9000"
+    volumes:
+      - ./data/clickhouse_data:/var/lib/clickhouse
+    healthcheck:
+      test: ["CMD", "clickhouse-client", "--query", "SELECT 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s

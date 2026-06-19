@@ -34,21 +34,22 @@ func TestDatabaseAutoCleanupHandlerDeletesRowsWhenEnabled(t *testing.T) {
 		DisableForeignKeyConstraintWhenMigrating: true,
 	})
 	require.NoError(t, err)
-	require.NoError(t, sqliteDB.AutoMigrate(&model.OpenFlareAccessLog{}))
 	db.SetDB(sqliteDB)
+	resetAccessLogStore := model.SetAccessLogStoreForTest(model.NewMemoryAccessLogStore())
 	t.Cleanup(func() {
+		resetAccessLogStore()
 		db.SetDB(nil)
 	})
 
 	now := time.Now().UTC()
-	require.NoError(t, db.DB(context.Background()).Create(&model.OpenFlareAccessLog{
+	require.NoError(t, model.InsertOpenFlareAccessLogsBatch(context.Background(), []*model.OpenFlareAccessLog{{
 		NodeID:     "node-a",
 		LoggedAt:   now.Add(-48 * time.Hour),
 		RemoteAddr: "203.0.113.10",
 		Host:       "example.com",
 		Path:       "/access",
 		StatusCode: 200,
-	}).Error)
+	}}))
 
 	previousEnabled := model.DatabaseAutoCleanupEnabled
 	previousRetentionDays := model.DatabaseAutoCleanupRetentionDays

@@ -93,12 +93,11 @@ func init() {
 	applyEnvOverrides(&c)
 	applyDefaults(&c)
 
-	// Disable standard DB/Redis initializations during tests to prevent connection attempts.
+	// Disable standard DB/Redis/ClickHouse initializations during tests to prevent connection attempts.
 	if isTest() {
 		c.Database.Enabled = false
 		c.Database.SQLitePath = ":memory:"
 		c.Redis.Enabled = false
-		c.ClickHouse.Enabled = false
 	}
 
 	// 设置全局配置
@@ -114,6 +113,41 @@ func applyDefaults(c *configModel) {
 	}
 	if c.Otel.TracerName == "" {
 		c.Otel.TracerName = "github.com/Rain-kl/OpenFlare"
+	}
+	applyClickHouseDefaults(c)
+}
+
+func applyClickHouseDefaults(c *configModel) {
+	if isTest() {
+		c.ClickHouse.Enabled = false
+		return
+	}
+	if !c.ClickHouse.Enabled {
+		c.ClickHouse.Enabled = true
+	}
+	if c.ClickHouse.Database == "" {
+		c.ClickHouse.Database = "openflare"
+	}
+	if len(c.ClickHouse.Hosts) == 0 {
+		c.ClickHouse.Hosts = []string{"127.0.0.1:9000"}
+	}
+	if c.ClickHouse.Username == "" {
+		c.ClickHouse.Username = "default"
+	}
+	if c.ClickHouse.MaxIdleConn <= 0 {
+		c.ClickHouse.MaxIdleConn = 10
+	}
+	if c.ClickHouse.MaxOpenConn <= 0 {
+		c.ClickHouse.MaxOpenConn = 100
+	}
+	if c.ClickHouse.ConnMaxLifetime <= 0 {
+		c.ClickHouse.ConnMaxLifetime = 3600
+	}
+	if c.ClickHouse.DialTimeout <= 0 {
+		c.ClickHouse.DialTimeout = 5
+	}
+	if c.ClickHouse.BlockBufferSize == 0 {
+		c.ClickHouse.BlockBufferSize = 10
 	}
 }
 

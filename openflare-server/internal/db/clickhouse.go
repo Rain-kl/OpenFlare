@@ -31,6 +31,10 @@ func init() {
 	}
 
 	cfg := config.Config.ClickHouse
+	if cfg.Database == "" {
+		log.Fatalf("[ClickHouse] database name is required (expected: openflare)\n")
+	}
+
 	var err error
 
 	// 配置 ClickHouse 连接
@@ -64,5 +68,6 @@ func init() {
 		log.Fatalf("[ClickHouse] ping failed: %v\n", err)
 	}
 
+	ensureClickHouseSchemaOnStartup()
 	log.Println("[ClickHouse] connection established successfully")
 }

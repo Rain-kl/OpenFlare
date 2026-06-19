@@ -16,7 +16,6 @@ import (
 	"time"
 
 	"github.com/Rain-kl/Wavelet/internal/apps/admin"
-	"github.com/Rain-kl/Wavelet/internal/config"
 	"github.com/Rain-kl/Wavelet/internal/db"
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"github.com/Rain-kl/Wavelet/pkg/logger"
@@ -288,9 +287,8 @@ func fetchAccessLogDetails(ctx context.Context, whereClause string, args []inter
 // @Failure 403 {object} response.Any "无管理员权限"
 // @Router /api/v1/admin/logs/access [get]
 func GetAccessLogs(c *gin.Context) {
-	// 1. 检查 ClickHouse 是否启用
-	if !config.Config.ClickHouse.Enabled || db.ChConn == nil {
-		response.AbortWithError(c, http.StatusBadRequest, "ClickHouse 存储服务未启用，无法检索访问日志")
+	if db.ChConn == nil {
+		response.AbortWithError(c, http.StatusInternalServerError, "ClickHouse 未初始化，无法检索访问日志")
 		return
 	}
 
@@ -388,9 +386,8 @@ type logsAnalyticsResponse struct {
 // @Failure 403 {object} response.Any "无管理员权限"
 // @Router /api/v1/admin/logs/analytics [get]
 func GetLogsAnalytics(c *gin.Context) {
-	// 1. 检查 ClickHouse 是否启用
-	if !config.Config.ClickHouse.Enabled || db.ChConn == nil {
-		response.AbortWithError(c, http.StatusBadRequest, "ClickHouse 存储服务未启用，无法获取分析数据")
+	if db.ChConn == nil {
+		response.AbortWithError(c, http.StatusInternalServerError, "ClickHouse 未初始化，无法获取分析数据")
 		return
 	}
 

@@ -101,26 +101,28 @@ func TestCleanupDatabaseObservabilityDeletesRows(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	sqliteDB := db.DB(ctx)
-	require.NoError(t, sqliteDB.AutoMigrate(&model.OpenFlareAccessLog{}))
+	resetAccessLogStore := model.SetAccessLogStoreForTest(model.NewMemoryAccessLogStore())
+	defer resetAccessLogStore()
 
 	now := time.Now().UTC()
-	require.NoError(t, sqliteDB.Create(&model.OpenFlareAccessLog{
-		NodeID:     "node-a",
-		LoggedAt:   now.Add(-10 * 24 * time.Hour),
-		RemoteAddr: "203.0.113.1",
-		Host:       "example.com",
-		Path:       "/old",
-		StatusCode: 200,
-	}).Error)
-	require.NoError(t, sqliteDB.Create(&model.OpenFlareAccessLog{
-		NodeID:     "node-a",
-		LoggedAt:   now.Add(-2 * time.Hour),
-		RemoteAddr: "203.0.113.2",
-		Host:       "example.com",
-		Path:       "/recent",
-		StatusCode: 200,
-	}).Error)
+	require.NoError(t, model.InsertOpenFlareAccessLogsBatch(ctx, []*model.OpenFlareAccessLog{
+		{
+			NodeID:     "node-a",
+			LoggedAt:   now.Add(-10 * 24 * time.Hour),
+			RemoteAddr: "203.0.113.1",
+			Host:       "example.com",
+			Path:       "/old",
+			StatusCode: 200,
+		},
+		{
+			NodeID:     "node-a",
+			LoggedAt:   now.Add(-2 * time.Hour),
+			RemoteAddr: "203.0.113.2",
+			Host:       "example.com",
+			Path:       "/recent",
+			StatusCode: 200,
+		},
+	}))
 
 	retention := 7
 	result, err := cleanupDatabaseObservability(ctx, databaseCleanupInput{

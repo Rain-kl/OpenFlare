@@ -98,9 +98,9 @@ otel:
   tracer_name: "github.com/Rain-kl/OpenFlare" # Global tracer instrumentation name
 
 
-# ─── ClickHouse (optional) ──────────────────────────────────────────────────────
+# ─── ClickHouse (required) ──────────────────────────────────────────────────────
 clickhouse:
-  enabled: false
+  enabled: true
   hosts:
     - "127.0.0.1:9000"
   username: "default"

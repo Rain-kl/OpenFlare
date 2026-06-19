@@ -35,8 +35,10 @@ func setupNodeTestDB(t *testing.T) func() {
 
 	db.SetDB(sqliteDB)
 	option.ResetInitializationForTest()
+	resetAccessLogStore := model.SetAccessLogStoreForTest(model.NewMemoryAccessLogStore())
 
 	return func() {
+		resetAccessLogStore()
 		db.SetDB(nil)
 		option.ResetInitializationForTest()
 	}

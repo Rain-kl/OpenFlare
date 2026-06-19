@@ -6,6 +6,7 @@ package model
 const (
 	errRegistrationDisabled                 = "注册已关闭"
 	errDatabaseNotInitialized               = "database not initialized"
+	errClickHouseNotInitialized             = "clickhouse not initialized"
 	errUsernameExists                       = "用户名已存在"
 	errEmailAlreadyBound                    = "该邮箱已被其他账号绑定"
 	errConfigIntParseFailed                 = "配置 %s 的值 '%s' 无法转换为整数: %w"
