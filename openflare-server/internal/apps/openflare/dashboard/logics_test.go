@@ -24,7 +24,9 @@ func setupDashboardTestDB(t *testing.T) func() {
 	require.NoError(t, sqliteDB.AutoMigrate(&model.OpenFlareNode{}))
 
 	db.SetDB(sqliteDB)
+	resetAccessLogStore := model.SetAccessLogStoreForTest(model.NewMemoryAccessLogStore())
 	return func() {
+		resetAccessLogStore()
 		db.SetDB(nil)
 	}
 }

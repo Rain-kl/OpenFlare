@@ -55,7 +55,7 @@ func (OpenFlareRequestReport) TableName() string {
 	return "of_node_request_reports"
 }
 
-// OpenFlareAccessLog stores a single access log row (v1 single table, no sharding).
+// OpenFlareAccessLog stores a single access log row in ClickHouse (database: openflare).
 type OpenFlareAccessLog struct {
 	ID         uint      `json:"id" gorm:"primaryKey;autoIncrement"`
 	NodeID     string    `json:"node_id" gorm:"index;size:64;not null"`

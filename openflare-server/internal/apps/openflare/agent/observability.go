@@ -124,6 +124,12 @@ func PersistHeartbeatObservability(ctx context.Context, nodeID string, payload N
 		return
 	}
 
+	accessLogRecords, err := buildNodeAccessLogRecords(nodeID, payload.AccessLogs, payload.BufferedObservability, reportedAt)
+	if err != nil {
+		zap.L().Error("build heartbeat access logs failed", zap.String("node_id", nodeID), zap.Error(err))
+		return
+	}
+
 	if err := conn.Transaction(func(tx *gorm.DB) error {
 		if err := persistNodeSystemProfile(tx, nodeID, payload.Profile, reportedAt); err != nil {
 			return err
@@ -140,9 +146,6 @@ func PersistHeartbeatObservability(ctx context.Context, nodeID string, payload N
 		if err := persistNodeTrafficReport(tx, nodeID, payload.TrafficReport, reportedAt); err != nil {
 			return err
 		}
-		if err := persistNodeAccessLogs(tx, nodeID, payload.AccessLogs, reportedAt); err != nil {
-			return err
-		}
 		if payload.HealthEvents != nil {
 			if err := reconcileNodeHealthEvents(tx, nodeID, payload.HealthEvents, reportedAt); err != nil {
 				return err
@@ -151,6 +154,11 @@ func PersistHeartbeatObservability(ctx context.Context, nodeID string, payload N
 		return nil
 	}); err != nil {
 		zap.L().Error("persist heartbeat observability failed", zap.String("node_id", nodeID), zap.Error(err))
+		return
+	}
+
+	if err := persistNodeAccessLogs(ctx, nodeID, accessLogRecords, reportedAt); err != nil {
+		zap.L().Error("persist heartbeat access logs failed", zap.String("node_id", nodeID), zap.Error(err))
 	}
 }
 
@@ -165,9 +173,7 @@ func persistBufferedObservability(tx *gorm.DB, nodeID string, records []Buffered
 		if err := persistNodeTrafficReport(tx, nodeID, record.TrafficReport, reportedAt); err != nil {
 			return err
 		}
-		if err := persistNodeAccessLogs(tx, nodeID, record.AccessLogs, reportedAt); err != nil {
-			return err
-		}
+
 	}
 	return nil
 }
@@ -278,10 +284,15 @@ func persistNodeTrafficReport(tx *gorm.DB, nodeID string, report *NodeTrafficRep
 	return tx.Create(record).Error
 }
 
-func persistNodeAccessLogs(tx *gorm.DB, nodeID string, logs []NodeAccessLog, reportedAt time.Time) error {
-	if len(logs) == 0 {
-		return nil
+func buildNodeAccessLogRecords(nodeID string, direct []NodeAccessLog, buffered []BufferedObservabilityRecord, reportedAt time.Time) ([]*model.OpenFlareAccessLog, error) {
+	total := len(direct)
+	for _, record := range buffered {
+		total += len(record.AccessLogs)
 	}
+	if total == 0 {
+		return nil, nil
+	}
+
 	resolver, err := newAccessLogRegionResolver()
 	if err != nil {
 		slog.Warn("initialize access log geo resolver failed", "node_id", nodeID, "error", err)
@@ -289,31 +300,40 @@ func persistNodeAccessLogs(tx *gorm.DB, nodeID string, logs []NodeAccessLog, rep
 	if resolver != nil {
 		defer resolver.Close()
 	}
-	for _, item := range logs {
-		record := &model.OpenFlareAccessLog{
-			NodeID:     nodeID,
-			LoggedAt:   timeFromUnix(item.LoggedAtUnix, reportedAt),
-			RemoteAddr: strings.TrimSpace(item.RemoteAddr),
-			Region:     "",
-			Host:       strings.TrimSpace(item.Host),
-			Path:       truncateForDatabase(strings.TrimSpace(item.Path), accessLogPathMaxLength),
-			StatusCode: item.StatusCode,
-		}
-		if resolver != nil {
-			record.Region = resolver.Resolve(record.RemoteAddr)
-		}
-		exists, err := accessLogExists(tx, record)
-		if err != nil {
-			return err
-		}
-		if exists {
-			continue
-		}
-		if err := tx.Create(record).Error; err != nil {
-			return err
+
+	records := make([]*model.OpenFlareAccessLog, 0, total)
+	appendLogs := func(logs []NodeAccessLog) {
+		for _, item := range logs {
+			record := &model.OpenFlareAccessLog{
+				NodeID:     nodeID,
+				LoggedAt:   timeFromUnix(item.LoggedAtUnix, reportedAt),
+				RemoteAddr: strings.TrimSpace(item.RemoteAddr),
+				Region:     "",
+				Host:       strings.TrimSpace(item.Host),
+				Path:       truncateForDatabase(strings.TrimSpace(item.Path), accessLogPathMaxLength),
+				StatusCode: item.StatusCode,
+			}
+			if resolver != nil {
+				record.Region = resolver.Resolve(record.RemoteAddr)
+			}
+			records = append(records, record)
 		}
 	}
-	_, err = deleteAccessLogsByNodeBefore(tx, nodeID, reportedAt.Add(-nodeAccessLogRetentionWindow))
+	appendLogs(direct)
+	for _, record := range buffered {
+		appendLogs(record.AccessLogs)
+	}
+	return records, nil
+}
+
+func persistNodeAccessLogs(ctx context.Context, nodeID string, records []*model.OpenFlareAccessLog, reportedAt time.Time) error {
+	if len(records) == 0 {
+		return nil
+	}
+	if err := model.InsertOpenFlareAccessLogsBatch(ctx, records); err != nil {
+		return err
+	}
+	_, err := model.DeleteOpenFlareAccessLogsByNodeBefore(ctx, nodeID, reportedAt.Add(-nodeAccessLogRetentionWindow))
 	return err
 }
 
@@ -427,30 +447,6 @@ func requestReportExists(tx *gorm.DB, nodeID string, windowStartedAt, windowEnde
 	var count int64
 	if err := tx.Model(&model.OpenFlareRequestReport{}).
 		Where("node_id = ? AND window_started_at = ? AND window_ended_at = ?", nodeID, windowStartedAt, windowEndedAt).
-		Limit(1).
-		Count(&count).Error; err != nil {
-		return false, err
-	}
-	return count > 0, nil
-}
-
-func deleteAccessLogsByNodeBefore(tx *gorm.DB, nodeID string, before time.Time) (int64, error) {
-	result := tx.Where("node_id = ? AND logged_at < ?", nodeID, before).Delete(&model.OpenFlareAccessLog{})
-	return result.RowsAffected, result.Error
-}
-
-func accessLogExists(tx *gorm.DB, record *model.OpenFlareAccessLog) (bool, error) {
-	var count int64
-	if err := tx.Model(&model.OpenFlareAccessLog{}).
-		Where(
-			"node_id = ? AND logged_at = ? AND remote_addr = ? AND host = ? AND path = ? AND status_code = ?",
-			record.NodeID,
-			record.LoggedAt,
-			record.RemoteAddr,
-			record.Host,
-			record.Path,
-			record.StatusCode,
-		).
 		Limit(1).
 		Count(&count).Error; err != nil {
 		return false, err

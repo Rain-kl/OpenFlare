@@ -24,12 +24,13 @@ func setupDatabaseCleanupTestDB(t *testing.T) context.Context {
 	})
 	require.NoError(t, err)
 	require.NoError(t, sqliteDB.AutoMigrate(
-		&model.OpenFlareAccessLog{},
 		&model.OpenFlareMetricSnapshot{},
 		&model.OpenFlareRequestReport{},
 	))
 	db.SetDB(sqliteDB)
+	resetAccessLogStore := model.SetAccessLogStoreForTest(model.NewMemoryAccessLogStore())
 	t.Cleanup(func() {
+		resetAccessLogStore()
 		db.SetDB(nil)
 	})
 	return context.Background()
@@ -69,22 +70,24 @@ func TestCleanupDatabaseObservabilityDeletesAllRowsWhenRetentionMissing(t *testi
 	ctx := setupDatabaseCleanupTestDB(t)
 	now := time.Now().UTC()
 
-	require.NoError(t, db.DB(ctx).Create(&model.OpenFlareAccessLog{
-		NodeID:     "node-a",
-		LoggedAt:   now.Add(-3 * time.Hour),
-		RemoteAddr: "203.0.113.1",
-		Host:       "example.com",
-		Path:       "/one",
-		StatusCode: 200,
-	}).Error)
-	require.NoError(t, db.DB(ctx).Create(&model.OpenFlareAccessLog{
-		NodeID:     "node-a",
-		LoggedAt:   now.Add(-2 * time.Hour),
-		RemoteAddr: "203.0.113.2",
-		Host:       "example.com",
-		Path:       "/two",
-		StatusCode: 502,
-	}).Error)
+	require.NoError(t, model.InsertOpenFlareAccessLogsBatch(ctx, []*model.OpenFlareAccessLog{
+		{
+			NodeID:     "node-a",
+			LoggedAt:   now.Add(-3 * time.Hour),
+			RemoteAddr: "203.0.113.1",
+			Host:       "example.com",
+			Path:       "/one",
+			StatusCode: 200,
+		},
+		{
+			NodeID:     "node-a",
+			LoggedAt:   now.Add(-2 * time.Hour),
+			RemoteAddr: "203.0.113.2",
+			Host:       "example.com",
+			Path:       "/two",
+			StatusCode: 502,
+		},
+	}))
 
 	result, err := CleanupDatabaseObservability(ctx, DatabaseCleanupInput{
 		Target: DatabaseCleanupTargetAccessLogs,
@@ -102,14 +105,14 @@ func TestRunDatabaseAutoCleanupOnceDeletesAllObservabilityTargets(t *testing.T) 
 	ctx := setupDatabaseCleanupTestDB(t)
 	now := time.Now().UTC()
 
-	require.NoError(t, db.DB(ctx).Create(&model.OpenFlareAccessLog{
+	require.NoError(t, model.InsertOpenFlareAccessLogsBatch(ctx, []*model.OpenFlareAccessLog{{
 		NodeID:     "node-a",
 		LoggedAt:   now.Add(-48 * time.Hour),
 		RemoteAddr: "203.0.113.10",
 		Host:       "example.com",
 		Path:       "/access",
 		StatusCode: 200,
-	}).Error)
+	}}))
 	require.NoError(t, db.DB(ctx).Create(&model.OpenFlareMetricSnapshot{
 		NodeID:          "node-a",
 		CapturedAt:      now.Add(-48 * time.Hour),

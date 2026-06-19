@@ -9,23 +9,16 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Rain-kl/Wavelet/internal/db"
-	"github.com/glebarez/sqlite"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gorm.io/gorm"
 )
 
 func setupOpenFlareAccessLogTestEnvironment(t *testing.T) (context.Context, func()) {
 	t.Helper()
-	sqliteDB, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{
-		DisableForeignKeyConstraintWhenMigrating: true,
-	})
-	require.NoError(t, err)
-	require.NoError(t, sqliteDB.AutoMigrate(&OpenFlareAccessLog{}))
-	db.SetDB(sqliteDB)
+	store := NewMemoryAccessLogStore()
+	reset := SetAccessLogStoreForTest(store)
 	return context.Background(), func() {
-		db.SetDB(nil)
+		reset()
 	}
 }
 
@@ -38,9 +31,7 @@ func seedOpenFlareAccessLogs(t *testing.T, ctx context.Context, now time.Time) {
 		{NodeID: "node-b", LoggedAt: now.Add(-2 * time.Minute), RemoteAddr: "3.3.3.3", Region: "EU", Host: "b.example.com", Path: "/delta", StatusCode: 200},
 		{NodeID: "node-b", LoggedAt: now.Add(-1 * time.Minute), RemoteAddr: "", Region: "", Host: "b.example.com", Path: "/empty-ip", StatusCode: 200},
 	}
-	for index, record := range records {
-		require.NoError(t, db.DB(ctx).Create(record).Error, "seed access log %d", index)
-	}
+	require.NoError(t, InsertOpenFlareAccessLogsBatch(ctx, records))
 }
 
 func TestListOpenFlareAccessLogsPaginated(t *testing.T) {
@@ -57,7 +48,7 @@ func TestListOpenFlareAccessLogsPaginated(t *testing.T) {
 			Path:       fmt.Sprintf("/path-%02d", index),
 			StatusCode: 200,
 		}
-		require.NoError(t, db.DB(ctx).Create(record).Error)
+		require.NoError(t, InsertOpenFlareAccessLogsBatch(ctx, []*OpenFlareAccessLog{record}))
 	}
 
 	query := OpenFlareAccessLogQuery{
@@ -109,22 +100,6 @@ func TestListOpenFlareAccessLogsFiltersAndSort(t *testing.T) {
 	require.Len(t, rows, 2)
 	assert.Equal(t, 404, rows[0].StatusCode)
 	assert.Equal(t, 200, rows[1].StatusCode)
-}
-
-func TestListOpenFlareAccessLogsMissingTableGraceful(t *testing.T) {
-	ctx, cleanup := setupOpenFlareAccessLogTestEnvironment(t)
-	defer cleanup()
-	require.NoError(t, db.DB(ctx).Migrator().DropTable(&OpenFlareAccessLog{}))
-
-	query := OpenFlareAccessLogQuery{Since: time.Now().UTC().Add(-time.Hour)}
-	rows, err := ListOpenFlareAccessLogs(ctx, query)
-	require.NoError(t, err)
-	assert.Empty(t, rows)
-
-	totalRecords, totalIPs, err := CountOpenFlareAccessLogs(ctx, query)
-	require.NoError(t, err)
-	assert.Zero(t, totalRecords)
-	assert.Zero(t, totalIPs)
 }
 
 func TestDeleteOpenFlareAccessLogsBefore(t *testing.T) {

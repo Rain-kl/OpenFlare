@@ -5,17 +5,10 @@ package model
 
 import (
 	"context"
-	"errors"
-	"fmt"
 	"sort"
 	"strings"
 	"time"
-
-	"github.com/Rain-kl/Wavelet/internal/db"
-	"gorm.io/gorm"
 )
-
-const openFlareAccessLogTable = "of_node_access_logs"
 
 type openFlareAccessLogBucketAggregateRow struct {
 	BucketEpoch      int64 `gorm:"column:bucket_epoch"`
@@ -56,81 +49,24 @@ func ListOpenFlareAccessLogsForWAFIPGroup(ctx context.Context, query OpenFlareAc
 	return ListOpenFlareAccessLogs(ctx, query)
 }
 
+// InsertOpenFlareAccessLogsBatch inserts access log rows into ClickHouse.
+func InsertOpenFlareAccessLogsBatch(ctx context.Context, records []*OpenFlareAccessLog) error {
+	return currentAccessLogStore().InsertBatch(ctx, records)
+}
+
 // ListOpenFlareAccessLogs lists access logs matching the query.
 func ListOpenFlareAccessLogs(ctx context.Context, query OpenFlareAccessLogQuery) ([]*OpenFlareAccessLog, error) {
-	conn := db.DB(ctx)
-	if conn == nil {
-		return nil, errors.New(errDatabaseNotInitialized)
-	}
-	tx := applyOpenFlareAccessLogFilters(conn.Model(&OpenFlareAccessLog{}), query)
-	tx = tx.Order(openFlareAccessLogOrderClause(query.SortBy, query.SortOrder))
-	if query.PageSize > 0 {
-		if query.Page < 0 {
-			query.Page = 0
-		}
-		tx = tx.Offset(query.Page * query.PageSize).Limit(query.PageSize)
-	}
-	var rows []*OpenFlareAccessLog
-	if err := tx.Find(&rows).Error; err != nil {
-		if isMissingTableError(err) {
-			return []*OpenFlareAccessLog{}, nil
-		}
-		return nil, err
-	}
-	return rows, nil
+	return currentAccessLogStore().List(ctx, query)
 }
 
 // CountOpenFlareAccessLogs counts access logs and distinct IPs matching the query.
 func CountOpenFlareAccessLogs(ctx context.Context, query OpenFlareAccessLogQuery) (int64, int64, error) {
-	conn := db.DB(ctx)
-	if conn == nil {
-		return 0, 0, errors.New(errDatabaseNotInitialized)
-	}
-	totalRecords, err := countOpenFlareAccessLogRecords(conn, query)
-	if err != nil {
-		if isMissingTableError(err) {
-			return 0, 0, nil
-		}
-		return 0, 0, err
-	}
-	totalIPs, err := countDistinctOpenFlareAccessLogIPs(conn, query)
-	if err != nil {
-		if isMissingTableError(err) {
-			return 0, 0, nil
-		}
-		return 0, 0, err
-	}
-	return totalRecords, totalIPs, nil
+	return currentAccessLogStore().Count(ctx, query)
 }
 
 // ListOpenFlareAccessLogRegionCounts returns region counts for access logs.
 func ListOpenFlareAccessLogRegionCounts(ctx context.Context, nodeID string, since time.Time, limit int) ([]*OpenFlareAccessLogRegionCount, error) {
-	conn := db.DB(ctx)
-	if conn == nil {
-		return nil, errors.New(errDatabaseNotInitialized)
-	}
-	filter := OpenFlareAccessLogQuery{
-		NodeID: nodeID,
-		Since:  since,
-	}
-	clause, args := buildOpenFlareAccessLogFilterClause(filter)
-	sql := fmt.Sprintf(`
-SELECT TRIM(region) AS region, COUNT(*) AS count
-FROM %s
-WHERE %s AND TRIM(region) <> ''
-GROUP BY TRIM(region)
-ORDER BY count DESC, region ASC`, openFlareAccessLogTable, clause)
-	if limit > 0 {
-		sql += fmt.Sprintf(" LIMIT %d", limit)
-	}
-	var rows []*OpenFlareAccessLogRegionCount
-	if err := conn.Raw(sql, args...).Scan(&rows).Error; err != nil {
-		if isMissingTableError(err) {
-			return []*OpenFlareAccessLogRegionCount{}, nil
-		}
-		return nil, err
-	}
-	return rows, nil
+	return currentAccessLogStore().RegionCounts(ctx, nodeID, since, limit)
 }
 
 // ListOpenFlareAccessLogBuckets lists folded access log buckets.
@@ -201,10 +137,6 @@ func CountOpenFlareAccessLogIPSummaries(ctx context.Context, query OpenFlareAcce
 
 // ListOpenFlareAccessLogIPTrend lists IP trend points.
 func ListOpenFlareAccessLogIPTrend(ctx context.Context, query OpenFlareAccessLogIPTrendQuery) ([]*OpenFlareAccessLogIPTrendRow, error) {
-	conn := db.DB(ctx)
-	if conn == nil {
-		return nil, errors.New(errDatabaseNotInitialized)
-	}
 	remoteAddr := strings.TrimSpace(query.RemoteAddr)
 	if remoteAddr == "" {
 		return []*OpenFlareAccessLogIPTrendRow{}, nil
@@ -215,76 +147,45 @@ func ListOpenFlareAccessLogIPTrend(ctx context.Context, query OpenFlareAccessLog
 		Host:       query.Host,
 		Since:      query.Since,
 	}
-	clause, args := buildOpenFlareAccessLogFilterClause(filter)
 	bucketSeconds := int64(query.BucketMinutes * 60)
 	if bucketSeconds <= 0 {
 		bucketSeconds = 1800
 	}
-	bucketExpr := openFlareAccessLogBucketEpochExpr(openFlareAccessLogDialect(conn), bucketSeconds)
-	queryClause := combineOpenFlareAccessLogSQLClauses(clause, "TRIM(remote_addr) = ?")
-	queryArgs := append(append([]any{}, args...), remoteAddr)
-	sql := fmt.Sprintf(`
-SELECT
-	%s AS bucket_epoch,
-	COUNT(*) AS request_count
-FROM %s
-WHERE %s
-GROUP BY bucket_epoch
-ORDER BY bucket_epoch ASC`, bucketExpr, openFlareAccessLogTable, queryClause)
-	var rows []*OpenFlareAccessLogIPTrendRow
-	if err := conn.Raw(sql, queryArgs...).Scan(&rows).Error; err != nil {
-		if isMissingTableError(err) {
-			return []*OpenFlareAccessLogIPTrendRow{}, nil
-		}
+	rows, err := currentAccessLogStore().IPTrend(ctx, filter, bucketSeconds)
+	if err != nil {
 		return nil, err
 	}
-	return rows, nil
+	result := make([]*OpenFlareAccessLogIPTrendRow, len(rows))
+	for index, row := range rows {
+		result[index] = &OpenFlareAccessLogIPTrendRow{
+			BucketEpoch:  row.BucketEpoch,
+			RequestCount: row.RequestCount,
+		}
+	}
+	return result, nil
 }
 
 // DeleteAllOpenFlareAccessLogs deletes all access logs.
 func DeleteAllOpenFlareAccessLogs(ctx context.Context) (int64, error) {
-	conn := db.DB(ctx)
-	if conn == nil {
-		return 0, errors.New(errDatabaseNotInitialized)
-	}
-	result := conn.Where("1 = 1").Delete(&OpenFlareAccessLog{})
-	if result.Error != nil {
-		if isMissingTableError(result.Error) {
-			return 0, nil
-		}
-		return 0, result.Error
-	}
-	return result.RowsAffected, nil
+	return currentAccessLogStore().DeleteAll(ctx)
 }
 
 // DeleteOpenFlareAccessLogsBefore deletes access logs older than cutoff.
 func DeleteOpenFlareAccessLogsBefore(ctx context.Context, cutoff time.Time) (int64, error) {
-	conn := db.DB(ctx)
-	if conn == nil {
-		return 0, errors.New(errDatabaseNotInitialized)
-	}
-	result := conn.Where("logged_at < ?", cutoff).Delete(&OpenFlareAccessLog{})
-	if result.Error != nil {
-		if isMissingTableError(result.Error) {
-			return 0, nil
-		}
-		return 0, result.Error
-	}
-	return result.RowsAffected, nil
+	return currentAccessLogStore().DeleteBefore(ctx, cutoff)
+}
+
+// DeleteOpenFlareAccessLogsByNodeBefore deletes access logs for a node older than cutoff.
+func DeleteOpenFlareAccessLogsByNodeBefore(ctx context.Context, nodeID string, cutoff time.Time) (int64, error) {
+	return currentAccessLogStore().DeleteByNodeBefore(ctx, nodeID, cutoff)
 }
 
 func buildOpenFlareAccessLogBucketRows(ctx context.Context, query OpenFlareAccessLogBucketQuery) ([]*OpenFlareAccessLogBucketRow, error) {
-	conn := db.DB(ctx)
-	if conn == nil {
-		return nil, errors.New(errDatabaseNotInitialized)
-	}
 	filter := openFlareAccessLogQueryFromBucket(query)
-	clause, args := buildOpenFlareAccessLogFilterClause(filter)
 	bucketSeconds := int64(query.FoldMinutes * 60)
 	if bucketSeconds <= 0 {
 		bucketSeconds = 180
 	}
-	bucketExpr := openFlareAccessLogBucketEpochExpr(openFlareAccessLogDialect(conn), bucketSeconds)
 
 	type bucketAccumulator struct {
 		requestCount     int64
@@ -296,21 +197,8 @@ func buildOpenFlareAccessLogBucketRows(ctx context.Context, query OpenFlareAcces
 	}
 	accumulators := make(map[int64]*bucketAccumulator)
 
-	var partials []openFlareAccessLogBucketAggregateRow
-	sql := fmt.Sprintf(`
-SELECT
-	%s AS bucket_epoch,
-	COUNT(*) AS request_count,
-	SUM(CASE WHEN status_code < 400 THEN 1 ELSE 0 END) AS success_count,
-	SUM(CASE WHEN status_code >= 400 AND status_code < 500 THEN 1 ELSE 0 END) AS client_error_count,
-	SUM(CASE WHEN status_code >= 500 THEN 1 ELSE 0 END) AS server_error_count
-FROM %s
-WHERE %s
-GROUP BY bucket_epoch`, bucketExpr, openFlareAccessLogTable, clause)
-	if err := conn.Raw(sql, args...).Scan(&partials).Error; err != nil {
-		if isMissingTableError(err) {
-			return []*OpenFlareAccessLogBucketRow{}, nil
-		}
+	partials, err := currentAccessLogStore().BucketAggregates(ctx, filter, bucketSeconds)
+	if err != nil {
 		return nil, err
 	}
 	for _, partial := range partials {
@@ -329,7 +217,7 @@ GROUP BY bucket_epoch`, bucketExpr, openFlareAccessLogTable, clause)
 	}
 
 	for _, column := range []string{"remote_addr", "host"} {
-		dimensions, err := queryOpenFlareAccessLogBucketDimensionRows(conn, clause, args, column, bucketExpr)
+		dimensions, err := currentAccessLogStore().BucketDimensions(ctx, filter, column, bucketSeconds)
 		if err != nil {
 			return nil, err
 		}
@@ -371,24 +259,6 @@ GROUP BY bucket_epoch`, bucketExpr, openFlareAccessLogTable, clause)
 	return rows, nil
 }
 
-func queryOpenFlareAccessLogBucketDimensionRows(conn *gorm.DB, clause string, args []any, column string, bucketExpr string) ([]openFlareAccessLogBucketDimensionRow, error) {
-	var rows []openFlareAccessLogBucketDimensionRow
-	sql := fmt.Sprintf(`
-SELECT
-	%s AS bucket_epoch,
-	TRIM(%s) AS value
-FROM %s
-WHERE %s AND TRIM(%s) <> ''
-GROUP BY bucket_epoch, TRIM(%s)`, bucketExpr, column, openFlareAccessLogTable, clause, column, column)
-	if err := conn.Raw(sql, args...).Scan(&rows).Error; err != nil {
-		if isMissingTableError(err) {
-			return []openFlareAccessLogBucketDimensionRow{}, nil
-		}
-		return nil, err
-	}
-	return rows, nil
-}
-
 func buildOpenFlareAccessLogBucketIPRows(ctx context.Context, query OpenFlareAccessLogBucketIPQuery) ([]*OpenFlareAccessLogBucketIPRow, error) {
 	if query.BucketStartedAt.IsZero() {
 		return []*OpenFlareAccessLogBucketIPRow{}, nil
@@ -415,39 +285,14 @@ func buildOpenFlareAccessLogBucketIPRows(ctx context.Context, query OpenFlareAcc
 }
 
 func buildOpenFlareAccessLogIPSummaryRows(ctx context.Context, query OpenFlareAccessLogIPSummaryQuery, recentSince time.Time) ([]*OpenFlareAccessLogIPSummaryRow, error) {
-	conn := db.DB(ctx)
-	if conn == nil {
-		return nil, errors.New(errDatabaseNotInitialized)
-	}
 	filter := OpenFlareAccessLogQuery{
 		NodeID:     query.NodeID,
 		RemoteAddr: query.RemoteAddr,
 		Host:       query.Host,
 		Since:      query.Since,
 	}
-	clause, args := buildOpenFlareAccessLogFilterClause(filter)
-	lastSeenExpr := openFlareAccessLogEpochExpr(openFlareAccessLogDialect(conn))
-	recentClause := "0"
-	queryArgs := make([]any, 0, len(args)+1)
-	if !recentSince.IsZero() {
-		recentClause = "CASE WHEN logged_at >= ? THEN 1 ELSE 0 END"
-		queryArgs = append(queryArgs, recentSince)
-	}
-	queryArgs = append(queryArgs, args...)
-	sql := fmt.Sprintf(`
-SELECT
-	TRIM(remote_addr) AS remote_addr,
-	COUNT(*) AS total_requests,
-	SUM(%s) AS recent_requests,
-	MAX(%s) AS last_seen_epoch
-FROM %s
-WHERE %s AND TRIM(remote_addr) <> ''
-GROUP BY TRIM(remote_addr)`, recentClause, lastSeenExpr, openFlareAccessLogTable, clause)
-	var partials []openFlareAccessLogIPSummaryRow
-	if err := conn.Raw(sql, queryArgs...).Scan(&partials).Error; err != nil {
-		if isMissingTableError(err) {
-			return []*OpenFlareAccessLogIPSummaryRow{}, nil
-		}
+	partials, err := currentAccessLogStore().IPSummaries(ctx, filter, recentSince)
+	if err != nil {
 		return nil, err
 	}
 	rows := make([]*OpenFlareAccessLogIPSummaryRow, 0, len(partials))
@@ -468,38 +313,8 @@ GROUP BY TRIM(remote_addr)`, recentClause, lastSeenExpr, openFlareAccessLogTable
 }
 
 func queryOpenFlareAccessLogIPAggregateRows(ctx context.Context, filter OpenFlareAccessLogQuery, exactRemoteAddr bool) ([]*OpenFlareAccessLogBucketIPRow, error) {
-	conn := db.DB(ctx)
-	if conn == nil {
-		return nil, errors.New(errDatabaseNotInitialized)
-	}
-	clause, args := buildOpenFlareAccessLogFilterClause(filter)
-	lastSeenExpr := openFlareAccessLogEpochExpr(openFlareAccessLogDialect(conn))
-	queryClause := clause
-	queryArgs := append([]any{}, args...)
-	if exactRemoteAddr {
-		trimmed := strings.TrimSpace(filter.RemoteAddr)
-		if trimmed == "" {
-			return []*OpenFlareAccessLogBucketIPRow{}, nil
-		}
-		queryClause = combineOpenFlareAccessLogSQLClauses(queryClause, "TRIM(remote_addr) = ?")
-		queryArgs = append(queryArgs, trimmed)
-	}
-	sql := fmt.Sprintf(`
-SELECT
-	TRIM(remote_addr) AS remote_addr,
-	COUNT(*) AS request_count,
-	SUM(CASE WHEN status_code < 400 THEN 1 ELSE 0 END) AS success_count,
-	SUM(CASE WHEN status_code >= 400 AND status_code < 500 THEN 1 ELSE 0 END) AS client_error_count,
-	SUM(CASE WHEN status_code >= 500 THEN 1 ELSE 0 END) AS server_error_count,
-	MAX(%s) AS last_seen_epoch
-FROM %s
-WHERE %s AND TRIM(remote_addr) <> ''
-GROUP BY TRIM(remote_addr)`, lastSeenExpr, openFlareAccessLogTable, queryClause)
-	var partials []openFlareAccessLogIPAggregateRow
-	if err := conn.Raw(sql, queryArgs...).Scan(&partials).Error; err != nil {
-		if isMissingTableError(err) {
-			return []*OpenFlareAccessLogBucketIPRow{}, nil
-		}
+	partials, err := currentAccessLogStore().IPAggregates(ctx, filter, exactRemoteAddr)
+	if err != nil {
 		return nil, err
 	}
 	rows := make([]*OpenFlareAccessLogBucketIPRow, 0, len(partials))
@@ -551,82 +366,20 @@ func buildOpenFlareAccessLogFilterClause(query OpenFlareAccessLogQuery) (string,
 	}
 	if !query.Since.IsZero() {
 		parts = append(parts, "logged_at >= ?")
-		args = append(args, query.Since)
+		args = append(args, query.Since.UTC())
 	}
 	if !query.Until.IsZero() {
 		parts = append(parts, "logged_at < ?")
-		args = append(args, query.Until)
+		args = append(args, query.Until.UTC())
 	}
 	if len(parts) == 0 {
-		return "TRUE", nil
+		return "1", nil
 	}
 	return strings.Join(parts, " AND "), args
 }
 
-func applyOpenFlareAccessLogFilters(tx *gorm.DB, query OpenFlareAccessLogQuery) *gorm.DB {
-	clause, args := buildOpenFlareAccessLogFilterClause(query)
-	if clause == "TRUE" {
-		return tx
-	}
-	return tx.Where(clause, args...)
-}
-
-func countOpenFlareAccessLogRecords(conn *gorm.DB, query OpenFlareAccessLogQuery) (int64, error) {
-	var count int64
-	if err := applyOpenFlareAccessLogFilters(conn.Model(&OpenFlareAccessLog{}), query).Count(&count).Error; err != nil {
-		return 0, err
-	}
-	return count, nil
-}
-
-func countDistinctOpenFlareAccessLogIPs(conn *gorm.DB, query OpenFlareAccessLogQuery) (int64, error) {
-	clause, args := buildOpenFlareAccessLogFilterClause(query)
-	sql := fmt.Sprintf(`
-SELECT COUNT(*) FROM (
-	SELECT TRIM(remote_addr) AS remote_addr
-	FROM %s
-	WHERE %s AND remote_addr <> ''
-	GROUP BY TRIM(remote_addr)
-) AS ips`, openFlareAccessLogTable, clause)
-	var total int64
-	if err := conn.Raw(sql, args...).Scan(&total).Error; err != nil {
-		return 0, err
-	}
-	return total, nil
-}
-
-func openFlareAccessLogDialect(conn *gorm.DB) string {
-	if conn == nil || conn.Dialector == nil {
-		return "sqlite"
-	}
-	switch conn.Dialector.Name() {
-	case "postgres":
-		return "postgres"
-	default:
-		return "sqlite"
-	}
-}
-
-func openFlareAccessLogBucketEpochExpr(dialect string, bucketSeconds int64) string {
-	switch dialect {
-	case "postgres":
-		return fmt.Sprintf("FLOOR(EXTRACT(EPOCH FROM logged_at AT TIME ZONE 'UTC') / %d) * %d", bucketSeconds, bucketSeconds)
-	default:
-		return fmt.Sprintf("(CAST(strftime('%%s', logged_at) AS INTEGER) / %d) * %d", bucketSeconds, bucketSeconds)
-	}
-}
-
-func openFlareAccessLogEpochExpr(dialect string) string {
-	switch dialect {
-	case "postgres":
-		return "FLOOR(EXTRACT(EPOCH FROM logged_at AT TIME ZONE 'UTC'))::bigint"
-	default:
-		return "CAST((julianday(logged_at) - 2440587.5) * 86400 AS INTEGER)"
-	}
-}
-
 func combineOpenFlareAccessLogSQLClauses(left string, right string) string {
-	if strings.TrimSpace(left) == "" || left == "TRUE" {
+	if strings.TrimSpace(left) == "" || left == "TRUE" || left == "1" {
 		return right
 	}
 	return left + " AND " + right
@@ -656,7 +409,7 @@ func openFlareAccessLogOrderClause(sortBy string, sortOrder string) string {
 
 func sortOpenFlareAccessLogBucketIPRows(items []*OpenFlareAccessLogBucketIPRow, sortBy string, sortOrder string) {
 	desc := openFlareAccessLogNormalizeSortOrder(sortOrder) != "asc"
-	sort.Slice(items, func(i int, j int) bool {
+	sort.Slice(items, func(i, j int) bool {
 		left := items[i]
 		right := items[j]
 		if left == nil || right == nil {
@@ -686,7 +439,7 @@ func sortOpenFlareAccessLogBucketIPRows(items []*OpenFlareAccessLogBucketIPRow, 
 
 func sortOpenFlareAccessLogBucketRows(items []*OpenFlareAccessLogBucketRow, sortBy string, sortOrder string) {
 	desc := openFlareAccessLogNormalizeSortOrder(sortOrder) != "asc"
-	sort.Slice(items, func(i int, j int) bool {
+	sort.Slice(items, func(i, j int) bool {
 		left := items[i]
 		right := items[j]
 		if left == nil || right == nil {
@@ -711,7 +464,7 @@ func sortOpenFlareAccessLogBucketRows(items []*OpenFlareAccessLogBucketRow, sort
 
 func sortOpenFlareAccessLogIPSummaryRows(items []*OpenFlareAccessLogIPSummaryRow, sortBy string, sortOrder string) {
 	desc := openFlareAccessLogNormalizeSortOrder(sortOrder) != "asc"
-	sort.Slice(items, func(i int, j int) bool {
+	sort.Slice(items, func(i, j int) bool {
 		left := items[i]
 		right := items[j]
 		if left == nil || right == nil {
@@ -776,3 +529,4 @@ func openFlareAccessLogCompareInt64(left int64, right int64) int {
 		return 0
 	}
 }
+

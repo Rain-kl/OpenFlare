@@ -16,6 +16,11 @@ sidebar: false
 
 ## [Unreleased]
 
+### 变更
+
+- `of_node_access_logs` 从 PostgreSQL/SQLite 迁移至 ClickHouse（数据库 `openflare`）；系统启动时强依赖 ClickHouse 连接与表结构自动初始化。
+- ClickHouse 默认启用（`clickhouse.enabled: true`），`docker-compose` 默认启动 `clickhouse` 服务并纳入 `wavelet` 健康依赖。
+
 ### 移除
 
 - 删除旧版 `openflare-server/` 单体实现（含 `web/` 前端）；仓库内 `openflare-server/` 现指迁移后的 Wavelet 统一控制面。

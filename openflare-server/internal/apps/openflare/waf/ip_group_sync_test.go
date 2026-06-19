@@ -29,11 +29,12 @@ func setupIPGroupSyncTestDB(t *testing.T) func() {
 	require.NoError(t, sqliteDB.AutoMigrate(
 		&model.OpenFlareWAFRuleGroup{},
 		&model.OpenFlareWAFIPGroup{},
-		&model.OpenFlareAccessLog{},
 	))
 
 	db.SetDB(sqliteDB)
+	resetAccessLogStore := model.SetAccessLogStoreForTest(model.NewMemoryAccessLogStore())
 	return func() {
+		resetAccessLogStore()
 		db.SetDB(nil)
 	}
 }
@@ -191,18 +192,20 @@ func TestListDueOpenFlareWAFIPGroups(t *testing.T) {
 
 func seedWAFAccessLogs(t *testing.T, ctx context.Context, loggedAt time.Time, remoteAddr string, host string, total int, notFound int) {
 	t.Helper()
+	records := make([]*model.OpenFlareAccessLog, 0, total)
 	for i := 0; i < total; i++ {
 		statusCode := http.StatusOK
 		if i < notFound {
 			statusCode = http.StatusNotFound
 		}
-		require.NoError(t, db.DB(ctx).Create(&model.OpenFlareAccessLog{
+		records = append(records, &model.OpenFlareAccessLog{
 			NodeID:     "node-waf-auto",
 			LoggedAt:   loggedAt.Add(-time.Duration(i%30) * time.Second),
 			RemoteAddr: remoteAddr,
 			Host:       host,
 			Path:       "/probe",
 			StatusCode: statusCode,
-		}).Error)
+		})
 	}
+	require.NoError(t, model.InsertOpenFlareAccessLogsBatch(ctx, records))
 }
