@@ -3,13 +3,13 @@ package heartbeat
 import (
 	"context"
 	"log/slog"
-	"time"
 
 	"github.com/Rain-kl/Wavelet/internal/apps/relay/config"
 	"github.com/Rain-kl/Wavelet/internal/apps/relay/frps"
 	"github.com/Rain-kl/Wavelet/internal/apps/relay/httpclient"
 	"github.com/Rain-kl/Wavelet/internal/apps/relay/observability"
 	"github.com/Rain-kl/Wavelet/internal/apps/relay/state"
+	edgeheartbeat "github.com/Rain-kl/Wavelet/internal/apps/edge/heartbeat"
 	"github.com/Rain-kl/Wavelet/internal/apps/relay/updater"
 	service "github.com/Rain-kl/Wavelet/pkg/protocol"
 )
@@ -33,20 +33,7 @@ func New(client *httpclient.Client, manager *frps.Manager, cfg *config.Config, s
 }
 
 func (s *Service) Run(ctx context.Context) {
-	ticker := time.NewTicker(s.config.HeartbeatInterval.Duration())
-	defer ticker.Stop()
-
-	// initial heartbeat
-	s.doHeartbeat(ctx)
-
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-			s.doHeartbeat(ctx)
-		}
-	}
+	edgeheartbeat.RunLoop(ctx, s.config.HeartbeatInterval.Duration(), s.doHeartbeat)
 }
 
 func (s *Service) doHeartbeat(ctx context.Context) {
@@ -79,30 +66,19 @@ func (s *Service) doHeartbeat(ctx context.Context) {
 	s.frpsManager.UpdateConfig(resp.RelayConfig)
 
 	if resp != nil && resp.RelaySettings != nil {
-		s.tryAutoUpdate(ctx, resp.RelaySettings)
+		edgeheartbeat.TryAutoUpdate(ctx, s.updater, relaySettingsToAutoUpdate(resp.RelaySettings), "relay")
 	}
 }
 
-func (s *Service) tryAutoUpdate(ctx context.Context, settings *service.RelaySettings) {
-	if settings == nil || s.updater == nil {
-		return
+func relaySettingsToAutoUpdate(settings *service.RelaySettings) *edgeheartbeat.AutoUpdateSettings {
+	if settings == nil {
+		return nil
 	}
-	force := settings.UpdateNow
-	shouldCheck := settings.AutoUpdate || force
-	if !shouldCheck || settings.UpdateRepo == "" {
-		return
-	}
-	channel := "stable"
-	if force && settings.UpdateChannel != "" {
-		channel = settings.UpdateChannel
-	}
-	slog.Info("checking for relay updates", "repo", settings.UpdateRepo, "channel", channel, "force", force)
-	err := s.updater.CheckAndUpdate(ctx, settings.UpdateRepo, updater.UpdateOptions{
-		Channel: channel,
-		TagName: settings.UpdateTag,
-		Force:   force,
-	})
-	if err != nil {
-		slog.Error("relay update check failed", "error", err)
+	return &edgeheartbeat.AutoUpdateSettings{
+		AutoUpdate:    settings.AutoUpdate,
+		UpdateNow:     settings.UpdateNow,
+		UpdateRepo:    settings.UpdateRepo,
+		UpdateChannel: settings.UpdateChannel,
+		UpdateTag:     settings.UpdateTag,
 	}
 }

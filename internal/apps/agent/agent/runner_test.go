@@ -11,9 +11,23 @@ import (
 	"time"
 
 	"github.com/Rain-kl/Wavelet/internal/apps/agent/config"
+	agentheartbeat "github.com/Rain-kl/Wavelet/internal/apps/agent/heartbeat"
 	"github.com/Rain-kl/Wavelet/internal/apps/agent/protocol"
 	"github.com/Rain-kl/Wavelet/internal/apps/agent/state"
+	"github.com/Rain-kl/Wavelet/internal/apps/agent/updater"
 )
+
+func withHeartbeatCycle(runner *Runner, observabilityBuffer *state.ObservabilityBufferStore) *Runner {
+	runner.HeartbeatCycle = &agentheartbeat.Cycle{
+		Config:              runner.Config,
+		StateStore:          runner.StateStore,
+		ObservabilityBuffer: observabilityBuffer,
+		Heartbeat:           runner.HeartbeatService,
+		Sync:                runner.SyncService,
+		Updater:             updater.New(),
+	}
+	return runner
+}
 
 type fakeHeartbeatService struct {
 	mu                sync.Mutex
@@ -192,7 +206,7 @@ func TestRunnerKeepsHeartbeatWhenStartupSyncFails(t *testing.T) {
 	syncService := &fakeSyncService{
 		startupErr: errors.New("当前没有激活版本，保持当前 OpenResty 配置"),
 	}
-	runner := &Runner{
+	runner := withHeartbeatCycle(&Runner{
 		Config: &config.Config{
 			AccessToken:       "agent-token",
 			NodeName:          "edge-01",
@@ -204,7 +218,7 @@ func TestRunnerKeepsHeartbeatWhenStartupSyncFails(t *testing.T) {
 		StateStore:       stateStore,
 		HeartbeatService: heartbeatService,
 		SyncService:      syncService,
-	}
+	}, nil)
 
 	err := runner.Run(ctx)
 	if !errors.Is(err, context.Canceled) {
@@ -245,7 +259,7 @@ func TestRunnerDoesNotExitOnHeartbeatOrSyncError(t *testing.T) {
 			}
 		},
 	}
-	runner := &Runner{
+	runner := withHeartbeatCycle(&Runner{
 		Config: &config.Config{
 			AccessToken:       "agent-token",
 			NodeName:          "edge-01",
@@ -257,7 +271,7 @@ func TestRunnerDoesNotExitOnHeartbeatOrSyncError(t *testing.T) {
 		StateStore:       stateStore,
 		HeartbeatService: heartbeatService,
 		SyncService:      syncService,
-	}
+	}, nil)
 
 	err := runner.Run(ctx)
 	if !errors.Is(err, context.Canceled) {
@@ -303,7 +317,7 @@ func TestRunnerReportsOpenrestyHealthAndExecutesRestart(t *testing.T) {
 		healthErr:            errors.New("docker openresty container is not running"),
 		clearHealthOnRestart: true,
 	}
-	runner := &Runner{
+	runner := withHeartbeatCycle(&Runner{
 		Config: &config.Config{
 			AccessToken:       "agent-token",
 			NodeName:          "edge-01",
@@ -316,7 +330,7 @@ func TestRunnerReportsOpenrestyHealthAndExecutesRestart(t *testing.T) {
 		HeartbeatService: heartbeatService,
 		SyncService:      &fakeSyncService{},
 		RuntimeManager:   runtimeManager,
-	}
+	}, nil)
 
 	err := runner.Run(ctx)
 	if !errors.Is(err, context.Canceled) {
@@ -357,7 +371,7 @@ func TestRunnerHeartbeatPayloadIncludesObservabilityExtensions(t *testing.T) {
 		t.Fatalf("failed to seed state: %v", err)
 	}
 
-	runner := &Runner{
+	runner := withHeartbeatCycle(&Runner{
 		Config: &config.Config{
 			NodeName:          "edge-observe-1",
 			NodeIP:            "10.0.0.51",
@@ -369,7 +383,7 @@ func TestRunnerHeartbeatPayloadIncludesObservabilityExtensions(t *testing.T) {
 			HeartbeatInterval: config.MillisecondDuration(10 * time.Millisecond),
 		},
 		StateStore: stateStore,
-	}
+	}, nil)
 	if err := os.MkdirAll(filepath.Dir(runner.Config.AccessLogPath), 0o755); err != nil {
 		t.Fatalf("failed to prepare access log dir: %v", err)
 	}
@@ -381,7 +395,7 @@ func TestRunnerHeartbeatPayloadIncludesObservabilityExtensions(t *testing.T) {
 		t.Fatalf("failed to prepare access log: %v", err)
 	}
 
-	firstPayload := runner.nodePayload("node-observe")
+	firstPayload := runner.HeartbeatCycle.NodePayload("node-observe")
 	if firstPayload.Profile == nil {
 		t.Fatal("expected first heartbeat payload to include system profile")
 	}
@@ -398,7 +412,7 @@ func TestRunnerHeartbeatPayloadIncludesObservabilityExtensions(t *testing.T) {
 		t.Fatalf("expected health events for openresty and sync error, got %+v", firstPayload.HealthEvents)
 	}
 
-	secondPayload := runner.nodePayload("node-observe")
+	secondPayload := runner.HeartbeatCycle.NodePayload("node-observe")
 	if secondPayload.Profile != nil {
 		t.Fatal("expected unchanged profile to be omitted on subsequent heartbeat")
 	}
@@ -439,7 +453,7 @@ func TestRunnerReplaysBufferedObservabilityAfterHeartbeatRecovery(t *testing.T) 
 			}
 		},
 	}
-	runner := &Runner{
+	runner := withHeartbeatCycle(&Runner{
 		Config: &config.Config{
 			AccessToken:                "agent-token",
 			NodeName:                   "edge-buffer-01",
@@ -451,11 +465,10 @@ func TestRunnerReplaysBufferedObservabilityAfterHeartbeatRecovery(t *testing.T) 
 			HeartbeatInterval:          config.MillisecondDuration(10 * time.Millisecond),
 			ObservabilityReplayMinutes: 15,
 		},
-		StateStore:          stateStore,
-		ObservabilityBuffer: bufferStore,
-		HeartbeatService:    heartbeatService,
-		SyncService:         &fakeSyncService{},
-	}
+		StateStore:       stateStore,
+		HeartbeatService: heartbeatService,
+		SyncService:      &fakeSyncService{},
+	}, bufferStore)
 	if err := os.MkdirAll(filepath.Dir(runner.Config.RouteConfigPath), 0o755); err != nil {
 		t.Fatalf("failed to prepare route config dir: %v", err)
 	}
@@ -518,7 +531,7 @@ func TestRunnerDiscoveryRegisterUpdatesTokenAndNodeID(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to load config: %v", err)
 	}
-	runner := &Runner{
+	runner := withHeartbeatCycle(&Runner{
 		Config: &config.Config{
 			ServerURL:         cfg.ServerURL,
 			DiscoveryToken:    cfg.DiscoveryToken,
@@ -531,7 +544,7 @@ func TestRunnerDiscoveryRegisterUpdatesTokenAndNodeID(t *testing.T) {
 		StateStore:       stateStore,
 		HeartbeatService: heartbeatService,
 		SyncService:      syncService,
-	}
+	}, nil)
 	runner.Config = cfg
 	runner.Config.Version = config.Version
 	runner.Config.ExtVersion = "1.27.1.2"
@@ -561,7 +574,7 @@ func TestRunnerDiscoveryRegisterUpdatesTokenAndNodeID(t *testing.T) {
 
 func TestRunnerHandlesWebSocketActiveConfigMessage(t *testing.T) {
 	syncService := &fakeSyncService{}
-	runner := &Runner{SyncService: syncService}
+	runner := withHeartbeatCycle(&Runner{SyncService: syncService}, nil)
 	payload, err := json.Marshal(protocol.ActiveConfigMeta{
 		Version:  "20260529-001",
 		Checksum: "checksum-ws",
@@ -589,12 +602,12 @@ func TestRunnerHandlesWebSocketActiveConfigMessage(t *testing.T) {
 }
 
 func TestRunnerHandlesWebSocketSettingsDisabled(t *testing.T) {
-	runner := &Runner{
+	runner := withHeartbeatCycle(&Runner{
 		Config: &config.Config{
 			HeartbeatInterval: config.MillisecondDuration(10 * time.Second),
 		},
 		websocketUpgradeEnabled: true,
-	}
+	}, nil)
 	payload, err := json.Marshal(protocol.AgentSettings{
 		HeartbeatInterval:       15000,
 		WebsocketUpgradeEnabled: false,

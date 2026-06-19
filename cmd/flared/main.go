@@ -6,9 +6,9 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
 
+	edgelogging "github.com/Rain-kl/Wavelet/internal/apps/edge/logging"
 	"github.com/Rain-kl/Wavelet/internal/apps/flared/config"
 	"github.com/Rain-kl/Wavelet/internal/apps/flared/flared"
 	"github.com/Rain-kl/Wavelet/internal/apps/flared/frpc"
@@ -19,10 +19,7 @@ import (
 )
 
 func main() {
-	// Setup simple structured logging
-	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
-		Level: parseLevel(os.Getenv("LOG_LEVEL")),
-	})))
+	edgelogging.Setup(edgelogging.Options{})
 
 	configPath := flag.String("config", "./flared.json", "flared config path")
 	flag.Parse()
@@ -71,17 +68,4 @@ func main() {
 		os.Exit(1)
 	}
 	slog.Info("flared process stopped")
-}
-
-func parseLevel(value string) slog.Level {
-	switch strings.ToLower(strings.TrimSpace(value)) {
-	case "debug":
-		return slog.LevelDebug
-	case "warn", "warning":
-		return slog.LevelWarn
-	case "error":
-		return slog.LevelError
-	default:
-		return slog.LevelInfo
-	}
 }

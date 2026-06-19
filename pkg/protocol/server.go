@@ -1,10 +1,5 @@
 package protocol
 
-type WSMessage struct {
-	Type    string `json:"type"`
-	Payload any    `json:"payload,omitempty"`
-}
-
 type AgentNodeSystemProfile struct {
 	Hostname         string `json:"hostname"`
 	OSName           string `json:"os_name"`

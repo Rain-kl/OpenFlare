@@ -10,7 +10,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Rain-kl/Wavelet/internal/apps/edge/nodeip"
 	"github.com/Rain-kl/Wavelet/pkg/geoip"
+	"github.com/Rain-kl/Wavelet/pkg/geoip/iputil"
 )
 
 func TestLoadDefaultsToManagedBinaryPaths(t *testing.T) {
@@ -248,12 +250,12 @@ func TestLoadUsesEnvConfigWhenFileIsMissing(t *testing.T) {
 }
 
 func TestLoadDetectsOutboundIPWhenNodeIPMissing(t *testing.T) {
-	previousLookup := lookupOutboundIP
-	lookupOutboundIP = func(ctx context.Context, strategies ...geoip.OutboundIPStrategy) (net.IP, error) {
+	previousLookup := nodeip.LookupOutboundIP
+	nodeip.LookupOutboundIP = func(ctx context.Context, strategies ...geoip.OutboundIPStrategy) (net.IP, error) {
 		return net.ParseIP("8.8.8.8"), nil
 	}
 	defer func() {
-		lookupOutboundIP = previousLookup
+		nodeip.LookupOutboundIP = previousLookup
 	}()
 
 	dir := t.TempDir()
@@ -281,17 +283,17 @@ func TestLoadDetectsOutboundIPWhenNodeIPMissing(t *testing.T) {
 }
 
 func TestLoadFallsBackToLocalIPWhenOutboundLookupFails(t *testing.T) {
-	previousOutboundLookup := lookupOutboundIP
-	previousLocalLookup := lookupLocalIP
-	lookupOutboundIP = func(ctx context.Context, strategies ...geoip.OutboundIPStrategy) (net.IP, error) {
+	previousOutboundLookup := nodeip.LookupOutboundIP
+	previousLocalLookup := nodeip.LookupLocalIP
+	nodeip.LookupOutboundIP = func(ctx context.Context, strategies ...geoip.OutboundIPStrategy) (net.IP, error) {
 		return nil, errors.New("realip.cc unavailable")
 	}
-	lookupLocalIP = func() string {
+	nodeip.LookupLocalIP = func() string {
 		return "9.9.9.9"
 	}
 	defer func() {
-		lookupOutboundIP = previousOutboundLookup
-		lookupLocalIP = previousLocalLookup
+		nodeip.LookupOutboundIP = previousOutboundLookup
+		nodeip.LookupLocalIP = previousLocalLookup
 	}()
 
 	dir := t.TempDir()
@@ -512,7 +514,7 @@ func TestNodeIPPriority(t *testing.T) {
 			if tt.ip != "" {
 				parsed = net.ParseIP(tt.ip)
 			}
-			if got := nodeIPPriority(parsed); got != tt.expected {
+			if got := iputil.Score(parsed); got != tt.expected {
 				t.Fatalf("unexpected priority for %q: got %d want %d", tt.ip, got, tt.expected)
 			}
 		})

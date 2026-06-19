@@ -4,8 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"log/slog"
-	"time"
 
+	edgerunner "github.com/Rain-kl/Wavelet/internal/apps/edge/runner"
 	"github.com/Rain-kl/Wavelet/internal/apps/relay/config"
 	"github.com/Rain-kl/Wavelet/internal/apps/relay/frps"
 	"github.com/Rain-kl/Wavelet/internal/apps/relay/heartbeat"
@@ -25,30 +25,16 @@ type Runner struct {
 }
 
 func (r *Runner) Run(ctx context.Context) error {
-	// Start heartbeat loop in background
 	go r.HeartbeatService.Run(ctx)
 
-	// WebSocket reconnection loop
-	for {
-		select {
-		case <-ctx.Done():
-			r.FrpsManager.Stop()
-			return ctx.Err()
-		default:
-		}
-
-		conn, err := r.WebSocketService.Connect(ctx)
-		if err != nil {
-			slog.Error("relay ws connect failed, will retry", "error", err)
-			r.sleepContext(ctx, 5*time.Second)
-			continue
-		}
-
+	return edgerunner.RunWSReconnectLoop(ctx, edgerunner.WSReconnectConfig{
+		ComponentName: "relay",
+		OnShutdown:    r.FrpsManager.Stop,
+	}, func(ctx context.Context) (edgerunner.WSConnection, error) {
+		return r.WebSocketService.Connect(ctx)
+	}, func(ctx context.Context, conn edgerunner.WSConnection) {
 		r.handleConnection(ctx, conn)
-		_ = conn.Close()
-		slog.Info("relay ws connection closed, reconnecting...")
-		r.sleepContext(ctx, 2*time.Second)
-	}
+	})
 }
 
 type relayWSHandler struct {
@@ -78,13 +64,11 @@ func (h *relayWSHandler) OnClose(err error) {
 	slog.Error("relay ws receive failed", "error", err)
 }
 
-func (r *Runner) handleConnection(ctx context.Context, conn *wsclient.Connection) {
-	_ = conn.RunReceiveLoop(ctx, &relayWSHandler{runner: r})
-}
-
-func (r *Runner) sleepContext(ctx context.Context, d time.Duration) {
-	select {
-	case <-ctx.Done():
-	case <-time.After(d):
+func (r *Runner) handleConnection(ctx context.Context, conn edgerunner.WSConnection) {
+	wsConn, ok := conn.(*wsclient.Connection)
+	if !ok {
+		slog.Error("relay ws connection has unexpected type")
+		return
 	}
+	_ = wsConn.RunReceiveLoop(ctx, &relayWSHandler{runner: r})
 }

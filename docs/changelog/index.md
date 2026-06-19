@@ -18,6 +18,9 @@ sidebar: false
 
 ### 变更
 
+- 边缘组件运行时去重：新增 `internal/apps/edge/` 共享包（`updater`、`httpclient`、`nodeip`、`logging`、`heartbeat/autoupdate`、`runner`），Agent/Relay/Flared 三组件改为薄包装委托，删除约 1100 行重复自更新与 HTTP 传输层代码。
+- 边缘运行时 Phase 3 Batch 1：抽取 `edge/config/duration`、`edge/observability/linux`、`edge/heartbeat/loop`，统一 MillisecondDuration、Linux 指标采集与 relay/flared 心跳循环。
+- 边缘运行时 Phase 3 Batch 2：Agent 心跳周期下沉至 `heartbeat/cycle.go`；`pkg/protocol/agent.go` 统一 Agent 客户端协议类型。
 - 合并并简化仓库结构：将 `openflare-server` 单体目录下的所有文件/目录提升至仓库根目录（去除了 `openflare-server` 嵌套层级），保留 `.github` 目录不变；统一配置 `docker-compose.yaml` 及所有 Dockerfile 的构建上下文为根目录。
 - 调整子项目结构与包路径：将 `agent`、`relay` 和 `flared` 子项目从 `internal/` 移动至 `internal/apps/`（分别为 `internal/apps/agent`、`internal/apps/relay` 和 `internal/apps/flared`），并递归更新了所有涉及的 Go 导入路径（如 `github.com/Rain-kl/Wavelet/internal/apps/agent` 等）。
 - 调整编译产物输出名称与 Makefile：

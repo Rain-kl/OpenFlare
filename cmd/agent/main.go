@@ -92,15 +92,23 @@ func main() {
 	}
 	syncService := syncservice.New(client, runtimeManager, stateStore)
 	syncService.SetPagesDir(cfg.PagesDir)
+	heartbeatService := heartbeat.New(client)
+	updateService := updater.New()
 	runner := &agent.Runner{
-		Config:              cfg,
-		StateStore:          stateStore,
-		ObservabilityBuffer: observabilityBuffer,
-		HeartbeatService:    heartbeat.New(client),
-		SyncService:         syncService,
-		Updater:             updater.New(),
-		RuntimeManager:      runtimeManager,
-		WebSocketService:    wsClient,
+		Config:           cfg,
+		StateStore:       stateStore,
+		HeartbeatCycle: &heartbeat.Cycle{
+			Config:              cfg,
+			StateStore:          stateStore,
+			ObservabilityBuffer: observabilityBuffer,
+			Heartbeat:           heartbeatService,
+			Sync:                syncService,
+			Updater:             updateService,
+		},
+		HeartbeatService: heartbeatService,
+		SyncService:      syncService,
+		RuntimeManager:   runtimeManager,
+		WebSocketService: wsClient,
 	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)

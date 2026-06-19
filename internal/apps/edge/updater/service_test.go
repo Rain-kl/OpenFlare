@@ -11,9 +11,6 @@ import (
 	"runtime"
 	"strings"
 	"testing"
-
-	"github.com/Rain-kl/Wavelet/internal/apps/agent/agent"
-	"github.com/Rain-kl/Wavelet/internal/apps/agent/config"
 )
 
 type roundTripFunc func(req *http.Request) (*http.Response, error)
@@ -22,26 +19,33 @@ func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
 	return f(req)
 }
 
+func testService(httpClient *http.Client) *Service {
+	return &Service{
+		httpClient:   httpClient,
+		localVersion: "v1.0.0",
+		assetPrefix:  "openflare-agent",
+		logLabel:     "agent",
+	}
+}
+
 func TestGetLatestPreviewRelease(t *testing.T) {
-	service := &Service{
-		httpClient: &http.Client{
-			Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				if req.URL.String() != "https://api.github.com/repos/Rain-kl/OpenFlare/releases?per_page=20" {
-					t.Fatalf("unexpected request url: %s", req.URL.String())
-				}
-				return &http.Response{
-					StatusCode: http.StatusOK,
-					Header:     make(http.Header),
-					Body: io.NopCloser(strings.NewReader(`[
+	service := testService(&http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			if req.URL.String() != "https://api.github.com/repos/Rain-kl/OpenFlare/releases?per_page=20" {
+				t.Fatalf("unexpected request url: %s", req.URL.String())
+			}
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Header:     make(http.Header),
+				Body: io.NopCloser(strings.NewReader(`[
 						{"tag_name":"v1.0.0","prerelease":false},
 						{"tag_name":"v1.1.0-rc.1","prerelease":true}
 					]`)),
-				}, nil
-			}),
-		},
-	}
+			}, nil
+		}),
+	})
 
-	release, err := service.getRelease(context.Background(), "Rain-kl/OpenFlare", agent.UpdateOptions{Channel: "preview"})
+	release, err := service.getRelease(context.Background(), "Rain-kl/OpenFlare", UpdateOptions{Channel: "preview"})
 	if err != nil {
 		t.Fatalf("expected preview release query to succeed: %v", err)
 	}
@@ -51,22 +55,20 @@ func TestGetLatestPreviewRelease(t *testing.T) {
 }
 
 func TestGetReleaseByTag(t *testing.T) {
-	service := &Service{
-		httpClient: &http.Client{
-			Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				if req.URL.String() != "https://api.github.com/repos/Rain-kl/OpenFlare/releases/tags/v1.1.0-rc.1" {
-					t.Fatalf("unexpected request url: %s", req.URL.String())
-				}
-				return &http.Response{
-					StatusCode: http.StatusOK,
-					Header:     make(http.Header),
-					Body:       io.NopCloser(strings.NewReader(`{"tag_name":"v1.1.0-rc.1","prerelease":true}`)),
-				}, nil
-			}),
-		},
-	}
+	service := testService(&http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			if req.URL.String() != "https://api.github.com/repos/Rain-kl/OpenFlare/releases/tags/v1.1.0-rc.1" {
+				t.Fatalf("unexpected request url: %s", req.URL.String())
+			}
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Header:     make(http.Header),
+				Body:       io.NopCloser(strings.NewReader(`{"tag_name":"v1.1.0-rc.1","prerelease":true}`)),
+			}, nil
+		}),
+	})
 
-	release, err := service.getRelease(context.Background(), "Rain-kl/OpenFlare", agent.UpdateOptions{Channel: "preview", TagName: "v1.1.0-rc.1", Force: true})
+	release, err := service.getRelease(context.Background(), "Rain-kl/OpenFlare", UpdateOptions{Channel: "preview", TagName: "v1.1.0-rc.1", Force: true})
 	if err != nil {
 		t.Fatalf("expected tag release query to succeed: %v", err)
 	}
@@ -76,34 +78,26 @@ func TestGetReleaseByTag(t *testing.T) {
 }
 
 func TestCheckAndUpdateRequiresChecksumAsset(t *testing.T) {
-	originalVersion := config.Version
-	config.Version = "v1.0.0"
-	t.Cleanup(func() {
-		config.Version = originalVersion
-	})
-
-	assetName := assetNameForGOOSGOARCH(runtime.GOOS, runtime.GOARCH)
-	service := &Service{
-		httpClient: &http.Client{
-			Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				if req.URL.String() != "https://api.github.com/repos/Rain-kl/OpenFlare/releases/latest" {
-					t.Fatalf("unexpected request url: %s", req.URL.String())
-				}
-				return &http.Response{
-					StatusCode: http.StatusOK,
-					Header:     make(http.Header),
-					Body: io.NopCloser(strings.NewReader(`{
+	assetName := testService(nil).assetNameForGOOSGOARCH(runtime.GOOS, runtime.GOARCH)
+	service := testService(&http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			if req.URL.String() != "https://api.github.com/repos/Rain-kl/OpenFlare/releases/latest" {
+				t.Fatalf("unexpected request url: %s", req.URL.String())
+			}
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Header:     make(http.Header),
+				Body: io.NopCloser(strings.NewReader(`{
 						"tag_name":"v1.0.1",
 						"assets":[
 							{"name":"` + assetName + `","browser_download_url":"https://example.test/agent"}
 						]
 					}`)),
-				}, nil
-			}),
-		},
-	}
+			}, nil
+		}),
+	})
 
-	err := service.CheckAndUpdate(context.Background(), "Rain-kl/OpenFlare", agent.UpdateOptions{})
+	err := service.CheckAndUpdate(context.Background(), "Rain-kl/OpenFlare", UpdateOptions{})
 	if err == nil || !strings.Contains(err.Error(), "no matching checksum asset") {
 		t.Fatalf("expected missing checksum asset error, got %v", err)
 	}
@@ -157,17 +151,15 @@ func TestDownloadAndRestartVerifiesChecksum(t *testing.T) {
 		replaceAndRestartFunc = originalReplace
 	})
 
-	service := &Service{
-		httpClient: &http.Client{
-			Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				return &http.Response{
-					StatusCode: http.StatusOK,
-					Header:     make(http.Header),
-					Body:       io.NopCloser(strings.NewReader(string(payload))),
-				}, nil
-			}),
-		},
-	}
+	service := testService(&http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Header:     make(http.Header),
+				Body:       io.NopCloser(strings.NewReader(string(payload))),
+			}, nil
+		}),
+	})
 
 	if err := service.downloadAndRestart(context.Background(), "https://example.test/agent", expectedChecksum, targetPath); err != nil {
 		t.Fatalf("expected verified download to succeed: %v", err)
@@ -198,17 +190,15 @@ func TestDownloadAndRestartRejectsChecksumMismatch(t *testing.T) {
 		replaceAndRestartFunc = originalReplace
 	})
 
-	service := &Service{
-		httpClient: &http.Client{
-			Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				return &http.Response{
-					StatusCode: http.StatusOK,
-					Header:     make(http.Header),
-					Body:       io.NopCloser(strings.NewReader("tampered")),
-				}, nil
-			}),
-		},
-	}
+	service := testService(&http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Header:     make(http.Header),
+				Body:       io.NopCloser(strings.NewReader("tampered")),
+			}, nil
+		}),
+	})
 
 	err := service.downloadAndRestart(context.Background(), "https://example.test/agent", strings.Repeat("0", sha256.Size*2), targetPath)
 	if err == nil || !strings.Contains(err.Error(), "sha256 checksum mismatch") {

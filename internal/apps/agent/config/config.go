@@ -1,11 +1,9 @@
 package config
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net"
 	"os"
 	pathpkg "path"
 	"path/filepath"
@@ -13,8 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Rain-kl/Wavelet/pkg/geoip"
-	"github.com/Rain-kl/Wavelet/pkg/geoip/iputil"
+	"github.com/Rain-kl/Wavelet/internal/apps/edge/nodeip"
 	"github.com/Rain-kl/Wavelet/pkg/utils"
 )
 
@@ -33,11 +30,6 @@ const (
 	defaultObservabilityReplayMinutes      = 15
 	defaultMMDBUpdateInterval              = 24 * time.Hour
 	defaultMMDBDownloadURL                 = "https://raw.githubusercontent.com/Loyalsoldier/geoip/release/GeoLite2-Country.mmdb"
-)
-
-var (
-	lookupOutboundIP = geoip.GetOutboundIP
-	lookupLocalIP    = detectLocalNodeIP
 )
 
 type Config struct {
@@ -166,7 +158,7 @@ func applyDefaults(cfg *Config, baseDir string) {
 		cfg.NodeName = detectHostname()
 	}
 	if cfg.NodeIP == "" {
-		cfg.NodeIP = detectNodeIP()
+		cfg.NodeIP = nodeip.Detect()
 	}
 	if cfg.MainConfigPath == "" {
 		cfg.MainConfigPath = joinManagedPath(cfg.DataDir, defaultMainConfigRelativePath)
@@ -400,64 +392,4 @@ func detectHostname() string {
 	return strings.TrimSpace(host)
 }
 
-func detectNodeIP() string {
-	if ip := detectOutboundNodeIP(); ip != "" {
-		return ip
-	}
-	return lookupLocalIP()
-}
 
-func detectOutboundNodeIP() string {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	ip, err := lookupOutboundIP(ctx)
-	if err != nil || ip == nil {
-		return ""
-	}
-	return ip.String()
-}
-
-func detectLocalNodeIP() string {
-	interfaces, err := net.Interfaces()
-	if err != nil {
-		return ""
-	}
-	bestIP := ""
-	bestPriority := -1
-	for _, iface := range interfaces {
-		if iface.Flags&net.FlagUp == 0 || iface.Flags&net.FlagLoopback != 0 {
-			continue
-		}
-		addrs, err := iface.Addrs()
-		if err != nil {
-			continue
-		}
-		for _, addr := range addrs {
-			ipNet, ok := addr.(*net.IPNet)
-			if !ok || ipNet.IP == nil || ipNet.IP.IsLoopback() {
-				continue
-			}
-			ipv4 := normalizeIPv4(ipNet.IP)
-			priority := nodeIPPriority(ipv4)
-			if priority > bestPriority {
-				bestIP = ipv4.String()
-				bestPriority = priority
-			}
-			if bestPriority == 2 {
-				return bestIP
-			}
-		}
-	}
-	return bestIP
-}
-
-func normalizeIPv4(ip net.IP) net.IP {
-	if ip == nil {
-		return nil
-	}
-	return ip.To4()
-}
-
-func nodeIPPriority(ip net.IP) int {
-	return iputil.Score(ip)
-}

@@ -7,38 +7,11 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	edgeconfig "github.com/Rain-kl/Wavelet/internal/apps/edge/config"
 )
 
-type MillisecondDuration time.Duration
-
-func (d *MillisecondDuration) UnmarshalJSON(b []byte) error {
-	var v interface{}
-	if err := json.Unmarshal(b, &v); err != nil {
-		return err
-	}
-	switch value := v.(type) {
-	case float64:
-		*d = MillisecondDuration(time.Duration(value) * time.Millisecond)
-		return nil
-	case string:
-		duration, err := time.ParseDuration(value)
-		if err != nil {
-			return err
-		}
-		*d = MillisecondDuration(duration)
-		return nil
-	default:
-		return errors.New("invalid duration format")
-	}
-}
-
-func (d MillisecondDuration) Duration() time.Duration {
-	return time.Duration(d)
-}
-
-func (d MillisecondDuration) String() string {
-	return time.Duration(d).String()
-}
+type MillisecondDuration = edgeconfig.MillisecondDuration
 
 type Config struct {
 	ServerURL         string              `json:"server_url"`

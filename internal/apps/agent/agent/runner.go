@@ -9,10 +9,11 @@ import (
 	"time"
 
 	"github.com/Rain-kl/Wavelet/internal/apps/agent/config"
-	"github.com/Rain-kl/Wavelet/internal/apps/agent/observability"
+	agentheartbeat "github.com/Rain-kl/Wavelet/internal/apps/agent/heartbeat"
 	"github.com/Rain-kl/Wavelet/internal/apps/agent/protocol"
 	"github.com/Rain-kl/Wavelet/internal/apps/agent/state"
 	"github.com/Rain-kl/Wavelet/internal/apps/agent/wsclient"
+	edgeheartbeat "github.com/Rain-kl/Wavelet/internal/apps/edge/heartbeat"
 )
 
 type HeartbeatService interface {
@@ -29,10 +30,6 @@ type SyncService interface {
 	ApplyWAFIPGroups(ctx context.Context, groups []protocol.WAFIPGroup) error
 }
 
-type Updater interface {
-	CheckAndUpdate(ctx context.Context, repo string, options UpdateOptions) error
-}
-
 type RuntimeManager interface {
 	CheckHealth(ctx context.Context) error
 	Restart(ctx context.Context) error
@@ -44,32 +41,23 @@ type WebSocketService interface {
 	URL() string
 }
 
-type UpdateOptions struct {
-	Channel string
-	TagName string
-	Force   bool
-}
-
 type Runner struct {
 	Config              *config.Config
 	StateStore          *state.Store
-	ObservabilityBuffer *state.ObservabilityBufferStore
+	HeartbeatCycle      *agentheartbeat.Cycle
 	HeartbeatService    HeartbeatService
 	SyncService         SyncService
-	Updater             Updater
 	RuntimeManager      RuntimeManager
 	WebSocketService    WebSocketService
 
-	autoUpdate              bool
-	updateNow               bool
-	updateRepo              string
-	updateChan              string
-	updateTag               string
 	restartOpenrestyNow     bool
 	websocketUpgradeEnabled bool
 }
 
 func (r *Runner) Run(ctx context.Context) error {
+	if r.HeartbeatCycle != nil {
+		r.HeartbeatCycle.RecordSyncError = r.recordSyncError
+	}
 	nodeID, err := r.StateStore.EnsureNodeID()
 	if err != nil {
 		return err
@@ -149,36 +137,15 @@ func (r *Runner) Run(ctx context.Context) error {
 
 func (r *Runner) performHeartbeatCycle(ctx context.Context, nodeID string, startup bool) (bool, error) {
 	r.refreshOpenrestyHealth(ctx)
-	payload, ackWindows := r.prepareHeartbeatPayload(nodeID)
-	heartbeatResult, err := r.HeartbeatService.Heartbeat(ctx, payload)
-	if err != nil {
-		return false, err
-	}
-	r.ackObservabilityWindows(ackWindows)
-	if heartbeatResult == nil {
-		heartbeatResult = &protocol.HeartbeatResult{}
-	}
-	mode := "periodic"
-	if startup {
-		mode = "startup"
-	}
-	slog.Debug("agent heartbeat succeeded", "mode", mode, "node_id", nodeID)
-	changed := r.applySettings(heartbeatResult.AgentSettings)
-	r.applyWAFIPGroups(ctx, heartbeatResult.WAFIPGroups)
-	if startup {
-		if err = r.SyncService.SyncOnStartup(ctx, heartbeatResult.ActiveConfig); err != nil {
-			r.recordSyncError(err)
-			slog.Error("agent startup sync failed", "error", err)
-		} else {
-			slog.Debug("agent startup sync completed")
-		}
-	} else if err = r.SyncService.SyncOnce(ctx, heartbeatResult.ActiveConfig); err != nil {
-		r.recordSyncError(err)
-		slog.Error("agent sync failed", "error", err)
-	}
+	return r.HeartbeatCycle.Perform(ctx, nodeID, startup, r)
+}
+
+func (r *Runner) Apply(settings *protocol.AgentSettings) bool {
+	return r.applySettings(settings)
+}
+
+func (r *Runner) RestartOpenrestyIfNeeded(ctx context.Context) {
 	r.tryRestartOpenresty(ctx)
-	r.tryAutoUpdate(ctx)
-	return changed, nil
 }
 
 func (r *Runner) shouldUseWebSocket() bool {
@@ -254,7 +221,6 @@ func (r *Runner) runWebSocket(ctx context.Context, nodeID string, conn protocol.
 	childCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	// Start status ticker sender in background
 	go func() {
 		for {
 			select {
@@ -285,11 +251,11 @@ func (r *Runner) runWebSocket(ctx context.Context, nodeID string, conn protocol.
 
 func (r *Runner) sendWebSocketStatus(ctx context.Context, nodeID string, conn protocol.WebSocketConnection) error {
 	r.refreshOpenrestyHealth(ctx)
-	payload, ackWindows := r.prepareHeartbeatPayload(nodeID)
+	payload, ackWindows := r.HeartbeatCycle.PrepareHeartbeatPayload(nodeID)
 	if err := conn.SendStatus(payload); err != nil {
 		return err
 	}
-	r.ackObservabilityWindows(ackWindows)
+	r.HeartbeatCycle.AckObservabilityWindows(ackWindows)
 	return nil
 }
 
@@ -303,7 +269,7 @@ func (r *Runner) handleWebSocketMessage(ctx context.Context, message protocol.WS
 		}
 		changed := r.applySettings(&settings)
 		r.tryRestartOpenresty(ctx)
-		r.tryAutoUpdate(ctx)
+		edgeheartbeat.TryAutoUpdate(ctx, r.HeartbeatCycle.Updater, agentheartbeat.AgentSettingsToAutoUpdate(&settings), "agent")
 		if !r.websocketUpgradeEnabled {
 			slog.Debug("agent ws disabled by server settings; falling back to http heartbeat")
 			return changed, errors.New("websocket upgrade disabled by server")
@@ -339,7 +305,7 @@ func (r *Runner) handleWebSocketMessage(ctx context.Context, message protocol.WS
 			slog.Debug("agent ws waf ip groups decode failed", "error", err)
 			return false, nil
 		}
-		r.applyWAFIPGroups(ctx, groups)
+		r.HeartbeatCycle.ApplyWAFIPGroups(ctx, groups)
 		return false, nil
 	case protocol.WSMessageTypePing:
 		slog.Debug("agent ws ping received")
@@ -409,11 +375,6 @@ func (r *Runner) applySettings(settings *protocol.AgentSettings) bool {
 		slog.Debug("agent websocket upgrade setting updated", "from", r.websocketUpgradeEnabled, "to", settings.WebsocketUpgradeEnabled)
 	}
 	r.websocketUpgradeEnabled = settings.WebsocketUpgradeEnabled
-	r.autoUpdate = settings.AutoUpdate
-	r.updateNow = settings.UpdateNow
-	r.updateRepo = strings.TrimSpace(settings.UpdateRepo)
-	r.updateChan = strings.TrimSpace(settings.UpdateChannel)
-	r.updateTag = strings.TrimSpace(settings.UpdateTag)
 	r.restartOpenrestyNow = settings.RestartOpenrestyNow
 	return changed
 }
@@ -436,37 +397,12 @@ func (r *Runner) tryRestartOpenresty(ctx context.Context) {
 	r.recordOpenrestyHealthy()
 }
 
-func (r *Runner) tryAutoUpdate(ctx context.Context) {
-	force := r.updateNow
-	shouldCheck := r.autoUpdate || force
-	r.updateNow = false
-	r.updateTag = strings.TrimSpace(r.updateTag)
-	if !shouldCheck || r.Updater == nil || r.updateRepo == "" {
-		return
-	}
-	channel := "stable"
-	if force && r.updateChan != "" {
-		channel = r.updateChan
-	}
-	if err := r.Updater.CheckAndUpdate(ctx, r.updateRepo, UpdateOptions{
-		Channel: channel,
-		TagName: r.updateTag,
-		Force:   force,
-	}); err != nil {
-		slog.Error("agent update check failed", "error", err)
-	}
-	if force {
-		r.updateTag = ""
-		r.updateChan = ""
-	}
-}
-
 func (r *Runner) tryRegister(ctx context.Context, nodeID *string) error {
 	if strings.TrimSpace(r.Config.DiscoveryToken) == "" {
 		return errors.New("agent_token 为空且未配置 discovery_token")
 	}
 	slog.Info("agent discovery registration started")
-	response, err := r.HeartbeatService.Register(ctx, r.nodePayload(*nodeID))
+	response, err := r.HeartbeatService.Register(ctx, r.HeartbeatCycle.NodePayload(*nodeID))
 	if err != nil {
 		return err
 	}
@@ -493,26 +429,9 @@ func (r *Runner) tryRegister(ctx context.Context, nodeID *string) error {
 	*nodeID = response.NodeID
 	slog.Info("agent discovery registration succeeded", "node_id", response.NodeID)
 	r.refreshOpenrestyHealth(ctx)
-	payload, ackWindows := r.prepareHeartbeatPayload(*nodeID)
-	heartbeatResult, heartbeatErr := r.HeartbeatService.Heartbeat(ctx, payload)
-	if heartbeatErr != nil {
-		slog.Error("agent post-register heartbeat failed", "error", heartbeatErr)
-		return nil
+	if _, err = r.HeartbeatCycle.Perform(ctx, *nodeID, true, r); err != nil {
+		slog.Error("agent post-register heartbeat failed", "error", err)
 	}
-	r.ackObservabilityWindows(ackWindows)
-	if heartbeatResult == nil {
-		heartbeatResult = &protocol.HeartbeatResult{}
-	}
-	r.applySettings(heartbeatResult.AgentSettings)
-	r.applyWAFIPGroups(ctx, heartbeatResult.WAFIPGroups)
-	if err = r.SyncService.SyncOnStartup(ctx, heartbeatResult.ActiveConfig); err != nil {
-		r.recordSyncError(err)
-		slog.Error("agent post-register startup sync failed", "error", err)
-	} else {
-		slog.Debug("agent post-register startup sync completed")
-	}
-	r.tryRestartOpenresty(ctx)
-	r.tryAutoUpdate(ctx)
 	return nil
 }
 
@@ -581,119 +500,5 @@ func (r *Runner) recordOpenrestyUnhealthy(err error, fallbackOnly bool) {
 	snapshot.OpenrestyStatus = protocol.OpenrestyStatusUnhealthy
 	if saveErr := r.StateStore.Save(snapshot); saveErr != nil {
 		slog.Error("save state after recording openresty error failed", "error", saveErr)
-	}
-}
-
-func (r *Runner) nodePayload(nodeID string) protocol.NodePayload {
-	snapshot, _ := r.StateStore.Load()
-	openrestyStatus := strings.TrimSpace(snapshot.OpenrestyStatus)
-	if openrestyStatus == "" {
-		openrestyStatus = protocol.OpenrestyStatusUnknown
-	}
-	profile := observability.BuildProfile(r.Config, r.StateStore)
-	managedOpenRestyMetrics := observability.CollectManagedOpenRestyMetrics(r.Config)
-	trafficReport, accessLogs, fallbackMetrics := observability.BuildTrafficObservability(r.Config, r.StateStore, managedOpenRestyMetrics)
-	if managedOpenRestyMetrics == nil {
-		managedOpenRestyMetrics = fallbackMetrics
-	}
-	metricSnapshot := observability.BuildSnapshot(r.Config, r.StateStore)
-	openrestyObservation := observability.BuildOpenrestyObservation(managedOpenRestyMetrics)
-	healthEvents := observability.BuildHealthEvents(snapshot)
-	payload := protocol.NodePayload{
-		NodeID:               nodeID,
-		Name:                 r.Config.NodeName,
-		IP:                   r.Config.NodeIP,
-		Version:              r.Config.Version,
-		ExtVersion:           r.Config.ExtVersion,
-		CurrentVersion:       snapshot.CurrentVersion,
-		LastError:            snapshot.LastError,
-		OpenrestyStatus:      openrestyStatus,
-		OpenrestyMessage:     snapshot.OpenrestyMessage,
-		Profile:              profile,
-		Snapshot:             metricSnapshot,
-		OpenrestyObservation: openrestyObservation,
-		TrafficReport:        trafficReport,
-		AccessLogs:           accessLogs,
-		HealthEvents:         healthEvents,
-	}
-	if r.SyncService != nil {
-		checksums, err := r.SyncService.WAFIPGroupChecksums()
-		if err != nil {
-			slog.Debug("load local waf ip group checksums failed", "error", err)
-		} else if len(checksums) > 0 {
-			payload.WAFIPGroupChecksums = checksums
-		}
-	}
-	return payload
-}
-
-func (r *Runner) applyWAFIPGroups(ctx context.Context, groups []protocol.WAFIPGroup) {
-	if len(groups) == 0 || r.SyncService == nil {
-		return
-	}
-	if err := r.SyncService.ApplyWAFIPGroups(ctx, groups); err != nil {
-		r.recordSyncError(err)
-		slog.Error("agent apply waf ip groups failed", "error", err)
-	}
-}
-
-func (r *Runner) prepareHeartbeatPayload(nodeID string) (protocol.NodePayload, []int64) {
-	payload := r.nodePayload(nodeID)
-	if r.ObservabilityBuffer == nil || (payload.Snapshot == nil && payload.TrafficReport == nil && len(payload.AccessLogs) == 0) {
-		return payload, nil
-	}
-	now := time.Now().UTC()
-	retainAfterUnix := now.Add(-time.Duration(r.Config.ObservabilityReplayMinutes) * time.Minute).Unix()
-	windowStartedAtUnix := state.ObservabilityWindowStartedAt(payload.Snapshot, payload.OpenrestyObservation, payload.TrafficReport)
-	if windowStartedAtUnix <= 0 {
-		return payload, nil
-	}
-
-	record := state.ObservabilityBufferRecord{
-		WindowStartedAtUnix:  windowStartedAtUnix,
-		Snapshot:             payload.Snapshot,
-		OpenrestyObservation: payload.OpenrestyObservation,
-		TrafficReport:        payload.TrafficReport,
-		AccessLogs:           payload.AccessLogs,
-		QueuedAtUnix:         now.Unix(),
-	}
-	if err := r.ObservabilityBuffer.Upsert(record, retainAfterUnix); err != nil {
-		slog.Error("upsert observability buffer failed", "error", err)
-		return payload, nil
-	}
-
-	records, err := r.ObservabilityBuffer.Replayable(windowStartedAtUnix, retainAfterUnix)
-	if err != nil {
-		slog.Error("load replayable observability buffer failed", "error", err)
-		return payload, []int64{windowStartedAtUnix}
-	}
-
-	ackWindows := make([]int64, 0, len(records)+1)
-	buffered := make([]protocol.BufferedObservabilityRecord, 0, len(records))
-	for _, item := range records {
-		if item.WindowStartedAtUnix <= 0 {
-			continue
-		}
-		buffered = append(buffered, protocol.BufferedObservabilityRecord{
-			WindowStartedAtUnix:  item.WindowStartedAtUnix,
-			Snapshot:             item.Snapshot,
-			OpenrestyObservation: item.OpenrestyObservation,
-			TrafficReport:        item.TrafficReport,
-			AccessLogs:           item.AccessLogs,
-		})
-		ackWindows = append(ackWindows, item.WindowStartedAtUnix)
-	}
-	payload.BufferedObservability = buffered
-	ackWindows = append(ackWindows, windowStartedAtUnix)
-	return payload, ackWindows
-}
-
-func (r *Runner) ackObservabilityWindows(windowStartedAtUnix []int64) {
-	if r.ObservabilityBuffer == nil || len(windowStartedAtUnix) == 0 {
-		return
-	}
-	retainAfterUnix := time.Now().UTC().Add(-time.Duration(r.Config.ObservabilityReplayMinutes) * time.Minute).Unix()
-	if err := r.ObservabilityBuffer.Ack(windowStartedAtUnix, retainAfterUnix); err != nil {
-		slog.Error("ack observability buffer failed", "error", err)
 	}
 }

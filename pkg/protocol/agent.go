@@ -159,28 +159,12 @@ type RegisterNodeResponse struct {
 	Name        string `json:"name"`
 }
 
-type ApplyLogPayload struct {
-	NodeID              string `json:"node_id"`
-	Version             string `json:"version"`
-	Result              string `json:"result"`
-	Message             string `json:"message"`
-	Checksum            string `json:"checksum"`
-	MainConfigChecksum  string `json:"main_config_checksum"`
-	RouteConfigChecksum string `json:"route_config_checksum"`
-	SupportFileCount    int    `json:"support_file_count"`
-}
-
 type ActiveConfigResponse struct {
 	Version          string        `json:"version"`
 	Checksum         string        `json:"checksum"`
 	SourceConfigJSON string        `json:"source_config_json"`
 	SupportFiles     []SupportFile `json:"support_files"`
 	CreatedAt        string        `json:"created_at"`
-}
-
-type ActiveConfigMeta struct {
-	Version  string `json:"version"`
-	Checksum string `json:"checksum"`
 }
 
 type WAFIPGroup struct {
