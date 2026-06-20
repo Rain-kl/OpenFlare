@@ -17,9 +17,8 @@ RUN --mount=type=cache,target=/go/pkg/mod \
     go mod download
 
 COPY . .
-RUN apk add --no-cache curl \
-    && curl -fsSL -o internal/apps/agent/geoipdata/GeoLite2-Country.mmdb \
-      https://raw.githubusercontent.com/Loyalsoldier/geoip/release/GeoLite2-Country.mmdb
+RUN apk add --no-cache bash curl \
+    && bash scripts/fetch-agent-geoip-mmdb.sh
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
     go build -trimpath -ldflags "-s -w -X 'github.com/Rain-kl/Wavelet/internal/apps/agent/config.Version=$VERSION'" -o /build/bin/openflare-agent ./cmd/agent/main.go
