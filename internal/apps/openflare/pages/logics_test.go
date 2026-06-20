@@ -12,6 +12,7 @@ import (
 	"mime/multipart"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/Rain-kl/Wavelet/internal/db"
@@ -159,6 +160,7 @@ func TestUploadDeploymentStoresPackageInUploadFramework(t *testing.T) {
 		"index.html": "ok",
 	})), "root")
 	require.NoError(t, err)
+	assert.NotZero(t, deployment.UploadID)
 
 	storedDeployment, err := model.GetPagesDeploymentByID(ctx, deployment.ID)
 	require.NoError(t, err)
@@ -168,6 +170,86 @@ func TestUploadDeploymentStoresPackageInUploadFramework(t *testing.T) {
 	var uploadCount int64
 	require.NoError(t, db.DB(ctx).Model(&model.Upload{}).Count(&uploadCount).Error)
 	assert.Equal(t, int64(1), uploadCount)
+}
+
+func TestOpenDeploymentPackageHydratesLegacyArtifactPath(t *testing.T) {
+	cleanup := setupPagesTestDB(t)
+	defer cleanup()
+	_, disableStorage := setupPagesStorageMock(t)
+	defer disableStorage()
+	ctx := context.Background()
+
+	project, err := CreateProject(ctx, Input{
+		Name:    "Legacy Site",
+		Slug:    "openspeedtest",
+		Enabled: true,
+	})
+	require.NoError(t, err)
+
+	artifactDir := filepath.Join(t.TempDir(), "pages", "artifacts", project.Slug)
+	require.NoError(t, os.MkdirAll(artifactDir, 0o755))
+	artifactPath := filepath.Join(artifactDir, "legacy-checksum.zip")
+	require.NoError(t, os.WriteFile(artifactPath, testPagesZip(t, map[string]string{"index.html": "legacy"}), 0o644))
+
+	deployment := &model.PagesDeployment{
+		ProjectID:        project.ID,
+		DeploymentNumber: 1,
+		Checksum:         "legacy-checksum",
+		Status:           model.PagesDeploymentStatusUploaded,
+		ArtifactPath:     artifactPath,
+		FileCount:        1,
+		TotalSize:        10,
+		CreatedBy:        "test",
+	}
+	require.NoError(t, db.DB(ctx).Create(deployment).Error)
+	require.NoError(t, db.DB(ctx).Create(&model.PagesDeploymentFile{
+		DeploymentID: deployment.ID,
+		Path:         "index.html",
+		Size:         6,
+		Checksum:     "legacy-checksum",
+	}).Error)
+
+	_, err = ActivateDeployment(ctx, project.ID, deployment.ID)
+	require.NoError(t, err)
+
+	require.NoError(t, db.DB(ctx).Create(&model.ConfigVersion{
+		Version:          "v2026-legacy",
+		SnapshotJSON:     fmt.Sprintf(`{"routes":[{"upstream_type":"pages","pages_deployment":{"deployment_id":%d}}]}`, deployment.ID),
+		MainConfig:       "",
+		RenderedConfig:   "",
+		SupportFilesJSON: "[]",
+		Checksum:         "legacy-config-checksum",
+		IsActive:         true,
+		CreatedBy:        "test",
+	}).Error)
+
+	packageObj, fileName, err := OpenDeploymentPackage(ctx, deployment.ID)
+	require.NoError(t, err)
+	defer packageObj.Body.Close()
+	assert.Equal(t, fmt.Sprintf("pages-deployment-%d.zip", deployment.ID), fileName)
+
+	body, err := io.ReadAll(packageObj.Body)
+	require.NoError(t, err)
+	reader, err := zip.NewReader(bytes.NewReader(body), int64(len(body)))
+	require.NoError(t, err)
+	require.Len(t, reader.File, 1)
+	assert.Equal(t, "index.html", reader.File[0].Name)
+
+	storedDeployment, err := model.GetPagesDeploymentByID(ctx, deployment.ID)
+	require.NoError(t, err)
+	assert.NotZero(t, storedDeployment.UploadID)
+	assert.Empty(t, storedDeployment.ArtifactPath)
+
+	var uploadCount int64
+	require.NoError(t, db.DB(ctx).Model(&model.Upload{}).Count(&uploadCount).Error)
+	assert.Equal(t, int64(1), uploadCount)
+
+	packageObj2, _, err := OpenDeploymentPackage(ctx, deployment.ID)
+	require.NoError(t, err)
+	defer packageObj2.Body.Close()
+	body2, err := io.ReadAll(packageObj2.Body)
+	require.NoError(t, err)
+	assert.Equal(t, body, body2)
 }
 
 func TestOpenDeploymentPackageRequiresActiveConfigSnapshot(t *testing.T) {

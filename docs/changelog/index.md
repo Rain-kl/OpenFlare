@@ -18,6 +18,8 @@ sidebar: false
 
 ### 修复
 
+- 修复 Agent 启动时 Pages 部署包下载失败：Pages 部署包统一下载走 upload 文件存储框架，部署记录持久化 `upload_id`，legacy `artifact_path` 仅用于一次性回填 upload。
+
 - 修复登录 Cap 人机验证：前端 `cap-solver` 与 Cap 路由测试对齐 `b3a55d4` 之后的统一 API 信封 `{ error_msg, data }`，避免 `challenge` 解构失败。
 
 - 修复 Agent CI/Docker 构建：将 `GeoLite2-Country.mmdb` 提交至仓库作为兜底，构建前优先尝试 `scripts/fetch-agent-geoip-mmdb.sh` 拉取最新库，远程失败时回退使用已提交文件。

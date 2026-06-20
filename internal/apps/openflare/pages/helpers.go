@@ -22,10 +22,13 @@ import (
 	"github.com/Rain-kl/Wavelet/internal/apps/upload"
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"github.com/Rain-kl/Wavelet/internal/repository"
+	platformstorage "github.com/Rain-kl/Wavelet/internal/storage"
 )
 
 const (
-	pagesMaxDeploymentFiles   = 1000
+	pagesLegacyArtifactCandidateCapacity = 8
+	pagesLegacyArtifactRootCapacity      = 4
+	pagesMaxDeploymentFiles              = 1000
 	pagesMaxDeploymentBytes   = 100 * 1024 * 1024
 	defaultPagesEntryFile     = "index.html"
 	defaultPagesFallbackPath  = "/index.html"
@@ -210,6 +213,89 @@ func ingestPagesDeploymentPackage(
 			},
 		},
 	})
+}
+
+func legacyArtifactCandidatePaths(ctx context.Context, project *model.PagesProject, deployment *model.PagesDeployment) []string {
+	if deployment == nil {
+		return nil
+	}
+
+	seen := make(map[string]struct{})
+	candidates := make([]string, 0, pagesLegacyArtifactCandidateCapacity)
+	add := func(raw string) {
+		value := strings.TrimSpace(raw)
+		if value == "" {
+			return
+		}
+		if _, ok := seen[value]; ok {
+			return
+		}
+		info, statErr := os.Stat(value)
+		if statErr != nil || info.IsDir() {
+			return
+		}
+		seen[value] = struct{}{}
+		candidates = append(candidates, value)
+	}
+
+	storedPath := strings.TrimSpace(deployment.ArtifactPath)
+	add(storedPath)
+	if storedPath != "" {
+		add(filepath.Clean(storedPath))
+		add(strings.ReplaceAll(storedPath, "/data/data/", "/data/"))
+		add(strings.ReplaceAll(filepath.Clean(storedPath), string(filepath.Separator)+string(filepath.Separator), string(filepath.Separator)))
+	}
+
+	slug := ""
+	if project != nil {
+		slug = strings.TrimSpace(project.Slug)
+	}
+	checksum := strings.TrimSpace(deployment.Checksum)
+	if slug != "" && checksum != "" {
+		add(filepath.Join("artifacts", slug, checksum+".zip"))
+		add(filepath.Join("pages", "artifacts", slug, checksum+".zip"))
+		add(filepath.Join("data", "pages", "artifacts", slug, checksum+".zip"))
+	}
+
+	roots := make([]string, 0, pagesLegacyArtifactRootCapacity)
+	if cfg, err := platformstorage.LoadConfig(ctx); err == nil {
+		root := strings.TrimSpace(cfg.Local.Root)
+		if root != "" {
+			roots = append(roots, root)
+		}
+	}
+	for _, root := range roots {
+		if storedPath != "" && !filepath.IsAbs(storedPath) {
+			add(filepath.Join(root, storedPath))
+		}
+		if slug != "" && checksum != "" {
+			add(filepath.Join(root, "artifacts", slug, checksum+".zip"))
+			add(filepath.Join(root, "pages", "artifacts", slug, checksum+".zip"))
+			add(filepath.Join(root, "data", "pages", "artifacts", slug, checksum+".zip"))
+		}
+	}
+
+	return candidates
+}
+
+func openLegacyDeploymentArtifact(ctx context.Context, project *model.PagesProject, deployment *model.PagesDeployment) (string, *os.File, os.FileInfo, error) {
+	for _, candidate := range legacyArtifactCandidatePaths(ctx, project, deployment) {
+		file, err := os.Open(candidate) //nolint:gosec // candidate is resolved from managed legacy artifact metadata
+		if err != nil {
+			continue
+		}
+		info, statErr := file.Stat()
+		if statErr != nil {
+			_ = file.Close()
+			continue
+		}
+		if info.IsDir() {
+			_ = file.Close()
+			continue
+		}
+		return candidate, file, info, nil
+	}
+	return "", nil, nil, os.ErrNotExist
 }
 
 func removeDeploymentArtifact(ctx context.Context, deployment *model.PagesDeployment) {

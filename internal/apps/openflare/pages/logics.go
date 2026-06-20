@@ -47,6 +47,7 @@ type DeploymentView struct {
 	DeploymentNumber int        `json:"deployment_number"`
 	Checksum         string     `json:"checksum"`
 	Status           string     `json:"status"`
+	UploadID         uint64     `json:"upload_id,string"`
 	FileCount        int        `json:"file_count"`
 	TotalSize        int64      `json:"total_size"`
 	CreatedBy        string     `json:"created_by"`
@@ -363,37 +364,91 @@ func OpenDeploymentPackage(ctx context.Context, deploymentID uint) (*storage.Obj
 		return nil, "", err
 	}
 	fileName := fmt.Sprintf("pages-deployment-%d.zip", deployment.ID)
+	if deployment.UploadID == 0 {
+		if err := ensureDeploymentUploadRecord(ctx, deployment); err != nil {
+			return nil, "", err
+		}
+	}
+	return openDeploymentPackageFromUpload(ctx, deployment, fileName)
+}
+
+func openDeploymentPackageFromUpload(ctx context.Context, deployment *model.PagesDeployment, fileName string) (*storage.Object, string, error) {
+	uploadRecord, err := repository.GetActiveUploadByID(ctx, deployment.UploadID)
+	if err != nil {
+		return nil, "", fmt.Errorf("pages 部署包不存在: %w", err)
+	}
+	return openDeploymentPackageFromUploadRecord(ctx, &uploadRecord, fileName)
+}
+
+func openDeploymentPackageFromUploadRecord(ctx context.Context, uploadRecord *model.Upload, fileName string) (*storage.Object, string, error) {
+	obj, err := uploadstorage.OpenStoredObject(ctx, uploadRecord)
+	if err != nil {
+		return nil, "", fmt.Errorf("pages 部署包不存在: %w", err)
+	}
+	if obj.ContentType == "" {
+		obj.ContentType = mimeTypeApplicationZip
+	}
+	return obj, fileName, nil
+}
+
+func ensureDeploymentUploadRecord(ctx context.Context, deployment *model.PagesDeployment) error {
+	if deployment == nil {
+		return errors.New(errPagesDeploymentNotFound)
+	}
+	if deployment.UploadID > 0 {
+		return nil
+	}
+	project, err := model.GetPagesProjectByID(ctx, deployment.ProjectID)
+	if err != nil {
+		return err
+	}
+	artifactPath, _, info, err := openLegacyDeploymentArtifact(ctx, project, deployment)
+	if err != nil {
+		return fmt.Errorf("pages 部署包不存在: %w", err)
+	}
+	if _, err := hydrateLegacyDeploymentUpload(ctx, deployment, project, artifactPath, info.Size()); err != nil {
+		return err
+	}
+	return nil
+}
+
+func hydrateLegacyDeploymentUpload(
+	ctx context.Context,
+	deployment *model.PagesDeployment,
+	project *model.PagesProject,
+	artifactPath string,
+	size int64,
+) (*model.Upload, error) {
+	if deployment == nil || project == nil || strings.TrimSpace(artifactPath) == "" {
+		return nil, errors.New(errPagesPackagePathEmpty)
+	}
 	if deployment.UploadID > 0 {
 		uploadRecord, err := repository.GetActiveUploadByID(ctx, deployment.UploadID)
-		if err != nil {
-			return nil, "", errors.New(errPagesPackageUploadMissing)
+		if err == nil {
+			return &uploadRecord, nil
 		}
-		obj, err := uploadstorage.OpenStoredObject(ctx, &uploadRecord)
-		if err != nil {
-			return nil, "", fmt.Errorf("pages 部署包不存在: %w", err)
-		}
-		if obj.ContentType == "" {
-			obj.ContentType = mimeTypeApplicationZip
-		}
-		return obj, fileName, nil
 	}
-	if strings.TrimSpace(deployment.ArtifactPath) == "" {
-		return nil, "", errors.New(errPagesPackagePathEmpty)
-	}
-	file, err := os.Open(deployment.ArtifactPath)
+
+	ingestResult, err := ingestPagesDeploymentPackage(
+		ctx,
+		artifactPath,
+		deployment.Checksum,
+		size,
+		project.Slug,
+		fmt.Sprintf("pages-deployment-%d.zip", deployment.ID),
+	)
 	if err != nil {
-		return nil, "", fmt.Errorf("pages 部署包不存在: %w", err)
+		return nil, err
 	}
-	info, err := file.Stat()
-	if err != nil {
-		_ = file.Close()
-		return nil, "", fmt.Errorf("pages 部署包不存在: %w", err)
+	if err := db.DB(ctx).Model(deployment).Updates(map[string]any{
+		"upload_id":     ingestResult.Upload.ID,
+		"artifact_path": "",
+	}).Error; err != nil {
+		return nil, err
 	}
-	return &storage.Object{
-		Body:          file,
-		ContentLength: info.Size(),
-		ContentType:   mimeTypeApplicationZip,
-	}, fileName, nil
+	deployment.UploadID = ingestResult.Upload.ID
+	deployment.ArtifactPath = ""
+	return &ingestResult.Upload, nil
 }
 
 func ensureDeploymentInActiveSnapshot(ctx context.Context, deploymentID uint) error {
@@ -584,6 +639,7 @@ func buildDeploymentView(deployment *model.PagesDeployment) DeploymentView {
 		DeploymentNumber: deployment.DeploymentNumber,
 		Checksum:         deployment.Checksum,
 		Status:           deployment.Status,
+		UploadID:         deployment.UploadID,
 		FileCount:        deployment.FileCount,
 		TotalSize:        deployment.TotalSize,
 		CreatedBy:        deployment.CreatedBy,
