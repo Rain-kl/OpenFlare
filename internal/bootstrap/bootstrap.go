@@ -13,6 +13,7 @@ import (
 	"github.com/Rain-kl/Wavelet/internal/apps/admin/push/custom_events"
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/chwriter"
 	"github.com/Rain-kl/Wavelet/internal/apps/risk_control"
+	"github.com/Rain-kl/Wavelet/internal/lifecycle"
 	taskhandlers "github.com/Rain-kl/Wavelet/internal/task/handlers"
 	"github.com/Rain-kl/Wavelet/pkg/logger"
 )
@@ -91,12 +92,7 @@ func Init(ctx context.Context, opts Options) {
 
 // Stop stops all batch writers and background resources.
 func Stop(ctx context.Context) {
-	if err := risk_control.StopLogWriter(ctx); err != nil {
-		logger.ErrorF(ctx, "[Bootstrap] stop risk_control log writer failed: %v", err)
-	}
-	if err := chwriter.Stop(ctx); err != nil {
-		logger.ErrorF(ctx, "[Bootstrap] stop chwriter failed: %v", err)
-	}
+	lifecycle.Stop(ctx)
 }
 
 // ResetInitRuntimeOnceForTest clears initRuntimeOnce so Init can run again in unit tests.

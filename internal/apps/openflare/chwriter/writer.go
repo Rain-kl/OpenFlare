@@ -13,6 +13,7 @@ import (
 
 	"github.com/Rain-kl/Wavelet/internal/config"
 	"github.com/Rain-kl/Wavelet/internal/db/batchwriter"
+	"github.com/Rain-kl/Wavelet/internal/lifecycle"
 	analyticsmodel "github.com/Rain-kl/Wavelet/internal/model/analytics"
 	analyticsrepo "github.com/Rain-kl/Wavelet/internal/repository/analytics"
 	"github.com/Rain-kl/Wavelet/pkg/logger"
@@ -65,6 +66,8 @@ func Init(ctx context.Context) {
 		frpsWriter.Start(ctx)
 		frpcWriter.Start(ctx)
 		nodeAccessLogWriter.Start(ctx)
+
+		lifecycle.OnShutdown("openflare_chwriter", Stop)
 	})
 }
 

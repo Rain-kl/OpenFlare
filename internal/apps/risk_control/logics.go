@@ -9,6 +9,7 @@ import (
 
 	"github.com/Rain-kl/Wavelet/internal/config"
 	"github.com/Rain-kl/Wavelet/internal/db/batchwriter"
+	"github.com/Rain-kl/Wavelet/internal/lifecycle"
 	"github.com/Rain-kl/Wavelet/internal/model/analytics"
 	analyticsrepo "github.com/Rain-kl/Wavelet/internal/repository/analytics"
 	"github.com/Rain-kl/Wavelet/pkg/logger"
@@ -60,6 +61,7 @@ func InitLogWriter(ctx context.Context) {
 
 	writer.Start(ctx)
 	logWriter = writer
+	lifecycle.OnShutdown("risk_control_log_writer", StopLogWriter)
 }
 
 // StopLogWriter stops the ClickHouse access-log batch writer and drains pending logs.
