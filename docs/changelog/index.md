@@ -16,6 +16,9 @@ sidebar: false
 
 ## [Unreleased]
 
+### 修复
+
+- 修复 Agent CI/Docker 构建：`go:embed` 所需的 `GeoLite2-Country.mmdb` 在构建前通过 `scripts/fetch-agent-geoip-mmdb.sh` 自动拉取。
 
 ## [v2.3.4] - 2026-06-17
 

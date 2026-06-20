@@ -40,6 +40,7 @@ build-backend:
 
 build-agent:
 	@echo "==> Building agent version=$(VERSION)..."
+	bash scripts/fetch-agent-geoip-mmdb.sh
 	go build \
 		-ldflags "-s -w -X '$(MODULE)/internal/apps/agent/config.Version=$(VERSION)'" \
 		-o bin/openflare-agent \

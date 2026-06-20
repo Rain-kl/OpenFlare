@@ -77,4 +77,4 @@ profile.cov
 .grok
 /.gomodcache/
 *.mmdb
-!openflare_agent/internal/geoipdata/GeoLite2-Country.mmdb
+!internal/apps/agent/geoipdata/GeoLite2-Country.mmdb
