@@ -1,0 +1,3 @@
+- 如果有其他代码文件，忽略 Swagger 变更和版本号变更，只需要关注其他代码文件的变更
+- 需要符合 Github 的提交规范，使用 <type>(<scope>): <subject> 格式
+- Commit Message 必须有 Scope 信息

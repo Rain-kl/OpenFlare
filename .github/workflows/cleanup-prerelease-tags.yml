@@ -1,4 +1,4 @@
-name: Cleanup prerelease tags
+name: Cleanup Prerelease
 
 on:
   workflow_dispatch:

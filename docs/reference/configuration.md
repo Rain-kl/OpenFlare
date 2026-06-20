@@ -109,7 +109,7 @@ go run . --port 3000 --log-dir ./logs
 * `DatabaseAutoCleanupEnabled` 开启后，Server 会在每天凌晨 3 点自动清理 `node_access_logs`、`node_metric_snapshots`、`node_request_reports` 三类观测数据。
 * `DatabaseAutoCleanupRetentionDays` 为统一保留天数，必须大于等于 1。
 * 管理端支持手动清理时留空保留天数，以直接删除对应数据集的全部历史记录。
-* `AgentUpdateRepo` 指向的 GitHub Release 必须为每个 Agent 二进制提供同名 `.sha256` 校验文件，例如 `openflare-agent-linux-amd64.sha256`；Agent 自更新会在替换可执行文件前校验 SHA-256。
+* `AgentUpdateRepo` 指向的 GitHub Release 需包含目标 Agent 二进制；自更新优先使用 GitHub Release API 返回的 `assets[].digest`（`sha256:...`）校验，旧版 Release 无 digest 时会回退读取同名 `.sha256` 侧车文件。
 * 第三方登录不再通过 `GitHubOAuthEnabled`、`GitHubClientId`、`GitHubClientSecret` 作为主配置入口；这些旧 Option 仅用于升级时迁移默认 GitHub 认证源。
 * 微信登录旧 Option 保留为兼容字段，但管理端不再提供微信登录配置入口。
 * Turnstile 旧 Option 与后端校验能力保留，已有配置仍会生效。

@@ -1,0 +1,411 @@
+name: Build Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version/tag to build, for example v1.0.0-beta"
+        required: true
+        type: string
+
+env:
+  APP_NAME: openflare-server
+  GO_MAIN: ./main.go
+  GO_BUILD_TAGS: embed_frontend
+  GO_LDFLAGS: -s -w
+  NODE_VERSION: "22"
+  PNPM_VERSION: "10.10.0"
+  FRONTEND_DIR: frontend
+  FRONTEND_BUILD_COMMAND: pnpm build:embed
+  FRONTEND_OUT_DIR: frontend/out
+  EMBED_DIST_DIR: internal/router/root/dist
+  EXTRA_FILES: |
+    LICENSE
+    README.md
+    README_zh.md
+    config.example.yaml
+    DEPLOYMENT_zh.md
+
+permissions:
+  contents: write
+
+jobs:
+  prepare-message:
+    runs-on: ubuntu-latest
+    outputs:
+      commit_msg: ${{ steps.trans.outputs.commit_msg }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+          fetch-depth: 0
+
+      - name: Prepare Commit Message
+        id: trans
+        shell: bash
+        run: |
+          msg=$(git log -1 --pretty=%B)
+          pip install deep-translator > /dev/null 2>&1 || true
+
+          export COMMIT_MSG="$msg"
+          echo "commit_msg<<EOF" >> "$GITHUB_OUTPUT"
+          if [ -f "scripts/translate_commit.py" ]; then
+             python3 scripts/translate_commit.py >> "$GITHUB_OUTPUT"
+          else
+             echo "Translation script not found, using raw message"
+             echo "$msg" >> "$GITHUB_OUTPUT"
+          fi
+          echo "EOF" >> "$GITHUB_OUTPUT"
+
+  create-release:
+    name: Create Release
+    needs: prepare-message
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.metadata.outputs.version }}
+      version_without_v: ${{ steps.metadata.outputs.version_without_v }}
+      build_date: ${{ steps.metadata.outputs.build_date }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Set release metadata
+        id: metadata
+        shell: bash
+        env:
+          INPUT_VERSION: ${{ github.event.inputs.version }}
+        run: |
+          set -euo pipefail
+
+          input_version="${INPUT_VERSION//[[:space:]]/}"
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            version="$GITHUB_REF_NAME"
+          elif [[ -n "$input_version" ]]; then
+            version="$input_version"
+          else
+            echo "workflow_dispatch requires a version input" >&2
+            exit 1
+          fi
+
+          {
+            echo "version=$version"
+            echo "version_without_v=${version#v}"
+            echo "build_date=$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.metadata.outputs.version }}
+          name: ${{ steps.metadata.outputs.version }}
+          body: ${{ needs.prepare-message.outputs.commit_msg }}
+          prerelease: ${{ contains(steps.metadata.outputs.version, 'alpha') || contains(steps.metadata.outputs.version, 'beta') || contains(steps.metadata.outputs.version, 'rc') }}
+
+  build-frontend:
+    name: Build Embedded Frontend
+    runs-on: ubuntu-latest
+    needs: create-release
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+          run_install: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+          cache-dependency-path: ${{ env.FRONTEND_DIR }}/pnpm-lock.yaml
+
+      - name: Install frontend dependencies
+        working-directory: ${{ env.FRONTEND_DIR }}
+        run: pnpm install --frozen-lockfile
+
+      - name: Build frontend
+        env:
+          NEXT_PUBLIC_APP_VERSION: ${{ needs.create-release.outputs.version }}
+          NEXT_PUBLIC_APP_BUILD_DATE: ${{ needs.create-release.outputs.build_date }}
+        run: ${{ env.FRONTEND_BUILD_COMMAND }}
+        working-directory: ${{ env.FRONTEND_DIR }}
+
+      - name: Prepare embed directory
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf "$EMBED_DIST_DIR"
+          mkdir -p "$(dirname "$EMBED_DIST_DIR")"
+          cp -R "$FRONTEND_OUT_DIR" "$EMBED_DIST_DIR"
+
+      - name: Upload embedded frontend
+        uses: actions/upload-artifact@v4
+        with:
+          name: embedded-frontend
+          path: ${{ env.EMBED_DIST_DIR }}
+          if-no-files-found: error
+          retention-days: 1
+
+  build-binaries:
+    name: Build ${{ matrix.goos }}/${{ matrix.goarch }}
+    runs-on: ubuntu-latest
+    needs:
+      - create-release
+      - build-frontend
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - goos: linux
+            goarch: amd64
+            archive: tar.gz
+          - goos: linux
+            goarch: arm64
+            archive: tar.gz
+          - goos: darwin
+            goarch: amd64
+            archive: tar.gz
+          - goos: darwin
+            goarch: arm64
+            archive: tar.gz
+          - goos: windows
+            goarch: amd64
+            archive: zip
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download embedded frontend
+        uses: actions/download-artifact@v4
+        with:
+          name: embedded-frontend
+          path: ${{ env.EMBED_DIST_DIR }}
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Build binary
+        shell: bash
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: "0"
+          VERSION: ${{ needs.create-release.outputs.version }}
+          BUILD_DATE: ${{ needs.create-release.outputs.build_date }}
+        run: |
+          set -euo pipefail
+
+          mkdir -p dist
+          binary_name="$APP_NAME"
+          if [[ "$GOOS" == "windows" ]]; then
+            binary_name="${binary_name}.exe"
+          fi
+
+          ldflags="$GO_LDFLAGS -X github.com/Rain-kl/Wavelet/internal/buildinfo.Version=$VERSION -X github.com/Rain-kl/Wavelet/internal/buildinfo.BuildTime=$BUILD_DATE"
+          build_args=(
+            -trimpath
+            -ldflags "$ldflags"
+            -o "dist/$binary_name"
+          )
+
+          if [[ -n "$GO_BUILD_TAGS" ]]; then
+            build_args=(-tags "$GO_BUILD_TAGS" "${build_args[@]}")
+          fi
+
+          go build "${build_args[@]}" "$GO_MAIN"
+
+      - name: Package artifact
+        id: package
+        shell: bash
+        env:
+          VERSION: ${{ needs.create-release.outputs.version }}
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          ARCHIVE_FORMAT: ${{ matrix.archive }}
+        run: |
+          set -euo pipefail
+
+          package_name="${APP_NAME}_${VERSION}_${GOOS}_${GOARCH}"
+          staging_dir="dist/$package_name"
+          mkdir -p "$staging_dir"
+
+          if [[ "$GOOS" == "windows" ]]; then
+            cp "dist/${APP_NAME}.exe" "$staging_dir/"
+          else
+            cp "dist/${APP_NAME}" "$staging_dir/"
+          fi
+
+          while IFS= read -r extra_file; do
+            [[ -z "$extra_file" ]] && continue
+            if [[ -e "$extra_file" ]]; then
+              cp -R "$extra_file" "$staging_dir/"
+            fi
+          done <<< "$EXTRA_FILES"
+
+          if [[ "$ARCHIVE_FORMAT" == "zip" ]]; then
+            (cd dist && zip -r "${package_name}.zip" "$package_name")
+            artifact="dist/${package_name}.zip"
+          else
+            tar -C dist -czf "dist/${package_name}.tar.gz" "$package_name"
+            artifact="dist/${package_name}.tar.gz"
+          fi
+
+          echo "artifact=$artifact" >> "$GITHUB_OUTPUT"
+
+      - name: Upload release artifact
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.create-release.outputs.version }}
+          files: ${{ steps.package.outputs.artifact }}
+
+  build-agent-binaries:
+    name: Build agent ${{ matrix.goos }}/${{ matrix.goarch }}
+    runs-on: ubuntu-latest
+    needs: create-release
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - goos: linux
+            goarch: amd64
+            asset_name: openflare-agent-linux-amd64
+          - goos: linux
+            goarch: arm64
+            asset_name: openflare-agent-linux-arm64
+          - goos: darwin
+            goarch: amd64
+            asset_name: openflare-agent-darwin-amd64
+          - goos: darwin
+            goarch: arm64
+            asset_name: openflare-agent-darwin-arm64
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Build Agent
+        env:
+          CGO_ENABLED: 0
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          ASSET_NAME: ${{ matrix.asset_name }}
+          VERSION: ${{ needs.create-release.outputs.version }}
+        run: |
+          go mod download
+          mkdir -p dist
+          go build -trimpath -ldflags "-s -w -X 'github.com/Rain-kl/Wavelet/internal/apps/agent/config.Version=$VERSION'" -o "dist/$ASSET_NAME" ./cmd/agent/main.go
+
+      - name: Upload release artifact
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.create-release.outputs.version }}
+          files: dist/${{ matrix.asset_name }}
+
+  build-relay-binaries:
+    name: Build relay ${{ matrix.goos }}/${{ matrix.goarch }}
+    runs-on: ubuntu-latest
+    needs: create-release
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - goos: linux
+            goarch: amd64
+            asset_name: openflare-relay-linux-amd64
+          - goos: linux
+            goarch: arm64
+            asset_name: openflare-relay-linux-arm64
+          - goos: darwin
+            goarch: amd64
+            asset_name: openflare-relay-darwin-amd64
+          - goos: darwin
+            goarch: arm64
+            asset_name: openflare-relay-darwin-arm64
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Build Relay
+        env:
+          CGO_ENABLED: 0
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          ASSET_NAME: ${{ matrix.asset_name }}
+          VERSION: ${{ needs.create-release.outputs.version }}
+        run: |
+          go mod download
+          mkdir -p dist
+          go build -trimpath -ldflags "-s -w -X 'github.com/Rain-kl/Wavelet/internal/apps/relay/config.Version=$VERSION'" -o "dist/$ASSET_NAME" ./cmd/relay/main.go
+
+      - name: Upload release artifact
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.create-release.outputs.version }}
+          files: dist/${{ matrix.asset_name }}
+
+  build-flared-binaries:
+    name: Build flared ${{ matrix.goos }}/${{ matrix.goarch }}
+    runs-on: ubuntu-latest
+    needs: create-release
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - goos: linux
+            goarch: amd64
+            asset_name: openflared-linux-amd64
+          - goos: linux
+            goarch: arm64
+            asset_name: openflared-linux-arm64
+          - goos: darwin
+            goarch: amd64
+            asset_name: openflared-darwin-amd64
+          - goos: darwin
+            goarch: arm64
+            asset_name: openflared-darwin-arm64
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Build Flared
+        env:
+          CGO_ENABLED: 0
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          ASSET_NAME: ${{ matrix.asset_name }}
+          VERSION: ${{ needs.create-release.outputs.version }}
+        run: |
+          go mod download
+          mkdir -p dist
+          go build -trimpath -ldflags "-s -w -X 'github.com/Rain-kl/Wavelet/internal/apps/flared/config.Version=$VERSION'" -o "dist/$ASSET_NAME" ./cmd/flared/main.go
+
+      - name: Upload release artifact
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.create-release.outputs.version }}
+          files: dist/${{ matrix.asset_name }}

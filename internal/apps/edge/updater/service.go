@@ -70,6 +70,7 @@ type githubRelease struct {
 type githubAsset struct {
 	Name               string `json:"name"`
 	BrowserDownloadURL string `json:"browser_download_url"`
+	Digest             string `json:"digest"`
 }
 
 // CheckAndUpdate checks for a newer release on GitHub and performs an update if available.
@@ -99,29 +100,13 @@ func (s *Service) CheckAndUpdate(ctx context.Context, repo string, options Updat
 
 	slog.Info(s.logLabel+" update available", "from", localVersion, "to", remoteVersion)
 	assetName := s.assetNameForGOOSGOARCH(runtime.GOOS, runtime.GOARCH)
-	checksumAssetName := assetName + ".sha256"
 
-	var downloadURL string
-	var checksumURL string
-	for _, asset := range release.Assets {
-		switch asset.Name {
-		case assetName:
-			downloadURL = asset.BrowserDownloadURL
-		case checksumAssetName:
-			checksumURL = asset.BrowserDownloadURL
-		}
-	}
-	if downloadURL == "" {
-		s.lastCheckKey = checkKey
-		return fmt.Errorf("no matching asset %q in release %s", assetName, release.TagName)
-	}
-	if checksumURL == "" {
-		return fmt.Errorf("no matching checksum asset %q in release %s", checksumAssetName, release.TagName)
-	}
-
-	expectedChecksum, err := s.downloadChecksum(ctx, checksumURL, assetName)
+	downloadURL, expectedChecksum, err := s.resolveReleaseAsset(ctx, release, assetName)
 	if err != nil {
-		return fmt.Errorf("download checksum: %w", err)
+		if downloadURL == "" {
+			s.lastCheckKey = checkKey
+		}
+		return err
 	}
 
 	execPath, err := os.Executable()
@@ -221,6 +206,52 @@ func decodeRelease(reader io.Reader) (*githubRelease, error) {
 		return nil, err
 	}
 	return &release, nil
+}
+
+func (s *Service) resolveReleaseAsset(ctx context.Context, release *githubRelease, assetName string) (downloadURL string, expectedChecksum string, err error) {
+	checksumAssetName := assetName + ".sha256"
+	var checksumURL string
+
+	for _, asset := range release.Assets {
+		switch asset.Name {
+		case assetName:
+			downloadURL = asset.BrowserDownloadURL
+			expectedChecksum = normalizeGitHubDigest(asset.Digest)
+		case checksumAssetName:
+			checksumURL = asset.BrowserDownloadURL
+		}
+	}
+	if downloadURL == "" {
+		return "", "", fmt.Errorf("no matching asset %q in release %s", assetName, release.TagName)
+	}
+	if expectedChecksum != "" {
+		return downloadURL, expectedChecksum, nil
+	}
+	if checksumURL == "" {
+		return downloadURL, "", fmt.Errorf("no sha256 digest or checksum asset %q in release %s", checksumAssetName, release.TagName)
+	}
+
+	expectedChecksum, err = s.downloadChecksum(ctx, checksumURL, assetName)
+	if err != nil {
+		return downloadURL, "", fmt.Errorf("download checksum: %w", err)
+	}
+	return downloadURL, expectedChecksum, nil
+}
+
+func normalizeGitHubDigest(digest string) string {
+	digest = strings.TrimSpace(digest)
+	if digest == "" {
+		return ""
+	}
+	const prefix = "sha256:"
+	if strings.HasPrefix(strings.ToLower(digest), prefix) {
+		digest = digest[len(prefix):]
+	}
+	digest = strings.ToLower(digest)
+	if isSHA256Hex(digest) {
+		return digest
+	}
+	return ""
 }
 
 func (s *Service) downloadChecksum(ctx context.Context, url string, assetName string) (string, error) {

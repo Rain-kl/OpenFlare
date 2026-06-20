@@ -229,7 +229,7 @@ Server：
 Agent：
 
 * Agent 默认只跟随正式版自动更新。
-* Agent 自更新会要求 GitHub Release 同时包含目标二进制和同名 `.sha256` 校验文件，下载后必须通过 SHA-256 校验才会替换本地可执行文件。
+* Agent 自更新从 GitHub Release 拉取目标二进制，优先使用 Release API 的 `digest` 字段做 SHA-256 校验；仅当 digest 为空（历史 Release）时才回退读取同名 `.sha256` 侧车文件，校验通过后才替换本地可执行文件。
 * 安装脚本可重复执行，用于重装或升级 Agent。
 * preview 升级需要手动触发。
 

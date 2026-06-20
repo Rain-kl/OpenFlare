@@ -1,0 +1,32 @@
+name: Check PR Template Checklist
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize]
+
+jobs:
+  check-pr-template:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: check all checklist items are checked
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // get the pull request body
+            const prBody = context.payload.pull_request.body || '';
+
+            // regex to match all checklist items in the template
+            // matches lines like: - [ ] ... or - [x] ...
+            const checklistRegex = /^- \[( |x|X)\] .+$/gm;
+            const matches = prBody.match(checklistRegex) || [];
+
+            // check if any checklist item is not checked
+            const unchecked = matches.filter(line => line.startsWith('- [ ]'));
+
+            // if any unchecked, fail the workflow
+            if (unchecked.length > 0) {
+              core.setFailed(`PR checklist 未全部勾选，请确保所有 checklist 项都已勾选。未勾选项如下：\n${unchecked.join('\n')}`);
+            } else {
+              console.log('all checklist items are checked.');
+            }
+

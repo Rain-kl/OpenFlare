@@ -16,50 +16,6 @@ sidebar: false
 
 ## [Unreleased]
 
-### 变更
-
-- 优化认证性能：引入 Redis 与本地二级缓存缓存 Token 数据库查询和用户 Active 状态，并在用户注销或用户状态修改/删除时进行缓存失效清理。
-- 重构用户与令牌管理：完成 User 控制器和 AccessToken 控制器的 Handler 和数据库操作逻辑的层级解耦（移入 `logics.go`），并统一对数据库异常进行脱敏封装，避免底层数据库错误泄露。
-- 优化观测数据缓存：`ObservabilityBufferStore` 引入内存缓存，避免每次心跳时从磁盘重复读取和解析 JSON 缓存文件。
-- 优化 ClickHouse 写入去重效率：`dedupSet` 的 `markIfNew` 改为定期清理过期 Key，避免在高并发指标入队时同步遍历整个 Map。
-- 优化大文件打包下载：`BatchDownloadFiles` 批量打包 ZIP 下载流中引入 `bufio.Writer` 缓冲写入，避免直接向网络 Socket 进行无缓冲碎片化写入。
-- 优化 Pages 静态部署切换性能：在支持的系统与文件系统下，优先通过软链接（Symlink）进行 Pages deployments 目录快速切换，失败时自动退回到全量目录复制（Copy）。
-
-### 修复
-
-- 修复上传模块（`upload`）的 API 错误响应绕过：将 `c.AbortWithStatus` 和自定义 `c.JSON` 错误响应统一替换为标准的 `response.Abort*` 辅助函数，确保响应格式符合全局信封规范。
-- 修复通用工具包（`pkg/utils`）中的网络和格式化工具 Bug：优化 `isPrivateIPv4` 使其通过 `net.ParseIP` 解析并调用标准库 `ip.IsPrivate()` 检查；修复 `Bytes2Size` 的边界判定，将大小限制变量（`sizeKB`、`sizeMB`、`sizeGB`）改为只读常量以增强不变性。
-- 修复 CAP 模块路由错误响应：将 CAP 接口中的所有直接 JSON 错误响应改造为统一的 `response.Abort*` 抛出并挂载到中间件统一写出 JSON，保证全局 `{ "error_msg": "...", "data": null }` 信封规范。
-- 修复 ClickHouse 批量写入（`batchwriter` / `chwriter`）在服务退出时无法安全停机和刷出剩余日志的问题，统一在 Server 优雅停机流程中调用 `bootstrap.Stop()`。
-- 修复 OpenFlare 系统参数并发读取的数据竞争（data race）问题，在读取 OpenResty 配置快照、Agent 和 Relay 配置时引入 `OptionMapRWMutex` 读锁保护。
-
-### 移除
-
-
-### 新增
-
-- 新增 `goose` 数据库平滑升级桥接机制：在全新命名空间中通过数据迁移（而非改表名）迁移合并 legacy 旧版 SQLite/PostgreSQL 生产数据（Schema `202606040004` 及以下），并在完成后清理 `legacy_` 临时表。
-- 新增 SQLite 迁移底层 `goose_db_version` 表的主键 `AUTOINCREMENT` 自动补全修复，避免由于旧版 Goose schema 限制导致的新升级写入冲突。
-- 新增 `goose.NewProvider` 及 `goose.WithDisableGlobalRegistry` 用于隔离 ClickHouse 与 SQLite/PostgreSQL 间的 Go 代码全局迁移污染。
-- 新增 `internal/db/batchwriter` 通用批量写入框架，支持各业务域独立队列实例、按条数/时间 flush、非阻塞入队与优雅停机。
-- 业务层接入批量写入：`risk_control` 审计日志迁移至 `batchwriter`；OpenFlare 可观测时序与节点访问日志通过 `internal/apps/openflare/chwriter` 异步 flush，移除写前 `SELECT count()` 去重。
-
-### 变更
-
-
-### 修复
-
-- 修复 PostgreSQL 下 legacy 桥接迁移 `202606050001` / `202606200006` 使用 `?` 占位符导致 `syntax error at end of input` 的启动失败问题。
-- 修复 PostgreSQL legacy 数据迁移时旧表可空字段写入新表 `NOT NULL` 列触发约束错误的问题（`INSERT ... SELECT` 不会自动套用列默认值）。
-- 修复 PostgreSQL legacy `dns_accounts` 迁移未转义保留字列名 `authorization` 导致语法错误的问题。
-- 修复总览看板「24 小时请求趋势」摘要误展示 24 小时累计值的问题：趋势图摘要改为「当前小时」桶数据，顶部 24h 统计改为按小时趋势聚合。
-- 修复访问日志 ClickHouse 聚合查询因 `trim(x) AS x` 别名与表列同名导致总览看板地域分布及 IP 统计失败的问题。
-- 修复访问日志页 `count()` 扫描类型不匹配（ClickHouse `UInt64` 写入 `int64`）导致列表计数失败的问题。
-- 修复访问日志 Snowflake ID 超出 JS 安全整数范围导致列表 React key 重复告警的问题：API `id` 改为字符串序列化。
-
-### 变更
-
-- 将节点可观测时序表（`of_node_metric_snapshots`、`of_node_request_reports`、`of_node_obs_openresty`、`of_node_obs_frps`、`of_node_obs_frpc`）从 PostgreSQL/SQLite 迁移至 ClickHouse，主库迁移 `202606200005` 删除对应 PG 表。
 
 ## [v2.3.4] - 2026-06-17
 

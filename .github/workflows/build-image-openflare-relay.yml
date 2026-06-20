@@ -1,4 +1,4 @@
-name: Docker image build (Agent)
+name: Build Image (openflare-relay)
 
 on:
   workflow_dispatch:
@@ -15,6 +15,10 @@ permissions:
   packages: write
   attestations: write
   id-token: write
+
+env:
+  IMAGE_NAME: openflare-relay
+  DOCKERFILE: docker/Dockerfile.relay
 
 jobs:
   build:
@@ -46,7 +50,8 @@ jobs:
           POINTED_TAG="$(git tag --points-at HEAD --list 'v*' | sort -V | tail -n1)"
           INPUT_VERSION="${INPUT_VERSION//[[:space:]]/}"
 
-          echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}-agent" >> "$GITHUB_ENV"
+          OWNER="${GITHUB_REPOSITORY_OWNER,,}"
+
           if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
             VERSION="${GITHUB_REF_NAME}"
           elif [[ -n "$INPUT_VERSION" ]]; then
@@ -58,6 +63,7 @@ jobs:
             exit 1
           fi
 
+          echo "IMAGE=ghcr.io/${OWNER}/openflare-relay" >> "$GITHUB_ENV"
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
 
       - name: Set up Docker Buildx
@@ -75,27 +81,27 @@ jobs:
         uses: docker/build-push-action@v7
         with:
           context: .
-          file: ./openflare-agent/Dockerfile
+          file: ${{ env.DOCKERFILE }}
           platforms: ${{ matrix.platform }}
           outputs: type=image,name=${{ env.IMAGE }},push-by-digest=true,name-canonical=true,push=true
           build-args: |
             VERSION=${{ env.VERSION }}
-          cache-from: type=gha,scope=docker-agent-${{ matrix.arch }}
-          cache-to: type=gha,mode=max,ignore-error=true,timeout=20m,scope=docker-agent-${{ matrix.arch }}
+          cache-from: type=gha,scope=docker-${{ env.IMAGE_NAME }}-${{ matrix.arch }}
+          cache-to: type=gha,mode=max,ignore-error=true,timeout=20m,scope=docker-${{ env.IMAGE_NAME }}-${{ matrix.arch }}
 
       - name: Export digest
         shell: bash
         run: |
-          mkdir -p /tmp/agent-digests
-          touch "/tmp/agent-digests/${DIGEST#sha256:}"
+          mkdir -p "/tmp/${{ env.IMAGE_NAME }}-digests"
+          touch "/tmp/${{ env.IMAGE_NAME }}-digests/${DIGEST#sha256:}"
         env:
           DIGEST: ${{ steps.build.outputs.digest }}
 
       - name: Upload digest
         uses: actions/upload-artifact@v4
         with:
-          name: agent-digests-${{ matrix.arch }}
-          path: /tmp/agent-digests/*
+          name: ${{ env.IMAGE_NAME }}-digests-${{ matrix.arch }}
+          path: /tmp/${{ env.IMAGE_NAME }}-digests/*
           if-no-files-found: error
           retention-days: 1
 
@@ -126,7 +132,8 @@ jobs:
           POINTED_TAG="$(git tag --points-at HEAD --list 'v*' | sort -V | tail -n1)"
           INPUT_VERSION="${INPUT_VERSION//[[:space:]]/}"
 
-          echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}-agent" >> "$GITHUB_ENV"
+          OWNER="${GITHUB_REPOSITORY_OWNER,,}"
+
           if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
             VERSION="${GITHUB_REF_NAME}"
           elif [[ -n "$INPUT_VERSION" ]]; then
@@ -138,13 +145,14 @@ jobs:
             exit 1
           fi
 
+          echo "IMAGE=ghcr.io/${OWNER}/openflare-relay" >> "$GITHUB_ENV"
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
 
       - name: Download digests
         uses: actions/download-artifact@v4
         with:
-          path: /tmp/agent-digests
-          pattern: agent-digests-*
+          path: /tmp/${{ env.IMAGE_NAME }}-digests
+          pattern: ${{ env.IMAGE_NAME }}-digests-*
           merge-multiple: true
 
       - name: Set up Docker Buildx
@@ -158,7 +166,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create and push manifest list
-        working-directory: /tmp/agent-digests
+        working-directory: /tmp/${{ env.IMAGE_NAME }}-digests
         shell: bash
         run: |
           shopt -s nullglob
@@ -168,7 +176,7 @@ jobs:
           done
 
           if [ ${#references[@]} -eq 0 ]; then
-            echo "No digests found in /tmp/agent-digests" >&2
+            echo "No digests found in /tmp/${{ env.IMAGE_NAME }}-digests" >&2
             exit 1
           fi
 
@@ -182,6 +190,8 @@ jobs:
             -t "${IMAGE}:${VERSION}" \
             -t "${IMAGE}:${FLOATING_TAG}" \
             "${references[@]}"
+        env:
+          IMAGE: ${{ env.IMAGE }}
 
       - name: Inspect image
-        run: docker buildx imagetools inspect "${IMAGE}:${VERSION}"
+        run: docker buildx imagetools inspect "${{ env.IMAGE }}:${{ env.VERSION }}"

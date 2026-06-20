@@ -77,7 +77,7 @@ func TestGetReleaseByTag(t *testing.T) {
 	}
 }
 
-func TestCheckAndUpdateRequiresChecksumAsset(t *testing.T) {
+func TestCheckAndUpdateRequiresChecksumSource(t *testing.T) {
 	assetName := testService(nil).assetNameForGOOSGOARCH(runtime.GOOS, runtime.GOARCH)
 	service := testService(&http.Client{
 		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
@@ -98,8 +98,100 @@ func TestCheckAndUpdateRequiresChecksumAsset(t *testing.T) {
 	})
 
 	err := service.CheckAndUpdate(context.Background(), "Rain-kl/OpenFlare", UpdateOptions{})
-	if err == nil || !strings.Contains(err.Error(), "no matching checksum asset") {
-		t.Fatalf("expected missing checksum asset error, got %v", err)
+	if err == nil || !strings.Contains(err.Error(), "no sha256 digest or checksum asset") {
+		t.Fatalf("expected missing checksum source error, got %v", err)
+	}
+}
+
+func TestNormalizeGitHubDigest(t *testing.T) {
+	checksum := strings.Repeat("a", sha256.Size*2)
+	testCases := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{name: "prefixed digest", input: "sha256:" + checksum, want: checksum},
+		{name: "bare hex", input: checksum, want: checksum},
+		{name: "empty", input: "", want: ""},
+		{name: "invalid", input: "sha256:not-a-digest", want: ""},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			if got := normalizeGitHubDigest(testCase.input); got != testCase.want {
+				t.Fatalf("unexpected digest: got %q want %q", got, testCase.want)
+			}
+		})
+	}
+}
+
+func TestResolveReleaseAssetPrefersDigest(t *testing.T) {
+	assetName := testService(nil).assetNameForGOOSGOARCH(runtime.GOOS, runtime.GOARCH)
+	checksum := strings.Repeat("b", sha256.Size*2)
+	service := testService(nil)
+
+	downloadURL, expectedChecksum, err := service.resolveReleaseAsset(context.Background(), &githubRelease{
+		TagName: "v1.0.1",
+		Assets: []githubAsset{
+			{
+				Name:               assetName,
+				BrowserDownloadURL: "https://example.test/agent",
+				Digest:             "sha256:" + checksum,
+			},
+			{
+				Name:               assetName + ".sha256",
+				BrowserDownloadURL: "https://example.test/agent.sha256",
+			},
+		},
+	}, assetName)
+	if err != nil {
+		t.Fatalf("expected digest resolution to succeed: %v", err)
+	}
+	if downloadURL != "https://example.test/agent" {
+		t.Fatalf("unexpected download url: %s", downloadURL)
+	}
+	if expectedChecksum != checksum {
+		t.Fatalf("unexpected checksum: got %s want %s", expectedChecksum, checksum)
+	}
+}
+
+func TestResolveReleaseAssetFallsBackToChecksumAsset(t *testing.T) {
+	assetName := testService(nil).assetNameForGOOSGOARCH(runtime.GOOS, runtime.GOARCH)
+	checksum := strings.Repeat("c", sha256.Size*2)
+	service := testService(&http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			if req.URL.String() != "https://example.test/agent.sha256" {
+				t.Fatalf("unexpected request url: %s", req.URL.String())
+			}
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Header:     make(http.Header),
+				Body:       io.NopCloser(strings.NewReader(checksum + "\n")),
+			}, nil
+		}),
+	})
+
+	downloadURL, expectedChecksum, err := service.resolveReleaseAsset(context.Background(), &githubRelease{
+		TagName: "v1.0.1",
+		Assets: []githubAsset{
+			{
+				Name:               assetName,
+				BrowserDownloadURL: "https://example.test/agent",
+			},
+			{
+				Name:               assetName + ".sha256",
+				BrowserDownloadURL: "https://example.test/agent.sha256",
+			},
+		},
+	}, assetName)
+	if err != nil {
+		t.Fatalf("expected checksum fallback to succeed: %v", err)
+	}
+	if downloadURL != "https://example.test/agent" {
+		t.Fatalf("unexpected download url: %s", downloadURL)
+	}
+	if expectedChecksum != checksum {
+		t.Fatalf("unexpected checksum: got %s want %s", expectedChecksum, checksum)
 	}
 }
 

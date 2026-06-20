@@ -1,0 +1,24 @@
+name: Close Ticket
+
+on:
+  schedule:
+    - cron: "0 0 * * *"
+
+jobs:
+  close_ticket:
+    runs-on: ubuntu-24.04
+    permissions:
+      issues: write
+      pull-requests: write
+
+    steps:
+      - uses: actions/stale@v9
+        with:
+          days-before-issue-stale: 14
+          days-before-issue-close: 14
+          stale-issue-message: "此 issue 长期无活动，将在 14 天后自动关闭。如需继续讨论请回复"
+          close-issue-message: "此 issue 因长期无活动已自动关闭，如有需要请重新开启"
+          days-before-pr-stale: 14
+          days-before-pr-close: 14
+          stale-pr-message: "此 PR 长期无活动，将在 14 天后自动关闭。如需继续讨论请回复"
+          close-pr-message: "此 PR 因长期无活动已自动关闭，如有需要请重新开启"
