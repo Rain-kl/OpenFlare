@@ -14,6 +14,7 @@ import {EmptyState} from '@/components/layout/empty';
 import type {DashboardNodeHealth, DistributionItem} from '@/lib/services/openflare';
 
 import {getNodeStatusLabel, getOpenrestyStatusLabel,} from '../../nodes/components/node-utils';
+import countryCentroids from './data/country-centroids.json';
 import worldGeoJson from './data/world-geo.json';
 
 echarts.use([
@@ -128,6 +129,26 @@ function getNodeTone(node: DashboardNodeHealth): Tone {
   return 'healthy';
 }
 
+const countryCentroidMap = countryCentroids as Record<string, [number, number]>;
+
+function resolveCountryCentroid(geoName: string) {
+  const trimmed = geoName.trim();
+  if (!trimmed) {
+    return null;
+  }
+  const direct = countryCentroidMap[trimmed];
+  if (direct) {
+    return direct;
+  }
+  const lower = trimmed.toLowerCase();
+  for (const [name, coordinates] of Object.entries(countryCentroidMap)) {
+    if (name.toLowerCase() === lower) {
+      return coordinates;
+    }
+  }
+  return null;
+}
+
 function getNodeCoordinates(node: DashboardNodeHealth, index: number) {
   if (
     typeof node.geo_latitude === 'number' &&
@@ -135,6 +156,14 @@ function getNodeCoordinates(node: DashboardNodeHealth, index: number) {
   ) {
     return {
       coordinates: [node.geo_longitude, node.geo_latitude] as [number, number],
+      derivedFromGeo: true,
+    };
+  }
+
+  const countryCentroid = resolveCountryCentroid(node.geo_name || '');
+  if (countryCentroid) {
+    return {
+      coordinates: countryCentroid,
       derivedFromGeo: true,
     };
   }

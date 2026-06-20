@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/Rain-kl/Wavelet/internal/model"
+	pkggeoip "github.com/Rain-kl/Wavelet/pkg/geoip"
 	"github.com/Rain-kl/Wavelet/pkg/logger"
 )
 
@@ -40,7 +41,26 @@ func ApplyNodeGeoFromIP(ctx context.Context, node *model.OpenFlareNode, rawIP st
 	if info.Latitude != nil && info.Longitude != nil {
 		node.GeoLatitude = cloneCoordinate(info.Latitude)
 		node.GeoLongitude = cloneCoordinate(info.Longitude)
+		return
 	}
+	applyCountryCentroid(node, info.ISOCode, info.Name)
+}
+
+func applyCountryCentroid(node *model.OpenFlareNode, isoCode, name string) {
+	if lat, lon, ok := pkggeoip.CountryCentroidByISO(isoCode); ok {
+		node.GeoLatitude = cloneFloat(lat)
+		node.GeoLongitude = cloneFloat(lon)
+		return
+	}
+	if lat, lon, ok := pkggeoip.CountryCentroidByName(name); ok {
+		node.GeoLatitude = cloneFloat(lat)
+		node.GeoLongitude = cloneFloat(lon)
+	}
+}
+
+func cloneFloat(value float64) *float64 {
+	cloned := value
+	return &cloned
 }
 
 func cloneCoordinate(value *float64) *float64 {
