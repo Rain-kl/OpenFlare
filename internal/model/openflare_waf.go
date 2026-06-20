@@ -312,6 +312,28 @@ func ListOpenFlareWAFRuleGroupBindingsByRouteID(ctx context.Context, routeID uin
 	return bindings, nil
 }
 
+func syncWAFBindingIDSequence(tx *gorm.DB) error {
+	if tx == nil || tx.Dialector.Name() != "postgres" {
+		return nil
+	}
+	return tx.Exec(`
+		SELECT setval(
+			pg_get_serial_sequence('of_waf_rule_group_bindings', 'id'),
+			COALESCE((SELECT MAX(id) FROM of_waf_rule_group_bindings), 0)
+		)
+	`).Error
+}
+
+func insertOpenFlareWAFRuleGroupBindings(tx *gorm.DB, bindings []OpenFlareWAFRuleGroupBinding) error {
+	if len(bindings) == 0 {
+		return nil
+	}
+	if err := syncWAFBindingIDSequence(tx); err != nil {
+		return err
+	}
+	return tx.Create(&bindings).Error
+}
+
 // ReplaceOpenFlareWAFRuleGroupBindings replaces bindings for a rule group.
 func ReplaceOpenFlareWAFRuleGroupBindings(ctx context.Context, groupID uint, routeIDs []uint) error {
 	conn, err := wafDB(ctx)
@@ -322,13 +344,14 @@ func ReplaceOpenFlareWAFRuleGroupBindings(ctx context.Context, groupID uint, rou
 		if err = tx.Where("rule_group_id = ?", groupID).Delete(&OpenFlareWAFRuleGroupBinding{}).Error; err != nil {
 			return err
 		}
+		bindings := make([]OpenFlareWAFRuleGroupBinding, 0, len(routeIDs))
 		for _, routeID := range routeIDs {
-			binding := OpenFlareWAFRuleGroupBinding{RuleGroupID: groupID, ProxyRouteID: routeID}
-			if err = tx.Create(&binding).Error; err != nil {
-				return err
-			}
+			bindings = append(bindings, OpenFlareWAFRuleGroupBinding{
+				RuleGroupID:  groupID,
+				ProxyRouteID: routeID,
+			})
 		}
-		return nil
+		return insertOpenFlareWAFRuleGroupBindings(tx, bindings)
 	})
 }
 
@@ -342,13 +365,14 @@ func ReplaceOpenFlareWAFSiteRuleGroupBindings(ctx context.Context, routeID uint,
 		if err = tx.Where("proxy_route_id = ?", routeID).Delete(&OpenFlareWAFRuleGroupBinding{}).Error; err != nil {
 			return err
 		}
+		bindings := make([]OpenFlareWAFRuleGroupBinding, 0, len(groupIDs))
 		for _, groupID := range groupIDs {
-			binding := OpenFlareWAFRuleGroupBinding{RuleGroupID: groupID, ProxyRouteID: routeID}
-			if err = tx.Create(&binding).Error; err != nil {
-				return err
-			}
+			bindings = append(bindings, OpenFlareWAFRuleGroupBinding{
+				RuleGroupID:  groupID,
+				ProxyRouteID: routeID,
+			})
 		}
-		return nil
+		return insertOpenFlareWAFRuleGroupBindings(tx, bindings)
 	})
 }
 

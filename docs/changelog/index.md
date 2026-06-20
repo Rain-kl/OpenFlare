@@ -20,6 +20,8 @@ sidebar: false
 
 - 配置版本列表按 `created_at` 倒序展示，最新发布版本固定显示在列表顶部。
 
+- 修复 WAF 规则组保存/绑定网站时报 `of_waf_rule_group_bindings_pkey` 冲突：PostgreSQL 在迁移导入显式 ID 后同步绑定表序列，并在写入前自动校正序列。
+
 - 修复 WAF 规则组 PoW 策略发布后边缘不生效：统一 WAF 绑定站点名与 OpenResty 路由 `site_name` 解析逻辑，并为所有已启用网站生成 `site_rule_groups` 条目（含仅依赖全局规则组的站点）。
 
 - 收敛子代理站点标识双轨逻辑：新增 `routeidentity` 统一包，`proxy_route`、`config_version`、`uptimekuma`、`flared` 与 OpenResty 渲染共用 `ResolveSiteName` / `DecodeDomains`；移除废弃 `RenderPoWConfig`；PoW Lua 与 WAF 一致仅依赖 `$openflare_waf_site`。
