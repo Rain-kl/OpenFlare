@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Rain-kl/Wavelet/internal/apps/openflare/routeidentity"
 	"github.com/Rain-kl/Wavelet/internal/model"
 )
 
@@ -164,7 +165,7 @@ func buildProxyRoute(ctx context.Context, route *model.ProxyRoute, input Input) 
 		return nil, err
 	}
 	domain := domains[0]
-	siteName := normalizeProxyRouteSiteNameInput(route, input.SiteName, domain)
+	siteName := routeidentity.ResolveSiteName(route, input.SiteName, domain)
 
 	upstreamType := normalizeUpstreamType(input.UpstreamType)
 	_, originID, upstreams, err := resolveProxyRouteUpstreams(ctx, upstreamType, input)
@@ -276,7 +277,7 @@ func buildProxyRouteView(ctx context.Context, route *model.ProxyRoute) (*View, e
 	if route == nil {
 		return nil, errors.New("proxy route is nil")
 	}
-	domains, err := decodeStoredDomains(route.Domains, route.Domain)
+	domains, err := routeidentity.DecodeDomains(route.Domains, route.Domain)
 	if err != nil {
 		return nil, err
 	}
@@ -307,7 +308,7 @@ func buildProxyRouteView(ctx context.Context, route *model.ProxyRoute) (*View, e
 	primaryDomain := domains[0]
 	return &View{
 		ID:                   route.ID,
-		SiteName:             normalizeProxyRouteSiteNameInput(route, route.SiteName, primaryDomain),
+		SiteName:             routeidentity.ResolveSiteName(route, route.SiteName, primaryDomain),
 		Domain:               primaryDomain,
 		Domains:              domains,
 		PrimaryDomain:        primaryDomain,

@@ -5,7 +5,6 @@ package flared
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
@@ -119,33 +118,6 @@ func relayClientAddress(node *model.OpenFlareNode) string {
 		return net.JoinHostPort(addr, strconv.Itoa(port))
 	}
 	return fmt.Sprintf("%s:%d", addr, port)
-}
-
-func decodeStoredDomains(raw string, fallbackDomain string) ([]string, error) {
-	text := strings.TrimSpace(raw)
-	if text == "" {
-		domain := strings.ToLower(strings.TrimSpace(fallbackDomain))
-		if domain == "" {
-			return nil, errors.New("domain is required")
-		}
-		return []string{domain}, nil
-	}
-	var domains []string
-	if err := json.Unmarshal([]byte(text), &domains); err != nil {
-		return nil, errors.New("domains payload is invalid")
-	}
-	normalized := make([]string, 0, len(domains))
-	for _, item := range domains {
-		domain := strings.ToLower(strings.TrimSpace(item))
-		if domain == "" {
-			continue
-		}
-		normalized = append(normalized, domain)
-	}
-	if len(normalized) == 0 {
-		return nil, errors.New("domain is required")
-	}
-	return normalized, nil
 }
 
 func parseTunnelTargetAddr(addr string) (string, int) {

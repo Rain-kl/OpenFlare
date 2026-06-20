@@ -5,12 +5,12 @@ package uptimekuma
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log/slog"
 	"strings"
 	"sync/atomic"
 
+	"github.com/Rain-kl/Wavelet/internal/apps/openflare/routeidentity"
 	"github.com/Rain-kl/Wavelet/internal/model"
 )
 
@@ -164,40 +164,15 @@ func filterOpenFlareMonitors(monitors map[string]Monitor, openFlareTagID int) ma
 }
 
 func routeMonitorURL(route *model.ProxyRoute) (string, error) {
-	domains, err := decodeStoredDomains(route.Domains, route.Domain)
+	domains, err := routeidentity.DecodeDomains(route.Domains, route.Domain)
 	if err != nil {
 		return "", err
 	}
-	domain := route.Domain
-	if len(domains) > 0 {
-		domain = domains[0]
-	}
+	domain := domains[0]
 	if route.EnableHTTPS {
 		return "https://" + domain, nil
 	}
 	return "http://" + domain, nil
-}
-
-func decodeStoredDomains(raw string, fallbackDomain string) ([]string, error) {
-	text := strings.TrimSpace(raw)
-	if text == "" {
-		if strings.TrimSpace(fallbackDomain) == "" {
-			return nil, fmt.Errorf("domain is empty")
-		}
-		return []string{fallbackDomain}, nil
-	}
-
-	var domains []string
-	if err := json.Unmarshal([]byte(text), &domains); err != nil {
-		return nil, fmt.Errorf("domains payload is invalid: %w", err)
-	}
-	if len(domains) == 0 {
-		if strings.TrimSpace(fallbackDomain) == "" {
-			return nil, fmt.Errorf("domain is empty")
-		}
-		return []string{fallbackDomain}, nil
-	}
-	return domains, nil
 }
 
 func monitorPayload(id int, name, targetURL string) map[string]any {

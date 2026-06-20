@@ -42,10 +42,7 @@ func TestRenderWAFConfigIncludesAllRouteSiteNames(t *testing.T) {
 	}
 
 	for _, route := range doc.Routes {
-		siteName := strings.TrimSpace(route.SiteName)
-		if siteName == "" {
-			siteName = normalizedRouteDomains(route)[0]
-		}
+		siteName := resolveRouteSiteName(route)
 		if _, ok := decoded.SiteRuleGroups[siteName]; !ok {
 			t.Fatalf("site_rule_groups missing site %q, got %#v", siteName, decoded.SiteRuleGroups)
 		}

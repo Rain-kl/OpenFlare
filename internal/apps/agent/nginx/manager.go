@@ -749,6 +749,8 @@ func (m *Manager) writeCertFiles(certFiles []protocol.SupportFile) error {
 	return m.writeManagedCertFiles(certFiles)
 }
 
+// writePowConfig persists legacy pow_config.json for backward compatibility.
+// PoW runtime loads site config from waf_config.json; pow_config.json is deprecated.
 func (m *Manager) writePowConfig(supportFiles []protocol.SupportFile) error {
 	if m.RuntimeConfigDir == "" {
 		return nil

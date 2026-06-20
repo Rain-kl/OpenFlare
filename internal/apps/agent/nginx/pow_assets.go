@@ -117,7 +117,7 @@ end
 
 local site = ngx.var.openflare_waf_site or ""
 if site == "" then
-    site = host
+    return
 end
 
 local config_raw = pow_config_dict:get(site)
@@ -230,7 +230,9 @@ local redir = args["redir"] or ""
 
 local site = ngx.var.openflare_waf_site or ""
 if site == "" then
-    site = host
+    ngx.status = 403
+    ngx.say("PoW site not resolved; openflare_waf_site is required")
+    return
 end
 
 local config_raw = pow_config_dict:get(site)
@@ -347,6 +349,14 @@ const openRestyPowVerifyLua = `local cjson = require "cjson.safe"
 
 local pow_challenges = ngx.shared.openflare_pow_challenges
 local pow_sessions = ngx.shared.openflare_pow_sessions
+
+local site = ngx.var.openflare_waf_site or ""
+if site == "" then
+    ngx.status = 403
+    ngx.header.content_type = "application/json"
+    ngx.say(cjson.encode({error = "PoW site not resolved; openflare_waf_site is required"}))
+    return
+end
 
 local args = ngx.req.get_uri_args()
 local challenge_id = args["id"] or ""

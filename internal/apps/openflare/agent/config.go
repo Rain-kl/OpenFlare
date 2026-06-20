@@ -91,7 +91,7 @@ func sourceSupportFiles(files []SupportFile) []SupportFile {
 
 func isRuntimeGeneratedSupportFile(path string) bool {
 	switch strings.TrimSpace(path) {
-	case "pow_config.json", "waf_config.json", openrestyrender.SourceConfigFileName:
+	case "pow_config.json", "waf_config.json", openrestyrender.SourceConfigFileName: // pow_config.json is legacy; waf_config.json is canonical
 		return true
 	default:
 		return false

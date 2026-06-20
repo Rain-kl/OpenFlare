@@ -17,6 +17,7 @@ import (
 	"strings"
 	"unicode"
 
+	"github.com/Rain-kl/Wavelet/internal/apps/openflare/routeidentity"
 	"github.com/Rain-kl/Wavelet/internal/db"
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"gorm.io/gorm"
@@ -315,45 +316,30 @@ func loadTLSCertificates(ctx context.Context, certIDs []uint) ([]*tlsCertificate
 	return certificates, nil
 }
 
-func normalizeProxyRouteSiteNameInput(route *model.ProxyRoute, raw, primaryDomain string) string {
-	siteName := strings.TrimSpace(raw)
-	if siteName != "" {
-		return siteName
-	}
-	if route != nil && strings.TrimSpace(route.SiteName) != "" {
-		return strings.TrimSpace(route.SiteName)
-	}
-	return primaryDomain
-}
-
 func normalizeProxyRouteDomainValue(raw string) string {
 	return strings.ToLower(strings.TrimSpace(raw))
 }
 
-func normalizeProxyRouteDomains(rawDomains []string) ([]string, error) {
-	normalized := make([]string, 0, len(rawDomains))
-	for _, rawDomain := range rawDomains {
-		domain := normalizeProxyRouteDomainValue(rawDomain)
-		if domain == "" {
-			continue
-		}
-		if strings.Contains(domain, "://") || strings.Contains(domain, "/") {
-			return nil, errors.New(errProxyRouteDomainInvalid)
-		}
-		normalized = append(normalized, domain)
+func mapRouteIdentityDomainError(err error) error {
+	if err == nil {
+		return nil
 	}
-	normalized = uniqueStrings(normalized)
-	if len(normalized) == 0 {
-		return nil, errors.New(errProxyRouteDomainRequired)
+	switch err.Error() {
+	case "domain is required":
+		return errors.New(errProxyRouteDomainRequired)
+	default:
+		if strings.Contains(err.Error(), " is invalid") {
+			return errors.New(errProxyRouteDomainInvalid)
+		}
+		return err
 	}
-	return normalized, nil
 }
 
 func normalizeProxyRouteDomainsInput(route *model.ProxyRoute, rawDomain string, rawDomains []string) ([]string, error) {
 	if len(rawDomains) > 0 {
-		domains, err := normalizeProxyRouteDomains(rawDomains)
+		domains, err := routeidentity.NormalizeDomains(rawDomains)
 		if err != nil {
-			return nil, err
+			return nil, mapRouteIdentityDomainError(err)
 		}
 		domain := normalizeProxyRouteDomainValue(rawDomain)
 		if domain != "" && domain != domains[0] {
@@ -363,7 +349,7 @@ func normalizeProxyRouteDomainsInput(route *model.ProxyRoute, rawDomain string, 
 	}
 
 	if route != nil {
-		existingDomains, err := decodeStoredDomains(route.Domains, route.Domain)
+		existingDomains, err := routeidentity.DecodeDomains(route.Domains, route.Domain)
 		if err == nil && len(existingDomains) > 0 {
 			domain := normalizeProxyRouteDomainValue(rawDomain)
 			if domain == "" || domain == existingDomains[0] {
@@ -372,7 +358,11 @@ func normalizeProxyRouteDomainsInput(route *model.ProxyRoute, rawDomain string, 
 		}
 	}
 
-	return normalizeProxyRouteDomains([]string{rawDomain})
+	domains, err := routeidentity.NormalizeDomains([]string{rawDomain})
+	if err != nil {
+		return nil, mapRouteIdentityDomainError(err)
+	}
+	return domains, nil
 }
 
 func validateProxyRouteSiteName(siteName string) error {
@@ -397,14 +387,12 @@ func validateProxyRouteIdentityUniqueness(ctx context.Context, route *model.Prox
 		if item == nil || item.ID == currentID {
 			continue
 		}
-		existingSiteName := normalizeProxyRouteSiteNameInput(item, item.SiteName, item.Domain)
-		if existingSiteName == siteName {
-			return errors.New(errProxyRouteSiteNameExists)
-		}
-
-		existingDomains, err := decodeStoredDomains(item.Domains, item.Domain)
+		existingSiteName, existingDomains, err := routeidentity.ResolveFromRoute(item)
 		if err != nil {
 			return fmt.Errorf("existing route %d domains are invalid: %w", item.ID, err)
+		}
+		if existingSiteName == siteName {
+			return errors.New(errProxyRouteSiteNameExists)
 		}
 		existingSet := make(map[string]struct{}, len(existingDomains))
 		for _, existingDomain := range existingDomains {
@@ -787,18 +775,6 @@ func decodeStoredUpstreams(raw string, fallbackOriginURL string) ([]string, erro
 		return nil, errors.New("upstreams payload is invalid")
 	}
 	return normalizeUpstreams(fallbackOriginURL, upstreams)
-}
-
-func decodeStoredDomains(raw string, fallbackDomain string) ([]string, error) {
-	text := strings.TrimSpace(raw)
-	if text == "" {
-		return normalizeProxyRouteDomains([]string{fallbackDomain})
-	}
-	var domains []string
-	if err := json.Unmarshal([]byte(text), &domains); err != nil {
-		return nil, errors.New("domains payload is invalid")
-	}
-	return normalizeProxyRouteDomains(domains)
 }
 
 func decodeStoredCertIDs(raw string, fallbackCertID *uint) ([]uint, error) {

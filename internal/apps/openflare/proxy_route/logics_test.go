@@ -86,3 +86,32 @@ func TestListProxyRoutes(t *testing.T) {
 	assert.Equal(t, "second.example.com", routes[0].Domain)
 	assert.Equal(t, "first.example.com", routes[1].Domain)
 }
+
+func TestValidateProxyRouteIdentityUniquenessUsesDecodedPrimaryDomain(t *testing.T) {
+	cleanup := setupProxyRouteTestDB(t)
+	defer cleanup()
+	ctx := context.Background()
+
+	existing := &model.ProxyRoute{
+		SiteName:     "",
+		Domain:       "legacy.example.com",
+		Domains:      `["primary.example.com"]`,
+		OriginURL:    "http://origin.example.com:8080",
+		Upstreams:    `["http://origin.example.com:8080"]`,
+		Enabled:      true,
+		UpstreamType: "direct",
+	}
+	require.NoError(t, model.CreateProxyRouteRecord(ctx, existing))
+
+	view, err := GetProxyRoute(ctx, existing.ID)
+	require.NoError(t, err)
+	assert.Equal(t, "primary.example.com", view.SiteName)
+
+	_, err = CreateProxyRoute(ctx, Input{
+		SiteName:  "primary.example.com",
+		Domain:    "other.example.com",
+		OriginURL: "http://origin-b.example.com:8080",
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "site_name already exists")
+}

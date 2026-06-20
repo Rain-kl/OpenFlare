@@ -11,6 +11,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/Rain-kl/Wavelet/internal/apps/openflare/routeidentity"
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/waf"
 	"github.com/Rain-kl/Wavelet/internal/model"
 	openrestyrender "github.com/Rain-kl/Wavelet/pkg/render/openresty"
@@ -211,7 +212,7 @@ func buildCurrentConfigBundle(ctx context.Context, requireRoutes bool) (*configB
 func buildSnapshotRoutes(ctx context.Context, routes []*model.ProxyRoute) ([]snapshotRoute, error) {
 	items := make([]snapshotRoute, 0, len(routes))
 	for _, route := range routes {
-		domains, err := decodeStoredDomains(route.Domains, route.Domain)
+		domains, err := routeidentity.DecodeDomains(route.Domains, route.Domain)
 		if err != nil {
 			return nil, fmt.Errorf("route %s domains are invalid", route.Domain)
 		}
@@ -245,7 +246,7 @@ func buildSnapshotRoutes(ctx context.Context, routes []*model.ProxyRoute) ([]sna
 		}
 		items = append(items, snapshotRoute{
 			ID:                 route.ID,
-			SiteName:           normalizeProxyRouteSiteName(route, route.SiteName, domains[0]),
+			SiteName:           routeidentity.ResolveSiteName(route, route.SiteName, domains[0]),
 			Domain:             domains[0],
 			Domains:            domains,
 			OriginURL:          originURL,
@@ -319,11 +320,11 @@ func buildSnapshotWAFDocument(ctx context.Context, routes []*model.ProxyRoute) (
 		if route == nil {
 			continue
 		}
-		domains, domainErr := decodeStoredDomains(route.Domains, route.Domain)
+		domains, domainErr := routeidentity.DecodeDomains(route.Domains, route.Domain)
 		if domainErr != nil {
 			return snapshotWAFDocument{}, fmt.Errorf("route %s domains are invalid", route.Domain)
 		}
-		enabledRouteSiteNames[route.ID] = normalizeProxyRouteSiteName(route, route.SiteName, domains[0])
+		enabledRouteSiteNames[route.ID] = routeidentity.ResolveSiteName(route, route.SiteName, domains[0])
 	}
 	rawBindings, err := model.ListOpenFlareWAFRuleGroupBindings(ctx)
 	if err != nil {

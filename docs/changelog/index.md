@@ -20,6 +20,8 @@ sidebar: false
 
 - 修复 WAF 规则组 PoW 策略发布后边缘不生效：统一 WAF 绑定站点名与 OpenResty 路由 `site_name` 解析逻辑，并为所有已启用网站生成 `site_rule_groups` 条目（含仅依赖全局规则组的站点）。
 
+- 收敛子代理站点标识双轨逻辑：新增 `routeidentity` 统一包，`proxy_route`、`config_version`、`uptimekuma`、`flared` 与 OpenResty 渲染共用 `ResolveSiteName` / `DecodeDomains`；移除废弃 `RenderPoWConfig`；PoW Lua 与 WAF 一致仅依赖 `$openflare_waf_site`。
+
 - 修复全球态势板在仅有 `geo_name`（如 mmdb 的 Germany）而无经纬度时误用美国 fallback 坐标的问题；按国家名/ISO 匹配地图质心。
 
 - 修复 Agent 心跳上报公网 IP 后节点地理位置未自动更新：进程启动时按 `GeoIPProvider` 初始化 `pkg/geoip`，`mmdb` 模式从内置 GeoLite2 种子到 `data/`，并在 Relay 心跳同步地理位置。

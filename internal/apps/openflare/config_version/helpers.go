@@ -26,52 +26,6 @@ func isUniqueConstraintError(err error) bool {
 	return strings.Contains(strings.ToLower(err.Error()), "unique")
 }
 
-func normalizeProxyRouteSiteName(route *model.ProxyRoute, raw, primaryDomain string) string {
-	siteName := strings.TrimSpace(raw)
-	if siteName != "" {
-		return siteName
-	}
-	if route != nil && strings.TrimSpace(route.SiteName) != "" {
-		return strings.TrimSpace(route.SiteName)
-	}
-	return primaryDomain
-}
-
-func normalizeProxyRouteDomains(rawDomains []string) ([]string, error) {
-	normalized := make([]string, 0, len(rawDomains))
-	seen := make(map[string]struct{}, len(rawDomains))
-	for _, rawDomain := range rawDomains {
-		domain := strings.ToLower(strings.TrimSpace(rawDomain))
-		if domain == "" {
-			continue
-		}
-		if strings.Contains(domain, "://") || strings.Contains(domain, "/") {
-			return nil, fmt.Errorf("domain %q is invalid", rawDomain)
-		}
-		if _, ok := seen[domain]; ok {
-			continue
-		}
-		seen[domain] = struct{}{}
-		normalized = append(normalized, domain)
-	}
-	if len(normalized) == 0 {
-		return nil, fmt.Errorf("domain is required")
-	}
-	return normalized, nil
-}
-
-func decodeStoredDomains(raw string, fallbackDomain string) ([]string, error) {
-	text := strings.TrimSpace(raw)
-	if text == "" {
-		return normalizeProxyRouteDomains([]string{fallbackDomain})
-	}
-	var domains []string
-	if err := json.Unmarshal([]byte(text), &domains); err != nil {
-		return nil, fmt.Errorf("domains payload is invalid")
-	}
-	return normalizeProxyRouteDomains(domains)
-}
-
 func decodeStoredUpstreams(raw string, fallbackOriginURL string) ([]string, error) {
 	text := strings.TrimSpace(raw)
 	if text == "" {

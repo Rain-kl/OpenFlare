@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Rain-kl/Wavelet/internal/apps/openflare/routeidentity"
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"gorm.io/gorm"
 )
@@ -321,14 +322,14 @@ func normalizeSnapshotRoutes(routes []snapshotRoute) []snapshotRoute {
 		return []snapshotRoute{}
 	}
 	for index := range routes {
-		normalizedDomains, err := decodeStoredDomains("", routes[index].Domain)
+		normalizedDomains, err := routeidentity.DecodeDomains("", routes[index].Domain)
 		if len(routes[index].Domains) > 0 {
-			normalizedDomains, err = normalizeProxyRouteDomains(routes[index].Domains)
+			normalizedDomains, err = routeidentity.NormalizeDomains(routes[index].Domains)
 		}
 		if err == nil && len(normalizedDomains) > 0 {
 			routes[index].Domains = normalizedDomains
 			routes[index].Domain = normalizedDomains[0]
-			routes[index].SiteName = normalizeProxyRouteSiteName(nil, routes[index].SiteName, normalizedDomains[0])
+			routes[index].SiteName = routeidentity.ResolveSiteName(nil, routes[index].SiteName, normalizedDomains[0])
 		}
 		normalizedCertIDs, primaryCertID, certErr := normalizeSnapshotCertificateIDs(routes[index].CertID, routes[index].CertIDs)
 		if certErr == nil {

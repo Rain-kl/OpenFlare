@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/agent"
+	"github.com/Rain-kl/Wavelet/internal/apps/openflare/routeidentity"
 	"github.com/Rain-kl/Wavelet/internal/db"
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"gorm.io/gorm"
@@ -133,7 +134,7 @@ func GetTunnelConfig(ctx context.Context, node *model.OpenFlareNode) (*TunnelCon
 		if !route.Enabled {
 			continue
 		}
-		domains, decodeErr := decodeStoredDomains(route.Domains, route.Domain)
+		domains, decodeErr := routeidentity.DecodeDomains(route.Domains, route.Domain)
 		if decodeErr != nil {
 			continue
 		}

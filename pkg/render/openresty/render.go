@@ -92,10 +92,7 @@ func RenderRouteConfig(doc Document, certificateFiles []SupportFile) (string, er
 			return "", fmt.Errorf("route %s domains are invalid", route.Domain)
 		}
 		serverNames := renderServerNames(domains)
-		displayName := strings.TrimSpace(route.SiteName)
-		if displayName == "" {
-			displayName = domains[0]
-		}
+		displayName := resolveRouteSiteName(route)
 		cacheConfig := routeCacheConfig{Enabled: route.CacheEnabled, Policy: route.CachePolicy, Rules: route.CacheRules}
 		limitConfig := routeLimitConfig{LimitConnPerServer: route.LimitConnPerServer, LimitConnPerIP: route.LimitConnPerIP, LimitRate: route.LimitRate}
 		powEnabled, _ := getPoWConfigForRoute(route.ID, doc.WAF)
@@ -110,29 +107,6 @@ func RenderRouteConfig(doc Document, certificateFiles []SupportFile) (string, er
 		}
 	}
 	return builder.String(), nil
-}
-
-// RenderPoWConfig serialises the Proof-of-Work configuration for all enabled
-// routes as a JSON string consumed by the OpenResty Lua runtime.
-func RenderPoWConfig(doc Document) (string, error) {
-	type domainEntry struct {
-		Domains []string   `json:"domains"`
-		Enabled bool       `json:"enabled"`
-		Config  *PoWConfig `json:"config"`
-	}
-	entries := make([]domainEntry, 0)
-	for _, route := range doc.Routes {
-		powEnabled, powConfig := getPoWConfigForRoute(route.ID, doc.WAF)
-		if !powEnabled {
-			continue
-		}
-		entries = append(entries, domainEntry{Domains: normalizedRouteDomains(route), Enabled: true, Config: powConfig})
-	}
-	if len(entries) == 0 {
-		return "{}", nil
-	}
-	data, err := json.Marshal(entries)
-	return string(data), err
 }
 
 // RenderWAFConfig serialises the WAF runtime configuration (rule groups and
@@ -642,11 +616,18 @@ func renderNamedUpstreamBlock(upstreamConfig routeUpstreamConfig) string {
 	return builder.String()
 }
 
-func buildRouteUpstreamName(route Route) string {
-	identity := strings.TrimSpace(route.SiteName)
-	if identity == "" {
-		identity = route.Domain
+func resolveRouteSiteName(route Route) string {
+	if name := strings.TrimSpace(route.SiteName); name != "" {
+		return name
 	}
+	if domains := normalizedRouteDomains(route); len(domains) > 0 {
+		return domains[0]
+	}
+	return strings.TrimSpace(route.Domain)
+}
+
+func buildRouteUpstreamName(route Route) string {
+	identity := resolveRouteSiteName(route)
 	sanitized := strings.Map(func(r rune) rune {
 		switch {
 		case r >= 'a' && r <= 'z':
