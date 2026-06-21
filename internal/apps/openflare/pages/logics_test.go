@@ -245,10 +245,10 @@ func TestOpenDeploymentPackageHydratesLegacyArtifactPath(t *testing.T) {
 		CreatedBy:        "test",
 	}).Error)
 
-	packageObj, fileName, err := OpenDeploymentPackage(ctx, deployment.ID)
+	packageObj, err := OpenDeploymentPackage(ctx, deployment.ID)
 	require.NoError(t, err)
 	defer packageObj.Body.Close()
-	assert.Equal(t, fmt.Sprintf("pages-deployment-%d.zip", deployment.ID), fileName)
+	assert.Equal(t, fmt.Sprintf("pages-deployment-%d.zip", deployment.ID), packageObj.FileName)
 
 	body, err := io.ReadAll(packageObj.Body)
 	require.NoError(t, err)
@@ -266,7 +266,7 @@ func TestOpenDeploymentPackageHydratesLegacyArtifactPath(t *testing.T) {
 	require.NoError(t, db.DB(ctx).Model(&model.Upload{}).Count(&uploadCount).Error)
 	assert.Equal(t, int64(1), uploadCount)
 
-	packageObj2, _, err := OpenDeploymentPackage(ctx, deployment.ID)
+	packageObj2, err := OpenDeploymentPackage(ctx, deployment.ID)
 	require.NoError(t, err)
 	defer packageObj2.Body.Close()
 	body2, err := io.ReadAll(packageObj2.Body)
@@ -296,7 +296,7 @@ func TestOpenDeploymentPackageRequiresActiveConfigSnapshot(t *testing.T) {
 	_, err = ActivateDeployment(ctx, project.ID, deployment.ID)
 	require.NoError(t, err)
 
-	_, _, err = OpenDeploymentPackage(ctx, deployment.ID)
+	_, err = OpenDeploymentPackage(ctx, deployment.ID)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "激活配置")
 
@@ -311,10 +311,10 @@ func TestOpenDeploymentPackageRequiresActiveConfigSnapshot(t *testing.T) {
 		CreatedBy:        "test",
 	}).Error)
 
-	packageObj, fileName, err := OpenDeploymentPackage(ctx, deployment.ID)
+	packageObj, err := OpenDeploymentPackage(ctx, deployment.ID)
 	require.NoError(t, err)
 	defer packageObj.Body.Close()
-	assert.Equal(t, fmt.Sprintf("pages-deployment-%d.zip", deployment.ID), fileName)
+	assert.Equal(t, fmt.Sprintf("pages-deployment-%d.zip", deployment.ID), packageObj.FileName)
 
 	body, err := io.ReadAll(packageObj.Body)
 	require.NoError(t, err)

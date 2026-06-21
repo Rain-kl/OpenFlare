@@ -196,12 +196,12 @@ func DownloadPagesPackageHandler(c *gin.Context) {
 	if !ok {
 		return
 	}
-	packageObj, fileName, err := pages.OpenDeploymentPackage(c.Request.Context(), deploymentID)
+	packageObj, err := pages.OpenDeploymentPackage(c.Request.Context(), deploymentID)
 	if apiutil.AbortBadRequestOnError(c, err) {
 		return
 	}
 	defer func() { _ = packageObj.Body.Close() }()
-	c.Header("Content-Disposition", "attachment; filename="+fileName)
+	c.Header("Content-Disposition", "attachment; filename="+packageObj.FileName)
 	if packageObj.ContentType != "" {
 		c.Header("Content-Type", packageObj.ContentType)
 	}

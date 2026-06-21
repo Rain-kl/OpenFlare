@@ -31,13 +31,22 @@ var (
 
 // Programmatic ingest API
 var (
-	Ingest           = ingest.Ingest
-	Remove           = ingest.Remove
-	RemoveOwned      = ingest.RemoveOwned
-	FindByHash       = ingest.FindByHash
-	GetActiveUpload  = ingest.GetActive
-	OpenStoredUpload = ingest.OpenActive
-	ActiveUploadHash = ingest.ActiveHash
+	Ingest              = ingest.Ingest
+	Remove              = ingest.Remove
+	RemoveOwned         = ingest.RemoveOwned
+	FindByHash          = ingest.FindByHash
+	GetActiveUpload     = ingest.GetActive
+	OpenStoredUpload    = ingest.OpenActiveObject
+	ActiveUploadHash    = ingest.ActiveHash
+	ResolveLocalFile    = ingest.ResolveLocalFile
+	IngestFromLocalPath = ingest.IngestFromLocalPath
+)
+
+type (
+	// OpenedUploadObject is the upload-domain view of a stored object stream.
+	OpenedUploadObject = ingest.OpenedObject
+	// LocalFileCandidateRequest describes filesystem locations that may host a legacy blob.
+	LocalFileCandidateRequest = ingest.LocalFileCandidateRequest
 )
 
 // Ingest policy constants

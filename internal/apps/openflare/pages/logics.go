@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"mime/multipart"
 	"net/url"
 	"os"
@@ -18,9 +19,16 @@ import (
 	"github.com/Rain-kl/Wavelet/internal/apps/upload"
 	"github.com/Rain-kl/Wavelet/internal/db"
 	"github.com/Rain-kl/Wavelet/internal/model"
-	"github.com/Rain-kl/Wavelet/internal/storage"
 	"gorm.io/gorm"
 )
+
+// DeploymentPackage is a streamable Pages deployment artifact for agent download.
+type DeploymentPackage struct {
+	FileName      string
+	ContentType   string
+	ContentLength int64
+	Body          io.ReadCloser
+}
 
 // Input Pages 项目创建/更新请求。
 type Input struct {
@@ -251,7 +259,7 @@ func UploadDeployment(ctx context.Context, projectID uint, fileHeader *multipart
 		return nil, err
 	}
 	entryFile := normalizePagesEntryFile(project.EntryFile)
-	tempPath, checksum, packageSize, err := persistPagesUploadTemp(fileHeader)
+	tempPath, checksum, _, err := persistPagesUploadTemp(fileHeader)
 	if err != nil {
 		return nil, err
 	}
@@ -264,7 +272,6 @@ func UploadDeployment(ctx context.Context, projectID uint, fileHeader *multipart
 		ctx,
 		tempPath,
 		checksum,
-		packageSize,
 		project.Slug,
 		fileHeader.Filename,
 	)
@@ -392,32 +399,37 @@ func GetDeploymentPackageHash(ctx context.Context, deploymentID uint) (string, e
 }
 
 // OpenDeploymentPackage opens the deployment artifact from the upload storage framework.
-func OpenDeploymentPackage(ctx context.Context, deploymentID uint) (*storage.Object, string, error) {
+func OpenDeploymentPackage(ctx context.Context, deploymentID uint) (DeploymentPackage, error) {
 	deployment, err := model.GetPagesDeploymentByID(ctx, deploymentID)
 	if err != nil {
-		return nil, "", err
+		return DeploymentPackage{}, err
 	}
 	if err = ensureDeploymentInActiveSnapshot(ctx, deployment.ID); err != nil {
-		return nil, "", err
+		return DeploymentPackage{}, err
 	}
-	fileName := fmt.Sprintf("pages-deployment-%d.zip", deployment.ID)
 	if deployment.UploadID == 0 {
 		if err := ensureDeploymentUploadRecord(ctx, deployment); err != nil {
-			return nil, "", err
+			return DeploymentPackage{}, err
 		}
 	}
-	return openDeploymentPackageFromUpload(ctx, deployment, fileName)
+	return openDeploymentPackageFromUpload(ctx, deployment.UploadID, deployment.ID)
 }
 
-func openDeploymentPackageFromUpload(ctx context.Context, deployment *model.PagesDeployment, fileName string) (*storage.Object, string, error) {
-	obj, _, err := upload.OpenStoredUpload(ctx, deployment.UploadID)
+func openDeploymentPackageFromUpload(ctx context.Context, uploadID uint64, deploymentID uint) (DeploymentPackage, error) {
+	opened, err := upload.OpenStoredUpload(ctx, uploadID)
 	if err != nil {
-		return nil, "", fmt.Errorf("pages 部署包不存在: %w", err)
+		return DeploymentPackage{}, fmt.Errorf("pages 部署包不存在: %w", err)
 	}
-	if obj.ContentType == "" {
-		obj.ContentType = mimeTypeApplicationZip
+	contentType := opened.ContentType
+	if contentType == "" {
+		contentType = mimeTypeApplicationZip
 	}
-	return obj, fileName, nil
+	return DeploymentPackage{
+		FileName:      fmt.Sprintf("pages-deployment-%d.zip", deploymentID),
+		ContentType:   contentType,
+		ContentLength: opened.ContentLength,
+		Body:          opened.Body,
+	}, nil
 }
 
 func ensureDeploymentUploadRecord(ctx context.Context, deployment *model.PagesDeployment) error {
@@ -431,11 +443,7 @@ func ensureDeploymentUploadRecord(ctx context.Context, deployment *model.PagesDe
 	if err != nil {
 		return err
 	}
-	artifactPath, _, info, err := openLegacyDeploymentArtifact(ctx, project, deployment)
-	if err != nil {
-		return fmt.Errorf("pages 部署包不存在: %w", err)
-	}
-	if _, err := hydrateLegacyDeploymentUpload(ctx, deployment, project, artifactPath, info.Size()); err != nil {
+	if _, err := hydrateLegacyDeploymentUpload(ctx, deployment, project); err != nil {
 		return err
 	}
 	return nil
@@ -445,11 +453,9 @@ func hydrateLegacyDeploymentUpload(
 	ctx context.Context,
 	deployment *model.PagesDeployment,
 	project *model.PagesProject,
-	artifactPath string,
-	size int64,
 ) (*model.Upload, error) {
-	if deployment == nil || project == nil || strings.TrimSpace(artifactPath) == "" {
-		return nil, errors.New(errPagesPackagePathEmpty)
+	if deployment == nil || project == nil {
+		return nil, errors.New(errPagesDeploymentNotFound)
 	}
 	if deployment.UploadID > 0 {
 		uploadRecord, err := upload.GetActiveUpload(ctx, deployment.UploadID)
@@ -458,11 +464,18 @@ func hydrateLegacyDeploymentUpload(
 		}
 	}
 
+	artifactPath, _, err := upload.ResolveLocalFile(ctx, upload.LocalFileCandidateRequest{
+		StoredPath:    deployment.ArtifactPath,
+		RelativePaths: pagesLegacyRelativeCandidates(project, deployment),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("pages 部署包不存在: %w", err)
+	}
+
 	ingestResult, err := ingestPagesDeploymentPackage(
 		ctx,
 		artifactPath,
 		deployment.Checksum,
-		size,
 		project.Slug,
 		fmt.Sprintf("pages-deployment-%d.zip", deployment.ID),
 	)

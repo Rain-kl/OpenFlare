@@ -11,7 +11,6 @@ import (
 	uploadcache "github.com/Rain-kl/Wavelet/internal/apps/upload/cache"
 	uploadstorage "github.com/Rain-kl/Wavelet/internal/apps/upload/storage"
 	"github.com/Rain-kl/Wavelet/internal/model"
-	"github.com/Rain-kl/Wavelet/internal/storage"
 )
 
 // GetActive loads an active upload record by ID through the upload metadata cache path.
@@ -22,17 +21,22 @@ func GetActive(ctx context.Context, uploadID uint64) (model.Upload, error) {
 	return uploadcache.GetUploadByID(ctx, uploadID)
 }
 
-// OpenActive opens the stored object for an active upload record.
-func OpenActive(ctx context.Context, uploadID uint64) (*storage.Object, model.Upload, error) {
+// OpenActiveObject opens the stored object for an active upload record.
+func OpenActiveObject(ctx context.Context, uploadID uint64) (OpenedObject, error) {
 	record, err := GetActive(ctx, uploadID)
 	if err != nil {
-		return nil, model.Upload{}, err
+		return OpenedObject{}, err
 	}
 	obj, err := uploadstorage.OpenStoredObject(ctx, &record)
 	if err != nil {
-		return nil, model.Upload{}, err
+		return OpenedObject{}, err
 	}
-	return obj, record, nil
+	return OpenedObject{
+		Body:          obj.Body,
+		ContentType:   obj.ContentType,
+		ContentLength: obj.ContentLength,
+		Upload:        record,
+	}, nil
 }
 
 // ActiveHash returns the SHA-256 hash recorded for an active upload.
