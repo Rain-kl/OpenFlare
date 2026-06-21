@@ -1,6 +1,7 @@
 import type {AxiosProgressEvent, InternalAxiosRequestConfig} from 'axios';
 
 import apiClient from '@/lib/services/core/api-client';
+import {apiConfig} from '@/lib/services/core/config';
 import type {ApiResponse} from '@/lib/services/core';
 
 import {OpenFlareBaseService} from './base.service';
@@ -94,6 +95,7 @@ export class PagesService extends OpenFlareBaseService {
       this.getFullPath(path),
       formData,
       {
+        timeout: apiConfig.uploadTimeout,
         headers: { 'Content-Type': 'multipart/form-data' },
         onUploadProgress: (event: AxiosProgressEvent) => {
           if (!onProgress || !event.total) return;

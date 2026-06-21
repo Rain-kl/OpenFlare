@@ -141,10 +141,10 @@ export function DeploymentUploadDialog({
         {uploadProgress !== null ? (
           <div className="space-y-1.5">
             <div className="flex justify-between text-xs text-muted-foreground">
-              <span>上传进度</span>
-              <span>{uploadProgress}%</span>
+              <span>{uploadProgress >= 100 ? "服务端处理中" : "上传进度"}</span>
+              <span>{uploadProgress >= 100 ? "请稍候" : `${uploadProgress}%`}</span>
             </div>
-            <Progress value={uploadProgress} />
+            <Progress value={uploadProgress >= 100 ? 100 : uploadProgress} />
           </div>
         ) : null}
 

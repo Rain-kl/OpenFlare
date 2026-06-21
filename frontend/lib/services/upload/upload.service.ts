@@ -1,5 +1,6 @@
 import type {InternalAxiosRequestConfig} from 'axios';
 
+import {apiConfig} from '../core/config';
 import {BaseService} from '../core/base.service';
 import type {ListUploadsResponse, Upload, UploadImageResponse} from './types';
 
@@ -23,6 +24,7 @@ export class UploadService extends BaseService {
     }
 
     return this.post<Upload>('', formData, {
+      timeout: apiConfig.uploadTimeout,
       headers: { 'Content-Type': 'multipart/form-data' },
     } as InternalAxiosRequestConfig);
   }

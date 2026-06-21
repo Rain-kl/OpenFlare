@@ -21,6 +21,11 @@ export const apiConfig = {
   baseURL: getApiBaseUrl(),
   /** 超时时间（毫秒） */
   timeout: 15000,
+  /**
+   * 文件上传超时（毫秒）。
+   * Pages 部署包上限 100 MiB，需覆盖上传 + 服务端解压校验与入库时间。
+   */
+  uploadTimeout: 10 * 60 * 1000,
   /** 携带凭证 */
   withCredentials: true,
 } as const;
