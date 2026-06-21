@@ -1,15 +1,10 @@
 'use client';
 
 import {TrendChart} from '@/components/data/trend-chart';
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+import {Card, CardContent, CardHeader, CardTitle,} from '@/components/ui/card';
 import type {DiskIOTrendPoint, NetworkTrendPoint} from '@/lib/services/openflare';
 
-import {formatBytes, formatBytesPerSecond, formatTrendHour} from './dashboard-utils';
+import {formatBytes, formatTrendHour} from './dashboard-utils';
 
 export function NetworkDiskTrendChart({
   networkPoints,
@@ -27,7 +22,9 @@ export function NetworkDiskTrendChart({
         <TrendChart
           labels={networkPoints.map((point) => formatTrendHour(point.bucket_started_at))}
           height={180}
-          yAxisValueFormatter={(value) => formatBytesPerSecond(value, 3600)}
+          summaryScope="total"
+          summaryHint="近 24 小时"
+          yAxisValueFormatter={formatBytes}
           series={[
             {
               label: 'OpenResty 入站',
@@ -35,13 +32,13 @@ export function NetworkDiskTrendChart({
               fillColor: 'rgba(34, 197, 94, 0.14)',
               variant: 'area',
               values: networkPoints.map((point) => point.openresty_rx_bytes),
-              valueFormatter: (value) => formatBytesPerSecond(value, 3600),
+              valueFormatter: formatBytes,
             },
             {
               label: 'OpenResty 出站',
               color: '#38bdf8',
               values: networkPoints.map((point) => point.openresty_tx_bytes),
-              valueFormatter: (value) => formatBytesPerSecond(value, 3600),
+              valueFormatter: formatBytes,
             },
           ]}
         />
@@ -49,6 +46,8 @@ export function NetworkDiskTrendChart({
         <TrendChart
           labels={diskPoints.map((point) => formatTrendHour(point.bucket_started_at))}
           height={180}
+          summaryScope="total"
+          summaryHint="近 24 小时"
           yAxisValueFormatter={formatBytes}
           series={[
             {

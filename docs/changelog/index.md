@@ -22,6 +22,8 @@ sidebar: false
 
 ### 修复
 
+- 修复仪表盘与节点详情「24 小时网络趋势」误按速率展示：改为 OpenResty 入/出站小时流量与近 24 小时总量摘要，Y 轴与 tooltip 自动换算 B/KB/MB/GB。
+
 - 修复 Pages 上传或节点同步时报 `pages file size out of bounds`：允许 ZIP 包内的 0 字节文件，并兼容未声明解压大小的 ZIP 条目。
 
 - 修复节点详情 OpenResty 连接数与吞吐显示为「—」：节点可观测 API 将 OpenResty 观测数据合并进 `metric_snapshots`；指标文案改为「请求/分钟」（近 60 秒窗口），连接数为 0 时正常显示 0。

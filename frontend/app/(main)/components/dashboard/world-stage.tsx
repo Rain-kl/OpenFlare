@@ -183,7 +183,7 @@ export function WorldStage({
       progress: healthyRate,
     },
     {
-      label: '最近窗口请求',
+      label: '24小时请求',
       value: formatCompactNumber(traffic.request_count),
       hint: `QPS ${traffic.estimated_qps.toFixed(1)} · ${traffic.reported_nodes} 个节点上报`,
       icon: Activity,
