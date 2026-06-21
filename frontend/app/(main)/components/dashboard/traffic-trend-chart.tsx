@@ -1,13 +1,7 @@
 'use client';
 
 import {TrendChart} from '@/components/data/trend-chart';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+import {Card, CardContent, CardDescription, CardHeader, CardTitle,} from '@/components/ui/card';
 import type {TrafficTrendPoint} from '@/lib/services/openflare';
 
 import {formatTrendHour} from './dashboard-utils';
@@ -30,8 +24,8 @@ export function TrafficTrendChart({
       <CardContent>
         <TrendChart
           labels={points.map((point) => formatTrendHour(point.bucket_started_at))}
-          summaryScope="last-point"
-          summaryHint="当前小时"
+          summaryScope="total"
+          summaryHint="近 24 小时"
           series={[
             {
               label: '请求量',
