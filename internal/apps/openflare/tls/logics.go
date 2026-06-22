@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/Rain-kl/Wavelet/internal/model"
+	"github.com/Rain-kl/Wavelet/internal/task"
 )
 
 // CertificateInput TLS 证书创建/更新请求。
@@ -282,10 +283,15 @@ func RenewCertificate(ctx context.Context, id uint) (*model.TLSCertificate, erro
 		return nil, errors.New(errCertificateOnlyACMERenew)
 	}
 
-	go func(c *model.TLSCertificate) {
-		asyncCtx := context.WithoutCancel(ctx)
-		_ = obtainTLSCertificate(asyncCtx, c)
-	}(cert)
+	payload, err := json.Marshal(SSLSingleRenewPayload{ID: id})
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = task.DispatchTask(ctx, TaskTypeSSLSingleRenew, payload, "manual")
+	if err != nil {
+		return nil, err
+	}
 
 	cert.ApplyStatus = tlsApplyStatusApplying
 	cert.ApplyMessage = ""

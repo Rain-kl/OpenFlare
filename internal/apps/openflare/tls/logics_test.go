@@ -19,7 +19,10 @@ import (
 	"github.com/Rain-kl/Wavelet/internal/config"
 	"github.com/Rain-kl/Wavelet/internal/db"
 	"github.com/Rain-kl/Wavelet/internal/model"
+	"github.com/Rain-kl/Wavelet/internal/task"
+	"github.com/alicebob/miniredis/v2"
 	"github.com/glebarez/sqlite"
+	"github.com/hibiken/asynq"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
@@ -40,12 +43,28 @@ func setupTLSTestDB(t *testing.T) func() {
 		&model.ManagedDomain{},
 		&model.DNSAccount{},
 		&model.AcmeAccount{},
+		&model.TaskExecution{}, // 异步任务执行记录也需要 migrate
 	))
 
 	db.SetDB(sqliteDB)
 	oldSecret := config.Config.App.SessionSecret
 	config.Config.App.SessionSecret = "test_session_secret_for_tls_encryption"
+
+	mr, err := miniredis.Run()
+	require.NoError(t, err)
+
+	task.AsynqClient = asynq.NewClient(asynq.RedisClientOpt{
+		Addr: mr.Addr(),
+	})
+
+	task.RegisterTaskMeta(SSLSingleRenewMeta)
+
 	return func() {
+		if task.AsynqClient != nil {
+			_ = task.AsynqClient.Close()
+			task.AsynqClient = nil
+		}
+		mr.Close()
 		db.SetDB(nil)
 		config.Config.App.SessionSecret = oldSecret
 		tlsTestDBMu.Unlock()

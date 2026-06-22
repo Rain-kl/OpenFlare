@@ -16,6 +16,10 @@ sidebar: false
 
 ## [Unreleased]
 
+### 新增
+
+- 将 TLS 证书续签逻辑接入 Asynq 异步任务框架。新增单证书续期任务 `of_ssl_single_renew`（`openflare:ssl_single_renew`），支持在管理后台查看每步的申请状态和详细日志，并提供失败重试能力。
+
 ### 变更
 
 - 前端页面鉴权改为默认私域：除 `/login`、`/register`、`/callback` 外，未登录访问任意页面（含数据看板 `/`）均重定向至登录页。

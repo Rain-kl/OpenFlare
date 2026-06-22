@@ -8,6 +8,7 @@ package handlers
 import (
 	"github.com/Rain-kl/Wavelet/internal/apps/admin/push"
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare"
+	"github.com/Rain-kl/Wavelet/internal/apps/openflare/tls"
 	"github.com/Rain-kl/Wavelet/internal/apps/upload"
 	"github.com/Rain-kl/Wavelet/internal/apps/user"
 	"github.com/Rain-kl/Wavelet/internal/task"
@@ -49,4 +50,8 @@ func Register() {
 
 	task.RegisterHandler(openflare.UptimeKumaSyncTask, &openflare.UptimeKumaSyncHandler{})
 	task.RegisterTaskMeta(openflare.UptimeKumaSyncMeta)
+
+	// tls single renew
+	task.RegisterHandler(tls.SSLSingleRenewTask, &tls.SSLSingleRenewHandler{})
+	task.RegisterTaskMeta(tls.SSLSingleRenewMeta)
 }
