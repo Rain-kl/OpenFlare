@@ -44,7 +44,6 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import {
-  ArrowUpRight,
   Bell,
   ChevronDown,
   Code,
@@ -164,13 +163,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
   const adminFiltered = React.useMemo(() => {
     const displayConfig = parseMenuDisplayConfig(config?.menu_display_config)
-    return data.admin.filter((item) => displayConfig[item.url] !== false)
+    return data.admin.filter((item) => displayConfig[item.url])
   }, [config])
 
-  const documentFiltered = React.useMemo(() => {
-    const displayConfig = parseMenuDisplayConfig(config?.menu_display_config)
-    return data.document.filter((item) => displayConfig[item.url] !== false)
-  }, [config])
 
   return (
     <>
@@ -321,40 +316,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                           {item.icon && <item.icon />}
                           <span>{item.title}</span>
                         </Link>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ))}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
-          )}
-
-          {documentFiltered.length > 0 && (
-            <SidebarGroup className="py-0 pt-4">
-              <SidebarGroupLabel className="text-xs font-normal text-muted-foreground">
-                文档库
-              </SidebarGroupLabel>
-              <SidebarGroupContent className="py-1">
-                <SidebarMenu className="gap-1">
-                  {documentFiltered.map((item) => (
-                    <SidebarMenuItem key={item.title}>
-                      <SidebarMenuButton
-                        tooltip={item.title}
-                        isActive={pathname === item.url}
-                        asChild
-                      >
-                        {item.external ? (
-                          <Link href={item.url} target="_blank" rel="noopener noreferrer" onClick={handleCloseSidebar}>
-                            {item.icon && <item.icon />}
-                            <span className="flex-1">{item.title}</span>
-                            <ArrowUpRight className="size-3 text-muted-foreground" />
-                          </Link>
-                        ) : (
-                          <Link href={item.url} onClick={handleCloseSidebar}>
-                            {item.icon && <item.icon />}
-                            <span className="flex-1">{item.title}</span>
-                          </Link>
-                        )}
                       </SidebarMenuButton>
                     </SidebarMenuItem>
                   ))}

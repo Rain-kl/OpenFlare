@@ -220,64 +220,6 @@ export function WebsiteDetailPageClient() {
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <Card className="shadow-none">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm">匹配类型</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <WebsiteStatusBadge label={matchType.label} tone={matchType.tone} />
-            <p className="text-xs text-muted-foreground">
-              {website.domain.startsWith('*.')
-                ? '当前网站会覆盖该后缀下的子域名规则。'
-                : '当前网站只匹配同名精确域名。'}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-none">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm">网站状态</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <WebsiteStatusBadge
-              label={website.enabled ? '启用' : '停用'}
-              tone={website.enabled ? 'success' : 'warning'}
-            />
-            <p className="text-xs text-muted-foreground">
-              更新时间：{formatDateTime(website.updated_at)}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-none">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm">关联规则</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-1 text-xs text-muted-foreground">
-            <p>规则总数：{relatedRoutes.length}</p>
-            <p>已启用规则：{enabledRoutesCount}</p>
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-none">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm">绑定证书</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <WebsiteStatusBadge
-              label={certificate ? certificate.name : '未绑定证书'}
-              tone={certificate ? 'success' : 'warning'}
-            />
-            <p className="text-xs text-muted-foreground">
-              {certificateStatus
-                ? `证书状态：${certificateStatus.label}`
-                : '当前网站未设置默认证书。'}
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
       <div className="grid gap-4 xl:grid-cols-2">
         <Card className="shadow-none">
           <CardHeader className="pb-2">
