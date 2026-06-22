@@ -162,20 +162,20 @@ export default function PerformancePage() {
                 section: "runtime",
                 validator: validateRuntimeFields,
                 entries: entriesFromKeys(fields, [
-                  "OpenRestyDefaultServerReturnStatus",
-                  "OpenRestyWorkerProcesses",
-                  "OpenRestyResolvers",
-                  "OpenRestyWorkerConnections",
-                  "OpenRestyWorkerRlimitNofile",
-                  "OpenRestyEventsUse",
-                  "OpenRestyEventsMultiAcceptEnabled",
-                  "OpenRestyKeepaliveTimeout",
-                  "OpenRestyKeepaliveRequests",
-                  "OpenRestyClientHeaderTimeout",
-                  "OpenRestyClientBodyTimeout",
-                  "OpenRestyClientMaxBodySize",
-                  "OpenRestyLargeClientHeaderBuffers",
-                  "OpenRestySendTimeout",
+                  "openresty_default_server_return_status",
+                  "openresty_worker_processes",
+                  "openresty_resolvers",
+                  "openresty_worker_connections",
+                  "openresty_worker_rlimit_nofile",
+                  "openresty_events_use",
+                  "openresty_events_multi_accept_enabled",
+                  "openresty_keepalive_timeout",
+                  "openresty_keepalive_requests",
+                  "openresty_client_header_timeout",
+                  "openresty_client_body_timeout",
+                  "openresty_client_max_body_size",
+                  "openresty_large_client_header_buffers",
+                  "openresty_send_timeout",
                 ]),
               })
             }
@@ -189,12 +189,12 @@ export default function PerformancePage() {
           </Button>
         </CardHeader>
         <CardContent className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          <FieldInput label="worker_processes" value={fields.OpenRestyWorkerProcesses} onChange={(v) => updateField("OpenRestyWorkerProcesses", v)} />
-          <FieldInput label="worker_connections" value={fields.OpenRestyWorkerConnections} onChange={(v) => updateField("OpenRestyWorkerConnections", v)} type="number" />
-          <FieldInput label="worker_rlimit_nofile" value={fields.OpenRestyWorkerRlimitNofile} onChange={(v) => updateField("OpenRestyWorkerRlimitNofile", v)} type="number" />
+          <FieldInput label="worker_processes" value={fields.openresty_worker_processes} onChange={(v) => updateField("openresty_worker_processes", v)} />
+          <FieldInput label="worker_connections" value={fields.openresty_worker_connections} onChange={(v) => updateField("openresty_worker_connections", v)} type="number" />
+          <FieldInput label="worker_rlimit_nofile" value={fields.openresty_worker_rlimit_nofile} onChange={(v) => updateField("openresty_worker_rlimit_nofile", v)} type="number" />
           <div className="space-y-1.5">
             <Label>events use</Label>
-            <Select value={fields.OpenRestyEventsUse} onValueChange={(v) => updateField("OpenRestyEventsUse", v)}>
+            <Select value={fields.openresty_events_use} onValueChange={(v) => updateField("openresty_events_use", v)}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="epoll">epoll</SelectItem>
@@ -204,11 +204,11 @@ export default function PerformancePage() {
               </SelectContent>
             </Select>
           </div>
-          <ToggleRow label="multi_accept" checked={fields.OpenRestyEventsMultiAcceptEnabled} onChange={(v) => updateField("OpenRestyEventsMultiAcceptEnabled", v)} />
-          <FieldInput label="keepalive_timeout" value={fields.OpenRestyKeepaliveTimeout} onChange={(v) => updateField("OpenRestyKeepaliveTimeout", v)} type="number" />
-          <FieldInput label="client_max_body_size" value={fields.OpenRestyClientMaxBodySize} onChange={(v) => updateField("OpenRestyClientMaxBodySize", v)} />
-          <FieldInput label="resolvers" value={fields.OpenRestyResolvers} onChange={(v) => updateField("OpenRestyResolvers", v)} placeholder="1.1.1.1 8.8.8.8" />
-          <FieldInput label="default_server_return_status" value={fields.OpenRestyDefaultServerReturnStatus} onChange={(v) => updateField("OpenRestyDefaultServerReturnStatus", v)} type="number" />
+          <ToggleRow label="multi_accept" checked={fields.openresty_events_multi_accept_enabled} onChange={(v) => updateField("openresty_events_multi_accept_enabled", v)} />
+          <FieldInput label="keepalive_timeout" value={fields.openresty_keepalive_timeout} onChange={(v) => updateField("openresty_keepalive_timeout", v)} type="number" />
+          <FieldInput label="client_max_body_size" value={fields.openresty_client_max_body_size} onChange={(v) => updateField("openresty_client_max_body_size", v)} />
+          <FieldInput label="resolvers" value={fields.openresty_resolvers} onChange={(v) => updateField("openresty_resolvers", v)} placeholder="1.1.1.1 8.8.8.8" />
+          <FieldInput label="default_server_return_status" value={fields.openresty_default_server_return_status} onChange={(v) => updateField("openresty_default_server_return_status", v)} type="number" />
         </CardContent>
       </Card>
 
@@ -226,16 +226,16 @@ export default function PerformancePage() {
                 section: "proxy",
                 validator: validateProxyFields,
                 entries: entriesFromKeys(fields, [
-                  "OpenRestyProxyConnectTimeout",
-                  "OpenRestyProxySendTimeout",
-                  "OpenRestyProxyReadTimeout",
-                  "OpenRestyWebsocketEnabled",
-                  "OpenRestyHTTP3Enabled",
-                  "OpenRestyProxyRequestBufferingEnabled",
-                  "OpenRestyProxyBufferingEnabled",
-                  "OpenRestyProxyBuffers",
-                  "OpenRestyProxyBufferSize",
-                  "OpenRestyProxyBusyBuffersSize",
+                  "openresty_proxy_connect_timeout",
+                  "openresty_proxy_send_timeout",
+                  "openresty_proxy_read_timeout",
+                  "openresty_websocket_enabled",
+                  "openresty_http3_enabled",
+                  "openresty_proxy_request_buffering_enabled",
+                  "openresty_proxy_buffering_enabled",
+                  "openresty_proxy_buffers",
+                  "openresty_proxy_buffer_size",
+                  "openresty_proxy_busy_buffers_size",
                 ]),
               })
             }
@@ -245,12 +245,12 @@ export default function PerformancePage() {
           </Button>
         </CardHeader>
         <CardContent className="grid gap-4 md:grid-cols-2">
-          <FieldInput label="proxy_connect_timeout" value={fields.OpenRestyProxyConnectTimeout} onChange={(v) => updateField("OpenRestyProxyConnectTimeout", v)} type="number" />
-          <FieldInput label="proxy_read_timeout" value={fields.OpenRestyProxyReadTimeout} onChange={(v) => updateField("OpenRestyProxyReadTimeout", v)} type="number" />
-          <ToggleRow label="websocket" checked={fields.OpenRestyWebsocketEnabled} onChange={(v) => updateField("OpenRestyWebsocketEnabled", v)} />
-          <ToggleRow label="http3" checked={fields.OpenRestyHTTP3Enabled} onChange={(v) => updateField("OpenRestyHTTP3Enabled", v)} />
-          <ToggleRow label="proxy_buffering" checked={fields.OpenRestyProxyBufferingEnabled} onChange={(v) => updateField("OpenRestyProxyBufferingEnabled", v)} />
-          <FieldInput label="proxy_buffers" value={fields.OpenRestyProxyBuffers} onChange={(v) => updateField("OpenRestyProxyBuffers", v)} />
+          <FieldInput label="proxy_connect_timeout" value={fields.openresty_proxy_connect_timeout} onChange={(v) => updateField("openresty_proxy_connect_timeout", v)} type="number" />
+          <FieldInput label="proxy_read_timeout" value={fields.openresty_proxy_read_timeout} onChange={(v) => updateField("openresty_proxy_read_timeout", v)} type="number" />
+          <ToggleRow label="websocket" checked={fields.openresty_websocket_enabled} onChange={(v) => updateField("openresty_websocket_enabled", v)} />
+          <ToggleRow label="http3" checked={fields.openresty_http3_enabled} onChange={(v) => updateField("openresty_http3_enabled", v)} />
+          <ToggleRow label="proxy_buffering" checked={fields.openresty_proxy_buffering_enabled} onChange={(v) => updateField("openresty_proxy_buffering_enabled", v)} />
+          <FieldInput label="proxy_buffers" value={fields.openresty_proxy_buffers} onChange={(v) => updateField("openresty_proxy_buffers", v)} />
         </CardContent>
       </Card>
 
@@ -266,9 +266,9 @@ export default function PerformancePage() {
                   section: "gzip",
                   validator: validateGzipFields,
                   entries: entriesFromKeys(fields, [
-                    "OpenRestyGzipEnabled",
-                    "OpenRestyGzipMinLength",
-                    "OpenRestyGzipCompLevel",
+                    "openresty_gzip_enabled",
+                    "openresty_gzip_min_length",
+                    "openresty_gzip_comp_level",
                   ]),
                 })
               }
@@ -277,9 +277,9 @@ export default function PerformancePage() {
             </Button>
           </CardHeader>
           <CardContent className="space-y-4">
-            <ToggleRow label="gzip" checked={fields.OpenRestyGzipEnabled} onChange={(v) => updateField("OpenRestyGzipEnabled", v)} />
-            <FieldInput label="gzip_min_length" value={fields.OpenRestyGzipMinLength} onChange={(v) => updateField("OpenRestyGzipMinLength", v)} type="number" />
-            <FieldInput label="gzip_comp_level" value={fields.OpenRestyGzipCompLevel} onChange={(v) => updateField("OpenRestyGzipCompLevel", v)} type="number" />
+            <ToggleRow label="gzip" checked={fields.openresty_gzip_enabled} onChange={(v) => updateField("openresty_gzip_enabled", v)} />
+            <FieldInput label="gzip_min_length" value={fields.openresty_gzip_min_length} onChange={(v) => updateField("openresty_gzip_min_length", v)} type="number" />
+            <FieldInput label="gzip_comp_level" value={fields.openresty_gzip_comp_level} onChange={(v) => updateField("openresty_gzip_comp_level", v)} type="number" />
           </CardContent>
         </Card>
 
@@ -297,15 +297,15 @@ export default function PerformancePage() {
                   section: "cache",
                   validator: validateCacheFields,
                   entries: entriesFromKeys(fields, [
-                    "OpenRestyCacheEnabled",
-                    "OpenRestyCachePath",
-                    "OpenRestyCacheLevels",
-                    "OpenRestyCacheInactive",
-                    "OpenRestyCacheMaxSize",
-                    "OpenRestyCacheKeyTemplate",
-                    "OpenRestyCacheLockEnabled",
-                    "OpenRestyCacheLockTimeout",
-                    "OpenRestyCacheUseStale",
+                    "openresty_cache_enabled",
+                    "openresty_cache_path",
+                    "openresty_cache_levels",
+                    "openresty_cache_inactive",
+                    "openresty_cache_max_size",
+                    "openresty_cache_key_template",
+                    "openresty_cache_lock_enabled",
+                    "openresty_cache_lock_timeout",
+                    "openresty_cache_use_stale",
                   ]),
                 })
               }
@@ -314,10 +314,10 @@ export default function PerformancePage() {
             </Button>
           </CardHeader>
           <CardContent className="space-y-4">
-            <ToggleRow label="cache_enabled" checked={fields.OpenRestyCacheEnabled} onChange={(v) => updateField("OpenRestyCacheEnabled", v)} />
-            <FieldInput label="proxy_cache_path" value={fields.OpenRestyCachePath} onChange={(v) => updateField("OpenRestyCachePath", v)} disabled={!fields.OpenRestyCacheEnabled} />
-            <FieldInput label="levels" value={fields.OpenRestyCacheLevels} onChange={(v) => updateField("OpenRestyCacheLevels", v)} disabled={!fields.OpenRestyCacheEnabled} />
-            <FieldInput label="max_size" value={fields.OpenRestyCacheMaxSize} onChange={(v) => updateField("OpenRestyCacheMaxSize", v)} disabled={!fields.OpenRestyCacheEnabled} />
+            <ToggleRow label="cache_enabled" checked={fields.openresty_cache_enabled} onChange={(v) => updateField("openresty_cache_enabled", v)} />
+            <FieldInput label="proxy_cache_path" value={fields.openresty_cache_path} onChange={(v) => updateField("openresty_cache_path", v)} disabled={!fields.openresty_cache_enabled} />
+            <FieldInput label="levels" value={fields.openresty_cache_levels} onChange={(v) => updateField("openresty_cache_levels", v)} disabled={!fields.openresty_cache_enabled} />
+            <FieldInput label="max_size" value={fields.openresty_cache_max_size} onChange={(v) => updateField("openresty_cache_max_size", v)} disabled={!fields.openresty_cache_enabled} />
           </CardContent>
         </Card>
       </div>

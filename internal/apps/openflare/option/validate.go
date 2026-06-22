@@ -4,6 +4,7 @@
 package option
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"regexp"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/geoip"
 	"github.com/Rain-kl/Wavelet/internal/model"
+	"github.com/Rain-kl/Wavelet/internal/repository"
 )
 
 const maxOpenRestyGzipCompLevel = 9
@@ -25,21 +27,25 @@ var (
 
 const optionValueTrue = "true"
 
-func buildOptionValidationState(options []model.OpenFlareOption) map[string]string {
-	model.OptionMapRWMutex.RLock()
-	state := make(map[string]string, len(model.OptionMap)+len(options))
-	for key, value := range model.OptionMap {
-		state[key] = value
-	}
-	model.OptionMapRWMutex.RUnlock()
+func buildOptionValidationState(ctx context.Context, options []model.OpenFlareOption) map[string]string {
+	// 从 SystemConfig 读取所有业务配置构建状态
+	configs, err := repository.ListAdminSystemConfigs(ctx, "business")
+	state := make(map[string]string, len(configs)+len(options))
 
+	if err == nil {
+		for _, config := range configs {
+			state[config.Key] = config.Value
+		}
+	}
+
+	// 应用待验证的新值
 	for _, option := range options {
 		state[option.Key] = option.Value
 	}
 	return state
 }
 
-func validateOptionWithState(option model.OpenFlareOption, state map[string]string) error {
+func validateOptionWithState(ctx context.Context, option model.OpenFlareOption, state map[string]string) error {
 
 	if err := validateOpenRestyOption(option.Key, option.Value); err != nil {
 		return err
@@ -53,7 +59,7 @@ func validateOptionWithState(option model.OpenFlareOption, state map[string]stri
 	if err := validateAgentOption(option.Key, option.Value); err != nil {
 		return err
 	}
-	return validateUptimeKumaOption(option.Key, option.Value, state)
+	return validateUptimeKumaOption(ctx, option.Key, option.Value, state)
 }
 
 func validatePositiveIntegerOption(key, value string) error {
@@ -74,7 +80,7 @@ func validateBooleanOption(key, value string) error {
 }
 
 func validateGeoIPOption(key, value string) error {
-	if key != "GeoIPProvider" {
+	if key != model.ConfigKeyGeoIPProvider {
 		return nil
 	}
 	if geoip.IsValidProvider(value) {
@@ -85,9 +91,9 @@ func validateGeoIPOption(key, value string) error {
 
 func validateDatabaseCleanupOption(key, value string) error {
 	switch key {
-	case "DatabaseAutoCleanupEnabled":
+	case model.ConfigKeyDatabaseAutoCleanupEnabled:
 		return validateBooleanOption(key, value)
-	case "DatabaseAutoCleanupRetentionDays":
+	case model.ConfigKeyDatabaseAutoCleanupRetentionDays:
 		intValue, err := strconv.Atoi(value)
 		if err != nil || intValue < 1 {
 			return fmt.Errorf("%s 必须为大于等于 1 的整数天", key)
@@ -97,55 +103,59 @@ func validateDatabaseCleanupOption(key, value string) error {
 }
 
 func validateAgentOption(key, value string) error {
-	if key == "AgentWebsocketUpgradeEnabled" {
+	if key == model.ConfigKeyAgentWebsocketUpgradeEnabled {
 		return validateBooleanOption(key, strings.TrimSpace(value))
 	}
 	return nil
 }
 
-func validateUptimeKumaOption(key, value string, state map[string]string) error {
+func validateUptimeKumaOption(ctx context.Context, key, value string, state map[string]string) error {
 	trimmed := strings.TrimSpace(value)
 	switch key {
-	case "UptimeKumaEnabled":
-		return validateUptimeKumaEnabled(key, trimmed, state)
-	case "UptimeKumaUsername":
+	case model.ConfigKeyUptimeKumaEnabled:
+		return validateUptimeKumaEnabled(ctx, key, trimmed, state)
+	case model.ConfigKeyUptimeKumaUsername:
 		return validateUptimeKumaUsername(trimmed, state)
-	case "UptimeKumaUrl":
+	case model.ConfigKeyUptimeKumaURL:
 		return validateUptimeKumaURL(trimmed)
-	case "UptimeKumaMonitorScope":
+	case model.ConfigKeyUptimeKumaMonitorScope:
 		return validateUptimeKumaMonitorScope(trimmed)
-	case "UptimeKumaSyncInterval", "UptimeKumaInterval", "UptimeKumaRetryInterval", "UptimeKumaTimeout":
+	case model.ConfigKeyUptimeKumaSyncInterval, model.ConfigKeyUptimeKumaInterval, model.ConfigKeyUptimeKumaRetryInterval, model.ConfigKeyUptimeKumaTimeout:
 		return validatePositiveIntegerOption(key, trimmed)
-	case "UptimeKumaRetry":
+	case model.ConfigKeyUptimeKumaRetry:
 		return validateUptimeKumaRetry(key, trimmed)
 	}
 	return nil
 }
 
-func validateUptimeKumaEnabled(key, trimmed string, state map[string]string) error {
+func validateUptimeKumaEnabled(ctx context.Context, key, trimmed string, state map[string]string) error {
 	if err := validateBooleanOption(key, trimmed); err != nil {
 		return err
 	}
 	if trimmed != optionValueTrue {
 		return nil
 	}
-	url := strings.TrimSpace(state["UptimeKumaUrl"])
-	username := strings.TrimSpace(state["UptimeKumaUsername"])
-	password := strings.TrimSpace(state["UptimeKumaPassword"])
+	url := strings.TrimSpace(state[model.ConfigKeyUptimeKumaURL])
+	username := strings.TrimSpace(state[model.ConfigKeyUptimeKumaUsername])
+	password := strings.TrimSpace(state[model.ConfigKeyUptimeKumaPassword])
 	if url == "" {
 		return fmt.Errorf("启用 Uptime Kuma 时地址不能为空")
 	}
 	if username == "" {
 		return fmt.Errorf("启用 Uptime Kuma 时用户名不能为空")
 	}
-	if password == "" && model.UptimeKumaPassword == "" {
-		return fmt.Errorf("启用 Uptime Kuma 时密码不能为空")
+	// 如果待验证的密码为空，且当前配置中也没有密码，则报错
+	if password == "" {
+		existingPwd, _ := repository.GetSystemConfigByKey(ctx, model.ConfigKeyUptimeKumaPassword)
+		if strings.TrimSpace(existingPwd.Value) == "" {
+			return fmt.Errorf("启用 Uptime Kuma 时密码不能为空")
+		}
 	}
 	return nil
 }
 
 func validateUptimeKumaUsername(trimmed string, state map[string]string) error {
-	if trimmed == "" && state["UptimeKumaEnabled"] == optionValueTrue {
+	if trimmed == "" && state[model.ConfigKeyUptimeKumaEnabled] == optionValueTrue {
 		return fmt.Errorf("启用 Uptime Kuma 时用户名不能为空")
 	}
 	return nil
@@ -173,17 +183,17 @@ func validateUptimeKumaRetry(key, trimmed string) error {
 	return nil
 }
 
-func validateOptions(options []model.OpenFlareOption) error {
+func validateOptions(ctx context.Context, options []model.OpenFlareOption) error {
 	if len(options) == 0 {
 		return errors.New(errInvalidParams)
 	}
 
-	state := buildOptionValidationState(options)
+	state := buildOptionValidationState(ctx, options)
 	for _, option := range options {
 		if strings.TrimSpace(option.Key) == "" {
 			return errors.New(errInvalidParams)
 		}
-		if err := validateOptionWithState(option, state); err != nil {
+		if err := validateOptionWithState(ctx, option, state); err != nil {
 			return err
 		}
 	}

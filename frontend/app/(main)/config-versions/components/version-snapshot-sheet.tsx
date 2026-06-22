@@ -95,11 +95,6 @@ export function VersionSnapshotSheet({
               </div>
 
               <div className="space-y-2">
-                <p className="text-xs font-semibold">快照 JSON</p>
-                <CodeBlock code={detail.snapshot_json} language="json" className="my-0 text-xs" />
-              </div>
-
-              <div className="space-y-2">
                 <p className="text-xs font-semibold">主配置</p>
                 <CodeBlock code={detail.main_config} language="nginx" className="my-0 text-xs" />
               </div>

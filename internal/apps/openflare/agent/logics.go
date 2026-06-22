@@ -140,7 +140,7 @@ func HeartbeatNode(ctx context.Context, authNode *model.OpenFlareNode, payload N
 
 	return &HeartbeatResponse{
 		Node:          authNode,
-		AgentSettings: buildAgentSettings(authNode, updateNow, updateChannel, updateTag, restartOpenrestyNow),
+		AgentSettings: buildAgentSettings(ctx, authNode, updateNow, updateChannel, updateTag, restartOpenrestyNow),
 		ActiveConfig:  activeConfig,
 		WAFIPGroups:   wafIPGroups,
 	}, nil

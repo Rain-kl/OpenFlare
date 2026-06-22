@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/agent"
-	"github.com/Rain-kl/Wavelet/internal/apps/openflare/option"
 	"github.com/Rain-kl/Wavelet/internal/db"
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"github.com/Rain-kl/Wavelet/internal/testhelper"
@@ -48,12 +47,11 @@ func setupCoreChainTest(t *testing.T) (*gin.Engine, adminSeed, func()) {
 		&model.OpenFlareWAFRuleGroupBinding{},
 		&model.OpenFlareWAFIPGroup{},
 		&model.OpenFlareNode{},
-		&model.OpenFlareOption{},
+		&model.SystemConfig{},
 		&model.OpenFlareApplyLog{},
 	))
 
 	db.SetDB(sqliteDB)
-	option.ResetInitializationForTest()
 	agent.ResetAuthCacheForTest()
 
 	seed, err := seedAdminWithAccessToken(sqliteDB)
@@ -64,7 +62,6 @@ func setupCoreChainTest(t *testing.T) (*gin.Engine, adminSeed, func()) {
 
 	cleanup := func() {
 		db.SetDB(nil)
-		option.ResetInitializationForTest()
 		agent.ResetAuthCacheForTest()
 	}
 

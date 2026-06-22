@@ -11,9 +11,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Rain-kl/Wavelet/internal/apps/openflare/option"
 	"github.com/Rain-kl/Wavelet/internal/db"
 	"github.com/Rain-kl/Wavelet/internal/model"
+	"github.com/Rain-kl/Wavelet/internal/repository"
 	"github.com/glebarez/sqlite"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -35,12 +35,11 @@ func setupNodeTestDB(t *testing.T) func() {
 	require.NoError(t, err)
 	require.NoError(t, sqliteDB.AutoMigrate(
 		&model.OpenFlareNode{},
-		&model.OpenFlareOption{},
+		&model.SystemConfig{},
 		&model.OpenFlareApplyLog{},
 	))
 
 	db.SetDB(sqliteDB)
-	option.ResetInitializationForTest()
 	resetAccessLogStore := model.SetAccessLogStoreForTest(model.NewMemoryAccessLogStore())
 	resetObservabilityStore := model.SetObservabilityStoreForTest(model.NewMemoryObservabilityStore())
 
@@ -48,7 +47,6 @@ func setupNodeTestDB(t *testing.T) func() {
 		resetObservabilityStore()
 		resetAccessLogStore()
 		db.SetDB(nil)
-		option.ResetInitializationForTest()
 	}
 }
 
@@ -193,7 +191,10 @@ func TestBootstrapTokenLifecycle(t *testing.T) {
 	rotated, err := RotateBootstrapToken(ctx)
 	require.NoError(t, err)
 	assert.NotEqual(t, first.DiscoveryToken, rotated.DiscoveryToken)
-	assert.Equal(t, rotated.DiscoveryToken, model.OptionValue("AgentDiscoveryToken"))
+	// 验证令牌已保存到 SystemConfig
+	savedToken, err := repository.GetSystemConfigByKey(ctx, model.ConfigKeyAgentDiscoveryToken)
+	require.NoError(t, err)
+	assert.Equal(t, rotated.DiscoveryToken, savedToken.Value)
 }
 
 func TestValidateDiscoveryToken(t *testing.T) {
@@ -218,7 +219,7 @@ func TestRequestAgentUpdateWithPreviewTag(t *testing.T) {
 
 	originalClient := setReleaseHTTPClientForTest(&http.Client{
 		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
-			expected := "https://api.github.com/repos/" + model.AgentUpdateRepo + "/releases/tags/v0.5.0-rc.1"
+			expected := "https://api.github.com/repos/Rain-kl/OpenFlare/releases/tags/v0.5.0-rc.1"
 			require.Equal(t, expected, req.URL.String())
 			return &http.Response{
 				StatusCode: http.StatusOK,
@@ -321,7 +322,8 @@ func TestComputeNodeStatus(t *testing.T) {
 	online := &model.OpenFlareNode{LastSeenAt: &now}
 	assert.Equal(t, nodeStatusOnline, computeNodeStatus(online))
 
-	offlineAt := now.Add(-model.NodeOfflineThreshold - time.Minute)
+	// computeNodeStatus 使用默认阈值 2 分钟
+	offlineAt := now.Add(-2*time.Minute - time.Minute)
 	offline := &model.OpenFlareNode{LastSeenAt: &offlineAt}
 	assert.Equal(t, nodeStatusOffline, computeNodeStatus(offline))
 }

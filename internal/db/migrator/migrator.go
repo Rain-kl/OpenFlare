@@ -7,7 +7,9 @@ package migrator
 
 import (
 	"context"
+	"database/sql"
 	"embed"
+	"fmt"
 	"log"
 
 	"github.com/Rain-kl/Wavelet/internal/config"
@@ -79,6 +81,9 @@ func Migrate() {
 	if err := goose.SetDialect(gooseDialect()); err != nil {
 		log.Fatalf("[%s] set goose dialect failed: %v\n", dbType(), err)
 	}
+	if err := resyncGooseVersionSequence(sqlDB); err != nil {
+		log.Fatalf("[%s] resync goose_db_version sequence failed: %v\n", dbType(), err)
+	}
 	if err := goose.Up(sqlDB, migrationDir()); err != nil {
 		log.Fatalf("[%s] goose migrate failed: %v\n", dbType(), err)
 	}
@@ -86,6 +91,37 @@ func Migrate() {
 	clearSystemConfigCache()
 
 	log.Printf("[%s] goose migrate success\n", dbType())
+}
+
+// resyncGooseVersionSequence 修复 PostgreSQL 下 goose_db_version.id 自增序列落后于
+// MAX(id) 的问题（常见于从 dump 恢复或历史迁移以显式 id 复制数据后）。序列落后会
+// 导致 goose 记录新版本号时 INSERT 命中 goose_db_version_pkey 唯一约束冲突。
+// 仅在表已存在且为 PostgreSQL 方言时执行；SQLite 使用 AUTOINCREMENT 不受影响。
+func resyncGooseVersionSequence(sqlDB *sql.DB) error {
+	if gooseDialect() != dialectPostgres {
+		return nil
+	}
+
+	ctx := context.Background()
+	var exists bool
+	if err := sqlDB.QueryRowContext(ctx,
+		"SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='goose_db_version')",
+	).Scan(&exists); err != nil {
+		return fmt.Errorf("check goose_db_version existence failed: %w", err)
+	}
+	if !exists {
+		return nil
+	}
+
+	const resyncSQL = `SELECT setval(
+		pg_get_serial_sequence('goose_db_version', 'id'),
+		GREATEST(COALESCE((SELECT MAX(id) FROM goose_db_version), 1), 1),
+		(SELECT MAX(id) IS NOT NULL FROM goose_db_version)
+	)`
+	if _, err := sqlDB.ExecContext(ctx, resyncSQL); err != nil {
+		return fmt.Errorf("setval goose_db_version sequence failed: %w", err)
+	}
+	return nil
 }
 
 func clearSystemConfigCache() {

@@ -12,15 +12,70 @@ import (
 
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/routeidentity"
 	"github.com/Rain-kl/Wavelet/internal/model"
+	"github.com/Rain-kl/Wavelet/internal/repository"
 )
 
 const uptimeKumaTagOpenFlare = "OpenFlare"
 
 var isSyncing atomic.Bool
 
+// kumaConfig 封装 UptimeKuma 配置
+type kumaConfig struct {
+	URL           string
+	Username      string
+	Password      string
+	MonitorScope  string
+	SelectedSites string
+	Interval      int
+	Retry         int
+	RetryInterval int
+	Timeout       int
+}
+
+// loadKumaConfig 从 SystemConfig 加载 UptimeKuma 配置
+func loadKumaConfig(ctx context.Context) (*kumaConfig, error) {
+	url, _ := repository.GetSystemConfigByKey(ctx, model.ConfigKeyUptimeKumaURL)
+	username, _ := repository.GetSystemConfigByKey(ctx, model.ConfigKeyUptimeKumaUsername)
+	password, _ := repository.GetSystemConfigByKey(ctx, model.ConfigKeyUptimeKumaPassword)
+	scope, _ := repository.GetSystemConfigByKey(ctx, model.ConfigKeyUptimeKumaMonitorScope)
+	selected, _ := repository.GetSystemConfigByKey(ctx, model.ConfigKeyUptimeKumaSelectedSites)
+
+	interval, _ := repository.GetIntByKey(ctx, model.ConfigKeyUptimeKumaInterval)
+	if interval <= 0 {
+		interval = 60
+	}
+	retry, _ := repository.GetIntByKey(ctx, model.ConfigKeyUptimeKumaRetry)
+	retryInterval, _ := repository.GetIntByKey(ctx, model.ConfigKeyUptimeKumaRetryInterval)
+	if retryInterval <= 0 {
+		retryInterval = 60
+	}
+	timeout, _ := repository.GetIntByKey(ctx, model.ConfigKeyUptimeKumaTimeout)
+	if timeout <= 0 {
+		timeout = 48
+	}
+
+	if scope.Value == "" {
+		scope.Value = "all"
+	}
+
+	return &kumaConfig{
+		URL:           strings.TrimSpace(url.Value),
+		Username:      strings.TrimSpace(username.Value),
+		Password:      strings.TrimSpace(password.Value),
+		MonitorScope:  scope.Value,
+		SelectedSites: selected.Value,
+		Interval:      interval,
+		Retry:         retry,
+		RetryInterval: retryInterval,
+		Timeout:       timeout,
+	}, nil
+}
+
 // SyncToUptimeKuma synchronizes enabled proxy routes to Uptime Kuma monitors.
 func SyncToUptimeKuma(ctx context.Context) error {
-	if !model.UptimeKumaEnabled {
+	// 检查是否启用
+	enabled, _ := repository.GetBoolByKey(ctx, model.ConfigKeyUptimeKumaEnabled)
+	if !enabled {
 		return fmt.Errorf("uptime Kuma integration is disabled")
 	}
 
@@ -29,15 +84,21 @@ func SyncToUptimeKuma(ctx context.Context) error {
 	}
 	defer isSyncing.Store(false)
 
-	kumaURL, kumaUsername, kumaPassword, err := validateUptimeKumaConfig()
+	// 加载配置
+	config, err := loadKumaConfig(ctx)
 	if err != nil {
 		return err
 	}
 
+	// 验证配置
+	if err := validateKumaConfig(config); err != nil {
+		return err
+	}
+
 	slog.Info("Starting Uptime Kuma sync process",
-		"url", kumaURL,
-		"username", kumaUsername,
-		"scope", model.UptimeKumaMonitorScope,
+		"url", config.URL,
+		"username", config.Username,
+		"scope", config.MonitorScope,
 	)
 
 	allRoutes, err := model.ListProxyRoutes(ctx)
@@ -45,12 +106,12 @@ func SyncToUptimeKuma(ctx context.Context) error {
 		return fmt.Errorf("failed to list local proxy routes: %w", err)
 	}
 
-	expectedRoutes, err := filterExpectedRoutes(allRoutes)
+	expectedRoutes, err := filterExpectedRoutes(allRoutes, config)
 	if err != nil {
 		return err
 	}
 
-	client, err := connectAndLoginUptimeKuma(kumaURL, kumaUsername, kumaPassword)
+	client, err := connectAndLoginUptimeKuma(config.URL, config.Username, config.Password)
 	if err != nil {
 		return err
 	}
@@ -62,16 +123,16 @@ func SyncToUptimeKuma(ctx context.Context) error {
 	}
 
 	existingOpenFlareMonitors := filterOpenFlareMonitors(client.GetMonitorList(), openFlareTagID)
-	expectedSitesMap := syncRouteMonitors(client, expectedRoutes, existingOpenFlareMonitors, openFlareTagID)
+	expectedSitesMap := syncRouteMonitors(client, expectedRoutes, existingOpenFlareMonitors, openFlareTagID, config)
 	removeStaleMonitors(client, existingOpenFlareMonitors, expectedSitesMap)
 
 	return nil
 }
 
-func filterExpectedRoutes(allRoutes []*model.ProxyRoute) ([]*model.ProxyRoute, error) {
-	scope := model.UptimeKumaMonitorScope
+func filterExpectedRoutes(allRoutes []*model.ProxyRoute, config *kumaConfig) ([]*model.ProxyRoute, error) {
+	scope := config.MonitorScope
 	if scope == "selected" {
-		selectedList := strings.Split(model.UptimeKumaSelectedSites, ",")
+		selectedList := strings.Split(config.SelectedSites, ",")
 		selectedMap := make(map[string]bool)
 		for _, name := range selectedList {
 			trimmedName := strings.TrimSpace(name)
@@ -175,15 +236,15 @@ func routeMonitorURL(route *model.ProxyRoute) (string, error) {
 	return "http://" + domain, nil
 }
 
-func monitorPayload(id int, name, targetURL string) map[string]any {
+func monitorPayload(id int, name, targetURL string, config *kumaConfig) map[string]any {
 	payload := map[string]any{
 		"type":                 "http",
 		"name":                 name,
 		"url":                  targetURL,
-		"interval":             model.UptimeKumaInterval,
-		"maxretries":           model.UptimeKumaRetry,
-		"retryInterval":        model.UptimeKumaRetryInterval,
-		"timeout":              model.UptimeKumaTimeout,
+		"interval":             config.Interval,
+		"maxretries":           config.Retry,
+		"retryInterval":        config.RetryInterval,
+		"timeout":              config.Timeout,
 		"active":               true,
 		"resendInterval":       0,
 		"expiryNotification":   false,
@@ -198,17 +259,17 @@ func monitorPayload(id int, name, targetURL string) map[string]any {
 	return payload
 }
 
-func monitorNeedsUpdate(existing Monitor, targetURL string) bool {
+func monitorNeedsUpdate(existing Monitor, targetURL string, config *kumaConfig) bool {
 	return existing.URL != targetURL ||
-		existing.Interval != model.UptimeKumaInterval ||
-		existing.MaxRetries != model.UptimeKumaRetry ||
-		existing.RetryInterval != model.UptimeKumaRetryInterval ||
-		existing.Timeout != model.UptimeKumaTimeout
+		existing.Interval != config.Interval ||
+		existing.MaxRetries != config.Retry ||
+		existing.RetryInterval != config.RetryInterval ||
+		existing.Timeout != config.Timeout
 }
 
-func createMonitor(client *SocketIOClient, siteName, targetURL string, openFlareTagID int) error {
+func createMonitor(client *SocketIOClient, siteName, targetURL string, openFlareTagID int, config *kumaConfig) error {
 	slog.Info("Creating monitor in Uptime Kuma", "name", siteName, "url", targetURL)
-	addAck, err := client.Emit("add", monitorPayload(0, siteName, targetURL))
+	addAck, err := client.Emit("add", monitorPayload(0, siteName, targetURL, config))
 	if err != nil {
 		return err
 	}
@@ -238,9 +299,9 @@ func createMonitor(client *SocketIOClient, siteName, targetURL string, openFlare
 	return nil
 }
 
-func updateMonitor(client *SocketIOClient, monitorID int, siteName, targetURL string) error {
+func updateMonitor(client *SocketIOClient, monitorID int, siteName, targetURL string, config *kumaConfig) error {
 	slog.Info("Updating monitor in Uptime Kuma due to settings mismatch", "name", siteName)
-	editAck, err := client.Emit("editMonitor", monitorPayload(monitorID, siteName, targetURL))
+	editAck, err := client.Emit("editMonitor", monitorPayload(monitorID, siteName, targetURL, config))
 	if err != nil {
 		return err
 	}

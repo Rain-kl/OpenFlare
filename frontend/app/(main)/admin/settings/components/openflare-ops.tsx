@@ -27,8 +27,8 @@ import {Textarea} from "@/components/ui/textarea"
 import {ErrorInline} from "@/components/layout/error"
 import {LoadingStateWithBorder} from "@/components/layout/loading"
 import type {DatabaseCleanupTarget} from "@/lib/services/openflare"
-import {AdminStatusService} from "@/lib/services/admin"
 import {NodeService, OptionService, StatusService, UptimeKumaService,} from "@/lib/services/openflare"
+import {AdminStatusService} from "@/lib/services/admin"
 import {VersionUpgradeDialog} from "@/app/(main)/components/version-upgrade-dialog"
 import {adminUpdateStatusQueryKey, openflarePublicStatusQueryKey,} from "@/lib/hooks/use-openflare-server-upgrade"
 
@@ -111,14 +111,14 @@ export function OpenFlareOpsSettings() {
     if (!optionsQuery.data) return
     const optionMap = optionsToMap(optionsQuery.data)
     const serverAddress =
-      optionMap.ServerAddress ||
+      optionMap.server_address ||
       statusQuery.data?.server_address ||
       getBrowserOrigin()
     setFields(mapOptionsToOpsFields(optionMap, serverAddress))
   }, [optionsQuery.data, statusQuery.data?.server_address])
 
   const geoIPMutation = useMutation({
-    mutationFn: () => OptionService.lookupGeoIP(fields.GeoIPProvider, geoIPTestIP.trim()),
+    mutationFn: () => OptionService.lookupGeoIP(fields.geoip_provider, geoIPTestIP.trim()),
   })
 
   const saveMutation = useMutation({
@@ -186,9 +186,9 @@ export function OpenFlareOpsSettings() {
 
   const discoveryToken = bootstrapQuery.data?.discovery_token ?? ""
   const discoveryCommand = useMemo(() => {
-    if (!fields.ServerAddress || !discoveryToken) return ""
-    return buildDiscoveryCommand(fields.ServerAddress, discoveryToken)
-  }, [discoveryToken, fields.ServerAddress])
+    if (!fields.server_address || !discoveryToken) return ""
+    return buildDiscoveryCommand(fields.server_address, discoveryToken)
+  }, [discoveryToken, fields.server_address])
 
   const updateField = <K extends keyof OpenFlareOpsFields>(
     key: K,
@@ -266,29 +266,29 @@ export function OpenFlareOpsSettings() {
           <CardContent className="space-y-4">
             <div className="grid gap-4 md:grid-cols-2">
               <FieldInput
-                label={`心跳间隔 (${formatDurationLabel(fields.AgentHeartbeatInterval)})`}
-                value={fields.AgentHeartbeatInterval}
+                label={`心跳间隔 (${formatDurationLabel(fields.agent_heartbeat_interval)})`}
+                value={fields.agent_heartbeat_interval}
                 type="number"
-                onChange={(value) => updateField("AgentHeartbeatInterval", value)}
+                onChange={(value) => updateField("agent_heartbeat_interval", value)}
               />
               <FieldInput
-                label={`离线阈值 (${formatDurationLabel(fields.NodeOfflineThreshold)})`}
-                value={fields.NodeOfflineThreshold}
+                label={`离线阈值 (${formatDurationLabel(fields.node_offline_threshold)})`}
+                value={fields.node_offline_threshold}
                 type="number"
-                onChange={(value) => updateField("NodeOfflineThreshold", value)}
+                onChange={(value) => updateField("node_offline_threshold", value)}
               />
             </div>
             <ToggleRow
               label="开启 WS 连接升级"
               description="HTTP 心跳成功后尝试升级为 WebSocket，配置发布可即时通知。"
-              checked={fields.AgentWebsocketUpgradeEnabled}
-              onChange={(value) => updateField("AgentWebsocketUpgradeEnabled", value)}
+              checked={fields.agent_websocket_upgrade_enabled}
+              onChange={(value) => updateField("agent_websocket_upgrade_enabled", value)}
             />
             <FieldInput
               label="Agent 更新仓库"
-              value={fields.AgentUpdateRepo}
+              value={fields.agent_update_repo}
               placeholder="Rain-kl/OpenFlare"
-              onChange={(value) => updateField("AgentUpdateRepo", value)}
+              onChange={(value) => updateField("agent_update_repo", value)}
             />
           </CardContent>
         </Card>
@@ -314,8 +314,8 @@ export function OpenFlareOpsSettings() {
             <div className="space-y-1.5">
               <Label>归属方式</Label>
               <Select
-                value={fields.GeoIPProvider}
-                onValueChange={(value) => updateField("GeoIPProvider", value)}
+                value={fields.geoip_provider}
+                onValueChange={(value) => updateField("geoip_provider", value)}
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -384,8 +384,8 @@ export function OpenFlareOpsSettings() {
         <CardContent className="space-y-4">
           <FieldInput
             label="Server URL"
-            value={fields.ServerAddress}
-            onChange={(value) => updateField("ServerAddress", value)}
+            value={fields.server_address}
+            onChange={(value) => updateField("server_address", value)}
             placeholder="https://yourdomain.com"
           />
           <div className="rounded-lg border border-dashed p-3">
@@ -428,7 +428,7 @@ export function OpenFlareOpsSettings() {
             <Button
               variant="outline"
               size="sm"
-              disabled={!fields.UptimeKumaEnabled || syncUptimeKumaMutation.isPending}
+              disabled={!fields.uptime_kuma_enabled || syncUptimeKumaMutation.isPending}
               onClick={() => syncUptimeKumaMutation.mutate()}
             >
               <RefreshCw className="size-3.5 mr-1" />
@@ -446,41 +446,41 @@ export function OpenFlareOpsSettings() {
         <CardContent className="space-y-4">
           <ToggleRow
             label="开启 Uptime Kuma"
-            checked={fields.UptimeKumaEnabled}
-            onChange={(value) => updateField("UptimeKumaEnabled", value)}
+            checked={fields.uptime_kuma_enabled}
+            onChange={(value) => updateField("uptime_kuma_enabled", value)}
           />
-          {fields.UptimeKumaEnabled ? (
+          {fields.uptime_kuma_enabled ? (
             <>
               <div className="grid gap-4 md:grid-cols-2">
                 <FieldInput
                   label="Uptime Kuma 地址"
-                  value={fields.UptimeKumaUrl}
-                  onChange={(value) => updateField("UptimeKumaUrl", value)}
+                  value={fields.uptime_kuma_url}
+                  onChange={(value) => updateField("uptime_kuma_url", value)}
                   placeholder="http://localhost:3001"
                 />
                 <FieldInput
                   label="用户名"
-                  value={fields.UptimeKumaUsername}
-                  onChange={(value) => updateField("UptimeKumaUsername", value)}
+                  value={fields.uptime_kuma_username}
+                  onChange={(value) => updateField("uptime_kuma_username", value)}
                 />
                 <FieldInput
                   label="密码"
-                  value={fields.UptimeKumaPassword}
+                  value={fields.uptime_kuma_password}
                   type="password"
-                  onChange={(value) => updateField("UptimeKumaPassword", value)}
+                  onChange={(value) => updateField("uptime_kuma_password", value)}
                   placeholder="留空表示不更新"
                 />
                 <FieldInput
                   label="同步间隔 (分钟)"
-                  value={fields.UptimeKumaSyncInterval}
+                  value={fields.uptime_kuma_sync_interval}
                   type="number"
-                  onChange={(value) => updateField("UptimeKumaSyncInterval", value)}
+                  onChange={(value) => updateField("uptime_kuma_sync_interval", value)}
                 />
                 <div className="space-y-1.5">
                   <Label>监控范围</Label>
                   <Select
-                    value={fields.UptimeKumaMonitorScope}
-                    onValueChange={(value) => updateField("UptimeKumaMonitorScope", value)}
+                    value={fields.uptime_kuma_monitor_scope}
+                    onValueChange={(value) => updateField("uptime_kuma_monitor_scope", value)}
                   >
                     <SelectTrigger>
                       <SelectValue />
@@ -492,7 +492,7 @@ export function OpenFlareOpsSettings() {
                   </Select>
                 </div>
               </div>
-              {fields.UptimeKumaMonitorScope === "selected" ? (
+              {fields.uptime_kuma_monitor_scope === "selected" ? (
                 <div className="rounded-lg border border-dashed p-3">
                   <div className="flex items-center justify-between gap-2">
                     <p className="text-sm font-medium">已选站点</p>
@@ -506,8 +506,8 @@ export function OpenFlareOpsSettings() {
                     </Button>
                   </div>
                   <p className="mt-2 break-all text-xs text-muted-foreground">
-                    {fields.UptimeKumaSelectedSites
-                      ? fields.UptimeKumaSelectedSites.split(",").join(", ")
+                    {fields.uptime_kuma_selected_sites
+                      ? fields.uptime_kuma_selected_sites.split(",").join(", ")
                       : "未选择任何站点"}
                   </p>
                 </div>
@@ -515,27 +515,27 @@ export function OpenFlareOpsSettings() {
               <div className="grid gap-4 md:grid-cols-2">
                 <FieldInput
                   label="检测频率 (秒)"
-                  value={fields.UptimeKumaInterval}
+                  value={fields.uptime_kuma_interval}
                   type="number"
-                  onChange={(value) => updateField("UptimeKumaInterval", value)}
+                  onChange={(value) => updateField("uptime_kuma_interval", value)}
                 />
                 <FieldInput
                   label="重试次数"
-                  value={fields.UptimeKumaRetry}
+                  value={fields.uptime_kuma_retry}
                   type="number"
-                  onChange={(value) => updateField("UptimeKumaRetry", value)}
+                  onChange={(value) => updateField("uptime_kuma_retry", value)}
                 />
                 <FieldInput
                   label="重试间隔 (秒)"
-                  value={fields.UptimeKumaRetryInterval}
+                  value={fields.uptime_kuma_retry_interval}
                   type="number"
-                  onChange={(value) => updateField("UptimeKumaRetryInterval", value)}
+                  onChange={(value) => updateField("uptime_kuma_retry_interval", value)}
                 />
                 <FieldInput
                   label="请求超时 (秒)"
-                  value={fields.UptimeKumaTimeout}
+                  value={fields.uptime_kuma_timeout}
                   type="number"
-                  onChange={(value) => updateField("UptimeKumaTimeout", value)}
+                  onChange={(value) => updateField("uptime_kuma_timeout", value)}
                 />
               </div>
             </>
@@ -561,14 +561,14 @@ export function OpenFlareOpsSettings() {
           <CardContent className="space-y-4">
             <ToggleRow
               label="启用每日自动清理"
-              checked={fields.DatabaseAutoCleanupEnabled}
-              onChange={(value) => updateField("DatabaseAutoCleanupEnabled", value)}
+              checked={fields.database_auto_cleanup_enabled}
+              onChange={(value) => updateField("database_auto_cleanup_enabled", value)}
             />
             <FieldInput
               label="保留天数"
-              value={fields.DatabaseAutoCleanupRetentionDays}
+              value={fields.database_auto_cleanup_retention_days}
               type="number"
-              onChange={(value) => updateField("DatabaseAutoCleanupRetentionDays", value)}
+              onChange={(value) => updateField("database_auto_cleanup_retention_days", value)}
             />
           </CardContent>
         </Card>
@@ -653,12 +653,12 @@ export function OpenFlareOpsSettings() {
       <UptimeKumaSiteSelectModal
         open={uptimeKumaModalOpen}
         selectedSites={
-          fields.UptimeKumaSelectedSites
-            ? fields.UptimeKumaSelectedSites.split(",")
+          fields.uptime_kuma_selected_sites
+            ? fields.uptime_kuma_selected_sites.split(",")
             : []
         }
         onOpenChange={setUptimeKumaModalOpen}
-        onSave={(sites) => updateField("UptimeKumaSelectedSites", sites.join(","))}
+        onSave={(sites) => updateField("uptime_kuma_selected_sites", sites.join(","))}
       />
 
       <AlertDialog

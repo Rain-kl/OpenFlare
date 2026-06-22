@@ -14,10 +14,27 @@ import (
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/routeidentity"
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/waf"
 	"github.com/Rain-kl/Wavelet/internal/model"
+	"github.com/Rain-kl/Wavelet/internal/repository"
 	openrestyrender "github.com/Rain-kl/Wavelet/pkg/render/openresty"
 )
 
-const supportFilesPerCertificate = 2
+const (
+	supportFilesPerCertificate = 2
+
+	// OpenResty 默认配置值
+	defaultOpenRestyReturnStatus     = 421
+	defaultOpenRestyWorkerConns      = 4096
+	defaultOpenRestyRlimitNofile     = 65535
+	defaultOpenRestyKeepaliveTimeout = 20
+	defaultOpenRestyKeepaliveReqs    = 1000
+	defaultOpenRestyHeaderTimeout    = 15
+	defaultOpenRestyBodyTimeout      = 15
+	defaultOpenRestySendTimeout      = 30
+	defaultOpenRestyConnectTimeout   = 3
+	defaultOpenRestyProxyTimeout     = 60
+	defaultOpenRestyGzipMinLen       = 1024
+	defaultOpenRestyGzipLevel        = 5
+)
 
 type snapshotRoute struct {
 	ID                 uint                             `json:"id,omitempty"`
@@ -166,7 +183,7 @@ func buildCurrentConfigBundle(ctx context.Context, requireRoutes bool) (*configB
 	if err != nil {
 		return nil, err
 	}
-	openRestyConfig := buildOpenRestyConfigSnapshot()
+	openRestyConfig := buildOpenRestyConfigSnapshot(ctx)
 	snapshotDoc := snapshotDocument{
 		Routes:          snapshotRoutes,
 		OpenRestyConfig: openRestyConfig,
@@ -451,47 +468,70 @@ func convertPoWConfig(enabled bool, config *waf.PoWConfig) *openrestyrender.PoWC
 	}
 }
 
-func buildOpenRestyConfigSnapshot() openRestyConfigSnapshot {
-	model.OptionMapRWMutex.RLock()
-	defer model.OptionMapRWMutex.RUnlock()
+func buildOpenRestyConfigSnapshot(ctx context.Context) openRestyConfigSnapshot {
+	// 读取所有 OpenResty 配置，使用默认值作为降级
+	getIntConfig := func(key string, defaultVal int) int {
+		val, err := repository.GetIntByKey(ctx, key)
+		if err != nil || val <= 0 {
+			return defaultVal
+		}
+		return val
+	}
+
+	getBoolConfig := func(key string, defaultVal bool) bool {
+		val, err := repository.GetBoolByKey(ctx, key)
+		if err != nil {
+			return defaultVal
+		}
+		return val
+	}
+
+	getStringConfig := func(key string, defaultVal string) string {
+		config, err := repository.GetSystemConfigByKey(ctx, key)
+		if err != nil {
+			return defaultVal
+		}
+		return config.Value
+	}
+
 	return openRestyConfigSnapshot{
-		DefaultServerReturnStatus: model.OpenRestyDefaultServerReturnStatus,
-		WorkerProcesses:           model.OpenRestyWorkerProcesses,
-		WorkerConnections:         model.OpenRestyWorkerConnections,
-		WorkerRlimitNofile:        model.OpenRestyWorkerRlimitNofile,
-		EventsUse:                 model.OpenRestyEventsUse,
-		EventsMultiAcceptEnabled:  model.OpenRestyEventsMultiAcceptEnabled,
-		KeepaliveTimeout:          model.OpenRestyKeepaliveTimeout,
-		KeepaliveRequests:         model.OpenRestyKeepaliveRequests,
-		ClientHeaderTimeout:       model.OpenRestyClientHeaderTimeout,
-		ClientBodyTimeout:         model.OpenRestyClientBodyTimeout,
-		ClientMaxBodySize:         model.OpenRestyClientMaxBodySize,
-		LargeClientHeaderBuffers:  model.OpenRestyLargeClientHeaderBuffers,
-		SendTimeout:               model.OpenRestySendTimeout,
-		ProxyConnectTimeout:       model.OpenRestyProxyConnectTimeout,
-		ProxySendTimeout:          model.OpenRestyProxySendTimeout,
-		ProxyReadTimeout:          model.OpenRestyProxyReadTimeout,
-		WebsocketEnabled:          model.OpenRestyWebsocketEnabled,
-		HTTP3Enabled:              model.OpenRestyHTTP3Enabled,
-		ProxyRequestBuffering:     model.OpenRestyProxyRequestBufferingEnabled,
-		ProxyBufferingEnabled:     model.OpenRestyProxyBufferingEnabled,
-		ProxyBuffers:              model.OpenRestyProxyBuffers,
-		ProxyBufferSize:           model.OpenRestyProxyBufferSize,
-		ProxyBusyBuffersSize:      model.OpenRestyProxyBusyBuffersSize,
-		GzipEnabled:               model.OpenRestyGzipEnabled,
-		GzipMinLength:             model.OpenRestyGzipMinLength,
-		GzipCompLevel:             model.OpenRestyGzipCompLevel,
-		Resolvers:                 model.OpenRestyResolvers,
-		CacheEnabled:              model.OpenRestyCacheEnabled,
-		CachePath:                 model.OpenRestyCachePath,
-		CacheLevels:               model.OpenRestyCacheLevels,
-		CacheInactive:             model.OpenRestyCacheInactive,
-		CacheMaxSize:              model.OpenRestyCacheMaxSize,
-		CacheKeyTemplate:          model.OpenRestyCacheKeyTemplate,
-		CacheLockEnabled:          model.OpenRestyCacheLockEnabled,
-		CacheLockTimeout:          model.OpenRestyCacheLockTimeout,
-		CacheUseStale:             model.OpenRestyCacheUseStale,
-		MainConfigTemplate:        model.OpenRestyMainConfigTemplate,
+		DefaultServerReturnStatus: getIntConfig(model.ConfigKeyOpenRestyDefaultServerReturnStatus, defaultOpenRestyReturnStatus),
+		WorkerProcesses:           getStringConfig(model.ConfigKeyOpenRestyWorkerProcesses, "auto"),
+		WorkerConnections:         getIntConfig(model.ConfigKeyOpenRestyWorkerConnections, defaultOpenRestyWorkerConns),
+		WorkerRlimitNofile:        getIntConfig(model.ConfigKeyOpenRestyWorkerRlimitNofile, defaultOpenRestyRlimitNofile),
+		EventsUse:                 getStringConfig(model.ConfigKeyOpenRestyEventsUse, "epoll"),
+		EventsMultiAcceptEnabled:  getBoolConfig(model.ConfigKeyOpenRestyEventsMultiAcceptEnabled, true),
+		KeepaliveTimeout:          getIntConfig(model.ConfigKeyOpenRestyKeepaliveTimeout, defaultOpenRestyKeepaliveTimeout),
+		KeepaliveRequests:         getIntConfig(model.ConfigKeyOpenRestyKeepaliveRequests, defaultOpenRestyKeepaliveReqs),
+		ClientHeaderTimeout:       getIntConfig(model.ConfigKeyOpenRestyClientHeaderTimeout, defaultOpenRestyHeaderTimeout),
+		ClientBodyTimeout:         getIntConfig(model.ConfigKeyOpenRestyClientBodyTimeout, defaultOpenRestyBodyTimeout),
+		ClientMaxBodySize:         getStringConfig(model.ConfigKeyOpenRestyClientMaxBodySize, "64m"),
+		LargeClientHeaderBuffers:  getStringConfig(model.ConfigKeyOpenRestyLargeClientHeaderBuffers, "4 16k"),
+		SendTimeout:               getIntConfig(model.ConfigKeyOpenRestySendTimeout, defaultOpenRestySendTimeout),
+		ProxyConnectTimeout:       getIntConfig(model.ConfigKeyOpenRestyProxyConnectTimeout, defaultOpenRestyConnectTimeout),
+		ProxySendTimeout:          getIntConfig(model.ConfigKeyOpenRestyProxySendTimeout, defaultOpenRestyProxyTimeout),
+		ProxyReadTimeout:          getIntConfig(model.ConfigKeyOpenRestyProxyReadTimeout, defaultOpenRestyProxyTimeout),
+		WebsocketEnabled:          getBoolConfig(model.ConfigKeyOpenRestyWebsocketEnabled, true),
+		HTTP3Enabled:              getBoolConfig(model.ConfigKeyOpenRestyHTTP3Enabled, true),
+		ProxyRequestBuffering:     getBoolConfig(model.ConfigKeyOpenRestyProxyRequestBufferingEnabled, false),
+		ProxyBufferingEnabled:     getBoolConfig(model.ConfigKeyOpenRestyProxyBufferingEnabled, true),
+		ProxyBuffers:              getStringConfig(model.ConfigKeyOpenRestyProxyBuffers, "16 16k"),
+		ProxyBufferSize:           getStringConfig(model.ConfigKeyOpenRestyProxyBufferSize, "8k"),
+		ProxyBusyBuffersSize:      getStringConfig(model.ConfigKeyOpenRestyProxyBusyBuffersSize, "64k"),
+		GzipEnabled:               getBoolConfig(model.ConfigKeyOpenRestyGzipEnabled, true),
+		GzipMinLength:             getIntConfig(model.ConfigKeyOpenRestyGzipMinLength, defaultOpenRestyGzipMinLen),
+		GzipCompLevel:             getIntConfig(model.ConfigKeyOpenRestyGzipCompLevel, defaultOpenRestyGzipLevel),
+		Resolvers:                 getStringConfig(model.ConfigKeyOpenRestyResolvers, ""),
+		CacheEnabled:              getBoolConfig(model.ConfigKeyOpenRestyCacheEnabled, false),
+		CachePath:                 getStringConfig(model.ConfigKeyOpenRestyCachePath, ""),
+		CacheLevels:               getStringConfig(model.ConfigKeyOpenRestyCacheLevels, "1:2"),
+		CacheInactive:             getStringConfig(model.ConfigKeyOpenRestyCacheInactive, "30m"),
+		CacheMaxSize:              getStringConfig(model.ConfigKeyOpenRestyCacheMaxSize, "1g"),
+		CacheKeyTemplate:          getStringConfig(model.ConfigKeyOpenRestyCacheKeyTemplate, "$scheme$host$request_uri"),
+		CacheLockEnabled:          getBoolConfig(model.ConfigKeyOpenRestyCacheLockEnabled, true),
+		CacheLockTimeout:          getStringConfig(model.ConfigKeyOpenRestyCacheLockTimeout, "5s"),
+		CacheUseStale:             getStringConfig(model.ConfigKeyOpenRestyCacheUseStale, "error timeout updating http_500 http_502 http_503 http_504"),
+		MainConfigTemplate:        getStringConfig(model.ConfigKeyOpenRestyMainConfigTemplate, model.DefaultOpenRestyMainConfigTemplate),
 	}
 }
 

@@ -1,47 +1,47 @@
 import type {OptionItem} from "@/lib/services/openflare"
 
 export type OpenFlareOpsFields = {
-  AgentHeartbeatInterval: string
-  AgentWebsocketUpgradeEnabled: boolean
-  NodeOfflineThreshold: string
-  AgentUpdateRepo: string
-  GeoIPProvider: string
-  ServerAddress: string
-  UptimeKumaEnabled: boolean
-  UptimeKumaUrl: string
-  UptimeKumaUsername: string
-  UptimeKumaPassword: string
-  UptimeKumaMonitorScope: string
-  UptimeKumaSelectedSites: string
-  UptimeKumaSyncInterval: string
-  UptimeKumaInterval: string
-  UptimeKumaRetry: string
-  UptimeKumaRetryInterval: string
-  UptimeKumaTimeout: string
-  DatabaseAutoCleanupEnabled: boolean
-  DatabaseAutoCleanupRetentionDays: string
+  agent_heartbeat_interval: string
+  agent_websocket_upgrade_enabled: boolean
+  node_offline_threshold: string
+  agent_update_repo: string
+  geoip_provider: string
+  server_address: string
+  uptime_kuma_enabled: boolean
+  uptime_kuma_url: string
+  uptime_kuma_username: string
+  uptime_kuma_password: string
+  uptime_kuma_monitor_scope: string
+  uptime_kuma_selected_sites: string
+  uptime_kuma_sync_interval: string
+  uptime_kuma_interval: string
+  uptime_kuma_retry: string
+  uptime_kuma_retry_interval: string
+  uptime_kuma_timeout: string
+  database_auto_cleanup_enabled: boolean
+  database_auto_cleanup_retention_days: string
 }
 
 export const defaultOpenFlareOpsFields: OpenFlareOpsFields = {
-  AgentHeartbeatInterval: "10000",
-  AgentWebsocketUpgradeEnabled: true,
-  NodeOfflineThreshold: "120000",
-  AgentUpdateRepo: "Rain-kl/OpenFlare",
-  GeoIPProvider: "ipinfo",
-  ServerAddress: "",
-  UptimeKumaEnabled: false,
-  UptimeKumaUrl: "",
-  UptimeKumaUsername: "",
-  UptimeKumaPassword: "",
-  UptimeKumaMonitorScope: "all",
-  UptimeKumaSelectedSites: "",
-  UptimeKumaSyncInterval: "5",
-  UptimeKumaInterval: "60",
-  UptimeKumaRetry: "0",
-  UptimeKumaRetryInterval: "60",
-  UptimeKumaTimeout: "48",
-  DatabaseAutoCleanupEnabled: false,
-  DatabaseAutoCleanupRetentionDays: "30",
+  agent_heartbeat_interval: "10000",
+  agent_websocket_upgrade_enabled: true,
+  node_offline_threshold: "120000",
+  agent_update_repo: "Rain-kl/OpenFlare",
+  geoip_provider: "ipinfo",
+  server_address: "",
+  uptime_kuma_enabled: false,
+  uptime_kuma_url: "",
+  uptime_kuma_username: "",
+  uptime_kuma_password: "",
+  uptime_kuma_monitor_scope: "all",
+  uptime_kuma_selected_sites: "",
+  uptime_kuma_sync_interval: "5",
+  uptime_kuma_interval: "60",
+  uptime_kuma_retry: "0",
+  uptime_kuma_retry_interval: "60",
+  uptime_kuma_timeout: "48",
+  database_auto_cleanup_enabled: false,
+  database_auto_cleanup_retention_days: "30",
 }
 
 export const INSTALLER_SCRIPT_URL =
@@ -64,25 +64,25 @@ export function mapOptionsToOpsFields(
   serverAddress = "",
 ): OpenFlareOpsFields {
   return {
-    AgentHeartbeatInterval: optionMap.AgentHeartbeatInterval ?? "10000",
-    AgentWebsocketUpgradeEnabled: toBoolean(optionMap.AgentWebsocketUpgradeEnabled, true),
-    NodeOfflineThreshold: optionMap.NodeOfflineThreshold ?? "120000",
-    AgentUpdateRepo: optionMap.AgentUpdateRepo ?? "Rain-kl/OpenFlare",
-    GeoIPProvider: optionMap.GeoIPProvider ?? "ipinfo",
-    ServerAddress: optionMap.ServerAddress || serverAddress,
-    UptimeKumaEnabled: toBoolean(optionMap.UptimeKumaEnabled, false),
-    UptimeKumaUrl: optionMap.UptimeKumaUrl ?? "",
-    UptimeKumaUsername: optionMap.UptimeKumaUsername ?? "",
-    UptimeKumaPassword: "",
-    UptimeKumaMonitorScope: optionMap.UptimeKumaMonitorScope ?? "all",
-    UptimeKumaSelectedSites: optionMap.UptimeKumaSelectedSites ?? "",
-    UptimeKumaSyncInterval: optionMap.UptimeKumaSyncInterval ?? "5",
-    UptimeKumaInterval: optionMap.UptimeKumaInterval ?? "60",
-    UptimeKumaRetry: optionMap.UptimeKumaRetry ?? "0",
-    UptimeKumaRetryInterval: optionMap.UptimeKumaRetryInterval ?? "60",
-    UptimeKumaTimeout: optionMap.UptimeKumaTimeout ?? "48",
-    DatabaseAutoCleanupEnabled: toBoolean(optionMap.DatabaseAutoCleanupEnabled, false),
-    DatabaseAutoCleanupRetentionDays: optionMap.DatabaseAutoCleanupRetentionDays ?? "30",
+    agent_heartbeat_interval: optionMap.agent_heartbeat_interval ?? "10000",
+    agent_websocket_upgrade_enabled: toBoolean(optionMap.agent_websocket_upgrade_enabled, true),
+    node_offline_threshold: optionMap.node_offline_threshold ?? "120000",
+    agent_update_repo: optionMap.agent_update_repo ?? "Rain-kl/OpenFlare",
+    geoip_provider: optionMap.geoip_provider ?? "ipinfo",
+    server_address: optionMap.server_address || serverAddress,
+    uptime_kuma_enabled: toBoolean(optionMap.uptime_kuma_enabled, false),
+    uptime_kuma_url: optionMap.uptime_kuma_url ?? "",
+    uptime_kuma_username: optionMap.uptime_kuma_username ?? "",
+    uptime_kuma_password: "",
+    uptime_kuma_monitor_scope: optionMap.uptime_kuma_monitor_scope ?? "all",
+    uptime_kuma_selected_sites: optionMap.uptime_kuma_selected_sites ?? "",
+    uptime_kuma_sync_interval: optionMap.uptime_kuma_sync_interval ?? "5",
+    uptime_kuma_interval: optionMap.uptime_kuma_interval ?? "60",
+    uptime_kuma_retry: optionMap.uptime_kuma_retry ?? "0",
+    uptime_kuma_retry_interval: optionMap.uptime_kuma_retry_interval ?? "60",
+    uptime_kuma_timeout: optionMap.uptime_kuma_timeout ?? "48",
+    database_auto_cleanup_enabled: toBoolean(optionMap.database_auto_cleanup_enabled, false),
+    database_auto_cleanup_retention_days: optionMap.database_auto_cleanup_retention_days ?? "30",
   }
 }
 
@@ -111,8 +111,8 @@ export function buildDiscoveryCommand(serverUrl: string, discoveryToken: string)
 }
 
 export function validateAgentFields(fields: OpenFlareOpsFields) {
-  const heartbeat = Number.parseInt(fields.AgentHeartbeatInterval, 10)
-  const offline = Number.parseInt(fields.NodeOfflineThreshold, 10)
+  const heartbeat = Number.parseInt(fields.agent_heartbeat_interval, 10)
+  const offline = Number.parseInt(fields.node_offline_threshold, 10)
   if (Number.isNaN(heartbeat) || heartbeat < 5000) {
     throw new Error("心跳间隔不能小于 5000 毫秒。")
   }
@@ -122,15 +122,15 @@ export function validateAgentFields(fields: OpenFlareOpsFields) {
 }
 
 export function validateUptimeKumaFields(fields: OpenFlareOpsFields) {
-  const syncInt = Number.parseInt(fields.UptimeKumaSyncInterval, 10)
-  const interval = Number.parseInt(fields.UptimeKumaInterval, 10)
-  const retry = Number.parseInt(fields.UptimeKumaRetry, 10)
-  const retryInt = Number.parseInt(fields.UptimeKumaRetryInterval, 10)
-  const timeout = Number.parseInt(fields.UptimeKumaTimeout, 10)
+  const syncInt = Number.parseInt(fields.uptime_kuma_sync_interval, 10)
+  const interval = Number.parseInt(fields.uptime_kuma_interval, 10)
+  const retry = Number.parseInt(fields.uptime_kuma_retry, 10)
+  const retryInt = Number.parseInt(fields.uptime_kuma_retry_interval, 10)
+  const timeout = Number.parseInt(fields.uptime_kuma_timeout, 10)
 
-  if (fields.UptimeKumaEnabled) {
-    if (!fields.UptimeKumaUrl.trim()) throw new Error("请输入 Uptime Kuma 地址。")
-    if (!fields.UptimeKumaUsername.trim()) throw new Error("请输入 Uptime Kuma 用户名。")
+  if (fields.uptime_kuma_enabled) {
+    if (!fields.uptime_kuma_url.trim()) throw new Error("请输入 Uptime Kuma 地址。")
+    if (!fields.uptime_kuma_username.trim()) throw new Error("请输入 Uptime Kuma 用户名。")
   }
   if (Number.isNaN(syncInt) || syncInt <= 0) throw new Error("同步间隔必须为正整数。")
   if (Number.isNaN(interval) || interval <= 0) throw new Error("心跳间隔必须为正整数。")
@@ -140,7 +140,7 @@ export function validateUptimeKumaFields(fields: OpenFlareOpsFields) {
 }
 
 export function validateDatabaseAutoCleanup(fields: OpenFlareOpsFields) {
-  const retentionDays = Number.parseInt(fields.DatabaseAutoCleanupRetentionDays, 10)
+  const retentionDays = Number.parseInt(fields.database_auto_cleanup_retention_days, 10)
   if (Number.isNaN(retentionDays) || retentionDays < 1) {
     throw new Error("自动清理保留天数至少为 1 天。")
   }
@@ -149,35 +149,35 @@ export function validateDatabaseAutoCleanup(fields: OpenFlareOpsFields) {
 export function agentOptionEntries(fields: OpenFlareOpsFields): OptionItem[] {
   validateAgentFields(fields)
   return [
-    { key: "AgentHeartbeatInterval", value: fields.AgentHeartbeatInterval },
-    { key: "AgentWebsocketUpgradeEnabled", value: String(fields.AgentWebsocketUpgradeEnabled) },
-    { key: "NodeOfflineThreshold", value: fields.NodeOfflineThreshold },
-    { key: "AgentUpdateRepo", value: fields.AgentUpdateRepo.trim() },
-    { key: "GeoIPProvider", value: fields.GeoIPProvider },
+    { key: "agent_heartbeat_interval", value: fields.agent_heartbeat_interval },
+    { key: "agent_websocket_upgrade_enabled", value: String(fields.agent_websocket_upgrade_enabled) },
+    { key: "node_offline_threshold", value: fields.node_offline_threshold },
+    { key: "agent_update_repo", value: fields.agent_update_repo.trim() },
+    { key: "geoip_provider", value: fields.geoip_provider },
   ]
 }
 
 export function uptimeKumaOptionEntries(fields: OpenFlareOpsFields): OptionItem[] {
   validateUptimeKumaFields(fields)
   return [
-    { key: "UptimeKumaEnabled", value: String(fields.UptimeKumaEnabled) },
-    { key: "UptimeKumaUrl", value: fields.UptimeKumaUrl.trim() },
-    { key: "UptimeKumaUsername", value: fields.UptimeKumaUsername.trim() },
-    { key: "UptimeKumaPassword", value: fields.UptimeKumaPassword },
-    { key: "UptimeKumaMonitorScope", value: fields.UptimeKumaMonitorScope },
-    { key: "UptimeKumaSelectedSites", value: fields.UptimeKumaSelectedSites },
-    { key: "UptimeKumaSyncInterval", value: fields.UptimeKumaSyncInterval },
-    { key: "UptimeKumaInterval", value: fields.UptimeKumaInterval },
-    { key: "UptimeKumaRetry", value: fields.UptimeKumaRetry },
-    { key: "UptimeKumaRetryInterval", value: fields.UptimeKumaRetryInterval },
-    { key: "UptimeKumaTimeout", value: fields.UptimeKumaTimeout },
+    { key: "uptime_kuma_enabled", value: String(fields.uptime_kuma_enabled) },
+    { key: "uptime_kuma_url", value: fields.uptime_kuma_url.trim() },
+    { key: "uptime_kuma_username", value: fields.uptime_kuma_username.trim() },
+    { key: "uptime_kuma_password", value: fields.uptime_kuma_password },
+    { key: "uptime_kuma_monitor_scope", value: fields.uptime_kuma_monitor_scope },
+    { key: "uptime_kuma_selected_sites", value: fields.uptime_kuma_selected_sites },
+    { key: "uptime_kuma_sync_interval", value: fields.uptime_kuma_sync_interval },
+    { key: "uptime_kuma_interval", value: fields.uptime_kuma_interval },
+    { key: "uptime_kuma_retry", value: fields.uptime_kuma_retry },
+    { key: "uptime_kuma_retry_interval", value: fields.uptime_kuma_retry_interval },
+    { key: "uptime_kuma_timeout", value: fields.uptime_kuma_timeout },
   ]
 }
 
 export function databaseAutoCleanupEntries(fields: OpenFlareOpsFields): OptionItem[] {
   validateDatabaseAutoCleanup(fields)
   return [
-    { key: "DatabaseAutoCleanupEnabled", value: String(fields.DatabaseAutoCleanupEnabled) },
-    { key: "DatabaseAutoCleanupRetentionDays", value: fields.DatabaseAutoCleanupRetentionDays },
+    { key: "database_auto_cleanup_enabled", value: String(fields.database_auto_cleanup_enabled) },
+    { key: "database_auto_cleanup_retention_days", value: fields.database_auto_cleanup_retention_days },
   ]
 }

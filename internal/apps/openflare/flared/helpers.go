@@ -148,6 +148,6 @@ func sanitizeProxyName(domain string) string {
 	return strings.ReplaceAll(strings.ReplaceAll(domain, ".", "-"), "*", "wildcard")
 }
 
-func buildTunnelSettings(node *model.OpenFlareNode, updateNow bool, updateChannel, updateTag string) *relay.Settings {
-	return relay.BuildSettings(node, updateNow, updateChannel, updateTag)
+func buildTunnelSettings(ctx context.Context, node *model.OpenFlareNode, updateNow bool, updateChannel, updateTag string) *relay.Settings {
+	return relay.BuildSettings(ctx, node, updateNow, updateChannel, updateTag)
 }

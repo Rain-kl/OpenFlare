@@ -15,7 +15,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Rain-kl/Wavelet/internal/apps/openflare/option"
 	"github.com/Rain-kl/Wavelet/internal/config"
 	"github.com/Rain-kl/Wavelet/internal/db"
 	"github.com/Rain-kl/Wavelet/internal/model"
@@ -46,10 +45,10 @@ func setupSecurityTest(t *testing.T) (*gin.Engine, adminSeed, func()) {
 		&model.ManagedDomain{},
 		&model.DNSAccount{},
 		&model.AcmeAccount{},
+		&model.SystemConfig{},
 	))
 
 	db.SetDB(sqliteDB)
-	option.ResetInitializationForTest()
 
 	seed, err := seedAdminWithAccessToken(sqliteDB)
 	require.NoError(t, err)
@@ -63,7 +62,6 @@ func setupSecurityTest(t *testing.T) (*gin.Engine, adminSeed, func()) {
 	cleanup := func() {
 		config.Config.App.SessionSecret = oldSecret
 		db.SetDB(nil)
-		option.ResetInitializationForTest()
 	}
 
 	return engine, seed, cleanup

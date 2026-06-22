@@ -10,6 +10,7 @@ import (
 
 	"github.com/Rain-kl/Wavelet/internal/db"
 	"github.com/Rain-kl/Wavelet/internal/model"
+	"github.com/Rain-kl/Wavelet/internal/repository"
 	"github.com/glebarez/sqlite"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -17,13 +18,18 @@ import (
 )
 
 func TestDatabaseAutoCleanupHandlerSkipsWhenDisabled(t *testing.T) {
-	previousEnabled := model.DatabaseAutoCleanupEnabled
-	model.DatabaseAutoCleanupEnabled = false
-	t.Cleanup(func() {
-		model.DatabaseAutoCleanupEnabled = previousEnabled
+	sqliteDB, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{
+		DisableForeignKeyConstraintWhenMigrating: true,
 	})
+	require.NoError(t, err)
+	require.NoError(t, sqliteDB.AutoMigrate(&model.SystemConfig{}))
+	db.SetDB(sqliteDB)
+	t.Cleanup(func() { db.SetDB(nil) })
 
-	result, err := (&DatabaseAutoCleanupHandler{}).Execute(context.Background(), nil)
+	ctx := context.Background()
+	require.NoError(t, repository.SaveOrUpdateSystemConfig(ctx, model.ConfigKeyDatabaseAutoCleanupEnabled, "false"))
+
+	result, err := (&DatabaseAutoCleanupHandler{}).Execute(ctx, nil)
 	require.NoError(t, err)
 	require.NotNil(t, result)
 	assert.Contains(t, result.Message, "未启用")
@@ -34,6 +40,7 @@ func TestDatabaseAutoCleanupHandlerDeletesRowsWhenEnabled(t *testing.T) {
 		DisableForeignKeyConstraintWhenMigrating: true,
 	})
 	require.NoError(t, err)
+	require.NoError(t, sqliteDB.AutoMigrate(&model.SystemConfig{}))
 	db.SetDB(sqliteDB)
 	resetAccessLogStore := model.SetAccessLogStoreForTest(model.NewMemoryAccessLogStore())
 	resetObservabilityStore := model.SetObservabilityStoreForTest(model.NewMemoryObservabilityStore())
@@ -43,8 +50,9 @@ func TestDatabaseAutoCleanupHandlerDeletesRowsWhenEnabled(t *testing.T) {
 		db.SetDB(nil)
 	})
 
+	ctx := context.Background()
 	now := time.Now().UTC()
-	require.NoError(t, model.InsertOpenFlareAccessLogsBatch(context.Background(), []*model.OpenFlareAccessLog{{
+	require.NoError(t, model.InsertOpenFlareAccessLogsBatch(ctx, []*model.OpenFlareAccessLog{{
 		NodeID:     "node-a",
 		LoggedAt:   now.Add(-48 * time.Hour),
 		RemoteAddr: "203.0.113.10",
@@ -53,33 +61,32 @@ func TestDatabaseAutoCleanupHandlerDeletesRowsWhenEnabled(t *testing.T) {
 		StatusCode: 200,
 	}}))
 
-	previousEnabled := model.DatabaseAutoCleanupEnabled
-	previousRetentionDays := model.DatabaseAutoCleanupRetentionDays
-	model.DatabaseAutoCleanupEnabled = true
-	model.DatabaseAutoCleanupRetentionDays = 1
-	t.Cleanup(func() {
-		model.DatabaseAutoCleanupEnabled = previousEnabled
-		model.DatabaseAutoCleanupRetentionDays = previousRetentionDays
-	})
+	require.NoError(t, repository.SaveOrUpdateSystemConfig(ctx, model.ConfigKeyDatabaseAutoCleanupEnabled, "true"))
+	require.NoError(t, repository.SaveOrUpdateSystemConfig(ctx, model.ConfigKeyDatabaseAutoCleanupRetentionDays, "1"))
 
-	result, err := (&DatabaseAutoCleanupHandler{}).Execute(context.Background(), nil)
+	result, err := (&DatabaseAutoCleanupHandler{}).Execute(ctx, nil)
 	require.NoError(t, err)
 	require.NotNil(t, result)
 	assert.Contains(t, result.Message, "共删除")
 
-	rows, err := model.ListOpenFlareAccessLogs(context.Background(), model.OpenFlareAccessLogQuery{Page: 0, PageSize: 10})
+	rows, err := model.ListOpenFlareAccessLogs(ctx, model.OpenFlareAccessLogQuery{Page: 0, PageSize: 10})
 	require.NoError(t, err)
 	assert.Empty(t, rows)
 }
 
 func TestUptimeKumaSyncHandlerSkipsWhenDisabled(t *testing.T) {
-	previousEnabled := model.UptimeKumaEnabled
-	model.UptimeKumaEnabled = false
-	t.Cleanup(func() {
-		model.UptimeKumaEnabled = previousEnabled
+	sqliteDB, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{
+		DisableForeignKeyConstraintWhenMigrating: true,
 	})
+	require.NoError(t, err)
+	require.NoError(t, sqliteDB.AutoMigrate(&model.SystemConfig{}))
+	db.SetDB(sqliteDB)
+	t.Cleanup(func() { db.SetDB(nil) })
 
-	result, err := (&UptimeKumaSyncHandler{}).Execute(context.Background(), nil)
+	ctx := context.Background()
+	require.NoError(t, repository.SaveOrUpdateSystemConfig(ctx, model.ConfigKeyUptimeKumaEnabled, "false"))
+
+	result, err := (&UptimeKumaSyncHandler{}).Execute(ctx, nil)
 	require.NoError(t, err)
 	require.NotNil(t, result)
 	assert.Contains(t, result.Message, "未启用")

@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/agent"
-	"github.com/Rain-kl/Wavelet/internal/apps/openflare/option"
 	"github.com/Rain-kl/Wavelet/internal/db"
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"github.com/glebarez/sqlite"
@@ -28,7 +27,7 @@ func setupRelayTestDB(t *testing.T) func() {
 	require.NoError(t, err)
 	require.NoError(t, sqliteDB.AutoMigrate(
 		&model.OpenFlareNode{},
-		&model.OpenFlareOption{},
+		&model.SystemConfig{},
 		&model.OpenFlareNodeSystemProfile{},
 		&model.OpenFlareMetricSnapshot{},
 		&model.OpenFlareHealthEvent{},
@@ -36,14 +35,12 @@ func setupRelayTestDB(t *testing.T) func() {
 	))
 
 	db.SetDB(sqliteDB)
-	option.ResetInitializationForTest()
 	agent.ResetAuthCacheForTest()
 	resetObservabilityStore := model.SetObservabilityStoreForTest(model.NewMemoryObservabilityStore())
 
 	return func() {
 		resetObservabilityStore()
 		db.SetDB(nil)
-		option.ResetInitializationForTest()
 		agent.ResetAuthCacheForTest()
 	}
 }

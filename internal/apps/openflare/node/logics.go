@@ -11,9 +11,9 @@ import (
 	"time"
 
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/observability"
-	"github.com/Rain-kl/Wavelet/internal/apps/openflare/option"
 	ofws "github.com/Rain-kl/Wavelet/internal/apps/openflare/websocket"
 	"github.com/Rain-kl/Wavelet/internal/model"
+	"github.com/Rain-kl/Wavelet/internal/repository"
 	"gorm.io/gorm"
 )
 
@@ -21,6 +21,15 @@ const (
 	defaultRelayBindPort      = 7000
 	defaultRelayVhostHTTPPort = 8080
 )
+
+// getAgentUpdateRepo 从 SystemConfig 读取 Agent 更新仓库配置
+func getAgentUpdateRepo(ctx context.Context) string {
+	config, err := repository.GetSystemConfigByKey(ctx, model.ConfigKeyAgentUpdateRepo)
+	if err != nil || strings.TrimSpace(config.Value) == "" {
+		return "Rain-kl/OpenFlare" // 默认值
+	}
+	return strings.TrimSpace(config.Value)
+}
 
 // Input is the create/update node payload.
 type Input struct {
@@ -272,7 +281,7 @@ func RotateBootstrapToken(ctx context.Context) (*BootstrapView, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err = model.UpdateOpenFlareOption(ctx, "AgentDiscoveryToken", token); err != nil {
+	if err = repository.SaveOrUpdateSystemConfig(ctx, model.ConfigKeyAgentDiscoveryToken, token); err != nil {
 		return nil, err
 	}
 	return &BootstrapView{DiscoveryToken: token}, nil
@@ -284,7 +293,7 @@ func GetAgentRelease(ctx context.Context, id uint, channel string) (*AgentReleas
 	if err != nil {
 		return nil, err
 	}
-	release, err := fetchLatestGitHubRelease(ctx, model.AgentUpdateRepo, normalizeReleaseChannel(channel))
+	release, err := fetchLatestGitHubRelease(ctx, getAgentUpdateRepo(ctx), normalizeReleaseChannel(channel))
 	if err != nil {
 		return nil, err
 	}
@@ -300,7 +309,7 @@ func RequestAgentUpdate(ctx context.Context, id uint, input AgentUpdateInput) (*
 	channel := normalizeReleaseChannel(input.Channel)
 	tagName := strings.TrimSpace(input.TagName)
 	if tagName != "" {
-		release, releaseErr := fetchGitHubReleaseByTag(ctx, model.AgentUpdateRepo, tagName)
+		release, releaseErr := fetchGitHubReleaseByTag(ctx, getAgentUpdateRepo(ctx), tagName)
 		if releaseErr != nil {
 			return nil, releaseErr
 		}
@@ -369,20 +378,20 @@ func CleanupHealthEvents(ctx context.Context, id uint) (*HealthEventCleanupResul
 }
 
 func ensureGlobalDiscoveryToken(ctx context.Context) (string, error) {
-	if err := option.EnsureInitialized(ctx); err != nil {
-		return "", err
+	// 从 SystemConfig 读取 Agent 发现令牌
+	config, err := repository.GetSystemConfigByKey(ctx, model.ConfigKeyAgentDiscoveryToken)
+	if err == nil && strings.TrimSpace(config.Value) != "" {
+		return strings.TrimSpace(config.Value), nil
 	}
-	model.OptionMapRWMutex.RLock()
-	token := strings.TrimSpace(model.AgentDiscoveryToken)
-	model.OptionMapRWMutex.RUnlock()
-	if token != "" {
-		return token, nil
-	}
+
+	// 如果不存在，生成新令牌并保存
 	token, err := newRandomToken()
 	if err != nil {
 		return "", err
 	}
-	if err = model.UpdateOpenFlareOption(ctx, "AgentDiscoveryToken", token); err != nil {
+
+	// 更新到 SystemConfig
+	if err = repository.SaveOrUpdateSystemConfig(ctx, model.ConfigKeyAgentDiscoveryToken, token); err != nil {
 		return "", err
 	}
 	return token, nil

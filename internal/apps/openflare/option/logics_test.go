@@ -10,6 +10,7 @@ import (
 
 	"github.com/Rain-kl/Wavelet/internal/db"
 	"github.com/Rain-kl/Wavelet/internal/model"
+	"github.com/Rain-kl/Wavelet/internal/repository"
 	"github.com/glebarez/sqlite"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -23,27 +24,34 @@ func setupOptionTestDB(t *testing.T) func() {
 		DisableForeignKeyConstraintWhenMigrating: true,
 	})
 	require.NoError(t, err)
-	require.NoError(t, sqliteDB.AutoMigrate(&model.OpenFlareOption{}))
+	require.NoError(t, sqliteDB.AutoMigrate(&model.SystemConfig{}))
 
 	db.SetDB(sqliteDB)
-	ResetInitializationForTest()
+
+	// 预填充一些业务配置用于测试
+	seedConfigs := []model.SystemConfig{
+		{Key: "geoip_provider", Value: "ipinfo", Type: "business", Visibility: 0},
+		{Key: "uptime_kuma_password", Value: "secret-pwd", Type: "business", Visibility: 0},
+	}
+	for _, cfg := range seedConfigs {
+		require.NoError(t, sqliteDB.Create(&cfg).Error)
+	}
 
 	return func() {
 		db.SetDB(nil)
-		ResetInitializationForTest()
 	}
+}
+
+// setTestConfig 设置测试配置的辅助函数
+func setTestConfig(t *testing.T, ctx context.Context, key, value string) {
+	t.Helper()
+	require.NoError(t, db.DB(ctx).Model(&model.SystemConfig{}).Where("key = ?", key).Update("value", value).Error)
 }
 
 func TestListOptionsFiltersSecretKeys(t *testing.T) {
 	cleanup := setupOptionTestDB(t)
 	defer cleanup()
 	ctx := context.Background()
-
-	require.NoError(t, model.UpdateOpenFlareOptions(ctx, []model.OpenFlareOption{
-		{Key: "SystemName", Value: "TestFlare"},
-		{Key: "SMTPToken", Value: "secret-token"},
-		{Key: "GitHubClientSecret", Value: "secret-id"},
-	}))
 
 	options, err := listOptions(ctx)
 	require.NoError(t, err)
@@ -53,24 +61,50 @@ func TestListOptionsFiltersSecretKeys(t *testing.T) {
 		keys[option.Key] = option.Value
 	}
 
-	assert.Equal(t, "TestFlare", keys["SystemName"])
-	assert.NotContains(t, keys, "SMTPToken")
-	assert.NotContains(t, keys, "GitHubClientSecret")
+	// geoip_provider 应该出现在列表中
+	assert.Equal(t, "ipinfo", keys["geoip_provider"])
+	// 敏感配置（密码）应该被过滤掉
+	assert.NotContains(t, keys, "uptime_kuma_password")
 }
 
-func TestUpdateOptionHotReloadsOptionMap(t *testing.T) {
+func TestUpdateOptionPersistsToSystemConfig(t *testing.T) {
 	cleanup := setupOptionTestDB(t)
 	defer cleanup()
 	ctx := context.Background()
 
 	err := updateOption(ctx, model.OpenFlareOption{
-		Key:   "SystemName",
-		Value: "HotReloaded",
+		Key:   model.ConfigKeyGeoIPProvider,
+		Value: "mmdb",
 	})
 	require.NoError(t, err)
 
-	assert.Equal(t, "HotReloaded", model.OptionValue("SystemName"))
-	assert.Equal(t, "HotReloaded", model.SystemName)
+	// 验证配置已写入 SystemConfig
+	config, err := repository.GetSystemConfigByKey(ctx, model.ConfigKeyGeoIPProvider)
+	require.NoError(t, err)
+	assert.Equal(t, "mmdb", config.Value)
+}
+
+func TestUpdateOpenRestyOptionPersistsToSystemConfig(t *testing.T) {
+	cleanup := setupOptionTestDB(t)
+	defer cleanup()
+	ctx := context.Background()
+
+	require.NoError(t, db.DB(ctx).Create(&model.SystemConfig{
+		Key:        model.ConfigKeyOpenRestyEventsUse,
+		Value:      "epoll",
+		Type:       "business",
+		Visibility: 0,
+	}).Error)
+
+	err := updateOption(ctx, model.OpenFlareOption{
+		Key:   model.ConfigKeyOpenRestyEventsUse,
+		Value: "kqueue",
+	})
+	require.NoError(t, err)
+
+	config, err := repository.GetSystemConfigByKey(ctx, model.ConfigKeyOpenRestyEventsUse)
+	require.NoError(t, err)
+	assert.Equal(t, "kqueue", config.Value)
 }
 
 func TestLookupGeoIPDisabledProvider(t *testing.T) {

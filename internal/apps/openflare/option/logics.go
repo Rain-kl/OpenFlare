@@ -8,34 +8,14 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"sync"
 
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/geoip"
 	oftasks "github.com/Rain-kl/Wavelet/internal/apps/openflare/tasks"
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/uptimekuma"
 	"github.com/Rain-kl/Wavelet/internal/buildinfo"
 	"github.com/Rain-kl/Wavelet/internal/model"
+	"github.com/Rain-kl/Wavelet/internal/repository"
 )
-
-var (
-	initOnce sync.Once
-	initErr  error
-)
-
-// EnsureInitialized loads OptionMap from defaults and database once per process.
-func EnsureInitialized(ctx context.Context) error {
-	initOnce.Do(func() {
-		initErr = model.InitOptionMap(ctx)
-	})
-	return initErr
-}
-
-// ResetInitializationForTest clears lazy-init state for unit tests.
-func ResetInitializationForTest() {
-	initOnce = sync.Once{}
-	initErr = nil
-	model.ResetOptionMapForTest()
-}
 
 type publicAuthSourceView struct {
 	ID           uint64 `json:"id"`
@@ -50,9 +30,6 @@ type statusView struct {
 	Version                 string                 `json:"version"`
 	StartTime               int64                  `json:"start_time"`
 	EmailVerification       bool                   `json:"email_verification"`
-	SystemName              string                 `json:"system_name"`
-	HomePageLink            string                 `json:"home_page_link"`
-	FooterHTML              string                 `json:"footer_html"`
 	ServerAddress           string                 `json:"server_address"`
 	PasswordRegisterEnabled bool                   `json:"password_register_enabled"`
 	CapLoginEnabled         bool                   `json:"cap_login_enabled"`
@@ -91,37 +68,32 @@ type optionBatchPayload struct {
 }
 
 func listOptions(ctx context.Context) ([]model.OpenFlareOption, error) {
-	if err := EnsureInitialized(ctx); err != nil {
+	// 从 SystemConfig 读取所有业务配置
+	configs, err := repository.ListAdminSystemConfigs(ctx, "business")
+	if err != nil {
 		return nil, err
 	}
 
-	model.OptionMapRWMutex.RLock()
-	defer model.OptionMapRWMutex.RUnlock()
-
-	options := make([]model.OpenFlareOption, 0, len(model.OptionMap))
-	for key, value := range model.OptionMap {
-		if isSecretOptionKey(key) {
+	options := make([]model.OpenFlareOption, 0, len(configs))
+	for _, config := range configs {
+		// 跳过敏感配置（如密码、令牌）
+		if config.Visibility == model.ConfigVisibilityHidden && isSecretConfigKey(config.Key) {
 			continue
 		}
+		// 将 snake_case key 转换为 PascalCase 以保持向后兼容
 		options = append(options, model.OpenFlareOption{
-			Key:   key,
-			Value: value,
+			Key:   config.Key,
+			Value: config.Value,
 		})
 	}
 	return options, nil
 }
 
 func updateOption(ctx context.Context, option model.OpenFlareOption) error {
-	if err := EnsureInitialized(ctx); err != nil {
-		return err
-	}
 	return updateOptions(ctx, []model.OpenFlareOption{option})
 }
 
 func updateOptionsBatch(ctx context.Context, payload optionBatchPayload) error {
-	if err := EnsureInitialized(ctx); err != nil {
-		return err
-	}
 	if len(payload.Options) == 0 {
 		return errors.New(errInvalidParams)
 	}
@@ -129,40 +101,46 @@ func updateOptionsBatch(ctx context.Context, payload optionBatchPayload) error {
 }
 
 func updateOptions(ctx context.Context, options []model.OpenFlareOption) error {
-	if err := validateOptions(options); err != nil {
+	if err := validateOptions(ctx, options); err != nil {
 		return err
 	}
-	if err := model.UpdateOpenFlareOptions(ctx, options); err != nil {
-		return err
-	}
-	for _, item := range options {
-		if item.Key == "GeoIPProvider" {
-			return geoip.RefreshRuntimeProvider(ctx)
+
+	// 将每个 option 更新到 SystemConfig
+	for _, opt := range options {
+		if err := repository.SaveOrUpdateSystemConfig(ctx, opt.Key, opt.Value); err != nil {
+			return fmt.Errorf("failed to update config %s: %w", opt.Key, err)
+		}
+
+		// 特殊处理：GeoIP 配置变更时刷新运行时
+		if opt.Key == model.ConfigKeyGeoIPProvider {
+			if err := geoip.RefreshRuntimeProvider(ctx); err != nil {
+				return err
+			}
 		}
 	}
+
 	return nil
 }
 
 func getStatus(ctx context.Context, baseAPIPath string) (*statusView, error) {
-	if err := EnsureInitialized(ctx); err != nil {
-		return nil, err
-	}
-
 	authSources, err := publicAuthSources(ctx, baseAPIPath)
 	if err != nil {
 		authSources = []publicAuthSourceView{}
 	}
 
+	// 从 SystemConfig 读取配置
+	emailVerification, _ := repository.GetBoolByKey(ctx, model.ConfigKeyEmailLoginVerificationEnabled)
+	serverAddress, _ := repository.GetSystemConfigByKey(ctx, model.ConfigKeyServerAddress)
+	passwordRegisterEnabled, _ := repository.GetBoolByKey(ctx, model.ConfigKeyPasswordRegisterEnabled)
+	capLoginEnabled, _ := repository.GetBoolByKey(ctx, model.ConfigKeyCapLoginEnabled)
+
 	return &statusView{
 		Version:                 buildinfo.Version,
 		StartTime:               model.StartTime,
-		EmailVerification:       model.EmailVerificationEnabled,
-		SystemName:              model.SystemName,
-		HomePageLink:            model.HomePageLink,
-		FooterHTML:              model.Footer,
-		ServerAddress:           model.ServerAddress,
-		PasswordRegisterEnabled: model.PasswordRegisterEnabled,
-		CapLoginEnabled:         model.CapLoginEnabled,
+		EmailVerification:       emailVerification,
+		ServerAddress:           serverAddress.Value,
+		PasswordRegisterEnabled: passwordRegisterEnabled,
+		CapLoginEnabled:         capLoginEnabled,
 		AuthSources:             authSources,
 	}, nil
 }
@@ -229,8 +207,9 @@ func syncUptimeKuma(ctx context.Context) error {
 	return uptimekuma.SyncToUptimeKuma(ctx)
 }
 
-func isSecretOptionKey(key string) bool {
-	return strings.Contains(key, "Token") ||
-		strings.Contains(key, "Secret") ||
-		strings.Contains(key, "Password")
+// isSecretConfigKey 判断 SystemConfig 的 key 是否为敏感配置
+func isSecretConfigKey(key string) bool {
+	return strings.Contains(key, "token") ||
+		strings.Contains(key, "secret") ||
+		strings.Contains(key, "password")
 }

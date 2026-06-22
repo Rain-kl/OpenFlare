@@ -16173,12 +16173,6 @@ const docTemplate = `{
                 "email_verification": {
                     "type": "boolean"
                 },
-                "footer_html": {
-                    "type": "string"
-                },
-                "home_page_link": {
-                    "type": "string"
-                },
                 "password_register_enabled": {
                     "type": "boolean"
                 },
@@ -16187,9 +16181,6 @@ const docTemplate = `{
                 },
                 "start_time": {
                     "type": "integer"
-                },
-                "system_name": {
-                    "type": "string"
                 },
                 "version": {
                     "type": "string"
@@ -16617,6 +16608,9 @@ const docTemplate = `{
                 },
                 "web_server_enabled": {
                     "type": "boolean"
+                },
+                "web_server_port": {
+                    "type": "integer"
                 }
             }
         },

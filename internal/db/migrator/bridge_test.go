@@ -99,8 +99,8 @@ func TestMigrateUpgradesLegacyDatabaseAndPreservesData(t *testing.T) {
 		// Legacy normal user
 		`INSERT INTO users (id, username, password, display_name, role, status, email)
 		 VALUES (2, 'jack', 'hashed_pass_456', 'Normal User jack', 10, 1, 'jack@example.com');`,
-		// Legacy config options
-		`INSERT INTO options (key, value) VALUES ('SystemName', 'CustomOpenFlare');`,
+		// Legacy config options（GeoIPProvider 会被迁移到 w_system_configs.geoip_provider）
+		`INSERT INTO options (key, value) VALUES ('GeoIPProvider', 'ip-api');`,
 		// Legacy origin
 		`INSERT INTO origins (id, name, address, remark, created_at, updated_at)
 		 VALUES (10, 'my_origin', '127.0.0.1:8080', 'original origin', '2026-06-01 12:00:00', '2026-06-01 12:00:00');`,
@@ -181,13 +181,13 @@ func TestMigrateUpgradesLegacyDatabaseAndPreservesData(t *testing.T) {
 		t.Errorf("jack user migrated incorrectly: %+v", jackUser)
 	}
 
-	// Verify options migrated to of_options
-	var systemNameVal string
-	if err := sqliteDB.Table("of_options").Where("key = ?", "SystemName").Select("value").Scan(&systemNameVal).Error; err != nil {
-		t.Fatalf("query SystemName failed: %v", err)
+	// Verify legacy option migrated all the way to w_system_configs（of_options 已被删除）
+	var geoIPProviderVal string
+	if err := sqliteDB.Table("w_system_configs").Where("key = ?", "geoip_provider").Select("value").Scan(&geoIPProviderVal).Error; err != nil {
+		t.Fatalf("query geoip_provider failed: %v", err)
 	}
-	if systemNameVal != "CustomOpenFlare" {
-		t.Errorf("SystemName value incorrect: got %s, want CustomOpenFlare", systemNameVal)
+	if geoIPProviderVal != "ip-api" {
+		t.Errorf("geoip_provider value incorrect: got %s, want ip-api", geoIPProviderVal)
 	}
 
 	// Verify origin migrated to of_origins

@@ -99,7 +99,7 @@ func Heartbeat(ctx context.Context, node *model.OpenFlareNode, payload Heartbeat
 
 	return &HeartbeatResponse{
 		RelayConfig:   buildRelayConfig(ctx, node),
-		RelaySettings: BuildSettings(node, updateNow, updateChannel, updateTag),
+		RelaySettings: BuildSettings(ctx, node, updateNow, updateChannel, updateTag),
 	}, nil
 }
 

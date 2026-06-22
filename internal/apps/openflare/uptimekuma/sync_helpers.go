@@ -14,17 +14,18 @@ import (
 
 const monitorListWaitTimeout = 5 * time.Second
 
-func validateUptimeKumaConfig() (string, string, string, error) {
-	kumaURL := strings.TrimSpace(model.UptimeKumaURL)
-	kumaUsername := strings.TrimSpace(model.UptimeKumaUsername)
-	kumaPassword := strings.TrimSpace(model.UptimeKumaPassword)
-	if kumaURL == "" || kumaUsername == "" || kumaPassword == "" {
-		return kumaURL, kumaUsername, kumaPassword, fmt.Errorf(
-			"uptime Kuma URL, username, or password is not configured (URL: %q, Username: %q, PasswordLength: %d)",
-			kumaURL, kumaUsername, len(kumaPassword),
-		)
+// validateKumaConfig 验证 kumaConfig 配置完整性
+func validateKumaConfig(config *kumaConfig) error {
+	if strings.TrimSpace(config.URL) == "" {
+		return fmt.Errorf("uptime Kuma URL is not configured")
 	}
-	return kumaURL, kumaUsername, kumaPassword, nil
+	if strings.TrimSpace(config.Username) == "" {
+		return fmt.Errorf("uptime Kuma username is not configured")
+	}
+	if strings.TrimSpace(config.Password) == "" {
+		return fmt.Errorf("uptime Kuma password is not configured")
+	}
+	return nil
 }
 
 func connectAndLoginUptimeKuma(kumaURL, kumaUsername, kumaPassword string) (*SocketIOClient, error) {
@@ -68,7 +69,7 @@ func connectAndLoginUptimeKuma(kumaURL, kumaUsername, kumaPassword string) (*Soc
 	return client, nil
 }
 
-func syncRouteMonitors(client *SocketIOClient, expectedRoutes []*model.ProxyRoute, existingMonitors map[string]Monitor, openFlareTagID int) map[string]bool {
+func syncRouteMonitors(client *SocketIOClient, expectedRoutes []*model.ProxyRoute, existingMonitors map[string]Monitor, openFlareTagID int, config *kumaConfig) map[string]bool {
 	expectedSitesMap := make(map[string]bool, len(expectedRoutes))
 	for _, route := range expectedRoutes {
 		expectedSitesMap[route.SiteName] = true
@@ -80,13 +81,13 @@ func syncRouteMonitors(client *SocketIOClient, expectedRoutes []*model.ProxyRout
 
 		existing, exists := existingMonitors[route.SiteName]
 		if !exists {
-			if err := createMonitor(client, route.SiteName, targetURL, openFlareTagID); err != nil {
+			if err := createMonitor(client, route.SiteName, targetURL, openFlareTagID, config); err != nil {
 				slog.Error("Failed to add monitor to Uptime Kuma", "name", route.SiteName, "error", err)
 			}
 			continue
 		}
-		if monitorNeedsUpdate(existing, targetURL) {
-			if err := updateMonitor(client, existing.ID, route.SiteName, targetURL); err != nil {
+		if monitorNeedsUpdate(existing, targetURL, config) {
+			if err := updateMonitor(client, existing.ID, route.SiteName, targetURL, config); err != nil {
 				slog.Error("Failed to edit monitor in Uptime Kuma", "name", route.SiteName, "error", err)
 			}
 		}

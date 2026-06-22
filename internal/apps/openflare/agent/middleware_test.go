@@ -11,10 +11,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Rain-kl/Wavelet/internal/apps/openflare/option"
 	"github.com/Rain-kl/Wavelet/internal/common/response"
 	"github.com/Rain-kl/Wavelet/internal/db"
 	"github.com/Rain-kl/Wavelet/internal/model"
+	"github.com/Rain-kl/Wavelet/internal/repository"
 	"github.com/Rain-kl/Wavelet/internal/testhelper"
 	"github.com/gin-gonic/gin"
 	"github.com/glebarez/sqlite"
@@ -32,16 +32,14 @@ func setupAgentAuthTestDB(t *testing.T) func() {
 	require.NoError(t, err)
 	require.NoError(t, sqliteDB.AutoMigrate(
 		&model.OpenFlareNode{},
-		&model.OpenFlareOption{},
+		&model.SystemConfig{},
 	))
 
 	db.SetDB(sqliteDB)
-	option.ResetInitializationForTest()
 	tokenCache.reset()
 
 	return func() {
 		db.SetDB(nil)
-		option.ResetInitializationForTest()
 		tokenCache.reset()
 	}
 }
@@ -154,7 +152,7 @@ func TestAgentRegisterAuthMiddleware(t *testing.T) {
 		LastSeenAt:  &now,
 		NodeType:    "edge_node",
 	}).Error)
-	require.NoError(t, model.UpdateOpenFlareOption(ctx, "AgentDiscoveryToken", "discovery-token"))
+	require.NoError(t, repository.SaveOrUpdateSystemConfig(ctx, model.ConfigKeyAgentDiscoveryToken, "discovery-token"))
 
 	router := testhelper.NewTestGinEngine()
 	router.POST("/register", RegisterAuth(), func(c *gin.Context) {

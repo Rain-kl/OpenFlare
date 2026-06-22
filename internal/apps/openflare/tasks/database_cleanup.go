@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/Rain-kl/Wavelet/internal/model"
+	"github.com/Rain-kl/Wavelet/internal/repository"
 )
 
 const (
@@ -91,14 +92,20 @@ func CleanupDatabaseObservability(ctx context.Context, input DatabaseCleanupInpu
 
 // RunDatabaseAutoCleanupOnce runs retention-based cleanup for all observability targets.
 func RunDatabaseAutoCleanupOnce(ctx context.Context, now time.Time) (*DatabaseAutoCleanupSummary, error) {
-	if !model.DatabaseAutoCleanupEnabled {
+	enabled, err := repository.GetBoolByKey(ctx, model.ConfigKeyDatabaseAutoCleanupEnabled)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read database_auto_cleanup_enabled: %w", err)
+	}
+	if !enabled {
 		return nil, nil
 	}
-	if model.DatabaseAutoCleanupRetentionDays < 1 {
-		return nil, fmt.Errorf("database auto cleanup retention_days must be at least 1")
+
+	retentionDays, err := repository.GetIntByKey(ctx, model.ConfigKeyDatabaseAutoCleanupRetentionDays)
+	if err != nil || retentionDays <= 0 {
+		// Use default value 30 if config read fails or value is invalid
+		retentionDays = 30
 	}
 
-	retentionDays := model.DatabaseAutoCleanupRetentionDays
 	results := make([]DatabaseCleanupResult, 0, len(databaseCleanupTargets))
 	for _, target := range []string{
 		DatabaseCleanupTargetAccessLogs,

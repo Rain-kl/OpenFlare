@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/agent"
-	"github.com/Rain-kl/Wavelet/internal/apps/openflare/option"
 	"github.com/Rain-kl/Wavelet/internal/db"
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"github.com/glebarez/sqlite"
@@ -27,15 +26,14 @@ func setupFlaredObservabilityTestDB(t *testing.T) func() {
 	require.NoError(t, sqliteDB.AutoMigrate(
 		&model.OpenFlareNode{},
 		&model.OpenFlareHealthEvent{},
+		&model.SystemConfig{},
 	))
 
 	db.SetDB(sqliteDB)
-	option.ResetInitializationForTest()
 	agent.ResetAuthCacheForTest()
 
 	return func() {
 		db.SetDB(nil)
-		option.ResetInitializationForTest()
 		agent.ResetAuthCacheForTest()
 	}
 }

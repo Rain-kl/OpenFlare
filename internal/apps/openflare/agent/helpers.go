@@ -13,6 +13,7 @@ import (
 
 	ofgeoip "github.com/Rain-kl/Wavelet/internal/apps/openflare/geoip"
 	"github.com/Rain-kl/Wavelet/internal/model"
+	"github.com/Rain-kl/Wavelet/internal/repository"
 )
 
 const (
@@ -22,6 +23,9 @@ const (
 	releaseChannelStable     = "stable"
 	randomTokenBytes         = 16
 	maxDatabaseTextLength    = 16000
+
+	defaultAgentHeartbeatInterval = 10000 // 默认心跳间隔 10 秒（毫秒）
+	defaultAgentUpdateRepo        = "Rain-kl/OpenFlare"
 )
 
 func newRandomToken() (string, error) {
@@ -173,10 +177,7 @@ func isPublicNodeIP(raw string) bool {
 	return true
 }
 
-func buildAgentSettings(node *model.OpenFlareNode, updateNow bool, updateChannel string, updateTag string, restartOpenrestyNow bool) *Settings {
-	model.OptionMapRWMutex.RLock()
-	defer model.OptionMapRWMutex.RUnlock()
-
+func buildAgentSettings(ctx context.Context, node *model.OpenFlareNode, updateNow bool, updateChannel string, updateTag string, restartOpenrestyNow bool) *Settings {
 	autoUpdate := false
 	if node != nil {
 		autoUpdate = node.AutoUpdateEnabled
@@ -184,11 +185,23 @@ func buildAgentSettings(node *model.OpenFlareNode, updateNow bool, updateChannel
 	if strings.TrimSpace(updateChannel) == "" {
 		updateChannel = releaseChannelStable
 	}
+
+	// 从 SystemConfig 读取配置，使用默认值作为降级
+	heartbeatInterval, _ := repository.GetIntByKey(ctx, model.ConfigKeyAgentHeartbeatInterval)
+	if heartbeatInterval <= 0 {
+		heartbeatInterval = defaultAgentHeartbeatInterval
+	}
+	wsUpgradeEnabled, _ := repository.GetBoolByKey(ctx, model.ConfigKeyAgentWebsocketUpgradeEnabled)
+	updateRepo, _ := repository.GetSystemConfigByKey(ctx, model.ConfigKeyAgentUpdateRepo)
+	if strings.TrimSpace(updateRepo.Value) == "" {
+		updateRepo.Value = defaultAgentUpdateRepo
+	}
+
 	return &Settings{
-		HeartbeatInterval:       model.AgentHeartbeatInterval,
-		WebsocketUpgradeEnabled: model.AgentWebsocketUpgradeEnabled,
+		HeartbeatInterval:       heartbeatInterval,
+		WebsocketUpgradeEnabled: wsUpgradeEnabled,
 		AutoUpdate:              autoUpdate,
-		UpdateRepo:              model.AgentUpdateRepo,
+		UpdateRepo:              updateRepo.Value,
 		UpdateNow:               updateNow,
 		UpdateChannel:           updateChannel,
 		UpdateTag:               strings.TrimSpace(updateTag),

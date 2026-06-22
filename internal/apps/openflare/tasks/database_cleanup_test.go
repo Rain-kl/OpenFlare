@@ -10,6 +10,7 @@ import (
 
 	"github.com/Rain-kl/Wavelet/internal/db"
 	"github.com/Rain-kl/Wavelet/internal/model"
+	"github.com/Rain-kl/Wavelet/internal/repository"
 	"github.com/glebarez/sqlite"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -23,6 +24,7 @@ func setupDatabaseCleanupTestDB(t *testing.T) context.Context {
 		DisableForeignKeyConstraintWhenMigrating: true,
 	})
 	require.NoError(t, err)
+	require.NoError(t, sqliteDB.AutoMigrate(&model.SystemConfig{}))
 	db.SetDB(sqliteDB)
 	resetAccessLogStore := model.SetAccessLogStoreForTest(model.NewMemoryAccessLogStore())
 	resetObservabilityStore := model.SetObservabilityStoreForTest(model.NewMemoryObservabilityStore())
@@ -123,14 +125,8 @@ func TestRunDatabaseAutoCleanupOnceDeletesAllObservabilityTargets(t *testing.T) 
 		RequestCount:    15,
 	}))
 
-	previousEnabled := model.DatabaseAutoCleanupEnabled
-	previousRetentionDays := model.DatabaseAutoCleanupRetentionDays
-	model.DatabaseAutoCleanupEnabled = true
-	model.DatabaseAutoCleanupRetentionDays = 1
-	t.Cleanup(func() {
-		model.DatabaseAutoCleanupEnabled = previousEnabled
-		model.DatabaseAutoCleanupRetentionDays = previousRetentionDays
-	})
+	require.NoError(t, repository.SaveOrUpdateSystemConfig(ctx, model.ConfigKeyDatabaseAutoCleanupEnabled, "true"))
+	require.NoError(t, repository.SaveOrUpdateSystemConfig(ctx, model.ConfigKeyDatabaseAutoCleanupRetentionDays, "1"))
 
 	summary, err := RunDatabaseAutoCleanupOnce(ctx, now)
 	require.NoError(t, err)

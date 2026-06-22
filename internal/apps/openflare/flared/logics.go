@@ -88,7 +88,7 @@ func Heartbeat(ctx context.Context, node *model.OpenFlareNode, payload Heartbeat
 
 	return &HeartbeatResponse{
 		ActiveConfig:   activeConfig,
-		TunnelSettings: buildTunnelSettings(node, updateNow, updateChannel, updateTag),
+		TunnelSettings: buildTunnelSettings(ctx, node, updateNow, updateChannel, updateTag),
 	}, nil
 }
 

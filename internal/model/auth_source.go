@@ -21,12 +21,10 @@ const (
 
 // Shared GORM column name constants used across model package.
 const (
-	colName                     = "name"
-	colEnabled                  = "enabled"
-	colRemark                   = "remark"
-	tableOfProxyRoutes          = "of_proxy_routes"
-	optionKeyUptimeKumaPassword = "UptimeKumaPassword"
-	optionValueTrue             = "true"
+	colName            = "name"
+	colEnabled         = "enabled"
+	colRemark          = "remark"
+	tableOfProxyRoutes = "of_proxy_routes"
 )
 
 var authSourceNamePattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_-]{0,79}$`)

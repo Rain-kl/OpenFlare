@@ -37,8 +37,70 @@ const (
 	ConfigKeyLoginSessionTTLHours             = "login_session_ttl_hours"             // 登录会话过期时间 (小时，0表示浏览器关闭后自动退出登录，-1表示永不过期)
 	ConfigKeyUpdateUpstreamRepository         = "update_upstream_repository"          // GitHub Actions Release 上游仓库
 	ConfigKeyStorageConfig                    = "storage_config"                      // 文件存储配置 (JSON)
-	ConfigKeyRelayFRPSWebUIEnabled            = "relay_frps_web_ui_enabled"            // 是否启用 FRPS 内置 Web 界面
-	ConfigKeyRelayFRPSWebUIPort               = "relay_frps_web_ui_port"               // FRPS 内置 Web 界面端口
+	ConfigKeyRelayFRPSWebUIEnabled            = "relay_frps_web_ui_enabled"           // 是否启用 FRPS 内置 Web 界面
+	ConfigKeyRelayFRPSWebUIPort               = "relay_frps_web_ui_port"              // FRPS 内置 Web 界面端口
+
+	// OpenFlare 业务配置（从 of_options 迁移）
+	ConfigKeyAgentDiscoveryToken              = "agent_discovery_token"                //nolint:gosec // false positive: config key name. Agent 发现令牌
+	ConfigKeyAgentHeartbeatInterval           = "agent_heartbeat_interval"             // Agent 心跳间隔（毫秒）
+	ConfigKeyAgentWebsocketUpgradeEnabled     = "agent_websocket_upgrade_enabled"      // Agent WebSocket 升级开关
+	ConfigKeyNodeOfflineThreshold             = "node_offline_threshold"               // 节点离线阈值（毫秒）
+	ConfigKeyAgentUpdateRepo                  = "agent_update_repo"                    // Agent 更新仓库
+	ConfigKeyGeoIPProvider                    = "geoip_provider"                       // GeoIP 服务商
+	ConfigKeyDatabaseAutoCleanupEnabled       = "database_auto_cleanup_enabled"        // 数据库自动清理开关
+	ConfigKeyDatabaseAutoCleanupRetentionDays = "database_auto_cleanup_retention_days" // 数据库保留天数
+
+	// UptimeKuma 集成配置
+	ConfigKeyUptimeKumaEnabled       = "uptime_kuma_enabled"        // UptimeKuma 集成开关
+	ConfigKeyUptimeKumaURL           = "uptime_kuma_url"            // UptimeKuma URL
+	ConfigKeyUptimeKumaUsername      = "uptime_kuma_username"       // UptimeKuma 用户名
+	ConfigKeyUptimeKumaPassword      = "uptime_kuma_password"       //nolint:gosec // false positive: config key name. UptimeKuma 密码
+	ConfigKeyUptimeKumaMonitorScope  = "uptime_kuma_monitor_scope"  // UptimeKuma 监控范围
+	ConfigKeyUptimeKumaSelectedSites = "uptime_kuma_selected_sites" // UptimeKuma 选定站点
+	ConfigKeyUptimeKumaSyncInterval  = "uptime_kuma_sync_interval"  // UptimeKuma 同步间隔（分钟）
+	ConfigKeyUptimeKumaInterval      = "uptime_kuma_interval"       // UptimeKuma 监控间隔（秒）
+	ConfigKeyUptimeKumaRetry         = "uptime_kuma_retry"          // UptimeKuma 重试次数
+	ConfigKeyUptimeKumaRetryInterval = "uptime_kuma_retry_interval" // UptimeKuma 重试间隔（秒）
+	ConfigKeyUptimeKumaTimeout       = "uptime_kuma_timeout"        // UptimeKuma 超时（秒）
+
+	// OpenResty 配置
+	ConfigKeyOpenRestyDefaultServerReturnStatus    = "openresty_default_server_return_status"    // 默认服务器返回状态码
+	ConfigKeyOpenRestyWorkerProcesses              = "openresty_worker_processes"                // Worker 进程数
+	ConfigKeyOpenRestyWorkerConnections            = "openresty_worker_connections"              // Worker 连接数
+	ConfigKeyOpenRestyWorkerRlimitNofile           = "openresty_worker_rlimit_nofile"            // Worker 文件描述符限制
+	ConfigKeyOpenRestyEventsUse                    = "openresty_events_use"                      // 事件模型
+	ConfigKeyOpenRestyEventsMultiAcceptEnabled     = "openresty_events_multi_accept_enabled"     // 多路接受开关
+	ConfigKeyOpenRestyKeepaliveTimeout             = "openresty_keepalive_timeout"               // Keepalive 超时（秒）
+	ConfigKeyOpenRestyKeepaliveRequests            = "openresty_keepalive_requests"              // Keepalive 请求数
+	ConfigKeyOpenRestyClientHeaderTimeout          = "openresty_client_header_timeout"           // 客户端头超时（秒）
+	ConfigKeyOpenRestyClientBodyTimeout            = "openresty_client_body_timeout"             // 客户端体超时（秒）
+	ConfigKeyOpenRestyClientMaxBodySize            = "openresty_client_max_body_size"            // 客户端最大体大小
+	ConfigKeyOpenRestyLargeClientHeaderBuffers     = "openresty_large_client_header_buffers"     // 大客户端头缓冲区
+	ConfigKeyOpenRestySendTimeout                  = "openresty_send_timeout"                    // 发送超时（秒）
+	ConfigKeyOpenRestyResolvers                    = "openresty_resolvers"                       // DNS 解析器
+	ConfigKeyOpenRestyProxyConnectTimeout          = "openresty_proxy_connect_timeout"           // 代理连接超时（秒）
+	ConfigKeyOpenRestyProxySendTimeout             = "openresty_proxy_send_timeout"              // 代理发送超时（秒）
+	ConfigKeyOpenRestyProxyReadTimeout             = "openresty_proxy_read_timeout"              // 代理读取超时（秒）
+	ConfigKeyOpenRestyWebsocketEnabled             = "openresty_websocket_enabled"               // WebSocket 支持开关
+	ConfigKeyOpenRestyHTTP3Enabled                 = "openresty_http3_enabled"                   // HTTP/3 支持开关
+	ConfigKeyOpenRestyProxyRequestBufferingEnabled = "openresty_proxy_request_buffering_enabled" // 代理请求缓冲开关
+	ConfigKeyOpenRestyProxyBufferingEnabled        = "openresty_proxy_buffering_enabled"         // 代理响应缓冲开关
+	ConfigKeyOpenRestyProxyBuffers                 = "openresty_proxy_buffers"                   // 代理缓冲区
+	ConfigKeyOpenRestyProxyBufferSize              = "openresty_proxy_buffer_size"               // 代理缓冲区大小
+	ConfigKeyOpenRestyProxyBusyBuffersSize         = "openresty_proxy_busy_buffers_size"         // 代理繁忙缓冲区大小
+	ConfigKeyOpenRestyGzipEnabled                  = "openresty_gzip_enabled"                    // Gzip 压缩开关
+	ConfigKeyOpenRestyGzipMinLength                = "openresty_gzip_min_length"                 // Gzip 最小长度
+	ConfigKeyOpenRestyGzipCompLevel                = "openresty_gzip_comp_level"                 // Gzip 压缩级别
+	ConfigKeyOpenRestyCacheEnabled                 = "openresty_cache_enabled"                   // 缓存开关
+	ConfigKeyOpenRestyCachePath                    = "openresty_cache_path"                      // 缓存路径
+	ConfigKeyOpenRestyCacheLevels                  = "openresty_cache_levels"                    // 缓存层级
+	ConfigKeyOpenRestyCacheInactive                = "openresty_cache_inactive"                  // 缓存不活跃时间
+	ConfigKeyOpenRestyCacheMaxSize                 = "openresty_cache_max_size"                  // 缓存最大大小
+	ConfigKeyOpenRestyCacheKeyTemplate             = "openresty_cache_key_template"              // 缓存键模板
+	ConfigKeyOpenRestyCacheLockEnabled             = "openresty_cache_lock_enabled"              // 缓存锁开关
+	ConfigKeyOpenRestyCacheLockTimeout             = "openresty_cache_lock_timeout"              // 缓存锁超时
+	ConfigKeyOpenRestyCacheUseStale                = "openresty_cache_use_stale"                 // 缓存失效策略
+	ConfigKeyOpenRestyMainConfigTemplate           = "openresty_main_config_template"            // 主配置模板
 )
 
 const (

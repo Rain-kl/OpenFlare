@@ -17,6 +17,7 @@ import (
 
 	"github.com/Rain-kl/Wavelet/internal/db"
 	"github.com/Rain-kl/Wavelet/internal/model"
+	"github.com/Rain-kl/Wavelet/internal/repository"
 	"github.com/glebarez/sqlite"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -121,7 +122,7 @@ func setupSyncTestDB(t *testing.T) func() {
 		DisableForeignKeyConstraintWhenMigrating: true,
 	})
 	require.NoError(t, err)
-	require.NoError(t, sqliteDB.AutoMigrate(&model.ProxyRoute{}))
+	require.NoError(t, sqliteDB.AutoMigrate(&model.ProxyRoute{}, &model.SystemConfig{}))
 
 	db.SetDB(sqliteDB)
 	return func() {
@@ -129,41 +130,50 @@ func setupSyncTestDB(t *testing.T) func() {
 	}
 }
 
-func backupUptimeKumaConfig() func() {
-	oldEnabled := model.UptimeKumaEnabled
-	oldURL := model.UptimeKumaURL
-	oldUsername := model.UptimeKumaUsername
-	oldPassword := model.UptimeKumaPassword
-	oldScope := model.UptimeKumaMonitorScope
-	oldSelected := model.UptimeKumaSelectedSites
-	oldInterval := model.UptimeKumaInterval
-	oldRetry := model.UptimeKumaRetry
-	oldRetryInterval := model.UptimeKumaRetryInterval
-	oldTimeout := model.UptimeKumaTimeout
+func backupUptimeKumaConfig(ctx context.Context) func() {
+	// 备份所有 UptimeKuma 相关配置
+	configs := []string{
+		model.ConfigKeyUptimeKumaEnabled,
+		model.ConfigKeyUptimeKumaURL,
+		model.ConfigKeyUptimeKumaUsername,
+		model.ConfigKeyUptimeKumaPassword,
+		model.ConfigKeyUptimeKumaMonitorScope,
+		model.ConfigKeyUptimeKumaSelectedSites,
+		model.ConfigKeyUptimeKumaInterval,
+		model.ConfigKeyUptimeKumaRetry,
+		model.ConfigKeyUptimeKumaRetryInterval,
+		model.ConfigKeyUptimeKumaTimeout,
+	}
+
+	oldValues := make(map[string]string)
+	for _, key := range configs {
+		config, _ := repository.GetSystemConfigByKey(ctx, key)
+		oldValues[key] = config.Value
+	}
 
 	return func() {
-		model.UptimeKumaEnabled = oldEnabled
-		model.UptimeKumaURL = oldURL
-		model.UptimeKumaUsername = oldUsername
-		model.UptimeKumaPassword = oldPassword
-		model.UptimeKumaMonitorScope = oldScope
-		model.UptimeKumaSelectedSites = oldSelected
-		model.UptimeKumaInterval = oldInterval
-		model.UptimeKumaRetry = oldRetry
-		model.UptimeKumaRetryInterval = oldRetryInterval
-		model.UptimeKumaTimeout = oldTimeout
+		// 恢复所有配置
+		for key, value := range oldValues {
+			_ = db.DB(ctx).Model(&model.SystemConfig{}).Where("key = ?", key).Update("value", value).Error
+		}
 	}
+}
+
+// setTestConfig 设置测试配置的辅助函数（不存在则创建）
+func setTestConfig(ctx context.Context, key, value string) {
+	_ = repository.SaveOrUpdateSystemConfig(ctx, key, value)
 }
 
 func TestSyncToUptimeKumaDisabled(t *testing.T) {
 	cleanup := setupSyncTestDB(t)
 	defer cleanup()
-	restore := backupUptimeKumaConfig()
+	ctx := context.Background()
+	restore := backupUptimeKumaConfig(ctx)
 	defer restore()
 
-	model.UptimeKumaEnabled = false
+	setTestConfig(ctx, model.ConfigKeyUptimeKumaEnabled, "false")
 
-	err := SyncToUptimeKuma(context.Background())
+	err := SyncToUptimeKuma(ctx)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "disabled")
 }
@@ -171,9 +181,9 @@ func TestSyncToUptimeKumaDisabled(t *testing.T) {
 func TestSyncToUptimeKumaSuccess(t *testing.T) {
 	cleanup := setupSyncTestDB(t)
 	defer cleanup()
-	restore := backupUptimeKumaConfig()
-	defer restore()
 	ctx := context.Background()
+	restore := backupUptimeKumaConfig(ctx)
+	defer restore()
 
 	require.NoError(t, db.DB(ctx).Where("1 = 1").Delete(&model.ProxyRoute{}).Error)
 
@@ -227,15 +237,16 @@ func TestSyncToUptimeKumaSuccess(t *testing.T) {
 	server := httptest.NewServer(mockSrv)
 	defer server.Close()
 
-	model.UptimeKumaEnabled = true
-	model.UptimeKumaURL = server.URL
-	model.UptimeKumaUsername = "admin"
-	model.UptimeKumaPassword = "password"
-	model.UptimeKumaMonitorScope = "all"
-	model.UptimeKumaInterval = 60
-	model.UptimeKumaRetry = 0
-	model.UptimeKumaRetryInterval = 60
-	model.UptimeKumaTimeout = 48
+	// 设置测试配置
+	setTestConfig(ctx, model.ConfigKeyUptimeKumaEnabled, "true")
+	setTestConfig(ctx, model.ConfigKeyUptimeKumaURL, server.URL)
+	setTestConfig(ctx, model.ConfigKeyUptimeKumaUsername, "admin")
+	setTestConfig(ctx, model.ConfigKeyUptimeKumaPassword, "password")
+	setTestConfig(ctx, model.ConfigKeyUptimeKumaMonitorScope, "all")
+	setTestConfig(ctx, model.ConfigKeyUptimeKumaInterval, "60")
+	setTestConfig(ctx, model.ConfigKeyUptimeKumaRetry, "0")
+	setTestConfig(ctx, model.ConfigKeyUptimeKumaRetryInterval, "60")
+	setTestConfig(ctx, model.ConfigKeyUptimeKumaTimeout, "48")
 
 	require.NoError(t, SyncToUptimeKuma(ctx))
 
@@ -282,9 +293,9 @@ func TestSyncToUptimeKumaSuccess(t *testing.T) {
 func TestSyncToUptimeKumaSelectedScope(t *testing.T) {
 	cleanup := setupSyncTestDB(t)
 	defer cleanup()
-	restore := backupUptimeKumaConfig()
-	defer restore()
 	ctx := context.Background()
+	restore := backupUptimeKumaConfig(ctx)
+	defer restore()
 
 	require.NoError(t, db.DB(ctx).Where("1 = 1").Delete(&model.ProxyRoute{}).Error)
 
@@ -312,12 +323,13 @@ func TestSyncToUptimeKumaSelectedScope(t *testing.T) {
 	server := httptest.NewServer(mockSrv)
 	defer server.Close()
 
-	model.UptimeKumaEnabled = true
-	model.UptimeKumaURL = server.URL
-	model.UptimeKumaUsername = "admin"
-	model.UptimeKumaPassword = "password"
-	model.UptimeKumaMonitorScope = "selected"
-	model.UptimeKumaSelectedSites = "site-a"
+	// 设置测试配置
+	setTestConfig(ctx, model.ConfigKeyUptimeKumaEnabled, "true")
+	setTestConfig(ctx, model.ConfigKeyUptimeKumaURL, server.URL)
+	setTestConfig(ctx, model.ConfigKeyUptimeKumaUsername, "admin")
+	setTestConfig(ctx, model.ConfigKeyUptimeKumaPassword, "password")
+	setTestConfig(ctx, model.ConfigKeyUptimeKumaMonitorScope, "selected")
+	setTestConfig(ctx, model.ConfigKeyUptimeKumaSelectedSites, "site-a")
 
 	require.NoError(t, SyncToUptimeKuma(ctx))
 

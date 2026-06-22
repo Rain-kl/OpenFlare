@@ -30,7 +30,9 @@ func computeNodeStatus(node *model.OpenFlareNode) string {
 	if node.LastSeenAt == nil || node.LastSeenAt.IsZero() {
 		return nodeStatusPending
 	}
-	if time.Since(*node.LastSeenAt) > model.NodeOfflineThreshold {
+	// 使用默认阈值 2 分钟
+	threshold := 2 * time.Minute
+	if time.Since(*node.LastSeenAt) > threshold {
 		return nodeStatusOffline
 	}
 	return nodeStatusOnline

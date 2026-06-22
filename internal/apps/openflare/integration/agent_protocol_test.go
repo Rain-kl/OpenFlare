@@ -10,7 +10,6 @@ import (
 
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/agent"
 	ofnode "github.com/Rain-kl/Wavelet/internal/apps/openflare/node"
-	"github.com/Rain-kl/Wavelet/internal/apps/openflare/option"
 	"github.com/Rain-kl/Wavelet/internal/db"
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"github.com/Rain-kl/Wavelet/internal/testhelper"
@@ -43,7 +42,7 @@ func setupProtocolTestEnv(t *testing.T) (*gin.Engine, func()) {
 	require.NoError(t, err)
 	require.NoError(t, sqliteDB.AutoMigrate(
 		&model.OpenFlareNode{},
-		&model.OpenFlareOption{},
+		&model.SystemConfig{},
 		&model.OpenFlareApplyLog{},
 		&model.OpenFlareNodeSystemProfile{},
 		&model.OpenFlareHealthEvent{},
@@ -51,7 +50,6 @@ func setupProtocolTestEnv(t *testing.T) (*gin.Engine, func()) {
 	))
 
 	db.SetDB(sqliteDB)
-	option.ResetInitializationForTest()
 	agent.ResetAuthCacheForTest()
 	resetAccessLogStore := model.SetAccessLogStoreForTest(model.NewMemoryAccessLogStore())
 	resetObservabilityStore := model.SetObservabilityStoreForTest(model.NewMemoryObservabilityStore())
@@ -63,7 +61,6 @@ func setupProtocolTestEnv(t *testing.T) (*gin.Engine, func()) {
 		resetObservabilityStore()
 		resetAccessLogStore()
 		db.SetDB(nil)
-		option.ResetInitializationForTest()
 		agent.ResetAuthCacheForTest()
 	}
 	return engine, cleanup

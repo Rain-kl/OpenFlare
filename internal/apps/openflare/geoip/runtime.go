@@ -13,6 +13,7 @@ import (
 
 	"github.com/Rain-kl/Wavelet/internal/apps/agent/geoipdata"
 	"github.com/Rain-kl/Wavelet/internal/model"
+	"github.com/Rain-kl/Wavelet/internal/repository"
 	pkggeoip "github.com/Rain-kl/Wavelet/pkg/geoip"
 	"github.com/Rain-kl/Wavelet/pkg/logger"
 )
@@ -30,30 +31,29 @@ var (
 	currentProvider   string
 )
 
-// EnsureRuntimeProvider loads OpenFlare options once and configures pkg/geoip.
+// EnsureRuntimeProvider loads GeoIP provider config from SystemConfig.
 func EnsureRuntimeProvider(ctx context.Context) error {
 	runtimeOnce.Do(func() {
-		if err := model.InitOptionMap(ctx); err != nil {
-			runtimeInitErr = err
-			return
-		}
-		runtimeInitErr = applyProviderFromModel(ctx)
+		runtimeInitErr = applyProviderFromSystemConfig(ctx)
 	})
 	return runtimeInitErr
 }
 
-// RefreshRuntimeProvider reapplies GeoIPProvider after option updates.
+// RefreshRuntimeProvider reapplies GeoIPProvider after config updates.
 func RefreshRuntimeProvider(ctx context.Context) error {
-	if err := model.InitOptionMap(ctx); err != nil {
-		return err
-	}
-	return applyProviderFromModel(ctx)
+	return applyProviderFromSystemConfig(ctx)
 }
 
-func applyProviderFromModel(ctx context.Context) error {
-	model.OptionMapRWMutex.RLock()
-	provider := strings.TrimSpace(model.GeoIPProvider)
-	model.OptionMapRWMutex.RUnlock()
+func applyProviderFromSystemConfig(ctx context.Context) error {
+	config, err := repository.GetSystemConfigByKey(ctx, model.ConfigKeyGeoIPProvider)
+	if err != nil {
+		// 降级到默认值
+		return ApplyProvider(ctx, "ipinfo")
+	}
+	provider := strings.TrimSpace(config.Value)
+	if provider == "" {
+		provider = "ipinfo"
+	}
 	return ApplyProvider(ctx, provider)
 }
 

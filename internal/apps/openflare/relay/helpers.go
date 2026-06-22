@@ -15,6 +15,9 @@ import (
 const (
 	relayStatusUnhealthy = "unhealthy"
 	releaseChannelStable = "stable"
+
+	defaultAgentHeartbeatInterval = 10000 // 默认心跳间隔 10 秒（毫秒）
+	defaultAgentUpdateRepo        = "Rain-kl/OpenFlare"
 )
 
 func normalizeRelayStatus(status string) string {
@@ -104,10 +107,7 @@ func buildRelayConfig(ctx context.Context, node *model.OpenFlareNode) *Config {
 }
 
 // BuildSettings returns runtime settings shared by relay and flared clients.
-func BuildSettings(node *model.OpenFlareNode, updateNow bool, updateChannel, updateTag string) *Settings {
-	model.OptionMapRWMutex.RLock()
-	defer model.OptionMapRWMutex.RUnlock()
-
+func BuildSettings(ctx context.Context, node *model.OpenFlareNode, updateNow bool, updateChannel, updateTag string) *Settings {
 	autoUpdate := false
 	if node != nil {
 		autoUpdate = node.AutoUpdateEnabled
@@ -115,11 +115,23 @@ func BuildSettings(node *model.OpenFlareNode, updateNow bool, updateChannel, upd
 	if strings.TrimSpace(updateChannel) == "" {
 		updateChannel = releaseChannelStable
 	}
+
+	// 从 SystemConfig 读取配置，使用默认值作为降级
+	heartbeatInterval, _ := repository.GetIntByKey(ctx, model.ConfigKeyAgentHeartbeatInterval)
+	if heartbeatInterval <= 0 {
+		heartbeatInterval = defaultAgentHeartbeatInterval
+	}
+	wsUpgradeEnabled, _ := repository.GetBoolByKey(ctx, model.ConfigKeyAgentWebsocketUpgradeEnabled)
+	updateRepo, _ := repository.GetSystemConfigByKey(ctx, model.ConfigKeyAgentUpdateRepo)
+	if strings.TrimSpace(updateRepo.Value) == "" {
+		updateRepo.Value = defaultAgentUpdateRepo
+	}
+
 	return &Settings{
-		HeartbeatInterval:       model.AgentHeartbeatInterval,
-		WebsocketUpgradeEnabled: model.AgentWebsocketUpgradeEnabled,
+		HeartbeatInterval:       heartbeatInterval,
+		WebsocketUpgradeEnabled: wsUpgradeEnabled,
 		AutoUpdate:              autoUpdate,
-		UpdateRepo:              model.AgentUpdateRepo,
+		UpdateRepo:              updateRepo.Value,
 		UpdateNow:               updateNow,
 		UpdateChannel:           updateChannel,
 		UpdateTag:               strings.TrimSpace(updateTag),

@@ -23,12 +23,15 @@ sidebar: false
 
 ### 修复
 
+- 修复 `/api/v1/d/option` 批量更新 OpenResty 等业务配置不生效的问题。根本原因是 option 模块在读写时做了 PascalCase 与 snake_case 的机械转换（如 `OpenRestyEventsUse` → `open_resty_events_use`），与 `w_system_configs` 中实际 key（`openresty_events_use`）不一致，更新写入了错误的幽灵配置行。现改为 API 直接使用与数据库一致的 snake_case key，并同步更新前端性能调优与运维设置页。
+- 修复 PostgreSQL 数据库执行迁移时报 `duplicate key value violates unique constraint "goose_db_version_pkey"` 导致迁移中断的问题。根本原因：`goose_db_version.id` 自增序列落后于表内 `MAX(id)`（常见于从 dump 恢复或历史迁移以显式 id 复制版本记录后），goose 记录新版本号时自增 id 与既有行冲突。修复方式：在 `goose.Up` 前对 PostgreSQL 执行 `setval` 重新对齐 `goose_db_version` 的 id 序列。
 - 修复 openflared（Tunnel Client）WebSocket 连接在 Cloudflare 代理环境下频繁收到 EOF 断连的问题。根本原因：服务端 `read_pump` 仅在收到 WebSocket 协议层 Pong 帧时刷新读超时，而客户端（`golang.org/x/net/websocket`）以 JSON 应用层 `{"type":"pong"}` 响应 ping，服务端 90s 读超时到期后主动关闭连接，客户端收到 EOF 并进入无限重连循环。修复方式：在 `clientPongType` 分支中同步调用 `conn.SetReadDeadline` 刷新超时。
 - 修复 openflared frpc 子进程异常退出（`exit status 1`）时缺乏详细诊断信息的问题。现捕获 frpc stderr 并在进程退出时将其输出记录到结构化日志 `stderr` 字段，便于排查配置格式错误、Auth Token 鉴权失败、relay 端不可达等具体原因。
 - 修复 Relay 节点启动时在双栈网络环境可能上报 IPv6 地址，导致 Tunnel frpc 客户端无法连接 frps 的问题。强化 `pkg/geoip.HTTPOutboundIPStrategy` 在回退到双栈客户端后仍优先返回 IPv4 地址，确保 Relay 心跳上报的 IP 与 frpc 连接兼容。
 
 ### 变更
 
+- 将 OpenFlare 配置体系从独立的 `of_options` 表统一迁移至标准系统配置框架 `w_system_configs`（SystemConfig），全部归类为业务类型（`type=business`）。涵盖 Agent（心跳间隔、发现令牌、更新仓库等）、UptimeKuma 集成、GeoIP、数据库自动清理及全部 OpenResty 主配置项共 48 项。业务代码统一改为通过 `repository.GetSystemConfigByKey`/`GetBoolByKey`/`GetIntByKey` 读取，移除进程级内存快照 `OptionMap` 与启动时热重载机制，配置变更经 Redis 缓存失效实现动态生效。已存在的同义配置（如 `password_login_enabled`、`smtp_host`）不重复迁移，旧系统遗留的 `SystemName`、`Footer`、`HomePageLink`、`About` 等无用项一并清理；公开状态接口 `/api/v1/d/status` 相应移除 `system_name`、`home_page_link`、`footer_html` 字段。数据迁移完成后通过 goose 迁移 `202606220005` 删除遗留的 `of_options` 表。
 - 优化并统一 `agent`、`relay`、`flared` 的 IP 探测与上报逻辑，均复用公用 `nodeip` 包；在未指定 `node_ip` 时实现心跳 Tick 动态探测上报。
 - 优化 `pkg/geoip.GetOutboundIP` 出口 IP 探测策略，优先通过 `tcp4` 建立 HTTP 连接以获得 IPv4 公网地址，并在纯 IPv6/无 IPv4 路由环境下自动降级为双栈 `tcp` 握手。
 - 优化 `agent` 系统指纹缓存算法，计算指纹时排除 `UptimeSeconds` 和 `ReportedAtUnix` 动态字段，防止周期心跳时不断触发冗余完整的系统 Profile 数据上报。

@@ -11,6 +11,7 @@ import (
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/uptimekuma"
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/waf"
 	"github.com/Rain-kl/Wavelet/internal/model"
+	"github.com/Rain-kl/Wavelet/internal/repository"
 	"github.com/Rain-kl/Wavelet/internal/task"
 )
 
@@ -109,13 +110,20 @@ type DatabaseAutoCleanupHandler struct{}
 
 // Execute runs retention-based cleanup for all observability targets.
 func (h *DatabaseAutoCleanupHandler) Execute(ctx context.Context, _ []byte) (*task.TaskResult, error) {
-	if !model.DatabaseAutoCleanupEnabled {
+	// 从 SystemConfig 读取自动清理配置
+	enabled, _ := repository.GetBoolByKey(ctx, model.ConfigKeyDatabaseAutoCleanupEnabled)
+	if !enabled {
 		msg := "自动清理未启用，跳过执行"
 		task.AppendLog(ctx, "%s", msg)
 		return &task.TaskResult{Message: msg}, nil
 	}
 
-	task.AppendLog(ctx, "开始执行可观测数据自动清理，保留天数=%d", model.DatabaseAutoCleanupRetentionDays)
+	retentionDays, _ := repository.GetIntByKey(ctx, model.ConfigKeyDatabaseAutoCleanupRetentionDays)
+	if retentionDays <= 0 {
+		retentionDays = 30 // 默认保留 30 天
+	}
+
+	task.AppendLog(ctx, "开始执行可观测数据自动清理，保留天数=%d", retentionDays)
 	summary, err := tasks.RunDatabaseAutoCleanupOnce(ctx, time.Now())
 	if err != nil {
 		task.AppendLog(ctx, "可观测数据自动清理失败: %v", err)
@@ -162,13 +170,15 @@ type UptimeKumaSyncHandler struct{}
 
 // Execute runs Uptime Kuma sync when integration is enabled and the interval has elapsed.
 func (h *UptimeKumaSyncHandler) Execute(ctx context.Context, _ []byte) (*task.TaskResult, error) {
-	if !model.UptimeKumaEnabled {
+	// 从 SystemConfig 读取 UptimeKuma 配置
+	enabled, _ := repository.GetBoolByKey(ctx, model.ConfigKeyUptimeKumaEnabled)
+	if !enabled {
 		msg := "Uptime Kuma 集成未启用，跳过执行"
 		task.AppendLog(ctx, "%s", msg)
 		return &task.TaskResult{Message: msg}, nil
 	}
 
-	interval := model.UptimeKumaSyncInterval
+	interval, _ := repository.GetIntByKey(ctx, model.ConfigKeyUptimeKumaSyncInterval)
 	if interval <= 0 {
 		interval = 5
 	}

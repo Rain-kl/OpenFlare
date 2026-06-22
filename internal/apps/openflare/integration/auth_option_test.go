@@ -13,7 +13,6 @@ import (
 	"github.com/Rain-kl/Wavelet/internal/apps/admin"
 	"github.com/Rain-kl/Wavelet/internal/apps/cap"
 	"github.com/Rain-kl/Wavelet/internal/apps/oauth"
-	"github.com/Rain-kl/Wavelet/internal/apps/openflare/option"
 	"github.com/Rain-kl/Wavelet/internal/config"
 	"github.com/Rain-kl/Wavelet/internal/db/idgen"
 	"github.com/Rain-kl/Wavelet/internal/model"
@@ -28,7 +27,8 @@ import (
 )
 
 type statusPayload struct {
-	SystemName string `json:"system_name"`
+	Version       string `json:"version"`
+	ServerAddress string `json:"server_address"`
 }
 
 func setupAuthOptionIntegration(t *testing.T) (*gorm.DB, *gin.Engine) {
@@ -36,10 +36,6 @@ func setupAuthOptionIntegration(t *testing.T) (*gorm.DB, *gin.Engine) {
 
 	dbConn, _, cleanup := testhelper.SetupTestEnvironment(t)
 	t.Cleanup(cleanup)
-
-	require.NoError(t, dbConn.AutoMigrate(&model.OpenFlareOption{}))
-	option.ResetInitializationForTest()
-	t.Cleanup(option.ResetInitializationForTest)
 
 	require.NoError(t, dbConn.Model(&model.SystemConfig{}).
 		Where("key = ?", model.ConfigKeyCapLoginEnabled).
@@ -119,7 +115,7 @@ func TestGETStatusReturnsSuccessEnvelope(t *testing.T) {
 
 	var status statusPayload
 	unmarshalAPIData(t, resp.Data, &status)
-	assert.NotEmpty(t, status.SystemName)
+	assert.NotEmpty(t, status.Version)
 }
 
 func TestGETOptionRequiresAdminAuth(t *testing.T) {
@@ -175,30 +171,28 @@ func TestGETNodesWithAccessToken(t *testing.T) {
 	requireAPIOK(t, w)
 }
 
-func TestOptionHotReloadAfterUpdate(t *testing.T) {
+func TestOptionUpdatePersistsAndReflectsInStatus(t *testing.T) {
 	dbConn, r := setupAuthOptionIntegration(t)
 	adminToken := seedUserWithAccessToken(t, dbConn, "admin", "password123", true)
 
-	statusBefore := getStatusSystemName(t, r, nil)
-	assert.NotEmpty(t, statusBefore)
-
 	updateResp := performJSONRequest(t, r, http.MethodPost, apiPath("/option/update"), map[string]string{
-		"key":   "SystemName",
-		"value": "HotReloadIntegration",
+		"key":   model.ConfigKeyServerAddress,
+		"value": "https://hotreload.openflare.test",
 	}, adminAuthHeaders(adminToken))
 	assert.Equal(t, http.StatusOK, updateResp.Code)
 	requireAPIOK(t, updateResp)
 
-	statusAfter := getStatusSystemName(t, r, nil)
-	assert.Equal(t, "HotReloadIntegration", statusAfter)
-	assert.Equal(t, "HotReloadIntegration", model.SystemName)
+	statusAfter := getStatusServerAddress(t, r, nil)
+	assert.Equal(t, "https://hotreload.openflare.test", statusAfter)
 
+	// 验证已持久化到 SystemConfig
 	ctx := context.Background()
-	require.NoError(t, option.EnsureInitialized(ctx))
-	assert.Equal(t, "HotReloadIntegration", model.OptionValue("SystemName"))
+	saved, err := repository.GetSystemConfigByKey(ctx, model.ConfigKeyServerAddress)
+	require.NoError(t, err)
+	assert.Equal(t, "https://hotreload.openflare.test", saved.Value)
 }
 
-func getStatusSystemName(t *testing.T, r http.Handler, headers map[string]string) string {
+func getStatusServerAddress(t *testing.T, r http.Handler, headers map[string]string) string {
 	t.Helper()
 
 	w := performJSONRequest(t, r, http.MethodGet, apiPath("/status"), nil, headers)
@@ -207,5 +201,5 @@ func getStatusSystemName(t *testing.T, r http.Handler, headers map[string]string
 
 	var status statusPayload
 	unmarshalAPIData(t, resp.Data, &status)
-	return status.SystemName
+	return status.ServerAddress
 }
