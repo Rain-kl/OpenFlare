@@ -20,6 +20,7 @@
 | [前端路由验证](./verify-frontend-routes.md) · [Service 验证](./verify-frontend-services.md) · [UI 验证](./verify-frontend-ui.md) · [构建验证](./verify-frontend-build.md) | 多角度迁移验收报告 |
 | [文档结构更新 — AI 接手](./handover-docs-restructure-update.md) | 重构后多智能体分析结论与文档批量更新记录 |
 | [边缘运行时 Phase 3 任务拆解](./20260619-edge-phase3-tasks.md) | Batch 1 并行任务（duration / observability / heartbeat loop） |
+| [WAF IP 组保存后节点仍拦截问题修复方案](./20260626-waf-ip-group-sync-fix.md) | 修复 IP 组成员保存后未实时同步到 Agent 导致旧黑名单继续生效的问题 |
 
 ## 使用建议
 

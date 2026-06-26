@@ -958,6 +958,40 @@ func TestManagerSyncWAFIPGroupsWritesDeltaRuntimeFile(t *testing.T) {
 	}
 }
 
+func TestManagerSyncWAFIPGroupsOverwritesExistingGroup(t *testing.T) {
+	manager := &Manager{RuntimeConfigDir: t.TempDir()}
+
+	if err := manager.SyncWAFIPGroups([]protocol.WAFIPGroup{
+		{ID: 1, Enabled: true, IPList: []string{"203.0.113.10"}, Checksum: "old-sum"},
+	}); err != nil {
+		t.Fatalf("SyncWAFIPGroups failed: %v", err)
+	}
+	if err := manager.SyncWAFIPGroups([]protocol.WAFIPGroup{
+		{ID: 1, Enabled: true, IPList: []string{"198.51.100.0/24"}, Checksum: "new-sum"},
+	}); err != nil {
+		t.Fatalf("SyncWAFIPGroups overwrite failed: %v", err)
+	}
+
+	checksums, err := manager.WAFIPGroupChecksums()
+	if err != nil {
+		t.Fatalf("WAFIPGroupChecksums failed: %v", err)
+	}
+	if checksums["1"] != "new-sum" {
+		t.Fatalf("expected checksum to be overwritten, got %#v", checksums)
+	}
+	data, err := os.ReadFile(filepath.Join(manager.RuntimeConfigDir, WAFIPGroupsConfigFileName))
+	if err != nil {
+		t.Fatalf("failed to read runtime ip group file: %v", err)
+	}
+	text := string(data)
+	if strings.Contains(text, "203.0.113.10") {
+		t.Fatalf("expected old ip to be removed from runtime file, got %s", text)
+	}
+	if !strings.Contains(text, "198.51.100.0/24") {
+		t.Fatalf("expected new cidr in runtime file, got %s", text)
+	}
+}
+
 func TestObservabilityListenAddress(t *testing.T) {
 	if got := ObservabilityListenAddress(18081); got != "127.0.0.1:18081" {
 		t.Fatalf("unexpected default observability listen address: %s", got)

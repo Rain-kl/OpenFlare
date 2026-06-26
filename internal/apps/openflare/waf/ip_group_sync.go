@@ -27,6 +27,8 @@ import (
 
 const maxWAFIPGroupSubscriptionBytes = 2 * 1024 * 1024
 
+var broadcastWAFIPGroups = websocket.BroadcastWAFIPGroups
+
 type ipGroupAutoRuleEnv struct {
 	IP               string  `expr:"ip"`
 	RequestCount     int     `expr:"request_count"`
@@ -115,7 +117,7 @@ func syncIPGroupSubscription(ctx context.Context, group *model.OpenFlareWAFIPGro
 	if err := model.UpdateOpenFlareWAFIPGroupSyncResult(ctx, group); err != nil {
 		return nil, err
 	}
-	broadcastIPGroupToAgents(ctx, group.ID)
+	notifyIPGroupAgents(ctx, group.ID, "subscription_sync")
 	view, err := GetIPGroup(ctx, group.ID)
 	if err != nil {
 		return nil, err
@@ -198,7 +200,7 @@ func syncIPGroupAutomatic(ctx context.Context, group *model.OpenFlareWAFIPGroup,
 	if err := model.UpdateOpenFlareWAFIPGroupSyncResult(ctx, group); err != nil {
 		return nil, err
 	}
-	broadcastIPGroupToAgents(ctx, group.ID)
+	notifyIPGroupAgents(ctx, group.ID, "automatic_sync")
 	view, err := GetIPGroup(ctx, group.ID)
 	if err != nil {
 		return nil, err
@@ -467,13 +469,22 @@ func collectJSONStrings(node any, items *[]string) {
 	}
 }
 
-func broadcastIPGroupToAgents(ctx context.Context, id uint) {
-	groups, err := agent.WAFIPGroupsForAgent(ctx, []uint{id})
-	if err != nil || len(groups) == 0 {
-		if err != nil {
-			slog.Debug("build waf ip group broadcast payload failed", "id", id, "error", err)
-		}
+func notifyIPGroupAgents(ctx context.Context, id uint, action string) {
+	sent, err := broadcastIPGroupToAgents(ctx, id)
+	if err != nil {
+		slog.Debug("broadcast waf ip group failed", "action", action, "id", id, "error", err)
 		return
 	}
-	websocket.BroadcastWAFIPGroups(groups)
+	slog.Debug("broadcast waf ip group finished", "action", action, "id", id, "sent", sent)
+}
+
+func broadcastIPGroupToAgents(ctx context.Context, id uint) (int, error) {
+	groups, err := agent.WAFIPGroupsForAgent(ctx, []uint{id})
+	if err != nil {
+		return 0, err
+	}
+	if len(groups) == 0 {
+		return 0, nil
+	}
+	return broadcastWAFIPGroups(groups), nil
 }

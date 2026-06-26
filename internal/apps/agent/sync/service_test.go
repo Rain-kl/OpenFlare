@@ -28,12 +28,14 @@ func testPagesSourceConfigJSON(deploymentID uint, checksum string) string {
 }
 
 type fakeClient struct {
-	config        protocol.ActiveConfigResponse
-	reports       []protocol.ApplyLogPayload
-	pagesPackages map[uint][]byte
-	pagesHashes   map[uint]string
-	fetchCalls    int
-	hashCalls     int
+	config          protocol.ActiveConfigResponse
+	reports         []protocol.ApplyLogPayload
+	pagesPackages   map[uint][]byte
+	pagesHashes     map[uint]string
+	wafSyncResponse *protocol.WAFIPGroupSyncResponse
+	wafSyncRequests []protocol.WAFIPGroupSyncRequest
+	fetchCalls      int
+	hashCalls       int
 }
 
 type fakeManager struct {
@@ -47,10 +49,16 @@ type fakeManager struct {
 	applyMainContents  []string
 	applyRouteContents []string
 	applyFiles         [][]protocol.SupportFile
+	wafChecksums       map[string]string
+	syncedWAFGroups    []protocol.WAFIPGroup
 }
 
 func testSourceConfigJSON(workerProcesses string, listen int) string {
 	return fmt.Sprintf(`{"routes":[{"id":1,"site_name":"example","domain":"example.com","domains":["example.com"],"origin_url":"http://127.0.0.1:%d","upstreams":["http://127.0.0.1:%d"],"enabled":true}],"openresty_config":{"worker_processes":"%s","worker_connections":1024,"worker_rlimit_nofile":65535,"events_multi_accept_enabled":true,"keepalive_timeout":20,"keepalive_requests":1000,"client_header_timeout":15,"client_body_timeout":15,"client_max_body_size":"64m","large_client_header_buffers":"4 16k","send_timeout":30,"proxy_connect_timeout":3,"proxy_send_timeout":60,"proxy_read_timeout":60,"websocket_enabled":true,"proxy_request_buffering":false,"proxy_buffering_enabled":true,"proxy_buffers":"16 16k","proxy_buffer_size":"8k","proxy_busy_buffers_size":"64k","gzip_enabled":true,"gzip_min_length":1024,"gzip_comp_level":5,"cache_enabled":false,"cache_levels":"1:2","cache_inactive":"30m","cache_max_size":"1g","cache_key_template":"$scheme$host$request_uri","cache_lock_enabled":true,"cache_lock_timeout":"5s","cache_use_stale":"error timeout updating http_500 http_502 http_503 http_504","main_config_template":"worker_processes {{OpenRestyWorkerProcesses}};"},"waf":{"rule_groups":[],"bindings":[]}}`, listen, listen, workerProcesses)
+}
+
+func testWAFSourceConfigJSON(ipGroupID uint) string {
+	return fmt.Sprintf(`{"routes":[{"id":1,"site_name":"example","domain":"example.com","domains":["example.com"],"origin_url":"http://127.0.0.1:80","upstreams":["http://127.0.0.1:80"],"enabled":true}],"openresty_config":{"worker_processes":"auto","worker_connections":1024,"worker_rlimit_nofile":65535,"events_multi_accept_enabled":true,"keepalive_timeout":20,"keepalive_requests":1000,"client_header_timeout":15,"client_body_timeout":15,"client_max_body_size":"64m","large_client_header_buffers":"4 16k","send_timeout":30,"proxy_connect_timeout":3,"proxy_send_timeout":60,"proxy_read_timeout":60,"websocket_enabled":true,"proxy_request_buffering":false,"proxy_buffering_enabled":true,"proxy_buffers":"16 16k","proxy_buffer_size":"8k","proxy_busy_buffers_size":"64k","gzip_enabled":true,"gzip_min_length":1024,"gzip_comp_level":5,"cache_enabled":false,"cache_levels":"1:2","cache_inactive":"30m","cache_max_size":"1g","cache_key_template":"$scheme$host$request_uri","cache_lock_enabled":true,"cache_lock_timeout":"5s","cache_use_stale":"error timeout updating http_500 http_502 http_503 http_504","main_config_template":"worker_processes {{OpenRestyWorkerProcesses}};"},"waf":{"rule_groups":[{"id":10,"name":"blacklist","enabled":true,"block_status_code":418,"ip_blacklist_group_ids":[%d]}],"bindings":[{"route_id":1,"site_name":"example","rule_group_ids":[10]}]}}`, ipGroupID)
 }
 
 func (f *fakeExecutor) Test(ctx context.Context) error {
@@ -106,6 +114,17 @@ func (f *fakeClient) ReportApplyLog(ctx context.Context, payload protocol.ApplyL
 }
 
 func (f *fakeClient) SyncWAFIPGroups(ctx context.Context, payload protocol.WAFIPGroupSyncRequest) (*protocol.WAFIPGroupSyncResponse, error) {
+	copied := protocol.WAFIPGroupSyncRequest{
+		IDs:       append([]uint(nil), payload.IDs...),
+		Checksums: map[string]string{},
+	}
+	for key, value := range payload.Checksums {
+		copied.Checksums[key] = value
+	}
+	f.wafSyncRequests = append(f.wafSyncRequests, copied)
+	if f.wafSyncResponse != nil {
+		return f.wafSyncResponse, nil
+	}
 	return &protocol.WAFIPGroupSyncResponse{}, nil
 }
 
@@ -134,10 +153,15 @@ func (m *fakeManager) CurrentChecksum() (string, error) {
 }
 
 func (m *fakeManager) WAFIPGroupChecksums() (map[string]string, error) {
-	return map[string]string{}, nil
+	result := make(map[string]string, len(m.wafChecksums))
+	for key, value := range m.wafChecksums {
+		result[key] = value
+	}
+	return result, nil
 }
 
 func (m *fakeManager) SyncWAFIPGroups(groups []protocol.WAFIPGroup) error {
+	m.syncedWAFGroups = append(m.syncedWAFGroups, groups...)
 	return nil
 }
 
@@ -962,6 +986,125 @@ func TestSyncOnceClearsBlockedTargetWhenNewVersionArrives(t *testing.T) {
 	}
 	if snapshot.CurrentVersion != "20260309-008" || snapshot.CurrentChecksum != "checksum-8" {
 		t.Fatalf("expected current version to move to new target, got %+v", snapshot)
+	}
+}
+
+func TestApplyIfNeededSyncsReferencedWAFIPGroupsWhenStateAlreadyMatchesFetchedConfig(t *testing.T) {
+	ipGroupID := uint(42)
+	client := &fakeClient{
+		config: protocol.ActiveConfigResponse{
+			Version:          "20260309-009",
+			Checksum:         "checksum-9",
+			SourceConfigJSON: testWAFSourceConfigJSON(ipGroupID),
+			CreatedAt:        time.Now().Format(time.RFC3339),
+		},
+		wafSyncResponse: &protocol.WAFIPGroupSyncResponse{
+			Groups: []protocol.WAFIPGroup{{
+				ID:       ipGroupID,
+				Enabled:  true,
+				IPList:   []string{"198.51.100.0/24"},
+				Checksum: "new-waf-sum",
+			}},
+		},
+	}
+	stateStore := state.NewStore(filepath.Join(t.TempDir(), "state.json"))
+	nodeID, err := stateStore.EnsureNodeID()
+	if err != nil {
+		t.Fatalf("EnsureNodeID failed: %v", err)
+	}
+	if err = stateStore.Save(&state.Snapshot{
+		NodeID:          nodeID,
+		CurrentVersion:  client.config.Version,
+		CurrentChecksum: client.config.Checksum,
+	}); err != nil {
+		t.Fatalf("failed to seed state: %v", err)
+	}
+
+	manager := &fakeManager{
+		wafChecksums: map[string]string{"42": "old-waf-sum"},
+	}
+	service := New(client, manager, stateStore)
+	snapshot, err := stateStore.Load()
+	if err != nil {
+		t.Fatalf("failed to load state: %v", err)
+	}
+
+	if err = service.applyIfNeeded(context.Background(), "periodic", false, snapshot, "local-drift", &protocol.ActiveConfigMeta{
+		Version:  client.config.Version,
+		Checksum: client.config.Checksum,
+	}, &client.config); err != nil {
+		t.Fatalf("applyIfNeeded failed: %v", err)
+	}
+
+	if len(client.wafSyncRequests) != 1 {
+		t.Fatalf("expected one waf ip group sync request, got %d", len(client.wafSyncRequests))
+	}
+	if len(client.wafSyncRequests[0].IDs) != 1 || client.wafSyncRequests[0].IDs[0] != ipGroupID {
+		t.Fatalf("unexpected waf ip group ids: %#v", client.wafSyncRequests[0].IDs)
+	}
+	if client.wafSyncRequests[0].Checksums["42"] != "old-waf-sum" {
+		t.Fatalf("expected local waf checksum to be sent, got %#v", client.wafSyncRequests[0].Checksums)
+	}
+	if len(manager.syncedWAFGroups) != 1 || manager.syncedWAFGroups[0].Checksum != "new-waf-sum" {
+		t.Fatalf("expected returned waf group to be applied, got %#v", manager.syncedWAFGroups)
+	}
+	if len(manager.applyMainContents) != 0 {
+		t.Fatal("expected matching state no-op path to skip OpenResty apply")
+	}
+}
+
+func TestHandleUpToDateConfigSyncsReferencedWAFIPGroups(t *testing.T) {
+	ipGroupID := uint(43)
+	client := &fakeClient{
+		config: protocol.ActiveConfigResponse{
+			Version:          "20260309-010",
+			Checksum:         "checksum-10",
+			SourceConfigJSON: testWAFSourceConfigJSON(ipGroupID),
+			CreatedAt:        time.Now().Format(time.RFC3339),
+		},
+		wafSyncResponse: &protocol.WAFIPGroupSyncResponse{
+			Groups: []protocol.WAFIPGroup{{
+				ID:       ipGroupID,
+				Enabled:  true,
+				IPList:   []string{"203.0.113.10"},
+				Checksum: "fresh-waf-sum",
+			}},
+		},
+	}
+	stateStore := state.NewStore(filepath.Join(t.TempDir(), "state.json"))
+	nodeID, err := stateStore.EnsureNodeID()
+	if err != nil {
+		t.Fatalf("EnsureNodeID failed: %v", err)
+	}
+	snapshot := &state.Snapshot{
+		NodeID:          nodeID,
+		CurrentVersion:  client.config.Version,
+		CurrentChecksum: client.config.Checksum,
+	}
+	if err = stateStore.Save(snapshot); err != nil {
+		t.Fatalf("failed to seed state: %v", err)
+	}
+
+	manager := &fakeManager{
+		wafChecksums: map[string]string{"43": "stale-waf-sum"},
+	}
+	service := New(client, manager, stateStore)
+
+	if err = service.handleUpToDateConfig(context.Background(), "periodic", snapshot, &client.config); err != nil {
+		t.Fatalf("handleUpToDateConfig failed: %v", err)
+	}
+
+	if len(client.wafSyncRequests) != 1 {
+		t.Fatalf("expected one waf ip group sync request, got %d", len(client.wafSyncRequests))
+	}
+	if len(client.wafSyncRequests[0].IDs) != 1 || client.wafSyncRequests[0].IDs[0] != ipGroupID {
+		t.Fatalf("unexpected waf ip group ids: %#v", client.wafSyncRequests[0].IDs)
+	}
+	if client.wafSyncRequests[0].Checksums["43"] != "stale-waf-sum" {
+		t.Fatalf("expected stale local waf checksum to be sent, got %#v", client.wafSyncRequests[0].Checksums)
+	}
+	if len(manager.syncedWAFGroups) != 1 || manager.syncedWAFGroups[0].Checksum != "fresh-waf-sum" {
+		t.Fatalf("expected returned waf group to be applied, got %#v", manager.syncedWAFGroups)
 	}
 }
 

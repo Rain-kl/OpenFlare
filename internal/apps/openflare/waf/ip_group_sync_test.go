@@ -200,7 +200,7 @@ func seedWAFAccessLogs(t *testing.T, ctx context.Context, loggedAt time.Time, re
 		}
 		records = append(records, &model.OpenFlareAccessLog{
 			NodeID:     "node-waf-auto",
-			LoggedAt:   loggedAt.Add(-time.Duration(i%30) * time.Second),
+			LoggedAt:   loggedAt.Add(-time.Duration((i%30)+1) * time.Second),
 			RemoteAddr: remoteAddr,
 			Host:       host,
 			Path:       "/probe",

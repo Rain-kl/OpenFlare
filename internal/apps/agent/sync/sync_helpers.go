@@ -137,12 +137,12 @@ func (s *Service) handleUpToDateConfig(ctx context.Context, mode string, snapsho
 	if err := s.syncPagesDeployments(ctx, snapshot, config); err != nil {
 		return err
 	}
+	rendered, renderErr := renderActiveConfig(config)
+	if renderErr != nil {
+		return renderErr
+	}
 	slog.Debug("local openresty config already up to date", "mode", mode, "version", config.Version)
 	if shouldReportNoopApply(snapshot, config.Version, config.Checksum) {
-		rendered, renderErr := renderActiveConfig(config)
-		if renderErr != nil {
-			return renderErr
-		}
 		if err := s.reportNoopApply(
 			ctx,
 			snapshot.NodeID,
@@ -154,6 +154,10 @@ func (s *Service) handleUpToDateConfig(ctx context.Context, mode string, snapsho
 		); err != nil {
 			return err
 		}
+	}
+	if err := s.syncReferencedWAFIPGroups(ctx, rendered.supportFiles); err != nil {
+		slog.Error("sync referenced waf ip groups failed", "version", config.Version, "error", err)
+		return err
 	}
 	snapshot.CurrentVersion = config.Version
 	snapshot.CurrentChecksum = config.Checksum

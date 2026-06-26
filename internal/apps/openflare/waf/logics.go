@@ -454,6 +454,7 @@ func CreateIPGroup(ctx context.Context, input IPGroupInput) (*IPGroupView, error
 	if err = model.CreateOpenFlareWAFIPGroup(ctx, group); err != nil {
 		return nil, err
 	}
+	notifyIPGroupAgents(ctx, group.ID, "save")
 	return GetIPGroup(ctx, group.ID)
 }
 
@@ -470,6 +471,7 @@ func UpdateIPGroup(ctx context.Context, id uint, input IPGroupInput) (*IPGroupVi
 	if err = model.UpdateOpenFlareWAFIPGroup(ctx, group); err != nil {
 		return nil, err
 	}
+	notifyIPGroupAgents(ctx, group.ID, "save")
 	return GetIPGroup(ctx, group.ID)
 }
 
