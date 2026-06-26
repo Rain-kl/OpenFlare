@@ -16,7 +16,6 @@ import {
 } from '@/components/ui/alert-dialog';
 import {Badge} from '@/components/ui/badge';
 import {Button} from '@/components/ui/button';
-import {DiffDialog} from '@/app/(main)/config-versions/components/diff-dialog';
 import type {ConfigDiffResult, ProxyRouteItem} from '@/lib/services/openflare';
 import {ConfigVersionService} from '@/lib/services/openflare';
 
@@ -39,23 +38,20 @@ interface RouteHeaderProps {
 }
 
 export function RouteHeader({ route }: RouteHeaderProps) {
-  const [diffOpen, setDiffOpen] = useState(false);
   const [publishConfirmOpen, setPublishConfirmOpen] = useState(false);
   const [diff, setDiff] = useState<ConfigDiffResult | null>(null);
   const [diffLoading, setDiffLoading] = useState(false);
-  const [diffError, setDiffError] = useState<string | null>(null);
   const [publishing, setPublishing] = useState(false);
 
   const loadDiff = useCallback(async () => {
     setDiffLoading(true);
-    setDiffError(null);
     try {
       const diffData = await ConfigVersionService.diff();
       setDiff(diffData);
       return diffData;
     } catch (error) {
       const message = getErrorMessage(error);
-      setDiffError(message);
+      toast.error('获取配置差异失败', { description: message });
       return null;
     } finally {
       setDiffLoading(false);
@@ -63,7 +59,6 @@ export function RouteHeader({ route }: RouteHeaderProps) {
   }, []);
 
   const handlePublishClick = useCallback(async () => {
-    setDiffOpen(true);
     const diffData = diff ?? (await loadDiff());
     if (!diffData) {
       return;
@@ -81,7 +76,6 @@ export function RouteHeader({ route }: RouteHeaderProps) {
       const version = await ConfigVersionService.publish();
       toast.success('发布成功', { description: `版本 ${version.version}` });
       setPublishConfirmOpen(false);
-      setDiffOpen(false);
       setDiff(null);
     } catch (error) {
       toast.error('发布失败', { description: getErrorMessage(error) });
@@ -128,19 +122,6 @@ export function RouteHeader({ route }: RouteHeaderProps) {
           </div>
         </div>
       </div>
-
-      <DiffDialog
-        open={diffOpen}
-        onOpenChange={(open) => {
-          setDiffOpen(open);
-          if (!open) {
-            setPublishConfirmOpen(false);
-          }
-        }}
-        diff={diff}
-        loading={diffLoading}
-        error={diffError}
-      />
 
       <AlertDialog open={publishConfirmOpen} onOpenChange={setPublishConfirmOpen}>
         <AlertDialogContent>
