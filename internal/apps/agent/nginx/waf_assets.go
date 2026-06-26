@@ -219,17 +219,6 @@ local function exit_with_group(group)
     return ngx.exit(ngx.status)
 end
 
-local function first_allowlist_group(groups)
-    for _, group in ipairs(groups) do
-        if table_has_items(group.ip_whitelist)
-            or table_has_items(group.ip_whitelist_group_ids)
-            or table_has_items(group.country_whitelist) then
-            return group
-        end
-    end
-    return nil
-end
-
 local config = load_config()
 if not config then
     if config_dict:add("_missing_config_logged", true, 60) then
@@ -262,11 +251,6 @@ for _, group in ipairs(groups) do
             return
         end
     end
-end
-
-local allowlist_group = first_allowlist_group(groups)
-if allowlist_group then
-    return exit_with_group(allowlist_group)
 end
 
 for _, group in ipairs(groups) do

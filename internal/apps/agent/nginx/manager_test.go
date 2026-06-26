@@ -699,15 +699,12 @@ func TestManagedPowLuaFilesUseInternalChallengeFlow(t *testing.T) {
 	}
 }
 
-func TestManagedWAFLuaTreatsWhitelistAsAllowlist(t *testing.T) {
-	if !strings.Contains(openRestyWAFRuntimeLua, "local function first_allowlist_group(groups)") {
-		t.Fatal("expected waf runtime to detect allowlist rule groups")
+func TestManagedWAFLuaTreatsWhitelistAsBypass(t *testing.T) {
+	if !strings.Contains(openRestyWAFRuntimeLua, "if ip_matches(group.ip_whitelist, ip)") {
+		t.Fatal("expected waf runtime to bypass request when ip matches whitelist")
 	}
-	if !strings.Contains(openRestyWAFRuntimeLua, "local allowlist_group = first_allowlist_group(groups)") {
-		t.Fatal("expected waf runtime to enter allowlist mode when whitelist rules exist")
-	}
-	if !strings.Contains(openRestyWAFRuntimeLua, "return exit_with_group(allowlist_group)") {
-		t.Fatal("expected waf runtime to block requests that miss configured whitelists")
+	if strings.Contains(openRestyWAFRuntimeLua, "first_allowlist_group") {
+		t.Fatal("expected waf runtime not to block requests that miss configured whitelists")
 	}
 }
 

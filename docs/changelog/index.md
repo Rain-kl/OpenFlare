@@ -23,6 +23,7 @@ sidebar: false
 
 ### 修复
 
+- 修复代理路由详情页点击“发布配置”时，同时弹出配置差异对话框和确认发布对话框导致重叠的问题：点击发布时不再展示配置差异，直接进行确认发布。
 - 修复配置版本发布到 Agent 后 `openresty -t` 因 `proxy_cache_path` 使用 `/var/cache/openresty` 导致非 root 用户 `mkdir` 失败的问题：发布快照与渲染将 `/var/` 下路径规范为 `__OPENFLARE_PROXY_CACHE_PATH__`，Agent 应用时落地为 `data_dir/var/cache/openflare_proxy` 并兼容重写已发布配置中的旧路径。
 - 修复配置版本发布到 Agent 后 `openresty -t` 因证书私钥无法解析而失败的问题。根因是发布快照生成 `certs/{id}.key` 时直接写入库内加密的 `KeyPEM`（`enc:v1:`），未解密为 PEM；现与证书详情接口一致，发布前通过 `OpenKeyPEM` 解密后再下发。
 - 修复 `/api/v1/d/option` 批量更新 OpenResty 等业务配置不生效的问题。根本原因是 option 模块在读写时做了 PascalCase 与 snake_case 的机械转换（如 `OpenRestyEventsUse` → `open_resty_events_use`），与 `w_system_configs` 中实际 key（`openresty_events_use`）不一致，更新写入了错误的幽灵配置行。现改为 API 直接使用与数据库一致的 snake_case key，并同步更新前端性能调优与运维设置页。
@@ -30,6 +31,8 @@ sidebar: false
 - 修复 openflared（Tunnel Client）WebSocket 连接在 Cloudflare 代理环境下频繁收到 EOF 断连的问题。根本原因：服务端 `read_pump` 仅在收到 WebSocket 协议层 Pong 帧时刷新读超时，而客户端（`golang.org/x/net/websocket`）以 JSON 应用层 `{"type":"pong"}` 响应 ping，服务端 90s 读超时到期后主动关闭连接，客户端收到 EOF 并进入无限重连循环。修复方式：在 `clientPongType` 分支中同步调用 `conn.SetReadDeadline` 刷新超时。
 - 修复 openflared frpc 子进程异常退出（`exit status 1`）时缺乏详细诊断信息的问题。现捕获 frpc stderr 并在进程退出时将其输出记录到结构化日志 `stderr` 字段，便于排查配置格式错误、Auth Token 鉴权失败、relay 端不可达等具体原因。
 - 修复 Relay 节点启动时在双栈网络环境可能上报 IPv6 地址，导致 Tunnel frpc 客户端无法连接 frps 的问题。强化 `pkg/geoip.HTTPOutboundIPStrategy` 在回退到双栈客户端后仍优先返回 IPv4 地址，确保 Relay 心跳上报的 IP 与 frpc 连接兼容。
+- 修复 WAF 黑白名单判定时，白名单作为严格准入控制导致黑名单逻辑失效的问题。现将白名单逻辑调整为信任放行（Bypass/Allow），命中的请求直接放行，未命中的请求继续进入黑名单等防护模块判定。
+- 修复 WAF IP 组手动编辑和配置版本发布后，未向 Agent 触发 WebSocket 实时广播导致配置变更不能即时生效的问题。
 
 ### 变更
 

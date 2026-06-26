@@ -15,7 +15,9 @@ import (
 	"time"
 
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/routeidentity"
+	"github.com/Rain-kl/Wavelet/internal/apps/openflare/websocket"
 	"github.com/Rain-kl/Wavelet/internal/model"
+	pkgprotocol "github.com/Rain-kl/Wavelet/pkg/protocol"
 	openrestyrender "github.com/Rain-kl/Wavelet/pkg/render/openresty"
 	"gorm.io/gorm"
 )
@@ -233,6 +235,10 @@ func PublishConfigVersion(ctx context.Context, createdBy string, force bool) (*m
 		}
 		return nil, err
 	}
+	websocket.BroadcastActiveConfig(pkgprotocol.ActiveConfigMeta{
+		Version:  record.Version,
+		Checksum: record.Checksum,
+	})
 	return record, nil
 }
 
@@ -246,6 +252,10 @@ func ActivateConfigVersion(ctx context.Context, id uint) (*model.ConfigVersion, 
 		return nil, err
 	}
 	version.IsActive = true
+	websocket.BroadcastActiveConfig(pkgprotocol.ActiveConfigMeta{
+		Version:  version.Version,
+		Checksum: version.Checksum,
+	})
 	return version, nil
 }
 

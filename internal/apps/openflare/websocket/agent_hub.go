@@ -152,6 +152,28 @@ func BroadcastWAFIPGroups(payload any) int {
 	return success
 }
 
+// BroadcastActiveConfig pushes active config metadata to all connected agents.
+func BroadcastActiveConfig(payload any) int {
+	if payload == nil {
+		return 0
+	}
+	message := Message{Type: agentMessageTypeActiveConfig, Payload: payload}
+	defaultAgentHub.mu.RLock()
+	clients := make([]*agentClient, 0, len(defaultAgentHub.clients))
+	for _, client := range defaultAgentHub.clients {
+		clients = append(clients, client)
+	}
+	defaultAgentHub.mu.RUnlock()
+
+	success := 0
+	for _, client := range clients {
+		if client.enqueue(message) {
+			success++
+		}
+	}
+	return success
+}
+
 // SendForceSyncConfig notifies an agent to force sync configuration.
 func SendForceSyncConfig(nodeID string, payload any) bool {
 	return sendAgentMessage(nodeID, Message{Type: agentMessageTypeForceSyncConfig, Payload: payload})
