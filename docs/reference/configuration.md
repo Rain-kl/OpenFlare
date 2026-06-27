@@ -1,149 +1,250 @@
 # 配置项
 
-你会学到：OpenFlare Server、前端构建和 Agent 支持哪些配置来源、配置项默认值是什么，以及常见部署组合应该如何配置。
+你会学到：OpenFlare Server、前端构建、Agent、Relay、OpenFlared 支持哪些配置来源、有哪些配置字段和环境变量，以及它们的默认值和行为。
 
-本文档汇总 OpenFlare `1.0.0` 当前支持的 Server 与 Agent 配置项，只保留仍然有效的启动、部署与运行参数。
+本文档汇总了 OpenFlare 当前版本所支持的全部配置项。
+
+---
 
 ## 配置来源
 
-Server 支持三类配置来源：
+### 1. Server 配置来源
+- **配置文件**：启动时默认读取同级目录下的 `config.yaml`（可通过 `CONFIG_PATH` 环境变量指定）。
+- **环境变量**：所有配置文件中的字段均支持通过大写蛇形（`UPPER_SNAKE_CASE`）的环境变量进行覆盖（环境变量优先级高于 `config.yaml`）。
+- **系统运行时配置**：保存在关系数据库的 `w_system_configs` 表中。此类参数可通过管理后台图形界面或系统 API 热更新并动态生效。
 
-1. 命令行参数。
-2. 环境变量。
-3. 数据库 `Option` 表中的运行时配置。
+### 2. Agent / Relay / OpenFlared 配置来源
+- **命令行参数**：通过 `-config` 指定配置文件（JSON 格式）。
+- **配置文件**：例如 `agent.json`、`relay.json`、`flared.json`。
+- **覆盖环境变量**：支持特定的环境变量来覆盖配置文件中的连接地址和 Token 凭证。
 
-Agent 支持：
-
-1. `-config` 命令行参数。
-2. `agent.json` 配置文件。
-3. 少量日志与配置覆盖相关环境变量。
-
-Relay (中继端) 支持：
-
-1. `-config` 命令行参数。
-2. `relay.json` 配置文件。
-3. 丰富的启动覆盖环境变量。
-
-Client (内网客户端) 支持：
-
-1. `-config` 命令行参数。
-2. `flared.json` 配置文件。
-3. 启动覆盖与日志环境变量。
+---
 
 ## 配置文件位置
 
 | 组件 | 默认位置 | 说明 |
 | --- | --- | --- |
-| Server SQLite | `openflare.db` | 可通过 `SQLITE_PATH` 修改 |
+| Server 配置文件 | `./config.yaml` | 可通过 `CONFIG_PATH` 环境变量修改 |
+| Server SQLite 库 | `openflare.db` | 可通过 `database.sqlite_path` / `SQLITE_PATH` 修改 |
 | Agent 配置文件 | `./agent.json` | 可通过 `-config` 指定 |
-| 一键安装 Agent 配置 | `/opt/openflare-agent/agent.json` | 安装脚本默认生成 |
-| Agent 数据目录 | 配置文件所在目录下的 `data` | 可通过 `data_dir` 修改 |
+| 一键安装 Agent 配置 | `/opt/openflare-agent/agent.json` | 安装脚本默认生成路径 |
+| Agent 数据目录 | 配置文件同级 `data` | 可在配置文件中通过 `data_dir` 覆盖 |
 | Relay 配置文件 | `./relay.json` | 可通过 `-config` 指定 |
-| 一键安装 Relay 配置 | `/opt/openflare-relay/relay.json` | 安装脚本默认生成 |
+| 一键安装 Relay 配置 | `/opt/openflare-relay/relay.json` | 安装脚本默认生成路径 |
 | Client 配置文件 | `./flared.json` | 可通过 `-config` 指定 |
-| 一键安装 Client 配置 | `/opt/openflared/flared.json` | 安装脚本默认生成 |
+| 一键安装 Client 配置 | `/opt/openflared/flared.json` | 安装脚本默认生成路径 |
+
+---
 
 ## Server 命令行参数
 
 ```bash
-cd openflare-server
-go run . --port 3000 --log-dir ./logs
+# 启动 Server 时指定配置文件
+CONFIG_PATH=/path/to/custom-config.yaml ./openflare-server all
 ```
 
-| 参数 | 作用 | 默认值 |
-| --- | --- | --- |
-| `--port` | 指定 Server 监听端口 | `3000` |
-| `--log-dir` | 指定日志目录 | 空 |
-| `--version` | 输出当前版本后退出 | `false` |
-| `--help` | 输出帮助信息后退出 | `false` |
+运行支持的子服务指令（融合/单进程模式）：
+- `all`：在一进程内启动所有服务（API + Worker + Scheduler，默认）。
+- `api`：仅启动管理端与节点通信的 API 服务。
+- `worker`：仅启动后台任务的 Worker 服务。
+- `scheduler`：仅启动定时任务的 Scheduler 服务。
 
-## Server 环境变量
+---
 
-| 环境变量 | 作用 | 默认值 |
-| --- | --- | --- |
-| `PORT` | Server 监听端口 | `3000` |
-| `GIN_MODE` | Gin 运行模式 | 非 `debug` 时按 release |
-| `LOG_LEVEL` | 日志等级 | `info` |
-| `JWT_SECRET` | 管理端 API 登录令牌的 JWT 签名密钥，生产环境必须显式配置 | 启动时随机生成 |
-| `SQLITE_PATH` | SQLite 数据库文件路径 | `openflare.db` |
-| `DSN` | PostgreSQL DSN，设置后优先于 SQLite | 空 |
-| `SQL_DSN` | 兼容旧命名的 PostgreSQL DSN，优先级低于 `DSN` | 空 |
-| `REDIS_CONN_STRING` | Redis 连接串 | 空 |
-| `AGENT_TOKEN` | 兼容旧部署的全局 Agent Token | 空 |
+## Server 环境变量与配置文件对照
 
-说明：
+Server 的所有核心基础配置定义在 `config.yaml` 中，且均支持环境变量覆盖（变量优先级高于 YAML 配置文件）。
 
-* `DSN` 与 `SQL_DSN` 同时存在时优先使用 `DSN`。
-* `DSN` 或 `SQL_DSN` 与 `SQLITE_PATH` 同时存在时优先使用 PostgreSQL。
-* 当目标 PostgreSQL 数据库为空且本地 `SQLITE_PATH` 文件存在时，Server 启动阶段会自动迁移 SQLite 数据，并在日志中输出按表迁移进度。
-* `JWT_SECRET` 用于管理端 API 登录令牌的签名与验证，生产环境必须显式配置，避免重启后所有已登录令牌失效。
-* `REDIS_CONN_STRING` 未配置时，相关能力回退为进程内实现。
+### 1. 应用基本配置 (`app:`)
+| 配置文件 YAML 路径 | 对应覆盖环境变量 | 作用说明 | 默认值 |
+| --- | --- | --- | --- |
+| `app.app_name` | `APP_NAME` | 应用程序标识名称 | `openflare` |
+| `app.env` | `APP_ENV` | 运行环境（`development` / `testing` / `production`） | `production` |
+| `app.addr` | `APP_ADDR` | 服务监听地址与端口 | `:3000` |
+| `app.node_id` | `APP_NODE_ID` | Snowflake 算法的节点 ID（0-1023），多实例部署时必须唯一 | `1` |
+| `app.api_prefix` | `APP_API_PREFIX` | 管理端与 API 的路由前缀 | `/api` |
+| `app.graceful_shutdown_timeout` | `APP_GRACEFUL_SHUTDOWN_TIMEOUT` | 优雅停机等待超时（秒） | `30` |
+| `app.session_cookie_name` | `APP_SESSION_COOKIE_NAME` | 会话 Cookie 的名称 | `openflare_session_id` |
+| `app.session_secret` | `APP_SESSION_SECRET` | Session 会话签名的密钥，**生产环境必须配置为随机长字符串** | 无（随机） |
+| `app.session_domain` | `APP_SESSION_DOMAIN` | 共享 Session 的 Cookie 作用域域名 | 空 |
+| `app.session_age` | `APP_SESSION_AGE` | 浏览器 Session 的存活时间（秒） | `86400` (24h) |
+| `app.session_http_only` | `APP_SESSION_HTTP_ONLY` | 是否启用 Cookie 的 HttpOnly 属性 | `false` |
+| `app.session_secure` | `APP_SESSION_SECURE` | 是否启用 Cookie 的 Secure 属性（HTTPS 下使用） | `false` |
 
-## 运行时 Option
+### 2. 关系数据库配置 (`database:`)
+| 配置文件 YAML 路径 | 对应覆盖环境变量 | 作用说明 | 默认值 |
+| --- | --- | --- | --- |
+| `database.enabled` | `DB_ENABLED` | 是否启用 PostgreSQL 数据库。设为 `false` 则回退到 SQLite | `true` |
+| `database.sqlite_path` | `SQLITE_PATH` | PostgreSQL 禁用时，SQLite 数据库的文件路径 | `openflare.db` |
+| `database.host` | `DB_HOST` | PostgreSQL 数据库连接地址 | `127.0.0.1` |
+| `database.port` | `DB_PORT` | PostgreSQL 数据库端口 | `5432` |
+| `database.username` | `DB_USERNAME` | PostgreSQL 数据库用户名 | `openflare` |
+| `database.password` | `DB_PASSWORD` | PostgreSQL 数据库密码 | `replace-with-strong-password` |
+| `database.database` | `DB_NAME` | PostgreSQL 数据库名 | `openflare` |
+| `database.ssl_mode` | `DB_SSL_MODE` | PostgreSQL 的 SSL 模式 | `disable` |
+| `database.time_zone` | `DB_TIMEZONE` | 数据库会话时区 | `UTC` |
+| `database.log_level` | `DB_LOG_LEVEL` | GORM SQL 打印日志等级（`info` / `warn` / `error` / `silent`） | `info` |
+| `database.max_idle_conn` | `DB_MAX_IDLE_CONN` | 数据库连接池最大空闲连接数 | `16` |
+| `database.max_open_conn` | `DB_MAX_OPEN_CONN` | 数据库连接池最大打开连接数 | `128` |
 
-以下配置由管理端设置页维护，可热更新：
+### 3. Redis 配置 (`redis:`)
+| 配置文件 YAML 路径 | 对应覆盖环境变量 | 作用说明 | 默认值 |
+| --- | --- | --- | --- |
+| `redis.enabled` | `REDIS_ENABLED` | 是否启用 Redis 服务。**系统异步队列和同步依赖它，必须开启** | `true` |
+| `redis.addrs` | `REDIS_ADDR` | Redis 单机或集群连接地址数组（环境变量仅设置单地址） | `["127.0.0.1:6379"]` |
+| `redis.username` | `REDIS_USERNAME` | Redis 账号名称（若有） | 空 |
+| `redis.password` | `REDIS_PASSWORD` | Redis 访问密码 | 空 |
+| `redis.db` | `REDIS_DB` | Redis 逻辑数据库编号 | `0` |
+| `redis.key_prefix` | `REDIS_KEY_PREFIX` | 系统在 Redis 中使用的键前缀 | `openflare:` |
+| `redis.pool_size` | `REDIS_POOL_SIZE` | Redis 连接池大小 | `100` |
 
-| 配置项 | 作用 | 默认值 |
-| --- | --- | --- |
-| `AgentHeartbeatInterval` | Agent 心跳间隔（毫秒） | `10000` |
-| `AgentWebsocketUpgradeEnabled` | 是否允许 Agent 在 HTTP 心跳成功后升级为 WebSocket | `true` |
-| `NodeOfflineThreshold` | 节点离线阈值（毫秒） | `120000` |
-| `AgentUpdateRepo` | Agent 自更新仓库 | `Rain-kl/OpenFlare` |
-| `GeoIPProvider` | 节点/IP 归属解析方式 | `ipinfo` |
-| `DatabaseAutoCleanupEnabled` | 是否启用每日自动清理观测数据 | `false` |
-| `DatabaseAutoCleanupRetentionDays` | 自动清理保留天数，至少 1 天 | `30` |
-| `UptimeKumaEnabled` | 是否启用 Uptime Kuma 自动同步 | `false` |
-| `UptimeKumaUrl` | Uptime Kuma 实例地址 | 空 |
-| `UptimeKumaUsername` | Uptime Kuma 登录用户名 | 空 |
-| `UptimeKumaPassword` | Uptime Kuma 登录密码（写专，接口不回显） | 空 |
-| `UptimeKumaMonitorScope` | 监控范围，支持 `all` (全部站点) 或 `selected` (选择站点) | `all` |
-| `UptimeKumaSelectedSites` | 已选择监控站点的名称列表（英文逗号分隔） | 空 |
-| `UptimeKumaSyncInterval` | 自动差分同步间隔（分钟） | `5` |
-| `UptimeKumaInterval` | 监控心跳检测频率（秒） | `60` |
-| `UptimeKumaRetry` | 监控最大重试次数 | `0` |
-| `UptimeKumaRetryInterval` | 监控重试间隔时间（秒） | `60` |
-| `UptimeKumaTimeout` | 监控请求超时断开时间（秒） | `48` |
+### 4. ClickHouse 配置 (`clickhouse:`)
+| 配置文件 YAML 路径 | 对应覆盖环境变量 | 作用说明 | 默认值 |
+| --- | --- | --- | --- |
+| `clickhouse.enabled` | `CLICKHOUSE_ENABLED` | 是否启用 ClickHouse。**系统节点指标与访问日志在此进行海量写入** | `true` |
+| `clickhouse.hosts` | `CLICKHOUSE_HOST` | ClickHouse 集群连接地址数组（环境变量仅设置单地址） | `["127.0.0.1:9000"]` |
+| `clickhouse.username` | `CLICKHOUSE_USERNAME` | ClickHouse 账号用户名 | `default` |
+| `clickhouse.password` | `CLICKHOUSE_PASSWORD` | ClickHouse 密码 | `123456` |
+| `clickhouse.database` | `CLICKHOUSE_NAME` | ClickHouse 存储的数据库名称 | `openflare` |
 
-说明：
+### 5. 系统日志配置 (`log:`)
+| 配置文件 YAML 路径 | 对应覆盖环境变量 | 作用说明 | 默认值 |
+| --- | --- | --- | --- |
+| `log.level` | `LOG_LEVEL` | 全局日志记录等级（`debug` / `info` / `warn` / `error` / `fatal`） | `info` |
+| `log.format` | `LOG_FORMAT` | 日志打印格式（`console` 易读控制台 / `json` 结构化） | `console` |
+| `log.output` | `LOG_OUTPUT` | 日志输出渠道（`stdout` 标准输出 / `file` 文本文件） | `stdout` |
+| `log.file_path` | - | 当 output 为 file 时日志的持久化路径 | `./logs/app.log` |
+| `log.max_size` | - | 单个日志文件的最大空间（MB），超出自动切割轮转 | `100` |
+| `log.max_age` | - | 历史切割日志文件最大保留天数 | `30` |
 
-* `DatabaseAutoCleanupEnabled` 开启后，Server 会在每天凌晨 3 点自动清理 `node_access_logs`、`node_metric_snapshots`、`node_request_reports` 三类观测数据。
-* `DatabaseAutoCleanupRetentionDays` 为统一保留天数，必须大于等于 1。
-* 管理端支持手动清理时留空保留天数，以直接删除对应数据集的全部历史记录。
-* `AgentUpdateRepo` 指向的 GitHub Release 需包含目标 Agent 二进制；自更新优先使用 GitHub Release API 返回的 `assets[].digest`（`sha256:...`）校验，旧版 Release 无 digest 时会回退读取同名 `.sha256` 侧车文件。
-* 第三方登录不再通过 `GitHubOAuthEnabled`、`GitHubClientId`、`GitHubClientSecret` 作为主配置入口；这些旧 Option 仅用于升级时迁移默认 GitHub 认证源。
-* 微信登录旧 Option 保留为兼容字段，但管理端不再提供微信登录配置入口。
-* Turnstile 旧 Option 与后端校验能力保留，已有配置仍会生效。
+### 6. 异步任务 Worker 队列配置 (`worker:`)
+| 配置文件 YAML 路径 | 对应覆盖环境变量 | 作用说明 | 默认值 |
+| --- | --- | --- | --- |
+| `worker.concurrency` | `WORKER_CONCURRENCY` | 后台 Worker 进程同时消费任务的最大并发数 | `20` |
+| `worker.strict_priority`| `WORKER_STRICT_PRIORITY` | 是否严格按队列优先级分配消费线程（否则为加权轮询） | `false` |
 
-## OpenResty 参数
+### 7. 链路追踪 OpenTelemetry 配置 (`otel:`)
+| 配置文件 YAML 路径 | 对应覆盖环境变量 | 作用说明 | 默认值 |
+| --- | --- | --- | --- |
+| `otel.sampling_rate` | `OTEL_SAMPLING_RATE` | OTel 链路追踪全局采样率。默认 `0.0` 不采样，`1.0` 为全量追踪 | `0.0` |
+| `otel.tracer_name` | `OTEL_TRACER_NAME` | 全局 OTel 埋点 Tracer 的实例化名称 | `github.com/Rain-kl/OpenFlare` |
 
-OpenResty 性能参数与缓存参数继续统一保存在 `Option` 表。当前常用项包括：
+---
 
-* `OpenRestyWorkerProcesses`
-* `OpenRestyWorkerConnections`
-* `OpenRestyWorkerRlimitNofile`
-* `OpenRestyKeepaliveTimeout`
-* `OpenRestyProxyConnectTimeout`
-* `OpenRestyProxySendTimeout`
-* `OpenRestyProxyReadTimeout`
-* `OpenRestyProxyBufferingEnabled`
-* `OpenRestyGzipEnabled`
-* `OpenRestyCacheEnabled`
-* `OpenRestyCachePath`
-* `OpenRestyCacheMaxSize`
+## 运行时系统配置 (SystemConfig)
 
-这类参数必须以结构化方式校验、保存并参与版本渲染。
+这些配置项存储于关系型数据库中的 `w_system_configs` 表中。所有的配置项在修改后会主动通知 Redis 缓存失效以实现动态热更新，管理员可通过后台页面直接管理。
 
-约束：
+### 1. 基础与业务运行时配置
+| 配置键 (Key) | 数据类型 | 作用说明 | 默认值 |
+| --- | --- | --- | --- |
+| `site_name` | `string` | 管理端平台的展示名称 | `OpenFlare` |
+| `server_address` | `string` | 管理端控制台的对外公网访问地址，用于组装 OAuth 回调与下载链接 | 空 |
+| `password_login_enabled` | `bool` | 是否允许管理员通过常规用户名密码方式登录后台 | `true` |
+| `registration_enabled` | `bool` | 是否允许自助注册新用户（默认禁止，需由 root 账户邀请或分发） | `false` |
+| `password_register_enabled` | `bool` | 是否允许通过邮箱/密码方式在前端直接注册 | `false` |
+| `oidc_login_enabled` | `bool` | 是否启用 OIDC (SSO) 第三方免密登录方案 | `false` |
+| `max_api_keys_per_user` | `int` | 每个后台用户可生成的最大 API 密钥（API Token）数量 | `5` |
+| `login_session_ttl_hours` | `int` | 用户会话在浏览器 Cookie 中的有效期（小时）。0 为随浏览器关闭清除 | `24` |
+| `upload_allowed_extensions` | `string` | 允许用户上传的静态静态托管包文件扩展名（逗号分隔） | `zip,tar.gz,gz,tar,ssl,key,pem,txt,json` |
+| `file_access_whitelist` | `json` | 允许免登录直接公开下载或访问的文件业务类型列表 (JSON 数组) | `["ssl_cert", "pages_release"]` |
+| `disk_cache_max_size_mb` | `int` | 平台本地磁盘缓存的最大存储阈值（MB） | `1024` |
+| `disk_cache_ttl_minutes` | `int` | 本地磁盘缓存对象的默认生存周期（分钟） | `1440` (24h) |
+| `disk_cache_lru_enabled` | `bool` | 当本地磁盘缓存空间不足时是否启用 LRU 算法剔除最旧缓存 | `true` |
+| `update_upstream_repository` | `string` | 系统检测自更新的 GitHub 仓库地址 | `Rain-kl/OpenFlare` |
+| `storage_config` | `json` | 对象存储的结构化配置 (JSON)，支持本地磁盘与 AWS S3 兼容存储配置 | 本地存储模式 |
+| `relay_frps_web_ui_enabled` | `bool` | 是否允许在中继节点上默认开启内嵌的 frps 流量监视面板 Web UI | `true` |
+| `relay_frps_web_ui_port` | `int` | 中继节点 frps 监视面板所监听绑定的宿主机端口 | `7500` |
 
-* 管理端不再暴露 `resolver` 配置。
-* 规则上游统一渲染为 named `upstream` 并启用 keepalive。
-* 单上游如带 base path 或 query，会在 `proxy_pass` 中补回原始 URI。
-* 多上游仍要求每个上游都为纯 `scheme://host[:port]`，且同一规则内协议一致。
-* `OpenRestyCacheEnabled` 用于启用缓存基础设施与全局默认参数；实际是否缓存、按 URL / 后缀 / 路径等命中策略由各条 `proxy_routes` 单独决定。
-* 默认缓存 Key 为 `$scheme$host$request_uri`。
-* 默认 `keepalive_timeout` 为 `20` 秒，默认 `proxy_connect_timeout` 为 `3` 秒。
-* 默认事件模型为 `epoll`，并默认开启 `multi_accept`。
-* HTTPS 监听默认使用独立 `http2 on;` 指令，避免新版 Nginx/OpenResty 对 `listen ... http2` 的弃用告警。
+### 2. 人机安全校验 (PoW Captcha)
+| 配置键 (Key) | 数据类型 | 作用说明 | 默认值 |
+| --- | --- | --- | --- |
+| `cap_login_enabled` | `bool` | 是否在登录界面强制要求进行本地 PoW 算力防爆破人机验证 | `false` |
+| `cap_auto_solve` | `bool` | 打开页面后是否由浏览器自动开始后台背景计算算力（无需用户手动点击）| `true` |
+| `cap_challenge_count` | `int` | 人机验证所需的计算难题数。数量越大，计算要求时间越长（推荐 1～5） | `1` |
+| `cap_challenge_difficulty`| `int`| 每次计算所需的 PoW 哈希前缀匹配难度。推荐数值在 3-5 之间 | `4` |
+| `cap_challenge_ttl_seconds`| `int`| 难题下发后等待计算提交的最长有效时间（秒），超时自动作废 | `300` |
+| `cap_token_ttl_seconds` | `int` | 完成计算并置换到登录凭证后的有效期（秒），限制需在规定时间内登录 | `600` |
+
+### 3. SMTP 邮件推送配置
+| 配置键 (Key) | 数据类型 | 作用说明 | 默认值 |
+| --- | --- | --- | --- |
+| `smtp_host` | `string` | 发信 SMTP 邮件服务器的连接地址 | 空 |
+| `smtp_port` | `int` | 发信 SMTP 服务的端口 (通常是 465 SSL 或 587 STARTTLS) | `465` |
+| `smtp_username` | `string` | SMTP 账户发信邮箱名称 | 空 |
+| `smtp_password` | `string` | SMTP 账户的授权密码或证书密钥（后台写入后加密隐藏，不可回显） | 空 |
+| `email_login_verification_enabled` | `bool` | 是否在用户邮箱登录时发送一次性 6 位动态验证码进行二次认证 | `false` |
+| `email_register_verification_enabled` | `bool` | 用户自助注册时是否必须强制验证邮箱真实性并收取注册验证码 | `false` |
+
+### 4. 节点与 Agent 运维运行时参数
+| 配置键 (Key) | 数据类型 | 作用说明 | 默认值 |
+| --- | --- | --- | --- |
+| `agent_discovery_token` | `string` | 新节点首次一键接入并自动注册的全局通用验证发现 Token | 无（系统初始化生成） |
+| `agent_heartbeat_interval`| `int` | 控制并向所有接入 Agent 周期下发的标准心跳检测间隔（毫秒） | `10000` (10s) |
+| `agent_websocket_upgrade_enabled` | `bool` | 是否授权 Agent 在 HTTP 心跳握手成功后升级建立持久 WebSocket 实时连接 | `true` |
+| `node_offline_threshold` | `int` | 在管理后台中判定节点失去心跳并标注为离线状态的无响应阈值（毫秒） | `120000` (120s) |
+| `agent_update_repo` | `string` | Agent 节点更新下载自身二进制的 Release 仓库源 | `Rain-kl/OpenFlare` |
+| `geoip_provider` | `string` | GeoIP 提供商，支持 `maxmind` 等，用于 WAF 防护时地域分析 | `maxmind` |
+| `database_auto_cleanup_enabled` | `bool` | 是否在每天凌晨 3:00 自动清理过期观测历史日志（降低数据库空间） | `true` |
+| `database_auto_cleanup_retention_days` | `int` | 自动清理观测数据（访问日志、度量曲线、审计等）的默认保留天数 | `30` |
+
+### 5. Uptime Kuma 监控联动同步
+| 配置键 (Key) | 数据类型 | 作用说明 | 默认值 |
+| --- | --- | --- | --- |
+| `uptime_kuma_enabled` | `bool` | 是否在配置发布激活后自动同步生成 Uptime Kuma 对应的 HTTP 监控项 | `false` |
+| `uptime_kuma_url` | `string` | Uptime Kuma 控制端实例的访问 URL (含端口与路径) | 空 |
+| `uptime_kuma_username` | `string` | Uptime Kuma 后台用于同步接口调用认证的管理员账号名称 | 空 |
+| `uptime_kuma_password` | `string` | Uptime Kuma 后台对应的登录密码（后台写入后加密隐藏，不可回显） | 空 |
+| `uptime_kuma_monitor_scope`| `string` | 自动生成监控项的路由范围（支持 `all` 全选网站或 `selected` 选定部分） | `all` |
+| `uptime_kuma_selected_sites`| `string` | 选定进行监控的代理网站 Site Name 名称列表（英文逗号分隔） | 空 |
+| `uptime_kuma_sync_interval`| `int` | 向 Uptime Kuma 实例进行差异扫描并校准同步的频率间隔（分钟） | `5` |
+| `uptime_kuma_interval` | `int` | 生成的 HTTP 监控对象发出 HTTP GET 探测的周期检测频率（秒） | `60` |
+| `uptime_kuma_retry` | `int` | HTTP 监控对象在遭遇连接波动失败后的最大重试重连次数 | `0` |
+| `uptime_kuma_retry_interval`| `int` | HTTP 监控对象失败重连重试的间隔停顿时间（秒） | `60` |
+| `uptime_kuma_timeout` | `int` | 触发 HTTP GET 监控请求判定超时的断开限制时间（秒） | `48` |
+
+### 6. OpenResty 核心主配置与渲染选项 (OpenResty Config)
+| 配置键 (Key) | 数据类型 | 作用说明 | 默认值 |
+| --- | --- | --- | --- |
+| `openresty_default_server_return_status` | `int` | 默认未命中匹配路由的 HTTP 请求返回的响应状态码 | `444` (直接丢弃) |
+| `openresty_worker_processes` | `string` | nginx `worker_processes` 参数设置。支持固定整数值或自动分配 `auto` | `auto` |
+| `openresty_worker_connections` | `int` | nginx `worker_connections` 单进程最大连接承载限制 | `1024` |
+| `openresty_worker_rlimit_nofile` | `int` | nginx `worker_rlimit_nofile` 能够打开的最大物理文件描述符限制 | `65535` |
+| `openresty_events_use` | `string` | 绑定的事件轮询引擎（例如 Linux 下首选 `epoll`） | `epoll` |
+| `openresty_events_multi_accept_enabled` | `bool` | 允许 worker 进程单次批量接受所有挂起的网络握手请求 | `true` |
+| `openresty_keepalive_timeout` | `int` | nginx 连接保持连接复用的 `keepalive_timeout` 限制时长（秒） | `65` |
+| `openresty_keepalive_requests` | `int` | 单一 TCP 连接复用过程中被允许的最大累计请求处理次数 | `100` |
+| `openresty_client_header_timeout` | `int` | 接收客户端整个 Request Header 头信息的读取超时上限时长（秒） | `60` |
+| `openresty_client_body_timeout` | `int` | 接收客户端 Request Body 载荷体的数据读取超时上限时长（秒） | `60` |
+| `openresty_client_max_body_size` | `string` | 允许客户端请求上传的最大 Body 大小限制，通常需要单位如 `10m`/`50m` | `100m` |
+| `openresty_large_client_header_buffers` | `string` | 复杂请求超大请求头的专属缓冲区数目与大小大小（如 `4 8k`） | `4 8k` |
+| `openresty_send_timeout` | `int` | 向客户端推送 Response 数据回执单次传输最大的间隔超时时长（秒）| `60` |
+| `openresty_resolvers` | `string` | 节点进行 DNS 域名动态解析所关联绑定的域名解析器地址与配置参数 | 空 |
+| `openresty_proxy_connect_timeout` | `int` | 向后台代理源站发起 TCP 三次握手建连的最长超时上限时长（秒） | `30` |
+| `openresty_proxy_send_timeout` | `int` | 向源站单次写入并发送请求流数据的最大写入操作间隔时长（秒） | `60` |
+| `openresty_proxy_read_timeout` | `int` | 源站收到请求后返回数据，Agent 最大的等待数据返回间隔时长（秒） | `60` |
+| `openresty_websocket_enabled` | `bool` | 是否在 HTTP 段中自动载入和渲染支持 WebSocket 协议的全局变量及头信息 | `true` |
+| `openresty_http3_enabled` | `bool` | 是否在生成 nginx 监听描述中渲染支持 HTTP/3 QUIC 双栈监听能力 | `false` |
+| `openresty_proxy_request_buffering_enabled`| `bool` | 是否将客户端 Request Body 先在网关做完全部读取缓存再向源站递交 | `false` |
+| `openresty_proxy_buffering_enabled` | `bool` | 是否允许网关暂存源站的大量 Response 数据待全部解析后再转发给用户 | `true` |
+| `openresty_proxy_buffers` | `string` | nginx 反代响应缓冲区的分配数量与单缓存大大小（如 `8 4k`） | `8 4k` |
+| `openresty_proxy_buffer_size` | `string` | 存放源站返回 Response Header 头部信息的专属缓冲区限制 | `4k` |
+| `openresty_proxy_busy_buffers_size` | `string` | 响应数据流返回过大时限制网关处于 Busy 状态的缓冲上限 | `8k` |
+| `openresty_gzip_enabled` | `bool` | 是否在网关对符合条件的内容启用 gzip 编码实时压缩返回 | `true` |
+| `openresty_gzip_min_length` | `int` | 触发 gzip 实时压缩的文件大小门槛。低于此大小无需压缩浪费 CPU | `1024` (1KB) |
+| `openresty_gzip_comp_level` | `int` | gzip 压缩强度等级。支持 1-9，数字越大压缩率越高，越消耗算力 | `5` |
+| `openresty_cache_enabled` | `bool` | 是否在全局配置中初始化代理缓存区域（Proxy Cache Path） | `false` |
+| `openresty_cache_path` | `string` | 节点上代理缓存存放的临时物理目录路径 | `/var/cache/openresty` |
+| `openresty_cache_levels` | `string` | 代理缓存的存储目录树层级分配设置 | `1:2` |
+| `openresty_cache_inactive` | `string` | 缓存文件多长时间无人访问后将自动从磁盘上失效抹除的时间时长 | `7d` (7天) |
+| `openresty_cache_max_size` | `string` | 代理缓存区域在节点上占用的最大可用物理磁盘额度 | `10g` (10GB) |
+| `openresty_cache_key_template` | `string` | 默认生成代理缓存键的识别模板 | `$scheme$host$request_uri` |
+| `openresty_cache_lock_enabled` | `bool` | 遭遇高并发请求击穿同一失效资源时是否对向源站发起建连排队加锁 | `true` |
+| `openresty_cache_lock_timeout` | `string` | 抢夺代理缓存锁排队建连时排队等待的最长等待耗时限制 | `5s` |
+| `openresty_cache_use_stale` | `string` | 当源站遇到特定报错（如502/504等）时是否直接向用户投递过期缓存 | `error timeout updating http_502 http_503 http_504` |
+| `openresty_main_config_template` | `string` | 允许用户完全重写整个 OpenResty nginx.conf 的底层结构大骨架模板 | 空 (内置缺省骨架) |
+
+---
 
 ## 前端构建环境变量
 
@@ -152,6 +253,8 @@ OpenResty 性能参数与缓存参数继续统一保存在 `Option` 表。当前
 | `NEXT_PUBLIC_API_BASE_URL` | 前端请求 API 的基础路径 | `/api` |
 | `NEXT_PUBLIC_APP_VERSION` | 前端展示版本号 | `dev` |
 | `NEXT_DEV_BACKEND_URL` | 本地开发服务器代理的后端地址 | `http://127.0.0.1:3000` |
+
+---
 
 ## Agent 环境变量
 
@@ -173,24 +276,24 @@ OpenResty 性能参数与缓存参数继续统一保存在 `Option` 表。当前
 | `OPENFLARE_MMDB_UPDATE_INTERVAL` | WAF GeoIP mmdb 更新间隔，可覆盖 `agent.json` | 空 |
 | `OPENFLARE_MMDB_DOWNLOAD_URL` | WAF GeoIP mmdb 下载地址，可覆盖 `agent.json` | 空 |
 
-## Agent 命令行参数
+---
 
-| 参数 | 作用 | 默认值 |
-| --- | --- | --- |
-| `-config` | 指定 Agent 配置文件路径 | `./agent.json` |
+## Agent 命令行参数与配置字段
 
-## Agent 配置字段
+### 命令行参数
+- `-config`：指定 Agent 配置文件路径，默认值为 `./agent.json`。
 
+### 配置文件字段 (agent.json)
 | 字段 | 作用 | 是否必填 | 默认值/行为 |
 | --- | --- | --- | --- |
 | `server_url` | 控制面地址 | 是 | 无 |
 | `agent_token` | 节点专属认证 Token | 与 `discovery_token` 二选一 | 空 |
 | `discovery_token` | 首次自动注册使用的全局 Token | 与 `agent_token` 二选一 | 空 |
 | `node_name` | 节点名称 | 否 | 自动使用主机名 |
-| `node_ip` | 节点 IP | 否 | 自动探测，优先通过第三方 API 获取真实出口公网 IP；失败时退回本机网卡探测 |
+| `node_ip` | 节点 IP | 否 | 自动探测，优先使用公网出口 IP；失败时退回本机网卡探测 |
 | `openresty_path` | OpenResty 二进制路径 | 否 | `openresty` |
 | `openresty_observability_port` | 本地观测与 OpenResty 健康检查端口 | 否 | `18081` |
-| `data_dir` | Agent 数据目录 | 否 | 配置文件所在目录下的 `data` |
+| `data_dir` | Agent 数据目录 | 否 | 配置文件同级目录下的 `data` |
 | `main_config_path` | OpenResty 主配置写入路径 | 否 | `data_dir/etc/nginx/nginx.conf` |
 | `route_config_path` | 路由配置写入路径 | 否 | `data_dir/etc/nginx/conf.d/openflare_routes.conf` |
 | `access_log_path` | OpenResty 访问日志路径 | 否 | `data_dir/var/log/openflare/access.log` |
@@ -201,7 +304,7 @@ OpenResty 性能参数与缓存参数继续统一保存在 `Option` 表。当前
 | `runtime_config_dir` | Agent 运行时配置写入目录，如 `pow_config.json` | 否 | `data_dir/etc/openflare` |
 | `pages_dir` | Pages 静态部署包解压与当前部署目录 | 否 | `data_dir/var/lib/openflare/pages` |
 | `mmdb_path` | WAF GeoIP mmdb 文件路径 | 否 | `data_dir/etc/openflare/GeoLite2-Country.mmdb` |
-| `mmdb_update_interval` | WAF GeoIP mmdb 更新间隔 | 否 | `86400000` 毫秒 |
+| `mmdb_update_interval` | WAF GeoIP mmdb 更新间隔 | 否 | `86400000` 毫秒 (24h) |
 | `mmdb_download_url` | WAF GeoIP mmdb 下载地址 | 否 | 内置 GeoLite2 Country 下载地址 |
 | `observability_buffer_path` | 观测补报缓冲文件路径 | 否 | `data_dir/var/lib/openflare/observability-buffer.json` |
 | `observability_replay_minutes` | 自动补传最近观测窗口分钟数 | 否 | `15` |
@@ -209,41 +312,18 @@ OpenResty 性能参数与缓存参数继续统一保存在 `Option` 表。当前
 | `heartbeat_interval` | 心跳间隔 | 否 | `10000` 毫秒 |
 | `request_timeout` | HTTP 请求超时 | 否 | `10000` 毫秒 |
 
-说明：
+---
 
-* `agent_token` 与 `discovery_token` 不能同时为空。
-* `heartbeat_interval` 与 `request_timeout` 支持毫秒整数或 Go duration 字符串。
-* Server 运行时配置 `AgentWebsocketUpgradeEnabled` 开启时，Agent 会在 HTTP 心跳成功后尝试升级为 WebSocket；连接失败或断开后自动退回 HTTP 心跳。
-* 未配置 `openresty_path` 时默认调用 `openresty`。
-* Agent 周期性健康检查会请求 `http://127.0.0.1:<openresty_observability_port>/openflare/stub_status`，不再通过高频 `openresty -t` 判断运行时健康；配置应用、启动恢复和 reload 前校验仍会执行 `openresty -t -c <main_config_path>`。
-* Agent 会初始化并定期更新 `mmdb_path`，供 OpenResty WAF Lua 执行国家级地域规则；更新失败只记录警告，不阻断同步或 reload。
-* 当激活配置引用 Pages 部署时，Agent 会在应用 OpenResty 配置前，将部署包下载、校验并解压到 `pages_dir`，OpenResty 通过该目录服务静态文件。
-* 如果 `agent.json` 不存在，但 `OPENFLARE_SERVER_URL` 与 Token 等环境变量足够，Agent 可以直接启动；两者同时存在时环境变量优先。
-* Agent 未配置 `node_ip` 时，会优先通过 `https://realip.cc` 获取真实出口公网 IP，适配 Docker/NAT 场景；该请求失败时，才退回本机网卡探测并优先选择公网 IPv4。
-* Agent 自动探测到私网 `node_ip` 时，Server 会在注册/心跳阶段优先保留 Agent 直连来源的公网地址，避免 NAT/多网卡场景误登记内网网卡地址。
-* 在管理端开启“锁定节点 IP”后，Server 会保留管理端填写的节点 IP，后续 Agent 注册、HTTP 心跳或 WebSocket 状态上报不会覆盖该字段；关闭锁定后，下一次上报可重新回填。
+## Relay 环境变量与配置字段
 
-## Relay 环境变量
+### 环境变量
+- `LOG_LEVEL`：Relay 日志等级，默认 `info`。
+- 支持 `OPENFLARE_SERVER_URL`、`OPENFLARE_AGENT_TOKEN`、`OPENFLARE_DISCOVERY_TOKEN`、`OPENFLARE_NODE_NAME`、`OPENFLARE_NODE_IP`、`OPENFLARE_DATA_DIR`、`OPENFLARE_FRPS_PATH` 环境变量覆盖。
 
-| 环境变量 | 作用 | 默认值 |
-| --- | --- | --- |
-| `LOG_LEVEL` | Relay 日志等级 | `info` |
-| `OPENFLARE_SERVER_URL` | 控制面地址，可覆盖 `relay.json` | 空 |
-| `OPENFLARE_AGENT_TOKEN` | 节点专属认证 Token，可覆盖 `relay.json` | 空 |
-| `OPENFLARE_DISCOVERY_TOKEN` | 首次自动注册 Token，可覆盖 `relay.json` | 空 |
-| `OPENFLARE_NODE_NAME` | 节点名称，可覆盖 `relay.json` | 空 |
-| `OPENFLARE_NODE_IP` | 节点 IP，可覆盖 `relay.json` | 空 |
-| `OPENFLARE_DATA_DIR` | Relay 数据目录，可覆盖 `relay.json` | 空 |
-| `OPENFLARE_FRPS_PATH` | frps 二进制路径，可覆盖 `relay.json` | 空 |
+### 命令行参数
+- `-config`：指定 Relay 配置文件路径，默认 `./relay.json`。
 
-## Relay 命令行参数
-
-| 参数 | 作用 | 默认值 |
-| --- | --- | --- |
-| `-config` | 指定 Relay 配置文件路径 | `./relay.json` |
-
-## Relay 配置字段
-
+### 配置文件字段 (relay.json)
 | 字段 | 作用 | 是否必填 | 默认值/行为 |
 | --- | --- | --- | --- |
 | `server_url` | 控制面地址 | 是 | 无 |
@@ -254,27 +334,21 @@ OpenResty 性能参数与缓存参数继续统一保存在 `Option` 表。当前
 | `frps_path` | frps 二进制路径 | 否 | `frps`（在系统 PATH 中寻找） |
 | `data_dir` | Relay 运行时数据目录 | 否 | 配置文件所在目录下的 `data` |
 | `state_path` | Relay 本地状态文件存储路径 | 否 | `data_dir/relay-state.json` |
-| `heartbeat_interval` | 心跳间隔 | 否 | `10000` 毫秒，支持 Go duration 字符串 |
-| `request_timeout` | HTTP 请求超时 | 否 | `10000` 毫秒，支持 Go duration 字符串 |
+| `heartbeat_interval` | 心跳间隔 | 否 | `10000` 毫秒 |
+| `request_timeout` | HTTP 请求超时 | 否 | `10000` 毫秒 |
 
-## OpenFlared (Client) 环境变量
+---
 
-| 环境变量 | 作用 | 默认值 |
-| --- | --- | --- |
-| `LOG_LEVEL` | Client 日志等级 | `info` |
-| `OPENFLARE_SERVER_URL` | 控制面地址，可覆盖 `flared.json` | 空 |
-| `OPENFLARE_TUNNEL_TOKEN` | 隧道专属认证 Token，可覆盖 `flared.json` | 空 |
-| `OPENFLARE_DATA_DIR` | Client 数据目录，可覆盖 `flared.json` | 空 |
-| `OPENFLARE_FRPC_PATH` | frpc 二进制路径，可覆盖 `flared.json` | 空 |
+## OpenFlared (Client) 环境变量与配置字段
 
-## OpenFlared (Client) 命令行参数
+### 环境变量
+- `LOG_LEVEL`：Client 日志等级，默认 `info`。
+- 支持 `OPENFLARE_SERVER_URL`、`OPENFLARE_TUNNEL_TOKEN`、`OPENFLARE_DATA_DIR`、`OPENFLARE_FRPC_PATH` 环境变量覆盖。
 
-| 参数 | 作用 | 默认值 |
-| --- | --- | --- |
-| `-config` | 指定 Client 配置文件路径 | `./flared.json` |
+### 命令行参数
+- `-config`：指定 Client 配置文件路径，默认 `./flared.json`。
 
-## OpenFlared (Client) 配置字段
-
+### 配置文件字段 (flared.json)
 | 字段 | 作用 | 是否必填 | 默认值/行为 |
 | --- | --- | --- | --- |
 | `server_url` | 控制面地址 | 是 | 无 |
@@ -282,103 +356,17 @@ OpenResty 性能参数与缓存参数继续统一保存在 `Option` 表。当前
 | `frpc_path` | frpc 二进制路径 | 否 | `frpc`（在系统 PATH 中寻找） |
 | `data_dir` | Client 运行时数据目录 | 否 | 配置文件所在目录下的 `data` |
 | `state_path` | Client 本地状态文件存储路径 | 否 | `data_dir/flared-state.json` |
-| `heartbeat_interval` | 心跳间隔 | 否 | `10000` 毫秒，支持 Go duration 字符串 |
-| `sync_interval` | 配置拉取同步间隔 | 否 | `30000` 毫秒，支持 Go duration 字符串 |
-| `request_timeout` | HTTP 请求超时 | 否 | `10000` 毫秒，支持 Go duration 字符串 |
+| `heartbeat_interval` | 心跳间隔 | 否 | `10000` 毫秒 |
+| `sync_interval` | 配置拉取同步间隔 | 否 | `30000` 毫秒 |
+| `request_timeout` | HTTP 请求超时 | 否 | `10000` 毫秒 |
 
-
-## 常见配置组合
-
-### 生产 Server + PostgreSQL
-
-```bash
-export JWT_SECRET='replace-with-a-long-random-string'
-export DSN='postgres://openflare:replace-with-strong-password@postgres:5432/openflare?sslmode=disable'
-export GIN_MODE='release'
-export LOG_LEVEL='info'
-```
-
-### 本地 Server + SQLite
-
-```bash
-export JWT_SECRET='dev-jwt-secret'
-export SQLITE_PATH='./openflare-dev.db'
-export LOG_LEVEL='debug'
-go run .
-```
-
-### Agent + 默认 OpenResty
-
-```json
-{
-  "server_url": "http://your-server:3000",
-  "agent_token": "replace-with-node-auth-token",
-  "data_dir": "/opt/openflare-agent/data",
-  "openresty_path": "openresty",
-  "heartbeat_interval": 10000,
-  "request_timeout": 10000
-}
-```
-
-### Agent + 自定义 OpenResty 路径
-
-```json
-{
-  "server_url": "http://your-server:3000",
-  "agent_token": "replace-with-node-auth-token",
-  "data_dir": "/var/lib/openflare-agent",
-  "openresty_path": "/usr/local/openresty/nginx/sbin/openresty",
-  "main_config_path": "/var/lib/openflare-agent/etc/nginx/nginx.conf",
-  "route_config_path": "/var/lib/openflare-agent/etc/nginx/conf.d/openflare_routes.conf",
-  "access_log_path": "/var/lib/openflare-agent/var/log/openflare/access.log",
-  "cert_dir": "/var/lib/openflare-agent/etc/nginx/certs",
-  "lua_dir": "/var/lib/openflare-agent/etc/nginx/lua",
-  "runtime_config_dir": "/var/lib/openflare-agent/etc/openflare",
-  "pages_dir": "/var/lib/openflare-agent/var/lib/openflare/pages",
-  "heartbeat_interval": 10000,
-  "request_timeout": 10000
-}
-```
-
-### Relay (中继端) 默认配置
-
-`relay.json`：
-
-```json
-{
-  "server_url": "http://your-server:3000",
-  "agent_token": "replace-with-relay-auth-token",
-  "frps_path": "frps",
-  "data_dir": "/opt/openflare-relay/data",
-  "heartbeat_interval": 10000,
-  "request_timeout": 10000
-}
-```
-
-### OpenFlared (内网客户端) 默认配置
-
-`flared.json`：
-
-```json
-{
-  "server_url": "http://your-server:3000",
-  "tunnel_token": "replace-with-tunnel-token",
-  "frpc_path": "frpc",
-  "data_dir": "/opt/openflared/data",
-  "heartbeat_interval": 10000,
-  "sync_interval": 30000,
-  "request_timeout": 10000
-}
-```
-
+---
 
 ## 维护要求
 
 以下内容变化时，必须同步更新本文档：
-
-* Server 命令行参数。
-* Server 环境变量。
-* Agent 命令行参数与配置字段。
-* Relay 命令行参数与配置字段。
-* Client 命令行参数与配置字段。
-* 任一配置项的默认值、用途或示例。
+- Server 命令行参数。
+- Server 环境变量。
+- SystemConfig 数据库系统配置字段（新增、修改、废弃）。
+- Agent / Relay / Client 的命令行参数与配置字段。
+- 任何配置项的默认值、用途或配置示例。
