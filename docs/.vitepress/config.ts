@@ -29,7 +29,16 @@ export default defineConfig({
     ['meta', { name: 'theme-color', content: '#10b981' }],
     ['meta', { property: 'og:type', content: 'website' }],
     ['meta', { property: 'og:site_name', content: 'OpenFlare' }],
-    ['meta', { property: 'og:url', content: 'https://openflare.io/' }]
+    ['meta', { property: 'og:url', content: 'https://openflare.io/' }],
+    ['script', { async: '', src: 'https://www.googletagmanager.com/gtag/js?id=G-TBZPQFMLFH' }],
+    [
+      'script',
+      {},
+      `window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+gtag('config', 'G-TBZPQFMLFH');`
+    ]
   ],
 
   themeConfig: {
