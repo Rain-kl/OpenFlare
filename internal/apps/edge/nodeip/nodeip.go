@@ -4,6 +4,7 @@ package nodeip
 import (
 	"context"
 	"net"
+	"sync"
 	"time"
 
 	"github.com/Rain-kl/Wavelet/pkg/geoip"
@@ -13,6 +14,7 @@ import (
 const (
 	outboundIPLookupTimeout = 5 * time.Second
 	publicIPPriorityScore   = 2 // matches iputil.Score for public IPv4 addresses
+	ipCacheTTL              = 10 * time.Minute
 )
 
 // LookupOutboundIP and LookupLocalIP are the provider functions used to detect the node's outbound/local IP.
@@ -20,22 +22,39 @@ const (
 var (
 	LookupOutboundIP = geoip.GetOutboundIP
 	LookupLocalIP    = DetectLocal
+
+	cacheMu      sync.RWMutex
+	cachedIP     string
+	lastDetected time.Time
 )
 
 // Detect returns the best available outbound or local IPv4 address for this node.
 func Detect() string {
-	if ip := detectOutbound(context.Background()); ip != "" {
-		return ip
-	}
-	return LookupLocalIP()
+	return DetectWithContext(context.Background())
 }
 
 // DetectWithContext returns the best available outbound or local IPv4 address, respecting ctx for cancellation.
 func DetectWithContext(ctx context.Context) string {
-	if ip := detectOutbound(ctx); ip != "" {
+	cacheMu.RLock()
+	if cachedIP != "" && time.Since(lastDetected) < ipCacheTTL {
+		ip := cachedIP
+		cacheMu.RUnlock()
 		return ip
 	}
-	return LookupLocalIP()
+	cacheMu.RUnlock()
+
+	var ip string
+	if ip = detectOutbound(ctx); ip == "" {
+		ip = LookupLocalIP()
+	}
+
+	if ip != "" {
+		cacheMu.Lock()
+		cachedIP = ip
+		lastDetected = time.Now()
+		cacheMu.Unlock()
+	}
+	return ip
 }
 
 func detectOutbound(ctx context.Context) string {

@@ -187,10 +187,46 @@ func (a RealIPCCAdapter) DecodeIP(reader io.Reader) (net.IP, error) {
 	return ip, nil
 }
 
+// PlainTextIPAdapter decodes public IP responses from raw plain text endpoints.
+type PlainTextIPAdapter struct {
+	ProviderName string
+	URL          string
+}
+
+// Name returns the provider name.
+func (a PlainTextIPAdapter) Name() string {
+	return a.ProviderName
+}
+
+// Endpoint returns the plain text API URL.
+func (a PlainTextIPAdapter) Endpoint() string {
+	return a.URL
+}
+
+// DecodeIP parses a plain text response into a public IP address.
+func (a PlainTextIPAdapter) DecodeIP(reader io.Reader) (net.IP, error) {
+	body, err := io.ReadAll(reader)
+	if err != nil {
+		return nil, err
+	}
+	ipStr := strings.TrimSpace(string(body))
+	ip := net.ParseIP(ipStr)
+	if ip == nil {
+		return nil, fmt.Errorf("invalid plain text IP %q", ipStr)
+	}
+	if ipv4 := ip.To4(); ipv4 != nil {
+		return ipv4, nil
+	}
+	return ip, nil
+}
+
 // DefaultOutboundIPStrategies returns the built-in public egress IP lookup strategies.
 func DefaultOutboundIPStrategies() []OutboundIPStrategy {
 	return []OutboundIPStrategy{
 		NewRealIPCCOutboundIPStrategy(),
+		NewHTTPOutboundIPStrategy(PlainTextIPAdapter{ProviderName: "ifconfig.me", URL: "https://ifconfig.me"}, nil),
+		NewHTTPOutboundIPStrategy(PlainTextIPAdapter{ProviderName: "ip.sb", URL: "https://api.ip.sb/ip"}, nil),
+		NewHTTPOutboundIPStrategy(PlainTextIPAdapter{ProviderName: "icanhazip.com", URL: "https://icanhazip.com"}, nil),
 	}
 }
 
