@@ -98,7 +98,7 @@ func GetTunnelConfig(ctx context.Context, node *model.OpenFlareNode) (*TunnelCon
 		return nil, fmt.Errorf("node is nil")
 	}
 
-	activeVersion, err := getActiveConfigVersion(ctx)
+	activeVersion, err := getActiveConfigMeta(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("no active config version: %w", err)
 	}
@@ -230,21 +230,6 @@ func updateFlaredNodeFromApplyLogTx(tx *gorm.DB, payload ApplyLogPayload, now ti
 		node.LastError = payload.Message
 	}
 	return tx.Model(&node).Select("status", "last_seen_at", "current_version", "last_error").Updates(&node).Error
-}
-
-func getActiveConfigVersion(ctx context.Context) (*configVersionRow, error) {
-	conn := db.DB(ctx)
-	if conn == nil {
-		return nil, errors.New("database not initialized")
-	}
-	if !conn.Migrator().HasTable(&configVersionRow{}) {
-		return nil, gorm.ErrRecordNotFound
-	}
-	var version configVersionRow
-	if err := conn.Where("is_active = ?", true).Order("id desc").First(&version).Error; err != nil {
-		return nil, err
-	}
-	return &version, nil
 }
 
 func normalizeApplyLogPayload(payload ApplyLogPayload) ApplyLogPayload {

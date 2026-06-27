@@ -26,7 +26,7 @@ func setupWAFIPGroupTestDB(t *testing.T) func() {
 	require.NoError(t, err)
 	require.NoError(t, sqliteDB.AutoMigrate(
 		&model.OpenFlareWAFIPGroup{},
-		&configVersionRecord{},
+		&model.ConfigVersion{},
 	))
 
 	db.SetDB(sqliteDB)
@@ -55,7 +55,7 @@ func seedActiveConfigWithWAFIPGroup(t *testing.T, ctx context.Context, ipGroupID
 	snapshotJSON, err := json.Marshal(snapshot)
 	require.NoError(t, err)
 
-	require.NoError(t, db.DB(ctx).Create(&configVersionRecord{
+	require.NoError(t, db.DB(ctx).Create(&model.ConfigVersion{
 		Version:      "20260618-001",
 		SnapshotJSON: string(snapshotJSON),
 		Checksum:     "test-checksum",

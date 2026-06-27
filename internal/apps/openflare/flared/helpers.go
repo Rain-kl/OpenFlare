@@ -5,31 +5,19 @@ package flared
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net"
 	"strconv"
 	"strings"
 
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/relay"
-	"github.com/Rain-kl/Wavelet/internal/db"
 	"github.com/Rain-kl/Wavelet/internal/model"
-	"gorm.io/gorm"
 )
 
 const (
 	updateChannelStable     = "stable"
 	defaultTunnelTargetPort = 80
 )
-
-type configVersionRow struct {
-	Version  string `gorm:"column:version"`
-	Checksum string `gorm:"column:checksum"`
-}
-
-func (configVersionRow) TableName() string {
-	return "of_config_versions"
-}
 
 func normalizeReleaseChannel(channel string) string {
 	if strings.ToLower(strings.TrimSpace(channel)) == "preview" {
@@ -63,16 +51,7 @@ func normalizeFlaredHeartbeatPayload(payload HeartbeatPayload) HeartbeatPayload 
 }
 
 func getActiveConfigMeta(ctx context.Context) (*ActiveConfigMeta, error) {
-	conn := db.DB(ctx)
-	if conn == nil {
-		return nil, errors.New("database not initialized")
-	}
-	if !conn.Migrator().HasTable(&configVersionRow{}) {
-		return nil, gorm.ErrRecordNotFound
-	}
-
-	var version configVersionRow
-	err := conn.Where("is_active = ?", true).Order("id desc").First(&version).Error
+	version, err := model.GetActiveConfigVersion(ctx)
 	if err != nil {
 		return nil, err
 	}

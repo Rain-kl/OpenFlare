@@ -129,7 +129,7 @@ func checksumAgentWAFIPGroup(group WAFIPGroup) string {
 }
 
 func activeConfigWAFIPGroupIDs(ctx context.Context) ([]uint, error) {
-	version, err := loadActiveConfigVersion(ctx)
+	version, err := model.GetActiveConfigVersion(ctx)
 	if err != nil {
 		if isActiveConfigNotFound(err) {
 			return []uint{}, nil

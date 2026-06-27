@@ -8,29 +8,14 @@ import (
 	"encoding/json"
 	"errors"
 	"strings"
-	"time"
 
-	"github.com/Rain-kl/Wavelet/internal/db"
+	"github.com/Rain-kl/Wavelet/internal/model"
 	openrestyrender "github.com/Rain-kl/Wavelet/pkg/render/openresty"
 	"gorm.io/gorm"
 )
 
-type configVersionRecord struct {
-	ID               uint      `gorm:"primaryKey"`
-	Version          string    `gorm:"column:version"`
-	SnapshotJSON     string    `gorm:"column:snapshot_json"`
-	SupportFilesJSON string    `gorm:"column:support_files_json"`
-	Checksum         string    `gorm:"column:checksum"`
-	IsActive         bool      `gorm:"column:is_active"`
-	CreatedAt        time.Time `gorm:"column:created_at"`
-}
-
-func (configVersionRecord) TableName() string {
-	return "of_config_versions"
-}
-
 func getActiveConfigMeta(ctx context.Context) (*ActiveConfigMeta, error) {
-	version, err := loadActiveConfigVersion(ctx)
+	version, err := model.GetActiveConfigVersion(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -41,7 +26,7 @@ func getActiveConfigMeta(ctx context.Context) (*ActiveConfigMeta, error) {
 }
 
 func getActiveConfigForAgent(ctx context.Context) (*ConfigResponse, error) {
-	version, err := loadActiveConfigVersion(ctx)
+	version, err := model.GetActiveConfigVersion(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -60,19 +45,6 @@ func getActiveConfigForAgent(ctx context.Context) (*ConfigResponse, error) {
 		SupportFiles:     sourceSupportFiles(supportFiles),
 		CreatedAt:        version.CreatedAt,
 	}, nil
-}
-
-func loadActiveConfigVersion(ctx context.Context) (*configVersionRecord, error) {
-	conn := db.DB(ctx)
-	if conn == nil {
-		return nil, errors.New("database not initialized")
-	}
-	version := &configVersionRecord{}
-	err := conn.Where("is_active = ?", true).Order("id desc").First(version).Error
-	if err != nil {
-		return nil, err
-	}
-	return version, nil
 }
 
 func sourceSupportFiles(files []SupportFile) []SupportFile {

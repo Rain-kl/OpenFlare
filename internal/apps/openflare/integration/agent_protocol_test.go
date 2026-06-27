@@ -20,19 +20,6 @@ import (
 	"gorm.io/gorm"
 )
 
-type configVersionRecord struct {
-	ID               uint   `gorm:"primaryKey"`
-	Version          string `gorm:"column:version"`
-	SnapshotJSON     string `gorm:"column:snapshot_json"`
-	SupportFilesJSON string `gorm:"column:support_files_json"`
-	Checksum         string `gorm:"column:checksum"`
-	IsActive         bool   `gorm:"column:is_active"`
-}
-
-func (configVersionRecord) TableName() string {
-	return "of_config_versions"
-}
-
 func setupProtocolTestEnv(t *testing.T) (*gin.Engine, func()) {
 	t.Helper()
 
@@ -46,7 +33,7 @@ func setupProtocolTestEnv(t *testing.T) (*gin.Engine, func()) {
 		&model.OpenFlareApplyLog{},
 		&model.OpenFlareNodeSystemProfile{},
 		&model.OpenFlareHealthEvent{},
-		&configVersionRecord{},
+		&model.ConfigVersion{},
 	))
 
 	db.SetDB(sqliteDB)

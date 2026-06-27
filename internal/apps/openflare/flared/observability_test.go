@@ -27,6 +27,7 @@ func setupFlaredObservabilityTestDB(t *testing.T) func() {
 		&model.OpenFlareNode{},
 		&model.OpenFlareHealthEvent{},
 		&model.SystemConfig{},
+		&model.ConfigVersion{},
 	))
 
 	db.SetDB(sqliteDB)

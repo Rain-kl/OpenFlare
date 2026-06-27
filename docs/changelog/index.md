@@ -23,7 +23,7 @@ sidebar: false
 
 ### 修复
 
-- 修复旧版本迁移升级后，在 PostgreSQL 数据库下发布版本或插入其它新数据时报“版本号生成冲突，请重试”等主键唯一约束冲突的问题。根本原因在于迁移数据时显式指定了旧 ID 导入，导致 PostgreSQL 各核心表的自增主键序列值（sequence）落后于 MAX(id)；新增 `202606270001_sync_all_postgres_sequences` 迁移在系统启动时对所有核心表的自增序列执行 `setval` 重新对齐。
+- 修复旧版本迁移升级后，发布版本报错“版本号生成冲突，请重试”的问题。根本原因是配置版本表 `of_config_versions` 的自增主键 `id` 序列与导入的旧数据冲突；现重构配置版本表，将自增 `id` 移除，改由版本号字符串（如 `20260626-003`）直接作为主键（通过迁移 `202606270001_make_version_primary_key` 完成），并同步修改 Agent 和 Flared 模块中的排序及查询条件，解决删除 `id` 列后心跳上报报 `column "id" does not exist` 的故障。
 - 修复代理路由详情页点击“发布配置”时，同时弹出配置差异对话框和确认发布对话框导致重叠的问题：点击发布时不再展示配置差异，直接进行确认发布。
 - 修复配置版本发布到 Agent 后 `openresty -t` 因 `proxy_cache_path` 使用 `/var/cache/openresty` 导致非 root 用户 `mkdir` 失败的问题：发布快照与渲染将 `/var/` 下路径规范为 `__OPENFLARE_PROXY_CACHE_PATH__`，Agent 应用时落地为 `data_dir/var/cache/openflare_proxy` 并兼容重写已发布配置中的旧路径。
 - 修复配置版本发布到 Agent 后 `openresty -t` 因证书私钥无法解析而失败的问题。根因是发布快照生成 `certs/{id}.key` 时直接写入库内加密的 `KeyPEM`（`enc:v1:`），未解密为 PEM；现与证书详情接口一致，发布前通过 `OpenKeyPEM` 解密后再下发。
