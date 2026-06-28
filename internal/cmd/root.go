@@ -47,23 +47,7 @@ var rootCmd = &cobra.Command{
 	},
 	Run: func(_ *cobra.Command, args []string) {
 		// 无参数时默认以融合模式启动所有服务
-		if len(args) == 0 {
-			allCmd.Run(allCmd, args)
-			return
-		}
-		appMode := args[0]
-		switch appMode {
-		case "api":
-			apiCmd.Run(apiCmd, args)
-		case "scheduler":
-			schedulerCmd.Run(schedulerCmd, args)
-		case "worker":
-			workerCmd.Run(workerCmd, args)
-		case "all":
-			allCmd.Run(allCmd, args)
-		default:
-			log.Fatal("[CMD] unknown app mode\n")
-		}
+		allCmd.Run(allCmd, args)
 	},
 }
 
@@ -76,6 +60,19 @@ func shutdownTraceProvider() {
 func init() {
 	rootCmd.Version = buildinfo.Version
 	rootCmd.CompletionOptions.DisableDefaultCmd = true
+
+	// 1. 为需要迁移的子命令动态绑定原先 rootCmd.PreRun 拥有的数据库迁移行为
+	migratePreRun := func(_ *cobra.Command, _ []string) {
+		migrator.Migrate()
+		migrator.MigrateClickHouse()
+	}
+	allCmd.PreRun = migratePreRun
+	apiCmd.PreRun = migratePreRun
+	workerCmd.PreRun = migratePreRun
+	schedulerCmd.PreRun = migratePreRun
+
+	// 2. 集中将这些命令注册为真正的子命令，以解决 Cobra 的 unknown command 校验限制
+	rootCmd.AddCommand(allCmd, apiCmd, workerCmd, schedulerCmd)
 }
 
 // Execute 执行根命令
