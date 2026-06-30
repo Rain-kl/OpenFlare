@@ -144,6 +144,8 @@ func expectedAssetNames(repository, tag string) []string {
 				extension = "zip"
 			}
 			names = append(names, fmt.Sprintf("%s_%s_%s_%s.%s", repoName, tag, runtime.GOOS, runtime.GOARCH, extension))
+			names = append(names, fmt.Sprintf("%s_%s_%s_%s.%s", strings.ToLower(repoName), tag, runtime.GOOS, runtime.GOARCH, extension))
+			names = append(names, fmt.Sprintf("%s-server_%s_%s_%s.%s", strings.ToLower(repoName), tag, runtime.GOOS, runtime.GOARCH, extension))
 		}
 	}
 	return names
