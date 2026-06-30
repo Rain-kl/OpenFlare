@@ -50,9 +50,9 @@ services:
       DB_ENABLED: "true"
       DB_HOST: "postgres"
       DB_PORT: "5432"
-      DB_USERNAME: "openflare"
-      DB_PASSWORD: "replace-with-strong-password"
-      DB_NAME: "openflare"
+      DB_USERNAME: "${DB_USERNAME:-openflare}"
+      DB_PASSWORD: "${DB_PASSWORD:-replace-with-strong-password}"
+      DB_NAME: "${DB_NAME:-openflare}"
       REDIS_ENABLED: "true"
       REDIS_ADDRS: "redis:6379"
       CLICKHOUSE_ENABLED: "true"
@@ -69,13 +69,13 @@ services:
     image: postgres:17-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_DB: openflare
-      POSTGRES_USER: openflare
-      POSTGRES_PASSWORD: replace-with-strong-password
+      POSTGRES_DB: ${DB_NAME:-openflare}
+      POSTGRES_USER: ${DB_USERNAME:-openflare}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-replace-with-strong-password}
     volumes:
       - ./data/postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U openflare -d openflare"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-openflare} -d ${DB_NAME:-openflare}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -98,13 +98,13 @@ services:
     environment:
       CLICKHOUSE_DB: openflare
       CLICKHOUSE_USER: default
-      CLICKHOUSE_PASSWORD: 123456
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-replace-with-clickhouse-password}
       CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
       TZ: Asia/Shanghai
     volumes:
       - ./data/clickhouse_data:/var/lib/clickhouse
     healthcheck:
-      test: ["CMD", "clickhouse-client", "--query", "SELECT 1"]
+      test: ["CMD", "clickhouse-client", "--user", "${CLICKHOUSE_USERNAME:-default}", "--password", "${CLICKHOUSE_PASSWORD:-replace-with-clickhouse-password}", "--query", "SELECT 1"]
       interval: 10s
       timeout: 5s
       retries: 5
