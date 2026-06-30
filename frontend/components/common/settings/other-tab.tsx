@@ -4,8 +4,6 @@ import {ComponentType, useMemo} from "react"
 import {useMutation, useQueryClient} from "@tanstack/react-query"
 import {
   Bell,
-  Code,
-  CreditCard,
   Database,
   FileText,
   FolderOpen,
@@ -61,9 +59,7 @@ const MENU_GROUPS: MenuGroup[] = [
   {
     name: "文档菜单",
     items: [
-      { path: "/admin/demo", label: "规范示例", description: "内置 UI 组件与设计规范的展示、调试与参考", icon: Code },
-      { path: "/docs/api", label: "接口文档", description: "系统 Swagger 交互式 API 接口文档", icon: CreditCard },
-      { path: "/docs/how-to-use", label: "使用文档", description: "面向开发与运营的部署使用指南", icon: FileText },
+      { path: "https://open-flare.pages.dev/", label: "使用文档", description: "面向开发与运营的部署使用指南", icon: FileText },
     ]
   }
 ]

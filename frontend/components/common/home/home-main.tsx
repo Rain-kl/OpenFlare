@@ -5,7 +5,7 @@ import {AnimatePresence, motion} from "motion/react"
 import {useUser} from "@/contexts/user-context"
 import {Card, CardHeader, CardTitle} from "@/components/ui/card"
 import {Button} from "@/components/ui/button"
-import {ArrowRight, ExternalLink, FileText, HelpCircle, Layers, Shield, ShieldCheck, Terminal, User} from "lucide-react"
+import {ArrowRight, ExternalLink, HelpCircle, Layers, Shield, ShieldCheck, Terminal, User} from "lucide-react"
 import Link from "next/link"
 
 export function HomeMain() {
@@ -23,20 +23,10 @@ export function HomeMain() {
       borderColor: "hover:border-blue-500/30",
     },
     {
-      title: "开发接口文档",
-      description: "查看开放平台的 RESTful 接口规格说明",
-      icon: FileText,
-      url: "/docs/api",
-      color: "text-emerald-500",
-      bgColor: "bg-emerald-500/10",
-      borderColor: "hover:border-emerald-500/30",
-      external: true,
-    },
-    {
       title: "使用文档",
       description: "学习如何集成 API 及日常操作帮助指南",
       icon: HelpCircle,
-      url: "/docs/how-to-use",
+      url: "https://open-flare.pages.dev/",
       color: "text-purple-500",
       bgColor: "bg-purple-500/10",
       borderColor: "hover:border-purple-500/30",

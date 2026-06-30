@@ -126,10 +126,10 @@ curl -X POST https://api.example.com/api/v1/auth/register \\
             </ul>
 
             <div className="flex flex-wrap gap-4">
-              <Link href="/docs/api">
+              <Link href="https://open-flare.pages.dev/" target="_blank" rel="noopener noreferrer">
                 <Button variant="secondary" className="rounded-full text-xs hover:bg-muted-foreground/10">
                   <Book className="w-3 h-3" />
-                  API 文档
+                  使用文档
                 </Button>
               </Link>
             </div>

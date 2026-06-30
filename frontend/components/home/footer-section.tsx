@@ -43,8 +43,7 @@ export const FooterSection = React.memo(function FooterSection({ className }: Fo
           <div className="lg:col-span-1">
             <h3 className="font-semibold text-foreground mb-6">开发</h3>
             <ul className="space-y-4 text-sm text-muted-foreground">
-              <li><FooterLink href="/docs/how-to-use">快速开始</FooterLink></li>
-              <li><FooterLink href="/docs/api">API 文档</FooterLink></li>
+              <li><FooterLink href="https://open-flare.pages.dev/">使用文档</FooterLink></li>
               <li><FooterLink href="https://github.com/Rain-kl/OpenFlare">源代码</FooterLink></li>
             </ul>
           </div>

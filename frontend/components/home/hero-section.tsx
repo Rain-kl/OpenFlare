@@ -72,7 +72,7 @@ export const HeroSection = React.memo(function HeroSection({ className }: HeroSe
                 </Button>
               </Link>
 
-              <Link href="/docs/how-to-use" className="w-full sm:w-auto">
+              <Link href="https://open-flare.pages.dev/" target="_blank" rel="noopener noreferrer" className="w-full sm:w-auto">
                 <Button
                   variant="secondary"
                   size="lg"

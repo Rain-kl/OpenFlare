@@ -47,8 +47,6 @@ import {
   ArrowUpRight,
   Bell,
   ChevronDown,
-  Code,
-  CreditCard,
   Database,
   FileQuestionMark,
   FileText,
@@ -79,9 +77,7 @@ const data = {
     { title: "系统设置", url: "/admin/settings", icon: Settings },
   ],
   document: [
-    { title: "规范示例", url: "/admin/demo", icon: Code },
-    { title: "接口文档", url: "/docs/api", icon: CreditCard, external: true },
-    { title: "使用文档", url: "/docs/how-to-use", icon: FileText, external: true },
+    { title: "使用文档", url: "https://open-flare.pages.dev/", icon: FileText, external: true },
   ],
 }
 
@@ -281,7 +277,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               </DropdownMenuItem>
               <DropdownMenuSeparator className="my-2" />
               <DropdownMenuItem onClick={() => {
-                router.push("/docs/how-to-use")
+                window.open("https://open-flare.pages.dev/", "_blank", "noopener,noreferrer")
                 handleCloseSidebar()
               }}>
                 <FileQuestionMark className="mr-2 size-4" />
