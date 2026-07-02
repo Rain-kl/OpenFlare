@@ -15,10 +15,5 @@ ALTER TABLE of_node_obs_frps MODIFY TTL toDateTime(captured_at) + INTERVAL 30 DA
 
 ALTER TABLE of_node_obs_frpc MODIFY TTL toDateTime(captured_at) + INTERVAL 30 DAY;
 
--- Narrow ORDER BY for node access logs to match common filter patterns.
--- Requires ClickHouse 24.10+ (MODIFY ORDER BY). On older versions this statement
--- may fail and require manual table recreation; TTL changes above are still safe.
-ALTER TABLE of_node_access_logs MODIFY ORDER BY (node_id, logged_at, status_code);
-
 -- +goose Down
--- TTL and ORDER BY changes cannot be safely reversed without recreating tables.
+-- TTL changes cannot be safely reversed without recreating tables.

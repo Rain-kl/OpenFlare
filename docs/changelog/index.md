@@ -20,13 +20,13 @@ sidebar: false
 
 ### 修改
 
-- 修复 ClickHouse TTL 迁移：`DateTime64` 时间列通过 `toDateTime()` 转换后再设置 TTL，避免 goose 启动报错。
+- 修复 ClickHouse TTL 迁移：`DateTime64` 时间列通过 `toDateTime()` 转换后再设置 TTL，避免 goose 启动报错；移除 `MODIFY ORDER BY`（ClickHouse 不允许将排序键缩短至短于隐式主键前缀）。
 - ClickHouse 遗留治理 Phase 2：保留期清理改为 TTL `MATERIALIZE TTL`（全量清理使用 `TRUNCATE`），消除定时 `ALTER DELETE` mutation；移除 GORM 双连接池并统一 `ChConn` 读路径；查询侧去除 `trim(remote_addr)`；`wait_for_async_insert` 调整为 1；新增 `/admin/status/clickhouse` 运维指标与 `of_node_traffic_hourly` 预聚合 MV。
 - ClickHouse 写入路径优化：移除 Agent 心跳路径中的同步 `ALTER DELETE` 保留清理；`batchwriter` 新增 `MinBatchSize` 抑制过小批次定时 flush；可观测 writer 批次提升至 500、flush 间隔 5s，并为 OpenResty/FRPS/FRPC 补全去重。
 - ClickHouse 客户端启用 `async_insert` 异步写入缓冲，并调高 `block_buffer_size` 与连接池默认值，降低小 part 与连接争用。
 - Dashboard 与节点可观测 API 消除无 `LIMIT` 全表扫描、增加短 TTL 内存缓存，前端轮询间隔分别调整为 60s/30s。
 - 访问日志与 WAF IP 组同步改为 ClickHouse 侧聚合与 SQL 分页，默认查询窗口限制为近 7 天，浏览器分布查询增加 Top 100 限制。
-- ClickHouse 分析表新增 TTL 自动过期策略：`w_user_access_logs` 180 天、`of_node_access_logs` 90 天，其余节点观测与聚合表 30 天；并优化 `of_node_access_logs` 的 `ORDER BY` 以匹配常见查询过滤模式。
+- ClickHouse 分析表新增 TTL 自动过期策略：`w_user_access_logs` 180 天、`of_node_access_logs` 90 天，其余节点观测与聚合表 30 天。
 - 节点访问日志写入 ClickHouse 时对 `remote_addr` 执行 `TrimSpace` 规范化，避免首尾空白影响 IP 汇总统计。
 - 数据库自动清理任务新增 OpenResty、FRPS、FRPC 观测表清理目标。
 - Docker 部署为 ClickHouse 服务增加 `nofile` ulimits 与 `docker/clickhouse/config.d/performance.xml` 性能配置挂载，限制 `max_concurrent_queries`、`background_pool_size` 与 `background_merges_mutations_concurrency_ratio`，降低高负载下的合并与查询争用。
