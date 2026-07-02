@@ -20,6 +20,8 @@ sidebar: false
 
 ### 修改
 
+- Docker 部署为 ClickHouse 服务增加 `nofile` ulimits 与 `docker/clickhouse/config.d/performance.xml` 性能配置挂载，限制 `max_concurrent_queries`、`background_pool_size` 与 `background_merges_mutations_concurrency_ratio`，降低高负载下的合并与查询争用。
+- 审计访问日志写入 ClickHouse 时仅保留安全相关请求头（Authorization、Cookie、X-Forwarded-For、X-Real-IP、User-Agent、Content-Type），敏感头字段以 SHA-256 摘要脱敏，并将序列化后的 headers 载荷上限收紧至 2KB，减小 `w_user_access_logs` 行宽与 merge CPU 开销。
 - 隐藏侧边栏“文档库”分组中的“规范示例”与“接口文档”，并将“使用文档”及其他相关页面的文档链接统一跳转至外部文档 https://open-flare.pages.dev/
 - 修复全局搜索数据源覆盖不全的问题，补全了所有核心业务控制台页面（节点、规则、域名、证书、DNS、源站、WAF、IP组、Pages、版本发布、访问日志、应用记录和性能调优）及缺失的管理员专有页面（存储、数据、推送、日志）的搜索检索支持。
 - 修复系统自更新（Updater）检测上游 GitHub Action Release 时，因资产包名称前缀（`openflare-server`）与仓库名不完全一致导致匹配失败并报错“未找到兼容的 Release”的问题。

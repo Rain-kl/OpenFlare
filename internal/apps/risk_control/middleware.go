@@ -5,8 +5,11 @@
 package risk_control
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/Rain-kl/Wavelet/internal/apps/oauth"
@@ -17,6 +20,61 @@ import (
 	"github.com/Rain-kl/Wavelet/internal/model/analytics"
 	"github.com/gin-gonic/gin"
 )
+
+const maxAuditLogHeadersBytes = 2 * 1024
+
+var auditLogHeaderAllowlist = map[string]struct{}{
+	"Authorization":   {},
+	"Cookie":          {},
+	"X-Forwarded-For": {},
+	"X-Real-Ip":       {},
+	"User-Agent":      {},
+	"Content-Type":    {},
+}
+
+func marshalAuditLogHeaders(headers http.Header) string {
+	if headers == nil {
+		return ""
+	}
+
+	filtered := make(http.Header)
+	for key, values := range headers {
+		if _, ok := auditLogHeaderAllowlist[key]; !ok {
+			continue
+		}
+		filtered[key] = redactAuditLogHeaderValues(key, values)
+	}
+
+	headersBytes, err := json.Marshal(filtered)
+	if err != nil {
+		return ""
+	}
+	if len(headersBytes) <= maxAuditLogHeadersBytes {
+		return string(headersBytes)
+	}
+	return string(headersBytes[:maxAuditLogHeadersBytes])
+}
+
+func redactAuditLogHeaderValues(key string, values []string) []string {
+	switch key {
+	case "Authorization", "Cookie":
+		redacted := make([]string, len(values))
+		for i, value := range values {
+			redacted[i] = hashAuditLogSensitiveValue(value)
+		}
+		return redacted
+	default:
+		return values
+	}
+}
+
+func hashAuditLogSensitiveValue(value string) string {
+	if strings.TrimSpace(value) == "" {
+		return ""
+	}
+	sum := sha256.Sum256([]byte(value))
+	return "sha256:" + hex.EncodeToString(sum[:8])
+}
 
 // RiskControlMiddleware 全局日志采集中间件
 func RiskControlMiddleware() gin.HandlerFunc {
@@ -47,19 +105,7 @@ func RiskControlMiddleware() gin.HandlerFunc {
 		// 4. 计算耗时并异步推送到缓冲队列
 		latency := time.Since(start).Milliseconds()
 
-		var headersStr string
-		if c.Request.Header != nil {
-			// 克隆 Header，避免污染原 HTTP 请求的 Header 对象
-			clonedHeaders := make(http.Header)
-			for k, v := range c.Request.Header {
-				clonedHeaders[k] = v
-			}
-			clonedHeaders.Del("Cookie")
-
-			if headersBytes, err := json.Marshal(clonedHeaders); err == nil {
-				headersStr = string(headersBytes)
-			}
-		}
+		headersStr := marshalAuditLogHeaders(c.Request.Header)
 
 		const maxHTTPStatus = 999
 		status := c.Writer.Status()

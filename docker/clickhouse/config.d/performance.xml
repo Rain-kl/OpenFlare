@@ -1,0 +1,6 @@
+<?xml version="1.0"?>
+<clickhouse>
+    <max_concurrent_queries>50</max_concurrent_queries>
+    <background_pool_size>8</background_pool_size>
+    <background_merges_mutations_concurrency_ratio>2</background_merges_mutations_concurrency_ratio>
+</clickhouse>

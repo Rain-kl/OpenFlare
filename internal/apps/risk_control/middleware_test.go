@@ -94,6 +94,8 @@ func TestRiskControlMiddleware(t *testing.T) {
 		req, _ := http.NewRequest(http.MethodGet, "/test", nil)
 		req.Header.Set("X-Test-Header", "hello")
 		req.Header.Set("Cookie", "session_id=abcdef123456")
+		req.Header.Set("Authorization", "Bearer secret-token")
+		req.Header.Set("Content-Type", "application/json")
 		r.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusOK, w.Code)
@@ -106,8 +108,11 @@ func TestRiskControlMiddleware(t *testing.T) {
 			assert.Equal(t, http.MethodGet, logItem.Method)
 			assert.Equal(t, int32(http.StatusOK), logItem.Status)
 			assert.NotEmpty(t, logItem.Headers)
-			assert.Contains(t, logItem.Headers, "X-Test-Header")
-			assert.NotContains(t, logItem.Headers, "Cookie")
+			assert.NotContains(t, logItem.Headers, "X-Test-Header")
+			assert.Contains(t, logItem.Headers, "Content-Type")
+			assert.Contains(t, logItem.Headers, "sha256:")
+			assert.NotContains(t, logItem.Headers, "secret-token")
+			assert.NotContains(t, logItem.Headers, "session_id=abcdef123456")
 		case <-time.After(200 * time.Millisecond):
 			t.Fatal("expected flushed log item, but got none")
 		}
