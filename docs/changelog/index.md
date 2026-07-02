@@ -20,6 +20,7 @@ sidebar: false
 
 ### 修改
 
+- 修复 ClickHouse TTL 迁移：`DateTime64` 时间列通过 `toDateTime()` 转换后再设置 TTL，避免 goose 启动报错。
 - ClickHouse 遗留治理 Phase 2：保留期清理改为 TTL `MATERIALIZE TTL`（全量清理使用 `TRUNCATE`），消除定时 `ALTER DELETE` mutation；移除 GORM 双连接池并统一 `ChConn` 读路径；查询侧去除 `trim(remote_addr)`；`wait_for_async_insert` 调整为 1；新增 `/admin/status/clickhouse` 运维指标与 `of_node_traffic_hourly` 预聚合 MV。
 - ClickHouse 写入路径优化：移除 Agent 心跳路径中的同步 `ALTER DELETE` 保留清理；`batchwriter` 新增 `MinBatchSize` 抑制过小批次定时 flush；可观测 writer 批次提升至 500、flush 间隔 5s，并为 OpenResty/FRPS/FRPC 补全去重。
 - ClickHouse 客户端启用 `async_insert` 异步写入缓冲，并调高 `block_buffer_size` 与连接池默认值，降低小 part 与连接争用。
