@@ -51,6 +51,7 @@ func RegisterAdminRoutes(apiV1Router *gin.RouterGroup) {
 func registerAdminDiagnosticRoutes(adminRouter *gin.RouterGroup) {
 	// System status
 	adminRouter.GET("/status", admin_status.GetSystemStatus)
+	adminRouter.GET("/status/clickhouse", admin_status.GetClickHouseStatus)
 
 	// Database basic info & backup export
 	adminRouter.GET("/db-info", admin_status.GetDatabaseInfo)

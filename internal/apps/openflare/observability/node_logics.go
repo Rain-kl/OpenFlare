@@ -134,6 +134,10 @@ func GetNodeObservability(ctx context.Context, id uint, query NodeQuery) (*NodeV
 	if err != nil {
 		return nil, err
 	}
+	trafficTrend := BuildTrafficTrendPoints(now, reports)
+	if trafficHourly, hourlyErr := model.ListOpenFlareTrafficHourlySince(ctx, node.NodeID, now.Add(-24*time.Hour)); hourlyErr == nil && len(trafficHourly) > 0 {
+		trafficTrend = BuildTrafficTrendPointsFromHourly(now, trafficHourly)
+	}
 
 	view := &NodeView{
 		NodeID:          node.NodeID,
@@ -147,7 +151,7 @@ func GetNodeObservability(ctx context.Context, id uint, query NodeQuery) (*NodeV
 			Health:        buildHealthSummary(latestMetricSnapshot(snapshots), latestTrafficReport(reports), events),
 		},
 		Trends: NodeTrends{
-			Traffic24h:  BuildTrafficTrendPoints(now, reports),
+			Traffic24h:  trafficTrend,
 			Capacity24h: BuildCapacityTrendPoints(now, snapshots),
 			Network24h:  BuildNetworkTrendPoints(now, snapshots, openrestyObs),
 			DiskIO24h:   BuildDiskIOTrendPoints(now, snapshots),

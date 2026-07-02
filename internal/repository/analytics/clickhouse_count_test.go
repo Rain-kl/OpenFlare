@@ -31,24 +31,3 @@ func TestSafeInt64Count(t *testing.T) {
 	}
 }
 
-func TestSafeUint64Count(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		name  string
-		count int64
-		want  uint64
-	}{
-		{name: "zero", count: 0, want: 0},
-		{name: "positive", count: 42, want: 42},
-		{name: "negative clamps", count: -1, want: 0},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-			if got := safeUint64Count(tt.count); got != tt.want {
-				t.Fatalf("safeUint64Count(%d) = %d, want %d", tt.count, got, tt.want)
-			}
-		})
-	}
-}

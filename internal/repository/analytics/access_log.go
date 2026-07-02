@@ -7,41 +7,51 @@ package analytics
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/Rain-kl/Wavelet/internal/db"
 	analyticsmodel "github.com/Rain-kl/Wavelet/internal/model/analytics"
-	"gorm.io/gorm"
 )
+
+func userAccessLogConn() error {
+	if db.ChConn == nil {
+		return fmt.Errorf("clickhouse native connection is not initialized")
+	}
+	return nil
+}
 
 // CountAccessLogs returns the number of access logs matching filter.
 func CountAccessLogs(ctx context.Context, filter AccessLogFilter) (uint64, error) {
-	ch := db.ChDB(ctx)
-	if ch == nil {
-		return 0, fmt.Errorf("clickhouse gorm connection is not initialized")
+	clause, args, ok := buildUserAccessLogFilterClause(filter)
+	if !ok {
+		return 0, nil
 	}
-
-	var count int64
-	query := applyFilter(ch.Model(&analyticsmodel.UserAccessLog{}), filter)
-	if err := query.Count(&count).Error; err != nil {
+	if err := userAccessLogConn(); err != nil {
+		return 0, err
+	}
+	tableName := analyticsmodel.UserAccessLog{}.TableName()
+	sql := fmt.Sprintf("SELECT count() FROM %s WHERE %s", tableName, clause)
+	var count uint64
+	if err := db.ChConn.QueryRow(ctx, sql, args...).Scan(&count); err != nil {
 		return 0, fmt.Errorf("count access logs: %w", err)
 	}
-	return safeUint64Count(count), nil
+	return count, nil
 }
 
 // ListAccessLogs returns paginated access logs and the total match count.
 func ListAccessLogs(ctx context.Context, filter AccessLogFilter, page, pageSize int) ([]analyticsmodel.UserAccessLog, uint64, error) {
-	ch := db.ChDB(ctx)
-	if ch == nil {
-		return nil, 0, fmt.Errorf("clickhouse gorm connection is not initialized")
-	}
-
-	if filter.UserIDs != nil && len(filter.UserIDs) == 0 {
+	clause, args, ok := buildUserAccessLogFilterClause(filter)
+	if !ok {
 		return []analyticsmodel.UserAccessLog{}, 0, nil
 	}
+	if err := userAccessLogConn(); err != nil {
+		return nil, 0, err
+	}
 
-	var total int64
-	baseQuery := applyFilter(ch.Model(&analyticsmodel.UserAccessLog{}), filter)
-	if err := baseQuery.Count(&total).Error; err != nil {
+	tableName := analyticsmodel.UserAccessLog{}.TableName()
+	countSQL := fmt.Sprintf("SELECT count() FROM %s WHERE %s", tableName, clause)
+	var total uint64
+	if err := db.ChConn.QueryRow(ctx, countSQL, args...).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("count access logs: %w", err)
 	}
 	if total == 0 {
@@ -56,34 +66,41 @@ func ListAccessLogs(ctx context.Context, filter AccessLogFilter, page, pageSize 
 	}
 	offset := (page - 1) * pageSize
 
-	var logs []analyticsmodel.UserAccessLog
-	err := applyFilter(ch.Model(&analyticsmodel.UserAccessLog{}), filter).
-		Order("created_at DESC, id DESC").
-		Limit(pageSize).
-		Offset(offset).
-		Find(&logs).Error
+	listSQL := fmt.Sprintf(`
+SELECT id, user_id, path, method, ip, user_agent, headers, status, latency, created_at
+FROM %s
+WHERE %s
+ORDER BY created_at DESC, id DESC
+LIMIT ? OFFSET ?`, tableName, clause)
+	listArgs := append(append([]any{}, args...), pageSize, offset)
+	rows, err := db.ChConn.Query(ctx, listSQL, listArgs...)
 	if err != nil {
 		return nil, 0, fmt.Errorf("list access logs: %w", err)
 	}
+	defer func() { _ = rows.Close() }()
 
-	return logs, safeUint64Count(total), nil
-}
-
-func applyFilter(query *gorm.DB, filter AccessLogFilter) *gorm.DB {
-	if filter.UserIDs != nil {
-		if len(filter.UserIDs) == 0 {
-			return query.Where("1 = 0")
+	logs := make([]analyticsmodel.UserAccessLog, 0, pageSize)
+	for rows.Next() {
+		var (
+			item      analyticsmodel.UserAccessLog
+			createdAt time.Time
+		)
+		if err := rows.Scan(
+			&item.ID,
+			&item.UserID,
+			&item.Path,
+			&item.Method,
+			&item.IP,
+			&item.UserAgent,
+			&item.Headers,
+			&item.Status,
+			&item.Latency,
+			&createdAt,
+		); err != nil {
+			return nil, 0, fmt.Errorf("scan access log row: %w", err)
 		}
-		query = query.Where("user_id IN ?", filter.UserIDs)
+		item.CreatedAt = createdAt
+		logs = append(logs, item)
 	}
-	if filter.Path != "" {
-		query = query.Where("path LIKE ?", "%"+filter.Path+"%")
-	}
-	if filter.StartTime != nil {
-		query = query.Where("created_at >= ?", *filter.StartTime)
-	}
-	if filter.EndTime != nil {
-		query = query.Where("created_at <= ?", *filter.EndTime)
-	}
-	return query
+	return logs, total, nil
 }

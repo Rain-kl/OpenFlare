@@ -248,7 +248,7 @@ func enrichAccessLogsWithUsers(ctx context.Context, list []accessLogItem) {
 // @Router /api/v1/admin/logs/access [get]
 func GetAccessLogs(c *gin.Context) {
 	ctx := c.Request.Context()
-	if !config.Config.ClickHouse.Enabled || db.ChDB(ctx) == nil {
+	if !config.Config.ClickHouse.Enabled || !db.ChConnReady() {
 		response.AbortWithError(c, http.StatusBadRequest, "ClickHouse 存储服务未启用，无法检索访问日志")
 		return
 	}
@@ -348,7 +348,7 @@ type logsAnalyticsResponse struct {
 // @Router /api/v1/admin/logs/analytics [get]
 func GetLogsAnalytics(c *gin.Context) {
 	ctx := c.Request.Context()
-	if !config.Config.ClickHouse.Enabled || db.ChDB(ctx) == nil {
+	if !config.Config.ClickHouse.Enabled || !db.ChConnReady() {
 		response.AbortWithError(c, http.StatusBadRequest, "ClickHouse 存储服务未启用，无法获取分析数据")
 		return
 	}

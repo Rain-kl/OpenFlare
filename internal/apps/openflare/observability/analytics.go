@@ -257,6 +257,28 @@ func buildHealthSummary(
 	return summary
 }
 
+// BuildTrafficTrendPointsFromHourly builds 24h traffic trend buckets from hourly rollups.
+func BuildTrafficTrendPointsFromHourly(now time.Time, hourly []*model.OpenFlareTrafficHourly) []TrafficTrendPoint {
+	start := trendWindowStart(now)
+	points := make([]TrafficTrendPoint, observabilityTrendBuckets)
+	for index := range points {
+		points[index].BucketStartedAt = start.Add(time.Duration(index) * time.Hour)
+	}
+	for _, row := range hourly {
+		if row == nil {
+			continue
+		}
+		index, ok := trendBucketIndex(row.Hour, start)
+		if !ok {
+			continue
+		}
+		points[index].RequestCount += row.RequestCount
+		points[index].ErrorCount += row.ErrorCount
+		points[index].UniqueVisitorCount += row.UniqueVisitorCount
+	}
+	return points
+}
+
 // BuildTrafficTrendPoints builds 24h traffic trend buckets.
 func BuildTrafficTrendPoints(now time.Time, reports []*model.OpenFlareRequestReport) []TrafficTrendPoint {
 	start := trendWindowStart(now)

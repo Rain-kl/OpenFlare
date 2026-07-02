@@ -79,8 +79,8 @@ SELECT
 	countIf(status_code < 400) AS success_count,
 	countIf(status_code >= 400 AND status_code < 500) AS client_error_count,
 	countIf(status_code >= 500) AS server_error_count,
-	uniqExactIf(trim(remote_addr), trim(remote_addr) != '') AS unique_ip_count,
-	uniqExactIf(trim(host), trim(host) != '') AS unique_host_count
+	uniqExactIf(remote_addr, remote_addr != '') AS unique_ip_count,
+	uniqExactIf(host, host != '') AS unique_host_count
 FROM %s
 WHERE %s
 GROUP BY bucket_epoch
@@ -186,26 +186,26 @@ func IPAggregatesNodeAccessLogs(ctx context.Context, filter NodeAccessLogFilter,
 	queryClause := clause
 	queryArgs := append([]any{}, args...)
 	if exactRemoteAddr {
-		trimmed := strings.TrimSpace(filter.RemoteAddr)
+		trimmed := normalizeNodeAccessLogRemoteAddr(filter.RemoteAddr)
 		if trimmed == "" {
 			return []NodeAccessLogIPAggregate{}, nil
 		}
-		queryClause = combineNodeAccessLogSQLClauses(queryClause, "trim(remote_addr) = ?")
+		queryClause = combineNodeAccessLogSQLClauses(queryClause, "remote_addr = ?")
 		queryArgs = append(queryArgs, trimmed)
 	}
 	lastSeenExpr := nodeAccessLogEpochExpr()
 	tableName := nodeAccessLogTableName()
 	sql := fmt.Sprintf(`
 SELECT
-	trim(remote_addr) AS trimmed_remote_addr,
+	remote_addr,
 	count() AS request_count,
 	countIf(status_code < 400) AS success_count,
 	countIf(status_code >= 400 AND status_code < 500) AS client_error_count,
 	countIf(status_code >= 500) AS server_error_count,
 	max(%s) AS last_seen_epoch
 FROM %s
-WHERE %s AND trim(remote_addr) != ''
-GROUP BY trimmed_remote_addr`, lastSeenExpr, tableName, queryClause)
+WHERE %s AND remote_addr != ''
+GROUP BY remote_addr`, lastSeenExpr, tableName, queryClause)
 	rows, err := conn.Query(ctx, sql, queryArgs...)
 	if err != nil {
 		return nil, fmt.Errorf("ip aggregates node access logs: %w", err)
@@ -252,13 +252,13 @@ func IPSummariesNodeAccessLogs(ctx context.Context, filter NodeAccessLogFilter, 
 	tableName := nodeAccessLogTableName()
 	sql := fmt.Sprintf(`
 SELECT
-	trim(remote_addr) AS trimmed_remote_addr,
+	remote_addr,
 	count() AS total_requests,
 	sum(%s) AS recent_requests,
 	max(%s) AS last_seen_epoch
 FROM %s
-WHERE %s AND trim(remote_addr) != ''
-GROUP BY trimmed_remote_addr
+WHERE %s AND remote_addr != ''
+GROUP BY remote_addr
 ORDER BY %s`, recentClause, lastSeenExpr, tableName, clause, nodeAccessLogIPSummaryOrderClause(filter.SortBy, filter.SortOrder))
 	if filter.PageSize > 0 {
 		if filter.Page < 0 {
@@ -305,8 +305,8 @@ func CountIPSummaryNodeAccessLogs(ctx context.Context, filter NodeAccessLogFilte
 SELECT count() FROM (
 	SELECT 1
 	FROM %s
-	WHERE %s AND trim(remote_addr) != ''
-	GROUP BY trim(remote_addr)
+	WHERE %s AND remote_addr != ''
+	GROUP BY remote_addr
 )`, tableName, clause)
 	var totalIPs uint64
 	if err := conn.QueryRow(ctx, sql, args...).Scan(&totalIPs); err != nil {
@@ -327,7 +327,7 @@ func IPAggregatesForWAFNodeAccessLogs(ctx context.Context, filter NodeAccessLogF
 	tableName := nodeAccessLogTableName()
 	sql := fmt.Sprintf(`
 SELECT
-	trim(remote_addr) AS trimmed_remote_addr,
+	remote_addr,
 	count() AS request_count,
 	countIf(status_code = 404) AS status_404_count,
 	countIf(status_code >= 400 AND status_code < 500) AS client_error_count,
@@ -335,8 +335,8 @@ SELECT
 	countIf(%s) AS ip_host_count,
 	max(%s) AS last_seen_epoch
 FROM %s
-WHERE %s AND trim(remote_addr) != ''
-GROUP BY trimmed_remote_addr`, hostIsIPExpr, lastSeenExpr, tableName, clause)
+WHERE %s AND remote_addr != ''
+GROUP BY remote_addr`, hostIsIPExpr, lastSeenExpr, tableName, clause)
 	rows, err := conn.Query(ctx, sql, args...)
 	if err != nil {
 		return nil, fmt.Errorf("ip aggregates for waf node access logs: %w", err)
@@ -394,12 +394,12 @@ func mergeWAFIPStatusCodeCounts(ctx context.Context, filter NodeAccessLogFilter,
 	tableName := nodeAccessLogTableName()
 	sql := fmt.Sprintf(`
 SELECT
-	trim(remote_addr) AS trimmed_remote_addr,
+	remote_addr,
 	status_code,
 	count() AS status_count
 FROM %s
-WHERE %s AND trim(remote_addr) != ''
-GROUP BY trimmed_remote_addr, status_code`, tableName, clause)
+WHERE %s AND remote_addr != ''
+GROUP BY remote_addr, status_code`, tableName, clause)
 	rows, err := conn.Query(ctx, sql, args...)
 	if err != nil {
 		return fmt.Errorf("waf ip status code counts: %w", err)

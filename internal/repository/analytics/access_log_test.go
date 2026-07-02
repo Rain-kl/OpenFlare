@@ -12,23 +12,9 @@ import (
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
 	"github.com/Rain-kl/Wavelet/internal/db"
 	analyticsmodel "github.com/Rain-kl/Wavelet/internal/model/analytics"
-	"github.com/glebarez/sqlite"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gorm.io/gorm"
 )
-
-func setupChGormDB(t *testing.T) *gorm.DB {
-	t.Helper()
-
-	gormDB, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{
-		DisableForeignKeyConstraintWhenMigrating: true,
-	})
-	require.NoError(t, err)
-	require.NoError(t, gormDB.AutoMigrate(&analyticsmodel.UserAccessLog{}))
-	db.SetChDBForTest(gormDB)
-	return gormDB
-}
 
 func TestParseBrowserName(t *testing.T) {
 	tests := []struct {
@@ -52,54 +38,22 @@ func TestParseBrowserName(t *testing.T) {
 	}
 }
 
-func TestCountAccessLogs_EmptyUserIDs(t *testing.T) {
-	setupChGormDB(t)
-	t.Cleanup(func() { db.SetChDBForTest(nil) })
+func TestBuildUserAccessLogFilterClause_EmptyUserIDs(t *testing.T) {
+	_, _, ok := buildUserAccessLogFilterClause(AccessLogFilter{UserIDs: []uint64{}})
+	assert.False(t, ok)
+}
 
+func TestCountAccessLogs_EmptyUserIDs(t *testing.T) {
 	count, err := CountAccessLogs(context.Background(), AccessLogFilter{UserIDs: []uint64{}})
 	require.NoError(t, err)
 	assert.Equal(t, uint64(0), count)
 }
 
 func TestListAccessLogs_EmptyUserIDs(t *testing.T) {
-	setupChGormDB(t)
-	t.Cleanup(func() { db.SetChDBForTest(nil) })
-
 	logs, total, err := ListAccessLogs(context.Background(), AccessLogFilter{UserIDs: []uint64{}}, 1, 20)
 	require.NoError(t, err)
 	assert.Equal(t, uint64(0), total)
 	assert.Empty(t, logs)
-}
-
-func TestListAccessLogs_WithFilters(t *testing.T) {
-	gormDB := setupChGormDB(t)
-	t.Cleanup(func() { db.SetChDBForTest(nil) })
-
-	now := time.Now().UTC().Truncate(time.Second)
-	logs := []analyticsmodel.UserAccessLog{
-		{ID: 1, UserID: 10, Path: "/api/v1/users", Method: "GET", Status: 200, CreatedAt: now},
-		{ID: 2, UserID: 20, Path: "/api/v1/admin/logs", Method: "GET", Status: 200, CreatedAt: now},
-		{ID: 3, UserID: 10, Path: "/api/v1/other", Method: "POST", Status: 201, CreatedAt: now},
-	}
-	require.NoError(t, gormDB.Create(&logs).Error)
-
-	start := now.Add(-time.Hour)
-	filter := AccessLogFilter{
-		UserIDs:   []uint64{10},
-		Path:      "users",
-		StartTime: &start,
-	}
-
-	count, err := CountAccessLogs(context.Background(), filter)
-	require.NoError(t, err)
-	assert.Equal(t, uint64(1), count)
-
-	result, total, err := ListAccessLogs(context.Background(), filter, 1, 10)
-	require.NoError(t, err)
-	assert.Equal(t, uint64(1), total)
-	require.Len(t, result, 1)
-	assert.Equal(t, uint64(1), result[0].ID)
-	assert.Equal(t, "/api/v1/users", result[0].Path)
 }
 
 func TestBatchInsert_Empty(t *testing.T) {

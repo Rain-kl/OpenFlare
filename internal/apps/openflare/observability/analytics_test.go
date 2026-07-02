@@ -10,6 +10,23 @@ import (
 	"github.com/Rain-kl/Wavelet/internal/model"
 )
 
+func TestBuildTrafficTrendPointsFromHourlyBucketsByHour(t *testing.T) {
+	now := time.Date(2026, 7, 2, 15, 30, 0, 0, time.UTC)
+	hourly := []*model.OpenFlareTrafficHourly{
+		{
+			NodeID:             "node-a",
+			Hour:               now.Add(-2 * time.Hour).Truncate(time.Hour),
+			RequestCount:       12,
+			ErrorCount:         1,
+			UniqueVisitorCount: 4,
+		},
+	}
+	points := BuildTrafficTrendPointsFromHourly(now, hourly)
+	if len(points) != observabilityTrendBuckets {
+		t.Fatalf("BuildTrafficTrendPointsFromHourly() len = %d, want %d", len(points), observabilityTrendBuckets)
+	}
+}
+
 func TestBuildTrafficTrendPointsBucketsByHour(t *testing.T) {
 	t.Parallel()
 

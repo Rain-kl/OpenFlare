@@ -137,13 +137,17 @@ func buildOverviewView(ctx context.Context) (*OverviewView, error) {
 	if err != nil {
 		return nil, err
 	}
+	trafficTrend := observability.BuildTrafficTrendPoints(now, reports)
+	if trafficHourly, hourlyErr := model.ListOpenFlareTrafficHourlySince(ctx, "", since); hourlyErr == nil && len(trafficHourly) > 0 {
+		trafficTrend = observability.BuildTrafficTrendPointsFromHourly(now, trafficHourly)
+	}
 
 	view := &OverviewView{
 		GeneratedAt:   now,
 		Nodes:         make([]NodeHealth, 0, len(nodes)),
 		Distributions: observability.BuildTrafficDistributions(reports, accessLogRegions, dashboardDistributionLimit),
 		Trends: observability.NodeTrends{
-			Traffic24h:  observability.BuildTrafficTrendPoints(now, reports),
+			Traffic24h:  trafficTrend,
 			Capacity24h: observability.BuildCapacityTrendPoints(now, snapshots),
 			Network24h:  observability.BuildNetworkTrendPoints(now, snapshots, openrestySnapshots),
 			DiskIO24h:   observability.BuildDiskIOTrendPoints(now, snapshots),

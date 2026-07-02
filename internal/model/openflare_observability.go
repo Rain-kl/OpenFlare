@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/Rain-kl/Wavelet/internal/db"
+	analyticsrepo "github.com/Rain-kl/Wavelet/internal/repository/analytics"
 	"gorm.io/gorm"
 )
 
@@ -335,6 +336,37 @@ func ListOpenFlareMetricSnapshotsSince(ctx context.Context, nodeID string, since
 // ListOpenFlareRequestReportsSince returns request reports since the given time.
 func ListOpenFlareRequestReportsSince(ctx context.Context, nodeID string, since time.Time, limit int) ([]*OpenFlareRequestReport, error) {
 	return currentObservabilityStore().ListRequestReports(ctx, nodeID, since, limit)
+}
+
+// OpenFlareTrafficHourly is an hourly traffic rollup row.
+type OpenFlareTrafficHourly struct {
+	NodeID             string    `json:"node_id"`
+	Hour               time.Time `json:"hour"`
+	RequestCount       int64     `json:"request_count"`
+	ErrorCount         int64     `json:"error_count"`
+	UniqueVisitorCount int64     `json:"unique_visitor_count"`
+}
+
+// ListOpenFlareTrafficHourlySince returns hourly traffic rollup rows since the given time.
+func ListOpenFlareTrafficHourlySince(ctx context.Context, nodeID string, since time.Time) ([]*OpenFlareTrafficHourly, error) {
+	rows, err := analyticsrepo.ListNodeTrafficHourly(ctx, analyticsrepo.NodeObservabilityFilter{
+		NodeID: nodeID,
+		Since:  since,
+	})
+	if err != nil {
+		return nil, err
+	}
+	result := make([]*OpenFlareTrafficHourly, len(rows))
+	for index, row := range rows {
+		result[index] = &OpenFlareTrafficHourly{
+			NodeID:             row.NodeID,
+			Hour:               row.Hour,
+			RequestCount:       row.RequestCount,
+			ErrorCount:         row.ErrorCount,
+			UniqueVisitorCount: row.UniqueVisitorCount,
+		}
+	}
+	return result, nil
 }
 
 // ListOpenFlareActiveHealthEvents returns active health events across all nodes.

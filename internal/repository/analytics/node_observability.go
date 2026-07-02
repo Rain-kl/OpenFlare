@@ -6,6 +6,7 @@ package analytics
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
 	"github.com/Rain-kl/Wavelet/internal/db"
@@ -239,6 +240,59 @@ func scanNodeObsFrpsRows(rows driver.Rows) ([]analyticsmodel.NodeObsFrps, error)
 		}
 		item.CapturedAt = item.CapturedAt.UTC()
 		item.CreatedAt = item.CreatedAt.UTC()
+		result = append(result, item)
+	}
+	return result, nil
+}
+
+const nodeTrafficHourlyTableName = "of_node_traffic_hourly"
+
+// NodeTrafficHourly is an hourly traffic rollup row.
+type NodeTrafficHourly struct {
+	NodeID             string
+	Hour               time.Time
+	RequestCount       int64
+	ErrorCount         int64
+	UniqueVisitorCount int64
+}
+
+// ListNodeTrafficHourly returns hourly traffic rollup rows matching filter.
+func ListNodeTrafficHourly(ctx context.Context, filter NodeObservabilityFilter) ([]NodeTrafficHourly, error) {
+	conn, err := observabilityConn()
+	if err != nil {
+		return nil, err
+	}
+	clause, args := buildNodeObservabilityFilterClause(filter, "hour")
+	sql := fmt.Sprintf(`
+SELECT
+	node_id,
+	hour,
+	sum(request_count) AS request_count,
+	sum(error_count) AS error_count,
+	sum(unique_visitor_count) AS unique_visitor_count
+FROM %s
+WHERE %s
+GROUP BY node_id, hour
+ORDER BY hour ASC`, nodeTrafficHourlyTableName, clause)
+	rows, err := conn.Query(ctx, sql, args...)
+	if err != nil {
+		return nil, fmt.Errorf("list node traffic hourly: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	result := make([]NodeTrafficHourly, 0)
+	for rows.Next() {
+		var (
+			item                                           NodeTrafficHourly
+			requestCount, errorCount, uniqueVisitorCount uint64
+		)
+		if err := rows.Scan(&item.NodeID, &item.Hour, &requestCount, &errorCount, &uniqueVisitorCount); err != nil {
+			return nil, fmt.Errorf("scan node traffic hourly row: %w", err)
+		}
+		item.Hour = item.Hour.UTC()
+		item.RequestCount = safeInt64Count(requestCount)
+		item.ErrorCount = safeInt64Count(errorCount)
+		item.UniqueVisitorCount = safeInt64Count(uniqueVisitorCount)
 		result = append(result, item)
 	}
 	return result, nil

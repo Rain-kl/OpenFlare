@@ -40,7 +40,7 @@ func buildNodeAccessLogFilterClause(filter NodeAccessLogFilter) (string, []any) 
 		parts = append(parts, "node_id = ?")
 		args = append(args, trimmed)
 	}
-	if trimmed := strings.TrimSpace(filter.RemoteAddr); trimmed != "" {
+	if trimmed := normalizeNodeAccessLogRemoteAddr(filter.RemoteAddr); trimmed != "" {
 		parts = append(parts, "remote_addr LIKE ?")
 		args = append(args, trimmed+"%")
 	}
@@ -95,6 +95,10 @@ func nodeAccessLogOrderClause(sortBy string, sortOrder string) string {
 	return column + " " + direction + ", logged_at " + direction + ", id " + direction
 }
 
+func normalizeNodeAccessLogRemoteAddr(value string) string {
+	return strings.TrimSpace(value)
+}
+
 func normalizeNodeAccessLogSortOrder(sortOrder string) string {
 	if strings.EqualFold(strings.TrimSpace(sortOrder), "asc") {
 		return "asc"
@@ -142,9 +146,9 @@ func nodeAccessLogIPSummaryOrderClause(sortBy string, sortOrder string) string {
 	case "last_seen_at":
 		column = "last_seen_epoch"
 	case nodeAccessLogColumnRemoteAddr:
-		column = "trimmed_remote_addr"
+		column = nodeAccessLogColumnRemoteAddr
 	}
-	return column + " " + direction + ", last_seen_epoch DESC, trimmed_remote_addr ASC"
+	return column + " " + direction + ", last_seen_epoch DESC, remote_addr ASC"
 }
 
 func nodeAccessLogTableName() string {

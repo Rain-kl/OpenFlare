@@ -90,7 +90,7 @@ func CountNodeAccessLogs(ctx context.Context, filter NodeAccessLogFilter) (int64
 	countSQL := fmt.Sprintf(`
 SELECT
 	count() AS total_records,
-	uniqExactIf(trim(remote_addr), trim(remote_addr) != '') AS total_ips
+	uniqExactIf(remote_addr, remote_addr != '') AS total_ips
 FROM %s
 WHERE %s`, tableName, clause)
 	var totalRecords, totalIPs uint64

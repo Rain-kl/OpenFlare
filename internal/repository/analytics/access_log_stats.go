@@ -38,15 +38,12 @@ func GetDailyTrend(ctx context.Context, days int) ([]DailyTrend, error) {
 	if days < 1 {
 		days = 7
 	}
-
-	ch := db.ChDB(ctx)
-	if ch == nil {
-		return nil, fmt.Errorf("clickhouse gorm connection is not initialized")
+	if err := userAccessLogConn(); err != nil {
+		return nil, err
 	}
 
 	startTime := time.Now().AddDate(0, 0, -(days - 1)).Truncate(hoursInDay * time.Hour)
 	tableName := analyticsmodel.UserAccessLog{}.TableName()
-
 	query := fmt.Sprintf(`
 		SELECT toDate(created_at) AS date, count() AS count
 		FROM %s
@@ -55,24 +52,26 @@ func GetDailyTrend(ctx context.Context, days int) ([]DailyTrend, error) {
 		ORDER BY date ASC
 	`, tableName)
 
-	type trendRow struct {
-		Date  time.Time
-		Count uint64
-	}
-
-	var rows []trendRow
-	if err := ch.Raw(query, startTime).Scan(&rows).Error; err != nil {
+	rows, err := db.ChConn.Query(ctx, query, startTime)
+	if err != nil {
 		return nil, fmt.Errorf("get daily trend: %w", err)
 	}
+	defer func() { _ = rows.Close() }()
 
 	trendMap := make(map[string]uint64, days)
 	for i := 0; i < days; i++ {
 		dateStr := time.Now().AddDate(0, 0, -i).Format("2006-01-02")
 		trendMap[dateStr] = 0
 	}
-	for _, row := range rows {
-		dateStr := row.Date.Format("2006-01-02")
-		trendMap[dateStr] = row.Count
+	for rows.Next() {
+		var (
+			date  time.Time
+			count uint64
+		)
+		if err := rows.Scan(&date, &count); err != nil {
+			return nil, fmt.Errorf("scan daily trend row: %w", err)
+		}
+		trendMap[date.Format("2006-01-02")] = count
 	}
 
 	result := make([]DailyTrend, 0, days)
@@ -88,9 +87,8 @@ func GetDailyTrend(ctx context.Context, days int) ([]DailyTrend, error) {
 
 // GetBrowserDistribution returns browser-grouped access counts since startTime.
 func GetBrowserDistribution(ctx context.Context, startTime time.Time) ([]BrowserShare, error) {
-	ch := db.ChDB(ctx)
-	if ch == nil {
-		return nil, fmt.Errorf("clickhouse gorm connection is not initialized")
+	if err := userAccessLogConn(); err != nil {
+		return nil, err
 	}
 
 	tableName := analyticsmodel.UserAccessLog{}.TableName()
@@ -103,20 +101,23 @@ func GetBrowserDistribution(ctx context.Context, startTime time.Time) ([]Browser
 		LIMIT 100
 	`, tableName)
 
-	type uaRow struct {
-		UserAgent string
-		Count     uint64
-	}
-
-	var rows []uaRow
-	if err := ch.Raw(query, startTime).Scan(&rows).Error; err != nil {
+	rows, err := db.ChConn.Query(ctx, query, startTime)
+	if err != nil {
 		return nil, fmt.Errorf("get browser distribution: %w", err)
 	}
+	defer func() { _ = rows.Close() }()
 
 	browserCounts := make(map[string]uint64)
-	for _, row := range rows {
-		browser := ParseBrowserName(row.UserAgent)
-		browserCounts[browser] += row.Count
+	for rows.Next() {
+		var (
+			userAgent string
+			count     uint64
+		)
+		if err := rows.Scan(&userAgent, &count); err != nil {
+			return nil, fmt.Errorf("scan browser distribution row: %w", err)
+		}
+		browser := ParseBrowserName(userAgent)
+		browserCounts[browser] += count
 	}
 
 	result := make([]BrowserShare, 0, len(browserCounts))
@@ -137,10 +138,8 @@ func GetTopActiveUsers(ctx context.Context, startTime time.Time, limit int) ([]T
 	if limit < 1 {
 		limit = 10
 	}
-
-	ch := db.ChDB(ctx)
-	if ch == nil {
-		return nil, fmt.Errorf("clickhouse gorm connection is not initialized")
+	if err := userAccessLogConn(); err != nil {
+		return nil, err
 	}
 
 	tableName := analyticsmodel.UserAccessLog{}.TableName()
@@ -153,9 +152,19 @@ func GetTopActiveUsers(ctx context.Context, startTime time.Time, limit int) ([]T
 		LIMIT ?
 	`, tableName)
 
-	var users []TopUser
-	if err := ch.Raw(query, startTime, limit).Scan(&users).Error; err != nil {
+	rows, err := db.ChConn.Query(ctx, query, startTime, limit)
+	if err != nil {
 		return nil, fmt.Errorf("get top active users: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var users []TopUser
+	for rows.Next() {
+		var item TopUser
+		if err := rows.Scan(&item.UserID, &item.Count); err != nil {
+			return nil, fmt.Errorf("scan top active user row: %w", err)
+		}
+		users = append(users, item)
 	}
 	return users, nil
 }

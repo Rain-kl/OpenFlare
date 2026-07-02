@@ -12,6 +12,7 @@ import (
 
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"github.com/Rain-kl/Wavelet/internal/repository"
+	analyticsrepo "github.com/Rain-kl/Wavelet/internal/repository/analytics"
 )
 
 const (
@@ -49,6 +50,7 @@ type DatabaseCleanupResult struct {
 	Target        string     `json:"target"`
 	TargetLabel   string     `json:"target_label"`
 	DeletedCount  int64      `json:"deleted_count"`
+	CleanupMode   string     `json:"cleanup_mode,omitempty"`
 	DeleteAll     bool       `json:"delete_all"`
 	RetentionDays *int       `json:"retention_days,omitempty"`
 	Cutoff        *time.Time `json:"cutoff,omitempty"`
@@ -79,21 +81,23 @@ func CleanupDatabaseObservability(ctx context.Context, input DatabaseCleanupInpu
 	}
 
 	if input.RetentionDays == nil {
-		deleted, err := deleteAllObservabilityRows(ctx, target)
+		deleted, mode, err := deleteAllObservabilityRows(ctx, target)
 		if err != nil {
 			return nil, err
 		}
 		result.DeletedCount = deleted
+		result.CleanupMode = mode
 		return result, nil
 	}
 
 	retentionDays := *input.RetentionDays
 	cutoff := time.Now().UTC().Add(-time.Duration(retentionDays) * 24 * time.Hour)
-	deleted, err := deleteObservabilityRowsBefore(ctx, target, cutoff)
+	deleted, mode, err := deleteObservabilityRowsBefore(ctx, target, cutoff)
 	if err != nil {
 		return nil, err
 	}
 	result.DeletedCount = deleted
+	result.CleanupMode = mode
 	result.RetentionDays = &retentionDays
 	result.Cutoff = &cutoff
 	return result, nil
@@ -141,40 +145,56 @@ func RunDatabaseAutoCleanupOnce(ctx context.Context, now time.Time) (*DatabaseAu
 	}, nil
 }
 
-func deleteAllObservabilityRows(ctx context.Context, target string) (int64, error) {
+func deleteAllObservabilityRows(ctx context.Context, target string) (int64, string, error) {
+	var (
+		deleted int64
+		err     error
+	)
 	switch target {
 	case DatabaseCleanupTargetAccessLogs:
-		return model.DeleteAllOpenFlareAccessLogs(ctx)
+		deleted, err = model.DeleteAllOpenFlareAccessLogs(ctx)
 	case DatabaseCleanupTargetMetricSnapshots:
-		return model.DeleteAllOpenFlareMetricSnapshots(ctx)
+		deleted, err = model.DeleteAllOpenFlareMetricSnapshots(ctx)
 	case DatabaseCleanupTargetRequestReports:
-		return model.DeleteAllOpenFlareRequestReports(ctx)
+		deleted, err = model.DeleteAllOpenFlareRequestReports(ctx)
 	case DatabaseCleanupTargetObsOpenresty:
-		return model.DeleteAllOpenFlareNodeObservationOpenresty(ctx)
+		deleted, err = model.DeleteAllOpenFlareNodeObservationOpenresty(ctx)
 	case DatabaseCleanupTargetObsFrps:
-		return model.DeleteAllOpenFlareNodeObservationFrps(ctx)
+		deleted, err = model.DeleteAllOpenFlareNodeObservationFrps(ctx)
 	case DatabaseCleanupTargetObsFrpc:
-		return model.DeleteAllOpenFlareNodeObservationFrpc(ctx)
+		deleted, err = model.DeleteAllOpenFlareNodeObservationFrpc(ctx)
 	default:
-		return 0, errors.New("unsupported cleanup target")
+		return 0, "", errors.New("unsupported cleanup target")
 	}
+	if err != nil {
+		return 0, "", err
+	}
+	return deleted, analyticsrepo.CleanupModeTruncate, nil
 }
 
-func deleteObservabilityRowsBefore(ctx context.Context, target string, cutoff time.Time) (int64, error) {
+func deleteObservabilityRowsBefore(ctx context.Context, target string, cutoff time.Time) (int64, string, error) {
+	var (
+		deleted int64
+		err     error
+	)
 	switch target {
 	case DatabaseCleanupTargetAccessLogs:
-		return model.DeleteOpenFlareAccessLogsBefore(ctx, cutoff)
+		deleted, err = model.DeleteOpenFlareAccessLogsBefore(ctx, cutoff)
 	case DatabaseCleanupTargetMetricSnapshots:
-		return model.DeleteOpenFlareMetricSnapshotsBefore(ctx, cutoff)
+		deleted, err = model.DeleteOpenFlareMetricSnapshotsBefore(ctx, cutoff)
 	case DatabaseCleanupTargetRequestReports:
-		return model.DeleteOpenFlareRequestReportsBefore(ctx, cutoff)
+		deleted, err = model.DeleteOpenFlareRequestReportsBefore(ctx, cutoff)
 	case DatabaseCleanupTargetObsOpenresty:
-		return model.DeleteOpenFlareNodeObservationOpenrestyBefore(ctx, cutoff)
+		deleted, err = model.DeleteOpenFlareNodeObservationOpenrestyBefore(ctx, cutoff)
 	case DatabaseCleanupTargetObsFrps:
-		return model.DeleteOpenFlareNodeObservationFrpsBefore(ctx, cutoff)
+		deleted, err = model.DeleteOpenFlareNodeObservationFrpsBefore(ctx, cutoff)
 	case DatabaseCleanupTargetObsFrpc:
-		return model.DeleteOpenFlareNodeObservationFrpcBefore(ctx, cutoff)
+		deleted, err = model.DeleteOpenFlareNodeObservationFrpcBefore(ctx, cutoff)
 	default:
-		return 0, errors.New("unsupported cleanup target")
+		return 0, "", errors.New("unsupported cleanup target")
 	}
+	if err != nil {
+		return 0, "", err
+	}
+	return deleted, analyticsrepo.CleanupModeTTLMaterialize, nil
 }

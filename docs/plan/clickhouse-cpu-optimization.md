@@ -1,7 +1,7 @@
 # ClickHouse CPU 性能优化计划
 
 > PLAN_ID: `63ba981b`  
-> 状态: 已完成  
+> 状态: 已完成（含 Phase 2 遗留治理）  
 > 目标: 完成 P0–P2 优化，降低 ClickHouse CPU 占用
 
 ## 背景
