@@ -24,8 +24,6 @@ const (
 	healthSeverityInfo           = "info"
 	healthSeverityWarning        = "warning"
 	healthSeverityCritical       = "critical"
-	nodeAccessLogRetentionDays   = 90
-	nodeAccessLogRetentionWindow = nodeAccessLogRetentionDays * 24 * time.Hour
 	accessLogPathMaxLength       = 100
 	healthEventMessageMaxLength  = 4096
 )
@@ -241,11 +239,7 @@ func persistNodeAccessLogs(ctx context.Context, nodeID string, records []*model.
 	if len(records) == 0 {
 		return nil
 	}
-	if err := model.InsertOpenFlareAccessLogsBatch(ctx, records); err != nil {
-		return err
-	}
-	_, err := model.DeleteOpenFlareAccessLogsByNodeBefore(ctx, nodeID, reportedAt.Add(-nodeAccessLogRetentionWindow))
-	return err
+	return model.InsertOpenFlareAccessLogsBatch(ctx, records)
 }
 
 func reconcileNodeHealthEvents(tx *gorm.DB, nodeID string, events []NodeHealthEvent, reportedAt time.Time) error {

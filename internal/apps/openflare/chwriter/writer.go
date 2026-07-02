@@ -21,8 +21,8 @@ import (
 
 const (
 	observabilityQueueSize    = 5_000
-	observabilityMaxBatchSize = 200
-	observabilityFlushEvery   = 2 * time.Second
+	observabilityMaxBatchSize = 500
+	observabilityFlushEvery   = 5 * time.Second
 
 	nodeAccessLogQueueSize    = 10_000
 	nodeAccessLogMaxBatchSize = 1_000
@@ -41,6 +41,9 @@ var (
 
 	metricSnapshotDedup *dedupSet
 	requestReportDedup  *dedupSet
+	openrestyDedup      *dedupSet
+	frpsDedup           *dedupSet
+	frpcDedup           *dedupSet
 )
 
 // Init starts OpenFlare ClickHouse batch writers. Safe to call multiple times.
@@ -52,6 +55,9 @@ func Init(ctx context.Context) {
 	initOnce.Do(func() {
 		metricSnapshotDedup = newDedupSet()
 		requestReportDedup = newDedupSet()
+		openrestyDedup = newDedupSet()
+		frpsDedup = newDedupSet()
+		frpcDedup = newDedupSet()
 
 		metricSnapshotWriter = mustNewObservabilityWriter("metric_snapshots", analyticsrepo.BatchInsertNodeMetricSnapshots)
 		requestReportWriter = mustNewObservabilityWriter("request_reports", analyticsrepo.BatchInsertNodeRequestReports)
@@ -130,6 +136,10 @@ func QueueOpenrestyObservation(observation analyticsmodel.NodeObsOpenresty) {
 	if openrestyWriter == nil {
 		return
 	}
+	key := fmt.Sprintf("%s|%d", observation.NodeID, observation.CapturedAt.UTC().UnixNano())
+	if !openrestyDedup.markIfNew(key) {
+		return
+	}
 	openrestyWriter.TryEnqueue(observation)
 }
 
@@ -138,12 +148,20 @@ func QueueFrpsObservation(observation analyticsmodel.NodeObsFrps) {
 	if frpsWriter == nil {
 		return
 	}
+	key := fmt.Sprintf("%s|%d", observation.NodeID, observation.CapturedAt.UTC().UnixNano())
+	if !frpsDedup.markIfNew(key) {
+		return
+	}
 	frpsWriter.TryEnqueue(observation)
 }
 
 // QueueFrpcObservation enqueues an FRPC observation for asynchronous flush.
 func QueueFrpcObservation(observation analyticsmodel.NodeObsFrpc) {
 	if frpcWriter == nil {
+		return
+	}
+	key := fmt.Sprintf("%s|%d", observation.NodeID, observation.CapturedAt.UTC().UnixNano())
+	if !frpcDedup.markIfNew(key) {
 		return
 	}
 	frpcWriter.TryEnqueue(observation)

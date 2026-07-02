@@ -202,7 +202,9 @@ func (w *Writer[T]) run() {
 				flush()
 			}
 		case <-ticker.C:
-			flush()
+			if len(batch) > 0 && (w.cfg.MinBatchSize == 0 || len(batch) >= w.cfg.MinBatchSize) {
+				flush()
+			}
 		}
 	}
 }
