@@ -6,6 +6,7 @@ package analytics
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/Rain-kl/Wavelet/internal/db"
@@ -41,7 +42,7 @@ func BatchInsertNodeAccessLogs(ctx context.Context, logs []analyticsmodel.NodeAc
 			id,
 			logItem.NodeID,
 			logItem.LoggedAt.UTC(),
-			logItem.RemoteAddr,
+			strings.TrimSpace(logItem.RemoteAddr),
 			logItem.Region,
 			logItem.Host,
 			logItem.Path,

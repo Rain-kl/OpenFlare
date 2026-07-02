@@ -131,7 +131,7 @@ func TestRunDatabaseAutoCleanupOnceDeletesAllObservabilityTargets(t *testing.T) 
 	summary, err := RunDatabaseAutoCleanupOnce(ctx, now)
 	require.NoError(t, err)
 	require.NotNil(t, summary)
-	require.Len(t, summary.Results, 3)
+	require.Len(t, summary.Results, 6)
 
 	accessLogs, err := model.ListOpenFlareAccessLogs(ctx, model.OpenFlareAccessLogQuery{Page: 0, PageSize: 10})
 	require.NoError(t, err)

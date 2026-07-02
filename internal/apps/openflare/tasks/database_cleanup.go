@@ -21,12 +21,21 @@ const (
 	DatabaseCleanupTargetMetricSnapshots = "node_metric_snapshots"
 	// DatabaseCleanupTargetRequestReports is the API cleanup target for request reports.
 	DatabaseCleanupTargetRequestReports = "node_request_reports"
+	// DatabaseCleanupTargetObsOpenresty is the API cleanup target for OpenResty observations.
+	DatabaseCleanupTargetObsOpenresty = "node_obs_openresty"
+	// DatabaseCleanupTargetObsFrps is the API cleanup target for FRPS observations.
+	DatabaseCleanupTargetObsFrps = "node_obs_frps"
+	// DatabaseCleanupTargetObsFrpc is the API cleanup target for FRPC observations.
+	DatabaseCleanupTargetObsFrpc = "node_obs_frpc"
 )
 
 var databaseCleanupTargets = map[string]string{
 	DatabaseCleanupTargetAccessLogs:      "访问日志",
 	DatabaseCleanupTargetMetricSnapshots: "性能快照",
 	DatabaseCleanupTargetRequestReports:  "请求聚合",
+	DatabaseCleanupTargetObsOpenresty:      "OpenResty 观测",
+	DatabaseCleanupTargetObsFrps:           "FRPS 观测",
+	DatabaseCleanupTargetObsFrpc:           "FRPC 观测",
 }
 
 // DatabaseCleanupInput describes a manual observability cleanup request.
@@ -111,6 +120,9 @@ func RunDatabaseAutoCleanupOnce(ctx context.Context, now time.Time) (*DatabaseAu
 		DatabaseCleanupTargetAccessLogs,
 		DatabaseCleanupTargetMetricSnapshots,
 		DatabaseCleanupTargetRequestReports,
+		DatabaseCleanupTargetObsOpenresty,
+		DatabaseCleanupTargetObsFrps,
+		DatabaseCleanupTargetObsFrpc,
 	} {
 		result, err := CleanupDatabaseObservability(ctx, DatabaseCleanupInput{
 			Target:        target,
@@ -137,6 +149,12 @@ func deleteAllObservabilityRows(ctx context.Context, target string) (int64, erro
 		return model.DeleteAllOpenFlareMetricSnapshots(ctx)
 	case DatabaseCleanupTargetRequestReports:
 		return model.DeleteAllOpenFlareRequestReports(ctx)
+	case DatabaseCleanupTargetObsOpenresty:
+		return model.DeleteAllOpenFlareNodeObservationOpenresty(ctx)
+	case DatabaseCleanupTargetObsFrps:
+		return model.DeleteAllOpenFlareNodeObservationFrps(ctx)
+	case DatabaseCleanupTargetObsFrpc:
+		return model.DeleteAllOpenFlareNodeObservationFrpc(ctx)
 	default:
 		return 0, errors.New("unsupported cleanup target")
 	}
@@ -150,6 +168,12 @@ func deleteObservabilityRowsBefore(ctx context.Context, target string, cutoff ti
 		return model.DeleteOpenFlareMetricSnapshotsBefore(ctx, cutoff)
 	case DatabaseCleanupTargetRequestReports:
 		return model.DeleteOpenFlareRequestReportsBefore(ctx, cutoff)
+	case DatabaseCleanupTargetObsOpenresty:
+		return model.DeleteOpenFlareNodeObservationOpenrestyBefore(ctx, cutoff)
+	case DatabaseCleanupTargetObsFrps:
+		return model.DeleteOpenFlareNodeObservationFrpsBefore(ctx, cutoff)
+	case DatabaseCleanupTargetObsFrpc:
+		return model.DeleteOpenFlareNodeObservationFrpcBefore(ctx, cutoff)
 	default:
 		return 0, errors.New("unsupported cleanup target")
 	}

@@ -396,6 +396,36 @@ func DeleteAllOpenFlareRequestReports(ctx context.Context) (int64, error) {
 	return currentObservabilityStore().DeleteAllRequestReports(ctx)
 }
 
+// DeleteOpenFlareNodeObservationOpenrestyBefore deletes OpenResty observations captured before cutoff.
+func DeleteOpenFlareNodeObservationOpenrestyBefore(ctx context.Context, cutoff time.Time) (int64, error) {
+	return currentObservabilityStore().DeleteNodeObservationOpenrestyBefore(ctx, cutoff)
+}
+
+// DeleteAllOpenFlareNodeObservationOpenresty deletes all OpenResty observations.
+func DeleteAllOpenFlareNodeObservationOpenresty(ctx context.Context) (int64, error) {
+	return currentObservabilityStore().DeleteAllNodeObservationOpenresty(ctx)
+}
+
+// DeleteOpenFlareNodeObservationFrpsBefore deletes FRPS observations captured before cutoff.
+func DeleteOpenFlareNodeObservationFrpsBefore(ctx context.Context, cutoff time.Time) (int64, error) {
+	return currentObservabilityStore().DeleteNodeObservationFrpsBefore(ctx, cutoff)
+}
+
+// DeleteAllOpenFlareNodeObservationFrps deletes all FRPS observations.
+func DeleteAllOpenFlareNodeObservationFrps(ctx context.Context) (int64, error) {
+	return currentObservabilityStore().DeleteAllNodeObservationFrps(ctx)
+}
+
+// DeleteOpenFlareNodeObservationFrpcBefore deletes FRPC observations captured before cutoff.
+func DeleteOpenFlareNodeObservationFrpcBefore(ctx context.Context, cutoff time.Time) (int64, error) {
+	return currentObservabilityStore().DeleteNodeObservationFrpcBefore(ctx, cutoff)
+}
+
+// DeleteAllOpenFlareNodeObservationFrpc deletes all FRPC observations.
+func DeleteAllOpenFlareNodeObservationFrpc(ctx context.Context) (int64, error) {
+	return currentObservabilityStore().DeleteAllNodeObservationFrpc(ctx)
+}
+
 // DeleteOpenFlareHealthEventsByNodeID deletes all health events for a node.
 func DeleteOpenFlareHealthEventsByNodeID(ctx context.Context, nodeID string) (int64, error) {
 	conn := db.DB(ctx)
