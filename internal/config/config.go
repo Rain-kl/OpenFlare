@@ -135,10 +135,10 @@ func applyClickHouseDefaults(c *configModel) {
 		c.ClickHouse.Username = "default"
 	}
 	if c.ClickHouse.MaxIdleConn <= 0 {
-		c.ClickHouse.MaxIdleConn = 10
+		c.ClickHouse.MaxIdleConn = 20
 	}
 	if c.ClickHouse.MaxOpenConn <= 0 {
-		c.ClickHouse.MaxOpenConn = 100
+		c.ClickHouse.MaxOpenConn = 50
 	}
 	if c.ClickHouse.ConnMaxLifetime <= 0 {
 		c.ClickHouse.ConnMaxLifetime = 3600
@@ -147,7 +147,7 @@ func applyClickHouseDefaults(c *configModel) {
 		c.ClickHouse.DialTimeout = 5
 	}
 	if c.ClickHouse.BlockBufferSize == 0 {
-		c.ClickHouse.BlockBufferSize = 10
+		c.ClickHouse.BlockBufferSize = 100
 	}
 }
 

@@ -24,8 +24,10 @@ import (
 )
 
 const (
-	clickhouseMaxExecTime       = 60 // ClickHouse 最大执行时间（秒）
-	clickhouseReadTimeoutFactor = 2  // ReadTimeout 为 DialTimeout 的倍数
+	clickhouseMaxExecTime              = 60 // ClickHouse 最大执行时间（秒）
+	clickhouseReadTimeoutFactor        = 2  // ReadTimeout 为 DialTimeout 的倍数
+	clickhouseAsyncInsertMaxDataSize   = 10_000_000
+	clickhouseAsyncInsertBusyTimeoutMs = 1000
 )
 
 var (
@@ -101,7 +103,11 @@ func buildClickHouseOptions() *clickhouse.Options {
 			Password: cfg.Password,
 		},
 		Settings: clickhouse.Settings{
-			"max_execution_time": clickhouseMaxExecTime,
+			"max_execution_time":           clickhouseMaxExecTime,
+			"async_insert":                 1,
+			"wait_for_async_insert":        0,
+			"async_insert_max_data_size":   clickhouseAsyncInsertMaxDataSize,
+			"async_insert_busy_timeout_ms": clickhouseAsyncInsertBusyTimeoutMs,
 		},
 		Compression: &clickhouse.Compression{
 			Method: clickhouse.CompressionLZ4,
@@ -131,6 +137,12 @@ func buildClickHouseDSN() string {
 	query.Set("dial_timeout", fmt.Sprintf("%ds", cfg.DialTimeout))
 	query.Set("read_timeout", fmt.Sprintf("%ds", cfg.DialTimeout*clickhouseReadTimeoutFactor))
 	query.Set("max_execution_time", strconv.Itoa(clickhouseMaxExecTime))
+	// GORM uses clickhouse-go ParseDSN; unknown params are passed as server Settings.
+	query.Set("async_insert", "1")
+	query.Set("wait_for_async_insert", "0")
+	query.Set("async_insert_max_data_size", strconv.Itoa(clickhouseAsyncInsertMaxDataSize))
+	query.Set("async_insert_busy_timeout_ms", strconv.Itoa(clickhouseAsyncInsertBusyTimeoutMs))
+	query.Set("max_insert_block_size", strconv.Itoa(clickhouseAsyncInsertMaxDataSize))
 	chURL.RawQuery = query.Encode()
 
 	return chURL.String()

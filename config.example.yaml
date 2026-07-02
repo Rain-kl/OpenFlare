@@ -106,8 +106,8 @@ clickhouse:
   username: "default"
   password: "123456"
   database: "openflare"
-  max_idle_conn: 10
-  max_open_conn: 100
+  max_idle_conn: 20
+  max_open_conn: 50
   conn_max_lifetime: 3600
   dial_timeout: 5
-  block_buffer_size: 10
+  block_buffer_size: 100
