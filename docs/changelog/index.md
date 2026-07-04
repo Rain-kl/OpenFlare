@@ -18,6 +18,8 @@ sidebar: false
 
 ## [unreleased]
 
+## [v3.1.0] - 2026-07-04
+
 ### 修改
 
 - 修复 ClickHouse TTL 迁移：`DateTime64` 时间列通过 `toDateTime()` 转换后再设置 TTL，避免 goose 启动报错；移除 `MODIFY ORDER BY`（ClickHouse 不允许将排序键缩短至短于隐式主键前缀）。
