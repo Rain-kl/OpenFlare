@@ -73,7 +73,7 @@ export function LoginForm({ onOTPStateChange }: { onOTPStateChange?: (show: bool
     queryFn: () => AuthService.getAuthSources(),
   })
 
-  const capEnabled = configBool(publicConfigQuery.data?.cap_login_enabled, true)
+  const capEnabled = configBool(publicConfigQuery.data?.cap_login_enabled, false)
   const capAutoSolve = configBool(publicConfigQuery.data?.cap_auto_solve, true)
 
   const loginMutation = useMutation({

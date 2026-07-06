@@ -137,7 +137,7 @@ CREATE INDEX IF NOT EXISTS idx_templates_created_at ON templates (created_at);
 CREATE INDEX IF NOT EXISTS idx_templates_updated_at ON templates (updated_at);
 
 INSERT INTO system_configs (key, value, type, visibility, description, created_at, updated_at) VALUES
-    ('cap_login_enabled', 'true', 'system', 1, '是否启用登录人机验证（true/false）', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('cap_login_enabled', 'false', 'system', 1, '是否启用登录人机验证（true/false）', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
     ('cap_auto_solve', 'true', 'system', 1, '打开页面后是否自动开始计算，关闭则需用户手动点击触发', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
     ('cap_challenge_count', '1', 'system', 0, '客户端需求解的 PoW 难题总数，默认 1，推荐 1～5', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
     ('cap_challenge_size', '32', 'system', 0, '人机验证盐值长度', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),

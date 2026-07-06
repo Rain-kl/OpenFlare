@@ -142,7 +142,7 @@ func getSeedConfigsPart1() []model.SystemConfig {
 		},
 		{
 			Key:         model.ConfigKeyCapLoginEnabled,
-			Value:       configValueTrue,
+			Value:       configValueFalse,
 			Type:        configTypeSystem,
 			Description: "是否启用登录人机验证（true/false）",
 		},

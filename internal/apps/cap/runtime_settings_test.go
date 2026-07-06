@@ -56,13 +56,13 @@ func TestProtectionEnabledReflectsLoginSwitch(t *testing.T) {
 
 	ResetRuntimeSettingsForTest()
 
-	if !ProtectionEnabled(ctx) {
-		t.Fatal("ProtectionEnabled() = false, want true from seed defaults")
+	if ProtectionEnabled(ctx) {
+		t.Fatal("ProtectionEnabled() = true, want false from seed defaults")
 	}
 
 	if err := db.DB(ctx).Model(&model.SystemConfig{}).
 		Where("key = ?", model.ConfigKeyCapLoginEnabled).
-		Update("value", "false").Error; err != nil {
+		Update("value", "true").Error; err != nil {
 		t.Fatalf("Update(cap_login_enabled) error = %v", err)
 	}
 	if err := repository.InvalidateSystemConfigCache(ctx, model.ConfigKeyCapLoginEnabled); err != nil {
@@ -70,8 +70,8 @@ func TestProtectionEnabledReflectsLoginSwitch(t *testing.T) {
 	}
 	InvalidateRuntimeSettings()
 
-	if ProtectionEnabled(ctx) {
-		t.Fatal("ProtectionEnabled() = true, want false after config update")
+	if !ProtectionEnabled(ctx) {
+		t.Fatal("ProtectionEnabled() = false, want true after config update")
 	}
 }
 

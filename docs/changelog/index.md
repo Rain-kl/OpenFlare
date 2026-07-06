@@ -18,6 +18,12 @@ sidebar: false
 
 ## [unreleased]
 
+## [v3.1.1] - 2026-07-06
+
+### 修改
+
+- 将 `cap_login_enabled` 默认值由 `true` 变更为 `false`，默认关闭登录界面 PoW 人机验证。
+
 ## [v3.1.0] - 2026-07-04
 
 ### 修改

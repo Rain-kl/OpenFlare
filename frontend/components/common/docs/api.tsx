@@ -245,7 +245,7 @@ export const apiSections: PolicySection[] = [
     "registration_enabled": "false",
     "password_login_enabled": "true",
     "password_register_enabled": "false",
-    "cap_login_enabled": "true",
+    "cap_login_enabled": "false",
     "oidc_login_enabled": "true"
   }
 }`}
