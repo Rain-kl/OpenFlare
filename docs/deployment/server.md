@@ -101,7 +101,6 @@ services:
         hard: 262144
     volumes:
       - ./data/clickhouse_data:/var/lib/clickhouse
-      # 仅含 performance.xml 的目录；不要在此目录放 listen 配置
       - ./config/clickhouse:/etc/clickhouse-server/config.d:ro
     healthcheck:
       test: ["CMD", "clickhouse-client", "--user", "default", "--password", "123456", "--query", "SELECT 1"]
@@ -193,7 +192,6 @@ services:
         hard: 262144
     volumes:
       - openflare_clickhouse_data:/var/lib/clickhouse
-      # 仅含 performance.xml 的目录；不要在此目录放 listen 配置
       - ./config/clickhouse:/etc/clickhouse-server/config.d:ro
     healthcheck:
       test: ["CMD", "clickhouse-client", "--user", "${CLICKHOUSE_USERNAME:-default}", "--password", "${CLICKHOUSE_PASSWORD:-replace-with-clickhouse-password}", "--query", "SELECT 1"]
@@ -312,7 +310,6 @@ services:
         hard: 262144
     volumes:
       - openflare_clickhouse_data:/var/lib/clickhouse
-      # 仅含 performance.xml 的目录；不要在此目录放 listen 配置
       - ./config/clickhouse:/etc/clickhouse-server/config.d:ro
     healthcheck:
       test: ["CMD", "clickhouse-client", "--user", "${CLICKHOUSE_USERNAME:-default}", "--password", "${CLICKHOUSE_PASSWORD:-replace-with-clickhouse-password}", "--query", "SELECT 1"]

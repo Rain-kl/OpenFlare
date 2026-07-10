@@ -84,8 +84,8 @@ services:
         soft: 262144
         hard: 262144
     ports:
-      - "${CLICKHOUSE_HTTP_PORT:-8123}:8123"
-      - "${CLICKHOUSE_NATIVE_PORT:-9000}:9000"
+      - "8123:8123"
+      - "9000:9000"
     volumes:
       - ./data/clickhouse_data:/var/lib/clickhouse
       - ./config/clickhouse:/etc/clickhouse-server/config.d:ro

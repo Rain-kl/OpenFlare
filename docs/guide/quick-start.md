@@ -115,7 +115,6 @@ services:
         hard: 262144
     volumes:
       - openflare_clickhouse_data:/var/lib/clickhouse
-      # 目录内仅 performance.xml；不要放 listen 配置
       - ./config/clickhouse:/etc/clickhouse-server/config.d:ro
     healthcheck:
       test: ["CMD", "clickhouse-client", "--user", "default", "--password", "${CLICKHOUSE_PASSWORD:-replace-with-clickhouse-password}", "--query", "SELECT 1"]
