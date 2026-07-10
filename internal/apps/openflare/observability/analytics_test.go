@@ -132,3 +132,84 @@ func TestBuildTrafficWindowSummaryNilWithoutReport(t *testing.T) {
 		t.Fatalf("buildTrafficWindowSummary(nil) = %#v, want nil", summary)
 	}
 }
+
+func TestBuildCapacityTrendPointsFromHourlyFillsBuckets(t *testing.T) {
+	t.Parallel()
+
+	now := time.Date(2026, 7, 10, 9, 30, 0, 0, time.UTC)
+	hourly := []*model.OpenFlareMetricHourly{
+		{
+			Hour:                      now.Add(-3 * time.Hour).Truncate(time.Hour),
+			AverageCPUUsagePercent:    42.5,
+			AverageMemoryUsagePercent: 61.2,
+			ReportedNodes:             1,
+		},
+		{
+			Hour:                      now.Truncate(time.Hour),
+			AverageCPUUsagePercent:    12.0,
+			AverageMemoryUsagePercent: 50.0,
+			ReportedNodes:             2,
+		},
+	}
+
+	points := BuildCapacityTrendPointsFromHourly(now, hourly)
+	if len(points) != observabilityTrendBuckets {
+		t.Fatalf("len = %d, want %d", len(points), observabilityTrendBuckets)
+	}
+	if points[len(points)-4].AverageCPUUsagePercent != 42.5 {
+		t.Fatalf("hour-3 cpu = %v, want 42.5", points[len(points)-4].AverageCPUUsagePercent)
+	}
+	if points[len(points)-1].ReportedNodes != 2 {
+		t.Fatalf("current hour reported_nodes = %d, want 2", points[len(points)-1].ReportedNodes)
+	}
+}
+
+func TestBuildNetworkTrendPointsUsesCounterDeltas(t *testing.T) {
+	t.Parallel()
+
+	now := time.Date(2026, 7, 10, 9, 30, 0, 0, time.UTC)
+	base := now.Truncate(time.Hour)
+	snapshots := []*model.OpenFlareMetricSnapshot{
+		{NodeID: "n1", CapturedAt: base.Add(10 * time.Minute), NetworkRxBytes: 1000, NetworkTxBytes: 2000},
+		{NodeID: "n1", CapturedAt: base.Add(20 * time.Minute), NetworkRxBytes: 1500, NetworkTxBytes: 2600},
+	}
+	openrestyObs := []*model.OpenFlareNodeObservationOpenresty{
+		{NodeID: "n1", CapturedAt: base.Add(10 * time.Minute), OpenrestyRxBytes: 100, OpenrestyTxBytes: 200},
+		{NodeID: "n1", CapturedAt: base.Add(20 * time.Minute), OpenrestyRxBytes: 180, OpenrestyTxBytes: 250},
+	}
+
+	points := BuildNetworkTrendPoints(now, snapshots, openrestyObs)
+	current := points[len(points)-1]
+	if current.NetworkRxBytes != 500 {
+		t.Fatalf("network_rx_bytes = %d, want 500", current.NetworkRxBytes)
+	}
+	if current.NetworkTxBytes != 600 {
+		t.Fatalf("network_tx_bytes = %d, want 600", current.NetworkTxBytes)
+	}
+	if current.OpenrestyRxBytes != 80 {
+		t.Fatalf("openresty_rx_bytes = %d, want 80", current.OpenrestyRxBytes)
+	}
+	if current.OpenrestyTxBytes != 50 {
+		t.Fatalf("openresty_tx_bytes = %d, want 50", current.OpenrestyTxBytes)
+	}
+}
+
+func TestBuildDiskIOTrendPointsFromHourlyFillsBuckets(t *testing.T) {
+	t.Parallel()
+
+	now := time.Date(2026, 7, 10, 9, 30, 0, 0, time.UTC)
+	hourly := []*model.OpenFlareMetricHourly{
+		{
+			Hour:            now.Add(-1 * time.Hour).Truncate(time.Hour),
+			DiskReadBytes:   1024,
+			DiskWriteBytes:  2048,
+			ReportedNodes:   1,
+		},
+	}
+
+	points := BuildDiskIOTrendPointsFromHourly(now, hourly)
+	prev := points[len(points)-2]
+	if prev.DiskReadBytes != 1024 || prev.DiskWriteBytes != 2048 {
+		t.Fatalf("previous hour disk io = %#v, want read=1024 write=2048", prev)
+	}
+}

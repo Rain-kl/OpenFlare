@@ -4,6 +4,7 @@
 package observability
 
 import (
+	"context"
 	"encoding/json"
 	"sort"
 	"strings"
@@ -13,6 +14,7 @@ import (
 )
 
 const observabilityTrendBuckets = 24
+const unknownTrendNodeKey = "__unknown__"
 
 const (
 	healthEventStatusActive   = "active"
@@ -131,6 +133,12 @@ type diskCounterState struct {
 	read  int64
 	write int64
 	seen  bool
+}
+
+type networkCounterState struct {
+	rx   int64
+	tx   int64
+	seen bool
 }
 
 func buildTrafficWindowSummary(report *model.OpenFlareRequestReport) *TrafficWindowSummary {
@@ -257,6 +265,44 @@ func buildHealthSummary(
 	return summary
 }
 
+// BuildNodeTrends builds 24h trend series, preferring ClickHouse hourly aggregates
+// over limited raw snapshot windows so capacity/network/disk charts stay complete.
+func BuildNodeTrends(
+	ctx context.Context,
+	now time.Time,
+	nodeID string,
+	snapshots []*model.OpenFlareMetricSnapshot,
+	openrestyObs []*model.OpenFlareNodeObservationOpenresty,
+	reports []*model.OpenFlareRequestReport,
+) NodeTrends {
+	trendSince := now.Add(-24 * time.Hour)
+	trafficTrend := BuildTrafficTrendPoints(now, reports)
+	if trafficHourly, err := model.ListOpenFlareTrafficHourlySince(ctx, nodeID, trendSince); err == nil && len(trafficHourly) > 0 {
+		trafficTrend = BuildTrafficTrendPointsFromHourly(now, trafficHourly)
+	}
+
+	capacityTrend := BuildCapacityTrendPoints(now, snapshots)
+	networkTrend := BuildNetworkTrendPoints(now, snapshots, openrestyObs)
+	diskIOTrend := BuildDiskIOTrendPoints(now, snapshots)
+
+	metricHourly, metricErr := model.ListOpenFlareMetricHourlySince(ctx, nodeID, trendSince)
+	if metricErr == nil && len(metricHourly) > 0 {
+		capacityTrend = BuildCapacityTrendPointsFromHourly(now, metricHourly)
+		diskIOTrend = BuildDiskIOTrendPointsFromHourly(now, metricHourly)
+	}
+	openrestyHourly, openrestyErr := model.ListOpenFlareOpenrestyHourlySince(ctx, nodeID, trendSince)
+	if metricErr == nil && openrestyErr == nil && (len(metricHourly) > 0 || len(openrestyHourly) > 0) {
+		networkTrend = BuildNetworkTrendPointsFromHourly(now, metricHourly, openrestyHourly)
+	}
+
+	return NodeTrends{
+		Traffic24h:  trafficTrend,
+		Capacity24h: capacityTrend,
+		Network24h:  networkTrend,
+		DiskIO24h:   diskIOTrend,
+	}
+}
+
 // BuildTrafficTrendPointsFromHourly builds 24h traffic trend buckets from hourly rollups.
 func BuildTrafficTrendPointsFromHourly(now time.Time, hourly []*model.OpenFlareTrafficHourly) []TrafficTrendPoint {
 	start := trendWindowStart(now)
@@ -336,7 +382,30 @@ func BuildCapacityTrendPoints(now time.Time, snapshots []*model.OpenFlareMetricS
 	return points
 }
 
+// BuildCapacityTrendPointsFromHourly builds 24h capacity trend buckets from hourly aggregates.
+func BuildCapacityTrendPointsFromHourly(now time.Time, hourly []*model.OpenFlareMetricHourly) []CapacityTrendPoint {
+	start := trendWindowStart(now)
+	points := make([]CapacityTrendPoint, observabilityTrendBuckets)
+	for index := range points {
+		points[index].BucketStartedAt = start.Add(time.Duration(index) * time.Hour)
+	}
+	for _, row := range hourly {
+		if row == nil {
+			continue
+		}
+		index, ok := trendBucketIndex(row.Hour, start)
+		if !ok {
+			continue
+		}
+		points[index].AverageCPUUsagePercent = row.AverageCPUUsagePercent
+		points[index].AverageMemoryUsagePercent = row.AverageMemoryUsagePercent
+		points[index].ReportedNodes = row.ReportedNodes
+	}
+	return points
+}
+
 // BuildNetworkTrendPoints builds 24h network trend buckets.
+// Host and OpenResty counters are cumulative; values are consecutive deltas.
 func BuildNetworkTrendPoints(
 	now time.Time,
 	snapshots []*model.OpenFlareMetricSnapshot,
@@ -349,30 +418,118 @@ func BuildNetworkTrendPoints(
 		points[index].BucketStartedAt = start.Add(time.Duration(index) * time.Hour)
 		accumulators[index].nodes = make(map[string]struct{})
 	}
+	sort.Slice(snapshots, func(i int, j int) bool {
+		if snapshots[i].CapturedAt.Equal(snapshots[j].CapturedAt) {
+			return snapshots[i].NodeID < snapshots[j].NodeID
+		}
+		return snapshots[i].CapturedAt.Before(snapshots[j].CapturedAt)
+	})
+	previousHostByNode := make(map[string]networkCounterState, len(snapshots))
 	for _, snapshot := range snapshots {
+		if snapshot == nil {
+			continue
+		}
+		nodeKey := snapshot.NodeID
+		if nodeKey == "" {
+			nodeKey = unknownTrendNodeKey
+		}
+		previous := previousHostByNode[nodeKey]
+		previousHostByNode[nodeKey] = networkCounterState{
+			rx:   snapshot.NetworkRxBytes,
+			tx:   snapshot.NetworkTxBytes,
+			seen: true,
+		}
+		if !previous.seen {
+			continue
+		}
 		index, ok := trendBucketIndex(snapshot.CapturedAt, start)
 		if !ok {
 			continue
 		}
-		points[index].NetworkRxBytes += snapshot.NetworkRxBytes
-		points[index].NetworkTxBytes += snapshot.NetworkTxBytes
+		points[index].NetworkRxBytes += nonNegativeDelta(snapshot.NetworkRxBytes, previous.rx)
+		points[index].NetworkTxBytes += nonNegativeDelta(snapshot.NetworkTxBytes, previous.tx)
 		if snapshot.NodeID != "" {
 			accumulators[index].nodes[snapshot.NodeID] = struct{}{}
 		}
 	}
+	sort.Slice(openrestyObs, func(i int, j int) bool {
+		if openrestyObs[i].CapturedAt.Equal(openrestyObs[j].CapturedAt) {
+			return openrestyObs[i].NodeID < openrestyObs[j].NodeID
+		}
+		return openrestyObs[i].CapturedAt.Before(openrestyObs[j].CapturedAt)
+	})
+	previousOpenrestyByNode := make(map[string]networkCounterState, len(openrestyObs))
 	for _, obs := range openrestyObs {
+		if obs == nil {
+			continue
+		}
+		nodeKey := obs.NodeID
+		if nodeKey == "" {
+			nodeKey = unknownTrendNodeKey
+		}
+		previous := previousOpenrestyByNode[nodeKey]
+		previousOpenrestyByNode[nodeKey] = networkCounterState{
+			rx:   obs.OpenrestyRxBytes,
+			tx:   obs.OpenrestyTxBytes,
+			seen: true,
+		}
+		if !previous.seen {
+			continue
+		}
 		index, ok := trendBucketIndex(obs.CapturedAt, start)
 		if !ok {
 			continue
 		}
-		points[index].OpenrestyRxBytes += obs.OpenrestyRxBytes
-		points[index].OpenrestyTxBytes += obs.OpenrestyTxBytes
+		points[index].OpenrestyRxBytes += nonNegativeDelta(obs.OpenrestyRxBytes, previous.rx)
+		points[index].OpenrestyTxBytes += nonNegativeDelta(obs.OpenrestyTxBytes, previous.tx)
 		if obs.NodeID != "" {
 			accumulators[index].nodes[obs.NodeID] = struct{}{}
 		}
 	}
 	for index := range points {
 		points[index].ReportedNodes = len(accumulators[index].nodes)
+	}
+	return points
+}
+
+// BuildNetworkTrendPointsFromHourly builds 24h network trend buckets from hourly aggregates.
+func BuildNetworkTrendPointsFromHourly(
+	now time.Time,
+	metricHourly []*model.OpenFlareMetricHourly,
+	openrestyHourly []*model.OpenFlareOpenrestyHourly,
+) []NetworkTrendPoint {
+	start := trendWindowStart(now)
+	points := make([]NetworkTrendPoint, observabilityTrendBuckets)
+	for index := range points {
+		points[index].BucketStartedAt = start.Add(time.Duration(index) * time.Hour)
+	}
+	for _, row := range metricHourly {
+		if row == nil {
+			continue
+		}
+		index, ok := trendBucketIndex(row.Hour, start)
+		if !ok {
+			continue
+		}
+		points[index].NetworkRxBytes += row.NetworkRxBytes
+		points[index].NetworkTxBytes += row.NetworkTxBytes
+		if row.ReportedNodes > points[index].ReportedNodes {
+			points[index].ReportedNodes = row.ReportedNodes
+		}
+	}
+	for _, row := range openrestyHourly {
+		if row == nil {
+			continue
+		}
+		index, ok := trendBucketIndex(row.Hour, start)
+		if !ok {
+			continue
+		}
+		points[index].OpenrestyRxBytes += row.OpenrestyRxBytes
+		points[index].OpenrestyTxBytes += row.OpenrestyTxBytes
+		if row.ReportedNodes > points[index].ReportedNodes {
+			points[index].ReportedNodes = row.ReportedNodes
+		}
 	}
 	return points
 }
@@ -396,7 +553,7 @@ func BuildDiskIOTrendPoints(now time.Time, snapshots []*model.OpenFlareMetricSna
 	for _, snapshot := range snapshots {
 		nodeKey := snapshot.NodeID
 		if nodeKey == "" {
-			nodeKey = "__unknown__"
+			nodeKey = unknownTrendNodeKey
 		}
 		previous := previousByNode[nodeKey]
 		previousByNode[nodeKey] = diskCounterState{
@@ -411,16 +568,8 @@ func BuildDiskIOTrendPoints(now time.Time, snapshots []*model.OpenFlareMetricSna
 		if !ok {
 			continue
 		}
-		readDelta := snapshot.DiskReadBytes - previous.read
-		writeDelta := snapshot.DiskWriteBytes - previous.write
-		if readDelta < 0 {
-			readDelta = 0
-		}
-		if writeDelta < 0 {
-			writeDelta = 0
-		}
-		points[index].DiskReadBytes += readDelta
-		points[index].DiskWriteBytes += writeDelta
+		points[index].DiskReadBytes += nonNegativeDelta(snapshot.DiskReadBytes, previous.read)
+		points[index].DiskWriteBytes += nonNegativeDelta(snapshot.DiskWriteBytes, previous.write)
 		if snapshot.NodeID != "" {
 			accumulators[index].nodes[snapshot.NodeID] = struct{}{}
 		}
@@ -429,6 +578,36 @@ func BuildDiskIOTrendPoints(now time.Time, snapshots []*model.OpenFlareMetricSna
 		points[index].ReportedNodes = len(accumulators[index].nodes)
 	}
 	return points
+}
+
+// BuildDiskIOTrendPointsFromHourly builds 24h disk IO trend buckets from hourly aggregates.
+func BuildDiskIOTrendPointsFromHourly(now time.Time, hourly []*model.OpenFlareMetricHourly) []DiskIOTrendPoint {
+	start := trendWindowStart(now)
+	points := make([]DiskIOTrendPoint, observabilityTrendBuckets)
+	for index := range points {
+		points[index].BucketStartedAt = start.Add(time.Duration(index) * time.Hour)
+	}
+	for _, row := range hourly {
+		if row == nil {
+			continue
+		}
+		index, ok := trendBucketIndex(row.Hour, start)
+		if !ok {
+			continue
+		}
+		points[index].DiskReadBytes += row.DiskReadBytes
+		points[index].DiskWriteBytes += row.DiskWriteBytes
+		points[index].ReportedNodes = row.ReportedNodes
+	}
+	return points
+}
+
+func nonNegativeDelta(current int64, previous int64) int64 {
+	delta := current - previous
+	if delta < 0 {
+		return 0
+	}
+	return delta
 }
 
 func latestMetricSnapshot(snapshots []*model.OpenFlareMetricSnapshot) *model.OpenFlareMetricSnapshot {

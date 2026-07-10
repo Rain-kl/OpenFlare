@@ -369,6 +369,72 @@ func ListOpenFlareTrafficHourlySince(ctx context.Context, nodeID string, since t
 	return result, nil
 }
 
+// OpenFlareMetricHourly is an hourly metric snapshot aggregation row.
+type OpenFlareMetricHourly struct {
+	Hour                      time.Time `json:"hour"`
+	AverageCPUUsagePercent    float64   `json:"average_cpu_usage_percent"`
+	AverageMemoryUsagePercent float64   `json:"average_memory_usage_percent"`
+	NetworkRxBytes            int64     `json:"network_rx_bytes"`
+	NetworkTxBytes            int64     `json:"network_tx_bytes"`
+	DiskReadBytes             int64     `json:"disk_read_bytes"`
+	DiskWriteBytes            int64     `json:"disk_write_bytes"`
+	ReportedNodes             int       `json:"reported_nodes"`
+}
+
+// OpenFlareOpenrestyHourly is an hourly OpenResty observation aggregation row.
+type OpenFlareOpenrestyHourly struct {
+	Hour             time.Time `json:"hour"`
+	OpenrestyRxBytes int64     `json:"openresty_rx_bytes"`
+	OpenrestyTxBytes int64     `json:"openresty_tx_bytes"`
+	ReportedNodes    int       `json:"reported_nodes"`
+}
+
+// ListOpenFlareMetricHourlySince returns hourly metric aggregates since the given time.
+func ListOpenFlareMetricHourlySince(ctx context.Context, nodeID string, since time.Time) ([]*OpenFlareMetricHourly, error) {
+	rows, err := analyticsrepo.ListNodeMetricHourly(ctx, analyticsrepo.NodeObservabilityFilter{
+		NodeID: nodeID,
+		Since:  since,
+	})
+	if err != nil {
+		return nil, err
+	}
+	result := make([]*OpenFlareMetricHourly, len(rows))
+	for index, row := range rows {
+		result[index] = &OpenFlareMetricHourly{
+			Hour:                      row.Hour,
+			AverageCPUUsagePercent:    row.AverageCPUUsagePercent,
+			AverageMemoryUsagePercent: row.AverageMemoryUsagePercent,
+			NetworkRxBytes:            row.NetworkRxBytes,
+			NetworkTxBytes:            row.NetworkTxBytes,
+			DiskReadBytes:             row.DiskReadBytes,
+			DiskWriteBytes:            row.DiskWriteBytes,
+			ReportedNodes:             row.ReportedNodes,
+		}
+	}
+	return result, nil
+}
+
+// ListOpenFlareOpenrestyHourlySince returns hourly OpenResty aggregates since the given time.
+func ListOpenFlareOpenrestyHourlySince(ctx context.Context, nodeID string, since time.Time) ([]*OpenFlareOpenrestyHourly, error) {
+	rows, err := analyticsrepo.ListNodeOpenrestyHourly(ctx, analyticsrepo.NodeObservabilityFilter{
+		NodeID: nodeID,
+		Since:  since,
+	})
+	if err != nil {
+		return nil, err
+	}
+	result := make([]*OpenFlareOpenrestyHourly, len(rows))
+	for index, row := range rows {
+		result[index] = &OpenFlareOpenrestyHourly{
+			Hour:             row.Hour,
+			OpenrestyRxBytes: row.OpenrestyRxBytes,
+			OpenrestyTxBytes: row.OpenrestyTxBytes,
+			ReportedNodes:    row.ReportedNodes,
+		}
+	}
+	return result, nil
+}
+
 // ListOpenFlareActiveHealthEvents returns active health events across all nodes.
 func ListOpenFlareActiveHealthEvents(ctx context.Context) ([]*OpenFlareHealthEvent, error) {
 	conn := db.DB(ctx)

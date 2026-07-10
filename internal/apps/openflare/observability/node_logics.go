@@ -134,11 +134,6 @@ func GetNodeObservability(ctx context.Context, id uint, query NodeQuery) (*NodeV
 	if err != nil {
 		return nil, err
 	}
-	trafficTrend := BuildTrafficTrendPoints(now, reports)
-	if trafficHourly, hourlyErr := model.ListOpenFlareTrafficHourlySince(ctx, node.NodeID, now.Add(-24*time.Hour)); hourlyErr == nil && len(trafficHourly) > 0 {
-		trafficTrend = BuildTrafficTrendPointsFromHourly(now, trafficHourly)
-	}
-
 	view := &NodeView{
 		NodeID:          node.NodeID,
 		Profile:         profile,
@@ -150,12 +145,7 @@ func GetNodeObservability(ctx context.Context, id uint, query NodeQuery) (*NodeV
 			Distributions: BuildTrafficDistributions(reports, accessLogRegions, defaultTrafficDistributionLimit),
 			Health:        buildHealthSummary(latestMetricSnapshot(snapshots), latestTrafficReport(reports), events),
 		},
-		Trends: NodeTrends{
-			Traffic24h:  trafficTrend,
-			Capacity24h: BuildCapacityTrendPoints(now, snapshots),
-			Network24h:  BuildNetworkTrendPoints(now, snapshots, openrestyObs),
-			DiskIO24h:   BuildDiskIOTrendPoints(now, snapshots),
-		},
+		Trends: BuildNodeTrends(ctx, now, node.NodeID, snapshots, openrestyObs, reports),
 	}
 	if node.NodeType == "tunnel_relay" {
 		frpsObs, frpsErr := model.ListOpenFlareNodeObservationFrps(ctx, node.NodeID, time.Time{}, 1)

@@ -256,6 +256,29 @@ type NodeTrafficHourly struct {
 	UniqueVisitorCount int64
 }
 
+// NodeMetricHourly is an hourly metric snapshot aggregation row.
+//
+// Disk and host network counters are cumulative; deltas use consecutive
+// lagInFrame samples per node (negative deltas after counter reset are dropped).
+type NodeMetricHourly struct {
+	Hour                      time.Time
+	AverageCPUUsagePercent    float64
+	AverageMemoryUsagePercent float64
+	NetworkRxBytes            int64
+	NetworkTxBytes            int64
+	DiskReadBytes             int64
+	DiskWriteBytes            int64
+	ReportedNodes             int
+}
+
+// NodeOpenrestyHourly is an hourly OpenResty observation aggregation row.
+type NodeOpenrestyHourly struct {
+	Hour             time.Time
+	OpenrestyRxBytes int64
+	OpenrestyTxBytes int64
+	ReportedNodes    int
+}
+
 // ListNodeTrafficHourly returns hourly traffic rollup rows matching filter.
 func ListNodeTrafficHourly(ctx context.Context, filter NodeObservabilityFilter) ([]NodeTrafficHourly, error) {
 	conn, err := observabilityConn()
@@ -293,6 +316,148 @@ ORDER BY hour ASC`, nodeTrafficHourlyTableName, clause)
 		item.RequestCount = safeInt64Count(requestCount)
 		item.ErrorCount = safeInt64Count(errorCount)
 		item.UniqueVisitorCount = safeInt64Count(uniqueVisitorCount)
+		result = append(result, item)
+	}
+	return result, nil
+}
+
+// ListNodeMetricHourly returns hourly metric snapshot aggregates matching filter.
+// Capacity uses sample averages; network/disk use consecutive counter deltas via lagInFrame.
+func ListNodeMetricHourly(ctx context.Context, filter NodeObservabilityFilter) ([]NodeMetricHourly, error) {
+	conn, err := observabilityConn()
+	if err != nil {
+		return nil, err
+	}
+	clause, args := buildNodeObservabilityFilterClause(filter, "captured_at")
+	tableName := nodeMetricSnapshotTableName()
+	sql := fmt.Sprintf(`
+SELECT
+	hour,
+	avg(cpu_usage_percent) AS average_cpu_usage_percent,
+	avg(memory_usage_percent) AS average_memory_usage_percent,
+	sum(if(network_rx_delta >= 0, network_rx_delta, 0)) AS network_rx_bytes,
+	sum(if(network_tx_delta >= 0, network_tx_delta, 0)) AS network_tx_bytes,
+	sum(if(disk_read_delta >= 0, disk_read_delta, 0)) AS disk_read_bytes,
+	sum(if(disk_write_delta >= 0, disk_write_delta, 0)) AS disk_write_bytes,
+	toUInt64(uniqExact(node_id)) AS reported_nodes
+FROM (
+	SELECT
+		node_id,
+		toStartOfHour(captured_at) AS hour,
+		cpu_usage_percent,
+		if(memory_total_bytes > 0, (memory_used_bytes * 100.0) / memory_total_bytes, 0) AS memory_usage_percent,
+		network_rx_bytes - lagInFrame(network_rx_bytes, 1, network_rx_bytes) OVER (
+			PARTITION BY node_id ORDER BY captured_at, id
+			ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+		) AS network_rx_delta,
+		network_tx_bytes - lagInFrame(network_tx_bytes, 1, network_tx_bytes) OVER (
+			PARTITION BY node_id ORDER BY captured_at, id
+			ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+		) AS network_tx_delta,
+		disk_read_bytes - lagInFrame(disk_read_bytes, 1, disk_read_bytes) OVER (
+			PARTITION BY node_id ORDER BY captured_at, id
+			ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+		) AS disk_read_delta,
+		disk_write_bytes - lagInFrame(disk_write_bytes, 1, disk_write_bytes) OVER (
+			PARTITION BY node_id ORDER BY captured_at, id
+			ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+		) AS disk_write_delta
+	FROM %s
+	WHERE %s
+)
+GROUP BY hour
+ORDER BY hour ASC`, tableName, clause)
+	rows, err := conn.Query(ctx, sql, args...)
+	if err != nil {
+		return nil, fmt.Errorf("list node metric hourly: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	result := make([]NodeMetricHourly, 0)
+	for rows.Next() {
+		var (
+			item          NodeMetricHourly
+			reportedNodes uint64
+			networkRx     int64
+			networkTx     int64
+			diskRead      int64
+			diskWrite     int64
+		)
+		if err := rows.Scan(
+			&item.Hour,
+			&item.AverageCPUUsagePercent,
+			&item.AverageMemoryUsagePercent,
+			&networkRx,
+			&networkTx,
+			&diskRead,
+			&diskWrite,
+			&reportedNodes,
+		); err != nil {
+			return nil, fmt.Errorf("scan node metric hourly row: %w", err)
+		}
+		item.Hour = item.Hour.UTC()
+		item.NetworkRxBytes = networkRx
+		item.NetworkTxBytes = networkTx
+		item.DiskReadBytes = diskRead
+		item.DiskWriteBytes = diskWrite
+		item.ReportedNodes = int(safeInt64Count(reportedNodes))
+		result = append(result, item)
+	}
+	return result, nil
+}
+
+// ListNodeOpenrestyHourly returns hourly OpenResty observation aggregates matching filter.
+func ListNodeOpenrestyHourly(ctx context.Context, filter NodeObservabilityFilter) ([]NodeOpenrestyHourly, error) {
+	conn, err := observabilityConn()
+	if err != nil {
+		return nil, err
+	}
+	clause, args := buildNodeObservabilityFilterClause(filter, "captured_at")
+	tableName := nodeObsOpenrestyTableName()
+	sql := fmt.Sprintf(`
+SELECT
+	hour,
+	sum(if(openresty_rx_delta >= 0, openresty_rx_delta, 0)) AS openresty_rx_bytes,
+	sum(if(openresty_tx_delta >= 0, openresty_tx_delta, 0)) AS openresty_tx_bytes,
+	toUInt64(uniqExact(node_id)) AS reported_nodes
+FROM (
+	SELECT
+		node_id,
+		toStartOfHour(captured_at) AS hour,
+		openresty_rx_bytes - lagInFrame(openresty_rx_bytes, 1, openresty_rx_bytes) OVER (
+			PARTITION BY node_id ORDER BY captured_at, id
+			ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+		) AS openresty_rx_delta,
+		openresty_tx_bytes - lagInFrame(openresty_tx_bytes, 1, openresty_tx_bytes) OVER (
+			PARTITION BY node_id ORDER BY captured_at, id
+			ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+		) AS openresty_tx_delta
+	FROM %s
+	WHERE %s
+)
+GROUP BY hour
+ORDER BY hour ASC`, tableName, clause)
+	rows, err := conn.Query(ctx, sql, args...)
+	if err != nil {
+		return nil, fmt.Errorf("list node openresty hourly: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	result := make([]NodeOpenrestyHourly, 0)
+	for rows.Next() {
+		var (
+			item          NodeOpenrestyHourly
+			reportedNodes uint64
+			rx            int64
+			tx            int64
+		)
+		if err := rows.Scan(&item.Hour, &rx, &tx, &reportedNodes); err != nil {
+			return nil, fmt.Errorf("scan node openresty hourly row: %w", err)
+		}
+		item.Hour = item.Hour.UTC()
+		item.OpenrestyRxBytes = rx
+		item.OpenrestyTxBytes = tx
+		item.ReportedNodes = int(safeInt64Count(reportedNodes))
 		result = append(result, item)
 	}
 	return result, nil
