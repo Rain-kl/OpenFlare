@@ -118,9 +118,17 @@ func applyDefaults(c *configModel) {
 }
 
 func applyClickHouseDefaults(c *configModel) {
+	// Tests disable ClickHouse by default to avoid accidental connections.
+	// Opt in with CLICKHOUSE_ENABLED=true for live integration tests (e.g. -tags live_ch).
 	if isTest() {
-		c.ClickHouse.Enabled = false
-		return
+		if v, ok := os.LookupEnv("CLICKHOUSE_ENABLED"); !ok {
+			c.ClickHouse.Enabled = false
+			return
+		} else if b, err := strconv.ParseBool(v); err != nil || !b {
+			c.ClickHouse.Enabled = false
+			return
+		}
+		// Keep Enabled=true from env and continue applying host/pool defaults.
 	}
 	if !c.ClickHouse.Enabled {
 		c.ClickHouse.Enabled = true

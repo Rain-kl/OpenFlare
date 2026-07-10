@@ -1,17 +1,25 @@
 <?xml version="1.0"?>
 <!--
   Tuned for small control-plane hosts (e.g. 3c6g).
-  background_pool_size should stay near the vCPU count; oversized pools cause
-  idle merge threads to burn CPU while absorbing small parts from heartbeats.
+
+  background_pool_size * background_merges_mutations_concurrency_ratio must stay
+  greater than merge_tree number_of_free_entries_in_pool_to_execute_mutation
+  (ClickHouse 25.x refuses to start otherwise). Keep the merge free-entry
+  thresholds low so a small pool remains valid.
 -->
 <clickhouse>
     <max_concurrent_queries>20</max_concurrent_queries>
-    <background_pool_size>2</background_pool_size>
-    <background_merges_mutations_concurrency_ratio>1</background_merges_mutations_concurrency_ratio>
+    <background_pool_size>4</background_pool_size>
+    <background_merges_mutations_concurrency_ratio>2</background_merges_mutations_concurrency_ratio>
     <background_schedule_pool_size>4</background_schedule_pool_size>
     <background_common_pool_size>2</background_common_pool_size>
     <background_fetches_pool_size>2</background_fetches_pool_size>
     <background_move_pool_size>1</background_move_pool_size>
     <mark_cache_size>268435456</mark_cache_size>
     <uncompressed_cache_size>0</uncompressed_cache_size>
+    <merge_tree>
+        <number_of_free_entries_in_pool_to_execute_mutation>2</number_of_free_entries_in_pool_to_execute_mutation>
+        <number_of_free_entries_in_pool_to_lower_max_size_of_merge>2</number_of_free_entries_in_pool_to_lower_max_size_of_merge>
+        <number_of_free_entries_in_pool_to_execute_optimize_entire_partition>2</number_of_free_entries_in_pool_to_execute_optimize_entire_partition>
+    </merge_tree>
 </clickhouse>
