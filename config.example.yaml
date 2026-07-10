@@ -99,17 +99,24 @@ otel:
 
 
 # ─── ClickHouse (required) ──────────────────────────────────────────────────────
-# Client pool sized for small control-plane hosts (e.g. 3c6g). Raise only if
+# Analytics / observability OLAP store. Telemetry writes are best-effort (async batch).
+# Client pool defaults target small control-plane hosts (e.g. 3c6g). Raise only if
 # concurrent analytics queries and writers regularly exhaust the pool.
+# Docker: host mapping defaults CLICKHOUSE_NATIVE_PORT=9000 / HTTP=8123; set
+# docker/clickhouse/config.d listen_host so published ports are reachable.
+# Env overrides: CLICKHOUSE_ENABLED, CLICKHOUSE_HOST, CLICKHOUSE_USERNAME,
+# CLICKHOUSE_PASSWORD, CLICKHOUSE_NAME (see .env.example).
 clickhouse:
   enabled: true
   hosts:
-    - "127.0.0.1:9000"
+    - "127.0.0.1:9000"        # compose 内应用可用 clickhouse:9000（经 CLICKHOUSE_HOST）
   username: "default"
-  password: "123456"
+  password: "replace-with-clickhouse-password"  # 与 .env / compose CLICKHOUSE_PASSWORD 一致
   database: "openflare"
   max_idle_conn: 8            # keep warm sockets low to save client + server RAM
   max_open_conn: 16           # cap concurrent native sessions on modest CH boxes
   conn_max_lifetime: 3600
   dial_timeout: 5
   block_buffer_size: 32       # rows buffered per block; 32 is enough for our batch sizes
+  # Runtime client also enables async_insert (wait_for_async_insert=1, busy_timeout≈2s)
+  # in internal/db/clickhouse.go — not configured via YAML.
