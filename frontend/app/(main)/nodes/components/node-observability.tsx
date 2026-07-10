@@ -661,7 +661,7 @@ export function NodeObservability({
                     </p>
                     <p className="mt-2 text-sm text-muted-foreground">
                       {trafficSummary
-                        ? `近 60 秒 · UV ${formatMetricCount(trafficSummary.unique_visitor_count)}`
+                        ? `近 60 秒 · 窗口UV ${formatMetricCount(trafficSummary.unique_visitor_count)}`
                         : '暂无窗口流量摘要'}
                     </p>
                   </div>

@@ -99,6 +99,8 @@ otel:
 
 
 # ─── ClickHouse (required) ──────────────────────────────────────────────────────
+# Client pool sized for small control-plane hosts (e.g. 3c6g). Raise only if
+# concurrent analytics queries and writers regularly exhaust the pool.
 clickhouse:
   enabled: true
   hosts:
@@ -106,8 +108,8 @@ clickhouse:
   username: "default"
   password: "123456"
   database: "openflare"
-  max_idle_conn: 20
-  max_open_conn: 50
+  max_idle_conn: 8            # keep warm sockets low to save client + server RAM
+  max_open_conn: 16           # cap concurrent native sessions on modest CH boxes
   conn_max_lifetime: 3600
   dial_timeout: 5
-  block_buffer_size: 100
+  block_buffer_size: 32       # rows buffered per block; 32 is enough for our batch sizes

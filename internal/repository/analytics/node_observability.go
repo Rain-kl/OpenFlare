@@ -45,6 +45,27 @@ ORDER BY %s`, tableName, clause, nodeObservabilityCapturedAtOrderClause())
 	return scanNodeMetricSnapshotRows(rows)
 }
 
+// ListLatestNodeMetricSnapshots returns the latest metric snapshot per node_id.
+// Uses ClickHouse LIMIT 1 BY so dashboard health does not depend on a global raw LIMIT.
+func ListLatestNodeMetricSnapshots(ctx context.Context, filter NodeObservabilityFilter) ([]analyticsmodel.NodeMetricSnapshot, error) {
+	conn, err := observabilityConn()
+	if err != nil {
+		return nil, err
+	}
+	clause, args := buildNodeObservabilityFilterClause(filter, "captured_at")
+	sql := fmt.Sprintf(`
+SELECT id, node_id, captured_at, cpu_usage_percent, memory_used_bytes, memory_total_bytes, storage_used_bytes, storage_total_bytes, disk_read_bytes, disk_write_bytes, network_rx_bytes, network_tx_bytes, created_at
+FROM %s
+WHERE %s
+ORDER BY %s%s`, nodeMetricSnapshotTableName(), clause, nodeObservabilityCapturedAtOrderClause(), clickHouseLimit1ByNodeIDClause)
+	rows, err := conn.Query(ctx, sql, args...)
+	if err != nil {
+		return nil, fmt.Errorf("list latest node metric snapshots: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	return scanNodeMetricSnapshotRows(rows)
+}
+
 // ListNodeRequestReports returns request reports matching filter.
 func ListNodeRequestReports(ctx context.Context, filter NodeObservabilityFilter) ([]analyticsmodel.NodeRequestReport, error) {
 	conn, err := observabilityConn()
@@ -65,6 +86,27 @@ ORDER BY %s`, tableName, clause, nodeObservabilityWindowEndedAtOrderClause())
 	rows, err := conn.Query(ctx, sql, args...)
 	if err != nil {
 		return nil, fmt.Errorf("list node request reports: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	return scanNodeRequestReportRows(rows)
+}
+
+// ListLatestNodeRequestReports returns the latest request report per node_id.
+// Uses ClickHouse LIMIT 1 BY so dashboard traffic health is not skewed by a global raw LIMIT.
+func ListLatestNodeRequestReports(ctx context.Context, filter NodeObservabilityFilter) ([]analyticsmodel.NodeRequestReport, error) {
+	conn, err := observabilityConn()
+	if err != nil {
+		return nil, err
+	}
+	clause, args := buildNodeObservabilityFilterClause(filter, "window_ended_at")
+	sql := fmt.Sprintf(`
+SELECT id, node_id, window_started_at, window_ended_at, request_count, error_count, unique_visitor_count, status_codes_json, top_domains_json, source_countries_json, created_at
+FROM %s
+WHERE %s
+ORDER BY %s%s`, nodeRequestReportTableName(), clause, nodeObservabilityWindowEndedAtOrderClause(), clickHouseLimit1ByNodeIDClause)
+	rows, err := conn.Query(ctx, sql, args...)
+	if err != nil {
+		return nil, fmt.Errorf("list latest node request reports: %w", err)
 	}
 	defer func() { _ = rows.Close() }()
 	return scanNodeRequestReportRows(rows)
@@ -248,6 +290,10 @@ func scanNodeObsFrpsRows(rows driver.Rows) ([]analyticsmodel.NodeObsFrps, error)
 const nodeTrafficHourlyTableName = "of_node_traffic_hourly"
 
 // NodeTrafficHourly is an hourly traffic rollup row.
+//
+// UniqueVisitorCount is a peak per-window estimate from short request reports
+// (MV uses max()), not true distinct visitors across the hour. SummingMergeTree
+// may still inflate residual unmerged parts; do not present as exact UV.
 type NodeTrafficHourly struct {
 	NodeID             string
 	Hour               time.Time
@@ -258,7 +304,8 @@ type NodeTrafficHourly struct {
 
 // NodeMetricHourly is an hourly metric snapshot aggregation row.
 //
-// Disk and host network counters are cumulative; deltas use consecutive
+// Disk and host network counters are cumulative. Prefer pre-aggregated min/max
+// deltas from of_node_metric_capacity_hourly; raw fallback uses consecutive
 // lagInFrame samples per node (negative deltas after counter reset are dropped).
 type NodeMetricHourly struct {
 	Hour                      time.Time
@@ -292,7 +339,7 @@ SELECT
 	hour,
 	sum(request_count) AS request_count,
 	sum(error_count) AS error_count,
-	sum(unique_visitor_count) AS unique_visitor_count
+	max(unique_visitor_count) AS unique_visitor_count
 FROM %s
 WHERE %s
 GROUP BY node_id, hour
@@ -322,8 +369,43 @@ ORDER BY hour ASC`, nodeTrafficHourlyTableName, clause)
 }
 
 // ListNodeMetricHourly returns hourly metric snapshot aggregates matching filter.
-// Capacity uses sample averages; network/disk use consecutive counter deltas via lagInFrame.
+// Prefers of_node_metric_capacity_hourly rollups; falls back to raw lagInFrame on empty/error.
 func ListNodeMetricHourly(ctx context.Context, filter NodeObservabilityFilter) ([]NodeMetricHourly, error) {
+	if rows, err := listNodeMetricHourlyFromRollup(ctx, filter); err == nil && len(rows) > 0 {
+		return rows, nil
+	}
+	return listNodeMetricHourlyFromRaw(ctx, filter)
+}
+
+func listNodeMetricHourlyFromRollup(ctx context.Context, filter NodeObservabilityFilter) ([]NodeMetricHourly, error) {
+	conn, err := observabilityConn()
+	if err != nil {
+		return nil, err
+	}
+	clause, args := buildNodeObservabilityFilterClause(filter, "hour")
+	sql := fmt.Sprintf(`
+SELECT
+	hour,
+	if(sum(cpu_usage_count) > 0, sum(cpu_usage_sum) / sum(cpu_usage_count), 0) AS average_cpu_usage_percent,
+	if(sum(memory_usage_count) > 0, sum(memory_usage_sum) / sum(memory_usage_count), 0) AS average_memory_usage_percent,
+	sum(greatest(network_rx_max - network_rx_min, 0)) AS network_rx_bytes,
+	sum(greatest(network_tx_max - network_tx_min, 0)) AS network_tx_bytes,
+	sum(greatest(disk_read_max - disk_read_min, 0)) AS disk_read_bytes,
+	sum(greatest(disk_write_max - disk_write_min, 0)) AS disk_write_bytes,
+	toUInt64(uniqExact(node_id)) AS reported_nodes
+FROM %s
+WHERE %s
+GROUP BY hour
+ORDER BY hour ASC`, nodeMetricCapacityHourlyTableName(), clause)
+	rows, err := conn.Query(ctx, sql, args...)
+	if err != nil {
+		return nil, fmt.Errorf("list node metric hourly from rollup: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	return scanNodeMetricHourlyRows(rows)
+}
+
+func listNodeMetricHourlyFromRaw(ctx context.Context, filter NodeObservabilityFilter) ([]NodeMetricHourly, error) {
 	conn, err := observabilityConn()
 	if err != nil {
 		return nil, err
@@ -372,7 +454,10 @@ ORDER BY hour ASC`, tableName, clause)
 		return nil, fmt.Errorf("list node metric hourly: %w", err)
 	}
 	defer func() { _ = rows.Close() }()
+	return scanNodeMetricHourlyRows(rows)
+}
 
+func scanNodeMetricHourlyRows(rows driver.Rows) ([]NodeMetricHourly, error) {
 	result := make([]NodeMetricHourly, 0)
 	for rows.Next() {
 		var (
@@ -407,7 +492,39 @@ ORDER BY hour ASC`, tableName, clause)
 }
 
 // ListNodeOpenrestyHourly returns hourly OpenResty observation aggregates matching filter.
+// Prefers of_node_openresty_hourly rollups; falls back to raw lagInFrame on empty/error.
 func ListNodeOpenrestyHourly(ctx context.Context, filter NodeObservabilityFilter) ([]NodeOpenrestyHourly, error) {
+	if rows, err := listNodeOpenrestyHourlyFromRollup(ctx, filter); err == nil && len(rows) > 0 {
+		return rows, nil
+	}
+	return listNodeOpenrestyHourlyFromRaw(ctx, filter)
+}
+
+func listNodeOpenrestyHourlyFromRollup(ctx context.Context, filter NodeObservabilityFilter) ([]NodeOpenrestyHourly, error) {
+	conn, err := observabilityConn()
+	if err != nil {
+		return nil, err
+	}
+	clause, args := buildNodeObservabilityFilterClause(filter, "hour")
+	sql := fmt.Sprintf(`
+SELECT
+	hour,
+	sum(greatest(openresty_rx_max - openresty_rx_min, 0)) AS openresty_rx_bytes,
+	sum(greatest(openresty_tx_max - openresty_tx_min, 0)) AS openresty_tx_bytes,
+	toUInt64(uniqExact(node_id)) AS reported_nodes
+FROM %s
+WHERE %s
+GROUP BY hour
+ORDER BY hour ASC`, nodeOpenrestyHourlyTableName(), clause)
+	rows, err := conn.Query(ctx, sql, args...)
+	if err != nil {
+		return nil, fmt.Errorf("list node openresty hourly from rollup: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	return scanNodeOpenrestyHourlyRows(rows)
+}
+
+func listNodeOpenrestyHourlyFromRaw(ctx context.Context, filter NodeObservabilityFilter) ([]NodeOpenrestyHourly, error) {
 	conn, err := observabilityConn()
 	if err != nil {
 		return nil, err
@@ -442,7 +559,10 @@ ORDER BY hour ASC`, tableName, clause)
 		return nil, fmt.Errorf("list node openresty hourly: %w", err)
 	}
 	defer func() { _ = rows.Close() }()
+	return scanNodeOpenrestyHourlyRows(rows)
+}
 
+func scanNodeOpenrestyHourlyRows(rows driver.Rows) ([]NodeOpenrestyHourly, error) {
 	result := make([]NodeOpenrestyHourly, 0)
 	for rows.Next() {
 		var (

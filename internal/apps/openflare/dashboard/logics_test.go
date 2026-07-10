@@ -58,6 +58,32 @@ func TestGetOverviewStructure(t *testing.T) {
 		OpenrestyStatus: "unknown",
 	}).Error)
 
+	// Seed older + newer snapshots per node; health must use latest-per-node, not a global raw limit.
+	require.NoError(t, model.InsertOpenFlareMetricSnapshot(ctx, &model.OpenFlareMetricSnapshot{
+		NodeID:          "node-dashboard-1",
+		CapturedAt:      now.Add(-2 * time.Hour),
+		CPUUsagePercent: 10,
+		MemoryUsedBytes: 1,
+		MemoryTotalBytes: 10,
+	}))
+	require.NoError(t, model.InsertOpenFlareMetricSnapshot(ctx, &model.OpenFlareMetricSnapshot{
+		NodeID:          "node-dashboard-1",
+		CapturedAt:      now.Add(-time.Minute),
+		CPUUsagePercent: 55,
+		MemoryUsedBytes: 5,
+		MemoryTotalBytes: 10,
+		StorageUsedBytes: 2,
+		StorageTotalBytes: 10,
+	}))
+	require.NoError(t, model.InsertOpenFlareRequestReport(ctx, &model.OpenFlareRequestReport{
+		NodeID:             "node-dashboard-1",
+		WindowStartedAt:    now.Add(-2 * time.Minute),
+		WindowEndedAt:      now.Add(-time.Minute),
+		RequestCount:       12,
+		ErrorCount:         1,
+		UniqueVisitorCount: 4,
+	}))
+
 	overview, err := GetOverview(ctx)
 	require.NoError(t, err)
 	require.NotNil(t, overview)
@@ -69,14 +95,14 @@ func TestGetOverviewStructure(t *testing.T) {
 	assert.Equal(t, 0, overview.Summary.OfflineNodes)
 	assert.Equal(t, 0, overview.Summary.UnhealthyNodes)
 
-	assert.Equal(t, int64(0), overview.Traffic.RequestCount)
-	assert.Equal(t, int64(0), overview.Traffic.UniqueVisitors)
-	assert.Equal(t, int64(0), overview.Traffic.ErrorCount)
-	assert.Equal(t, float64(0), overview.Traffic.EstimatedQPS)
-	assert.Equal(t, 0, overview.Traffic.ReportedNodes)
+	assert.Equal(t, int64(12), overview.Traffic.RequestCount)
+	assert.Equal(t, int64(4), overview.Traffic.UniqueVisitors)
+	assert.Equal(t, int64(1), overview.Traffic.ErrorCount)
+	assert.InDelta(t, 0.2, overview.Traffic.EstimatedQPS, 0.0001)
+	assert.Equal(t, 1, overview.Traffic.ReportedNodes)
 
-	assert.Equal(t, float64(0), overview.Capacity.AverageCPUUsagePercent)
-	assert.Equal(t, float64(0), overview.Capacity.AverageMemoryUsagePercent)
+	assert.Equal(t, 55.0, overview.Capacity.AverageCPUUsagePercent)
+	assert.Equal(t, 50.0, overview.Capacity.AverageMemoryUsagePercent)
 	assert.Equal(t, 0, overview.Capacity.HighCPUNodes)
 	assert.Equal(t, 0, overview.Capacity.HighMemoryNodes)
 	assert.Equal(t, 0, overview.Capacity.HighStorageNodes)
@@ -120,10 +146,20 @@ func TestGetOverviewStructure(t *testing.T) {
 	assert.Equal(t, "Edge 1", onlineNode[2])
 	assert.Equal(t, "online", onlineNode[6])
 	assert.Equal(t, "healthy", onlineNode[7])
+	// Latest-per-node health fields (indexes match compressDashboardNodes).
+	assert.Equal(t, 55.0, onlineNode[11]) // cpu_usage_percent from latest snapshot
+	assert.Equal(t, 50.0, onlineNode[12]) // memory_usage_percent
+	assert.Equal(t, int64(12), onlineNode[14])
+	assert.Equal(t, int64(1), onlineNode[15])
+	assert.Equal(t, int64(4), onlineNode[16])
 
 	pendingNode := nodeByID["node-dashboard-2"]
 	require.NotNil(t, pendingNode)
 	assert.Equal(t, "Edge 2", pendingNode[2])
 	assert.Equal(t, "pending", pendingNode[6])
 	assert.Equal(t, "unknown", pendingNode[7])
+
+	assert.Equal(t, 55.0, overview.Capacity.AverageCPUUsagePercent)
+	assert.Equal(t, 1, overview.Traffic.ReportedNodes)
+	assert.Equal(t, int64(4), overview.Traffic.UniqueVisitors)
 }

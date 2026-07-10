@@ -61,3 +61,14 @@ func nodeObsFrpsTableName() string {
 func nodeObsFrpcTableName() string {
 	return "of_node_obs_frpc"
 }
+
+func nodeMetricCapacityHourlyTableName() string {
+	return "of_node_metric_capacity_hourly"
+}
+
+func nodeOpenrestyHourlyTableName() string {
+	return "of_node_openresty_hourly"
+}
+
+// clickHouseLimit1ByNodeIDClause selects the first row per node_id after ORDER BY.
+const clickHouseLimit1ByNodeIDClause = " LIMIT 1 BY node_id"

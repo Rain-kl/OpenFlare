@@ -71,18 +71,19 @@ type databaseReplicaConfig struct {
 	Password string `mapstructure:"password"`
 }
 
-// clickhouse 配置
+// clickHouseConfig ClickHouse 原生客户端配置。
+// 连接池 / block_buffer 默认值按小型控制面主机（如 3c6g）收敛，见 applyClickHouseDefaults。
 type clickHouseConfig struct {
 	Enabled         bool     `mapstructure:"enabled"`
 	Hosts           []string `mapstructure:"hosts"`
 	Username        string   `mapstructure:"username"`
 	Password        string   `mapstructure:"password"`
 	Database        string   `mapstructure:"database"`
-	MaxIdleConn     int      `mapstructure:"max_idle_conn"`
-	MaxOpenConn     int      `mapstructure:"max_open_conn"`
-	ConnMaxLifetime int      `mapstructure:"conn_max_lifetime"`
-	DialTimeout     int      `mapstructure:"dial_timeout"`
-	BlockBufferSize uint8    `mapstructure:"block_buffer_size"`
+	MaxIdleConn     int      `mapstructure:"max_idle_conn"`     // 默认 8
+	MaxOpenConn     int      `mapstructure:"max_open_conn"`     // 默认 16
+	ConnMaxLifetime int      `mapstructure:"conn_max_lifetime"` // 秒
+	DialTimeout     int      `mapstructure:"dial_timeout"`      // 秒
+	BlockBufferSize uint8    `mapstructure:"block_buffer_size"` // 默认 32
 }
 
 // redisConfig Redis配置

@@ -34,9 +34,19 @@ var databaseCleanupTargets = map[string]string{
 	DatabaseCleanupTargetAccessLogs:      "访问日志",
 	DatabaseCleanupTargetMetricSnapshots: "性能快照",
 	DatabaseCleanupTargetRequestReports:  "请求聚合",
-	DatabaseCleanupTargetObsOpenresty:      "OpenResty 观测",
-	DatabaseCleanupTargetObsFrps:           "FRPS 观测",
-	DatabaseCleanupTargetObsFrpc:           "FRPC 观测",
+	DatabaseCleanupTargetObsOpenresty:    "OpenResty 观测",
+	DatabaseCleanupTargetObsFrps:         "FRPS 观测",
+	DatabaseCleanupTargetObsFrpc:         "FRPC 观测",
+}
+
+// databaseCleanupTableTTLDays maps API targets to ClickHouse DDL TTL days.
+var databaseCleanupTableTTLDays = map[string]int{
+	DatabaseCleanupTargetAccessLogs:      analyticsrepo.TableTTLDaysNodeAccessLogs,
+	DatabaseCleanupTargetMetricSnapshots: analyticsrepo.TableTTLDaysNodeMetricSnapshots,
+	DatabaseCleanupTargetRequestReports:  analyticsrepo.TableTTLDaysNodeRequestReports,
+	DatabaseCleanupTargetObsOpenresty:    analyticsrepo.TableTTLDaysNodeObs,
+	DatabaseCleanupTargetObsFrps:         analyticsrepo.TableTTLDaysNodeObs,
+	DatabaseCleanupTargetObsFrpc:         analyticsrepo.TableTTLDaysNodeObs,
 }
 
 // DatabaseCleanupInput describes a manual observability cleanup request.
@@ -46,14 +56,21 @@ type DatabaseCleanupInput struct {
 }
 
 // DatabaseCleanupResult summarizes a manual observability cleanup run.
+//
+// Semantics:
+//   - delete_all / cleanup_mode=truncate: DeletedCount is hard-deleted rows (TRUNCATE).
+//   - retention path / cleanup_mode=ttl_materialize: DeletedCount is always 0;
+//     EligibleCount estimates rows past the table DDL TTL (not an arbitrary younger cutoff).
 type DatabaseCleanupResult struct {
-	Target        string     `json:"target"`
-	TargetLabel   string     `json:"target_label"`
-	DeletedCount  int64      `json:"deleted_count"`
-	CleanupMode   string     `json:"cleanup_mode,omitempty"`
-	DeleteAll     bool       `json:"delete_all"`
-	RetentionDays *int       `json:"retention_days,omitempty"`
-	Cutoff        *time.Time `json:"cutoff,omitempty"`
+	Target         string     `json:"target"`
+	TargetLabel    string     `json:"target_label"`
+	DeletedCount   int64      `json:"deleted_count"`
+	EligibleCount  int64      `json:"eligible_count,omitempty"`
+	CleanupMode    string     `json:"cleanup_mode,omitempty"`
+	TableTTLDays   int        `json:"table_ttl_days,omitempty"`
+	DeleteAll      bool       `json:"delete_all"`
+	RetentionDays  *int       `json:"retention_days,omitempty"`
+	Cutoff         *time.Time `json:"cutoff,omitempty"`
 }
 
 // DatabaseAutoCleanupSummary summarizes a scheduled auto-cleanup run.
@@ -63,7 +80,17 @@ type DatabaseAutoCleanupSummary struct {
 	Results       []DatabaseCleanupResult `json:"results"`
 }
 
+// TableTTLDaysForCleanupTarget returns the DDL TTL days for a cleanup target.
+func TableTTLDaysForCleanupTarget(target string) (int, bool) {
+	days, ok := databaseCleanupTableTTLDays[strings.TrimSpace(target)]
+	return days, ok
+}
+
 // CleanupDatabaseObservability deletes observability rows for the given target.
+//
+// When RetentionDays is nil, rows are hard-deleted via TRUNCATE.
+// When RetentionDays is set, ClickHouse only force-materializes the table TTL policy:
+// retention_days shorter than the table TTL is rejected (do not fake success).
 func CleanupDatabaseObservability(ctx context.Context, input DatabaseCleanupInput) (*DatabaseCleanupResult, error) {
 	target := strings.TrimSpace(input.Target)
 	targetLabel, ok := databaseCleanupTargets[target]
@@ -74,10 +101,12 @@ func CleanupDatabaseObservability(ctx context.Context, input DatabaseCleanupInpu
 		return nil, errors.New("retention_days 必须为大于 0 的整数")
 	}
 
+	tableTTLDays := databaseCleanupTableTTLDays[target]
 	result := &DatabaseCleanupResult{
-		Target:      target,
-		TargetLabel: targetLabel,
-		DeleteAll:   input.RetentionDays == nil,
+		Target:       target,
+		TargetLabel:  targetLabel,
+		DeleteAll:    input.RetentionDays == nil,
+		TableTTLDays: tableTTLDays,
 	}
 
 	if input.RetentionDays == nil {
@@ -86,24 +115,37 @@ func CleanupDatabaseObservability(ctx context.Context, input DatabaseCleanupInpu
 			return nil, err
 		}
 		result.DeletedCount = deleted
+		result.EligibleCount = deleted
 		result.CleanupMode = mode
 		return result, nil
 	}
 
 	retentionDays := *input.RetentionDays
-	cutoff := time.Now().UTC().Add(-time.Duration(retentionDays) * 24 * time.Hour)
-	deleted, mode, err := deleteObservabilityRowsBefore(ctx, target, cutoff)
+	if retentionDays < tableTTLDays {
+		return nil, fmt.Errorf(
+			"retention_days 不能小于表 TTL（%d 天）；ClickHouse 仅支持按表 TTL 物化过期，更短保留请使用清空全部或调整 DDL",
+			tableTTLDays,
+		)
+	}
+
+	// MATERIALIZE TTL only enforces DDL policy; cutoff reported is the table TTL boundary.
+	tableCutoff := time.Now().UTC().Add(-time.Duration(tableTTLDays) * 24 * time.Hour)
+	eligible, mode, err := materializeObservabilityTableTTL(ctx, target)
 	if err != nil {
 		return nil, err
 	}
-	result.DeletedCount = deleted
+	result.DeletedCount = 0
+	result.EligibleCount = eligible
 	result.CleanupMode = mode
 	result.RetentionDays = &retentionDays
-	result.Cutoff = &cutoff
+	result.Cutoff = &tableCutoff
 	return result, nil
 }
 
 // RunDatabaseAutoCleanupOnce runs retention-based cleanup for all observability targets.
+//
+// Configured retention shorter than a target's table TTL is clamped up to the table TTL
+// so the scheduled job can force-materialize each table policy without failing.
 func RunDatabaseAutoCleanupOnce(ctx context.Context, now time.Time) (*DatabaseAutoCleanupSummary, error) {
 	enabled, err := repository.GetBoolByKey(ctx, model.ConfigKeyDatabaseAutoCleanupEnabled)
 	if err != nil {
@@ -128,9 +170,13 @@ func RunDatabaseAutoCleanupOnce(ctx context.Context, now time.Time) (*DatabaseAu
 		DatabaseCleanupTargetObsFrps,
 		DatabaseCleanupTargetObsFrpc,
 	} {
+		effectiveDays := retentionDays
+		if ttl, ok := databaseCleanupTableTTLDays[target]; ok && effectiveDays < ttl {
+			effectiveDays = ttl
+		}
 		result, err := CleanupDatabaseObservability(ctx, DatabaseCleanupInput{
 			Target:        target,
-			RetentionDays: &retentionDays,
+			RetentionDays: &effectiveDays,
 		})
 		if err != nil {
 			return nil, err
@@ -172,29 +218,37 @@ func deleteAllObservabilityRows(ctx context.Context, target string) (int64, stri
 	return deleted, analyticsrepo.CleanupModeTruncate, nil
 }
 
-func deleteObservabilityRowsBefore(ctx context.Context, target string, cutoff time.Time) (int64, string, error) {
+// materializeObservabilityTableTTL triggers table-TTL materialize (or memory-store delete-before
+// with the table TTL cutoff for tests) and returns the eligible/estimate row count.
+func materializeObservabilityTableTTL(ctx context.Context, target string) (int64, string, error) {
+	ttlDays, ok := databaseCleanupTableTTLDays[target]
+	if !ok {
+		return 0, "", errors.New("unsupported cleanup target")
+	}
+	cutoff := time.Now().UTC().Add(-time.Duration(ttlDays) * 24 * time.Hour)
+
 	var (
-		deleted int64
-		err     error
+		eligible int64
+		err      error
 	)
 	switch target {
 	case DatabaseCleanupTargetAccessLogs:
-		deleted, err = model.DeleteOpenFlareAccessLogsBefore(ctx, cutoff)
+		eligible, err = model.DeleteOpenFlareAccessLogsBefore(ctx, cutoff)
 	case DatabaseCleanupTargetMetricSnapshots:
-		deleted, err = model.DeleteOpenFlareMetricSnapshotsBefore(ctx, cutoff)
+		eligible, err = model.DeleteOpenFlareMetricSnapshotsBefore(ctx, cutoff)
 	case DatabaseCleanupTargetRequestReports:
-		deleted, err = model.DeleteOpenFlareRequestReportsBefore(ctx, cutoff)
+		eligible, err = model.DeleteOpenFlareRequestReportsBefore(ctx, cutoff)
 	case DatabaseCleanupTargetObsOpenresty:
-		deleted, err = model.DeleteOpenFlareNodeObservationOpenrestyBefore(ctx, cutoff)
+		eligible, err = model.DeleteOpenFlareNodeObservationOpenrestyBefore(ctx, cutoff)
 	case DatabaseCleanupTargetObsFrps:
-		deleted, err = model.DeleteOpenFlareNodeObservationFrpsBefore(ctx, cutoff)
+		eligible, err = model.DeleteOpenFlareNodeObservationFrpsBefore(ctx, cutoff)
 	case DatabaseCleanupTargetObsFrpc:
-		deleted, err = model.DeleteOpenFlareNodeObservationFrpcBefore(ctx, cutoff)
+		eligible, err = model.DeleteOpenFlareNodeObservationFrpcBefore(ctx, cutoff)
 	default:
 		return 0, "", errors.New("unsupported cleanup target")
 	}
 	if err != nil {
 		return 0, "", err
 	}
-	return deleted, analyticsrepo.CleanupModeTTLMaterialize, nil
+	return eligible, analyticsrepo.CleanupModeTTLMaterialize, nil
 }

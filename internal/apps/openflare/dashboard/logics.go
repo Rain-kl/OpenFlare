@@ -117,6 +117,16 @@ func buildOverviewView(ctx context.Context) (*OverviewView, error) {
 	if err != nil {
 		return nil, err
 	}
+	// Latest-per-node health: dedicated LIMIT 1 BY queries (not a global raw LIMIT).
+	latestSnapshotRows, err := model.ListOpenFlareLatestMetricSnapshotsSince(ctx, "", since)
+	if err != nil {
+		return nil, err
+	}
+	latestTrafficRows, err := model.ListOpenFlareLatestRequestReportsSince(ctx, "", since)
+	if err != nil {
+		return nil, err
+	}
+	// Bounded raw windows remain for distributions and trend fallbacks; trends prefer hourly rollups.
 	snapshots, err := model.ListOpenFlareMetricSnapshotsSince(ctx, "", since, dashboardOverviewSnapshotLimit)
 	if err != nil {
 		return nil, err
@@ -146,8 +156,8 @@ func buildOverviewView(ctx context.Context) (*OverviewView, error) {
 
 	var cpuNodeCount int
 	var memoryNodeCount int
-	latestSnapshots := observability.LatestMetricSnapshotsByNode(snapshots)
-	latestTrafficReports := observability.LatestTrafficReportsByNode(reports)
+	latestSnapshots := observability.LatestMetricSnapshotsByNode(latestSnapshotRows)
+	latestTrafficReports := observability.LatestTrafficReportsByNode(latestTrafficRows)
 	activeEventsByNode := observability.ActiveHealthEventsByNode(activeEvents)
 
 	for _, node := range nodes {

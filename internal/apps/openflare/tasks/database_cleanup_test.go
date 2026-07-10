@@ -11,6 +11,7 @@ import (
 	"github.com/Rain-kl/Wavelet/internal/db"
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"github.com/Rain-kl/Wavelet/internal/repository"
+	analyticsrepo "github.com/Rain-kl/Wavelet/internal/repository/analytics"
 	"github.com/glebarez/sqlite"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -36,13 +37,41 @@ func setupDatabaseCleanupTestDB(t *testing.T) context.Context {
 	return context.Background()
 }
 
-func TestCleanupDatabaseObservabilityDeletesTargetedRows(t *testing.T) {
+func TestCleanupDatabaseObservabilityRejectsRetentionShorterThanTableTTL(t *testing.T) {
+	ctx := setupDatabaseCleanupTestDB(t)
+
+	retentionDays := 7 // metric snapshots DDL TTL is 30 days
+	result, err := CleanupDatabaseObservability(ctx, DatabaseCleanupInput{
+		Target:        DatabaseCleanupTargetMetricSnapshots,
+		RetentionDays: &retentionDays,
+	})
+	require.Error(t, err)
+	assert.Nil(t, result)
+	assert.Contains(t, err.Error(), "不能小于表 TTL")
+	assert.Contains(t, err.Error(), "30")
+}
+
+func TestCleanupDatabaseObservabilityRejectsAccessLogRetentionShorterThanTableTTL(t *testing.T) {
+	ctx := setupDatabaseCleanupTestDB(t)
+
+	retentionDays := 30 // access logs DDL TTL is 90 days
+	result, err := CleanupDatabaseObservability(ctx, DatabaseCleanupInput{
+		Target:        DatabaseCleanupTargetAccessLogs,
+		RetentionDays: &retentionDays,
+	})
+	require.Error(t, err)
+	assert.Nil(t, result)
+	assert.Contains(t, err.Error(), "90")
+}
+
+func TestCleanupDatabaseObservabilityMaterializeDoesNotClaimHardDelete(t *testing.T) {
 	ctx := setupDatabaseCleanupTestDB(t)
 	now := time.Now().UTC()
 
+	// One row past metric table TTL (30d), one still inside the window.
 	require.NoError(t, model.InsertOpenFlareMetricSnapshot(ctx, &model.OpenFlareMetricSnapshot{
 		NodeID:          "node-a",
-		CapturedAt:      now.Add(-10 * 24 * time.Hour),
+		CapturedAt:      now.Add(-40 * 24 * time.Hour),
 		CPUUsagePercent: 10,
 	}))
 	require.NoError(t, model.InsertOpenFlareMetricSnapshot(ctx, &model.OpenFlareMetricSnapshot{
@@ -51,15 +80,22 @@ func TestCleanupDatabaseObservabilityDeletesTargetedRows(t *testing.T) {
 		CPUUsagePercent: 20,
 	}))
 
-	retentionDays := 7
+	retentionDays := analyticsrepo.TableTTLDaysNodeMetricSnapshots
 	result, err := CleanupDatabaseObservability(ctx, DatabaseCleanupInput{
 		Target:        DatabaseCleanupTargetMetricSnapshots,
 		RetentionDays: &retentionDays,
 	})
 	require.NoError(t, err)
 	assert.False(t, result.DeleteAll)
-	assert.Equal(t, int64(1), result.DeletedCount)
+	assert.Equal(t, analyticsrepo.CleanupModeTTLMaterialize, result.CleanupMode)
+	assert.Equal(t, analyticsrepo.TableTTLDaysNodeMetricSnapshots, result.TableTTLDays)
+	// MATERIALIZE is not a counted hard delete.
+	assert.Equal(t, int64(0), result.DeletedCount)
+	assert.Equal(t, int64(1), result.EligibleCount)
+	require.NotNil(t, result.Cutoff)
+	assert.True(t, result.Cutoff.Before(now.Add(-29*24*time.Hour)))
 
+	// Memory store applies the table-TTL cutoff for tests; only the recent row remains.
 	rows, err := model.ListOpenFlareMetricSnapshotsSince(ctx, "", time.Time{}, 0)
 	require.NoError(t, err)
 	require.Len(t, rows, 1)
@@ -94,20 +130,23 @@ func TestCleanupDatabaseObservabilityDeletesAllRowsWhenRetentionMissing(t *testi
 	})
 	require.NoError(t, err)
 	assert.True(t, result.DeleteAll)
+	assert.Equal(t, analyticsrepo.CleanupModeTruncate, result.CleanupMode)
 	assert.Equal(t, int64(2), result.DeletedCount)
+	assert.Equal(t, int64(2), result.EligibleCount)
 
 	rows, err := model.ListOpenFlareAccessLogs(ctx, model.OpenFlareAccessLogQuery{Page: 0, PageSize: 10})
 	require.NoError(t, err)
 	assert.Empty(t, rows)
 }
 
-func TestRunDatabaseAutoCleanupOnceDeletesAllObservabilityTargets(t *testing.T) {
+func TestRunDatabaseAutoCleanupOnceClampsRetentionToTableTTL(t *testing.T) {
 	ctx := setupDatabaseCleanupTestDB(t)
 	now := time.Now().UTC()
 
+	// Access logs TTL=90d, metrics TTL=30d. Config retention=1 must clamp, not reject.
 	require.NoError(t, model.InsertOpenFlareAccessLogsBatch(ctx, []*model.OpenFlareAccessLog{{
 		NodeID:     "node-a",
-		LoggedAt:   now.Add(-48 * time.Hour),
+		LoggedAt:   now.Add(-100 * 24 * time.Hour),
 		RemoteAddr: "203.0.113.10",
 		Host:       "example.com",
 		Path:       "/access",
@@ -115,13 +154,13 @@ func TestRunDatabaseAutoCleanupOnceDeletesAllObservabilityTargets(t *testing.T) 
 	}}))
 	require.NoError(t, model.InsertOpenFlareMetricSnapshot(ctx, &model.OpenFlareMetricSnapshot{
 		NodeID:          "node-a",
-		CapturedAt:      now.Add(-48 * time.Hour),
+		CapturedAt:      now.Add(-40 * 24 * time.Hour),
 		CPUUsagePercent: 10,
 	}))
 	require.NoError(t, model.InsertOpenFlareRequestReport(ctx, &model.OpenFlareRequestReport{
 		NodeID:          "node-a",
-		WindowStartedAt: now.Add(-49 * time.Hour),
-		WindowEndedAt:   now.Add(-48 * time.Hour),
+		WindowStartedAt: now.Add(-41 * 24 * time.Hour),
+		WindowEndedAt:   now.Add(-40 * 24 * time.Hour),
 		RequestCount:    15,
 	}))
 
@@ -132,6 +171,15 @@ func TestRunDatabaseAutoCleanupOnceDeletesAllObservabilityTargets(t *testing.T) 
 	require.NoError(t, err)
 	require.NotNil(t, summary)
 	require.Len(t, summary.Results, 6)
+	assert.Equal(t, 1, summary.RetentionDays)
+
+	for _, result := range summary.Results {
+		assert.Equal(t, analyticsrepo.CleanupModeTTLMaterialize, result.CleanupMode)
+		assert.Equal(t, int64(0), result.DeletedCount, "target %s must not claim hard delete", result.Target)
+		assert.GreaterOrEqual(t, result.TableTTLDays, 30)
+		require.NotNil(t, result.RetentionDays)
+		assert.GreaterOrEqual(t, *result.RetentionDays, result.TableTTLDays)
+	}
 
 	accessLogs, err := model.ListOpenFlareAccessLogs(ctx, model.OpenFlareAccessLogQuery{Page: 0, PageSize: 10})
 	require.NoError(t, err)
@@ -144,4 +192,17 @@ func TestRunDatabaseAutoCleanupOnceDeletesAllObservabilityTargets(t *testing.T) 
 	requestReports, err := model.ListOpenFlareRequestReportsSince(ctx, "", time.Time{}, 0)
 	require.NoError(t, err)
 	assert.Empty(t, requestReports)
+}
+
+func TestTableTTLDaysForCleanupTarget(t *testing.T) {
+	days, ok := TableTTLDaysForCleanupTarget(DatabaseCleanupTargetAccessLogs)
+	require.True(t, ok)
+	assert.Equal(t, 90, days)
+
+	days, ok = TableTTLDaysForCleanupTarget(DatabaseCleanupTargetMetricSnapshots)
+	require.True(t, ok)
+	assert.Equal(t, 30, days)
+
+	_, ok = TableTTLDaysForCleanupTarget("unknown")
+	assert.False(t, ok)
 }

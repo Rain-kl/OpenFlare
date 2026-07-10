@@ -36,7 +36,7 @@ func TestWriterFlushesOnMaxBatchSize(t *testing.T) {
 	t.Parallel()
 
 	var (
-		mu     sync.Mutex
+		mu      sync.Mutex
 		batches [][]int
 	)
 	cfg := DefaultConfig()
@@ -385,23 +385,24 @@ func TestWriterInvokesFlushErrorHandler(t *testing.T) {
 	t.Parallel()
 
 	cfg := DefaultConfig()
+	cfg.Name = "test-flush-err"
 	cfg.MaxBatchSize = 1
 	cfg.FlushInterval = time.Hour
 
 	flushErr := errors.New("flush failed")
 	var (
-		mu        sync.Mutex
-		errCount  int
-		batchSize int
+		mu       sync.Mutex
+		errCount int
+		gotItems []int
 	)
 
 	writer, err := New[int](cfg, func(context.Context, []int) error {
 		return flushErr
-	}, WithFlushErrorHandler[int](func(_ context.Context, size int, err error) {
+	}, WithFlushErrorHandler[int](func(_ context.Context, items []int, err error) {
 		mu.Lock()
 		defer mu.Unlock()
 		errCount++
-		batchSize = size
+		gotItems = append([]int(nil), items...)
 		if !errors.Is(err, flushErr) {
 			t.Errorf("flush error = %v, want %v", err, flushErr)
 		}
@@ -434,13 +435,61 @@ func TestWriterInvokesFlushErrorHandler(t *testing.T) {
 
 	mu.Lock()
 	gotCount := errCount
-	gotSize := batchSize
+	items := gotItems
 	mu.Unlock()
 
 	if gotCount != 1 {
 		t.Fatalf("flush error handler count = %d, want 1", gotCount)
 	}
-	if gotSize != 1 {
-		t.Fatalf("flush error handler batch size = %d, want 1", gotSize)
+	if diff := cmp.Diff([]int{7}, items); diff != "" {
+		t.Fatalf("flush error handler items mismatch (-want +got):\n%s", diff)
+	}
+
+	stats := writer.Stats()
+	if stats.FlushErrors != 1 {
+		t.Fatalf("Stats().FlushErrors = %d, want 1", stats.FlushErrors)
+	}
+	if stats.Name != "test-flush-err" {
+		t.Fatalf("Stats().Name = %q, want test-flush-err", stats.Name)
+	}
+}
+
+func TestWriterStatsTracksDrops(t *testing.T) {
+	t.Parallel()
+
+	cfg := DefaultConfig()
+	cfg.Name = "test-drops"
+	cfg.QueueSize = 1
+	cfg.MaxBatchSize = 10
+	cfg.FlushInterval = time.Hour
+
+	writer, err := New[int](cfg, func(context.Context, []int) error { return nil })
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+
+	writer.Start(context.Background())
+	t.Cleanup(func() {
+		stopCtx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+		_ = writer.Stop(stopCtx)
+	})
+
+	if !writer.TryEnqueue(1) {
+		t.Fatal("TryEnqueue(1) = false, want true")
+	}
+	if writer.TryEnqueue(2) {
+		t.Fatal("TryEnqueue(2) = true, want false")
+	}
+
+	stats := writer.Stats()
+	if stats.Drops != 1 {
+		t.Fatalf("Stats().Drops = %d, want 1", stats.Drops)
+	}
+	if stats.Cap != 1 {
+		t.Fatalf("Stats().Cap = %d, want 1", stats.Cap)
+	}
+	if !stats.Running {
+		t.Fatal("Stats().Running = false, want true")
 	}
 }

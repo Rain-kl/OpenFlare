@@ -9,10 +9,37 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Rain-kl/Wavelet/internal/apps/openflare/chwriter"
 	analyticsmodel "github.com/Rain-kl/Wavelet/internal/model/analytics"
 	analyticsrepo "github.com/Rain-kl/Wavelet/internal/repository/analytics"
 )
+
+// ObservabilityInsertHooks queues observability rows for async ClickHouse write.
+// Wired from openflare/chwriter.Init so model never imports the apps layer.
+type ObservabilityInsertHooks struct {
+	QueueMetricSnapshot       func(analyticsmodel.NodeMetricSnapshot)
+	QueueRequestReport        func(analyticsmodel.NodeRequestReport)
+	QueueOpenrestyObservation func(analyticsmodel.NodeObsOpenresty)
+	QueueFrpsObservation      func(analyticsmodel.NodeObsFrps)
+	QueueFrpcObservation      func(analyticsmodel.NodeObsFrpc)
+}
+
+var (
+	observabilityInsertHooksMu sync.RWMutex
+	observabilityInsertHooks   ObservabilityInsertHooks
+)
+
+// SetObservabilityInsertHooks registers async queue callbacks for observability inserts.
+func SetObservabilityInsertHooks(hooks ObservabilityInsertHooks) {
+	observabilityInsertHooksMu.Lock()
+	observabilityInsertHooks = hooks
+	observabilityInsertHooksMu.Unlock()
+}
+
+func currentObservabilityInsertHooks() ObservabilityInsertHooks {
+	observabilityInsertHooksMu.RLock()
+	defer observabilityInsertHooksMu.RUnlock()
+	return observabilityInsertHooks
+}
 
 type observabilityStore interface {
 	InsertMetricSnapshot(ctx context.Context, record *OpenFlareMetricSnapshot) error
@@ -79,7 +106,9 @@ func (clickhouseObservabilityStore) InsertMetricSnapshot(_ context.Context, reco
 	if record == nil {
 		return nil
 	}
-	chwriter.QueueMetricSnapshot(toAnalyticsNodeMetricSnapshot(record))
+	if hook := currentObservabilityInsertHooks().QueueMetricSnapshot; hook != nil {
+		hook(toAnalyticsNodeMetricSnapshot(record))
+	}
 	return nil
 }
 
@@ -103,7 +132,9 @@ func (clickhouseObservabilityStore) InsertRequestReport(_ context.Context, recor
 	if record == nil {
 		return nil
 	}
-	chwriter.QueueRequestReport(toAnalyticsNodeRequestReport(record))
+	if hook := currentObservabilityInsertHooks().QueueRequestReport; hook != nil {
+		hook(toAnalyticsNodeRequestReport(record))
+	}
 	return nil
 }
 
@@ -127,7 +158,9 @@ func (clickhouseObservabilityStore) InsertNodeObservationOpenresty(_ context.Con
 	if record == nil {
 		return nil
 	}
-	chwriter.QueueOpenrestyObservation(toAnalyticsNodeObsOpenresty(record))
+	if hook := currentObservabilityInsertHooks().QueueOpenrestyObservation; hook != nil {
+		hook(toAnalyticsNodeObsOpenresty(record))
+	}
 	return nil
 }
 
@@ -151,7 +184,9 @@ func (clickhouseObservabilityStore) InsertNodeObservationFrps(_ context.Context,
 	if record == nil {
 		return nil
 	}
-	chwriter.QueueFrpsObservation(toAnalyticsNodeObsFrps(record))
+	if hook := currentObservabilityInsertHooks().QueueFrpsObservation; hook != nil {
+		hook(toAnalyticsNodeObsFrps(record))
+	}
 	return nil
 }
 
@@ -175,7 +210,9 @@ func (clickhouseObservabilityStore) InsertNodeObservationFrpc(_ context.Context,
 	if record == nil {
 		return nil
 	}
-	chwriter.QueueFrpcObservation(toAnalyticsNodeObsFrpc(record))
+	if hook := currentObservabilityInsertHooks().QueueFrpcObservation; hook != nil {
+		hook(toAnalyticsNodeObsFrpc(record))
+	}
 	return nil
 }
 

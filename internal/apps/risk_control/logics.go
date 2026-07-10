@@ -6,6 +6,7 @@ package risk_control
 import (
 	"context"
 	"sync"
+	"time"
 
 	"github.com/Rain-kl/Wavelet/internal/config"
 	"github.com/Rain-kl/Wavelet/internal/db/batchwriter"
@@ -13,6 +14,11 @@ import (
 	"github.com/Rain-kl/Wavelet/internal/model/analytics"
 	analyticsrepo "github.com/Rain-kl/Wavelet/internal/repository/analytics"
 	"github.com/Rain-kl/Wavelet/pkg/logger"
+)
+
+const (
+	// Bound visibility lag for sparse access-log traffic when MinBatchSize is not met.
+	accessLogMaxFlushWait = 3 * time.Second
 )
 
 var (
@@ -33,6 +39,8 @@ func InitLogWriter(ctx context.Context) {
 	}
 
 	cfg := batchwriter.DefaultConfig()
+	cfg.Name = "user_access_logs"
+	cfg.MaxFlushWait = accessLogMaxFlushWait
 	writer, err := batchwriter.New[*analytics.UserAccessLog](cfg, func(ctx context.Context, items []*analytics.UserAccessLog) error {
 		rows := make([]analytics.UserAccessLog, 0, len(items))
 		for _, item := range items {
@@ -50,8 +58,8 @@ func InitLogWriter(ctx context.Context) {
 			}
 			logger.WarnF(context.Background(), "[RiskControl] Log queue full, dropping log item for path: %s", path)
 		}),
-		batchwriter.WithFlushErrorHandler[*analytics.UserAccessLog](func(ctx context.Context, batchSize int, err error) {
-			logger.ErrorF(ctx, "[RiskControl] Send ClickHouse batch failed (batch=%d): %v", batchSize, err)
+		batchwriter.WithFlushErrorHandler[*analytics.UserAccessLog](func(ctx context.Context, items []*analytics.UserAccessLog, err error) {
+			logger.ErrorF(ctx, "[RiskControl] Send ClickHouse batch failed (batch=%d): %v", len(items), err)
 		}),
 	)
 	if err != nil {
@@ -80,6 +88,16 @@ func IsBufferFull() bool {
 		return false
 	}
 	return writer.IsFull()
+}
+
+// LogWriterStats returns queue depth and failure counters for the access-log writer.
+// When the writer is not initialized, it returns a zero-value Stats with the expected name.
+func LogWriterStats() batchwriter.Stats {
+	writer := currentLogWriter()
+	if writer == nil {
+		return batchwriter.Stats{Name: "user_access_logs"}
+	}
+	return writer.Stats()
 }
 
 // QueueAccessLog enqueues an access log without blocking.

@@ -146,21 +146,26 @@ func TestCleanupDatabaseObservabilityDeletesRows(t *testing.T) {
 		},
 	}))
 
-	retention := 7
-	result, err := cleanupDatabaseObservability(ctx, databaseCleanupInput{
+	// Retention shorter than table TTL (90d for access logs) must be rejected.
+	shortRetention := 7
+	_, err := cleanupDatabaseObservability(ctx, databaseCleanupInput{
 		Target:        "node_access_logs",
-		RetentionDays: &retention,
+		RetentionDays: &shortRetention,
+	})
+	require.Error(t, err)
+
+	// Full truncate still hard-deletes all rows.
+	result, err := cleanupDatabaseObservability(ctx, databaseCleanupInput{
+		Target: "node_access_logs",
 	})
 	require.NoError(t, err)
 	assert.Equal(t, "node_access_logs", result.Target)
 	assert.Equal(t, "访问日志", result.TargetLabel)
-	assert.Equal(t, int64(1), result.DeletedCount)
-	assert.False(t, result.DeleteAll)
-	require.NotNil(t, result.RetentionDays)
-	assert.Equal(t, 7, *result.RetentionDays)
+	assert.Equal(t, int64(2), result.DeletedCount)
+	assert.True(t, result.DeleteAll)
+	assert.Equal(t, "truncate", result.CleanupMode)
 
 	rows, err := model.ListOpenFlareAccessLogs(ctx, model.OpenFlareAccessLogQuery{Page: 0, PageSize: 10})
 	require.NoError(t, err)
-	require.Len(t, rows, 1)
-	assert.Equal(t, "/recent", rows[0].Path)
+	assert.Empty(t, rows)
 }

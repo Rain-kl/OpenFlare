@@ -9,16 +9,20 @@ import (
 
 	"github.com/Rain-kl/Wavelet/internal/config"
 	"github.com/Rain-kl/Wavelet/internal/db"
+	"github.com/Rain-kl/Wavelet/internal/db/batchwriter"
 )
 
-// ClickHouseOperationalStats summarizes ClickHouse merge/mutation pressure.
+// ClickHouseOperationalStats summarizes ClickHouse merge/mutation pressure
+// and in-process batch writer queue health.
 type ClickHouseOperationalStats struct {
-	Database          string `json:"database"`
-	ActiveParts       int64  `json:"active_parts"`
-	TotalRows         int64  `json:"total_rows"`
-	PendingMutations  int64  `json:"pending_mutations"`
-	AsyncInsertQueue  int64  `json:"async_insert_queue"`
-	AsyncInsertBytes  int64  `json:"async_insert_bytes"`
+	Database         string `json:"database"`
+	ActiveParts      int64  `json:"active_parts"`
+	TotalRows        int64  `json:"total_rows"`
+	PendingMutations int64  `json:"pending_mutations"`
+	AsyncInsertQueue int64  `json:"async_insert_queue"`
+	AsyncInsertBytes int64  `json:"async_insert_bytes"`
+	// BatchWriters reports in-process queue depth/drops/flush errors for CH writers.
+	BatchWriters []batchwriter.Stats `json:"batch_writers,omitempty"`
 }
 
 // GetClickHouseOperationalStats returns operational metrics for the configured database.

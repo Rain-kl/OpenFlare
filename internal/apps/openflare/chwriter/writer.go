@@ -14,6 +14,7 @@ import (
 	"github.com/Rain-kl/Wavelet/internal/config"
 	"github.com/Rain-kl/Wavelet/internal/db/batchwriter"
 	"github.com/Rain-kl/Wavelet/internal/lifecycle"
+	"github.com/Rain-kl/Wavelet/internal/model"
 	analyticsmodel "github.com/Rain-kl/Wavelet/internal/model/analytics"
 	analyticsrepo "github.com/Rain-kl/Wavelet/internal/repository/analytics"
 	"github.com/Rain-kl/Wavelet/pkg/logger"
@@ -33,6 +34,10 @@ const (
 	nodeAccessLogMinBatchSize = 50
 	nodeAccessLogFlushEvery   = 2 * time.Second
 	nodeAccessLogMaxFlushWait = 5 * time.Second
+
+	// flushAttempts is total tries (1 initial + short retries) before giving up a batch.
+	flushAttempts     = 2
+	flushRetryBackoff = 50 * time.Millisecond
 )
 
 var (
@@ -65,11 +70,36 @@ func Init(ctx context.Context) {
 		frpsDedup = newDedupSet()
 		frpcDedup = newDedupSet()
 
-		metricSnapshotWriter = mustNewObservabilityWriter("metric_snapshots", analyticsrepo.BatchInsertNodeMetricSnapshots)
-		requestReportWriter = mustNewObservabilityWriter("request_reports", analyticsrepo.BatchInsertNodeRequestReports)
-		openrestyWriter = mustNewObservabilityWriter("openresty_obs", analyticsrepo.BatchInsertNodeObsOpenresty)
-		frpsWriter = mustNewObservabilityWriter("frps_obs", analyticsrepo.BatchInsertNodeObsFrps)
-		frpcWriter = mustNewObservabilityWriter("frpc_obs", analyticsrepo.BatchInsertNodeObsFrpc)
+		metricSnapshotWriter = mustNewObservabilityWriter(
+			"metric_snapshots",
+			withFlushRetries(analyticsrepo.BatchInsertNodeMetricSnapshots),
+			metricSnapshotDedup,
+			metricSnapshotKey,
+		)
+		requestReportWriter = mustNewObservabilityWriter(
+			"request_reports",
+			withFlushRetries(analyticsrepo.BatchInsertNodeRequestReports),
+			requestReportDedup,
+			requestReportKey,
+		)
+		openrestyWriter = mustNewObservabilityWriter(
+			"openresty_obs",
+			withFlushRetries(analyticsrepo.BatchInsertNodeObsOpenresty),
+			openrestyDedup,
+			openrestyKey,
+		)
+		frpsWriter = mustNewObservabilityWriter(
+			"frps_obs",
+			withFlushRetries(analyticsrepo.BatchInsertNodeObsFrps),
+			frpsDedup,
+			frpsKey,
+		)
+		frpcWriter = mustNewObservabilityWriter(
+			"frpc_obs",
+			withFlushRetries(analyticsrepo.BatchInsertNodeObsFrpc),
+			frpcDedup,
+			frpcKey,
+		)
 		nodeAccessLogWriter = mustNewNodeAccessLogWriter()
 
 		metricSnapshotWriter.Start(ctx)
@@ -79,6 +109,7 @@ func Init(ctx context.Context) {
 		frpcWriter.Start(ctx)
 		nodeAccessLogWriter.Start(ctx)
 
+		wireModelInsertHooks()
 		lifecycle.OnShutdown("openflare_chwriter", Stop)
 	})
 }
@@ -108,69 +139,49 @@ func Stop(ctx context.Context) error {
 	return firstErr
 }
 
+// WriterStats returns queue depth and failure counters for all OpenFlare writers.
+func WriterStats() []batchwriter.Stats {
+	writers := []statsProvider{
+		metricSnapshotWriter,
+		requestReportWriter,
+		openrestyWriter,
+		frpsWriter,
+		frpcWriter,
+		nodeAccessLogWriter,
+	}
+	out := make([]batchwriter.Stats, 0, len(writers))
+	for _, w := range writers {
+		if w == nil {
+			continue
+		}
+		out = append(out, w.Stats())
+	}
+	return out
+}
+
 // QueueMetricSnapshot enqueues a metric snapshot for asynchronous flush.
 func QueueMetricSnapshot(snapshot analyticsmodel.NodeMetricSnapshot) {
-	if metricSnapshotWriter == nil {
-		return
-	}
-	key := fmt.Sprintf("%s|%d", snapshot.NodeID, snapshot.CapturedAt.UTC().UnixNano())
-	if !metricSnapshotDedup.markIfNew(key) {
-		return
-	}
-	metricSnapshotWriter.TryEnqueue(snapshot)
+	queueWithDedup(metricSnapshotWriter, metricSnapshotDedup, metricSnapshotKey(snapshot), snapshot)
 }
 
 // QueueRequestReport enqueues a request report for asynchronous flush.
 func QueueRequestReport(report analyticsmodel.NodeRequestReport) {
-	if requestReportWriter == nil {
-		return
-	}
-	key := fmt.Sprintf(
-		"%s|%d|%d",
-		report.NodeID,
-		report.WindowStartedAt.UTC().UnixNano(),
-		report.WindowEndedAt.UTC().UnixNano(),
-	)
-	if !requestReportDedup.markIfNew(key) {
-		return
-	}
-	requestReportWriter.TryEnqueue(report)
+	queueWithDedup(requestReportWriter, requestReportDedup, requestReportKey(report), report)
 }
 
 // QueueOpenrestyObservation enqueues an OpenResty observation for asynchronous flush.
 func QueueOpenrestyObservation(observation analyticsmodel.NodeObsOpenresty) {
-	if openrestyWriter == nil {
-		return
-	}
-	key := fmt.Sprintf("%s|%d", observation.NodeID, observation.CapturedAt.UTC().UnixNano())
-	if !openrestyDedup.markIfNew(key) {
-		return
-	}
-	openrestyWriter.TryEnqueue(observation)
+	queueWithDedup(openrestyWriter, openrestyDedup, openrestyKey(observation), observation)
 }
 
 // QueueFrpsObservation enqueues an FRPS observation for asynchronous flush.
 func QueueFrpsObservation(observation analyticsmodel.NodeObsFrps) {
-	if frpsWriter == nil {
-		return
-	}
-	key := fmt.Sprintf("%s|%d", observation.NodeID, observation.CapturedAt.UTC().UnixNano())
-	if !frpsDedup.markIfNew(key) {
-		return
-	}
-	frpsWriter.TryEnqueue(observation)
+	queueWithDedup(frpsWriter, frpsDedup, frpsKey(observation), observation)
 }
 
 // QueueFrpcObservation enqueues an FRPC observation for asynchronous flush.
 func QueueFrpcObservation(observation analyticsmodel.NodeObsFrpc) {
-	if frpcWriter == nil {
-		return
-	}
-	key := fmt.Sprintf("%s|%d", observation.NodeID, observation.CapturedAt.UTC().UnixNano())
-	if !frpcDedup.markIfNew(key) {
-		return
-	}
-	frpcWriter.TryEnqueue(observation)
+	queueWithDedup(frpcWriter, frpcDedup, frpcKey(observation), observation)
 }
 
 // QueueNodeAccessLogs enqueues node access logs for asynchronous flush.
@@ -183,7 +194,26 @@ func QueueNodeAccessLogs(logs []analyticsmodel.NodeAccessLog) {
 	}
 }
 
-func mustNewObservabilityWriter[T any](name string, flush batchwriter.FlushFunc[T]) *batchwriter.Writer[T] {
+func queueWithDedup[T any](writer *batchwriter.Writer[T], dedup *dedupSet, key string, item T) {
+	if writer == nil {
+		return
+	}
+	// Mark first so concurrent duplicates still collapse; release on enqueue failure
+	// so a full queue does not permanently suppress the item.
+	if !dedup.markIfNew(key) {
+		return
+	}
+	if !writer.TryEnqueue(item) {
+		dedup.unmark(key)
+	}
+}
+
+func mustNewObservabilityWriter[T any](
+	name string,
+	flush batchwriter.FlushFunc[T],
+	dedup *dedupSet,
+	keyFn func(T) string,
+) *batchwriter.Writer[T] {
 	cfg := batchwriter.Config{
 		Name:          name,
 		QueueSize:     observabilityQueueSize,
@@ -196,8 +226,14 @@ func mustNewObservabilityWriter[T any](name string, flush batchwriter.FlushFunc[
 		cfg,
 		flush,
 		withObservabilityDropHandler[T](name),
-		batchwriter.WithFlushErrorHandler[T](func(ctx context.Context, batchSize int, err error) {
-			logger.ErrorF(ctx, "[OpenFlare] flush %s failed (batch=%d): %v", name, batchSize, err)
+		batchwriter.WithFlushErrorHandler[T](func(ctx context.Context, items []T, err error) {
+			logger.ErrorF(ctx, "[OpenFlare] flush %s failed (batch=%d): %v", name, len(items), err)
+			if dedup == nil || keyFn == nil {
+				return
+			}
+			for _, item := range items {
+				dedup.unmark(keyFn(item))
+			}
 		}),
 	)
 	if err != nil {
@@ -215,12 +251,14 @@ func mustNewNodeAccessLogWriter() *batchwriter.Writer[analyticsmodel.NodeAccessL
 		FlushInterval: nodeAccessLogFlushEvery,
 		MaxFlushWait:  nodeAccessLogMaxFlushWait,
 	}
-	writer, err := batchwriter.New[analyticsmodel.NodeAccessLog](cfg, analyticsrepo.BatchInsertNodeAccessLogs,
+	writer, err := batchwriter.New[analyticsmodel.NodeAccessLog](
+		cfg,
+		withFlushRetries(analyticsrepo.BatchInsertNodeAccessLogs),
 		batchwriter.WithDropHandler[analyticsmodel.NodeAccessLog](func(item analyticsmodel.NodeAccessLog) {
 			logger.WarnF(context.Background(), "[OpenFlare] node access log queue full, dropping log for node %s path %s", item.NodeID, item.Path)
 		}),
-		batchwriter.WithFlushErrorHandler[analyticsmodel.NodeAccessLog](func(ctx context.Context, batchSize int, err error) {
-			logger.ErrorF(ctx, "[OpenFlare] flush node access logs failed (batch=%d): %v", batchSize, err)
+		batchwriter.WithFlushErrorHandler[analyticsmodel.NodeAccessLog](func(ctx context.Context, items []analyticsmodel.NodeAccessLog, err error) {
+			logger.ErrorF(ctx, "[OpenFlare] flush node access logs failed (batch=%d): %v", len(items), err)
 		}),
 	)
 	if err != nil {
@@ -235,8 +273,72 @@ func withObservabilityDropHandler[T any](name string) batchwriter.Option[T] {
 	})
 }
 
+// withFlushRetries wraps a flush function with a short retry to ride out brief CH blips.
+func withFlushRetries[T any](flush batchwriter.FlushFunc[T]) batchwriter.FlushFunc[T] {
+	return func(ctx context.Context, items []T) error {
+		var err error
+		for attempt := 1; attempt <= flushAttempts; attempt++ {
+			err = flush(ctx, items)
+			if err == nil {
+				return nil
+			}
+			if attempt == flushAttempts {
+				break
+			}
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-time.After(flushRetryBackoff * time.Duration(attempt)):
+			}
+		}
+		return err
+	}
+}
+
+func wireModelInsertHooks() {
+	model.SetObservabilityInsertHooks(model.ObservabilityInsertHooks{
+		QueueMetricSnapshot:       QueueMetricSnapshot,
+		QueueRequestReport:        QueueRequestReport,
+		QueueOpenrestyObservation: QueueOpenrestyObservation,
+		QueueFrpsObservation:      QueueFrpsObservation,
+		QueueFrpcObservation:      QueueFrpcObservation,
+	})
+	model.SetAccessLogInsertHooks(model.AccessLogInsertHooks{
+		QueueNodeAccessLogs: QueueNodeAccessLogs,
+	})
+}
+
+func metricSnapshotKey(snapshot analyticsmodel.NodeMetricSnapshot) string {
+	return fmt.Sprintf("%s|%d", snapshot.NodeID, snapshot.CapturedAt.UTC().UnixNano())
+}
+
+func requestReportKey(report analyticsmodel.NodeRequestReport) string {
+	return fmt.Sprintf(
+		"%s|%d|%d",
+		report.NodeID,
+		report.WindowStartedAt.UTC().UnixNano(),
+		report.WindowEndedAt.UTC().UnixNano(),
+	)
+}
+
+func openrestyKey(observation analyticsmodel.NodeObsOpenresty) string {
+	return fmt.Sprintf("%s|%d", observation.NodeID, observation.CapturedAt.UTC().UnixNano())
+}
+
+func frpsKey(observation analyticsmodel.NodeObsFrps) string {
+	return fmt.Sprintf("%s|%d", observation.NodeID, observation.CapturedAt.UTC().UnixNano())
+}
+
+func frpcKey(observation analyticsmodel.NodeObsFrpc) string {
+	return fmt.Sprintf("%s|%d", observation.NodeID, observation.CapturedAt.UTC().UnixNano())
+}
+
 type batchStopper interface {
 	Stop(ctx context.Context) error
+}
+
+type statsProvider interface {
+	Stats() batchwriter.Stats
 }
 
 func running() bool {

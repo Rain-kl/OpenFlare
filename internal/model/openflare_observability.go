@@ -333,9 +333,80 @@ func ListOpenFlareMetricSnapshotsSince(ctx context.Context, nodeID string, since
 	return currentObservabilityStore().ListMetricSnapshots(ctx, nodeID, since, limit)
 }
 
+// ListOpenFlareLatestMetricSnapshotsSince returns the latest metric snapshot per node.
+// Prefer ClickHouse LIMIT 1 BY; on CH unavailability fall back to store list + reduce.
+func ListOpenFlareLatestMetricSnapshotsSince(ctx context.Context, nodeID string, since time.Time) ([]*OpenFlareMetricSnapshot, error) {
+	rows, err := analyticsrepo.ListLatestNodeMetricSnapshots(ctx, analyticsrepo.NodeObservabilityFilter{
+		NodeID: nodeID,
+		Since:  since,
+	})
+	if err == nil {
+		return fromAnalyticsNodeMetricSnapshots(rows), nil
+	}
+	// Fallback for unit tests (memory store) and environments without ClickHouse.
+	all, listErr := ListOpenFlareMetricSnapshotsSince(ctx, nodeID, since, 0)
+	if listErr != nil {
+		return nil, err
+	}
+	return openFlareLatestMetricSnapshots(all), nil
+}
+
 // ListOpenFlareRequestReportsSince returns request reports since the given time.
 func ListOpenFlareRequestReportsSince(ctx context.Context, nodeID string, since time.Time, limit int) ([]*OpenFlareRequestReport, error) {
 	return currentObservabilityStore().ListRequestReports(ctx, nodeID, since, limit)
+}
+
+// ListOpenFlareLatestRequestReportsSince returns the latest request report per node.
+// Prefer ClickHouse LIMIT 1 BY; on CH unavailability fall back to store list + reduce.
+func ListOpenFlareLatestRequestReportsSince(ctx context.Context, nodeID string, since time.Time) ([]*OpenFlareRequestReport, error) {
+	rows, err := analyticsrepo.ListLatestNodeRequestReports(ctx, analyticsrepo.NodeObservabilityFilter{
+		NodeID: nodeID,
+		Since:  since,
+	})
+	if err == nil {
+		return fromAnalyticsNodeRequestReports(rows), nil
+	}
+	all, listErr := ListOpenFlareRequestReportsSince(ctx, nodeID, since, 0)
+	if listErr != nil {
+		return nil, err
+	}
+	return openFlareLatestRequestReports(all), nil
+}
+
+func openFlareLatestMetricSnapshots(snapshots []*OpenFlareMetricSnapshot) []*OpenFlareMetricSnapshot {
+	latestByNode := make(map[string]*OpenFlareMetricSnapshot, len(snapshots))
+	for _, snapshot := range snapshots {
+		if snapshot == nil || snapshot.NodeID == "" {
+			continue
+		}
+		if existing, ok := latestByNode[snapshot.NodeID]; ok && !snapshot.CapturedAt.After(existing.CapturedAt) {
+			continue
+		}
+		latestByNode[snapshot.NodeID] = snapshot
+	}
+	result := make([]*OpenFlareMetricSnapshot, 0, len(latestByNode))
+	for _, snapshot := range latestByNode {
+		result = append(result, snapshot)
+	}
+	return result
+}
+
+func openFlareLatestRequestReports(reports []*OpenFlareRequestReport) []*OpenFlareRequestReport {
+	latestByNode := make(map[string]*OpenFlareRequestReport, len(reports))
+	for _, report := range reports {
+		if report == nil || report.NodeID == "" {
+			continue
+		}
+		if existing, ok := latestByNode[report.NodeID]; ok && !report.WindowEndedAt.After(existing.WindowEndedAt) {
+			continue
+		}
+		latestByNode[report.NodeID] = report
+	}
+	result := make([]*OpenFlareRequestReport, 0, len(latestByNode))
+	for _, report := range latestByNode {
+		result = append(result, report)
+	}
+	return result
 }
 
 // OpenFlareTrafficHourly is an hourly traffic rollup row.

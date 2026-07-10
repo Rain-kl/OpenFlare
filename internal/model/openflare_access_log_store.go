@@ -8,10 +8,33 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Rain-kl/Wavelet/internal/apps/openflare/chwriter"
 	analyticsmodel "github.com/Rain-kl/Wavelet/internal/model/analytics"
 	analyticsrepo "github.com/Rain-kl/Wavelet/internal/repository/analytics"
 )
+
+// AccessLogInsertHooks queues node access logs for async ClickHouse write.
+// Wired from openflare/chwriter.Init so model never imports the apps layer.
+type AccessLogInsertHooks struct {
+	QueueNodeAccessLogs func(logs []analyticsmodel.NodeAccessLog)
+}
+
+var (
+	accessLogInsertHooksMu sync.RWMutex
+	accessLogInsertHooks   AccessLogInsertHooks
+)
+
+// SetAccessLogInsertHooks registers async queue callbacks for access log inserts.
+func SetAccessLogInsertHooks(hooks AccessLogInsertHooks) {
+	accessLogInsertHooksMu.Lock()
+	accessLogInsertHooks = hooks
+	accessLogInsertHooksMu.Unlock()
+}
+
+func currentAccessLogInsertHooks() AccessLogInsertHooks {
+	accessLogInsertHooksMu.RLock()
+	defer accessLogInsertHooksMu.RUnlock()
+	return accessLogInsertHooks
+}
 
 type accessLogStore interface {
 	InsertBatch(ctx context.Context, records []*OpenFlareAccessLog) error
@@ -75,7 +98,9 @@ func (clickhouseAccessLogStore) InsertBatch(_ context.Context, records []*OpenFl
 		}
 		logs = append(logs, toAnalyticsNodeAccessLog(record))
 	}
-	chwriter.QueueNodeAccessLogs(logs)
+	if hook := currentAccessLogInsertHooks().QueueNodeAccessLogs; hook != nil {
+		hook(logs)
+	}
 	return nil
 }
 

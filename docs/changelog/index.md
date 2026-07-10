@@ -22,6 +22,11 @@ sidebar: false
 
 - 修复节点/仪表盘 24 小时容量、网络、磁盘 IO 趋势在 ClickHouse 限流查询下几乎为空的问题：改为基于 `of_node_metric_snapshots` / `of_node_obs_openresty` 的小时级聚合构建趋势；主机与 OpenResty 累计计数器改为按小时 delta 统计。
 - 降低静置时 ClickHouse CPU：可观测/访问日志 batchwriter 启用 `MinBatchSize` 与 `MaxFlushWait`，减少心跳小 part 写入；Docker `performance.xml` 将 `background_pool_size` 等后台线程收紧到适配 3c 小规格。
+- ClickHouse 清理语义：按保留天数仅 `MATERIALIZE` 表 DDL TTL，`deleted_count` 不再伪报删除；短于表 TTL 的保留请求被拒绝。
+- 可观测 dedup 仅在入队成功后保留，flush 失败释放键并短重试；审计 writer 增加 `MaxFlushWait`；`/admin/status/clickhouse` 暴露 batch writer 队列深度/丢弃/flush 错误。
+- model 层通过 hooks 写入 CH，去除对 `chwriter` 的直接依赖。
+- Dashboard 每节点最新指标改为 `LIMIT 1 BY node_id`；新增 metric/openresty 小时预聚合表与读路径优先 rollup。
+- 小规格默认连接池下调；`async_insert_busy_timeout` 调至 2s；`of_node_traffic_hourly` 增加 30 天 TTL，UV 改为峰值窗口估计并修正前端文案。
 
 ## [v3.1.1] - 2026-07-06
 

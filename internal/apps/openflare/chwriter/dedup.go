@@ -25,7 +25,7 @@ func newDedupSet() *dedupSet {
 
 // markIfNew records key when it has not been seen within dedupTTL.
 func (s *dedupSet) markIfNew(key string) bool {
-	if key == "" {
+	if s == nil || key == "" {
 		return false
 	}
 
@@ -33,19 +33,33 @@ func (s *dedupSet) markIfNew(key string) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	// Periodically clean up all expired keys (e.g., every 30 seconds)
-	if now.Sub(s.lastCleanup) >= 30*time.Second {
-		for existing, expiresAt := range s.keys {
-			if now.After(expiresAt) {
-				delete(s.keys, existing)
-			}
-		}
-		s.lastCleanup = now
-	}
+	s.cleanupExpiredLocked(now)
 
 	if expiresAt, exists := s.keys[key]; exists && now.Before(expiresAt) {
 		return false
 	}
 	s.keys[key] = now.Add(dedupTTL)
 	return true
+}
+
+// unmark removes a key so a later enqueue or flush retry may accept it again.
+func (s *dedupSet) unmark(key string) {
+	if s == nil || key == "" {
+		return
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.keys, key)
+}
+
+func (s *dedupSet) cleanupExpiredLocked(now time.Time) {
+	if now.Sub(s.lastCleanup) < 30*time.Second {
+		return
+	}
+	for existing, expiresAt := range s.keys {
+		if now.After(expiresAt) {
+			delete(s.keys, existing)
+		}
+	}
+	s.lastCleanup = now
 }

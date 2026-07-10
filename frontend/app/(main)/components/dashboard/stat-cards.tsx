@@ -34,7 +34,7 @@ export function DashboardStatCards({
             {formatCompactNumber(traffic.request_count)}
           </div>
           <p className="text-[10px] text-muted-foreground">
-            独立访客 {formatCompactNumber(traffic.unique_visitors)} · 错误{' '}
+            窗口UV(估) {formatCompactNumber(traffic.unique_visitors)} · 错误{' '}
             {formatCompactNumber(traffic.error_count)} · 估算 QPS{' '}
             {traffic.estimated_qps.toFixed(2)}
           </p>

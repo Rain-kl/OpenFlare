@@ -134,11 +134,14 @@ func applyClickHouseDefaults(c *configModel) {
 	if c.ClickHouse.Username == "" {
 		c.ClickHouse.Username = "default"
 	}
+	// Pool / buffer defaults target small control-plane hosts (e.g. 3c6g):
+	// oversized open/idle pools waste RAM and amplify concurrent CH pressure;
+	// large block buffers add client memory without helping our small batch inserts.
 	if c.ClickHouse.MaxIdleConn <= 0 {
-		c.ClickHouse.MaxIdleConn = 20
+		c.ClickHouse.MaxIdleConn = 8
 	}
 	if c.ClickHouse.MaxOpenConn <= 0 {
-		c.ClickHouse.MaxOpenConn = 50
+		c.ClickHouse.MaxOpenConn = 16
 	}
 	if c.ClickHouse.ConnMaxLifetime <= 0 {
 		c.ClickHouse.ConnMaxLifetime = 3600
@@ -147,7 +150,7 @@ func applyClickHouseDefaults(c *configModel) {
 		c.ClickHouse.DialTimeout = 5
 	}
 	if c.ClickHouse.BlockBufferSize == 0 {
-		c.ClickHouse.BlockBufferSize = 100
+		c.ClickHouse.BlockBufferSize = 32
 	}
 }
 

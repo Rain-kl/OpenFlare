@@ -6,16 +6,19 @@ package status
 import (
 	"net/http"
 
+	"github.com/Rain-kl/Wavelet/internal/apps/openflare/chwriter"
+	"github.com/Rain-kl/Wavelet/internal/apps/risk_control"
 	"github.com/Rain-kl/Wavelet/internal/common/response"
 	"github.com/Rain-kl/Wavelet/internal/config"
 	"github.com/Rain-kl/Wavelet/internal/db"
+	"github.com/Rain-kl/Wavelet/internal/db/batchwriter"
 	analyticsrepo "github.com/Rain-kl/Wavelet/internal/repository/analytics"
 	"github.com/gin-gonic/gin"
 )
 
 // GetClickHouseStatus returns ClickHouse operational metrics for administrators.
 // @Summary 获取 ClickHouse 运行指标
-// @Description 返回 ClickHouse parts、mutation、async_insert 队列等运维指标，需要管理员权限
+// @Description 返回 ClickHouse parts、mutation、async_insert 队列及进程内 batch writer 指标，需要管理员权限
 // @Tags admin
 // @Produce json
 // @Security SessionCookie
@@ -36,5 +39,15 @@ func GetClickHouseStatus(c *gin.Context) {
 		response.AbortInternal(c, "获取 ClickHouse 运行指标失败")
 		return
 	}
+	stats.BatchWriters = collectBatchWriterStats()
 	c.JSON(http.StatusOK, response.OK(stats))
+}
+
+func collectBatchWriterStats() []batchwriter.Stats {
+	out := chwriter.WriterStats()
+	if out == nil {
+		out = make([]batchwriter.Stats, 0, 1)
+	}
+	out = append(out, risk_control.LogWriterStats())
+	return out
 }

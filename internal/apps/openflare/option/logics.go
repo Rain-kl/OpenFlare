@@ -59,6 +59,9 @@ type databaseCleanupResult struct {
 	Target        string `json:"target"`
 	TargetLabel   string `json:"target_label"`
 	DeletedCount  int64  `json:"deleted_count"`
+	EligibleCount int64  `json:"eligible_count,omitempty"`
+	CleanupMode   string `json:"cleanup_mode,omitempty"`
+	TableTTLDays  int    `json:"table_ttl_days,omitempty"`
 	DeleteAll     bool   `json:"delete_all"`
 	RetentionDays *int   `json:"retention_days,omitempty"`
 }
@@ -198,6 +201,9 @@ func cleanupDatabaseObservability(ctx context.Context, input databaseCleanupInpu
 		Target:        result.Target,
 		TargetLabel:   result.TargetLabel,
 		DeletedCount:  result.DeletedCount,
+		EligibleCount: result.EligibleCount,
+		CleanupMode:   result.CleanupMode,
+		TableTTLDays:  result.TableTTLDays,
 		DeleteAll:     result.DeleteAll,
 		RetentionDays: result.RetentionDays,
 	}, nil
