@@ -368,11 +368,31 @@ ORDER BY hour ASC`, nodeTrafficHourlyTableName, clause)
 	return result, nil
 }
 
+// hourlyRollupMaxLead is how far after filter.Since the earliest rollup bucket may start
+// while still preferring the pre-aggregated tables. Materialized views only receive rows
+// written after the MV exists; partial rollups (e.g. only the last hour) must not hide
+// full-window raw aggregation for historical 24h charts.
+const hourlyRollupMaxLead = 2 * time.Hour
+
+// hourlyRollupCoversWindow reports whether rollup coverage starts near the requested window.
+// rows must be ordered by hour ascending.
+func hourlyRollupCoversWindow(earliestHour time.Time, since time.Time) bool {
+	if since.IsZero() {
+		return true
+	}
+	sinceHour := since.UTC().Truncate(time.Hour)
+	earliest := earliestHour.UTC().Truncate(time.Hour)
+	return !earliest.After(sinceHour.Add(hourlyRollupMaxLead))
+}
+
 // ListNodeMetricHourly returns hourly metric snapshot aggregates matching filter.
-// Prefers of_node_metric_capacity_hourly rollups; falls back to raw lagInFrame on empty/error.
+// Prefers of_node_metric_capacity_hourly when it covers the requested window; otherwise
+// falls back to raw lagInFrame over of_node_metric_snapshots.
 func ListNodeMetricHourly(ctx context.Context, filter NodeObservabilityFilter) ([]NodeMetricHourly, error) {
 	if rows, err := listNodeMetricHourlyFromRollup(ctx, filter); err == nil && len(rows) > 0 {
-		return rows, nil
+		if hourlyRollupCoversWindow(rows[0].Hour, filter.Since) {
+			return rows, nil
+		}
 	}
 	return listNodeMetricHourlyFromRaw(ctx, filter)
 }
@@ -492,10 +512,13 @@ func scanNodeMetricHourlyRows(rows driver.Rows) ([]NodeMetricHourly, error) {
 }
 
 // ListNodeOpenrestyHourly returns hourly OpenResty observation aggregates matching filter.
-// Prefers of_node_openresty_hourly rollups; falls back to raw lagInFrame on empty/error.
+// Prefers of_node_openresty_hourly when it covers the requested window; otherwise
+// falls back to raw lagInFrame over of_node_obs_openresty.
 func ListNodeOpenrestyHourly(ctx context.Context, filter NodeObservabilityFilter) ([]NodeOpenrestyHourly, error) {
 	if rows, err := listNodeOpenrestyHourlyFromRollup(ctx, filter); err == nil && len(rows) > 0 {
-		return rows, nil
+		if hourlyRollupCoversWindow(rows[0].Hour, filter.Since) {
+			return rows, nil
+		}
 	}
 	return listNodeOpenrestyHourlyFromRaw(ctx, filter)
 }
