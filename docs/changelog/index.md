@@ -11,16 +11,15 @@ sidebar: false
 ## 重大变更
 
 > [!IMPORTANT]
+> 
+> 3.1.2 版本更新了 CLickHouse 部署配置。
+> 
 > 3.0.0 版本为 Wavelet 平台迁移与架构重构版本，涉及数据库表结构、环境变量以及前后端底层架构的重大变更。请务必在升级前备份数据库，并且更新到 V2.3.4。
 > 目前已知的兼容性问题：
 > - Pages 无法迁移, 升级前请先手动下载并备份 Pages 静态站点的 ZIP 包，升级后重新创建。
 > - 性能调优参数重置, 升级后请重新配置
 
 ## [unreleased]
-
-### 修复
-
-- 修复小时预聚合仅有迁移后少量数据时 24 小时容量/网络/磁盘趋势残缺的问题：读路径按小时 merge（rollup 覆盖不足时用 raw 补洞；窗口完整时仅走 rollup）；并增加历史 backfill 迁移避免长期依赖 raw。
 
 ## [v3.1.2] - 2026-07-10
 
@@ -31,7 +30,7 @@ sidebar: false
 - ClickHouse 清理语义：按保留天数仅 `MATERIALIZE` 表 DDL TTL，`deleted_count` 不再伪报删除；短于表 TTL 的保留请求被拒绝。
 - 可观测 dedup 仅在入队成功后保留，flush 失败释放键并短重试；审计 writer 增加 `MaxFlushWait`；`/admin/status/clickhouse` 暴露 batch writer 队列深度/丢弃/flush 错误。
 - model 层通过 hooks 写入 CH，去除对 `chwriter` 的直接依赖。
-- Dashboard 每节点最新指标改为 `LIMIT 1 BY node_id`；新增 metric/openresty 小时预聚合表与读路径优先 rollup。
+- Dashboard 每节点最新指标改为 `LIMIT 1 BY node_id`；新增 metric/openresty 小时预聚合表；读路径按小时 merge（rollup 窗口完整时仅走预聚合，不足时用 raw 补洞），并提供历史 backfill 迁移。
 - 小规格默认连接池下调；`async_insert_busy_timeout` 调至 2s；`of_node_traffic_hourly` 增加 30 天 TTL，UV 改为峰值窗口估计并修正前端文案。
 - Docker ClickHouse：`performance.xml` 下调 merge free-entry 阈值以兼容小 `background_pool`（避免 25.x 启动 Code 36）。
 
