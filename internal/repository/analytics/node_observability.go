@@ -6,6 +6,7 @@ package analytics
 import (
 	"context"
 	"fmt"
+	"sort"
 	"time"
 
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
@@ -369,9 +370,7 @@ ORDER BY hour ASC`, nodeTrafficHourlyTableName, clause)
 }
 
 // hourlyRollupMaxLead is how far after filter.Since the earliest rollup bucket may start
-// while still preferring the pre-aggregated tables. Materialized views only receive rows
-// written after the MV exists; partial rollups (e.g. only the last hour) must not hide
-// full-window raw aggregation for historical 24h charts.
+// while still treating pre-aggregated tables as a complete window (skip raw query).
 const hourlyRollupMaxLead = 2 * time.Hour
 
 // hourlyRollupCoversWindow reports whether rollup coverage starts near the requested window.
@@ -386,15 +385,61 @@ func hourlyRollupCoversWindow(earliestHour time.Time, since time.Time) bool {
 }
 
 // ListNodeMetricHourly returns hourly metric snapshot aggregates matching filter.
-// Prefers of_node_metric_capacity_hourly when it covers the requested window; otherwise
-// falls back to raw lagInFrame over of_node_metric_snapshots.
+//
+// Strategy (optimal for correctness + cost):
+//  1. Load of_node_metric_capacity_hourly rollup.
+//  2. If rollup spans the window from filter.Since, return it alone (cheap path).
+//  3. Otherwise load raw lagInFrame aggregates and merge by hour: rollup wins on
+//     overlap, raw fills historical gaps (MV never backfills pre-creation data).
 func ListNodeMetricHourly(ctx context.Context, filter NodeObservabilityFilter) ([]NodeMetricHourly, error) {
-	if rows, err := listNodeMetricHourlyFromRollup(ctx, filter); err == nil && len(rows) > 0 {
-		if hourlyRollupCoversWindow(rows[0].Hour, filter.Since) {
-			return rows, nil
+	rollup, rollupErr := listNodeMetricHourlyFromRollup(ctx, filter)
+	if rollupErr == nil && len(rollup) > 0 && hourlyRollupCoversWindow(rollup[0].Hour, filter.Since) {
+		return rollup, nil
+	}
+
+	raw, rawErr := listNodeMetricHourlyFromRaw(ctx, filter)
+	if rawErr != nil {
+		if rollupErr == nil && len(rollup) > 0 {
+			return rollup, nil
+		}
+		return nil, rawErr
+	}
+	if len(rollup) == 0 {
+		return raw, nil
+	}
+	// Partial rollup (or rollupErr with empty slice): merge; raw fills historical gaps.
+	return mergeNodeMetricHourlyPreferRollup(rollup, raw), nil
+}
+
+// mergeNodeMetricHourlyPreferRollup unions two hour series (both ASC by Hour).
+// Rollup values replace raw for the same hour; raw supplies missing hours.
+func mergeNodeMetricHourlyPreferRollup(rollup, raw []NodeMetricHourly) []NodeMetricHourly {
+	byHour := make(map[int64]NodeMetricHourly, len(raw)+len(rollup))
+	order := make([]int64, 0, len(raw)+len(rollup))
+	add := func(row NodeMetricHourly, overwrite bool) {
+		key := row.Hour.UTC().Truncate(time.Hour).Unix()
+		if _, exists := byHour[key]; !exists {
+			order = append(order, key)
+			byHour[key] = row
+			return
+		}
+		if overwrite {
+			byHour[key] = row
 		}
 	}
-	return listNodeMetricHourlyFromRaw(ctx, filter)
+	for _, row := range raw {
+		add(row, false)
+	}
+	for _, row := range rollup {
+		add(row, true)
+	}
+	result := make([]NodeMetricHourly, 0, len(order))
+	// Keep chronological order of first-seen keys; re-sort by hour for stability.
+	sort.Slice(order, func(i, j int) bool { return order[i] < order[j] })
+	for _, key := range order {
+		result = append(result, byHour[key])
+	}
+	return result
 }
 
 func listNodeMetricHourlyFromRollup(ctx context.Context, filter NodeObservabilityFilter) ([]NodeMetricHourly, error) {
@@ -512,15 +557,52 @@ func scanNodeMetricHourlyRows(rows driver.Rows) ([]NodeMetricHourly, error) {
 }
 
 // ListNodeOpenrestyHourly returns hourly OpenResty observation aggregates matching filter.
-// Prefers of_node_openresty_hourly when it covers the requested window; otherwise
-// falls back to raw lagInFrame over of_node_obs_openresty.
+// Same rollup-first / per-hour merge strategy as ListNodeMetricHourly.
 func ListNodeOpenrestyHourly(ctx context.Context, filter NodeObservabilityFilter) ([]NodeOpenrestyHourly, error) {
-	if rows, err := listNodeOpenrestyHourlyFromRollup(ctx, filter); err == nil && len(rows) > 0 {
-		if hourlyRollupCoversWindow(rows[0].Hour, filter.Since) {
-			return rows, nil
+	rollup, rollupErr := listNodeOpenrestyHourlyFromRollup(ctx, filter)
+	if rollupErr == nil && len(rollup) > 0 && hourlyRollupCoversWindow(rollup[0].Hour, filter.Since) {
+		return rollup, nil
+	}
+
+	raw, rawErr := listNodeOpenrestyHourlyFromRaw(ctx, filter)
+	if rawErr != nil {
+		if rollupErr == nil && len(rollup) > 0 {
+			return rollup, nil
+		}
+		return nil, rawErr
+	}
+	if len(rollup) == 0 {
+		return raw, nil
+	}
+	return mergeNodeOpenrestyHourlyPreferRollup(rollup, raw), nil
+}
+
+func mergeNodeOpenrestyHourlyPreferRollup(rollup, raw []NodeOpenrestyHourly) []NodeOpenrestyHourly {
+	byHour := make(map[int64]NodeOpenrestyHourly, len(raw)+len(rollup))
+	order := make([]int64, 0, len(raw)+len(rollup))
+	add := func(row NodeOpenrestyHourly, overwrite bool) {
+		key := row.Hour.UTC().Truncate(time.Hour).Unix()
+		if _, exists := byHour[key]; !exists {
+			order = append(order, key)
+			byHour[key] = row
+			return
+		}
+		if overwrite {
+			byHour[key] = row
 		}
 	}
-	return listNodeOpenrestyHourlyFromRaw(ctx, filter)
+	for _, row := range raw {
+		add(row, false)
+	}
+	for _, row := range rollup {
+		add(row, true)
+	}
+	sort.Slice(order, func(i, j int) bool { return order[i] < order[j] })
+	result := make([]NodeOpenrestyHourly, 0, len(order))
+	for _, key := range order {
+		result = append(result, byHour[key])
+	}
+	return result
 }
 
 func listNodeOpenrestyHourlyFromRollup(ctx context.Context, filter NodeObservabilityFilter) ([]NodeOpenrestyHourly, error) {

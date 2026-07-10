@@ -80,7 +80,7 @@ func TestListNodeMetricHourly_PrefersRollup(t *testing.T) {
 	assert.Contains(t, mock.queries[0], nodeMetricCapacityHourlyTableName())
 }
 
-func TestListNodeMetricHourly_FallsBackWhenRollupOnlyCoversRecentHours(t *testing.T) {
+func TestListNodeMetricHourly_MergesRawGapsWithPartialRollup(t *testing.T) {
 	ctx := context.Background()
 	// 24h window starts far before the only rollup bucket (last hour).
 	since := time.Date(2026, 7, 9, 12, 0, 0, 0, time.UTC)
@@ -94,9 +94,10 @@ func TestListNodeMetricHourly_FallsBackWhenRollupOnlyCoversRecentHours(t *testin
 				}}}, nil
 			}
 			if strings.Contains(query, nodeMetricSnapshotTableName()) {
-				return &mockRows{data: [][]any{{
-					rawHour, 12.0, 34.0, int64(5), int64(6), int64(7), int64(8), uint64(1),
-				}}}, nil
+				return &mockRows{data: [][]any{
+					{rawHour, 12.0, 34.0, int64(5), int64(6), int64(7), int64(8), uint64(1)},
+					{rollupHour, 50.0, 50.0, int64(9), int64(9), int64(9), int64(9), uint64(1)},
+				}}, nil
 			}
 			return &mockRows{}, nil
 		},
@@ -106,11 +107,31 @@ func TestListNodeMetricHourly_FallsBackWhenRollupOnlyCoversRecentHours(t *testin
 
 	rows, err := ListNodeMetricHourly(ctx, NodeObservabilityFilter{Since: since})
 	require.NoError(t, err)
-	require.Len(t, rows, 1)
-	assert.Equal(t, 12.0, rows[0].AverageCPUUsagePercent)
+	require.Len(t, rows, 2)
 	assert.Equal(t, rawHour, rows[0].Hour)
+	assert.Equal(t, 12.0, rows[0].AverageCPUUsagePercent)
+	// Overlapping hour prefers rollup (99) over raw (50).
+	assert.Equal(t, rollupHour, rows[1].Hour)
+	assert.Equal(t, 99.0, rows[1].AverageCPUUsagePercent)
 	require.GreaterOrEqual(t, len(mock.queries), 2)
 	assert.Contains(t, mock.queries[1], "lagInFrame")
+}
+
+func TestMergeNodeMetricHourlyPreferRollup(t *testing.T) {
+	h1 := time.Date(2026, 7, 10, 10, 0, 0, 0, time.UTC)
+	h2 := time.Date(2026, 7, 10, 11, 0, 0, 0, time.UTC)
+	merged := mergeNodeMetricHourlyPreferRollup(
+		[]NodeMetricHourly{{Hour: h2, AverageCPUUsagePercent: 80}},
+		[]NodeMetricHourly{
+			{Hour: h1, AverageCPUUsagePercent: 10},
+			{Hour: h2, AverageCPUUsagePercent: 20},
+		},
+	)
+	require.Len(t, merged, 2)
+	assert.Equal(t, h1, merged[0].Hour)
+	assert.Equal(t, 10.0, merged[0].AverageCPUUsagePercent)
+	assert.Equal(t, h2, merged[1].Hour)
+	assert.Equal(t, 80.0, merged[1].AverageCPUUsagePercent)
 }
 
 func TestHourlyRollupCoversWindow(t *testing.T) {
