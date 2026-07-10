@@ -20,13 +20,19 @@ import (
 )
 
 const (
+	// Observability traffic is sparse (heartbeat ~10s/node). Prefer larger batches to
+	// cut ClickHouse parts/merges; MaxFlushWait bounds visibility lag for single-node labs.
 	observabilityQueueSize    = 5_000
 	observabilityMaxBatchSize = 500
-	observabilityFlushEvery   = 5 * time.Second
+	observabilityMinBatchSize = 20
+	observabilityFlushEvery   = 10 * time.Second
+	observabilityMaxFlushWait = 30 * time.Second
 
 	nodeAccessLogQueueSize    = 10_000
 	nodeAccessLogMaxBatchSize = 1_000
-	nodeAccessLogFlushEvery   = time.Second
+	nodeAccessLogMinBatchSize = 50
+	nodeAccessLogFlushEvery   = 2 * time.Second
+	nodeAccessLogMaxFlushWait = 5 * time.Second
 )
 
 var (
@@ -182,7 +188,9 @@ func mustNewObservabilityWriter[T any](name string, flush batchwriter.FlushFunc[
 		Name:          name,
 		QueueSize:     observabilityQueueSize,
 		MaxBatchSize:  observabilityMaxBatchSize,
+		MinBatchSize:  observabilityMinBatchSize,
 		FlushInterval: observabilityFlushEvery,
+		MaxFlushWait:  observabilityMaxFlushWait,
 	}
 	writer, err := batchwriter.New(
 		cfg,
@@ -203,7 +211,9 @@ func mustNewNodeAccessLogWriter() *batchwriter.Writer[analyticsmodel.NodeAccessL
 		Name:          "node_access_logs",
 		QueueSize:     nodeAccessLogQueueSize,
 		MaxBatchSize:  nodeAccessLogMaxBatchSize,
+		MinBatchSize:  nodeAccessLogMinBatchSize,
 		FlushInterval: nodeAccessLogFlushEvery,
+		MaxFlushWait:  nodeAccessLogMaxFlushWait,
 	}
 	writer, err := batchwriter.New[analyticsmodel.NodeAccessLog](cfg, analyticsrepo.BatchInsertNodeAccessLogs,
 		batchwriter.WithDropHandler[analyticsmodel.NodeAccessLog](func(item analyticsmodel.NodeAccessLog) {

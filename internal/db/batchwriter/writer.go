@@ -173,6 +173,7 @@ func (w *Writer[T]) run() {
 	defer ticker.Stop()
 
 	batch := make([]T, 0, w.cfg.MaxBatchSize)
+	var batchStartedAt time.Time
 	flush := func() {
 		if len(batch) == 0 {
 			return
@@ -184,6 +185,7 @@ func (w *Writer[T]) run() {
 			}
 		}
 		batch = batch[:0]
+		batchStartedAt = time.Time{}
 	}
 
 	defer func() {
@@ -197,16 +199,32 @@ func (w *Writer[T]) run() {
 			if !ok {
 				return
 			}
+			if len(batch) == 0 {
+				batchStartedAt = time.Now()
+			}
 			batch = append(batch, item)
 			if len(batch) >= w.cfg.MaxBatchSize {
 				flush()
 			}
 		case <-ticker.C:
-			if len(batch) > 0 && (w.cfg.MinBatchSize == 0 || len(batch) >= w.cfg.MinBatchSize) {
+			if w.shouldFlushOnInterval(len(batch), batchStartedAt, time.Now()) {
 				flush()
 			}
 		}
 	}
+}
+
+func (w *Writer[T]) shouldFlushOnInterval(batchLen int, batchStartedAt time.Time, now time.Time) bool {
+	if batchLen == 0 {
+		return false
+	}
+	if w.cfg.MinBatchSize == 0 || batchLen >= w.cfg.MinBatchSize {
+		return true
+	}
+	if w.cfg.MaxFlushWait <= 0 || batchStartedAt.IsZero() {
+		return false
+	}
+	return !now.Before(batchStartedAt.Add(w.cfg.MaxFlushWait))
 }
 
 func (w *Writer[T]) notifyDrop(item T) {

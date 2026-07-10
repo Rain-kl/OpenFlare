@@ -326,6 +326,61 @@ func TestWriterFlushesOnIntervalWhenMinBatchSizeReached(t *testing.T) {
 	}
 }
 
+func TestWriterForcesFlushAfterMaxFlushWait(t *testing.T) {
+	t.Parallel()
+
+	var (
+		mu    sync.Mutex
+		batch []int
+	)
+	cfg := DefaultConfig()
+	cfg.MaxBatchSize = 100
+	cfg.MinBatchSize = 50
+	cfg.FlushInterval = 20 * time.Millisecond
+	cfg.MaxFlushWait = 80 * time.Millisecond
+
+	writer, err := New[int](cfg, func(_ context.Context, items []int) error {
+		mu.Lock()
+		defer mu.Unlock()
+		batch = append([]int(nil), items...)
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+
+	writer.Start(context.Background())
+	t.Cleanup(func() {
+		stopCtx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+		if err := writer.Stop(stopCtx); err != nil {
+			t.Fatalf("Stop() error = %v", err)
+		}
+	})
+
+	if !writer.TryEnqueue(1) {
+		t.Fatal("TryEnqueue(1) = false, want true")
+	}
+
+	deadline := time.Now().Add(time.Second)
+	for {
+		mu.Lock()
+		ready := len(batch) == 1
+		mu.Unlock()
+		if ready || time.Now().After(deadline) {
+			break
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+
+	mu.Lock()
+	got := batch
+	mu.Unlock()
+	if diff := cmp.Diff([]int{1}, got); diff != "" {
+		t.Fatalf("max flush wait mismatch (-want +got):\n%s", diff)
+	}
+}
+
 func TestWriterInvokesFlushErrorHandler(t *testing.T) {
 	t.Parallel()
 

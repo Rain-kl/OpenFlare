@@ -21,6 +21,7 @@ sidebar: false
 ### 修复
 
 - 修复节点/仪表盘 24 小时容量、网络、磁盘 IO 趋势在 ClickHouse 限流查询下几乎为空的问题：改为基于 `of_node_metric_snapshots` / `of_node_obs_openresty` 的小时级聚合构建趋势；主机与 OpenResty 累计计数器改为按小时 delta 统计。
+- 降低静置时 ClickHouse CPU：可观测/访问日志 batchwriter 启用 `MinBatchSize` 与 `MaxFlushWait`，减少心跳小 part 写入；Docker `performance.xml` 将 `background_pool_size` 等后台线程收紧到适配 3c 小规格。
 
 ## [v3.1.1] - 2026-07-06
 

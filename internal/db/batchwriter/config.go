@@ -28,10 +28,15 @@ type Config struct {
 
 	// MinBatchSize is the minimum in-memory batch size for time-based flushes.
 	// Zero disables the threshold and preserves legacy interval flush behavior.
+	// When set, interval flushes below this size are skipped unless MaxFlushWait elapses.
 	MinBatchSize int
 
-	// FlushInterval triggers a time-based flush even when the batch is smaller.
+	// FlushInterval is how often the worker checks whether a time-based flush should run.
 	FlushInterval time.Duration
+
+	// MaxFlushWait forces a flush of any non-empty batch once the oldest item has waited
+	// this long, even if MinBatchSize has not been reached. Zero disables the force path.
+	MaxFlushWait time.Duration
 }
 
 // DefaultConfig returns production-friendly defaults aligned with audit log batching.
@@ -56,6 +61,9 @@ func (c Config) validate() error {
 	}
 	if c.FlushInterval <= 0 {
 		return fmt.Errorf("batchwriter: flush interval must be positive")
+	}
+	if c.MaxFlushWait < 0 {
+		return fmt.Errorf("batchwriter: max flush wait must be non-negative")
 	}
 	return nil
 }
