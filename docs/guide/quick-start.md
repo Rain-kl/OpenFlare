@@ -30,6 +30,14 @@ Agent 统一通过 OpenResty 二进制控制运行时。本地部署需要节点
 
 为了保证异步任务队列（Asynq 框架）及可观测流量看板功能完整运行，快速开始推荐采用 **PostgreSQL + Redis + ClickHouse** 经典单机版编排。
 
+先拉取 ClickHouse 服务端性能配置到 `./config/clickhouse`（目录内**仅**放 `performance.xml`，不要放 listen 配置）：
+
+```bash
+mkdir -p ./config/clickhouse
+curl -fsSL -o ./config/clickhouse/performance.xml \
+  https://raw.githubusercontent.com/Rain-kl/OpenFlare/refs/heads/main/config/clickhouse/performance.xml
+```
+
 在空目录中创建 `docker-compose.yaml`：
 
 ```yaml
@@ -54,9 +62,9 @@ services:
       DB_PASSWORD: "${DB_PASSWORD:-replace-with-strong-password}"
       DB_NAME: "${DB_NAME:-openflare}"
       REDIS_ENABLED: "true"
-      REDIS_ADDRS: "redis:6379"
+      REDIS_ADDR: "redis:6379"
       CLICKHOUSE_ENABLED: "true"
-      CLICKHOUSE_HOSTS: "clickhouse:9000"
+      CLICKHOUSE_HOST: "clickhouse:9000"
     depends_on:
       postgres:
         condition: service_healthy
@@ -101,10 +109,16 @@ services:
       CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-replace-with-clickhouse-password}
       CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
       TZ: Asia/Shanghai
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
     volumes:
       - openflare_clickhouse_data:/var/lib/clickhouse
+      # 目录内仅 performance.xml；不要放 listen 配置
+      - ./config/clickhouse:/etc/clickhouse-server/config.d:ro
     healthcheck:
-      test: ["CMD", "clickhouse-client", "--user", "${CLICKHOUSE_USERNAME:-default}", "--password", "${CLICKHOUSE_PASSWORD:-replace-with-clickhouse-password}", "--query", "SELECT 1"]
+      test: ["CMD", "clickhouse-client", "--user", "default", "--password", "${CLICKHOUSE_PASSWORD:-replace-with-clickhouse-password}", "--query", "SELECT 1"]
       interval: 10s
       timeout: 5s
       retries: 5

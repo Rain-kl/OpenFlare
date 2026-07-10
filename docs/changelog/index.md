@@ -27,8 +27,7 @@ sidebar: false
 - model 层通过 hooks 写入 CH，去除对 `chwriter` 的直接依赖。
 - Dashboard 每节点最新指标改为 `LIMIT 1 BY node_id`；新增 metric/openresty 小时预聚合表与读路径优先 rollup。
 - 小规格默认连接池下调；`async_insert_busy_timeout` 调至 2s；`of_node_traffic_hourly` 增加 30 天 TTL，UV 改为峰值窗口估计并修正前端文案。
-- Docker ClickHouse：`performance.xml` 下调 merge free-entry 阈值以兼容小 `background_pool`（避免 25.x 启动 Code 36）；增加 `listen_host=0.0.0.0` 以便宿主机访问映射端口。
-- 同步 `.env.example` 与 `config.example.yaml`：ClickHouse 小规格连接池默认、compose 端口/启用变量说明，密码占位与 compose 默认一致。
+- Docker ClickHouse：`performance.xml` 下调 merge free-entry 阈值以兼容小 `background_pool`（避免 25.x 启动 Code 36）。
 
 ## [v3.1.1] - 2026-07-06
 

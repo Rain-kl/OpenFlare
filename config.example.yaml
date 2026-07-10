@@ -100,12 +100,6 @@ otel:
 
 # ─── ClickHouse (required) ──────────────────────────────────────────────────────
 # Analytics / observability OLAP store. Telemetry writes are best-effort (async batch).
-# Client pool defaults target small control-plane hosts (e.g. 3c6g). Raise only if
-# concurrent analytics queries and writers regularly exhaust the pool.
-# Docker: host mapping defaults CLICKHOUSE_NATIVE_PORT=9000 / HTTP=8123; set
-# docker/clickhouse/config.d listen_host so published ports are reachable.
-# Env overrides: CLICKHOUSE_ENABLED, CLICKHOUSE_HOST, CLICKHOUSE_USERNAME,
-# CLICKHOUSE_PASSWORD, CLICKHOUSE_NAME (see .env.example).
 clickhouse:
   enabled: true
   hosts:

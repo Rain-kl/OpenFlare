@@ -8,6 +8,30 @@ OpenFlare Server 是 Gin + GORM 单体控制面，负责管理端 UI、管理 AP
 > **关于外部依赖**：
 > OpenFlare 系统内建了对后台异步任务（Asynq 框架）及海量节点日志分析与度量指标（观测面板）的支持。因此，**无论采用何种部署模式，系统都必须依赖 Redis（或 Valkey）与 ClickHouse 的运行**。各个部署方案的主要差异在于主关系型数据库的选择（SQLite vs PostgreSQL）以及是否启用链路追踪服务（Jaeger）。
 
+> [!TIP]
+> **ClickHouse 服务端性能配置（推荐挂载）**  
+> 控制面常见为小规格主机（如 3c6g）。仓库提供的 `performance.xml` 会收紧后台 merge/mutation 线程池，避免默认配置在小机器上静置 CPU 偏高或 ClickHouse 25.x 启动校验失败。  
+> 将本地目录 `./config/clickhouse` 挂载到容器 `/etc/clickhouse-server/config.d`。  
+> **目录内只放 `performance.xml`，不要放入任何 listen 相关配置**（监听地址沿用官方镜像默认即可）。
+
+部署前将配置拉到本地：
+
+```bash
+mkdir -p ./config/clickhouse
+curl -fsSL -o ./config/clickhouse/performance.xml \
+  https://raw.githubusercontent.com/Rain-kl/OpenFlare/refs/heads/main/config/clickhouse/performance.xml
+```
+
+在 ClickHouse 服务的 `volumes` 中增加（与数据卷并列）：
+
+```yaml
+volumes:
+  - ./data/clickhouse_data:/var/lib/clickhouse   # 或 named volume
+  - ./config/clickhouse:/etc/clickhouse-server/config.d:ro
+```
+
+修改 `performance.xml` 后需 `docker compose restart clickhouse` 才生效。
+
 ---
 
 ## 方式一：Docker 部署 (推荐)
@@ -71,10 +95,16 @@ services:
       CLICKHOUSE_PASSWORD: 123456
       CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
       TZ: Asia/Shanghai
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
     volumes:
       - ./data/clickhouse_data:/var/lib/clickhouse
+      # 仅含 performance.xml 的目录；不要在此目录放 listen 配置
+      - ./config/clickhouse:/etc/clickhouse-server/config.d:ro
     healthcheck:
-      test: ["CMD", "clickhouse-client", "--query", "SELECT 1"]
+      test: ["CMD", "clickhouse-client", "--user", "default", "--password", "123456", "--query", "SELECT 1"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -84,6 +114,9 @@ services:
 运行启动命令：
 
 ```bash
+mkdir -p ./config/clickhouse
+curl -fsSL -o ./config/clickhouse/performance.xml \
+  https://raw.githubusercontent.com/Rain-kl/OpenFlare/refs/heads/main/config/clickhouse/performance.xml
 docker compose up -d
 ```
 
@@ -154,8 +187,14 @@ services:
       CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-replace-with-clickhouse-password}
       CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
       TZ: ${TZ:-Asia/Shanghai}
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
     volumes:
       - openflare_clickhouse_data:/var/lib/clickhouse
+      # 仅含 performance.xml 的目录；不要在此目录放 listen 配置
+      - ./config/clickhouse:/etc/clickhouse-server/config.d:ro
     healthcheck:
       test: ["CMD", "clickhouse-client", "--user", "${CLICKHOUSE_USERNAME:-default}", "--password", "${CLICKHOUSE_PASSWORD:-replace-with-clickhouse-password}", "--query", "SELECT 1"]
       interval: 10s
@@ -173,6 +212,9 @@ volumes:
 创建对应的 `.env` 文件来配置系统环境变量（可复制并修改根目录下的 `.env.example`）：
 
 ```bash
+mkdir -p ./config/clickhouse
+curl -fsSL -o ./config/clickhouse/performance.xml \
+  https://raw.githubusercontent.com/Rain-kl/OpenFlare/refs/heads/main/config/clickhouse/performance.xml
 curl -o .env.example https://raw.githubusercontent.com/Rain-kl/OpenFlare/refs/heads/main/.env.example
 cp .env.example .env
 # 编辑 .env 文件，填入对应的数据库、Redis、ClickHouse 连接地址、密码与 APP_SESSION_SECRET
@@ -264,25 +306,34 @@ services:
       CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-replace-with-clickhouse-password}
       CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
       TZ: ${TZ:-Asia/Shanghai}
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
     volumes:
       - openflare_clickhouse_data:/var/lib/clickhouse
-
-volumes:
-  openflare_uploads:
-  openflare_postgres_data:
-  openflare_redis_data:
-  openflare_clickhouse_data:
+      # 仅含 performance.xml 的目录；不要在此目录放 listen 配置
+      - ./config/clickhouse:/etc/clickhouse-server/config.d:ro
     healthcheck:
       test: ["CMD", "clickhouse-client", "--user", "${CLICKHOUSE_USERNAME:-default}", "--password", "${CLICKHOUSE_PASSWORD:-replace-with-clickhouse-password}", "--query", "SELECT 1"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 15s
+
+volumes:
+  openflare_uploads:
+  openflare_postgres_data:
+  openflare_redis_data:
+  openflare_clickhouse_data:
 ```
 
 启动并验证：
 
 ```bash
+mkdir -p ./config/clickhouse
+curl -fsSL -o ./config/clickhouse/performance.xml \
+  https://raw.githubusercontent.com/Rain-kl/OpenFlare/refs/heads/main/config/clickhouse/performance.xml
 curl -o .env.example https://raw.githubusercontent.com/Rain-kl/OpenFlare/refs/heads/main/.env.example
 cp .env.example .env
 # 编辑 .env 文件并确保设置好 APP_SESSION_SECRET 密码
@@ -304,7 +355,7 @@ docker compose up -d
 | Go | `1.25+` |
 | Node.js | `18+` |
 | pnpm | 推荐通过 `corepack enable` 使用项目声明的 pnpm |
-| 外部服务 | 必须在本地或远端运行 Redis (Valkey) 和 ClickHouse 实例 |
+| 外部服务 | 必须在本地或远端运行 Redis (Valkey) 和 ClickHouse 实例；ClickHouse 建议挂载仓库提供的 `performance.xml`（见上文「ClickHouse 服务端性能配置」） |
 
 ### 1. 构建管理端前端
 
