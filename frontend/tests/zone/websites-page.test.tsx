@@ -11,6 +11,10 @@ vi.mock('next/link', () => ({
   ),
 }));
 
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({push: vi.fn()}),
+}));
+
 vi.mock('@/lib/services/openflare', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/services/openflare')>();
   return {...actual, ZoneService: {list: vi.fn()}};
@@ -46,9 +50,10 @@ describe('WebsitesPage', () => {
 
     renderPage();
 
-    expect(await screen.findByRole('heading', {name: 'arctel.de'})).toBeVisible();
-    expect(screen.getByText(/3 个域名/)).toBeVisible();
-    expect(screen.getByText(/0 个域名/)).toBeVisible();
+    expect(await screen.findByText('arctel.de')).toBeVisible();
+    expect(screen.getByText('3')).toBeVisible();
+    expect(screen.getByText('0')).toBeVisible();
+    expect(screen.getByRole('columnheader', {name: '根域'})).toBeVisible();
 
     fireEvent.change(screen.getByPlaceholderText('搜索 Zone 根域'), {
       target: {value: 'arctel'},

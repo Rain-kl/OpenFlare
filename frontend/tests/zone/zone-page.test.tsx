@@ -14,7 +14,7 @@ vi.mock('next/link', () => ({
 }));
 
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({replace: replaceMock}),
+  useRouter: () => ({replace: replaceMock, back: vi.fn()}),
   usePathname: () => '/websites/42',
   useSearchParams: () => new URLSearchParams(),
 }));
