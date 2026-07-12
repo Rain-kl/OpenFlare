@@ -14,7 +14,14 @@ import {
   Settings,
   ShieldCheck,
   Terminal,
-  UserRound
+  UserRound,
+  LayoutDashboard,
+  Route,
+  Server,
+  Globe,
+  GitBranch,
+  ScrollText,
+  Gauge
 } from "lucide-react"
 
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from "@/components/ui/card"
@@ -38,9 +45,21 @@ interface MenuGroup {
 
 const MENU_GROUPS: MenuGroup[] = [
   {
-    name: "基础菜单",
+    name: "业务菜单",
     items: [
-      { path: "/", label: "总览", description: "OpenFlare 控制台总览", icon: Home },
+      { path: "/", label: "数据看板", description: "查看边缘节点请求、访客与流量等多维度图表看板", icon: LayoutDashboard, readOnly: true },
+      { path: "/nodes", label: "节点管理", description: "注册与管理反向代理边缘节点服务状态", icon: Server },
+      { path: "/proxy-routes", label: "规则管理", description: "配置和发布反代路由规则、负载均衡与源站绑定", icon: Route },
+      { path: "/websites", label: "域名列表", description: "配置站点根域名并查看关联网站详情", icon: Globe },
+      { path: "/certificates", label: "TLS证书", description: "管理和下发网站 SSL/TLS 证书", icon: ShieldCheck },
+      { path: "/dns-accounts", label: "DNS账号", description: "配置 Cloudflare/Alidns 等 DNS 服务商 API 凭证", icon: Settings },
+      { path: "/origins", label: "源站地址", description: "集中维护和管理后端业务源站服务器组", icon: Home },
+      { path: "/waf", label: "WAF 管理", description: "配置 Web 应用防火墙自定义规则与频率限制", icon: ShieldCheck },
+      { path: "/ip-groups", label: "IP 组", description: "管理黑白名单 IP 集合，用于 WAF 规则过滤", icon: Layers },
+      { path: "/pages", label: "Pages 静态站", description: "托管和发布静态网页项目，支持自动关联域名", icon: FileText },
+      { path: "/config-versions", label: "版本发布", description: "查看规则快照版本并进行配置热更新分发与回滚", icon: GitBranch },
+      { path: "/access-logs", label: "访问日志", description: "多维度实时浏览边缘节点请求访问明细", icon: ScrollText },
+      { path: "/performance", label: "性能调优", description: "配置缓存、图片压缩等页面性能加速策略", icon: Gauge },
     ]
   },
   {
