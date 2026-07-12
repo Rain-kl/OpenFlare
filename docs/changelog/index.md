@@ -29,6 +29,7 @@ sidebar: false
 
 ### 修改
 
+- 调整数据库自动清理设置文案，明确自动清理按 ClickHouse 表 TTL 执行，并提示访问日志 90 天、其它观测数据 30 天的保留下限。
 - 重构并清理了分析仓统计层 `node_access_log_stats.go` 和 `openflare_access_log.go` 之间的重复模型，使用底层 type aliases 简化了类型转换和拷贝逻辑。
 - 配置快照、OpenResty 渲染、Tunnel 与 Uptime Kuma 监控改为从 Zone 域名绑定读取域名 and 证书，移除对反代路由旧域名/证书字段的运行时回退。
 - 管理端网站入口改为 Zone 列表与 `/websites/:zoneId` 详情（概览 / 域名 / 路由 / 证书 / 设置），反代路由通过 Zone 域名选择器绑定。

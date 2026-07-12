@@ -53,17 +53,17 @@ const cleanupTargets: Array<{
   {
     target: "node_access_logs",
     label: "访问日志",
-    description: "清理 node_access_logs，影响访问明细与 IP 汇总。",
+    description: "清理 node_access_logs，影响访问明细与 IP 汇总；表 TTL 为 90 天。",
   },
   {
     target: "node_metric_snapshots",
     label: "性能快照",
-    description: "清理 node_metric_snapshots，影响节点资源趋势。",
+    description: "清理 node_metric_snapshots，影响节点资源趋势；表 TTL 为 30 天。",
   },
   {
     target: "node_request_reports",
     label: "请求聚合",
-    description: "清理 node_request_reports，影响请求量与错误量统计。",
+    description: "清理 node_request_reports，影响请求量与错误量统计；表 TTL 为 30 天。",
   },
 ]
 
@@ -540,7 +540,9 @@ export function OpenFlareOpsSettings() {
           <CardHeader className="flex flex-row items-center justify-between gap-4">
             <div>
               <CardTitle className="text-base">数据库自动清理</CardTitle>
-              <CardDescription>每天凌晨 3 点清理超出保留期的观测数据。</CardDescription>
+              <CardDescription>
+                每天凌晨 3 点物化 ClickHouse 表 TTL；访问日志至少保留 90 天，其它观测数据至少保留 30 天。
+              </CardDescription>
             </div>
             <Button
               size="sm"
@@ -556,19 +558,26 @@ export function OpenFlareOpsSettings() {
               checked={fields.database_auto_cleanup_enabled}
               onChange={(value) => updateField("database_auto_cleanup_enabled", value)}
             />
-            <FieldInput
-              label="保留天数"
-              value={fields.database_auto_cleanup_retention_days}
-              type="number"
-              onChange={(value) => updateField("database_auto_cleanup_retention_days", value)}
-            />
+            <div className="space-y-1.5">
+              <FieldInput
+                label="期望保留天数"
+                value={fields.database_auto_cleanup_retention_days}
+                type="number"
+                onChange={(value) => updateField("database_auto_cleanup_retention_days", value)}
+              />
+              <p className="text-xs text-muted-foreground">
+                小于表 TTL 时自动按下限执行：访问日志 90 天，其它观测数据 30 天。
+              </p>
+            </div>
           </CardContent>
         </Card>
 
         <Card className="border-dashed shadow-none">
           <CardHeader>
             <CardTitle className="text-base">手动数据清理</CardTitle>
-            <CardDescription>保留天数留空时将删除该类数据的全部历史记录。</CardDescription>
+            <CardDescription>
+              按表 TTL 清理；输入天数不能小于对应表 TTL，留空时将删除该类数据的全部历史记录。
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             {cleanupTargets.map((item) => (
@@ -617,7 +626,7 @@ export function OpenFlareOpsSettings() {
           <AlertDialogHeader>
             <AlertDialogTitle>清理{cleanupTarget?.label}</AlertDialogTitle>
             <AlertDialogDescription>
-              输入保留天数后仅删除超出范围的数据；留空则删除全部历史记录，操作不可恢复。
+              输入保留天数后会按该表 TTL 物化过期数据；小于表 TTL 的天数会被拒绝。留空则删除全部历史记录，操作不可恢复。
             </AlertDialogDescription>
           </AlertDialogHeader>
           <FieldInput
