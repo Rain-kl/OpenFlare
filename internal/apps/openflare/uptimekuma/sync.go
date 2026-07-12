@@ -10,7 +10,6 @@ import (
 	"strings"
 	"sync/atomic"
 
-	"github.com/Rain-kl/Wavelet/internal/apps/openflare/routeidentity"
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"github.com/Rain-kl/Wavelet/internal/repository"
 )
@@ -123,7 +122,7 @@ func SyncToUptimeKuma(ctx context.Context) error {
 	}
 
 	existingOpenFlareMonitors := filterOpenFlareMonitors(client.GetMonitorList(), openFlareTagID)
-	expectedSitesMap := syncRouteMonitors(client, expectedRoutes, existingOpenFlareMonitors, openFlareTagID, config)
+	expectedSitesMap := syncRouteMonitors(ctx, client, expectedRoutes, existingOpenFlareMonitors, openFlareTagID, config)
 	removeStaleMonitors(client, existingOpenFlareMonitors, expectedSitesMap)
 
 	return nil
@@ -224,12 +223,18 @@ func filterOpenFlareMonitors(monitors map[string]Monitor, openFlareTagID int) ma
 	return existingOpenFlareMonitors
 }
 
-func routeMonitorURL(route *model.ProxyRoute) (string, error) {
-	domains, err := routeidentity.DecodeDomains(route.Domains, route.Domain)
+func routeMonitorURL(ctx context.Context, route *model.ProxyRoute) (string, error) {
+	if route == nil {
+		return "", fmt.Errorf("proxy route is nil")
+	}
+	domains, err := model.ListZoneDomainsByRouteID(ctx, route.ID)
 	if err != nil {
 		return "", err
 	}
-	domain := domains[0]
+	if len(domains) == 0 {
+		return "", fmt.Errorf("route %s has no zone domains", route.SiteName)
+	}
+	domain := domains[0].Domain
 	if route.EnableHTTPS {
 		return "https://" + domain, nil
 	}

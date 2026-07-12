@@ -9,8 +9,8 @@ import (
 func TestRenderWAFConfigIncludesAllRouteSiteNames(t *testing.T) {
 	doc := Document{
 		Routes: []Route{
-			{ID: 1, SiteName: "", Domain: "Example.COM", Domains: []string{"example.com", "www.example.com"}},
-			{ID: 2, SiteName: "named-site", Domain: "other.example.com"},
+			{ID: 1, SiteName: "example.com", Domains: []string{"example.com", "www.example.com"}},
+			{ID: 2, SiteName: "named-site", Domains: []string{"other.example.com"}},
 		},
 		WAF: WAFDocument{
 			RuleGroups: []WAFRuleGroup{
@@ -293,7 +293,8 @@ func TestRenderRouteConfigPagesWithoutSPAFallbackServesRoot(t *testing.T) {
 		Routes: []Route{
 			{
 				ID:           1,
-				Domain:       "speedtest.example.com",
+				SiteName:     "speedtest.example.com",
+				Domains:      []string{"speedtest.example.com"},
 				UpstreamType: "pages",
 				EnableHTTPS:  false,
 				PagesDeployment: &PagesDeployment{
@@ -325,7 +326,8 @@ func TestRenderRouteConfigPagesWithSPAFallbackServesRoot(t *testing.T) {
 		Routes: []Route{
 			{
 				ID:           1,
-				Domain:       "speedtest.example.com",
+				SiteName:     "speedtest.example.com",
+				Domains:      []string{"speedtest.example.com"},
 				UpstreamType: "pages",
 				EnableHTTPS:  false,
 				PagesDeployment: &PagesDeployment{

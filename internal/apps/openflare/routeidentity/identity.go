@@ -10,8 +10,6 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-
-	"github.com/Rain-kl/Wavelet/internal/model"
 )
 
 // NormalizeDomains lowercases, deduplicates, and validates proxy route domains.
@@ -38,7 +36,8 @@ func NormalizeDomains(rawDomains []string) ([]string, error) {
 	return normalized, nil
 }
 
-// DecodeDomains parses stored domains JSON or falls back to a single domain value.
+// DecodeDomains parses legacy route domain fields for the explicit migration
+// command. Runtime consumers must read ZoneDomain bindings instead.
 func DecodeDomains(raw string, fallbackDomain string) ([]string, error) {
 	text := strings.TrimSpace(raw)
 	if text == "" {
@@ -49,28 +48,4 @@ func DecodeDomains(raw string, fallbackDomain string) ([]string, error) {
 		return nil, errors.New("domains payload is invalid")
 	}
 	return NormalizeDomains(domains)
-}
-
-// ResolveSiteName returns the runtime site identifier for a proxy route.
-func ResolveSiteName(route *model.ProxyRoute, raw, primaryDomain string) string {
-	siteName := strings.TrimSpace(raw)
-	if siteName != "" {
-		return siteName
-	}
-	if route != nil && strings.TrimSpace(route.SiteName) != "" {
-		return strings.TrimSpace(route.SiteName)
-	}
-	return strings.TrimSpace(primaryDomain)
-}
-
-// ResolveFromRoute decodes domains and resolves the site name for a stored route.
-func ResolveFromRoute(route *model.ProxyRoute) (siteName string, domains []string, err error) {
-	if route == nil {
-		return "", nil, errors.New("proxy route is nil")
-	}
-	domains, err = DecodeDomains(route.Domains, route.Domain)
-	if err != nil {
-		return "", nil, err
-	}
-	return ResolveSiteName(route, route.SiteName, domains[0]), domains, nil
 }

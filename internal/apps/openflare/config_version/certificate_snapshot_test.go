@@ -42,7 +42,7 @@ func TestBuildCertificateSupportFilesDecryptsSealedPrivateKey(t *testing.T) {
 	require.NoError(t, err)
 
 	files, err := buildCertificateSupportFiles(ctx, []snapshotRoute{
-		{CertIDs: []uint{certificate.ID}},
+		{DomainCertIDs: []uint{certificate.ID}},
 	})
 	require.NoError(t, err)
 	require.Len(t, files, 2)
@@ -58,13 +58,51 @@ func TestBuildCertificateSupportFilesDecryptsSealedPrivateKey(t *testing.T) {
 	assert.Equal(t, normalizePEM(strings.TrimSpace(keyPEM)), keyContent)
 }
 
+func TestBuildSnapshotReadsZoneDomainCertificates(t *testing.T) {
+	cleanup := setupConfigVersionTestDB(t)
+	defer cleanup()
+	ctx := context.Background()
+	require.NoError(t, db.DB(ctx).AutoMigrate(&model.TLSCertificate{}))
+
+	oldSecret := config.Config.App.SessionSecret
+	config.Config.App.SessionSecret = "test-session-secret-for-zone-domain-snapshots"
+	t.Cleanup(func() { config.Config.App.SessionSecret = oldSecret })
+
+	firstCertPEM, firstKeyPEM := generateTestCertKeyPairForSnapshotForDomain(t, "one.example.com")
+	first, err := oftls.CreateCertificate(ctx, oftls.CertificateInput{Name: "first", CertPEM: firstCertPEM, KeyPEM: firstKeyPEM})
+	require.NoError(t, err)
+	secondCertPEM, secondKeyPEM := generateTestCertKeyPairForSnapshotForDomain(t, "two.example.com")
+	second, err := oftls.CreateCertificate(ctx, oftls.CertificateInput{Name: "second", CertPEM: secondCertPEM, KeyPEM: secondKeyPEM})
+	require.NoError(t, err)
+
+	route := &model.ProxyRoute{SiteName: "tls-site", Domain: "legacy.invalid", OriginURL: "http://origin:8080", Upstreams: `["http://origin:8080"]`, Enabled: true, EnableHTTPS: true}
+	require.NoError(t, model.CreateProxyRouteRecord(ctx, route))
+	zone := &model.Zone{Domain: "example.com"}
+	require.NoError(t, db.DB(ctx).Create(zone).Error)
+	require.NoError(t, db.DB(ctx).Create(&model.ZoneDomain{ZoneID: zone.ID, ProxyRouteID: &route.ID, Domain: "one.example.com", CertID: &first.ID}).Error)
+	require.NoError(t, db.DB(ctx).Create(&model.ZoneDomain{ZoneID: zone.ID, ProxyRouteID: &route.ID, Domain: "two.example.com", CertID: &second.ID}).Error)
+
+	bundle, err := buildCurrentConfigBundle(ctx, true)
+	require.NoError(t, err)
+	require.Len(t, bundle.SnapshotRoutes, 1)
+	assert.Equal(t, []string{"one.example.com", "two.example.com"}, bundle.SnapshotRoutes[0].Domains)
+	assert.Equal(t, []uint{first.ID, second.ID}, bundle.SnapshotRoutes[0].DomainCertIDs)
+	assert.Contains(t, bundle.RouteConfig, "server_name one.example.com;")
+	assert.Contains(t, bundle.RouteConfig, "server_name two.example.com;")
+}
+
 func generateTestCertKeyPairForSnapshot(t *testing.T) (certPEM string, keyPEM string) {
+	return generateTestCertKeyPairForSnapshotForDomain(t, "test.example.com")
+}
+
+func generateTestCertKeyPairForSnapshotForDomain(t *testing.T, domain string) (certPEM string, keyPEM string) {
 	t.Helper()
 	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
 	require.NoError(t, err)
 	template := x509.Certificate{
 		SerialNumber: big.NewInt(1),
-		Subject:      pkix.Name{CommonName: "test.example.com"},
+		Subject:      pkix.Name{CommonName: domain},
+		DNSNames:     []string{domain},
 		NotBefore:    time.Now().Add(-time.Hour),
 		NotAfter:     time.Now().Add(24 * time.Hour),
 		KeyUsage:     x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,

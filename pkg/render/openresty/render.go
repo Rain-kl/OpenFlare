@@ -89,7 +89,7 @@ func RenderRouteConfig(doc Document, certificateFiles []SupportFile) (string, er
 	for _, route := range doc.Routes {
 		domains := normalizedRouteDomains(route)
 		if len(domains) == 0 {
-			return "", fmt.Errorf("route %s domains are invalid", route.Domain)
+			return "", fmt.Errorf("route %s domains are invalid", route.SiteName)
 		}
 		serverNames := renderServerNames(domains)
 		displayName := resolveRouteSiteName(route)
@@ -642,7 +642,7 @@ func resolveRouteSiteName(route Route) string {
 	if domains := normalizedRouteDomains(route); len(domains) > 0 {
 		return domains[0]
 	}
-	return strings.TrimSpace(route.Domain)
+	return ""
 }
 
 func buildRouteUpstreamName(route Route) string {
@@ -708,24 +708,13 @@ func renderDefaultServerBlock(statusCode int, http3Enabled bool) string {
 }
 
 func normalizedRouteDomains(route Route) []string {
-	if len(route.Domains) > 0 {
-		return route.Domains
-	}
-	if strings.TrimSpace(route.Domain) == "" {
-		return nil
-	}
-	return []string{strings.TrimSpace(route.Domain)}
+	return route.Domains
 }
 
-func normalizeCertIDs(primaryCertID *uint, certIDs []uint) []uint {
-	candidates := make([]uint, 0, len(certIDs)+1)
-	if primaryCertID != nil && *primaryCertID != 0 {
-		candidates = append(candidates, *primaryCertID)
-	}
-	candidates = append(candidates, certIDs...)
-	seen := make(map[uint]struct{}, len(candidates))
-	normalized := make([]uint, 0, len(candidates))
-	for _, id := range candidates {
+func certificateIDsFromDomainCertIDs(domainCertIDs []uint) []uint {
+	seen := make(map[uint]struct{}, len(domainCertIDs))
+	normalized := make([]uint, 0, len(domainCertIDs))
+	for _, id := range domainCertIDs {
 		if id == 0 {
 			continue
 		}
@@ -736,27 +725,6 @@ func normalizeCertIDs(primaryCertID *uint, certIDs []uint) []uint {
 		normalized = append(normalized, id)
 	}
 	return normalized
-}
-
-func normalizeDomainCertIDs(domains []string, certIDs []uint, domainCertIDs []uint) []uint {
-	if len(domainCertIDs) > 0 {
-		normalized := make([]uint, len(domainCertIDs))
-		copy(normalized, domainCertIDs)
-		return normalized
-	}
-	if len(certIDs) == 1 {
-		normalized := make([]uint, len(domains))
-		for index := range normalized {
-			normalized[index] = certIDs[0]
-		}
-		return normalized
-	}
-	if len(certIDs) == len(domains) {
-		normalized := make([]uint, len(certIDs))
-		copy(normalized, certIDs)
-		return normalized
-	}
-	return []uint{}
 }
 
 func certificatesByID(files []SupportFile) map[uint]string {

@@ -19,6 +19,26 @@ type customHeaderInput struct {
 	Value string `json:"value"`
 }
 
+func normalizeSnapshotDomains(domains []string) ([]string, error) {
+	normalized := make([]string, 0, len(domains))
+	seen := make(map[string]struct{}, len(domains))
+	for _, raw := range domains {
+		domain := strings.ToLower(strings.TrimSpace(raw))
+		if domain == "" || strings.Contains(domain, "://") || strings.Contains(domain, "/") {
+			return nil, fmt.Errorf("domains payload is invalid")
+		}
+		if _, ok := seen[domain]; ok {
+			continue
+		}
+		seen[domain] = struct{}{}
+		normalized = append(normalized, domain)
+	}
+	if len(normalized) == 0 {
+		return nil, fmt.Errorf("domain is required")
+	}
+	return normalized, nil
+}
+
 func isUniqueConstraintError(err error) bool {
 	if err == nil {
 		return false
@@ -92,92 +112,6 @@ func decodeStoredCacheRules(raw string) ([]string, error) {
 		normalized = append(normalized, item)
 	}
 	return normalized, nil
-}
-
-func decodeStoredCertIDs(raw string, fallbackCertID *uint) ([]uint, error) {
-	text := strings.TrimSpace(raw)
-	if text == "" {
-		if fallbackCertID == nil || *fallbackCertID == 0 {
-			return []uint{}, nil
-		}
-		return []uint{*fallbackCertID}, nil
-	}
-	var certIDs []uint
-	if err := json.Unmarshal([]byte(text), &certIDs); err != nil {
-		return nil, fmt.Errorf("cert_ids payload is invalid")
-	}
-	normalized := make([]uint, 0, len(certIDs))
-	seen := make(map[uint]struct{}, len(certIDs))
-	for _, certID := range certIDs {
-		if certID == 0 {
-			continue
-		}
-		if _, ok := seen[certID]; ok {
-			continue
-		}
-		seen[certID] = struct{}{}
-		normalized = append(normalized, certID)
-	}
-	if len(normalized) == 0 && fallbackCertID != nil && *fallbackCertID != 0 {
-		return []uint{*fallbackCertID}, nil
-	}
-	return normalized, nil
-}
-
-func resolveDomainCertIDs(domains []string, certIDs []uint, rawDomainCertIDs string) ([]uint, error) {
-	text := strings.TrimSpace(rawDomainCertIDs)
-	if text != "" {
-		var domainCertIDs []uint
-		if err := json.Unmarshal([]byte(text), &domainCertIDs); err != nil {
-			return nil, fmt.Errorf("domain_cert_ids payload is invalid")
-		}
-		if len(domains) > 0 && len(domainCertIDs) != len(domains) {
-			return nil, fmt.Errorf("domain_cert_ids length is invalid")
-		}
-		return domainCertIDs, nil
-	}
-	if len(certIDs) == 0 {
-		return []uint{}, nil
-	}
-	if len(certIDs) == 1 {
-		result := make([]uint, len(domains))
-		for index := range result {
-			result[index] = certIDs[0]
-		}
-		return result, nil
-	}
-	if len(certIDs) == len(domains) {
-		result := make([]uint, len(certIDs))
-		copy(result, certIDs)
-		return result, nil
-	}
-	return []uint{}, nil
-}
-
-func mustDecodeCertIDs(route *model.ProxyRoute) []uint {
-	if route == nil {
-		return []uint{}
-	}
-	certIDs, err := decodeStoredCertIDs(route.CertIDs, route.CertID)
-	if err != nil {
-		return []uint{}
-	}
-	return certIDs
-}
-
-func mustDecodeDomainCertIDs(route *model.ProxyRoute, domains []string) []uint {
-	if route == nil {
-		return []uint{}
-	}
-	certIDs, err := decodeStoredCertIDs(route.CertIDs, route.CertID)
-	if err != nil {
-		return []uint{}
-	}
-	domainCertIDs, err := resolveDomainCertIDs(domains, certIDs, route.DomainCertIDs)
-	if err != nil {
-		return []uint{}
-	}
-	return domainCertIDs
 }
 
 func normalizeUpstreamType(raw string) string {

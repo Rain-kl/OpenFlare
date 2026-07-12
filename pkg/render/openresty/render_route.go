@@ -34,7 +34,7 @@ func validateRouteCertificates(route Route, displayName string, certIDs []uint, 
 		}
 		certPEM, ok := certificates[certID]
 		if !ok {
-			return fmt.Errorf("route %s certificate %d does not exist", route.Domain, certID)
+			return fmt.Errorf("route %s certificate %d does not exist", route.SiteName, certID)
 		}
 		if err := validateCertificateCoverage(certPEM, assignedDomains); err != nil {
 			return fmt.Errorf("site %s certificate validation failed: %w", displayName, err)
@@ -105,16 +105,16 @@ func renderProxyRouteHTTPS(
 
 func renderPagesRoute(builder *strings.Builder, route Route, displayName, serverNames string, certificates map[uint]string, limitConfig routeLimitConfig, powEnabled bool, cfg ConfigSnapshot) error {
 	if route.PagesDeployment == nil {
-		return fmt.Errorf("route %s pages deployment is missing", route.Domain)
+		return fmt.Errorf("route %s pages deployment is missing", route.SiteName)
 	}
 	if !route.EnableHTTPS {
 		builder.WriteString(renderHTTPPagesServer(serverNames, displayName, route.PagesDeployment, limitConfig, powEnabled, route.BasicAuthEnabled, route.BasicAuthUsername, route.BasicAuthPassword))
 		return nil
 	}
-	certIDs := normalizeCertIDs(route.CertID, route.CertIDs)
-	domainCertIDs := normalizeDomainCertIDs(normalizedRouteDomains(route), certIDs, route.DomainCertIDs)
+	certIDs := certificateIDsFromDomainCertIDs(route.DomainCertIDs)
+	domainCertIDs := route.DomainCertIDs
 	if len(certIDs) == 0 {
-		return fmt.Errorf("路由 %s 未配置证书", route.Domain)
+		return fmt.Errorf("路由 %s 未配置证书", route.SiteName)
 	}
 	partition := partitionRouteDomainsByCert(normalizedRouteDomains(route), certIDs, domainCertIDs)
 	if err := validateRouteCertificates(route, displayName, certIDs, partition, certificates); err != nil {
@@ -137,10 +137,10 @@ func renderProxyRoute(builder *strings.Builder, route Route, displayName, server
 		builder.WriteString(renderHTTPProxyServer(serverNames, displayName, route.OriginURL, route.OriginHost, route.CustomHeaders, cacheConfig, limitConfig, upstreamConfig, powEnabled, route.BasicAuthEnabled, route.BasicAuthUsername, route.BasicAuthPassword, cfg))
 		return nil
 	}
-	certIDs := normalizeCertIDs(route.CertID, route.CertIDs)
-	domainCertIDs := normalizeDomainCertIDs(normalizedRouteDomains(route), certIDs, route.DomainCertIDs)
+	certIDs := certificateIDsFromDomainCertIDs(route.DomainCertIDs)
+	domainCertIDs := route.DomainCertIDs
 	if len(certIDs) == 0 {
-		return fmt.Errorf("路由 %s 未配置证书", route.Domain)
+		return fmt.Errorf("路由 %s 未配置证书", route.SiteName)
 	}
 	partition := partitionRouteDomainsByCert(normalizedRouteDomains(route), certIDs, domainCertIDs)
 	if err := validateRouteCertificates(route, displayName, certIDs, partition, certificates); err != nil {

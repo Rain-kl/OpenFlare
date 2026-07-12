@@ -4,6 +4,7 @@
 package uptimekuma
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -69,11 +70,11 @@ func connectAndLoginUptimeKuma(kumaURL, kumaUsername, kumaPassword string) (*Soc
 	return client, nil
 }
 
-func syncRouteMonitors(client *SocketIOClient, expectedRoutes []*model.ProxyRoute, existingMonitors map[string]Monitor, openFlareTagID int, config *kumaConfig) map[string]bool {
+func syncRouteMonitors(ctx context.Context, client *SocketIOClient, expectedRoutes []*model.ProxyRoute, existingMonitors map[string]Monitor, openFlareTagID int, config *kumaConfig) map[string]bool {
 	expectedSitesMap := make(map[string]bool, len(expectedRoutes))
 	for _, route := range expectedRoutes {
 		expectedSitesMap[route.SiteName] = true
-		targetURL, urlErr := routeMonitorURL(route)
+		targetURL, urlErr := routeMonitorURL(ctx, route)
 		if urlErr != nil {
 			slog.Error("Failed to resolve monitor URL", "name", route.SiteName, "error", urlErr)
 			continue

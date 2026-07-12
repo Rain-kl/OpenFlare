@@ -135,15 +135,12 @@ func DefaultPoWConfig() PoWConfig {
 type Route struct {
 	ID                 uint             `json:"id,omitempty"`
 	SiteName           string           `json:"site_name,omitempty"`
-	Domain             string           `json:"domain"`
 	Domains            []string         `json:"domains,omitempty"`
 	OriginURL          string           `json:"origin_url"`
 	OriginHost         string           `json:"origin_host,omitempty"`
 	Upstreams          []string         `json:"upstreams,omitempty"`
 	Enabled            bool             `json:"enabled"`
 	EnableHTTPS        bool             `json:"enable_https"`
-	CertID             *uint            `json:"cert_id,omitempty"`
-	CertIDs            []uint           `json:"cert_ids,omitempty"`
 	DomainCertIDs      []uint           `json:"domain_cert_ids,omitempty"`
 	RedirectHTTP       bool             `json:"redirect_http"`
 	LimitConnPerServer int              `json:"limit_conn_per_server,omitempty"`

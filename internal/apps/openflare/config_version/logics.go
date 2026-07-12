@@ -14,7 +14,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Rain-kl/Wavelet/internal/apps/openflare/routeidentity"
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/websocket"
 	"github.com/Rain-kl/Wavelet/internal/model"
 	pkgprotocol "github.com/Rain-kl/Wavelet/pkg/protocol"
@@ -333,23 +332,10 @@ func normalizeSnapshotRoutes(routes []snapshotRoute) []snapshotRoute {
 		return []snapshotRoute{}
 	}
 	for index := range routes {
-		normalizedDomains, err := routeidentity.DecodeDomains("", routes[index].Domain)
-		if len(routes[index].Domains) > 0 {
-			normalizedDomains, err = routeidentity.NormalizeDomains(routes[index].Domains)
-		}
+		normalizedDomains, err := normalizeSnapshotDomains(routes[index].Domains)
 		if err == nil && len(normalizedDomains) > 0 {
 			routes[index].Domains = normalizedDomains
-			routes[index].Domain = normalizedDomains[0]
-			routes[index].SiteName = routeidentity.ResolveSiteName(nil, routes[index].SiteName, normalizedDomains[0])
-		}
-		normalizedCertIDs, primaryCertID, certErr := normalizeSnapshotCertificateIDs(routes[index].CertID, routes[index].CertIDs)
-		if certErr == nil {
-			routes[index].CertID = primaryCertID
-			routes[index].CertIDs = normalizedCertIDs
-		}
-		normalizedDomainCertIDs, domainCertErr := resolveDomainCertIDs(routes[index].Domains, routes[index].CertIDs, "")
-		if domainCertErr == nil && len(routes[index].DomainCertIDs) == 0 {
-			routes[index].DomainCertIDs = normalizedDomainCertIDs
+			routes[index].SiteName = strings.TrimSpace(routes[index].SiteName)
 		}
 		normalizedUpstreams, upstreamErr := normalizeUpstreams(routes[index].OriginURL, routes[index].Upstreams)
 		if upstreamErr == nil {
@@ -378,7 +364,6 @@ func flattenSnapshotRoutesByDomain(routes []snapshotRoute) map[string]snapshotRo
 	for _, route := range normalizeSnapshotRoutes(routes) {
 		for _, domain := range route.Domains {
 			item := route
-			item.Domain = domain
 			domainMap[domain] = item
 		}
 	}
@@ -398,12 +383,11 @@ func snapshotRouteScalarsEqual(left, right snapshotRoute) bool {
 		snapshotRouteOriginEqual(left, right) &&
 		snapshotRoutePolicyEqual(left, right) &&
 		snapshotRouteTunnelEqual(left, right) &&
-		uintSliceEqual(left.CertIDs, right.CertIDs) &&
 		uintSliceEqual(left.DomainCertIDs, right.DomainCertIDs)
 }
 
 func snapshotRouteIdentityEqual(left, right snapshotRoute) bool {
-	return left.SiteName == right.SiteName && left.Domain == right.Domain
+	return left.SiteName == right.SiteName
 }
 
 func snapshotRouteOriginEqual(left, right snapshotRoute) bool {
@@ -461,31 +445,6 @@ func snapshotWAFConfigEqual(left snapshotWAFDocument, right snapshotWAFDocument)
 		return false
 	}
 	return string(leftJSON) == string(rightJSON)
-}
-
-func normalizeSnapshotCertificateIDs(primaryCertID *uint, certIDs []uint) ([]uint, *uint, error) {
-	candidates := make([]uint, 0, len(certIDs)+1)
-	if primaryCertID != nil && *primaryCertID != 0 {
-		candidates = append(candidates, *primaryCertID)
-	}
-	candidates = append(candidates, certIDs...)
-	normalized := make([]uint, 0, len(candidates))
-	seen := make(map[uint]struct{}, len(candidates))
-	for _, certID := range candidates {
-		if certID == 0 {
-			continue
-		}
-		if _, ok := seen[certID]; ok {
-			continue
-		}
-		seen[certID] = struct{}{}
-		normalized = append(normalized, certID)
-	}
-	var normalizedPrimary *uint
-	if len(normalized) > 0 {
-		normalizedPrimary = &normalized[0]
-	}
-	return normalized, normalizedPrimary, nil
 }
 
 func buildInitialOpenRestyOptionDiffs(current openRestyConfigSnapshot) []ConfigOptionDiffItem {

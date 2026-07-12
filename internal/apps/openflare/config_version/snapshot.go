@@ -11,7 +11,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/Rain-kl/Wavelet/internal/apps/openflare/routeidentity"
 	oftls "github.com/Rain-kl/Wavelet/internal/apps/openflare/tls"
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/waf"
 	"github.com/Rain-kl/Wavelet/internal/model"
@@ -40,15 +39,12 @@ const (
 type snapshotRoute struct {
 	ID                 uint                             `json:"id,omitempty"`
 	SiteName           string                           `json:"site_name,omitempty"`
-	Domain             string                           `json:"domain"`
 	Domains            []string                         `json:"domains,omitempty"`
 	OriginURL          string                           `json:"origin_url"`
 	OriginHost         string                           `json:"origin_host,omitempty"`
 	Upstreams          []string                         `json:"upstreams,omitempty"`
 	Enabled            bool                             `json:"enabled"`
 	EnableHTTPS        bool                             `json:"enable_https"`
-	CertID             *uint                            `json:"cert_id,omitempty"`
-	CertIDs            []uint                           `json:"cert_ids,omitempty"`
 	DomainCertIDs      []uint                           `json:"domain_cert_ids,omitempty"`
 	RedirectHTTP       bool                             `json:"redirect_http"`
 	LimitConnPerServer int                              `json:"limit_conn_per_server,omitempty"`
@@ -231,19 +227,32 @@ func buildCurrentConfigBundle(ctx context.Context, requireRoutes bool) (*configB
 func buildSnapshotRoutes(ctx context.Context, routes []*model.ProxyRoute) ([]snapshotRoute, error) {
 	items := make([]snapshotRoute, 0, len(routes))
 	for _, route := range routes {
-		domains, err := routeidentity.DecodeDomains(route.Domains, route.Domain)
+		zoneDomains, err := model.ListZoneDomainsByRouteID(ctx, route.ID)
 		if err != nil {
-			return nil, fmt.Errorf("route %s domains are invalid", route.Domain)
+			return nil, err
+		}
+		if len(zoneDomains) == 0 {
+			return nil, fmt.Errorf("route %s has no zone domains", route.SiteName)
+		}
+		domains := make([]string, 0, len(zoneDomains))
+		domainCertIDs := make([]uint, 0, len(zoneDomains))
+		for _, zoneDomain := range zoneDomains {
+			domains = append(domains, zoneDomain.Domain)
+			if zoneDomain.CertID == nil {
+				domainCertIDs = append(domainCertIDs, 0)
+				continue
+			}
+			domainCertIDs = append(domainCertIDs, *zoneDomain.CertID)
 		}
 		customHeaders, err := decodeStoredCustomHeaders(route.CustomHeaders)
 		if err != nil {
-			return nil, fmt.Errorf("路由 %s 自定义请求头无效", route.Domain)
+			return nil, fmt.Errorf("路由 %s 自定义请求头无效", route.SiteName)
 		}
 		upstreamType := normalizeUpstreamType(route.UpstreamType)
 		originURL := route.OriginURL
 		upstreams, err := decodeStoredUpstreams(route.Upstreams, route.OriginURL)
 		if err != nil {
-			return nil, fmt.Errorf("路由 %s 上游配置无效", route.Domain)
+			return nil, fmt.Errorf("路由 %s 上游配置无效", route.SiteName)
 		}
 		var tunnelNodeID *uint
 		var tunnelTargetAddr string
@@ -265,21 +274,18 @@ func buildSnapshotRoutes(ctx context.Context, routes []*model.ProxyRoute) ([]sna
 		}
 		cacheRules, err := decodeStoredCacheRules(route.CacheRules)
 		if err != nil {
-			return nil, fmt.Errorf("路由 %s 缓存规则无效", route.Domain)
+			return nil, fmt.Errorf("路由 %s 缓存规则无效", route.SiteName)
 		}
 		items = append(items, snapshotRoute{
 			ID:                 route.ID,
-			SiteName:           routeidentity.ResolveSiteName(route, route.SiteName, domains[0]),
-			Domain:             domains[0],
+			SiteName:           route.SiteName,
 			Domains:            domains,
 			OriginURL:          originURL,
 			OriginHost:         route.OriginHost,
 			Upstreams:          upstreams,
 			Enabled:            route.Enabled,
 			EnableHTTPS:        route.EnableHTTPS,
-			CertID:             route.CertID,
-			CertIDs:            mustDecodeCertIDs(route),
-			DomainCertIDs:      mustDecodeDomainCertIDs(route, domains),
+			DomainCertIDs:      domainCertIDs,
 			RedirectHTTP:       route.RedirectHTTP,
 			LimitConnPerServer: route.LimitConnPerServer,
 			LimitConnPerIP:     route.LimitConnPerIP,
@@ -344,11 +350,14 @@ func buildSnapshotWAFDocument(ctx context.Context, routes []*model.ProxyRoute) (
 		if route == nil {
 			continue
 		}
-		domains, domainErr := routeidentity.DecodeDomains(route.Domains, route.Domain)
+		domains, domainErr := model.ListZoneDomainsByRouteID(ctx, route.ID)
 		if domainErr != nil {
-			return snapshotWAFDocument{}, fmt.Errorf("route %s domains are invalid", route.Domain)
+			return snapshotWAFDocument{}, domainErr
 		}
-		enabledRouteSiteNames[route.ID] = routeidentity.ResolveSiteName(route, route.SiteName, domains[0])
+		if len(domains) == 0 {
+			return snapshotWAFDocument{}, fmt.Errorf("route %s has no zone domains", route.SiteName)
+		}
+		enabledRouteSiteNames[route.ID] = route.SiteName
 	}
 	rawBindings, err := model.ListOpenFlareWAFRuleGroupBindings(ctx)
 	if err != nil {
@@ -552,14 +561,6 @@ func normalizeProxyCachePathForSnapshot(cacheEnabled bool, cachePath string) str
 func buildCertificateSupportFiles(ctx context.Context, routes []snapshotRoute) ([]SupportFile, error) {
 	certIDSet := make(map[uint]struct{})
 	for _, route := range routes {
-		if route.CertID != nil && *route.CertID != 0 {
-			certIDSet[*route.CertID] = struct{}{}
-		}
-		for _, certID := range route.CertIDs {
-			if certID != 0 {
-				certIDSet[certID] = struct{}{}
-			}
-		}
 		for _, certID := range route.DomainCertIDs {
 			if certID != 0 {
 				certIDSet[certID] = struct{}{}

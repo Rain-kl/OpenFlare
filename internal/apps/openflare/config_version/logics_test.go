@@ -6,6 +6,7 @@ package config_version
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"testing"
 	"time"
 
@@ -27,6 +28,8 @@ func setupConfigVersionTestDB(t *testing.T) func() {
 	require.NoError(t, err)
 	require.NoError(t, sqliteDB.AutoMigrate(
 		&model.ProxyRoute{},
+		&model.Zone{},
+		&model.ZoneDomain{},
 		&model.ConfigVersion{},
 		&model.OpenFlareWAFRuleGroup{},
 		&model.OpenFlareWAFRuleGroupBinding{},
@@ -37,6 +40,19 @@ func setupConfigVersionTestDB(t *testing.T) func() {
 	db.SetDB(sqliteDB)
 	return func() {
 		db.SetDB(nil)
+	}
+}
+
+func createSnapshotZoneDomains(t *testing.T, ctx context.Context, route *model.ProxyRoute, domains ...string) {
+	t.Helper()
+	zone := &model.Zone{Domain: fmt.Sprintf("zone-%d.example", route.ID)}
+	require.NoError(t, db.DB(ctx).Create(zone).Error)
+	for _, domain := range domains {
+		require.NoError(t, db.DB(ctx).Create(&model.ZoneDomain{
+			ZoneID:       zone.ID,
+			ProxyRouteID: &route.ID,
+			Domain:       domain,
+		}).Error)
 	}
 }
 
@@ -87,6 +103,7 @@ func TestPublishConfigVersionCreatesVersion(t *testing.T) {
 		Enabled:   true,
 	}
 	require.NoError(t, model.CreateProxyRouteRecord(ctx, route))
+	createSnapshotZoneDomains(t, ctx, route, "publish.example.com")
 
 	version, err := PublishConfigVersion(ctx, "tester", false)
 	require.NoError(t, err)
@@ -103,7 +120,7 @@ func TestPublishConfigVersionCreatesVersion(t *testing.T) {
 	require.NoError(t, json.Unmarshal([]byte(version.SnapshotJSON), &snapshot))
 	require.Len(t, snapshot.Routes, 1)
 	assert.Equal(t, "publish-site", snapshot.Routes[0].SiteName)
-	assert.Equal(t, "publish.example.com", snapshot.Routes[0].Domain)
+	assert.Equal(t, []string{"publish.example.com"}, snapshot.Routes[0].Domains)
 
 	active, err := GetActiveConfigVersion(ctx)
 	require.NoError(t, err)
@@ -124,6 +141,7 @@ func TestBuildSnapshotWAFDocumentUsesNormalizedSiteNames(t *testing.T) {
 	ctx := context.Background()
 
 	route := &model.ProxyRoute{
+		SiteName:  "example.com",
 		Domain:    "Example.COM",
 		Domains:   `["example.com","www.example.com"]`,
 		OriginURL: "http://origin.example.com:8080",
@@ -131,6 +149,7 @@ func TestBuildSnapshotWAFDocumentUsesNormalizedSiteNames(t *testing.T) {
 		Enabled:   true,
 	}
 	require.NoError(t, model.CreateProxyRouteRecord(ctx, route))
+	createSnapshotZoneDomains(t, ctx, route, "example.com", "www.example.com")
 
 	require.NoError(t, waf.EnsureDefaultRuleGroup(ctx))
 	globalGroup, err := model.GetGlobalOpenFlareWAFRuleGroup(ctx)
@@ -184,6 +203,7 @@ func TestBuildCurrentConfigBundleEnablesGlobalPoWWithoutExplicitBinding(t *testi
 	ctx := context.Background()
 
 	route := &model.ProxyRoute{
+		SiteName:  "pow-global.example.com",
 		Domain:    "pow-global.example.com",
 		Domains:   `["pow-global.example.com"]`,
 		OriginURL: "http://origin.example.com:8080",
@@ -191,6 +211,7 @@ func TestBuildCurrentConfigBundleEnablesGlobalPoWWithoutExplicitBinding(t *testi
 		Enabled:   true,
 	}
 	require.NoError(t, model.CreateProxyRouteRecord(ctx, route))
+	createSnapshotZoneDomains(t, ctx, route, "pow-global.example.com")
 
 	require.NoError(t, waf.EnsureDefaultRuleGroup(ctx))
 	globalGroup, err := model.GetGlobalOpenFlareWAFRuleGroup(ctx)

@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/agent"
-	"github.com/Rain-kl/Wavelet/internal/apps/openflare/routeidentity"
 	"github.com/Rain-kl/Wavelet/internal/db"
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"gorm.io/gorm"
@@ -134,17 +133,17 @@ func GetTunnelConfig(ctx context.Context, node *model.OpenFlareNode) (*TunnelCon
 		if !route.Enabled {
 			continue
 		}
-		domains, decodeErr := routeidentity.DecodeDomains(route.Domains, route.Domain)
-		if decodeErr != nil {
+		zoneDomains, domainErr := model.ListZoneDomainsByRouteID(ctx, route.ID)
+		if domainErr != nil || len(zoneDomains) == 0 {
 			continue
 		}
 		localAddr, localPort := parseTunnelTargetAddr(route.TunnelTargetAddr)
 		proxies = append(proxies, ProxyEntry{
-			Name:          fmt.Sprintf("%s-%s", node.NodeID, sanitizeProxyName(domains[0])),
+			Name:          fmt.Sprintf("%s-%s", node.NodeID, sanitizeProxyName(zoneDomains[0].Domain)),
 			Type:          "http",
 			LocalAddr:     localAddr,
 			LocalPort:     localPort,
-			CustomDomains: domains,
+			CustomDomains: zoneDomainNames(zoneDomains),
 		})
 	}
 
@@ -154,6 +153,14 @@ func GetTunnelConfig(ctx context.Context, node *model.OpenFlareNode) (*TunnelCon
 		Relays:   relays,
 		Proxies:  proxies,
 	}, nil
+}
+
+func zoneDomainNames(domains []model.ZoneDomain) []string {
+	names := make([]string, 0, len(domains))
+	for _, domain := range domains {
+		names = append(names, domain.Domain)
+	}
+	return names
 }
 
 // ReportApplyLog records an apply result from OpenFlared.

@@ -122,12 +122,23 @@ func setupSyncTestDB(t *testing.T) func() {
 		DisableForeignKeyConstraintWhenMigrating: true,
 	})
 	require.NoError(t, err)
-	require.NoError(t, sqliteDB.AutoMigrate(&model.ProxyRoute{}, &model.SystemConfig{}))
+	require.NoError(t, sqliteDB.AutoMigrate(&model.ProxyRoute{}, &model.Zone{}, &model.ZoneDomain{}, &model.SystemConfig{}))
 
 	db.SetDB(sqliteDB)
 	return func() {
 		db.SetDB(nil)
 	}
+}
+
+func createRouteZoneDomain(t *testing.T, ctx context.Context, route *model.ProxyRoute, domain string) {
+	t.Helper()
+	zone := &model.Zone{Domain: fmt.Sprintf("zone-%d.example", route.ID)}
+	require.NoError(t, db.DB(ctx).Create(zone).Error)
+	require.NoError(t, db.DB(ctx).Create(&model.ZoneDomain{
+		ZoneID:       zone.ID,
+		ProxyRouteID: &route.ID,
+		Domain:       domain,
+	}).Error)
 }
 
 func backupUptimeKumaConfig(ctx context.Context) func() {
@@ -215,6 +226,9 @@ func TestSyncToUptimeKumaSuccess(t *testing.T) {
 	require.NoError(t, model.CreateProxyRouteRecord(ctx, routeA))
 	require.NoError(t, model.CreateProxyRouteRecord(ctx, routeB))
 	require.NoError(t, model.CreateProxyRouteRecord(ctx, routeC))
+	createRouteZoneDomain(t, ctx, routeA, "site-a.com")
+	createRouteZoneDomain(t, ctx, routeB, "site-b.com")
+	createRouteZoneDomain(t, ctx, routeC, "site-c.com")
 
 	monitorListJSON := `{
 		"99": {
@@ -318,6 +332,8 @@ func TestSyncToUptimeKumaSelectedScope(t *testing.T) {
 
 	require.NoError(t, model.CreateProxyRouteRecord(ctx, routeA))
 	require.NoError(t, model.CreateProxyRouteRecord(ctx, routeB))
+	createRouteZoneDomain(t, ctx, routeA, "site-a.com")
+	createRouteZoneDomain(t, ctx, routeB, "site-b.com")
 
 	mockSrv := newMockKumaServer(`{}`)
 	server := httptest.NewServer(mockSrv)
