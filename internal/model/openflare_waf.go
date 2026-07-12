@@ -30,7 +30,6 @@ type OpenFlareWAFRuleGroup struct {
 	RegionBlacklist   string    `json:"region_blacklist" gorm:"type:text;not null;default:'[]'"`
 	PoWEnabled        bool      `json:"pow_enabled" gorm:"column:pow_enabled;not null;default:false"`
 	PoWConfig         string    `json:"pow_config" gorm:"column:pow_config;type:text;not null;default:'{}'"`
-	Remark            string    `json:"remark" gorm:"size:255"`
 	CreatedAt         time.Time `json:"created_at" gorm:"autoCreateTime"`
 	UpdatedAt         time.Time `json:"updated_at" gorm:"autoUpdateTime"`
 }
@@ -57,7 +56,6 @@ type OpenFlareWAFIPGroup struct {
 	NextSyncAt              *time.Time `json:"next_sync_at" gorm:"index"`
 	LastSyncStatus          string     `json:"last_sync_status" gorm:"size:32;not null;default:''"`
 	LastSyncMessage         string     `json:"last_sync_message" gorm:"type:text;not null;default:''"`
-	Remark                  string     `json:"remark" gorm:"size:255"`
 	CreatedAt               time.Time  `json:"created_at" gorm:"autoCreateTime"`
 	UpdatedAt               time.Time  `json:"updated_at" gorm:"autoUpdateTime"`
 }
@@ -158,7 +156,6 @@ func UpdateOpenFlareWAFRuleGroup(ctx context.Context, group *OpenFlareWAFRuleGro
 		"region_blacklist":    group.RegionBlacklist,
 		"pow_enabled":         group.PoWEnabled,
 		"pow_config":          group.PoWConfig,
-		colRemark:             group.Remark,
 	}).Error
 }
 
@@ -242,7 +239,6 @@ func UpdateOpenFlareWAFIPGroup(ctx context.Context, group *OpenFlareWAFIPGroup) 
 		"next_sync_at":              group.NextSyncAt,
 		"last_sync_status":          group.LastSyncStatus,
 		"last_sync_message":         group.LastSyncMessage,
-		"remark":                    group.Remark,
 	}).Error
 }
 

@@ -155,7 +155,6 @@ type Route struct {
 	BasicAuthEnabled   bool             `json:"basic_auth_enabled,omitempty"`
 	BasicAuthUsername  string           `json:"basic_auth_username,omitempty"`
 	BasicAuthPassword  string           `json:"basic_auth_password,omitempty"`
-	Remark             string           `json:"remark,omitempty"`
 	UpstreamType       string           `json:"upstream_type,omitempty"`
 	PagesDeployment    *PagesDeployment `json:"pages_deployment,omitempty"`
 }

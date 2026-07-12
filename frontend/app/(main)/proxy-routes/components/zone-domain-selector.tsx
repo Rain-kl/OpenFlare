@@ -2,13 +2,16 @@
 
 import {useMemo, useState} from 'react';
 import Link from 'next/link';
-import {ExternalLink} from 'lucide-react';
+import {ExternalLink, Plus} from 'lucide-react';
 
 import {Badge} from '@/components/ui/badge';
+import {Button} from '@/components/ui/button';
 import {Checkbox} from '@/components/ui/checkbox';
 import {Input} from '@/components/ui/input';
 import {cn} from '@/lib/utils';
 import type {ZoneDomainItem, ZoneItem} from '@/lib/services/openflare';
+
+import {QuickCreateZoneDomainDialog} from '../../websites/components/quick-create-zone-domain-dialog';
 
 export interface ZoneDomainSelectorProps {
   value: number[];
@@ -19,6 +22,8 @@ export interface ZoneDomainSelectorProps {
   currentRouteId?: number | null;
   disabled?: boolean;
   className?: string;
+  /** Called after a domain is created so parent can refresh the catalog. */
+  onDomainCreated?: (domain: ZoneDomainItem) => void | Promise<void>;
 }
 
 export function ZoneDomainSelector({
@@ -29,17 +34,31 @@ export function ZoneDomainSelector({
   currentRouteId = null,
   disabled = false,
   className,
+  onDomainCreated,
 }: ZoneDomainSelectorProps) {
   const [keyword, setKeyword] = useState('');
+  const [createOpen, setCreateOpen] = useState(false);
   const selected = useMemo(() => new Set(value), [value]);
   const zoneMap = useMemo(
     () => new Map(zones.map((zone) => [zone.id, zone.domain])),
     [zones],
   );
 
+  /** Hide domains already bound to another route; keep unbound + current route. */
+  const availableDomains = useMemo(
+    () =>
+      domains.filter(
+        (domain) =>
+          domain.proxy_route_id == null || domain.proxy_route_id === currentRouteId,
+      ),
+    [currentRouteId, domains],
+  );
+
   const filtered = useMemo(() => {
     const normalized = keyword.trim().toLowerCase();
-    const list = [...domains].sort((a, b) => a.domain.localeCompare(b.domain));
+    const list = [...availableDomains].sort((a, b) =>
+      a.domain.localeCompare(b.domain),
+    );
     if (!normalized) {
       return list;
     }
@@ -51,16 +70,16 @@ export function ZoneDomainSelector({
         String(domain.id).includes(normalized)
       );
     });
-  }, [domains, keyword, zoneMap]);
+  }, [availableDomains, keyword, zoneMap]);
 
   const toggle = (domain: ZoneDomainItem) => {
     if (disabled) {
       return;
     }
-    const boundElsewhere =
+    if (
       domain.proxy_route_id != null &&
-      domain.proxy_route_id !== currentRouteId;
-    if (boundElsewhere) {
+      domain.proxy_route_id !== currentRouteId
+    ) {
       return;
     }
 
@@ -73,12 +92,26 @@ export function ZoneDomainSelector({
 
   return (
     <div className={cn('space-y-3', className)}>
-      <Input
-        value={keyword}
-        onChange={(event) => setKeyword(event.target.value)}
-        placeholder="搜索域名或 Zone…"
-        disabled={disabled}
-      />
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+        <Input
+          value={keyword}
+          onChange={(event) => setKeyword(event.target.value)}
+          placeholder="搜索域名或 Zone…"
+          disabled={disabled}
+          className="sm:flex-1"
+        />
+        <Button
+          type="button"
+          variant="secondary"
+          size="sm"
+          className="h-8 shrink-0 text-xs"
+          disabled={disabled}
+          onClick={() => setCreateOpen(true)}
+        >
+          <Plus className="mr-1 size-3.5" />
+          快捷新增域名
+        </Button>
+      </div>
 
       {filtered.length === 0 ? (
         <div className="rounded-lg border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
@@ -88,8 +121,10 @@ export function ZoneDomainSelector({
               <Link href="/websites" className="text-primary underline-offset-4 hover:underline">
                 网站管理
               </Link>{' '}
-              中添加 FQDN。
+              中添加 FQDN，或使用「快捷新增域名」。
             </>
+          ) : availableDomains.length === 0 ? (
+            '没有可绑定的域名（其余域名已绑定其他路由）。可用「快捷新增域名」创建。'
           ) : (
             '没有匹配的域名'
           )}
@@ -97,9 +132,6 @@ export function ZoneDomainSelector({
       ) : (
         <div className="max-h-72 space-y-1 overflow-y-auto rounded-lg border p-2">
           {filtered.map((domain) => {
-            const boundElsewhere =
-              domain.proxy_route_id != null &&
-              domain.proxy_route_id !== currentRouteId;
             const checked = selected.has(domain.id);
             const zoneRoot = zoneMap.get(domain.zone_id);
 
@@ -108,13 +140,12 @@ export function ZoneDomainSelector({
                 key={domain.id}
                 className={cn(
                   'flex cursor-pointer items-start gap-3 rounded-md px-2 py-2 transition-colors hover:bg-muted/60',
-                  boundElsewhere && 'cursor-not-allowed opacity-60',
-                  checked && !boundElsewhere && 'bg-muted/40',
+                  checked && 'bg-muted/40',
                 )}
               >
                 <Checkbox
                   checked={checked}
-                  disabled={disabled || boundElsewhere}
+                  disabled={disabled}
                   onCheckedChange={() => toggle(domain)}
                   className="mt-0.5"
                 />
@@ -130,11 +161,6 @@ export function ZoneDomainSelector({
                         无证书
                       </Badge>
                     )}
-                    {boundElsewhere ? (
-                      <Badge variant="outline" className="text-[10px]">
-                        路由 #{domain.proxy_route_id}
-                      </Badge>
-                    ) : null}
                   </span>
                   <span className="flex items-center gap-1 text-xs text-muted-foreground">
                     {zoneRoot ? (
@@ -156,6 +182,19 @@ export function ZoneDomainSelector({
           })}
         </div>
       )}
+
+      <QuickCreateZoneDomainDialog
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        zones={zones}
+        onCreated={async (domain) => {
+          // Auto-select the new domain for this route binding.
+          if (!value.includes(domain.id)) {
+            onChange([...value, domain.id].sort((a, b) => a - b));
+          }
+          await onDomainCreated?.(domain);
+        }}
+      />
     </div>
   );
 }

@@ -94,7 +94,6 @@ export default function WebsitesPage() {
                       <h2 className="truncate text-sm font-semibold">{zone.domain}</h2>
                       <p className="mt-2 text-xs text-muted-foreground">
                         {zone.domain_count ?? 0} 个域名
-                        {zone.remark ? ` · ${zone.remark}` : ''}
                       </p>
                     </div>
                     <Button

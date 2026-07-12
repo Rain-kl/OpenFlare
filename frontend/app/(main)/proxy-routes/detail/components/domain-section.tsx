@@ -91,7 +91,6 @@ export function DomainSection({ route, onRouteUpdate, onSavingChange }: DomainSe
           proxy_route_id: route.id,
           domain: bound.domain,
           cert_id: bound.cert_id,
-          remark: '',
           created_at: '',
           updated_at: '',
         };
@@ -177,10 +176,14 @@ export function DomainSection({ route, onRouteUpdate, onSavingChange }: DomainSe
                     zones={zonesQuery.data ?? []}
                     currentRouteId={route.id}
                     disabled={domainsQuery.isLoading}
+                    onDomainCreated={async () => {
+                      await domainsQuery.refetch();
+                    }}
                   />
                 </FormControl>
                 <FormDescription>
-                  仅选择绑定关系；证书与 FQDN 请到对应 Zone 详情页管理。
+                  从已登记域名中勾选绑定；可用「快捷新增域名」在 Zone 下创建 FQDN
+                  并自动勾选。
                 </FormDescription>
                 <FormMessage />
               </FormItem>

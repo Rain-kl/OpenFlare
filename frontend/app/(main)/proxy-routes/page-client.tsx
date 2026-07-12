@@ -72,7 +72,6 @@ export function ProxyRoutesPageClient() {
         getRoutePrimaryDomain(route),
         ...getRouteDomainNames(route),
         route.origin_url,
-        route.remark,
       ]
         .join(' ')
         .toLowerCase();

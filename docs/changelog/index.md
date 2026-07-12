@@ -37,6 +37,7 @@ sidebar: false
 ### 移除
 
 - 移除托管域名（managed-domains）管理 API 与前端 `WebsiteService`；请改用 Zone / Zone 域名 API。
+- 移除 Zone、Zone 域名、反代路由、WAF 规则组与 IP 组的备注字段（前后端与数据库列同步删除）；证书与源站备注保留。
 
 ### 修复
 

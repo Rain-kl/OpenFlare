@@ -31,7 +31,6 @@ describe('WebsitesPage', () => {
       {
         id: 42,
         domain: 'arctel.de',
-        remark: '生产站点',
         domain_count: 3,
         created_at: '',
         updated_at: '',
@@ -39,7 +38,6 @@ describe('WebsitesPage', () => {
       {
         id: 43,
         domain: 'example.com',
-        remark: '',
         domain_count: 0,
         created_at: '',
         updated_at: '',

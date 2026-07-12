@@ -27,7 +27,6 @@ erDiagram
   ZONES {
     uint id PK
     string domain UK
-    string remark
   }
   ZONE_DOMAINS {
     uint id PK
@@ -35,17 +34,16 @@ erDiagram
     uint proxy_route_id
     string domain UK
     uint cert_id
-    string remark
   }
 ```
 
 ### `of_zones`
 
-保存根域、备注、创建时间与更新时间。根域全局唯一且创建后不可原地修改；需要变更时新建 Zone 并迁移域名。删除 Zone 前必须先清空其 Zone 域名。
+保存根域、创建时间与更新时间。根域全局唯一且创建后不可原地修改；需要变更时新建 Zone 并迁移域名。删除 Zone 前必须先清空其 Zone 域名。
 
 ### `of_zone_domains`
 
-保存 `zone_id`、明确 `domain`、可空的 `proxy_route_id`、可空的 `cert_id`、备注及时间戳。`domain` 全局唯一；所有关系字段建立索引但不建立物理外键。`proxy_route_id` 允许为空，以承接已准备证书但尚未配置反代的历史域名。
+保存 `zone_id`、明确 `domain`、可空的 `proxy_route_id`、可空的 `cert_id` 及时间戳。`domain` 全局唯一；所有关系字段建立索引但不建立物理外键。`proxy_route_id` 允许为空，以承接已准备证书但尚未配置反代的历史域名。
 
 `of_proxy_routes` 逐步移除 `domain`、`domains`、`cert_id`、`cert_ids` 与 `domain_cert_ids` 等域名/证书冗余列。路由不得再指定任何 TLS 证书；路由名称 `site_name` 成为稳定的人类可读标识，编译器从关联的 Zone 域名读取 `server_name` 与其 `cert_id`。这使每个明确域名的证书只有一个来源。
 

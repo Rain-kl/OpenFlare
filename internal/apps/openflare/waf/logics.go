@@ -55,7 +55,6 @@ type RuleGroupInput struct {
 	CountryBlacklist  []string        `json:"country_blacklist"`
 	RegionWhitelist   []string        `json:"region_whitelist"`
 	RegionBlacklist   []string        `json:"region_blacklist"`
-	Remark            string          `json:"remark"`
 	PoWEnabled        bool            `json:"pow_enabled"`
 	PoWConfig         json.RawMessage `json:"pow_config"`
 }
@@ -95,7 +94,6 @@ type RuleGroupView struct {
 	CountryBlacklist  []string   `json:"country_blacklist"`
 	RegionWhitelist   []string   `json:"region_whitelist"`
 	RegionBlacklist   []string   `json:"region_blacklist"`
-	Remark            string     `json:"remark"`
 	PoWEnabled        bool       `json:"pow_enabled"`
 	PoWConfig         *PoWConfig `json:"pow_config"`
 	AppliedSiteIDs    []uint     `json:"applied_site_ids"`
@@ -129,7 +127,6 @@ type IPGroupInput struct {
 	SubscriptionFormat      string          `json:"subscription_format"`
 	SubscriptionMappingRule string          `json:"subscription_mapping_rule"`
 	SyncIntervalMinutes     int             `json:"sync_interval_minutes"`
-	Remark                  string          `json:"remark"`
 }
 
 // IPGroupExtIPView is an external IP entry in API responses.
@@ -155,7 +152,6 @@ type IPGroupView struct {
 	NextSyncAt              string             `json:"next_sync_at,omitempty"`
 	LastSyncStatus          string             `json:"last_sync_status"`
 	LastSyncMessage         string             `json:"last_sync_message"`
-	Remark                  string             `json:"remark"`
 	ReferencedByRuleCount   int                `json:"referenced_by_rule_count"`
 	CreatedAt               string             `json:"created_at"`
 	UpdatedAt               string             `json:"updated_at"`
@@ -597,7 +593,6 @@ func buildRuleGroup(ctx context.Context, group *model.OpenFlareWAFRuleGroup, inp
 	group.RegionBlacklist = string(regionBlacklistJSON)
 	group.PoWEnabled = input.PoWEnabled
 	group.PoWConfig = string(powConfigJSON)
-	group.Remark = strings.TrimSpace(input.Remark)
 	return group, nil
 }
 
@@ -613,7 +608,6 @@ func buildRuleGroupView(group *model.OpenFlareWAFRuleGroup, appliedSiteIDs []uin
 		IsGlobal:          group.IsGlobal,
 		BlockStatusCode:   group.BlockStatusCode,
 		BlockResponseBody: group.BlockResponseBody,
-		Remark:            group.Remark,
 		PoWEnabled:        group.PoWEnabled,
 		AppliedSiteIDs:    appliedSiteIDs,
 		AppliedSiteCount:  len(appliedSiteIDs),
@@ -709,7 +703,6 @@ func buildIPGroup(group *model.OpenFlareWAFIPGroup, input IPGroupInput) (*model.
 	group.SubscriptionMappingRule = mappingRule
 	group.SyncIntervalMinutes = syncInterval
 	group.NextSyncAt = nextIPGroupSyncAt(group.Type, group.Enabled, syncInterval, group.NextSyncAt)
-	group.Remark = strings.TrimSpace(input.Remark)
 	return group, nil
 }
 
@@ -750,7 +743,6 @@ func buildIPGroupView(group *model.OpenFlareWAFIPGroup, referenceCount int) (IPG
 		SyncIntervalMinutes:     group.SyncIntervalMinutes,
 		LastSyncStatus:          group.LastSyncStatus,
 		LastSyncMessage:         group.LastSyncMessage,
-		Remark:                  group.Remark,
 		ReferencedByRuleCount:   referenceCount,
 		CreatedAt:               group.CreatedAt.Format(time.RFC3339),
 		UpdatedAt:               group.UpdatedAt.Format(time.RFC3339),

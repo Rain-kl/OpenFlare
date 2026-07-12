@@ -25,7 +25,6 @@ var errZoneDomainBoundToAnotherRoute = errors.New("zone domain is already bound 
 type Zone struct {
 	ID        uint      `json:"id" gorm:"primaryKey;autoIncrement"`
 	Domain    string    `json:"domain" gorm:"uniqueIndex:idx_of_zones_domain;size:255;not null"`
-	Remark    string    `json:"remark" gorm:"size:255;not null;default:''"`
 	CreatedAt time.Time `json:"created_at" gorm:"autoCreateTime"`
 	UpdatedAt time.Time `json:"updated_at" gorm:"autoUpdateTime"`
 }
@@ -42,7 +41,6 @@ type ZoneDomain struct {
 	ProxyRouteID *uint     `json:"proxy_route_id" gorm:"index:idx_of_zone_domains_proxy_route_id"`
 	Domain       string    `json:"domain" gorm:"uniqueIndex:idx_of_zone_domains_domain;size:255;not null"`
 	CertID       *uint     `json:"cert_id" gorm:"index:idx_of_zone_domains_cert_id"`
-	Remark       string    `json:"remark" gorm:"size:255;not null;default:''"`
 	CreatedAt    time.Time `json:"created_at" gorm:"autoCreateTime"`
 	UpdatedAt    time.Time `json:"updated_at" gorm:"autoUpdateTime"`
 }

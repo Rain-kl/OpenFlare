@@ -40,7 +40,6 @@ const ipGroupSchema = z
     subscription_format: z.enum(['text', 'json']),
     subscription_mapping_rule: z.string(),
     sync_interval_minutes: z.number().int().min(5),
-    remark: z.string().max(500),
   })
   .superRefine((value, context) => {
     if (value.type === 'subscription' && !value.subscription_url.trim()) {
@@ -75,7 +74,6 @@ const defaultValues: IPGroupFormValues = {
   subscription_format: 'text',
   subscription_mapping_rule: '',
   sync_interval_minutes: 1440,
-  remark: '',
 };
 
 function buildFormValues(group: WAFIPGroup | null): IPGroupFormValues {
@@ -90,7 +88,6 @@ function buildFormValues(group: WAFIPGroup | null): IPGroupFormValues {
     subscription_format: group.subscription_format ?? 'text',
     subscription_mapping_rule: group.subscription_mapping_rule ?? '',
     sync_interval_minutes: group.sync_interval_minutes || 1440,
-    remark: group.remark ?? '',
   };
 }
 
@@ -109,7 +106,6 @@ function buildPayload(values: IPGroupFormValues): WAFIPGroupPayload {
     subscription_format: values.subscription_format,
     subscription_mapping_rule: values.subscription_mapping_rule.trim(),
     sync_interval_minutes: values.sync_interval_minutes,
-    remark: values.remark.trim(),
   };
 }
 
@@ -244,19 +240,6 @@ export function IPGroupDialog({
                     <FormControl>
                       <Switch checked={field.value} onCheckedChange={field.onChange} />
                     </FormControl>
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="remark"
-                render={({ field }) => (
-                  <FormItem className="md:col-span-2">
-                    <FormLabel>备注</FormLabel>
-                    <FormControl>
-                      <Input {...field} />
-                    </FormControl>
-                    <FormMessage />
                   </FormItem>
                 )}
               />

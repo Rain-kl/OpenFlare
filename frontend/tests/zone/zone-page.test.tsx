@@ -62,7 +62,7 @@ describe('ZonePageClient', () => {
 
   it('loads the overview by stable ID and exposes all tabs including empty domains', async () => {
     vi.mocked(ZoneService.getOverview).mockImplementation(async () => ({
-      zone: {id: 42, domain: 'arctel.de', remark: '', created_at: '', updated_at: ''},
+      zone: {id: 42, domain: 'arctel.de', created_at: '', updated_at: ''},
       domains: [],
     }));
 

@@ -35,7 +35,6 @@ const reverseProxySchema = z
     tunnel_target_protocol: z.enum(['http', 'https']).optional(),
     pages_project_id: z.string().optional(),
     custom_headers_text: z.string(),
-    remark: z.string().max(255, '备注不能超过 255 个字符'),
   })
   .superRefine((value, context) => {
     if (value.upstream_type === 'direct') {
@@ -137,7 +136,6 @@ export function ProxySection({ route, onRouteUpdate, onSavingChange }: ProxySect
         (route.tunnel_target_protocol as 'http' | 'https') || 'http',
       pages_project_id: route.pages_project_id ? String(route.pages_project_id) : '',
       custom_headers_text: customHeadersToText(route.custom_header_list),
-      remark: route.remark || '',
     },
   });
 
@@ -152,7 +150,6 @@ export function ProxySection({ route, onRouteUpdate, onSavingChange }: ProxySect
         (route.tunnel_target_protocol as 'http' | 'https') || 'http',
       pages_project_id: route.pages_project_id ? String(route.pages_project_id) : '',
       custom_headers_text: customHeadersToText(route.custom_header_list),
-      remark: route.remark || '',
     });
   }, [form, route]);
 
@@ -210,7 +207,6 @@ export function ProxySection({ route, onRouteUpdate, onSavingChange }: ProxySect
                 origin_host: values.origin_host.trim(),
                 upstreams,
                 custom_headers: headers,
-                remark: values.remark.trim(),
                 upstream_type: values.upstream_type,
                 tunnel_node_id:
                   values.upstream_type === 'tunnel' && values.tunnel_id
@@ -413,20 +409,6 @@ export function ProxySection({ route, onRouteUpdate, onSavingChange }: ProxySect
                   />
                 </FormControl>
                 <FormDescription>每行一条，格式为 Key: Value。</FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="remark"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>备注</FormLabel>
-                <FormControl>
-                  <Textarea placeholder="例如：多活回源，优先使用上海入口" {...field} />
-                </FormControl>
                 <FormMessage />
               </FormItem>
             )}

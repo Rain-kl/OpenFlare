@@ -33,7 +33,6 @@ func (r ImportReport) LogAndReturn(err error) error {
 type legacyDomain struct {
 	Domain       string
 	CertID       *uint
-	Remark       string
 	ProxyRouteID *uint
 }
 
@@ -139,9 +138,9 @@ func ImportLegacyTx(ctx context.Context, tx *sql.Tx, postgres bool) (report Impo
 		}
 
 		if _, insErr := tx.ExecContext(ctx, q(`
-			INSERT INTO of_zone_domains (zone_id, proxy_route_id, domain, cert_id, remark, created_at, updated_at)
-			VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-		`), zoneID, nullableUint(item.ProxyRouteID), domain, nullableUint(item.CertID), item.Remark); insErr != nil {
+			INSERT INTO of_zone_domains (zone_id, proxy_route_id, domain, cert_id, created_at, updated_at)
+			VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+		`), zoneID, nullableUint(item.ProxyRouteID), domain, nullableUint(item.CertID)); insErr != nil {
 			return report, insErr
 		}
 		report.Domains++
@@ -169,8 +168,8 @@ func ensureZone(
 		return 0, err
 	}
 	if _, execErr := tx.ExecContext(ctx, q(`
-		INSERT INTO of_zones (domain, remark, created_at, updated_at)
-		VALUES (?, '', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+		INSERT INTO of_zones (domain, created_at, updated_at)
+		VALUES (?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
 	`), root); execErr != nil {
 		return 0, execErr
 	}
@@ -187,12 +186,12 @@ func collectLegacyRouteDomainsImpl(
 	q func(string) string,
 ) (items []legacyDomain, hasRouteDomains bool, conflicts []string, err error) {
 	// Probe domain_cert_ids: if SELECT fails, fall back without it.
-	queryWithCert := q(`SELECT id, domain, domains, COALESCE(domain_cert_ids, '[]'), remark FROM of_proxy_routes`)
+	queryWithCert := q(`SELECT id, domain, domains, COALESCE(domain_cert_ids, '[]') FROM of_proxy_routes`)
 	rows, err := tx.QueryContext(ctx, queryWithCert)
 	useCert := true
 	if err != nil {
 		useCert = false
-		rows, err = tx.QueryContext(ctx, q(`SELECT id, domain, domains, remark FROM of_proxy_routes`))
+		rows, err = tx.QueryContext(ctx, q(`SELECT id, domain, domains FROM of_proxy_routes`))
 		if err != nil {
 			return nil, false, nil, err
 		}
@@ -205,14 +204,13 @@ func collectLegacyRouteDomainsImpl(
 			domain  string
 			domains string
 			certIDs string
-			remark  string
 		)
 		if useCert {
-			if err := rows.Scan(&id, &domain, &domains, &certIDs, &remark); err != nil {
+			if err := rows.Scan(&id, &domain, &domains, &certIDs); err != nil {
 				return nil, false, nil, err
 			}
 		} else {
-			if err := rows.Scan(&id, &domain, &domains, &remark); err != nil {
+			if err := rows.Scan(&id, &domain, &domains); err != nil {
 				return nil, false, nil, err
 			}
 			certIDs = "[]"
@@ -236,7 +234,6 @@ func collectLegacyRouteDomainsImpl(
 			items = append(items, legacyDomain{
 				Domain:       d,
 				CertID:       certID,
-				Remark:       remark,
 				ProxyRouteID: &routeID,
 			})
 		}
@@ -245,7 +242,7 @@ func collectLegacyRouteDomainsImpl(
 }
 
 func collectLegacyManagedDomains(ctx context.Context, tx *sql.Tx, q func(string) string) ([]legacyDomain, error) {
-	rows, err := tx.QueryContext(ctx, q(`SELECT domain, cert_id, remark FROM of_managed_domains`))
+	rows, err := tx.QueryContext(ctx, q(`SELECT domain, cert_id FROM of_managed_domains`))
 	if err != nil {
 		return nil, err
 	}
@@ -256,12 +253,11 @@ func collectLegacyManagedDomains(ctx context.Context, tx *sql.Tx, q func(string)
 		var (
 			domain string
 			certID sql.NullInt64
-			remark string
 		)
-		if err := rows.Scan(&domain, &certID, &remark); err != nil {
+		if err := rows.Scan(&domain, &certID); err != nil {
 			return nil, err
 		}
-		item := legacyDomain{Domain: domain, Remark: remark}
+		item := legacyDomain{Domain: domain}
 		if certID.Valid && certID.Int64 > 0 {
 			v := uint(certID.Int64)
 			item.CertID = &v

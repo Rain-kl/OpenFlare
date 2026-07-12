@@ -27,7 +27,6 @@ func setupLegacyImportDB(t *testing.T) (*sql.DB, func()) {
 		`CREATE TABLE of_zones (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
 			domain TEXT NOT NULL UNIQUE,
-			remark TEXT NOT NULL DEFAULT '',
 			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 		)`,
@@ -37,7 +36,6 @@ func setupLegacyImportDB(t *testing.T) (*sql.DB, func()) {
 			proxy_route_id INTEGER,
 			domain TEXT NOT NULL UNIQUE,
 			cert_id INTEGER,
-			remark TEXT NOT NULL DEFAULT '',
 			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 		)`,
@@ -124,7 +122,6 @@ func TestImportLegacyTxNoOpWithoutLegacyColumns(t *testing.T) {
 		CREATE TABLE of_zones (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
 			domain TEXT NOT NULL UNIQUE,
-			remark TEXT NOT NULL DEFAULT '',
 			created_at DATETIME, updated_at DATETIME
 		);
 		CREATE TABLE of_zone_domains (
@@ -133,7 +130,6 @@ func TestImportLegacyTxNoOpWithoutLegacyColumns(t *testing.T) {
 			proxy_route_id INTEGER,
 			domain TEXT NOT NULL UNIQUE,
 			cert_id INTEGER,
-			remark TEXT NOT NULL DEFAULT '',
 			created_at DATETIME, updated_at DATETIME
 		);
 		CREATE TABLE of_proxy_routes (

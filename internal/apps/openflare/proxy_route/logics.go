@@ -45,7 +45,6 @@ type Input struct {
 	BasicAuthEnabled     bool                `json:"basic_auth_enabled"`
 	BasicAuthUsername    string              `json:"basic_auth_username"`
 	BasicAuthPassword    string              `json:"basic_auth_password"`
-	Remark               string              `json:"remark"`
 	UpstreamType         string              `json:"upstream_type"`
 	TunnelNodeID         *uint               `json:"tunnel_node_id"`
 	TunnelID             *uint               `json:"tunnel_id"`
@@ -80,7 +79,6 @@ type View struct {
 	BasicAuthEnabled     bool                `json:"basic_auth_enabled"`
 	BasicAuthUsername    string              `json:"basic_auth_username"`
 	BasicAuthPassword    string              `json:"basic_auth_password"`
-	Remark               string              `json:"remark"`
 	UpstreamType         string              `json:"upstream_type"`
 	TunnelNodeID         *uint               `json:"tunnel_node_id"`
 	TunnelID             *uint               `json:"tunnel_id"`
@@ -187,7 +185,6 @@ func buildProxyRoute(ctx context.Context, route *model.ProxyRoute, input Input) 
 		return nil, nil, err
 	}
 	originHost := strings.TrimSpace(input.OriginHost)
-	remark := strings.TrimSpace(input.Remark)
 	cachePolicy := strings.TrimSpace(input.CachePolicy)
 	cacheRules, err := normalizeCacheRules(input.CacheEnabled, cachePolicy, input.CacheRules)
 	if err != nil {
@@ -245,7 +242,6 @@ func buildProxyRoute(ctx context.Context, route *model.ProxyRoute, input Input) 
 		originID,
 		upstreams,
 		originHost,
-		remark,
 		cachePolicy,
 		limitConnPerServer,
 		limitConnPerIP,
@@ -321,7 +317,6 @@ func buildProxyRouteView(ctx context.Context, route *model.ProxyRoute) (*View, e
 		BasicAuthEnabled:     route.BasicAuthEnabled,
 		BasicAuthUsername:    route.BasicAuthUsername,
 		BasicAuthPassword:    route.BasicAuthPassword,
-		Remark:               route.Remark,
 		UpstreamType:         route.UpstreamType,
 		TunnelNodeID:         route.TunnelNodeID,
 		TunnelID:             route.TunnelNodeID,

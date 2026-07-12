@@ -1,0 +1,16 @@
+-- +goose Up
+-- 移除业务实体上未再使用的备注列（证书与源站备注保留）。
+
+ALTER TABLE of_zones DROP COLUMN IF EXISTS remark;
+ALTER TABLE of_zone_domains DROP COLUMN IF EXISTS remark;
+ALTER TABLE of_proxy_routes DROP COLUMN IF EXISTS remark;
+ALTER TABLE of_waf_rule_groups DROP COLUMN IF EXISTS remark;
+ALTER TABLE of_waf_ip_groups DROP COLUMN IF EXISTS remark;
+
+-- +goose Down
+
+ALTER TABLE of_zones ADD COLUMN IF NOT EXISTS remark VARCHAR(255) NOT NULL DEFAULT '';
+ALTER TABLE of_zone_domains ADD COLUMN IF NOT EXISTS remark VARCHAR(255) NOT NULL DEFAULT '';
+ALTER TABLE of_proxy_routes ADD COLUMN IF NOT EXISTS remark VARCHAR(255) NOT NULL DEFAULT '';
+ALTER TABLE of_waf_rule_groups ADD COLUMN IF NOT EXISTS remark VARCHAR(255) NOT NULL DEFAULT '';
+ALTER TABLE of_waf_ip_groups ADD COLUMN IF NOT EXISTS remark VARCHAR(255) NOT NULL DEFAULT '';

@@ -57,7 +57,6 @@ type snapshotRoute struct {
 	BasicAuthEnabled   bool                             `json:"basic_auth_enabled,omitempty"`
 	BasicAuthUsername  string                           `json:"basic_auth_username,omitempty"`
 	BasicAuthPassword  string                           `json:"basic_auth_password,omitempty"`
-	Remark             string                           `json:"remark,omitempty"`
 	UpstreamType       string                           `json:"upstream_type,omitempty"`
 	TunnelNodeID       *uint                            `json:"tunnel_node_id,omitempty"`
 	TunnelTargetAddr   string                           `json:"tunnel_target_addr,omitempty"`
@@ -297,7 +296,6 @@ func buildSnapshotRoutes(ctx context.Context, routes []*model.ProxyRoute) ([]sna
 			BasicAuthEnabled:   route.BasicAuthEnabled,
 			BasicAuthUsername:  route.BasicAuthUsername,
 			BasicAuthPassword:  route.BasicAuthPassword,
-			Remark:             route.Remark,
 			UpstreamType:       upstreamType,
 			TunnelNodeID:       tunnelNodeID,
 			TunnelTargetAddr:   tunnelTargetAddr,

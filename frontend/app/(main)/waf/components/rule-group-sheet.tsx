@@ -43,7 +43,6 @@ const ruleGroupSchema = z.object({
   enabled: z.boolean(),
   block_status_code: z.number().int().min(400).max(599),
   block_response_body: z.string(),
-  remark: z.string().max(500, '备注不能超过 500 个字符'),
   pow_enabled: z.boolean(),
 });
 
@@ -82,7 +81,6 @@ export function RuleGroupSheet({
       enabled: true,
       block_status_code: 418,
       block_response_body: '',
-      remark: '',
       pow_enabled: false,
     },
   });
@@ -96,7 +94,6 @@ export function RuleGroupSheet({
       enabled: draft.enabled,
       block_status_code: draft.block_status_code,
       block_response_body: draft.block_response_body,
-      remark: draft.remark,
       pow_enabled: draft.pow_enabled,
     });
     setRuleEntryOpen(false);
@@ -148,7 +145,6 @@ export function RuleGroupSheet({
       enabled: values.enabled,
       block_status_code: values.block_status_code,
       block_response_body: values.block_response_body,
-      remark: values.remark,
       pow_enabled: values.pow_enabled,
     };
     try {
@@ -217,19 +213,6 @@ export function RuleGroupSheet({
                             <FormControl>
                               <Switch checked={field.value} onCheckedChange={field.onChange} />
                             </FormControl>
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name="remark"
-                        render={({ field }) => (
-                          <FormItem className="md:col-span-2">
-                            <FormLabel>备注</FormLabel>
-                            <FormControl>
-                              <Input {...field} />
-                            </FormControl>
-                            <FormMessage />
                           </FormItem>
                         )}
                       />

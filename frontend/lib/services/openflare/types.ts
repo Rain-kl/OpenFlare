@@ -261,7 +261,6 @@ export interface ProxyRouteItem {
   basic_auth_enabled: boolean;
   basic_auth_username: string;
   basic_auth_password: string;
-  remark: string;
   upstream_type: 'direct' | 'tunnel' | 'pages';
   tunnel_node_id?: number | null;
   tunnel_id?: number | null;
@@ -296,7 +295,6 @@ export interface ProxyRouteMutationPayload {
   basic_auth_enabled: boolean;
   basic_auth_username?: string;
   basic_auth_password?: string;
-  remark: string;
   upstream_type?: 'direct' | 'tunnel' | 'pages';
   tunnel_node_id?: number | null;
   tunnel_id?: number | null;
@@ -708,7 +706,6 @@ export interface WAFRuleGroup {
   region_blacklist: string[];
   pow_enabled: boolean;
   pow_config: ProxyRoutePoWConfig;
-  remark: string;
   applied_site_ids: number[];
   applied_site_count: number;
   created_at: string;
@@ -730,7 +727,6 @@ export interface WAFRuleGroupPayload {
   region_blacklist: string[];
   pow_enabled: boolean;
   pow_config: ProxyRoutePoWConfig;
-  remark: string;
 }
 
 export interface WAFSiteRuleGroups {
@@ -765,7 +761,6 @@ export interface WAFIPGroup {
   next_sync_at?: string;
   last_sync_status: string;
   last_sync_message: string;
-  remark: string;
   referenced_by_rule_count: number;
   created_at: string;
   updated_at: string;
@@ -781,7 +776,6 @@ export interface WAFIPGroupPayload {
   subscription_format: WAFIPGroupSubscriptionFormat;
   subscription_mapping_rule: string;
   sync_interval_minutes: number;
-  remark: string;
 }
 
 export interface WAFIPGroupSyncResult {
@@ -964,7 +958,6 @@ export interface DashboardOverviewCompact {
 export interface ZoneItem {
   id: number;
   domain: string;
-  remark: string;
   /** Present on list API; may be omitted on nested zone objects. */
   domain_count?: number;
   created_at: string;
@@ -973,7 +966,6 @@ export interface ZoneItem {
 
 export interface ZoneMutationPayload {
   domain: string;
-  remark: string;
 }
 
 export interface ZoneDomainItem {
@@ -982,7 +974,6 @@ export interface ZoneDomainItem {
   proxy_route_id: number | null;
   domain: string;
   cert_id: number | null;
-  remark: string;
   created_at: string;
   updated_at: string;
 }
@@ -990,7 +981,6 @@ export interface ZoneDomainItem {
 export interface ZoneDomainMutationPayload {
   domain: string;
   cert_id: number | null;
-  remark: string;
 }
 
 export interface ZoneOverview {

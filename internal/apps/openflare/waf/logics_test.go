@@ -100,7 +100,6 @@ func TestUpdateIPGroupPrunesAutomaticExtIPs(t *testing.T) {
 		Enabled:    created.Enabled,
 		IPList:     []string{"203.0.113.10"},
 		AutoConfig: created.AutoConfig,
-		Remark:     created.Remark,
 	})
 	require.NoError(t, err)
 	require.Len(t, updated.IPList, 1)

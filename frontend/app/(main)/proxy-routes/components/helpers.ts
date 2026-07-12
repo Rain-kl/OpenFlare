@@ -338,7 +338,6 @@ export function buildPayloadFromRoute(
     cache_policy: route.cache_policy || 'url',
     cache_rules: route.cache_rule_list ?? [],
     custom_headers: route.custom_header_list ?? [],
-    remark: route.remark || '',
     basic_auth_enabled: route.basic_auth_enabled,
     basic_auth_username: route.basic_auth_username,
     basic_auth_password: route.basic_auth_password,

@@ -32,6 +32,7 @@ import {ZoneDomainDialog} from './zone-domain-dialog';
 
 export function ZoneDomainsTable({
   zoneId,
+  zoneRoot,
   domains,
   certificates,
   routes,
@@ -39,6 +40,7 @@ export function ZoneDomainsTable({
   onChanged,
 }: {
   zoneId: number;
+  zoneRoot: string;
   domains: ZoneDomainItem[];
   certificates: TlsCertificateItem[];
   routes: ProxyRouteItem[];
@@ -97,9 +99,6 @@ export function ZoneDomainsTable({
                   </TableHead>
                   <TableHead className="h-8 whitespace-nowrap py-2 min-w-[200px]">
                     上游
-                  </TableHead>
-                  <TableHead className="h-8 whitespace-nowrap py-2 min-w-[120px]">
-                    备注
                   </TableHead>
                   <TableHead className="sticky right-0 z-10 h-8 w-[90px] bg-background py-2 text-center">
                     操作
@@ -160,9 +159,6 @@ export function ZoneDomainsTable({
                           </div>
                         )}
                       </TableCell>
-                      <TableCell className="max-w-[160px] truncate py-1 font-mono text-[10px] text-muted-foreground">
-                        {domain.remark || '—'}
-                      </TableCell>
                       <TableCell
                         className="sticky right-0 z-10 bg-background py-1 text-center"
                         onClick={(event) => event.stopPropagation()}
@@ -220,6 +216,7 @@ export function ZoneDomainsTable({
         open={createOpen}
         onOpenChange={setCreateOpen}
         zoneId={zoneId}
+        zoneRoot={zoneRoot}
         onSaved={onChanged}
       />
 

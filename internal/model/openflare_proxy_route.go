@@ -32,7 +32,6 @@ type ProxyRoute struct {
 	BasicAuthEnabled     bool         `json:"basic_auth_enabled" gorm:"not null;default:false"`
 	BasicAuthUsername    string       `json:"basic_auth_username" gorm:"size:255;not null;default:''"`
 	BasicAuthPassword    string       `json:"basic_auth_password" gorm:"size:255;not null;default:''"`
-	Remark               string       `json:"remark" gorm:"size:255"`
 	UpstreamType         string       `json:"upstream_type" gorm:"size:32;not null;default:'direct'"`
 	TunnelNodeID         *uint        `json:"tunnel_node_id" gorm:"index"`
 	TunnelTargetAddr     string       `json:"tunnel_target_addr" gorm:"size:512"`
@@ -92,7 +91,6 @@ func UpdateProxyRouteRecord(ctx context.Context, route *ProxyRoute) error {
 		"basic_auth_enabled":     route.BasicAuthEnabled,
 		"basic_auth_username":    route.BasicAuthUsername,
 		"basic_auth_password":    route.BasicAuthPassword,
-		colRemark:                route.Remark,
 		"upstream_type":          route.UpstreamType,
 		"tunnel_node_id":         route.TunnelNodeID,
 		"tunnel_target_addr":     route.TunnelTargetAddr,

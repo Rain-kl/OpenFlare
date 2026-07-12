@@ -19,14 +19,12 @@ import (
 // Input is the mutable Zone payload.
 type Input struct {
 	Domain string `json:"domain"`
-	Remark string `json:"remark"`
 }
 
 // DomainInput is the mutable Zone-domain payload.
 type DomainInput struct {
 	Domain string `json:"domain"`
 	CertID *uint  `json:"cert_id"`
-	Remark string `json:"remark"`
 }
 
 // Overview joins a Zone with its explicit domains.
@@ -39,7 +37,6 @@ type Overview struct {
 type ListItem struct {
 	ID          uint      `json:"id"`
 	Domain      string    `json:"domain"`
-	Remark      string    `json:"remark"`
 	DomainCount int64     `json:"domain_count"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
@@ -76,7 +73,7 @@ func Create(ctx context.Context, input Input) (*model.Zone, error) {
 	if err != nil || root != domain {
 		return nil, errors.New(errZoneRootInvalid)
 	}
-	zone := &model.Zone{Domain: domain, Remark: strings.TrimSpace(input.Remark)}
+	zone := &model.Zone{Domain: domain}
 	if err := db.DB(ctx).Create(zone).Error; err != nil {
 		if isUnique(err) {
 			return nil, errors.New(errDomainExists)
@@ -100,7 +97,7 @@ func Update(ctx context.Context, id uint, input Input) (*model.Zone, error) {
 	if err != nil || root != domain {
 		return nil, errors.New(errZoneRootInvalid)
 	}
-	zone.Domain, zone.Remark = domain, strings.TrimSpace(input.Remark)
+	zone.Domain = domain
 	if err := db.DB(ctx).Save(&zone).Error; err != nil {
 		if isUnique(err) {
 			return nil, errors.New(errDomainExists)
@@ -138,7 +135,6 @@ func List(ctx context.Context) ([]ListItem, error) {
 		items = append(items, ListItem{
 			ID:          zone.ID,
 			Domain:      zone.Domain,
-			Remark:      zone.Remark,
 			DomainCount: counts[zone.ID],
 			CreatedAt:   zone.CreatedAt,
 			UpdatedAt:   zone.UpdatedAt,
@@ -179,7 +175,7 @@ func CreateDomain(ctx context.Context, zoneID uint, input DomainInput) (*model.Z
 			return nil, errors.New(errCertificateNotFound)
 		}
 	}
-	item := &model.ZoneDomain{ZoneID: zoneID, Domain: domain, CertID: input.CertID, Remark: strings.TrimSpace(input.Remark)}
+	item := &model.ZoneDomain{ZoneID: zoneID, Domain: domain, CertID: input.CertID}
 	if err := db.DB(ctx).Create(item).Error; err != nil {
 		if isUnique(err) {
 			return nil, errors.New(errDomainExists)
@@ -212,7 +208,7 @@ func UpdateDomain(ctx context.Context, zoneID, id uint, input DomainInput) (*mod
 			return nil, errors.New(errCertificateNotFound)
 		}
 	}
-	item.Domain, item.CertID, item.Remark = domain, input.CertID, strings.TrimSpace(input.Remark)
+	item.Domain, item.CertID = domain, input.CertID
 	if err = db.DB(ctx).Save(&item).Error; err != nil {
 		if isUnique(err) {
 			return nil, errors.New(errDomainExists)

@@ -199,6 +199,7 @@ export function ZonePageClient({zoneId}: {zoneId: number}) {
         <TabsContent value="domains">
           <ZoneDomainsTable
             zoneId={zoneId}
+            zoneRoot={overview.zone.domain}
             domains={overview.domains}
             certificates={certificates}
             routes={routes}

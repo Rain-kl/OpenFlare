@@ -15429,9 +15429,6 @@
                 "id": {
                     "type": "integer"
                 },
-                "remark": {
-                    "type": "string"
-                },
                 "updated_at": {
                     "type": "string"
                 }
@@ -15454,9 +15451,6 @@
                 },
                 "proxy_route_id": {
                     "type": "integer"
-                },
-                "remark": {
-                    "type": "string"
                 },
                 "updated_at": {
                     "type": "string"
@@ -17126,9 +17120,6 @@
                 "redirect_http": {
                     "type": "boolean"
                 },
-                "remark": {
-                    "type": "string"
-                },
                 "site_name": {
                     "type": "string"
                 },
@@ -17232,9 +17223,6 @@
                 },
                 "redirect_http": {
                     "type": "boolean"
-                },
-                "remark": {
-                    "type": "string"
                 },
                 "site_name": {
                     "type": "string"
@@ -18546,9 +18534,6 @@
                 "name": {
                     "type": "string"
                 },
-                "remark": {
-                    "type": "string"
-                },
                 "subscription_format": {
                     "type": "string"
                 },
@@ -18636,9 +18621,6 @@
                 },
                 "referenced_by_rule_count": {
                     "type": "integer"
-                },
-                "remark": {
-                    "type": "string"
                 },
                 "subscription_format": {
                     "type": "string"
@@ -18789,9 +18771,6 @@
                     "items": {
                         "type": "string"
                     }
-                },
-                "remark": {
-                    "type": "string"
                 }
             }
         },
@@ -18882,9 +18861,6 @@
                         "type": "string"
                     }
                 },
-                "remark": {
-                    "type": "string"
-                },
                 "updated_at": {
                     "type": "string"
                 }
@@ -18927,9 +18903,6 @@
                 },
                 "domain": {
                     "type": "string"
-                },
-                "remark": {
-                    "type": "string"
                 }
             }
         },
@@ -18937,9 +18910,6 @@
             "type": "object",
             "properties": {
                 "domain": {
-                    "type": "string"
-                },
-                "remark": {
                     "type": "string"
                 }
             }
@@ -18958,9 +18928,6 @@
                 },
                 "id": {
                     "type": "integer"
-                },
-                "remark": {
-                    "type": "string"
                 },
                 "updated_at": {
                     "type": "string"

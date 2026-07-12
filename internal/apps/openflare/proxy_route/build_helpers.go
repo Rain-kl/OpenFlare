@@ -88,7 +88,7 @@ func populateProxyRouteFields(
 	jsonFields *proxyRouteJSONFields,
 	originID *uint,
 	upstreams []string,
-	originHost, remark, cachePolicy string,
+	originHost, cachePolicy string,
 	limitConnPerServer, limitConnPerIP int,
 	limitRate, upstreamType string,
 ) {
@@ -110,7 +110,6 @@ func populateProxyRouteFields(
 	route.BasicAuthEnabled = input.BasicAuthEnabled
 	route.BasicAuthUsername = input.BasicAuthUsername
 	route.BasicAuthPassword = input.BasicAuthPassword
-	route.Remark = remark
 	route.UpstreamType = upstreamType
 }
 
@@ -151,7 +150,7 @@ func updateProxyRouteRecord(tx *gorm.DB, route *model.ProxyRoute) error {
 		"limit_rate": route.LimitRate, "cache_enabled": route.CacheEnabled, "cache_policy": route.CachePolicy,
 		"cache_rules": route.CacheRules, "custom_headers": route.CustomHeaders,
 		"basic_auth_enabled": route.BasicAuthEnabled, "basic_auth_username": route.BasicAuthUsername,
-		"basic_auth_password": route.BasicAuthPassword, "remark": route.Remark,
+		"basic_auth_password": route.BasicAuthPassword,
 		"upstream_type": route.UpstreamType, "tunnel_node_id": route.TunnelNodeID,
 		"tunnel_target_addr": route.TunnelTargetAddr, "tunnel_target_protocol": route.TunnelTargetProtocol,
 		"pages_project_id": route.PagesProjectID,

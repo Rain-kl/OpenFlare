@@ -114,7 +114,6 @@ func TestSecurityWAFTLSMigrationFlow(t *testing.T) {
 			"ip_whitelist":      []string{"192.0.2.1"},
 			"ip_blacklist":      []string{"203.0.113.10"},
 			"country_blacklist": []string{"CN"},
-			"remark":            "integration rule group",
 		}, adminAuthHeaders(seed.Token))
 		require.Equal(t, http.StatusOK, rec.Code)
 
@@ -179,7 +178,6 @@ func TestSecurityWAFTLSMigrationFlow(t *testing.T) {
 				"name":              "edge-security-updated",
 				"enabled":           true,
 				"block_status_code": 451,
-				"remark":            "updated by integration test",
 			},
 			adminAuthHeaders(seed.Token),
 		)
@@ -197,7 +195,6 @@ func TestSecurityWAFTLSMigrationFlow(t *testing.T) {
 			"type":    "manual",
 			"enabled": true,
 			"ip_list": []string{"203.0.113.0/24", "198.51.100.10"},
-			"remark":  "manual deny list",
 		}, adminAuthHeaders(seed.Token))
 		require.Equal(t, http.StatusOK, rec.Code)
 
@@ -306,7 +303,7 @@ func TestSecurityWAFTLSMigrationFlow(t *testing.T) {
 		assert.NotEmpty(t, errResp.ErrorMsg)
 
 		rec = performJSONRequest(t, engine, http.MethodPost, fmt.Sprintf("%s/zones/%d/domains", apiPath(""), zoneID), map[string]any{
-			"domain": "security.example.com", "cert_id": certID, "remark": "primary security domain",
+			"domain": "security.example.com", "cert_id": certID,
 		}, adminAuthHeaders(seed.Token))
 		require.Equal(t, http.StatusOK, rec.Code)
 

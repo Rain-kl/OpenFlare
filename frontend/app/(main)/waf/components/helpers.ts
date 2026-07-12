@@ -81,7 +81,6 @@ export const emptyRuleGroupDraft: WAFRuleGroupPayload = {
   region_blacklist: [],
   pow_enabled: false,
   pow_config: defaultPowConfig,
-  remark: '',
 };
 
 export const defaultRuleModalState: RuleModalState = {
@@ -147,7 +146,6 @@ export function buildRuleGroupDraft(group: WAFRuleGroup | null): WAFRuleGroupPay
     region_blacklist: group.region_blacklist ?? [],
     pow_enabled: group.pow_enabled ?? false,
     pow_config: group.pow_config ?? defaultPowConfig,
-    remark: group.remark ?? '',
   };
 }
 
@@ -293,7 +291,6 @@ export function buildIPGroupPayloadFromGroup(
     subscription_format: group.subscription_format ?? 'text',
     subscription_mapping_rule: group.subscription_mapping_rule ?? '',
     sync_interval_minutes: group.sync_interval_minutes || 1440,
-    remark: group.remark ?? '',
   };
 }
 

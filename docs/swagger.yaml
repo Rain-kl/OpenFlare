@@ -1631,8 +1631,6 @@ definitions:
         type: string
       id:
         type: integer
-      remark:
-        type: string
       updated_at:
         type: string
     type: object
@@ -1648,8 +1646,6 @@ definitions:
         type: integer
       proxy_route_id:
         type: integer
-      remark:
-        type: string
       updated_at:
         type: string
       zone_id:
@@ -2742,8 +2738,6 @@ definitions:
         type: integer
       redirect_http:
         type: boolean
-      remark:
-        type: string
       site_name:
         type: string
       tunnel_id:
@@ -2813,8 +2807,6 @@ definitions:
         type: integer
       redirect_http:
         type: boolean
-      remark:
-        type: string
       site_name:
         type: string
       tunnel_id:
@@ -3697,8 +3689,6 @@ definitions:
         type: array
       name:
         type: string
-      remark:
-        type: string
       subscription_format:
         type: string
       subscription_mapping_rule:
@@ -3757,8 +3747,6 @@ definitions:
         type: string
       referenced_by_rule_count:
         type: integer
-      remark:
-        type: string
       subscription_format:
         type: string
       subscription_mapping_rule:
@@ -3858,8 +3846,6 @@ definitions:
         items:
           type: string
         type: array
-      remark:
-        type: string
     type: object
   waf.RuleGroupView:
     properties:
@@ -3919,8 +3905,6 @@ definitions:
         items:
           type: string
         type: array
-      remark:
-        type: string
       updated_at:
         type: string
     type: object
@@ -3949,14 +3933,10 @@ definitions:
         type: integer
       domain:
         type: string
-      remark:
-        type: string
     type: object
   zone.Input:
     properties:
       domain:
-        type: string
-      remark:
         type: string
     type: object
   zone.ListItem:
@@ -3969,8 +3949,6 @@ definitions:
         type: integer
       id:
         type: integer
-      remark:
-        type: string
       updated_at:
         type: string
     type: object

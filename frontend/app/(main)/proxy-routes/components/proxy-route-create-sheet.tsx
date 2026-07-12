@@ -11,7 +11,6 @@ import {Form, FormControl, FormDescription, FormField, FormItem, FormLabel, Form
 import {Input} from '@/components/ui/input';
 import {Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle,} from '@/components/ui/sheet';
 import {Switch} from '@/components/ui/switch';
-import {Textarea} from '@/components/ui/textarea';
 import type {ProxyRouteItem} from '@/lib/services/openflare';
 import {ProxyRouteService, ZoneService, zoneQueryKey} from '@/lib/services/openflare';
 
@@ -24,7 +23,6 @@ const createProxyRouteSchema = z
     zone_domain_ids: z.array(z.number().int().positive()).min(1, '请至少选择一个域名'),
     origin_url: z.string().trim().min(1, '请输入上游地址'),
     enabled: z.boolean(),
-    remark: z.string().max(255, '备注不能超过 255 个字符'),
   })
   .superRefine((value, context) => {
     try {
@@ -52,7 +50,6 @@ const defaultValues: CreateProxyRouteFormValues = {
   zone_domain_ids: [],
   origin_url: '',
   enabled: true,
-  remark: '',
 };
 
 interface ProxyRouteCreateSheetProps {
@@ -120,7 +117,6 @@ export function ProxyRouteCreateSheet({
         cache_rules: [],
         custom_headers: [],
         basic_auth_enabled: false,
-        remark: values.remark.trim(),
         upstream_type: 'direct',
       });
 
@@ -174,10 +170,13 @@ export function ProxyRouteCreateSheet({
                       domains={domainsQuery.data ?? []}
                       zones={zonesQuery.data ?? []}
                       disabled={domainsQuery.isLoading}
+                      onDomainCreated={async () => {
+                        await domainsQuery.refetch();
+                      }}
                     />
                   </FormControl>
                   <FormDescription>
-                    域名与证书在 Zone 中维护；此处只选择本站点要绑定的 FQDN。
+                    勾选已登记域名，或使用「快捷新增域名」创建后自动勾选。
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -210,20 +209,6 @@ export function ProxyRouteCreateSheet({
                   <FormControl>
                     <Switch checked={field.value} onCheckedChange={field.onChange} />
                   </FormControl>
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="remark"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>备注</FormLabel>
-                  <FormControl>
-                    <Textarea placeholder="可选备注" rows={3} {...field} />
-                  </FormControl>
-                  <FormMessage />
                 </FormItem>
               )}
             />
