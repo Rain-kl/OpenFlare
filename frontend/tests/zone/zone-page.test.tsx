@@ -13,6 +13,8 @@ class ResizeObserverMock {
 
 vi.stubGlobal('ResizeObserver', ResizeObserverMock);
 
+let mockZoneId = '42';
+
 const replaceMock = vi.fn();
 
 vi.mock('next/link', () => ({
@@ -23,8 +25,9 @@ vi.mock('next/link', () => ({
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({replace: replaceMock, back: vi.fn()}),
-  usePathname: () => '/websites/42',
+  usePathname: () => `/websites/${mockZoneId}`,
   useSearchParams: () => new URLSearchParams(),
+  useParams: () => ({zoneId: mockZoneId}),
 }));
 
 vi.mock('@/lib/services/openflare', async (importOriginal) => {
@@ -47,6 +50,7 @@ vi.mock('@/lib/services/openflare', async (importOriginal) => {
 });
 
 function renderPage(zoneId: number) {
+  mockZoneId = String(zoneId);
   const client = new QueryClient({
     defaultOptions: {
       queries: {retry: false, gcTime: 0},
@@ -54,7 +58,7 @@ function renderPage(zoneId: number) {
   });
   return render(
     <QueryClientProvider client={client}>
-      <ZonePageClient zoneId={zoneId} />
+      <ZonePageClient />
     </QueryClientProvider>,
   );
 }

@@ -1,29 +1,20 @@
 import {Suspense} from 'react'
 import {Globe} from 'lucide-react'
-import dynamic from 'next/dynamic'
 import {LoadingStateWithBorder} from '@/components/layout/loading'
+import {ZonePageClient} from './page-client'
 
-const ZonePageClient = dynamic(
-  () => import('./page-client').then((mod) => mod.ZonePageClient),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="py-6 px-1">
-        <LoadingStateWithBorder icon={Globe} description="加载 Zone 详情中..." />
-      </div>
-    ),
-  }
-)
+export async function generateStaticParams() {
+  return [{zoneId: '1'}];
+}
 
-export default async function ZonePage({params}: PageProps<'/websites/[zoneId]'>) {
-  const {zoneId} = await params
+export default async function ZonePage() {
   return (
     <Suspense fallback={
       <div className="py-6 px-1">
         <LoadingStateWithBorder icon={Globe} description="加载 Zone 详情中..." />
       </div>
     }>
-      <ZonePageClient zoneId={Number(zoneId)} />
+      <ZonePageClient />
     </Suspense>
   )
 }
