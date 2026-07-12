@@ -88,7 +88,7 @@ services:
       - "9000:9000"
     volumes:
       - ./data/clickhouse_data:/var/lib/clickhouse
-      - ./config/clickhouse:/etc/clickhouse-server/config.d:ro
+      - ./config/clickhouse/performance.xml:/etc/clickhouse-server/config.d/performance.xml:ro
     healthcheck:
       test: ["CMD", "clickhouse-client", "--user", "${CLICKHOUSE_USERNAME:-default}", "--password", "${CLICKHOUSE_PASSWORD:-replace-with-clickhouse-password}", "--query", "SELECT 1"]
       interval: 10s

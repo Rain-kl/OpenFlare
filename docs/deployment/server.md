@@ -11,8 +11,7 @@ OpenFlare Server 是 Gin + GORM 单体控制面，负责管理端 UI、管理 AP
 > [!TIP]
 > **ClickHouse 服务端性能配置（推荐挂载）**  
 > 控制面常见为小规格主机（如 3c6g）。仓库提供的 `performance.xml` 会收紧后台 merge/mutation 线程池，避免默认配置在小机器上静置 CPU 偏高或 ClickHouse 25.x 启动校验失败。  
-> 将本地目录 `./config/clickhouse` 挂载到容器 `/etc/clickhouse-server/config.d`。  
-> **目录内只放 `performance.xml`，不要放入任何 listen 相关配置**（监听地址沿用官方镜像默认即可）。
+> 将本地 `./config/clickhouse/performance.xml` 以单文件方式挂载到容器 `/etc/clickhouse-server/config.d/performance.xml`，以保留官方镜像内置的 Docker 网络监听配置。
 
 部署前将配置拉到本地：
 
@@ -27,7 +26,7 @@ curl -fsSL -o ./config/clickhouse/performance.xml \
 ```yaml
 volumes:
   - ./data/clickhouse_data:/var/lib/clickhouse   # 或 named volume
-  - ./config/clickhouse:/etc/clickhouse-server/config.d:ro
+  - ./config/clickhouse/performance.xml:/etc/clickhouse-server/config.d/performance.xml:ro
 ```
 
 修改 `performance.xml` 后需 `docker compose restart clickhouse` 才生效。
@@ -101,7 +100,7 @@ services:
         hard: 262144
     volumes:
       - ./data/clickhouse_data:/var/lib/clickhouse
-      - ./config/clickhouse:/etc/clickhouse-server/config.d:ro
+      - ./config/clickhouse/performance.xml:/etc/clickhouse-server/config.d/performance.xml:ro
     healthcheck:
       test: ["CMD", "clickhouse-client", "--user", "default", "--password", "123456", "--query", "SELECT 1"]
       interval: 10s
@@ -192,7 +191,7 @@ services:
         hard: 262144
     volumes:
       - openflare_clickhouse_data:/var/lib/clickhouse
-      - ./config/clickhouse:/etc/clickhouse-server/config.d:ro
+      - ./config/clickhouse/performance.xml:/etc/clickhouse-server/config.d/performance.xml:ro
     healthcheck:
       test: ["CMD", "clickhouse-client", "--user", "${CLICKHOUSE_USERNAME:-default}", "--password", "${CLICKHOUSE_PASSWORD:-replace-with-clickhouse-password}", "--query", "SELECT 1"]
       interval: 10s
@@ -310,7 +309,7 @@ services:
         hard: 262144
     volumes:
       - openflare_clickhouse_data:/var/lib/clickhouse
-      - ./config/clickhouse:/etc/clickhouse-server/config.d:ro
+      - ./config/clickhouse/performance.xml:/etc/clickhouse-server/config.d/performance.xml:ro
     healthcheck:
       test: ["CMD", "clickhouse-client", "--user", "${CLICKHOUSE_USERNAME:-default}", "--password", "${CLICKHOUSE_PASSWORD:-replace-with-clickhouse-password}", "--query", "SELECT 1"]
       interval: 10s

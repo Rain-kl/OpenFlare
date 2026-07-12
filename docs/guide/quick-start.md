@@ -30,7 +30,7 @@ Agent 统一通过 OpenResty 二进制控制运行时。本地部署需要节点
 
 为了保证异步任务队列（Asynq 框架）及可观测流量看板功能完整运行，快速开始推荐采用 **PostgreSQL + Redis + ClickHouse** 经典单机版编排。
 
-先拉取 ClickHouse 服务端性能配置到 `./config/clickhouse`（目录内**仅**放 `performance.xml`，不要放 listen 配置）：
+先拉取 ClickHouse 服务端性能配置到 `./config/clickhouse`，并以单文件方式挂载：
 
 ```bash
 mkdir -p ./config/clickhouse
@@ -115,7 +115,7 @@ services:
         hard: 262144
     volumes:
       - openflare_clickhouse_data:/var/lib/clickhouse
-      - ./config/clickhouse:/etc/clickhouse-server/config.d:ro
+      - ./config/clickhouse/performance.xml:/etc/clickhouse-server/config.d/performance.xml:ro
     healthcheck:
       test: ["CMD", "clickhouse-client", "--user", "default", "--password", "${CLICKHOUSE_PASSWORD:-replace-with-clickhouse-password}", "--query", "SELECT 1"]
       interval: 10s
