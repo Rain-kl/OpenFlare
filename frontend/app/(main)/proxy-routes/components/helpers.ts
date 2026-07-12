@@ -3,13 +3,15 @@ import type {
   ProxyRouteCustomHeader,
   ProxyRouteItem,
   ProxyRouteMutationPayload,
+  ZoneDomainItem,
 } from '@/lib/services/openflare';
+import {ZoneService} from '@/lib/services/openflare';
 
 export const proxyRouteConfigSections = [
   {
     key: 'domains' as const,
     label: '域名设置',
-    description: '维护站点标识、域名列表和证书绑定。',
+    description: '维护站点标识，并从 Zone 中选择绑定域名。',
   },
   {
     key: 'limits' as const,
@@ -77,6 +79,20 @@ export function parseOriginUrl(originUrl: string) {
   };
 }
 
+/** Domain FQDNs bound to a proxy route (from zone_domains). */
+export function getRouteDomainNames(route: ProxyRouteItem): string[] {
+  return (route.zone_domains ?? []).map((item) => item.domain).filter(Boolean);
+}
+
+export function getRoutePrimaryDomain(route: ProxyRouteItem): string {
+  return getRouteDomainNames(route)[0] ?? '';
+}
+
+export function getRouteDomainsLabel(route: ProxyRouteItem): string {
+  const names = getRouteDomainNames(route);
+  return names.length > 0 ? names.join(', ') : '未绑定域名';
+}
+
 export function getUpstreamSummary(route: ProxyRouteItem): string {
   if (route.upstream_type === 'pages') {
     return route.pages_project_id
@@ -88,7 +104,7 @@ export function getUpstreamSummary(route: ProxyRouteItem): string {
     const target = route.tunnel_target_addr || '未配置目标';
     return `Tunnel → ${protocol}://${target}`;
   }
-  if (route.upstream_list.length <= 1) {
+  if ((route.upstream_list ?? []).length <= 1) {
     return route.origin_url;
   }
   return `${route.upstream_list.length} 个上游，主上游 ${route.origin_url}`;
@@ -284,12 +300,11 @@ export function buildPayloadFromRoute(
   const primaryOrigin =
     route.upstream_type === 'pages'
       ? parseOriginUrl('http://127.0.0.1')
-      : parseOriginUrl(route.origin_url);
+      : parseOriginUrl(route.origin_url || 'http://127.0.0.1');
 
   return {
     site_name: route.site_name,
-    domain: route.primary_domain,
-    domains: route.domains,
+    zone_domain_ids: route.zone_domain_ids ?? [],
     origin_id: null,
     origin_url: route.origin_url,
     origin_scheme: primaryOrigin.scheme,
@@ -297,20 +312,17 @@ export function buildPayloadFromRoute(
     origin_port: primaryOrigin.port,
     origin_uri: primaryOrigin.uri,
     origin_host: route.origin_host || '',
-    upstreams: route.upstream_list.slice(1),
+    upstreams: (route.upstream_list ?? []).slice(1),
     enabled: route.enabled,
     enable_https: route.enable_https,
-    cert_id: route.cert_id,
-    cert_ids: route.cert_ids,
-    domain_cert_ids: route.domain_cert_ids,
     redirect_http: route.redirect_http,
     limit_conn_per_server: route.limit_conn_per_server,
     limit_conn_per_ip: route.limit_conn_per_ip,
     limit_rate: route.limit_rate,
     cache_enabled: route.cache_enabled,
     cache_policy: route.cache_policy || 'url',
-    cache_rules: route.cache_rule_list,
-    custom_headers: route.custom_header_list,
+    cache_rules: route.cache_rule_list ?? [],
+    custom_headers: route.custom_header_list ?? [],
     remark: route.remark || '',
     basic_auth_enabled: route.basic_auth_enabled,
     basic_auth_username: route.basic_auth_username,
@@ -322,4 +334,11 @@ export function buildPayloadFromRoute(
     pages_project_id: route.pages_project_id ?? null,
     ...overrides,
   };
+}
+
+/** Load all Zone domains across registered Zones for route binding selectors. */
+export async function listAllZoneDomains(): Promise<ZoneDomainItem[]> {
+  const zones = await ZoneService.list();
+  const overviews = await Promise.all(zones.map((zone) => ZoneService.getOverview(zone.id)));
+  return overviews.flatMap((overview) => overview.domains ?? []);
 }

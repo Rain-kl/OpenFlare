@@ -25,7 +25,12 @@ import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow,} from '@/
 import type {ProxyRouteItem} from '@/lib/services/openflare';
 import {ProxyRouteService} from '@/lib/services/openflare';
 
-import {getUpstreamSummary} from './components/helpers';
+import {
+  getRouteDomainNames,
+  getRouteDomainsLabel,
+  getRoutePrimaryDomain,
+  getUpstreamSummary,
+} from './components/helpers';
 import {ProxyRouteCreateSheet} from './components/proxy-route-create-sheet';
 
 export function ProxyRoutesPageClient() {
@@ -64,8 +69,8 @@ export function ProxyRoutesPageClient() {
     return routes.filter((route) => {
       const haystack = [
         route.site_name,
-        route.primary_domain,
-        ...route.domains,
+        getRoutePrimaryDomain(route),
+        ...getRouteDomainNames(route),
         route.origin_url,
         route.remark,
       ]
@@ -170,8 +175,11 @@ export function ProxyRoutesPageClient() {
                 {filteredRoutes.map((route) => (
                   <TableRow key={route.id}>
                     <TableCell className="font-medium">{route.site_name}</TableCell>
-                    <TableCell className="max-w-[220px] truncate" title={route.domains.join(', ')}>
-                      {route.primary_domain || route.domain}
+                    <TableCell
+                      className="max-w-[220px] truncate"
+                      title={getRouteDomainsLabel(route)}
+                    >
+                      {getRoutePrimaryDomain(route) || getRouteDomainsLabel(route)}
                     </TableCell>
                     <TableCell>
                       <Badge variant={route.enabled ? 'default' : 'secondary'}>

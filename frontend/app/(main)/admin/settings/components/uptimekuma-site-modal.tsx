@@ -48,11 +48,13 @@ export function UptimeKumaSiteSelectModal({
     const routes = routesQuery.data ?? []
     const keyword = searchTerm.trim().toLowerCase()
     if (!keyword) return routes
-    return routes.filter(
-      (route) =>
+    return routes.filter((route) => {
+      const domains = (route.zone_domains ?? []).map((item) => item.domain).join(' ')
+      return (
         route.site_name.toLowerCase().includes(keyword) ||
-        route.primary_domain.toLowerCase().includes(keyword),
-    )
+        domains.toLowerCase().includes(keyword)
+      )
+    })
   }, [routesQuery.data, searchTerm])
 
   const toggleSite = (siteName: string) => {
@@ -147,7 +149,9 @@ export function UptimeKumaSiteSelectModal({
                           />
                         </td>
                         <td className="px-3 py-2 font-medium">{route.site_name}</td>
-                        <td className="px-3 py-2 text-muted-foreground">{route.primary_domain}</td>
+                        <td className="px-3 py-2 text-muted-foreground">
+                          {(route.zone_domains ?? []).map((item) => item.domain).join(', ') || '—'}
+                        </td>
                       </tr>
                     )
                   })}

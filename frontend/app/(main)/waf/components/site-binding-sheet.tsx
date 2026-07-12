@@ -38,7 +38,10 @@ export function SiteBindingSheet({
     const normalized = keyword.trim().toLowerCase();
     if (!normalized) return routes;
     return routes.filter((route) =>
-      [route.site_name, route.primary_domain, ...route.domains]
+      [
+        route.site_name,
+        ...(route.zone_domains ?? []).map((item) => item.domain),
+      ]
         .join(' ')
         .toLowerCase()
         .includes(normalized),
@@ -109,7 +112,8 @@ export function SiteBindingSheet({
                     {route.site_name}
                   </span>
                   <span className="block truncate text-xs text-muted-foreground">
-                    {route.domains.join(', ')}
+                    {(route.zone_domains ?? []).map((item) => item.domain).join(', ') ||
+                      '未绑定域名'}
                   </span>
                 </span>
               </button>

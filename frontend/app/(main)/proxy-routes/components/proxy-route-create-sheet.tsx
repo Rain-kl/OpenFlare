@@ -2,6 +2,7 @@
 
 import {useEffect} from 'react';
 import {zodResolver} from '@hookform/resolvers/zod';
+import {useQuery} from '@tanstack/react-query';
 import {useForm} from 'react-hook-form';
 import {z} from 'zod';
 
@@ -12,28 +13,20 @@ import {Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTi
 import {Switch} from '@/components/ui/switch';
 import {Textarea} from '@/components/ui/textarea';
 import type {ProxyRouteItem} from '@/lib/services/openflare';
-import {ProxyRouteService} from '@/lib/services/openflare';
+import {ProxyRouteService, ZoneService, zoneQueryKey} from '@/lib/services/openflare';
 
-import {parseOriginUrl, validateDomain} from './helpers';
+import {listAllZoneDomains, parseOriginUrl} from './helpers';
+import {ZoneDomainSelector} from './zone-domain-selector';
 
 const createProxyRouteSchema = z
   .object({
     site_name: z.string().trim().max(255, '站点标识不能超过 255 个字符'),
-    domain: z.string().trim().min(1, '请输入域名'),
+    zone_domain_ids: z.array(z.number().int().positive()).min(1, '请至少选择一个域名'),
     origin_url: z.string().trim().min(1, '请输入上游地址'),
     enabled: z.boolean(),
     remark: z.string().max(255, '备注不能超过 255 个字符'),
   })
   .superRefine((value, context) => {
-    const domainError = validateDomain(value.domain);
-    if (domainError) {
-      context.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['domain'],
-        message: domainError,
-      });
-    }
-
     try {
       const parsed = new URL(value.origin_url);
       if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
@@ -56,7 +49,7 @@ type CreateProxyRouteFormValues = z.infer<typeof createProxyRouteSchema>;
 
 const defaultValues: CreateProxyRouteFormValues = {
   site_name: '',
-  domain: '',
+  zone_domain_ids: [],
   origin_url: '',
   enabled: true,
   remark: '',
@@ -78,6 +71,18 @@ export function ProxyRouteCreateSheet({
     defaultValues,
   });
 
+  const zonesQuery = useQuery({
+    queryKey: zoneQueryKey,
+    queryFn: () => ZoneService.list(),
+    enabled: open,
+  });
+
+  const domainsQuery = useQuery({
+    queryKey: [...zoneQueryKey, 'all-domains'],
+    queryFn: () => listAllZoneDomains(),
+    enabled: open,
+  });
+
   useEffect(() => {
     if (!open) {
       form.reset(defaultValues);
@@ -85,14 +90,17 @@ export function ProxyRouteCreateSheet({
   }, [form, open]);
 
   const handleSubmit = form.handleSubmit(async (values) => {
-    const domain = values.domain.trim().toLowerCase();
     const origin = parseOriginUrl(values.origin_url.trim());
+    const selectedDomains = (domainsQuery.data ?? []).filter((domain) =>
+      values.zone_domain_ids.includes(domain.id),
+    );
+    const primaryDomain = selectedDomains[0]?.domain ?? '';
+    const hasCert = selectedDomains.some((domain) => domain.cert_id != null);
 
     try {
       const route = await ProxyRouteService.create({
-        site_name: values.site_name.trim() || domain,
-        domain,
-        domains: [domain],
+        site_name: values.site_name.trim() || primaryDomain,
+        zone_domain_ids: values.zone_domain_ids,
         origin_id: null,
         origin_url: values.origin_url.trim(),
         origin_scheme: origin.scheme,
@@ -102,10 +110,7 @@ export function ProxyRouteCreateSheet({
         origin_host: '',
         upstreams: [],
         enabled: values.enabled,
-        enable_https: false,
-        cert_id: null,
-        cert_ids: [],
-        domain_cert_ids: [0],
+        enable_https: hasCert,
         redirect_http: false,
         limit_conn_per_server: 0,
         limit_conn_per_ip: 0,
@@ -135,7 +140,7 @@ export function ProxyRouteCreateSheet({
         <SheetHeader>
           <SheetTitle>新建规则</SheetTitle>
           <SheetDescription>
-            创建网站后可进入详情页继续配置 HTTPS、缓存和限流等高级选项。
+            从已注册的 Zone 域名中选择绑定关系，创建后可继续配置缓存和限流等高级选项。
           </SheetDescription>
         </SheetHeader>
 
@@ -150,7 +155,7 @@ export function ProxyRouteCreateSheet({
                   <FormControl>
                     <Input placeholder="marketing-site" {...field} />
                   </FormControl>
-                  <FormDescription>可选，留空时会自动使用域名。</FormDescription>
+                  <FormDescription>可选，留空时会自动使用首个域名。</FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
@@ -158,13 +163,22 @@ export function ProxyRouteCreateSheet({
 
             <FormField
               control={form.control}
-              name="domain"
+              name="zone_domain_ids"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>主域名</FormLabel>
+                  <FormLabel>绑定域名</FormLabel>
                   <FormControl>
-                    <Input placeholder="www.example.com" {...field} />
+                    <ZoneDomainSelector
+                      value={field.value}
+                      onChange={field.onChange}
+                      domains={domainsQuery.data ?? []}
+                      zones={zonesQuery.data ?? []}
+                      disabled={domainsQuery.isLoading}
+                    />
                   </FormControl>
+                  <FormDescription>
+                    域名与证书在 Zone 中维护；此处只选择本站点要绑定的 FQDN。
+                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
@@ -177,9 +191,8 @@ export function ProxyRouteCreateSheet({
                 <FormItem>
                   <FormLabel>上游地址</FormLabel>
                   <FormControl>
-                    <Input placeholder="https://origin.internal:443" {...field} />
+                    <Input placeholder="http://127.0.0.1:8080" {...field} />
                   </FormControl>
-                  <FormDescription>主回源完整 URL，创建后可在详情页添加多上游。</FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
@@ -191,8 +204,8 @@ export function ProxyRouteCreateSheet({
               render={({ field }) => (
                 <FormItem className="flex items-center justify-between rounded-lg border p-3">
                   <div className="space-y-0.5">
-                    <FormLabel>创建后立即启用</FormLabel>
-                    <FormDescription>关闭后站点会以草稿保存。</FormDescription>
+                    <FormLabel>启用站点</FormLabel>
+                    <FormDescription>关闭后会保留配置，但不会参与发布。</FormDescription>
                   </div>
                   <FormControl>
                     <Switch checked={field.value} onCheckedChange={field.onChange} />
@@ -208,20 +221,23 @@ export function ProxyRouteCreateSheet({
                 <FormItem>
                   <FormLabel>备注</FormLabel>
                   <FormControl>
-                    <Textarea rows={3} {...field} />
+                    <Textarea placeholder="可选备注" rows={3} {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
 
-            {form.formState.errors.root?.message ? (
+            {form.formState.errors.root ? (
               <p className="text-sm text-destructive">{form.formState.errors.root.message}</p>
             ) : null}
 
             <SheetFooter className="px-0">
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                取消
+              </Button>
               <Button type="submit" disabled={form.formState.isSubmitting}>
-                {form.formState.isSubmitting ? '创建中...' : '创建'}
+                {form.formState.isSubmitting ? '创建中…' : '创建'}
               </Button>
             </SheetFooter>
           </form>
