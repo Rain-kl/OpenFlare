@@ -61,6 +61,37 @@ func ListZoneDomainsByRouteID(ctx context.Context, routeID uint) ([]ZoneDomain, 
 	return domains, nil
 }
 
+// ListZoneDomainsByIDs returns explicit domains in the requested ID order.
+func ListZoneDomainsByIDs(ctx context.Context, domainIDs []uint) ([]ZoneDomain, error) {
+	if len(domainIDs) == 0 {
+		return []ZoneDomain{}, nil
+	}
+	var domains []ZoneDomain
+	if err := db.DB(ctx).Where("id IN ?", domainIDs).Find(&domains).Error; err != nil {
+		return nil, err
+	}
+	byID := make(map[uint]ZoneDomain, len(domains))
+	for _, domain := range domains {
+		byID[domain.ID] = domain
+	}
+	ordered := make([]ZoneDomain, 0, len(domainIDs))
+	for _, id := range domainIDs {
+		domain, ok := byID[id]
+		if !ok {
+			return nil, fmt.Errorf("one or more zone domains do not exist")
+		}
+		ordered = append(ordered, domain)
+	}
+	return ordered, nil
+}
+
+// CountZoneDomainsByCertificateID reports whether a certificate is assigned to a Zone domain.
+func CountZoneDomainsByCertificateID(ctx context.Context, certificateID uint) (int64, error) {
+	var count int64
+	err := db.DB(ctx).Model(&ZoneDomain{}).Where("cert_id = ?", certificateID).Count(&count).Error
+	return count, err
+}
+
 // ReplaceZoneDomainRouteBindings replaces every ZoneDomain binding for a proxy route.
 func ReplaceZoneDomainRouteBindings(ctx context.Context, routeID uint, domainIDs []uint) error {
 	conn := db.DB(ctx)

@@ -74,9 +74,17 @@ func GetOriginDetail(ctx context.Context, id uint) (*DetailView, error) {
 	}
 	items := make([]RouteSummary, 0, len(routes))
 	for _, route := range routes {
+		domains, err := model.ListZoneDomainsByRouteID(ctx, route.ID)
+		if err != nil {
+			return nil, err
+		}
+		domain := ""
+		if len(domains) > 0 {
+			domain = domains[0].Domain
+		}
 		items = append(items, RouteSummary{
 			ID:        route.ID,
-			Domain:    route.Domain,
+			Domain:    domain,
 			OriginURL: route.OriginURL,
 			Enabled:   route.Enabled,
 			UpdatedAt: route.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),

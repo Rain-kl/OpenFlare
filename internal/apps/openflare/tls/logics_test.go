@@ -40,6 +40,8 @@ func setupTLSTestDB(t *testing.T) func() {
 	require.NoError(t, err)
 	require.NoError(t, sqliteDB.AutoMigrate(
 		&model.TLSCertificate{},
+		&model.Zone{},
+		&model.ZoneDomain{},
 		&model.ManagedDomain{},
 		&model.DNSAccount{},
 		&model.AcmeAccount{},
@@ -69,6 +71,22 @@ func setupTLSTestDB(t *testing.T) func() {
 		config.Config.App.SessionSecret = oldSecret
 		tlsTestDBMu.Unlock()
 	}
+}
+
+func TestDeleteCertificateRejectsZoneDomainReference(t *testing.T) {
+	cleanup := setupTLSTestDB(t)
+	defer cleanup()
+	ctx := context.Background()
+
+	certPEM, keyPEM := generateTestCertificatePair(t, []string{"api.example.com"})
+	certificate, err := CreateCertificate(ctx, CertificateInput{Name: "api-cert", CertPEM: certPEM, KeyPEM: keyPEM})
+	require.NoError(t, err)
+	zone := &model.Zone{Domain: "example.com"}
+	require.NoError(t, db.DB(ctx).Create(zone).Error)
+	require.NoError(t, db.DB(ctx).Create(&model.ZoneDomain{ZoneID: zone.ID, Domain: "api.example.com", CertID: &certificate.ID}).Error)
+
+	err = DeleteCertificate(ctx, certificate.ID)
+	require.EqualError(t, err, errCertificateDeleteReferenced)
 }
 
 func generateTestCertificatePair(t *testing.T, dnsNames []string) (string, string) {

@@ -11,7 +11,6 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-
 func handleLogicError(c *gin.Context, err error) bool {
 	if err == nil {
 		return false

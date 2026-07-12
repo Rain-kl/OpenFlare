@@ -5,12 +5,14 @@ package proxy_route
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"strings"
 	"time"
 
-	"github.com/Rain-kl/Wavelet/internal/apps/openflare/routeidentity"
+	"github.com/Rain-kl/Wavelet/internal/db"
 	"github.com/Rain-kl/Wavelet/internal/model"
+	"gorm.io/gorm"
 )
 
 // CustomHeaderInput 自定义响应头。
@@ -22,8 +24,7 @@ type CustomHeaderInput struct {
 // Input 代理规则创建/更新请求。
 type Input struct {
 	SiteName             string              `json:"site_name"`
-	Domain               string              `json:"domain"`
-	Domains              []string            `json:"domains"`
+	ZoneDomainIDs        []uint              `json:"zone_domain_ids"`
 	OriginID             *uint               `json:"origin_id"`
 	OriginURL            string              `json:"origin_url"`
 	OriginScheme         string              `json:"origin_scheme"`
@@ -34,9 +35,6 @@ type Input struct {
 	Upstreams            []string            `json:"upstreams"`
 	Enabled              bool                `json:"enabled"`
 	EnableHTTPS          bool                `json:"enable_https"`
-	CertID               *uint               `json:"cert_id"`
-	CertIDs              []uint              `json:"cert_ids"`
-	DomainCertIDs        []uint              `json:"domain_cert_ids"`
 	RedirectHTTP         bool                `json:"redirect_http"`
 	LimitConnPerServer   int                 `json:"limit_conn_per_server"`
 	LimitConnPerIP       int                 `json:"limit_conn_per_ip"`
@@ -61,10 +59,8 @@ type Input struct {
 type View struct {
 	ID                   uint                `json:"id"`
 	SiteName             string              `json:"site_name"`
-	Domain               string              `json:"domain"`
-	Domains              []string            `json:"domains"`
-	PrimaryDomain        string              `json:"primary_domain"`
-	DomainCount          int                 `json:"domain_count"`
+	ZoneDomainIDs        []uint              `json:"zone_domain_ids"`
+	ZoneDomains          []ZoneDomainView    `json:"zone_domains"`
 	OriginID             *uint               `json:"origin_id"`
 	OriginURL            string              `json:"origin_url"`
 	OriginHost           string              `json:"origin_host"`
@@ -72,9 +68,6 @@ type View struct {
 	UpstreamList         []string            `json:"upstream_list"`
 	Enabled              bool                `json:"enabled"`
 	EnableHTTPS          bool                `json:"enable_https"`
-	CertID               *uint               `json:"cert_id"`
-	CertIDs              []uint              `json:"cert_ids"`
-	DomainCertIDs        []uint              `json:"domain_cert_ids"`
 	RedirectHTTP         bool                `json:"redirect_http"`
 	LimitConnPerServer   int                 `json:"limit_conn_per_server"`
 	LimitConnPerIP       int                 `json:"limit_conn_per_ip"`
@@ -99,6 +92,14 @@ type View struct {
 	UpdatedAt            time.Time           `json:"updated_at"`
 }
 
+// ZoneDomainView is the route-safe representation of a bound Zone domain.
+type ZoneDomainView struct {
+	ID     uint   `json:"id"`
+	ZoneID uint   `json:"zone_id"`
+	Domain string `json:"domain"`
+	CertID *uint  `json:"cert_id"`
+}
+
 // ListProxyRoutes 列出全部代理规则。
 func ListProxyRoutes(ctx context.Context) ([]*View, error) {
 	routes, err := model.ListProxyRoutes(ctx)
@@ -119,11 +120,16 @@ func GetProxyRoute(ctx context.Context, id uint) (*View, error) {
 
 // CreateProxyRoute 创建代理规则。
 func CreateProxyRoute(ctx context.Context, input Input) (*View, error) {
-	route, err := buildProxyRoute(ctx, nil, input)
+	route, _, err := buildProxyRoute(ctx, nil, input)
 	if err != nil {
 		return nil, err
 	}
-	if err = model.CreateProxyRouteRecord(ctx, route); err != nil {
+	if err = db.DB(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(route).Error; err != nil {
+			return err
+		}
+		return replaceZoneDomainRouteBindings(tx, route.ID, input.ZoneDomainIDs)
+	}); err != nil {
 		if isUniqueConstraintError(err) {
 			return nil, errors.New(errProxyRouteIdentityExists)
 		}
@@ -138,11 +144,16 @@ func UpdateProxyRoute(ctx context.Context, id uint, input Input) (*View, error) 
 	if err != nil {
 		return nil, err
 	}
-	route, err = buildProxyRoute(ctx, route, input)
+	route, _, err = buildProxyRoute(ctx, route, input)
 	if err != nil {
 		return nil, err
 	}
-	if err = model.UpdateProxyRouteRecord(ctx, route); err != nil {
+	if err = db.DB(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := updateProxyRouteRecord(tx, route); err != nil {
+			return err
+		}
+		return replaceZoneDomainRouteBindings(tx, route.ID, input.ZoneDomainIDs)
+	}); err != nil {
 		if isUniqueConstraintError(err) {
 			return nil, errors.New(errProxyRouteIdentityExists)
 		}
@@ -156,84 +167,72 @@ func DeleteProxyRoute(ctx context.Context, id uint) error {
 	if _, err := model.GetProxyRouteByID(ctx, id); err != nil {
 		return err
 	}
-	return model.DeleteProxyRouteRecord(ctx, id)
+	return db.DB(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Model(&model.ZoneDomain{}).Where("proxy_route_id = ?", id).Update("proxy_route_id", nil).Error; err != nil {
+			return err
+		}
+		return tx.Delete(&model.ProxyRoute{}, id).Error
+	})
 }
 
-func buildProxyRoute(ctx context.Context, route *model.ProxyRoute, input Input) (*model.ProxyRoute, error) {
-	domains, err := normalizeProxyRouteDomainsInput(route, input.Domain, input.Domains)
+func buildProxyRoute(ctx context.Context, route *model.ProxyRoute, input Input) (*model.ProxyRoute, []model.ZoneDomain, error) {
+	domains, err := loadProxyRouteZoneDomains(ctx, input.ZoneDomainIDs)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	domain := domains[0]
-	siteName := routeidentity.ResolveSiteName(route, input.SiteName, domain)
+	siteName := strings.TrimSpace(input.SiteName)
 
 	upstreamType := normalizeUpstreamType(input.UpstreamType)
 	_, originID, upstreams, err := resolveProxyRouteUpstreams(ctx, upstreamType, input)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	originHost := strings.TrimSpace(input.OriginHost)
 	remark := strings.TrimSpace(input.Remark)
 	cachePolicy := strings.TrimSpace(input.CachePolicy)
 	cacheRules, err := normalizeCacheRules(input.CacheEnabled, cachePolicy, input.CacheRules)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	customHeaders, err := normalizeCustomHeaders(input.CustomHeaders)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	limitConnPerServer, err := normalizeProxyRouteLimitConnValue(input.LimitConnPerServer, "limit_conn_per_server")
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	limitConnPerIP, err := normalizeProxyRouteLimitConnValue(input.LimitConnPerIP, "limit_conn_per_ip")
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	limitRate, err := normalizeProxyRouteLimitRate(input.LimitRate)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-
-	normalizeProxyRouteHTTPSInput(&input)
-	domainCertIDs, certIDs, primaryCertID, err := normalizeProxyRouteDomainCertificateIDs(
-		ctx,
-		domains,
-		input.EnableHTTPS,
-		input.DomainCertIDs,
-		input.CertID,
-		input.CertIDs,
-	)
+	if err := validateProxyRouteZoneDomainCertificates(ctx, domains, input.EnableHTTPS); err != nil {
+		return nil, nil, err
+	}
+	jsonFields, err := marshalProxyRouteJSONFields(upstreams, cacheRules, customHeaders)
 	if err != nil {
-		return nil, err
-	}
-	if err := validateProxyRouteDomainCertificateCoverage(ctx, domains, domainCertIDs); err != nil {
-		return nil, err
-	}
-	jsonFields, err := marshalProxyRouteJSONFields(domains, upstreams, cacheRules, customHeaders, certIDs, domainCertIDs)
-	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	if err := validateProxyRouteSiteName(siteName); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	if err := validateProxyRouteIdentityUniqueness(ctx, route, siteName, domains); err != nil {
-		return nil, err
+	if err := validateProxyRouteSiteNameUniqueness(ctx, route, siteName); err != nil {
+		return nil, nil, err
 	}
 	if err := validateOriginHost(originHost); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	input.DomainCertIDs = domainCertIDs
-	input.CertIDs = certIDs
-	input.CertID = primaryCertID
 	if input.RedirectHTTP && !input.EnableHTTPS {
-		return nil, errors.New(errProxyRouteRedirectHTTP)
+		return nil, nil, errors.New(errProxyRouteRedirectHTTP)
 	}
 
 	if err := normalizeProxyRouteBasicAuth(&input); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	if route == nil {
@@ -243,7 +242,6 @@ func buildProxyRoute(ctx context.Context, route *model.ProxyRoute, input Input) 
 		route,
 		input,
 		siteName,
-		domain,
 		jsonFields,
 		originID,
 		upstreams,
@@ -255,10 +253,41 @@ func buildProxyRoute(ctx context.Context, route *model.ProxyRoute, input Input) 
 		limitRate,
 		upstreamType,
 	)
+	// Preserve legacy columns until the second-phase schema cleanup. They are
+	// derived solely from ZoneDomain bindings and are not exposed by this API.
+	populateLegacyZoneDomainFields(route, domains)
 	if err := applyProxyRouteUpstreamType(ctx, route, upstreamType, input); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return route, nil
+	return route, domains, nil
+}
+
+func mustMarshalProxyRouteLegacy(value any) string {
+	encoded, err := json.Marshal(value)
+	if err != nil {
+		panic(err)
+	}
+	return string(encoded)
+}
+
+func populateLegacyZoneDomainFields(route *model.ProxyRoute, domains []model.ZoneDomain) {
+	legacyDomains := make([]string, 0, len(domains))
+	legacyCertIDs := make([]uint, 0, len(domains))
+	for _, domain := range domains {
+		legacyDomains = append(legacyDomains, domain.Domain)
+		if domain.CertID != nil {
+			legacyCertIDs = append(legacyCertIDs, *domain.CertID)
+		}
+	}
+	route.Domain = legacyDomains[0]
+	route.Domains = mustMarshalProxyRouteLegacy(legacyDomains)
+	route.CertIDs = mustMarshalProxyRouteLegacy(legacyCertIDs)
+	if len(legacyCertIDs) > 0 {
+		route.CertID = &legacyCertIDs[0]
+	} else {
+		route.CertID = nil
+	}
+	route.DomainCertIDs = route.CertIDs
 }
 
 func buildProxyRouteViews(ctx context.Context, routes []*model.ProxyRoute) ([]*View, error) {
@@ -277,7 +306,7 @@ func buildProxyRouteView(ctx context.Context, route *model.ProxyRoute) (*View, e
 	if route == nil {
 		return nil, errors.New("proxy route is nil")
 	}
-	domains, err := routeidentity.DecodeDomains(route.Domains, route.Domain)
+	domains, err := model.ListZoneDomainsByRouteID(ctx, route.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -293,26 +322,17 @@ func buildProxyRouteView(ctx context.Context, route *model.ProxyRoute) (*View, e
 	if err != nil {
 		return nil, err
 	}
-	certIDs, err := decodeStoredCertIDs(route.CertIDs, route.CertID)
-	if err != nil {
-		return nil, err
+	zoneDomainIDs := make([]uint, 0, len(domains))
+	zoneDomains := make([]ZoneDomainView, 0, len(domains))
+	for _, domain := range domains {
+		zoneDomainIDs = append(zoneDomainIDs, domain.ID)
+		zoneDomains = append(zoneDomains, ZoneDomainView{ID: domain.ID, ZoneID: domain.ZoneID, Domain: domain.Domain, CertID: domain.CertID})
 	}
-	domainCertIDs, err := resolveProxyRouteDomainCertIDs(ctx, route, domains, certIDs)
-	if err != nil {
-		return nil, err
-	}
-	var certID *uint
-	if len(certIDs) > 0 {
-		certID = &certIDs[0]
-	}
-	primaryDomain := domains[0]
 	return &View{
 		ID:                   route.ID,
-		SiteName:             routeidentity.ResolveSiteName(route, route.SiteName, primaryDomain),
-		Domain:               primaryDomain,
-		Domains:              domains,
-		PrimaryDomain:        primaryDomain,
-		DomainCount:          len(domains),
+		SiteName:             route.SiteName,
+		ZoneDomainIDs:        zoneDomainIDs,
+		ZoneDomains:          zoneDomains,
 		OriginID:             route.OriginID,
 		OriginURL:            route.OriginURL,
 		OriginHost:           route.OriginHost,
@@ -320,9 +340,6 @@ func buildProxyRouteView(ctx context.Context, route *model.ProxyRoute) (*View, e
 		UpstreamList:         upstreams,
 		Enabled:              route.Enabled,
 		EnableHTTPS:          route.EnableHTTPS,
-		CertID:               certID,
-		CertIDs:              certIDs,
-		DomainCertIDs:        domainCertIDs,
 		RedirectHTTP:         route.RedirectHTTP,
 		LimitConnPerServer:   route.LimitConnPerServer,
 		LimitConnPerIP:       route.LimitConnPerIP,

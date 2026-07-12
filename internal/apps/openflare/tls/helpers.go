@@ -5,10 +5,8 @@ package tls
 
 import (
 	"crypto/x509"
-	"encoding/json"
 	"encoding/pem"
 	"errors"
-	"fmt"
 	"io"
 	"mime/multipart"
 	"strings"
@@ -44,19 +42,4 @@ func isUniqueConstraintError(err error) bool {
 		return false
 	}
 	return strings.Contains(strings.ToLower(err.Error()), "unique")
-}
-
-func decodeStoredDomainCertIDs(raw string, domainCount int) ([]uint, error) {
-	text := strings.TrimSpace(raw)
-	if text == "" {
-		return nil, nil
-	}
-	var domainCertIDs []uint
-	if err := json.Unmarshal([]byte(text), &domainCertIDs); err != nil {
-		return nil, err
-	}
-	if domainCount > 0 && len(domainCertIDs) != domainCount {
-		return nil, fmt.Errorf("domain_cert_ids length mismatch")
-	}
-	return domainCertIDs, nil
 }

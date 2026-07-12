@@ -11,15 +11,13 @@ import (
 	"strings"
 
 	"github.com/Rain-kl/Wavelet/internal/model"
+	"gorm.io/gorm"
 )
 
 type proxyRouteJSONFields struct {
 	cacheRulesJSON    string
 	upstreamsJSON     string
 	customHeadersJSON string
-	certIDsJSON       string
-	domainCertIDsJSON string
-	domainsJSON       string
 }
 
 func resolveProxyRouteUpstreams(ctx context.Context, upstreamType string, input Input) (string, *uint, []string, error) {
@@ -46,12 +44,9 @@ func resolveProxyRouteUpstreams(ctx context.Context, upstreamType string, input 
 }
 
 func marshalProxyRouteJSONFields(
-	domains []string,
 	upstreams []string,
 	cacheRules []string,
 	customHeaders []CustomHeaderInput,
-	certIDs []uint,
-	domainCertIDs []uint,
 ) (*proxyRouteJSONFields, error) {
 	cacheRulesJSON, err := json.Marshal(cacheRules)
 	if err != nil {
@@ -65,36 +60,11 @@ func marshalProxyRouteJSONFields(
 	if err != nil {
 		return nil, err
 	}
-	certIDsJSON, err := json.Marshal(certIDs)
-	if err != nil {
-		return nil, err
-	}
-	domainCertIDsJSON, err := json.Marshal(domainCertIDs)
-	if err != nil {
-		return nil, err
-	}
-	domainsJSON, err := json.Marshal(domains)
-	if err != nil {
-		return nil, err
-	}
 	return &proxyRouteJSONFields{
 		cacheRulesJSON:    string(cacheRulesJSON),
 		upstreamsJSON:     string(upstreamsJSON),
 		customHeadersJSON: string(customHeadersJSON),
-		certIDsJSON:       string(certIDsJSON),
-		domainCertIDsJSON: string(domainCertIDsJSON),
-		domainsJSON:       string(domainsJSON),
 	}, nil
-}
-
-func normalizeProxyRouteHTTPSInput(input *Input) {
-	if input.EnableHTTPS {
-		return
-	}
-	input.RedirectHTTP = false
-	input.CertID = nil
-	input.CertIDs = nil
-	input.DomainCertIDs = nil
 }
 
 func normalizeProxyRouteBasicAuth(input *Input) error {
@@ -114,7 +84,7 @@ func normalizeProxyRouteBasicAuth(input *Input) error {
 func populateProxyRouteFields(
 	route *model.ProxyRoute,
 	input Input,
-	siteName, domain string,
+	siteName string,
 	jsonFields *proxyRouteJSONFields,
 	originID *uint,
 	upstreams []string,
@@ -123,17 +93,12 @@ func populateProxyRouteFields(
 	limitRate, upstreamType string,
 ) {
 	route.SiteName = siteName
-	route.Domain = domain
-	route.Domains = jsonFields.domainsJSON
 	route.OriginID = originID
 	route.OriginURL = upstreams[0]
 	route.OriginHost = originHost
 	route.Upstreams = jsonFields.upstreamsJSON
 	route.Enabled = input.Enabled
 	route.EnableHTTPS = input.EnableHTTPS
-	route.CertID = input.CertID
-	route.CertIDs = jsonFields.certIDsJSON
-	route.DomainCertIDs = jsonFields.domainCertIDsJSON
 	route.RedirectHTTP = input.RedirectHTTP
 	route.LimitConnPerServer = limitConnPerServer
 	route.LimitConnPerIP = limitConnPerIP
@@ -175,4 +140,41 @@ func applyProxyRouteUpstreamType(ctx context.Context, route *model.ProxyRoute, u
 		route.PagesProjectID = nil
 	}
 	return nil
+}
+
+func updateProxyRouteRecord(tx *gorm.DB, route *model.ProxyRoute) error {
+	return tx.Model(&model.ProxyRoute{}).Where("id = ?", route.ID).Updates(map[string]any{
+		"site_name": route.SiteName, "origin_id": route.OriginID, "origin_url": route.OriginURL,
+		"domain": route.Domain, "domains": route.Domains, "cert_id": route.CertID,
+		"cert_ids": route.CertIDs, "domain_cert_ids": route.DomainCertIDs,
+		"origin_host": route.OriginHost, "upstreams": route.Upstreams, "enabled": route.Enabled,
+		"enable_https": route.EnableHTTPS, "redirect_http": route.RedirectHTTP,
+		"limit_conn_per_server": route.LimitConnPerServer, "limit_conn_per_ip": route.LimitConnPerIP,
+		"limit_rate": route.LimitRate, "cache_enabled": route.CacheEnabled, "cache_policy": route.CachePolicy,
+		"cache_rules": route.CacheRules, "custom_headers": route.CustomHeaders,
+		"basic_auth_enabled": route.BasicAuthEnabled, "basic_auth_username": route.BasicAuthUsername,
+		"basic_auth_password": route.BasicAuthPassword, "remark": route.Remark,
+		"upstream_type": route.UpstreamType, "tunnel_node_id": route.TunnelNodeID,
+		"tunnel_target_addr": route.TunnelTargetAddr, "tunnel_target_protocol": route.TunnelTargetProtocol,
+		"pages_project_id": route.PagesProjectID,
+	}).Error
+}
+
+func replaceZoneDomainRouteBindings(tx *gorm.DB, routeID uint, domainIDs []uint) error {
+	var requested []model.ZoneDomain
+	if err := tx.Where("id IN ?", domainIDs).Find(&requested).Error; err != nil {
+		return err
+	}
+	if len(requested) != len(domainIDs) {
+		return errors.New(errProxyRouteZoneDomainNotFound)
+	}
+	for _, domain := range requested {
+		if domain.ProxyRouteID != nil && *domain.ProxyRouteID != routeID {
+			return errors.New(errProxyRouteZoneDomainBound)
+		}
+	}
+	if err := tx.Model(&model.ZoneDomain{}).Where("proxy_route_id = ? AND id NOT IN ?", routeID, domainIDs).Update("proxy_route_id", nil).Error; err != nil {
+		return err
+	}
+	return tx.Model(&model.ZoneDomain{}).Where("id IN ?", domainIDs).Update("proxy_route_id", routeID).Error
 }

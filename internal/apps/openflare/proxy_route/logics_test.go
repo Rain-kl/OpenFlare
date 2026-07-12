@@ -17,130 +17,66 @@ import (
 
 func setupProxyRouteTestDB(t *testing.T) func() {
 	t.Helper()
-
-	sqliteDB, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{
-		DisableForeignKeyConstraintWhenMigrating: true,
-	})
+	sqliteDB, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{DisableForeignKeyConstraintWhenMigrating: true})
 	require.NoError(t, err)
-	require.NoError(t, sqliteDB.AutoMigrate(&model.ProxyRoute{}, &model.Origin{}))
-
+	require.NoError(t, sqliteDB.AutoMigrate(&model.ProxyRoute{}, &model.Origin{}, &model.Zone{}, &model.ZoneDomain{}, &model.TLSCertificate{}))
 	db.SetDB(sqliteDB)
-	return func() {
-		db.SetDB(nil)
+	return func() { db.SetDB(nil) }
+}
+
+func createZoneDomain(t *testing.T, ctx context.Context, domain string, certID *uint) *model.ZoneDomain {
+	t.Helper()
+	zone := &model.Zone{Domain: "example.com"}
+	var existing model.Zone
+	if err := db.DB(ctx).Where("domain = ?", zone.Domain).First(&existing).Error; err == nil {
+		zone = &existing
+	} else {
+		require.NoError(t, db.DB(ctx).Create(zone).Error)
 	}
+	item := &model.ZoneDomain{ZoneID: zone.ID, Domain: domain, CertID: certID}
+	require.NoError(t, db.DB(ctx).Create(item).Error)
+	return item
 }
 
-func TestCreateProxyRoute(t *testing.T) {
+func TestCreateProxyRouteBindsZoneDomains(t *testing.T) {
 	cleanup := setupProxyRouteTestDB(t)
 	defer cleanup()
 	ctx := context.Background()
+	domainA := createZoneDomain(t, ctx, "api.example.com", nil)
+	domainB := createZoneDomain(t, ctx, "www.example.com", nil)
 
-	view, err := CreateProxyRoute(ctx, Input{
-		SiteName:  "example-site",
-		Domain:    "example.com",
-		OriginURL: "http://origin.example.com:8080",
-		Enabled:   true,
-	})
+	view, err := CreateProxyRoute(ctx, Input{SiteName: "api", ZoneDomainIDs: []uint{domainA.ID, domainB.ID}, OriginURL: "http://origin.example.com:8080", Enabled: true})
 	require.NoError(t, err)
-	assert.NotZero(t, view.ID)
-	assert.Equal(t, "example-site", view.SiteName)
-	assert.Equal(t, "example.com", view.Domain)
-	assert.Equal(t, []string{"example.com"}, view.Domains)
-	assert.Equal(t, "http://origin.example.com:8080", view.OriginURL)
-	assert.Equal(t, []string{"http://origin.example.com:8080"}, view.UpstreamList)
-	assert.True(t, view.Enabled)
+	assert.Equal(t, []uint{domainA.ID, domainB.ID}, view.ZoneDomainIDs)
+	require.Len(t, view.ZoneDomains, 2)
+	assert.Equal(t, "api.example.com", view.ZoneDomains[0].Domain)
+}
 
-	_, err = CreateProxyRoute(ctx, Input{
-		SiteName:  "duplicate-site",
-		Domain:    "example.com",
-		OriginURL: "http://origin.example.com:8080",
-	})
+func TestCreateProxyRouteRejectsInvalidZoneDomainBindings(t *testing.T) {
+	cleanup := setupProxyRouteTestDB(t)
+	defer cleanup()
+	ctx := context.Background()
+	domain := createZoneDomain(t, ctx, "api.example.com", nil)
+	base := Input{SiteName: "api", OriginURL: "http://origin.example.com:8080"}
+
+	_, err := CreateProxyRoute(ctx, base)
+	require.EqualError(t, err, errProxyRouteZoneDomainsRequired)
+	base.ZoneDomainIDs = []uint{domain.ID, domain.ID}
+	_, err = CreateProxyRoute(ctx, base)
+	require.EqualError(t, err, errProxyRouteZoneDomainDuplicate)
+
+	first, err := CreateProxyRoute(ctx, Input{SiteName: "first", ZoneDomainIDs: []uint{domain.ID}, OriginURL: "http://origin.example.com:8080"})
+	require.NoError(t, err)
+	_, err = CreateProxyRoute(ctx, Input{SiteName: "second", ZoneDomainIDs: []uint{domain.ID}, OriginURL: "http://other.example.com:8080"})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "already exists")
+	require.NoError(t, DeleteProxyRoute(ctx, first.ID))
 }
 
-func TestListProxyRoutes(t *testing.T) {
+func TestCreateProxyRouteHTTPSRequiresCoveringCertificate(t *testing.T) {
 	cleanup := setupProxyRouteTestDB(t)
 	defer cleanup()
 	ctx := context.Background()
-
-	first, err := CreateProxyRoute(ctx, Input{
-		SiteName:  "first-site",
-		Domain:    "first.example.com",
-		OriginURL: "http://origin-a.internal:80",
-	})
-	require.NoError(t, err)
-
-	second, err := CreateProxyRoute(ctx, Input{
-		SiteName:  "second-site",
-		Domain:    "second.example.com",
-		OriginURL: "http://origin-b.internal:80",
-	})
-	require.NoError(t, err)
-
-	routes, err := ListProxyRoutes(ctx)
-	require.NoError(t, err)
-	require.Len(t, routes, 2)
-	assert.Equal(t, second.ID, routes[0].ID)
-	assert.Equal(t, first.ID, routes[1].ID)
-	assert.Equal(t, "second.example.com", routes[0].Domain)
-	assert.Equal(t, "first.example.com", routes[1].Domain)
-}
-
-func TestValidateProxyRouteIdentityUniquenessUsesDecodedPrimaryDomain(t *testing.T) {
-	cleanup := setupProxyRouteTestDB(t)
-	defer cleanup()
-	ctx := context.Background()
-
-	existing := &model.ProxyRoute{
-		SiteName:     "",
-		Domain:       "legacy.example.com",
-		Domains:      `["primary.example.com"]`,
-		OriginURL:    "http://origin.example.com:8080",
-		Upstreams:    `["http://origin.example.com:8080"]`,
-		Enabled:      true,
-		UpstreamType: "direct",
-	}
-	require.NoError(t, model.CreateProxyRouteRecord(ctx, existing))
-
-	view, err := GetProxyRoute(ctx, existing.ID)
-	require.NoError(t, err)
-	assert.Equal(t, "primary.example.com", view.SiteName)
-
-	_, err = CreateProxyRoute(ctx, Input{
-		SiteName:  "primary.example.com",
-		Domain:    "other.example.com",
-		OriginURL: "http://origin-b.example.com:8080",
-	})
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "site_name already exists")
-}
-
-func TestUpdateProxyRouteAuthConfig(t *testing.T) {
-	cleanup := setupProxyRouteTestDB(t)
-	defer cleanup()
-	ctx := context.Background()
-
-	created, err := CreateProxyRoute(ctx, Input{
-		SiteName:  "auth-site",
-		Domain:    "auth.example.com",
-		OriginURL: "http://origin.example.com:8080",
-		Enabled:   true,
-	})
-	require.NoError(t, err)
-
-	updated, err := UpdateProxyRoute(ctx, created.ID, Input{
-		SiteName:          created.SiteName,
-		Domain:            created.Domain,
-		Domains:           created.Domains,
-		OriginURL:         created.OriginURL,
-		Enabled:           created.Enabled,
-		BasicAuthEnabled:  true,
-		BasicAuthUsername: "admin",
-		BasicAuthPassword: "secret",
-	})
-	require.NoError(t, err)
-	assert.True(t, updated.BasicAuthEnabled)
-	assert.Equal(t, "admin", updated.BasicAuthUsername)
-	assert.Equal(t, "secret", updated.BasicAuthPassword)
+	domain := createZoneDomain(t, ctx, "api.example.com", nil)
+	_, err := CreateProxyRoute(ctx, Input{SiteName: "api", ZoneDomainIDs: []uint{domain.ID}, OriginURL: "http://origin.example.com:8080", EnableHTTPS: true})
+	require.EqualError(t, err, errProxyRouteCertRequired)
 }

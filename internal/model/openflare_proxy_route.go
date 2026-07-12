@@ -12,19 +12,21 @@ import (
 
 // ProxyRoute OpenFlare 代理规则实体。
 type ProxyRoute struct {
-	ID                   uint         `json:"id" gorm:"primaryKey;autoIncrement"`
-	SiteName             string       `json:"site_name" gorm:"size:255;not null;default:''"`
-	Domain               string       `json:"domain" gorm:"uniqueIndex;size:255;not null"`
-	Domains              string       `json:"domains" gorm:"type:text;not null;default:'[]'"`
+	ID       uint   `json:"id" gorm:"primaryKey;autoIncrement"`
+	SiteName string `json:"site_name" gorm:"size:255;not null;default:''"`
+	// Legacy mirrors are maintained from ZoneDomain bindings until the staged
+	// schema cleanup. They are not route API fields.
+	Domain               string       `json:"-" gorm:"uniqueIndex;size:255;not null"`
+	Domains              string       `json:"-" gorm:"type:text;not null;default:'[]'"`
 	OriginID             *uint        `json:"origin_id" gorm:"index"`
 	OriginURL            string       `json:"origin_url" gorm:"size:2048;not null"`
 	OriginHost           string       `json:"origin_host" gorm:"size:255"`
 	Upstreams            string       `json:"upstreams" gorm:"type:text;not null;default:'[]'"`
 	Enabled              bool         `json:"enabled" gorm:"not null;default:true"`
 	EnableHTTPS          bool         `json:"enable_https" gorm:"column:enable_https;not null;default:false"`
-	CertID               *uint        `json:"cert_id"`
-	CertIDs              string       `json:"cert_ids" gorm:"type:text;not null;default:'[]'"`
-	DomainCertIDs        string       `json:"domain_cert_ids" gorm:"type:text;not null;default:'[]'"`
+	CertID               *uint        `json:"-"`
+	CertIDs              string       `json:"-" gorm:"type:text;not null;default:'[]'"`
+	DomainCertIDs        string       `json:"-" gorm:"type:text;not null;default:'[]'"`
 	RedirectHTTP         bool         `json:"redirect_http" gorm:"not null;default:false"`
 	LimitConnPerServer   int          `json:"limit_conn_per_server" gorm:"not null;default:0"`
 	LimitConnPerIP       int          `json:"limit_conn_per_ip" gorm:"not null;default:0"`
