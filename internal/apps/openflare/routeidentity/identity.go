@@ -36,8 +36,8 @@ func NormalizeDomains(rawDomains []string) ([]string, error) {
 	return normalized, nil
 }
 
-// DecodeDomains parses legacy route domain fields for the explicit migration
-// command. Runtime consumers must read ZoneDomain bindings instead.
+// DecodeDomains parses legacy route domain fields for the goose upgrade importer.
+// Runtime consumers must read ZoneDomain bindings instead.
 func DecodeDomains(raw string, fallbackDomain string) ([]string, error) {
 	text := strings.TrimSpace(raw)
 	if text == "" {

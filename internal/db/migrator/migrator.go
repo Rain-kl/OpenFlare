@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/Rain-kl/Wavelet/internal/apps/openflare/zone"
 	"github.com/Rain-kl/Wavelet/internal/config"
 	"github.com/Rain-kl/Wavelet/internal/db"
 	"github.com/Rain-kl/Wavelet/internal/repository"
@@ -34,7 +35,9 @@ func dbType() string {
 const (
 	dialectSqlite   = "sqlite3"
 	dialectPostgres = "postgres"
-	cascadeSuffix   = " CASCADE"
+	// zoneImportSQLVersion is the goose SQL marker after of_zones creation and
+	// before drop of legacy route domain columns. Zone data import runs here.
+	zoneImportSQLVersion int64 = 202607120002
 )
 
 func gooseDialect() string {
@@ -51,7 +54,7 @@ func migrationDir() string {
 	return "goose/postgres"
 }
 
-// Migrate 执行数据库迁移
+// Migrate 执行数据库迁移：全部结构变更走 goose SQL；Zone 历史域名导入在 SQL 之后自动执行。
 func Migrate() {
 	gormDB := db.DB(context.Background())
 	if gormDB == nil {
@@ -70,6 +73,15 @@ func Migrate() {
 	if err := resyncGooseVersionSequence(sqlDB); err != nil {
 		log.Fatalf("[%s] resync goose_db_version sequence failed: %v\n", dbType(), err)
 	}
+	// 1) SQL up to zone-import marker (includes of_zones DDL; still has legacy columns).
+	if err := goose.UpTo(sqlDB, migrationDir(), zoneImportSQLVersion); err != nil {
+		log.Fatalf("[%s] goose migrate (up to zone import) failed: %v\n", dbType(), err)
+	}
+	// 2) Auto-import legacy domains (publicsuffix; idempotent; no-op after phase-2 drop).
+	if err := importZoneDomainsAfterGoose(sqlDB); err != nil {
+		log.Fatalf("[%s] zone domain import failed: %v\n", dbType(), err)
+	}
+	// 3) Remaining SQL (drop legacy columns / managed_domains, later migrations).
 	if err := goose.Up(sqlDB, migrationDir()); err != nil {
 		log.Fatalf("[%s] goose migrate failed: %v\n", dbType(), err)
 	}
@@ -77,6 +89,31 @@ func Migrate() {
 	clearSystemConfigCache()
 
 	log.Printf("[%s] goose migrate success\n", dbType())
+}
+
+// importZoneDomainsAfterGoose 在 SQL 迁移完成后自动导入旧路由/托管域名。
+// 必须使用 publicsuffix 解析注册根域，故不能放在纯 SQL 中；幂等且在旧列删除后为空操作。
+func importZoneDomainsAfterGoose(sqlDB *sql.DB) error {
+	ctx := context.Background()
+	tx, err := sqlDB.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin zone import transaction: %w", err)
+	}
+	report, err := zone.ImportLegacyTx(ctx, tx, gooseDialect() == dialectPostgres)
+	if err != nil {
+		_ = tx.Rollback()
+		return report.LogAndReturn(err)
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit zone import: %w", err)
+	}
+	if report.Zones > 0 || report.Domains > 0 {
+		log.Printf(
+			"[%s] imported zone domains automatically: zones=%d domains=%d\n",
+			dbType(), report.Zones, report.Domains,
+		)
+	}
+	return nil
 }
 
 // resyncGooseVersionSequence 修复 PostgreSQL 下 goose_db_version.id 自增序列落后于
@@ -114,18 +151,4 @@ func clearSystemConfigCache() {
 	if err := repository.InvalidateAllSystemConfigCaches(context.Background()); err != nil {
 		log.Printf("[%s] clear system config cache failed: %v\n", dbType(), err)
 	}
-}
-
-func tableExistsSQL(dialect string) string {
-	if dialect == dialectPostgres {
-		return "SELECT count(*) FROM information_schema.tables WHERE table_schema='public' AND table_name=$1"
-	}
-	return "SELECT count(*) FROM sqlite_master WHERE type='table' AND name=?"
-}
-
-func tablesWithPrefixSQL(dialect string) string {
-	if dialect == dialectPostgres {
-		return "SELECT table_name FROM information_schema.tables WHERE table_schema='public' AND table_name LIKE $1"
-	}
-	return "SELECT name FROM sqlite_master WHERE type='table' AND name LIKE ?"
 }

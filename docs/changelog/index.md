@@ -26,7 +26,7 @@ sidebar: false
 - 新增第一阶段 Zone 与正规化 Zone 域名数据库表及路由绑定模型，为后续以稳定 ID 管理网站与域名关联提供基础。
 - 新增 Zone 管理 API 与显式历史域名导入命令，使用公共后缀列表验证注册根域和域名归属。
 - 管理端网站入口改为 Zone 列表与 `/websites/:zoneId` 详情（概览 / 域名 / 路由 / 证书 / 设置），反代路由通过 Zone 域名选择器绑定。
-- 新增 Zone 域名迁移指南（`docs/guide/zone-domain-migration.md`），覆盖备份、`wavelet migrate-zones`、预览等价性与回滚步骤。
+- 新增 Zone 域名迁移指南（`docs/guide/zone-domain-migration.md`）；历史域名在 Server 启动时由 goose 自动导入，无需单独命令。
 
 ### 修改
 
