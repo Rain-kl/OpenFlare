@@ -10,16 +10,6 @@ import (
 )
 
 func registerTLSRoutes(apiGroup *gin.RouterGroup) {
-	managedDomainRoute := apiGroup.Group("/managed-domains")
-	managedDomainRoute.Use(apiutil.AdminMiddlewares()...)
-	{
-		apiutil.RegisterCollection(managedDomainRoute, "GET", tls.GetManagedDomains)
-		managedDomainRoute.GET("/match", tls.MatchManagedDomainCertificateHandler)
-		apiutil.RegisterCollection(managedDomainRoute, "POST", tls.CreateManagedDomainHandler)
-		managedDomainRoute.POST("/:id/update", tls.UpdateManagedDomainHandler)
-		managedDomainRoute.POST("/:id/delete", tls.DeleteManagedDomainHandler)
-	}
-
 	tlsCertificateRoute := apiGroup.Group("/tls-certificates")
 	tlsCertificateRoute.Use(apiutil.AdminMiddlewares()...)
 	{

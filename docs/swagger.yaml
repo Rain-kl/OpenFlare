@@ -177,6 +177,12 @@ definitions:
         type: integer
       async_insert_queue:
         type: integer
+      batch_writers:
+        description: BatchWriters reports in-process queue depth/drops/flush errors
+          for CH writers.
+        items:
+          $ref: '#/definitions/batchwriter.Stats'
+        type: array
       database:
         type: string
       pending_mutations:
@@ -239,6 +245,21 @@ definitions:
   auth_source.ToggleAuthSourceRequest:
     properties:
       is_active:
+        type: boolean
+    type: object
+  batchwriter.Stats:
+    properties:
+      cap:
+        type: integer
+      depth:
+        type: integer
+      drops:
+        type: integer
+      flush_errors:
+        type: integer
+      name:
+        type: string
+      running:
         type: boolean
     type: object
   cache.updateCacheConfigRequest:
@@ -1619,6 +1640,38 @@ definitions:
     - UploadStatusPending
     - UploadStatusUsed
     - UploadStatusDeleted
+  model.Zone:
+    properties:
+      created_at:
+        type: string
+      domain:
+        type: string
+      id:
+        type: integer
+      remark:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  model.ZoneDomain:
+    properties:
+      cert_id:
+        type: integer
+      created_at:
+        type: string
+      domain:
+        type: string
+      id:
+        type: integer
+      proxy_route_id:
+        type: integer
+      remark:
+        type: string
+      updated_at:
+        type: string
+      zone_id:
+        type: integer
+    type: object
   node.AgentReleaseInfo:
     properties:
       body:
@@ -2257,11 +2310,17 @@ definitions:
     type: object
   option.databaseCleanupResult:
     properties:
+      cleanup_mode:
+        type: string
       delete_all:
         type: boolean
       deleted_count:
         type: integer
+      eligible_count:
+        type: integer
       retention_days:
+        type: integer
+      table_ttl_days:
         type: integer
       target:
         type: string
@@ -3951,6 +4010,31 @@ definitions:
           $ref: '#/definitions/waf.RuleGroupView'
         type: array
     type: object
+  zone.DomainInput:
+    properties:
+      cert_id:
+        type: integer
+      domain:
+        type: string
+      remark:
+        type: string
+    type: object
+  zone.Input:
+    properties:
+      domain:
+        type: string
+      remark:
+        type: string
+    type: object
+  zone.Overview:
+    properties:
+      domains:
+        items:
+          $ref: '#/definitions/model.ZoneDomain'
+        type: array
+      zone:
+        $ref: '#/definitions/model.Zone'
+    type: object
 info:
   contact:
     name: OpenFlare
@@ -5062,7 +5146,7 @@ paths:
       - admin
   /api/v1/admin/status/clickhouse:
     get:
-      description: 返回 ClickHouse parts、mutation、async_insert 队列等运维指标，需要管理员权限
+      description: 返回 ClickHouse parts、mutation、async_insert 队列及进程内 batch writer 指标，需要管理员权限
       produces:
       - application/json
       responses:
@@ -7748,217 +7832,6 @@ paths:
       security:
       - SessionCookie: []
       summary: 更新 DNS 账号
-      tags:
-      - openflare-tls
-  /api/v1/d/managed-domains:
-    get:
-      description: 返回全部托管域名及关联证书，需要管理员权限
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: 托管域名列表
-          schema:
-            allOf:
-            - $ref: '#/definitions/response.Any'
-            - properties:
-                data:
-                  items:
-                    $ref: '#/definitions/model.ManagedDomain'
-                  type: array
-              type: object
-        "400":
-          description: 参数错误
-          schema:
-            $ref: '#/definitions/response.Any'
-        "401":
-          description: 未登录
-          schema:
-            $ref: '#/definitions/response.Any'
-        "404":
-          description: 无权限或不存在
-          schema:
-            $ref: '#/definitions/response.Any'
-        "500":
-          description: 内部错误
-          schema:
-            $ref: '#/definitions/response.Any'
-      security:
-      - SessionCookie: []
-      summary: 列出托管域名
-      tags:
-      - openflare-tls
-    post:
-      consumes:
-      - application/json
-      description: 创建新的托管域名记录，需要管理员权限
-      parameters:
-      - description: 托管域名参数
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/tls.ManagedDomainInput'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: 创建成功的托管域名
-          schema:
-            allOf:
-            - $ref: '#/definitions/response.Any'
-            - properties:
-                data:
-                  $ref: '#/definitions/model.ManagedDomain'
-              type: object
-        "400":
-          description: 参数错误
-          schema:
-            $ref: '#/definitions/response.Any'
-        "401":
-          description: 未登录
-          schema:
-            $ref: '#/definitions/response.Any'
-        "404":
-          description: 无权限或不存在
-          schema:
-            $ref: '#/definitions/response.Any'
-        "500":
-          description: 内部错误
-          schema:
-            $ref: '#/definitions/response.Any'
-      security:
-      - SessionCookie: []
-      summary: 创建托管域名
-      tags:
-      - openflare-tls
-  /api/v1/d/managed-domains/{id}/delete:
-    post:
-      description: 按 ID 删除托管域名，需要管理员权限
-      parameters:
-      - description: 托管域名 ID
-        in: path
-        name: id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: 删除成功
-          schema:
-            $ref: '#/definitions/response.Any'
-        "400":
-          description: 参数错误
-          schema:
-            $ref: '#/definitions/response.Any'
-        "401":
-          description: 未登录
-          schema:
-            $ref: '#/definitions/response.Any'
-        "404":
-          description: 记录不存在
-          schema:
-            $ref: '#/definitions/response.Any'
-        "500":
-          description: 内部错误
-          schema:
-            $ref: '#/definitions/response.Any'
-      security:
-      - SessionCookie: []
-      summary: 删除托管域名
-      tags:
-      - openflare-tls
-  /api/v1/d/managed-domains/{id}/update:
-    post:
-      consumes:
-      - application/json
-      description: 按 ID 更新托管域名，需要管理员权限
-      parameters:
-      - description: 托管域名 ID
-        in: path
-        name: id
-        required: true
-        type: integer
-      - description: 托管域名参数
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/tls.ManagedDomainInput'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: 更新后的托管域名
-          schema:
-            allOf:
-            - $ref: '#/definitions/response.Any'
-            - properties:
-                data:
-                  $ref: '#/definitions/model.ManagedDomain'
-              type: object
-        "400":
-          description: 参数错误
-          schema:
-            $ref: '#/definitions/response.Any'
-        "401":
-          description: 未登录
-          schema:
-            $ref: '#/definitions/response.Any'
-        "404":
-          description: 记录不存在
-          schema:
-            $ref: '#/definitions/response.Any'
-        "500":
-          description: 内部错误
-          schema:
-            $ref: '#/definitions/response.Any'
-      security:
-      - SessionCookie: []
-      summary: 更新托管域名
-      tags:
-      - openflare-tls
-  /api/v1/d/managed-domains/match:
-    get:
-      description: 按域名查询可用的证书匹配候选，需要管理员权限
-      parameters:
-      - description: 域名
-        in: query
-        name: domain
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: 证书匹配结果
-          schema:
-            allOf:
-            - $ref: '#/definitions/response.Any'
-            - properties:
-                data:
-                  $ref: '#/definitions/tls.ManagedDomainMatchResult'
-              type: object
-        "400":
-          description: 参数错误
-          schema:
-            $ref: '#/definitions/response.Any'
-        "401":
-          description: 未登录
-          schema:
-            $ref: '#/definitions/response.Any'
-        "404":
-          description: 无权限或不存在
-          schema:
-            $ref: '#/definitions/response.Any'
-        "500":
-          description: 内部错误
-          schema:
-            $ref: '#/definitions/response.Any'
-      security:
-      - SessionCookie: []
-      summary: 匹配托管域名证书
       tags:
       - openflare-tls
   /api/v1/d/nodes:
@@ -10669,6 +10542,136 @@ paths:
       summary: 替换站点 WAF 规则组
       tags:
       - openflare-waf
+  /api/v1/d/zones:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/model.Zone'
+                  type: array
+              type: object
+      security:
+      - SessionCookie: []
+      summary: 获取 Zone 列表
+      tags:
+      - openflare-zone
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Zone 参数
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/zone.Input'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.Zone'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Any'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 创建 Zone
+      tags:
+      - openflare-zone
+  /api/v1/d/zones/{id}/domains:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Zone ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 域名参数
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/zone.DomainInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.ZoneDomain'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Any'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Any'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 创建 Zone 域名
+      tags:
+      - openflare-zone
+  /api/v1/d/zones/{id}/overview:
+    get:
+      parameters:
+      - description: Zone ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/zone.Overview'
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 获取 Zone 概览
+      tags:
+      - openflare-zone
   /api/v1/oauth/{source}/authorize:
     get:
       description: 根据指定认证源名称发起 OAuth 授权，支持 purpose 参数用于区分登录和账号绑定场景。认证源必须已启用。

@@ -18,6 +18,7 @@ func RegisterV1Routes(apiV1Router *gin.RouterGroup) {
 	registerNodeRoutes(group)
 	registerWAFRoutes(group)
 	registerTLSRoutes(group)
+	registerZoneRoutes(group)
 	registerConfigVersionRoutes(group)
 	registerPagesRoutes(group)
 	registerDashboardRoutes(group)
