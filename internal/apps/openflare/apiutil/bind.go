@@ -25,7 +25,12 @@ func BindJSON(c *gin.Context, dst any) bool {
 
 // IDParam parses :id from the URL path.
 func IDParam(c *gin.Context) (uint, bool) {
-	raw := c.Param("id")
+	return NamedIDParam(c, "id")
+}
+
+// NamedIDParam parses a named path parameter as a positive uint ID.
+func NamedIDParam(c *gin.Context, name string) (uint, bool) {
+	raw := c.Param(name)
 	if raw == "" {
 		response.AbortBadRequest(c, errInvalidID)
 		return 0, false

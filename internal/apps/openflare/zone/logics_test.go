@@ -32,6 +32,24 @@ func TestCreateZoneDomainRejectsWildcard(t *testing.T) {
 	require.EqualError(t, err, errDomainWildcardUnsupported)
 }
 
+func TestDeleteDomainRejectsBoundRoute(t *testing.T) {
+	ctx := setupZoneDB(t)
+	zone, err := Create(ctx, Input{Domain: "example.com"})
+	require.NoError(t, err)
+	item, err := CreateDomain(ctx, zone.ID, DomainInput{Domain: "api.example.com"})
+	require.NoError(t, err)
+	routeID := uint(9)
+	item.ProxyRouteID = &routeID
+	require.NoError(t, db.DB(ctx).Save(item).Error)
+
+	err = DeleteDomain(ctx, zone.ID, item.ID)
+	require.EqualError(t, err, errDomainBoundToRoute)
+
+	item.ProxyRouteID = nil
+	require.NoError(t, db.DB(ctx).Save(item).Error)
+	require.NoError(t, DeleteDomain(ctx, zone.ID, item.ID))
+}
+
 func TestLegacyImportUsesEffectiveTLDPlusOne(t *testing.T) {
 	root, err := zoneRoot("api.example.co.uk")
 	require.NoError(t, err)

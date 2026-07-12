@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import {useMemo, useState} from 'react';
 import {useMutation} from '@tanstack/react-query';
-import {Eye, Pencil, Plus, Trash2} from 'lucide-react';
+import {Eye, Plus, Trash2} from 'lucide-react';
 import {toast} from 'sonner';
 
 import {
@@ -45,7 +45,7 @@ export function ZoneDomainsTable({
   routesLoading?: boolean;
   onChanged(): Promise<unknown> | void;
 }) {
-  const [editing, setEditing] = useState<ZoneDomainItem | null | undefined>(undefined);
+  const [createOpen, setCreateOpen] = useState(false);
   const [deleting, setDeleting] = useState<ZoneDomainItem | null>(null);
 
   const remove = useMutation({
@@ -74,7 +74,7 @@ export function ZoneDomainsTable({
           variant="secondary"
           size="sm"
           className="h-7 text-xs"
-          onClick={() => setEditing(null)}
+          onClick={() => setCreateOpen(true)}
         >
           <Plus className="mr-1 size-3.5" />
           添加域名
@@ -101,7 +101,7 @@ export function ZoneDomainsTable({
                   <TableHead className="h-8 whitespace-nowrap py-2 min-w-[120px]">
                     备注
                   </TableHead>
-                  <TableHead className="sticky right-0 z-10 h-8 w-[110px] bg-background py-2 text-center">
+                  <TableHead className="sticky right-0 z-10 h-8 w-[90px] bg-background py-2 text-center">
                     操作
                   </TableHead>
                 </TableRow>
@@ -195,22 +195,6 @@ export function ZoneDomainsTable({
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="h-6 w-6 text-muted-foreground hover:text-foreground"
-                                onClick={() => setEditing(domain)}
-                              >
-                                <Pencil className="size-3" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent side="top" className="text-xs">
-                              编辑域名
-                            </TooltipContent>
-                          </Tooltip>
-
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
                                 className="h-6 w-6 text-muted-foreground hover:text-destructive"
                                 onClick={() => setDeleting(domain)}
                               >
@@ -233,14 +217,9 @@ export function ZoneDomainsTable({
       )}
 
       <ZoneDomainDialog
-        open={editing !== undefined}
-        onOpenChange={(open) => {
-          if (!open) {
-            setEditing(undefined);
-          }
-        }}
+        open={createOpen}
+        onOpenChange={setCreateOpen}
         zoneId={zoneId}
-        domain={editing ?? null}
         onSaved={onChanged}
       />
 

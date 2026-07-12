@@ -13,4 +13,6 @@ const (
 	errDomainNotFound            = "域名不存在"
 	errDomainExists              = "域名已存在"
 	errCertificateNotFound       = "所选证书不存在"
+	errDomainBoundToRoute        = "域名已绑定反代路由，请先解除绑定"
+	errZoneHasDomains            = "Zone 下仍有域名，请先删除全部域名"
 )

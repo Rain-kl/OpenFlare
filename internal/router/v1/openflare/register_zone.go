@@ -15,5 +15,9 @@ func registerZoneRoutes(apiGroup *gin.RouterGroup) {
 	apiutil.RegisterCollection(zoneGroup, "GET", zone.ListHandler)
 	apiutil.RegisterCollection(zoneGroup, "POST", zone.CreateHandler)
 	zoneGroup.GET("/:id/overview", zone.GetOverviewHandler)
+	zoneGroup.POST("/:id/update", zone.UpdateHandler)
+	zoneGroup.POST("/:id/delete", zone.DeleteHandler)
 	zoneGroup.POST("/:id/domains", zone.CreateDomainHandler)
+	zoneGroup.POST("/:id/domains/:domainId/update", zone.UpdateDomainHandler)
+	zoneGroup.POST("/:id/domains/:domainId/delete", zone.DeleteDomainHandler)
 }

@@ -222,6 +222,34 @@ func UpdateDomain(ctx context.Context, zoneID, id uint, input DomainInput) (*mod
 	return &item, nil
 }
 
+// DeleteDomain removes a Zone domain that is not bound to a proxy route.
+func DeleteDomain(ctx context.Context, zoneID, id uint) error {
+	var item model.ZoneDomain
+	if err := db.DB(ctx).Where("id = ? AND zone_id = ?", id, zoneID).First(&item).Error; err != nil {
+		return err
+	}
+	if item.ProxyRouteID != nil {
+		return errors.New(errDomainBoundToRoute)
+	}
+	return db.DB(ctx).Delete(&item).Error
+}
+
+// Delete removes a Zone that has no remaining domains.
+func Delete(ctx context.Context, id uint) error {
+	var zone model.Zone
+	if err := db.DB(ctx).First(&zone, id).Error; err != nil {
+		return err
+	}
+	var count int64
+	if err := db.DB(ctx).Model(&model.ZoneDomain{}).Where("zone_id = ?", id).Count(&count).Error; err != nil {
+		return err
+	}
+	if count > 0 {
+		return errors.New(errZoneHasDomains)
+	}
+	return db.DB(ctx).Delete(&zone).Error
+}
+
 func isUnique(err error) bool {
 	return errors.Is(err, gorm.ErrDuplicatedKey) || strings.Contains(strings.ToLower(err.Error()), "unique constraint")
 }

@@ -10546,6 +10546,34 @@ paths:
       summary: 创建 Zone
       tags:
       - openflare-zone
+  /api/v1/d/zones/{id}/delete:
+    post:
+      parameters:
+      - description: Zone ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Any'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Any'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 删除 Zone
+      tags:
+      - openflare-zone
   /api/v1/d/zones/{id}/domains:
     post:
       consumes:
@@ -10591,6 +10619,89 @@ paths:
       summary: 创建 Zone 域名
       tags:
       - openflare-zone
+  /api/v1/d/zones/{id}/domains/{domainId}/delete:
+    post:
+      parameters:
+      - description: Zone ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 域名 ID
+        in: path
+        name: domainId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Any'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Any'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 删除 Zone 域名
+      tags:
+      - openflare-zone
+  /api/v1/d/zones/{id}/domains/{domainId}/update:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Zone ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 域名 ID
+        in: path
+        name: domainId
+        required: true
+        type: integer
+      - description: 域名参数
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/zone.DomainInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.ZoneDomain'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Any'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Any'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 更新 Zone 域名
+      tags:
+      - openflare-zone
   /api/v1/d/zones/{id}/overview:
     get:
       parameters:
@@ -10618,6 +10729,51 @@ paths:
       security:
       - SessionCookie: []
       summary: 获取 Zone 概览
+      tags:
+      - openflare-zone
+  /api/v1/d/zones/{id}/update:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Zone ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Zone 参数
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/zone.Input'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.Zone'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Any'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Any'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 更新 Zone
       tags:
       - openflare-zone
   /api/v1/oauth/{source}/authorize:

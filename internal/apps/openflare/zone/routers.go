@@ -87,6 +87,56 @@ func GetOverviewHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, response.OK(item))
 }
 
+// UpdateHandler updates a Zone.
+// @Summary 更新 Zone
+// @Tags openflare-zone
+// @Accept json
+// @Produce json
+// @Security SessionCookie
+// @Param id path int true "Zone ID"
+// @Param body body zone.Input true "Zone 参数"
+// @Success 200 {object} response.Any{data=model.Zone}
+// @Failure 400 {object} response.Any
+// @Failure 404 {object} response.Any
+// @Failure 409 {object} response.Any
+// @Router /api/v1/d/zones/{id}/update [post]
+func UpdateHandler(c *gin.Context) {
+	id, ok := apiutil.IDParam(c)
+	if !ok {
+		return
+	}
+	var input Input
+	if !apiutil.BindJSON(c, &input) {
+		return
+	}
+	item, err := Update(c.Request.Context(), id, input)
+	if abort(c, err, errZoneNotFound) {
+		return
+	}
+	c.JSON(http.StatusOK, response.OK(item))
+}
+
+// DeleteHandler deletes a Zone with no remaining domains.
+// @Summary 删除 Zone
+// @Tags openflare-zone
+// @Produce json
+// @Security SessionCookie
+// @Param id path int true "Zone ID"
+// @Success 200 {object} response.Any
+// @Failure 400 {object} response.Any
+// @Failure 404 {object} response.Any
+// @Router /api/v1/d/zones/{id}/delete [post]
+func DeleteHandler(c *gin.Context) {
+	id, ok := apiutil.IDParam(c)
+	if !ok {
+		return
+	}
+	if err := Delete(c.Request.Context(), id); abort(c, err, errZoneNotFound) {
+		return
+	}
+	c.JSON(http.StatusOK, response.OKNil())
+}
+
 // CreateDomainHandler creates an explicit FQDN under a Zone.
 // @Summary 创建 Zone 域名
 // @Tags openflare-zone
@@ -114,4 +164,64 @@ func CreateDomainHandler(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, response.OK(item))
+}
+
+// UpdateDomainHandler updates a Zone domain.
+// @Summary 更新 Zone 域名
+// @Tags openflare-zone
+// @Accept json
+// @Produce json
+// @Security SessionCookie
+// @Param id path int true "Zone ID"
+// @Param domainId path int true "域名 ID"
+// @Param body body zone.DomainInput true "域名参数"
+// @Success 200 {object} response.Any{data=model.ZoneDomain}
+// @Failure 400 {object} response.Any
+// @Failure 404 {object} response.Any
+// @Failure 409 {object} response.Any
+// @Router /api/v1/d/zones/{id}/domains/{domainId}/update [post]
+func UpdateDomainHandler(c *gin.Context) {
+	zoneID, ok := apiutil.IDParam(c)
+	if !ok {
+		return
+	}
+	domainID, ok := apiutil.NamedIDParam(c, "domainId")
+	if !ok {
+		return
+	}
+	var input DomainInput
+	if !apiutil.BindJSON(c, &input) {
+		return
+	}
+	item, err := UpdateDomain(c.Request.Context(), zoneID, domainID, input)
+	if abort(c, err, errDomainNotFound) {
+		return
+	}
+	c.JSON(http.StatusOK, response.OK(item))
+}
+
+// DeleteDomainHandler deletes a Zone domain not bound to a proxy route.
+// @Summary 删除 Zone 域名
+// @Tags openflare-zone
+// @Produce json
+// @Security SessionCookie
+// @Param id path int true "Zone ID"
+// @Param domainId path int true "域名 ID"
+// @Success 200 {object} response.Any
+// @Failure 400 {object} response.Any
+// @Failure 404 {object} response.Any
+// @Router /api/v1/d/zones/{id}/domains/{domainId}/delete [post]
+func DeleteDomainHandler(c *gin.Context) {
+	zoneID, ok := apiutil.IDParam(c)
+	if !ok {
+		return
+	}
+	domainID, ok := apiutil.NamedIDParam(c, "domainId")
+	if !ok {
+		return
+	}
+	if err := DeleteDomain(c.Request.Context(), zoneID, domainID); abort(c, err, errDomainNotFound) {
+		return
+	}
+	c.JSON(http.StatusOK, response.OKNil())
 }
