@@ -2727,25 +2727,9 @@ definitions:
         items:
           type: string
         type: array
-      cert_id:
-        type: integer
-      cert_ids:
-        items:
-          type: integer
-        type: array
       custom_headers:
         items:
           $ref: '#/definitions/proxy_route.CustomHeaderInput'
-        type: array
-      domain:
-        type: string
-      domain_cert_ids:
-        items:
-          type: integer
-        type: array
-      domains:
-        items:
-          type: string
         type: array
       enable_https:
         type: boolean
@@ -2793,6 +2777,10 @@ definitions:
         items:
           type: string
         type: array
+      zone_domain_ids:
+        items:
+          type: integer
+        type: array
     type: object
   proxy_route.View:
     properties:
@@ -2812,12 +2800,6 @@ definitions:
         type: array
       cache_rules:
         type: string
-      cert_id:
-        type: integer
-      cert_ids:
-        items:
-          type: integer
-        type: array
       created_at:
         type: string
       custom_header_list:
@@ -2826,18 +2808,6 @@ definitions:
         type: array
       custom_headers:
         type: string
-      domain:
-        type: string
-      domain_cert_ids:
-        items:
-          type: integer
-        type: array
-      domain_count:
-        type: integer
-      domains:
-        items:
-          type: string
-        type: array
       enable_https:
         type: boolean
       enabled:
@@ -2858,8 +2828,6 @@ definitions:
         type: string
       pages_project_id:
         type: integer
-      primary_domain:
-        type: string
       redirect_http:
         type: boolean
       remark:
@@ -2884,6 +2852,25 @@ definitions:
         type: string
       upstreams:
         type: string
+      zone_domain_ids:
+        items:
+          type: integer
+        type: array
+      zone_domains:
+        items:
+          $ref: '#/definitions/proxy_route.ZoneDomainView'
+        type: array
+    type: object
+  proxy_route.ZoneDomainView:
+    properties:
+      cert_id:
+        type: integer
+      domain:
+        type: string
+      id:
+        type: integer
+      zone_id:
+        type: integer
     type: object
   push.Config:
     properties:
@@ -4024,6 +4011,21 @@ definitions:
       domain:
         type: string
       remark:
+        type: string
+    type: object
+  zone.ListItem:
+    properties:
+      created_at:
+        type: string
+      domain:
+        type: string
+      domain_count:
+        type: integer
+      id:
+        type: integer
+      remark:
+        type: string
+      updated_at:
         type: string
     type: object
   zone.Overview:
@@ -10555,7 +10557,7 @@ paths:
             - properties:
                 data:
                   items:
-                    $ref: '#/definitions/model.Zone'
+                    $ref: '#/definitions/zone.ListItem'
                   type: array
               type: object
       security:

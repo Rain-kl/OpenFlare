@@ -1,14 +1,11 @@
 import type {
-  ManagedDomainItem,
-  ManagedDomainMutationPayload,
-  ProxyRouteItem,
   TlsCertificateFileImportPayload,
   TlsCertificateItem,
   TlsCertificateMutationPayload,
 } from '@/lib/services/openflare';
 import {formatDateTime} from '@/lib/utils';
 
-import type {FileImportFormValues, ManagedDomainFormValues, ManualImportFormValues,} from './schemas';
+import type {FileImportFormValues, ManualImportFormValues} from './schemas';
 
 export type StatusTone = 'success' | 'warning' | 'danger' | 'info';
 
@@ -51,28 +48,6 @@ export function buildCertificateLabel(certificate: TlsCertificateItem) {
     : certificate.name;
 }
 
-export function toManagedDomainPayload(
-  values: ManagedDomainFormValues,
-): ManagedDomainMutationPayload {
-  return {
-    domain: values.domain.trim().toLowerCase(),
-    cert_id: values.cert_id ? Number(values.cert_id) : null,
-    enabled: values.enabled,
-    remark: values.remark.trim(),
-  };
-}
-
-export function toManagedDomainFormValues(
-  domain: ManagedDomainItem,
-): ManagedDomainFormValues {
-  return {
-    domain: domain.domain,
-    cert_id: domain.cert_id ? String(domain.cert_id) : '',
-    enabled: domain.enabled,
-    remark: domain.remark || '',
-  };
-}
-
 export function toManualPayload(
   values: ManualImportFormValues,
 ): TlsCertificateMutationPayload {
@@ -99,21 +74,4 @@ export function toFilePayload(
     certFile,
     keyFile,
   };
-}
-
-export function isRouteRelatedToManagedDomain(
-  managedDomain: string,
-  route: ProxyRouteItem,
-) {
-  const domains = route.domains.length > 0 ? route.domains : [route.primary_domain];
-  return domains.some((routeDomain) => {
-    if (managedDomain === routeDomain) {
-      return true;
-    }
-    if (!managedDomain.startsWith('*.')) {
-      return false;
-    }
-    const suffix = managedDomain.slice(2);
-    return routeDomain.endsWith(`.${suffix}`);
-  });
 }

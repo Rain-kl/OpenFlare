@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"time"
 
 	"github.com/Rain-kl/Wavelet/internal/db"
 	"github.com/Rain-kl/Wavelet/internal/model"
@@ -32,6 +33,16 @@ type DomainInput struct {
 type Overview struct {
 	Zone    model.Zone         `json:"zone"`
 	Domains []model.ZoneDomain `json:"domains"`
+}
+
+// ListItem is a Zone list row with denormalized domain count for the UI.
+type ListItem struct {
+	ID          uint      `json:"id"`
+	Domain      string    `json:"domain"`
+	Remark      string    `json:"remark"`
+	DomainCount int64     `json:"domain_count"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
 }
 
 func zoneRoot(domain string) (string, error) {
@@ -99,11 +110,41 @@ func Update(ctx context.Context, id uint, input Input) (*model.Zone, error) {
 	return &zone, nil
 }
 
-// List returns all Zones in stable domain order.
-func List(ctx context.Context) ([]model.Zone, error) {
+// List returns all Zones in stable domain order, with domain counts for list cards.
+func List(ctx context.Context) ([]ListItem, error) {
 	var zones []model.Zone
-	err := db.DB(ctx).Order("domain asc").Find(&zones).Error
-	return zones, err
+	if err := db.DB(ctx).Order("domain asc").Find(&zones).Error; err != nil {
+		return nil, err
+	}
+
+	type countRow struct {
+		ZoneID uint  `gorm:"column:zone_id"`
+		Count  int64 `gorm:"column:count"`
+	}
+	var rows []countRow
+	if err := db.DB(ctx).Model(&model.ZoneDomain{}).
+		Select("zone_id, count(*) as count").
+		Group("zone_id").
+		Scan(&rows).Error; err != nil {
+		return nil, err
+	}
+	counts := make(map[uint]int64, len(rows))
+	for _, row := range rows {
+		counts[row.ZoneID] = row.Count
+	}
+
+	items := make([]ListItem, 0, len(zones))
+	for _, zone := range zones {
+		items = append(items, ListItem{
+			ID:          zone.ID,
+			Domain:      zone.Domain,
+			Remark:      zone.Remark,
+			DomainCount: counts[zone.ID],
+			CreatedAt:   zone.CreatedAt,
+			UpdatedAt:   zone.UpdatedAt,
+		})
+	}
+	return items, nil
 }
 
 // GetOverview returns a Zone and its domains.

@@ -10849,7 +10849,7 @@ const docTemplate = `{
                                         "data": {
                                             "type": "array",
                                             "items": {
-                                                "$ref": "#/definitions/model.Zone"
+                                                "$ref": "#/definitions/zone.ListItem"
                                             }
                                         }
                                     }
@@ -16857,34 +16857,10 @@ const docTemplate = `{
                         "type": "string"
                     }
                 },
-                "cert_id": {
-                    "type": "integer"
-                },
-                "cert_ids": {
-                    "type": "array",
-                    "items": {
-                        "type": "integer"
-                    }
-                },
                 "custom_headers": {
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/proxy_route.CustomHeaderInput"
-                    }
-                },
-                "domain": {
-                    "type": "string"
-                },
-                "domain_cert_ids": {
-                    "type": "array",
-                    "items": {
-                        "type": "integer"
-                    }
-                },
-                "domains": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
                     }
                 },
                 "enable_https": {
@@ -16955,6 +16931,12 @@ const docTemplate = `{
                     "items": {
                         "type": "string"
                     }
+                },
+                "zone_domain_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
                 }
             }
         },
@@ -16985,15 +16967,6 @@ const docTemplate = `{
                 "cache_rules": {
                     "type": "string"
                 },
-                "cert_id": {
-                    "type": "integer"
-                },
-                "cert_ids": {
-                    "type": "array",
-                    "items": {
-                        "type": "integer"
-                    }
-                },
                 "created_at": {
                     "type": "string"
                 },
@@ -17005,24 +16978,6 @@ const docTemplate = `{
                 },
                 "custom_headers": {
                     "type": "string"
-                },
-                "domain": {
-                    "type": "string"
-                },
-                "domain_cert_ids": {
-                    "type": "array",
-                    "items": {
-                        "type": "integer"
-                    }
-                },
-                "domain_count": {
-                    "type": "integer"
-                },
-                "domains": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
                 },
                 "enable_https": {
                     "type": "boolean"
@@ -17053,9 +17008,6 @@ const docTemplate = `{
                 },
                 "pages_project_id": {
                     "type": "integer"
-                },
-                "primary_domain": {
-                    "type": "string"
                 },
                 "redirect_http": {
                     "type": "boolean"
@@ -17092,6 +17044,35 @@ const docTemplate = `{
                 },
                 "upstreams": {
                     "type": "string"
+                },
+                "zone_domain_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "zone_domains": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/proxy_route.ZoneDomainView"
+                    }
+                }
+            }
+        },
+        "proxy_route.ZoneDomainView": {
+            "type": "object",
+            "properties": {
+                "cert_id": {
+                    "type": "integer"
+                },
+                "domain": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "zone_id": {
+                    "type": "integer"
                 }
             }
         },
@@ -18795,6 +18776,29 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "remark": {
+                    "type": "string"
+                }
+            }
+        },
+        "zone.ListItem": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "domain": {
+                    "type": "string"
+                },
+                "domain_count": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "remark": {
+                    "type": "string"
+                },
+                "updated_at": {
                     "type": "string"
                 }
             }

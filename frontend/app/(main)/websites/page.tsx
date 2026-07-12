@@ -1,211 +1,119 @@
 'use client';
 
 import Link from 'next/link';
-import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query';
 import {useMemo, useState} from 'react';
-import {Globe, Plus, Trash2} from 'lucide-react';
-import {toast} from 'sonner';
+import {useQuery} from '@tanstack/react-query';
+import {Globe, Plus, Search} from 'lucide-react';
 
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
 import {Button} from '@/components/ui/button';
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card';
 import {EmptyStateWithBorder} from '@/components/layout/empty';
 import {ErrorInline} from '@/components/layout/error';
+import {Input} from '@/components/ui/input';
 import {LoadingStateWithBorder} from '@/components/layout/loading';
-import type {ManagedDomainItem} from '@/lib/services/openflare';
-import {TlsCertificateService, WebsiteService} from '@/lib/services/openflare';
+import {ZoneService, zoneQueryKey} from '@/lib/services/openflare';
 
-import {CertificateImportDialog} from './components/certificate-import-dialog';
-import {WebsiteStatusBadge} from './components/status-badge';
-import {WebsiteEditorDialog} from './components/website-editor-dialog';
-import {buildCertificateLabel, getErrorMessage, getMatchTypeMeta,} from './components/website-utils';
-
-const domainsQueryKey = ['openflare', 'managed-domains'];
-const certificatesQueryKey = ['openflare', 'tls-certificates'];
+import {ZoneEditorDialog} from './[zoneId]/components/zone-editor-dialog';
+import {getErrorMessage} from './components/website-utils';
 
 export default function WebsitesPage() {
-  const queryClient = useQueryClient();
+  const [search, setSearch] = useState('');
   const [editorOpen, setEditorOpen] = useState(false);
-  const [importOpen, setImportOpen] = useState(false);
-  const [preferredCertificateId, setPreferredCertificateId] = useState<number | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<ManagedDomainItem | null>(null);
-
-  const domainsQuery = useQuery({
-    queryKey: domainsQueryKey,
-    queryFn: () => WebsiteService.list(),
+  const zonesQuery = useQuery({
+    queryKey: zoneQueryKey,
+    queryFn: () => ZoneService.list(),
   });
 
-  const certificatesQuery = useQuery({
-    queryKey: certificatesQueryKey,
-    queryFn: () => TlsCertificateService.list(),
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: (id: number) => WebsiteService.deleteById(id),
-    onSuccess: async () => {
-      toast.success('网站已删除');
-      setDeleteTarget(null);
-      await queryClient.invalidateQueries({queryKey: domainsQueryKey});
-    },
-    onError: (error) => toast.error(getErrorMessage(error)),
-  });
-
-  const domains = useMemo(() => domainsQuery.data ?? [], [domainsQuery.data]);
-  const certificates = useMemo(
-    () => certificatesQuery.data ?? [],
-    [certificatesQuery.data],
-  );
-  const certificateMap = useMemo(
-    () => new Map(certificates.map((item) => [item.id, item])),
-    [certificates],
-  );
+  const zones = useMemo(() => {
+    const keyword = search.trim().toLowerCase();
+    const list = zonesQuery.data ?? [];
+    if (!keyword) {
+      return list;
+    }
+    return list.filter((zone) => zone.domain.toLowerCase().includes(keyword));
+  }, [search, zonesQuery.data]);
 
   return (
-    <div className="py-6 px-1 space-y-6">
+    <div className="space-y-6 py-6 px-1">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <Globe className="size-5 text-primary" />
           <h1 className="text-2xl font-semibold tracking-tight">网站</h1>
         </div>
-        <div className="flex items-center gap-2">
-          <Button size="sm" className="h-7 text-xs" onClick={() => setEditorOpen(true)}>
-            <Plus className="size-3.5 mr-1" />
-            新增网站
-          </Button>
-        </div>
+        <Button size="sm" className="h-7 text-xs" onClick={() => setEditorOpen(true)}>
+          <Plus className="mr-1 size-3.5" />
+          新增 Zone
+        </Button>
       </div>
 
       <Card className="border-dashed shadow-none">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base font-semibold">网站列表</CardTitle>
-          <CardDescription>查看网站绑定的证书、启用状态和更新时间。</CardDescription>
+        <CardHeader className="gap-3 pb-3 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <CardTitle className="text-base font-semibold">Zone 列表</CardTitle>
+            <CardDescription>
+              以可注册根域组织网站，并在详情中维护明确 FQDN、证书与路由关联。
+            </CardDescription>
+          </div>
+          <div className="relative w-full sm:w-64">
+            <Search className="pointer-events-none absolute left-2.5 top-2.5 size-3.5 text-muted-foreground" />
+            <Input
+              aria-label="搜索 Zone 根域"
+              placeholder="搜索 Zone 根域"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              className="h-8 pl-8 text-xs"
+            />
+          </div>
         </CardHeader>
         <CardContent>
-          {domainsQuery.isLoading ? (
-            <LoadingStateWithBorder icon={Globe} description="加载网站列表中..." />
-          ) : domainsQuery.isError ? (
-            <div className="p-8 border border-dashed rounded-lg">
+          {zonesQuery.isLoading ? (
+            <LoadingStateWithBorder icon={Globe} description="加载 Zone 列表中..." />
+          ) : zonesQuery.isError ? (
+            <div className="rounded-lg border border-dashed p-8">
               <ErrorInline
-                message={getErrorMessage(domainsQuery.error)}
-                onRetry={() => void domainsQuery.refetch()}
                 className="justify-center"
+                message={getErrorMessage(zonesQuery.error)}
+                onRetry={() => void zonesQuery.refetch()}
               />
             </div>
-          ) : domains.length === 0 ? (
+          ) : zones.length === 0 ? (
             <EmptyStateWithBorder
               icon={Globe}
-              description="暂无网站，点击右上角「新增网站」开始录入。"
+              description={
+                search
+                  ? '未找到匹配的 Zone。'
+                  : '暂无 Zone，点击右上角「新增 Zone」开始录入。'
+              }
             />
           ) : (
             <div className="grid gap-3 lg:grid-cols-2">
-              {domains.map((domain) => {
-                const certificate = domain.cert_id
-                  ? (certificateMap.get(domain.cert_id) ?? null)
-                  : null;
-                const matchType = getMatchTypeMeta(domain.domain);
-
-                return (
-                  <div
-                    key={domain.id}
-                    className="rounded-lg border bg-card p-4 space-y-3"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="space-y-2 min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <h2 className="text-sm font-semibold truncate">{domain.domain}</h2>
-                          <WebsiteStatusBadge label={matchType.label} tone={matchType.tone} />
-                          <WebsiteStatusBadge
-                            label={domain.enabled ? '启用' : '停用'}
-                            tone={domain.enabled ? 'success' : 'warning'}
-                          />
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                          {domain.remark || '暂无备注'}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          绑定证书：
-                          {certificate
-                            ? buildCertificateLabel(certificate)
-                            : '未绑定证书'}
-                        </p>
-                      </div>
-                      <div className="flex shrink-0 gap-1">
-                        <Button variant="outline" size="sm" className="h-7 text-xs" asChild>
-                          <Link href={`/websites/detail?id=${domain.id}`}>
-                            详情
-                          </Link>
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-7 text-xs text-destructive"
-                          onClick={() => setDeleteTarget(domain)}
-                        >
-                          <Trash2 className="size-3" />
-                        </Button>
-                      </div>
+              {zones.map((zone) => (
+                <div key={zone.id} className="rounded-lg border bg-card p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <h2 className="truncate text-sm font-semibold">{zone.domain}</h2>
+                      <p className="mt-2 text-xs text-muted-foreground">
+                        {zone.domain_count ?? 0} 个域名
+                        {zone.remark ? ` · ${zone.remark}` : ''}
+                      </p>
                     </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 shrink-0 text-xs"
+                      asChild
+                    >
+                      <Link href={`/websites/${zone.id}`}>管理</Link>
+                    </Button>
                   </div>
-                );
-              })}
+                </div>
+              ))}
             </div>
           )}
         </CardContent>
       </Card>
 
-      <WebsiteEditorDialog
-        open={editorOpen}
-        onOpenChange={setEditorOpen}
-        certificates={certificates}
-        certificatesLoading={certificatesQuery.isLoading}
-        preferredCertificateId={preferredCertificateId}
-        onRequestImportCertificate={() => setImportOpen(true)}
-        onSaved={(_, mode) => {
-          setPreferredCertificateId(null);
-          toast.success(mode === 'create' ? '网站已创建' : '网站已更新');
-        }}
-      />
-
-      <CertificateImportDialog
-        open={importOpen}
-        onOpenChange={setImportOpen}
-        onImported={(certificate) => {
-          setPreferredCertificateId(certificate.id);
-          toast.success(`证书 ${certificate.name} 已导入，可直接用于当前网站`);
-        }}
-      />
-
-      <AlertDialog
-        open={deleteTarget !== null}
-        onOpenChange={(open) => !open && setDeleteTarget(null)}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>确认删除网站</AlertDialogTitle>
-            <AlertDialogDescription>
-              确认删除网站 {deleteTarget?.domain} 吗？此操作不可撤销。
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>取消</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={() => deleteTarget && deleteMutation.mutate(deleteTarget.id)}
-            >
-              删除
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ZoneEditorDialog open={editorOpen} onOpenChange={setEditorOpen} />
     </div>
   );
 }

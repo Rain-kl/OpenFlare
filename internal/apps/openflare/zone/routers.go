@@ -33,7 +33,7 @@ func abort(c *gin.Context, err error, missing string) bool {
 // @Tags openflare-zone
 // @Produce json
 // @Security SessionCookie
-// @Success 200 {object} response.Any{data=[]model.Zone}
+// @Success 200 {object} response.Any{data=[]zone.ListItem}
 // @Router /api/v1/d/zones [get]
 func ListHandler(c *gin.Context) {
 	items, err := List(c.Request.Context())

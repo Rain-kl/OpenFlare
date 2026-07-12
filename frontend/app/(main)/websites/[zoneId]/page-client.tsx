@@ -1,0 +1,226 @@
+'use client';
+
+import Link from 'next/link';
+import {useState} from 'react';
+import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query';
+import {ArrowLeft, Globe, Pencil, Trash2} from 'lucide-react';
+import {toast} from 'sonner';
+
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {Button} from '@/components/ui/button';
+import {EmptyStateWithBorder} from '@/components/layout/empty';
+import {LoadingStateWithBorder} from '@/components/layout/loading';
+import {Tabs, TabsContent, TabsList, TabsTrigger} from '@/components/ui/tabs';
+import {TlsCertificateService, ZoneService, zoneQueryKey} from '@/lib/services/openflare';
+
+import {getErrorMessage} from '../components/website-utils';
+import {ZoneCertificatesPanel} from './components/zone-certificates';
+import {ZoneDomainsTable} from './components/zone-domains-table';
+import {ZoneEditorDialog} from './components/zone-editor-dialog';
+import {ZoneOverviewPanel} from './components/zone-overview';
+import {ZoneRouteSummary} from './components/zone-route-summary';
+
+export function ZonePageClient({zoneId}: {zoneId: number}) {
+  const queryClient = useQueryClient();
+  const [activeTab, setActiveTab] = useState('overview');
+  const [editZone, setEditZone] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  const overviewQuery = useQuery({
+    queryKey: [...zoneQueryKey, zoneId],
+    queryFn: () => ZoneService.getOverview(zoneId),
+    enabled: Number.isInteger(zoneId) && zoneId > 0,
+  });
+
+  const certificatesQuery = useQuery({
+    queryKey: ['openflare', 'tls-certificates'],
+    queryFn: () => TlsCertificateService.list(),
+    enabled: overviewQuery.isSuccess,
+  });
+
+  const deleteZone = useMutation({
+    mutationFn: () => ZoneService.deleteById(zoneId),
+    onSuccess: async () => {
+      toast.success('Zone 已删除');
+      await queryClient.invalidateQueries({queryKey: zoneQueryKey});
+      window.location.assign('/websites');
+    },
+    onError: (error) => toast.error(getErrorMessage(error)),
+  });
+
+  if (!Number.isInteger(zoneId) || zoneId <= 0) {
+    return (
+      <div className="py-6 px-1">
+        <EmptyStateWithBorder
+          icon={Globe}
+          description="无效的网站 ID，请从网站列表进入详情页。"
+        />
+      </div>
+    );
+  }
+
+  if (overviewQuery.isLoading) {
+    return (
+      <div className="py-6 px-1">
+        <LoadingStateWithBorder icon={Globe} description="加载 Zone 详情中..." />
+      </div>
+    );
+  }
+
+  if (overviewQuery.isError || !overviewQuery.data) {
+    return (
+      <div className="space-y-4 py-6 px-1">
+        <Button variant="ghost" size="sm" className="h-8 px-2" asChild>
+          <Link href="/websites">
+            <ArrowLeft className="mr-1 size-4" />
+            返回网站列表
+          </Link>
+        </Button>
+        <EmptyStateWithBorder
+          icon={Globe}
+          description="网站不存在，可能已被删除或 ID 无效。"
+        />
+      </div>
+    );
+  }
+
+  const overview = overviewQuery.data;
+  const certificates = certificatesQuery.data ?? [];
+  const boundCertCount = new Set(
+    overview.domains.map((domain) => domain.cert_id).filter((id): id is number => id != null),
+  ).size;
+
+  return (
+    <div className="space-y-6 py-6 px-1">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-2">
+          <Globe className="size-5 text-primary" />
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight">{overview.zone.domain}</h1>
+            <p className="text-sm text-muted-foreground">Zone 网站管理</p>
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" size="sm" className="h-7 text-xs" asChild>
+            <Link href="/websites">
+              <ArrowLeft className="mr-1 size-3.5" />
+              返回
+            </Link>
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 text-xs"
+            onClick={() => setEditZone(true)}
+          >
+            <Pencil className="mr-1 size-3.5" />
+            编辑 Zone
+          </Button>
+          <Button
+            variant="destructive"
+            size="sm"
+            className="h-7 text-xs"
+            onClick={() => setConfirmDelete(true)}
+          >
+            <Trash2 className="mr-1 size-3.5" />
+            删除 Zone
+          </Button>
+        </div>
+      </div>
+
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList variant="line" className="mb-6 inline-flex w-fit gap-8">
+          <TabsTrigger value="overview" className="px-0 pb-2 text-xs font-semibold">
+            概览
+          </TabsTrigger>
+          <TabsTrigger value="domains" className="px-0 pb-2 text-xs font-semibold">
+            域名 ({overview.domains.length})
+          </TabsTrigger>
+          <TabsTrigger value="routes" className="px-0 pb-2 text-xs font-semibold">
+            路由
+          </TabsTrigger>
+          <TabsTrigger value="certificates" className="px-0 pb-2 text-xs font-semibold">
+            证书 ({boundCertCount})
+          </TabsTrigger>
+          <TabsTrigger value="settings" className="px-0 pb-2 text-xs font-semibold">
+            设置
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="overview">
+          <ZoneOverviewPanel overview={overview} />
+        </TabsContent>
+        <TabsContent value="domains">
+          <ZoneDomainsTable
+            zoneId={zoneId}
+            domains={overview.domains}
+            certificates={certificates}
+            onChanged={() => overviewQuery.refetch()}
+          />
+        </TabsContent>
+        <TabsContent value="routes">
+          <ZoneRouteSummary domains={overview.domains} />
+        </TabsContent>
+        <TabsContent value="certificates">
+          <ZoneCertificatesPanel domains={overview.domains} certificates={certificates} />
+        </TabsContent>
+        <TabsContent value="settings">
+          <div className="rounded-lg border p-4">
+            <p className="text-sm font-semibold">Zone 设置</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              根域和备注可在此 Zone 的编辑操作中维护。
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-4 h-7 text-xs"
+              onClick={() => setEditZone(true)}
+            >
+              <Pencil className="mr-1 size-3.5" />
+              编辑根域与备注
+            </Button>
+          </div>
+        </TabsContent>
+      </Tabs>
+
+      <ZoneEditorDialog
+        open={editZone}
+        onOpenChange={setEditZone}
+        zone={overview.zone}
+      />
+
+      <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>确认删除 Zone</AlertDialogTitle>
+            <AlertDialogDescription>
+              确认删除 {overview.zone.domain} 吗？其下域名须先解绑路由后才能删除，此操作不可撤销。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteZone.isPending}>取消</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-white hover:bg-destructive/90"
+              disabled={deleteZone.isPending}
+              onClick={(event) => {
+                event.preventDefault();
+                deleteZone.mutate();
+              }}
+            >
+              {deleteZone.isPending ? '删除中…' : '确认删除'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+}

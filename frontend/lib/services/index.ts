@@ -42,6 +42,8 @@ import {
   UptimeKumaService,
   WafService,
   WebsiteService,
+  ZoneDomainService,
+  ZoneService,
 } from './openflare';
 
 const services = {
@@ -67,6 +69,8 @@ const services = {
   openflareDashboard: DashboardService,
   openflareWaf: WafService,
   openflareWebsite: WebsiteService,
+  openflareZone: ZoneService,
+  openflareZoneDomain: ZoneDomainService,
   openflareTls: TlsCertificateService,
   openflareDns: DnsAccountService,
   openflarePages: PagesService,
@@ -201,6 +205,7 @@ export {
 export type {
   NodeItem,
   ProxyRouteItem,
+  ProxyRouteZoneDomain,
   ProxyRouteConfigSection,
   ConfigVersionSummary,
   ConfigVersionDetail,

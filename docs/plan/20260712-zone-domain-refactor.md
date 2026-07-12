@@ -52,7 +52,7 @@
 - Produces: `model.Zone`, `model.ZoneDomain`, `ListZoneDomainsByRouteID(ctx, routeID)`, `ReplaceZoneDomainRouteBindings(ctx, routeID, domainIDs)`.
 - Consumes: existing `model.ProxyRoute` and `model.TLSCertificate` IDs; no physical FK.
 
-- [ ] **Step 1: 写失败的模型与迁移测试**
+- [x] **Step 1: 写失败的模型与迁移测试**
 
 ```go
 func TestReplaceZoneDomainRouteBindingsRejectsForeignDomain(t *testing.T) {
@@ -64,7 +64,7 @@ Run: `go test ./internal/model ./internal/db/migrator -run 'Zone|Migrat' -count=
 
 Expected: FAIL，因为 Zone 模型和 goose 文件尚不存在。
 
-- [ ] **Step 2: 新建双方言 DDL**
+- [x] **Step 2: 新建双方言 DDL**
 
 ```sql
 CREATE TABLE IF NOT EXISTS of_zones (
@@ -94,7 +94,7 @@ CREATE INDEX IF NOT EXISTS idx_of_zone_domains_cert_id ON of_zone_domains (cert_
 
 SQLite 使用 `INTEGER PRIMARY KEY AUTOINCREMENT`、`DATETIME`，字段/索引语义完全对齐。此任务不得删除旧列或旧表。
 
-- [ ] **Step 3: 实现模型和受事务保护的绑定替换**
+- [x] **Step 3: 实现模型和受事务保护的绑定替换**
 
 ```go
 type Zone struct { ID uint; Domain string; Remark string; CreatedAt time.Time; UpdatedAt time.Time }
@@ -105,13 +105,13 @@ func ReplaceZoneDomainRouteBindings(ctx context.Context, routeID uint, domainIDs
 
 实现先锁定/读取请求域名，拒绝已绑定到其他路由的记录，再把当前路由已绑定但不在 `domainIDs` 的记录置空，最后将请求记录写为 `routeID`；所有动作放在同一 `db.DB(ctx).Transaction` 内。
 
-- [ ] **Step 4: 运行模型与迁移测试**
+- [x] **Step 4: 运行模型与迁移测试**
 
 Run: `go test ./internal/model ./internal/db/migrator -run 'Zone|Migrat' -count=1`
 
 Expected: PASS，空 SQLite 库可应用迁移，唯一域名和绑定排他性受保护。
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add internal/db/migrator/goose internal/model
@@ -132,7 +132,7 @@ git commit -m "feat(zone): add normalized zone domain schema"
 - Produces: `zone.Create`, `zone.Update`, `zone.GetOverview`, `zone.ImportLegacy(ctx) (ImportReport, error)` and Zone REST handlers.
 - Consumes: Task 1 models; legacy `managed_domains` and proxy-route columns only inside `ImportLegacy`.
 
-- [ ] **Step 1: 写失败的逻辑与 API 测试**
+- [x] **Step 1: 写失败的逻辑与 API 测试**
 
 ```go
 func TestCreateZoneDomainRejectsWildcard(t *testing.T) { _, err := CreateDomain(ctx, zoneID, DomainInput{Domain: "*.example.com"}); require.EqualError(t, err, errDomainWildcardUnsupported) }
@@ -145,7 +145,7 @@ func TestLegacyImportUsesEffectiveTLDPlusOne(t *testing.T) {
 
 集成测试请求 `POST /api/v1/d/zones/`、`POST /api/v1/d/zones/:id/domains`，并断言错误响应使用 400 信封。
 
-- [ ] **Step 2: 实现精确域名和 Zone 归属验证**
+- [x] **Step 2: 实现精确域名和 Zone 归属验证**
 
 ```go
 func zoneRoot(domain string) (string, error) { return publicsuffix.EffectiveTLDPlusOne(strings.ToLower(strings.TrimSpace(domain))) }
@@ -154,7 +154,7 @@ func CreateDomain(ctx context.Context, zoneID uint, input DomainInput) (*model.Z
 
 拒绝空值、协议、路径和 `*`；要求 `zoneRoot(input.Domain) == zone.Domain`；若 `cert_id` 非空，验证 TLS 证书存在。Zone 根域创建也必须经 `EffectiveTLDPlusOne` 验证且输入等于结果。
 
-- [ ] **Step 3: 实现显式导入命令**
+- [x] **Step 3: 实现显式导入命令**
 
 ```go
 var migrateZonesCmd = &cobra.Command{Use: "migrate-zones", RunE: func(_ *cobra.Command, _ []string) error {
@@ -165,7 +165,7 @@ var migrateZonesCmd = &cobra.Command{Use: "migrate-zones", RunE: func(_ *cobra.C
 
 导入以事务执行：用 `routeidentity.DecodeDomains(route.Domains, route.Domain)` 读取旧路由；按 `domain_cert_ids` 的同一索引写入 `zone_domains.cert_id`；只在无路由域名时导入旧 `managed_domains`。发现无效根域、通配符记录或全局域名冲突时回滚并输出全部冲突项。重复执行不得生成重复 Zone/ZoneDomain。
 
-- [ ] **Step 4: 注册 API 并删除旧 managed-domain 路由**
+- [x] **Step 4: 注册 API 并删除旧 managed-domain 路由**
 
 ```go
 zoneGroup := apiGroup.Group("/zones")
@@ -177,7 +177,7 @@ zoneGroup.GET("/:id/overview", zone.GetOverviewHandler)
 
 把 `managed-domains` 路由块从 `register_tls.go` 移除；每个 Handler 使用 `apiutil.BindJSON` 和 `response.AbortBadRequest/AbortNotFound/AbortConflict`。
 
-- [ ] **Step 5: 验证并 Commit**
+- [x] **Step 5: 验证并 Commit**
 
 Run: `go test ./internal/apps/openflare/zone ./internal/apps/openflare/integration -count=1 && make swagger`
 
@@ -200,7 +200,7 @@ git commit -m "feat(zone): add zone management api and legacy importer"
 - Consumes: `zone_domain_ids []uint` and Task 1 binding API.
 - Produces: `proxy_route.Input{ZoneDomainIDs []uint}`, `proxy_route.View{ZoneDomains []ZoneDomainView}`.
 
-- [ ] **Step 1: 写失败的路由逻辑测试**
+- [x] **Step 1: 写失败的路由逻辑测试**
 
 ```go
 input := Input{SiteName: "api", ZoneDomainIDs: []uint{domainA.ID, domainB.ID}, EnableHTTPS: true}
@@ -211,7 +211,7 @@ require.Equal(t, []uint{domainA.ID, domainB.ID}, view.ZoneDomainIDs)
 
 同时覆盖：空 `zone_domain_ids`、重复 ID、其他路由已占用域名、HTTPS 域名无证书、证书 SAN 不覆盖。
 
-- [ ] **Step 2: 删除路由输入/视图中的旧域名与证书字段**
+- [x] **Step 2: 删除路由输入/视图中的旧域名与证书字段**
 
 ```go
 type ZoneDomainBindingInput struct {
@@ -222,17 +222,17 @@ type ZoneDomainView struct { ID uint `json:"id"`; ZoneID uint `json:"zone_id"`; 
 
 移除 `Input.Domain`、`Input.Domains`、`Input.CertID`、`Input.CertIDs`、`Input.DomainCertIDs` 及对应 View 字段；删除旧证书派生辅助函数与 `WebsiteService.match` 所需后端逻辑。
 
-- [ ] **Step 3: 用关联记录验证并构建路由**
+- [x] **Step 3: 用关联记录验证并构建路由**
 
 在 `buildProxyRoute` 中读取所有 `ZoneDomainIDs`，对每个 HTTPS 域名调用现有 `validateCertificateCoverage`，再调用 `ReplaceZoneDomainRouteBindings`。更新/删除路由也必须在事务内同步解除关联。来源、证书删除检查和 Origin 路由摘要改从 `zone_domains` 查询域名/证书。
 
-- [ ] **Step 4: 运行路由和 TLS 回归测试**
+- [x] **Step 4: 运行路由和 TLS 回归测试**
 
 Run: `go test ./internal/apps/openflare/proxy_route ./internal/apps/openflare/tls ./internal/apps/openflare/origin -count=1`
 
 Expected: PASS；任一证书已被 Zone 域名引用时，删除证书被拒绝。
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add internal/apps/openflare/proxy_route internal/apps/openflare/tls internal/apps/openflare/origin internal/model
@@ -250,7 +250,7 @@ git commit -m "refactor(proxy): bind routes through zone domains"
 **Interfaces:**
 - Produces: snapshot/render `Route{SiteName, Domains, DomainCertIDs}` built transiently from ZoneDomain rows; neither DB model nor API stores those fields.
 
-- [ ] **Step 1: 写快照等价性失败测试**
+- [x] **Step 1: 写快照等价性失败测试**
 
 ```go
 func TestBuildSnapshotReadsZoneDomainCertificates(t *testing.T) {
@@ -260,7 +260,7 @@ func TestBuildSnapshotReadsZoneDomainCertificates(t *testing.T) {
 
 加入 Pages、Tunnel、WAF 绑定测试，断言 Route ID 与 `site_name` 未改变。
 
-- [ ] **Step 2: 在快照边界联查并生成临时渲染字段**
+- [x] **Step 2: 在快照边界联查并生成临时渲染字段**
 
 ```go
 domains, err := model.ListZoneDomainsByRouteID(ctx, route.ID)
@@ -270,17 +270,17 @@ snapshotRoute.DomainCertIDs = certIDsInDomainOrder(domains)
 
 `pkg/render/openresty.Route` 可继续保留 `Domains` 与 `DomainCertIDs`，因为它是不可变配置快照的渲染输入；移除其中持久化主域/证书回退逻辑，所有错误消息改用 `SiteName`。
 
-- [ ] **Step 3: 移除旧字段回退路径**
+- [x] **Step 3: 移除旧字段回退路径**
 
 删除 `routeidentity.DecodeDomains` 对持久化 `route.Domain` 的依赖；Flared、Uptime Kuma、配置 diff、WAF 文档和 Pages 错误信息都从 snapshot/ZoneDomain 查询的明确域名获取显示文本。
 
-- [ ] **Step 4: 运行数据面测试**
+- [x] **Step 4: 运行数据面测试**
 
 Run: `go test ./internal/apps/openflare/config_version ./pkg/render/openresty ./internal/apps/openflare/flared ./internal/apps/openflare/uptimekuma -count=1`
 
 Expected: PASS；迁移后的路由产生的 `server_name`、证书支持文件和 WAF RouteID 绑定与迁移前一致。
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add internal/apps/openflare/config_version internal/apps/openflare/flared internal/apps/openflare/uptimekuma internal/apps/openflare/routeidentity pkg/render/openresty
@@ -305,7 +305,7 @@ git commit -m "refactor(config): render routes from zone domains"
 **Interfaces:**
 - Produces: `ZoneService.list/getOverview/create/update/delete`, `ZoneDomainService.create/update/delete` and `ZoneOverview` TypeScript types.
 
-- [ ] **Step 1: 写服务与页面行为测试**
+- [x] **Step 1: 写服务与页面行为测试**
 
 先安装仅用于本次页面测试的开发依赖：
 
@@ -320,7 +320,7 @@ expect(screen.getByRole('heading', {name: 'arctel.de'})).toBeVisible()
 
 覆盖 `/websites/42` 的加载、404、空域名、搜索列表和从列表点击 ID 链接。
 
-- [ ] **Step 2: 实现类型化服务与查询键**
+- [x] **Step 2: 实现类型化服务与查询键**
 
 ```ts
 export interface ZoneDomainItem { id: number; zone_id: number; proxy_route_id: number | null; domain: string; cert_id: number | null; remark: string }
@@ -330,7 +330,7 @@ export const zoneQueryKey = ['openflare', 'zones'] as const
 
 所有 React Query 回调使用箭头函数，避免静态 service `this` 丢失。
 
-- [ ] **Step 3: 用 Next 动态段实现 Zone 详情**
+- [x] **Step 3: 用 Next 动态段实现 Zone 详情**
 
 ```tsx
 export default async function ZonePage({params}: PageProps<'/websites/[zoneId]'>) {
@@ -341,11 +341,11 @@ export default async function ZonePage({params}: PageProps<'/websites/[zoneId]'>
 
 遵循本地 Next 文档：动态 `params` 是 Promise；无效或非正整数 ID 显示既有 `EmptyStateWithBorder`，不把域名写入 URL。主页面只维护页面骨架和 Tabs，具体 Tab 放入同目录组件。
 
-- [ ] **Step 4: 实现列表和详情交互**
+- [x] **Step 4: 实现列表和详情交互**
 
 列表仅渲染 Zone 根域及计数；详情使用概览、域名、路由、证书、设置 Tabs。域名弹窗拒绝 `*.`，但证书选择器不限制其 SAN。删除 Zone/域名使用确认对话框和服务端错误文案。
 
-- [ ] **Step 5: 验证并 Commit**
+- [x] **Step 5: 验证并 Commit**
 
 Run: `cd frontend && pnpm exec vitest run && pnpm lint`
 
@@ -370,7 +370,7 @@ git commit -m "feat(web): add zone-based website management"
 - Consumes: `ZoneDomainItem[]` and route `zone_domain_ids: number[]`.
 - Produces: selector values with explicit domain/Zone/证书信息；不发送任何旧域名或证书字段。
 
-- [ ] **Step 1: 写失败的选择器测试**
+- [x] **Step 1: 写失败的选择器测试**
 
 ```tsx
 render(<ZoneDomainSelector value={[7]} onChange={onChange} domains={[apiDomain]} />)
@@ -380,11 +380,11 @@ expect(onChange).toHaveBeenCalledWith([7])
 
 覆盖搜索、跨 Zone 多选、已被其他路由占用的禁用项和 HTTPS 缺少证书的表单错误。
 
-- [ ] **Step 2: 移除旧前端负载与自动匹配**
+- [x] **Step 2: 移除旧前端负载与自动匹配**
 
 从 `ProxyRouteItem`/`ProxyRouteMutationPayload` 删除 `domain`、`domains`、`primary_domain`、`cert_id`、`cert_ids`、`domain_cert_ids`；删除 `WebsiteService.match` 及 `DomainListInput` 自动填证书交互。
 
-- [ ] **Step 3: 实现 Zone 域名选择和保存负载**
+- [x] **Step 3: 实现 Zone 域名选择和保存负载**
 
 ```ts
 mutationFn: (payload) => ProxyRouteService.update(route.id, {
@@ -395,13 +395,13 @@ mutationFn: (payload) => ProxyRouteService.update(route.id, {
 
 展示每个选择项的 FQDN、所属 Zone 与证书；路由详情的“域名”区只编辑关联关系，证书链接跳转 Zone 详情而非路由内编辑。
 
-- [ ] **Step 4: 运行前端类型和交互测试**
+- [x] **Step 4: 运行前端类型和交互测试**
 
 Run: `cd frontend && pnpm exec tsc --noEmit`
 
 Expected: PASS；不存在旧持久化域名/证书字段的 TypeScript 引用。
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add frontend/app/'(main)'/proxy-routes frontend/lib/services/openflare/types.ts

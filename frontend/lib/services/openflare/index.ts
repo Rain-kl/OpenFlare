@@ -7,6 +7,7 @@ export { ApplyLogService } from './apply-log.service';
 export { DashboardService } from './dashboard.service';
 export { WafService } from './waf.service';
 export { WebsiteService } from './website.service';
+export { ZoneDomainService, ZoneService, zoneQueryKey } from './zone.service';
 export { TlsCertificateService } from './tls-certificate.service';
 export { DnsAccountService } from './dns-account.service';
 export { PagesService } from './pages.service';
@@ -49,6 +50,7 @@ export type {
   ProxyRouteItem,
   ProxyRouteMutationPayload,
   ProxyRoutePoWConfig,
+  ProxyRouteZoneDomain,
   ReleaseChannel,
   SupportFile,
   DashboardOverview,
@@ -105,6 +107,11 @@ export type {
   ManagedDomainItem,
   ManagedDomainMatchResult,
   ManagedDomainMutationPayload,
+  ZoneDomainItem,
+  ZoneDomainMutationPayload,
+  ZoneItem,
+  ZoneMutationPayload,
+  ZoneOverview,
   TlsCertificateApplyPayload,
   TlsCertificateContentItem,
   TlsCertificateDetailItem,

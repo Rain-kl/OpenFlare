@@ -228,13 +228,19 @@ export interface ProxyRoutePoWConfig {
   blacklist: ProxyRoutePoWListConfig;
 }
 
+/** Route-bound Zone domain as returned by proxy-route APIs. */
+export interface ProxyRouteZoneDomain {
+  id: number;
+  zone_id: number;
+  domain: string;
+  cert_id: number | null;
+}
+
 export interface ProxyRouteItem {
   id: number;
   site_name: string;
-  domain: string;
-  domains: string[];
-  primary_domain: string;
-  domain_count: number;
+  zone_domain_ids: number[];
+  zone_domains: ProxyRouteZoneDomain[];
   origin_id: number | null;
   origin_url: string;
   origin_host: string;
@@ -242,9 +248,6 @@ export interface ProxyRouteItem {
   upstream_list: string[];
   enabled: boolean;
   enable_https: boolean;
-  cert_id: number | null;
-  cert_ids: number[];
-  domain_cert_ids: number[];
   redirect_http: boolean;
   limit_conn_per_server: number;
   limit_conn_per_ip: number;
@@ -271,8 +274,7 @@ export interface ProxyRouteItem {
 
 export interface ProxyRouteMutationPayload {
   site_name?: string;
-  domain: string;
-  domains?: string[];
+  zone_domain_ids: number[];
   origin_id: number | null;
   origin_url: string;
   origin_scheme: 'http' | 'https';
@@ -283,9 +285,6 @@ export interface ProxyRouteMutationPayload {
   upstreams: string[];
   enabled: boolean;
   enable_https: boolean;
-  cert_id: number | null;
-  cert_ids?: number[];
-  domain_cert_ids?: number[];
   redirect_http: boolean;
   limit_conn_per_server?: number;
   limit_conn_per_ip?: number;
@@ -961,6 +960,43 @@ export interface DashboardOverviewCompact {
 }
 
 // ==================== Websites / TLS / DNS ====================
+
+export interface ZoneItem {
+  id: number;
+  domain: string;
+  remark: string;
+  /** Present on list API; may be omitted on nested zone objects. */
+  domain_count?: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ZoneMutationPayload {
+  domain: string;
+  remark: string;
+}
+
+export interface ZoneDomainItem {
+  id: number;
+  zone_id: number;
+  proxy_route_id: number | null;
+  domain: string;
+  cert_id: number | null;
+  remark: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ZoneDomainMutationPayload {
+  domain: string;
+  cert_id: number | null;
+  remark: string;
+}
+
+export interface ZoneOverview {
+  zone: ZoneItem;
+  domains: ZoneDomainItem[];
+}
 
 export interface ManagedDomainItem {
   id: number;
