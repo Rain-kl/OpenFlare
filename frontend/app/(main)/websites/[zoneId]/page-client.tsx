@@ -1,6 +1,6 @@
 'use client';
 
-import {useParams, usePathname, useRouter, useSearchParams} from 'next/navigation';
+import {usePathname, useRouter, useSearchParams} from 'next/navigation';
 import {useCallback, useEffect, useMemo, useState} from 'react';
 import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query';
 import {ArrowLeft, Globe, Pencil, Trash2} from 'lucide-react';
@@ -40,10 +40,12 @@ function getZonePageTab(value: string | null | undefined): ZonePageTab {
   return zoneTabs.includes(value as ZonePageTab) ? (value as ZonePageTab) : 'overview';
 }
 
-export function ZonePageClient() {
-  const params = useParams();
-  const zoneId = Number(params?.zoneId);
+function getZoneIdFromPathname(pathname: string | null): number {
+  const match = pathname?.match(/^\/websites\/([^/]+)$/);
+  return Number(match?.[1]);
+}
 
+export function ZonePageClient() {
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
     setMounted(true);
@@ -51,6 +53,7 @@ export function ZonePageClient() {
 
   const router = useRouter();
   const pathname = usePathname();
+  const zoneId = useMemo(() => getZoneIdFromPathname(pathname), [pathname]);
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
   const activeTab = useMemo(

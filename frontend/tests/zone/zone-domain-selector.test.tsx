@@ -13,7 +13,7 @@ vi.mock('next/link', () => ({
 }));
 
 const zones: ZoneItem[] = [
-  {id: 1, domain: 'arctel.de', created_at: '', updated_at: ''},
+  {id: 1, domain: 'example.com', created_at: '', updated_at: ''},
 ];
 
 const domains: ZoneDomainItem[] = [
@@ -21,7 +21,7 @@ const domains: ZoneDomainItem[] = [
     id: 7,
     zone_id: 1,
     proxy_route_id: null,
-    domain: 'api.arctel.de',
+    domain: 'api.example.com',
     cert_id: 9,
     created_at: '',
     updated_at: '',
@@ -30,7 +30,7 @@ const domains: ZoneDomainItem[] = [
     id: 8,
     zone_id: 1,
     proxy_route_id: 99,
-    domain: 'bound.arctel.de',
+    domain: 'bound.example.com',
     cert_id: null,
     created_at: '',
     updated_at: '',
@@ -56,12 +56,12 @@ describe('ZoneDomainSelector', () => {
       />,
     );
 
-    expect(screen.getByText('api.arctel.de')).toBeVisible();
+    expect(screen.getByText('api.example.com')).toBeVisible();
     // Bound to another route — hidden by default
-    expect(screen.queryByText('bound.arctel.de')).not.toBeInTheDocument();
+    expect(screen.queryByText('bound.example.com')).not.toBeInTheDocument();
     expect(screen.getByRole('button', {name: /快捷新增域名/})).toBeVisible();
 
-    await user.click(screen.getByText('api.arctel.de'));
+    await user.click(screen.getByText('api.example.com'));
     expect(onChange).toHaveBeenCalledWith([]);
   });
 
@@ -76,8 +76,8 @@ describe('ZoneDomainSelector', () => {
       />,
     );
 
-    expect(screen.getByText('api.arctel.de')).toBeVisible();
-    expect(screen.queryByText('bound.arctel.de')).not.toBeInTheDocument();
+    expect(screen.getByText('api.example.com')).toBeVisible();
+    expect(screen.queryByText('bound.example.com')).not.toBeInTheDocument();
   });
 
   it('still shows domains already bound to the current route', () => {
@@ -91,7 +91,7 @@ describe('ZoneDomainSelector', () => {
       />,
     );
 
-    expect(screen.getByText('bound.arctel.de')).toBeVisible();
-    expect(screen.getByText('api.arctel.de')).toBeVisible();
+    expect(screen.getByText('bound.example.com')).toBeVisible();
+    expect(screen.getByText('api.example.com')).toBeVisible();
   });
 });

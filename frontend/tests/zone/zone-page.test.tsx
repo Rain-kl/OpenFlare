@@ -14,6 +14,7 @@ class ResizeObserverMock {
 vi.stubGlobal('ResizeObserver', ResizeObserverMock);
 
 let mockZoneId = '42';
+let mockParamZoneId = '42';
 
 const replaceMock = vi.fn();
 
@@ -27,7 +28,7 @@ vi.mock('next/navigation', () => ({
   useRouter: () => ({replace: replaceMock, back: vi.fn()}),
   usePathname: () => `/websites/${mockZoneId}`,
   useSearchParams: () => new URLSearchParams(),
-  useParams: () => ({zoneId: mockZoneId}),
+  useParams: () => ({zoneId: mockParamZoneId}),
 }));
 
 vi.mock('@/lib/services/openflare', async (importOriginal) => {
@@ -49,8 +50,9 @@ vi.mock('@/lib/services/openflare', async (importOriginal) => {
   };
 });
 
-function renderPage(zoneId: number) {
+function renderPage(zoneId: number, paramZoneId = zoneId) {
   mockZoneId = String(zoneId);
+  mockParamZoneId = String(paramZoneId);
   const client = new QueryClient({
     defaultOptions: {
       queries: {retry: false, gcTime: 0},
@@ -65,6 +67,7 @@ function renderPage(zoneId: number) {
 
 describe('ZonePageClient', () => {
   beforeEach(() => {
+    mockParamZoneId = mockZoneId;
     vi.mocked(ZoneService.getOverview).mockReset();
     vi.mocked(ZoneService.getStats).mockReset();
     vi.mocked(ZoneService.getStats).mockResolvedValue({
@@ -89,7 +92,7 @@ describe('ZonePageClient', () => {
 
   it('loads the overview by stable ID and exposes all tabs including empty domains', async () => {
     vi.mocked(ZoneService.getOverview).mockImplementation(async () => ({
-      zone: {id: 42, domain: 'arctel.de', created_at: '', updated_at: ''},
+      zone: {id: 42, domain: 'example.com', created_at: '', updated_at: ''},
       domains: [],
     }));
 
@@ -98,7 +101,7 @@ describe('ZonePageClient', () => {
     await waitFor(() => {
       expect(ZoneService.getOverview).toHaveBeenCalledWith(42);
     });
-    expect(await screen.findByRole('heading', {name: 'arctel.de'})).toBeVisible();
+    expect(await screen.findByRole('heading', {name: 'example.com'})).toBeVisible();
     expect(await screen.findByText('唯一访问者')).toBeVisible();
     expect(screen.getByText('请求总数')).toBeVisible();
     expect(screen.getByText('已提供的数据总计')).toBeVisible();
@@ -106,6 +109,20 @@ describe('ZonePageClient', () => {
     expect(screen.getByRole('tab', {name: '证书 (0)'})).toBeVisible();
     expect(screen.queryByRole('tab', {name: '路由'})).not.toBeInTheDocument();
     expect(screen.getByRole('tab', {name: '设置'})).toBeVisible();
+  });
+
+  it('uses the browser pathname ID when serving a static-export fallback shell', async () => {
+    vi.mocked(ZoneService.getOverview).mockImplementation(async () => ({
+      zone: {id: 42, domain: 'example.com', created_at: '', updated_at: ''},
+      domains: [],
+    }));
+
+    renderPage(42, 1);
+
+    await waitFor(() => {
+      expect(ZoneService.getOverview).toHaveBeenCalledWith(42);
+    });
+    expect(ZoneService.getOverview).not.toHaveBeenCalledWith(1);
   });
 
   it('renders a not-found state for a missing Zone', async () => {

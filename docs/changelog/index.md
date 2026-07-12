@@ -41,6 +41,7 @@ sidebar: false
 
 ### 修复
 
+- 修复嵌入式静态前端访问 `/websites/:zoneId` 时回退到首页 HTML，导致 Zone 详情页显示总览并触发 React hydration error 的问题。
 - Docker ClickHouse 性能配置改为单文件挂载，避免覆盖镜像内置的 Docker 网络监听配置，导致宿主机无法通过 8123/9000 访问服务。
 
 ## [v3.1.2] - 2026-07-10

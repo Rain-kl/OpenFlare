@@ -34,14 +34,14 @@ describe('WebsitesPage', () => {
     vi.mocked(ZoneService.list).mockResolvedValue([
       {
         id: 42,
-        domain: 'arctel.de',
+        domain: 'example.com',
         domain_count: 3,
         created_at: '',
         updated_at: '',
       },
       {
         id: 43,
-        domain: 'example.com',
+        domain: 'another.com',
         domain_count: 0,
         created_at: '',
         updated_at: '',
@@ -50,18 +50,18 @@ describe('WebsitesPage', () => {
 
     renderPage();
 
-    expect(await screen.findByText('arctel.de')).toBeVisible();
+    expect(await screen.findByText('example.com')).toBeVisible();
     expect(screen.getByText('3')).toBeVisible();
     expect(screen.getByText('0')).toBeVisible();
     expect(screen.getByRole('columnheader', {name: '根域'})).toBeVisible();
 
     fireEvent.change(screen.getByPlaceholderText('搜索 Zone 根域'), {
-      target: {value: 'arctel'},
+      target: {value: 'example'},
     });
     expect(screen.getByRole('link', {name: '管理'})).toHaveAttribute(
       'href',
       '/websites/42',
     );
-    expect(screen.queryByText('example.com')).not.toBeInTheDocument();
+    expect(screen.queryByText('another.com')).not.toBeInTheDocument();
   });
 });

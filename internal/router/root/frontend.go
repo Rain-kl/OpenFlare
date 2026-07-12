@@ -101,7 +101,16 @@ func init() {
 				}
 			}
 
-			// 4. 单页应用（SPA）前端路由兜底：返回 index.html
+			// 4. Next.js static export dynamic route fallback. Runtime IDs cannot be
+			// enumerated at build time, so serve the generated route shell instead of
+			// falling back to the dashboard index.html.
+			if fallbackPath, ok := resolveNextExportDynamicFallback(subFS, cleanPath); ok {
+				if serveFileDirect(c, subFS, fallbackPath) {
+					return
+				}
+			}
+
+			// 5. 单页应用（SPA）前端路由兜底：返回 index.html
 			if serveFileDirect(c, subFS, "index.html") {
 				return
 			}

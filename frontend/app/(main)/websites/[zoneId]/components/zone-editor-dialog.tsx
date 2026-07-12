@@ -56,7 +56,7 @@ export function ZoneEditorDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{zone ? '编辑 Zone' : '新增 Zone'}</DialogTitle>
-          <DialogDescription>Zone 仅接受可注册根域，例如 arctel.de。</DialogDescription>
+          <DialogDescription>Zone 仅接受可注册根域，例如 example.com。</DialogDescription>
         </DialogHeader>
         <form
           id="zone-editor"
@@ -67,7 +67,7 @@ export function ZoneEditorDialog({
         >
           <div className="space-y-1.5">
             <Label htmlFor="zone-domain">根域</Label>
-            <Input id="zone-domain" placeholder="arctel.de" {...form.register('domain')} />
+            <Input id="zone-domain" placeholder="example.com" {...form.register('domain')} />
             {form.formState.errors.domain && (
               <p className="text-xs text-destructive">{form.formState.errors.domain.message}</p>
             )}

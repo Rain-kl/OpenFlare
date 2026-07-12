@@ -315,7 +315,7 @@ cd frontend && pnpm add -D vitest @testing-library/react @testing-library/jest-d
 
 ```ts
 expect(ZoneService.getOverview).toHaveBeenCalledWith(42)
-expect(screen.getByRole('heading', {name: 'arctel.de'})).toBeVisible()
+expect(screen.getByRole('heading', {name: 'example.com'})).toBeVisible()
 ```
 
 覆盖 `/websites/42` 的加载、404、空域名、搜索列表和从列表点击 ID 链接。
@@ -374,7 +374,7 @@ git commit -m "feat(web): add zone-based website management"
 
 ```tsx
 render(<ZoneDomainSelector value={[7]} onChange={onChange} domains={[apiDomain]} />)
-expect(screen.getByText('api.arctel.de')).toBeVisible()
+expect(screen.getByText('api.example.com')).toBeVisible()
 expect(onChange).toHaveBeenCalledWith([7])
 ```
 
