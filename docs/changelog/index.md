@@ -25,10 +25,18 @@ sidebar: false
 
 - 新增第一阶段 Zone 与正规化 Zone 域名数据库表及路由绑定模型，为后续以稳定 ID 管理网站与域名关联提供基础。
 - 新增 Zone 管理 API 与显式历史域名导入命令，使用公共后缀列表验证注册根域和域名归属。
+- 管理端网站入口改为 Zone 列表与 `/websites/:zoneId` 详情（概览 / 域名 / 路由 / 证书 / 设置），反代路由通过 Zone 域名选择器绑定。
+- 新增 Zone 域名迁移指南（`docs/guide/zone-domain-migration.md`），覆盖备份、`wavelet migrate-zones`、预览等价性与回滚步骤。
 
 ### 修改
 
 - 配置快照、OpenResty 渲染、Tunnel 与 Uptime Kuma 监控改为从 Zone 域名绑定读取域名和证书，移除对反代路由旧域名/证书字段的运行时回退。
+- 反代路由 API 以 `zone_domain_ids` / `zone_domains` 为唯一域名与证书关联来源，不再接受或返回路由内嵌域名/证书字段。
+- 第二阶段迁移删除 `of_managed_domains` 及 `of_proxy_routes` 上的 `domain` / `domains` / `cert_id` / `cert_ids` / `domain_cert_ids` 冗余列。
+
+### 移除
+
+- 移除托管域名（managed-domains）管理 API 与前端 `WebsiteService`；请改用 Zone / Zone 域名 API。
 
 ### 修复
 

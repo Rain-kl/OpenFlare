@@ -73,6 +73,7 @@ function sidebarGuide(): DefaultTheme.SidebarItem[] {
         { text: '概览', link: '' },
         { text: '快速开始', link: 'quick-start' },
         { text: 'TLS 证书与自动续期', link: 'certificates' },
+        { text: 'Zone 域名迁移', link: 'zone-domain-migration' },
         { text: '新建反代配置', link: 'proxy-config' },
         { text: 'Pages 静态托管使用', link: 'pages-usage' },
         { text: '内网穿透与隧道使用', link: 'tunnel-usage' },
