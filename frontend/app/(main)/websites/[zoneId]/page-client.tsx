@@ -1,7 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import {useState} from 'react';
+import {usePathname, useRouter, useSearchParams} from 'next/navigation';
+import {useCallback, useMemo, useState} from 'react';
 import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query';
 import {ArrowLeft, Globe, Pencil, Trash2} from 'lucide-react';
 import {toast} from 'sonner';
@@ -20,20 +21,52 @@ import {Button} from '@/components/ui/button';
 import {EmptyStateWithBorder} from '@/components/layout/empty';
 import {LoadingStateWithBorder} from '@/components/layout/loading';
 import {Tabs, TabsContent, TabsList, TabsTrigger} from '@/components/ui/tabs';
-import {TlsCertificateService, ZoneService, zoneQueryKey} from '@/lib/services/openflare';
+import {
+  ProxyRouteService,
+  TlsCertificateService,
+  ZoneService,
+  zoneQueryKey,
+} from '@/lib/services/openflare';
 
 import {getErrorMessage} from '../components/website-utils';
 import {ZoneCertificatesPanel} from './components/zone-certificates';
 import {ZoneDomainsTable} from './components/zone-domains-table';
 import {ZoneEditorDialog} from './components/zone-editor-dialog';
 import {ZoneOverviewPanel} from './components/zone-overview';
-import {ZoneRouteSummary} from './components/zone-route-summary';
+
+const zoneTabs = ['overview', 'domains', 'certificates', 'settings'] as const;
+export type ZonePageTab = (typeof zoneTabs)[number];
+
+function getZonePageTab(value: string | null | undefined): ZonePageTab {
+  return zoneTabs.includes(value as ZonePageTab) ? (value as ZonePageTab) : 'overview';
+}
 
 export function ZonePageClient({zoneId}: {zoneId: number}) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState('overview');
+  const activeTab = useMemo(
+    () => getZonePageTab(searchParams.get('tab')),
+    [searchParams],
+  );
   const [editZone, setEditZone] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+
+  const setActiveTab = useCallback(
+    (tab: string) => {
+      const next = getZonePageTab(tab);
+      const params = new URLSearchParams(searchParams.toString());
+      if (next === 'overview') {
+        params.delete('tab');
+      } else {
+        params.set('tab', next);
+      }
+      const query = params.toString();
+      router.replace(query ? `${pathname}?${query}` : pathname, {scroll: false});
+    },
+    [pathname, router, searchParams],
+  );
 
   const overviewQuery = useQuery({
     queryKey: [...zoneQueryKey, zoneId],
@@ -44,6 +77,12 @@ export function ZonePageClient({zoneId}: {zoneId: number}) {
   const certificatesQuery = useQuery({
     queryKey: ['openflare', 'tls-certificates'],
     queryFn: () => TlsCertificateService.list(),
+    enabled: overviewQuery.isSuccess,
+  });
+
+  const routesQuery = useQuery({
+    queryKey: ['openflare', 'proxy-routes'],
+    queryFn: () => ProxyRouteService.list(),
     enabled: overviewQuery.isSuccess,
   });
 
@@ -95,6 +134,7 @@ export function ZonePageClient({zoneId}: {zoneId: number}) {
 
   const overview = overviewQuery.data;
   const certificates = certificatesQuery.data ?? [];
+  const routes = routesQuery.data ?? [];
   const boundCertCount = new Set(
     overview.domains.map((domain) => domain.cert_id).filter((id): id is number => id != null),
   ).size;
@@ -145,9 +185,6 @@ export function ZonePageClient({zoneId}: {zoneId: number}) {
           <TabsTrigger value="domains" className="px-0 pb-2 text-xs font-semibold">
             域名 ({overview.domains.length})
           </TabsTrigger>
-          <TabsTrigger value="routes" className="px-0 pb-2 text-xs font-semibold">
-            路由
-          </TabsTrigger>
           <TabsTrigger value="certificates" className="px-0 pb-2 text-xs font-semibold">
             证书 ({boundCertCount})
           </TabsTrigger>
@@ -164,11 +201,10 @@ export function ZonePageClient({zoneId}: {zoneId: number}) {
             zoneId={zoneId}
             domains={overview.domains}
             certificates={certificates}
+            routes={routes}
+            routesLoading={routesQuery.isLoading}
             onChanged={() => overviewQuery.refetch()}
           />
-        </TabsContent>
-        <TabsContent value="routes">
-          <ZoneRouteSummary domains={overview.domains} />
         </TabsContent>
         <TabsContent value="certificates">
           <ZoneCertificatesPanel domains={overview.domains} certificates={certificates} />

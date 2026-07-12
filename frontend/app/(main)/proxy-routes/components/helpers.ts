@@ -93,21 +93,36 @@ export function getRouteDomainsLabel(route: ProxyRouteItem): string {
   return names.length > 0 ? names.join(', ') : '未绑定域名';
 }
 
-export function getUpstreamSummary(route: ProxyRouteItem): string {
+/** Upstream address labels for display (supports multi-upstream). */
+export function getUpstreamLabels(route: ProxyRouteItem): string[] {
   if (route.upstream_type === 'pages') {
-    return route.pages_project_id
-      ? `Pages 项目 #${route.pages_project_id}`
-      : 'Pages 项目未绑定';
+    return [
+      route.pages_project_id
+        ? `Pages 项目 #${route.pages_project_id}`
+        : 'Pages 项目未绑定',
+    ];
   }
   if (route.upstream_type === 'tunnel') {
     const protocol = route.tunnel_target_protocol || 'http';
     const target = route.tunnel_target_addr || '未配置目标';
-    return `Tunnel → ${protocol}://${target}`;
+    return [`Tunnel → ${protocol}://${target}`];
   }
-  if ((route.upstream_list ?? []).length <= 1) {
-    return route.origin_url;
+  const list = (route.upstream_list ?? []).filter(Boolean);
+  if (list.length > 0) {
+    return list;
   }
-  return `${route.upstream_list.length} 个上游，主上游 ${route.origin_url}`;
+  return route.origin_url ? [route.origin_url] : [];
+}
+
+export function getUpstreamSummary(route: ProxyRouteItem): string {
+  const labels = getUpstreamLabels(route);
+  if (labels.length === 0) {
+    return '未配置上游';
+  }
+  if (labels.length === 1) {
+    return labels[0];
+  }
+  return labels.join(' · ');
 }
 
 const originHostPattern =

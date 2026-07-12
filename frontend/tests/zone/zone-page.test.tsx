@@ -3,12 +3,20 @@ import {render, screen, waitFor} from '@testing-library/react';
 import {beforeEach, describe, expect, it, vi} from 'vitest';
 
 import {ZonePageClient} from '@/app/(main)/websites/[zoneId]/page-client';
-import {TlsCertificateService, ZoneService} from '@/lib/services/openflare';
+import {ProxyRouteService, TlsCertificateService, ZoneService} from '@/lib/services/openflare';
+
+const replaceMock = vi.fn();
 
 vi.mock('next/link', () => ({
   default: ({children, href}: {children: React.ReactNode; href: string}) => (
     <a href={href}>{children}</a>
   ),
+}));
+
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({replace: replaceMock}),
+  usePathname: () => '/websites/42',
+  useSearchParams: () => new URLSearchParams(),
 }));
 
 vi.mock('@/lib/services/openflare', async (importOriginal) => {
@@ -21,6 +29,9 @@ vi.mock('@/lib/services/openflare', async (importOriginal) => {
       list: vi.fn(),
     },
     TlsCertificateService: {
+      list: vi.fn(),
+    },
+    ProxyRouteService: {
       list: vi.fn(),
     },
   };
@@ -45,6 +56,8 @@ describe('ZonePageClient', () => {
     vi.mocked(ZoneService.deleteById).mockReset();
     vi.mocked(TlsCertificateService.list).mockReset();
     vi.mocked(TlsCertificateService.list).mockResolvedValue([]);
+    vi.mocked(ProxyRouteService.list).mockReset();
+    vi.mocked(ProxyRouteService.list).mockResolvedValue([]);
   });
 
   it('loads the overview by stable ID and exposes all tabs including empty domains', async () => {
@@ -61,7 +74,7 @@ describe('ZonePageClient', () => {
     expect(await screen.findByRole('heading', {name: 'arctel.de'})).toBeVisible();
     expect(screen.getByRole('tab', {name: '域名 (0)'})).toBeVisible();
     expect(screen.getByRole('tab', {name: '证书 (0)'})).toBeVisible();
-    expect(screen.getByRole('tab', {name: '路由'})).toBeVisible();
+    expect(screen.queryByRole('tab', {name: '路由'})).not.toBeInTheDocument();
     expect(screen.getByRole('tab', {name: '设置'})).toBeVisible();
   });
 

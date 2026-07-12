@@ -1,6 +1,6 @@
 'use client';
 
-import Link from 'next/link';
+import {useRouter} from 'next/navigation';
 import {useCallback, useState} from 'react';
 import {ArrowLeft, Loader2, Route, Upload} from 'lucide-react';
 import {toast} from 'sonner';
@@ -41,6 +41,7 @@ interface RouteHeaderProps {
 }
 
 export function RouteHeader({ route }: RouteHeaderProps) {
+  const router = useRouter();
   const [publishConfirmOpen, setPublishConfirmOpen] = useState(false);
   const [diff, setDiff] = useState<ConfigDiffResult | null>(null);
   const [diffLoading, setDiffLoading] = useState(false);
@@ -90,11 +91,14 @@ export function RouteHeader({ route }: RouteHeaderProps) {
   return (
     <>
       <div className="space-y-4">
-        <Button variant="ghost" size="sm" className="h-8 gap-1.5 px-0 text-xs" asChild>
-          <Link href="/proxy-routes">
-            <ArrowLeft className="size-3.5" />
-            返回规则列表
-          </Link>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-8 gap-1.5 px-0 text-xs"
+          onClick={() => router.back()}
+        >
+          <ArrowLeft className="size-3.5" />
+          返回
         </Button>
 
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
