@@ -19,13 +19,13 @@ import (
 )
 
 const (
-	healthEventStatusActive      = "active"
-	healthEventStatusResolved    = "resolved"
-	healthSeverityInfo           = "info"
-	healthSeverityWarning        = "warning"
-	healthSeverityCritical       = "critical"
-	accessLogPathMaxLength       = 100
-	healthEventMessageMaxLength  = 4096
+	healthEventStatusActive     = "active"
+	healthEventStatusResolved   = "resolved"
+	healthSeverityInfo          = "info"
+	healthSeverityWarning       = "warning"
+	healthSeverityCritical      = "critical"
+	accessLogPathMaxLength      = 100
+	healthEventMessageMaxLength = 4096
 )
 
 // PersistHeartbeatObservability stores profile, snapshots, traffic, access logs, and health events.
@@ -221,6 +221,7 @@ func buildNodeAccessLogRecords(nodeID string, direct []NodeAccessLog, buffered [
 				Host:       strings.TrimSpace(item.Host),
 				Path:       truncateForDatabase(strings.TrimSpace(item.Path), accessLogPathMaxLength),
 				StatusCode: item.StatusCode,
+				BytesSent:  item.BytesSent,
 			}
 			if resolver != nil {
 				record.Region = resolver.Resolve(record.RemoteAddr)

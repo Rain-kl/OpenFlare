@@ -41,6 +41,7 @@ sidebar: false
 
 ### 修复
 
+- 修复 Agent 上报访问日志的 `bytes_sent` 在 Server 入库链路丢失，导致 Zone 概览“已提供的数据总计”长期为 0 的问题。
 - 修复嵌入式静态前端访问 `/websites/:zoneId` 时回退到首页 HTML，导致 Zone 详情页显示总览并触发 React hydration error 的问题。
 - Docker ClickHouse 性能配置改为单文件挂载，避免覆盖镜像内置的 Docker 网络监听配置，导致宿主机无法通过 8123/9000 访问服务。
 

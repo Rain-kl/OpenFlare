@@ -47,6 +47,7 @@ func BatchInsertNodeAccessLogs(ctx context.Context, logs []analyticsmodel.NodeAc
 			logItem.Host,
 			logItem.Path,
 			logItem.StatusCode,
+			logItem.BytesSent,
 			createdAt.UTC(),
 		); err != nil {
 			return fmt.Errorf("append node access log to batch: %w", err)

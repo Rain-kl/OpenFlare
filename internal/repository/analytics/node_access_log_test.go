@@ -39,6 +39,7 @@ func TestBatchInsertNodeAccessLogs_UsesModelBatchSQL(t *testing.T) {
 			Host:       "example.com",
 			Path:       "/alpha",
 			StatusCode: 200,
+			BytesSent:  2048,
 			CreatedAt:  loggedAt,
 		},
 	})
@@ -48,4 +49,6 @@ func TestBatchInsertNodeAccessLogs_UsesModelBatchSQL(t *testing.T) {
 	assert.True(t, mockBatch.sendCalled)
 	require.Len(t, mockBatch.rows, 1)
 	assert.Equal(t, "node-a", mockBatch.rows[0][1])
+	require.Len(t, mockBatch.rows[0], 10)
+	assert.Equal(t, uint64(2048), mockBatch.rows[0][8])
 }
