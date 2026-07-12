@@ -80,3 +80,4 @@ profile.cov
 !internal/apps/agent/geoipdata/GeoLite2-Country.mmdb
 
 /.superpowers/
+/.worktrees/
