@@ -1,7 +1,7 @@
 'use client';
 
 import {usePathname, useRouter, useSearchParams} from 'next/navigation';
-import {useCallback, useEffect, useMemo, useState} from 'react';
+import {useCallback, useMemo, useState} from 'react';
 import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query';
 import {ArrowLeft, Globe, Pencil, Trash2} from 'lucide-react';
 import {toast} from 'sonner';
@@ -41,10 +41,6 @@ function getZonePageTab(value: string | null | undefined): ZonePageTab {
 }
 
 export function ZonePageClient({zoneId}: {zoneId: number}) {
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   const router = useRouter();
   const pathname = usePathname();
@@ -100,13 +96,7 @@ export function ZonePageClient({zoneId}: {zoneId: number}) {
     onError: (error) => toast.error(getErrorMessage(error)),
   });
 
-  if (!mounted) {
-    return (
-      <div className="py-6 px-1">
-        <LoadingStateWithBorder icon={Globe} description="加载 Zone 详情中..." />
-      </div>
-    );
-  }
+
 
   if (!Number.isInteger(zoneId) || zoneId <= 0) {
     return (

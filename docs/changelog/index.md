@@ -23,7 +23,6 @@ sidebar: false
 
 ### 新增
 
-- 边缘访问日志 `of_node_access_logs` ClickHouse 表新增 `bytes_sent` 字段并打通 Agent 到 Server 的上报和 Zone 统计显示逻辑。
 - Zone 概览页新增 Cloudflare 风格流量图：支持 24 小时 / 7 天 / 30 天，展示唯一访问者、请求总数与已提供数据趋势。
 - 新增第一阶段 Zone 与正规化 Zone 域名数据库表及路由绑定模型，为后续以稳定 ID 管理网站与域名关联提供基础。
 - 新增 Zone 管理 API 与显式历史域名导入命令，使用公共后缀列表验证注册根域和域名归属。
