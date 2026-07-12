@@ -17,11 +17,6 @@ const (
 	errCertificateFilesRequired     = "certificate file and key file cannot be empty"
 	errCertificatePEMInvalid        = "证书 PEM 内容不合法"
 
-	errManagedDomainRequired        = "域名不能为空"
-	errManagedDomainInvalid         = "域名格式不合法"
-	errManagedDomainWildcardInvalid = "通配符域名仅支持 *.example.com 格式"
-	errManagedDomainExists          = "域名已存在"
-	errManagedDomainCertNotFound    = "所选证书不存在"
 
 	errDNSAccountInUse = "该 DNS 账号已被证书使用，无法删除"
 )

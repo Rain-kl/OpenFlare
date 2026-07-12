@@ -83,6 +83,24 @@ func TestMigrateInitializesSQLiteDatabase(t *testing.T) {
 	if !sqliteDB.Migrator().HasTable("of_zone_domains") {
 		t.Error("Migrate() did not create of_zone_domains")
 	}
+	if sqliteDB.Migrator().HasTable("of_managed_domains") {
+		t.Error("Migrate() should drop of_managed_domains after phase-2 cleanup")
+	}
+	if sqliteDB.Migrator().HasColumn(&model.ProxyRoute{}, "domain") {
+		t.Error("Migrate() should drop of_proxy_routes.domain after phase-2 cleanup")
+	}
+	if sqliteDB.Migrator().HasColumn(&model.ProxyRoute{}, "domains") {
+		t.Error("Migrate() should drop of_proxy_routes.domains after phase-2 cleanup")
+	}
+	if sqliteDB.Migrator().HasColumn(&model.ProxyRoute{}, "cert_id") {
+		t.Error("Migrate() should drop of_proxy_routes.cert_id after phase-2 cleanup")
+	}
+	if sqliteDB.Migrator().HasColumn(&model.ProxyRoute{}, "cert_ids") {
+		t.Error("Migrate() should drop of_proxy_routes.cert_ids after phase-2 cleanup")
+	}
+	if sqliteDB.Migrator().HasColumn(&model.ProxyRoute{}, "domain_cert_ids") {
+		t.Error("Migrate() should drop of_proxy_routes.domain_cert_ids after phase-2 cleanup")
+	}
 
 	zone := model.Zone{Domain: "example.com"}
 	if err := sqliteDB.Create(&zone).Error; err != nil {

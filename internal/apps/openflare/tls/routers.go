@@ -4,12 +4,11 @@
 package tls
 
 import (
-	"net/http"
-	"strings"
+    "net/http"
 
-	"github.com/Rain-kl/Wavelet/internal/apps/openflare/apiutil"
-	"github.com/Rain-kl/Wavelet/internal/common/response"
-	"github.com/gin-gonic/gin"
+    "github.com/Rain-kl/Wavelet/internal/apps/openflare/apiutil"
+    "github.com/Rain-kl/Wavelet/internal/common/response"
+    "github.com/gin-gonic/gin"
 )
 
 
@@ -326,126 +325,6 @@ func RenewCertificateHandler(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, response.OK(certificate))
-}
-
-// GetManagedDomains 列出托管域名。
-// @Summary 列出托管域名
-// @Description 返回全部托管域名及关联证书，需要管理员权限
-// @Tags openflare-tls
-// @Produce json
-// @Security SessionCookie
-// @Success 200 {object} response.Any{data=[]model.ManagedDomain} "托管域名列表"
-// @Failure 400 {object} response.Any "参数错误"
-// @Failure 401 {object} response.Any "未登录"
-// @Failure 404 {object} response.Any "无权限或不存在"
-// @Failure 500 {object} response.Any "内部错误"
-func GetManagedDomains(c *gin.Context) {
-	domains, err := ListManagedDomains(c.Request.Context())
-	if handleLogicError(c, err) {
-		return
-	}
-	c.JSON(http.StatusOK, response.OK(domains))
-}
-
-// CreateManagedDomainHandler 创建托管域名。
-// @Summary 创建托管域名
-// @Description 创建新的托管域名记录，需要管理员权限
-// @Tags openflare-tls
-// @Accept json
-// @Produce json
-// @Security SessionCookie
-// @Param request body tls.ManagedDomainInput true "托管域名参数"
-// @Success 200 {object} response.Any{data=model.ManagedDomain} "创建成功的托管域名"
-// @Failure 400 {object} response.Any "参数错误"
-// @Failure 401 {object} response.Any "未登录"
-// @Failure 404 {object} response.Any "无权限或不存在"
-// @Failure 500 {object} response.Any "内部错误"
-func CreateManagedDomainHandler(c *gin.Context) {
-	var input ManagedDomainInput
-	if !apiutil.BindJSON(c, &input) {
-		return
-	}
-	domain, err := CreateManagedDomain(c.Request.Context(), input)
-	if handleLogicError(c, err) {
-		return
-	}
-	c.JSON(http.StatusOK, response.OK(domain))
-}
-
-// UpdateManagedDomainHandler 更新托管域名。
-// @Summary 更新托管域名
-// @Description 按 ID 更新托管域名，需要管理员权限
-// @Tags openflare-tls
-// @Accept json
-// @Produce json
-// @Security SessionCookie
-// @Param id path int true "托管域名 ID"
-// @Param request body tls.ManagedDomainInput true "托管域名参数"
-// @Success 200 {object} response.Any{data=model.ManagedDomain} "更新后的托管域名"
-// @Failure 400 {object} response.Any "参数错误"
-// @Failure 401 {object} response.Any "未登录"
-// @Failure 404 {object} response.Any "无权限或不存在"
-// @Failure 404 {object} response.Any "记录不存在"
-// @Failure 500 {object} response.Any "内部错误"
-func UpdateManagedDomainHandler(c *gin.Context) {
-	id, ok := apiutil.IDParam(c)
-	if !ok {
-		return
-	}
-	var input ManagedDomainInput
-	if !apiutil.BindJSON(c, &input) {
-		return
-	}
-	domain, err := UpdateManagedDomain(c.Request.Context(), id, input)
-	if handleLogicError(c, err) {
-		return
-	}
-	c.JSON(http.StatusOK, response.OK(domain))
-}
-
-// DeleteManagedDomainHandler 删除托管域名。
-// @Summary 删除托管域名
-// @Description 按 ID 删除托管域名，需要管理员权限
-// @Tags openflare-tls
-// @Produce json
-// @Security SessionCookie
-// @Param id path int true "托管域名 ID"
-// @Success 200 {object} response.Any "删除成功"
-// @Failure 400 {object} response.Any "参数错误"
-// @Failure 401 {object} response.Any "未登录"
-// @Failure 404 {object} response.Any "无权限或不存在"
-// @Failure 404 {object} response.Any "记录不存在"
-// @Failure 500 {object} response.Any "内部错误"
-func DeleteManagedDomainHandler(c *gin.Context) {
-	id, ok := apiutil.IDParam(c)
-	if !ok {
-		return
-	}
-	if err := DeleteManagedDomain(c.Request.Context(), id); handleLogicError(c, err) {
-		return
-	}
-	c.JSON(http.StatusOK, response.OKNil())
-}
-
-// MatchManagedDomainCertificateHandler 匹配域名证书。
-// @Summary 匹配托管域名证书
-// @Description 按域名查询可用的证书匹配候选，需要管理员权限
-// @Tags openflare-tls
-// @Produce json
-// @Security SessionCookie
-// @Param domain query string true "域名"
-// @Success 200 {object} response.Any{data=tls.ManagedDomainMatchResult} "证书匹配结果"
-// @Failure 400 {object} response.Any "参数错误"
-// @Failure 401 {object} response.Any "未登录"
-// @Failure 404 {object} response.Any "无权限或不存在"
-// @Failure 500 {object} response.Any "内部错误"
-func MatchManagedDomainCertificateHandler(c *gin.Context) {
-	domain := strings.TrimSpace(c.Query("domain"))
-	result, err := MatchManagedDomainCertificate(c.Request.Context(), domain)
-	if handleLogicError(c, err) {
-		return
-	}
-	c.JSON(http.StatusOK, response.OK(result))
 }
 
 // GetDNSAccounts 列出 DNS 账号。

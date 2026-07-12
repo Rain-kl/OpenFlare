@@ -36,8 +36,24 @@ type legacyDomain struct {
 	Remark string
 }
 
-// ImportLegacy imports legacy proxy-route names first, and managed domains only when routes contain no domains.
-// ImportLegacy imports legacy records atomically after collecting validation conflicts.
+// legacyRouteRow reads pre-cleanup of_proxy_routes columns via raw scan.
+type legacyRouteRow struct {
+	ID            uint   `gorm:"column:id"`
+	Domain        string `gorm:"column:domain"`
+	Domains       string `gorm:"column:domains"`
+	DomainCertIDs string `gorm:"column:domain_cert_ids"`
+	Remark        string `gorm:"column:remark"`
+}
+
+// legacyManagedRow reads of_managed_domains while the table still exists.
+type legacyManagedRow struct {
+	Domain string `gorm:"column:domain"`
+	CertID *uint  `gorm:"column:cert_id"`
+	Remark string `gorm:"column:remark"`
+}
+
+// ImportLegacy imports legacy proxy-route / managed-domain rows into Zone tables.
+// After the phase-2 schema cleanup, missing legacy columns or tables are skipped.
 //
 //nolint:cyclop // the transactional importer intentionally validates every legacy source in one pass.
 func ImportLegacy(ctx context.Context) (report ImportReport, resultErr error) {
@@ -46,40 +62,50 @@ func ImportLegacy(ctx context.Context) (report ImportReport, resultErr error) {
 		return report, fmt.Errorf("database is not initialized")
 	}
 	resultErr = conn.Transaction(func(tx *gorm.DB) error {
-		var routes []model.ProxyRoute
-		if err := tx.Find(&routes).Error; err != nil {
-			return err
-		}
 		items := make([]legacyDomain, 0)
 		hasRouteDomains := false
-		for _, route := range routes {
-			domains, err := routeidentity.DecodeDomains(route.Domains, route.Domain)
-			if err != nil {
-				report.Conflicts = append(report.Conflicts, fmt.Sprintf("route %d: %v", route.ID, err))
-				continue
+
+		if tx.Migrator().HasColumn("of_proxy_routes", "domain") &&
+			tx.Migrator().HasColumn("of_proxy_routes", "domains") {
+			var routes []legacyRouteRow
+			if err := tx.Table("of_proxy_routes").
+				Select("id, domain, domains, domain_cert_ids, remark").
+				Find(&routes).Error; err != nil {
+				return err
 			}
-			if len(domains) > 0 {
-				hasRouteDomains = true
-			}
-			certIDs := decodeLegacyCertIDs(route.DomainCertIDs, len(domains))
-			for i, domain := range domains {
-				var certID *uint
-				if i < len(certIDs) && certIDs[i] > 0 {
-					v := certIDs[i]
-					certID = &v
+			for _, route := range routes {
+				domains, err := routeidentity.DecodeDomains(route.Domains, route.Domain)
+				if err != nil {
+					report.Conflicts = append(report.Conflicts, fmt.Sprintf("route %d: %v", route.ID, err))
+					continue
 				}
-				items = append(items, legacyDomain{Domain: domain, CertID: certID, Remark: route.Remark})
+				if len(domains) > 0 {
+					hasRouteDomains = true
+				}
+				certIDs := decodeLegacyCertIDs(route.DomainCertIDs, len(domains))
+				for i, domain := range domains {
+					var certID *uint
+					if i < len(certIDs) && certIDs[i] > 0 {
+						v := certIDs[i]
+						certID = &v
+					}
+					items = append(items, legacyDomain{Domain: domain, CertID: certID, Remark: route.Remark})
+				}
 			}
 		}
-		if !hasRouteDomains {
-			var legacy []model.ManagedDomain
-			if err := tx.Find(&legacy).Error; err != nil {
+
+		if !hasRouteDomains && tx.Migrator().HasTable("of_managed_domains") {
+			var legacy []legacyManagedRow
+			if err := tx.Table("of_managed_domains").
+				Select("domain, cert_id, remark").
+				Find(&legacy).Error; err != nil {
 				return err
 			}
 			for _, item := range legacy {
-				items = append(items, legacyDomain{Domain: item.Domain, CertID: item.CertID, Remark: item.Remark})
+				items = append(items, legacyDomain(item))
 			}
 		}
+
 		for _, item := range items {
 			domain, err := normalizeDomain(item.Domain)
 			if err != nil {
@@ -121,7 +147,12 @@ func ImportLegacy(ctx context.Context) (report ImportReport, resultErr error) {
 					continue
 				}
 			}
-			if err = tx.Create(&model.ZoneDomain{ZoneID: zone.ID, Domain: domain, CertID: item.CertID, Remark: item.Remark}).Error; err != nil {
+			if err = tx.Create(&model.ZoneDomain{
+				ZoneID: zone.ID,
+				Domain: domain,
+				CertID: item.CertID,
+				Remark: item.Remark,
+			}).Error; err != nil {
 				return err
 			}
 			report.Domains++
@@ -144,4 +175,5 @@ func decodeLegacyCertIDs(raw string, count int) []uint {
 	}
 	return values
 }
+
 func isNotFound(err error) bool { return err == gorm.ErrRecordNotFound }

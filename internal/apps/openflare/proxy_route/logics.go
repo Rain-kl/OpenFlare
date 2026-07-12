@@ -5,7 +5,6 @@ package proxy_route
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"strings"
 	"time"
@@ -253,41 +252,10 @@ func buildProxyRoute(ctx context.Context, route *model.ProxyRoute, input Input) 
 		limitRate,
 		upstreamType,
 	)
-	// Preserve legacy columns until the second-phase schema cleanup. They are
-	// derived solely from ZoneDomain bindings and are not exposed by this API.
-	populateLegacyZoneDomainFields(route, domains)
 	if err := applyProxyRouteUpstreamType(ctx, route, upstreamType, input); err != nil {
 		return nil, nil, err
 	}
 	return route, domains, nil
-}
-
-func mustMarshalProxyRouteLegacy(value any) string {
-	encoded, err := json.Marshal(value)
-	if err != nil {
-		panic(err)
-	}
-	return string(encoded)
-}
-
-func populateLegacyZoneDomainFields(route *model.ProxyRoute, domains []model.ZoneDomain) {
-	legacyDomains := make([]string, 0, len(domains))
-	legacyCertIDs := make([]uint, 0, len(domains))
-	for _, domain := range domains {
-		legacyDomains = append(legacyDomains, domain.Domain)
-		if domain.CertID != nil {
-			legacyCertIDs = append(legacyCertIDs, *domain.CertID)
-		}
-	}
-	route.Domain = legacyDomains[0]
-	route.Domains = mustMarshalProxyRouteLegacy(legacyDomains)
-	route.CertIDs = mustMarshalProxyRouteLegacy(legacyCertIDs)
-	if len(legacyCertIDs) > 0 {
-		route.CertID = &legacyCertIDs[0]
-	} else {
-		route.CertID = nil
-	}
-	route.DomainCertIDs = route.CertIDs
 }
 
 func buildProxyRouteViews(ctx context.Context, routes []*model.ProxyRoute) ([]*View, error) {

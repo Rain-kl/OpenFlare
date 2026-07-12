@@ -416,27 +416,27 @@ git commit -m "refactor(web): select route domains from zones"
 - Modify: generated `docs/{docs.go,swagger.json,swagger.yaml}`
 - Create: `docs/guide/zone-domain-migration.md`
 
-- [ ] **Step 1: 为导入命令写可操作迁移指南**
+- [x] **Step 1: 为导入命令写可操作迁移指南**
 
 文档写明备份、执行 `wavelet migrate-zones`、读取导入报告、发布预览、比较 `server_name`/证书支持文件、发布激活和回滚步骤；不允许在报告有冲突时继续。
 
-- [ ] **Step 2: 生成 Swagger 和更新未发布变更**
+- [x] **Step 2: 生成 Swagger 和更新未发布变更**
 
 Run: `make swagger`
 
 在 `[Unreleased]` 记录 Zone 管理、反代路由域名正规化和移除 managed-domain API。
 
-- [ ] **Step 3: 运行全量质量门禁**
+- [x] **Step 3: 运行全量质量门禁**
 
 Run: `go test ./... && make code-check`
 
 Expected: PASS。
 
-- [ ] **Step 4: 做快照等价性验收**
+- [x] **Step 4: 做快照等价性验收**
 
 在升级前导出活动版本，在导入后生成预览；逐个比较所有路由的明确 `server_name` 集合、证书路径、WAF RouteID 绑定与 Pages 部署引用。只允许旧快照的域名/证书冗余 JSON 消失，不允许数据面语义变化。
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add docs
@@ -455,7 +455,7 @@ git commit -m "docs(zone): add migration and release verification guide"
 - Delete: `internal/apps/openflare/tls/helpers.go` 中仅用于旧路由证书数组的函数
 - Modify: legacy迁移相关测试、模型测试与 `docs/design/zone-design.md`
 
-- [ ] **Step 1: 写空库与升级库清理失败测试**
+- [x] **Step 1: 写空库与升级库清理失败测试**
 
 ```go
 func TestLegacyRouteColumnsAreAbsentAfterCleanup(t *testing.T) {
@@ -463,21 +463,21 @@ func TestLegacyRouteColumnsAreAbsentAfterCleanup(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: 编写双方言清理 DDL**
+- [x] **Step 2: 编写双方言清理 DDL**
 
 PostgreSQL 删除旧唯一索引和 `domain`、`domains`、`cert_id`、`cert_ids`、`domain_cert_ids`，再删除 `of_managed_domains`；SQLite 使用重建 `of_proxy_routes` 表的迁移方式保留所有非旧字段与索引。Down 仅在开发数据库恢复旧结构，不回填历史数据。
 
-- [ ] **Step 3: 删除旧读取代码与测试 fixture**
+- [x] **Step 3: 删除旧读取代码与测试 fixture**
 
 删除所有 `route.Domain`、`route.Domains`、`route.CertID`、`route.CertIDs`、`route.DomainCertIDs` 的持久化引用；让编译器、Uptime Kuma、Flared、来源摘要及 API 只使用 ZoneDomain 查询结果。
 
-- [ ] **Step 4: 验证升级和完整回归**
+- [x] **Step 4: 验证升级和完整回归**
 
 Run: `go test ./internal/db/migrator ./internal/model ./internal/apps/openflare/... ./pkg/render/openresty -count=1 && make code-check`
 
 Expected: PASS；全仓搜索不再发现旧 `ManagedDomain` 业务代码、`ProxyRoute` 持久化字段或管理端 API；渲染快照中的临时 `DomainCertIDs` 类型允许保留。
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add internal/db/migrator internal/model internal/apps frontend docs

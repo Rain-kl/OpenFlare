@@ -75,7 +75,7 @@ func TestBuildSnapshotReadsZoneDomainCertificates(t *testing.T) {
 	second, err := oftls.CreateCertificate(ctx, oftls.CertificateInput{Name: "second", CertPEM: secondCertPEM, KeyPEM: secondKeyPEM})
 	require.NoError(t, err)
 
-	route := &model.ProxyRoute{SiteName: "tls-site", Domain: "legacy.invalid", OriginURL: "http://origin:8080", Upstreams: `["http://origin:8080"]`, Enabled: true, EnableHTTPS: true}
+	route := &model.ProxyRoute{SiteName: "tls-site", OriginURL: "http://origin:8080", Upstreams: `["http://origin:8080"]`, Enabled: true, EnableHTTPS: true}
 	require.NoError(t, model.CreateProxyRouteRecord(ctx, route))
 	zone := &model.Zone{Domain: "example.com"}
 	require.NoError(t, db.DB(ctx).Create(zone).Error)

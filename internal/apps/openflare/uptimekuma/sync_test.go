@@ -200,24 +200,18 @@ func TestSyncToUptimeKumaSuccess(t *testing.T) {
 
 	routeA := &model.ProxyRoute{
 		SiteName:    "site-a",
-		Domain:      "site-a.com",
-		Domains:     `["site-a.com"]`,
 		OriginURL:   "http://10.0.0.1",
 		Enabled:     true,
 		EnableHTTPS: false,
 	}
 	routeB := &model.ProxyRoute{
 		SiteName:    "site-b",
-		Domain:      "site-b.com",
-		Domains:     `["site-b.com"]`,
 		OriginURL:   "https://10.0.0.2",
 		Enabled:     true,
 		EnableHTTPS: true,
 	}
 	routeC := &model.ProxyRoute{
 		SiteName:    "site-c",
-		Domain:      "site-c.com",
-		Domains:     `["site-c.com"]`,
 		OriginURL:   "http://10.0.0.3",
 		Enabled:     false,
 		EnableHTTPS: false,
@@ -315,16 +309,12 @@ func TestSyncToUptimeKumaSelectedScope(t *testing.T) {
 
 	routeA := &model.ProxyRoute{
 		SiteName:    "site-a",
-		Domain:      "site-a.com",
-		Domains:     `["site-a.com"]`,
 		OriginURL:   "http://10.0.0.1",
 		Enabled:     true,
 		EnableHTTPS: false,
 	}
 	routeB := &model.ProxyRoute{
 		SiteName:    "site-b",
-		Domain:      "site-b.com",
-		Domains:     `["site-b.com"]`,
 		OriginURL:   "http://10.0.0.2",
 		Enabled:     true,
 		EnableHTTPS: false,

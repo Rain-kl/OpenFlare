@@ -42,7 +42,6 @@ func setupTLSTestDB(t *testing.T) func() {
 		&model.TLSCertificate{},
 		&model.Zone{},
 		&model.ZoneDomain{},
-		&model.ManagedDomain{},
 		&model.DNSAccount{},
 		&model.AcmeAccount{},
 		&model.TaskExecution{}, // 异步任务执行记录也需要 migrate
@@ -109,54 +108,6 @@ func generateTestCertificatePair(t *testing.T, dnsNames []string) (string, strin
 	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certDER})
 	keyPEM := pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(privateKey)})
 	return string(certPEM), string(keyPEM)
-}
-
-func TestCreateManagedDomain(t *testing.T) {
-	cleanup := setupTLSTestDB(t)
-	defer cleanup()
-	ctx := context.Background()
-
-	certPEM, keyPEM := generateTestCertificatePair(t, []string{"api.example.com"})
-	certificate, err := CreateCertificate(ctx, CertificateInput{
-		Name:    "api-cert",
-		CertPEM: certPEM,
-		KeyPEM:  keyPEM,
-	})
-	require.NoError(t, err)
-
-	certID := certificate.ID
-	domain, err := CreateManagedDomain(ctx, ManagedDomainInput{
-		Domain:  "api.example.com",
-		CertID:  &certID,
-		Enabled: true,
-		Remark:  "primary api",
-	})
-	require.NoError(t, err)
-	assert.NotZero(t, domain.ID)
-	assert.Equal(t, "api.example.com", domain.Domain)
-	assert.Equal(t, certID, *domain.CertID)
-	assert.True(t, domain.Enabled)
-	assert.Equal(t, "primary api", domain.Remark)
-
-	_, err = CreateManagedDomain(ctx, ManagedDomainInput{
-		Domain:  "api.example.com",
-		Enabled: true,
-	})
-	require.Error(t, err)
-	assert.Equal(t, errManagedDomainExists, err.Error())
-}
-
-func TestCreateManagedDomainRejectsInvalidWildcard(t *testing.T) {
-	cleanup := setupTLSTestDB(t)
-	defer cleanup()
-	ctx := context.Background()
-
-	_, err := CreateManagedDomain(ctx, ManagedDomainInput{
-		Domain:  "*.*.example.com",
-		Enabled: true,
-	})
-	require.Error(t, err)
-	assert.Equal(t, errManagedDomainWildcardInvalid, err.Error())
 }
 
 func TestCreateCertificateEncryptsPrivateKey(t *testing.T) {

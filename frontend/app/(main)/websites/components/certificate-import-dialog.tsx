@@ -58,8 +58,7 @@ export function CertificateImportDialog({
   const invalidateQueries = async () => {
     await Promise.all([
       queryClient.invalidateQueries({queryKey: certificatesQueryKey}),
-      queryClient.invalidateQueries({queryKey: ['openflare', 'managed-domains']}),
-    ]);
+          ]);
   };
 
   const resetFileForm = () => {

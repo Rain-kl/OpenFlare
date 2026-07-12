@@ -14404,32 +14404,6 @@ const docTemplate = `{
                 }
             }
         },
-        "model.ManagedDomain": {
-            "type": "object",
-            "properties": {
-                "cert_id": {
-                    "type": "integer"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "domain": {
-                    "type": "string"
-                },
-                "enabled": {
-                    "type": "boolean"
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "remark": {
-                    "type": "string"
-                },
-                "updated_at": {
-                    "type": "string"
-                }
-            }
-        },
         "model.OpenFlareApplyLog": {
             "type": "object",
             "properties": {
@@ -17956,63 +17930,6 @@ const docTemplate = `{
                 },
                 "type": {
                     "type": "string"
-                }
-            }
-        },
-        "tls.ManagedDomainInput": {
-            "type": "object",
-            "properties": {
-                "cert_id": {
-                    "type": "integer"
-                },
-                "domain": {
-                    "type": "string"
-                },
-                "enabled": {
-                    "type": "boolean"
-                },
-                "remark": {
-                    "type": "string"
-                }
-            }
-        },
-        "tls.ManagedDomainMatchCandidate": {
-            "type": "object",
-            "properties": {
-                "certificate_id": {
-                    "type": "integer"
-                },
-                "certificate_name": {
-                    "type": "string"
-                },
-                "domain": {
-                    "type": "string"
-                },
-                "managed_domain_id": {
-                    "type": "integer"
-                },
-                "match_type": {
-                    "type": "string"
-                }
-            }
-        },
-        "tls.ManagedDomainMatchResult": {
-            "type": "object",
-            "properties": {
-                "candidate": {
-                    "$ref": "#/definitions/tls.ManagedDomainMatchCandidate"
-                },
-                "candidates": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/tls.ManagedDomainMatchCandidate"
-                    }
-                },
-                "domain": {
-                    "type": "string"
-                },
-                "matched": {
-                    "type": "boolean"
                 }
             }
         },

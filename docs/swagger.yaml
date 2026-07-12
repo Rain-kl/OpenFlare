@@ -1104,23 +1104,6 @@ definitions:
       id:
         type: integer
     type: object
-  model.ManagedDomain:
-    properties:
-      cert_id:
-        type: integer
-      created_at:
-        type: string
-      domain:
-        type: string
-      enabled:
-        type: boolean
-      id:
-        type: integer
-      remark:
-        type: string
-      updated_at:
-        type: string
-    type: object
   model.OpenFlareApplyLog:
     properties:
       checksum:
@@ -3470,43 +3453,6 @@ definitions:
         type: string
       type:
         type: string
-    type: object
-  tls.ManagedDomainInput:
-    properties:
-      cert_id:
-        type: integer
-      domain:
-        type: string
-      enabled:
-        type: boolean
-      remark:
-        type: string
-    type: object
-  tls.ManagedDomainMatchCandidate:
-    properties:
-      certificate_id:
-        type: integer
-      certificate_name:
-        type: string
-      domain:
-        type: string
-      managed_domain_id:
-        type: integer
-      match_type:
-        type: string
-    type: object
-  tls.ManagedDomainMatchResult:
-    properties:
-      candidate:
-        $ref: '#/definitions/tls.ManagedDomainMatchCandidate'
-      candidates:
-        items:
-          $ref: '#/definitions/tls.ManagedDomainMatchCandidate'
-        type: array
-      domain:
-        type: string
-      matched:
-        type: boolean
     type: object
   updater.Status:
     properties:

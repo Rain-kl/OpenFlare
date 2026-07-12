@@ -6,7 +6,6 @@ export { ConfigVersionService } from './config-version.service';
 export { ApplyLogService } from './apply-log.service';
 export { DashboardService } from './dashboard.service';
 export { WafService } from './waf.service';
-export { WebsiteService } from './website.service';
 export { ZoneDomainService, ZoneService, zoneQueryKey } from './zone.service';
 export { TlsCertificateService } from './tls-certificate.service';
 export { DnsAccountService } from './dns-account.service';
@@ -104,9 +103,6 @@ export type {
   AcmeAccountItem,
   DnsAccountItem,
   DnsAccountMutationPayload,
-  ManagedDomainItem,
-  ManagedDomainMatchResult,
-  ManagedDomainMutationPayload,
   ZoneDomainItem,
   ZoneDomainMutationPayload,
   ZoneItem,
@@ -134,7 +130,7 @@ import {PagesService} from './pages.service';
 import {ProxyRouteService} from './proxy-route.service';
 import {TlsCertificateService} from './tls-certificate.service';
 import {WafService} from './waf.service';
-import {WebsiteService} from './website.service';
+import {ZoneDomainService, ZoneService} from './zone.service';
 
 export const openflareServices = {
   node: NodeService,
@@ -143,7 +139,8 @@ export const openflareServices = {
   applyLog: ApplyLogService,
   dashboard: DashboardService,
   waf: WafService,
-  website: WebsiteService,
+  zone: ZoneService,
+  zoneDomain: ZoneDomainService,
   tlsCertificate: TlsCertificateService,
   dnsAccount: DnsAccountService,
   pages: PagesService,

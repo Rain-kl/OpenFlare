@@ -62,8 +62,7 @@ export function CertificateEditorDialog({
     onSuccess: async (certificate) => {
       await Promise.all([
         queryClient.invalidateQueries({queryKey: certificatesQueryKey}),
-        queryClient.invalidateQueries({queryKey: ['openflare', 'managed-domains']}),
-      ]);
+              ]);
       onSaved?.(certificate);
       handleClose();
     },

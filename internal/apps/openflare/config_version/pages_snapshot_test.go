@@ -45,8 +45,6 @@ func TestBuildSnapshotRoutesPages(t *testing.T) {
 
 	route := &model.ProxyRoute{
 		SiteName:       "speedtest",
-		Domain:         "speedtest.arctel.net",
-		Domains:        `["speedtest.arctel.net"]`,
 		OriginURL:      "openflare-pages://project/1",
 		Upstreams:      `["openflare-pages://project/1"]`,
 		Enabled:        true,

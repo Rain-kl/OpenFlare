@@ -96,8 +96,6 @@ func TestPublishConfigVersionCreatesVersion(t *testing.T) {
 
 	route := &model.ProxyRoute{
 		SiteName:  "publish-site",
-		Domain:    "publish.example.com",
-		Domains:   `["publish.example.com"]`,
 		OriginURL: "http://origin.publish.example.com:8080",
 		Upstreams: `["http://origin.publish.example.com:8080"]`,
 		Enabled:   true,
@@ -142,8 +140,6 @@ func TestBuildSnapshotWAFDocumentUsesNormalizedSiteNames(t *testing.T) {
 
 	route := &model.ProxyRoute{
 		SiteName:  "example.com",
-		Domain:    "Example.COM",
-		Domains:   `["example.com","www.example.com"]`,
 		OriginURL: "http://origin.example.com:8080",
 		Upstreams: `["http://origin.example.com:8080"]`,
 		Enabled:   true,
@@ -204,8 +200,6 @@ func TestBuildCurrentConfigBundleEnablesGlobalPoWWithoutExplicitBinding(t *testi
 
 	route := &model.ProxyRoute{
 		SiteName:  "pow-global.example.com",
-		Domain:    "pow-global.example.com",
-		Domains:   `["pow-global.example.com"]`,
 		OriginURL: "http://origin.example.com:8080",
 		Upstreams: `["http://origin.example.com:8080"]`,
 		Enabled:   true,

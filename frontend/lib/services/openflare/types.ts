@@ -998,37 +998,9 @@ export interface ZoneOverview {
   domains: ZoneDomainItem[];
 }
 
-export interface ManagedDomainItem {
-  id: number;
-  domain: string;
-  cert_id: number | null;
-  enabled: boolean;
-  remark: string;
-  created_at: string;
-  updated_at: string;
-}
 
-export interface ManagedDomainMutationPayload {
-  domain: string;
-  cert_id: number | null;
-  enabled: boolean;
-  remark: string;
-}
 
-export interface ManagedDomainMatchCandidate {
-  managed_domain_id: number;
-  domain: string;
-  match_type: 'exact' | 'wildcard' | string;
-  certificate_id: number;
-  certificate_name: string;
-}
 
-export interface ManagedDomainMatchResult {
-  domain: string;
-  matched: boolean;
-  candidate?: ManagedDomainMatchCandidate;
-  candidates: ManagedDomainMatchCandidate[];
-}
 
 export interface TlsCertificateItem {
   id: number;

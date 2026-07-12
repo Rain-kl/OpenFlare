@@ -145,8 +145,6 @@ func applyProxyRouteUpstreamType(ctx context.Context, route *model.ProxyRoute, u
 func updateProxyRouteRecord(tx *gorm.DB, route *model.ProxyRoute) error {
 	return tx.Model(&model.ProxyRoute{}).Where("id = ?", route.ID).Updates(map[string]any{
 		"site_name": route.SiteName, "origin_id": route.OriginID, "origin_url": route.OriginURL,
-		"domain": route.Domain, "domains": route.Domains, "cert_id": route.CertID,
-		"cert_ids": route.CertIDs, "domain_cert_ids": route.DomainCertIDs,
 		"origin_host": route.OriginHost, "upstreams": route.Upstreams, "enabled": route.Enabled,
 		"enable_https": route.EnableHTTPS, "redirect_http": route.RedirectHTTP,
 		"limit_conn_per_server": route.LimitConnPerServer, "limit_conn_per_ip": route.LimitConnPerIP,
