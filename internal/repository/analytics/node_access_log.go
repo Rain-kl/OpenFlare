@@ -35,7 +35,7 @@ func ListNodeAccessLogs(ctx context.Context, filter NodeAccessLogFilter) ([]anal
 	clause, args := buildNodeAccessLogFilterClause(filter)
 	tableName := nodeAccessLogTableName()
 	sql := fmt.Sprintf(`
-SELECT id, node_id, logged_at, remote_addr, region, host, path, status_code, created_at
+SELECT id, node_id, logged_at, remote_addr, region, host, path, status_code, bytes_sent, created_at
 FROM %s
 WHERE %s
 ORDER BY %s`, tableName, clause, nodeAccessLogOrderClause(filter.SortBy, filter.SortOrder))
@@ -67,6 +67,7 @@ func scanNodeAccessLogRows(rows driver.Rows) ([]analyticsmodel.NodeAccessLog, er
 			&item.Host,
 			&item.Path,
 			&item.StatusCode,
+			&item.BytesSent,
 			&item.CreatedAt,
 		); err != nil {
 			return nil, fmt.Errorf("scan node access log row: %w", err)
@@ -78,11 +79,11 @@ func scanNodeAccessLogRows(rows driver.Rows) ([]analyticsmodel.NodeAccessLog, er
 	return result, nil
 }
 
-// CountNodeAccessLogs returns total records and distinct IPs matching filter.
-func CountNodeAccessLogs(ctx context.Context, filter NodeAccessLogFilter) (int64, int64, error) {
+// CountNodeAccessLogs returns total records, distinct IPs, and total bytes sent matching filter.
+func CountNodeAccessLogs(ctx context.Context, filter NodeAccessLogFilter) (int64, int64, int64, error) {
 	conn, err := nodeAccessLogConn()
 	if err != nil {
-		return 0, 0, err
+		return 0, 0, 0, err
 	}
 	clause, args := buildNodeAccessLogFilterClause(filter)
 	tableName := nodeAccessLogTableName()
@@ -90,14 +91,15 @@ func CountNodeAccessLogs(ctx context.Context, filter NodeAccessLogFilter) (int64
 	countSQL := fmt.Sprintf(`
 SELECT
 	count() AS total_records,
-	uniqExactIf(remote_addr, remote_addr != '') AS total_ips
+	uniqExactIf(remote_addr, remote_addr != '') AS total_ips,
+	sum(bytes_sent) AS total_bytes
 FROM %s
 WHERE %s`, tableName, clause)
-	var totalRecords, totalIPs uint64
-	if err := conn.QueryRow(ctx, countSQL, args...).Scan(&totalRecords, &totalIPs); err != nil {
-		return 0, 0, fmt.Errorf("count node access logs: %w", err)
+	var totalRecords, totalIPs, totalBytes uint64
+	if err := conn.QueryRow(ctx, countSQL, args...).Scan(&totalRecords, &totalIPs, &totalBytes); err != nil {
+		return 0, 0, 0, fmt.Errorf("count node access logs: %w", err)
 	}
-	return safeInt64Count(totalRecords), safeInt64Count(totalIPs), nil
+	return safeInt64Count(totalRecords), safeInt64Count(totalIPs), safeInt64Count(totalBytes), nil
 }
 
 // RegionCountsNodeAccessLogs returns region counts for a node since a time.

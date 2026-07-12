@@ -22,19 +22,19 @@ const (
 	// StatsRange24h represents a 24-hour time window.
 	StatsRange24h StatsRange = "24h"
 	// StatsRange7d represents a 7-day time window.
-	StatsRange7d  StatsRange = "7d"
+	StatsRange7d StatsRange = "7d"
 	// StatsRange30d represents a 30-day time window.
 	StatsRange30d StatsRange = "30d"
 )
 
 const (
-	hoursPerDay        = 24
-	daysPerWeek        = 7
-	daysPerMonth       = 30
-	minutesPerHour     = 60
-	bucketMinutes24h   = 60
-	bucketMinutes7d    = 6 * minutesPerHour
-	bucketMinutes30d   = 24 * minutesPerHour
+	hoursPerDay      = 24
+	daysPerWeek      = 7
+	daysPerMonth     = 30
+	minutesPerHour   = 60
+	bucketMinutes24h = 60
+	bucketMinutes7d  = 6 * minutesPerHour
+	bucketMinutes30d = 24 * minutesPerHour
 )
 
 // StatsPoint is one bucket on a Zone traffic chart.
@@ -120,7 +120,7 @@ func GetStats(ctx context.Context, id uint, rangeRaw string) (*Stats, error) {
 		return result, nil
 	}
 
-	requestCount, uniqueVisitors, err := model.CountOpenFlareAccessLogs(ctx, model.OpenFlareAccessLogQuery{
+	requestCount, uniqueVisitors, totalBytesSent, err := model.CountOpenFlareAccessLogs(ctx, model.OpenFlareAccessLogQuery{
 		Hosts: hosts,
 		Since: since,
 		Until: now,
@@ -134,8 +134,7 @@ func GetStats(ctx context.Context, id uint, rangeRaw string) (*Stats, error) {
 	}
 	result.RequestCount = requestCount
 	result.UniqueVisitors = uniqueVisitors
-	// Bytes are not yet persisted on edge access logs; keep the field for UI compatibility.
-	result.BytesSent = 0
+	result.BytesSent = totalBytesSent
 
 	buckets, err := model.ListOpenFlareAccessLogBuckets(ctx, model.OpenFlareAccessLogBucketQuery{
 		Hosts:       hosts,
@@ -166,7 +165,7 @@ func GetStats(ctx context.Context, id uint, rangeRaw string) (*Stats, error) {
 		if row, ok := byEpoch[epoch]; ok {
 			series[index].RequestCount = row.RequestCount
 			series[index].UniqueVisitors = row.UniqueIPCount
-			series[index].BytesSent = 0
+			series[index].BytesSent = row.BytesSent
 		}
 	}
 	result.Series = series

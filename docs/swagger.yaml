@@ -656,6 +656,8 @@ definitions:
     type: object
   github_com_Rain-kl_Wavelet_pkg_protocol.NodeAccessLog:
     properties:
+      bytes_sent:
+        type: integer
       host:
         type: string
       logged_at_unix:
@@ -3964,32 +3966,40 @@ definitions:
   zone.Stats:
     properties:
       available:
-        description: Available is false when analytics storage is unavailable (e.g.
-          ClickHouse off).
         type: boolean
+      bucket_minutes:
+        type: integer
       bytes_sent:
-        description: BytesSent is total response bytes. Currently always 0 until access
-          logs store body_bytes_sent.
         type: integer
       domain_count:
-        description: DomainCount is the number of explicit Zone domains used to scope
-          hosts.
         type: integer
       range:
         $ref: '#/definitions/zone.StatsRange'
       range_hours:
         type: integer
       request_count:
-        description: RequestCount is total access-log requests for Zone domains.
         type: integer
+      series:
+        items:
+          $ref: '#/definitions/zone.StatsPoint'
+        type: array
       unique_visitors:
-        description: UniqueVisitors is distinct client IPs (remote_addr) over the
-          window.
         type: integer
       window_ended_at:
         type: string
       window_started_at:
         type: string
+    type: object
+  zone.StatsPoint:
+    properties:
+      bucket_started_at:
+        type: string
+      bytes_sent:
+        type: integer
+      request_count:
+        type: integer
+      unique_visitors:
+        type: integer
     type: object
   zone.StatsRange:
     enum:

@@ -5,6 +5,7 @@ package model
 
 import (
 	"context"
+	"math"
 	"sync"
 	"time"
 
@@ -39,7 +40,7 @@ func currentAccessLogInsertHooks() AccessLogInsertHooks {
 type accessLogStore interface {
 	InsertBatch(ctx context.Context, records []*OpenFlareAccessLog) error
 	List(ctx context.Context, query OpenFlareAccessLogQuery) ([]*OpenFlareAccessLog, error)
-	Count(ctx context.Context, query OpenFlareAccessLogQuery) (int64, int64, error)
+	Count(ctx context.Context, query OpenFlareAccessLogQuery) (int64, int64, int64, error)
 	RegionCounts(ctx context.Context, nodeID string, since time.Time, limit int) ([]*OpenFlareAccessLogRegionCount, error)
 	BucketAggregates(ctx context.Context, filter OpenFlareAccessLogQuery, bucketSeconds int64) ([]openFlareAccessLogBucketAggregateRow, error)
 	CountBuckets(ctx context.Context, filter OpenFlareAccessLogQuery, bucketSeconds int64) (int64, error)
@@ -112,7 +113,7 @@ func (clickhouseAccessLogStore) List(ctx context.Context, query OpenFlareAccessL
 	return fromAnalyticsNodeAccessLogs(rows), nil
 }
 
-func (clickhouseAccessLogStore) Count(ctx context.Context, query OpenFlareAccessLogQuery) (int64, int64, error) {
+func (clickhouseAccessLogStore) Count(ctx context.Context, query OpenFlareAccessLogQuery) (int64, int64, int64, error) {
 	return analyticsrepo.CountNodeAccessLogs(ctx, toNodeAccessLogFilter(query))
 }
 
@@ -132,23 +133,7 @@ func (clickhouseAccessLogStore) RegionCounts(ctx context.Context, nodeID string,
 }
 
 func (clickhouseAccessLogStore) BucketAggregates(ctx context.Context, filter OpenFlareAccessLogQuery, bucketSeconds int64) ([]openFlareAccessLogBucketAggregateRow, error) {
-	rows, err := analyticsrepo.BucketAggregatesNodeAccessLogs(ctx, toNodeAccessLogFilter(filter), bucketSeconds)
-	if err != nil {
-		return nil, err
-	}
-	result := make([]openFlareAccessLogBucketAggregateRow, len(rows))
-	for index, row := range rows {
-		result[index] = openFlareAccessLogBucketAggregateRow{
-			BucketEpoch:      row.BucketEpoch,
-			RequestCount:     row.RequestCount,
-			SuccessCount:     row.SuccessCount,
-			ClientErrorCount: row.ClientErrorCount,
-			ServerErrorCount: row.ServerErrorCount,
-			UniqueIPCount:    row.UniqueIPCount,
-			UniqueHostCount:  row.UniqueHostCount,
-		}
-	}
-	return result, nil
+	return analyticsrepo.BucketAggregatesNodeAccessLogs(ctx, toNodeAccessLogFilter(filter), bucketSeconds)
 }
 
 func (clickhouseAccessLogStore) CountBuckets(ctx context.Context, filter OpenFlareAccessLogQuery, bucketSeconds int64) (int64, error) {
@@ -156,54 +141,15 @@ func (clickhouseAccessLogStore) CountBuckets(ctx context.Context, filter OpenFla
 }
 
 func (clickhouseAccessLogStore) BucketDimensions(ctx context.Context, filter OpenFlareAccessLogQuery, column string, bucketSeconds int64) ([]openFlareAccessLogBucketDimensionRow, error) {
-	rows, err := analyticsrepo.BucketDimensionsNodeAccessLogs(ctx, toNodeAccessLogFilter(filter), column, bucketSeconds)
-	if err != nil {
-		return nil, err
-	}
-	result := make([]openFlareAccessLogBucketDimensionRow, len(rows))
-	for index, row := range rows {
-		result[index] = openFlareAccessLogBucketDimensionRow{
-			BucketEpoch: row.BucketEpoch,
-			Value:       row.Value,
-		}
-	}
-	return result, nil
+	return analyticsrepo.BucketDimensionsNodeAccessLogs(ctx, toNodeAccessLogFilter(filter), column, bucketSeconds)
 }
 
 func (clickhouseAccessLogStore) IPAggregates(ctx context.Context, filter OpenFlareAccessLogQuery, exactRemoteAddr bool) ([]openFlareAccessLogIPAggregateRow, error) {
-	rows, err := analyticsrepo.IPAggregatesNodeAccessLogs(ctx, toNodeAccessLogFilter(filter), exactRemoteAddr)
-	if err != nil {
-		return nil, err
-	}
-	result := make([]openFlareAccessLogIPAggregateRow, len(rows))
-	for index, row := range rows {
-		result[index] = openFlareAccessLogIPAggregateRow{
-			RemoteAddr:       row.RemoteAddr,
-			RequestCount:     row.RequestCount,
-			SuccessCount:     row.SuccessCount,
-			ClientErrorCount: row.ClientErrorCount,
-			ServerErrorCount: row.ServerErrorCount,
-			LastSeenEpoch:    row.LastSeenEpoch,
-		}
-	}
-	return result, nil
+	return analyticsrepo.IPAggregatesNodeAccessLogs(ctx, toNodeAccessLogFilter(filter), exactRemoteAddr)
 }
 
 func (clickhouseAccessLogStore) IPSummaries(ctx context.Context, filter OpenFlareAccessLogQuery, recentSince time.Time) ([]openFlareAccessLogIPSummaryRow, error) {
-	rows, err := analyticsrepo.IPSummariesNodeAccessLogs(ctx, toNodeAccessLogFilter(filter), recentSince)
-	if err != nil {
-		return nil, err
-	}
-	result := make([]openFlareAccessLogIPSummaryRow, len(rows))
-	for index, row := range rows {
-		result[index] = openFlareAccessLogIPSummaryRow{
-			RemoteAddr:     row.RemoteAddr,
-			TotalRequests:  row.TotalRequests,
-			RecentRequests: row.RecentRequests,
-			LastSeenEpoch:  row.LastSeenEpoch,
-		}
-	}
-	return result, nil
+	return analyticsrepo.IPSummariesNodeAccessLogs(ctx, toNodeAccessLogFilter(filter), recentSince)
 }
 
 func (clickhouseAccessLogStore) CountIPSummaries(ctx context.Context, filter OpenFlareAccessLogQuery) (int64, error) {
@@ -211,39 +157,11 @@ func (clickhouseAccessLogStore) CountIPSummaries(ctx context.Context, filter Ope
 }
 
 func (clickhouseAccessLogStore) WAFIPAggregates(ctx context.Context, filter OpenFlareAccessLogQuery) ([]openFlareAccessLogWAFIPAggregateRow, error) {
-	rows, err := analyticsrepo.IPAggregatesForWAFNodeAccessLogs(ctx, toNodeAccessLogFilter(filter))
-	if err != nil {
-		return nil, err
-	}
-	result := make([]openFlareAccessLogWAFIPAggregateRow, len(rows))
-	for index, row := range rows {
-		result[index] = openFlareAccessLogWAFIPAggregateRow{
-			RemoteAddr:       row.RemoteAddr,
-			RequestCount:     row.RequestCount,
-			Status404Count:   row.Status404Count,
-			ClientErrorCount: row.ClientErrorCount,
-			ServerErrorCount: row.ServerErrorCount,
-			IPHostCount:      row.IPHostCount,
-			LastSeenEpoch:    row.LastSeenEpoch,
-			StatusCounts:     row.StatusCounts,
-		}
-	}
-	return result, nil
+	return analyticsrepo.IPAggregatesForWAFNodeAccessLogs(ctx, toNodeAccessLogFilter(filter))
 }
 
 func (clickhouseAccessLogStore) IPTrend(ctx context.Context, filter OpenFlareAccessLogQuery, bucketSeconds int64) ([]openFlareAccessLogIPTrendRow, error) {
-	rows, err := analyticsrepo.IPTrendNodeAccessLogs(ctx, toNodeAccessLogFilter(filter), bucketSeconds)
-	if err != nil {
-		return nil, err
-	}
-	result := make([]openFlareAccessLogIPTrendRow, len(rows))
-	for index, row := range rows {
-		result[index] = openFlareAccessLogIPTrendRow{
-			BucketEpoch:  row.BucketEpoch,
-			RequestCount: row.RequestCount,
-		}
-	}
-	return result, nil
+	return analyticsrepo.IPTrendNodeAccessLogs(ctx, toNodeAccessLogFilter(filter), bucketSeconds)
 }
 
 func (clickhouseAccessLogStore) DeleteAll(ctx context.Context) (int64, error) {
@@ -275,6 +193,10 @@ func toNodeAccessLogFilter(query OpenFlareAccessLogQuery) analyticsrepo.NodeAcce
 }
 
 func toAnalyticsNodeAccessLog(record *OpenFlareAccessLog) analyticsmodel.NodeAccessLog {
+	var bytesSent uint64
+	if record.BytesSent > 0 {
+		bytesSent = uint64(record.BytesSent)
+	}
 	return analyticsmodel.NodeAccessLog{
 		ID:         record.ID,
 		NodeID:     record.NodeID,
@@ -284,6 +206,7 @@ func toAnalyticsNodeAccessLog(record *OpenFlareAccessLog) analyticsmodel.NodeAcc
 		Host:       record.Host,
 		Path:       record.Path,
 		StatusCode: openFlareAccessLogStatusCodeToInt32(record.StatusCode),
+		BytesSent:  bytesSent,
 		CreatedAt:  record.CreatedAt,
 	}
 }
@@ -291,6 +214,12 @@ func toAnalyticsNodeAccessLog(record *OpenFlareAccessLog) analyticsmodel.NodeAcc
 func fromAnalyticsNodeAccessLogs(rows []analyticsmodel.NodeAccessLog) []*OpenFlareAccessLog {
 	result := make([]*OpenFlareAccessLog, len(rows))
 	for index, row := range rows {
+		var bytesSent int64
+		if row.BytesSent <= math.MaxInt64 {
+			bytesSent = int64(row.BytesSent)
+		} else {
+			bytesSent = math.MaxInt64
+		}
 		result[index] = &OpenFlareAccessLog{
 			ID:         row.ID,
 			NodeID:     row.NodeID,
@@ -300,6 +229,7 @@ func fromAnalyticsNodeAccessLogs(rows []analyticsmodel.NodeAccessLog) []*OpenFla
 			Host:       row.Host,
 			Path:       row.Path,
 			StatusCode: int(row.StatusCode),
+			BytesSent:  bytesSent,
 			CreatedAt:  row.CreatedAt,
 		}
 	}

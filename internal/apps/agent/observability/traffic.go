@@ -199,6 +199,7 @@ func (aggregate *trafficAggregate) consume(line []byte) {
 		Host:         strings.TrimSpace(record.Host),
 		Path:         normalizeAccessLogPath(record.Path),
 		StatusCode:   record.Status,
+		BytesSent:    record.BytesSent,
 	})
 }
 

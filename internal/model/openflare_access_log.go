@@ -9,6 +9,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	analyticsmodel "github.com/Rain-kl/Wavelet/internal/model/analytics"
 )
 
 const (
@@ -18,52 +20,12 @@ const (
 	secondsPerMinute = 60
 )
 
-type openFlareAccessLogBucketAggregateRow struct {
-	BucketEpoch      int64 `gorm:"column:bucket_epoch"`
-	RequestCount     int64 `gorm:"column:request_count"`
-	SuccessCount     int64 `gorm:"column:success_count"`
-	ClientErrorCount int64 `gorm:"column:client_error_count"`
-	ServerErrorCount int64 `gorm:"column:server_error_count"`
-	UniqueIPCount    int64 `gorm:"column:unique_ip_count"`
-	UniqueHostCount  int64 `gorm:"column:unique_host_count"`
-}
-
-type openFlareAccessLogBucketDimensionRow struct {
-	BucketEpoch int64  `gorm:"column:bucket_epoch"`
-	Value       string `gorm:"column:value"`
-}
-
-type openFlareAccessLogIPAggregateRow struct {
-	RemoteAddr       string `gorm:"column:remote_addr"`
-	RequestCount     int64  `gorm:"column:request_count"`
-	SuccessCount     int64  `gorm:"column:success_count"`
-	ClientErrorCount int64  `gorm:"column:client_error_count"`
-	ServerErrorCount int64  `gorm:"column:server_error_count"`
-	LastSeenEpoch    int64  `gorm:"column:last_seen_epoch"`
-}
-
-type openFlareAccessLogIPSummaryRow struct {
-	RemoteAddr     string `gorm:"column:remote_addr"`
-	TotalRequests  int64  `gorm:"column:total_requests"`
-	RecentRequests int64  `gorm:"column:recent_requests"`
-	LastSeenEpoch  int64  `gorm:"column:last_seen_epoch"`
-}
-
-type openFlareAccessLogIPTrendRow struct {
-	BucketEpoch  int64 `gorm:"column:bucket_epoch"`
-	RequestCount int64 `gorm:"column:request_count"`
-}
-
-type openFlareAccessLogWAFIPAggregateRow struct {
-	RemoteAddr       string
-	RequestCount     int64
-	Status404Count   int64
-	ClientErrorCount int64
-	ServerErrorCount int64
-	IPHostCount      int64
-	LastSeenEpoch    int64
-	StatusCounts     map[int]int64
-}
+type openFlareAccessLogBucketAggregateRow = analyticsmodel.NodeAccessLogBucketAggregate
+type openFlareAccessLogBucketDimensionRow = analyticsmodel.NodeAccessLogBucketDimension
+type openFlareAccessLogIPAggregateRow = analyticsmodel.NodeAccessLogIPAggregate
+type openFlareAccessLogIPSummaryRow = analyticsmodel.NodeAccessLogIPSummary
+type openFlareAccessLogIPTrendRow = analyticsmodel.NodeAccessLogIPTrend
+type openFlareAccessLogWAFIPAggregateRow = analyticsmodel.NodeAccessLogWAFIPAggregate
 
 // ListOpenFlareAccessLogWAFIPAggregates returns per-IP aggregates for WAF automatic rules.
 func ListOpenFlareAccessLogWAFIPAggregates(ctx context.Context, query OpenFlareAccessLogQuery) ([]*OpenFlareAccessLogWAFIPAggregate, error) {
@@ -105,8 +67,8 @@ func ListOpenFlareAccessLogs(ctx context.Context, query OpenFlareAccessLogQuery)
 	return currentAccessLogStore().List(ctx, query)
 }
 
-// CountOpenFlareAccessLogs counts access logs and distinct IPs matching the query.
-func CountOpenFlareAccessLogs(ctx context.Context, query OpenFlareAccessLogQuery) (int64, int64, error) {
+// CountOpenFlareAccessLogs counts access logs, distinct IPs, and total bytes sent matching the query.
+func CountOpenFlareAccessLogs(ctx context.Context, query OpenFlareAccessLogQuery) (int64, int64, int64, error) {
 	return currentAccessLogStore().Count(ctx, query)
 }
 
@@ -229,6 +191,7 @@ func buildOpenFlareAccessLogBucketRows(ctx context.Context, query OpenFlareAcces
 			SuccessCount:     partial.SuccessCount,
 			ClientErrorCount: partial.ClientErrorCount,
 			ServerErrorCount: partial.ServerErrorCount,
+			BytesSent:        partial.BytesSent,
 		})
 	}
 	return rows, nil

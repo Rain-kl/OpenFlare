@@ -55,19 +55,21 @@ func (s *memoryAccessLogStore) List(_ context.Context, query OpenFlareAccessLogQ
 	return cloneAccessLogSlice(rows), nil
 }
 
-func (s *memoryAccessLogStore) Count(_ context.Context, query OpenFlareAccessLogQuery) (int64, int64, error) {
+func (s *memoryAccessLogStore) Count(_ context.Context, query OpenFlareAccessLogQuery) (int64, int64, int64, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	rows := s.filterRecords(query)
 	ips := make(map[string]struct{})
+	var totalBytes int64
 	for _, row := range rows {
+		totalBytes += row.BytesSent
 		remoteAddr := strings.TrimSpace(row.RemoteAddr)
 		if remoteAddr == "" {
 			continue
 		}
 		ips[remoteAddr] = struct{}{}
 	}
-	return int64(len(rows)), int64(len(ips)), nil
+	return int64(len(rows)), int64(len(ips)), totalBytes, nil
 }
 
 func (s *memoryAccessLogStore) RegionCounts(_ context.Context, nodeID string, since time.Time, limit int) ([]*OpenFlareAccessLogRegionCount, error) {
@@ -120,6 +122,7 @@ func (s *memoryAccessLogStore) BucketAggregates(_ context.Context, filter OpenFl
 			aggregates[bucketEpoch] = item
 		}
 		item.RequestCount++
+		item.BytesSent += row.BytesSent
 		switch {
 		case row.StatusCode < 400:
 			item.SuccessCount++
@@ -151,6 +154,7 @@ func (s *memoryAccessLogStore) BucketAggregates(_ context.Context, filter OpenFl
 			SuccessCount:     result[index].SuccessCount,
 			ClientErrorCount: result[index].ClientErrorCount,
 			ServerErrorCount: result[index].ServerErrorCount,
+			BytesSent:        result[index].BytesSent,
 		}
 	}
 	sortOpenFlareAccessLogBucketRows(bucketRows, filter.SortBy, filter.SortOrder)
@@ -163,6 +167,7 @@ func (s *memoryAccessLogStore) BucketAggregates(_ context.Context, filter OpenFl
 			SuccessCount:     bucketRows[index].SuccessCount,
 			ClientErrorCount: bucketRows[index].ClientErrorCount,
 			ServerErrorCount: bucketRows[index].ServerErrorCount,
+			BytesSent:        bucketRows[index].BytesSent,
 		}
 	}
 	if filter.PageSize > 0 {

@@ -197,7 +197,7 @@ func ListAccessLogs(ctx context.Context, input AccessLogQuery) (*AccessLogList, 
 	if err != nil {
 		return nil, err
 	}
-	totalRecords, totalIPs, err := model.CountOpenFlareAccessLogs(ctx, modelQuery)
+	totalRecords, totalIPs, _, err := model.CountOpenFlareAccessLogs(ctx, modelQuery)
 	if err != nil {
 		return nil, err
 	}
@@ -260,7 +260,7 @@ func ListFoldedAccessLogs(ctx context.Context, input AccessLogQuery) (*FoldedAcc
 	if err != nil {
 		return nil, err
 	}
-	totalRecords, totalIPs, err := model.CountOpenFlareAccessLogs(ctx, modelQuery)
+	totalRecords, totalIPs, _, err := model.CountOpenFlareAccessLogs(ctx, modelQuery)
 	if err != nil {
 		return nil, err
 	}

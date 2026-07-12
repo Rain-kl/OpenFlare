@@ -8,60 +8,27 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	analyticsmodel "github.com/Rain-kl/Wavelet/internal/model/analytics"
 )
 
 // NodeAccessLogBucketAggregate is a folded bucket aggregate row.
-type NodeAccessLogBucketAggregate struct {
-	BucketEpoch      int64
-	RequestCount     int64
-	SuccessCount     int64
-	ClientErrorCount int64
-	ServerErrorCount int64
-	UniqueIPCount    int64
-	UniqueHostCount  int64
-}
+type NodeAccessLogBucketAggregate = analyticsmodel.NodeAccessLogBucketAggregate
 
 // NodeAccessLogWAFIPAggregate is a per-IP aggregate row for WAF automatic rules.
-type NodeAccessLogWAFIPAggregate struct {
-	RemoteAddr       string
-	RequestCount     int64
-	Status404Count   int64
-	ClientErrorCount int64
-	ServerErrorCount int64
-	IPHostCount      int64
-	LastSeenEpoch    int64
-	StatusCounts     map[int]int64
-}
+type NodeAccessLogWAFIPAggregate = analyticsmodel.NodeAccessLogWAFIPAggregate
 
 // NodeAccessLogBucketDimension is a bucket dimension value.
-type NodeAccessLogBucketDimension struct {
-	BucketEpoch int64
-	Value       string
-}
+type NodeAccessLogBucketDimension = analyticsmodel.NodeAccessLogBucketDimension
 
 // NodeAccessLogIPAggregate is an IP aggregate row.
-type NodeAccessLogIPAggregate struct {
-	RemoteAddr       string
-	RequestCount     int64
-	SuccessCount     int64
-	ClientErrorCount int64
-	ServerErrorCount int64
-	LastSeenEpoch    int64
-}
+type NodeAccessLogIPAggregate = analyticsmodel.NodeAccessLogIPAggregate
 
 // NodeAccessLogIPSummary is an IP summary row.
-type NodeAccessLogIPSummary struct {
-	RemoteAddr     string
-	TotalRequests  int64
-	RecentRequests int64
-	LastSeenEpoch  int64
-}
+type NodeAccessLogIPSummary = analyticsmodel.NodeAccessLogIPSummary
 
 // NodeAccessLogIPTrend is an IP trend bucket row.
-type NodeAccessLogIPTrend struct {
-	BucketEpoch  int64
-	RequestCount int64
-}
+type NodeAccessLogIPTrend = analyticsmodel.NodeAccessLogIPTrend
 
 // BucketAggregatesNodeAccessLogs returns folded bucket aggregates with unique IP/host counts.
 func BucketAggregatesNodeAccessLogs(ctx context.Context, filter NodeAccessLogFilter, bucketSeconds int64) ([]NodeAccessLogBucketAggregate, error) {
@@ -80,7 +47,8 @@ SELECT
 	countIf(status_code >= 400 AND status_code < 500) AS client_error_count,
 	countIf(status_code >= 500) AS server_error_count,
 	uniqExactIf(remote_addr, remote_addr != '') AS unique_ip_count,
-	uniqExactIf(host, host != '') AS unique_host_count
+	uniqExactIf(host, host != '') AS unique_host_count,
+	sum(bytes_sent) AS bytes_sent
 FROM %s
 WHERE %s
 GROUP BY bucket_epoch
@@ -101,10 +69,10 @@ ORDER BY %s`, bucketExpr, tableName, clause, nodeAccessLogBucketOrderClause(filt
 	var result []NodeAccessLogBucketAggregate
 	for rows.Next() {
 		var (
-			bucketEpoch                                                                    int64
-			requestCount, successCount, clientErrorCount, serverErrorCount, uniqueIPCount, uniqueHostCount uint64
+			bucketEpoch                                                                                               int64
+			requestCount, successCount, clientErrorCount, serverErrorCount, uniqueIPCount, uniqueHostCount, bytesSent uint64
 		)
-		if err := rows.Scan(&bucketEpoch, &requestCount, &successCount, &clientErrorCount, &serverErrorCount, &uniqueIPCount, &uniqueHostCount); err != nil {
+		if err := rows.Scan(&bucketEpoch, &requestCount, &successCount, &clientErrorCount, &serverErrorCount, &uniqueIPCount, &uniqueHostCount, &bytesSent); err != nil {
 			return nil, fmt.Errorf("scan bucket aggregate row: %w", err)
 		}
 		result = append(result, NodeAccessLogBucketAggregate{
@@ -115,6 +83,7 @@ ORDER BY %s`, bucketExpr, tableName, clause, nodeAccessLogBucketOrderClause(filt
 			ServerErrorCount: safeInt64Count(serverErrorCount),
 			UniqueIPCount:    safeInt64Count(uniqueIPCount),
 			UniqueHostCount:  safeInt64Count(uniqueHostCount),
+			BytesSent:        safeInt64Count(bytesSent),
 		})
 	}
 	return result, nil
@@ -215,8 +184,8 @@ GROUP BY remote_addr`, lastSeenExpr, tableName, queryClause)
 	var result []NodeAccessLogIPAggregate
 	for rows.Next() {
 		var (
-			remoteAddr                                       string
-			lastSeenEpoch                                    int64
+			remoteAddr                                                     string
+			lastSeenEpoch                                                  int64
 			requestCount, successCount, clientErrorCount, serverErrorCount uint64
 		)
 		if err := rows.Scan(&remoteAddr, &requestCount, &successCount, &clientErrorCount, &serverErrorCount, &lastSeenEpoch); err != nil {
@@ -347,8 +316,8 @@ GROUP BY remote_addr`, hostIsIPExpr, lastSeenExpr, tableName, clause)
 	order := make([]string, 0)
 	for rows.Next() {
 		var (
-			remoteAddr                                                                 string
-			lastSeenEpoch                                                              int64
+			remoteAddr                                                                    string
+			lastSeenEpoch                                                                 int64
 			requestCount, status404Count, clientErrorCount, serverErrorCount, ipHostCount uint64
 		)
 		if err := rows.Scan(&remoteAddr, &requestCount, &status404Count, &clientErrorCount, &serverErrorCount, &ipHostCount, &lastSeenEpoch); err != nil {

@@ -71,11 +71,11 @@ func TestGetStatsAggregatesZoneHosts(t *testing.T) {
 
 	now := time.Now().UTC()
 	require.NoError(t, model.InsertOpenFlareAccessLogsBatch(ctx, []*model.OpenFlareAccessLog{
-		{NodeID: "n1", LoggedAt: now.Add(-1 * time.Hour), RemoteAddr: "1.1.1.1", Host: "api.example.com", Path: "/", StatusCode: 200},
-		{NodeID: "n1", LoggedAt: now.Add(-2 * time.Hour), RemoteAddr: "1.1.1.1", Host: "www.example.com", Path: "/", StatusCode: 200},
-		{NodeID: "n1", LoggedAt: now.Add(-3 * time.Hour), RemoteAddr: "2.2.2.2", Host: "api.example.com", Path: "/x", StatusCode: 404},
-		{NodeID: "n1", LoggedAt: now.Add(-3 * time.Hour), RemoteAddr: "3.3.3.3", Host: "other.com", Path: "/", StatusCode: 200},
-		{NodeID: "n1", LoggedAt: now.Add(-48 * time.Hour), RemoteAddr: "4.4.4.4", Host: "api.example.com", Path: "/", StatusCode: 200},
+		{NodeID: "n1", LoggedAt: now.Add(-1 * time.Hour), RemoteAddr: "1.1.1.1", Host: "api.example.com", Path: "/", StatusCode: 200, BytesSent: 1000},
+		{NodeID: "n1", LoggedAt: now.Add(-2 * time.Hour), RemoteAddr: "1.1.1.1", Host: "www.example.com", Path: "/", StatusCode: 200, BytesSent: 500},
+		{NodeID: "n1", LoggedAt: now.Add(-3 * time.Hour), RemoteAddr: "2.2.2.2", Host: "api.example.com", Path: "/x", StatusCode: 404, BytesSent: 200},
+		{NodeID: "n1", LoggedAt: now.Add(-3 * time.Hour), RemoteAddr: "3.3.3.3", Host: "other.com", Path: "/", StatusCode: 200, BytesSent: 100},
+		{NodeID: "n1", LoggedAt: now.Add(-48 * time.Hour), RemoteAddr: "4.4.4.4", Host: "api.example.com", Path: "/", StatusCode: 200, BytesSent: 800},
 	}))
 
 	stats, err := GetStats(ctx, zone.ID, "24h")
@@ -83,20 +83,25 @@ func TestGetStatsAggregatesZoneHosts(t *testing.T) {
 	require.Equal(t, StatsRange24h, stats.Range)
 	require.Equal(t, int64(3), stats.RequestCount)
 	require.Equal(t, int64(2), stats.UniqueVisitors)
+	require.Equal(t, int64(1700), stats.BytesSent)
 	require.Equal(t, 2, stats.DomainCount)
 	require.True(t, stats.Available)
 	require.NotEmpty(t, stats.Series)
 	require.Equal(t, 60, stats.BucketMinutes)
 	var seriesRequests int64
+	var seriesBytes int64
 	for _, point := range stats.Series {
 		seriesRequests += point.RequestCount
+		seriesBytes += point.BytesSent
 	}
 	require.Equal(t, int64(3), seriesRequests)
+	require.Equal(t, int64(1700), seriesBytes)
 
 	stats7d, err := GetStats(ctx, zone.ID, "7d")
 	require.NoError(t, err)
 	require.Equal(t, int64(4), stats7d.RequestCount)
 	require.Equal(t, int64(3), stats7d.UniqueVisitors)
+	require.Equal(t, int64(2500), stats7d.BytesSent)
 	require.NotEmpty(t, stats7d.Series)
 
 	_, err = GetStats(ctx, zone.ID, "1h")

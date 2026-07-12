@@ -14041,6 +14041,9 @@ const docTemplate = `{
         "github_com_Rain-kl_Wavelet_pkg_protocol.NodeAccessLog": {
             "type": "object",
             "properties": {
+                "bytes_sent": {
+                    "type": "integer"
+                },
                 "host": {
                     "type": "string"
                 },
@@ -19023,15 +19026,15 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "available": {
-                    "description": "Available is false when analytics storage is unavailable (e.g. ClickHouse off).",
                     "type": "boolean"
                 },
+                "bucket_minutes": {
+                    "type": "integer"
+                },
                 "bytes_sent": {
-                    "description": "BytesSent is total response bytes. Currently always 0 until access logs store body_bytes_sent.",
                     "type": "integer"
                 },
                 "domain_count": {
-                    "description": "DomainCount is the number of explicit Zone domains used to scope hosts.",
                     "type": "integer"
                 },
                 "range": {
@@ -19041,11 +19044,15 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "request_count": {
-                    "description": "RequestCount is total access-log requests for Zone domains.",
                     "type": "integer"
                 },
+                "series": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/zone.StatsPoint"
+                    }
+                },
                 "unique_visitors": {
-                    "description": "UniqueVisitors is distinct client IPs (remote_addr) over the window.",
                     "type": "integer"
                 },
                 "window_ended_at": {
@@ -19053,6 +19060,23 @@ const docTemplate = `{
                 },
                 "window_started_at": {
                     "type": "string"
+                }
+            }
+        },
+        "zone.StatsPoint": {
+            "type": "object",
+            "properties": {
+                "bucket_started_at": {
+                    "type": "string"
+                },
+                "bytes_sent": {
+                    "type": "integer"
+                },
+                "request_count": {
+                    "type": "integer"
+                },
+                "unique_visitors": {
+                    "type": "integer"
                 }
             }
         },

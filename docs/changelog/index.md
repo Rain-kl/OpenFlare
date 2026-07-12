@@ -23,15 +23,17 @@ sidebar: false
 
 ### 新增
 
+- 边缘访问日志 `of_node_access_logs` ClickHouse 表新增 `bytes_sent` 字段并打通 Agent 到 Server 的上报和 Zone 统计显示逻辑。
 - Zone 概览页新增 Cloudflare 风格流量图：支持 24 小时 / 7 天 / 30 天，展示唯一访问者、请求总数与已提供数据趋势。
 - 新增第一阶段 Zone 与正规化 Zone 域名数据库表及路由绑定模型，为后续以稳定 ID 管理网站与域名关联提供基础。
 - 新增 Zone 管理 API 与显式历史域名导入命令，使用公共后缀列表验证注册根域和域名归属。
-- 管理端网站入口改为 Zone 列表与 `/websites/:zoneId` 详情（概览 / 域名 / 路由 / 证书 / 设置），反代路由通过 Zone 域名选择器绑定。
-- 新增 Zone 域名迁移指南（`docs/guide/zone-domain-migration.md`）；历史域名在 Server 启动时由 goose 自动导入，无需单独命令。
 
 ### 修改
 
-- 配置快照、OpenResty 渲染、Tunnel 与 Uptime Kuma 监控改为从 Zone 域名绑定读取域名和证书，移除对反代路由旧域名/证书字段的运行时回退。
+- 重构并清理了分析仓统计层 `node_access_log_stats.go` 和 `openflare_access_log.go` 之间的重复模型，使用底层 type aliases 简化了类型转换和拷贝逻辑。
+- 配置快照、OpenResty 渲染、Tunnel 与 Uptime Kuma 监控改为从 Zone 域名绑定读取域名 and 证书，移除对反代路由旧域名/证书字段的运行时回退。
+- 管理端网站入口改为 Zone 列表与 `/websites/:zoneId` 详情（概览 / 域名 / 路由 / 证书 / 设置），反代路由通过 Zone 域名选择器绑定。
+- 新增 Zone 域名迁移指南（`docs/guide/zone-domain-migration.md`）；历史域名在 Server 启动时由 goose 自动导入，无需单独命令。
 - 反代路由 API 以 `zone_domain_ids` / `zone_domains` 为唯一域名与证书关联来源，不再接受或返回路由内嵌域名/证书字段。
 - 第二阶段迁移删除 `of_managed_domains` 及 `of_proxy_routes` 上的 `domain` / `domains` / `cert_id` / `cert_ids` / `domain_cert_ids` 冗余列。
 

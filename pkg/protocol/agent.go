@@ -151,6 +151,7 @@ type NodeAccessLog struct {
 	Host         string `json:"host"`
 	Path         string `json:"path"`
 	StatusCode   int    `json:"status_code"`
+	BytesSent    int64  `json:"bytes_sent"`
 }
 
 // BufferedObservabilityRecord is a buffered observability record.

@@ -76,7 +76,7 @@ func TestCountOpenFlareAccessLogs(t *testing.T) {
 	query := OpenFlareAccessLogQuery{
 		Since: now.Add(-10 * time.Minute),
 	}
-	totalRecords, totalIPs, err := CountOpenFlareAccessLogs(ctx, query)
+	totalRecords, totalIPs, _, err := CountOpenFlareAccessLogs(ctx, query)
 	require.NoError(t, err)
 	assert.Equal(t, int64(5), totalRecords)
 	assert.Equal(t, int64(3), totalIPs)
@@ -113,7 +113,7 @@ func TestDeleteOpenFlareAccessLogsBefore(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, int64(3), deleted)
 
-	totalRecords, _, err := CountOpenFlareAccessLogs(ctx, OpenFlareAccessLogQuery{Since: now.Add(-10 * time.Minute)})
+	totalRecords, _, _, err := CountOpenFlareAccessLogs(ctx, OpenFlareAccessLogQuery{Since: now.Add(-10 * time.Minute)})
 	require.NoError(t, err)
 	assert.Equal(t, int64(2), totalRecords)
 }

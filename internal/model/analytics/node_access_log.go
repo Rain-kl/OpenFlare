@@ -10,7 +10,7 @@ import (
 
 const (
 	nodeAccessLogTableName     = "of_node_access_logs"
-	nodeAccessLogInsertColumns = "id, node_id, logged_at, remote_addr, region, host, path, status_code, created_at"
+	nodeAccessLogInsertColumns = "id, node_id, logged_at, remote_addr, region, host, path, status_code, bytes_sent, created_at"
 )
 
 // NodeAccessLog stores OpenFlare edge node access records in ClickHouse.
@@ -23,6 +23,7 @@ type NodeAccessLog struct {
 	Host       string    `gorm:"column:host"`
 	Path       string    `gorm:"column:path"`
 	StatusCode int32     `gorm:"column:status_code"`
+	BytesSent  uint64    `gorm:"column:bytes_sent"`
 	CreatedAt  time.Time `gorm:"column:created_at"`
 }
 

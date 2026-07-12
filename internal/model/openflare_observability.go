@@ -69,6 +69,7 @@ type OpenFlareAccessLog struct {
 	Host       string    `json:"host" gorm:"index;size:255"`
 	Path       string    `json:"path" gorm:"size:2048"`
 	StatusCode int       `json:"status_code" gorm:"index"`
+	BytesSent  int64     `json:"bytes_sent" gorm:"column:bytes_sent;not null;default:0"`
 	CreatedAt  time.Time `json:"created_at" gorm:"autoCreateTime"`
 }
 
@@ -221,6 +222,7 @@ type OpenFlareAccessLogBucketRow struct {
 	SuccessCount     int64 `json:"success_count"`
 	ClientErrorCount int64 `json:"client_error_count"`
 	ServerErrorCount int64 `json:"server_error_count"`
+	BytesSent        int64 `json:"bytes_sent"`
 }
 
 // OpenFlareAccessLogBucketIPQuery filters folded IP summary queries (v1 stub).
