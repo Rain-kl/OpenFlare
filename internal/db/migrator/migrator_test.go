@@ -76,6 +76,29 @@ func TestMigrateInitializesSQLiteDatabase(t *testing.T) {
 	if templateCount != 2 {
 		t.Errorf("Migrate() templates count = %d, want %d", templateCount, 2)
 	}
+
+	if !sqliteDB.Migrator().HasTable("of_zones") {
+		t.Error("Migrate() did not create of_zones")
+	}
+	if !sqliteDB.Migrator().HasTable("of_zone_domains") {
+		t.Error("Migrate() did not create of_zone_domains")
+	}
+
+	zone := model.Zone{Domain: "example.com"}
+	if err := sqliteDB.Create(&zone).Error; err != nil {
+		t.Fatalf("Migrate() create Zone error = %v", err)
+	}
+	if err := sqliteDB.Create(&model.Zone{Domain: zone.Domain}).Error; err == nil {
+		t.Error("Migrate() allowed duplicate of_zones.domain")
+	}
+
+	domain := model.ZoneDomain{ZoneID: zone.ID, Domain: "api.example.com"}
+	if err := sqliteDB.Create(&domain).Error; err != nil {
+		t.Fatalf("Migrate() create ZoneDomain error = %v", err)
+	}
+	if err := sqliteDB.Create(&model.ZoneDomain{ZoneID: zone.ID, Domain: domain.Domain}).Error; err == nil {
+		t.Error("Migrate() allowed duplicate of_zone_domains.domain")
+	}
 }
 
 func TestMigrateClearsStaleSystemConfigCache(t *testing.T) {
