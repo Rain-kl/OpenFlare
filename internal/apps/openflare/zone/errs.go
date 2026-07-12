@@ -15,4 +15,5 @@ const (
 	errCertificateNotFound       = "所选证书不存在"
 	errDomainBoundToRoute        = "域名已绑定反代路由，请先解除绑定"
 	errZoneHasDomains            = "根域下仍有域名，请先删除全部域名"
+	errStatsRangeInvalid         = "时间范围无效，请选择 24h、7d 或 30d"
 )

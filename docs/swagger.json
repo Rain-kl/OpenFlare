@@ -11218,6 +11218,70 @@
                 }
             }
         },
+        "/api/v1/d/zones/{id}/stats": {
+            "get": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "description": "按 Zone 下全部域名聚合访问日志：唯一访问者、请求总数、已提供数据（字节）。range 支持 24h/7d/30d。",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "openflare-zone"
+                ],
+                "summary": "获取 Zone 流量统计",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Zone ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "时间范围：24h（默认）、7d、30d",
+                        "name": "range",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/zone.Stats"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/d/zones/{id}/update": {
             "post": {
                 "security": [
@@ -18947,6 +19011,56 @@
                     "$ref": "#/definitions/model.Zone"
                 }
             }
+        },
+        "zone.Stats": {
+            "type": "object",
+            "properties": {
+                "available": {
+                    "description": "Available is false when analytics storage is unavailable (e.g. ClickHouse off).",
+                    "type": "boolean"
+                },
+                "bytes_sent": {
+                    "description": "BytesSent is total response bytes. Currently always 0 until access logs store body_bytes_sent.",
+                    "type": "integer"
+                },
+                "domain_count": {
+                    "description": "DomainCount is the number of explicit Zone domains used to scope hosts.",
+                    "type": "integer"
+                },
+                "range": {
+                    "$ref": "#/definitions/zone.StatsRange"
+                },
+                "range_hours": {
+                    "type": "integer"
+                },
+                "request_count": {
+                    "description": "RequestCount is total access-log requests for Zone domains.",
+                    "type": "integer"
+                },
+                "unique_visitors": {
+                    "description": "UniqueVisitors is distinct client IPs (remote_addr) over the window.",
+                    "type": "integer"
+                },
+                "window_ended_at": {
+                    "type": "string"
+                },
+                "window_started_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "zone.StatsRange": {
+            "type": "string",
+            "enum": [
+                "24h",
+                "7d",
+                "30d"
+            ],
+            "x-enum-varnames": [
+                "StatsRange24h",
+                "StatsRange7d",
+                "StatsRange30d"
+            ]
         }
     },
     "securityDefinitions": {

@@ -87,6 +87,30 @@ func GetOverviewHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, response.OK(item))
 }
 
+// GetStatsHandler returns Zone traffic metrics for a time range.
+// @Summary 获取 Zone 流量统计
+// @Description 按 Zone 下全部域名聚合访问日志：唯一访问者、请求总数、已提供数据（字节）。range 支持 24h/7d/30d。
+// @Tags openflare-zone
+// @Produce json
+// @Security SessionCookie
+// @Param id path int true "Zone ID"
+// @Param range query string false "时间范围：24h（默认）、7d、30d"
+// @Success 200 {object} response.Any{data=zone.Stats}
+// @Failure 400 {object} response.Any
+// @Failure 404 {object} response.Any
+// @Router /api/v1/d/zones/{id}/stats [get]
+func GetStatsHandler(c *gin.Context) {
+	id, ok := apiutil.IDParam(c)
+	if !ok {
+		return
+	}
+	item, err := GetStats(c.Request.Context(), id, c.Query("range"))
+	if abort(c, err, errZoneNotFound) {
+		return
+	}
+	c.JSON(http.StatusOK, response.OK(item))
+}
+
 // UpdateHandler updates a Zone.
 // @Summary 更新 Zone
 // @Tags openflare-zone

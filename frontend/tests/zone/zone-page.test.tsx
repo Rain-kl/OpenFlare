@@ -5,6 +5,14 @@ import {beforeEach, describe, expect, it, vi} from 'vitest';
 import {ZonePageClient} from '@/app/(main)/websites/[zoneId]/page-client';
 import {ProxyRouteService, TlsCertificateService, ZoneService} from '@/lib/services/openflare';
 
+class ResizeObserverMock {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+
+vi.stubGlobal('ResizeObserver', ResizeObserverMock);
+
 const replaceMock = vi.fn();
 
 vi.mock('next/link', () => ({
@@ -25,6 +33,7 @@ vi.mock('@/lib/services/openflare', async (importOriginal) => {
     ...actual,
     ZoneService: {
       getOverview: vi.fn(),
+      getStats: vi.fn(),
       deleteById: vi.fn(),
       list: vi.fn(),
     },
@@ -53,6 +62,20 @@ function renderPage(zoneId: number) {
 describe('ZonePageClient', () => {
   beforeEach(() => {
     vi.mocked(ZoneService.getOverview).mockReset();
+    vi.mocked(ZoneService.getStats).mockReset();
+    vi.mocked(ZoneService.getStats).mockResolvedValue({
+      range: '24h',
+      range_hours: 24,
+      window_started_at: new Date().toISOString(),
+      window_ended_at: new Date().toISOString(),
+      bucket_minutes: 60,
+      unique_visitors: 0,
+      request_count: 0,
+      bytes_sent: 0,
+      domain_count: 0,
+      available: true,
+      series: [],
+    });
     vi.mocked(ZoneService.deleteById).mockReset();
     vi.mocked(TlsCertificateService.list).mockReset();
     vi.mocked(TlsCertificateService.list).mockResolvedValue([]);
@@ -72,6 +95,9 @@ describe('ZonePageClient', () => {
       expect(ZoneService.getOverview).toHaveBeenCalledWith(42);
     });
     expect(await screen.findByRole('heading', {name: 'arctel.de'})).toBeVisible();
+    expect(await screen.findByText('唯一访问者')).toBeVisible();
+    expect(screen.getByText('请求总数')).toBeVisible();
+    expect(screen.getByText('已提供的数据总计')).toBeVisible();
     expect(screen.getByRole('tab', {name: '域名 (0)'})).toBeVisible();
     expect(screen.getByRole('tab', {name: '证书 (0)'})).toBeVisible();
     expect(screen.queryByRole('tab', {name: '路由'})).not.toBeInTheDocument();

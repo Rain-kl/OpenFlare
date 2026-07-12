@@ -263,6 +263,7 @@ func toNodeAccessLogFilter(query OpenFlareAccessLogQuery) analyticsrepo.NodeAcce
 		NodeID:     query.NodeID,
 		RemoteAddr: query.RemoteAddr,
 		Host:       query.Host,
+		Hosts:      query.Hosts,
 		Path:       query.Path,
 		Since:      query.Since,
 		Until:      query.Until,

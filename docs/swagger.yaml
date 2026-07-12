@@ -3961,6 +3961,46 @@ definitions:
       zone:
         $ref: '#/definitions/model.Zone'
     type: object
+  zone.Stats:
+    properties:
+      available:
+        description: Available is false when analytics storage is unavailable (e.g.
+          ClickHouse off).
+        type: boolean
+      bytes_sent:
+        description: BytesSent is total response bytes. Currently always 0 until access
+          logs store body_bytes_sent.
+        type: integer
+      domain_count:
+        description: DomainCount is the number of explicit Zone domains used to scope
+          hosts.
+        type: integer
+      range:
+        $ref: '#/definitions/zone.StatsRange'
+      range_hours:
+        type: integer
+      request_count:
+        description: RequestCount is total access-log requests for Zone domains.
+        type: integer
+      unique_visitors:
+        description: UniqueVisitors is distinct client IPs (remote_addr) over the
+          window.
+        type: integer
+      window_ended_at:
+        type: string
+      window_started_at:
+        type: string
+    type: object
+  zone.StatsRange:
+    enum:
+    - 24h
+    - 7d
+    - 30d
+    type: string
+    x-enum-varnames:
+    - StatsRange24h
+    - StatsRange7d
+    - StatsRange30d
 info:
   contact:
     name: OpenFlare
@@ -10707,6 +10747,44 @@ paths:
       security:
       - SessionCookie: []
       summary: 获取 Zone 概览
+      tags:
+      - openflare-zone
+  /api/v1/d/zones/{id}/stats:
+    get:
+      description: 按 Zone 下全部域名聚合访问日志：唯一访问者、请求总数、已提供数据（字节）。range 支持 24h/7d/30d。
+      parameters:
+      - description: Zone ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 时间范围：24h（默认）、7d、30d
+        in: query
+        name: range
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/zone.Stats'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Any'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 获取 Zone 流量统计
       tags:
       - openflare-zone
   /api/v1/d/zones/{id}/update:

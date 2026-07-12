@@ -12,8 +12,8 @@ import (
 const (
 	nodeAccessLogFilterClauseCapacity = 6
 
-	nodeAccessLogSortDesc = "DESC"
-	nodeAccessLogSortAsc  = "ASC"
+	nodeAccessLogSortDesc     = "DESC"
+	nodeAccessLogSortAsc      = "ASC"
 	nodeAccessLogSortAscInput = "asc"
 
 	nodeAccessLogColumnRemoteAddr = "remote_addr"
@@ -24,13 +24,15 @@ type NodeAccessLogFilter struct {
 	NodeID     string
 	RemoteAddr string
 	Host       string
-	Path       string
-	Since      time.Time
-	Until      time.Time
-	Page       int
-	PageSize   int
-	SortBy     string
-	SortOrder  string
+	// Hosts exact-matches any host (case-insensitive). Prefer over Host for multi-domain scopes.
+	Hosts     []string
+	Path      string
+	Since     time.Time
+	Until     time.Time
+	Page      int
+	PageSize  int
+	SortBy    string
+	SortOrder string
 }
 
 func buildNodeAccessLogFilterClause(filter NodeAccessLogFilter) (string, []any) {
@@ -44,7 +46,15 @@ func buildNodeAccessLogFilterClause(filter NodeAccessLogFilter) (string, []any) 
 		parts = append(parts, "remote_addr LIKE ?")
 		args = append(args, trimmed+"%")
 	}
-	if trimmed := strings.TrimSpace(filter.Host); trimmed != "" {
+	hosts := normalizeNodeAccessLogHosts(filter.Hosts)
+	if len(hosts) > 0 {
+		placeholders := make([]string, 0, len(hosts))
+		for _, host := range hosts {
+			placeholders = append(placeholders, "?")
+			args = append(args, host)
+		}
+		parts = append(parts, "lowerUTF8(trim(host)) IN ("+strings.Join(placeholders, ", ")+")")
+	} else if trimmed := strings.TrimSpace(filter.Host); trimmed != "" {
 		parts = append(parts, "host LIKE ?")
 		args = append(args, trimmed+"%")
 	}
@@ -97,6 +107,26 @@ func nodeAccessLogOrderClause(sortBy string, sortOrder string) string {
 
 func normalizeNodeAccessLogRemoteAddr(value string) string {
 	return strings.TrimSpace(value)
+}
+
+func normalizeNodeAccessLogHosts(hosts []string) []string {
+	if len(hosts) == 0 {
+		return nil
+	}
+	seen := make(map[string]struct{}, len(hosts))
+	result := make([]string, 0, len(hosts))
+	for _, host := range hosts {
+		trimmed := strings.ToLower(strings.TrimSpace(host))
+		if trimmed == "" {
+			continue
+		}
+		if _, ok := seen[trimmed]; ok {
+			continue
+		}
+		seen[trimmed] = struct{}{}
+		result = append(result, trimmed)
+	}
+	return result
 }
 
 func normalizeNodeAccessLogSortOrder(sortOrder string) string {

@@ -180,7 +180,7 @@ export function ZonePageClient({zoneId}: {zoneId: number}) {
         </TabsList>
 
         <TabsContent value="overview">
-          <ZoneOverviewPanel overview={overview} />
+          <ZoneOverviewPanel overview={overview} zoneId={zoneId} />
         </TabsContent>
         <TabsContent value="domains">
           <ZoneDomainsTable

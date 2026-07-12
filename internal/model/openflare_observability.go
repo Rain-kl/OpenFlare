@@ -185,13 +185,15 @@ type OpenFlareAccessLogQuery struct {
 	NodeID     string
 	RemoteAddr string
 	Host       string
-	Path       string
-	Since      time.Time
-	Until      time.Time
-	Page       int
-	PageSize   int
-	SortBy     string
-	SortOrder  string
+	// Hosts exact-matches any host (case-insensitive). Prefer over Host for multi-domain scopes.
+	Hosts     []string
+	Path      string
+	Since     time.Time
+	Until     time.Time
+	Page      int
+	PageSize  int
+	SortBy    string
+	SortOrder string
 }
 
 // OpenFlareAccessLogBucketQuery filters folded access log queries (v1 stub).
@@ -199,8 +201,10 @@ type OpenFlareAccessLogBucketQuery struct {
 	NodeID      string
 	RemoteAddr  string
 	Host        string
+	Hosts       []string
 	Path        string
 	Since       time.Time
+	Until       time.Time
 	Page        int
 	PageSize    int
 	SortBy      string

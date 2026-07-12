@@ -988,6 +988,29 @@ export interface ZoneOverview {
   domains: ZoneDomainItem[];
 }
 
+export type ZoneStatsRange = '24h' | '7d' | '30d';
+
+export interface ZoneStatsPoint {
+  bucket_started_at: string;
+  request_count: number;
+  unique_visitors: number;
+  bytes_sent: number;
+}
+
+export interface ZoneStats {
+  range: ZoneStatsRange;
+  range_hours: number;
+  window_started_at: string;
+  window_ended_at: string;
+  bucket_minutes: number;
+  unique_visitors: number;
+  request_count: number;
+  bytes_sent: number;
+  domain_count: number;
+  available: boolean;
+  series: ZoneStatsPoint[];
+}
+
 
 
 

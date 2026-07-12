@@ -1,5 +1,13 @@
 import {OpenFlareBaseService} from './base.service'
-import type {ZoneDomainItem, ZoneDomainMutationPayload, ZoneItem, ZoneMutationPayload, ZoneOverview} from './types'
+import type {
+  ZoneDomainItem,
+  ZoneDomainMutationPayload,
+  ZoneItem,
+  ZoneMutationPayload,
+  ZoneOverview,
+  ZoneStats,
+  ZoneStatsRange,
+} from './types'
 
 export const zoneQueryKey = ['openflare', 'zones'] as const
 
@@ -8,6 +16,9 @@ export class ZoneService extends OpenFlareBaseService {
 
   static list(): Promise<ZoneItem[]> { return this.get<ZoneItem[]>('/') }
   static getOverview(id: number): Promise<ZoneOverview> { return this.get<ZoneOverview>(`/${id}/overview`) }
+  static getStats(id: number, range: ZoneStatsRange = '24h'): Promise<ZoneStats> {
+    return this.get<ZoneStats>(`/${id}/stats`, {range})
+  }
   static create(payload: ZoneMutationPayload): Promise<ZoneItem> { return this.post<ZoneItem>('/', payload) }
   static update(id: number, payload: ZoneMutationPayload): Promise<ZoneItem> { return this.post<ZoneItem>(`/${id}/update`, payload) }
   static deleteById(id: number): Promise<void> { return this.post<void>(`/${id}/delete`) }

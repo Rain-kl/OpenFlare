@@ -450,7 +450,19 @@ func memoryAccessLogMatches(row *OpenFlareAccessLog, query OpenFlareAccessLogQue
 	if trimmed := strings.TrimSpace(query.RemoteAddr); trimmed != "" && !strings.HasPrefix(strings.TrimSpace(row.RemoteAddr), trimmed) {
 		return false
 	}
-	if trimmed := strings.TrimSpace(query.Host); trimmed != "" && !strings.HasPrefix(strings.TrimSpace(row.Host), trimmed) {
+	if len(query.Hosts) > 0 {
+		rowHost := strings.ToLower(strings.TrimSpace(row.Host))
+		matched := false
+		for _, host := range query.Hosts {
+			if strings.ToLower(strings.TrimSpace(host)) == rowHost {
+				matched = true
+				break
+			}
+		}
+		if !matched {
+			return false
+		}
+	} else if trimmed := strings.TrimSpace(query.Host); trimmed != "" && !strings.HasPrefix(strings.TrimSpace(row.Host), trimmed) {
 		return false
 	}
 	if trimmed := strings.TrimSpace(query.Path); trimmed != "" && !strings.HasPrefix(strings.TrimSpace(row.Path), trimmed) {
