@@ -139,7 +139,7 @@ OpenResty (Agent, TLS/WAF)
 
 当前系统核心实体包括：
 
-* **反代与配置**：`proxy_routes` (网站配置), `origins` (源站), `config_versions` (配置版本), `tls_certificates` (证书), `managed_domains` (托管域名).
+* **反代与配置**：`zones` (根域管理边界), `zone_domains` (明确域名与证书/路由关联), `proxy_routes` (路由策略), `origins` (源站), `config_versions` (配置版本), `tls_certificates` (证书). 详见 [Zone 与域名资源设计](./zone-design.md)。
 * **Pages 静态托管**：`pages_projects` (Pages项目), `pages_deployments` (不可变部署), `pages_deployment_files` (部署文件清单).
 * **节点与穿透**：`nodes` (节点), `tunnels` (隧道客户端), `node_system_profiles` (系统概况), `apply_logs` (应用日志).
 * **WAF 与安全**：`waf_rule_groups` (WAF规则组), `waf_ip_groups` (WAF IP组), `waf_rule_group_bindings` (网站WAF绑定).
@@ -154,7 +154,7 @@ OpenResty (Agent, TLS/WAF)
 | 完整配置版本，而不是在线 patch | 让预览、激活、历史和回滚有稳定边界，保证节点状态一致                        |
 | Agent 主动拉取                 | Server 不需要 SSH 权限，降低安全风险；支持 HTTP 与 WebSocket 双协议灵活切换 |
 | 全局单激活版本                 | 降低控制面复杂度，保证所有节点默认一致；提供一键秒级回滚的稳定机制           |
-| 网站配置聚合多域名             | 支持单个业务站点共享站点级策略，同时支持按域名灵活绑定不同的 TLS 证书        |
+| Zone 域名与路由策略分离        | Zone 提供根域入口与域名边界；路由仍可复用同一套站点级策略并按域名绑定证书        |
 | 内网穿透基于 frp 整合          | 复用成熟隧道协议，避免自研隧道引起稳定性风险；其 Vhost 机制天然适配反代路由 |
 | 运行时配置与控制库解耦         | 如 WAF 运行时只读取本地 JSON 规则包，配置变更通过差分广播或快速重载热生效    |
 
@@ -167,6 +167,7 @@ OpenResty (Agent, TLS/WAF)
 1. **[产品边界](./index.md)**：了解 OpenFlare 核心定位与不允许逾越的设计边界。
 3. **[Agent 与发布模型](./agent-design.md)**：理解版本快照同步及失败回滚的安全兜底逻辑。
 4. **细分领域设计**：
+   * Zone 与域名相关开发：阅读 [Zone 与域名资源设计](./zone-design.md)。
    * 穿透相关开发：阅读 [内网穿透隧道设计](./tunnel-design.md)。
    * WAF 相关开发：阅读 [WAF 设计](./waf-design.md)。
    * Pages 托管开发：阅读 [Pages 静态托管设计](./pages-design.md)。

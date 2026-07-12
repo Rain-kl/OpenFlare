@@ -125,6 +125,7 @@ function sidebarDesign(): DefaultTheme.SidebarItem[] {
       items: [
         { text: '产品边界', link: '' },
         { text: '系统架构', link: 'architecture' },
+        { text: 'Zone 与域名资源设计', link: 'zone-design' },
         { text: 'Agent 与发布模型', link: 'agent-design' },
         { text: '内网穿透隧道设计', link: 'tunnel-design' },
         { text: 'WAF 设计', link: 'waf-design' },
@@ -135,4 +136,3 @@ function sidebarDesign(): DefaultTheme.SidebarItem[] {
     }
   ]
 }
-
