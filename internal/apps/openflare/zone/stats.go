@@ -17,10 +17,24 @@ import (
 // StatsRange is a supported traffic window for Zone analytics.
 type StatsRange string
 
+// StatsRange constants representing supported analytics windows.
 const (
+	// StatsRange24h represents a 24-hour time window.
 	StatsRange24h StatsRange = "24h"
+	// StatsRange7d represents a 7-day time window.
 	StatsRange7d  StatsRange = "7d"
+	// StatsRange30d represents a 30-day time window.
 	StatsRange30d StatsRange = "30d"
+)
+
+const (
+	hoursPerDay        = 24
+	daysPerWeek        = 7
+	daysPerMonth       = 30
+	minutesPerHour     = 60
+	bucketMinutes24h   = 60
+	bucketMinutes7d    = 6 * minutesPerHour
+	bucketMinutes30d   = 24 * minutesPerHour
 )
 
 // StatsPoint is one bucket on a Zone traffic chart.
@@ -49,11 +63,11 @@ type Stats struct {
 func parseStatsRange(raw string) (StatsRange, time.Duration, int, error) {
 	switch StatsRange(strings.TrimSpace(raw)) {
 	case "", StatsRange24h:
-		return StatsRange24h, 24 * time.Hour, 60, nil
+		return StatsRange24h, hoursPerDay * time.Hour, bucketMinutes24h, nil
 	case StatsRange7d:
-		return StatsRange7d, 7 * 24 * time.Hour, 6 * 60, nil
+		return StatsRange7d, daysPerWeek * hoursPerDay * time.Hour, bucketMinutes7d, nil
 	case StatsRange30d:
-		return StatsRange30d, 30 * 24 * time.Hour, 24 * 60, nil
+		return StatsRange30d, daysPerMonth * hoursPerDay * time.Hour, bucketMinutes30d, nil
 	default:
 		return "", 0, 0, errors.New(errStatsRangeInvalid)
 	}

@@ -4,6 +4,7 @@
 package integration
 
 import (
+	"context"
 	"net/http"
 	"testing"
 	"time"
@@ -49,6 +50,8 @@ func setupCoreChainTest(t *testing.T) (*gin.Engine, adminSeed, func()) {
 		&model.OpenFlareNode{},
 		&model.SystemConfig{},
 		&model.OpenFlareApplyLog{},
+		&model.Zone{},
+		&model.ZoneDomain{},
 	))
 
 	db.SetDB(sqliteDB)
@@ -138,13 +141,22 @@ func TestCoreChainMigrationFlow(t *testing.T) {
 	})
 
 	t.Run("create proxy route linked to origin", func(t *testing.T) {
+		// Create Zone and ZoneDomain directly in the DB
+		zone := model.Zone{Domain: "example.com"}
+		require.NoError(t, db.DB(context.Background()).Create(&zone).Error)
+		zoneDomain := model.ZoneDomain{
+			ZoneID: zone.ID,
+			Domain: "core-chain.example.com",
+		}
+		require.NoError(t, db.DB(context.Background()).Create(&zoneDomain).Error)
+
 		rec := performJSONRequest(t, engine, http.MethodPost, apiPath("/proxy-routes/"), map[string]any{
-			"site_name":     "core-chain-site",
-			"domain":        "core-chain.example.com",
-			"origin_id":     originID,
-			"origin_scheme": "http",
-			"origin_port":   "8080",
-			"enabled":       true,
+			"site_name":       "core-chain-site",
+			"zone_domain_ids": []uint{zoneDomain.ID},
+			"origin_id":       originID,
+			"origin_scheme":   "http",
+			"origin_port":     "8080",
+			"enabled":         true,
 		}, map[string]string{
 			"X-Access-Token": seed.Token,
 		})
@@ -155,7 +167,10 @@ func TestCoreChainMigrationFlow(t *testing.T) {
 		proxyRouteID = uint(data["id"].(float64))
 		assert.NotZero(t, proxyRouteID)
 		assert.Equal(t, "core-chain-site", data["site_name"])
-		assert.Equal(t, "core-chain.example.com", data["domain"])
+		assert.NotEmpty(t, data["zone_domains"])
+		zoneDomains := data["zone_domains"].([]any)
+		assert.Len(t, zoneDomains, 1)
+		assert.Equal(t, "core-chain.example.com", zoneDomains[0].(map[string]any)["domain"])
 		assert.Equal(t, float64(originID), data["origin_id"])
 		assert.Equal(t, "http://origin.core-chain.internal:8080", data["origin_url"])
 	})

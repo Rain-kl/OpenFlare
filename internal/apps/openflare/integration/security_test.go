@@ -4,6 +4,7 @@
 package integration
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
@@ -207,11 +208,20 @@ func TestSecurityWAFTLSMigrationFlow(t *testing.T) {
 	})
 
 	t.Run("create proxy route for WAF binding", func(t *testing.T) {
+		// Create Zone and ZoneDomain directly in the DB
+		routeZone := model.Zone{Domain: "example-route.com"}
+		require.NoError(t, db.DB(context.Background()).Create(&routeZone).Error)
+		routeZoneDomain := model.ZoneDomain{
+			ZoneID: routeZone.ID,
+			Domain: "route.example-route.com",
+		}
+		require.NoError(t, db.DB(context.Background()).Create(&routeZoneDomain).Error)
+
 		rec := performJSONRequest(t, engine, http.MethodPost, apiPath("/proxy-routes/"), map[string]any{
-			"site_name":  "security-site",
-			"domain":     "security.example.com",
-			"origin_url": "http://origin.security.internal:8080",
-			"enabled":    true,
+			"site_name":       "security-site",
+			"zone_domain_ids": []uint{routeZoneDomain.ID},
+			"origin_url":      "http://origin.security.internal:8080",
+			"enabled":         true,
 		}, adminAuthHeaders(seed.Token))
 		require.Equal(t, http.StatusOK, rec.Code)
 
@@ -219,7 +229,10 @@ func TestSecurityWAFTLSMigrationFlow(t *testing.T) {
 		data := unmarshalAPIMap(t, resp.Data)
 		proxyRouteID = uint(data["id"].(float64))
 		assert.NotZero(t, proxyRouteID)
-		assert.Equal(t, "security.example.com", data["domain"])
+		assert.NotEmpty(t, data["zone_domains"])
+		zoneDomains := data["zone_domains"].([]any)
+		assert.Len(t, zoneDomains, 1)
+		assert.Equal(t, "route.example-route.com", zoneDomains[0].(map[string]any)["domain"])
 	})
 
 	t.Run("bind WAF rule group to proxy route", func(t *testing.T) {

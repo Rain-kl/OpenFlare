@@ -2,11 +2,11 @@
 
 import {useMemo, useState} from 'react';
 import {useQuery} from '@tanstack/react-query';
-import {Activity, HardDrive, Link2, ShieldCheck, Users} from 'lucide-react';
+import {Activity, HardDrive, Users} from 'lucide-react';
 import {Area, AreaChart, CartesianGrid, XAxis, YAxis} from 'recharts';
 
 import {Button} from '@/components/ui/button';
-import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card';
+import {Card, CardContent, CardHeader, CardTitle} from '@/components/ui/card';
 import {
   ChartContainer,
   ChartTooltip,
@@ -84,14 +84,6 @@ export function ZoneOverviewPanel({
   zoneId: number;
 }) {
   const [range, setRange] = useState<ZoneStatsRange>('24h');
-  const boundRoutes = new Set(
-    overview.domains.flatMap((domain) =>
-      domain.proxy_route_id ? [domain.proxy_route_id] : [],
-    ),
-  ).size;
-  const certificates = overview.domains.filter(
-    (domain) => domain.cert_id !== null,
-  ).length;
 
   const statsQuery = useQuery({
     queryKey: [...zoneQueryKey, zoneId, 'stats', range],

@@ -54,7 +54,7 @@ func TestDatabaseAutoCleanupHandlerDeletesRowsWhenEnabled(t *testing.T) {
 	now := time.Now().UTC()
 	require.NoError(t, model.InsertOpenFlareAccessLogsBatch(ctx, []*model.OpenFlareAccessLog{{
 		NodeID:     "node-a",
-		LoggedAt:   now.Add(-48 * time.Hour),
+		LoggedAt:   now.Add(-95 * 24 * time.Hour),
 		RemoteAddr: "203.0.113.10",
 		Host:       "example.com",
 		Path:       "/access",

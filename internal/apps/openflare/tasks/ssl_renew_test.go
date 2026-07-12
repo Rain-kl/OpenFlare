@@ -49,7 +49,7 @@ func TestRunSSLRenewJobTriggersDueCertificates(t *testing.T) {
 	})
 	defer restore()
 
-	now := time.Date(2026, 6, 18, 12, 0, 0, 0, time.UTC)
+	now := time.Now().UTC()
 	due := &model.TLSCertificate{
 		Name:          "due-cert",
 		Provider:      "acme",

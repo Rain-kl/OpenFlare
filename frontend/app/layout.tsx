@@ -1,5 +1,4 @@
 import type {Metadata} from "next";
-import {Inter} from "next/font/google";
 import {Toaster} from "@/components/ui/sonner";
 import {ThemeProvider} from "@/components/layout/theme-provider";
 import {CustomThemeProvider} from "@/lib/theme";
@@ -10,12 +9,6 @@ import {AppQueryProvider} from "@/components/providers/query-provider";
 import {SiteTitleUpdater} from "@/components/providers/title-updater";
 import {RobotsMeta} from "@/components/layout/robots-meta";
 import "./globals.css";
-
-const inter = Inter({
-  subsets: ["latin"],
-  variable: "--font-inter",
-  display: "swap",
-});
 
 export const metadata: Metadata = {
   title: "OpenFlare",
@@ -30,7 +23,7 @@ export default function RootLayout({
   return (
     <html
       lang="zh-CN"
-      className={`hide-scrollbar font-sans ${inter.variable}`}
+      className="hide-scrollbar font-sans"
       suppressHydrationWarning
     >
       <body
