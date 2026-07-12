@@ -36,8 +36,10 @@ const (
 	dialectSqlite   = "sqlite3"
 	dialectPostgres = "postgres"
 	// zoneImportSQLVersion is the goose SQL marker after of_zones creation and
-	// before drop of legacy route domain columns. Zone data import runs here.
-	zoneImportSQLVersion int64 = 202607120002
+	// before drop of legacy route domain columns. Zone data import runs only
+	// while DB version is in [zoneImportSQLVersion, zoneDropLegacySQLVersion).
+	zoneImportSQLVersion     int64 = 202607120002
+	zoneDropLegacySQLVersion int64 = 202607130001
 )
 
 func gooseDialect() string {
@@ -77,8 +79,10 @@ func Migrate() {
 	if err := goose.UpTo(sqlDB, migrationDir(), zoneImportSQLVersion); err != nil {
 		log.Fatalf("[%s] goose migrate (up to zone import) failed: %v\n", dbType(), err)
 	}
-	// 2) Auto-import legacy domains (publicsuffix; idempotent; no-op after phase-2 drop).
-	if err := importZoneDomainsAfterGoose(sqlDB); err != nil {
+	// 2) Import legacy domains only during the one-time upgrade window:
+	//    version in [202607120002, 202607130001). After phase-2 drop is applied,
+	//    this is skipped on every subsequent startup.
+	if err := maybeImportZoneDomains(sqlDB); err != nil {
 		log.Fatalf("[%s] zone domain import failed: %v\n", dbType(), err)
 	}
 	// 3) Remaining SQL (drop legacy columns / managed_domains, later migrations).
@@ -91,9 +95,18 @@ func Migrate() {
 	log.Printf("[%s] goose migrate success\n", dbType())
 }
 
-// importZoneDomainsAfterGoose 在 SQL 迁移完成后自动导入旧路由/托管域名。
-// 必须使用 publicsuffix 解析注册根域，故不能放在纯 SQL 中；幂等且在旧列删除后为空操作。
-func importZoneDomainsAfterGoose(sqlDB *sql.DB) error {
+// maybeImportZoneDomains runs legacy→Zone import only when the DB is still in the
+// pre-drop upgrade window. After 202607130001 is applied, this is a no-op and is
+// not executed on normal restarts.
+func maybeImportZoneDomains(sqlDB *sql.DB) error {
+	version, err := goose.GetDBVersion(sqlDB)
+	if err != nil {
+		return fmt.Errorf("get goose db version: %w", err)
+	}
+	if version < zoneImportSQLVersion || version >= zoneDropLegacySQLVersion {
+		return nil
+	}
+
 	ctx := context.Background()
 	tx, err := sqlDB.BeginTx(ctx, nil)
 	if err != nil {
