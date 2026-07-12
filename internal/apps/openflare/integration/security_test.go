@@ -42,7 +42,8 @@ func setupSecurityTest(t *testing.T) (*gin.Engine, adminSeed, func()) {
 		&model.OpenFlareWAFRuleGroupBinding{},
 		&model.OpenFlareWAFIPGroup{},
 		&model.TLSCertificate{},
-		&model.ManagedDomain{},
+		&model.Zone{},
+		&model.ZoneDomain{},
 		&model.DNSAccount{},
 		&model.AcmeAccount{},
 		&model.SystemConfig{},
@@ -289,12 +290,23 @@ func TestSecurityWAFTLSMigrationFlow(t *testing.T) {
 		assert.Equal(t, "upload", data["provider"])
 	})
 
-	t.Run("create managed domain", func(t *testing.T) {
-		rec := performJSONRequest(t, engine, http.MethodPost, apiPath("/managed-domains/"), map[string]any{
-			"domain":  "security.example.com",
-			"cert_id": certID,
-			"enabled": true,
-			"remark":  "primary security domain",
+	t.Run("create Zone domain", func(t *testing.T) {
+		zoneRec := performJSONRequest(t, engine, http.MethodPost, apiPath("/zones/"), map[string]any{
+			"domain": "example.com",
+		}, adminAuthHeaders(seed.Token))
+		require.Equal(t, http.StatusOK, zoneRec.Code)
+		zoneData := unmarshalAPIMap(t, requireAPIOK(t, zoneRec).Data)
+		zoneID := uint(zoneData["id"].(float64))
+
+		rec := performJSONRequest(t, engine, http.MethodPost, fmt.Sprintf("%s/zones/%d/domains", apiPath(""), zoneID), map[string]any{
+			"domain": "*.example.com",
+		}, adminAuthHeaders(seed.Token))
+		require.Equal(t, http.StatusBadRequest, rec.Code)
+		errResp := decodeAPIResponse(t, rec)
+		assert.NotEmpty(t, errResp.ErrorMsg)
+
+		rec = performJSONRequest(t, engine, http.MethodPost, fmt.Sprintf("%s/zones/%d/domains", apiPath(""), zoneID), map[string]any{
+			"domain": "security.example.com", "cert_id": certID, "remark": "primary security domain",
 		}, adminAuthHeaders(seed.Token))
 		require.Equal(t, http.StatusOK, rec.Code)
 
@@ -304,7 +316,6 @@ func TestSecurityWAFTLSMigrationFlow(t *testing.T) {
 		assert.NotZero(t, domainID)
 		assert.Equal(t, "security.example.com", data["domain"])
 		assert.Equal(t, float64(certID), data["cert_id"])
-		assert.Equal(t, true, data["enabled"])
 	})
 
 	t.Run("create DNS account", func(t *testing.T) {

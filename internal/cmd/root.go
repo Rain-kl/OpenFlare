@@ -72,7 +72,7 @@ func init() {
 	schedulerCmd.PreRun = migratePreRun
 
 	// 2. 集中将这些命令注册为真正的子命令，以解决 Cobra 的 unknown command 校验限制
-	rootCmd.AddCommand(allCmd, apiCmd, workerCmd, schedulerCmd)
+	rootCmd.AddCommand(allCmd, apiCmd, workerCmd, schedulerCmd, migrateZonesCmd)
 }
 
 // Execute 执行根命令

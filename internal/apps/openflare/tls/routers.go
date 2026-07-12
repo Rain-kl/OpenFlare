@@ -339,7 +339,6 @@ func RenewCertificateHandler(c *gin.Context) {
 // @Failure 401 {object} response.Any "未登录"
 // @Failure 404 {object} response.Any "无权限或不存在"
 // @Failure 500 {object} response.Any "内部错误"
-// @Router /api/v1/d/managed-domains [get]
 func GetManagedDomains(c *gin.Context) {
 	domains, err := ListManagedDomains(c.Request.Context())
 	if handleLogicError(c, err) {
@@ -361,7 +360,6 @@ func GetManagedDomains(c *gin.Context) {
 // @Failure 401 {object} response.Any "未登录"
 // @Failure 404 {object} response.Any "无权限或不存在"
 // @Failure 500 {object} response.Any "内部错误"
-// @Router /api/v1/d/managed-domains [post]
 func CreateManagedDomainHandler(c *gin.Context) {
 	var input ManagedDomainInput
 	if !apiutil.BindJSON(c, &input) {
@@ -389,7 +387,6 @@ func CreateManagedDomainHandler(c *gin.Context) {
 // @Failure 404 {object} response.Any "无权限或不存在"
 // @Failure 404 {object} response.Any "记录不存在"
 // @Failure 500 {object} response.Any "内部错误"
-// @Router /api/v1/d/managed-domains/{id}/update [post]
 func UpdateManagedDomainHandler(c *gin.Context) {
 	id, ok := apiutil.IDParam(c)
 	if !ok {
@@ -419,7 +416,6 @@ func UpdateManagedDomainHandler(c *gin.Context) {
 // @Failure 404 {object} response.Any "无权限或不存在"
 // @Failure 404 {object} response.Any "记录不存在"
 // @Failure 500 {object} response.Any "内部错误"
-// @Router /api/v1/d/managed-domains/{id}/delete [post]
 func DeleteManagedDomainHandler(c *gin.Context) {
 	id, ok := apiutil.IDParam(c)
 	if !ok {
@@ -443,7 +439,6 @@ func DeleteManagedDomainHandler(c *gin.Context) {
 // @Failure 401 {object} response.Any "未登录"
 // @Failure 404 {object} response.Any "无权限或不存在"
 // @Failure 500 {object} response.Any "内部错误"
-// @Router /api/v1/d/managed-domains/match [get]
 func MatchManagedDomainCertificateHandler(c *gin.Context) {
 	domain := strings.TrimSpace(c.Query("domain"))
 	result, err := MatchManagedDomainCertificate(c.Request.Context(), domain)

@@ -1884,7 +1884,7 @@ const docTemplate = `{
                         "SessionCookie": []
                     }
                 ],
-                "description": "返回 ClickHouse parts、mutation、async_insert 队列等运维指标，需要管理员权限",
+                "description": "返回 ClickHouse parts、mutation、async_insert 队列及进程内 batch writer 指标，需要管理员权限",
                 "produces": [
                     "application/json"
                 ],
@@ -6303,353 +6303,6 @@ const docTemplate = `{
                                     "properties": {
                                         "data": {
                                             "$ref": "#/definitions/model.DNSAccount"
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    },
-                    "400": {
-                        "description": "参数错误",
-                        "schema": {
-                            "$ref": "#/definitions/response.Any"
-                        }
-                    },
-                    "401": {
-                        "description": "未登录",
-                        "schema": {
-                            "$ref": "#/definitions/response.Any"
-                        }
-                    },
-                    "404": {
-                        "description": "记录不存在",
-                        "schema": {
-                            "$ref": "#/definitions/response.Any"
-                        }
-                    },
-                    "500": {
-                        "description": "内部错误",
-                        "schema": {
-                            "$ref": "#/definitions/response.Any"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/d/managed-domains": {
-            "get": {
-                "security": [
-                    {
-                        "SessionCookie": []
-                    }
-                ],
-                "description": "返回全部托管域名及关联证书，需要管理员权限",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "openflare-tls"
-                ],
-                "summary": "列出托管域名",
-                "responses": {
-                    "200": {
-                        "description": "托管域名列表",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/response.Any"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "type": "array",
-                                            "items": {
-                                                "$ref": "#/definitions/model.ManagedDomain"
-                                            }
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    },
-                    "400": {
-                        "description": "参数错误",
-                        "schema": {
-                            "$ref": "#/definitions/response.Any"
-                        }
-                    },
-                    "401": {
-                        "description": "未登录",
-                        "schema": {
-                            "$ref": "#/definitions/response.Any"
-                        }
-                    },
-                    "404": {
-                        "description": "无权限或不存在",
-                        "schema": {
-                            "$ref": "#/definitions/response.Any"
-                        }
-                    },
-                    "500": {
-                        "description": "内部错误",
-                        "schema": {
-                            "$ref": "#/definitions/response.Any"
-                        }
-                    }
-                }
-            },
-            "post": {
-                "security": [
-                    {
-                        "SessionCookie": []
-                    }
-                ],
-                "description": "创建新的托管域名记录，需要管理员权限",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "openflare-tls"
-                ],
-                "summary": "创建托管域名",
-                "parameters": [
-                    {
-                        "description": "托管域名参数",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/tls.ManagedDomainInput"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "创建成功的托管域名",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/response.Any"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "$ref": "#/definitions/model.ManagedDomain"
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    },
-                    "400": {
-                        "description": "参数错误",
-                        "schema": {
-                            "$ref": "#/definitions/response.Any"
-                        }
-                    },
-                    "401": {
-                        "description": "未登录",
-                        "schema": {
-                            "$ref": "#/definitions/response.Any"
-                        }
-                    },
-                    "404": {
-                        "description": "无权限或不存在",
-                        "schema": {
-                            "$ref": "#/definitions/response.Any"
-                        }
-                    },
-                    "500": {
-                        "description": "内部错误",
-                        "schema": {
-                            "$ref": "#/definitions/response.Any"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/d/managed-domains/match": {
-            "get": {
-                "security": [
-                    {
-                        "SessionCookie": []
-                    }
-                ],
-                "description": "按域名查询可用的证书匹配候选，需要管理员权限",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "openflare-tls"
-                ],
-                "summary": "匹配托管域名证书",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "域名",
-                        "name": "domain",
-                        "in": "query",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "证书匹配结果",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/response.Any"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "$ref": "#/definitions/tls.ManagedDomainMatchResult"
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    },
-                    "400": {
-                        "description": "参数错误",
-                        "schema": {
-                            "$ref": "#/definitions/response.Any"
-                        }
-                    },
-                    "401": {
-                        "description": "未登录",
-                        "schema": {
-                            "$ref": "#/definitions/response.Any"
-                        }
-                    },
-                    "404": {
-                        "description": "无权限或不存在",
-                        "schema": {
-                            "$ref": "#/definitions/response.Any"
-                        }
-                    },
-                    "500": {
-                        "description": "内部错误",
-                        "schema": {
-                            "$ref": "#/definitions/response.Any"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/d/managed-domains/{id}/delete": {
-            "post": {
-                "security": [
-                    {
-                        "SessionCookie": []
-                    }
-                ],
-                "description": "按 ID 删除托管域名，需要管理员权限",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "openflare-tls"
-                ],
-                "summary": "删除托管域名",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "托管域名 ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "删除成功",
-                        "schema": {
-                            "$ref": "#/definitions/response.Any"
-                        }
-                    },
-                    "400": {
-                        "description": "参数错误",
-                        "schema": {
-                            "$ref": "#/definitions/response.Any"
-                        }
-                    },
-                    "401": {
-                        "description": "未登录",
-                        "schema": {
-                            "$ref": "#/definitions/response.Any"
-                        }
-                    },
-                    "404": {
-                        "description": "记录不存在",
-                        "schema": {
-                            "$ref": "#/definitions/response.Any"
-                        }
-                    },
-                    "500": {
-                        "description": "内部错误",
-                        "schema": {
-                            "$ref": "#/definitions/response.Any"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/d/managed-domains/{id}/update": {
-            "post": {
-                "security": [
-                    {
-                        "SessionCookie": []
-                    }
-                ],
-                "description": "按 ID 更新托管域名，需要管理员权限",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "openflare-tls"
-                ],
-                "summary": "更新托管域名",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "托管域名 ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "托管域名参数",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/tls.ManagedDomainInput"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "更新后的托管域名",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/response.Any"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "$ref": "#/definitions/model.ManagedDomain"
                                         }
                                     }
                                 }
@@ -11168,6 +10821,231 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/d/zones": {
+            "get": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "openflare-zone"
+                ],
+                "summary": "获取 Zone 列表",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/model.Zone"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "openflare-zone"
+                ],
+                "summary": "创建 Zone",
+                "parameters": [
+                    {
+                        "description": "Zone 参数",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/zone.Input"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/model.Zone"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/d/zones/{id}/domains": {
+            "post": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "openflare-zone"
+                ],
+                "summary": "创建 Zone 域名",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Zone ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "域名参数",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/zone.DomainInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/model.ZoneDomain"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/d/zones/{id}/overview": {
+            "get": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "openflare-zone"
+                ],
+                "summary": "获取 Zone 概览",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Zone ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/zone.Overview"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/oauth/callback": {
             "post": {
                 "description": "接收前端传回的 state 和 code，完成 OAuth/OIDC 认证并建立会话。支持登录（login）和账号绑定（bind）两种场景。",
@@ -13119,6 +12997,13 @@ const docTemplate = `{
                 "async_insert_queue": {
                     "type": "integer"
                 },
+                "batch_writers": {
+                    "description": "BatchWriters reports in-process queue depth/drops/flush errors for CH writers.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/batchwriter.Stats"
+                    }
+                },
                 "database": {
                     "type": "string"
                 },
@@ -13214,6 +13099,29 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "is_active": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "batchwriter.Stats": {
+            "type": "object",
+            "properties": {
+                "cap": {
+                    "type": "integer"
+                },
+                "depth": {
+                    "type": "integer"
+                },
+                "drops": {
+                    "type": "integer"
+                },
+                "flush_errors": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "running": {
                     "type": "boolean"
                 }
             }
@@ -15288,6 +15196,55 @@ const docTemplate = `{
                 "UploadStatusDeleted"
             ]
         },
+        "model.Zone": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "domain": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "remark": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.ZoneDomain": {
+            "type": "object",
+            "properties": {
+                "cert_id": {
+                    "type": "integer"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "domain": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "proxy_route_id": {
+                    "type": "integer"
+                },
+                "remark": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "zone_id": {
+                    "type": "integer"
+                }
+            }
+        },
         "node.AgentReleaseInfo": {
             "type": "object",
             "properties": {
@@ -16263,13 +16220,22 @@ const docTemplate = `{
         "option.databaseCleanupResult": {
             "type": "object",
             "properties": {
+                "cleanup_mode": {
+                    "type": "string"
+                },
                 "delete_all": {
                     "type": "boolean"
                 },
                 "deleted_count": {
                     "type": "integer"
                 },
+                "eligible_count": {
+                    "type": "integer"
+                },
                 "retention_days": {
+                    "type": "integer"
+                },
+                "table_ttl_days": {
                     "type": "integer"
                 },
                 "target": {
@@ -18805,6 +18771,45 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/waf.RuleGroupView"
                     }
+                }
+            }
+        },
+        "zone.DomainInput": {
+            "type": "object",
+            "properties": {
+                "cert_id": {
+                    "type": "integer"
+                },
+                "domain": {
+                    "type": "string"
+                },
+                "remark": {
+                    "type": "string"
+                }
+            }
+        },
+        "zone.Input": {
+            "type": "object",
+            "properties": {
+                "domain": {
+                    "type": "string"
+                },
+                "remark": {
+                    "type": "string"
+                }
+            }
+        },
+        "zone.Overview": {
+            "type": "object",
+            "properties": {
+                "domains": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.ZoneDomain"
+                    }
+                },
+                "zone": {
+                    "$ref": "#/definitions/model.Zone"
                 }
             }
         }
