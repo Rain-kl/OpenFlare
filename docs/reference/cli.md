@@ -40,6 +40,14 @@ GOCACHE=/tmp/openflare-go-cache go test ./...
 make code-check
 ```
 
+自动格式化后端 Go 与前端 TypeScript、JavaScript、CSS 等源码：
+
+```bash
+make prettier
+```
+
+该命令使用 `gofmt` 格式化后端，并使用项目固定版本的 Prettier 格式化 `frontend/` 源码；构建产物、依赖、公开静态资源和锁文件会被忽略。
+
 ## Frontend
 
 开发：
