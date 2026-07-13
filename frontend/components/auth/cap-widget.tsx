@@ -1,8 +1,14 @@
 'use client';
 
-import {useEffect, useRef, useState} from 'react';
-import {CheckCircle2, Loader2, ShieldAlert, ShieldCheck, ShieldQuestion,} from 'lucide-react';
-import {getCapToken} from '@/lib/cap-solver';
+import { useEffect, useRef, useState } from 'react';
+import {
+  CheckCircle2,
+  Loader2,
+  ShieldAlert,
+  ShieldCheck,
+  ShieldQuestion,
+} from 'lucide-react';
+import { getCapToken } from '@/lib/cap-solver';
 
 type CapStatus = 'idle' | 'solving' | 'solved' | 'error';
 

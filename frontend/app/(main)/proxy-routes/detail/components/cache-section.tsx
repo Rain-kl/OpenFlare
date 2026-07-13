@@ -1,20 +1,37 @@
 'use client';
 
-import {useEffect} from 'react';
-import {zodResolver} from '@hookform/resolvers/zod';
-import {useForm} from 'react-hook-form';
-import {z} from 'zod';
+import { useEffect } from 'react';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useForm } from 'react-hook-form';
+import { z } from 'zod';
 
-import {Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage,} from '@/components/ui/form';
-import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue,} from '@/components/ui/select';
-import {Switch} from '@/components/ui/switch';
-import {Textarea} from '@/components/ui/textarea';
-import type {ProxyRouteItem} from '@/lib/services/openflare';
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
+import { Textarea } from '@/components/ui/textarea';
+import type { ProxyRouteItem } from '@/lib/services/openflare';
 
-import {linesFromTextarea, validateCacheRules,} from '../../components/helpers';
-import {proxyRouteFormIds} from '../helpers';
-import {useRouteSectionSave} from '../hooks/use-route-section-save';
-import {SectionShell} from './section-shell';
+import {
+  linesFromTextarea,
+  validateCacheRules,
+} from '../../components/helpers';
+import { proxyRouteFormIds } from '../helpers';
+import { useRouteSectionSave } from '../hooks/use-route-section-save';
+import { SectionShell } from './section-shell';
 
 const cacheSchema = z
   .object({

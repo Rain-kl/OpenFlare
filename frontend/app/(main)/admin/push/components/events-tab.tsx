@@ -4,18 +4,37 @@
 'use client';
 
 import * as React from 'react';
-import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query';
-import {toast} from 'sonner';
-import {ChevronDown, Edit2, Layers, Loader2, Plus, Trash2,} from 'lucide-react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
+import {
+  ChevronDown,
+  Edit2,
+  Layers,
+  Loader2,
+  Plus,
+  Trash2,
+} from 'lucide-react';
 
-import {Button} from '@/components/ui/button';
-import {Input} from '@/components/ui/input';
-import {Label} from '@/components/ui/label';
-import {Textarea} from '@/components/ui/textarea';
-import {Switch} from '@/components/ui/switch';
-import {Badge} from '@/components/ui/badge';
-import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow,} from '@/components/ui/table';
-import {Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,} from '@/components/ui/tooltip';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
+import { Badge } from '@/components/ui/badge';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import {
   Dialog,
   DialogContent,
@@ -24,17 +43,31 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue,} from '@/components/ui/select';
-import {Checkbox} from '@/components/ui/checkbox';
-import {Popover, PopoverContent, PopoverTrigger,} from '@/components/ui/popover';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 
-import {ErrorInline} from '@/components/layout/error';
-import {LoadingStateWithBorder} from '@/components/layout/loading';
-import {EmptyStateWithBorder} from '@/components/layout/empty';
+import { ErrorInline } from '@/components/layout/error';
+import { LoadingStateWithBorder } from '@/components/layout/loading';
+import { EmptyStateWithBorder } from '@/components/layout/empty';
 
 import services from '@/lib/services';
-import type {CreatePushEventRequest, PushEvent, UpdatePushEventRequest,} from '@/lib/services/push';
-import {PushService} from '@/lib/services/push';
+import type {
+  CreatePushEventRequest,
+  PushEvent,
+  UpdatePushEventRequest,
+} from '@/lib/services/push';
+import { PushService } from '@/lib/services/push';
 
 export function EventsTab() {
   const queryClient = useQueryClient();

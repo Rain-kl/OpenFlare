@@ -1,5 +1,5 @@
-import {type PolicySection} from './types';
-import {CodeBlock} from '@/components/ui/code-block';
+import { type PolicySection } from './types';
+import { CodeBlock } from '@/components/ui/code-block';
 import {
   DocsTable,
   DocsTableBody,

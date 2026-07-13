@@ -1,10 +1,16 @@
 'use client';
 
-import {TrendChart} from '@/components/data/trend-chart';
-import {Card, CardContent, CardDescription, CardHeader, CardTitle,} from '@/components/ui/card';
-import type {CapacityTrendPoint} from '@/lib/services/openflare';
+import { TrendChart } from '@/components/data/trend-chart';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import type { CapacityTrendPoint } from '@/lib/services/openflare';
 
-import {formatPercent, formatTrendHour} from './dashboard-utils';
+import { formatPercent, formatTrendHour } from './dashboard-utils';
 
 export function CapacityTrendChart({
   points,

@@ -1,7 +1,7 @@
 import * as React from 'react';
-import {cn} from '@/lib/utils';
+import { cn } from '@/lib/utils';
 import Link from 'next/link';
-import {Github, LucideIcon} from 'lucide-react';
+import { Github, LucideIcon } from 'lucide-react';
 
 export interface FooterSectionProps {
   className?: string;

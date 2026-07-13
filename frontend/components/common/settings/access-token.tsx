@@ -2,16 +2,33 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query';
-import {motion} from 'motion/react';
-import {AlertTriangle, Check, Copy, Info, Key, Loader2, Plus, RefreshCw, Shield, Trash2,} from 'lucide-react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { motion } from 'motion/react';
+import {
+  AlertTriangle,
+  Check,
+  Copy,
+  Info,
+  Key,
+  Loader2,
+  Plus,
+  RefreshCw,
+  Shield,
+  Trash2,
+} from 'lucide-react';
 
-import {Button} from '@/components/ui/button';
-import {Card, CardContent, CardDescription, CardHeader, CardTitle,} from '@/components/ui/card';
-import {Input} from '@/components/ui/input';
-import {Label} from '@/components/ui/label';
-import {Badge} from '@/components/ui/badge';
-import {Switch} from '@/components/ui/switch';
+import { Button } from '@/components/ui/button';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
 import {
   Dialog,
   DialogContent,
@@ -28,10 +45,10 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb';
-import type {CreateTokenResponse} from '@/lib/services/user';
-import {UserService} from '@/lib/services/user';
-import {useAuth} from '@/components/providers/auth-provider';
-import {toast} from 'sonner';
+import type { CreateTokenResponse } from '@/lib/services/user';
+import { UserService } from '@/lib/services/user';
+import { useAuth } from '@/components/providers/auth-provider';
+import { toast } from 'sonner';
 
 export function AccessTokenMain() {
   const { user } = useAuth();

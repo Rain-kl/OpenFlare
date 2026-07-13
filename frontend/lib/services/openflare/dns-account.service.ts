@@ -1,5 +1,5 @@
-import {OpenFlareBaseService} from './base.service';
-import type {DnsAccountItem, DnsAccountMutationPayload} from './types';
+import { OpenFlareBaseService } from './base.service';
+import type { DnsAccountItem, DnsAccountMutationPayload } from './types';
 
 export class DnsAccountService extends OpenFlareBaseService {
   protected static override readonly basePath: string =

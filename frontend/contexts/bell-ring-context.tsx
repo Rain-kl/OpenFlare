@@ -1,6 +1,12 @@
 'use client';
 
-import {createContext, useCallback, useContext, useRef, useState,} from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useRef,
+  useState,
+} from 'react';
 
 interface BellRingContextType {
   isRinging: boolean;

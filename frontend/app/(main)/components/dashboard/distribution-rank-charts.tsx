@@ -1,8 +1,17 @@
 'use client';
 
-import {RankChart} from '@/components/data/rank-chart';
-import {Card, CardContent, CardDescription, CardHeader, CardTitle,} from '@/components/ui/card';
-import type {DistributionItem, TrafficDistributions,} from '@/lib/services/openflare';
+import { RankChart } from '@/components/data/rank-chart';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import type {
+  DistributionItem,
+  TrafficDistributions,
+} from '@/lib/services/openflare';
 
 function toRankItems(items: DistributionItem[]) {
   return items.map((item) => ({

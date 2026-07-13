@@ -1,11 +1,11 @@
 'use client';
 
 import * as React from 'react';
-import {Collapsible as CollapsiblePrimitive} from 'radix-ui';
-import {AnimatePresence, type HTMLMotionProps, motion} from 'motion/react';
+import { Collapsible as CollapsiblePrimitive } from 'radix-ui';
+import { AnimatePresence, type HTMLMotionProps, motion } from 'motion/react';
 
-import {getStrictContext} from '@/lib/utils/get-strict-context';
-import {useControlledState} from '@/hooks/use-controlled-state';
+import { getStrictContext } from '@/lib/utils/get-strict-context';
+import { useControlledState } from '@/hooks/use-controlled-state';
 
 type CollapsibleContextType = {
   isOpen: boolean;

@@ -1,12 +1,18 @@
 'use client';
 
-import {Globe2} from 'lucide-react';
+import { Globe2 } from 'lucide-react';
 
-import {Card, CardContent, CardDescription, CardHeader, CardTitle,} from '@/components/ui/card';
-import {Progress} from '@/components/ui/progress';
-import type {DistributionItem} from '@/lib/services/openflare';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import { Progress } from '@/components/ui/progress';
+import type { DistributionItem } from '@/lib/services/openflare';
 
-import {formatCompactNumber} from './dashboard-utils';
+import { formatCompactNumber } from './dashboard-utils';
 
 export function GeoDistributionList({ items }: { items: DistributionItem[] }) {
   const sortedItems = [...items]

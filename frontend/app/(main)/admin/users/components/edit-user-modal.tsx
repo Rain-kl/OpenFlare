@@ -1,14 +1,20 @@
 'use client';
 
-import {useEffect, useState} from 'react';
-import {Button} from '@/components/ui/button';
-import {Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,} from '@/components/ui/dialog';
-import {Input} from '@/components/ui/input';
-import {Label} from '@/components/ui/label';
-import {Switch} from '@/components/ui/switch';
-import {useAdminUsers} from '@/contexts/admin-users-context';
-import {useAuth} from '@/components/providers/auth-provider';
-import type {AdminUser} from '@/lib/services/admin';
+import { useEffect, useState } from 'react';
+import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
+import { useAdminUsers } from '@/contexts/admin-users-context';
+import { useAuth } from '@/components/providers/auth-provider';
+import type { AdminUser } from '@/lib/services/admin';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -19,7 +25,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import {Loader2} from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 
 interface EditUserForm {
   nickname: string;

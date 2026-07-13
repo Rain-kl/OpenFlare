@@ -1,6 +1,6 @@
 'use client';
 
-import {useUser} from '@/contexts/user-context';
+import { useUser } from '@/contexts/user-context';
 
 /**
  * Auth provider bridge hook

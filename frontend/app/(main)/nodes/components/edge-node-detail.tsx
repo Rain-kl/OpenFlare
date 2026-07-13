@@ -1,11 +1,21 @@
 'use client';
 
 import Link from 'next/link';
-import {useRouter} from 'next/navigation';
-import {useMutation, useQueryClient} from '@tanstack/react-query';
-import {useState} from 'react';
-import {Activity, Cpu, FileText, Fingerprint, Package, RefreshCw, RotateCcw, Trash2, Upload,} from 'lucide-react';
-import {toast} from 'sonner';
+import { useRouter } from 'next/navigation';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useState } from 'react';
+import {
+  Activity,
+  Cpu,
+  FileText,
+  Fingerprint,
+  Package,
+  RefreshCw,
+  RotateCcw,
+  Trash2,
+  Upload,
+} from 'lucide-react';
+import { toast } from 'sonner';
 
 import {
   AlertDialog,
@@ -17,17 +27,25 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import {Button} from '@/components/ui/button';
-import {formatDateTime} from '@/lib/utils';
-import type {NodeAgentReleaseInfo, NodeItem, ReleaseChannel,} from '@/lib/services/openflare';
-import {NodeService} from '@/lib/services/openflare';
+import { Button } from '@/components/ui/button';
+import { formatDateTime } from '@/lib/utils';
+import type {
+  NodeAgentReleaseInfo,
+  NodeItem,
+  ReleaseChannel,
+} from '@/lib/services/openflare';
+import { NodeService } from '@/lib/services/openflare';
 
-import {AgentUpdateDialog} from './agent-update-dialog';
-import {NodeDetailShell} from './node-detail-shell';
-import {NodeErrorBanner, NodeInfoRow, NodeSectionCard,} from './node-detail-primitives';
-import {NodeEditorDialog} from './node-editor-dialog';
-import {NodeObservability} from './node-observability';
-import {NodeStatusBadge} from './node-status-badge';
+import { AgentUpdateDialog } from './agent-update-dialog';
+import { NodeDetailShell } from './node-detail-shell';
+import {
+  NodeErrorBanner,
+  NodeInfoRow,
+  NodeSectionCard,
+} from './node-detail-primitives';
+import { NodeEditorDialog } from './node-editor-dialog';
+import { NodeObservability } from './node-observability';
+import { NodeStatusBadge } from './node-status-badge';
 import {
   formatRelativeTime,
   getApplyLabel,

@@ -1,4 +1,4 @@
-import {OpenFlareBaseService} from './base.service';
+import { OpenFlareBaseService } from './base.service';
 import type {
   CompactCapacityTrendPoint,
   CompactDashboardNodeHealth,

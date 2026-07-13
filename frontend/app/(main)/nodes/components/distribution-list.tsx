@@ -1,8 +1,8 @@
 'use client';
 
-import {Progress} from '@/components/ui/progress';
+import { Progress } from '@/components/ui/progress';
 
-import {formatCompactNumber} from '../../components/dashboard/dashboard-utils';
+import { formatCompactNumber } from '../../components/dashboard/dashboard-utils';
 
 export function DistributionList({
   items,

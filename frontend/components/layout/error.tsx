@@ -1,8 +1,8 @@
 import * as React from 'react';
-import {AlertCircle} from 'lucide-react';
-import {Button} from '@/components/ui/button';
+import { AlertCircle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
-import {cn} from '@/lib/utils';
+import { cn } from '@/lib/utils';
 
 /**
  * 错误展示组件属性

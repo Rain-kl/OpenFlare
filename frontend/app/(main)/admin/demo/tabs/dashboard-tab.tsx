@@ -4,9 +4,9 @@
 'use client';
 
 import * as React from 'react';
-import {Code, Cpu, Database, HardDrive} from 'lucide-react';
-import {Card, CardContent, CardHeader, CardTitle} from '@/components/ui/card';
-import {Progress} from '@/components/ui/progress';
+import { Code, Cpu, Database, HardDrive } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Progress } from '@/components/ui/progress';
 
 export function DashboardTab() {
   return (

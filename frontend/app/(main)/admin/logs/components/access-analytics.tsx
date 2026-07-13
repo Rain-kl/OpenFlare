@@ -16,19 +16,37 @@ limitations under the License.
 
 'use client';
 
-import {useCallback, useEffect, useState} from 'react';
-import {BarChart3, Globe, RefreshCw, TrendingUp, Users, XCircle,} from 'lucide-react';
-import {Area, AreaChart, CartesianGrid, XAxis, YAxis} from 'recharts';
+import { useCallback, useEffect, useState } from 'react';
+import {
+  BarChart3,
+  Globe,
+  RefreshCw,
+  TrendingUp,
+  Users,
+  XCircle,
+} from 'lucide-react';
+import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from 'recharts';
 
 import services from '@/lib/services';
-import {ErrorInline} from '@/components/layout/error';
-import {LoadingStateWithBorder} from '@/components/layout/loading';
-import {EmptyStateWithBorder} from '@/components/layout/empty';
-import {Badge} from '@/components/ui/badge';
-import {Button} from '@/components/ui/button';
-import {Card, CardContent, CardDescription, CardHeader, CardTitle,} from '@/components/ui/card';
-import {ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent,} from '@/components/ui/chart';
-import {Spinner} from '@/components/ui/spinner';
+import { ErrorInline } from '@/components/layout/error';
+import { LoadingStateWithBorder } from '@/components/layout/loading';
+import { EmptyStateWithBorder } from '@/components/layout/empty';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import {
+  ChartConfig,
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+} from '@/components/ui/chart';
+import { Spinner } from '@/components/ui/spinner';
 
 interface TrendData {
   date: string;

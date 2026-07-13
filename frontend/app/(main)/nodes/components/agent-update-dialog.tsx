@@ -1,10 +1,10 @@
 'use client';
 
-import {useState} from 'react';
-import {useQuery} from '@tanstack/react-query';
-import {ExternalLink, Loader2} from 'lucide-react';
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { ExternalLink, Loader2 } from 'lucide-react';
 
-import {Button} from '@/components/ui/button';
+import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
@@ -13,12 +13,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import {formatDateTime} from '@/lib/utils';
-import type {NodeAgentReleaseInfo, NodeItem, ReleaseChannel,} from '@/lib/services/openflare';
-import {NodeService} from '@/lib/services/openflare';
+import { formatDateTime } from '@/lib/utils';
+import type {
+  NodeAgentReleaseInfo,
+  NodeItem,
+  ReleaseChannel,
+} from '@/lib/services/openflare';
+import { NodeService } from '@/lib/services/openflare';
 
-import {NodeStatusBadge} from './node-status-badge';
-import {formatRelativeTime, getErrorMessage} from './node-utils';
+import { NodeStatusBadge } from './node-status-badge';
+import { formatRelativeTime, getErrorMessage } from './node-utils';
 
 export function AgentUpdateDialog({
   open,

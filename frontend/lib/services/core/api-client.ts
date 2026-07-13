@@ -1,6 +1,11 @@
-import axios, {AxiosError, AxiosResponse, CancelTokenSource, InternalAxiosRequestConfig,} from 'axios';
-import {toast} from 'sonner';
-import {apiConfig, getApiBaseUrl} from './config';
+import axios, {
+  AxiosError,
+  AxiosResponse,
+  CancelTokenSource,
+  InternalAxiosRequestConfig,
+} from 'axios';
+import { toast } from 'sonner';
+import { apiConfig, getApiBaseUrl } from './config';
 import {
   ApiErrorBase,
   ForbiddenError,
@@ -11,7 +16,7 @@ import {
   UnauthorizedError,
   ValidationError,
 } from './errors';
-import {ApiError, ApiResponse} from './types';
+import { ApiError, ApiResponse } from './types';
 
 /**
  * API 客户端实例

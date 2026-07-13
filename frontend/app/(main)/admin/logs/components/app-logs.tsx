@@ -16,15 +16,15 @@ limitations under the License.
 
 'use client';
 
-import {memo, useCallback, useEffect, useRef, useState} from 'react';
-import {useVirtualizer} from '@tanstack/react-virtual';
-import {toast} from 'sonner';
-import {ArrowDown, ChevronUp, Loader2} from 'lucide-react';
+import { memo, useCallback, useEffect, useRef, useState } from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
+import { toast } from 'sonner';
+import { ArrowDown, ChevronUp, Loader2 } from 'lucide-react';
 
 import services from '@/lib/services';
-import {ErrorInline} from '@/components/layout/error';
-import {LoadingStateWithBorder} from '@/components/layout/loading';
-import {Button} from '@/components/ui/button';
+import { ErrorInline } from '@/components/layout/error';
+import { LoadingStateWithBorder } from '@/components/layout/loading';
+import { Button } from '@/components/ui/button';
 
 interface LogEntry {
   index: number;

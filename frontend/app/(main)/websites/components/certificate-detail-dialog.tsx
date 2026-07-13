@@ -1,10 +1,10 @@
 'use client';
 
-import {useQuery} from '@tanstack/react-query';
-import {Copy, Loader2} from 'lucide-react';
-import {toast} from 'sonner';
+import { useQuery } from '@tanstack/react-query';
+import { Copy, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 
-import {Button} from '@/components/ui/button';
+import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
@@ -13,14 +13,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import {EmptyStateWithBorder} from '@/components/layout/empty';
-import {ErrorInline} from '@/components/layout/error';
-import {LoadingStateWithBorder} from '@/components/layout/loading';
-import {TlsCertificateService} from '@/lib/services/openflare';
-import {formatDateTime} from '@/lib/utils';
+import { EmptyStateWithBorder } from '@/components/layout/empty';
+import { ErrorInline } from '@/components/layout/error';
+import { LoadingStateWithBorder } from '@/components/layout/loading';
+import { TlsCertificateService } from '@/lib/services/openflare';
+import { formatDateTime } from '@/lib/utils';
 
-import {WebsiteStatusBadge} from './status-badge';
-import {getCertificateStatus, getErrorMessage} from './website-utils';
+import { WebsiteStatusBadge } from './status-badge';
+import { getCertificateStatus, getErrorMessage } from './website-utils';
 
 interface CertificateDetailDialogProps {
   certificateId: number | null;

@@ -1,7 +1,7 @@
-import type {EdgeChange, Node, NodeChange} from '@xyflow/react';
-import type {WAFRuleGraph, WAFRuleNode} from '@/lib/services/openflare';
+import type { EdgeChange, Node, NodeChange } from '@xyflow/react';
+import type { WAFRuleGraph, WAFRuleNode } from '@/lib/services/openflare';
 
-import {wouldCreateCycle} from './graph-validation';
+import { wouldCreateCycle } from './graph-validation';
 
 export type GraphErrorTarget = { kind: 'node' | 'edge'; id: string };
 

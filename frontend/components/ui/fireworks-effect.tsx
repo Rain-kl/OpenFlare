@@ -1,6 +1,6 @@
 'use client';
 
-import {useEffect, useRef} from 'react';
+import { useEffect, useRef } from 'react';
 
 interface Particle {
   x: number;

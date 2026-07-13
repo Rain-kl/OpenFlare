@@ -1,12 +1,18 @@
 'use client';
 
-import {Search} from 'lucide-react';
+import { Search } from 'lucide-react';
 
-import {Button} from '@/components/ui/button';
-import {Input} from '@/components/ui/input';
-import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue,} from '@/components/ui/select';
-import type {AccessLogTab, SearchDraft} from './access-log-utils';
-import {PAGE_SIZE_OPTIONS} from './access-log-utils';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import type { AccessLogTab, SearchDraft } from './access-log-utils';
+import { PAGE_SIZE_OPTIONS } from './access-log-utils';
 
 interface AccessLogFiltersProps {
   tab: AccessLogTab;

@@ -1,10 +1,19 @@
 'use client';
 
-import {TrendChart} from '@/components/data/trend-chart';
-import {Card, CardContent, CardDescription, CardHeader, CardTitle,} from '@/components/ui/card';
-import type {DiskIOTrendPoint} from '@/lib/services/openflare';
+import { TrendChart } from '@/components/data/trend-chart';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import type { DiskIOTrendPoint } from '@/lib/services/openflare';
 
-import {formatBytes, formatTrendHour,} from '../../components/dashboard/dashboard-utils';
+import {
+  formatBytes,
+  formatTrendHour,
+} from '../../components/dashboard/dashboard-utils';
 
 export function DiskIOTrendChart({
   points,

@@ -1,6 +1,6 @@
-import type {InternalAxiosRequestConfig} from 'axios';
+import type { InternalAxiosRequestConfig } from 'axios';
 
-import {OpenFlareBaseService} from './base.service';
+import { OpenFlareBaseService } from './base.service';
 import type {
   ConfigDiffResult,
   ConfigPreviewResult,

@@ -1,19 +1,33 @@
 'use client';
 
-import {useEffect} from 'react';
-import {zodResolver} from '@hookform/resolvers/zod';
-import {useForm} from 'react-hook-form';
-import {toast} from 'sonner';
-import {z} from 'zod';
+import { useEffect } from 'react';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useForm } from 'react-hook-form';
+import { toast } from 'sonner';
+import { z } from 'zod';
 
-import {Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage,} from '@/components/ui/form';
-import {Input} from '@/components/ui/input';
-import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue,} from '@/components/ui/select';
-import type {ProxyRouteItem} from '@/lib/services/openflare';
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import type { ProxyRouteItem } from '@/lib/services/openflare';
 
-import {proxyRouteFormIds} from '../helpers';
-import {useRouteSectionSave} from '../hooks/use-route-section-save';
-import {SectionShell} from './section-shell';
+import { proxyRouteFormIds } from '../helpers';
+import { useRouteSectionSave } from '../hooks/use-route-section-save';
+import { SectionShell } from './section-shell';
 
 const authSchema = z
   .object({

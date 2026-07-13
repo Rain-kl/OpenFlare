@@ -1,11 +1,24 @@
 'use client';
 
-import {Loader2} from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 
-import {Badge} from '@/components/ui/badge';
-import {Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,} from '@/components/ui/dialog';
-import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow,} from '@/components/ui/table';
-import type {ConfigDiffResult} from '@/lib/services/openflare';
+import { Badge } from '@/components/ui/badge';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import type { ConfigDiffResult } from '@/lib/services/openflare';
 
 interface DiffDialogProps {
   open: boolean;

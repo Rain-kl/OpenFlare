@@ -1,6 +1,6 @@
-import {describe, expect, it} from 'vitest';
+import { describe, expect, it } from 'vitest';
 
-import type {WAFRuleGraph} from '@/lib/services/openflare';
+import type { WAFRuleGraph } from '@/lib/services/openflare';
 
 import {
   acceptedNodeChanges,

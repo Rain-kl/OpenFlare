@@ -1,5 +1,10 @@
-import {OpenFlareBaseService} from './base.service';
-import type {ApplyLogCleanupPayload, ApplyLogCleanupResult, ApplyLogList, ApplyLogListQuery,} from './types';
+import { OpenFlareBaseService } from './base.service';
+import type {
+  ApplyLogCleanupPayload,
+  ApplyLogCleanupResult,
+  ApplyLogList,
+  ApplyLogListQuery,
+} from './types';
 
 export class ApplyLogService extends OpenFlareBaseService {
   protected static override readonly basePath: string = '/api/v1/d/apply-logs';

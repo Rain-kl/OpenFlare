@@ -1,5 +1,5 @@
-import {BaseService} from '@/lib/services/core';
-import type {PublicConfigResponse} from './types';
+import { BaseService } from '@/lib/services/core';
+import type { PublicConfigResponse } from './types';
 
 /**
  * 配置服务

@@ -1,10 +1,10 @@
 'use client';
 
 import * as React from 'react';
-import {ImageOff} from 'lucide-react';
+import { ImageOff } from 'lucide-react';
 
-import {cn} from '@/lib/utils';
-import {getFileUrl, type ImageQuality} from '@/lib/services/upload/utils';
+import { cn } from '@/lib/utils';
+import { getFileUrl, type ImageQuality } from '@/lib/services/upload/utils';
 
 type FileImagePreviewProps = {
   fileId: string | number;

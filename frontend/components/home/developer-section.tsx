@@ -1,9 +1,9 @@
 import * as React from 'react';
 import Link from 'next/link';
-import {cn} from '@/lib/utils';
-import {motion} from 'motion/react';
-import {Button} from '@/components/ui/button';
-import {Book, Check, Copy, Terminal} from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { motion } from 'motion/react';
+import { Button } from '@/components/ui/button';
+import { Book, Check, Copy, Terminal } from 'lucide-react';
 
 export interface DeveloperSectionProps {
   className?: string;

@@ -1,5 +1,9 @@
-import {BaseService} from '@/lib/services/core';
-import type {AuthSource, AuthSourceRequest, ToggleAuthSourceRequest,} from './types';
+import { BaseService } from '@/lib/services/core';
+import type {
+  AuthSource,
+  AuthSourceRequest,
+  ToggleAuthSourceRequest,
+} from './types';
 
 export class AdminAuthSourceService extends BaseService {
   protected static readonly basePath = '/api/v1/admin';

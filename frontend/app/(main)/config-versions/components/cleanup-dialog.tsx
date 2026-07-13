@@ -1,10 +1,10 @@
 'use client';
 
-import {useEffect} from 'react';
-import {zodResolver} from '@hookform/resolvers/zod';
-import {Loader2} from 'lucide-react';
-import {useForm} from 'react-hook-form';
-import {z} from 'zod';
+import { useEffect } from 'react';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Loader2 } from 'lucide-react';
+import { useForm } from 'react-hook-form';
+import { z } from 'zod';
 
 import {
   AlertDialog,
@@ -15,9 +15,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import {Button} from '@/components/ui/button';
-import {Input} from '@/components/ui/input';
-import {Label} from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 const cleanupSchema = z.object({
   keepCount: z.number().int().min(3, '最少保留 3 个历史快照'),

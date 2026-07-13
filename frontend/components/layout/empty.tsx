@@ -1,8 +1,8 @@
 import * as React from 'react';
-import {FileTextIcon} from 'lucide-react';
-import {Button} from '@/components/ui/button';
+import { FileTextIcon } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
-import {cn} from '@/lib/utils';
+import { cn } from '@/lib/utils';
 
 /**
  * 空状态展示组件属性

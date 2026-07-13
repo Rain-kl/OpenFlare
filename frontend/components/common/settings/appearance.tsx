@@ -2,12 +2,12 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import {Check, Loader2, Monitor, Moon, Sun} from 'lucide-react';
-import {useTheme} from 'next-themes';
-import {toast} from 'sonner';
-import {Button} from '@/components/ui/button';
-import {useCustomTheme} from '@/lib/theme';
-import {cn} from '@/lib/utils';
+import { Check, Loader2, Monitor, Moon, Sun } from 'lucide-react';
+import { useTheme } from 'next-themes';
+import { toast } from 'sonner';
+import { Button } from '@/components/ui/button';
+import { useCustomTheme } from '@/lib/theme';
+import { cn } from '@/lib/utils';
 import {
   Breadcrumb,
   BreadcrumbItem,

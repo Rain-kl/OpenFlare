@@ -1,6 +1,6 @@
 import apiClient from './api-client';
-import {ApiResponse} from './types';
-import {InternalAxiosRequestConfig} from 'axios';
+import { ApiResponse } from './types';
+import { InternalAxiosRequestConfig } from 'axios';
 
 /**
  * 服务基类

@@ -1,10 +1,10 @@
 'use client';
 
-import type {ReactNode} from 'react';
-import {motion} from 'motion/react';
-import {WavesIcon} from 'lucide-react';
+import type { ReactNode } from 'react';
+import { motion } from 'motion/react';
+import { WavesIcon } from 'lucide-react';
 
-import {cn} from '@/lib/utils';
+import { cn } from '@/lib/utils';
 
 interface AuthShellProps {
   children: ReactNode;

@@ -7,7 +7,7 @@
 
 // ——— Challenge / Redeem API types ———
 
-import {readApiData} from '@/lib/api-envelope';
+import { readApiData } from '@/lib/api-envelope';
 
 export interface ChallengeResponse {
   challenge: { c: number; s: number; d: number };

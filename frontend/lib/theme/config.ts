@@ -1,4 +1,4 @@
-import type {ThemeConfig} from './types';
+import type { ThemeConfig } from './types';
 
 /**
  * 主题系统配置

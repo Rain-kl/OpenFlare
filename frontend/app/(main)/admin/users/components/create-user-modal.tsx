@@ -1,13 +1,19 @@
 'use client';
 
-import {useEffect, useState} from 'react';
-import {Button} from '@/components/ui/button';
-import {Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,} from '@/components/ui/dialog';
-import {Input} from '@/components/ui/input';
-import {Label} from '@/components/ui/label';
-import {Switch} from '@/components/ui/switch';
-import {useAdminUsers} from '@/contexts/admin-users-context';
-import type {CreateUserRequest} from '@/lib/services/admin';
+import { useEffect, useState } from 'react';
+import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
+import { useAdminUsers } from '@/contexts/admin-users-context';
+import type { CreateUserRequest } from '@/lib/services/admin';
 
 const emptyForm: CreateUserRequest = {
   username: '',

@@ -1,16 +1,22 @@
 'use client';
 
 import * as React from 'react';
-import {useCallback, useEffect, useState} from 'react';
-import {toast} from 'sonner';
-import {HardDrive, RefreshCw, Trash2} from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+import { toast } from 'sonner';
+import { HardDrive, RefreshCw, Trash2 } from 'lucide-react';
 
-import {Card, CardContent, CardDescription, CardHeader, CardTitle,} from '@/components/ui/card';
-import {Button} from '@/components/ui/button';
-import {Skeleton} from '@/components/ui/skeleton';
-import {Label} from '@/components/ui/label';
-import {Input} from '@/components/ui/input';
-import {Switch} from '@/components/ui/switch';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Switch } from '@/components/ui/switch';
 import {
   Dialog,
   DialogContent,
@@ -19,7 +25,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import type {CacheStatus} from '@/lib/services/admin';
+import type { CacheStatus } from '@/lib/services/admin';
 import services from '@/lib/services';
 
 /**

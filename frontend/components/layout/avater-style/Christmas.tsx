@@ -25,8 +25,8 @@
  * ```
  */
 
-import {cn} from '@/lib/utils';
-import {SnowEffect} from '@/components/ui/snow-effect';
+import { cn } from '@/lib/utils';
+import { SnowEffect } from '@/components/ui/snow-effect';
 
 /**
  * 圣诞树图标组件

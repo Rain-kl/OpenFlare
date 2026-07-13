@@ -1,8 +1,12 @@
-import type {InternalAxiosRequestConfig} from 'axios';
+import type { InternalAxiosRequestConfig } from 'axios';
 
 import apiClient from '@/lib/services/core/api-client';
-import {BaseService} from '@/lib/services/core';
-import type {DBOverview, ExecuteSQLResponse, TableDataResponse,} from './types';
+import { BaseService } from '@/lib/services/core';
+import type {
+  DBOverview,
+  ExecuteSQLResponse,
+  TableDataResponse,
+} from './types';
 
 /**
  * 数据库管理服务类

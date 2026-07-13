@@ -1,7 +1,7 @@
-import type {InternalAxiosRequestConfig} from 'axios';
+import type { InternalAxiosRequestConfig } from 'axios';
 
-import {BaseService} from '../core/base.service';
-import type {FileStatsResponse, ListUploadsResponse} from './types';
+import { BaseService } from '../core/base.service';
+import type { FileStatsResponse, ListUploadsResponse } from './types';
 
 export class AdminUploadService extends BaseService {
   protected static readonly basePath = '/api/v1/admin/uploads';

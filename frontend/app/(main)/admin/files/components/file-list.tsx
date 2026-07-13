@@ -1,8 +1,8 @@
 'use client';
 
 import * as React from 'react';
-import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query';
-import {AnimatePresence, motion} from 'motion/react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { AnimatePresence, motion } from 'motion/react';
 import {
   Download,
   Eye,
@@ -17,13 +17,20 @@ import {
   Upload,
   X,
 } from 'lucide-react';
-import {toast} from 'sonner';
+import { toast } from 'sonner';
 
-import {Button} from '@/components/ui/button';
-import {Input} from '@/components/ui/input';
-import {Badge} from '@/components/ui/badge';
-import {Checkbox} from '@/components/ui/checkbox';
-import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow,} from '@/components/ui/table';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -34,10 +41,16 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import {Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle,} from '@/components/ui/sheet';
-import {FileImagePreview} from '@/components/common/file-image-preview';
-import services, {formatFileSize} from '@/lib/services';
-import type {Upload as UploadRecord} from '@/lib/services/upload/types';
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet';
+import { FileImagePreview } from '@/components/common/file-image-preview';
+import services, { formatFileSize } from '@/lib/services';
+import type { Upload as UploadRecord } from '@/lib/services/upload/types';
 
 /* ─── 工具函数 ─────────────────────────────────────────── */
 

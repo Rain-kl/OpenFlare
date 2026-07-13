@@ -1,5 +1,5 @@
-import {BaseService} from '@/lib/services/core';
-import type {CacheConfig, CacheStatus} from './types';
+import { BaseService } from '@/lib/services/core';
+import type { CacheConfig, CacheStatus } from './types';
 
 export class AdminCacheService extends BaseService {
   protected static readonly basePath = '/api/v1/admin';

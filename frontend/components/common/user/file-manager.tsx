@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ChevronLeft,
   ChevronRight,
@@ -19,12 +19,12 @@ import {
   Trash2,
   Upload,
 } from 'lucide-react';
-import {toast} from 'sonner';
+import { toast } from 'sonner';
 
-import {Button} from '@/components/ui/button';
-import {Input} from '@/components/ui/input';
-import {Badge} from '@/components/ui/badge';
-import {Card, CardContent} from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from '@/components/ui/card';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -36,9 +36,9 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 
-import {FileImagePreview} from '@/components/common/file-image-preview';
-import services, {formatFileSize} from '@/lib/services';
-import type {Upload as UploadRecord} from '@/lib/services/upload/types';
+import { FileImagePreview } from '@/components/common/file-image-preview';
+import services, { formatFileSize } from '@/lib/services';
+import type { Upload as UploadRecord } from '@/lib/services/upload/types';
 
 /* ─── 工具函数 ─────────────────────────────────────────── */
 

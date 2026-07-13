@@ -1,22 +1,30 @@
 'use client';
 
-import {useEffect, useMemo} from 'react';
-import {zodResolver} from '@hookform/resolvers/zod';
-import {useQuery} from '@tanstack/react-query';
-import {useForm} from 'react-hook-form';
-import {z} from 'zod';
+import { useEffect, useMemo } from 'react';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useQuery } from '@tanstack/react-query';
+import { useForm } from 'react-hook-form';
+import { z } from 'zod';
 
-import {Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage,} from '@/components/ui/form';
-import {Input} from '@/components/ui/input';
-import {Switch} from '@/components/ui/switch';
-import type {ProxyRouteItem} from '@/lib/services/openflare';
-import {zoneQueryKey, ZoneService} from '@/lib/services/openflare';
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import { Switch } from '@/components/ui/switch';
+import type { ProxyRouteItem } from '@/lib/services/openflare';
+import { zoneQueryKey, ZoneService } from '@/lib/services/openflare';
 
-import {listAllZoneDomains} from '../../components/helpers';
-import {ZoneDomainSelector} from '../../components/zone-domain-selector';
-import {proxyRouteFormIds} from '../helpers';
-import {useRouteSectionSave} from '../hooks/use-route-section-save';
-import {SectionShell} from './section-shell';
+import { listAllZoneDomains } from '../../components/helpers';
+import { ZoneDomainSelector } from '../../components/zone-domain-selector';
+import { proxyRouteFormIds } from '../helpers';
+import { useRouteSectionSave } from '../hooks/use-route-section-save';
+import { SectionShell } from './section-shell';
 
 const domainSettingsSchema = z.object({
   site_name: z

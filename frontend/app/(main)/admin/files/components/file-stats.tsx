@@ -1,12 +1,35 @@
 'use client';
 
 import * as React from 'react';
-import {useQuery} from '@tanstack/react-query';
-import {Database, Files, HardDrive, Info, Loader2, TrendingUp, Upload,} from 'lucide-react';
-import {Area, AreaChart, CartesianGrid, Cell, Pie, PieChart, XAxis, YAxis,} from 'recharts';
+import { useQuery } from '@tanstack/react-query';
+import {
+  Database,
+  Files,
+  HardDrive,
+  Info,
+  Loader2,
+  TrendingUp,
+  Upload,
+} from 'lucide-react';
+import {
+  Area,
+  AreaChart,
+  CartesianGrid,
+  Cell,
+  Pie,
+  PieChart,
+  XAxis,
+  YAxis,
+} from 'recharts';
 
-import {Button} from '@/components/ui/button';
-import {Card, CardContent, CardDescription, CardHeader, CardTitle,} from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import {
   ChartConfig,
   ChartContainer,
@@ -15,7 +38,7 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from '@/components/ui/chart';
-import services, {formatFileSize} from '@/lib/services';
+import services, { formatFileSize } from '@/lib/services';
 
 const categoryMap: Record<string, string> = {
   图片: 'images',

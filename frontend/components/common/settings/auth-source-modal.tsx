@@ -1,14 +1,20 @@
 'use client';
 
-import {useEffect, useState} from 'react';
-import {toast} from 'sonner';
-import {Button} from '@/components/ui/button';
-import {Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,} from '@/components/ui/dialog';
-import {Input} from '@/components/ui/input';
-import {Label} from '@/components/ui/label';
-import {Switch} from '@/components/ui/switch';
+import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
+import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import services from '@/lib/services';
-import type {AuthSource, AuthSourceRequest} from '@/lib/services/admin';
+import type { AuthSource, AuthSourceRequest } from '@/lib/services/admin';
 
 const emptyForm: AuthSourceRequest = {
   name: '',

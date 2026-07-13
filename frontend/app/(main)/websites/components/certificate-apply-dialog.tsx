@@ -1,23 +1,42 @@
 'use client';
 
-import {zodResolver} from '@hookform/resolvers/zod';
-import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query';
-import {useEffect, useState} from 'react';
-import {useForm} from 'react-hook-form';
-import {ChevronDown, Loader2} from 'lucide-react';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { ChevronDown, Loader2 } from 'lucide-react';
 
-import {Button} from '@/components/ui/button';
-import {Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,} from '@/components/ui/dialog';
-import {Input} from '@/components/ui/input';
-import {Label} from '@/components/ui/label';
-import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue,} from '@/components/ui/select';
-import {Switch} from '@/components/ui/switch';
-import {Textarea} from '@/components/ui/textarea';
-import type {TlsCertificateItem} from '@/lib/services/openflare';
-import {DnsAccountService, TlsCertificateService,} from '@/lib/services/openflare';
+import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
+import { Textarea } from '@/components/ui/textarea';
+import type { TlsCertificateItem } from '@/lib/services/openflare';
+import {
+  DnsAccountService,
+  TlsCertificateService,
+} from '@/lib/services/openflare';
 
-import {type AcmeApplyFormValues, acmeApplySchema, defaultAcmeApplyValues,} from './schemas';
-import {getErrorMessage} from './website-utils';
+import {
+  type AcmeApplyFormValues,
+  acmeApplySchema,
+  defaultAcmeApplyValues,
+} from './schemas';
+import { getErrorMessage } from './website-utils';
 
 const certificatesQueryKey = ['openflare', 'tls-certificates'];
 

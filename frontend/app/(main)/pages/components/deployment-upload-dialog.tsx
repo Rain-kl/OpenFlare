@@ -1,11 +1,11 @@
 'use client';
 
-import {useRef, useState} from 'react';
-import {useMutation, useQueryClient} from '@tanstack/react-query';
-import {Loader2, UploadCloud} from 'lucide-react';
-import {toast} from 'sonner';
+import { useRef, useState } from 'react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { Loader2, UploadCloud } from 'lucide-react';
+import { toast } from 'sonner';
 
-import {Button} from '@/components/ui/button';
+import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
@@ -14,13 +14,18 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import {Input} from '@/components/ui/input';
-import {Label} from '@/components/ui/label';
-import {Progress} from '@/components/ui/progress';
-import {PagesService} from '@/lib/services/openflare';
-import {cn} from '@/lib/utils';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Progress } from '@/components/ui/progress';
+import { PagesService } from '@/lib/services/openflare';
+import { cn } from '@/lib/utils';
 
-import {deploymentsQueryKey, formatBytes, projectQueryKey, projectsQueryKey,} from './pages-utils';
+import {
+  deploymentsQueryKey,
+  formatBytes,
+  projectQueryKey,
+  projectsQueryKey,
+} from './pages-utils';
 
 interface DeploymentUploadDialogProps {
   open: boolean;

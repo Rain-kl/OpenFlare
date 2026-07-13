@@ -1,12 +1,21 @@
 'use client';
 
 import * as React from 'react';
-import {createContext, useCallback, useContext, useRef, useState} from 'react';
-import {useQueryClient} from '@tanstack/react-query';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useRef,
+  useState,
+} from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 
-import type {SystemConfig, UpdateSystemConfigRequest,} from '@/lib/services/admin';
+import type {
+  SystemConfig,
+  UpdateSystemConfigRequest,
+} from '@/lib/services/admin';
 import services from '@/lib/services';
-import {handleContextError} from '@/lib/utils/error-handling';
+import { handleContextError } from '@/lib/utils/error-handling';
 
 /** Admin 上下文状态接口 */
 export interface AdminContextState {
