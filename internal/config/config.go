@@ -253,6 +253,7 @@ func applyEnvOverrides(c *configModel) {
 	c.Redis.DB = envInt("REDIS_DB", c.Redis.DB)
 	c.Redis.KeyPrefix = envStr("REDIS_KEY_PREFIX", c.Redis.KeyPrefix)
 	c.Redis.PoolSize = envInt("REDIS_POOL_SIZE", c.Redis.PoolSize)
+	c.Redis.MaintNotifications = envBool("REDIS_MAINT_NOTIFICATIONS", c.Redis.MaintNotifications)
 
 	// ─── ClickHouse ───
 	if v, ok := os.LookupEnv("CLICKHOUSE_HOST"); ok {

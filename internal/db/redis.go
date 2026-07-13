@@ -35,45 +35,46 @@ func init() {
 	if cfg.ClusterMode {
 		// Cluster 模式
 		Redis = redis.NewClusterClient(&redis.ClusterOptions{
-			Addrs:           cfg.Addrs,
-			Username:        cfg.Username,
-			Password:        cfg.Password,
-			PoolSize:        cfg.PoolSize,
-			MinIdleConns:    cfg.MinIdleConn,
-			DialTimeout:     time.Duration(cfg.DialTimeout) * time.Second,
-			ReadTimeout:     time.Duration(cfg.ReadTimeout) * time.Second,
-			WriteTimeout:    time.Duration(cfg.WriteTimeout) * time.Second,
-			MaxRetries:      cfg.MaxRetries,
-			PoolTimeout:     time.Duration(cfg.PoolTimeout) * time.Second,
-			ConnMaxIdleTime: time.Duration(cfg.ConnMaxIdleTime) * time.Second,
-			MaintNotificationsConfig: &maintnotifications.Config{
-				Mode: maintnotifications.ModeDisabled,
-			},
+			Addrs:                    cfg.Addrs,
+			Username:                 cfg.Username,
+			Password:                 cfg.Password,
+			PoolSize:                 cfg.PoolSize,
+			MinIdleConns:             cfg.MinIdleConn,
+			DialTimeout:              time.Duration(cfg.DialTimeout) * time.Second,
+			ReadTimeout:              time.Duration(cfg.ReadTimeout) * time.Second,
+			WriteTimeout:             time.Duration(cfg.WriteTimeout) * time.Second,
+			MaxRetries:               cfg.MaxRetries,
+			PoolTimeout:              time.Duration(cfg.PoolTimeout) * time.Second,
+			ConnMaxIdleTime:          time.Duration(cfg.ConnMaxIdleTime) * time.Second,
+			MaintNotificationsConfig: redisMaintNotificationsConfig(cfg.MaintNotifications),
 		})
 		log.Println("[Redis] initialized in Cluster mode")
 	} else {
 		// Standalone 或 Sentinel 模式
-		Redis = redis.NewUniversalClient(&redis.UniversalOptions{
-			Addrs:           cfg.Addrs,
-			MasterName:      cfg.MasterName, // 非空时启用 Sentinel
-			Username:        cfg.Username,
-			Password:        cfg.Password,
-			DB:              cfg.DB,
-			PoolSize:        cfg.PoolSize,
-			MinIdleConns:    cfg.MinIdleConn,
-			DialTimeout:     time.Duration(cfg.DialTimeout) * time.Second,
-			ReadTimeout:     time.Duration(cfg.ReadTimeout) * time.Second,
-			WriteTimeout:    time.Duration(cfg.WriteTimeout) * time.Second,
-			MaxRetries:      cfg.MaxRetries,
-			PoolTimeout:     time.Duration(cfg.PoolTimeout) * time.Second,
-			ConnMaxIdleTime: time.Duration(cfg.ConnMaxIdleTime) * time.Second,
-			MaintNotificationsConfig: &maintnotifications.Config{
-				Mode: maintnotifications.ModeDisabled,
-			},
-		})
+		options := &redis.UniversalOptions{
+			Addrs:                    cfg.Addrs,
+			MasterName:               cfg.MasterName, // 非空时启用 Sentinel
+			Username:                 cfg.Username,
+			Password:                 cfg.Password,
+			DB:                       cfg.DB,
+			PoolSize:                 cfg.PoolSize,
+			MinIdleConns:             cfg.MinIdleConn,
+			DialTimeout:              time.Duration(cfg.DialTimeout) * time.Second,
+			ReadTimeout:              time.Duration(cfg.ReadTimeout) * time.Second,
+			WriteTimeout:             time.Duration(cfg.WriteTimeout) * time.Second,
+			MaxRetries:               cfg.MaxRetries,
+			PoolTimeout:              time.Duration(cfg.PoolTimeout) * time.Second,
+			ConnMaxIdleTime:          time.Duration(cfg.ConnMaxIdleTime) * time.Second,
+			MaintNotificationsConfig: redisMaintNotificationsConfig(cfg.MaintNotifications),
+		}
 		if cfg.MasterName != "" {
+			client := redis.NewFailoverClient(options.Failover())
+			// FailoverOptions 暂不暴露该配置，在首次建连前写入客户端选项。
+			client.Options().MaintNotificationsConfig = redisMaintNotificationsConfig(cfg.MaintNotifications)
+			Redis = client
 			log.Println("[Redis] initialized in Sentinel mode")
 		} else {
+			Redis = redis.NewUniversalClient(options)
 			log.Println("[Redis] initialized in Standalone mode")
 		}
 	}
@@ -95,6 +96,14 @@ func init() {
 	if err != nil {
 		log.Fatalf("[Redis] failed to connect to redis: %v\n", err)
 	}
+}
+
+func redisMaintNotificationsConfig(enabled bool) *maintnotifications.Config {
+	mode := maintnotifications.ModeDisabled
+	if enabled {
+		mode = maintnotifications.ModeAuto
+	}
+	return &maintnotifications.Config{Mode: mode}
 }
 
 // PrefixedKey 返回带前缀的 Key

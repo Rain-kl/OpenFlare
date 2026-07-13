@@ -67,6 +67,7 @@ redis:
   max_retries: 3
   pool_timeout: 4
   conn_max_idle_time: 300
+  maint_notifications: false # 启动时开关；启用 Redis maintenance notifications 自动协商，修改后需重启
 
 # ─── Logging ────────────────────────────────────────────────────────────────────
 log:

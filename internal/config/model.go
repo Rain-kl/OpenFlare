@@ -88,22 +88,23 @@ type clickHouseConfig struct {
 
 // redisConfig Redis配置
 type redisConfig struct {
-	Enabled         bool     `mapstructure:"enabled"`
-	Addrs           []string `mapstructure:"addrs"`
-	Username        string   `mapstructure:"username"`
-	Password        string   `mapstructure:"password"`
-	DB              int      `mapstructure:"db"`
-	ClusterMode     bool     `mapstructure:"cluster_mode"`
-	MasterName      string   `mapstructure:"master_name"`
-	KeyPrefix       string   `mapstructure:"key_prefix"`
-	PoolSize        int      `mapstructure:"pool_size"`
-	MinIdleConn     int      `mapstructure:"min_idle_conn"`
-	DialTimeout     int      `mapstructure:"dial_timeout"`
-	ReadTimeout     int      `mapstructure:"read_timeout"`
-	WriteTimeout    int      `mapstructure:"write_timeout"`
-	MaxRetries      int      `mapstructure:"max_retries"`
-	PoolTimeout     int      `mapstructure:"pool_timeout"`
-	ConnMaxIdleTime int      `mapstructure:"conn_max_idle_time"`
+	Enabled            bool     `mapstructure:"enabled"`
+	Addrs              []string `mapstructure:"addrs"`
+	Username           string   `mapstructure:"username"`
+	Password           string   `mapstructure:"password"`
+	DB                 int      `mapstructure:"db"`
+	ClusterMode        bool     `mapstructure:"cluster_mode"`
+	MasterName         string   `mapstructure:"master_name"`
+	KeyPrefix          string   `mapstructure:"key_prefix"`
+	PoolSize           int      `mapstructure:"pool_size"`
+	MinIdleConn        int      `mapstructure:"min_idle_conn"`
+	DialTimeout        int      `mapstructure:"dial_timeout"`
+	ReadTimeout        int      `mapstructure:"read_timeout"`
+	WriteTimeout       int      `mapstructure:"write_timeout"`
+	MaxRetries         int      `mapstructure:"max_retries"`
+	PoolTimeout        int      `mapstructure:"pool_timeout"`
+	ConnMaxIdleTime    int      `mapstructure:"conn_max_idle_time"`
+	MaintNotifications bool     `mapstructure:"maint_notifications"`
 }
 
 // logConfig 日志配置
