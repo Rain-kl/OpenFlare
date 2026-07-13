@@ -1,5 +1,7 @@
 # WAF 设计文档
 
+> WAF 规则正在从固定的白名单、黑名单、PoW 判定链演进为可视化 DAG。新的图模型、执行顺序、发布加载和迁移边界以 [WAF 可编排规则设计](./waf-orchestration-design.md) 为准；本文保留 IP 组、GeoIP 与现有运行时背景说明。
+
 你会学到：OpenFlare 边缘 Web 应用防火墙（WAF）的核心架构、动态 IP 组异步差分同步模型、OpenResty Lua 高性能缓存方案以及完整的请求过滤与判定逻辑。
 
 ---

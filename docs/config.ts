@@ -130,6 +130,7 @@ function sidebarDesign(): DefaultTheme.SidebarItem[] {
         { text: 'Agent 与发布模型', link: 'agent-design' },
         { text: '内网穿透隧道设计', link: 'tunnel-design' },
         { text: 'WAF 设计', link: 'waf-design' },
+        { text: 'WAF 可编排规则设计', link: 'waf-orchestration-design' },
         { text: 'Pages 静态托管设计', link: 'pages-design' },
         { text: 'Uptime Kuma 监控同步设计', link: 'kuma-design' },
         { text: '登录验证码设计', link: 'login-captcha' }

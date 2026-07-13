@@ -130,8 +130,10 @@ OpenResty (Agent, TLS/WAF)
 
 ### 3. WAF 安全过滤流
 * WAF 引擎嵌入在 OpenResty 请求生命周期中。
-* 过滤规则直接从 Agent 落地在节点本地的 `waf_config.json` 及 `waf_ip_groups.json` 读取，判决逻辑白名单优先、黑名单层层过滤，完全在本地内存中完成，不产生数据库或网络 I/O 损耗。
-* *IP组增量同步、自动 IP 组计算与拦截响应机制详见：[WAF 设计文档](./waf-design.md)*
+* WAF 规则由控制面以可视化 DAG 编排，发布时编译为运行态图；OpenResty reload 后由每个 Worker 加载一次，后续请求只遍历内存对象。
+* 全局规则固定前置，路由绑定规则按显式顺序执行；当前规则抵达“通过”后继续下一条，抵达“阻止”则立即返回该节点配置的拦截响应。
+* IP 组成员独立热更新：协调 Worker 每 5 秒检查一次 checksum，仅在变化时加载完整快照，各 Worker 的请求路径始终读取本地内存对象。
+* *IP 组来源与同步机制详见：[WAF 设计文档](./waf-design.md)；图模型、执行语义与发布约束详见：[WAF 可编排规则设计](./waf-orchestration-design.md)。*
 
 ---
 
@@ -156,7 +158,7 @@ OpenResty (Agent, TLS/WAF)
 | 全局单激活版本                 | 降低控制面复杂度，保证所有节点默认一致；提供一键秒级回滚的稳定机制           |
 | Zone 域名与路由策略分离        | Zone 提供根域入口与域名边界；路由仍可复用同一套站点级策略并按域名绑定证书        |
 | 内网穿透基于 frp 整合          | 复用成熟隧道协议，避免自研隧道引起稳定性风险；其 Vhost 机制天然适配反代路由 |
-| 运行时配置与控制库解耦         | 如 WAF 运行时只读取本地 JSON 规则包，配置变更通过差分广播或快速重载热生效    |
+| 运行时配置与控制库解耦         | WAF 规则发布时编译并随 OpenResty reload 加载；动态 IP 组通过 checksum 驱动的内存快照独立刷新 |
 
 ---
 
@@ -169,7 +171,7 @@ OpenResty (Agent, TLS/WAF)
 4. **细分领域设计**：
    * Zone 与域名相关开发：阅读 [Zone 与域名资源设计](./zone-design.md)。
    * 穿透相关开发：阅读 [内网穿透隧道设计](./tunnel-design.md)。
-   * WAF 相关开发：阅读 [WAF 设计](./waf-design.md)。
+   * WAF 相关开发：阅读 [WAF 设计](./waf-design.md) 与 [WAF 可编排规则设计](./waf-orchestration-design.md)。
    * Pages 托管开发：阅读 [Pages 静态托管设计](./pages-design.md)。
    * 监控同步开发：阅读 [Uptime Kuma 监控同步设计](./kuma-design.md)。
 5. **[仓库结构](./index.md#仓库结构)**：明确各个物理目录分层职责，避免堆砌和重复开发。
