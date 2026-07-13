@@ -68,12 +68,13 @@ function _M.evaluate(config)
 
     local config_key = "_request_config:" .. (ngx.var.request_id or ngx.md5(host .. uri .. tostring(ngx.now())))
     pow_config_dict:set(config_key, cjson.encode(config), config.challenge_ttl or 300)
-    ngx.req.set_uri_args({
+    local challenge_args = {
         redir = ngx.var.scheme .. "://" .. host .. uri .. (ngx.var.args and ("?" .. ngx.var.args) or ""),
         host = host,
         openflare_pow_config_key = config_key,
-    })
-    ngx.exec("/.within.website/x/cmd/anubis/api/make-challenge")
+    }
+    ngx.req.set_uri_args(challenge_args)
+    ngx.exec("/.within.website/x/cmd/anubis/api/make-challenge", challenge_args)
     return false
 end
 

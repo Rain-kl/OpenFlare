@@ -731,7 +731,7 @@ func TestManagerCurrentChecksumIncludesPowConfig(t *testing.T) {
 }
 
 func TestManagedPowLuaFilesUseInternalChallengeFlow(t *testing.T) {
-	if !strings.Contains(openRestyPowRuntimeLua, `ngx.exec("/.within.website/x/cmd/anubis/api/make-challenge")`) {
+	if !strings.Contains(openRestyPowRuntimeLua, `ngx.exec("/.within.website/x/cmd/anubis/api/make-challenge", challenge_args)`) {
 		t.Fatal("expected pow runtime lua to internally execute make-challenge instead of issuing a 302 redirect")
 	}
 	if strings.Contains(openRestyPowRuntimeLua, "ngx.redirect(") {

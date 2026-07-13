@@ -10,7 +10,7 @@
 
 ## 实现状态（2026-07-13）
 
-Tasks 1–11 已实现，包含三段数据库迁移、图模型与编译器、规则 API、发布快照、OpenResty 内存执行器、IP 组协调刷新、React Flow 编辑器、有序绑定、GeoLite2 City/Country 支持以及中文文档与 Swagger 更新。React Flow 画布使用本地受控节点状态处理拖动，并支持显式或键盘删除普通节点与连线。Country 与 City MMDB 均随 Agent 内嵌，缺失文件在启动时从程序内初始化，网络仅用于后续周期更新。地域属性栏使用完整国家与 ISO 3166-2 一级行政区数据，国家同时展示中文名称与代码，行政区支持按名称或代码搜索。发布器保证空规则绑定编码为 `[]`，Lua 运行时兼容旧快照中的 `null` 数组，避免未启用或空绑定规则导致请求 500。
+Tasks 1–11 已实现，包含三段数据库迁移、图模型与编译器、规则 API、发布快照、OpenResty 内存执行器、IP 组协调刷新、React Flow 编辑器、有序绑定、GeoLite2 City/Country 支持以及中文文档与 Swagger 更新。React Flow 画布使用本地受控节点状态处理拖动，并支持显式或键盘删除普通节点与连线。Country 与 City MMDB 均随 Agent 内嵌，缺失文件在启动时从程序内初始化，网络仅用于后续周期更新。地域属性栏使用完整国家与 ISO 3166-2 一级行政区数据，国家同时展示中文名称与代码，行政区支持按名称或代码搜索。发布器保证空规则绑定编码为 `[]`，Lua 运行时兼容旧快照中的 `null` 数组，避免未启用或空绑定规则导致请求 500。PoW 节点通过共享内存暂存配置，并以 `ngx.exec` 显式参数把配置键传入内部挑战处理器，避免内部重定向丢失请求上下文后误报节点未执行。
 
 当前工作区已完成 `go test ./...`、前端全量 Vitest（56 项）、`make swagger`、`make code-check` 与 `git diff --check` 验证。Next.js 生产构建在本机持续停留于 Turbopack 的 `Creating an optimized production build ...`，未返回编译错误或成功状态，故不计为通过。
 
