@@ -14,6 +14,7 @@
 当前进行中的开发计划：
 
 * [Zone 与域名资源重构](./20260712-zone-domain-refactor.md)：以 Zone 和正规化 Zone 域名替代托管域名及反代路由中的域名/证书冗余字段。
+* [WAF 可编排规则](./20260713-waf-orchestration.md)：使用 React Flow 编辑 DAG 规则，发布时编译并由 OpenResty 纯内存执行。
 
 ## 使用建议
 
