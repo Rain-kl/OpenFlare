@@ -184,7 +184,7 @@ function EditorContent() {
     return <EditorSkeleton />;
 
   return (
-    <div className='flex h-[calc(100dvh-4rem)] w-full flex-col px-1 py-6'>
+    <div className='flex h-[calc(100dvh-8rem)] w-full flex-col px-1 py-6'>
       <UnsavedChanges dirty={dirty} />
       <header className='mb-4 flex items-center justify-between gap-4'>
         <div className='flex min-w-0 items-center gap-2'>

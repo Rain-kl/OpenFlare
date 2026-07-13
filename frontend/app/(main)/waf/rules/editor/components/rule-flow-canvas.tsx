@@ -13,6 +13,7 @@ import {
   type Connection,
   type Edge,
   type EdgeChange,
+  type FitViewOptions,
   type Node,
   type NodeChange,
   type ReactFlowInstance,
@@ -43,6 +44,10 @@ import { NodeLibrary } from './node-library';
 import { RuleNode, type RuleFlowNodeData } from './rule-node';
 
 const nodeTypes = { rule: RuleNode };
+const initialFitViewOptions = {
+  padding: 0.3,
+  maxZoom: 0.85,
+} satisfies FitViewOptions;
 
 type FlowNode = Node<RuleFlowNodeData>;
 type FlowEdge = Edge;
@@ -323,6 +328,7 @@ export function RuleFlowCanvas({
           onSelectEdge(undefined);
         }}
         fitView
+        fitViewOptions={initialFitViewOptions}
         deleteKeyCode={['Backspace', 'Delete']}
       >
         <Background gap={20} size={1} />
