@@ -61,6 +61,8 @@ flowchart LR
 **Files:**
 - Create: `internal/db/migrator/goose/postgres/202607150001_orchestrate_waf_rules.sql`
 - Create: `internal/db/migrator/goose/sqlite/202607150001_orchestrate_waf_rules.sql`
+- Create: `internal/db/migrator/goose/postgres/202607150002_reset_waf_rule_graphs.sql`
+- Create: `internal/db/migrator/goose/sqlite/202607150002_reset_waf_rule_graphs.sql`
 - Modify: `internal/model/openflare_waf.go`
 - Create: `internal/model/openflare_waf_graph_test.go`
 
@@ -86,7 +88,7 @@ Expected: FAIL，缺少新字段或迁移列。
 
 - [ ] **Step 3: 编写 PostgreSQL 与 SQLite goose 迁移**
 
-两端都增加 `graph TEXT NOT NULL`、`revision BIGINT/INTEGER NOT NULL DEFAULT 1`、`sequence INTEGER NOT NULL DEFAULT 0`，用确定性的 `id` 顺序为每个 `proxy_route_id` 回填 sequence，并将所有 graph 重置为同一默认 JSON。Down 恢复旧列结构；不要创建物理外键。
+`202607150001` 只执行 DDL：两端都增加 `graph TEXT NOT NULL`、`revision BIGINT/INTEGER NOT NULL DEFAULT 1`、`sequence INTEGER NOT NULL DEFAULT 0`。`202607150002` 只执行 DML：用确定性的 `id` 顺序为每个 `proxy_route_id` 回填 sequence，并将所有 graph 重置为同一默认 JSON。Down 分别恢复数据语义与旧列结构；不要创建物理外键，禁止把 DDL 与 DML 放入同一个迁移文件。
 
 - [ ] **Step 4: 实现乐观锁与有序绑定模型方法**
 
@@ -563,8 +565,8 @@ Commit: `refactor(frontend): order waf bindings and remove legacy editor`
 ### Task 11: 旧后端字段清理、Swagger、中文文档与端到端验证
 
 **Files:**
-- Create: `internal/db/migrator/goose/postgres/202607150002_drop_legacy_waf_rule_fields.sql`
-- Create: `internal/db/migrator/goose/sqlite/202607150002_drop_legacy_waf_rule_fields.sql`
+- Create: `internal/db/migrator/goose/postgres/202607150003_drop_legacy_waf_rule_fields.sql`
+- Create: `internal/db/migrator/goose/sqlite/202607150003_drop_legacy_waf_rule_fields.sql`
 - Modify: `internal/model/openflare_waf.go`
 - Modify: `internal/apps/openflare/waf/logics_test.go`
 - Modify: `docs/design/waf-design.md`
