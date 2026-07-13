@@ -28,32 +28,7 @@ import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import type { WAFIPGroup, WAFRuleNode } from '@/lib/services/openflare';
 
-const countries = [
-  'CN',
-  'US',
-  'JP',
-  'SG',
-  'DE',
-  'FR',
-  'GB',
-  'CA',
-  'AU',
-  'BR',
-  'IN',
-  'KR',
-].map((value) => ({ value, label: value }));
-const regions = [
-  'CN-BJ',
-  'CN-SH',
-  'CN-GD',
-  'CN-ZJ',
-  'US-CA',
-  'US-NY',
-  'US-TX',
-  'JP-13',
-  'DE-BE',
-  'GB-ENG',
-].map((value) => ({ value, label: value }));
+import { countryOptions, regionOptions, type GeoOption } from './geo-options';
 
 export function NodeProperties({
   node,
@@ -119,6 +94,7 @@ function PropertyFields({
           options={ipGroups.map((group) => ({
             value: String(group.id),
             label: group.name,
+            searchText: `${group.name} ${group.id}`,
           }))}
           value={node.config.ip_group_ids.map(String)}
           onChange={(values) =>
@@ -136,7 +112,8 @@ function PropertyFields({
         <MultiSelect
           id={`${node.id}-countries`}
           label='国家代码'
-          options={countries}
+          description={`共 ${countryOptions.length} 个国家/地区，显示国家名与 ISO 代码`}
+          options={countryOptions}
           value={node.config.countries}
           creatablePattern={/^[A-Z]{2}$/}
           onChange={(countries) =>
@@ -146,9 +123,11 @@ function PropertyFields({
         <MultiSelect
           id={`${node.id}-regions`}
           label='地区代码'
-          options={regions}
+          description={`共 ${regionOptions.length} 个一级行政区，输入名称或代码搜索`}
+          options={regionOptions}
           value={node.config.regions}
           creatablePattern={/^[A-Z]{2}-[A-Z0-9]{1,3}$/}
+          searchRequired
           onChange={(regions) =>
             onChange({ ...node, config: { ...node.config, regions } })
           }
@@ -297,28 +276,41 @@ function NumberField({
 function MultiSelect({
   id,
   label,
+  description,
   options,
   value,
   creatablePattern,
+  searchRequired = false,
   onChange,
 }: {
   id: string;
   label: string;
-  options: { value: string; label: string }[];
+  description?: string;
+  options: GeoOption[];
   value: string[];
   creatablePattern?: RegExp;
+  searchRequired?: boolean;
   onChange: (value: string[]) => void;
 }) {
   const [draft, setDraft] = useState('');
   const normalized = draft.trim().toUpperCase();
-  const visible = [
+  const query = draft.trim().toLocaleLowerCase();
+  const available = [
     ...options,
     ...value
       .filter(
         (selected) => !options.some((option) => option.value === selected),
       )
-      .map((selected) => ({ value: selected, label: selected })),
+      .map((selected) => ({
+        value: selected,
+        label: selected,
+        searchText: selected,
+      })),
   ];
+  const visible = available.filter((option) => {
+    if (!query) return !searchRequired || value.includes(option.value);
+    return option.searchText.toLocaleLowerCase().includes(query);
+  });
   const canCreate = Boolean(
     creatablePattern?.test(normalized) && !value.includes(normalized),
   );
@@ -331,57 +323,68 @@ function MultiSelect({
             {value.length ? `已选择 ${value.length} 项` : '请选择'}
           </Button>
         </PopoverTrigger>
-        <PopoverContent
-          align='start'
-          className='flex max-h-64 flex-col gap-2 overflow-y-auto'
-        >
-          {creatablePattern && (
+        <PopoverContent align='start' className='flex w-80 flex-col gap-2 p-3'>
+          {(creatablePattern || options.length > 0) && (
             <div className='flex gap-2'>
               <Input
                 aria-label={`新建${label}`}
-                placeholder='输入代码并添加'
+                placeholder='搜索名称或代码'
                 value={draft}
                 onChange={(event) => setDraft(event.target.value)}
               />
-              <Button
-                size='sm'
-                disabled={!canCreate}
-                onClick={() => {
-                  onChange([...value, normalized]);
-                  setDraft('');
-                }}
-              >
-                添加代码
-              </Button>
+              {creatablePattern && (
+                <Button
+                  size='sm'
+                  disabled={!canCreate}
+                  onClick={() => {
+                    onChange([...value, normalized]);
+                    setDraft('');
+                  }}
+                >
+                  添加代码
+                </Button>
+              )}
             </div>
           )}
-          {visible.length === 0 ? (
-            <p className='text-sm text-muted-foreground'>暂无可选项</p>
-          ) : (
-            visible.map((option) => (
-              <label
-                key={option.value}
-                className='flex cursor-pointer items-center gap-2 text-sm'
-              >
-                <Checkbox
-                  checked={value.includes(option.value)}
-                  onCheckedChange={(checked) =>
-                    onChange(
-                      checked
-                        ? [...value, option.value]
-                        : value.filter((item) => item !== option.value),
-                    )
-                  }
-                />
-                <span>{option.label}</span>
-                <span className='ml-auto font-mono text-xs text-muted-foreground'>
-                  {option.value}
-                </span>
-              </label>
-            ))
-          )}
+          <div className='max-h-56 space-y-1 overflow-y-auto pr-1'>
+            {visible.length === 0 ? (
+              <p className='px-1 py-3 text-sm text-muted-foreground'>
+                {searchRequired && !query
+                  ? `输入名称或代码搜索 ${options.length} 个选项`
+                  : '没有匹配的选项'}
+              </p>
+            ) : (
+              visible.map((option) => (
+                <label
+                  key={option.value}
+                  className='flex min-h-8 cursor-pointer items-center gap-2 rounded-md px-1 text-sm hover:bg-accent'
+                >
+                  <Checkbox
+                    checked={value.includes(option.value)}
+                    onCheckedChange={(checked) =>
+                      onChange(
+                        checked
+                          ? [...value, option.value]
+                          : value.filter((item) => item !== option.value),
+                      )
+                    }
+                  />
+                  <span
+                    className='min-w-0 flex-1 truncate'
+                    title={option.label}
+                  >
+                    {option.label}
+                  </span>
+                  <span className='font-mono text-xs text-muted-foreground'>
+                    {option.value}
+                  </span>
+                </label>
+              ))
+            )}
+          </div>
         </PopoverContent>
       </Popover>
+      {description && <FieldDescription>{description}</FieldDescription>}
     </Field>
   );
 }
