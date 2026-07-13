@@ -31,9 +31,13 @@ type Updater struct {
 	downloadDatabase func(context.Context, string, string) error
 }
 
-// EnsureInitialDatabase seeds the MMDB file from the embedded database if it does not exist on disk.
+// EnsureInitialDatabase seeds the Country MMDB file from the embedded database if it does not exist on disk.
 func (u *Updater) EnsureInitialDatabase() error {
-	path := filepath.Clean(u.MMDBPath)
+	return ensureEmbeddedDatabase(u.MMDBPath, geoipdata.DefaultMMDBName, "Country")
+}
+
+func ensureEmbeddedDatabase(targetPath string, embeddedName string, databaseName string) error {
+	path := filepath.Clean(targetPath)
 	if path == "" || path == "." {
 		return nil
 	}
@@ -42,9 +46,9 @@ func (u *Updater) EnsureInitialDatabase() error {
 	} else if !os.IsNotExist(err) {
 		return fmt.Errorf("stat mmdb file failed: %w", err)
 	}
-	data, err := fs.ReadFile(geoipdata.FS, geoipdata.DefaultMMDBName)
+	data, err := fs.ReadFile(geoipdata.FS, embeddedName)
 	if err != nil {
-		return fmt.Errorf("read embedded mmdb failed: %w", err)
+		return fmt.Errorf("read embedded %s mmdb failed: %w", databaseName, err)
 	}
 	if err := os.MkdirAll(filepath.Dir(path), mmdbDirPerm); err != nil {
 		return fmt.Errorf("create mmdb directory failed: %w", err)
@@ -52,31 +56,19 @@ func (u *Updater) EnsureInitialDatabase() error {
 	if err := os.WriteFile(path, data, mmdbFilePerm); err != nil {
 		return fmt.Errorf("write initial mmdb failed: %w", err)
 	}
-	slog.Info("initialized GeoIP mmdb from embedded database", "path", path, "size", len(data))
+	slog.Info("initialized GeoIP mmdb from embedded database", "database", databaseName, "path", path, "size", len(data))
 	return nil
 }
 
-// EnsureInitialDatabases retains the embedded Country seed and immediately
-// downloads City when it is absent so subdivision rules work before the first ticker interval.
-func (u *Updater) EnsureInitialDatabases(ctx context.Context) error {
+// EnsureInitialDatabases seeds both Country and City from embedded databases
+// when either managed file is absent. Network downloads are reserved for the periodic updater.
+func (u *Updater) EnsureInitialDatabases(_ context.Context) error {
 	var errs []error
 	if err := u.EnsureInitialDatabase(); err != nil {
 		errs = append(errs, err)
 	}
-	cityPath := filepath.Clean(u.CityMMDBPath)
-	if cityPath == "" || cityPath == "." || u.CityDownloadURL == "" {
-		return errors.Join(errs...)
-	}
-	if _, err := os.Stat(cityPath); err == nil {
-		return errors.Join(errs...)
-	} else if !os.IsNotExist(err) {
-		errs = append(errs, fmt.Errorf("stat City mmdb file failed: %w", err))
-		return errors.Join(errs...)
-	}
-	if err := u.download(ctx, cityPath, u.CityDownloadURL); err != nil {
-		errs = append(errs, fmt.Errorf("download initial City mmdb failed: %w", err))
-	} else {
-		slog.Info("initialized GeoIP City mmdb from provider", "path", cityPath)
+	if err := ensureEmbeddedDatabase(u.CityMMDBPath, geoipdata.DefaultCityMMDBName, "City"); err != nil {
+		errs = append(errs, err)
 	}
 	return errors.Join(errs...)
 }

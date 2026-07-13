@@ -26,7 +26,7 @@ func TestEnsureInitialDatabaseCopiesEmbeddedMMDB(t *testing.T) {
 	}
 }
 
-func TestEnsureInitialDatabasesDownloadsMissingCity(t *testing.T) {
+func TestEnsureInitialDatabasesCopiesEmbeddedCityWithoutDownload(t *testing.T) {
 	tempDir := t.TempDir()
 	countryPath := filepath.Join(tempDir, "GeoLite2-Country.mmdb")
 	cityPath := filepath.Join(tempDir, "GeoLite2-City.mmdb")
@@ -35,10 +35,8 @@ func TestEnsureInitialDatabasesDownloadsMissingCity(t *testing.T) {
 		CityMMDBPath:    cityPath,
 		CityDownloadURL: "https://geo.example/GeoLite2-City.mmdb",
 		downloadDatabase: func(_ context.Context, path, downloadURL string) error {
-			if path != cityPath || downloadURL != "https://geo.example/GeoLite2-City.mmdb" {
-				t.Fatalf("unexpected initial download: %s / %s", path, downloadURL)
-			}
-			return os.WriteFile(path, []byte("city-mmdb"), 0o600)
+			t.Fatalf("initial embedded seed must not download %s from %s", path, downloadURL)
+			return nil
 		},
 	}
 
@@ -49,15 +47,18 @@ func TestEnsureInitialDatabasesDownloadsMissingCity(t *testing.T) {
 		t.Fatalf("expected embedded Country database: %v", err)
 	}
 	data, err := os.ReadFile(cityPath)
-	if err != nil || string(data) != "city-mmdb" {
-		t.Fatalf("expected downloaded City database, data=%q err=%v", data, err)
+	if err != nil || len(data) == 0 {
+		t.Fatalf("expected embedded City database, size=%d err=%v", len(data), err)
 	}
 }
 
-func TestEnsureInitialDatabasesKeepsCountryFallbackWhenCityDownloadFails(t *testing.T) {
+func TestEnsureInitialDatabasesKeepsExistingCityWithoutDownload(t *testing.T) {
 	tempDir := t.TempDir()
 	countryPath := filepath.Join(tempDir, "GeoLite2-Country.mmdb")
 	cityPath := filepath.Join(tempDir, "GeoLite2-City.mmdb")
+	if err := os.WriteFile(cityPath, []byte("existing-city"), 0o600); err != nil {
+		t.Fatal(err)
+	}
 	updater := &Updater{
 		MMDBPath:        countryPath,
 		CityMMDBPath:    cityPath,
@@ -67,14 +68,15 @@ func TestEnsureInitialDatabasesKeepsCountryFallbackWhenCityDownloadFails(t *test
 		},
 	}
 
-	if err := updater.EnsureInitialDatabases(context.Background()); err == nil {
-		t.Fatal("expected City download error to be reported")
+	if err := updater.EnsureInitialDatabases(context.Background()); err != nil {
+		t.Fatalf("EnsureInitialDatabases failed: %v", err)
 	}
 	if _, err := os.Stat(countryPath); err != nil {
 		t.Fatalf("expected Country fallback to remain available: %v", err)
 	}
-	if _, err := os.Stat(cityPath); !errors.Is(err, os.ErrNotExist) {
-		t.Fatalf("expected failed City download not to create a database, err=%v", err)
+	data, err := os.ReadFile(cityPath)
+	if err != nil || string(data) != "existing-city" {
+		t.Fatalf("expected existing City database to remain untouched, data=%q err=%v", data, err)
 	}
 }
 

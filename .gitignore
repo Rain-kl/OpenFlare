@@ -78,6 +78,7 @@ profile.cov
 /.gomodcache/
 *.mmdb
 !internal/apps/agent/geoipdata/GeoLite2-Country.mmdb
+!internal/apps/agent/geoipdata/GeoLite2-City.mmdb
 
 /.superpowers/
 /.worktrees/

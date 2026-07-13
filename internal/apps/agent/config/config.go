@@ -31,8 +31,8 @@ const (
 	defaultOpenRestyObservabilityPort      = 18081
 	defaultObservabilityReplayMinutes      = 15
 	defaultMMDBUpdateInterval              = 24 * time.Hour
-	defaultMMDBDownloadURL                 = "https://raw.githubusercontent.com/Loyalsoldier/geoip/release/GeoLite2-Country.mmdb"
-	defaultCityMMDBDownloadURL             = "https://raw.githubusercontent.com/Loyalsoldier/geoip/release/GeoLite2-City.mmdb"
+	defaultMMDBDownloadURL                 = "https://github.com/FyraLabs/geolite2/releases/latest/download/GeoLite2-Country.mmdb"
+	defaultCityMMDBDownloadURL             = "https://github.com/FyraLabs/geolite2/releases/latest/download/GeoLite2-City.mmdb"
 	defaultHeartbeatInterval               = 10 * time.Second
 	defaultRequestTimeout                  = 10 * time.Second
 	configFilePerm                         = 0o600
