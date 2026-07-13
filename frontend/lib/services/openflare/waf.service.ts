@@ -9,6 +9,7 @@ import type {
   WAFRule,
   WAFSaveRuleGraphPayload,
   WAFSiteRuleGroups,
+  WAFUpdateRuleMetaPayload,
 } from './types';
 
 export class WafService extends OpenFlareBaseService {
@@ -33,12 +34,15 @@ export class WafService extends OpenFlareBaseService {
     return this.post<WAFRule>(`/rule-groups/${id}/graph`, payload);
   }
 
-  static async deleteRuleGroup(id: number): Promise<void> {
-    return this.post<void>(`/rule-groups/${id}/delete`);
+  static async updateRuleMeta(
+    id: number,
+    payload: WAFUpdateRuleMetaPayload,
+  ): Promise<WAFRule> {
+    return this.post<WAFRule>(`/rule-groups/${id}/meta`, payload);
   }
 
-  static async updateRuleGroupSites(id: number, ids: number[]): Promise<WAFRule> {
-    return this.post<WAFRule>(`/rule-groups/${id}/sites`, { ids });
+  static async deleteRuleGroup(id: number): Promise<void> {
+    return this.post<void>(`/rule-groups/${id}/delete`);
   }
 
   static async listSiteRuleGroups(routeId: number): Promise<WAFSiteRuleGroups> {

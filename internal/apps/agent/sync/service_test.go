@@ -30,8 +30,10 @@ func testPagesSourceConfigJSON(deploymentID uint, checksum string) string {
 type fakeClient struct {
 	config        protocol.ActiveConfigResponse
 	reports       []protocol.ApplyLogPayload
+	wafSyncCalls  []protocol.WAFIPGroupSyncRequest
 	pagesPackages map[uint][]byte
 	pagesHashes   map[uint]string
+	wafSyncResult protocol.WAFIPGroupSyncResponse
 	fetchCalls    int
 	hashCalls     int
 }
@@ -47,6 +49,12 @@ type fakeManager struct {
 	applyMainContents  []string
 	applyRouteContents []string
 	applyFiles         [][]protocol.SupportFile
+	wafChecksums       map[string]string
+	wafReconcileIDs    []uint
+	wafReconcileGroups []protocol.WAFIPGroup
+	wafUpdatedGroups   []protocol.WAFIPGroup
+	wafReconcileErr    error
+	wafReconcileCalls  int
 }
 
 func testSourceConfigJSON(workerProcesses string, listen int) string {
@@ -106,7 +114,9 @@ func (f *fakeClient) ReportApplyLog(ctx context.Context, payload protocol.ApplyL
 }
 
 func (f *fakeClient) SyncWAFIPGroups(ctx context.Context, payload protocol.WAFIPGroupSyncRequest) (*protocol.WAFIPGroupSyncResponse, error) {
-	return &protocol.WAFIPGroupSyncResponse{}, nil
+	f.wafSyncCalls = append(f.wafSyncCalls, payload)
+	result := f.wafSyncResult
+	return &result, nil
 }
 
 func (m *fakeManager) Apply(ctx context.Context, mainConfig string, routeConfig string, supportFiles []protocol.SupportFile) nginx.ApplyOutcome {
@@ -134,15 +144,160 @@ func (m *fakeManager) CurrentChecksum() (string, error) {
 }
 
 func (m *fakeManager) WAFIPGroupChecksums() (map[string]string, error) {
-	return map[string]string{}, nil
+	return m.wafChecksums, nil
 }
 
-func (m *fakeManager) SyncWAFIPGroups(groups []protocol.WAFIPGroup) error {
+func (m *fakeManager) ReconcileWAFIPGroups(ids []uint, groups []protocol.WAFIPGroup) error {
+	m.wafReconcileCalls++
+	m.wafReconcileIDs = append([]uint(nil), ids...)
+	m.wafReconcileGroups = append([]protocol.WAFIPGroup(nil), groups...)
+	return m.wafReconcileErr
+}
+
+func (m *fakeManager) UpdateExistingWAFIPGroups(groups []protocol.WAFIPGroup) error {
+	m.wafUpdatedGroups = append([]protocol.WAFIPGroup(nil), groups...)
 	return nil
 }
 
 func (m *fakeManager) EnsureWorkerReadAccess() error {
 	return nil
+}
+
+func TestReferencedWAFIPGroupIDsSyncsCompiledDAGReferences(t *testing.T) {
+	client := &fakeClient{wafSyncResult: protocol.WAFIPGroupSyncResponse{Groups: []protocol.WAFIPGroup{{ID: 7, Checksum: "new-7"}}}}
+	manager := &fakeManager{wafChecksums: map[string]string{"2": "sum-2", "7": "old-7", "99": "stale"}}
+	service := New(client, manager, nil)
+	supportFiles := []protocol.SupportFile{{Path: "waf_config.json", Content: `{
+		"rule_groups":[
+			{"id":1,"ip_whitelist_group_ids":[0,11,7],"graph":{"entry":"start","nodes":{
+				"start":{"type":"start","config":{}},
+				"first":{"type":"ip_match","config":{"ip_group_ids":[7,0,2,7]}},
+				"geo":{"type":"geo_match","config":{"countries":["US"],"ip_group_ids":[700]}},
+				"pow":{"type":"pow","config":{"difficulty":4,"ip_group_ids":[800]}},
+				"second":{"type":"ip_match","config":{"ip_group_ids":[9,2]}}
+			}}}
+		],
+		"ip_groups":[{"id":2},{"id":7},{"id":9},{"id":11},{"id":404}],
+		"bindings":[]
+	}`}}
+
+	if err := service.syncReferencedWAFIPGroups(context.Background(), supportFiles); err != nil {
+		t.Fatalf("syncReferencedWAFIPGroups failed: %v", err)
+	}
+	if len(client.wafSyncCalls) != 1 {
+		t.Fatalf("expected one WAF IP group sync request, got %d", len(client.wafSyncCalls))
+	}
+	if got, want := fmt.Sprint(client.wafSyncCalls[0].IDs), "[2 7 9 11]"; got != want {
+		t.Fatalf("referenced IDs = %s, want %s", got, want)
+	}
+	if got, want := fmt.Sprint(client.wafSyncCalls[0].Checksums), "map[2:sum-2 7:old-7]"; got != want {
+		t.Fatalf("request checksums = %s, want target-only %s", got, want)
+	}
+	if got, want := fmt.Sprint(manager.wafReconcileIDs), "[2 7 9 11]"; got != want {
+		t.Fatalf("reconcile IDs = %s, want %s", got, want)
+	}
+	if len(manager.wafReconcileGroups) != 1 || manager.wafReconcileGroups[0].ID != 7 {
+		t.Fatalf("changed groups not passed to reconcile: %#v", manager.wafReconcileGroups)
+	}
+}
+
+func TestReferencedWAFIPGroupIDsReconcilesEmptyResponseAndSurfacesMissingLocal(t *testing.T) {
+	client := &fakeClient{}
+	manager := &fakeManager{
+		wafChecksums:    map[string]string{"7": "mistaken-match"},
+		wafReconcileErr: fmt.Errorf("missing referenced WAF IP group 7"),
+	}
+	service := New(client, manager, nil)
+	err := service.syncReferencedWAFIPGroups(context.Background(), []protocol.SupportFile{{
+		Path: "waf_config.json", Content: `{"rule_groups":[{"graph":{"nodes":{"match":{"type":"ip_match","config":{"ip_group_ids":[7]}}}}}]}`,
+	}})
+	if err == nil || !strings.Contains(err.Error(), "missing referenced WAF IP group 7") {
+		t.Fatalf("expected missing local group error after empty delta, got %v", err)
+	}
+	if len(client.wafSyncCalls) != 1 || len(manager.wafReconcileIDs) != 1 || manager.wafReconcileIDs[0] != 7 {
+		t.Fatalf("empty response did not reach authoritative reconcile: calls=%#v ids=%#v", client.wafSyncCalls, manager.wafReconcileIDs)
+	}
+}
+
+func TestReferencedWAFIPGroupIDsEmptyTargetClearsWithoutRequest(t *testing.T) {
+	client := &fakeClient{}
+	manager := &fakeManager{}
+	service := New(client, manager, nil)
+	if err := service.syncReferencedWAFIPGroups(context.Background(), nil); err != nil {
+		t.Fatal(err)
+	}
+	if len(client.wafSyncCalls) != 0 {
+		t.Fatalf("empty target performed request I/O: %#v", client.wafSyncCalls)
+	}
+	if manager.wafReconcileCalls != 1 {
+		t.Fatal("empty authoritative target was not reconciled")
+	}
+}
+
+func TestApplyWAFIPGroupsUsesExistingOnlyUpdatePath(t *testing.T) {
+	manager := &fakeManager{}
+	service := New(nil, manager, nil)
+	groups := []protocol.WAFIPGroup{{ID: 99, Checksum: "broadcast"}}
+	if err := service.ApplyWAFIPGroups(context.Background(), groups); err != nil {
+		t.Fatal(err)
+	}
+	if len(manager.wafUpdatedGroups) != 1 || manager.wafUpdatedGroups[0].ID != 99 {
+		t.Fatalf("broadcast did not use existing-only update path: %#v", manager.wafUpdatedGroups)
+	}
+	if manager.wafReconcileCalls != 0 {
+		t.Fatal("broadcast must not use authoritative reconciliation")
+	}
+}
+
+func TestReferencedWAFIPGroupIDsRejectsMalformedRuntimeConfig(t *testing.T) {
+	tests := []struct {
+		name    string
+		content string
+		wantErr string
+	}{
+		{name: "document", content: `{`, wantErr: "decode waf_config.json"},
+		{
+			name:    "ip match config",
+			content: `{"rule_groups":[{"id":1,"graph":{"nodes":{"match":{"type":"ip_match","config":{"ip_group_ids":"bad"}}}}}],"bindings":[]}`,
+			wantErr: "decode ip_match config",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			client := &fakeClient{}
+			service := New(client, &fakeManager{}, nil)
+			err := service.syncReferencedWAFIPGroups(context.Background(), []protocol.SupportFile{{
+				Path: "waf_config.json", Content: test.content,
+			}})
+			if err == nil || !strings.Contains(err.Error(), test.wantErr) {
+				t.Fatalf("expected %q error, got %v", test.wantErr, err)
+			}
+			if len(client.wafSyncCalls) != 0 {
+				t.Fatalf("malformed WAF config must not send sync request, got %#v", client.wafSyncCalls)
+			}
+		})
+	}
+}
+
+func TestWAFIPGroupChecksumServicePublishesSidecar(t *testing.T) {
+	runtimeDir := t.TempDir()
+	manager := &nginx.Manager{RuntimeConfigDir: runtimeDir}
+	if err := manager.ReconcileWAFIPGroups([]uint{3}, []protocol.WAFIPGroup{{
+		ID: 3, Enabled: true, IPList: []string{"203.0.113.3"}, Checksum: "sum-3",
+	}}); err != nil {
+		t.Fatalf("ReconcileWAFIPGroups failed: %v", err)
+	}
+	jsonData, err := os.ReadFile(filepath.Join(runtimeDir, nginx.WAFIPGroupsConfigFileName))
+	if err != nil {
+		t.Fatalf("read IP group JSON: %v", err)
+	}
+	checksumData, err := os.ReadFile(filepath.Join(runtimeDir, nginx.WAFIPGroupsChecksumFileName))
+	if err != nil {
+		t.Fatalf("read IP group checksum: %v", err)
+	}
+	if got, want := strings.TrimSpace(string(checksumData)), testBytesChecksum(jsonData); got != want {
+		t.Fatalf("published checksum mismatch: got %q want %q", got, want)
+	}
 }
 
 func TestSyncOnceSuccess(t *testing.T) {

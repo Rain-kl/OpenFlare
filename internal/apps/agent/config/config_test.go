@@ -61,6 +61,12 @@ func TestLoadDefaultsToManagedBinaryPaths(t *testing.T) {
 	if cfg.RuntimeConfigDir != filepath.Join(dir, "data", defaultRuntimeConfigDirRelativePath) {
 		t.Fatalf("unexpected runtime config dir: %s", cfg.RuntimeConfigDir)
 	}
+	if cfg.CityMMDBPath != filepath.Join(dir, "data", defaultCityMMDBRelativePath) {
+		t.Fatalf("unexpected city mmdb path: %s", cfg.CityMMDBPath)
+	}
+	if cfg.CityMMDBDownloadURL != defaultCityMMDBDownloadURL {
+		t.Fatalf("unexpected city mmdb download URL: %s", cfg.CityMMDBDownloadURL)
+	}
 	if cfg.OpenrestyCertDir != cfg.CertDir {
 		t.Fatalf("unexpected openresty cert dir: %s", cfg.OpenrestyCertDir)
 	}
@@ -333,6 +339,8 @@ func TestLoadEnvOverridesConfigFile(t *testing.T) {
 	t.Setenv("OPENFLARE_SERVER_URL", "http://new:3000")
 	t.Setenv("OPENFLARE_AGENT_TOKEN", "new-token")
 	t.Setenv("OPENFLARE_OPENRESTY_PATH", "/new/openresty")
+	t.Setenv("OPENFLARE_CITY_MMDB_PATH", "/new/GeoLite2-City.mmdb")
+	t.Setenv("OPENFLARE_CITY_MMDB_DOWNLOAD_URL", "https://geo.example/GeoLite2-City.mmdb")
 
 	cfg, err := Load(configPath)
 	if err != nil {
@@ -346,6 +354,25 @@ func TestLoadEnvOverridesConfigFile(t *testing.T) {
 	}
 	if cfg.OpenrestyPath != "/new/openresty" {
 		t.Fatalf("expected openresty path from env, got %s", cfg.OpenrestyPath)
+	}
+	if cfg.CityMMDBPath != "/new/GeoLite2-City.mmdb" || cfg.CityMMDBDownloadURL != "https://geo.example/GeoLite2-City.mmdb" {
+		t.Fatalf("unexpected City MMDB env overrides: %s / %s", cfg.CityMMDBPath, cfg.CityMMDBDownloadURL)
+	}
+}
+
+func TestLoadKeepsExplicitCityMMDBConfig(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "agent.json")
+	payload := `{"server_url":"http://127.0.0.1:3000","agent_token":"token","node_name":"edge-01","node_ip":"10.0.0.8","city_mmdb_path":"/custom/GeoLite2-City.mmdb","city_mmdb_download_url":"https://custom.example/GeoLite2-City.mmdb"}`
+	if err := os.WriteFile(configPath, []byte(payload), 0o644); err != nil {
+		t.Fatalf("failed to write config: %v", err)
+	}
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load failed: %v", err)
+	}
+	if cfg.CityMMDBPath != "/custom/GeoLite2-City.mmdb" || cfg.CityMMDBDownloadURL != "https://custom.example/GeoLite2-City.mmdb" {
+		t.Fatalf("explicit City MMDB config changed: %s / %s", cfg.CityMMDBPath, cfg.CityMMDBDownloadURL)
 	}
 }
 
@@ -430,6 +457,9 @@ func TestSavePersistsMillisecondsAndOmitsRuntimeVersions(t *testing.T) {
 	}
 	if decoded["observability_replay_minutes"] != float64(defaultObservabilityReplayMinutes) {
 		t.Fatalf("unexpected observability replay minutes: %#v", decoded["observability_replay_minutes"])
+	}
+	if decoded["city_mmdb_path"] != cfg.CityMMDBPath || decoded["city_mmdb_download_url"] != cfg.CityMMDBDownloadURL {
+		t.Fatalf("City MMDB config was not persisted: %#v", decoded)
 	}
 	if _, ok := decoded["nginx_path"]; ok {
 		t.Fatal("legacy nginx_path should not be persisted")

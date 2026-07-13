@@ -14,26 +14,14 @@ import (
 
 // OpenFlareWAFRuleGroup stores a WAF rule group.
 type OpenFlareWAFRuleGroup struct {
-	ID                uint      `json:"id" gorm:"primaryKey;autoIncrement"`
-	Name              string    `json:"name" gorm:"size:255;not null"`
-	Enabled           bool      `json:"enabled" gorm:"not null;default:true"`
-	IsGlobal          bool      `json:"is_global" gorm:"not null;default:false;index"`
-	BlockStatusCode   int       `json:"block_status_code" gorm:"not null;default:418"`
-	BlockResponseBody string    `json:"block_response_body" gorm:"type:text;not null;default:''"`
-	IPWhitelist       string    `json:"ip_whitelist" gorm:"type:text;not null;default:'[]'"`
-	IPBlacklist       string    `json:"ip_blacklist" gorm:"type:text;not null;default:'[]'"`
-	IPWhitelistGroups string    `json:"ip_whitelist_group_ids" gorm:"column:ip_whitelist_groups;type:text;not null;default:'[]'"`
-	IPBlacklistGroups string    `json:"ip_blacklist_group_ids" gorm:"column:ip_blacklist_groups;type:text;not null;default:'[]'"`
-	CountryWhitelist  string    `json:"country_whitelist" gorm:"type:text;not null;default:'[]'"`
-	CountryBlacklist  string    `json:"country_blacklist" gorm:"type:text;not null;default:'[]'"`
-	RegionWhitelist   string    `json:"region_whitelist" gorm:"type:text;not null;default:'[]'"`
-	RegionBlacklist   string    `json:"region_blacklist" gorm:"type:text;not null;default:'[]'"`
-	PoWEnabled        bool      `json:"pow_enabled" gorm:"column:pow_enabled;not null;default:false"`
-	PoWConfig         string    `json:"pow_config" gorm:"column:pow_config;type:text;not null;default:'{}'"`
-	Graph             string    `json:"graph" gorm:"type:text;not null;default:''"`
-	Revision          uint64    `json:"revision" gorm:"not null;default:1"`
-	CreatedAt         time.Time `json:"created_at" gorm:"autoCreateTime"`
-	UpdatedAt         time.Time `json:"updated_at" gorm:"autoUpdateTime"`
+	ID        uint      `json:"id" gorm:"primaryKey;autoIncrement"`
+	Name      string    `json:"name" gorm:"size:255;not null"`
+	Enabled   bool      `json:"enabled" gorm:"not null;default:true"`
+	IsGlobal  bool      `json:"is_global" gorm:"not null;default:false;index"`
+	Graph     string    `json:"graph" gorm:"type:text;not null;default:''"`
+	Revision  uint64    `json:"revision" gorm:"not null;default:1"`
+	CreatedAt time.Time `json:"created_at" gorm:"autoCreateTime"`
+	UpdatedAt time.Time `json:"updated_at" gorm:"autoUpdateTime"`
 }
 
 // TableName returns the GORM table name.
@@ -147,21 +135,9 @@ func UpdateOpenFlareWAFRuleGroup(ctx context.Context, group *OpenFlareWAFRuleGro
 		return err
 	}
 	return conn.Model(&OpenFlareWAFRuleGroup{}).Where("id = ?", group.ID).Updates(map[string]any{
-		"name":                group.Name,
-		colEnabled:            group.Enabled,
-		"is_global":           group.IsGlobal,
-		"block_status_code":   group.BlockStatusCode,
-		"block_response_body": group.BlockResponseBody,
-		"ip_whitelist":        group.IPWhitelist,
-		"ip_blacklist":        group.IPBlacklist,
-		"ip_whitelist_groups": group.IPWhitelistGroups,
-		"ip_blacklist_groups": group.IPBlacklistGroups,
-		"country_whitelist":   group.CountryWhitelist,
-		"country_blacklist":   group.CountryBlacklist,
-		"region_whitelist":    group.RegionWhitelist,
-		"region_blacklist":    group.RegionBlacklist,
-		"pow_enabled":         group.PoWEnabled,
-		"pow_config":          group.PoWConfig,
+		"name":      group.Name,
+		colEnabled:  group.Enabled,
+		"is_global": group.IsGlobal,
 	}).Error
 }
 

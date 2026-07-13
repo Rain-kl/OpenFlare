@@ -26,44 +26,13 @@ func setupWAFTestDB(t *testing.T) func() {
 		&model.OpenFlareWAFRuleGroup{},
 		&model.OpenFlareWAFIPGroup{},
 		&model.OpenFlareWAFRuleGroupBinding{},
+		&model.OriginProxyRoute{},
 	))
 
 	db.SetDB(sqliteDB)
 	return func() {
 		db.SetDB(nil)
 	}
-}
-
-func TestCreateRuleGroup(t *testing.T) {
-	cleanup := setupWAFTestDB(t)
-	defer cleanup()
-	ctx := context.Background()
-
-	group, err := CreateRuleGroup(ctx, RuleGroupInput{
-		Name:             "edge guard",
-		Enabled:          true,
-		BlockStatusCode:  451,
-		IPWhitelist:      []string{" 192.0.2.1 ", "192.0.2.1", "198.51.100.0/24"},
-		IPBlacklist:      []string{"203.0.113.10"},
-		CountryBlacklist: []string{" cn ", "CN", "us"},
-	})
-	require.NoError(t, err)
-	assert.NotZero(t, group.ID)
-	assert.False(t, group.IsGlobal)
-	assert.Equal(t, "edge guard", group.Name)
-	require.Len(t, group.IPWhitelist, 2)
-	assert.Equal(t, "192.0.2.1", group.IPWhitelist[0])
-	assert.Equal(t, "198.51.100.0/24", group.IPWhitelist[1])
-	require.Len(t, group.CountryBlacklist, 2)
-	assert.Equal(t, "CN", group.CountryBlacklist[0])
-	assert.Equal(t, "US", group.CountryBlacklist[1])
-
-	_, err = CreateRuleGroup(ctx, RuleGroupInput{
-		Name:        "bad ip",
-		Enabled:     true,
-		IPBlacklist: []string{"not-an-ip"},
-	})
-	require.Error(t, err)
 }
 
 func TestPruneIPGroupExtIPs(t *testing.T) {

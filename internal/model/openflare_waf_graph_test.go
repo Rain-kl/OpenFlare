@@ -31,6 +31,7 @@ func wafMigrationFS(t *testing.T) fs.FS {
 	for _, name := range []string{
 		"202607150001_orchestrate_waf_rules.sql",
 		"202607150002_reset_waf_rule_graphs.sql",
+		"202607150003_drop_legacy_waf_rule_fields.sql",
 	} {
 		contents, err := os.ReadFile(filepath.Join(dir, name))
 		require.NoError(t, err)
@@ -45,7 +46,7 @@ func TestOpenFlareWAFGraphMigrationResetsGraphsAndOrdersBindings(t *testing.T) {
 	sqlDB, err := conn.DB()
 	require.NoError(t, err)
 
-	require.NoError(t, conn.Exec(`CREATE TABLE of_waf_rule_groups (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL)`).Error)
+	require.NoError(t, conn.Exec(`CREATE TABLE of_waf_rule_groups (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, block_status_code INTEGER NOT NULL DEFAULT 418, block_response_body TEXT NOT NULL DEFAULT '', ip_whitelist TEXT NOT NULL DEFAULT '[]', ip_blacklist TEXT NOT NULL DEFAULT '[]', ip_whitelist_groups TEXT NOT NULL DEFAULT '[]', ip_blacklist_groups TEXT NOT NULL DEFAULT '[]', country_whitelist TEXT NOT NULL DEFAULT '[]', country_blacklist TEXT NOT NULL DEFAULT '[]', region_whitelist TEXT NOT NULL DEFAULT '[]', region_blacklist TEXT NOT NULL DEFAULT '[]', pow_enabled BOOLEAN NOT NULL DEFAULT 0, pow_config TEXT NOT NULL DEFAULT '{}')`).Error)
 	require.NoError(t, conn.Exec(`CREATE TABLE of_waf_rule_group_bindings (id INTEGER PRIMARY KEY AUTOINCREMENT, rule_group_id INTEGER NOT NULL, proxy_route_id INTEGER NOT NULL)`).Error)
 	require.NoError(t, conn.Exec(`INSERT INTO of_waf_rule_groups (id, name) VALUES (1, 'one'), (2, 'two')`).Error)
 	require.NoError(t, conn.Exec(`INSERT INTO of_waf_rule_group_bindings (id, rule_group_id, proxy_route_id) VALUES (20, 2, 7), (10, 1, 7)`).Error)
@@ -60,6 +61,9 @@ func TestOpenFlareWAFGraphMigrationResetsGraphsAndOrdersBindings(t *testing.T) {
 	for _, group := range groups {
 		require.JSONEq(t, defaultWAFRuleGraph, group.Graph)
 		assert.Equal(t, uint64(1), group.Revision)
+	}
+	for _, column := range []string{"block_status_code", "ip_whitelist", "pow_enabled"} {
+		assert.False(t, conn.Migrator().HasColumn("of_waf_rule_groups", column))
 	}
 
 	require.NoError(t, conn.Exec(`INSERT INTO of_waf_rule_groups (name) VALUES ('new')`).Error)
@@ -104,4 +108,16 @@ func TestReplaceOpenFlareWAFRuleGroupBindingsPreservesInputOrder(t *testing.T) {
 	require.Len(t, bindings, 3)
 	assert.Equal(t, []uint{30, 10, 20}, []uint{bindings[0].RuleGroupID, bindings[1].RuleGroupID, bindings[2].RuleGroupID})
 	assert.Equal(t, []int{0, 1, 2}, []int{bindings[0].Sequence, bindings[1].Sequence, bindings[2].Sequence})
+}
+
+func TestLegacyWAFColumnsRemoved(t *testing.T) {
+	conn, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	require.NoError(t, err)
+	require.NoError(t, conn.AutoMigrate(&OpenFlareWAFRuleGroup{}))
+	legacy := []string{"block_status_code", "block_response_body", "ip_whitelist", "ip_blacklist", "ip_whitelist_groups", "ip_blacklist_groups", "country_whitelist", "country_blacklist", "region_whitelist", "region_blacklist", "pow_enabled", "pow_config"}
+	for _, column := range legacy {
+		if conn.Migrator().HasColumn(&OpenFlareWAFRuleGroup{}, column) {
+			t.Fatalf("legacy WAF column %s still exists", column)
+		}
+	}
 }

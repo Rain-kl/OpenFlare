@@ -1,8 +1,11 @@
 package geoipupdate
 
 import (
+	"context"
+	"errors"
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 )
 
@@ -20,5 +23,79 @@ func TestEnsureInitialDatabaseCopiesEmbeddedMMDB(t *testing.T) {
 	}
 	if info.Size() == 0 {
 		t.Fatal("expected copied mmdb to be non-empty")
+	}
+}
+
+func TestEnsureInitialDatabasesDownloadsMissingCity(t *testing.T) {
+	tempDir := t.TempDir()
+	countryPath := filepath.Join(tempDir, "GeoLite2-Country.mmdb")
+	cityPath := filepath.Join(tempDir, "GeoLite2-City.mmdb")
+	updater := &Updater{
+		MMDBPath:        countryPath,
+		CityMMDBPath:    cityPath,
+		CityDownloadURL: "https://geo.example/GeoLite2-City.mmdb",
+		downloadDatabase: func(_ context.Context, path, downloadURL string) error {
+			if path != cityPath || downloadURL != "https://geo.example/GeoLite2-City.mmdb" {
+				t.Fatalf("unexpected initial download: %s / %s", path, downloadURL)
+			}
+			return os.WriteFile(path, []byte("city-mmdb"), 0o600)
+		},
+	}
+
+	if err := updater.EnsureInitialDatabases(context.Background()); err != nil {
+		t.Fatalf("EnsureInitialDatabases failed: %v", err)
+	}
+	if _, err := os.Stat(countryPath); err != nil {
+		t.Fatalf("expected embedded Country database: %v", err)
+	}
+	data, err := os.ReadFile(cityPath)
+	if err != nil || string(data) != "city-mmdb" {
+		t.Fatalf("expected downloaded City database, data=%q err=%v", data, err)
+	}
+}
+
+func TestEnsureInitialDatabasesKeepsCountryFallbackWhenCityDownloadFails(t *testing.T) {
+	tempDir := t.TempDir()
+	countryPath := filepath.Join(tempDir, "GeoLite2-Country.mmdb")
+	cityPath := filepath.Join(tempDir, "GeoLite2-City.mmdb")
+	updater := &Updater{
+		MMDBPath:        countryPath,
+		CityMMDBPath:    cityPath,
+		CityDownloadURL: "https://geo.example/GeoLite2-City.mmdb",
+		downloadDatabase: func(_ context.Context, _, _ string) error {
+			return errors.New("city unavailable")
+		},
+	}
+
+	if err := updater.EnsureInitialDatabases(context.Background()); err == nil {
+		t.Fatal("expected City download error to be reported")
+	}
+	if _, err := os.Stat(countryPath); err != nil {
+		t.Fatalf("expected Country fallback to remain available: %v", err)
+	}
+	if _, err := os.Stat(cityPath); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("expected failed City download not to create a database, err=%v", err)
+	}
+}
+
+func TestUpdateDatabasesAttemptsCityAfterCountryFailure(t *testing.T) {
+	var paths []string
+	updater := &Updater{
+		MMDBPath:        "/data/GeoLite2-Country.mmdb",
+		DownloadURL:     "https://geo.example/GeoLite2-Country.mmdb",
+		CityMMDBPath:    "/data/GeoLite2-City.mmdb",
+		CityDownloadURL: "https://geo.example/GeoLite2-City.mmdb",
+		downloadDatabase: func(_ context.Context, path, _ string) error {
+			paths = append(paths, path)
+			if path == "/data/GeoLite2-Country.mmdb" {
+				return errors.New("country unavailable")
+			}
+			return nil
+		},
+	}
+
+	err := updater.updateDatabases(context.Background())
+	if err == nil || !slices.Equal(paths, []string{"/data/GeoLite2-Country.mmdb", "/data/GeoLite2-City.mmdb"}) {
+		t.Fatalf("expected independent Country then City attempts, paths=%#v err=%v", paths, err)
 	}
 }

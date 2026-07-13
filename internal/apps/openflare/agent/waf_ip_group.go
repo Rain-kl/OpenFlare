@@ -4,6 +4,7 @@
 package agent
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -11,43 +12,32 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/Rain-kl/Wavelet/internal/model"
+	"github.com/Rain-kl/Wavelet/pkg/protocol"
+	openrestyrender "github.com/Rain-kl/Wavelet/pkg/render/openresty"
 )
 
-type snapshotWAFRuleGroupRef struct {
-	IPWhitelistGroups []uint `json:"ip_whitelist_group_ids,omitempty"`
-	IPBlacklistGroups []uint `json:"ip_blacklist_group_ids,omitempty"`
-}
-
-type snapshotWAFSection struct {
-	RuleGroups []snapshotWAFRuleGroupRef `json:"rule_groups"`
-}
-
 type activeConfigSnapshot struct {
-	WAF snapshotWAFSection `json:"waf"`
+	WAF openrestyrender.WAFDocument `json:"waf"`
+}
+
+type runtimeIPMatchConfig struct {
+	IPs        []string `json:"ips,omitempty"`
+	CIDRs      []string `json:"cidrs,omitempty"`
+	IPGroupIDs []uint   `json:"ip_group_ids,omitempty"`
 }
 
 // WAFIPGroupsForAgent builds agent-facing WAF IP group payloads for the given ids.
 func WAFIPGroupsForAgent(ctx context.Context, ids []uint) ([]WAFIPGroup, error) {
-	return buildAgentWAFIPGroups(ctx, ids)
+	return validatedAgentWAFIPGroups(ctx, ids, false)
 }
 
 // ChangedWAFIPGroupsForAgent returns WAF IP groups whose checksums differ from the agent state.
 func ChangedWAFIPGroupsForAgent(ctx context.Context, ids []uint, checksums map[string]string) ([]WAFIPGroup, error) {
-	targetIDs := uniqueUintIDs(ids)
-	if len(targetIDs) == 0 {
-		activeIDs, err := activeConfigWAFIPGroupIDs(ctx)
-		if err != nil {
-			return nil, err
-		}
-		targetIDs = activeIDs
-	}
-	if len(targetIDs) == 0 {
-		return []WAFIPGroup{}, nil
-	}
-	groups, err := buildAgentWAFIPGroups(ctx, targetIDs)
+	groups, err := validatedAgentWAFIPGroups(ctx, ids, true)
 	if err != nil {
 		return nil, err
 	}
@@ -59,6 +49,45 @@ func ChangedWAFIPGroupsForAgent(ctx context.Context, ids []uint, checksums map[s
 		changed = append(changed, group)
 	}
 	return changed, nil
+}
+
+func validatedAgentWAFIPGroups(ctx context.Context, ids []uint, fallbackToActive bool) ([]WAFIPGroup, error) {
+	targetIDs := uniqueUintIDs(ids)
+	activeIDs, err := activeConfigWAFIPGroupIDs(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if len(targetIDs) == 0 && fallbackToActive {
+		targetIDs = activeIDs
+	}
+	if len(targetIDs) == 0 {
+		return []WAFIPGroup{}, nil
+	}
+
+	validationIDs := uniqueUintIDs(append(append([]uint{}, activeIDs...), targetIDs...))
+	allGroups, err := buildAgentWAFIPGroups(ctx, validationIDs)
+	if err != nil {
+		return nil, err
+	}
+	runtimeGroups := make(map[string]protocol.WAFIPGroup, len(allGroups))
+	for _, group := range allGroups {
+		runtimeGroups[strconv.FormatUint(uint64(group.ID), 10)] = group
+	}
+	if err = protocol.ValidateWAFIPGroupSnapshotSize(runtimeGroups); err != nil {
+		return nil, err
+	}
+
+	targetSet := make(map[uint]struct{}, len(targetIDs))
+	for _, id := range targetIDs {
+		targetSet[id] = struct{}{}
+	}
+	result := make([]WAFIPGroup, 0, len(targetIDs))
+	for _, group := range allGroups {
+		if _, ok := targetSet[group.ID]; ok {
+			result = append(result, group)
+		}
+	}
+	return result, nil
 }
 
 func buildAgentWAFIPGroups(ctx context.Context, ids []uint) ([]WAFIPGroup, error) {
@@ -142,6 +171,8 @@ func activeConfigWAFIPGroupIDs(ctx context.Context) ([]uint, error) {
 	}
 	idSet := make(map[uint]struct{})
 	for _, group := range snapshot.WAF.RuleGroups {
+		// Retain legacy flattened references while older active snapshots may
+		// still exist during a rolling Server upgrade.
 		for _, id := range group.IPWhitelistGroups {
 			if id > 0 {
 				idSet[id] = struct{}{}
@@ -152,6 +183,20 @@ func activeConfigWAFIPGroupIDs(ctx context.Context) ([]uint, error) {
 				idSet[id] = struct{}{}
 			}
 		}
+		for nodeID, node := range group.Graph.Nodes {
+			if node.Type != "ip_match" {
+				continue
+			}
+			ids, err := runtimeIPMatchGroupIDs(node.Config)
+			if err != nil {
+				return nil, fmt.Errorf("活动配置 WAF 规则 %d 节点 %s 的 IP 匹配配置无效: %w", group.ID, nodeID, err)
+			}
+			for _, id := range ids {
+				if id > 0 {
+					idSet[id] = struct{}{}
+				}
+			}
+		}
 	}
 	ids := make([]uint, 0, len(idSet))
 	for id := range idSet {
@@ -159,6 +204,16 @@ func activeConfigWAFIPGroupIDs(ctx context.Context) ([]uint, error) {
 	}
 	sort.Slice(ids, func(i, j int) bool { return ids[i] < ids[j] })
 	return ids, nil
+}
+
+func runtimeIPMatchGroupIDs(raw json.RawMessage) ([]uint, error) {
+	var config runtimeIPMatchConfig
+	decoder := json.NewDecoder(bytes.NewReader(raw))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&config); err != nil {
+		return nil, err
+	}
+	return config.IPGroupIDs, nil
 }
 
 func parseActiveConfigSnapshot(snapshotJSON string) (*activeConfigSnapshot, error) {
@@ -171,7 +226,7 @@ func parseActiveConfigSnapshot(snapshotJSON string) (*activeConfigSnapshot, erro
 		return nil, err
 	}
 	if snapshot.WAF.RuleGroups == nil {
-		snapshot.WAF.RuleGroups = []snapshotWAFRuleGroupRef{}
+		snapshot.WAF.RuleGroups = []openrestyrender.WAFRuleGroup{}
 	}
 	return &snapshot, nil
 }

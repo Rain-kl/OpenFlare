@@ -90,7 +90,7 @@ func syncOpenFlareWAFIPGroup(ctx context.Context, group *model.OpenFlareWAFIPGro
 	case wafIPGroupTypeAutomatic:
 		return syncIPGroupAutomatic(ctx, group, now)
 	default:
-		return nil, errors.New("只有自动和订阅类型 IP 组支持同步")
+		return nil, &RuleValidationError{Err: errors.New("只有自动和订阅类型 IP 组支持同步")}
 	}
 }
 

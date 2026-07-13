@@ -13,7 +13,81 @@ var powStaticFS embed.FS
 
 const openRestyPowRuntimeLua = `local _M = {}
 
+local source = debug.getinfo(1, "S").source or ""
+if string.sub(source, 1, 1) == "@" then
+    local script_path = string.sub(source, 2)
+    local base_dir = string.match(script_path, "^(.*)/pow/[^/]+%.lua$")
+    if base_dir and base_dir ~= "" and not string.find(package.path, base_dir, 1, true) then
+        package.path = base_dir .. "/?.lua;" .. base_dir .. "/?/init.lua;" .. package.path
+    end
+end
+
+local policy = require "pow.policy"
+local pow_sessions = ngx.shared.openflare_pow_sessions
+local pow_config_dict = ngx.shared.openflare_pow_config
+local cjson = require "cjson.safe"
+
+local function session_cookie(value, ttl)
+    local cookie = "__openflare_pow=" .. value .. "; Path=/; HttpOnly; SameSite=Lax; Max-Age=" .. tostring(ttl)
+    if ngx.var.scheme == "https" then cookie = cookie .. "; Secure" end
+    return cookie
+end
+
+-- evaluate is called by a DAG pow node. true continues along its next edge;
+-- false means the challenge flow has taken ownership of the request.
+function _M.evaluate(config)
+    config = config or {}
+    ngx.ctx.openflare_pow_config = config
+
+    local host = ngx.var.host
+    if not host or host == "" then return true end
+    local session_ttl = config.session_ttl or 600
+    local uri = ngx.var.uri or ""
+    local ua = ngx.var.http_user_agent or ""
+    local remote_ip = ngx.var.remote_addr or ""
+
+    if policy.match_any(remote_ip, ua, uri, config.whitelist or {}) then return true end
+    local blacklist = config.blacklist or {}
+    if policy.has_entries(blacklist) and not policy.match_any(remote_ip, ua, uri, blacklist) then return true end
+
+    local cookie_val = ngx.var["cookie___openflare_pow"]
+    if cookie_val and cookie_val ~= "" then
+        local session_key = host .. ":" .. cookie_val
+        if pow_sessions:get(session_key) then
+            pow_sessions:set(session_key, "1", session_ttl)
+            ngx.header["Set-Cookie"] = session_cookie(cookie_val, session_ttl)
+            return true
+        end
+    end
+
+    local api_prefix = "/.within.website/x/cmd/anubis/api/"
+    local static_prefix = "/.within.website/x/cmd/anubis/static/"
+    if string.sub(uri, 1, #api_prefix) == api_prefix or string.sub(uri, 1, #static_prefix) == static_prefix then
+        return false
+    end
+
+    local config_key = "_request_config:" .. (ngx.var.request_id or ngx.md5(host .. uri .. tostring(ngx.now())))
+    pow_config_dict:set(config_key, cjson.encode(config), config.challenge_ttl or 300)
+    ngx.req.set_uri_args({
+        redir = ngx.var.scheme .. "://" .. host .. uri .. (ngx.var.args and ("?" .. ngx.var.args) or ""),
+        host = host,
+        openflare_pow_config_key = config_key,
+    })
+    ngx.exec("/.within.website/x/cmd/anubis/api/make-challenge")
+    return false
+end
+
+-- Compatibility entrypoint for old rendered routes. PoW selection now belongs
+-- exclusively to WAF graph nodes, so this function intentionally does nothing.
 function _M.check()
+    return true
+end
+
+return _M
+`
+
+/* Removed legacy request-time configuration scanner. Graph execution now calls
+evaluate(config) with the reached node.
 local source = debug.getinfo(1, "S").source or ""
 if string.sub(source, 1, 1) == "@" then
     local script_path = string.sub(source, 2)
@@ -198,7 +272,7 @@ return ngx.exec("/.within.website/x/cmd/anubis/api/make-challenge")
 end
 
 return _M
-`
+*/
 
 const openRestyPowCheckLua = `local source = debug.getinfo(1, "S").source or ""
 if string.sub(source, 1, 1) == "@" then
@@ -214,8 +288,8 @@ return require("pow.runtime").check()
 
 const openRestyPowChallengeLua = `local cjson = require "cjson.safe"
 
-local pow_config_dict = ngx.shared.openflare_pow_config
 local pow_challenges = ngx.shared.openflare_pow_challenges
+local pow_config_dict = ngx.shared.openflare_pow_config
 
 local function generate_entropy()
     local pieces = {
@@ -233,28 +307,20 @@ local args = ngx.req.get_uri_args()
 local host = args["host"] or ngx.var.host or ""
 local redir = args["redir"] or ""
 
-local site = ngx.var.openflare_waf_site or ""
-if site == "" then
+local config = ngx.ctx.openflare_pow_config
+local config_key = args["openflare_pow_config_key"] or ""
+if type(config) ~= "table" and config_key ~= "" then
+    local config_raw = pow_config_dict:get(config_key)
+    if config_raw then
+        config = cjson.decode(config_raw)
+    end
+end
+if config_key ~= "" then pow_config_dict:delete(config_key) end
+if type(config) ~= "table" then
     ngx.status = 403
-    ngx.say("PoW site not resolved; openflare_waf_site is required")
+    ngx.say("PoW graph node was not evaluated for this request")
     return
 end
-
-local config_raw = pow_config_dict:get(site)
-if not config_raw then
-    ngx.status = 403
-    ngx.say("PoW not configured for this site")
-    return
-end
-
-local ok, route_config = pcall(cjson.decode, config_raw)
-if not ok or not route_config or not route_config.enabled then
-    ngx.status = 403
-    ngx.say("PoW not enabled for this site")
-    return
-end
-
-local config = route_config.config or {}
 local difficulty = config.difficulty or 4
 local algorithm = config.algorithm or "fast"
 local challenge_ttl = config.challenge_ttl or 300

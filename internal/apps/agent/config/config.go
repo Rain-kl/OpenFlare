@@ -24,6 +24,7 @@ const (
 	defaultRuntimeConfigDirRelativePath    = "etc/openflare"
 	defaultPagesDirRelativePath            = "var/lib/openflare/pages"
 	defaultMMDBRelativePath                = "etc/openflare/GeoLite2-Country.mmdb"
+	defaultCityMMDBRelativePath            = "etc/openflare/GeoLite2-City.mmdb"
 	defaultAccessLogRelativePath           = "var/log/openflare/access.log"
 	defaultStateRelativePath               = "var/lib/openflare/agent-state.json"
 	defaultObservabilityBufferRelativePath = "var/lib/openflare/observability-buffer.json"
@@ -31,6 +32,7 @@ const (
 	defaultObservabilityReplayMinutes      = 15
 	defaultMMDBUpdateInterval              = 24 * time.Hour
 	defaultMMDBDownloadURL                 = "https://raw.githubusercontent.com/Loyalsoldier/geoip/release/GeoLite2-Country.mmdb"
+	defaultCityMMDBDownloadURL             = "https://raw.githubusercontent.com/Loyalsoldier/geoip/release/GeoLite2-City.mmdb"
 	defaultHeartbeatInterval               = 10 * time.Second
 	defaultRequestTimeout                  = 10 * time.Second
 	configFilePerm                         = 0o600
@@ -58,8 +60,10 @@ type Config struct {
 	RuntimeConfigDir           string              `json:"runtime_config_dir"`
 	PagesDir                   string              `json:"pages_dir"`
 	MMDBPath                   string              `json:"mmdb_path"`
+	CityMMDBPath               string              `json:"city_mmdb_path"`
 	MMDBUpdateInterval         MillisecondDuration `json:"mmdb_update_interval"`
 	MMDBDownloadURL            string              `json:"mmdb_download_url"`
+	CityMMDBDownloadURL        string              `json:"city_mmdb_download_url"`
 	OpenrestyObservabilityPort int                 `json:"openresty_observability_port"`
 	ObservabilityBufferPath    string              `json:"observability_buffer_path"`
 	ObservabilityReplayMinutes int                 `json:"observability_replay_minutes"`
@@ -89,8 +93,10 @@ type configFile struct {
 	RuntimeConfigDir           string              `json:"runtime_config_dir"`
 	PagesDir                   string              `json:"pages_dir"`
 	MMDBPath                   string              `json:"mmdb_path"`
+	CityMMDBPath               string              `json:"city_mmdb_path"`
 	MMDBUpdateInterval         MillisecondDuration `json:"mmdb_update_interval"`
 	MMDBDownloadURL            string              `json:"mmdb_download_url"`
+	CityMMDBDownloadURL        string              `json:"city_mmdb_download_url"`
 	OpenrestyObservabilityPort int                 `json:"openresty_observability_port"`
 	ObservabilityBufferPath    string              `json:"observability_buffer_path"`
 	ObservabilityReplayMinutes int                 `json:"observability_replay_minutes"`
@@ -178,6 +184,7 @@ func applyAgentPathDefaults(cfg *Config, baseDir string) {
 		{&cfg.RuntimeConfigDir, defaultRuntimeConfigDirRelativePath},
 		{&cfg.PagesDir, defaultPagesDirRelativePath},
 		{&cfg.MMDBPath, defaultMMDBRelativePath},
+		{&cfg.CityMMDBPath, defaultCityMMDBRelativePath},
 		{&cfg.ObservabilityBufferPath, defaultObservabilityBufferRelativePath},
 	}
 	for _, item := range pathDefaults {
@@ -199,6 +206,9 @@ func applyAgentTimingDefaults(cfg *Config) {
 	}
 	if cfg.MMDBDownloadURL == "" {
 		cfg.MMDBDownloadURL = defaultMMDBDownloadURL
+	}
+	if cfg.CityMMDBDownloadURL == "" {
+		cfg.CityMMDBDownloadURL = defaultCityMMDBDownloadURL
 	}
 	if cfg.OpenrestyObservabilityPort <= 0 {
 		cfg.OpenrestyObservabilityPort = defaultOpenRestyObservabilityPort
@@ -232,6 +242,7 @@ func normalizeManagedPaths(cfg *Config) {
 		&cfg.StatePath,
 		&cfg.ObservabilityBufferPath,
 		&cfg.MMDBPath,
+		&cfg.CityMMDBPath,
 	}
 	for _, p := range paths {
 		if usesSlashPath(*p) {
@@ -256,6 +267,8 @@ func hasEnvConfig() bool {
 		"OPENFLARE_MMDB_PATH",
 		"OPENFLARE_MMDB_UPDATE_INTERVAL",
 		"OPENFLARE_MMDB_DOWNLOAD_URL",
+		"OPENFLARE_CITY_MMDB_PATH",
+		"OPENFLARE_CITY_MMDB_DOWNLOAD_URL",
 	} {
 		if strings.TrimSpace(os.Getenv(key)) != "" {
 			return true
@@ -283,6 +296,8 @@ func applyEnvOverrides(cfg *Config) {
 	overrideString("OPENFLARE_PAGES_DIR", &cfg.PagesDir)
 	overrideString("OPENFLARE_MMDB_PATH", &cfg.MMDBPath)
 	overrideString("OPENFLARE_MMDB_DOWNLOAD_URL", &cfg.MMDBDownloadURL)
+	overrideString("OPENFLARE_CITY_MMDB_PATH", &cfg.CityMMDBPath)
+	overrideString("OPENFLARE_CITY_MMDB_DOWNLOAD_URL", &cfg.CityMMDBDownloadURL)
 	if value := strings.TrimSpace(os.Getenv("OPENFLARE_HEARTBEAT_INTERVAL")); value != "" {
 		if duration, err := parseDurationValue(value); err == nil {
 			cfg.HeartbeatInterval = duration

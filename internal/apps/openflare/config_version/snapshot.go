@@ -9,17 +9,21 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 
 	oftls "github.com/Rain-kl/Wavelet/internal/apps/openflare/tls"
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/waf"
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"github.com/Rain-kl/Wavelet/internal/repository"
+	"github.com/Rain-kl/Wavelet/pkg/protocol"
 	openrestyrender "github.com/Rain-kl/Wavelet/pkg/render/openresty"
+	"gorm.io/gorm"
 )
 
 const (
-	supportFilesPerCertificate = 2
+	supportFilesPerCertificate  = 2
+	wafIPGroupChecksumHexLength = 64
 
 	// OpenResty 默认配置值
 	defaultOpenRestyReturnStatus     = 421
@@ -66,22 +70,11 @@ type snapshotRoute struct {
 }
 
 type snapshotWAFRuleGroup struct {
-	ID                uint                       `json:"id"`
-	Name              string                     `json:"name"`
-	Enabled           bool                       `json:"enabled"`
-	IsGlobal          bool                       `json:"is_global"`
-	BlockStatusCode   int                        `json:"block_status_code"`
-	BlockResponseBody string                     `json:"block_response_body,omitempty"`
-	IPWhitelist       []string                   `json:"ip_whitelist,omitempty"`
-	IPBlacklist       []string                   `json:"ip_blacklist,omitempty"`
-	IPWhitelistGroups []uint                     `json:"ip_whitelist_group_ids,omitempty"`
-	IPBlacklistGroups []uint                     `json:"ip_blacklist_group_ids,omitempty"`
-	CountryWhitelist  []string                   `json:"country_whitelist,omitempty"`
-	CountryBlacklist  []string                   `json:"country_blacklist,omitempty"`
-	RegionWhitelist   []string                   `json:"region_whitelist,omitempty"`
-	RegionBlacklist   []string                   `json:"region_blacklist,omitempty"`
-	PoWEnabled        bool                       `json:"pow_enabled,omitempty"`
-	PoWConfig         *openrestyrender.PoWConfig `json:"pow_config,omitempty"`
+	ID       uint                 `json:"id"`
+	Name     string               `json:"name"`
+	Enabled  bool                 `json:"enabled"`
+	IsGlobal bool                 `json:"is_global"`
+	Graph    waf.RuntimeRuleGraph `json:"graph"`
 }
 
 type snapshotWAFIPGroup struct {
@@ -311,35 +304,37 @@ func buildSnapshotWAFDocument(ctx context.Context, routes []*model.ProxyRoute) (
 	if err := waf.EnsureDefaultRuleGroup(ctx); err != nil {
 		return snapshotWAFDocument{}, err
 	}
-	views, err := waf.ListRuleGroups(ctx)
+	groups, err := model.ListOpenFlareWAFRuleGroups(ctx)
 	if err != nil {
 		return snapshotWAFDocument{}, err
 	}
-	ruleGroups := make([]snapshotWAFRuleGroup, 0, len(views))
-	for _, view := range views {
-		if !view.Enabled {
+	ruleGroups := make([]snapshotWAFRuleGroup, 0, len(groups))
+	referencedIPGroupIDs := make(map[uint]struct{})
+	enabledRuleIDs := make(map[uint]struct{})
+	for _, group := range groups {
+		if !group.Enabled {
 			continue
 		}
+		var editorGraph waf.RuleGraph
+		if err = json.Unmarshal([]byte(group.Graph), &editorGraph); err != nil {
+			return snapshotWAFDocument{}, fmt.Errorf("WAF 规则 %s 的图数据无效: %w", group.Name, err)
+		}
+		if err = waf.ValidateRuleGraph(ctx, editorGraph, snapshotWAFIPGroupExists); err != nil {
+			return snapshotWAFDocument{}, fmt.Errorf("WAF 规则 %s 的图无效: %w", group.Name, err)
+		}
+		runtimeGraph, compileErr := waf.CompileRuleGraph(editorGraph)
+		if compileErr != nil {
+			return snapshotWAFDocument{}, fmt.Errorf("WAF 规则 %s 编译失败: %w", group.Name, compileErr)
+		}
 		ruleGroups = append(ruleGroups, snapshotWAFRuleGroup{
-			ID:                view.ID,
-			Name:              view.Name,
-			Enabled:           view.Enabled,
-			IsGlobal:          view.IsGlobal,
-			BlockStatusCode:   view.BlockStatusCode,
-			BlockResponseBody: view.BlockResponseBody,
-			IPWhitelist:       view.IPWhitelist,
-			IPBlacklist:       view.IPBlacklist,
-			IPWhitelistGroups: view.IPWhitelistGroups,
-			IPBlacklistGroups: view.IPBlacklistGroups,
-			CountryWhitelist:  view.CountryWhitelist,
-			CountryBlacklist:  view.CountryBlacklist,
-			RegionWhitelist:   view.RegionWhitelist,
-			RegionBlacklist:   view.RegionBlacklist,
-			PoWEnabled:        view.PoWEnabled,
-			PoWConfig:         convertPoWConfig(view.PoWEnabled, view.PoWConfig),
+			ID: group.ID, Name: group.Name, Enabled: group.Enabled, IsGlobal: group.IsGlobal, Graph: runtimeGraph,
 		})
+		enabledRuleIDs[group.ID] = struct{}{}
+		for _, id := range waf.ReferencedIPGroupIDs(editorGraph) {
+			referencedIPGroupIDs[id] = struct{}{}
+		}
 	}
-	ipGroups, err := buildSnapshotWAFIPGroups(ctx, ruleGroups)
+	ipGroups, err := buildSnapshotWAFIPGroups(ctx, referencedIPGroupIDs)
 	if err != nil {
 		return snapshotWAFDocument{}, err
 	}
@@ -366,16 +361,16 @@ func buildSnapshotWAFDocument(ctx context.Context, routes []*model.ProxyRoute) (
 		if _, ok := enabledRouteSiteNames[binding.ProxyRouteID]; !ok {
 			continue
 		}
-		groupIDsByRoute[binding.ProxyRouteID] = append(groupIDsByRoute[binding.ProxyRouteID], binding.RuleGroupID)
+		if _, enabled := enabledRuleIDs[binding.RuleGroupID]; enabled {
+			groupIDsByRoute[binding.ProxyRouteID] = append(groupIDsByRoute[binding.ProxyRouteID], binding.RuleGroupID)
+		}
 	}
 	bindings := make([]snapshotWAFBinding, 0, len(enabledRouteSiteNames))
 	for routeID, siteName := range enabledRouteSiteNames {
-		groupIDs := groupIDsByRoute[routeID]
-		sort.Slice(groupIDs, func(i, j int) bool { return groupIDs[i] < groupIDs[j] })
 		bindings = append(bindings, snapshotWAFBinding{
 			RouteID:      routeID,
 			SiteName:     siteName,
-			RuleGroupIDs: groupIDs,
+			RuleGroupIDs: groupIDsByRoute[routeID],
 		})
 	}
 	sort.Slice(bindings, func(i, j int) bool {
@@ -387,16 +382,26 @@ func buildSnapshotWAFDocument(ctx context.Context, routes []*model.ProxyRoute) (
 	return snapshotWAFDocument{RuleGroups: ruleGroups, IPGroups: ipGroups, Bindings: bindings}, nil
 }
 
-func buildSnapshotWAFIPGroups(ctx context.Context, ruleGroups []snapshotWAFRuleGroup) ([]snapshotWAFIPGroup, error) {
-	idSet := make(map[uint]struct{})
-	for _, group := range ruleGroups {
-		for _, id := range group.IPWhitelistGroups {
-			idSet[id] = struct{}{}
+func validateSnapshotWAFIPGroupSize(groups []snapshotWAFIPGroup) error {
+	runtimeGroups := make(map[string]protocol.WAFIPGroup, len(groups))
+	for _, group := range groups {
+		ipList := group.IPList
+		if !group.Enabled {
+			ipList = []string{}
 		}
-		for _, id := range group.IPBlacklistGroups {
-			idSet[id] = struct{}{}
+		runtimeGroups[strconv.FormatUint(uint64(group.ID), 10)] = protocol.WAFIPGroup{
+			ID:       group.ID,
+			Name:     group.Name,
+			Type:     group.Type,
+			Enabled:  group.Enabled,
+			IPList:   ipList,
+			Checksum: strings.Repeat("0", wafIPGroupChecksumHexLength),
 		}
 	}
+	return protocol.ValidateWAFIPGroupSnapshotSize(runtimeGroups)
+}
+
+func buildSnapshotWAFIPGroups(ctx context.Context, idSet map[uint]struct{}) ([]snapshotWAFIPGroup, error) {
 	if len(idSet) == 0 {
 		return []snapshotWAFIPGroup{}, nil
 	}
@@ -431,7 +436,18 @@ func buildSnapshotWAFIPGroups(ctx context.Context, ruleGroups []snapshotWAFRuleG
 			IPList:  ipList,
 		})
 	}
+	if err = validateSnapshotWAFIPGroupSize(snapshots); err != nil {
+		return nil, err
+	}
 	return snapshots, nil
+}
+
+func snapshotWAFIPGroupExists(ctx context.Context, id uint) (bool, error) {
+	group, err := model.GetOpenFlareWAFIPGroupByID(ctx, id)
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return false, nil
+	}
+	return group != nil, err
 }
 
 func decodeIPList(raw string) ([]string, error) {
@@ -444,36 +460,6 @@ func decodeIPList(raw string) ([]string, error) {
 		return nil, fmt.Errorf("ip_list payload is invalid")
 	}
 	return items, nil
-}
-
-func convertPoWConfig(enabled bool, config *waf.PoWConfig) *openrestyrender.PoWConfig {
-	if !enabled {
-		return nil
-	}
-	if config == nil {
-		defaultConfig := openrestyrender.DefaultPoWConfig()
-		return &defaultConfig
-	}
-	return &openrestyrender.PoWConfig{
-		Difficulty:   config.Difficulty,
-		Algorithm:    config.Algorithm,
-		SessionTTL:   config.SessionTTL,
-		ChallengeTTL: config.ChallengeTTL,
-		Whitelist: openrestyrender.PoWListConfig{
-			IPs:         config.Whitelist.IPs,
-			IPCidrs:     config.Whitelist.IPCidrs,
-			Paths:       config.Whitelist.Paths,
-			PathRegexes: config.Whitelist.PathRegexes,
-			UserAgents:  config.Whitelist.UserAgents,
-		},
-		Blacklist: openrestyrender.PoWListConfig{
-			IPs:         config.Blacklist.IPs,
-			IPCidrs:     config.Blacklist.IPCidrs,
-			Paths:       config.Blacklist.Paths,
-			PathRegexes: config.Blacklist.PathRegexes,
-			UserAgents:  config.Blacklist.UserAgents,
-		},
-	}
 }
 
 func buildOpenRestyConfigSnapshot(ctx context.Context) openRestyConfigSnapshot {

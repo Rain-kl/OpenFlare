@@ -6,7 +6,7 @@ import {beforeEach, describe, expect, it, vi} from 'vitest';
 
 import WafPage from '@/app/(main)/waf/page';
 import apiClient from '@/lib/services/core/api-client';
-import {ProxyRouteService, WafService} from '@/lib/services/openflare';
+import {WafService} from '@/lib/services/openflare';
 import type {WAFSiteRuleGroups} from '@/lib/services/openflare';
 import {WafService as DirectWafService} from '@/lib/services/openflare/waf.service';
 
@@ -32,11 +32,6 @@ vi.mock('@/lib/services/openflare', async (importOriginal) => {
       listIPGroups: vi.fn(),
       createRule: vi.fn(),
       deleteRuleGroup: vi.fn(),
-      updateRuleGroupSites: vi.fn(),
-    },
-    ProxyRouteService: {
-      ...actual.ProxyRouteService,
-      list: vi.fn(),
     },
   };
 });
@@ -109,6 +104,27 @@ describe('WafService rule graph API', () => {
       undefined,
     );
   });
+
+  it('updates rule metadata with the current name and enabled state', async () => {
+    vi.mocked(apiClient.post).mockResolvedValue({
+      data: {error_msg: '', data: {...ruleSummary, enabled: true}},
+    } as AxiosResponse);
+
+    await DirectWafService.updateRuleMeta(17, {
+      name: '入口防护',
+      enabled: true,
+    });
+
+    expect(apiClient.post).toHaveBeenCalledWith(
+      '/api/v1/d/waf/rule-groups/17/meta',
+      {name: '入口防护', enabled: true},
+      undefined,
+    );
+  });
+
+  it('does not expose the retired rule-to-sites binding service', () => {
+    expect(DirectWafService).not.toHaveProperty('updateRuleGroupSites');
+  });
 });
 
 describe('WAF rule creation flow', () => {
@@ -118,8 +134,6 @@ describe('WAF rule creation flow', () => {
     vi.mocked(WafService.listRuleGroups).mockResolvedValue([]);
     vi.mocked(WafService.listIPGroups).mockReset();
     vi.mocked(WafService.listIPGroups).mockResolvedValue([]);
-    vi.mocked(ProxyRouteService.list).mockReset();
-    vi.mocked(ProxyRouteService.list).mockResolvedValue([]);
     vi.mocked(WafService.createRule).mockReset();
     vi.mocked(WafService.createRule).mockResolvedValue(ruleSummary);
   });

@@ -3,6 +3,7 @@ package nginx
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net"
 	"net/http"
 	"os"
@@ -13,6 +14,7 @@ import (
 	"testing"
 
 	"github.com/Rain-kl/Wavelet/internal/apps/agent/protocol"
+	sharedprotocol "github.com/Rain-kl/Wavelet/pkg/protocol"
 )
 
 type runCall struct {
@@ -330,6 +332,29 @@ func TestManagerApplyWritesSupportFilesAndReplacesPlaceholder(t *testing.T) {
 	}
 }
 
+func TestManagerRenderMainConfigInitializesWAFRuntimeInWorker(t *testing.T) {
+	manager := &Manager{NginxLuaDir: "/etc/nginx/openflare-lua"}
+	rendered := manager.renderMainConfig("events {}\nhttp {\n    lua_shared_dict openflare_waf_config 1m;\n    server {}\n}\n")
+	want := `init_worker_by_lua_block { require("waf.runtime").init() }`
+	if !strings.Contains(rendered, want) {
+		t.Fatalf("expected worker-time WAF initialization %q, got:\n%s", want, rendered)
+	}
+}
+
+func TestManagerRenderMainConfigMergesExistingWorkerInitializer(t *testing.T) {
+	manager := &Manager{NginxLuaDir: "/etc/nginx/openflare-lua"}
+	rendered := manager.renderMainConfig("http {\n    lua_shared_dict openflare_waf_config 1m;\n    init_worker_by_lua_file /etc/nginx/openflare-lua/observability/init.lua;\n}\n")
+	if strings.Count(rendered, "init_worker_by_lua_") != 1 {
+		t.Fatalf("expected one merged worker initializer, got:\n%s", rendered)
+	}
+	if !strings.Contains(rendered, `require("waf.runtime").init()`) {
+		t.Fatalf("expected WAF initialization in merged block, got:\n%s", rendered)
+	}
+	if !strings.Contains(rendered, `dofile("/etc/nginx/openflare-lua/observability/init.lua")`) {
+		t.Fatalf("expected existing worker initializer to be preserved, got:\n%s", rendered)
+	}
+}
+
 func TestManagerCheckHealthUsesStubStatusInsteadOfConfigTest(t *testing.T) {
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -545,12 +570,51 @@ func TestManagerEnsureLuaAssetsWritesReadableFiles(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(manager.LuaDir, "pow", "check.lua")); err != nil {
 		t.Fatalf("failed to stat pow lua file: %v", err)
 	}
-	data, err := os.ReadFile(filepath.Join(manager.LuaDir, "pow", "runtime.lua"))
+	data, err := os.ReadFile(filepath.Join(manager.LuaDir, "waf", "runtime.lua"))
 	if err != nil {
 		t.Fatalf("failed to read pow lua file: %v", err)
 	}
-	if !strings.Contains(string(data), filepath.ToSlash(manager.RuntimeConfigDir)+"/waf_config.json") {
-		t.Fatalf("expected pow lua to read runtime config dir, got %s", string(data))
+	if !strings.Contains(string(data), filepath.ToSlash(manager.RuntimeConfigDir)) || !strings.Contains(string(data), `runtime_dir .. "/waf_config.json"`) {
+		t.Fatalf("expected WAF runtime to load its worker snapshot from the runtime config dir, got %s", string(data))
+	}
+	ipGroupsData, err := os.ReadFile(filepath.Join(manager.LuaDir, "waf", "ip_groups.lua"))
+	if err != nil {
+		t.Fatalf("failed to read WAF IP group refresh module: %v", err)
+	}
+	if !strings.Contains(string(ipGroupsData), filepath.ToSlash(manager.RuntimeConfigDir)) || !strings.Contains(string(ipGroupsData), "waf_ip_groups.json.checksum") {
+		t.Fatalf("expected IP group module to use the managed runtime checksum path, got %s", string(ipGroupsData))
+	}
+	if !strings.Contains(string(ipGroupsData), "openflare_waf_ip_groups") ||
+		!strings.Contains(string(ipGroupsData), fmt.Sprintf("max_snapshot_bytes = options.max_snapshot_bytes or tonumber(\"%d\")", sharedprotocol.MaxWAFIPGroupSnapshotBytes)) {
+		t.Fatalf("expected dedicated dictionary and shared protocol size limit in deployed IP group module, got %s", string(ipGroupsData))
+	}
+	powData, err := os.ReadFile(filepath.Join(manager.LuaDir, "pow", "runtime.lua"))
+	if err != nil {
+		t.Fatalf("failed to read pow lua file: %v", err)
+	}
+	if strings.Contains(string(powData), "io.open") {
+		t.Fatalf("expected PoW node evaluation not to read configuration files, got %s", string(powData))
+	}
+}
+
+func TestManagerEnsureLuaAssetsUsesConfiguredGeoIPDatabasePaths(t *testing.T) {
+	tempDir := t.TempDir()
+	manager := &Manager{
+		LuaDir:       filepath.Join(tempDir, "lua"),
+		MMDBPath:     "/custom/GeoLite2-Country.mmdb",
+		CityMMDBPath: "/custom/GeoLite2-City.mmdb",
+	}
+	if err := manager.EnsureLuaAssets(); err != nil {
+		t.Fatalf("EnsureLuaAssets failed: %v", err)
+	}
+	data, err := os.ReadFile(filepath.Join(manager.LuaDir, "waf", "runtime.lua"))
+	if err != nil {
+		t.Fatalf("read WAF runtime: %v", err)
+	}
+	for _, path := range []string{manager.MMDBPath, manager.CityMMDBPath} {
+		if !strings.Contains(string(data), path) {
+			t.Fatalf("expected configured GeoIP path %q in WAF runtime", path)
+		}
 	}
 }
 
@@ -667,7 +731,7 @@ func TestManagerCurrentChecksumIncludesPowConfig(t *testing.T) {
 }
 
 func TestManagedPowLuaFilesUseInternalChallengeFlow(t *testing.T) {
-	if !strings.Contains(openRestyPowRuntimeLua, `return ngx.exec("/.within.website/x/cmd/anubis/api/make-challenge")`) {
+	if !strings.Contains(openRestyPowRuntimeLua, `ngx.exec("/.within.website/x/cmd/anubis/api/make-challenge")`) {
 		t.Fatal("expected pow runtime lua to internally execute make-challenge instead of issuing a 302 redirect")
 	}
 	if strings.Contains(openRestyPowRuntimeLua, "ngx.redirect(") {
@@ -699,12 +763,28 @@ func TestManagedPowLuaFilesUseInternalChallengeFlow(t *testing.T) {
 	}
 }
 
-func TestManagedWAFLuaTreatsWhitelistAsBypass(t *testing.T) {
-	if !strings.Contains(openRestyWAFRuntimeLua, "if ip_matches(group.ip_whitelist, ip)") {
-		t.Fatal("expected waf runtime to bypass request when ip matches whitelist")
+func TestManagedPowLuaFilesPreserveConfigAcrossInternalRedirect(t *testing.T) {
+	for _, expected := range []string{
+		`pow_config_dict:set(config_key, cjson.encode(config)`,
+		`openflare_pow_config_key = config_key`,
+		`return false`,
+	} {
+		if !strings.Contains(openRestyPowRuntimeLua, expected) {
+			t.Fatalf("expected PoW runtime to contain %q", expected)
+		}
 	}
-	if strings.Contains(openRestyWAFRuntimeLua, "first_allowlist_group") {
-		t.Fatal("expected waf runtime not to block requests that miss configured whitelists")
+	if !strings.Contains(openRestyPowChallengeLua, `pow_config_dict:get(config_key)`) {
+		t.Fatal("expected challenge handler to restore reached PoW node config after internal redirect")
+	}
+}
+
+func TestManagedWAFLuaExecutesCompiledGraphWithoutRequestIO(t *testing.T) {
+	if !strings.Contains(openRestyWAFRuntimeLua, `node.type == "ip_match"`) {
+		t.Fatal("expected WAF runtime to execute compiled IP match nodes")
+	}
+	checkStart := strings.Index(openRestyWAFRuntimeLua, "function _M.check()")
+	if checkStart < 0 || strings.Contains(openRestyWAFRuntimeLua[checkStart:], "io.open") {
+		t.Fatal("expected WAF request path not to perform file I/O")
 	}
 }
 
@@ -924,18 +1004,18 @@ func TestManagerApplyRejectsCertFilePathTraversal(t *testing.T) {
 	}
 }
 
-func TestManagerSyncWAFIPGroupsWritesDeltaRuntimeFile(t *testing.T) {
+func TestManagerReconcileWAFIPGroupsRetainsUnchangedDeltaRuntimeFile(t *testing.T) {
 	manager := &Manager{RuntimeConfigDir: t.TempDir()}
 
-	if err := manager.SyncWAFIPGroups([]protocol.WAFIPGroup{
+	if err := manager.ReconcileWAFIPGroups([]uint{1}, []protocol.WAFIPGroup{
 		{ID: 1, Enabled: true, IPList: []string{"203.0.113.10"}, Checksum: "sum-1"},
 	}); err != nil {
-		t.Fatalf("SyncWAFIPGroups failed: %v", err)
+		t.Fatalf("ReconcileWAFIPGroups failed: %v", err)
 	}
-	if err := manager.SyncWAFIPGroups([]protocol.WAFIPGroup{
+	if err := manager.ReconcileWAFIPGroups([]uint{1, 2}, []protocol.WAFIPGroup{
 		{ID: 2, Enabled: true, IPList: []string{"198.51.100.10"}, Checksum: "sum-2"},
 	}); err != nil {
-		t.Fatalf("SyncWAFIPGroups second delta failed: %v", err)
+		t.Fatalf("ReconcileWAFIPGroups second delta failed: %v", err)
 	}
 
 	checksums, err := manager.WAFIPGroupChecksums()
@@ -952,6 +1032,252 @@ func TestManagerSyncWAFIPGroupsWritesDeltaRuntimeFile(t *testing.T) {
 	text := string(data)
 	if !strings.Contains(text, "203.0.113.10") || !strings.Contains(text, "198.51.100.10") {
 		t.Fatalf("expected runtime file to keep both groups, got %s", text)
+	}
+}
+
+func TestManagerReconcileWAFIPGroupsConvergesToAuthoritativeTarget(t *testing.T) {
+	runtimeDir := t.TempDir()
+	manager := &Manager{RuntimeConfigDir: runtimeDir}
+	initial, err := sharedprotocol.MarshalWAFIPGroupSnapshot(map[string]protocol.WAFIPGroup{
+		"1":  {ID: 1, Name: "unchanged", Enabled: true, Checksum: "sum-1"},
+		"2":  {ID: 2, Name: "old", Enabled: true, Checksum: "old-2"},
+		"99": {ID: 99, Name: strings.Repeat("x", sharedprotocol.MaxWAFIPGroupSnapshotBytes-1024), Enabled: true, Checksum: "stale"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = os.WriteFile(filepath.Join(runtimeDir, WAFIPGroupsConfigFileName), initial, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if err = manager.ReconcileWAFIPGroups([]uint{1, 2}, []protocol.WAFIPGroup{{
+		ID: 2, Name: "changed", Enabled: true, Checksum: "sum-2",
+	}}); err != nil {
+		t.Fatalf("ReconcileWAFIPGroups failed after pruning oversized stale data: %v", err)
+	}
+	config, err := manager.readWAFIPGroupsRuntimeConfig()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(config.Groups) != 2 {
+		t.Fatalf("authoritative group count = %d, want 2: %#v", len(config.Groups), config.Groups)
+	}
+	if got := config.Groups["1"].Name; got != "unchanged" {
+		t.Fatalf("unchanged referenced group was not retained: %q", got)
+	}
+	if got := config.Groups["2"].Name; got != "changed" {
+		t.Fatalf("changed referenced group was not merged: %q", got)
+	}
+	if _, exists := config.Groups["99"]; exists {
+		t.Fatal("historical unreferenced group was not pruned")
+	}
+}
+
+func TestManagerUpdateExistingWAFIPGroupsIgnoresUnrelatedBroadcast(t *testing.T) {
+	runtimeDir := t.TempDir()
+	manager := &Manager{RuntimeConfigDir: runtimeDir}
+	if err := manager.ReconcileWAFIPGroups([]uint{1}, []protocol.WAFIPGroup{{ID: 1, Name: "old", Checksum: "old"}}); err != nil {
+		t.Fatal(err)
+	}
+	if err := manager.UpdateExistingWAFIPGroups([]protocol.WAFIPGroup{
+		{ID: 1, Name: "new", Checksum: "new"},
+		{ID: 2, Name: "unrelated", Checksum: "sum-2"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	config, err := manager.readWAFIPGroupsRuntimeConfig()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(config.Groups) != 1 || config.Groups["1"].Name != "new" {
+		t.Fatalf("broadcast update escaped existing target: %#v", config.Groups)
+	}
+}
+
+func TestManagerReconcileWAFIPGroupsPublishesRemovalOnlyAndEmptyTargets(t *testing.T) {
+	runtimeDir := t.TempDir()
+	manager := &Manager{RuntimeConfigDir: runtimeDir}
+	if err := manager.ReconcileWAFIPGroups([]uint{1, 2}, []protocol.WAFIPGroup{
+		{ID: 1, Checksum: "sum-1"}, {ID: 2, Checksum: "sum-2"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	before, err := os.ReadFile(filepath.Join(runtimeDir, WAFIPGroupsChecksumFileName))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = manager.ReconcileWAFIPGroups([]uint{1}, nil); err != nil {
+		t.Fatalf("removal-only reconcile failed: %v", err)
+	}
+	after, err := os.ReadFile(filepath.Join(runtimeDir, WAFIPGroupsChecksumFileName))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(before) == string(after) {
+		t.Fatal("removal-only reconcile did not publish a new checksum")
+	}
+	if err = manager.ReconcileWAFIPGroups(nil, nil); err != nil {
+		t.Fatalf("empty authoritative reconcile failed: %v", err)
+	}
+	config, err := manager.readWAFIPGroupsRuntimeConfig()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(config.Groups) != 0 {
+		t.Fatalf("empty authoritative target retained groups: %#v", config.Groups)
+	}
+}
+
+func TestManagerReconcileWAFIPGroupsRejectsMissingReferencedGroup(t *testing.T) {
+	runtimeDir := t.TempDir()
+	data := []byte(`{"groups":{"7":{"id":8,"checksum":"mistaken-match"}}}`)
+	if err := os.WriteFile(filepath.Join(runtimeDir, WAFIPGroupsConfigFileName), data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	manager := &Manager{RuntimeConfigDir: runtimeDir}
+	checksums, err := manager.WAFIPGroupChecksums()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := checksums["7"]; ok {
+		t.Fatalf("invalid local group was mistakenly reported matched: %#v", checksums)
+	}
+	err = manager.ReconcileWAFIPGroups([]uint{7}, nil)
+	if err == nil || !strings.Contains(err.Error(), "missing referenced WAF IP group 7") {
+		t.Fatalf("expected clear missing referenced group error, got %v", err)
+	}
+}
+
+func TestWAFIPGroupChecksumPublishesJSONBeforeSidecar(t *testing.T) {
+	runtimeDir := t.TempDir()
+	var writes []string
+	manager := &Manager{
+		RuntimeConfigDir: runtimeDir,
+		atomicFileWriter: func(path string, data []byte, perm os.FileMode) error {
+			writes = append(writes, filepath.Base(path))
+			return os.WriteFile(path, data, perm)
+		},
+	}
+
+	if err := manager.ReconcileWAFIPGroups([]uint{1}, []protocol.WAFIPGroup{{
+		ID: 1, Enabled: true, IPList: []string{"203.0.113.10"}, Checksum: "sum-1",
+	}}); err != nil {
+		t.Fatalf("SyncWAFIPGroups failed: %v", err)
+	}
+	if got, want := strings.Join(writes, ","), WAFIPGroupsConfigFileName+","+WAFIPGroupsChecksumFileName; got != want {
+		t.Fatalf("expected JSON then checksum publication, got %s", got)
+	}
+	jsonData, err := os.ReadFile(filepath.Join(runtimeDir, WAFIPGroupsConfigFileName))
+	if err != nil {
+		t.Fatalf("read JSON snapshot: %v", err)
+	}
+	checksumData, err := os.ReadFile(filepath.Join(runtimeDir, WAFIPGroupsChecksumFileName))
+	if err != nil {
+		t.Fatalf("read checksum sidecar: %v", err)
+	}
+	if got, want := strings.TrimSpace(string(checksumData)), checksum(string(jsonData)); got != want {
+		t.Fatalf("checksum mismatch: got %q want %q", got, want)
+	}
+}
+
+func TestWAFIPGroupChecksumJSONFailurePreservesOldSidecar(t *testing.T) {
+	runtimeDir := t.TempDir()
+	checksumPath := filepath.Join(runtimeDir, WAFIPGroupsChecksumFileName)
+	if err := os.WriteFile(checksumPath, []byte("old-checksum\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	manager := &Manager{
+		RuntimeConfigDir: runtimeDir,
+		atomicFileWriter: func(path string, _ []byte, _ os.FileMode) error {
+			if filepath.Base(path) == WAFIPGroupsConfigFileName {
+				return errors.New("json rename failed")
+			}
+			return errors.New("checksum must not be written")
+		},
+	}
+
+	if err := manager.ReconcileWAFIPGroups([]uint{1}, []protocol.WAFIPGroup{{ID: 1, Checksum: "sum-1"}}); err == nil {
+		t.Fatal("expected JSON publication failure")
+	}
+	data, err := os.ReadFile(checksumPath)
+	if err != nil || string(data) != "old-checksum\n" {
+		t.Fatalf("old checksum must remain unchanged, data=%q err=%v", data, err)
+	}
+}
+
+func TestWAFIPGroupChecksumBootstrapsLegacySnapshot(t *testing.T) {
+	runtimeDir := t.TempDir()
+	jsonData := []byte(`{"groups":{"7":{"id":7,"enabled":true,"checksum":"sum-7"}}}`)
+	if err := os.WriteFile(filepath.Join(runtimeDir, WAFIPGroupsConfigFileName), jsonData, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	manager := &Manager{RuntimeConfigDir: runtimeDir}
+
+	checksums, err := manager.WAFIPGroupChecksums()
+	if err != nil {
+		t.Fatalf("WAFIPGroupChecksums failed: %v", err)
+	}
+	if checksums["7"] != "sum-7" {
+		t.Fatalf("unexpected group checksums: %#v", checksums)
+	}
+	sidecar, err := os.ReadFile(filepath.Join(runtimeDir, WAFIPGroupsChecksumFileName))
+	if err != nil {
+		t.Fatalf("legacy checksum sidecar was not created: %v", err)
+	}
+	if got, want := strings.TrimSpace(string(sidecar)), checksum(string(jsonData)); got != want {
+		t.Fatalf("legacy checksum mismatch: got %q want %q", got, want)
+	}
+}
+
+func TestWAFIPGroupChecksumRepairsStaleSidecar(t *testing.T) {
+	runtimeDir := t.TempDir()
+	jsonData := []byte(`{"groups":{"9":{"id":9,"enabled":true,"checksum":"sum-9"}}}`)
+	if err := os.WriteFile(filepath.Join(runtimeDir, WAFIPGroupsConfigFileName), jsonData, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	checksumPath := filepath.Join(runtimeDir, WAFIPGroupsChecksumFileName)
+	if err := os.WriteFile(checksumPath, []byte("stale-checksum\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	manager := &Manager{RuntimeConfigDir: runtimeDir}
+
+	if _, err := manager.WAFIPGroupChecksums(); err != nil {
+		t.Fatalf("WAFIPGroupChecksums failed: %v", err)
+	}
+	sidecar, err := os.ReadFile(checksumPath)
+	if err != nil {
+		t.Fatalf("read repaired checksum: %v", err)
+	}
+	if got, want := strings.TrimSpace(string(sidecar)), checksum(string(jsonData)); got != want {
+		t.Fatalf("stale checksum was not repaired: got %q want %q", got, want)
+	}
+}
+
+func TestWAFIPGroupSnapshotRejectsOversizeBeforePublication(t *testing.T) {
+	runtimeDir := t.TempDir()
+	jsonPath := filepath.Join(runtimeDir, WAFIPGroupsConfigFileName)
+	checksumPath := filepath.Join(runtimeDir, WAFIPGroupsChecksumFileName)
+	oldJSON := []byte(`{"groups":{"1":{"id":1,"enabled":true,"checksum":"old"}}}`)
+	oldChecksum := []byte("old-checksum\n")
+	if err := os.WriteFile(jsonPath, oldJSON, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(checksumPath, oldChecksum, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	manager := &Manager{RuntimeConfigDir: runtimeDir}
+
+	err := manager.ReconcileWAFIPGroups([]uint{1, 2}, []protocol.WAFIPGroup{{
+		ID: 2, Name: strings.Repeat("x", sharedprotocol.MaxWAFIPGroupSnapshotBytes), Enabled: true, Checksum: "new",
+	}})
+	if err == nil || !strings.Contains(err.Error(), "exceeds maximum") {
+		t.Fatalf("expected clear oversized snapshot error, got %v", err)
+	}
+	if got, readErr := os.ReadFile(jsonPath); readErr != nil || string(got) != string(oldJSON) {
+		t.Fatalf("oversized snapshot touched committed JSON, got=%q err=%v", got, readErr)
+	}
+	if got, readErr := os.ReadFile(checksumPath); readErr != nil || string(got) != string(oldChecksum) {
+		t.Fatalf("oversized snapshot touched committed checksum, got=%q err=%v", got, readErr)
 	}
 }
 

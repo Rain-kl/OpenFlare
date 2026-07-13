@@ -112,94 +112,8 @@ func RenderRouteConfig(doc Document, certificateFiles []SupportFile) (string, er
 // RenderWAFConfig serialises the WAF runtime configuration (rule groups and
 // per-site bindings) as a JSON string consumed by the OpenResty Lua runtime.
 func RenderWAFConfig(snapshot WAFDocument) (string, error) {
-	type wafRuntimeRuleGroup struct {
-		ID                uint       `json:"id"`
-		Name              string     `json:"name"`
-		IsGlobal          bool       `json:"is_global"`
-		BlockStatusCode   int        `json:"block_status_code"`
-		BlockResponseBody string     `json:"block_response_body"`
-		IPWhitelist       []string   `json:"ip_whitelist"`
-		IPBlacklist       []string   `json:"ip_blacklist"`
-		IPWhitelistGroups []uint     `json:"ip_whitelist_group_ids,omitempty"`
-		IPBlacklistGroups []uint     `json:"ip_blacklist_group_ids,omitempty"`
-		CountryWhitelist  []string   `json:"country_whitelist"`
-		CountryBlacklist  []string   `json:"country_blacklist"`
-		RegionWhitelist   []string   `json:"region_whitelist"`
-		RegionBlacklist   []string   `json:"region_blacklist"`
-		PoWEnabled        bool       `json:"pow_enabled"`
-		PoWConfig         *PoWConfig `json:"pow_config,omitempty"`
-	}
-	type wafRuntimeConfig struct {
-		DefaultBlockStatusCode int                   `json:"default_block_status_code"`
-		RuleGroups             []wafRuntimeRuleGroup `json:"rule_groups"`
-		SiteRuleGroups         map[string][]uint     `json:"site_rule_groups"`
-	}
-	groups := make([]wafRuntimeRuleGroup, 0, len(snapshot.RuleGroups))
-	globalGroupIDs := make([]uint, 0)
-	enabledGroupIDs := make(map[uint]struct{}, len(snapshot.RuleGroups))
-	for _, group := range snapshot.RuleGroups {
-		if !group.Enabled {
-			continue
-		}
-		statusCode := group.BlockStatusCode
-		if statusCode == 0 {
-			statusCode = defaultWAFBlockStatus
-		}
-		if group.IsGlobal {
-			globalGroupIDs = append(globalGroupIDs, group.ID)
-		}
-		enabledGroupIDs[group.ID] = struct{}{}
-		powConfig := ensurePoWConfig(group.PoWEnabled, group.PoWConfig)
-		groups = append(groups, wafRuntimeRuleGroup{
-			ID:                group.ID,
-			Name:              group.Name,
-			IsGlobal:          group.IsGlobal,
-			BlockStatusCode:   statusCode,
-			BlockResponseBody: group.BlockResponseBody,
-			IPWhitelist:       sortedUniqueStrings(group.IPWhitelist),
-			IPBlacklist:       sortedUniqueStrings(group.IPBlacklist),
-			IPWhitelistGroups: sortedUniqueUintIDs(group.IPWhitelistGroups),
-			IPBlacklistGroups: sortedUniqueUintIDs(group.IPBlacklistGroups),
-			CountryWhitelist:  group.CountryWhitelist,
-			CountryBlacklist:  group.CountryBlacklist,
-			RegionWhitelist:   group.RegionWhitelist,
-			RegionBlacklist:   group.RegionBlacklist,
-			PoWEnabled:        group.PoWEnabled,
-			PoWConfig:         powConfig,
-		})
-	}
-	sort.Slice(groups, func(i, j int) bool {
-		if groups[i].IsGlobal != groups[j].IsGlobal {
-			return groups[i].IsGlobal
-		}
-		return groups[i].ID < groups[j].ID
-	})
-	sort.Slice(globalGroupIDs, func(i, j int) bool { return globalGroupIDs[i] < globalGroupIDs[j] })
-	siteRuleGroups := make(map[string][]uint, len(snapshot.Bindings))
-	for _, binding := range snapshot.Bindings {
-		ids := append([]uint{}, globalGroupIDs...)
-		for _, id := range binding.RuleGroupIDs {
-			if _, ok := enabledGroupIDs[id]; ok {
-				ids = append(ids, id)
-			}
-		}
-		siteRuleGroups[binding.SiteName] = uniqueUintIDs(ids)
-	}
-	data, err := json.Marshal(wafRuntimeConfig{DefaultBlockStatusCode: defaultWAFBlockStatus, RuleGroups: groups, SiteRuleGroups: siteRuleGroups})
+	data, err := json.Marshal(snapshot)
 	return string(data), err
-}
-
-func sortedUniqueStrings(values []string) []string {
-	items := append([]string{}, values...)
-	items = uniqueStrings(items)
-	sort.Strings(items)
-	return items
-}
-
-func sortedUniqueUintIDs(values []uint) []uint {
-	items := uniqueUintIDs(values)
-	sort.Slice(items, func(i, j int) bool { return items[i] < items[j] })
-	return items
 }
 
 // ChecksumBundle returns a stable SHA-256 hex digest over the combined content
@@ -313,7 +227,7 @@ func renderOpenRestyLimitZoneBlock() string {
 }
 
 func renderOpenRestyObservabilityTemplateBlock() string {
-	return fmt.Sprintf("    lua_shared_dict openflare_observability 10m;\n    lua_shared_dict openflare_pow_challenges 10m;\n    lua_shared_dict openflare_pow_sessions 10m;\n    lua_shared_dict openflare_pow_config 1m;\n    lua_shared_dict openflare_waf_config 1m;\n    init_worker_by_lua_file %s/observability/init.lua;\n    log_by_lua_file %s/observability/log.lua;\n\n    server {\n        listen %s;\n        server_name openflare-observability;\n        access_log off;\n\n        location = /openflare/stub_status {\n            stub_status;\n        }\n\n        location = /openflare/observability {\n            default_type application/json;\n            content_by_lua_file %s/observability/read.lua;\n        }\n    }\n\n", LuaDirPlaceholder, LuaDirPlaceholder, ObservabilityListenPlaceholder, LuaDirPlaceholder)
+	return fmt.Sprintf("    lua_shared_dict openflare_observability 10m;\n    lua_shared_dict openflare_pow_challenges 10m;\n    lua_shared_dict openflare_pow_sessions 10m;\n    lua_shared_dict openflare_pow_config 1m;\n    lua_shared_dict openflare_waf_config 1m;\n    lua_shared_dict openflare_waf_ip_groups 64m;\n    init_worker_by_lua_file %s/observability/init.lua;\n    log_by_lua_file %s/observability/log.lua;\n\n    server {\n        listen %s;\n        server_name openflare-observability;\n        access_log off;\n\n        location = /openflare/stub_status {\n            stub_status;\n        }\n\n        location = /openflare/observability {\n            default_type application/json;\n            content_by_lua_file %s/observability/read.lua;\n        }\n    }\n\n", LuaDirPlaceholder, LuaDirPlaceholder, ObservabilityListenPlaceholder, LuaDirPlaceholder)
 }
 
 func renderHTTPProxyServer(serverNames string, siteName string, originURL string, originHost string, customHeaders []CustomHeader, cacheConfig routeCacheConfig, limitConfig routeLimitConfig, upstreamConfig routeUpstreamConfig, powEnabled bool, basicAuthEnabled bool, basicAuthUsername string, basicAuthPassword string, cfg ConfigSnapshot) string {
@@ -771,7 +685,6 @@ func getPoWConfigForRoute(routeID uint, snapshot WAFDocument) (bool, *PoWConfig)
 			globalGroupIDs = append(globalGroupIDs, group.ID)
 		}
 	}
-	sort.Slice(globalGroupIDs, func(i, j int) bool { return globalGroupIDs[i] < globalGroupIDs[j] })
 
 	var boundGroupIDs []uint
 	for _, binding := range snapshot.Bindings {
@@ -789,23 +702,20 @@ func getPoWConfigForRoute(routeID uint, snapshot WAFDocument) (bool, *PoWConfig)
 	activeGroupIDs := uniqueUintIDs(append(append([]uint{}, globalGroupIDs...), boundGroupIDs...))
 	for _, groupID := range activeGroupIDs {
 		group := enabledGroups[groupID]
-		if group.PoWEnabled {
-			config := ensurePoWConfig(true, group.PoWConfig)
-			return true, config
+		if graphContainsNodeType(group.Graph, "pow") {
+			return true, nil
 		}
 	}
 	return false, nil
 }
 
-func ensurePoWConfig(enabled bool, config *PoWConfig) *PoWConfig {
-	if !enabled {
-		return nil
+func graphContainsNodeType(graph WAFRuleGraph, nodeType string) bool {
+	for _, node := range graph.Nodes {
+		if node.Type == nodeType {
+			return true
+		}
 	}
-	if config != nil {
-		return config
-	}
-	defaultConfig := DefaultPoWConfig()
-	return &defaultConfig
+	return false
 }
 
 func uniqueUintIDs(values []uint) []uint {
@@ -820,23 +730,6 @@ func uniqueUintIDs(values []uint) []uint {
 		}
 		seen[value] = struct{}{}
 		result = append(result, value)
-	}
-	return result
-}
-
-func uniqueStrings(values []string) []string {
-	seen := make(map[string]struct{}, len(values))
-	result := make([]string, 0, len(values))
-	for _, value := range values {
-		item := strings.TrimSpace(value)
-		if item == "" {
-			continue
-		}
-		if _, ok := seen[item]; ok {
-			continue
-		}
-		seen[item] = struct{}{}
-		result = append(result, item)
 	}
 	return result
 }

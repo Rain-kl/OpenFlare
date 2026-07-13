@@ -6,6 +6,16 @@ import (
 	"testing"
 )
 
+func TestRenderOpenRestyUsesDedicatedWAFIPGroupSharedDict(t *testing.T) {
+	block := renderOpenRestyObservabilityTemplateBlock()
+	if !strings.Contains(block, "lua_shared_dict openflare_waf_config 1m;") {
+		t.Fatal("expected general WAF coordination dictionary to remain available")
+	}
+	if !strings.Contains(block, "lua_shared_dict openflare_waf_ip_groups 64m;") {
+		t.Fatalf("expected dedicated 64m WAF IP group dictionary, got:\n%s", block)
+	}
+}
+
 func TestRenderWAFConfigIncludesAllRouteSiteNames(t *testing.T) {
 	doc := Document{
 		Routes: []Route{
@@ -15,11 +25,8 @@ func TestRenderWAFConfigIncludesAllRouteSiteNames(t *testing.T) {
 		WAF: WAFDocument{
 			RuleGroups: []WAFRuleGroup{
 				{
-					ID:         1,
-					Name:       "pow-group",
-					Enabled:    true,
-					PoWEnabled: true,
-					PoWConfig:  &PoWConfig{Difficulty: 4, Algorithm: "fast", SessionTTL: 600, ChallengeTTL: 300},
+					ID: 1, Name: "pow-group", Enabled: true,
+					Graph: WAFRuleGraph{Entry: "pow", Nodes: map[string]WAFRuleNode{"pow": {Type: "pow"}}},
 				},
 			},
 			Bindings: []WAFBinding{
@@ -34,18 +41,13 @@ func TestRenderWAFConfigIncludesAllRouteSiteNames(t *testing.T) {
 		t.Fatalf("RenderWAFConfig() error = %v", err)
 	}
 
-	var decoded struct {
-		SiteRuleGroups map[string][]uint `json:"site_rule_groups"`
-	}
+	var decoded WAFDocument
 	if err := json.Unmarshal([]byte(wafConfig), &decoded); err != nil {
 		t.Fatalf("json.Unmarshal() error = %v", err)
 	}
 
-	for _, route := range doc.Routes {
-		siteName := resolveRouteSiteName(route)
-		if _, ok := decoded.SiteRuleGroups[siteName]; !ok {
-			t.Fatalf("site_rule_groups missing site %q, got %#v", siteName, decoded.SiteRuleGroups)
-		}
+	if len(decoded.Bindings) != 2 || decoded.Bindings[0].SiteName != "example.com" || decoded.Bindings[1].SiteName != "named-site" {
+		t.Fatalf("bindings did not preserve route site names: %#v", decoded.Bindings)
 	}
 
 	routeConfig, err := RenderRouteConfig(doc, nil)
@@ -60,7 +62,7 @@ func TestRenderWAFConfigIncludesAllRouteSiteNames(t *testing.T) {
 	}
 }
 
-func TestRenderWAFConfigUsesDefaultPoWConfigWhenEnabledWithoutPayload(t *testing.T) {
+func TestRenderWAFConfigDoesNotSynthesizeLegacyPoWConfig(t *testing.T) {
 	doc := WAFDocument{
 		RuleGroups: []WAFRuleGroup{
 			{
@@ -81,26 +83,15 @@ func TestRenderWAFConfigUsesDefaultPoWConfigWhenEnabledWithoutPayload(t *testing
 		t.Fatalf("RenderWAFConfig() error = %v", err)
 	}
 
-	var decoded struct {
-		RuleGroups []struct {
-			PoWEnabled bool       `json:"pow_enabled"`
-			PoWConfig  *PoWConfig `json:"pow_config"`
-		} `json:"rule_groups"`
-	}
+	var decoded WAFDocument
 	if err := json.Unmarshal([]byte(wafConfig), &decoded); err != nil {
 		t.Fatalf("json.Unmarshal() error = %v", err)
 	}
 	if len(decoded.RuleGroups) != 1 {
 		t.Fatalf("expected 1 rule group, got %d", len(decoded.RuleGroups))
 	}
-	if !decoded.RuleGroups[0].PoWEnabled {
-		t.Fatal("expected pow_enabled=true")
-	}
-	if decoded.RuleGroups[0].PoWConfig == nil {
-		t.Fatal("expected default pow_config to be emitted")
-	}
-	if decoded.RuleGroups[0].PoWConfig.Difficulty != 4 {
-		t.Fatalf("expected default difficulty 4, got %d", decoded.RuleGroups[0].PoWConfig.Difficulty)
+	if decoded.RuleGroups[0].PoWConfig != nil {
+		t.Fatalf("expected renderer not to synthesize legacy PoW config, got %#v", decoded.RuleGroups[0].PoWConfig)
 	}
 }
 
@@ -108,11 +99,8 @@ func TestGetPoWConfigForRouteUsesGlobalGroupWithoutExplicitBinding(t *testing.T)
 	snapshot := WAFDocument{
 		RuleGroups: []WAFRuleGroup{
 			{
-				ID:         1,
-				Name:       "global",
-				Enabled:    true,
-				IsGlobal:   true,
-				PoWEnabled: true,
+				ID: 1, Name: "global", Enabled: true, IsGlobal: true,
+				Graph: WAFRuleGraph{Entry: "pow", Nodes: map[string]WAFRuleNode{"pow": {Type: "pow"}}},
 			},
 		},
 		Bindings: []WAFBinding{
@@ -124,8 +112,67 @@ func TestGetPoWConfigForRouteUsesGlobalGroupWithoutExplicitBinding(t *testing.T)
 	if !enabled {
 		t.Fatal("expected pow to be enabled via global rule group")
 	}
-	if config == nil || config.Difficulty != 4 {
-		t.Fatalf("expected default pow config, got %#v", config)
+	if config != nil {
+		t.Fatalf("expected node config to stay in runtime graph, got legacy config %#v", config)
+	}
+}
+
+func TestRenderRouteConfigEnablesPoWLocationsFromRuntimeGraph(t *testing.T) {
+	doc := Document{
+		Routes: []Route{{ID: 1, SiteName: "pow.example.com", Domains: []string{"pow.example.com"}, OriginURL: "http://127.0.0.1:8080", Enabled: true}},
+		WAF: WAFDocument{
+			RuleGroups: []WAFRuleGroup{{
+				ID: 1, Name: "graph-pow", Enabled: true, IsGlobal: true,
+				Graph: WAFRuleGraph{Entry: "start", Nodes: map[string]WAFRuleNode{
+					"start": {Type: "start", Next: map[string]string{"next": "pow"}},
+					"pow":   {Type: "pow", Config: json.RawMessage(`{"algorithm":"fast","difficulty":4,"session_ttl":600,"challenge_ttl":300}`), Next: map[string]string{"next": "allow"}},
+					"allow": {Type: "allow"},
+				}},
+			}},
+			Bindings: []WAFBinding{{RouteID: 1, SiteName: "pow.example.com", RuleGroupIDs: []uint{}}},
+		},
+	}
+
+	rendered, err := RenderRouteConfig(doc, nil)
+	if err != nil {
+		t.Fatalf("RenderRouteConfig() error = %v", err)
+	}
+	for _, expected := range []string{
+		`location = /.within.website/x/cmd/anubis/api/make-challenge`,
+		`location = /.within.website/x/cmd/anubis/api/pass-challenge`,
+		`location /.within.website/x/cmd/anubis/static/`,
+	} {
+		if !strings.Contains(rendered, expected) {
+			t.Fatalf("expected graph PoW route to contain %q, got:\n%s", expected, rendered)
+		}
+	}
+}
+
+func TestRenderWAFConfigPreservesRuntimeGraphAndBindingOrder(t *testing.T) {
+	doc := WAFDocument{
+		RuleGroups: []WAFRuleGroup{{
+			ID: 9, Name: "graph", Enabled: true,
+			Graph: WAFRuleGraph{Entry: "start", Nodes: map[string]WAFRuleNode{
+				"start": {Type: "start", Next: map[string]string{"next": "allow"}},
+				"allow": {Type: "allow"},
+			}},
+		}},
+		Bindings: []WAFBinding{{RouteID: 3, SiteName: "ordered.example.com", RuleGroupIDs: []uint{9, 4, 7}}},
+	}
+
+	raw, err := RenderWAFConfig(doc)
+	if err != nil {
+		t.Fatalf("RenderWAFConfig() error = %v", err)
+	}
+	var decoded WAFDocument
+	if err := json.Unmarshal([]byte(raw), &decoded); err != nil {
+		t.Fatalf("json.Unmarshal() error = %v", err)
+	}
+	if decoded.RuleGroups[0].Graph.Entry != "start" {
+		t.Fatalf("runtime graph was not preserved: %#v", decoded.RuleGroups[0].Graph)
+	}
+	if got := decoded.Bindings[0].RuleGroupIDs; len(got) != 3 || got[0] != 9 || got[1] != 4 || got[2] != 7 {
+		t.Fatalf("binding order changed: %#v", got)
 	}
 }
 

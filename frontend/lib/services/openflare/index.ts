@@ -76,6 +76,7 @@ export type {
   WAFRuleGraph,
   WAFRuleNode,
   WAFSaveRuleGraphPayload,
+  WAFUpdateRuleMetaPayload,
   WAFRuleGroup,
   WAFRuleGroupPayload,
   WAFSiteRuleGroups,

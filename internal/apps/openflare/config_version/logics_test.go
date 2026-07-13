@@ -13,6 +13,7 @@ import (
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/waf"
 	"github.com/Rain-kl/Wavelet/internal/db"
 	"github.com/Rain-kl/Wavelet/internal/model"
+	openrestyrender "github.com/Rain-kl/Wavelet/pkg/render/openresty"
 	"github.com/glebarez/sqlite"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -151,13 +152,7 @@ func TestBuildSnapshotWAFDocumentUsesNormalizedSiteNames(t *testing.T) {
 	globalGroup, err := model.GetGlobalOpenFlareWAFRuleGroup(ctx)
 	require.NoError(t, err)
 
-	customGroup := &model.OpenFlareWAFRuleGroup{
-		Name:       "pow-group",
-		Enabled:    true,
-		PoWEnabled: true,
-		PoWConfig:  `{"difficulty":4,"algorithm":"fast","session_ttl":600,"challenge_ttl":300}`,
-	}
-	require.NoError(t, model.CreateOpenFlareWAFRuleGroup(ctx, customGroup))
+	customGroup := createSnapshotRule(t, ctx, "pow-group", waf.DefaultRuleGraph())
 	require.NoError(t, model.ReplaceOpenFlareWAFRuleGroupBindings(ctx, customGroup.ID, []uint{route.ID}))
 
 	bundle, err := buildCurrentConfigBundle(ctx, true)
@@ -177,20 +172,24 @@ func TestBuildSnapshotWAFDocumentUsesNormalizedSiteNames(t *testing.T) {
 	}
 	assert.True(t, found, "expected WAF binding for enabled route")
 
-	var wafRuntime struct {
-		SiteRuleGroups map[string][]uint `json:"site_rule_groups"`
-	}
+	var wafRuntime openrestyrender.WAFDocument
+	foundWAFConfig := false
 	for _, file := range bundle.SupportFiles {
 		if file.Path != "waf_config.json" {
 			continue
 		}
+		foundWAFConfig = true
 		require.NoError(t, json.Unmarshal([]byte(file.Content), &wafRuntime))
 	}
-	require.Contains(t, wafRuntime.SiteRuleGroups, "example.com")
-	require.Contains(t, wafRuntime.SiteRuleGroups["example.com"], customGroup.ID)
-	require.Contains(t, wafRuntime.SiteRuleGroups["example.com"], globalGroup.ID)
+	require.True(t, foundWAFConfig, "expected rendered WAF support file")
+	require.NotEmpty(t, wafRuntime.RuleGroups)
+	assert.Equal(t, globalGroup.ID, wafRuntime.RuleGroups[0].ID)
+	assert.True(t, wafRuntime.RuleGroups[0].IsGlobal)
+	require.Len(t, wafRuntime.Bindings, 1)
+	assert.Equal(t, route.ID, wafRuntime.Bindings[0].RouteID)
+	assert.Equal(t, "example.com", wafRuntime.Bindings[0].SiteName)
+	assert.Equal(t, []uint{customGroup.ID}, wafRuntime.Bindings[0].RuleGroupIDs)
 	assert.Contains(t, bundle.RouteConfig, `set $openflare_waf_site "example.com"`)
-	assert.Contains(t, bundle.RouteConfig, `require("pow.runtime").check()`)
 }
 
 func TestBuildCurrentConfigBundleEnablesGlobalPoWWithoutExplicitBinding(t *testing.T) {
@@ -210,34 +209,30 @@ func TestBuildCurrentConfigBundleEnablesGlobalPoWWithoutExplicitBinding(t *testi
 	require.NoError(t, waf.EnsureDefaultRuleGroup(ctx))
 	globalGroup, err := model.GetGlobalOpenFlareWAFRuleGroup(ctx)
 	require.NoError(t, err)
-	globalGroup.PoWEnabled = true
-	globalGroup.PoWConfig = `{"difficulty":4,"algorithm":"fast","session_ttl":600,"challenge_ttl":300}`
-	require.NoError(t, model.UpdateOpenFlareWAFRuleGroup(ctx, globalGroup))
+	graphJSON, err := json.Marshal(snapshotPoWGraph())
+	require.NoError(t, err)
+	globalGroup.Graph = string(graphJSON)
+	require.NoError(t, db.DB(ctx).Model(globalGroup).Update("graph", globalGroup.Graph).Error)
 
 	bundle, err := buildCurrentConfigBundle(ctx, true)
 	require.NoError(t, err)
-	assert.Contains(t, bundle.RouteConfig, `require("pow.runtime").check()`)
-
-	var wafRuntime struct {
-		RuleGroups []struct {
-			ID         uint `json:"id"`
-			PoWEnabled bool `json:"pow_enabled"`
-			PoWConfig  *struct {
-				Difficulty int `json:"difficulty"`
-			} `json:"pow_config"`
-		} `json:"rule_groups"`
-		SiteRuleGroups map[string][]uint `json:"site_rule_groups"`
-	}
+	var wafRuntime openrestyrender.WAFDocument
+	foundWAFConfig := false
 	for _, file := range bundle.SupportFiles {
 		if file.Path != "waf_config.json" {
 			continue
 		}
+		foundWAFConfig = true
 		require.NoError(t, json.Unmarshal([]byte(file.Content), &wafRuntime))
 	}
-	require.Contains(t, wafRuntime.SiteRuleGroups, "pow-global.example.com")
-	require.Contains(t, wafRuntime.SiteRuleGroups["pow-global.example.com"], globalGroup.ID)
+	require.True(t, foundWAFConfig, "expected rendered WAF support file")
 	require.NotEmpty(t, wafRuntime.RuleGroups)
-	assert.True(t, wafRuntime.RuleGroups[0].PoWEnabled)
-	require.NotNil(t, wafRuntime.RuleGroups[0].PoWConfig)
-	assert.Equal(t, 4, wafRuntime.RuleGroups[0].PoWConfig.Difficulty)
+	assert.Equal(t, globalGroup.ID, wafRuntime.RuleGroups[0].ID)
+	assert.True(t, wafRuntime.RuleGroups[0].IsGlobal)
+	assert.Equal(t, string(waf.RuleNodePoW), wafRuntime.RuleGroups[0].Graph.Nodes["pow"].Type)
+	require.Len(t, wafRuntime.Bindings, 1)
+	assert.Equal(t, "pow-global.example.com", wafRuntime.Bindings[0].SiteName)
+	assert.Empty(t, wafRuntime.Bindings[0].RuleGroupIDs)
+	require.NotEmpty(t, bundle.WAFSnapshot.RuleGroups)
+	assert.Equal(t, waf.RuleNodePoW, bundle.WAFSnapshot.RuleGroups[0].Graph.Nodes["pow"].Type)
 }

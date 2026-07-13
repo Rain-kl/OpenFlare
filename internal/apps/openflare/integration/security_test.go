@@ -109,12 +109,7 @@ func TestSecurityWAFTLSMigrationFlow(t *testing.T) {
 
 	t.Run("WAF rule group create", func(t *testing.T) {
 		rec := performJSONRequest(t, engine, http.MethodPost, apiPath("/waf/rule-groups"), map[string]any{
-			"name":              "edge-security",
-			"enabled":           true,
-			"block_status_code": 403,
-			"ip_whitelist":      []string{"192.0.2.1"},
-			"ip_blacklist":      []string{"203.0.113.10"},
-			"country_blacklist": []string{"CN"},
+			"name": "edge-security",
 		}, adminAuthHeaders(seed.Token))
 		require.Equal(t, http.StatusOK, rec.Code)
 
@@ -124,7 +119,8 @@ func TestSecurityWAFTLSMigrationFlow(t *testing.T) {
 		assert.NotZero(t, ruleGroupID)
 		assert.Equal(t, "edge-security", data["name"])
 		assert.Equal(t, false, data["is_global"])
-		assert.Equal(t, float64(403), data["block_status_code"])
+		assert.Equal(t, float64(1), data["revision"])
+		assert.NotNil(t, data["graph"])
 	})
 
 	t.Run("WAF rule group list includes global and custom groups", func(t *testing.T) {
@@ -174,11 +170,9 @@ func TestSecurityWAFTLSMigrationFlow(t *testing.T) {
 			t,
 			engine,
 			http.MethodPost,
-			fmt.Sprintf("%s/waf/rule-groups/%d/update", apiPath(""), ruleGroupID),
+			fmt.Sprintf("%s/waf/rule-groups/%d/meta", apiPath(""), ruleGroupID),
 			map[string]any{
-				"name":              "edge-security-updated",
-				"enabled":           true,
-				"block_status_code": 451,
+				"name": "edge-security-updated", "enabled": true,
 			},
 			adminAuthHeaders(seed.Token),
 		)
@@ -187,7 +181,7 @@ func TestSecurityWAFTLSMigrationFlow(t *testing.T) {
 		resp := requireAPIOK(t, rec)
 		data := unmarshalAPIMap(t, resp.Data)
 		assert.Equal(t, "edge-security-updated", data["name"])
-		assert.Equal(t, float64(451), data["block_status_code"])
+		assert.Equal(t, true, data["enabled"])
 	})
 
 	t.Run("WAF IP group create", func(t *testing.T) {

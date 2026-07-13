@@ -21,12 +21,12 @@ func registerWAFRoutes(apiGroup *gin.RouterGroup) {
 		wafRoute.POST("/ip-groups/:id/delete", waf.DeleteIPGroupHandler)
 		wafRoute.POST("/ip-groups/:id/sync", waf.SyncIPGroupHandler)
 
-		wafRoute.GET("/rule-groups", waf.ListRuleGroupsHandler)
-		wafRoute.GET("/rule-groups/:id", waf.GetRuleGroupHandler)
-		wafRoute.POST("/rule-groups", waf.CreateRuleGroupHandler)
-		wafRoute.POST("/rule-groups/:id/update", waf.UpdateRuleGroupHandler)
-		wafRoute.POST("/rule-groups/:id/delete", waf.DeleteRuleGroupHandler)
-		wafRoute.POST("/rule-groups/:id/sites", waf.ReplaceRuleGroupSitesHandler)
+		wafRoute.GET("/rule-groups", waf.ListRulesHandler)
+		wafRoute.GET("/rule-groups/:id", waf.GetRuleHandler)
+		wafRoute.POST("/rule-groups", waf.CreateRuleHandler)
+		wafRoute.POST("/rule-groups/:id/meta", waf.UpdateRuleMetaHandler)
+		wafRoute.POST("/rule-groups/:id/graph", waf.SaveRuleGraphHandler)
+		wafRoute.POST("/rule-groups/:id/delete", waf.DeleteRuleHandler)
 
 		wafRoute.GET("/sites/:route_id/rule-groups", waf.GetSiteRuleGroupsHandler)
 		wafRoute.POST("/sites/:route_id/rule-groups", waf.ReplaceSiteRuleGroupsHandler)

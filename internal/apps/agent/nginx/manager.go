@@ -18,9 +18,12 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
+	"sync"
 	"time"
 
+	sharedprotocol "github.com/Rain-kl/Wavelet/pkg/protocol"
 	openrestyrender "github.com/Rain-kl/Wavelet/pkg/render/openresty"
 	"github.com/Rain-kl/Wavelet/pkg/utils"
 
@@ -31,11 +34,23 @@ import (
 // RuntimeConfigDirPlaceholder is substituted into generated configs at apply time.
 const RuntimeConfigDirPlaceholder = "__OPENFLARE_RUNTIME_CONFIG_DIR__"
 
+// CountryMMDBPathPlaceholder is substituted with the configured Country database path.
+const CountryMMDBPathPlaceholder = "__OPENFLARE_COUNTRY_MMDB_PATH__"
+
+// CityMMDBPathPlaceholder is substituted with the configured City database path.
+const CityMMDBPathPlaceholder = "__OPENFLARE_CITY_MMDB_PATH__"
+
+// WAFIPGroupsMaxSnapshotBytesPlaceholder is replaced with the shared protocol aggregate snapshot limit.
+const WAFIPGroupsMaxSnapshotBytesPlaceholder = "__OPENFLARE_WAF_IP_GROUPS_MAX_SNAPSHOT_BYTES__"
+
 // ResolverDirectivePlaceholder is substituted into generated configs at apply time.
 const ResolverDirectivePlaceholder = "__OPENFLARE_RESOLVER_DIRECTIVE__"
 
 // WAFIPGroupsConfigFileName is the runtime filename for synced WAF IP group data.
 const WAFIPGroupsConfigFileName = "waf_ip_groups.json"
+
+// WAFIPGroupsChecksumFileName is atomically published after the IP group JSON snapshot.
+const WAFIPGroupsChecksumFileName = WAFIPGroupsConfigFileName + ".checksum"
 const powConfigFileName = "pow_config.json"
 
 const (
@@ -45,6 +60,7 @@ const (
 	stubStatusCheckTimeout    = 1500 * time.Millisecond
 	nginxVersionSubmatchCount = 2
 	resolverAddressCapacity   = 2
+	workerInitSubmatchCount   = 2
 )
 
 // Executor controls OpenResty validation, reload, health, and lifecycle operations.
@@ -169,11 +185,15 @@ type Manager struct {
 	LuaDir                       string
 	NginxLuaDir                  string
 	RuntimeConfigDir             string
+	MMDBPath                     string
+	CityMMDBPath                 string
 	PagesDir                     string
 	OpenrestyObservabilityListen string
 	OpenrestyObservabilityPort   int
 	OpenrestyResolverDirective   string
 	Executor                     Executor
+	atomicFileWriter             func(path string, data []byte, perm os.FileMode) error
+	wafIPGroupsMu                sync.Mutex
 }
 
 // ApplyStatus reports the outcome of an OpenResty configuration apply.
@@ -522,12 +542,21 @@ func (m *Manager) CurrentChecksum() (string, error) {
 
 // WAFIPGroupChecksums returns checksums for locally synced WAF IP groups.
 func (m *Manager) WAFIPGroupChecksums() (map[string]string, error) {
+	m.wafIPGroupsMu.Lock()
+	defer m.wafIPGroupsMu.Unlock()
+
 	config, err := m.readWAFIPGroupsRuntimeConfig()
 	if err != nil {
 		return nil, err
 	}
+	if err = m.ensureWAFIPGroupsChecksum(); err != nil {
+		return nil, err
+	}
 	result := make(map[string]string, len(config.Groups))
 	for id, group := range config.Groups {
+		if id != strconv.FormatUint(uint64(group.ID), 10) {
+			continue
+		}
 		if strings.TrimSpace(group.Checksum) != "" {
 			result[id] = strings.TrimSpace(group.Checksum)
 		}
@@ -535,36 +564,161 @@ func (m *Manager) WAFIPGroupChecksums() (map[string]string, error) {
 	return result, nil
 }
 
-// SyncWAFIPGroups writes WAF IP group definitions to the runtime config directory.
-func (m *Manager) SyncWAFIPGroups(groups []protocol.WAFIPGroup) error {
-	if m.RuntimeConfigDir == "" || len(groups) == 0 {
+// ReconcileWAFIPGroups atomically replaces the runtime snapshot with exactly the
+// authoritative target IDs, retaining local definitions that did not change.
+func (m *Manager) ReconcileWAFIPGroups(targetIDs []uint, changed []protocol.WAFIPGroup) error {
+	if m.RuntimeConfigDir == "" {
 		return nil
 	}
+	m.wafIPGroupsMu.Lock()
+	defer m.wafIPGroupsMu.Unlock()
+
 	config, err := m.readWAFIPGroupsRuntimeConfig()
 	if err != nil {
 		return err
 	}
-	if config.Groups == nil {
-		config.Groups = make(map[string]protocol.WAFIPGroup)
-	}
-	for _, group := range groups {
-		if group.ID == 0 {
+	target := make(map[string]protocol.WAFIPGroup, len(targetIDs))
+	targetSet := make(map[uint]struct{}, len(targetIDs))
+	for _, id := range targetIDs {
+		if id == 0 {
 			continue
 		}
-		config.Groups[fmt.Sprintf("%d", group.ID)] = group
+		targetSet[id] = struct{}{}
+		key := strconv.FormatUint(uint64(id), 10)
+		if group, ok := config.Groups[key]; ok && group.ID == id {
+			target[key] = group
+		}
 	}
-	data, err := json.Marshal(config)
+	for _, group := range changed {
+		if _, ok := targetSet[group.ID]; !ok {
+			continue
+		}
+		target[strconv.FormatUint(uint64(group.ID), 10)] = group
+	}
+	for _, id := range targetIDs {
+		if id == 0 {
+			continue
+		}
+		if _, ok := target[strconv.FormatUint(uint64(id), 10)]; !ok {
+			return fmt.Errorf("missing referenced WAF IP group %d after synchronization", id)
+		}
+	}
+	return m.publishWAFIPGroups(target)
+}
+
+// UpdateExistingWAFIPGroups applies real-time changes only to groups already
+// present in the authoritative local snapshot.
+func (m *Manager) UpdateExistingWAFIPGroups(changed []protocol.WAFIPGroup) error {
+	if m.RuntimeConfigDir == "" || len(changed) == 0 {
+		return nil
+	}
+	m.wafIPGroupsMu.Lock()
+	defer m.wafIPGroupsMu.Unlock()
+
+	config, err := m.readWAFIPGroupsRuntimeConfig()
 	if err != nil {
 		return err
+	}
+	updated := false
+	for _, group := range changed {
+		key := strconv.FormatUint(uint64(group.ID), 10)
+		if _, ok := config.Groups[key]; !ok || group.ID == 0 {
+			continue
+		}
+		config.Groups[key] = group
+		updated = true
+	}
+	if !updated {
+		return nil
+	}
+	return m.publishWAFIPGroups(config.Groups)
+}
+
+func (m *Manager) publishWAFIPGroups(groups map[string]protocol.WAFIPGroup) error {
+	data, err := sharedprotocol.MarshalWAFIPGroupSnapshot(groups)
+	if err != nil {
+		return err
+	}
+	if len(data) > sharedprotocol.MaxWAFIPGroupSnapshotBytes {
+		return fmt.Errorf("WAF IP group snapshot size %d exceeds maximum %d bytes", len(data), sharedprotocol.MaxWAFIPGroupSnapshotBytes)
 	}
 	if err := os.MkdirAll(m.RuntimeConfigDir, nginxDirPerm); err != nil {
 		return err
 	}
 	path := filepath.Join(m.RuntimeConfigDir, WAFIPGroupsConfigFileName)
-	if err := os.WriteFile(path, data, nginxConfigFilePerm); err != nil {
+	if err := m.writeAtomicFile(path, data, nginxConfigFilePerm); err != nil {
 		return fmt.Errorf("write %s: %w", WAFIPGroupsConfigFileName, err)
 	}
+	checksumPath := filepath.Join(m.RuntimeConfigDir, WAFIPGroupsChecksumFileName)
+	if err := m.writeAtomicFile(checksumPath, []byte(checksum(string(data))+"\n"), nginxConfigFilePerm); err != nil {
+		return fmt.Errorf("write %s: %w", WAFIPGroupsChecksumFileName, err)
+	}
 	slog.Info("synced waf ip groups", "path", path, "group_count", len(groups))
+	return nil
+}
+
+func (m *Manager) ensureWAFIPGroupsChecksum() error {
+	if m.RuntimeConfigDir == "" {
+		return nil
+	}
+	jsonPath := filepath.Join(m.RuntimeConfigDir, WAFIPGroupsConfigFileName)
+	data, err := os.ReadFile(jsonPath) //nolint:gosec // path is under managed RuntimeConfigDir
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+	expected := checksum(string(data))
+	checksumPath := filepath.Join(m.RuntimeConfigDir, WAFIPGroupsChecksumFileName)
+	current, err := os.ReadFile(checksumPath) //nolint:gosec // path is under managed RuntimeConfigDir
+	if err == nil && strings.TrimSpace(string(current)) == expected {
+		return nil
+	}
+	if err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	return m.writeAtomicFile(checksumPath, []byte(expected+"\n"), nginxConfigFilePerm)
+}
+
+func (m *Manager) writeAtomicFile(path string, data []byte, perm os.FileMode) error {
+	if m.atomicFileWriter != nil {
+		return m.atomicFileWriter(path, data, perm)
+	}
+	return writeAtomicFile(path, data, perm)
+}
+
+func writeAtomicFile(path string, data []byte, perm os.FileMode) (resultErr error) {
+	tempFile, err := os.CreateTemp(filepath.Dir(path), "."+filepath.Base(path)+".tmp-*")
+	if err != nil {
+		return err
+	}
+	tempPath := tempFile.Name()
+	closed := false
+	defer func() {
+		if !closed {
+			if closeErr := tempFile.Close(); resultErr == nil && closeErr != nil {
+				resultErr = closeErr
+			}
+		}
+		_ = os.Remove(tempPath)
+	}()
+	if err = tempFile.Chmod(perm); err != nil {
+		return err
+	}
+	if _, err = tempFile.Write(data); err != nil {
+		return err
+	}
+	if err = tempFile.Sync(); err != nil {
+		return err
+	}
+	if err = tempFile.Close(); err != nil {
+		return err
+	}
+	closed = true
+	if err = os.Rename(tempPath, path); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -1276,6 +1430,9 @@ func (m *Manager) renderMainConfig(content string) string {
 	}
 	if luaDir := m.luaRuntimePath(); luaDir != "" {
 		rendered = strings.ReplaceAll(rendered, openrestyrender.LuaDirPlaceholder, luaDir)
+		if strings.Contains(rendered, "lua_shared_dict openflare_waf_config") {
+			rendered = injectWAFWorkerInit(rendered, luaDir)
+		}
 	}
 	if listen := strings.TrimSpace(m.OpenrestyObservabilityListen); listen != "" {
 		rendered = strings.ReplaceAll(rendered, openrestyrender.ObservabilityListenPlaceholder, listen)
@@ -1287,6 +1444,19 @@ func (m *Manager) renderMainConfig(content string) string {
 		rendered = strings.ReplaceAll(rendered, ResolverDirectivePlaceholder, resolverDirective)
 	}
 	return rendered
+}
+
+func injectWAFWorkerInit(content string, luaDir string) string {
+	packagePath := fmt.Sprintf("    lua_package_path \"%s/?.lua;%s/?/init.lua;;\";\n", luaDir, luaDir)
+	if !strings.Contains(content, "lua_package_path ") {
+		content = strings.Replace(content, "http {", "http {\n"+packagePath, 1)
+	}
+	initPattern := regexp.MustCompile(`(?m)^[ \t]*init_worker_by_lua_file[ \t]+([^;]+);[ \t]*$`)
+	if match := initPattern.FindStringSubmatch(content); len(match) == workerInitSubmatchCount {
+		block := fmt.Sprintf("    init_worker_by_lua_block {\n        require(\"waf.runtime\").init()\n        dofile(%q)\n    }", strings.TrimSpace(match[1]))
+		return initPattern.ReplaceAllString(content, block)
+	}
+	return strings.Replace(content, "http {", "http {\n    init_worker_by_lua_block { require(\"waf.runtime\").init() }", 1)
 }
 
 func (m *Manager) managedPowLuaFiles() []protocol.SupportFile {
@@ -1301,8 +1471,19 @@ func (m *Manager) managedPowLuaFiles() []protocol.SupportFile {
 func (m *Manager) managedWAFLuaFiles() []protocol.SupportFile {
 	files := ManagedWAFLuaFiles()
 	runtimeConfigDir := filepath.ToSlash(strings.TrimSpace(m.RuntimeConfigDir))
+	countryMMDBPath := filepath.ToSlash(strings.TrimSpace(m.MMDBPath))
+	if countryMMDBPath == "" {
+		countryMMDBPath = filepath.ToSlash(filepath.Join(runtimeConfigDir, "GeoLite2-Country.mmdb"))
+	}
+	cityMMDBPath := filepath.ToSlash(strings.TrimSpace(m.CityMMDBPath))
+	if cityMMDBPath == "" {
+		cityMMDBPath = filepath.ToSlash(filepath.Join(runtimeConfigDir, "GeoLite2-City.mmdb"))
+	}
 	for index := range files {
 		files[index].Content = strings.ReplaceAll(files[index].Content, RuntimeConfigDirPlaceholder, runtimeConfigDir)
+		files[index].Content = strings.ReplaceAll(files[index].Content, CountryMMDBPathPlaceholder, countryMMDBPath)
+		files[index].Content = strings.ReplaceAll(files[index].Content, CityMMDBPathPlaceholder, cityMMDBPath)
+		files[index].Content = strings.ReplaceAll(files[index].Content, WAFIPGroupsMaxSnapshotBytesPlaceholder, strconv.Itoa(sharedprotocol.MaxWAFIPGroupSnapshotBytes))
 	}
 	return files
 }

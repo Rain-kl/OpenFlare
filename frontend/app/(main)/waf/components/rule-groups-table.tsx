@@ -1,6 +1,6 @@
 'use client';
 
-import {Globe2, MoreHorizontal, Pencil, ShieldCheck, Trash2, Users} from 'lucide-react';
+import {Globe2, MoreHorizontal, Pencil, ShieldCheck, Trash2} from 'lucide-react';
 
 import {Badge} from '@/components/ui/badge';
 import {Button} from '@/components/ui/button';
@@ -20,14 +20,12 @@ interface RuleGroupsTableProps {
   groups: WAFRule[];
   onEdit: (group: WAFRule) => void;
   onDelete: (group: WAFRule) => void;
-  onBindSites: (group: WAFRule) => void;
 }
 
 export function RuleGroupsTable({
   groups,
   onEdit,
   onDelete,
-  onBindSites,
 }: RuleGroupsTableProps) {
   return (
     <Table>
@@ -85,12 +83,6 @@ export function RuleGroupsTable({
                       <Pencil />
                       编排
                     </DropdownMenuItem>
-                    {!group.is_global ? (
-                      <DropdownMenuItem onClick={() => onBindSites(group)}>
-                        <Users />
-                        绑定网站
-                      </DropdownMenuItem>
-                    ) : null}
                   </DropdownMenuGroup>
                   {!group.is_global ? (
                     <>

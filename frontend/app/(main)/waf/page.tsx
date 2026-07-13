@@ -22,31 +22,23 @@ import {EmptyStateWithBorder} from '@/components/layout/empty';
 import {ErrorInline} from '@/components/layout/error';
 import {LoadingStateWithBorder} from '@/components/layout/loading';
 import type {WAFRule} from '@/lib/services/openflare';
-import {ProxyRouteService, WafService} from '@/lib/services/openflare';
+import {WafService} from '@/lib/services/openflare';
 
 import {CreateRuleDialog} from './components/create-rule-dialog';
 import {getErrorMessage} from './components/helpers';
 import {RuleGroupsTable} from './components/rule-groups-table';
-import {SiteBindingSheet} from './components/site-binding-sheet';
 
 const ruleGroupsQueryKey = ['openflare', 'waf', 'rule-groups'];
-const routesQueryKey = ['openflare', 'proxy-routes'];
 
 export default function WafPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const [createOpen, setCreateOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<WAFRule | null>(null);
-  const [bindingGroup, setBindingGroup] = useState<WAFRule | null>(null);
 
   const groupsQuery = useQuery({
     queryKey: ruleGroupsQueryKey,
     queryFn: () => WafService.listRuleGroups(),
-  });
-
-  const routesQuery = useQuery({
-    queryKey: routesQueryKey,
-    queryFn: () => ProxyRouteService.list(),
   });
 
   const invalidate = async () => {
@@ -80,26 +72,13 @@ export default function WafPage() {
     },
   });
 
-  const bindMutation = useMutation({
-    mutationFn: ({ id, ids }: { id: number; ids: number[] }) =>
-      WafService.updateRuleGroupSites(id, ids),
-    onSuccess: async () => {
-      toast.success('规则组应用范围已更新');
-      setBindingGroup(null);
-      await invalidate();
-    },
-    onError: (error) => {
-      toast.error(getErrorMessage(error));
-    },
-  });
-
   const handleRefresh = () => {
     void queryClient.invalidateQueries({ queryKey: ruleGroupsQueryKey });
   };
 
   const groups = groupsQuery.data ?? [];
-  const loading = groupsQuery.isLoading || routesQuery.isLoading;
-  const error = groupsQuery.error ?? routesQuery.error ?? null;
+  const loading = groupsQuery.isLoading;
+  const error = groupsQuery.error ?? null;
 
   return (
     <div className="w-full py-6 px-1 space-y-6">
@@ -162,7 +141,6 @@ export default function WafPage() {
               groups={groups}
               onEdit={(rule) => router.push(`/waf/rules/editor?id=${rule.id}`)}
               onDelete={setDeleteTarget}
-              onBindSites={setBindingGroup}
             />
           )}
         </CardContent>
@@ -174,19 +152,6 @@ export default function WafPage() {
         onOpenChange={setCreateOpen}
         onCreate={async (name) => {
           await createMutation.mutateAsync(name);
-        }}
-      />
-
-      <SiteBindingSheet
-        group={bindingGroup}
-        routes={routesQuery.data ?? []}
-        open={Boolean(bindingGroup)}
-        pending={bindMutation.isPending}
-        onOpenChange={(open) => !open && setBindingGroup(null)}
-        onSave={(ids) => {
-          if (bindingGroup) {
-            bindMutation.mutate({ id: bindingGroup.id, ids });
-          }
         }}
       />
 

@@ -1,5 +1,7 @@
 package openresty
 
+import "encoding/json"
+
 // Placeholder constants used as sentinel values in rendered OpenResty config
 // files; the deploy process replaces them with real paths before reload.
 const (
@@ -177,25 +179,39 @@ type PagesDeployment struct {
 	LocalRoot          string `json:"local_root"`
 }
 
-// WAFRuleGroup defines a WAF rule group with IP/country/region lists, PoW
-// integration, and per-group block status configuration.
+// WAFRuleGraph is the compact graph executed by the OpenResty WAF runtime.
+type WAFRuleGraph struct {
+	Entry string                 `json:"entry"`
+	Nodes map[string]WAFRuleNode `json:"nodes"`
+}
+
+// WAFRuleNode contains one compiled node and its handle-to-target edges.
+type WAFRuleNode struct {
+	Type   string            `json:"type"`
+	Config json.RawMessage   `json:"config,omitempty"`
+	Next   map[string]string `json:"next,omitempty"`
+}
+
+// WAFRuleGroup defines one enabled runtime graph. Legacy flattened fields are
+// retained only for decoding older stored snapshots during rolling upgrades.
 type WAFRuleGroup struct {
-	ID                uint       `json:"id"`
-	Name              string     `json:"name"`
-	Enabled           bool       `json:"enabled"`
-	IsGlobal          bool       `json:"is_global"`
-	BlockStatusCode   int        `json:"block_status_code"`
-	BlockResponseBody string     `json:"block_response_body,omitempty"`
-	IPWhitelist       []string   `json:"ip_whitelist,omitempty"`
-	IPBlacklist       []string   `json:"ip_blacklist,omitempty"`
-	IPWhitelistGroups []uint     `json:"ip_whitelist_group_ids,omitempty"`
-	IPBlacklistGroups []uint     `json:"ip_blacklist_group_ids,omitempty"`
-	CountryWhitelist  []string   `json:"country_whitelist,omitempty"`
-	CountryBlacklist  []string   `json:"country_blacklist,omitempty"`
-	RegionWhitelist   []string   `json:"region_whitelist,omitempty"`
-	RegionBlacklist   []string   `json:"region_blacklist,omitempty"`
-	PoWEnabled        bool       `json:"pow_enabled,omitempty"`
-	PoWConfig         *PoWConfig `json:"pow_config,omitempty"`
+	ID                uint         `json:"id"`
+	Name              string       `json:"name"`
+	Enabled           bool         `json:"enabled"`
+	IsGlobal          bool         `json:"is_global"`
+	BlockStatusCode   int          `json:"block_status_code"`
+	BlockResponseBody string       `json:"block_response_body,omitempty"`
+	IPWhitelist       []string     `json:"ip_whitelist,omitempty"`
+	IPBlacklist       []string     `json:"ip_blacklist,omitempty"`
+	IPWhitelistGroups []uint       `json:"ip_whitelist_group_ids,omitempty"`
+	IPBlacklistGroups []uint       `json:"ip_blacklist_group_ids,omitempty"`
+	CountryWhitelist  []string     `json:"country_whitelist,omitempty"`
+	CountryBlacklist  []string     `json:"country_blacklist,omitempty"`
+	RegionWhitelist   []string     `json:"region_whitelist,omitempty"`
+	RegionBlacklist   []string     `json:"region_blacklist,omitempty"`
+	PoWEnabled        bool         `json:"pow_enabled,omitempty"`
+	PoWConfig         *PoWConfig   `json:"pow_config,omitempty"`
+	Graph             WAFRuleGraph `json:"graph"`
 }
 
 // WAFIPGroup is a named, reusable list of IP addresses or CIDRs that can be

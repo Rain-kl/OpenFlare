@@ -7,10 +7,12 @@ import (
 	"context"
 	"encoding/json"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/Rain-kl/Wavelet/internal/db"
 	"github.com/Rain-kl/Wavelet/internal/model"
+	"github.com/Rain-kl/Wavelet/pkg/protocol"
 	"github.com/glebarez/sqlite"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -61,6 +63,115 @@ func seedActiveConfigWithWAFIPGroup(t *testing.T, ctx context.Context, ipGroupID
 		Checksum:     "test-checksum",
 		IsActive:     true,
 	}).Error)
+}
+
+func seedActiveConfigWithWAFGraphIPGroup(t *testing.T, ctx context.Context, ipGroupID uint) {
+	t.Helper()
+
+	snapshot := map[string]any{
+		"routes": []any{},
+		"waf": map[string]any{
+			"rule_groups": []map[string]any{
+				{
+					"id":      1,
+					"name":    "graph refs",
+					"enabled": true,
+					"graph": map[string]any{
+						"entry": "start",
+						"nodes": map[string]any{
+							"start": map[string]any{
+								"type":   "start",
+								"config": map[string]any{},
+								"next":   map[string]string{"next": "match"},
+							},
+							"match": map[string]any{
+								"type": "ip_match",
+								"config": map[string]any{
+									"ip_group_ids": []uint{ipGroupID},
+								},
+								"next": map[string]string{"true": "allow", "false": "allow"},
+							},
+							"allow": map[string]any{
+								"type":   "allow",
+								"config": map[string]any{},
+							},
+						},
+					},
+				},
+			},
+			"bindings": []any{},
+		},
+	}
+	snapshotJSON, err := json.Marshal(snapshot)
+	require.NoError(t, err)
+
+	require.NoError(t, db.DB(ctx).Create(&model.ConfigVersion{
+		Version:      "20260713-graph-001",
+		SnapshotJSON: string(snapshotJSON),
+		Checksum:     "graph-test-checksum",
+		IsActive:     true,
+	}).Error)
+}
+
+func TestChangedWAFIPGroupsForAgentDiscoversGraphReferences(t *testing.T) {
+	cleanup := setupWAFIPGroupTestDB(t)
+	defer cleanup()
+
+	ctx := context.Background()
+	ipGroup := &model.OpenFlareWAFIPGroup{
+		Name:    "graph runtime group",
+		Type:    "manual",
+		Enabled: true,
+		IPList:  `["192.0.2.88"]`,
+	}
+	require.NoError(t, model.CreateOpenFlareWAFIPGroup(ctx, ipGroup))
+	seedActiveConfigWithWAFGraphIPGroup(t, ctx, ipGroup.ID)
+
+	groups, err := ChangedWAFIPGroupsForAgent(ctx, nil, nil)
+	require.NoError(t, err)
+	require.Len(t, groups, 1)
+	assert.Equal(t, ipGroup.ID, groups[0].ID)
+	assert.Equal(t, []string{"192.0.2.88"}, groups[0].IPList)
+}
+
+func TestChangedWAFIPGroupsForAgentRejectsMalformedIPMatchConfig(t *testing.T) {
+	cleanup := setupWAFIPGroupTestDB(t)
+	defer cleanup()
+
+	ctx := context.Background()
+	require.NoError(t, db.DB(ctx).Create(&model.ConfigVersion{
+		Version: "20260713-malformed-001",
+		SnapshotJSON: `{"waf":{"rule_groups":[{"id":7,"graph":{"entry":"match","nodes":{` +
+			`"match":{"type":"ip_match","config":{"ip_group_ids":"not-an-array"}}}}}],"bindings":[]}}`,
+		Checksum: "malformed-test-checksum",
+		IsActive: true,
+	}).Error)
+
+	_, err := ChangedWAFIPGroupsForAgent(ctx, nil, nil)
+	require.ErrorContains(t, err, "规则 7 节点 match")
+	require.ErrorContains(t, err, "IP 匹配配置无效")
+}
+
+func TestChangedWAFIPGroupsForAgentRejectsOversizedSnapshotBeforeChecksumDelta(t *testing.T) {
+	cleanup := setupWAFIPGroupTestDB(t)
+	defer cleanup()
+
+	ctx := context.Background()
+	ipGroup := &model.OpenFlareWAFIPGroup{
+		Name:    strings.Repeat("x", protocol.MaxWAFIPGroupSnapshotBytes),
+		Type:    "manual",
+		Enabled: true,
+		IPList:  `[]`,
+	}
+	require.NoError(t, model.CreateOpenFlareWAFIPGroup(ctx, ipGroup))
+	agentGroup, err := buildAgentWAFIPGroup(ipGroup)
+	require.NoError(t, err)
+
+	_, err = ChangedWAFIPGroupsForAgent(ctx, []uint{ipGroup.ID}, map[string]string{
+		strconv.FormatUint(uint64(ipGroup.ID), 10): agentGroup.Checksum,
+	})
+	require.ErrorContains(t, err, "WAF IP 组快照大小")
+	require.ErrorContains(t, err, "超过上限")
 }
 
 func TestChangedWAFIPGroupsForAgentReturnsChecksumDelta(t *testing.T) {

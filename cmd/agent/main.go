@@ -66,6 +66,7 @@ func main() {
 		"lua_dir", cfg.LuaDir,
 		"runtime_config_dir", cfg.RuntimeConfigDir,
 		"mmdb_path", cfg.MMDBPath,
+		"city_mmdb_path", cfg.CityMMDBPath,
 	)
 
 	client := httpclient.New(cfg.ServerURL, cfg.InitialAuthToken(), cfg.RequestTimeout.Duration())
@@ -81,6 +82,8 @@ func main() {
 		LuaDir:                       cfg.LuaDir,
 		NginxLuaDir:                  cfg.OpenrestyLuaDir,
 		RuntimeConfigDir:             cfg.RuntimeConfigDir,
+		MMDBPath:                     cfg.MMDBPath,
+		CityMMDBPath:                 cfg.CityMMDBPath,
 		PagesDir:                     cfg.PagesDir,
 		OpenrestyObservabilityListen: nginx.ObservabilityListenAddress(cfg.OpenrestyObservabilityPort),
 		OpenrestyObservabilityPort:   cfg.OpenrestyObservabilityPort,
@@ -122,10 +125,9 @@ func main() {
 	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
-	geoIPUpdater := &geoipupdate.Updater{
-		MMDBPath:       cfg.MMDBPath,
-		DownloadURL:    cfg.MMDBDownloadURL,
-		UpdateInterval: cfg.MMDBUpdateInterval.Duration(),
+	geoIPUpdater := newGeoIPUpdater(cfg)
+	if err = geoIPUpdater.EnsureInitialDatabases(ctx); err != nil {
+		slog.Warn("failed to prepare GeoIP databases before agent startup", "error", err)
 	}
 	go geoIPUpdater.Run(ctx)
 	slog.Info("agent process started")
@@ -137,4 +139,14 @@ func main() {
 	}
 	stop()
 	slog.Info("agent process stopped")
+}
+
+func newGeoIPUpdater(cfg *config.Config) *geoipupdate.Updater {
+	return &geoipupdate.Updater{
+		MMDBPath:        cfg.MMDBPath,
+		DownloadURL:     cfg.MMDBDownloadURL,
+		CityMMDBPath:    cfg.CityMMDBPath,
+		CityDownloadURL: cfg.CityMMDBDownloadURL,
+		UpdateInterval:  cfg.MMDBUpdateInterval.Duration(),
+	}
 }

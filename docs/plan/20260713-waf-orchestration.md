@@ -8,6 +8,12 @@
 
 **Tech Stack:** Go 1.25、Gin、GORM、goose、PostgreSQL/SQLite、OpenResty Lua、Next.js 16 App Router、React 19、TypeScript、`@xyflow/react`、TanStack Query、shadcn/ui、Vitest。
 
+## 实现状态（2026-07-13）
+
+Tasks 1–11 已实现，包含三段数据库迁移、图模型与编译器、规则 API、发布快照、OpenResty 内存执行器、IP 组协调刷新、React Flow 编辑器、有序绑定、GeoLite2 City/Country 支持以及中文文档与 Swagger 更新。
+
+当前工作区已完成 `go test ./...`、前端全量 Vitest（54 项）、`make swagger`、`make code-check` 与 `git diff --check` 验证。Next.js 生产构建在本机持续停留于 Turbopack 的 `Creating an optimized production build ...`，未返回编译错误或成功状态，故不计为通过。
+
 ## Global Constraints
 
 - 每张图恰好一个 `start` 和一个 `allow`；`block` 可多个；图必须无环、无悬空、无不可达节点，所有路径必须抵达 `allow` 或 `block`。
@@ -374,7 +380,7 @@ Commit: `feat(agent): execute waf graphs from worker memory`
 
 **Interfaces:**
 - Produces: `waf_ip_groups.json.checksum`；Lua `ip_groups.current()` 返回 Worker 本地对象；协调刷新间隔固定 5 秒。
-- Consumes: 现有 Agent IP 组同步 payload 与 `ngx.shared.openflare_waf_config`。
+- Consumes: 现有 Agent IP 组同步 payload 与独立的 `ngx.shared.openflare_waf_ip_groups`（64 MiB）；完整运行时快照上限为 20 MiB。
 
 - [ ] **Step 1: 写失败测试**
 

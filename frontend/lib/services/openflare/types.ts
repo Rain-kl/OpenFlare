@@ -773,6 +773,11 @@ export interface WAFSaveRuleGraphPayload {
   graph: WAFRuleGraph;
 }
 
+export interface WAFUpdateRuleMetaPayload {
+  name: string;
+  enabled: boolean;
+}
+
 export interface WAFRuleGroupPayload {
   name: string;
   enabled: boolean;

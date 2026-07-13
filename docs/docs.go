@@ -10249,17 +10249,16 @@ const docTemplate = `{
                         "SessionCookie": []
                     }
                 ],
-                "description": "返回全部 WAF 规则组，需要管理员权限",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "openflare-waf"
                 ],
-                "summary": "列出 WAF 规则组",
+                "summary": "列出 WAF 规则",
                 "responses": {
                     "200": {
-                        "description": "规则组列表",
+                        "description": "规则列表",
                         "schema": {
                             "allOf": [
                                 {
@@ -10271,18 +10270,12 @@ const docTemplate = `{
                                         "data": {
                                             "type": "array",
                                             "items": {
-                                                "$ref": "#/definitions/waf.RuleGroupView"
+                                                "$ref": "#/definitions/waf.RuleView"
                                             }
                                         }
                                     }
                                 }
                             ]
-                        }
-                    },
-                    "400": {
-                        "description": "参数错误",
-                        "schema": {
-                            "$ref": "#/definitions/response.Any"
                         }
                     },
                     "401": {
@@ -10311,7 +10304,6 @@ const docTemplate = `{
                         "SessionCookie": []
                     }
                 ],
-                "description": "创建新的 WAF 规则组，需要管理员权限",
                 "consumes": [
                     "application/json"
                 ],
@@ -10321,21 +10313,21 @@ const docTemplate = `{
                 "tags": [
                     "openflare-waf"
                 ],
-                "summary": "创建 WAF 规则组",
+                "summary": "创建 WAF 规则",
                 "parameters": [
                     {
-                        "description": "规则组参数",
+                        "description": "规则名称",
                         "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/waf.RuleGroupInput"
+                            "$ref": "#/definitions/waf.CreateRuleInput"
                         }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "创建成功的规则组",
+                        "description": "创建成功",
                         "schema": {
                             "allOf": [
                                 {
@@ -10345,7 +10337,7 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/waf.RuleGroupView"
+                                            "$ref": "#/definitions/waf.RuleView"
                                         }
                                     }
                                 }
@@ -10386,18 +10378,17 @@ const docTemplate = `{
                         "SessionCookie": []
                     }
                 ],
-                "description": "按 ID 返回 WAF 规则组详情，需要管理员权限",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "openflare-waf"
                 ],
-                "summary": "获取 WAF 规则组详情",
+                "summary": "获取 WAF 规则详情",
                 "parameters": [
                     {
                         "type": "integer",
-                        "description": "规则组 ID",
+                        "description": "规则 ID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -10405,7 +10396,7 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "规则组详情",
+                        "description": "规则详情",
                         "schema": {
                             "allOf": [
                                 {
@@ -10415,7 +10406,7 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/waf.RuleGroupView"
+                                            "$ref": "#/definitions/waf.RuleView"
                                         }
                                     }
                                 }
@@ -10435,7 +10426,7 @@ const docTemplate = `{
                         }
                     },
                     "404": {
-                        "description": "记录不存在",
+                        "description": "无权限或不存在",
                         "schema": {
                             "$ref": "#/definitions/response.Any"
                         }
@@ -10456,18 +10447,17 @@ const docTemplate = `{
                         "SessionCookie": []
                     }
                 ],
-                "description": "按 ID 删除 WAF 规则组，需要管理员权限",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "openflare-waf"
                 ],
-                "summary": "删除 WAF 规则组",
+                "summary": "删除 WAF 规则",
                 "parameters": [
                     {
                         "type": "integer",
-                        "description": "规则组 ID",
+                        "description": "规则 ID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -10493,7 +10483,7 @@ const docTemplate = `{
                         }
                     },
                     "404": {
-                        "description": "记录不存在",
+                        "description": "无权限或不存在",
                         "schema": {
                             "$ref": "#/definitions/response.Any"
                         }
@@ -10507,14 +10497,13 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/d/waf/rule-groups/{id}/sites": {
+        "/api/v1/d/waf/rule-groups/{id}/graph": {
             "post": {
                 "security": [
                     {
                         "SessionCookie": []
                     }
                 ],
-                "description": "替换 WAF 规则组关联的代理站点列表，需要管理员权限",
                 "consumes": [
                     "application/json"
                 ],
@@ -10524,28 +10513,28 @@ const docTemplate = `{
                 "tags": [
                     "openflare-waf"
                 ],
-                "summary": "替换规则组站点绑定",
+                "summary": "保存 WAF 规则图",
                 "parameters": [
                     {
                         "type": "integer",
-                        "description": "规则组 ID",
+                        "description": "规则 ID",
                         "name": "id",
                         "in": "path",
                         "required": true
                     },
                     {
-                        "description": "站点 ID 列表",
+                        "description": "规则图和修订号",
                         "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/waf.IDsRequest"
+                            "$ref": "#/definitions/waf.SaveRuleGraphInput"
                         }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "更新后的规则组",
+                        "description": "保存成功",
                         "schema": {
                             "allOf": [
                                 {
@@ -10555,7 +10544,94 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/waf.RuleGroupView"
+                                            "$ref": "#/definitions/waf.RuleView"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "参数或规则图错误",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    },
+                    "401": {
+                        "description": "未登录",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    },
+                    "404": {
+                        "description": "无权限或不存在",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    },
+                    "409": {
+                        "description": "修订冲突",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    },
+                    "500": {
+                        "description": "内部错误",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/d/waf/rule-groups/{id}/meta": {
+            "post": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "openflare-waf"
+                ],
+                "summary": "更新 WAF 规则元数据",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "规则 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "规则元数据",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/waf.UpdateRuleMetaInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "更新成功",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/waf.RuleView"
                                         }
                                     }
                                 }
@@ -10575,89 +10651,7 @@ const docTemplate = `{
                         }
                     },
                     "404": {
-                        "description": "记录不存在",
-                        "schema": {
-                            "$ref": "#/definitions/response.Any"
-                        }
-                    },
-                    "500": {
-                        "description": "内部错误",
-                        "schema": {
-                            "$ref": "#/definitions/response.Any"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/d/waf/rule-groups/{id}/update": {
-            "post": {
-                "security": [
-                    {
-                        "SessionCookie": []
-                    }
-                ],
-                "description": "按 ID 更新 WAF 规则组，需要管理员权限",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "openflare-waf"
-                ],
-                "summary": "更新 WAF 规则组",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "规则组 ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "规则组参数",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/waf.RuleGroupInput"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "更新后的规则组",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/response.Any"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "$ref": "#/definitions/waf.RuleGroupView"
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    },
-                    "400": {
-                        "description": "参数错误",
-                        "schema": {
-                            "$ref": "#/definitions/response.Any"
-                        }
-                    },
-                    "401": {
-                        "description": "未登录",
-                        "schema": {
-                            "$ref": "#/definitions/response.Any"
-                        }
-                    },
-                    "404": {
-                        "description": "记录不存在",
+                        "description": "无权限或不存在",
                         "schema": {
                             "$ref": "#/definitions/response.Any"
                         }
@@ -18531,6 +18525,14 @@ const docTemplate = `{
                 }
             }
         },
+        "waf.CreateRuleInput": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
         "waf.IDsRequest": {
             "type": "object",
             "properties": {
@@ -18716,139 +18718,97 @@ const docTemplate = `{
                 }
             }
         },
-        "waf.PoWConfig": {
+        "waf.RuleEdge": {
             "type": "object",
             "properties": {
-                "algorithm": {
+                "id": {
                     "type": "string"
                 },
-                "blacklist": {
-                    "$ref": "#/definitions/waf.PoWListConfig"
+                "source": {
+                    "type": "string"
                 },
-                "challenge_ttl": {
-                    "type": "integer"
+                "source_handle": {
+                    "type": "string"
                 },
-                "difficulty": {
-                    "type": "integer"
-                },
-                "session_ttl": {
-                    "type": "integer"
-                },
-                "whitelist": {
-                    "$ref": "#/definitions/waf.PoWListConfig"
+                "target": {
+                    "type": "string"
                 }
             }
         },
-        "waf.PoWListConfig": {
+        "waf.RuleGraph": {
             "type": "object",
             "properties": {
-                "ip_cidrs": {
+                "edges": {
                     "type": "array",
                     "items": {
-                        "type": "string"
+                        "$ref": "#/definitions/waf.RuleEdge"
                     }
                 },
-                "ips": {
+                "nodes": {
                     "type": "array",
                     "items": {
-                        "type": "string"
+                        "$ref": "#/definitions/waf.RuleNode"
                     }
                 },
-                "path_regexes": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "paths": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "user_agents": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
+                "schema_version": {
+                    "type": "integer"
                 }
             }
         },
-        "waf.RuleGroupInput": {
+        "waf.RuleNode": {
             "type": "object",
             "properties": {
-                "block_response_body": {
-                    "type": "string"
-                },
-                "block_status_code": {
-                    "type": "integer"
-                },
-                "country_blacklist": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "country_whitelist": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "enabled": {
-                    "type": "boolean"
-                },
-                "ip_blacklist": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "ip_blacklist_group_ids": {
+                "config": {
                     "type": "array",
                     "items": {
                         "type": "integer"
                     }
                 },
-                "ip_whitelist": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "ip_whitelist_group_ids": {
-                    "type": "array",
-                    "items": {
-                        "type": "integer"
-                    }
-                },
-                "name": {
+                "id": {
                     "type": "string"
                 },
-                "pow_config": {
-                    "type": "array",
-                    "items": {
-                        "type": "integer"
-                    }
+                "label": {
+                    "type": "string"
                 },
-                "pow_enabled": {
-                    "type": "boolean"
+                "position": {
+                    "$ref": "#/definitions/waf.RulePosition"
                 },
-                "region_blacklist": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "region_whitelist": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
+                "type": {
+                    "$ref": "#/definitions/waf.RuleNodeType"
                 }
             }
         },
-        "waf.RuleGroupView": {
+        "waf.RuleNodeType": {
+            "type": "string",
+            "enum": [
+                "start",
+                "allow",
+                "block",
+                "ip_match",
+                "geo_match",
+                "pow"
+            ],
+            "x-enum-varnames": [
+                "RuleNodeStart",
+                "RuleNodeAllow",
+                "RuleNodeBlock",
+                "RuleNodeIPMatch",
+                "RuleNodeGeoMatch",
+                "RuleNodePoW"
+            ]
+        },
+        "waf.RulePosition": {
+            "type": "object",
+            "properties": {
+                "x": {
+                    "type": "number"
+                },
+                "y": {
+                    "type": "number"
+                }
+            }
+        },
+        "waf.RuleView": {
             "type": "object",
             "properties": {
                 "applied_site_count": {
@@ -18860,56 +18820,17 @@ const docTemplate = `{
                         "type": "integer"
                     }
                 },
-                "block_response_body": {
-                    "type": "string"
-                },
-                "block_status_code": {
-                    "type": "integer"
-                },
-                "country_blacklist": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "country_whitelist": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
                 "created_at": {
                     "type": "string"
                 },
                 "enabled": {
                     "type": "boolean"
                 },
+                "graph": {
+                    "$ref": "#/definitions/waf.RuleGraph"
+                },
                 "id": {
                     "type": "integer"
-                },
-                "ip_blacklist": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "ip_blacklist_group_ids": {
-                    "type": "array",
-                    "items": {
-                        "type": "integer"
-                    }
-                },
-                "ip_whitelist": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "ip_whitelist_group_ids": {
-                    "type": "array",
-                    "items": {
-                        "type": "integer"
-                    }
                 },
                 "is_global": {
                     "type": "boolean"
@@ -18917,26 +18838,22 @@ const docTemplate = `{
                 "name": {
                     "type": "string"
                 },
-                "pow_config": {
-                    "$ref": "#/definitions/waf.PoWConfig"
-                },
-                "pow_enabled": {
-                    "type": "boolean"
-                },
-                "region_blacklist": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "region_whitelist": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
+                "revision": {
+                    "type": "integer"
                 },
                 "updated_at": {
                     "type": "string"
+                }
+            }
+        },
+        "waf.SaveRuleGraphInput": {
+            "type": "object",
+            "properties": {
+                "graph": {
+                    "$ref": "#/definitions/waf.RuleGraph"
+                },
+                "revision": {
+                    "type": "integer"
                 }
             }
         },
@@ -18952,11 +18869,11 @@ const docTemplate = `{
                 "applied_rule_groups": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/waf.RuleGroupView"
+                        "$ref": "#/definitions/waf.RuleView"
                     }
                 },
                 "global_rule_group": {
-                    "$ref": "#/definitions/waf.RuleGroupView"
+                    "$ref": "#/definitions/waf.RuleView"
                 },
                 "route_id": {
                     "type": "integer"
@@ -18964,8 +18881,19 @@ const docTemplate = `{
                 "rule_groups": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/waf.RuleGroupView"
+                        "$ref": "#/definitions/waf.RuleView"
                     }
+                }
+            }
+        },
+        "waf.UpdateRuleMetaInput": {
+            "type": "object",
+            "properties": {
+                "enabled": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
                 }
             }
         },
