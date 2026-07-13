@@ -54,14 +54,14 @@ export function SiteBindingSheet({
     setSelectedIDs((current) =>
       current.includes(id)
         ? current.filter((item) => item !== id)
-        : [...current, id].sort((left, right) => left - right),
+        : [...current, id],
     );
   };
 
   const selectFiltered = () => {
     const next = new Set(selectedIDs);
     filteredRoutes.forEach((route) => next.add(route.id));
-    setSelectedIDs([...next].sort((left, right) => left - right));
+    setSelectedIDs([...next]);
   };
 
   return (
