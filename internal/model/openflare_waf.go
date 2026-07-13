@@ -30,6 +30,8 @@ type OpenFlareWAFRuleGroup struct {
 	RegionBlacklist   string    `json:"region_blacklist" gorm:"type:text;not null;default:'[]'"`
 	PoWEnabled        bool      `json:"pow_enabled" gorm:"column:pow_enabled;not null;default:false"`
 	PoWConfig         string    `json:"pow_config" gorm:"column:pow_config;type:text;not null;default:'{}'"`
+	Graph             string    `json:"graph" gorm:"type:text;not null;default:''"`
+	Revision          uint64    `json:"revision" gorm:"not null;default:1"`
 	CreatedAt         time.Time `json:"created_at" gorm:"autoCreateTime"`
 	UpdatedAt         time.Time `json:"updated_at" gorm:"autoUpdateTime"`
 }
@@ -70,8 +72,12 @@ type OpenFlareWAFRuleGroupBinding struct {
 	ID           uint      `json:"id" gorm:"primaryKey;autoIncrement"`
 	RuleGroupID  uint      `json:"rule_group_id" gorm:"not null;uniqueIndex:idx_of_waf_group_route"`
 	ProxyRouteID uint      `json:"proxy_route_id" gorm:"not null;uniqueIndex:idx_of_waf_group_route;index"`
+	Sequence     int       `json:"sequence" gorm:"not null;default:0"`
 	CreatedAt    time.Time `json:"created_at" gorm:"autoCreateTime"`
 }
+
+// ErrWAFRuleRevisionConflict indicates that a rule graph was updated from a stale revision.
+var ErrWAFRuleRevisionConflict = errors.New("waf rule revision conflict")
 
 // TableName returns the GORM table name.
 func (OpenFlareWAFRuleGroupBinding) TableName() string {
@@ -157,6 +163,24 @@ func UpdateOpenFlareWAFRuleGroup(ctx context.Context, group *OpenFlareWAFRuleGro
 		"pow_enabled":         group.PoWEnabled,
 		"pow_config":          group.PoWConfig,
 	}).Error
+}
+
+// UpdateOpenFlareWAFRuleGraph atomically replaces a graph when revision is current.
+func UpdateOpenFlareWAFRuleGraph(ctx context.Context, id uint, revision uint64, graph string) (uint64, error) {
+	conn, err := wafDB(ctx)
+	if err != nil {
+		return 0, err
+	}
+	result := conn.Model(&OpenFlareWAFRuleGroup{}).
+		Where("id = ? AND revision = ?", id, revision).
+		Updates(map[string]any{"graph": graph, "revision": gorm.Expr("revision + 1")})
+	if result.Error != nil {
+		return 0, result.Error
+	}
+	if result.RowsAffected != 1 {
+		return 0, ErrWAFRuleRevisionConflict
+	}
+	return revision + 1, nil
 }
 
 // DeleteOpenFlareWAFRuleGroup removes a rule group.
@@ -289,7 +313,7 @@ func ListOpenFlareWAFRuleGroupBindings(ctx context.Context) ([]OpenFlareWAFRuleG
 		return nil, err
 	}
 	var bindings []OpenFlareWAFRuleGroupBinding
-	if err = conn.Order("rule_group_id asc").Order("proxy_route_id asc").Find(&bindings).Error; err != nil {
+	if err = conn.Order("sequence asc").Order("id asc").Find(&bindings).Error; err != nil {
 		return nil, err
 	}
 	return bindings, nil
@@ -302,7 +326,7 @@ func ListOpenFlareWAFRuleGroupBindingsByRouteID(ctx context.Context, routeID uin
 		return nil, err
 	}
 	var bindings []OpenFlareWAFRuleGroupBinding
-	if err = conn.Where("proxy_route_id = ?", routeID).Order("rule_group_id asc").Find(&bindings).Error; err != nil {
+	if err = conn.Where("proxy_route_id = ?", routeID).Order("sequence asc").Order("id asc").Find(&bindings).Error; err != nil {
 		return nil, err
 	}
 	return bindings, nil
@@ -342,10 +366,11 @@ func ReplaceOpenFlareWAFRuleGroupBindings(ctx context.Context, groupID uint, rou
 			return err
 		}
 		bindings := make([]OpenFlareWAFRuleGroupBinding, 0, len(routeIDs))
-		for _, routeID := range routeIDs {
+		for index, routeID := range routeIDs {
 			bindings = append(bindings, OpenFlareWAFRuleGroupBinding{
 				RuleGroupID:  groupID,
 				ProxyRouteID: routeID,
+				Sequence:     index,
 			})
 		}
 		return insertOpenFlareWAFRuleGroupBindings(tx, bindings)
@@ -363,10 +388,11 @@ func ReplaceOpenFlareWAFSiteRuleGroupBindings(ctx context.Context, routeID uint,
 			return err
 		}
 		bindings := make([]OpenFlareWAFRuleGroupBinding, 0, len(groupIDs))
-		for _, groupID := range groupIDs {
+		for index, groupID := range groupIDs {
 			bindings = append(bindings, OpenFlareWAFRuleGroupBinding{
 				RuleGroupID:  groupID,
 				ProxyRouteID: routeID,
+				Sequence:     index,
 			})
 		}
 		return insertOpenFlareWAFRuleGroupBindings(tx, bindings)
