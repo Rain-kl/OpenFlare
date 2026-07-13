@@ -1,3 +1,5 @@
+import type {XYPosition} from '@xyflow/react';
+
 export type ReleaseChannel = 'stable' | 'preview';
 
 export type NodeType = 'edge_node' | 'tunnel_relay' | 'tunnel_client';
@@ -689,11 +691,65 @@ export interface OpenFlarePublicStatus {
   system_name: string;
 }
 
-export interface WAFRuleGroup {
+export interface IPMatchConfig {
+  ips: string[];
+  cidrs: string[];
+  ip_group_ids: number[];
+}
+
+export interface GeoMatchConfig {
+  countries: string[];
+  regions: string[];
+}
+
+export interface PoWNodeConfig {
+  algorithm: 'fast' | 'slow';
+  difficulty: number;
+  session_ttl: number;
+  challenge_ttl: number;
+}
+
+export interface BlockNodeConfig {
+  status_code: number;
+  response_body: string;
+}
+
+export type WAFRuleNode =
+  | {id: string; type: 'start'; position: XYPosition; config: Record<string, never>}
+  | {id: string; type: 'ip_match'; position: XYPosition; config: IPMatchConfig}
+  | {id: string; type: 'geo_match'; position: XYPosition; config: GeoMatchConfig}
+  | {id: string; type: 'pow'; position: XYPosition; config: PoWNodeConfig}
+  | {id: string; type: 'allow'; position: XYPosition; config: Record<string, never>}
+  | {id: string; type: 'block'; position: XYPosition; config: BlockNodeConfig};
+
+export interface WAFRuleEdge {
+  id: string;
+  source: string;
+  source_handle: string;
+  target: string;
+}
+
+export interface WAFRuleGraph {
+  schema_version: number;
+  nodes: WAFRuleNode[];
+  edges: WAFRuleEdge[];
+}
+
+export interface WAFRule {
   id: number;
   name: string;
   enabled: boolean;
   is_global: boolean;
+  graph: WAFRuleGraph;
+  revision: number;
+  applied_site_ids: number[];
+  applied_site_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+/** @deprecated Legacy fixed-chain rule shape retained for untouched binding consumers. */
+export interface WAFRuleGroup extends WAFRule {
   block_status_code: number;
   block_response_body: string;
   ip_whitelist: string[];
@@ -706,10 +762,15 @@ export interface WAFRuleGroup {
   region_blacklist: string[];
   pow_enabled: boolean;
   pow_config: ProxyRoutePoWConfig;
-  applied_site_ids: number[];
-  applied_site_count: number;
-  created_at: string;
-  updated_at: string;
+}
+
+export interface WAFCreateRulePayload {
+  name: string;
+}
+
+export interface WAFSaveRuleGraphPayload {
+  revision: number;
+  graph: WAFRuleGraph;
 }
 
 export interface WAFRuleGroupPayload {
@@ -731,9 +792,9 @@ export interface WAFRuleGroupPayload {
 
 export interface WAFSiteRuleGroups {
   route_id: number;
-  global_rule_group: WAFRuleGroup | null;
-  rule_groups: WAFRuleGroup[];
-  applied_rule_groups: WAFRuleGroup[];
+  global_rule_group: WAFRule | null;
+  rule_groups: WAFRule[];
+  applied_rule_groups: WAFRule[];
   applied_ids: number[];
 }
 

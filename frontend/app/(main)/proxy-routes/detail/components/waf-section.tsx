@@ -127,11 +127,7 @@ export function WafSection({ route, onSavingChange }: WafSectionProps) {
                   <span className="block text-sm font-semibold">{group.name}</span>
                   <span className="mt-1 block text-xs text-muted-foreground">
                     {group.enabled ? '启用中' : '已停用'} ·{' '}
-                    {group.ip_whitelist.length +
-                      group.ip_blacklist.length +
-                      group.country_whitelist.length +
-                      group.country_blacklist.length}{' '}
-                    条规则
+                    {group.graph.nodes.length} 个节点
                   </span>
                 </span>
               </label>

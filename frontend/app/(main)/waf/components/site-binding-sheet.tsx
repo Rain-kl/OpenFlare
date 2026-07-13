@@ -7,10 +7,10 @@ import {Button} from '@/components/ui/button';
 import {Input} from '@/components/ui/input';
 import {Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle,} from '@/components/ui/sheet';
 import {cn} from '@/lib/utils';
-import type {ProxyRouteItem, WAFRuleGroup} from '@/lib/services/openflare';
+import type {ProxyRouteItem, WAFRule} from '@/lib/services/openflare';
 
 interface SiteBindingSheetProps {
-  group: WAFRuleGroup | null;
+  group: WAFRule | null;
   routes: ProxyRouteItem[];
   open: boolean;
   pending: boolean;

@@ -7,21 +7,20 @@ import {Button} from '@/components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow,} from '@/components/ui/table';
-import type {WAFRuleGroup} from '@/lib/services/openflare';
+import type {WAFRule} from '@/lib/services/openflare';
 import {formatDateTime} from '@/lib/utils';
 
-import {countRuleEntries} from './helpers';
-
 interface RuleGroupsTableProps {
-  groups: WAFRuleGroup[];
-  onEdit: (group: WAFRuleGroup) => void;
-  onDelete: (group: WAFRuleGroup) => void;
-  onBindSites: (group: WAFRuleGroup) => void;
+  groups: WAFRule[];
+  onEdit: (group: WAFRule) => void;
+  onDelete: (group: WAFRule) => void;
+  onBindSites: (group: WAFRule) => void;
 }
 
 export function RuleGroupsTable({
@@ -37,7 +36,7 @@ export function RuleGroupsTable({
           <TableHead>名称</TableHead>
           <TableHead>类型</TableHead>
           <TableHead>状态</TableHead>
-          <TableHead>规则数</TableHead>
+          <TableHead>节点数</TableHead>
           <TableHead>应用范围</TableHead>
           <TableHead>更新时间</TableHead>
           <TableHead className="w-[80px] text-right">操作</TableHead>
@@ -64,7 +63,7 @@ export function RuleGroupsTable({
                 {group.enabled ? '启用' : '停用'}
               </Badge>
             </TableCell>
-            <TableCell>{countRuleEntries(group)}</TableCell>
+            <TableCell>{group.graph.nodes.length}</TableCell>
             <TableCell>
               {group.is_global
                 ? '全部网站'
@@ -77,30 +76,34 @@ export function RuleGroupsTable({
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon" className="size-8">
-                    <MoreHorizontal className="size-4" />
+                    <MoreHorizontal />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => onEdit(group)}>
-                    <Pencil className="size-4 mr-2" />
-                    编辑
-                  </DropdownMenuItem>
-                  {!group.is_global ? (
-                    <DropdownMenuItem onClick={() => onBindSites(group)}>
-                      <Users className="size-4 mr-2" />
-                      绑定网站
+                  <DropdownMenuGroup>
+                    <DropdownMenuItem onClick={() => onEdit(group)}>
+                      <Pencil />
+                      编排
                     </DropdownMenuItem>
-                  ) : null}
+                    {!group.is_global ? (
+                      <DropdownMenuItem onClick={() => onBindSites(group)}>
+                        <Users />
+                        绑定网站
+                      </DropdownMenuItem>
+                    ) : null}
+                  </DropdownMenuGroup>
                   {!group.is_global ? (
                     <>
                       <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        className="text-destructive focus:text-destructive"
-                        onClick={() => onDelete(group)}
-                      >
-                        <Trash2 className="size-4 mr-2" />
-                        删除
-                      </DropdownMenuItem>
+                      <DropdownMenuGroup>
+                        <DropdownMenuItem
+                          variant="destructive"
+                          onClick={() => onDelete(group)}
+                        >
+                          <Trash2 />
+                          删除
+                        </DropdownMenuItem>
+                      </DropdownMenuGroup>
                     </>
                   ) : null}
                 </DropdownMenuContent>

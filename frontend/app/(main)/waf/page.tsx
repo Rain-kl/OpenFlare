@@ -2,6 +2,7 @@
 
 import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query';
 import {Loader2, Plus, RefreshCw, Shield} from 'lucide-react';
+import {useRouter} from 'next/navigation';
 import {useState} from 'react';
 import {toast} from 'sonner';
 
@@ -20,33 +21,27 @@ import {Card, CardContent, CardDescription, CardHeader, CardTitle,} from '@/comp
 import {EmptyStateWithBorder} from '@/components/layout/empty';
 import {ErrorInline} from '@/components/layout/error';
 import {LoadingStateWithBorder} from '@/components/layout/loading';
-import type {WAFRuleGroup, WAFRuleGroupPayload} from '@/lib/services/openflare';
+import type {WAFRule} from '@/lib/services/openflare';
 import {ProxyRouteService, WafService} from '@/lib/services/openflare';
 
+import {CreateRuleDialog} from './components/create-rule-dialog';
 import {getErrorMessage} from './components/helpers';
-import {RuleGroupSheet} from './components/rule-group-sheet';
 import {RuleGroupsTable} from './components/rule-groups-table';
 import {SiteBindingSheet} from './components/site-binding-sheet';
 
 const ruleGroupsQueryKey = ['openflare', 'waf', 'rule-groups'];
-const ipGroupsQueryKey = ['openflare', 'waf', 'ip-groups'];
 const routesQueryKey = ['openflare', 'proxy-routes'];
 
 export default function WafPage() {
+  const router = useRouter();
   const queryClient = useQueryClient();
-  const [editorOpen, setEditorOpen] = useState(false);
-  const [editingGroup, setEditingGroup] = useState<WAFRuleGroup | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<WAFRuleGroup | null>(null);
-  const [bindingGroup, setBindingGroup] = useState<WAFRuleGroup | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<WAFRule | null>(null);
+  const [bindingGroup, setBindingGroup] = useState<WAFRule | null>(null);
 
   const groupsQuery = useQuery({
     queryKey: ruleGroupsQueryKey,
     queryFn: () => WafService.listRuleGroups(),
-  });
-
-  const ipGroupsQuery = useQuery({
-    queryKey: ipGroupsQueryKey,
-    queryFn: () => WafService.listIPGroups(),
   });
 
   const routesQuery = useQuery({
@@ -57,29 +52,16 @@ export default function WafPage() {
   const invalidate = async () => {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: ruleGroupsQueryKey }),
-      queryClient.invalidateQueries({ queryKey: ipGroupsQueryKey }),
       queryClient.invalidateQueries({ queryKey: ['openflare', 'config-versions', 'diff'] }),
     ]);
   };
 
-  const saveMutation = useMutation({
-    mutationFn: async ({
-      group,
-      payload,
-    }: {
-      group: WAFRuleGroup | null;
-      payload: WAFRuleGroupPayload;
-    }) => {
-      if (group) {
-        return WafService.updateRuleGroup(group.id, payload);
-      }
-      return WafService.createRuleGroup(payload);
-    },
-    onSuccess: async () => {
-      toast.success(editingGroup ? '规则组已更新' : '规则组已创建');
-      setEditingGroup(null);
-      setEditorOpen(false);
-      await invalidate();
+  const createMutation = useMutation({
+    mutationFn: (name: string) => WafService.createRule({name}),
+    onSuccess: (rule) => {
+      toast.success('规则已创建');
+      setCreateOpen(false);
+      router.push(`/waf/rules/editor?id=${rule.id}`);
     },
     onError: (error) => {
       toast.error(getErrorMessage(error));
@@ -115,32 +97,21 @@ export default function WafPage() {
     void queryClient.invalidateQueries({ queryKey: ruleGroupsQueryKey });
   };
 
-  const handleCreate = () => {
-    setEditingGroup(null);
-    setEditorOpen(true);
-  };
-
-  const handleEdit = (group: WAFRuleGroup) => {
-    setEditingGroup(group);
-    setEditorOpen(true);
-  };
-
   const groups = groupsQuery.data ?? [];
-  const loading = groupsQuery.isLoading || ipGroupsQuery.isLoading || routesQuery.isLoading;
-  const error =
-    groupsQuery.error ?? ipGroupsQuery.error ?? routesQuery.error ?? null;
+  const loading = groupsQuery.isLoading || routesQuery.isLoading;
+  const error = groupsQuery.error ?? routesQuery.error ?? null;
 
   return (
-    <div className="py-6 px-1 space-y-6">
+    <div className="w-full py-6 px-1 space-y-6">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <Shield className="size-5 text-primary" />
           <h1 className="text-2xl font-semibold tracking-tight">WAF</h1>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="secondary" size="sm" className="h-7 text-xs" onClick={handleCreate}>
-            <Plus className="size-3.5 mr-1" />
-            新建规则组
+          <Button variant="secondary" size="sm" onClick={() => setCreateOpen(true)}>
+            <Plus data-icon="inline-start" />
+            新建规则
           </Button>
         </div>
       </div>
@@ -151,7 +122,7 @@ export default function WafPage() {
             <div>
               <CardTitle className="text-base font-semibold">规则组</CardTitle>
               <CardDescription>
-                按规则组维护 WAF 与 PoW 防护规则，全局规则组始终应用到所有网站。
+                使用可视化流程编排 WAF 防护规则；全局规则始终应用到所有网站。
               </CardDescription>
             </div>
             <Button
@@ -189,7 +160,7 @@ export default function WafPage() {
           ) : (
             <RuleGroupsTable
               groups={groups}
-              onEdit={handleEdit}
+              onEdit={(rule) => router.push(`/waf/rules/editor?id=${rule.id}`)}
               onDelete={setDeleteTarget}
               onBindSites={setBindingGroup}
             />
@@ -197,17 +168,12 @@ export default function WafPage() {
         </CardContent>
       </Card>
 
-      <RuleGroupSheet
-        open={editorOpen}
-        group={editingGroup}
-        ipGroups={ipGroupsQuery.data ?? []}
-        submitting={saveMutation.isPending}
-        onOpenChange={(open) => {
-          setEditorOpen(open);
-          if (!open) setEditingGroup(null);
-        }}
-        onSubmit={async (payload) => {
-          await saveMutation.mutateAsync({ group: editingGroup, payload });
+      <CreateRuleDialog
+        open={createOpen}
+        pending={createMutation.isPending}
+        onOpenChange={setCreateOpen}
+        onCreate={async (name) => {
+          await createMutation.mutateAsync(name);
         }}
       />
 
