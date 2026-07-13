@@ -9,14 +9,7 @@ import {z} from 'zod';
 import {Button} from '@/components/ui/button';
 import {Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage,} from '@/components/ui/form';
 import {Input} from '@/components/ui/input';
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
-} from '@/components/ui/sheet';
+import {Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle,} from '@/components/ui/sheet';
 import {Switch} from '@/components/ui/switch';
 import {Tabs, TabsContent, TabsList, TabsTrigger} from '@/components/ui/tabs';
 import {Textarea} from '@/components/ui/textarea';
@@ -187,20 +180,7 @@ export function RuleGroupSheet({
                   </TabsList>
 
                   <TabsContent value="basic" className="mt-4 space-y-4">
-                    <div className="grid gap-4 md:grid-cols-2">
-                      <FormField
-                        control={form.control}
-                        name="name"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>规则组名称</FormLabel>
-                            <FormControl>
-                              <Input {...field} disabled={isGlobal} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                    <div className="grid gap-4">
                       <FormField
                         control={form.control}
                         name="enabled"
@@ -213,6 +193,19 @@ export function RuleGroupSheet({
                             <FormControl>
                               <Switch checked={field.value} onCheckedChange={field.onChange} />
                             </FormControl>
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="name"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>规则组名称</FormLabel>
+                            <FormControl>
+                              <Input {...field} disabled={isGlobal} />
+                            </FormControl>
+                            <FormMessage />
                           </FormItem>
                         )}
                       />
@@ -295,7 +288,7 @@ export function RuleGroupSheet({
                   </TabsContent>
 
                   <TabsContent value="block" className="mt-4 space-y-4">
-                    <div className="grid gap-4 xl:grid-cols-[280px_minmax(0,1fr)]">
+                    <div className="grid gap-4">
                       <FormField
                         control={form.control}
                         name="block_status_code"
