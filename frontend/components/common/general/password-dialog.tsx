@@ -1,19 +1,29 @@
-"use client"
+'use client';
 
-import * as React from "react"
-import {useState} from "react"
-import {Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,} from "@/components/ui/dialog"
-import {InputOTP, InputOTPGroup, InputOTPSlot,} from "@/components/ui/input-otp"
-import {Button} from "@/components/ui/button"
-import {Spinner} from "@/components/ui/spinner"
+import * as React from 'react';
+import { useState } from 'react';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  InputOTP,
+  InputOTPGroup,
+  InputOTPSlot,
+} from '@/components/ui/input-otp';
+import { Button } from '@/components/ui/button';
+import { Spinner } from '@/components/ui/spinner';
 
 interface PasswordDialogProps {
-  isOpen: boolean
-  onOpenChange: (open: boolean) => void
-  onConfirm: (password: string) => void
-  loading?: boolean
-  title?: string
-  description?: string
+  isOpen: boolean;
+  onOpenChange: (open: boolean) => void;
+  onConfirm: (password: string) => void;
+  loading?: boolean;
+  title?: string;
+  description?: string;
 }
 
 /**
@@ -26,35 +36,33 @@ export function PasswordDialog({
   onOpenChange,
   onConfirm,
   loading = false,
-  title = "请输入密码",
-  description = "为了您的账户安全，请输入6位认证密码进行验证"
+  title = '请输入密码',
+  description = '为了您的账户安全，请输入6位认证密码进行验证',
 }: PasswordDialogProps) {
-  const [password, setPassword] = useState("")
+  const [password, setPassword] = useState('');
 
   const handleConfirm = () => {
     if (password.length === 6) {
-      onConfirm(password)
+      onConfirm(password);
     }
-  }
+  };
 
   /* 当对话框关闭时重置密码*/
   React.useEffect(() => {
     if (!isOpen) {
-      setPassword("")
+      setPassword('');
     }
-  }, [isOpen])
+  }, [isOpen]);
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="w-xs sm:w-md">
+      <DialogContent className='w-xs sm:w-md'>
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>
-            {description}
-          </DialogDescription>
+          <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
 
-        <div className="py-2 flex justify-center">
+        <div className='py-2 flex justify-center'>
           <InputOTP
             maxLength={6}
             value={password}
@@ -62,47 +70,47 @@ export function PasswordDialog({
             disabled={loading}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && password.length === 6 && !loading) {
-                handleConfirm()
+                handleConfirm();
               }
             }}
           >
-            <InputOTPGroup className="gap-2">
-              <InputOTPSlot index={0} className="w-10 h-10 text-base" />
-              <InputOTPSlot index={1} className="w-10 h-10 text-base" />
-              <InputOTPSlot index={2} className="w-10 h-10 text-base" />
-              <InputOTPSlot index={3} className="w-10 h-10 text-base" />
-              <InputOTPSlot index={4} className="w-10 h-10 text-base" />
-              <InputOTPSlot index={5} className="w-10 h-10 text-base" />
+            <InputOTPGroup className='gap-2'>
+              <InputOTPSlot index={0} className='w-10 h-10 text-base' />
+              <InputOTPSlot index={1} className='w-10 h-10 text-base' />
+              <InputOTPSlot index={2} className='w-10 h-10 text-base' />
+              <InputOTPSlot index={3} className='w-10 h-10 text-base' />
+              <InputOTPSlot index={4} className='w-10 h-10 text-base' />
+              <InputOTPSlot index={5} className='w-10 h-10 text-base' />
             </InputOTPGroup>
           </InputOTP>
         </div>
 
-        <div className="flex justify-end gap-2 pt-2">
+        <div className='flex justify-end gap-2 pt-2'>
           <Button
-            variant="ghost"
+            variant='ghost'
             onClick={() => onOpenChange(false)}
             disabled={loading}
-            className="h-8 text-xs"
+            className='h-8 text-xs'
           >
             取消
           </Button>
           <Button
-            type="button"
-            className="bg-primary hover:bg-primary/90 h-8 text-xs"
+            type='button'
+            className='bg-primary hover:bg-primary/90 h-8 text-xs'
             onClick={handleConfirm}
             disabled={password.length !== 6 || loading}
           >
             {loading ? (
               <>
-                <Spinner className="mr-2 h-4 w-4" />
+                <Spinner className='mr-2 h-4 w-4' />
                 验证中...
               </>
             ) : (
-              "确认"
+              '确认'
             )}
           </Button>
         </div>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

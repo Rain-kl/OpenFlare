@@ -19,8 +19,8 @@ import {
 import {Input} from '@/components/ui/input';
 import {Label} from '@/components/ui/label';
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue,} from '@/components/ui/select';
-import {DnsAccountService} from '@/lib/services/openflare';
 import type {DnsAccountMutationPayload} from '@/lib/services/openflare';
+import {DnsAccountService} from '@/lib/services/openflare';
 
 import {getErrorMessage} from './website-utils';
 
@@ -49,13 +49,14 @@ export function DnsAccountCreateDialog({
   const [error, setError] = useState('');
   const form = useForm<DnsAccountFormValues>({
     resolver: zodResolver(dnsAccountSchema),
-    defaultValues: {name: '', type: 'cloudflare', authorization: ''},
+    defaultValues: { name: '', type: 'cloudflare', authorization: '' },
   });
 
   const createMutation = useMutation({
-    mutationFn: (payload: DnsAccountMutationPayload) => DnsAccountService.create(payload),
+    mutationFn: (payload: DnsAccountMutationPayload) =>
+      DnsAccountService.create(payload),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({queryKey: dnsAccountsQueryKey});
+      await queryClient.invalidateQueries({ queryKey: dnsAccountsQueryKey });
       form.reset();
       setError('');
       onCreated?.();
@@ -68,9 +69,9 @@ export function DnsAccountCreateDialog({
     setError('');
     let auth = values.authorization.trim();
     if (!auth.startsWith('{')) {
-      auth = JSON.stringify({api_token: values.authorization});
+      auth = JSON.stringify({ api_token: values.authorization });
     }
-    createMutation.mutate({...values, authorization: auth});
+    createMutation.mutate({ ...values, authorization: auth });
   });
 
   const handleClose = () => {
@@ -89,21 +90,23 @@ export function DnsAccountCreateDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <form className="space-y-4" onSubmit={onSubmit}>
-          {error ? <p className="text-sm text-destructive">{error}</p> : null}
+        <form className='space-y-4' onSubmit={onSubmit}>
+          {error ? <p className='text-sm text-destructive'>{error}</p> : null}
 
-          <div className="space-y-2">
+          <div className='space-y-2'>
             <Label>账号名称</Label>
             <Input
-              placeholder="Cloudflare 邮箱账号"
+              placeholder='Cloudflare 邮箱账号'
               {...form.register('name')}
             />
             {form.formState.errors.name ? (
-              <p className="text-xs text-destructive">{form.formState.errors.name.message}</p>
+              <p className='text-xs text-destructive'>
+                {form.formState.errors.name.message}
+              </p>
             ) : null}
           </div>
 
-          <div className="space-y-2">
+          <div className='space-y-2'>
             <Label>DNS 服务商</Label>
             <Select
               value={form.watch('type')}
@@ -113,32 +116,32 @@ export function DnsAccountCreateDialog({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="cloudflare">Cloudflare</SelectItem>
+                <SelectItem value='cloudflare'>Cloudflare</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
-          <div className="space-y-2">
+          <div className='space-y-2'>
             <Label>API Token</Label>
             <Input
               {...form.register('authorization')}
-              placeholder="请勿使用 Global API Key"
+              placeholder='请勿使用 Global API Key'
             />
             {form.formState.errors.authorization ? (
-              <p className="text-xs text-destructive">
+              <p className='text-xs text-destructive'>
                 {form.formState.errors.authorization.message}
               </p>
             ) : null}
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={handleClose}>
+            <Button type='button' variant='outline' onClick={handleClose}>
               取消
             </Button>
-            <Button type="submit" disabled={createMutation.isPending}>
+            <Button type='submit' disabled={createMutation.isPending}>
               {createMutation.isPending ? (
                 <>
-                  <Loader2 className="mr-1 size-3.5 animate-spin" />
+                  <Loader2 className='mr-1 size-3.5 animate-spin' />
                   提交中...
                 </>
               ) : (

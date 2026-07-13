@@ -1,6 +1,6 @@
 'use client';
 
-import {QuickCreateZoneDomainDialog} from '../../components/quick-create-zone-domain-dialog';
+import { QuickCreateZoneDomainDialog } from '../../components/quick-create-zone-domain-dialog';
 
 /** Zone 详情页添加域名（固定 Zone，支持简写 / @ / 完整 FQDN）。 */
 export function ZoneDomainDialog({

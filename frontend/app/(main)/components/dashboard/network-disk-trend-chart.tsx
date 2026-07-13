@@ -1,10 +1,13 @@
 'use client';
 
-import {TrendChart} from '@/components/data/trend-chart';
-import {Card, CardContent, CardHeader, CardTitle,} from '@/components/ui/card';
-import type {DiskIOTrendPoint, NetworkTrendPoint} from '@/lib/services/openflare';
+import { TrendChart } from '@/components/data/trend-chart';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import type {
+  DiskIOTrendPoint,
+  NetworkTrendPoint,
+} from '@/lib/services/openflare';
 
-import {formatBytes, formatTrendHour} from './dashboard-utils';
+import { formatBytes, formatTrendHour } from './dashboard-utils';
 
 export function NetworkDiskTrendChart({
   networkPoints,
@@ -14,16 +17,20 @@ export function NetworkDiskTrendChart({
   diskPoints: DiskIOTrendPoint[];
 }) {
   return (
-    <Card className="border-dashed shadow-none">
+    <Card className='border-dashed shadow-none'>
       <CardHeader>
-        <CardTitle className="text-sm font-semibold">24 小时网络与磁盘趋势</CardTitle>
+        <CardTitle className='text-sm font-semibold'>
+          24 小时网络与磁盘趋势
+        </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-6">
+      <CardContent className='space-y-6'>
         <TrendChart
-          labels={networkPoints.map((point) => formatTrendHour(point.bucket_started_at))}
+          labels={networkPoints.map((point) =>
+            formatTrendHour(point.bucket_started_at),
+          )}
           height={180}
-          summaryScope="total"
-          summaryHint="近 24 小时"
+          summaryScope='total'
+          summaryHint='近 24 小时'
           yAxisValueFormatter={formatBytes}
           series={[
             {
@@ -44,10 +51,12 @@ export function NetworkDiskTrendChart({
         />
 
         <TrendChart
-          labels={diskPoints.map((point) => formatTrendHour(point.bucket_started_at))}
+          labels={diskPoints.map((point) =>
+            formatTrendHour(point.bucket_started_at),
+          )}
           height={180}
-          summaryScope="total"
-          summaryHint="近 24 小时"
+          summaryScope='total'
+          summaryHint='近 24 小时'
           yAxisValueFormatter={formatBytes}
           series={[
             {

@@ -3,7 +3,7 @@
 import * as React from 'react';
 import {type SpringOptions, useMotionValue, useSpring} from 'motion/react';
 
-import {useIsInView, type UseIsInViewOptions,} from '@/hooks/use-is-in-view';
+import {useIsInView, type UseIsInViewOptions} from '@/hooks/use-is-in-view';
 
 type CountingNumberProps = Omit<React.ComponentProps<'span'>, 'children'> & {
   number: number;
@@ -78,7 +78,7 @@ function CountingNumber({
           const [intPart, fracPart] = formatted.split(decimalSeparator);
           const paddedInt = intPart?.padStart(finalIntLength, '0') ?? '';
           formatted = fracPart
-            ? `${ paddedInt }${ decimalSeparator }${ fracPart }`
+            ? `${paddedInt}${decimalSeparator}${fracPart}`
             : paddedInt;
         }
 
@@ -87,7 +87,7 @@ function CountingNumber({
           const regex = /\B(?=(\d{3})+(?!\d))/g;
           const separatedInt = intPart.replace(regex, thousandSeparator);
           formatted = fracPart
-            ? `${ separatedInt }${ decimalSeparator }${ fracPart }`
+            ? `${separatedInt}${decimalSeparator}${fracPart}`
             : separatedInt;
         }
 
@@ -95,7 +95,15 @@ function CountingNumber({
       }
     });
     return () => unsubscribe();
-  }, [springVal, decimals, padStart, number, decimalSeparator, localRef, thousandSeparator]);
+  }, [
+    springVal,
+    decimals,
+    padStart,
+    number,
+    decimalSeparator,
+    localRef,
+    thousandSeparator,
+  ]);
 
   const finalIntLength = Math.floor(Math.abs(number)).toString().length;
 
@@ -105,26 +113,28 @@ function CountingNumber({
     if (padStart) {
       const [intPart, fracPart] = out.split(decimalSeparator);
       const paddedInt = (intPart ?? '').padStart(finalIntLength, '0');
-      out = fracPart ? `${ paddedInt }${ decimalSeparator }${ fracPart }` : paddedInt;
+      out = fracPart ? `${paddedInt}${decimalSeparator}${fracPart}` : paddedInt;
     }
     if (thousandSeparator) {
       const [intPart, fracPart] = out.split(decimalSeparator);
       const regex = /\B(?=(\d{3})+(?!\d))/g;
       const separatedInt = intPart.replace(regex, thousandSeparator);
-      out = fracPart ? `${ separatedInt }${ decimalSeparator }${ fracPart }` : separatedInt;
+      out = fracPart
+        ? `${separatedInt}${decimalSeparator}${fracPart}`
+        : separatedInt;
     }
     return out;
   };
 
   const zeroText = padStart
     ? '0'.padStart(finalIntLength, '0') +
-    (decimals > 0 ? decimalSeparator + '0'.repeat(decimals) : '')
+      (decimals > 0 ? decimalSeparator + '0'.repeat(decimals) : '')
     : '0' + (decimals > 0 ? decimalSeparator + '0'.repeat(decimals) : '');
 
   const initialText = initiallyStable ? formatValue(number) : zeroText;
 
   return (
-    <span ref={localRef} data-slot="counting-number" {...props}>
+    <span ref={localRef} data-slot='counting-number' {...props}>
       {initialText}
     </span>
   );

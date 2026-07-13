@@ -1,5 +1,5 @@
-import {OpenFlareBaseService} from './base.service';
-import type {OriginDetail, OriginItem, OriginMutationPayload} from './types';
+import { OpenFlareBaseService } from './base.service';
+import type { OriginDetail, OriginItem, OriginMutationPayload } from './types';
 
 export class OriginService extends OpenFlareBaseService {
   protected static override readonly basePath: string = '/api/v1/d/origins';

@@ -1,9 +1,15 @@
 'use client';
 
-import {Globe2, MoreHorizontal, Pencil, ShieldCheck, Trash2} from 'lucide-react';
+import {
+  Globe2,
+  MoreHorizontal,
+  Pencil,
+  ShieldCheck,
+  Trash2,
+} from 'lucide-react';
 
-import {Badge} from '@/components/ui/badge';
-import {Button} from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,9 +18,16 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow,} from '@/components/ui/table';
-import type {WAFRule} from '@/lib/services/openflare';
-import {formatDateTime} from '@/lib/utils';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import type { WAFRule } from '@/lib/services/openflare';
+import { formatDateTime } from '@/lib/utils';
 
 interface RuleGroupsTableProps {
   groups: WAFRule[];
@@ -37,24 +50,26 @@ export function RuleGroupsTable({
           <TableHead>节点数</TableHead>
           <TableHead>应用范围</TableHead>
           <TableHead>更新时间</TableHead>
-          <TableHead className="w-[80px] text-right">操作</TableHead>
+          <TableHead className='w-[80px] text-right'>操作</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
         {groups.map((group) => (
           <TableRow key={group.id}>
             <TableCell>
-              <div className="flex items-center gap-2">
+              <div className='flex items-center gap-2'>
                 {group.is_global ? (
-                  <Globe2 className="size-4 text-primary shrink-0" />
+                  <Globe2 className='size-4 text-primary shrink-0' />
                 ) : (
-                  <ShieldCheck className="size-4 text-muted-foreground shrink-0" />
+                  <ShieldCheck className='size-4 text-muted-foreground shrink-0' />
                 )}
-                <span className="font-medium">{group.name}</span>
+                <span className='font-medium'>{group.name}</span>
               </div>
             </TableCell>
             <TableCell>
-              <Badge variant="outline">{group.is_global ? '全局' : '自定义'}</Badge>
+              <Badge variant='outline'>
+                {group.is_global ? '全局' : '自定义'}
+              </Badge>
             </TableCell>
             <TableCell>
               <Badge variant={group.enabled ? 'default' : 'secondary'}>
@@ -67,17 +82,17 @@ export function RuleGroupsTable({
                 ? '全部网站'
                 : `${group.applied_site_count} 个网站`}
             </TableCell>
-            <TableCell className="text-muted-foreground text-sm">
+            <TableCell className='text-muted-foreground text-sm'>
               {group.updated_at ? formatDateTime(group.updated_at) : '—'}
             </TableCell>
-            <TableCell className="text-right">
+            <TableCell className='text-right'>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="size-8">
+                  <Button variant='ghost' size='icon' className='size-8'>
                     <MoreHorizontal />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
+                <DropdownMenuContent align='end'>
                   <DropdownMenuGroup>
                     <DropdownMenuItem onClick={() => onEdit(group)}>
                       <Pencil />
@@ -89,7 +104,7 @@ export function RuleGroupsTable({
                       <DropdownMenuSeparator />
                       <DropdownMenuGroup>
                         <DropdownMenuItem
-                          variant="destructive"
+                          variant='destructive'
                           onClick={() => onDelete(group)}
                         >
                           <Trash2 />

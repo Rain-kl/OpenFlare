@@ -1,11 +1,11 @@
-"use client"
+'use client';
 
-import {RequireAuth} from "@/components/auth/require-auth"
+import { RequireAuth } from '@/components/auth/require-auth';
 
 export default function SettingsLayout({
   children,
 }: {
-  children: React.ReactNode
+  children: React.ReactNode;
 }) {
-  return <RequireAuth>{children}</RequireAuth>
+  return <RequireAuth>{children}</RequireAuth>;
 }

@@ -1,13 +1,7 @@
 'use client';
 
 import {TrendChart} from '@/components/data/trend-chart';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+import {Card, CardContent, CardDescription, CardHeader, CardTitle,} from '@/components/ui/card';
 import type {CapacityTrendPoint} from '@/lib/services/openflare';
 
 import {formatPercent, formatTrendHour} from './dashboard-utils';
@@ -22,14 +16,16 @@ export function CapacityTrendChart({
   description?: string;
 }) {
   return (
-    <Card className="border-dashed shadow-none">
+    <Card className='border-dashed shadow-none'>
       <CardHeader>
-        <CardTitle className="text-sm font-semibold">{title}</CardTitle>
-        <CardDescription className="text-xs">{description}</CardDescription>
+        <CardTitle className='text-sm font-semibold'>{title}</CardTitle>
+        <CardDescription className='text-xs'>{description}</CardDescription>
       </CardHeader>
       <CardContent>
         <TrendChart
-          labels={points.map((point) => formatTrendHour(point.bucket_started_at))}
+          labels={points.map((point) =>
+            formatTrendHour(point.bucket_started_at),
+          )}
           yAxisValueFormatter={formatPercent}
           series={[
             {

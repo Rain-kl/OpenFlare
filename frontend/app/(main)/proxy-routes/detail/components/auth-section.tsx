@@ -53,8 +53,16 @@ interface AuthSectionProps {
   onSavingChange?: (saving: boolean) => void;
 }
 
-export function AuthSection({ route, onRouteUpdate, onSavingChange }: AuthSectionProps) {
-  const { saving, save } = useRouteSectionSave(route, onRouteUpdate, onSavingChange);
+export function AuthSection({
+  route,
+  onRouteUpdate,
+  onSavingChange,
+}: AuthSectionProps) {
+  const { saving, save } = useRouteSectionSave(
+    route,
+    onRouteUpdate,
+    onSavingChange,
+  );
 
   const form = useForm<AuthValues>({
     resolver: zodResolver(authSchema),
@@ -77,24 +85,28 @@ export function AuthSection({ route, onRouteUpdate, onSavingChange }: AuthSectio
 
   return (
     <SectionShell
-      title="认证配置"
-      description="配置 Basic Auth 限制未授权访问。PoW 防护请在 WAF 规则组中配置。"
+      title='认证配置'
+      description='配置 Basic Auth 限制未授权访问。PoW 防护请在 WAF 规则组中配置。'
       formId={proxyRouteFormIds.auth}
       saving={saving}
     >
       <Form {...form}>
         <form
           id={proxyRouteFormIds.auth}
-          className="space-y-5"
+          className='space-y-5'
           onSubmit={form.handleSubmit(
             async (values) => {
               await save(
                 {
                   basic_auth_enabled: values.auth_mode === 'basic',
                   basic_auth_username:
-                    values.auth_mode === 'basic' ? values.basic_auth_username.trim() : '',
+                    values.auth_mode === 'basic'
+                      ? values.basic_auth_username.trim()
+                      : '',
                   basic_auth_password:
-                    values.auth_mode === 'basic' ? values.basic_auth_password.trim() : '',
+                    values.auth_mode === 'basic'
+                      ? values.basic_auth_password.trim()
+                      : '',
                 },
                 '认证配置已保存',
               );
@@ -106,7 +118,7 @@ export function AuthSection({ route, onRouteUpdate, onSavingChange }: AuthSectio
         >
           <FormField
             control={form.control}
-            name="auth_mode"
+            name='auth_mode'
             render={({ field }) => (
               <FormItem>
                 <FormLabel>认证模式</FormLabel>
@@ -126,11 +138,13 @@ export function AuthSection({ route, onRouteUpdate, onSavingChange }: AuthSectio
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    <SelectItem value="none">无认证</SelectItem>
-                    <SelectItem value="basic">Basic Auth</SelectItem>
+                    <SelectItem value='none'>无认证</SelectItem>
+                    <SelectItem value='basic'>Basic Auth</SelectItem>
                   </SelectContent>
                 </Select>
-                <FormDescription>PoW 防护仅支持在 WAF 规则组中启用并绑定站点。</FormDescription>
+                <FormDescription>
+                  PoW 防护仅支持在 WAF 规则组中启用并绑定站点。
+                </FormDescription>
                 <FormMessage />
               </FormItem>
             )}
@@ -140,12 +154,12 @@ export function AuthSection({ route, onRouteUpdate, onSavingChange }: AuthSectio
             <>
               <FormField
                 control={form.control}
-                name="basic_auth_username"
+                name='basic_auth_username'
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>账号</FormLabel>
                     <FormControl>
-                      <Input placeholder="admin" {...field} />
+                      <Input placeholder='admin' {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -154,12 +168,12 @@ export function AuthSection({ route, onRouteUpdate, onSavingChange }: AuthSectio
 
               <FormField
                 control={form.control}
-                name="basic_auth_password"
+                name='basic_auth_password'
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>密码</FormLabel>
                     <FormControl>
-                      <Input type="text" placeholder="secret123" {...field} />
+                      <Input type='text' placeholder='secret123' {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

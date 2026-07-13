@@ -1,10 +1,10 @@
-import type {AxiosProgressEvent, InternalAxiosRequestConfig} from 'axios';
+import type { AxiosProgressEvent, InternalAxiosRequestConfig } from 'axios';
 
 import apiClient from '@/lib/services/core/api-client';
-import {apiConfig} from '@/lib/services/core/config';
-import type {ApiResponse} from '@/lib/services/core';
+import { apiConfig } from '@/lib/services/core/config';
+import type { ApiResponse } from '@/lib/services/core';
 
-import {OpenFlareBaseService} from './base.service';
+import { OpenFlareBaseService } from './base.service';
 import type {
   PagesDeployment,
   PagesDeploymentFile,
@@ -80,9 +80,7 @@ export class PagesService extends OpenFlareBaseService {
     projectId: number,
     deploymentId: number,
   ): Promise<void> {
-    return this.post<void>(
-      `/${projectId}/deployments/${deploymentId}/delete`,
-    );
+    return this.post<void>(`/${projectId}/deployments/${deploymentId}/delete`);
   }
 
   private static async postFormData<T>(

@@ -222,4 +222,3 @@ func TestListNodeOpenrestyHourly_FallsBackToRawOnEmptyRollup(t *testing.T) {
 	require.GreaterOrEqual(t, len(mock.queries), 2)
 	assert.Contains(t, mock.queries[1], "lagInFrame")
 }
-

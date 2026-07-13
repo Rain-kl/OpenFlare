@@ -1,9 +1,14 @@
 'use client';
 
 import * as React from 'react';
-import {motion, type Variants} from 'motion/react';
+import { motion, type Variants } from 'motion/react';
 
-import {getVariants, type IconProps, IconWrapper, useAnimateIconContext,} from '@/components/animate-ui/icons/icon';
+import {
+  getVariants,
+  type IconProps,
+  IconWrapper,
+  useAnimateIconContext,
+} from '@/components/animate-ui/icons/icon';
 
 type SendProps = IconProps<keyof typeof animations>;
 
@@ -45,28 +50,28 @@ function IconComponent({ size, ...props }: SendProps) {
 
   return (
     <motion.svg
-      xmlns="http://www.w3.org/2000/svg"
+      xmlns='http://www.w3.org/2000/svg'
       width={size}
       height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
+      viewBox='0 0 24 24'
+      fill='none'
+      stroke='currentColor'
       strokeWidth={2}
-      strokeLinecap="round"
-      strokeLinejoin="round"
+      strokeLinecap='round'
+      strokeLinejoin='round'
       {...props}
     >
-      <motion.g variants={variants.group} initial="initial" animate={controls}>
+      <motion.g variants={variants.group} initial='initial' animate={controls}>
         <motion.path
-          d="M14.5,21.7c.1.3.4.4.7.3.1,0,.2-.2.3-.3L22,2.7c0-.3,0-.5-.3-.6-.1,0-.2,0-.3,0L2.3,8.5c-.3,0-.4.4-.3.6,0,.1.2.2.3.3l7.9,3.2c.5.2.9.6,1.1,1.1l3.2,7.9Z"
+          d='M14.5,21.7c.1.3.4.4.7.3.1,0,.2-.2.3-.3L22,2.7c0-.3,0-.5-.3-.6-.1,0-.2,0-.3,0L2.3,8.5c-.3,0-.4.4-.3.6,0,.1.2.2.3.3l7.9,3.2c.5.2.9.6,1.1,1.1l3.2,7.9Z'
           variants={variants.path1}
-          initial="initial"
+          initial='initial'
           animate={controls}
         />
         <motion.path
-          d="M21.9,2.1l-10.9,10.9"
+          d='M21.9,2.1l-10.9,10.9'
           variants={variants.path2}
-          initial="initial"
+          initial='initial'
           animate={controls}
         />
       </motion.g>

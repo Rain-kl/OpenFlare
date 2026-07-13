@@ -87,9 +87,9 @@ func TestSSLSingleRenewHandler_Execute(t *testing.T) {
 
 	t.Run("certificate provider is not ACME", func(t *testing.T) {
 		cert := &model.TLSCertificate{
-			Name:           "custom-cert",
-			Provider:       "custom",
-			PrimaryDomain:  "example.com",
+			Name:          "custom-cert",
+			Provider:      "custom",
+			PrimaryDomain: "example.com",
 		}
 		err := model.CreateTLSCertificateRecord(ctx, cert)
 		require.NoError(t, err)

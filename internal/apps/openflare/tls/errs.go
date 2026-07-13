@@ -17,6 +17,5 @@ const (
 	errCertificateFilesRequired     = "certificate file and key file cannot be empty"
 	errCertificatePEMInvalid        = "证书 PEM 内容不合法"
 
-
 	errDNSAccountInUse = "该 DNS 账号已被证书使用，无法删除"
 )

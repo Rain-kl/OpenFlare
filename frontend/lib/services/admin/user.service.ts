@@ -1,4 +1,4 @@
-import {BaseService} from '@/lib/services/core';
+import { BaseService } from '@/lib/services/core';
 import type {
   AdminUser,
   CreateUserRequest,
@@ -11,15 +11,23 @@ import type {
 export class AdminUserService extends BaseService {
   protected static readonly basePath = '/api/v1/admin';
 
-  static async listUsers(request: ListUsersRequest): Promise<ListUsersResponse> {
-    return this.get<ListUsersResponse>('/users', request as unknown as Record<string, unknown>);
+  static async listUsers(
+    request: ListUsersRequest,
+  ): Promise<ListUsersResponse> {
+    return this.get<ListUsersResponse>(
+      '/users',
+      request as unknown as Record<string, unknown>,
+    );
   }
 
   static async getUser(id: string): Promise<AdminUser> {
     return this.get<AdminUser>(`/users/${id}`);
   }
 
-  static async updateUserStatus(id: string, request: UpdateUserStatusRequest): Promise<void> {
+  static async updateUserStatus(
+    id: string,
+    request: UpdateUserStatusRequest,
+  ): Promise<void> {
     return this.put<void>(`/users/${id}/status`, request);
   }
 
@@ -31,7 +39,10 @@ export class AdminUserService extends BaseService {
     return this.delete<void>(`/users/${id}`);
   }
 
-  static async updateUser(id: string, request: UpdateUserRequest): Promise<void> {
+  static async updateUser(
+    id: string,
+    request: UpdateUserRequest,
+  ): Promise<void> {
     return this.put<void>(`/users/${id}`, request);
   }
 }

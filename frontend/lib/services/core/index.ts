@@ -3,7 +3,11 @@
  * 提供 API 请求的基础设施
  */
 
-export { default as apiClient, cancelRequest, cancelAllRequests } from './api-client';
+export {
+  default as apiClient,
+  cancelRequest,
+  cancelAllRequests,
+} from './api-client';
 export { BaseService } from './base.service';
 export { apiConfig } from './config';
 export {
@@ -24,4 +28,3 @@ export type {
   PaginationResponse,
   RequestConfig,
 } from './types';
-

@@ -161,9 +161,7 @@ function normalizeDiskIOTrendPoints(
 
 function normalizeDashboardNodes(
   items:
-    | Array<DashboardNodeHealth | CompactDashboardNodeHealth>
-    | null
-    | undefined,
+    Array<DashboardNodeHealth | CompactDashboardNodeHealth> | null | undefined,
 ): DashboardNodeHealth[] {
   return arrayOrEmpty(items).map((item) =>
     isCompactDashboardNode(item)

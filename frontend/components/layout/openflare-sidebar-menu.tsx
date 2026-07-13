@@ -1,11 +1,15 @@
 'use client';
 
 import Link from 'next/link';
-import {usePathname} from 'next/navigation';
-import {useEffect, useMemo, useState} from 'react';
-import {ChevronRight} from 'lucide-react';
+import { usePathname } from 'next/navigation';
+import { useEffect, useMemo, useState } from 'react';
+import { ChevronRight } from 'lucide-react';
 
-import {Collapsible, CollapsibleContent, CollapsibleTrigger} from '@/components/ui/collapsible';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
 import {
   SidebarMenu,
   SidebarMenuButton,
@@ -14,26 +18,32 @@ import {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
 } from '@/components/ui/sidebar';
-import type {OpenFlareNavGroup} from '@/lib/navigation/openflare-nav';
+import type { OpenFlareNavGroup } from '@/lib/navigation/openflare-nav';
 import {
   matchesNavPath,
   openflareSidebarNav,
   isNavGroupActive,
 } from '@/lib/navigation/openflare-nav';
-import {usePublicConfig} from '@/hooks/use-public-config';
+import { usePublicConfig } from '@/hooks/use-public-config';
 
-function parseMenuDisplayConfig(raw: string | undefined): Record<string, boolean> {
+function parseMenuDisplayConfig(
+  raw: string | undefined,
+): Record<string, boolean> {
   if (!raw) return {};
   try {
     const parsed: unknown = JSON.parse(raw);
-    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed))
+      return {};
 
-    return Object.entries(parsed).reduce<Record<string, boolean>>((result, [key, value]) => {
-      if (typeof value === 'boolean') {
-        result[key] = value;
-      }
-      return result;
-    }, {});
+    return Object.entries(parsed).reduce<Record<string, boolean>>(
+      (result, [key, value]) => {
+        if (typeof value === 'boolean') {
+          result[key] = value;
+        }
+        return result;
+      },
+      {},
+    );
   } catch {
     return {};
   }
@@ -62,14 +72,14 @@ function SidebarNavGroupMenuItem({
       asChild
       open={open}
       onOpenChange={setOpen}
-      className="group/collapsible"
+      className='group/collapsible'
     >
       <SidebarMenuItem>
         <CollapsibleTrigger asChild>
           <SidebarMenuButton tooltip={group.title} isActive={groupActive}>
             <group.icon />
             <span>{group.title}</span>
-            <ChevronRight className="ml-auto size-4 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+            <ChevronRight className='ml-auto size-4 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90' />
           </SidebarMenuButton>
         </CollapsibleTrigger>
         <CollapsibleContent>
@@ -100,13 +110,18 @@ export function OpenFlareSidebarMenu({
 }) {
   const pathname = usePathname();
   const { config } = usePublicConfig();
-  const displayConfig = useMemo(() => parseMenuDisplayConfig(config?.menu_display_config), [config]);
+  const displayConfig = useMemo(
+    () => parseMenuDisplayConfig(config?.menu_display_config),
+    [config],
+  );
 
   return (
-    <SidebarMenu className="gap-1">
+    <SidebarMenu className='gap-1'>
       {openflareSidebarNav.map((entry) => {
         if (entry.kind === 'group') {
-          const filteredItems = entry.items.filter((item) => displayConfig[item.url] !== false);
+          const filteredItems = entry.items.filter(
+            (item) => displayConfig[item.url] !== false,
+          );
           if (filteredItems.length === 0) return null;
 
           return (

@@ -35,29 +35,29 @@ function IconComponent({ size, ...props }: CircleCheckProps) {
 
   return (
     <motion.svg
-      xmlns="http://www.w3.org/2000/svg"
+      xmlns='http://www.w3.org/2000/svg'
       width={size}
       height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
+      viewBox='0 0 24 24'
+      fill='none'
+      stroke='currentColor'
       strokeWidth={2}
-      strokeLinecap="round"
-      strokeLinejoin="round"
+      strokeLinecap='round'
+      strokeLinejoin='round'
       {...props}
     >
       <motion.circle
-        cx="12"
-        cy="12"
-        r="10"
+        cx='12'
+        cy='12'
+        r='10'
         variants={variants.circle}
-        initial="initial"
+        initial='initial'
         animate={controls}
       />
       <motion.path
-        d="m9 12 2 2 4-4"
+        d='m9 12 2 2 4-4'
         variants={variants.path}
-        initial="initial"
+        initial='initial'
         animate={controls}
       />
     </motion.svg>

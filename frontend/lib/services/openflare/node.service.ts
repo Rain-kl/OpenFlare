@@ -1,4 +1,4 @@
-import {OpenFlareBaseService} from './base.service';
+import { OpenFlareBaseService } from './base.service';
 import type {
   NodeAgentReleaseInfo,
   NodeAgentUpdatePayload,
@@ -20,7 +20,10 @@ export class NodeService extends OpenFlareBaseService {
     return this.post<NodeItem>('/', payload);
   }
 
-  static async updateNode(id: number, payload: NodeMutationPayload): Promise<NodeItem> {
+  static async updateNode(
+    id: number,
+    payload: NodeMutationPayload,
+  ): Promise<NodeItem> {
     return this.post<NodeItem>(`/${id}/update`, payload);
   }
 

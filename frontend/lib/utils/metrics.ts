@@ -25,7 +25,7 @@ export function formatBytes(
   value?: number | null,
   options: FormatBytesOptions = {},
 ) {
-  const {emptyText = '—', zeroText = '0 B'} = options;
+  const { emptyText = '—', zeroText = '0 B' } = options;
 
   if (value === undefined || value === null || Number.isNaN(value)) {
     return emptyText;

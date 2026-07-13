@@ -1,4 +1,4 @@
-import {BaseService} from '@/lib/services/core';
+import { BaseService } from '@/lib/services/core';
 import type {
   CreateScheduleRequest,
   DispatchTaskRequest,
@@ -61,11 +61,16 @@ export class AdminTaskService extends BaseService {
     return this.get<Schedule[]>('/tasks/schedules');
   }
 
-  static async createSchedule(request: CreateScheduleRequest): Promise<Schedule> {
+  static async createSchedule(
+    request: CreateScheduleRequest,
+  ): Promise<Schedule> {
     return this.post<Schedule>('/tasks/schedules', request);
   }
 
-  static async updateSchedule(id: string, request: UpdateScheduleRequest): Promise<Schedule> {
+  static async updateSchedule(
+    id: string,
+    request: UpdateScheduleRequest,
+  ): Promise<Schedule> {
     return this.put<Schedule>(`/tasks/schedules/${id}`, request);
   }
 

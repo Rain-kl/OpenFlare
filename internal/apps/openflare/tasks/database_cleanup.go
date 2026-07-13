@@ -62,15 +62,15 @@ type DatabaseCleanupInput struct {
 //   - retention path / cleanup_mode=ttl_materialize: DeletedCount is always 0;
 //     EligibleCount estimates rows past the table DDL TTL (not an arbitrary younger cutoff).
 type DatabaseCleanupResult struct {
-	Target         string     `json:"target"`
-	TargetLabel    string     `json:"target_label"`
-	DeletedCount   int64      `json:"deleted_count"`
-	EligibleCount  int64      `json:"eligible_count,omitempty"`
-	CleanupMode    string     `json:"cleanup_mode,omitempty"`
-	TableTTLDays   int        `json:"table_ttl_days,omitempty"`
-	DeleteAll      bool       `json:"delete_all"`
-	RetentionDays  *int       `json:"retention_days,omitempty"`
-	Cutoff         *time.Time `json:"cutoff,omitempty"`
+	Target        string     `json:"target"`
+	TargetLabel   string     `json:"target_label"`
+	DeletedCount  int64      `json:"deleted_count"`
+	EligibleCount int64      `json:"eligible_count,omitempty"`
+	CleanupMode   string     `json:"cleanup_mode,omitempty"`
+	TableTTLDays  int        `json:"table_ttl_days,omitempty"`
+	DeleteAll     bool       `json:"delete_all"`
+	RetentionDays *int       `json:"retention_days,omitempty"`
+	Cutoff        *time.Time `json:"cutoff,omitempty"`
 }
 
 // DatabaseAutoCleanupSummary summarizes a scheduled auto-cleanup run.

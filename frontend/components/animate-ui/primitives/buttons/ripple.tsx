@@ -1,10 +1,13 @@
 'use client';
 
 import * as React from 'react';
-import {type HTMLMotionProps, motion} from 'motion/react';
+import { type HTMLMotionProps, motion } from 'motion/react';
 
-import {getStrictContext} from '@/lib/utils/get-strict-context';
-import {Slot, type WithAsChild} from '@/components/animate-ui/primitives/animate/slot';
+import { getStrictContext } from '@/lib/utils/get-strict-context';
+import {
+  Slot,
+  type WithAsChild,
+} from '@/components/animate-ui/primitives/animate/slot';
 
 type Ripple = {
   id: number;
@@ -80,7 +83,7 @@ function RippleButton({
     <RippleButtonProvider value={{ ripples, setRipples }}>
       <Component
         ref={buttonRef}
-        data-slot="ripple-button"
+        data-slot='ripple-button'
         onClick={handleClick}
         whileTap={{ scale: tapScale }}
         whileHover={{ scale: hoverScale }}

@@ -9,10 +9,10 @@ import (
 )
 
 const (
-	defaultQueueSize     = 10_000
-	defaultMaxBatchSize  = 1_000
-	defaultMinBatchSize  = 50
-	defaultFlushEvery    = time.Second
+	defaultQueueSize    = 10_000
+	defaultMaxBatchSize = 1_000
+	defaultMinBatchSize = 50
+	defaultFlushEvery   = time.Second
 )
 
 // Config controls queue capacity and flush thresholds for a Writer instance.

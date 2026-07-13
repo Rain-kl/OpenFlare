@@ -5,27 +5,13 @@ import {zodResolver} from '@hookform/resolvers/zod';
 import {useForm} from 'react-hook-form';
 import {z} from 'zod';
 
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import {Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage,} from '@/components/ui/form';
+import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue,} from '@/components/ui/select';
 import {Switch} from '@/components/ui/switch';
 import {Textarea} from '@/components/ui/textarea';
 import type {ProxyRouteItem} from '@/lib/services/openflare';
 
-import {linesFromTextarea, validateCacheRules} from '../../components/helpers';
+import {linesFromTextarea, validateCacheRules,} from '../../components/helpers';
 import {proxyRouteFormIds} from '../helpers';
 import {useRouteSectionSave} from '../hooks/use-route-section-save';
 import {SectionShell} from './section-shell';
@@ -60,14 +46,23 @@ interface CacheSectionProps {
   onSavingChange?: (saving: boolean) => void;
 }
 
-export function CacheSection({ route, onRouteUpdate, onSavingChange }: CacheSectionProps) {
-  const { saving, save } = useRouteSectionSave(route, onRouteUpdate, onSavingChange);
+export function CacheSection({
+  route,
+  onRouteUpdate,
+  onSavingChange,
+}: CacheSectionProps) {
+  const { saving, save } = useRouteSectionSave(
+    route,
+    onRouteUpdate,
+    onSavingChange,
+  );
 
   const form = useForm<CacheValues>({
     resolver: zodResolver(cacheSchema),
     defaultValues: {
       cache_enabled: route.cache_enabled,
-      cache_policy: (route.cache_policy || 'url') as CacheValues['cache_policy'],
+      cache_policy: (route.cache_policy ||
+        'url') as CacheValues['cache_policy'],
       cache_rules_text: route.cache_rule_list.join('\n'),
     },
   });
@@ -75,7 +70,8 @@ export function CacheSection({ route, onRouteUpdate, onSavingChange }: CacheSect
   useEffect(() => {
     form.reset({
       cache_enabled: route.cache_enabled,
-      cache_policy: (route.cache_policy || 'url') as CacheValues['cache_policy'],
+      cache_policy: (route.cache_policy ||
+        'url') as CacheValues['cache_policy'],
       cache_rules_text: route.cache_rule_list.join('\n'),
     });
   }, [form, route]);
@@ -103,23 +99,27 @@ export function CacheSection({ route, onRouteUpdate, onSavingChange }: CacheSect
 
   return (
     <SectionShell
-      title="缓存"
-      description="保留现有安全绕过逻辑，只对当前站点生效。"
+      title='缓存'
+      description='保留现有安全绕过逻辑，只对当前站点生效。'
       formId={proxyRouteFormIds.cache}
       saving={saving}
     >
       <Form {...form}>
         <form
           id={proxyRouteFormIds.cache}
-          className="space-y-5"
+          className='space-y-5'
           onSubmit={form.handleSubmit(async (values) => {
             const rules = linesFromTextarea(values.cache_rules_text);
             await save(
               {
                 cache_enabled: values.cache_enabled,
-                cache_policy: values.cache_enabled ? values.cache_policy : 'url',
+                cache_policy: values.cache_enabled
+                  ? values.cache_policy
+                  : 'url',
                 cache_rules:
-                  values.cache_enabled && values.cache_policy !== 'url' ? rules : [],
+                  values.cache_enabled && values.cache_policy !== 'url'
+                    ? rules
+                    : [],
               },
               '缓存设置已保存',
             );
@@ -127,17 +127,21 @@ export function CacheSection({ route, onRouteUpdate, onSavingChange }: CacheSect
         >
           <FormField
             control={form.control}
-            name="cache_enabled"
+            name='cache_enabled'
             render={({ field }) => (
-              <FormItem className="flex items-center justify-between rounded-lg border p-3">
-                <div className="space-y-0.5">
+              <FormItem className='flex items-center justify-between rounded-lg border p-3'>
+                <div className='space-y-0.5'>
                   <FormLabel>启用站点缓存</FormLabel>
                   <FormDescription>
-                    系统仍会自动绕过非 GET、带 Authorization 或常见登录态 Cookie 的请求。
+                    系统仍会自动绕过非 GET、带 Authorization 或常见登录态 Cookie
+                    的请求。
                   </FormDescription>
                 </div>
                 <FormControl>
-                  <Switch checked={field.value} onCheckedChange={field.onChange} />
+                  <Switch
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                  />
                 </FormControl>
               </FormItem>
             )}
@@ -145,7 +149,7 @@ export function CacheSection({ route, onRouteUpdate, onSavingChange }: CacheSect
 
           <FormField
             control={form.control}
-            name="cache_policy"
+            name='cache_policy'
             render={({ field }) => (
               <FormItem>
                 <FormLabel>缓存策略</FormLabel>
@@ -160,10 +164,10 @@ export function CacheSection({ route, onRouteUpdate, onSavingChange }: CacheSect
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    <SelectItem value="url">按 URL 缓存</SelectItem>
-                    <SelectItem value="suffix">按后缀缓存</SelectItem>
-                    <SelectItem value="path_prefix">按路径前缀缓存</SelectItem>
-                    <SelectItem value="path_exact">按精确路径缓存</SelectItem>
+                    <SelectItem value='url'>按 URL 缓存</SelectItem>
+                    <SelectItem value='suffix'>按后缀缓存</SelectItem>
+                    <SelectItem value='path_prefix'>按路径前缀缓存</SelectItem>
+                    <SelectItem value='path_exact'>按精确路径缓存</SelectItem>
                   </SelectContent>
                 </Select>
                 <FormMessage />
@@ -173,13 +177,13 @@ export function CacheSection({ route, onRouteUpdate, onSavingChange }: CacheSect
 
           <FormField
             control={form.control}
-            name="cache_rules_text"
+            name='cache_rules_text'
             render={({ field }) => (
               <FormItem>
                 <FormLabel>缓存规则</FormLabel>
                 <FormControl>
                   <Textarea
-                    className="min-h-32"
+                    className='min-h-32'
                     disabled={!watchedEnabled || watchedPolicy === 'url'}
                     placeholder={rulesPlaceholder}
                     {...field}

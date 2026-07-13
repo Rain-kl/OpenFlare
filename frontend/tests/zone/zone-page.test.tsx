@@ -1,9 +1,13 @@
-import {QueryClient, QueryClientProvider} from '@tanstack/react-query';
-import {render, screen, waitFor} from '@testing-library/react';
-import {beforeEach, describe, expect, it, vi} from 'vitest';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { render, screen, waitFor } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import {ZonePageClient} from '@/app/(main)/websites/[zoneId]/page-client';
-import {ProxyRouteService, TlsCertificateService, ZoneService} from '@/lib/services/openflare';
+import { ZonePageClient } from '@/app/(main)/websites/[zoneId]/page-client';
+import {
+  ProxyRouteService,
+  TlsCertificateService,
+  ZoneService,
+} from '@/lib/services/openflare';
 
 class ResizeObserverMock {
   observe() {}
@@ -19,20 +23,25 @@ let mockParamZoneId = '42';
 const replaceMock = vi.fn();
 
 vi.mock('next/link', () => ({
-  default: ({children, href}: {children: React.ReactNode; href: string}) => (
-    <a href={href}>{children}</a>
-  ),
+  default: ({
+    children,
+    href,
+  }: {
+    children: React.ReactNode;
+    href: string;
+  }) => <a href={href}>{children}</a>,
 }));
 
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({replace: replaceMock, back: vi.fn()}),
+  useRouter: () => ({ replace: replaceMock, back: vi.fn() }),
   usePathname: () => `/websites/${mockZoneId}`,
   useSearchParams: () => new URLSearchParams(),
-  useParams: () => ({zoneId: mockParamZoneId}),
+  useParams: () => ({ zoneId: mockParamZoneId }),
 }));
 
 vi.mock('@/lib/services/openflare', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/lib/services/openflare')>();
+  const actual =
+    await importOriginal<typeof import('@/lib/services/openflare')>();
   return {
     ...actual,
     ZoneService: {
@@ -55,7 +64,7 @@ function renderPage(zoneId: number, paramZoneId = zoneId) {
   mockParamZoneId = String(paramZoneId);
   const client = new QueryClient({
     defaultOptions: {
-      queries: {retry: false, gcTime: 0},
+      queries: { retry: false, gcTime: 0 },
     },
   });
   return render(
@@ -92,7 +101,7 @@ describe('ZonePageClient', () => {
 
   it('loads the overview by stable ID and exposes all tabs including empty domains', async () => {
     vi.mocked(ZoneService.getOverview).mockImplementation(async () => ({
-      zone: {id: 42, domain: 'example.com', created_at: '', updated_at: ''},
+      zone: { id: 42, domain: 'example.com', created_at: '', updated_at: '' },
       domains: [],
     }));
 
@@ -101,19 +110,21 @@ describe('ZonePageClient', () => {
     await waitFor(() => {
       expect(ZoneService.getOverview).toHaveBeenCalledWith(42);
     });
-    expect(await screen.findByRole('heading', {name: 'example.com'})).toBeVisible();
+    expect(
+      await screen.findByRole('heading', { name: 'example.com' }),
+    ).toBeVisible();
     expect(await screen.findByText('唯一访问者')).toBeVisible();
     expect(screen.getByText('请求总数')).toBeVisible();
     expect(screen.getByText('已提供的数据总计')).toBeVisible();
-    expect(screen.getByRole('tab', {name: '域名 (0)'})).toBeVisible();
-    expect(screen.getByRole('tab', {name: '证书 (0)'})).toBeVisible();
-    expect(screen.queryByRole('tab', {name: '路由'})).not.toBeInTheDocument();
-    expect(screen.getByRole('tab', {name: '设置'})).toBeVisible();
+    expect(screen.getByRole('tab', { name: '域名 (0)' })).toBeVisible();
+    expect(screen.getByRole('tab', { name: '证书 (0)' })).toBeVisible();
+    expect(screen.queryByRole('tab', { name: '路由' })).not.toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: '设置' })).toBeVisible();
   });
 
   it('uses the browser pathname ID when serving a static-export fallback shell', async () => {
     vi.mocked(ZoneService.getOverview).mockImplementation(async () => ({
-      zone: {id: 42, domain: 'example.com', created_at: '', updated_at: ''},
+      zone: { id: 42, domain: 'example.com', created_at: '', updated_at: '' },
       domains: [],
     }));
 
@@ -126,7 +137,9 @@ describe('ZonePageClient', () => {
   });
 
   it('renders a not-found state for a missing Zone', async () => {
-    vi.mocked(ZoneService.getOverview).mockRejectedValue(new Error('Zone 不存在'));
+    vi.mocked(ZoneService.getOverview).mockRejectedValue(
+      new Error('Zone 不存在'),
+    );
 
     renderPage(42);
 

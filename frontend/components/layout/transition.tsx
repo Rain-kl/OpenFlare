@@ -1,5 +1,4 @@
-import {motion} from "motion/react"
-
+import { motion } from 'motion/react';
 
 /**
  * 页面过渡组件
@@ -21,10 +20,10 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
       animate={{ opacity: 1 }}
       transition={{
         duration: 0.6,
-        ease: "easeOut",
+        ease: 'easeOut',
       }}
     >
       {children}
     </motion.div>
-  )
+  );
 }

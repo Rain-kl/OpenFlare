@@ -1,4 +1,4 @@
-import {OpenFlareBaseService} from './base.service';
+import { OpenFlareBaseService } from './base.service';
 import type {
   WAFIPGroup,
   WAFIPGroupAutoTestPayload,
@@ -70,7 +70,10 @@ export class WafService extends OpenFlareBaseService {
     return this.post<WAFIPGroup>('/ip-groups', payload);
   }
 
-  static async updateIPGroup(id: number, payload: WAFIPGroupPayload): Promise<WAFIPGroup> {
+  static async updateIPGroup(
+    id: number,
+    payload: WAFIPGroupPayload,
+  ): Promise<WAFIPGroup> {
     return this.post<WAFIPGroup>(`/ip-groups/${id}/update`, payload);
   }
 

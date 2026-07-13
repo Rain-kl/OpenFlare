@@ -151,7 +151,7 @@ func updateProxyRouteRecord(tx *gorm.DB, route *model.ProxyRoute) error {
 		"cache_rules": route.CacheRules, "custom_headers": route.CustomHeaders,
 		"basic_auth_enabled": route.BasicAuthEnabled, "basic_auth_username": route.BasicAuthUsername,
 		"basic_auth_password": route.BasicAuthPassword,
-		"upstream_type": route.UpstreamType, "tunnel_node_id": route.TunnelNodeID,
+		"upstream_type":       route.UpstreamType, "tunnel_node_id": route.TunnelNodeID,
 		"tunnel_target_addr": route.TunnelTargetAddr, "tunnel_target_protocol": route.TunnelTargetProtocol,
 		"pages_project_id": route.PagesProjectID,
 	}).Error

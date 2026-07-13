@@ -1,10 +1,10 @@
 'use client';
 
-import {useMemo} from 'react';
-import type {EChartsOption} from 'echarts';
+import { useMemo } from 'react';
+import type { EChartsOption } from 'echarts';
 import ReactECharts from 'echarts-for-react';
 
-import {calculateNiceAxisMax, formatCompactNumber} from '@/lib/utils/metrics';
+import { calculateNiceAxisMax, formatCompactNumber } from '@/lib/utils/metrics';
 
 type TrendChartSeries = {
   label: string;
@@ -57,7 +57,9 @@ export function TrendChart({
 }: TrendChartProps) {
   const option = useMemo<EChartsOption>(() => {
     const axisFormatter = yAxisValueFormatter ?? defaultFormatter;
-    const maxValue = calculateNiceAxisMax(series.flatMap((item) => item.values));
+    const maxValue = calculateNiceAxisMax(
+      series.flatMap((item) => item.values),
+    );
 
     return {
       animationDuration: 500,
@@ -92,7 +94,9 @@ export function TrendChart({
               matchedSeries?.valueFormatter ??
               yAxisValueFormatter ??
               defaultFormatter;
-            const rawValue = Array.isArray(item.value) ? item.value[1] : item.value;
+            const rawValue = Array.isArray(item.value)
+              ? item.value[1]
+              : item.value;
             const numericValue =
               typeof rawValue === 'number' ? rawValue : Number(rawValue ?? 0);
 
@@ -175,38 +179,38 @@ export function TrendChart({
 
   if (labels.length === 0 || series.length === 0) {
     return (
-      <div className="flex h-[220px] items-center justify-center rounded-3xl border border-dashed bg-muted/30 text-sm text-muted-foreground">
+      <div className='flex h-[220px] items-center justify-center rounded-3xl border border-dashed bg-muted/30 text-sm text-muted-foreground'>
         暂无趋势数据
       </div>
     );
   }
 
   return (
-    <div className="space-y-4">
+    <div className='space-y-4'>
       {showSummary ? (
-        <div className="flex flex-wrap gap-3">
+        <div className='flex flex-wrap gap-3'>
           {series.map((item) => {
             const summaryValue = resolveSummaryValue(item.values, summaryScope);
             const formatter = item.valueFormatter ?? defaultFormatter;
             return (
               <div
                 key={item.label}
-                className="min-w-[140px] rounded-2xl border bg-card px-4 py-3"
+                className='min-w-[140px] rounded-2xl border bg-card px-4 py-3'
               >
-                <div className="flex items-center gap-2">
+                <div className='flex items-center gap-2'>
                   <span
-                    className="h-2.5 w-2.5 rounded-full"
-                    style={{backgroundColor: item.color}}
+                    className='h-2.5 w-2.5 rounded-full'
+                    style={{ backgroundColor: item.color }}
                   />
-                  <p className="text-xs tracking-[0.18em] text-muted-foreground uppercase">
+                  <p className='text-xs tracking-[0.18em] text-muted-foreground uppercase'>
                     {item.label}
                   </p>
                 </div>
-                <p className="mt-2 text-lg font-semibold">
+                <p className='mt-2 text-lg font-semibold'>
                   {formatter(summaryValue)}
                 </p>
                 {summaryHint ? (
-                  <p className="mt-1 text-[10px] text-muted-foreground">
+                  <p className='mt-1 text-[10px] text-muted-foreground'>
                     {summaryHint}
                   </p>
                 ) : null}
@@ -216,12 +220,12 @@ export function TrendChart({
         </div>
       ) : null}
 
-      <div className="overflow-hidden rounded-[28px] border bg-linear-to-b from-white/3 to-transparent px-4 py-4 dark:from-white/3">
+      <div className='overflow-hidden rounded-[28px] border bg-linear-to-b from-white/3 to-transparent px-4 py-4 dark:from-white/3'>
         <ReactECharts
           option={option}
           notMerge
           lazyUpdate
-          style={{height, width: '100%'}}
+          style={{ height, width: '100%' }}
         />
       </div>
     </div>

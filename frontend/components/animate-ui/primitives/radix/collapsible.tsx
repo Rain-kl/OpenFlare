@@ -27,7 +27,7 @@ function Collapsible(props: CollapsibleProps) {
   return (
     <CollapsibleProvider value={{ isOpen, setIsOpen }}>
       <CollapsiblePrimitive.Root
-        data-slot="collapsible"
+        data-slot='collapsible'
         {...props}
         onOpenChange={setIsOpen}
       />
@@ -41,7 +41,7 @@ type CollapsibleTriggerProps = React.ComponentProps<
 
 function CollapsibleTrigger(props: CollapsibleTriggerProps) {
   return (
-    <CollapsiblePrimitive.Trigger data-slot="collapsible-trigger" {...props} />
+    <CollapsiblePrimitive.Trigger data-slot='collapsible-trigger' {...props} />
   );
 }
 
@@ -65,8 +65,8 @@ function CollapsibleContent({
       {keepRendered ? (
         <CollapsiblePrimitive.Content asChild forceMount>
           <motion.div
-            key="collapsible-content"
-            data-slot="collapsible-content"
+            key='collapsible-content'
+            data-slot='collapsible-content'
             layout
             initial={{ opacity: 0, height: 0, overflow: 'hidden', y: 20 }}
             animate={
@@ -82,8 +82,8 @@ function CollapsibleContent({
         isOpen && (
           <CollapsiblePrimitive.Content asChild forceMount>
             <motion.div
-              key="collapsible-content"
-              data-slot="collapsible-content"
+              key='collapsible-content'
+              data-slot='collapsible-content'
               layout
               initial={{ opacity: 0, height: 0, overflow: 'hidden', y: 20 }}
               animate={{ opacity: 1, height: 'auto', overflow: 'hidden', y: 0 }}

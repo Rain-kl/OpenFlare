@@ -14,7 +14,7 @@ import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue,} from '@/
 import {Switch} from '@/components/ui/switch';
 import {Textarea} from '@/components/ui/textarea';
 import type {TlsCertificateItem} from '@/lib/services/openflare';
-import {DnsAccountService, TlsCertificateService} from '@/lib/services/openflare';
+import {DnsAccountService, TlsCertificateService,} from '@/lib/services/openflare';
 
 import {type AcmeApplyFormValues, acmeApplySchema, defaultAcmeApplyValues,} from './schemas';
 import {getErrorMessage} from './website-utils';
@@ -99,7 +99,10 @@ export function CertificateApplyDialog({
   }, [certificate, form, mode, open]);
 
   useEffect(() => {
-    if (defaultAcmeAccountQuery.data && form.getValues('acme_account_id') === 0) {
+    if (
+      defaultAcmeAccountQuery.data &&
+      form.getValues('acme_account_id') === 0
+    ) {
       form.setValue('acme_account_id', defaultAcmeAccountQuery.data.id);
     }
   }, [defaultAcmeAccountQuery.data, form, open]);
@@ -115,7 +118,7 @@ export function CertificateApplyDialog({
       return TlsCertificateService.apply(values);
     },
     onSuccess: async (result) => {
-      await queryClient.invalidateQueries({queryKey: certificatesQueryKey});
+      await queryClient.invalidateQueries({ queryKey: certificatesQueryKey });
       onApplied?.(result);
       onOpenChange(false);
     },
@@ -138,61 +141,63 @@ export function CertificateApplyDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className='max-w-2xl max-h-[90vh] overflow-y-auto'>
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
 
         <form
-          className="space-y-4"
+          className='space-y-4'
           onSubmit={form.handleSubmit((values) => {
             setError('');
             applyMutation.mutate(values);
           })}
         >
-          {error ? <p className="text-sm text-destructive">{error}</p> : null}
+          {error ? <p className='text-sm text-destructive'>{error}</p> : null}
 
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
+          <div className='grid gap-4 md:grid-cols-2'>
+            <div className='space-y-2'>
               <Label>证书名称</Label>
-              <Input placeholder="例如：主站证书" {...form.register('name')} />
+              <Input placeholder='例如：主站证书' {...form.register('name')} />
             </div>
-            <div className="space-y-2">
+            <div className='space-y-2'>
               <Label>主域名</Label>
               <Input
-                placeholder="example.com 或 *.example.com"
+                placeholder='example.com 或 *.example.com'
                 {...form.register('primary_domain')}
               />
             </div>
           </div>
 
-          <div className="space-y-2">
+          <div className='space-y-2'>
             <Label>其他域名</Label>
             <Textarea
               rows={3}
-              placeholder="example.net"
+              placeholder='example.net'
               {...form.register('other_domains')}
             />
-            <p className="text-xs text-muted-foreground">
+            <p className='text-xs text-muted-foreground'>
               每行一个域名。如申请通配符证书，请填写对应的根域名以便一并签发。
             </p>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
+          <div className='grid gap-4 md:grid-cols-2'>
+            <div className='space-y-2'>
               <Label>DNS 服务商账号</Label>
               <Select
                 value={String(form.watch('dns_account_id') || 0)}
                 onValueChange={(value) =>
-                  form.setValue('dns_account_id', Number(value), {shouldValidate: true})
+                  form.setValue('dns_account_id', Number(value), {
+                    shouldValidate: true,
+                  })
                 }
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="请选择 DNS 账号" />
+                  <SelectValue placeholder='请选择 DNS 账号' />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="0">请选择 DNS 账号</SelectItem>
+                  <SelectItem value='0'>请选择 DNS 账号</SelectItem>
                   {dnsAccountsQuery.data?.map((account) => (
                     <SelectItem key={account.id} value={String(account.id)}>
                       {account.name} ({account.type})
@@ -202,7 +207,7 @@ export function CertificateApplyDialog({
               </Select>
             </div>
 
-            <div className="space-y-2">
+            <div className='space-y-2'>
               <Label>密钥算法</Label>
               <Select
                 value={form.watch('key_algorithm')}
@@ -212,38 +217,43 @@ export function CertificateApplyDialog({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="RSA2048">RSA 2048</SelectItem>
-                  <SelectItem value="RSA4096">RSA 4096</SelectItem>
-                  <SelectItem value="EC256">ECC 256</SelectItem>
-                  <SelectItem value="EC384">ECC 384</SelectItem>
+                  <SelectItem value='RSA2048'>RSA 2048</SelectItem>
+                  <SelectItem value='RSA4096'>RSA 4096</SelectItem>
+                  <SelectItem value='EC256'>ECC 256</SelectItem>
+                  <SelectItem value='EC384'>ECC 384</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
 
-          <div className="space-y-2">
+          <div className='space-y-2'>
             <Label>备注</Label>
-            <Input placeholder="可选，用于记录证书用途。" {...form.register('remark')} />
+            <Input
+              placeholder='可选，用于记录证书用途。'
+              {...form.register('remark')}
+            />
           </div>
 
-          <div className="flex items-center justify-between rounded-lg border px-3 py-2">
+          <div className='flex items-center justify-between rounded-lg border px-3 py-2'>
             <div>
-              <p className="text-sm font-medium">开启自动续签</p>
-              <p className="text-xs text-muted-foreground">
+              <p className='text-sm font-medium'>开启自动续签</p>
+              <p className='text-xs text-muted-foreground'>
                 开启后，将在证书过期前 7 天自动续期。
               </p>
             </div>
             <Switch
               checked={form.watch('auto_renew')}
-              onCheckedChange={(checked) => form.setValue('auto_renew', checked)}
+              onCheckedChange={(checked) =>
+                form.setValue('auto_renew', checked)
+              }
             />
           </div>
 
-          <div className="overflow-hidden rounded-lg border">
+          <div className='overflow-hidden rounded-lg border'>
             <Button
-              type="button"
-              variant="ghost"
-              className="w-full justify-between rounded-none"
+              type='button'
+              variant='ghost'
+              className='w-full justify-between rounded-none'
               onClick={() => setShowAdvanced((current) => !current)}
             >
               高级选项
@@ -252,40 +262,50 @@ export function CertificateApplyDialog({
               />
             </Button>
             {showAdvanced ? (
-              <div className="space-y-4 border-t p-3">
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-2">
+              <div className='space-y-4 border-t p-3'>
+                <div className='grid gap-4 md:grid-cols-2'>
+                  <div className='space-y-2'>
                     <Label>DNS 验证服务器 1</Label>
-                    <Input placeholder="为空则使用默认权威 DNS" {...form.register('dns1')} />
+                    <Input
+                      placeholder='为空则使用默认权威 DNS'
+                      {...form.register('dns1')}
+                    />
                   </div>
-                  <div className="space-y-2">
+                  <div className='space-y-2'>
                     <Label>DNS 验证服务器 2</Label>
-                    <Input placeholder="为空则使用默认权威 DNS" {...form.register('dns2')} />
+                    <Input
+                      placeholder='为空则使用默认权威 DNS'
+                      {...form.register('dns2')}
+                    />
                   </div>
                 </div>
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="flex items-center justify-between rounded-lg border px-3 py-2">
+                <div className='grid gap-4 md:grid-cols-2'>
+                  <div className='flex items-center justify-between rounded-lg border px-3 py-2'>
                     <div>
-                      <p className="text-sm font-medium">跳过 CNAME 检查</p>
-                      <p className="text-xs text-muted-foreground">
+                      <p className='text-sm font-medium'>跳过 CNAME 检查</p>
+                      <p className='text-xs text-muted-foreground'>
                         在执行 DNS-01 验证时不追踪 CNAME 记录。
                       </p>
                     </div>
                     <Switch
                       checked={form.watch('disable_cname')}
-                      onCheckedChange={(checked) => form.setValue('disable_cname', checked)}
+                      onCheckedChange={(checked) =>
+                        form.setValue('disable_cname', checked)
+                      }
                     />
                   </div>
-                  <div className="flex items-center justify-between rounded-lg border px-3 py-2">
+                  <div className='flex items-center justify-between rounded-lg border px-3 py-2'>
                     <div>
-                      <p className="text-sm font-medium">跳过 DNS 前置检查</p>
-                      <p className="text-xs text-muted-foreground">
+                      <p className='text-sm font-medium'>跳过 DNS 前置检查</p>
+                      <p className='text-xs text-muted-foreground'>
                         直接请求 Let&apos;s Encrypt 验证而不做本地校验。
                       </p>
                     </div>
                     <Switch
                       checked={form.watch('skip_dns')}
-                      onCheckedChange={(checked) => form.setValue('skip_dns', checked)}
+                      onCheckedChange={(checked) =>
+                        form.setValue('skip_dns', checked)
+                      }
                     />
                   </div>
                 </div>
@@ -293,10 +313,10 @@ export function CertificateApplyDialog({
             ) : null}
           </div>
 
-          <Button type="submit" disabled={applyMutation.isPending}>
+          <Button type='submit' disabled={applyMutation.isPending}>
             {applyMutation.isPending ? (
               <>
-                <Loader2 className="mr-1 size-3.5 animate-spin" />
+                <Loader2 className='mr-1 size-3.5 animate-spin' />
                 提交中...
               </>
             ) : mode === 'edit-acme' ? (

@@ -1,11 +1,11 @@
 'use client';
 
-import {useEffect} from 'react';
-import {zodResolver} from '@hookform/resolvers/zod';
-import {useForm} from 'react-hook-form';
-import {z} from 'zod';
+import { useEffect } from 'react';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useForm } from 'react-hook-form';
+import { z } from 'zod';
 
-import {Button} from '@/components/ui/button';
+import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
@@ -14,11 +14,21 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import {Input} from '@/components/ui/input';
-import {Label} from '@/components/ui/label';
-import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue,} from '@/components/ui/select';
-import {Switch} from '@/components/ui/switch';
-import type {NodeItem, NodeMutationPayload, NodeType} from '@/lib/services/openflare';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
+import type {
+  NodeItem,
+  NodeMutationPayload,
+  NodeType,
+} from '@/lib/services/openflare';
 
 const nodeSchema = z
   .object({
@@ -111,12 +121,14 @@ function toPayload(form: NodeFormValues): NodeMutationPayload {
     auto_update_enabled: form.auto_update_enabled,
     geo_manual_override: form.geo_manual_override,
     geo_name: form.geo_manual_override ? form.geo_name.trim() : '',
-    geo_latitude: form.geo_manual_override && form.geo_latitude
-      ? Number(form.geo_latitude)
-      : null,
-    geo_longitude: form.geo_manual_override && form.geo_longitude
-      ? Number(form.geo_longitude)
-      : null,
+    geo_latitude:
+      form.geo_manual_override && form.geo_latitude
+        ? Number(form.geo_latitude)
+        : null,
+    geo_longitude:
+      form.geo_manual_override && form.geo_longitude
+        ? Number(form.geo_longitude)
+        : null,
   };
 
   if (form.node_type === 'tunnel_relay') {
@@ -165,7 +177,7 @@ export function NodeEditorDialog({
 
   return (
     <Dialog open={open} onOpenChange={(next) => !next && onClose()}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className='sm:max-w-lg'>
         <DialogHeader>
           <DialogTitle>{node ? '编辑节点' : '新增节点'}</DialogTitle>
           <DialogDescription>
@@ -173,8 +185,11 @@ export function NodeEditorDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={(event) => void handleSubmit(event)} className="space-y-4">
-          <div className="space-y-2">
+        <form
+          onSubmit={(event) => void handleSubmit(event)}
+          className='space-y-4'
+        >
+          <div className='space-y-2'>
             <Label>节点类型</Label>
             <Select
               value={nodeType}
@@ -187,45 +202,47 @@ export function NodeEditorDialog({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="edge_node">Edge 节点</SelectItem>
-                <SelectItem value="tunnel_relay">Relay 节点</SelectItem>
-                <SelectItem value="tunnel_client">Tunnel 节点</SelectItem>
+                <SelectItem value='edge_node'>Edge 节点</SelectItem>
+                <SelectItem value='tunnel_relay'>Relay 节点</SelectItem>
+                <SelectItem value='tunnel_client'>Tunnel 节点</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="node-name">节点名称</Label>
+          <div className='space-y-2'>
+            <Label htmlFor='node-name'>节点名称</Label>
             <Input
-              id="node-name"
-              placeholder="例如 edge-hk-01"
+              id='node-name'
+              placeholder='例如 edge-hk-01'
               {...form.register('name')}
             />
             {form.formState.errors.name ? (
-              <p className="text-xs text-destructive">
+              <p className='text-xs text-destructive'>
                 {form.formState.errors.name.message}
               </p>
             ) : null}
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="node-ip">节点 IP</Label>
+          <div className='space-y-2'>
+            <Label htmlFor='node-ip'>节点 IP</Label>
             <Input
-              id="node-ip"
-              placeholder="可选，接入后自动上报"
+              id='node-ip'
+              placeholder='可选，接入后自动上报'
               {...form.register('ip')}
             />
             {form.formState.errors.ip ? (
-              <p className="text-xs text-destructive">
+              <p className='text-xs text-destructive'>
                 {form.formState.errors.ip.message}
               </p>
             ) : null}
           </div>
 
-          <div className="flex items-center justify-between rounded-lg border px-3 py-2">
+          <div className='flex items-center justify-between rounded-lg border px-3 py-2'>
             <div>
-              <p className="text-sm font-medium">锁定 IP</p>
-              <p className="text-xs text-muted-foreground">启用后管理端不再自动覆盖 IP</p>
+              <p className='text-sm font-medium'>锁定 IP</p>
+              <p className='text-xs text-muted-foreground'>
+                启用后管理端不再自动覆盖 IP
+              </p>
             </div>
             <Switch
               checked={ipManualOverride}
@@ -235,10 +252,12 @@ export function NodeEditorDialog({
             />
           </div>
 
-          <div className="flex items-center justify-between rounded-lg border px-3 py-2">
+          <div className='flex items-center justify-between rounded-lg border px-3 py-2'>
             <div>
-              <p className="text-sm font-medium">自动更新 Agent</p>
-              <p className="text-xs text-muted-foreground">启用后节点将自动拉取正式版更新</p>
+              <p className='text-sm font-medium'>自动更新 Agent</p>
+              <p className='text-xs text-muted-foreground'>
+                启用后节点将自动拉取正式版更新
+              </p>
             </div>
             <Switch
               checked={form.watch('auto_update_enabled')}
@@ -249,27 +268,27 @@ export function NodeEditorDialog({
           </div>
 
           {nodeType === 'tunnel_relay' ? (
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="relay-bind-port">绑定端口</Label>
+            <div className='grid gap-3 sm:grid-cols-2'>
+              <div className='space-y-2'>
+                <Label htmlFor='relay-bind-port'>绑定端口</Label>
                 <Input
-                  id="relay-bind-port"
+                  id='relay-bind-port'
                   {...form.register('relay_bind_port')}
                 />
                 {form.formState.errors.relay_bind_port ? (
-                  <p className="text-xs text-destructive">
+                  <p className='text-xs text-destructive'>
                     {form.formState.errors.relay_bind_port.message}
                   </p>
                 ) : null}
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="relay-vhost-port">VHost 端口</Label>
+              <div className='space-y-2'>
+                <Label htmlFor='relay-vhost-port'>VHost 端口</Label>
                 <Input
-                  id="relay-vhost-port"
+                  id='relay-vhost-port'
                   {...form.register('relay_vhost_http_port')}
                 />
                 {form.formState.errors.relay_vhost_http_port ? (
-                  <p className="text-xs text-destructive">
+                  <p className='text-xs text-destructive'>
                     {form.formState.errors.relay_vhost_http_port.message}
                   </p>
                 ) : null}
@@ -277,10 +296,10 @@ export function NodeEditorDialog({
             </div>
           ) : null}
 
-          <div className="flex items-center justify-between rounded-lg border px-3 py-2">
+          <div className='flex items-center justify-between rounded-lg border px-3 py-2'>
             <div>
-              <p className="text-sm font-medium">手动地图点位</p>
-              <p className="text-xs text-muted-foreground">用于总览地图展示</p>
+              <p className='text-sm font-medium'>手动地图点位</p>
+              <p className='text-xs text-muted-foreground'>用于总览地图展示</p>
             </div>
             <Switch
               checked={geoManualOverride}
@@ -291,27 +310,32 @@ export function NodeEditorDialog({
           </div>
 
           {geoManualOverride ? (
-            <div className="grid gap-3 sm:grid-cols-3">
-              <div className="space-y-2 sm:col-span-3">
-                <Label htmlFor="geo-name">位置名称</Label>
-                <Input id="geo-name" {...form.register('geo_name')} />
+            <div className='grid gap-3 sm:grid-cols-3'>
+              <div className='space-y-2 sm:col-span-3'>
+                <Label htmlFor='geo-name'>位置名称</Label>
+                <Input id='geo-name' {...form.register('geo_name')} />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="geo-lat">纬度</Label>
-                <Input id="geo-lat" {...form.register('geo_latitude')} />
+              <div className='space-y-2'>
+                <Label htmlFor='geo-lat'>纬度</Label>
+                <Input id='geo-lat' {...form.register('geo_latitude')} />
               </div>
-              <div className="space-y-2 sm:col-span-2">
-                <Label htmlFor="geo-lng">经度</Label>
-                <Input id="geo-lng" {...form.register('geo_longitude')} />
+              <div className='space-y-2 sm:col-span-2'>
+                <Label htmlFor='geo-lng'>经度</Label>
+                <Input id='geo-lng' {...form.register('geo_longitude')} />
               </div>
             </div>
           ) : null}
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose} disabled={submitting}>
+            <Button
+              type='button'
+              variant='outline'
+              onClick={onClose}
+              disabled={submitting}
+            >
               取消
             </Button>
-            <Button type="submit" disabled={submitting}>
+            <Button type='submit' disabled={submitting}>
               {submitting ? '保存中...' : node ? '保存修改' : '新增节点'}
             </Button>
           </DialogFooter>

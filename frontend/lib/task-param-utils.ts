@@ -10,7 +10,7 @@
  *  - 不引入任何框架/UI 依赖，纯工具函数。
  */
 
-import type {TaskParam} from '@/lib/services/admin/types';
+import type { TaskParam } from '@/lib/services/admin/types';
 
 /** buildTaskPayload 的返回结构 */
 export interface BuildPayloadResult {
@@ -32,7 +32,10 @@ export interface BuildPayloadResult {
 function coerceParamValue(
   param: TaskParam,
   rawValue: string,
-): { value: string | number | boolean; ok: true } | { value: undefined; ok: true } | { error: string; ok: false } {
+):
+  | { value: string | number | boolean; ok: true }
+  | { value: undefined; ok: true }
+  | { error: string; ok: false } {
   const trimmed = rawValue.trim();
 
   switch (param.type) {

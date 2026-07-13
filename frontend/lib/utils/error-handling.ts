@@ -1,14 +1,14 @@
-import {isCancelError} from '@/lib/services/core'
-import {toast} from 'sonner'
+import {isCancelError} from '@/lib/services/core';
+import {toast} from 'sonner';
 
 /**
  * 错误处理选项
  */
 interface HandleContextErrorOptions {
   /** 是否显示 toast 提示 */
-  showToast?: boolean
+  showToast?: boolean;
   /** 是否在控制台记录错误 */
-  logError?: boolean
+  logError?: boolean;
 }
 
 /**
@@ -35,27 +35,28 @@ interface HandleContextErrorOptions {
 export function handleContextError(
   error: unknown,
   defaultMessage: string,
-  options: HandleContextErrorOptions = {}
+  options: HandleContextErrorOptions = {},
 ): Error {
-  const { showToast = false, logError = true } = options
+  const { showToast = false, logError = true } = options;
 
   // 取消的请求不算错误
   if (isCancelError(error)) {
-    return new Error('请求已取消')
+    return new Error('请求已取消');
   }
 
-  const errorMessage = error instanceof Error ? error.message : defaultMessage
-  const errorObject = error instanceof Error ? error : new Error(defaultMessage)
+  const errorMessage = error instanceof Error ? error.message : defaultMessage;
+  const errorObject =
+    error instanceof Error ? error : new Error(defaultMessage);
 
   if (logError) {
-    console.error(defaultMessage, error)
+    console.error(defaultMessage, error);
   }
 
   if (showToast) {
     toast.error(defaultMessage, {
-      description: errorMessage
-    })
+      description: errorMessage,
+    });
   }
 
-  return errorObject
+  return errorObject;
 }

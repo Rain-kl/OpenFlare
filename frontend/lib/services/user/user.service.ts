@@ -1,4 +1,4 @@
-import {BaseService} from '../core/base.service';
+import { BaseService } from '../core/base.service';
 
 export interface AccessToken {
   id: number;
@@ -34,8 +34,14 @@ export class UserService extends BaseService {
    * @param name - 令牌名称
    * @param isAdmin - 是否赋予管理员权限（默认 false）
    */
-  static async createAccessToken(name: string, isAdmin = false): Promise<CreateTokenResponse> {
-    return this.post<CreateTokenResponse>('/access-tokens', { name, is_admin: isAdmin });
+  static async createAccessToken(
+    name: string,
+    isAdmin = false,
+  ): Promise<CreateTokenResponse> {
+    return this.post<CreateTokenResponse>('/access-tokens', {
+      name,
+      is_admin: isAdmin,
+    });
   }
 
   /**

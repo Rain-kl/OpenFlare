@@ -40,8 +40,13 @@ export class AuthService extends BaseService {
     return this.get<AuthSource[]>('/oauth/sources');
   }
 
-  static async getAuthorizeUrl(source: string, purpose: 'login' | 'bind' = 'login'): Promise<OAuthAuthorizeResponse> {
-    return this.get<OAuthAuthorizeResponse>(`/oauth/${encodeURIComponent(source)}/authorize?purpose=${purpose}`);
+  static async getAuthorizeUrl(
+    source: string,
+    purpose: 'login' | 'bind' = 'login',
+  ): Promise<OAuthAuthorizeResponse> {
+    return this.get<OAuthAuthorizeResponse>(
+      `/oauth/${encodeURIComponent(source)}/authorize?purpose=${purpose}`,
+    );
   }
 
   /**
@@ -64,7 +69,9 @@ export class AuthService extends BaseService {
    * }
    * ```
    */
-  static async handleCallback(request: OAuthCallbackRequest): Promise<OAuthCallbackResult> {
+  static async handleCallback(
+    request: OAuthCallbackRequest,
+  ): Promise<OAuthCallbackResult> {
     return this.post<OAuthCallbackResult>('/oauth/callback', request);
   }
 
@@ -105,16 +112,44 @@ export class AuthService extends BaseService {
     await this.get<void>('/oauth/logout');
   }
 
-  static async login(request: LoginRequest, headers?: Record<string, string>): Promise<User> {
-    return this.post<User>('/user/login', request, headers ? ({ headers } as unknown as InternalAxiosRequestConfig) : undefined);
+  static async login(
+    request: LoginRequest,
+    headers?: Record<string, string>,
+  ): Promise<User> {
+    return this.post<User>(
+      '/user/login',
+      request,
+      headers
+        ? ({ headers } as unknown as InternalAxiosRequestConfig)
+        : undefined,
+    );
   }
 
-  static async register(request: RegisterRequest, headers?: Record<string, string>): Promise<User> {
-    return this.post<User>('/user/register', request, headers ? ({ headers } as unknown as InternalAxiosRequestConfig) : undefined);
+  static async register(
+    request: RegisterRequest,
+    headers?: Record<string, string>,
+  ): Promise<User> {
+    return this.post<User>(
+      '/user/register',
+      request,
+      headers
+        ? ({ headers } as unknown as InternalAxiosRequestConfig)
+        : undefined,
+    );
   }
 
-  static async sendEmailCode(email: string, scene: 'register' | 'login', headers?: Record<string, string>): Promise<void> {
-    return this.post<void>('/user/send-email-code', { email, scene }, headers ? ({ headers } as unknown as InternalAxiosRequestConfig) : undefined);
+  static async sendEmailCode(
+    email: string,
+    scene: 'register' | 'login',
+    headers?: Record<string, string>,
+  ): Promise<void> {
+    return this.post<void>(
+      '/user/send-email-code',
+      { email, scene },
+      headers
+        ? ({ headers } as unknown as InternalAxiosRequestConfig)
+        : undefined,
+    );
   }
 
   static async changePassword(request: ChangePasswordRequest): Promise<void> {
@@ -130,6 +165,8 @@ export class AuthService extends BaseService {
   }
 
   static async deleteExternalAccountBinding(id: string): Promise<void> {
-    return this.post<void>(`/oauth/external-accounts/${encodeURIComponent(id)}/delete`);
+    return this.post<void>(
+      `/oauth/external-accounts/${encodeURIComponent(id)}/delete`,
+    );
   }
 }

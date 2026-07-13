@@ -16,12 +16,12 @@ import type {
 
 function buildSearchParams(filters: object): Record<string, unknown> {
   const params: Record<string, unknown> = {};
-  Object.entries(filters as Record<string, string | number | undefined>).forEach(
-    ([key, value]) => {
-      if (value === undefined || value === null || value === '') return;
-      params[key] = value;
-    },
-  );
+  Object.entries(
+    filters as Record<string, string | number | undefined>,
+  ).forEach(([key, value]) => {
+    if (value === undefined || value === null || value === '') return;
+    params[key] = value;
+  });
   return params;
 }
 
@@ -35,10 +35,7 @@ export class AccessLogService extends OpenFlareBaseService {
   static listFolds(
     filters: FoldedAccessLogFilters,
   ): Promise<FoldedAccessLogList> {
-    return this.get<FoldedAccessLogList>(
-      '/folds',
-      buildSearchParams(filters),
-    );
+    return this.get<FoldedAccessLogList>('/folds', buildSearchParams(filters));
   }
 
   static listFoldIPs(

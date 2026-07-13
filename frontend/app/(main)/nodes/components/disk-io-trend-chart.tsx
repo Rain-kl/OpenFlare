@@ -4,7 +4,7 @@ import {TrendChart} from '@/components/data/trend-chart';
 import {Card, CardContent, CardDescription, CardHeader, CardTitle,} from '@/components/ui/card';
 import type {DiskIOTrendPoint} from '@/lib/services/openflare';
 
-import {formatBytes, formatTrendHour} from '../../components/dashboard/dashboard-utils';
+import {formatBytes, formatTrendHour,} from '../../components/dashboard/dashboard-utils';
 
 export function DiskIOTrendChart({
   points,
@@ -16,16 +16,18 @@ export function DiskIOTrendChart({
   description?: string;
 }) {
   return (
-    <Card className="border-dashed shadow-none">
+    <Card className='border-dashed shadow-none'>
       <CardHeader>
-        <CardTitle className="text-sm font-semibold">{title}</CardTitle>
-        <CardDescription className="text-xs">{description}</CardDescription>
+        <CardTitle className='text-sm font-semibold'>{title}</CardTitle>
+        <CardDescription className='text-xs'>{description}</CardDescription>
       </CardHeader>
       <CardContent>
         <TrendChart
-          labels={points.map((point) => formatTrendHour(point.bucket_started_at))}
-          summaryScope="total"
-          summaryHint="近 24 小时"
+          labels={points.map((point) =>
+            formatTrendHour(point.bucket_started_at),
+          )}
+          summaryScope='total'
+          summaryHint='近 24 小时'
           yAxisValueFormatter={formatBytes}
           series={[
             {

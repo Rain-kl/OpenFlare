@@ -40,7 +40,7 @@ export function CreateRuleDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <form
-          className="flex flex-col gap-4"
+          className='flex flex-col gap-4'
           onSubmit={async (event) => {
             event.preventDefault();
             if (!trimmedName || pending) return;
@@ -55,28 +55,28 @@ export function CreateRuleDialog({
           </DialogHeader>
           <FieldGroup>
             <Field>
-              <FieldLabel htmlFor="waf-rule-name">规则名称</FieldLabel>
+              <FieldLabel htmlFor='waf-rule-name'>规则名称</FieldLabel>
               <Input
-                id="waf-rule-name"
+                id='waf-rule-name'
                 value={name}
                 onChange={(event) => setName(event.target.value)}
-                placeholder="例如：入口防护"
-                autoComplete="off"
+                placeholder='例如：入口防护'
+                autoComplete='off'
                 autoFocus
               />
             </Field>
           </FieldGroup>
           <DialogFooter>
             <Button
-              type="button"
-              variant="outline"
+              type='button'
+              variant='outline'
               disabled={pending}
               onClick={() => onOpenChange(false)}
             >
               取消
             </Button>
-            <Button type="submit" disabled={!trimmedName || pending}>
-              {pending ? <Spinner data-icon="inline-start" /> : null}
+            <Button type='submit' disabled={!trimmedName || pending}>
+              {pending ? <Spinner data-icon='inline-start' /> : null}
               创建并编排
             </Button>
           </DialogFooter>

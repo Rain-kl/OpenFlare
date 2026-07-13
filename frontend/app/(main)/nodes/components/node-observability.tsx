@@ -1,9 +1,9 @@
 'use client';
 
-import {useMemo, useState} from 'react';
-import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query';
-import {Loader2, Trash2} from 'lucide-react';
-import {toast} from 'sonner';
+import { useMemo, useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Loader2, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 import {
   AlertDialog,
@@ -15,18 +15,28 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import {Button} from '@/components/ui/button';
-import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card';
-import {formatDateTime} from '@/lib/utils';
-import type {NodeHealthEvent, NodeItem, NodeSystemProfile} from '@/lib/services/openflare';
-import {NodeService} from '@/lib/services/openflare';
+import { Button } from '@/components/ui/button';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import { formatDateTime } from '@/lib/utils';
+import type {
+  NodeHealthEvent,
+  NodeItem,
+  NodeSystemProfile,
+} from '@/lib/services/openflare';
+import { NodeService } from '@/lib/services/openflare';
 
-import {CapacityTrendChart} from '../../components/dashboard/capacity-trend-chart';
-import {TrafficTrendChart} from '../../components/dashboard/traffic-trend-chart';
-import {DiskIOTrendChart} from './disk-io-trend-chart';
-import {DistributionList} from './distribution-list';
-import {NetworkTrendChart} from './network-trend-chart';
-import {NodeStatusBadge} from './node-status-badge';
+import { CapacityTrendChart } from '../../components/dashboard/capacity-trend-chart';
+import { TrafficTrendChart } from '../../components/dashboard/traffic-trend-chart';
+import { DiskIOTrendChart } from './disk-io-trend-chart';
+import { DistributionList } from './distribution-list';
+import { NetworkTrendChart } from './network-trend-chart';
+import { NodeStatusBadge } from './node-status-badge';
 import {
   aggregateTrafficBreakdown,
   formatBytes,
@@ -61,18 +71,22 @@ function MetricBar({
   hint?: string;
 }) {
   return (
-    <div className="space-y-2 rounded-lg border px-3 py-3">
-      <div className="flex items-start justify-between gap-3">
+    <div className='space-y-2 rounded-lg border px-3 py-3'>
+      <div className='flex items-start justify-between gap-3'>
         <div>
-          <p className="text-xs text-muted-foreground uppercase tracking-wide">{label}</p>
-          {hint ? <p className="mt-1 text-xs text-muted-foreground">{hint}</p> : null}
+          <p className='text-xs text-muted-foreground uppercase tracking-wide'>
+            {label}
+          </p>
+          {hint ? (
+            <p className='mt-1 text-xs text-muted-foreground'>{hint}</p>
+          ) : null}
         </div>
-        <p className="text-sm font-medium">{value}</p>
+        <p className='text-sm font-medium'>{value}</p>
       </div>
       {progress !== null && progress !== undefined ? (
-        <div className="h-2 overflow-hidden rounded-full bg-muted">
+        <div className='h-2 overflow-hidden rounded-full bg-muted'>
           <div
-            className="h-full rounded-full bg-primary transition-[width]"
+            className='h-full rounded-full bg-primary transition-[width]'
             style={{ width: `${progress}%` }}
           />
         </div>
@@ -91,11 +105,11 @@ function SummaryStat({
   hint: string;
 }) {
   return (
-    <Card className="border-dashed shadow-none">
-      <CardHeader className="pb-2">
+    <Card className='border-dashed shadow-none'>
+      <CardHeader className='pb-2'>
         <CardDescription>{label}</CardDescription>
-        <CardTitle className="text-base font-semibold">{value}</CardTitle>
-        <p className="text-sm text-muted-foreground">{hint}</p>
+        <CardTitle className='text-base font-semibold'>{value}</CardTitle>
+        <p className='text-sm text-muted-foreground'>{hint}</p>
       </CardHeader>
     </Card>
   );
@@ -109,48 +123,71 @@ function SystemProfileCard({
   nodeName: string;
 }) {
   return (
-    <div className="grid gap-4 md:grid-cols-2">
-      <div className="space-y-4 rounded-lg border px-4 py-4">
+    <div className='grid gap-4 md:grid-cols-2'>
+      <div className='space-y-4 rounded-lg border px-4 py-4'>
         <div>
-          <p className="text-xs text-muted-foreground uppercase tracking-wide">主机名</p>
-          <p className="mt-2 text-sm">{profile.hostname || nodeName}</p>
+          <p className='text-xs text-muted-foreground uppercase tracking-wide'>
+            主机名
+          </p>
+          <p className='mt-2 text-sm'>{profile.hostname || nodeName}</p>
         </div>
         <div>
-          <p className="text-xs text-muted-foreground uppercase tracking-wide">操作系统</p>
-          <p className="mt-2 text-sm">
+          <p className='text-xs text-muted-foreground uppercase tracking-wide'>
+            操作系统
+          </p>
+          <p className='mt-2 text-sm'>
             {profile.os_name || 'unknown'}
             {profile.os_version ? ` ${profile.os_version}` : ''}
           </p>
         </div>
         <div>
-          <p className="text-xs text-muted-foreground uppercase tracking-wide">内核 / 架构</p>
-          <p className="mt-2 text-sm">
-            {profile.kernel_version || 'unknown'} · {profile.architecture || 'unknown'}
+          <p className='text-xs text-muted-foreground uppercase tracking-wide'>
+            内核 / 架构
+          </p>
+          <p className='mt-2 text-sm'>
+            {profile.kernel_version || 'unknown'} ·{' '}
+            {profile.architecture || 'unknown'}
           </p>
         </div>
         <div>
-          <p className="text-xs text-muted-foreground uppercase tracking-wide">在线时长</p>
-          <p className="mt-2 text-sm">{formatUptime(profile.uptime_seconds)}</p>
+          <p className='text-xs text-muted-foreground uppercase tracking-wide'>
+            在线时长
+          </p>
+          <p className='mt-2 text-sm'>{formatUptime(profile.uptime_seconds)}</p>
         </div>
       </div>
 
-      <div className="space-y-4 rounded-lg border px-4 py-4">
+      <div className='space-y-4 rounded-lg border px-4 py-4'>
         <div>
-          <p className="text-xs text-muted-foreground uppercase tracking-wide">CPU</p>
-          <p className="mt-2 text-sm">{profile.cpu_model || 'unknown'}</p>
-          <p className="mt-1 text-xs text-muted-foreground">{profile.cpu_cores || 0} 核</p>
+          <p className='text-xs text-muted-foreground uppercase tracking-wide'>
+            CPU
+          </p>
+          <p className='mt-2 text-sm'>{profile.cpu_model || 'unknown'}</p>
+          <p className='mt-1 text-xs text-muted-foreground'>
+            {profile.cpu_cores || 0} 核
+          </p>
         </div>
         <div>
-          <p className="text-xs text-muted-foreground uppercase tracking-wide">总内存</p>
-          <p className="mt-2 text-sm">{formatBytes(profile.total_memory_bytes)}</p>
+          <p className='text-xs text-muted-foreground uppercase tracking-wide'>
+            总内存
+          </p>
+          <p className='mt-2 text-sm'>
+            {formatBytes(profile.total_memory_bytes)}
+          </p>
         </div>
         <div>
-          <p className="text-xs text-muted-foreground uppercase tracking-wide">总存储</p>
-          <p className="mt-2 text-sm">{formatBytes(profile.total_disk_bytes)}</p>
+          <p className='text-xs text-muted-foreground uppercase tracking-wide'>
+            总存储
+          </p>
+          <p className='mt-2 text-sm'>
+            {formatBytes(profile.total_disk_bytes)}
+          </p>
         </div>
         <div>
-          <p className="text-xs text-muted-foreground uppercase tracking-wide">上报时间</p>
-          <p className="mt-2 text-sm">
+          <p className='text-xs text-muted-foreground uppercase tracking-wide'>
+            上报时间
+          </p>
+          <p className='mt-2 text-sm'>
             {isMeaningfulTime(profile.reported_at)
               ? formatDateTime(profile.reported_at)
               : '—'}
@@ -177,27 +214,31 @@ function HealthEventTimeline({
   cleanupPending: boolean;
 }) {
   return (
-    <Card className="border-dashed shadow-none">
-      <CardHeader className="flex-row items-center justify-between space-y-0">
+    <Card className='border-dashed shadow-none'>
+      <CardHeader className='flex-row items-center justify-between space-y-0'>
         <div>
-          <CardTitle className="text-base font-semibold">健康事件时间线</CardTitle>
-          <CardDescription>保留活动与已恢复事件，帮助判断运行状态。</CardDescription>
+          <CardTitle className='text-base font-semibold'>
+            健康事件时间线
+          </CardTitle>
+          <CardDescription>
+            保留活动与已恢复事件，帮助判断运行状态。
+          </CardDescription>
         </div>
         <Button
-          variant="outline"
-          size="sm"
-          className="h-7 text-xs text-destructive hover:text-destructive"
+          variant='outline'
+          size='sm'
+          className='h-7 text-xs text-destructive hover:text-destructive'
           disabled={cleanupPending || allEventsCount === 0}
           onClick={onCleanup}
         >
-          <Trash2 className="size-3.5 mr-1" />
+          <Trash2 className='size-3.5 mr-1' />
           清理日志
         </Button>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className='space-y-4'>
         {allEventsCount > 0 ? (
           <>
-            <div className="flex flex-wrap gap-2">
+            <div className='flex flex-wrap gap-2'>
               {(
                 [
                   ['all', '全部事件'],
@@ -207,10 +248,12 @@ function HealthEventTimeline({
               ).map(([filter, label]) => (
                 <Button
                   key={filter}
-                  type="button"
-                  variant={healthEventFilter === filter ? 'secondary' : 'outline'}
-                  size="sm"
-                  className="h-7 text-xs rounded-full"
+                  type='button'
+                  variant={
+                    healthEventFilter === filter ? 'secondary' : 'outline'
+                  }
+                  size='sm'
+                  className='h-7 text-xs rounded-full'
                   onClick={() => onFilterChange(filter)}
                 >
                   {label}
@@ -219,15 +262,17 @@ function HealthEventTimeline({
             </div>
 
             {events.length === 0 ? (
-              <p className="text-sm text-muted-foreground">当前筛选下没有健康事件。</p>
+              <p className='text-sm text-muted-foreground'>
+                当前筛选下没有健康事件。
+              </p>
             ) : null}
 
             {events.slice(0, 8).map((event) => (
               <div
                 key={`${event.event_type}-${event.last_triggered_at}-${event.status}`}
-                className="rounded-lg border px-4 py-3"
+                className='rounded-lg border px-4 py-3'
               >
-                <div className="flex flex-wrap items-center gap-2">
+                <div className='flex flex-wrap items-center gap-2'>
                   <NodeStatusBadge
                     label={getHealthEventLabel(event)}
                     tone={getHealthEventTone(event)}
@@ -237,10 +282,10 @@ function HealthEventTimeline({
                     tone={event.status === 'active' ? 'warning' : 'success'}
                   />
                 </div>
-                <p className="mt-2 text-sm text-muted-foreground">
+                <p className='mt-2 text-sm text-muted-foreground'>
                   {event.message || '暂无详细消息'}
                 </p>
-                <div className="mt-2 grid gap-1 text-xs text-muted-foreground md:grid-cols-3">
+                <div className='mt-2 grid gap-1 text-xs text-muted-foreground md:grid-cols-3'>
                   <p>
                     首次触发：
                     {isMeaningfulTime(event.first_triggered_at)
@@ -264,7 +309,9 @@ function HealthEventTimeline({
             ))}
           </>
         ) : (
-          <p className="text-sm text-muted-foreground">节点当前还没有上报健康事件记录。</p>
+          <p className='text-sm text-muted-foreground'>
+            节点当前还没有上报健康事件记录。
+          </p>
         )}
       </CardContent>
     </Card>
@@ -283,12 +330,14 @@ export function NodeObservability({
   connectionHint?: string;
 }) {
   const queryClient = useQueryClient();
-  const [healthEventFilter, setHealthEventFilter] = useState<HealthEventFilter>('all');
+  const [healthEventFilter, setHealthEventFilter] =
+    useState<HealthEventFilter>('all');
   const [cleanupOpen, setCleanupOpen] = useState(false);
 
   const observabilityQuery = useQuery({
     queryKey: ['openflare', 'node-observability', nodeId],
-    queryFn: () => NodeService.getObservability(nodeId, { hours: 24, limit: 48 }),
+    queryFn: () =>
+      NodeService.getObservability(nodeId, { hours: 24, limit: 48 }),
     refetchInterval: 30000,
   });
 
@@ -305,7 +354,9 @@ export function NodeObservability({
         queryClient.invalidateQueries({
           queryKey: ['openflare', 'node-observability', nodeId],
         }),
-        queryClient.invalidateQueries({ queryKey: ['openflare', 'dashboard', 'overview'] }),
+        queryClient.invalidateQueries({
+          queryKey: ['openflare', 'dashboard', 'overview'],
+        }),
       ]);
     },
     onError: (error) => toast.error(getErrorMessage(error)),
@@ -315,11 +366,17 @@ export function NodeObservability({
   const profile = observability?.profile ?? null;
   const latestMetric = observability?.metric_snapshots?.[0] ?? null;
   const activeHealthEvents = useMemo(
-    () => observability?.health_events.filter((event) => event.status === 'active') ?? [],
+    () =>
+      observability?.health_events.filter(
+        (event) => event.status === 'active',
+      ) ?? [],
     [observability?.health_events],
   );
   const resolvedHealthEvents = useMemo(
-    () => observability?.health_events.filter((event) => event.status === 'resolved') ?? [],
+    () =>
+      observability?.health_events.filter(
+        (event) => event.status === 'resolved',
+      ) ?? [],
     [observability?.health_events],
   );
   const filteredHealthEvents = useMemo(() => {
@@ -331,14 +388,27 @@ export function NodeObservability({
       default:
         return observability?.health_events ?? [];
     }
-  }, [activeHealthEvents, healthEventFilter, observability?.health_events, resolvedHealthEvents]);
+  }, [
+    activeHealthEvents,
+    healthEventFilter,
+    observability?.health_events,
+    resolvedHealthEvents,
+  ]);
 
   const statusCodeDistribution = useMemo(
-    () => aggregateTrafficBreakdown(observability?.traffic_reports, 'status_codes_json'),
+    () =>
+      aggregateTrafficBreakdown(
+        observability?.traffic_reports,
+        'status_codes_json',
+      ),
     [observability?.traffic_reports],
   );
   const topDomains = useMemo(
-    () => aggregateTrafficBreakdown(observability?.traffic_reports, 'top_domains_json'),
+    () =>
+      aggregateTrafficBreakdown(
+        observability?.traffic_reports,
+        'top_domains_json',
+      ),
     [observability?.traffic_reports],
   );
   const trafficSummary = observability?.analytics?.traffic ?? null;
@@ -361,9 +431,9 @@ export function NodeObservability({
 
   if (observabilityQuery.isLoading) {
     return (
-      <Card className="border-dashed shadow-none">
-        <CardContent className="flex items-center justify-center py-10 text-sm text-muted-foreground">
-          <Loader2 className="size-4 mr-2 animate-spin" />
+      <Card className='border-dashed shadow-none'>
+        <CardContent className='flex items-center justify-center py-10 text-sm text-muted-foreground'>
+          <Loader2 className='size-4 mr-2 animate-spin' />
           加载运行观测数据中...
         </CardContent>
       </Card>
@@ -372,9 +442,11 @@ export function NodeObservability({
 
   if (observabilityQuery.isError) {
     return (
-      <Card className="border-dashed shadow-none">
-        <CardContent className="py-6">
-          <p className="text-sm text-destructive">{getErrorMessage(observabilityQuery.error)}</p>
+      <Card className='border-dashed shadow-none'>
+        <CardContent className='py-6'>
+          <p className='text-sm text-destructive'>
+            {getErrorMessage(observabilityQuery.error)}
+          </p>
         </CardContent>
       </Card>
     );
@@ -382,10 +454,10 @@ export function NodeObservability({
 
   if (variant === 'compact') {
     return (
-      <div className="space-y-6">
-        <div className="grid gap-4 md:grid-cols-3">
+      <div className='space-y-6'>
+        <div className='grid gap-4 md:grid-cols-3'>
           <SummaryStat
-            label="运行诊断"
+            label='运行诊断'
             value={
               activeHealthEvents.length
                 ? `${activeHealthEvents.length} 个活动异常`
@@ -398,44 +470,52 @@ export function NodeObservability({
             }
           />
           <SummaryStat
-            label="系统核心"
+            label='系统核心'
             value={profile?.hostname || '—'}
-            hint={profile ? `${profile.os_name || '—'} · ${profile.architecture || '—'}` : '—'}
+            hint={
+              profile
+                ? `${profile.os_name || '—'} · ${profile.architecture || '—'}`
+                : '—'
+            }
           />
           <SummaryStat
-            label="在线时长"
+            label='在线时长'
             value={formatUptime(profile?.uptime_seconds)}
-            hint="来自节点系统画像上报"
+            hint='来自节点系统画像上报'
           />
         </div>
 
-        <div className="grid gap-6 xl:grid-cols-2">
-          <Card className="border-dashed shadow-none">
+        <div className='grid gap-6 xl:grid-cols-2'>
+          <Card className='border-dashed shadow-none'>
             <CardHeader>
-              <CardTitle className="text-base font-semibold">系统画像</CardTitle>
+              <CardTitle className='text-base font-semibold'>
+                系统画像
+              </CardTitle>
               <CardDescription>节点上报的主机与硬件信息</CardDescription>
             </CardHeader>
             <CardContent>
               {profile ? (
                 <SystemProfileCard profile={profile} nodeName={nodeName} />
               ) : (
-                <p className="text-sm text-muted-foreground">
+                <p className='text-sm text-muted-foreground'>
                   节点已接入，但尚未上报完整系统画像。
                 </p>
               )}
             </CardContent>
           </Card>
 
-          <Card className="border-dashed shadow-none">
+          <Card className='border-dashed shadow-none'>
             <CardHeader>
-              <CardTitle className="text-base font-semibold">实时资源快照</CardTitle>
+              <CardTitle className='text-base font-semibold'>
+                实时资源快照
+              </CardTitle>
               <CardDescription>最近一次 metrics 上报</CardDescription>
             </CardHeader>
             <CardContent>
               {latestMetric ? (
-                <div className="grid gap-3 sm:grid-cols-2">
+                <div className='grid gap-3 sm:grid-cols-2'>
                   <MetricBar
-                    label="CPU"
+                    label='CPU'
                     value={formatPercent(latestMetric.cpu_usage_percent)}
                     progress={latestMetric.cpu_usage_percent}
                     hint={
@@ -445,24 +525,28 @@ export function NodeObservability({
                     }
                   />
                   <MetricBar
-                    label="内存"
+                    label='内存'
                     value={`${formatBytes(latestMetric.memory_used_bytes)} / ${formatBytes(latestMetric.memory_total_bytes)}`}
                     progress={memoryUsageRatio}
                   />
                   <MetricBar
-                    label="存储"
+                    label='存储'
                     value={`${formatBytes(latestMetric.storage_used_bytes)} / ${formatBytes(latestMetric.storage_total_bytes)}`}
                     progress={storageUsageRatio}
                   />
                   <MetricBar
-                    label="连接数"
-                    value={formatMetricCount(latestMetric.openresty_connections)}
+                    label='连接数'
+                    value={formatMetricCount(
+                      latestMetric.openresty_connections,
+                    )}
                     progress={null}
                     hint={connectionHint}
                   />
                 </div>
               ) : (
-                <p className="text-sm text-muted-foreground">节点已接入，但尚未上报资源快照。</p>
+                <p className='text-sm text-muted-foreground'>
+                  节点已接入，但尚未上报资源快照。
+                </p>
               )}
             </CardContent>
           </Card>
@@ -486,9 +570,11 @@ export function NodeObservability({
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel disabled={cleanupMutation.isPending}>取消</AlertDialogCancel>
+              <AlertDialogCancel disabled={cleanupMutation.isPending}>
+                取消
+              </AlertDialogCancel>
               <AlertDialogAction
-                className="bg-destructive text-white hover:bg-destructive/90"
+                className='bg-destructive text-white hover:bg-destructive/90'
                 disabled={cleanupMutation.isPending}
                 onClick={() => cleanupMutation.mutate()}
               >
@@ -502,10 +588,10 @@ export function NodeObservability({
   }
 
   return (
-    <div className="space-y-6">
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+    <div className='space-y-6'>
+      <div className='grid gap-4 md:grid-cols-2 xl:grid-cols-4'>
         <SummaryStat
-          label="运行诊断"
+          label='运行诊断'
           value={
             activeHealthEvents.length
               ? `${activeHealthEvents.length} 个活动异常`
@@ -518,7 +604,7 @@ export function NodeObservability({
           }
         />
         <SummaryStat
-          label="请求/分钟"
+          label='请求/分钟'
           value={formatMetricCount(trafficSummary?.request_count)}
           hint={
             trafficSummary
@@ -527,7 +613,7 @@ export function NodeObservability({
           }
         />
         <SummaryStat
-          label="容量压力"
+          label='容量压力'
           value={healthSummary?.has_capacity_risk ? '需要关注' : '正常范围'}
           hint={
             latestMetric
@@ -536,7 +622,7 @@ export function NodeObservability({
           }
         />
         <SummaryStat
-          label="来源信号"
+          label='来源信号'
           value={topSourceCountry?.key ?? '—'}
           hint={
             topSourceCountry
@@ -546,31 +632,31 @@ export function NodeObservability({
         />
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-3">
-        <Card className="border-dashed shadow-none">
+      <div className='grid gap-6 xl:grid-cols-3'>
+        <Card className='border-dashed shadow-none'>
           <CardHeader>
-            <CardTitle className="text-base font-semibold">系统信息</CardTitle>
+            <CardTitle className='text-base font-semibold'>系统信息</CardTitle>
           </CardHeader>
           <CardContent>
             {profile ? (
               <SystemProfileCard profile={profile} nodeName={nodeName} />
             ) : (
-              <p className="text-sm text-muted-foreground">
+              <p className='text-sm text-muted-foreground'>
                 节点已经接入，但还没有上报完整系统画像。
               </p>
             )}
           </CardContent>
         </Card>
 
-        <Card className="border-dashed shadow-none">
+        <Card className='border-dashed shadow-none'>
           <CardHeader>
-            <CardTitle className="text-base font-semibold">实时资源</CardTitle>
+            <CardTitle className='text-base font-semibold'>实时资源</CardTitle>
           </CardHeader>
           <CardContent>
             {latestMetric ? (
-              <div className="grid gap-3 sm:grid-cols-2">
+              <div className='grid gap-3 sm:grid-cols-2'>
                 <MetricBar
-                  label="CPU"
+                  label='CPU'
                   value={formatPercent(latestMetric.cpu_usage_percent)}
                   progress={latestMetric.cpu_usage_percent}
                   hint={
@@ -580,37 +666,39 @@ export function NodeObservability({
                   }
                 />
                 <MetricBar
-                  label="内存"
+                  label='内存'
                   value={`${formatBytes(latestMetric.memory_used_bytes)} / ${formatBytes(latestMetric.memory_total_bytes)}`}
                   progress={memoryUsageRatio}
                 />
                 <MetricBar
-                  label="存储"
+                  label='存储'
                   value={`${formatBytes(latestMetric.storage_used_bytes)} / ${formatBytes(latestMetric.storage_total_bytes)}`}
                   progress={storageUsageRatio}
                 />
                 <MetricBar
-                  label="连接数"
+                  label='连接数'
                   value={formatMetricCount(latestMetric.openresty_connections)}
                   progress={null}
                   hint={connectionHint}
                 />
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground">节点已经接入，但还没有上报资源快照。</p>
+              <p className='text-sm text-muted-foreground'>
+                节点已经接入，但还没有上报资源快照。
+              </p>
             )}
           </CardContent>
         </Card>
 
-        <Card className="border-dashed shadow-none">
+        <Card className='border-dashed shadow-none'>
           <CardHeader>
-            <CardTitle className="text-base font-semibold">网络流量</CardTitle>
+            <CardTitle className='text-base font-semibold'>网络流量</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className='space-y-4'>
             {latestMetric ? (
               <>
                 {node ? (
-                  <div className="flex flex-wrap gap-2">
+                  <div className='flex flex-wrap gap-2'>
                     <NodeStatusBadge
                       label={getNodeStatusLabel(node.status)}
                       tone={getNodeStatusTone(node.status)}
@@ -630,49 +718,61 @@ export function NodeObservability({
                   </div>
                 ) : null}
 
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <div className="rounded-lg border px-3 py-3">
-                    <p className="text-xs text-muted-foreground uppercase tracking-wide">
+                <div className='grid gap-3 sm:grid-cols-2'>
+                  <div className='rounded-lg border px-3 py-3'>
+                    <p className='text-xs text-muted-foreground uppercase tracking-wide'>
                       OpenResty 吞吐
                     </p>
-                    <div className="mt-3 space-y-2 text-sm text-muted-foreground">
-                      <p>入站：{formatBytesPerSecond(latestMetric.openresty_rx_bytes, 60)}</p>
-                      <p>出站：{formatBytesPerSecond(latestMetric.openresty_tx_bytes, 60)}</p>
+                    <div className='mt-3 space-y-2 text-sm text-muted-foreground'>
+                      <p>
+                        入站：
+                        {formatBytesPerSecond(
+                          latestMetric.openresty_rx_bytes,
+                          60,
+                        )}
+                      </p>
+                      <p>
+                        出站：
+                        {formatBytesPerSecond(
+                          latestMetric.openresty_tx_bytes,
+                          60,
+                        )}
+                      </p>
                     </div>
                   </div>
-                  <div className="rounded-lg border px-3 py-3">
-                    <p className="text-xs text-muted-foreground uppercase tracking-wide">
+                  <div className='rounded-lg border px-3 py-3'>
+                    <p className='text-xs text-muted-foreground uppercase tracking-wide'>
                       节点网络
                     </p>
-                    <div className="mt-3 space-y-2 text-sm text-muted-foreground">
+                    <div className='mt-3 space-y-2 text-sm text-muted-foreground'>
                       <p>入站：{formatBytes(latestMetric.network_rx_bytes)}</p>
                       <p>出站：{formatBytes(latestMetric.network_tx_bytes)}</p>
                     </div>
                   </div>
                 </div>
 
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <div className="rounded-lg border px-3 py-3">
-                    <p className="text-xs text-muted-foreground uppercase tracking-wide">
+                <div className='grid gap-3 sm:grid-cols-2'>
+                  <div className='rounded-lg border px-3 py-3'>
+                    <p className='text-xs text-muted-foreground uppercase tracking-wide'>
                       请求/分钟
                     </p>
-                    <p className="mt-3 text-2xl font-semibold">
+                    <p className='mt-3 text-2xl font-semibold'>
                       {formatMetricCount(trafficSummary?.request_count)}
                     </p>
-                    <p className="mt-2 text-sm text-muted-foreground">
+                    <p className='mt-2 text-sm text-muted-foreground'>
                       {trafficSummary
                         ? `近 60 秒 · 窗口UV ${formatMetricCount(trafficSummary.unique_visitor_count)}`
                         : '暂无窗口流量摘要'}
                     </p>
                   </div>
-                  <div className="rounded-lg border px-3 py-3">
-                    <p className="text-xs text-muted-foreground uppercase tracking-wide">
+                  <div className='rounded-lg border px-3 py-3'>
+                    <p className='text-xs text-muted-foreground uppercase tracking-wide'>
                       近 60 秒错误
                     </p>
-                    <p className="mt-3 text-2xl font-semibold">
+                    <p className='mt-3 text-2xl font-semibold'>
                       {formatMetricCount(trafficSummary?.error_count)}
                     </p>
-                    <p className="mt-2 text-sm text-muted-foreground">
+                    <p className='mt-2 text-sm text-muted-foreground'>
                       {trafficSummary
                         ? `错误率 ${trafficSummary.error_rate_percent.toFixed(1)}%`
                         : '暂无错误率摘要'}
@@ -681,7 +781,7 @@ export function NodeObservability({
                 </div>
               </>
             ) : (
-              <p className="text-sm text-muted-foreground">
+              <p className='text-sm text-muted-foreground'>
                 节点已经接入，但还没有上报网络流量相关快照。
               </p>
             )}
@@ -689,70 +789,92 @@ export function NodeObservability({
         </Card>
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-2">
+      <div className='grid gap-6 xl:grid-cols-2'>
         <TrafficTrendChart
           points={trends?.traffic_24h ?? []}
-          description="按小时聚合该节点的请求量和错误量。"
+          description='按小时聚合该节点的请求量和错误量。'
         />
         <CapacityTrendChart
           points={trends?.capacity_24h ?? []}
-          description="观察该节点 CPU 与内存使用率在 24 小时内的变化。"
+          description='观察该节点 CPU 与内存使用率在 24 小时内的变化。'
         />
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-2">
+      <div className='grid gap-6 xl:grid-cols-2'>
         <NetworkTrendChart points={trends?.network_24h ?? []} />
         <DiskIOTrendChart points={trends?.disk_io_24h ?? []} />
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
-        <Card className="border-dashed shadow-none">
+      <div className='grid gap-6 xl:grid-cols-[0.95fr_1.05fr]'>
+        <Card className='border-dashed shadow-none'>
           <CardHeader>
-            <CardTitle className="text-base font-semibold">请求结构分布</CardTitle>
+            <CardTitle className='text-base font-semibold'>
+              请求结构分布
+            </CardTitle>
             <CardDescription>
-              聚合最近 24 小时窗口上报，帮助判断错误集中在哪些状态码、流量集中在哪些域名。
+              聚合最近 24
+              小时窗口上报，帮助判断错误集中在哪些状态码、流量集中在哪些域名。
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="mb-6 grid gap-4 md:grid-cols-3">
-              <div className="rounded-lg border px-4 py-4">
-                <p className="text-xs text-muted-foreground uppercase tracking-wide">主状态码</p>
-                <p className="mt-3 text-2xl font-semibold">{dominantStatusCode?.label ?? '—'}</p>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  {dominantStatusCode ? `${dominantStatusCode.value} 次` : '暂无状态码分布'}
+            <div className='mb-6 grid gap-4 md:grid-cols-3'>
+              <div className='rounded-lg border px-4 py-4'>
+                <p className='text-xs text-muted-foreground uppercase tracking-wide'>
+                  主状态码
+                </p>
+                <p className='mt-3 text-2xl font-semibold'>
+                  {dominantStatusCode?.label ?? '—'}
+                </p>
+                <p className='mt-2 text-sm text-muted-foreground'>
+                  {dominantStatusCode
+                    ? `${dominantStatusCode.value} 次`
+                    : '暂无状态码分布'}
                 </p>
               </div>
-              <div className="rounded-lg border px-4 py-4">
-                <p className="text-xs text-muted-foreground uppercase tracking-wide">Top Domain</p>
-                <p className="mt-3 truncate text-2xl font-semibold">
+              <div className='rounded-lg border px-4 py-4'>
+                <p className='text-xs text-muted-foreground uppercase tracking-wide'>
+                  Top Domain
+                </p>
+                <p className='mt-3 truncate text-2xl font-semibold'>
                   {dominantDomain?.label ?? '—'}
                 </p>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  {dominantDomain ? `${dominantDomain.value} 次` : '暂无域名分布'}
+                <p className='mt-2 text-sm text-muted-foreground'>
+                  {dominantDomain
+                    ? `${dominantDomain.value} 次`
+                    : '暂无域名分布'}
                 </p>
               </div>
-              <div className="rounded-lg border px-4 py-4">
-                <p className="text-xs text-muted-foreground uppercase tracking-wide">已恢复事件</p>
-                <p className="mt-3 text-2xl font-semibold">{resolvedHealthEvents.length}</p>
-                <p className="mt-2 text-sm text-muted-foreground">最近 24 小时已恢复健康事件</p>
+              <div className='rounded-lg border px-4 py-4'>
+                <p className='text-xs text-muted-foreground uppercase tracking-wide'>
+                  已恢复事件
+                </p>
+                <p className='mt-3 text-2xl font-semibold'>
+                  {resolvedHealthEvents.length}
+                </p>
+                <p className='mt-2 text-sm text-muted-foreground'>
+                  最近 24 小时已恢复健康事件
+                </p>
               </div>
             </div>
 
-            <div className="grid gap-6 xl:grid-cols-2">
+            <div className='grid gap-6 xl:grid-cols-2'>
               <div>
-                <p className="mb-4 text-xs text-muted-foreground uppercase tracking-wide">
+                <p className='mb-4 text-xs text-muted-foreground uppercase tracking-wide'>
                   状态码分布
                 </p>
                 <DistributionList
                   items={statusCodeDistribution}
-                  emptyMessage="暂无状态码分布"
+                  emptyMessage='暂无状态码分布'
                 />
               </div>
               <div>
-                <p className="mb-4 text-xs text-muted-foreground uppercase tracking-wide">
+                <p className='mb-4 text-xs text-muted-foreground uppercase tracking-wide'>
                   Top Domain
                 </p>
-                <DistributionList items={topDomains} emptyMessage="暂无域名分布" />
+                <DistributionList
+                  items={topDomains}
+                  emptyMessage='暂无域名分布'
+                />
               </div>
             </div>
           </CardContent>
@@ -777,9 +899,11 @@ export function NodeObservability({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={cleanupMutation.isPending}>取消</AlertDialogCancel>
+            <AlertDialogCancel disabled={cleanupMutation.isPending}>
+              取消
+            </AlertDialogCancel>
             <AlertDialogAction
-              className="bg-destructive text-white hover:bg-destructive/90"
+              className='bg-destructive text-white hover:bg-destructive/90'
               disabled={cleanupMutation.isPending}
               onClick={() => cleanupMutation.mutate()}
             >

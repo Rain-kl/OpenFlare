@@ -1,7 +1,7 @@
 'use client';
 
-import {useMemo} from 'react';
-import type {EChartsOption} from 'echarts';
+import { useMemo } from 'react';
+import type { EChartsOption } from 'echarts';
 import ReactECharts from 'echarts-for-react';
 
 type RankChartItem = {
@@ -22,7 +22,7 @@ function getChartValue(params: unknown) {
   if (typeof params !== 'object' || params === null || !('value' in params)) {
     return 0;
   }
-  const rawValue = (params as {value?: unknown}).value;
+  const rawValue = (params as { value?: unknown }).value;
   if (Array.isArray(rawValue)) {
     const candidate = rawValue[0];
     return typeof candidate === 'number' ? candidate : 0;
@@ -59,7 +59,7 @@ export function RankChart({
         },
         formatter: (params: unknown) => {
           const item = Array.isArray(params) ? params[0] : params;
-          const data = item as {name?: string; value?: number};
+          const data = item as { name?: string; value?: number };
           return `${data.name ?? ''}<br/>${valueFormatter(data.value ?? 0)}`;
         },
       },
@@ -78,8 +78,8 @@ export function RankChart({
       yAxis: {
         type: 'category',
         data: items.map((item) => item.label),
-        axisTick: {show: false},
-        axisLine: {show: false},
+        axisTick: { show: false },
+        axisLine: { show: false },
         axisLabel: {
           color: '#cbd5e1',
           width: 120,
@@ -104,7 +104,8 @@ export function RankChart({
             show: true,
             position: 'right',
             color: '#e2e8f0',
-            formatter: (params: unknown) => valueFormatter(getChartValue(params)),
+            formatter: (params: unknown) =>
+              valueFormatter(getChartValue(params)),
           },
         },
       ],
@@ -114,7 +115,7 @@ export function RankChart({
 
   if (items.length === 0) {
     return (
-      <div className="flex h-[220px] items-center justify-center rounded-3xl border border-dashed bg-muted/30 text-sm text-muted-foreground">
+      <div className='flex h-[220px] items-center justify-center rounded-3xl border border-dashed bg-muted/30 text-sm text-muted-foreground'>
         {emptyMessage}
       </div>
     );
@@ -125,7 +126,7 @@ export function RankChart({
       option={option}
       notMerge
       lazyUpdate
-      style={{height: Math.max(220, items.length * 44), width: '100%'}}
+      style={{ height: Math.max(220, items.length * 44), width: '100%' }}
     />
   );
 }

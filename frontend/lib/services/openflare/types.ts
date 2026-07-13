@@ -1,4 +1,4 @@
-import type {XYPosition} from '@xyflow/react';
+import type { XYPosition } from '@xyflow/react';
 
 export type ReleaseChannel = 'stable' | 'preview';
 
@@ -201,12 +201,7 @@ export interface NodeObservability {
 }
 
 export type ProxyRouteConfigSection =
-  | 'domains'
-  | 'limits'
-  | 'proxy'
-  | 'cache'
-  | 'waf'
-  | 'auth';
+  'domains' | 'limits' | 'proxy' | 'cache' | 'waf' | 'auth';
 
 export interface ProxyRouteCustomHeader {
   key: string;
@@ -666,9 +661,7 @@ export interface GeoIPLookupResult {
 }
 
 export type DatabaseCleanupTarget =
-  | 'node_access_logs'
-  | 'node_metric_snapshots'
-  | 'node_request_reports';
+  'node_access_logs' | 'node_metric_snapshots' | 'node_request_reports';
 
 export interface DatabaseCleanupPayload {
   target: DatabaseCleanupTarget;
@@ -715,12 +708,37 @@ export interface BlockNodeConfig {
 }
 
 export type WAFRuleNode =
-  | {id: string; type: 'start'; position: XYPosition; config: Record<string, never>}
-  | {id: string; type: 'ip_match'; position: XYPosition; config: IPMatchConfig}
-  | {id: string; type: 'geo_match'; position: XYPosition; config: GeoMatchConfig}
-  | {id: string; type: 'pow'; position: XYPosition; config: PoWNodeConfig}
-  | {id: string; type: 'allow'; position: XYPosition; config: Record<string, never>}
-  | {id: string; type: 'block'; position: XYPosition; config: BlockNodeConfig};
+  | {
+      id: string;
+      type: 'start';
+      position: XYPosition;
+      config: Record<string, never>;
+    }
+  | {
+      id: string;
+      type: 'ip_match';
+      position: XYPosition;
+      config: IPMatchConfig;
+    }
+  | {
+      id: string;
+      type: 'geo_match';
+      position: XYPosition;
+      config: GeoMatchConfig;
+    }
+  | { id: string; type: 'pow'; position: XYPosition; config: PoWNodeConfig }
+  | {
+      id: string;
+      type: 'allow';
+      position: XYPosition;
+      config: Record<string, never>;
+    }
+  | {
+      id: string;
+      type: 'block';
+      position: XYPosition;
+      config: BlockNodeConfig;
+    };
 
 export interface WAFRuleEdge {
   id: string;
@@ -1076,10 +1094,6 @@ export interface ZoneStats {
   available: boolean;
   series: ZoneStatsPoint[];
 }
-
-
-
-
 
 export interface TlsCertificateItem {
   id: number;

@@ -1,18 +1,16 @@
-"use client"
+'use client';
 
-import {AdminUsersProvider} from "@/contexts/admin-users-context"
-import {RequireAdminAuth} from "@/components/auth/require-auth"
+import { AdminUsersProvider } from '@/contexts/admin-users-context';
+import { RequireAdminAuth } from '@/components/auth/require-auth';
 
 export default function AdminLayout({
   children,
 }: {
-  children: React.ReactNode
+  children: React.ReactNode;
 }) {
   return (
     <RequireAdminAuth>
-      <AdminUsersProvider>
-        {children}
-      </AdminUsersProvider>
+      <AdminUsersProvider>{children}</AdminUsersProvider>
     </RequireAdminAuth>
-  )
+  );
 }

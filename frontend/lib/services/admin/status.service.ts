@@ -1,5 +1,5 @@
-import {BaseService} from '@/lib/services/core';
-import type {AppUpdateStatus, SystemStatus} from './types';
+import { BaseService } from '@/lib/services/core';
+import type { AppUpdateStatus, SystemStatus } from './types';
 
 export class AdminStatusService extends BaseService {
   protected static readonly basePath = '/api/v1/admin';

@@ -5,7 +5,7 @@ import type {
   ProxyRouteMutationPayload,
   ZoneDomainItem,
 } from '@/lib/services/openflare';
-import {ZoneService} from '@/lib/services/openflare';
+import { ZoneService } from '@/lib/services/openflare';
 
 export const proxyRouteConfigSections = [
   {
@@ -353,6 +353,8 @@ export function buildPayloadFromRoute(
 /** Load all Zone domains across registered Zones for route binding selectors. */
 export async function listAllZoneDomains(): Promise<ZoneDomainItem[]> {
   const zones = await ZoneService.list();
-  const overviews = await Promise.all(zones.map((zone) => ZoneService.getOverview(zone.id)));
+  const overviews = await Promise.all(
+    zones.map((zone) => ZoneService.getOverview(zone.id)),
+  );
   return overviews.flatMap((overview) => overview.domains ?? []);
 }

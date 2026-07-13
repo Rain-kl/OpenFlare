@@ -1,15 +1,26 @@
-import type {ApplyResult, NodeItem, NodeStatus, NodeTrafficReport, OpenrestyStatus,} from '@/lib/services/openflare';
+import type {
+  ApplyResult,
+  NodeItem,
+  NodeStatus,
+  NodeTrafficReport,
+  OpenrestyStatus,
+} from '@/lib/services/openflare';
 
 export const WS_CONNECTED_LAST_SEEN = '__OPENFLARE_WS_CONNECTED__';
-export const FLARED_WS_CONNECTED_LAST_SEEN = '__OPENFLARE_FLARED_WS_CONNECTED__';
+export const FLARED_WS_CONNECTED_LAST_SEEN =
+  '__OPENFLARE_FLARED_WS_CONNECTED__';
 
 export type StatusTone = 'success' | 'warning' | 'danger' | 'info';
 
 export function isWSConnectedLastSeen(value: string | null | undefined) {
-  return value === WS_CONNECTED_LAST_SEEN || value === FLARED_WS_CONNECTED_LAST_SEEN;
+  return (
+    value === WS_CONNECTED_LAST_SEEN || value === FLARED_WS_CONNECTED_LAST_SEEN
+  );
 }
 
-export function isMeaningfulTime(value: string | null | undefined): value is string {
+export function isMeaningfulTime(
+  value: string | null | undefined,
+): value is string {
   return (
     Boolean(value) &&
     !isWSConnectedLastSeen(value) &&
@@ -75,7 +86,9 @@ export function getOpenrestyStatusLabel(status: OpenrestyStatus) {
   return '未知';
 }
 
-export function getRelayStatusTone(status: string | null | undefined): StatusTone {
+export function getRelayStatusTone(
+  status: string | null | undefined,
+): StatusTone {
   if (status === 'healthy') return 'success';
   if (status === 'unhealthy') return 'danger';
   return 'warning';
@@ -112,7 +125,12 @@ export function getImageTag(version?: string): string {
     return 'latest';
   }
   const v = version.toLowerCase();
-  if (v === 'dev' || v.includes('alpha') || v.includes('beta') || v.includes('rc')) {
+  if (
+    v === 'dev' ||
+    v.includes('alpha') ||
+    v.includes('beta') ||
+    v.includes('rc')
+  ) {
     return 'beta';
   }
   if (v.startsWith('v')) {
@@ -121,7 +139,10 @@ export function getImageTag(version?: string): string {
   return 'latest';
 }
 
-export function buildRelayInstallCommand(serverUrl: string, discoveryToken: string) {
+export function buildRelayInstallCommand(
+  serverUrl: string,
+  discoveryToken: string,
+) {
   return [
     `curl -fsSL ${relayInstallerScriptUrl} | bash -s -- \\`,
     `  --server-url ${serverUrl} \\`,
@@ -129,7 +150,11 @@ export function buildRelayInstallCommand(serverUrl: string, discoveryToken: stri
   ].join('\n');
 }
 
-export function buildRelayDockerInstallCommand(serverUrl: string, discoveryToken: string, version?: string) {
+export function buildRelayDockerInstallCommand(
+  serverUrl: string,
+  discoveryToken: string,
+  version?: string,
+) {
   const tag = getImageTag(version);
   const image = `ghcr.io/rain-kl/openflare-relay:${tag}`;
 
@@ -143,7 +168,10 @@ export function buildRelayDockerInstallCommand(serverUrl: string, discoveryToken
   ].join('\n');
 }
 
-export function buildTunnelInstallCommand(serverUrl: string, tunnelToken: string) {
+export function buildTunnelInstallCommand(
+  serverUrl: string,
+  tunnelToken: string,
+) {
   return [
     `curl -fsSL ${flaredInstallerScriptUrl} | bash -s -- \\`,
     `  --server-url ${serverUrl} \\`,
@@ -151,7 +179,11 @@ export function buildTunnelInstallCommand(serverUrl: string, tunnelToken: string
   ].join('\n');
 }
 
-export function buildTunnelDockerInstallCommand(serverUrl: string, tunnelToken: string, version?: string) {
+export function buildTunnelDockerInstallCommand(
+  serverUrl: string,
+  tunnelToken: string,
+  version?: string,
+) {
   const tag = getImageTag(version);
   const image = `ghcr.io/rain-kl/openflared:${tag}`;
 
@@ -165,7 +197,6 @@ export function buildTunnelDockerInstallCommand(serverUrl: string, tunnelToken: 
   ].join('\n');
 }
 
-
 export function formatBytes(bytes?: number | null, decimals = 1) {
   if (bytes === undefined || bytes === null || !Number.isFinite(bytes)) {
     return '—';
@@ -175,7 +206,10 @@ export function formatBytes(bytes?: number | null, decimals = 1) {
   }
 
   const units = ['B', 'KB', 'MB', 'GB', 'TB'];
-  const index = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
+  const index = Math.min(
+    Math.floor(Math.log(bytes) / Math.log(1024)),
+    units.length - 1,
+  );
   const value = bytes / 1024 ** index;
   return `${value.toFixed(decimals)} ${units[index]}`;
 }
@@ -194,10 +228,7 @@ export function formatMetricCount(value?: number | null) {
   return value.toLocaleString('zh-CN');
 }
 
-export function formatBytesPerSecond(
-  value?: number | null,
-  windowSeconds = 1,
-) {
+export function formatBytesPerSecond(value?: number | null, windowSeconds = 1) {
   if (value === undefined || value === null || !Number.isFinite(value)) {
     return '—';
   }
@@ -213,12 +244,15 @@ export function parseTrafficMap(value?: string | null) {
   }
   try {
     const parsed = JSON.parse(value) as Record<string, number>;
-    return Object.entries(parsed).reduce<Record<string, number>>((result, [key, count]) => {
-      if (typeof count === 'number' && Number.isFinite(count)) {
-        result[key] = count;
-      }
-      return result;
-    }, {});
+    return Object.entries(parsed).reduce<Record<string, number>>(
+      (result, [key, count]) => {
+        if (typeof count === 'number' && Number.isFinite(count)) {
+          result[key] = count;
+        }
+        return result;
+      },
+      {},
+    );
   } catch {
     return {} as Record<string, number>;
   }
@@ -271,9 +305,10 @@ export function formatUptime(seconds?: number | null) {
   return `${minutes} 分钟`;
 }
 
-export function getHealthEventTone(
-  event: { status: string; severity: string },
-): StatusTone {
+export function getHealthEventTone(event: {
+  status: string;
+  severity: string;
+}): StatusTone {
   if (event.status === 'resolved') {
     return 'success';
   }

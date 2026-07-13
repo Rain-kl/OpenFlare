@@ -30,7 +30,7 @@ export class BaseService {
    * @returns 完整路径
    */
   protected static getFullPath(path: string): string {
-    return `${ this.basePath }${ path }`;
+    return `${this.basePath}${path}`;
   }
 
   /**
@@ -154,14 +154,10 @@ export class BaseService {
    * @remarks
    * 仅用于不遵循标准响应格式的特殊端点（如 /api.php）
    */
-  protected static async rawGet<T>(
-    url: string,
-    params?: unknown,
-  ): Promise<T> {
-    const response = await apiClient.get<T>(
-      url,
-      { params } as InternalAxiosRequestConfig,
-    );
+  protected static async rawGet<T>(url: string, params?: unknown): Promise<T> {
+    const response = await apiClient.get<T>(url, {
+      params,
+    } as InternalAxiosRequestConfig);
     return response.data;
   }
 
@@ -185,4 +181,3 @@ export class BaseService {
     return response.data;
   }
 }
-

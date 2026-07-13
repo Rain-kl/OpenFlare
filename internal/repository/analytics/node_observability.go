@@ -354,7 +354,7 @@ ORDER BY hour ASC`, nodeTrafficHourlyTableName, clause)
 	result := make([]NodeTrafficHourly, 0)
 	for rows.Next() {
 		var (
-			item                                           NodeTrafficHourly
+			item                                         NodeTrafficHourly
 			requestCount, errorCount, uniqueVisitorCount uint64
 		)
 		if err := rows.Scan(&item.NodeID, &item.Hour, &requestCount, &errorCount, &uniqueVisitorCount); err != nil {

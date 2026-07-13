@@ -15,34 +15,34 @@ export function GeoDistributionList({ items }: { items: DistributionItem[] }) {
   const maxValue = sortedItems[0]?.value ?? 0;
 
   return (
-    <Card className="border-dashed shadow-none">
+    <Card className='border-dashed shadow-none'>
       <CardHeader>
-        <CardTitle className="text-sm font-semibold flex items-center gap-1.5">
-          <Globe2 className="size-4 text-primary" />
+        <CardTitle className='text-sm font-semibold flex items-center gap-1.5'>
+          <Globe2 className='size-4 text-primary' />
           来源国家分布
         </CardTitle>
-        <CardDescription className="text-xs">
+        <CardDescription className='text-xs'>
           聚合最近 24 小时主要来源国家。
         </CardDescription>
       </CardHeader>
       <CardContent>
         {sortedItems.length === 0 ? (
-          <div className="flex min-h-[180px] items-center justify-center text-xs text-muted-foreground">
+          <div className='flex min-h-[180px] items-center justify-center text-xs text-muted-foreground'>
             暂无来源分布数据
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className='space-y-3'>
             {sortedItems.map((item) => {
               const ratio = maxValue > 0 ? (item.value / maxValue) * 100 : 0;
               return (
-                <div key={item.key} className="space-y-1.5">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="font-medium">{item.key || '未知'}</span>
-                    <span className="font-mono tabular-nums text-muted-foreground">
+                <div key={item.key} className='space-y-1.5'>
+                  <div className='flex items-center justify-between text-xs'>
+                    <span className='font-medium'>{item.key || '未知'}</span>
+                    <span className='font-mono tabular-nums text-muted-foreground'>
                       {formatCompactNumber(item.value)}
                     </span>
                   </div>
-                  <Progress value={ratio} className="h-1.5" />
+                  <Progress value={ratio} className='h-1.5' />
                 </div>
               );
             })}

@@ -4,13 +4,12 @@
 package tls
 
 import (
-    "net/http"
+	"net/http"
 
-    "github.com/Rain-kl/Wavelet/internal/apps/openflare/apiutil"
-    "github.com/Rain-kl/Wavelet/internal/common/response"
-    "github.com/gin-gonic/gin"
+	"github.com/Rain-kl/Wavelet/internal/apps/openflare/apiutil"
+	"github.com/Rain-kl/Wavelet/internal/common/response"
+	"github.com/gin-gonic/gin"
 )
-
 
 func handleLogicError(c *gin.Context, err error) bool {
 	if err == nil {

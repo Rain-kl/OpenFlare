@@ -1,4 +1,4 @@
-import PinyinMatch from 'pinyin-match'
+import PinyinMatch from 'pinyin-match';
 
 type MatchResult = [number, number] | false;
 type MatchFunction = (input: string, keys: string) => MatchResult;
@@ -30,14 +30,14 @@ const match = ((): MatchFunction | null => {
 })();
 
 export interface SearchItem {
-  id: string
-  title: string
-  description: string
-  url: string
-  category: 'page' | 'feature' | 'setting' | 'admin'
-  keywords: string[]
-  icon?: string
-  matchRange?: [number, number]
+  id: string;
+  title: string;
+  description: string;
+  url: string;
+  category: 'page' | 'feature' | 'setting' | 'admin';
+  keywords: string[];
+  icon?: string;
+  matchRange?: [number, number];
 }
 
 /**
@@ -72,7 +72,15 @@ export const searchData: SearchItem[] = [
     description: '管理边缘节点、中继节点与内网穿透通道',
     url: '/nodes',
     category: 'page',
-    keywords: ['node', '节点', '边缘节点', '中继', '内网穿透', 'tunnel', '服务器'],
+    keywords: [
+      'node',
+      '节点',
+      '边缘节点',
+      '中继',
+      '内网穿透',
+      'tunnel',
+      '服务器',
+    ],
   },
   {
     id: 'console-proxy-routes',
@@ -104,7 +112,15 @@ export const searchData: SearchItem[] = [
     description: '配置 DNS 服务商 API 凭证以自动申请证书及管理解析',
     url: '/dns-accounts',
     category: 'page',
-    keywords: ['dns', 'dns account', '账号', '域名解析', 'cloudflare', 'aliyun', 'tencent'],
+    keywords: [
+      'dns',
+      'dns account',
+      '账号',
+      '域名解析',
+      'cloudflare',
+      'aliyun',
+      'tencent',
+    ],
   },
   {
     id: 'console-origins',
@@ -160,7 +176,15 @@ export const searchData: SearchItem[] = [
     description: '查看节点配置下发、同步与生效的历史记录',
     url: '/apply-logs',
     category: 'page',
-    keywords: ['apply', 'log', 'logs', '应用记录', '配置下发', '同步', '部署历史'],
+    keywords: [
+      'apply',
+      'log',
+      'logs',
+      '应用记录',
+      '配置下发',
+      '同步',
+      '部署历史',
+    ],
   },
   {
     id: 'console-performance',
@@ -202,7 +226,15 @@ export const searchData: SearchItem[] = [
     description: '管理系统登录注册与认证源配置 (管理员专属)',
     url: '/admin/settings',
     category: 'admin',
-    keywords: ['admin', '管理员', '系统设置', '安全', 'security', 'oidc', 'login'],
+    keywords: [
+      'admin',
+      '管理员',
+      '系统设置',
+      '安全',
+      'security',
+      'oidc',
+      'login',
+    ],
   },
   {
     id: 'admin-system',
@@ -226,7 +258,15 @@ export const searchData: SearchItem[] = [
     description: '下发与排查后台异步定时任务 (管理员专属)',
     url: '/admin/tasks',
     category: 'admin',
-    keywords: ['admin', '管理员', '任务', '异步', 'tasks', 'scheduler', 'worker'],
+    keywords: [
+      'admin',
+      '管理员',
+      '任务',
+      '异步',
+      'tasks',
+      'scheduler',
+      'worker',
+    ],
   },
   {
     id: 'admin-files',
@@ -239,7 +279,8 @@ export const searchData: SearchItem[] = [
   {
     id: 'admin-database',
     title: '数据管理',
-    description: '监控数据库表大小、分页浏览物理表内容并支持交互式 SQL (管理员专属)',
+    description:
+      '监控数据库表大小、分页浏览物理表内容并支持交互式 SQL (管理员专属)',
     url: '/admin/database',
     category: 'admin',
     keywords: ['admin', '管理员', '数据库', 'database', 'sql', 'query', 'gorm'],
@@ -250,7 +291,16 @@ export const searchData: SearchItem[] = [
     description: '配置与下发邮件、Lark 和 Telegram 渠道通知推送 (管理员专属)',
     url: '/admin/push',
     category: 'admin',
-    keywords: ['admin', '管理员', '推送', '通知', 'push', 'mail', 'telegram', 'lark'],
+    keywords: [
+      'admin',
+      '管理员',
+      '推送',
+      '通知',
+      'push',
+      'mail',
+      'telegram',
+      'lark',
+    ],
   },
   {
     id: 'admin-logs',
@@ -260,7 +310,7 @@ export const searchData: SearchItem[] = [
     category: 'admin',
     keywords: ['admin', '管理员', '日志', 'logs', 'system log', 'terminal'],
   },
-]
+];
 
 /**
  * 搜索功能
@@ -268,47 +318,61 @@ export const searchData: SearchItem[] = [
  * @param isAdmin 是否为管理员
  * @returns 匹配的搜索结果
  */
-export function searchItems(query: string, isAdmin: boolean = false): SearchItem[] {
-  const trimmedQuery = query.trim()
-  
+export function searchItems(
+  query: string,
+  isAdmin: boolean = false,
+): SearchItem[] {
+  const trimmedQuery = query.trim();
+
   // 非管理员不能搜索 admin 类别项
-  const filteredData = isAdmin 
-    ? searchData 
-    : searchData.filter(item => item.category !== 'admin')
+  const filteredData = isAdmin
+    ? searchData
+    : searchData.filter((item) => item.category !== 'admin');
 
   if (!trimmedQuery) {
-    return filteredData
+    return filteredData;
   }
 
-  return filteredData.map(item => {
-    // 优先匹配标题
-    const titleMatch = typeof match === 'function' ? match(item.title, trimmedQuery) : null
-    if (titleMatch) {
-      return { ...item, matchRange: titleMatch as [number, number] }
-    }
+  return filteredData
+    .map((item) => {
+      // 优先匹配标题
+      const titleMatch =
+        typeof match === 'function' ? match(item.title, trimmedQuery) : null;
+      if (titleMatch) {
+        return { ...item, matchRange: titleMatch as [number, number] };
+      }
 
-    // 匹配描述
-    if (typeof match === 'function' && match(item.description, trimmedQuery)) {
-      return item
-    }
+      // 匹配描述
+      if (
+        typeof match === 'function' &&
+        match(item.description, trimmedQuery)
+      ) {
+        return item;
+      }
 
-    // 匹配关键词
-    if (item.keywords.some(keyword => typeof match === 'function' && match(keyword, trimmedQuery))) {
-      return item
-    }
+      // 匹配关键词
+      if (
+        item.keywords.some(
+          (keyword) =>
+            typeof match === 'function' && match(keyword, trimmedQuery),
+        )
+      ) {
+        return item;
+      }
 
-    return null
-  }).filter((item): item is SearchItem => item !== null)
+      return null;
+    })
+    .filter((item): item is SearchItem => item !== null)
     .sort((a, b) => {
       // 标题匹配优先
-      if (a.matchRange && !b.matchRange) return -1
-      if (!a.matchRange && b.matchRange) return 1
-      
+      if (a.matchRange && !b.matchRange) return -1;
+      if (!a.matchRange && b.matchRange) return 1;
+
       // 如果都是标题匹配，按匹配位置排序
       if (a.matchRange && b.matchRange) {
-        return a.matchRange[0] - b.matchRange[0]
+        return a.matchRange[0] - b.matchRange[0];
       }
-      
-      return 0
-    })
+
+      return 0;
+    });
 }

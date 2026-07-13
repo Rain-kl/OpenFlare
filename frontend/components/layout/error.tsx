@@ -1,23 +1,22 @@
-import * as React from "react"
-import {AlertCircle} from "lucide-react"
-import {Button} from "@/components/ui/button"
+import * as React from 'react';
+import {AlertCircle} from 'lucide-react';
+import {Button} from '@/components/ui/button';
 
-import {cn} from "@/lib/utils"
-
+import {cn} from '@/lib/utils';
 
 /**
  * 错误展示组件属性
  * 用于统一显示加载失败、请求失败等错误状态
  */
 export interface ErrorDisplayProps {
-  title?: string
-  message?: string
-  error?: Error | null
-  onRetry?: () => void
-  retryText?: string
-  icon?: React.ComponentType<{ className?: string }>
-  className?: string
-  showStack?: boolean
+  title?: string;
+  message?: string;
+  error?: Error | null;
+  onRetry?: () => void;
+  retryText?: string;
+  icon?: React.ComponentType<{ className?: string }>;
+  className?: string;
+  showStack?: boolean;
 }
 
 /**
@@ -49,49 +48,52 @@ export interface ErrorDisplayProps {
  * @returns {React.ReactNode} 错误展示组件
  */
 export function ErrorDisplay({
-  title = "加载失败",
+  title = '加载失败',
   message,
   error,
   onRetry,
-  retryText = "重试",
+  retryText = '重试',
   icon: Icon = AlertCircle,
   className,
   showStack = false,
 }: ErrorDisplayProps) {
-  const errorMessage = message || error?.message || "发生未知错误，请稍后重试"
+  const errorMessage = message || error?.message || '发生未知错误，请稍后重试';
 
   return (
-    <div className={cn("flex flex-col items-center justify-center py-12 text-center", className)}>
-      <div className="size-12 rounded-full bg-red-100 dark:bg-red-900/20 flex items-center justify-center mb-4">
-        <Icon className="size-6 text-red-600 dark:text-red-400" />
+    <div
+      className={cn(
+        'flex flex-col items-center justify-center py-12 text-center',
+        className,
+      )}
+    >
+      <div className='size-12 rounded-full bg-red-100 dark:bg-red-900/20 flex items-center justify-center mb-4'>
+        <Icon className='size-6 text-red-600 dark:text-red-400' />
       </div>
 
-      <h3 className="text-lg font-semibold mb-2">{title}</h3>
+      <h3 className='text-lg font-semibold mb-2'>{title}</h3>
 
-      <p className="text-sm text-muted-foreground max-w-md mb-4">{errorMessage}</p>
+      <p className='text-sm text-muted-foreground max-w-md mb-4'>
+        {errorMessage}
+      </p>
 
       {onRetry && (
-        <Button
-          onClick={onRetry}
-          variant="outline"
-          className="mt-2"
-        >
+        <Button onClick={onRetry} variant='outline' className='mt-2'>
           {retryText}
         </Button>
       )}
 
       {showStack && error?.stack && process.env.NODE_ENV === 'development' && (
-        <details className="mt-6 text-left max-w-2xl w-full">
-          <summary className="cursor-pointer text-xs text-muted-foreground hover:text-foreground">
+        <details className='mt-6 text-left max-w-2xl w-full'>
+          <summary className='cursor-pointer text-xs text-muted-foreground hover:text-foreground'>
             查看详细错误信息
           </summary>
-          <pre className="mt-2 p-4 bg-muted rounded-lg text-xs overflow-auto">
+          <pre className='mt-2 p-4 bg-muted rounded-lg text-xs overflow-auto'>
             {error.stack}
           </pre>
         </details>
       )}
     </div>
-  )
+  );
 }
 
 /**
@@ -113,24 +115,29 @@ export function ErrorInline({
   onRetry,
   className,
 }: Omit<ErrorDisplayProps, 'title' | 'icon' | 'showStack'>) {
-  const errorMessage = message || error?.message || "发生未知错误"
+  const errorMessage = message || error?.message || '发生未知错误';
 
   return (
-    <div className={cn("flex items-center gap-2 text-sm text-red-600 dark:text-red-400", className)}>
-      <AlertCircle className="size-3 shrink-0 text-destructive" />
-      <span className="flex-1 text-xs">{errorMessage}</span>
+    <div
+      className={cn(
+        'flex items-center gap-2 text-sm text-red-600 dark:text-red-400',
+        className,
+      )}
+    >
+      <AlertCircle className='size-3 shrink-0 text-destructive' />
+      <span className='flex-1 text-xs'>{errorMessage}</span>
       {onRetry && (
         <Button
           onClick={onRetry}
-          variant="secondary"
-          size="sm"
-          className="h-6 px-4 text-xs"
+          variant='secondary'
+          size='sm'
+          className='h-6 px-4 text-xs'
         >
           重试
         </Button>
       )}
     </div>
-  )
+  );
 }
 
 /**
@@ -149,11 +156,11 @@ export function ErrorInline({
  */
 export function ErrorPage(props: ErrorDisplayProps) {
   return (
-    <div className="flex items-center justify-center min-h-[calc(100vh-8rem)]">
+    <div className='flex items-center justify-center min-h-[calc(100vh-8rem)]'>
       <ErrorDisplay
         {...props}
         showStack={props.showStack ?? process.env.NODE_ENV === 'development'}
       />
     </div>
-  )
+  );
 }

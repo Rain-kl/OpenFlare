@@ -1,7 +1,4 @@
-import type {
-  WAFIPGroup,
-  WAFIPGroupPayload,
-} from '@/lib/services/openflare';
+import type { WAFIPGroup, WAFIPGroupPayload } from '@/lib/services/openflare';
 
 export function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : '操作失败';
@@ -17,7 +14,6 @@ export function parseTextareaList(text: string) {
     .map((item) => item.trim())
     .filter(Boolean);
 }
-
 
 export function parseAutomaticConfig(text: string): Record<string, unknown> {
   const parsed = JSON.parse(text || '{}') as unknown;
@@ -83,7 +79,9 @@ export function formatIPGroupBanRemaining(
   if (expireDate.getTime() <= now.getTime()) {
     return '已过期';
   }
-  const diffMins = Math.round((expireDate.getTime() - now.getTime()) / (60 * 1000));
+  const diffMins = Math.round(
+    (expireDate.getTime() - now.getTime()) / (60 * 1000),
+  );
   if (diffMins < 60) {
     return `${diffMins} 分钟后`;
   }

@@ -60,19 +60,19 @@ func TestGetOverviewStructure(t *testing.T) {
 
 	// Seed older + newer snapshots per node; health must use latest-per-node, not a global raw limit.
 	require.NoError(t, model.InsertOpenFlareMetricSnapshot(ctx, &model.OpenFlareMetricSnapshot{
-		NodeID:          "node-dashboard-1",
-		CapturedAt:      now.Add(-2 * time.Hour),
-		CPUUsagePercent: 10,
-		MemoryUsedBytes: 1,
+		NodeID:           "node-dashboard-1",
+		CapturedAt:       now.Add(-2 * time.Hour),
+		CPUUsagePercent:  10,
+		MemoryUsedBytes:  1,
 		MemoryTotalBytes: 10,
 	}))
 	require.NoError(t, model.InsertOpenFlareMetricSnapshot(ctx, &model.OpenFlareMetricSnapshot{
-		NodeID:          "node-dashboard-1",
-		CapturedAt:      now.Add(-time.Minute),
-		CPUUsagePercent: 55,
-		MemoryUsedBytes: 5,
-		MemoryTotalBytes: 10,
-		StorageUsedBytes: 2,
+		NodeID:            "node-dashboard-1",
+		CapturedAt:        now.Add(-time.Minute),
+		CPUUsagePercent:   55,
+		MemoryUsedBytes:   5,
+		MemoryTotalBytes:  10,
+		StorageUsedBytes:  2,
 		StorageTotalBytes: 10,
 	}))
 	require.NoError(t, model.InsertOpenFlareRequestReport(ctx, &model.OpenFlareRequestReport{

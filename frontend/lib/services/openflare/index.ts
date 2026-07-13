@@ -126,21 +126,21 @@ export type {
   TlsCertificateMutationPayload,
 } from './types';
 
-import {AccessLogService} from './access-log.service';
-import {ApplyLogService} from './apply-log.service';
-import {ConfigVersionService} from './config-version.service';
-import {DashboardService} from './dashboard.service';
-import {DnsAccountService} from './dns-account.service';
-import {NodeService} from './node.service';
-import {OptionService} from './option.service';
-import {StatusService} from './status.service';
-import {UptimeKumaService} from './uptimekuma.service';
-import {OriginService} from './origin.service';
-import {PagesService} from './pages.service';
-import {ProxyRouteService} from './proxy-route.service';
-import {TlsCertificateService} from './tls-certificate.service';
-import {WafService} from './waf.service';
-import {ZoneDomainService, ZoneService} from './zone.service';
+import { AccessLogService } from './access-log.service';
+import { ApplyLogService } from './apply-log.service';
+import { ConfigVersionService } from './config-version.service';
+import { DashboardService } from './dashboard.service';
+import { DnsAccountService } from './dns-account.service';
+import { NodeService } from './node.service';
+import { OptionService } from './option.service';
+import { StatusService } from './status.service';
+import { UptimeKumaService } from './uptimekuma.service';
+import { OriginService } from './origin.service';
+import { PagesService } from './pages.service';
+import { ProxyRouteService } from './proxy-route.service';
+import { TlsCertificateService } from './tls-certificate.service';
+import { WafService } from './waf.service';
+import { ZoneDomainService, ZoneService } from './zone.service';
 
 export const openflareServices = {
   node: NodeService,

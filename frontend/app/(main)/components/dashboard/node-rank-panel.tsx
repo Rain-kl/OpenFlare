@@ -1,13 +1,8 @@
 'use client';
 
-import {RankChart} from '@/components/data/rank-chart';
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import type {DashboardNodeHealth} from '@/lib/services/openflare';
+import { RankChart } from '@/components/data/rank-chart';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import type { DashboardNodeHealth } from '@/lib/services/openflare';
 
 function buildNodeRankItems(
   nodes: DashboardNodeHealth[],
@@ -31,25 +26,25 @@ function buildNodeRankItems(
     }));
 }
 
-export function NodeRankPanel({nodes}: {nodes: DashboardNodeHealth[]}) {
+export function NodeRankPanel({ nodes }: { nodes: DashboardNodeHealth[] }) {
   return (
-    <Card className="border-dashed shadow-none">
+    <Card className='border-dashed shadow-none'>
       <CardHeader>
-        <CardTitle className="text-sm font-semibold">Top 节点榜单</CardTitle>
+        <CardTitle className='text-sm font-semibold'>Top 节点榜单</CardTitle>
       </CardHeader>
-      <CardContent className="grid gap-6">
+      <CardContent className='grid gap-6'>
         <div>
-          <p className="mb-3 text-xs tracking-[0.22em] text-muted-foreground uppercase">
+          <p className='mb-3 text-xs tracking-[0.22em] text-muted-foreground uppercase'>
             流量最高节点
           </p>
           <RankChart
             items={buildNodeRankItems(nodes, (node) => node.request_count)}
-            color="#38bdf8"
-            emptyMessage="暂无流量榜单"
+            color='#38bdf8'
+            emptyMessage='暂无流量榜单'
           />
         </div>
         <div>
-          <p className="mb-3 text-xs tracking-[0.22em] text-muted-foreground uppercase">
+          <p className='mb-3 text-xs tracking-[0.22em] text-muted-foreground uppercase'>
             容量压力节点
           </p>
           <RankChart
@@ -62,9 +57,9 @@ export function NodeRankPanel({nodes}: {nodes: DashboardNodeHealth[]}) {
                 ),
               ),
             )}
-            color="#ef4444"
+            color='#ef4444'
             valueFormatter={(value) => `${value}%`}
-            emptyMessage="暂无容量压力数据"
+            emptyMessage='暂无容量压力数据'
           />
         </div>
       </CardContent>

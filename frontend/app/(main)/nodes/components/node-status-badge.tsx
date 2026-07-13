@@ -1,7 +1,7 @@
-import {Badge} from '@/components/ui/badge';
-import {cn} from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 
-import type {StatusTone} from './node-utils';
+import type { StatusTone } from './node-utils';
 
 const toneClassName: Record<StatusTone, string> = {
   success: 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600',
@@ -21,8 +21,12 @@ export function NodeStatusBadge({
 }) {
   return (
     <Badge
-      variant="outline"
-      className={cn('text-[10px] rounded-full py-0 px-2 font-medium', toneClassName[tone], className)}
+      variant='outline'
+      className={cn(
+        'text-[10px] rounded-full py-0 px-2 font-medium',
+        toneClassName[tone],
+        className,
+      )}
     >
       {label}
     </Badge>

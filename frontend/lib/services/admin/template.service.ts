@@ -1,5 +1,9 @@
-import {BaseService} from '@/lib/services/core';
-import type {CreateTemplateRequest, Template, UpdateTemplateRequest} from './types';
+import { BaseService } from '@/lib/services/core';
+import type {
+  CreateTemplateRequest,
+  Template,
+  UpdateTemplateRequest,
+} from './types';
 
 export class AdminTemplateService extends BaseService {
   protected static readonly basePath = '/api/v1/admin';
@@ -12,11 +16,16 @@ export class AdminTemplateService extends BaseService {
     return this.get<Template>(`/templates/${key}`);
   }
 
-  static async createTemplate(request: CreateTemplateRequest): Promise<Template> {
+  static async createTemplate(
+    request: CreateTemplateRequest,
+  ): Promise<Template> {
     return this.post<Template>('/templates', request);
   }
 
-  static async updateTemplate(key: string, request: UpdateTemplateRequest): Promise<Template> {
+  static async updateTemplate(
+    key: string,
+    request: UpdateTemplateRequest,
+  ): Promise<Template> {
     return this.put<Template>(`/templates/${key}`, request);
   }
 

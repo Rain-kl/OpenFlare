@@ -23,7 +23,7 @@ export interface TableDataResponse {
  * 执行自定义 SQL 的响应
  */
 export interface ExecuteSQLResponse {
-  type: "select" | "exec";
+  type: 'select' | 'exec';
   columns?: string[];
   results?: Record<string, unknown>[];
   affected_rows: number;

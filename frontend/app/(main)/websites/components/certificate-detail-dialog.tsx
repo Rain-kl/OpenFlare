@@ -68,7 +68,7 @@ export function CertificateDetailDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className='max-w-3xl max-h-[90vh] overflow-y-auto'>
         <DialogHeader>
           <DialogTitle>证书详情</DialogTitle>
           <DialogDescription>
@@ -77,82 +77,101 @@ export function CertificateDetailDialog({
         </DialogHeader>
 
         {loading ? (
-          <LoadingStateWithBorder description="加载证书详情中..." />
+          <LoadingStateWithBorder description='加载证书详情中...' />
         ) : hasError ? (
           <ErrorInline
-            message={getErrorMessage(certificateQuery.error ?? contentQuery.error)}
-            className="justify-center"
+            message={getErrorMessage(
+              certificateQuery.error ?? contentQuery.error,
+            )}
+            className='justify-center'
           />
         ) : !certificate || !content ? (
-          <EmptyStateWithBorder description="证书不存在，可能已被删除。" />
+          <EmptyStateWithBorder description='证书不存在，可能已被删除。' />
         ) : (
-          <div className="space-y-4">
-            <div className="grid gap-3 md:grid-cols-2">
-              <div className="rounded-lg border p-3">
-                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
+          <div className='space-y-4'>
+            <div className='grid gap-3 md:grid-cols-2'>
+              <div className='rounded-lg border p-3'>
+                <p className='text-[10px] uppercase tracking-wider text-muted-foreground'>
                   证书名称
                 </p>
-                <p className="mt-1 text-sm">{certificate.name}</p>
+                <p className='mt-1 text-sm'>{certificate.name}</p>
               </div>
-              <div className="rounded-lg border p-3">
-                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">状态</p>
-                <div className="mt-1">
-                  {status ? <WebsiteStatusBadge label={status.label} tone={status.tone} /> : null}
+              <div className='rounded-lg border p-3'>
+                <p className='text-[10px] uppercase tracking-wider text-muted-foreground'>
+                  状态
+                </p>
+                <div className='mt-1'>
+                  {status ? (
+                    <WebsiteStatusBadge
+                      label={status.label}
+                      tone={status.tone}
+                    />
+                  ) : null}
                 </div>
               </div>
-              <div className="rounded-lg border p-3">
-                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
+              <div className='rounded-lg border p-3'>
+                <p className='text-[10px] uppercase tracking-wider text-muted-foreground'>
                   生效时间
                 </p>
-                <p className="mt-1 text-sm">{formatDateTime(certificate.not_before)}</p>
+                <p className='mt-1 text-sm'>
+                  {formatDateTime(certificate.not_before)}
+                </p>
               </div>
-              <div className="rounded-lg border p-3">
-                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
+              <div className='rounded-lg border p-3'>
+                <p className='text-[10px] uppercase tracking-wider text-muted-foreground'>
                   到期时间
                 </p>
-                <p className="mt-1 text-sm">{formatDateTime(certificate.not_after)}</p>
+                <p className='mt-1 text-sm'>
+                  {formatDateTime(certificate.not_after)}
+                </p>
               </div>
             </div>
 
-            <div className="rounded-lg border p-3">
-              <p className="text-[10px] uppercase tracking-wider text-muted-foreground">备注</p>
-              <p className="mt-1 text-sm">{certificate.remark || '暂无备注'}</p>
+            <div className='rounded-lg border p-3'>
+              <p className='text-[10px] uppercase tracking-wider text-muted-foreground'>
+                备注
+              </p>
+              <p className='mt-1 text-sm'>{certificate.remark || '暂无备注'}</p>
             </div>
 
-            <div className="space-y-3">
+            <div className='space-y-3'>
               <div>
-                <div className="mb-2 flex items-center justify-between">
-                  <p className="text-sm font-medium">证书 PEM</p>
+                <div className='mb-2 flex items-center justify-between'>
+                  <p className='text-sm font-medium'>证书 PEM</p>
                   <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="h-7 text-xs"
-                    onClick={() => void handleCopy(content.cert_pem, '证书 PEM 已复制')}
+                    type='button'
+                    variant='outline'
+                    size='sm'
+                    className='h-7 text-xs'
+                    onClick={() =>
+                      void handleCopy(content.cert_pem, '证书 PEM 已复制')
+                    }
                   >
-                    <Copy className="mr-1 size-3" />
+                    <Copy className='mr-1 size-3' />
                     复制
                   </Button>
                 </div>
-                <pre className="max-h-48 overflow-auto rounded-lg border bg-muted/40 p-3 text-xs break-all whitespace-pre-wrap">
+                <pre className='max-h-48 overflow-auto rounded-lg border bg-muted/40 p-3 text-xs break-all whitespace-pre-wrap'>
                   {content.cert_pem}
                 </pre>
               </div>
               <div>
-                <div className="mb-2 flex items-center justify-between">
-                  <p className="text-sm font-medium">私钥 PEM</p>
+                <div className='mb-2 flex items-center justify-between'>
+                  <p className='text-sm font-medium'>私钥 PEM</p>
                   <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="h-7 text-xs"
-                    onClick={() => void handleCopy(content.key_pem, '私钥 PEM 已复制')}
+                    type='button'
+                    variant='outline'
+                    size='sm'
+                    className='h-7 text-xs'
+                    onClick={() =>
+                      void handleCopy(content.key_pem, '私钥 PEM 已复制')
+                    }
                   >
-                    <Copy className="mr-1 size-3" />
+                    <Copy className='mr-1 size-3' />
                     复制
                   </Button>
                 </div>
-                <pre className="max-h-48 overflow-auto rounded-lg border bg-muted/40 p-3 text-xs break-all whitespace-pre-wrap">
+                <pre className='max-h-48 overflow-auto rounded-lg border bg-muted/40 p-3 text-xs break-all whitespace-pre-wrap'>
                   {content.key_pem}
                 </pre>
               </div>
@@ -161,21 +180,25 @@ export function CertificateDetailDialog({
         )}
 
         <DialogFooter>
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+          <Button
+            type='button'
+            variant='outline'
+            onClick={() => onOpenChange(false)}
+          >
             关闭
           </Button>
-          <Button type="button" onClick={onEdit} disabled={!certificate}>
+          <Button type='button' onClick={onEdit} disabled={!certificate}>
             编辑证书
           </Button>
           <Button
-            type="button"
-            variant="destructive"
+            type='button'
+            variant='destructive'
             onClick={onDelete}
             disabled={!certificate || deleting}
           >
             {deleting ? (
               <>
-                <Loader2 className="mr-1 size-3.5 animate-spin" />
+                <Loader2 className='mr-1 size-3.5 animate-spin' />
                 删除中...
               </>
             ) : (

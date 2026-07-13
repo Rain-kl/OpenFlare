@@ -13,7 +13,10 @@ export class AdminUploadService extends BaseService {
     type?: string,
     extension?: string,
   ): Promise<ListUploadsResponse> {
-    const params: Record<string, string | number> = { page, page_size: pageSize };
+    const params: Record<string, string | number> = {
+      page,
+      page_size: pageSize,
+    };
     if (keyword) params.keyword = keyword;
     if (type) params.type = type;
     if (extension) params.extension = extension;

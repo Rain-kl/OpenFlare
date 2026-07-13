@@ -1,21 +1,20 @@
-import * as React from "react"
-import {FileTextIcon} from "lucide-react"
-import {Button} from "@/components/ui/button"
+import * as React from 'react';
+import {FileTextIcon} from 'lucide-react';
+import {Button} from '@/components/ui/button';
 
-import {cn} from "@/lib/utils"
-
+import {cn} from '@/lib/utils';
 
 /**
  * 空状态展示组件属性
  * 用于统一显示无数据、无内容等空状态
  */
-export interface EmptyStateProps extends React.ComponentProps<"div"> {
-  title?: string
-  description?: string
-  icon?: React.ComponentType<{ className?: string }>
-  actionText?: string
-  onAction?: () => void
-  iconSize?: "sm" | "md" | "lg"
+export interface EmptyStateProps extends React.ComponentProps<'div'> {
+  title?: string;
+  description?: string;
+  icon?: React.ComponentType<{ className?: string }>;
+  actionText?: string;
+  onAction?: () => void;
+  iconSize?: 'sm' | 'md' | 'lg';
 }
 
 /**
@@ -54,43 +53,42 @@ export function EmptyState({
   actionText,
   onAction,
   className,
-  iconSize = "md",
+  iconSize = 'md',
 }: EmptyStateProps) {
-  const iconSizes = { sm: "size-10", md: "size-12", lg: "size-16" }
-  const iconInnerSizes = { sm: "size-5", md: "size-6", lg: "size-8" }
+  const iconSizes = { sm: 'size-10', md: 'size-12', lg: 'size-16' };
+  const iconInnerSizes = { sm: 'size-5', md: 'size-6', lg: 'size-8' };
 
   return (
-    <div className={cn("flex flex-col items-center justify-center py-12 text-center", className)}>
-      <div className={cn(
-        "rounded-full bg-muted flex items-center justify-center mb-4",
-        iconSizes[iconSize],
-      )}>
-        <Icon className={cn("text-muted-foreground", iconInnerSizes[iconSize])} />
+    <div
+      className={cn(
+        'flex flex-col items-center justify-center py-12 text-center',
+        className,
+      )}
+    >
+      <div
+        className={cn(
+          'rounded-full bg-muted flex items-center justify-center mb-4',
+          iconSizes[iconSize],
+        )}
+      >
+        <Icon
+          className={cn('text-muted-foreground', iconInnerSizes[iconSize])}
+        />
       </div>
 
-      {title && (
-        <h3 className="text-base font-medium mb-1">
-          {title}
-        </h3>
-      )}
+      {title && <h3 className='text-base font-medium mb-1'>{title}</h3>}
 
       {description && (
-        <p className="text-sm text-muted-foreground max-w-md">
-          {description}
-        </p>
+        <p className='text-sm text-muted-foreground max-w-md'>{description}</p>
       )}
 
       {onAction && actionText && (
-        <Button
-          onClick={onAction}
-          variant="outline"
-          className="mt-4"
-        >
+        <Button onClick={onAction} variant='outline' className='mt-4'>
           {actionText}
         </Button>
       )}
     </div>
-  )
+  );
 }
 
 /**
@@ -109,10 +107,10 @@ export function EmptyState({
  */
 export function EmptyStateWithBorder(props: EmptyStateProps) {
   return (
-    <div className="border border-dashed rounded-lg">
+    <div className='border border-dashed rounded-lg'>
       <EmptyState {...props} />
     </div>
-  )
+  );
 }
 
 /**
@@ -130,14 +128,19 @@ export function EmptyStateWithBorder(props: EmptyStateProps) {
  * @returns {React.ReactNode} 简化版空状态组件
  */
 export function EmptyInline({
-  message = "暂无数据",
+  message = '暂无数据',
   icon: Icon = FileTextIcon,
   className,
 }: Pick<EmptyStateProps, 'icon' | 'className'> & { message?: string }) {
   return (
-    <div className={cn("flex items-center justify-center gap-2 py-8 text-sm text-muted-foreground", className)}>
-      <Icon className="size-4" />
+    <div
+      className={cn(
+        'flex items-center justify-center gap-2 py-8 text-sm text-muted-foreground',
+        className,
+      )}
+    >
+      <Icon className='size-4' />
       <span>{message}</span>
     </div>
-  )
+  );
 }

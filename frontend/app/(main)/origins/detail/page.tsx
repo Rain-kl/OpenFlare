@@ -1,15 +1,15 @@
-import {Suspense} from 'react';
+import { Suspense } from 'react';
 
-import {Skeleton} from '@/components/ui/skeleton';
+import { Skeleton } from '@/components/ui/skeleton';
 
-import {OriginDetailPageClient} from './page-client';
+import { OriginDetailPageClient } from './page-client';
 
 function OriginDetailPageFallback() {
   return (
-    <div className="py-6 px-1 space-y-6">
-      <Skeleton className="h-8 w-48" />
-      <Skeleton className="h-10 w-full max-w-xl" />
-      <Skeleton className="h-64 w-full" />
+    <div className='py-6 px-1 space-y-6'>
+      <Skeleton className='h-8 w-48' />
+      <Skeleton className='h-10 w-full max-w-xl' />
+      <Skeleton className='h-64 w-full' />
     </div>
   );
 }

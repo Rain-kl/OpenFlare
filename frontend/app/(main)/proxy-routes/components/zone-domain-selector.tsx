@@ -1,17 +1,17 @@
 'use client';
 
-import {useMemo, useState} from 'react';
+import { useMemo, useState } from 'react';
 import Link from 'next/link';
-import {ExternalLink, Plus} from 'lucide-react';
+import { ExternalLink, Plus } from 'lucide-react';
 
-import {Badge} from '@/components/ui/badge';
-import {Button} from '@/components/ui/button';
-import {Checkbox} from '@/components/ui/checkbox';
-import {Input} from '@/components/ui/input';
-import {cn} from '@/lib/utils';
-import type {ZoneDomainItem, ZoneItem} from '@/lib/services/openflare';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from '@/components/ui/input';
+import { cn } from '@/lib/utils';
+import type { ZoneDomainItem, ZoneItem } from '@/lib/services/openflare';
 
-import {QuickCreateZoneDomainDialog} from '../../websites/components/quick-create-zone-domain-dialog';
+import { QuickCreateZoneDomainDialog } from '../../websites/components/quick-create-zone-domain-dialog';
 
 export interface ZoneDomainSelectorProps {
   value: number[];
@@ -49,7 +49,8 @@ export function ZoneDomainSelector({
     () =>
       domains.filter(
         (domain) =>
-          domain.proxy_route_id == null || domain.proxy_route_id === currentRouteId,
+          domain.proxy_route_id == null ||
+          domain.proxy_route_id === currentRouteId,
       ),
     [currentRouteId, domains],
   );
@@ -92,33 +93,36 @@ export function ZoneDomainSelector({
 
   return (
     <div className={cn('space-y-3', className)}>
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+      <div className='flex flex-col gap-2 sm:flex-row sm:items-center'>
         <Input
           value={keyword}
           onChange={(event) => setKeyword(event.target.value)}
-          placeholder="搜索域名或 Zone…"
+          placeholder='搜索域名或 Zone…'
           disabled={disabled}
-          className="sm:flex-1"
+          className='sm:flex-1'
         />
         <Button
-          type="button"
-          variant="secondary"
-          size="sm"
-          className="h-8 shrink-0 text-xs"
+          type='button'
+          variant='secondary'
+          size='sm'
+          className='h-8 shrink-0 text-xs'
           disabled={disabled}
           onClick={() => setCreateOpen(true)}
         >
-          <Plus className="mr-1 size-3.5" />
+          <Plus className='mr-1 size-3.5' />
           快捷新增域名
         </Button>
       </div>
 
       {filtered.length === 0 ? (
-        <div className="rounded-lg border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
+        <div className='rounded-lg border border-dashed px-4 py-8 text-center text-sm text-muted-foreground'>
           {domains.length === 0 ? (
             <>
               暂无可用 Zone 域名。请先在{' '}
-              <Link href="/websites" className="text-primary underline-offset-4 hover:underline">
+              <Link
+                href='/websites'
+                className='text-primary underline-offset-4 hover:underline'
+              >
                 网站管理
               </Link>{' '}
               中添加 FQDN，或使用「快捷新增域名」。
@@ -130,7 +134,7 @@ export function ZoneDomainSelector({
           )}
         </div>
       ) : (
-        <div className="max-h-72 space-y-1 overflow-y-auto rounded-lg border p-2">
+        <div className='max-h-72 space-y-1 overflow-y-auto rounded-lg border p-2'>
           {filtered.map((domain) => {
             const checked = selected.has(domain.id);
             const zoneRoot = zoneMap.get(domain.zone_id);
@@ -147,30 +151,32 @@ export function ZoneDomainSelector({
                   checked={checked}
                   disabled={disabled}
                   onCheckedChange={() => toggle(domain)}
-                  className="mt-0.5"
+                  className='mt-0.5'
                 />
-                <span className="min-w-0 flex-1 space-y-1">
-                  <span className="flex flex-wrap items-center gap-2">
-                    <span className="truncate text-sm font-medium">{domain.domain}</span>
+                <span className='min-w-0 flex-1 space-y-1'>
+                  <span className='flex flex-wrap items-center gap-2'>
+                    <span className='truncate text-sm font-medium'>
+                      {domain.domain}
+                    </span>
                     {domain.cert_id ? (
-                      <Badge variant="secondary" className="text-[10px]">
+                      <Badge variant='secondary' className='text-[10px]'>
                         证书 #{domain.cert_id}
                       </Badge>
                     ) : (
-                      <Badge variant="outline" className="text-[10px]">
+                      <Badge variant='outline' className='text-[10px]'>
                         无证书
                       </Badge>
                     )}
                   </span>
-                  <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <span className='flex items-center gap-1 text-xs text-muted-foreground'>
                     {zoneRoot ? (
                       <Link
                         href={`/websites/${domain.zone_id}`}
-                        className="inline-flex items-center gap-0.5 hover:text-foreground"
+                        className='inline-flex items-center gap-0.5 hover:text-foreground'
                         onClick={(event) => event.stopPropagation()}
                       >
                         Zone {zoneRoot}
-                        <ExternalLink className="size-3" />
+                        <ExternalLink className='size-3' />
                       </Link>
                     ) : (
                       <span>Zone #{domain.zone_id}</span>

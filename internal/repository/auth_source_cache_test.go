@@ -38,7 +38,7 @@ func setupAuthSourceCacheTest(t *testing.T) (*gorm.DB, *miniredis.Miniredis, fun
 
 	db.SetDB(sqliteDB)
 	db.Redis = redis.NewClient(&redis.Options{
-		Addr:            miniRedis.Addr(),
+		Addr: miniRedis.Addr(),
 		MaintNotificationsConfig: &maintnotifications.Config{
 			Mode: maintnotifications.ModeDisabled,
 		},

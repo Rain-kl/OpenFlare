@@ -22,7 +22,7 @@ import {
   type ManualImportFormValues,
   manualImportSchema,
 } from './schemas';
-import {getErrorMessage, toFilePayload, toManualPayload} from './website-utils';
+import {getErrorMessage, toFilePayload, toManualPayload,} from './website-utils';
 
 const certificatesQueryKey = ['openflare', 'tls-certificates'];
 
@@ -40,7 +40,9 @@ export function CertificateImportDialog({
   const queryClient = useQueryClient();
   const [importMode, setImportMode] = useState<'manual' | 'file'>('manual');
   const [error, setError] = useState('');
-  const [fileForm, setFileForm] = useState<FileImportFormValues>(defaultFileImportValues);
+  const [fileForm, setFileForm] = useState<FileImportFormValues>(
+    defaultFileImportValues,
+  );
   const [certFile, setCertFile] = useState<File | null>(null);
   const [keyFile, setKeyFile] = useState<File | null>(null);
   const [fileInputNonce, setFileInputNonce] = useState(0);
@@ -57,8 +59,8 @@ export function CertificateImportDialog({
 
   const invalidateQueries = async () => {
     await Promise.all([
-      queryClient.invalidateQueries({queryKey: certificatesQueryKey}),
-          ]);
+      queryClient.invalidateQueries({ queryKey: certificatesQueryKey }),
+    ]);
   };
 
   const resetFileForm = () => {
@@ -93,7 +95,9 @@ export function CertificateImportDialog({
 
   const fileImportMutation = useMutation({
     mutationFn: (values: FileImportFormValues) =>
-      TlsCertificateService.importFile(toFilePayload(values, certFile, keyFile)),
+      TlsCertificateService.importFile(
+        toFilePayload(values, certFile, keyFile),
+      ),
     onSuccess: async (certificate) => {
       await invalidateQueries();
       onImported?.(certificate);
@@ -113,11 +117,12 @@ export function CertificateImportDialog({
     fileImportMutation.mutate(fileForm);
   };
 
-  const pending = manualImportMutation.isPending || fileImportMutation.isPending;
+  const pending =
+    manualImportMutation.isPending || fileImportMutation.isPending;
 
   return (
     <Dialog open={open} onOpenChange={(next) => !next && handleClose()}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className='max-w-2xl'>
         <DialogHeader>
           <DialogTitle>添加证书</DialogTitle>
           <DialogDescription>
@@ -125,54 +130,63 @@ export function CertificateImportDialog({
           </DialogDescription>
         </DialogHeader>
 
-        {error ? <p className="text-sm text-destructive">{error}</p> : null}
+        {error ? <p className='text-sm text-destructive'>{error}</p> : null}
 
-        <Tabs value={importMode} onValueChange={(value) => setImportMode(value as 'manual' | 'file')}>
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="manual">手动导入</TabsTrigger>
-            <TabsTrigger value="file">文件导入</TabsTrigger>
+        <Tabs
+          value={importMode}
+          onValueChange={(value) => setImportMode(value as 'manual' | 'file')}
+        >
+          <TabsList className='grid w-full grid-cols-2'>
+            <TabsTrigger value='manual'>手动导入</TabsTrigger>
+            <TabsTrigger value='file'>文件导入</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="manual" className="space-y-4">
-            <form className="space-y-4" onSubmit={handleManualSubmit}>
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
+          <TabsContent value='manual' className='space-y-4'>
+            <form className='space-y-4' onSubmit={handleManualSubmit}>
+              <div className='grid gap-4 md:grid-cols-2'>
+                <div className='space-y-2'>
                   <Label>证书名称</Label>
-                  <Input placeholder="example-com" {...manualForm.register('name')} />
+                  <Input
+                    placeholder='example-com'
+                    {...manualForm.register('name')}
+                  />
                   {manualForm.formState.errors.name ? (
-                    <p className="text-xs text-destructive">
+                    <p className='text-xs text-destructive'>
                       {manualForm.formState.errors.name.message}
                     </p>
                   ) : null}
                 </div>
-                <div className="space-y-2">
+                <div className='space-y-2'>
                   <Label>备注</Label>
-                  <Input placeholder="例如：主站生产证书" {...manualForm.register('remark')} />
+                  <Input
+                    placeholder='例如：主站生产证书'
+                    {...manualForm.register('remark')}
+                  />
                 </div>
               </div>
 
-              <div className="space-y-2">
+              <div className='space-y-2'>
                 <Label>证书 PEM</Label>
                 <Textarea
-                  className="min-h-32 font-mono text-xs"
-                  placeholder="-----BEGIN CERTIFICATE-----"
+                  className='min-h-32 font-mono text-xs'
+                  placeholder='-----BEGIN CERTIFICATE-----'
                   {...manualForm.register('cert_pem')}
                 />
               </div>
 
-              <div className="space-y-2">
+              <div className='space-y-2'>
                 <Label>私钥 PEM</Label>
                 <Textarea
-                  className="min-h-32 font-mono text-xs"
-                  placeholder="-----BEGIN PRIVATE KEY-----"
+                  className='min-h-32 font-mono text-xs'
+                  placeholder='-----BEGIN PRIVATE KEY-----'
                   {...manualForm.register('key_pem')}
                 />
               </div>
 
-              <Button type="submit" disabled={pending}>
+              <Button type='submit' disabled={pending}>
                 {pending ? (
                   <>
-                    <Loader2 className="mr-1 size-3.5 animate-spin" />
+                    <Loader2 className='mr-1 size-3.5 animate-spin' />
                     导入中...
                   </>
                 ) : (
@@ -182,63 +196,77 @@ export function CertificateImportDialog({
             </form>
           </TabsContent>
 
-          <TabsContent value="file" className="space-y-4">
-            <form className="space-y-4" onSubmit={handleFileSubmit}>
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
+          <TabsContent value='file' className='space-y-4'>
+            <form className='space-y-4' onSubmit={handleFileSubmit}>
+              <div className='grid gap-4 md:grid-cols-2'>
+                <div className='space-y-2'>
                   <Label>证书名称</Label>
                   <Input
                     value={fileForm.name}
                     onChange={(event) =>
-                      setFileForm((current) => ({...current, name: event.target.value}))
+                      setFileForm((current) => ({
+                        ...current,
+                        name: event.target.value,
+                      }))
                     }
-                    placeholder="wildcard-example"
+                    placeholder='wildcard-example'
                   />
                 </div>
-                <div className="space-y-2">
+                <div className='space-y-2'>
                   <Label>备注</Label>
                   <Input
                     value={fileForm.remark}
                     onChange={(event) =>
-                      setFileForm((current) => ({...current, remark: event.target.value}))
+                      setFileForm((current) => ({
+                        ...current,
+                        remark: event.target.value,
+                      }))
                     }
-                    placeholder="例如：泛域名生产证书"
+                    placeholder='例如：泛域名生产证书'
                   />
                 </div>
               </div>
 
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
+              <div className='grid gap-4 md:grid-cols-2'>
+                <div className='space-y-2'>
                   <Label>证书文件</Label>
                   <Input
                     key={`cert-${fileInputNonce}`}
-                    type="file"
-                    accept=".pem,.crt,.cer"
-                    onChange={(event) => setCertFile(event.target.files?.[0] ?? null)}
+                    type='file'
+                    accept='.pem,.crt,.cer'
+                    onChange={(event) =>
+                      setCertFile(event.target.files?.[0] ?? null)
+                    }
                   />
-                  <p className="text-xs text-muted-foreground">
-                    {certFile ? `已选择：${certFile.name}` : '请选择 PEM/CRT 文件'}
+                  <p className='text-xs text-muted-foreground'>
+                    {certFile
+                      ? `已选择：${certFile.name}`
+                      : '请选择 PEM/CRT 文件'}
                   </p>
                 </div>
-                <div className="space-y-2">
+                <div className='space-y-2'>
                   <Label>私钥文件</Label>
                   <Input
                     key={`key-${fileInputNonce}`}
-                    type="file"
-                    accept=".key,.pem"
-                    onChange={(event) => setKeyFile(event.target.files?.[0] ?? null)}
+                    type='file'
+                    accept='.key,.pem'
+                    onChange={(event) =>
+                      setKeyFile(event.target.files?.[0] ?? null)
+                    }
                   />
-                  <p className="text-xs text-muted-foreground">
-                    {keyFile ? `已选择：${keyFile.name}` : '请选择 KEY/PEM 文件'}
+                  <p className='text-xs text-muted-foreground'>
+                    {keyFile
+                      ? `已选择：${keyFile.name}`
+                      : '请选择 KEY/PEM 文件'}
                   </p>
                 </div>
               </div>
 
-              <div className="flex gap-2">
-                <Button type="submit" disabled={pending}>
+              <div className='flex gap-2'>
+                <Button type='submit' disabled={pending}>
                   {pending ? (
                     <>
-                      <Loader2 className="mr-1 size-3.5 animate-spin" />
+                      <Loader2 className='mr-1 size-3.5 animate-spin' />
                       上传中...
                     </>
                   ) : (
@@ -246,8 +274,8 @@ export function CertificateImportDialog({
                   )}
                 </Button>
                 <Button
-                  type="button"
-                  variant="outline"
+                  type='button'
+                  variant='outline'
                   disabled={pending}
                   onClick={resetFileForm}
                 >

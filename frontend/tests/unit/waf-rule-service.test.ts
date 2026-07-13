@@ -1,19 +1,19 @@
-import {QueryClient, QueryClientProvider} from '@tanstack/react-query';
-import {fireEvent, render, screen, waitFor} from '@testing-library/react';
-import type {AxiosResponse} from 'axios';
-import {createElement} from 'react';
-import {beforeEach, describe, expect, it, vi} from 'vitest';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import type { AxiosResponse } from 'axios';
+import { createElement } from 'react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import WafPage from '@/app/(main)/waf/page';
 import apiClient from '@/lib/services/core/api-client';
-import {WafService} from '@/lib/services/openflare';
-import type {WAFSiteRuleGroups} from '@/lib/services/openflare';
-import {WafService as DirectWafService} from '@/lib/services/openflare/waf.service';
+import { WafService } from '@/lib/services/openflare';
+import type { WAFSiteRuleGroups } from '@/lib/services/openflare';
+import { WafService as DirectWafService } from '@/lib/services/openflare/waf.service';
 
 const pushMock = vi.fn();
 
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({push: pushMock}),
+  useRouter: () => ({ push: pushMock }),
 }));
 
 vi.mock('@/lib/services/core/api-client', () => ({
@@ -23,7 +23,8 @@ vi.mock('@/lib/services/core/api-client', () => ({
 }));
 
 vi.mock('@/lib/services/openflare', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/lib/services/openflare')>();
+  const actual =
+    await importOriginal<typeof import('@/lib/services/openflare')>();
   return {
     ...actual,
     WafService: {
@@ -39,10 +40,22 @@ vi.mock('@/lib/services/openflare', async (importOriginal) => {
 const graph = {
   schema_version: 1,
   nodes: [
-    {id: 'start', type: 'start' as const, position: {x: 0, y: 0}, config: {}},
-    {id: 'allow', type: 'allow' as const, position: {x: 200, y: 0}, config: {}},
+    {
+      id: 'start',
+      type: 'start' as const,
+      position: { x: 0, y: 0 },
+      config: {},
+    },
+    {
+      id: 'allow',
+      type: 'allow' as const,
+      position: { x: 200, y: 0 },
+      config: {},
+    },
   ],
-  edges: [{id: 'edge', source: 'start', source_handle: 'next', target: 'allow'}],
+  edges: [
+    { id: 'edge', source: 'start', source_handle: 'next', target: 'allow' },
+  ],
 };
 
 const ruleSummary = {
@@ -79,35 +92,35 @@ describe('WafService rule graph API', () => {
 
   it('creates a rule with a name-only payload', async () => {
     vi.mocked(apiClient.post).mockResolvedValue({
-      data: {error_msg: '', data: {id: 17, name: '入口防护', graph}},
+      data: { error_msg: '', data: { id: 17, name: '入口防护', graph } },
     } as AxiosResponse);
 
-    await DirectWafService.createRule({name: '入口防护'});
+    await DirectWafService.createRule({ name: '入口防护' });
 
     expect(apiClient.post).toHaveBeenCalledWith(
       '/api/v1/d/waf/rule-groups',
-      {name: '入口防护'},
+      { name: '入口防护' },
       undefined,
     );
   });
 
   it('saves the graph together with its current revision', async () => {
     vi.mocked(apiClient.post).mockResolvedValue({
-      data: {error_msg: '', data: {id: 17, revision: 4, graph}},
+      data: { error_msg: '', data: { id: 17, revision: 4, graph } },
     } as AxiosResponse);
 
-    await DirectWafService.saveRuleGraph(17, {revision: 3, graph});
+    await DirectWafService.saveRuleGraph(17, { revision: 3, graph });
 
     expect(apiClient.post).toHaveBeenCalledWith(
       '/api/v1/d/waf/rule-groups/17/graph',
-      {revision: 3, graph},
+      { revision: 3, graph },
       undefined,
     );
   });
 
   it('updates rule metadata with the current name and enabled state', async () => {
     vi.mocked(apiClient.post).mockResolvedValue({
-      data: {error_msg: '', data: {...ruleSummary, enabled: true}},
+      data: { error_msg: '', data: { ...ruleSummary, enabled: true } },
     } as AxiosResponse);
 
     await DirectWafService.updateRuleMeta(17, {
@@ -117,7 +130,7 @@ describe('WafService rule graph API', () => {
 
     expect(apiClient.post).toHaveBeenCalledWith(
       '/api/v1/d/waf/rule-groups/17/meta',
-      {name: '入口防护', enabled: true},
+      { name: '入口防护', enabled: true },
       undefined,
     );
   });
@@ -140,25 +153,21 @@ describe('WAF rule creation flow', () => {
 
   it('creates by name and navigates directly to the graph editor', async () => {
     const client = new QueryClient({
-      defaultOptions: {queries: {retry: false, gcTime: 0}},
+      defaultOptions: { queries: { retry: false, gcTime: 0 } },
     });
     render(
-      createElement(
-        QueryClientProvider,
-        {client},
-        createElement(WafPage),
-      ),
+      createElement(QueryClientProvider, { client }, createElement(WafPage)),
     );
 
-    fireEvent.click(await screen.findByRole('button', {name: '新建规则'}));
+    fireEvent.click(await screen.findByRole('button', { name: '新建规则' }));
     expect(screen.queryByText('IP 白名单')).not.toBeInTheDocument();
-    fireEvent.change(screen.getByRole('textbox', {name: '规则名称'}), {
-      target: {value: '入口防护'},
+    fireEvent.change(screen.getByRole('textbox', { name: '规则名称' }), {
+      target: { value: '入口防护' },
     });
-    fireEvent.click(screen.getByRole('button', {name: '创建并编排'}));
+    fireEvent.click(screen.getByRole('button', { name: '创建并编排' }));
 
     await waitFor(() => {
-      expect(WafService.createRule).toHaveBeenCalledWith({name: '入口防护'});
+      expect(WafService.createRule).toHaveBeenCalledWith({ name: '入口防护' });
       expect(pushMock).toHaveBeenCalledWith('/waf/rules/editor?id=17');
     });
   });

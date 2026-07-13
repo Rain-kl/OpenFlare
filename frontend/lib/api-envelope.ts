@@ -47,7 +47,10 @@ export async function readApiEnvelope<T>(
 
   const envelope = body as ApiEnvelope<T>;
   if (!res.ok) {
-    throw new ApiEnvelopeError(envelope.error_msg || fallbackMessage, res.status);
+    throw new ApiEnvelopeError(
+      envelope.error_msg || fallbackMessage,
+      res.status,
+    );
   }
   if (envelope.error_msg) {
     throw new ApiEnvelopeError(envelope.error_msg, res.status);

@@ -1,64 +1,82 @@
-"use client"
+'use client';
 
-import {createContext, ReactNode, useContext, useEffect, useMemo, useState} from "react"
+import {
+  createContext,
+  ReactNode,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
 
 interface NotificationSettingsContextType {
-  showBell: boolean
-  isMounted: boolean
-  setShowBell: (value: boolean) => void
+  showBell: boolean;
+  isMounted: boolean;
+  setShowBell: (value: boolean) => void;
 }
 
-const NotificationSettingsContext = createContext<NotificationSettingsContextType | undefined>(undefined)
+const NotificationSettingsContext = createContext<
+  NotificationSettingsContextType | undefined
+>(undefined);
 
-const STORAGE_KEY = "notification-settings"
+const STORAGE_KEY = 'notification-settings';
 
 interface StoredSettings {
-  showBell: boolean
+  showBell: boolean;
 }
 
-export function NotificationSettingsProvider({ children }: { children: ReactNode }) {
-  const [showBell, setShowBellState] = useState(true)
-  const [mounted, setMounted] = useState(false)
+export function NotificationSettingsProvider({
+  children,
+}: {
+  children: ReactNode;
+}) {
+  const [showBell, setShowBellState] = useState(true);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY)
+    const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
       try {
-        const settings: StoredSettings = JSON.parse(stored)
-        if (typeof settings.showBell === "boolean") {
-          setShowBellState(settings.showBell)
+        const settings: StoredSettings = JSON.parse(stored);
+        if (typeof settings.showBell === 'boolean') {
+          setShowBellState(settings.showBell);
         }
       } catch {
         // Ignore parse errors
       }
     }
-    setMounted(true)
-  }, [])
+    setMounted(true);
+  }, []);
 
   const setShowBell = (value: boolean) => {
-    setShowBellState(value)
-    const settings: StoredSettings = { showBell: value }
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(settings))
-  }
+    setShowBellState(value);
+    const settings: StoredSettings = { showBell: value };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+  };
 
   // Memoize context value to prevent unnecessary re-renders
-  const contextValue = useMemo<NotificationSettingsContextType>(() => ({
-    showBell,
-    isMounted: mounted,
-    setShowBell,
-  }), [showBell, mounted])
+  const contextValue = useMemo<NotificationSettingsContextType>(
+    () => ({
+      showBell,
+      isMounted: mounted,
+      setShowBell,
+    }),
+    [showBell, mounted],
+  );
 
   return (
     <NotificationSettingsContext.Provider value={contextValue}>
       {children}
     </NotificationSettingsContext.Provider>
-  )
+  );
 }
 
 export function useNotificationSettings() {
-  const context = useContext(NotificationSettingsContext)
+  const context = useContext(NotificationSettingsContext);
   if (context === undefined) {
-    throw new Error("useNotificationSettings must be used within a NotificationSettingsProvider")
+    throw new Error(
+      'useNotificationSettings must be used within a NotificationSettingsProvider',
+    );
   }
-  return context
+  return context;
 }

@@ -1,9 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import {useSearchParams} from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 
-import {cn} from '@/lib/utils';
+import { cn } from '@/lib/utils';
 
 export type NodeFilter = 'all' | 'edge' | 'relay' | 'tunnel';
 
@@ -16,7 +16,12 @@ const filters: Array<{ key: NodeFilter; label: string; href: string }> = [
 
 export function getNodeFilter(searchParams: URLSearchParams): NodeFilter {
   const current = searchParams.get('filter')?.trim().toLowerCase() ?? '';
-  if (current === 'relay' || current === 'tunnel' || current === 'edge' || current === 'all') {
+  if (
+    current === 'relay' ||
+    current === 'tunnel' ||
+    current === 'edge' ||
+    current === 'all'
+  ) {
     return current;
   }
   return 'all';
@@ -58,7 +63,7 @@ export function NodeTypeFilter() {
   const activeFilter = getNodeFilter(searchParams);
 
   return (
-    <div className="flex flex-wrap gap-2">
+    <div className='flex flex-wrap gap-2'>
       {filters.map((item) => (
         <Link
           key={item.key}

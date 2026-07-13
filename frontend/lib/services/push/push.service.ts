@@ -1,7 +1,7 @@
 // Copyright 2026 Arctel.net
 // SPDX-License-Identifier: Apache-2.0
 
-import {BaseService} from '@/lib/services/core';
+import { BaseService } from '@/lib/services/core';
 import type {
   ChannelDefinition,
   CreateChannelRequest,
@@ -14,7 +14,7 @@ import type {
   TestChannelRequest,
   TestPushRequest,
   UpdateChannelRequest,
-  UpdatePushEventRequest
+  UpdatePushEventRequest,
 } from './types';
 
 /**
@@ -41,14 +41,23 @@ export class PushService extends BaseService {
    * 创建通知事件配置
    */
   static async createEvent(data: CreatePushEventRequest): Promise<PushEvent> {
-    return this.post<PushEvent>('/events', data as unknown as Record<string, unknown>);
+    return this.post<PushEvent>(
+      '/events',
+      data as unknown as Record<string, unknown>,
+    );
   }
 
   /**
    * 更新指定通知事件配置
    */
-  static async updateEvent(id: number, data: UpdatePushEventRequest): Promise<void> {
-    return this.put<void>(`/events/${id}`, data as unknown as Record<string, unknown>);
+  static async updateEvent(
+    id: number,
+    data: UpdatePushEventRequest,
+  ): Promise<void> {
+    return this.put<void>(
+      `/events/${id}`,
+      data as unknown as Record<string, unknown>,
+    );
   }
 
   /**
@@ -68,8 +77,13 @@ export class PushService extends BaseService {
   /**
    * 分页查询通知推送历史
    */
-  static async listHistories(params: ListPushHistoriesRequest): Promise<ListPushHistoriesResponse> {
-    return this.get<ListPushHistoriesResponse>('/histories', params as unknown as Record<string, unknown>);
+  static async listHistories(
+    params: ListPushHistoriesRequest,
+  ): Promise<ListPushHistoriesResponse> {
+    return this.get<ListPushHistoriesResponse>(
+      '/histories',
+      params as unknown as Record<string, unknown>,
+    );
   }
 
   /**
@@ -90,14 +104,23 @@ export class PushService extends BaseService {
    * 创建新的消息通道
    */
   static async createChannel(data: CreateChannelRequest): Promise<PushChannel> {
-    return this.post<PushChannel>('/channels', data as unknown as Record<string, unknown>);
+    return this.post<PushChannel>(
+      '/channels',
+      data as unknown as Record<string, unknown>,
+    );
   }
 
   /**
    * 更新指定消息通道
    */
-  static async updateChannel(id: number, data: UpdateChannelRequest): Promise<PushChannel> {
-    return this.put<PushChannel>(`/channels/${id}`, data as unknown as Record<string, unknown>);
+  static async updateChannel(
+    id: number,
+    data: UpdateChannelRequest,
+  ): Promise<PushChannel> {
+    return this.put<PushChannel>(
+      `/channels/${id}`,
+      data as unknown as Record<string, unknown>,
+    );
   }
 
   /**
@@ -111,7 +134,10 @@ export class PushService extends BaseService {
    * 测试消息通道连通性
    */
   static async testChannel(data: TestChannelRequest): Promise<void> {
-    return this.post<void>('/channels/test', data as unknown as Record<string, unknown>);
+    return this.post<void>(
+      '/channels/test',
+      data as unknown as Record<string, unknown>,
+    );
   }
 
   /**

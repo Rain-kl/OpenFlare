@@ -1,4 +1,4 @@
-import type {ProxyRouteConfigSection} from '@/lib/services/openflare';
+import type { ProxyRouteConfigSection } from '@/lib/services/openflare';
 
 export const proxyRouteFormIds: Record<ProxyRouteConfigSection, string> = {
   domains: 'proxy-route-domains-form',

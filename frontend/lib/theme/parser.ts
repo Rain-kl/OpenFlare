@@ -1,5 +1,5 @@
-import type {Theme} from "./types"
-import themesData from "./themes.json"
+import type { Theme } from './types';
+import themesData from './themes.json';
 
 /**
  * 获取所有可用主题

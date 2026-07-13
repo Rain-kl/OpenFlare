@@ -56,6 +56,7 @@
 - 所有 HTTP 路由仅在 `internal/router/router.go` 中注册。
 - 当 API Handler 发生变化时，更新 Swagger 文档（运行 `make swagger`）。
 - 在完成代码开发后必须运行 `make code-check`, 并修复报错。
+- 在完成代码开发后或者 git 提交前必须运行 `make prettier` 格式化代码。
 - 需要缓存或文件管理能力时，必须复用现有平台实现，禁止在业务包中自行创建缓存目录、直接管理缓存文件或重复封装存储后端。
 - 文件摄取必须通过 `upload.Ingest`（`upload.PolicyCreate` / `PolicyDedupNewRecord` / `PolicyResolveExisting`）；删除必须通过 `upload.Remove` 或 `upload.RemoveOwned`。禁止业务模块直接调用 `repository.CreateUpload` / `repository.SoftDeleteUpload`，禁止 `db.Create(&model.Upload{})` 旁路写 `w_uploads`。
 - 禁止在 `init()` 中注册跨模块集成（任务 Handler、推送内置事件、域事件监听器、任务完成钩子）。统一通过 `internal/bootstrap` 在 `internal/cmd` 入口显式装配。

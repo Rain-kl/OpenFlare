@@ -1,5 +1,3 @@
-
-
 /**
  * 系统配置信息
  */
@@ -178,7 +176,8 @@ export interface DispatchTaskRequest {
   payload?: string;
 }
 
-export type TaskExecutionStatus = 'pending' | 'running' | 'succeeded' | 'failed';
+export type TaskExecutionStatus =
+  'pending' | 'running' | 'succeeded' | 'failed';
 
 /**
  * 任务执行记录

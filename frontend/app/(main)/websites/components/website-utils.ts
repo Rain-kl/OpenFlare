@@ -3,9 +3,9 @@ import type {
   TlsCertificateItem,
   TlsCertificateMutationPayload,
 } from '@/lib/services/openflare';
-import {formatDateTime} from '@/lib/utils';
+import { formatDateTime } from '@/lib/utils';
 
-import type {FileImportFormValues, ManualImportFormValues} from './schemas';
+import type { FileImportFormValues, ManualImportFormValues } from './schemas';
 
 export type StatusTone = 'success' | 'warning' | 'danger' | 'info';
 
@@ -13,10 +13,13 @@ export function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : '请求失败，请稍后重试。';
 }
 
-export function getMatchTypeMeta(domain: string): {label: string; tone: StatusTone} {
+export function getMatchTypeMeta(domain: string): {
+  label: string;
+  tone: StatusTone;
+} {
   return domain.startsWith('*.')
-    ? {label: '通配符', tone: 'warning'}
-    : {label: '精确匹配', tone: 'info'};
+    ? { label: '通配符', tone: 'warning' }
+    : { label: '精确匹配', tone: 'info' };
 }
 
 export function getCertificateStatus(certificate: TlsCertificateItem): {
@@ -28,18 +31,18 @@ export function getCertificateStatus(certificate: TlsCertificateItem): {
   const days = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
 
   if (Number.isNaN(expiresAt)) {
-    return {label: '有效期未知', tone: 'warning'};
+    return { label: '有效期未知', tone: 'warning' };
   }
 
   if (days < 0) {
-    return {label: '已过期', tone: 'danger'};
+    return { label: '已过期', tone: 'danger' };
   }
 
   if (days <= 30) {
-    return {label: `${days} 天内到期`, tone: 'warning'};
+    return { label: `${days} 天内到期`, tone: 'warning' };
   }
 
-  return {label: '有效', tone: 'success'};
+  return { label: '有效', tone: 'success' };
 }
 
 export function buildCertificateLabel(certificate: TlsCertificateItem) {

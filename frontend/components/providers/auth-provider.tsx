@@ -1,6 +1,6 @@
-"use client"
+'use client';
 
-import {useUser} from "@/contexts/user-context"
+import {useUser} from '@/contexts/user-context';
 
 /**
  * Auth provider bridge hook
@@ -9,5 +9,5 @@ import {useUser} from "@/contexts/user-context"
  * Delegates to the canonical UserContext under the hood.
  */
 export function useAuth() {
-  return useUser()
+  return useUser();
 }

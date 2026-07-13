@@ -1,51 +1,65 @@
-"use client"
+'use client';
 
-import {memo, useEffect, useState} from "react"
-import {AnimatePresence, motion} from "motion/react"
-import {Button} from "@/components/ui/button"
-import {Bell, Info, Maximize2, Minimize2, Moon, Search, Settings, Sun} from "lucide-react"
-import {useUser} from "@/contexts/user-context"
-import {useBellRing} from "@/contexts/bell-ring-context"
-import {useNotificationSettings} from "@/contexts/notification-settings-context"
-import {SidebarTrigger} from "@/components/ui/sidebar"
-import {useTheme} from "next-themes"
-import {useRouter} from "next/navigation"
-import {SearchDialog} from "@/components/layout/search-dialog"
-import {Kbd} from "@/components/ui/kbd"
-
+import { memo, useEffect, useState } from 'react';
+import { AnimatePresence, motion } from 'motion/react';
+import { Button } from '@/components/ui/button';
+import {
+  Bell,
+  Info,
+  Maximize2,
+  Minimize2,
+  Moon,
+  Search,
+  Settings,
+  Sun,
+} from 'lucide-react';
+import { useUser } from '@/contexts/user-context';
+import { useBellRing } from '@/contexts/bell-ring-context';
+import { useNotificationSettings } from '@/contexts/notification-settings-context';
+import { SidebarTrigger } from '@/components/ui/sidebar';
+import { useTheme } from 'next-themes';
+import { useRouter } from 'next/navigation';
+import { SearchDialog } from '@/components/layout/search-dialog';
+import { Kbd } from '@/components/ui/kbd';
 
 /**
  * 铃铛按钮组件
  */
 const BellButton = memo(function BellButton() {
-  const { isRinging } = useBellRing()
-  const { showBell, isMounted } = useNotificationSettings()
-  const [isClickAnimating, setIsClickAnimating] = useState(false)
+  const { isRinging } = useBellRing();
+  const { showBell, isMounted } = useNotificationSettings();
+  const [isClickAnimating, setIsClickAnimating] = useState(false);
 
-  if (!isMounted) return null
-  if (!showBell) return null
+  if (!isMounted) return null;
+  if (!showBell) return null;
 
   const handleClick = () => {
-    setIsClickAnimating(true)
-    setTimeout(() => setIsClickAnimating(false), 600)
-  }
+    setIsClickAnimating(true);
+    setTimeout(() => setIsClickAnimating(false), 600);
+  };
 
   return (
     <Button
-      variant="ghost"
-      size="icon"
-      className="size-9 text-muted-foreground hover:text-foreground"
+      variant='ghost'
+      size='icon'
+      className='size-9 text-muted-foreground hover:text-foreground'
       onClick={handleClick}
     >
       <Bell
-        className="size-[18px]"
-        style={(isRinging || isClickAnimating) ? { animation: 'var(--animate-bell-ring)', transformOrigin: 'top center' } : undefined}
+        className='size-[18px]'
+        style={
+          isRinging || isClickAnimating
+            ? {
+                animation: 'var(--animate-bell-ring)',
+                transformOrigin: 'top center',
+              }
+            : undefined
+        }
       />
-      <span className="sr-only">通知</span>
+      <span className='sr-only'>通知</span>
     </Button>
-  )
-})
-
+  );
+});
 
 /**
  * 站点头部组件
@@ -56,158 +70,217 @@ const BellButton = memo(function BellButton() {
  * <SiteHeader />
  * ```
  */
-export function SiteHeader({ isFullWidth = false, onToggleFullWidth }: { isFullWidth?: boolean, onToggleFullWidth?: (value: boolean) => void }) {
-  const { user } = useUser()
-  const { setTheme, resolvedTheme } = useTheme()
-  const router = useRouter()
-  const [mounted, setMounted] = useState(false)
-  const [searchOpen, setSearchOpen] = useState(false)
+export function SiteHeader({
+  isFullWidth = false,
+  onToggleFullWidth,
+}: {
+  isFullWidth?: boolean;
+  onToggleFullWidth?: (value: boolean) => void;
+}) {
+  const { user } = useUser();
+  const { setTheme, resolvedTheme } = useTheme();
+  const router = useRouter();
+  const [mounted, setMounted] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
 
-  const [metaKey, setMetaKey] = useState("⌘")
+  const [metaKey, setMetaKey] = useState('⌘');
 
   useEffect(() => {
-    setMounted(true)
-    if (typeof navigator !== 'undefined' && !navigator.userAgent?.includes("Mac")) {
-      setMetaKey("Ctrl")
+    setMounted(true);
+    if (
+      typeof navigator !== 'undefined' &&
+      !navigator.userAgent?.includes('Mac')
+    ) {
+      setMetaKey('Ctrl');
     }
-  }, [])
+  }, []);
 
   return (
-    <div className="flex flex-col w-full">
+    <div className='flex flex-col w-full'>
       <AppBanner />
       {user?.need_change_password && (
-        <div className="bg-amber-500/10 border-b border-amber-500/20 px-4 py-3 text-amber-500 text-xs sm:text-sm flex items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <Info className="size-4 shrink-0 text-amber-500" />
+        <div className='bg-amber-500/10 border-b border-amber-500/20 px-4 py-3 text-amber-500 text-xs sm:text-sm flex items-center justify-between gap-4'>
+          <div className='flex items-center gap-2'>
+            <Info className='size-4 shrink-0 text-amber-500' />
             <span>为了您的账号安全，请立即修改密码！</span>
           </div>
           <Button
-            variant="outline"
-            size="sm"
-            className="text-amber-500 hover:text-amber-600 border-amber-500/30 hover:border-amber-500/50 bg-transparent shrink-0 h-8 px-3 text-xs"
-            onClick={() => router.push("/settings/profile")}
+            variant='outline'
+            size='sm'
+            className='text-amber-500 hover:text-amber-600 border-amber-500/30 hover:border-amber-500/50 bg-transparent shrink-0 h-8 px-3 text-xs'
+            onClick={() => router.push('/settings/profile')}
           >
             去修改密码
           </Button>
         </div>
       )}
-      <header className="flex h-(--header-height) shrink-0 items-center bg-background px-4 md:px-0">
-        <div className="flex w-full items-center justify-between md:hidden">
-          <div className="flex items-center gap-2">
+      <header className='flex h-(--header-height) shrink-0 items-center bg-background px-4 md:px-0'>
+        <div className='flex w-full items-center justify-between md:hidden'>
+          <div className='flex items-center gap-2'>
             <SidebarTrigger />
-            <span className="text-sm font-medium truncate max-w-[120px]">
-              {user?.nickname || user?.username || "Guest"}
+            <span className='text-sm font-medium truncate max-w-[120px]'>
+              {user?.nickname || user?.username || 'Guest'}
             </span>
           </div>
-          <div className="flex items-center gap-1">
-            <Button variant="ghost" size="icon" className="size-9 text-muted-foreground hover:text-foreground" onClick={() => setSearchOpen(true)}>
-              <Search className="size-[18px]" />
-              <span className="sr-only">搜索</span>
+          <div className='flex items-center gap-1'>
+            <Button
+              variant='ghost'
+              size='icon'
+              className='size-9 text-muted-foreground hover:text-foreground'
+              onClick={() => setSearchOpen(true)}
+            >
+              <Search className='size-[18px]' />
+              <span className='sr-only'>搜索</span>
             </Button>
             <BellButton />
-            <Button variant="ghost" size="icon" className="size-9 text-muted-foreground hover:text-foreground" onClick={() => router.push('/settings')}>
-              <Settings className="size-[18px]" />
-              <span className="sr-only">设置</span>
+            <Button
+              variant='ghost'
+              size='icon'
+              className='size-9 text-muted-foreground hover:text-foreground'
+              onClick={() => router.push('/settings')}
+            >
+              <Settings className='size-[18px]' />
+              <span className='sr-only'>设置</span>
             </Button>
           </div>
         </div>
 
-        <div className={`hidden md:flex w-full items-center gap-4 transition-all duration-300 ease-in-out ${!isFullWidth ? "max-w-[1320px]" : "max-w-full"} mx-auto md:px-8 lg:px-12`}>
-          <div className="relative w-64 cursor-pointer" onClick={() => setSearchOpen(true)}>
-            <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <div className="flex h-8 items-center rounded-md border border-border/60 bg-muted/70 pl-10 pr-2.5 text-sm text-muted-foreground transition-colors hover:border-border hover:bg-muted">
+        <div
+          className={`hidden md:flex w-full items-center gap-4 transition-all duration-300 ease-in-out ${!isFullWidth ? 'max-w-[1320px]' : 'max-w-full'} mx-auto md:px-8 lg:px-12`}
+        >
+          <div
+            className='relative w-64 cursor-pointer'
+            onClick={() => setSearchOpen(true)}
+          >
+            <Search className='absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground' />
+            <div className='flex h-8 items-center rounded-md border border-border/60 bg-muted/70 pl-10 pr-2.5 text-sm text-muted-foreground transition-colors hover:border-border hover:bg-muted'>
               <span>搜索</span>
-              <Kbd className="ml-auto gap-0.5 font-mono">
+              <Kbd className='ml-auto gap-0.5 font-mono'>
                 <span>{metaKey}</span>
                 <span>K</span>
               </Kbd>
             </div>
           </div>
 
-          <div className="ml-auto flex items-center gap-1">
+          <div className='ml-auto flex items-center gap-1'>
             <BellButton />
-            <Button variant="ghost" size="icon" className="size-9 text-muted-foreground hover:text-foreground" onClick={() => router.push('/settings')}>
-              <Settings className="size-[18px]" />
-              <span className="sr-only">设置</span>
+            <Button
+              variant='ghost'
+              size='icon'
+              className='size-9 text-muted-foreground hover:text-foreground'
+              onClick={() => router.push('/settings')}
+            >
+              <Settings className='size-[18px]' />
+              <span className='sr-only'>设置</span>
             </Button>
 
-            <Button variant="ghost" size="icon" className="size-9 text-muted-foreground hover:text-foreground" onClick={() => onToggleFullWidth?.(!isFullWidth)}>
-              {isFullWidth ? <Minimize2 className="size-[18px]" /> : <Maximize2 className="size-[18px]" />}
-              <span className="sr-only">切换全宽</span>
+            <Button
+              variant='ghost'
+              size='icon'
+              className='size-9 text-muted-foreground hover:text-foreground'
+              onClick={() => onToggleFullWidth?.(!isFullWidth)}
+            >
+              {isFullWidth ? (
+                <Minimize2 className='size-[18px]' />
+              ) : (
+                <Maximize2 className='size-[18px]' />
+              )}
+              <span className='sr-only'>切换全宽</span>
             </Button>
 
-            <Button variant="ghost" size="icon" className="size-9 text-muted-foreground hover:text-foreground" onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}>
-              {mounted ? (resolvedTheme === 'dark' ? <Sun className="size-[18px]" /> : <Moon className="size-[18px]" />) : <Moon className="size-[18px]" />}
-              <span className="sr-only">主题切换</span>
+            <Button
+              variant='ghost'
+              size='icon'
+              className='size-9 text-muted-foreground hover:text-foreground'
+              onClick={() =>
+                setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')
+              }
+            >
+              {mounted ? (
+                resolvedTheme === 'dark' ? (
+                  <Sun className='size-[18px]' />
+                ) : (
+                  <Moon className='size-[18px]' />
+                )
+              ) : (
+                <Moon className='size-[18px]' />
+              )}
+              <span className='sr-only'>主题切换</span>
             </Button>
           </div>
         </div>
 
-        {mounted && <SearchDialog open={searchOpen} onOpenChange={setSearchOpen} />}
+        {mounted && (
+          <SearchDialog open={searchOpen} onOpenChange={setSearchOpen} />
+        )}
       </header>
     </div>
-  )
+  );
 }
 
 function AppBanner() {
-  const [isVisible, setIsVisible] = useState(false)
-  const bannerKey = 'ldc-banner-dismissed-script'
+  const [isVisible, setIsVisible] = useState(false);
+  const bannerKey = 'ldc-banner-dismissed-script';
 
   useEffect(() => {
-    const dismissed = localStorage.getItem(bannerKey)
+    const dismissed = localStorage.getItem(bannerKey);
     if (!dismissed) {
-      setIsVisible(true)
+      setIsVisible(true);
     }
-  }, [])
+  }, []);
 
   const handleDismiss = () => {
-    localStorage.setItem(bannerKey, 'true')
-    setIsVisible(false)
-  }
+    localStorage.setItem(bannerKey, 'true');
+    setIsVisible(false);
+  };
 
   return (
     <AnimatePresence>
       {isVisible && (
         <motion.div
           initial={{ height: 0, opacity: 0 }}
-          animate={{ height: "auto", opacity: 1 }}
+          animate={{ height: 'auto', opacity: 1 }}
           exit={{ height: 0, opacity: 0 }}
-          transition={{ duration: 0.3, ease: "easeInOut" }}
-          className="relative flex w-full items-center justify-center bg-muted/50 overflow-hidden"
+          transition={{ duration: 0.3, ease: 'easeInOut' }}
+          className='relative flex w-full items-center justify-center bg-muted/50 overflow-hidden'
         >
-          <div className="flex w-full items-center justify-center px-4 pr-10 py-2 text-xs md:text-[13px] font-medium text-muted-foreground">
-            <p className="flex flex-wrap items-center justify-center gap-x-2 text-center">
-              <span className="text-foreground">最新通知</span>
-              <a href="https://example.com" target="_blank" className="underline underline-offset-4 hover:text-foreground">
+          <div className='flex w-full items-center justify-center px-4 pr-10 py-2 text-xs md:text-[13px] font-medium text-muted-foreground'>
+            <p className='flex flex-wrap items-center justify-center gap-x-2 text-center'>
+              <span className='text-foreground'>最新通知</span>
+              <a
+                href='https://example.com'
+                target='_blank'
+                className='underline underline-offset-4 hover:text-foreground'
+              >
                 查看详情
               </a>
             </p>
             <Button
-              variant="ghost"
-              size="icon"
-              className="absolute right-2 top-1/2 size-6 -translate-y-1/2 text-muted-foreground hover:text-foreground shrink-0"
+              variant='ghost'
+              size='icon'
+              className='absolute right-2 top-1/2 size-6 -translate-y-1/2 text-muted-foreground hover:text-foreground shrink-0'
               onClick={handleDismiss}
             >
-              <span className="sr-only">Dismiss</span>
+              <span className='sr-only'>Dismiss</span>
               <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="lucide lucide-x"
+                xmlns='http://www.w3.org/2000/svg'
+                width='14'
+                height='14'
+                viewBox='0 0 24 24'
+                fill='none'
+                stroke='currentColor'
+                strokeWidth='2'
+                strokeLinecap='round'
+                strokeLinejoin='round'
+                className='lucide lucide-x'
               >
-                <path d="M18 6 6 18" />
-                <path d="m6 6 12 12" />
+                <path d='M18 6 6 18' />
+                <path d='m6 6 12 12' />
               </svg>
             </Button>
           </div>
         </motion.div>
       )}
     </AnimatePresence>
-  )
+  );
 }

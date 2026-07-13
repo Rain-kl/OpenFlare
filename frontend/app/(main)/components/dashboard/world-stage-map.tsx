@@ -1,19 +1,25 @@
 'use client';
 
 import ReactEChartsCore from 'echarts-for-react/lib/core';
-import type {EChartsCoreOption} from 'echarts/core';
+import type { EChartsCoreOption } from 'echarts/core';
 import * as echarts from 'echarts/core';
-import {MapChart, ScatterChart} from 'echarts/charts';
-import {GeoComponent, TooltipComponent} from 'echarts/components';
-import {CanvasRenderer} from 'echarts/renderers';
-import {useTheme} from 'next-themes';
-import {useRouter} from 'next/navigation';
-import {useEffect, useMemo, useRef, useState} from 'react';
+import { MapChart, ScatterChart } from 'echarts/charts';
+import { GeoComponent, TooltipComponent } from 'echarts/components';
+import { CanvasRenderer } from 'echarts/renderers';
+import { useTheme } from 'next-themes';
+import { useRouter } from 'next/navigation';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
-import {EmptyState} from '@/components/layout/empty';
-import type {DashboardNodeHealth, DistributionItem} from '@/lib/services/openflare';
+import { EmptyState } from '@/components/layout/empty';
+import type {
+  DashboardNodeHealth,
+  DistributionItem,
+} from '@/lib/services/openflare';
 
-import {getNodeStatusLabel, getOpenrestyStatusLabel,} from '../../nodes/components/node-utils';
+import {
+  getNodeStatusLabel,
+  getOpenrestyStatusLabel,
+} from '../../nodes/components/node-utils';
 import countryCentroidsJson from './data/country-centroids.json';
 import worldGeoJson from './data/world-geo.json';
 
@@ -133,7 +139,9 @@ const countryCentroids = countryCentroidsJson as Record<string, number[]>;
 
 type CountryCentroid = [number, number];
 
-function toCountryCentroid(coords: number[] | undefined): CountryCentroid | null {
+function toCountryCentroid(
+  coords: number[] | undefined,
+): CountryCentroid | null {
   if (!coords || coords.length < 2) {
     return null;
   }
@@ -235,7 +243,7 @@ export function WorldStageMap({
   nodes: DashboardNodeHealth[];
   sourceCountries: DistributionItem[];
 }) {
-  const {resolvedTheme} = useTheme();
+  const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === 'dark';
   const router = useRouter();
   const chartContainerRef = useRef<HTMLDivElement | null>(null);
@@ -268,7 +276,7 @@ export function WorldStageMap({
       setContainerSize((previous) =>
         previous.width === nextWidth && previous.height === nextHeight
           ? previous
-          : {width: nextWidth, height: nextHeight},
+          : { width: nextWidth, height: nextHeight },
       );
     };
 
@@ -423,8 +431,7 @@ export function WorldStageMap({
   }, [containerSize]);
 
   const computedLayoutSize = useMemo(
-    () =>
-      `${Math.round(baseWorldMapLayoutSizePercent * responsiveMapScale)}%`,
+    () => `${Math.round(baseWorldMapLayoutSizePercent * responsiveMapScale)}%`,
     [responsiveMapScale],
   );
   const computedZoom = useMemo(
@@ -442,9 +449,7 @@ export function WorldStageMap({
         backgroundColor: isDark
           ? 'rgba(24,24,27,0.96)'
           : 'rgba(255,255,255,0.98)',
-        borderColor: isDark
-          ? 'rgba(63,63,70,0.8)'
-          : 'rgba(228,228,231,0.9)',
+        borderColor: isDark ? 'rgba(63,63,70,0.8)' : 'rgba(228,228,231,0.9)',
         borderWidth: 1,
         textStyle: {
           color: isDark ? '#fafafa' : '#18181b',
@@ -577,7 +582,7 @@ export function WorldStageMap({
 
   if (!mapReady) {
     return (
-      <div className="flex h-full items-center justify-center">
+      <div className='flex h-full items-center justify-center'>
         <EmptyState
           title={mapFailed ? '全球地图加载失败' : '全球地图加载中'}
           description={
@@ -593,16 +598,16 @@ export function WorldStageMap({
   const chartReady = containerSize.width > 0 && containerSize.height > 0;
 
   return (
-    <div ref={chartContainerRef} className="h-full min-h-0 w-full">
+    <div ref={chartContainerRef} className='h-full min-h-0 w-full'>
       {chartReady ? (
         <ReactEChartsCore
           echarts={echarts}
           option={mapOption}
           notMerge
           lazyUpdate
-          opts={{renderer: 'canvas'}}
+          opts={{ renderer: 'canvas' }}
           onEvents={{
-            click: (params: {data?: MapNodeDatum}) => {
+            click: (params: { data?: MapNodeDatum }) => {
               if (params.data?.route) {
                 router.push(params.data.route);
               }
@@ -614,11 +619,11 @@ export function WorldStageMap({
           }}
         />
       ) : (
-        <div className="flex h-full items-center justify-center">
+        <div className='flex h-full items-center justify-center'>
           <EmptyState
-            title="全球地图加载中"
-            description="正在测量地图容器尺寸..."
-            iconSize="sm"
+            title='全球地图加载中'
+            description='正在测量地图容器尺寸...'
+            iconSize='sm'
           />
         </div>
       )}

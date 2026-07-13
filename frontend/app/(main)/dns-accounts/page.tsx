@@ -1,9 +1,9 @@
 'use client';
 
-import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query';
-import {useMemo, useState} from 'react';
-import {Cloud, Plus, Trash2} from 'lucide-react';
-import {toast} from 'sonner';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMemo, useState } from 'react';
+import { Cloud, Plus, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 import {
   AlertDialog,
@@ -15,17 +15,23 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import {Button} from '@/components/ui/button';
-import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card';
-import {EmptyStateWithBorder} from '@/components/layout/empty';
-import {ErrorInline} from '@/components/layout/error';
-import {LoadingStateWithBorder} from '@/components/layout/loading';
-import type {DnsAccountItem} from '@/lib/services/openflare';
-import {DnsAccountService} from '@/lib/services/openflare';
-import {formatDateTime} from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import { EmptyStateWithBorder } from '@/components/layout/empty';
+import { ErrorInline } from '@/components/layout/error';
+import { LoadingStateWithBorder } from '@/components/layout/loading';
+import type { DnsAccountItem } from '@/lib/services/openflare';
+import { DnsAccountService } from '@/lib/services/openflare';
+import { formatDateTime } from '@/lib/utils';
 
-import {DnsAccountCreateDialog} from '../websites/components/dns-account-create-dialog';
-import {getErrorMessage} from '../websites/components/website-utils';
+import { DnsAccountCreateDialog } from '../websites/components/dns-account-create-dialog';
+import { getErrorMessage } from '../websites/components/website-utils';
 
 const dnsAccountsQueryKey = ['openflare', 'dns-accounts'];
 
@@ -44,7 +50,7 @@ export default function DnsAccountsPage() {
     onSuccess: async () => {
       toast.success('DNS 账号已删除');
       setDeleteTarget(null);
-      await queryClient.invalidateQueries({queryKey: dnsAccountsQueryKey});
+      await queryClient.invalidateQueries({ queryKey: dnsAccountsQueryKey });
     },
     onError: (error) => toast.error(getErrorMessage(error)),
   });
@@ -55,68 +61,77 @@ export default function DnsAccountsPage() {
   );
 
   return (
-    <div className="py-6 px-1 space-y-6">
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <Cloud className="size-5 text-primary" />
-          <h1 className="text-2xl font-semibold tracking-tight">DNS 账号</h1>
+    <div className='py-6 px-1 space-y-6'>
+      <div className='flex items-center justify-between gap-3'>
+        <div className='flex items-center gap-2'>
+          <Cloud className='size-5 text-primary' />
+          <h1 className='text-2xl font-semibold tracking-tight'>DNS 账号</h1>
         </div>
-        <div className="flex items-center gap-2">
-          <Button size="sm" className="h-7 text-xs" onClick={() => setCreateOpen(true)}>
-            <Plus className="size-3.5 mr-1" />
+        <div className='flex items-center gap-2'>
+          <Button
+            size='sm'
+            className='h-7 text-xs'
+            onClick={() => setCreateOpen(true)}
+          >
+            <Plus className='size-3.5 mr-1' />
             添加账号
           </Button>
         </div>
       </div>
 
-      <Card className="border-dashed shadow-none">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base font-semibold">DNS 账号列表</CardTitle>
+      <Card className='border-dashed shadow-none'>
+        <CardHeader className='pb-3'>
+          <CardTitle className='text-base font-semibold'>
+            DNS 账号列表
+          </CardTitle>
           <CardDescription>
             统一管理 DNS 服务商账号，用于 ACME 证书的 DNS 验证申请。
           </CardDescription>
         </CardHeader>
         <CardContent>
           {dnsAccountsQuery.isLoading ? (
-            <LoadingStateWithBorder icon={Cloud} description="加载 DNS 账号中..." />
+            <LoadingStateWithBorder
+              icon={Cloud}
+              description='加载 DNS 账号中...'
+            />
           ) : dnsAccountsQuery.isError ? (
-            <div className="p-8 border border-dashed rounded-lg">
+            <div className='p-8 border border-dashed rounded-lg'>
               <ErrorInline
                 message={getErrorMessage(dnsAccountsQuery.error)}
                 onRetry={() => void dnsAccountsQuery.refetch()}
-                className="justify-center"
+                className='justify-center'
               />
             </div>
           ) : accounts.length === 0 ? (
             <EmptyStateWithBorder
               icon={Cloud}
-              description="暂无 DNS 账号，点击右上角「添加账号」开始录入。"
+              description='暂无 DNS 账号，点击右上角「添加账号」开始录入。'
             />
           ) : (
-            <div className="space-y-3">
+            <div className='space-y-3'>
               {accounts.map((account) => (
                 <div
                   key={account.id}
-                  className="flex items-start justify-between gap-3 rounded-lg border bg-card px-4 py-3"
+                  className='flex items-start justify-between gap-3 rounded-lg border bg-card px-4 py-3'
                 >
-                  <div className="space-y-1">
-                    <p className="text-sm font-semibold">
+                  <div className='space-y-1'>
+                    <p className='text-sm font-semibold'>
                       {account.name}{' '}
-                      <span className="text-xs font-normal text-muted-foreground">
+                      <span className='text-xs font-normal text-muted-foreground'>
                         ({account.type})
                       </span>
                     </p>
-                    <p className="text-xs text-muted-foreground">
+                    <p className='text-xs text-muted-foreground'>
                       创建于：{formatDateTime(account.created_at)}
                     </p>
                   </div>
                   <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-7 text-xs text-destructive"
+                    variant='outline'
+                    size='sm'
+                    className='h-7 text-xs text-destructive'
                     onClick={() => setDeleteTarget(account)}
                   >
-                    <Trash2 className="size-3" />
+                    <Trash2 className='size-3' />
                   </Button>
                 </div>
               ))}
@@ -145,8 +160,10 @@ export default function DnsAccountsPage() {
           <AlertDialogFooter>
             <AlertDialogCancel>取消</AlertDialogCancel>
             <AlertDialogAction
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={() => deleteTarget && deleteMutation.mutate(deleteTarget.id)}
+              className='bg-destructive text-destructive-foreground hover:bg-destructive/90'
+              onClick={() =>
+                deleteTarget && deleteMutation.mutate(deleteTarget.id)
+              }
             >
               删除
             </AlertDialogAction>

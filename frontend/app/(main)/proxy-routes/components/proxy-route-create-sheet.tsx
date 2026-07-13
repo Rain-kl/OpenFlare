@@ -1,26 +1,47 @@
 'use client';
 
-import {useEffect} from 'react';
-import {zodResolver} from '@hookform/resolvers/zod';
-import {useQuery} from '@tanstack/react-query';
-import {useForm} from 'react-hook-form';
-import {z} from 'zod';
+import { useEffect } from 'react';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useQuery } from '@tanstack/react-query';
+import { useForm } from 'react-hook-form';
+import { z } from 'zod';
 
-import {Button} from '@/components/ui/button';
-import {Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage,} from '@/components/ui/form';
-import {Input} from '@/components/ui/input';
-import {Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle,} from '@/components/ui/sheet';
-import {Switch} from '@/components/ui/switch';
-import type {ProxyRouteItem} from '@/lib/services/openflare';
-import {ProxyRouteService, ZoneService, zoneQueryKey} from '@/lib/services/openflare';
+import { Button } from '@/components/ui/button';
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet';
+import { Switch } from '@/components/ui/switch';
+import type { ProxyRouteItem } from '@/lib/services/openflare';
+import {
+  ProxyRouteService,
+  ZoneService,
+  zoneQueryKey,
+} from '@/lib/services/openflare';
 
-import {listAllZoneDomains, parseOriginUrl} from './helpers';
-import {ZoneDomainSelector} from './zone-domain-selector';
+import { listAllZoneDomains, parseOriginUrl } from './helpers';
+import { ZoneDomainSelector } from './zone-domain-selector';
 
 const createProxyRouteSchema = z
   .object({
     site_name: z.string().trim().max(255, '站点标识不能超过 255 个字符'),
-    zone_domain_ids: z.array(z.number().int().positive()).min(1, '请至少选择一个域名'),
+    zone_domain_ids: z
+      .array(z.number().int().positive())
+      .min(1, '请至少选择一个域名'),
     origin_url: z.string().trim().min(1, '请输入上游地址'),
     enabled: z.boolean(),
   })
@@ -125,33 +146,37 @@ export function ProxyRouteCreateSheet({
       onCreated(route);
     } catch (error) {
       form.setError('root', {
-        message: error instanceof Error ? error.message : '创建失败，请稍后重试',
+        message:
+          error instanceof Error ? error.message : '创建失败，请稍后重试',
       });
     }
   });
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto">
+      <SheetContent side='right' className='w-full sm:max-w-lg overflow-y-auto'>
         <SheetHeader>
           <SheetTitle>新建规则</SheetTitle>
           <SheetDescription>
-            从已注册的 Zone 域名中选择绑定关系，创建后可继续配置缓存和限流等高级选项。
+            从已注册的 Zone
+            域名中选择绑定关系，创建后可继续配置缓存和限流等高级选项。
           </SheetDescription>
         </SheetHeader>
 
         <Form {...form}>
-          <form onSubmit={handleSubmit} className="space-y-4 px-4 pb-4">
+          <form onSubmit={handleSubmit} className='space-y-4 px-4 pb-4'>
             <FormField
               control={form.control}
-              name="site_name"
+              name='site_name'
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>站点标识</FormLabel>
                   <FormControl>
-                    <Input placeholder="marketing-site" {...field} />
+                    <Input placeholder='marketing-site' {...field} />
                   </FormControl>
-                  <FormDescription>可选，留空时会自动使用首个域名。</FormDescription>
+                  <FormDescription>
+                    可选，留空时会自动使用首个域名。
+                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
@@ -159,7 +184,7 @@ export function ProxyRouteCreateSheet({
 
             <FormField
               control={form.control}
-              name="zone_domain_ids"
+              name='zone_domain_ids'
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>绑定域名</FormLabel>
@@ -185,12 +210,12 @@ export function ProxyRouteCreateSheet({
 
             <FormField
               control={form.control}
-              name="origin_url"
+              name='origin_url'
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>上游地址</FormLabel>
                   <FormControl>
-                    <Input placeholder="http://127.0.0.1:8080" {...field} />
+                    <Input placeholder='http://127.0.0.1:8080' {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -199,29 +224,40 @@ export function ProxyRouteCreateSheet({
 
             <FormField
               control={form.control}
-              name="enabled"
+              name='enabled'
               render={({ field }) => (
-                <FormItem className="flex items-center justify-between rounded-lg border p-3">
-                  <div className="space-y-0.5">
+                <FormItem className='flex items-center justify-between rounded-lg border p-3'>
+                  <div className='space-y-0.5'>
                     <FormLabel>启用站点</FormLabel>
-                    <FormDescription>关闭后会保留配置，但不会参与发布。</FormDescription>
+                    <FormDescription>
+                      关闭后会保留配置，但不会参与发布。
+                    </FormDescription>
                   </div>
                   <FormControl>
-                    <Switch checked={field.value} onCheckedChange={field.onChange} />
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
                   </FormControl>
                 </FormItem>
               )}
             />
 
             {form.formState.errors.root ? (
-              <p className="text-sm text-destructive">{form.formState.errors.root.message}</p>
+              <p className='text-sm text-destructive'>
+                {form.formState.errors.root.message}
+              </p>
             ) : null}
 
-            <SheetFooter className="px-0">
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            <SheetFooter className='px-0'>
+              <Button
+                type='button'
+                variant='outline'
+                onClick={() => onOpenChange(false)}
+              >
                 取消
               </Button>
-              <Button type="submit" disabled={form.formState.isSubmitting}>
+              <Button type='submit' disabled={form.formState.isSubmitting}>
                 {form.formState.isSubmitting ? '创建中…' : '创建'}
               </Button>
             </SheetFooter>

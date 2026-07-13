@@ -58,11 +58,14 @@ export function CertificateEditorDialog({
 
   const updateMutation = useMutation({
     mutationFn: (values: ManualImportFormValues) =>
-      TlsCertificateService.update(certificateId as number, toManualPayload(values)),
+      TlsCertificateService.update(
+        certificateId as number,
+        toManualPayload(values),
+      ),
     onSuccess: async (certificate) => {
       await Promise.all([
-        queryClient.invalidateQueries({queryKey: certificatesQueryKey}),
-              ]);
+        queryClient.invalidateQueries({ queryKey: certificatesQueryKey }),
+      ]);
       onSaved?.(certificate);
       handleClose();
     },
@@ -94,7 +97,7 @@ export function CertificateEditorDialog({
 
   return (
     <Dialog open={open} onOpenChange={(next) => !next && handleClose()}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className='max-w-2xl max-h-[90vh] overflow-y-auto'>
         <DialogHeader>
           <DialogTitle>编辑证书</DialogTitle>
           <DialogDescription>
@@ -103,49 +106,59 @@ export function CertificateEditorDialog({
         </DialogHeader>
 
         {certificateQuery.isLoading ? (
-          <LoadingStateWithBorder description="加载证书内容中..." />
+          <LoadingStateWithBorder description='加载证书内容中...' />
         ) : certificateQuery.isError ? (
           <ErrorInline
             message={getErrorMessage(certificateQuery.error)}
-            className="justify-center"
+            className='justify-center'
           />
         ) : !certificateQuery.data ? (
-          <EmptyStateWithBorder description="证书不存在，可能已被删除。" />
+          <EmptyStateWithBorder description='证书不存在，可能已被删除。' />
         ) : (
-          <form id="certificate-editor-form" className="space-y-4" onSubmit={handleSubmit}>
+          <form
+            id='certificate-editor-form'
+            className='space-y-4'
+            onSubmit={handleSubmit}
+          >
             {updateMutation.isError ? (
-              <p className="text-sm text-destructive">
+              <p className='text-sm text-destructive'>
                 {getErrorMessage(updateMutation.error)}
               </p>
             ) : null}
 
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
+            <div className='grid gap-4 md:grid-cols-2'>
+              <div className='space-y-2'>
                 <Label>证书名称</Label>
                 <Input {...form.register('name')} />
               </div>
-              <div className="space-y-2">
+              <div className='space-y-2'>
                 <Label>备注</Label>
                 <Input {...form.register('remark')} />
               </div>
             </div>
 
-            <div className="space-y-2">
+            <div className='space-y-2'>
               <Label>证书 PEM</Label>
-              <Textarea className="min-h-32 font-mono text-xs" {...form.register('cert_pem')} />
+              <Textarea
+                className='min-h-32 font-mono text-xs'
+                {...form.register('cert_pem')}
+              />
             </div>
 
-            <div className="space-y-2">
+            <div className='space-y-2'>
               <Label>私钥 PEM</Label>
-              <Textarea className="min-h-32 font-mono text-xs" {...form.register('key_pem')} />
+              <Textarea
+                className='min-h-32 font-mono text-xs'
+                {...form.register('key_pem')}
+              />
             </div>
 
-            <DialogFooter className="sm:justify-between">
+            <DialogFooter className='sm:justify-between'>
               <div>
                 {canConvert ? (
                   <Button
-                    type="button"
-                    variant="outline"
+                    type='button'
+                    variant='outline'
                     onClick={() => {
                       if (certificateQuery.data) {
                         onConvert?.(certificateQuery.data);
@@ -157,14 +170,14 @@ export function CertificateEditorDialog({
                   </Button>
                 ) : null}
               </div>
-              <div className="flex gap-2">
-                <Button type="button" variant="outline" onClick={handleClose}>
+              <div className='flex gap-2'>
+                <Button type='button' variant='outline' onClick={handleClose}>
                   取消
                 </Button>
-                <Button type="submit" disabled={updateMutation.isPending}>
+                <Button type='submit' disabled={updateMutation.isPending}>
                   {updateMutation.isPending ? (
                     <>
-                      <Loader2 className="mr-1 size-3.5 animate-spin" />
+                      <Loader2 className='mr-1 size-3.5 animate-spin' />
                       保存中...
                     </>
                   ) : (

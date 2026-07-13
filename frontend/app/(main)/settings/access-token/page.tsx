@@ -1,7 +1,7 @@
-"use client"
+'use client';
 
-import {AccessTokenMain} from "@/components/common/settings/access-token"
+import { AccessTokenMain } from '@/components/common/settings/access-token';
 
 export default function AccessTokenPage() {
-  return <AccessTokenMain />
+  return <AccessTokenMain />;
 }

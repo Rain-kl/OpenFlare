@@ -1,4 +1,4 @@
-import {OpenFlareBaseService} from './base.service';
+import { OpenFlareBaseService } from './base.service';
 import type {
   AcmeAccountItem,
   TlsCertificateApplyPayload,
@@ -10,7 +10,8 @@ import type {
 } from './types';
 
 class AcmeAccountApi extends OpenFlareBaseService {
-  protected static override readonly basePath: string = '/api/v1/d/acme-accounts';
+  protected static override readonly basePath: string =
+    '/api/v1/d/acme-accounts';
 
   static getDefault(): Promise<AcmeAccountItem> {
     return this.get<AcmeAccountItem>('/default');
@@ -18,7 +19,8 @@ class AcmeAccountApi extends OpenFlareBaseService {
 }
 
 export class TlsCertificateService extends OpenFlareBaseService {
-  protected static override readonly basePath: string = '/api/v1/d/tls-certificates';
+  protected static override readonly basePath: string =
+    '/api/v1/d/tls-certificates';
 
   static async list(): Promise<TlsCertificateItem[]> {
     return this.get<TlsCertificateItem[]>('/');

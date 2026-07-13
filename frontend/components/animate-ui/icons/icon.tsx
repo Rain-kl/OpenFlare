@@ -11,9 +11,12 @@ import {
   type Variants,
 } from 'motion/react';
 
-import {cn} from '@/lib/utils';
-import {useIsInView} from '@/hooks/use-is-in-view';
-import {Slot, type WithAsChild} from '@/components/animate-ui/primitives/animate/slot';
+import { cn } from '@/lib/utils';
+import { useIsInView } from '@/hooks/use-is-in-view';
+import {
+  Slot,
+  type WithAsChild,
+} from '@/components/animate-ui/primitives/animate/slot';
 
 const staticAnimations = {
   path: {

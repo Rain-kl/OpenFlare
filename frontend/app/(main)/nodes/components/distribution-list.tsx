@@ -18,25 +18,27 @@ export function DistributionList({
 
   if (sortedItems.length === 0) {
     return (
-      <div className="flex min-h-[180px] items-center justify-center text-xs text-muted-foreground">
+      <div className='flex min-h-[180px] items-center justify-center text-xs text-muted-foreground'>
         {emptyMessage}
       </div>
     );
   }
 
   return (
-    <div className="space-y-3">
+    <div className='space-y-3'>
       {sortedItems.map((item) => {
         const ratio = maxValue > 0 ? (item.value / maxValue) * 100 : 0;
         return (
-          <div key={item.label} className="space-y-1.5">
-            <div className="flex items-center justify-between gap-3 text-xs">
-              <span className="truncate font-medium">{item.label || '未知'}</span>
-              <span className="shrink-0 font-mono tabular-nums text-muted-foreground">
+          <div key={item.label} className='space-y-1.5'>
+            <div className='flex items-center justify-between gap-3 text-xs'>
+              <span className='truncate font-medium'>
+                {item.label || '未知'}
+              </span>
+              <span className='shrink-0 font-mono tabular-nums text-muted-foreground'>
                 {formatCompactNumber(item.value)}
               </span>
             </div>
-            <Progress value={ratio} className="h-1.5" />
+            <Progress value={ratio} className='h-1.5' />
           </div>
         );
       })}

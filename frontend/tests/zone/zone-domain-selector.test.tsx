@@ -1,19 +1,23 @@
-import {QueryClient, QueryClientProvider} from '@tanstack/react-query';
-import {render, screen} from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import {describe, expect, it, vi} from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
-import {ZoneDomainSelector} from '@/app/(main)/proxy-routes/components/zone-domain-selector';
-import type {ZoneDomainItem, ZoneItem} from '@/lib/services/openflare';
+import { ZoneDomainSelector } from '@/app/(main)/proxy-routes/components/zone-domain-selector';
+import type { ZoneDomainItem, ZoneItem } from '@/lib/services/openflare';
 
 vi.mock('next/link', () => ({
-  default: ({children, href}: {children: React.ReactNode; href: string}) => (
-    <a href={href}>{children}</a>
-  ),
+  default: ({
+    children,
+    href,
+  }: {
+    children: React.ReactNode;
+    href: string;
+  }) => <a href={href}>{children}</a>,
 }));
 
 const zones: ZoneItem[] = [
-  {id: 1, domain: 'example.com', created_at: '', updated_at: ''},
+  { id: 1, domain: 'example.com', created_at: '', updated_at: '' },
 ];
 
 const domains: ZoneDomainItem[] = [
@@ -38,8 +42,12 @@ const domains: ZoneDomainItem[] = [
 ];
 
 function renderSelector(ui: React.ReactElement) {
-  const client = new QueryClient({defaultOptions: {queries: {retry: false}}});
-  return render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  return render(
+    <QueryClientProvider client={client}>{ui}</QueryClientProvider>,
+  );
 }
 
 describe('ZoneDomainSelector', () => {
@@ -59,7 +67,7 @@ describe('ZoneDomainSelector', () => {
     expect(screen.getByText('api.example.com')).toBeVisible();
     // Bound to another route — hidden by default
     expect(screen.queryByText('bound.example.com')).not.toBeInTheDocument();
-    expect(screen.getByRole('button', {name: /快捷新增域名/})).toBeVisible();
+    expect(screen.getByRole('button', { name: /快捷新增域名/ })).toBeVisible();
 
     await user.click(screen.getByText('api.example.com'));
     expect(onChange).toHaveBeenCalledWith([]);

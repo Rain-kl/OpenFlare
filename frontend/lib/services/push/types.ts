@@ -135,4 +135,3 @@ export interface ChannelDefinition {
   description: string;
   fields: ChannelFieldDef[];
 }
-

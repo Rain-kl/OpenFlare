@@ -1,9 +1,12 @@
-import {BaseService} from '@/lib/services/core';
+import { BaseService } from '@/lib/services/core';
 
 export class AdminLogService extends BaseService {
   protected static readonly basePath = '/api/v1/admin';
 
-  static async getLogs(cursor: number = 0, limit: number = 200): Promise<{
+  static async getLogs(
+    cursor: number = 0,
+    limit: number = 200,
+  ): Promise<{
     lines: Array<{ index: number; data: string }>;
     has_more: boolean;
     next_cursor: number;

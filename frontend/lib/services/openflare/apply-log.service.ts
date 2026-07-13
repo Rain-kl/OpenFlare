@@ -1,10 +1,5 @@
 import {OpenFlareBaseService} from './base.service';
-import type {
-  ApplyLogCleanupPayload,
-  ApplyLogCleanupResult,
-  ApplyLogList,
-  ApplyLogListQuery,
-} from './types';
+import type {ApplyLogCleanupPayload, ApplyLogCleanupResult, ApplyLogList, ApplyLogListQuery,} from './types';
 
 export class ApplyLogService extends OpenFlareBaseService {
   protected static override readonly basePath: string = '/api/v1/d/apply-logs';
@@ -26,7 +21,9 @@ export class ApplyLogService extends OpenFlareBaseService {
     return this.get<ApplyLogList>('/', params);
   }
 
-  static cleanup(payload: ApplyLogCleanupPayload): Promise<ApplyLogCleanupResult> {
+  static cleanup(
+    payload: ApplyLogCleanupPayload,
+  ): Promise<ApplyLogCleanupResult> {
     return this.post<ApplyLogCleanupResult>('/cleanup', payload);
   }
 }

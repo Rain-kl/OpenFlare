@@ -410,4 +410,3 @@ func rotateAccessTokenLogic(ctx context.Context, id, userID uint64) (string, *mo
 
 	return newTokenStr, &tokenRecord, nil
 }
-

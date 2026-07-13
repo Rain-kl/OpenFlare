@@ -34,23 +34,23 @@ function IconComponent({ size, ...props }: CheckProps) {
 
   return (
     <motion.svg
-      xmlns="http://www.w3.org/2000/svg"
+      xmlns='http://www.w3.org/2000/svg'
       width={size}
       height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
+      viewBox='0 0 24 24'
+      fill='none'
+      stroke='currentColor'
       strokeWidth={2}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      initial="initial"
+      strokeLinecap='round'
+      strokeLinejoin='round'
+      initial='initial'
       animate={controls}
       {...props}
     >
       <motion.path
-        d="m4 12 5 5L20 6"
+        d='m4 12 5 5L20 6'
         variants={variants.path}
-        initial="initial"
+        initial='initial'
         animate={controls}
       />
     </motion.svg>

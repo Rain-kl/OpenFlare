@@ -200,10 +200,10 @@ func TestBuildDiskIOTrendPointsFromHourlyFillsBuckets(t *testing.T) {
 	now := time.Date(2026, 7, 10, 9, 30, 0, 0, time.UTC)
 	hourly := []*model.OpenFlareMetricHourly{
 		{
-			Hour:            now.Add(-1 * time.Hour).Truncate(time.Hour),
-			DiskReadBytes:   1024,
-			DiskWriteBytes:  2048,
-			ReportedNodes:   1,
+			Hour:           now.Add(-1 * time.Hour).Truncate(time.Hour),
+			DiskReadBytes:  1024,
+			DiskWriteBytes: 2048,
+			ReportedNodes:  1,
 		},
 	}
 

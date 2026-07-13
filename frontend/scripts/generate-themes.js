@@ -26,22 +26,23 @@ try {
     .filter((file) => file.endsWith('.css'))
     .map((file) => {
       /* 生成主题名称 */
-      const name = file === 'default.css'
-        ? 'Default'
-        : file
-            .replace('.css', '')
-            .split('-')
-            .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-            .join(' ');
+      const name =
+        file === 'default.css'
+          ? 'Default'
+          : file
+              .replace('.css', '')
+              .split('-')
+              .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+              .join(' ');
 
       const content = fs.readFileSync(path.join(STYLE_DIR, file), 'utf-8');
 
       /* 从 :root 解析明亮模式颜色 */
-      const rootSection = content.match(/:root\s*\{([^}]+)\}/s)?.[1] || "";
+      const rootSection = content.match(/:root\s*\{([^}]+)\}/s)?.[1] || '';
       const lightColors = parseCSSVariables(rootSection);
 
       /* 从 .dark 解析暗色模式颜色 */
-      const darkSection = content.match(/\.dark\s*\{([^}]+)\}/s)?.[1] || "";
+      const darkSection = content.match(/\.dark\s*\{([^}]+)\}/s)?.[1] || '';
       const darkColors = parseCSSVariables(darkSection);
 
       return {
@@ -50,7 +51,7 @@ try {
         colors: {
           light: lightColors,
           dark: darkColors,
-        }
+        },
       };
     });
 
