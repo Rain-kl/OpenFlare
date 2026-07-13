@@ -45,7 +45,7 @@ function DeploymentFilesPanel({
 }) {
   const filesQuery = useQuery({
     queryKey: deploymentFilesQueryKey(projectId, deployment.id),
-    queryFn: () => PagesService.listDeploymentFiles(projectId, deployment.id),
+    queryFn: () => PagesService.listDeploymentFiles(deployment.id),
   })
 
   if (filesQuery.isLoading) {

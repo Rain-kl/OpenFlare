@@ -44,11 +44,10 @@ export class PagesService extends OpenFlareBaseService {
   }
 
   static listDeploymentFiles(
-    projectId: number,
     deploymentId: number,
   ): Promise<PagesDeploymentFile[]> {
     return this.get<PagesDeploymentFile[]>(
-      `/${projectId}/deployments/${deploymentId}/files`,
+      `/deployments/${deploymentId}/files`,
     );
   }
 
