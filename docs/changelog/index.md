@@ -23,119 +23,95 @@ sidebar: false
 
 ### 新增
 
-- 系统完成初始化后输出 OpenFlare 启动 Banner，汇总版本、构建与运行环境、数据库迁移状态、运行模式和 HTTP 监听地址。
-- 新增 `make prettier`，统一使用 `gofmt` 与项目固定版本的 Prettier 自动格式化前后端源码。
-- WAF 规则支持可视化 DAG 编排、版本冲突保护和有序路由绑定，发布时编译为 OpenResty 纯内存运行图。
-- WAF IP 组支持 checksum 驱动的 Worker 内存热刷新，并补充 City MMDB 地区匹配数据源。
+- WAF 规则现支持可视化编排、版本冲突保护和按顺序绑定路由，便于创建和维护复杂的防护策略。
+- WAF IP 组现支持按城市匹配来源地址，帮助更精细地控制访问范围。
 
 ### 变更
 
-- WAF 规则编辑器缩小编排区高度和首次适配缩放比例，默认显示更多画布上下文。
-- 移除 WAF 规则旧固定黑白名单、地域名单与 PoW 数据库字段；升级后需在发布前重新编排规则。
-- Agent 现同时内嵌 Country 与 City MMDB，首次启动仅从程序内初始化缺失文件，网络下载只用于后续周期更新。
+- 优化了 WAF 规则编辑器的初始视图和操作方式，编辑规则时可看到更多上下文并可直接管理节点、连线和启用状态。
+- Agent 现内置国家和城市地址库，首次启动无需下载即可使用地区匹配功能，并会在后续自动更新数据。
+- 默认关闭 Redis maintenance notifications 自动协商，减少不支持该功能的 Redis 服务产生兼容性警告。
+
+### 移除
+
+- 移除了 WAF 旧版固定名单与人机验证配置；升级后请在发布前使用新的可视化规则重新编排防护策略。
 
 ### 修复
 
-- GORM SQL 语句改为仅在全局 `debug` 日志级别输出；生产默认日志级别不再记录查询文本，慢查询与执行错误也不包含 SQL 参数，避免节点访问令牌等敏感信息写入应用日志。
-- 新增 `redis.maint_notifications` 启动开关并默认关闭，平台与 Asynq Redis 客户端仅在显式开启时进行 maintenance notifications 自动协商，避免不支持该命令的 Redis 服务持续输出握手 fallback 警告。
-- WAF 规则编辑器支持通过按钮或键盘删除普通节点和连线，节点属性栏改为选中节点后按需显示，并修复拖动节点时因 React Flow 初始化状态丢失导致的画面闪烁与 error 015。
-- WAF 规则编辑器新增启用/停用控制，并移除已废弃的规则组侧站点绑定入口；站点规则顺序统一在反代路由详情中管理。
-- 修复 Agent 心跳无法从活动 WAF 运行图发现 IP 组引用的问题，并对发布与同步的完整 IP 组快照增加 20 MiB 聚合容量保护。
-- 修复 Agent 增量同步长期保留已取消引用的 WAF IP 组、最终阻塞合法热更新的问题；配置同步现按活动引用集合权威收敛，实时广播仅更新本地现存组。
-- 修复 Pages 部署文件清单前端请求路径与后端路由不一致导致的 404 错误。
+- 调整了生产环境的访问和数据库日志级别，减少心跳、轮询等高频请求刷屏，同时避免将查询内容写入常规日志。
+- 修复了 WAF 编辑器在拖动、删除节点或连线时可能闪烁或显示异常的问题，使规则编辑更稳定。
+- 修复了 Agent 同步 WAF IP 组时可能遗漏新引用或保留失效引用的问题，确保已发布的防护规则能够及时生效。
+- 修复了 Pages 部署文件清单请求失败的问题，避免部署详情无法正常加载。
 
 ## [v3.2.0] - 2026-07-12
 
 ### 新增
 
-- Zone 概览页新增 Cloudflare 风格流量图：支持 24 小时 / 7 天 / 30 天，展示唯一访问者、请求总数与已提供数据趋势。
-- 新增第一阶段 Zone 与正规化 Zone 域名数据库表及路由绑定模型，为后续以稳定 ID 管理网站与域名关联提供基础。
-- 新增 Zone 管理 API 与显式历史域名导入命令，使用公共后缀列表验证注册根域和域名归属。
+- 新增网站和域名管理能力，并提供 24 小时、7 天和 30 天的流量概览，便于集中查看访问趋势和已提供的数据量。
 
-### 修改
+### 变更
 
-- 调整数据库自动清理设置文案，明确自动清理按 ClickHouse 表 TTL 执行，并提示访问日志 90 天、其它观测数据 30 天的保留下限。
-- 重构并清理了分析仓统计层 `node_access_log_stats.go` 和 `openflare_access_log.go` 之间的重复模型，使用底层 type aliases 简化了类型转换和拷贝逻辑。
-- 配置快照、OpenResty 渲染、Tunnel 与 Uptime Kuma 监控改为从 Zone 域名绑定读取域名 and 证书，移除对反代路由旧域名/证书字段的运行时回退。
-- 管理端网站入口改为 Zone 列表与 `/websites/:zoneId` 详情（概览 / 域名 / 路由 / 证书 / 设置），反代路由通过 Zone 域名选择器绑定。
-- 反代路由 API 以 `zone_domain_ids` / `zone_domains` 为唯一域名与证书关联来源，不再接受或返回路由内嵌域名/证书字段。
+- 网站管理入口调整为网站详情中的概览、域名、路由、证书和设置页面，域名与证书的关联方式更加统一。
+- 配置发布、边缘代理和监控现统一从网站域名读取域名与证书，减少配置不一致导致的运行问题。
+- 自动清理说明明确了分析数据的最短保留期限，便于管理员预期数据保存时间。
 
 ### 移除
 
-- 移除托管域名（managed-domains）管理 API 与前端 `WebsiteService`；请改用 Zone / Zone 域名 API。
-- 移除 Zone、Zone 域名、反代路由、WAF 规则组与 IP 组的备注字段（前后端与数据库列同步删除）；证书与源站备注保留。
+- 移除了旧版托管域名管理入口，请改用网站及网站域名管理功能。
+- 移除了网站、域名、路由和 WAF 相关对象的备注字段；证书和源站备注仍可继续使用。
 
 ### 修复
 
-- 修复 Agent 上报访问日志的 `bytes_sent` 在 Server 入库链路丢失，导致 Zone 概览“已提供的数据总计”长期为 0 的问题。
-- 修复嵌入式静态前端访问 `/websites/:zoneId` 时回退到首页 HTML，导致 Zone 详情页显示总览并触发 React hydration error 的问题。
-- Docker ClickHouse 性能配置改为单文件挂载，避免覆盖镜像内置的 Docker 网络监听配置，导致宿主机无法通过 8123/9000 访问服务。
+- 修复了网站概览中已提供的数据量无法统计的问题，使流量数据更加准确。
+- 修复了嵌入式前端打开网站详情时可能错误跳回首页的问题。
+- 修复了 Docker 部署中 ClickHouse 可能无法从宿主机访问的问题。
 
 ## [v3.1.2] - 2026-07-10
 
 ### 修复
 
-- 修复节点/仪表盘 24 小时容量、网络、磁盘 IO 趋势在 ClickHouse 限流查询下几乎为空的问题：改为基于小时级聚合与计数器 delta 统计，避免仅依赖最近有限条原始快照导致历史时段全空。
-- 降低静置时 ClickHouse CPU：可观测/访问日志 batchwriter 启用 `MinBatchSize` 与 `MaxFlushWait`，减少心跳小 part 写入；Docker `performance.xml` 收紧小规格后台 merge 池。
-- ClickHouse 清理语义：按保留天数仅 `MATERIALIZE` 表 DDL TTL，`deleted_count` 不再伪报删除；短于表 TTL 的保留请求被拒绝。
-- 可观测 dedup 仅在入队成功后保留，flush 失败释放键并短重试；审计 writer 增加 `MaxFlushWait`；`/admin/status/clickhouse` 暴露 batch writer 队列深度/丢弃/flush 错误。
-- model 层通过 hooks 写入 CH，去除对 `chwriter` 的直接依赖。
-- Dashboard 每节点最新指标改为 `LIMIT 1 BY node_id`；新增 metric/openresty 小时预聚合表；读路径按小时 merge（rollup 窗口完整时仅走预聚合，不足时用 raw 补洞），并提供历史 backfill 迁移。
-- 小规格默认连接池下调；`async_insert_busy_timeout` 调至 2s；`of_node_traffic_hourly` 增加 30 天 TTL，UV 改为峰值窗口估计并修正前端文案。
-- Docker ClickHouse：`performance.xml` 下调 merge free-entry 阈值以兼容小 `background_pool`（避免 25.x 启动 Code 36）。
-
-### 文档
-
-- 同步 `.env.example` 与 `config.example.yaml`；ClickHouse 服务端配置改为 curl `performance.xml` 到 `./config/clickhouse` 后整目录挂载至 `config.d`（不要放入 listen 配置）。
+- 修复了节点和仪表盘在 24 小时范围内容量、网络与磁盘趋势数据不完整的问题。
+- 优化了 ClickHouse 的写入、查询和后台处理方式，降低节点空闲时的资源占用并提升高负载下的稳定性。
+- 修复了数据保留清理和写入失败重试的统计问题，使清理结果和运行状态更可信。
+- 改进了小规格环境下的 ClickHouse 部署配置，减少启动和连接争用问题。
 
 ## [v3.1.1] - 2026-07-06
 
 ### 修改
 
-- 将 `cap_login_enabled` 默认值由 `true` 变更为 `false`，默认关闭登录界面 PoW 人机验证。
+- 默认关闭登录页面的人机验证，减少普通登录流程的额外操作；管理员仍可按需启用。
 
 ## [v3.1.0] - 2026-07-04
 
-### 修改
+### 变更
 
-- 修复 ClickHouse TTL 迁移：`DateTime64` 时间列通过 `toDateTime()` 转换后再设置 TTL，避免 goose 启动报错；移除 `MODIFY ORDER BY`（ClickHouse 不允许将排序键缩短至短于隐式主键前缀）。
-- ClickHouse 遗留治理 Phase 2：保留期清理改为 TTL `MATERIALIZE TTL`（全量清理使用 `TRUNCATE`），消除定时 `ALTER DELETE` mutation；移除 GORM 双连接池并统一 `ChConn` 读路径；查询侧去除 `trim(remote_addr)`；`wait_for_async_insert` 调整为 1；新增 `/admin/status/clickhouse` 运维指标与 `of_node_traffic_hourly` 预聚合 MV。
-- ClickHouse 写入路径优化：移除 Agent 心跳路径中的同步 `ALTER DELETE` 保留清理；`batchwriter` 新增 `MinBatchSize` 抑制过小批次定时 flush；可观测 writer 批次提升至 500、flush 间隔 5s，并为 OpenResty/FRPS/FRPC 补全去重。
-- ClickHouse 客户端启用 `async_insert` 异步写入缓冲，并调高 `block_buffer_size` 与连接池默认值，降低小 part 与连接争用。
-- Dashboard 与节点可观测 API 消除无 `LIMIT` 全表扫描、增加短 TTL 内存缓存，前端轮询间隔分别调整为 60s/30s。
-- 访问日志与 WAF IP 组同步改为 ClickHouse 侧聚合与 SQL 分页，默认查询窗口限制为近 7 天，浏览器分布查询增加 Top 100 限制。
-- ClickHouse 分析表新增 TTL 自动过期策略：`w_user_access_logs` 180 天、`of_node_access_logs` 90 天，其余节点观测与聚合表 30 天。
-- 节点访问日志写入 ClickHouse 时对 `remote_addr` 执行 `TrimSpace` 规范化，避免首尾空白影响 IP 汇总统计。
-- 数据库自动清理任务新增 OpenResty、FRPS、FRPC 观测表清理目标。
-- Docker 部署为 ClickHouse 服务增加 `nofile` ulimits 与 `docker/clickhouse/config.d/performance.xml` 性能配置挂载，限制 `max_concurrent_queries`、`background_pool_size` 与 `background_merges_mutations_concurrency_ratio`，降低高负载下的合并与查询争用。
-- 审计访问日志写入 ClickHouse 时仅保留安全相关请求头（Authorization、Cookie、X-Forwarded-For、X-Real-IP、User-Agent、Content-Type），敏感头字段以 SHA-256 摘要脱敏，并将序列化后的 headers 载荷上限收紧至 2KB，减小 `w_user_access_logs` 行宽与 merge CPU 开销。
-- 隐藏侧边栏“文档库”分组中的“规范示例”与“接口文档”，并将“使用文档”及其他相关页面的文档链接统一跳转至外部文档 https://open-flare.pages.dev/
-- 修复全局搜索数据源覆盖不全的问题，补全了所有核心业务控制台页面（节点、规则、域名、证书、DNS、源站、WAF、IP组、Pages、版本发布、访问日志、应用记录和性能调优）及缺失的管理员专有页面（存储、数据、推送、日志）的搜索检索支持。
-- 修复系统自更新（Updater）检测上游 GitHub Action Release 时，因资产包名称前缀（`openflare-server`）与仓库名不完全一致导致匹配失败并报错“未找到兼容的 Release”的问题。
-- 修复系统设置页面（`/admin/settings`）基于 URL `tab` 参数的定位逻辑，补全缺失的 `openflare-ops` (OpenFlare) Tab，且在不带参数时默认选中 OpenFlare 选项卡。
-- 移除系统设置中 OpenFlare 标签页下的“版本信息”卡片及对应的升级管理弹窗逻辑。
+- 优化了分析数据的写入、查询、缓存和自动过期策略，降低高频心跳和访问日志对系统资源的影响。
+- 调整了 ClickHouse 的连接、批处理和 Docker 部署配置，提升小规格环境下的运行稳定性。
+- 收紧了审计访问日志的请求头记录范围并进行脱敏，减少敏感数据暴露风险。
+- 更新了管理后台的文档入口和全局搜索范围，使常用功能更容易查找。
+
+### 修复
+
+- 修复了数据库迁移、系统自更新和设置页跳转可能失败的问题。
 
 ## [v3.0.2] - 2026-06-30
 
 ### 修复
 
-- 修复 PostgreSQL 自增主键序列在历史数据迁移（INSERT 指定显式 ID）后与实际数据不同步的问题，通过新增全局序列同步脚本一键重置所有相关表的自增计数器。
+- 修复了历史数据迁移后 PostgreSQL 自增编号可能与现有数据冲突的问题，避免后续创建记录失败。
 
 ## [v3.0.1] - 2026-06-30
 
 ### 新增
 
-- 新增管理后台用户个人信息编辑与重置密码功能。
-- 新增用户列表邮箱列展示以及基于邮箱的搜索过滤。
-- 后端新增 `reset-passwd` 命令行工具，支持通过命令行直接重置用户密码。
+- 新增用户资料编辑、密码重置和按邮箱搜索功能，便于管理员维护用户账号。
+- 新增命令行密码重置工具，方便无法登录管理后台时恢复账号访问。
 
 ### 修复
 
-- 修复添加 DNS 账号时因直接传递 class static 方法作为 React Query 的 mutationFn 导致 JavaScript 丢失 `this` 上下文报错 `this.post is not a function` 的问题。
-- 修复侧边栏一级菜单项当前页面字体颜色被硬编码为 `#6366F1` 的问题，改用 CSS 主题变量 `text-sidebar-primary`，以保证在多主题系统下的色彩一致性。
-- 修复默认（Default）主题因遗漏声明 `destructive-foreground` 变量，导致删除按钮（如确认删除证书弹窗）在某些状态下渲染为黑底黑字而无法阅读的问题。
-- 修复 Cobra 命令行初始化注册逻辑，确保所有应用运行模式（All, API, Worker, Scheduler）都正确注册为 Cobra 子命令。
-- 优化系统设置页面的色彩定义，移除硬编码的 Indigo 靛蓝色以适配多主题切换。
+- 修复了创建 DNS 账号可能失败的问题。
+- 修复了主题切换后侧边栏和危险操作按钮颜色异常的问题，提升界面可读性。
+- 修复了部分服务运行模式无法正确启动的问题。
 
 ## [v3.0.0] - 2026-06-27
 
@@ -147,10 +123,11 @@ sidebar: false
 
 ### 重大重构说明
 
-本项目近期完成了**前后端底层架构的重大迁移与重构**，将原有的独立控制端重构为基于 **Wavelet 统一开发框架** 的全新架构：
-- **后端重构**：全面接入 Wavelet 服务平台，收敛并复用了标准的用户管理、安全验证（PoW/邮件验证）、RAM L1 缓存以及 Redis 订阅发布同步机制。配置体系从原 `of_options` 物理表完全迁移合并至标准系统配置框架 `w_system_configs`（类型归为 `business` 业务级配置），废弃原进程级 `OptionMap` 热重载。
-- **前端重构**：管理后台前端使用 Next.js App Router、TypeScript 与 Tailwind CSS（基于 shadcn/ui 组件库与 Wavelet 设计风格）进行了完全重写，提供了更具呼吸感和一致性的用户界面，优化了配置版本预览与发布体验。
-- **架构解耦**：将原有“站点 (Site)”配置体系拆分为 **「网站管理 -> 域名列表」**（处理域名与证书绑定）与 **「规则管理」**（处理反向代理、静态托管、WAF 和缓存等路由匹配规则）两个维度，极大地提升了复杂拓扑配置的灵活性。内网穿透隧道也统一作为 `tunnel_client` 类型节点整合进了 **「节点管理」** 中。
+本版本完成了控制面的重大升级：
+
+- 管理后台重构为统一的用户、登录验证和系统设置体验，配置管理更加集中。
+- 网站管理拆分为域名、路由、静态托管、WAF 和缓存等独立能力，更适合维护复杂站点配置。
+- Tunnel 节点统一纳入节点管理，配置发布和运行状态查看更加一致。
 
 
 ## [v2.3.4] - 2026-06-17

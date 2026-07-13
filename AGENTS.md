@@ -71,9 +71,16 @@
 3. **开发计划与交接**：
     * 正在进行的开发计划或 AI 接手交接发生变化时，在 `docs/plan/` 下更新对应的开发计划或接手文档，并使用相应模板初始化。
 4. **文档与变更日志**：
-    * 当相关内容发生变化时，同步更新对应的**中文文档**（不要同步英文文档）。
-    * 代码或配置变更完成后，必须在 [`docs/changelog/index.md`](./docs/changelog/index.md) 的 `[Unreleased]` 区块补充对应变更条目。
-    * **纯文档变更（如 `docs/` 下的 Markdown 文档、README 等）不需要写入 changelog。**
+	* 当相关内容发生变化时，同步更新对应的**中文文档**（不要同步英文文档）。
+	* 代码或配置变更完成后，必须在 [`docs/changelog/index.md`](./docs/changelog/index.md) 的 `[Unreleased]` 区块补充对应变更条目。
+	* **纯文档变更（如 `docs/` 下的 Markdown 文档、README 等）不需要写入 changelog。**
+	* 更新 changelog 时遵循以下书写规则：
+	  1. 合并重复或相近的变更，不按提交逐条罗列。
+	  2. 不记录格式化、临时调试、无关重构等对用户无意义的变更。
+	  3. 使用用户可理解的表述，不描述内部实现细节。
+	  4. 每条均使用完整中文句子，并尽量说明修复或优化的内容及其带来的效果。
+	  5. 仅基于实际变更撰写，不编造提交或代码中不存在的信息。
+	  6. 不记录 Token、密钥、私有地址等敏感信息；没有内容的分类可以省略。
 
 ## 项目介绍
 
@@ -355,4 +362,3 @@ frontend/lib/services/<service-name>/
 - 服务类继承 `BaseService`，定义 `basePath`，并暴露有类型的静态方法。
 - **防止回调 `this` 上下文丢失（核心规范）**：在传递服务类的静态方法作为组件事件回调（如 `onClick`）或 React Query 的 `mutationFn`/`queryFn` 时，**禁止直接传递静态方法引用**（如 `mutationFn: DnsAccountService.create`），必须使用箭头函数包裹以防止 `this` 上下文丢失导致运行时崩溃（如 `mutationFn: (payload) => DnsAccountService.create(payload)`）。
 - 在 `frontend/lib/services/index.ts` 中注册新服务。
-

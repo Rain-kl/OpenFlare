@@ -50,18 +50,7 @@ func loggerMiddleware() gin.HandlerFunc {
 		// 排除健康检查接口
 		healthPath := config.Config.App.APIPrefix + "/health"
 		if c.Request.URL.Path != healthPath {
-			logger.InfoF(
-				ctx,
-				"[LoggerMiddleware] %s %s\nStartTime: %s\nEndTime: %s\nLatency: %d\nClientIP: %s\nResponse: %d %d",
-				c.Request.Method,
-				path,
-				start.Format(time.RFC3339),
-				end.Format(time.RFC3339),
-				latency.Milliseconds(),
-				c.ClientIP(),
-				c.Writer.Status(),
-				c.Writer.Size(),
-			)
+			logRequest(ctx, c, path, start, end, latency)
 		}
 
 		// 设置 Span 状态
@@ -69,6 +58,29 @@ func loggerMiddleware() gin.HandlerFunc {
 			span := trace.SpanFromContext(ctx)
 			span.SetStatus(codes.Error, strconv.Itoa(c.Writer.Status()))
 		}
+	}
+}
+
+func logRequest(ctx context.Context, c *gin.Context, path string, start, end time.Time, latency time.Duration) {
+	format := "[LoggerMiddleware] %s %s\nStartTime: %s\nEndTime: %s\nLatency: %d\nClientIP: %s\nResponse: %d %d"
+	args := []interface{}{
+		c.Request.Method,
+		path,
+		start.Format(time.RFC3339),
+		end.Format(time.RFC3339),
+		latency.Milliseconds(),
+		c.ClientIP(),
+		c.Writer.Status(),
+		c.Writer.Size(),
+	}
+
+	switch {
+	case c.Writer.Status() >= http.StatusInternalServerError:
+		logger.ErrorF(ctx, format, args...)
+	case c.Writer.Status() >= http.StatusBadRequest:
+		logger.WarnF(ctx, format, args...)
+	default:
+		logger.DebugF(ctx, format, args...)
 	}
 }
 
