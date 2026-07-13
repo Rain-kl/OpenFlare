@@ -31,7 +31,7 @@ database:
   max_open_conn: 128
   conn_max_lifetime: 1800
   conn_max_idle_time: 600
-  log_level: "info"            # error | warn | info | debug | silent
+  log_level: "info"            # error | warn | info | debug | silent；SQL 语句仅在 log.level=debug 时输出
   ssl_mode: "disable"
   time_zone: "UTC"
   application_name: "openflare-server"

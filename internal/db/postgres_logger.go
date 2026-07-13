@@ -53,28 +53,23 @@ func (l *gormZapLogger) Trace(ctx context.Context, begin time.Time, fc func() (s
 	elapsed := time.Since(begin)
 	switch {
 	case err != nil && l.logLevel >= gormLogger.Error && (!errors.Is(err, gorm.ErrRecordNotFound) || !l.ignoreRecordNotFoundError):
-		sql, rows := fc()
-		if rows == -1 {
-			logger.ErrorF(ctx, "%s\n[%.3fms] [rows:%v] %s", err, float64(elapsed.Nanoseconds())/nanoToMilli, "-", sql)
-		} else {
-			logger.ErrorF(ctx, "%s\n[%.3fms] [rows:%v] %s", err, float64(elapsed.Nanoseconds())/nanoToMilli, rows, sql)
-		}
+		_, rows := fc()
+		logger.ErrorF(ctx, "database query failed: %s [%.3fms] [rows:%v]", err, float64(elapsed.Nanoseconds())/nanoToMilli, formatRows(rows))
 	case elapsed > l.slowThreshold && l.slowThreshold != 0 && l.logLevel >= gormLogger.Warn:
-		sql, rows := fc()
+		_, rows := fc()
 		slowLog := fmt.Sprintf("SLOW SQL >= %v", l.slowThreshold)
-		if rows == -1 {
-			logger.WarnF(ctx, "%s\n[%.3fms] [rows:%v] %s", slowLog, float64(elapsed.Nanoseconds())/nanoToMilli, "-", sql)
-		} else {
-			logger.WarnF(ctx, "%s\n[%.3fms] [rows:%v] %s", slowLog, float64(elapsed.Nanoseconds())/nanoToMilli, rows, sql)
-		}
+		logger.WarnF(ctx, "%s [%.3fms] [rows:%v]", slowLog, float64(elapsed.Nanoseconds())/nanoToMilli, formatRows(rows))
 	case l.logLevel == gormLogger.Info:
 		sql, rows := fc()
-		if rows == -1 {
-			logger.InfoF(ctx, "[%.3fms] [rows:%v] %s", float64(elapsed.Nanoseconds())/nanoToMilli, "-", sql)
-		} else {
-			logger.InfoF(ctx, "[%.3fms] [rows:%v] %s", float64(elapsed.Nanoseconds())/nanoToMilli, rows, sql)
-		}
+		logger.DebugF(ctx, "[%.3fms] [rows:%v] %s", float64(elapsed.Nanoseconds())/nanoToMilli, formatRows(rows), sql)
 	}
+}
+
+func formatRows(rows int64) interface{} {
+	if rows == -1 {
+		return "-"
+	}
+	return rows
 }
 
 func parseLogLevel(level string) gormLogger.LogLevel {
@@ -87,6 +82,8 @@ func parseLogLevel(level string) gormLogger.LogLevel {
 	case "warn":
 		return gormLogger.Warn
 	case "info":
+		return gormLogger.Info
+	case "debug":
 		return gormLogger.Info
 	default:
 		return gormLogger.Info
