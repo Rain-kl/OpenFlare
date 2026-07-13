@@ -370,7 +370,7 @@ func buildSnapshotWAFDocument(ctx context.Context, routes []*model.ProxyRoute) (
 		bindings = append(bindings, snapshotWAFBinding{
 			RouteID:      routeID,
 			SiteName:     siteName,
-			RuleGroupIDs: groupIDsByRoute[routeID],
+			RuleGroupIDs: nonNilUintSlice(groupIDsByRoute[routeID]),
 		})
 	}
 	sort.Slice(bindings, func(i, j int) bool {
@@ -380,6 +380,13 @@ func buildSnapshotWAFDocument(ctx context.Context, routes []*model.ProxyRoute) (
 		return bindings[i].SiteName < bindings[j].SiteName
 	})
 	return snapshotWAFDocument{RuleGroups: ruleGroups, IPGroups: ipGroups, Bindings: bindings}, nil
+}
+
+func nonNilUintSlice(values []uint) []uint {
+	if values == nil {
+		return make([]uint, 0)
+	}
+	return values
 }
 
 func validateSnapshotWAFIPGroupSize(groups []snapshotWAFIPGroup) error {

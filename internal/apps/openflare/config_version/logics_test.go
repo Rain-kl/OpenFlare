@@ -223,6 +223,8 @@ func TestBuildCurrentConfigBundleEnablesGlobalPoWWithoutExplicitBinding(t *testi
 			continue
 		}
 		foundWAFConfig = true
+		assert.Contains(t, file.Content, `"rule_group_ids":[]`)
+		assert.NotContains(t, file.Content, `"rule_group_ids":null`)
 		require.NoError(t, json.Unmarshal([]byte(file.Content), &wafRuntime))
 	}
 	require.True(t, foundWAFConfig, "expected rendered WAF support file")

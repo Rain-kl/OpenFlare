@@ -37,6 +37,11 @@ local function warn_rate_limited(key, ...)
     end
 end
 
+local function array_or_empty(value)
+    if type(value) == "table" then return value end
+    return {}
+end
+
 local function file_exists(path)
     local file = io.open(path, "rb")
     if not file then return false end
@@ -121,7 +126,7 @@ end
 
 local function config_geo_requirements(config)
     local uses_geo, uses_region = false, false
-    for _, rule in ipairs(config.rule_groups or {}) do
+    for _, rule in ipairs(array_or_empty(config.rule_groups)) do
         for _, node in pairs((rule.graph or {}).nodes or {}) do
             if node.type == "geo_match" then
                 uses_geo = true
@@ -270,18 +275,18 @@ local function ip_in_cidr(ip, cidr)
 end
 
 local function matches_ip_values(config, ip)
-    for _, item in ipairs(config.ips or {}) do
+    for _, item in ipairs(array_or_empty(config.ips)) do
         if item == ip or ipv6_equal(item, ip) then return true end
     end
-    for _, cidr in ipairs(config.cidrs or {}) do
+    for _, cidr in ipairs(array_or_empty(config.cidrs)) do
         if ip_in_cidr(ip, cidr) then return true end
     end
     local snapshot = ip_groups_config or ip_groups_runtime.current()
     local groups = (snapshot or {}).groups or {}
-    for _, id in ipairs(config.ip_group_ids or {}) do
+    for _, id in ipairs(array_or_empty(config.ip_group_ids)) do
         local group = groups[tostring(id)]
         if group and group.enabled then
-            for _, item in ipairs(group.ip_list or {}) do
+            for _, item in ipairs(array_or_empty(group.ip_list)) do
                 if item == ip or ipv6_equal(item, ip) or ip_in_cidr(ip, item) then return true end
             end
         end
@@ -360,13 +365,13 @@ end
 
 local function active_rules(site)
     local by_id, result = {}, {}
-    for _, rule in ipairs(rules_config.rule_groups or {}) do
+    for _, rule in ipairs(array_or_empty(rules_config.rule_groups)) do
         by_id[tostring(rule.id)] = rule
         if rule.enabled and rule.is_global then result[#result + 1] = rule end
     end
-    for _, binding in ipairs(rules_config.bindings or {}) do
+    for _, binding in ipairs(array_or_empty(rules_config.bindings)) do
         if binding.site_name == site then
-            for _, id in ipairs(binding.rule_group_ids or {}) do
+            for _, id in ipairs(array_or_empty(binding.rule_group_ids)) do
                 local rule = by_id[tostring(id)]
                 if rule and rule.enabled and not rule.is_global then result[#result + 1] = rule end
             end

@@ -477,6 +477,20 @@ local function test_damaged_graphs_fail_closed()
     end
 end
 
+local function test_null_binding_ids_are_treated_as_empty()
+    local runtime = load_runtime({
+        rule_groups = {},
+        -- cjson decodes JSON null to userdata (ngx.null). io.stdout provides the
+        -- same Lua value type in this standalone regression test.
+        bindings = { binding("null-binding", io.stdout) },
+    })
+
+    reset_request("null-binding")
+    local result = runtime.check()
+    assert_equal(result, "ok", "null binding IDs allow the request")
+    assert_equal(output.exit, nil, "null binding IDs never abort the request")
+end
+
 local function test_request_path_has_no_file_io()
     local opens = 0
     local original_open = io.open
@@ -530,6 +544,7 @@ test_pow_takeover_and_completion()
 test_pow_internal_redirect_bypasses_graph_as_takeover()
 test_block_config_and_rule_order()
 test_damaged_graphs_fail_closed()
+test_null_binding_ids_are_treated_as_empty()
 test_request_path_has_no_file_io()
 
 return true

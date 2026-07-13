@@ -85,6 +85,26 @@ func TestWAFGraphSnapshotPreservesOrderAndGraphReferences(t *testing.T) {
 	assert.NotContains(t, string(raw), "ip_whitelist")
 }
 
+func TestWAFGraphSnapshotEncodesEmptyBindingsAsArrays(t *testing.T) {
+	cleanup := setupConfigVersionTestDB(t)
+	defer cleanup()
+	ctx := context.Background()
+
+	route := &model.ProxyRoute{SiteName: "empty-binding.example.com", OriginURL: "http://origin:8080", Upstreams: `["http://origin:8080"]`, Enabled: true}
+	require.NoError(t, model.CreateProxyRouteRecord(ctx, route))
+	createSnapshotZoneDomains(t, ctx, route, route.SiteName)
+
+	snapshot, err := buildSnapshotWAFDocument(ctx, []*model.ProxyRoute{route})
+	require.NoError(t, err)
+	require.Len(t, snapshot.Bindings, 1)
+	require.NotNil(t, snapshot.Bindings[0].RuleGroupIDs)
+
+	raw, err := json.Marshal(snapshot)
+	require.NoError(t, err)
+	assert.Contains(t, string(raw), `"rule_group_ids":[]`)
+	assert.NotContains(t, string(raw), `"rule_group_ids":null`)
+}
+
 func TestBuildSnapshotRejectsInvalidWAFGraph(t *testing.T) {
 	cleanup := setupConfigVersionTestDB(t)
 	defer cleanup()
