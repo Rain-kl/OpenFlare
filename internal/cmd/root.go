@@ -39,8 +39,7 @@ var rootCmd = &cobra.Command{
 		})
 	},
 	PreRun: func(_ *cobra.Command, _ []string) {
-		migrator.Migrate()
-		migrator.MigrateClickHouse()
+		runMigrations()
 	},
 	PersistentPostRun: func(_ *cobra.Command, _ []string) {
 		shutdownTraceProvider()
@@ -49,6 +48,16 @@ var rootCmd = &cobra.Command{
 		// 无参数时默认以融合模式启动所有服务
 		allCmd.Run(allCmd, args)
 	},
+}
+
+var latestMigrationState struct {
+	relationalDB migrator.Report
+	clickHouseDB migrator.Report
+}
+
+func runMigrations() {
+	latestMigrationState.relationalDB = migrator.Migrate()
+	latestMigrationState.clickHouseDB = migrator.MigrateClickHouse()
 }
 
 func shutdownTraceProvider() {
@@ -63,8 +72,7 @@ func init() {
 
 	// 1. 为需要迁移的子命令动态绑定原先 rootCmd.PreRun 拥有的数据库迁移行为
 	migratePreRun := func(_ *cobra.Command, _ []string) {
-		migrator.Migrate()
-		migrator.MigrateClickHouse()
+		runMigrations()
 	}
 	allCmd.PreRun = migratePreRun
 	apiCmd.PreRun = migratePreRun

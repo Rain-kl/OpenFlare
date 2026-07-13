@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -29,8 +30,8 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
 )
 
-// Serve 启动 HTTP API 服务
-func Serve() {
+// Serve 启动 HTTP API 服务。onStarted 仅会在 HTTP 地址成功绑定后调用。
+func Serve(onStarted func()) {
 	// 运行模式
 	if config.Config.App.IsProduction() {
 		gin.SetMode(gin.ReleaseMode)
@@ -85,9 +86,17 @@ func Serve() {
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 
+	listener, err := (&net.ListenConfig{}).Listen(context.Background(), "tcp", config.Config.App.Addr)
+	if err != nil {
+		log.Fatalf("[API] server failed to listen on %s: %v\n", config.Config.App.Addr, err)
+	}
+	if onStarted != nil {
+		onStarted()
+	}
+
 	go func() {
-		log.Printf("[API] server starting on %s\n", config.Config.App.Addr)
-		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		log.Printf("[API] server listening on %s\n", config.Config.App.Addr)
+		if err := srv.Serve(listener); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			log.Fatalf("[API] server failed: %v\n", err)
 		}
 	}()

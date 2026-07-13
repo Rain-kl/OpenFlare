@@ -18,6 +18,7 @@ var schedulerCmd = &cobra.Command{
 	Short: "wavelet Scheduler",
 	Run: func(_ *cobra.Command, _ []string) {
 		runBootstrap(bootstrap.Options{})
+		printStartupBanner(startupState{mode: "Scheduler", relationalDB: latestMigrationState.relationalDB, clickHouseDB: latestMigrationState.clickHouseDB})
 		log.Println("[Scheduler] 启动定时任务调度服务")
 		if err := scheduler.StartScheduler(); err != nil {
 			log.Fatalf("[调度器] 启动失败: %v", err)

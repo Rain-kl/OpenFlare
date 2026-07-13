@@ -16,6 +16,8 @@ var apiCmd = &cobra.Command{
 	Run: func(_ *cobra.Command, _ []string) {
 		bootstrap.RegisterAPI()
 		runBootstrap(bootstrap.Options{API: true})
-		router.Serve()
+		router.Serve(func() {
+			printStartupBanner(startupState{mode: "API", relationalDB: latestMigrationState.relationalDB, clickHouseDB: latestMigrationState.clickHouseDB, listensForHTTP: true})
+		})
 	},
 }

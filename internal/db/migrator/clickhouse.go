@@ -30,9 +30,9 @@ const (
 var clickhouseMigrationFS embed.FS
 
 // MigrateClickHouse runs goose migrations against ClickHouse when enabled.
-func MigrateClickHouse() {
+func MigrateClickHouse() Report {
 	if !config.Config.ClickHouse.Enabled {
-		return
+		return Report{Backend: "ClickHouse"}
 	}
 
 	cfg := config.Config.ClickHouse
@@ -74,14 +74,30 @@ func MigrateClickHouse() {
 		closeClickHouseDB(sqlDB)
 		log.Fatalf("[ClickHouse] create goose provider failed: %v\n", err)
 	}
+	previousVersion, err := provider.GetDBVersion(context.Background())
+	if err != nil {
+		closeClickHouseDB(sqlDB)
+		log.Fatalf("[ClickHouse] get goose version failed: %v\n", err)
+	}
 
 	if _, err := provider.Up(context.Background()); err != nil {
 		closeClickHouseDB(sqlDB)
 		log.Fatalf("[ClickHouse] goose migrate failed: %v\n", err)
 	}
+	currentVersion, err := provider.GetDBVersion(context.Background())
+	if err != nil {
+		closeClickHouseDB(sqlDB)
+		log.Fatalf("[ClickHouse] get migrated goose version failed: %v\n", err)
+	}
 	closeClickHouseDB(sqlDB)
 
 	log.Println("[ClickHouse] goose migrate success")
+	return Report{
+		Backend: "ClickHouse",
+		Enabled: true,
+		Version: currentVersion,
+		Applied: currentVersion != previousVersion,
+	}
 }
 
 func closeClickHouseDB(sqlDB *sql.DB) {

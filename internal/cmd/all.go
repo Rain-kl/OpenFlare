@@ -31,7 +31,9 @@ var allCmd = &cobra.Command{
 		go func() {
 			defer wg.Done()
 			log.Println("[All] 启动 API 服务")
-			router.Serve()
+			router.Serve(func() {
+				printStartupBanner(startupState{mode: "API + Worker + Scheduler", relationalDB: latestMigrationState.relationalDB, clickHouseDB: latestMigrationState.clickHouseDB, listensForHTTP: true})
+			})
 		}()
 
 		// 启动 Asynq Worker 任务处理服务

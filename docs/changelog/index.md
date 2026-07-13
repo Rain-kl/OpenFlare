@@ -23,6 +23,7 @@ sidebar: false
 
 ### 新增
 
+- 系统完成初始化后输出 OpenFlare 启动 Banner，汇总版本、构建与运行环境、数据库迁移状态、运行模式和 HTTP 监听地址。
 - 新增 `make prettier`，统一使用 `gofmt` 与项目固定版本的 Prettier 自动格式化前后端源码。
 - WAF 规则支持可视化 DAG 编排、版本冲突保护和有序路由绑定，发布时编译为 OpenResty 纯内存运行图。
 - WAF IP 组支持 checksum 驱动的 Worker 内存热刷新，并补充 City MMDB 地区匹配数据源。
