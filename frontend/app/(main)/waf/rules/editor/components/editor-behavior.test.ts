@@ -16,6 +16,19 @@ describe('React Flow persistence filtering', () => {
     expect(isPersistentNodeChange({type: 'remove', id: 'n'})).toBe(true);
     expect(isPersistentEdgeChange({type: 'remove', id: 'e'})).toBe(true);
   });
+
+  it('forwards transient node changes to React Flow without persisting them', () => {
+    const changes = [
+      {type: 'dimensions' as const, id: 'match', dimensions: {width: 176, height: 64}},
+      {type: 'select' as const, id: 'match', selected: true},
+      {type: 'position' as const, id: 'match', position: {x: 24, y: 48}, dragging: true},
+    ];
+
+    const nodes: WAFRuleGraph['nodes'] = [
+      {id: 'match', type: 'ip_match', position: {x: 0, y: 0}, config: {ips: [], cidrs: [], ip_group_ids: []}},
+    ];
+    expect(acceptedNodeChanges(nodes, changes)).toEqual({changes, persistent: false});
+  });
 });
 
 describe('editor safety constraints', () => {

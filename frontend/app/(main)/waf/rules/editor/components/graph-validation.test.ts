@@ -2,7 +2,7 @@ import {describe, expect, it} from 'vitest';
 
 import type {WAFRuleGraph} from '@/lib/services/openflare';
 
-import {removeNodeFromGraph, validateGraph, wouldCreateCycle} from './graph-validation';
+import {removeEdgeFromGraph, removeNodeFromGraph, validateGraph, wouldCreateCycle} from './graph-validation';
 
 const validGraph = (): WAFRuleGraph => ({
   schema_version: 1,
@@ -108,6 +108,15 @@ it('removes incident edges when deleting a node', () => {
   const next = removeNodeFromGraph(validGraph(), 'match');
   expect(next.nodes.some((node) => node.id === 'match')).toBe(false);
   expect(next.edges).toEqual([]);
+});
+
+it('removes a selected connection without changing nodes', () => {
+  const graph = validGraph();
+  const edgeId = graph.edges[0].id;
+  const next = removeEdgeFromGraph(graph, edgeId);
+  expect(next.nodes).toEqual(graph.nodes);
+  expect(next.edges).toHaveLength(graph.edges.length - 1);
+  expect(next.edges.some((edge) => edge.id === edgeId)).toBe(false);
 });
 
 it('detects whether a new connection creates a cycle', () => {

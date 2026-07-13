@@ -15,8 +15,8 @@ import type {WAFIPGroup, WAFRuleNode} from '@/lib/services/openflare';
 const countries = ['CN', 'US', 'JP', 'SG', 'DE', 'FR', 'GB', 'CA', 'AU', 'BR', 'IN', 'KR'].map((value) => ({value, label: value}));
 const regions = ['CN-BJ', 'CN-SH', 'CN-GD', 'CN-ZJ', 'US-CA', 'US-NY', 'US-TX', 'JP-13', 'DE-BE', 'GB-ENG'].map((value) => ({value, label: value}));
 
-export function NodeProperties({node, ipGroups, onChange}: {node?: WAFRuleNode; ipGroups: WAFIPGroup[]; onChange: (node: WAFRuleNode) => void}) {
-  return <aside className="w-80 shrink-0 border-l bg-card"><ScrollArea className="h-full"><div className="flex flex-col gap-5 p-5"><div className="flex items-center gap-2"><Settings2 className="size-5 text-primary"/><div><h2 className="text-sm font-semibold">节点属性</h2><p className="text-xs text-muted-foreground">配置当前处理单元</p></div></div><Separator />{!node ? <p className="text-sm text-muted-foreground">选择画布中的节点以查看配置。</p> : <PropertyFields node={node} ipGroups={ipGroups} onChange={onChange}/>}</div></ScrollArea></aside>;
+export function NodeProperties({node, ipGroups, onChange}: {node: WAFRuleNode; ipGroups: WAFIPGroup[]; onChange: (node: WAFRuleNode) => void}) {
+  return <aside className="w-80 shrink-0 border-l bg-card"><ScrollArea className="h-full"><div className="flex flex-col gap-5 p-5"><div className="flex items-center gap-2"><Settings2 className="size-5 text-primary"/><div><h2 className="text-sm font-semibold">节点属性</h2><p className="text-xs text-muted-foreground">配置当前处理单元</p></div></div><Separator /><PropertyFields node={node} ipGroups={ipGroups} onChange={onChange}/></div></ScrollArea></aside>;
 }
 
 function PropertyFields({node, ipGroups, onChange}: {node: WAFRuleNode; ipGroups: WAFIPGroup[]; onChange: (node: WAFRuleNode) => void}) {

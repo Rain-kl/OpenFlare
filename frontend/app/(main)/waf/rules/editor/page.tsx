@@ -99,7 +99,12 @@ function EditorContent() {
     <div className="flex h-[calc(100dvh-4rem)] w-full flex-col px-1 py-6">
       <UnsavedChanges dirty={dirty}/>
       <header className="mb-4 flex items-center justify-between gap-4">
-        <div className="flex min-w-0 items-center gap-2"><GitBranch className="size-5 text-primary"/><h1 className="text-2xl font-semibold tracking-tight">{ruleQuery.data.name}</h1><Badge variant={ruleQuery.data.enabled ? 'default' : 'secondary'}>{ruleQuery.data.enabled ? '已启用' : '已停用'}</Badge><Badge variant={issues.length === 0 ? 'outline' : 'destructive'}>{issues.length === 0 ? '图校验通过' : `${issues.length} 个问题`}</Badge>{dirty && <Badge variant="secondary">未保存</Badge>}</div>
+        <div className="flex min-w-0 items-center gap-2"><GitBranch className="size-5 text-primary"/>
+          <h1 className="text-2xl font-semibold tracking-tight">{ruleQuery.data.name}</h1>
+          <Badge variant={ruleQuery.data.enabled ? 'default' : 'secondary'}>{ruleQuery.data.enabled ? '已启用' : '已停用'}</Badge>
+          <Badge variant={issues.length === 0 ? 'outline' : 'destructive'}>{issues.length === 0 ? '图校验通过' : `${issues.length} 个问题`}</Badge>
+          {dirty && <Badge variant="secondary">未保存</Badge>}
+        </div>
         <div className="flex shrink-0 items-center gap-2">
           <div className="flex items-center gap-2">
             <Switch
@@ -115,7 +120,9 @@ function EditorContent() {
           <Button disabled={!dirty || issues.length > 0 || saveMutation.isPending} onClick={() => saveMutation.mutate()}><Save data-icon="inline-start"/>{saveMutation.isPending ? '保存中...' : '保存'}</Button>
         </div>
       </header>
-      <div className="flex min-h-0 flex-1 overflow-hidden rounded-xl border bg-background shadow-sm"><RuleFlowCanvas graph={graph} issues={issues} selectedId={selectedId} selectedEdgeId={selectedEdgeId} focusTarget={focusTarget} onGraphChange={changeGraph} onSelect={setSelectedId} onSelectEdge={setSelectedEdgeId}/><NodeProperties node={selected} ipGroups={ipGroupsQuery.data ?? []} onChange={changeNode}/></div>
+      <div className="flex min-h-0 flex-1 overflow-hidden rounded-xl border bg-background shadow-sm">
+        <RuleFlowCanvas graph={graph} issues={issues} selectedId={selectedId} selectedEdgeId={selectedEdgeId} focusTarget={focusTarget} onGraphChange={changeGraph} onSelect={setSelectedId} onSelectEdge={setSelectedEdgeId}/>{selected && <NodeProperties node={selected} ipGroups={ipGroupsQuery.data ?? []} onChange={changeNode}/>}
+      </div>
     </div>
   );
 }

@@ -144,3 +144,7 @@ export function wouldCreateCycle(graph: WAFRuleGraph, source: string, target: st
 export function removeNodeFromGraph(graph: WAFRuleGraph, nodeId: string): WAFRuleGraph {
   return {...graph, nodes: graph.nodes.filter((node) => node.id !== nodeId), edges: graph.edges.filter((edge) => edge.source !== nodeId && edge.target !== nodeId)};
 }
+
+export function removeEdgeFromGraph(graph: WAFRuleGraph, edgeId: string): WAFRuleGraph {
+  return {...graph, edges: graph.edges.filter((edge) => edge.id !== edgeId)};
+}

@@ -1,11 +1,11 @@
-import type {EdgeChange, NodeChange} from '@xyflow/react';
+import type {EdgeChange, Node, NodeChange} from '@xyflow/react';
 import type {WAFRuleGraph, WAFRuleNode} from '@/lib/services/openflare';
 
 import {wouldCreateCycle} from './graph-validation';
 
 export type GraphErrorTarget = {kind: 'node' | 'edge'; id: string};
 
-export function isPersistentNodeChange(change: NodeChange): boolean {
+export function isPersistentNodeChange<NodeType extends Node = Node>(change: NodeChange<NodeType>): boolean {
   return change.type === 'remove' || change.type === 'add' || change.type === 'replace' || (change.type === 'position' && change.dragging === false && Boolean(change.position));
 }
 
@@ -17,8 +17,8 @@ export function filterRemovableNodeIds(nodes: WAFRuleNode[], ids: string[]): str
   return ids.filter((id) => !['start', 'allow'].includes(nodes.find((node) => node.id === id)?.type ?? ''));
 }
 
-export function acceptedNodeChanges(nodes: WAFRuleNode[], changes: NodeChange[]): {changes: NodeChange[]; persistent: boolean} {
-  const accepted = changes.filter((change) => change.type === 'position' || (change.type === 'remove' && filterRemovableNodeIds(nodes, [change.id]).length === 1));
+export function acceptedNodeChanges<NodeType extends Node = Node>(nodes: WAFRuleNode[], changes: NodeChange<NodeType>[]): {changes: NodeChange<NodeType>[]; persistent: boolean} {
+  const accepted = changes.filter((change) => change.type !== 'remove' || filterRemovableNodeIds(nodes, [change.id]).length === 1);
   return {changes: accepted, persistent: accepted.some(isPersistentNodeChange)};
 }
 

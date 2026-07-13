@@ -7,6 +7,7 @@ const nextConfig: NextConfig = {
   // Prevent 308 redirects on /api/* trailing slashes; dev rewrites proxy legacy APIs as-is.
   skipTrailingSlashRedirect: true,
   experimental: {
+    turbopackFileSystemCacheForBuild: true,
   },
   ...(isExport ? { output: 'export' } : {
     async redirects() {
