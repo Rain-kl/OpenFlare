@@ -4,7 +4,10 @@
 package pagesarchive
 
 import (
+	"bytes"
 	"fmt"
+	"io"
+	"math"
 	"os"
 	"path"
 	"strings"
@@ -18,15 +21,38 @@ type InspectOptions struct {
 	EntryFile string
 	// Limits bounds files and sizes.
 	Limits Limits
+	// VerifySizes, when true, streams each regular file and compares the actual
+	// byte count against the archive-declared size (no content hashing).
+	// Default false: trust zip central directory / tar header sizes.
+	VerifySizes bool
 }
 
-// InspectFile opens path and inspects it as a Pages deployment package.
+// InspectFile opens path and inspects it as a Pages deployment package without
+// loading the whole archive into memory. File inventory uses declared sizes;
+// per-file content hashes are not computed.
 func InspectFile(filePath string, format Format, opts InspectOptions) (*Manifest, error) {
-	data, err := os.ReadFile(filePath) //nolint:gosec // filePath is a controlled temp upload path
+	file, err := os.Open(filePath) //nolint:gosec // filePath is a controlled temp upload path
 	if err != nil {
 		return nil, err
 	}
-	return InspectBytes(data, format, opts)
+	defer func() { _ = file.Close() }()
+
+	info, err := file.Stat()
+	if err != nil {
+		return nil, err
+	}
+	if format == "" {
+		head := make([]byte, 512)
+		n, readErr := file.ReadAt(head, 0)
+		if readErr != nil && readErr != io.EOF {
+			return nil, readErr
+		}
+		format, err = DetectFormat(filePath, head[:n])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return inspectFromReaderAt(file, info.Size(), format, opts)
 }
 
 // InspectBytes inspects an in-memory deployment package.
@@ -38,7 +64,13 @@ func InspectBytes(data []byte, format Format, opts InspectOptions) (*Manifest, e
 			return nil, err
 		}
 	}
-	entries, err := listEntries(data, format)
+	return inspectFromReaderAt(bytes.NewReader(data), int64(len(data)), format, opts)
+}
+
+func inspectFromReaderAt(ra io.ReaderAt, size int64, format Format, opts InspectOptions) (*Manifest, error) {
+	// Default: zip/7z use central directory only; tar streams headers and discards bodies.
+	// VerifySizes needs openable tar bodies, so materialize only when requested.
+	entries, err := listEntriesAt(ra, size, format, opts.VerifySizes)
 	if err != nil {
 		return nil, err
 	}
@@ -65,7 +97,7 @@ func buildManifest(entries []Entry, opts InspectOptions) (*Manifest, error) {
 			return nil, fmt.Errorf("pages file too large: %s", normalizedPath)
 		}
 
-		fileEntry, err := inspectRegularFile(entry, normalizedPath, limits)
+		fileEntry, err := inspectRegularFile(entry, normalizedPath, limits, opts.VerifySizes)
 		if err != nil {
 			return nil, err
 		}
@@ -130,19 +162,44 @@ func prepareEntryPath(entry Entry, commonPrefix string) (string, bool, error) {
 	return normalizedPath, false, nil
 }
 
-func inspectRegularFile(entry Entry, normalizedPath string, limits Limits) (FileEntry, error) {
+func inspectRegularFile(entry Entry, normalizedPath string, limits Limits, verifySizes bool) (FileEntry, error) {
+	if entry.Size > uint64(math.MaxInt64) {
+		return FileEntry{}, fmt.Errorf("%s: pages file size out of bounds", normalizedPath)
+	}
+	//nolint:gosec // bounded to MaxInt64 above
+	declaredSize := int64(entry.Size)
+
+	if !verifySizes {
+		return FileEntry{
+			Path:     normalizedPath,
+			Size:     declaredSize,
+			Checksum: "",
+		}, nil
+	}
+
+	if entry.Open == nil {
+		return FileEntry{}, fmt.Errorf("%s: cannot verify size without entry open", normalizedPath)
+	}
 	src, err := entry.Open()
 	if err != nil {
 		return FileEntry{}, fmt.Errorf("%s: %w", normalizedPath, err)
 	}
-	checksum, fileSize, checksumErr := checksumReader(src, entry.Size, limits.MaxFileBytes)
+	actual, measureErr := measureReader(src, entry.Size, limits.MaxFileBytes)
 	_ = src.Close()
-	if checksumErr != nil {
-		return FileEntry{}, fmt.Errorf("%s: %w", normalizedPath, checksumErr)
+	if measureErr != nil {
+		return FileEntry{}, fmt.Errorf("%s: %w", normalizedPath, measureErr)
+	}
+	if declaredSize > 0 && actual != declaredSize {
+		return FileEntry{}, fmt.Errorf("%s: declared size %d does not match actual %d", normalizedPath, declaredSize, actual)
 	}
 	return FileEntry{
 		Path:     normalizedPath,
-		Size:     fileSize,
-		Checksum: checksum,
+		Size:     actual,
+		Checksum: "",
 	}, nil
+}
+
+// measureReader counts bytes without hashing, enforcing maxBytes when positive.
+func measureReader(src io.Reader, declaredSize uint64, maxBytes int64) (int64, error) {
+	return copyLimited(io.Discard, src, declaredSize, maxBytes)
 }

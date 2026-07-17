@@ -4,8 +4,6 @@
 package pagesarchive
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"fmt"
 	"io"
 	"math"
@@ -25,8 +23,10 @@ type Limits struct {
 
 // FileEntry is a regular file discovered inside a deployment package.
 type FileEntry struct {
-	Path     string
-	Size     int64
+	Path string
+	Size int64
+	// Checksum is retained for API/schema compatibility and is left empty.
+	// Integrity is enforced via the whole-package SHA-256 on the deployment record.
 	Checksum string
 }
 
@@ -45,9 +45,10 @@ type Entry struct {
 	IsDir bool
 	// IsSymlink marks symbolic links (unsupported for Pages).
 	IsSymlink bool
-	// Size is the declared uncompressed size when known; 0 means unknown.
+	// Size is the declared uncompressed size when known; 0 means empty or unknown.
 	Size uint64
 	// Open returns a reader for the entry body. Caller must Close it.
+	// May be unavailable for inspect-only tar listings (body not materialized).
 	Open func() (io.ReadCloser, error)
 }
 
@@ -77,15 +78,6 @@ func copyLimited(dst io.Writer, src io.Reader, declaredSize uint64, maxBytes int
 		return written, fmt.Errorf("pages file size out of bounds")
 	}
 	return written, err
-}
-
-func checksumReader(src io.Reader, declaredSize uint64, maxBytes int64) (string, int64, error) {
-	hash := sha256.New()
-	written, err := copyLimited(hash, src, declaredSize, maxBytes)
-	if err != nil {
-		return "", written, err
-	}
-	return hex.EncodeToString(hash.Sum(nil)), written, nil
 }
 
 func writeEntryFile(targetPath string, src io.Reader, declaredSize uint64, maxBytes int64, perm os.FileMode) (int64, error) {

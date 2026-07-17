@@ -4,7 +4,9 @@
 package pagesarchive
 
 import (
+	"bytes"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 )
@@ -31,20 +33,43 @@ func ExtractBytes(data []byte, format Format, destDir string, opts ExtractOption
 			return err
 		}
 	}
-	entries, err := listEntries(data, format)
+	entries, err := listEntriesAt(bytes.NewReader(data), int64(len(data)), format, true)
 	if err != nil {
 		return err
 	}
 	return extractEntries(entries, destDir, opts)
 }
 
-// ExtractFile reads path and extracts it into destDir.
+// ExtractFile opens path and extracts it into destDir without buffering the
+// whole archive as an intermediate []byte for zip/7z (ReaderAt). Tar-family
+// formats still materialize member bodies so random Open works for extract.
 func ExtractFile(filePath string, format Format, destDir string, opts ExtractOptions) error {
-	data, err := os.ReadFile(filePath) //nolint:gosec // controlled path
+	file, err := os.Open(filePath) //nolint:gosec // controlled path
 	if err != nil {
 		return err
 	}
-	return ExtractBytes(data, format, destDir, opts)
+	defer func() { _ = file.Close() }()
+
+	info, err := file.Stat()
+	if err != nil {
+		return err
+	}
+	if format == "" {
+		head := make([]byte, 512)
+		n, readErr := file.ReadAt(head, 0)
+		if readErr != nil && readErr != io.EOF {
+			return readErr
+		}
+		format, err = DetectFormat(filePath, head[:n])
+		if err != nil {
+			return err
+		}
+	}
+	entries, err := listEntriesAt(file, info.Size(), format, true)
+	if err != nil {
+		return err
+	}
+	return extractEntries(entries, destDir, opts)
 }
 
 func extractEntries(entries []Entry, destDir string, opts ExtractOptions) error {

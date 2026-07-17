@@ -52,9 +52,12 @@ func TestInspectAndExtractZip(t *testing.T) {
 	paths := make(map[string]struct{}, len(manifest.Files))
 	for _, file := range manifest.Files {
 		paths[file.Path] = struct{}{}
+		assert.Empty(t, file.Checksum, "per-file checksum should not be computed")
+		assert.Positive(t, file.Size)
 	}
 	assert.Contains(t, paths, "index.html")
 	assert.Contains(t, paths, "app.js")
+	assert.Equal(t, int64(len("<html>ok</html>")+len("console.log(1)")), manifest.TotalSize)
 
 	dest := t.TempDir()
 	require.NoError(t, ExtractBytes(data, FormatZip, dest, ExtractOptions{
@@ -65,6 +68,49 @@ func TestInspectAndExtractZip(t *testing.T) {
 	body, err := os.ReadFile(filepath.Join(dest, "index.html")) //nolint:gosec
 	require.NoError(t, err)
 	assert.Equal(t, "<html>ok</html>", string(body))
+}
+
+func TestInspectFileUsesDeclaredSizesWithoutHash(t *testing.T) {
+	data := testZip(t, map[string]string{
+		"index.html": "<html>disk</html>",
+		"asset.css":  "body{}",
+	})
+	path := filepath.Join(t.TempDir(), "site.zip")
+	require.NoError(t, os.WriteFile(path, data, 0o600))
+
+	manifest, err := InspectFile(path, FormatZip, InspectOptions{
+		EntryFile: "index.html",
+		Limits:    Limits{MaxFiles: 100, MaxFileBytes: 1 << 20, MaxTotalBytes: 1 << 20},
+	})
+	require.NoError(t, err)
+	require.Equal(t, 2, manifest.FileCount)
+	for _, file := range manifest.Files {
+		assert.Empty(t, file.Checksum)
+	}
+
+	dest := t.TempDir()
+	require.NoError(t, ExtractFile(path, FormatZip, dest, ExtractOptions{
+		EnforceLimits: true,
+		Limits:        Limits{MaxFiles: 100, MaxFileBytes: 1 << 20, MaxTotalBytes: 1 << 20},
+	}))
+	body, err := os.ReadFile(filepath.Join(dest, "index.html")) //nolint:gosec
+	require.NoError(t, err)
+	assert.Equal(t, "<html>disk</html>", string(body))
+}
+
+func TestInspectVerifySizesOptional(t *testing.T) {
+	data := testZip(t, map[string]string{
+		"index.html": "verify-me",
+	})
+	manifest, err := InspectBytes(data, FormatZip, InspectOptions{
+		EntryFile:   "index.html",
+		VerifySizes: true,
+		Limits:      Limits{MaxFiles: 10, MaxFileBytes: 1 << 20, MaxTotalBytes: 1 << 20},
+	})
+	require.NoError(t, err)
+	require.Len(t, manifest.Files, 1)
+	assert.Equal(t, int64(len("verify-me")), manifest.Files[0].Size)
+	assert.Empty(t, manifest.Files[0].Checksum)
 }
 
 func TestExtractTrustedSkipsSizeLimits(t *testing.T) {
