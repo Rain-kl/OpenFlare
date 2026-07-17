@@ -64,6 +64,7 @@ import {
   mapOptionsToOpsFields,
   type OpenFlareOpsFields,
   optionsToMap,
+  pagesOptionEntries,
   uptimeKumaOptionEntries,
 } from './openflare-ops-utils';
 import { UptimeKumaSiteSelectModal } from './uptimekuma-site-modal';
@@ -258,6 +259,17 @@ export function OpenFlareOpsSettings() {
     }
   };
 
+  const savePagesSettings = () => {
+    try {
+      saveMutation.mutate({
+        section: 'pages',
+        entries: pagesOptionEntries(fields),
+      });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : '参数校验失败');
+    }
+  };
+
   if (optionsQuery.isLoading) {
     return (
       <LoadingStateWithBorder
@@ -412,6 +424,55 @@ export function OpenFlareOpsSettings() {
           </CardContent>
         </Card>
       </div>
+
+      <Card className='border-dashed shadow-none'>
+        <CardHeader className='flex flex-row items-center justify-between gap-4'>
+          <div>
+            <CardTitle className='text-base'>Pages 静态托管</CardTitle>
+            <CardDescription>
+              配置部署包上传体积上限与每个项目的历史部署保留数量。
+            </CardDescription>
+          </div>
+          <Button
+            size='sm'
+            disabled={savingSection === 'pages'}
+            onClick={savePagesSettings}
+          >
+            {savingSection === 'pages' ? (
+              <Loader2 className='size-4 animate-spin mr-1' />
+            ) : (
+              <Save className='size-3.5 mr-1' />
+            )}
+            保存
+          </Button>
+        </CardHeader>
+        <CardContent className='space-y-4'>
+          <div className='grid gap-4 md:grid-cols-2'>
+            <FieldInput
+              label='部署包大小上限 (MiB)'
+              value={fields.pages_max_package_size_mb}
+              type='number'
+              onChange={(value) =>
+                updateField('pages_max_package_size_mb', value)
+              }
+              placeholder='100'
+            />
+            <FieldInput
+              label='历史部署保留数（0 不限制）'
+              value={fields.pages_max_history_count}
+              type='number'
+              onChange={(value) =>
+                updateField('pages_max_history_count', value)
+              }
+              placeholder='20'
+            />
+          </div>
+          <p className='text-xs text-muted-foreground'>
+            每个项目最多保留 N 条部署：激活部署始终保留，其余按从新到旧填充；超出的非激活部署会在上传成功后自动清理。支持
+            zip、tar.gz、tar.xz、tar.bz2、tar、7z 格式。
+          </p>
+        </CardContent>
+      </Card>
 
       <Card className='border-dashed shadow-none'>
         <CardHeader className='flex flex-row items-center justify-between gap-4'>

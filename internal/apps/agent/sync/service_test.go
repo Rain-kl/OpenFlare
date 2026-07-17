@@ -525,7 +525,7 @@ func TestSyncOnceRejectsPagesZipSlipBeforeApply(t *testing.T) {
 	service.SetPagesDir(t.TempDir())
 
 	err := service.SyncOnce(context.Background(), &protocol.ActiveConfigMeta{Version: "20260309-102", Checksum: "pages-config-checksum"})
-	if err == nil || !strings.Contains(err.Error(), "escapes deployment root") {
+	if err == nil || (!strings.Contains(err.Error(), "escapes deployment root") && !strings.Contains(err.Error(), "escapes directory")) {
 		t.Fatalf("expected zip-slip rejection, got %v", err)
 	}
 	if len(manager.applyRouteContents) != 0 {

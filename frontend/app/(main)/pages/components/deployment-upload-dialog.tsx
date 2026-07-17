@@ -27,6 +27,27 @@ import {
   projectsQueryKey,
 } from './pages-utils';
 
+const PAGES_PACKAGE_ACCEPT =
+  '.zip,.tar.gz,.tgz,.tar.xz,.txz,.tar.bz2,.tbz2,.tbz,.tar,.7z';
+
+const PAGES_PACKAGE_EXTENSIONS = [
+  '.zip',
+  '.tar.gz',
+  '.tgz',
+  '.tar.xz',
+  '.txz',
+  '.tar.bz2',
+  '.tbz2',
+  '.tbz',
+  '.tar',
+  '.7z',
+] as const;
+
+function isSupportedPagesPackage(fileName: string) {
+  const lower = fileName.toLowerCase();
+  return PAGES_PACKAGE_EXTENSIONS.some((ext) => lower.endsWith(ext));
+}
+
 interface DeploymentUploadDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -58,7 +79,7 @@ export function DeploymentUploadDialog({
 
   const uploadMutation = useMutation({
     mutationFn: () => {
-      if (!file) throw new Error('请选择 zip 部署包');
+      if (!file) throw new Error('请选择部署包');
       return PagesService.uploadDeployment(projectId, {
         file,
         onProgress: setUploadProgress,
@@ -83,8 +104,8 @@ export function DeploymentUploadDialog({
 
   const handleFileSelect = (selected: File | null) => {
     if (!selected) return;
-    if (!selected.name.toLowerCase().endsWith('.zip')) {
-      toast.error('仅支持 zip 格式的文件');
+    if (!isSupportedPagesPackage(selected.name)) {
+      toast.error('仅支持 zip、tar.gz、tar.xz、tar.bz2、tar、7z 格式的部署包');
       return;
     }
     setFile(selected);
@@ -96,7 +117,8 @@ export function DeploymentUploadDialog({
         <DialogHeader>
           <DialogTitle>上传部署包</DialogTitle>
           <DialogDescription>
-            上传已构建的 zip 静态资源包，部署后可在列表中激活。
+            上传已构建的静态资源压缩包（zip / tar.gz / tar.xz / tar.bz2 / tar /
+            7z），部署后可在列表中激活。
           </DialogDescription>
         </DialogHeader>
 
@@ -121,7 +143,10 @@ export function DeploymentUploadDialog({
           }}
         >
           <UploadCloud className='size-8 mx-auto text-muted-foreground' />
-          <p className='mt-3 text-sm'>拖拽 zip 文件到此处，或点击选择文件</p>
+          <p className='mt-3 text-sm'>拖拽部署包到此处，或点击选择文件</p>
+          <p className='mt-1 text-xs text-muted-foreground'>
+            支持 zip、tar.gz、tar.xz、tar.bz2、tar、7z
+          </p>
           <Button
             type='button'
             variant='outline'
@@ -134,7 +159,7 @@ export function DeploymentUploadDialog({
           <input
             ref={fileInputRef}
             type='file'
-            accept='.zip'
+            accept={PAGES_PACKAGE_ACCEPT}
             className='hidden'
             onChange={(e) => handleFileSelect(e.target.files?.[0] ?? null)}
           />

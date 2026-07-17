@@ -12,13 +12,14 @@ import (
 	"mime/multipart"
 	"net/url"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/Rain-kl/Wavelet/internal/apps/upload"
 	"github.com/Rain-kl/Wavelet/internal/db"
 	"github.com/Rain-kl/Wavelet/internal/model"
+	"github.com/Rain-kl/Wavelet/pkg/logger"
+	"github.com/Rain-kl/Wavelet/pkg/pagesarchive"
 	"gorm.io/gorm"
 )
 
@@ -251,20 +252,18 @@ func UploadDeployment(ctx context.Context, projectID uint, fileHeader *multipart
 	if fileHeader == nil {
 		return nil, errors.New(errPagesPackageMissing)
 	}
-	if !strings.EqualFold(filepath.Ext(fileHeader.Filename), ".zip") {
-		return nil, errors.New(errPagesPackageNotZip)
-	}
+	limits := resolvePagesLimits(ctx)
 	rootDir, err := validateAndNormalizePagesRootDir(project.RootDir)
 	if err != nil {
 		return nil, err
 	}
 	entryFile := normalizePagesEntryFile(project.EntryFile)
-	tempPath, checksum, _, err := persistPagesUploadTemp(fileHeader)
+	tempPath, checksum, _, format, err := persistPagesUploadTemp(fileHeader, limits.PackageBytes)
 	if err != nil {
 		return nil, err
 	}
 	defer func() { _ = os.Remove(tempPath) }()
-	manifest, err := inspectPagesZip(tempPath, rootDir, entryFile)
+	manifest, err := inspectPagesPackage(tempPath, format, rootDir, entryFile, limits)
 	if err != nil {
 		return nil, err
 	}
@@ -274,6 +273,7 @@ func UploadDeployment(ctx context.Context, projectID uint, fileHeader *multipart
 		checksum,
 		project.Slug,
 		fileHeader.Filename,
+		format,
 	)
 	if err != nil {
 		return nil, err
@@ -320,8 +320,158 @@ func UploadDeployment(ctx context.Context, projectID uint, fileHeader *multipart
 		return nil, err
 	}
 	ingestCommitted = true
+
+	// History prune must not fail the already-committed upload. Log and continue;
+	// a later upload (or a retry pass inside prune) will re-attempt cleanup.
+	if pruneErr := pruneProjectDeploymentHistory(ctx, project.ID, limits.HistoryCount); pruneErr != nil {
+		logger.ErrorF(ctx,
+			"[Pages] prune deployment history failed: project_id=%d keep=%d error=%v",
+			project.ID, limits.HistoryCount, pruneErr,
+		)
+	}
+
 	view := buildDeploymentView(deployment)
 	return &view, nil
+}
+
+// pruneProjectDeploymentHistory enforces the retention policy for one project.
+//
+// Policy (keepCount > 0):
+//   - At most keepCount deployment rows remain for the project.
+//   - The current active deployment is always retained (if any).
+//   - Remaining slots are filled by newest deployments first (id desc).
+//   - All other non-kept deployments are deleted with their file lists and artifacts.
+//
+// keepCount <= 0 means unlimited history.
+//
+// Concurrency: DB row deletes run in a single transaction after a consistent read
+// of project + deployments. Concurrent uploads may briefly exceed keepCount; the
+// next successful prune brings the project back within the limit (eventual).
+func pruneProjectDeploymentHistory(ctx context.Context, projectID uint, keepCount int) error {
+	if keepCount <= 0 {
+		return nil
+	}
+
+	// Two passes: first pass after upload, second pass heals a concurrent race
+	// that inserted another deployment between our list and delete.
+	var lastErr error
+	for pass := 0; pass < 2; pass++ {
+		deleted, err := pruneProjectDeploymentHistoryOnce(ctx, projectID, keepCount)
+		if err != nil {
+			lastErr = err
+			break
+		}
+		if deleted == 0 {
+			break
+		}
+	}
+	return lastErr
+}
+
+// pruneProjectDeploymentHistoryOnce performs one list → select → delete cycle.
+// Returns the number of deployments deleted from the database.
+func pruneProjectDeploymentHistoryOnce(ctx context.Context, projectID uint, keepCount int) (int, error) {
+	project, err := model.GetPagesProjectByID(ctx, projectID)
+	if err != nil {
+		return 0, fmt.Errorf("load pages project: %w", err)
+	}
+	deployments, err := model.ListPagesDeployments(ctx, projectID)
+	if err != nil {
+		return 0, fmt.Errorf("list pages deployments: %w", err)
+	}
+	if len(deployments) <= keepCount {
+		return 0, nil
+	}
+
+	var activeID uint
+	if project.ActiveDeploymentID != nil {
+		activeID = *project.ActiveDeploymentID
+	}
+	toDelete := selectDeploymentsToPrune(deployments, activeID, keepCount)
+	if len(toDelete) == 0 {
+		return 0, nil
+	}
+
+	// Delete metadata in one transaction so partial prune does not leave
+	// orphan file-list rows without a parent deployment.
+	if err := db.DB(ctx).Transaction(func(tx *gorm.DB) error {
+		for index := range toDelete {
+			deployment := toDelete[index]
+			// Never delete the active deployment even if project pointer raced.
+			if activeID != 0 && deployment.ID == activeID {
+				continue
+			}
+			if project.ActiveDeploymentID != nil && deployment.ID == *project.ActiveDeploymentID {
+				continue
+			}
+			if err := tx.Where("deployment_id = ?", deployment.ID).Delete(&model.PagesDeploymentFile{}).Error; err != nil {
+				return fmt.Errorf("delete deployment files id=%d: %w", deployment.ID, err)
+			}
+			if err := tx.Where("id = ? AND project_id = ?", deployment.ID, projectID).
+				Delete(&model.PagesDeployment{}).Error; err != nil {
+				return fmt.Errorf("delete deployment id=%d: %w", deployment.ID, err)
+			}
+		}
+		return nil
+	}); err != nil {
+		return 0, err
+	}
+
+	// Artifacts are best-effort outside the transaction (object storage I/O).
+	for index := range toDelete {
+		deployment := toDelete[index]
+		if activeID != 0 && deployment.ID == activeID {
+			continue
+		}
+		removeDeploymentArtifact(ctx, &deployment)
+	}
+
+	logger.InfoF(ctx,
+		"[Pages] pruned deployment history: project_id=%d keep=%d deleted=%d",
+		projectID, keepCount, len(toDelete),
+	)
+	return len(toDelete), nil
+}
+
+// selectDeploymentsToPrune returns deployments that should be removed under the
+// "at most keepCount, always keep active, fill with newest" policy.
+// deployments must be ordered newest-first (id desc).
+func selectDeploymentsToPrune(deployments []model.PagesDeployment, activeID uint, keepCount int) []model.PagesDeployment {
+	if keepCount <= 0 || len(deployments) <= keepCount {
+		return nil
+	}
+
+	keepIDs := make(map[uint]struct{}, keepCount)
+	// 1) Active is always retained and occupies one slot when present.
+	if activeID != 0 {
+		// Only count active if it still exists in the list.
+		for _, deployment := range deployments {
+			if deployment.ID == activeID {
+				keepIDs[activeID] = struct{}{}
+				break
+			}
+		}
+	}
+	// 2) Fill remaining slots from newest to oldest.
+	for _, deployment := range deployments {
+		if len(keepIDs) >= keepCount {
+			break
+		}
+		keepIDs[deployment.ID] = struct{}{}
+	}
+
+	toDelete := make([]model.PagesDeployment, 0, len(deployments)-len(keepIDs))
+	for _, deployment := range deployments {
+		if _, keep := keepIDs[deployment.ID]; keep {
+			continue
+		}
+		// Safety: never mark active for deletion.
+		if activeID != 0 && deployment.ID == activeID {
+			continue
+		}
+		toDelete = append(toDelete, deployment)
+	}
+	return toDelete
 }
 
 // ActivateDeployment 激活 Pages 部署。
@@ -422,10 +572,14 @@ func openDeploymentPackageFromUpload(ctx context.Context, uploadID uint64, deplo
 	}
 	contentType := opened.ContentType
 	if contentType == "" {
-		contentType = mimeTypeApplicationZip
+		contentType = opened.Upload.MimeType
 	}
+	if contentType == "" {
+		contentType = "application/octet-stream"
+	}
+	fileName := packageDownloadName(deploymentID, opened.Upload.FileName, contentType)
 	return DeploymentPackage{
-		FileName:      fmt.Sprintf("pages-deployment-%d.zip", deploymentID),
+		FileName:      fileName,
 		ContentType:   contentType,
 		ContentLength: opened.ContentLength,
 		Body:          opened.Body,
@@ -478,6 +632,7 @@ func hydrateLegacyDeploymentUpload(
 		deployment.Checksum,
 		project.Slug,
 		fmt.Sprintf("pages-deployment-%d.zip", deployment.ID),
+		pagesarchive.FormatZip,
 	)
 	if err != nil {
 		return nil, err
@@ -493,7 +648,26 @@ func hydrateLegacyDeploymentUpload(
 	return &ingestResult.Upload, nil
 }
 
+// ensureDeploymentInActiveSnapshot allows Agent package download when the
+// deployment is the project's current active deployment and that project is
+// used by at least one pages route in the active main config.
+//
+// Main config versions pin historical pages_deployment ids for audit only.
+// Runtime download always follows the live active Pages deployment (dual
+// version control); rolling back main config must not require old packages.
 func ensureDeploymentInActiveSnapshot(ctx context.Context, deploymentID uint) error {
+	deployment, err := model.GetPagesDeploymentByID(ctx, deploymentID)
+	if err != nil {
+		return err
+	}
+	project, err := model.GetPagesProjectByID(ctx, deployment.ProjectID)
+	if err != nil {
+		return err
+	}
+	if project.ActiveDeploymentID == nil || *project.ActiveDeploymentID != deployment.ID {
+		return errors.New(errPagesPackageNotInActiveConfig)
+	}
+
 	version, err := model.GetActiveConfigVersion(ctx)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -506,10 +680,30 @@ func ensureDeploymentInActiveSnapshot(ctx context.Context, deploymentID uint) er
 		return err
 	}
 	for _, route := range routes {
-		if route.UpstreamType != "pages" || route.PagesDeployment == nil {
+		if !strings.EqualFold(strings.TrimSpace(route.UpstreamType), "pages") {
 			continue
 		}
-		if route.PagesDeployment.DeploymentID == deploymentID {
+		if route.PagesProjectID != nil && *route.PagesProjectID == project.ID {
+			return nil
+		}
+		if route.PagesDeployment == nil {
+			continue
+		}
+		if route.PagesDeployment.ProjectID == project.ID {
+			return nil
+		}
+		// Frozen snapshot may only carry deployment_id; resolve project via that row.
+		if route.PagesDeployment.DeploymentID == 0 {
+			continue
+		}
+		if route.PagesDeployment.DeploymentID == deployment.ID {
+			return nil
+		}
+		snapDeployment, snapErr := model.GetPagesDeploymentByID(ctx, route.PagesDeployment.DeploymentID)
+		if snapErr != nil {
+			continue
+		}
+		if snapDeployment.ProjectID == project.ID {
 			return nil
 		}
 	}
@@ -518,10 +712,12 @@ func ensureDeploymentInActiveSnapshot(ctx context.Context, deploymentID uint) er
 
 type snapshotPagesDeployment struct {
 	DeploymentID uint `json:"deployment_id"`
+	ProjectID    uint `json:"project_id"`
 }
 
 type snapshotRouteRef struct {
 	UpstreamType    string                   `json:"upstream_type"`
+	PagesProjectID  *uint                    `json:"pages_project_id"`
 	PagesDeployment *snapshotPagesDeployment `json:"pages_deployment"`
 }
 

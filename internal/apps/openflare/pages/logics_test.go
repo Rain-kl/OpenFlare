@@ -4,8 +4,10 @@
 package pages
 
 import (
+	"archive/tar"
 	"archive/zip"
 	"bytes"
+	"compress/gzip"
 	"context"
 	"fmt"
 	"io"
@@ -17,6 +19,7 @@ import (
 
 	"github.com/Rain-kl/Wavelet/internal/db"
 	"github.com/Rain-kl/Wavelet/internal/model"
+	"github.com/Rain-kl/Wavelet/internal/repository"
 	"github.com/Rain-kl/Wavelet/internal/storage"
 	"github.com/glebarez/sqlite"
 	"github.com/stretchr/testify/assert"
@@ -40,6 +43,7 @@ func setupPagesTestDB(t *testing.T) func() {
 		&model.PagesDeployment{},
 		&model.PagesDeploymentFile{},
 		&model.ConfigVersion{},
+		&model.SystemConfig{},
 	))
 	require.NoError(t, sqliteDB.Create(&model.User{
 		ID:       999,
@@ -48,8 +52,25 @@ func setupPagesTestDB(t *testing.T) func() {
 		Nickname: "系统",
 		IsActive: true,
 	}).Error)
+	require.NoError(t, sqliteDB.Create([]model.SystemConfig{
+		{
+			Key:         model.ConfigKeyPagesMaxPackageSizeMB,
+			Value:       "100",
+			Type:        "business",
+			Description: "Pages 部署包上传大小上限（MiB）",
+		},
+		{
+			Key:         model.ConfigKeyPagesMaxHistoryCount,
+			Value:       "0", // unlimited for existing tests
+			Type:        "business",
+			Description: "Pages 每个项目最大历史部署保留数（0 表示不限制）",
+		},
+	}).Error)
 
 	db.SetDB(sqliteDB)
+	// Clear process-global system config RAM cache so tests do not see stale values.
+	_ = repository.InvalidateSystemConfigCache(context.Background(), model.ConfigKeyPagesMaxPackageSizeMB)
+	_ = repository.InvalidateSystemConfigCache(context.Background(), model.ConfigKeyPagesMaxHistoryCount)
 	return func() {
 		db.SetDB(nil)
 	}
@@ -336,6 +357,149 @@ func testPagesZip(t *testing.T, files map[string]string) []byte {
 		require.NoError(t, err)
 	}
 	require.NoError(t, writer.Close())
+	return buffer.Bytes()
+}
+
+func TestUploadDeploymentAcceptsTarGz(t *testing.T) {
+	cleanup := setupPagesTestDB(t)
+	defer cleanup()
+	_, disableStorage := setupPagesStorageMock(t)
+	defer disableStorage()
+	ctx := context.Background()
+
+	project, err := CreateProject(ctx, Input{
+		Name:    "TarGz Site",
+		Slug:    "tar-gz-site",
+		Enabled: true,
+	})
+	require.NoError(t, err)
+
+	deployment, err := UploadDeployment(ctx, project.ID, testPagesMultipartFile(t, "site.tar.gz", testPagesTarGz(t, map[string]string{
+		"index.html": "tar-ok",
+		"app.js":     "1",
+	})), "root")
+	require.NoError(t, err)
+	assert.Equal(t, 2, deployment.FileCount)
+	assert.NotZero(t, deployment.UploadID)
+}
+
+func TestSelectDeploymentsToPruneKeepsActiveAndNewest(t *testing.T) {
+	// ids 4(newest) ... 1(oldest); active is oldest id=1; keep=2 → keep {1,4}, prune {3,2}
+	deployments := []model.PagesDeployment{
+		{ID: 4, ProjectID: 1},
+		{ID: 3, ProjectID: 1},
+		{ID: 2, ProjectID: 1},
+		{ID: 1, ProjectID: 1},
+	}
+	toDelete := selectDeploymentsToPrune(deployments, 1, 2)
+	require.Len(t, toDelete, 2)
+	assert.Equal(t, uint(3), toDelete[0].ID)
+	assert.Equal(t, uint(2), toDelete[1].ID)
+
+	// active is newest; keep=2 → keep {4,3}, prune {2,1}
+	toDelete = selectDeploymentsToPrune(deployments, 4, 2)
+	require.Len(t, toDelete, 2)
+	assert.Equal(t, uint(2), toDelete[0].ID)
+	assert.Equal(t, uint(1), toDelete[1].ID)
+
+	// no active; keep=2 → keep {4,3}
+	toDelete = selectDeploymentsToPrune(deployments, 0, 2)
+	require.Len(t, toDelete, 2)
+	assert.Equal(t, uint(2), toDelete[0].ID)
+	assert.Equal(t, uint(1), toDelete[1].ID)
+
+	// keep=1 with active → only active, prune the rest
+	toDelete = selectDeploymentsToPrune(deployments, 2, 1)
+	require.Len(t, toDelete, 3)
+	for _, item := range toDelete {
+		assert.NotEqual(t, uint(2), item.ID)
+	}
+
+	// already within limit
+	assert.Nil(t, selectDeploymentsToPrune(deployments[:2], 4, 2))
+	// unlimited
+	assert.Nil(t, selectDeploymentsToPrune(deployments, 1, 0))
+}
+
+func TestPruneProjectDeploymentHistory(t *testing.T) {
+	cleanup := setupPagesTestDB(t)
+	defer cleanup()
+	_, disableStorage := setupPagesStorageMock(t)
+	defer disableStorage()
+	ctx := context.Background()
+
+	require.NoError(t, db.DB(ctx).Model(&model.SystemConfig{}).
+		Where("key = ?", model.ConfigKeyPagesMaxHistoryCount).
+		Update("value", "2").Error)
+	require.NoError(t, repository.InvalidateSystemConfigCache(ctx, model.ConfigKeyPagesMaxHistoryCount))
+
+	project, err := CreateProject(ctx, Input{
+		Name:    "History Site",
+		Slug:    "history-site",
+		Enabled: true,
+	})
+	require.NoError(t, err)
+
+	var ids []uint
+	for i := 0; i < 3; i++ {
+		deployment, uploadErr := UploadDeployment(ctx, project.ID, testPagesMultipartFile(t, "site.zip", testPagesZip(t, map[string]string{
+			"index.html": fmt.Sprintf("v%d", i),
+		})), "root")
+		require.NoError(t, uploadErr)
+		ids = append(ids, deployment.ID)
+	}
+	// After 3 uploads with keep=2 and no active: only 2 newest remain.
+	deployments, err := model.ListPagesDeployments(ctx, project.ID)
+	require.NoError(t, err)
+	require.Len(t, deployments, 2)
+	assert.Equal(t, ids[2], deployments[0].ID)
+	assert.Equal(t, ids[1], deployments[1].ID)
+
+	// Activate the older of the remaining two, then upload again.
+	_, err = ActivateDeployment(ctx, project.ID, ids[1])
+	require.NoError(t, err)
+
+	latest, err := UploadDeployment(ctx, project.ID, testPagesMultipartFile(t, "site.zip", testPagesZip(t, map[string]string{
+		"index.html": "v-latest",
+	})), "root")
+	require.NoError(t, err)
+
+	deployments, err = model.ListPagesDeployments(ctx, project.ID)
+	require.NoError(t, err)
+	require.Len(t, deployments, 2, "must be at most N=2, not active+N newest")
+
+	storedProject, err := model.GetPagesProjectByID(ctx, project.ID)
+	require.NoError(t, err)
+	require.NotNil(t, storedProject.ActiveDeploymentID)
+	assert.Equal(t, ids[1], *storedProject.ActiveDeploymentID)
+
+	kept := map[uint]struct{}{}
+	for _, item := range deployments {
+		kept[item.ID] = struct{}{}
+	}
+	_, hasActive := kept[ids[1]]
+	_, hasLatest := kept[latest.ID]
+	assert.True(t, hasActive, "active deployment must be retained")
+	assert.True(t, hasLatest, "newest deployment must fill remaining slot")
+}
+
+func testPagesTarGz(t *testing.T, files map[string]string) []byte {
+	t.Helper()
+
+	var buffer bytes.Buffer
+	gzWriter := gzip.NewWriter(&buffer)
+	tarWriter := tar.NewWriter(gzWriter)
+	for name, content := range files {
+		require.NoError(t, tarWriter.WriteHeader(&tar.Header{
+			Name: name,
+			Mode: 0o644,
+			Size: int64(len(content)),
+		}))
+		_, err := tarWriter.Write([]byte(content))
+		require.NoError(t, err)
+	}
+	require.NoError(t, tarWriter.Close())
+	require.NoError(t, gzWriter.Close())
 	return buffer.Bytes()
 }
 

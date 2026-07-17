@@ -295,6 +295,18 @@ func getSeedConfigsPart2() []model.SystemConfig {
 			Type:        configTypeBusiness,
 			Description: "FRPS 内置 Web 界面端口",
 		},
+		{
+			Key:         model.ConfigKeyPagesMaxPackageSizeMB,
+			Value:       "100",
+			Type:        configTypeBusiness,
+			Description: "Pages 部署包上传大小上限（MiB）",
+		},
+		{
+			Key:         model.ConfigKeyPagesMaxHistoryCount,
+			Value:       "20",
+			Type:        configTypeBusiness,
+			Description: "Pages 每个项目最大历史部署保留数（0 表示不限制）",
+		},
 	}
 }
 

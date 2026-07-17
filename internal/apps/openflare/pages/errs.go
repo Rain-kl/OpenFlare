@@ -14,9 +14,13 @@ const (
 	errPagesDeploymentMismatch       = "pages 部署不属于该项目"
 	errPagesDeleteActiveDeploy       = "不能删除当前激活的 Pages 部署"
 	errPagesPackageMissing           = "缺少 Pages 部署包"
-	errPagesPackageNotZip            = "pages 部署包必须是 .zip 文件"
-	errPagesPackageInvalidZip        = "pages 部署包不是有效 zip 文件"
+	errPagesPackageNotZip            = "pages 部署包必须是 .zip 文件" // legacy alias kept for tests
+	errPagesPackageUnsupported       = "pages 部署包仅支持 zip、tar.gz、tar.xz、tar.bz2、tar、7z 格式"
+	errPagesPackageInvalidZip        = "pages 部署包不是有效 zip 文件" // legacy alias
+	errPagesPackageInvalid           = "pages 部署包不是有效的压缩文件"
 	errPagesPackageEmpty             = "pages 部署包不能为空"
+	errPagesPackageExtractedTooLarge = "pages 部署包展开后体积超过限制"
+	errPagesPackageFileTooLarge      = "pages 部署包内文件过大"
 	errPagesAPIProxyPathRequired     = "启用 API 反代时，匹配路径不能为空"
 	errPagesAPIProxyPathPrefix       = "API 反代匹配路径必须以 '/' 开头"
 	errPagesAPIProxyPassRequired     = "启用 API 反代时，后端服务地址不能为空"             //nolint:gosec // false positive: this is an error message, not hardcoded credentials

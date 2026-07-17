@@ -9,6 +9,7 @@ import (
 	"errors"
 	"strings"
 
+	"github.com/Rain-kl/Wavelet/internal/apps/openflare/pages"
 	"github.com/Rain-kl/Wavelet/internal/model"
 	openrestyrender "github.com/Rain-kl/Wavelet/pkg/render/openresty"
 	"gorm.io/gorm"
@@ -38,10 +39,20 @@ func getActiveConfigForAgent(ctx context.Context) (*ConfigResponse, error) {
 		}
 	}
 
+	// Main config version history is independent of Pages deployment history.
+	// Agents always receive pages routes bound to each project's current active
+	// deployment so config rollback never depends on pruned packages.
+	sourceJSON := version.SnapshotJSON
+	if rebound, rebindErr := pages.RebindSnapshotPagesToCurrentActive(ctx, version.SnapshotJSON); rebindErr != nil {
+		return nil, rebindErr
+	} else if strings.TrimSpace(rebound) != "" {
+		sourceJSON = rebound
+	}
+
 	return &ConfigResponse{
 		Version:          version.Version,
 		Checksum:         version.Checksum,
-		SourceConfigJSON: version.SnapshotJSON,
+		SourceConfigJSON: sourceJSON,
 		SupportFiles:     sourceSupportFiles(supportFiles),
 		CreatedAt:        version.CreatedAt,
 	}, nil

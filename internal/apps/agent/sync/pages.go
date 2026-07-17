@@ -2,8 +2,6 @@
 package sync
 
 import (
-	"archive/zip"
-	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -11,21 +9,19 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"math"
 	"os"
-	"path"
 	"path/filepath"
 	"strings"
 
 	"github.com/Rain-kl/Wavelet/internal/apps/agent/protocol"
 	"github.com/Rain-kl/Wavelet/internal/apps/agent/state"
+	"github.com/Rain-kl/Wavelet/pkg/pagesarchive"
 )
 
 const (
-	pagesMaxExtractedFileBytes = 100 * 1024 * 1024
-	pagesDirPerm               = 0o755
-	pagesFilePerm              = 0o644
-	pagesManifestFilePerm      = 0o644
+	pagesDirPerm          = 0o755
+	pagesFilePerm         = 0o644
+	pagesManifestFilePerm = 0o644
 )
 
 type pagesSourceDocument struct {
@@ -223,89 +219,26 @@ func referencedPagesDeployments(config *protocol.ActiveConfigResponse) ([]pagesD
 	return result, nil
 }
 
-func findCommonRootPrefix(files []*zip.File) (string, error) {
-	var firstFilePath string
-	hasMultipleFiles := false
-	for _, item := range files {
-		relativePath, skip, err := normalizePagesArchivePath(item.Name)
-		if err != nil {
-			return "", err
-		}
-		if skip {
-			continue
-		}
-		normalizedPath := filepath.ToSlash(relativePath)
-		if firstFilePath == "" {
-			firstFilePath = normalizedPath
-		} else {
-			hasMultipleFiles = true
-		}
-	}
-	if firstFilePath == "" {
-		return "", nil
-	}
-	parts := strings.Split(firstFilePath, "/")
-	if len(parts) <= 1 {
-		return "", nil
-	}
-	commonPrefix := parts[0] + "/"
-	if hasMultipleFiles {
-		for _, item := range files {
-			relativePath, skip, err := normalizePagesArchivePath(item.Name)
-			if err != nil {
-				return "", err
-			}
-			if skip {
-				continue
-			}
-			normalizedPath := filepath.ToSlash(relativePath)
-			if !strings.HasPrefix(normalizedPath, commonPrefix) {
-				return "", nil
-			}
-		}
-	}
-	return commonPrefix, nil
-}
-
 func extractPagesPackage(packageBytes []byte, releaseDir string, deployment pagesDeploymentSource) error {
 	tmpDir := releaseDir + ".tmp"
 	_ = os.RemoveAll(tmpDir)
 	if err := os.MkdirAll(tmpDir, pagesDirPerm); err != nil {
 		return err
 	}
-	reader, err := zip.NewReader(bytes.NewReader(packageBytes), int64(len(packageBytes)))
+	format, err := pagesarchive.DetectFormat("", packageBytes)
 	if err != nil {
 		_ = os.RemoveAll(tmpDir)
-		return fmt.Errorf("open Pages zip: %w", err)
+		return fmt.Errorf("detect Pages package format: %w", err)
 	}
-	commonPrefix, err := findCommonRootPrefix(reader.File)
-	if err != nil {
+	// Control plane already inspected and accepted this package. Agent only
+	// verifies download integrity (checksum) and performs local-safe extract
+	// (path escape / symlink guards). Size and file-count limits are not re-applied.
+	if err := pagesarchive.ExtractBytes(packageBytes, format, tmpDir, pagesarchive.ExtractOptions{
+		StripCommonRoot: true,
+		EnforceLimits:   false,
+	}); err != nil {
 		_ = os.RemoveAll(tmpDir)
-		return err
-	}
-	for _, item := range reader.File {
-		relativePath, skip, err := normalizePagesArchivePath(item.Name)
-		if err != nil {
-			_ = os.RemoveAll(tmpDir)
-			return err
-		}
-		if skip {
-			continue
-		}
-		if commonPrefix != "" {
-			slashPath := filepath.ToSlash(relativePath)
-			if strings.HasPrefix(slashPath, commonPrefix) {
-				relativePath = filepath.FromSlash(strings.TrimPrefix(slashPath, commonPrefix))
-			}
-		}
-		if item.FileInfo().Mode()&os.ModeSymlink != 0 {
-			_ = os.RemoveAll(tmpDir)
-			return fmt.Errorf("pages package contains unsupported symlink: %s", relativePath)
-		}
-		if err := extractPagesFile(item, filepath.Join(tmpDir, relativePath)); err != nil {
-			_ = os.RemoveAll(tmpDir)
-			return err
-		}
+		return fmt.Errorf("extract Pages package: %w", err)
 	}
 	if err := writePagesMarker(tmpDir, deployment); err != nil {
 		_ = os.RemoveAll(tmpDir)
@@ -313,42 +246,6 @@ func extractPagesPackage(packageBytes []byte, releaseDir string, deployment page
 	}
 	_ = os.RemoveAll(releaseDir)
 	return os.Rename(tmpDir, releaseDir)
-}
-
-func copyPagesZipEntryContent(dst io.Writer, src io.Reader, declaredSize uint64) (int64, error) {
-	if declaredSize > pagesMaxExtractedFileBytes || declaredSize > uint64(math.MaxInt64) {
-		return 0, errors.New("pages file size out of bounds")
-	}
-	if declaredSize > 0 {
-		return io.CopyN(dst, src, int64(declaredSize)) //nolint:gosec // declaredSize is bounded to math.MaxInt64 above
-	}
-	limited := io.LimitReader(src, pagesMaxExtractedFileBytes+1)
-	written, err := io.Copy(dst, limited)
-	if written > pagesMaxExtractedFileBytes {
-		return written, errors.New("pages file size out of bounds")
-	}
-	return written, err
-}
-
-func extractPagesFile(item *zip.File, targetPath string) error {
-	if err := os.MkdirAll(filepath.Dir(targetPath), pagesDirPerm); err != nil {
-		return err
-	}
-	source, err := item.Open()
-	if err != nil {
-		return err
-	}
-	defer func() { _ = source.Close() }()
-	target, err := os.OpenFile(targetPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, pagesFilePerm) //nolint:gosec // targetPath is under managed PagesDir from validated zip entry
-	if err != nil {
-		return err
-	}
-	defer func() { _ = target.Close() }()
-	_, err = copyPagesZipEntryContent(target, source, item.UncompressedSize64)
-	if err != nil {
-		return fmt.Errorf("%s: %w", item.Name, err)
-	}
-	return nil
 }
 
 func switchPagesCurrentDir(baseDir string, deploymentID uint, releaseDir string) error {
@@ -438,24 +335,6 @@ func copyPagesDir(sourceDir string, targetDir string) error {
 		_, err = io.Copy(output, input)
 		return err
 	})
-}
-
-func normalizePagesArchivePath(raw string) (string, bool, error) {
-	name := strings.TrimSpace(filepath.ToSlash(raw))
-	if name == "" || strings.HasSuffix(name, "/") {
-		return "", true, nil
-	}
-	if strings.HasPrefix(name, "/") {
-		return "", false, fmt.Errorf("pages package contains absolute path: %s", raw)
-	}
-	cleaned := path.Clean(name)
-	if cleaned == "." {
-		return "", true, nil
-	}
-	if cleaned == ".." || strings.HasPrefix(cleaned, "../") || strings.Contains(cleaned, "/../") {
-		return "", false, fmt.Errorf("pages package path escapes deployment root: %s", raw)
-	}
-	return filepath.FromSlash(cleaned), false, nil
 }
 
 func markerMatches(dir string, deployment pagesDeploymentSource) bool {

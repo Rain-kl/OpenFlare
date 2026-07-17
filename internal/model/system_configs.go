@@ -50,6 +50,10 @@ const (
 	ConfigKeyDatabaseAutoCleanupEnabled       = "database_auto_cleanup_enabled"        // 数据库自动清理开关
 	ConfigKeyDatabaseAutoCleanupRetentionDays = "database_auto_cleanup_retention_days" // 数据库保留天数
 
+	// Pages 静态托管配置
+	ConfigKeyPagesMaxPackageSizeMB = "pages_max_package_size_mb" // Pages 部署包上传大小上限（MiB）
+	ConfigKeyPagesMaxHistoryCount  = "pages_max_history_count"   // Pages 每个项目最大历史部署保留数（0 表示不限制）
+
 	// UptimeKuma 集成配置
 	ConfigKeyUptimeKumaEnabled       = "uptime_kuma_enabled"        // UptimeKuma 集成开关
 	ConfigKeyUptimeKumaURL           = "uptime_kuma_url"            // UptimeKuma URL

@@ -4,14 +4,12 @@
 package pages
 
 import (
-	"archive/zip"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
-	"math"
 	"mime/multipart"
 	"os"
 	"path"
@@ -22,17 +20,22 @@ import (
 	"github.com/Rain-kl/Wavelet/internal/apps/upload"
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"github.com/Rain-kl/Wavelet/internal/repository"
+	"github.com/Rain-kl/Wavelet/pkg/logger"
+	"github.com/Rain-kl/Wavelet/pkg/pagesarchive"
 )
 
 const (
-	pagesMaxDeploymentFiles   = 1000
-	pagesMaxDeploymentBytes   = 100 * 1024 * 1024
-	defaultPagesEntryFile     = "index.html"
-	defaultPagesFallbackPath  = "/index.html"
-	pagesDeploymentUploadType = "openflare_pages_deployment"
-	mimeTypeApplicationZip    = "application/zip"
-	pagesMaxPathLength        = 512
-	bytesPerKiB               = 1024
+	pagesMaxDeploymentFiles      = 1000
+	defaultPagesMaxPackageSizeMB = 100
+	maxPagesMaxPackageSizeMB     = 2048
+	defaultPagesMaxHistoryCount  = 20
+	defaultPagesEntryFile        = "index.html"
+	defaultPagesFallbackPath     = "/index.html"
+	pagesDeploymentUploadType    = "openflare_pages_deployment"
+	pagesMaxPathLength           = 512
+	bytesPerMiB                  = 1024 * 1024
+	pagesExtractedSizeMultiplier = 4
+	pagesMinExtractedSizeBytes   = 100 * bytesPerMiB
 )
 
 var pagesSlugPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{0,126}[a-z0-9]$|^[a-z0-9]$`)
@@ -42,6 +45,14 @@ type deploymentManifest struct {
 	FileCount int
 	TotalSize int64
 	EntryFile string
+	Format    pagesarchive.Format
+}
+
+type pagesLimits struct {
+	PackageBytes   int64
+	ExtractedBytes int64
+	MaxFiles       int
+	HistoryCount   int
 }
 
 func isUniqueConstraintError(err error) bool {
@@ -49,6 +60,38 @@ func isUniqueConstraintError(err error) bool {
 		return false
 	}
 	return strings.Contains(strings.ToLower(err.Error()), "unique")
+}
+
+func resolvePagesLimits(ctx context.Context) pagesLimits {
+	packageMB := defaultPagesMaxPackageSizeMB
+	if value, err := repository.GetIntByKey(ctx, model.ConfigKeyPagesMaxPackageSizeMB); err == nil && value > 0 {
+		packageMB = value
+	}
+	if packageMB > maxPagesMaxPackageSizeMB {
+		packageMB = maxPagesMaxPackageSizeMB
+	}
+
+	historyCount := defaultPagesMaxHistoryCount
+	if value, err := repository.GetIntByKey(ctx, model.ConfigKeyPagesMaxHistoryCount); err == nil {
+		if value < 0 {
+			historyCount = 0
+		} else {
+			historyCount = value
+		}
+	}
+
+	packageBytes := int64(packageMB) * bytesPerMiB
+	extractedBytes := packageBytes * pagesExtractedSizeMultiplier
+	if extractedBytes < pagesMinExtractedSizeBytes {
+		extractedBytes = pagesMinExtractedSizeBytes
+	}
+
+	return pagesLimits{
+		PackageBytes:   packageBytes,
+		ExtractedBytes: extractedBytes,
+		MaxFiles:       pagesMaxDeploymentFiles,
+		HistoryCount:   historyCount,
+	}
 }
 
 func normalizePagesSlug(raw string) string {
@@ -76,7 +119,7 @@ func validateAndNormalizePagesRootDir(raw string) (string, error) {
 		return "", nil
 	}
 	if len(value) > pagesMaxPathLength {
-		return "", errors.New("pages 根目录长度不能超过 512") // error 消息首字母小写
+		return "", errors.New("pages 根目录长度不能超过 512")
 	}
 	if strings.Contains(value, "\\") || strings.ContainsAny(value, "\"';") {
 		return "", errors.New("pages 根目录包含不支持的字符")
@@ -151,29 +194,50 @@ func normalizePagesEntryFile(raw string) string {
 	return strings.TrimPrefix(value, "/")
 }
 
-func persistPagesUploadTemp(fileHeader *multipart.FileHeader) (string, string, int64, error) {
+func persistPagesUploadTemp(fileHeader *multipart.FileHeader, maxPackageBytes int64) (string, string, int64, pagesarchive.Format, error) {
+	format, ok := pagesarchive.DetectFormatFromName(fileHeader.Filename)
+	if !ok {
+		return "", "", 0, "", errors.New(errPagesPackageUnsupported)
+	}
 	file, err := fileHeader.Open()
 	if err != nil {
-		return "", "", 0, err
+		return "", "", 0, "", err
 	}
 	defer func() { _ = file.Close() }()
-	temp, err := os.CreateTemp("", "openflare-pages-*.zip")
+	temp, err := os.CreateTemp("", "openflare-pages-*."+safeTempSuffix(format))
 	if err != nil {
-		return "", "", 0, err
+		return "", "", 0, "", err
 	}
 	defer func() { _ = temp.Close() }()
 	hash := sha256.New()
-	limited := io.LimitReader(file, pagesMaxDeploymentBytes+1)
+	limited := io.LimitReader(file, maxPackageBytes+1)
 	written, err := io.Copy(io.MultiWriter(temp, hash), limited)
 	if err != nil {
 		_ = os.Remove(temp.Name())
-		return "", "", 0, err
+		return "", "", 0, "", err
 	}
-	if written > pagesMaxDeploymentBytes {
+	if written > maxPackageBytes {
 		_ = os.Remove(temp.Name())
-		return "", "", 0, fmt.Errorf("pages 部署包不能超过 %d MiB", pagesMaxDeploymentBytes/bytesPerKiB/bytesPerKiB)
+		return "", "", 0, "", fmt.Errorf("pages 部署包不能超过 %d MiB", maxPackageBytes/bytesPerMiB)
 	}
-	return temp.Name(), hex.EncodeToString(hash.Sum(nil)), written, nil
+	return temp.Name(), hex.EncodeToString(hash.Sum(nil)), written, format, nil
+}
+
+func safeTempSuffix(format pagesarchive.Format) string {
+	switch format {
+	case pagesarchive.FormatTarGz:
+		return "tar.gz"
+	case pagesarchive.FormatTarXz:
+		return "tar.xz"
+	case pagesarchive.FormatTarBz2:
+		return "tar.bz2"
+	case pagesarchive.FormatSevenZip:
+		return "7z"
+	case pagesarchive.FormatTar:
+		return "tar"
+	default:
+		return "zip"
+	}
 }
 
 func pagesLegacyRelativeCandidates(project *model.PagesProject, deployment *model.PagesDeployment) []string {
@@ -185,6 +249,7 @@ func pagesLegacyRelativeCandidates(project *model.PagesProject, deployment *mode
 	if slug == "" || checksum == "" {
 		return nil
 	}
+	// Legacy artifacts were always stored as .zip.
 	fileName := checksum + ".zip"
 	return []string{
 		filepath.Join("artifacts", slug, fileName),
@@ -199,14 +264,16 @@ func ingestPagesDeploymentPackage(
 	checksum string,
 	projectSlug string,
 	fileName string,
+	format pagesarchive.Format,
 ) (upload.IngestResult, error) {
 	systemUser := repository.GetSystemUser(ctx)
 	accessMode := 0
+	extension := pagesarchive.NormalizeNameExtension(fileName, format)
 	return upload.IngestFromLocalPath(ctx, localPath, upload.IngestRequest{
 		UserID:             systemUser.ID,
 		FileName:           fileName,
-		MimeType:           mimeTypeApplicationZip,
-		Extension:          "zip",
+		MimeType:           pagesarchive.MIMEType(format),
+		Extension:          extension,
 		Hash:               checksum,
 		Type:               pagesDeploymentUploadType,
 		AccessMode:         &accessMode,
@@ -215,6 +282,7 @@ func ingestPagesDeploymentPackage(
 		Metadata: model.UploadMetadata{
 			Extra: map[string]any{
 				"project_slug": projectSlug,
+				"format":       string(format),
 			},
 		},
 	})
@@ -224,167 +292,96 @@ func removeDeploymentArtifact(ctx context.Context, deployment *model.PagesDeploy
 	if deployment == nil {
 		return
 	}
-	if deployment.UploadID > 0 {
-		_, _ = upload.Remove(ctx, deployment.UploadID)
+	if deployment.UploadID == 0 {
+		return
+	}
+	if _, err := upload.Remove(ctx, deployment.UploadID); err != nil {
+		// Soft-delete / storage cleanup failure must not undo DB prune; log for ops.
+		logger.WarnF(ctx,
+			"[Pages] remove deployment artifact failed: deployment_id=%d upload_id=%d error=%v",
+			deployment.ID, deployment.UploadID, err,
+		)
 	}
 }
 
-func findCommonRootPrefix(files []*zip.File) (string, error) {
-	var firstFilePath string
-	hasMultipleFiles := false
-	for _, item := range files {
-		normalizedPath, skip, err := normalizePagesZipPath(item.Name)
-		if err != nil {
-			return "", err
-		}
-		if skip {
-			continue
-		}
-		if firstFilePath == "" {
-			firstFilePath = normalizedPath
-		} else {
-			hasMultipleFiles = true
-		}
-	}
-	if firstFilePath == "" {
-		return "", nil
-	}
-	parts := strings.Split(firstFilePath, "/")
-	if len(parts) <= 1 {
-		return "", nil
-	}
-	commonPrefix := parts[0] + "/"
-	if hasMultipleFiles {
-		for _, item := range files {
-			normalizedPath, skip, err := normalizePagesZipPath(item.Name)
-			if err != nil {
-				return "", err
-			}
-			if skip {
-				continue
-			}
-			if !strings.HasPrefix(normalizedPath, commonPrefix) {
-				return "", nil
-			}
-		}
-	}
-	return commonPrefix, nil
-}
-
-func inspectPagesZip(zipPath string, rootDir string, entryFile string) (*deploymentManifest, error) {
-	reader, err := zip.OpenReader(zipPath)
-	if err != nil {
-		return nil, errors.New(errPagesPackageInvalidZip)
-	}
-	defer func() { _ = reader.Close() }()
-
-	commonPrefix, err := findCommonRootPrefix(reader.File)
-	if err != nil {
-		return nil, err
-	}
-
-	manifest := &deploymentManifest{
-		Files:     []model.PagesDeploymentFile{},
+func inspectPagesPackage(packagePath string, format pagesarchive.Format, rootDir string, entryFile string, limits pagesLimits) (*deploymentManifest, error) {
+	archiveManifest, err := pagesarchive.InspectFile(packagePath, format, pagesarchive.InspectOptions{
+		RootDir:   rootDir,
 		EntryFile: entryFile,
+		Limits: pagesarchive.Limits{
+			MaxFiles:      limits.MaxFiles,
+			MaxFileBytes:  limits.ExtractedBytes,
+			MaxTotalBytes: limits.ExtractedBytes,
+		},
+	})
+	if err != nil {
+		return nil, mapPagesArchiveError(err)
 	}
-	targetEntryPath := entryFile
-	if rootDir != "" {
-		targetEntryPath = path.Join(rootDir, entryFile)
+	manifest := &deploymentManifest{
+		Files:     make([]model.PagesDeploymentFile, 0, len(archiveManifest.Files)),
+		FileCount: archiveManifest.FileCount,
+		TotalSize: archiveManifest.TotalSize,
+		EntryFile: entryFile,
+		Format:    format,
 	}
-	entrySeen := false
-	for _, item := range reader.File {
-		normalizedPath, skip, err := normalizePagesZipPath(item.Name)
-		if err != nil {
-			return nil, err
-		}
-		if skip {
-			continue
-		}
-		if commonPrefix != "" {
-			normalizedPath = strings.TrimPrefix(normalizedPath, commonPrefix)
-		}
-		if item.FileInfo().Mode()&os.ModeSymlink != 0 {
-			return nil, fmt.Errorf("pages 部署包不支持符号链接: %s", normalizedPath)
-		}
-		if item.UncompressedSize64 > pagesMaxDeploymentBytes {
-			return nil, fmt.Errorf("pages 文件过大: %s", normalizedPath)
-		}
-		manifest.FileCount++
-		if manifest.FileCount > pagesMaxDeploymentFiles {
-			return nil, fmt.Errorf("pages 部署文件数不能超过 %d", pagesMaxDeploymentFiles)
-		}
-		checksum, fileSize, err := checksumZipFile(item)
-		if err != nil {
-			return nil, fmt.Errorf("%s: %w", normalizedPath, err)
-		}
-		manifest.TotalSize += fileSize
-		if manifest.TotalSize > pagesMaxDeploymentBytes {
-			return nil, fmt.Errorf("pages 部署展开后不能超过 %d MiB", pagesMaxDeploymentBytes/bytesPerKiB/bytesPerKiB)
-		}
-		if normalizedPath == targetEntryPath {
-			entrySeen = true
-		}
+	for _, file := range archiveManifest.Files {
 		manifest.Files = append(manifest.Files, model.PagesDeploymentFile{
-			Path:     normalizedPath,
-			Size:     fileSize,
-			Checksum: checksum,
+			Path:     file.Path,
+			Size:     file.Size,
+			Checksum: file.Checksum,
 		})
-	}
-	if manifest.FileCount == 0 {
-		return nil, errors.New(errPagesPackageEmpty)
-	}
-	if !entrySeen {
-		return nil, fmt.Errorf("pages 部署包缺少入口文件 %s", targetEntryPath)
 	}
 	return manifest, nil
 }
 
-func normalizePagesZipPath(raw string) (string, bool, error) {
-	name := strings.TrimSpace(filepath.ToSlash(raw))
-	if name == "" {
-		return "", true, nil
+func mapPagesArchiveError(err error) error {
+	if err == nil {
+		return nil
 	}
-	if strings.HasSuffix(name, "/") {
-		return "", true, nil
+	message := err.Error()
+	switch {
+	case strings.Contains(message, "unsupported pages package format"):
+		return errors.New(errPagesPackageUnsupported)
+	case strings.Contains(message, "open zip"), strings.Contains(message, "open gzip"),
+		strings.Contains(message, "open xz"), strings.Contains(message, "open 7z"),
+		strings.Contains(message, "read tar"):
+		return errors.New(errPagesPackageInvalid)
+	case strings.Contains(message, "empty"):
+		return errors.New(errPagesPackageEmpty)
+	case strings.Contains(message, "missing entry file"):
+		return err
+	case strings.Contains(message, "file count exceeds"):
+		return fmt.Errorf("pages 部署文件数不能超过 %d", pagesMaxDeploymentFiles)
+	case strings.Contains(message, "extracted size exceeds"):
+		return errors.New(errPagesPackageExtractedTooLarge)
+	case strings.Contains(message, "file too large"), strings.Contains(message, "size out of bounds"):
+		return errors.New(errPagesPackageFileTooLarge)
+	case strings.Contains(message, "symlink"):
+		return err
+	case strings.Contains(message, "absolute path"), strings.Contains(message, "escapes directory"):
+		return err
+	default:
+		return err
 	}
-	if strings.HasPrefix(name, "/") || path.IsAbs(name) {
-		return "", false, fmt.Errorf("pages 部署包不能包含绝对路径: %s", raw)
-	}
-	cleaned := path.Clean(name)
-	if cleaned == "." {
-		return "", true, nil
-	}
-	if cleaned == ".." || strings.HasPrefix(cleaned, "../") || strings.Contains(cleaned, "/../") {
-		return "", false, fmt.Errorf("pages 部署包路径不能逃逸目录: %s", raw)
-	}
-	return cleaned, false, nil
 }
 
-func copyPagesZipEntryContent(dst io.Writer, src io.Reader, declaredSize uint64) (int64, error) {
-	if declaredSize > pagesMaxDeploymentBytes || declaredSize > uint64(math.MaxInt64) {
-		return 0, errors.New("pages file size out of bounds")
+func packageDownloadName(deploymentID uint, fileName string, contentType string) string {
+	if format, ok := pagesarchive.DetectFormatFromName(fileName); ok {
+		return fmt.Sprintf("pages-deployment-%d.%s", deploymentID, pagesarchive.Extension(format))
 	}
-	if declaredSize > 0 {
-		return io.CopyN(dst, src, int64(declaredSize)) //nolint:gosec // declaredSize is bounded to math.MaxInt64 above
+	// Fall back by content type.
+	switch strings.ToLower(strings.TrimSpace(contentType)) {
+	case "application/gzip", "application/x-gzip":
+		return fmt.Sprintf("pages-deployment-%d.tar.gz", deploymentID)
+	case "application/x-xz":
+		return fmt.Sprintf("pages-deployment-%d.tar.xz", deploymentID)
+	case "application/x-bzip2":
+		return fmt.Sprintf("pages-deployment-%d.tar.bz2", deploymentID)
+	case "application/x-7z-compressed":
+		return fmt.Sprintf("pages-deployment-%d.7z", deploymentID)
+	case "application/x-tar":
+		return fmt.Sprintf("pages-deployment-%d.tar", deploymentID)
+	default:
+		return fmt.Sprintf("pages-deployment-%d.zip", deploymentID)
 	}
-	limited := io.LimitReader(src, pagesMaxDeploymentBytes+1)
-	written, err := io.Copy(dst, limited)
-	if written > pagesMaxDeploymentBytes {
-		return written, errors.New("pages file size out of bounds")
-	}
-	return written, err
-}
-
-func checksumZipFile(item *zip.File) (string, int64, error) {
-	file, err := item.Open()
-	if err != nil {
-		return "", 0, err
-	}
-	defer func() { _ = file.Close() }()
-	hash := sha256.New()
-	written, err := copyPagesZipEntryContent(hash, file, item.UncompressedSize64)
-	if err != nil {
-		return "", written, err
-	}
-	return hex.EncodeToString(hash.Sum(nil)), written, nil
 }

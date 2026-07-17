@@ -20,6 +20,8 @@ export type OpenFlareOpsFields = {
   uptime_kuma_timeout: string;
   database_auto_cleanup_enabled: boolean;
   database_auto_cleanup_retention_days: string;
+  pages_max_package_size_mb: string;
+  pages_max_history_count: string;
 };
 
 export const defaultOpenFlareOpsFields: OpenFlareOpsFields = {
@@ -42,6 +44,8 @@ export const defaultOpenFlareOpsFields: OpenFlareOpsFields = {
   uptime_kuma_timeout: '48',
   database_auto_cleanup_enabled: false,
   database_auto_cleanup_retention_days: '30',
+  pages_max_package_size_mb: '100',
+  pages_max_history_count: '20',
 };
 
 export const INSTALLER_SCRIPT_URL =
@@ -90,6 +94,8 @@ export function mapOptionsToOpsFields(
     ),
     database_auto_cleanup_retention_days:
       optionMap.database_auto_cleanup_retention_days ?? '30',
+    pages_max_package_size_mb: optionMap.pages_max_package_size_mb ?? '100',
+    pages_max_history_count: optionMap.pages_max_history_count ?? '20',
   };
 }
 
@@ -223,6 +229,33 @@ export function databaseAutoCleanupEntries(
     {
       key: 'database_auto_cleanup_retention_days',
       value: fields.database_auto_cleanup_retention_days,
+    },
+  ];
+}
+
+export function validatePagesFields(fields: OpenFlareOpsFields) {
+  const packageSize = Number.parseInt(fields.pages_max_package_size_mb, 10);
+  const historyCount = Number.parseInt(fields.pages_max_history_count, 10);
+  if (Number.isNaN(packageSize) || packageSize < 1 || packageSize > 2048) {
+    throw new Error('Pages 部署包大小上限必须为 1～2048 MiB。');
+  }
+  if (Number.isNaN(historyCount) || historyCount < 0) {
+    throw new Error(
+      'Pages 历史保留数必须为大于等于 0 的整数（0 表示不限制）。',
+    );
+  }
+}
+
+export function pagesOptionEntries(fields: OpenFlareOpsFields): OptionItem[] {
+  validatePagesFields(fields);
+  return [
+    {
+      key: 'pages_max_package_size_mb',
+      value: String(Number.parseInt(fields.pages_max_package_size_mb, 10)),
+    },
+    {
+      key: 'pages_max_history_count',
+      value: String(Number.parseInt(fields.pages_max_history_count, 10)),
     },
   ];
 }

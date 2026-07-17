@@ -59,6 +59,9 @@ func validateOptionWithState(ctx context.Context, option model.OpenFlareOption, 
 	if err := validateAgentOption(option.Key, option.Value); err != nil {
 		return err
 	}
+	if err := validatePagesOption(option.Key, option.Value); err != nil {
+		return err
+	}
 	return validateUptimeKumaOption(ctx, option.Key, option.Value, state)
 }
 
@@ -105,6 +108,23 @@ func validateDatabaseCleanupOption(key, value string) error {
 func validateAgentOption(key, value string) error {
 	if key == model.ConfigKeyAgentWebsocketUpgradeEnabled {
 		return validateBooleanOption(key, strings.TrimSpace(value))
+	}
+	return nil
+}
+
+func validatePagesOption(key, value string) error {
+	trimmed := strings.TrimSpace(value)
+	switch key {
+	case model.ConfigKeyPagesMaxPackageSizeMB:
+		intValue, err := strconv.Atoi(trimmed)
+		if err != nil || intValue < 1 || intValue > 2048 {
+			return fmt.Errorf("%s 必须为 1～2048 的整数（MiB）", key)
+		}
+	case model.ConfigKeyPagesMaxHistoryCount:
+		intValue, err := strconv.Atoi(trimmed)
+		if err != nil || intValue < 0 {
+			return fmt.Errorf("%s 必须为大于等于 0 的整数（0 表示不限制）", key)
+		}
 	}
 	return nil
 }

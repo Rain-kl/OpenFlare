@@ -30,7 +30,8 @@ export default function PagesPage() {
           <div>
             <h1 className='text-2xl font-semibold tracking-tight'>Pages</h1>
             <p className='text-sm text-muted-foreground'>
-              边缘静态站点托管，上传 zip 部署包并在代理规则中选择 Pages 上游。
+              边缘静态站点托管，上传静态资源部署包并在代理规则中选择 Pages
+              上游。
             </p>
           </div>
         </div>
