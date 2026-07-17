@@ -203,11 +203,7 @@ func buildLivePagesDeployment(project *model.PagesProject, active *model.PagesDe
 		APIProxyPath:       strings.TrimSpace(project.APIProxyPath),
 		APIProxyPass:       strings.TrimSpace(project.APIProxyPass),
 		APIProxyRewrite:    strings.TrimSpace(project.APIProxyRewrite),
-		LocalRoot: fmt.Sprintf(
-			"%s/deployments/%d/current",
-			openrestyrender.PagesDirPlaceholder,
-			active.ID,
-		),
+		LocalRoot:          openrestyrender.PagesProjectLocalRoot(project.ID),
 	}
 }
 

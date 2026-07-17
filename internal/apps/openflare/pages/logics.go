@@ -509,7 +509,8 @@ func ActivateDeployment(ctx context.Context, projectID uint, deploymentID uint) 
 	return GetProject(ctx, project.ID)
 }
 
-// GetDeploymentPackageHash returns the SHA-256 hash of the deployment package from upload storage.
+// GetDeploymentPackageHash returns the upload SHA-256 hash of the deployment package.
+// Prefer GetProjectLatestPackageHash for Agent latest-pointer pulls.
 func GetDeploymentPackageHash(ctx context.Context, deploymentID uint) (string, error) {
 	deployment, err := model.GetPagesDeploymentByID(ctx, deploymentID)
 	if err != nil {
@@ -518,14 +519,94 @@ func GetDeploymentPackageHash(ctx context.Context, deploymentID uint) (string, e
 	if err = ensureDeploymentInActiveSnapshot(ctx, deployment.ID); err != nil {
 		return "", err
 	}
+	return deploymentPackageHash(ctx, deployment)
+}
+
+// GetProjectLatestPackageHash returns the package hash of a project's active deployment.
+// This is the Agent "latest" pointer: callers pass project_id only.
+func GetProjectLatestPackageHash(ctx context.Context, projectID uint) (uint, string, error) {
+	deployment, err := resolveProjectActiveDeploymentForAgent(ctx, projectID)
+	if err != nil {
+		return 0, "", err
+	}
+	hash, err := deploymentPackageHash(ctx, deployment)
+	if err != nil {
+		return 0, "", err
+	}
+	return deployment.ID, hash, nil
+}
+
+// OpenDeploymentPackage opens the deployment artifact from the upload storage framework.
+func OpenDeploymentPackage(ctx context.Context, deploymentID uint) (DeploymentPackage, error) {
+	deployment, err := model.GetPagesDeploymentByID(ctx, deploymentID)
+	if err != nil {
+		return DeploymentPackage{}, err
+	}
+	if err = ensureDeploymentInActiveSnapshot(ctx, deployment.ID); err != nil {
+		return DeploymentPackage{}, err
+	}
+	if deployment.UploadID == 0 {
+		if err := ensureDeploymentUploadRecord(ctx, deployment); err != nil {
+			return DeploymentPackage{}, err
+		}
+	}
+	return openDeploymentPackageFromUpload(ctx, deployment.UploadID, deployment.ID)
+}
+
+// OpenProjectLatestPackage opens the currently active deployment package for a project.
+func OpenProjectLatestPackage(ctx context.Context, projectID uint) (DeploymentPackage, error) {
+	deployment, err := resolveProjectActiveDeploymentForAgent(ctx, projectID)
+	if err != nil {
+		return DeploymentPackage{}, err
+	}
+	if deployment.UploadID == 0 {
+		if err := ensureDeploymentUploadRecord(ctx, deployment); err != nil {
+			return DeploymentPackage{}, err
+		}
+	}
+	return openDeploymentPackageFromUpload(ctx, deployment.UploadID, deployment.ID)
+}
+
+func resolveProjectActiveDeploymentForAgent(ctx context.Context, projectID uint) (*model.PagesDeployment, error) {
+	if projectID == 0 {
+		return nil, errors.New(errPagesProjectNotFound)
+	}
+	project, err := model.GetPagesProjectByID(ctx, projectID)
+	if err != nil {
+		return nil, err
+	}
+	if !project.Enabled {
+		return nil, errors.New(errPagesPackageNotInActiveConfig)
+	}
+	if project.ActiveDeploymentID == nil || *project.ActiveDeploymentID == 0 {
+		return nil, errors.New(errPagesPackageNotInActiveConfig)
+	}
+	if err := ensureProjectInActiveConfig(ctx, project.ID); err != nil {
+		return nil, err
+	}
+	deployment, err := model.GetPagesDeploymentByID(ctx, *project.ActiveDeploymentID)
+	if err != nil {
+		return nil, err
+	}
+	if deployment.ProjectID != project.ID {
+		return nil, errors.New(errPagesDeploymentMismatch)
+	}
+	return deployment, nil
+}
+
+func deploymentPackageHash(ctx context.Context, deployment *model.PagesDeployment) (string, error) {
+	if deployment == nil {
+		return "", errors.New(errPagesDeploymentNotFound)
+	}
 	if deployment.UploadID == 0 {
 		if err := ensureDeploymentUploadRecord(ctx, deployment); err != nil {
 			return "", err
 		}
-		deployment, err = model.GetPagesDeploymentByID(ctx, deploymentID)
+		reloaded, err := model.GetPagesDeploymentByID(ctx, deployment.ID)
 		if err != nil {
 			return "", err
 		}
+		deployment = reloaded
 	}
 	if deployment.UploadID == 0 {
 		hash := strings.TrimSpace(deployment.Checksum)
@@ -546,23 +627,6 @@ func GetDeploymentPackageHash(ctx context.Context, deploymentID uint) (string, e
 		return "", errors.New(errPagesDeploymentHashMissing)
 	}
 	return hash, nil
-}
-
-// OpenDeploymentPackage opens the deployment artifact from the upload storage framework.
-func OpenDeploymentPackage(ctx context.Context, deploymentID uint) (DeploymentPackage, error) {
-	deployment, err := model.GetPagesDeploymentByID(ctx, deploymentID)
-	if err != nil {
-		return DeploymentPackage{}, err
-	}
-	if err = ensureDeploymentInActiveSnapshot(ctx, deployment.ID); err != nil {
-		return DeploymentPackage{}, err
-	}
-	if deployment.UploadID == 0 {
-		if err := ensureDeploymentUploadRecord(ctx, deployment); err != nil {
-			return DeploymentPackage{}, err
-		}
-	}
-	return openDeploymentPackageFromUpload(ctx, deployment.UploadID, deployment.ID)
 }
 
 func openDeploymentPackageFromUpload(ctx context.Context, uploadID uint64, deploymentID uint) (DeploymentPackage, error) {
@@ -648,13 +712,9 @@ func hydrateLegacyDeploymentUpload(
 	return &ingestResult.Upload, nil
 }
 
-// ensureDeploymentInActiveSnapshot allows Agent package download when the
-// deployment is the project's current active deployment and that project is
-// used by at least one pages route in the active main config.
-//
-// Main config versions pin historical pages_deployment ids for audit only.
-// Runtime download always follows the live active Pages deployment (dual
-// version control); rolling back main config must not require old packages.
+// ensureDeploymentInActiveSnapshot allows download of a specific deployment when
+// it is the project's current active deployment and the project is used by the
+// active main config.
 func ensureDeploymentInActiveSnapshot(ctx context.Context, deploymentID uint) error {
 	deployment, err := model.GetPagesDeploymentByID(ctx, deploymentID)
 	if err != nil {
@@ -667,7 +727,12 @@ func ensureDeploymentInActiveSnapshot(ctx context.Context, deploymentID uint) er
 	if project.ActiveDeploymentID == nil || *project.ActiveDeploymentID != deployment.ID {
 		return errors.New(errPagesPackageNotInActiveConfig)
 	}
+	return ensureProjectInActiveConfig(ctx, project.ID)
+}
 
+// ensureProjectInActiveConfig checks that the Pages project is referenced by at
+// least one pages route in the active main config snapshot.
+func ensureProjectInActiveConfig(ctx context.Context, projectID uint) error {
 	version, err := model.GetActiveConfigVersion(ctx)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -683,28 +748,27 @@ func ensureDeploymentInActiveSnapshot(ctx context.Context, deploymentID uint) er
 		if !strings.EqualFold(strings.TrimSpace(route.UpstreamType), "pages") {
 			continue
 		}
-		if route.PagesProjectID != nil && *route.PagesProjectID == project.ID {
+		if route.PagesProjectID != nil && *route.PagesProjectID == projectID {
 			return nil
 		}
 		if route.PagesDeployment == nil {
 			continue
 		}
-		if route.PagesDeployment.ProjectID == project.ID {
+		if route.PagesDeployment.ProjectID == projectID {
 			return nil
 		}
-		// Frozen snapshot may only carry deployment_id; resolve project via that row.
 		if route.PagesDeployment.DeploymentID == 0 {
 			continue
 		}
-		if route.PagesDeployment.DeploymentID == deployment.ID {
-			return nil
-		}
-		snapDeployment, snapErr := model.GetPagesDeploymentByID(ctx, route.PagesDeployment.DeploymentID)
-		if snapErr != nil {
-			continue
-		}
-		if snapDeployment.ProjectID == project.ID {
-			return nil
+		if route.PagesDeployment.DeploymentID != 0 {
+			// Historical snapshot may only pin deployment_id.
+			snapDeployment, snapErr := model.GetPagesDeploymentByID(ctx, route.PagesDeployment.DeploymentID)
+			if snapErr != nil {
+				continue
+			}
+			if snapDeployment.ProjectID == projectID {
+				return nil
+			}
 		}
 	}
 	return errors.New(errPagesPackageNotInActiveConfig)

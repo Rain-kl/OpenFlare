@@ -337,12 +337,69 @@ func TestOpenDeploymentPackageRequiresActiveConfigSnapshot(t *testing.T) {
 	defer packageObj.Body.Close()
 	assert.Equal(t, fmt.Sprintf("pages-deployment-%d.zip", deployment.ID), packageObj.FileName)
 
+	// Latest-by-project resolves the active package once the project is on active config.
+	depID, hash, err := GetProjectLatestPackageHash(ctx, project.ID)
+	require.NoError(t, err)
+	assert.Equal(t, deployment.ID, depID)
+	assert.NotEmpty(t, hash)
+
+	latestPkg, err := OpenProjectLatestPackage(ctx, project.ID)
+	require.NoError(t, err)
+	defer latestPkg.Body.Close()
+
 	body, err := io.ReadAll(packageObj.Body)
 	require.NoError(t, err)
 	reader, err := zip.NewReader(bytes.NewReader(body), int64(len(body)))
 	require.NoError(t, err)
 	require.Len(t, reader.File, 1)
 	assert.Equal(t, "index.html", reader.File[0].Name)
+}
+
+func TestProjectLatestRejectsWhenNotOnActiveConfigOrNotActive(t *testing.T) {
+	cleanup := setupPagesTestDB(t)
+	defer cleanup()
+	_, disableStorage := setupPagesStorageMock(t)
+	defer disableStorage()
+	ctx := context.Background()
+
+	project, err := CreateProject(ctx, Input{Name: "Gate", Slug: "gate", Enabled: true})
+	require.NoError(t, err)
+	d1, err := UploadDeployment(ctx, project.ID, testPagesMultipartFile(t, "a.zip", testPagesZip(t, map[string]string{"index.html": "a"})), "root")
+	require.NoError(t, err)
+	d2, err := UploadDeployment(ctx, project.ID, testPagesMultipartFile(t, "b.zip", testPagesZip(t, map[string]string{"index.html": "b"})), "root")
+	require.NoError(t, err)
+	_, err = ActivateDeployment(ctx, project.ID, d2.ID)
+	require.NoError(t, err)
+
+	// No active main config → reject.
+	_, _, err = GetProjectLatestPackageHash(ctx, project.ID)
+	require.Error(t, err)
+
+	require.NoError(t, db.DB(ctx).Create(&model.ConfigVersion{
+		Version: "v-gate",
+		SnapshotJSON: fmt.Sprintf(
+			`{"routes":[{"upstream_type":"pages","pages_project_id":%d,"pages_deployment":{"project_id":%d,"deployment_id":%d}}]}`,
+			project.ID, project.ID, d2.ID,
+		),
+		SupportFilesJSON: "[]",
+		Checksum:         "c-gate",
+		IsActive:         true,
+		CreatedBy:        "test",
+	}).Error)
+
+	// Non-active historical deployment must not be downloadable.
+	_, err = OpenDeploymentPackage(ctx, d1.ID)
+	require.Error(t, err)
+
+	// Active latest works.
+	_, hash, err := GetProjectLatestPackageHash(ctx, project.ID)
+	require.NoError(t, err)
+	assert.NotEmpty(t, hash)
+
+	// Disabled project rejects.
+	require.NoError(t, db.DB(ctx).Model(&model.PagesProject{}).Where("id = ?", project.ID).Update("enabled", false).Error)
+	_, _, err = GetProjectLatestPackageHash(ctx, project.ID)
+	require.Error(t, err)
 }
 
 func testPagesZip(t *testing.T, files map[string]string) []byte {

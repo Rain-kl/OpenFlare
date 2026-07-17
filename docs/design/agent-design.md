@@ -98,7 +98,7 @@ Agent 对数据面 OpenResty 的管控实现了端到端的闭环，包含配置
 * `certs/`：证书存放目录（文件命名为 `{cert_id}.crt` 和 `{cert_id}.key`）。
 * `waf/` 与 `pow/`：WAF 及防 CC 挑战所需的专用 Lua 运行时脚本。
 * `waf_config.json` 与 `waf_ip_groups.json`：WAF 过滤引擎所需的结构化规则配置文件。
-* `pages_dir`：Pages 静态站点部署目录，默认位于 `data_dir/var/lib/openflare/pages`。当激活配置引用 Pages 部署时，Agent 会下载部署包（zip / tar.gz / tar.xz / tar.bz2 / tar / 7z）、校验下载 checksum、解压到部署 release 目录，并切换 `deployments/{deployment_id}/current` 供 OpenResty `root`/`try_files` 读取。业务侧体积/文件数校验由控制面完成，Agent 信任控制面结果，解压时仅保留本机路径安全防护。
+* `pages_dir`：Pages 静态站点部署目录，默认位于 `data_dir/var/lib/openflare/pages`。当激活配置引用 Pages **项目**时，Agent 按 `project_id` 请求控制面「最新激活包」（hash + package，下载后再校验 hash 防竞态），解压到 `projects/{project_id}/releases/{hash}`，切换 `current` 后**立即删除同项目其它历史 release**（仅保留最新）。项目内切换激活无需重发主配置；多项目对账时单项目失败不阻塞其它项目。
 
 ### 2. 精细化的重载动作
 1. **备份当前配置**：在写入新文件之前，Agent 会将现有的配置文件复制到 `.backup` 临时目录下，保留完整的现场快照。

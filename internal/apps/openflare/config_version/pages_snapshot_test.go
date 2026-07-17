@@ -64,7 +64,7 @@ func TestBuildSnapshotRoutesPages(t *testing.T) {
 	require.NotNil(t, snapshotRoute.PagesDeployment)
 	assert.Equal(t, deployment.ID, snapshotRoute.PagesDeployment.DeploymentID)
 	assert.Equal(t, deployment.Checksum, snapshotRoute.PagesDeployment.Checksum)
-	assert.Equal(t, "__OPENFLARE_PAGES_DIR__/deployments/1/current", snapshotRoute.PagesDeployment.LocalRoot)
+	assert.Equal(t, "__OPENFLARE_PAGES_DIR__/projects/1/current", snapshotRoute.PagesDeployment.LocalRoot)
 
 	_, err = renderSnapshotConfig(bundle.SnapshotJSON, nil)
 	require.NoError(t, err)

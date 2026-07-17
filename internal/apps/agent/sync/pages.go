@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -22,6 +23,9 @@ const (
 	pagesDirPerm          = 0o755
 	pagesFilePerm         = 0o644
 	pagesManifestFilePerm = 0o644
+	// pagesLatestPullAttempts covers a race where the active deployment changes
+	// between the hash probe and the package download.
+	pagesLatestPullAttempts = 2
 )
 
 type pagesSourceDocument struct {
@@ -30,16 +34,20 @@ type pagesSourceDocument struct {
 
 type pagesSourceRoute struct {
 	UpstreamType    string                 `json:"upstream_type"`
+	PagesProjectID  *uint                  `json:"pages_project_id"`
 	PagesDeployment *pagesDeploymentSource `json:"pages_deployment"`
 }
 
-type pagesDeploymentSource struct {
-	DeploymentID uint   `json:"deployment_id"`
-	Checksum     string `json:"checksum"`
+// pagesProjectRef is the agent-side "latest" pointer for one Pages project.
+type pagesProjectRef struct {
+	ProjectID    uint
+	DeploymentID uint
+	Checksum     string
 }
 
 type pagesDeploymentMarker struct {
-	DeploymentID uint   `json:"deployment_id"`
+	ProjectID    uint   `json:"project_id"`
+	DeploymentID uint   `json:"deployment_id,omitempty"`
 	Checksum     string `json:"checksum"`
 }
 
@@ -50,13 +58,19 @@ func pagesDeploymentStateHash(item state.PagesDeployment) string {
 	return strings.TrimSpace(item.Checksum)
 }
 
-func snapshotPagesDeployments(snapshot *state.Snapshot) []pagesDeploymentSource {
+func snapshotPagesProjects(snapshot *state.Snapshot) []pagesProjectRef {
 	if snapshot == nil || snapshot.PagesDeployments == nil {
 		return nil
 	}
-	result := make([]pagesDeploymentSource, 0, len(snapshot.PagesDeployments))
+	result := make([]pagesProjectRef, 0, len(snapshot.PagesDeployments))
 	for _, item := range snapshot.PagesDeployments {
-		result = append(result, pagesDeploymentSource{
+		projectID := item.ProjectID
+		if projectID == 0 {
+			// Legacy agent state only stored deployment_id; skip until rediscovered from config.
+			continue
+		}
+		result = append(result, pagesProjectRef{
+			ProjectID:    projectID,
 			DeploymentID: item.DeploymentID,
 			Checksum:     pagesDeploymentStateHash(item),
 		})
@@ -64,32 +78,34 @@ func snapshotPagesDeployments(snapshot *state.Snapshot) []pagesDeploymentSource 
 	return result
 }
 
-func setSnapshotPagesDeployments(snapshot *state.Snapshot, deployments []pagesDeploymentSource) {
+func setSnapshotPagesProjects(snapshot *state.Snapshot, projects []pagesProjectRef) {
 	if snapshot == nil {
 		return
 	}
-	if len(deployments) == 0 {
+	if len(projects) == 0 {
 		snapshot.PagesDeployments = []state.PagesDeployment{}
 		return
 	}
-	snapshot.PagesDeployments = make([]state.PagesDeployment, len(deployments))
-	for i, deployment := range deployments {
+	snapshot.PagesDeployments = make([]state.PagesDeployment, len(projects))
+	for i, project := range projects {
 		snapshot.PagesDeployments[i] = state.PagesDeployment{
-			DeploymentID: deployment.DeploymentID,
-			Hash:         strings.TrimSpace(deployment.Checksum),
+			ProjectID:    project.ProjectID,
+			DeploymentID: project.DeploymentID,
+			Hash:         strings.TrimSpace(project.Checksum),
 		}
 	}
 }
 
-func updateSnapshotPagesDeploymentHash(snapshot *state.Snapshot, deployment pagesDeploymentSource) {
+func updateSnapshotPagesProject(snapshot *state.Snapshot, project pagesProjectRef) {
 	if snapshot == nil || snapshot.PagesDeployments == nil {
 		return
 	}
-	hash := strings.TrimSpace(deployment.Checksum)
+	hash := strings.TrimSpace(project.Checksum)
 	for i := range snapshot.PagesDeployments {
-		if snapshot.PagesDeployments[i].DeploymentID != deployment.DeploymentID {
+		if snapshot.PagesDeployments[i].ProjectID != project.ProjectID {
 			continue
 		}
+		snapshot.PagesDeployments[i].DeploymentID = project.DeploymentID
 		snapshot.PagesDeployments[i].Hash = hash
 		snapshot.PagesDeployments[i].Checksum = ""
 		return
@@ -97,11 +113,19 @@ func updateSnapshotPagesDeploymentHash(snapshot *state.Snapshot, deployment page
 }
 
 func pagesDiscoveryNeeded(snapshot *state.Snapshot) bool {
-	return snapshot == nil || snapshot.PagesDeployments == nil
+	if snapshot == nil || snapshot.PagesDeployments == nil {
+		return true
+	}
+	// Legacy state rows may only have deployment_id (project_id == 0). Those
+	// cannot poll latest-by-project; force a full config rediscovery.
+	if len(snapshot.PagesDeployments) > 0 && len(snapshotPagesProjects(snapshot)) == 0 {
+		return true
+	}
+	return false
 }
 
 func pagesSyncNeeded(snapshot *state.Snapshot) bool {
-	return snapshot != nil && snapshot.PagesDeployments != nil && len(snapshot.PagesDeployments) > 0
+	return snapshot != nil && len(snapshotPagesProjects(snapshot)) > 0
 }
 
 func pagesReconcileNeeded(snapshot *state.Snapshot) bool {
@@ -112,70 +136,173 @@ func pagesReconcileNeeded(snapshot *state.Snapshot) bool {
 }
 
 func (s *Service) syncPagesDeployments(ctx context.Context, snapshot *state.Snapshot, config *protocol.ActiveConfigResponse) error {
-	var deployments []pagesDeploymentSource
+	var projects []pagesProjectRef
 	var err error
 	if config != nil {
-		deployments, err = referencedPagesDeployments(config)
+		projects, err = referencedPagesProjects(config)
 		if err != nil {
 			return err
 		}
-		setSnapshotPagesDeployments(snapshot, deployments)
+		setSnapshotPagesProjects(snapshot, projects)
 	} else {
-		deployments = snapshotPagesDeployments(snapshot)
+		projects = snapshotPagesProjects(snapshot)
 	}
-	if len(deployments) == 0 {
+	if len(projects) == 0 {
 		return nil
 	}
 	if strings.TrimSpace(s.pagesDir) == "" {
-		return errors.New("pages_dir is required when active config references Pages deployments")
+		return errors.New("pages_dir is required when active config references Pages projects")
 	}
-	for _, deployment := range deployments {
-		if err := s.ensurePagesDeployment(ctx, snapshot, deployment); err != nil {
-			return err
+
+	// Isolate per-project failures so one bad project does not block others.
+	var failed []error
+	for _, project := range projects {
+		if ensureErr := s.ensurePagesProject(ctx, snapshot, project.ProjectID); ensureErr != nil {
+			slog.Error("ensure Pages project failed",
+				"project_id", project.ProjectID,
+				"error", ensureErr,
+			)
+			failed = append(failed, fmt.Errorf("pages project %d: %w", project.ProjectID, ensureErr))
 		}
 	}
 	if s.nginxManager != nil {
-		if err := s.nginxManager.EnsureWorkerReadAccess(); err != nil {
-			return fmt.Errorf("ensure openresty worker read access: %w", err)
+		if accessErr := s.nginxManager.EnsureWorkerReadAccess(); accessErr != nil {
+			failed = append(failed, fmt.Errorf("ensure openresty worker read access: %w", accessErr))
 		}
 	}
-	return nil
+	if len(failed) == 0 {
+		return nil
+	}
+	return errors.Join(failed...)
 }
 
-func (s *Service) ensurePagesDeployment(ctx context.Context, snapshot *state.Snapshot, deployment pagesDeploymentSource) error {
-	serverHash, err := s.client.GetPagesDeploymentHash(ctx, deployment.DeploymentID)
-	if err != nil {
-		return fmt.Errorf("fetch Pages deployment %d hash: %w", deployment.DeploymentID, err)
+// ensurePagesProject pulls the control-plane "latest" (active) package for a
+// Pages project and switches local current to that release when needed.
+// Only the latest release is retained on disk; older releases are removed after
+// the new release is ready and current has been switched.
+func (s *Service) ensurePagesProject(ctx context.Context, snapshot *state.Snapshot, projectID uint) error {
+	if projectID == 0 {
+		return errors.New("pages project id is required")
 	}
-	serverHash = strings.TrimSpace(serverHash)
-	if serverHash == "" {
-		return fmt.Errorf("pages deployment %d hash is empty", deployment.DeploymentID)
-	}
-	effective := pagesDeploymentSource{
-		DeploymentID: deployment.DeploymentID,
-		Checksum:     serverHash,
-	}
-	updateSnapshotPagesDeploymentHash(snapshot, effective)
 
-	releaseDir := pagesReleaseDir(s.pagesDir, effective.DeploymentID, effective.Checksum)
-	if pagesReleaseReady(releaseDir, effective) {
-		return switchPagesCurrentDir(s.pagesDir, effective.DeploymentID, releaseDir)
+	var lastErr error
+	for attempt := 0; attempt < pagesLatestPullAttempts; attempt++ {
+		latest, err := s.client.GetPagesProjectLatestHash(ctx, projectID)
+		if err != nil {
+			return fmt.Errorf("fetch Pages project %d latest hash: %w", projectID, err)
+		}
+		hash := strings.TrimSpace(latest.Hash)
+		if hash == "" {
+			return fmt.Errorf("pages project %d latest hash is empty", projectID)
+		}
+		effective := pagesProjectRef{
+			ProjectID:    projectID,
+			DeploymentID: latest.DeploymentID,
+			Checksum:     hash,
+		}
+
+		releaseDir := pagesProjectReleaseDir(s.pagesDir, projectID, hash)
+		if pagesProjectReleaseReady(releaseDir, effective) {
+			if err := switchPagesProjectCurrentDir(s.pagesDir, projectID, releaseDir); err != nil {
+				return err
+			}
+			updateSnapshotPagesProject(snapshot, effective)
+			_ = cleanupPagesProjectStaleReleases(s.pagesDir, projectID, hash)
+			return nil
+		}
+
+		packageBytes, err := s.client.DownloadPagesProjectLatestPackage(ctx, projectID)
+		if err != nil {
+			return fmt.Errorf("download Pages project %d latest package: %w", projectID, err)
+		}
+		got := checksumBytes(packageBytes)
+
+		// Re-probe latest after download to detect activation races.
+		// Accept the package only when its content hash still matches latest.
+		verify, err := s.client.GetPagesProjectLatestHash(ctx, projectID)
+		if err != nil {
+			return fmt.Errorf("re-fetch Pages project %d latest hash: %w", projectID, err)
+		}
+		verifyHash := strings.TrimSpace(verify.Hash)
+		if verifyHash == "" {
+			return fmt.Errorf("pages project %d latest hash is empty", projectID)
+		}
+		if got != verifyHash {
+			lastErr = fmt.Errorf(
+				"pages project %d package/hash race: downloaded %s, latest now %s (attempt %d/%d)",
+				projectID, got, verifyHash, attempt+1, pagesLatestPullAttempts,
+			)
+			slog.Warn("pages latest package race, retrying",
+				"project_id", projectID,
+				"downloaded_hash", got,
+				"latest_hash", verifyHash,
+				"attempt", attempt+1,
+			)
+			continue
+		}
+
+		effective = pagesProjectRef{
+			ProjectID:    projectID,
+			DeploymentID: verify.DeploymentID,
+			Checksum:     got,
+		}
+		releaseDir = pagesProjectReleaseDir(s.pagesDir, projectID, got)
+		if err := extractPagesPackage(packageBytes, releaseDir, effective); err != nil {
+			return err
+		}
+		if err := switchPagesProjectCurrentDir(s.pagesDir, projectID, releaseDir); err != nil {
+			return err
+		}
+		updateSnapshotPagesProject(snapshot, effective)
+		// Only after the new release is ready and current switched: drop others.
+		_ = cleanupPagesProjectStaleReleases(s.pagesDir, projectID, got)
+		return nil
 	}
-	packageBytes, err := s.client.DownloadPagesDeploymentPackage(ctx, effective.DeploymentID)
+	if lastErr != nil {
+		return lastErr
+	}
+	return fmt.Errorf("pages project %d latest pull failed", projectID)
+}
+
+// cleanupPagesProjectStaleReleases keeps only keepHash under projects/{id}/releases.
+// Must be called only after the keepHash release is ready and current points at it.
+func cleanupPagesProjectStaleReleases(baseDir string, projectID uint, keepHash string) error {
+	keepHash = strings.TrimSpace(keepHash)
+	if projectID == 0 || keepHash == "" {
+		return nil
+	}
+	releasesRoot := filepath.Join(baseDir, "projects", fmt.Sprintf("%d", projectID), "releases")
+	entries, err := os.ReadDir(releasesRoot) //nolint:gosec // managed PagesDir
 	if err != nil {
-		return fmt.Errorf("download Pages deployment %d: %w", effective.DeploymentID, err)
-	}
-	if got := checksumBytes(packageBytes); got != effective.Checksum {
-		return fmt.Errorf("pages deployment %d checksum mismatch: expected %s, got %s", effective.DeploymentID, effective.Checksum, got)
-	}
-	if err := extractPagesPackage(packageBytes, releaseDir, effective); err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
 		return err
 	}
-	return switchPagesCurrentDir(s.pagesDir, effective.DeploymentID, releaseDir)
+	var firstErr error
+	for _, entry := range entries {
+		name := entry.Name()
+		if name == keepHash {
+			continue
+		}
+		// Drop partial extract leftovers as well (*.tmp).
+		target := filepath.Join(releasesRoot, name)
+		if removeErr := os.RemoveAll(target); removeErr != nil && firstErr == nil {
+			firstErr = removeErr
+			slog.Warn("failed to remove stale Pages release",
+				"project_id", projectID,
+				"path", target,
+				"error", removeErr,
+			)
+		}
+	}
+	// Also remove legacy deployments/ tree leftovers if present (best-effort).
+	_ = os.RemoveAll(filepath.Join(baseDir, "deployments"))
+	return firstErr
 }
 
-func pagesReleaseReady(dir string, deployment pagesDeploymentSource) bool {
-	if !markerMatches(dir, deployment) {
+func pagesProjectReleaseReady(dir string, project pagesProjectRef) bool {
+	if !markerMatches(dir, project) {
 		return false
 	}
 	entries, err := os.ReadDir(dir) //nolint:gosec // dir is managed PagesDir
@@ -191,7 +318,7 @@ func pagesReleaseReady(dir string, deployment pagesDeploymentSource) bool {
 	return false
 }
 
-func referencedPagesDeployments(config *protocol.ActiveConfigResponse) ([]pagesDeploymentSource, error) {
+func referencedPagesProjects(config *protocol.ActiveConfigResponse) ([]pagesProjectRef, error) {
 	if config == nil || strings.TrimSpace(config.SourceConfigJSON) == "" {
 		return nil, nil
 	}
@@ -200,26 +327,52 @@ func referencedPagesDeployments(config *protocol.ActiveConfigResponse) ([]pagesD
 		return nil, fmt.Errorf("decode pages references: %w", err)
 	}
 	seen := make(map[uint]struct{})
-	result := make([]pagesDeploymentSource, 0)
+	result := make([]pagesProjectRef, 0)
 	for _, route := range doc.Routes {
-		if strings.ToLower(strings.TrimSpace(route.UpstreamType)) != "pages" || route.PagesDeployment == nil {
+		if strings.ToLower(strings.TrimSpace(route.UpstreamType)) != "pages" {
 			continue
 		}
-		deploymentID := route.PagesDeployment.DeploymentID
-		checksum := strings.TrimSpace(route.PagesDeployment.Checksum)
-		if deploymentID == 0 || checksum == "" {
-			return nil, errors.New("pages deployment snapshot is incomplete")
+		projectID := pagesProjectIDFromRoute(route)
+		if projectID == 0 {
+			return nil, errors.New("pages route is missing project_id")
 		}
-		if _, ok := seen[deploymentID]; ok {
+		if _, ok := seen[projectID]; ok {
 			continue
 		}
-		seen[deploymentID] = struct{}{}
-		result = append(result, pagesDeploymentSource{DeploymentID: deploymentID, Checksum: checksum})
+		seen[projectID] = struct{}{}
+		checksum := ""
+		deploymentID := uint(0)
+		if route.PagesDeployment != nil {
+			checksum = strings.TrimSpace(route.PagesDeployment.Checksum)
+			deploymentID = route.PagesDeployment.DeploymentID
+		}
+		result = append(result, pagesProjectRef{
+			ProjectID:    projectID,
+			DeploymentID: deploymentID,
+			Checksum:     checksum,
+		})
 	}
 	return result, nil
 }
 
-func extractPagesPackage(packageBytes []byte, releaseDir string, deployment pagesDeploymentSource) error {
+func pagesProjectIDFromRoute(route pagesSourceRoute) uint {
+	if route.PagesProjectID != nil && *route.PagesProjectID != 0 {
+		return *route.PagesProjectID
+	}
+	if route.PagesDeployment != nil && route.PagesDeployment.ProjectID != 0 {
+		return route.PagesDeployment.ProjectID
+	}
+	return 0
+}
+
+// pagesDeploymentSource is the subset of pages_deployment used when parsing config.
+type pagesDeploymentSource struct {
+	ProjectID    uint   `json:"project_id"`
+	DeploymentID uint   `json:"deployment_id"`
+	Checksum     string `json:"checksum"`
+}
+
+func extractPagesPackage(packageBytes []byte, releaseDir string, project pagesProjectRef) error {
 	tmpDir := releaseDir + ".tmp"
 	_ = os.RemoveAll(tmpDir)
 	if err := os.MkdirAll(tmpDir, pagesDirPerm); err != nil {
@@ -230,9 +383,7 @@ func extractPagesPackage(packageBytes []byte, releaseDir string, deployment page
 		_ = os.RemoveAll(tmpDir)
 		return fmt.Errorf("detect Pages package format: %w", err)
 	}
-	// Control plane already inspected and accepted this package. Agent only
-	// verifies download integrity (checksum) and performs local-safe extract
-	// (path escape / symlink guards). Size and file-count limits are not re-applied.
+	// Control plane already inspected and accepted this package.
 	if err := pagesarchive.ExtractBytes(packageBytes, format, tmpDir, pagesarchive.ExtractOptions{
 		StripCommonRoot: true,
 		EnforceLimits:   false,
@@ -240,7 +391,7 @@ func extractPagesPackage(packageBytes []byte, releaseDir string, deployment page
 		_ = os.RemoveAll(tmpDir)
 		return fmt.Errorf("extract Pages package: %w", err)
 	}
-	if err := writePagesMarker(tmpDir, deployment); err != nil {
+	if err := writePagesMarker(tmpDir, project); err != nil {
 		_ = os.RemoveAll(tmpDir)
 		return err
 	}
@@ -248,8 +399,8 @@ func extractPagesPackage(packageBytes []byte, releaseDir string, deployment page
 	return os.Rename(tmpDir, releaseDir)
 }
 
-func switchPagesCurrentDir(baseDir string, deploymentID uint, releaseDir string) error {
-	currentDir := pagesCurrentDir(baseDir, deploymentID)
+func switchPagesProjectCurrentDir(baseDir string, projectID uint, releaseDir string) error {
+	currentDir := pagesProjectCurrentDir(baseDir, projectID)
 	previousDir := currentDir + ".previous"
 	_ = os.RemoveAll(previousDir)
 	if err := os.MkdirAll(filepath.Dir(currentDir), pagesDirPerm); err != nil {
@@ -261,7 +412,6 @@ func switchPagesCurrentDir(baseDir string, deploymentID uint, releaseDir string)
 		relTarget = releaseDir
 	}
 
-	// Try creating a temporary symlink first to check if symlinks are supported/feasible
 	tmpSymlink := currentDir + ".tmp"
 	_ = os.Remove(tmpSymlink)
 
@@ -269,8 +419,6 @@ func switchPagesCurrentDir(baseDir string, deploymentID uint, releaseDir string)
 	if symlinkErr != nil {
 		return fallbackCopyPagesCurrentDir(currentDir, previousDir, releaseDir)
 	}
-
-	// Symlink is supported, proceed with symlink swap
 	_ = os.Remove(tmpSymlink)
 
 	if _, err := os.Lstat(currentDir); err == nil {
@@ -337,7 +485,7 @@ func copyPagesDir(sourceDir string, targetDir string) error {
 	})
 }
 
-func markerMatches(dir string, deployment pagesDeploymentSource) bool {
+func markerMatches(dir string, project pagesProjectRef) bool {
 	data, err := os.ReadFile(filepath.Join(dir, ".openflare-pages.json")) //nolint:gosec // dir is managed PagesDir
 	if err != nil {
 		return false
@@ -346,23 +494,26 @@ func markerMatches(dir string, deployment pagesDeploymentSource) bool {
 	if err := json.Unmarshal(data, &marker); err != nil {
 		return false
 	}
-	return marker.DeploymentID == deployment.DeploymentID && marker.Checksum == deployment.Checksum
+	if marker.ProjectID != 0 && marker.ProjectID != project.ProjectID {
+		return false
+	}
+	return marker.Checksum == project.Checksum
 }
 
-func writePagesMarker(dir string, deployment pagesDeploymentSource) error {
-	data, err := json.Marshal(pagesDeploymentMarker(deployment))
+func writePagesMarker(dir string, project pagesProjectRef) error {
+	data, err := json.Marshal(pagesDeploymentMarker(project))
 	if err != nil {
 		return err
 	}
 	return os.WriteFile(filepath.Join(dir, ".openflare-pages.json"), data, pagesManifestFilePerm)
 }
 
-func pagesCurrentDir(baseDir string, deploymentID uint) string {
-	return filepath.Join(baseDir, "deployments", fmt.Sprintf("%d", deploymentID), "current")
+func pagesProjectCurrentDir(baseDir string, projectID uint) string {
+	return filepath.Join(baseDir, "projects", fmt.Sprintf("%d", projectID), "current")
 }
 
-func pagesReleaseDir(baseDir string, deploymentID uint, checksum string) string {
-	return filepath.Join(baseDir, "deployments", fmt.Sprintf("%d", deploymentID), "releases", checksum)
+func pagesProjectReleaseDir(baseDir string, projectID uint, checksum string) string {
+	return filepath.Join(baseDir, "projects", fmt.Sprintf("%d", projectID), "releases", checksum)
 }
 
 func checksumBytes(data []byte) string {

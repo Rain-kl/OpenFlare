@@ -220,3 +220,11 @@ type PagesDeploymentHashResponse struct {
 	DeploymentID uint   `json:"deployment_id"`
 	Hash         string `json:"hash"`
 }
+
+// PagesProjectLatestHashResponse is the hash of a project's currently active Pages deployment.
+// Agents poll this like a "latest" pointer without caring about historical deployment IDs.
+type PagesProjectLatestHashResponse struct {
+	ProjectID    uint   `json:"project_id"`
+	DeploymentID uint   `json:"deployment_id"`
+	Hash         string `json:"hash"`
+}

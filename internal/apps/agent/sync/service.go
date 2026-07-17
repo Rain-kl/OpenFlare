@@ -32,6 +32,8 @@ type ConfigClient interface {
 	GetActiveConfig(ctx context.Context) (*protocol.ActiveConfigResponse, error)
 	GetPagesDeploymentHash(ctx context.Context, deploymentID uint) (string, error)
 	DownloadPagesDeploymentPackage(ctx context.Context, deploymentID uint) ([]byte, error)
+	GetPagesProjectLatestHash(ctx context.Context, projectID uint) (*protocol.PagesProjectLatestHashResponse, error)
+	DownloadPagesProjectLatestPackage(ctx context.Context, projectID uint) ([]byte, error)
 	ReportApplyLog(ctx context.Context, payload protocol.ApplyLogPayload) error
 	SyncWAFIPGroups(ctx context.Context, payload protocol.WAFIPGroupSyncRequest) (*protocol.WAFIPGroupSyncResponse, error)
 }

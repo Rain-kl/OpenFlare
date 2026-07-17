@@ -1,6 +1,9 @@
 package openresty
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"fmt"
+)
 
 // Placeholder constants used as sentinel values in rendered OpenResty config
 // files; the deploy process replaces them with real paths before reload.
@@ -163,6 +166,10 @@ type Route struct {
 
 // PagesDeployment holds the static-site deployment parameters for a Pages-type
 // route, including local root, entry file, SPA fallback, and API proxy options.
+//
+// LocalRoot is anchored on ProjectID (projects/{id}/current), not a specific
+// deployment ID, so Agents can switch active packages without re-publishing
+// main config / reloading OpenResty root paths.
 type PagesDeployment struct {
 	ProjectID          uint   `json:"project_id"`
 	ProjectSlug        string `json:"project_slug"`
@@ -177,6 +184,14 @@ type PagesDeployment struct {
 	APIProxyPass       string `json:"api_proxy_pass"`
 	APIProxyRewrite    string `json:"api_proxy_rewrite"`
 	LocalRoot          string `json:"local_root"`
+}
+
+// PagesProjectLocalRoot returns the Agent-local root for a Pages project.
+func PagesProjectLocalRoot(projectID uint) string {
+	if projectID == 0 {
+		return PagesDirPlaceholder
+	}
+	return fmt.Sprintf("%s/projects/%d/current", PagesDirPlaceholder, projectID)
 }
 
 // WAFRuleGraph is the compact graph executed by the OpenResty WAF runtime.

@@ -345,7 +345,7 @@ func TestRenderRouteConfigPagesWithoutSPAFallbackServesRoot(t *testing.T) {
 				UpstreamType: "pages",
 				EnableHTTPS:  false,
 				PagesDeployment: &PagesDeployment{
-					LocalRoot:          "/data/var/lib/openflare/pages/deployments/1/current",
+					LocalRoot:          "/data/var/lib/openflare/pages/projects/1/current",
 					EntryFile:          "index.html",
 					SPAFallbackEnabled: false,
 				},
@@ -378,7 +378,7 @@ func TestRenderRouteConfigPagesWithSPAFallbackServesRoot(t *testing.T) {
 				UpstreamType: "pages",
 				EnableHTTPS:  false,
 				PagesDeployment: &PagesDeployment{
-					LocalRoot:          "/data/var/lib/openflare/pages/deployments/1/current",
+					LocalRoot:          "/data/var/lib/openflare/pages/projects/1/current",
 					EntryFile:          "index.html",
 					SPAFallbackEnabled: true,
 					SPAFallbackPath:    "/index.html",

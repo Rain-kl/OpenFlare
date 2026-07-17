@@ -25,6 +25,8 @@ func registerAgentRoutes(apiV1Router *gin.RouterGroup) {
 			authorizedRoute.GET("/config-versions/active", agent.GetActiveConfigHandler)
 			authorizedRoute.GET("/pages/deployments/:deployment_id/hash", agent.GetPagesDeploymentHashHandler)
 			authorizedRoute.GET("/pages/deployments/:deployment_id/package", agent.DownloadPagesPackageHandler)
+			authorizedRoute.GET("/pages/projects/:project_id/latest/hash", agent.GetPagesProjectLatestHashHandler)
+			authorizedRoute.GET("/pages/projects/:project_id/latest/package", agent.DownloadPagesProjectLatestPackageHandler)
 			authorizedRoute.POST("/waf/ip-groups/sync", agent.SyncWAFIPGroupsHandler)
 			authorizedRoute.POST("/apply-logs", agent.ReportApplyLogHandler)
 		}

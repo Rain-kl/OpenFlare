@@ -88,10 +88,8 @@ func buildSnapshotPagesDeployment(project *model.PagesProject, activeDeployment 
 		APIProxyPath:       strings.TrimSpace(project.APIProxyPath),
 		APIProxyPass:       strings.TrimSpace(project.APIProxyPass),
 		APIProxyRewrite:    strings.TrimSpace(project.APIProxyRewrite),
-		LocalRoot: fmt.Sprintf(
-			"%s/deployments/%d/current",
-			openrestyrender.PagesDirPlaceholder,
-			activeDeployment.ID,
-		),
+		// Root is project-scoped so Agents can swap active packages without
+		// re-publishing main config (nginx root stays stable).
+		LocalRoot: openrestyrender.PagesProjectLocalRoot(project.ID),
 	}
 }

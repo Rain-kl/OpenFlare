@@ -23,19 +23,20 @@ type fakeExecutor struct {
 	reloadErr error
 }
 
-func testPagesSourceConfigJSON(deploymentID uint, checksum string) string {
-	return fmt.Sprintf(`{"routes":[{"id":1,"site_name":"pages","domain":"pages.example.com","domains":["pages.example.com"],"origin_url":"openflare-pages://project/1","upstreams":["openflare-pages://project/1"],"enabled":true,"upstream_type":"pages","pages_deployment":{"project_id":1,"project_slug":"pages","deployment_id":%d,"deployment_number":1,"checksum":"%s","entry_file":"index.html","spa_fallback_enabled":true,"local_root":"__OPENFLARE_PAGES_DIR__/deployments/%d/current"}}],"openresty_config":{"worker_processes":"auto","worker_connections":1024,"worker_rlimit_nofile":65535,"events_multi_accept_enabled":true,"keepalive_timeout":20,"keepalive_requests":1000,"client_header_timeout":15,"client_body_timeout":15,"client_max_body_size":"64m","large_client_header_buffers":"4 16k","send_timeout":30,"proxy_connect_timeout":3,"proxy_send_timeout":60,"proxy_read_timeout":60,"websocket_enabled":true,"proxy_request_buffering":false,"proxy_buffering_enabled":true,"proxy_buffers":"16 16k","proxy_buffer_size":"8k","proxy_busy_buffers_size":"64k","gzip_enabled":true,"gzip_min_length":1024,"gzip_comp_level":5,"cache_enabled":false,"cache_levels":"1:2","cache_inactive":"30m","cache_max_size":"1g","cache_key_template":"$scheme$host$request_uri","cache_lock_enabled":true,"cache_lock_timeout":"5s","cache_use_stale":"error timeout updating http_500 http_502 http_503 http_504","main_config_template":"worker_processes {{OpenRestyWorkerProcesses}};"},"waf":{"rule_groups":[],"bindings":[]}}`, deploymentID, checksum, deploymentID)
+func testPagesSourceConfigJSON(projectID, deploymentID uint, checksum string) string {
+	return fmt.Sprintf(`{"routes":[{"id":1,"site_name":"pages","domain":"pages.example.com","domains":["pages.example.com"],"origin_url":"openflare-pages://project/%d","upstreams":["openflare-pages://project/%d"],"enabled":true,"upstream_type":"pages","pages_project_id":%d,"pages_deployment":{"project_id":%d,"project_slug":"pages","deployment_id":%d,"deployment_number":1,"checksum":"%s","entry_file":"index.html","spa_fallback_enabled":true,"local_root":"__OPENFLARE_PAGES_DIR__/projects/%d/current"}}],"openresty_config":{"worker_processes":"auto","worker_connections":1024,"worker_rlimit_nofile":65535,"events_multi_accept_enabled":true,"keepalive_timeout":20,"keepalive_requests":1000,"client_header_timeout":15,"client_body_timeout":15,"client_max_body_size":"64m","large_client_header_buffers":"4 16k","send_timeout":30,"proxy_connect_timeout":3,"proxy_send_timeout":60,"proxy_read_timeout":60,"websocket_enabled":true,"proxy_request_buffering":false,"proxy_buffering_enabled":true,"proxy_buffers":"16 16k","proxy_buffer_size":"8k","proxy_busy_buffers_size":"64k","gzip_enabled":true,"gzip_min_length":1024,"gzip_comp_level":5,"cache_enabled":false,"cache_levels":"1:2","cache_inactive":"30m","cache_max_size":"1g","cache_key_template":"$scheme$host$request_uri","cache_lock_enabled":true,"cache_lock_timeout":"5s","cache_use_stale":"error timeout updating http_500 http_502 http_503 http_504","main_config_template":"worker_processes {{OpenRestyWorkerProcesses}};"},"waf":{"rule_groups":[],"bindings":[]}}`, projectID, projectID, projectID, projectID, deploymentID, checksum, projectID)
 }
 
 type fakeClient struct {
-	config        protocol.ActiveConfigResponse
-	reports       []protocol.ApplyLogPayload
-	wafSyncCalls  []protocol.WAFIPGroupSyncRequest
-	pagesPackages map[uint][]byte
-	pagesHashes   map[uint]string
-	wafSyncResult protocol.WAFIPGroupSyncResponse
-	fetchCalls    int
-	hashCalls     int
+	config               protocol.ActiveConfigResponse
+	reports              []protocol.ApplyLogPayload
+	wafSyncCalls         []protocol.WAFIPGroupSyncRequest
+	pagesPackages        map[uint][]byte // key: project_id (latest package)
+	pagesHashes          map[uint]string // key: project_id
+	pagesLatestDeployIDs map[uint]uint   // key: project_id → deployment_id
+	wafSyncResult        protocol.WAFIPGroupSyncResponse
+	fetchCalls           int
+	hashCalls            int
 }
 
 type fakeManager struct {
@@ -87,25 +88,71 @@ func (f *fakeClient) GetActiveConfig(ctx context.Context) (*protocol.ActiveConfi
 }
 
 func (f *fakeClient) GetPagesDeploymentHash(ctx context.Context, deploymentID uint) (string, error) {
+	// Legacy path: map deployment id lookups via reverse of latest deploy ids when present.
 	f.hashCalls++
+	for projectID, depID := range f.pagesLatestDeployIDs {
+		if depID == deploymentID {
+			return f.projectHash(projectID)
+		}
+	}
+	return f.projectHash(deploymentID)
+}
+
+func (f *fakeClient) DownloadPagesDeploymentPackage(ctx context.Context, deploymentID uint) ([]byte, error) {
+	for projectID, depID := range f.pagesLatestDeployIDs {
+		if depID == deploymentID {
+			return f.projectPackage(projectID)
+		}
+	}
+	return f.projectPackage(deploymentID)
+}
+
+func (f *fakeClient) GetPagesProjectLatestHash(ctx context.Context, projectID uint) (*protocol.PagesProjectLatestHashResponse, error) {
+	f.hashCalls++
+	hash, err := f.projectHash(projectID)
+	if err != nil {
+		return nil, err
+	}
+	deploymentID := projectID
+	if f.pagesLatestDeployIDs != nil {
+		if id, ok := f.pagesLatestDeployIDs[projectID]; ok {
+			deploymentID = id
+		}
+	}
+	return &protocol.PagesProjectLatestHashResponse{
+		ProjectID:    projectID,
+		DeploymentID: deploymentID,
+		Hash:         hash,
+	}, nil
+}
+
+func (f *fakeClient) DownloadPagesProjectLatestPackage(ctx context.Context, projectID uint) ([]byte, error) {
+	return f.projectPackage(projectID)
+}
+
+func (f *fakeClient) projectHash(projectID uint) (string, error) {
 	if f.pagesHashes != nil {
-		if hash, ok := f.pagesHashes[deploymentID]; ok {
+		if hash, ok := f.pagesHashes[projectID]; ok {
 			return hash, nil
 		}
 	}
 	if f.pagesPackages != nil {
-		if packageBytes, ok := f.pagesPackages[deploymentID]; ok {
+		if packageBytes, ok := f.pagesPackages[projectID]; ok {
 			return testBytesChecksum(packageBytes), nil
 		}
 	}
-	return "", fmt.Errorf("missing Pages hash %d", deploymentID)
+	return "", fmt.Errorf("missing Pages project hash %d", projectID)
 }
 
-func (f *fakeClient) DownloadPagesDeploymentPackage(ctx context.Context, deploymentID uint) ([]byte, error) {
+func (f *fakeClient) projectPackage(projectID uint) ([]byte, error) {
 	if f.pagesPackages == nil {
-		return nil, fmt.Errorf("missing Pages package %d", deploymentID)
+		return nil, fmt.Errorf("missing Pages project package %d", projectID)
 	}
-	return f.pagesPackages[deploymentID], nil
+	packageBytes, ok := f.pagesPackages[projectID]
+	if !ok {
+		return nil, fmt.Errorf("missing Pages project package %d", projectID)
+	}
+	return packageBytes, nil
 }
 
 func (f *fakeClient) ReportApplyLog(ctx context.Context, payload protocol.ApplyLogPayload) error {
@@ -378,7 +425,7 @@ func TestSyncOnceDownloadsPagesDeploymentBeforeApply(t *testing.T) {
 		config: protocol.ActiveConfigResponse{
 			Version:          "20260309-101",
 			Checksum:         "pages-config-checksum",
-			SourceConfigJSON: testPagesSourceConfigJSON(7, checksum),
+			SourceConfigJSON: testPagesSourceConfigJSON(7, 7, checksum),
 			CreatedAt:        time.Now().Format(time.RFC3339),
 		},
 		pagesPackages: map[uint][]byte{7: packageBytes},
@@ -401,14 +448,14 @@ func TestSyncOnceDownloadsPagesDeploymentBeforeApply(t *testing.T) {
 	if err = service.SyncOnce(context.Background(), &protocol.ActiveConfigMeta{Version: "20260309-101", Checksum: "pages-config-checksum"}); err != nil {
 		t.Fatalf("SyncOnce failed: %v", err)
 	}
-	data, err := os.ReadFile(filepath.Join(pagesDir, "deployments", "7", "current", "index.html"))
+	data, err := os.ReadFile(filepath.Join(pagesDir, "projects", "7", "current", "index.html"))
 	if err != nil {
 		t.Fatalf("expected Pages file to be extracted: %v", err)
 	}
 	if string(data) != "hello" {
 		t.Fatalf("unexpected Pages file content: %s", string(data))
 	}
-	if len(manager.applyRouteContents) != 1 || !strings.Contains(manager.applyRouteContents[0], "__OPENFLARE_PAGES_DIR__/deployments/7/current") {
+	if len(manager.applyRouteContents) != 1 || !strings.Contains(manager.applyRouteContents[0], "__OPENFLARE_PAGES_DIR__/projects/7/current") {
 		t.Fatalf("expected Pages placeholder in rendered route config, got %#v", manager.applyRouteContents)
 	}
 }
@@ -426,7 +473,7 @@ func TestSyncPagesDeploymentEnsuresWorkerReadAccess(t *testing.T) {
 	config := protocol.ActiveConfigResponse{
 		Version:          "20260309-106",
 		Checksum:         "pages-config-checksum",
-		SourceConfigJSON: testPagesSourceConfigJSON(7, checksum),
+		SourceConfigJSON: testPagesSourceConfigJSON(7, 7, checksum),
 		CreatedAt:        time.Now().Format(time.RFC3339),
 	}
 	client := &fakeClient{
@@ -451,7 +498,7 @@ func TestSyncPagesDeploymentEnsuresWorkerReadAccess(t *testing.T) {
 	if dataInfo.Mode().Perm()&0o005 == 0 {
 		t.Fatalf("expected dataDir to be world-traversable, got %o", dataInfo.Mode().Perm())
 	}
-	indexPath := filepath.Join(pagesDir, "deployments", "7", "current", "index.html")
+	indexPath := filepath.Join(pagesDir, "projects", "7", "current", "index.html")
 	indexInfo, err := os.Stat(indexPath)
 	if err != nil {
 		t.Fatalf("expected Pages file to be extracted: %v", err)
@@ -471,7 +518,7 @@ func TestSyncOnceExtractsPagesPackageWithZeroByteFiles(t *testing.T) {
 		config: protocol.ActiveConfigResponse{
 			Version:          "20260309-103",
 			Checksum:         "pages-config-checksum",
-			SourceConfigJSON: testPagesSourceConfigJSON(9, checksum),
+			SourceConfigJSON: testPagesSourceConfigJSON(9, 9, checksum),
 			CreatedAt:        time.Now().Format(time.RFC3339),
 		},
 		pagesPackages: map[uint][]byte{9: packageBytes},
@@ -494,7 +541,7 @@ func TestSyncOnceExtractsPagesPackageWithZeroByteFiles(t *testing.T) {
 	if err = service.SyncOnce(context.Background(), &protocol.ActiveConfigMeta{Version: "20260309-103", Checksum: "pages-config-checksum"}); err != nil {
 		t.Fatalf("SyncOnce failed: %v", err)
 	}
-	gitkeepPath := filepath.Join(pagesDir, "deployments", "9", "current", ".gitkeep")
+	gitkeepPath := filepath.Join(pagesDir, "projects", "9", "current", ".gitkeep")
 	info, err := os.Stat(gitkeepPath)
 	if err != nil {
 		t.Fatalf("expected zero-byte Pages file to be extracted: %v", err)
@@ -511,7 +558,7 @@ func TestSyncOnceRejectsPagesZipSlipBeforeApply(t *testing.T) {
 		config: protocol.ActiveConfigResponse{
 			Version:          "20260309-102",
 			Checksum:         "pages-config-checksum",
-			SourceConfigJSON: testPagesSourceConfigJSON(8, checksum),
+			SourceConfigJSON: testPagesSourceConfigJSON(8, 8, checksum),
 			CreatedAt:        time.Now().Format(time.RFC3339),
 		},
 		pagesPackages: map[uint][]byte{8: packageBytes},
@@ -1169,7 +1216,7 @@ func TestSyncOnceDownloadsPagesDeploymentWhenChecksumMatches(t *testing.T) {
 		config: protocol.ActiveConfigResponse{
 			Version:          "20260309-101",
 			Checksum:         "pages-config-checksum",
-			SourceConfigJSON: testPagesSourceConfigJSON(7, checksum),
+			SourceConfigJSON: testPagesSourceConfigJSON(7, 7, checksum),
 			CreatedAt:        time.Now().Format(time.RFC3339),
 		},
 		pagesPackages: map[uint][]byte{7: packageBytes},
@@ -1197,7 +1244,7 @@ func TestSyncOnceDownloadsPagesDeploymentWhenChecksumMatches(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("SyncOnce failed: %v", err)
 	}
-	data, err := os.ReadFile(filepath.Join(pagesDir, "deployments", "7", "current", "index.html"))
+	data, err := os.ReadFile(filepath.Join(pagesDir, "projects", "7", "current", "index.html"))
 	if err != nil {
 		t.Fatalf("expected Pages file to be extracted when checksum already matches: %v", err)
 	}
@@ -1225,8 +1272,10 @@ func TestSyncOnceDownloadsPagesDeploymentWhenChecksumMatches(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to load state: %v", err)
 	}
-	if len(snapshot.PagesDeployments) != 1 || snapshot.PagesDeployments[0].DeploymentID != 7 || snapshot.PagesDeployments[0].Hash != checksum {
-		t.Fatalf("expected Pages deployment refs to be cached in state, got %+v", snapshot.PagesDeployments)
+	if len(snapshot.PagesDeployments) != 1 ||
+		snapshot.PagesDeployments[0].ProjectID != 7 ||
+		snapshot.PagesDeployments[0].Hash != checksum {
+		t.Fatalf("expected Pages project refs to be cached in state, got %+v", snapshot.PagesDeployments)
 	}
 	if client.hashCalls == 0 {
 		t.Fatal("expected Pages hash check during reconcile")
@@ -1238,16 +1287,16 @@ func TestSyncOnceRedownloadsPagesDeploymentWhenServerHashChanges(t *testing.T) {
 	updatedPackage := testPagesPackage(t, map[string]string{"index.html": "v2"})
 	initialHash := testBytesChecksum(initialPackage)
 	updatedHash := testBytesChecksum(updatedPackage)
-	deploymentID := uint(12)
+	projectID := uint(12)
 	client := &fakeClient{
 		config: protocol.ActiveConfigResponse{
 			Version:          "20260309-107",
 			Checksum:         "pages-config-checksum",
-			SourceConfigJSON: testPagesSourceConfigJSON(deploymentID, initialHash),
+			SourceConfigJSON: testPagesSourceConfigJSON(projectID, projectID, initialHash),
 			CreatedAt:        time.Now().Format(time.RFC3339),
 		},
-		pagesPackages: map[uint][]byte{deploymentID: initialPackage},
-		pagesHashes:   map[uint]string{deploymentID: initialHash},
+		pagesPackages: map[uint][]byte{projectID: initialPackage},
+		pagesHashes:   map[uint]string{projectID: initialHash},
 	}
 	stateStore := state.NewStore(filepath.Join(t.TempDir(), "state.json"))
 	nodeID, err := stateStore.EnsureNodeID()
@@ -1259,26 +1308,28 @@ func TestSyncOnceRedownloadsPagesDeploymentWhenServerHashChanges(t *testing.T) {
 		CurrentVersion:  client.config.Version,
 		CurrentChecksum: client.config.Checksum,
 		PagesDeployments: []state.PagesDeployment{{
-			DeploymentID: deploymentID,
-			Hash:         initialHash,
+			ProjectID: projectID,
+			Hash:      initialHash,
 		}},
 	}); err != nil {
 		t.Fatalf("save state failed: %v", err)
 	}
 	pagesDir := t.TempDir()
-	releaseDir := pagesReleaseDir(pagesDir, deploymentID, initialHash)
-	if err = extractPagesPackage(initialPackage, releaseDir, pagesDeploymentSource{
-		DeploymentID: deploymentID,
-		Checksum:     initialHash,
+	releaseDir := pagesProjectReleaseDir(pagesDir, projectID, initialHash)
+	if err = extractPagesPackage(initialPackage, releaseDir, pagesProjectRef{
+		ProjectID: projectID,
+		Checksum:  initialHash,
 	}); err != nil {
 		t.Fatalf("seed release failed: %v", err)
 	}
-	if err = switchPagesCurrentDir(pagesDir, deploymentID, releaseDir); err != nil {
+	if err = switchPagesProjectCurrentDir(pagesDir, projectID, releaseDir); err != nil {
 		t.Fatalf("seed current dir failed: %v", err)
 	}
 
-	client.pagesPackages[deploymentID] = updatedPackage
-	client.pagesHashes[deploymentID] = updatedHash
+	// Control plane activates a new package; agent discovers via latest hash poll
+	// without main-config republish (checksum unchanged).
+	client.pagesPackages[projectID] = updatedPackage
+	client.pagesHashes[projectID] = updatedHash
 	manager := &fakeManager{currentChecksum: client.config.Checksum}
 	service := New(client, manager, stateStore)
 	service.SetPagesDir(pagesDir)
@@ -1288,7 +1339,7 @@ func TestSyncOnceRedownloadsPagesDeploymentWhenServerHashChanges(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("SyncOnce failed: %v", err)
 	}
-	data, err := os.ReadFile(filepath.Join(pagesDir, "deployments", "12", "current", "index.html"))
+	data, err := os.ReadFile(filepath.Join(pagesDir, "projects", "12", "current", "index.html"))
 	if err != nil {
 		t.Fatalf("expected updated Pages file: %v", err)
 	}
@@ -1298,20 +1349,236 @@ func TestSyncOnceRedownloadsPagesDeploymentWhenServerHashChanges(t *testing.T) {
 	if client.fetchCalls != 0 {
 		t.Fatalf("expected hash-only reconcile without active config fetch, got %d", client.fetchCalls)
 	}
+	// Only the latest release must remain on disk.
+	releasesRoot := filepath.Join(pagesDir, "projects", "12", "releases")
+	entries, err := os.ReadDir(releasesRoot)
+	if err != nil {
+		t.Fatalf("read releases dir: %v", err)
+	}
+	if len(entries) != 1 || entries[0].Name() != updatedHash {
+		names := make([]string, 0, len(entries))
+		for _, e := range entries {
+			names = append(names, e.Name())
+		}
+		t.Fatalf("expected only latest release %s, got %v", updatedHash, names)
+	}
+	if _, err := os.Stat(filepath.Join(releasesRoot, initialHash)); !os.IsNotExist(err) {
+		t.Fatalf("expected stale release %s to be removed", initialHash)
+	}
+}
+
+// racingLatestClient simulates control-plane activation changing between hash
+// probe and package download (hash A → package B → verify hash B).
+type racingLatestClient struct {
+	fakeClient
+	pkgA, pkgB    []byte
+	hashA, hashB  string
+	hashCall      int
+	downloadCalls int
+}
+
+func (r *racingLatestClient) GetPagesProjectLatestHash(ctx context.Context, projectID uint) (*protocol.PagesProjectLatestHashResponse, error) {
+	r.hashCall++
+	r.hashCalls++
+	// Sequence:
+	// 1: probe before download → A
+	// 2: verify after downloading B → B (race)
+	// 3+: stable on B for retry
+	hash, dep := r.hashA, uint(1)
+	if r.hashCall >= 2 {
+		hash, dep = r.hashB, 2
+	}
+	return &protocol.PagesProjectLatestHashResponse{
+		ProjectID:    projectID,
+		DeploymentID: dep,
+		Hash:         hash,
+	}, nil
+}
+
+func (r *racingLatestClient) DownloadPagesProjectLatestPackage(ctx context.Context, projectID uint) ([]byte, error) {
+	r.downloadCalls++
+	// Always return package B (what "latest download" would stream mid-race / after).
+	return r.pkgB, nil
+}
+
+func TestEnsurePagesProjectSurvivesHashPackageRace(t *testing.T) {
+	pkgA := testPagesPackage(t, map[string]string{"index.html": "A"})
+	pkgB := testPagesPackage(t, map[string]string{"index.html": "B"})
+	hashA := testBytesChecksum(pkgA)
+	hashB := testBytesChecksum(pkgB)
+	projectID := uint(42)
+	client := &racingLatestClient{
+		pkgA:  pkgA,
+		pkgB:  pkgB,
+		hashA: hashA,
+		hashB: hashB,
+	}
+	client.config = protocol.ActiveConfigResponse{
+		Version:          "v-race",
+		Checksum:         "c-race",
+		SourceConfigJSON: testPagesSourceConfigJSON(projectID, 1, hashA),
+		CreatedAt:        time.Now().Format(time.RFC3339),
+	}
+	stateStore := state.NewStore(filepath.Join(t.TempDir(), "state.json"))
+	snapshot, _ := stateStore.Load()
+	pagesDir := t.TempDir()
+	service := New(client, &fakeManager{}, stateStore)
+	service.SetPagesDir(pagesDir)
+
+	if err := service.syncPagesDeployments(context.Background(), snapshot, &client.config); err != nil {
+		t.Fatalf("sync after race: %v", err)
+	}
+	data, err := os.ReadFile(filepath.Join(pagesDir, "projects", "42", "current", "index.html"))
+	if err != nil {
+		t.Fatalf("read current: %v", err)
+	}
+	if string(data) != "B" {
+		t.Fatalf("expected final content B after race recovery, got %q", string(data))
+	}
+	// Only B release retained.
+	entries, err := os.ReadDir(filepath.Join(pagesDir, "projects", "42", "releases"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 1 || entries[0].Name() != hashB {
+		t.Fatalf("expected only release %s, got %v", hashB, entries)
+	}
+	if client.downloadCalls < 1 {
+		t.Fatal("expected at least one package download")
+	}
+}
+
+func TestCleanupDoesNotRunBeforeCurrentSwitch(t *testing.T) {
+	// If switch fails, stale release must remain so traffic can keep using it.
+	pagesDir := t.TempDir()
+	projectID := uint(9)
+	oldHash := "old-hash"
+	oldDir := pagesProjectReleaseDir(pagesDir, projectID, oldHash)
+	if err := os.MkdirAll(oldDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(oldDir, "index.html"), []byte("old"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := switchPagesProjectCurrentDir(pagesDir, projectID, oldDir); err != nil {
+		t.Fatal(err)
+	}
+	// Simulate failed upgrade path: new release extracted but we do NOT switch/cleanup.
+	newHash := "new-hash"
+	newDir := pagesProjectReleaseDir(pagesDir, projectID, newHash)
+	if err := os.MkdirAll(newDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(newDir, "index.html"), []byte("new"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// Old must still be readable via current.
+	data, err := os.ReadFile(filepath.Join(pagesDir, "projects", "9", "current", "index.html"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(data) != "old" {
+		t.Fatalf("current should still serve old until switch, got %q", data)
+	}
+	if _, err := os.Stat(oldDir); err != nil {
+		t.Fatal("old release must not be deleted before successful switch")
+	}
+}
+
+func TestLegacyStateWithoutProjectIDForcesDiscovery(t *testing.T) {
+	snapshot := &state.Snapshot{
+		PagesDeployments: []state.PagesDeployment{{
+			DeploymentID: 99,
+			Hash:         "abc",
+		}},
+	}
+	if !pagesDiscoveryNeeded(snapshot) {
+		t.Fatal("legacy deployment-only state must force config rediscovery")
+	}
+	if pagesSyncNeeded(snapshot) {
+		t.Fatal("legacy rows without project_id must not enter hash-only sync")
+	}
+}
+
+func TestCleanupPagesProjectStaleReleasesKeepsOnlyLatest(t *testing.T) {
+	pagesDir := t.TempDir()
+	projectID := uint(3)
+	keep := "keep-hash"
+	stale := "stale-hash"
+	keepDir := pagesProjectReleaseDir(pagesDir, projectID, keep)
+	staleDir := pagesProjectReleaseDir(pagesDir, projectID, stale)
+	if err := os.MkdirAll(filepath.Join(keepDir, "nested"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(staleDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	tmpDir := staleDir + ".tmp"
+	if err := os.MkdirAll(tmpDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := cleanupPagesProjectStaleReleases(pagesDir, projectID, keep); err != nil {
+		t.Fatalf("cleanup: %v", err)
+	}
+	if _, err := os.Stat(keepDir); err != nil {
+		t.Fatalf("keep release missing: %v", err)
+	}
+	if _, err := os.Stat(staleDir); !os.IsNotExist(err) {
+		t.Fatal("stale release should be removed")
+	}
+	if _, err := os.Stat(tmpDir); !os.IsNotExist(err) {
+		t.Fatal("tmp leftover should be removed")
+	}
+}
+
+func TestSyncPagesDeploymentsIsolatesProjectFailures(t *testing.T) {
+	okPackage := testPagesPackage(t, map[string]string{"index.html": "ok"})
+	okHash := testBytesChecksum(okPackage)
+	client := &fakeClient{
+		config: protocol.ActiveConfigResponse{
+			Version:  "20260309-200",
+			Checksum: "cfg",
+			SourceConfigJSON: fmt.Sprintf(
+				`{"routes":[{"upstream_type":"pages","pages_project_id":1,"pages_deployment":{"project_id":1}},{"upstream_type":"pages","pages_project_id":2,"pages_deployment":{"project_id":2}}]}`,
+			),
+			CreatedAt: time.Now().Format(time.RFC3339),
+		},
+		pagesPackages: map[uint][]byte{1: okPackage},
+		pagesHashes:   map[uint]string{1: okHash},
+		// project 2 missing → ensure fails
+	}
+	stateStore := state.NewStore(filepath.Join(t.TempDir(), "state.json"))
+	snapshot, _ := stateStore.Load()
+	pagesDir := t.TempDir()
+	service := New(client, &fakeManager{}, stateStore)
+	service.SetPagesDir(pagesDir)
+
+	err := service.syncPagesDeployments(context.Background(), snapshot, &client.config)
+	if err == nil {
+		t.Fatal("expected aggregated error when one project fails")
+	}
+	// Project 1 must still have been applied.
+	data, readErr := os.ReadFile(filepath.Join(pagesDir, "projects", "1", "current", "index.html"))
+	if readErr != nil {
+		t.Fatalf("project 1 should succeed despite project 2 failure: %v", readErr)
+	}
+	if string(data) != "ok" {
+		t.Fatalf("unexpected content: %s", data)
+	}
 }
 
 func TestSyncOnceRedownloadsPagesDeploymentWhenReleaseDirOnlyHasMarker(t *testing.T) {
 	packageBytes := testPagesPackage(t, map[string]string{"index.html": "hello"})
 	checksum := testBytesChecksum(packageBytes)
-	deploymentID := uint(11)
+	projectID := uint(11)
 	client := &fakeClient{
 		config: protocol.ActiveConfigResponse{
 			Version:          "20260309-106",
 			Checksum:         "pages-config-checksum",
-			SourceConfigJSON: testPagesSourceConfigJSON(deploymentID, checksum),
+			SourceConfigJSON: testPagesSourceConfigJSON(projectID, projectID, checksum),
 			CreatedAt:        time.Now().Format(time.RFC3339),
 		},
-		pagesPackages: map[uint][]byte{deploymentID: packageBytes},
+		pagesPackages: map[uint][]byte{projectID: packageBytes},
 	}
 	stateStore := state.NewStore(filepath.Join(t.TempDir(), "state.json"))
 	nodeID, err := stateStore.EnsureNodeID()
@@ -1326,14 +1593,14 @@ func TestSyncOnceRedownloadsPagesDeploymentWhenReleaseDirOnlyHasMarker(t *testin
 		t.Fatalf("save state failed: %v", err)
 	}
 	pagesDir := t.TempDir()
-	releaseDir := pagesReleaseDir(pagesDir, deploymentID, checksum)
+	releaseDir := pagesProjectReleaseDir(pagesDir, projectID, checksum)
 	if err = os.MkdirAll(releaseDir, pagesDirPerm); err != nil {
 		t.Fatalf("mkdir release dir failed: %v", err)
 	}
-	if err = writePagesMarker(releaseDir, pagesDeploymentSource{DeploymentID: deploymentID, Checksum: checksum}); err != nil {
+	if err = writePagesMarker(releaseDir, pagesProjectRef{ProjectID: projectID, Checksum: checksum}); err != nil {
 		t.Fatalf("write marker failed: %v", err)
 	}
-	if pagesReleaseReady(releaseDir, pagesDeploymentSource{DeploymentID: deploymentID, Checksum: checksum}) {
+	if pagesProjectReleaseReady(releaseDir, pagesProjectRef{ProjectID: projectID, Checksum: checksum}) {
 		t.Fatal("expected marker-only release dir to be treated as not ready")
 	}
 
@@ -1346,7 +1613,7 @@ func TestSyncOnceRedownloadsPagesDeploymentWhenReleaseDirOnlyHasMarker(t *testin
 	}); err != nil {
 		t.Fatalf("SyncOnce failed: %v", err)
 	}
-	data, err := os.ReadFile(filepath.Join(pagesDir, "deployments", "11", "current", "index.html"))
+	data, err := os.ReadFile(filepath.Join(pagesDir, "projects", "11", "current", "index.html"))
 	if err != nil {
 		t.Fatalf("expected Pages file to be extracted after marker-only release dir: %v", err)
 	}
@@ -1389,7 +1656,7 @@ func TestSyncOnceDownloadsPagesDeploymentWithTopLevelFolder(t *testing.T) {
 		config: protocol.ActiveConfigResponse{
 			Version:          "20260309-105",
 			Checksum:         "pages-config-checksum",
-			SourceConfigJSON: testPagesSourceConfigJSON(77, checksum),
+			SourceConfigJSON: testPagesSourceConfigJSON(77, 77, checksum),
 			CreatedAt:        time.Now().Format(time.RFC3339),
 		},
 		pagesPackages: map[uint][]byte{77: packageBytes},
@@ -1412,14 +1679,14 @@ func TestSyncOnceDownloadsPagesDeploymentWithTopLevelFolder(t *testing.T) {
 	if err = service.SyncOnce(context.Background(), &protocol.ActiveConfigMeta{Version: "20260309-105", Checksum: "pages-config-checksum"}); err != nil {
 		t.Fatalf("SyncOnce failed: %v", err)
 	}
-	data, err := os.ReadFile(filepath.Join(pagesDir, "deployments", "77", "current", "index.html"))
+	data, err := os.ReadFile(filepath.Join(pagesDir, "projects", "77", "current", "index.html"))
 	if err != nil {
 		t.Fatalf("expected Pages index.html file to be extracted: %v", err)
 	}
 	if string(data) != "hello html" {
 		t.Fatalf("unexpected Pages index.html content: %s", string(data))
 	}
-	jsData, err := os.ReadFile(filepath.Join(pagesDir, "deployments", "77", "current", "assets", "app.js"))
+	jsData, err := os.ReadFile(filepath.Join(pagesDir, "projects", "77", "current", "assets", "app.js"))
 	if err != nil {
 		t.Fatalf("expected Pages assets/app.js file to be extracted: %v", err)
 	}

@@ -156,7 +156,7 @@ func ReportApplyLogHandler(c *gin.Context) {
 
 // GetPagesDeploymentHashHandler returns the upload SHA-256 hash for a Pages deployment package.
 // @Summary 查询 Pages 部署包哈希
-// @Description 返回 upload 框架记录的 SHA-256 哈希，供 Agent 对比本地缓存并按需拉取部署包
+// @Description 返回 upload 框架记录的 SHA-256 哈希，供 Agent 对比本地缓存并按需拉取部署包（兼容旧路径）
 // @Tags openflare-agent
 // @Produce json
 // @Security AgentTokenAuth
@@ -166,7 +166,7 @@ func ReportApplyLogHandler(c *gin.Context) {
 // @Failure 401 {object} response.Any "Token 无效"
 // @Router /api/v1/agent/pages/deployments/{deployment_id}/hash [get]
 func GetPagesDeploymentHashHandler(c *gin.Context) {
-	deploymentID, ok := pagesDeploymentIDParam(c)
+	deploymentID, ok := pagesUintParam(c, "deployment_id")
 	if !ok {
 		return
 	}
@@ -182,7 +182,7 @@ func GetPagesDeploymentHashHandler(c *gin.Context) {
 
 // DownloadPagesPackageHandler streams the Pages deployment artifact to an authenticated agent.
 // @Summary 下载 Pages 部署包
-// @Description 流式下载指定部署的静态资源压缩包，供 Agent 边缘分发
+// @Description 流式下载指定部署的静态资源压缩包，供 Agent 边缘分发（兼容旧路径）
 // @Tags openflare-agent
 // @Produce application/octet-stream
 // @Security AgentTokenAuth
@@ -192,7 +192,7 @@ func GetPagesDeploymentHashHandler(c *gin.Context) {
 // @Failure 401 {object} response.Any "Token 无效"
 // @Router /api/v1/agent/pages/deployments/{deployment_id}/package [get]
 func DownloadPagesPackageHandler(c *gin.Context) {
-	deploymentID, ok := pagesDeploymentIDParam(c)
+	deploymentID, ok := pagesUintParam(c, "deployment_id")
 	if !ok {
 		return
 	}
@@ -208,8 +208,63 @@ func DownloadPagesPackageHandler(c *gin.Context) {
 	c.DataFromReader(http.StatusOK, packageObj.ContentLength, packageObj.ContentType, packageObj.Body, nil)
 }
 
-func pagesDeploymentIDParam(c *gin.Context) (uint, bool) {
-	raw := c.Param("deployment_id")
+// GetPagesProjectLatestHashHandler returns the hash of a project's currently active deployment.
+// @Summary 查询 Pages 项目最新激活部署哈希
+// @Description 按项目 ID 返回当前激活部署的包哈希（类似 latest 指针），Agent 无需关心具体部署 ID
+// @Tags openflare-agent
+// @Produce json
+// @Security AgentTokenAuth
+// @Param project_id path int true "Pages 项目 ID"
+// @Success 200 {object} response.Any{data=protocol.PagesProjectLatestHashResponse}
+// @Failure 400 {object} response.Any "参数错误"
+// @Failure 401 {object} response.Any "Token 无效"
+// @Router /api/v1/agent/pages/projects/{project_id}/latest/hash [get]
+func GetPagesProjectLatestHashHandler(c *gin.Context) {
+	projectID, ok := pagesUintParam(c, "project_id")
+	if !ok {
+		return
+	}
+	deploymentID, hash, err := pages.GetProjectLatestPackageHash(c.Request.Context(), projectID)
+	if apiutil.AbortBadRequestOnError(c, err) {
+		return
+	}
+	c.JSON(http.StatusOK, response.OK(protocol.PagesProjectLatestHashResponse{
+		ProjectID:    projectID,
+		DeploymentID: deploymentID,
+		Hash:         hash,
+	}))
+}
+
+// DownloadPagesProjectLatestPackageHandler streams the active deployment package for a project.
+// @Summary 下载 Pages 项目最新激活部署包
+// @Description 按项目 ID 下载当前激活部署的压缩包，供 Agent 边缘分发
+// @Tags openflare-agent
+// @Produce application/octet-stream
+// @Security AgentTokenAuth
+// @Param project_id path int true "Pages 项目 ID"
+// @Success 200 {file} binary "部署包文件"
+// @Failure 400 {object} response.Any "参数错误"
+// @Failure 401 {object} response.Any "Token 无效"
+// @Router /api/v1/agent/pages/projects/{project_id}/latest/package [get]
+func DownloadPagesProjectLatestPackageHandler(c *gin.Context) {
+	projectID, ok := pagesUintParam(c, "project_id")
+	if !ok {
+		return
+	}
+	packageObj, err := pages.OpenProjectLatestPackage(c.Request.Context(), projectID)
+	if apiutil.AbortBadRequestOnError(c, err) {
+		return
+	}
+	defer func() { _ = packageObj.Body.Close() }()
+	c.Header("Content-Disposition", "attachment; filename="+packageObj.FileName)
+	if packageObj.ContentType != "" {
+		c.Header("Content-Type", packageObj.ContentType)
+	}
+	c.DataFromReader(http.StatusOK, packageObj.ContentLength, packageObj.ContentType, packageObj.Body, nil)
+}
+
+func pagesUintParam(c *gin.Context, name string) (uint, bool) {
+	raw := c.Param(name)
 	if raw == "" {
 		response.AbortBadRequest(c, "无效的 ID")
 		return 0, false

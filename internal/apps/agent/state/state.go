@@ -15,9 +15,12 @@ const (
 	nodeIDRandomBytes = 8
 )
 
-// PagesDeployment records a Pages release referenced by the active config.
+// PagesDeployment records a Pages project tracked by the agent and the last
+// applied package hash for that project's active deployment.
+// ProjectID is the stable identity; DeploymentID/Hash follow control-plane "latest".
 type PagesDeployment struct {
-	DeploymentID uint   `json:"deployment_id"`
+	ProjectID    uint   `json:"project_id"`
+	DeploymentID uint   `json:"deployment_id,omitempty"`
 	Hash         string `json:"hash"`
 	Checksum     string `json:"checksum,omitempty"`
 }

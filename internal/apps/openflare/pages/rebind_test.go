@@ -59,7 +59,7 @@ func TestRebindSnapshotPagesToCurrentActive(t *testing.T) {
 					"project_id":    project.ID,
 					"deployment_id": old.ID,
 					"checksum":      "old-checksum",
-					"local_root":    "__OPENFLARE_PAGES_DIR__/deployments/1/current",
+					"local_root":    "__OPENFLARE_PAGES_DIR__/projects/1/current",
 				},
 				"extra_keep_me": "yes",
 			},

@@ -111,6 +111,31 @@ func (c *Client) DownloadPagesDeploymentPackage(ctx context.Context, deploymentI
 	return io.ReadAll(res.Body)
 }
 
+// GetPagesProjectLatestHash returns the active deployment package hash for a Pages project.
+func (c *Client) GetPagesProjectLatestHash(ctx context.Context, projectID uint) (*protocol.PagesProjectLatestHashResponse, error) {
+	resp := protocol.APIResponse[protocol.PagesProjectLatestHashResponse]{}
+	if err := c.base.GetJSON(ctx, fmt.Sprintf("/api/v1/agent/pages/projects/%d/latest/hash", projectID), &resp); err != nil {
+		return nil, err
+	}
+	if err := edgehttp.APIError(resp.ErrorMsg); err != nil {
+		return nil, err
+	}
+	return &resp.Data, nil
+}
+
+// DownloadPagesProjectLatestPackage downloads the active deployment package for a Pages project.
+func (c *Client) DownloadPagesProjectLatestPackage(ctx context.Context, projectID uint) ([]byte, error) {
+	res, err := c.base.DoRaw(ctx, http.MethodGet, fmt.Sprintf("/api/v1/agent/pages/projects/%d/latest/package", projectID), nil)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = res.Body.Close() }()
+	if res.StatusCode != http.StatusOK {
+		return nil, edgehttp.ReadHTTPError(res)
+	}
+	return io.ReadAll(res.Body)
+}
+
 // SetToken updates the authentication token used for API requests.
 func (c *Client) SetToken(token string) {
 	c.base.SetToken(token)

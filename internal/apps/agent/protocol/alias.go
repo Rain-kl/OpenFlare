@@ -75,6 +75,9 @@ type SupportFile = pkgprotocol.SupportFile
 // PagesDeploymentHashResponse is an alias for pkgprotocol.PagesDeploymentHashResponse.
 type PagesDeploymentHashResponse = pkgprotocol.PagesDeploymentHashResponse
 
+// PagesProjectLatestHashResponse is an alias for pkgprotocol.PagesProjectLatestHashResponse.
+type PagesProjectLatestHashResponse = pkgprotocol.PagesProjectLatestHashResponse
+
 const (
 	// WSMessageTypeStatus is an alias for pkgprotocol.WSMessageTypeStatus.
 	WSMessageTypeStatus = pkgprotocol.WSMessageTypeStatus

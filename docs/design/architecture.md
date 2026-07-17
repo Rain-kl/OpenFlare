@@ -124,7 +124,7 @@ OpenResty (Agent, TLS/WAF)
 * *同步与自愈的精细时序及回滚模型详见：[Agent 与发布模型设计](./agent-design.md)*
 
 ### 2. 静态托管与 API 代理流
-* 静态资源解压落地于 Agent 节点的 `deployments/{id}/current` 下，OpenResty 通过 `root`/`index`/`try_files` 指令在边缘直接向访客提供极低延迟的静态资源服务。
+* 静态资源解压落地于 Agent 节点的 `projects/{project_id}/current` 下（按项目 latest 拉取，仅保留最新包），OpenResty 通过 `root`/`index`/`try_files` 在边缘直接提供静态资源服务。
 * 当启用 API 代理时，OpenResty 自动根据站点配置的 `api_proxy_path`（如 `/api`）将 API 请求重写并转发（`proxy_pass`）给后端动态接口。
 * *部署包校验、解压逃逸防御及 Nginx 规则渲染详见：[Pages 静态托管设计文档](./pages-design.md)*
 
