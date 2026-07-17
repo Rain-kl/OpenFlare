@@ -468,7 +468,8 @@ export function OpenFlareOpsSettings() {
             />
           </div>
           <p className='text-xs text-muted-foreground'>
-            每个项目最多保留 N 条部署：激活部署始终保留，其余按从新到旧填充；超出的非激活部署会在上传成功后自动清理。支持
+            每个项目最多保留 N
+            条部署：激活部署始终保留，其余按从新到旧填充；超出的非激活部署会在上传成功后自动清理。支持
             zip、tar.gz、tar.xz、tar.bz2、tar、7z 格式。
           </p>
         </CardContent>

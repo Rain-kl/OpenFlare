@@ -778,6 +778,15 @@ definitions:
       hash:
         type: string
     type: object
+  github_com_Rain-kl_Wavelet_pkg_protocol.PagesProjectLatestHashResponse:
+    properties:
+      deployment_id:
+        type: integer
+      hash:
+        type: string
+      project_id:
+        type: integer
+    type: object
   github_com_Rain-kl_Wavelet_pkg_protocol.WAFIPGroup:
     properties:
       checksum:
@@ -2497,6 +2506,11 @@ definitions:
       spa_fallback_enabled:
         type: boolean
       spa_fallback_path:
+        type: string
+    type: object
+  pages.UploadFromURLInput:
+    properties:
+      url:
         type: string
     type: object
   pages.View:
@@ -6641,7 +6655,7 @@ paths:
       - openflare-agent
   /api/v1/agent/pages/deployments/{deployment_id}/hash:
     get:
-      description: 返回 upload 框架记录的 SHA-256 哈希，供 Agent 对比本地缓存并按需拉取部署包
+      description: 返回 upload 框架记录的 SHA-256 哈希，供 Agent 对比本地缓存并按需拉取部署包（兼容旧路径）
       parameters:
       - description: 部署 ID
         in: path
@@ -6675,7 +6689,7 @@ paths:
       - openflare-agent
   /api/v1/agent/pages/deployments/{deployment_id}/package:
     get:
-      description: 流式下载指定部署的静态资源压缩包，供 Agent 边缘分发
+      description: 流式下载指定部署的静态资源压缩包，供 Agent 边缘分发（兼容旧路径）
       parameters:
       - description: 部署 ID
         in: path
@@ -6700,6 +6714,69 @@ paths:
       security:
       - AgentTokenAuth: []
       summary: 下载 Pages 部署包
+      tags:
+      - openflare-agent
+  /api/v1/agent/pages/projects/{project_id}/latest/hash:
+    get:
+      description: 按项目 ID 返回当前激活部署的包哈希（类似 latest 指针），Agent 无需关心具体部署 ID
+      parameters:
+      - description: Pages 项目 ID
+        in: path
+        name: project_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/github_com_Rain-kl_Wavelet_pkg_protocol.PagesProjectLatestHashResponse'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "401":
+          description: Token 无效
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - AgentTokenAuth: []
+      summary: 查询 Pages 项目最新激活部署哈希
+      tags:
+      - openflare-agent
+  /api/v1/agent/pages/projects/{project_id}/latest/package:
+    get:
+      description: 按项目 ID 下载当前激活部署的压缩包，供 Agent 边缘分发
+      parameters:
+      - description: Pages 项目 ID
+        in: path
+        name: project_id
+        required: true
+        type: integer
+      produces:
+      - application/octet-stream
+      responses:
+        "200":
+          description: 部署包文件
+          schema:
+            type: file
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "401":
+          description: Token 无效
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - AgentTokenAuth: []
+      summary: 下载 Pages 项目最新激活部署包
       tags:
       - openflare-agent
   /api/v1/agent/waf/ip-groups/sync:
@@ -8930,14 +9007,14 @@ paths:
     post:
       consumes:
       - multipart/form-data
-      description: 为指定项目上传 ZIP 部署包，需要管理员权限
+      description: 为指定项目上传静态资源压缩包（zip/tar.gz/tar.xz/tar.bz2/tar/7z），需要管理员权限
       parameters:
       - description: 项目 ID
         in: path
         name: id
         required: true
         type: integer
-      - description: 部署包 ZIP 文件
+      - description: 部署包文件
         in: formData
         name: package
         required: true
@@ -8973,6 +9050,56 @@ paths:
       security:
       - SessionCookie: []
       summary: 上传 Pages 部署包
+      tags:
+      - openflare-pages
+  /api/v1/d/pages/{id}/deployments/upload-from-url:
+    post:
+      consumes:
+      - application/json
+      description: 从用户提供的 HTTP(S) 链接下载部署包并创建部署记录；服务端使用浏览器伪装请求头拉取，需要管理员权限
+      parameters:
+      - description: 项目 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 下载链接
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/pages.UploadFromURLInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 部署记录
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/pages.DeploymentView'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "404":
+          description: 项目不存在
+          schema:
+            $ref: '#/definitions/response.Any'
+        "500":
+          description: 内部错误
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 从 URL 导入 Pages 部署包
       tags:
       - openflare-pages
   /api/v1/d/pages/{id}/update:

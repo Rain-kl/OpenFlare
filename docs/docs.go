@@ -4475,7 +4475,7 @@ const docTemplate = `{
                         "AgentTokenAuth": []
                     }
                 ],
-                "description": "返回 upload 框架记录的 SHA-256 哈希，供 Agent 对比本地缓存并按需拉取部署包",
+                "description": "返回 upload 框架记录的 SHA-256 哈希，供 Agent 对比本地缓存并按需拉取部署包（兼容旧路径）",
                 "produces": [
                     "application/json"
                 ],
@@ -4533,7 +4533,7 @@ const docTemplate = `{
                         "AgentTokenAuth": []
                     }
                 ],
-                "description": "流式下载指定部署的静态资源压缩包，供 Agent 边缘分发",
+                "description": "流式下载指定部署的静态资源压缩包，供 Agent 边缘分发（兼容旧路径）",
                 "produces": [
                     "application/octet-stream"
                 ],
@@ -4546,6 +4546,110 @@ const docTemplate = `{
                         "type": "integer",
                         "description": "部署 ID",
                         "name": "deployment_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "部署包文件",
+                        "schema": {
+                            "type": "file"
+                        }
+                    },
+                    "400": {
+                        "description": "参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    },
+                    "401": {
+                        "description": "Token 无效",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/agent/pages/projects/{project_id}/latest/hash": {
+            "get": {
+                "security": [
+                    {
+                        "AgentTokenAuth": []
+                    }
+                ],
+                "description": "按项目 ID 返回当前激活部署的包哈希（类似 latest 指针），Agent 无需关心具体部署 ID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "openflare-agent"
+                ],
+                "summary": "查询 Pages 项目最新激活部署哈希",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Pages 项目 ID",
+                        "name": "project_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_pkg_protocol.PagesProjectLatestHashResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    },
+                    "401": {
+                        "description": "Token 无效",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/agent/pages/projects/{project_id}/latest/package": {
+            "get": {
+                "security": [
+                    {
+                        "AgentTokenAuth": []
+                    }
+                ],
+                "description": "按项目 ID 下载当前激活部署的压缩包，供 Agent 边缘分发",
+                "produces": [
+                    "application/octet-stream"
+                ],
+                "tags": [
+                    "openflare-agent"
+                ],
+                "summary": "下载 Pages 项目最新激活部署包",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Pages 项目 ID",
+                        "name": "project_id",
                         "in": "path",
                         "required": true
                     }
@@ -8198,7 +8302,7 @@ const docTemplate = `{
                         "SessionCookie": []
                     }
                 ],
-                "description": "为指定项目上传 ZIP 部署包，需要管理员权限",
+                "description": "为指定项目上传静态资源压缩包（zip/tar.gz/tar.xz/tar.bz2/tar/7z），需要管理员权限",
                 "consumes": [
                     "multipart/form-data"
                 ],
@@ -8219,10 +8323,92 @@ const docTemplate = `{
                     },
                     {
                         "type": "file",
-                        "description": "部署包 ZIP 文件",
+                        "description": "部署包文件",
                         "name": "package",
                         "in": "formData",
                         "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "部署记录",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/pages.DeploymentView"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    },
+                    "401": {
+                        "description": "未登录",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    },
+                    "404": {
+                        "description": "项目不存在",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    },
+                    "500": {
+                        "description": "内部错误",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/d/pages/{id}/deployments/upload-from-url": {
+            "post": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "description": "从用户提供的 HTTP(S) 链接下载部署包并创建部署记录；服务端使用浏览器伪装请求头拉取，需要管理员权限",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "openflare-pages"
+                ],
+                "summary": "从 URL 导入 Pages 部署包",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "项目 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "下载链接",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/pages.UploadFromURLInput"
+                        }
                     }
                 ],
                 "responses": {
@@ -14220,6 +14406,20 @@ const docTemplate = `{
                 }
             }
         },
+        "github_com_Rain-kl_Wavelet_pkg_protocol.PagesProjectLatestHashResponse": {
+            "type": "object",
+            "properties": {
+                "deployment_id": {
+                    "type": "integer"
+                },
+                "hash": {
+                    "type": "string"
+                },
+                "project_id": {
+                    "type": "integer"
+                }
+            }
+        },
         "github_com_Rain-kl_Wavelet_pkg_protocol.WAFIPGroup": {
             "type": "object",
             "properties": {
@@ -16817,6 +17017,14 @@ const docTemplate = `{
                     "type": "boolean"
                 },
                 "spa_fallback_path": {
+                    "type": "string"
+                }
+            }
+        },
+        "pages.UploadFromURLInput": {
+            "type": "object",
+            "properties": {
+                "url": {
                     "type": "string"
                 }
             }

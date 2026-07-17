@@ -243,7 +243,7 @@ func ListDeploymentFiles(ctx context.Context, deploymentID uint) ([]DeploymentFi
 	return views, nil
 }
 
-// UploadDeployment 上传 Pages 部署包。
+// UploadDeployment 上传 Pages 部署包（本地 multipart 文件）。
 func UploadDeployment(ctx context.Context, projectID uint, fileHeader *multipart.FileHeader, createdBy string) (*DeploymentView, error) {
 	project, err := model.GetPagesProjectByID(ctx, projectID)
 	if err != nil {
@@ -253,16 +253,52 @@ func UploadDeployment(ctx context.Context, projectID uint, fileHeader *multipart
 		return nil, errors.New(errPagesPackageMissing)
 	}
 	limits := resolvePagesLimits(ctx)
-	rootDir, err := validateAndNormalizePagesRootDir(project.RootDir)
-	if err != nil {
-		return nil, err
-	}
-	entryFile := normalizePagesEntryFile(project.EntryFile)
 	tempPath, checksum, _, format, err := persistPagesUploadTemp(fileHeader, limits.PackageBytes)
 	if err != nil {
 		return nil, err
 	}
 	defer func() { _ = os.Remove(tempPath) }()
+	return createDeploymentFromTempPackage(ctx, project, tempPath, checksum, format, fileHeader.Filename, createdBy, limits)
+}
+
+// UploadFromURLInput is the request body for downloading a deployment package from a remote URL.
+type UploadFromURLInput struct {
+	URL string `json:"url"`
+}
+
+// UploadDeploymentFromURL downloads a package from url and creates a deployment.
+func UploadDeploymentFromURL(ctx context.Context, projectID uint, rawURL string, createdBy string) (*DeploymentView, error) {
+	project, err := model.GetPagesProjectByID(ctx, projectID)
+	if err != nil {
+		return nil, err
+	}
+	limits := resolvePagesLimits(ctx)
+	tempPath, checksum, _, format, fileName, err := downloadPagesPackageFromURL(ctx, rawURL, limits.PackageBytes)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = os.Remove(tempPath) }()
+	return createDeploymentFromTempPackage(ctx, project, tempPath, checksum, format, fileName, createdBy, limits)
+}
+
+func createDeploymentFromTempPackage(
+	ctx context.Context,
+	project *model.PagesProject,
+	tempPath string,
+	checksum string,
+	format pagesarchive.Format,
+	fileName string,
+	createdBy string,
+	limits pagesLimits,
+) (*DeploymentView, error) {
+	if project == nil {
+		return nil, errors.New(errPagesProjectNotFound)
+	}
+	rootDir, err := validateAndNormalizePagesRootDir(project.RootDir)
+	if err != nil {
+		return nil, err
+	}
+	entryFile := normalizePagesEntryFile(project.EntryFile)
 	manifest, err := inspectPagesPackage(tempPath, format, rootDir, entryFile, limits)
 	if err != nil {
 		return nil, err
@@ -272,7 +308,7 @@ func UploadDeployment(ctx context.Context, projectID uint, fileHeader *multipart
 		tempPath,
 		checksum,
 		project.Slug,
-		fileHeader.Filename,
+		fileName,
 		format,
 	)
 	if err != nil {
@@ -321,8 +357,6 @@ func UploadDeployment(ctx context.Context, projectID uint, fileHeader *multipart
 	}
 	ingestCommitted = true
 
-	// History prune must not fail the already-committed upload. Log and continue;
-	// a later upload (or a retry pass inside prune) will re-attempt cleanup.
 	if pruneErr := pruneProjectDeploymentHistory(ctx, project.ID, limits.HistoryCount); pruneErr != nil {
 		logger.ErrorF(ctx,
 			"[Pages] prune deployment history failed: project_id=%d keep=%d error=%v",

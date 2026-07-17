@@ -190,13 +190,13 @@ func ListDeploymentsHandler(c *gin.Context) {
 
 // UploadDeploymentHandler 上传 Pages 部署包。
 // @Summary 上传 Pages 部署包
-// @Description 为指定项目上传 ZIP 部署包，需要管理员权限
+// @Description 为指定项目上传静态资源压缩包（zip/tar.gz/tar.xz/tar.bz2/tar/7z），需要管理员权限
 // @Tags openflare-pages
 // @Accept multipart/form-data
 // @Produce json
 // @Security SessionCookie
 // @Param id path int true "项目 ID"
-// @Param package formData file true "部署包 ZIP 文件"
+// @Param package formData file true "部署包文件"
 // @Success 200 {object} response.Any{data=pages.DeploymentView} "部署记录"
 // @Failure 400 {object} response.Any "参数错误"
 // @Failure 401 {object} response.Any "未登录"
@@ -215,6 +215,39 @@ func UploadDeploymentHandler(c *gin.Context) {
 		return
 	}
 	deployment, err := UploadDeployment(c.Request.Context(), id, file, "")
+	if handleLogicError(c, err) {
+		return
+	}
+	c.JSON(http.StatusOK, response.OK(deployment))
+}
+
+// UploadDeploymentFromURLHandler 从 URL 下载并创建 Pages 部署。
+// @Summary 从 URL 导入 Pages 部署包
+// @Description 从用户提供的 HTTP(S) 链接下载部署包并创建部署记录；服务端使用浏览器伪装请求头拉取，允许内网地址与不安全 TLS 证书，需要管理员权限
+// @Tags openflare-pages
+// @Accept json
+// @Produce json
+// @Security SessionCookie
+// @Param id path int true "项目 ID"
+// @Param request body pages.UploadFromURLInput true "下载链接"
+// @Success 200 {object} response.Any{data=pages.DeploymentView} "部署记录"
+// @Failure 400 {object} response.Any "参数错误"
+// @Failure 401 {object} response.Any "未登录"
+// @Failure 404 {object} response.Any "无权限或不存在"
+// @Failure 404 {object} response.Any "项目不存在"
+// @Failure 500 {object} response.Any "内部错误"
+// @Router /api/v1/d/pages/{id}/deployments/upload-from-url [post]
+func UploadDeploymentFromURLHandler(c *gin.Context) {
+	id, ok := apiutil.IDParam(c)
+	if !ok {
+		return
+	}
+	var req UploadFromURLInput
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.AbortBadRequest(c, errPagesPackageURLRequired)
+		return
+	}
+	deployment, err := UploadDeploymentFromURL(c.Request.Context(), id, req.URL, "")
 	if handleLogicError(c, err) {
 		return
 	}

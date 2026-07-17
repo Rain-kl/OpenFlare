@@ -8,6 +8,7 @@ import { OpenFlareBaseService } from './base.service';
 import type {
   PagesDeployment,
   PagesDeploymentFile,
+  PagesDeploymentUploadFromURLPayload,
   PagesDeploymentUploadPayload,
   PagesProject,
   PagesProjectPayload,
@@ -64,6 +65,16 @@ export class PagesService extends OpenFlareBaseService {
       `/${projectId}/deployments/upload`,
       formData,
       payload.onProgress,
+    );
+  }
+
+  static uploadDeploymentFromURL(
+    projectId: number,
+    payload: PagesDeploymentUploadFromURLPayload,
+  ): Promise<PagesDeployment> {
+    return this.post<PagesDeployment>(
+      `/${projectId}/deployments/upload-from-url`,
+      payload,
     );
   }
 

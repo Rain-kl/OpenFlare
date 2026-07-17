@@ -20,6 +20,7 @@ func registerPagesRoutes(apiGroup *gin.RouterGroup) {
 		pagesRoute.POST("/:id/delete", pages.DeleteProjectHandler)
 		pagesRoute.GET("/:id/deployments", pages.ListDeploymentsHandler)
 		pagesRoute.POST("/:id/deployments/upload", pages.UploadDeploymentHandler)
+		pagesRoute.POST("/:id/deployments/upload-from-url", pages.UploadDeploymentFromURLHandler)
 		pagesRoute.POST("/:id/deployments/:deployment_id/activate", pages.ActivateDeploymentHandler)
 		pagesRoute.POST("/:id/deployments/:deployment_id/delete", pages.DeleteDeploymentHandler)
 		pagesRoute.GET("/deployments/:deployment_id/files", pages.ListDeploymentFilesHandler)

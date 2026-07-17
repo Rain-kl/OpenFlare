@@ -14,6 +14,10 @@ const (
 	errPagesDeploymentMismatch       = "pages 部署不属于该项目"
 	errPagesDeleteActiveDeploy       = "不能删除当前激活的 Pages 部署"
 	errPagesPackageMissing           = "缺少 Pages 部署包"
+	errPagesPackageURLRequired       = "请填写部署包下载链接"
+	errPagesPackageURLInvalid        = "部署包下载链接无效，仅支持 http/https"
+	errPagesPackageURLDownloadFailed = "从链接下载部署包失败"
+	errPagesPackageURLTooLarge       = "链接指向的部署包超过大小限制"
 	errPagesPackageNotZip            = "pages 部署包必须是 .zip 文件" // legacy alias kept for tests
 	errPagesPackageUnsupported       = "pages 部署包仅支持 zip、tar.gz、tar.xz、tar.bz2、tar、7z 格式"
 	errPagesPackageInvalidZip        = "pages 部署包不是有效 zip 文件" // legacy alias

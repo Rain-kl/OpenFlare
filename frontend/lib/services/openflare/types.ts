@@ -469,6 +469,10 @@ export interface PagesDeploymentUploadPayload {
   onProgress?: (percent: number) => void;
 }
 
+export interface PagesDeploymentUploadFromURLPayload {
+  url: string;
+}
+
 // ==================== Origins ====================
 
 export interface OriginItem {
