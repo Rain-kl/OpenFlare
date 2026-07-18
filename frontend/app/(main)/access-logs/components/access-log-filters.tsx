@@ -11,11 +11,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import type { AccessLogTab, SearchDraft } from './access-log-utils';
+import type { SearchDraft } from './access-log-utils';
 import { PAGE_SIZE_OPTIONS } from './access-log-utils';
 
 interface AccessLogFiltersProps {
-  tab: AccessLogTab;
   draft: SearchDraft;
   pageSize: number;
   onDraftChange: (draft: SearchDraft) => void;
@@ -25,7 +24,6 @@ interface AccessLogFiltersProps {
 }
 
 export function AccessLogFilters({
-  tab,
   draft,
   pageSize,
   onDraftChange,
@@ -33,8 +31,6 @@ export function AccessLogFilters({
   onSearch,
   onReset,
 }: AccessLogFiltersProps) {
-  const showPath = tab === 'list' || tab === 'folds';
-
   return (
     <div className='space-y-3'>
       <div className='grid gap-3 md:grid-cols-2 xl:grid-cols-4'>
@@ -81,24 +77,18 @@ export function AccessLogFilters({
             className='h-9 text-xs'
           />
         </div>
-        {showPath ? (
-          <div className='space-y-1.5'>
-            <p className='text-xs font-medium text-muted-foreground'>
-              请求路径
-            </p>
-            <Input
-              value={draft.path}
-              onChange={(e) =>
-                onDraftChange({ ...draft, path: e.target.value })
-              }
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') onSearch();
-              }}
-              placeholder='按路径搜索'
-              className='h-9 text-xs'
-            />
-          </div>
-        ) : null}
+        <div className='space-y-1.5'>
+          <p className='text-xs font-medium text-muted-foreground'>请求路径</p>
+          <Input
+            value={draft.path}
+            onChange={(e) => onDraftChange({ ...draft, path: e.target.value })}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') onSearch();
+            }}
+            placeholder='按路径搜索'
+            className='h-9 text-xs'
+          />
+        </div>
       </div>
 
       <div className='flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between'>

@@ -20,6 +20,8 @@ import (
 const (
 	accessLogColumnStatusCode = "status_code"
 	accessLogColumnHost       = "host"
+	accessLogColumnPath       = "path"
+	accessLogColumnRemoteAddr = "remote_addr"
 )
 
 type memoryAccessLogStore struct {
@@ -473,17 +475,24 @@ func (s *memoryAccessLogStore) ValueCounts(_ context.Context, filter OpenFlareAc
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	col := strings.TrimSpace(strings.ToLower(column))
-	if col != accessLogColumnStatusCode && col != accessLogColumnHost {
+	switch col {
+	case accessLogColumnStatusCode, accessLogColumnHost, accessLogColumnPath, accessLogColumnRemoteAddr:
+	default:
 		return nil, nil
 	}
 	rows := s.filterRecords(filter)
 	counts := make(map[string]int64)
 	for _, row := range rows {
 		var value string
-		if col == accessLogColumnStatusCode {
+		switch col {
+		case accessLogColumnStatusCode:
 			value = strconv.Itoa(row.StatusCode)
-		} else {
+		case accessLogColumnHost:
 			value = strings.TrimSpace(row.Host)
+		case accessLogColumnPath:
+			value = strings.TrimSpace(row.Path)
+		case accessLogColumnRemoteAddr:
+			value = strings.TrimSpace(row.RemoteAddr)
 		}
 		if value == "" {
 			continue

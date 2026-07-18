@@ -77,7 +77,7 @@ func TrafficSummaryOpenFlareAccessLogs(ctx context.Context, query OpenFlareAcces
 	return currentAccessLogStore().TrafficSummary(ctx, query)
 }
 
-// ValueCountsOpenFlareAccessLogs groups logs by status_code or host.
+// ValueCountsOpenFlareAccessLogs groups logs by status_code, host, path, or remote_addr.
 func ValueCountsOpenFlareAccessLogs(ctx context.Context, query OpenFlareAccessLogQuery, column string, limit int) ([]OpenFlareAccessLogValueCount, error) {
 	return currentAccessLogStore().ValueCounts(ctx, query, column, limit)
 }

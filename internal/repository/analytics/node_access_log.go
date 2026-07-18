@@ -206,27 +206,19 @@ WHERE %s`, tableName, clause)
 }
 
 // ValueCountsNodeAccessLogs groups logs by a single dimension column.
-// Allowed columns: status_code, host.
+// Allowed columns: status_code, host, path, remote_addr.
 func ValueCountsNodeAccessLogs(ctx context.Context, filter NodeAccessLogFilter, column string, limit int) ([]NodeAccessLogValueCount, error) {
 	conn, err := nodeAccessLogConn()
 	if err != nil {
 		return nil, err
 	}
 	col := strings.TrimSpace(strings.ToLower(column))
-	switch col {
-	case nodeAccessLogColumnStatusCode, nodeAccessLogColumnHost:
-	default:
+	valueExpr, ok := nodeAccessLogValueCountExpr(col)
+	if !ok {
 		return nil, fmt.Errorf("unsupported value count column: %s", column)
 	}
 	clause, args := buildNodeAccessLogFilterClause(filter)
 	tableName := nodeAccessLogTableName()
-	// status_code is numeric; cast to string for a uniform Value field.
-	var valueExpr string
-	if col == nodeAccessLogColumnStatusCode {
-		valueExpr = "toString(" + nodeAccessLogColumnStatusCode + ")"
-	} else {
-		valueExpr = "trim(" + nodeAccessLogColumnHost + ")"
-	}
 	sql := fmt.Sprintf(`
 SELECT %s AS value, count() AS count
 FROM %s
@@ -257,6 +249,21 @@ ORDER BY count DESC, value ASC`, valueExpr, tableName, clause, valueExpr)
 		})
 	}
 	return result, nil
+}
+
+func nodeAccessLogValueCountExpr(column string) (string, bool) {
+	switch column {
+	case nodeAccessLogColumnStatusCode:
+		return "toString(" + nodeAccessLogColumnStatusCode + ")", true
+	case nodeAccessLogColumnHost:
+		return "trim(" + nodeAccessLogColumnHost + ")", true
+	case nodeAccessLogColumnPath:
+		return "trim(" + nodeAccessLogColumnPath + ")", true
+	case nodeAccessLogColumnRemoteAddr:
+		return "trim(" + nodeAccessLogColumnRemoteAddr + ")", true
+	default:
+		return "", false
+	}
 }
 
 // NodeAggregatesNodeAccessLogs returns per-node request/error/UV aggregates.

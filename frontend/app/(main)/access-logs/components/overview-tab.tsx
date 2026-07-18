@@ -1,0 +1,348 @@
+'use client';
+
+import { useMemo } from 'react';
+import type { EChartsOption } from 'echarts';
+import ReactECharts from 'echarts-for-react';
+
+import { RankChart } from '@/components/data/rank-chart';
+import { TrendChart } from '@/components/data/trend-chart';
+import { EmptyStateWithBorder } from '@/components/layout/empty';
+import { ErrorInline } from '@/components/layout/error';
+import { LoadingStateWithBorder } from '@/components/layout/loading';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import type { AccessLogOverview } from '@/lib/services/openflare';
+import { formatBytes, formatCompactNumber } from '@/lib/utils/metrics';
+
+import {
+  formatOverviewRangeHint,
+  formatOverviewTrendLabel,
+  OVERVIEW_RANGE_OPTIONS,
+  type OverviewRangeHours,
+} from './access-log-utils';
+
+function SparklineMetricCard({
+  title,
+  value,
+  hint,
+  color,
+  fillColor,
+  labels,
+  values,
+  valueFormatter,
+}: {
+  title: string;
+  value: string;
+  hint: string;
+  color: string;
+  fillColor: string;
+  labels: string[];
+  values: number[];
+  valueFormatter?: (value: number) => string;
+}) {
+  const option = useMemo<EChartsOption>(
+    () => ({
+      animationDuration: 400,
+      grid: {
+        left: 0,
+        right: 0,
+        top: 8,
+        bottom: 0,
+      },
+      xAxis: {
+        type: 'category',
+        show: false,
+        boundaryGap: false,
+        data: labels,
+      },
+      yAxis: {
+        type: 'value',
+        show: false,
+        min: 0,
+      },
+      tooltip: {
+        trigger: 'axis',
+        backgroundColor: 'rgba(15, 23, 42, 0.92)',
+        borderWidth: 0,
+        textStyle: {
+          color: '#e2e8f0',
+          fontSize: 12,
+        },
+        formatter: (params: unknown) => {
+          const items = Array.isArray(params) ? params : [];
+          const item = items[0] as
+            { axisValueLabel?: string; value?: number } | undefined;
+          if (!item) return '';
+          const raw = typeof item.value === 'number' ? item.value : 0;
+          const formatted = valueFormatter
+            ? valueFormatter(raw)
+            : formatCompactNumber(raw);
+          return `${item.axisValueLabel ?? ''}<br/>${formatted}`;
+        },
+      },
+      series: [
+        {
+          type: 'line',
+          data: values,
+          smooth: true,
+          showSymbol: false,
+          lineStyle: {
+            color,
+            width: 2,
+          },
+          areaStyle: {
+            color: fillColor,
+          },
+        },
+      ],
+    }),
+    [color, fillColor, labels, valueFormatter, values],
+  );
+
+  return (
+    <Card className='border-dashed shadow-none'>
+      <CardContent className='p-4'>
+        <div className='flex items-start justify-between gap-3'>
+          <div className='min-w-0 space-y-1'>
+            <p className='text-[10px] uppercase tracking-wider text-muted-foreground'>
+              {title}
+            </p>
+            <p className='text-2xl font-semibold tracking-tight'>{value}</p>
+            <p className='text-[11px] text-muted-foreground'>{hint}</p>
+          </div>
+          <div className='h-16 w-28 shrink-0 sm:w-36'>
+            {labels.length > 0 ? (
+              <ReactECharts
+                option={option}
+                notMerge
+                lazyUpdate
+                style={{ height: '100%', width: '100%' }}
+              />
+            ) : null}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function RankCard({
+  title,
+  description,
+  items,
+  color,
+}: {
+  title: string;
+  description: string;
+  items: { label: string; value: number }[];
+  color: string;
+}) {
+  return (
+    <Card className='border-dashed shadow-none'>
+      <CardHeader className='pb-3'>
+        <CardTitle className='text-sm font-semibold text-foreground'>
+          {title}
+        </CardTitle>
+        <CardDescription className='text-xs text-muted-foreground'>
+          {description}
+        </CardDescription>
+      </CardHeader>
+      <CardContent className='pt-0'>
+        <RankChart
+          items={items}
+          color={color}
+          emptyMessage={`暂无 ${title} 数据`}
+        />
+      </CardContent>
+    </Card>
+  );
+}
+
+function OverviewRangeSwitch({
+  hours,
+  onHoursChange,
+}: {
+  hours: OverviewRangeHours;
+  onHoursChange: (hours: OverviewRangeHours) => void;
+}) {
+  return (
+    <div className='flex justify-end'>
+      <ToggleGroup
+        type='single'
+        value={String(hours)}
+        onValueChange={(value) => {
+          if (!value) return;
+          onHoursChange(Number.parseInt(value, 10) as OverviewRangeHours);
+        }}
+        variant='outline'
+        size='sm'
+        className='justify-end'
+      >
+        {OVERVIEW_RANGE_OPTIONS.map((option) => (
+          <ToggleGroupItem
+            key={option.value}
+            value={String(option.value)}
+            className='px-2.5 text-xs'
+          >
+            {option.label}
+          </ToggleGroupItem>
+        ))}
+      </ToggleGroup>
+    </div>
+  );
+}
+
+export function OverviewTab({
+  data,
+  loading,
+  error,
+  hours,
+  onHoursChange,
+  onRetry,
+}: {
+  data?: AccessLogOverview;
+  loading: boolean;
+  error: Error | null;
+  hours: OverviewRangeHours;
+  onHoursChange: (hours: OverviewRangeHours) => void;
+  onRetry: () => void;
+}) {
+  return (
+    <div className='space-y-6'>
+      <OverviewRangeSwitch hours={hours} onHoursChange={onHoursChange} />
+
+      {loading ? (
+        <LoadingStateWithBorder
+          title='加载访问概览'
+          description='正在聚合请求量、访问量与带宽趋势...'
+        />
+      ) : error ? (
+        <ErrorInline
+          message={error.message || '加载访问概览失败'}
+          onRetry={onRetry}
+        />
+      ) : !data ? (
+        <EmptyStateWithBorder
+          title='暂无概览数据'
+          description='当前时间范围内没有可展示的访问统计。'
+        />
+      ) : (
+        <OverviewContent data={data} hours={hours} />
+      )}
+    </div>
+  );
+}
+
+function OverviewContent({
+  data,
+  hours,
+}: {
+  data: AccessLogOverview;
+  hours: number;
+}) {
+  const requestLabels = data.trends.requests.map((point) =>
+    formatOverviewTrendLabel(point.bucket_started_at, hours),
+  );
+  const requestValues = data.trends.requests.map((point) => point.value);
+  const visitValues = data.trends.visits.map((point) => point.value);
+  const bandwidthValues = data.trends.bandwidth.map((point) => point.value);
+  const hint = formatOverviewRangeHint(hours);
+
+  return (
+    <>
+      <div className='grid gap-4 lg:grid-cols-3'>
+        <SparklineMetricCard
+          title='Total Requests'
+          value={formatCompactNumber(data.summary.total_requests)}
+          hint={hint}
+          color='#f59e0b'
+          fillColor='rgba(245, 158, 11, 0.18)'
+          labels={requestLabels}
+          values={requestValues}
+        />
+        <SparklineMetricCard
+          title='Total Visits'
+          value={formatCompactNumber(data.summary.total_visits)}
+          hint={`${hint} · 独立访客`}
+          color='#38bdf8'
+          fillColor='rgba(56, 189, 248, 0.16)'
+          labels={requestLabels}
+          values={visitValues}
+        />
+        <SparklineMetricCard
+          title='Bandwidth Served'
+          value={formatBytes(data.summary.bandwidth_served)}
+          hint={`${hint} · 已提供数据`}
+          color='#34d399'
+          fillColor='rgba(52, 211, 153, 0.16)'
+          labels={requestLabels}
+          values={bandwidthValues}
+          valueFormatter={formatBytes}
+        />
+      </div>
+
+      <Card className='border-dashed shadow-none'>
+        <CardHeader>
+          <CardTitle className='text-sm font-semibold'>
+            Requests over time
+          </CardTitle>
+          <CardDescription className='text-xs'>
+            观察请求量是否出现异常抬升或回落。
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <TrendChart
+            labels={requestLabels}
+            height={280}
+            showSummary={false}
+            series={[
+              {
+                label: '请求量',
+                color: '#f59e0b',
+                fillColor: 'rgba(245, 158, 11, 0.18)',
+                variant: 'area',
+                values: requestValues,
+              },
+            ]}
+          />
+        </CardContent>
+      </Card>
+
+      <div className='grid gap-6 xl:grid-cols-3'>
+        <RankCard
+          title='Top Paths'
+          description='访问量最高的请求路径。'
+          color='#a78bfa'
+          items={data.top_paths.map((item) => ({
+            label: item.key,
+            value: item.value,
+          }))}
+        />
+        <RankCard
+          title='Top Hosts'
+          description='流量集中的访问域名。'
+          color='#34d399'
+          items={data.top_hosts.map((item) => ({
+            label: item.key,
+            value: item.value,
+          }))}
+        />
+        <RankCard
+          title='Top IPs'
+          description='请求次数最多的来源 IP。'
+          color='#38bdf8'
+          items={data.top_ips.map((item) => ({
+            label: item.key,
+            value: item.value,
+          }))}
+        />
+      </div>
+    </>
+  );
+}

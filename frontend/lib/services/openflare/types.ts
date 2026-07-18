@@ -500,6 +500,35 @@ export interface AccessLogFilters {
   sort_order?: 'asc' | 'desc';
 }
 
+export interface AccessLogOverviewFilters {
+  node_id?: string;
+  host?: string;
+  hours?: number;
+}
+
+export interface AccessLogOverviewMetricPoint {
+  bucket_started_at: string;
+  value: number;
+}
+
+export interface AccessLogOverview {
+  generated_at: string;
+  hours: number;
+  summary: {
+    total_requests: number;
+    total_visits: number;
+    bandwidth_served: number;
+  };
+  trends: {
+    requests: AccessLogOverviewMetricPoint[];
+    visits: AccessLogOverviewMetricPoint[];
+    bandwidth: AccessLogOverviewMetricPoint[];
+  };
+  top_paths: DistributionItem[];
+  top_hosts: DistributionItem[];
+  top_ips: DistributionItem[];
+}
+
 export interface AccessLogItem {
   id: string;
   node_id: string;

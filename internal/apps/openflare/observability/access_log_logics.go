@@ -178,6 +178,44 @@ type AccessLogIPTrendView struct {
 	Points        []AccessLogIPTrendPoint `json:"points"`
 }
 
+// AccessLogOverviewQuery filters access log overview queries.
+type AccessLogOverviewQuery struct {
+	NodeID string `json:"node_id"`
+	Host   string `json:"host"`
+	Hours  int    `json:"hours"`
+}
+
+// AccessLogOverviewMetricPoint is a single overview trend bucket.
+type AccessLogOverviewMetricPoint struct {
+	BucketStartedAt time.Time `json:"bucket_started_at"`
+	Value           int64     `json:"value"`
+}
+
+// AccessLogOverviewSummary is the headline totals for the overview window.
+type AccessLogOverviewSummary struct {
+	TotalRequests   int64 `json:"total_requests"`
+	TotalVisits     int64 `json:"total_visits"`
+	BandwidthServed int64 `json:"bandwidth_served"`
+}
+
+// AccessLogOverviewTrends groups sparkline/series data for the overview.
+type AccessLogOverviewTrends struct {
+	Requests  []AccessLogOverviewMetricPoint `json:"requests"`
+	Visits    []AccessLogOverviewMetricPoint `json:"visits"`
+	Bandwidth []AccessLogOverviewMetricPoint `json:"bandwidth"`
+}
+
+// AccessLogOverview is the access-log analytics overview payload.
+type AccessLogOverview struct {
+	GeneratedAt time.Time                `json:"generated_at"`
+	Hours       int                      `json:"hours"`
+	Summary     AccessLogOverviewSummary `json:"summary"`
+	Trends      AccessLogOverviewTrends  `json:"trends"`
+	TopPaths    []DistributionItem       `json:"top_paths"`
+	TopHosts    []DistributionItem       `json:"top_hosts"`
+	TopIPs      []DistributionItem       `json:"top_ips"`
+}
+
 // AccessLogCleanupInput is the cleanup request payload.
 type AccessLogCleanupInput struct {
 	RetentionDays int `json:"retention_days"`
@@ -188,6 +226,142 @@ type AccessLogCleanupResult struct {
 	RetentionDays int       `json:"retention_days"`
 	DeletedCount  int64     `json:"deleted_count"`
 	Cutoff        time.Time `json:"cutoff"`
+}
+
+const (
+	defaultAccessLogOverviewHours = 24
+	maxAccessLogOverviewHours     = 24 * 30
+	accessLogOverviewTopLimit     = 10
+)
+
+// GetAccessLogOverview returns summary metrics, trends, and top rankings.
+func GetAccessLogOverview(ctx context.Context, input AccessLogOverviewQuery) (*AccessLogOverview, error) {
+	normalized := normalizeAccessLogOverviewQuery(input)
+	now := time.Now().UTC()
+	since := now.Add(-time.Duration(normalized.Hours) * time.Hour)
+	query := model.OpenFlareAccessLogQuery{
+		NodeID: normalized.NodeID,
+		Host:   normalized.Host,
+		Since:  since,
+		Until:  now,
+	}
+
+	summaryRow, err := model.TrafficSummaryOpenFlareAccessLogs(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+
+	requestPoints, visitPoints, bandwidthPoints := buildAccessLogOverviewTrends(
+		ctx, now, normalized.Hours, query,
+	)
+
+	return &AccessLogOverview{
+		GeneratedAt: now,
+		Hours:       normalized.Hours,
+		Summary: AccessLogOverviewSummary{
+			TotalRequests:   summaryRow.RequestCount,
+			TotalVisits:     summaryRow.UniqueIPCount,
+			BandwidthServed: summaryRow.BytesSent,
+		},
+		Trends: AccessLogOverviewTrends{
+			Requests:  requestPoints,
+			Visits:    visitPoints,
+			Bandwidth: bandwidthPoints,
+		},
+		TopPaths: valueCountDistribution(ctx, query, "path", accessLogOverviewTopLimit),
+		TopHosts: valueCountDistribution(ctx, query, "host", accessLogOverviewTopLimit),
+		TopIPs:   valueCountDistribution(ctx, query, "remote_addr", accessLogOverviewTopLimit),
+	}, nil
+}
+
+func normalizeAccessLogOverviewQuery(input AccessLogOverviewQuery) AccessLogOverviewQuery {
+	hours := input.Hours
+	if hours <= 0 {
+		hours = defaultAccessLogOverviewHours
+	}
+	if hours > maxAccessLogOverviewHours {
+		hours = maxAccessLogOverviewHours
+	}
+	return AccessLogOverviewQuery{
+		NodeID: strings.TrimSpace(input.NodeID),
+		Host:   strings.TrimSpace(input.Host),
+		Hours:  hours,
+	}
+}
+
+func valueCountDistribution(
+	ctx context.Context,
+	query model.OpenFlareAccessLogQuery,
+	column string,
+	limit int,
+) []DistributionItem {
+	rows, err := model.ValueCountsOpenFlareAccessLogs(ctx, query, column, limit)
+	if err != nil || len(rows) == 0 {
+		return []DistributionItem{}
+	}
+	items := make([]DistributionItem, 0, len(rows))
+	for _, row := range rows {
+		if strings.TrimSpace(row.Value) == "" || row.Count <= 0 {
+			continue
+		}
+		items = append(items, DistributionItem{Key: row.Value, Value: row.Count})
+	}
+	return items
+}
+
+func buildAccessLogOverviewTrends(
+	ctx context.Context,
+	now time.Time,
+	hours int,
+	query model.OpenFlareAccessLogQuery,
+) (
+	requests []AccessLogOverviewMetricPoint,
+	visits []AccessLogOverviewMetricPoint,
+	bandwidth []AccessLogOverviewMetricPoint,
+) {
+	if hours <= 0 {
+		hours = defaultAccessLogOverviewHours
+	}
+	start := now.Truncate(time.Hour).Add(-time.Duration(hours-1) * time.Hour)
+	requests = make([]AccessLogOverviewMetricPoint, hours)
+	visits = make([]AccessLogOverviewMetricPoint, hours)
+	bandwidth = make([]AccessLogOverviewMetricPoint, hours)
+	for index := range requests {
+		bucketAt := start.Add(time.Duration(index) * time.Hour)
+		requests[index].BucketStartedAt = bucketAt
+		visits[index].BucketStartedAt = bucketAt
+		bandwidth[index].BucketStartedAt = bucketAt
+	}
+
+	buckets, err := model.ListOpenFlareAccessLogBuckets(ctx, model.OpenFlareAccessLogBucketQuery{
+		NodeID:      query.NodeID,
+		Host:        query.Host,
+		Since:       query.Since,
+		Until:       query.Until,
+		FoldMinutes: 60,
+		SortBy:      defaultAccessLogSortBy,
+		SortOrder:   sortOrderAsc,
+	})
+	if err != nil || len(buckets) == 0 {
+		return requests, visits, bandwidth
+	}
+	byEpoch := make(map[int64]*model.OpenFlareAccessLogBucketRow, len(buckets))
+	for _, row := range buckets {
+		if row == nil {
+			continue
+		}
+		byEpoch[row.BucketEpoch] = row
+	}
+	for index := range requests {
+		row, ok := byEpoch[requests[index].BucketStartedAt.Unix()]
+		if !ok {
+			continue
+		}
+		requests[index].Value = row.RequestCount
+		visits[index].Value = row.UniqueIPCount
+		bandwidth[index].Value = row.BytesSent
+	}
+	return requests, visits, bandwidth
 }
 
 // ListAccessLogs returns paginated access logs.

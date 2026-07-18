@@ -14,6 +14,7 @@ func registerObservabilityRoutes(apiGroup *gin.RouterGroup) {
 	accessLogRoute.Use(apiutil.AdminMiddlewares()...)
 	{
 		apiutil.RegisterCollection(accessLogRoute, "GET", observability.GetAccessLogsHandler)
+		accessLogRoute.GET("/overview", observability.GetAccessLogOverviewHandler)
 		accessLogRoute.GET("/folds", observability.GetFoldedAccessLogsHandler)
 		accessLogRoute.GET("/folds/ip-summary", observability.GetFoldedAccessLogIPsHandler)
 		accessLogRoute.GET("/ip-summary", observability.GetAccessLogIPSummariesHandler)

@@ -1,8 +1,8 @@
 'use client';
 
 import { useMemo } from 'react';
-import type { EChartsOption } from 'echarts';
-import ReactECharts from 'echarts-for-react';
+
+import { cn } from '@/lib/utils';
 
 type RankChartItem = {
   label: string;
@@ -14,119 +14,65 @@ type RankChartProps = {
   color: string;
   valueFormatter?: (value: number) => string;
   emptyMessage?: string;
+  className?: string;
 };
 
 const defaultFormatter = (value: number) => value.toLocaleString('zh-CN');
-
-function getChartValue(params: unknown) {
-  if (typeof params !== 'object' || params === null || !('value' in params)) {
-    return 0;
-  }
-  const rawValue = (params as { value?: unknown }).value;
-  if (Array.isArray(rawValue)) {
-    const candidate = rawValue[0];
-    return typeof candidate === 'number' ? candidate : 0;
-  }
-  return typeof rawValue === 'number' ? rawValue : 0;
-}
 
 export function RankChart({
   items,
   color,
   valueFormatter = defaultFormatter,
   emptyMessage = '暂无分布数据',
+  className,
 }: RankChartProps) {
-  const option = useMemo<EChartsOption>(
-    () => ({
-      animationDuration: 400,
-      grid: {
-        left: 16,
-        right: 24,
-        top: 12,
-        bottom: 12,
-        containLabel: true,
-      },
-      tooltip: {
-        trigger: 'axis',
-        axisPointer: {
-          type: 'shadow',
-        },
-        backgroundColor: 'rgba(15, 23, 42, 0.92)',
-        borderWidth: 0,
-        textStyle: {
-          color: '#e2e8f0',
-          fontSize: 12,
-        },
-        formatter: (params: unknown) => {
-          const item = Array.isArray(params) ? params[0] : params;
-          const data = item as { name?: string; value?: number };
-          return `${data.name ?? ''}<br/>${valueFormatter(data.value ?? 0)}`;
-        },
-      },
-      xAxis: {
-        type: 'value',
-        axisLabel: {
-          color: '#94a3b8',
-        },
-        splitLine: {
-          lineStyle: {
-            color: 'rgba(148, 163, 184, 0.16)',
-            type: 'dashed',
-          },
-        },
-      },
-      yAxis: {
-        type: 'category',
-        data: items.map((item) => item.label),
-        axisTick: { show: false },
-        axisLine: { show: false },
-        axisLabel: {
-          color: '#cbd5e1',
-          width: 120,
-          overflow: 'truncate',
-        },
-      },
-      series: [
-        {
-          type: 'bar',
-          data: items.map((item) => item.value),
-          barWidth: 12,
-          showBackground: true,
-          backgroundStyle: {
-            color: 'rgba(148, 163, 184, 0.12)',
-            borderRadius: 999,
-          },
-          itemStyle: {
-            color,
-            borderRadius: 999,
-          },
-          label: {
-            show: true,
-            position: 'right',
-            color: '#e2e8f0',
-            formatter: (params: unknown) =>
-              valueFormatter(getChartValue(params)),
-          },
-        },
-      ],
-    }),
-    [color, items, valueFormatter],
+  const maxValue = useMemo(
+    () => Math.max(0, ...items.map((item) => item.value)),
+    [items],
   );
 
   if (items.length === 0) {
     return (
-      <div className='flex h-[220px] items-center justify-center rounded-3xl border border-dashed bg-muted/30 text-sm text-muted-foreground'>
+      <div
+        className={cn(
+          'flex h-[450px] items-center justify-center rounded-md border border-dashed bg-muted/20 text-sm text-muted-foreground',
+          className,
+        )}
+      >
         {emptyMessage}
       </div>
     );
   }
 
   return (
-    <ReactECharts
-      option={option}
-      notMerge
-      lazyUpdate
-      style={{ height: Math.max(220, items.length * 44), width: '100%' }}
-    />
+    <div className={cn('h-[450px] space-y-1.5 overflow-y-auto', className)}>
+      {items.map((item) => {
+        const ratio = maxValue > 0 ? (item.value / maxValue) * 100 : 0;
+        return (
+          <div key={item.label} className='group space-y-1'>
+            <div className='flex items-center justify-between gap-3 text-[13px] leading-none'>
+              <span
+                className='min-w-0 truncate font-medium text-foreground'
+                title={item.label}
+              >
+                {item.label}
+              </span>
+              <span className='shrink-0 tabular-nums text-foreground/80'>
+                {valueFormatter(item.value)}
+              </span>
+            </div>
+            <div className='h-1.5 overflow-hidden rounded-full bg-muted'>
+              <div
+                className='h-full rounded-full transition-[width] duration-300'
+                style={{
+                  width: `${ratio}%`,
+                  backgroundColor: color,
+                }}
+              />
+            </div>
+          </div>
+        );
+      })}
+    </div>
   );
 }

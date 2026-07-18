@@ -130,7 +130,6 @@ type diskCounterState struct {
 	seen  bool
 }
 
-
 func buildTrafficWindowSummaryFromAccessLogs(
 	ctx context.Context,
 	nodeID string,
@@ -333,7 +332,7 @@ func BuildTrafficTrendPointsFromAccessLogs(ctx context.Context, now time.Time, n
 		Since:       since,
 		Until:       now,
 		FoldMinutes: 60,
-		SortBy:      "logged_at",
+		SortBy:      defaultAccessLogSortBy,
 		SortOrder:   sortOrderAsc,
 	})
 	if err != nil || len(buckets) == 0 {
@@ -379,7 +378,7 @@ func applyAccessLogBytesToNetworkTrend(ctx context.Context, now time.Time, nodeI
 		Since:       since,
 		Until:       now,
 		FoldMinutes: 60,
-		SortBy:      "logged_at",
+		SortBy:      defaultAccessLogSortBy,
 		SortOrder:   sortOrderAsc,
 	})
 	if err != nil || len(buckets) == 0 {

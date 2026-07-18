@@ -14,12 +14,12 @@ func TestCountryCentroidGermany(t *testing.T) {
 
 func TestCountryCentroidHongKongSingaporeTaiwan(t *testing.T) {
 	cases := []struct {
-		iso      string
-		name     string
-		minLat   float64
-		maxLat   float64
-		minLon   float64
-		maxLon   float64
+		iso    string
+		name   string
+		minLat float64
+		maxLat float64
+		minLon float64
+		maxLon float64
 	}{
 		{iso: "HK", name: "Hong Kong", minLat: 22, maxLat: 23, minLon: 113, maxLon: 115},
 		{iso: "SG", name: "Singapore", minLat: 1, maxLat: 2, minLon: 103, maxLon: 104},

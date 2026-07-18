@@ -5401,6 +5401,87 @@
                 }
             }
         },
+        "/api/v1/d/access-logs/overview": {
+            "get": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "description": "返回访问日志汇总指标、趋势与 Top 排行，需要管理员权限",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "openflare-observability"
+                ],
+                "summary": "获取访问日志概览",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "节点 ID",
+                        "name": "node_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "请求 Host",
+                        "name": "host",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "统计时间范围（小时）",
+                        "name": "hours",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "访问日志概览",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/observability.AccessLogOverview"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    },
+                    "401": {
+                        "description": "未登录",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    },
+                    "404": {
+                        "description": "无权限或不存在",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    },
+                    "500": {
+                        "description": "内部错误",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/d/acme-accounts/default": {
             "get": {
                 "security": [
@@ -16138,6 +16219,89 @@
                 },
                 "total_record": {
                     "type": "integer"
+                }
+            }
+        },
+        "observability.AccessLogOverview": {
+            "type": "object",
+            "properties": {
+                "generated_at": {
+                    "type": "string"
+                },
+                "hours": {
+                    "type": "integer"
+                },
+                "summary": {
+                    "$ref": "#/definitions/observability.AccessLogOverviewSummary"
+                },
+                "top_hosts": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/observability.DistributionItem"
+                    }
+                },
+                "top_ips": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/observability.DistributionItem"
+                    }
+                },
+                "top_paths": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/observability.DistributionItem"
+                    }
+                },
+                "trends": {
+                    "$ref": "#/definitions/observability.AccessLogOverviewTrends"
+                }
+            }
+        },
+        "observability.AccessLogOverviewMetricPoint": {
+            "type": "object",
+            "properties": {
+                "bucket_started_at": {
+                    "type": "string"
+                },
+                "value": {
+                    "type": "integer"
+                }
+            }
+        },
+        "observability.AccessLogOverviewSummary": {
+            "type": "object",
+            "properties": {
+                "bandwidth_served": {
+                    "type": "integer"
+                },
+                "total_requests": {
+                    "type": "integer"
+                },
+                "total_visits": {
+                    "type": "integer"
+                }
+            }
+        },
+        "observability.AccessLogOverviewTrends": {
+            "type": "object",
+            "properties": {
+                "bandwidth": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/observability.AccessLogOverviewMetricPoint"
+                    }
+                },
+                "requests": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/observability.AccessLogOverviewMetricPoint"
+                    }
+                },
+                "visits": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/observability.AccessLogOverviewMetricPoint"
+                    }
                 }
             }
         },

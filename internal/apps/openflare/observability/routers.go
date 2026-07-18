@@ -12,6 +12,33 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// GetAccessLogOverviewHandler 获取访问日志概览。
+// @Summary 获取访问日志概览
+// @Description 返回访问日志汇总指标、趋势与 Top 排行，需要管理员权限
+// @Tags openflare-observability
+// @Produce json
+// @Security SessionCookie
+// @Param node_id query string false "节点 ID"
+// @Param host query string false "请求 Host"
+// @Param hours query int false "统计时间范围（小时）"
+// @Success 200 {object} response.Any{data=observability.AccessLogOverview} "访问日志概览"
+// @Failure 400 {object} response.Any "参数错误"
+// @Failure 401 {object} response.Any "未登录"
+// @Failure 404 {object} response.Any "无权限或不存在"
+// @Failure 500 {object} response.Any "内部错误"
+// @Router /api/v1/d/access-logs/overview [get]
+func GetAccessLogOverviewHandler(c *gin.Context) {
+	result, err := GetAccessLogOverview(c.Request.Context(), AccessLogOverviewQuery{
+		NodeID: c.Query("node_id"),
+		Host:   c.Query("host"),
+		Hours:  readQueryInt(c, "hours"),
+	})
+	if apiutil.AbortBadRequestOnError(c, err) {
+		return
+	}
+	c.JSON(http.StatusOK, response.OK(result))
+}
+
 // GetAccessLogsHandler 分页列出访问日志。
 // @Summary 列出访问日志
 // @Description 分页返回 OpenFlare 访问日志，支持按节点、IP、主机与路径筛选，需要管理员权限

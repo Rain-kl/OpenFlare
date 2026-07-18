@@ -8,6 +8,8 @@ import type {
   AccessLogIPTrend,
   AccessLogIPTrendFilters,
   AccessLogList,
+  AccessLogOverview,
+  AccessLogOverviewFilters,
   FoldedAccessLogFilters,
   FoldedAccessLogIPFilters,
   FoldedAccessLogIPList,
@@ -30,6 +32,12 @@ export class AccessLogService extends OpenFlareBaseService {
 
   static list(filters: AccessLogFilters = {}): Promise<AccessLogList> {
     return this.get<AccessLogList>('/', buildSearchParams(filters));
+  }
+
+  static getOverview(
+    filters: AccessLogOverviewFilters = {},
+  ): Promise<AccessLogOverview> {
+    return this.get<AccessLogOverview>('/overview', buildSearchParams(filters));
   }
 
   static listFolds(

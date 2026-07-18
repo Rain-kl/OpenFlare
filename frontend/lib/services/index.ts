@@ -254,6 +254,7 @@ export type {
   OriginItem,
   OriginDetail,
   AccessLogList,
+  AccessLogOverview,
   OptionItem,
   GeoIPLookupResult,
   DatabaseCleanupResult,
