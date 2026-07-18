@@ -278,10 +278,10 @@ export function normalizeLimitRate(value: string) {
 }
 
 export function validateCacheRules(
-  policy: 'url' | 'suffix' | 'path_prefix' | 'path_exact',
+  policy: 'static' | 'all' | 'url' | 'suffix' | 'path_prefix' | 'path_exact',
   rules: string[],
 ) {
-  if (policy === 'url') {
+  if (policy === 'static' || policy === 'all' || policy === 'url') {
     return null;
   }
 
@@ -335,7 +335,12 @@ export function buildPayloadFromRoute(
     limit_conn_per_ip: route.limit_conn_per_ip,
     limit_rate: route.limit_rate,
     cache_enabled: route.cache_enabled,
-    cache_policy: route.cache_policy || 'url',
+    cache_policy:
+      !route.cache_policy || route.cache_policy === 'url'
+        ? route.cache_policy === 'url'
+          ? 'all'
+          : 'static'
+        : route.cache_policy,
     cache_rules: route.cache_rule_list ?? [],
     custom_headers: route.custom_header_list ?? [],
     basic_auth_enabled: route.basic_auth_enabled,

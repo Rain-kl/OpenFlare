@@ -80,3 +80,23 @@ func TestCreateProxyRouteHTTPSRequiresCoveringCertificate(t *testing.T) {
 	_, err := CreateProxyRoute(ctx, Input{SiteName: "api", ZoneDomainIDs: []uint{domain.ID}, OriginURL: "http://origin.example.com:8080", EnableHTTPS: true})
 	require.EqualError(t, err, errProxyRouteCertRequired)
 }
+
+func TestNormalizeCachePolicyDefaultsAndLegacy(t *testing.T) {
+	assert.Equal(t, "", normalizeCachePolicy(false, "static"))
+	assert.Equal(t, proxyRouteCachePolicyStatic, normalizeCachePolicy(true, ""))
+	assert.Equal(t, proxyRouteCachePolicyStatic, normalizeCachePolicy(true, "static"))
+	assert.Equal(t, proxyRouteCachePolicyAll, normalizeCachePolicy(true, "url"))
+	assert.Equal(t, proxyRouteCachePolicyAll, normalizeCachePolicy(true, "all"))
+	assert.Equal(t, proxyRouteCachePolicySuffix, normalizeCachePolicy(true, "suffix"))
+
+	rules, err := normalizeCacheRules(true, "url", []string{"css"})
+	require.NoError(t, err)
+	assert.Empty(t, rules)
+
+	rules, err = normalizeCacheRules(true, "static", nil)
+	require.NoError(t, err)
+	assert.Empty(t, rules)
+
+	_, err = normalizeCacheRules(true, "suffix", nil)
+	require.Error(t, err)
+}

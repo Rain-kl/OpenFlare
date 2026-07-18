@@ -479,15 +479,35 @@ func renderRouteLimitBlock(limitConfig routeLimitConfig) string {
 }
 
 func renderRouteCachePolicyCondition(cacheConfig routeCacheConfig) string {
-	switch cacheConfig.Policy {
+	policy := normalizeRenderCachePolicy(cacheConfig.Policy)
+	switch policy {
+	case cachePolicyStatic:
+		return fmt.Sprintf("        if ($uri !~* %s) {\n            set $openflare_skip_cache 1;\n        }\n", quoteNginxStringLiteral(buildSuffixMatchPattern(DefaultStaticCacheExtensions)))
 	case cachePolicySuffix:
 		return fmt.Sprintf("        if ($uri !~* %s) {\n            set $openflare_skip_cache 1;\n        }\n", quoteNginxStringLiteral(buildSuffixMatchPattern(cacheConfig.Rules)))
 	case cachePolicyPathPrefix:
 		return fmt.Sprintf("        if ($uri !~ %s) {\n            set $openflare_skip_cache 1;\n        }\n", quoteNginxStringLiteral(buildPathPrefixMatchPattern(cacheConfig.Rules)))
 	case cachePolicyPathExact:
 		return fmt.Sprintf("        if ($uri !~ %s) {\n            set $openflare_skip_cache 1;\n        }\n", quoteNginxStringLiteral(buildPathExactMatchPattern(cacheConfig.Rules)))
-	default:
+	case cachePolicyAll, cachePolicyURL:
 		return ""
+	default:
+		// Unknown policy: treat as static for safety (do not cache everything).
+		return fmt.Sprintf("        if ($uri !~* %s) {\n            set $openflare_skip_cache 1;\n        }\n", quoteNginxStringLiteral(buildSuffixMatchPattern(DefaultStaticCacheExtensions)))
+	}
+}
+
+func normalizeRenderCachePolicy(raw string) string {
+	policy := strings.TrimSpace(strings.ToLower(raw))
+	switch policy {
+	case "", cachePolicyStatic:
+		return cachePolicyStatic
+	case cachePolicyURL, cachePolicyAll:
+		return cachePolicyAll
+	case cachePolicySuffix, cachePolicyPathPrefix, cachePolicyPathExact:
+		return policy
+	default:
+		return policy
 	}
 }
 

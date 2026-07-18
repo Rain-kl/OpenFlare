@@ -398,3 +398,46 @@ func TestRenderRouteConfigPagesWithSPAFallbackServesRoot(t *testing.T) {
 		t.Fatalf("expected spa fallback try_files in location /, got:\n%s", routeConfig)
 	}
 }
+
+func TestRenderRouteCachePolicyConditionStaticDefault(t *testing.T) {
+	staticBlock := renderRouteCachePolicyCondition(routeCacheConfig{Enabled: true, Policy: "static"})
+	if staticBlock == "" {
+		t.Fatal("static policy should emit a path condition")
+	}
+	if !strings.Contains(staticBlock, "css") || !strings.Contains(staticBlock, "woff2") {
+		t.Fatalf("static policy should include default extensions, got:\n%s", staticBlock)
+	}
+	if strings.Contains(staticBlock, "html") {
+		t.Fatalf("static policy must not include html, got:\n%s", staticBlock)
+	}
+
+	emptyPolicy := renderRouteCachePolicyCondition(routeCacheConfig{Enabled: true, Policy: ""})
+	if emptyPolicy == "" {
+		t.Fatal("empty policy should default to static condition")
+	}
+
+	allBlock := renderRouteCachePolicyCondition(routeCacheConfig{Enabled: true, Policy: "all"})
+	if allBlock != "" {
+		t.Fatalf("all policy should not add path condition, got %q", allBlock)
+	}
+	urlBlock := renderRouteCachePolicyCondition(routeCacheConfig{Enabled: true, Policy: "url"})
+	if urlBlock != "" {
+		t.Fatalf("legacy url policy should map to all, got %q", urlBlock)
+	}
+}
+
+func TestRenderRouteCacheBlockIncludesStaticWhenEnabled(t *testing.T) {
+	block := renderRouteCacheBlock(
+		routeCacheConfig{Enabled: true, Policy: "static"},
+		ConfigSnapshot{CacheEnabled: true},
+	)
+	if !strings.Contains(block, "proxy_cache openflare_cache") {
+		t.Fatalf("expected proxy_cache, got:\n%s", block)
+	}
+	if !strings.Contains(block, "\\.(?:") {
+		t.Fatalf("expected static suffix pattern, got:\n%s", block)
+	}
+	if !strings.Contains(block, "request_method != GET") {
+		t.Fatalf("expected security bypass for non-GET, got:\n%s", block)
+	}
+}

@@ -25,7 +25,9 @@ var proxyHeaderKeyPattern = regexp.MustCompile(`^[A-Za-z0-9_-]+$`)
 var proxyRouteLimitRatePattern = regexp.MustCompile(`^\d+[kKmM]?$`)
 
 const (
-	proxyRouteCachePolicyURL        = "url"
+	proxyRouteCachePolicyStatic     = "static"
+	proxyRouteCachePolicyAll        = "all"
+	proxyRouteCachePolicyURL        = "url" // legacy alias of all
 	proxyRouteCachePolicySuffix     = "suffix"
 	proxyRouteCachePolicyPathPrefix = "path_prefix"
 	proxyRouteCachePolicyPathExact  = "path_exact"
@@ -438,11 +440,18 @@ func normalizeCachePolicy(enabled bool, raw string) string {
 	if !enabled {
 		return ""
 	}
-	policy := strings.TrimSpace(raw)
-	if policy == "" {
-		return proxyRouteCachePolicyURL
+	policy := strings.TrimSpace(strings.ToLower(raw))
+	switch policy {
+	case "", proxyRouteCachePolicyStatic:
+		return proxyRouteCachePolicyStatic
+	case proxyRouteCachePolicyURL, proxyRouteCachePolicyAll:
+		// Legacy url is normalized to all (full GET allow after security bypass).
+		return proxyRouteCachePolicyAll
+	case proxyRouteCachePolicySuffix, proxyRouteCachePolicyPathPrefix, proxyRouteCachePolicyPathExact:
+		return policy
+	default:
+		return policy
 	}
-	return policy
 }
 
 func normalizeCacheRules(enabled bool, rawPolicy string, rules []string) ([]string, error) {
@@ -451,7 +460,7 @@ func normalizeCacheRules(enabled bool, rawPolicy string, rules []string) ([]stri
 	}
 	policy := normalizeCachePolicy(enabled, rawPolicy)
 	switch policy {
-	case proxyRouteCachePolicyURL:
+	case proxyRouteCachePolicyStatic, proxyRouteCachePolicyAll, proxyRouteCachePolicyURL:
 		return []string{}, nil
 	case proxyRouteCachePolicySuffix:
 		return normalizeCacheSuffixRules(rules)

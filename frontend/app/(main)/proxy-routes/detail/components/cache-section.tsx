@@ -36,7 +36,14 @@ import { SectionShell } from './section-shell';
 const cacheSchema = z
   .object({
     cache_enabled: z.boolean(),
-    cache_policy: z.enum(['url', 'suffix', 'path_prefix', 'path_exact']),
+    cache_policy: z.enum([
+      'static',
+      'all',
+      'url',
+      'suffix',
+      'path_prefix',
+      'path_exact',
+    ]),
     cache_rules_text: z.string(),
   })
   .superRefine((value, context) => {
@@ -63,6 +70,22 @@ interface CacheSectionProps {
   onSavingChange?: (saving: boolean) => void;
 }
 
+function normalizeCachePolicyValue(policy: string | undefined | null) {
+  const value = (policy || '').trim();
+  if (!value || value === 'static') return 'static';
+  if (value === 'url' || value === 'all') return 'all';
+  if (value === 'suffix' || value === 'path_prefix' || value === 'path_exact') {
+    return value;
+  }
+  return 'static';
+}
+
+function needsRulesForPolicy(policy: string) {
+  return (
+    policy === 'suffix' || policy === 'path_prefix' || policy === 'path_exact'
+  );
+}
+
 export function CacheSection({
   route,
   onRouteUpdate,
@@ -78,8 +101,9 @@ export function CacheSection({
     resolver: zodResolver(cacheSchema),
     defaultValues: {
       cache_enabled: route.cache_enabled,
-      cache_policy: (route.cache_policy ||
-        'url') as CacheValues['cache_policy'],
+      cache_policy: normalizeCachePolicyValue(
+        route.cache_policy,
+      ) as CacheValues['cache_policy'],
       cache_rules_text: route.cache_rule_list.join('\n'),
     },
   });
@@ -87,14 +111,19 @@ export function CacheSection({
   useEffect(() => {
     form.reset({
       cache_enabled: route.cache_enabled,
-      cache_policy: (route.cache_policy ||
-        'url') as CacheValues['cache_policy'],
+      cache_policy: normalizeCachePolicyValue(
+        route.cache_policy,
+      ) as CacheValues['cache_policy'],
       cache_rules_text: route.cache_rule_list.join('\n'),
     });
   }, [form, route]);
 
   const watchedEnabled = form.watch('cache_enabled');
   const watchedPolicy = form.watch('cache_policy');
+  const needsRules =
+    watchedPolicy === 'suffix' ||
+    watchedPolicy === 'path_prefix' ||
+    watchedPolicy === 'path_exact';
 
   const rulesHint =
     watchedPolicy === 'suffix'
@@ -103,7 +132,9 @@ export function CacheSection({
         ? '每行一个路径前缀，例如 /assets、/static。'
         : watchedPolicy === 'path_exact'
           ? '每行一个精确路径，例如 /robots.txt。'
-          : '按 URL 缓存时无需额外规则。';
+          : watchedPolicy === 'static'
+            ? '标准静态资源使用内置扩展名列表（不含 HTML），无需填写规则。'
+            : '所有可缓存 GET 无需额外规则（仍会绕过登录态与 Authorization）。';
 
   const rulesPlaceholder =
     watchedPolicy === 'suffix'
@@ -112,7 +143,7 @@ export function CacheSection({
         ? '/assets\n/static'
         : watchedPolicy === 'path_exact'
           ? '/robots.txt\n/manifest.json'
-          : '按 URL 缓存时无需额外规则';
+          : '当前策略无需额外规则';
 
   return (
     <SectionShell
@@ -131,10 +162,11 @@ export function CacheSection({
               {
                 cache_enabled: values.cache_enabled,
                 cache_policy: values.cache_enabled
-                  ? values.cache_policy
-                  : 'url',
+                  ? normalizeCachePolicyValue(values.cache_policy)
+                  : 'static',
                 cache_rules:
-                  values.cache_enabled && values.cache_policy !== 'url'
+                  values.cache_enabled &&
+                  needsRulesForPolicy(values.cache_policy)
                     ? rules
                     : [],
               },
@@ -150,8 +182,8 @@ export function CacheSection({
                 <div className='space-y-0.5'>
                   <FormLabel>启用站点缓存</FormLabel>
                   <FormDescription>
-                    系统仍会自动绕过非 GET、带 Authorization 或常见登录态 Cookie
-                    的请求。
+                    开启后默认仅缓存标准静态扩展名（不含 HTML）。仍会自动绕过非
+                    GET、Authorization 与常见登录态 Cookie。
                   </FormDescription>
                 </div>
                 <FormControl>
@@ -181,12 +213,17 @@ export function CacheSection({
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    <SelectItem value='url'>按 URL 缓存</SelectItem>
-                    <SelectItem value='suffix'>按后缀缓存</SelectItem>
-                    <SelectItem value='path_prefix'>按路径前缀缓存</SelectItem>
-                    <SelectItem value='path_exact'>按精确路径缓存</SelectItem>
+                    <SelectItem value='static'>标准静态资源（推荐）</SelectItem>
+                    <SelectItem value='all'>所有可缓存 GET（高级）</SelectItem>
+                    <SelectItem value='suffix'>自定义后缀</SelectItem>
+                    <SelectItem value='path_prefix'>路径前缀</SelectItem>
+                    <SelectItem value='path_exact'>精确路径</SelectItem>
                   </SelectContent>
                 </Select>
+                <FormDescription>
+                  标准静态资源含 css/js/图片/字体/媒体等，默认不缓存 HTML
+                  与接口路径。
+                </FormDescription>
                 <FormMessage />
               </FormItem>
             )}
@@ -201,7 +238,7 @@ export function CacheSection({
                 <FormControl>
                   <Textarea
                     className='min-h-32'
-                    disabled={!watchedEnabled || watchedPolicy === 'url'}
+                    disabled={!watchedEnabled || !needsRules}
                     placeholder={rulesPlaceholder}
                     {...field}
                   />

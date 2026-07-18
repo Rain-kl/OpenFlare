@@ -25,6 +25,9 @@ const (
 )
 
 const (
+	cachePolicyStatic     = "static"
+	cachePolicyAll        = "all"
+	cachePolicyURL        = "url" // legacy alias of all
 	cachePolicySuffix     = "suffix"
 	cachePolicyPathPrefix = "path_prefix"
 	cachePolicyPathExact  = "path_exact"
@@ -32,6 +35,17 @@ const (
 	anubisStaticPrefix    = "/.within.website/x/cmd/anubis/static/"
 	anubisAPIPrefix       = "/.within.website/x/cmd/anubis/api/"
 )
+
+// DefaultStaticCacheExtensions is the built-in suffix allowlist for cache_policy=static.
+// HTML is intentionally excluded (Cloudflare-like default).
+var DefaultStaticCacheExtensions = []string{
+	"css", "js", "mjs", "map", "json",
+	"ico", "cur", "gif", "jpg", "jpeg", "png", "webp", "avif", "svg", "svgz",
+	"ttf", "otf", "woff", "woff2", "eot",
+	"mp3", "mp4", "webm", "ogg", "flac",
+	"wasm", "pdf",
+	"zip", "7z", "gz", "tar",
+}
 
 // OpenFlareRuntimeUser is the dedicated service account shared by the agent
 // process and OpenResty worker processes.

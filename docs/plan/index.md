@@ -17,6 +17,7 @@
 * [WAF 可编排规则](./20260713-waf-orchestration.md)：使用 React Flow 编辑 DAG 规则，发布时编译并由 OpenResty 纯内存执行。
 * [边缘可观测与业务流量统计重构](./20260717-observability-redesign.md)：访问日志为业务唯一真相；Agent 只上报明细与主机读数；收敛「出站/已提供」双字段。
 * [访问日志 cache_status 明细可见](./20260718-access-log-cache-status.md)：上报 `$upstream_cache_status`，明细展示命中/回源/未缓存三态。
+* [边缘缓存默认 static 策略](./20260718-edge-cache-static-default.md)：开启缓存默认仅静态扩展名；存量 url→all。
 
 ## 使用建议
 
