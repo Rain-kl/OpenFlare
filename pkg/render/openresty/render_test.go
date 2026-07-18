@@ -411,9 +411,10 @@ func TestRenderRouteCachePolicyConditionStaticDefault(t *testing.T) {
 		t.Fatalf("static policy must not include html, got:\n%s", staticBlock)
 	}
 
+	// Legacy empty/url = all (wide cache after security bypass).
 	emptyPolicy := renderRouteCachePolicyCondition(routeCacheConfig{Enabled: true, Policy: ""})
-	if emptyPolicy == "" {
-		t.Fatal("empty policy should default to static condition")
+	if emptyPolicy != "" {
+		t.Fatalf("empty policy should map to all (no path filter), got %q", emptyPolicy)
 	}
 
 	allBlock := renderRouteCachePolicyCondition(routeCacheConfig{Enabled: true, Policy: "all"})

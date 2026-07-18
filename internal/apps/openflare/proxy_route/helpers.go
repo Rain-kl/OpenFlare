@@ -436,22 +436,33 @@ func decodeStoredCustomHeaders(raw string) ([]CustomHeaderInput, error) {
 	return normalizeCustomHeaders(headers)
 }
 
+// normalizeCachePolicy stores API write values.
+// When enabling with empty/url policy, keep legacy "all" semantics so old rows
+// and clients that omit policy do not silently narrow cache to static extensions.
+// New UI should send policy=static explicitly when choosing the recommended default.
 func normalizeCachePolicy(enabled bool, raw string) string {
 	if !enabled {
 		return ""
 	}
 	policy := strings.TrimSpace(strings.ToLower(raw))
 	switch policy {
-	case "", proxyRouteCachePolicyStatic:
-		return proxyRouteCachePolicyStatic
-	case proxyRouteCachePolicyURL, proxyRouteCachePolicyAll:
-		// Legacy url is normalized to all (full GET allow after security bypass).
+	case "", proxyRouteCachePolicyURL, proxyRouteCachePolicyAll:
 		return proxyRouteCachePolicyAll
+	case proxyRouteCachePolicyStatic:
+		return proxyRouteCachePolicyStatic
 	case proxyRouteCachePolicySuffix, proxyRouteCachePolicyPathPrefix, proxyRouteCachePolicyPathExact:
 		return policy
 	default:
 		return policy
 	}
+}
+
+// displayCachePolicy normalizes values for API list/get (and UI).
+func displayCachePolicy(enabled bool, raw string) string {
+	if !enabled {
+		return ""
+	}
+	return normalizeCachePolicy(true, raw)
 }
 
 func normalizeCacheRules(enabled bool, rawPolicy string, rules []string) ([]string, error) {

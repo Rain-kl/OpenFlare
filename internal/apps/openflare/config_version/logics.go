@@ -347,8 +347,33 @@ func normalizeSnapshotRoutes(routes []snapshotRoute) []snapshotRoute {
 			routes[index].BasicAuthPassword = ""
 		}
 		routes[index].UpstreamType = normalizeUpstreamType(routes[index].UpstreamType)
+		routes[index].CachePolicy = normalizeSnapshotCachePolicy(
+			routes[index].CacheEnabled,
+			routes[index].CachePolicy,
+		)
+		if !routes[index].CacheEnabled {
+			routes[index].CacheRules = nil
+		}
 	}
 	return routes
+}
+
+// normalizeSnapshotCachePolicy aligns published policy with edge-cache-design:
+// legacy empty/url → all; disabled → empty; static/suffix/... kept.
+func normalizeSnapshotCachePolicy(enabled bool, raw string) string {
+	if !enabled {
+		return ""
+	}
+	policy := strings.TrimSpace(strings.ToLower(raw))
+	switch policy {
+	case "", "url", "all":
+		return "all"
+	case "static", "suffix", "path_prefix", "path_exact":
+		return policy
+	default:
+		// Unknown: prefer static over caching everything.
+		return "static"
+	}
 }
 
 func flattenSnapshotRoutesBySite(routes []snapshotRoute) map[string]snapshotRoute {

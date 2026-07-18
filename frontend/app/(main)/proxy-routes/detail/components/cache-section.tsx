@@ -39,7 +39,6 @@ const cacheSchema = z
     cache_policy: z.enum([
       'static',
       'all',
-      'url',
       'suffix',
       'path_prefix',
       'path_exact',
@@ -70,10 +69,17 @@ interface CacheSectionProps {
   onSavingChange?: (saving: boolean) => void;
 }
 
-function normalizeCachePolicyValue(policy: string | undefined | null) {
+/** Map API/DB values for the form. Legacy empty/url → all (compat). */
+function normalizeCachePolicyValue(
+  policy: string | undefined | null,
+  enabled = true,
+) {
+  if (!enabled) {
+    return 'static';
+  }
   const value = (policy || '').trim();
-  if (!value || value === 'static') return 'static';
-  if (value === 'url' || value === 'all') return 'all';
+  if (!value || value === 'url' || value === 'all') return 'all';
+  if (value === 'static') return 'static';
   if (value === 'suffix' || value === 'path_prefix' || value === 'path_exact') {
     return value;
   }
@@ -103,6 +109,7 @@ export function CacheSection({
       cache_enabled: route.cache_enabled,
       cache_policy: normalizeCachePolicyValue(
         route.cache_policy,
+        route.cache_enabled,
       ) as CacheValues['cache_policy'],
       cache_rules_text: route.cache_rule_list.join('\n'),
     },
@@ -113,6 +120,7 @@ export function CacheSection({
       cache_enabled: route.cache_enabled,
       cache_policy: normalizeCachePolicyValue(
         route.cache_policy,
+        route.cache_enabled,
       ) as CacheValues['cache_policy'],
       cache_rules_text: route.cache_rule_list.join('\n'),
     });
@@ -161,9 +169,7 @@ export function CacheSection({
             await save(
               {
                 cache_enabled: values.cache_enabled,
-                cache_policy: values.cache_enabled
-                  ? normalizeCachePolicyValue(values.cache_policy)
-                  : 'static',
+                cache_policy: values.cache_enabled ? values.cache_policy : '',
                 cache_rules:
                   values.cache_enabled &&
                   needsRulesForPolicy(values.cache_policy)
@@ -182,8 +188,9 @@ export function CacheSection({
                 <div className='space-y-0.5'>
                   <FormLabel>启用站点缓存</FormLabel>
                   <FormDescription>
-                    开启后默认仅缓存标准静态扩展名（不含 HTML）。仍会自动绕过非
-                    GET、Authorization 与常见登录态 Cookie。
+                    新建推荐「标准静态资源」（不含
+                    HTML）。须同时开启性能设置中的全局 OpenResty
+                    缓存。仍会绕过非 GET、Authorization 与常见登录 Cookie。
                   </FormDescription>
                 </div>
                 <FormControl>

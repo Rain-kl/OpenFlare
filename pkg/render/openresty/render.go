@@ -497,13 +497,16 @@ func renderRouteCachePolicyCondition(cacheConfig routeCacheConfig) string {
 	}
 }
 
+// normalizeRenderCachePolicy maps stored policy for OpenResty generation.
+// Legacy empty and "url" mean "all GETs after security bypass" (pre-static default).
+// Explicit "static" uses the built-in extension allowlist. Unknown policies fall back to static.
 func normalizeRenderCachePolicy(raw string) string {
 	policy := strings.TrimSpace(strings.ToLower(raw))
 	switch policy {
-	case "", cachePolicyStatic:
-		return cachePolicyStatic
-	case cachePolicyURL, cachePolicyAll:
+	case "", cachePolicyURL, cachePolicyAll:
 		return cachePolicyAll
+	case cachePolicyStatic:
+		return cachePolicyStatic
 	case cachePolicySuffix, cachePolicyPathPrefix, cachePolicyPathExact:
 		return policy
 	default:

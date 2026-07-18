@@ -142,9 +142,10 @@ access.log cache_status=$upstream_cache_status
 
 | 数据 | 处理 |
 | --- | --- |
-| DB 中 `cache_policy=''` 或 `url` | 读取/发布时规范为 `all`；可选一次性 SQL 更新为 `all` |
-| 新建路由 | 默认 `cache_enabled=false`；若用户开启缓存，表单默认策略 **`static`** |
-| 已开启且 `url` 的站点 | 迁移后为 `all`，**缓存范围不变** |
+| DB 中 `cache_policy=''` 或 `url`（且已启用缓存） | 读取 / 快照 / 渲染均规范为 **`all`**，保证存量「宽缓存」不变 |
+| API 写入时 `enabled` 且 policy 为空 | 规范为 **`all`**（兼容旧客户端）；UI 新建开启时**显式提交** `static` |
+| 新建路由 | 默认 `cache_enabled=false`；表单开启缓存时默认策略 **`static`** |
+| 已开启且 `url` 的站点 | 显示与发布为 `all`，**缓存范围不变** |
 | 期望「只缓存静态」的旧站点 | 用户在 UI 改为 `static` 或自定义 `suffix` |
 
 **发布说明建议：** 说明默认策略变更仅影响**新配置**；存量 `url` 视为 `all`。

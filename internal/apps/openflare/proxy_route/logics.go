@@ -309,7 +309,7 @@ func buildProxyRouteView(ctx context.Context, route *model.ProxyRoute) (*View, e
 		LimitConnPerIP:       route.LimitConnPerIP,
 		LimitRate:            route.LimitRate,
 		CacheEnabled:         route.CacheEnabled,
-		CachePolicy:          route.CachePolicy,
+		CachePolicy:          displayCachePolicy(route.CacheEnabled, route.CachePolicy),
 		CacheRules:           route.CacheRules,
 		CacheRuleList:        cacheRules,
 		CustomHeaders:        route.CustomHeaders,
