@@ -71,6 +71,7 @@ var countryCentroidsByName = map[string]countryCentroid{
 	"Guyana":                           {lat: 4.800330, lon: -58.978019},
 	"Haiti":                            {lat: 18.916196, lon: -72.678666},
 	"Honduras":                         {lat: 14.821030, lon: -86.656518},
+	"Hong Kong":                        {lat: 22.278300, lon: 114.174700},
 	"Hungary":                          {lat: 47.168543, lon: 19.410867},
 	"Iceland":                          {lat: 65.030350, lon: -18.509671},
 	"India":                            {lat: 22.901587, lon: 79.586369},
@@ -139,6 +140,7 @@ var countryCentroidsByName = map[string]countryCentroid{
 	"Saudi Arabia":                     {lat: 24.122854, lon: 44.534287},
 	"Senegal":                          {lat: 14.338614, lon: -14.472411},
 	"Sierra Leone":                     {lat: 8.575093, lon: -11.820132},
+	"Singapore":                        {lat: 1.352100, lon: 103.819800},
 	"Slovakia":                         {lat: 48.715407, lon: 19.472965},
 	"Slovenia":                         {lat: 46.108070, lon: 14.771193},
 	"Solomon Islands":                  {lat: -9.628590, lon: 160.156397},
@@ -155,6 +157,7 @@ var countryCentroidsByName = map[string]countryCentroid{
 	"Sweden":                           {lat: 62.835488, lon: 16.752551},
 	"Switzerland":                      {lat: 46.805544, lon: 8.205813},
 	"Syria":                            {lat: 35.017694, lon: 38.504490},
+	"Taiwan":                           {lat: 23.697800, lon: 120.960500},
 	"Tajikistan":                       {lat: 38.552044, lon: 70.987127},
 	"Thailand":                         {lat: 15.132319, lon: 101.010603},
 	"The Bahamas":                      {lat: 24.719920, lon: -78.027339},
@@ -181,13 +184,27 @@ var countryCentroidsByName = map[string]countryCentroid{
 }
 
 // CountryCentroidByName returns latitude and longitude for a country name, if found.
+// Accepts composite labels such as "Hong Kong, Hong Kong, HK" from GeoIP providers.
 func CountryCentroidByName(name string) (lat float64, lon float64, ok bool) {
 	name = strings.TrimSpace(name)
 	if name == "" {
 		return 0, 0, false
 	}
-	if v, ok := countryCentroidsByName[name]; ok {
+	if v, found := countryCentroidsByName[name]; found {
 		return v.lat, v.lon, true
+	}
+	// Try comma-separated parts (city / region / country / ISO).
+	for _, part := range strings.Split(name, ",") {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		if v, found := countryCentroidsByName[part]; found {
+			return v.lat, v.lon, true
+		}
+		if lat, lon, ok = CountryCentroidByISO(part); ok {
+			return lat, lon, true
+		}
 	}
 	return 0, 0, false
 }

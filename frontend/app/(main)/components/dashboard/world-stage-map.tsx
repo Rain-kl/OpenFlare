@@ -153,17 +153,50 @@ function resolveCountryCentroid(geoName: string): CountryCentroid | null {
   if (!trimmed) {
     return null;
   }
-  const direct = toCountryCentroid(countryCentroids[trimmed]);
-  if (direct) {
-    return direct;
-  }
-  const lower = trimmed.toLowerCase();
-  for (const [name, coordinates] of Object.entries(countryCentroids)) {
-    if (name.toLowerCase() === lower) {
-      return toCountryCentroid(coordinates);
+  const candidates = new Set<string>([trimmed]);
+  // ipinfo-style names: "Hong Kong, Hong Kong, HK"
+  for (const part of trimmed.split(',').map((item) => item.trim())) {
+    if (part) {
+      candidates.add(part);
     }
   }
-  return null;
+  // trailing ISO2 often present after city/region
+  const isoMatch = trimmed.match(/\b([A-Z]{2})\b/g);
+  if (isoMatch) {
+    for (const code of isoMatch) {
+      candidates.add(code);
+    }
+  }
+
+  for (const candidate of candidates) {
+    const direct = toCountryCentroid(countryCentroids[candidate]);
+    if (direct) {
+      return direct;
+    }
+    const lower = candidate.toLowerCase();
+    for (const [name, coordinates] of Object.entries(countryCentroids)) {
+      if (name.toLowerCase() === lower) {
+        return toCountryCentroid(coordinates);
+      }
+    }
+  }
+
+  // Soft contains match for longer composite labels (prefer longer country names).
+  const lowerFull = trimmed.toLowerCase();
+  let best: { length: number; coords: CountryCentroid } | null = null;
+  for (const [name, coordinates] of Object.entries(countryCentroids)) {
+    const lowerName = name.toLowerCase();
+    if (lowerFull.includes(lowerName) && lowerName.length >= 4) {
+      const coords = toCountryCentroid(coordinates);
+      if (!coords) {
+        continue;
+      }
+      if (!best || lowerName.length > best.length) {
+        best = { length: lowerName.length, coords };
+      }
+    }
+  }
+  return best?.coords ?? null;
 }
 
 function getNodeCoordinates(node: DashboardNodeHealth, index: number) {
