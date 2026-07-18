@@ -5519,8 +5519,18 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "请求 Host",
+                        "description": "请求 Host（单域名）",
                         "name": "host",
+                        "in": "query"
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "collectionFormat": "csv",
+                        "description": "请求 Host 列表（多域名精确匹配）",
+                        "name": "hosts",
                         "in": "query"
                     },
                     {

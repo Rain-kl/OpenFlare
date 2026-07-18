@@ -216,9 +216,10 @@ type AccessLogIPAnalysisView struct {
 
 // AccessLogOverviewQuery filters access log overview queries.
 type AccessLogOverviewQuery struct {
-	NodeID string `json:"node_id"`
-	Host   string `json:"host"`
-	Hours  int    `json:"hours"`
+	NodeID string   `json:"node_id"`
+	Host   string   `json:"host"`
+	Hosts  []string `json:"hosts"`
+	Hours  int      `json:"hours"`
 }
 
 // AccessLogOverviewMetricPoint is a single overview trend bucket.
@@ -284,6 +285,7 @@ func GetAccessLogOverview(ctx context.Context, input AccessLogOverviewQuery) (*A
 	query := model.OpenFlareAccessLogQuery{
 		NodeID: normalized.NodeID,
 		Host:   normalized.Host,
+		Hosts:  normalized.Hosts,
 		Since:  since,
 		Until:  now,
 	}
@@ -330,11 +332,43 @@ func normalizeAccessLogOverviewQuery(input AccessLogOverviewQuery) AccessLogOver
 	if hours > maxAccessLogOverviewHours {
 		hours = maxAccessLogOverviewHours
 	}
+	hosts := normalizeAccessLogOverviewHosts(input.Hosts)
+	host := strings.TrimSpace(input.Host)
+	if len(hosts) == 0 && host != "" {
+		// Single host query uses Hosts exact-match for consistency with multi-select.
+		hosts = []string{host}
+		host = ""
+	}
+	if len(hosts) > 0 {
+		host = ""
+	}
 	return AccessLogOverviewQuery{
 		NodeID: strings.TrimSpace(input.NodeID),
-		Host:   strings.TrimSpace(input.Host),
+		Host:   host,
+		Hosts:  hosts,
 		Hours:  hours,
 	}
+}
+
+func normalizeAccessLogOverviewHosts(hosts []string) []string {
+	if len(hosts) == 0 {
+		return nil
+	}
+	seen := make(map[string]struct{}, len(hosts))
+	result := make([]string, 0, len(hosts))
+	for _, host := range hosts {
+		trimmed := strings.TrimSpace(host)
+		if trimmed == "" {
+			continue
+		}
+		key := strings.ToLower(trimmed)
+		if _, exists := seen[key]; exists {
+			continue
+		}
+		seen[key] = struct{}{}
+		result = append(result, trimmed)
+	}
+	return result
 }
 
 func valueCountDistribution(
@@ -427,6 +461,7 @@ func buildAccessLogOverviewTrends(
 	buckets, err := model.ListOpenFlareAccessLogBuckets(ctx, model.OpenFlareAccessLogBucketQuery{
 		NodeID:      query.NodeID,
 		Host:        query.Host,
+		Hosts:       query.Hosts,
 		Since:       query.Since,
 		Until:       query.Until,
 		FoldMinutes: 60,

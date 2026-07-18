@@ -7354,10 +7354,17 @@ paths:
         in: query
         name: node_id
         type: string
-      - description: 请求 Host
+      - description: 请求 Host（单域名）
         in: query
         name: host
         type: string
+      - collectionFormat: csv
+        description: 请求 Host 列表（多域名精确匹配）
+        in: query
+        items:
+          type: string
+        name: hosts
+        type: array
       - description: 统计时间范围（小时）
         in: query
         name: hours

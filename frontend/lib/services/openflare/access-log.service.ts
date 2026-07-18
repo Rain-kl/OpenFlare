@@ -20,10 +20,16 @@ import type {
 
 function buildSearchParams(filters: object): Record<string, unknown> {
   const params: Record<string, unknown> = {};
-  Object.entries(
-    filters as Record<string, string | number | undefined>,
-  ).forEach(([key, value]) => {
+  Object.entries(filters as Record<string, unknown>).forEach(([key, value]) => {
     if (value === undefined || value === null || value === '') return;
+    if (Array.isArray(value)) {
+      const items = value
+        .map((item) => String(item).trim())
+        .filter((item) => item !== '');
+      if (items.length === 0) return;
+      params[key] = items;
+      return;
+    }
     params[key] = value;
   });
   return params;

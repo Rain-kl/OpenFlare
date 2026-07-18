@@ -19,7 +19,8 @@ import (
 // @Produce json
 // @Security SessionCookie
 // @Param node_id query string false "节点 ID"
-// @Param host query string false "请求 Host"
+// @Param host query string false "请求 Host（单域名）"
+// @Param hosts query []string false "请求 Host 列表（多域名精确匹配）"
 // @Param hours query int false "统计时间范围（小时）"
 // @Success 200 {object} response.Any{data=observability.AccessLogOverview} "访问日志概览"
 // @Failure 400 {object} response.Any "参数错误"
@@ -31,6 +32,7 @@ func GetAccessLogOverviewHandler(c *gin.Context) {
 	result, err := GetAccessLogOverview(c.Request.Context(), AccessLogOverviewQuery{
 		NodeID: c.Query("node_id"),
 		Host:   c.Query("host"),
+		Hosts:  c.QueryArray("hosts"),
 		Hours:  readQueryInt(c, "hours"),
 	})
 	if apiutil.AbortBadRequestOnError(c, err) {

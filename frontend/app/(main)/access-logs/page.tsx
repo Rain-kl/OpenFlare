@@ -44,6 +44,7 @@ function AccessLogsPageContent() {
   const [page, setPage] = useState(0);
   const [detailSort, setDetailSort] = useState('logged_at:desc');
   const [overviewHours, setOverviewHours] = useState<OverviewRangeHours>(24);
+  const [overviewHosts, setOverviewHosts] = useState<string[]>([]);
   const [cleanupOpen, setCleanupOpen] = useState(false);
 
   const detailSortState = parseSortValue(detailSort);
@@ -56,10 +57,17 @@ function AccessLogsPageContent() {
   };
 
   const overviewQuery = useQuery({
-    queryKey: ['openflare', 'access-logs', 'overview', overviewHours],
+    queryKey: [
+      'openflare',
+      'access-logs',
+      'overview',
+      overviewHours,
+      overviewHosts,
+    ],
     queryFn: () =>
       AccessLogService.getOverview({
         hours: overviewHours,
+        hosts: overviewHosts.length > 0 ? overviewHosts : undefined,
       }),
     enabled: tab === 'overview',
   });
@@ -179,7 +187,9 @@ function AccessLogsPageContent() {
               overviewQuery.error instanceof Error ? overviewQuery.error : null
             }
             hours={overviewHours}
+            hosts={overviewHosts}
             onHoursChange={setOverviewHours}
+            onHostsChange={setOverviewHosts}
             onRetry={() => void overviewQuery.refetch()}
           />
         </TabsContent>

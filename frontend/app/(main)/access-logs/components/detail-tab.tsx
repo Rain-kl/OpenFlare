@@ -170,8 +170,15 @@ export function DetailTab({
                     <TableCell className='text-xs'>
                       {item.node_name || item.node_id}
                     </TableCell>
-                    <TableCell className='text-xs font-mono'>
-                      {item.remote_addr}
+                    <TableCell className='text-xs'>
+                      <div className='flex flex-col gap-0.5'>
+                        <span className='font-mono'>{item.remote_addr}</span>
+                        {item.region ? (
+                          <span className='text-[10px] text-muted-foreground'>
+                            {item.region}
+                          </span>
+                        ) : null}
+                      </div>
                     </TableCell>
                     <TableCell className='text-xs'>{item.host}</TableCell>
                     <TableCell className='text-xs max-w-48 truncate'>

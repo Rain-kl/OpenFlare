@@ -503,6 +503,7 @@ export interface AccessLogFilters {
 export interface AccessLogOverviewFilters {
   node_id?: string;
   host?: string;
+  hosts?: string[];
   hours?: number;
 }
 
