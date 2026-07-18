@@ -10,6 +10,7 @@ import (
 
 	"github.com/Rain-kl/Wavelet/internal/model"
 	analyticsrepo "github.com/Rain-kl/Wavelet/internal/repository/analytics"
+	"github.com/Rain-kl/Wavelet/pkg/logger"
 )
 
 const (
@@ -236,10 +237,10 @@ type AccessLogCleanupResult struct {
 }
 
 const (
-	defaultAccessLogOverviewHours     = 24
-	maxAccessLogOverviewHours         = 24 * 30
-	accessLogOverviewTopLimit         = 10
-	accessLogOverviewUASampleLimit    = 200
+	defaultAccessLogOverviewHours  = 24
+	maxAccessLogOverviewHours      = 24 * 30
+	accessLogOverviewTopLimit      = 10
+	accessLogOverviewUASampleLimit = 200
 )
 
 // GetAccessLogOverview returns summary metrics, trends, and top rankings.
@@ -310,7 +311,11 @@ func valueCountDistribution(
 	limit int,
 ) []DistributionItem {
 	rows, err := model.ValueCountsOpenFlareAccessLogs(ctx, query, column, limit)
-	if err != nil || len(rows) == 0 {
+	if err != nil {
+		logger.ErrorF(ctx, "[AccessLog] ValueCountsOpenFlareAccessLogs failed for column %s: %v", column, err)
+		return []DistributionItem{}
+	}
+	if len(rows) == 0 {
 		return []DistributionItem{}
 	}
 	items := make([]DistributionItem, 0, len(rows))

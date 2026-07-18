@@ -5,7 +5,7 @@ import type { EChartsOption } from 'echarts';
 import ReactECharts from 'echarts-for-react';
 import { Cell, Pie, PieChart } from 'recharts';
 
-import { RankChart } from '@/components/data/rank-chart';
+import { RankCard } from '@/components/data/rank-card';
 import { TrendChart } from '@/components/data/trend-chart';
 import { EmptyStateWithBorder } from '@/components/layout/empty';
 import { ErrorInline } from '@/components/layout/error';
@@ -160,38 +160,6 @@ function toRankItems(items: DistributionItem[] | undefined) {
   }));
 }
 
-function RankCard({
-  title,
-  description,
-  items,
-  color,
-}: {
-  title: string;
-  description: string;
-  items: { label: string; value: number }[];
-  color: string;
-}) {
-  return (
-    <Card className='border-dashed shadow-none'>
-      <CardHeader className='pb-3'>
-        <CardTitle className='text-sm font-semibold text-foreground'>
-          {title}
-        </CardTitle>
-        <CardDescription className='text-xs text-muted-foreground'>
-          {description}
-        </CardDescription>
-      </CardHeader>
-      <CardContent className='pt-0'>
-        <RankChart
-          items={items}
-          color={color}
-          emptyMessage={`暂无 ${title} 数据`}
-        />
-      </CardContent>
-    </Card>
-  );
-}
-
 function PieDistributionCard({
   title,
   description,
@@ -236,13 +204,13 @@ function PieDistributionCard({
       </CardHeader>
       <CardContent className='pt-0'>
         {chartData.length === 0 ? (
-          <div className='flex h-[450px] items-center justify-center rounded-md border border-dashed bg-muted/20 text-sm text-muted-foreground'>
+          <div className='flex h-[300px] items-center justify-center rounded-md border border-dashed bg-muted/20 text-sm text-muted-foreground'>
             {emptyMessage}
           </div>
         ) : (
           <ChartContainer
             config={chartConfig}
-            className='mx-auto h-[450px] w-full'
+            className='mx-auto h-[300px] w-full'
           >
             <PieChart>
               <Pie
@@ -251,8 +219,8 @@ function PieDistributionCard({
                 nameKey='name'
                 cx='50%'
                 cy='46%'
-                innerRadius={72}
-                outerRadius={110}
+                innerRadius={50}
+                outerRadius={80}
                 paddingAngle={2}
               >
                 {chartData.map((entry) => (
@@ -456,19 +424,16 @@ function OverviewContent({
         <RankCard
           title='Top Paths'
           description='访问量最高的请求路径。'
-          color='#a78bfa'
           items={toRankItems(data.top_paths)}
         />
         <RankCard
           title='Top Hosts'
           description='流量集中的访问域名。'
-          color='#34d399'
           items={toRankItems(data.top_hosts)}
         />
         <RankCard
           title='Top IPs'
           description='请求次数最多的来源 IP。'
-          color='#38bdf8'
           items={toRankItems(data.top_ips)}
         />
       </div>
@@ -477,19 +442,16 @@ function OverviewContent({
         <RankCard
           title='Top browsers'
           description='按浏览器聚合的请求排行。'
-          color='#f59e0b'
           items={toRankItems(data.top_browsers)}
         />
         <RankCard
           title='Top Operating System'
           description='按操作系统聚合的请求排行。'
-          color='#22c55e'
           items={toRankItems(data.top_operating_systems)}
         />
         <RankCard
           title='Top User-Agent'
           description='原始 User-Agent 请求排行。'
-          color='#818cf8'
           items={toRankItems(data.top_user_agents)}
         />
       </div>

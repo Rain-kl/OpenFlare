@@ -221,12 +221,16 @@ func ValueCountsNodeAccessLogs(ctx context.Context, filter NodeAccessLogFilter, 
 	}
 	clause, args := buildNodeAccessLogFilterClause(filter)
 	tableName := nodeAccessLogTableName()
+	filterExpr := valueExpr + " != ''"
+	if col == nodeAccessLogColumnStatusCode {
+		filterExpr = "status_code >= 0"
+	}
 	sql := fmt.Sprintf(`
 SELECT %s AS value, count() AS count
 FROM %s
-WHERE %s AND %s != ''
+WHERE %s AND %s
 GROUP BY value
-ORDER BY count DESC, value ASC`, valueExpr, tableName, clause, valueExpr)
+ORDER BY count DESC, value ASC`, valueExpr, tableName, clause, filterExpr)
 	if limit > 0 {
 		sql += clickHouseLimitClause
 		args = append(args, limit)
