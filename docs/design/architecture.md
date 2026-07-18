@@ -95,7 +95,7 @@ OpenResty (Agent, TLS/WAF)
 ### 3. OpenResty (数据面)
 接收访客流量并执行最终的业务落地：
 * 流量入口，支持 HTTP/2、HTTP/3（QUIC）和 TLS 证书动态绑定。
-* 嵌入 Lua 逻辑，在 `access_by_lua` 阶段高效过滤 WAF 规则、验证工作量证明 (PoW) 挑战，并在此之后执行连接数/速率限制及基础缓存。
+* 嵌入 Lua 逻辑，在 `access_by_lua` 阶段高效过滤 WAF 规则、验证工作量证明 (PoW) 挑战，并在此之后执行连接数/速率限制及基础缓存（策略见 [边缘缓存策略设计](./edge-cache-design.md)）。
 * *详细设计请参阅：[WAF 设计文档](./waf-design.md) 与 [Pages 静态托管设计文档](./pages-design.md)*
 
 ### 4. Relay 与 OpenFlared (穿透组件)

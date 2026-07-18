@@ -132,6 +132,7 @@ function sidebarDesign(): DefaultTheme.SidebarItem[] {
         { text: 'WAF 设计', link: 'waf-design' },
         { text: 'WAF 可编排规则设计', link: 'waf-orchestration-design' },
         { text: 'Pages 静态托管设计', link: 'pages-design' },
+        { text: '边缘缓存策略设计', link: 'edge-cache-design' },
         { text: '边缘可观测与业务流量统计', link: 'observability-design' },
         { text: '观测数据传输模型', link: 'observability-transport-model' },
         { text: '观测上报协议与表结构', link: 'observability-data-model' },
