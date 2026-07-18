@@ -154,6 +154,8 @@ status        ← $status
 request_time  ← $request_time
 bytes_sent    ← $body_bytes_sent     【已提供数据 = 响应体字节】
 request_length← $request_length      【接收数据】
+user_agent    ← $http_user_agent
+cache_status  ← $upstream_cache_status  【缓存状态；UI 可推导命中/回源/未缓存】
 ```
 
 观测端口请求 **不写** 业务 access.log（独立 server `access_log off`）。
@@ -170,7 +172,9 @@ request_length← $request_length      【接收数据】
     "status_code": 200,
     "bytes_sent": 1024,
     "request_length": 128,
-    "request_time_ms": 15
+    "request_time_ms": 15,
+    "user_agent": "curl/8.0",
+    "cache_status": "MISS"
   },
   {
     "logged_at_unix": 1721289602,
@@ -180,7 +184,9 @@ request_length← $request_length      【接收数据】
     "status_code": 200,
     "bytes_sent": 8192,
     "request_length": 300,
-    "request_time_ms": 8
+    "request_time_ms": 8,
+    "user_agent": "Mozilla/5.0",
+    "cache_status": "HIT"
   }
 ]
 ```
@@ -191,6 +197,7 @@ request_length← $request_length      【接收数据】
 | `request_length` | **接收数据**（单请求） |
 | `logged_at_unix` | 请求完成时间（业务时间轴） |
 | `host` | 用于 Zone 域名过滤 |
+| `cache_status` | `$upstream_cache_status` 原样；详情/列表可推导三态（命中/回源/未缓存）；**不上报** upstream 地址 |
 | 无 `region` | **Server 入库时** GeoIP 写入 |
 
 ### 4.3 Server 如何用（产品指标）
