@@ -139,6 +139,7 @@ type NodeAccessLog struct {
 	Host          string `json:"host"`
 	Path          string `json:"path"`
 	UserAgent     string `json:"user_agent,omitempty"`
+	CacheStatus   string `json:"cache_status,omitempty"` // $upstream_cache_status
 	StatusCode    int    `json:"status_code"`
 	BytesSent     int64  `json:"bytes_sent"`      // body bytes = 已提供数据
 	RequestLength int64  `json:"request_length"`  // 接收数据

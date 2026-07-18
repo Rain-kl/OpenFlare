@@ -47,6 +47,7 @@ func BatchInsertNodeAccessLogs(ctx context.Context, logs []analyticsmodel.NodeAc
 			logItem.Host,
 			logItem.Path,
 			strings.TrimSpace(logItem.UserAgent),
+			strings.TrimSpace(logItem.CacheStatus),
 			logItem.StatusCode,
 			logItem.BytesSent,
 			logItem.RequestLength,

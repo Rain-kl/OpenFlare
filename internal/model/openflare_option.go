@@ -38,7 +38,7 @@ http {
     fastcgi_temp_path __OPENFLARE_NGINX_CACHE_DIR__/fastcgi_temp;
     uwsgi_temp_path __OPENFLARE_NGINX_CACHE_DIR__/uwsgi_temp;
     scgi_temp_path __OPENFLARE_NGINX_CACHE_DIR__/scgi_temp;
-{{OpenRestyConnectionUpgradeMap}}{{OpenRestyDefaultServerBlock}}    log_format openflare_json escape=json '{"ts":"$time_iso8601","host":"$host","path":"$request_uri","remote_addr":"$remote_addr","status":$status,"request_time":$request_time,"bytes_sent":$body_bytes_sent,"request_length":$request_length,"user_agent":"$http_user_agent"}';
+{{OpenRestyConnectionUpgradeMap}}{{OpenRestyDefaultServerBlock}}    log_format openflare_json escape=json '{"ts":"$time_iso8601","host":"$host","path":"$request_uri","remote_addr":"$remote_addr","status":$status,"request_time":$request_time,"bytes_sent":$body_bytes_sent,"request_length":$request_length,"user_agent":"$http_user_agent","cache_status":"$upstream_cache_status"}';
     access_log {{OpenRestyAccessLogPath}} openflare_json;
     sendfile on;
     tcp_nopush on;

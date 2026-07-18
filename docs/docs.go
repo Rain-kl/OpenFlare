@@ -14390,6 +14390,10 @@ const docTemplate = `{
                     "description": "body bytes = 已提供数据",
                     "type": "integer"
                 },
+                "cache_status": {
+                    "description": "$upstream_cache_status",
+                    "type": "string"
+                },
                 "host": {
                     "type": "string"
                 },
@@ -16511,6 +16515,9 @@ const docTemplate = `{
         "observability.AccessLogView": {
             "type": "object",
             "properties": {
+                "cache_status": {
+                    "type": "string"
+                },
                 "host": {
                     "type": "string"
                 },

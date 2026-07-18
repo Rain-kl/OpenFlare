@@ -46,16 +46,17 @@ type AccessLogQuery struct {
 
 // AccessLogView is a single access log row.
 type AccessLogView struct {
-	ID         string    `json:"id"`
-	NodeID     string    `json:"node_id"`
-	NodeName   string    `json:"node_name"`
-	LoggedAt   time.Time `json:"logged_at"`
-	RemoteAddr string    `json:"remote_addr"`
-	Region     string    `json:"region"`
-	Host       string    `json:"host"`
-	Path       string    `json:"path"`
-	UserAgent  string    `json:"user_agent"`
-	StatusCode int       `json:"status_code"`
+	ID          string    `json:"id"`
+	NodeID      string    `json:"node_id"`
+	NodeName    string    `json:"node_name"`
+	LoggedAt    time.Time `json:"logged_at"`
+	RemoteAddr  string    `json:"remote_addr"`
+	Region      string    `json:"region"`
+	Host        string    `json:"host"`
+	Path        string    `json:"path"`
+	UserAgent   string    `json:"user_agent"`
+	CacheStatus string    `json:"cache_status"`
+	StatusCode  int       `json:"status_code"`
 }
 
 // AccessLogList is a paginated access log response.
@@ -476,16 +477,17 @@ func ListAccessLogs(ctx context.Context, input AccessLogQuery) (*AccessLogList, 
 			continue
 		}
 		views = append(views, AccessLogView{
-			ID:         formatAccessLogID(item.ID),
-			NodeID:     item.NodeID,
-			NodeName:   nodeNames[item.NodeID],
-			LoggedAt:   item.LoggedAt,
-			RemoteAddr: item.RemoteAddr,
-			Region:     item.Region,
-			Host:       item.Host,
-			Path:       item.Path,
-			UserAgent:  item.UserAgent,
-			StatusCode: item.StatusCode,
+			ID:          formatAccessLogID(item.ID),
+			NodeID:      item.NodeID,
+			NodeName:    nodeNames[item.NodeID],
+			LoggedAt:    item.LoggedAt,
+			RemoteAddr:  item.RemoteAddr,
+			Region:      item.Region,
+			Host:        item.Host,
+			Path:        item.Path,
+			UserAgent:   item.UserAgent,
+			CacheStatus: item.CacheStatus,
+			StatusCode:  item.StatusCode,
 		})
 	}
 	return &AccessLogList{

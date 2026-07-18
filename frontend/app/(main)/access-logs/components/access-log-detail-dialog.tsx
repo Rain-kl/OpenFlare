@@ -46,9 +46,11 @@ import { formatBytes, formatCompactNumber } from '@/lib/utils/metrics';
 
 import { buildIPGroupPayloadFromGroup } from '../../waf/components/helpers';
 import {
+  cacheOutcomeLabel,
   formatOverviewRangeHint,
   formatOverviewTrendLabel,
   OVERVIEW_RANGE_OPTIONS,
+  resolveCacheOutcome,
   type OverviewRangeHours,
 } from './access-log-utils';
 
@@ -461,6 +463,21 @@ export function AccessLogDetailDialog({
                     <Badge variant='outline' className='text-[10px]'>
                       {activeItem.status_code}
                     </Badge>
+                  }
+                />
+                <DetailField
+                  label='缓存'
+                  value={
+                    <div className='flex flex-wrap items-center gap-2'>
+                      <Badge variant='outline' className='text-[10px]'>
+                        {cacheOutcomeLabel(
+                          resolveCacheOutcome(activeItem.cache_status),
+                        )}
+                      </Badge>
+                      <span className='font-mono text-xs text-muted-foreground'>
+                        {activeItem.cache_status || '—'}
+                      </span>
+                    </div>
                   }
                 />
                 <DetailField

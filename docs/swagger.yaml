@@ -657,6 +657,9 @@ definitions:
       bytes_sent:
         description: body bytes = 已提供数据
         type: integer
+      cache_status:
+        description: $upstream_cache_status
+        type: string
       host:
         type: string
       logged_at_unix:
@@ -2065,6 +2068,8 @@ definitions:
     type: object
   observability.AccessLogView:
     properties:
+      cache_status:
+        type: string
       host:
         type: string
       id:

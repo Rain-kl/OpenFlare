@@ -14,8 +14,8 @@ func TestCollectAccessLogsReturnsFactsOnly(t *testing.T) {
 	tempDir := t.TempDir()
 	logPath := filepath.Join(tempDir, "openflare_access.log")
 	content := []byte(
-		"{\"ts\":\"2026-03-14T08:00:00Z\",\"host\":\"app.example.com\",\"path\":\"/login\",\"remote_addr\":\"10.0.0.1\",\"status\":200,\"request_length\":128,\"bytes_sent\":512,\"request_time\":0.015,\"user_agent\":\"Mozilla/5.0\"}\n" +
-			"{\"ts\":\"2026-03-14T08:00:05Z\",\"host\":\"api.example.com\",\"path\":\"/v1/ping\",\"remote_addr\":\"10.0.0.2\",\"status\":502,\"request_length\":64,\"bytes_sent\":256,\"request_time\":0.008,\"user_agent\":\"curl/8.0\"}\n",
+		"{\"ts\":\"2026-03-14T08:00:00Z\",\"host\":\"app.example.com\",\"path\":\"/login\",\"remote_addr\":\"10.0.0.1\",\"status\":200,\"request_length\":128,\"bytes_sent\":512,\"request_time\":0.015,\"user_agent\":\"Mozilla/5.0\",\"cache_status\":\"HIT\"}\n" +
+			"{\"ts\":\"2026-03-14T08:00:05Z\",\"host\":\"api.example.com\",\"path\":\"/v1/ping\",\"remote_addr\":\"10.0.0.2\",\"status\":502,\"request_length\":64,\"bytes_sent\":256,\"request_time\":0.008,\"user_agent\":\"curl/8.0\",\"cache_status\":\"MISS\"}\n",
 	)
 	if err := os.WriteFile(logPath, content, 0o644); err != nil {
 		t.Fatalf("WriteFile failed: %v", err)
@@ -37,6 +37,9 @@ func TestCollectAccessLogsReturnsFactsOnly(t *testing.T) {
 	}
 	if accessLogs[0].UserAgent != "Mozilla/5.0" || accessLogs[1].UserAgent != "curl/8.0" {
 		t.Fatalf("unexpected user agents: %+v", accessLogs)
+	}
+	if accessLogs[0].CacheStatus != "HIT" || accessLogs[1].CacheStatus != "MISS" {
+		t.Fatalf("unexpected cache status: %+v", accessLogs)
 	}
 
 	snapshot, err := stateStore.Load()

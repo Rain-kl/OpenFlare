@@ -64,3 +64,34 @@ export function formatOverviewTrendLabel(value: string, hours: number) {
   }
   return `${month}/${day} ${hour}:00`;
 }
+
+export type CacheOutcome = 'hit' | 'origin' | 'uncached';
+
+export function resolveCacheOutcome(
+  cacheStatus: string | undefined | null,
+): CacheOutcome {
+  const status = (cacheStatus ?? '').trim().toUpperCase();
+  if (
+    status === 'HIT' ||
+    status === 'STALE' ||
+    status === 'REVALIDATED' ||
+    status === 'UPDATING'
+  ) {
+    return 'hit';
+  }
+  if (status === 'MISS' || status === 'EXPIRED') {
+    return 'origin';
+  }
+  return 'uncached';
+}
+
+export function cacheOutcomeLabel(outcome: CacheOutcome) {
+  switch (outcome) {
+    case 'hit':
+      return '命中';
+    case 'origin':
+      return '回源';
+    default:
+      return '未缓存';
+  }
+}

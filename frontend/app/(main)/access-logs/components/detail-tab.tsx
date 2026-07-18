@@ -32,7 +32,25 @@ import type { AccessLogItem, AccessLogList } from '@/lib/services/openflare';
 import { formatDateTime } from '@/lib/utils';
 
 import { AccessLogDetailDialog } from './access-log-detail-dialog';
-import { DETAIL_SORT_OPTIONS } from './access-log-utils';
+import {
+  cacheOutcomeLabel,
+  DETAIL_SORT_OPTIONS,
+  resolveCacheOutcome,
+  type CacheOutcome,
+} from './access-log-utils';
+
+function cacheOutcomeVariant(
+  outcome: CacheOutcome,
+): 'default' | 'secondary' | 'outline' | 'destructive' {
+  switch (outcome) {
+    case 'hit':
+      return 'default';
+    case 'origin':
+      return 'secondary';
+    default:
+      return 'outline';
+  }
+}
 
 function PaginationBar({
   page,
@@ -136,53 +154,66 @@ export function DetailTab({
                 <TableHead className='text-xs'>IP</TableHead>
                 <TableHead className='text-xs'>域名</TableHead>
                 <TableHead className='text-xs'>路径</TableHead>
+                <TableHead className='text-xs'>缓存</TableHead>
                 <TableHead className='text-xs'>状态码</TableHead>
                 <TableHead className='w-12 text-center text-xs' />
               </TableRow>
             </TableHeader>
             <TableBody>
-              {(data?.items ?? []).map((item) => (
-                <TableRow key={item.id} className='border-dashed'>
-                  <TableCell className='text-xs'>
-                    {formatDateTime(item.logged_at)}
-                  </TableCell>
-                  <TableCell className='text-xs'>
-                    {item.node_name || item.node_id}
-                  </TableCell>
-                  <TableCell className='text-xs font-mono'>
-                    {item.remote_addr}
-                  </TableCell>
-                  <TableCell className='text-xs'>{item.host}</TableCell>
-                  <TableCell className='text-xs max-w-48 truncate'>
-                    {item.path}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant='outline' className='text-[10px]'>
-                      {item.status_code}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className='text-center'>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant='ghost'
-                          size='icon'
-                          className='h-6 w-6 text-muted-foreground hover:text-foreground'
-                          onClick={() => {
-                            setSelected(item);
-                            setDetailOpen(true);
-                          }}
-                        >
-                          <Eye className='size-3' />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent side='top' className='text-xs'>
-                        查看详情
-                      </TooltipContent>
-                    </Tooltip>
-                  </TableCell>
-                </TableRow>
-              ))}
+              {(data?.items ?? []).map((item) => {
+                const outcome = resolveCacheOutcome(item.cache_status);
+                return (
+                  <TableRow key={item.id} className='border-dashed'>
+                    <TableCell className='text-xs'>
+                      {formatDateTime(item.logged_at)}
+                    </TableCell>
+                    <TableCell className='text-xs'>
+                      {item.node_name || item.node_id}
+                    </TableCell>
+                    <TableCell className='text-xs font-mono'>
+                      {item.remote_addr}
+                    </TableCell>
+                    <TableCell className='text-xs'>{item.host}</TableCell>
+                    <TableCell className='text-xs max-w-48 truncate'>
+                      {item.path}
+                    </TableCell>
+                    <TableCell>
+                      <Badge
+                        variant={cacheOutcomeVariant(outcome)}
+                        className='text-[10px]'
+                        title={item.cache_status || undefined}
+                      >
+                        {cacheOutcomeLabel(outcome)}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant='outline' className='text-[10px]'>
+                        {item.status_code}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className='text-center'>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant='ghost'
+                            size='icon'
+                            className='h-6 w-6 text-muted-foreground hover:text-foreground'
+                            onClick={() => {
+                              setSelected(item);
+                              setDetailOpen(true);
+                            }}
+                          >
+                            <Eye className='size-3' />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent side='top' className='text-xs'>
+                          查看详情
+                        </TooltipContent>
+                      </Tooltip>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         )}

@@ -544,6 +544,7 @@ export interface AccessLogItem {
   host: string;
   path: string;
   user_agent: string;
+  cache_status: string;
   status_code: number;
 }
 

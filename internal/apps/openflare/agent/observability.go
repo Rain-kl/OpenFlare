@@ -24,7 +24,8 @@ const (
 	healthSeverityWarning       = "warning"
 	healthSeverityCritical      = "critical"
 	accessLogPathMaxLength      = 100
-	accessLogUserAgentMaxLength = 512
+	accessLogUserAgentMaxLength   = 512
+	accessLogCacheStatusMaxLength = 32
 	healthEventMessageMaxLength = 4096
 )
 
@@ -210,6 +211,7 @@ func buildNodeAccessLogRecords(nodeID string, direct []NodeAccessLog, buffered [
 				Host:          strings.TrimSpace(item.Host),
 				Path:          truncateForDatabase(strings.TrimSpace(item.Path), accessLogPathMaxLength),
 				UserAgent:     truncateForDatabase(strings.TrimSpace(item.UserAgent), accessLogUserAgentMaxLength),
+				CacheStatus:   truncateForDatabase(strings.TrimSpace(item.CacheStatus), accessLogCacheStatusMaxLength),
 				StatusCode:    item.StatusCode,
 				BytesSent:     bytesSent,
 				RequestLength: requestLength,

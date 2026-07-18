@@ -23,6 +23,7 @@ type accessLogRecord struct {
 	RemoteAddr    string  `json:"remote_addr"`
 	Path          string  `json:"path"`
 	UserAgent     string  `json:"user_agent"`
+	CacheStatus   string  `json:"cache_status"`
 	Status        int     `json:"status"`
 	BytesSent     int64   `json:"bytes_sent"`
 	RequestLength int64   `json:"request_length"`
@@ -147,6 +148,7 @@ func (aggregate *trafficAggregate) consume(line []byte) {
 		Host:          strings.TrimSpace(record.Host),
 		Path:          normalizeAccessLogPath(record.Path),
 		UserAgent:     strings.TrimSpace(record.UserAgent),
+		CacheStatus:   normalizeCacheStatus(record.CacheStatus),
 		StatusCode:    record.Status,
 		BytesSent:     record.BytesSent,
 		RequestLength: record.RequestLength,
@@ -160,6 +162,7 @@ type parsedAccessLogRecord struct {
 	RemoteAddr    string
 	Path          string
 	UserAgent     string
+	CacheStatus   string
 	Status        int
 	BytesSent     int64
 	RequestLength int64
@@ -193,11 +196,20 @@ func parseJSONAccessLogRecord(raw string) (parsedAccessLogRecord, bool) {
 		RemoteAddr:    strings.TrimSpace(record.RemoteAddr),
 		Path:          normalizeAccessLogPath(record.Path),
 		UserAgent:     strings.TrimSpace(record.UserAgent),
+		CacheStatus:   normalizeCacheStatus(record.CacheStatus),
 		Status:        record.Status,
 		BytesSent:     record.BytesSent,
 		RequestLength: record.RequestLength,
 		RequestTimeMs: requestTimeMs,
 	}, true
+}
+
+func normalizeCacheStatus(value string) string {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "-" {
+		return ""
+	}
+	return trimmed
 }
 
 func parseCombinedAccessLogRecord(raw string) (parsedAccessLogRecord, bool) {
