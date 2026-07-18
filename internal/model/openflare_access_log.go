@@ -251,10 +251,15 @@ func buildOpenFlareAccessLogIPSummaryRows(ctx context.Context, query OpenFlareAc
 			continue
 		}
 		rows = append(rows, &OpenFlareAccessLogIPSummaryRow{
-			RemoteAddr:     remoteAddr,
-			TotalRequests:  partial.TotalRequests,
-			RecentRequests: partial.RecentRequests,
-			LastSeenEpoch:  partial.LastSeenEpoch,
+			RemoteAddr:      remoteAddr,
+			Region:          strings.TrimSpace(partial.Region),
+			TotalRequests:   partial.TotalRequests,
+			Success2xxCount: partial.Success2xxCount,
+			SuccessRatio:    partial.SuccessRatio,
+			BytesReceived:   partial.BytesReceived,
+			BytesSent:       partial.BytesSent,
+			RecentRequests:  0,
+			LastSeenEpoch:   partial.LastSeenEpoch,
 		})
 	}
 	return rows, nil
@@ -305,6 +310,7 @@ func openFlareAccessLogQueryFromIPSummary(query OpenFlareAccessLogIPSummaryQuery
 		RemoteAddr: query.RemoteAddr,
 		Host:       query.Host,
 		Since:      query.Since,
+		Until:      query.Until,
 		Page:       query.Page,
 		PageSize:   query.PageSize,
 		SortBy:     query.SortBy,
@@ -377,8 +383,12 @@ func sortOpenFlareAccessLogIPSummaryRows(items []*OpenFlareAccessLogIPSummaryRow
 		}
 		var compare int
 		switch strings.TrimSpace(sortBy) {
-		case "recent_requests":
-			compare = openFlareAccessLogCompareInt64(left.RecentRequests, right.RecentRequests)
+		case "request_length", "bytes_received":
+			compare = openFlareAccessLogCompareInt64(left.BytesReceived, right.BytesReceived)
+		case "bytes_sent":
+			compare = openFlareAccessLogCompareInt64(left.BytesSent, right.BytesSent)
+		case "success_ratio":
+			compare = openFlareAccessLogCompareFloat64(left.SuccessRatio, right.SuccessRatio)
 		case "last_seen_at":
 			compare = openFlareAccessLogCompareInt64(left.LastSeenEpoch, right.LastSeenEpoch)
 		case "remote_addr":
@@ -397,6 +407,16 @@ func sortOpenFlareAccessLogIPSummaryRows(items []*OpenFlareAccessLogIPSummaryRow
 		}
 		return compare < 0
 	})
+}
+
+func openFlareAccessLogCompareFloat64(left, right float64) int {
+	if left < right {
+		return -1
+	}
+	if left > right {
+		return 1
+	}
+	return 0
 }
 
 func openFlareAccessLogPaginateBounds(total int, page int, pageSize int) (int, int) {

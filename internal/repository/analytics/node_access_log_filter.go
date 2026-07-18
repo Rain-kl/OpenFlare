@@ -176,10 +176,17 @@ func nodeAccessLogIPSummaryOrderClause(sortBy string, sortOrder string) string {
 	}
 	column := "total_requests"
 	switch strings.TrimSpace(sortBy) {
-	case "recent_requests":
-		column = "recent_requests"
+	case "request_length", "bytes_received":
+		column = "request_length"
+	case "bytes_sent":
+		column = "bytes_sent"
+	case "success_ratio":
+		column = "success_ratio"
 	case "last_seen_at":
 		column = "last_seen_epoch"
+	case "recent_requests":
+		// Deprecated sort key; fall back to total_requests.
+		column = "total_requests"
 	case nodeAccessLogColumnRemoteAddr:
 		column = nodeAccessLogColumnRemoteAddr
 	}

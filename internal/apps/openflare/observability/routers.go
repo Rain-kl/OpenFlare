@@ -143,16 +143,19 @@ func GetFoldedAccessLogIPsHandler(c *gin.Context) {
 
 // GetAccessLogIPSummariesHandler 列出访问日志 IP 汇总。
 // @Summary 列出访问日志 IP 汇总
-// @Description 按 IP 聚合访问日志统计并分页返回，需要管理员权限
+// @Description 按 IP 聚合访问日志统计并分页返回；支持 hours 或 since/until 时间窗，需要管理员权限
 // @Tags openflare-observability
 // @Produce json
 // @Security SessionCookie
 // @Param node_id query string false "节点 ID"
 // @Param remote_addr query string false "客户端 IP"
 // @Param host query string false "请求 Host"
+// @Param hours query int false "统计时间范围（小时，1-720，默认 168）"
+// @Param since query string false "开始时间 RFC3339（与 until 同时提供时优先于 hours）"
+// @Param until query string false "结束时间 RFC3339"
 // @Param p query int false "页码"
 // @Param page_size query int false "每页条数"
-// @Param sort_by query string false "排序字段"
+// @Param sort_by query string false "排序字段 total_requests|request_length|bytes_sent|success_ratio|last_seen_at|remote_addr"
 // @Param sort_order query string false "排序方向"
 // @Success 200 {object} response.Any{data=observability.AccessLogIPSummaryList} "IP 汇总列表"
 // @Failure 400 {object} response.Any "参数错误"
@@ -165,6 +168,9 @@ func GetAccessLogIPSummariesHandler(c *gin.Context) {
 		NodeID:     c.Query("node_id"),
 		RemoteAddr: c.Query("remote_addr"),
 		Host:       c.Query("host"),
+		Hours:      readQueryInt(c, "hours"),
+		Since:      c.Query("since"),
+		Until:      c.Query("until"),
 		Page:       readQueryInt(c, "p"),
 		PageSize:   readQueryInt(c, "page_size"),
 		SortBy:     c.Query("sort_by"),

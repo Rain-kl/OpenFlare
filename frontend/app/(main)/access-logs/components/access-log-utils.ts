@@ -1,4 +1,4 @@
-export type AccessLogTab = 'overview' | 'list';
+export type AccessLogTab = 'overview' | 'ips' | 'list';
 
 export type SearchDraft = {
   nodeId: string;
@@ -28,6 +28,19 @@ export const DETAIL_SORT_OPTIONS = [
   { value: 'status_code:asc', label: '状态码从低到高' },
   { value: 'remote_addr:asc', label: 'IP 正序' },
   { value: 'remote_addr:desc', label: 'IP 倒序' },
+];
+
+export const IP_SORT_OPTIONS = [
+  { value: 'total_requests:desc', label: '请求数从高到低' },
+  { value: 'total_requests:asc', label: '请求数从低到高' },
+  { value: 'request_length:desc', label: '入站从高到低' },
+  { value: 'request_length:asc', label: '入站从低到高' },
+  { value: 'bytes_sent:desc', label: '出站从高到低' },
+  { value: 'bytes_sent:asc', label: '出站从低到高' },
+  { value: 'success_ratio:desc', label: '2xx 比例从高到低' },
+  { value: 'success_ratio:asc', label: '2xx 比例从低到高' },
+  { value: 'last_seen_at:desc', label: '最后访问从新到旧' },
+  { value: 'last_seen_at:asc', label: '最后访问从旧到新' },
 ];
 
 export function parseSortValue(value: string) {

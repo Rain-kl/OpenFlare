@@ -18,6 +18,7 @@
 * [边缘可观测与业务流量统计重构](./20260717-observability-redesign.md)：访问日志为业务唯一真相；Agent 只上报明细与主机读数；收敛「出站/已提供」双字段。
 * [访问日志 cache_status 明细可见](./20260718-access-log-cache-status.md)：上报 `$upstream_cache_status`，明细展示命中/回源/未缓存三态。
 * [边缘缓存默认 static 策略](./20260718-edge-cache-static-default.md)：开启缓存默认仅静态扩展名；存量 url→all。
+* [访问日志 IP 明细 Tab](./20260719-access-log-ip-tab.md)：第三 Tab 按 IP 聚合列表（时间窗/流量/2xx 比例）；IP 情报迁入独立详情；日志详情仅请求字段。
 
 ## 使用建议
 

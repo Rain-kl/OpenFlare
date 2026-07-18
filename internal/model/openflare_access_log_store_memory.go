@@ -274,11 +274,21 @@ func (s *memoryAccessLogStore) IPAggregates(_ context.Context, filter OpenFlareA
 	return result, nil
 }
 
-func (s *memoryAccessLogStore) IPSummaries(_ context.Context, filter OpenFlareAccessLogQuery, recentSince time.Time) ([]openFlareAccessLogIPSummaryRow, error) {
+func (s *memoryAccessLogStore) IPSummaries(_ context.Context, filter OpenFlareAccessLogQuery, _ time.Time) ([]openFlareAccessLogIPSummaryRow, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	rows := s.filterRecords(filter)
-	aggregates := make(map[string]*openFlareAccessLogIPSummaryRow)
+	type aggregate struct {
+		RemoteAddr      string
+		Region          string
+		RegionEpoch     int64
+		TotalRequests   int64
+		Success2xxCount int64
+		BytesReceived   int64
+		BytesSent       int64
+		LastSeenEpoch   int64
+	}
+	aggregates := make(map[string]*aggregate)
 	for _, row := range rows {
 		remoteAddr := strings.TrimSpace(row.RemoteAddr)
 		if remoteAddr == "" {
@@ -286,25 +296,40 @@ func (s *memoryAccessLogStore) IPSummaries(_ context.Context, filter OpenFlareAc
 		}
 		item := aggregates[remoteAddr]
 		if item == nil {
-			item = &openFlareAccessLogIPSummaryRow{RemoteAddr: remoteAddr}
+			item = &aggregate{RemoteAddr: remoteAddr}
 			aggregates[remoteAddr] = item
 		}
 		item.TotalRequests++
-		if !recentSince.IsZero() && !row.LoggedAt.Before(recentSince) {
-			item.RecentRequests++
+		if row.StatusCode >= 200 && row.StatusCode < 300 {
+			item.Success2xxCount++
 		}
+		item.BytesReceived += row.RequestLength
+		item.BytesSent += row.BytesSent
 		epoch := row.LoggedAt.UTC().Unix()
 		if epoch > item.LastSeenEpoch {
 			item.LastSeenEpoch = epoch
 		}
+		if epoch >= item.RegionEpoch {
+			item.RegionEpoch = epoch
+			item.Region = strings.TrimSpace(row.Region)
+		}
 	}
 	summaryRows := make([]*OpenFlareAccessLogIPSummaryRow, 0, len(aggregates))
 	for _, item := range aggregates {
+		ratio := 0.0
+		if item.TotalRequests > 0 {
+			ratio = float64(item.Success2xxCount) / float64(item.TotalRequests)
+		}
 		summaryRows = append(summaryRows, &OpenFlareAccessLogIPSummaryRow{
-			RemoteAddr:     item.RemoteAddr,
-			TotalRequests:  item.TotalRequests,
-			RecentRequests: item.RecentRequests,
-			LastSeenEpoch:  item.LastSeenEpoch,
+			RemoteAddr:      item.RemoteAddr,
+			Region:          item.Region,
+			TotalRequests:   item.TotalRequests,
+			Success2xxCount: item.Success2xxCount,
+			SuccessRatio:    ratio,
+			BytesReceived:   item.BytesReceived,
+			BytesSent:       item.BytesSent,
+			RecentRequests:  0,
+			LastSeenEpoch:   item.LastSeenEpoch,
 		})
 	}
 	sortOpenFlareAccessLogIPSummaryRows(summaryRows, filter.SortBy, filter.SortOrder)
@@ -315,10 +340,15 @@ func (s *memoryAccessLogStore) IPSummaries(_ context.Context, filter OpenFlareAc
 	result := make([]openFlareAccessLogIPSummaryRow, len(summaryRows))
 	for index, item := range summaryRows {
 		result[index] = openFlareAccessLogIPSummaryRow{
-			RemoteAddr:     item.RemoteAddr,
-			TotalRequests:  item.TotalRequests,
-			RecentRequests: item.RecentRequests,
-			LastSeenEpoch:  item.LastSeenEpoch,
+			RemoteAddr:      item.RemoteAddr,
+			Region:          item.Region,
+			TotalRequests:   item.TotalRequests,
+			Success2xxCount: item.Success2xxCount,
+			SuccessRatio:    item.SuccessRatio,
+			BytesReceived:   item.BytesReceived,
+			BytesSent:       item.BytesSent,
+			RecentRequests:  0,
+			LastSeenEpoch:   item.LastSeenEpoch,
 		}
 	}
 	return result, nil

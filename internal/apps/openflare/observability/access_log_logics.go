@@ -44,19 +44,23 @@ type AccessLogQuery struct {
 	FoldMinutes int    `json:"fold_minutes"`
 }
 
-// AccessLogView is a single access log row.
+// AccessLogView is a single access log row (all business fields from of_node_access_logs).
 type AccessLogView struct {
-	ID          string    `json:"id"`
-	NodeID      string    `json:"node_id"`
-	NodeName    string    `json:"node_name"`
-	LoggedAt    time.Time `json:"logged_at"`
-	RemoteAddr  string    `json:"remote_addr"`
-	Region      string    `json:"region"`
-	Host        string    `json:"host"`
-	Path        string    `json:"path"`
-	UserAgent   string    `json:"user_agent"`
-	CacheStatus string    `json:"cache_status"`
-	StatusCode  int       `json:"status_code"`
+	ID            string    `json:"id"`
+	NodeID        string    `json:"node_id"`
+	NodeName      string    `json:"node_name"`
+	LoggedAt      time.Time `json:"logged_at"`
+	RemoteAddr    string    `json:"remote_addr"`
+	Region        string    `json:"region"`
+	Host          string    `json:"host"`
+	Path          string    `json:"path"`
+	UserAgent     string    `json:"user_agent"`
+	CacheStatus   string    `json:"cache_status"`
+	StatusCode    int       `json:"status_code"`
+	BytesSent     int64     `json:"bytes_sent"`
+	RequestLength int64     `json:"request_length"`
+	RequestTimeMs int64     `json:"request_time_ms"`
+	CreatedAt     time.Time `json:"created_at"`
 }
 
 // AccessLogList is a paginated access log response.
@@ -134,6 +138,9 @@ type AccessLogIPSummaryQuery struct {
 	NodeID     string `json:"node_id"`
 	RemoteAddr string `json:"remote_addr"`
 	Host       string `json:"host"`
+	Hours      int    `json:"hours"`
+	Since      string `json:"since"`
+	Until      string `json:"until"`
 	Page       int    `json:"page"`
 	PageSize   int    `json:"page_size"`
 	SortBy     string `json:"sort_by"`
@@ -142,8 +149,14 @@ type AccessLogIPSummaryQuery struct {
 
 // AccessLogIPSummaryView is an IP summary row.
 type AccessLogIPSummaryView struct {
-	RemoteAddr     string    `json:"remote_addr"`
-	TotalRequests  int64     `json:"total_requests"`
+	RemoteAddr      string    `json:"remote_addr"`
+	Region          string    `json:"region"`
+	TotalRequests   int64     `json:"total_requests"`
+	Success2xxCount int64     `json:"success_2xx_count"`
+	SuccessRatio    float64   `json:"success_ratio"`
+	BytesReceived   int64     `json:"bytes_received"`
+	BytesSent       int64     `json:"bytes_sent"`
+	// RecentRequests is deprecated and always 0.
 	RecentRequests int64     `json:"recent_requests"`
 	LastSeenAt     time.Time `json:"last_seen_at"`
 }
@@ -155,6 +168,9 @@ type AccessLogIPSummaryList struct {
 	PageSize  int                      `json:"page_size"`
 	HasMore   bool                     `json:"has_more"`
 	TotalIP   int64                    `json:"total_ip"`
+	Hours     int                      `json:"hours"`
+	Since     time.Time                `json:"since"`
+	Until     time.Time                `json:"until,omitempty"`
 	SortBy    string                   `json:"sort_by"`
 	SortOrder string                   `json:"sort_order"`
 }
@@ -512,17 +528,21 @@ func ListAccessLogs(ctx context.Context, input AccessLogQuery) (*AccessLogList, 
 			continue
 		}
 		views = append(views, AccessLogView{
-			ID:          formatAccessLogID(item.ID),
-			NodeID:      item.NodeID,
-			NodeName:    nodeNames[item.NodeID],
-			LoggedAt:    item.LoggedAt,
-			RemoteAddr:  item.RemoteAddr,
-			Region:      item.Region,
-			Host:        item.Host,
-			Path:        item.Path,
-			UserAgent:   item.UserAgent,
-			CacheStatus: item.CacheStatus,
-			StatusCode:  item.StatusCode,
+			ID:            formatAccessLogID(item.ID),
+			NodeID:        item.NodeID,
+			NodeName:      nodeNames[item.NodeID],
+			LoggedAt:      item.LoggedAt,
+			RemoteAddr:    item.RemoteAddr,
+			Region:        item.Region,
+			Host:          item.Host,
+			Path:          item.Path,
+			UserAgent:     item.UserAgent,
+			CacheStatus:   item.CacheStatus,
+			StatusCode:    item.StatusCode,
+			BytesSent:     item.BytesSent,
+			RequestLength: item.RequestLength,
+			RequestTimeMs: item.RequestTimeMs,
+			CreatedAt:     item.CreatedAt,
 		})
 	}
 	return &AccessLogList{
@@ -649,20 +669,22 @@ func ListFoldedAccessLogIPs(ctx context.Context, input FoldedAccessLogIPQuery) (
 
 // ListAccessLogIPSummaries returns paginated IP summaries.
 func ListAccessLogIPSummaries(ctx context.Context, input AccessLogIPSummaryQuery) (*AccessLogIPSummaryList, error) {
-	normalized := normalizeAccessLogIPSummaryQuery(input)
-	since := defaultAccessLogSince()
-	recentSince := time.Now().UTC().Add(-3 * time.Hour)
+	normalized, since, until, err := normalizeAccessLogIPSummaryQuery(input)
+	if err != nil {
+		return nil, err
+	}
 	query := model.OpenFlareAccessLogIPSummaryQuery{
 		NodeID:     strings.TrimSpace(normalized.NodeID),
 		RemoteAddr: strings.TrimSpace(normalized.RemoteAddr),
 		Host:       strings.TrimSpace(normalized.Host),
 		Since:      since,
+		Until:      until,
 		Page:       normalized.Page,
 		PageSize:   normalized.PageSize,
 		SortBy:     normalized.SortBy,
 		SortOrder:  normalized.SortOrder,
 	}
-	items, err := model.ListOpenFlareAccessLogIPSummaries(ctx, query, recentSince)
+	items, err := model.ListOpenFlareAccessLogIPSummaries(ctx, query, time.Time{})
 	if err != nil {
 		return nil, err
 	}
@@ -676,10 +698,15 @@ func ListAccessLogIPSummaries(ctx context.Context, input AccessLogIPSummaryQuery
 			continue
 		}
 		views = append(views, AccessLogIPSummaryView{
-			RemoteAddr:     item.RemoteAddr,
-			TotalRequests:  item.TotalRequests,
-			RecentRequests: item.RecentRequests,
-			LastSeenAt:     time.Unix(item.LastSeenEpoch, 0).UTC(),
+			RemoteAddr:      item.RemoteAddr,
+			Region:          item.Region,
+			TotalRequests:   item.TotalRequests,
+			Success2xxCount: item.Success2xxCount,
+			SuccessRatio:    item.SuccessRatio,
+			BytesReceived:   item.BytesReceived,
+			BytesSent:       item.BytesSent,
+			RecentRequests:  0,
+			LastSeenAt:      time.Unix(item.LastSeenEpoch, 0).UTC(),
 		})
 	}
 	return &AccessLogIPSummaryList{
@@ -688,6 +715,9 @@ func ListAccessLogIPSummaries(ctx context.Context, input AccessLogIPSummaryQuery
 		PageSize:  normalized.PageSize,
 		HasMore:   int64((normalized.Page+1)*normalized.PageSize) < totalIP,
 		TotalIP:   totalIP,
+		Hours:     normalized.Hours,
+		Since:     since,
+		Until:     until,
 		SortBy:    normalized.SortBy,
 		SortOrder: normalized.SortOrder,
 	}, nil
@@ -886,16 +916,63 @@ func normalizeAccessLogQuery(input AccessLogQuery) AccessLogQuery {
 	}
 }
 
-func normalizeAccessLogIPSummaryQuery(input AccessLogIPSummaryQuery) AccessLogIPSummaryQuery {
+func normalizeAccessLogIPSummaryQuery(input AccessLogIPSummaryQuery) (AccessLogIPSummaryQuery, time.Time, time.Time, error) {
+	sinceRaw := strings.TrimSpace(input.Since)
+	untilRaw := strings.TrimSpace(input.Until)
+	since, until, hours, err := resolveAccessLogIPSummaryWindow(sinceRaw, untilRaw, input.Hours)
+	if err != nil {
+		return AccessLogIPSummaryQuery{}, time.Time{}, time.Time{}, err
+	}
+
 	return AccessLogIPSummaryQuery{
 		NodeID:     strings.TrimSpace(input.NodeID),
 		RemoteAddr: strings.TrimSpace(input.RemoteAddr),
 		Host:       strings.TrimSpace(input.Host),
+		Hours:      hours,
+		Since:      sinceRaw,
+		Until:      untilRaw,
 		Page:       normalizeAccessLogPage(input.Page),
 		PageSize:   normalizeAccessLogPageSize(input.PageSize),
 		SortBy:     normalizeIPSummarySortBy(input.SortBy),
 		SortOrder:  normalizeAccessLogSortOrder(input.SortOrder),
+	}, since, until, nil
+}
+
+func resolveAccessLogIPSummaryWindow(sinceRaw, untilRaw string, hours int) (time.Time, time.Time, int, error) {
+	if sinceRaw == "" && untilRaw == "" {
+		if hours <= 0 {
+			hours = defaultAccessLogQueryDays * 24
+		}
+		if hours > maxAccessLogOverviewHours {
+			hours = maxAccessLogOverviewHours
+		}
+		until := time.Now().UTC()
+		return until.Add(-time.Duration(hours) * time.Hour), until, hours, nil
 	}
+	if sinceRaw == "" || untilRaw == "" {
+		return time.Time{}, time.Time{}, 0, errors.New("since 与 until 需同时提供")
+	}
+	parsedSince, err := time.Parse(time.RFC3339, sinceRaw)
+	if err != nil {
+		return time.Time{}, time.Time{}, 0, errors.New("since 必须为 RFC3339 时间")
+	}
+	parsedUntil, err := time.Parse(time.RFC3339, untilRaw)
+	if err != nil {
+		return time.Time{}, time.Time{}, 0, errors.New("until 必须为 RFC3339 时间")
+	}
+	since := parsedSince.UTC()
+	until := parsedUntil.UTC()
+	if !until.After(since) {
+		return time.Time{}, time.Time{}, 0, errors.New("until 必须晚于 since")
+	}
+	if until.Sub(since) > time.Duration(maxAccessLogOverviewHours)*time.Hour {
+		return time.Time{}, time.Time{}, 0, errors.New("时间范围不能超过 30 天")
+	}
+	hours = int(until.Sub(since).Hours())
+	if hours <= 0 {
+		hours = 1
+	}
+	return since, until, hours, nil
 }
 
 func normalizeFoldedAccessLogIPQuery(input FoldedAccessLogIPQuery) (FoldedAccessLogIPQuery, time.Time, error) {
@@ -1001,7 +1078,9 @@ func normalizeFoldSortBy(sortBy string) string {
 
 func normalizeIPSummarySortBy(sortBy string) string {
 	switch strings.TrimSpace(sortBy) {
-	case "recent_requests", "last_seen_at", accessLogFieldRemoteAddr:
+	case "request_length", "bytes_received":
+		return "request_length"
+	case "bytes_sent", "success_ratio", "last_seen_at", accessLogFieldRemoteAddr:
 		return strings.TrimSpace(sortBy)
 	default:
 		return "total_requests"

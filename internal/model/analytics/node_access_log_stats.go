@@ -46,10 +46,16 @@ type NodeAccessLogIPAggregate struct {
 
 // NodeAccessLogIPSummary is an IP summary row.
 type NodeAccessLogIPSummary struct {
-	RemoteAddr     string `gorm:"column:remote_addr"`
-	TotalRequests  int64  `gorm:"column:total_requests"`
-	RecentRequests int64  `gorm:"column:recent_requests"`
-	LastSeenEpoch  int64  `gorm:"column:last_seen_epoch"`
+	RemoteAddr      string  `gorm:"column:remote_addr"`
+	Region          string  `gorm:"column:region"`
+	TotalRequests   int64   `gorm:"column:total_requests"`
+	Success2xxCount int64   `gorm:"column:success_2xx_count"`
+	SuccessRatio    float64 `gorm:"column:success_ratio"`
+	BytesReceived   int64   `gorm:"column:request_length"`
+	BytesSent       int64   `gorm:"column:bytes_sent"`
+	// RecentRequests is deprecated (always 0); kept for wire compatibility.
+	RecentRequests int64 `gorm:"column:recent_requests"`
+	LastSeenEpoch  int64 `gorm:"column:last_seen_epoch"`
 }
 
 // NodeAccessLogIPTrend is an IP trend bucket row.

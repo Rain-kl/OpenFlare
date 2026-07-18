@@ -237,6 +237,7 @@ type OpenFlareAccessLogIPSummaryQuery struct {
 	RemoteAddr string
 	Host       string
 	Since      time.Time
+	Until      time.Time
 	Page       int
 	PageSize   int
 	SortBy     string
@@ -245,10 +246,16 @@ type OpenFlareAccessLogIPSummaryQuery struct {
 
 // OpenFlareAccessLogIPSummaryRow is an IP summary row (v1 stub).
 type OpenFlareAccessLogIPSummaryRow struct {
-	RemoteAddr     string `json:"remote_addr"`
-	TotalRequests  int64  `json:"total_requests"`
-	RecentRequests int64  `json:"recent_requests"`
-	LastSeenEpoch  int64  `json:"last_seen_epoch"`
+	RemoteAddr      string  `json:"remote_addr"`
+	Region          string  `json:"region"`
+	TotalRequests   int64   `json:"total_requests"`
+	Success2xxCount int64   `json:"success_2xx_count"`
+	SuccessRatio    float64 `json:"success_ratio"`
+	BytesReceived   int64   `json:"bytes_received"`
+	BytesSent       int64   `json:"bytes_sent"`
+	// RecentRequests is deprecated and always 0.
+	RecentRequests int64 `json:"recent_requests"`
+	LastSeenEpoch  int64 `json:"last_seen_epoch"`
 }
 
 // OpenFlareAccessLogIPTrendQuery filters IP trend queries (v1 stub).

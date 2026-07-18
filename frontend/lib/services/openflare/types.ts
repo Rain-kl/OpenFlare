@@ -547,6 +547,10 @@ export interface AccessLogItem {
   user_agent: string;
   cache_status: string;
   status_code: number;
+  bytes_sent: number;
+  request_length: number;
+  request_time_ms: number;
+  created_at: string;
 }
 
 export interface AccessLogList {
@@ -612,6 +616,9 @@ export interface AccessLogIPSummaryFilters {
   node_id?: string;
   remote_addr?: string;
   host?: string;
+  hours?: number;
+  since?: string;
+  until?: string;
   p?: number;
   page_size?: number;
   sort_by?: string;
@@ -620,8 +627,14 @@ export interface AccessLogIPSummaryFilters {
 
 export interface AccessLogIPSummaryItem {
   remote_addr: string;
+  region?: string;
   total_requests: number;
-  recent_requests: number;
+  success_2xx_count: number;
+  success_ratio: number;
+  bytes_received: number;
+  bytes_sent: number;
+  /** @deprecated always 0 */
+  recent_requests?: number;
   last_seen_at: string;
 }
 
@@ -631,6 +644,9 @@ export interface AccessLogIPSummaryList {
   page_size: number;
   has_more: boolean;
   total_ip: number;
+  hours: number;
+  since: string;
+  until?: string;
   sort_by: string;
   sort_order: 'asc' | 'desc';
 }

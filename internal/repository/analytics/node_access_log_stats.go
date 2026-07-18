@@ -205,32 +205,42 @@ GROUP BY remote_addr`, lastSeenExpr, tableName, queryClause)
 	return result, nil
 }
 
-// IPSummariesNodeAccessLogs returns paginated IP summary rows.
-func IPSummariesNodeAccessLogs(ctx context.Context, filter NodeAccessLogFilter, recentSince time.Time) ([]NodeAccessLogIPSummary, error) {
+// IPSummariesNodeAccessLogs returns paginated IP summary rows for the filter window.
+// recentSince is ignored (kept for call-site compatibility); recent_requests is always 0.
+func IPSummariesNodeAccessLogs(ctx context.Context, filter NodeAccessLogFilter, _ time.Time) ([]NodeAccessLogIPSummary, error) {
 	conn, err := nodeAccessLogConn()
 	if err != nil {
 		return nil, err
 	}
 	clause, args := buildNodeAccessLogFilterClause(filter)
 	lastSeenExpr := nodeAccessLogEpochExpr()
-	recentClause := "0"
-	queryArgs := make([]any, 0, len(args)+1)
-	if !recentSince.IsZero() {
-		recentClause = "if(logged_at >= ?, 1, 0)"
-		queryArgs = append(queryArgs, recentSince)
-	}
-	queryArgs = append(queryArgs, args...)
+	queryArgs := append([]any{}, args...)
 	tableName := nodeAccessLogTableName()
-	sql := fmt.Sprintf(`
+	// Outer query allows ORDER BY success_ratio without repeating countIf.
+	innerSQL := fmt.Sprintf(`
 SELECT
 	remote_addr,
+	argMax(region, logged_at) AS region,
 	count() AS total_requests,
-	sum(%s) AS recent_requests,
+	countIf(status_code >= 200 AND status_code < 300) AS success_2xx_count,
+	sum(request_length) AS request_length,
+	sum(bytes_sent) AS bytes_sent,
 	max(%s) AS last_seen_epoch
 FROM %s
 WHERE %s AND remote_addr != ''
-GROUP BY remote_addr
-ORDER BY %s`, recentClause, lastSeenExpr, tableName, clause, nodeAccessLogIPSummaryOrderClause(filter.SortBy, filter.SortOrder))
+GROUP BY remote_addr`, lastSeenExpr, tableName, clause)
+	sql := fmt.Sprintf(`
+SELECT
+	remote_addr,
+	region,
+	total_requests,
+	success_2xx_count,
+	if(total_requests = 0, 0., toFloat64(success_2xx_count) / toFloat64(total_requests)) AS success_ratio,
+	request_length,
+	bytes_sent,
+	last_seen_epoch
+FROM (%s)
+ORDER BY %s`, innerSQL, nodeAccessLogIPSummaryOrderClause(filter.SortBy, filter.SortOrder))
 	if filter.PageSize > 0 {
 		if filter.Page < 0 {
 			filter.Page = 0
@@ -247,18 +257,33 @@ ORDER BY %s`, recentClause, lastSeenExpr, tableName, clause, nodeAccessLogIPSumm
 	var result []NodeAccessLogIPSummary
 	for rows.Next() {
 		var (
-			remoteAddr                    string
-			lastSeenEpoch                 int64
-			totalRequests, recentRequests uint64
+			remoteAddr, region                              string
+			lastSeenEpoch                                   int64
+			successRatio                                    float64
+			totalRequests, success2xx, bytesReceived, bytes uint64
 		)
-		if err := rows.Scan(&remoteAddr, &totalRequests, &recentRequests, &lastSeenEpoch); err != nil {
+		if err := rows.Scan(
+			&remoteAddr,
+			&region,
+			&totalRequests,
+			&success2xx,
+			&successRatio,
+			&bytesReceived,
+			&bytes,
+			&lastSeenEpoch,
+		); err != nil {
 			return nil, fmt.Errorf("scan ip summary row: %w", err)
 		}
 		result = append(result, NodeAccessLogIPSummary{
-			RemoteAddr:     remoteAddr,
-			TotalRequests:  safeInt64Count(totalRequests),
-			RecentRequests: safeInt64Count(recentRequests),
-			LastSeenEpoch:  lastSeenEpoch,
+			RemoteAddr:      remoteAddr,
+			Region:          region,
+			TotalRequests:   safeInt64Count(totalRequests),
+			Success2xxCount: safeInt64Count(success2xx),
+			SuccessRatio:    successRatio,
+			BytesReceived:   safeInt64Count(bytesReceived),
+			BytesSent:       safeInt64Count(bytes),
+			RecentRequests:  0,
+			LastSeenEpoch:   lastSeenEpoch,
 		})
 	}
 	return result, nil

@@ -20,6 +20,12 @@ import {
 } from './components/access-log-utils';
 import { CleanupDialog } from './components/cleanup-dialog';
 import { DetailTab } from './components/detail-tab';
+import {
+  buildIpSummaryTimeParams,
+  defaultLocalRangeForHours,
+  IpTab,
+  type IpTabTimeMode,
+} from './components/ip-tab';
 import { OverviewTab } from './components/overview-tab';
 
 const emptyDraft: SearchDraft = {
@@ -30,7 +36,9 @@ const emptyDraft: SearchDraft = {
 };
 
 function resolveTab(value: string | null): AccessLogTab {
-  return value === 'list' ? 'list' : 'overview';
+  if (value === 'list') return 'list';
+  if (value === 'ips') return 'ips';
+  return 'overview';
 }
 
 function AccessLogsPageContent() {
@@ -43,11 +51,26 @@ function AccessLogsPageContent() {
   const [pageSize, setPageSize] = useState(20);
   const [page, setPage] = useState(0);
   const [detailSort, setDetailSort] = useState('logged_at:desc');
+  const [ipSort, setIpSort] = useState('total_requests:desc');
+  const [ipPageSize, setIpPageSize] = useState(20);
+  const [ipPage, setIpPage] = useState(0);
+  const [ipHours, setIpHours] = useState<OverviewRangeHours>(168);
+  const [ipTimeMode, setIpTimeMode] = useState<IpTabTimeMode>('preset');
+  const [ipCustomSince, setIpCustomSince] = useState('');
+  const [ipCustomUntil, setIpCustomUntil] = useState('');
   const [overviewHours, setOverviewHours] = useState<OverviewRangeHours>(24);
   const [overviewHosts, setOverviewHosts] = useState<string[]>([]);
   const [cleanupOpen, setCleanupOpen] = useState(false);
 
   const detailSortState = parseSortValue(detailSort);
+  const ipSortState = parseSortValue(ipSort);
+  const ipTimeParams = buildIpSummaryTimeParams({
+    timeMode: ipTimeMode,
+    hours: ipHours,
+    customSince: ipCustomSince,
+    customUntil: ipCustomUntil,
+  });
+  const ipQueryEnabled = tab === 'ips' && ipTimeParams != null;
 
   const handleTabChange = (value: string) => {
     const next = resolveTab(value);
@@ -96,6 +119,27 @@ function AccessLogsPageContent() {
     enabled: tab === 'list',
   });
 
+  const ipQuery = useQuery({
+    queryKey: [
+      'openflare',
+      'access-logs',
+      'ip-summary',
+      ipTimeParams,
+      ipPage,
+      ipPageSize,
+      ipSort,
+    ],
+    queryFn: () =>
+      AccessLogService.listIPSummaries({
+        ...(ipTimeParams as NonNullable<typeof ipTimeParams>),
+        p: ipPage,
+        page_size: ipPageSize,
+        sort_by: ipSortState.sortBy,
+        sort_order: ipSortState.sortOrder,
+      }),
+    enabled: ipQueryEnabled,
+  });
+
   const cleanupMutation = useMutation({
     mutationFn: (retentionDays: number) =>
       AccessLogService.cleanup({ retention_days: retentionDays }),
@@ -131,12 +175,26 @@ function AccessLogsPageContent() {
     setPage(0);
   }, [tab, pageSize]);
 
+  useEffect(() => {
+    setIpPage(0);
+  }, [
+    tab,
+    ipPageSize,
+    ipHours,
+    ipTimeMode,
+    ipCustomSince,
+    ipCustomUntil,
+    ipSort,
+  ]);
+
   const refreshActive = () => {
     if (tab === 'overview') void overviewQuery.refetch();
     if (tab === 'list') void listQuery.refetch();
+    if (tab === 'ips') void ipQuery.refetch();
   };
 
-  const isFetching = overviewQuery.isFetching || listQuery.isFetching;
+  const isFetching =
+    overviewQuery.isFetching || listQuery.isFetching || ipQuery.isFetching;
 
   return (
     <div className='py-6 px-1 space-y-6'>
@@ -146,7 +204,7 @@ function AccessLogsPageContent() {
           <div>
             <h1 className='text-2xl font-semibold tracking-tight'>访问日志</h1>
             <p className='text-sm text-muted-foreground'>
-              查看访问概览、排行榜与明细日志。
+              查看访问概览、IP 明细与请求日志。
             </p>
           </div>
         </div>
@@ -174,8 +232,9 @@ function AccessLogsPageContent() {
       </div>
 
       <Tabs value={tab} onValueChange={handleTabChange}>
-        <TabsList className='grid w-full max-w-md grid-cols-2'>
+        <TabsList className='grid w-full max-w-lg grid-cols-3'>
           <TabsTrigger value='overview'>概览</TabsTrigger>
+          <TabsTrigger value='ips'>IP 明细</TabsTrigger>
           <TabsTrigger value='list'>日志明细</TabsTrigger>
         </TabsList>
 
@@ -191,6 +250,48 @@ function AccessLogsPageContent() {
             onHoursChange={setOverviewHours}
             onHostsChange={setOverviewHosts}
             onRetry={() => void overviewQuery.refetch()}
+          />
+        </TabsContent>
+
+        <TabsContent value='ips' className='mt-4'>
+          <IpTab
+            data={ipQuery.data}
+            loading={ipQueryEnabled && ipQuery.isLoading}
+            error={ipQuery.error instanceof Error ? ipQuery.error : null}
+            page={ipPage}
+            pageSize={ipPageSize}
+            sort={ipSort}
+            hours={ipHours}
+            timeMode={ipTimeMode}
+            customSince={ipCustomSince}
+            customUntil={ipCustomUntil}
+            onHoursChange={(next) => {
+              setIpTimeMode('preset');
+              setIpHours(next);
+            }}
+            onTimeModeChange={(mode) => {
+              setIpTimeMode(mode);
+              if (
+                mode === 'custom' &&
+                (!ipCustomSince.trim() || !ipCustomUntil.trim())
+              ) {
+                const range = defaultLocalRangeForHours(ipHours);
+                setIpCustomSince(range.since);
+                setIpCustomUntil(range.until);
+              }
+            }}
+            onApplyCustomRange={(since, until) => {
+              setIpCustomSince(since);
+              setIpCustomUntil(until);
+              setIpTimeMode('custom');
+              setIpPage(0);
+            }}
+            onPageSizeChange={setIpPageSize}
+            onSortChange={setIpSort}
+            onRetry={() => void ipQuery.refetch()}
+            onPrevPage={() => setIpPage((p) => Math.max(0, p - 1))}
+            onNextPage={() => setIpPage((p) => p + 1)}
+            isFetching={ipQuery.isFetching}
           />
         </TabsContent>
 

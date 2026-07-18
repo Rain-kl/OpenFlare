@@ -5217,7 +5217,7 @@ const docTemplate = `{
                         "SessionCookie": []
                     }
                 ],
-                "description": "按 IP 聚合访问日志统计并分页返回，需要管理员权限",
+                "description": "按 IP 聚合访问日志统计并分页返回；支持 hours 或 since/until 时间窗，需要管理员权限",
                 "produces": [
                     "application/json"
                 ],
@@ -5246,6 +5246,24 @@ const docTemplate = `{
                     },
                     {
                         "type": "integer",
+                        "description": "统计时间范围（小时，1-720，默认 168）",
+                        "name": "hours",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "开始时间 RFC3339（与 until 同时提供时优先于 hours）",
+                        "name": "since",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "结束时间 RFC3339",
+                        "name": "until",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
                         "description": "页码",
                         "name": "p",
                         "in": "query"
@@ -5258,7 +5276,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "排序字段",
+                        "description": "排序字段 total_requests|request_length|bytes_sent|success_ratio|last_seen_at|remote_addr",
                         "name": "sort_by",
                         "in": "query"
                     },
@@ -16312,6 +16330,9 @@ const docTemplate = `{
                 "has_more": {
                     "type": "boolean"
                 },
+                "hours": {
+                    "type": "integer"
+                },
                 "items": {
                     "type": "array",
                     "items": {
@@ -16324,6 +16345,9 @@ const docTemplate = `{
                 "page_size": {
                     "type": "integer"
                 },
+                "since": {
+                    "type": "string"
+                },
                 "sort_by": {
                     "type": "string"
                 },
@@ -16332,20 +16356,39 @@ const docTemplate = `{
                 },
                 "total_ip": {
                     "type": "integer"
+                },
+                "until": {
+                    "type": "string"
                 }
             }
         },
         "observability.AccessLogIPSummaryView": {
             "type": "object",
             "properties": {
+                "bytes_received": {
+                    "type": "integer"
+                },
+                "bytes_sent": {
+                    "type": "integer"
+                },
                 "last_seen_at": {
                     "type": "string"
                 },
                 "recent_requests": {
+                    "description": "RecentRequests is deprecated and always 0.",
                     "type": "integer"
+                },
+                "region": {
+                    "type": "string"
                 },
                 "remote_addr": {
                     "type": "string"
+                },
+                "success_2xx_count": {
+                    "type": "integer"
+                },
+                "success_ratio": {
+                    "type": "number"
                 },
                 "total_requests": {
                     "type": "integer"
