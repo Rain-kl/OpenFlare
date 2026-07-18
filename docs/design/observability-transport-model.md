@@ -124,11 +124,12 @@
 | `health_events` | 事件 | 如 openresty_unhealthy |
 | `waf_ip_group_checksums` | 同步 | 非观测湖 |
 
-**目标态不再作为权威业务数据（旧字段，兼容期可忽略）：**
+**协议已删除（无兼容层，旧 Agent 必须升级）：**
 
-- `traffic_report`（窗内请求/UV/Top 域名等预聚合）  
-- `openresty_observation.openresty_rx_bytes` / `openresty_tx_bytes`  
-- 顶层与「已提供数据」平行的业务「出站」字段  
+- `traffic_report`  
+- `openresty_observation`（含 rx/tx）  
+- `snapshot` / `buffered_observability`  
+- 业务含义的 openresty 吞吐字段  
 
 ---
 
@@ -293,10 +294,15 @@ Agent GET /openflare/observability
 
 | 字段 | 来源 |
 | --- | --- |
-| `status` / `message` | Agent 对 OpenResty 健康探测结果（配置校验/进程等，可与观测口 `ok` 配合） |
+| `status` / `message` | Agent 健康探测（配置校验/进程等，可与观测口 `ok` 配合）；须与顶层 `openresty_status` / `openresty_message` 对齐 |
 | `connections` | 观测口 `connections.active` |
 
-落库：关系库节点最新状态 + 可选 CH `of_node_edge_health` 做连接曲线。
+**落库拆分（权威源）：**
+
+| 内容 | 写入 |
+| --- | --- |
+| 最新 `status` + `message` | **PG 节点表**（UI / 列表 / 告警） |
+| 时序 `status` + `connections` | **CH `of_node_edge_health`**（**无 message**） |
 
 ---
 
@@ -460,8 +466,9 @@ t=6s     下一轮…
 | Lua dict 60s 窗 request_count + Agent 10s 拉 + Server sum | **删除**；请求数 = 日志 count |
 | openresty_tx 当「出站」 | **删除**；已提供数据 = `sum(bytes_sent)` |
 | 两个口 observability + stub_status | **合并为一个** observability，只返回连接/探活 |
-| TrafficReport 预聚合 | **不作为权威**；兼容期可忽略 |
+| TrafficReport 预聚合 | **删除**；协议与 API 均无此路径 |
 | 业务与网卡混称「流量」 | **分文案、分 API、分表** |
+| 健康 status/message | **PG 最新态权威**；CH 仅 status+连接时序 |
 
 ---
 
@@ -486,3 +493,4 @@ t=6s     下一轮…
 | 2026-07-18 | 初稿：作为「最新传输模型」单页说明——三层、频率、示例 JSON、采集来源、与旧模型对照 |
 | 2026-07-18 | 默认上报间隔 3s；离线阈值 60s；补传窗口 60 分钟 |
 | 2026-07-18 | M5：edge_health 表、access_log_hourly、废弃 request_reports/obs_openresty 吞吐表 |
+| 2026-07-18 | 无兼容层：删除「兼容期可忽略」表述；健康 message 仅 PG、CH 无 message |

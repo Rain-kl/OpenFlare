@@ -64,6 +64,20 @@ func normalizeNodePayload(payload NodePayload) NodePayload {
 	payload.LastError = truncateForDatabase(payload.LastError, maxDatabaseTextLength)
 	payload.OpenrestyStatus = normalizeOpenrestyStatus(payload.OpenrestyStatus)
 	payload.OpenrestyMessage = truncateForDatabase(payload.OpenrestyMessage, maxDatabaseTextLength)
+	// Align L2 edge_health with top-level status/message (PG is latest-state authority).
+	if payload.EdgeHealth != nil {
+		if s := strings.TrimSpace(payload.EdgeHealth.Status); s != "" {
+			if payload.OpenrestyStatus == "" || payload.OpenrestyStatus == openrestyStatusUnknown {
+				payload.OpenrestyStatus = normalizeOpenrestyStatus(s)
+			}
+		}
+		if m := strings.TrimSpace(payload.EdgeHealth.Message); m != "" && payload.OpenrestyMessage == "" {
+			payload.OpenrestyMessage = truncateForDatabase(m, maxDatabaseTextLength)
+		}
+		// CH series status must match the same authority as PG after normalize.
+		payload.EdgeHealth.Status = payload.OpenrestyStatus
+		payload.EdgeHealth.Message = payload.OpenrestyMessage
+	}
 	return payload
 }
 

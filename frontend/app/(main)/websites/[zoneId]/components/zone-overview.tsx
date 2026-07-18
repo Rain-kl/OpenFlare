@@ -31,7 +31,7 @@ const rangeOptions: Array<{ value: ZoneStatsRange; label: string }> = [
 ];
 
 const visitorsChartConfig = {
-  value: { label: '唯一访问者', color: 'hsl(217 91% 60%)' },
+  value: { label: '分桶 UV', color: 'hsl(217 91% 60%)' },
 } satisfies ChartConfig;
 
 const requestsChartConfig = {
@@ -165,7 +165,8 @@ export function ZoneOverviewPanel({
 
             <MetricTrendCard
               icon={Users}
-              label='唯一访问者'
+              label='查询窗口独立访客'
+              description='顶部合计为整窗去重；曲线为各时间桶内 UV，桶间不可相加'
               value={formatCompactNumber(stats?.unique_visitors ?? 0)}
               data={chartData}
               dataKey='visitors'
@@ -221,6 +222,7 @@ export function ZoneOverviewPanel({
 function MetricTrendCard({
   icon: Icon,
   label,
+  description,
   value,
   data,
   dataKey,
@@ -230,6 +232,7 @@ function MetricTrendCard({
 }: {
   icon: typeof Users;
   label: string;
+  description?: string;
   value: string;
   data: Array<Record<string, string | number>>;
   dataKey: string;
@@ -242,9 +245,16 @@ function MetricTrendCard({
       <CardContent className='p-0'>
         <div className='grid gap-0 md:grid-cols-[minmax(140px,200px)_1fr]'>
           <div className='flex flex-col justify-between gap-3 border-b p-4 md:border-b-0 md:border-r'>
-            <div className='flex items-center gap-1.5 text-xs text-muted-foreground'>
-              <Icon className='size-3.5 text-primary' />
-              <span>{label}</span>
+            <div className='space-y-1'>
+              <div className='flex items-center gap-1.5 text-xs text-muted-foreground'>
+                <Icon className='size-3.5 text-primary' />
+                <span>{label}</span>
+              </div>
+              {description ? (
+                <p className='text-[10px] leading-snug text-muted-foreground'>
+                  {description}
+                </p>
+              ) : null}
             </div>
             <p className='text-3xl font-semibold tracking-tight'>{value}</p>
           </div>

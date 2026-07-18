@@ -3,10 +3,12 @@ package state
 
 import (
 	"encoding/json"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"sort"
 	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/Rain-kl/Wavelet/internal/apps/agent/protocol"
@@ -15,6 +17,8 @@ import (
 const observabilityBufferWindowSeconds = 60
 
 // ObservabilityBufferRecord stores observability facts for a single time window.
+// Disk JSON is schema-v2 only: host_metrics / edge_health / access_logs.
+// Pre-v2 buffers are discarded on load (binary upgrade without data-dir wipe).
 type ObservabilityBufferRecord struct {
 	WindowStartedAtUnix int64                        `json:"window_started_at_unix"`
 	HostMetrics         *protocol.NodeMetricSnapshot `json:"host_metrics,omitempty"`
@@ -191,15 +195,51 @@ func (s *ObservabilityBufferStore) loadUnlocked() ([]ObservabilityBufferRecord, 
 		s.cacheLoaded = true
 		return []ObservabilityBufferRecord{}, nil
 	}
-	var records []ObservabilityBufferRecord
-	if err = json.Unmarshal(data, &records); err != nil {
-		return nil, err
+
+	// Binary upgrade: drop pre-v2 or corrupt buffer entirely; agent rebuilds on subsequent heartbeats.
+	records, reason, ok := parseObservabilityBufferDisk(data)
+	if !ok {
+		s.discardBufferFile(reason)
+		return []ObservabilityBufferRecord{}, nil
 	}
+
 	s.cache = records
 	s.cacheLoaded = true
 	copied := make([]ObservabilityBufferRecord, len(s.cache))
 	copy(copied, s.cache)
 	return copied, nil
+}
+
+// parseObservabilityBufferDisk returns v2 records, or ok=false when the on-disk file should be wiped.
+func parseObservabilityBufferDisk(data []byte) (records []ObservabilityBufferRecord, reason string, ok bool) {
+	raw := strings.TrimSpace(string(data))
+	if raw == "" {
+		return []ObservabilityBufferRecord{}, "", true
+	}
+	// Valid buffer is a JSON array of window records.
+	if !strings.HasPrefix(raw, "[") {
+		return nil, "legacy or unreadable observability buffer", false
+	}
+	// Pre-v2 keys: discard whole file (no field migration).
+	if strings.Contains(raw, `"snapshot"`) ||
+		strings.Contains(raw, `"openresty_observation"`) ||
+		strings.Contains(raw, `"traffic_report"`) {
+		return nil, "legacy observability buffer format", false
+	}
+	if err := json.Unmarshal(data, &records); err != nil {
+		return nil, "observability buffer JSON decode failed", false
+	}
+	return records, "", true
+}
+
+func (s *ObservabilityBufferStore) discardBufferFile(reason string) {
+	if err := os.Remove(s.path); err != nil && !os.IsNotExist(err) {
+		slog.Warn("remove observability buffer failed", "path", s.path, "reason", reason, "error", err)
+	} else {
+		slog.Info("discarded observability buffer; will rebuild on run", "path", s.path, "reason", reason)
+	}
+	s.cache = []ObservabilityBufferRecord{}
+	s.cacheLoaded = true
 }
 
 func (s *ObservabilityBufferStore) saveUnlocked(records []ObservabilityBufferRecord) error {
@@ -210,7 +250,7 @@ func (s *ObservabilityBufferStore) saveUnlocked(records []ObservabilityBufferRec
 	if err != nil {
 		return err
 	}
-	if err := os.WriteFile(s.path, data, stateFilePerm); err != nil {
+	if err := os.WriteFile(s.path, data, stateFilePerm); err != nil { //nolint:gosec // path is agent-local buffer path from config
 		return err
 	}
 	s.cache = records

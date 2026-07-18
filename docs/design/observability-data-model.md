@@ -1,6 +1,7 @@
 # Agent 上报协议与观测落库数据模型
 
-你会学到：重构后 Agent 心跳/WS 上报的 **数据结构**、Server **如何解析与写入**、ClickHouse / 关系库 **目标表结构**，以及与旧字段/旧表的兼容关系。
+你会学到：重构后 Agent 心跳/WS 上报的 **数据结构**、Server **如何解析与写入**、ClickHouse / 关系库 **目标表结构**。  
+**无协议兼容层**：Agent 以销毁重建或二进制替换升级；旧字段不解析、旧缓冲整文件丢弃。
 
 本设计是 [边缘可观测与业务流量统计重构](./observability-design.md) 的 **协议与存储专章**，实现时以本文字段与 DDL 为准。
 
@@ -16,7 +17,7 @@
 | 一张业务明细表 | 访问日志是 L1 唯一写入路径 |
 | 聚合在库内/控制面 | 小时汇总由 ClickHouse MV 或查询生成，Agent 不写汇总表 |
 | 字段不重叠 | `bytes_sent` = 已提供数据；网卡 `network_*` = 宿主机；不再有业务 `openresty_tx` |
-| 可演进 | 新字段可选；旧 Agent 缺字段时 Server 填默认值 |
+| 可演进 | 新字段可选；缺省数值填 0，不解析已删除的旧协议字段 |
 
 ---
 
@@ -79,30 +80,31 @@
 
 | 字段 | 类型 | 必填 | 说明 |
 | --- | --- | --- | --- |
-| `schema_version` | int | 建议 | `2` = 本设计；缺省或 `0/1` 按旧协议兼容解析 |
+| `schema_version` | int | 建议 | 固定为 `2`（本设计） |
 | `node_id` | string | ✅ | 节点 ID |
 | `name` | string | ✅ | 显示名 |
 | `ip` | string | ✅ | 上报 IP |
 | `version` / `ext_version` | string | ✅ | Agent 版本 |
 | `current_version` | string | | 本地激活配置版本摘要 |
 | `last_error` | string | | 最近同步/运行错误，可空 |
+| `openresty_status` | string | ✅（有 OpenResty 时） | **最新健康态权威字段** → 写 PG 节点表 |
+| `openresty_message` | string | | **最新健康说明权威字段** → 写 PG 节点表（**不进 CH**） |
 | `profile` | object | | 主机概况，变化时上报（可节流） |
 | `host_metrics` | object | 建议每拍 | L3 资源快照 |
-| `edge_health` | object | 建议每拍 | L2 OpenResty 健康 |
+| `edge_health` | object | 建议每拍 | L2 连接时序 + 与顶层一致的 status |
 | `access_logs` | array | | 本拍增量访问明细 |
 | `buffered` | array | | 离线补传的事实批次（见 §3.6） |
 | `health_events` | array | | 边缘健康事件 |
 | `waf_ip_group_checksums` | map | | 差分同步用，非观测湖 |
 
-**协议 v2 删除（不再作为权威，兼容期可忽略）：**
+**已删除、Server 不再解析的字段（无兼容层）：**
 
 | 旧字段 | 处置 |
 | --- | --- |
-| `traffic_report` | 忽略，不落业务表 |
-| `openresty_observation.openresty_rx_bytes` / `tx` | 忽略 |
-| `openresty_status` / `openresty_message`（顶层） | 迁入 `edge_health`；兼容期从旧字段回填 |
-| `snapshot` | 重命名为 `host_metrics`；兼容期别名读取 |
-| `buffered_observability` | 重命名为 `buffered`；结构见 §3.6 |
+| `traffic_report` | 不存在于协议；不落库 |
+| `openresty_observation` | 不存在；连接与状态走 `edge_health` |
+| `snapshot` | 不存在；仅用 `host_metrics` |
+| `buffered_observability` | 不存在；仅用 `buffered` |
 
 ### 3.2 `profile` — 主机概况（低频）
 
@@ -174,12 +176,19 @@
 
 | 字段 | 类型 | 语义 |
 | --- | --- | --- |
-| `status` | string | `healthy` / `unhealthy` / `unknown` |
-| `message` | string | 状态说明 |
+| `status` | string | `healthy` / `unhealthy` / `unknown`（须与顶层 `openresty_status` 一致） |
+| `message` | string | 状态说明（上报可带；**仅用于回填 PG 最新态，不进 CH**） |
 | `connections` | int64 | stub_status Active connections |
 
-`status`/`message` 同步更新关系库节点最新状态；`connections` 写入 CH `of_node_edge_health` 供节点详情曲线（可选）。
+#### 健康状态权威源（收敛）
 
+| 数据 | 权威存储 | 说明 |
+| --- | --- | --- |
+| **当前** OpenResty 是否健康 + 说明文案 | **PG 节点表** `openresty_status` / `openresty_message` | UI 徽章、列表、告警以这里为准 |
+| **时序** 健康 status + 连接数 | **CH** `of_node_edge_health`（`status`, `connections`） | 连接曲线 / 健康状态历史；**无 message 列** |
+| Agent 上报 | 顶层 status/message + `edge_health` | Server 归一化后二者 status 对齐；message **只写 PG** |
+
+因此：查「现在是否 unhealthy」→ 读 PG；查「过去 24h 连接数」→ 读 CH。
 ### 3.5 `access_logs[]` — 访问明细（L1，业务唯一事实）
 
 Agent：tail access.log → 解析 JSON 行 → 原样字段上报（可截断 path）。
@@ -205,7 +214,7 @@ Agent：tail access.log → 解析 JSON 行 → 原样字段上报（可截断 p
 | `path` | string | ✅ | `$request_uri`，Agent 可截断 | 路径 |
 | `status_code` | int | ✅ | `$status` | 状态码 |
 | `bytes_sent` | int64 | ✅ | **`$body_bytes_sent`** | **已提供数据**（响应体） |
-| `request_length` | int64 | 建议 | `$request_length` | **接收数据**；旧 Agent 缺省 0 |
+| `request_length` | int64 | 建议 | `$request_length` | **接收数据** |
 | `request_time_ms` | int64 | 可选 | `$request_time * 1000` | 耗时；缺省 0 |
 
 **明确不由 Agent 上报（由 Server 写入）：**
@@ -256,29 +265,23 @@ Agent：tail access.log → 解析 JSON 行 → 原样字段上报（可截断 p
 // pkg/protocol/agent.go（目标形态，实现时替换旧类型）
 
 type NodePayload struct {
-    SchemaVersion         int                    `json:"schema_version,omitempty"`
-    NodeID                string                 `json:"node_id"`
-    Name                  string                 `json:"name"`
-    IP                    string                 `json:"ip"`
-    Version               string                 `json:"version"`
-    ExtVersion            string                 `json:"ext_version"`
-    CurrentVersion        string                 `json:"current_version"`
-    LastError             string                 `json:"last_error"`
-    Profile               *NodeSystemProfile     `json:"profile,omitempty"`
-    HostMetrics           *NodeHostMetrics       `json:"host_metrics,omitempty"`
-    EdgeHealth            *NodeEdgeHealth        `json:"edge_health,omitempty"`
-    AccessLogs            []NodeAccessLog        `json:"access_logs,omitempty"`
-    Buffered              []BufferedFacts        `json:"buffered,omitempty"`
-    HealthEvents          []NodeHealthEvent      `json:"health_events"`
-    WAFIPGroupChecksums   map[string]string      `json:"waf_ip_group_checksums,omitempty"`
-
-    // Deprecated: schema_version < 2 兼容
-    Snapshot              *NodeHostMetrics       `json:"snapshot,omitempty"`
-    OpenrestyStatus       string                 `json:"openresty_status,omitempty"`
-    OpenrestyMessage      string                 `json:"openresty_message,omitempty"`
-    OpenrestyObservation  json.RawMessage        `json:"openresty_observation,omitempty"` // 仅解析 connections
-    TrafficReport         json.RawMessage        `json:"traffic_report,omitempty"`        // 忽略
-    BufferedObservability []BufferedFacts        `json:"buffered_observability,omitempty"`
+    SchemaVersion       int                    `json:"schema_version,omitempty"`
+    NodeID              string                 `json:"node_id"`
+    Name                string                 `json:"name"`
+    IP                  string                 `json:"ip"`
+    Version             string                 `json:"version"`
+    ExtVersion          string                 `json:"ext_version"`
+    CurrentVersion      string                 `json:"current_version"`
+    LastError           string                 `json:"last_error"`
+    OpenrestyStatus     string                 `json:"openresty_status"`  // PG 最新态权威
+    OpenrestyMessage    string                 `json:"openresty_message"` // PG 最新态权威；不进 CH
+    Profile             *NodeSystemProfile     `json:"profile,omitempty"`
+    HostMetrics         *NodeHostMetrics       `json:"host_metrics,omitempty"`
+    EdgeHealth          *NodeEdgeHealth        `json:"edge_health,omitempty"`
+    AccessLogs          []NodeAccessLog        `json:"access_logs,omitempty"`
+    Buffered            []BufferedFacts        `json:"buffered,omitempty"`
+    HealthEvents        []NodeHealthEvent      `json:"health_events"`
+    WAFIPGroupChecksums map[string]string      `json:"waf_ip_group_checksums,omitempty"`
 }
 
 type NodeHostMetrics struct {
@@ -562,11 +565,11 @@ SETTINGS index_granularity = 8192;
 
 | 列 | 说明 |
 | --- | --- |
-| `status` | 瞬时健康 |
+| `status` | 瞬时健康（与 PG 当前态同源；用于时序，非唯一 UI 权威） |
 | `connections` | 当前连接数 |
 
+**无** `message` 列（说明文案仅 PG 最新态）。  
 **无** `openresty_rx_bytes` / `openresty_tx_bytes`。
-
 ### 5.6 关系库（节点最新态，非分析湖）
 
 与观测湖分离，保持「最新一份」：
@@ -641,15 +644,15 @@ Agent 解析：
 
 ---
 
-## 8. 兼容策略（协议 v1 → v2）
+## 8. 升级策略（无兼容层）
 
-| 客户端 | Server 行为 |
+| 项 | 策略 |
 | --- | --- |
-| 新 Agent `schema_version=2` | 按本文写入 L1/L2/L3 |
-| 旧 Agent 带 `snapshot` + `access_logs` | 映射为 host_metrics；access_logs 无 request_length 则 0 |
-| 旧 Agent 带 `traffic_report` | **丢弃** |
-| 旧 Agent 带 `openresty_observation` | 只取 `connections` + 顶层 status；rx/tx 丢弃 |
-| 读路径 | 业务 API **只读** access_logs（及 hourly）；不再读 request_reports / openresty 吞吐 |
+| Agent 升级 | **销毁重建**优先；允许**二进制替换** |
+| 协议 | 仅 schema v2 字段；旧 JSON 字段不解析 |
+| 本地观测缓冲 | 若仍是旧格式（含 `snapshot` / `openresty_observation` / `traffic_report`）或损坏 → **整文件删除**，运行中重建 |
+| 读路径 | 业务 API **只读** access_logs（及 hourly）；健康当前态读 PG；连接时序读 CH edge_health |
+| 旧 Agent | 必须升级；控制面不提供 v1 双读路径 |
 
 ---
 
@@ -695,10 +698,11 @@ Agent 解析：
 
 **写入：**
 
-1. `of_node_metric_snapshots` 1 行（network_tx=2000 累计）  
-2. `of_node_edge_health` 1 行（connections=5）  
-3. `of_node_access_logs` 1 行（bytes_sent=500, request_length=80, region=Server 填充）  
-4. MV 异步计入 `of_access_log_hourly`  
+1. PG 节点最新态：`openresty_status` / `openresty_message`（若上报）  
+2. `of_node_metric_snapshots` 1 行（network_tx=2000 累计）  
+3. `of_node_edge_health` 1 行（status + connections=5；**无 message**）  
+4. `of_node_access_logs` 1 行（bytes_sent=500, request_length=80, region=Server 填充）  
+5. MV 异步计入 `of_access_log_hourly`  
 
 **查询 24h 已提供数据：** `sum(bytes_sent)` → 至少 500（加历史）  
 **查询宿主机出站：** 对 snapshots 差分，与 500 **无强制相等关系**。
@@ -707,12 +711,12 @@ Agent 解析：
 
 ## 10. 实现检查清单
 
-- [x] `pkg/protocol`：v2 类型与 deprecated 兼容字段  
+- [x] `pkg/protocol`：仅 v2 字段，无兼容别名  
 - [x] Agent：只组 `host_metrics` / `edge_health` / `access_logs` / `buffered`  
-- [x] Server normalize + 停写 request_reports / openresty rx/tx  
+- [x] Server：无 request_reports / openresty 吞吐；健康当前态 PG、时序 CH  
 - [x] CH migration：`request_length`、`request_time_ms`、`of_node_edge_health`、`of_access_log_hourly`、hourly 回填  
 - [x] 看板/Zone API 统一读 access log 聚合  
-- [x] 文档与前端文案：已提供数据 ≠ 宿主机网卡出站；UV 策略（整窗 uniqExact / 小时路径 UV=0）  
+- [x] UV：整窗 uniqExact；Zone 曲线标明分桶 UV；小时趋势不绘 UV  
 
 ---
 
