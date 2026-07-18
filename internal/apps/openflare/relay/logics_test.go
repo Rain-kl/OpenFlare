@@ -92,8 +92,8 @@ func TestHeartbeatPayloadBindingAndFrpsObservationInsert(t *testing.T) {
 		Snapshot: &agent.NodeMetricSnapshot{
 			CapturedAtUnix:  now.Unix(),
 			CPUUsagePercent: 12.5,
-			NetworkRxBytes:  1024,
-			NetworkTxBytes:  2048,
+			DiskReadBytes:   100,
+			DiskWriteBytes:  200,
 		},
 		HealthEvents: []agent.NodeHealthEvent{},
 	})

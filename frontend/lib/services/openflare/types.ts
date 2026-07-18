@@ -120,8 +120,6 @@ export interface NodeMetricSnapshot {
   storage_total_bytes: number;
   disk_read_bytes: number;
   disk_write_bytes: number;
-  network_rx_bytes: number;
-  network_tx_bytes: number;
   openresty_connections: number;
 }
 
@@ -924,8 +922,6 @@ export interface CapacityTrendPoint {
 
 export interface NetworkTrendPoint {
   bucket_started_at: string;
-  network_rx_bytes: number;
-  network_tx_bytes: number;
   /** L1 接收数据 sum(request_length) */
   bytes_received: number;
   /** L1 已提供数据 sum(bytes_sent) */
@@ -985,14 +981,8 @@ export interface DashboardOverview {
 
 export type CompactTrafficTrendPoint = [string, number, number, number];
 export type CompactCapacityTrendPoint = [string, number, number, number];
-export type CompactNetworkTrendPoint = [
-  string,
-  number,
-  number,
-  number,
-  number,
-  number,
-];
+/** [bucket, bytes_received, bytes_provided, reported_nodes] */
+export type CompactNetworkTrendPoint = [string, number, number, number];
 export type CompactDiskIOTrendPoint = [string, number, number, number];
 export type CompactDashboardNodeHealth = [
   number,

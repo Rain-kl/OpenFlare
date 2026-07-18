@@ -48,9 +48,8 @@ func BuildSnapshot(cfg *config.Config, stateStore *state.Store) *service.AgentNo
 
 	metric.MemoryTotalBytes, metric.MemoryUsedBytes = edgeobs.ReadMemInfo()
 	metric.StorageTotalBytes, metric.StorageUsedBytes = edgeobs.StatFilesystem(cfg.DataDir)
-	metric.NetworkRxBytes, metric.NetworkTxBytes = edgeobs.ReadLinuxNetworkTotals()
+	// Host NIC totals are not collected.
 	metric.DiskReadBytes, metric.DiskWriteBytes = edgeobs.ReadLinuxDiskTotals()
-
 	if stateStore == nil {
 		return metric
 	}

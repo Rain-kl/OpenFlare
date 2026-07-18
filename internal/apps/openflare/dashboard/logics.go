@@ -354,12 +354,9 @@ func compressCapacityTrendPoints(points []observability.CapacityTrendPoint) [][]
 func compressNetworkTrendPoints(points []observability.NetworkTrendPoint) [][]any {
 	rows := make([][]any, 0, len(points))
 	for _, point := range points {
-		// Compact layout (stable positions):
-		// [0] bucket, [1] host_rx, [2] host_tx, [3] bytes_received, [4] bytes_provided, [5] reported_nodes
+		// Compact layout: [0] bucket, [1] bytes_received, [2] bytes_provided, [3] reported_nodes
 		rows = append(rows, []any{
 			point.BucketStartedAt,
-			point.NetworkRxBytes,
-			point.NetworkTxBytes,
 			point.BytesReceived,
 			point.BytesProvided,
 			point.ReportedNodes,

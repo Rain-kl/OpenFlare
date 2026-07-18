@@ -128,11 +128,9 @@ function normalizeNetworkTrendPoints(
     isCompactNetworkTrendPoint(item)
       ? {
           bucket_started_at: String(item[0] ?? ''),
-          network_rx_bytes: Number(item[1] ?? 0),
-          network_tx_bytes: Number(item[2] ?? 0),
-          bytes_received: Number(item[3] ?? 0),
-          bytes_provided: Number(item[4] ?? 0),
-          reported_nodes: Number(item[5] ?? 0),
+          bytes_received: Number(item[1] ?? 0),
+          bytes_provided: Number(item[2] ?? 0),
+          reported_nodes: Number(item[3] ?? 0),
         }
       : {
           ...item,

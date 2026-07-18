@@ -7,7 +7,22 @@ import type {
   NetworkTrendPoint,
 } from '@/lib/services/openflare';
 
-import { formatBytes, formatTrendHour } from './dashboard-utils';
+import {
+  formatBytes,
+  formatBytesPerSecond,
+  formatTrendHour,
+} from './dashboard-utils';
+
+/** Backend disk points are per-hour totals; chart displays bytes/s within each hour. */
+const DISK_BUCKET_SECONDS = 3600;
+
+function diskBytesToRate(bytes: number) {
+  return bytes > 0 ? bytes / DISK_BUCKET_SECONDS : 0;
+}
+
+function formatDiskRate(bytesPerSecond: number) {
+  return formatBytesPerSecond(bytesPerSecond, 1, { zeroText: '0 B' });
+}
 
 export function NetworkDiskTrendChart({
   networkPoints,
@@ -51,53 +66,31 @@ export function NetworkDiskTrendChart({
         />
 
         <TrendChart
-          labels={networkPoints.map((point) =>
-            formatTrendHour(point.bucket_started_at),
-          )}
-          height={180}
-          summaryScope='total'
-          summaryHint='近 24 小时 · 宿主机网卡'
-          yAxisValueFormatter={formatBytes}
-          series={[
-            {
-              label: '宿主机网卡入站',
-              color: '#a3e635',
-              fillColor: 'rgba(163, 230, 53, 0.12)',
-              variant: 'area',
-              values: networkPoints.map((point) => point.network_rx_bytes),
-              valueFormatter: formatBytes,
-            },
-            {
-              label: '宿主机网卡出站',
-              color: '#f97316',
-              values: networkPoints.map((point) => point.network_tx_bytes),
-              valueFormatter: formatBytes,
-            },
-          ]}
-        />
-
-        <TrendChart
           labels={diskPoints.map((point) =>
             formatTrendHour(point.bucket_started_at),
           )}
           height={180}
-          summaryScope='total'
-          summaryHint='近 24 小时 · 宿主机磁盘'
-          yAxisValueFormatter={formatBytes}
+          summaryScope='average'
+          summaryHint='近 24 小时 · 宿主机磁盘 · 平均速率'
+          yAxisValueFormatter={formatDiskRate}
           series={[
             {
               label: '磁盘读',
               color: '#a78bfa',
               fillColor: 'rgba(167, 139, 250, 0.14)',
               variant: 'area',
-              values: diskPoints.map((point) => point.disk_read_bytes),
-              valueFormatter: formatBytes,
+              values: diskPoints.map((point) =>
+                diskBytesToRate(point.disk_read_bytes),
+              ),
+              valueFormatter: formatDiskRate,
             },
             {
               label: '磁盘写',
               color: '#fb7185',
-              values: diskPoints.map((point) => point.disk_write_bytes),
-              valueFormatter: formatBytes,
+              values: diskPoints.map((point) =>
+                diskBytesToRate(point.disk_write_bytes),
+              ),
+              valueFormatter: formatDiskRate,
             },
           ]}
         />

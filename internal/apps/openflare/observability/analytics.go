@@ -51,8 +51,6 @@ type NodeMetricSnapshotView struct {
 	StorageTotalBytes    int64     `json:"storage_total_bytes"`
 	DiskReadBytes        int64     `json:"disk_read_bytes"`
 	DiskWriteBytes       int64     `json:"disk_write_bytes"`
-	NetworkRxBytes       int64     `json:"network_rx_bytes"`
-	NetworkTxBytes       int64     `json:"network_tx_bytes"`
 	OpenrestyConnections int64     `json:"openresty_connections"`
 }
 
@@ -95,13 +93,10 @@ type CapacityTrendPoint struct {
 	ReportedNodes             int       `json:"reported_nodes"`
 }
 
-// NetworkTrendPoint is a network trend bucket.
-// Host network_* is L3 (宿主机网卡).
-// bytes_received/provided are L1 business bytes from access logs.
+// NetworkTrendPoint is a business-byte trend bucket from access logs (L1).
+// Host NIC trends are intentionally not exposed.
 type NetworkTrendPoint struct {
 	BucketStartedAt time.Time `json:"bucket_started_at"`
-	NetworkRxBytes  int64     `json:"network_rx_bytes"`
-	NetworkTxBytes  int64     `json:"network_tx_bytes"`
 	BytesReceived   int64     `json:"bytes_received"` // sum(request_length)
 	BytesProvided   int64     `json:"bytes_provided"` // sum(bytes_sent)
 	ReportedNodes   int       `json:"reported_nodes"`
@@ -135,11 +130,6 @@ type diskCounterState struct {
 	seen  bool
 }
 
-type networkCounterState struct {
-	rx   int64
-	tx   int64
-	seen bool
-}
 
 func buildTrafficWindowSummaryFromAccessLogs(
 	ctx context.Context,
@@ -194,8 +184,6 @@ func BuildMetricSnapshotViews(
 			StorageTotalBytes: snapshot.StorageTotalBytes,
 			DiskReadBytes:     snapshot.DiskReadBytes,
 			DiskWriteBytes:    snapshot.DiskWriteBytes,
-			NetworkRxBytes:    snapshot.NetworkRxBytes,
-			NetworkTxBytes:    snapshot.NetworkTxBytes,
 		}
 		if matched := matchEdgeHealth(snapshot.CapturedAt, edgeHealth); matched != nil {
 			view.OpenrestyConnections = matched.Connections
@@ -284,8 +272,8 @@ func buildHealthSummary(
 }
 
 // BuildNodeTrends builds 24h trend series.
-// Business traffic (requests/errors/UV and provided/received bytes) comes from access logs.
-// Host capacity/disk/network come from metric snapshots (hourly when available).
+// Business traffic (requests/errors and provided/received bytes) comes from access logs.
+// Host capacity/disk come from metric snapshots (hourly when available). Host NIC is not tracked.
 func BuildNodeTrends(
 	ctx context.Context,
 	now time.Time,
@@ -296,8 +284,7 @@ func BuildNodeTrends(
 
 	trafficTrend := BuildTrafficTrendPointsFromAccessLogs(ctx, now, nodeID, trendSince)
 	capacityTrend := BuildCapacityTrendPoints(now, snapshots)
-	networkTrend := BuildNetworkTrendPoints(now, snapshots)
-	// Overlay L1 business bytes onto network points.
+	networkTrend := emptyNetworkTrendPoints(now)
 	applyAccessLogBytesToNetworkTrend(ctx, now, nodeID, trendSince, networkTrend)
 	diskIOTrend := BuildDiskIOTrendPoints(now, snapshots)
 
@@ -305,8 +292,6 @@ func BuildNodeTrends(
 	if metricErr == nil && len(metricHourly) > 0 {
 		capacityTrend = BuildCapacityTrendPointsFromHourly(now, metricHourly)
 		diskIOTrend = BuildDiskIOTrendPointsFromHourly(now, metricHourly)
-		networkTrend = BuildNetworkTrendPointsFromHourly(now, metricHourly)
-		applyAccessLogBytesToNetworkTrend(ctx, now, nodeID, trendSince, networkTrend)
 	}
 
 	return NodeTrends{
@@ -522,84 +507,11 @@ func BuildCapacityTrendPointsFromHourly(now time.Time, hourly []*model.OpenFlare
 	return points
 }
 
-// BuildNetworkTrendPoints builds 24h host-network trend buckets.
-// Host network counters must be process-lifetime cumulative values; this function
-// converts consecutive samples into deltas.
-func BuildNetworkTrendPoints(
-	now time.Time,
-	snapshots []*model.OpenFlareMetricSnapshot,
-) []NetworkTrendPoint {
-	start := trendWindowStart(now)
-	points := make([]NetworkTrendPoint, observabilityTrendBuckets)
-	accumulators := make([]snapshotTrendAccumulator, observabilityTrendBuckets)
-	for index := range points {
-		points[index].BucketStartedAt = start.Add(time.Duration(index) * time.Hour)
-		accumulators[index].nodes = make(map[string]struct{})
-	}
-	sort.Slice(snapshots, func(i int, j int) bool {
-		if snapshots[i].CapturedAt.Equal(snapshots[j].CapturedAt) {
-			return snapshots[i].NodeID < snapshots[j].NodeID
-		}
-		return snapshots[i].CapturedAt.Before(snapshots[j].CapturedAt)
-	})
-	previousHostByNode := make(map[string]networkCounterState, len(snapshots))
-	for _, snapshot := range snapshots {
-		if snapshot == nil {
-			continue
-		}
-		nodeKey := snapshot.NodeID
-		if nodeKey == "" {
-			nodeKey = unknownTrendNodeKey
-		}
-		previous := previousHostByNode[nodeKey]
-		previousHostByNode[nodeKey] = networkCounterState{
-			rx:   snapshot.NetworkRxBytes,
-			tx:   snapshot.NetworkTxBytes,
-			seen: true,
-		}
-		if !previous.seen {
-			continue
-		}
-		index, ok := trendBucketIndex(snapshot.CapturedAt, start)
-		if !ok {
-			continue
-		}
-		points[index].NetworkRxBytes += nonNegativeDelta(snapshot.NetworkRxBytes, previous.rx)
-		points[index].NetworkTxBytes += nonNegativeDelta(snapshot.NetworkTxBytes, previous.tx)
-		if snapshot.NodeID != "" {
-			accumulators[index].nodes[snapshot.NodeID] = struct{}{}
-		}
-	}
-	for index := range points {
-		points[index].ReportedNodes = len(accumulators[index].nodes)
-	}
-	return points
-}
-
-// BuildNetworkTrendPointsFromHourly builds 24h host-network trend buckets from metric hourly aggregates.
-// Business bytes (已提供/接收) are applied separately via applyAccessLogBytesToNetworkTrend.
-func BuildNetworkTrendPointsFromHourly(
-	now time.Time,
-	metricHourly []*model.OpenFlareMetricHourly,
-) []NetworkTrendPoint {
+func emptyNetworkTrendPoints(now time.Time) []NetworkTrendPoint {
 	start := trendWindowStart(now)
 	points := make([]NetworkTrendPoint, observabilityTrendBuckets)
 	for index := range points {
 		points[index].BucketStartedAt = start.Add(time.Duration(index) * time.Hour)
-	}
-	for _, row := range metricHourly {
-		if row == nil {
-			continue
-		}
-		index, ok := trendBucketIndex(row.Hour, start)
-		if !ok {
-			continue
-		}
-		points[index].NetworkRxBytes += row.NetworkRxBytes
-		points[index].NetworkTxBytes += row.NetworkTxBytes
-		if row.ReportedNodes > points[index].ReportedNodes {
-			points[index].ReportedNodes = row.ReportedNodes
-		}
 	}
 	return points
 }

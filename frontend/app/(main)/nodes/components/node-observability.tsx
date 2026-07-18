@@ -717,7 +717,7 @@ export function NodeObservability({
                 ) : null}
 
                 <div className='grid gap-3 sm:grid-cols-2'>
-                  <div className='rounded-lg border px-3 py-3'>
+                  <div className='rounded-lg border px-3 py-3 sm:col-span-2'>
                     <p className='text-xs text-muted-foreground uppercase tracking-wide'>
                       OpenResty 连接
                     </p>
@@ -729,15 +729,6 @@ export function NodeObservability({
                       <p className='text-xs'>
                         业务吞吐请看访问日志趋势（已提供/接收数据）
                       </p>
-                    </div>
-                  </div>
-                  <div className='rounded-lg border px-3 py-3'>
-                    <p className='text-xs text-muted-foreground uppercase tracking-wide'>
-                      节点网络
-                    </p>
-                    <div className='mt-3 space-y-2 text-sm text-muted-foreground'>
-                      <p>入站：{formatBytes(latestMetric.network_rx_bytes)}</p>
-                      <p>出站：{formatBytes(latestMetric.network_tx_bytes)}</p>
                     </div>
                   </div>
                 </div>

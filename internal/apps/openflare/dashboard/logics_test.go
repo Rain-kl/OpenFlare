@@ -149,7 +149,7 @@ func TestGetOverviewStructure(t *testing.T) {
 		require.Len(t, row, 4)
 	}
 	for _, row := range overview.Trends.Network24h {
-		require.Len(t, row, 6)
+		require.Len(t, row, 4)
 	}
 	for _, row := range overview.Trends.DiskIO24h {
 		require.Len(t, row, 4)

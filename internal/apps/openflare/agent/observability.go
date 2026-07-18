@@ -164,8 +164,7 @@ func persistNodeMetricSnapshot(ctx context.Context, nodeID string, snapshot *Nod
 		StorageTotalBytes: snapshot.StorageTotalBytes,
 		DiskReadBytes:     snapshot.DiskReadBytes,
 		DiskWriteBytes:    snapshot.DiskWriteBytes,
-		NetworkRxBytes:    snapshot.NetworkRxBytes,
-		NetworkTxBytes:    snapshot.NetworkTxBytes,
+		// NetworkRx/Tx no longer collected from agents; CH columns remain 0.
 	}
 	return model.InsertOpenFlareMetricSnapshot(ctx, record)
 }

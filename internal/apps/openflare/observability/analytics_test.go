@@ -113,27 +113,16 @@ func TestBuildCapacityTrendPointsFromHourlyFillsBuckets(t *testing.T) {
 	}
 }
 
-func TestBuildNetworkTrendPointsUsesCounterDeltas(t *testing.T) {
+func TestEmptyNetworkTrendPointsHas24Buckets(t *testing.T) {
 	t.Parallel()
 
 	now := time.Date(2026, 7, 10, 9, 30, 0, 0, time.UTC)
-	base := now.Truncate(time.Hour)
-	snapshots := []*model.OpenFlareMetricSnapshot{
-		{NodeID: "n1", CapturedAt: base.Add(10 * time.Minute), NetworkRxBytes: 1000, NetworkTxBytes: 2000},
-		{NodeID: "n1", CapturedAt: base.Add(20 * time.Minute), NetworkRxBytes: 1500, NetworkTxBytes: 2600},
+	points := emptyNetworkTrendPoints(now)
+	if len(points) != observabilityTrendBuckets {
+		t.Fatalf("len(points) = %d, want %d", len(points), observabilityTrendBuckets)
 	}
-
-	points := BuildNetworkTrendPoints(now, snapshots)
-	current := points[len(points)-1]
-	if current.NetworkRxBytes != 500 {
-		t.Fatalf("network_rx_bytes = %d, want 500", current.NetworkRxBytes)
-	}
-	if current.NetworkTxBytes != 600 {
-		t.Fatalf("network_tx_bytes = %d, want 600", current.NetworkTxBytes)
-	}
-	if current.BytesReceived != 0 || current.BytesProvided != 0 {
-		t.Fatalf("business bytes should be 0 without access logs overlay, got received=%d provided=%d",
-			current.BytesReceived, current.BytesProvided)
+	if !points[0].BucketStartedAt.Before(points[len(points)-1].BucketStartedAt) {
+		t.Fatalf("bucket order invalid: first=%v last=%v", points[0].BucketStartedAt, points[len(points)-1].BucketStartedAt)
 	}
 }
 

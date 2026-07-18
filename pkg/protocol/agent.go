@@ -128,10 +128,8 @@ type NodeMetricSnapshot struct {
 	MemoryTotalBytes  int64   `json:"memory_total_bytes"`
 	StorageUsedBytes  int64   `json:"storage_used_bytes"`
 	StorageTotalBytes int64   `json:"storage_total_bytes"`
-	DiskReadBytes     int64   `json:"disk_read_bytes"`
-	DiskWriteBytes    int64   `json:"disk_write_bytes"`
-	NetworkRxBytes    int64   `json:"network_rx_bytes"`
-	NetworkTxBytes    int64   `json:"network_tx_bytes"`
+	DiskReadBytes  int64 `json:"disk_read_bytes"`
+	DiskWriteBytes int64 `json:"disk_write_bytes"`
 }
 
 // NodeAccessLog is an access log entry from agent (L1 business fact).

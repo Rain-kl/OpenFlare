@@ -57,7 +57,7 @@ func BuildSnapshot(cfg *config.Config, stateStore *state.Store) *protocol.NodeMe
 	metric.StorageTotalBytes = storageTotal
 	metric.StorageUsedBytes = storageUsed
 
-	metric.NetworkRxBytes, metric.NetworkTxBytes = edgeobs.ReadLinuxNetworkTotals()
+	// Host NIC totals are not collected (product no longer surfaces host NIC trends).
 	metric.DiskReadBytes, metric.DiskWriteBytes = edgeobs.ReadLinuxDiskTotals()
 
 	if stateStore == nil {

@@ -14308,12 +14308,6 @@ const docTemplate = `{
                 "memory_used_bytes": {
                     "type": "integer"
                 },
-                "network_rx_bytes": {
-                    "type": "integer"
-                },
-                "network_tx_bytes": {
-                    "type": "integer"
-                },
                 "storage_total_bytes": {
                     "type": "integer"
                 },
@@ -16390,12 +16384,6 @@ const docTemplate = `{
                     "description": "sum(request_length)",
                     "type": "integer"
                 },
-                "network_rx_bytes": {
-                    "type": "integer"
-                },
-                "network_tx_bytes": {
-                    "type": "integer"
-                },
                 "reported_nodes": {
                     "type": "integer"
                 }
@@ -16437,12 +16425,6 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "memory_used_bytes": {
-                    "type": "integer"
-                },
-                "network_rx_bytes": {
-                    "type": "integer"
-                },
-                "network_tx_bytes": {
                     "type": "integer"
                 },
                 "node_id": {
@@ -17047,12 +17029,6 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "memory_used_bytes": {
-                    "type": "integer"
-                },
-                "network_rx_bytes": {
-                    "type": "integer"
-                },
-                "network_tx_bytes": {
                     "type": "integer"
                 },
                 "storage_total_bytes": {

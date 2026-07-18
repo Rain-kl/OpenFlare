@@ -15,7 +15,7 @@ type TrendChartSeries = {
   valueFormatter?: (value: number) => string;
 };
 
-type TrendChartSummaryScope = 'last-point' | 'total';
+type TrendChartSummaryScope = 'last-point' | 'total' | 'average';
 
 type TrendChartProps = {
   labels: string[];
@@ -42,6 +42,10 @@ function resolveSummaryValue(values: number[], scope: TrendChartSummaryScope) {
   }
   if (scope === 'total') {
     return values.reduce((sum, value) => sum + value, 0);
+  }
+  if (scope === 'average') {
+    const sum = values.reduce((acc, value) => acc + value, 0);
+    return sum / values.length;
   }
   return values[values.length - 1] ?? 0;
 }
