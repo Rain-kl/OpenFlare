@@ -2,7 +2,6 @@ import type {
   ApplyResult,
   NodeItem,
   NodeStatus,
-  NodeTrafficReport,
   OpenrestyStatus,
 } from '@/lib/services/openflare';
 
@@ -236,48 +235,6 @@ export function formatBytesPerSecond(value?: number | null, windowSeconds = 1) {
     return '—';
   }
   return `${formatBytes(value / windowSeconds)}/s`;
-}
-
-export function parseTrafficMap(value?: string | null) {
-  if (!value) {
-    return {} as Record<string, number>;
-  }
-  try {
-    const parsed = JSON.parse(value) as Record<string, number>;
-    return Object.entries(parsed).reduce<Record<string, number>>(
-      (result, [key, count]) => {
-        if (typeof count === 'number' && Number.isFinite(count)) {
-          result[key] = count;
-        }
-        return result;
-      },
-      {},
-    );
-  } catch {
-    return {} as Record<string, number>;
-  }
-}
-
-export function aggregateTrafficBreakdown(
-  reports: NodeTrafficReport[] | undefined,
-  field: 'status_codes_json' | 'top_domains_json',
-) {
-  const summary = new Map<string, number>();
-  for (const report of reports ?? []) {
-    const parsed = parseTrafficMap(report[field]);
-    for (const [key, value] of Object.entries(parsed)) {
-      summary.set(key, (summary.get(key) ?? 0) + value);
-    }
-  }
-  return Array.from(summary.entries())
-    .sort((left, right) => {
-      if (right[1] === left[1]) {
-        return left[0].localeCompare(right[0]);
-      }
-      return right[1] - left[1];
-    })
-    .slice(0, 6)
-    .map(([label, value]) => ({ label, value }));
 }
 
 export function formatUsageRatio(used?: number | null, total?: number | null) {

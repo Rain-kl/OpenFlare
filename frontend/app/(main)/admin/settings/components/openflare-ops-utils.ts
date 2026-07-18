@@ -25,9 +25,9 @@ export type OpenFlareOpsFields = {
 };
 
 export const defaultOpenFlareOpsFields: OpenFlareOpsFields = {
-  agent_heartbeat_interval: '10000',
+  agent_heartbeat_interval: '3000',
   agent_websocket_upgrade_enabled: true,
-  node_offline_threshold: '120000',
+  node_offline_threshold: '60000',
   agent_update_repo: 'Rain-kl/OpenFlare',
   geoip_provider: 'ipinfo',
   server_address: '',
@@ -68,12 +68,12 @@ export function mapOptionsToOpsFields(
   serverAddress = '',
 ): OpenFlareOpsFields {
   return {
-    agent_heartbeat_interval: optionMap.agent_heartbeat_interval ?? '10000',
+    agent_heartbeat_interval: optionMap.agent_heartbeat_interval ?? '3000',
     agent_websocket_upgrade_enabled: toBoolean(
       optionMap.agent_websocket_upgrade_enabled,
       true,
     ),
-    node_offline_threshold: optionMap.node_offline_threshold ?? '120000',
+    node_offline_threshold: optionMap.node_offline_threshold ?? '60000',
     agent_update_repo: optionMap.agent_update_repo ?? 'Rain-kl/OpenFlare',
     geoip_provider: optionMap.geoip_provider ?? 'ipinfo',
     server_address: optionMap.server_address || serverAddress,
@@ -129,11 +129,14 @@ export function buildDiscoveryCommand(
 export function validateAgentFields(fields: OpenFlareOpsFields) {
   const heartbeat = Number.parseInt(fields.agent_heartbeat_interval, 10);
   const offline = Number.parseInt(fields.node_offline_threshold, 10);
-  if (Number.isNaN(heartbeat) || heartbeat < 5000) {
-    throw new Error('心跳间隔不能小于 5000 毫秒。');
+  if (Number.isNaN(heartbeat) || heartbeat < 1000) {
+    throw new Error('心跳间隔不能小于 1000 毫秒。');
   }
   if (Number.isNaN(offline) || offline < 10000) {
     throw new Error('离线阈值不能小于 10000 毫秒。');
+  }
+  if (offline < heartbeat * 3) {
+    throw new Error('离线阈值建议至少为心跳间隔的 3 倍。');
   }
 }
 

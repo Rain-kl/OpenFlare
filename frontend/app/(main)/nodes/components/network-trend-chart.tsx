@@ -18,7 +18,7 @@ import {
 export function NetworkTrendChart({
   points,
   title = '24 小时网络趋势',
-  description = '按小时展示 OpenResty 入站/出站流量累计，摘要为近 24 小时总量。',
+  description = '按小时展示已提供/接收数据（访问日志）与宿主机网卡；摘要为近 24 小时总量。',
 }: {
   points: NetworkTrendPoint[];
   title?: string;
@@ -40,17 +40,29 @@ export function NetworkTrendChart({
           yAxisValueFormatter={formatBytes}
           series={[
             {
-              label: 'OpenResty 入站',
+              label: '接收数据',
               color: '#22c55e',
               fillColor: 'rgba(34, 197, 94, 0.14)',
               variant: 'area',
-              values: points.map((point) => point.openresty_rx_bytes),
+              values: points.map((point) => point.bytes_received),
               valueFormatter: formatBytes,
             },
             {
-              label: 'OpenResty 出站',
+              label: '已提供数据',
               color: '#38bdf8',
-              values: points.map((point) => point.openresty_tx_bytes),
+              values: points.map((point) => point.bytes_provided),
+              valueFormatter: formatBytes,
+            },
+            {
+              label: '宿主机网卡入站',
+              color: '#a3e635',
+              values: points.map((point) => point.network_rx_bytes),
+              valueFormatter: formatBytes,
+            },
+            {
+              label: '宿主机网卡出站',
+              color: '#f97316',
+              values: points.map((point) => point.network_tx_bytes),
               valueFormatter: formatBytes,
             },
           ]}

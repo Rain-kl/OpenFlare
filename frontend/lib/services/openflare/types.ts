@@ -122,8 +122,6 @@ export interface NodeMetricSnapshot {
   disk_write_bytes: number;
   network_rx_bytes: number;
   network_tx_bytes: number;
-  openresty_rx_bytes: number;
-  openresty_tx_bytes: number;
   openresty_connections: number;
 }
 
@@ -137,17 +135,6 @@ export interface NodeHealthEvent {
   last_triggered_at: string;
   reported_at: string;
   resolved_at?: string | null;
-}
-
-export interface NodeTrafficReport {
-  window_started_at: string;
-  window_ended_at: string;
-  request_count: number;
-  error_count: number;
-  unique_visitor_count: number;
-  status_codes_json: string;
-  top_domains_json: string;
-  source_countries_json: string;
 }
 
 export interface NodeTrafficSummary {
@@ -194,7 +181,6 @@ export interface NodeObservability {
   node_id: string;
   profile: NodeSystemProfile | null;
   metric_snapshots: NodeMetricSnapshot[];
-  traffic_reports?: NodeTrafficReport[];
   health_events: NodeHealthEvent[];
   analytics?: NodeObservabilityAnalytics;
   trends?: NodeObservabilityTrends;
@@ -665,7 +651,11 @@ export interface GeoIPLookupResult {
 }
 
 export type DatabaseCleanupTarget =
-  'node_access_logs' | 'node_metric_snapshots' | 'node_request_reports';
+  | 'node_access_logs'
+  | 'node_metric_snapshots'
+  | 'node_edge_health'
+  | 'node_obs_frps'
+  | 'node_obs_frpc';
 
 export interface DatabaseCleanupPayload {
   target: DatabaseCleanupTarget;
@@ -936,8 +926,10 @@ export interface NetworkTrendPoint {
   bucket_started_at: string;
   network_rx_bytes: number;
   network_tx_bytes: number;
-  openresty_rx_bytes: number;
-  openresty_tx_bytes: number;
+  /** L1 接收数据 sum(request_length) */
+  bytes_received: number;
+  /** L1 已提供数据 sum(bytes_sent) */
+  bytes_provided: number;
   reported_nodes: number;
 }
 

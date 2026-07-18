@@ -90,10 +90,10 @@ const cleanupTargets: Array<{
       '清理 node_metric_snapshots，影响节点资源趋势；表 TTL 为 30 天。',
   },
   {
-    target: 'node_request_reports',
-    label: '请求聚合',
+    target: 'node_edge_health',
+    label: 'OpenResty 健康',
     description:
-      '清理 node_request_reports，影响请求量与错误量统计；表 TTL 为 30 天。',
+      '清理 node_edge_health（OpenResty 连接/健康快照）；表 TTL 为 30 天。业务流量请清理访问日志。',
   },
 ];
 

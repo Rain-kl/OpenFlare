@@ -40,7 +40,6 @@ export type {
   NodeObservabilityAnalytics,
   NodeObservabilityTrends,
   NodeSystemProfile,
-  NodeTrafficReport,
   NodeStatus,
   NodeType,
   OpenrestyStatus,

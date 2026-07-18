@@ -130,11 +130,19 @@ function normalizeNetworkTrendPoints(
           bucket_started_at: String(item[0] ?? ''),
           network_rx_bytes: Number(item[1] ?? 0),
           network_tx_bytes: Number(item[2] ?? 0),
-          openresty_rx_bytes: Number(item[3] ?? 0),
-          openresty_tx_bytes: Number(item[4] ?? 0),
+          bytes_received: Number(item[3] ?? 0),
+          bytes_provided: Number(item[4] ?? 0),
           reported_nodes: Number(item[5] ?? 0),
         }
-      : item,
+      : {
+          ...item,
+          bytes_received: Number(
+            (item as { bytes_received?: number }).bytes_received ?? 0,
+          ),
+          bytes_provided: Number(
+            (item as { bytes_provided?: number }).bytes_provided ?? 0,
+          ),
+        },
   );
 }
 

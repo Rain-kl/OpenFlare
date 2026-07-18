@@ -38,9 +38,7 @@ import { DistributionList } from './distribution-list';
 import { NetworkTrendChart } from './network-trend-chart';
 import { NodeStatusBadge } from './node-status-badge';
 import {
-  aggregateTrafficBreakdown,
   formatBytes,
-  formatBytesPerSecond,
   formatMetricCount,
   formatPercent,
   formatRelativeTime,
@@ -395,26 +393,26 @@ export function NodeObservability({
     resolvedHealthEvents,
   ]);
 
+  const trafficSummary = observability?.analytics?.traffic ?? null;
+  const healthSummary = observability?.analytics?.health ?? null;
+  const distributions = observability?.analytics?.distributions;
   const statusCodeDistribution = useMemo(
     () =>
-      aggregateTrafficBreakdown(
-        observability?.traffic_reports,
-        'status_codes_json',
-      ),
-    [observability?.traffic_reports],
+      (distributions?.status_codes ?? []).map((item) => ({
+        label: item.key,
+        value: item.value,
+      })),
+    [distributions?.status_codes],
   );
   const topDomains = useMemo(
     () =>
-      aggregateTrafficBreakdown(
-        observability?.traffic_reports,
-        'top_domains_json',
-      ),
-    [observability?.traffic_reports],
+      (distributions?.top_domains ?? []).map((item) => ({
+        label: item.key,
+        value: item.value,
+      })),
+    [distributions?.top_domains],
   );
-  const trafficSummary = observability?.analytics?.traffic ?? null;
-  const healthSummary = observability?.analytics?.health ?? null;
-  const topSourceCountry =
-    observability?.analytics?.distributions?.source_countries?.[0] ?? null;
+  const topSourceCountry = distributions?.source_countries?.[0] ?? null;
   const latestHealthEvent = activeHealthEvents[0] ?? null;
   const dominantStatusCode = statusCodeDistribution[0] ?? null;
   const dominantDomain = topDomains[0] ?? null;
@@ -604,11 +602,11 @@ export function NodeObservability({
           }
         />
         <SummaryStat
-          label='请求/分钟'
+          label='查询窗口请求'
           value={formatMetricCount(trafficSummary?.request_count)}
           hint={
             trafficSummary
-              ? `近 60 秒 · 错误率 ${trafficSummary.error_rate_percent.toFixed(1)}%`
+              ? `查询窗口独立访客 ${formatMetricCount(trafficSummary.unique_visitor_count)} · 错误率 ${trafficSummary.error_rate_percent.toFixed(1)}%`
               : '当前没有可展示的请求窗口摘要'
           }
         />
@@ -721,22 +719,15 @@ export function NodeObservability({
                 <div className='grid gap-3 sm:grid-cols-2'>
                   <div className='rounded-lg border px-3 py-3'>
                     <p className='text-xs text-muted-foreground uppercase tracking-wide'>
-                      OpenResty 吞吐
+                      OpenResty 连接
                     </p>
                     <div className='mt-3 space-y-2 text-sm text-muted-foreground'>
                       <p>
-                        入站：
-                        {formatBytesPerSecond(
-                          latestMetric.openresty_rx_bytes,
-                          60,
-                        )}
+                        当前连接：
+                        {latestMetric.openresty_connections ?? 0}
                       </p>
-                      <p>
-                        出站：
-                        {formatBytesPerSecond(
-                          latestMetric.openresty_tx_bytes,
-                          60,
-                        )}
+                      <p className='text-xs'>
+                        业务吞吐请看访问日志趋势（已提供/接收数据）
                       </p>
                     </div>
                   </div>
@@ -754,20 +745,20 @@ export function NodeObservability({
                 <div className='grid gap-3 sm:grid-cols-2'>
                   <div className='rounded-lg border px-3 py-3'>
                     <p className='text-xs text-muted-foreground uppercase tracking-wide'>
-                      请求/分钟
+                      查询窗口独立访客
                     </p>
                     <p className='mt-3 text-2xl font-semibold'>
-                      {formatMetricCount(trafficSummary?.request_count)}
+                      {formatMetricCount(trafficSummary?.unique_visitor_count)}
                     </p>
                     <p className='mt-2 text-sm text-muted-foreground'>
                       {trafficSummary
-                        ? `近 60 秒 · 窗口UV ${formatMetricCount(trafficSummary.unique_visitor_count)}`
+                        ? `请求 ${formatMetricCount(trafficSummary.request_count)} · 估算 QPS ${trafficSummary.estimated_qps.toFixed(2)}`
                         : '暂无窗口流量摘要'}
                     </p>
                   </div>
                   <div className='rounded-lg border px-3 py-3'>
                     <p className='text-xs text-muted-foreground uppercase tracking-wide'>
-                      近 60 秒错误
+                      查询窗口错误
                     </p>
                     <p className='mt-3 text-2xl font-semibold'>
                       {formatMetricCount(trafficSummary?.error_count)}

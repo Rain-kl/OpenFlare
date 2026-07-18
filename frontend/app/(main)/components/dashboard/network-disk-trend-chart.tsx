@@ -20,7 +20,7 @@ export function NetworkDiskTrendChart({
     <Card className='border-dashed shadow-none'>
       <CardHeader>
         <CardTitle className='text-sm font-semibold'>
-          24 小时网络与磁盘趋势
+          24 小时业务流量与宿主机磁盘
         </CardTitle>
       </CardHeader>
       <CardContent className='space-y-6'>
@@ -30,21 +30,47 @@ export function NetworkDiskTrendChart({
           )}
           height={180}
           summaryScope='total'
-          summaryHint='近 24 小时'
+          summaryHint='近 24 小时 · 来自访问日志'
           yAxisValueFormatter={formatBytes}
           series={[
             {
-              label: 'OpenResty 入站',
+              label: '接收数据',
               color: '#22c55e',
               fillColor: 'rgba(34, 197, 94, 0.14)',
               variant: 'area',
-              values: networkPoints.map((point) => point.openresty_rx_bytes),
+              values: networkPoints.map((point) => point.bytes_received),
               valueFormatter: formatBytes,
             },
             {
-              label: 'OpenResty 出站',
+              label: '已提供数据',
               color: '#38bdf8',
-              values: networkPoints.map((point) => point.openresty_tx_bytes),
+              values: networkPoints.map((point) => point.bytes_provided),
+              valueFormatter: formatBytes,
+            },
+          ]}
+        />
+
+        <TrendChart
+          labels={networkPoints.map((point) =>
+            formatTrendHour(point.bucket_started_at),
+          )}
+          height={180}
+          summaryScope='total'
+          summaryHint='近 24 小时 · 宿主机网卡'
+          yAxisValueFormatter={formatBytes}
+          series={[
+            {
+              label: '宿主机网卡入站',
+              color: '#a3e635',
+              fillColor: 'rgba(163, 230, 53, 0.12)',
+              variant: 'area',
+              values: networkPoints.map((point) => point.network_rx_bytes),
+              valueFormatter: formatBytes,
+            },
+            {
+              label: '宿主机网卡出站',
+              color: '#f97316',
+              values: networkPoints.map((point) => point.network_tx_bytes),
               valueFormatter: formatBytes,
             },
           ]}
@@ -56,7 +82,7 @@ export function NetworkDiskTrendChart({
           )}
           height={180}
           summaryScope='total'
-          summaryHint='近 24 小时'
+          summaryHint='近 24 小时 · 宿主机磁盘'
           yAxisValueFormatter={formatBytes}
           series={[
             {
