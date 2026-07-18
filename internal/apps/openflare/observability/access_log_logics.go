@@ -16,6 +16,7 @@ const (
 	maxAccessLogPageSize       = 200
 	defaultAccessLogSortBy     = "logged_at"
 	defaultAccessLogSortOrder  = "desc"
+	accessLogSortOrderAsc      = "asc"
 	defaultAccessLogFoldMinute = 3
 	defaultIPTrendHours        = 24
 	defaultIPTrendBucketMinute = 30
@@ -605,8 +606,8 @@ func normalizeAccessLogSortBy(sortBy string) string {
 }
 
 func normalizeAccessLogSortOrder(sortOrder string) string {
-	if strings.EqualFold(strings.TrimSpace(sortOrder), "asc") {
-		return "asc"
+	if strings.EqualFold(strings.TrimSpace(sortOrder), accessLogSortOrderAsc) {
+		return accessLogSortOrderAsc
 	}
 	return defaultAccessLogSortOrder
 }

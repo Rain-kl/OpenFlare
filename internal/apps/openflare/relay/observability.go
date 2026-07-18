@@ -47,7 +47,7 @@ func reconcileRelayHealthEvents(ctx context.Context, nodeID string, relayStatus 
 func persistRelayHeartbeatObservability(ctx context.Context, nodeID string, payload HeartbeatPayload, reportedAt time.Time) {
 	agent.PersistHeartbeatObservability(ctx, nodeID, agent.NodePayload{
 		Profile:      payload.Profile,
-		Snapshot:     payload.Snapshot,
+		HostMetrics:  payload.Snapshot,
 		HealthEvents: payload.HealthEvents,
 	}, reportedAt)
 

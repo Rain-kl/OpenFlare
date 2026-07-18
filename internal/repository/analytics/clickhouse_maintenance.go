@@ -17,9 +17,7 @@ const (
 	TableTTLDaysNodeAccessLogs = 90
 	// TableTTLDaysNodeMetricSnapshots is the of_node_metric_snapshots TTL (30 days).
 	TableTTLDaysNodeMetricSnapshots = 30
-	// TableTTLDaysNodeRequestReports is the of_node_request_reports TTL (30 days).
-	TableTTLDaysNodeRequestReports = 30
-	// TableTTLDaysNodeObs is the of_node_obs_* TTL (30 days).
+	// TableTTLDaysNodeObs is the of_node_edge_health / of_node_obs_frps / of_node_obs_frpc TTL (30 days).
 	TableTTLDaysNodeObs = 30
 	// TableTTLDaysUserAccessLogs is the w_user_access_logs TTL (180 days).
 	TableTTLDaysUserAccessLogs = 180

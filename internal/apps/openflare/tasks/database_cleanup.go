@@ -20,10 +20,8 @@ const (
 	DatabaseCleanupTargetAccessLogs = "node_access_logs"
 	// DatabaseCleanupTargetMetricSnapshots is the API cleanup target for metric snapshots.
 	DatabaseCleanupTargetMetricSnapshots = "node_metric_snapshots"
-	// DatabaseCleanupTargetRequestReports is the API cleanup target for request reports.
-	DatabaseCleanupTargetRequestReports = "node_request_reports"
-	// DatabaseCleanupTargetObsOpenresty is the API cleanup target for OpenResty observations.
-	DatabaseCleanupTargetObsOpenresty = "node_obs_openresty"
+	// DatabaseCleanupTargetEdgeHealth is the API cleanup target for OpenResty edge health (connections).
+	DatabaseCleanupTargetEdgeHealth = "node_edge_health"
 	// DatabaseCleanupTargetObsFrps is the API cleanup target for FRPS observations.
 	DatabaseCleanupTargetObsFrps = "node_obs_frps"
 	// DatabaseCleanupTargetObsFrpc is the API cleanup target for FRPC observations.
@@ -33,8 +31,7 @@ const (
 var databaseCleanupTargets = map[string]string{
 	DatabaseCleanupTargetAccessLogs:      "访问日志",
 	DatabaseCleanupTargetMetricSnapshots: "性能快照",
-	DatabaseCleanupTargetRequestReports:  "请求聚合",
-	DatabaseCleanupTargetObsOpenresty:    "OpenResty 观测",
+	DatabaseCleanupTargetEdgeHealth:      "OpenResty 健康(连接)",
 	DatabaseCleanupTargetObsFrps:         "FRPS 观测",
 	DatabaseCleanupTargetObsFrpc:         "FRPC 观测",
 }
@@ -43,8 +40,7 @@ var databaseCleanupTargets = map[string]string{
 var databaseCleanupTableTTLDays = map[string]int{
 	DatabaseCleanupTargetAccessLogs:      analyticsrepo.TableTTLDaysNodeAccessLogs,
 	DatabaseCleanupTargetMetricSnapshots: analyticsrepo.TableTTLDaysNodeMetricSnapshots,
-	DatabaseCleanupTargetRequestReports:  analyticsrepo.TableTTLDaysNodeRequestReports,
-	DatabaseCleanupTargetObsOpenresty:    analyticsrepo.TableTTLDaysNodeObs,
+	DatabaseCleanupTargetEdgeHealth:      analyticsrepo.TableTTLDaysNodeObs,
 	DatabaseCleanupTargetObsFrps:         analyticsrepo.TableTTLDaysNodeObs,
 	DatabaseCleanupTargetObsFrpc:         analyticsrepo.TableTTLDaysNodeObs,
 }
@@ -165,8 +161,7 @@ func RunDatabaseAutoCleanupOnce(ctx context.Context, now time.Time) (*DatabaseAu
 	for _, target := range []string{
 		DatabaseCleanupTargetAccessLogs,
 		DatabaseCleanupTargetMetricSnapshots,
-		DatabaseCleanupTargetRequestReports,
-		DatabaseCleanupTargetObsOpenresty,
+		DatabaseCleanupTargetEdgeHealth,
 		DatabaseCleanupTargetObsFrps,
 		DatabaseCleanupTargetObsFrpc,
 	} {
@@ -201,10 +196,8 @@ func deleteAllObservabilityRows(ctx context.Context, target string) (int64, stri
 		deleted, err = model.DeleteAllOpenFlareAccessLogs(ctx)
 	case DatabaseCleanupTargetMetricSnapshots:
 		deleted, err = model.DeleteAllOpenFlareMetricSnapshots(ctx)
-	case DatabaseCleanupTargetRequestReports:
-		deleted, err = model.DeleteAllOpenFlareRequestReports(ctx)
-	case DatabaseCleanupTargetObsOpenresty:
-		deleted, err = model.DeleteAllOpenFlareNodeObservationOpenresty(ctx)
+	case DatabaseCleanupTargetEdgeHealth:
+		deleted, err = model.DeleteAllOpenFlareEdgeHealth(ctx)
 	case DatabaseCleanupTargetObsFrps:
 		deleted, err = model.DeleteAllOpenFlareNodeObservationFrps(ctx)
 	case DatabaseCleanupTargetObsFrpc:
@@ -236,10 +229,8 @@ func materializeObservabilityTableTTL(ctx context.Context, target string) (int64
 		eligible, err = model.DeleteOpenFlareAccessLogsBefore(ctx, cutoff)
 	case DatabaseCleanupTargetMetricSnapshots:
 		eligible, err = model.DeleteOpenFlareMetricSnapshotsBefore(ctx, cutoff)
-	case DatabaseCleanupTargetRequestReports:
-		eligible, err = model.DeleteOpenFlareRequestReportsBefore(ctx, cutoff)
-	case DatabaseCleanupTargetObsOpenresty:
-		eligible, err = model.DeleteOpenFlareNodeObservationOpenrestyBefore(ctx, cutoff)
+	case DatabaseCleanupTargetEdgeHealth:
+		eligible, err = model.DeleteOpenFlareEdgeHealthBefore(ctx, cutoff)
 	case DatabaseCleanupTargetObsFrps:
 		eligible, err = model.DeleteOpenFlareNodeObservationFrpsBefore(ctx, cutoff)
 	case DatabaseCleanupTargetObsFrpc:

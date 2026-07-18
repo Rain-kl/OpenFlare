@@ -35,23 +35,6 @@ func TestListLatestNodeMetricSnapshots_UsesLimit1ByNodeID(t *testing.T) {
 	assert.Equal(t, since, mock.queryArgs[0][0])
 }
 
-func TestListLatestNodeRequestReports_UsesLimit1ByNodeID(t *testing.T) {
-	ctx := context.Background()
-	mock := &mockConn{}
-	db.SetChConnForTest(mock)
-	t.Cleanup(func() { db.SetChConnForTest(nil) })
-
-	_, err := ListLatestNodeRequestReports(ctx, NodeObservabilityFilter{NodeID: "node-a"})
-	require.NoError(t, err)
-	require.Len(t, mock.queries, 1)
-	assert.Contains(t, mock.queries[0], "LIMIT 1 BY node_id")
-	assert.Contains(t, mock.queries[0], nodeRequestReportTableName())
-	assert.Contains(t, mock.queries[0], "window_ended_at DESC")
-	require.Len(t, mock.queryArgs, 1)
-	require.Len(t, mock.queryArgs[0], 1)
-	assert.Equal(t, "node-a", mock.queryArgs[0][0])
-}
-
 func TestListNodeMetricHourly_PrefersRollup(t *testing.T) {
 	ctx := context.Background()
 	hour := time.Date(2026, 7, 10, 12, 0, 0, 0, time.UTC)
@@ -168,57 +151,5 @@ func TestListNodeMetricHourly_FallsBackToRawOnRollupError(t *testing.T) {
 	assert.Equal(t, int64(3), rows[0].DiskReadBytes)
 	require.GreaterOrEqual(t, len(mock.queries), 2)
 	assert.Contains(t, mock.queries[0], nodeMetricCapacityHourlyTableName())
-	assert.Contains(t, mock.queries[1], "lagInFrame")
-}
-
-func TestListNodeOpenrestyHourly_PrefersRollup(t *testing.T) {
-	ctx := context.Background()
-	hour := time.Date(2026, 7, 10, 14, 0, 0, 0, time.UTC)
-	since := hour.Add(-1 * time.Hour)
-	mock := &mockConn{
-		queryFn: func(_ context.Context, query string, _ ...any) (driver.Rows, error) {
-			if strings.Contains(query, nodeOpenrestyHourlyTableName()) {
-				return &mockRows{data: [][]any{{
-					hour, int64(50), int64(70), uint64(3),
-				}}}, nil
-			}
-			return nil, errors.New("raw path should not be used when rollup covers the window")
-		},
-	}
-	db.SetChConnForTest(mock)
-	t.Cleanup(func() { db.SetChConnForTest(nil) })
-
-	rows, err := ListNodeOpenrestyHourly(ctx, NodeObservabilityFilter{Since: since})
-	require.NoError(t, err)
-	require.Len(t, rows, 1)
-	assert.Equal(t, int64(50), rows[0].OpenrestyRxBytes)
-	assert.Equal(t, int64(70), rows[0].OpenrestyTxBytes)
-	assert.Equal(t, 3, rows[0].ReportedNodes)
-}
-
-func TestListNodeOpenrestyHourly_FallsBackToRawOnEmptyRollup(t *testing.T) {
-	ctx := context.Background()
-	hour := time.Date(2026, 7, 10, 15, 0, 0, 0, time.UTC)
-	mock := &mockConn{
-		queryFn: func(_ context.Context, query string, _ ...any) (driver.Rows, error) {
-			if strings.Contains(query, nodeOpenrestyHourlyTableName()) {
-				return &mockRows{}, nil
-			}
-			if strings.Contains(query, nodeObsOpenrestyTableName()) {
-				return &mockRows{data: [][]any{{
-					hour, int64(9), int64(8), uint64(1),
-				}}}, nil
-			}
-			return &mockRows{}, nil
-		},
-	}
-	db.SetChConnForTest(mock)
-	t.Cleanup(func() { db.SetChConnForTest(nil) })
-
-	rows, err := ListNodeOpenrestyHourly(ctx, NodeObservabilityFilter{})
-	require.NoError(t, err)
-	require.Len(t, rows, 1)
-	assert.Equal(t, int64(9), rows[0].OpenrestyRxBytes)
-	require.GreaterOrEqual(t, len(mock.queries), 2)
 	assert.Contains(t, mock.queries[1], "lagInFrame")
 }

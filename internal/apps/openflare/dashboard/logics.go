@@ -122,16 +122,7 @@ func buildOverviewView(ctx context.Context) (*OverviewView, error) {
 	if err != nil {
 		return nil, err
 	}
-	latestTrafficRows, err := model.ListOpenFlareLatestRequestReportsSince(ctx, "", since)
-	if err != nil {
-		return nil, err
-	}
-	// Bounded raw windows remain for distributions and trend fallbacks; trends prefer hourly rollups.
 	snapshots, err := model.ListOpenFlareMetricSnapshotsSince(ctx, "", since, dashboardOverviewSnapshotLimit)
-	if err != nil {
-		return nil, err
-	}
-	reports, err := model.ListOpenFlareRequestReportsSince(ctx, "", since, dashboardOverviewSnapshotLimit)
 	if err != nil {
 		return nil, err
 	}
@@ -143,21 +134,48 @@ func buildOverviewView(ctx context.Context) (*OverviewView, error) {
 	if err != nil {
 		return nil, err
 	}
-	openrestySnapshots, err := model.ListOpenFlareNodeObservationOpenresty(ctx, "", since, dashboardOverviewSnapshotLimit)
-	if err != nil {
-		return nil, err
-	}
+
+	// L1 business: trends + distributions + totals from access logs only.
 	view := &OverviewView{
-		GeneratedAt:   now,
-		Nodes:         make([]NodeHealth, 0, len(nodes)),
-		Distributions: observability.BuildTrafficDistributions(reports, accessLogRegions, dashboardDistributionLimit),
-		Trends:        observability.BuildNodeTrends(ctx, now, "", snapshots, openrestySnapshots, reports),
+		GeneratedAt: now,
+		Nodes:       make([]NodeHealth, 0, len(nodes)),
+		Distributions: observability.BuildTrafficDistributionsFromAccessLogs(
+			ctx, since, now, dashboardDistributionLimit, accessLogRegions,
+		),
+		Trends: observability.BuildNodeTrends(ctx, now, "", snapshots),
+	}
+
+	// Global traffic summary uses true window uniqExact for UV (not sum of hourly uniques).
+	if summary, sumErr := model.TrafficSummaryOpenFlareAccessLogs(ctx, model.OpenFlareAccessLogQuery{
+		Since: since,
+		Until: now,
+	}); sumErr == nil {
+		view.Traffic.RequestCount = summary.RequestCount
+		view.Traffic.ErrorCount = summary.ErrorCount
+		view.Traffic.UniqueVisitors = summary.UniqueIPCount
+		view.Traffic.ReportedNodes = int(summary.NodeCount)
+		if summary.RequestCount > 0 {
+			// Average QPS over the 24h window.
+			view.Traffic.EstimatedQPS = float64(summary.RequestCount) / (24 * 3600)
+		}
+	} else {
+		// Fallback: sum hourly request/error buckets only (UV left from summary path).
+		applyTrafficTotalsFromTrend(&view.Traffic, view.Trends.Traffic24h)
+	}
+
+	nodeTraffic := map[string]model.OpenFlareAccessLogNodeAggregate{}
+	if aggregates, aggErr := model.NodeAggregatesOpenFlareAccessLogs(ctx, model.OpenFlareAccessLogQuery{
+		Since: since,
+		Until: now,
+	}); aggErr == nil {
+		for _, row := range aggregates {
+			nodeTraffic[row.NodeID] = row
+		}
 	}
 
 	var cpuNodeCount int
 	var memoryNodeCount int
 	latestSnapshots := observability.LatestMetricSnapshotsByNode(latestSnapshotRows)
-	latestTrafficReports := observability.LatestTrafficReportsByNode(latestTrafficRows)
 	activeEventsByNode := observability.ActiveHealthEventsByNode(activeEvents)
 
 	for _, node := range nodes {
@@ -175,7 +193,6 @@ func buildOverviewView(ctx context.Context) (*OverviewView, error) {
 		}
 
 		latestSnapshot := latestSnapshots[node.NodeID]
-		latestTraffic := latestTrafficReports[node.NodeID]
 		nodeActiveEvents := activeEventsByNode[node.NodeID]
 
 		nodeHealth := NodeHealth{
@@ -193,13 +210,14 @@ func buildOverviewView(ctx context.Context) (*OverviewView, error) {
 		}
 
 		cpuNodeCount, memoryNodeCount = applyNodeSnapshotMetrics(&nodeHealth, latestSnapshot, view, cpuNodeCount, memoryNodeCount)
-		applyNodeTrafficMetrics(&nodeHealth, latestTraffic)
+		if agg, ok := nodeTraffic[node.NodeID]; ok {
+			nodeHealth.RequestCount = agg.RequestCount
+			nodeHealth.ErrorCount = agg.ErrorCount
+			nodeHealth.UniqueVisitorCount = agg.UniqueIPCount
+		}
 
 		view.Nodes = append(view.Nodes, nodeHealth)
 	}
-
-	applyTrafficTotalsFromTrend(&view.Traffic, view.Trends.Traffic24h)
-	applyTrafficRuntimeMetrics(&view.Traffic, latestTrafficReports)
 
 	view.Summary.TotalNodes = len(nodes)
 	if cpuNodeCount > 0 {
@@ -246,43 +264,19 @@ func applyNodeSnapshotMetrics(nodeHealth *NodeHealth, snapshot *model.OpenFlareM
 	return cpuNodeCount, memoryNodeCount
 }
 
-func applyNodeTrafficMetrics(nodeHealth *NodeHealth, traffic *model.OpenFlareRequestReport) {
-	if traffic == nil {
-		return
-	}
-	nodeHealth.RequestCount = traffic.RequestCount
-	nodeHealth.ErrorCount = traffic.ErrorCount
-	nodeHealth.UniqueVisitorCount = traffic.UniqueVisitorCount
-}
-
 func applyTrafficTotalsFromTrend(traffic *Traffic, points []observability.TrafficTrendPoint) {
 	if traffic == nil {
 		return
 	}
 	traffic.RequestCount = 0
 	traffic.ErrorCount = 0
+	// Do not sum hourly unique visitors — that overcounts. UV must come from TrafficSummary.
 	for _, point := range points {
 		traffic.RequestCount += point.RequestCount
 		traffic.ErrorCount += point.ErrorCount
 	}
-}
-
-func applyTrafficRuntimeMetrics(traffic *Traffic, latestReports map[string]*model.OpenFlareRequestReport) {
-	if traffic == nil {
-		return
-	}
-	traffic.UniqueVisitors = 0
-	traffic.EstimatedQPS = 0
-	traffic.ReportedNodes = 0
-	for _, report := range latestReports {
-		if report == nil {
-			continue
-		}
-		traffic.UniqueVisitors += report.UniqueVisitorCount
-		traffic.ReportedNodes++
-		if duration := report.WindowEndedAt.Sub(report.WindowStartedAt).Seconds(); duration > 0 {
-			traffic.EstimatedQPS += float64(report.RequestCount) / duration
-		}
+	if traffic.RequestCount > 0 && traffic.ReportedNodes == 0 {
+		traffic.ReportedNodes = 1
 	}
 }
 
@@ -360,12 +354,14 @@ func compressCapacityTrendPoints(points []observability.CapacityTrendPoint) [][]
 func compressNetworkTrendPoints(points []observability.NetworkTrendPoint) [][]any {
 	rows := make([][]any, 0, len(points))
 	for _, point := range points {
+		// Compact layout (stable positions):
+		// [0] bucket, [1] host_rx, [2] host_tx, [3] bytes_received, [4] bytes_provided, [5] reported_nodes
 		rows = append(rows, []any{
 			point.BucketStartedAt,
 			point.NetworkRxBytes,
 			point.NetworkTxBytes,
-			point.OpenrestyRxBytes,
-			point.OpenrestyTxBytes,
+			point.BytesReceived,
+			point.BytesProvided,
 			point.ReportedNodes,
 		})
 	}

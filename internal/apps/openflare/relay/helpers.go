@@ -16,7 +16,7 @@ const (
 	relayStatusUnhealthy = "unhealthy"
 	releaseChannelStable = "stable"
 
-	defaultAgentHeartbeatInterval = 10000 // 默认心跳间隔 10 秒（毫秒）
+	defaultAgentHeartbeatInterval = 3000 // 默认心跳间隔 3 秒（毫秒）
 	defaultAgentUpdateRepo        = "Rain-kl/OpenFlare"
 )
 

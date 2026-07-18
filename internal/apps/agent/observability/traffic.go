@@ -6,10 +6,8 @@ import (
 	"errors"
 	"io"
 	"log/slog"
-	"net/http"
 	"os"
 	"regexp"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -20,63 +18,42 @@ import (
 )
 
 type accessLogRecord struct {
-	Timestamp     string `json:"ts"`
-	Host          string `json:"host"`
-	RemoteAddr    string `json:"remote_addr"`
-	Path          string `json:"path"`
-	Status        int    `json:"status"`
-	BytesSent     int64  `json:"bytes_sent"`
-	RequestLength int64  `json:"request_length"`
+	Timestamp     string  `json:"ts"`
+	Host          string  `json:"host"`
+	RemoteAddr    string  `json:"remote_addr"`
+	Path          string  `json:"path"`
+	Status        int     `json:"status"`
+	BytesSent     int64   `json:"bytes_sent"`
+	RequestLength int64   `json:"request_length"`
+	RequestTime   float64 `json:"request_time"`
 }
 
 const (
 	combinedAccessLogMatchGroupCount = 5
-	trafficTopDomainsLimit           = 8
+	// requestTimeSecondsToMs converts OpenResty $request_time (seconds float) to ms.
+	requestTimeSecondsToMs = 1000.0
+	// roundHalfUp is added before int64 truncate to round to nearest millisecond.
+	roundHalfUp = 0.5
 )
 
 var combinedAccessLogPattern = regexp.MustCompile(`^(\S+)\s+\S+\s+\S+\s+\[([^]]+)]\s+"\S+\s+(\S+)(?:\s+[^"]*)?"\s+(\d{3})\s+\S+`)
 
+// trafficAggregate collects access-log facts for the current heartbeat window.
+// Pre-aggregation (UV/TopN/TrafficReport) is intentionally not built.
 type trafficAggregate struct {
-	windowStartedAt  time.Time
-	windowEndedAt    time.Time
-	requestCount     int64
-	errorCount       int64
-	openrestyRxBytes int64
-	openrestyTxBytes int64
-	statusCodes      map[string]int64
-	topDomains       map[string]int64
-	visitors         map[string]struct{}
-	logs             []protocol.NodeAccessLog
+	logs []protocol.NodeAccessLog
 }
 
-// BuildTrafficReport generates a traffic report using access logs or falling back to managed metrics.
-func BuildTrafficReport(cfg *config.Config, stateStore *state.Store, managed *ManagedOpenRestyMetrics) *protocol.NodeTrafficReport {
-	report, _, _ := BuildTrafficObservability(cfg, stateStore, managed)
-	return report
-}
-
-// BuildTrafficObservability returns the traffic report, parsed access logs, and managed metrics.
-func BuildTrafficObservability(cfg *config.Config, stateStore *state.Store, managed *ManagedOpenRestyMetrics) (*protocol.NodeTrafficReport, []protocol.NodeAccessLog, *ManagedOpenRestyMetrics) {
+// CollectAccessLogs tails access.log and returns L1 fact rows for the current heartbeat.
+func CollectAccessLogs(cfg *config.Config, stateStore *state.Store) []protocol.NodeAccessLog {
 	if cfg == nil || stateStore == nil {
-		if managed != nil && managed.TrafficReport != nil {
-			return managed.TrafficReport, nil, managed
-		}
-		return nil, nil, managed
+		return nil
 	}
-
 	aggregate := readAccessLogDelta(cfg, stateStore)
-	var accessLogs []protocol.NodeAccessLog
-	if aggregate != nil {
-		accessLogs = aggregate.accessLogs()
-	}
-	if managed != nil && managed.TrafficReport != nil {
-		return managed.TrafficReport, accessLogs, managed
-	}
 	if aggregate == nil {
-		return nil, accessLogs, managed
+		return nil
 	}
-	fallbackManaged := aggregate.managedMetrics()
-	return aggregate.report(), accessLogs, fallbackManaged
+	return aggregate.accessLogs()
 }
 
 func readAccessLogDelta(cfg *config.Config, stateStore *state.Store) *trafficAggregate {
@@ -149,11 +126,7 @@ func managedAccessLogPath(cfg *config.Config) string {
 }
 
 func newTrafficAggregate() *trafficAggregate {
-	return &trafficAggregate{
-		statusCodes: make(map[string]int64),
-		topDomains:  make(map[string]int64),
-		visitors:    make(map[string]struct{}),
-	}
+	return &trafficAggregate{}
 }
 
 func (aggregate *trafficAggregate) consume(line []byte) {
@@ -167,39 +140,15 @@ func (aggregate *trafficAggregate) consume(line []byte) {
 		return
 	}
 
-	if aggregate.windowStartedAt.IsZero() || record.Timestamp.Before(aggregate.windowStartedAt) {
-		aggregate.windowStartedAt = record.Timestamp
-	}
-	if aggregate.windowEndedAt.IsZero() || record.Timestamp.After(aggregate.windowEndedAt) {
-		aggregate.windowEndedAt = record.Timestamp
-	}
-
-	aggregate.requestCount++
-	if record.Status >= http.StatusInternalServerError {
-		aggregate.errorCount++
-	}
-	if record.Status > 0 {
-		aggregate.statusCodes[strconv.Itoa(record.Status)]++
-	}
-	if record.RequestLength > 0 {
-		aggregate.openrestyRxBytes += record.RequestLength
-	}
-	if record.BytesSent > 0 {
-		aggregate.openrestyTxBytes += record.BytesSent
-	}
-	if host := strings.TrimSpace(record.Host); host != "" {
-		aggregate.topDomains[host]++
-	}
-	if remoteAddr := strings.TrimSpace(record.RemoteAddr); remoteAddr != "" {
-		aggregate.visitors[remoteAddr] = struct{}{}
-	}
 	aggregate.logs = append(aggregate.logs, protocol.NodeAccessLog{
-		LoggedAtUnix: record.Timestamp.Unix(),
-		RemoteAddr:   strings.TrimSpace(record.RemoteAddr),
-		Host:         strings.TrimSpace(record.Host),
-		Path:         normalizeAccessLogPath(record.Path),
-		StatusCode:   record.Status,
-		BytesSent:    record.BytesSent,
+		LoggedAtUnix:  record.Timestamp.Unix(),
+		RemoteAddr:    strings.TrimSpace(record.RemoteAddr),
+		Host:          strings.TrimSpace(record.Host),
+		Path:          normalizeAccessLogPath(record.Path),
+		StatusCode:    record.Status,
+		BytesSent:     record.BytesSent,
+		RequestLength: record.RequestLength,
+		RequestTimeMs: record.RequestTimeMs,
 	})
 }
 
@@ -211,6 +160,7 @@ type parsedAccessLogRecord struct {
 	Status        int
 	BytesSent     int64
 	RequestLength int64
+	RequestTimeMs int64
 }
 
 func parseAccessLogRecord(raw string) (parsedAccessLogRecord, bool) {
@@ -230,6 +180,10 @@ func parseJSONAccessLogRecord(raw string) (parsedAccessLogRecord, bool) {
 	if err != nil {
 		return parsedAccessLogRecord{}, false
 	}
+	requestTimeMs := int64(0)
+	if record.RequestTime > 0 {
+		requestTimeMs = int64(record.RequestTime*requestTimeSecondsToMs + roundHalfUp)
+	}
 	return parsedAccessLogRecord{
 		Timestamp:     timestamp,
 		Host:          strings.TrimSpace(record.Host),
@@ -238,6 +192,7 @@ func parseJSONAccessLogRecord(raw string) (parsedAccessLogRecord, bool) {
 		Status:        record.Status,
 		BytesSent:     record.BytesSent,
 		RequestLength: record.RequestLength,
+		RequestTimeMs: requestTimeMs,
 	}, true
 }
 
@@ -262,43 +217,11 @@ func parseCombinedAccessLogRecord(raw string) (parsedAccessLogRecord, bool) {
 	}, true
 }
 
-func (aggregate *trafficAggregate) report() *protocol.NodeTrafficReport {
-	if aggregate.requestCount == 0 || aggregate.windowStartedAt.IsZero() || aggregate.windowEndedAt.IsZero() {
-		return nil
-	}
-
-	return &protocol.NodeTrafficReport{
-		WindowStartedAtUnix: aggregate.windowStartedAt.Unix(),
-		WindowEndedAtUnix:   aggregate.windowEndedAt.Unix(),
-		RequestCount:        aggregate.requestCount,
-		ErrorCount:          aggregate.errorCount,
-		UniqueVisitorCount:  int64(len(aggregate.visitors)),
-		StatusCodes:         cloneTrafficCounts(aggregate.statusCodes, 0),
-		TopDomains:          topCounts(aggregate.topDomains, trafficTopDomainsLimit),
-		SourceCountries:     map[string]int64{},
-	}
-}
-
 func (aggregate *trafficAggregate) accessLogs() []protocol.NodeAccessLog {
 	if aggregate == nil || len(aggregate.logs) == 0 {
 		return []protocol.NodeAccessLog{}
 	}
 	return append([]protocol.NodeAccessLog(nil), aggregate.logs...)
-}
-
-func (aggregate *trafficAggregate) managedMetrics() *ManagedOpenRestyMetrics {
-	if aggregate == nil {
-		return nil
-	}
-	report := aggregate.report()
-	if report == nil && aggregate.openrestyRxBytes <= 0 && aggregate.openrestyTxBytes <= 0 {
-		return nil
-	}
-	return &ManagedOpenRestyMetrics{
-		TrafficReport:    report,
-		OpenrestyRxBytes: aggregate.openrestyRxBytes,
-		OpenrestyTxBytes: aggregate.openrestyTxBytes,
-	}
 }
 
 func parseAccessLogTime(value string) (time.Time, error) {
@@ -311,35 +234,6 @@ func parseAccessLogTime(value string) (time.Time, error) {
 		return timestamp, nil
 	}
 	return time.Parse("02/Jan/2006:15:04:05 -0700", trimmed)
-}
-
-func cloneTrafficCounts(values map[string]int64, limit int) map[string]int64 {
-	if len(values) == 0 {
-		return map[string]int64{}
-	}
-	items := make([]trafficCountItem, 0, len(values))
-	for key, value := range values {
-		items = append(items, trafficCountItem{key: key, value: value})
-	}
-	sort.Slice(items, func(i int, j int) bool {
-		if items[i].value == items[j].value {
-			return items[i].key < items[j].key
-		}
-		return items[i].value > items[j].value
-	})
-	if limit > 0 && len(items) > limit {
-		items = items[:limit]
-	}
-	result := make(map[string]int64, len(items))
-	for _, item := range items {
-		result[item.key] = item.value
-	}
-	return result
-}
-
-type trafficCountItem struct {
-	key   string
-	value int64
 }
 
 const accessLogPathMaxRunes = 100
@@ -364,8 +258,4 @@ func truncateAccessLogPath(value string) string {
 		return value
 	}
 	return string(runes[:accessLogPathMaxRunes])
-}
-
-func topCounts(values map[string]int64, limit int) map[string]int64 {
-	return cloneTrafficCounts(values, limit)
 }

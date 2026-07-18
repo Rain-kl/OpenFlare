@@ -4,48 +4,37 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
-	"regexp"
-	"strconv"
-	"strings"
 	"time"
 
 	"github.com/Rain-kl/Wavelet/internal/apps/agent/config"
-	"github.com/Rain-kl/Wavelet/internal/apps/agent/protocol"
 )
 
-const (
-	openRestyObservabilityPath      = "/openflare/observability"
-	openRestyStubStatusPath         = "/openflare/stub_status"
-	stubStatusActiveMatchGroupCount = 2
-)
+const openRestyObservabilityPath = "/openflare/observability"
 
-var stubStatusActivePattern = regexp.MustCompile(`Active connections:\s+(\d+)`)
-
-// ManagedOpenRestyMetrics holds metrics collected from the local OpenResty instance.
-type ManagedOpenRestyMetrics struct {
-	TrafficReport        *protocol.NodeTrafficReport
-	OpenrestyRxBytes     int64
-	OpenrestyTxBytes     int64
-	OpenrestyConnections int64
+// EdgeHealthSnapshot is the L2 OpenResty health probe result.
+type EdgeHealthSnapshot struct {
+	OK             bool
+	CapturedAtUnix int64
+	Connections    int64
+	Reading        int64
+	Writing        int64
+	Waiting        int64
 }
 
 type openRestyObservabilityResponse struct {
-	WindowStartedAtUnix int64            `json:"window_started_at_unix"`
-	WindowEndedAtUnix   int64            `json:"window_ended_at_unix"`
-	RequestCount        int64            `json:"request_count"`
-	ErrorCount          int64            `json:"error_count"`
-	UniqueVisitorCount  int64            `json:"unique_visitor_count"`
-	StatusCodes         map[string]int64 `json:"status_codes"`
-	TopDomains          map[string]int64 `json:"top_domains"`
-	SourceCountries     map[string]int64 `json:"source_countries"`
-	OpenrestyRxBytes    int64            `json:"openresty_rx_bytes"`
-	OpenrestyTxBytes    int64            `json:"openresty_tx_bytes"`
+	OK             bool  `json:"ok"`
+	CapturedAtUnix int64 `json:"captured_at_unix"`
+	Connections    struct {
+		Active  int64 `json:"active"`
+		Reading int64 `json:"reading"`
+		Writing int64 `json:"writing"`
+		Waiting int64 `json:"waiting"`
+	} `json:"connections"`
 }
 
-// CollectManagedOpenRestyMetrics collects metrics from the local OpenResty observability endpoints.
-func CollectManagedOpenRestyMetrics(ctx context.Context, cfg *config.Config) *ManagedOpenRestyMetrics {
+// CollectEdgeHealth probes the local OpenResty observability JSON endpoint.
+func CollectEdgeHealth(ctx context.Context, cfg *config.Config) *EdgeHealthSnapshot {
 	if cfg == nil || cfg.OpenrestyObservabilityPort <= 0 {
 		return nil
 	}
@@ -53,31 +42,23 @@ func CollectManagedOpenRestyMetrics(ctx context.Context, cfg *config.Config) *Ma
 	baseURL := fmt.Sprintf("http://127.0.0.1:%d", cfg.OpenrestyObservabilityPort)
 	client := &http.Client{Timeout: 1500 * time.Millisecond}
 
-	observabilityResp := openRestyObservabilityResponse{}
-	if err := fetchLocalJSON(ctx, client, baseURL+openRestyObservabilityPath, &observabilityResp); err != nil {
+	var resp openRestyObservabilityResponse
+	if err := fetchLocalJSON(ctx, client, baseURL+openRestyObservabilityPath, &resp); err != nil {
 		return nil
 	}
 
-	result := &ManagedOpenRestyMetrics{
-		TrafficReport: &protocol.NodeTrafficReport{
-			WindowStartedAtUnix: observabilityResp.WindowStartedAtUnix,
-			WindowEndedAtUnix:   observabilityResp.WindowEndedAtUnix,
-			RequestCount:        observabilityResp.RequestCount,
-			ErrorCount:          observabilityResp.ErrorCount,
-			UniqueVisitorCount:  observabilityResp.UniqueVisitorCount,
-			StatusCodes:         normalizeCountMap(observabilityResp.StatusCodes),
-			TopDomains:          normalizeCountMap(observabilityResp.TopDomains),
-			SourceCountries:     normalizeCountMap(observabilityResp.SourceCountries),
-		},
-		OpenrestyRxBytes: observabilityResp.OpenrestyRxBytes,
-		OpenrestyTxBytes: observabilityResp.OpenrestyTxBytes,
+	captured := resp.CapturedAtUnix
+	if captured <= 0 {
+		captured = time.Now().UTC().Unix()
 	}
-
-	if text, err := fetchLocalText(ctx, client, baseURL+openRestyStubStatusPath); err == nil {
-		result.OpenrestyConnections = parseStubStatusActiveConnections(text)
+	return &EdgeHealthSnapshot{
+		OK:             resp.OK,
+		CapturedAtUnix: captured,
+		Connections:    resp.Connections.Active,
+		Reading:        resp.Connections.Reading,
+		Writing:        resp.Connections.Writing,
+		Waiting:        resp.Connections.Waiting,
 	}
-
-	return result
 }
 
 func fetchLocalJSON(ctx context.Context, client *http.Client, url string, target any) error {
@@ -94,51 +75,4 @@ func fetchLocalJSON(ctx context.Context, client *http.Client, url string, target
 		return fmt.Errorf("unexpected local observability status: %s", resp.Status)
 	}
 	return json.NewDecoder(resp.Body).Decode(target)
-}
-
-func fetchLocalText(ctx context.Context, client *http.Client, url string) (string, error) {
-	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
-	if err != nil {
-		return "", err
-	}
-	resp, err := client.Do(req)
-	if err != nil {
-		return "", err
-	}
-	defer func() { _ = resp.Body.Close() }()
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("unexpected local stub status: %s", resp.Status)
-	}
-	data, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return "", err
-	}
-	return string(data), nil
-}
-
-func parseStubStatusActiveConnections(raw string) int64 {
-	matches := stubStatusActivePattern.FindStringSubmatch(raw)
-	if len(matches) != stubStatusActiveMatchGroupCount {
-		return 0
-	}
-	value, err := strconv.ParseInt(matches[1], 10, 64)
-	if err != nil {
-		return 0
-	}
-	return value
-}
-
-func normalizeCountMap(values map[string]int64) map[string]int64 {
-	if len(values) == 0 {
-		return map[string]int64{}
-	}
-	result := make(map[string]int64, len(values))
-	for key, value := range values {
-		key = strings.TrimSpace(key)
-		if key == "" || value <= 0 {
-			continue
-		}
-		result[key] = value
-	}
-	return result
 }

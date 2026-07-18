@@ -11,6 +11,9 @@ import (
 	"path/filepath"
 )
 
+// formatDetectHeadBytes is the sniff window used for archive format detection.
+const formatDetectHeadBytes = 512
+
 // ExtractOptions controls package extraction.
 type ExtractOptions struct {
 	// Limits bounds files and sizes during extraction when EnforceLimits is true.
@@ -55,7 +58,7 @@ func ExtractFile(filePath string, format Format, destDir string, opts ExtractOpt
 		return err
 	}
 	if format == "" {
-		head := make([]byte, 512)
+		head := make([]byte, formatDetectHeadBytes)
 		n, readErr := file.ReadAt(head, 0)
 		if readErr != nil && readErr != io.EOF {
 			return readErr

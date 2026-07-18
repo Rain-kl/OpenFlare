@@ -403,11 +403,11 @@ func TestRunnerHeartbeatPayloadIncludesObservabilityExtensions(t *testing.T) {
 	if firstPayload.Profile == nil {
 		t.Fatal("expected first heartbeat payload to include system profile")
 	}
-	if firstPayload.Snapshot == nil {
-		t.Fatal("expected first heartbeat payload to include metric snapshot")
+	if firstPayload.HostMetrics == nil {
+		t.Fatal("expected first heartbeat payload to include host metrics")
 	}
-	if firstPayload.TrafficReport == nil || firstPayload.TrafficReport.RequestCount != 1 {
-		t.Fatalf("expected first heartbeat payload to include traffic report, got %+v", firstPayload.TrafficReport)
+	if firstPayload.SchemaVersion != 2 {
+		t.Fatalf("expected schema_version 2, got %d", firstPayload.SchemaVersion)
 	}
 	if len(firstPayload.AccessLogs) != 1 || firstPayload.AccessLogs[0].Path != "/" {
 		t.Fatalf("expected first heartbeat payload to include access logs, got %+v", firstPayload.AccessLogs)
@@ -420,11 +420,8 @@ func TestRunnerHeartbeatPayloadIncludesObservabilityExtensions(t *testing.T) {
 	if secondPayload.Profile != nil {
 		t.Fatal("expected unchanged profile to be omitted on subsequent heartbeat")
 	}
-	if secondPayload.Snapshot == nil {
-		t.Fatal("expected metric snapshot to continue reporting on subsequent heartbeat")
-	}
-	if secondPayload.TrafficReport != nil {
-		t.Fatalf("expected unchanged traffic window to be omitted on subsequent heartbeat, got %+v", secondPayload.TrafficReport)
+	if secondPayload.HostMetrics == nil {
+		t.Fatal("expected host metrics to continue reporting on subsequent heartbeat")
 	}
 	if len(secondPayload.AccessLogs) != 0 {
 		t.Fatalf("expected unchanged access log delta to be omitted on subsequent heartbeat, got %+v", secondPayload.AccessLogs)
@@ -442,8 +439,8 @@ func TestRunnerReplaysBufferedObservabilityAfterHeartbeatRecovery(t *testing.T) 
 	bufferWindow := nowUnix - (nowUnix % 60) - 60
 	if err := bufferStore.Upsert(state.ObservabilityBufferRecord{
 		WindowStartedAtUnix: bufferWindow,
-		Snapshot:            &protocol.NodeMetricSnapshot{CapturedAtUnix: bufferWindow + 5, CPUUsagePercent: 30},
-		TrafficReport:       &protocol.NodeTrafficReport{WindowStartedAtUnix: bufferWindow, WindowEndedAtUnix: bufferWindow + 60, RequestCount: 8},
+		HostMetrics:         &protocol.NodeMetricSnapshot{CapturedAtUnix: bufferWindow + 5, CPUUsagePercent: 30},
+		EdgeHealth:          &protocol.NodeEdgeHealth{CapturedAtUnix: bufferWindow + 5, Connections: 3, Status: "healthy"},
 		QueuedAtUnix:        bufferWindow + 60,
 	}, 0); err != nil {
 		t.Fatalf("failed to seed observability buffer: %v", err)
@@ -493,11 +490,14 @@ func TestRunnerReplaysBufferedObservabilityAfterHeartbeatRecovery(t *testing.T) 
 		t.Fatalf("expected two heartbeat payloads, got %d", len(heartbeatService.heartbeatPayloads))
 	}
 	secondPayload := heartbeatService.heartbeatPayloads[1]
-	if len(secondPayload.BufferedObservability) != 1 {
-		t.Fatalf("expected second heartbeat to replay one buffered observation, got %+v", secondPayload.BufferedObservability)
+	if len(secondPayload.Buffered) != 1 {
+		t.Fatalf("expected second heartbeat to replay one buffered observation, got %+v", secondPayload.Buffered)
 	}
-	if len(secondPayload.BufferedObservability[0].AccessLogs) != 0 {
-		t.Fatalf("expected seeded buffered observation to keep empty access logs, got %+v", secondPayload.BufferedObservability[0].AccessLogs)
+	if len(secondPayload.Buffered[0].AccessLogs) != 0 {
+		t.Fatalf("expected seeded buffered observation to keep empty access logs, got %+v", secondPayload.Buffered[0].AccessLogs)
+	}
+	if secondPayload.Buffered[0].EdgeHealth == nil || secondPayload.Buffered[0].EdgeHealth.Connections != 3 {
+		t.Fatalf("expected buffered edge health, got %+v", secondPayload.Buffered[0].EdgeHealth)
 	}
 
 	replayable, err := bufferStore.Replayable(0, 0)

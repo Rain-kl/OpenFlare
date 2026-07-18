@@ -17,6 +17,10 @@ const (
 	nodeAccessLogSortAscInput = "asc"
 
 	nodeAccessLogColumnRemoteAddr = "remote_addr"
+	nodeAccessLogColumnStatusCode = "status_code"
+	nodeAccessLogColumnHost       = "host"
+	nodeAccessLogColumnPath       = "path"
+	nodeAccessLogColumnLoggedAt   = "logged_at"
 )
 
 // NodeAccessLogFilter scopes ClickHouse node access log queries.
@@ -88,21 +92,21 @@ func nodeAccessLogOrderClause(sortBy string, sortOrder string) string {
 	if normalizeNodeAccessLogSortOrder(sortOrder) == nodeAccessLogSortAscInput {
 		direction = nodeAccessLogSortAsc
 	}
-	column := "logged_at"
+	column := nodeAccessLogColumnLoggedAt
 	switch strings.TrimSpace(sortBy) {
-	case "status_code":
-		column = "status_code"
+	case nodeAccessLogColumnStatusCode:
+		column = nodeAccessLogColumnStatusCode
 	case nodeAccessLogColumnRemoteAddr:
 		column = nodeAccessLogColumnRemoteAddr
-	case "host":
-		column = "host"
-	case "path":
-		column = "path"
+	case nodeAccessLogColumnHost:
+		column = nodeAccessLogColumnHost
+	case nodeAccessLogColumnPath:
+		column = nodeAccessLogColumnPath
 	}
-	if column == "logged_at" {
+	if column == nodeAccessLogColumnLoggedAt {
 		return column + " " + direction + ", id " + direction
 	}
-	return column + " " + direction + ", logged_at " + direction + ", id " + direction
+	return column + " " + direction + ", " + nodeAccessLogColumnLoggedAt + " " + direction + ", id " + direction
 }
 
 func normalizeNodeAccessLogRemoteAddr(value string) string {

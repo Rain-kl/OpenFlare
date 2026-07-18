@@ -37,40 +37,21 @@ func (OpenFlareMetricSnapshot) TableName() string {
 	return "of_node_metric_snapshots"
 }
 
-// OpenFlareRequestReport stores aggregated traffic windows per node in ClickHouse (database: openflare, table: of_node_request_reports).
-// ClickHouse DDL is managed by goose; reads/writes go through internal/repository/analytics.
-type OpenFlareRequestReport struct {
-	ID                  uint      `json:"id" gorm:"primaryKey;autoIncrement"`
-	NodeID              string    `json:"node_id" gorm:"index;size:64;not null"`
-	WindowStartedAt     time.Time `json:"window_started_at" gorm:"index"`
-	WindowEndedAt       time.Time `json:"window_ended_at" gorm:"index"`
-	RequestCount        int64     `json:"request_count"`
-	ErrorCount          int64     `json:"error_count"`
-	UniqueVisitorCount  int64     `json:"unique_visitor_count"`
-	StatusCodesJSON     string    `json:"status_codes_json" gorm:"type:text"`
-	TopDomainsJSON      string    `json:"top_domains_json" gorm:"type:text"`
-	SourceCountriesJSON string    `json:"source_countries_json" gorm:"type:text"`
-	CreatedAt           time.Time `json:"created_at" gorm:"autoCreateTime"`
-}
-
-// TableName returns the GORM table name.
-func (OpenFlareRequestReport) TableName() string {
-	return "of_node_request_reports"
-}
-
 // OpenFlareAccessLog stores a single access log row in ClickHouse (database: openflare, table: of_node_access_logs).
 // ClickHouse DDL is managed by goose; reads/writes go through internal/repository/analytics.
 type OpenFlareAccessLog struct {
-	ID         uint64    `json:"id,string" gorm:"column:id"`
-	NodeID     string    `json:"node_id" gorm:"index;size:64;not null"`
-	LoggedAt   time.Time `json:"logged_at" gorm:"index"`
-	RemoteAddr string    `json:"remote_addr" gorm:"index;size:128"`
-	Region     string    `json:"region" gorm:"size:128"`
-	Host       string    `json:"host" gorm:"index;size:255"`
-	Path       string    `json:"path" gorm:"size:2048"`
-	StatusCode int       `json:"status_code" gorm:"index"`
-	BytesSent  int64     `json:"bytes_sent" gorm:"column:bytes_sent;not null;default:0"`
-	CreatedAt  time.Time `json:"created_at" gorm:"autoCreateTime"`
+	ID            uint64    `json:"id,string" gorm:"column:id"`
+	NodeID        string    `json:"node_id" gorm:"index;size:64;not null"`
+	LoggedAt      time.Time `json:"logged_at" gorm:"index"`
+	RemoteAddr    string    `json:"remote_addr" gorm:"index;size:128"`
+	Region        string    `json:"region" gorm:"size:128"`
+	Host          string    `json:"host" gorm:"index;size:255"`
+	Path          string    `json:"path" gorm:"size:2048"`
+	StatusCode    int       `json:"status_code" gorm:"index"`
+	BytesSent     int64     `json:"bytes_sent" gorm:"column:bytes_sent;not null;default:0"`
+	RequestLength int64     `json:"request_length" gorm:"column:request_length;not null;default:0"`
+	RequestTimeMs int64     `json:"request_time_ms" gorm:"column:request_time_ms;not null;default:0"`
+	CreatedAt     time.Time `json:"created_at" gorm:"autoCreateTime"`
 }
 
 // TableName returns the GORM table name.
@@ -130,21 +111,19 @@ func (OpenFlareNodeSystemProfile) TableName() string {
 	return "of_node_system_profiles"
 }
 
-// OpenFlareNodeObservationOpenresty stores openresty network observations in ClickHouse (database: openflare, table: of_node_obs_openresty).
-// ClickHouse DDL is managed by goose; reads/writes go through internal/repository/analytics.
-type OpenFlareNodeObservationOpenresty struct {
-	ID                   uint      `json:"id" gorm:"primaryKey;autoIncrement"`
-	NodeID               string    `json:"node_id" gorm:"index;size:64;not null"`
-	CapturedAt           time.Time `json:"captured_at" gorm:"index"`
-	OpenrestyRxBytes     int64     `json:"openresty_rx_bytes"`
-	OpenrestyTxBytes     int64     `json:"openresty_tx_bytes"`
-	OpenrestyConnections int64     `json:"openresty_connections"`
-	CreatedAt            time.Time `json:"created_at" gorm:"autoCreateTime"`
+// OpenFlareEdgeHealth is L2 OpenResty health (of_node_edge_health).
+type OpenFlareEdgeHealth struct {
+	ID          uint      `json:"id"`
+	NodeID      string    `json:"node_id"`
+	CapturedAt  time.Time `json:"captured_at"`
+	Status      string    `json:"status"`
+	Connections int64     `json:"connections"`
+	CreatedAt   time.Time `json:"created_at"`
 }
 
-// TableName returns the GORM table name.
-func (OpenFlareNodeObservationOpenresty) TableName() string {
-	return "of_node_obs_openresty"
+// TableName returns the ClickHouse table name.
+func (OpenFlareEdgeHealth) TableName() string {
+	return "of_node_edge_health"
 }
 
 // OpenFlareNodeObservationFrpc stores tunnel client frpc observations in ClickHouse (database: openflare, table: of_node_obs_frpc).
@@ -223,6 +202,7 @@ type OpenFlareAccessLogBucketRow struct {
 	ClientErrorCount int64 `json:"client_error_count"`
 	ServerErrorCount int64 `json:"server_error_count"`
 	BytesSent        int64 `json:"bytes_sent"`
+	RequestLength    int64 `json:"request_length"`
 }
 
 // OpenFlareAccessLogBucketIPQuery filters folded IP summary queries (v1 stub).
@@ -314,14 +294,9 @@ func InsertOpenFlareMetricSnapshot(ctx context.Context, record *OpenFlareMetricS
 	return currentObservabilityStore().InsertMetricSnapshot(ctx, record)
 }
 
-// InsertOpenFlareRequestReport inserts a request report into ClickHouse.
-func InsertOpenFlareRequestReport(ctx context.Context, record *OpenFlareRequestReport) error {
-	return currentObservabilityStore().InsertRequestReport(ctx, record)
-}
-
-// InsertOpenFlareNodeObservationOpenresty inserts an OpenResty observation into ClickHouse.
-func InsertOpenFlareNodeObservationOpenresty(ctx context.Context, record *OpenFlareNodeObservationOpenresty) error {
-	return currentObservabilityStore().InsertNodeObservationOpenresty(ctx, record)
+// InsertOpenFlareEdgeHealth inserts an L2 edge health snapshot into ClickHouse.
+func InsertOpenFlareEdgeHealth(ctx context.Context, record *OpenFlareEdgeHealth) error {
+	return currentObservabilityStore().InsertEdgeHealth(ctx, record)
 }
 
 // InsertOpenFlareNodeObservationFrps inserts an FRPS observation into ClickHouse.
@@ -357,28 +332,6 @@ func ListOpenFlareLatestMetricSnapshotsSince(ctx context.Context, nodeID string,
 	return openFlareLatestMetricSnapshots(all), nil
 }
 
-// ListOpenFlareRequestReportsSince returns request reports since the given time.
-func ListOpenFlareRequestReportsSince(ctx context.Context, nodeID string, since time.Time, limit int) ([]*OpenFlareRequestReport, error) {
-	return currentObservabilityStore().ListRequestReports(ctx, nodeID, since, limit)
-}
-
-// ListOpenFlareLatestRequestReportsSince returns the latest request report per node.
-// Prefer ClickHouse LIMIT 1 BY; on CH unavailability fall back to store list + reduce.
-func ListOpenFlareLatestRequestReportsSince(ctx context.Context, nodeID string, since time.Time) ([]*OpenFlareRequestReport, error) {
-	rows, err := analyticsrepo.ListLatestNodeRequestReports(ctx, analyticsrepo.NodeObservabilityFilter{
-		NodeID: nodeID,
-		Since:  since,
-	})
-	if err == nil {
-		return fromAnalyticsNodeRequestReports(rows), nil
-	}
-	all, listErr := ListOpenFlareRequestReportsSince(ctx, nodeID, since, 0)
-	if listErr != nil {
-		return nil, err
-	}
-	return openFlareLatestRequestReports(all), nil
-}
-
 func openFlareLatestMetricSnapshots(snapshots []*OpenFlareMetricSnapshot) []*OpenFlareMetricSnapshot {
 	latestByNode := make(map[string]*OpenFlareMetricSnapshot, len(snapshots))
 	for _, snapshot := range snapshots {
@@ -397,24 +350,6 @@ func openFlareLatestMetricSnapshots(snapshots []*OpenFlareMetricSnapshot) []*Ope
 	return result
 }
 
-func openFlareLatestRequestReports(reports []*OpenFlareRequestReport) []*OpenFlareRequestReport {
-	latestByNode := make(map[string]*OpenFlareRequestReport, len(reports))
-	for _, report := range reports {
-		if report == nil || report.NodeID == "" {
-			continue
-		}
-		if existing, ok := latestByNode[report.NodeID]; ok && !report.WindowEndedAt.After(existing.WindowEndedAt) {
-			continue
-		}
-		latestByNode[report.NodeID] = report
-	}
-	result := make([]*OpenFlareRequestReport, 0, len(latestByNode))
-	for _, report := range latestByNode {
-		result = append(result, report)
-	}
-	return result
-}
-
 // OpenFlareTrafficHourly is an hourly traffic rollup row.
 type OpenFlareTrafficHourly struct {
 	NodeID             string    `json:"node_id"`
@@ -425,6 +360,7 @@ type OpenFlareTrafficHourly struct {
 }
 
 // ListOpenFlareTrafficHourlySince returns hourly traffic rollup rows since the given time.
+// Source: of_access_log_hourly (M5).
 func ListOpenFlareTrafficHourlySince(ctx context.Context, nodeID string, since time.Time) ([]*OpenFlareTrafficHourly, error) {
 	rows, err := analyticsrepo.ListNodeTrafficHourly(ctx, analyticsrepo.NodeObservabilityFilter{
 		NodeID: nodeID,
@@ -446,6 +382,41 @@ func ListOpenFlareTrafficHourlySince(ctx context.Context, nodeID string, since t
 	return result, nil
 }
 
+// OpenFlareAccessLogHourly is a per-node/host hourly access log rollup.
+type OpenFlareAccessLogHourly struct {
+	NodeID        string    `json:"node_id"`
+	Hour          time.Time `json:"hour"`
+	Host          string    `json:"host"`
+	RequestCount  int64     `json:"request_count"`
+	ErrorCount    int64     `json:"error_count"`
+	BytesSent     int64     `json:"bytes_sent"`
+	RequestLength int64     `json:"request_length"`
+}
+
+// ListOpenFlareAccessLogHourlySince returns of_access_log_hourly rows since the given time.
+func ListOpenFlareAccessLogHourlySince(ctx context.Context, nodeID string, since time.Time) ([]*OpenFlareAccessLogHourly, error) {
+	rows, err := analyticsrepo.ListAccessLogHourly(ctx, analyticsrepo.NodeObservabilityFilter{
+		NodeID: nodeID,
+		Since:  since,
+	})
+	if err != nil {
+		return nil, err
+	}
+	result := make([]*OpenFlareAccessLogHourly, len(rows))
+	for index, row := range rows {
+		result[index] = &OpenFlareAccessLogHourly{
+			NodeID:        row.NodeID,
+			Hour:          row.Hour,
+			Host:          row.Host,
+			RequestCount:  row.RequestCount,
+			ErrorCount:    row.ErrorCount,
+			BytesSent:     row.BytesSent,
+			RequestLength: row.RequestLength,
+		}
+	}
+	return result, nil
+}
+
 // OpenFlareMetricHourly is an hourly metric snapshot aggregation row.
 type OpenFlareMetricHourly struct {
 	Hour                      time.Time `json:"hour"`
@@ -456,14 +427,6 @@ type OpenFlareMetricHourly struct {
 	DiskReadBytes             int64     `json:"disk_read_bytes"`
 	DiskWriteBytes            int64     `json:"disk_write_bytes"`
 	ReportedNodes             int       `json:"reported_nodes"`
-}
-
-// OpenFlareOpenrestyHourly is an hourly OpenResty observation aggregation row.
-type OpenFlareOpenrestyHourly struct {
-	Hour             time.Time `json:"hour"`
-	OpenrestyRxBytes int64     `json:"openresty_rx_bytes"`
-	OpenrestyTxBytes int64     `json:"openresty_tx_bytes"`
-	ReportedNodes    int       `json:"reported_nodes"`
 }
 
 // ListOpenFlareMetricHourlySince returns hourly metric aggregates since the given time.
@@ -486,27 +449,6 @@ func ListOpenFlareMetricHourlySince(ctx context.Context, nodeID string, since ti
 			DiskReadBytes:             row.DiskReadBytes,
 			DiskWriteBytes:            row.DiskWriteBytes,
 			ReportedNodes:             row.ReportedNodes,
-		}
-	}
-	return result, nil
-}
-
-// ListOpenFlareOpenrestyHourlySince returns hourly OpenResty aggregates since the given time.
-func ListOpenFlareOpenrestyHourlySince(ctx context.Context, nodeID string, since time.Time) ([]*OpenFlareOpenrestyHourly, error) {
-	rows, err := analyticsrepo.ListNodeOpenrestyHourly(ctx, analyticsrepo.NodeObservabilityFilter{
-		NodeID: nodeID,
-		Since:  since,
-	})
-	if err != nil {
-		return nil, err
-	}
-	result := make([]*OpenFlareOpenrestyHourly, len(rows))
-	for index, row := range rows {
-		result[index] = &OpenFlareOpenrestyHourly{
-			Hour:             row.Hour,
-			OpenrestyRxBytes: row.OpenrestyRxBytes,
-			OpenrestyTxBytes: row.OpenrestyTxBytes,
-			ReportedNodes:    row.ReportedNodes,
 		}
 	}
 	return result, nil
@@ -561,24 +503,14 @@ func DeleteAllOpenFlareMetricSnapshots(ctx context.Context) (int64, error) {
 	return currentObservabilityStore().DeleteAllMetricSnapshots(ctx)
 }
 
-// DeleteOpenFlareRequestReportsBefore deletes request reports ending before cutoff.
-func DeleteOpenFlareRequestReportsBefore(ctx context.Context, cutoff time.Time) (int64, error) {
-	return currentObservabilityStore().DeleteRequestReportsBefore(ctx, cutoff)
+// DeleteOpenFlareEdgeHealthBefore deletes edge health rows captured before cutoff.
+func DeleteOpenFlareEdgeHealthBefore(ctx context.Context, cutoff time.Time) (int64, error) {
+	return currentObservabilityStore().DeleteEdgeHealthBefore(ctx, cutoff)
 }
 
-// DeleteAllOpenFlareRequestReports deletes all request reports.
-func DeleteAllOpenFlareRequestReports(ctx context.Context) (int64, error) {
-	return currentObservabilityStore().DeleteAllRequestReports(ctx)
-}
-
-// DeleteOpenFlareNodeObservationOpenrestyBefore deletes OpenResty observations captured before cutoff.
-func DeleteOpenFlareNodeObservationOpenrestyBefore(ctx context.Context, cutoff time.Time) (int64, error) {
-	return currentObservabilityStore().DeleteNodeObservationOpenrestyBefore(ctx, cutoff)
-}
-
-// DeleteAllOpenFlareNodeObservationOpenresty deletes all OpenResty observations.
-func DeleteAllOpenFlareNodeObservationOpenresty(ctx context.Context) (int64, error) {
-	return currentObservabilityStore().DeleteAllNodeObservationOpenresty(ctx)
+// DeleteAllOpenFlareEdgeHealth deletes all edge health snapshots.
+func DeleteAllOpenFlareEdgeHealth(ctx context.Context) (int64, error) {
+	return currentObservabilityStore().DeleteAllEdgeHealth(ctx)
 }
 
 // DeleteOpenFlareNodeObservationFrpsBefore deletes FRPS observations captured before cutoff.
@@ -633,9 +565,9 @@ func GetOpenFlareNodeSystemProfile(ctx context.Context, nodeID string) (*OpenFla
 	return &profile, nil
 }
 
-// ListOpenFlareNodeObservationOpenresty returns openresty observations.
-func ListOpenFlareNodeObservationOpenresty(ctx context.Context, nodeID string, since time.Time, limit int) ([]*OpenFlareNodeObservationOpenresty, error) {
-	return currentObservabilityStore().ListNodeObservationOpenresty(ctx, nodeID, since, limit)
+// ListOpenFlareEdgeHealth returns L2 edge health snapshots.
+func ListOpenFlareEdgeHealth(ctx context.Context, nodeID string, since time.Time, limit int) ([]*OpenFlareEdgeHealth, error) {
+	return currentObservabilityStore().ListEdgeHealth(ctx, nodeID, since, limit)
 }
 
 // ListOpenFlareNodeObservationFrpc returns frpc observations.

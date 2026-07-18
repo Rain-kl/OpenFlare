@@ -7,39 +7,33 @@ import (
 	"testing"
 
 	"github.com/Rain-kl/Wavelet/internal/apps/agent/config"
-	"github.com/Rain-kl/Wavelet/internal/apps/agent/protocol"
 	"github.com/Rain-kl/Wavelet/internal/apps/agent/state"
 )
 
-func TestBuildTrafficReportAggregatesManagedAccessLog(t *testing.T) {
+func TestCollectAccessLogsReturnsFactsOnly(t *testing.T) {
 	tempDir := t.TempDir()
-	routeConfigPath := filepath.Join(tempDir, "conf.d", "openflare_routes.conf")
-	if err := os.MkdirAll(filepath.Dir(routeConfigPath), 0o755); err != nil {
-		t.Fatalf("MkdirAll failed: %v", err)
-	}
-	logPath := filepath.Join(filepath.Dir(routeConfigPath), "openflare_access.log")
+	logPath := filepath.Join(tempDir, "openflare_access.log")
 	content := []byte(
-		"{\"ts\":\"2026-03-14T08:00:00Z\",\"host\":\"app.example.com\",\"path\":\"/\",\"remote_addr\":\"10.0.0.1\",\"status\":200}\n" +
-			"{\"ts\":\"2026-03-14T08:00:05Z\",\"host\":\"app.example.com\",\"path\":\"/healthz\",\"remote_addr\":\"10.0.0.2\",\"status\":503}\n" +
-			"{\"ts\":\"2026-03-14T08:00:08Z\",\"host\":\"api.example.com\",\"path\":\"/api\",\"remote_addr\":\"10.0.0.1\",\"status\":200}\n",
+		"{\"ts\":\"2026-03-14T08:00:00Z\",\"host\":\"app.example.com\",\"path\":\"/login\",\"remote_addr\":\"10.0.0.1\",\"status\":200,\"request_length\":128,\"bytes_sent\":512,\"request_time\":0.015}\n" +
+			"{\"ts\":\"2026-03-14T08:00:05Z\",\"host\":\"api.example.com\",\"path\":\"/v1/ping\",\"remote_addr\":\"10.0.0.2\",\"status\":502,\"request_length\":64,\"bytes_sent\":256,\"request_time\":0.008}\n",
 	)
 	if err := os.WriteFile(logPath, content, 0o644); err != nil {
 		t.Fatalf("WriteFile failed: %v", err)
 	}
 
 	stateStore := state.NewStore(filepath.Join(tempDir, "state.json"))
-	report := BuildTrafficReport(&config.Config{AccessLogPath: logPath}, stateStore, nil)
-	if report == nil {
-		t.Fatal("expected traffic report")
+	accessLogs := CollectAccessLogs(&config.Config{AccessLogPath: logPath}, stateStore)
+	if len(accessLogs) != 2 {
+		t.Fatalf("expected access logs, got %+v", accessLogs)
 	}
-	if report.RequestCount != 3 || report.ErrorCount != 1 || report.UniqueVisitorCount != 2 {
-		t.Fatalf("unexpected traffic report counters: %+v", report)
+	if accessLogs[0].BytesSent != 512 || accessLogs[0].RequestLength != 128 {
+		t.Fatalf("unexpected first log: %+v", accessLogs[0])
 	}
-	if report.StatusCodes["200"] != 2 || report.StatusCodes["503"] != 1 {
-		t.Fatalf("unexpected status codes: %+v", report.StatusCodes)
+	if accessLogs[0].RequestTimeMs != 15 {
+		t.Fatalf("request_time_ms = %d, want 15", accessLogs[0].RequestTimeMs)
 	}
-	if report.TopDomains["app.example.com"] != 2 || report.TopDomains["api.example.com"] != 1 {
-		t.Fatalf("unexpected top domains: %+v", report.TopDomains)
+	if accessLogs[0].Path != "/login" || accessLogs[1].Path != "/v1/ping" {
+		t.Fatalf("unexpected access log paths: %+v", accessLogs)
 	}
 
 	snapshot, err := stateStore.Load()
@@ -50,20 +44,16 @@ func TestBuildTrafficReportAggregatesManagedAccessLog(t *testing.T) {
 		t.Fatalf("unexpected access log offset: %d", snapshot.AccessLogOffset)
 	}
 
-	secondReport := BuildTrafficReport(&config.Config{AccessLogPath: logPath}, stateStore, nil)
-	if secondReport != nil {
-		t.Fatalf("expected no report without appended lines, got %+v", secondReport)
+	moreLogs := CollectAccessLogs(&config.Config{AccessLogPath: logPath}, stateStore)
+	if len(moreLogs) != 0 {
+		t.Fatalf("expected no new logs, got %+v", moreLogs)
 	}
 }
 
-func TestBuildTrafficReportResetsOffsetAfterTruncate(t *testing.T) {
+func TestCollectAccessLogsResetsOffsetAfterTruncate(t *testing.T) {
 	tempDir := t.TempDir()
-	routeConfigPath := filepath.Join(tempDir, "conf.d", "openflare_routes.conf")
-	if err := os.MkdirAll(filepath.Dir(routeConfigPath), 0o755); err != nil {
-		t.Fatalf("MkdirAll failed: %v", err)
-	}
-	logPath := filepath.Join(filepath.Dir(routeConfigPath), "openflare_access.log")
-	if err := os.WriteFile(logPath, []byte("{\"ts\":\"2026-03-14T09:00:00Z\",\"host\":\"app.example.com\",\"path\":\"/\",\"remote_addr\":\"10.0.0.3\",\"status\":200}\n"), 0o644); err != nil {
+	logPath := filepath.Join(tempDir, "openflare_access.log")
+	if err := os.WriteFile(logPath, []byte("{\"ts\":\"2026-03-14T09:00:00Z\",\"host\":\"app.example.com\",\"path\":\"/\",\"remote_addr\":\"10.0.0.3\",\"status\":200,\"bytes_sent\":1}\n"), 0o644); err != nil {
 		t.Fatalf("WriteFile failed: %v", err)
 	}
 
@@ -72,50 +62,15 @@ func TestBuildTrafficReportResetsOffsetAfterTruncate(t *testing.T) {
 		t.Fatalf("Save failed: %v", err)
 	}
 
-	report := BuildTrafficReport(&config.Config{AccessLogPath: logPath}, stateStore, nil)
-	if report == nil || report.RequestCount != 1 {
-		t.Fatalf("expected one request after truncate reset, got %+v", report)
+	accessLogs := CollectAccessLogs(&config.Config{AccessLogPath: logPath}, stateStore)
+	if len(accessLogs) != 1 {
+		t.Fatalf("expected one access log after truncate reset, got %+v", accessLogs)
 	}
 }
 
-func TestBuildTrafficObservabilityReturnsAccessLogs(t *testing.T) {
+func TestCollectAccessLogsTruncatesLongAccessLogPath(t *testing.T) {
 	tempDir := t.TempDir()
-	routeConfigPath := filepath.Join(tempDir, "conf.d", "openflare_routes.conf")
-	if err := os.MkdirAll(filepath.Dir(routeConfigPath), 0o755); err != nil {
-		t.Fatalf("MkdirAll failed: %v", err)
-	}
-	logPath := filepath.Join(filepath.Dir(routeConfigPath), "openflare_access.log")
-	content := []byte(
-		"{\"ts\":\"2026-03-14T08:00:00Z\",\"host\":\"app.example.com\",\"path\":\"/login\",\"remote_addr\":\"10.0.0.1\",\"status\":200,\"request_length\":128,\"bytes_sent\":512}\n" +
-			"{\"ts\":\"2026-03-14T08:00:05Z\",\"host\":\"api.example.com\",\"path\":\"/v1/ping\",\"remote_addr\":\"10.0.0.2\",\"status\":502,\"request_length\":64,\"bytes_sent\":256}\n",
-	)
-	if err := os.WriteFile(logPath, content, 0o644); err != nil {
-		t.Fatalf("WriteFile failed: %v", err)
-	}
-
-	stateStore := state.NewStore(filepath.Join(tempDir, "state.json"))
-	report, accessLogs, fallbackMetrics := BuildTrafficObservability(&config.Config{AccessLogPath: logPath}, stateStore, nil)
-	if report == nil || report.RequestCount != 2 {
-		t.Fatalf("expected traffic report, got %+v", report)
-	}
-	if len(accessLogs) != 2 {
-		t.Fatalf("expected access logs, got %+v", accessLogs)
-	}
-	if fallbackMetrics == nil || fallbackMetrics.OpenrestyRxBytes != 192 || fallbackMetrics.OpenrestyTxBytes != 768 {
-		t.Fatalf("expected fallback throughput metrics, got %+v", fallbackMetrics)
-	}
-	if accessLogs[0].Path != "/login" || accessLogs[1].Path != "/v1/ping" {
-		t.Fatalf("unexpected access log paths: %+v", accessLogs)
-	}
-}
-
-func TestBuildTrafficObservabilityTruncatesLongAccessLogPath(t *testing.T) {
-	tempDir := t.TempDir()
-	routeConfigPath := filepath.Join(tempDir, "conf.d", "openflare_routes.conf")
-	if err := os.MkdirAll(filepath.Dir(routeConfigPath), 0o755); err != nil {
-		t.Fatalf("MkdirAll failed: %v", err)
-	}
-	logPath := filepath.Join(filepath.Dir(routeConfigPath), "openflare_access.log")
+	logPath := filepath.Join(tempDir, "openflare_access.log")
 	longPath := "/" + strings.Repeat("a", 140)
 	content := []byte(
 		"{\"ts\":\"2026-03-14T08:00:00Z\",\"host\":\"app.example.com\",\"path\":\"" + longPath + "\",\"remote_addr\":\"10.0.0.1\",\"status\":200}\n",
@@ -125,64 +80,11 @@ func TestBuildTrafficObservabilityTruncatesLongAccessLogPath(t *testing.T) {
 	}
 
 	stateStore := state.NewStore(filepath.Join(tempDir, "state.json"))
-	_, accessLogs, _ := BuildTrafficObservability(&config.Config{AccessLogPath: logPath}, stateStore, nil)
+	accessLogs := CollectAccessLogs(&config.Config{AccessLogPath: logPath}, stateStore)
 	if len(accessLogs) != 1 {
 		t.Fatalf("expected one access log, got %+v", accessLogs)
 	}
 	if got := len([]rune(accessLogs[0].Path)); got != accessLogPathMaxRunes {
 		t.Fatalf("expected truncated path length %d, got %d (%q)", accessLogPathMaxRunes, got, accessLogs[0].Path)
-	}
-}
-
-func TestBuildTrafficReportParsesCombinedAccessLog(t *testing.T) {
-	tempDir := t.TempDir()
-	routeConfigPath := filepath.Join(tempDir, "conf.d", "openflare_routes.conf")
-	if err := os.MkdirAll(filepath.Dir(routeConfigPath), 0o755); err != nil {
-		t.Fatalf("MkdirAll failed: %v", err)
-	}
-	logPath := filepath.Join(filepath.Dir(routeConfigPath), "openflare_access.log")
-	content := []byte(
-		"10.0.0.1 - - [14/Mar/2026:08:00:00 +0000] \"GET / HTTP/1.1\" 200 123 \"-\" \"curl/8.0\"\n" +
-			"10.0.0.2 - - [14/Mar/2026:08:00:05 +0000] \"GET /healthz HTTP/1.1\" 502 64 \"-\" \"curl/8.0\"\n" +
-			"10.0.0.1 - - [14/Mar/2026:08:00:10 +0000] \"GET /api HTTP/1.1\" 200 256 \"-\" \"curl/8.0\"\n",
-	)
-	if err := os.WriteFile(logPath, content, 0o644); err != nil {
-		t.Fatalf("WriteFile failed: %v", err)
-	}
-
-	stateStore := state.NewStore(filepath.Join(tempDir, "state.json"))
-	report := BuildTrafficReport(&config.Config{AccessLogPath: logPath}, stateStore, nil)
-	if report == nil {
-		t.Fatal("expected traffic report from combined access log")
-	}
-	if report.RequestCount != 3 || report.ErrorCount != 1 || report.UniqueVisitorCount != 2 {
-		t.Fatalf("unexpected combined log counters: %+v", report)
-	}
-	if report.StatusCodes["200"] != 2 || report.StatusCodes["502"] != 1 {
-		t.Fatalf("unexpected combined log status codes: %+v", report.StatusCodes)
-	}
-	if len(report.TopDomains) != 0 {
-		t.Fatalf("expected combined access log to omit top domains when host is unavailable, got %+v", report.TopDomains)
-	}
-}
-
-func TestBuildTrafficReportReturnsManagedWindowEvenWhenRequestCountZero(t *testing.T) {
-	report := BuildTrafficReport(nil, nil, &ManagedOpenRestyMetrics{
-		TrafficReport: &protocol.NodeTrafficReport{
-			WindowStartedAtUnix: 1710403200,
-			WindowEndedAtUnix:   1710403260,
-			RequestCount:        0,
-			ErrorCount:          0,
-			UniqueVisitorCount:  0,
-			StatusCodes:         map[string]int64{},
-			TopDomains:          map[string]int64{},
-			SourceCountries:     map[string]int64{},
-		},
-	})
-	if report == nil {
-		t.Fatal("expected managed traffic report to be returned even when request count is zero")
-	}
-	if report.RequestCount != 0 || report.WindowStartedAtUnix != 1710403200 || report.WindowEndedAtUnix != 1710403260 {
-		t.Fatalf("unexpected managed traffic report: %+v", report)
 	}
 }

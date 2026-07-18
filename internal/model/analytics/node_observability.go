@@ -12,11 +12,8 @@ const (
 	nodeMetricSnapshotTableName     = "of_node_metric_snapshots"
 	nodeMetricSnapshotInsertColumns = "id, node_id, captured_at, cpu_usage_percent, memory_used_bytes, memory_total_bytes, storage_used_bytes, storage_total_bytes, disk_read_bytes, disk_write_bytes, network_rx_bytes, network_tx_bytes, created_at"
 
-	nodeRequestReportTableName     = "of_node_request_reports"
-	nodeRequestReportInsertColumns = "id, node_id, window_started_at, window_ended_at, request_count, error_count, unique_visitor_count, status_codes_json, top_domains_json, source_countries_json, created_at"
-
-	nodeObsOpenrestyTableName     = "of_node_obs_openresty"
-	nodeObsOpenrestyInsertColumns = "id, node_id, captured_at, openresty_rx_bytes, openresty_tx_bytes, openresty_connections, created_at"
+	nodeEdgeHealthTableName     = "of_node_edge_health"
+	nodeEdgeHealthInsertColumns = "id, node_id, captured_at, status, connections, created_at"
 
 	nodeObsFrpsTableName     = "of_node_obs_frps"
 	nodeObsFrpsInsertColumns = "id, node_id, captured_at, frps_connections, frps_proxy_count, frps_client_count, frps_proxies, created_at"
@@ -57,60 +54,40 @@ func (NodeMetricSnapshot) BatchInsertSQL() string {
 	return fmt.Sprintf("INSERT INTO %s (%s)", nodeMetricSnapshotTableName, nodeMetricSnapshotInsertColumns)
 }
 
-// NodeRequestReport stores aggregated node request window reports in ClickHouse.
-type NodeRequestReport struct {
-	ID                  uint64    `gorm:"column:id"`
-	NodeID              string    `gorm:"column:node_id"`
-	WindowStartedAt     time.Time `gorm:"column:window_started_at"`
-	WindowEndedAt       time.Time `gorm:"column:window_ended_at"`
-	RequestCount        int64     `gorm:"column:request_count"`
-	ErrorCount          int64     `gorm:"column:error_count"`
-	UniqueVisitorCount  int64     `gorm:"column:unique_visitor_count"`
-	StatusCodesJSON     string    `gorm:"column:status_codes_json"`
-	TopDomainsJSON      string    `gorm:"column:top_domains_json"`
-	SourceCountriesJSON string    `gorm:"column:source_countries_json"`
-	CreatedAt           time.Time `gorm:"column:created_at"`
+// NodeEdgeHealth stores L2 OpenResty health snapshots (connections + status).
+type NodeEdgeHealth struct {
+	ID          uint64    `gorm:"column:id"`
+	NodeID      string    `gorm:"column:node_id"`
+	CapturedAt  time.Time `gorm:"column:captured_at"`
+	Status      string    `gorm:"column:status"`
+	Connections int64     `gorm:"column:connections"`
+	CreatedAt   time.Time `gorm:"column:created_at"`
 }
 
 // TableName returns the ClickHouse table name.
-func (NodeRequestReport) TableName() string {
-	return nodeRequestReportTableName
+func (NodeEdgeHealth) TableName() string {
+	return nodeEdgeHealthTableName
 }
 
 // InsertColumns returns comma-separated column names for batch insert.
-func (NodeRequestReport) InsertColumns() string {
-	return nodeRequestReportInsertColumns
+func (NodeEdgeHealth) InsertColumns() string {
+	return nodeEdgeHealthInsertColumns
 }
 
 // BatchInsertSQL returns the INSERT prefix used by native batch writers.
-func (NodeRequestReport) BatchInsertSQL() string {
-	return fmt.Sprintf("INSERT INTO %s (%s)", nodeRequestReportTableName, nodeRequestReportInsertColumns)
+func (NodeEdgeHealth) BatchInsertSQL() string {
+	return fmt.Sprintf("INSERT INTO %s (%s)", nodeEdgeHealthTableName, nodeEdgeHealthInsertColumns)
 }
 
-// NodeObsOpenresty stores OpenResty observability snapshots in ClickHouse.
-type NodeObsOpenresty struct {
-	ID                   uint64    `gorm:"column:id"`
-	NodeID               string    `gorm:"column:node_id"`
-	CapturedAt           time.Time `gorm:"column:captured_at"`
-	OpenrestyRxBytes     int64     `gorm:"column:openresty_rx_bytes"`
-	OpenrestyTxBytes     int64     `gorm:"column:openresty_tx_bytes"`
-	OpenrestyConnections int64     `gorm:"column:openresty_connections"`
-	CreatedAt            time.Time `gorm:"column:created_at"`
-}
-
-// TableName returns the ClickHouse table name.
-func (NodeObsOpenresty) TableName() string {
-	return nodeObsOpenrestyTableName
-}
-
-// InsertColumns returns comma-separated column names for batch insert.
-func (NodeObsOpenresty) InsertColumns() string {
-	return nodeObsOpenrestyInsertColumns
-}
-
-// BatchInsertSQL returns the INSERT prefix used by native batch writers.
-func (NodeObsOpenresty) BatchInsertSQL() string {
-	return fmt.Sprintf("INSERT INTO %s (%s)", nodeObsOpenrestyTableName, nodeObsOpenrestyInsertColumns)
+// AccessLogHourly is a Server-side hourly rollup of access logs.
+type AccessLogHourly struct {
+	NodeID        string    `gorm:"column:node_id"`
+	Hour          time.Time `gorm:"column:hour"`
+	Host          string    `gorm:"column:host"`
+	RequestCount  int64     `gorm:"column:request_count"`
+	ErrorCount    int64     `gorm:"column:error_count"`
+	BytesSent     int64     `gorm:"column:bytes_sent"`
+	RequestLength int64     `gorm:"column:request_length"`
 }
 
 // NodeObsFrps stores FRPS observability snapshots in ClickHouse.

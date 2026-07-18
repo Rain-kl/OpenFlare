@@ -38,20 +38,16 @@ func nodeObservabilityCapturedAtOrderClause() string {
 	return "captured_at DESC, id DESC"
 }
 
-func nodeObservabilityWindowEndedAtOrderClause() string {
-	return "window_ended_at DESC, id DESC"
-}
-
 func nodeMetricSnapshotTableName() string {
 	return "of_node_metric_snapshots"
 }
 
-func nodeRequestReportTableName() string {
-	return "of_node_request_reports"
+func nodeEdgeHealthTableName() string {
+	return "of_node_edge_health"
 }
 
-func nodeObsOpenrestyTableName() string {
-	return "of_node_obs_openresty"
+func accessLogHourlyTableName() string {
+	return "of_access_log_hourly"
 }
 
 func nodeObsFrpsTableName() string {
@@ -64,10 +60,6 @@ func nodeObsFrpcTableName() string {
 
 func nodeMetricCapacityHourlyTableName() string {
 	return "of_node_metric_capacity_hourly"
-}
-
-func nodeOpenrestyHourlyTableName() string {
-	return "of_node_openresty_hourly"
 }
 
 // clickHouseLimit1ByNodeIDClause selects the first row per node_id after ORDER BY.

@@ -5,7 +5,6 @@ package observability
 
 import (
 	"context"
-	"encoding/json"
 	"sort"
 	"strings"
 	"time"
@@ -22,6 +21,7 @@ const (
 	healthSeverityCritical    = "critical"
 	healthSeverityWarning     = "warning"
 	percentageMultiplier      = 100
+	sortOrderAsc              = "asc"
 )
 
 // DistributionItem is a key/value distribution entry.
@@ -37,9 +37,9 @@ type TrafficDistributions struct {
 	SourceCountries []DistributionItem `json:"source_countries"`
 }
 
-const metricSnapshotOpenrestyMatchWindow = 2 * time.Minute
+const metricSnapshotEdgeHealthMatchWindow = 2 * time.Minute
 
-// NodeMetricSnapshotView is a metric snapshot enriched with OpenResty observations.
+// NodeMetricSnapshotView is a metric snapshot enriched with edge health connections.
 type NodeMetricSnapshotView struct {
 	ID                   uint      `json:"id,omitempty"`
 	NodeID               string    `json:"node_id,omitempty"`
@@ -53,8 +53,6 @@ type NodeMetricSnapshotView struct {
 	DiskWriteBytes       int64     `json:"disk_write_bytes"`
 	NetworkRxBytes       int64     `json:"network_rx_bytes"`
 	NetworkTxBytes       int64     `json:"network_tx_bytes"`
-	OpenrestyRxBytes     int64     `json:"openresty_rx_bytes"`
-	OpenrestyTxBytes     int64     `json:"openresty_tx_bytes"`
 	OpenrestyConnections int64     `json:"openresty_connections"`
 }
 
@@ -98,13 +96,15 @@ type CapacityTrendPoint struct {
 }
 
 // NetworkTrendPoint is a network trend bucket.
+// Host network_* is L3 (宿主机网卡).
+// bytes_received/provided are L1 business bytes from access logs.
 type NetworkTrendPoint struct {
-	BucketStartedAt  time.Time `json:"bucket_started_at"`
-	NetworkRxBytes   int64     `json:"network_rx_bytes"`
-	NetworkTxBytes   int64     `json:"network_tx_bytes"`
-	OpenrestyRxBytes int64     `json:"openresty_rx_bytes"`
-	OpenrestyTxBytes int64     `json:"openresty_tx_bytes"`
-	ReportedNodes    int       `json:"reported_nodes"`
+	BucketStartedAt time.Time `json:"bucket_started_at"`
+	NetworkRxBytes  int64     `json:"network_rx_bytes"`
+	NetworkTxBytes  int64     `json:"network_tx_bytes"`
+	BytesReceived   int64     `json:"bytes_received"` // sum(request_length)
+	BytesProvided   int64     `json:"bytes_provided"` // sum(bytes_sent)
+	ReportedNodes   int       `json:"reported_nodes"`
 }
 
 // DiskIOTrendPoint is a disk IO trend bucket.
@@ -141,30 +141,39 @@ type networkCounterState struct {
 	seen bool
 }
 
-func buildTrafficWindowSummary(report *model.OpenFlareRequestReport) *TrafficWindowSummary {
-	if report == nil {
+func buildTrafficWindowSummaryFromAccessLogs(
+	ctx context.Context,
+	nodeID string,
+	since, until time.Time,
+) *TrafficWindowSummary {
+	row, err := model.TrafficSummaryOpenFlareAccessLogs(ctx, model.OpenFlareAccessLogQuery{
+		NodeID: nodeID,
+		Since:  since,
+		Until:  until,
+	})
+	if err != nil || row.RequestCount <= 0 {
 		return nil
 	}
-	summary := TrafficWindowSummary{
-		WindowStartedAt:    report.WindowStartedAt,
-		WindowEndedAt:      report.WindowEndedAt,
-		RequestCount:       report.RequestCount,
-		UniqueVisitorCount: report.UniqueVisitorCount,
-		ErrorCount:         report.ErrorCount,
+	summary := &TrafficWindowSummary{
+		WindowStartedAt:    since.UTC(),
+		WindowEndedAt:      until.UTC(),
+		RequestCount:       row.RequestCount,
+		UniqueVisitorCount: row.UniqueIPCount,
+		ErrorCount:         row.ErrorCount,
 	}
-	if duration := report.WindowEndedAt.Sub(report.WindowStartedAt).Seconds(); duration > 0 {
-		summary.EstimatedQPS = float64(report.RequestCount) / duration
+	if duration := until.Sub(since).Seconds(); duration > 0 {
+		summary.EstimatedQPS = float64(row.RequestCount) / duration
 	}
-	if report.RequestCount > 0 {
-		summary.ErrorRatePercent = (float64(report.ErrorCount) / float64(report.RequestCount)) * 100
+	if row.RequestCount > 0 {
+		summary.ErrorRatePercent = (float64(row.ErrorCount) / float64(row.RequestCount)) * 100
 	}
-	return &summary
+	return summary
 }
 
-// BuildMetricSnapshotViews merges metric snapshots with OpenResty observations for API responses.
+// BuildMetricSnapshotViews merges metric snapshots with edge health connections for API responses.
 func BuildMetricSnapshotViews(
 	snapshots []*model.OpenFlareMetricSnapshot,
-	openrestyObs []*model.OpenFlareNodeObservationOpenresty,
+	edgeHealth []*model.OpenFlareEdgeHealth,
 ) []*NodeMetricSnapshotView {
 	if len(snapshots) == 0 {
 		return []*NodeMetricSnapshotView{}
@@ -188,39 +197,48 @@ func BuildMetricSnapshotViews(
 			NetworkRxBytes:    snapshot.NetworkRxBytes,
 			NetworkTxBytes:    snapshot.NetworkTxBytes,
 		}
-		if matched := matchOpenrestyObservation(snapshot.CapturedAt, openrestyObs); matched != nil {
-			view.OpenrestyRxBytes = matched.OpenrestyRxBytes
-			view.OpenrestyTxBytes = matched.OpenrestyTxBytes
-			view.OpenrestyConnections = matched.OpenrestyConnections
+		if matched := matchEdgeHealth(snapshot.CapturedAt, edgeHealth); matched != nil {
+			view.OpenrestyConnections = matched.Connections
 		}
 		views = append(views, view)
 	}
 	return views
 }
 
-// BuildTrafficDistributions aggregates traffic distribution charts.
-func BuildTrafficDistributions(
-	reports []*model.OpenFlareRequestReport,
-	accessLogRegions []*model.OpenFlareAccessLogRegionCount,
+// BuildTrafficDistributionsFromAccessLogs builds distributions from access logs (L1).
+func BuildTrafficDistributionsFromAccessLogs(
+	ctx context.Context,
+	since, until time.Time,
 	limit int,
+	accessLogRegions []*model.OpenFlareAccessLogRegionCount,
 ) TrafficDistributions {
 	statusCodes := make(distributionAccumulator)
 	topDomains := make(distributionAccumulator)
-	reportSourceCountries := make(distributionAccumulator)
-	for _, report := range reports {
-		mergeJSONCounts(statusCodes, report.StatusCodesJSON)
-		mergeJSONCounts(topDomains, report.TopDomainsJSON)
-		mergeJSONCounts(reportSourceCountries, report.SourceCountriesJSON)
-	}
-	sourceCountries := reportSourceCountries
-	if len(accessLogRegions) > 0 {
-		sourceCountries = make(distributionAccumulator, len(accessLogRegions))
-		for _, item := range accessLogRegions {
-			if item == nil || strings.TrimSpace(item.Region) == "" || item.Count <= 0 {
+
+	query := model.OpenFlareAccessLogQuery{Since: since, Until: until}
+	if statusRows, err := model.ValueCountsOpenFlareAccessLogs(ctx, query, "status_code", limit); err == nil {
+		for _, row := range statusRows {
+			if strings.TrimSpace(row.Value) == "" || row.Count <= 0 {
 				continue
 			}
-			sourceCountries[item.Region] = item.Count
+			statusCodes[row.Value] = row.Count
 		}
+	}
+	if hostRows, err := model.ValueCountsOpenFlareAccessLogs(ctx, query, "host", limit); err == nil {
+		for _, row := range hostRows {
+			if strings.TrimSpace(row.Value) == "" || row.Count <= 0 {
+				continue
+			}
+			topDomains[row.Value] = row.Count
+		}
+	}
+
+	sourceCountries := make(distributionAccumulator)
+	for _, item := range accessLogRegions {
+		if item == nil || strings.TrimSpace(item.Region) == "" || item.Count <= 0 {
+			continue
+		}
+		sourceCountries[item.Region] = item.Count
 	}
 	return TrafficDistributions{
 		StatusCodes:     toDistributionItems(statusCodes, limit),
@@ -231,7 +249,7 @@ func BuildTrafficDistributions(
 
 func buildHealthSummary(
 	snapshot *model.OpenFlareMetricSnapshot,
-	report *model.OpenFlareRequestReport,
+	traffic *TrafficWindowSummary,
 	events []*model.OpenFlareHealthEvent,
 ) HealthSummary {
 	summary := HealthSummary{}
@@ -258,41 +276,37 @@ func buildHealthSummary(
 		storageUsage := Percentage(snapshot.StorageUsedBytes, snapshot.StorageTotalBytes)
 		summary.HasCapacityRisk = snapshot.CPUUsagePercent >= 80 || memoryUsage >= 85 || storageUsage >= 85
 	}
-	if report != nil && report.RequestCount >= 100 {
-		summary.HasTrafficRisk = (float64(report.ErrorCount) / float64(report.RequestCount)) >= 0.05
+	if traffic != nil && traffic.RequestCount >= 100 {
+		summary.HasTrafficRisk = (float64(traffic.ErrorCount) / float64(traffic.RequestCount)) >= 0.05
 	}
 	summary.HasRuntimeRisk = summary.ActiveAlerts > 0 || summary.HasCapacityRisk || summary.HasTrafficRisk
 	return summary
 }
 
-// BuildNodeTrends builds 24h trend series, preferring ClickHouse hourly aggregates
-// over limited raw snapshot windows so capacity/network/disk charts stay complete.
+// BuildNodeTrends builds 24h trend series.
+// Business traffic (requests/errors/UV and provided/received bytes) comes from access logs.
+// Host capacity/disk/network come from metric snapshots (hourly when available).
 func BuildNodeTrends(
 	ctx context.Context,
 	now time.Time,
 	nodeID string,
 	snapshots []*model.OpenFlareMetricSnapshot,
-	openrestyObs []*model.OpenFlareNodeObservationOpenresty,
-	reports []*model.OpenFlareRequestReport,
 ) NodeTrends {
 	trendSince := now.Add(-24 * time.Hour)
-	trafficTrend := BuildTrafficTrendPoints(now, reports)
-	if trafficHourly, err := model.ListOpenFlareTrafficHourlySince(ctx, nodeID, trendSince); err == nil && len(trafficHourly) > 0 {
-		trafficTrend = BuildTrafficTrendPointsFromHourly(now, trafficHourly)
-	}
 
+	trafficTrend := BuildTrafficTrendPointsFromAccessLogs(ctx, now, nodeID, trendSince)
 	capacityTrend := BuildCapacityTrendPoints(now, snapshots)
-	networkTrend := BuildNetworkTrendPoints(now, snapshots, openrestyObs)
+	networkTrend := BuildNetworkTrendPoints(now, snapshots)
+	// Overlay L1 business bytes onto network points.
+	applyAccessLogBytesToNetworkTrend(ctx, now, nodeID, trendSince, networkTrend)
 	diskIOTrend := BuildDiskIOTrendPoints(now, snapshots)
 
 	metricHourly, metricErr := model.ListOpenFlareMetricHourlySince(ctx, nodeID, trendSince)
 	if metricErr == nil && len(metricHourly) > 0 {
 		capacityTrend = BuildCapacityTrendPointsFromHourly(now, metricHourly)
 		diskIOTrend = BuildDiskIOTrendPointsFromHourly(now, metricHourly)
-	}
-	openrestyHourly, openrestyErr := model.ListOpenFlareOpenrestyHourlySince(ctx, nodeID, trendSince)
-	if metricErr == nil && openrestyErr == nil && (len(metricHourly) > 0 || len(openrestyHourly) > 0) {
-		networkTrend = BuildNetworkTrendPointsFromHourly(now, metricHourly, openrestyHourly)
+		networkTrend = BuildNetworkTrendPointsFromHourly(now, metricHourly)
+		applyAccessLogBytesToNetworkTrend(ctx, now, nodeID, trendSince, networkTrend)
 	}
 
 	return NodeTrends{
@@ -303,7 +317,131 @@ func BuildNodeTrends(
 	}
 }
 
+// BuildTrafficTrendPointsFromAccessLogs builds 24h request/error buckets from access logs.
+// Prefers of_access_log_hourly when available; falls back to raw bucket aggregates.
+// UniqueVisitorCount on hourly path is 0 (use TrafficSummary for exact UV).
+func BuildTrafficTrendPointsFromAccessLogs(ctx context.Context, now time.Time, nodeID string, since time.Time) []TrafficTrendPoint {
+	start := trendWindowStart(now)
+	points := make([]TrafficTrendPoint, observabilityTrendBuckets)
+	for index := range points {
+		points[index].BucketStartedAt = start.Add(time.Duration(index) * time.Hour)
+	}
+
+	if hourly, err := model.ListOpenFlareTrafficHourlySince(ctx, nodeID, since); err == nil && len(hourly) > 0 {
+		for _, row := range hourly {
+			if row == nil {
+				continue
+			}
+			index, ok := trendBucketIndex(row.Hour, start)
+			if !ok {
+				continue
+			}
+			points[index].RequestCount += row.RequestCount
+			points[index].ErrorCount += row.ErrorCount
+			// UniqueVisitorCount intentionally not summed from hourly rollup (always 0 / overcounts).
+		}
+		return points
+	}
+
+	buckets, err := model.ListOpenFlareAccessLogBuckets(ctx, model.OpenFlareAccessLogBucketQuery{
+		NodeID:      nodeID,
+		Since:       since,
+		Until:       now,
+		FoldMinutes: 60,
+		SortBy:      "logged_at",
+		SortOrder:   sortOrderAsc,
+	})
+	if err != nil || len(buckets) == 0 {
+		return points
+	}
+	byEpoch := make(map[int64]*model.OpenFlareAccessLogBucketRow, len(buckets))
+	for _, row := range buckets {
+		if row == nil {
+			continue
+		}
+		byEpoch[row.BucketEpoch] = row
+	}
+	for index := range points {
+		epoch := points[index].BucketStartedAt.Unix()
+		if row, ok := byEpoch[epoch]; ok {
+			points[index].RequestCount = row.RequestCount
+			points[index].ErrorCount = row.ServerErrorCount
+			points[index].UniqueVisitorCount = row.UniqueIPCount
+		}
+	}
+	return points
+}
+
+func applyAccessLogBytesToNetworkTrend(ctx context.Context, now time.Time, nodeID string, since time.Time, points []NetworkTrendPoint) {
+	if len(points) == 0 {
+		return
+	}
+	// Prefer of_access_log_hourly (summed across hosts).
+	if hourly, err := analyticsListAccessLogHourlyBytes(ctx, nodeID, since); err == nil && len(hourly) > 0 {
+		for hourUnix, totals := range hourly {
+			for index := range points {
+				if points[index].BucketStartedAt.Unix() == hourUnix {
+					points[index].BytesProvided = totals.provided
+					points[index].BytesReceived = totals.received
+				}
+			}
+		}
+		return
+	}
+
+	buckets, err := model.ListOpenFlareAccessLogBuckets(ctx, model.OpenFlareAccessLogBucketQuery{
+		NodeID:      nodeID,
+		Since:       since,
+		Until:       now,
+		FoldMinutes: 60,
+		SortBy:      "logged_at",
+		SortOrder:   sortOrderAsc,
+	})
+	if err != nil || len(buckets) == 0 {
+		return
+	}
+	byEpoch := make(map[int64]*model.OpenFlareAccessLogBucketRow, len(buckets))
+	for _, row := range buckets {
+		if row == nil {
+			continue
+		}
+		byEpoch[row.BucketEpoch] = row
+	}
+	for index := range points {
+		epoch := points[index].BucketStartedAt.Unix()
+		if row, ok := byEpoch[epoch]; ok {
+			points[index].BytesProvided = row.BytesSent
+			points[index].BytesReceived = row.RequestLength
+		}
+	}
+}
+
+type accessLogHourBytes struct {
+	provided int64
+	received int64
+}
+
+func analyticsListAccessLogHourlyBytes(ctx context.Context, nodeID string, since time.Time) (map[int64]accessLogHourBytes, error) {
+	rows, err := model.ListOpenFlareAccessLogHourlySince(ctx, nodeID, since)
+	if err != nil {
+		return nil, err
+	}
+	out := make(map[int64]accessLogHourBytes)
+	for _, row := range rows {
+		if row == nil {
+			continue
+		}
+		key := row.Hour.UTC().Truncate(time.Hour).Unix()
+		cur := out[key]
+		cur.provided += row.BytesSent
+		cur.received += row.RequestLength
+		out[key] = cur
+	}
+	return out, nil
+}
+
 // BuildTrafficTrendPointsFromHourly builds 24h traffic trend buckets from hourly rollups.
+// UniqueVisitorCount is left at 0: hourly UV is not summed (use TrafficSummary for exact UV).
 func BuildTrafficTrendPointsFromHourly(now time.Time, hourly []*model.OpenFlareTrafficHourly) []TrafficTrendPoint {
 	start := trendWindowStart(now)
 	points := make([]TrafficTrendPoint, observabilityTrendBuckets)
@@ -320,26 +458,6 @@ func BuildTrafficTrendPointsFromHourly(now time.Time, hourly []*model.OpenFlareT
 		}
 		points[index].RequestCount += row.RequestCount
 		points[index].ErrorCount += row.ErrorCount
-		points[index].UniqueVisitorCount += row.UniqueVisitorCount
-	}
-	return points
-}
-
-// BuildTrafficTrendPoints builds 24h traffic trend buckets.
-func BuildTrafficTrendPoints(now time.Time, reports []*model.OpenFlareRequestReport) []TrafficTrendPoint {
-	start := trendWindowStart(now)
-	points := make([]TrafficTrendPoint, observabilityTrendBuckets)
-	for index := range points {
-		points[index].BucketStartedAt = start.Add(time.Duration(index) * time.Hour)
-	}
-	for _, report := range reports {
-		index, ok := trendBucketIndex(report.WindowEndedAt, start)
-		if !ok {
-			continue
-		}
-		points[index].RequestCount += report.RequestCount
-		points[index].ErrorCount += report.ErrorCount
-		points[index].UniqueVisitorCount += report.UniqueVisitorCount
 	}
 	return points
 }
@@ -404,12 +522,12 @@ func BuildCapacityTrendPointsFromHourly(now time.Time, hourly []*model.OpenFlare
 	return points
 }
 
-// BuildNetworkTrendPoints builds 24h network trend buckets.
-// Host and OpenResty counters are cumulative; values are consecutive deltas.
+// BuildNetworkTrendPoints builds 24h host-network trend buckets.
+// Host network counters must be process-lifetime cumulative values; this function
+// converts consecutive samples into deltas.
 func BuildNetworkTrendPoints(
 	now time.Time,
 	snapshots []*model.OpenFlareMetricSnapshot,
-	openrestyObs []*model.OpenFlareNodeObservationOpenresty,
 ) []NetworkTrendPoint {
 	start := trendWindowStart(now)
 	points := make([]NetworkTrendPoint, observabilityTrendBuckets)
@@ -452,51 +570,17 @@ func BuildNetworkTrendPoints(
 			accumulators[index].nodes[snapshot.NodeID] = struct{}{}
 		}
 	}
-	sort.Slice(openrestyObs, func(i int, j int) bool {
-		if openrestyObs[i].CapturedAt.Equal(openrestyObs[j].CapturedAt) {
-			return openrestyObs[i].NodeID < openrestyObs[j].NodeID
-		}
-		return openrestyObs[i].CapturedAt.Before(openrestyObs[j].CapturedAt)
-	})
-	previousOpenrestyByNode := make(map[string]networkCounterState, len(openrestyObs))
-	for _, obs := range openrestyObs {
-		if obs == nil {
-			continue
-		}
-		nodeKey := obs.NodeID
-		if nodeKey == "" {
-			nodeKey = unknownTrendNodeKey
-		}
-		previous := previousOpenrestyByNode[nodeKey]
-		previousOpenrestyByNode[nodeKey] = networkCounterState{
-			rx:   obs.OpenrestyRxBytes,
-			tx:   obs.OpenrestyTxBytes,
-			seen: true,
-		}
-		if !previous.seen {
-			continue
-		}
-		index, ok := trendBucketIndex(obs.CapturedAt, start)
-		if !ok {
-			continue
-		}
-		points[index].OpenrestyRxBytes += nonNegativeDelta(obs.OpenrestyRxBytes, previous.rx)
-		points[index].OpenrestyTxBytes += nonNegativeDelta(obs.OpenrestyTxBytes, previous.tx)
-		if obs.NodeID != "" {
-			accumulators[index].nodes[obs.NodeID] = struct{}{}
-		}
-	}
 	for index := range points {
 		points[index].ReportedNodes = len(accumulators[index].nodes)
 	}
 	return points
 }
 
-// BuildNetworkTrendPointsFromHourly builds 24h network trend buckets from hourly aggregates.
+// BuildNetworkTrendPointsFromHourly builds 24h host-network trend buckets from metric hourly aggregates.
+// Business bytes (已提供/接收) are applied separately via applyAccessLogBytesToNetworkTrend.
 func BuildNetworkTrendPointsFromHourly(
 	now time.Time,
 	metricHourly []*model.OpenFlareMetricHourly,
-	openrestyHourly []*model.OpenFlareOpenrestyHourly,
 ) []NetworkTrendPoint {
 	start := trendWindowStart(now)
 	points := make([]NetworkTrendPoint, observabilityTrendBuckets)
@@ -513,20 +597,6 @@ func BuildNetworkTrendPointsFromHourly(
 		}
 		points[index].NetworkRxBytes += row.NetworkRxBytes
 		points[index].NetworkTxBytes += row.NetworkTxBytes
-		if row.ReportedNodes > points[index].ReportedNodes {
-			points[index].ReportedNodes = row.ReportedNodes
-		}
-	}
-	for _, row := range openrestyHourly {
-		if row == nil {
-			continue
-		}
-		index, ok := trendBucketIndex(row.Hour, start)
-		if !ok {
-			continue
-		}
-		points[index].OpenrestyRxBytes += row.OpenrestyRxBytes
-		points[index].OpenrestyTxBytes += row.OpenrestyTxBytes
 		if row.ReportedNodes > points[index].ReportedNodes {
 			points[index].ReportedNodes = row.ReportedNodes
 		}
@@ -623,38 +693,25 @@ func latestMetricSnapshot(snapshots []*model.OpenFlareMetricSnapshot) *model.Ope
 	return latest
 }
 
-func latestTrafficReport(reports []*model.OpenFlareRequestReport) *model.OpenFlareRequestReport {
-	var latest *model.OpenFlareRequestReport
-	for _, report := range reports {
-		if report == nil {
-			continue
-		}
-		if latest == nil || report.WindowEndedAt.After(latest.WindowEndedAt) {
-			latest = report
-		}
-	}
-	return latest
-}
-
-func matchOpenrestyObservation(
+func matchEdgeHealth(
 	capturedAt time.Time,
-	observations []*model.OpenFlareNodeObservationOpenresty,
-) *model.OpenFlareNodeObservationOpenresty {
-	var matched *model.OpenFlareNodeObservationOpenresty
-	bestDelta := metricSnapshotOpenrestyMatchWindow + time.Second
-	for _, observation := range observations {
-		if observation == nil {
+	health []*model.OpenFlareEdgeHealth,
+) *model.OpenFlareEdgeHealth {
+	var matched *model.OpenFlareEdgeHealth
+	bestDelta := metricSnapshotEdgeHealthMatchWindow + time.Second
+	for _, row := range health {
+		if row == nil {
 			continue
 		}
-		delta := capturedAt.Sub(observation.CapturedAt)
+		delta := capturedAt.Sub(row.CapturedAt)
 		if delta < 0 {
 			delta = -delta
 		}
-		if delta > metricSnapshotOpenrestyMatchWindow {
+		if delta > metricSnapshotEdgeHealthMatchWindow {
 			continue
 		}
 		if matched == nil || delta < bestDelta {
-			matched = observation
+			matched = row
 			bestDelta = delta
 		}
 	}
@@ -672,21 +729,6 @@ func LatestMetricSnapshotsByNode(snapshots []*model.OpenFlareMetricSnapshot) map
 			continue
 		}
 		result[snapshot.NodeID] = snapshot
-	}
-	return result
-}
-
-// LatestTrafficReportsByNode returns the latest traffic report per node.
-func LatestTrafficReportsByNode(reports []*model.OpenFlareRequestReport) map[string]*model.OpenFlareRequestReport {
-	result := make(map[string]*model.OpenFlareRequestReport, len(reports))
-	for _, report := range reports {
-		if report == nil || report.NodeID == "" {
-			continue
-		}
-		if existing, ok := result[report.NodeID]; ok && !report.WindowEndedAt.After(existing.WindowEndedAt) {
-			continue
-		}
-		result[report.NodeID] = report
 	}
 	return result
 }
@@ -709,30 +751,6 @@ func Percentage(used int64, total int64) float64 {
 		return 0
 	}
 	return (float64(used) / float64(total)) * percentageMultiplier
-}
-
-func mergeJSONCounts(target distributionAccumulator, raw string) {
-	if len(target) == 0 && strings.TrimSpace(raw) == "" {
-		return
-	}
-	values := parseJSONCounts(raw)
-	for key, value := range values {
-		if strings.TrimSpace(key) == "" || value <= 0 {
-			continue
-		}
-		target[key] += value
-	}
-}
-
-func parseJSONCounts(raw string) map[string]int64 {
-	if strings.TrimSpace(raw) == "" {
-		return nil
-	}
-	values := make(map[string]int64)
-	if err := json.Unmarshal([]byte(raw), &values); err != nil {
-		return nil
-	}
-	return values
 }
 
 func toDistributionItems(values distributionAccumulator, limit int) []DistributionItem {

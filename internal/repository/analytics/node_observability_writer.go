@@ -14,6 +14,8 @@ import (
 	analyticsmodel "github.com/Rain-kl/Wavelet/internal/model/analytics"
 )
 
+const edgeHealthStatusUnknown = "unknown"
+
 // InsertNodeMetricSnapshot writes a single metric snapshot via the batch API.
 func InsertNodeMetricSnapshot(ctx context.Context, snapshot analyticsmodel.NodeMetricSnapshot) error {
 	if strings.TrimSpace(snapshot.NodeID) == "" {
@@ -78,105 +80,49 @@ func BatchInsertNodeMetricSnapshots(ctx context.Context, snapshots []analyticsmo
 	return nil
 }
 
-// InsertNodeRequestReport writes a single request report via the batch API.
-func InsertNodeRequestReport(ctx context.Context, report analyticsmodel.NodeRequestReport) error {
-	if strings.TrimSpace(report.NodeID) == "" {
-		return nil
+func normalizeEdgeHealthStatus(status string) string {
+	status = strings.TrimSpace(status)
+	if status == "" {
+		return edgeHealthStatusUnknown
 	}
-	return BatchInsertNodeRequestReports(ctx, []analyticsmodel.NodeRequestReport{report})
+	return status
 }
 
-// BatchInsertNodeRequestReports writes request reports to ClickHouse.
-func BatchInsertNodeRequestReports(ctx context.Context, reports []analyticsmodel.NodeRequestReport) error {
-	if len(reports) == 0 {
+// InsertNodeEdgeHealth writes a single edge health snapshot.
+func InsertNodeEdgeHealth(ctx context.Context, row analyticsmodel.NodeEdgeHealth) error {
+	if strings.TrimSpace(row.NodeID) == "" {
+		return nil
+	}
+	return BatchInsertNodeEdgeHealth(ctx, []analyticsmodel.NodeEdgeHealth{row})
+}
+
+// BatchInsertNodeEdgeHealth writes L2 OpenResty health snapshots to ClickHouse.
+func BatchInsertNodeEdgeHealth(ctx context.Context, rows []analyticsmodel.NodeEdgeHealth) error {
+	if len(rows) == 0 {
 		return nil
 	}
 	if db.ChConn == nil {
 		return fmt.Errorf("clickhouse connection is not initialized")
 	}
-
-	batch, err := db.ChConn.PrepareBatch(ctx, analyticsmodel.NodeRequestReport{}.BatchInsertSQL())
+	batch, err := db.ChConn.PrepareBatch(ctx, analyticsmodel.NodeEdgeHealth{}.BatchInsertSQL())
 	if err != nil {
 		return fmt.Errorf("prepare clickhouse batch: %w", err)
 	}
-
 	now := time.Now().UTC()
-	for _, report := range reports {
-		nodeID := strings.TrimSpace(report.NodeID)
+	for _, row := range rows {
+		nodeID := strings.TrimSpace(row.NodeID)
 		if nodeID == "" {
 			continue
 		}
-		id := report.ID
+		id := row.ID
 		if id == 0 {
 			id = idgen.NextUint64ID()
 		}
-		createdAt := report.CreatedAt
+		createdAt := row.CreatedAt
 		if createdAt.IsZero() {
 			createdAt = now
 		}
-		if err := batch.Append(
-			id,
-			nodeID,
-			report.WindowStartedAt.UTC(),
-			report.WindowEndedAt.UTC(),
-			report.RequestCount,
-			report.ErrorCount,
-			report.UniqueVisitorCount,
-			report.StatusCodesJSON,
-			report.TopDomainsJSON,
-			report.SourceCountriesJSON,
-			createdAt.UTC(),
-		); err != nil {
-			return fmt.Errorf("append node request report to batch: %w", err)
-		}
-	}
-
-	if batch.Rows() == 0 {
-		return nil
-	}
-	if err := batch.Send(); err != nil {
-		return fmt.Errorf("send clickhouse batch: %w", err)
-	}
-	return nil
-}
-
-// InsertNodeObsOpenresty writes a single OpenResty observation via the batch API.
-func InsertNodeObsOpenresty(ctx context.Context, obs analyticsmodel.NodeObsOpenresty) error {
-	if strings.TrimSpace(obs.NodeID) == "" {
-		return nil
-	}
-	return BatchInsertNodeObsOpenresty(ctx, []analyticsmodel.NodeObsOpenresty{obs})
-}
-
-// BatchInsertNodeObsOpenresty writes OpenResty observations to ClickHouse.
-func BatchInsertNodeObsOpenresty(ctx context.Context, observations []analyticsmodel.NodeObsOpenresty) error {
-	if len(observations) == 0 {
-		return nil
-	}
-	if db.ChConn == nil {
-		return fmt.Errorf("clickhouse connection is not initialized")
-	}
-
-	batch, err := db.ChConn.PrepareBatch(ctx, analyticsmodel.NodeObsOpenresty{}.BatchInsertSQL())
-	if err != nil {
-		return fmt.Errorf("prepare clickhouse batch: %w", err)
-	}
-
-	now := time.Now().UTC()
-	for _, obs := range observations {
-		nodeID := strings.TrimSpace(obs.NodeID)
-		if nodeID == "" {
-			continue
-		}
-		id := obs.ID
-		if id == 0 {
-			id = idgen.NextUint64ID()
-		}
-		createdAt := obs.CreatedAt
-		if createdAt.IsZero() {
-			createdAt = now
-		}
-		capturedAt := obs.CapturedAt.UTC()
+		capturedAt := row.CapturedAt.UTC()
 		if capturedAt.IsZero() {
 			capturedAt = now
 		}
@@ -184,15 +130,13 @@ func BatchInsertNodeObsOpenresty(ctx context.Context, observations []analyticsmo
 			id,
 			nodeID,
 			capturedAt,
-			obs.OpenrestyRxBytes,
-			obs.OpenrestyTxBytes,
-			obs.OpenrestyConnections,
+			normalizeEdgeHealthStatus(row.Status),
+			row.Connections,
 			createdAt.UTC(),
 		); err != nil {
-			return fmt.Errorf("append node openresty observation to batch: %w", err)
+			return fmt.Errorf("append node edge health to batch: %w", err)
 		}
 	}
-
 	if batch.Rows() == 0 {
 		return nil
 	}

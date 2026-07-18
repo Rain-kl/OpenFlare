@@ -39,7 +39,7 @@ func TestGetOverviewStructure(t *testing.T) {
 
 	ctx := context.Background()
 	now := time.Now().UTC()
-	lastSeen := now.Add(-time.Minute)
+	lastSeen := now.Add(-15 * time.Second) // within default 60s offline threshold
 
 	require.NoError(t, db.DB(ctx).Create(&model.OpenFlareNode{
 		NodeID:          "node-dashboard-1",
@@ -75,14 +75,33 @@ func TestGetOverviewStructure(t *testing.T) {
 		StorageUsedBytes:  2,
 		StorageTotalBytes: 10,
 	}))
-	require.NoError(t, model.InsertOpenFlareRequestReport(ctx, &model.OpenFlareRequestReport{
-		NodeID:             "node-dashboard-1",
-		WindowStartedAt:    now.Add(-2 * time.Minute),
-		WindowEndedAt:      now.Add(-time.Minute),
-		RequestCount:       12,
-		ErrorCount:         1,
-		UniqueVisitorCount: 4,
-	}))
+	// Business traffic from access logs (L1 authority): 12 requests, 1 server error, 4 unique IPs.
+	logs := make([]*model.OpenFlareAccessLog, 0, 12)
+	for i := 0; i < 11; i++ {
+		logs = append(logs, &model.OpenFlareAccessLog{
+			NodeID:     "node-dashboard-1",
+			LoggedAt:   now.Add(-time.Minute),
+			RemoteAddr: "10.0.0." + string(rune('1'+i%4)), // rough; fixed below
+			Host:       "app.example.com",
+			Path:       "/",
+			StatusCode: 200,
+			BytesSent:  100,
+		})
+	}
+	ips := []string{"10.0.0.10", "10.0.0.11", "10.0.0.12", "10.0.0.13"}
+	for i := 0; i < 11; i++ {
+		logs[i].RemoteAddr = ips[i%4]
+	}
+	logs = append(logs, &model.OpenFlareAccessLog{
+		NodeID:     "node-dashboard-1",
+		LoggedAt:   now.Add(-time.Minute),
+		RemoteAddr: ips[0],
+		Host:       "app.example.com",
+		Path:       "/err",
+		StatusCode: 502,
+		BytesSent:  10,
+	})
+	require.NoError(t, model.InsertOpenFlareAccessLogsBatch(ctx, logs))
 
 	overview, err := GetOverview(ctx)
 	require.NoError(t, err)
@@ -98,8 +117,12 @@ func TestGetOverviewStructure(t *testing.T) {
 	assert.Equal(t, int64(12), overview.Traffic.RequestCount)
 	assert.Equal(t, int64(4), overview.Traffic.UniqueVisitors)
 	assert.Equal(t, int64(1), overview.Traffic.ErrorCount)
-	assert.InDelta(t, 0.2, overview.Traffic.EstimatedQPS, 0.0001)
+	// QPS over 24h window
+	assert.InDelta(t, 12.0/(24*3600.0), overview.Traffic.EstimatedQPS, 0.0001)
 	assert.Equal(t, 1, overview.Traffic.ReportedNodes)
+	// Node-level traffic from access log aggregates
+	onlineNodeCheck := overview.Nodes
+	require.NotEmpty(t, onlineNodeCheck)
 
 	assert.Equal(t, 55.0, overview.Capacity.AverageCPUUsagePercent)
 	assert.Equal(t, 50.0, overview.Capacity.AverageMemoryUsagePercent)
@@ -110,8 +133,9 @@ func TestGetOverviewStructure(t *testing.T) {
 	require.NotNil(t, overview.Distributions.StatusCodes)
 	require.NotNil(t, overview.Distributions.TopDomains)
 	require.NotNil(t, overview.Distributions.SourceCountries)
-	assert.Empty(t, overview.Distributions.StatusCodes)
-	assert.Empty(t, overview.Distributions.TopDomains)
+	// Status/top domains come from access logs.
+	assert.NotEmpty(t, overview.Distributions.StatusCodes)
+	assert.NotEmpty(t, overview.Distributions.TopDomains)
 	assert.Empty(t, overview.Distributions.SourceCountries)
 
 	require.Len(t, overview.Trends.Traffic24h, 24)
@@ -147,11 +171,11 @@ func TestGetOverviewStructure(t *testing.T) {
 	assert.Equal(t, "online", onlineNode[6])
 	assert.Equal(t, "healthy", onlineNode[7])
 	// Latest-per-node health fields (indexes match compressDashboardNodes).
-	assert.Equal(t, 55.0, onlineNode[11]) // cpu_usage_percent from latest snapshot
-	assert.Equal(t, 50.0, onlineNode[12]) // memory_usage_percent
-	assert.Equal(t, int64(12), onlineNode[14])
-	assert.Equal(t, int64(1), onlineNode[15])
-	assert.Equal(t, int64(4), onlineNode[16])
+	assert.Equal(t, 55.0, onlineNode[11])      // cpu_usage_percent from latest snapshot
+	assert.Equal(t, 50.0, onlineNode[12])      // memory_usage_percent
+	assert.Equal(t, int64(12), onlineNode[14]) // request_count from access logs
+	assert.Equal(t, int64(1), onlineNode[15])  // error_count
+	assert.Equal(t, int64(4), onlineNode[16])  // unique visitors
 
 	pendingNode := nodeByID["node-dashboard-2"]
 	require.NotNil(t, pendingNode)
@@ -161,5 +185,4 @@ func TestGetOverviewStructure(t *testing.T) {
 
 	assert.Equal(t, 55.0, overview.Capacity.AverageCPUUsagePercent)
 	assert.Equal(t, 1, overview.Traffic.ReportedNodes)
-	assert.Equal(t, int64(4), overview.Traffic.UniqueVisitors)
 }

@@ -33,11 +33,8 @@ type NodeSystemProfile = pkgprotocol.NodeSystemProfile
 // NodeMetricSnapshot is an alias for pkgprotocol.NodeMetricSnapshot.
 type NodeMetricSnapshot = pkgprotocol.NodeMetricSnapshot
 
-// NodeOpenrestyObservation is an alias for pkgprotocol.NodeOpenrestyObservation.
-type NodeOpenrestyObservation = pkgprotocol.NodeOpenrestyObservation
-
-// NodeTrafficReport is an alias for pkgprotocol.NodeTrafficReport.
-type NodeTrafficReport = pkgprotocol.NodeTrafficReport
+// NodeEdgeHealth is an alias for pkgprotocol.NodeEdgeHealth.
+type NodeEdgeHealth = pkgprotocol.NodeEdgeHealth
 
 // NodeAccessLog is an alias for pkgprotocol.NodeAccessLog.
 type NodeAccessLog = pkgprotocol.NodeAccessLog

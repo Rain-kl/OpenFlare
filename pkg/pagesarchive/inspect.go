@@ -42,7 +42,7 @@ func InspectFile(filePath string, format Format, opts InspectOptions) (*Manifest
 		return nil, err
 	}
 	if format == "" {
-		head := make([]byte, 512)
+		head := make([]byte, formatDetectHeadBytes)
 		n, readErr := file.ReadAt(head, 0)
 		if readErr != nil && readErr != io.EOF {
 			return nil, readErr

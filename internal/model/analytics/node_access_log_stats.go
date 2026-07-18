@@ -13,6 +13,7 @@ type NodeAccessLogBucketAggregate struct {
 	UniqueIPCount    int64 `gorm:"column:unique_ip_count"`
 	UniqueHostCount  int64 `gorm:"column:unique_host_count"`
 	BytesSent        int64 `gorm:"column:bytes_sent"`
+	RequestLength    int64 `gorm:"column:request_length"`
 }
 
 // NodeAccessLogWAFIPAggregate is a per-IP aggregate row for WAF automatic rules.

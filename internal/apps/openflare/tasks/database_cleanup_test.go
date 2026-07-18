@@ -157,11 +157,11 @@ func TestRunDatabaseAutoCleanupOnceClampsRetentionToTableTTL(t *testing.T) {
 		CapturedAt:      now.Add(-40 * 24 * time.Hour),
 		CPUUsagePercent: 10,
 	}))
-	require.NoError(t, model.InsertOpenFlareRequestReport(ctx, &model.OpenFlareRequestReport{
-		NodeID:          "node-a",
-		WindowStartedAt: now.Add(-41 * 24 * time.Hour),
-		WindowEndedAt:   now.Add(-40 * 24 * time.Hour),
-		RequestCount:    15,
+	require.NoError(t, model.InsertOpenFlareEdgeHealth(ctx, &model.OpenFlareEdgeHealth{
+		NodeID:      "node-a",
+		CapturedAt:  now.Add(-40 * 24 * time.Hour),
+		Status:      "healthy",
+		Connections: 2,
 	}))
 
 	require.NoError(t, repository.SaveOrUpdateSystemConfig(ctx, model.ConfigKeyDatabaseAutoCleanupEnabled, "true"))
@@ -170,7 +170,7 @@ func TestRunDatabaseAutoCleanupOnceClampsRetentionToTableTTL(t *testing.T) {
 	summary, err := RunDatabaseAutoCleanupOnce(ctx, now)
 	require.NoError(t, err)
 	require.NotNil(t, summary)
-	require.Len(t, summary.Results, 6)
+	require.Len(t, summary.Results, 5)
 	assert.Equal(t, 1, summary.RetentionDays)
 
 	for _, result := range summary.Results {
@@ -189,9 +189,9 @@ func TestRunDatabaseAutoCleanupOnceClampsRetentionToTableTTL(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, metricSnapshots)
 
-	requestReports, err := model.ListOpenFlareRequestReportsSince(ctx, "", time.Time{}, 0)
+	edgeHealth, err := model.ListOpenFlareEdgeHealth(ctx, "", time.Time{}, 0)
 	require.NoError(t, err)
-	assert.Empty(t, requestReports)
+	assert.Empty(t, edgeHealth)
 }
 
 func TestTableTTLDaysForCleanupTarget(t *testing.T) {

@@ -72,6 +72,21 @@ func CountOpenFlareAccessLogs(ctx context.Context, query OpenFlareAccessLogQuery
 	return currentAccessLogStore().Count(ctx, query)
 }
 
+// TrafficSummaryOpenFlareAccessLogs returns window-level request/error/UV/bytes summary.
+func TrafficSummaryOpenFlareAccessLogs(ctx context.Context, query OpenFlareAccessLogQuery) (OpenFlareAccessLogTrafficSummary, error) {
+	return currentAccessLogStore().TrafficSummary(ctx, query)
+}
+
+// ValueCountsOpenFlareAccessLogs groups logs by status_code or host.
+func ValueCountsOpenFlareAccessLogs(ctx context.Context, query OpenFlareAccessLogQuery, column string, limit int) ([]OpenFlareAccessLogValueCount, error) {
+	return currentAccessLogStore().ValueCounts(ctx, query, column, limit)
+}
+
+// NodeAggregatesOpenFlareAccessLogs returns per-node request/error/UV for the window.
+func NodeAggregatesOpenFlareAccessLogs(ctx context.Context, query OpenFlareAccessLogQuery) ([]OpenFlareAccessLogNodeAggregate, error) {
+	return currentAccessLogStore().NodeAggregates(ctx, query)
+}
+
 // ListOpenFlareAccessLogRegionCounts returns region counts for access logs.
 func ListOpenFlareAccessLogRegionCounts(ctx context.Context, nodeID string, since time.Time, limit int) ([]*OpenFlareAccessLogRegionCount, error) {
 	return currentAccessLogStore().RegionCounts(ctx, nodeID, since, limit)
@@ -192,6 +207,7 @@ func buildOpenFlareAccessLogBucketRows(ctx context.Context, query OpenFlareAcces
 			ClientErrorCount: partial.ClientErrorCount,
 			ServerErrorCount: partial.ServerErrorCount,
 			BytesSent:        partial.BytesSent,
+			RequestLength:    partial.RequestLength,
 		})
 	}
 	return rows, nil

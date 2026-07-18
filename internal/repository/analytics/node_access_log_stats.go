@@ -48,7 +48,8 @@ SELECT
 	countIf(status_code >= 500) AS server_error_count,
 	uniqExactIf(remote_addr, remote_addr != '') AS unique_ip_count,
 	uniqExactIf(host, host != '') AS unique_host_count,
-	sum(bytes_sent) AS bytes_sent
+	sum(bytes_sent) AS bytes_sent,
+	sum(request_length) AS request_length
 FROM %s
 WHERE %s
 GROUP BY bucket_epoch
@@ -69,10 +70,10 @@ ORDER BY %s`, bucketExpr, tableName, clause, nodeAccessLogBucketOrderClause(filt
 	var result []NodeAccessLogBucketAggregate
 	for rows.Next() {
 		var (
-			bucketEpoch                                                                                               int64
-			requestCount, successCount, clientErrorCount, serverErrorCount, uniqueIPCount, uniqueHostCount, bytesSent uint64
+			bucketEpoch                                                                                                              int64
+			requestCount, successCount, clientErrorCount, serverErrorCount, uniqueIPCount, uniqueHostCount, bytesSent, requestLength uint64
 		)
-		if err := rows.Scan(&bucketEpoch, &requestCount, &successCount, &clientErrorCount, &serverErrorCount, &uniqueIPCount, &uniqueHostCount, &bytesSent); err != nil {
+		if err := rows.Scan(&bucketEpoch, &requestCount, &successCount, &clientErrorCount, &serverErrorCount, &uniqueIPCount, &uniqueHostCount, &bytesSent, &requestLength); err != nil {
 			return nil, fmt.Errorf("scan bucket aggregate row: %w", err)
 		}
 		result = append(result, NodeAccessLogBucketAggregate{
@@ -84,6 +85,7 @@ ORDER BY %s`, bucketExpr, tableName, clause, nodeAccessLogBucketOrderClause(filt
 			UniqueIPCount:    safeInt64Count(uniqueIPCount),
 			UniqueHostCount:  safeInt64Count(uniqueHostCount),
 			BytesSent:        safeInt64Count(bytesSent),
+			RequestLength:    safeInt64Count(requestLength),
 		})
 	}
 	return result, nil

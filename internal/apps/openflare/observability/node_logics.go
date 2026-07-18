@@ -79,7 +79,6 @@ type NodeView struct {
 	NodeID          string                            `json:"node_id"`
 	Profile         *model.OpenFlareNodeSystemProfile `json:"profile"`
 	MetricSnapshots []*NodeMetricSnapshotView         `json:"metric_snapshots"`
-	TrafficReports  []*model.OpenFlareRequestReport   `json:"traffic_reports"`
 	HealthEvents    []*model.OpenFlareHealthEvent     `json:"health_events"`
 	Analytics       NodeAnalytics                     `json:"analytics"`
 	Trends          NodeTrends                        `json:"trends"`
@@ -118,11 +117,7 @@ func GetNodeObservability(ctx context.Context, id uint, query NodeQuery) (*NodeV
 	if err != nil {
 		return nil, err
 	}
-	openrestyObs, err := model.ListOpenFlareNodeObservationOpenresty(ctx, node.NodeID, since, limit)
-	if err != nil {
-		return nil, err
-	}
-	reports, err := model.ListOpenFlareRequestReportsSince(ctx, node.NodeID, since, limit)
+	edgeHealth, err := model.ListOpenFlareEdgeHealth(ctx, node.NodeID, since, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -134,18 +129,21 @@ func GetNodeObservability(ctx context.Context, id uint, query NodeQuery) (*NodeV
 	if err != nil {
 		return nil, err
 	}
+	distributions := BuildTrafficDistributionsFromAccessLogs(
+		ctx, since, now, defaultTrafficDistributionLimit, accessLogRegions,
+	)
+	trafficSummary := buildTrafficWindowSummaryFromAccessLogs(ctx, node.NodeID, since, now)
 	view := &NodeView{
 		NodeID:          node.NodeID,
 		Profile:         profile,
-		MetricSnapshots: BuildMetricSnapshotViews(snapshots, openrestyObs),
-		TrafficReports:  reports,
+		MetricSnapshots: BuildMetricSnapshotViews(snapshots, edgeHealth),
 		HealthEvents:    events,
 		Analytics: NodeAnalytics{
-			Traffic:       buildTrafficWindowSummary(latestTrafficReport(reports)),
-			Distributions: BuildTrafficDistributions(reports, accessLogRegions, defaultTrafficDistributionLimit),
-			Health:        buildHealthSummary(latestMetricSnapshot(snapshots), latestTrafficReport(reports), events),
+			Traffic:       trafficSummary,
+			Distributions: distributions,
+			Health:        buildHealthSummary(latestMetricSnapshot(snapshots), trafficSummary, events),
 		},
-		Trends: BuildNodeTrends(ctx, now, node.NodeID, snapshots, openrestyObs, reports),
+		Trends: BuildNodeTrends(ctx, now, node.NodeID, snapshots),
 	}
 	if node.NodeType == "tunnel_relay" {
 		frpsObs, frpsErr := model.ListOpenFlareNodeObservationFrps(ctx, node.NodeID, time.Time{}, 1)

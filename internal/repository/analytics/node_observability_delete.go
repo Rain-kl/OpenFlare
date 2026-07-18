@@ -51,78 +51,35 @@ func MaterializeNodeMetricSnapshotsTTL(ctx context.Context) (CleanupOutcome, err
 	)
 }
 
-// DeleteAllNodeRequestReports hard-deletes all node request reports via TRUNCATE.
-func DeleteAllNodeRequestReports(ctx context.Context) (int64, error) {
+// DeleteAllNodeEdgeHealth truncates of_node_edge_health.
+func DeleteAllNodeEdgeHealth(ctx context.Context) (int64, error) {
 	conn, err := observabilityConn()
 	if err != nil {
 		return 0, err
 	}
-	outcome, err := truncateClickHouseTable(ctx, conn, nodeRequestReportTableName())
+	outcome, err := truncateClickHouseTable(ctx, conn, nodeEdgeHealthTableName())
 	if err != nil {
 		return 0, err
 	}
 	return outcome.DeletedCount, nil
 }
 
-// DeleteNodeRequestReportsBefore force-materializes of_node_request_reports table TTL.
-// cutoff is ignored; see MaterializeNodeRequestReportsTTL.
-func DeleteNodeRequestReportsBefore(ctx context.Context, _ time.Time) (int64, error) {
-	outcome, err := MaterializeNodeRequestReportsTTL(ctx)
+// DeleteNodeEdgeHealthBefore force-materializes of_node_edge_health TTL.
+func DeleteNodeEdgeHealthBefore(ctx context.Context, _ time.Time) (int64, error) {
+	outcome, err := MaterializeNodeEdgeHealthTTL(ctx)
 	if err != nil {
 		return 0, err
 	}
 	return outcome.EligibleCount, nil
 }
 
-// MaterializeNodeRequestReportsTTL force-materializes table TTL and reports an honest outcome.
-func MaterializeNodeRequestReportsTTL(ctx context.Context) (CleanupOutcome, error) {
+// MaterializeNodeEdgeHealthTTL force-materializes of_node_edge_health table TTL.
+func MaterializeNodeEdgeHealthTTL(ctx context.Context) (CleanupOutcome, error) {
 	conn, err := observabilityConn()
 	if err != nil {
 		return CleanupOutcome{}, err
 	}
-	tableName := nodeRequestReportTableName()
-	ttlDays := TableTTLDaysNodeRequestReports
-	cutoff := tableTTLCutoff(ttlDays, time.Now())
-	return materializeExpiredByTableTTL(
-		ctx,
-		conn,
-		tableName,
-		ttlDays,
-		fmt.Sprintf("SELECT count() FROM %s WHERE window_ended_at < ?", tableName),
-		[]any{cutoff},
-	)
-}
-
-// DeleteAllNodeObsOpenresty hard-deletes all OpenResty observations via TRUNCATE.
-func DeleteAllNodeObsOpenresty(ctx context.Context) (int64, error) {
-	conn, err := observabilityConn()
-	if err != nil {
-		return 0, err
-	}
-	outcome, err := truncateClickHouseTable(ctx, conn, nodeObsOpenrestyTableName())
-	if err != nil {
-		return 0, err
-	}
-	return outcome.DeletedCount, nil
-}
-
-// DeleteNodeObsOpenrestyBefore force-materializes of_node_obs_openresty table TTL.
-// cutoff is ignored; see MaterializeNodeObsOpenrestyTTL.
-func DeleteNodeObsOpenrestyBefore(ctx context.Context, _ time.Time) (int64, error) {
-	outcome, err := MaterializeNodeObsOpenrestyTTL(ctx)
-	if err != nil {
-		return 0, err
-	}
-	return outcome.EligibleCount, nil
-}
-
-// MaterializeNodeObsOpenrestyTTL force-materializes table TTL and reports an honest outcome.
-func MaterializeNodeObsOpenrestyTTL(ctx context.Context) (CleanupOutcome, error) {
-	conn, err := observabilityConn()
-	if err != nil {
-		return CleanupOutcome{}, err
-	}
-	tableName := nodeObsOpenrestyTableName()
+	tableName := nodeEdgeHealthTableName()
 	ttlDays := TableTTLDaysNodeObs
 	cutoff := tableTTLCutoff(ttlDays, time.Now())
 	return materializeExpiredByTableTTL(

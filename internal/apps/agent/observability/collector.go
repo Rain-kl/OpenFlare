@@ -84,16 +84,37 @@ func BuildSnapshot(cfg *config.Config, stateStore *state.Store) *protocol.NodeMe
 	return metric
 }
 
-// BuildOpenrestyObservation builds the OpenResty observation protocol model from the managed metrics.
-func BuildOpenrestyObservation(managed *ManagedOpenRestyMetrics) *protocol.NodeOpenrestyObservation {
-	if managed == nil {
-		return nil
+// BuildEdgeHealth builds the edge_health payload from a local probe and node status.
+func BuildEdgeHealth(probe *EdgeHealthSnapshot, openrestyStatus, openrestyMessage string) *protocol.NodeEdgeHealth {
+	status := strings.TrimSpace(openrestyStatus)
+	message := strings.TrimSpace(openrestyMessage)
+	if probe == nil {
+		if status == "" {
+			return nil
+		}
+		return &protocol.NodeEdgeHealth{
+			CapturedAtUnix: time.Now().UTC().Unix(),
+			Status:         status,
+			Message:        message,
+			Connections:    0,
+		}
 	}
-	return &protocol.NodeOpenrestyObservation{
-		CapturedAtUnix:       time.Now().UTC().Unix(),
-		OpenrestyRxBytes:     managed.OpenrestyRxBytes,
-		OpenrestyTxBytes:     managed.OpenrestyTxBytes,
-		OpenrestyConnections: managed.OpenrestyConnections,
+
+	captured := probe.CapturedAtUnix
+	if captured <= 0 {
+		captured = time.Now().UTC().Unix()
+	}
+	if status == "" {
+		status = protocol.OpenrestyStatusUnknown
+		if probe.OK {
+			status = protocol.OpenrestyStatusHealthy
+		}
+	}
+	return &protocol.NodeEdgeHealth{
+		CapturedAtUnix: captured,
+		Status:         status,
+		Message:        message,
+		Connections:    probe.Connections,
 	}
 }
 

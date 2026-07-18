@@ -14,14 +14,13 @@ import (
 
 const observabilityBufferWindowSeconds = 60
 
-// ObservabilityBufferRecord stores observability data for a single time window.
+// ObservabilityBufferRecord stores observability facts for a single time window.
 type ObservabilityBufferRecord struct {
-	WindowStartedAtUnix  int64                              `json:"window_started_at_unix"`
-	Snapshot             *protocol.NodeMetricSnapshot       `json:"snapshot,omitempty"`
-	OpenrestyObservation *protocol.NodeOpenrestyObservation `json:"openresty_observation,omitempty"`
-	TrafficReport        *protocol.NodeTrafficReport        `json:"traffic_report,omitempty"`
-	AccessLogs           []protocol.NodeAccessLog           `json:"access_logs,omitempty"`
-	QueuedAtUnix         int64                              `json:"queued_at_unix"`
+	WindowStartedAtUnix int64                        `json:"window_started_at_unix"`
+	HostMetrics         *protocol.NodeMetricSnapshot `json:"host_metrics,omitempty"`
+	EdgeHealth          *protocol.NodeEdgeHealth     `json:"edge_health,omitempty"`
+	AccessLogs          []protocol.NodeAccessLog     `json:"access_logs,omitempty"`
+	QueuedAtUnix        int64                        `json:"queued_at_unix"`
 }
 
 // ObservabilityBufferStore persists observability records to disk for replay on heartbeat.
@@ -39,7 +38,7 @@ func NewObservabilityBufferStore(path string) *ObservabilityBufferStore {
 
 // Upsert inserts or merges an observability record and prunes entries older than retainAfterUnix.
 func (s *ObservabilityBufferStore) Upsert(record ObservabilityBufferRecord, retainAfterUnix int64) error {
-	if s == nil || record.WindowStartedAtUnix <= 0 || (record.Snapshot == nil && record.OpenrestyObservation == nil && record.TrafficReport == nil && len(record.AccessLogs) == 0) {
+	if s == nil || record.WindowStartedAtUnix <= 0 || (record.HostMetrics == nil && record.EdgeHealth == nil && len(record.AccessLogs) == 0) {
 		return nil
 	}
 	s.mu.Lock()
@@ -70,14 +69,11 @@ func (s *ObservabilityBufferStore) Upsert(record ObservabilityBufferRecord, reta
 
 func mergeObservabilityBufferRecord(existing ObservabilityBufferRecord, incoming ObservabilityBufferRecord) ObservabilityBufferRecord {
 	merged := existing
-	if incoming.Snapshot != nil {
-		merged.Snapshot = incoming.Snapshot
+	if incoming.HostMetrics != nil {
+		merged.HostMetrics = incoming.HostMetrics
 	}
-	if incoming.OpenrestyObservation != nil {
-		merged.OpenrestyObservation = incoming.OpenrestyObservation
-	}
-	if incoming.TrafficReport != nil {
-		merged.TrafficReport = incoming.TrafficReport
+	if incoming.EdgeHealth != nil {
+		merged.EdgeHealth = incoming.EdgeHealth
 	}
 	merged.AccessLogs = mergeAccessLogs(existing.AccessLogs, incoming.AccessLogs)
 	if incoming.QueuedAtUnix > 0 {
@@ -222,18 +218,15 @@ func (s *ObservabilityBufferStore) saveUnlocked(records []ObservabilityBufferRec
 	return nil
 }
 
-// ObservabilityWindowStartedAt calculates the start of the 60-second window for the given metrics, openresty observation, or traffic report.
-func ObservabilityWindowStartedAt(snapshot *protocol.NodeMetricSnapshot, openresty *protocol.NodeOpenrestyObservation, traffic *protocol.NodeTrafficReport) int64 {
-	if traffic != nil && traffic.WindowStartedAtUnix > 0 {
-		return traffic.WindowStartedAtUnix - (traffic.WindowStartedAtUnix % observabilityBufferWindowSeconds)
+// ObservabilityWindowStartedAt returns the 60s window start for host metrics or edge health.
+func ObservabilityWindowStartedAt(hostMetrics *protocol.NodeMetricSnapshot, edgeHealth *protocol.NodeEdgeHealth) int64 {
+	if edgeHealth != nil && edgeHealth.CapturedAtUnix > 0 {
+		return edgeHealth.CapturedAtUnix - (edgeHealth.CapturedAtUnix % observabilityBufferWindowSeconds)
 	}
-	if openresty != nil && openresty.CapturedAtUnix > 0 {
-		return openresty.CapturedAtUnix - (openresty.CapturedAtUnix % observabilityBufferWindowSeconds)
-	}
-	if snapshot == nil || snapshot.CapturedAtUnix <= 0 {
+	if hostMetrics == nil || hostMetrics.CapturedAtUnix <= 0 {
 		return 0
 	}
-	return snapshot.CapturedAtUnix - (snapshot.CapturedAtUnix % observabilityBufferWindowSeconds)
+	return hostMetrics.CapturedAtUnix - (hostMetrics.CapturedAtUnix % observabilityBufferWindowSeconds)
 }
 
 func pruneObservabilityBufferRecords(records []ObservabilityBufferRecord, retainAfterUnix int64) []ObservabilityBufferRecord {

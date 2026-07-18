@@ -74,25 +74,35 @@ const (
 	OpenrestyStatusUnknown   = "unknown"
 )
 
-// NodePayload is the agent node registration payload.
+// NodePayload is the agent node registration / heartbeat payload.
+// schema_version 2: host_metrics + edge_health + access_logs facts only (no business pre-aggregation).
+// Agents are destroy/rebuild upgraded; no wire-level compatibility aliases.
 type NodePayload struct {
-	NodeID                string                        `json:"node_id"`
-	Name                  string                        `json:"name"`
-	IP                    string                        `json:"ip"`
-	Version               string                        `json:"version"`
-	ExtVersion            string                        `json:"ext_version"`
-	CurrentVersion        string                        `json:"current_version"`
-	LastError             string                        `json:"last_error"`
-	OpenrestyStatus       string                        `json:"openresty_status"`
-	OpenrestyMessage      string                        `json:"openresty_message"`
-	Profile               *NodeSystemProfile            `json:"profile,omitempty"`
-	Snapshot              *NodeMetricSnapshot           `json:"snapshot,omitempty"`
-	OpenrestyObservation  *NodeOpenrestyObservation     `json:"openresty_observation,omitempty"`
-	TrafficReport         *NodeTrafficReport            `json:"traffic_report,omitempty"`
-	AccessLogs            []NodeAccessLog               `json:"access_logs,omitempty"`
-	BufferedObservability []BufferedObservabilityRecord `json:"buffered_observability,omitempty"`
-	HealthEvents          []NodeHealthEvent             `json:"health_events"`
-	WAFIPGroupChecksums   map[string]string             `json:"waf_ip_group_checksums,omitempty"`
+	SchemaVersion       int                           `json:"schema_version,omitempty"`
+	NodeID              string                        `json:"node_id"`
+	Name                string                        `json:"name"`
+	IP                  string                        `json:"ip"`
+	Version             string                        `json:"version"`
+	ExtVersion          string                        `json:"ext_version"`
+	CurrentVersion      string                        `json:"current_version"`
+	LastError           string                        `json:"last_error"`
+	OpenrestyStatus     string                        `json:"openresty_status"`
+	OpenrestyMessage    string                        `json:"openresty_message"`
+	Profile             *NodeSystemProfile            `json:"profile,omitempty"`
+	HostMetrics         *NodeMetricSnapshot           `json:"host_metrics,omitempty"`
+	EdgeHealth          *NodeEdgeHealth               `json:"edge_health,omitempty"`
+	AccessLogs          []NodeAccessLog               `json:"access_logs,omitempty"`
+	Buffered            []BufferedObservabilityRecord `json:"buffered,omitempty"`
+	HealthEvents        []NodeHealthEvent             `json:"health_events"`
+	WAFIPGroupChecksums map[string]string             `json:"waf_ip_group_checksums,omitempty"`
+}
+
+// NodeEdgeHealth is an instantaneous OpenResty health snapshot (L2).
+type NodeEdgeHealth struct {
+	CapturedAtUnix int64  `json:"captured_at_unix"`
+	Status         string `json:"status"`
+	Message        string `json:"message"`
+	Connections    int64  `json:"connections"`
 }
 
 // NodeSystemProfile describes the system profile of a node.
@@ -124,43 +134,24 @@ type NodeMetricSnapshot struct {
 	NetworkTxBytes    int64   `json:"network_tx_bytes"`
 }
 
-// NodeOpenrestyObservation holds OpenResty observation data.
-type NodeOpenrestyObservation struct {
-	CapturedAtUnix       int64 `json:"captured_at_unix"`
-	OpenrestyRxBytes     int64 `json:"openresty_rx_bytes"`
-	OpenrestyTxBytes     int64 `json:"openresty_tx_bytes"`
-	OpenrestyConnections int64 `json:"openresty_connections"`
-}
-
-// NodeTrafficReport is a traffic report from agent.
-type NodeTrafficReport struct {
-	WindowStartedAtUnix int64            `json:"window_started_at_unix"`
-	WindowEndedAtUnix   int64            `json:"window_ended_at_unix"`
-	RequestCount        int64            `json:"request_count"`
-	ErrorCount          int64            `json:"error_count"`
-	UniqueVisitorCount  int64            `json:"unique_visitor_count"`
-	StatusCodes         map[string]int64 `json:"status_codes"`
-	TopDomains          map[string]int64 `json:"top_domains"`
-	SourceCountries     map[string]int64 `json:"source_countries"`
-}
-
-// NodeAccessLog is an access log entry from agent.
+// NodeAccessLog is an access log entry from agent (L1 business fact).
 type NodeAccessLog struct {
-	LoggedAtUnix int64  `json:"logged_at_unix"`
-	RemoteAddr   string `json:"remote_addr"`
-	Host         string `json:"host"`
-	Path         string `json:"path"`
-	StatusCode   int    `json:"status_code"`
-	BytesSent    int64  `json:"bytes_sent"`
+	LoggedAtUnix  int64  `json:"logged_at_unix"`
+	RemoteAddr    string `json:"remote_addr"`
+	Host          string `json:"host"`
+	Path          string `json:"path"`
+	StatusCode    int    `json:"status_code"`
+	BytesSent     int64  `json:"bytes_sent"`      // body bytes = 已提供数据
+	RequestLength int64  `json:"request_length"`  // 接收数据
+	RequestTimeMs int64  `json:"request_time_ms"` // optional
 }
 
-// BufferedObservabilityRecord is a buffered observability record.
+// BufferedObservabilityRecord is a buffered observability record (facts only).
 type BufferedObservabilityRecord struct {
-	WindowStartedAtUnix  int64                     `json:"window_started_at_unix"`
-	Snapshot             *NodeMetricSnapshot       `json:"snapshot,omitempty"`
-	OpenrestyObservation *NodeOpenrestyObservation `json:"openresty_observation,omitempty"`
-	TrafficReport        *NodeTrafficReport        `json:"traffic_report,omitempty"`
-	AccessLogs           []NodeAccessLog           `json:"access_logs,omitempty"`
+	CapturedAtUnix int64               `json:"captured_at_unix,omitempty"`
+	HostMetrics    *NodeMetricSnapshot `json:"host_metrics,omitempty"`
+	EdgeHealth     *NodeEdgeHealth     `json:"edge_health,omitempty"`
+	AccessLogs     []NodeAccessLog     `json:"access_logs,omitempty"`
 }
 
 // NodeHealthEvent represents a node health event.

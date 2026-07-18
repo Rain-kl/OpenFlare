@@ -12,24 +12,23 @@ func TestObservabilityBufferStoreUpsertReplayAndAck(t *testing.T) {
 
 	if err := store.Upsert(ObservabilityBufferRecord{
 		WindowStartedAtUnix: 1710403200,
-		Snapshot:            &protocol.NodeMetricSnapshot{CapturedAtUnix: 1710403205},
-		TrafficReport:       &protocol.NodeTrafficReport{WindowStartedAtUnix: 1710403200, WindowEndedAtUnix: 1710403260, RequestCount: 5},
+		HostMetrics:         &protocol.NodeMetricSnapshot{CapturedAtUnix: 1710403205},
+		EdgeHealth:          &protocol.NodeEdgeHealth{CapturedAtUnix: 1710403205, Connections: 5},
 		QueuedAtUnix:        1710403205,
 	}, 1710403000); err != nil {
 		t.Fatalf("first upsert failed: %v", err)
 	}
 	if err := store.Upsert(ObservabilityBufferRecord{
 		WindowStartedAtUnix: 1710403200,
-		Snapshot:            &protocol.NodeMetricSnapshot{CapturedAtUnix: 1710403255},
-		TrafficReport:       &protocol.NodeTrafficReport{WindowStartedAtUnix: 1710403200, WindowEndedAtUnix: 1710403260, RequestCount: 12},
+		HostMetrics:         &protocol.NodeMetricSnapshot{CapturedAtUnix: 1710403255, CPUUsagePercent: 40},
+		EdgeHealth:          &protocol.NodeEdgeHealth{CapturedAtUnix: 1710403255, Connections: 12},
 		QueuedAtUnix:        1710403255,
 	}, 1710403000); err != nil {
 		t.Fatalf("second upsert failed: %v", err)
 	}
 	if err := store.Upsert(ObservabilityBufferRecord{
 		WindowStartedAtUnix: 1710403260,
-		Snapshot:            &protocol.NodeMetricSnapshot{CapturedAtUnix: 1710403265},
-		TrafficReport:       &protocol.NodeTrafficReport{WindowStartedAtUnix: 1710403260, WindowEndedAtUnix: 1710403320, RequestCount: 2},
+		HostMetrics:         &protocol.NodeMetricSnapshot{CapturedAtUnix: 1710403265},
 		QueuedAtUnix:        1710403265,
 	}, 1710403000); err != nil {
 		t.Fatalf("third upsert failed: %v", err)
@@ -42,7 +41,7 @@ func TestObservabilityBufferStoreUpsertReplayAndAck(t *testing.T) {
 	if len(records) != 1 {
 		t.Fatalf("expected one replayable record before current window, got %d", len(records))
 	}
-	if records[0].TrafficReport == nil || records[0].TrafficReport.RequestCount != 12 {
+	if records[0].EdgeHealth == nil || records[0].EdgeHealth.Connections != 12 {
 		t.Fatalf("expected replayable record to keep latest upsert, got %+v", records[0])
 	}
 
@@ -89,10 +88,10 @@ func TestObservabilityBufferStoreMergesAccessLogsWithinWindow(t *testing.T) {
 }
 
 func TestObservabilityWindowStartedAt(t *testing.T) {
-	if value := ObservabilityWindowStartedAt(nil, nil, &protocol.NodeTrafficReport{WindowStartedAtUnix: 1710403200}); value != 1710403200 {
-		t.Fatalf("unexpected traffic window start: %d", value)
+	if value := ObservabilityWindowStartedAt(nil, &protocol.NodeEdgeHealth{CapturedAtUnix: 1710403259}); value != 1710403200 {
+		t.Fatalf("unexpected edge-health window start: %d", value)
 	}
-	if value := ObservabilityWindowStartedAt(&protocol.NodeMetricSnapshot{CapturedAtUnix: 1710403259}, nil, nil); value != 1710403200 {
-		t.Fatalf("unexpected snapshot-derived window start: %d", value)
+	if value := ObservabilityWindowStartedAt(&protocol.NodeMetricSnapshot{CapturedAtUnix: 1710403259}, nil); value != 1710403200 {
+		t.Fatalf("unexpected host-metrics window start: %d", value)
 	}
 }

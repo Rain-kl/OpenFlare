@@ -90,13 +90,10 @@ func (c *Cycle) NodePayload(ctx context.Context, nodeID string) protocol.NodePay
 		openrestyStatus = protocol.OpenrestyStatusUnknown
 	}
 	profile := observability.BuildProfile(c.Config, c.StateStore)
-	managedOpenRestyMetrics := observability.CollectManagedOpenRestyMetrics(ctx, c.Config)
-	trafficReport, accessLogs, fallbackMetrics := observability.BuildTrafficObservability(c.Config, c.StateStore, managedOpenRestyMetrics)
-	if managedOpenRestyMetrics == nil {
-		managedOpenRestyMetrics = fallbackMetrics
-	}
+	edgeSnapshot := observability.CollectEdgeHealth(ctx, c.Config)
+	accessLogs := observability.CollectAccessLogs(c.Config, c.StateStore)
 	metricSnapshot := observability.BuildSnapshot(c.Config, c.StateStore)
-	openrestyObservation := observability.BuildOpenrestyObservation(managedOpenRestyMetrics)
+	edgeHealth := observability.BuildEdgeHealth(edgeSnapshot, openrestyStatus, snapshot.OpenrestyMessage)
 	healthEvents := observability.BuildHealthEvents(snapshot)
 
 	ip := c.Config.NodeIP
@@ -105,21 +102,21 @@ func (c *Cycle) NodePayload(ctx context.Context, nodeID string) protocol.NodePay
 	}
 
 	payload := protocol.NodePayload{
-		NodeID:               nodeID,
-		Name:                 c.Config.NodeName,
-		IP:                   ip,
-		Version:              c.Config.Version,
-		ExtVersion:           c.Config.ExtVersion,
-		CurrentVersion:       snapshot.CurrentVersion,
-		LastError:            snapshot.LastError,
-		OpenrestyStatus:      openrestyStatus,
-		OpenrestyMessage:     snapshot.OpenrestyMessage,
-		Profile:              profile,
-		Snapshot:             metricSnapshot,
-		OpenrestyObservation: openrestyObservation,
-		TrafficReport:        trafficReport,
-		AccessLogs:           accessLogs,
-		HealthEvents:         healthEvents,
+		SchemaVersion:    2,
+		NodeID:           nodeID,
+		Name:             c.Config.NodeName,
+		IP:               ip,
+		Version:          c.Config.Version,
+		ExtVersion:       c.Config.ExtVersion,
+		CurrentVersion:   snapshot.CurrentVersion,
+		LastError:        snapshot.LastError,
+		OpenrestyStatus:  openrestyStatus,
+		OpenrestyMessage: snapshot.OpenrestyMessage,
+		Profile:          profile,
+		HostMetrics:      metricSnapshot,
+		EdgeHealth:       edgeHealth,
+		AccessLogs:       accessLogs,
+		HealthEvents:     healthEvents,
 	}
 	if c.Sync != nil {
 		checksums, err := c.Sync.WAFIPGroupChecksums()
@@ -135,23 +132,22 @@ func (c *Cycle) NodePayload(ctx context.Context, nodeID string) protocol.NodePay
 // PrepareHeartbeatPayload constructs the heartbeat payload with buffered observability records and returns the window timestamps to acknowledge.
 func (c *Cycle) PrepareHeartbeatPayload(ctx context.Context, nodeID string) (protocol.NodePayload, []int64) {
 	payload := c.NodePayload(ctx, nodeID)
-	if c.ObservabilityBuffer == nil || (payload.Snapshot == nil && payload.TrafficReport == nil && len(payload.AccessLogs) == 0) {
+	if c.ObservabilityBuffer == nil || (payload.HostMetrics == nil && payload.EdgeHealth == nil && len(payload.AccessLogs) == 0) {
 		return payload, nil
 	}
 	now := time.Now().UTC()
 	retainAfterUnix := now.Add(-time.Duration(c.Config.ObservabilityReplayMinutes) * time.Minute).Unix()
-	windowStartedAtUnix := state.ObservabilityWindowStartedAt(payload.Snapshot, payload.OpenrestyObservation, payload.TrafficReport)
+	windowStartedAtUnix := state.ObservabilityWindowStartedAt(payload.HostMetrics, payload.EdgeHealth)
 	if windowStartedAtUnix <= 0 {
 		return payload, nil
 	}
 
 	record := state.ObservabilityBufferRecord{
-		WindowStartedAtUnix:  windowStartedAtUnix,
-		Snapshot:             payload.Snapshot,
-		OpenrestyObservation: payload.OpenrestyObservation,
-		TrafficReport:        payload.TrafficReport,
-		AccessLogs:           payload.AccessLogs,
-		QueuedAtUnix:         now.Unix(),
+		WindowStartedAtUnix: windowStartedAtUnix,
+		HostMetrics:         payload.HostMetrics,
+		EdgeHealth:          payload.EdgeHealth,
+		AccessLogs:          payload.AccessLogs,
+		QueuedAtUnix:        now.Unix(),
 	}
 	if err := c.ObservabilityBuffer.Upsert(record, retainAfterUnix); err != nil {
 		slog.Error("upsert observability buffer failed", "error", err)
@@ -171,15 +167,14 @@ func (c *Cycle) PrepareHeartbeatPayload(ctx context.Context, nodeID string) (pro
 			continue
 		}
 		buffered = append(buffered, protocol.BufferedObservabilityRecord{
-			WindowStartedAtUnix:  item.WindowStartedAtUnix,
-			Snapshot:             item.Snapshot,
-			OpenrestyObservation: item.OpenrestyObservation,
-			TrafficReport:        item.TrafficReport,
-			AccessLogs:           item.AccessLogs,
+			CapturedAtUnix: item.WindowStartedAtUnix,
+			HostMetrics:    item.HostMetrics,
+			EdgeHealth:     item.EdgeHealth,
+			AccessLogs:     item.AccessLogs,
 		})
 		ackWindows = append(ackWindows, item.WindowStartedAtUnix)
 	}
-	payload.BufferedObservability = buffered
+	payload.Buffered = buffered
 	ackWindows = append(ackWindows, windowStartedAtUnix)
 	return payload, ackWindows
 }

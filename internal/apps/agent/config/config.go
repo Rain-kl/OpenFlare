@@ -29,11 +29,11 @@ const (
 	defaultStateRelativePath               = "var/lib/openflare/agent-state.json"
 	defaultObservabilityBufferRelativePath = "var/lib/openflare/observability-buffer.json"
 	defaultOpenRestyObservabilityPort      = 18081
-	defaultObservabilityReplayMinutes      = 15
+	defaultObservabilityReplayMinutes      = 60
 	defaultMMDBUpdateInterval              = 24 * time.Hour
 	defaultMMDBDownloadURL                 = "https://github.com/FyraLabs/geolite2/releases/latest/download/GeoLite2-Country.mmdb"
 	defaultCityMMDBDownloadURL             = "https://github.com/FyraLabs/geolite2/releases/latest/download/GeoLite2-City.mmdb"
-	defaultHeartbeatInterval               = 10 * time.Second
+	defaultHeartbeatInterval               = 3 * time.Second
 	defaultRequestTimeout                  = 10 * time.Second
 	configFilePerm                         = 0o600
 )

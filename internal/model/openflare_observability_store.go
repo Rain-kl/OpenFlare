@@ -6,6 +6,7 @@ package model
 import (
 	"context"
 	"math"
+	"strings"
 	"sync"
 	"time"
 
@@ -16,11 +17,10 @@ import (
 // ObservabilityInsertHooks queues observability rows for async ClickHouse write.
 // Wired from openflare/chwriter.Init so model never imports the apps layer.
 type ObservabilityInsertHooks struct {
-	QueueMetricSnapshot       func(analyticsmodel.NodeMetricSnapshot)
-	QueueRequestReport        func(analyticsmodel.NodeRequestReport)
-	QueueOpenrestyObservation func(analyticsmodel.NodeObsOpenresty)
-	QueueFrpsObservation      func(analyticsmodel.NodeObsFrps)
-	QueueFrpcObservation      func(analyticsmodel.NodeObsFrpc)
+	QueueMetricSnapshot  func(analyticsmodel.NodeMetricSnapshot)
+	QueueEdgeHealth      func(analyticsmodel.NodeEdgeHealth)
+	QueueFrpsObservation func(analyticsmodel.NodeObsFrps)
+	QueueFrpcObservation func(analyticsmodel.NodeObsFrpc)
 }
 
 var (
@@ -47,15 +47,10 @@ type observabilityStore interface {
 	DeleteAllMetricSnapshots(ctx context.Context) (int64, error)
 	DeleteMetricSnapshotsBefore(ctx context.Context, cutoff time.Time) (int64, error)
 
-	InsertRequestReport(ctx context.Context, record *OpenFlareRequestReport) error
-	ListRequestReports(ctx context.Context, nodeID string, since time.Time, limit int) ([]*OpenFlareRequestReport, error)
-	DeleteAllRequestReports(ctx context.Context) (int64, error)
-	DeleteRequestReportsBefore(ctx context.Context, cutoff time.Time) (int64, error)
-
-	InsertNodeObservationOpenresty(ctx context.Context, record *OpenFlareNodeObservationOpenresty) error
-	ListNodeObservationOpenresty(ctx context.Context, nodeID string, since time.Time, limit int) ([]*OpenFlareNodeObservationOpenresty, error)
-	DeleteAllNodeObservationOpenresty(ctx context.Context) (int64, error)
-	DeleteNodeObservationOpenrestyBefore(ctx context.Context, cutoff time.Time) (int64, error)
+	InsertEdgeHealth(ctx context.Context, record *OpenFlareEdgeHealth) error
+	ListEdgeHealth(ctx context.Context, nodeID string, since time.Time, limit int) ([]*OpenFlareEdgeHealth, error)
+	DeleteAllEdgeHealth(ctx context.Context) (int64, error)
+	DeleteEdgeHealthBefore(ctx context.Context, cutoff time.Time) (int64, error)
 
 	InsertNodeObservationFrps(ctx context.Context, record *OpenFlareNodeObservationFrps) error
 	ListNodeObservationFrps(ctx context.Context, nodeID string, since time.Time, limit int) ([]*OpenFlareNodeObservationFrps, error)
@@ -128,56 +123,40 @@ func (clickhouseObservabilityStore) DeleteMetricSnapshotsBefore(ctx context.Cont
 	return analyticsrepo.DeleteNodeMetricSnapshotsBefore(ctx, cutoff)
 }
 
-func (clickhouseObservabilityStore) InsertRequestReport(_ context.Context, record *OpenFlareRequestReport) error {
+const edgeHealthStatusUnknown = "unknown"
+
+func normalizeEdgeHealthStatus(status string) string {
+	status = strings.TrimSpace(status)
+	if status == "" {
+		return edgeHealthStatusUnknown
+	}
+	return status
+}
+
+func (clickhouseObservabilityStore) InsertEdgeHealth(_ context.Context, record *OpenFlareEdgeHealth) error {
 	if record == nil {
 		return nil
 	}
-	if hook := currentObservabilityInsertHooks().QueueRequestReport; hook != nil {
-		hook(toAnalyticsNodeRequestReport(record))
+	if hook := currentObservabilityInsertHooks().QueueEdgeHealth; hook != nil {
+		hook(toAnalyticsNodeEdgeHealth(record))
 	}
 	return nil
 }
 
-func (clickhouseObservabilityStore) ListRequestReports(ctx context.Context, nodeID string, since time.Time, limit int) ([]*OpenFlareRequestReport, error) {
-	rows, err := analyticsrepo.ListNodeRequestReports(ctx, toNodeObservabilityFilter(nodeID, since, limit))
+func (clickhouseObservabilityStore) ListEdgeHealth(ctx context.Context, nodeID string, since time.Time, limit int) ([]*OpenFlareEdgeHealth, error) {
+	rows, err := analyticsrepo.ListNodeEdgeHealth(ctx, toNodeObservabilityFilter(nodeID, since, limit))
 	if err != nil {
 		return nil, err
 	}
-	return fromAnalyticsNodeRequestReports(rows), nil
+	return fromAnalyticsNodeEdgeHealth(rows), nil
 }
 
-func (clickhouseObservabilityStore) DeleteAllRequestReports(ctx context.Context) (int64, error) {
-	return analyticsrepo.DeleteAllNodeRequestReports(ctx)
+func (clickhouseObservabilityStore) DeleteAllEdgeHealth(ctx context.Context) (int64, error) {
+	return analyticsrepo.DeleteAllNodeEdgeHealth(ctx)
 }
 
-func (clickhouseObservabilityStore) DeleteRequestReportsBefore(ctx context.Context, cutoff time.Time) (int64, error) {
-	return analyticsrepo.DeleteNodeRequestReportsBefore(ctx, cutoff)
-}
-
-func (clickhouseObservabilityStore) InsertNodeObservationOpenresty(_ context.Context, record *OpenFlareNodeObservationOpenresty) error {
-	if record == nil {
-		return nil
-	}
-	if hook := currentObservabilityInsertHooks().QueueOpenrestyObservation; hook != nil {
-		hook(toAnalyticsNodeObsOpenresty(record))
-	}
-	return nil
-}
-
-func (clickhouseObservabilityStore) ListNodeObservationOpenresty(ctx context.Context, nodeID string, since time.Time, limit int) ([]*OpenFlareNodeObservationOpenresty, error) {
-	rows, err := analyticsrepo.ListNodeObsOpenresty(ctx, toNodeObservabilityFilter(nodeID, since, limit))
-	if err != nil {
-		return nil, err
-	}
-	return fromAnalyticsNodeObsOpenresty(rows), nil
-}
-
-func (clickhouseObservabilityStore) DeleteAllNodeObservationOpenresty(ctx context.Context) (int64, error) {
-	return analyticsrepo.DeleteAllNodeObsOpenresty(ctx)
-}
-
-func (clickhouseObservabilityStore) DeleteNodeObservationOpenrestyBefore(ctx context.Context, cutoff time.Time) (int64, error) {
-	return analyticsrepo.DeleteNodeObsOpenrestyBefore(ctx, cutoff)
+func (clickhouseObservabilityStore) DeleteEdgeHealthBefore(ctx context.Context, cutoff time.Time) (int64, error) {
+	return analyticsrepo.DeleteNodeEdgeHealthBefore(ctx, cutoff)
 }
 
 func (clickhouseObservabilityStore) InsertNodeObservationFrps(_ context.Context, record *OpenFlareNodeObservationFrps) error {
@@ -280,65 +259,27 @@ func fromAnalyticsNodeMetricSnapshots(rows []analyticsmodel.NodeMetricSnapshot) 
 	return result
 }
 
-func toAnalyticsNodeRequestReport(record *OpenFlareRequestReport) analyticsmodel.NodeRequestReport {
-	return analyticsmodel.NodeRequestReport{
-		ID:                  uint64(record.ID),
-		NodeID:              record.NodeID,
-		WindowStartedAt:     record.WindowStartedAt,
-		WindowEndedAt:       record.WindowEndedAt,
-		RequestCount:        record.RequestCount,
-		ErrorCount:          record.ErrorCount,
-		UniqueVisitorCount:  record.UniqueVisitorCount,
-		StatusCodesJSON:     record.StatusCodesJSON,
-		TopDomainsJSON:      record.TopDomainsJSON,
-		SourceCountriesJSON: record.SourceCountriesJSON,
-		CreatedAt:           record.CreatedAt,
+func toAnalyticsNodeEdgeHealth(record *OpenFlareEdgeHealth) analyticsmodel.NodeEdgeHealth {
+	return analyticsmodel.NodeEdgeHealth{
+		ID:          uint64(record.ID),
+		NodeID:      record.NodeID,
+		CapturedAt:  record.CapturedAt,
+		Status:      normalizeEdgeHealthStatus(record.Status),
+		Connections: record.Connections,
+		CreatedAt:   record.CreatedAt,
 	}
 }
 
-func fromAnalyticsNodeRequestReports(rows []analyticsmodel.NodeRequestReport) []*OpenFlareRequestReport {
-	result := make([]*OpenFlareRequestReport, len(rows))
+func fromAnalyticsNodeEdgeHealth(rows []analyticsmodel.NodeEdgeHealth) []*OpenFlareEdgeHealth {
+	result := make([]*OpenFlareEdgeHealth, len(rows))
 	for index, row := range rows {
-		result[index] = &OpenFlareRequestReport{
-			ID:                  uint(row.ID),
-			NodeID:              row.NodeID,
-			WindowStartedAt:     row.WindowStartedAt,
-			WindowEndedAt:       row.WindowEndedAt,
-			RequestCount:        row.RequestCount,
-			ErrorCount:          row.ErrorCount,
-			UniqueVisitorCount:  row.UniqueVisitorCount,
-			StatusCodesJSON:     row.StatusCodesJSON,
-			TopDomainsJSON:      row.TopDomainsJSON,
-			SourceCountriesJSON: row.SourceCountriesJSON,
-			CreatedAt:           row.CreatedAt,
-		}
-	}
-	return result
-}
-
-func toAnalyticsNodeObsOpenresty(record *OpenFlareNodeObservationOpenresty) analyticsmodel.NodeObsOpenresty {
-	return analyticsmodel.NodeObsOpenresty{
-		ID:                   uint64(record.ID),
-		NodeID:               record.NodeID,
-		CapturedAt:           record.CapturedAt,
-		OpenrestyRxBytes:     record.OpenrestyRxBytes,
-		OpenrestyTxBytes:     record.OpenrestyTxBytes,
-		OpenrestyConnections: record.OpenrestyConnections,
-		CreatedAt:            record.CreatedAt,
-	}
-}
-
-func fromAnalyticsNodeObsOpenresty(rows []analyticsmodel.NodeObsOpenresty) []*OpenFlareNodeObservationOpenresty {
-	result := make([]*OpenFlareNodeObservationOpenresty, len(rows))
-	for index, row := range rows {
-		result[index] = &OpenFlareNodeObservationOpenresty{
-			ID:                   uint(row.ID),
-			NodeID:               row.NodeID,
-			CapturedAt:           row.CapturedAt,
-			OpenrestyRxBytes:     row.OpenrestyRxBytes,
-			OpenrestyTxBytes:     row.OpenrestyTxBytes,
-			OpenrestyConnections: row.OpenrestyConnections,
-			CreatedAt:            row.CreatedAt,
+		result[index] = &OpenFlareEdgeHealth{
+			ID:          uint(row.ID),
+			NodeID:      row.NodeID,
+			CapturedAt:  row.CapturedAt,
+			Status:      normalizeEdgeHealthStatus(row.Status),
+			Connections: row.Connections,
+			CreatedAt:   row.CreatedAt,
 		}
 	}
 	return result

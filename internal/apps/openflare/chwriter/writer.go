@@ -44,15 +44,13 @@ var (
 	initOnce sync.Once
 
 	metricSnapshotWriter *batchwriter.Writer[analyticsmodel.NodeMetricSnapshot]
-	requestReportWriter  *batchwriter.Writer[analyticsmodel.NodeRequestReport]
-	openrestyWriter      *batchwriter.Writer[analyticsmodel.NodeObsOpenresty]
+	edgeHealthWriter     *batchwriter.Writer[analyticsmodel.NodeEdgeHealth]
 	frpsWriter           *batchwriter.Writer[analyticsmodel.NodeObsFrps]
 	frpcWriter           *batchwriter.Writer[analyticsmodel.NodeObsFrpc]
 	nodeAccessLogWriter  *batchwriter.Writer[analyticsmodel.NodeAccessLog]
 
 	metricSnapshotDedup *dedupSet
-	requestReportDedup  *dedupSet
-	openrestyDedup      *dedupSet
+	edgeHealthDedup     *dedupSet
 	frpsDedup           *dedupSet
 	frpcDedup           *dedupSet
 )
@@ -65,8 +63,7 @@ func Init(ctx context.Context) {
 
 	initOnce.Do(func() {
 		metricSnapshotDedup = newDedupSet()
-		requestReportDedup = newDedupSet()
-		openrestyDedup = newDedupSet()
+		edgeHealthDedup = newDedupSet()
 		frpsDedup = newDedupSet()
 		frpcDedup = newDedupSet()
 
@@ -76,17 +73,11 @@ func Init(ctx context.Context) {
 			metricSnapshotDedup,
 			metricSnapshotKey,
 		)
-		requestReportWriter = mustNewObservabilityWriter(
-			"request_reports",
-			withFlushRetries(analyticsrepo.BatchInsertNodeRequestReports),
-			requestReportDedup,
-			requestReportKey,
-		)
-		openrestyWriter = mustNewObservabilityWriter(
-			"openresty_obs",
-			withFlushRetries(analyticsrepo.BatchInsertNodeObsOpenresty),
-			openrestyDedup,
-			openrestyKey,
+		edgeHealthWriter = mustNewObservabilityWriter(
+			"edge_health",
+			withFlushRetries(analyticsrepo.BatchInsertNodeEdgeHealth),
+			edgeHealthDedup,
+			edgeHealthKey,
 		)
 		frpsWriter = mustNewObservabilityWriter(
 			"frps_obs",
@@ -103,8 +94,7 @@ func Init(ctx context.Context) {
 		nodeAccessLogWriter = mustNewNodeAccessLogWriter()
 
 		metricSnapshotWriter.Start(ctx)
-		requestReportWriter.Start(ctx)
-		openrestyWriter.Start(ctx)
+		edgeHealthWriter.Start(ctx)
 		frpsWriter.Start(ctx)
 		frpcWriter.Start(ctx)
 		nodeAccessLogWriter.Start(ctx)
@@ -123,8 +113,7 @@ func Stop(ctx context.Context) error {
 	var firstErr error
 	for _, writer := range []batchStopper{
 		metricSnapshotWriter,
-		requestReportWriter,
-		openrestyWriter,
+		edgeHealthWriter,
 		frpsWriter,
 		frpcWriter,
 		nodeAccessLogWriter,
@@ -143,8 +132,7 @@ func Stop(ctx context.Context) error {
 func WriterStats() []batchwriter.Stats {
 	writers := []statsProvider{
 		metricSnapshotWriter,
-		requestReportWriter,
-		openrestyWriter,
+		edgeHealthWriter,
 		frpsWriter,
 		frpcWriter,
 		nodeAccessLogWriter,
@@ -164,14 +152,9 @@ func QueueMetricSnapshot(snapshot analyticsmodel.NodeMetricSnapshot) {
 	queueWithDedup(metricSnapshotWriter, metricSnapshotDedup, metricSnapshotKey(snapshot), snapshot)
 }
 
-// QueueRequestReport enqueues a request report for asynchronous flush.
-func QueueRequestReport(report analyticsmodel.NodeRequestReport) {
-	queueWithDedup(requestReportWriter, requestReportDedup, requestReportKey(report), report)
-}
-
-// QueueOpenrestyObservation enqueues an OpenResty observation for asynchronous flush.
-func QueueOpenrestyObservation(observation analyticsmodel.NodeObsOpenresty) {
-	queueWithDedup(openrestyWriter, openrestyDedup, openrestyKey(observation), observation)
+// QueueEdgeHealth enqueues an L2 edge health snapshot for asynchronous flush.
+func QueueEdgeHealth(row analyticsmodel.NodeEdgeHealth) {
+	queueWithDedup(edgeHealthWriter, edgeHealthDedup, edgeHealthKey(row), row)
 }
 
 // QueueFrpsObservation enqueues an FRPS observation for asynchronous flush.
@@ -297,11 +280,10 @@ func withFlushRetries[T any](flush batchwriter.FlushFunc[T]) batchwriter.FlushFu
 
 func wireModelInsertHooks() {
 	model.SetObservabilityInsertHooks(model.ObservabilityInsertHooks{
-		QueueMetricSnapshot:       QueueMetricSnapshot,
-		QueueRequestReport:        QueueRequestReport,
-		QueueOpenrestyObservation: QueueOpenrestyObservation,
-		QueueFrpsObservation:      QueueFrpsObservation,
-		QueueFrpcObservation:      QueueFrpcObservation,
+		QueueMetricSnapshot:  QueueMetricSnapshot,
+		QueueEdgeHealth:      QueueEdgeHealth,
+		QueueFrpsObservation: QueueFrpsObservation,
+		QueueFrpcObservation: QueueFrpcObservation,
 	})
 	model.SetAccessLogInsertHooks(model.AccessLogInsertHooks{
 		QueueNodeAccessLogs: QueueNodeAccessLogs,
@@ -312,17 +294,8 @@ func metricSnapshotKey(snapshot analyticsmodel.NodeMetricSnapshot) string {
 	return fmt.Sprintf("%s|%d", snapshot.NodeID, snapshot.CapturedAt.UTC().UnixNano())
 }
 
-func requestReportKey(report analyticsmodel.NodeRequestReport) string {
-	return fmt.Sprintf(
-		"%s|%d|%d",
-		report.NodeID,
-		report.WindowStartedAt.UTC().UnixNano(),
-		report.WindowEndedAt.UTC().UnixNano(),
-	)
-}
-
-func openrestyKey(observation analyticsmodel.NodeObsOpenresty) string {
-	return fmt.Sprintf("%s|%d", observation.NodeID, observation.CapturedAt.UTC().UnixNano())
+func edgeHealthKey(row analyticsmodel.NodeEdgeHealth) string {
+	return fmt.Sprintf("%s|%d", row.NodeID, row.CapturedAt.UTC().UnixNano())
 }
 
 func frpsKey(observation analyticsmodel.NodeObsFrps) string {

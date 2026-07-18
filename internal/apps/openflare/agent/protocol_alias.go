@@ -14,11 +14,8 @@ type NodeSystemProfile = pkgprotocol.NodeSystemProfile
 // NodeMetricSnapshot holds a point-in-time resource-usage sample from an agent.
 type NodeMetricSnapshot = pkgprotocol.NodeMetricSnapshot
 
-// NodeOpenrestyObservation reports the OpenResty process health observed by an agent.
-type NodeOpenrestyObservation = pkgprotocol.NodeOpenrestyObservation
-
-// NodeTrafficReport aggregates traffic counters collected by an agent.
-type NodeTrafficReport = pkgprotocol.NodeTrafficReport
+// NodeEdgeHealth is L2 OpenResty health + connections.
+type NodeEdgeHealth = pkgprotocol.NodeEdgeHealth
 
 // NodeAccessLog is a single access-log record forwarded by an agent.
 type NodeAccessLog = pkgprotocol.NodeAccessLog

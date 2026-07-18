@@ -2,82 +2,63 @@ package observability
 
 import (
 	"context"
-	"net"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 
 	"github.com/Rain-kl/Wavelet/internal/apps/agent/config"
 )
 
-func TestCollectManagedOpenRestyMetrics(t *testing.T) {
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatalf("Listen failed: %v", err)
-	}
-	port := listener.Addr().(*net.TCPAddr).Port
-
-	mux := http.NewServeMux()
-	mux.HandleFunc(openRestyObservabilityPath, func(writer http.ResponseWriter, request *http.Request) {
-		writer.Header().Set("Content-Type", "application/json")
-		_, _ = writer.Write([]byte(`{"window_started_at_unix":1710403200,"window_ended_at_unix":1710403210,"request_count":12,"error_count":2,"unique_visitor_count":5,"status_codes":{"200":10,"502":2},"top_domains":{"app.example.com":9,"api.example.com":3},"source_countries":{},"openresty_rx_bytes":4096,"openresty_tx_bytes":8192}`))
-	})
-	mux.HandleFunc(openRestyStubStatusPath, func(writer http.ResponseWriter, request *http.Request) {
-		_, _ = writer.Write([]byte("Active connections: 7 \nserver accepts handled requests\n 10 10 12 \nReading: 1 Writing: 2 Waiting: 4 \n"))
-	})
-
-	server := httptest.NewUnstartedServer(mux)
-	server.Listener = listener
-	server.Start()
+func TestCollectEdgeHealth(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/openflare/observability" {
+			http.NotFound(w, r)
+			return
+		}
+		_, _ = w.Write([]byte(`{"ok":true,"captured_at_unix":1710403200,"connections":{"active":12,"reading":1,"writing":2,"waiting":9}}`))
+	}))
 	defer server.Close()
 
-	metrics := CollectManagedOpenRestyMetrics(context.Background(), &config.Config{
-		OpenrestyObservabilityPort: port,
+	health := CollectEdgeHealth(context.Background(), &config.Config{
+		OpenrestyObservabilityPort: mustPort(server.URL),
 	})
-	if metrics == nil || metrics.TrafficReport == nil {
-		t.Fatalf("expected managed openresty metrics, got %+v", metrics)
+	if health == nil {
+		t.Fatal("expected edge health")
 	}
-	if metrics.TrafficReport.RequestCount != 12 || metrics.TrafficReport.ErrorCount != 2 {
-		t.Fatalf("unexpected traffic report: %+v", metrics.TrafficReport)
-	}
-	if metrics.OpenrestyRxBytes != 4096 || metrics.OpenrestyTxBytes != 8192 {
-		t.Fatalf("unexpected openresty byte counters: %+v", metrics)
-	}
-	if metrics.OpenrestyConnections != 7 {
-		t.Fatalf("unexpected openresty connections: %+v", metrics)
+	if !health.OK || health.Connections != 12 {
+		t.Fatalf("unexpected health: %+v", health)
 	}
 }
 
-func TestParseStubStatusActiveConnections(t *testing.T) {
-	if value := parseStubStatusActiveConnections("Active connections: 19\n"); value != 19 {
-		t.Fatalf("unexpected active connections: %d", value)
+func mustPort(rawURL string) int {
+	u := rawURL
+	idx := stringsLastColon(u)
+	if idx < 0 {
+		return 0
 	}
+	var port int
+	for _, ch := range u[idx+1:] {
+		if ch < '0' || ch > '9' {
+			break
+		}
+		port = port*10 + int(ch-'0')
+	}
+	return port
 }
 
-func TestNormalizeCountMapDropsEmptyKeys(t *testing.T) {
-	normalized := normalizeCountMap(map[string]int64{
-		"":                4,
-		" 200 ":           3,
-		"app.example.com": 0,
-	})
-	if len(normalized) != 1 || normalized["200"] != 3 {
-		t.Fatalf("unexpected normalized map: %+v", normalized)
+func stringsLastColon(s string) int {
+	for i := len(s) - 1; i >= 0; i-- {
+		if s[i] == ':' {
+			return i
+		}
 	}
+	return -1
 }
 
-func TestCollectManagedOpenRestyMetricsHandlesUnavailableEndpoint(t *testing.T) {
-	cfg := &config.Config{OpenrestyObservabilityPort: 1}
-	if metrics := CollectManagedOpenRestyMetrics(context.Background(), cfg); metrics != nil {
-		t.Fatalf("expected nil metrics for unavailable endpoint, got %+v", metrics)
-	}
-}
-
-func TestOpenRestyObservabilityPathsAreStable(t *testing.T) {
-	if !strings.HasPrefix(openRestyObservabilityPath, "/openflare/") {
-		t.Fatalf("unexpected observability path: %s", openRestyObservabilityPath)
-	}
-	if !strings.HasPrefix(openRestyStubStatusPath, "/openflare/") {
-		t.Fatalf("unexpected stub status path: %s", openRestyStubStatusPath)
+func TestCollectEdgeHealthHandlesUnavailableEndpoint(t *testing.T) {
+	if health := CollectEdgeHealth(context.Background(), &config.Config{
+		OpenrestyObservabilityPort: 1,
+	}); health != nil {
+		t.Fatalf("expected nil health, got %+v", health)
 	}
 }

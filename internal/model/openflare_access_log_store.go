@@ -50,9 +50,36 @@ type accessLogStore interface {
 	IPSummaries(ctx context.Context, filter OpenFlareAccessLogQuery, recentSince time.Time) ([]openFlareAccessLogIPSummaryRow, error)
 	CountIPSummaries(ctx context.Context, filter OpenFlareAccessLogQuery) (int64, error)
 	IPTrend(ctx context.Context, filter OpenFlareAccessLogQuery, bucketSeconds int64) ([]openFlareAccessLogIPTrendRow, error)
+	TrafficSummary(ctx context.Context, filter OpenFlareAccessLogQuery) (OpenFlareAccessLogTrafficSummary, error)
+	ValueCounts(ctx context.Context, filter OpenFlareAccessLogQuery, column string, limit int) ([]OpenFlareAccessLogValueCount, error)
+	NodeAggregates(ctx context.Context, filter OpenFlareAccessLogQuery) ([]OpenFlareAccessLogNodeAggregate, error)
 	DeleteAll(ctx context.Context) (int64, error)
 	DeleteBefore(ctx context.Context, cutoff time.Time) (int64, error)
 	DeleteByNodeBefore(ctx context.Context, nodeID string, before time.Time) (int64, error)
+}
+
+// OpenFlareAccessLogTrafficSummary is a window-level traffic summary from access logs.
+type OpenFlareAccessLogTrafficSummary struct {
+	RequestCount  int64
+	ErrorCount    int64
+	UniqueIPCount int64
+	BytesSent     int64
+	RequestLength int64
+	NodeCount     int64
+}
+
+// OpenFlareAccessLogValueCount is a dimension value count.
+type OpenFlareAccessLogValueCount struct {
+	Value string
+	Count int64
+}
+
+// OpenFlareAccessLogNodeAggregate is per-node traffic over a window.
+type OpenFlareAccessLogNodeAggregate struct {
+	NodeID        string
+	RequestCount  int64
+	ErrorCount    int64
+	UniqueIPCount int64
 }
 
 var (
@@ -176,6 +203,50 @@ func (clickhouseAccessLogStore) DeleteByNodeBefore(ctx context.Context, nodeID s
 	return analyticsrepo.DeleteNodeAccessLogsByNodeBefore(ctx, nodeID, before)
 }
 
+func (clickhouseAccessLogStore) TrafficSummary(ctx context.Context, filter OpenFlareAccessLogQuery) (OpenFlareAccessLogTrafficSummary, error) {
+	row, err := analyticsrepo.TrafficSummaryNodeAccessLogs(ctx, toNodeAccessLogFilter(filter))
+	if err != nil {
+		return OpenFlareAccessLogTrafficSummary{}, err
+	}
+	return OpenFlareAccessLogTrafficSummary{
+		RequestCount:  row.RequestCount,
+		ErrorCount:    row.ErrorCount,
+		UniqueIPCount: row.UniqueIPCount,
+		BytesSent:     row.BytesSent,
+		RequestLength: row.RequestLength,
+		NodeCount:     row.NodeCount,
+	}, nil
+}
+
+func (clickhouseAccessLogStore) ValueCounts(ctx context.Context, filter OpenFlareAccessLogQuery, column string, limit int) ([]OpenFlareAccessLogValueCount, error) {
+	rows, err := analyticsrepo.ValueCountsNodeAccessLogs(ctx, toNodeAccessLogFilter(filter), column, limit)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]OpenFlareAccessLogValueCount, len(rows))
+	for i, row := range rows {
+		result[i] = OpenFlareAccessLogValueCount{Value: row.Value, Count: row.Count}
+	}
+	return result, nil
+}
+
+func (clickhouseAccessLogStore) NodeAggregates(ctx context.Context, filter OpenFlareAccessLogQuery) ([]OpenFlareAccessLogNodeAggregate, error) {
+	rows, err := analyticsrepo.NodeAggregatesNodeAccessLogs(ctx, toNodeAccessLogFilter(filter))
+	if err != nil {
+		return nil, err
+	}
+	result := make([]OpenFlareAccessLogNodeAggregate, len(rows))
+	for i, row := range rows {
+		result[i] = OpenFlareAccessLogNodeAggregate{
+			NodeID:        row.NodeID,
+			RequestCount:  row.RequestCount,
+			ErrorCount:    row.ErrorCount,
+			UniqueIPCount: row.UniqueIPCount,
+		}
+	}
+	return result, nil
+}
+
 func toNodeAccessLogFilter(query OpenFlareAccessLogQuery) analyticsrepo.NodeAccessLogFilter {
 	return analyticsrepo.NodeAccessLogFilter{
 		NodeID:     query.NodeID,
@@ -197,17 +268,27 @@ func toAnalyticsNodeAccessLog(record *OpenFlareAccessLog) analyticsmodel.NodeAcc
 	if record.BytesSent > 0 {
 		bytesSent = uint64(record.BytesSent)
 	}
+	var requestLength uint64
+	if record.RequestLength > 0 {
+		requestLength = uint64(record.RequestLength)
+	}
+	var requestTimeMs uint32
+	if record.RequestTimeMs > 0 && record.RequestTimeMs <= int64(math.MaxUint32) {
+		requestTimeMs = uint32(record.RequestTimeMs)
+	}
 	return analyticsmodel.NodeAccessLog{
-		ID:         record.ID,
-		NodeID:     record.NodeID,
-		LoggedAt:   record.LoggedAt,
-		RemoteAddr: record.RemoteAddr,
-		Region:     record.Region,
-		Host:       record.Host,
-		Path:       record.Path,
-		StatusCode: openFlareAccessLogStatusCodeToInt32(record.StatusCode),
-		BytesSent:  bytesSent,
-		CreatedAt:  record.CreatedAt,
+		ID:            record.ID,
+		NodeID:        record.NodeID,
+		LoggedAt:      record.LoggedAt,
+		RemoteAddr:    record.RemoteAddr,
+		Region:        record.Region,
+		Host:          record.Host,
+		Path:          record.Path,
+		StatusCode:    openFlareAccessLogStatusCodeToInt32(record.StatusCode),
+		BytesSent:     bytesSent,
+		RequestLength: requestLength,
+		RequestTimeMs: requestTimeMs,
+		CreatedAt:     record.CreatedAt,
 	}
 }
 
@@ -220,17 +301,25 @@ func fromAnalyticsNodeAccessLogs(rows []analyticsmodel.NodeAccessLog) []*OpenFla
 		} else {
 			bytesSent = math.MaxInt64
 		}
+		var requestLength int64
+		if row.RequestLength <= math.MaxInt64 {
+			requestLength = int64(row.RequestLength)
+		} else {
+			requestLength = math.MaxInt64
+		}
 		result[index] = &OpenFlareAccessLog{
-			ID:         row.ID,
-			NodeID:     row.NodeID,
-			LoggedAt:   row.LoggedAt,
-			RemoteAddr: row.RemoteAddr,
-			Region:     row.Region,
-			Host:       row.Host,
-			Path:       row.Path,
-			StatusCode: int(row.StatusCode),
-			BytesSent:  bytesSent,
-			CreatedAt:  row.CreatedAt,
+			ID:            row.ID,
+			NodeID:        row.NodeID,
+			LoggedAt:      row.LoggedAt,
+			RemoteAddr:    row.RemoteAddr,
+			Region:        row.Region,
+			Host:          row.Host,
+			Path:          row.Path,
+			StatusCode:    int(row.StatusCode),
+			BytesSent:     bytesSent,
+			RequestLength: requestLength,
+			RequestTimeMs: int64(row.RequestTimeMs),
+			CreatedAt:     row.CreatedAt,
 		}
 	}
 	return result

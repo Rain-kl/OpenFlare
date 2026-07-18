@@ -9,11 +9,17 @@ import (
 	"net/http"
 	"net/netip"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/Rain-kl/Wavelet/internal/db/idgen"
+)
+
+const (
+	accessLogColumnStatusCode = "status_code"
+	accessLogColumnHost       = "host"
 )
 
 type memoryAccessLogStore struct {
@@ -123,6 +129,7 @@ func (s *memoryAccessLogStore) BucketAggregates(_ context.Context, filter OpenFl
 		}
 		item.RequestCount++
 		item.BytesSent += row.BytesSent
+		item.RequestLength += row.RequestLength
 		switch {
 		case row.StatusCode < 400:
 			item.SuccessCount++
@@ -155,6 +162,7 @@ func (s *memoryAccessLogStore) BucketAggregates(_ context.Context, filter OpenFl
 			ClientErrorCount: result[index].ClientErrorCount,
 			ServerErrorCount: result[index].ServerErrorCount,
 			BytesSent:        result[index].BytesSent,
+			RequestLength:    result[index].RequestLength,
 		}
 	}
 	sortOpenFlareAccessLogBucketRows(bucketRows, filter.SortBy, filter.SortOrder)
@@ -168,6 +176,7 @@ func (s *memoryAccessLogStore) BucketAggregates(_ context.Context, filter OpenFl
 			ClientErrorCount: bucketRows[index].ClientErrorCount,
 			ServerErrorCount: bucketRows[index].ServerErrorCount,
 			BytesSent:        bucketRows[index].BytesSent,
+			RequestLength:    bucketRows[index].RequestLength,
 		}
 	}
 	if filter.PageSize > 0 {
@@ -432,6 +441,113 @@ func (s *memoryAccessLogStore) DeleteByNodeBefore(_ context.Context, nodeID stri
 	}
 	s.records = remaining
 	return deleted, nil
+}
+
+func (s *memoryAccessLogStore) TrafficSummary(_ context.Context, filter OpenFlareAccessLogQuery) (OpenFlareAccessLogTrafficSummary, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	rows := s.filterRecords(filter)
+	ips := make(map[string]struct{})
+	nodes := make(map[string]struct{})
+	var summary OpenFlareAccessLogTrafficSummary
+	for _, row := range rows {
+		summary.RequestCount++
+		summary.BytesSent += row.BytesSent
+		summary.RequestLength += row.RequestLength
+		if row.StatusCode >= http.StatusInternalServerError {
+			summary.ErrorCount++
+		}
+		if ip := strings.TrimSpace(row.RemoteAddr); ip != "" {
+			ips[ip] = struct{}{}
+		}
+		if id := strings.TrimSpace(row.NodeID); id != "" {
+			nodes[id] = struct{}{}
+		}
+	}
+	summary.UniqueIPCount = int64(len(ips))
+	summary.NodeCount = int64(len(nodes))
+	return summary, nil
+}
+
+func (s *memoryAccessLogStore) ValueCounts(_ context.Context, filter OpenFlareAccessLogQuery, column string, limit int) ([]OpenFlareAccessLogValueCount, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	col := strings.TrimSpace(strings.ToLower(column))
+	if col != accessLogColumnStatusCode && col != accessLogColumnHost {
+		return nil, nil
+	}
+	rows := s.filterRecords(filter)
+	counts := make(map[string]int64)
+	for _, row := range rows {
+		var value string
+		if col == accessLogColumnStatusCode {
+			value = strconv.Itoa(row.StatusCode)
+		} else {
+			value = strings.TrimSpace(row.Host)
+		}
+		if value == "" {
+			continue
+		}
+		counts[value]++
+	}
+	result := make([]OpenFlareAccessLogValueCount, 0, len(counts))
+	for value, count := range counts {
+		result = append(result, OpenFlareAccessLogValueCount{Value: value, Count: count})
+	}
+	sort.Slice(result, func(i, j int) bool {
+		if result[i].Count == result[j].Count {
+			return result[i].Value < result[j].Value
+		}
+		return result[i].Count > result[j].Count
+	})
+	if limit > 0 && len(result) > limit {
+		result = result[:limit]
+	}
+	return result, nil
+}
+
+func (s *memoryAccessLogStore) NodeAggregates(_ context.Context, filter OpenFlareAccessLogQuery) ([]OpenFlareAccessLogNodeAggregate, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	rows := s.filterRecords(filter)
+	type acc struct {
+		OpenFlareAccessLogNodeAggregate
+		ips map[string]struct{}
+	}
+	byNode := make(map[string]*acc)
+	for _, row := range rows {
+		id := strings.TrimSpace(row.NodeID)
+		if id == "" {
+			continue
+		}
+		item := byNode[id]
+		if item == nil {
+			item = &acc{
+				OpenFlareAccessLogNodeAggregate: OpenFlareAccessLogNodeAggregate{NodeID: id},
+				ips:                             make(map[string]struct{}),
+			}
+			byNode[id] = item
+		}
+		item.RequestCount++
+		if row.StatusCode >= http.StatusInternalServerError {
+			item.ErrorCount++
+		}
+		if ip := strings.TrimSpace(row.RemoteAddr); ip != "" {
+			item.ips[ip] = struct{}{}
+		}
+	}
+	result := make([]OpenFlareAccessLogNodeAggregate, 0, len(byNode))
+	for _, item := range byNode {
+		item.UniqueIPCount = int64(len(item.ips))
+		result = append(result, item.OpenFlareAccessLogNodeAggregate)
+	}
+	sort.Slice(result, func(i, j int) bool {
+		if result[i].RequestCount == result[j].RequestCount {
+			return result[i].NodeID < result[j].NodeID
+		}
+		return result[i].RequestCount > result[j].RequestCount
+	})
+	return result, nil
 }
 
 func (s *memoryAccessLogStore) filterRecords(query OpenFlareAccessLogQuery) []*OpenFlareAccessLog {

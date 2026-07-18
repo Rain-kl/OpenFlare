@@ -10,21 +10,23 @@ import (
 
 const (
 	nodeAccessLogTableName     = "of_node_access_logs"
-	nodeAccessLogInsertColumns = "id, node_id, logged_at, remote_addr, region, host, path, status_code, bytes_sent, created_at"
+	nodeAccessLogInsertColumns = "id, node_id, logged_at, remote_addr, region, host, path, status_code, bytes_sent, request_length, request_time_ms, created_at"
 )
 
 // NodeAccessLog stores OpenFlare edge node access records in ClickHouse.
 type NodeAccessLog struct {
-	ID         uint64    `gorm:"column:id"`
-	NodeID     string    `gorm:"column:node_id"`
-	LoggedAt   time.Time `gorm:"column:logged_at"`
-	RemoteAddr string    `gorm:"column:remote_addr"`
-	Region     string    `gorm:"column:region"`
-	Host       string    `gorm:"column:host"`
-	Path       string    `gorm:"column:path"`
-	StatusCode int32     `gorm:"column:status_code"`
-	BytesSent  uint64    `gorm:"column:bytes_sent"`
-	CreatedAt  time.Time `gorm:"column:created_at"`
+	ID            uint64    `gorm:"column:id"`
+	NodeID        string    `gorm:"column:node_id"`
+	LoggedAt      time.Time `gorm:"column:logged_at"`
+	RemoteAddr    string    `gorm:"column:remote_addr"`
+	Region        string    `gorm:"column:region"`
+	Host          string    `gorm:"column:host"`
+	Path          string    `gorm:"column:path"`
+	StatusCode    int32     `gorm:"column:status_code"`
+	BytesSent     uint64    `gorm:"column:bytes_sent"`
+	RequestLength uint64    `gorm:"column:request_length"`
+	RequestTimeMs uint32    `gorm:"column:request_time_ms"`
+	CreatedAt     time.Time `gorm:"column:created_at"`
 }
 
 // TableName returns the ClickHouse table name.

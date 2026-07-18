@@ -322,8 +322,8 @@ func TestComputeNodeStatus(t *testing.T) {
 	online := &model.OpenFlareNode{LastSeenAt: &now}
 	assert.Equal(t, nodeStatusOnline, computeNodeStatus(online))
 
-	// computeNodeStatus 使用默认阈值 2 分钟
-	offlineAt := now.Add(-2*time.Minute - time.Minute)
+	// computeNodeStatus 使用默认阈值 60 秒
+	offlineAt := now.Add(-61 * time.Second)
 	offline := &model.OpenFlareNode{LastSeenAt: &offlineAt}
 	assert.Equal(t, nodeStatusOffline, computeNodeStatus(offline))
 }

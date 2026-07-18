@@ -16,8 +16,7 @@ import (
 type memoryObservabilityStore struct {
 	mu              sync.RWMutex
 	metricSnapshots []*OpenFlareMetricSnapshot
-	requestReports  []*OpenFlareRequestReport
-	openrestyObs    []*OpenFlareNodeObservationOpenresty
+	edgeHealth      []*OpenFlareEdgeHealth
 	frpsObs         []*OpenFlareNodeObservationFrps
 	frpcObs         []*OpenFlareNodeObservationFrpc
 }
@@ -69,93 +68,46 @@ func (s *memoryObservabilityStore) DeleteMetricSnapshotsBefore(_ context.Context
 	return deleted, nil
 }
 
-func (s *memoryObservabilityStore) InsertRequestReport(_ context.Context, record *OpenFlareRequestReport) error {
+func (s *memoryObservabilityStore) InsertEdgeHealth(_ context.Context, record *OpenFlareEdgeHealth) error {
 	if record == nil {
 		return nil
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	copyRecord := cloneOpenFlareRequestReport(record)
-	if memoryRequestReportExists(s.requestReports, copyRecord.NodeID, copyRecord.WindowStartedAt, copyRecord.WindowEndedAt) {
-		return nil
-	}
-	s.requestReports = append(s.requestReports, copyRecord)
+	s.edgeHealth = append(s.edgeHealth, cloneOpenFlareEdgeHealth(record))
 	return nil
 }
 
-func (s *memoryObservabilityStore) ListRequestReports(_ context.Context, nodeID string, since time.Time, limit int) ([]*OpenFlareRequestReport, error) {
+func (s *memoryObservabilityStore) ListEdgeHealth(_ context.Context, nodeID string, since time.Time, limit int) ([]*OpenFlareEdgeHealth, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	rows := memoryFilterRequestReports(s.requestReports, nodeID, since)
-	sortOpenFlareRequestReports(rows)
+	rows := memoryFilterEdgeHealth(s.edgeHealth, nodeID, since)
+	sortOpenFlareEdgeHealth(rows)
 	return memoryLimitObservabilityRows(rows, limit), nil
 }
 
-func (s *memoryObservabilityStore) DeleteAllRequestReports(_ context.Context) (int64, error) {
+func (s *memoryObservabilityStore) DeleteAllEdgeHealth(_ context.Context) (int64, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	count := int64(len(s.requestReports))
-	s.requestReports = nil
+	count := int64(len(s.edgeHealth))
+	s.edgeHealth = nil
 	return count, nil
 }
 
-func (s *memoryObservabilityStore) DeleteRequestReportsBefore(_ context.Context, cutoff time.Time) (int64, error) {
+func (s *memoryObservabilityStore) DeleteEdgeHealthBefore(_ context.Context, cutoff time.Time) (int64, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	cutoff = cutoff.UTC()
-	remaining := make([]*OpenFlareRequestReport, 0, len(s.requestReports))
+	remaining := make([]*OpenFlareEdgeHealth, 0, len(s.edgeHealth))
 	var deleted int64
-	for _, row := range s.requestReports {
-		if row.WindowEndedAt.Before(cutoff) {
-			deleted++
-			continue
-		}
-		remaining = append(remaining, row)
-	}
-	s.requestReports = remaining
-	return deleted, nil
-}
-
-func (s *memoryObservabilityStore) InsertNodeObservationOpenresty(_ context.Context, record *OpenFlareNodeObservationOpenresty) error {
-	if record == nil {
-		return nil
-	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.openrestyObs = append(s.openrestyObs, cloneOpenFlareNodeObservationOpenresty(record))
-	return nil
-}
-
-func (s *memoryObservabilityStore) ListNodeObservationOpenresty(_ context.Context, nodeID string, since time.Time, limit int) ([]*OpenFlareNodeObservationOpenresty, error) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	rows := memoryFilterOpenrestyObservations(s.openrestyObs, nodeID, since)
-	sortOpenFlareNodeObservationOpenresty(rows)
-	return memoryLimitObservabilityRows(rows, limit), nil
-}
-
-func (s *memoryObservabilityStore) DeleteAllNodeObservationOpenresty(_ context.Context) (int64, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	count := int64(len(s.openrestyObs))
-	s.openrestyObs = nil
-	return count, nil
-}
-
-func (s *memoryObservabilityStore) DeleteNodeObservationOpenrestyBefore(_ context.Context, cutoff time.Time) (int64, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	cutoff = cutoff.UTC()
-	remaining := make([]*OpenFlareNodeObservationOpenresty, 0, len(s.openrestyObs))
-	var deleted int64
-	for _, row := range s.openrestyObs {
+	for _, row := range s.edgeHealth {
 		if row.CapturedAt.Before(cutoff) {
 			deleted++
 			continue
 		}
 		remaining = append(remaining, row)
 	}
-	s.openrestyObs = remaining
+	s.edgeHealth = remaining
 	return deleted, nil
 }
 
@@ -259,22 +211,8 @@ func memoryFilterMetricSnapshots(rows []*OpenFlareMetricSnapshot, nodeID string,
 	return result
 }
 
-func memoryFilterRequestReports(rows []*OpenFlareRequestReport, nodeID string, since time.Time) []*OpenFlareRequestReport {
-	result := make([]*OpenFlareRequestReport, 0, len(rows))
-	for _, row := range rows {
-		if !memoryObservabilityMatchesNodeID(row.NodeID, nodeID) {
-			continue
-		}
-		if !since.IsZero() && row.WindowEndedAt.Before(since) {
-			continue
-		}
-		result = append(result, row)
-	}
-	return result
-}
-
-func memoryFilterOpenrestyObservations(rows []*OpenFlareNodeObservationOpenresty, nodeID string, since time.Time) []*OpenFlareNodeObservationOpenresty {
-	result := make([]*OpenFlareNodeObservationOpenresty, 0, len(rows))
+func memoryFilterEdgeHealth(rows []*OpenFlareEdgeHealth, nodeID string, since time.Time) []*OpenFlareEdgeHealth {
+	result := make([]*OpenFlareEdgeHealth, 0, len(rows))
 	for _, row := range rows {
 		if !memoryObservabilityMatchesNodeID(row.NodeID, nodeID) {
 			continue
@@ -333,19 +271,6 @@ func memoryMetricSnapshotExists(rows []*OpenFlareMetricSnapshot, nodeID string, 
 	return false
 }
 
-func memoryRequestReportExists(rows []*OpenFlareRequestReport, nodeID string, windowStartedAt, windowEndedAt time.Time) bool {
-	windowStartedAt = windowStartedAt.UTC()
-	windowEndedAt = windowEndedAt.UTC()
-	for _, row := range rows {
-		if row.NodeID == nodeID &&
-			row.WindowStartedAt.UTC().Equal(windowStartedAt) &&
-			row.WindowEndedAt.UTC().Equal(windowEndedAt) {
-			return true
-		}
-	}
-	return false
-}
-
 func sortOpenFlareMetricSnapshots(items []*OpenFlareMetricSnapshot) {
 	sort.Slice(items, func(i, j int) bool {
 		left := items[i]
@@ -360,21 +285,7 @@ func sortOpenFlareMetricSnapshots(items []*OpenFlareMetricSnapshot) {
 	})
 }
 
-func sortOpenFlareRequestReports(items []*OpenFlareRequestReport) {
-	sort.Slice(items, func(i, j int) bool {
-		left := items[i]
-		right := items[j]
-		if left == nil || right == nil {
-			return left != nil
-		}
-		if compare := openFlareAccessLogCompareInt64(left.WindowEndedAt.Unix(), right.WindowEndedAt.Unix()); compare != 0 {
-			return compare > 0
-		}
-		return openFlareAccessLogCompareInt64(openFlareAccessLogUintToInt64(uint64(left.ID)), openFlareAccessLogUintToInt64(uint64(right.ID))) > 0
-	})
-}
-
-func sortOpenFlareNodeObservationOpenresty(items []*OpenFlareNodeObservationOpenresty) {
+func sortOpenFlareEdgeHealth(items []*OpenFlareEdgeHealth) {
 	sort.Slice(items, func(i, j int) bool {
 		left := items[i]
 		right := items[j]
@@ -441,22 +352,7 @@ func cloneOpenFlareMetricSnapshot(record *OpenFlareMetricSnapshot) *OpenFlareMet
 	return &copyRecord
 }
 
-func cloneOpenFlareRequestReport(record *OpenFlareRequestReport) *OpenFlareRequestReport {
-	copyRecord := *record
-	if copyRecord.ID == 0 {
-		copyRecord.ID = uint(idgen.NextUint64ID())
-	}
-	now := time.Now().UTC()
-	if copyRecord.CreatedAt.IsZero() {
-		copyRecord.CreatedAt = now
-	}
-	copyRecord.WindowStartedAt = copyRecord.WindowStartedAt.UTC()
-	copyRecord.WindowEndedAt = copyRecord.WindowEndedAt.UTC()
-	copyRecord.CreatedAt = copyRecord.CreatedAt.UTC()
-	return &copyRecord
-}
-
-func cloneOpenFlareNodeObservationOpenresty(record *OpenFlareNodeObservationOpenresty) *OpenFlareNodeObservationOpenresty {
+func cloneOpenFlareEdgeHealth(record *OpenFlareEdgeHealth) *OpenFlareEdgeHealth {
 	copyRecord := *record
 	if copyRecord.ID == 0 {
 		copyRecord.ID = uint(idgen.NextUint64ID())
@@ -467,6 +363,9 @@ func cloneOpenFlareNodeObservationOpenresty(record *OpenFlareNodeObservationOpen
 	}
 	if copyRecord.CapturedAt.IsZero() {
 		copyRecord.CapturedAt = now
+	}
+	if strings.TrimSpace(copyRecord.Status) == "" {
+		copyRecord.Status = edgeHealthStatusUnknown
 	}
 	copyRecord.CapturedAt = copyRecord.CapturedAt.UTC()
 	copyRecord.CreatedAt = copyRecord.CreatedAt.UTC()

@@ -6,7 +6,6 @@ package agent
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"log/slog"
 	"strings"
 	"time"
@@ -28,16 +27,16 @@ const (
 	healthEventMessageMaxLength = 4096
 )
 
-// PersistHeartbeatObservability stores profile, snapshots, traffic, access logs, and health events.
+// PersistHeartbeatObservability stores profile, host metrics, edge health, and access logs.
 func PersistHeartbeatObservability(ctx context.Context, nodeID string, payload NodePayload, reportedAt time.Time) {
 	if strings.TrimSpace(nodeID) == "" {
 		return
 	}
 	if payload.Profile == nil &&
-		payload.Snapshot == nil &&
-		payload.TrafficReport == nil &&
+		payload.HostMetrics == nil &&
+		payload.EdgeHealth == nil &&
 		len(payload.AccessLogs) == 0 &&
-		len(payload.BufferedObservability) == 0 &&
+		len(payload.Buffered) == 0 &&
 		payload.HealthEvents == nil {
 		return
 	}
@@ -47,7 +46,7 @@ func PersistHeartbeatObservability(ctx context.Context, nodeID string, payload N
 		return
 	}
 
-	accessLogRecords, err := buildNodeAccessLogRecords(nodeID, payload.AccessLogs, payload.BufferedObservability, reportedAt)
+	accessLogRecords, err := buildNodeAccessLogRecords(nodeID, payload.AccessLogs, payload.Buffered, reportedAt)
 	if err != nil {
 		zap.L().Error("build heartbeat access logs failed", zap.String("node_id", nodeID), zap.Error(err))
 		return
@@ -68,17 +67,14 @@ func PersistHeartbeatObservability(ctx context.Context, nodeID string, payload N
 		return
 	}
 
-	if err := persistBufferedObservability(ctx, nodeID, payload.BufferedObservability, reportedAt); err != nil {
+	if err := persistBufferedObservability(ctx, nodeID, payload.Buffered, reportedAt); err != nil {
 		zap.L().Error("persist buffered observability failed", zap.String("node_id", nodeID), zap.Error(err))
 	}
-	if err := persistNodeMetricSnapshot(ctx, nodeID, payload.Snapshot, reportedAt); err != nil {
+	if err := persistNodeMetricSnapshot(ctx, nodeID, payload.HostMetrics, reportedAt); err != nil {
 		zap.L().Error("persist metric snapshot failed", zap.String("node_id", nodeID), zap.Error(err))
 	}
-	if err := persistNodeOpenrestyObservation(ctx, nodeID, payload.OpenrestyObservation, reportedAt); err != nil {
-		zap.L().Error("persist openresty observation failed", zap.String("node_id", nodeID), zap.Error(err))
-	}
-	if err := persistNodeTrafficReport(ctx, nodeID, payload.TrafficReport, reportedAt); err != nil {
-		zap.L().Error("persist traffic report failed", zap.String("node_id", nodeID), zap.Error(err))
+	if err := persistNodeEdgeHealth(ctx, nodeID, payload.EdgeHealth, payload.OpenrestyStatus, reportedAt); err != nil {
+		zap.L().Error("persist edge health failed", zap.String("node_id", nodeID), zap.Error(err))
 	}
 
 	if err := persistNodeAccessLogs(ctx, nodeID, accessLogRecords, reportedAt); err != nil {
@@ -88,17 +84,33 @@ func PersistHeartbeatObservability(ctx context.Context, nodeID string, payload N
 
 func persistBufferedObservability(ctx context.Context, nodeID string, records []BufferedObservabilityRecord, reportedAt time.Time) error {
 	for _, record := range records {
-		if err := persistNodeMetricSnapshot(ctx, nodeID, record.Snapshot, reportedAt); err != nil {
+		if err := persistNodeMetricSnapshot(ctx, nodeID, record.HostMetrics, reportedAt); err != nil {
 			return err
 		}
-		if err := persistNodeOpenrestyObservation(ctx, nodeID, record.OpenrestyObservation, reportedAt); err != nil {
-			return err
-		}
-		if err := persistNodeTrafficReport(ctx, nodeID, record.TrafficReport, reportedAt); err != nil {
+		if err := persistNodeEdgeHealth(ctx, nodeID, record.EdgeHealth, "", reportedAt); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+func persistNodeEdgeHealth(ctx context.Context, nodeID string, health *NodeEdgeHealth, fallbackStatus string, reportedAt time.Time) error {
+	if health == nil {
+		return nil
+	}
+	status := strings.TrimSpace(health.Status)
+	if status == "" {
+		status = strings.TrimSpace(fallbackStatus)
+	}
+	if status == "" {
+		status = openrestyStatusUnknown
+	}
+	return model.InsertOpenFlareEdgeHealth(ctx, &model.OpenFlareEdgeHealth{
+		NodeID:      nodeID,
+		CapturedAt:  timeFromUnix(health.CapturedAtUnix, reportedAt),
+		Status:      status,
+		Connections: health.Connections,
+	})
 }
 
 func persistNodeSystemProfile(tx *gorm.DB, nodeID string, profile *NodeSystemProfile, reportedAt time.Time) error {
@@ -158,41 +170,6 @@ func persistNodeMetricSnapshot(ctx context.Context, nodeID string, snapshot *Nod
 	return model.InsertOpenFlareMetricSnapshot(ctx, record)
 }
 
-func persistNodeOpenrestyObservation(ctx context.Context, nodeID string, obs *NodeOpenrestyObservation, reportedAt time.Time) error {
-	if obs == nil {
-		return nil
-	}
-	record := &model.OpenFlareNodeObservationOpenresty{
-		NodeID:               nodeID,
-		CapturedAt:           timeFromUnix(obs.CapturedAtUnix, reportedAt),
-		OpenrestyRxBytes:     obs.OpenrestyRxBytes,
-		OpenrestyTxBytes:     obs.OpenrestyTxBytes,
-		OpenrestyConnections: obs.OpenrestyConnections,
-	}
-	return model.InsertOpenFlareNodeObservationOpenresty(ctx, record)
-}
-
-func persistNodeTrafficReport(ctx context.Context, nodeID string, report *NodeTrafficReport, reportedAt time.Time) error {
-	if report == nil {
-		return nil
-	}
-	if report.WindowEndedAtUnix > 0 && report.WindowStartedAtUnix > report.WindowEndedAtUnix {
-		return errors.New("traffic report window_started_at_unix 不能大于 window_ended_at_unix")
-	}
-	record := &model.OpenFlareRequestReport{
-		NodeID:              nodeID,
-		WindowStartedAt:     timeFromUnix(report.WindowStartedAtUnix, reportedAt),
-		WindowEndedAt:       timeFromUnix(report.WindowEndedAtUnix, reportedAt),
-		RequestCount:        report.RequestCount,
-		ErrorCount:          report.ErrorCount,
-		UniqueVisitorCount:  report.UniqueVisitorCount,
-		StatusCodesJSON:     marshalJSON(report.StatusCodes),
-		TopDomainsJSON:      marshalJSON(report.TopDomains),
-		SourceCountriesJSON: marshalJSON(report.SourceCountries),
-	}
-	return model.InsertOpenFlareRequestReport(ctx, record)
-}
-
 func buildNodeAccessLogRecords(nodeID string, direct []NodeAccessLog, buffered []BufferedObservabilityRecord, reportedAt time.Time) ([]*model.OpenFlareAccessLog, error) {
 	total := len(direct)
 	for _, record := range buffered {
@@ -213,15 +190,29 @@ func buildNodeAccessLogRecords(nodeID string, direct []NodeAccessLog, buffered [
 	records := make([]*model.OpenFlareAccessLog, 0, total)
 	appendLogs := func(logs []NodeAccessLog) {
 		for _, item := range logs {
+			bytesSent := item.BytesSent
+			if bytesSent < 0 {
+				bytesSent = 0
+			}
+			requestLength := item.RequestLength
+			if requestLength < 0 {
+				requestLength = 0
+			}
+			requestTimeMs := item.RequestTimeMs
+			if requestTimeMs < 0 {
+				requestTimeMs = 0
+			}
 			record := &model.OpenFlareAccessLog{
-				NodeID:     nodeID,
-				LoggedAt:   timeFromUnix(item.LoggedAtUnix, reportedAt),
-				RemoteAddr: strings.TrimSpace(item.RemoteAddr),
-				Region:     "",
-				Host:       strings.TrimSpace(item.Host),
-				Path:       truncateForDatabase(strings.TrimSpace(item.Path), accessLogPathMaxLength),
-				StatusCode: item.StatusCode,
-				BytesSent:  item.BytesSent,
+				NodeID:        nodeID,
+				LoggedAt:      timeFromUnix(item.LoggedAtUnix, reportedAt),
+				RemoteAddr:    strings.TrimSpace(item.RemoteAddr),
+				Region:        "",
+				Host:          strings.TrimSpace(item.Host),
+				Path:          truncateForDatabase(strings.TrimSpace(item.Path), accessLogPathMaxLength),
+				StatusCode:    item.StatusCode,
+				BytesSent:     bytesSent,
+				RequestLength: requestLength,
+				RequestTimeMs: requestTimeMs,
 			}
 			if resolver != nil {
 				record.Region = resolver.Resolve(record.RemoteAddr)
