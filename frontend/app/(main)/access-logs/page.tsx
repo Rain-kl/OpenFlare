@@ -1,10 +1,12 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { Suspense, useCallback, useEffect, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { RefreshCw, ScrollText, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 
+import { LoadingStateWithBorder } from '@/components/layout/loading';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AccessLogService } from '@/lib/services/openflare';
@@ -27,9 +29,15 @@ const emptyDraft: SearchDraft = {
   path: '',
 };
 
-export default function AccessLogsPage() {
+function resolveTab(value: string | null): AccessLogTab {
+  return value === 'list' ? 'list' : 'overview';
+}
+
+function AccessLogsPageContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const queryClient = useQueryClient();
-  const [tab, setTab] = useState<AccessLogTab>('overview');
+  const tab = resolveTab(searchParams.get('tab'));
   const [draft, setDraft] = useState<SearchDraft>(emptyDraft);
   const [filters, setFilters] = useState<SearchDraft>(emptyDraft);
   const [pageSize, setPageSize] = useState(20);
@@ -39,6 +47,13 @@ export default function AccessLogsPage() {
   const [cleanupOpen, setCleanupOpen] = useState(false);
 
   const detailSortState = parseSortValue(detailSort);
+
+  const handleTabChange = (value: string) => {
+    const next = resolveTab(value);
+    router.replace(
+      next === 'overview' ? '/access-logs' : `/access-logs?tab=${next}`,
+    );
+  };
 
   const overviewQuery = useQuery({
     queryKey: ['openflare', 'access-logs', 'overview', overviewHours],
@@ -150,10 +165,7 @@ export default function AccessLogsPage() {
         </div>
       </div>
 
-      <Tabs
-        value={tab}
-        onValueChange={(value) => setTab(value as AccessLogTab)}
-      >
+      <Tabs value={tab} onValueChange={handleTabChange}>
         <TabsList className='grid w-full max-w-md grid-cols-2'>
           <TabsTrigger value='overview'>概览</TabsTrigger>
           <TabsTrigger value='list'>日志明细</TabsTrigger>
@@ -205,5 +217,20 @@ export default function AccessLogsPage() {
         loading={cleanupMutation.isPending}
       />
     </div>
+  );
+}
+
+export default function AccessLogsPage() {
+  return (
+    <Suspense
+      fallback={
+        <LoadingStateWithBorder
+          title='加载访问日志'
+          description='正在准备页面...'
+        />
+      }
+    >
+      <AccessLogsPageContent />
+    </Suspense>
   );
 }

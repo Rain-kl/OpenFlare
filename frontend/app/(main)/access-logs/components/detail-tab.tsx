@@ -1,5 +1,8 @@
 'use client';
 
+import { useState } from 'react';
+import { Eye } from 'lucide-react';
+
 import { EmptyStateWithBorder } from '@/components/layout/empty';
 import { ErrorInline } from '@/components/layout/error';
 import { LoadingStateWithBorder } from '@/components/layout/loading';
@@ -20,9 +23,15 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import type { AccessLogList } from '@/lib/services/openflare';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import type { AccessLogItem, AccessLogList } from '@/lib/services/openflare';
 import { formatDateTime } from '@/lib/utils';
 
+import { AccessLogDetailDialog } from './access-log-detail-dialog';
 import { DETAIL_SORT_OPTIONS } from './access-log-utils';
 
 function PaginationBar({
@@ -86,86 +95,111 @@ export function DetailTab({
   onNextPage: () => void;
   isFetching: boolean;
 }) {
+  const [selected, setSelected] = useState<AccessLogItem | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
+
   return (
-    <div className='rounded-lg border border-dashed overflow-hidden bg-background'>
-      <div className='flex items-center justify-between px-4 py-3 border-b border-dashed'>
-        <p className='text-sm font-medium'>日志明细</p>
-        <Select value={detailSort} onValueChange={onDetailSortChange}>
-          <SelectTrigger className='h-8 w-44 text-xs'>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {DETAIL_SORT_OPTIONS.map((option) => (
-              <SelectItem key={option.value} value={option.value}>
-                {option.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-      {error ? (
-        <div className='p-4'>
-          <ErrorInline
-            message={error.message || '加载失败'}
-            onRetry={onRetry}
-          />
+    <>
+      <div className='rounded-lg border border-dashed overflow-hidden bg-background'>
+        <div className='flex items-center justify-between px-4 py-3 border-b border-dashed'>
+          <p className='text-sm font-medium'>日志明细</p>
+          <Select value={detailSort} onValueChange={onDetailSortChange}>
+            <SelectTrigger className='h-8 w-44 text-xs'>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {DETAIL_SORT_OPTIONS.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
-      ) : loading ? (
-        <LoadingStateWithBorder />
-      ) : (data?.items ?? []).length === 0 ? (
-        <EmptyStateWithBorder title='暂无访问日志' />
-      ) : (
-        <Table>
-          <TableHeader className='bg-muted/40'>
-            <TableRow className='border-dashed hover:bg-transparent'>
-              <TableHead className='text-xs'>时间</TableHead>
-              <TableHead className='text-xs'>节点</TableHead>
-              <TableHead className='text-xs'>IP</TableHead>
-              <TableHead className='text-xs'>域名</TableHead>
-              <TableHead className='text-xs'>路径</TableHead>
-              <TableHead className='text-xs'>User-Agent</TableHead>
-              <TableHead className='text-xs'>状态码</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {(data?.items ?? []).map((item) => (
-              <TableRow key={item.id} className='border-dashed'>
-                <TableCell className='text-xs'>
-                  {formatDateTime(item.logged_at)}
-                </TableCell>
-                <TableCell className='text-xs'>
-                  {item.node_name || item.node_id}
-                </TableCell>
-                <TableCell className='text-xs font-mono'>
-                  {item.remote_addr}
-                </TableCell>
-                <TableCell className='text-xs'>{item.host}</TableCell>
-                <TableCell className='text-xs max-w-40 truncate'>
-                  {item.path}
-                </TableCell>
-                <TableCell
-                  className='text-xs max-w-56 truncate'
-                  title={item.user_agent || undefined}
-                >
-                  {item.user_agent || '—'}
-                </TableCell>
-                <TableCell>
-                  <Badge variant='outline' className='text-[10px]'>
-                    {item.status_code}
-                  </Badge>
-                </TableCell>
+        {error ? (
+          <div className='p-4'>
+            <ErrorInline
+              message={error.message || '加载失败'}
+              onRetry={onRetry}
+            />
+          </div>
+        ) : loading ? (
+          <LoadingStateWithBorder />
+        ) : (data?.items ?? []).length === 0 ? (
+          <EmptyStateWithBorder title='暂无访问日志' />
+        ) : (
+          <Table>
+            <TableHeader className='bg-muted/40'>
+              <TableRow className='border-dashed hover:bg-transparent'>
+                <TableHead className='text-xs'>时间</TableHead>
+                <TableHead className='text-xs'>节点</TableHead>
+                <TableHead className='text-xs'>IP</TableHead>
+                <TableHead className='text-xs'>域名</TableHead>
+                <TableHead className='text-xs'>路径</TableHead>
+                <TableHead className='text-xs'>状态码</TableHead>
+                <TableHead className='w-12 text-center text-xs' />
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      )}
-      <PaginationBar
-        page={page}
-        hasMore={data?.has_more ?? false}
-        loading={isFetching}
-        onPrev={onPrevPage}
-        onNext={onNextPage}
+            </TableHeader>
+            <TableBody>
+              {(data?.items ?? []).map((item) => (
+                <TableRow key={item.id} className='border-dashed'>
+                  <TableCell className='text-xs'>
+                    {formatDateTime(item.logged_at)}
+                  </TableCell>
+                  <TableCell className='text-xs'>
+                    {item.node_name || item.node_id}
+                  </TableCell>
+                  <TableCell className='text-xs font-mono'>
+                    {item.remote_addr}
+                  </TableCell>
+                  <TableCell className='text-xs'>{item.host}</TableCell>
+                  <TableCell className='text-xs max-w-48 truncate'>
+                    {item.path}
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant='outline' className='text-[10px]'>
+                      {item.status_code}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className='text-center'>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant='ghost'
+                          size='icon'
+                          className='h-6 w-6 text-muted-foreground hover:text-foreground'
+                          onClick={() => {
+                            setSelected(item);
+                            setDetailOpen(true);
+                          }}
+                        >
+                          <Eye className='size-3' />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side='top' className='text-xs'>
+                        查看详情
+                      </TooltipContent>
+                    </Tooltip>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+        <PaginationBar
+          page={page}
+          hasMore={data?.has_more ?? false}
+          loading={isFetching}
+          onPrev={onPrevPage}
+          onNext={onNextPage}
+        />
+      </div>
+
+      <AccessLogDetailDialog
+        open={detailOpen}
+        item={selected}
+        onOpenChange={setDetailOpen}
       />
-    </div>
+    </>
   );
 }

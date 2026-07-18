@@ -3,6 +3,8 @@ import type {
   AccessLogCleanupPayload,
   AccessLogCleanupResult,
   AccessLogFilters,
+  AccessLogIPAnalysis,
+  AccessLogIPAnalysisFilters,
   AccessLogIPSummaryFilters,
   AccessLogIPSummaryList,
   AccessLogIPTrend,
@@ -69,6 +71,15 @@ export class AccessLogService extends OpenFlareBaseService {
   ): Promise<AccessLogIPTrend> {
     return this.get<AccessLogIPTrend>(
       '/ip-summary/trend',
+      buildSearchParams(filters),
+    );
+  }
+
+  static getIPAnalysis(
+    filters: AccessLogIPAnalysisFilters,
+  ): Promise<AccessLogIPAnalysis> {
+    return this.get<AccessLogIPAnalysis>(
+      '/ip-summary/analysis',
       buildSearchParams(filters),
     );
   }

@@ -205,6 +205,35 @@ func GetAccessLogIPTrendHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, response.OK(result))
 }
 
+// GetAccessLogIPAnalysisHandler 获取单 IP 访问分析。
+// @Summary 获取访问日志 IP 分析
+// @Description 返回指定 IP 的汇总指标与 Top 分布，需要管理员权限
+// @Tags openflare-observability
+// @Produce json
+// @Security SessionCookie
+// @Param node_id query string false "节点 ID"
+// @Param remote_addr query string false "客户端 IP"
+// @Param host query string false "请求 Host"
+// @Param hours query int false "统计时间范围（小时）"
+// @Success 200 {object} response.Any{data=observability.AccessLogIPAnalysisView} "IP 访问分析"
+// @Failure 400 {object} response.Any "参数错误"
+// @Failure 401 {object} response.Any "未登录"
+// @Failure 404 {object} response.Any "无权限或不存在"
+// @Failure 500 {object} response.Any "内部错误"
+// @Router /api/v1/d/access-logs/ip-summary/analysis [get]
+func GetAccessLogIPAnalysisHandler(c *gin.Context) {
+	result, err := GetAccessLogIPAnalysis(c.Request.Context(), AccessLogIPAnalysisQuery{
+		NodeID:     c.Query("node_id"),
+		RemoteAddr: c.Query("remote_addr"),
+		Host:       c.Query("host"),
+		Hours:      readQueryInt(c, "hours"),
+	})
+	if apiutil.AbortBadRequestOnError(c, err) {
+		return
+	}
+	c.JSON(http.StatusOK, response.OK(result))
+}
+
 // CleanupAccessLogsHandler 清理过期访问日志。
 // @Summary 清理访问日志
 // @Description 按保留天数清理过期访问日志记录，需要管理员权限

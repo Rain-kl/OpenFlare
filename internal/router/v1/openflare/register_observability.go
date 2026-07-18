@@ -19,6 +19,7 @@ func registerObservabilityRoutes(apiGroup *gin.RouterGroup) {
 		accessLogRoute.GET("/folds/ip-summary", observability.GetFoldedAccessLogIPsHandler)
 		accessLogRoute.GET("/ip-summary", observability.GetAccessLogIPSummariesHandler)
 		accessLogRoute.GET("/ip-summary/trend", observability.GetAccessLogIPTrendHandler)
+		accessLogRoute.GET("/ip-summary/analysis", observability.GetAccessLogIPAnalysisHandler)
 		accessLogRoute.POST("/cleanup", observability.CleanupAccessLogsHandler)
 	}
 }

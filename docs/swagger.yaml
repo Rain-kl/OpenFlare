@@ -1872,6 +1872,56 @@ definitions:
       retention_days:
         type: integer
     type: object
+  observability.AccessLogIPAnalysisSummary:
+    properties:
+      bandwidth_served:
+        type: integer
+      bytes_received:
+        type: integer
+      error_count:
+        type: integer
+      total_requests:
+        type: integer
+      unique_hosts:
+        type: integer
+      unique_paths:
+        type: integer
+    type: object
+  observability.AccessLogIPAnalysisView:
+    properties:
+      device_types:
+        items:
+          $ref: '#/definitions/observability.DistributionItem'
+        type: array
+      generated_at:
+        type: string
+      hours:
+        type: integer
+      remote_addr:
+        type: string
+      status_codes:
+        items:
+          $ref: '#/definitions/observability.DistributionItem'
+        type: array
+      summary:
+        $ref: '#/definitions/observability.AccessLogIPAnalysisSummary'
+      top_browsers:
+        items:
+          $ref: '#/definitions/observability.DistributionItem'
+        type: array
+      top_hosts:
+        items:
+          $ref: '#/definitions/observability.DistributionItem'
+        type: array
+      top_paths:
+        items:
+          $ref: '#/definitions/observability.DistributionItem'
+        type: array
+      top_user_agents:
+        items:
+          $ref: '#/definitions/observability.DistributionItem'
+        type: array
+    type: object
   observability.AccessLogIPSummaryList:
     properties:
       has_more:
@@ -7179,6 +7229,59 @@ paths:
       security:
       - SessionCookie: []
       summary: 列出访问日志 IP 汇总
+      tags:
+      - openflare-observability
+  /api/v1/d/access-logs/ip-summary/analysis:
+    get:
+      description: 返回指定 IP 的汇总指标与 Top 分布，需要管理员权限
+      parameters:
+      - description: 节点 ID
+        in: query
+        name: node_id
+        type: string
+      - description: 客户端 IP
+        in: query
+        name: remote_addr
+        type: string
+      - description: 请求 Host
+        in: query
+        name: host
+        type: string
+      - description: 统计时间范围（小时）
+        in: query
+        name: hours
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: IP 访问分析
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/observability.AccessLogIPAnalysisView'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "404":
+          description: 无权限或不存在
+          schema:
+            $ref: '#/definitions/response.Any'
+        "500":
+          description: 内部错误
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 获取访问日志 IP 分析
       tags:
       - openflare-observability
   /api/v1/d/access-logs/ip-summary/trend:

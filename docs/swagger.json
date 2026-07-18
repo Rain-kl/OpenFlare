@@ -5308,6 +5308,93 @@
                 }
             }
         },
+        "/api/v1/d/access-logs/ip-summary/analysis": {
+            "get": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "description": "返回指定 IP 的汇总指标与 Top 分布，需要管理员权限",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "openflare-observability"
+                ],
+                "summary": "获取访问日志 IP 分析",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "节点 ID",
+                        "name": "node_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "客户端 IP",
+                        "name": "remote_addr",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "请求 Host",
+                        "name": "host",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "统计时间范围（小时）",
+                        "name": "hours",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "IP 访问分析",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/observability.AccessLogIPAnalysisView"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    },
+                    "401": {
+                        "description": "未登录",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    },
+                    "404": {
+                        "description": "无权限或不存在",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    },
+                    "500": {
+                        "description": "内部错误",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/d/access-logs/ip-summary/trend": {
             "get": {
                 "security": [
@@ -16119,6 +16206,82 @@
                 },
                 "retention_days": {
                     "type": "integer"
+                }
+            }
+        },
+        "observability.AccessLogIPAnalysisSummary": {
+            "type": "object",
+            "properties": {
+                "bandwidth_served": {
+                    "type": "integer"
+                },
+                "bytes_received": {
+                    "type": "integer"
+                },
+                "error_count": {
+                    "type": "integer"
+                },
+                "total_requests": {
+                    "type": "integer"
+                },
+                "unique_hosts": {
+                    "type": "integer"
+                },
+                "unique_paths": {
+                    "type": "integer"
+                }
+            }
+        },
+        "observability.AccessLogIPAnalysisView": {
+            "type": "object",
+            "properties": {
+                "device_types": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/observability.DistributionItem"
+                    }
+                },
+                "generated_at": {
+                    "type": "string"
+                },
+                "hours": {
+                    "type": "integer"
+                },
+                "remote_addr": {
+                    "type": "string"
+                },
+                "status_codes": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/observability.DistributionItem"
+                    }
+                },
+                "summary": {
+                    "$ref": "#/definitions/observability.AccessLogIPAnalysisSummary"
+                },
+                "top_browsers": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/observability.DistributionItem"
+                    }
+                },
+                "top_hosts": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/observability.DistributionItem"
+                    }
+                },
+                "top_paths": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/observability.DistributionItem"
+                    }
+                },
+                "top_user_agents": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/observability.DistributionItem"
+                    }
                 }
             }
         },

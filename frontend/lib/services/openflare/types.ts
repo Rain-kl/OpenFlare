@@ -653,6 +653,33 @@ export interface AccessLogIPTrend {
   points: AccessLogIPTrendPoint[];
 }
 
+export interface AccessLogIPAnalysisFilters {
+  node_id?: string;
+  remote_addr: string;
+  host?: string;
+  hours?: number;
+}
+
+export interface AccessLogIPAnalysis {
+  remote_addr: string;
+  hours: number;
+  generated_at: string;
+  summary: {
+    total_requests: number;
+    error_count: number;
+    bandwidth_served: number;
+    bytes_received: number;
+    unique_hosts: number;
+    unique_paths: number;
+  };
+  top_paths: DistributionItem[];
+  top_hosts: DistributionItem[];
+  status_codes: DistributionItem[];
+  top_user_agents: DistributionItem[];
+  device_types: DistributionItem[];
+  top_browsers: DistributionItem[];
+}
+
 export interface AccessLogCleanupPayload {
   retention_days: number;
 }

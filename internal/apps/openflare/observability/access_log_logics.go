@@ -22,7 +22,7 @@ const (
 	defaultAccessLogFoldMinute = 3
 	defaultIPTrendHours        = 24
 	defaultIPTrendBucketMinute = 30
-	maxIPTrendHours            = 168
+	maxIPTrendHours            = 24 * 30
 	nodeAccessLogRetentionDays = 90
 	defaultAccessLogQueryDays  = 7
 	accessLogFieldRemoteAddr   = "remote_addr"
@@ -179,6 +179,38 @@ type AccessLogIPTrendView struct {
 	Hours         int                     `json:"hours"`
 	BucketMinutes int                     `json:"bucket_minutes"`
 	Points        []AccessLogIPTrendPoint `json:"points"`
+}
+
+// AccessLogIPAnalysisQuery filters per-IP analysis queries.
+type AccessLogIPAnalysisQuery struct {
+	NodeID     string `json:"node_id"`
+	RemoteAddr string `json:"remote_addr"`
+	Host       string `json:"host"`
+	Hours      int    `json:"hours"`
+}
+
+// AccessLogIPAnalysisSummary is headline totals for one IP.
+type AccessLogIPAnalysisSummary struct {
+	TotalRequests   int64 `json:"total_requests"`
+	ErrorCount      int64 `json:"error_count"`
+	BandwidthServed int64 `json:"bandwidth_served"`
+	BytesReceived   int64 `json:"bytes_received"`
+	UniqueHosts     int64 `json:"unique_hosts"`
+	UniquePaths     int64 `json:"unique_paths"`
+}
+
+// AccessLogIPAnalysisView is per-IP analytics for the detail dialog.
+type AccessLogIPAnalysisView struct {
+	RemoteAddr    string                     `json:"remote_addr"`
+	Hours         int                        `json:"hours"`
+	GeneratedAt   time.Time                  `json:"generated_at"`
+	Summary       AccessLogIPAnalysisSummary `json:"summary"`
+	TopPaths      []DistributionItem         `json:"top_paths"`
+	TopHosts      []DistributionItem         `json:"top_hosts"`
+	StatusCodes   []DistributionItem         `json:"status_codes"`
+	TopUserAgents []DistributionItem         `json:"top_user_agents"`
+	DeviceTypes   []DistributionItem         `json:"device_types"`
+	TopBrowsers   []DistributionItem         `json:"top_browsers"`
 }
 
 // AccessLogOverviewQuery filters access log overview queries.
@@ -662,6 +694,82 @@ func GetAccessLogIPTrend(ctx context.Context, input AccessLogIPTrendQuery) (*Acc
 		Hours:         normalized.Hours,
 		BucketMinutes: normalized.BucketMinutes,
 		Points:        views,
+	}, nil
+}
+
+// GetAccessLogIPAnalysis returns per-IP summary and rankings.
+func GetAccessLogIPAnalysis(ctx context.Context, input AccessLogIPAnalysisQuery) (*AccessLogIPAnalysisView, error) {
+	normalized, err := normalizeAccessLogIPAnalysisQuery(input)
+	if err != nil {
+		return nil, err
+	}
+	now := time.Now().UTC()
+	since := now.Add(-time.Duration(normalized.Hours) * time.Hour)
+	query := model.OpenFlareAccessLogQuery{
+		NodeID:     normalized.NodeID,
+		RemoteAddr: normalized.RemoteAddr,
+		Host:       normalized.Host,
+		Since:      since,
+		Until:      now,
+	}
+
+	summaryRow, err := model.TrafficSummaryOpenFlareAccessLogs(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	allPaths := valueCountDistribution(ctx, query, "path", 0)
+	allHosts := valueCountDistribution(ctx, query, "host", 0)
+	topPaths := limitDistributionItems(allPaths, accessLogOverviewTopLimit)
+	topHosts := limitDistributionItems(allHosts, accessLogOverviewTopLimit)
+	statusCodes := valueCountDistribution(ctx, query, "status_code", accessLogOverviewTopLimit)
+	topUserAgents := valueCountDistribution(ctx, query, "user_agent", accessLogOverviewTopLimit)
+	deviceTypes, topBrowsers, _, _ := buildAccessLogUADistributions(ctx, query)
+
+	return &AccessLogIPAnalysisView{
+		RemoteAddr:  normalized.RemoteAddr,
+		Hours:       normalized.Hours,
+		GeneratedAt: now,
+		Summary: AccessLogIPAnalysisSummary{
+			TotalRequests:   summaryRow.RequestCount,
+			ErrorCount:      summaryRow.ErrorCount,
+			BandwidthServed: summaryRow.BytesSent,
+			BytesReceived:   summaryRow.RequestLength,
+			UniqueHosts:     int64(len(allHosts)),
+			UniquePaths:     int64(len(allPaths)),
+		},
+		TopPaths:      topPaths,
+		TopHosts:      topHosts,
+		StatusCodes:   statusCodes,
+		TopUserAgents: topUserAgents,
+		DeviceTypes:   deviceTypes,
+		TopBrowsers:   topBrowsers,
+	}, nil
+}
+
+func limitDistributionItems(items []DistributionItem, limit int) []DistributionItem {
+	if limit <= 0 || len(items) <= limit {
+		return items
+	}
+	return items[:limit]
+}
+
+func normalizeAccessLogIPAnalysisQuery(input AccessLogIPAnalysisQuery) (AccessLogIPAnalysisQuery, error) {
+	remoteAddr := strings.TrimSpace(input.RemoteAddr)
+	if remoteAddr == "" {
+		return AccessLogIPAnalysisQuery{}, errors.New("remote_addr 不能为空")
+	}
+	hours := input.Hours
+	if hours <= 0 {
+		hours = defaultIPTrendHours
+	}
+	if hours > maxIPTrendHours {
+		hours = maxIPTrendHours
+	}
+	return AccessLogIPAnalysisQuery{
+		NodeID:     strings.TrimSpace(input.NodeID),
+		RemoteAddr: remoteAddr,
+		Host:       strings.TrimSpace(input.Host),
+		Hours:      hours,
 	}, nil
 }
 

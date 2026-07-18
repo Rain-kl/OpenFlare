@@ -82,6 +82,8 @@ export type {
   AccessLogCleanupPayload,
   AccessLogCleanupResult,
   AccessLogFilters,
+  AccessLogIPAnalysis,
+  AccessLogIPAnalysisFilters,
   AccessLogIPSummaryFilters,
   AccessLogIPSummaryItem,
   AccessLogIPSummaryList,
