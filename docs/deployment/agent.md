@@ -90,8 +90,8 @@ curl -fsSL https://raw.githubusercontent.com/Rain-kl/OpenFlare/main/scripts/inst
   "data_dir": "./data",
   "openresty_path": "openresty",
   "openresty_observability_port": 18081,
-  "observability_replay_minutes": 15,
-  "heartbeat_interval": 10000,
+  "observability_replay_minutes": 60,
+  "heartbeat_interval": 3000,
   "request_timeout": 10000
 }
 ```
@@ -110,7 +110,7 @@ curl -fsSL https://raw.githubusercontent.com/Rain-kl/OpenFlare/main/scripts/inst
   "cert_dir": "/var/lib/openflare-agent/etc/nginx/certs",
   "lua_dir": "/var/lib/openflare-agent/etc/nginx/lua",
   "runtime_config_dir": "/var/lib/openflare-agent/etc/openflare",
-  "heartbeat_interval": 10000,
+  "heartbeat_interval": 3000,
   "request_timeout": 10000
 }
 ```

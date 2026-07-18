@@ -15,6 +15,7 @@
 
 * [Zone 与域名资源重构](./20260712-zone-domain-refactor.md)：以 Zone 和正规化 Zone 域名替代托管域名及反代路由中的域名/证书冗余字段。
 * [WAF 可编排规则](./20260713-waf-orchestration.md)：使用 React Flow 编辑 DAG 规则，发布时编译并由 OpenResty 纯内存执行。
+* [边缘可观测与业务流量统计重构](./20260717-observability-redesign.md)：访问日志为业务唯一真相；Agent 只上报明细与主机读数；收敛「出站/已提供」双字段。
 
 ## 使用建议
 

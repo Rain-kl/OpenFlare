@@ -194,7 +194,7 @@ export LOG_LEVEL='info'
   "agent_token": "replace-with-node-auth-token",
   "data_dir": "./data",
   "openresty_path": "openresty",
-  "heartbeat_interval": 10000,
+  "heartbeat_interval": 3000,
   "request_timeout": 10000
 }
 ```
