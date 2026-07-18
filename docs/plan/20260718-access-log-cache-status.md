@@ -59,4 +59,5 @@
 * [x] log_format + protocol + agent parse
 * [x] CH migration + 写入/读取
 * [x] API + 前端明细展示
-* [ ] 测试与提交
+* [x] 缓冲去重 key 含 cache_status；保留 `-` 原始值
+* [x] 测试与提交

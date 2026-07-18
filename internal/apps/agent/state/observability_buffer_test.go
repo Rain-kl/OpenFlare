@@ -65,7 +65,7 @@ func TestObservabilityBufferStoreMergesAccessLogsWithinWindow(t *testing.T) {
 	if err := store.Upsert(ObservabilityBufferRecord{
 		WindowStartedAtUnix: 1710403200,
 		AccessLogs: []protocol.NodeAccessLog{
-			{LoggedAtUnix: 1710403201, RemoteAddr: "10.0.0.1", Host: "app.example.com", Path: "/a", StatusCode: 200},
+			{LoggedAtUnix: 1710403201, RemoteAddr: "10.0.0.1", Host: "app.example.com", Path: "/a", StatusCode: 200, CacheStatus: "HIT"},
 		},
 	}, 1710403000); err != nil {
 		t.Fatalf("first upsert failed: %v", err)
@@ -73,7 +73,9 @@ func TestObservabilityBufferStoreMergesAccessLogsWithinWindow(t *testing.T) {
 	if err := store.Upsert(ObservabilityBufferRecord{
 		WindowStartedAtUnix: 1710403200,
 		AccessLogs: []protocol.NodeAccessLog{
-			{LoggedAtUnix: 1710403201, RemoteAddr: "10.0.0.1", Host: "app.example.com", Path: "/a", StatusCode: 200},
+			// Same identity except cache status — must not collapse HIT/MISS.
+			{LoggedAtUnix: 1710403201, RemoteAddr: "10.0.0.1", Host: "app.example.com", Path: "/a", StatusCode: 200, CacheStatus: "HIT"},
+			{LoggedAtUnix: 1710403201, RemoteAddr: "10.0.0.1", Host: "app.example.com", Path: "/a", StatusCode: 200, CacheStatus: "MISS"},
 			{LoggedAtUnix: 1710403205, RemoteAddr: "10.0.0.2", Host: "app.example.com", Path: "/b", StatusCode: 502},
 		},
 	}, 1710403000); err != nil {
@@ -84,8 +86,8 @@ func TestObservabilityBufferStoreMergesAccessLogsWithinWindow(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Replayable failed: %v", err)
 	}
-	if len(records) != 1 || len(records[0].AccessLogs) != 2 {
-		t.Fatalf("expected merged access logs, got %+v", records)
+	if len(records) != 1 || len(records[0].AccessLogs) != 3 {
+		t.Fatalf("expected merged access logs with distinct cache_status, got %+v", records)
 	}
 }
 

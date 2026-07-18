@@ -205,11 +205,8 @@ func parseJSONAccessLogRecord(raw string) (parsedAccessLogRecord, bool) {
 }
 
 func normalizeCacheStatus(value string) string {
-	trimmed := strings.TrimSpace(value)
-	if trimmed == "-" {
-		return ""
-	}
-	return trimmed
+	// Keep OpenResty "-" as-is so details can distinguish it from a missing field.
+	return strings.TrimSpace(value)
 }
 
 func parseCombinedAccessLogRecord(raw string) (parsedAccessLogRecord, bool) {

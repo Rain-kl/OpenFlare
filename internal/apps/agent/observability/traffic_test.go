@@ -56,6 +56,18 @@ func TestCollectAccessLogsReturnsFactsOnly(t *testing.T) {
 	}
 }
 
+func TestNormalizeCacheStatusKeepsDash(t *testing.T) {
+	if got := normalizeCacheStatus(" - "); got != "-" {
+		t.Fatalf("normalizeCacheStatus dash = %q, want -", got)
+	}
+	if got := normalizeCacheStatus(" HIT "); got != "HIT" {
+		t.Fatalf("normalizeCacheStatus hit = %q, want HIT", got)
+	}
+	if got := normalizeCacheStatus(""); got != "" {
+		t.Fatalf("normalizeCacheStatus empty = %q, want empty", got)
+	}
+}
+
 func TestCollectAccessLogsResetsOffsetAfterTruncate(t *testing.T) {
 	tempDir := t.TempDir()
 	logPath := filepath.Join(tempDir, "openflare_access.log")
