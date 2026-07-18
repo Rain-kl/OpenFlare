@@ -28,6 +28,10 @@ const apiClient = axios.create({
   withCredentials: apiConfig.withCredentials,
   // Fail fast on slash redirect loops between Next dev proxy and Gin legacy routes.
   maxRedirects: 5,
+  // Gin QueryArray("hosts") expects hosts=a&hosts=b, not hosts[]=a.
+  paramsSerializer: {
+    indexes: null,
+  },
   headers: {
     'Content-Type': 'application/json',
   },

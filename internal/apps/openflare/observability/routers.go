@@ -32,7 +32,7 @@ func GetAccessLogOverviewHandler(c *gin.Context) {
 	result, err := GetAccessLogOverview(c.Request.Context(), AccessLogOverviewQuery{
 		NodeID: c.Query("node_id"),
 		Host:   c.Query("host"),
-		Hosts:  c.QueryArray("hosts"),
+		Hosts:  readQueryStringArray(c, "hosts"),
 		Hours:  readQueryInt(c, "hours"),
 	})
 	if apiutil.AbortBadRequestOnError(c, err) {
@@ -278,4 +278,16 @@ func readAccessLogQuery(c *gin.Context) AccessLogQuery {
 func readQueryInt(c *gin.Context, key string) int {
 	value, _ := strconv.Atoi(c.DefaultQuery(key, "0"))
 	return value
+}
+
+// readQueryStringArray reads repeated query values for key, and also accepts
+// the Axios/jQuery bracket form key[] / key%5B%5D which Gin does not map to key.
+func readQueryStringArray(c *gin.Context, key string) []string {
+	if values := c.QueryArray(key); len(values) > 0 {
+		return values
+	}
+	if values := c.QueryArray(key + "[]"); len(values) > 0 {
+		return values
+	}
+	return nil
 }
