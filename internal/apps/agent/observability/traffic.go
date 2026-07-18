@@ -22,6 +22,7 @@ type accessLogRecord struct {
 	Host          string  `json:"host"`
 	RemoteAddr    string  `json:"remote_addr"`
 	Path          string  `json:"path"`
+	UserAgent     string  `json:"user_agent"`
 	Status        int     `json:"status"`
 	BytesSent     int64   `json:"bytes_sent"`
 	RequestLength int64   `json:"request_length"`
@@ -145,6 +146,7 @@ func (aggregate *trafficAggregate) consume(line []byte) {
 		RemoteAddr:    strings.TrimSpace(record.RemoteAddr),
 		Host:          strings.TrimSpace(record.Host),
 		Path:          normalizeAccessLogPath(record.Path),
+		UserAgent:     strings.TrimSpace(record.UserAgent),
 		StatusCode:    record.Status,
 		BytesSent:     record.BytesSent,
 		RequestLength: record.RequestLength,
@@ -157,6 +159,7 @@ type parsedAccessLogRecord struct {
 	Host          string
 	RemoteAddr    string
 	Path          string
+	UserAgent     string
 	Status        int
 	BytesSent     int64
 	RequestLength int64
@@ -189,6 +192,7 @@ func parseJSONAccessLogRecord(raw string) (parsedAccessLogRecord, bool) {
 		Host:          strings.TrimSpace(record.Host),
 		RemoteAddr:    strings.TrimSpace(record.RemoteAddr),
 		Path:          normalizeAccessLogPath(record.Path),
+		UserAgent:     strings.TrimSpace(record.UserAgent),
 		Status:        record.Status,
 		BytesSent:     record.BytesSent,
 		RequestLength: record.RequestLength,

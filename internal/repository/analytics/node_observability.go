@@ -159,6 +159,7 @@ ORDER BY %s`, tableName, clause, nodeObservabilityCapturedAtOrderClause())
 	return scanNodeObsFrpcRows(rows)
 }
 
+//nolint:dupl // scan shapes differ by model fields; shared helper would obscure CH column mapping
 func scanNodeMetricSnapshotRows(rows driver.Rows) ([]analyticsmodel.NodeMetricSnapshot, error) {
 	var result []analyticsmodel.NodeMetricSnapshot
 	for rows.Next() {

@@ -123,6 +123,7 @@ export function DetailTab({
               <TableHead className='text-xs'>IP</TableHead>
               <TableHead className='text-xs'>域名</TableHead>
               <TableHead className='text-xs'>路径</TableHead>
+              <TableHead className='text-xs'>User-Agent</TableHead>
               <TableHead className='text-xs'>状态码</TableHead>
             </TableRow>
           </TableHeader>
@@ -139,8 +140,14 @@ export function DetailTab({
                   {item.remote_addr}
                 </TableCell>
                 <TableCell className='text-xs'>{item.host}</TableCell>
-                <TableCell className='text-xs max-w-48 truncate'>
+                <TableCell className='text-xs max-w-40 truncate'>
                   {item.path}
+                </TableCell>
+                <TableCell
+                  className='text-xs max-w-56 truncate'
+                  title={item.user_agent || undefined}
+                >
+                  {item.user_agent || '—'}
                 </TableCell>
                 <TableCell>
                   <Badge variant='outline' className='text-[10px]'>

@@ -47,6 +47,7 @@ type OpenFlareAccessLog struct {
 	Region        string    `json:"region" gorm:"size:128"`
 	Host          string    `json:"host" gorm:"index;size:255"`
 	Path          string    `json:"path" gorm:"size:2048"`
+	UserAgent     string    `json:"user_agent" gorm:"column:user_agent;size:512"`
 	StatusCode    int       `json:"status_code" gorm:"index"`
 	BytesSent     int64     `json:"bytes_sent" gorm:"column:bytes_sent;not null;default:0"`
 	RequestLength int64     `json:"request_length" gorm:"column:request_length;not null;default:0"`

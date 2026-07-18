@@ -3,6 +3,7 @@
 import { useMemo } from 'react';
 import type { EChartsOption } from 'echarts';
 import ReactECharts from 'echarts-for-react';
+import { Cell, Pie, PieChart } from 'recharts';
 
 import { RankChart } from '@/components/data/rank-chart';
 import { TrendChart } from '@/components/data/trend-chart';
@@ -16,8 +17,19 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+import {
+  ChartContainer,
+  ChartLegend,
+  ChartLegendContent,
+  ChartTooltip,
+  ChartTooltipContent,
+  type ChartConfig,
+} from '@/components/ui/chart';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import type { AccessLogOverview } from '@/lib/services/openflare';
+import type {
+  AccessLogOverview,
+  DistributionItem,
+} from '@/lib/services/openflare';
 import { formatBytes, formatCompactNumber } from '@/lib/utils/metrics';
 
 import {
@@ -26,6 +38,15 @@ import {
   OVERVIEW_RANGE_OPTIONS,
   type OverviewRangeHours,
 } from './access-log-utils';
+
+const DEVICE_COLORS = [
+  '#38bdf8',
+  '#34d399',
+  '#f59e0b',
+  '#a78bfa',
+  '#f472b6',
+  '#94a3b8',
+];
 
 function SparklineMetricCard({
   title,
@@ -132,6 +153,13 @@ function SparklineMetricCard({
   );
 }
 
+function toRankItems(items: DistributionItem[] | undefined) {
+  return (items ?? []).map((item) => ({
+    label: item.key,
+    value: item.value,
+  }));
+}
+
 function RankCard({
   title,
   description,
@@ -159,6 +187,101 @@ function RankCard({
           color={color}
           emptyMessage={`暂无 ${title} 数据`}
         />
+      </CardContent>
+    </Card>
+  );
+}
+
+function PieDistributionCard({
+  title,
+  description,
+  items,
+  emptyMessage,
+}: {
+  title: string;
+  description: string;
+  items: DistributionItem[];
+  emptyMessage: string;
+}) {
+  const chartData = useMemo(
+    () =>
+      items.map((item, index) => ({
+        name: item.key,
+        value: item.value,
+        fill: DEVICE_COLORS[index % DEVICE_COLORS.length],
+      })),
+    [items],
+  );
+
+  const chartConfig = useMemo(() => {
+    const config: ChartConfig = {};
+    chartData.forEach((item) => {
+      config[item.name] = {
+        label: item.name,
+        color: item.fill,
+      };
+    });
+    return config;
+  }, [chartData]);
+
+  return (
+    <Card className='border-dashed shadow-none'>
+      <CardHeader className='pb-3'>
+        <CardTitle className='text-sm font-semibold text-foreground'>
+          {title}
+        </CardTitle>
+        <CardDescription className='text-xs text-muted-foreground'>
+          {description}
+        </CardDescription>
+      </CardHeader>
+      <CardContent className='pt-0'>
+        {chartData.length === 0 ? (
+          <div className='flex h-[450px] items-center justify-center rounded-md border border-dashed bg-muted/20 text-sm text-muted-foreground'>
+            {emptyMessage}
+          </div>
+        ) : (
+          <ChartContainer
+            config={chartConfig}
+            className='mx-auto h-[450px] w-full'
+          >
+            <PieChart>
+              <Pie
+                data={chartData}
+                dataKey='value'
+                nameKey='name'
+                cx='50%'
+                cy='46%'
+                innerRadius={72}
+                outerRadius={110}
+                paddingAngle={2}
+              >
+                {chartData.map((entry) => (
+                  <Cell key={entry.name} fill={entry.fill} />
+                ))}
+              </Pie>
+              <ChartTooltip
+                cursor={false}
+                content={
+                  <ChartTooltipContent
+                    hideLabel
+                    formatter={(value, name) => (
+                      <>
+                        <span className='text-muted-foreground'>{name}</span>
+                        <span className='ml-auto font-mono font-medium tabular-nums text-foreground'>
+                          {formatCompactNumber(Number(value ?? 0))}
+                        </span>
+                      </>
+                    )}
+                  />
+                }
+              />
+              <ChartLegend
+                content={<ChartLegendContent nameKey='name' />}
+                className='flex-wrap justify-center gap-x-4 gap-y-1 pt-2 text-[11px]'
+              />
+            </PieChart>
+          </ChartContainer>
+        )}
       </CardContent>
     </Card>
   );
@@ -314,33 +437,60 @@ function OverviewContent({
         </CardContent>
       </Card>
 
+      <div className='grid gap-6 xl:grid-cols-2'>
+        <PieDistributionCard
+          title='Requests by device type'
+          description='按设备类型统计请求占比。'
+          items={data.device_types ?? []}
+          emptyMessage='暂无设备类型数据'
+        />
+        <PieDistributionCard
+          title='Status code'
+          description='按 HTTP 状态码统计请求占比。'
+          items={data.status_codes ?? []}
+          emptyMessage='暂无状态码分布数据'
+        />
+      </div>
+
       <div className='grid gap-6 xl:grid-cols-3'>
         <RankCard
           title='Top Paths'
           description='访问量最高的请求路径。'
           color='#a78bfa'
-          items={data.top_paths.map((item) => ({
-            label: item.key,
-            value: item.value,
-          }))}
+          items={toRankItems(data.top_paths)}
         />
         <RankCard
           title='Top Hosts'
           description='流量集中的访问域名。'
           color='#34d399'
-          items={data.top_hosts.map((item) => ({
-            label: item.key,
-            value: item.value,
-          }))}
+          items={toRankItems(data.top_hosts)}
         />
         <RankCard
           title='Top IPs'
           description='请求次数最多的来源 IP。'
           color='#38bdf8'
-          items={data.top_ips.map((item) => ({
-            label: item.key,
-            value: item.value,
-          }))}
+          items={toRankItems(data.top_ips)}
+        />
+      </div>
+
+      <div className='grid gap-6 xl:grid-cols-3'>
+        <RankCard
+          title='Top browsers'
+          description='按浏览器聚合的请求排行。'
+          color='#f59e0b'
+          items={toRankItems(data.top_browsers)}
+        />
+        <RankCard
+          title='Top Operating System'
+          description='按操作系统聚合的请求排行。'
+          color='#22c55e'
+          items={toRankItems(data.top_operating_systems)}
+        />
+        <RankCard
+          title='Top User-Agent'
+          description='原始 User-Agent 请求排行。'
+          color='#818cf8'
+          items={toRankItems(data.top_user_agents)}
         />
       </div>
     </>

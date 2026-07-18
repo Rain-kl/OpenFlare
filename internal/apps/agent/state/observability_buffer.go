@@ -117,7 +117,7 @@ func mergeAccessLogs(existing []protocol.NodeAccessLog, incoming []protocol.Node
 }
 
 func accessLogKey(item protocol.NodeAccessLog) string {
-	return strconv.FormatInt(item.LoggedAtUnix, 10) + "|" + item.RemoteAddr + "|" + item.Host + "|" + item.Path + "|" + strconv.Itoa(item.StatusCode)
+	return strconv.FormatInt(item.LoggedAtUnix, 10) + "|" + item.RemoteAddr + "|" + item.Host + "|" + item.Path + "|" + item.UserAgent + "|" + strconv.Itoa(item.StatusCode)
 }
 
 // Replayable returns buffered records from windows before currentWindowStartedAtUnix.

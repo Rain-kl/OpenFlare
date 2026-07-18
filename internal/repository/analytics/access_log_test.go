@@ -28,7 +28,8 @@ func TestParseBrowserName(t *testing.T) {
 		{name: "edge", ua: "Mozilla/5.0 Edg/120.0.0.0", want: "Edge"},
 		{name: "wechat", ua: "MicroMessenger/8.0", want: "WeChat"},
 		{name: "postman", ua: "PostmanRuntime/7.36.0", want: "Postman"},
-		{name: "other", ua: "curl/8.0", want: "Other"},
+		{name: "cli", ua: "curl/8.0", want: "CLI"},
+		{name: "other", ua: "CustomClient/1.0", want: "Other"},
 	}
 
 	for _, tt := range tests {

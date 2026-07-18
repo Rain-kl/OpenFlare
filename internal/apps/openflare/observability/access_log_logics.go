@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/Rain-kl/Wavelet/internal/model"
+	analyticsrepo "github.com/Rain-kl/Wavelet/internal/repository/analytics"
 )
 
 const (
@@ -52,6 +53,7 @@ type AccessLogView struct {
 	Region     string    `json:"region"`
 	Host       string    `json:"host"`
 	Path       string    `json:"path"`
+	UserAgent  string    `json:"user_agent"`
 	StatusCode int       `json:"status_code"`
 }
 
@@ -207,13 +209,18 @@ type AccessLogOverviewTrends struct {
 
 // AccessLogOverview is the access-log analytics overview payload.
 type AccessLogOverview struct {
-	GeneratedAt time.Time                `json:"generated_at"`
-	Hours       int                      `json:"hours"`
-	Summary     AccessLogOverviewSummary `json:"summary"`
-	Trends      AccessLogOverviewTrends  `json:"trends"`
-	TopPaths    []DistributionItem       `json:"top_paths"`
-	TopHosts    []DistributionItem       `json:"top_hosts"`
-	TopIPs      []DistributionItem       `json:"top_ips"`
+	GeneratedAt         time.Time                `json:"generated_at"`
+	Hours               int                      `json:"hours"`
+	Summary             AccessLogOverviewSummary `json:"summary"`
+	Trends              AccessLogOverviewTrends  `json:"trends"`
+	TopPaths            []DistributionItem       `json:"top_paths"`
+	TopHosts            []DistributionItem       `json:"top_hosts"`
+	TopIPs              []DistributionItem       `json:"top_ips"`
+	DeviceTypes         []DistributionItem       `json:"device_types"`
+	TopBrowsers         []DistributionItem       `json:"top_browsers"`
+	TopOperatingSystems []DistributionItem       `json:"top_operating_systems"`
+	TopUserAgents       []DistributionItem       `json:"top_user_agents"`
+	StatusCodes         []DistributionItem       `json:"status_codes"`
 }
 
 // AccessLogCleanupInput is the cleanup request payload.
@@ -229,9 +236,10 @@ type AccessLogCleanupResult struct {
 }
 
 const (
-	defaultAccessLogOverviewHours = 24
-	maxAccessLogOverviewHours     = 24 * 30
-	accessLogOverviewTopLimit     = 10
+	defaultAccessLogOverviewHours     = 24
+	maxAccessLogOverviewHours         = 24 * 30
+	accessLogOverviewTopLimit         = 10
+	accessLogOverviewUASampleLimit    = 200
 )
 
 // GetAccessLogOverview returns summary metrics, trends, and top rankings.
@@ -254,6 +262,7 @@ func GetAccessLogOverview(ctx context.Context, input AccessLogOverviewQuery) (*A
 	requestPoints, visitPoints, bandwidthPoints := buildAccessLogOverviewTrends(
 		ctx, now, normalized.Hours, query,
 	)
+	deviceTypes, topBrowsers, topOSes, topUserAgents := buildAccessLogUADistributions(ctx, query)
 
 	return &AccessLogOverview{
 		GeneratedAt: now,
@@ -268,9 +277,14 @@ func GetAccessLogOverview(ctx context.Context, input AccessLogOverviewQuery) (*A
 			Visits:    visitPoints,
 			Bandwidth: bandwidthPoints,
 		},
-		TopPaths: valueCountDistribution(ctx, query, "path", accessLogOverviewTopLimit),
-		TopHosts: valueCountDistribution(ctx, query, "host", accessLogOverviewTopLimit),
-		TopIPs:   valueCountDistribution(ctx, query, "remote_addr", accessLogOverviewTopLimit),
+		TopPaths:            valueCountDistribution(ctx, query, "path", accessLogOverviewTopLimit),
+		TopHosts:            valueCountDistribution(ctx, query, "host", accessLogOverviewTopLimit),
+		TopIPs:              valueCountDistribution(ctx, query, "remote_addr", accessLogOverviewTopLimit),
+		DeviceTypes:         deviceTypes,
+		TopBrowsers:         topBrowsers,
+		TopOperatingSystems: topOSes,
+		TopUserAgents:       topUserAgents,
+		StatusCodes:         valueCountDistribution(ctx, query, "status_code", accessLogOverviewTopLimit),
 	}, nil
 }
 
@@ -307,6 +321,45 @@ func valueCountDistribution(
 		items = append(items, DistributionItem{Key: row.Value, Value: row.Count})
 	}
 	return items
+}
+
+func buildAccessLogUADistributions(
+	ctx context.Context,
+	query model.OpenFlareAccessLogQuery,
+) (
+	deviceTypes []DistributionItem,
+	topBrowsers []DistributionItem,
+	topOSes []DistributionItem,
+	topUserAgents []DistributionItem,
+) {
+	uaRows := valueCountDistribution(ctx, query, "user_agent", accessLogOverviewUASampleLimit)
+	if len(uaRows) == 0 {
+		return []DistributionItem{}, []DistributionItem{}, []DistributionItem{}, []DistributionItem{}
+	}
+
+	deviceAcc := make(distributionAccumulator)
+	browserAcc := make(distributionAccumulator)
+	osAcc := make(distributionAccumulator)
+	for _, row := range uaRows {
+		ua := row.Key
+		count := row.Value
+		deviceAcc[analyticsrepo.ParseDeviceType(ua)] += count
+		browserAcc[analyticsrepo.ParseBrowserName(ua)] += count
+		osAcc[analyticsrepo.ParseOSName(ua)] += count
+	}
+
+	topUserAgents = make([]DistributionItem, 0, accessLogOverviewTopLimit)
+	for _, row := range uaRows {
+		if len(topUserAgents) >= accessLogOverviewTopLimit {
+			break
+		}
+		topUserAgents = append(topUserAgents, row)
+	}
+
+	return toDistributionItems(deviceAcc, 0),
+		toDistributionItems(browserAcc, accessLogOverviewTopLimit),
+		toDistributionItems(osAcc, accessLogOverviewTopLimit),
+		topUserAgents
 }
 
 func buildAccessLogOverviewTrends(
@@ -394,6 +447,7 @@ func ListAccessLogs(ctx context.Context, input AccessLogQuery) (*AccessLogList, 
 			Region:     item.Region,
 			Host:       item.Host,
 			Path:       item.Path,
+			UserAgent:  item.UserAgent,
 			StatusCode: item.StatusCode,
 		})
 	}

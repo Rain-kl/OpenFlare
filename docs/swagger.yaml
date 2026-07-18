@@ -673,6 +673,8 @@ definitions:
         type: integer
       status_code:
         type: integer
+      user_agent:
+        type: string
     type: object
   github_com_Rain-kl_Wavelet_pkg_protocol.NodeEdgeHealth:
     properties:
@@ -1939,12 +1941,24 @@ definitions:
     type: object
   observability.AccessLogOverview:
     properties:
+      device_types:
+        items:
+          $ref: '#/definitions/observability.DistributionItem'
+        type: array
       generated_at:
         type: string
       hours:
         type: integer
+      status_codes:
+        items:
+          $ref: '#/definitions/observability.DistributionItem'
+        type: array
       summary:
         $ref: '#/definitions/observability.AccessLogOverviewSummary'
+      top_browsers:
+        items:
+          $ref: '#/definitions/observability.DistributionItem'
+        type: array
       top_hosts:
         items:
           $ref: '#/definitions/observability.DistributionItem'
@@ -1953,7 +1967,15 @@ definitions:
         items:
           $ref: '#/definitions/observability.DistributionItem'
         type: array
+      top_operating_systems:
+        items:
+          $ref: '#/definitions/observability.DistributionItem'
+        type: array
       top_paths:
+        items:
+          $ref: '#/definitions/observability.DistributionItem'
+        type: array
+      top_user_agents:
         items:
           $ref: '#/definitions/observability.DistributionItem'
         type: array
@@ -2011,6 +2033,8 @@ definitions:
         type: string
       status_code:
         type: integer
+      user_agent:
+        type: string
     type: object
   observability.CapacityTrendPoint:
     properties:

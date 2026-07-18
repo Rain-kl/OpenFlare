@@ -14325,6 +14325,9 @@ const docTemplate = `{
                 },
                 "status_code": {
                     "type": "integer"
+                },
+                "user_agent": {
+                    "type": "string"
                 }
             }
         },
@@ -16232,14 +16235,32 @@ const docTemplate = `{
         "observability.AccessLogOverview": {
             "type": "object",
             "properties": {
+                "device_types": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/observability.DistributionItem"
+                    }
+                },
                 "generated_at": {
                     "type": "string"
                 },
                 "hours": {
                     "type": "integer"
                 },
+                "status_codes": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/observability.DistributionItem"
+                    }
+                },
                 "summary": {
                     "$ref": "#/definitions/observability.AccessLogOverviewSummary"
+                },
+                "top_browsers": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/observability.DistributionItem"
+                    }
                 },
                 "top_hosts": {
                     "type": "array",
@@ -16253,7 +16274,19 @@ const docTemplate = `{
                         "$ref": "#/definitions/observability.DistributionItem"
                     }
                 },
+                "top_operating_systems": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/observability.DistributionItem"
+                    }
+                },
                 "top_paths": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/observability.DistributionItem"
+                    }
+                },
+                "top_user_agents": {
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/observability.DistributionItem"
@@ -16341,6 +16374,9 @@ const docTemplate = `{
                 },
                 "status_code": {
                     "type": "integer"
+                },
+                "user_agent": {
+                    "type": "string"
                 }
             }
         },

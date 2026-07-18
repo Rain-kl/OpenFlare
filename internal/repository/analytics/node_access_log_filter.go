@@ -20,6 +20,7 @@ const (
 	nodeAccessLogColumnStatusCode = "status_code"
 	nodeAccessLogColumnHost       = "host"
 	nodeAccessLogColumnPath       = "path"
+	nodeAccessLogColumnUserAgent  = "user_agent"
 	nodeAccessLogColumnLoggedAt   = "logged_at"
 )
 

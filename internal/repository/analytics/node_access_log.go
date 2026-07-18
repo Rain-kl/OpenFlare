@@ -36,7 +36,7 @@ func ListNodeAccessLogs(ctx context.Context, filter NodeAccessLogFilter) ([]anal
 	clause, args := buildNodeAccessLogFilterClause(filter)
 	tableName := nodeAccessLogTableName()
 	sql := fmt.Sprintf(`
-SELECT id, node_id, logged_at, remote_addr, region, host, path, status_code, bytes_sent, request_length, request_time_ms, created_at
+SELECT id, node_id, logged_at, remote_addr, region, host, path, user_agent, status_code, bytes_sent, request_length, request_time_ms, created_at
 FROM %s
 WHERE %s
 ORDER BY %s`, tableName, clause, nodeAccessLogOrderClause(filter.SortBy, filter.SortOrder))
@@ -55,6 +55,7 @@ ORDER BY %s`, tableName, clause, nodeAccessLogOrderClause(filter.SortBy, filter.
 	return scanNodeAccessLogRows(rows)
 }
 
+//nolint:dupl // scan shapes differ by model fields; shared helper would obscure CH column mapping
 func scanNodeAccessLogRows(rows driver.Rows) ([]analyticsmodel.NodeAccessLog, error) {
 	var result []analyticsmodel.NodeAccessLog
 	for rows.Next() {
@@ -67,6 +68,7 @@ func scanNodeAccessLogRows(rows driver.Rows) ([]analyticsmodel.NodeAccessLog, er
 			&item.Region,
 			&item.Host,
 			&item.Path,
+			&item.UserAgent,
 			&item.StatusCode,
 			&item.BytesSent,
 			&item.RequestLength,
@@ -206,7 +208,7 @@ WHERE %s`, tableName, clause)
 }
 
 // ValueCountsNodeAccessLogs groups logs by a single dimension column.
-// Allowed columns: status_code, host, path, remote_addr.
+// Allowed columns: status_code, host, path, remote_addr, user_agent.
 func ValueCountsNodeAccessLogs(ctx context.Context, filter NodeAccessLogFilter, column string, limit int) ([]NodeAccessLogValueCount, error) {
 	conn, err := nodeAccessLogConn()
 	if err != nil {
@@ -261,6 +263,8 @@ func nodeAccessLogValueCountExpr(column string) (string, bool) {
 		return "trim(" + nodeAccessLogColumnPath + ")", true
 	case nodeAccessLogColumnRemoteAddr:
 		return "trim(" + nodeAccessLogColumnRemoteAddr + ")", true
+	case nodeAccessLogColumnUserAgent:
+		return "trim(" + nodeAccessLogColumnUserAgent + ")", true
 	default:
 		return "", false
 	}

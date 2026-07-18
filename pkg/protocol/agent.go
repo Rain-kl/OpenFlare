@@ -138,6 +138,7 @@ type NodeAccessLog struct {
 	RemoteAddr    string `json:"remote_addr"`
 	Host          string `json:"host"`
 	Path          string `json:"path"`
+	UserAgent     string `json:"user_agent,omitempty"`
 	StatusCode    int    `json:"status_code"`
 	BytesSent     int64  `json:"bytes_sent"`      // body bytes = 已提供数据
 	RequestLength int64  `json:"request_length"`  // 接收数据

@@ -22,6 +22,7 @@ const (
 	accessLogColumnHost       = "host"
 	accessLogColumnPath       = "path"
 	accessLogColumnRemoteAddr = "remote_addr"
+	accessLogColumnUserAgent  = "user_agent"
 )
 
 type memoryAccessLogStore struct {
@@ -476,7 +477,7 @@ func (s *memoryAccessLogStore) ValueCounts(_ context.Context, filter OpenFlareAc
 	defer s.mu.RUnlock()
 	col := strings.TrimSpace(strings.ToLower(column))
 	switch col {
-	case accessLogColumnStatusCode, accessLogColumnHost, accessLogColumnPath, accessLogColumnRemoteAddr:
+	case accessLogColumnStatusCode, accessLogColumnHost, accessLogColumnPath, accessLogColumnRemoteAddr, accessLogColumnUserAgent:
 	default:
 		return nil, nil
 	}
@@ -493,6 +494,8 @@ func (s *memoryAccessLogStore) ValueCounts(_ context.Context, filter OpenFlareAc
 			value = strings.TrimSpace(row.Path)
 		case accessLogColumnRemoteAddr:
 			value = strings.TrimSpace(row.RemoteAddr)
+		case accessLogColumnUserAgent:
+			value = strings.TrimSpace(row.UserAgent)
 		}
 		if value == "" {
 			continue

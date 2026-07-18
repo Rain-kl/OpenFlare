@@ -49,8 +49,9 @@ func TestBatchInsertNodeAccessLogs_UsesModelBatchSQL(t *testing.T) {
 	assert.True(t, mockBatch.sendCalled)
 	require.Len(t, mockBatch.rows, 1)
 	assert.Equal(t, "node-a", mockBatch.rows[0][1])
-	require.Len(t, mockBatch.rows[0], 12)
-	assert.Equal(t, uint64(2048), mockBatch.rows[0][8]) // bytes_sent
-	assert.Equal(t, uint64(0), mockBatch.rows[0][9])    // request_length
-	assert.Equal(t, uint32(0), mockBatch.rows[0][10])   // request_time_ms
+	require.Len(t, mockBatch.rows[0], 13)
+	assert.Equal(t, "", mockBatch.rows[0][7])           // user_agent
+	assert.Equal(t, uint64(2048), mockBatch.rows[0][9]) // bytes_sent
+	assert.Equal(t, uint64(0), mockBatch.rows[0][10])   // request_length
+	assert.Equal(t, uint32(0), mockBatch.rows[0][11])   // request_time_ms
 }

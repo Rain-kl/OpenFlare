@@ -527,6 +527,11 @@ export interface AccessLogOverview {
   top_paths: DistributionItem[];
   top_hosts: DistributionItem[];
   top_ips: DistributionItem[];
+  device_types: DistributionItem[];
+  top_browsers: DistributionItem[];
+  top_operating_systems: DistributionItem[];
+  top_user_agents: DistributionItem[];
+  status_codes: DistributionItem[];
 }
 
 export interface AccessLogItem {
@@ -538,6 +543,7 @@ export interface AccessLogItem {
   region: string;
   host: string;
   path: string;
+  user_agent: string;
   status_code: number;
 }
 
