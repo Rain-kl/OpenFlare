@@ -60,18 +60,22 @@ definitions:
         items:
           $ref: '#/definitions/github_com_Rain-kl_Wavelet_pkg_protocol.NodeAccessLog'
         type: array
-      buffered_observability:
+      buffered:
         items:
           $ref: '#/definitions/github_com_Rain-kl_Wavelet_pkg_protocol.BufferedObservabilityRecord'
         type: array
       current_version:
         type: string
+      edge_health:
+        $ref: '#/definitions/github_com_Rain-kl_Wavelet_pkg_protocol.NodeEdgeHealth'
       ext_version:
         type: string
       health_events:
         items:
           $ref: '#/definitions/github_com_Rain-kl_Wavelet_pkg_protocol.NodeHealthEvent'
         type: array
+      host_metrics:
+        $ref: '#/definitions/github_com_Rain-kl_Wavelet_pkg_protocol.NodeMetricSnapshot'
       ip:
         type: string
       last_error:
@@ -82,16 +86,12 @@ definitions:
         type: string
       openresty_message:
         type: string
-      openresty_observation:
-        $ref: '#/definitions/github_com_Rain-kl_Wavelet_pkg_protocol.NodeOpenrestyObservation'
       openresty_status:
         type: string
       profile:
         $ref: '#/definitions/github_com_Rain-kl_Wavelet_pkg_protocol.NodeSystemProfile'
-      snapshot:
-        $ref: '#/definitions/github_com_Rain-kl_Wavelet_pkg_protocol.NodeMetricSnapshot'
-      traffic_report:
-        $ref: '#/definitions/github_com_Rain-kl_Wavelet_pkg_protocol.NodeTrafficReport'
+      schema_version:
+        type: integer
       version:
         type: string
       waf_ip_group_checksums:
@@ -645,18 +645,17 @@ definitions:
         items:
           $ref: '#/definitions/github_com_Rain-kl_Wavelet_pkg_protocol.NodeAccessLog'
         type: array
-      openresty_observation:
-        $ref: '#/definitions/github_com_Rain-kl_Wavelet_pkg_protocol.NodeOpenrestyObservation'
-      snapshot:
-        $ref: '#/definitions/github_com_Rain-kl_Wavelet_pkg_protocol.NodeMetricSnapshot'
-      traffic_report:
-        $ref: '#/definitions/github_com_Rain-kl_Wavelet_pkg_protocol.NodeTrafficReport'
-      window_started_at_unix:
+      captured_at_unix:
         type: integer
+      edge_health:
+        $ref: '#/definitions/github_com_Rain-kl_Wavelet_pkg_protocol.NodeEdgeHealth'
+      host_metrics:
+        $ref: '#/definitions/github_com_Rain-kl_Wavelet_pkg_protocol.NodeMetricSnapshot'
     type: object
   github_com_Rain-kl_Wavelet_pkg_protocol.NodeAccessLog:
     properties:
       bytes_sent:
+        description: body bytes = 已提供数据
         type: integer
       host:
         type: string
@@ -666,8 +665,25 @@ definitions:
         type: string
       remote_addr:
         type: string
+      request_length:
+        description: 接收数据
+        type: integer
+      request_time_ms:
+        description: optional
+        type: integer
       status_code:
         type: integer
+    type: object
+  github_com_Rain-kl_Wavelet_pkg_protocol.NodeEdgeHealth:
+    properties:
+      captured_at_unix:
+        type: integer
+      connections:
+        type: integer
+      message:
+        type: string
+      status:
+        type: string
     type: object
   github_com_Rain-kl_Wavelet_pkg_protocol.NodeHealthEvent:
     properties:
@@ -707,17 +723,6 @@ definitions:
       storage_used_bytes:
         type: integer
     type: object
-  github_com_Rain-kl_Wavelet_pkg_protocol.NodeOpenrestyObservation:
-    properties:
-      captured_at_unix:
-        type: integer
-      openresty_connections:
-        type: integer
-      openresty_rx_bytes:
-        type: integer
-      openresty_tx_bytes:
-        type: integer
-    type: object
   github_com_Rain-kl_Wavelet_pkg_protocol.NodeSystemProfile:
     properties:
       architecture:
@@ -741,34 +746,6 @@ definitions:
       total_memory_bytes:
         type: integer
       uptime_seconds:
-        type: integer
-    type: object
-  github_com_Rain-kl_Wavelet_pkg_protocol.NodeTrafficReport:
-    properties:
-      error_count:
-        type: integer
-      request_count:
-        type: integer
-      source_countries:
-        additionalProperties:
-          format: int64
-          type: integer
-        type: object
-      status_codes:
-        additionalProperties:
-          format: int64
-          type: integer
-        type: object
-      top_domains:
-        additionalProperties:
-          format: int64
-          type: integer
-        type: object
-      unique_visitor_count:
-        type: integer
-      window_ended_at_unix:
-        type: integer
-      window_started_at_unix:
         type: integer
     type: object
   github_com_Rain-kl_Wavelet_pkg_protocol.PagesDeploymentHashResponse:
@@ -1276,31 +1253,6 @@ definitions:
       value:
         type: string
     type: object
-  model.OpenFlareRequestReport:
-    properties:
-      created_at:
-        type: string
-      error_count:
-        type: integer
-      id:
-        type: integer
-      node_id:
-        type: string
-      request_count:
-        type: integer
-      source_countries_json:
-        type: string
-      status_codes_json:
-        type: string
-      top_domains_json:
-        type: string
-      unique_visitor_count:
-        type: integer
-      window_ended_at:
-        type: string
-      window_started_at:
-        type: string
-    type: object
   model.PushChannel:
     properties:
       created_at:
@@ -1757,10 +1709,6 @@ definitions:
         $ref: '#/definitions/model.OpenFlareNodeSystemProfile'
       relay_dashboard:
         $ref: '#/definitions/observability.RelayDashboardSnapshot'
-      traffic_reports:
-        items:
-          $ref: '#/definitions/model.OpenFlareRequestReport'
-        type: array
       trends:
         $ref: '#/definitions/observability.NodeTrends'
     type: object
@@ -2142,13 +2090,15 @@ definitions:
     properties:
       bucket_started_at:
         type: string
+      bytes_provided:
+        description: sum(bytes_sent)
+        type: integer
+      bytes_received:
+        description: sum(request_length)
+        type: integer
       network_rx_bytes:
         type: integer
       network_tx_bytes:
-        type: integer
-      openresty_rx_bytes:
-        type: integer
-      openresty_tx_bytes:
         type: integer
       reported_nodes:
         type: integer
@@ -2185,10 +2135,6 @@ definitions:
       node_id:
         type: string
       openresty_connections:
-        type: integer
-      openresty_rx_bytes:
-        type: integer
-      openresty_tx_bytes:
         type: integer
       storage_total_bytes:
         type: integer
@@ -9056,7 +9002,7 @@ paths:
     post:
       consumes:
       - application/json
-      description: 从用户提供的 HTTP(S) 链接下载部署包并创建部署记录；服务端使用浏览器伪装请求头拉取，需要管理员权限
+      description: 从用户提供的 HTTP(S) 链接下载部署包并创建部署记录；服务端使用浏览器伪装请求头拉取，允许内网地址与不安全 TLS 证书，需要管理员权限
       parameters:
       - description: 项目 ID
         in: path

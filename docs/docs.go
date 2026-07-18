@@ -8382,7 +8382,7 @@ const docTemplate = `{
                         "SessionCookie": []
                     }
                 ],
-                "description": "从用户提供的 HTTP(S) 链接下载部署包并创建部署记录；服务端使用浏览器伪装请求头拉取，需要管理员权限",
+                "description": "从用户提供的 HTTP(S) 链接下载部署包并创建部署记录；服务端使用浏览器伪装请求头拉取，允许内网地址与不安全 TLS 证书，需要管理员权限",
                 "consumes": [
                     "application/json"
                 ],
@@ -13316,7 +13316,7 @@ const docTemplate = `{
                         "$ref": "#/definitions/github_com_Rain-kl_Wavelet_pkg_protocol.NodeAccessLog"
                     }
                 },
-                "buffered_observability": {
+                "buffered": {
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/github_com_Rain-kl_Wavelet_pkg_protocol.BufferedObservabilityRecord"
@@ -13324,6 +13324,9 @@ const docTemplate = `{
                 },
                 "current_version": {
                     "type": "string"
+                },
+                "edge_health": {
+                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_pkg_protocol.NodeEdgeHealth"
                 },
                 "ext_version": {
                     "type": "string"
@@ -13333,6 +13336,9 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/github_com_Rain-kl_Wavelet_pkg_protocol.NodeHealthEvent"
                     }
+                },
+                "host_metrics": {
+                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_pkg_protocol.NodeMetricSnapshot"
                 },
                 "ip": {
                     "type": "string"
@@ -13349,20 +13355,14 @@ const docTemplate = `{
                 "openresty_message": {
                     "type": "string"
                 },
-                "openresty_observation": {
-                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_pkg_protocol.NodeOpenrestyObservation"
-                },
                 "openresty_status": {
                     "type": "string"
                 },
                 "profile": {
                     "$ref": "#/definitions/github_com_Rain-kl_Wavelet_pkg_protocol.NodeSystemProfile"
                 },
-                "snapshot": {
-                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_pkg_protocol.NodeMetricSnapshot"
-                },
-                "traffic_report": {
-                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_pkg_protocol.NodeTrafficReport"
+                "schema_version": {
+                    "type": "integer"
                 },
                 "version": {
                     "type": "string"
@@ -14204,17 +14204,14 @@ const docTemplate = `{
                         "$ref": "#/definitions/github_com_Rain-kl_Wavelet_pkg_protocol.NodeAccessLog"
                     }
                 },
-                "openresty_observation": {
-                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_pkg_protocol.NodeOpenrestyObservation"
-                },
-                "snapshot": {
-                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_pkg_protocol.NodeMetricSnapshot"
-                },
-                "traffic_report": {
-                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_pkg_protocol.NodeTrafficReport"
-                },
-                "window_started_at_unix": {
+                "captured_at_unix": {
                     "type": "integer"
+                },
+                "edge_health": {
+                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_pkg_protocol.NodeEdgeHealth"
+                },
+                "host_metrics": {
+                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_pkg_protocol.NodeMetricSnapshot"
                 }
             }
         },
@@ -14222,6 +14219,7 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "bytes_sent": {
+                    "description": "body bytes = 已提供数据",
                     "type": "integer"
                 },
                 "host": {
@@ -14236,8 +14234,33 @@ const docTemplate = `{
                 "remote_addr": {
                     "type": "string"
                 },
+                "request_length": {
+                    "description": "接收数据",
+                    "type": "integer"
+                },
+                "request_time_ms": {
+                    "description": "optional",
+                    "type": "integer"
+                },
                 "status_code": {
                     "type": "integer"
+                }
+            }
+        },
+        "github_com_Rain-kl_Wavelet_pkg_protocol.NodeEdgeHealth": {
+            "type": "object",
+            "properties": {
+                "captured_at_unix": {
+                    "type": "integer"
+                },
+                "connections": {
+                    "type": "integer"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
                 }
             }
         },
@@ -14299,23 +14322,6 @@ const docTemplate = `{
                 }
             }
         },
-        "github_com_Rain-kl_Wavelet_pkg_protocol.NodeOpenrestyObservation": {
-            "type": "object",
-            "properties": {
-                "captured_at_unix": {
-                    "type": "integer"
-                },
-                "openresty_connections": {
-                    "type": "integer"
-                },
-                "openresty_rx_bytes": {
-                    "type": "integer"
-                },
-                "openresty_tx_bytes": {
-                    "type": "integer"
-                }
-            }
-        },
         "github_com_Rain-kl_Wavelet_pkg_protocol.NodeSystemProfile": {
             "type": "object",
             "properties": {
@@ -14350,47 +14356,6 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "uptime_seconds": {
-                    "type": "integer"
-                }
-            }
-        },
-        "github_com_Rain-kl_Wavelet_pkg_protocol.NodeTrafficReport": {
-            "type": "object",
-            "properties": {
-                "error_count": {
-                    "type": "integer"
-                },
-                "request_count": {
-                    "type": "integer"
-                },
-                "source_countries": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "integer",
-                        "format": "int64"
-                    }
-                },
-                "status_codes": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "integer",
-                        "format": "int64"
-                    }
-                },
-                "top_domains": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "integer",
-                        "format": "int64"
-                    }
-                },
-                "unique_visitor_count": {
-                    "type": "integer"
-                },
-                "window_ended_at_unix": {
-                    "type": "integer"
-                },
-                "window_started_at_unix": {
                     "type": "integer"
                 }
             }
@@ -15163,44 +15128,6 @@ const docTemplate = `{
                 }
             }
         },
-        "model.OpenFlareRequestReport": {
-            "type": "object",
-            "properties": {
-                "created_at": {
-                    "type": "string"
-                },
-                "error_count": {
-                    "type": "integer"
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "node_id": {
-                    "type": "string"
-                },
-                "request_count": {
-                    "type": "integer"
-                },
-                "source_countries_json": {
-                    "type": "string"
-                },
-                "status_codes_json": {
-                    "type": "string"
-                },
-                "top_domains_json": {
-                    "type": "string"
-                },
-                "unique_visitor_count": {
-                    "type": "integer"
-                },
-                "window_ended_at": {
-                    "type": "string"
-                },
-                "window_started_at": {
-                    "type": "string"
-                }
-            }
-        },
         "model.PushChannel": {
             "type": "object",
             "properties": {
@@ -15873,12 +15800,6 @@ const docTemplate = `{
                 "relay_dashboard": {
                     "$ref": "#/definitions/observability.RelayDashboardSnapshot"
                 },
-                "traffic_reports": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/model.OpenFlareRequestReport"
-                    }
-                },
                 "trends": {
                     "$ref": "#/definitions/observability.NodeTrends"
                 }
@@ -16461,16 +16382,18 @@ const docTemplate = `{
                 "bucket_started_at": {
                     "type": "string"
                 },
+                "bytes_provided": {
+                    "description": "sum(bytes_sent)",
+                    "type": "integer"
+                },
+                "bytes_received": {
+                    "description": "sum(request_length)",
+                    "type": "integer"
+                },
                 "network_rx_bytes": {
                     "type": "integer"
                 },
                 "network_tx_bytes": {
-                    "type": "integer"
-                },
-                "openresty_rx_bytes": {
-                    "type": "integer"
-                },
-                "openresty_tx_bytes": {
                     "type": "integer"
                 },
                 "reported_nodes": {
@@ -16526,12 +16449,6 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "openresty_connections": {
-                    "type": "integer"
-                },
-                "openresty_rx_bytes": {
-                    "type": "integer"
-                },
-                "openresty_tx_bytes": {
                     "type": "integer"
                 },
                 "storage_total_bytes": {

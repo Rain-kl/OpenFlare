@@ -26,8 +26,21 @@ sidebar: false
 - Pages 现支持上传 zip、tar.gz、tar.xz、tar.bz2、tar、7z 等常用压缩格式的部署包。
 - 管理员可在运维设置中配置 Pages 部署包大小上限与每个项目的历史部署保留数量。
 
+### 修复
+
+- 修复数据看板「OpenResty 入站/出站」近 24 小时趋势严重偏低的问题：边缘侧改为上报进程累计字节，并与访问日志中的已提供数据（响应体字节）口径对齐，避免按 60 秒窗口计数做差分导致流量被大量丢弃。
+
 ### 变更
 
+- Agent 离线观测补传默认保留窗口由 15 分钟调整为 60 分钟，断线恢复后可补报更长时间范围内的访问与指标数据。
+- Agent 默认心跳/上报间隔由 10 秒调整为 3 秒，节点离线判定默认阈值由 120 秒调整为 60 秒，状态与观测数据刷新更及时。
+- 边缘观测按「访问日志为业务唯一真相」收敛：Agent 上报访问明细、主机指标与 OpenResty 健康/连接，不再上报业务预聚合；看板请求趋势与已提供/接收数据改由访问日志聚合，宿主机网卡单独展示。
+- 本机 `/openflare/observability` 改为返回探活与当前连接快照；访问日志增加 `request_length` / `request_time_ms` 字段用于接收数据与耗时统计。
+- 看板全局 UV 改为窗口内真正去重；状态码/Top 域名分布与节点行请求量均改为访问日志聚合；网络趋势 API 增加 `bytes_provided` / `bytes_received` 字段。
+- 观测协议与 API 去掉兼容层（Agent 销毁重建升级）：心跳仅 `host_metrics` / `edge_health` / `access_logs` / `buffered`；管理端不再返回 `traffic_reports` 与 `openresty_rx|tx`；网络趋势仅 `bytes_provided` / `bytes_received` + 宿主机网卡。
+- 观测存储 M5：新增 `of_node_edge_health` 与 `of_access_log_hourly`；移除已废弃的请求预聚合表与 OpenResty 吞吐观测表，业务趋势优先读访问日志小时汇总。
+- 观测清理目标对齐为 `node_edge_health`；边缘健康完整写入 status；提供历史小时汇总回填 SQL。
+- 看板与节点 UV 文案改为「24h / 查询窗口独立访客」（整窗 `uniqExact`）；小时趋势图仅展示请求/错误，不绘分时 UV。
 - Pages 部署包上传体积限制改为系统动态配置，默认仍为 100 MiB，可按环境调整。
 - 上传新部署后会按保留策略自动清理超出数量的历史部署包，减少磁盘占用。
 - Agent 在同步 Pages 部署时信任控制面已完成的包校验，不再重复限制文件数与展开体积，仅校验下载完整性并安全解压到本地。
