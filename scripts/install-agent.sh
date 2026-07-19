@@ -381,12 +381,14 @@ if [[ "$INSTALL_METHOD" == "docker" ]]; then
   if [[ -n "$AGENT_TOKEN" ]]; then
     docker run -d --name openflare-agent --restart unless-stopped \
       -p 80:80 -p 443:443/tcp -p 443:443/udp \
+      -v openflare-agent-pages:/data/var/lib/openflare/pages \
       -e OPENFLARE_SERVER_URL="${SERVER_URL}" \
       -e OPENFLARE_AGENT_TOKEN="${AGENT_TOKEN}" \
       ghcr.io/rain-kl/openflare-agent:latest
   else
     docker run -d --name openflare-agent --restart unless-stopped \
       -p 80:80 -p 443:443/tcp -p 443:443/udp \
+      -v openflare-agent-pages:/data/var/lib/openflare/pages \
       -e OPENFLARE_SERVER_URL="${SERVER_URL}" \
       -e OPENFLARE_DISCOVERY_TOKEN="${DISCOVERY_TOKEN}" \
       ghcr.io/rain-kl/openflare-agent:latest
