@@ -21,7 +21,9 @@
 ### 边缘 Agent 与 OpenResty
 
 * #### [MODIFY] `docker/Dockerfile.agent`
-  * `opm get api7/lua-resty-ipmatcher`（与 maxminddb 并列）。
+  * **不**通过 OPM 安装 ipmatcher（`api7` 账号在 OPM 不存在）。
+* #### [NEW] `internal/apps/agent/nginx/resty/ipmatcher.lua`（vendor api7 v0.6.1）
+  * 随 `ManagedWAFLuaFiles` 部署到 `<luaDir>/resty/ipmatcher.lua`，由 `lua_package_path` 加载。
 * #### [MODIFY] `internal/apps/agent/nginx/waf_runtime.lua`
   * 编译/查询 helper；重写 `matches_ip_values`。
 * #### [MODIFY] `internal/apps/agent/nginx/waf_ip_groups.lua`

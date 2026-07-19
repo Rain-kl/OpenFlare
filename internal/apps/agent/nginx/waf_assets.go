@@ -12,6 +12,12 @@ var openRestyWAFRuntimeLua string
 //go:embed waf_ip_groups.lua
 var openRestyWAFIPGroupsLua string
 
+// Vendored from https://github.com/api7/lua-resty-ipmatcher v0.6.1 (Apache-2.0).
+// OPM has no api7/lua-resty-ipmatcher package; deploy with Agent Lua assets instead.
+//
+//go:embed resty/ipmatcher.lua
+var openRestyIPMatcherLua string
+
 const openRestyWAFCheckLua = `local source = debug.getinfo(1, "S").source or ""
 if string.sub(source, 1, 1) == "@" then
     local script_path = string.sub(source, 2)
@@ -30,5 +36,7 @@ func ManagedWAFLuaFiles() []protocol.SupportFile {
 		{Path: "waf/runtime.lua", Content: openRestyWAFRuntimeLua},
 		{Path: "waf/ip_groups.lua", Content: openRestyWAFIPGroupsLua},
 		{Path: "waf/check.lua", Content: openRestyWAFCheckLua},
+		// resty.ipmatcher under lua_package_path <luaDir>/?.lua
+		{Path: "resty/ipmatcher.lua", Content: openRestyIPMatcherLua},
 	}
 }

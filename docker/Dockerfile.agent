@@ -28,7 +28,6 @@ FROM openresty/openresty:alpine
 RUN apk add --no-cache ca-certificates tzdata perl libmaxminddb su-exec libcap \
     && ln -sf /usr/lib/libmaxminddb.so.0 /usr/lib/libmaxminddb.so \
     && opm get anjia0532/lua-resty-maxminddb \
-    && opm get api7/lua-resty-ipmatcher \
     && addgroup -S openflare \
     && adduser -S -G openflare -H -h /data -s /sbin/nologin openflare \
     && mkdir -p /etc/openflare /data \

@@ -32,7 +32,7 @@ sidebar: false
 - WAF 规则画布支持右键删除节点或连线，并屏蔽浏览器默认右键菜单。
 - WAF 规则编辑器支持一键格式化布局，按流程层次自动整理节点位置。
 - 优化边缘 WAF「安全防护」与「UA 检查」热路径：SQL/命令/XSS 等仅扫描 Query、Cookie、Referer 与有限 Body，避免对全部请求头做特征匹配；路径检测不再重复扫描完整 `request_uri`；无请求体时跳过 Body 读取；UA 分类仅小写一次并加速白名单匹配，显著降低开启基础防护时的 CPU 占用。
-- 优化边缘 WAF「IP 匹配」：IP 组与节点 IP/CIDR 在加载时编译为索引（优先 `lua-resty-ipmatcher` 基数树，否则 exact 哈希 + 预解析 CIDR），查询与名单规模解耦，避免大名单线性扫描打满 CPU。
+- 优化边缘 WAF「IP 匹配」：IP 组与节点 IP/CIDR 在加载时编译为索引（优先随 Agent 下发的 `resty.ipmatcher` 基数树，否则 exact 哈希 + 预解析 CIDR），查询与名单规模解耦，避免大名单线性扫描打满 CPU。
 
 ## [v3.4.0] - 2026-07-19
 
