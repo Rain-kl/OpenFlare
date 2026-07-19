@@ -11,7 +11,7 @@ import { LoadingStateWithBorder } from '@/components/layout/loading';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AccessLogService } from '@/lib/services/openflare';
 
-import type { OverviewRangeHours } from '../access-logs/components/access-log-utils';
+import type { RateLimitRangeHours } from '../access-logs/components/access-log-utils';
 import { AnalysisTab } from './components/analysis-tab';
 import { ConfigTab } from './components/config-tab';
 
@@ -27,15 +27,16 @@ function RateLimitsPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const tab = resolveTab(searchParams.get('tab'));
-  const [hours, setHours] = useState<OverviewRangeHours>(24);
+  const [hours, setHours] = useState<RateLimitRangeHours>(24);
   const [hosts, setHosts] = useState<string[]>([]);
 
   const overviewQuery = useQuery({
-    queryKey: ['openflare', 'rate-limits', 'overview', hours, hosts],
+    queryKey: ['openflare', 'rate-limits', 'overview', hours, hosts, 5],
     queryFn: () =>
       AccessLogService.getOverview({
         hours,
         hosts: hosts.length > 0 ? hosts : undefined,
+        bucket_minutes: 5,
       }),
     enabled: !!user?.is_admin && tab === 'analysis',
   });

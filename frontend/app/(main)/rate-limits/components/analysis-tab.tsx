@@ -13,7 +13,8 @@ import type {
 
 import {
   formatOverviewRangeHint,
-  type OverviewRangeHours,
+  RATE_LIMIT_RANGE_OPTIONS,
+  type RateLimitRangeHours,
 } from '../../access-logs/components/access-log-utils';
 import { OverviewToolbar } from '../../access-logs/components/overview-toolbar';
 import { RatePressureChart } from './rate-pressure-chart';
@@ -50,9 +51,9 @@ export function AnalysisTab({
   data?: AccessLogOverview;
   loading: boolean;
   error: Error | null;
-  hours: OverviewRangeHours;
+  hours: RateLimitRangeHours;
   hosts: string[];
-  onHoursChange: (hours: OverviewRangeHours) => void;
+  onHoursChange: (hours: RateLimitRangeHours) => void;
   onHostsChange: (hosts: string[]) => void;
   onRetry: () => void;
 }) {
@@ -65,8 +66,9 @@ export function AnalysisTab({
       <OverviewToolbar
         hours={hours}
         hosts={hosts}
-        onHoursChange={onHoursChange}
+        onHoursChange={(next) => onHoursChange(next as RateLimitRangeHours)}
         onHostsChange={onHostsChange}
+        rangeOptions={RATE_LIMIT_RANGE_OPTIONS}
       />
 
       {loading ? (

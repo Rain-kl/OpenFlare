@@ -14,7 +14,7 @@ import {
   type OverviewRangeHours,
 } from '../../access-logs/components/access-log-utils';
 
-const BUCKET_SECONDS = 3600;
+const DEFAULT_BUCKET_SECONDS = 300;
 const RPS_COLOR = '#38bdf8';
 const VISITS_COLOR = '#a78bfa';
 
@@ -58,6 +58,11 @@ type RatePressureChartProps = {
 };
 
 export function RatePressureChart({ data, hours }: RatePressureChartProps) {
+  const bucketSeconds =
+    (data?.bucket_minutes && data.bucket_minutes > 0
+      ? data.bucket_minutes
+      : 5) * 60 || DEFAULT_BUCKET_SECONDS;
+
   const rangeLabel = useMemo(() => {
     const end = data?.generated_at ? new Date(data.generated_at) : new Date();
     const start = new Date(end.getTime() - hours * 3600 * 1000);
@@ -82,12 +87,12 @@ export function RatePressureChart({ data, hours }: RatePressureChartProps) {
       const time = req?.bucket_started_at ?? visit?.bucket_started_at ?? '';
       rawTimes.push(time);
       labels.push(formatAxisTime(time, hours));
-      rpsValues.push((req?.value ?? 0) / BUCKET_SECONDS);
+      rpsValues.push((req?.value ?? 0) / bucketSeconds);
       visitValues.push(visit?.value ?? 0);
     }
 
     return { labels, rpsValues, visitValues, rawTimes };
-  }, [data?.trends.requests, data?.trends.visits, hours]);
+  }, [bucketSeconds, data?.trends.requests, data?.trends.visits, hours]);
 
   const option = useMemo<EChartsOption>(() => {
     const rpsMax = calculateNiceAxisMax(chartModel.rpsValues);

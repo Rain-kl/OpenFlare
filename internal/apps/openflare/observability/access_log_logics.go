@@ -232,10 +232,11 @@ type AccessLogIPAnalysisView struct {
 
 // AccessLogOverviewQuery filters access log overview queries.
 type AccessLogOverviewQuery struct {
-	NodeID string   `json:"node_id"`
-	Host   string   `json:"host"`
-	Hosts  []string `json:"hosts"`
-	Hours  int      `json:"hours"`
+	NodeID        string   `json:"node_id"`
+	Host          string   `json:"host"`
+	Hosts         []string `json:"hosts"`
+	Hours         int      `json:"hours"`
+	BucketMinutes int      `json:"bucket_minutes"`
 }
 
 // AccessLogOverviewMetricPoint is a single overview trend bucket.
@@ -262,6 +263,7 @@ type AccessLogOverviewTrends struct {
 type AccessLogOverview struct {
 	GeneratedAt         time.Time                `json:"generated_at"`
 	Hours               int                      `json:"hours"`
+	BucketMinutes       int                      `json:"bucket_minutes"`
 	Summary             AccessLogOverviewSummary `json:"summary"`
 	Trends              AccessLogOverviewTrends  `json:"trends"`
 	TopPaths            []DistributionItem       `json:"top_paths"`
@@ -287,10 +289,11 @@ type AccessLogCleanupResult struct {
 }
 
 const (
-	defaultAccessLogOverviewHours  = 24
-	maxAccessLogOverviewHours      = 24 * 30
-	accessLogOverviewTopLimit      = 10
-	accessLogOverviewUASampleLimit = 200
+	defaultAccessLogOverviewHours         = 24
+	maxAccessLogOverviewHours             = 24 * 30
+	defaultAccessLogOverviewBucketMinutes = 60
+	accessLogOverviewTopLimit             = 10
+	accessLogOverviewUASampleLimit        = 200
 )
 
 // GetAccessLogOverview returns summary metrics, trends, and top rankings.
@@ -312,13 +315,14 @@ func GetAccessLogOverview(ctx context.Context, input AccessLogOverviewQuery) (*A
 	}
 
 	requestPoints, visitPoints, bandwidthPoints := buildAccessLogOverviewTrends(
-		ctx, now, normalized.Hours, query,
+		ctx, now, normalized.Hours, normalized.BucketMinutes, query,
 	)
 	deviceTypes, topBrowsers, topOSes, topUserAgents := buildAccessLogUADistributions(ctx, query)
 
 	return &AccessLogOverview{
-		GeneratedAt: now,
-		Hours:       normalized.Hours,
+		GeneratedAt:   now,
+		Hours:         normalized.Hours,
+		BucketMinutes: normalized.BucketMinutes,
 		Summary: AccessLogOverviewSummary{
 			TotalRequests:   summaryRow.RequestCount,
 			TotalVisits:     summaryRow.UniqueIPCount,
@@ -348,6 +352,7 @@ func normalizeAccessLogOverviewQuery(input AccessLogOverviewQuery) AccessLogOver
 	if hours > maxAccessLogOverviewHours {
 		hours = maxAccessLogOverviewHours
 	}
+	bucketMinutes := normalizeAccessLogOverviewBucketMinutes(input.BucketMinutes)
 	hosts := normalizeAccessLogOverviewHosts(input.Hosts)
 	host := strings.TrimSpace(input.Host)
 	if len(hosts) == 0 && host != "" {
@@ -359,10 +364,20 @@ func normalizeAccessLogOverviewQuery(input AccessLogOverviewQuery) AccessLogOver
 		host = ""
 	}
 	return AccessLogOverviewQuery{
-		NodeID: strings.TrimSpace(input.NodeID),
-		Host:   host,
-		Hosts:  hosts,
-		Hours:  hours,
+		NodeID:        strings.TrimSpace(input.NodeID),
+		Host:          host,
+		Hosts:         hosts,
+		Hours:         hours,
+		BucketMinutes: bucketMinutes,
+	}
+}
+
+func normalizeAccessLogOverviewBucketMinutes(value int) int {
+	switch value {
+	case 5, 60:
+		return value
+	default:
+		return defaultAccessLogOverviewBucketMinutes
 	}
 }
 
@@ -454,6 +469,7 @@ func buildAccessLogOverviewTrends(
 	ctx context.Context,
 	now time.Time,
 	hours int,
+	bucketMinutes int,
 	query model.OpenFlareAccessLogQuery,
 ) (
 	requests []AccessLogOverviewMetricPoint,
@@ -463,12 +479,18 @@ func buildAccessLogOverviewTrends(
 	if hours <= 0 {
 		hours = defaultAccessLogOverviewHours
 	}
-	start := now.Truncate(time.Hour).Add(-time.Duration(hours-1) * time.Hour)
-	requests = make([]AccessLogOverviewMetricPoint, hours)
-	visits = make([]AccessLogOverviewMetricPoint, hours)
-	bandwidth = make([]AccessLogOverviewMetricPoint, hours)
+	bucketMinutes = normalizeAccessLogOverviewBucketMinutes(bucketMinutes)
+	bucketDuration := time.Duration(bucketMinutes) * time.Minute
+	bucketCount := hours * 60 / bucketMinutes
+	if bucketCount <= 0 {
+		bucketCount = 1
+	}
+	start := now.Truncate(bucketDuration).Add(-time.Duration(bucketCount-1) * bucketDuration)
+	requests = make([]AccessLogOverviewMetricPoint, bucketCount)
+	visits = make([]AccessLogOverviewMetricPoint, bucketCount)
+	bandwidth = make([]AccessLogOverviewMetricPoint, bucketCount)
 	for index := range requests {
-		bucketAt := start.Add(time.Duration(index) * time.Hour)
+		bucketAt := start.Add(time.Duration(index) * bucketDuration)
 		requests[index].BucketStartedAt = bucketAt
 		visits[index].BucketStartedAt = bucketAt
 		bandwidth[index].BucketStartedAt = bucketAt
@@ -480,7 +502,7 @@ func buildAccessLogOverviewTrends(
 		Hosts:       query.Hosts,
 		Since:       query.Since,
 		Until:       query.Until,
-		FoldMinutes: 60,
+		FoldMinutes: bucketMinutes,
 		SortBy:      defaultAccessLogSortBy,
 		SortOrder:   sortOrderAsc,
 	})

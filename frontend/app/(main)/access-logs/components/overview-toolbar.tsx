@@ -24,7 +24,9 @@ import { cn } from '@/lib/utils';
 
 import {
   OVERVIEW_RANGE_OPTIONS,
+  RATE_LIMIT_RANGE_OPTIONS,
   type OverviewRangeHours,
+  type RateLimitRangeHours,
 } from './access-log-utils';
 
 type ManagedZoneDomains = {
@@ -309,11 +311,13 @@ export function OverviewToolbar({
   hosts,
   onHoursChange,
   onHostsChange,
+  rangeOptions = OVERVIEW_RANGE_OPTIONS,
 }: {
-  hours: OverviewRangeHours;
+  hours: OverviewRangeHours | RateLimitRangeHours;
   hosts: string[];
   onHoursChange: (hours: OverviewRangeHours) => void;
   onHostsChange: (hosts: string[]) => void;
+  rangeOptions?: ReadonlyArray<{ value: number; label: string }>;
 }) {
   return (
     <div className='flex flex-wrap items-center justify-end gap-2'>
@@ -334,7 +338,7 @@ export function OverviewToolbar({
         size='sm'
         className='justify-end'
       >
-        {OVERVIEW_RANGE_OPTIONS.map((option) => (
+        {rangeOptions.map((option) => (
           <ToggleGroupItem
             key={option.value}
             value={String(option.value)}
@@ -347,3 +351,5 @@ export function OverviewToolbar({
     </div>
   );
 }
+
+export { RATE_LIMIT_RANGE_OPTIONS };

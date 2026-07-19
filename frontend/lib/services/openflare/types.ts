@@ -505,6 +505,7 @@ export interface AccessLogOverviewFilters {
   host?: string;
   hosts?: string[];
   hours?: number;
+  bucket_minutes?: number;
 }
 
 export interface AccessLogOverviewMetricPoint {
@@ -515,6 +516,7 @@ export interface AccessLogOverviewMetricPoint {
 export interface AccessLogOverview {
   generated_at: string;
   hours: number;
+  bucket_minutes?: number;
   summary: {
     total_requests: number;
     total_visits: number;

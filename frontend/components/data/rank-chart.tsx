@@ -82,7 +82,7 @@ export function RankChart({
                   }}
                 />
               </div>
-              <span className='w-14 text-right tabular-nums text-foreground/80 text-[13px] font-medium'>
+              <span className='min-w-14 max-w-28 text-right tabular-nums text-foreground/80 text-[13px] font-medium'>
                 {valueFormatter(item.value)}
               </span>
             </div>
