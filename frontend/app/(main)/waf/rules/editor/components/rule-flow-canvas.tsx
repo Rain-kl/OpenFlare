@@ -25,10 +25,9 @@ import {
   type NodeChange,
   type ReactFlowInstance,
 } from '@xyflow/react';
-import { AlignHorizontalSpaceAround, Trash2 } from 'lucide-react';
+import { Trash2 } from 'lucide-react';
 import '@xyflow/react/dist/style.css';
 
-import { Button } from '@/components/ui/button';
 import type { WAFRuleEdge, WAFRuleGraph } from '@/lib/services/openflare';
 import { cn } from '@/lib/utils';
 
@@ -39,7 +38,6 @@ import {
   isConnectionAllowed,
   isPersistentEdgeChange,
 } from './editor-behavior';
-import { layoutRuleGraph } from './graph-layout';
 import {
   type GraphIssue,
   removeEdgeFromGraph,
@@ -328,18 +326,6 @@ export function RuleFlowCanvas({
     [],
   );
 
-  const formatLayout = useCallback(() => {
-    const next = layoutRuleGraph(graph);
-    onGraphChange(next);
-    setContextMenu(null);
-    requestAnimationFrame(() => {
-      void instance.current?.fitView({
-        ...initialFitViewOptions,
-        duration: 280,
-      });
-    });
-  }, [graph, onGraphChange]);
-
   const contextNode =
     contextMenu?.kind === 'node'
       ? graph.nodes.find((node) => node.id === contextMenu.id)
@@ -357,18 +343,8 @@ export function RuleFlowCanvas({
       className='relative min-w-0 flex-1 bg-muted/20'
       onContextMenu={suppressBrowserContextMenu}
     >
-      <div className='absolute left-4 top-4 z-10 flex flex-wrap items-center gap-2 rounded-lg border bg-background/95 p-2 shadow-sm backdrop-blur'>
+      <div className='absolute left-4 top-4 z-10 rounded-lg border bg-background/95 p-2 shadow-sm backdrop-blur'>
         <NodeLibrary />
-        <Button
-          type='button'
-          variant='outline'
-          size='sm'
-          title='自动整理节点与连线布局'
-          onClick={formatLayout}
-        >
-          <AlignHorizontalSpaceAround data-icon='inline-start' />
-          格式化布局
-        </Button>
       </div>
       <ReactFlow
         nodes={nodes}

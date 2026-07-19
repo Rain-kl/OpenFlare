@@ -3,7 +3,12 @@
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
-import { ArrowLeft, GitBranch, Save } from 'lucide-react';
+import {
+  AlignHorizontalSpaceAround,
+  ArrowLeft,
+  GitBranch,
+  Save,
+} from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 
@@ -20,14 +25,15 @@ import {
 } from '@/lib/services';
 
 import { getErrorMessage } from '../../components/helpers';
-import { validateGraph } from './components/graph-validation';
-import { NodeProperties } from './components/node-properties';
-import { RuleFlowCanvas } from './components/rule-flow-canvas';
-import { UnsavedChanges } from './components/unsaved-changes';
 import {
   findGraphErrorTarget,
   type GraphErrorTarget,
 } from './components/editor-behavior';
+import { layoutRuleGraph } from './components/graph-layout';
+import { validateGraph } from './components/graph-validation';
+import { NodeProperties } from './components/node-properties';
+import { RuleFlowCanvas } from './components/rule-flow-canvas';
+import { UnsavedChanges } from './components/unsaved-changes';
 
 export default function WAFRuleEditorPage() {
   return (
@@ -160,6 +166,10 @@ function EditorContent() {
     },
     [changeGraph, graph],
   );
+  const formatLayout = useCallback(() => {
+    if (!graph) return;
+    changeGraph(layoutRuleGraph(graph));
+  }, [changeGraph, graph]);
   const leave = () => {
     if (!dirty || window.confirm('存在未保存的更改，确定离开吗？'))
       router.push('/waf');
@@ -186,58 +196,72 @@ function EditorContent() {
   return (
     <div className='flex h-[calc(100dvh-8rem)] w-full flex-col px-1 py-6'>
       <UnsavedChanges dirty={dirty} />
-      <header className='mb-4 flex items-center justify-between gap-4'>
-        <div className='flex min-w-0 items-center gap-2'>
-          <GitBranch className='size-5 text-primary' />
-          <h1 className='text-2xl font-semibold tracking-tight'>
-            {ruleQuery.data.name}
-          </h1>
-          <Badge variant={ruleQuery.data.enabled ? 'default' : 'secondary'}>
-            {ruleQuery.data.enabled ? '已启用' : '已停用'}
-          </Badge>
-          <Badge variant={issues.length === 0 ? 'outline' : 'destructive'}>
-            {issues.length === 0 ? '图校验通过' : `${issues.length} 个问题`}
-          </Badge>
-          {dirty && <Badge variant='secondary'>未保存</Badge>}
-        </div>
-        <div className='flex shrink-0 items-center gap-2'>
-          <div className='flex items-center gap-2'>
-            <Switch
-              id='rule-enabled'
-              checked={ruleQuery.data.enabled}
-              disabled={
-                dirty ||
-                issues.length > 0 ||
-                saveMutation.isPending ||
-                metaMutation.isPending
-              }
-              onCheckedChange={(enabled) => metaMutation.mutate(enabled)}
-            />
-            <Label htmlFor='rule-enabled'>启用规则</Label>
-          </div>
-          <Button variant='outline' onClick={leave}>
+      <header className='mb-4 flex flex-col gap-3'>
+        <div>
+          <Button variant='outline' size='sm' onClick={leave}>
             <ArrowLeft data-icon='inline-start' />
-            返回
+            返回规则组
           </Button>
-          {conflict && (
+        </div>
+        <div className='flex items-center justify-between gap-4'>
+          <div className='flex min-w-0 items-center gap-2'>
+            <GitBranch className='size-5 text-primary' />
+            <h1 className='text-2xl font-semibold tracking-tight'>
+              {ruleQuery.data.name}
+            </h1>
+            <Badge variant={ruleQuery.data.enabled ? 'default' : 'secondary'}>
+              {ruleQuery.data.enabled ? '已启用' : '已停用'}
+            </Badge>
+            <Badge variant={issues.length === 0 ? 'outline' : 'destructive'}>
+              {issues.length === 0 ? '图校验通过' : `${issues.length} 个问题`}
+            </Badge>
+            {dirty && <Badge variant='secondary'>未保存</Badge>}
+          </div>
+          <div className='flex shrink-0 items-center gap-2'>
+            <div className='flex items-center gap-2'>
+              <Switch
+                id='rule-enabled'
+                checked={ruleQuery.data.enabled}
+                disabled={
+                  dirty ||
+                  issues.length > 0 ||
+                  saveMutation.isPending ||
+                  metaMutation.isPending
+                }
+                onCheckedChange={(enabled) => metaMutation.mutate(enabled)}
+              />
+              <Label htmlFor='rule-enabled'>启用规则</Label>
+            </div>
+            {conflict && (
+              <Button
+                variant='outline'
+                onClick={() => {
+                  setDirty(false);
+                  setConflict(false);
+                  void ruleQuery.refetch();
+                }}
+              >
+                重新加载
+              </Button>
+            )}
             <Button
+              type='button'
               variant='outline'
-              onClick={() => {
-                setDirty(false);
-                setConflict(false);
-                void ruleQuery.refetch();
-              }}
+              title='自动整理节点与连线布局'
+              disabled={!graph}
+              onClick={formatLayout}
             >
-              重新加载
+              <AlignHorizontalSpaceAround data-icon='inline-start' />
+              格式化布局
             </Button>
-          )}
-          <Button
-            disabled={!dirty || issues.length > 0 || saveMutation.isPending}
-            onClick={() => saveMutation.mutate()}
-          >
-            <Save data-icon='inline-start' />
-            {saveMutation.isPending ? '保存中...' : '保存'}
-          </Button>
+            <Button
+              disabled={!dirty || issues.length > 0 || saveMutation.isPending}
+              onClick={() => saveMutation.mutate()}
+            >
+              <Save data-icon='inline-start' />
+              {saveMutation.isPending ? '保存中...' : '保存'}
+            </Button>
+          </div>
         </div>
       </header>
       <div className='flex min-h-0 flex-1 overflow-hidden rounded-xl border bg-background shadow-sm'>
