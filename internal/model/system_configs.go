@@ -105,6 +105,9 @@ const (
 	ConfigKeyOpenRestyCacheLockTimeout             = "openresty_cache_lock_timeout"              // 缓存锁超时
 	ConfigKeyOpenRestyCacheUseStale                = "openresty_cache_use_stale"                 // 缓存失效策略
 	ConfigKeyOpenRestyMainConfigTemplate           = "openresty_main_config_template"            // 主配置模板
+	ConfigKeyOpenRestyDefaultLimitConnPerServer    = "openresty_default_limit_conn_per_server"   // 默认站点并发连接
+	ConfigKeyOpenRestyDefaultLimitConnPerIP        = "openresty_default_limit_conn_per_ip"       // 默认单 IP 并发连接
+	ConfigKeyOpenRestyDefaultLimitRate             = "openresty_default_limit_rate"              // 默认单请求带宽
 )
 
 const (

@@ -73,6 +73,14 @@ func validatePositiveIntegerOption(key, value string) error {
 	return nil
 }
 
+func validateNonNegativeIntegerOption(key, value string) error {
+	intValue, err := strconv.Atoi(value)
+	if err != nil || intValue < 0 {
+		return fmt.Errorf("%s 必须为大于等于 0 的整数", key)
+	}
+	return nil
+}
+
 func validateBooleanOption(key, value string) error {
 	switch value {
 	case optionValueTrue, "false":

@@ -50,7 +50,12 @@ var openRestyOptionValidators = map[string]func(key, value string) error{
 	model.ConfigKeyOpenRestyCacheKeyTemplate:             validateOpenRestyCacheKeyTemplate,
 	model.ConfigKeyOpenRestyCacheUseStale:                validateOpenRestyCacheUseStale,
 	model.ConfigKeyOpenRestyMainConfigTemplate:           validateOpenRestyMainConfigTemplate,
+	model.ConfigKeyOpenRestyDefaultLimitConnPerServer:    validateNonNegativeIntegerOption,
+	model.ConfigKeyOpenRestyDefaultLimitConnPerIP:        validateNonNegativeIntegerOption,
+	model.ConfigKeyOpenRestyDefaultLimitRate:             validateOpenRestyDefaultLimitRate,
 }
+
+var openRestyDefaultLimitRatePattern = regexp.MustCompile(`^\d+[kKmM]?$`)
 
 func validateOpenRestyOption(key, value string) error {
 	trimmed := strings.TrimSpace(value)
@@ -176,6 +181,16 @@ func validateOpenRestyCacheUseStale(key, trimmed string) error {
 func validateOpenRestyMainConfigTemplate(key, value string) error {
 	if strings.TrimSpace(value) == "" {
 		return fmt.Errorf("%s 不能为空", key)
+	}
+	return nil
+}
+
+func validateOpenRestyDefaultLimitRate(key, trimmed string) error {
+	if trimmed == "" || trimmed == "0" {
+		return nil
+	}
+	if !openRestyDefaultLimitRatePattern.MatchString(strings.ToLower(trimmed)) {
+		return fmt.Errorf("%s 格式不合法，请使用 512k、1m 或纯数字，空表示关闭", key)
 	}
 	return nil
 }

@@ -135,6 +135,9 @@ type openRestyConfigSnapshot struct {
 	CacheLockTimeout          string `json:"cache_lock_timeout"`
 	CacheUseStale             string `json:"cache_use_stale"`
 	MainConfigTemplate        string `json:"main_config_template,omitempty"`
+	DefaultLimitConnPerServer int    `json:"default_limit_conn_per_server,omitempty"`
+	DefaultLimitConnPerIP     int    `json:"default_limit_conn_per_ip,omitempty"`
+	DefaultLimitRate          string `json:"default_limit_rate,omitempty"`
 }
 
 type snapshotDocument struct {
@@ -479,6 +482,15 @@ func buildOpenRestyConfigSnapshot(ctx context.Context) openRestyConfigSnapshot {
 		return val
 	}
 
+	// 0 为合法关闭值，不能与 getIntConfig 的 val<=0 语义混用
+	getNonNegIntConfig := func(key string, defaultVal int) int {
+		val, err := repository.GetIntByKey(ctx, key)
+		if err != nil || val < 0 {
+			return defaultVal
+		}
+		return val
+	}
+
 	getBoolConfig := func(key string, defaultVal bool) bool {
 		val, err := repository.GetBoolByKey(ctx, key)
 		if err != nil {
@@ -533,6 +545,12 @@ func buildOpenRestyConfigSnapshot(ctx context.Context) openRestyConfigSnapshot {
 		CacheLockTimeout:          getStringConfig(model.ConfigKeyOpenRestyCacheLockTimeout, "5s"),
 		CacheUseStale:             getStringConfig(model.ConfigKeyOpenRestyCacheUseStale, "error timeout updating http_500 http_502 http_503 http_504"),
 		MainConfigTemplate:        getStringConfig(model.ConfigKeyOpenRestyMainConfigTemplate, model.DefaultOpenRestyMainConfigTemplate),
+		DefaultLimitConnPerServer: getNonNegIntConfig(model.ConfigKeyOpenRestyDefaultLimitConnPerServer, 0),
+		DefaultLimitConnPerIP:     getNonNegIntConfig(model.ConfigKeyOpenRestyDefaultLimitConnPerIP, 0),
+		DefaultLimitRate:          strings.ToLower(strings.TrimSpace(getStringConfig(model.ConfigKeyOpenRestyDefaultLimitRate, ""))),
+	}
+	if snapshot.DefaultLimitRate == "0" {
+		snapshot.DefaultLimitRate = ""
 	}
 	snapshot.CachePath = normalizeProxyCachePathForSnapshot(snapshot.CacheEnabled, snapshot.CachePath)
 	return snapshot

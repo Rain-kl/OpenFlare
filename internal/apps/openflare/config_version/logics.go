@@ -528,6 +528,9 @@ func diffOpenRestyOptionDetails(left openRestyConfigSnapshot, right openRestyCon
 	appendIfChanged("OpenRestyCacheLockEnabled", fmt.Sprintf("%t", left.CacheLockEnabled), fmt.Sprintf("%t", right.CacheLockEnabled))
 	appendIfChanged("OpenRestyCacheLockTimeout", left.CacheLockTimeout, right.CacheLockTimeout)
 	appendIfChanged("OpenRestyCacheUseStale", left.CacheUseStale, right.CacheUseStale)
+	appendIfChanged("OpenRestyDefaultLimitConnPerServer", fmt.Sprintf("%d", left.DefaultLimitConnPerServer), fmt.Sprintf("%d", right.DefaultLimitConnPerServer))
+	appendIfChanged("OpenRestyDefaultLimitConnPerIP", fmt.Sprintf("%d", left.DefaultLimitConnPerIP), fmt.Sprintf("%d", right.DefaultLimitConnPerIP))
+	appendIfChanged("OpenRestyDefaultLimitRate", left.DefaultLimitRate, right.DefaultLimitRate)
 	return changes
 }
 
@@ -576,5 +579,8 @@ func openRestyOptionKeys() []string {
 		"OpenRestyCacheLockEnabled",
 		"OpenRestyCacheLockTimeout",
 		"OpenRestyCacheUseStale",
+		"OpenRestyDefaultLimitConnPerServer",
+		"OpenRestyDefaultLimitConnPerIP",
+		"OpenRestyDefaultLimitRate",
 	}
 }
