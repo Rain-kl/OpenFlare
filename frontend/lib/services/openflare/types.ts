@@ -783,31 +783,42 @@ export type WAFRuleNode =
   | {
       id: string;
       type: 'start';
+      label?: string;
       position: XYPosition;
       config: Record<string, never>;
     }
   | {
       id: string;
       type: 'ip_match';
+      label?: string;
       position: XYPosition;
       config: IPMatchConfig;
     }
   | {
       id: string;
       type: 'geo_match';
+      label?: string;
       position: XYPosition;
       config: GeoMatchConfig;
     }
-  | { id: string; type: 'pow'; position: XYPosition; config: PoWNodeConfig }
+  | {
+      id: string;
+      type: 'pow';
+      label?: string;
+      position: XYPosition;
+      config: PoWNodeConfig;
+    }
   | {
       id: string;
       type: 'allow';
+      label?: string;
       position: XYPosition;
       config: Record<string, never>;
     }
   | {
       id: string;
       type: 'block';
+      label?: string;
       position: XYPosition;
       config: BlockNodeConfig;
     };

@@ -29,6 +29,7 @@ import { Textarea } from '@/components/ui/textarea';
 import type { WAFIPGroup, WAFRuleNode } from '@/lib/services/openflare';
 
 import { countryOptions, regionOptions, type GeoOption } from './geo-options';
+import { NODE_TYPE_LABELS } from './node-factory';
 
 export function NodeProperties({
   node,
@@ -72,6 +73,7 @@ function PropertyFields({
   if (node.type === 'ip_match')
     return (
       <FieldGroup>
+        <DisplayNameField node={node} onChange={onChange} />
         <CsvField
           id={`${node.id}-ips`}
           label='IP 地址'
@@ -109,6 +111,7 @@ function PropertyFields({
   if (node.type === 'geo_match')
     return (
       <FieldGroup>
+        <DisplayNameField node={node} onChange={onChange} />
         <MultiSelect
           id={`${node.id}-countries`}
           label='国家代码'
@@ -137,6 +140,7 @@ function PropertyFields({
   if (node.type === 'pow')
     return (
       <FieldGroup>
+        <DisplayNameField node={node} onChange={onChange} />
         <Field>
           <FieldLabel htmlFor={`${node.id}-algorithm`}>算法</FieldLabel>
           <Select
@@ -181,6 +185,7 @@ function PropertyFields({
     );
   return (
     <FieldGroup>
+      <DisplayNameField node={node} onChange={onChange} />
       <NumberField
         id={`${node.id}-status`}
         min={400}
@@ -210,6 +215,26 @@ function PropertyFields({
         </FieldDescription>
       </Field>
     </FieldGroup>
+  );
+}
+
+function DisplayNameField({
+  node,
+  onChange,
+}: {
+  node: WAFRuleNode;
+  onChange: (node: WAFRuleNode) => void;
+}) {
+  return (
+    <Field>
+      <FieldLabel htmlFor={`${node.id}-label`}>显示名称</FieldLabel>
+      <Input
+        id={`${node.id}-label`}
+        value={node.label ?? ''}
+        placeholder={NODE_TYPE_LABELS[node.type]}
+        onChange={(event) => onChange({ ...node, label: event.target.value })}
+      />
+    </Field>
   );
 }
 

@@ -5,6 +5,35 @@ import type { WAFIPGroup, WAFRuleNode } from '@/lib/services/openflare';
 
 import { NodeProperties } from './node-properties';
 
+it('edits display name for configurable nodes', () => {
+  const node: WAFRuleNode = {
+    id: 'match',
+    type: 'ip_match',
+    position: { x: 0, y: 0 },
+    config: { ips: [], cidrs: [], ip_group_ids: [] },
+  };
+  const onChange = vi.fn();
+  render(<NodeProperties node={node} ipGroups={[]} onChange={onChange} />);
+  fireEvent.change(screen.getByLabelText('显示名称'), {
+    target: { value: '内网放行' },
+  });
+  expect(onChange).toHaveBeenCalledWith(
+    expect.objectContaining({ label: '内网放行' }),
+  );
+});
+
+it('hides display name for system nodes', () => {
+  const node: WAFRuleNode = {
+    id: 'start',
+    type: 'start',
+    position: { x: 0, y: 0 },
+    config: {},
+  };
+  render(<NodeProperties node={node} ipGroups={[]} onChange={vi.fn()} />);
+  expect(screen.queryByLabelText('显示名称')).not.toBeInTheDocument();
+  expect(screen.getByText('系统节点无需配置。')).toBeInTheDocument();
+});
+
 it('edits IP group config through a typed multi-select', async () => {
   const node: WAFRuleNode = {
     id: 'match',

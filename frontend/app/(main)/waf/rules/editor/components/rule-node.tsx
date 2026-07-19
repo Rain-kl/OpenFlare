@@ -12,18 +12,20 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import type { WAFRuleNode } from '@/lib/services/openflare';
 
+import { displayNodeTitle } from './node-factory';
+
 export interface RuleFlowNodeData extends Record<string, unknown> {
   rule: WAFRuleNode;
   issues: number;
 }
 
 const meta = {
-  start: { label: '开始', icon: Play },
-  ip_match: { label: 'IP 匹配', icon: Fingerprint },
-  geo_match: { label: '地域匹配', icon: Globe2 },
-  pow: { label: 'PoW 挑战', icon: ShieldCheck },
-  allow: { label: '通过', icon: Flag },
-  block: { label: '阻止', icon: Ban },
+  start: { icon: Play },
+  ip_match: { icon: Fingerprint },
+  geo_match: { icon: Globe2 },
+  pow: { icon: ShieldCheck },
+  allow: { icon: Flag },
+  block: { icon: Ban },
 } as const;
 
 const outputHandles: Partial<Record<WAFRuleNode['type'], string[]>> = {
@@ -36,7 +38,8 @@ const outputHandles: Partial<Record<WAFRuleNode['type'], string[]>> = {
 export function RuleNode({ data, selected }: NodeProps) {
   const value = data as RuleFlowNodeData;
   const { rule, issues } = value;
-  const { label, icon: Icon } = meta[rule.type];
+  const { icon: Icon } = meta[rule.type];
+  const title = displayNodeTitle(rule);
   return (
     <div
       className={cn(
@@ -51,7 +54,7 @@ export function RuleNode({ data, selected }: NodeProps) {
       <div className='flex items-center gap-3 px-4 py-3'>
         <Icon className='size-5 text-primary' />
         <div className='flex min-w-0 flex-1 flex-col gap-0.5'>
-          <span className='text-sm font-medium'>{label}</span>
+          <span className='text-sm font-medium'>{title}</span>
           <span className='font-mono text-[10px] text-muted-foreground'>
             {rule.id}
           </span>

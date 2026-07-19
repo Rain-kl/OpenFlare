@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef } from 'react';
+import { type DragEvent, useCallback, useEffect, useRef } from 'react';
 import {
   addEdge,
   applyEdgeChanges,
@@ -22,11 +22,7 @@ import { Trash2 } from 'lucide-react';
 import '@xyflow/react/dist/style.css';
 
 import { Button } from '@/components/ui/button';
-import type {
-  WAFRuleEdge,
-  WAFRuleGraph,
-  WAFRuleNode,
-} from '@/lib/services/openflare';
+import type { WAFRuleEdge, WAFRuleGraph } from '@/lib/services/openflare';
 
 import {
   acceptedNodeChanges,
@@ -40,6 +36,12 @@ import {
   removeEdgeFromGraph,
   removeNodeFromGraph,
 } from './graph-validation';
+import {
+  createRuleNode,
+  parseAddableNodeType,
+  WAF_NODE_DRAG_MIME,
+  type AddableNodeType,
+} from './node-factory';
 import { NodeLibrary } from './node-library';
 import { RuleNode, type RuleFlowNodeData } from './rule-node';
 
@@ -201,38 +203,39 @@ export function RuleFlowCanvas({
     [edges, graph, isValidConnection, onGraphChange, setEdges],
   );
 
-  const addNode = useCallback(
-    (type: 'ip_match' | 'geo_match' | 'pow' | 'block') => {
-      const id = `${type}-${crypto.randomUUID().slice(0, 8)}`;
-      const config =
-        type === 'ip_match'
-          ? { ips: [], cidrs: [], ip_group_ids: [] }
-          : type === 'geo_match'
-            ? { countries: [], regions: [] }
-            : type === 'pow'
-              ? {
-                  algorithm: 'fast' as const,
-                  difficulty: 4,
-                  session_ttl: 3600,
-                  challenge_ttl: 300,
-                }
-              : { status_code: 403, response_body: '' };
+  const addNodeAt = useCallback(
+    (type: AddableNodeType, position: { x: number; y: number }) => {
+      const node = createRuleNode(type, position);
       onGraphChange({
         ...graph,
-        nodes: [
-          ...graph.nodes,
-          {
-            id,
-            type,
-            position: { x: 240, y: 140 + graph.nodes.length * 24 },
-            config,
-          } as WAFRuleNode,
-        ],
+        nodes: [...graph.nodes, node],
       });
       onSelectEdge(undefined);
-      onSelect(id);
+      onSelect(node.id);
     },
     [graph, onGraphChange, onSelect, onSelectEdge],
+  );
+
+  const onDragOver = useCallback((event: DragEvent) => {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'copy';
+  }, []);
+
+  const onDrop = useCallback(
+    (event: DragEvent) => {
+      event.preventDefault();
+      const raw =
+        event.dataTransfer.getData(WAF_NODE_DRAG_MIME) ||
+        event.dataTransfer.getData('text/plain');
+      const type = parseAddableNodeType(raw);
+      if (!type || !instance.current) return;
+      const position = instance.current.screenToFlowPosition({
+        x: event.clientX,
+        y: event.clientY,
+      });
+      addNodeAt(type, position);
+    },
+    [addNodeAt],
   );
 
   const selectedNode = graph.nodes.find((node) => node.id === selectedId);
@@ -286,7 +289,7 @@ export function RuleFlowCanvas({
   return (
     <section className='relative min-w-0 flex-1 bg-muted/20'>
       <div className='absolute left-4 top-4 z-10 rounded-lg border bg-background/95 p-2 shadow-sm backdrop-blur'>
-        <NodeLibrary onAdd={addNode} />
+        <NodeLibrary />
       </div>
       <div className='absolute right-4 top-4 z-10'>
         <Button
@@ -327,6 +330,8 @@ export function RuleFlowCanvas({
           onSelect(undefined);
           onSelectEdge(undefined);
         }}
+        onDragOver={onDragOver}
+        onDrop={onDrop}
         fitView
         fitViewOptions={initialFitViewOptions}
         deleteKeyCode={['Backspace', 'Delete']}
