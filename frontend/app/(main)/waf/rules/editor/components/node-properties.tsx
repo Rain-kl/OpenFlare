@@ -154,7 +154,7 @@ function PropertyFields({
                 开启 UA 检查
               </FieldLabel>
               <FieldDescription>
-                开启后如果请求头不携带 UA 返回 False；并可配置匹配与屏蔽
+                开启后如果请求头不携带 UA 将返回 False
               </FieldDescription>
             </div>
             <Switch
@@ -168,71 +168,6 @@ function PropertyFields({
         </div>
         {node.config.require_ua && (
           <>
-            <Separator />
-            <div className='space-y-3'>
-              <p className='text-xs font-medium text-muted-foreground'>
-                UA 匹配
-              </p>
-              <Field>
-                <FieldLabel htmlFor={`${node.id}-match-mode`}>
-                  匹配模式
-                </FieldLabel>
-                <Select
-                  value={node.config.match_mode}
-                  onValueChange={(match_mode: 'and' | 'or') =>
-                    onChange({
-                      ...node,
-                      config: { ...node.config, match_mode },
-                    })
-                  }
-                >
-                  <SelectTrigger
-                    id={`${node.id}-match-mode`}
-                    className='w-full'
-                  >
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      <SelectItem value='or'>或（OR）</SelectItem>
-                      <SelectItem value='and'>且（AND）</SelectItem>
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-                <FieldDescription>
-                  浏览器与操作系统两侧都有选择时生效
-                </FieldDescription>
-              </Field>
-              <MultiSelect
-                id={`${node.id}-browsers`}
-                label='浏览器'
-                options={UA_BROWSER_OPTIONS.map((option) => ({
-                  value: option.value,
-                  label: option.label,
-                  searchText: `${option.label} ${option.value}`,
-                }))}
-                value={node.config.browsers}
-                onChange={(browsers) =>
-                  onChange({ ...node, config: { ...node.config, browsers } })
-                }
-              />
-              <MultiSelect
-                id={`${node.id}-os`}
-                label='操作系统'
-                options={UA_OS_OPTIONS.map((option) => ({
-                  value: option.value,
-                  label: option.label,
-                  searchText: `${option.label} ${option.value}`,
-                }))}
-                value={node.config.operating_systems}
-                onChange={(operating_systems) =>
-                  onChange({
-                    ...node,
-                    config: { ...node.config, operating_systems },
-                  })
-                }
-              />
-            </div>
             <Separator />
             <div className='space-y-3'>
               <div className='space-y-1'>
@@ -345,6 +280,71 @@ function PropertyFields({
                   </FieldDescription>
                 </Field>
               )}
+            </div>
+            <Separator />
+            <div className='space-y-3'>
+              <p className='text-xs font-medium text-muted-foreground'>
+                UA 匹配
+              </p>
+              <Field>
+                <FieldLabel htmlFor={`${node.id}-match-mode`}>
+                  匹配模式
+                </FieldLabel>
+                <Select
+                  value={node.config.match_mode}
+                  onValueChange={(match_mode: 'and' | 'or') =>
+                    onChange({
+                      ...node,
+                      config: { ...node.config, match_mode },
+                    })
+                  }
+                >
+                  <SelectTrigger
+                    id={`${node.id}-match-mode`}
+                    className='w-full'
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      <SelectItem value='or'>或（OR）</SelectItem>
+                      <SelectItem value='and'>且（AND）</SelectItem>
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+                <FieldDescription>
+                  浏览器与操作系统两侧都有选择时生效
+                </FieldDescription>
+              </Field>
+              <MultiSelect
+                id={`${node.id}-browsers`}
+                label='浏览器'
+                options={UA_BROWSER_OPTIONS.map((option) => ({
+                  value: option.value,
+                  label: option.label,
+                  searchText: `${option.label} ${option.value}`,
+                }))}
+                value={node.config.browsers}
+                onChange={(browsers) =>
+                  onChange({ ...node, config: { ...node.config, browsers } })
+                }
+              />
+              <MultiSelect
+                id={`${node.id}-os`}
+                label='操作系统'
+                options={UA_OS_OPTIONS.map((option) => ({
+                  value: option.value,
+                  label: option.label,
+                  searchText: `${option.label} ${option.value}`,
+                }))}
+                value={node.config.operating_systems}
+                onChange={(operating_systems) =>
+                  onChange({
+                    ...node,
+                    config: { ...node.config, operating_systems },
+                  })
+                }
+              />
             </div>
           </>
         )}
