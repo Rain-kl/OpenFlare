@@ -62,15 +62,22 @@ func GetActiveUploadByID(ctx context.Context, id uint64) (model.Upload, error) {
 	return upload, nil
 }
 
-// SoftDeleteUpload marks an upload as deleted.
+// SoftDeleteUpload marks an active upload as deleted and reports whether the row transitioned.
 // External modules must use upload.Remove or upload.RemoveOwned; only internal/apps/upload may call this.
-func SoftDeleteUpload(ctx context.Context, upload *model.Upload) error {
+func SoftDeleteUpload(ctx context.Context, upload *model.Upload) (int64, error) {
 	return SoftDeleteUploadTx(db.DB(ctx), upload)
 }
 
-// SoftDeleteUploadTx marks an upload as deleted within an existing transaction.
-func SoftDeleteUploadTx(tx *gorm.DB, upload *model.Upload) error {
-	return tx.Model(upload).Update("status", model.UploadStatusDeleted).Error
+// SoftDeleteUploadTx marks an active upload as deleted within an existing transaction.
+// RowsAffected is one only for the single successful active-to-deleted transition.
+func SoftDeleteUploadTx(tx *gorm.DB, upload *model.Upload) (int64, error) {
+	result := tx.Model(&model.Upload{}).
+		Where("id = ? AND status IN ?", upload.ID, []model.UploadStatus{
+			model.UploadStatusPending,
+			model.UploadStatusUsed,
+		}).
+		Update("status", model.UploadStatusDeleted)
+	return result.RowsAffected, result.Error
 }
 
 // UpdateUpload applies partial field updates to an upload record.

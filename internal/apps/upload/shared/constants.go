@@ -17,4 +17,6 @@ const (
 	FileStatsTrendDays      = 7
 	MaxS3KeyLength          = 1024
 	AccessCacheTTL          = 5 // seconds; multiplied by time.Second at use site
+	// ReservedPagesDeploymentType is managed exclusively by the Pages domain.
+	ReservedPagesDeploymentType = "openflare_pages_deployment"
 )

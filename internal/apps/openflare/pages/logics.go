@@ -12,6 +12,7 @@ import (
 	"mime/multipart"
 	"net/url"
 	"os"
+	"path"
 	"strings"
 	"time"
 
@@ -21,6 +22,7 @@ import (
 	"github.com/Rain-kl/Wavelet/pkg/logger"
 	"github.com/Rain-kl/Wavelet/pkg/pagesarchive"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // DeploymentPackage is a streamable Pages deployment artifact for agent download.
@@ -137,28 +139,40 @@ func CreateProject(ctx context.Context, input Input) (*View, error) {
 
 // UpdateProject 更新 Pages 项目。
 func UpdateProject(ctx context.Context, id uint, input Input) (*View, error) {
-	project, err := model.GetPagesProjectByID(ctx, id)
+	var project *model.PagesProject
+	err := db.DB(ctx).Transaction(func(tx *gorm.DB) error {
+		var existing model.PagesProject
+		if err := tx.Clauses(clause.Locking{Strength: pagesRowLockStrength}).First(&existing, id).Error; err != nil {
+			return err
+		}
+		updated := existing
+		var err error
+		project, err = buildProject(&updated, input)
+		if err != nil {
+			return err
+		}
+		if (existing.RootDir != project.RootDir || existing.EntryFile != project.EntryFile) &&
+			existing.ActiveDeploymentID != nil && *existing.ActiveDeploymentID != 0 {
+			if err := ensureDeploymentEntry(tx, *existing.ActiveDeploymentID, project.RootDir, project.EntryFile); err != nil {
+				return err
+			}
+		}
+		return tx.Model(&existing).Updates(map[string]any{
+			"name":                 project.Name,
+			"slug":                 project.Slug,
+			"description":          project.Description,
+			"enabled":              project.Enabled,
+			"spa_fallback_enabled": project.SPAFallbackEnabled,
+			"spa_fallback_path":    project.SPAFallbackPath,
+			"api_proxy_enabled":    project.APIProxyEnabled,
+			"api_proxy_path":       project.APIProxyPath,
+			"api_proxy_pass":       project.APIProxyPass,
+			"api_proxy_rewrite":    project.APIProxyRewrite,
+			"root_dir":             project.RootDir,
+			"entry_file":           project.EntryFile,
+		}).Error
+	})
 	if err != nil {
-		return nil, err
-	}
-	project, err = buildProject(project, input)
-	if err != nil {
-		return nil, err
-	}
-	if err = db.DB(ctx).Model(project).Updates(map[string]any{
-		"name":                 project.Name,
-		"slug":                 project.Slug,
-		"description":          project.Description,
-		"enabled":              project.Enabled,
-		"spa_fallback_enabled": project.SPAFallbackEnabled,
-		"spa_fallback_path":    project.SPAFallbackPath,
-		"api_proxy_enabled":    project.APIProxyEnabled,
-		"api_proxy_path":       project.APIProxyPath,
-		"api_proxy_pass":       project.APIProxyPass,
-		"api_proxy_rewrite":    project.APIProxyRewrite,
-		"root_dir":             project.RootDir,
-		"entry_file":           project.EntryFile,
-	}).Error; err != nil {
 		if isUniqueConstraintError(err) {
 			return nil, errors.New(errPagesSlugExists)
 		}
@@ -167,24 +181,49 @@ func UpdateProject(ctx context.Context, id uint, input Input) (*View, error) {
 	return buildProjectView(ctx, project)
 }
 
+func ensureDeploymentEntry(conn *gorm.DB, deploymentID uint, rootDir, entryFile string) error {
+	targetPath := entryFile
+	if rootDir != "" {
+		targetPath = path.Join(rootDir, entryFile)
+	}
+	var count int64
+	if err := conn.Model(&model.PagesDeploymentFile{}).
+		Where("deployment_id = ? AND path = ?", deploymentID, targetPath).
+		Count(&count).Error; err != nil {
+		return err
+	}
+	if count == 0 {
+		return fmt.Errorf("%s: %s", errPagesEntryFileMissing, targetPath)
+	}
+	return nil
+}
+
 // DeleteProject 删除 Pages 项目。
 func DeleteProject(ctx context.Context, id uint) error {
 	project, err := model.GetPagesProjectByID(ctx, id)
 	if err != nil {
 		return err
 	}
-	routeCount, err := model.CountProxyRoutesByPagesProjectID(ctx, project.ID)
-	if err != nil {
-		return err
-	}
-	if routeCount > 0 {
-		return errors.New(errPagesDeleteReferenced)
-	}
-	deployments, err := model.ListPagesDeployments(ctx, project.ID)
-	if err != nil {
-		return err
-	}
-	return db.DB(ctx).Transaction(func(tx *gorm.DB) error {
+	var deployments []model.PagesDeployment
+	err = db.DB(ctx).Transaction(func(tx *gorm.DB) error {
+		var lockedProject model.PagesProject
+		if err := tx.Clauses(clause.Locking{Strength: pagesRowLockStrength}).First(&lockedProject, project.ID).Error; err != nil {
+			return err
+		}
+		if tx.Migrator().HasTable(&model.ProxyRoute{}) {
+			var routeCount int64
+			if err := tx.Model(&model.ProxyRoute{}).
+				Where("pages_project_id = ?", project.ID).
+				Count(&routeCount).Error; err != nil {
+				return err
+			}
+			if routeCount > 0 {
+				return errors.New(errPagesDeleteReferenced)
+			}
+		}
+		if err := tx.Where("project_id = ?", project.ID).Find(&deployments).Error; err != nil {
+			return err
+		}
 		if err := tx.Where(
 			"deployment_id IN (?)",
 			tx.Model(&model.PagesDeployment{}).Select("id").Where("project_id = ?", project.ID),
@@ -197,11 +236,15 @@ func DeleteProject(ctx context.Context, id uint) error {
 		if err := tx.Delete(project).Error; err != nil {
 			return err
 		}
-		for index := range deployments {
-			removeDeploymentArtifact(ctx, &deployments[index])
-		}
 		return nil
 	})
+	if err != nil {
+		return err
+	}
+	for index := range deployments {
+		removeDeploymentArtifact(ctx, project.ID, &deployments[index])
+	}
+	return nil
 }
 
 // ListProjectDeployments 列出项目的全部部署。
@@ -298,7 +341,10 @@ func createDeploymentFromTempPackage(
 	if err != nil {
 		return nil, err
 	}
-	entryFile := normalizePagesEntryFile(project.EntryFile)
+	entryFile, err := validateAndNormalizePagesEntryFile(project.EntryFile)
+	if err != nil {
+		return nil, err
+	}
 	manifest, err := inspectPagesPackage(tempPath, format, rootDir, entryFile, limits)
 	if err != nil {
 		return nil, err
@@ -307,7 +353,7 @@ func createDeploymentFromTempPackage(
 		ctx,
 		tempPath,
 		checksum,
-		project.Slug,
+		project.ID,
 		fileName,
 		format,
 	)
@@ -317,11 +363,20 @@ func createDeploymentFromTempPackage(
 	ingestCommitted := false
 	defer func() {
 		if !ingestCommitted && ingestResult.Created {
-			_, _ = upload.Remove(ctx, ingestResult.Upload.ID)
+			if removeErr := removePagesUploadIfUnreferenced(ctx, project.ID, ingestResult.Upload.ID); removeErr != nil {
+				logger.ErrorF(ctx,
+					"[Pages] compensate deployment upload failed: project_id=%d upload_id=%d error=%v",
+					project.ID, ingestResult.Upload.ID, removeErr,
+				)
+			}
 		}
 	}()
 	deployment := &model.PagesDeployment{}
 	err = db.DB(ctx).Transaction(func(tx *gorm.DB) error {
+		var lockedProject model.PagesProject
+		if err := tx.Clauses(clause.Locking{Strength: pagesRowLockStrength}).First(&lockedProject, project.ID).Error; err != nil {
+			return err
+		}
 		var maxNumber int
 		if err := tx.Model(&model.PagesDeployment{}).
 			Where("project_id = ?", project.ID).
@@ -357,7 +412,7 @@ func createDeploymentFromTempPackage(
 	}
 	ingestCommitted = true
 
-	if pruneErr := pruneProjectDeploymentHistory(ctx, project.ID, limits.HistoryCount); pruneErr != nil {
+	if pruneErr := pruneProjectDeploymentHistory(ctx, project.ID, limits.HistoryCount, deployment.ID); pruneErr != nil {
 		logger.ErrorF(ctx,
 			"[Pages] prune deployment history failed: project_id=%d keep=%d error=%v",
 			project.ID, limits.HistoryCount, pruneErr,
@@ -381,7 +436,7 @@ func createDeploymentFromTempPackage(
 // Concurrency: DB row deletes run in a single transaction after a consistent read
 // of project + deployments. Concurrent uploads may briefly exceed keepCount; the
 // next successful prune brings the project back within the limit (eventual).
-func pruneProjectDeploymentHistory(ctx context.Context, projectID uint, keepCount int) error {
+func pruneProjectDeploymentHistory(ctx context.Context, projectID uint, keepCount int, preserveCandidateID uint) error {
 	if keepCount <= 0 {
 		return nil
 	}
@@ -390,7 +445,7 @@ func pruneProjectDeploymentHistory(ctx context.Context, projectID uint, keepCoun
 	// that inserted another deployment between our list and delete.
 	var lastErr error
 	for pass := 0; pass < 2; pass++ {
-		deleted, err := pruneProjectDeploymentHistoryOnce(ctx, projectID, keepCount)
+		deleted, err := pruneProjectDeploymentHistoryOnce(ctx, projectID, keepCount, preserveCandidateID)
 		if err != nil {
 			lastErr = err
 			break
@@ -404,73 +459,79 @@ func pruneProjectDeploymentHistory(ctx context.Context, projectID uint, keepCoun
 
 // pruneProjectDeploymentHistoryOnce performs one list → select → delete cycle.
 // Returns the number of deployments deleted from the database.
-func pruneProjectDeploymentHistoryOnce(ctx context.Context, projectID uint, keepCount int) (int, error) {
-	project, err := model.GetPagesProjectByID(ctx, projectID)
-	if err != nil {
-		return 0, fmt.Errorf("load pages project: %w", err)
-	}
-	deployments, err := model.ListPagesDeployments(ctx, projectID)
-	if err != nil {
-		return 0, fmt.Errorf("list pages deployments: %w", err)
-	}
-	if len(deployments) <= keepCount {
-		return 0, nil
-	}
-
-	var activeID uint
-	if project.ActiveDeploymentID != nil {
-		activeID = *project.ActiveDeploymentID
-	}
-	toDelete := selectDeploymentsToPrune(deployments, activeID, keepCount)
-	if len(toDelete) == 0 {
-		return 0, nil
-	}
-
-	// Delete metadata in one transaction so partial prune does not leave
-	// orphan file-list rows without a parent deployment.
-	if err := db.DB(ctx).Transaction(func(tx *gorm.DB) error {
+func pruneProjectDeploymentHistoryOnce(ctx context.Context, projectID uint, keepCount int, preserveCandidateID uint) (int, error) {
+	var deletedDeployments []model.PagesDeployment
+	err := db.DB(ctx).Transaction(func(tx *gorm.DB) error {
+		var project model.PagesProject
+		if err := tx.Clauses(clause.Locking{Strength: pagesRowLockStrength}).First(&project, projectID).Error; err != nil {
+			return fmt.Errorf("load pages project: %w", err)
+		}
+		var deployments []model.PagesDeployment
+		if err := tx.Where("project_id = ?", projectID).Order("id desc").Find(&deployments).Error; err != nil {
+			return fmt.Errorf("list pages deployments: %w", err)
+		}
+		var activeID uint
+		if project.ActiveDeploymentID != nil {
+			activeID = *project.ActiveDeploymentID
+		}
+		// Preserve mode is signaled by a non-zero candidate ID, but the lock-time
+		// newest non-active deployment wins. This prevents concurrent upload A/B
+		// prune passes from deleting each other's newer candidate.
+		resolvedCandidateID := resolveLatestCandidateID(deployments, activeID, preserveCandidateID != 0)
+		toDelete := selectDeploymentsToPrune(deployments, activeID, resolvedCandidateID, keepCount)
 		for index := range toDelete {
 			deployment := toDelete[index]
-			// Never delete the active deployment even if project pointer raced.
-			if activeID != 0 && deployment.ID == activeID {
-				continue
-			}
-			if project.ActiveDeploymentID != nil && deployment.ID == *project.ActiveDeploymentID {
-				continue
-			}
 			if err := tx.Where("deployment_id = ?", deployment.ID).Delete(&model.PagesDeploymentFile{}).Error; err != nil {
 				return fmt.Errorf("delete deployment files id=%d: %w", deployment.ID, err)
 			}
-			if err := tx.Where("id = ? AND project_id = ?", deployment.ID, projectID).
-				Delete(&model.PagesDeployment{}).Error; err != nil {
-				return fmt.Errorf("delete deployment id=%d: %w", deployment.ID, err)
+			result := tx.Where("id = ? AND project_id = ?", deployment.ID, projectID).
+				Delete(&model.PagesDeployment{})
+			if result.Error != nil {
+				return fmt.Errorf("delete deployment id=%d: %w", deployment.ID, result.Error)
+			}
+			if result.RowsAffected == 1 {
+				deletedDeployments = append(deletedDeployments, deployment)
 			}
 		}
 		return nil
-	}); err != nil {
+	})
+	if err != nil {
 		return 0, err
 	}
 
-	// Artifacts are best-effort outside the transaction (object storage I/O).
-	for index := range toDelete {
-		deployment := toDelete[index]
-		if activeID != 0 && deployment.ID == activeID {
-			continue
-		}
-		removeDeploymentArtifact(ctx, &deployment)
+	for index := range deletedDeployments {
+		deployment := deletedDeployments[index]
+		removeDeploymentArtifact(ctx, projectID, &deployment)
 	}
 
 	logger.InfoF(ctx,
 		"[Pages] pruned deployment history: project_id=%d keep=%d deleted=%d",
-		projectID, keepCount, len(toDelete),
+		projectID, keepCount, len(deletedDeployments),
 	)
-	return len(toDelete), nil
+	return len(deletedDeployments), nil
+}
+
+func resolveLatestCandidateID(deployments []model.PagesDeployment, activeID uint, preserve bool) uint {
+	if !preserve {
+		return 0
+	}
+	for _, deployment := range deployments {
+		if deployment.ID != activeID {
+			return deployment.ID
+		}
+	}
+	return 0
 }
 
 // selectDeploymentsToPrune returns deployments that should be removed under the
 // "at most keepCount, always keep active, fill with newest" policy.
 // deployments must be ordered newest-first (id desc).
-func selectDeploymentsToPrune(deployments []model.PagesDeployment, activeID uint, keepCount int) []model.PagesDeployment {
+func selectDeploymentsToPrune(
+	deployments []model.PagesDeployment,
+	activeID uint,
+	preserveCandidateID uint,
+	keepCount int,
+) []model.PagesDeployment {
 	if keepCount <= 0 || len(deployments) <= keepCount {
 		return nil
 	}
@@ -482,6 +543,17 @@ func selectDeploymentsToPrune(deployments []model.PagesDeployment, activeID uint
 		for _, deployment := range deployments {
 			if deployment.ID == activeID {
 				keepIDs[activeID] = struct{}{}
+				break
+			}
+		}
+	}
+	// A freshly uploaded manual candidate is temporarily protected in addition
+	// to the active deployment. This intentionally permits two rows when the
+	// configured history limit is one.
+	if preserveCandidateID != 0 {
+		for _, deployment := range deployments {
+			if deployment.ID == preserveCandidateID {
+				keepIDs[preserveCandidateID] = struct{}{}
 				break
 			}
 		}
@@ -521,26 +593,69 @@ func ActivateDeployment(ctx context.Context, projectID uint, deploymentID uint) 
 	if deployment.ProjectID != project.ID {
 		return nil, errors.New(errPagesDeploymentMismatch)
 	}
+	if deployment.UploadID == 0 {
+		if err = ensureDeploymentUploadRecord(ctx, deployment); err != nil {
+			return nil, err
+		}
+	}
 	now := time.Now()
 	if err = db.DB(ctx).Transaction(func(tx *gorm.DB) error {
+		var project model.PagesProject
+		if err := tx.Clauses(clause.Locking{Strength: pagesRowLockStrength}).First(&project, projectID).Error; err != nil {
+			return err
+		}
+		var deployment model.PagesDeployment
+		if err := tx.First(&deployment, deploymentID).Error; err != nil {
+			return err
+		}
+		if deployment.ProjectID != project.ID {
+			return errors.New(errPagesDeploymentMismatch)
+		}
+		rootDir, err := validateAndNormalizePagesRootDir(project.RootDir)
+		if err != nil {
+			return err
+		}
+		entryFile, err := validateAndNormalizePagesEntryFile(project.EntryFile)
+		if err != nil {
+			return err
+		}
+		if err := ensureDeploymentEntry(tx, deployment.ID, rootDir, entryFile); err != nil {
+			return err
+		}
+		var uploadRecord model.Upload
+		if err := tx.Clauses(clause.Locking{Strength: pagesRowLockStrength}).
+			Where("id = ?", deployment.UploadID).
+			First(&uploadRecord).Error; err != nil {
+			return errors.New(errPagesPackageUploadMissing)
+		}
+		if uploadRecord.Status != model.UploadStatusUsed || uploadRecord.Type != upload.ReservedPagesDeploymentType {
+			return errors.New(errPagesPackageUploadMissing)
+		}
 		if err := tx.Model(&model.PagesDeployment{}).
 			Where("project_id = ?", project.ID).
 			Update("status", model.PagesDeploymentStatusUploaded).Error; err != nil {
 			return err
 		}
-		if err := tx.Model(deployment).Updates(map[string]any{
+		if err := tx.Model(&deployment).Updates(map[string]any{
 			"status":       model.PagesDeploymentStatusActive,
 			"activated_at": &now,
 		}).Error; err != nil {
 			return err
 		}
-		return tx.Model(project).Updates(map[string]any{
+		return tx.Model(&project).Updates(map[string]any{
 			"active_deployment_id": deployment.ID,
 		}).Error
 	}); err != nil {
 		return nil, err
 	}
-	return GetProject(ctx, project.ID)
+	limits := resolvePagesLimits(ctx)
+	if pruneErr := pruneProjectDeploymentHistory(ctx, projectID, limits.HistoryCount, 0); pruneErr != nil {
+		logger.ErrorF(ctx,
+			"[Pages] strict prune after activation failed: project_id=%d keep=%d error=%v",
+			projectID, limits.HistoryCount, pruneErr,
+		)
+	}
+	return GetProject(ctx, projectID)
 }
 
 // GetDeploymentPackageHash returns the upload SHA-256 hash of the deployment package.
@@ -728,22 +843,97 @@ func hydrateLegacyDeploymentUpload(
 		ctx,
 		artifactPath,
 		deployment.Checksum,
-		project.Slug,
+		project.ID,
 		fmt.Sprintf("pages-deployment-%d.zip", deployment.ID),
 		pagesarchive.FormatZip,
 	)
 	if err != nil {
 		return nil, err
 	}
-	if err := db.DB(ctx).Model(deployment).Updates(map[string]any{
-		"upload_id":     ingestResult.Upload.ID,
-		"artifact_path": "",
-	}).Error; err != nil {
+	winnerUploadID, err := attachLegacyDeploymentUpload(
+		ctx,
+		project.ID,
+		deployment.ID,
+		ingestResult.Upload.ID,
+	)
+	if ingestResult.Created && (err != nil || winnerUploadID != ingestResult.Upload.ID) {
+		if removeErr := removePagesUploadIfUnreferenced(ctx, project.ID, ingestResult.Upload.ID); removeErr != nil {
+			logger.ErrorF(ctx,
+				"[Pages] compensate legacy deployment upload failed: project_id=%d upload_id=%d error=%v",
+				project.ID, ingestResult.Upload.ID, removeErr,
+			)
+		}
+	}
+	if err != nil {
 		return nil, err
 	}
-	deployment.UploadID = ingestResult.Upload.ID
+	winner, err := upload.GetActiveUpload(ctx, winnerUploadID)
+	if err != nil {
+		return nil, err
+	}
+	deployment.UploadID = winnerUploadID
 	deployment.ArtifactPath = ""
-	return &ingestResult.Upload, nil
+	return &winner, nil
+}
+
+func attachLegacyDeploymentUpload(
+	ctx context.Context,
+	projectID uint,
+	deploymentID uint,
+	uploadID uint64,
+) (uint64, error) {
+	winnerUploadID := uint64(0)
+	err := db.DB(ctx).Transaction(func(tx *gorm.DB) error {
+		var err error
+		winnerUploadID, err = attachLegacyDeploymentUploadTx(tx, projectID, deploymentID, uploadID)
+		return err
+	})
+	return winnerUploadID, err
+}
+
+func attachLegacyDeploymentUploadTx(
+	tx *gorm.DB,
+	projectID uint,
+	deploymentID uint,
+	uploadID uint64,
+) (uint64, error) {
+	var lockedProject model.PagesProject
+	if err := tx.Clauses(clause.Locking{Strength: pagesRowLockStrength}).First(&lockedProject, projectID).Error; err != nil {
+		return 0, err
+	}
+	var lockedDeployment model.PagesDeployment
+	if err := tx.Clauses(clause.Locking{Strength: pagesRowLockStrength}).First(&lockedDeployment, deploymentID).Error; err != nil {
+		return 0, err
+	}
+	if lockedDeployment.ProjectID != lockedProject.ID {
+		return 0, errors.New(errPagesDeploymentMismatch)
+	}
+	if lockedDeployment.UploadID != 0 {
+		return lockedDeployment.UploadID, nil
+	}
+
+	var uploadRecord model.Upload
+	if err := tx.Clauses(clause.Locking{Strength: pagesRowLockStrength}).
+		Where("id = ?", uploadID).
+		First(&uploadRecord).Error; err != nil {
+		return 0, err
+	}
+	if uploadRecord.Status != model.UploadStatusUsed || uploadRecord.Type != upload.ReservedPagesDeploymentType {
+		return 0, errors.New(errPagesPackageUploadMissing)
+	}
+	result := tx.Model(&model.PagesDeployment{}).
+		Where("id = ? AND project_id = ? AND upload_id = 0", lockedDeployment.ID, lockedProject.ID).
+		Updates(map[string]any{
+			"upload_id":     uploadRecord.ID,
+			"artifact_path": "",
+		})
+	if result.Error != nil {
+		return 0, result.Error
+	}
+	if result.RowsAffected != 1 {
+		return 0, errors.New(errPagesPackageUploadMissing)
+	}
+	return uploadRecord.ID, nil
 }
 
 // ensureDeploymentInActiveSnapshot allows download of a specific deployment when
@@ -842,30 +1032,34 @@ func parseSnapshotRoutes(snapshotJSON string) ([]snapshotRouteRef, error) {
 
 // DeleteDeployment 删除 Pages 部署。
 func DeleteDeployment(ctx context.Context, projectID uint, deploymentID uint) error {
-	project, err := model.GetPagesProjectByID(ctx, projectID)
-	if err != nil {
-		return err
-	}
-	deployment, err := model.GetPagesDeploymentByID(ctx, deploymentID)
-	if err != nil {
-		return err
-	}
-	if deployment.ProjectID != project.ID {
-		return errors.New(errPagesDeploymentMismatch)
-	}
-	if project.ActiveDeploymentID != nil && *project.ActiveDeploymentID == deployment.ID {
-		return errors.New(errPagesDeleteActiveDeploy)
-	}
-	return db.DB(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := tx.Where("deployment_id = ?", deployment.ID).Delete(&model.PagesDeploymentFile{}).Error; err != nil {
+	var removed model.PagesDeployment
+	err := db.DB(ctx).Transaction(func(tx *gorm.DB) error {
+		var project model.PagesProject
+		if err := tx.Clauses(clause.Locking{Strength: pagesRowLockStrength}).First(&project, projectID).Error; err != nil {
 			return err
 		}
-		if err := tx.Delete(deployment).Error; err != nil {
+		if err := tx.First(&removed, deploymentID).Error; err != nil {
 			return err
 		}
-		removeDeploymentArtifact(ctx, deployment)
+		if removed.ProjectID != project.ID {
+			return errors.New(errPagesDeploymentMismatch)
+		}
+		if project.ActiveDeploymentID != nil && *project.ActiveDeploymentID == removed.ID {
+			return errors.New(errPagesDeleteActiveDeploy)
+		}
+		if err := tx.Where("deployment_id = ?", removed.ID).Delete(&model.PagesDeploymentFile{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Delete(&removed).Error; err != nil {
+			return err
+		}
 		return nil
 	})
+	if err != nil {
+		return err
+	}
+	removeDeploymentArtifact(ctx, projectID, &removed)
+	return nil
 }
 
 func buildProject(existing *model.PagesProject, input Input) (*model.PagesProject, error) {
@@ -923,7 +1117,11 @@ func buildProject(existing *model.PagesProject, input Input) (*model.PagesProjec
 		return nil, err
 	}
 	existing.RootDir = rootDir
-	existing.EntryFile = normalizePagesEntryFile(input.EntryFile)
+	entryFile, err := validateAndNormalizePagesEntryFile(input.EntryFile)
+	if err != nil {
+		return nil, err
+	}
+	existing.EntryFile = entryFile
 
 	return existing, nil
 }

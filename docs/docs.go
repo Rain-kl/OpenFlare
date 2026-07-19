@@ -3738,6 +3738,12 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/response.Any"
                         }
+                    },
+                    "409": {
+                        "description": "系统保留类型或存储只读",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
                     }
                 }
             }
@@ -12535,6 +12541,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/response.Any"
                         }
                     },
+                    "409": {
+                        "description": "系统保留类型或存储只读",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    },
                     "500": {
                         "description": "内部错误",
                         "schema": {
@@ -12726,6 +12738,12 @@ const docTemplate = `{
                     },
                     "404": {
                         "description": "文件不存在",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    },
+                    "409": {
+                        "description": "系统保留类型或存储只读",
                         "schema": {
                             "$ref": "#/definitions/response.Any"
                         }
@@ -14574,10 +14592,19 @@ const docTemplate = `{
                 "deployment_id": {
                     "type": "integer"
                 },
+                "file_count": {
+                    "type": "integer"
+                },
                 "hash": {
                     "type": "string"
                 },
+                "package_size": {
+                    "type": "integer"
+                },
                 "project_id": {
+                    "type": "integer"
+                },
+                "total_size": {
                     "type": "integer"
                 }
             }
@@ -16568,7 +16595,13 @@ const docTemplate = `{
         "observability.AccessLogView": {
             "type": "object",
             "properties": {
+                "bytes_sent": {
+                    "type": "integer"
+                },
                 "cache_status": {
+                    "type": "string"
+                },
+                "created_at": {
                     "type": "string"
                 },
                 "host": {
@@ -16594,6 +16627,12 @@ const docTemplate = `{
                 },
                 "remote_addr": {
                     "type": "string"
+                },
+                "request_length": {
+                    "type": "integer"
+                },
+                "request_time_ms": {
+                    "type": "integer"
                 },
                 "status_code": {
                     "type": "integer"
@@ -19310,7 +19349,8 @@ const docTemplate = `{
                 "block",
                 "ip_match",
                 "geo_match",
-                "pow"
+                "pow",
+                "ua_check"
             ],
             "x-enum-varnames": [
                 "RuleNodeStart",
@@ -19318,7 +19358,8 @@ const docTemplate = `{
                 "RuleNodeBlock",
                 "RuleNodeIPMatch",
                 "RuleNodeGeoMatch",
-                "RuleNodePoW"
+                "RuleNodePoW",
+                "RuleNodeUACheck"
             ]
         },
         "waf.RulePosition": {

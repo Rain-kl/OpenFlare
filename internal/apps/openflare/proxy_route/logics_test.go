@@ -19,7 +19,14 @@ func setupProxyRouteTestDB(t *testing.T) func() {
 	t.Helper()
 	sqliteDB, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{DisableForeignKeyConstraintWhenMigrating: true})
 	require.NoError(t, err)
-	require.NoError(t, sqliteDB.AutoMigrate(&model.ProxyRoute{}, &model.Origin{}, &model.Zone{}, &model.ZoneDomain{}, &model.TLSCertificate{}))
+	require.NoError(t, sqliteDB.AutoMigrate(
+		&model.ProxyRoute{},
+		&model.Origin{},
+		&model.Zone{},
+		&model.ZoneDomain{},
+		&model.TLSCertificate{},
+		&model.PagesProject{},
+	))
 	db.SetDB(sqliteDB)
 	return func() { db.SetDB(nil) }
 }
@@ -79,6 +86,52 @@ func TestCreateProxyRouteHTTPSRequiresCoveringCertificate(t *testing.T) {
 	domain := createZoneDomain(t, ctx, "api.example.com", nil)
 	_, err := CreateProxyRoute(ctx, Input{SiteName: "api", ZoneDomainIDs: []uint{domain.ID}, OriginURL: "http://origin.example.com:8080", EnableHTTPS: true})
 	require.EqualError(t, err, errProxyRouteCertRequired)
+}
+
+func TestPagesRouteLocksAndRevalidatesTargetProject(t *testing.T) {
+	cleanup := setupProxyRouteTestDB(t)
+	defer cleanup()
+	ctx := context.Background()
+	domain := createZoneDomain(t, ctx, "pages.example.com", nil)
+	activeDeploymentID := uint(99)
+	project := &model.PagesProject{
+		Name:               "Pages Site",
+		Slug:               "pages-site",
+		Enabled:            true,
+		ActiveDeploymentID: &activeDeploymentID,
+	}
+	require.NoError(t, db.DB(ctx).Create(project).Error)
+
+	view, err := CreateProxyRoute(ctx, Input{
+		SiteName:       "pages",
+		ZoneDomainIDs:  []uint{domain.ID},
+		UpstreamType:   proxyRouteUpstreamTypePages,
+		PagesProjectID: &project.ID,
+		Enabled:        true,
+	})
+	require.NoError(t, err)
+	require.NotNil(t, view.PagesProjectID)
+	assert.Equal(t, project.ID, *view.PagesProjectID)
+
+	require.NoError(t, db.DB(ctx).Delete(&model.PagesProject{}, project.ID).Error)
+	route := &model.ProxyRoute{UpstreamType: proxyRouteUpstreamTypePages, PagesProjectID: &project.ID}
+	err = db.DB(ctx).Transaction(func(tx *gorm.DB) error {
+		return lockPagesProjectsForRouteMutation(tx, 0, route)
+	})
+	require.EqualError(t, err, errProxyRoutePagesNotFound)
+}
+
+func TestRouteCanMoveAwayFromAlreadyMissingPagesProject(t *testing.T) {
+	cleanup := setupProxyRouteTestDB(t)
+	defer cleanup()
+	ctx := context.Background()
+	missingProjectID := uint(404)
+	route := &model.ProxyRoute{UpstreamType: "direct"}
+
+	err := db.DB(ctx).Transaction(func(tx *gorm.DB) error {
+		return lockPagesProjectsForRouteMutation(tx, missingProjectID, route)
+	})
+	require.NoError(t, err)
 }
 
 func TestNormalizeCachePolicyDefaultsAndLegacy(t *testing.T) {

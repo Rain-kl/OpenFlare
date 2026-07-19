@@ -7,9 +7,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"path"
 	"strings"
 
 	"github.com/Rain-kl/Wavelet/internal/model"
+	"github.com/Rain-kl/Wavelet/pkg/pagesarchive"
 	openrestyrender "github.com/Rain-kl/Wavelet/pkg/render/openresty"
 	"gorm.io/gorm"
 )
@@ -58,22 +60,40 @@ func buildPagesRouteSnapshot(
 	}
 
 	pagesProjectID = route.PagesProjectID
-	deployment = buildSnapshotPagesDeployment(project, activeDeployment)
+	deployment, err = buildSnapshotPagesDeployment(project, activeDeployment)
+	if err != nil {
+		return "", nil, nil, nil, fmt.Errorf("路由 %s Pages 配置无效: %w", route.SiteName, err)
+	}
 	originURL = fmt.Sprintf("openflare-pages://project/%d", project.ID)
 	return originURL, []string{originURL}, pagesProjectID, deployment, nil
 }
 
-func buildSnapshotPagesDeployment(project *model.PagesProject, activeDeployment *model.PagesDeployment) *openrestyrender.PagesDeployment {
+func buildSnapshotPagesDeployment(
+	project *model.PagesProject,
+	activeDeployment *model.PagesDeployment,
+) (*openrestyrender.PagesDeployment, error) {
 	if project == nil || activeDeployment == nil {
-		return nil
+		return nil, errors.New("pages 项目或部署为空")
+	}
+	rootDir, err := pagesarchive.NormalizeLogicalPath(strings.TrimSpace(project.RootDir), true)
+	if err != nil {
+		return nil, fmt.Errorf("pages 根目录不合法: %w", err)
 	}
 	entryFile := strings.TrimSpace(project.EntryFile)
 	if entryFile == "" {
 		entryFile = defaultPagesSnapshotEntryFile
 	}
+	entryFile, err = pagesarchive.NormalizeLogicalPath(entryFile, false)
+	if err != nil {
+		return nil, fmt.Errorf("pages 入口文件不合法: %w", err)
+	}
 	fallbackPath := strings.TrimSpace(project.SPAFallbackPath)
 	if fallbackPath == "" {
 		fallbackPath = defaultPagesSnapshotFallbackPath
+	}
+	localRoot := openrestyrender.PagesProjectLocalRoot(project.ID)
+	if rootDir != "" {
+		localRoot = path.Join(localRoot, rootDir)
 	}
 	return &openrestyrender.PagesDeployment{
 		ProjectID:          project.ID,
@@ -90,6 +110,6 @@ func buildSnapshotPagesDeployment(project *model.PagesProject, activeDeployment 
 		APIProxyRewrite:    strings.TrimSpace(project.APIProxyRewrite),
 		// Root is project-scoped so Agents can swap active packages without
 		// re-publishing main config (nginx root stays stable).
-		LocalRoot: openrestyrender.PagesProjectLocalRoot(project.ID),
-	}
+		LocalRoot: localRoot,
+	}, nil
 }

@@ -8,15 +8,20 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"io"
 	"os"
+	"sync"
 	"testing"
 	"time"
 
+	uploadcache "github.com/Rain-kl/Wavelet/internal/apps/upload/cache"
+	"github.com/Rain-kl/Wavelet/internal/apps/upload/shared"
 	"github.com/Rain-kl/Wavelet/internal/db"
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"github.com/Rain-kl/Wavelet/internal/storage"
 	"github.com/Rain-kl/Wavelet/internal/testhelper"
+	"gorm.io/gorm"
 )
 
 func TestIngestPolicyCreateIncrementsStats(t *testing.T) {
@@ -141,13 +146,21 @@ func TestIngestPolicyDedupNewRecordCreatesSecondRecord(t *testing.T) {
 		Extension: "png",
 		Hash:      hashStr,
 		Type:      "avatar",
-		Policy:    PolicyDedupNewRecord,
+		Metadata: model.UploadMetadata{
+			UserAgent: "first-agent",
+			Extra:     map[string]any{"record": "first"},
+		},
+		Policy: PolicyDedupNewRecord,
 	})
 	if err != nil {
 		t.Fatalf("first Ingest returned error: %v", err)
 	}
 	if putCount != 1 {
 		t.Fatalf("putCount after first ingest = %d, want 1", putCount)
+	}
+	first.Upload.Metadata.Bucket = "shared-bucket"
+	if err := dbConn.Save(&first.Upload).Error; err != nil {
+		t.Fatalf("update first upload metadata failed: %v", err)
 	}
 
 	second, err := Ingest(ctx, Request{
@@ -159,7 +172,12 @@ func TestIngestPolicyDedupNewRecordCreatesSecondRecord(t *testing.T) {
 		Extension: "png",
 		Hash:      hashStr,
 		Type:      "avatar",
-		Policy:    PolicyDedupNewRecord,
+		Metadata: model.UploadMetadata{
+			UserAgent: "second-agent",
+			Bucket:    "caller-bucket-must-not-survive",
+			Extra:     map[string]any{"record": "second"},
+		},
+		Policy: PolicyDedupNewRecord,
 	})
 	if err != nil {
 		t.Fatalf("second Ingest returned error: %v", err)
@@ -173,6 +191,15 @@ func TestIngestPolicyDedupNewRecordCreatesSecondRecord(t *testing.T) {
 	if first.Upload.ID == second.Upload.ID {
 		t.Fatal("dedup records should have unique IDs")
 	}
+	if second.Upload.Metadata.Bucket != "shared-bucket" {
+		t.Fatalf("dedup bucket = %q, want inherited shared-bucket", second.Upload.Metadata.Bucket)
+	}
+	if second.Upload.Metadata.UserAgent != "second-agent" {
+		t.Fatalf("dedup user agent = %q, want caller metadata", second.Upload.Metadata.UserAgent)
+	}
+	if second.Upload.Metadata.Extra["record"] != "second" {
+		t.Fatalf("dedup extra metadata = %#v, want caller metadata", second.Upload.Metadata.Extra)
+	}
 
 	var count int64
 	if err := dbConn.Model(&model.Upload{}).Where("hash = ?", hashStr).Count(&count).Error; err != nil {
@@ -181,6 +208,77 @@ func TestIngestPolicyDedupNewRecordCreatesSecondRecord(t *testing.T) {
 	if count != 2 {
 		t.Fatalf("upload count = %d, want 2", count)
 	}
+}
+
+func TestDedupRecordFailureDoesNotDeleteSharedObject(t *testing.T) {
+	dbConn, _, cleanup := testhelper.SetupTestEnvironment(t)
+	defer cleanup()
+	ctx := context.Background()
+
+	content := []byte("\x89PNG\r\n\x1a\nshared-object")
+	hash := sha256.Sum256(content)
+	hashStr := hex.EncodeToString(hash[:])
+	deleteCount := 0
+	restoreStorage, disableStorage := setupMockStorageWithDeleteCount(t, nil, &deleteCount)
+	defer restoreStorage()
+	defer disableStorage()
+
+	first, err := Ingest(ctx, Request{
+		UserID:    1001,
+		Reader:    bytes.NewReader(content),
+		Size:      int64(len(content)),
+		FileName:  "shared.png",
+		MimeType:  "image/png",
+		Extension: "png",
+		Hash:      hashStr,
+		Type:      "avatar",
+		Policy:    PolicyDedupNewRecord,
+	})
+	if err != nil {
+		t.Fatalf("first Ingest returned error: %v", err)
+	}
+
+	const callbackName = "test:reject_dedup_upload_record"
+	if err := dbConn.Callback().Create().Before("gorm:create").Register(callbackName, func(tx *gorm.DB) {
+		upload, ok := tx.Statement.Dest.(*model.Upload)
+		if ok && upload.FileName == "dedup-fail.png" {
+			tx.AddError(errors.New("injected upload create failure"))
+		}
+	}); err != nil {
+		t.Fatalf("register create failure callback: %v", err)
+	}
+	defer func() { _ = dbConn.Callback().Create().Remove(callbackName) }()
+
+	_, err = Ingest(ctx, Request{
+		UserID:    1002,
+		Reader:    bytes.NewReader(content),
+		Size:      int64(len(content)),
+		FileName:  "dedup-fail.png",
+		MimeType:  "image/png",
+		Extension: "png",
+		Hash:      hashStr,
+		Type:      "avatar",
+		Metadata: model.UploadMetadata{
+			Extra: map[string]any{"record": "dedup-failure"},
+		},
+		Policy: PolicyDedupNewRecord,
+	})
+	if err == nil {
+		t.Fatal("dedup Ingest expected injected persistence error")
+	}
+	if deleteCount != 0 {
+		t.Fatalf("shared object delete count = %d, want 0", deleteCount)
+	}
+
+	_, backend, err := storage.Active(ctx)
+	if err != nil {
+		t.Fatalf("load active storage: %v", err)
+	}
+	obj, err := backend.Get(ctx, first.Upload.FilePath)
+	if err != nil {
+		t.Fatalf("shared object became unreadable after dedup failure: %v", err)
+	}
+	_ = obj.Body.Close()
 }
 
 func TestCreateUploadWithStatsRollsBackOnCreateFailure(t *testing.T) {
@@ -259,6 +357,18 @@ func TestRemoveDecrementsStats(t *testing.T) {
 	if _, err := Remove(ctx, result.Upload.ID); err != nil {
 		t.Fatalf("Remove(%d) returned error: %v", result.Upload.ID, err)
 	}
+	stale := result.Upload
+	uploadcache.SetUploadMetaCache(ctx, &stale)
+	removedAgain, err := Remove(ctx, result.Upload.ID)
+	if err != nil {
+		t.Fatalf("second Remove(%d) returned error: %v", result.Upload.ID, err)
+	}
+	if removedAgain.Status != model.UploadStatusDeleted {
+		t.Fatalf("second Remove status = %s, want deleted", removedAgain.Status)
+	}
+	if _, err := uploadcache.GetUploadByID(ctx, result.Upload.ID); !errors.Is(err, gorm.ErrRecordNotFound) {
+		t.Fatalf("cache lookup after idempotent Remove error = %v, want record not found", err)
+	}
 
 	stats, err := loadTotalStats(ctx)
 	if err != nil {
@@ -266,6 +376,120 @@ func TestRemoveDecrementsStats(t *testing.T) {
 	}
 	if stats.TotalCount != 0 || stats.TotalSize != 0 {
 		t.Fatalf("loadTotalStats() after remove = count %d size %d, want zero", stats.TotalCount, stats.TotalSize)
+	}
+}
+
+func TestConcurrentRemoveDecrementsStatsOnce(t *testing.T) {
+	_, _, cleanup := testhelper.SetupTestEnvironment(t)
+	defer cleanup()
+	ctx := context.Background()
+
+	content := []byte("\x89PNG\r\n\x1a\nconcurrent-remove")
+	hash := sha256.Sum256(content)
+	restoreStorage, disableStorage := setupMockStorage(t, nil)
+	defer restoreStorage()
+	defer disableStorage()
+
+	result, err := Ingest(ctx, Request{
+		UserID:    1001,
+		Reader:    bytes.NewReader(content),
+		Size:      int64(len(content)),
+		FileName:  "concurrent.png",
+		MimeType:  "image/png",
+		Extension: "png",
+		Hash:      hex.EncodeToString(hash[:]),
+		Type:      "generic",
+		Policy:    PolicyCreate,
+	})
+	if err != nil {
+		t.Fatalf("Ingest returned error: %v", err)
+	}
+
+	const workers = 8
+	start := make(chan struct{})
+	errs := make(chan error, workers)
+	var wg sync.WaitGroup
+	for i := 0; i < workers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-start
+			_, removeErr := Remove(ctx, result.Upload.ID)
+			errs <- removeErr
+		}()
+	}
+	close(start)
+	wg.Wait()
+	close(errs)
+	for removeErr := range errs {
+		if removeErr != nil {
+			t.Fatalf("concurrent Remove returned error: %v", removeErr)
+		}
+	}
+
+	stats, err := loadTotalStats(ctx)
+	if err != nil {
+		t.Fatalf("loadTotalStats returned error: %v", err)
+	}
+	if stats.TotalCount != 0 || stats.TotalSize != 0 {
+		t.Fatalf("stats after concurrent remove = count %d size %d, want zero", stats.TotalCount, stats.TotalSize)
+	}
+}
+
+func TestRemoveOwnedAndReservedTypeBoundaries(t *testing.T) {
+	dbConn, _, cleanup := testhelper.SetupTestEnvironment(t)
+	defer cleanup()
+	ctx := context.Background()
+
+	ordinary := model.Upload{
+		ID:        99101,
+		UserID:    1001,
+		FileName:  "owned.txt",
+		FilePath:  "uploads/owned.txt",
+		FileSize:  16,
+		MimeType:  "text/plain",
+		Extension: "txt",
+		Hash:      "owned-hash",
+		Type:      "generic",
+		Status:    model.UploadStatusUsed,
+		CreatedAt: time.Now(),
+	}
+	reserved := model.Upload{
+		ID:        99102,
+		UserID:    1001,
+		FileName:  "pages.zip",
+		FilePath:  "uploads/pages.zip",
+		FileSize:  32,
+		MimeType:  "application/zip",
+		Extension: "zip",
+		Hash:      "reserved-hash",
+		Type:      shared.ReservedPagesDeploymentType,
+		Status:    model.UploadStatusUsed,
+		CreatedAt: time.Now(),
+	}
+	if err := dbConn.Create(&ordinary).Error; err != nil {
+		t.Fatalf("seed ordinary upload: %v", err)
+	}
+	if err := dbConn.Create(&reserved).Error; err != nil {
+		t.Fatalf("seed reserved upload: %v", err)
+	}
+
+	if _, err := RemoveOwned(ctx, 2002, ordinary.ID); !errors.Is(err, ErrForbidden) {
+		t.Fatalf("RemoveOwned non-owner error = %v, want ErrForbidden", err)
+	}
+	if _, err := Remove(ctx, reserved.ID); !errors.Is(err, ErrReservedUploadType) {
+		t.Fatalf("Remove reserved error = %v, want ErrReservedUploadType", err)
+	}
+	if _, err := RemoveOwned(ctx, reserved.UserID, reserved.ID); !errors.Is(err, ErrReservedUploadType) {
+		t.Fatalf("RemoveOwned reserved error = %v, want ErrReservedUploadType", err)
+	}
+
+	var persisted model.Upload
+	if err := dbConn.First(&persisted, reserved.ID).Error; err != nil {
+		t.Fatalf("reload reserved upload: %v", err)
+	}
+	if persisted.Status != model.UploadStatusUsed {
+		t.Fatalf("reserved upload status = %s, want used", persisted.Status)
 	}
 }
 
@@ -289,6 +513,10 @@ func loadTotalStats(ctx context.Context) (totalStatsSnapshot, error) {
 }
 
 func setupMockStorage(t *testing.T, putCount *int) (restore func(), disable func()) {
+	return setupMockStorageWithDeleteCount(t, putCount, nil)
+}
+
+func setupMockStorageWithDeleteCount(t *testing.T, putCount, deleteCount *int) (restore func(), disable func()) {
 	t.Helper()
 	mockFiles := make(map[string][]byte)
 	restore = storage.MockStorage(
@@ -316,6 +544,9 @@ func setupMockStorage(t *testing.T, putCount *int) (restore func(), disable func
 		},
 		func(ctx context.Context, key string) error {
 			delete(mockFiles, key)
+			if deleteCount != nil {
+				*deleteCount++
+			}
 			return nil
 		},
 	)

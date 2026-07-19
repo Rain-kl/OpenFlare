@@ -28,6 +28,7 @@ func TestBuildSnapshotRoutesPages(t *testing.T) {
 		Enabled:            true,
 		SPAFallbackEnabled: true,
 		SPAFallbackPath:    "/index.html",
+		RootDir:            "public/site",
 		EntryFile:          "index.html",
 	}
 	require.NoError(t, conn.Create(project).Error)
@@ -64,7 +65,7 @@ func TestBuildSnapshotRoutesPages(t *testing.T) {
 	require.NotNil(t, snapshotRoute.PagesDeployment)
 	assert.Equal(t, deployment.ID, snapshotRoute.PagesDeployment.DeploymentID)
 	assert.Equal(t, deployment.Checksum, snapshotRoute.PagesDeployment.Checksum)
-	assert.Equal(t, "__OPENFLARE_PAGES_DIR__/projects/1/current", snapshotRoute.PagesDeployment.LocalRoot)
+	assert.Equal(t, "__OPENFLARE_PAGES_DIR__/projects/1/current/public/site", snapshotRoute.PagesDeployment.LocalRoot)
 
 	_, err = renderSnapshotConfig(bundle.SnapshotJSON, nil)
 	require.NoError(t, err)
@@ -76,6 +77,17 @@ func TestBuildSnapshotRoutesPages(t *testing.T) {
 	}
 	require.NoError(t, json.Unmarshal([]byte(bundle.SnapshotJSON), &decoded))
 	require.NotNil(t, decoded.Routes[0].PagesDeployment)
+}
+
+func TestBuildSnapshotPagesDeploymentRejectsUnsafeStoredPaths(t *testing.T) {
+	deployment := &model.PagesDeployment{ID: 1, ProjectID: 1, Checksum: "checksum"}
+	for _, project := range []*model.PagesProject{
+		{ID: 1, RootDir: "../escape", EntryFile: "index.html"},
+		{ID: 1, RootDir: "public", EntryFile: "/index.html"},
+	} {
+		_, err := buildSnapshotPagesDeployment(project, deployment)
+		require.Error(t, err)
+	}
 }
 
 func requireDB(t *testing.T, ctx context.Context) *gorm.DB {

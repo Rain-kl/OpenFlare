@@ -760,9 +760,15 @@ definitions:
     properties:
       deployment_id:
         type: integer
+      file_count:
+        type: integer
       hash:
         type: string
+      package_size:
+        type: integer
       project_id:
+        type: integer
+      total_size:
         type: integer
     type: object
   github_com_Rain-kl_Wavelet_pkg_protocol.WAFIPGroup:
@@ -2085,7 +2091,11 @@ definitions:
     type: object
   observability.AccessLogView:
     properties:
+      bytes_sent:
+        type: integer
       cache_status:
+        type: string
+      created_at:
         type: string
       host:
         type: string
@@ -2103,6 +2113,10 @@ definitions:
         type: string
       remote_addr:
         type: string
+      request_length:
+        type: integer
+      request_time_ms:
+        type: integer
       status_code:
         type: integer
       user_agent:
@@ -3908,6 +3922,7 @@ definitions:
     - ip_match
     - geo_match
     - pow
+    - ua_check
     type: string
     x-enum-varnames:
     - RuleNodeStart
@@ -3916,6 +3931,7 @@ definitions:
     - RuleNodeIPMatch
     - RuleNodeGeoMatch
     - RuleNodePoW
+    - RuleNodeUACheck
   waf.RulePosition:
     properties:
       x:
@@ -6155,6 +6171,10 @@ paths:
             $ref: '#/definitions/response.Any'
         "404":
           description: 文件不存在
+          schema:
+            $ref: '#/definitions/response.Any'
+        "409":
+          description: 系统保留类型或存储只读
           schema:
             $ref: '#/definitions/response.Any'
       security:
@@ -11589,6 +11609,10 @@ paths:
           description: 未登录
           schema:
             $ref: '#/definitions/response.Any'
+        "409":
+          description: 系统保留类型或存储只读
+          schema:
+            $ref: '#/definitions/response.Any'
         "500":
           description: 内部错误
           schema:
@@ -11620,6 +11644,10 @@ paths:
             $ref: '#/definitions/response.Any'
         "404":
           description: 文件不存在
+          schema:
+            $ref: '#/definitions/response.Any'
+        "409":
+          description: 系统保留类型或存储只读
           schema:
             $ref: '#/definitions/response.Any'
       security:

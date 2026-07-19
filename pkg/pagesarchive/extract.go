@@ -4,7 +4,9 @@
 package pagesarchive
 
 import (
+	"archive/tar"
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -16,14 +18,12 @@ const formatDetectHeadBytes = 512
 
 // ExtractOptions controls package extraction.
 type ExtractOptions struct {
-	// Limits bounds files and sizes during extraction when EnforceLimits is true.
+	// Limits bounds actual files and sizes during extraction when EnforceLimits is true.
 	Limits Limits
 	// StripCommonRoot strips a single shared top-level directory when present.
 	StripCommonRoot bool
 	// EnforceLimits enables MaxFiles / MaxFileBytes / MaxTotalBytes checks.
-	// When false, the caller is assumed to have already validated the package
-	// (e.g. Agent trusts control-plane inspection). Path-escape and symlink
-	// guards still apply so local extraction cannot leave destDir.
+	// Path, member type, and declared/actual-size validation always remain enabled.
 	EnforceLimits bool
 }
 
@@ -36,16 +36,11 @@ func ExtractBytes(data []byte, format Format, destDir string, opts ExtractOption
 			return err
 		}
 	}
-	entries, err := listEntriesAt(bytes.NewReader(data), int64(len(data)), format, true)
-	if err != nil {
-		return err
-	}
-	return extractEntries(entries, destDir, opts)
+	return extractFromReaderAt(bytes.NewReader(data), int64(len(data)), format, destDir, opts)
 }
 
 // ExtractFile opens path and extracts it into destDir without buffering the
-// whole archive as an intermediate []byte for zip/7z (ReaderAt). Tar-family
-// formats still materialize member bodies so random Open works for extract.
+// whole archive or tar member bodies in memory.
 func ExtractFile(filePath string, format Format, destDir string, opts ExtractOptions) error {
 	file, err := os.Open(filePath) //nolint:gosec // controlled path
 	if err != nil {
@@ -68,7 +63,14 @@ func ExtractFile(filePath string, format Format, destDir string, opts ExtractOpt
 			return err
 		}
 	}
-	entries, err := listEntriesAt(file, info.Size(), format, true)
+	return extractFromReaderAt(file, info.Size(), format, destDir, opts)
+}
+
+func extractFromReaderAt(ra io.ReaderAt, size int64, format Format, destDir string, opts ExtractOptions) error {
+	if isTarFamily(format) {
+		return extractTarFamilyAt(ra, size, format, destDir, opts)
+	}
+	entries, err := listRandomAccessEntriesAt(ra, size, format)
 	if err != nil {
 		return err
 	}
@@ -80,88 +82,159 @@ func extractEntries(entries []Entry, destDir string, opts ExtractOptions) error 
 	if opts.EnforceLimits {
 		limits = normalizeLimits(opts.Limits)
 	}
-	commonPrefix := ""
-	if opts.StripCommonRoot {
-		commonPrefix = FindCommonRootPrefix(collectFileNames(entries))
+	commonPrefix, err := commonRootForEntries(entries, opts.StripCommonRoot)
+	if err != nil {
+		return err
 	}
 
-	var totalSize int64
-	var fileCount int
+	measured := &measuredArchive{files: make([]measuredFile, 0, len(entries))}
 	for _, entry := range entries {
-		written, counted, err := extractSingleEntry(entry, destDir, commonPrefix, limits, opts.EnforceLimits)
+		normalizedPath, skip, err := validateArchiveEntry(entry)
 		if err != nil {
 			return err
 		}
-		if !counted {
+		if skip {
 			continue
 		}
-		fileCount++
-		if opts.EnforceLimits && fileCount > limits.MaxFiles {
-			return fmt.Errorf("pages deployment file count exceeds %d", limits.MaxFiles)
+		normalizedPath = StripPrefix(normalizedPath, commonPrefix)
+		if normalizedPath == "" {
+			continue
 		}
-		totalSize += written
-		if opts.EnforceLimits && totalSize > limits.MaxTotalBytes {
-			return fmt.Errorf("pages extracted size exceeds limit")
+		if err := prepareMeasuredFile(measured, normalizedPath, entry.Size, limits, opts.EnforceLimits); err != nil {
+			return err
 		}
+		if entry.Open == nil {
+			return fmt.Errorf("%s: pages archive member cannot be opened", normalizedPath)
+		}
+		src, err := entry.Open()
+		if err != nil {
+			return fmt.Errorf("%s: %w", normalizedPath, err)
+		}
+		maxBytes := effectiveFileLimit(limits, measured.totalSize, opts.EnforceLimits)
+		targetPath, err := safeExtractionTarget(destDir, normalizedPath)
+		if err != nil {
+			_ = src.Close()
+			return err
+		}
+		actual, writeErr := writeEntryFile(targetPath, src, entry.Size, maxBytes, filePerm)
+		closeErr := src.Close()
+		if err := errors.Join(writeErr, closeErr); err != nil {
+			return fmt.Errorf("%s: %w", normalizedPath, err)
+		}
+		appendMeasuredFile(measured, normalizedPath, actual)
 	}
-	if fileCount == 0 {
+	if measured.fileCount == 0 {
 		return fmt.Errorf("pages package is empty")
 	}
 	return nil
 }
 
-func extractSingleEntry(
-	entry Entry,
-	destDir, commonPrefix string,
+func extractTarFamilyAt(ra io.ReaderAt, size int64, format Format, destDir string, opts ExtractOptions) error {
+	limits := Limits{}
+	if opts.EnforceLimits {
+		limits = normalizeLimits(opts.Limits)
+	}
+	firstPass, err := scanTarFamilyAt(ra, size, format, limits, opts.EnforceLimits)
+	if err != nil {
+		return err
+	}
+	if firstPass.fileCount == 0 {
+		return fmt.Errorf("pages package is empty")
+	}
+	commonPrefix := ""
+	if opts.StripCommonRoot {
+		paths := make([]string, 0, len(firstPass.files))
+		for _, file := range firstPass.files {
+			paths = append(paths, file.path)
+		}
+		commonPrefix = FindCommonRootPrefix(paths)
+	}
+
+	tarReader, closeReader, err := openTarFamilyReader(io.NewSectionReader(ra, 0, size), format)
+	if err != nil {
+		return err
+	}
+	secondPass, extractErr := extractTarReader(tarReader, destDir, commonPrefix, limits, opts.EnforceLimits)
+	if closeErr := closeReader(); closeErr != nil {
+		extractErr = errors.Join(extractErr, closeErr)
+	}
+	if extractErr != nil {
+		return extractErr
+	}
+	if secondPass.fileCount != firstPass.fileCount || secondPass.totalSize != firstPass.totalSize {
+		return fmt.Errorf("pages tar package changed between validation and extraction")
+	}
+	return nil
+}
+
+func extractTarReader(
+	tarReader *tar.Reader,
+	destDir string,
+	commonPrefix string,
 	limits Limits,
 	enforceLimits bool,
-) (written int64, counted bool, err error) {
-	relativePath, skip, err := NormalizeEntryPath(entry.Name)
-	if err != nil {
-		return 0, false, err
+) (*measuredArchive, error) {
+	measured := &measuredArchive{files: make([]measuredFile, 0)}
+	for {
+		header, err := tarReader.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, fmt.Errorf("read tar pages package: %w", err)
+		}
+		entry := entryFromTarHeader(header)
+		normalizedPath, skip, err := validateArchiveEntry(entry)
+		if err != nil {
+			return nil, err
+		}
+		if skip {
+			continue
+		}
+		normalizedPath = StripPrefix(normalizedPath, commonPrefix)
+		if normalizedPath == "" {
+			continue
+		}
+		if err := prepareMeasuredFile(measured, normalizedPath, entry.Size, limits, enforceLimits); err != nil {
+			return nil, err
+		}
+		targetPath, err := safeExtractionTarget(destDir, normalizedPath)
+		if err != nil {
+			return nil, err
+		}
+		maxBytes := effectiveFileLimit(limits, measured.totalSize, enforceLimits)
+		actual, err := writeEntryFile(targetPath, tarReader, entry.Size, maxBytes, filePerm)
+		if err != nil {
+			return nil, fmt.Errorf("%s: %w", normalizedPath, err)
+		}
+		appendMeasuredFile(measured, normalizedPath, actual)
 	}
-	if skip {
-		return 0, false, nil
-	}
-	if commonPrefix != "" {
-		relativePath = StripPrefix(relativePath, commonPrefix)
-		if relativePath == "" {
-			return 0, false, nil
+	return measured, nil
+}
+
+func commonRootForEntries(entries []Entry, strip bool) (string, error) {
+	paths := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		normalizedPath, skip, err := validateArchiveEntry(entry)
+		if err != nil {
+			return "", err
+		}
+		if !skip {
+			paths = append(paths, normalizedPath)
 		}
 	}
-	if entry.IsSymlink {
-		return 0, false, fmt.Errorf("pages package contains unsupported symlink: %s", relativePath)
+	if !strip {
+		return "", nil
 	}
+	return FindCommonRootPrefix(paths), nil
+}
 
+func safeExtractionTarget(destDir, relativePath string) (string, error) {
 	targetPath := filepath.Join(destDir, filepath.FromSlash(relativePath))
 	if !isWithinDir(destDir, targetPath) {
-		return 0, false, fmt.Errorf("pages package path escapes directory: %s", entry.Name)
+		return "", fmt.Errorf("pages package path escapes directory: %s", relativePath)
 	}
-
-	if entry.IsDir {
-		if err := os.MkdirAll(targetPath, dirPerm); err != nil {
-			return 0, false, err
-		}
-		return 0, false, nil
-	}
-
-	maxFileBytes := int64(0) // unlimited when not enforcing
-	if enforceLimits {
-		if exceedsFileByteLimit(entry.Size, limits.MaxFileBytes) {
-			return 0, false, fmt.Errorf("pages file too large: %s", relativePath)
-		}
-		maxFileBytes = limits.MaxFileBytes
-	}
-	src, err := entry.Open()
-	if err != nil {
-		return 0, false, fmt.Errorf("%s: %w", relativePath, err)
-	}
-	written, writeErr := writeEntryFile(targetPath, src, entry.Size, maxFileBytes, filePerm)
-	_ = src.Close()
-	if writeErr != nil {
-		return 0, false, fmt.Errorf("%s: %w", relativePath, writeErr)
-	}
-	return written, true, nil
+	return targetPath, nil
 }
 
 func isWithinDir(baseDir, targetPath string) bool {

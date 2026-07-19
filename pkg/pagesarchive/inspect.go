@@ -4,13 +4,14 @@
 package pagesarchive
 
 import (
+	"archive/tar"
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"math"
 	"os"
 	"path"
-	"strings"
 )
 
 // InspectOptions controls package inspection.
@@ -19,17 +20,26 @@ type InspectOptions struct {
 	RootDir string
 	// EntryFile is the required entry file name (e.g. index.html).
 	EntryFile string
-	// Limits bounds files and sizes.
+	// Limits bounds files and actual extracted sizes.
 	Limits Limits
-	// VerifySizes, when true, streams each regular file and compares the actual
-	// byte count against the archive-declared size (no content hashing).
-	// Default false: trust zip central directory / tar header sizes.
+	// VerifySizes is retained for source compatibility. Inspection now always
+	// streams regular members and verifies actual bytes against declared sizes.
 	VerifySizes bool
 }
 
+type measuredFile struct {
+	path string
+	size int64
+}
+
+type measuredArchive struct {
+	files     []measuredFile
+	fileCount int
+	totalSize int64
+}
+
 // InspectFile opens path and inspects it as a Pages deployment package without
-// loading the whole archive into memory. File inventory uses declared sizes;
-// per-file content hashes are not computed.
+// loading the whole archive or any tar member body into memory.
 func InspectFile(filePath string, format Format, opts InspectOptions) (*Manifest, error) {
 	file, err := os.Open(filePath) //nolint:gosec // filePath is a controlled temp upload path
 	if err != nil {
@@ -68,55 +78,137 @@ func InspectBytes(data []byte, format Format, opts InspectOptions) (*Manifest, e
 }
 
 func inspectFromReaderAt(ra io.ReaderAt, size int64, format Format, opts InspectOptions) (*Manifest, error) {
-	// Default: zip/7z use central directory only; tar streams headers and discards bodies.
-	// VerifySizes needs openable tar bodies, so materialize only when requested.
-	entries, err := listEntriesAt(ra, size, format, opts.VerifySizes)
+	limits := normalizeLimits(opts.Limits)
+	var (
+		measured *measuredArchive
+		err      error
+	)
+	if isTarFamily(format) {
+		measured, err = scanTarFamilyAt(ra, size, format, limits, true)
+	} else {
+		var entries []Entry
+		entries, err = listRandomAccessEntriesAt(ra, size, format)
+		if err == nil {
+			measured, err = inspectRandomAccessEntries(entries, limits)
+		}
+	}
 	if err != nil {
 		return nil, err
 	}
-	return buildManifest(entries, opts)
+	return buildMeasuredManifest(measured, opts)
 }
 
-func buildManifest(entries []Entry, opts InspectOptions) (*Manifest, error) {
-	limits := normalizeLimits(opts.Limits)
-	commonPrefix := FindCommonRootPrefix(collectFileNames(entries))
-	targetEntryPath := resolveTargetEntryPath(opts.RootDir, opts.EntryFile)
-
-	manifest := &Manifest{Files: make([]FileEntry, 0)}
-	entrySeen := false
-
+func inspectRandomAccessEntries(entries []Entry, limits Limits) (*measuredArchive, error) {
+	measured := &measuredArchive{files: make([]measuredFile, 0, len(entries))}
 	for _, entry := range entries {
-		normalizedPath, skip, err := prepareEntryPath(entry, commonPrefix)
+		normalizedPath, skip, err := validateArchiveEntry(entry)
 		if err != nil {
 			return nil, err
 		}
 		if skip {
 			continue
 		}
-		if exceedsFileByteLimit(entry.Size, limits.MaxFileBytes) {
-			return nil, fmt.Errorf("pages file too large: %s", normalizedPath)
+		if err := prepareMeasuredFile(measured, normalizedPath, entry.Size, limits, true); err != nil {
+			return nil, err
 		}
+		if entry.Open == nil {
+			return nil, fmt.Errorf("%s: pages archive member cannot be opened", normalizedPath)
+		}
+		src, err := entry.Open()
+		if err != nil {
+			return nil, fmt.Errorf("%s: %w", normalizedPath, err)
+		}
+		maxBytes := effectiveFileLimit(limits, measured.totalSize, true)
+		actual, copyErr := copyAndVerifySize(io.Discard, src, entry.Size, maxBytes)
+		closeErr := src.Close()
+		if err := errors.Join(copyErr, closeErr); err != nil {
+			return nil, fmt.Errorf("%s: %w", normalizedPath, err)
+		}
+		appendMeasuredFile(measured, normalizedPath, actual)
+	}
+	return measured, nil
+}
 
-		fileEntry, err := inspectRegularFile(entry, normalizedPath, limits, opts.VerifySizes)
+func scanTarFamilyAt(
+	ra io.ReaderAt,
+	size int64,
+	format Format,
+	limits Limits,
+	enforceLimits bool,
+) (*measuredArchive, error) {
+	if size < 0 {
+		return nil, fmt.Errorf("invalid pages package size")
+	}
+	tarReader, closeReader, err := openTarFamilyReader(io.NewSectionReader(ra, 0, size), format)
+	if err != nil {
+		return nil, err
+	}
+	measured, scanErr := scanTarReader(tarReader, limits, enforceLimits)
+	if closeErr := closeReader(); closeErr != nil {
+		scanErr = errors.Join(scanErr, closeErr)
+	}
+	return measured, scanErr
+}
+
+func scanTarReader(tarReader *tar.Reader, limits Limits, enforceLimits bool) (*measuredArchive, error) {
+	measured := &measuredArchive{files: make([]measuredFile, 0)}
+	for {
+		header, err := tarReader.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, fmt.Errorf("read tar pages package: %w", err)
+		}
+		entry := entryFromTarHeader(header)
+		normalizedPath, skip, err := validateArchiveEntry(entry)
 		if err != nil {
 			return nil, err
 		}
-		manifest.FileCount++
-		if manifest.FileCount > limits.MaxFiles {
-			return nil, fmt.Errorf("pages deployment file count exceeds %d", limits.MaxFiles)
+		if skip {
+			continue
 		}
-		manifest.TotalSize += fileEntry.Size
-		if manifest.TotalSize > limits.MaxTotalBytes {
-			return nil, fmt.Errorf("pages extracted size exceeds limit")
+		if err := prepareMeasuredFile(measured, normalizedPath, entry.Size, limits, enforceLimits); err != nil {
+			return nil, err
 		}
+		maxBytes := effectiveFileLimit(limits, measured.totalSize, enforceLimits)
+		actual, err := copyAndVerifySize(io.Discard, tarReader, entry.Size, maxBytes)
+		if err != nil {
+			return nil, fmt.Errorf("%s: %w", normalizedPath, err)
+		}
+		appendMeasuredFile(measured, normalizedPath, actual)
+	}
+	return measured, nil
+}
+
+func buildMeasuredManifest(measured *measuredArchive, opts InspectOptions) (*Manifest, error) {
+	if measured == nil || measured.fileCount == 0 {
+		return nil, fmt.Errorf("pages package is empty")
+	}
+	targetEntryPath, err := resolveTargetEntryPath(opts.RootDir, opts.EntryFile)
+	if err != nil {
+		return nil, err
+	}
+	paths := make([]string, 0, len(measured.files))
+	for _, file := range measured.files {
+		paths = append(paths, file.path)
+	}
+	commonPrefix := FindCommonRootPrefix(paths)
+	manifest := &Manifest{
+		Files:     make([]FileEntry, 0, measured.fileCount),
+		FileCount: measured.fileCount,
+		TotalSize: measured.totalSize,
+	}
+	entrySeen := false
+	for _, file := range measured.files {
+		normalizedPath := StripPrefix(file.path, commonPrefix)
 		if normalizedPath == targetEntryPath {
 			entrySeen = true
 		}
-		manifest.Files = append(manifest.Files, fileEntry)
-	}
-
-	if manifest.FileCount == 0 {
-		return nil, fmt.Errorf("pages package is empty")
+		manifest.Files = append(manifest.Files, FileEntry{
+			Path: normalizedPath,
+			Size: file.size,
+		})
 	}
 	if !entrySeen {
 		return nil, fmt.Errorf("pages package is missing entry file %s", targetEntryPath)
@@ -124,82 +216,86 @@ func buildManifest(entries []Entry, opts InspectOptions) (*Manifest, error) {
 	return manifest, nil
 }
 
-func collectFileNames(entries []Entry) []string {
-	names := make([]string, 0, len(entries))
-	for _, entry := range entries {
-		if entry.IsDir || entry.IsSymlink {
-			continue
-		}
-		names = append(names, entry.Name)
+func prepareMeasuredFile(measured *measuredArchive, normalizedPath string, declaredSize uint64, limits Limits, enforceLimits bool) error {
+	if declaredSize > uint64(math.MaxInt64) {
+		return fmt.Errorf("%s: pages file size out of bounds", normalizedPath)
 	}
-	return names
+	if !enforceLimits {
+		return nil
+	}
+	if measured.fileCount >= limits.MaxFiles {
+		return fmt.Errorf("pages deployment file count exceeds %d", limits.MaxFiles)
+	}
+	if exceedsFileByteLimit(declaredSize, limits.MaxFileBytes) {
+		return fmt.Errorf("pages file too large: %s", normalizedPath)
+	}
+	remaining := limits.MaxTotalBytes - measured.totalSize
+	if remaining < 0 || declaredSize > uint64(remaining) { //nolint:gosec // remaining is checked non-negative
+		return fmt.Errorf("pages extracted size exceeds limit")
+	}
+	return nil
 }
 
-func resolveTargetEntryPath(rootDir, entryFile string) string {
-	normalizedEntry := strings.TrimSpace(entryFile)
-	if normalizedEntry == "" {
-		normalizedEntry = "index.html"
+func appendMeasuredFile(measured *measuredArchive, normalizedPath string, actual int64) {
+	measured.files = append(measured.files, measuredFile{path: normalizedPath, size: actual})
+	measured.fileCount++
+	measured.totalSize += actual
+}
+
+func effectiveFileLimit(limits Limits, totalSize int64, enforceLimits bool) int64 {
+	if !enforceLimits {
+		return -1
 	}
-	normalizedRoot := strings.Trim(strings.TrimSpace(rootDir), "/")
+	remaining := limits.MaxTotalBytes - totalSize
+	if remaining < limits.MaxFileBytes {
+		return remaining
+	}
+	return limits.MaxFileBytes
+}
+
+func resolveTargetEntryPath(rootDir, entryFile string) (string, error) {
+	normalizedRoot, err := NormalizeLogicalPath(rootDir, true)
+	if err != nil {
+		return "", fmt.Errorf("invalid pages root directory: %w", err)
+	}
+	if entryFile == "" {
+		entryFile = "index.html"
+	}
+	normalizedEntry, err := NormalizeLogicalPath(entryFile, false)
+	if err != nil {
+		return "", fmt.Errorf("invalid pages entry file: %w", err)
+	}
 	if normalizedRoot == "" {
-		return normalizedEntry
+		return normalizedEntry, nil
 	}
-	return path.Join(normalizedRoot, normalizedEntry)
+	return path.Join(normalizedRoot, normalizedEntry), nil
 }
 
-func prepareEntryPath(entry Entry, commonPrefix string) (string, bool, error) {
+func validateArchiveEntry(entry Entry) (string, bool, error) {
 	normalizedPath, skip, err := NormalizeEntryPath(entry.Name)
 	if err != nil {
 		return "", false, err
 	}
-	if skip || entry.IsDir {
-		return "", true, nil
-	}
-	normalizedPath = StripPrefix(normalizedPath, commonPrefix)
 	if entry.IsSymlink {
 		return "", false, fmt.Errorf("pages package contains unsupported symlink: %s", normalizedPath)
+	}
+	if entry.IsHardlink {
+		return "", false, fmt.Errorf("pages package contains unsupported hardlink: %s", normalizedPath)
+	}
+	if entry.IsSpecial {
+		return "", false, fmt.Errorf("pages package contains unsupported special entry: %s", normalizedPath)
+	}
+	if skip || entry.IsDir {
+		return normalizedPath, true, nil
 	}
 	return normalizedPath, false, nil
 }
 
-func inspectRegularFile(entry Entry, normalizedPath string, limits Limits, verifySizes bool) (FileEntry, error) {
-	if entry.Size > uint64(math.MaxInt64) {
-		return FileEntry{}, fmt.Errorf("%s: pages file size out of bounds", normalizedPath)
+func isTarFamily(format Format) bool {
+	switch format {
+	case FormatTar, FormatTarGz, FormatTarXz, FormatTarBz2:
+		return true
+	default:
+		return false
 	}
-	//nolint:gosec // bounded to MaxInt64 above
-	declaredSize := int64(entry.Size)
-
-	if !verifySizes {
-		return FileEntry{
-			Path:     normalizedPath,
-			Size:     declaredSize,
-			Checksum: "",
-		}, nil
-	}
-
-	if entry.Open == nil {
-		return FileEntry{}, fmt.Errorf("%s: cannot verify size without entry open", normalizedPath)
-	}
-	src, err := entry.Open()
-	if err != nil {
-		return FileEntry{}, fmt.Errorf("%s: %w", normalizedPath, err)
-	}
-	actual, measureErr := measureReader(src, entry.Size, limits.MaxFileBytes)
-	_ = src.Close()
-	if measureErr != nil {
-		return FileEntry{}, fmt.Errorf("%s: %w", normalizedPath, measureErr)
-	}
-	if declaredSize > 0 && actual != declaredSize {
-		return FileEntry{}, fmt.Errorf("%s: declared size %d does not match actual %d", normalizedPath, declaredSize, actual)
-	}
-	return FileEntry{
-		Path:     normalizedPath,
-		Size:     actual,
-		Checksum: "",
-	}, nil
-}
-
-// measureReader counts bytes without hashing, enforcing maxBytes when positive.
-func measureReader(src io.Reader, declaredSize uint64, maxBytes int64) (int64, error) {
-	return copyLimited(io.Discard, src, declaredSize, maxBytes)
 }

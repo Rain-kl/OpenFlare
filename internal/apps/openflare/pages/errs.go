@@ -34,4 +34,6 @@ const (
 	errPagesPackageNotInActiveConfig = "pages 部署尚未进入激活配置"
 	errPagesDeploymentHashMissing    = "pages 部署包哈希缺失"
 	errPagesInvalidSnapshotFormat    = "配置快照格式无效"
+	errPagesActorMissing             = "无法识别当前用户"
+	errPagesEntryFileMissing         = "当前激活部署中不存在指定入口文件"
 )

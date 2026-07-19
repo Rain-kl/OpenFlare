@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"path"
 	"strings"
 
 	"github.com/Rain-kl/Wavelet/internal/model"
@@ -102,7 +103,10 @@ func rebindPagesRouteMaps(ctx context.Context, routes []map[string]json.RawMessa
 		if err != nil {
 			return false, err
 		}
-		deployment := buildLivePagesDeployment(project, activeDeployment)
+		deployment, err := buildLivePagesDeployment(project, activeDeployment)
+		if err != nil {
+			return false, err
+		}
 		projectIDCopy := project.ID
 		originURL := fmt.Sprintf("openflare-pages://project/%d", project.ID)
 
@@ -181,14 +185,25 @@ func loadActivePagesProject(ctx context.Context, projectID uint, siteName string
 	return project, activeDeployment, nil
 }
 
-func buildLivePagesDeployment(project *model.PagesProject, active *model.PagesDeployment) *openrestyrender.PagesDeployment {
-	entryFile := strings.TrimSpace(project.EntryFile)
-	if entryFile == "" {
-		entryFile = defaultPagesEntryFile
+func buildLivePagesDeployment(
+	project *model.PagesProject,
+	active *model.PagesDeployment,
+) (*openrestyrender.PagesDeployment, error) {
+	rootDir, err := validateAndNormalizePagesRootDir(project.RootDir)
+	if err != nil {
+		return nil, err
+	}
+	entryFile, err := validateAndNormalizePagesEntryFile(project.EntryFile)
+	if err != nil {
+		return nil, err
 	}
 	fallbackPath := strings.TrimSpace(project.SPAFallbackPath)
 	if fallbackPath == "" {
 		fallbackPath = defaultPagesFallbackPath
+	}
+	localRoot := openrestyrender.PagesProjectLocalRoot(project.ID)
+	if rootDir != "" {
+		localRoot = path.Join(localRoot, rootDir)
 	}
 	return &openrestyrender.PagesDeployment{
 		ProjectID:          project.ID,
@@ -203,8 +218,8 @@ func buildLivePagesDeployment(project *model.PagesProject, active *model.PagesDe
 		APIProxyPath:       strings.TrimSpace(project.APIProxyPath),
 		APIProxyPass:       strings.TrimSpace(project.APIProxyPass),
 		APIProxyRewrite:    strings.TrimSpace(project.APIProxyRewrite),
-		LocalRoot:          openrestyrender.PagesProjectLocalRoot(project.ID),
-	}
+		LocalRoot:          localRoot,
+	}, nil
 }
 
 func rawJSONString(raw json.RawMessage) (string, bool) {

@@ -4,6 +4,7 @@
 package handler
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
 
@@ -96,6 +97,7 @@ func ListFiles(c *gin.Context) {
 // @Success 200 {object} response.Any "删除成功"
 // @Failure 403 {object} response.Any "无权操作"
 // @Failure 404 {object} response.Any "文件不存在"
+// @Failure 409 {object} response.Any "系统保留类型或存储只读"
 // @Router /api/v1/admin/uploads/{id} [delete]
 func DeleteFile(c *gin.Context) {
 	ctx := c.Request.Context()
@@ -111,6 +113,10 @@ func DeleteFile(c *gin.Context) {
 	}
 
 	if _, err := softDeleteUpload(ctx, uploadID); err != nil {
+		if errors.Is(err, ingest.ErrReservedUploadType) {
+			response.AbortConflict(c, shared.ErrReservedUploadType)
+			return
+		}
 		if isRecordNotFound(err) {
 			response.AbortNotFound(c, "文件记录未找到")
 			return
@@ -216,6 +222,7 @@ func ListMyFiles(c *gin.Context) {
 // @Success 200 {object} response.Any "删除成功"
 // @Failure 403 {object} response.Any "无权操作"
 // @Failure 404 {object} response.Any "文件不存在"
+// @Failure 409 {object} response.Any "系统保留类型或存储只读"
 // @Router /api/v1/upload/{id} [delete]
 func DeleteMyFile(c *gin.Context) {
 	currUser, _ := oauth.GetFromContext[*model.User](c, oauth.UserObjKey)
@@ -232,11 +239,15 @@ func DeleteMyFile(c *gin.Context) {
 	}
 
 	if _, err := softDeleteOwnedUpload(ctx, currUser.ID, uploadID); err != nil {
+		if errors.Is(err, ingest.ErrReservedUploadType) {
+			response.AbortConflict(c, shared.ErrReservedUploadType)
+			return
+		}
 		if isRecordNotFound(err) {
 			response.AbortNotFound(c, "文件记录未找到")
 			return
 		}
-		if err == ingest.ErrForbidden {
+		if errors.Is(err, ingest.ErrForbidden) {
 			response.AbortForbidden(c, "无权操作")
 			return
 		}

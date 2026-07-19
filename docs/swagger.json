@@ -3731,6 +3731,12 @@
                         "schema": {
                             "$ref": "#/definitions/response.Any"
                         }
+                    },
+                    "409": {
+                        "description": "系统保留类型或存储只读",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
                     }
                 }
             }
@@ -12528,6 +12534,12 @@
                             "$ref": "#/definitions/response.Any"
                         }
                     },
+                    "409": {
+                        "description": "系统保留类型或存储只读",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    },
                     "500": {
                         "description": "内部错误",
                         "schema": {
@@ -12719,6 +12731,12 @@
                     },
                     "404": {
                         "description": "文件不存在",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    },
+                    "409": {
+                        "description": "系统保留类型或存储只读",
                         "schema": {
                             "$ref": "#/definitions/response.Any"
                         }
@@ -14567,10 +14585,19 @@
                 "deployment_id": {
                     "type": "integer"
                 },
+                "file_count": {
+                    "type": "integer"
+                },
                 "hash": {
                     "type": "string"
                 },
+                "package_size": {
+                    "type": "integer"
+                },
                 "project_id": {
+                    "type": "integer"
+                },
+                "total_size": {
                     "type": "integer"
                 }
             }
@@ -16561,7 +16588,13 @@
         "observability.AccessLogView": {
             "type": "object",
             "properties": {
+                "bytes_sent": {
+                    "type": "integer"
+                },
                 "cache_status": {
+                    "type": "string"
+                },
+                "created_at": {
                     "type": "string"
                 },
                 "host": {
@@ -16587,6 +16620,12 @@
                 },
                 "remote_addr": {
                     "type": "string"
+                },
+                "request_length": {
+                    "type": "integer"
+                },
+                "request_time_ms": {
+                    "type": "integer"
                 },
                 "status_code": {
                     "type": "integer"
@@ -19303,7 +19342,8 @@
                 "block",
                 "ip_match",
                 "geo_match",
-                "pow"
+                "pow",
+                "ua_check"
             ],
             "x-enum-varnames": [
                 "RuleNodeStart",
@@ -19311,7 +19351,8 @@
                 "RuleNodeBlock",
                 "RuleNodeIPMatch",
                 "RuleNodeGeoMatch",
-                "RuleNodePoW"
+                "RuleNodePoW",
+                "RuleNodeUACheck"
             ]
         },
         "waf.RulePosition": {

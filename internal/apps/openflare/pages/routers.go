@@ -4,11 +4,14 @@
 package pages
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 
+	"github.com/Rain-kl/Wavelet/internal/apps/oauth"
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/apiutil"
 	"github.com/Rain-kl/Wavelet/internal/common/response"
+	"github.com/Rain-kl/Wavelet/internal/model"
 	"github.com/gin-gonic/gin"
 )
 
@@ -31,6 +34,15 @@ func deploymentIDParam(c *gin.Context) (uint, bool) {
 		return 0, false
 	}
 	return uint(id64), true
+}
+
+func currentPagesActor(c *gin.Context) (string, bool) {
+	user, ok := oauth.GetFromContext[*model.User](c, oauth.UserObjKey)
+	if !ok || user == nil || user.ID == 0 {
+		response.AbortUnauthorized(c, errPagesActorMissing)
+		return "", false
+	}
+	return fmt.Sprintf("user:%d", user.ID), true
 }
 
 // ListProjectsHandler 列出全部 Pages 项目。
@@ -214,7 +226,11 @@ func UploadDeploymentHandler(c *gin.Context) {
 		response.AbortBadRequest(c, errPagesPackageMissing)
 		return
 	}
-	deployment, err := UploadDeployment(c.Request.Context(), id, file, "")
+	actor, ok := currentPagesActor(c)
+	if !ok {
+		return
+	}
+	deployment, err := UploadDeployment(c.Request.Context(), id, file, actor)
 	if handleLogicError(c, err) {
 		return
 	}
@@ -247,7 +263,11 @@ func UploadDeploymentFromURLHandler(c *gin.Context) {
 		response.AbortBadRequest(c, errPagesPackageURLRequired)
 		return
 	}
-	deployment, err := UploadDeploymentFromURL(c.Request.Context(), id, req.URL, "")
+	actor, ok := currentPagesActor(c)
+	if !ok {
+		return
+	}
+	deployment, err := UploadDeploymentFromURL(c.Request.Context(), id, req.URL, actor)
 	if handleLogicError(c, err) {
 		return
 	}

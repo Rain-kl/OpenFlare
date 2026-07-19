@@ -27,7 +27,7 @@ import (
 const (
 	pagesURLDownloadTimeout   = 10 * time.Minute
 	pagesURLMaxRedirects      = 5
-	pagesMagicSniffBytes      = 16
+	pagesMagicSniffBytes      = 512
 	pagesURLDialTimeout       = 30 * time.Second
 	pagesURLTLSHandshake      = 15 * time.Second
 	pagesBrowserUserAgent     = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
