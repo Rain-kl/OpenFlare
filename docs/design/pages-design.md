@@ -19,12 +19,22 @@
 ## 核心功能
 
 Pages 静态托管子系统包含以下核心能力：
-* **Direct Upload 部署模式**：支持直接上传预构建的静态资源压缩包（`zip`、`tar.gz`、`tar.xz`、`tar.bz2`、`tar`、`7z`），或填写 URL 由控制面代为下载导入（允许内网地址与自签证书），省去复杂的 Git 集成和构建环境依赖。
+* **预构建产物部署**：支持直接上传静态资源压缩包，也可为项目保存一个 Remote URL 或公开 GitHub Release asset 来源。外部来源只由 Server 访问，成功同步后统一创建或复用不可变 deployment 并原子激活。
 * **不可变部署快照**：每次上传产生一个带唯一 ID 和 SHA-256 Checksum 的不可变部署记录。支持按系统配置保留最近 N 个历史部署，并可随时激活和回滚。
 * **SPA Fallback 支持**：支持对单页应用（SPA）进行 Fallback 路由配置，请求找不到静态文件时自动重定向到入口文件。
 * **内置 API 反代服务**：支持在 Pages 规则内一键启用 API 代理，消除跨域问题，将请求转发给指定的后端服务。
 * **安全包校验与解压缩**：内置路径逃逸防御、防软链接劫持、文件大小/数量上限与可配置上传包体积控制，保障节点物理安全。
 * **可配置限额**：管理员可在运维设置中调整「部署包大小上限」与「历史部署保留数」。
+
+### 部署源与未来构建边界
+
+项目当前支持 manual、Remote URL、GitHub Release 三种来源视图。无 source 记录即 manual；切换或删除 source 不删除历史 deployment，也不改变当前 active deployment。Remote URL 只允许手动“同步并发布”；GitHub Release 支持 latest/tag 手动检查与同步，只有 latest 可选择定时检查和自动更新。
+
+source 是可变配置，deployment 是不可变事实。source 配置与运行态游标、状态、租约分别存储；deployment 只保存创建时的安全 provenance 快照。所有来源最终都进入同一条“下载或接收产物 → 真实字节与入口校验 → `upload.Ingest` → deployment → 原子激活”管线，Agent 不感知来源类型。
+
+后续从 Git 仓库拉取源码并自动构建时，将新增独立 `git_repository` provider 与隔离的 build executor。它输出受限的预构建产物后继续复用上述导入管线；不得把 clone、依赖安装或任意构建命令下发给 Agent，也不得把 branch/build/env 字段塞入现有 `github_release` source。当前 V2 不增加这些未来字段或空任务，只稳定 provider 输出、source discriminated view 与 deployment provenance 三个扩展边界。
+
+管理端信息架构参考 Cloudflare Pages 当前把 [Git integration](https://developers.cloudflare.com/pages/configuration/git-integration/) 与 [Direct Upload](https://developers.cloudflare.com/pages/get-started/direct-upload/) 分离、并统一展示生产状态与历史部署的方式：OpenFlare 项目详情按“当前生产部署 → 部署源 → 部署历史”组织。OpenFlare 仍允许切换来源并保留历史部署，不采用 Cloudflare 项目创建后来源不可切换的限制。
 
 ---
 

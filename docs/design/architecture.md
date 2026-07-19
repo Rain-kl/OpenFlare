@@ -80,7 +80,7 @@ OpenResty (Agent, TLS/WAF)
 * 提供管理端 REST API（`/api/v1/d/*`），通过 **Session Cookie** 鉴权，可选 `X-Access-Token` 访问令牌。
 * 边缘节点协议走 `/api/v1/agent|relay|tunnel/*`，分别使用 `X-Agent-Token` / `X-Tunnel-Token` 鉴权。
 * 包含配置编译器（Compiler），将数据库中的规则、证书与全局参数统一编译为不可变的配置快照及 OpenResty 物理配置文件文本。
-* 存储 Pages 部署 ZIP 包于本地 Artifacts 目录，并向 Agent 提供受控的下载接口。
+* 统一接收 Pages 本地上传、Remote URL 与公开 GitHub Release 预构建产物，完成来源检查、受限下载、归档校验、不可变 deployment 与原子激活，并向 Agent 提供受控的 latest 下载接口。未来仓库源码构建由独立 Server build executor 扩展，Agent 不执行第三方拉取或构建命令。
 * 后台集成 Uptime Kuma 监控同步服务，自动为可用站点维护 HTTP 探测任务。
 * 启动入口为根目录 `main.go` + `internal/cmd/`（`api` / `worker` / `scheduler` / `all`）；OpenFlare 业务在 `internal/apps/openflare/`，边缘协议处理在 `internal/apps/openflare/{agent,relay,flared}/`。
 * *详细设计请参阅：[Agent 与发布模型设计](./agent-design.md) 以及 [Uptime Kuma 监控同步设计](./kuma-design.md)*
@@ -160,7 +160,7 @@ OpenResty 健康与连接数 --> 边缘健康（瞬时，不作 24h 业务总量
 当前系统核心实体包括：
 
 * **反代与配置**：`zones` (根域管理边界), `zone_domains` (明确域名与证书/路由关联), `proxy_routes` (路由策略), `origins` (源站), `config_versions` (配置版本), `tls_certificates` (证书). 详见 [Zone 与域名资源设计](./zone-design.md)。
-* **Pages 静态托管**：`pages_projects` (Pages项目), `pages_deployments` (不可变部署), `pages_deployment_files` (部署文件清单).
+* **Pages 静态托管**：`pages_projects` (Pages项目), `pages_project_sources` / `pages_project_source_runtime` (可变来源配置与运行态), `pages_deployments` (不可变部署), `pages_deployment_files` (部署文件清单).
 * **节点与穿透**：`nodes` (节点), `tunnels` (隧道客户端), `node_system_profiles` (系统概况), `apply_logs` (应用日志).
 * **WAF 与安全**：`waf_rule_groups` (WAF规则组), `waf_ip_groups` (WAF IP组), `waf_rule_group_bindings` (网站WAF绑定).
 * **系统与账号**：`acme_accounts` (ACME账户), `dns_accounts` (DNS账户), `geoip_update_configs` (GeoIP更新配置).
