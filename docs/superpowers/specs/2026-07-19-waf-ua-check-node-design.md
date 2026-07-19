@@ -86,18 +86,21 @@
 2) browser, os := classify(ua)
 3) if block_common_bots and (browser == "Bot" or os == "Bot") → false
 4) if block_abnormal_ua and browser in {"Bot","Other","Unknown"} → false
-5) browser_ok := browsers 为空 or browser ∈ browsers
-   os_ok      := operating_systems 为空 or os ∈ operating_systems
-6) if browsers 与 operating_systems 皆空 → true
-7) if match_mode == "and" → browser_ok and os_ok
-   if match_mode == "or"  → browser_ok or os_ok
+5) has_browsers := browsers 非空; has_os := operating_systems 非空
+6) if not has_browsers and not has_os → true
+7) browser_hit := browser ∈ browsers; os_hit := os ∈ operating_systems
+8) if has_browsers and not has_os → browser_hit
+9) if has_os and not has_browsers → os_hit
+10) if both lists set:
+      match_mode == "and" → browser_hit and os_hit
+      match_mode == "or"  → browser_hit or os_hit
 ```
 
 说明：
 
 - **屏蔽优先于匹配**：步骤 3–4 在白名单之前。
 - **未配置匹配列表**：步骤 6 直接 true（仅受 require / block 约束）。
-- **仅一侧列表有值**：另一侧 `*_ok` 恒 true；`and`/`or` 结果等价于该侧是否命中。
+- **仅一侧列表有值**：只校验该侧是否命中；`match_mode` 仅在两侧都有值时生效。
 - 节点本身不 allow/block，仅选句柄；下游连线决定动作。
 
 ### 示例

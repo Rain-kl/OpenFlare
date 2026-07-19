@@ -1,4 +1,10 @@
-import { Ban, Fingerprint, Globe2, ShieldCheck } from 'lucide-react';
+import {
+  Ban,
+  Fingerprint,
+  Globe2,
+  ScanSearch,
+  ShieldCheck,
+} from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 
@@ -11,6 +17,7 @@ import {
 const items = [
   { type: 'ip_match' as const, icon: Fingerprint },
   { type: 'geo_match' as const, icon: Globe2 },
+  { type: 'ua_check' as const, icon: ScanSearch },
   { type: 'pow' as const, icon: ShieldCheck },
   { type: 'block' as const, icon: Ban },
 ] satisfies { type: AddableNodeType; icon: typeof Fingerprint }[];

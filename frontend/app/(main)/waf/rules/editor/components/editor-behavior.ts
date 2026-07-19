@@ -78,6 +78,7 @@ export function isConnectionAllowed(
     start: ['next'],
     ip_match: ['true', 'false'],
     geo_match: ['true', 'false'],
+    ua_check: ['true', 'false'],
     pow: ['next'],
   };
   return (

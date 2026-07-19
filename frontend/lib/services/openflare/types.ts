@@ -779,6 +779,15 @@ export interface BlockNodeConfig {
   response_body: string;
 }
 
+export interface UACheckConfig {
+  require_ua: boolean;
+  browsers: string[];
+  operating_systems: string[];
+  match_mode: 'and' | 'or';
+  block_common_bots: boolean;
+  block_abnormal_ua: boolean;
+}
+
 export type WAFRuleNode =
   | {
       id: string;
@@ -800,6 +809,13 @@ export type WAFRuleNode =
       label?: string;
       position: XYPosition;
       config: GeoMatchConfig;
+    }
+  | {
+      id: string;
+      type: 'ua_check';
+      label?: string;
+      position: XYPosition;
+      config: UACheckConfig;
     }
   | {
       id: string;

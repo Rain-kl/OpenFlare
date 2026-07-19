@@ -25,11 +25,13 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
+import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import type { WAFIPGroup, WAFRuleNode } from '@/lib/services/openflare';
 
 import { countryOptions, regionOptions, type GeoOption } from './geo-options';
 import { NODE_TYPE_LABELS } from './node-factory';
+import { UA_BROWSER_OPTIONS, UA_OS_OPTIONS } from './ua-options';
 
 export function NodeProperties({
   node,
@@ -135,6 +137,133 @@ function PropertyFields({
             onChange({ ...node, config: { ...node.config, regions } })
           }
         />
+      </FieldGroup>
+    );
+  if (node.type === 'ua_check')
+    return (
+      <FieldGroup>
+        <DisplayNameField node={node} onChange={onChange} />
+        <div className='space-y-1'>
+          <p className='text-xs font-medium text-muted-foreground'>UA 检查</p>
+          <Field
+            orientation='horizontal'
+            className='items-center justify-between'
+          >
+            <div className='space-y-1'>
+              <FieldLabel htmlFor={`${node.id}-require-ua`}>
+                开启 UA 检查
+              </FieldLabel>
+              <FieldDescription>
+                开启后如果请求头不携带 UA 返回 False
+              </FieldDescription>
+            </div>
+            <Switch
+              id={`${node.id}-require-ua`}
+              checked={node.config.require_ua}
+              onCheckedChange={(require_ua) =>
+                onChange({ ...node, config: { ...node.config, require_ua } })
+              }
+            />
+          </Field>
+        </div>
+        <Separator />
+        <div className='space-y-3'>
+          <p className='text-xs font-medium text-muted-foreground'>UA 匹配</p>
+          <Field>
+            <FieldLabel htmlFor={`${node.id}-match-mode`}>匹配模式</FieldLabel>
+            <Select
+              value={node.config.match_mode}
+              onValueChange={(match_mode: 'and' | 'or') =>
+                onChange({ ...node, config: { ...node.config, match_mode } })
+              }
+            >
+              <SelectTrigger id={`${node.id}-match-mode`} className='w-full'>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  <SelectItem value='or'>或（OR）</SelectItem>
+                  <SelectItem value='and'>且（AND）</SelectItem>
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+            <FieldDescription>
+              浏览器与操作系统两侧都有选择时生效
+            </FieldDescription>
+          </Field>
+          <MultiSelect
+            id={`${node.id}-browsers`}
+            label='浏览器'
+            options={UA_BROWSER_OPTIONS.map((option) => ({
+              value: option.value,
+              label: option.label,
+              searchText: `${option.label} ${option.value}`,
+            }))}
+            value={node.config.browsers}
+            onChange={(browsers) =>
+              onChange({ ...node, config: { ...node.config, browsers } })
+            }
+          />
+          <MultiSelect
+            id={`${node.id}-os`}
+            label='操作系统'
+            options={UA_OS_OPTIONS.map((option) => ({
+              value: option.value,
+              label: option.label,
+              searchText: `${option.label} ${option.value}`,
+            }))}
+            value={node.config.operating_systems}
+            onChange={(operating_systems) =>
+              onChange({
+                ...node,
+                config: { ...node.config, operating_systems },
+              })
+            }
+          />
+        </div>
+        <Separator />
+        <div className='space-y-3'>
+          <div className='space-y-1'>
+            <p className='text-xs font-medium text-muted-foreground'>屏蔽</p>
+            <FieldDescription>命中返回 false，优先级高于匹配</FieldDescription>
+          </div>
+          <Field
+            orientation='horizontal'
+            className='items-center justify-between'
+          >
+            <FieldLabel htmlFor={`${node.id}-block-bots`}>
+              屏蔽常见爬虫 UA
+            </FieldLabel>
+            <Switch
+              id={`${node.id}-block-bots`}
+              checked={node.config.block_common_bots}
+              onCheckedChange={(block_common_bots) =>
+                onChange({
+                  ...node,
+                  config: { ...node.config, block_common_bots },
+                })
+              }
+            />
+          </Field>
+          <Field
+            orientation='horizontal'
+            className='items-center justify-between'
+          >
+            <FieldLabel htmlFor={`${node.id}-block-abnormal`}>
+              屏蔽非正常 UA
+            </FieldLabel>
+            <Switch
+              id={`${node.id}-block-abnormal`}
+              checked={node.config.block_abnormal_ua}
+              onCheckedChange={(block_abnormal_ua) =>
+                onChange({
+                  ...node,
+                  config: { ...node.config, block_abnormal_ua },
+                })
+              }
+            />
+          </Field>
+        </div>
       </FieldGroup>
     );
   if (node.type === 'pow')

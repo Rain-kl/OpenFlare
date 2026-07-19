@@ -77,6 +77,14 @@ func TestValidateRuleGraph(t *testing.T) {
 			g.Edges[1].SourceHandle = "next"
 			g.Edges = g.Edges[:2]
 		}, "节点 match-1 的 PoW 难度必须在 1-16 之间"},
+		{"invalid ua browser", func(g *RuleGraph) {
+			g.Nodes[1].Type = RuleNodeUACheck
+			g.Nodes[1].Config = rawConfig(`{"browsers":["NotABrowser"],"match_mode":"or"}`)
+		}, "节点 match-1 的浏览器标签 NotABrowser 无效"},
+		{"invalid ua match mode", func(g *RuleGraph) {
+			g.Nodes[1].Type = RuleNodeUACheck
+			g.Nodes[1].Config = rawConfig(`{"match_mode":"xor"}`)
+		}, "节点 match-1 的匹配模式必须为 and 或 or"},
 		{"unknown config field", func(g *RuleGraph) { g.Nodes[1].Config = rawConfig(`{"ips":[],"surprise":true}`) }, "节点 match-1 的配置无效"},
 		{"null config", func(g *RuleGraph) { g.Nodes[1].Config = rawConfig(`null`) }, "节点 match-1 的配置无效"},
 		{"too many nodes", func(g *RuleGraph) {

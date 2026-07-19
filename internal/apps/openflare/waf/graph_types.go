@@ -24,6 +24,8 @@ const (
 	RuleNodeGeoMatch RuleNodeType = "geo_match"
 	// RuleNodePoW runs a proof-of-work challenge before continuing.
 	RuleNodePoW RuleNodeType = "pow"
+	// RuleNodeUACheck branches on User-Agent presence, classification, and lists.
+	RuleNodeUACheck RuleNodeType = "ua_check"
 )
 
 // RuleGraph is the editor-facing representation of an executable WAF graph.
@@ -82,6 +84,22 @@ type BlockNodeConfig struct {
 	StatusCode   int    `json:"status_code"`
 	ResponseBody string `json:"response_body,omitempty"`
 }
+
+// UACheckConfig configures User-Agent presence, whitelist, and block switches.
+type UACheckConfig struct {
+	RequireUA        bool     `json:"require_ua"`
+	Browsers         []string `json:"browsers,omitempty"`
+	OperatingSystems []string `json:"operating_systems,omitempty"`
+	MatchMode        string   `json:"match_mode,omitempty"`
+	BlockCommonBots  bool     `json:"block_common_bots"`
+	BlockAbnormalUA  bool     `json:"block_abnormal_ua"`
+}
+
+// UA check match modes.
+const (
+	UACheckMatchModeAnd = "and"
+	UACheckMatchModeOr  = "or"
+)
 
 // DefaultRuleGraph returns the minimal start-to-allow graph.
 func DefaultRuleGraph() RuleGraph {

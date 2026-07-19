@@ -42,6 +42,39 @@ func TestCompileRuleGraph(t *testing.T) {
 	}
 }
 
+func TestCompileUACheckConfigNormalizesListsAndMatchMode(t *testing.T) {
+	graph := RuleGraph{SchemaVersion: RuleGraphSchemaVersion, Nodes: []RuleNode{
+		{ID: "start", Type: RuleNodeStart, Config: rawConfig(`{}`)},
+		{ID: "ua", Type: RuleNodeUACheck, Config: rawConfig(`{"browsers":["Safari","Chrome","Chrome"],"operating_systems":["iOS","Android"],"require_ua":true,"block_common_bots":true}`)},
+		{ID: "allow", Type: RuleNodeAllow, Config: rawConfig(`{}`)},
+		{ID: "block", Type: RuleNodeBlock, Config: rawConfig(`{"status_code":403}`)},
+	}, Edges: []RuleEdge{
+		{ID: "e1", Source: "start", SourceHandle: "next", Target: "ua"},
+		{ID: "e2", Source: "ua", SourceHandle: "true", Target: "allow"},
+		{ID: "e3", Source: "ua", SourceHandle: "false", Target: "block"},
+	}}
+	compiled, err := CompileRuleGraph(graph)
+	if err != nil {
+		t.Fatalf("CompileRuleGraph() error = %v", err)
+	}
+	cfg, ok := compiled.Nodes["ua"].Config.(UACheckConfig)
+	if !ok {
+		t.Fatalf("config type = %T", compiled.Nodes["ua"].Config)
+	}
+	if !reflect.DeepEqual(cfg.Browsers, []string{"Chrome", "Safari"}) {
+		t.Fatalf("browsers = %#v", cfg.Browsers)
+	}
+	if !reflect.DeepEqual(cfg.OperatingSystems, []string{"Android", "iOS"}) {
+		t.Fatalf("os = %#v", cfg.OperatingSystems)
+	}
+	if cfg.MatchMode != UACheckMatchModeOr {
+		t.Fatalf("match_mode = %q, want or", cfg.MatchMode)
+	}
+	if !cfg.RequireUA || !cfg.BlockCommonBots || cfg.BlockAbnormalUA {
+		t.Fatalf("flags = %#v", cfg)
+	}
+}
+
 func TestCompileRuleGraphIsDeterministicForNodeAndEdgeOrder(t *testing.T) {
 	first := RuleGraph{SchemaVersion: RuleGraphSchemaVersion, Nodes: []RuleNode{
 		{ID: "start", Type: RuleNodeStart, Config: rawConfig(`{}`)},

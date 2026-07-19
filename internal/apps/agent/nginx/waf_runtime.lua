@@ -294,6 +294,108 @@ local function matches_ip_values(config, ip)
     return false
 end
 
+local function ua_trim(value)
+    return (string.gsub(value or "", "^%s*(.-)%s*$", "%1"))
+end
+
+local function ua_label_in(items, value)
+    if type(items) ~= "table" or not value then return false end
+    for _, item in ipairs(items) do
+        if tostring(item) == value then return true end
+    end
+    return false
+end
+
+local function match_ua_rules(ua_lower, rules, fallback)
+    if ua_lower == "" then return "Unknown" end
+    for _, rule in ipairs(rules) do
+        local matched = false
+        for _, token in ipairs(rule.contains or {}) do
+            if string.find(ua_lower, token, 1, true) then
+                matched = true
+                break
+            end
+        end
+        if not matched and type(rule.all_of) == "table" and #rule.all_of > 0 then
+            matched = true
+            for _, token in ipairs(rule.all_of) do
+                if not string.find(ua_lower, token, 1, true) then
+                    matched = false
+                    break
+                end
+            end
+        end
+        if matched then
+            local excluded = false
+            for _, token in ipairs(rule.none_of or {}) do
+                if string.find(ua_lower, token, 1, true) then
+                    excluded = true
+                    break
+                end
+            end
+            if not excluded then return rule.label end
+        end
+    end
+    return fallback
+end
+
+-- Mirrors internal/repository/analytics/browser.go browserRules / osRules.
+local browser_rules = {
+    { label = "WeChat", contains = { "micromessenger" } },
+    { label = "Postman", contains = { "postman" } },
+    { label = "CLI", contains = { "curl/", "wget/" } },
+    { label = "Edge", contains = { "edg/", "edgios/", "edga/" } },
+    { label = "Opera", contains = { "opr/", "opera" } },
+    { label = "Firefox", contains = { "firefox", "fxios" } },
+    { label = "Chrome", contains = { "crios", "chrome" }, none_of = { "chromium" } },
+    { label = "Chromium", contains = { "chromium" } },
+    { label = "Safari", contains = { "safari" } },
+    { label = "Bot", contains = { "bot", "spider", "crawler", "slurp" } },
+}
+
+local os_rules = {
+    { label = "Android", contains = { "android" } },
+    { label = "iOS", contains = { "iphone", "ipad", "ipod", "ios" } },
+    { label = "Windows", contains = { "windows" } },
+    { label = "macOS", contains = { "mac os x", "macintosh", "macos" } },
+    { label = "Chrome OS", contains = { "cros" } },
+    { label = "Linux", contains = { "linux" } },
+    { label = "Bot", contains = { "bot", "spider", "crawler" } },
+}
+
+local function parse_browser_name(ua)
+    return match_ua_rules(string.lower(ua or ""), browser_rules, "Other")
+end
+
+local function parse_os_name(ua)
+    return match_ua_rules(string.lower(ua or ""), os_rules, "Other")
+end
+
+local function matches_ua_check(config)
+    config = config or {}
+    local ua = ua_trim(ngx.var.http_user_agent or "")
+    if config.require_ua and ua == "" then return false end
+    local browser = parse_browser_name(ua)
+    local os_name = parse_os_name(ua)
+    if config.block_common_bots and (browser == "Bot" or os_name == "Bot") then return false end
+    if config.block_abnormal_ua and (browser == "Bot" or browser == "Other" or browser == "Unknown") then
+        return false
+    end
+    local browsers = array_or_empty(config.browsers)
+    local operating_systems = array_or_empty(config.operating_systems)
+    local has_browsers = #browsers > 0
+    local has_os = #operating_systems > 0
+    if not has_browsers and not has_os then return true end
+    local browser_ok = ua_label_in(browsers, browser)
+    local os_ok = ua_label_in(operating_systems, os_name)
+    if has_browsers and not has_os then return browser_ok end
+    if has_os and not has_browsers then return os_ok end
+    local mode = config.match_mode
+    if mode ~= "and" and mode ~= "or" then mode = "or" end
+    if mode == "and" then return browser_ok and os_ok end
+    return browser_ok or os_ok
+end
+
 local function fail_closed(reason)
     local dict = ngx.shared and ngx.shared.openflare_waf_config
     if not dict or not dict.add or dict:add("_damaged_graph_logged", true, 60) then
@@ -347,6 +449,8 @@ local function execute_graph(graph)
             local region_required = type(config.regions) == "table" and #config.regions > 0
             local country, region = geo_lookup(ngx.var.remote_addr or "", region_required)
             handle = (list_contains(config.countries, country) or list_contains(config.regions, region)) and "true" or "false"
+        elseif node.type == "ua_check" then
+            handle = matches_ua_check(node.config or {}) and "true" or "false"
         elseif node.type == "pow" then
             if pow_runtime.evaluate(node.config or {}) ~= true then
                 return { kind = "takeover" }

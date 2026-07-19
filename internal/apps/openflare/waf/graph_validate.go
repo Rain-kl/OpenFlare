@@ -87,7 +87,7 @@ func validateRuleGraphNodes(ctx context.Context, graphNodes []RuleNode, ipGroupE
 			startID = node.ID
 		case RuleNodeAllow:
 			allowCount++
-		case RuleNodeBlock, RuleNodeIPMatch, RuleNodeGeoMatch, RuleNodePoW:
+		case RuleNodeBlock, RuleNodeIPMatch, RuleNodeGeoMatch, RuleNodePoW, RuleNodeUACheck:
 		default:
 			return nil, "", fmt.Errorf("节点 %s 的类型 %s 未知", node.ID, node.Type)
 		}
@@ -180,6 +180,8 @@ func validateRuleNodeConfig(ctx context.Context, node RuleNode, exists func(cont
 		return validateGeoMatchNodeConfig(node)
 	case RuleNodePoW:
 		return validatePoWNodeConfig(node)
+	case RuleNodeUACheck:
+		return validateUACheckNodeConfig(node)
 	case RuleNodeBlock:
 		return validateBlockNodeConfig(node)
 	}
@@ -283,6 +285,42 @@ func validateBlockNodeConfig(node RuleNode) error {
 	return nil
 }
 
+func validateUACheckNodeConfig(node RuleNode) error {
+	var cfg UACheckConfig
+	if err := decodeNodeConfig(node, &cfg); err != nil {
+		return err
+	}
+	mode := cfg.MatchMode
+	if mode == "" {
+		mode = UACheckMatchModeOr
+	}
+	if mode != UACheckMatchModeAnd && mode != UACheckMatchModeOr {
+		return fmt.Errorf("节点 %s 的匹配模式必须为 and 或 or", node.ID)
+	}
+	for _, label := range cfg.Browsers {
+		if !uaBrowserLabels[label] {
+			return fmt.Errorf("节点 %s 的浏览器标签 %s 无效", node.ID, label)
+		}
+	}
+	for _, label := range cfg.OperatingSystems {
+		if !uaOSLabels[label] {
+			return fmt.Errorf("节点 %s 的操作系统标签 %s 无效", node.ID, label)
+		}
+	}
+	return nil
+}
+
+var uaBrowserLabels = map[string]bool{
+	"Chrome": true, "Safari": true, "Firefox": true, "Edge": true, "Opera": true,
+	"Chromium": true, "WeChat": true, "Postman": true, "CLI": true, "Bot": true,
+	"Unknown": true, "Other": true,
+}
+
+var uaOSLabels = map[string]bool{
+	"Android": true, "iOS": true, "Windows": true, "macOS": true, "Chrome OS": true,
+	"Linux": true, "Bot": true, "Unknown": true, "Other": true,
+}
+
 func decodeNodeConfig(node RuleNode, dst any) error {
 	if err := decodeStrictConfig(node.Config, dst); err != nil {
 		return fmt.Errorf("节点 %s 的配置无效: %w", node.ID, err)
@@ -321,7 +359,7 @@ func requiredHandles(t RuleNodeType) []string {
 	switch t {
 	case RuleNodeStart, RuleNodePoW:
 		return []string{"next"}
-	case RuleNodeIPMatch, RuleNodeGeoMatch:
+	case RuleNodeIPMatch, RuleNodeGeoMatch, RuleNodeUACheck:
 		return []string{"true", "false"}
 	default:
 		return nil

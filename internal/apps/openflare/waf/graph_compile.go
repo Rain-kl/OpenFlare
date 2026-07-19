@@ -88,6 +88,17 @@ func compileRuleNodeConfig(node RuleNode) (any, error) {
 	case RuleNodePoW:
 		var config PoWNodeConfig
 		return config, decodeStrictConfig(node.Config, &config)
+	case RuleNodeUACheck:
+		var config UACheckConfig
+		if err := decodeStrictConfig(node.Config, &config); err != nil {
+			return nil, err
+		}
+		config.Browsers = sortedUniqueStrings(config.Browsers)
+		config.OperatingSystems = sortedUniqueStrings(config.OperatingSystems)
+		if config.MatchMode == "" {
+			config.MatchMode = UACheckMatchModeOr
+		}
+		return config, nil
 	case RuleNodeBlock:
 		var config BlockNodeConfig
 		return config, decodeStrictConfig(node.Config, &config)

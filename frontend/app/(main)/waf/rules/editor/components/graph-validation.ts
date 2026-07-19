@@ -1,5 +1,7 @@
 import type { WAFRuleGraph, WAFRuleNode } from '@/lib/services/openflare';
 
+import { UA_BROWSER_LABELS, UA_OS_LABELS } from './ua-options';
+
 export type GraphIssueCode =
   | 'schema'
   | 'size_limit'
@@ -28,6 +30,7 @@ const handles: Partial<Record<WAFRuleNode['type'], string[]>> = {
   start: ['next'],
   ip_match: ['true', 'false'],
   geo_match: ['true', 'false'],
+  ua_check: ['true', 'false'],
   pow: ['next'],
 };
 
@@ -208,6 +211,14 @@ function validateNodeConfig(node: WAFRuleNode): string | undefined {
       new TextEncoder().encode(node.config.response_body).length > 16 * 1024)
   )
     return `节点 ${node.id} 的阻止响应配置无效`;
+  if (node.type === 'ua_check') {
+    if (!['and', 'or'].includes(node.config.match_mode))
+      return `节点 ${node.id} 的匹配模式必须为 and 或 or`;
+    if (node.config.browsers.some((label) => !UA_BROWSER_LABELS.has(label)))
+      return `节点 ${node.id} 包含无效浏览器标签`;
+    if (node.config.operating_systems.some((label) => !UA_OS_LABELS.has(label)))
+      return `节点 ${node.id} 包含无效操作系统标签`;
+  }
   return undefined;
 }
 

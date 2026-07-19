@@ -79,8 +79,15 @@ local function load_runtime(config, options)
     return runtime
 end
 
-local function reset_request(site, ip, uri, is_internal)
-    ngx.var = { openflare_waf_site = site, remote_addr = ip or "192.0.2.1", uri = uri or "/", request_id = "request-1", openflare_internal = is_internal == true }
+local function reset_request(site, ip, uri, is_internal, user_agent)
+    ngx.var = {
+        openflare_waf_site = site,
+        remote_addr = ip or "192.0.2.1",
+        uri = uri or "/",
+        request_id = "request-1",
+        openflare_internal = is_internal == true,
+        http_user_agent = user_agent,
+    }
     ngx.ctx = {}
     ngx.header = {}
     output = {}
@@ -531,6 +538,98 @@ local function test_request_path_has_no_file_io()
     io.open = original_open
 end
 
+local function test_ua_check_require_block_and_whitelist()
+    local chrome_ua = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    local safari_ios_ua = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1"
+    local bot_ua = "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"
+    local weird_ua = "TotallyUnknownClient/1.0"
+
+    local function ua_graph(config)
+        return graph({
+            start = start_to("ua"),
+            ua = node("ua_check", config, { ["true"] = "allow", ["false"] = "blocked" }),
+            blocked = node("block", { status_code = 403, response_body = "ua blocked" }),
+            allow = node("allow"),
+        })
+    end
+
+    local runtime = load_runtime({
+        rule_groups = { rule(1, false, ua_graph({ require_ua = true })) },
+        bindings = { binding("ua-site", { 1 }) },
+    })
+    reset_request("ua-site", nil, nil, nil, nil)
+    runtime.check()
+    assert_equal(output.exit, 403, "missing UA with require_ua should block")
+    reset_request("ua-site", nil, nil, nil, chrome_ua)
+    output = {}
+    runtime.check()
+    assert_equal(output.exit, nil, "present UA with require_ua should allow")
+
+    runtime = load_runtime({
+        rule_groups = { rule(1, false, ua_graph({ block_common_bots = true })) },
+        bindings = { binding("ua-site", { 1 }) },
+    })
+    reset_request("ua-site", nil, nil, nil, bot_ua)
+    runtime.check()
+    assert_equal(output.exit, 403, "common bot should be blocked")
+
+    runtime = load_runtime({
+        rule_groups = { rule(1, false, ua_graph({ block_abnormal_ua = true })) },
+        bindings = { binding("ua-site", { 1 }) },
+    })
+    reset_request("ua-site", nil, nil, nil, weird_ua)
+    runtime.check()
+    assert_equal(output.exit, 403, "abnormal UA should be blocked")
+    reset_request("ua-site", nil, nil, nil, chrome_ua)
+    output = {}
+    runtime.check()
+    assert_equal(output.exit, nil, "normal browser should pass abnormal check")
+
+    runtime = load_runtime({
+        rule_groups = { rule(1, false, ua_graph({ browsers = { "Chrome" }, match_mode = "or" })) },
+        bindings = { binding("ua-site", { 1 }) },
+    })
+    reset_request("ua-site", nil, nil, nil, safari_ios_ua)
+    runtime.check()
+    assert_equal(output.exit, 403, "Safari should miss Chrome whitelist")
+    reset_request("ua-site", nil, nil, nil, chrome_ua)
+    output = {}
+    runtime.check()
+    assert_equal(output.exit, nil, "Chrome should hit whitelist")
+
+    runtime = load_runtime({
+        rule_groups = { rule(1, false, ua_graph({
+            browsers = { "Chrome" },
+            operating_systems = { "iOS" },
+            match_mode = "and",
+        })) },
+        bindings = { binding("ua-site", { 1 }) },
+    })
+    reset_request("ua-site", nil, nil, nil, chrome_ua)
+    runtime.check()
+    assert_equal(output.exit, 403, "Chrome desktop should fail Chrome+iOS and")
+    reset_request("ua-site", nil, nil, nil, safari_ios_ua)
+    output = {}
+    runtime.check()
+    assert_equal(output.exit, 403, "Safari iOS should fail Chrome+iOS and")
+
+    runtime = load_runtime({
+        rule_groups = { rule(1, false, ua_graph({
+            browsers = { "Chrome" },
+            operating_systems = { "iOS" },
+            match_mode = "or",
+        })) },
+        bindings = { binding("ua-site", { 1 }) },
+    })
+    reset_request("ua-site", nil, nil, nil, chrome_ua)
+    runtime.check()
+    assert_equal(output.exit, nil, "Chrome desktop should pass Chrome|iOS or")
+    reset_request("ua-site", nil, nil, nil, safari_ios_ua)
+    output = {}
+    runtime.check()
+    assert_equal(output.exit, nil, "Safari iOS should pass Chrome|iOS or")
+end
+
 test_ip_true_and_false()
 test_ipv6_exact_cidr_and_group()
 test_geo_true_and_false()
@@ -546,5 +645,6 @@ test_block_config_and_rule_order()
 test_damaged_graphs_fail_closed()
 test_null_binding_ids_are_treated_as_empty()
 test_request_path_has_no_file_io()
+test_ua_check_require_block_and_whitelist()
 
 return true
