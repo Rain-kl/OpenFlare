@@ -10,7 +10,7 @@
     "build:embed": "NEXT_STANDALONE_EXPORT=true next build",
     "start": "next start -p 3010",
     "lint": "eslint",
-    "format": "prettier --write ."
+    "format": "prettier --write . && eslint . --fix --max-warnings 0"
   },
   "dependencies": {
     "@codemirror/lang-sql": "^6.10.0",

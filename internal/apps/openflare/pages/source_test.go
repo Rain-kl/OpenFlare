@@ -109,14 +109,14 @@ func TestValidateRemoteSourceInputRejectsModeIncompatibleFields(t *testing.T) {
 		{
 			name: "missing source type",
 			input: SourceUpdateInput{
-		RemoteURL: "https://example.com/site.zip",
+				RemoteURL: "https://example.com/site.zip",
 			},
 		},
 		{
 			name: "remote rejects repository field",
 			input: SourceUpdateInput{
 				SourceType:    PagesSourceTypeRemoteURL,
-		RemoteURL:     "https://example.com/site.zip",
+				RemoteURL:     "https://example.com/site.zip",
 				RepositoryURL: "https://github.com/example/site",
 			},
 		},
@@ -124,7 +124,7 @@ func TestValidateRemoteSourceInputRejectsModeIncompatibleFields(t *testing.T) {
 			name: "remote rejects automatic updates",
 			input: SourceUpdateInput{
 				SourceType:        PagesSourceTypeRemoteURL,
-		RemoteURL:         "https://example.com/site.zip",
+				RemoteURL:         "https://example.com/site.zip",
 				AutoUpdateEnabled: true,
 			},
 		},

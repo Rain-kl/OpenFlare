@@ -73,9 +73,7 @@ function isActiveDeployment(
   deployment: PagesDeployment,
   activeDeploymentId?: number | null,
 ) {
-  return (
-    deployment.id === activeDeploymentId || deployment.status === 'active'
-  );
+  return deployment.id === activeDeploymentId || deployment.status === 'active';
 }
 
 function deploymentSnapshot(deployment: PagesDeployment) {
@@ -151,7 +149,9 @@ function DeploymentRow({
               <span className='text-sm font-medium'>
                 部署 #{deployment.deployment_number}
               </span>
-              <Badge variant='secondary'>{deploymentSnapshot(deployment)}</Badge>
+              <Badge variant='secondary'>
+                {deploymentSnapshot(deployment)}
+              </Badge>
             </div>
             <DeploymentMeta deployment={deployment} />
           </div>

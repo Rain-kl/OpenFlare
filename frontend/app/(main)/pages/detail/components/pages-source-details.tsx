@@ -108,7 +108,9 @@ export function GitHubSourceDetails({
 
       <div className='rounded-lg border border-dashed bg-muted/15 px-5 py-5'>
         <div className='mb-4 flex flex-wrap items-center gap-2 border-b border-dashed pb-4'>
-          <code className='text-sm font-medium'>{source.github_repository}</code>
+          <code className='text-sm font-medium'>
+            {source.github_repository}
+          </code>
           <Badge variant='secondary' className='font-normal'>
             {source.asset_name}
           </Badge>

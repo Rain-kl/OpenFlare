@@ -138,11 +138,7 @@ function PagesDetailRoute() {
         </div>
       </div>
 
-      <Tabs
-        value={tab}
-        onValueChange={handleTabChange}
-        className='w-full'
-      >
+      <Tabs value={tab} onValueChange={handleTabChange} className='w-full'>
         <TabsList variant='line' className='mb-6 inline-flex w-fit gap-8'>
           <TabsTrigger
             value='deployments'
@@ -158,10 +154,7 @@ function PagesDetailRoute() {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent
-          value='deployments'
-          className='focus-visible:outline-none'
-        >
+        <TabsContent value='deployments' className='focus-visible:outline-none'>
           <DeploymentsTab project={project} />
         </TabsContent>
 

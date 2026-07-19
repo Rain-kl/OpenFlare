@@ -149,7 +149,7 @@ func TestGitHubSourceValidationNormalizationAndProviderSwitch(t *testing.T) {
 
 	secret := "provider-switch-secret"
 	if _, err := UpdateSource(ctx, project.ID, SourceUpdateInput{
-		SourceType:          PagesSourceTypeRemoteURL,
+		SourceType:    PagesSourceTypeRemoteURL,
 		RemoteURL:     "https://artifacts.example.com/site.zip?token=" + secret,
 		AllowInsecure: false,
 	}); err != nil {

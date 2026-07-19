@@ -539,9 +539,7 @@ describe('Pages source UI', () => {
     expect(
       screen.getByRole('switch', { name: '允许不安全的连接' }),
     ).not.toBeChecked();
-    await user.click(
-      screen.getByRole('switch', { name: '允许不安全的连接' }),
-    );
+    await user.click(screen.getByRole('switch', { name: '允许不安全的连接' }));
     await user.click(screen.getByRole('button', { name: '保存 Remote 来源' }));
 
     await waitFor(() => {

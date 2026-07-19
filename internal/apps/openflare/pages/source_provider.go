@@ -45,9 +45,9 @@ func (providerError remoteProviderError) Error() string {
 	return string(providerError)
 }
 
-	const (
-	errRemoteProviderInvalidLimit  remoteProviderError = "远程来源部署包大小限制无效"
-	errRemoteProviderRedirectLimit remoteProviderError = "远程来源重定向次数超过限制"
+const (
+	errRemoteProviderInvalidLimit   remoteProviderError = "远程来源部署包大小限制无效"
+	errRemoteProviderRedirectLimit  remoteProviderError = "远程来源重定向次数超过限制"
 	errRemoteProviderDownloadFailed remoteProviderError = errPagesPackageURLDownloadFailed
 	errRemoteProviderTooLarge       remoteProviderError = errPagesPackageURLTooLarge
 	errRemoteProviderEmpty          remoteProviderError = errPagesPackageEmpty

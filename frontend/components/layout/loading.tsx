@@ -60,7 +60,6 @@ export function AppleSpinner({
  * 用于统一显示加载状态
  */
 export function LoadingPage(props: { text?: string; badgeText?: string }) {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const _ = props;
   return (
     <div className='absolute inset-0 z-50 overflow-hidden font-sans bg-background/80 backdrop-blur-md text-foreground flex items-center justify-center'>

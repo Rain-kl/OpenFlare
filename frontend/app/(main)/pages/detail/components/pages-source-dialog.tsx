@@ -327,9 +327,7 @@ export function PagesSourceDialog({
         <DialogContent className='sm:max-w-xl'>
           <DialogHeader>
             <DialogTitle>部署源设置</DialogTitle>
-            <DialogDescription>
-              选择部署来源。
-            </DialogDescription>
+            <DialogDescription>选择部署来源。</DialogDescription>
           </DialogHeader>
 
           <FieldGroup>

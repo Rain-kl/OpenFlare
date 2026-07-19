@@ -242,8 +242,8 @@ func TestSourceConfigAndProjectContentChangesFenceLease(t *testing.T) {
 		t.Fatalf("acquireSourceLease(config fence) = (%+v, %q, %v), want acquired", configSnapshot, outcome, err)
 	}
 	if _, err := UpdateSource(ctx, project.ID, SourceUpdateInput{
-		SourceType:          PagesSourceTypeRemoteURL,
-		RemoteURL:           "https://example.com/site.zip?token=second",
+		SourceType:    PagesSourceTypeRemoteURL,
+		RemoteURL:     "https://example.com/site.zip?token=second",
 		AllowInsecure: false,
 	}); err != nil {
 		t.Fatalf("UpdateSource(config fence) error = %v, want nil", err)
