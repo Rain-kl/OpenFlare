@@ -28,7 +28,6 @@ import {
 import { Trash2 } from 'lucide-react';
 import '@xyflow/react/dist/style.css';
 
-import { Button } from '@/components/ui/button';
 import type { WAFRuleEdge, WAFRuleGraph } from '@/lib/services/openflare';
 import { cn } from '@/lib/utils';
 
@@ -251,22 +250,6 @@ export function RuleFlowCanvas({
     [addNodeAt],
   );
 
-  const selectedNode = graph.nodes.find((node) => node.id === selectedId);
-  const canDeleteNode = Boolean(
-    selectedNode && !['start', 'allow'].includes(selectedNode.type),
-  );
-  const canDeleteEdge = Boolean(
-    selectedEdgeId && graph.edges.some((edge) => edge.id === selectedEdgeId),
-  );
-  const canDelete = canDeleteNode || canDeleteEdge;
-  const deleteLabel = canDeleteEdge
-    ? '删除连线'
-    : canDeleteNode
-      ? '删除节点'
-      : selectedNode
-        ? '系统节点不可删除'
-        : '请选择可删除项';
-
   const deleteNodeById = useCallback(
     (nodeId: string) => {
       const target = graph.nodes.find((node) => node.id === nodeId);
@@ -302,21 +285,6 @@ export function RuleFlowCanvas({
     },
     [graph, onGraphChange, onSelectEdge, selectedEdgeId, setEdges],
   );
-
-  const deleteSelection = useCallback(() => {
-    if (canDeleteEdge && selectedEdgeId) {
-      deleteEdgeById(selectedEdgeId);
-      return;
-    }
-    if (canDeleteNode && selectedId) deleteNodeById(selectedId);
-  }, [
-    canDeleteEdge,
-    canDeleteNode,
-    deleteEdgeById,
-    deleteNodeById,
-    selectedEdgeId,
-    selectedId,
-  ]);
 
   const openNodeContextMenu = useCallback(
     (event: ReactMouseEvent, node: FlowNode) => {
@@ -377,17 +345,6 @@ export function RuleFlowCanvas({
     >
       <div className='absolute left-4 top-4 z-10 rounded-lg border bg-background/95 p-2 shadow-sm backdrop-blur'>
         <NodeLibrary />
-      </div>
-      <div className='absolute right-4 top-4 z-10'>
-        <Button
-          variant='destructive'
-          size='sm'
-          disabled={!canDelete}
-          onClick={deleteSelection}
-        >
-          <Trash2 data-icon='inline-start' />
-          {deleteLabel}
-        </Button>
       </div>
       <ReactFlow
         nodes={nodes}
