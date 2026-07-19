@@ -502,7 +502,8 @@ local file_inclusion_patterns = {
 local sql_patterns = {
     "union select", " or 1=1", "' or '", "\" or \"", "sleep(", "benchmark(",
     "information_schema", "xp_cmdshell", "load_file(", " into outfile",
-    "/*", "*/", "@@version",
+    -- Avoid bare "/*" / "*/": they match normal Accept: */* headers.
+    "/**/", "/*!", "*/--", "@@version",
 }
 local command_patterns = {
     ";wget", ";curl", "|bash", "|sh", "`id`", "$(id)", "&&", "||",

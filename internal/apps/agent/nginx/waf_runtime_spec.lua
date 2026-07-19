@@ -718,6 +718,14 @@ local function test_security_check_path_and_sql()
         bindings = { binding("sec-site", { 1 }) },
     })
     reset_request("sec-site", nil, "/")
+    ngx.req.get_headers = function()
+        return { Accept = "*/*" }
+    end
+    decision, err = runtime.debug_execute_graph(runtime.debug_active_rules("sec-site")[1].graph)
+    assert_equal(err, nil, "accept header execute err")
+    assert_equal(decision and decision.kind or "nil", "allow", "Accept */* must not trip SQL")
+
+    reset_request("sec-site", nil, "/")
     ngx.var.args = "q=1'+union+select+1--"
     ngx.req.get_uri_args = function()
         return { q = "1' union select 1--" }
