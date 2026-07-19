@@ -31,6 +31,7 @@ type TaskMeta struct {
 	MaxRetry     int         `json:"max_retry"`
 	Queue        string      `json:"queue"`
 	Retryable    bool        `json:"retryable"` // 是否支持手动重试
+	InternalOnly bool        `json:"-"`         // 是否仅允许内部业务入口调度
 	Params       []TaskParam `json:"params,omitempty"`
 }
 
@@ -51,13 +52,18 @@ func RegisterTaskMeta(meta TaskMeta) {
 	dispatchableTasks = append(dispatchableTasks, meta)
 }
 
-// GetDispatchableTasks 获取所有已注册的元数据列表（返回副本以避免并发并发读写冲突）
+// GetDispatchableTasks 获取允许通过通用 Admin 入口调度的元数据列表。
 func GetDispatchableTasks() []TaskMeta {
 	dispatchableTasksMutex.RLock()
 	defer dispatchableTasksMutex.RUnlock()
 
-	metas := make([]TaskMeta, len(dispatchableTasks))
-	copy(metas, dispatchableTasks)
+	metas := make([]TaskMeta, 0, len(dispatchableTasks))
+	for _, meta := range dispatchableTasks {
+		if meta.InternalOnly {
+			continue
+		}
+		metas = append(metas, meta)
+	}
 	return metas
 }
 

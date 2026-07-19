@@ -12,6 +12,11 @@ import type {
   PagesDeploymentUploadPayload,
   PagesProject,
   PagesProjectPayload,
+  PagesRemoteSourceUpdatePayload,
+  PagesSource,
+  PagesSourceActionPayload,
+  PagesSourceActionReceipt,
+  PagesSourceUpdateResult,
 } from './types';
 
 export class PagesService extends OpenFlareBaseService {
@@ -40,6 +45,41 @@ export class PagesService extends OpenFlareBaseService {
     return this.post<void>(`/${id}/delete`);
   }
 
+  static getSource(projectId: number): Promise<PagesSource> {
+    return this.get<PagesSource>(`/${projectId}/source`);
+  }
+
+  static updateSource(
+    projectId: number,
+    payload: PagesRemoteSourceUpdatePayload,
+  ): Promise<PagesSourceUpdateResult> {
+    return this.post<PagesSourceUpdateResult>(
+      `/${projectId}/source/update`,
+      payload,
+    );
+  }
+
+  static deleteSource(projectId: number): Promise<PagesSource> {
+    return this.post<PagesSource>(`/${projectId}/source/delete`);
+  }
+
+  static checkSource(projectId: number): Promise<PagesSourceActionReceipt> {
+    return this.post<PagesSourceActionReceipt>(
+      `/${projectId}/source/check`,
+      {},
+    );
+  }
+
+  static syncSource(
+    projectId: number,
+    payload: PagesSourceActionPayload = {},
+  ): Promise<PagesSourceActionReceipt> {
+    return this.post<PagesSourceActionReceipt>(
+      `/${projectId}/source/sync`,
+      payload,
+    );
+  }
+
   static listDeployments(projectId: number): Promise<PagesDeployment[]> {
     return this.get<PagesDeployment[]>(`/${projectId}/deployments`);
   }
@@ -58,8 +98,6 @@ export class PagesService extends OpenFlareBaseService {
   ): Promise<PagesDeployment> {
     const formData = new FormData();
     formData.append('package', payload.file);
-    formData.append('root_dir', payload.rootDir ?? '');
-    formData.append('entry_file', payload.entryFile ?? 'index.html');
 
     return this.postFormData<PagesDeployment>(
       `/${projectId}/deployments/upload`,
@@ -75,6 +113,7 @@ export class PagesService extends OpenFlareBaseService {
     return this.post<PagesDeployment>(
       `/${projectId}/deployments/upload-from-url`,
       payload,
+      { timeout: apiConfig.uploadTimeout } as InternalAxiosRequestConfig,
     );
   }
 

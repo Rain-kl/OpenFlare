@@ -57,13 +57,10 @@ func initSQLite() {
 
 	// Trace 注入
 	if err = db.Use(
-		tracing.NewPlugin(
-			tracing.WithoutMetrics(),
-			tracing.WithAttributes(
-				attribute.String("db.instance", sqlitePath),
-				attribute.String("db.system", "SQLite"),
-			),
-		),
+		newGORMTracingPlugin([]attribute.KeyValue{
+			attribute.String("db.instance", sqlitePath),
+			attribute.String("db.system", "SQLite"),
+		}),
 	); err != nil {
 		log.Fatalf("[SQLite] init trace failed: %v\n", err)
 	}
@@ -98,15 +95,12 @@ func initPostgres() {
 
 	// Trace 注入
 	if err = db.Use(
-		tracing.NewPlugin(
-			tracing.WithoutMetrics(),
-			tracing.WithAttributes(
-				attribute.String("db.instance", dbConfig.Database),
-				attribute.String("db.ip", dbConfig.Host),
-				attribute.String("server.address", net.JoinHostPort(dbConfig.Host, strconv.Itoa(dbConfig.Port))),
-				attribute.String("db.system", "PostgreSQL"),
-			),
-		),
+		newGORMTracingPlugin([]attribute.KeyValue{
+			attribute.String("db.instance", dbConfig.Database),
+			attribute.String("db.ip", dbConfig.Host),
+			attribute.String("server.address", net.JoinHostPort(dbConfig.Host, strconv.Itoa(dbConfig.Port))),
+			attribute.String("db.system", "PostgreSQL"),
+		}),
 	); err != nil {
 		log.Fatalf("[PostgreSQL] init trace failed: %v\n", err)
 	}
@@ -158,6 +152,17 @@ func initPostgres() {
 	sqlDB.SetConnMaxLifetime(time.Duration(dbConfig.ConnMaxLifetime) * time.Second)
 	sqlDB.SetConnMaxIdleTime(time.Duration(dbConfig.ConnMaxIdleTime) * time.Second)
 
+}
+
+// newGORMTracingPlugin 构造数据库链路追踪插件。查询参数只保留占位符，避免凭据等绑定值进入 Span。
+func newGORMTracingPlugin(attrs []attribute.KeyValue, extraOptions ...tracing.Option) gorm.Plugin {
+	options := []tracing.Option{
+		tracing.WithoutMetrics(),
+		tracing.WithoutQueryVariables(),
+		tracing.WithAttributes(attrs...),
+	}
+	options = append(options, extraOptions...)
+	return tracing.NewPlugin(options...)
 }
 
 // buildDSN 构建 PostgreSQL DSN

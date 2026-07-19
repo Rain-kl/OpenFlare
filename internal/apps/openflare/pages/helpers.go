@@ -38,6 +38,7 @@ const (
 	pagesIngestMarkerKey         = "pages_ingest_marker"
 	pagesIngestMarkerV2          = "pages_deployment_v2"
 	pagesProjectIDMetadataKey    = "pages_project_id"
+	pagesSourceIDMetadataKey     = "pages_source_id"
 	pagesMaxPathLength           = 512
 	bytesPerMiB                  = 1024 * 1024
 	pagesExtractedSizeMultiplier = 4
@@ -264,9 +265,28 @@ func ingestPagesDeploymentPackage(
 	fileName string,
 	format pagesarchive.Format,
 ) (upload.IngestResult, error) {
+	return ingestPagesDeploymentPackageWithSource(ctx, localPath, checksum, projectID, 0, fileName, format)
+}
+
+func ingestPagesDeploymentPackageWithSource(
+	ctx context.Context,
+	localPath string,
+	checksum string,
+	projectID uint,
+	sourceID uint,
+	fileName string,
+	format pagesarchive.Format,
+) (upload.IngestResult, error) {
 	systemUser := repository.GetSystemUser(ctx)
 	accessMode := 0
 	extension := pagesarchive.NormalizeNameExtension(fileName, format)
+	extra := map[string]any{
+		pagesIngestMarkerKey:      pagesIngestMarkerV2,
+		pagesProjectIDMetadataKey: strconv.FormatUint(uint64(projectID), 10),
+	}
+	if sourceID != 0 {
+		extra[pagesSourceIDMetadataKey] = strconv.FormatUint(uint64(sourceID), 10)
+	}
 	return upload.IngestFromLocalPath(ctx, localPath, upload.IngestRequest{
 		UserID:             systemUser.ID,
 		FileName:           fileName,
@@ -278,10 +298,7 @@ func ingestPagesDeploymentPackage(
 		SkipExtensionCheck: true,
 		Policy:             upload.PolicyDedupNewRecord,
 		Metadata: model.UploadMetadata{
-			Extra: map[string]any{
-				pagesIngestMarkerKey:      pagesIngestMarkerV2,
-				pagesProjectIDMetadataKey: strconv.FormatUint(uint64(projectID), 10),
-			},
+			Extra: extra,
 		},
 	})
 }

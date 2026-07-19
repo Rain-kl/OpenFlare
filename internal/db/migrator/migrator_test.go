@@ -18,9 +18,9 @@ import (
 	"gorm.io/gorm"
 )
 
-// expectedMigratedSystemConfigCount 包含初始 32 项系统配置，以及 202606220004
-// 从 of_options 迁移过来的 48 项业务配置（OpenFlare/UptimeKuma/OpenResty）。
-const expectedMigratedSystemConfigCount = 80
+// expectedMigratedSystemConfigCount 包含初始 32 项系统配置、202606220004
+// 从 of_options 迁移过来的 48 项业务配置，以及 Pages 的 2 项业务配置。
+const expectedMigratedSystemConfigCount = 82
 
 func TestMigrateInitializesSQLiteDatabase(t *testing.T) {
 	sqliteDB, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{

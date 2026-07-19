@@ -49,6 +49,11 @@ func (l *gormZapLogger) Error(ctx context.Context, fmt string, args ...interface
 	}
 }
 
+// ParamsFilter 让 GORM 的 Trace 回调只接收参数化 SQL，避免绑定值被 Dialector.Explain 展开到日志。
+func (l *gormZapLogger) ParamsFilter(_ context.Context, sql string, _ ...interface{}) (string, []interface{}) {
+	return sql, nil
+}
+
 func (l *gormZapLogger) Trace(ctx context.Context, begin time.Time, fc func() (sql string, rowsAffected int64), err error) {
 	elapsed := time.Since(begin)
 	switch {

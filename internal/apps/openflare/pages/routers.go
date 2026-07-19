@@ -4,7 +4,10 @@
 package pages
 
 import (
+	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"strconv"
 
@@ -12,7 +15,9 @@ import (
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/apiutil"
 	"github.com/Rain-kl/Wavelet/internal/common/response"
 	"github.com/Rain-kl/Wavelet/internal/model"
+	"github.com/Rain-kl/Wavelet/pkg/logger"
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 func handleLogicError(c *gin.Context, err error) bool {
@@ -20,6 +25,53 @@ func handleLogicError(c *gin.Context, err error) bool {
 		return false
 	}
 	return apiutil.AbortNotFoundIfMissing(c, err, errPagesProjectNotFound)
+}
+
+func handleSourceLogicError(c *gin.Context, err error) bool {
+	if err == nil {
+		return false
+	}
+	if errors.Is(err, gorm.ErrRecordNotFound) || err.Error() == errPagesSourceNotFound {
+		response.AbortNotFound(c, errPagesSourceNotFound)
+		return true
+	}
+	switch err.Error() {
+	case errPagesSourceActionBusy:
+		response.AbortConflict(c, errPagesSourceActionBusy)
+	case errPagesSourceTypeRequired,
+		errPagesSourceTypeUnsupported,
+		errPagesSourceRemoteFields,
+		errPagesSourceRemoteURLRequired,
+		errPagesSourceRemoteURLMode,
+		errPagesSourceRemoteURLInvalid,
+		errPagesSourceNetworkPolicy,
+		errPagesSourceCheckUnsupported,
+		errPagesSourceActionInvalid:
+		response.AbortBadRequest(c, err.Error())
+	case errPagesSourceTaskDispatchFailed:
+		response.AbortInternal(c, errPagesSourceInternal)
+	default:
+		logger.ErrorF(c.Request.Context(), "[PagesSource] API operation failed: error=%v", err)
+		response.AbortInternal(c, errPagesSourceInternal)
+	}
+	return true
+}
+
+func decodeStrictJSON(c *gin.Context, target any, allowEmpty bool) bool {
+	decoder := json.NewDecoder(c.Request.Body)
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(target); err != nil {
+		if allowEmpty && errors.Is(err, io.EOF) {
+			return true
+		}
+		response.AbortBadRequest(c, errPagesSourceActionInvalid)
+		return false
+	}
+	if err := ensureJSONEOF(decoder); err != nil {
+		response.AbortBadRequest(c, errPagesSourceActionInvalid)
+		return false
+	}
+	return true
 }
 
 func deploymentIDParam(c *gin.Context) (uint, bool) {
@@ -174,6 +226,164 @@ func DeleteProjectHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, response.OKNil())
 }
 
+// GetSourceHandler 获取 Pages 项目的部署源。
+// @Summary 获取 Pages 部署源
+// @Description 返回脱敏后的项目部署源配置与运行状态，需要管理员权限
+// @Tags openflare-pages
+// @Produce json
+// @Security SessionCookie
+// @Param id path int true "项目 ID"
+// @Success 200 {object} response.Any{data=pages.SourceView} "部署源"
+// @Failure 400 {object} response.Any "参数错误"
+// @Failure 401 {object} response.Any "未登录"
+// @Failure 404 {object} response.Any "项目或部署源不存在"
+// @Failure 500 {object} response.Any "内部错误"
+// @Router /api/v1/d/pages/{id}/source [get]
+func GetSourceHandler(c *gin.Context) {
+	projectID, ok := apiutil.IDParam(c)
+	if !ok {
+		return
+	}
+	source, err := GetSource(c.Request.Context(), projectID)
+	if handleSourceLogicError(c, err) {
+		return
+	}
+	c.JSON(http.StatusOK, response.OK(source))
+}
+
+// UpdateSourceHandler 创建或更新 Pages 项目部署源。
+// @Summary 更新 Pages 部署源
+// @Description Phase 1 支持 Remote URL 来源；完整地址仅写入，不会在响应中返回
+// @Tags openflare-pages
+// @Accept json
+// @Produce json
+// @Security SessionCookie
+// @Param id path int true "项目 ID"
+// @Param request body pages.SourceUpdateInput true "部署源配置"
+// @Success 200 {object} response.Any{data=pages.SourceUpdateResult} "更新结果"
+// @Failure 400 {object} response.Any "配置无效"
+// @Failure 401 {object} response.Any "未登录"
+// @Failure 404 {object} response.Any "项目不存在"
+// @Failure 500 {object} response.Any "内部错误"
+// @Router /api/v1/d/pages/{id}/source/update [post]
+func UpdateSourceHandler(c *gin.Context) {
+	projectID, ok := apiutil.IDParam(c)
+	if !ok {
+		return
+	}
+	var input SourceUpdateInput
+	if !decodeStrictJSON(c, &input, false) {
+		return
+	}
+	result, err := UpdateSource(c.Request.Context(), projectID, input)
+	if handleSourceLogicError(c, err) {
+		return
+	}
+	c.JSON(http.StatusOK, response.OK(result))
+}
+
+// DeleteSourceHandler 将 Pages 项目切换回手动部署模式。
+// @Summary 删除 Pages 部署源
+// @Description 幂等删除持久部署源；已有部署历史与当前生产部署保持不变
+// @Tags openflare-pages
+// @Produce json
+// @Security SessionCookie
+// @Param id path int true "项目 ID"
+// @Success 200 {object} response.Any{data=pages.SourceView} "手动来源视图"
+// @Failure 400 {object} response.Any "参数错误"
+// @Failure 401 {object} response.Any "未登录"
+// @Failure 404 {object} response.Any "项目不存在"
+// @Failure 500 {object} response.Any "内部错误"
+// @Router /api/v1/d/pages/{id}/source/delete [post]
+func DeleteSourceHandler(c *gin.Context) {
+	projectID, ok := apiutil.IDParam(c)
+	if !ok {
+		return
+	}
+	source, err := DeleteSource(c.Request.Context(), projectID)
+	if handleSourceLogicError(c, err) {
+		return
+	}
+	c.JSON(http.StatusOK, response.OK(source))
+}
+
+// CheckSourceHandler 请求检查 Pages 部署源。
+// @Summary 检查 Pages 部署源
+// @Description Remote URL 来源不支持检查更新；该端点为后续 GitHub Release 来源保留统一动作契约
+// @Tags openflare-pages
+// @Produce json
+// @Security SessionCookie
+// @Param id path int true "项目 ID"
+// @Success 200 {object} response.Any{data=pages.SourceActionReceipt} "任务回执"
+// @Failure 400 {object} response.Any "当前来源不支持检查"
+// @Failure 401 {object} response.Any "未登录"
+// @Failure 404 {object} response.Any "部署源不存在"
+// @Failure 409 {object} response.Any "来源任务正在执行"
+// @Failure 500 {object} response.Any "内部错误"
+// @Router /api/v1/d/pages/{id}/source/check [post]
+func CheckSourceHandler(c *gin.Context) {
+	projectID, ok := apiutil.IDParam(c)
+	if !ok {
+		return
+	}
+	actor, ok := currentPagesActor(c)
+	if !ok {
+		return
+	}
+	receipt, err := DispatchSourceAction(c.Request.Context(), projectID, sourceActionCheck, actor, "")
+	if handleSourceLogicError(c, err) {
+		return
+	}
+	c.JSON(http.StatusOK, response.OK(receipt))
+}
+
+// SourceSyncInput is the optional source sync action payload.
+type SourceSyncInput struct {
+	ConfirmedRevision string `json:"confirmed_revision"`
+}
+
+// SyncSourceHandler 请求同步并发布 Pages 部署源。
+// @Summary 同步并发布 Pages 部署源
+// @Description 异步下载、校验并原子激活来源部署包；空请求体与空 JSON 对象均有效
+// @Tags openflare-pages
+// @Accept json
+// @Produce json
+// @Security SessionCookie
+// @Param id path int true "项目 ID"
+// @Param request body pages.SourceSyncInput false "同步参数"
+// @Success 200 {object} response.Any{data=pages.SourceActionReceipt} "任务回执"
+// @Failure 400 {object} response.Any "参数或来源类型无效"
+// @Failure 401 {object} response.Any "未登录"
+// @Failure 404 {object} response.Any "部署源不存在"
+// @Failure 409 {object} response.Any "来源任务正在执行"
+// @Failure 500 {object} response.Any "内部错误"
+// @Router /api/v1/d/pages/{id}/source/sync [post]
+func SyncSourceHandler(c *gin.Context) {
+	projectID, ok := apiutil.IDParam(c)
+	if !ok {
+		return
+	}
+	var input SourceSyncInput
+	if !decodeStrictJSON(c, &input, true) {
+		return
+	}
+	actor, ok := currentPagesActor(c)
+	if !ok {
+		return
+	}
+	receipt, err := DispatchSourceAction(
+		c.Request.Context(),
+		projectID,
+		sourceActionSync,
+		actor,
+		input.ConfirmedRevision,
+	)
+	if handleSourceLogicError(c, err) {
+		return
+	}
+	c.JSON(http.StatusOK, response.OK(receipt))
+}
+
 // ListDeploymentsHandler 列出项目的全部部署。
 // @Summary 列出 Pages 部署
 // @Description 返回指定项目的全部部署记录，需要管理员权限
@@ -239,7 +449,8 @@ func UploadDeploymentHandler(c *gin.Context) {
 
 // UploadDeploymentFromURLHandler 从 URL 下载并创建 Pages 部署。
 // @Summary 从 URL 导入 Pages 部署包
-// @Description 从用户提供的 HTTP(S) 链接下载部署包并创建部署记录；服务端使用浏览器伪装请求头拉取，允许内网地址与不安全 TLS 证书，需要管理员权限
+// @Description 已弃用的一次性 URL 导入；使用 trusted_internal 策略兼容内网与自签名证书，不创建持久部署源
+// @Deprecated
 // @Tags openflare-pages
 // @Accept json
 // @Produce json
@@ -298,7 +509,11 @@ func ActivateDeploymentHandler(c *gin.Context) {
 	if !ok {
 		return
 	}
-	project, err := ActivateDeployment(c.Request.Context(), projectID, deploymentID)
+	actor, ok := currentPagesActor(c)
+	if !ok {
+		return
+	}
+	project, err := ActivateDeploymentAs(c.Request.Context(), projectID, deploymentID, actor)
 	if handleLogicError(c, err) {
 		return
 	}

@@ -6,10 +6,12 @@ package task
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"testing"
 	"time"
 
+	"github.com/Rain-kl/Wavelet/internal/db"
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"github.com/Rain-kl/Wavelet/internal/testhelper"
 	"github.com/hibiken/asynq"
@@ -282,6 +284,55 @@ func TestCompleteTaskExecutionFlushesLog(t *testing.T) {
 	assert.Equal(t, model.TaskExecutionStatusSucceeded, found.Status)
 	assert.Contains(t, found.Log, "任务执行中的日志")
 	assert.Contains(t, found.Log, "任务执行成功")
+}
+
+func TestCompleteTaskExecutionFlushesPermanentFailureLog(t *testing.T) {
+	cleanup := setupTest(t)
+	defer cleanup()
+	ctx := context.Background()
+
+	execution := &model.TaskExecution{
+		TaskID:      "complete_permanent_flush_001",
+		TaskType:    testTaskType,
+		TaskName:    "测试任务",
+		Status:      model.TaskExecutionStatusRunning,
+		Retryable:   true,
+		MaxRetry:    3,
+		TriggeredBy: "manual",
+	}
+	err := model.CreateTaskExecution(ctx, execution)
+	require.NoError(t, err)
+
+	ctx = withTaskID(ctx, execution.TaskID)
+	AppendLog(ctx, "永久失败前的日志")
+	execErr := PermanentError("来源配置无效")
+
+	finishTime := time.Now()
+	completeTaskExecution(
+		ctx,
+		execution,
+		asynq.NewTask(testTaskType, nil),
+		100*time.Millisecond,
+		finishTime,
+		nil,
+		execErr,
+		trace.SpanFromContext(ctx),
+	)
+
+	found, err := model.GetTaskExecutionByTaskID(ctx, execution.TaskID)
+	require.NoError(t, err)
+	assert.Equal(t, model.TaskExecutionStatusFailed, found.Status)
+	assert.Equal(t, "来源配置无效", found.ErrorMessage)
+	assert.Contains(t, found.Log, "永久失败前的日志")
+	assert.Contains(t, found.Log, "任务执行失败")
+	keys, err := db.Redis.Keys(ctx, "*"+execution.TaskID+"*").Result()
+	require.NoError(t, err)
+	assert.Empty(t, keys)
+}
+
+func TestPermanentErrorIsTerminalForLogFlush(t *testing.T) {
+	assert.True(t, isTerminalTaskExecutionError(PermanentError("配置无效")))
+	assert.False(t, isTerminalTaskExecutionError(errors.New("temporary failure")))
 }
 
 func TestRetryTask(t *testing.T) {

@@ -29,3 +29,28 @@ func TestDuplicateTaskMeta(t *testing.T) {
 		}
 	}
 }
+
+func TestInternalOnlyTaskMetaIsHiddenFromDispatchableTasks(t *testing.T) {
+	const taskType = "test_internal_only_meta"
+	meta := task.TaskMeta{
+		Type:         taskType,
+		AsynqTask:    "test:internal_only_meta",
+		Name:         "内部测试任务",
+		InternalOnly: true,
+	}
+	task.RegisterTaskMeta(meta)
+
+	registered := task.GetTaskMeta(taskType)
+	if registered == nil {
+		t.Fatal("GetTaskMeta() did not return internal-only metadata")
+	}
+	if !registered.InternalOnly {
+		t.Fatal("GetTaskMeta() lost InternalOnly flag")
+	}
+
+	for _, dispatchable := range task.GetDispatchableTasks() {
+		if dispatchable.Type == taskType {
+			t.Fatalf("GetDispatchableTasks() exposed internal-only task %q", taskType)
+		}
+	}
+}

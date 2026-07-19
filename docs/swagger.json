@@ -8577,7 +8577,7 @@
                         "SessionCookie": []
                     }
                 ],
-                "description": "从用户提供的 HTTP(S) 链接下载部署包并创建部署记录；服务端使用浏览器伪装请求头拉取，允许内网地址与不安全 TLS 证书，需要管理员权限",
+                "description": "已弃用的一次性 URL 导入；使用 trusted_internal 策略兼容内网与自签名证书，不创建持久部署源",
                 "consumes": [
                     "application/json"
                 ],
@@ -8588,6 +8588,7 @@
                     "openflare-pages"
                 ],
                 "summary": "从 URL 导入 Pages 部署包",
+                "deprecated": true,
                 "parameters": [
                     {
                         "type": "integer",
@@ -8781,6 +8782,391 @@
                     },
                     "404": {
                         "description": "项目或部署不存在",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    },
+                    "500": {
+                        "description": "内部错误",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/d/pages/{id}/source": {
+            "get": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "description": "返回脱敏后的项目部署源配置与运行状态，需要管理员权限",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "openflare-pages"
+                ],
+                "summary": "获取 Pages 部署源",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "项目 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "部署源",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/pages.SourceView"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    },
+                    "401": {
+                        "description": "未登录",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    },
+                    "404": {
+                        "description": "项目或部署源不存在",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    },
+                    "500": {
+                        "description": "内部错误",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/d/pages/{id}/source/check": {
+            "post": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "description": "Remote URL 来源不支持检查更新；该端点为后续 GitHub Release 来源保留统一动作契约",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "openflare-pages"
+                ],
+                "summary": "检查 Pages 部署源",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "项目 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "任务回执",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/pages.SourceActionReceipt"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "当前来源不支持检查",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    },
+                    "401": {
+                        "description": "未登录",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    },
+                    "404": {
+                        "description": "部署源不存在",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    },
+                    "409": {
+                        "description": "来源任务正在执行",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    },
+                    "500": {
+                        "description": "内部错误",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/d/pages/{id}/source/delete": {
+            "post": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "description": "幂等删除持久部署源；已有部署历史与当前生产部署保持不变",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "openflare-pages"
+                ],
+                "summary": "删除 Pages 部署源",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "项目 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "手动来源视图",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/pages.SourceView"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    },
+                    "401": {
+                        "description": "未登录",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    },
+                    "404": {
+                        "description": "项目不存在",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    },
+                    "500": {
+                        "description": "内部错误",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/d/pages/{id}/source/sync": {
+            "post": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "description": "异步下载、校验并原子激活来源部署包；空请求体与空 JSON 对象均有效",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "openflare-pages"
+                ],
+                "summary": "同步并发布 Pages 部署源",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "项目 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "同步参数",
+                        "name": "request",
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/pages.SourceSyncInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "任务回执",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/pages.SourceActionReceipt"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "参数或来源类型无效",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    },
+                    "401": {
+                        "description": "未登录",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    },
+                    "404": {
+                        "description": "部署源不存在",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    },
+                    "409": {
+                        "description": "来源任务正在执行",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    },
+                    "500": {
+                        "description": "内部错误",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/d/pages/{id}/source/update": {
+            "post": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "description": "Phase 1 支持 Remote URL 来源；完整地址仅写入，不会在响应中返回",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "openflare-pages"
+                ],
+                "summary": "更新 Pages 部署源",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "项目 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "部署源配置",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/pages.SourceUpdateInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "更新结果",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/pages.SourceUpdateResult"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "配置无效",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    },
+                    "401": {
+                        "description": "未登录",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    },
+                    "404": {
+                        "description": "项目不存在",
                         "schema": {
                             "$ref": "#/definitions/response.Any"
                         }
@@ -17322,11 +17708,20 @@
                 "project_id": {
                     "type": "integer"
                 },
+                "source_label": {
+                    "type": "string"
+                },
+                "source_type": {
+                    "type": "string"
+                },
                 "status": {
                     "type": "string"
                 },
                 "total_size": {
                     "type": "integer"
+                },
+                "trigger_type": {
+                    "type": "string"
                 },
                 "upload_id": {
                     "type": "string",
@@ -17372,6 +17767,150 @@
                 },
                 "spa_fallback_path": {
                     "type": "string"
+                }
+            }
+        },
+        "pages.SourceActionReceipt": {
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "string"
+                },
+                "execution_id": {
+                    "type": "string"
+                },
+                "task_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "pages.SourceRevisionView": {
+            "type": "object",
+            "properties": {
+                "asset_name": {
+                    "type": "string"
+                },
+                "label": {
+                    "type": "string"
+                },
+                "revision": {
+                    "type": "string"
+                }
+            }
+        },
+        "pages.SourceSyncInput": {
+            "type": "object",
+            "properties": {
+                "confirmed_revision": {
+                    "type": "string"
+                }
+            }
+        },
+        "pages.SourceUpdateInput": {
+            "type": "object",
+            "properties": {
+                "asset_name": {
+                    "type": "string"
+                },
+                "auto_update_enabled": {
+                    "type": "boolean"
+                },
+                "check_interval_minutes": {
+                    "type": "integer"
+                },
+                "release_selector": {
+                    "type": "string"
+                },
+                "release_tag": {
+                    "type": "string"
+                },
+                "remote_network_policy": {
+                    "type": "string"
+                },
+                "remote_url": {
+                    "type": "string"
+                },
+                "remote_url_set": {
+                    "type": "boolean"
+                },
+                "repository_url": {
+                    "type": "string"
+                },
+                "source_type": {
+                    "type": "string"
+                }
+            }
+        },
+        "pages.SourceUpdateResult": {
+            "type": "object",
+            "properties": {
+                "check_task": {
+                    "$ref": "#/definitions/pages.SourceActionReceipt"
+                },
+                "source": {
+                    "$ref": "#/definitions/pages.SourceView"
+                },
+                "warning": {
+                    "type": "string"
+                }
+            }
+        },
+        "pages.SourceView": {
+            "type": "object",
+            "properties": {
+                "asset_name": {
+                    "type": "string"
+                },
+                "auto_update_enabled": {
+                    "type": "boolean"
+                },
+                "check_interval_minutes": {
+                    "type": "integer"
+                },
+                "display_url": {
+                    "type": "string"
+                },
+                "github_repository": {
+                    "type": "string"
+                },
+                "has_remote_url": {
+                    "type": "boolean"
+                },
+                "last_applied": {
+                    "$ref": "#/definitions/pages.SourceRevisionView"
+                },
+                "last_checked_at": {
+                    "type": "string"
+                },
+                "last_error": {
+                    "type": "string"
+                },
+                "last_seen": {
+                    "$ref": "#/definitions/pages.SourceRevisionView"
+                },
+                "last_synced_at": {
+                    "type": "string"
+                },
+                "next_check_at": {
+                    "type": "string"
+                },
+                "release_selector": {
+                    "type": "string"
+                },
+                "release_tag": {
+                    "type": "string"
+                },
+                "remote_network_policy": {
+                    "type": "string"
+                },
+                "source_type": {
+                    "type": "string"
+                },
+                "sync_status": {
+                    "type": "string"
+                },
+                "update_available": {
+                    "type": "boolean"
                 }
             }
         },

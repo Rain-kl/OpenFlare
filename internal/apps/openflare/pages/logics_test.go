@@ -43,6 +43,8 @@ func setupPagesTestDB(t *testing.T) func() {
 		&model.PagesProject{},
 		&model.PagesDeployment{},
 		&model.PagesDeploymentFile{},
+		&model.PagesProjectSource{},
+		&model.PagesProjectSourceRuntime{},
 		&model.ConfigVersion{},
 		&model.SystemConfig{},
 	))

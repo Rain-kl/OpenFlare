@@ -66,7 +66,7 @@ func DispatchTask(c *gin.Context) {
 		return
 	}
 
-	meta := task.GetTaskMeta(req.TaskType)
+	meta := getAdminTaskMeta(req.TaskType)
 	if meta == nil {
 		response.AbortBadRequest(c, InvalidTaskType)
 		return
@@ -256,7 +256,7 @@ func CreateSchedule(c *gin.Context) {
 	}
 
 	// 校验关联的异步任务类型
-	meta := task.GetTaskMeta(req.TaskType)
+	meta := getAdminTaskMeta(req.TaskType)
 	if meta == nil {
 		response.AbortBadRequest(c, InvalidTaskType)
 		return
@@ -338,6 +338,10 @@ func UpdateSchedule(c *gin.Context) {
 		response.AbortNotFound(c, ScheduleNotFound)
 		return
 	}
+	if existingMeta := task.GetTaskMeta(schedule.TaskType); existingMeta != nil && existingMeta.InternalOnly {
+		response.AbortBadRequest(c, InvalidTaskType)
+		return
+	}
 
 	// 校验 Cron 表达式
 	if _, err := cron.ParseStandard(req.Cron); err != nil {
@@ -346,7 +350,7 @@ func UpdateSchedule(c *gin.Context) {
 	}
 
 	// 校验关联的异步任务类型
-	meta := task.GetTaskMeta(req.TaskType)
+	meta := getAdminTaskMeta(req.TaskType)
 	if meta == nil {
 		response.AbortBadRequest(c, InvalidTaskType)
 		return
@@ -380,6 +384,14 @@ func UpdateSchedule(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, response.OK(schedule))
+}
+
+func getAdminTaskMeta(taskType string) *task.TaskMeta {
+	meta := task.GetTaskMeta(taskType)
+	if meta == nil || meta.InternalOnly {
+		return nil
+	}
+	return meta
 }
 
 // DeleteSchedule 删除定时任务

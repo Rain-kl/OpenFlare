@@ -428,7 +428,7 @@ func notifyTaskCompleted(ctx context.Context, execution *model.TaskExecution, re
 }
 
 func shouldFlushTaskExecutionLog(ctx context.Context, execErr error) bool {
-	if execErr == nil {
+	if isTerminalTaskExecutionError(execErr) {
 		return true
 	}
 
@@ -438,6 +438,10 @@ func shouldFlushTaskExecutionLog(ctx context.Context, execErr error) bool {
 		return true
 	}
 	return retryCount >= maxRetry
+}
+
+func isTerminalTaskExecutionError(execErr error) bool {
+	return execErr == nil || errors.Is(execErr, asynq.SkipRetry)
 }
 
 func handleFailedTask(ctx context.Context, execution *model.TaskExecution, t *asynq.Task, duration time.Duration, execErr error, span trace.Span) {
