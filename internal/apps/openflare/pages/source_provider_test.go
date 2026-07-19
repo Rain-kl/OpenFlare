@@ -50,7 +50,7 @@ func TestFetchRemoteSourceTrustedInternalSelfSignedAndSafeLabel(t *testing.T) {
 
 	candidate, err := FetchRemoteSource(t.Context(), RemoteSourceRequest{
 		URL:             server.URL + "/original/site.zip?token=source-secret",
-		NetworkPolicy:   RemoteNetworkPolicyTrustedInternal,
+		AllowInsecure:   true,
 		MaxPackageBytes: int64(len(packageBytes) + 1),
 	})
 	if err != nil {
@@ -106,7 +106,7 @@ func TestFetchRemoteSourceKeepsOriginalLabelAcrossRedirect(t *testing.T) {
 
 	candidate, err := FetchRemoteSource(t.Context(), RemoteSourceRequest{
 		URL:             server.URL + "/original/site.zip?token=initial-secret",
-		NetworkPolicy:   RemoteNetworkPolicyTrustedInternal,
+		AllowInsecure:   true,
 		MaxPackageBytes: int64(len(packageBytes) + 1),
 	})
 	if err != nil {
@@ -118,29 +118,28 @@ func TestFetchRemoteSourceKeepsOriginalLabelAcrossRedirect(t *testing.T) {
 	}
 }
 
-func TestFetchRemoteSourcePublicRejectsNonPublicAddresses(t *testing.T) {
-	tests := []string{
-		"http://127.0.0.1/site.zip?token=loopback-secret",
-		"http://[::1]/site.zip?token=ipv6-secret",
-		"http://100.64.0.1/site.zip?token=cgnat-secret",
-		"http://192.0.2.1/site.zip?token=documentation-secret",
+func TestFetchRemoteSourcePublicAllowsPrivateAddresses(t *testing.T) {
+	packageBytes := makeRemoteSourceZIP(t)
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
+		_, _ = writer.Write(packageBytes)
+	}))
+	t.Cleanup(server.Close)
+
+	candidate, err := FetchRemoteSource(t.Context(), RemoteSourceRequest{
+		URL:             server.URL + "/site.zip?token=private-secret",
+		AllowInsecure:   false,
+		MaxPackageBytes: int64(len(packageBytes) + 1),
+	})
+	if err != nil {
+		t.Fatalf("FetchRemoteSource() error = %v", err)
 	}
-	for _, rawURL := range tests {
-		t.Run(rawURL, func(t *testing.T) {
-			_, err := FetchRemoteSource(t.Context(), RemoteSourceRequest{
-				URL:             rawURL,
-				NetworkPolicy:   RemoteNetworkPolicyPublic,
-				MaxPackageBytes: 1024,
-			})
-			if !errors.Is(err, errRemoteProviderBlockedAddress) {
-				t.Fatalf("FetchRemoteSource() error = %v, want blocked address", err)
-			}
-			assertRemoteSourceErrorRedacted(t, err, rawURL, "secret", "token=")
-		})
+	defer func() { _ = candidate.Cleanup() }()
+	if candidate.Format != "zip" {
+		t.Fatalf("candidate format = %q, want zip", candidate.Format)
 	}
 }
 
-func TestFetchRemoteSourcePublicDialsValidatedIP(t *testing.T) {
+func TestFetchRemoteSourcePublicUsesDirectDialer(t *testing.T) {
 	packageBytes := makeRemoteSourceZIP(t)
 	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
 		_, _ = writer.Write(packageBytes)
@@ -156,76 +155,44 @@ func TestFetchRemoteSourcePublicDialsValidatedIP(t *testing.T) {
 	}
 	candidate, err := fetchRemoteSource(t.Context(), RemoteSourceRequest{
 		URL:             "http://artifact.example/site.zip",
-		NetworkPolicy:   RemoteNetworkPolicyPublic,
+		AllowInsecure:   false,
 		MaxPackageBytes: int64(len(packageBytes) + 1),
 	}, dependencies)
 	if err != nil {
 		t.Fatalf("fetchRemoteSource() error = %v", err)
 	}
 	defer func() { _ = candidate.Cleanup() }()
-	if dialedAddress != "93.184.216.34:80" {
-		t.Fatalf("direct dial address = %q, want validated IP", dialedAddress)
+	if dialedAddress != "artifact.example:80" {
+		t.Fatalf("direct dial address = %q, want hostname dial", dialedAddress)
 	}
 }
 
-func TestFetchRemoteSourcePublicRejectsPrivateRedirect(t *testing.T) {
-	var requestCount atomic.Int32
+func TestFetchRemoteSourcePublicAllowsPrivateRedirect(t *testing.T) {
+	packageBytes := makeRemoteSourceZIP(t)
+	var privateServer *httptest.Server
+	privateServer = httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
+		_, _ = writer.Write(packageBytes)
+	}))
+	t.Cleanup(privateServer.Close)
+
 	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
-		requestCount.Add(1)
-		writer.Header().Set("Location", "http://127.0.0.1/private.zip?token=redirect-secret")
+		writer.Header().Set("Location", privateServer.URL+"/private.zip?token=redirect-secret")
 		writer.WriteHeader(http.StatusFound)
 	}))
 	t.Cleanup(server.Close)
 
-	dependencies := mappedRemoteSourceDependencies(server.Listener.Addr().String(), staticPublicRemoteSourceResolver())
-	rawURL := "http://artifact.example/start.zip?token=initial-secret"
-	_, err := fetchRemoteSource(t.Context(), RemoteSourceRequest{
-		URL:             rawURL,
-		NetworkPolicy:   RemoteNetworkPolicyPublic,
-		MaxPackageBytes: 1024,
-	}, dependencies)
-	if !errors.Is(err, errRemoteProviderBlockedAddress) {
-		t.Fatalf("fetchRemoteSource() error = %v, want blocked redirect", err)
-	}
-	if requestCount.Load() != 1 {
-		t.Fatalf("request count = %d, private redirect must not be requested", requestCount.Load())
-	}
-	assertRemoteSourceErrorRedacted(t, err, rawURL, "initial-secret", "redirect-secret", "token=")
-}
-
-func TestFetchRemoteSourcePublicRejectsDNSRebinding(t *testing.T) {
-	var lookupCount atomic.Int32
-	resolver := remoteSourceResolverFunc(func(context.Context, string, string) ([]netip.Addr, error) {
-		if lookupCount.Add(1) == 1 {
-			return []netip.Addr{netip.MustParseAddr("93.184.216.34")}, nil
-		}
-		return []netip.Addr{netip.MustParseAddr("127.0.0.1")}, nil
+	candidate, err := FetchRemoteSource(t.Context(), RemoteSourceRequest{
+		URL:             server.URL + "/start.zip?token=initial-secret",
+		AllowInsecure:   false,
+		MaxPackageBytes: int64(len(packageBytes) + 1),
 	})
-	var dialCount atomic.Int32
-	dependencies := remoteSourceDependencies{
-		resolver: resolver,
-		dialContext: func(context.Context, string, string) (net.Conn, error) {
-			dialCount.Add(1)
-			return nil, errors.New("unexpected dial")
-		},
-		createTemp: os.CreateTemp,
+	if err != nil {
+		t.Fatalf("FetchRemoteSource() error = %v", err)
 	}
-	rawURL := "http://rebind.example/site.zip?signature=dns-secret"
-	_, err := fetchRemoteSource(t.Context(), RemoteSourceRequest{
-		URL:             rawURL,
-		NetworkPolicy:   RemoteNetworkPolicyPublic,
-		MaxPackageBytes: 1024,
-	}, dependencies)
-	if !errors.Is(err, errRemoteProviderBlockedAddress) {
-		t.Fatalf("fetchRemoteSource() error = %v, want DNS rebinding rejection", err)
+	defer func() { _ = candidate.Cleanup() }()
+	if candidate.Format != "zip" {
+		t.Fatalf("candidate format = %q, want zip", candidate.Format)
 	}
-	if lookupCount.Load() != 2 {
-		t.Fatalf("DNS lookup count = %d, want preflight plus dial validation", lookupCount.Load())
-	}
-	if dialCount.Load() != 0 {
-		t.Fatalf("direct dial count = %d, rebound address must not be dialed", dialCount.Load())
-	}
-	assertRemoteSourceErrorRedacted(t, err, rawURL, "dns-secret", "signature=")
 }
 
 func TestFetchRemoteSourcePublicRejectsSelfSignedTLS(t *testing.T) {
@@ -240,7 +207,7 @@ func TestFetchRemoteSourcePublicRejectsSelfSignedTLS(t *testing.T) {
 	rawURL := "https://artifact.example/site.zip?signature=tls-secret"
 	_, err := fetchRemoteSource(t.Context(), RemoteSourceRequest{
 		URL:             rawURL,
-		NetworkPolicy:   RemoteNetworkPolicyPublic,
+		AllowInsecure:   false,
 		MaxPackageBytes: int64(len(packageBytes) + 1),
 	}, dependencies)
 	if !errors.Is(err, errRemoteProviderDownloadFailed) {
@@ -268,7 +235,7 @@ func TestFetchRemoteSourceRejectsChunkedBodyOverLimitAndCleansTemp(t *testing.T)
 	rawURL := server.URL + "/site.zip?token=chunk-secret"
 	_, err := fetchRemoteSource(t.Context(), RemoteSourceRequest{
 		URL:             rawURL,
-		NetworkPolicy:   RemoteNetworkPolicyTrustedInternal,
+		AllowInsecure:   true,
 		MaxPackageBytes: maxPackageBytes,
 	}, dependencies)
 	if !errors.Is(err, errRemoteProviderTooLarge) {
@@ -293,7 +260,7 @@ func TestFetchRemoteSourceRejectsContentLengthBeforeCreatingTemp(t *testing.T) {
 	}
 	_, err := fetchRemoteSource(t.Context(), RemoteSourceRequest{
 		URL:             server.URL + "/site.zip",
-		NetworkPolicy:   RemoteNetworkPolicyTrustedInternal,
+		AllowInsecure:   true,
 		MaxPackageBytes: 1024,
 	}, dependencies)
 	if !errors.Is(err, errRemoteProviderTooLarge) {
@@ -314,7 +281,7 @@ func TestFetchRemoteSourceSniffsAtLeast512BytesForTar(t *testing.T) {
 
 	candidate, err := FetchRemoteSource(t.Context(), RemoteSourceRequest{
 		URL:             server.URL + "/download",
-		NetworkPolicy:   RemoteNetworkPolicyTrustedInternal,
+		AllowInsecure:   true,
 		MaxPackageBytes: int64(len(packageBytes) + 1),
 	})
 	if err != nil {
@@ -344,7 +311,7 @@ func TestFetchRemoteSourceRedactsURLHeadersAndBodyFromErrors(t *testing.T) {
 	rawURL := server.URL + "/download?token=query-secret"
 	_, err := fetchRemoteSource(t.Context(), RemoteSourceRequest{
 		URL:             rawURL,
-		NetworkPolicy:   RemoteNetworkPolicyTrustedInternal,
+		AllowInsecure:   true,
 		MaxPackageBytes: 1024,
 	}, dependencies)
 	if !errors.Is(err, errRemoteProviderUnsupported) {
@@ -380,7 +347,7 @@ func TestFetchRemoteSourceAllowsFiveRedirectsOnly(t *testing.T) {
 	dependencies := mappedRemoteSourceDependencies(server.Listener.Addr().String(), staticPublicRemoteSourceResolver())
 	_, err := fetchRemoteSource(t.Context(), RemoteSourceRequest{
 		URL:             "http://artifact.example/0",
-		NetworkPolicy:   RemoteNetworkPolicyPublic,
+		AllowInsecure:   false,
 		MaxPackageBytes: int64(len(packageBytes) + 1),
 	}, dependencies)
 	if !errors.Is(err, errRemoteProviderRedirectLimit) {

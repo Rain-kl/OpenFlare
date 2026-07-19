@@ -26,13 +26,6 @@ import (
 )
 
 const (
-	// RemoteNetworkPolicyPublic only permits publicly routable targets and
-	// performs DNS validation again for every connection.
-	RemoteNetworkPolicyPublic = "public"
-	// RemoteNetworkPolicyTrustedInternal permits private targets and self-signed
-	// TLS certificates. It is an explicit administrator trust boundary.
-	RemoteNetworkPolicyTrustedInternal = "trusted_internal"
-
 	remoteSourceDownloadTimeout       = 10 * time.Minute
 	remoteSourceResponseHeaderTimeout = 30 * time.Second
 	remoteSourceDialTimeout           = 30 * time.Second
@@ -52,12 +45,9 @@ func (providerError remoteProviderError) Error() string {
 	return string(providerError)
 }
 
-const (
-	errRemoteProviderInvalidPolicy  remoteProviderError = "远程来源网络策略无效"
-	errRemoteProviderInvalidLimit   remoteProviderError = "远程来源部署包大小限制无效"
-	errRemoteProviderBlockedAddress remoteProviderError = "远程来源 public 策略禁止访问非公网地址"
-	errRemoteProviderResolveFailed  remoteProviderError = "远程来源地址解析失败"
-	errRemoteProviderRedirectLimit  remoteProviderError = "远程来源重定向次数超过限制"
+	const (
+	errRemoteProviderInvalidLimit  remoteProviderError = "远程来源部署包大小限制无效"
+	errRemoteProviderRedirectLimit remoteProviderError = "远程来源重定向次数超过限制"
 	errRemoteProviderDownloadFailed remoteProviderError = errPagesPackageURLDownloadFailed
 	errRemoteProviderTooLarge       remoteProviderError = errPagesPackageURLTooLarge
 	errRemoteProviderEmpty          remoteProviderError = errPagesPackageEmpty
@@ -65,38 +55,10 @@ const (
 	errRemoteProviderCleanupFailed  remoteProviderError = "清理远程来源临时文件失败"
 )
 
-var remoteSourceNonPublicPrefixes = []netip.Prefix{
-	// IPv4 special-use, private, link-local, documentation, multicast and
-	// reserved ranges. A conservative deny list is intentional for SSRF safety.
-	netip.MustParsePrefix("0.0.0.0/8"),
-	netip.MustParsePrefix("10.0.0.0/8"),
-	netip.MustParsePrefix("100.64.0.0/10"),
-	netip.MustParsePrefix("127.0.0.0/8"),
-	netip.MustParsePrefix("169.254.0.0/16"),
-	netip.MustParsePrefix("172.16.0.0/12"),
-	netip.MustParsePrefix("192.0.0.0/24"),
-	netip.MustParsePrefix("192.0.2.0/24"),
-	netip.MustParsePrefix("192.88.99.0/24"),
-	netip.MustParsePrefix("192.168.0.0/16"),
-	netip.MustParsePrefix("198.18.0.0/15"),
-	netip.MustParsePrefix("198.51.100.0/24"),
-	netip.MustParsePrefix("203.0.113.0/24"),
-	netip.MustParsePrefix("224.0.0.0/4"),
-	netip.MustParsePrefix("240.0.0.0/4"),
-	// IPv6 protocol-assignment, documentation and transition ranges that are
-	// not acceptable as direct public artifact origins.
-	netip.MustParsePrefix("2001::/23"),
-	netip.MustParsePrefix("2001:db8::/32"),
-	netip.MustParsePrefix("2002::/16"),
-	netip.MustParsePrefix("3fff::/20"),
-}
-
-var remoteSourcePublicIPv6Prefix = netip.MustParsePrefix("2000::/3")
-
 // RemoteSourceRequest describes one immutable Remote URL package fetch.
 type RemoteSourceRequest struct {
 	URL             string
-	NetworkPolicy   string
+	AllowInsecure   bool
 	MaxPackageBytes int64
 }
 
@@ -158,20 +120,16 @@ func fetchRemoteSource(ctx context.Context, request RemoteSourceRequest, depende
 	if dependencies.dialContext == nil || dependencies.createTemp == nil {
 		return nil, errRemoteProviderDownloadFailed
 	}
-	policy, err := normalizeRemoteNetworkPolicy(request.NetworkPolicy)
-	if err != nil {
-		return nil, err
-	}
 	parsed, err := parseRemoteSourceURL(request.URL)
 	if err != nil {
 		return nil, err
 	}
-	if err := validateRemoteSourceTarget(ctx, parsed, policy, dependencies.resolver); err != nil {
+	if err := validateRemoteSourceTarget(ctx, parsed); err != nil {
 		return nil, sanitizeRemoteProviderError(ctx, err)
 	}
 
 	safeLabel, namedFormat := remoteSourceLabel(parsed)
-	client := newRemoteSourceClient(policy, dependencies)
+	client := newRemoteSourceClient(request.AllowInsecure, dependencies)
 	defer client.CloseIdleConnections()
 	response, err := requestRemoteSource(ctx, client, parsed)
 	if err != nil {
@@ -211,33 +169,18 @@ func fetchRemoteSource(ctx context.Context, request RemoteSourceRequest, depende
 	}, nil
 }
 
-func normalizeRemoteNetworkPolicy(policy string) (string, error) {
-	switch strings.TrimSpace(policy) {
-	case "", RemoteNetworkPolicyPublic:
-		return RemoteNetworkPolicyPublic, nil
-	case RemoteNetworkPolicyTrustedInternal:
-		return RemoteNetworkPolicyTrustedInternal, nil
-	default:
-		return "", errRemoteProviderInvalidPolicy
-	}
-}
-
-func newRemoteSourceClient(policy string, dependencies remoteSourceDependencies) *http.Client {
+func newRemoteSourceClient(allowInsecure bool, dependencies remoteSourceDependencies) *http.Client {
 	tlsConfig := &tls.Config{MinVersion: tls.VersionTLS12}
-	dialContext := dependencies.dialContext
-	if policy == RemoteNetworkPolicyPublic {
-		dialContext = newPublicRemoteSourceDialer(dependencies.resolver, dependencies.dialContext)
-	} else {
-		// trusted_internal is an explicit administrator-selected boundary for
-		// private artifact services using an internal CA or self-signed cert.
-		tlsConfig.InsecureSkipVerify = true //nolint:gosec // required trusted_internal semantics
+	if allowInsecure {
+		// Explicit administrator choice for self-signed or private CA endpoints.
+		tlsConfig.InsecureSkipVerify = true //nolint:gosec // required allow_insecure semantics
 	}
 
 	client := &http.Client{
 		Timeout: remoteSourceDownloadTimeout,
 		Transport: httppool.NewTransport(httppool.TransportOptions{
 			Proxy:                 nil,
-			DialContext:           dialContext,
+			DialContext:           dependencies.dialContext,
 			TLSClientConfig:       tlsConfig,
 			ResponseHeaderTimeout: remoteSourceResponseHeaderTimeout,
 			TraceFilter:           remoteSourceTraceFilter,
@@ -248,7 +191,7 @@ func newRemoteSourceClient(policy string, dependencies remoteSourceDependencies)
 			return errRemoteProviderRedirectLimit
 		}
 		stripRemoteSourceRedirectHeaders(next)
-		if err := validateRemoteSourceTarget(next.Context(), next.URL, policy, dependencies.resolver); err != nil {
+		if err := validateRemoteSourceTarget(next.Context(), next.URL); err != nil {
 			return err
 		}
 		applyRemoteSourceHeaders(next)
@@ -293,7 +236,7 @@ func remoteSourceTraceFilter(request *http.Request) bool {
 	return request.URL == nil || request.URL.RawQuery == ""
 }
 
-func validateRemoteSourceTarget(ctx context.Context, target *url.URL, policy string, resolver remoteSourceResolver) error {
+func validateRemoteSourceTarget(_ context.Context, target *url.URL) error {
 	if target == nil || target.User != nil || target.Fragment != "" || target.Opaque != "" {
 		return errors.New(errPagesSourceRemoteURLInvalid)
 	}
@@ -301,92 +244,7 @@ func validateRemoteSourceTarget(ctx context.Context, target *url.URL, policy str
 	if (scheme != remoteSourceSchemeHTTP && scheme != remoteSourceSchemeHTTPS) || strings.TrimSpace(target.Hostname()) == "" {
 		return errors.New(errPagesSourceRemoteURLInvalid)
 	}
-	if policy != RemoteNetworkPolicyPublic {
-		return nil
-	}
-	_, err := resolvePublicRemoteSourceIPs(ctx, resolver, target.Hostname())
-	return err
-}
-
-func newPublicRemoteSourceDialer(
-	resolver remoteSourceResolver,
-	directDial func(context.Context, string, string) (net.Conn, error),
-) func(context.Context, string, string) (net.Conn, error) {
-	return func(ctx context.Context, network string, address string) (net.Conn, error) {
-		host, port, err := net.SplitHostPort(address)
-		if err != nil {
-			return nil, errRemoteProviderDownloadFailed
-		}
-		addresses, err := resolvePublicRemoteSourceIPs(ctx, resolver, host)
-		if err != nil {
-			return nil, err
-		}
-		for _, address := range addresses {
-			if !remoteSourceIPMatchesNetwork(address, network) {
-				continue
-			}
-			connection, dialErr := directDial(ctx, network, net.JoinHostPort(address.String(), port))
-			if dialErr == nil {
-				return connection, nil
-			}
-		}
-		return nil, errRemoteProviderDownloadFailed
-	}
-}
-
-func resolvePublicRemoteSourceIPs(ctx context.Context, resolver remoteSourceResolver, host string) ([]netip.Addr, error) {
-	if strings.Contains(host, "%") {
-		return nil, errRemoteProviderBlockedAddress
-	}
-	if literal, parseErr := netip.ParseAddr(host); parseErr == nil {
-		if !isPublicRemoteSourceIP(literal) {
-			return nil, errRemoteProviderBlockedAddress
-		}
-		return []netip.Addr{literal}, nil
-	}
-	if resolver == nil {
-		return nil, errRemoteProviderResolveFailed
-	}
-	addresses, err := resolver.LookupNetIP(ctx, "ip", host)
-	if err != nil || len(addresses) == 0 {
-		return nil, errRemoteProviderResolveFailed
-	}
-	for _, address := range addresses {
-		if !isPublicRemoteSourceIP(address) {
-			return nil, errRemoteProviderBlockedAddress
-		}
-	}
-	return addresses, nil
-}
-
-func isPublicRemoteSourceIP(address netip.Addr) bool {
-	if !address.IsValid() || address.Zone() != "" {
-		return false
-	}
-	address = address.Unmap()
-	if !address.IsGlobalUnicast() {
-		return false
-	}
-	if address.Is6() && !remoteSourcePublicIPv6Prefix.Contains(address) {
-		return false
-	}
-	for _, prefix := range remoteSourceNonPublicPrefixes {
-		if prefix.Contains(address) {
-			return false
-		}
-	}
-	return true
-}
-
-func remoteSourceIPMatchesNetwork(address netip.Addr, network string) bool {
-	switch network {
-	case "tcp4":
-		return address.Unmap().Is4()
-	case "tcp6":
-		return address.Unmap().Is6()
-	default:
-		return true
-	}
+	return nil
 }
 
 func streamRemoteSourcePackage(
@@ -531,10 +389,7 @@ func sanitizeRemoteProviderError(ctx context.Context, err error) error {
 		return fmt.Errorf("%w: %w", errRemoteProviderDownloadFailed, ctxErr)
 	}
 	for _, safeError := range []error{
-		errRemoteProviderInvalidPolicy,
 		errRemoteProviderInvalidLimit,
-		errRemoteProviderBlockedAddress,
-		errRemoteProviderResolveFailed,
 		errRemoteProviderRedirectLimit,
 		errRemoteProviderTooLarge,
 		errRemoteProviderEmpty,

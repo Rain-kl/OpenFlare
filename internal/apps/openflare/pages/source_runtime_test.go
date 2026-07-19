@@ -22,7 +22,7 @@ func TestSourceLeaseHeartbeatRenewsAndCancelsOnOwnershipLoss(t *testing.T) {
 		ctx,
 		project.ID,
 		"https://example.com/site.zip",
-		RemoteNetworkPolicyPublic,
+		false,
 	)
 	snapshot, outcome, err := acquireSourceLease(ctx, source.ID, source.ConfigVersion, sourceActionSync)
 	if err != nil || outcome != sourceLeaseAcquired || snapshot == nil {
@@ -83,7 +83,7 @@ func TestAcquireSourceLeaseConcurrentOnlyOneOwner(t *testing.T) {
 		ctx,
 		project.ID,
 		"https://example.com/site.zip",
-		RemoteNetworkPolicyPublic,
+		false,
 	)
 	type leaseResult struct {
 		snapshot *sourceExecutionSnapshot
@@ -138,7 +138,7 @@ func TestAcquireSourceLeaseMutualExclusionExpiryAndTerminalOwnership(t *testing.
 		ctx,
 		project.ID,
 		"https://example.com/site.zip",
-		RemoteNetworkPolicyPublic,
+		false,
 	)
 
 	first, outcome, err := acquireSourceLease(ctx, source.ID, source.ConfigVersion, sourceActionSync)
@@ -234,7 +234,7 @@ func TestSourceConfigAndProjectContentChangesFenceLease(t *testing.T) {
 		ctx,
 		project.ID,
 		"https://example.com/site.zip?token=first",
-		RemoteNetworkPolicyPublic,
+		false,
 	)
 
 	configSnapshot, outcome, err := acquireSourceLease(ctx, source.ID, source.ConfigVersion, sourceActionSync)
@@ -243,9 +243,8 @@ func TestSourceConfigAndProjectContentChangesFenceLease(t *testing.T) {
 	}
 	if _, err := UpdateSource(ctx, project.ID, SourceUpdateInput{
 		SourceType:          PagesSourceTypeRemoteURL,
-		RemoteURLSet:        true,
 		RemoteURL:           "https://example.com/site.zip?token=second",
-		RemoteNetworkPolicy: RemoteNetworkPolicyPublic,
+		AllowInsecure: false,
 	}); err != nil {
 		t.Fatalf("UpdateSource(config fence) error = %v, want nil", err)
 	}

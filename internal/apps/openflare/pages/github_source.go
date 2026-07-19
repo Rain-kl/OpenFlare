@@ -53,8 +53,7 @@ func validateGitHubSourceInput(input SourceUpdateInput) error {
 	if strings.TrimSpace(input.SourceType) != PagesSourceTypeGitHubRelease {
 		return errors.New(errPagesSourceTypeUnsupported)
 	}
-	if input.RemoteURLSet || strings.TrimSpace(input.RemoteURL) != "" ||
-		strings.TrimSpace(input.RemoteNetworkPolicy) != "" {
+	if strings.TrimSpace(input.RemoteURL) != "" || input.AllowInsecure {
 		return errors.New(errPagesSourceGitHubFields)
 	}
 	if _, err := normalizeGitHubRepositoryURL(input.RepositoryURL); err != nil {
@@ -275,7 +274,7 @@ func githubSourceUpdates(config githubSourceConfig, version int) map[string]any 
 	return map[string]any{
 		"source_type":                 PagesSourceTypeGitHubRelease,
 		"remote_url":                  "",
-		"remote_network_policy":       "",
+		"allow_insecure":              false,
 		"github_repository":           config.Repository,
 		"release_selector":            config.Selector,
 		"release_tag":                 config.Tag,
@@ -289,7 +288,7 @@ func githubSourceUpdates(config githubSourceConfig, version int) map[string]any 
 
 func githubSourceConfigChanged(existing *model.PagesProjectSource, config githubSourceConfig) bool {
 	return existing.SourceType != PagesSourceTypeGitHubRelease || existing.RemoteURL != "" ||
-		existing.RemoteNetworkPolicy != "" || existing.GitHubRepository != config.Repository ||
+		existing.AllowInsecure || existing.GitHubRepository != config.Repository ||
 		existing.ReleaseSelector != config.Selector || existing.ReleaseTag != config.Tag ||
 		existing.AssetName != config.AssetName || existing.AutoUpdateEnabled != config.AutoUpdate ||
 		existing.CheckIntervalMinutes != config.CheckInterval

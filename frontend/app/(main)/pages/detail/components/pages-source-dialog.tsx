@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Eye, EyeOff } from 'lucide-react';
 import { toast } from 'sonner';
 
 import {
@@ -33,9 +32,9 @@ import {
 } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Spinner } from '@/components/ui/spinner';
+import { Switch } from '@/components/ui/switch';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import {
-  type PagesRemoteNetworkPolicy,
   type PagesSource,
   type PagesSourceActionReceipt,
   type PagesSourceUpdatePayload,
@@ -61,7 +60,7 @@ import {
 
 export type PagesSourceMode = 'manual' | 'remote_url' | 'github_release';
 
-type Confirmation = 'trusted_internal' | 'manual' | null;
+type Confirmation = 'manual' | null;
 
 interface PagesSourceDialogProps {
   open: boolean;
@@ -96,11 +95,8 @@ export function PagesSourceDialog({
 }: PagesSourceDialogProps) {
   const queryClient = useQueryClient();
   const [mode, setMode] = useState<PagesSourceMode>('manual');
-  const [networkPolicy, setNetworkPolicy] =
-    useState<PagesRemoteNetworkPolicy>('public');
-  const [replaceURL, setReplaceURL] = useState(false);
+  const [allowInsecure, setAllowInsecure] = useState(false);
   const [remoteURL, setRemoteURL] = useState('');
-  const [revealRemoteURL, setRevealRemoteURL] = useState(false);
   const [urlError, setURLError] = useState('');
   const [githubForm, setGitHubForm] = useState<PagesGitHubSourceFormValue>({
     repositoryURL: '',
@@ -118,8 +114,6 @@ export function PagesSourceDialog({
   useEffect(() => {
     if (!open) {
       initializedForOpen.current = false;
-      setRemoteURL('');
-      setRevealRemoteURL(false);
       return;
     }
     // Runtime polling may replace the source view while the dialog is open.
@@ -128,14 +122,12 @@ export function PagesSourceDialog({
     initializedForOpen.current = true;
     const nextMode = initialMode ?? source.source_type;
     setMode(nextMode);
-    setNetworkPolicy(
-      source.source_type === 'remote_url'
-        ? source.remote_network_policy
-        : 'public',
+    setAllowInsecure(
+      source.source_type === 'remote_url' && Boolean(source.allow_insecure),
     );
-    setReplaceURL(source.source_type !== 'remote_url');
-    setRemoteURL('');
-    setRevealRemoteURL(false);
+    setRemoteURL(
+      source.source_type === 'remote_url' ? (source.remote_url ?? '') : '',
+    );
     setURLError('');
     setGitHubForm({
       repositoryURL:
@@ -192,8 +184,6 @@ export function PagesSourceDialog({
       toast.success('部署源已更新');
       if (result.warning) toast.warning(result.warning);
       setConfirmation(null);
-      setRemoteURL('');
-      setRevealRemoteURL(false);
       onOpenChange(false);
     },
     onError: (error) => {
@@ -208,8 +198,6 @@ export function PagesSourceDialog({
       await invalidateSourceState();
       toast.success('已切换回手动部署');
       setConfirmation(null);
-      setRemoteURL('');
-      setRevealRemoteURL(false);
       onOpenChange(false);
     },
     onError: (error) => {
@@ -221,31 +209,24 @@ export function PagesSourceDialog({
 
   const remotePayload = (): PagesSourceUpdatePayload => ({
     source_type: 'remote_url',
-    remote_url_set: replaceURL,
-    remote_url: replaceURL ? remoteURL.trim() : '',
-    remote_network_policy: networkPolicy,
+    remote_url: remoteURL.trim(),
+    allow_insecure: allowInsecure,
   });
 
   const submitRemote = () => {
-    if (replaceURL) {
-      const value = remoteURL.trim();
-      if (!value) {
-        setURLError('请输入 Remote URL');
-        return;
-      }
-      try {
-        const parsed = new URL(value);
-        if (!['http:', 'https:'].includes(parsed.protocol)) throw new Error();
-      } catch {
-        setURLError('请输入有效的 HTTP(S) URL');
-        return;
-      }
-    }
-    setURLError('');
-    if (networkPolicy === 'trusted_internal') {
-      setConfirmation('trusted_internal');
+    const value = remoteURL.trim();
+    if (!value) {
+      setURLError('请输入 Remote URL');
       return;
     }
+    try {
+      const parsed = new URL(value);
+      if (!['http:', 'https:'].includes(parsed.protocol)) throw new Error();
+    } catch {
+      setURLError('请输入有效的 HTTP(S) URL');
+      return;
+    }
+    setURLError('');
     updateMutation.mutate(remotePayload());
   };
 
@@ -347,7 +328,7 @@ export function PagesSourceDialog({
           <DialogHeader>
             <DialogTitle>部署源设置</DialogTitle>
             <DialogDescription>
-              手动部署、Remote URL 与 GitHub Release 使用独立配置。
+              选择部署来源。
             </DialogDescription>
           </DialogHeader>
 
@@ -368,9 +349,9 @@ export function PagesSourceDialog({
                   ) {
                     setMode(value);
                     if (value !== 'remote_url') {
-                      setRemoteURL('');
-                      setRevealRemoteURL(false);
                       setURLError('');
+                    } else if (source.source_type === 'remote_url') {
+                      setRemoteURL(source.remote_url ?? '');
                     }
                   }
                 }}
@@ -385,14 +366,6 @@ export function PagesSourceDialog({
                   GitHub Release
                 </ToggleGroupItem>
               </ToggleGroup>
-              <FieldDescription>
-                <span>
-                  远端来源只负责发现内容，发布结果始终保留为不可变部署。
-                </span>
-                <span className='block'>
-                  仓库源码构建将在后续作为独立来源类型提供。
-                </span>
-              </FieldDescription>
             </Field>
 
             {mode === 'manual' ? (
@@ -406,115 +379,37 @@ export function PagesSourceDialog({
               <>
                 <Field data-invalid={Boolean(urlError)}>
                   <FieldLabel htmlFor='pages-remote-url'>Remote URL</FieldLabel>
-                  {source.source_type === 'remote_url' && !replaceURL ? (
-                    <div className='flex flex-col gap-2 rounded-lg border p-3 sm:flex-row sm:items-center sm:justify-between'>
-                      <code className='min-w-0 truncate text-xs'>
-                        {source.display_url}
-                      </code>
-                      <Button
-                        type='button'
-                        variant='outline'
-                        size='sm'
-                        onClick={() => {
-                          setReplaceURL(true);
-                          setRemoteURL('');
-                          setRevealRemoteURL(false);
-                        }}
-                      >
-                        更换地址
-                      </Button>
-                    </div>
-                  ) : (
-                    <div className='flex gap-2'>
-                      <Input
-                        id='pages-remote-url'
-                        type={revealRemoteURL ? 'url' : 'password'}
-                        placeholder='https://artifacts.example.com/site.zip?token=...'
-                        value={remoteURL}
-                        aria-invalid={Boolean(urlError)}
-                        autoComplete='off'
-                        className='min-w-0 flex-1'
-                        onChange={(event) => {
-                          setRemoteURL(event.target.value);
-                          setURLError('');
-                        }}
-                      />
-                      <Button
-                        type='button'
-                        variant='outline'
-                        size='icon'
-                        aria-label={
-                          revealRemoteURL
-                            ? '隐藏 Remote URL'
-                            : '显示 Remote URL'
-                        }
-                        title={
-                          revealRemoteURL
-                            ? '隐藏 Remote URL'
-                            : '显示 Remote URL'
-                        }
-                        onClick={() =>
-                          setRevealRemoteURL((visible) => !visible)
-                        }
-                      >
-                        {revealRemoteURL ? <EyeOff /> : <Eye />}
-                      </Button>
-                    </div>
-                  )}
+                  <Input
+                    id='pages-remote-url'
+                    type='url'
+                    placeholder='https://artifacts.example.com/site.zip'
+                    value={remoteURL}
+                    aria-invalid={Boolean(urlError)}
+                    autoComplete='off'
+                    onChange={(event) => {
+                      setRemoteURL(event.target.value);
+                      setURLError('');
+                    }}
+                  />
                   <FieldDescription>
-                    {urlError ||
-                      (replaceURL
-                        ? '保存后不会回显原始地址或 query token。'
-                        : '界面只显示脱敏地址；留空表示保留当前地址。')}
+                    {urlError || '填写可直接下载的部署包 HTTP(S) 地址。'}
                   </FieldDescription>
-                  {source.source_type === 'remote_url' && replaceURL ? (
-                    <Button
-                      type='button'
-                      variant='ghost'
-                      size='sm'
-                      className='self-start'
-                      onClick={() => {
-                        setReplaceURL(false);
-                        setRemoteURL('');
-                        setRevealRemoteURL(false);
-                        setURLError('');
-                      }}
-                    >
-                      保留当前地址
-                    </Button>
-                  ) : null}
                 </Field>
 
-                <Field>
-                  <FieldTitle id='pages-network-policy'>网络策略</FieldTitle>
-                  <ToggleGroup
-                    type='single'
-                    variant='outline'
-                    value={networkPolicy}
-                    aria-labelledby='pages-network-policy'
-                    className='grid w-full grid-cols-2'
-                    onValueChange={(value) => {
-                      if (value === 'public' || value === 'trusted_internal') {
-                        setNetworkPolicy(value);
-                      }
-                    }}
-                  >
-                    <ToggleGroupItem value='public' className='w-full'>
-                      公网安全模式
-                    </ToggleGroupItem>
-                    <ToggleGroupItem
-                      value='trusted_internal'
-                      className='w-full'
-                    >
-                      受信内网模式
-                    </ToggleGroupItem>
-                  </ToggleGroup>
-                  <FieldDescription>
-                    {networkPolicy === 'public'
-                      ? '阻止内网地址、代理与不安全 TLS。'
-                      : '允许访问内网地址与自签名证书，仅用于可信来源。'}
-                  </FieldDescription>
-                </Field>
+                <div className='flex items-center justify-between rounded-lg border border-dashed px-4 py-3'>
+                  <div className='space-y-1 pr-4'>
+                    <p className='text-sm font-medium'>允许不安全的连接</p>
+                    <p className='text-xs text-muted-foreground'>
+                      默认允许公网与内网地址；开启后跳过 TLS
+                      证书校验，适用于自签名或私有 CA。
+                    </p>
+                  </div>
+                  <Switch
+                    checked={allowInsecure}
+                    onCheckedChange={setAllowInsecure}
+                    aria-label='允许不安全的连接'
+                  />
+                </div>
               </>
             ) : (
               <PagesSourceGitHubFields
@@ -532,11 +427,7 @@ export function PagesSourceDialog({
               type='button'
               variant='outline'
               disabled={isPending}
-              onClick={() => {
-                setRemoteURL('');
-                setRevealRemoteURL(false);
-                onOpenChange(false);
-              }}
+              onClick={() => onOpenChange(false)}
             >
               取消
             </Button>
@@ -556,15 +447,9 @@ export function PagesSourceDialog({
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>
-              {confirmation === 'manual'
-                ? '切换回手动部署'
-                : '启用受信内网模式'}
-            </AlertDialogTitle>
+            <AlertDialogTitle>切换回手动部署</AlertDialogTitle>
             <AlertDialogDescription>
-              {confirmation === 'manual'
-                ? '当前来源配置将被删除，但已有部署与当前生产版本会保留。'
-                : '该模式允许访问私有网络并接受自签名证书。请确认此地址属于可信内部来源，且不会被非可信用户控制。'}
+              当前来源配置将被删除，但已有部署与当前生产版本会保留。
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -575,8 +460,6 @@ export function PagesSourceDialog({
                 event.preventDefault();
                 if (confirmation === 'manual') {
                   deleteMutation.mutate();
-                } else if (confirmation === 'trusted_internal') {
-                  updateMutation.mutate(remotePayload());
                 }
               }}
             >

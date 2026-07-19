@@ -110,7 +110,7 @@ func TestPagesSourceHandlersReturnStableActionErrors(t *testing.T) {
 		ctx,
 		remoteProject.ID,
 		"https://example.com/site.zip?token=handler-secret",
-		RemoteNetworkPolicyPublic,
+		false,
 	)
 	code, envelope = performPagesSourceRequest(
 		t,
@@ -135,7 +135,7 @@ func TestPagesSourceHandlersReturnStableActionErrors(t *testing.T) {
 		ctx,
 		busyProject.ID,
 		"https://example.com/site.zip",
-		RemoteNetworkPolicyPublic,
+		false,
 	)
 	future := time.Now().Add(time.Minute)
 	if err := db.DB(ctx).Model(&model.PagesProjectSourceRuntime{}).
@@ -172,7 +172,7 @@ func TestSyncSourceHandlerAcceptsEmptyBodyAndEmptyObject(t *testing.T) {
 		ctx,
 		project.ID,
 		"https://example.com/site.zip?token=dispatch-secret",
-		RemoteNetworkPolicyPublic,
+		false,
 	)
 	path := fmt.Sprintf("/api/v1/d/pages/%d/source/sync", project.ID)
 

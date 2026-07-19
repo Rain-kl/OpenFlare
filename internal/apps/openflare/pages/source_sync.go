@@ -268,7 +268,7 @@ func prepareRemoteSource(
 	task.AppendLog(ctx, "[download] 正在获取远程部署包")
 	candidate, err := FetchRemoteSource(ctx, RemoteSourceRequest{
 		URL:             snapshot.RemoteURL,
-		NetworkPolicy:   snapshot.RemoteNetworkPolicy,
+		AllowInsecure:   snapshot.AllowInsecure,
 		MaxPackageBytes: limits.PackageBytes,
 	})
 	if err != nil {

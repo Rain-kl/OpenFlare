@@ -2,14 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import {
-  Download,
-  Github,
-  Pencil,
-  RefreshCw,
-  RotateCcw,
-  Search,
-} from 'lucide-react';
+import { Download, Pencil, RefreshCw, Search } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { ErrorInline } from '@/components/layout/error';
@@ -27,7 +20,6 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
   Card,
-  CardAction,
   CardContent,
   CardDescription,
   CardFooter,
@@ -348,12 +340,12 @@ export function PagesSourceCard({ projectId }: { projectId: number }) {
 
   if (sourceQuery.isLoading) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>部署源</CardTitle>
+      <Card className='border-dashed shadow-none'>
+        <CardHeader className='pb-3'>
+          <CardTitle className='text-base'>部署源</CardTitle>
           <CardDescription>加载来源配置...</CardDescription>
         </CardHeader>
-        <CardContent className='flex flex-col gap-3'>
+        <CardContent className='space-y-3'>
           <Skeleton className='h-10 w-full' />
           <Skeleton className='h-20 w-full' />
         </CardContent>
@@ -363,9 +355,9 @@ export function PagesSourceCard({ projectId }: { projectId: number }) {
 
   if (sourceQuery.isError || !source) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>部署源</CardTitle>
+      <Card className='border-dashed shadow-none'>
+        <CardHeader className='pb-3'>
+          <CardTitle className='text-base'>部署源</CardTitle>
           <CardDescription>来源配置与部署历史相互独立。</CardDescription>
         </CardHeader>
         <CardContent>
@@ -401,24 +393,26 @@ export function PagesSourceCard({ projectId }: { projectId: number }) {
 
   return (
     <>
-      <Card>
-        <CardHeader>
-          <CardTitle>部署源</CardTitle>
-          <CardDescription>
-            来源配置负责发现内容，发布结果记录在独立的部署历史中。
-          </CardDescription>
-          <CardAction>
+      <Card className='border-dashed shadow-none'>
+        <CardHeader className='pb-3'>
+          <div className='flex items-start justify-between gap-3'>
+            <div>
+              <CardTitle className='text-base'>部署源</CardTitle>
+              <CardDescription>
+                配置远端来源并同步发布；发布结果见部署历史。
+              </CardDescription>
+            </div>
             {status ? (
               <Badge variant={status.variant}>{status.label}</Badge>
             ) : (
               <Badge variant='outline'>手动部署</Badge>
             )}
-          </CardAction>
+          </div>
         </CardHeader>
 
-        <CardContent className='flex flex-col gap-4'>
+        <CardContent className='space-y-4'>
           {source.source_type === 'manual' ? (
-            <div className='rounded-lg border bg-muted/20 p-4'>
+            <div className='rounded-lg border border-dashed bg-muted/20 p-4'>
               <p className='text-sm font-medium'>本地部署包</p>
               <p className='mt-1 text-sm text-muted-foreground'>
                 当前没有持久化远端来源。上传部署包后，再从部署历史显式激活。
@@ -450,7 +444,7 @@ export function PagesSourceCard({ projectId }: { projectId: number }) {
             />
           ) : null}
           {actionTimedOut ? (
-            <div className='flex flex-col gap-2 rounded-lg border p-3 sm:flex-row sm:items-center sm:justify-between'>
+            <div className='flex flex-col gap-2 rounded-lg border border-dashed p-3 sm:flex-row sm:items-center sm:justify-between'>
               <span className='text-xs text-muted-foreground'>
                 自动等待已停止，任务可能仍在后台运行。
               </span>
@@ -473,39 +467,23 @@ export function PagesSourceCard({ projectId }: { projectId: number }) {
           ) : null}
         </CardContent>
 
-        <CardFooter className='flex flex-wrap gap-2 border-t'>
-          {source.source_type === 'manual' ? (
+        <CardFooter className='flex flex-wrap gap-2 border-t border-dashed'>
+          <Button
+            type='button'
+            size='sm'
+            variant='outline'
+            disabled={source.source_type !== 'manual' && actionsDisabled}
+            onClick={() => openSourceDialog(source.source_type)}
+          >
+            <Pencil data-icon='inline-start' />
+            配置
+          </Button>
+          {source.source_type !== 'manual' ? (
             <>
-              <Button
-                type='button'
-                variant='outline'
-                onClick={() => openSourceDialog('remote_url')}
-              >
-                <Download data-icon='inline-start' />
-                配置 Remote URL
-              </Button>
-              <Button
-                type='button'
-                onClick={() => openSourceDialog('github_release')}
-              >
-                <Github data-icon='inline-start' />
-                配置 GitHub Release
-              </Button>
-            </>
-          ) : (
-            <>
-              <Button
-                type='button'
-                variant='outline'
-                disabled={actionsDisabled}
-                onClick={() => openSourceDialog(source.source_type)}
-              >
-                <Pencil data-icon='inline-start' />
-                编辑来源
-              </Button>
               {source.source_type === 'github_release' ? (
                 <Button
                   type='button'
+                  size='sm'
                   variant='outline'
                   disabled={actionsDisabled}
                   onClick={() => {
@@ -523,6 +501,7 @@ export function PagesSourceCard({ projectId }: { projectId: number }) {
               ) : null}
               <Button
                 type='button'
+                size='sm'
                 disabled={
                   actionsDisabled ||
                   (source.sync_status === 'attention' && !attentionRevision)
@@ -536,17 +515,8 @@ export function PagesSourceCard({ projectId }: { projectId: number }) {
                 )}
                 同步并发布
               </Button>
-              <Button
-                type='button'
-                variant='ghost'
-                disabled={actionsDisabled}
-                onClick={() => openSourceDialog('manual')}
-              >
-                <RotateCcw data-icon='inline-start' />
-                切换回手动
-              </Button>
             </>
-          )}
+          ) : null}
           <Button
             type='button'
             variant='ghost'

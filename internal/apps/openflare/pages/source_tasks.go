@@ -278,7 +278,6 @@ func isPermanentSourceSyncError(err error) bool {
 		strings.Contains(message, errPagesPackageFileTooLarge) ||
 		strings.Contains(message, errPagesEntryFileMissing) ||
 		strings.Contains(message, errPagesSourceRemoteURLInvalid) ||
-		strings.Contains(message, errPagesSourceNetworkPolicy) ||
 		strings.Contains(message, errPagesSourceReleaseNotFound) ||
 		strings.Contains(message, errPagesSourceDigestInvalid) ||
 		strings.Contains(message, errPagesSourceDigestMismatch) ||

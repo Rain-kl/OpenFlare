@@ -45,12 +45,11 @@ const (
 
 // SourceUpdateInput is the discriminated source configuration payload.
 // GitHub fields are accepted by the decoder so mode-incompatible values can be
-// rejected deterministically; GitHub itself is enabled in Phase 2.
+// rejected deterministically.
 type SourceUpdateInput struct {
 	SourceType           string `json:"source_type"`
-	RemoteURLSet         bool   `json:"remote_url_set"`
 	RemoteURL            string `json:"remote_url"`
-	RemoteNetworkPolicy  string `json:"remote_network_policy"`
+	AllowInsecure        bool   `json:"allow_insecure"`
 	RepositoryURL        string `json:"repository_url"`
 	ReleaseSelector      string `json:"release_selector"`
 	ReleaseTag           string `json:"release_tag"`
@@ -59,19 +58,18 @@ type SourceUpdateInput struct {
 	CheckIntervalMinutes int    `json:"check_interval_minutes"`
 }
 
-// SourceRevisionView is a credential-free source cursor.
+// SourceRevisionView is a source cursor shown to the console.
 type SourceRevisionView struct {
 	Revision  string `json:"revision"`
 	Label     string `json:"label"`
 	AssetName string `json:"asset_name,omitempty"`
 }
 
-// SourceView is the safe discriminated source view returned to the console.
+// SourceView is the discriminated source view returned to the console.
 type SourceView struct {
 	SourceType           string              `json:"source_type"`
-	HasRemoteURL         bool                `json:"has_remote_url,omitempty"`
-	DisplayURL           string              `json:"display_url,omitempty"`
-	RemoteNetworkPolicy  string              `json:"remote_network_policy,omitempty"`
+	RemoteURL            string              `json:"remote_url,omitempty"`
+	AllowInsecure        bool                `json:"allow_insecure,omitempty"`
 	GitHubRepository     string              `json:"github_repository,omitempty"`
 	ReleaseSelector      string              `json:"release_selector,omitempty"`
 	ReleaseTag           string              `json:"release_tag,omitempty"`
@@ -115,9 +113,9 @@ type sourceDetail struct {
 }
 
 type remoteSourceConfig struct {
-	URL      string
-	Policy   string
-	Identity string
+	URL           string
+	AllowInsecure bool
+	Identity      string
 }
 
 // GetSource returns the current persisted source or a manual discriminator.
@@ -228,26 +226,22 @@ func loadProjectSourceForUpdate(tx *gorm.DB, projectID uint) (*model.PagesProjec
 }
 
 func buildRemoteSourceConfig(
-	existing *model.PagesProjectSource,
-	hasExisting bool,
+	_ *model.PagesProjectSource,
+	_ bool,
 	input SourceUpdateInput,
 ) (remoteSourceConfig, error) {
-	remoteURL, err := resolveUpdatedRemoteURL(existing, hasExisting, input)
-	if err != nil {
-		return remoteSourceConfig{}, err
+	remoteURL := strings.TrimSpace(input.RemoteURL)
+	if remoteURL == "" {
+		return remoteSourceConfig{}, errors.New(errPagesSourceRemoteURLRequired)
 	}
 	parsedURL, err := parseRemoteSourceURL(remoteURL)
 	if err != nil {
 		return remoteSourceConfig{}, err
 	}
-	policy := strings.TrimSpace(input.RemoteNetworkPolicy)
-	if policy == "" {
-		policy = RemoteNetworkPolicyPublic
-	}
 	return remoteSourceConfig{
-		URL:      remoteURL,
-		Policy:   policy,
-		Identity: remoteSourceIdentity(parsedURL),
+		URL:           remoteURL,
+		AllowInsecure: input.AllowInsecure,
+		Identity:      remoteSourceIdentity(parsedURL),
 	}, nil
 }
 
@@ -256,7 +250,7 @@ func createRemoteSourceTx(tx *gorm.DB, projectID uint, config remoteSourceConfig
 		ProjectID:            projectID,
 		SourceType:           PagesSourceTypeRemoteURL,
 		RemoteURL:            config.URL,
-		RemoteNetworkPolicy:  config.Policy,
+		AllowInsecure:        config.AllowInsecure,
 		AutoUpdateEnabled:    false,
 		CheckIntervalMinutes: 0,
 		ConfigVersion:        1,
@@ -289,7 +283,7 @@ func updateExistingRemoteSourceTx(
 	if err := tx.Model(existing).Updates(map[string]any{
 		"source_type":                 PagesSourceTypeRemoteURL,
 		"remote_url":                  config.URL,
-		"remote_network_policy":       config.Policy,
+		"allow_insecure":              config.AllowInsecure,
 		"github_repository":           "",
 		"release_selector":            "",
 		"release_tag":                 "",
@@ -307,7 +301,7 @@ func updateExistingRemoteSourceTx(
 func remoteSourceConfigChanged(existing *model.PagesProjectSource, config remoteSourceConfig) bool {
 	return existing.SourceType != PagesSourceTypeRemoteURL ||
 		existing.RemoteURL != config.URL ||
-		existing.RemoteNetworkPolicy != config.Policy ||
+		existing.AllowInsecure != config.AllowInsecure ||
 		existing.GitHubRepository != "" ||
 		existing.ReleaseSelector != "" ||
 		existing.ReleaseTag != "" ||
@@ -363,14 +357,7 @@ func validateRemoteSourceInput(input SourceUpdateInput) error {
 		input.AutoUpdateEnabled || input.CheckIntervalMinutes != 0 {
 		return errors.New(errPagesSourceRemoteFields)
 	}
-	policy := strings.TrimSpace(input.RemoteNetworkPolicy)
-	if policy != "" && policy != RemoteNetworkPolicyPublic && policy != RemoteNetworkPolicyTrustedInternal {
-		return errors.New(errPagesSourceNetworkPolicy)
-	}
-	if !input.RemoteURLSet && strings.TrimSpace(input.RemoteURL) != "" {
-		return errors.New(errPagesSourceRemoteURLMode)
-	}
-	if input.RemoteURLSet && strings.TrimSpace(input.RemoteURL) == "" {
+	if strings.TrimSpace(input.RemoteURL) == "" {
 		return errors.New(errPagesSourceRemoteURLRequired)
 	}
 	return nil
@@ -387,16 +374,6 @@ func validateSourceUpdateInput(input SourceUpdateInput) error {
 	default:
 		return errors.New(errPagesSourceTypeUnsupported)
 	}
-}
-
-func resolveUpdatedRemoteURL(existing *model.PagesProjectSource, hasExisting bool, input SourceUpdateInput) (string, error) {
-	if input.RemoteURLSet {
-		return strings.TrimSpace(input.RemoteURL), nil
-	}
-	if !hasExisting || existing.SourceType != PagesSourceTypeRemoteURL || strings.TrimSpace(existing.RemoteURL) == "" {
-		return "", errors.New(errPagesSourceRemoteURLRequired)
-	}
-	return existing.RemoteURL, nil
 }
 
 func parseRemoteSourceURL(raw string) (*url.URL, error) {
@@ -436,20 +413,6 @@ func remoteSourceIdentity(parsed *url.URL) string {
 	return hex.EncodeToString(sum[:])
 }
 
-func displayRemoteSourceURL(raw string) string {
-	parsed, err := parseRemoteSourceURL(raw)
-	if err != nil {
-		return ""
-	}
-	hadQuery := parsed.RawQuery != ""
-	parsed.RawQuery = ""
-	display := parsed.String()
-	if hadQuery {
-		display += "?***"
-	}
-	return display
-}
-
 func loadSourceByProject(ctx context.Context, projectID uint) (*model.PagesProjectSource, *model.PagesProjectSourceRuntime, error) {
 	var source model.PagesProjectSource
 	if err := db.DB(ctx).Where("project_id = ?", projectID).First(&source).Error; err != nil {
@@ -477,9 +440,8 @@ func buildSourceView(source *model.PagesProjectSource, runtime *model.PagesProje
 	}
 	switch source.SourceType {
 	case PagesSourceTypeRemoteURL:
-		view.HasRemoteURL = strings.TrimSpace(source.RemoteURL) != ""
-		view.DisplayURL = displayRemoteSourceURL(source.RemoteURL)
-		view.RemoteNetworkPolicy = source.RemoteNetworkPolicy
+		view.RemoteURL = source.RemoteURL
+		view.AllowInsecure = source.AllowInsecure
 	case PagesSourceTypeGitHubRelease:
 		view.LastCheckedAt = runtime.LastCheckedAt
 		view.NextCheckAt = runtime.NextCheckAt

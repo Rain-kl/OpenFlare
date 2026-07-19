@@ -7,14 +7,13 @@ import "time"
 
 // PagesProjectSource 保存 Pages 项目的持久部署源配置。
 //
-// RemoteURL 可能包含签名参数，禁止直接序列化 model；对外接口必须映射到
-// pages 包内的脱敏 source view。
+// 对外接口必须映射到 pages 包内的 source view，避免直接序列化 model。
 type PagesProjectSource struct {
 	ID                   uint      `json:"-" gorm:"primaryKey;autoIncrement"`
 	ProjectID            uint      `json:"-" gorm:"not null;uniqueIndex:idx_of_pages_project_sources_project_id"`
 	SourceType           string    `json:"-" gorm:"size:32;not null;default:''"`
 	RemoteURL            string    `json:"-" gorm:"type:text;not null;default:''"`
-	RemoteNetworkPolicy  string    `json:"-" gorm:"size:32;not null;default:''"`
+	AllowInsecure        bool      `json:"-" gorm:"not null;default:false"`
 	GitHubRepository     string    `json:"-" gorm:"column:github_repository;size:255;not null;default:''"`
 	ReleaseSelector      string    `json:"-" gorm:"size:16;not null;default:''"`
 	ReleaseTag           string    `json:"-" gorm:"size:255;not null;default:''"`

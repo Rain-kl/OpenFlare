@@ -106,7 +106,7 @@ describe('Pages latest source automatic updates', () => {
 
     renderWithQuery(<PagesSourceCard projectId={9} />);
 
-    await user.click(await screen.findByRole('button', { name: '编辑来源' }));
+    await user.click(await screen.findByRole('button', { name: '配置' }));
     expect(screen.getByRole('switch', { name: '自动更新' })).toBeChecked();
     expect(screen.getByLabelText('检查间隔（分钟）')).toHaveValue(120);
 
@@ -131,7 +131,7 @@ describe('Pages latest source automatic updates', () => {
 
     expect(await screen.findByText('固定 Tag · v1.2.3')).toBeVisible();
     expect(screen.queryByText('自动更新')).not.toBeInTheDocument();
-    expect(screen.queryByText('检查间隔')).not.toBeInTheDocument();
+    expect(screen.queryByText('下次检查')).not.toBeInTheDocument();
     expect(screen.queryByText('下次检查时间')).not.toBeInTheDocument();
   });
 
@@ -141,7 +141,7 @@ describe('Pages latest source automatic updates', () => {
 
     renderWithQuery(<PagesSourceCard projectId={9} />);
 
-    await user.click(await screen.findByRole('button', { name: '编辑来源' }));
+    await user.click(await screen.findByRole('button', { name: '配置' }));
     const intervalInput = screen.getByLabelText('检查间隔（分钟）');
     await user.clear(intervalInput);
     await user.type(intervalInput, '4');
@@ -162,7 +162,7 @@ describe('Pages latest source automatic updates', () => {
     vi.mocked(PagesService.getSource).mockResolvedValue(latestSource);
     const { queryClient } = renderWithQuery(<PagesSourceCard projectId={9} />);
 
-    await user.click(await screen.findByRole('button', { name: '编辑来源' }));
+    await user.click(await screen.findByRole('button', { name: '配置' }));
     const assetInput = screen.getByLabelText('Release Asset 文件名');
     const intervalInput = screen.getByLabelText('检查间隔（分钟）');
     await user.clear(assetInput);
@@ -199,7 +199,7 @@ describe('Pages latest source automatic updates', () => {
       <PagesSourceCard key='source-9' projectId={9} />,
     );
 
-    await user.click(await screen.findByRole('button', { name: '编辑来源' }));
+    await user.click(await screen.findByRole('button', { name: '配置' }));
     expect(screen.getByRole('dialog')).toBeVisible();
 
     rerenderWithQuery(<PagesSourceCard key='source-10' projectId={10} />);

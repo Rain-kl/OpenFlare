@@ -5568,6 +5568,12 @@ const docTemplate = `{
                         "description": "统计时间范围（小时）",
                         "name": "hours",
                         "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "趋势桶分钟数（1、5 或 60，默认 60）",
+                        "name": "bucket_minutes",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -8815,7 +8821,7 @@ const docTemplate = `{
                         "SessionCookie": []
                     }
                 ],
-                "description": "返回脱敏后的项目部署源配置与运行状态，需要管理员权限",
+                "description": "返回项目部署源配置与运行状态，需要管理员权限",
                 "produces": [
                     "application/json"
                 ],
@@ -16874,6 +16880,9 @@ const docTemplate = `{
         "observability.AccessLogOverview": {
             "type": "object",
             "properties": {
+                "bucket_minutes": {
+                    "type": "integer"
+                },
                 "device_types": {
                     "type": "array",
                     "items": {
@@ -17822,6 +17831,9 @@ const docTemplate = `{
         "pages.SourceUpdateInput": {
             "type": "object",
             "properties": {
+                "allow_insecure": {
+                    "type": "boolean"
+                },
                 "asset_name": {
                     "type": "string"
                 },
@@ -17837,14 +17849,8 @@ const docTemplate = `{
                 "release_tag": {
                     "type": "string"
                 },
-                "remote_network_policy": {
-                    "type": "string"
-                },
                 "remote_url": {
                     "type": "string"
-                },
-                "remote_url_set": {
-                    "type": "boolean"
                 },
                 "repository_url": {
                     "type": "string"
@@ -17871,6 +17877,9 @@ const docTemplate = `{
         "pages.SourceView": {
             "type": "object",
             "properties": {
+                "allow_insecure": {
+                    "type": "boolean"
+                },
                 "asset_name": {
                     "type": "string"
                 },
@@ -17880,14 +17889,8 @@ const docTemplate = `{
                 "check_interval_minutes": {
                     "type": "integer"
                 },
-                "display_url": {
-                    "type": "string"
-                },
                 "github_repository": {
                     "type": "string"
-                },
-                "has_remote_url": {
-                    "type": "boolean"
                 },
                 "last_applied": {
                     "$ref": "#/definitions/pages.SourceRevisionView"
@@ -17913,7 +17916,7 @@ const docTemplate = `{
                 "release_tag": {
                     "type": "string"
                 },
-                "remote_network_policy": {
+                "remote_url": {
                     "type": "string"
                 },
                 "source_type": {
@@ -19895,7 +19898,8 @@ const docTemplate = `{
                 "ip_match",
                 "geo_match",
                 "pow",
-                "ua_check"
+                "ua_check",
+                "security_check"
             ],
             "x-enum-varnames": [
                 "RuleNodeStart",
@@ -19904,7 +19908,8 @@ const docTemplate = `{
                 "RuleNodeIPMatch",
                 "RuleNodeGeoMatch",
                 "RuleNodePoW",
-                "RuleNodeUACheck"
+                "RuleNodeUACheck",
+                "RuleNodeSecurityCheck"
             ]
         },
         "waf.RulePosition": {

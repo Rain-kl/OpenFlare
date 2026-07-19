@@ -2017,6 +2017,8 @@ definitions:
     type: object
   observability.AccessLogOverview:
     properties:
+      bucket_minutes:
+        type: integer
       device_types:
         items:
           $ref: '#/definitions/observability.DistributionItem'
@@ -2637,6 +2639,8 @@ definitions:
     type: object
   pages.SourceUpdateInput:
     properties:
+      allow_insecure:
+        type: boolean
       asset_name:
         type: string
       auto_update_enabled:
@@ -2647,12 +2651,8 @@ definitions:
         type: string
       release_tag:
         type: string
-      remote_network_policy:
-        type: string
       remote_url:
         type: string
-      remote_url_set:
-        type: boolean
       repository_url:
         type: string
       source_type:
@@ -2669,18 +2669,16 @@ definitions:
     type: object
   pages.SourceView:
     properties:
+      allow_insecure:
+        type: boolean
       asset_name:
         type: string
       auto_update_enabled:
         type: boolean
       check_interval_minutes:
         type: integer
-      display_url:
-        type: string
       github_repository:
         type: string
-      has_remote_url:
-        type: boolean
       last_applied:
         $ref: '#/definitions/pages.SourceRevisionView'
       last_checked_at:
@@ -2697,7 +2695,7 @@ definitions:
         type: string
       release_tag:
         type: string
-      remote_network_policy:
+      remote_url:
         type: string
       source_type:
         type: string
@@ -4023,6 +4021,7 @@ definitions:
     - geo_match
     - pow
     - ua_check
+    - security_check
     type: string
     x-enum-varnames:
     - RuleNodeStart
@@ -4032,6 +4031,7 @@ definitions:
     - RuleNodeGeoMatch
     - RuleNodePoW
     - RuleNodeUACheck
+    - RuleNodeSecurityCheck
   waf.RulePosition:
     properties:
       x:
@@ -7522,6 +7522,10 @@ paths:
         in: query
         name: hours
         type: integer
+      - description: 趋势桶分钟数（1、5 或 60，默认 60）
+        in: query
+        name: bucket_minutes
+        type: integer
       produces:
       - application/json
       responses:
@@ -9430,7 +9434,7 @@ paths:
       - openflare-pages
   /api/v1/d/pages/{id}/source:
     get:
-      description: 返回脱敏后的项目部署源配置与运行状态，需要管理员权限
+      description: 返回项目部署源配置与运行状态，需要管理员权限
       parameters:
       - description: 项目 ID
         in: path

@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ChevronDown, ChevronRight } from 'lucide-react';
+import { ChevronDown, ChevronRight, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { EmptyStateWithBorder } from '@/components/layout/empty';
@@ -22,6 +22,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
   Card,
+  CardAction,
   CardContent,
   CardDescription,
   CardHeader,
@@ -31,6 +32,7 @@ import { Spinner } from '@/components/ui/spinner';
 import { type PagesDeployment, PagesService } from '@/lib/services/openflare';
 import { formatDateTime } from '@/lib/utils';
 
+import { DeploymentUploadDialog } from '../../components/deployment-upload-dialog';
 import {
   deploymentFilesQueryKey,
   deploymentsQueryKey,
@@ -58,6 +60,8 @@ const TRIGGER_LABELS: Record<PagesDeployment['trigger_type'], string> = {
 interface DeploymentHistoryProps {
   projectId: number;
   activeDeploymentId?: number | null;
+  rootDir?: string;
+  entryFile?: string;
 }
 
 type PendingAction = {
@@ -78,8 +82,11 @@ function deploymentSnapshot(deployment: PagesDeployment) {
 export function DeploymentHistory({
   projectId,
   activeDeploymentId,
+  rootDir = '',
+  entryFile = 'index.html',
 }: DeploymentHistoryProps) {
   const queryClient = useQueryClient();
+  const [uploadOpen, setUploadOpen] = useState(false);
   const [expandedDeploymentId, setExpandedDeploymentId] = useState<
     number | null
   >(null);
@@ -148,14 +155,25 @@ export function DeploymentHistory({
 
   return (
     <>
-      <Card>
-        <CardHeader>
-          <CardTitle>部署历史</CardTitle>
+      <Card className='border-dashed shadow-none'>
+        <CardHeader className='pb-3'>
+          <CardTitle className='text-base'>部署历史</CardTitle>
           <CardDescription>
             部署记录不可变，来源信息是创建部署时的安全快照。
           </CardDescription>
+          <CardAction>
+            <Button
+              type='button'
+              size='sm'
+              className='whitespace-nowrap'
+              onClick={() => setUploadOpen(true)}
+            >
+              <Upload data-icon='inline-start' />
+              手动上传
+            </Button>
+          </CardAction>
         </CardHeader>
-        <CardContent className='flex flex-col gap-3'>
+        <CardContent className='space-y-3'>
           {deploymentsQuery.isLoading ? (
             <LoadingStateWithBorder description='加载部署历史...' />
           ) : deploymentsQuery.isError ? (
@@ -182,7 +200,10 @@ export function DeploymentHistory({
               const expanded = expandedDeploymentId === deployment.id;
 
               return (
-                <div key={deployment.id} className='rounded-lg border'>
+                <div
+                  key={deployment.id}
+                  className='rounded-lg border border-dashed'
+                >
                   <div className='flex flex-col gap-4 p-4 md:flex-row md:items-center md:justify-between'>
                     <div className='flex min-w-0 items-start gap-2'>
                       <Button
@@ -204,7 +225,7 @@ export function DeploymentHistory({
                             部署 #{deployment.deployment_number}
                           </span>
                           <Badge variant={active ? 'default' : 'outline'}>
-                            {active ? '当前生产部署' : '历史部署'}
+                            {active ? 'Production' : '历史部署'}
                           </Badge>
                           <Badge variant='secondary'>
                             {deploymentSnapshot(deployment)}
@@ -295,6 +316,14 @@ export function DeploymentHistory({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <DeploymentUploadDialog
+        open={uploadOpen}
+        onOpenChange={setUploadOpen}
+        projectId={projectId}
+        rootDir={rootDir}
+        entryFile={entryFile}
+      />
     </>
   );
 }

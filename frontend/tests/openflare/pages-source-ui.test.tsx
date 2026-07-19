@@ -62,9 +62,8 @@ function renderWithQuery(ui: React.ReactNode) {
 
 const remoteSource: PagesRemoteURLSource = {
   source_type: 'remote_url',
-  has_remote_url: true,
-  display_url: 'https://artifacts.example.com/site.zip?***',
-  remote_network_policy: 'public',
+  remote_url: 'https://artifacts.example.com/site.zip?token=secret',
+  allow_insecure: false,
   sync_status: 'idle',
   last_applied: {
     revision: 'a'.repeat(64),
@@ -159,28 +158,21 @@ describe('Pages source UI', () => {
     renderWithQuery(<PagesSourceCard projectId={9} />);
 
     expect(await screen.findByText('本地部署包')).toBeVisible();
-    expect(
-      screen.getByRole('button', { name: '配置 Remote URL' }),
-    ).toBeVisible();
-    expect(
-      screen.getByRole('button', { name: '配置 GitHub Release' }),
-    ).toBeVisible();
+    expect(screen.getByRole('button', { name: '配置' })).toBeVisible();
     expect(screen.queryByText('检查更新')).not.toBeInTheDocument();
     expect(screen.queryByText('自动更新')).not.toBeInTheDocument();
 
-    await user.click(
-      screen.getByRole('button', { name: '配置 GitHub Release' }),
-    );
+    await user.click(screen.getByRole('button', { name: '配置' }));
     expect(screen.getByRole('radio', { name: '手动部署' })).toBeVisible();
     expect(screen.getByRole('radio', { name: 'Remote URL' })).toBeVisible();
     expect(screen.getByRole('radio', { name: 'GitHub Release' })).toBeVisible();
-    expect(
-      screen.getByText('仓库源码构建将在后续作为独立来源类型提供。'),
-    ).toBeVisible();
-    expect(screen.getByRole('switch', { name: '自动更新' })).not.toBeChecked();
-    expect(screen.getByLabelText('检查间隔（分钟）')).toHaveValue(60);
+    expect(screen.getByRole('radio', { name: '手动部署' })).toBeChecked();
     expect(screen.queryByText('构建命令')).not.toBeInTheDocument();
     expect(screen.queryByText('输出目录')).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('radio', { name: 'GitHub Release' }));
+    expect(screen.getByRole('switch', { name: '自动更新' })).not.toBeChecked();
+    expect(screen.getByLabelText('检查间隔（分钟）')).toHaveValue(60);
   });
 
   it('submits the GitHub latest automatic update settings', async () => {
@@ -196,9 +188,8 @@ describe('Pages source UI', () => {
 
     renderWithQuery(<PagesSourceCard projectId={9} />);
 
-    await user.click(
-      await screen.findByRole('button', { name: '配置 GitHub Release' }),
-    );
+    await user.click(await screen.findByRole('button', { name: '配置' }));
+    await user.click(screen.getByRole('radio', { name: 'GitHub Release' }));
     await user.type(
       screen.getByLabelText('GitHub 仓库 URL'),
       'https://github.com/openflare/site',
@@ -233,9 +224,8 @@ describe('Pages source UI', () => {
 
     renderWithQuery(<PagesSourceCard projectId={9} />);
 
-    await user.click(
-      await screen.findByRole('button', { name: '配置 GitHub Release' }),
-    );
+    await user.click(await screen.findByRole('button', { name: '配置' }));
+    await user.click(screen.getByRole('radio', { name: 'GitHub Release' }));
     const repositoryInput = screen.getByLabelText('GitHub 仓库 URL');
     await user.type(repositoryInput, 'https://github.com//openflare/site');
     await user.click(screen.getByRole('button', { name: '保存 GitHub 来源' }));
@@ -271,9 +261,8 @@ describe('Pages source UI', () => {
 
     renderWithQuery(<PagesSourceCard projectId={9} />);
 
-    await user.click(
-      await screen.findByRole('button', { name: '配置 GitHub Release' }),
-    );
+    await user.click(await screen.findByRole('button', { name: '配置' }));
+    await user.click(screen.getByRole('radio', { name: 'GitHub Release' }));
     await user.type(
       screen.getByLabelText('GitHub 仓库 URL'),
       'https://github.com/openflare/site',
@@ -315,9 +304,8 @@ describe('Pages source UI', () => {
 
     renderWithQuery(<PagesSourceCard projectId={9} />);
 
-    await user.click(
-      await screen.findByRole('button', { name: '配置 GitHub Release' }),
-    );
+    await user.click(await screen.findByRole('button', { name: '配置' }));
+    await user.click(screen.getByRole('radio', { name: 'GitHub Release' }));
     await user.type(
       screen.getByLabelText('GitHub 仓库 URL'),
       'https://github.com/openflare/site',
@@ -369,9 +357,8 @@ describe('Pages source UI', () => {
 
     renderWithQuery(<PagesSourceCard projectId={9} />);
 
-    await user.click(
-      await screen.findByRole('button', { name: '配置 GitHub Release' }),
-    );
+    await user.click(await screen.findByRole('button', { name: '配置' }));
+    await user.click(screen.getByRole('radio', { name: 'GitHub Release' }));
     await user.type(
       screen.getByLabelText('GitHub 仓库 URL'),
       'https://github.com/openflare/site',
@@ -382,7 +369,9 @@ describe('Pages source UI', () => {
       expect(AdminTaskService.getTaskExecution).toHaveBeenCalledWith('42');
       expect(screen.getByText('检查中')).toBeVisible();
     });
-    const checkButton = screen.getByRole('button', { name: /检查更新/ });
+    const checkButton = await screen.findByRole('button', {
+      name: /检查更新/,
+    });
     expect(checkButton).toBeDisabled();
     expect(within(checkButton).getByRole('status')).toBeVisible();
     expect(PagesService.checkSource).not.toHaveBeenCalled();
@@ -398,7 +387,7 @@ describe('Pages source UI', () => {
     expect(screen.getByText('v1.2.3 · bbbbbbbbbbbb')).toBeVisible();
     expect(screen.getByText('v1.2.2 · aaaaaaaaaaaa')).toBeVisible();
     expect(screen.getByText('有可用更新')).toBeVisible();
-    expect(screen.getByText('下次检查时间')).toBeVisible();
+    expect(screen.getByText('下次检查')).toBeVisible();
     expect(screen.getByText('自动更新')).toBeVisible();
     expect(screen.getByText('已关闭')).toBeVisible();
     expect(screen.getByText('检查间隔')).toBeVisible();
@@ -496,11 +485,14 @@ describe('Pages source UI', () => {
     });
   });
 
-  it('never reuses the masked URL as an editable value', async () => {
+  it('edits the remote URL as plain text', async () => {
     const user = userEvent.setup();
     vi.mocked(PagesService.getSource).mockResolvedValue(remoteSource);
     vi.mocked(PagesService.updateSource).mockResolvedValue({
-      source: remoteSource,
+      source: {
+        ...remoteSource,
+        remote_url: 'https://new.example.com/site.zip?token=new',
+      },
       check_task: null,
       warning: '',
     });
@@ -508,72 +500,55 @@ describe('Pages source UI', () => {
     renderWithQuery(<PagesSourceCard projectId={9} />);
 
     expect(
-      await screen.findByText('https://artifacts.example.com/site.zip?***'),
+      await screen.findByText(
+        'https://artifacts.example.com/site.zip?token=secret',
+      ),
     ).toBeVisible();
-    expect(screen.queryByText(/token=secret/)).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: '编辑来源' }));
-    await user.click(screen.getByRole('button', { name: '更换地址' }));
-
-    const input = screen.getByPlaceholderText(
-      'https://artifacts.example.com/site.zip?token=...',
-    );
-    expect(input).toHaveValue('');
-    expect(input).toHaveAttribute('type', 'password');
-    await user.type(input, 'https://new.example.com/site.zip?token=new');
-    expect(
-      screen.queryByText('https://new.example.com/site.zip?token=new'),
-    ).not.toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: '显示 Remote URL' }));
+    await user.click(screen.getByRole('button', { name: '配置' }));
+    const input = screen.getByLabelText('Remote URL');
     expect(input).toHaveAttribute('type', 'url');
+    expect(input).toHaveValue(
+      'https://artifacts.example.com/site.zip?token=secret',
+    );
+    await user.clear(input);
+    await user.type(input, 'https://new.example.com/site.zip?token=new');
     await user.click(screen.getByRole('button', { name: '保存 Remote 来源' }));
 
     await waitFor(() => {
       expect(PagesService.updateSource).toHaveBeenCalledWith(9, {
         source_type: 'remote_url',
-        remote_url_set: true,
         remote_url: 'https://new.example.com/site.zip?token=new',
-        remote_network_policy: 'public',
+        allow_insecure: false,
       });
     });
-
-    await waitFor(() => {
-      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-    });
-    await user.click(screen.getByRole('button', { name: '编辑来源' }));
-    await user.click(screen.getByRole('button', { name: '更换地址' }));
-    const reopenedInput = screen.getByPlaceholderText(
-      'https://artifacts.example.com/site.zip?token=...',
-    );
-    expect(reopenedInput).toHaveValue('');
-    expect(reopenedInput).toHaveAttribute('type', 'password');
   });
 
-  it('requires a second confirmation for trusted internal networking', async () => {
+  it('saves the allow-insecure connection switch for remote sources', async () => {
     const user = userEvent.setup();
     vi.mocked(PagesService.getSource).mockResolvedValue(remoteSource);
     vi.mocked(PagesService.updateSource).mockResolvedValue({
-      source: { ...remoteSource, remote_network_policy: 'trusted_internal' },
+      source: { ...remoteSource, allow_insecure: true },
       check_task: null,
       warning: '',
     });
 
     renderWithQuery(<PagesSourceCard projectId={9} />);
 
-    await user.click(await screen.findByRole('button', { name: '编辑来源' }));
-    await user.click(screen.getByRole('radio', { name: '受信内网模式' }));
+    await user.click(await screen.findByRole('button', { name: '配置' }));
+    expect(
+      screen.getByRole('switch', { name: '允许不安全的连接' }),
+    ).not.toBeChecked();
+    await user.click(
+      screen.getByRole('switch', { name: '允许不安全的连接' }),
+    );
     await user.click(screen.getByRole('button', { name: '保存 Remote 来源' }));
 
-    expect(await screen.findByText('启用受信内网模式')).toBeVisible();
-    expect(PagesService.updateSource).not.toHaveBeenCalled();
-
-    await user.click(screen.getByRole('button', { name: '确认' }));
     await waitFor(() => {
       expect(PagesService.updateSource).toHaveBeenCalledWith(9, {
         source_type: 'remote_url',
-        remote_url_set: false,
-        remote_url: '',
-        remote_network_policy: 'trusted_internal',
+        remote_url: 'https://artifacts.example.com/site.zip?token=secret',
+        allow_insecure: true,
       });
     });
   });
@@ -658,6 +633,6 @@ describe('Pages source UI', () => {
     );
 
     expect(await screen.findByText('GitHub · v1.2.3 · 手动同步')).toBeVisible();
-    expect(screen.getByText('当前生产部署')).toBeVisible();
+    expect(screen.getByText('Production')).toBeVisible();
   });
 });

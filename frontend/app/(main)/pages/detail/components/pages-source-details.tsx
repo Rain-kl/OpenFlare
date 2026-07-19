@@ -1,17 +1,49 @@
 import { TriangleAlert } from 'lucide-react';
+import type { ReactNode } from 'react';
 
 import { ErrorInline } from '@/components/layout/error';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
 import {
   type PagesGitHubReleaseSource,
   type PagesRemoteURLSource,
   type PagesSourceRevision,
 } from '@/lib/services/openflare';
-import { formatDateTime } from '@/lib/utils';
+import { cn, formatDateTime } from '@/lib/utils';
 
 function revisionSummary(revision?: PagesSourceRevision) {
   if (!revision) return '尚无记录';
-  return `${revision.label} · ${revision.revision.slice(0, 12)}`;
+  const label = revision.label?.trim();
+  const short = revision.revision.slice(0, 12);
+  return label ? `${label} · ${short}` : short;
+}
+
+function formatOptionalTime(value?: string | null, empty = '—') {
+  return value ? formatDateTime(value) : empty;
+}
+
+function SourceMetaRow({
+  label,
+  children,
+  mono,
+}: {
+  label: string;
+  children: ReactNode;
+  mono?: boolean;
+}) {
+  return (
+    <div className='grid grid-cols-[4.75rem_minmax(0,1fr)] items-baseline gap-x-3 py-0.5 sm:grid-cols-[5.5rem_minmax(0,1fr)]'>
+      <dt className='text-xs text-muted-foreground'>{label}</dt>
+      <dd
+        className={cn(
+          'min-w-0 break-all text-sm leading-relaxed',
+          mono && 'font-mono text-[13px]',
+        )}
+      >
+        {children}
+      </dd>
+    </div>
+  );
 }
 
 export function RemoteSourceDetails({
@@ -20,38 +52,27 @@ export function RemoteSourceDetails({
   source: PagesRemoteURLSource;
 }) {
   return (
-    <div className='grid gap-4 md:grid-cols-2'>
-      <div className='flex min-w-0 flex-col gap-1 rounded-lg border p-4 md:col-span-2'>
-        <span className='text-xs text-muted-foreground'>脱敏地址</span>
-        <code className='truncate text-sm'>{source.display_url}</code>
+    <div className='space-y-4'>
+      <div className='rounded-lg border border-dashed bg-muted/15 px-5 py-5'>
+        <dl className='space-y-3.5'>
+          <SourceMetaRow label='地址' mono>
+            {source.remote_url || '—'}
+          </SourceMetaRow>
+          <div className='grid gap-3.5 sm:grid-cols-2'>
+            <SourceMetaRow label='TLS'>
+              {source.allow_insecure ? '允许不安全连接' : '校验证书'}
+            </SourceMetaRow>
+            <SourceMetaRow label='最近同步'>
+              {formatOptionalTime(source.last_synced_at, '尚未同步')}
+            </SourceMetaRow>
+          </div>
+          <SourceMetaRow label='已应用' mono>
+            {revisionSummary(source.last_applied)}
+          </SourceMetaRow>
+        </dl>
       </div>
-      <div className='flex flex-col gap-1 rounded-lg border p-4'>
-        <span className='text-xs text-muted-foreground'>网络策略</span>
-        <span className='text-sm font-medium'>
-          {source.remote_network_policy === 'trusted_internal'
-            ? '受信内网模式'
-            : '公网安全模式'}
-        </span>
-      </div>
-      <div className='flex flex-col gap-1 rounded-lg border p-4'>
-        <span className='text-xs text-muted-foreground'>最近同步</span>
-        <span className='text-sm font-medium'>
-          {source.last_synced_at
-            ? formatDateTime(source.last_synced_at)
-            : '尚未同步'}
-        </span>
-      </div>
-      <div className='flex flex-col gap-1 rounded-lg border p-4 md:col-span-2'>
-        <span className='text-xs text-muted-foreground'>已应用 revision</span>
-        <span className='font-mono text-sm'>
-          {revisionSummary(source.last_applied)}
-        </span>
-      </div>
-      {source.last_error ? (
-        <div className='md:col-span-2'>
-          <ErrorInline message={source.last_error} />
-        </div>
-      ) : null}
+
+      {source.last_error ? <ErrorInline message={source.last_error} /> : null}
     </div>
   );
 }
@@ -63,9 +84,13 @@ export function GitHubSourceDetails({
 }) {
   const attentionRevision =
     source.sync_status === 'attention' ? source.last_seen : undefined;
+  const releaseLabel =
+    source.release_selector === 'latest'
+      ? '最新 Release'
+      : `固定 Tag · ${source.release_tag || '未提供'}`;
 
   return (
-    <div className='flex flex-col gap-4'>
+    <div className='space-y-4'>
       {attentionRevision ? (
         <Alert variant='destructive'>
           <TriangleAlert />
@@ -81,83 +106,51 @@ export function GitHubSourceDetails({
         </Alert>
       ) : null}
 
-      <div className='grid gap-4 md:grid-cols-2'>
-        <div className='flex min-w-0 flex-col gap-1 rounded-lg border p-4 md:col-span-2'>
-          <span className='text-xs text-muted-foreground'>GitHub 仓库</span>
-          <code className='truncate text-sm'>{source.github_repository}</code>
+      <div className='rounded-lg border border-dashed bg-muted/15 px-5 py-5'>
+        <div className='mb-4 flex flex-wrap items-center gap-2 border-b border-dashed pb-4'>
+          <code className='text-sm font-medium'>{source.github_repository}</code>
+          <Badge variant='secondary' className='font-normal'>
+            {source.asset_name}
+          </Badge>
+          <Badge variant='outline' className='font-normal'>
+            {releaseLabel}
+          </Badge>
         </div>
-        <div className='flex flex-col gap-1 rounded-lg border p-4'>
-          <span className='text-xs text-muted-foreground'>Release 选择</span>
-          <span className='text-sm font-medium'>
-            {source.release_selector === 'latest'
-              ? '最新 Release'
-              : `固定 Tag · ${source.release_tag ?? '未提供'}`}
-          </span>
-        </div>
-        <div className='flex min-w-0 flex-col gap-1 rounded-lg border p-4'>
-          <span className='text-xs text-muted-foreground'>Release Asset</span>
-          <code className='truncate text-sm'>{source.asset_name}</code>
-        </div>
-        {source.release_selector === 'latest' ? (
-          <>
-            <div className='flex flex-col gap-1 rounded-lg border p-4'>
-              <span className='text-xs text-muted-foreground'>自动更新</span>
-              <span className='text-sm font-medium'>
+
+        <dl className='grid gap-x-8 gap-y-3.5 sm:grid-cols-2'>
+          {source.release_selector === 'latest' ? (
+            <>
+              <SourceMetaRow label='自动更新'>
                 {source.auto_update_enabled ? '已开启' : '已关闭'}
-              </span>
-            </div>
-            <div className='flex flex-col gap-1 rounded-lg border p-4'>
-              <span className='text-xs text-muted-foreground'>检查间隔</span>
-              <span className='text-sm font-medium'>
+              </SourceMetaRow>
+              <SourceMetaRow label='检查间隔'>
                 {source.check_interval_minutes} 分钟
-              </span>
-            </div>
-            <div className='flex flex-col gap-1 rounded-lg border p-4 md:col-span-2'>
-              <span className='text-xs text-muted-foreground'>
-                下次检查时间
-              </span>
-              <span className='text-sm font-medium'>
-                {source.next_check_at
-                  ? formatDateTime(source.next_check_at)
-                  : '等待调度'}
-              </span>
-            </div>
-          </>
-        ) : null}
-        <div className='flex flex-col gap-1 rounded-lg border p-4'>
-          <span className='text-xs text-muted-foreground'>远端已发现</span>
-          <span className='font-mono text-sm'>
+              </SourceMetaRow>
+              <SourceMetaRow label='下次检查'>
+                {formatOptionalTime(source.next_check_at, '等待调度')}
+              </SourceMetaRow>
+              <SourceMetaRow label='最近检查'>
+                {formatOptionalTime(source.last_checked_at, '尚未检查')}
+              </SourceMetaRow>
+            </>
+          ) : (
+            <SourceMetaRow label='最近检查'>
+              {formatOptionalTime(source.last_checked_at, '尚未检查')}
+            </SourceMetaRow>
+          )}
+          <SourceMetaRow label='远端' mono>
             {revisionSummary(source.last_seen)}
-          </span>
-        </div>
-        <div className='flex flex-col gap-1 rounded-lg border p-4'>
-          <span className='text-xs text-muted-foreground'>当前已应用</span>
-          <span className='font-mono text-sm'>
+          </SourceMetaRow>
+          <SourceMetaRow label='已应用' mono>
             {revisionSummary(source.last_applied)}
-          </span>
-        </div>
-        <div className='flex flex-col gap-1 rounded-lg border p-4'>
-          <span className='text-xs text-muted-foreground'>最近检查</span>
-          <span className='text-sm font-medium'>
-            {source.last_checked_at
-              ? formatDateTime(source.last_checked_at)
-              : '尚未检查'}
-          </span>
-        </div>
-        <div className='flex flex-col gap-1 rounded-lg border p-4'>
-          <span className='text-xs text-muted-foreground'>最近同步</span>
-          <span className='text-sm font-medium'>
-            {source.last_synced_at
-              ? formatDateTime(source.last_synced_at)
-              : '尚未同步'}
-          </span>
-        </div>
-        {source.last_error ? (
-          <div className='md:col-span-2'>
-            <ErrorInline message={source.last_error} />
-          </div>
-        ) : null}
+          </SourceMetaRow>
+          <SourceMetaRow label='最近同步'>
+            {formatOptionalTime(source.last_synced_at, '尚未同步')}
+          </SourceMetaRow>
+        </dl>
       </div>
+
+      {source.last_error ? <ErrorInline message={source.last_error} /> : null}
     </div>
   );
 }

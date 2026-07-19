@@ -100,11 +100,6 @@ export function PagesSourceGitHubFields({
             固定 Tag
           </ToggleGroupItem>
         </ToggleGroup>
-        <FieldDescription>
-          {value.releaseSelector === 'latest'
-            ? '定时检查最新 Release；是否自动发布由下方开关控制。'
-            : '固定 Tag 仅支持管理员手动检查与同步。'}
-        </FieldDescription>
       </Field>
 
       {value.releaseSelector === 'tag' ? (
@@ -199,9 +194,6 @@ export function PagesSourceGitHubFields({
             onErrorsChange({ ...errors, assetName: '' });
           }}
         />
-        <FieldDescription id='pages-github-asset-description'>
-          按文件名精确匹配已上传的 Release Asset。
-        </FieldDescription>
         <FieldError id='pages-github-asset-error'>
           {errors.assetName}
         </FieldError>

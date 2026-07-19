@@ -135,7 +135,7 @@ func TestRemoteCheckActionIsPermanentWithoutExposingURL(t *testing.T) {
 		ctx,
 		project.ID,
 		"https://example.com/site.zip?token="+secret,
-		RemoteNetworkPolicyPublic,
+		false,
 	)
 	raw, err := json.Marshal(SourceActionPayload{
 		SourceID:      source.ID,

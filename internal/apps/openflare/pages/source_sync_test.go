@@ -109,7 +109,7 @@ func TestSyncRemoteSourceAtomicallyActivatesAndReusesChecksum(t *testing.T) {
 		ctx,
 		project.ID,
 		server.URL+"/site.zip?token="+secret,
-		RemoteNetworkPolicyTrustedInternal,
+		true,
 	)
 
 	firstSnapshot := mustAcquireRemoteSyncLease(t, ctx, source)
@@ -220,7 +220,7 @@ func TestSyncRemoteSourceDownloadFailureKeepsOldActive(t *testing.T) {
 		ctx,
 		project.ID,
 		server.URL+"/site.zip?token="+secret,
-		RemoteNetworkPolicyTrustedInternal,
+		true,
 	)
 
 	_, err := syncRemoteSource(ctx, mustAcquireRemoteSyncLease(t, ctx, source), "user:2")
@@ -244,7 +244,7 @@ func TestSyncRemoteSourceArchiveFailureKeepsOldActive(t *testing.T) {
 		ctx,
 		project.ID,
 		server.URL+"/site.zip?token="+secret,
-		RemoteNetworkPolicyTrustedInternal,
+		true,
 	)
 
 	_, err := syncRemoteSource(ctx, mustAcquireRemoteSyncLease(t, ctx, source), "user:3")
@@ -275,7 +275,7 @@ func TestSyncRemoteSourceFinalFenceCompensatesIngest(t *testing.T) {
 		ctx,
 		project.ID,
 		server.URL+"/site.zip?token=final-fence-secret",
-		RemoteNetworkPolicyTrustedInternal,
+		true,
 	)
 
 	outcome, err := syncRemoteSource(ctx, mustAcquireRemoteSyncLease(t, ctx, source), "user:4")
@@ -345,7 +345,7 @@ func TestCommitSourceDeploymentRechecksLeaseAfterUploadLocks(t *testing.T) {
 		ctx,
 		project.ID,
 		server.URL+"/site.zip",
-		RemoteNetworkPolicyTrustedInternal,
+		true,
 	)
 	first, err := syncRemoteSource(ctx, mustAcquireRemoteSyncLease(t, ctx, source), "user:5")
 	if err != nil || first == nil || first.Deployment == nil {
@@ -427,7 +427,7 @@ func TestCompensateSourceIngestSurvivesCanceledParentContext(t *testing.T) {
 		ctx,
 		project.ID,
 		"https://example.com/site.zip",
-		RemoteNetworkPolicyPublic,
+		false,
 	)
 	packageBytes := testPagesZip(t, map[string]string{"index.html": "cancel-compensation"})
 	packagePath := filepath.Join(t.TempDir(), "site.zip")
@@ -517,7 +517,7 @@ func TestCommitSourceDeploymentRejectsDeletedTargetUpload(t *testing.T) {
 		ctx,
 		project.ID,
 		server.URL+"/site.zip",
-		RemoteNetworkPolicyTrustedInternal,
+		true,
 	)
 	snapshot := mustAcquireRemoteSyncLease(t, ctx, source)
 

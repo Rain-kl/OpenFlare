@@ -5,7 +5,6 @@ package pages
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strings"
 	"testing"
@@ -80,14 +79,13 @@ func mustConfigureRemoteSource(
 	ctx context.Context,
 	projectID uint,
 	remoteURL string,
-	policy string,
+	allowInsecure bool,
 ) (*model.PagesProjectSource, *model.PagesProjectSourceRuntime) {
 	t.Helper()
 	_, err := UpdateSource(ctx, projectID, SourceUpdateInput{
-		SourceType:          PagesSourceTypeRemoteURL,
-		RemoteURLSet:        true,
-		RemoteURL:           remoteURL,
-		RemoteNetworkPolicy: policy,
+		SourceType:    PagesSourceTypeRemoteURL,
+		RemoteURL:     remoteURL,
+		AllowInsecure: allowInsecure,
 	})
 	if err != nil {
 		t.Fatalf("UpdateSource(%d, %q) error = %v, want nil", projectID, remoteURL, err)
@@ -111,23 +109,14 @@ func TestValidateRemoteSourceInputRejectsModeIncompatibleFields(t *testing.T) {
 		{
 			name: "missing source type",
 			input: SourceUpdateInput{
-				RemoteURLSet: true,
-				RemoteURL:    "https://example.com/site.zip",
-			},
-		},
-		{
-			name: "github type reserved for phase two",
-			input: SourceUpdateInput{
-				SourceType:    PagesSourceTypeGitHubRelease,
-				RepositoryURL: "https://github.com/example/site",
+		RemoteURL: "https://example.com/site.zip",
 			},
 		},
 		{
 			name: "remote rejects repository field",
 			input: SourceUpdateInput{
 				SourceType:    PagesSourceTypeRemoteURL,
-				RemoteURLSet:  true,
-				RemoteURL:     "https://example.com/site.zip",
+		RemoteURL:     "https://example.com/site.zip",
 				RepositoryURL: "https://github.com/example/site",
 			},
 		},
@@ -135,25 +124,14 @@ func TestValidateRemoteSourceInputRejectsModeIncompatibleFields(t *testing.T) {
 			name: "remote rejects automatic updates",
 			input: SourceUpdateInput{
 				SourceType:        PagesSourceTypeRemoteURL,
-				RemoteURLSet:      true,
-				RemoteURL:         "https://example.com/site.zip",
+		RemoteURL:         "https://example.com/site.zip",
 				AutoUpdateEnabled: true,
 			},
 		},
 		{
-			name: "url value requires replacement flag",
+			name: "missing remote url",
 			input: SourceUpdateInput{
 				SourceType: PagesSourceTypeRemoteURL,
-				RemoteURL:  "https://example.com/site.zip",
-			},
-		},
-		{
-			name: "invalid network policy",
-			input: SourceUpdateInput{
-				SourceType:          PagesSourceTypeRemoteURL,
-				RemoteURLSet:        true,
-				RemoteURL:           "https://example.com/site.zip",
-				RemoteNetworkPolicy: "private",
 			},
 		},
 	}
@@ -185,7 +163,7 @@ func TestRemoteSourceCRUDPreservesSecretAndResetsRuntimeByIdentity(t *testing.T)
 	ctx := setupPagesSourceTest(t)
 	project := mustCreatePagesSourceProject(t, ctx, "remote-crud")
 	firstURL := "https://Artifacts.Example.com:443/dist/site.zip?token=first-secret&expires=1"
-	source, runtime := mustConfigureRemoteSource(t, ctx, project.ID, firstURL, RemoteNetworkPolicyPublic)
+	source, runtime := mustConfigureRemoteSource(t, ctx, project.ID, firstURL, false)
 
 	if got, want := source.ConfigVersion, 1; got != want {
 		t.Errorf("new source ConfigVersion = %d, want %d", got, want)
@@ -197,21 +175,12 @@ func TestRemoteSourceCRUDPreservesSecretAndResetsRuntimeByIdentity(t *testing.T)
 	if err != nil {
 		t.Fatalf("GetSource(%d) error = %v, want nil", project.ID, err)
 	}
-	if got, want := view.DisplayURL, "https://Artifacts.Example.com:443/dist/site.zip?***"; got != want {
-		t.Errorf("GetSource(%d).DisplayURL = %q, want %q", project.ID, got, want)
-	}
-	encodedView, err := json.Marshal(view)
-	if err != nil {
-		t.Fatalf("json.Marshal(GetSource(%d)) error = %v, want nil", project.ID, err)
-	}
-	if strings.Contains(string(encodedView), "first-secret") || strings.Contains(string(encodedView), "expires=1") {
-		t.Errorf("GetSource(%d) JSON = %s, want credential-free view", project.ID, encodedView)
+	if got, want := view.RemoteURL, firstURL; got != want {
+		t.Errorf("GetSource(%d).RemoteURL = %q, want %q", project.ID, got, want)
 	}
 	if _, err := UpdateSource(ctx, project.ID, SourceUpdateInput{
-		SourceType:          PagesSourceTypeRemoteURL,
-		RemoteURLSet:        true,
-		RemoteURL:           firstURL,
-		RemoteNetworkPolicy: RemoteNetworkPolicyPublic,
+		SourceType: PagesSourceTypeRemoteURL,
+		RemoteURL:  firstURL,
 	}); err != nil {
 		t.Fatalf("UpdateSource(%d, no-op) error = %v, want nil", project.ID, err)
 	}
@@ -240,12 +209,12 @@ func TestRemoteSourceCRUDPreservesSecretAndResetsRuntimeByIdentity(t *testing.T)
 		t.Fatalf("seed source runtime error = %v, want nil", err)
 	}
 
-	// Omit the secret URL while changing policy. The stored URL and cursor must
+	// Keep the same URL while enabling insecure TLS. The identity and cursor must
 	// survive, while the in-flight lease is fenced.
 	if _, err := UpdateSource(ctx, project.ID, SourceUpdateInput{
-		SourceType:          PagesSourceTypeRemoteURL,
-		RemoteURLSet:        false,
-		RemoteNetworkPolicy: RemoteNetworkPolicyTrustedInternal,
+		SourceType:    PagesSourceTypeRemoteURL,
+		RemoteURL:     firstURL,
+		AllowInsecure: true,
 	}); err != nil {
 		t.Fatalf("UpdateSource(%d, preserve URL) error = %v, want nil", project.ID, err)
 	}
@@ -275,10 +244,9 @@ func TestRemoteSourceCRUDPreservesSecretAndResetsRuntimeByIdentity(t *testing.T)
 	// Replacing only the query secret keeps the canonical identity and cursors.
 	queryReplacementURL := "https://artifacts.example.com/dist/site.zip?token=second-secret"
 	if _, err := UpdateSource(ctx, project.ID, SourceUpdateInput{
-		SourceType:          PagesSourceTypeRemoteURL,
-		RemoteURLSet:        true,
-		RemoteURL:           queryReplacementURL,
-		RemoteNetworkPolicy: RemoteNetworkPolicyTrustedInternal,
+		SourceType:    PagesSourceTypeRemoteURL,
+		RemoteURL:     queryReplacementURL,
+		AllowInsecure: true,
 	}); err != nil {
 		t.Fatalf("UpdateSource(%d, query replacement) error = %v, want nil", project.ID, err)
 	}
@@ -296,10 +264,9 @@ func TestRemoteSourceCRUDPreservesSecretAndResetsRuntimeByIdentity(t *testing.T)
 	// Replacing the path changes identity and clears all remote cursors.
 	pathReplacementURL := "https://artifacts.example.com/dist/other.zip?token=third-secret"
 	if _, err := UpdateSource(ctx, project.ID, SourceUpdateInput{
-		SourceType:          PagesSourceTypeRemoteURL,
-		RemoteURLSet:        true,
-		RemoteURL:           pathReplacementURL,
-		RemoteNetworkPolicy: RemoteNetworkPolicyTrustedInternal,
+		SourceType:    PagesSourceTypeRemoteURL,
+		RemoteURL:     pathReplacementURL,
+		AllowInsecure: true,
 	}); err != nil {
 		t.Fatalf("UpdateSource(%d, path replacement) error = %v, want nil", project.ID, err)
 	}
@@ -320,14 +287,8 @@ func TestRemoteSourceCRUDPreservesSecretAndResetsRuntimeByIdentity(t *testing.T)
 	if err != nil {
 		t.Fatalf("GetSource(%d) after path replacement error = %v, want nil", project.ID, err)
 	}
-	pathJSON, err := json.Marshal(pathView)
-	if err != nil {
-		t.Fatalf("json.Marshal(path view) error = %v, want nil", err)
-	}
-	for _, secret := range []string{"first-secret", "second-secret", "third-secret"} {
-		if strings.Contains(string(pathJSON), secret) {
-			t.Errorf("path view JSON = %s, want no secret %q", pathJSON, secret)
-		}
+	if got, want := pathView.RemoteURL, pathReplacementURL; got != want {
+		t.Errorf("GetSource(%d).RemoteURL = %q, want %q", project.ID, got, want)
 	}
 }
 
@@ -353,7 +314,7 @@ func TestDeleteSourceIsIdempotentAndKeepsDeploymentState(t *testing.T) {
 		ctx,
 		project.ID,
 		"https://example.com/site.zip?token=delete-secret",
-		RemoteNetworkPolicyPublic,
+		false,
 	)
 	deployment := &model.PagesDeployment{
 		ProjectID:        project.ID,

@@ -50,9 +50,8 @@ describe('PagesService', () => {
     await PagesService.getSource(12);
     await PagesService.updateSource(12, {
       source_type: 'remote_url',
-      remote_url_set: true,
-      remote_url: 'https://example.com/site.zip?token=secret',
-      remote_network_policy: 'public',
+            remote_url: 'https://example.com/site.zip?token=secret',
+      allow_insecure: false,
     });
     await PagesService.deleteSource(12);
     await PagesService.checkSource(12);
@@ -67,8 +66,7 @@ describe('PagesService', () => {
       '/api/v1/d/pages/12/source/update',
       expect.objectContaining({
         source_type: 'remote_url',
-        remote_url_set: true,
-      }),
+              }),
       undefined,
     );
     expect(apiClient.post).toHaveBeenNthCalledWith(

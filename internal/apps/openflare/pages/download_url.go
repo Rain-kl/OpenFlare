@@ -13,8 +13,8 @@ import (
 )
 
 // downloadPagesPackageFromURL is the deprecated one-shot URL adapter. It uses
-// the same bounded downloader as persisted sources, with the legacy trusted
-// network policy that permits operator-managed internal artifact services.
+// the same bounded downloader as persisted sources and allows insecure TLS for
+// operator-managed internal artifact services.
 func downloadPagesPackageFromURL(
 	ctx context.Context,
 	rawURL string,
@@ -25,7 +25,7 @@ func downloadPagesPackageFromURL(
 	}
 	candidate, err := FetchRemoteSource(ctx, RemoteSourceRequest{
 		URL:             strings.TrimSpace(rawURL),
-		NetworkPolicy:   RemoteNetworkPolicyTrustedInternal,
+		AllowInsecure:   true,
 		MaxPackageBytes: maxPackageBytes,
 	})
 	if err != nil {

@@ -24,7 +24,7 @@ CREATE TABLE IF NOT EXISTS of_pages_project_sources (
     project_id INTEGER NOT NULL,
     source_type TEXT NOT NULL DEFAULT '',
     remote_url TEXT NOT NULL DEFAULT '',
-    remote_network_policy TEXT NOT NULL DEFAULT '',
+    allow_insecure INTEGER NOT NULL DEFAULT 0,
     github_repository TEXT NOT NULL DEFAULT '',
     release_selector TEXT NOT NULL DEFAULT '',
     release_tag TEXT NOT NULL DEFAULT '',

@@ -460,8 +460,6 @@ export interface PagesDeploymentUploadFromURLPayload {
 export type PagesSourceStatus =
   'idle' | 'checking' | 'update_available' | 'syncing' | 'failed' | 'attention';
 
-export type PagesRemoteNetworkPolicy = 'public' | 'trusted_internal';
-
 export type PagesGitHubReleaseSelector = 'latest' | 'tag';
 
 export interface PagesSourceRevision {
@@ -487,9 +485,8 @@ export interface PagesManualSource {
 
 export interface PagesRemoteURLSource extends PagesSourceRuntimeView {
   source_type: 'remote_url';
-  has_remote_url: boolean;
-  display_url: string;
-  remote_network_policy: PagesRemoteNetworkPolicy;
+  remote_url: string;
+  allow_insecure?: boolean;
 }
 
 interface PagesGitHubReleaseSourceBase extends PagesSourceRuntimeView {
@@ -524,9 +521,8 @@ export type PagesSource =
 
 export interface PagesRemoteSourceUpdatePayload {
   source_type: 'remote_url';
-  remote_url_set: boolean;
   remote_url: string;
-  remote_network_policy: PagesRemoteNetworkPolicy;
+  allow_insecure?: boolean;
 }
 
 interface PagesGitHubSourceUpdateBase {

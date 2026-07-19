@@ -42,9 +42,7 @@ func handleSourceLogicError(c *gin.Context, err error) bool {
 		errPagesSourceTypeUnsupported,
 		errPagesSourceRemoteFields,
 		errPagesSourceRemoteURLRequired,
-		errPagesSourceRemoteURLMode,
 		errPagesSourceRemoteURLInvalid,
-		errPagesSourceNetworkPolicy,
 		errPagesSourceGitHubFields,
 		errPagesSourceRepositoryInvalid,
 		errPagesSourceSelectorInvalid,
@@ -239,7 +237,7 @@ func DeleteProjectHandler(c *gin.Context) {
 
 // GetSourceHandler 获取 Pages 项目的部署源。
 // @Summary 获取 Pages 部署源
-// @Description 返回脱敏后的项目部署源配置与运行状态，需要管理员权限
+// @Description 返回项目部署源配置与运行状态，需要管理员权限
 // @Tags openflare-pages
 // @Produce json
 // @Security SessionCookie

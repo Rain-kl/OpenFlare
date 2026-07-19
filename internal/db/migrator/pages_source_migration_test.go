@@ -175,7 +175,7 @@ func createMigrationSourceRuntime(t *testing.T, gormDB *gorm.DB) uint {
 		ProjectID:            pagesMigrationProjectID,
 		SourceType:           "remote_url",
 		RemoteURL:            "https://example.com/site.zip?token=secret",
-		RemoteNetworkPolicy:  "public",
+		AllowInsecure:        false,
 		CheckIntervalMinutes: 0,
 		ConfigVersion:        1,
 		SourceIdentity:       strings.Repeat("b", 64),

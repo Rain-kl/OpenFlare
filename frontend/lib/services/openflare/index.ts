@@ -117,7 +117,6 @@ export type {
   PagesManualSource,
   PagesProject,
   PagesProjectPayload,
-  PagesRemoteNetworkPolicy,
   PagesRemoteSourceUpdatePayload,
   PagesRemoteURLSource,
   PagesSource,

@@ -150,9 +150,8 @@ func TestGitHubSourceValidationNormalizationAndProviderSwitch(t *testing.T) {
 	secret := "provider-switch-secret"
 	if _, err := UpdateSource(ctx, project.ID, SourceUpdateInput{
 		SourceType:          PagesSourceTypeRemoteURL,
-		RemoteURLSet:        true,
-		RemoteURL:           "https://artifacts.example.com/site.zip?token=" + secret,
-		RemoteNetworkPolicy: RemoteNetworkPolicyPublic,
+		RemoteURL:     "https://artifacts.example.com/site.zip?token=" + secret,
+		AllowInsecure: false,
 	}); err != nil {
 		t.Fatalf("UpdateSource(GitHub to Remote) error = %v, want nil", err)
 	}
@@ -165,8 +164,8 @@ func TestGitHubSourceValidationNormalizationAndProviderSwitch(t *testing.T) {
 		t.Fatalf("UpdateSourceAs(Remote to GitHub) error = %v, want nil", err)
 	}
 	github, _ := mustLoadPagesSource(t, ctx, project.ID)
-	if github.RemoteURL != "" || github.RemoteNetworkPolicy != "" {
-		t.Errorf("GitHub switched source retained Remote fields: URL=%q policy=%q", github.RemoteURL, github.RemoteNetworkPolicy)
+	if github.RemoteURL != "" || github.AllowInsecure {
+		t.Errorf("GitHub switched source retained Remote fields: URL=%q allow_insecure=%v", github.RemoteURL, github.AllowInsecure)
 	}
 }
 

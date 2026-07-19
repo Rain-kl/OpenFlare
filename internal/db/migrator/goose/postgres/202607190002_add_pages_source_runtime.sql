@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS of_pages_project_sources (
     project_id BIGINT NOT NULL,
     source_type VARCHAR(32) NOT NULL DEFAULT '',
     remote_url TEXT NOT NULL DEFAULT '',
-    remote_network_policy VARCHAR(32) NOT NULL DEFAULT '',
+    allow_insecure BOOLEAN NOT NULL DEFAULT FALSE,
     github_repository VARCHAR(255) NOT NULL DEFAULT '',
     release_selector VARCHAR(16) NOT NULL DEFAULT '',
     release_tag VARCHAR(255) NOT NULL DEFAULT '',

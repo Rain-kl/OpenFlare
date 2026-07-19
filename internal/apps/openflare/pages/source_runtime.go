@@ -54,7 +54,7 @@ type sourceExecutionSnapshot struct {
 	SourceType           string
 	SourceIdentity       string
 	RemoteURL            string
-	RemoteNetworkPolicy  string
+	AllowInsecure        bool
 	GitHubRepository     string
 	ReleaseSelector      string
 	ReleaseTag           string
@@ -176,7 +176,7 @@ func loadSourceExecutionSnapshot(
 			SourceType:           source.SourceType,
 			SourceIdentity:       source.SourceIdentity,
 			RemoteURL:            source.RemoteURL,
-			RemoteNetworkPolicy:  source.RemoteNetworkPolicy,
+			AllowInsecure:        source.AllowInsecure,
 			GitHubRepository:     source.GitHubRepository,
 			ReleaseSelector:      source.ReleaseSelector,
 			ReleaseTag:           source.ReleaseTag,
