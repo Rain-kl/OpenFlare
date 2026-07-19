@@ -246,9 +246,9 @@ function AppBanner() {
         >
           <div className='flex w-full items-center justify-center px-4 pr-10 py-2 text-xs md:text-[13px] font-medium text-muted-foreground'>
             <p className='flex flex-wrap items-center justify-center gap-x-2 text-center'>
-              <span className='text-foreground'>最新通知</span>
+              <span className='text-foreground'>更新日志</span>
               <a
-                href='https://example.com'
+                href='https://open-flare.pages.dev/changelog/'
                 target='_blank'
                 className='underline underline-offset-4 hover:text-foreground'
               >
