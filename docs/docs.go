@@ -2595,7 +2595,7 @@ const docTemplate = `{
                         "SessionCookie": []
                     }
                 ],
-                "description": "返回系统所有的定时任务配置列表，包括名称、关联的异步任务类型、Cron 表达式和启用状态，需要管理员权限",
+                "description": "返回管理员可管理的定时任务配置列表，包括名称、关联的异步任务类型、Cron 表达式和启用状态；系统内部排程不会暴露，需要管理员权限",
                 "produces": [
                     "application/json"
                 ],
@@ -2856,6 +2856,12 @@ const docTemplate = `{
                     },
                     "403": {
                         "description": "无管理员权限",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    },
+                    "404": {
+                        "description": "定时任务不存在",
                         "schema": {
                             "$ref": "#/definitions/response.Any"
                         }

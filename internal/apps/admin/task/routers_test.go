@@ -75,8 +75,10 @@ func setupTestRouter(authUser *model.User) *gin.Engine {
 	adminGroup.GET("/tasks/executions", ListTaskExecutions)
 	adminGroup.GET("/tasks/executions/:id", GetTaskExecution)
 	adminGroup.POST("/tasks/executions/:id/retry", RetryTask)
+	adminGroup.GET("/tasks/schedules", ListSchedules)
 	adminGroup.POST("/tasks/schedules", CreateSchedule)
 	adminGroup.PUT("/tasks/schedules/:id", UpdateSchedule)
+	adminGroup.DELETE("/tasks/schedules/:id", DeleteSchedule)
 	return r
 }
 
@@ -136,6 +138,39 @@ func TestInternalOnlyTaskAdminBoundaries(t *testing.T) {
 	adminUser := &model.User{ID: 1001, Username: "admin", IsAdmin: true}
 	router := setupTestRouter(adminUser)
 	ctx := context.Background()
+
+	t.Run("list hides internal-only schedule", func(t *testing.T) {
+		internalSchedule := &model.Schedule{
+			Name:     "隐藏的系统内部排程",
+			TaskType: testInternalOnlyTaskType,
+			Cron:     "*/5 * * * *",
+			Payload:  "{}",
+			IsActive: true,
+		}
+		publicSchedule := &model.Schedule{
+			Name:     "可见的公开排程",
+			TaskType: uploadtask.TaskTypeSystemCleanup,
+			Cron:     "0 * * * *",
+			Payload:  "{}",
+			IsActive: true,
+		}
+		require.NoError(t, model.CreateSchedule(ctx, internalSchedule))
+		require.NoError(t, model.CreateSchedule(ctx, publicSchedule))
+
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/tasks/schedules", nil)
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		var resp response.Any
+		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+		data, err := json.Marshal(resp.Data)
+		require.NoError(t, err)
+		var schedules []model.Schedule
+		require.NoError(t, json.Unmarshal(data, &schedules))
+		assert.NotContains(t, scheduleIDs(schedules), internalSchedule.ID)
+		assert.Contains(t, scheduleIDs(schedules), publicSchedule.ID)
+	})
 
 	t.Run("dispatch rejects internal-only task", func(t *testing.T) {
 		body, err := json.Marshal(DispatchTaskRequest{TaskType: testInternalOnlyTaskType})
@@ -239,6 +274,74 @@ func TestInternalOnlyTaskAdminBoundaries(t *testing.T) {
 		assert.Equal(t, "公开排程", unchanged.Name)
 		assert.Equal(t, uploadtask.TaskTypeSystemCleanup, unchanged.TaskType)
 	})
+
+	t.Run("delete rejects internal-only schedule", func(t *testing.T) {
+		schedule := &model.Schedule{
+			Name:     "不可删除的系统内部排程",
+			TaskType: testInternalOnlyTaskType,
+			Cron:     "*/5 * * * *",
+			IsActive: true,
+		}
+		require.NoError(t, model.CreateSchedule(ctx, schedule))
+		req := httptest.NewRequest(
+			http.MethodDelete,
+			fmt.Sprintf("/api/v1/admin/tasks/schedules/%d", schedule.ID),
+			nil,
+		)
+		w := httptest.NewRecorder()
+
+		router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+		var resp response.Any
+		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+		assert.Equal(t, InvalidTaskType, resp.ErrorMsg)
+		preserved, err := model.GetScheduleByID(ctx, schedule.ID)
+		require.NoError(t, err)
+		assert.Equal(t, testInternalOnlyTaskType, preserved.TaskType)
+	})
+
+	t.Run("delete missing schedule returns not found", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodDelete, "/api/v1/admin/tasks/schedules/999999", nil)
+		w := httptest.NewRecorder()
+
+		router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusNotFound, w.Code)
+		var resp response.Any
+		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+		assert.Equal(t, ScheduleNotFound, resp.ErrorMsg)
+	})
+
+	t.Run("delete public schedule remains allowed", func(t *testing.T) {
+		schedule := &model.Schedule{
+			Name:     "可删除的公开排程",
+			TaskType: uploadtask.TaskTypeSystemCleanup,
+			Cron:     "0 * * * *",
+			IsActive: false,
+		}
+		require.NoError(t, model.CreateSchedule(ctx, schedule))
+		req := httptest.NewRequest(
+			http.MethodDelete,
+			fmt.Sprintf("/api/v1/admin/tasks/schedules/%d", schedule.ID),
+			nil,
+		)
+		w := httptest.NewRecorder()
+
+		router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		_, err := model.GetScheduleByID(ctx, schedule.ID)
+		assert.Error(t, err)
+	})
+}
+
+func scheduleIDs(schedules []model.Schedule) []uint64 {
+	ids := make([]uint64, 0, len(schedules))
+	for _, schedule := range schedules {
+		ids = append(ids, schedule.ID)
+	}
+	return ids
 }
 
 func TestDispatchTask(t *testing.T) {
