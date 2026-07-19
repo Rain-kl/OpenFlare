@@ -27,8 +27,7 @@ const (
 	pagesSourceScanBatchSize = 20
 )
 
-// PagesSourceScanMeta is available to the scheduler registry but hidden from
-// generic Admin task dispatch and schedule mutation APIs.
+// PagesSourceScanMeta describes the periodic Pages source scanner schedule.
 var PagesSourceScanMeta = task.TaskMeta{
 	Type:         TaskTypePagesSourceScan,
 	AsynqTask:    PagesSourceScanTask,
@@ -38,7 +37,6 @@ var PagesSourceScanMeta = task.TaskMeta{
 	MaxRetry:     0,
 	Queue:        task.QueueDefault,
 	Retryable:    false,
-	InternalOnly: true,
 }
 
 type pagesSourceScanPayload struct{}

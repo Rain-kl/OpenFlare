@@ -477,7 +477,7 @@ func TestPagesSourceScannerIncludesOrphanCleanupSummary(t *testing.T) {
 	}
 }
 
-func TestPagesSourceScanPayloadAndMetaAreInternalOnly(t *testing.T) {
+func TestPagesSourceScanPayloadAndMeta(t *testing.T) {
 	handler := &SourceScanHandler{}
 	if normalized, err := handler.ValidatePayload(nil); err != nil || string(normalized) != "{}" {
 		t.Errorf("ValidatePayload(nil) = %s, %v; want {}, nil", normalized, err)
@@ -485,9 +485,9 @@ func TestPagesSourceScanPayloadAndMetaAreInternalOnly(t *testing.T) {
 	if _, err := handler.ValidatePayload([]byte(`{"unexpected":true}`)); err == nil {
 		t.Error("ValidatePayload(unknown field) error = nil, want non-nil")
 	}
-	if !PagesSourceScanMeta.InternalOnly || PagesSourceScanMeta.Type != TaskTypePagesSourceScan ||
+	if PagesSourceScanMeta.InternalOnly || PagesSourceScanMeta.Type != TaskTypePagesSourceScan ||
 		PagesSourceScanMeta.AsynqTask != PagesSourceScanTask || PagesSourceScanMeta.MaxRetry != 0 {
-		t.Errorf("PagesSourceScanMeta = %+v, want internal bounded scheduled scanner", PagesSourceScanMeta)
+		t.Errorf("PagesSourceScanMeta = %+v, want public bounded scheduled scanner", PagesSourceScanMeta)
 	}
 	if PagesSourceScanMeta.SupportsTime {
 		t.Error("PagesSourceScanMeta.SupportsTime = true, want empty scanner payload")

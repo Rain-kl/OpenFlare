@@ -20,7 +20,7 @@ INSERT INTO w_schedules (name, task_type, cron, payload, is_active, created_at, 
 SELECT
     'OpenFlare Pages 部署源扫描',
     'of_pages_source_scan',
-    '*/5 * * * *',
+    '0 0 * * *',
     '{}',
     TRUE,
     CURRENT_TIMESTAMP,
@@ -33,6 +33,6 @@ WHERE NOT EXISTS (
 DELETE FROM w_schedules
 WHERE task_type = 'of_pages_source_scan'
   AND name = 'OpenFlare Pages 部署源扫描'
-  AND cron = '*/5 * * * *'
+  AND cron = '0 0 * * *'
   AND payload = '{}'
   AND is_active = TRUE;

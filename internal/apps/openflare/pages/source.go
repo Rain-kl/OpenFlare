@@ -38,7 +38,7 @@ const (
 
 	defaultRemoteAssetLabel = "pages-package"
 	defaultGitHubAssetName  = "dist.zip"
-	defaultCheckInterval    = 60
+	defaultCheckInterval    = 1440
 	minimumCheckInterval    = 5
 	maximumCheckInterval    = 1440
 )

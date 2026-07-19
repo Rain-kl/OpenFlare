@@ -105,7 +105,7 @@ describe('PagesService', () => {
       release_tag: '',
       asset_name: 'dist.zip',
       auto_update_enabled: false,
-      check_interval_minutes: 60,
+      check_interval_minutes: 1440,
     });
 
     expect(apiClient.post).toHaveBeenCalledWith(
@@ -117,7 +117,7 @@ describe('PagesService', () => {
         release_tag: '',
         asset_name: 'dist.zip',
         auto_update_enabled: false,
-        check_interval_minutes: 60,
+        check_interval_minutes: 1440,
       },
       undefined,
     );

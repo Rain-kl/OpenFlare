@@ -72,7 +72,7 @@ interface PagesSourceDialogProps {
 }
 
 const DEFAULT_GITHUB_ASSET = 'dist.zip';
-const DEFAULT_GITHUB_CHECK_INTERVAL = 60;
+const DEFAULT_GITHUB_CHECK_INTERVAL = 1440;
 const EMPTY_GITHUB_ERRORS: PagesGitHubSourceFormErrors = {
   repository: '',
   releaseTag: '',

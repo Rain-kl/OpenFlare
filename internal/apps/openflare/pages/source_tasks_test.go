@@ -165,9 +165,9 @@ func TestRemoteCheckActionIsPermanentWithoutExposingURL(t *testing.T) {
 	}
 }
 
-func TestPagesSourceActionMetaIsInternalOnly(t *testing.T) {
-	if !PagesSourceActionMeta.InternalOnly {
-		t.Error("PagesSourceActionMeta.InternalOnly = false, want true")
+func TestPagesSourceActionMeta(t *testing.T) {
+	if PagesSourceActionMeta.InternalOnly {
+		t.Error("PagesSourceActionMeta.InternalOnly = true, want false")
 	}
 	if PagesSourceActionMeta.Type != TaskTypePagesSourceAction {
 		t.Errorf("PagesSourceActionMeta.Type = %q, want %q", PagesSourceActionMeta.Type, TaskTypePagesSourceAction)

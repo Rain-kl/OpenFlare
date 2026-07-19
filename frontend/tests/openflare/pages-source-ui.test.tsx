@@ -79,7 +79,7 @@ const githubLatestSource: PagesGitHubReleaseSource = {
   release_selector: 'latest',
   asset_name: 'dist.zip',
   auto_update_enabled: false,
-  check_interval_minutes: 60,
+  check_interval_minutes: 1440,
   sync_status: 'update_available',
   update_available: true,
   last_seen: {
@@ -172,7 +172,7 @@ describe('Pages source UI', () => {
 
     await user.click(screen.getByRole('radio', { name: 'GitHub Release' }));
     expect(screen.getByRole('switch', { name: '自动更新' })).not.toBeChecked();
-    expect(screen.getByLabelText('检查间隔（分钟）')).toHaveValue(60);
+    expect(screen.getByLabelText('检查间隔（分钟）')).toHaveValue(1440);
   });
 
   it('submits the GitHub latest automatic update settings', async () => {
@@ -391,7 +391,7 @@ describe('Pages source UI', () => {
     expect(screen.getByText('自动更新')).toBeVisible();
     expect(screen.getByText('已关闭')).toBeVisible();
     expect(screen.getByText('检查间隔')).toBeVisible();
-    expect(screen.getByText('60 分钟')).toBeVisible();
+    expect(screen.getByText('1440 分钟')).toBeVisible();
   });
 
   it('dispatches a GitHub check and starts TaskExecution polling', async () => {
@@ -632,7 +632,10 @@ describe('Pages source UI', () => {
       <DeploymentHistory projectId={9} activeDeploymentId={51} />,
     );
 
-    expect(await screen.findByText('GitHub · v1.2.3 · 手动同步')).toBeVisible();
+    expect(
+      await screen.findAllByText('GitHub · v1.2.3 · 手动同步'),
+    ).toHaveLength(2);
     expect(screen.getByText('Production')).toBeVisible();
+    expect(screen.getByText('All deployments')).toBeVisible();
   });
 });

@@ -32,7 +32,7 @@ const (
 
 var errUnexpectedJSONTrailingValue = errors.New("unexpected trailing JSON value")
 
-// PagesSourceActionMeta is intentionally hidden from generic Admin task APIs.
+// PagesSourceActionMeta describes check/sync work for Pages deployment sources.
 var PagesSourceActionMeta = task.TaskMeta{
 	Type:         TaskTypePagesSourceAction,
 	AsynqTask:    PagesSourceActionTask,
@@ -42,7 +42,6 @@ var PagesSourceActionMeta = task.TaskMeta{
 	MaxRetry:     2,
 	Queue:        task.QueueDefault,
 	Retryable:    false,
-	InternalOnly: true,
 }
 
 // SourceActionPayload is the credential-free internal queue contract.

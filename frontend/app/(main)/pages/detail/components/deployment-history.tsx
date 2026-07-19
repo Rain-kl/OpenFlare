@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ChevronDown, ChevronRight, Upload } from 'lucide-react';
+import { ChevronDown, ChevronRight, Rocket, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { EmptyStateWithBorder } from '@/components/layout/empty';
@@ -30,7 +30,7 @@ import {
 } from '@/components/ui/card';
 import { Spinner } from '@/components/ui/spinner';
 import { type PagesDeployment, PagesService } from '@/lib/services/openflare';
-import { formatDateTime } from '@/lib/utils';
+import { cn, formatDateTime } from '@/lib/utils';
 
 import { DeploymentUploadDialog } from '../../components/deployment-upload-dialog';
 import {
@@ -69,6 +69,15 @@ type PendingAction = {
   deployment: PagesDeployment;
 };
 
+function isActiveDeployment(
+  deployment: PagesDeployment,
+  activeDeploymentId?: number | null,
+) {
+  return (
+    deployment.id === activeDeploymentId || deployment.status === 'active'
+  );
+}
+
 function deploymentSnapshot(deployment: PagesDeployment) {
   return [
     SOURCE_LABELS[deployment.source_type],
@@ -77,6 +86,107 @@ function deploymentSnapshot(deployment: PagesDeployment) {
   ]
     .filter(Boolean)
     .join(' · ');
+}
+
+function DeploymentMeta({ deployment }: { deployment: PagesDeployment }) {
+  return (
+    <>
+      <p className='truncate text-xs text-muted-foreground'>
+        {deployment.checksum.slice(0, 16)} · {deployment.file_count} 个文件 ·{' '}
+        {formatBytes(deployment.total_size)}
+      </p>
+      <p className='text-xs text-muted-foreground'>
+        创建于 {formatDateTime(deployment.created_at)}
+        {deployment.activated_at
+          ? ` · 激活于 ${formatDateTime(deployment.activated_at)}`
+          : ''}
+      </p>
+    </>
+  );
+}
+
+interface DeploymentRowProps {
+  deployment: PagesDeployment;
+  active: boolean;
+  expanded: boolean;
+  actionPending: boolean;
+  showActions: boolean;
+  onToggleExpand: () => void;
+  onActivate: () => void;
+  onDelete: () => void;
+  projectId: number;
+}
+
+function DeploymentRow({
+  deployment,
+  active,
+  expanded,
+  actionPending,
+  showActions,
+  onToggleExpand,
+  onActivate,
+  onDelete,
+  projectId,
+}: DeploymentRowProps) {
+  return (
+    <div
+      className={cn(
+        'rounded-lg border border-dashed',
+        active && 'border-l-4 border-l-solid border-l-primary',
+      )}
+    >
+      <div className='flex flex-col gap-4 p-4 md:flex-row md:items-center md:justify-between'>
+        <div className='flex min-w-0 items-start gap-2'>
+          <Button
+            type='button'
+            variant='ghost'
+            size='icon-sm'
+            aria-label={expanded ? '收起文件清单' : '展开文件清单'}
+            onClick={onToggleExpand}
+          >
+            {expanded ? <ChevronDown /> : <ChevronRight />}
+          </Button>
+          <div className='flex min-w-0 flex-col gap-2'>
+            <div className='flex flex-wrap items-center gap-2'>
+              <span className='text-sm font-medium'>
+                部署 #{deployment.deployment_number}
+              </span>
+              <Badge variant='secondary'>{deploymentSnapshot(deployment)}</Badge>
+            </div>
+            <DeploymentMeta deployment={deployment} />
+          </div>
+        </div>
+        {showActions ? (
+          <div className='flex gap-2 md:ml-10'>
+            <Button
+              type='button'
+              variant='outline'
+              size='sm'
+              disabled={active || actionPending}
+              onClick={onActivate}
+            >
+              激活
+            </Button>
+            <Button
+              type='button'
+              variant='destructive'
+              size='sm'
+              disabled={active || actionPending}
+              onClick={onDelete}
+            >
+              删除
+            </Button>
+          </div>
+        ) : null}
+      </div>
+      {expanded ? (
+        <DeploymentFilesPanel
+          projectId={projectId}
+          deploymentId={deployment.id}
+        />
+      ) : null}
+    </div>
+  );
 }
 
 export function DeploymentHistory({
@@ -99,16 +209,20 @@ export function DeploymentHistory({
     queryFn: () => PagesService.listDeployments(projectId),
   });
 
-  const deployments = useMemo(() => {
+  const { productionDeployment, allDeployments } = useMemo(() => {
     const records = [...(deploymentsQuery.data ?? [])];
-    return records.sort((left, right) => {
-      const leftActive =
-        left.id === activeDeploymentId || left.status === 'active';
-      const rightActive =
-        right.id === activeDeploymentId || right.status === 'active';
-      if (leftActive !== rightActive) return leftActive ? -1 : 1;
-      return right.deployment_number - left.deployment_number;
-    });
+    records.sort(
+      (left, right) => right.deployment_number - left.deployment_number,
+    );
+
+    const production =
+      records.find((item) => isActiveDeployment(item, activeDeploymentId)) ??
+      null;
+
+    return {
+      productionDeployment: production,
+      allDeployments: records,
+    };
   }, [activeDeploymentId, deploymentsQuery.data]);
 
   const invalidateDeploymentState = async () => {
@@ -153,132 +267,14 @@ export function DeploymentHistory({
 
   const actionPending = activateMutation.isPending || deleteMutation.isPending;
 
-  return (
+  const toggleExpand = (deploymentId: number) => {
+    setExpandedDeploymentId((current) =>
+      current === deploymentId ? null : deploymentId,
+    );
+  };
+
+  const dialogs = (
     <>
-      <Card className='border-dashed shadow-none'>
-        <CardHeader className='pb-3'>
-          <CardTitle className='text-base'>部署历史</CardTitle>
-          <CardDescription>
-            部署记录不可变，来源信息是创建部署时的安全快照。
-          </CardDescription>
-          <CardAction>
-            <Button
-              type='button'
-              size='sm'
-              className='whitespace-nowrap'
-              onClick={() => setUploadOpen(true)}
-            >
-              <Upload data-icon='inline-start' />
-              手动上传
-            </Button>
-          </CardAction>
-        </CardHeader>
-        <CardContent className='space-y-3'>
-          {deploymentsQuery.isLoading ? (
-            <LoadingStateWithBorder description='加载部署历史...' />
-          ) : deploymentsQuery.isError ? (
-            <div className='rounded-lg border p-4'>
-              <ErrorInline
-                message={
-                  deploymentsQuery.error instanceof Error
-                    ? deploymentsQuery.error.message
-                    : '部署历史加载失败'
-                }
-                onRetry={() => void deploymentsQuery.refetch()}
-              />
-            </div>
-          ) : deployments.length === 0 ? (
-            <EmptyStateWithBorder
-              title='暂无部署'
-              description='上传本地部署包，或配置 Remote URL / GitHub Release 来源后同步发布。'
-            />
-          ) : (
-            deployments.map((deployment) => {
-              const active =
-                deployment.id === activeDeploymentId ||
-                deployment.status === 'active';
-              const expanded = expandedDeploymentId === deployment.id;
-
-              return (
-                <div
-                  key={deployment.id}
-                  className='rounded-lg border border-dashed'
-                >
-                  <div className='flex flex-col gap-4 p-4 md:flex-row md:items-center md:justify-between'>
-                    <div className='flex min-w-0 items-start gap-2'>
-                      <Button
-                        type='button'
-                        variant='ghost'
-                        size='icon-sm'
-                        aria-label={expanded ? '收起文件清单' : '展开文件清单'}
-                        onClick={() =>
-                          setExpandedDeploymentId(
-                            expanded ? null : deployment.id,
-                          )
-                        }
-                      >
-                        {expanded ? <ChevronDown /> : <ChevronRight />}
-                      </Button>
-                      <div className='flex min-w-0 flex-col gap-2'>
-                        <div className='flex flex-wrap items-center gap-2'>
-                          <span className='text-sm font-medium'>
-                            部署 #{deployment.deployment_number}
-                          </span>
-                          <Badge variant={active ? 'default' : 'outline'}>
-                            {active ? 'Production' : '历史部署'}
-                          </Badge>
-                          <Badge variant='secondary'>
-                            {deploymentSnapshot(deployment)}
-                          </Badge>
-                        </div>
-                        <p className='truncate text-xs text-muted-foreground'>
-                          {deployment.checksum.slice(0, 16)} ·{' '}
-                          {deployment.file_count} 个文件 ·{' '}
-                          {formatBytes(deployment.total_size)}
-                        </p>
-                        <p className='text-xs text-muted-foreground'>
-                          创建于 {formatDateTime(deployment.created_at)}
-                        </p>
-                      </div>
-                    </div>
-                    <div className='flex gap-2 md:ml-10'>
-                      <Button
-                        type='button'
-                        variant='outline'
-                        size='sm'
-                        disabled={active || actionPending}
-                        onClick={() =>
-                          setPendingAction({ type: 'activate', deployment })
-                        }
-                      >
-                        激活
-                      </Button>
-                      <Button
-                        type='button'
-                        variant='destructive'
-                        size='sm'
-                        disabled={active || actionPending}
-                        onClick={() =>
-                          setPendingAction({ type: 'delete', deployment })
-                        }
-                      >
-                        删除
-                      </Button>
-                    </div>
-                  </div>
-                  {expanded ? (
-                    <DeploymentFilesPanel
-                      projectId={projectId}
-                      deploymentId={deployment.id}
-                    />
-                  ) : null}
-                </div>
-              );
-            })
-          )}
-        </CardContent>
-      </Card>
-
       <AlertDialog
         open={pendingAction !== null}
         onOpenChange={(open) => {
@@ -325,5 +321,118 @@ export function DeploymentHistory({
         entryFile={entryFile}
       />
     </>
+  );
+
+  if (deploymentsQuery.isLoading) {
+    return (
+      <>
+        <LoadingStateWithBorder description='加载部署历史...' />
+        {dialogs}
+      </>
+    );
+  }
+
+  if (deploymentsQuery.isError) {
+    return (
+      <>
+        <div className='rounded-lg border p-4'>
+          <ErrorInline
+            message={
+              deploymentsQuery.error instanceof Error
+                ? deploymentsQuery.error.message
+                : '部署历史加载失败'
+            }
+            onRetry={() => void deploymentsQuery.refetch()}
+          />
+        </div>
+        {dialogs}
+      </>
+    );
+  }
+
+  return (
+    <div className='flex flex-col gap-6'>
+      <Card className='border-dashed shadow-none'>
+        <CardHeader className='pb-3'>
+          <CardTitle className='text-base'>Production</CardTitle>
+          <CardDescription>
+            当前对外生效的生产部署；切换激活状态后会立即生效。
+          </CardDescription>
+          <CardAction>
+            <Button
+              type='button'
+              size='sm'
+              className='whitespace-nowrap'
+              onClick={() => setUploadOpen(true)}
+            >
+              <Upload data-icon='inline-start' />
+              手动上传
+            </Button>
+          </CardAction>
+        </CardHeader>
+        <CardContent className='space-y-3'>
+          {productionDeployment ? (
+            <DeploymentRow
+              deployment={productionDeployment}
+              active
+              expanded={expandedDeploymentId === productionDeployment.id}
+              actionPending={actionPending}
+              showActions={false}
+              onToggleExpand={() => toggleExpand(productionDeployment.id)}
+              onActivate={() => undefined}
+              onDelete={() => undefined}
+              projectId={projectId}
+            />
+          ) : (
+            <EmptyStateWithBorder
+              icon={Rocket}
+              title='暂无 Production 部署'
+              description='上传本地部署包，或配置 Remote URL / GitHub Release 来源后同步发布。'
+            />
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className='border-dashed shadow-none'>
+        <CardHeader className='pb-3'>
+          <CardTitle className='text-base'>All deployments</CardTitle>
+          <CardDescription>
+            部署记录不可变，来源信息是创建部署时的安全快照。可从历史部署激活或删除。
+          </CardDescription>
+        </CardHeader>
+        <CardContent className='space-y-3'>
+          {allDeployments.length === 0 ? (
+            <EmptyStateWithBorder
+              title='暂无部署'
+              description='上传本地部署包，或配置 Remote URL / GitHub Release 来源后同步发布。'
+            />
+          ) : (
+            allDeployments.map((deployment) => {
+              const active = isActiveDeployment(deployment, activeDeploymentId);
+              return (
+                <DeploymentRow
+                  key={deployment.id}
+                  deployment={deployment}
+                  active={active}
+                  expanded={expandedDeploymentId === deployment.id}
+                  actionPending={actionPending}
+                  showActions
+                  onToggleExpand={() => toggleExpand(deployment.id)}
+                  onActivate={() =>
+                    setPendingAction({ type: 'activate', deployment })
+                  }
+                  onDelete={() =>
+                    setPendingAction({ type: 'delete', deployment })
+                  }
+                  projectId={projectId}
+                />
+              );
+            })
+          )}
+        </CardContent>
+      </Card>
+
+      {dialogs}
+    </div>
   );
 }

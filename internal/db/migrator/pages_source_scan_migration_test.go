@@ -144,7 +144,7 @@ func assertPagesSourceScanSchedule(t *testing.T, gormDB *gorm.DB) model.Schedule
 	require.Len(t, schedules, 1)
 	schedule := schedules[0]
 	assert.Equal(t, "OpenFlare Pages 部署源扫描", schedule.Name)
-	assert.Equal(t, "*/5 * * * *", schedule.Cron)
+	assert.Equal(t, "0 0 * * *", schedule.Cron)
 	assert.Equal(t, "{}", schedule.Payload)
 	assert.True(t, schedule.IsActive)
 	return schedule
