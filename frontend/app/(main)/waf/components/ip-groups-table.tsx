@@ -115,9 +115,7 @@ export function IPGroupsTable({
                     variant='ghost'
                     size='icon'
                     className='size-8'
-                    title={
-                      group.type === 'automatic' ? '立即执行' : '立即同步'
-                    }
+                    title={group.type === 'automatic' ? '立即执行' : '立即同步'}
                     aria-label={
                       group.type === 'automatic' ? '立即执行' : '立即同步'
                     }

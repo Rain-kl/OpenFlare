@@ -18,15 +18,15 @@ import (
 )
 
 const (
-	healthEventStatusActive     = "active"
-	healthEventStatusResolved   = "resolved"
-	healthSeverityInfo          = "info"
-	healthSeverityWarning       = "warning"
-	healthSeverityCritical      = "critical"
-	accessLogPathMaxLength      = 100
+	healthEventStatusActive       = "active"
+	healthEventStatusResolved     = "resolved"
+	healthSeverityInfo            = "info"
+	healthSeverityWarning         = "warning"
+	healthSeverityCritical        = "critical"
+	accessLogPathMaxLength        = 100
 	accessLogUserAgentMaxLength   = 512
 	accessLogCacheStatusMaxLength = 32
-	healthEventMessageMaxLength = 4096
+	healthEventMessageMaxLength   = 4096
 )
 
 // PersistHeartbeatObservability stores profile, host metrics, edge health, and access logs.
