@@ -17,6 +17,10 @@ export function deploymentsQueryKey(projectId: number) {
   return ['openflare', 'pages', 'deployments', projectId] as const;
 }
 
+export function sourceQueryKey(projectId: number) {
+  return ['openflare', 'pages', 'source', projectId] as const;
+}
+
 export function deploymentFilesQueryKey(
   projectId: number,
   deploymentId: number,

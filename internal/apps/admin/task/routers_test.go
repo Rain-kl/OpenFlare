@@ -29,6 +29,20 @@ import (
 	"github.com/Rain-kl/Wavelet/internal/common/response"
 )
 
+const (
+	testInternalOnlyTaskType  = "test_internal_only_admin"
+	testInternalOnlyAsynqTask = "test:internal_only_admin"
+)
+
+func registerInternalOnlyTaskMeta() {
+	task.RegisterTaskMeta(task.TaskMeta{
+		Type:         testInternalOnlyTaskType,
+		AsynqTask:    testInternalOnlyAsynqTask,
+		Name:         "内部测试任务",
+		InternalOnly: true,
+	})
+}
+
 func setupTaskTestEnvironment(t *testing.T) func() {
 	_, mr, cleanup := testhelper.SetupTestEnvironment(t)
 	bootstrap.RegisterTasks()
@@ -61,12 +75,17 @@ func setupTestRouter(authUser *model.User) *gin.Engine {
 	adminGroup.GET("/tasks/executions", ListTaskExecutions)
 	adminGroup.GET("/tasks/executions/:id", GetTaskExecution)
 	adminGroup.POST("/tasks/executions/:id/retry", RetryTask)
+	adminGroup.GET("/tasks/schedules", ListSchedules)
+	adminGroup.POST("/tasks/schedules", CreateSchedule)
+	adminGroup.PUT("/tasks/schedules/:id", UpdateSchedule)
+	adminGroup.DELETE("/tasks/schedules/:id", DeleteSchedule)
 	return r
 }
 
 func TestListTaskTypes(t *testing.T) {
 	cleanup := setupTaskTestEnvironment(t)
 	defer cleanup()
+	registerInternalOnlyTaskMeta()
 
 	adminUser := &model.User{ID: 1001, Username: "admin", IsAdmin: true}
 	router := setupTestRouter(adminUser)
@@ -93,6 +112,9 @@ func TestListTaskTypes(t *testing.T) {
 	foundCleanup := false
 	foundWarmImageCache := false
 	for _, m := range taskMetas {
+		if m.Type == testInternalOnlyTaskType {
+			t.Errorf("internal-only task type %s must not be listed", testInternalOnlyTaskType)
+		}
 		if m.Type == uploadtask.TaskTypeSystemCleanup {
 			foundCleanup = true
 		}
@@ -106,6 +128,220 @@ func TestListTaskTypes(t *testing.T) {
 	if !foundWarmImageCache {
 		t.Errorf("expected task type %s to be listed", uploadtask.TaskTypeWarmImageCache)
 	}
+}
+
+func TestInternalOnlyTaskAdminBoundaries(t *testing.T) {
+	cleanup := setupTaskTestEnvironment(t)
+	defer cleanup()
+	registerInternalOnlyTaskMeta()
+
+	adminUser := &model.User{ID: 1001, Username: "admin", IsAdmin: true}
+	router := setupTestRouter(adminUser)
+	ctx := context.Background()
+
+	t.Run("list hides internal-only schedule", func(t *testing.T) {
+		internalSchedule := &model.Schedule{
+			Name:     "隐藏的系统内部排程",
+			TaskType: testInternalOnlyTaskType,
+			Cron:     "*/5 * * * *",
+			Payload:  "{}",
+			IsActive: true,
+		}
+		publicSchedule := &model.Schedule{
+			Name:     "可见的公开排程",
+			TaskType: uploadtask.TaskTypeSystemCleanup,
+			Cron:     "0 * * * *",
+			Payload:  "{}",
+			IsActive: true,
+		}
+		require.NoError(t, model.CreateSchedule(ctx, internalSchedule))
+		require.NoError(t, model.CreateSchedule(ctx, publicSchedule))
+
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/tasks/schedules", nil)
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		var resp response.Any
+		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+		data, err := json.Marshal(resp.Data)
+		require.NoError(t, err)
+		var schedules []model.Schedule
+		require.NoError(t, json.Unmarshal(data, &schedules))
+		assert.NotContains(t, scheduleIDs(schedules), internalSchedule.ID)
+		assert.Contains(t, scheduleIDs(schedules), publicSchedule.ID)
+	})
+
+	t.Run("dispatch rejects internal-only task", func(t *testing.T) {
+		body, err := json.Marshal(DispatchTaskRequest{TaskType: testInternalOnlyTaskType})
+		require.NoError(t, err)
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/tasks/dispatch", bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+
+		router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+		var resp response.Any
+		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+		assert.Equal(t, InvalidTaskType, resp.ErrorMsg)
+	})
+
+	t.Run("create schedule rejects internal-only task", func(t *testing.T) {
+		isActive := true
+		body, err := json.Marshal(CreateScheduleRequest{
+			Name:     "内部任务排程",
+			TaskType: testInternalOnlyTaskType,
+			Cron:     "0 * * * *",
+			IsActive: &isActive,
+		})
+		require.NoError(t, err)
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/tasks/schedules", bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+
+		router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+		var resp response.Any
+		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+		assert.Equal(t, InvalidTaskType, resp.ErrorMsg)
+	})
+
+	t.Run("update cannot convert existing internal schedule to public task", func(t *testing.T) {
+		schedule := &model.Schedule{
+			Name:     "系统内部排程",
+			TaskType: testInternalOnlyTaskType,
+			Cron:     "0 * * * *",
+			IsActive: true,
+		}
+		require.NoError(t, model.CreateSchedule(ctx, schedule))
+		isActive := false
+		body, err := json.Marshal(UpdateScheduleRequest{
+			Name:     "尝试修改内部排程",
+			TaskType: uploadtask.TaskTypeSystemCleanup,
+			Cron:     "5 * * * *",
+			IsActive: &isActive,
+		})
+		require.NoError(t, err)
+		req := httptest.NewRequest(
+			http.MethodPut,
+			fmt.Sprintf("/api/v1/admin/tasks/schedules/%d", schedule.ID),
+			bytes.NewReader(body),
+		)
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+
+		router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+		unchanged, err := model.GetScheduleByID(ctx, schedule.ID)
+		require.NoError(t, err)
+		assert.Equal(t, "系统内部排程", unchanged.Name)
+		assert.Equal(t, testInternalOnlyTaskType, unchanged.TaskType)
+		assert.True(t, unchanged.IsActive)
+	})
+
+	t.Run("update public schedule rejects internal-only target task", func(t *testing.T) {
+		schedule := &model.Schedule{
+			Name:     "公开排程",
+			TaskType: uploadtask.TaskTypeSystemCleanup,
+			Cron:     "0 * * * *",
+			IsActive: true,
+		}
+		require.NoError(t, model.CreateSchedule(ctx, schedule))
+		isActive := true
+		body, err := json.Marshal(UpdateScheduleRequest{
+			Name:     "尝试切入内部任务",
+			TaskType: testInternalOnlyTaskType,
+			Cron:     "10 * * * *",
+			IsActive: &isActive,
+		})
+		require.NoError(t, err)
+		req := httptest.NewRequest(
+			http.MethodPut,
+			fmt.Sprintf("/api/v1/admin/tasks/schedules/%d", schedule.ID),
+			bytes.NewReader(body),
+		)
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+
+		router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+		unchanged, err := model.GetScheduleByID(ctx, schedule.ID)
+		require.NoError(t, err)
+		assert.Equal(t, "公开排程", unchanged.Name)
+		assert.Equal(t, uploadtask.TaskTypeSystemCleanup, unchanged.TaskType)
+	})
+
+	t.Run("delete rejects internal-only schedule", func(t *testing.T) {
+		schedule := &model.Schedule{
+			Name:     "不可删除的系统内部排程",
+			TaskType: testInternalOnlyTaskType,
+			Cron:     "*/5 * * * *",
+			IsActive: true,
+		}
+		require.NoError(t, model.CreateSchedule(ctx, schedule))
+		req := httptest.NewRequest(
+			http.MethodDelete,
+			fmt.Sprintf("/api/v1/admin/tasks/schedules/%d", schedule.ID),
+			nil,
+		)
+		w := httptest.NewRecorder()
+
+		router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+		var resp response.Any
+		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+		assert.Equal(t, InvalidTaskType, resp.ErrorMsg)
+		preserved, err := model.GetScheduleByID(ctx, schedule.ID)
+		require.NoError(t, err)
+		assert.Equal(t, testInternalOnlyTaskType, preserved.TaskType)
+	})
+
+	t.Run("delete missing schedule returns not found", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodDelete, "/api/v1/admin/tasks/schedules/999999", nil)
+		w := httptest.NewRecorder()
+
+		router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusNotFound, w.Code)
+		var resp response.Any
+		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+		assert.Equal(t, ScheduleNotFound, resp.ErrorMsg)
+	})
+
+	t.Run("delete public schedule remains allowed", func(t *testing.T) {
+		schedule := &model.Schedule{
+			Name:     "可删除的公开排程",
+			TaskType: uploadtask.TaskTypeSystemCleanup,
+			Cron:     "0 * * * *",
+			IsActive: false,
+		}
+		require.NoError(t, model.CreateSchedule(ctx, schedule))
+		req := httptest.NewRequest(
+			http.MethodDelete,
+			fmt.Sprintf("/api/v1/admin/tasks/schedules/%d", schedule.ID),
+			nil,
+		)
+		w := httptest.NewRecorder()
+
+		router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		_, err := model.GetScheduleByID(ctx, schedule.ID)
+		assert.Error(t, err)
+	})
+}
+
+func scheduleIDs(schedules []model.Schedule) []uint64 {
+	ids := make([]uint64, 0, len(schedules))
+	for _, schedule := range schedules {
+		ids = append(ids, schedule.ID)
+	}
+	return ids
 }
 
 func TestDispatchTask(t *testing.T) {

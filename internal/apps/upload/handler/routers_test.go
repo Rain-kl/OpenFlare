@@ -226,6 +226,42 @@ func TestUploadFile(t *testing.T) {
 		}
 	})
 
+	t.Run("upload rejects Pages reserved type", func(t *testing.T) {
+		putCountBefore := putCount
+		imgContent := []byte("\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01")
+		contentType, body := createMultipartRequest(t, "file", "pages.png", imgContent, map[string]string{
+			"type": shared.ReservedPagesDeploymentType,
+		})
+		req, _ := http.NewRequest("POST", "/api/v1/upload", body)
+		req.Header.Set("Content-Type", contentType)
+
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, req)
+
+		if w.Code != http.StatusConflict {
+			t.Fatalf("expected status 409, got %d. Body: %s", w.Code, w.Body.String())
+		}
+		var resp testResponse
+		if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+			t.Fatalf("unmarshal reserved type response: %v", err)
+		}
+		if resp.ErrorMsg != shared.ErrReservedUploadType {
+			t.Fatalf("reserved type error = %q, want %q", resp.ErrorMsg, shared.ErrReservedUploadType)
+		}
+		if putCount != putCountBefore {
+			t.Fatalf("reserved upload wrote storage object: put count %d -> %d", putCountBefore, putCount)
+		}
+		var count int64
+		if err := dbConn.Model(&model.Upload{}).
+			Where("type = ?", shared.ReservedPagesDeploymentType).
+			Count(&count).Error; err != nil {
+			t.Fatalf("count reserved uploads: %v", err)
+		}
+		if count != 0 {
+			t.Fatalf("reserved upload record count = %d, want 0", count)
+		}
+	})
+
 	t.Run("instant upload deduplication (秒传)", func(t *testing.T) {
 		putCount = 0
 		imgContent := []byte("\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01")
@@ -991,6 +1027,62 @@ func TestUserUploadManagement(t *testing.T) {
 			t.Errorf("expected status deleted, got %s", deleted.Status)
 		}
 	})
+}
+
+func TestDeleteReservedUploadType(t *testing.T) {
+	dbConn, _, cleanup := testhelper.SetupTestEnvironment(t)
+	defer cleanup()
+
+	authUser := &model.User{ID: 1001, Username: "reserved_owner"}
+	router := setupTestRouter(authUser)
+	reserved := model.Upload{
+		ID:        4101,
+		UserID:    authUser.ID,
+		FileName:  "pages.zip",
+		FilePath:  "uploads/pages.zip",
+		FileSize:  128,
+		MimeType:  "application/zip",
+		Extension: "zip",
+		Hash:      "pages-reserved-hash",
+		Type:      shared.ReservedPagesDeploymentType,
+		Status:    model.UploadStatusUsed,
+		CreatedAt: time.Now(),
+	}
+	if err := dbConn.Create(&reserved).Error; err != nil {
+		t.Fatalf("seed reserved upload: %v", err)
+	}
+
+	for _, tc := range []struct {
+		name string
+		path string
+	}{
+		{name: "admin delete", path: "/api/v1/admin/uploads/4101"},
+		{name: "owner delete", path: "/api/v1/upload/4101"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			req, _ := http.NewRequest(http.MethodDelete, tc.path, nil)
+			w := httptest.NewRecorder()
+			router.ServeHTTP(w, req)
+			if w.Code != http.StatusConflict {
+				t.Fatalf("expected status 409, got %d. Body: %s", w.Code, w.Body.String())
+			}
+			var resp testResponse
+			if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+				t.Fatalf("unmarshal delete response: %v", err)
+			}
+			if resp.ErrorMsg != shared.ErrReservedUploadType {
+				t.Fatalf("reserved delete error = %q, want %q", resp.ErrorMsg, shared.ErrReservedUploadType)
+			}
+		})
+	}
+
+	var persisted model.Upload
+	if err := dbConn.First(&persisted, reserved.ID).Error; err != nil {
+		t.Fatalf("reload reserved upload: %v", err)
+	}
+	if persisted.Status != model.UploadStatusUsed {
+		t.Fatalf("reserved upload status = %s, want used", persisted.Status)
+	}
 }
 
 func configureLocalStorageRoot(t *testing.T, dbConn *gorm.DB, tempDir string) {

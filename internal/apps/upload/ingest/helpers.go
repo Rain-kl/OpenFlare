@@ -100,18 +100,25 @@ func storeObject(ctx context.Context, objectKey string, reader io.Reader, size i
 	return result.Key, nil
 }
 
-func persistUploadRecord(ctx context.Context, upload *model.Upload, objectKey string) error {
+func persistUploadRecord(ctx context.Context, upload *model.Upload, objectKey string, storedByRequest bool) error {
 	if err := createUploadWithStats(ctx, upload); err != nil {
-		_, backend, backendErr := storage.Active(ctx)
-		if backendErr == nil {
-			if deleteErr := backend.Delete(ctx, objectKey); deleteErr != nil {
-				logger.WarnF(ctx, "清理未写入数据库的上传对象失败: %v", deleteErr)
-			}
+		if storedByRequest {
+			cleanupUnpersistedObject(ctx, objectKey)
 		}
 		return err
 	}
 	uploadcache.SetUploadMetaCache(ctx, upload)
 	return nil
+}
+
+func cleanupUnpersistedObject(ctx context.Context, objectKey string) {
+	_, backend, err := storage.Active(ctx)
+	if err != nil {
+		return
+	}
+	if err := backend.Delete(ctx, objectKey); err != nil {
+		logger.WarnF(ctx, "清理未写入数据库的上传对象失败: %v", err)
+	}
 }
 
 func createUploadWithStats(ctx context.Context, upload *model.Upload) error {
@@ -125,6 +132,8 @@ func createUploadWithStats(ctx context.Context, upload *model.Upload) error {
 
 func createDedupRecord(ctx context.Context, existing model.Upload, req Request) (Result, error) {
 	accessMode := resolveAccessMode(req.Type, req.AccessMode)
+	metadata := req.Metadata
+	metadata.Bucket = existing.Metadata.Bucket
 	newUpload := model.Upload{
 		ID:         idgen.NextUint64ID(),
 		UserID:     req.UserID,
@@ -137,9 +146,9 @@ func createDedupRecord(ctx context.Context, existing model.Upload, req Request) 
 		Type:       req.Type,
 		Status:     req.Status,
 		AccessMode: accessMode,
-		Metadata:   existing.Metadata,
+		Metadata:   metadata,
 	}
-	if err := persistUploadRecord(ctx, &newUpload, existing.FilePath); err != nil {
+	if err := persistUploadRecord(ctx, &newUpload, existing.FilePath, false); err != nil {
 		return Result{}, err
 	}
 	logger.InfoF(ctx, "文件触发秒传成功! ID: %d, Path: %s", newUpload.ID, existing.FilePath)
@@ -186,7 +195,7 @@ func createNewUpload(ctx context.Context, req Request) (Result, error) {
 		AccessMode: accessMode,
 		Metadata:   req.Metadata,
 	}
-	if err := persistUploadRecord(ctx, &upload, storedKey); err != nil {
+	if err := persistUploadRecord(ctx, &upload, storedKey, true); err != nil {
 		return Result{}, err
 	}
 

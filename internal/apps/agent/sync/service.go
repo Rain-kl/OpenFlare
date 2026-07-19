@@ -1,3 +1,6 @@
+// Copyright 2026 Arctel.net
+// SPDX-License-Identifier: Apache-2.0
+
 package sync
 
 import (
@@ -7,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"sort"
 	"strconv"
@@ -31,9 +35,9 @@ const (
 type ConfigClient interface {
 	GetActiveConfig(ctx context.Context) (*protocol.ActiveConfigResponse, error)
 	GetPagesDeploymentHash(ctx context.Context, deploymentID uint) (string, error)
-	DownloadPagesDeploymentPackage(ctx context.Context, deploymentID uint) ([]byte, error)
+	DownloadPagesDeploymentPackage(ctx context.Context, deploymentID uint, dst io.Writer, maxBytes int64) (int64, error)
 	GetPagesProjectLatestHash(ctx context.Context, projectID uint) (*protocol.PagesProjectLatestHashResponse, error)
-	DownloadPagesProjectLatestPackage(ctx context.Context, projectID uint) ([]byte, error)
+	DownloadPagesProjectLatestPackage(ctx context.Context, projectID uint, dst io.Writer, maxBytes int64) (int64, error)
 	ReportApplyLog(ctx context.Context, payload protocol.ApplyLogPayload) error
 	SyncWAFIPGroups(ctx context.Context, payload protocol.WAFIPGroupSyncRequest) (*protocol.WAFIPGroupSyncResponse, error)
 }

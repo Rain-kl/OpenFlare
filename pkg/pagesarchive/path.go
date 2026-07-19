@@ -6,33 +6,89 @@ package pagesarchive
 import (
 	"fmt"
 	"path"
-	"path/filepath"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 )
+
+// NormalizeLogicalPath validates and normalizes a relative POSIX path.
+// Empty input is returned unchanged only when allowEmpty is true.
+func NormalizeLogicalPath(raw string, allowEmpty bool) (string, error) {
+	if raw == "" {
+		if allowEmpty {
+			return "", nil
+		}
+		return "", fmt.Errorf("pages path is required")
+	}
+	if err := validateLogicalPathText(raw); err != nil {
+		return "", err
+	}
+
+	cleaned := path.Clean(raw)
+	if cleaned == "." || cleaned == "" {
+		if allowEmpty {
+			return "", nil
+		}
+		return "", fmt.Errorf("pages path is required")
+	}
+	if strings.HasPrefix(cleaned, "/") || cleaned == ".." || strings.HasPrefix(cleaned, "../") {
+		return "", fmt.Errorf("pages path escapes directory: %s", raw)
+	}
+	return cleaned, nil
+}
+
+func validateLogicalPathText(raw string) error {
+	if !utf8.ValidString(raw) {
+		return fmt.Errorf("pages path is not valid UTF-8")
+	}
+	if strings.Contains(raw, "\\") {
+		return fmt.Errorf("pages path must use POSIX separators: %s", raw)
+	}
+	if strings.HasPrefix(raw, "/") || path.IsAbs(raw) {
+		return fmt.Errorf("pages path must be relative: %s", raw)
+	}
+	if err := validateLogicalPathRunes(raw); err != nil {
+		return err
+	}
+	return validateLogicalPathSegments(raw)
+}
+
+func validateLogicalPathRunes(raw string) error {
+	for _, r := range raw {
+		if r == 0 || unicode.IsControl(r) {
+			return fmt.Errorf("pages path contains a control character")
+		}
+		if r == '\'' || r == '"' || r == ';' {
+			return fmt.Errorf("pages path contains an unsupported character: %s", raw)
+		}
+	}
+	return nil
+}
+
+func validateLogicalPathSegments(raw string) error {
+	for _, segment := range strings.Split(raw, "/") {
+		if len(segment) >= 2 && segment[1] == ':' {
+			return fmt.Errorf("pages path contains a Windows drive: %s", raw)
+		}
+		if segment == "." || segment == ".." {
+			return fmt.Errorf("pages path escapes directory or contains a dot segment: %s", raw)
+		}
+	}
+	return nil
+}
 
 // NormalizeEntryPath cleans an archive entry path and rejects zip-slip / absolute paths.
 // skip=true means the entry should be ignored (empty path or directory marker).
 func NormalizeEntryPath(raw string) (cleaned string, skip bool, err error) {
-	name := strings.TrimSpace(filepath.ToSlash(raw))
-	if name == "" {
+	if raw == "" {
 		return "", true, nil
 	}
-	if strings.HasSuffix(name, "/") {
-		return "", true, nil
+	cleanedPath, normalizeErr := NormalizeLogicalPath(raw, false)
+	if normalizeErr != nil {
+		return "", false, fmt.Errorf("invalid pages package path %q: %w", raw, normalizeErr)
 	}
-	if strings.HasPrefix(name, "/") || path.IsAbs(name) {
-		return "", false, fmt.Errorf("pages package contains absolute path: %s", raw)
-	}
-	// Reject Windows drive / UNC-style paths that may appear after ToSlash.
-	if len(name) >= 2 && name[1] == ':' {
-		return "", false, fmt.Errorf("pages package contains absolute path: %s", raw)
-	}
-	cleanedPath := path.Clean(name)
-	if cleanedPath == "." {
-		return "", true, nil
-	}
-	if cleanedPath == ".." || strings.HasPrefix(cleanedPath, "../") || strings.Contains(cleanedPath, "/../") {
-		return "", false, fmt.Errorf("pages package path escapes directory: %s", raw)
+	if strings.HasSuffix(raw, "/") {
+		return cleanedPath, true, nil
 	}
 	return cleanedPath, false, nil
 }

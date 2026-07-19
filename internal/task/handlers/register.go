@@ -8,6 +8,7 @@ package handlers
 import (
 	"github.com/Rain-kl/Wavelet/internal/apps/admin/push"
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare"
+	"github.com/Rain-kl/Wavelet/internal/apps/openflare/pages"
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/tls"
 	"github.com/Rain-kl/Wavelet/internal/apps/upload"
 	"github.com/Rain-kl/Wavelet/internal/apps/user"
@@ -50,6 +51,13 @@ func Register() {
 
 	task.RegisterHandler(openflare.UptimeKumaSyncTask, &openflare.UptimeKumaSyncHandler{})
 	task.RegisterTaskMeta(openflare.UptimeKumaSyncMeta)
+
+	// pages source actions are only dispatched by the Pages domain API/scanner.
+	task.RegisterHandler(pages.PagesSourceScanTask, &pages.SourceScanHandler{})
+	task.RegisterTaskMeta(pages.PagesSourceScanMeta)
+
+	task.RegisterHandler(pages.PagesSourceActionTask, &pages.SourceActionHandler{})
+	task.RegisterTaskMeta(pages.PagesSourceActionMeta)
 
 	// tls single renew
 	task.RegisterHandler(tls.SSLSingleRenewTask, &tls.SSLSingleRenewHandler{})

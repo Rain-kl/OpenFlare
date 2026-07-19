@@ -224,14 +224,17 @@ func GetPagesProjectLatestHashHandler(c *gin.Context) {
 	if !ok {
 		return
 	}
-	deploymentID, hash, err := pages.GetProjectLatestPackageHash(c.Request.Context(), projectID)
+	metadata, err := pages.GetProjectLatestPackageMetadata(c.Request.Context(), projectID)
 	if apiutil.AbortBadRequestOnError(c, err) {
 		return
 	}
 	c.JSON(http.StatusOK, response.OK(protocol.PagesProjectLatestHashResponse{
 		ProjectID:    projectID,
-		DeploymentID: deploymentID,
-		Hash:         hash,
+		DeploymentID: metadata.DeploymentID,
+		Hash:         metadata.Hash,
+		PackageSize:  metadata.PackageSize,
+		FileCount:    metadata.FileCount,
+		TotalSize:    metadata.TotalSize,
 	}))
 }
 

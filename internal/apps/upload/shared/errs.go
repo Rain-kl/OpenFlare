@@ -27,6 +27,7 @@ const (
 	ErrQueryFileCountFailed            = "查询文件数量失败"
 	ErrQueryFileListFailed             = "查询文件列表失败"
 	ErrDeleteFileFailed                = "删除文件失败"
+	ErrReservedUploadType              = "系统保留的文件类型不能通过通用文件接口操作"
 	ErrStorageReadOnly                 = "存储迁移维护中，当前仅允许读取文件"
 	ErrS3KeyRequired                   = "s3 key must not be empty"
 	ErrS3KeyTooLongFormat              = "s3 key exceeds maximum length of %d"

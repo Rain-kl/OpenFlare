@@ -20,9 +20,11 @@ func TestRebindSnapshotPagesToCurrentActive(t *testing.T) {
 	ctx := context.Background()
 
 	project, err := CreateProject(ctx, Input{
-		Name:    "Rebind Site",
-		Slug:    "rebind-site",
-		Enabled: true,
+		Name:      "Rebind Site",
+		Slug:      "rebind-site",
+		Enabled:   true,
+		RootDir:   "public/site",
+		EntryFile: "index.html",
 	})
 	require.NoError(t, err)
 
@@ -84,4 +86,5 @@ func TestRebindSnapshotPagesToCurrentActive(t *testing.T) {
 	deployment := route["pages_deployment"].(map[string]any)
 	assert.EqualValues(t, active.ID, deployment["deployment_id"])
 	assert.Equal(t, "new-checksum", deployment["checksum"])
+	assert.Equal(t, "__OPENFLARE_PAGES_DIR__/projects/1/current/public/site", deployment["local_root"])
 }

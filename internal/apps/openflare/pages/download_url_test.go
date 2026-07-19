@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -48,22 +47,16 @@ func TestDownloadPagesPackageFromURLAllowsPrivateHost(t *testing.T) {
 	require.NoError(t, zw.Close())
 	zipBytes := body.Bytes()
 
-	var sawBrowserUA bool
+	var sawProviderUA bool
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if strings.Contains(r.Header.Get("User-Agent"), "Mozilla") {
-			sawBrowserUA = true
+		if r.Header.Get("User-Agent") == remoteSourceUserAgent {
+			sawProviderUA = true
 		}
 		w.Header().Set("Content-Disposition", `attachment; filename="remote-site.zip"`)
 		w.Header().Set("Content-Type", "application/zip")
 		_, _ = w.Write(zipBytes)
 	}))
 	t.Cleanup(server.Close)
-
-	req, err := http.NewRequest(http.MethodGet, server.URL+"/pkg.zip", nil)
-	require.NoError(t, err)
-	applyBrowserDownloadHeaders(req, "")
-	assert.Contains(t, req.Header.Get("User-Agent"), "Mozilla")
-	assert.Contains(t, req.Header.Get("Sec-Fetch-Mode"), "navigate")
 
 	tempPath, checksum, size, format, fileName, err := downloadPagesPackageFromURL(
 		context.Background(),
@@ -72,11 +65,11 @@ func TestDownloadPagesPackageFromURLAllowsPrivateHost(t *testing.T) {
 	)
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = os.Remove(tempPath) })
-	assert.True(t, sawBrowserUA)
+	assert.True(t, sawProviderUA)
 	assert.NotEmpty(t, checksum)
 	assert.Positive(t, size)
 	assert.Equal(t, "zip", string(format))
-	assert.Equal(t, "remote-site.zip", fileName)
+	assert.Equal(t, "pkg.zip", fileName)
 }
 
 func TestUploadDeploymentFromURLPrivateHost(t *testing.T) {

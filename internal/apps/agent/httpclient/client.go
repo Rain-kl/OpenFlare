@@ -1,9 +1,13 @@
+// Copyright 2026 Arctel.net
+// SPDX-License-Identifier: Apache-2.0
+
 // Package httpclient provides an authenticated HTTP client for the agent.
 package httpclient
 
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -12,6 +16,8 @@ import (
 	"github.com/Rain-kl/Wavelet/internal/apps/agent/protocol"
 	edgehttp "github.com/Rain-kl/Wavelet/internal/apps/edge/httpclient"
 )
+
+const pagesControlResponseMaxBytes = int64(64 * 1024)
 
 // Client is a HTTP client used by the agent to communicate with the control plane server.
 type Client struct {
@@ -98,23 +104,43 @@ func (c *Client) GetPagesDeploymentHash(ctx context.Context, deploymentID uint) 
 	return resp.Data.Hash, nil
 }
 
-// DownloadPagesDeploymentPackage downloads the deployment package for the given Pages deployment ID.
-func (c *Client) DownloadPagesDeploymentPackage(ctx context.Context, deploymentID uint) ([]byte, error) {
-	res, err := c.base.DoRaw(ctx, http.MethodGet, fmt.Sprintf("/api/v1/agent/pages/deployments/%d/package", deploymentID), nil)
-	if err != nil {
-		return nil, err
-	}
-	defer func() { _ = res.Body.Close() }()
-	if res.StatusCode != http.StatusOK {
-		return nil, edgehttp.ReadHTTPError(res)
-	}
-	return io.ReadAll(res.Body)
+// DownloadPagesDeploymentPackage streams the deployment package into dst while
+// enforcing maxBytes against both advertised and actual response sizes.
+func (c *Client) DownloadPagesDeploymentPackage(
+	ctx context.Context,
+	deploymentID uint,
+	dst io.Writer,
+	maxBytes int64,
+) (int64, error) {
+	return c.downloadPagesPackage(
+		ctx,
+		fmt.Sprintf("/api/v1/agent/pages/deployments/%d/package", deploymentID),
+		dst,
+		maxBytes,
+	)
 }
 
 // GetPagesProjectLatestHash returns the active deployment package hash for a Pages project.
 func (c *Client) GetPagesProjectLatestHash(ctx context.Context, projectID uint) (*protocol.PagesProjectLatestHashResponse, error) {
+	res, err := c.base.DoRaw(
+		ctx,
+		http.MethodGet,
+		fmt.Sprintf("/api/v1/agent/pages/projects/%d/latest/hash", projectID),
+		nil,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = res.Body.Close() }()
+	body, err := readPagesControlResponse(res, pagesControlResponseMaxBytes)
+	if err != nil {
+		return nil, err
+	}
+	if res.StatusCode != http.StatusOK {
+		return nil, edgehttp.ReadBodyError(body, res.Status)
+	}
 	resp := protocol.APIResponse[protocol.PagesProjectLatestHashResponse]{}
-	if err := c.base.GetJSON(ctx, fmt.Sprintf("/api/v1/agent/pages/projects/%d/latest/hash", projectID), &resp); err != nil {
+	if err := json.Unmarshal(body, &resp); err != nil {
 		return nil, err
 	}
 	if err := edgehttp.APIError(resp.ErrorMsg); err != nil {
@@ -123,17 +149,86 @@ func (c *Client) GetPagesProjectLatestHash(ctx context.Context, projectID uint) 
 	return &resp.Data, nil
 }
 
-// DownloadPagesProjectLatestPackage downloads the active deployment package for a Pages project.
-func (c *Client) DownloadPagesProjectLatestPackage(ctx context.Context, projectID uint) ([]byte, error) {
-	res, err := c.base.DoRaw(ctx, http.MethodGet, fmt.Sprintf("/api/v1/agent/pages/projects/%d/latest/package", projectID), nil)
+// DownloadPagesProjectLatestPackage streams the active deployment package into
+// dst while enforcing maxBytes against both advertised and actual sizes.
+func (c *Client) DownloadPagesProjectLatestPackage(
+	ctx context.Context,
+	projectID uint,
+	dst io.Writer,
+	maxBytes int64,
+) (int64, error) {
+	return c.downloadPagesPackage(
+		ctx,
+		fmt.Sprintf("/api/v1/agent/pages/projects/%d/latest/package", projectID),
+		dst,
+		maxBytes,
+	)
+}
+
+func (c *Client) downloadPagesPackage(
+	ctx context.Context,
+	path string,
+	dst io.Writer,
+	maxBytes int64,
+) (int64, error) {
+	if dst == nil {
+		return 0, errors.New("pages package destination is required")
+	}
+	if maxBytes <= 0 {
+		return 0, errors.New("pages package byte limit must be positive")
+	}
+	res, err := c.base.DoRaw(ctx, http.MethodGet, path, nil)
 	if err != nil {
-		return nil, err
+		return 0, err
 	}
 	defer func() { _ = res.Body.Close() }()
 	if res.StatusCode != http.StatusOK {
-		return nil, edgehttp.ReadHTTPError(res)
+		body, readErr := readPagesControlResponse(res, pagesControlResponseMaxBytes)
+		if readErr != nil {
+			return 0, readErr
+		}
+		return 0, edgehttp.ReadBodyError(body, res.Status)
 	}
-	return io.ReadAll(res.Body)
+	return copyPagesPackageResponse(dst, res, maxBytes)
+}
+
+func readPagesControlResponse(res *http.Response, maxBytes int64) ([]byte, error) {
+	if res.ContentLength > maxBytes {
+		return nil, fmt.Errorf(
+			"pages control response Content-Length %d exceeds limit %d",
+			res.ContentLength,
+			maxBytes,
+		)
+	}
+	limited := &io.LimitedReader{R: res.Body, N: maxBytes + 1}
+	body, err := io.ReadAll(limited)
+	if err != nil {
+		return nil, fmt.Errorf("read pages control response: %w", err)
+	}
+	if int64(len(body)) > maxBytes {
+		return nil, fmt.Errorf("pages control response body exceeds limit %d", maxBytes)
+	}
+	return body, nil
+}
+
+func copyPagesPackageResponse(dst io.Writer, res *http.Response, maxBytes int64) (int64, error) {
+	if res.ContentLength > maxBytes {
+		return 0, fmt.Errorf(
+			"pages package Content-Length %d exceeds limit %d",
+			res.ContentLength,
+			maxBytes,
+		)
+	}
+
+	limited := &io.LimitedReader{R: res.Body, N: maxBytes + 1}
+	written, err := io.Copy(dst, limited)
+	if err != nil {
+		return written, fmt.Errorf("stream pages package: %w", err)
+	}
+	if written > maxBytes {
+		return written, fmt.Errorf("pages package body exceeds limit %d", maxBytes)
+	}
+	return written, nil
 }
 
 // SetToken updates the authentication token used for API requests.

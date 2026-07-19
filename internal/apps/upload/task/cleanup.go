@@ -10,16 +10,15 @@ import (
 	"fmt"
 	"time"
 
-	uploadcache "github.com/Rain-kl/Wavelet/internal/apps/upload/cache"
+	"github.com/Rain-kl/Wavelet/internal/apps/upload/ingest"
 	"github.com/Rain-kl/Wavelet/internal/apps/upload/shared"
-	uploadstats "github.com/Rain-kl/Wavelet/internal/apps/upload/stats"
 	uploadstorage "github.com/Rain-kl/Wavelet/internal/apps/upload/storage"
 	"github.com/Rain-kl/Wavelet/internal/db"
 	"github.com/Rain-kl/Wavelet/internal/model"
-	"github.com/Rain-kl/Wavelet/internal/storage"
 	"github.com/Rain-kl/Wavelet/internal/task"
 	"github.com/Rain-kl/Wavelet/pkg/logger"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 const (
@@ -77,32 +76,31 @@ func (h *SystemCleanupHandler) Execute(ctx context.Context, _ []byte) (*task.Tas
 
 		for _, u := range unusedUploads {
 			totalProcessed++
+			transitioned := false
 
 			if err := db.DB(ctx).Transaction(func(tx *gorm.DB) error {
-				if err := tx.Model(&model.Upload{}).
-					Where("id = ? AND status = ?", u.ID, model.UploadStatusPending).
-					Update("status", model.UploadStatusDeleted).Error; err != nil {
+				var locked model.Upload
+				if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+					Where("id = ?", u.ID).
+					First(&locked).Error; err != nil {
 					return err
 				}
-
-				_, backend, err := storage.Active(ctx)
-				if err != nil {
-					return err
+				if locked.Status != model.UploadStatusPending || !locked.CreatedAt.Before(oneHourAgo) {
+					return nil
 				}
-				if err := backend.Delete(ctx, u.FilePath); err != nil {
-					return err
-				}
-
-				return nil
+				var err error
+				transitioned, err = ingest.RemoveLockedTx(tx, &locked)
+				return err
 			}); err != nil {
 				task.AppendLog(ctx, "清理上传文件失败 [ID:%d]: %v", u.ID, err)
 				lastID = u.ID
 				continue
 			}
 
-			uploadstats.RecordUploadStatsRemove(ctx, &u)
-			uploadcache.InvalidateUploadMetaCache(ctx, u.ID)
-			totalDeleted++
+			ingest.InvalidateUploadMetaCache(ctx, u.ID)
+			if transitioned {
+				totalDeleted++
+			}
 			lastID = u.ID
 		}
 	}

@@ -394,9 +394,11 @@ export interface PagesDeployment {
   status: 'uploaded' | 'active';
   file_count: number;
   total_size: number;
-  root_dir?: string;
-  entry_file: string;
   created_by: string;
+  source_type: 'manual_upload' | 'manual_url' | 'remote_url' | 'github_release';
+  source_label: string;
+  trigger_type:
+    'manual_upload' | 'manual_url' | 'manual_sync' | 'scheduled_auto_update';
   created_at: string;
   activated_at?: string | null;
 }
@@ -448,13 +450,129 @@ export interface PagesProjectPayload {
 
 export interface PagesDeploymentUploadPayload {
   file: File;
-  rootDir?: string;
-  entryFile?: string;
   onProgress?: (percent: number) => void;
 }
 
 export interface PagesDeploymentUploadFromURLPayload {
   url: string;
+}
+
+export type PagesSourceStatus =
+  'idle' | 'checking' | 'update_available' | 'syncing' | 'failed' | 'attention';
+
+export type PagesRemoteNetworkPolicy = 'public' | 'trusted_internal';
+
+export type PagesGitHubReleaseSelector = 'latest' | 'tag';
+
+export interface PagesSourceRevision {
+  revision: string;
+  label: string;
+  asset_name?: string;
+}
+
+interface PagesSourceRuntimeView {
+  sync_status?: PagesSourceStatus;
+  update_available?: boolean;
+  last_seen?: PagesSourceRevision;
+  last_applied?: PagesSourceRevision;
+  last_checked_at?: string | null;
+  last_synced_at?: string | null;
+  next_check_at?: string | null;
+  last_error?: string;
+}
+
+export interface PagesManualSource {
+  source_type: 'manual';
+}
+
+export interface PagesRemoteURLSource extends PagesSourceRuntimeView {
+  source_type: 'remote_url';
+  has_remote_url: boolean;
+  display_url: string;
+  remote_network_policy: PagesRemoteNetworkPolicy;
+}
+
+interface PagesGitHubReleaseSourceBase extends PagesSourceRuntimeView {
+  source_type: 'github_release';
+  github_repository: string;
+  asset_name: string;
+}
+
+interface PagesGitHubLatestReleaseSource extends PagesGitHubReleaseSourceBase {
+  release_selector: 'latest';
+  release_tag?: '';
+  auto_update_enabled: boolean;
+  check_interval_minutes: number;
+}
+
+interface PagesGitHubTagReleaseSource extends PagesGitHubReleaseSourceBase {
+  release_selector: 'tag';
+  release_tag: string;
+  auto_update_enabled: false;
+  check_interval_minutes?: 0;
+}
+
+export type PagesGitHubReleaseSource =
+  PagesGitHubLatestReleaseSource | PagesGitHubTagReleaseSource;
+
+/**
+ * 部署源使用判别联合，后续仓库构建来源只需增加独立 git_repository variant，
+ * 不需要向 Remote 或 GitHub Release 填入构建字段。
+ */
+export type PagesSource =
+  PagesManualSource | PagesRemoteURLSource | PagesGitHubReleaseSource;
+
+export interface PagesRemoteSourceUpdatePayload {
+  source_type: 'remote_url';
+  remote_url_set: boolean;
+  remote_url: string;
+  remote_network_policy: PagesRemoteNetworkPolicy;
+}
+
+interface PagesGitHubSourceUpdateBase {
+  source_type: 'github_release';
+  repository_url: string;
+  asset_name: string;
+}
+
+export interface PagesGitHubLatestSourceUpdatePayload extends PagesGitHubSourceUpdateBase {
+  release_selector: 'latest';
+  release_tag: '';
+  auto_update_enabled: boolean;
+  check_interval_minutes: number;
+}
+
+export interface PagesGitHubTagSourceUpdatePayload extends PagesGitHubSourceUpdateBase {
+  release_selector: 'tag';
+  release_tag: string;
+  auto_update_enabled: false;
+  check_interval_minutes: 0;
+}
+
+export type PagesGitHubSourceUpdatePayload =
+  PagesGitHubLatestSourceUpdatePayload | PagesGitHubTagSourceUpdatePayload;
+
+/**
+ * Source 更新请求保持 Provider 判别联合；未来仓库拉取构建使用独立 git_repository variant，
+ * 不向 Remote URL 或 GitHub Release payload 混入构建字段。
+ */
+export type PagesSourceUpdatePayload =
+  PagesRemoteSourceUpdatePayload | PagesGitHubSourceUpdatePayload;
+
+export interface PagesSourceActionPayload {
+  confirmed_revision?: string;
+}
+
+export interface PagesSourceActionReceipt {
+  task_id: string;
+  execution_id: string;
+  action: 'check' | 'sync';
+}
+
+export interface PagesSourceUpdateResult {
+  source: PagesSource;
+  check_task: PagesSourceActionReceipt | null;
+  warning: string;
 }
 
 // ==================== Origins ====================

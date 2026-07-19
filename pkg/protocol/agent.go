@@ -1,3 +1,6 @@
+// Copyright 2026 Arctel.net
+// SPDX-License-Identifier: Apache-2.0
+
 // Package protocol defines the communication protocol between OpenFlare server, agent, and relay components.
 package protocol
 
@@ -218,4 +221,7 @@ type PagesProjectLatestHashResponse struct {
 	ProjectID    uint   `json:"project_id"`
 	DeploymentID uint   `json:"deployment_id"`
 	Hash         string `json:"hash"`
+	PackageSize  int64  `json:"package_size"`
+	FileCount    int    `json:"file_count"`
+	TotalSize    int64  `json:"total_size"`
 }

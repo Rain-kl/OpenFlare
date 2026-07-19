@@ -66,7 +66,7 @@ func DispatchTask(c *gin.Context) {
 		return
 	}
 
-	meta := task.GetTaskMeta(req.TaskType)
+	meta := getAdminTaskMeta(req.TaskType)
 	if meta == nil {
 		response.AbortBadRequest(c, InvalidTaskType)
 		return
@@ -202,7 +202,7 @@ func RetryTask(c *gin.Context) {
 
 // ListSchedules 获取定时任务列表
 // @Summary 获取定时任务列表
-// @Description 返回系统所有的定时任务配置列表，包括名称、关联的异步任务类型、Cron 表达式和启用状态，需要管理员权限
+// @Description 返回管理员可管理的定时任务配置列表，包括名称、关联的异步任务类型、Cron 表达式和启用状态；系统内部排程不会暴露，需要管理员权限
 // @Tags admin
 // @Produce json
 // @Security SessionCookie
@@ -216,7 +216,15 @@ func ListSchedules(c *gin.Context) {
 		response.AbortInternal(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, response.OK(schedules))
+	visible := make([]model.Schedule, 0, len(schedules))
+	for _, schedule := range schedules {
+		meta := task.GetTaskMeta(schedule.TaskType)
+		if meta != nil && meta.InternalOnly {
+			continue
+		}
+		visible = append(visible, schedule)
+	}
+	c.JSON(http.StatusOK, response.OK(visible))
 }
 
 // CreateScheduleRequest 创建定时任务请求
@@ -256,7 +264,7 @@ func CreateSchedule(c *gin.Context) {
 	}
 
 	// 校验关联的异步任务类型
-	meta := task.GetTaskMeta(req.TaskType)
+	meta := getAdminTaskMeta(req.TaskType)
 	if meta == nil {
 		response.AbortBadRequest(c, InvalidTaskType)
 		return
@@ -338,6 +346,10 @@ func UpdateSchedule(c *gin.Context) {
 		response.AbortNotFound(c, ScheduleNotFound)
 		return
 	}
+	if existingMeta := task.GetTaskMeta(schedule.TaskType); existingMeta != nil && existingMeta.InternalOnly {
+		response.AbortBadRequest(c, InvalidTaskType)
+		return
+	}
 
 	// 校验 Cron 表达式
 	if _, err := cron.ParseStandard(req.Cron); err != nil {
@@ -346,7 +358,7 @@ func UpdateSchedule(c *gin.Context) {
 	}
 
 	// 校验关联的异步任务类型
-	meta := task.GetTaskMeta(req.TaskType)
+	meta := getAdminTaskMeta(req.TaskType)
 	if meta == nil {
 		response.AbortBadRequest(c, InvalidTaskType)
 		return
@@ -382,6 +394,14 @@ func UpdateSchedule(c *gin.Context) {
 	c.JSON(http.StatusOK, response.OK(schedule))
 }
 
+func getAdminTaskMeta(taskType string) *task.TaskMeta {
+	meta := task.GetTaskMeta(taskType)
+	if meta == nil || meta.InternalOnly {
+		return nil
+	}
+	return meta
+}
+
 // DeleteSchedule 删除定时任务
 // @Summary 删除定时任务
 // @Description 删除指定的定时任务配置，并触发调度器热加载，需要管理员权限
@@ -393,12 +413,22 @@ func UpdateSchedule(c *gin.Context) {
 // @Failure 400 {object} response.Any "参数错误"
 // @Failure 401 {object} response.Any "未登录"
 // @Failure 403 {object} response.Any "无管理员权限"
+// @Failure 404 {object} response.Any "定时任务不存在"
 // @Failure 500 {object} response.Any "删除定时任务失败"
 // @Router /api/v1/admin/tasks/schedules/{id} [delete]
 func DeleteSchedule(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		response.AbortBadRequest(c, "无效的定时任务ID")
+		return
+	}
+	schedule, err := model.GetScheduleByID(c.Request.Context(), id)
+	if err != nil {
+		response.AbortNotFound(c, ScheduleNotFound)
+		return
+	}
+	if meta := task.GetTaskMeta(schedule.TaskType); meta != nil && meta.InternalOnly {
+		response.AbortBadRequest(c, InvalidTaskType)
 		return
 	}
 

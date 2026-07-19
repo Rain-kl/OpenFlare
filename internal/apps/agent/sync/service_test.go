@@ -1,3 +1,6 @@
+// Copyright 2026 Arctel.net
+// SPDX-License-Identifier: Apache-2.0
+
 package sync
 
 import (
@@ -7,6 +10,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -16,6 +20,7 @@ import (
 	"github.com/Rain-kl/Wavelet/internal/apps/agent/nginx"
 	"github.com/Rain-kl/Wavelet/internal/apps/agent/protocol"
 	"github.com/Rain-kl/Wavelet/internal/apps/agent/state"
+	"github.com/Rain-kl/Wavelet/pkg/pagesarchive"
 )
 
 type fakeExecutor struct {
@@ -28,15 +33,17 @@ func testPagesSourceConfigJSON(projectID, deploymentID uint, checksum string) st
 }
 
 type fakeClient struct {
-	config               protocol.ActiveConfigResponse
-	reports              []protocol.ApplyLogPayload
-	wafSyncCalls         []protocol.WAFIPGroupSyncRequest
-	pagesPackages        map[uint][]byte // key: project_id (latest package)
-	pagesHashes          map[uint]string // key: project_id
-	pagesLatestDeployIDs map[uint]uint   // key: project_id → deployment_id
-	wafSyncResult        protocol.WAFIPGroupSyncResponse
-	fetchCalls           int
-	hashCalls            int
+	config                protocol.ActiveConfigResponse
+	reports               []protocol.ApplyLogPayload
+	wafSyncCalls          []protocol.WAFIPGroupSyncRequest
+	pagesPackages         map[uint][]byte // key: project_id (latest package)
+	pagesHashes           map[uint]string // key: project_id
+	pagesLatestDeployIDs  map[uint]uint   // key: project_id → deployment_id
+	pagesMetadata         map[uint]protocol.PagesProjectLatestHashResponse
+	pagesPackageDownloads int
+	wafSyncResult         protocol.WAFIPGroupSyncResponse
+	fetchCalls            int
+	hashCalls             int
 }
 
 type fakeManager struct {
@@ -98,17 +105,28 @@ func (f *fakeClient) GetPagesDeploymentHash(ctx context.Context, deploymentID ui
 	return f.projectHash(deploymentID)
 }
 
-func (f *fakeClient) DownloadPagesDeploymentPackage(ctx context.Context, deploymentID uint) ([]byte, error) {
+func (f *fakeClient) DownloadPagesDeploymentPackage(
+	ctx context.Context,
+	deploymentID uint,
+	dst io.Writer,
+	maxBytes int64,
+) (int64, error) {
 	for projectID, depID := range f.pagesLatestDeployIDs {
 		if depID == deploymentID {
-			return f.projectPackage(projectID)
+			return f.writeProjectPackage(projectID, dst, maxBytes)
 		}
 	}
-	return f.projectPackage(deploymentID)
+	return f.writeProjectPackage(deploymentID, dst, maxBytes)
 }
 
 func (f *fakeClient) GetPagesProjectLatestHash(ctx context.Context, projectID uint) (*protocol.PagesProjectLatestHashResponse, error) {
 	f.hashCalls++
+	if f.pagesMetadata != nil {
+		if metadata, ok := f.pagesMetadata[projectID]; ok {
+			result := metadata
+			return &result, nil
+		}
+	}
 	hash, err := f.projectHash(projectID)
 	if err != nil {
 		return nil, err
@@ -119,15 +137,32 @@ func (f *fakeClient) GetPagesProjectLatestHash(ctx context.Context, projectID ui
 			deploymentID = id
 		}
 	}
+	packageBytes, err := f.projectPackage(projectID)
+	if err != nil {
+		return nil, err
+	}
+	fileCount, totalSize, err := testPagesPackageStats(packageBytes)
+	if err != nil {
+		return nil, err
+	}
 	return &protocol.PagesProjectLatestHashResponse{
 		ProjectID:    projectID,
 		DeploymentID: deploymentID,
 		Hash:         hash,
+		PackageSize:  int64(len(packageBytes)),
+		FileCount:    fileCount,
+		TotalSize:    totalSize,
 	}, nil
 }
 
-func (f *fakeClient) DownloadPagesProjectLatestPackage(ctx context.Context, projectID uint) ([]byte, error) {
-	return f.projectPackage(projectID)
+func (f *fakeClient) DownloadPagesProjectLatestPackage(
+	ctx context.Context,
+	projectID uint,
+	dst io.Writer,
+	maxBytes int64,
+) (int64, error) {
+	f.pagesPackageDownloads++
+	return f.writeProjectPackage(projectID, dst, maxBytes)
 }
 
 func (f *fakeClient) projectHash(projectID uint) (string, error) {
@@ -153,6 +188,22 @@ func (f *fakeClient) projectPackage(projectID uint) ([]byte, error) {
 		return nil, fmt.Errorf("missing Pages project package %d", projectID)
 	}
 	return packageBytes, nil
+}
+
+func (f *fakeClient) writeProjectPackage(projectID uint, dst io.Writer, maxBytes int64) (int64, error) {
+	packageBytes, err := f.projectPackage(projectID)
+	if err != nil {
+		return 0, err
+	}
+	limited := &io.LimitedReader{R: bytes.NewReader(packageBytes), N: maxBytes + 1}
+	written, err := io.Copy(dst, limited)
+	if err != nil {
+		return written, err
+	}
+	if written > maxBytes {
+		return written, fmt.Errorf("test pages package exceeds limit %d", maxBytes)
+	}
+	return written, nil
 }
 
 func (f *fakeClient) ReportApplyLog(ctx context.Context, payload protocol.ApplyLogPayload) error {
@@ -572,7 +623,9 @@ func TestSyncOnceRejectsPagesZipSlipBeforeApply(t *testing.T) {
 	service.SetPagesDir(t.TempDir())
 
 	err := service.SyncOnce(context.Background(), &protocol.ActiveConfigMeta{Version: "20260309-102", Checksum: "pages-config-checksum"})
-	if err == nil || (!strings.Contains(err.Error(), "escapes deployment root") && !strings.Contains(err.Error(), "escapes directory")) {
+	if err == nil || (!strings.Contains(err.Error(), "escapes deployment root") &&
+		!strings.Contains(err.Error(), "escapes directory") &&
+		!strings.Contains(err.Error(), "dot segment")) {
 		t.Fatalf("expected zip-slip rejection, got %v", err)
 	}
 	if len(manager.applyRouteContents) != 0 {
@@ -1316,7 +1369,7 @@ func TestSyncOnceRedownloadsPagesDeploymentWhenServerHashChanges(t *testing.T) {
 	}
 	pagesDir := t.TempDir()
 	releaseDir := pagesProjectReleaseDir(pagesDir, projectID, initialHash)
-	if err = extractPagesPackage(initialPackage, releaseDir, pagesProjectRef{
+	if err = extractTestPagesPackage(t, initialPackage, releaseDir, pagesProjectRef{
 		ProjectID: projectID,
 		Checksum:  initialHash,
 	}); err != nil {
@@ -1385,20 +1438,42 @@ func (r *racingLatestClient) GetPagesProjectLatestHash(ctx context.Context, proj
 	// 2: verify after downloading B → B (race)
 	// 3+: stable on B for retry
 	hash, dep := r.hashA, uint(1)
+	packageBytes := r.pkgA
 	if r.hashCall >= 2 {
 		hash, dep = r.hashB, 2
+		packageBytes = r.pkgB
+	}
+	fileCount, totalSize, err := testPagesPackageStats(packageBytes)
+	if err != nil {
+		return nil, err
 	}
 	return &protocol.PagesProjectLatestHashResponse{
 		ProjectID:    projectID,
 		DeploymentID: dep,
 		Hash:         hash,
+		PackageSize:  int64(len(packageBytes)),
+		FileCount:    fileCount,
+		TotalSize:    totalSize,
 	}, nil
 }
 
-func (r *racingLatestClient) DownloadPagesProjectLatestPackage(ctx context.Context, projectID uint) ([]byte, error) {
+func (r *racingLatestClient) DownloadPagesProjectLatestPackage(
+	ctx context.Context,
+	projectID uint,
+	dst io.Writer,
+	maxBytes int64,
+) (int64, error) {
 	r.downloadCalls++
 	// Always return package B (what "latest download" would stream mid-race / after).
-	return r.pkgB, nil
+	limited := &io.LimitedReader{R: bytes.NewReader(r.pkgB), N: maxBytes + 1}
+	written, err := io.Copy(dst, limited)
+	if err != nil {
+		return written, err
+	}
+	if written > maxBytes {
+		return written, fmt.Errorf("test pages package exceeds limit %d", maxBytes)
+	}
+	return written, nil
 }
 
 func TestEnsurePagesProjectSurvivesHashPackageRace(t *testing.T) {
@@ -1639,6 +1714,41 @@ func testPagesPackage(t *testing.T, files map[string]string) []byte {
 		t.Fatalf("close zip failed: %v", err)
 	}
 	return buffer.Bytes()
+}
+
+func extractTestPagesPackage(
+	t *testing.T,
+	packageBytes []byte,
+	releaseDir string,
+	project pagesProjectRef,
+) error {
+	t.Helper()
+	packagePath := filepath.Join(t.TempDir(), "pages-package.zip")
+	if err := os.WriteFile(packagePath, packageBytes, pagesFilePerm); err != nil {
+		t.Fatalf("write test Pages package error = %v", err)
+	}
+	return extractPagesPackageFile(packagePath, releaseDir, project, pagesarchive.Limits{
+		MaxFiles:      agentPagesMaxFiles,
+		MaxFileBytes:  agentPagesMaxFileBytes,
+		MaxTotalBytes: agentPagesMaxTotalBytes,
+	}, nil)
+}
+
+func testPagesPackageStats(packageBytes []byte) (int, int64, error) {
+	reader, err := zip.NewReader(bytes.NewReader(packageBytes), int64(len(packageBytes)))
+	if err != nil {
+		return 0, 0, err
+	}
+	fileCount := 0
+	totalSize := int64(0)
+	for _, file := range reader.File {
+		if file.FileInfo().IsDir() {
+			continue
+		}
+		fileCount++
+		totalSize += int64(file.UncompressedSize64) //nolint:gosec // test packages are memory-bounded
+	}
+	return fileCount, totalSize, nil
 }
 
 func testBytesChecksum(data []byte) string {

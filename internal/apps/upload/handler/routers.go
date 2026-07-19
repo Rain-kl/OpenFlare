@@ -53,6 +53,7 @@ type batchDownloadRequest struct {
 // @Success 200 {object} response.Any{data=model.Upload} "上传成功"
 // @Failure 400 {object} response.Any "请求参数错误或文件受限"
 // @Failure 401 {object} response.Any "未登录"
+// @Failure 409 {object} response.Any "系统保留类型或存储只读"
 // @Failure 500 {object} response.Any "内部错误"
 // @Router /api/v1/upload [post]
 //
@@ -107,6 +108,10 @@ func UploadFile(c *gin.Context) {
 	}
 
 	uploadType := c.DefaultPostForm("type", "generic")
+	if uploadType == shared.ReservedPagesDeploymentType {
+		response.AbortConflict(c, shared.ErrReservedUploadType)
+		return
+	}
 
 	accessMode, errMsg := resolveUploadAccessMode(c, uploadType)
 	if errMsg != "" {

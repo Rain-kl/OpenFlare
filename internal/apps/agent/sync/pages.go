@@ -1,3 +1,6 @@
+// Copyright 2026 Arctel.net
+// SPDX-License-Identifier: Apache-2.0
+
 // Package sync applies control-plane configuration to the local agent runtime.
 package sync
 
@@ -20,9 +23,13 @@ import (
 )
 
 const (
-	pagesDirPerm          = 0o755
-	pagesFilePerm         = 0o644
-	pagesManifestFilePerm = 0o644
+	pagesDirPerm              = 0o755
+	pagesFilePerm             = 0o644
+	pagesManifestFilePerm     = 0o644
+	agentPagesMaxPackageBytes = int64(2 * 1024 * 1024 * 1024)
+	agentPagesMaxFiles        = 1000
+	agentPagesMaxFileBytes    = int64(8 * 1024 * 1024 * 1024)
+	agentPagesMaxTotalBytes   = int64(8 * 1024 * 1024 * 1024)
 	// pagesLatestPullAttempts covers a race where the active deployment changes
 	// between the hash probe and the package download.
 	pagesLatestPullAttempts = 2
@@ -43,6 +50,11 @@ type pagesProjectRef struct {
 	ProjectID    uint
 	DeploymentID uint
 	Checksum     string
+}
+
+type pagesPackageLimits struct {
+	PackageBytes int64
+	Extraction   pagesarchive.Limits
 }
 
 type pagesDeploymentMarker struct {
@@ -191,10 +203,11 @@ func (s *Service) ensurePagesProject(ctx context.Context, snapshot *state.Snapsh
 		if err != nil {
 			return fmt.Errorf("fetch Pages project %d latest hash: %w", projectID, err)
 		}
-		hash := strings.TrimSpace(latest.Hash)
-		if hash == "" {
-			return fmt.Errorf("pages project %d latest hash is empty", projectID)
+		limits, err := validatePagesPackageMetadata(projectID, latest)
+		if err != nil {
+			return err
 		}
+		hash := strings.TrimSpace(latest.Hash)
 		effective := pagesProjectRef{
 			ProjectID:    projectID,
 			DeploymentID: latest.DeploymentID,
@@ -211,44 +224,65 @@ func (s *Service) ensurePagesProject(ctx context.Context, snapshot *state.Snapsh
 			return nil
 		}
 
-		packageBytes, err := s.client.DownloadPagesProjectLatestPackage(ctx, projectID)
+		packagePath, got, err := s.downloadPagesProjectPackage(ctx, projectID, latest, limits.PackageBytes)
 		if err != nil {
 			return fmt.Errorf("download Pages project %d latest package: %w", projectID, err)
 		}
-		got := checksumBytes(packageBytes)
 
 		// Re-probe latest after download to detect activation races.
-		// Accept the package only when its content hash still matches latest.
+		// A deployment-id-only change is still a latest-pointer race even when
+		// deduplication makes both deployments share the same package hash.
 		verify, err := s.client.GetPagesProjectLatestHash(ctx, projectID)
 		if err != nil {
+			_ = os.Remove(packagePath)
 			return fmt.Errorf("re-fetch Pages project %d latest hash: %w", projectID, err)
 		}
-		verifyHash := strings.TrimSpace(verify.Hash)
-		if verifyHash == "" {
-			return fmt.Errorf("pages project %d latest hash is empty", projectID)
+		if _, err := validatePagesPackageMetadata(projectID, verify); err != nil {
+			_ = os.Remove(packagePath)
+			return err
 		}
-		if got != verifyHash {
+		if !samePagesPackageMetadata(latest, verify) {
+			_ = os.Remove(packagePath)
 			lastErr = fmt.Errorf(
-				"pages project %d package/hash race: downloaded %s, latest now %s (attempt %d/%d)",
-				projectID, got, verifyHash, attempt+1, pagesLatestPullAttempts,
+				"pages project %d latest metadata changed during download: deployment %d/%s -> %d/%s (attempt %d/%d)",
+				projectID,
+				latest.DeploymentID,
+				strings.TrimSpace(latest.Hash),
+				verify.DeploymentID,
+				strings.TrimSpace(verify.Hash),
+				attempt+1,
+				pagesLatestPullAttempts,
 			)
-			slog.Warn("pages latest package race, retrying",
+			slog.Warn("pages latest metadata race, retrying",
+				"project_id", projectID,
+				"before_deployment_id", latest.DeploymentID,
+				"before_hash", strings.TrimSpace(latest.Hash),
+				"after_deployment_id", verify.DeploymentID,
+				"after_hash", strings.TrimSpace(verify.Hash),
+				"attempt", attempt+1,
+			)
+			continue
+		}
+		if got != hash {
+			_ = os.Remove(packagePath)
+			lastErr = fmt.Errorf(
+				"pages project %d package hash mismatch: downloaded %s, expected %s (attempt %d/%d)",
+				projectID, got, hash, attempt+1, pagesLatestPullAttempts,
+			)
+			slog.Warn("pages latest package hash mismatch, retrying",
 				"project_id", projectID,
 				"downloaded_hash", got,
-				"latest_hash", verifyHash,
+				"expected_hash", hash,
 				"attempt", attempt+1,
 			)
 			continue
 		}
 
-		effective = pagesProjectRef{
-			ProjectID:    projectID,
-			DeploymentID: verify.DeploymentID,
-			Checksum:     got,
-		}
 		releaseDir = pagesProjectReleaseDir(s.pagesDir, projectID, got)
-		if err := extractPagesPackage(packageBytes, releaseDir, effective); err != nil {
-			return err
+		extractErr := extractPagesPackageFile(packagePath, releaseDir, effective, limits.Extraction, latest)
+		_ = os.Remove(packagePath)
+		if extractErr != nil {
+			return extractErr
 		}
 		if err := switchPagesProjectCurrentDir(s.pagesDir, projectID, releaseDir); err != nil {
 			return err
@@ -262,6 +296,145 @@ func (s *Service) ensurePagesProject(ctx context.Context, snapshot *state.Snapsh
 		return lastErr
 	}
 	return fmt.Errorf("pages project %d latest pull failed", projectID)
+}
+
+func validatePagesPackageMetadata(
+	projectID uint,
+	metadata *protocol.PagesProjectLatestHashResponse,
+) (pagesPackageLimits, error) {
+	if metadata == nil {
+		return pagesPackageLimits{}, fmt.Errorf("pages project %d latest metadata is missing", projectID)
+	}
+	if metadata.ProjectID != projectID {
+		return pagesPackageLimits{}, fmt.Errorf(
+			"pages project %d latest metadata has project id %d",
+			projectID,
+			metadata.ProjectID,
+		)
+	}
+	if metadata.DeploymentID == 0 {
+		return pagesPackageLimits{}, fmt.Errorf("pages project %d latest deployment id is missing", projectID)
+	}
+	if strings.TrimSpace(metadata.Hash) == "" {
+		return pagesPackageLimits{}, fmt.Errorf("pages project %d latest hash is empty", projectID)
+	}
+	if metadata.PackageSize <= 0 {
+		return pagesPackageLimits{}, fmt.Errorf("pages project %d package size must be positive", projectID)
+	}
+	if metadata.PackageSize > agentPagesMaxPackageBytes {
+		return pagesPackageLimits{}, fmt.Errorf(
+			"pages project %d package size %d exceeds agent limit %d",
+			projectID,
+			metadata.PackageSize,
+			agentPagesMaxPackageBytes,
+		)
+	}
+	if metadata.FileCount <= 0 {
+		return pagesPackageLimits{}, fmt.Errorf("pages project %d file count must be positive", projectID)
+	}
+	if metadata.FileCount > agentPagesMaxFiles {
+		return pagesPackageLimits{}, fmt.Errorf(
+			"pages project %d file count %d exceeds agent limit %d",
+			projectID,
+			metadata.FileCount,
+			agentPagesMaxFiles,
+		)
+	}
+	if metadata.TotalSize < 0 {
+		return pagesPackageLimits{}, fmt.Errorf("pages project %d total size cannot be negative", projectID)
+	}
+	if metadata.TotalSize > agentPagesMaxTotalBytes {
+		return pagesPackageLimits{}, fmt.Errorf(
+			"pages project %d total size %d exceeds agent limit %d",
+			projectID,
+			metadata.TotalSize,
+			agentPagesMaxTotalBytes,
+		)
+	}
+
+	// pagesarchive treats zero limits as defaults. A one-byte extraction guard
+	// plus the exact post-extraction manifest check below preserves the valid
+	// case of one or more zero-byte files while still enforcing total_size=0.
+	extractedBytes := metadata.TotalSize
+	if extractedBytes == 0 {
+		extractedBytes = 1
+	}
+	maxFileBytes := extractedBytes
+	if maxFileBytes > agentPagesMaxFileBytes {
+		maxFileBytes = agentPagesMaxFileBytes
+	}
+
+	return pagesPackageLimits{
+		PackageBytes: metadata.PackageSize,
+		Extraction: pagesarchive.Limits{
+			MaxFiles:      metadata.FileCount,
+			MaxFileBytes:  maxFileBytes,
+			MaxTotalBytes: extractedBytes,
+		},
+	}, nil
+}
+
+func samePagesPackageMetadata(
+	before *protocol.PagesProjectLatestHashResponse,
+	after *protocol.PagesProjectLatestHashResponse,
+) bool {
+	if before == nil || after == nil {
+		return false
+	}
+	return before.ProjectID == after.ProjectID &&
+		before.DeploymentID == after.DeploymentID &&
+		strings.TrimSpace(before.Hash) == strings.TrimSpace(after.Hash) &&
+		before.PackageSize == after.PackageSize &&
+		before.FileCount == after.FileCount &&
+		before.TotalSize == after.TotalSize
+}
+
+func (s *Service) downloadPagesProjectPackage(
+	ctx context.Context,
+	projectID uint,
+	metadata *protocol.PagesProjectLatestHashResponse,
+	maxBytes int64,
+) (packagePath string, hash string, err error) {
+	releasesRoot := filepath.Join(s.pagesDir, "projects", fmt.Sprintf("%d", projectID), "releases")
+	if err := os.MkdirAll(releasesRoot, pagesDirPerm); err != nil {
+		return "", "", err
+	}
+	packageFile, err := os.CreateTemp(releasesRoot, ".package-*.tmp")
+	if err != nil {
+		return "", "", err
+	}
+	packagePath = packageFile.Name()
+	keep := false
+	defer func() {
+		if closeErr := packageFile.Close(); err == nil && closeErr != nil {
+			err = closeErr
+		}
+		if !keep || err != nil {
+			_ = os.Remove(packagePath)
+			packagePath = ""
+		}
+	}()
+
+	hasher := sha256.New()
+	written, err := s.client.DownloadPagesProjectLatestPackage(
+		ctx,
+		projectID,
+		io.MultiWriter(packageFile, hasher),
+		maxBytes,
+	)
+	if err != nil {
+		return "", "", err
+	}
+	if written != metadata.PackageSize {
+		return "", "", fmt.Errorf(
+			"pages project %d package size %d does not match metadata %d",
+			projectID,
+			written,
+			metadata.PackageSize,
+		)
+	}
+	keep = true
+	return packagePath, hex.EncodeToString(hasher.Sum(nil)), nil
 }
 
 // cleanupPagesProjectStaleReleases keeps only keepHash under projects/{id}/releases.
@@ -372,39 +545,257 @@ type pagesDeploymentSource struct {
 	Checksum     string `json:"checksum"`
 }
 
-func extractPagesPackage(packageBytes []byte, releaseDir string, project pagesProjectRef) error {
-	tmpDir := releaseDir + ".tmp"
-	_ = os.RemoveAll(tmpDir)
-	if err := os.MkdirAll(tmpDir, pagesDirPerm); err != nil {
+func extractPagesPackageFile(
+	packagePath string,
+	releaseDir string,
+	project pagesProjectRef,
+	limits pagesarchive.Limits,
+	expected *protocol.PagesProjectLatestHashResponse,
+) error {
+	if err := os.MkdirAll(filepath.Dir(releaseDir), pagesDirPerm); err != nil {
 		return err
 	}
-	format, err := pagesarchive.DetectFormat("", packageBytes)
+	stagingDir, err := os.MkdirTemp(
+		filepath.Dir(releaseDir),
+		"."+filepath.Base(releaseDir)+"-*.tmp",
+	)
 	if err != nil {
-		_ = os.RemoveAll(tmpDir)
-		return fmt.Errorf("detect Pages package format: %w", err)
+		return err
 	}
-	// Control plane already inspected and accepted this package.
-	if err := pagesarchive.ExtractBytes(packageBytes, format, tmpDir, pagesarchive.ExtractOptions{
+	cleanupStaging := true
+	defer func() {
+		if cleanupStaging {
+			removePagesStagingUnlessCurrent(stagingDir, pagesCurrentDirFromRelease(releaseDir))
+		}
+	}()
+
+	if err := pagesarchive.ExtractFile(packagePath, "", stagingDir, pagesarchive.ExtractOptions{
 		StripCommonRoot: true,
-		EnforceLimits:   false,
+		EnforceLimits:   true,
+		Limits:          limits,
 	}); err != nil {
-		_ = os.RemoveAll(tmpDir)
 		return fmt.Errorf("extract Pages package: %w", err)
 	}
-	if err := writePagesMarker(tmpDir, project); err != nil {
-		_ = os.RemoveAll(tmpDir)
+	if err := validateExtractedPagesMetadata(stagingDir, expected); err != nil {
 		return err
 	}
-	_ = os.RemoveAll(releaseDir)
-	return os.Rename(tmpDir, releaseDir)
+	if err := writePagesMarker(stagingDir, project); err != nil {
+		return err
+	}
+	if err := promotePagesRelease(stagingDir, releaseDir, project); err != nil {
+		return err
+	}
+	cleanupStaging = false
+	return nil
 }
 
-func switchPagesProjectCurrentDir(baseDir string, projectID uint, releaseDir string) error {
-	currentDir := pagesProjectCurrentDir(baseDir, projectID)
-	previousDir := currentDir + ".previous"
-	_ = os.RemoveAll(previousDir)
+func validateExtractedPagesMetadata(
+	dir string,
+	expected *protocol.PagesProjectLatestHashResponse,
+) error {
+	if expected == nil {
+		return nil
+	}
+	fileCount := 0
+	totalSize := int64(0)
+	err := filepath.WalkDir(dir, func(path string, entry os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if entry.IsDir() {
+			return nil
+		}
+		info, err := entry.Info()
+		if err != nil {
+			return err
+		}
+		if !info.Mode().IsRegular() {
+			return fmt.Errorf("pages extracted entry is not a regular file: %s", path)
+		}
+		fileCount++
+		if fileCount > agentPagesMaxFiles {
+			return fmt.Errorf("pages extracted file count exceeds agent limit %d", agentPagesMaxFiles)
+		}
+		if info.Size() < 0 || info.Size() > agentPagesMaxTotalBytes-totalSize {
+			return fmt.Errorf("pages extracted size exceeds agent limit %d", agentPagesMaxTotalBytes)
+		}
+		totalSize += info.Size()
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("validate extracted Pages package: %w", err)
+	}
+	if fileCount != expected.FileCount || totalSize != expected.TotalSize {
+		return fmt.Errorf(
+			"pages extracted metadata mismatch: got %d files/%d bytes, expected %d files/%d bytes",
+			fileCount,
+			totalSize,
+			expected.FileCount,
+			expected.TotalSize,
+		)
+	}
+	return nil
+}
+
+func promotePagesRelease(stagingDir string, releaseDir string, project pagesProjectRef) error {
+	return promotePagesReleaseWithCopy(stagingDir, releaseDir, project, copyPagesDir)
+}
+
+func promotePagesReleaseWithCopy(
+	stagingDir string,
+	releaseDir string,
+	project pagesProjectRef,
+	copyDir func(string, string) error,
+) error {
+	currentDir := pagesCurrentDirFromRelease(releaseDir)
+	defer removePagesStagingUnlessCurrent(stagingDir, currentDir)
+	currentUsesRelease, err := pagesCurrentTargetsRelease(currentDir, releaseDir)
+	if err != nil {
+		return err
+	}
+	if !currentUsesRelease {
+		if err := os.RemoveAll(releaseDir); err != nil {
+			return err
+		}
+		return os.Rename(stagingDir, releaseDir)
+	}
+
+	// A same-hash repair cannot remove releaseDir while current still resolves
+	// through it. Keep traffic on the fully validated staging tree, rebuild the
+	// canonical release, then atomically point current back to the canonical path.
+	if err := switchPagesCurrentDir(currentDir, stagingDir, os.Rename); err != nil {
+		return fmt.Errorf("switch Pages current to repair staging: %w", err)
+	}
+	backupDir := stagingDir + ".previous"
+	if err := os.Rename(releaseDir, backupDir); err != nil {
+		restoreErr := switchPagesCurrentDir(currentDir, releaseDir, os.Rename)
+		return errors.Join(
+			fmt.Errorf("move previous Pages release aside: %w", err),
+			restoreErr,
+		)
+	}
+
+	rollback := func(cause error) error {
+		var rollbackErrors []error
+		rollbackErrors = append(rollbackErrors, cause)
+		if err := os.RemoveAll(releaseDir); err != nil {
+			rollbackErrors = append(rollbackErrors, fmt.Errorf("remove failed Pages release repair: %w", err))
+		}
+		if err := os.Rename(backupDir, releaseDir); err != nil {
+			rollbackErrors = append(rollbackErrors, fmt.Errorf("restore previous Pages release: %w", err))
+			return errors.Join(rollbackErrors...)
+		}
+		if err := switchPagesCurrentDir(currentDir, releaseDir, os.Rename); err != nil {
+			rollbackErrors = append(rollbackErrors, fmt.Errorf("restore previous Pages current target: %w", err))
+		}
+		return errors.Join(rollbackErrors...)
+	}
+
+	if err := copyDir(stagingDir, releaseDir); err != nil {
+		return rollback(fmt.Errorf("copy repaired Pages release: %w", err))
+	}
+	if !pagesProjectReleaseReady(releaseDir, project) {
+		return rollback(errors.New("repaired Pages release is not ready"))
+	}
+	if err := switchPagesCurrentDir(currentDir, releaseDir, os.Rename); err != nil {
+		return rollback(fmt.Errorf("switch Pages current to repaired release: %w", err))
+	}
+	if err := os.RemoveAll(backupDir); err != nil {
+		slog.Warn("failed to remove previous Pages release", "path", backupDir, "error", err)
+	}
+	if err := os.RemoveAll(stagingDir); err != nil {
+		slog.Warn("failed to remove Pages repair staging", "path", stagingDir, "error", err)
+	}
+	return nil
+}
+
+func pagesCurrentDirFromRelease(releaseDir string) string {
+	return filepath.Join(filepath.Dir(filepath.Dir(releaseDir)), "current")
+}
+
+func pagesCurrentTargetsRelease(currentDir string, releaseDir string) (bool, error) {
+	if _, err := os.Lstat(currentDir); err != nil {
+		if os.IsNotExist(err) {
+			return false, nil
+		}
+		return false, err
+	}
+	currentInfo, err := os.Stat(currentDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return false, nil
+		}
+		return false, fmt.Errorf("stat Pages current target: %w", err)
+	}
+	releaseInfo, err := os.Stat(releaseDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return false, nil
+		}
+		return false, err
+	}
+	return os.SameFile(currentInfo, releaseInfo), nil
+}
+
+func removePagesStagingUnlessCurrent(stagingDir string, currentDir string) {
+	currentUsesStaging, err := pagesCurrentTargetsRelease(currentDir, stagingDir)
+	if err == nil && currentUsesStaging {
+		slog.Error("preserving Pages staging because current still references it", "path", stagingDir)
+		return
+	}
+	if removeErr := os.RemoveAll(stagingDir); removeErr != nil {
+		slog.Warn("failed to remove Pages staging", "path", stagingDir, "error", removeErr)
+	}
+}
+
+func verifyPagesCurrentTarget(currentDir string, releaseDir string) error {
+	currentInfo, err := os.Stat(currentDir)
+	if err != nil {
+		return fmt.Errorf("stat Pages current target: %w", err)
+	}
+	releaseInfo, err := os.Stat(releaseDir)
+	if err != nil {
+		return fmt.Errorf("stat Pages release target: %w", err)
+	}
+	if !os.SameFile(currentInfo, releaseInfo) {
+		return fmt.Errorf("pages current target does not resolve to release %s", releaseDir)
+	}
+	return nil
+}
+
+func switchPagesCurrentDir(
+	currentDir string,
+	releaseDir string,
+	rename func(string, string) error,
+) error {
+	return switchPagesCurrentDirWithOps(currentDir, releaseDir, rename, os.Symlink)
+}
+
+func switchPagesCurrentDirWithOps(
+	currentDir string,
+	releaseDir string,
+	rename func(string, string) error,
+	symlink func(string, string) error,
+) error {
 	if err := os.MkdirAll(filepath.Dir(currentDir), pagesDirPerm); err != nil {
 		return err
+	}
+	currentInfo, currentErr := os.Lstat(currentDir)
+	if currentErr != nil && !os.IsNotExist(currentErr) {
+		return currentErr
+	}
+	if currentErr == nil && currentInfo.Mode()&os.ModeSymlink == 0 {
+		return fallbackCopyPagesCurrentDir(currentDir, releaseDir, rename)
+	}
+
+	previousTarget := ""
+	hadPrevious := currentErr == nil
+	if hadPrevious {
+		var err error
+		previousTarget, err = os.Readlink(currentDir)
+		if err != nil {
+			return err
+		}
 	}
 
 	relTarget, err := filepath.Rel(filepath.Dir(currentDir), releaseDir)
@@ -413,44 +804,123 @@ func switchPagesProjectCurrentDir(baseDir string, projectID uint, releaseDir str
 	}
 
 	tmpSymlink := currentDir + ".tmp"
-	_ = os.Remove(tmpSymlink)
-
-	symlinkErr := os.Symlink(relTarget, tmpSymlink)
-	if symlinkErr != nil {
-		return fallbackCopyPagesCurrentDir(currentDir, previousDir, releaseDir)
-	}
-	_ = os.Remove(tmpSymlink)
-
-	if _, err := os.Lstat(currentDir); err == nil {
-		if err := os.Rename(currentDir, previousDir); err != nil {
-			return err
-		}
-	}
-
-	if err := os.Symlink(relTarget, currentDir); err != nil {
-		if _, restoreErr := os.Lstat(previousDir); restoreErr == nil {
-			_ = os.Rename(previousDir, currentDir)
-		}
+	if err := os.Remove(tmpSymlink); err != nil && !os.IsNotExist(err) {
 		return err
 	}
-	_ = os.RemoveAll(previousDir)
+	if err := symlink(relTarget, tmpSymlink); err != nil {
+		_ = os.Remove(tmpSymlink)
+		return fallbackCopyPagesCurrentDir(currentDir, releaseDir, rename)
+	}
+	defer func() { _ = os.Remove(tmpSymlink) }()
+	if err := verifyPagesCurrentTarget(tmpSymlink, releaseDir); err != nil {
+		return err
+	}
+	if err := rename(tmpSymlink, currentDir); err != nil {
+		return err
+	}
+	if err := verifyPagesCurrentTarget(currentDir, releaseDir); err != nil {
+		rollbackErr := rollbackPagesCurrentSymlink(
+			currentDir,
+			previousTarget,
+			hadPrevious,
+			rename,
+		)
+		return errors.Join(err, rollbackErr)
+	}
 	return nil
 }
 
-func fallbackCopyPagesCurrentDir(currentDir, previousDir, releaseDir string) error {
-	if _, err := os.Lstat(currentDir); err == nil {
-		if err := os.Rename(currentDir, previousDir); err != nil {
-			return err
-		}
-	}
-	if err := copyPagesDir(releaseDir, currentDir); err != nil {
-		_ = os.RemoveAll(currentDir)
-		if _, restoreErr := os.Lstat(previousDir); restoreErr == nil {
-			_ = os.Rename(previousDir, currentDir)
-		}
+func fallbackCopyPagesCurrentDir(
+	currentDir string,
+	releaseDir string,
+	rename func(string, string) error,
+) error {
+	stagingDir := currentDir + ".copy.tmp"
+	previousDir := currentDir + ".previous"
+	if err := os.RemoveAll(stagingDir); err != nil {
 		return err
 	}
-	_ = os.RemoveAll(previousDir)
+	if err := copyPagesDir(releaseDir, stagingDir); err != nil {
+		_ = os.RemoveAll(stagingDir)
+		return err
+	}
+	if err := os.RemoveAll(previousDir); err != nil {
+		_ = os.RemoveAll(stagingDir)
+		return err
+	}
+
+	hadPrevious := false
+	if _, err := os.Lstat(currentDir); err == nil {
+		if err := rename(currentDir, previousDir); err != nil {
+			_ = os.RemoveAll(stagingDir)
+			return err
+		}
+		hadPrevious = true
+	} else if !os.IsNotExist(err) {
+		_ = os.RemoveAll(stagingDir)
+		return err
+	}
+	if err := rename(stagingDir, currentDir); err != nil {
+		var restoreErr error
+		if hadPrevious {
+			restoreErr = rename(previousDir, currentDir)
+		}
+		_ = os.RemoveAll(stagingDir)
+		return errors.Join(err, restoreErr)
+	}
+	if err := os.RemoveAll(previousDir); err != nil {
+		slog.Warn("failed to remove previous Pages current directory", "path", previousDir, "error", err)
+	}
+	return nil
+}
+
+func switchPagesProjectCurrentDir(baseDir string, projectID uint, releaseDir string) error {
+	return switchPagesProjectCurrentDirWithRename(baseDir, projectID, releaseDir, os.Rename)
+}
+
+func switchPagesProjectCurrentDirWithRename(
+	baseDir string,
+	projectID uint,
+	releaseDir string,
+	rename func(string, string) error,
+) error {
+	return switchPagesCurrentDir(pagesProjectCurrentDir(baseDir, projectID), releaseDir, rename)
+}
+
+func rollbackPagesCurrentSymlink(
+	currentDir string,
+	previousTarget string,
+	hadPrevious bool,
+	rename func(string, string) error,
+) error {
+	if !hadPrevious {
+		if err := os.Remove(currentDir); err != nil && !os.IsNotExist(err) {
+			return fmt.Errorf("remove unverified Pages current symlink: %w", err)
+		}
+		return nil
+	}
+	rollbackSymlink := currentDir + ".rollback.tmp"
+	if err := os.Remove(rollbackSymlink); err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	if err := os.Symlink(previousTarget, rollbackSymlink); err != nil {
+		return err
+	}
+	defer func() { _ = os.Remove(rollbackSymlink) }()
+	if err := rename(rollbackSymlink, currentDir); err != nil {
+		return fmt.Errorf("restore previous Pages current symlink: %w", err)
+	}
+	gotTarget, err := os.Readlink(currentDir)
+	if err != nil {
+		return fmt.Errorf("verify restored Pages current symlink: %w", err)
+	}
+	if gotTarget != previousTarget {
+		return fmt.Errorf(
+			"restored Pages current symlink target %q does not match %q",
+			gotTarget,
+			previousTarget,
+		)
+	}
 	return nil
 }
 
@@ -467,22 +937,28 @@ func copyPagesDir(sourceDir string, targetDir string) error {
 		if entry.IsDir() {
 			return os.MkdirAll(targetPath, pagesDirPerm)
 		}
-		input, err := os.Open(sourcePath) //nolint:gosec // sourcePath is under managed PagesDir walk root
-		if err != nil {
-			return err
-		}
-		defer func() { _ = input.Close() }()
-		if err := os.MkdirAll(filepath.Dir(targetPath), pagesDirPerm); err != nil {
-			return err
-		}
-		output, err := os.OpenFile(targetPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, pagesFilePerm) //nolint:gosec // targetPath is under managed PagesDir walk root
-		if err != nil {
-			return err
-		}
-		defer func() { _ = output.Close() }()
-		_, err = io.Copy(output, input)
-		return err
+		return copyPagesFile(sourcePath, targetPath)
 	})
+}
+
+func copyPagesFile(sourcePath string, targetPath string) error {
+	input, err := os.Open(sourcePath) //nolint:gosec // sourcePath is under managed PagesDir walk root
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(targetPath), pagesDirPerm); err != nil {
+		_ = input.Close()
+		return err
+	}
+	output, err := os.OpenFile(targetPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, pagesFilePerm) //nolint:gosec // targetPath is under managed PagesDir walk root
+	if err != nil {
+		_ = input.Close()
+		return err
+	}
+	_, copyErr := io.Copy(output, input)
+	outputCloseErr := output.Close()
+	inputCloseErr := input.Close()
+	return errors.Join(copyErr, outputCloseErr, inputCloseErr)
 }
 
 func markerMatches(dir string, project pagesProjectRef) bool {
@@ -514,9 +990,4 @@ func pagesProjectCurrentDir(baseDir string, projectID uint) string {
 
 func pagesProjectReleaseDir(baseDir string, projectID uint, checksum string) string {
 	return filepath.Join(baseDir, "projects", fmt.Sprintf("%d", projectID), "releases", checksum)
-}
-
-func checksumBytes(data []byte) string {
-	sum := sha256.Sum256(data)
-	return hex.EncodeToString(sum[:])
 }

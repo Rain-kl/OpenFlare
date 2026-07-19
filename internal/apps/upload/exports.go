@@ -8,6 +8,7 @@ import (
 	"github.com/Rain-kl/Wavelet/internal/apps/upload/filesrv"
 	"github.com/Rain-kl/Wavelet/internal/apps/upload/handler"
 	"github.com/Rain-kl/Wavelet/internal/apps/upload/ingest"
+	"github.com/Rain-kl/Wavelet/internal/apps/upload/shared"
 	uploadstats "github.com/Rain-kl/Wavelet/internal/apps/upload/stats"
 	uploadtask "github.com/Rain-kl/Wavelet/internal/apps/upload/task"
 	"github.com/Rain-kl/Wavelet/internal/apps/upload/util"
@@ -31,15 +32,17 @@ var (
 
 // Programmatic ingest API
 var (
-	Ingest              = ingest.Ingest
-	Remove              = ingest.Remove
-	RemoveOwned         = ingest.RemoveOwned
-	FindByHash          = ingest.FindByHash
-	GetActiveUpload     = ingest.GetActive
-	OpenStoredUpload    = ingest.OpenActiveObject
-	ActiveUploadHash    = ingest.ActiveHash
-	ResolveLocalFile    = ingest.ResolveLocalFile
-	IngestFromLocalPath = ingest.FromLocalPath
+	Ingest                    = ingest.Ingest
+	Remove                    = ingest.Remove
+	RemoveOwned               = ingest.RemoveOwned
+	RemoveLockedTx            = ingest.RemoveLockedTx
+	InvalidateUploadMetaCache = ingest.InvalidateUploadMetaCache
+	FindByHash                = ingest.FindByHash
+	GetActiveUpload           = ingest.GetActive
+	OpenStoredUpload          = ingest.OpenActiveObject
+	ActiveUploadHash          = ingest.ActiveHash
+	ResolveLocalFile          = ingest.ResolveLocalFile
+	IngestFromLocalPath       = ingest.FromLocalPath
 )
 
 type (
@@ -54,6 +57,8 @@ const (
 	PolicyCreate          = ingest.PolicyCreate
 	PolicyDedupNewRecord  = ingest.PolicyDedupNewRecord
 	PolicyResolveExisting = ingest.PolicyResolveExisting
+	// ReservedPagesDeploymentType is managed exclusively by the Pages domain.
+	ReservedPagesDeploymentType = shared.ReservedPagesDeploymentType
 )
 
 type (
@@ -69,6 +74,7 @@ type (
 var (
 	ErrIngestForbidden       = ingest.ErrForbidden
 	ErrIngestStorageReadOnly = ingest.ErrStorageReadOnly
+	ErrReservedUploadType    = ingest.ErrReservedUploadType
 )
 
 // Cache management

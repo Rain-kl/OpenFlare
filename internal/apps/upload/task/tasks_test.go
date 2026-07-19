@@ -19,6 +19,7 @@ import (
 
 	"github.com/Rain-kl/Wavelet/internal/apps/upload/filesrv"
 	"github.com/Rain-kl/Wavelet/internal/apps/upload/shared"
+	uploadstats "github.com/Rain-kl/Wavelet/internal/apps/upload/stats"
 	"github.com/Rain-kl/Wavelet/internal/db"
 	"github.com/Rain-kl/Wavelet/internal/diskcache"
 	"github.com/Rain-kl/Wavelet/internal/model"
@@ -33,13 +34,17 @@ func TestSystemCleanupHandler_Execute(t *testing.T) {
 	_, _, cleanup := testhelper.SetupTestEnvironment(t)
 	defer cleanup()
 
-	// Mock S3 存储（让 DeleteObject 总是成功）
+	deleteCount := 0
+	// Mock S3 存储并记录 Delete，cleanup 不应物理删除共享对象。
 	storageMock := storage.MockStorage(
 		func(ctx context.Context, key string, body io.Reader, size int64, contentType string) error {
 			return nil
 		},
 		func(ctx context.Context, key string) (*storage.Object, error) { return nil, nil },
-		func(ctx context.Context, key string) error { return nil },
+		func(ctx context.Context, key string) error {
+			deleteCount++
+			return nil
+		},
 	)
 	defer storageMock()
 	storage.IsEnabledFunc = func() bool { return true }
@@ -86,6 +91,7 @@ func TestSystemCleanupHandler_Execute(t *testing.T) {
 	for _, r := range records {
 		err := db.DB(ctx).Create(r).Error
 		require.NoError(t, err)
+		require.NoError(t, uploadstats.ApplyUploadStatsAdd(ctx, r))
 	}
 
 	// 准备推送历史测试数据：1个旧的（应删除），1个新的（应保留）
@@ -147,6 +153,26 @@ func TestSystemCleanupHandler_Execute(t *testing.T) {
 	var usedCount int64
 	db.DB(ctx).Model(&model.Upload{}).Where("status = ?", model.UploadStatusUsed).Count(&usedCount)
 	assert.Equal(t, int64(1), usedCount, "used 状态的文件不应受影响")
+	assert.Equal(t, 0, deleteCount, "记录级 cleanup 不应调用 storage backend Delete")
+
+	var totalStats model.UploadStat
+	err = db.DB(ctx).
+		Where("dimension = ? AND stat_key = ?", model.UploadStatDimensionTotal, "").
+		First(&totalStats).Error
+	require.NoError(t, err)
+	assert.Equal(t, int64(2), totalStats.FileCount, "cleanup 后统计只应保留 used 与最近 pending 记录")
+	assert.Equal(t, int64(768), totalStats.FileSize, "cleanup 后统计大小应只扣减一次")
+
+	_, err = handler.Execute(ctx, nil)
+	require.NoError(t, err)
+	var statsAfterSecondRun model.UploadStat
+	err = db.DB(ctx).
+		Where("dimension = ? AND stat_key = ?", model.UploadStatDimensionTotal, "").
+		First(&statsAfterSecondRun).Error
+	require.NoError(t, err)
+	assert.Equal(t, totalStats.FileCount, statsAfterSecondRun.FileCount, "重复 cleanup 不应再次扣减统计")
+	assert.Equal(t, totalStats.FileSize, statsAfterSecondRun.FileSize, "重复 cleanup 不应再次扣减统计大小")
+	assert.Equal(t, 0, deleteCount, "重复 cleanup 仍不应调用 storage backend Delete")
 
 	// 验证推送历史数据状态：10天前的应被删除，今天的应保留
 	var pushCount int64

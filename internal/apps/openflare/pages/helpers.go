@@ -15,13 +15,17 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/Rain-kl/Wavelet/internal/apps/upload"
+	"github.com/Rain-kl/Wavelet/internal/db"
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"github.com/Rain-kl/Wavelet/internal/repository"
 	"github.com/Rain-kl/Wavelet/pkg/logger"
 	"github.com/Rain-kl/Wavelet/pkg/pagesarchive"
+	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 const (
@@ -31,11 +35,15 @@ const (
 	defaultPagesMaxHistoryCount  = 20
 	defaultPagesEntryFile        = "index.html"
 	defaultPagesFallbackPath     = "/index.html"
-	pagesDeploymentUploadType    = "openflare_pages_deployment"
+	pagesIngestMarkerKey         = "pages_ingest_marker"
+	pagesIngestMarkerV2          = "pages_deployment_v2"
+	pagesProjectIDMetadataKey    = "pages_project_id"
+	pagesSourceIDMetadataKey     = "pages_source_id"
 	pagesMaxPathLength           = 512
 	bytesPerMiB                  = 1024 * 1024
 	pagesExtractedSizeMultiplier = 4
 	pagesMinExtractedSizeBytes   = 100 * bytesPerMiB
+	pagesRowLockStrength         = "UPDATE"
 )
 
 var pagesSlugPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{0,126}[a-z0-9]$|^[a-z0-9]$`)
@@ -115,30 +123,14 @@ func normalizePagesSlug(raw string) string {
 
 func validateAndNormalizePagesRootDir(raw string) (string, error) {
 	value := strings.TrimSpace(raw)
-	if value == "" {
-		return "", nil
-	}
 	if len(value) > pagesMaxPathLength {
 		return "", errors.New("pages 根目录长度不能超过 512")
 	}
-	if strings.Contains(value, "\\") || strings.ContainsAny(value, "\"';") {
-		return "", errors.New("pages 根目录包含不支持的字符")
+	normalized, err := pagesarchive.NormalizeLogicalPath(value, true)
+	if err != nil {
+		return "", fmt.Errorf("pages 根目录不合法: %w", err)
 	}
-	for _, r := range value {
-		if r <= 0x20 || r == 0x7f {
-			return "", errors.New("pages 根目录不能包含空白或控制字符")
-		}
-	}
-	cleaned := path.Clean(filepath.ToSlash(value))
-	if cleaned == "." || cleaned == "/" {
-		return "", nil
-	}
-	for _, segment := range strings.Split(cleaned, "/") {
-		if segment == "." || segment == ".." {
-			return "", errors.New("pages 根目录不能包含 . 或 .. 路径段")
-		}
-	}
-	return strings.TrimPrefix(cleaned, "/"), nil
+	return normalized, nil
 }
 
 func normalizePagesFallbackPath(raw string) (string, error) {
@@ -186,12 +178,19 @@ func normalizeStoredPagesFallbackPath(value string) string {
 	return normalized
 }
 
-func normalizePagesEntryFile(raw string) string {
-	value := path.Clean(strings.TrimSpace(filepath.ToSlash(raw)))
-	if value == "." || value == "/" {
-		return defaultPagesEntryFile
+func validateAndNormalizePagesEntryFile(raw string) (string, error) {
+	value := strings.TrimSpace(raw)
+	if value == "" {
+		value = defaultPagesEntryFile
 	}
-	return strings.TrimPrefix(value, "/")
+	if len(value) > pagesMaxPathLength {
+		return "", errors.New("pages 入口文件长度不能超过 512")
+	}
+	normalized, err := pagesarchive.NormalizeLogicalPath(value, false)
+	if err != nil {
+		return "", fmt.Errorf("pages 入口文件不合法: %w", err)
+	}
+	return normalized, nil
 }
 
 func persistPagesUploadTemp(fileHeader *multipart.FileHeader, maxPackageBytes int64) (string, string, int64, pagesarchive.Format, error) {
@@ -262,41 +261,56 @@ func ingestPagesDeploymentPackage(
 	ctx context.Context,
 	localPath string,
 	checksum string,
-	projectSlug string,
+	projectID uint,
+	fileName string,
+	format pagesarchive.Format,
+) (upload.IngestResult, error) {
+	return ingestPagesDeploymentPackageWithSource(ctx, localPath, checksum, projectID, 0, fileName, format)
+}
+
+func ingestPagesDeploymentPackageWithSource(
+	ctx context.Context,
+	localPath string,
+	checksum string,
+	projectID uint,
+	sourceID uint,
 	fileName string,
 	format pagesarchive.Format,
 ) (upload.IngestResult, error) {
 	systemUser := repository.GetSystemUser(ctx)
 	accessMode := 0
 	extension := pagesarchive.NormalizeNameExtension(fileName, format)
+	extra := map[string]any{
+		pagesIngestMarkerKey:      pagesIngestMarkerV2,
+		pagesProjectIDMetadataKey: strconv.FormatUint(uint64(projectID), 10),
+	}
+	if sourceID != 0 {
+		extra[pagesSourceIDMetadataKey] = strconv.FormatUint(uint64(sourceID), 10)
+	}
 	return upload.IngestFromLocalPath(ctx, localPath, upload.IngestRequest{
 		UserID:             systemUser.ID,
 		FileName:           fileName,
 		MimeType:           pagesarchive.MIMEType(format),
 		Extension:          extension,
 		Hash:               checksum,
-		Type:               pagesDeploymentUploadType,
+		Type:               upload.ReservedPagesDeploymentType,
 		AccessMode:         &accessMode,
 		SkipExtensionCheck: true,
 		Policy:             upload.PolicyDedupNewRecord,
 		Metadata: model.UploadMetadata{
-			Extra: map[string]any{
-				"project_slug": projectSlug,
-				"format":       string(format),
-			},
+			Extra: extra,
 		},
 	})
 }
 
-func removeDeploymentArtifact(ctx context.Context, deployment *model.PagesDeployment) {
+func removeDeploymentArtifact(ctx context.Context, projectID uint, deployment *model.PagesDeployment) {
 	if deployment == nil {
 		return
 	}
 	if deployment.UploadID == 0 {
 		return
 	}
-	if _, err := upload.Remove(ctx, deployment.UploadID); err != nil {
-		// Soft-delete / storage cleanup failure must not undo DB prune; log for ops.
+	if err := removePagesUploadIfUnreferenced(ctx, projectID, deployment.UploadID); err != nil {
 		logger.WarnF(ctx,
 			"[Pages] remove deployment artifact failed: deployment_id=%d upload_id=%d error=%v",
 			deployment.ID, deployment.UploadID, err,
@@ -304,10 +318,58 @@ func removeDeploymentArtifact(ctx context.Context, deployment *model.PagesDeploy
 	}
 }
 
+// removePagesUploadIfUnreferenced soft-deletes a reserved Pages upload only
+// after locking its project (when present), locking the upload, and rechecking
+// deployment references in the same transaction.
+func removePagesUploadIfUnreferenced(ctx context.Context, projectID uint, uploadID uint64) error {
+	if uploadID == 0 {
+		return nil
+	}
+	err := db.DB(ctx).Transaction(func(tx *gorm.DB) error {
+		if projectID != 0 {
+			var project model.PagesProject
+			projectErr := tx.Clauses(clause.Locking{Strength: pagesRowLockStrength}).First(&project, projectID).Error
+			if projectErr != nil && !errors.Is(projectErr, gorm.ErrRecordNotFound) {
+				return projectErr
+			}
+		}
+
+		var uploadRecord model.Upload
+		if err := tx.Clauses(clause.Locking{Strength: pagesRowLockStrength}).
+			Where("id = ?", uploadID).
+			First(&uploadRecord).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return nil
+			}
+			return err
+		}
+		if uploadRecord.Type != upload.ReservedPagesDeploymentType {
+			return fmt.Errorf("pages 部署包上传类型不匹配: %s", uploadRecord.Type)
+		}
+
+		var references int64
+		if err := tx.Model(&model.PagesDeployment{}).
+			Where("upload_id = ?", uploadID).
+			Count(&references).Error; err != nil {
+			return err
+		}
+		if references > 0 {
+			return nil
+		}
+		_, err := upload.RemoveLockedTx(tx, &uploadRecord)
+		return err
+	})
+	// Always invalidate after transaction completion, including idempotent no-op,
+	// so a prior post-commit cache interruption can heal on retry.
+	upload.InvalidateUploadMetaCache(ctx, uploadID)
+	return err
+}
+
 func inspectPagesPackage(packagePath string, format pagesarchive.Format, rootDir string, entryFile string, limits pagesLimits) (*deploymentManifest, error) {
 	archiveManifest, err := pagesarchive.InspectFile(packagePath, format, pagesarchive.InspectOptions{
-		RootDir:   rootDir,
-		EntryFile: entryFile,
+		RootDir:     rootDir,
+		EntryFile:   entryFile,
+		VerifySizes: true,
 		Limits: pagesarchive.Limits{
 			MaxFiles:      limits.MaxFiles,
 			MaxFileBytes:  limits.ExtractedBytes,

@@ -6,12 +6,14 @@ package proxy_route
 import (
 	"context"
 	"errors"
+	"sort"
 	"strings"
 	"time"
 
 	"github.com/Rain-kl/Wavelet/internal/db"
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // CustomHeaderInput 自定义响应头。
@@ -122,6 +124,9 @@ func CreateProxyRoute(ctx context.Context, input Input) (*View, error) {
 		return nil, err
 	}
 	if err = db.DB(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := lockPagesProjectsForRouteMutation(tx, 0, route); err != nil {
+			return err
+		}
 		if err := tx.Create(route).Error; err != nil {
 			return err
 		}
@@ -141,11 +146,15 @@ func UpdateProxyRoute(ctx context.Context, id uint, input Input) (*View, error) 
 	if err != nil {
 		return nil, err
 	}
+	previousPagesProjectID := pagesProjectIDForRoute(route)
 	route, _, err = buildProxyRoute(ctx, route, input)
 	if err != nil {
 		return nil, err
 	}
 	if err = db.DB(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := lockPagesProjectsForRouteMutation(tx, previousPagesProjectID, route); err != nil {
+			return err
+		}
 		if err := updateProxyRouteRecord(tx, route); err != nil {
 			return err
 		}
@@ -157,6 +166,58 @@ func UpdateProxyRoute(ctx context.Context, id uint, input Input) (*View, error) 
 		return nil, err
 	}
 	return buildProxyRouteView(ctx, route)
+}
+
+func pagesProjectIDForRoute(route *model.ProxyRoute) uint {
+	if route == nil || route.UpstreamType != proxyRouteUpstreamTypePages || route.PagesProjectID == nil {
+		return 0
+	}
+	return *route.PagesProjectID
+}
+
+func lockPagesProjectsForRouteMutation(tx *gorm.DB, previousProjectID uint, route *model.ProxyRoute) error {
+	nextProjectID := pagesProjectIDForRoute(route)
+	var projectIDs []uint
+	if previousProjectID != 0 {
+		projectIDs = append(projectIDs, previousProjectID)
+	}
+	if nextProjectID != 0 && nextProjectID != previousProjectID {
+		projectIDs = append(projectIDs, nextProjectID)
+	}
+	sort.Slice(projectIDs, func(i int, j int) bool { return projectIDs[i] < projectIDs[j] })
+
+	for _, projectID := range projectIDs {
+		var project model.PagesProject
+		err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&project, projectID).Error
+		if errors.Is(err, gorm.ErrRecordNotFound) && projectID != nextProjectID {
+			continue
+		}
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return errors.New(errProxyRoutePagesNotFound)
+		}
+		if err != nil {
+			return err
+		}
+		if projectID == nextProjectID {
+			if err := validateLockedPagesRouteProject(&project); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func validateLockedPagesRouteProject(project *model.PagesProject) error {
+	if project == nil {
+		return errors.New(errProxyRoutePagesNotFound)
+	}
+	if !project.Enabled {
+		return errors.New(errProxyRoutePagesDisabled)
+	}
+	if project.ActiveDeploymentID == nil || *project.ActiveDeploymentID == 0 {
+		return errors.New(errProxyRoutePagesNoDeploy)
+	}
+	return nil
 }
 
 // DeleteProxyRoute 删除代理规则。

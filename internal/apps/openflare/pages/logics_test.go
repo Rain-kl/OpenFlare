@@ -17,6 +17,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/Rain-kl/Wavelet/internal/apps/upload"
 	"github.com/Rain-kl/Wavelet/internal/db"
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"github.com/Rain-kl/Wavelet/internal/repository"
@@ -42,6 +43,8 @@ func setupPagesTestDB(t *testing.T) func() {
 		&model.PagesProject{},
 		&model.PagesDeployment{},
 		&model.PagesDeploymentFile{},
+		&model.PagesProjectSource{},
+		&model.PagesProjectSourceRuntime{},
 		&model.ConfigVersion{},
 		&model.SystemConfig{},
 	))
@@ -163,6 +166,89 @@ func TestCreateProjectRejectsUnsafeFallbackPath(t *testing.T) {
 	assert.Contains(t, err.Error(), "回退路径")
 }
 
+func TestCreateProjectRejectsUnsafeContentPaths(t *testing.T) {
+	cleanup := setupPagesTestDB(t)
+	defer cleanup()
+	ctx := context.Background()
+
+	rootDirs := []string{"/public", "public/../dist", "C:/public", `public\\dist`, "./public", "public\x00dist"}
+	for index, rootDir := range rootDirs {
+		_, err := CreateProject(ctx, Input{
+			Name:      fmt.Sprintf("Unsafe Root %d", index),
+			Slug:      fmt.Sprintf("unsafe-root-%d", index),
+			RootDir:   rootDir,
+			EntryFile: "index.html",
+		})
+		require.Error(t, err, rootDir)
+	}
+
+	entryFiles := []string{"/index.html", "../index.html", "C:/index.html", `public\\index.html`, "./index.html", "index.html;bad"}
+	for index, entryFile := range entryFiles {
+		_, err := CreateProject(ctx, Input{
+			Name:      fmt.Sprintf("Unsafe Entry %d", index),
+			Slug:      fmt.Sprintf("unsafe-entry-%d", index),
+			EntryFile: entryFile,
+		})
+		require.Error(t, err, entryFile)
+	}
+}
+
+func TestUpdateProjectValidatesActiveDeploymentEntry(t *testing.T) {
+	cleanup := setupPagesTestDB(t)
+	defer cleanup()
+	_, disableStorage := setupPagesStorageMock(t)
+	defer disableStorage()
+	ctx := context.Background()
+
+	project, err := CreateProject(ctx, Input{
+		Name:      "Content Root",
+		Slug:      "content-root",
+		Enabled:   true,
+		EntryFile: "index.html",
+	})
+	require.NoError(t, err)
+	deployment, err := UploadDeployment(ctx, project.ID, testPagesMultipartFile(t, "site.zip", testPagesZip(t, map[string]string{
+		"index.html":      "root",
+		"dist/index.html": "dist",
+	})), "user:1")
+	require.NoError(t, err)
+	staleCandidate, err := UploadDeployment(ctx, project.ID, testPagesMultipartFile(t, "stale.zip", testPagesZip(t, map[string]string{
+		"index.html": "stale",
+	})), "user:1")
+	require.NoError(t, err)
+	_, err = ActivateDeployment(ctx, project.ID, deployment.ID)
+	require.NoError(t, err)
+
+	updated, err := UpdateProject(ctx, project.ID, Input{
+		Name:      project.Name,
+		Slug:      project.Slug,
+		Enabled:   true,
+		RootDir:   "dist",
+		EntryFile: "index.html",
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "dist", updated.RootDir)
+
+	_, err = ActivateDeployment(ctx, project.ID, staleCandidate.ID)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), errPagesEntryFileMissing)
+
+	_, err = UpdateProject(ctx, project.ID, Input{
+		Name:      project.Name,
+		Slug:      project.Slug,
+		Enabled:   true,
+		RootDir:   "missing",
+		EntryFile: "index.html",
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), errPagesEntryFileMissing)
+
+	stored, err := model.GetPagesProjectByID(ctx, project.ID)
+	require.NoError(t, err)
+	assert.Equal(t, "dist", stored.RootDir)
+	assert.Equal(t, "index.html", stored.EntryFile)
+}
+
 func TestUploadDeploymentAcceptsZeroByteFiles(t *testing.T) {
 	cleanup := setupPagesTestDB(t)
 	defer cleanup()
@@ -213,6 +299,13 @@ func TestUploadDeploymentStoresPackageInUploadFramework(t *testing.T) {
 	var uploadCount int64
 	require.NoError(t, db.DB(ctx).Model(&model.Upload{}).Count(&uploadCount).Error)
 	assert.Equal(t, int64(1), uploadCount)
+	var uploadRecord model.Upload
+	require.NoError(t, db.DB(ctx).First(&uploadRecord, storedDeployment.UploadID).Error)
+	assert.Equal(t, upload.ReservedPagesDeploymentType, uploadRecord.Type)
+	assert.Equal(t, pagesIngestMarkerV2, uploadRecord.Metadata.Extra[pagesIngestMarkerKey])
+	assert.Equal(t, fmt.Sprint(project.ID), uploadRecord.Metadata.Extra[pagesProjectIDMetadataKey])
+	assert.NotContains(t, uploadRecord.Metadata.Extra, "project_slug")
+	assert.NotContains(t, uploadRecord.Metadata.Extra, "format")
 }
 
 func TestOpenDeploymentPackageHydratesLegacyArtifactPath(t *testing.T) {
@@ -448,34 +541,42 @@ func TestSelectDeploymentsToPruneKeepsActiveAndNewest(t *testing.T) {
 		{ID: 2, ProjectID: 1},
 		{ID: 1, ProjectID: 1},
 	}
-	toDelete := selectDeploymentsToPrune(deployments, 1, 2)
+	toDelete := selectDeploymentsToPrune(deployments, 1, 0, 2)
 	require.Len(t, toDelete, 2)
 	assert.Equal(t, uint(3), toDelete[0].ID)
 	assert.Equal(t, uint(2), toDelete[1].ID)
 
 	// active is newest; keep=2 → keep {4,3}, prune {2,1}
-	toDelete = selectDeploymentsToPrune(deployments, 4, 2)
+	toDelete = selectDeploymentsToPrune(deployments, 4, 0, 2)
 	require.Len(t, toDelete, 2)
 	assert.Equal(t, uint(2), toDelete[0].ID)
 	assert.Equal(t, uint(1), toDelete[1].ID)
 
 	// no active; keep=2 → keep {4,3}
-	toDelete = selectDeploymentsToPrune(deployments, 0, 2)
+	toDelete = selectDeploymentsToPrune(deployments, 0, 0, 2)
 	require.Len(t, toDelete, 2)
 	assert.Equal(t, uint(2), toDelete[0].ID)
 	assert.Equal(t, uint(1), toDelete[1].ID)
 
 	// keep=1 with active → only active, prune the rest
-	toDelete = selectDeploymentsToPrune(deployments, 2, 1)
+	toDelete = selectDeploymentsToPrune(deployments, 2, 0, 1)
 	require.Len(t, toDelete, 3)
 	for _, item := range toDelete {
 		assert.NotEqual(t, uint(2), item.ID)
 	}
 
 	// already within limit
-	assert.Nil(t, selectDeploymentsToPrune(deployments[:2], 4, 2))
+	assert.Nil(t, selectDeploymentsToPrune(deployments[:2], 4, 0, 2))
 	// unlimited
-	assert.Nil(t, selectDeploymentsToPrune(deployments, 1, 0))
+	assert.Nil(t, selectDeploymentsToPrune(deployments, 1, 0, 0))
+
+	// history=1 temporarily preserves active plus the freshly uploaded candidate.
+	toDelete = selectDeploymentsToPrune(deployments, 2, 4, 1)
+	require.Len(t, toDelete, 2)
+	assert.Equal(t, uint(3), toDelete[0].ID)
+	assert.Equal(t, uint(1), toDelete[1].ID)
+	assert.Equal(t, uint(4), resolveLatestCandidateID(deployments, 2, true))
+	assert.Zero(t, resolveLatestCandidateID(deployments, 2, false))
 }
 
 func TestPruneProjectDeploymentHistory(t *testing.T) {
@@ -538,6 +639,131 @@ func TestPruneProjectDeploymentHistory(t *testing.T) {
 	_, hasLatest := kept[latest.ID]
 	assert.True(t, hasActive, "active deployment must be retained")
 	assert.True(t, hasLatest, "newest deployment must fill remaining slot")
+}
+
+func TestHistoryCountOnePreservesFreshCandidateUntilActivation(t *testing.T) {
+	cleanup := setupPagesTestDB(t)
+	defer cleanup()
+	_, disableStorage := setupPagesStorageMock(t)
+	defer disableStorage()
+	ctx := context.Background()
+
+	require.NoError(t, db.DB(ctx).Model(&model.SystemConfig{}).
+		Where("key = ?", model.ConfigKeyPagesMaxHistoryCount).
+		Update("value", "1").Error)
+	require.NoError(t, repository.InvalidateSystemConfigCache(ctx, model.ConfigKeyPagesMaxHistoryCount))
+
+	project, err := CreateProject(ctx, Input{Name: "Single History", Slug: "single-history", Enabled: true})
+	require.NoError(t, err)
+	active, err := UploadDeployment(ctx, project.ID, testPagesMultipartFile(t, "v1.zip", testPagesZip(t, map[string]string{
+		"index.html": "v1",
+	})), "user:1")
+	require.NoError(t, err)
+	_, err = ActivateDeployment(ctx, project.ID, active.ID)
+	require.NoError(t, err)
+
+	oldCandidate, err := UploadDeployment(ctx, project.ID, testPagesMultipartFile(t, "v2.zip", testPagesZip(t, map[string]string{
+		"index.html": "v2",
+	})), "user:1")
+	require.NoError(t, err)
+	deployments, err := model.ListPagesDeployments(ctx, project.ID)
+	require.NoError(t, err)
+	require.Len(t, deployments, 2)
+
+	newCandidate, err := UploadDeployment(ctx, project.ID, testPagesMultipartFile(t, "v3.zip", testPagesZip(t, map[string]string{
+		"index.html": "v3",
+	})), "user:1")
+	require.NoError(t, err)
+	deployments, err = model.ListPagesDeployments(ctx, project.ID)
+	require.NoError(t, err)
+	require.Len(t, deployments, 2)
+	kept := map[uint]bool{}
+	for _, deployment := range deployments {
+		kept[deployment.ID] = true
+	}
+	assert.True(t, kept[active.ID])
+	assert.True(t, kept[newCandidate.ID])
+	assert.False(t, kept[oldCandidate.ID])
+	var removedUpload model.Upload
+	require.NoError(t, db.DB(ctx).First(&removedUpload, oldCandidate.UploadID).Error)
+	assert.Equal(t, model.UploadStatusDeleted, removedUpload.Status)
+
+	_, err = ActivateDeployment(ctx, project.ID, newCandidate.ID)
+	require.NoError(t, err)
+	deployments, err = model.ListPagesDeployments(ctx, project.ID)
+	require.NoError(t, err)
+	require.Len(t, deployments, 1)
+	assert.Equal(t, newCandidate.ID, deployments[0].ID)
+}
+
+func TestPruneUsesLockTimeNewestCandidateInsteadOfStaleCaller(t *testing.T) {
+	cleanup := setupPagesTestDB(t)
+	defer cleanup()
+	_, disableStorage := setupPagesStorageMock(t)
+	defer disableStorage()
+	ctx := context.Background()
+
+	project, err := CreateProject(ctx, Input{Name: "Concurrent Candidate", Slug: "concurrent-candidate", Enabled: true})
+	require.NoError(t, err)
+	active, err := UploadDeployment(ctx, project.ID, testPagesMultipartFile(t, "v1.zip", testPagesZip(t, map[string]string{
+		"index.html": "v1",
+	})), "user:1")
+	require.NoError(t, err)
+	_, err = ActivateDeployment(ctx, project.ID, active.ID)
+	require.NoError(t, err)
+	staleCandidate, err := UploadDeployment(ctx, project.ID, testPagesMultipartFile(t, "v2.zip", testPagesZip(t, map[string]string{
+		"index.html": "v2",
+	})), "user:1")
+	require.NoError(t, err)
+	newCandidate, err := UploadDeployment(ctx, project.ID, testPagesMultipartFile(t, "v3.zip", testPagesZip(t, map[string]string{
+		"index.html": "v3",
+	})), "user:1")
+	require.NoError(t, err)
+
+	deleted, err := pruneProjectDeploymentHistoryOnce(ctx, project.ID, 1, staleCandidate.ID)
+	require.NoError(t, err)
+	assert.Equal(t, 1, deleted)
+	deployments, err := model.ListPagesDeployments(ctx, project.ID)
+	require.NoError(t, err)
+	require.Len(t, deployments, 2)
+	kept := map[uint]bool{}
+	for _, deployment := range deployments {
+		kept[deployment.ID] = true
+	}
+	assert.True(t, kept[active.ID])
+	assert.True(t, kept[newCandidate.ID])
+	assert.False(t, kept[staleCandidate.ID])
+}
+
+func TestDeleteDeploymentAndProjectSoftDeleteUnreferencedArtifacts(t *testing.T) {
+	cleanup := setupPagesTestDB(t)
+	defer cleanup()
+	_, disableStorage := setupPagesStorageMock(t)
+	defer disableStorage()
+	ctx := context.Background()
+
+	project, err := CreateProject(ctx, Input{Name: "Delete Artifacts", Slug: "delete-artifacts", Enabled: true})
+	require.NoError(t, err)
+	first, err := UploadDeployment(ctx, project.ID, testPagesMultipartFile(t, "first.zip", testPagesZip(t, map[string]string{
+		"index.html": "first",
+	})), "user:1")
+	require.NoError(t, err)
+	second, err := UploadDeployment(ctx, project.ID, testPagesMultipartFile(t, "second.zip", testPagesZip(t, map[string]string{
+		"index.html": "second",
+	})), "user:1")
+	require.NoError(t, err)
+
+	require.NoError(t, DeleteDeployment(ctx, project.ID, second.ID))
+	var secondUpload model.Upload
+	require.NoError(t, db.DB(ctx).First(&secondUpload, second.UploadID).Error)
+	assert.Equal(t, model.UploadStatusDeleted, secondUpload.Status)
+
+	require.NoError(t, DeleteProject(ctx, project.ID))
+	var firstUpload model.Upload
+	require.NoError(t, db.DB(ctx).First(&firstUpload, first.UploadID).Error)
+	assert.Equal(t, model.UploadStatusDeleted, firstUpload.Status)
+	_, err = model.GetPagesProjectByID(ctx, project.ID)
+	assert.Error(t, err)
 }
 
 func testPagesTarGz(t *testing.T, files map[string]string) []byte {

@@ -4,6 +4,7 @@
 package pagesarchive
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -45,39 +46,50 @@ type Entry struct {
 	IsDir bool
 	// IsSymlink marks symbolic links (unsupported for Pages).
 	IsSymlink bool
-	// Size is the declared uncompressed size when known; 0 means empty or unknown.
+	// IsHardlink marks hard links (unsupported for Pages).
+	IsHardlink bool
+	// IsSpecial marks device, FIFO, socket, and other non-regular entries.
+	IsSpecial bool
+	// Size is the archive-declared uncompressed size; 0 means an empty member.
 	Size uint64
 	// Open returns a reader for the entry body. Caller must Close it.
-	// May be unavailable for inspect-only tar listings (body not materialized).
 	Open func() (io.ReadCloser, error)
 }
 
-// copyLimited copies src to dst.
-// When maxBytes <= 0, size limits are not enforced (trusted extract path).
-func copyLimited(dst io.Writer, src io.Reader, declaredSize uint64, maxBytes int64) (int64, error) {
-	if maxBytes <= 0 {
-		if declaredSize > 0 {
-			if declaredSize > uint64(math.MaxInt64) {
-				return 0, fmt.Errorf("pages file size out of bounds")
-			}
-			//nolint:gosec // declaredSize is bounded to MaxInt64 above
-			return io.CopyN(dst, src, int64(declaredSize))
-		}
+// copyLimited copies actual bytes from src. maxBytes < 0 disables the byte cap;
+// maxBytes == 0 permits only an empty stream.
+func copyLimited(dst io.Writer, src io.Reader, maxBytes int64) (int64, error) {
+	if maxBytes < 0 {
 		return io.Copy(dst, src)
 	}
-	if declaredSize > uint64(maxBytes) || declaredSize > uint64(math.MaxInt64) { //nolint:gosec // maxBytes positive
-		return 0, fmt.Errorf("pages file size out of bounds")
+
+	readLimit := maxBytes
+	if maxBytes < math.MaxInt64 {
+		readLimit++
 	}
-	if declaredSize > 0 {
-		//nolint:gosec // declaredSize is bounded to MaxInt64 above
-		return io.CopyN(dst, src, int64(declaredSize))
+	written, err := io.Copy(dst, io.LimitReader(src, readLimit))
+	if err != nil {
+		return written, err
 	}
-	limited := io.LimitReader(src, maxBytes+1)
-	written, err := io.Copy(dst, limited)
 	if written > maxBytes {
 		return written, fmt.Errorf("pages file size out of bounds")
 	}
-	return written, err
+	return written, nil
+}
+
+func copyAndVerifySize(dst io.Writer, src io.Reader, declaredSize uint64, maxBytes int64) (int64, error) {
+	if declaredSize > uint64(math.MaxInt64) {
+		return 0, fmt.Errorf("pages file size out of bounds")
+	}
+	written, err := copyLimited(dst, src, maxBytes)
+	if err != nil {
+		return written, err
+	}
+	//nolint:gosec // declaredSize is bounded to MaxInt64 above
+	if written != int64(declaredSize) {
+		return written, fmt.Errorf("pages declared size %d does not match actual %d", declaredSize, written)
+	}
+	return written, nil
 }
 
 func writeEntryFile(targetPath string, src io.Reader, declaredSize uint64, maxBytes int64, perm os.FileMode) (int64, error) {
@@ -88,6 +100,11 @@ func writeEntryFile(targetPath string, src io.Reader, declaredSize uint64, maxBy
 	if err != nil {
 		return 0, err
 	}
-	defer func() { _ = target.Close() }()
-	return copyLimited(target, src, declaredSize, maxBytes)
+	written, copyErr := copyAndVerifySize(target, src, declaredSize, maxBytes)
+	closeErr := target.Close()
+	if err := errors.Join(copyErr, closeErr); err != nil {
+		_ = os.Remove(targetPath)
+		return written, err
+	}
+	return written, nil
 }

@@ -1,3 +1,6 @@
+// Copyright 2026 Arctel.net
+// SPDX-License-Identifier: Apache-2.0
+
 package protocol
 
 import (
@@ -45,6 +48,18 @@ func TestAgentProtocolJSONTags(t *testing.T) {
 			expected: map[string]string{
 				"NodeID":      "node_id",
 				"AccessToken": "agent_token",
+			},
+		},
+		{
+			name:  "PagesProjectLatestHashResponse",
+			value: PagesProjectLatestHashResponse{},
+			expected: map[string]string{
+				"ProjectID":    "project_id",
+				"DeploymentID": "deployment_id",
+				"Hash":         "hash",
+				"PackageSize":  "package_size",
+				"FileCount":    "file_count",
+				"TotalSize":    "total_size",
 			},
 		},
 	}

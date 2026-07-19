@@ -21,6 +21,10 @@
 * [访问日志 IP 明细 Tab](./20260719-access-log-ip-tab.md)：第三 Tab 按 IP 聚合列表（时间窗/流量/2xx 比例）；IP 情报迁入独立详情；日志详情仅请求字段。
 * [边缘限流全局默认](./20260719-http-default-rate-limit.md)：全局默认并发/带宽；站点 0 继承、-1 关闭；RenderRouteConfig 合并。
 
+## 已完成的计划
+
+* [Pages 项目部署源与 GitHub Releases 自动更新 V2](./20260719-pages-source-sync-v2.md)：已完成 Remote URL / GitHub Release 来源、不可变部署、自动检查更新与安全回滚，并预留独立仓库构建 Provider 边界；生产环境验收边界见计划内验证记录。
+
 ## 使用建议
 
 * **命名规范**：正在进行的开发计划建议命名为 `docs/plan/YYYYMMDD-[feature-name].md`，接手计划建议命名为 `docs/plan/handover-[task-name].md`。
