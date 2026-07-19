@@ -31,12 +31,12 @@ function RateLimitsPageContent() {
   const [hosts, setHosts] = useState<string[]>([]);
 
   const overviewQuery = useQuery({
-    queryKey: ['openflare', 'rate-limits', 'overview', hours, hosts, 1],
+    queryKey: ['openflare', 'rate-limits', 'overview', hours, hosts, 3],
     queryFn: () =>
       AccessLogService.getOverview({
         hours,
         hosts: hosts.length > 0 ? hosts : undefined,
-        bucket_minutes: 1,
+        bucket_minutes: 3,
       }),
     enabled: !!user?.is_admin && tab === 'analysis',
   });

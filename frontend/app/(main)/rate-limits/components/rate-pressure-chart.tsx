@@ -14,7 +14,7 @@ import {
   type RateLimitRangeHours,
 } from '../../access-logs/components/access-log-utils';
 
-const DEFAULT_BUCKET_SECONDS = 60;
+const DEFAULT_BUCKET_SECONDS = 180;
 const RPS_COLOR = '#38bdf8';
 const VISITS_COLOR = '#a78bfa';
 
@@ -61,7 +61,7 @@ export function RatePressureChart({ data, hours }: RatePressureChartProps) {
   const bucketSeconds =
     (data?.bucket_minutes && data.bucket_minutes > 0
       ? data.bucket_minutes
-      : 1) * 60 || DEFAULT_BUCKET_SECONDS;
+      : 3) * 60 || DEFAULT_BUCKET_SECONDS;
 
   const rangeLabel = useMemo(() => {
     const end = data?.generated_at ? new Date(data.generated_at) : new Date();
