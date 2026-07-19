@@ -1,6 +1,13 @@
 'use client';
 
-import { type DragEvent, useCallback, useEffect, useRef } from 'react';
+import {
+  type DragEvent,
+  type MouseEvent as ReactMouseEvent,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
 import {
   addEdge,
   applyEdgeChanges,
@@ -23,6 +30,7 @@ import '@xyflow/react/dist/style.css';
 
 import { Button } from '@/components/ui/button';
 import type { WAFRuleEdge, WAFRuleGraph } from '@/lib/services/openflare';
+import { cn } from '@/lib/utils';
 
 import {
   acceptedNodeChanges,
@@ -82,6 +90,11 @@ export function RuleFlowCanvas({
   const [edges, setEdges, applyFlowEdgeChanges] = useEdgesState<FlowEdge>(
     buildFlowEdges(graph, selectedId, selectedEdgeId),
   );
+  const [contextMenu, setContextMenu] = useState<
+    | { kind: 'node'; id: string; x: number; y: number }
+    | { kind: 'edge'; id: string; x: number; y: number }
+    | null
+  >(null);
 
   useEffect(() => {
     setNodes((current) => buildFlowNodes(graph, issues, selectedId, current));
@@ -254,40 +267,114 @@ export function RuleFlowCanvas({
         ? '系统节点不可删除'
         : '请选择可删除项';
 
-  const deleteSelection = useCallback(() => {
-    if (canDeleteEdge && selectedEdgeId) {
-      setEdges((current) =>
-        current.filter((edge) => edge.id !== selectedEdgeId),
-      );
-      onGraphChange(removeEdgeFromGraph(graph, selectedEdgeId));
-      onSelectEdge(undefined);
-      return;
-    }
-    if (canDeleteNode && selectedId) {
-      setNodes((current) => current.filter((node) => node.id !== selectedId));
+  const deleteNodeById = useCallback(
+    (nodeId: string) => {
+      const target = graph.nodes.find((node) => node.id === nodeId);
+      if (!target || ['start', 'allow'].includes(target.type)) return;
+      setNodes((current) => current.filter((node) => node.id !== nodeId));
       setEdges((current) =>
         current.filter(
-          (edge) => edge.source !== selectedId && edge.target !== selectedId,
+          (edge) => edge.source !== nodeId && edge.target !== nodeId,
         ),
       );
-      onGraphChange(removeNodeFromGraph(graph, selectedId));
-      onSelect(undefined);
+      onGraphChange(removeNodeFromGraph(graph, nodeId));
+      if (selectedId === nodeId) onSelect(undefined);
+      if (selectedEdgeId) onSelectEdge(undefined);
+    },
+    [
+      graph,
+      onGraphChange,
+      onSelect,
+      onSelectEdge,
+      selectedEdgeId,
+      selectedId,
+      setEdges,
+      setNodes,
+    ],
+  );
+
+  const deleteEdgeById = useCallback(
+    (edgeId: string) => {
+      if (!graph.edges.some((edge) => edge.id === edgeId)) return;
+      setEdges((current) => current.filter((edge) => edge.id !== edgeId));
+      onGraphChange(removeEdgeFromGraph(graph, edgeId));
+      if (selectedEdgeId === edgeId) onSelectEdge(undefined);
+    },
+    [graph, onGraphChange, onSelectEdge, selectedEdgeId, setEdges],
+  );
+
+  const deleteSelection = useCallback(() => {
+    if (canDeleteEdge && selectedEdgeId) {
+      deleteEdgeById(selectedEdgeId);
+      return;
     }
+    if (canDeleteNode && selectedId) deleteNodeById(selectedId);
   }, [
     canDeleteEdge,
     canDeleteNode,
-    graph,
-    onGraphChange,
-    onSelect,
-    onSelectEdge,
+    deleteEdgeById,
+    deleteNodeById,
     selectedEdgeId,
     selectedId,
-    setEdges,
-    setNodes,
   ]);
 
+  const openNodeContextMenu = useCallback(
+    (event: ReactMouseEvent, node: FlowNode) => {
+      event.preventDefault();
+      event.stopPropagation();
+      onSelectEdge(undefined);
+      onSelect(node.id);
+      setContextMenu({
+        kind: 'node',
+        id: node.id,
+        x: event.clientX,
+        y: event.clientY,
+      });
+    },
+    [onSelect, onSelectEdge],
+  );
+
+  const openEdgeContextMenu = useCallback(
+    (event: ReactMouseEvent, edge: FlowEdge) => {
+      event.preventDefault();
+      event.stopPropagation();
+      onSelect(undefined);
+      onSelectEdge(edge.id);
+      setContextMenu({
+        kind: 'edge',
+        id: edge.id,
+        x: event.clientX,
+        y: event.clientY,
+      });
+    },
+    [onSelect, onSelectEdge],
+  );
+
+  const suppressBrowserContextMenu = useCallback(
+    (event: ReactMouseEvent | MouseEvent) => {
+      event.preventDefault();
+      setContextMenu(null);
+    },
+    [],
+  );
+
+  const contextNode =
+    contextMenu?.kind === 'node'
+      ? graph.nodes.find((node) => node.id === contextMenu.id)
+      : undefined;
+  const contextCanDeleteNode = Boolean(
+    contextNode && !['start', 'allow'].includes(contextNode.type),
+  );
+  const contextCanDeleteEdge = Boolean(
+    contextMenu?.kind === 'edge' &&
+    graph.edges.some((edge) => edge.id === contextMenu.id),
+  );
+
   return (
-    <section className='relative min-w-0 flex-1 bg-muted/20'>
+    <section
+      className='relative min-w-0 flex-1 bg-muted/20'
+      onContextMenu={suppressBrowserContextMenu}
+    >
       <div className='absolute left-4 top-4 z-10 rounded-lg border bg-background/95 p-2 shadow-sm backdrop-blur'>
         <NodeLibrary />
       </div>
@@ -321,25 +408,81 @@ export function RuleFlowCanvas({
         onNodeClick={(_, node) => {
           onSelectEdge(undefined);
           onSelect(node.id);
+          setContextMenu(null);
         }}
         onEdgeClick={(_, edge) => {
           onSelect(undefined);
           onSelectEdge(edge.id);
+          setContextMenu(null);
         }}
         onPaneClick={() => {
           onSelect(undefined);
           onSelectEdge(undefined);
+          setContextMenu(null);
         }}
+        onMoveStart={() => setContextMenu(null)}
+        onNodeContextMenu={openNodeContextMenu}
+        onEdgeContextMenu={openEdgeContextMenu}
+        onPaneContextMenu={suppressBrowserContextMenu}
         onDragOver={onDragOver}
         onDrop={onDrop}
         fitView
         fitViewOptions={initialFitViewOptions}
         deleteKeyCode={['Backspace', 'Delete']}
+        className='h-full w-full'
       >
         <Background gap={20} size={1} />
         <MiniMap pannable zoomable />
         <Controls />
       </ReactFlow>
+      {contextMenu && (
+        <div
+          className='fixed z-50 min-w-40 overflow-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-md'
+          style={{ left: contextMenu.x, top: contextMenu.y }}
+          role='menu'
+        >
+          {contextMenu.kind === 'node' && (
+            <button
+              type='button'
+              role='menuitem'
+              disabled={!contextCanDeleteNode}
+              className={cn(
+                'flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none',
+                contextCanDeleteNode
+                  ? 'text-destructive hover:bg-destructive/10'
+                  : 'cursor-not-allowed text-muted-foreground opacity-60',
+              )}
+              onClick={() => {
+                deleteNodeById(contextMenu.id);
+                setContextMenu(null);
+              }}
+            >
+              <Trash2 className='size-4' />
+              {contextCanDeleteNode ? '删除节点' : '系统节点不可删除'}
+            </button>
+          )}
+          {contextMenu.kind === 'edge' && (
+            <button
+              type='button'
+              role='menuitem'
+              disabled={!contextCanDeleteEdge}
+              className={cn(
+                'flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none',
+                contextCanDeleteEdge
+                  ? 'text-destructive hover:bg-destructive/10'
+                  : 'cursor-not-allowed text-muted-foreground opacity-60',
+              )}
+              onClick={() => {
+                deleteEdgeById(contextMenu.id);
+                setContextMenu(null);
+              }}
+            >
+              <Trash2 className='size-4' />
+              删除连线
+            </button>
+          )}
+        </div>
+      )}
     </section>
   );
 }
