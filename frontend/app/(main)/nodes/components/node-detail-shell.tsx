@@ -14,7 +14,7 @@ import { NodeKpiCard } from './node-detail-primitives';
 import { NodeStatusBadge } from './node-status-badge';
 import type { StatusTone } from './node-utils';
 
-export type NodeDetailTabId = 'overview' | 'dashboard' | 'manage';
+export type NodeDetailTabId = 'overview' | 'manage';
 
 export type NodeDetailTabConfig = {
   id: NodeDetailTabId;
@@ -34,17 +34,19 @@ const TAB_CONFIGS: NodeDetailTabConfig[] = [
     label: '概览',
   },
   {
-    id: 'dashboard',
-    label: '数据看板',
-  },
-  {
     id: 'manage',
-    label: '配置与部署',
+    label: '状态与部署',
   },
 ];
 
-function isValidTab(value: string | null): value is NodeDetailTabId {
-  return value === 'overview' || value === 'dashboard' || value === 'manage';
+function resolveTab(value: string | null): NodeDetailTabId | null {
+  if (value === 'overview' || value === 'dashboard') {
+    return 'overview';
+  }
+  if (value === 'manage') {
+    return 'manage';
+  }
+  return null;
 }
 
 export function NodeDetailShell({
@@ -55,7 +57,6 @@ export function NodeDetailShell({
   actions,
   kpis,
   overview,
-  dashboard,
   manage,
   defaultTab = 'overview',
 }: {
@@ -66,7 +67,6 @@ export function NodeDetailShell({
   actions: ReactNode;
   kpis: NodeDetailKpi[];
   overview: ReactNode;
-  dashboard: ReactNode;
   manage: ReactNode;
   defaultTab?: NodeDetailTabId;
 }) {
@@ -76,7 +76,7 @@ export function NodeDetailShell({
 
   const activeTab = useMemo(() => {
     const tab = searchParams.get('tab');
-    return isValidTab(tab) ? tab : defaultTab;
+    return resolveTab(tab) ?? defaultTab;
   }, [defaultTab, searchParams]);
 
   const setActiveTab = useCallback(
@@ -86,6 +86,16 @@ export function NodeDetailShell({
       router.replace(`${pathname}?${params.toString()}`, { scroll: false });
     },
     [pathname, router, searchParams],
+  );
+
+  const handleTabChange = useCallback(
+    (value: string) => {
+      const tab = resolveTab(value);
+      if (tab) {
+        setActiveTab(tab);
+      }
+    },
+    [setActiveTab],
   );
 
   return (
@@ -144,11 +154,7 @@ export function NodeDetailShell({
 
       <Tabs
         value={activeTab}
-        onValueChange={(value) => {
-          if (isValidTab(value)) {
-            setActiveTab(value);
-          }
-        }}
+        onValueChange={handleTabChange}
         className='w-full gap-0'
       >
         <div className='space-y-3 pb-1'>
@@ -173,9 +179,6 @@ export function NodeDetailShell({
 
         <TabsContent value='overview' className='mt-6 outline-none'>
           {activeTab === 'overview' ? overview : null}
-        </TabsContent>
-        <TabsContent value='dashboard' className='mt-6 outline-none'>
-          {activeTab === 'dashboard' ? dashboard : null}
         </TabsContent>
         <TabsContent value='manage' className='mt-6 outline-none'>
           {activeTab === 'manage' ? manage : null}

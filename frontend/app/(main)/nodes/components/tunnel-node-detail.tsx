@@ -183,7 +183,7 @@ export function TunnelNodeDetail({ node }: { node: NodeItem }) {
     </>
   );
 
-  const overviewTab = (
+  const manageTab = (
     <div className='space-y-6'>
       {node.last_error ? <NodeErrorBanner message={node.last_error} /> : null}
 
@@ -271,11 +271,9 @@ export function TunnelNodeDetail({ node }: { node: NodeItem }) {
           </div>
         </NodeSectionCard>
       </div>
-    </div>
-  );
 
-  const manageTab = (
-    <div className='space-y-6'>
+      <InstallCommand node={node} variant='tunnel' />
+
       <NodeSectionCard title='接入凭证' description='隧道客户端接入所需 Token'>
         <div className='divide-y'>
           <NodeInfoRow label='Tunnel Token'>
@@ -294,8 +292,6 @@ export function TunnelNodeDetail({ node }: { node: NodeItem }) {
           </NodeInfoRow>
         </div>
       </NodeSectionCard>
-
-      <InstallCommand node={node} variant='tunnel' />
     </div>
   );
 
@@ -338,8 +334,7 @@ export function TunnelNodeDetail({ node }: { node: NodeItem }) {
             icon: Activity,
           },
         ]}
-        overview={overviewTab}
-        dashboard={
+        overview={
           <NodeObservability
             nodeId={node.id}
             variant='compact'

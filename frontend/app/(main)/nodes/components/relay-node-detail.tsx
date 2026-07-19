@@ -278,7 +278,7 @@ export function RelayNodeDetail({ node }: { node: NodeItem }) {
     </>
   );
 
-  const overviewTab = (
+  const manageTab = (
     <div className='space-y-6'>
       {node.last_error ? <NodeErrorBanner message={node.last_error} /> : null}
 
@@ -359,11 +359,7 @@ export function RelayNodeDetail({ node }: { node: NodeItem }) {
           </div>
         </NodeSectionCard>
       </div>
-    </div>
-  );
 
-  const manageTab = (
-    <div className='space-y-6'>
       <NodeSectionCard
         title='FRPS WebUI'
         description='控制 frps 内置 Web 管理界面是否启用及其监听端口'
@@ -514,8 +510,7 @@ export function RelayNodeDetail({ node }: { node: NodeItem }) {
             icon: Activity,
           },
         ]}
-        overview={overviewTab}
-        dashboard={
+        overview={
           <NodeObservability
             nodeId={node.id}
             variant='compact'

@@ -18,6 +18,7 @@ import { Label } from '@/components/ui/label';
 import { type NodeItem, StatusService } from '@/lib/services/openflare';
 
 import {
+  buildEdgeDockerInstallCommand,
   buildRelayDockerInstallCommand,
   buildRelayInstallCommand,
   buildTunnelDockerInstallCommand,
@@ -25,7 +26,7 @@ import {
   getServerUrl,
 } from './node-utils';
 
-type InstallVariant = 'relay' | 'tunnel';
+type InstallVariant = 'edge' | 'relay' | 'tunnel';
 
 const variantMeta: Record<
   InstallVariant,
@@ -33,10 +34,16 @@ const variantMeta: Record<
     title: string;
     description: string;
     tokenLabel: string;
-    scriptLabel: string;
+    scriptLabel?: string;
     dockerLabel: string;
   }
 > = {
+  edge: {
+    title: '边缘节点部署',
+    description: '使用 Agent Token 将边缘节点接入控制端。',
+    tokenLabel: 'Agent Token',
+    dockerLabel: 'Docker 容器部署',
+  },
   relay: {
     title: '中继部署命令',
     description: '使用 Discovery Token 将 frps 中继节点接入控制端。',
@@ -79,7 +86,7 @@ export function InstallCommand({
 
   const normalizedServerUrl = getServerUrl(serverUrl);
   const scriptCommand = useMemo(() => {
-    if (!normalizedServerUrl || !node.access_token) {
+    if (!normalizedServerUrl || !node.access_token || variant === 'edge') {
       return '';
     }
     return variant === 'relay'
@@ -90,6 +97,13 @@ export function InstallCommand({
   const dockerCommand = useMemo(() => {
     if (!normalizedServerUrl || !node.access_token) {
       return '';
+    }
+    if (variant === 'edge') {
+      return buildEdgeDockerInstallCommand(
+        normalizedServerUrl,
+        node.access_token,
+        serverVersion,
+      );
     }
     return variant === 'relay'
       ? buildRelayDockerInstallCommand(
@@ -190,12 +204,14 @@ export function InstallCommand({
           </p>
         ) : (
           <>
-            <div className='space-y-2'>
-              <p className='text-sm font-medium'>{meta.scriptLabel}</p>
-              <pre className='overflow-x-auto rounded-lg border bg-muted/40 p-3 text-xs whitespace-pre-wrap'>
-                {scriptCommand}
-              </pre>
-            </div>
+            {scriptCommand && meta.scriptLabel ? (
+              <div className='space-y-2'>
+                <p className='text-sm font-medium'>{meta.scriptLabel}</p>
+                <pre className='overflow-x-auto rounded-lg border bg-muted/40 p-3 text-xs whitespace-pre-wrap'>
+                  {scriptCommand}
+                </pre>
+              </div>
+            ) : null}
             <div className='space-y-2'>
               <p className='text-sm font-medium'>{meta.dockerLabel}</p>
               <pre className='overflow-x-auto rounded-lg border bg-muted/40 p-3 text-xs whitespace-pre-wrap'>

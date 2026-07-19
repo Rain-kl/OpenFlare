@@ -37,6 +37,7 @@ import type {
 import { NodeService } from '@/lib/services/openflare';
 
 import { AgentUpdateDialog } from './agent-update-dialog';
+import { InstallCommand } from './install-command';
 import { NodeDetailShell } from './node-detail-shell';
 import {
   NodeErrorBanner,
@@ -199,7 +200,7 @@ export function EdgeNodeDetail({ node }: { node: NodeItem }) {
     </>
   );
 
-  const overviewTab = (
+  const manageTab = (
     <div className='space-y-6'>
       {node.last_error ? <NodeErrorBanner message={node.last_error} /> : null}
 
@@ -277,11 +278,9 @@ export function EdgeNodeDetail({ node }: { node: NodeItem }) {
           </div>
         </NodeSectionCard>
       </div>
-    </div>
-  );
 
-  const manageTab = (
-    <div className='space-y-6'>
+      <InstallCommand node={node} variant='edge' />
+
       <NodeSectionCard
         title='节点标识'
         description='用于 Agent 接入与鉴别的核心字段'
@@ -361,8 +360,7 @@ export function EdgeNodeDetail({ node }: { node: NodeItem }) {
             icon: Activity,
           },
         ]}
-        overview={overviewTab}
-        dashboard={
+        overview={
           <NodeObservability
             nodeId={node.id}
             node={node}
