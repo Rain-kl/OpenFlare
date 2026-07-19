@@ -98,7 +98,7 @@ Agent 对数据面 OpenResty 的管控实现了端到端的闭环，包含配置
 * `certs/`：证书存放目录（文件命名为 `{cert_id}.crt` 和 `{cert_id}.key`）。
 * `waf/` 与 `pow/`：WAF 及防 CC 挑战所需的专用 Lua 运行时脚本。
 * `waf_config.json` 与 `waf_ip_groups.json`：WAF 过滤引擎所需的结构化规则配置文件。
-* `pages_dir`：Pages 静态站点部署目录，默认位于 `data_dir/var/lib/openflare/pages`。当激活配置引用 Pages **项目**时，Agent 按 `project_id` 请求控制面「最新激活包」（hash + package，下载后再校验 hash 防竞态），解压到 `projects/{project_id}/releases/{hash}`，切换 `current` 后**立即删除同项目其它历史 release**（仅保留最新）。项目内切换激活无需重发主配置；多项目对账时单项目失败不阻塞其它项目。
+* `pages_dir`：Pages 静态站点部署目录，默认位于 `data_dir/var/lib/openflare/pages`。当激活配置引用 Pages **项目**时，Agent 按 `project_id` 请求控制面「最新激活包」（hash + package），以流式方式写入临时文件并执行实际响应上限与 SHA-256 校验，再安全解压到 `projects/{project_id}/releases/{hash}`。解压后会复核文件数与总字节，绝对防御上限为 2 GiB 包、1,000 个文件、单文件及总量 8 GiB；随后原子切换 `current` 并**立即删除同项目其它历史 release**（仅保留最新）。项目内切换激活无需重发主配置；多项目对账时单项目失败不阻塞其它项目。
 
 ### 2. 精细化的重载动作
 1. **备份当前配置**：在写入新文件之前，Agent 会将现有的配置文件复制到 `.backup` 临时目录下，保留完整的现场快照。
@@ -174,3 +174,4 @@ graph TD
 2. **严格的 Token 过滤与前缀验证**：Agent 侧向 Server 请求资源时，接口端点固定以 `/api/v1/agent/` 为前缀，并强制携带 `X-Agent-Token` 进行签名或令牌核验。
 3. **节点自治原则**：Agent 须具备完备的离线工作能力。在与 Server 失去连接期间，本地 OpenResty 必须依靠本地已落地的配置保持反向代理服务的绝对正常运行。
 4. **观测只上报事实**：访问日志以明细形式上送；主机指标上报计数器/瞬时读数。禁止在 Agent 内计算业务 UV、Top 域名、24h 已提供数据等结论性指标（由 Server 聚合）。详见 [边缘可观测与业务流量统计](./observability-design.md)。
+5. **Pages 只消费控制面产物**：Remote URL、GitHub Release、自动 scanner，以及未来仓库 checkout/build executor 均属于 Server 职责。Agent 不接收外部 URL、访问令牌、仓库凭据或任意 clone/install/build 命令，只拉取已经激活且带完整性元数据的部署包。

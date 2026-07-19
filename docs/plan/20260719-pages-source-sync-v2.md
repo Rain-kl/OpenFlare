@@ -1,7 +1,7 @@
 # Pages 项目部署源与 GitHub Releases 自动更新 V2 实现方案
 
 日期：2026-07-19
-状态：实施中
+状态：代码实施完成（范围内自动化验证完成；生产环境验收见 §7）
 方案版本：V2（设计修订版，不代表新增 `/api/v2`）
 
 关联材料：
@@ -32,9 +32,9 @@ V2 保留原方案正确的主链路：外部来源只由 Server 控制面访问
 
 ## 1. 目标与背景 (Goal & Context)
 
-### 1.1 当前实现与问题
+### 1.1 方案制定时的实现与问题
 
-当前 Pages 已支持：
+方案制定时，Pages 已支持：
 
 * 管理员本地上传压缩包；
 * 同步调用 `POST /api/v1/d/pages/:id/deployments/upload-from-url` 完成一次性 URL 导入；
@@ -149,7 +149,7 @@ flowchart LR
     Current --> OpenResty["OpenResty 静态服务"]
 ```
 
-scanner 本身是一个正式 TaskHandler，并非绕过任务框架。它在单次执行中先限量恢复 lease/orphan record，再串行检查到期的 GitHub latest source，避免一次 cron 批量投递 20 个并行 GitHub 请求。手动操作和自动下载使用统一 action task；scanner 不执行长时间 package 下载。
+scanner 本身是一个正式 TaskHandler，并非绕过任务框架。它在单次执行中先扫描并精确 CAS 恢复全部过期 lease，再限量补偿最多 100 条 orphan record，最后串行检查最多 20 个到期的 GitHub latest source，避免一次 cron 批量投递并行 GitHub 请求。手动操作和自动下载使用统一 action task；scanner 不执行长时间 package 下载。
 
 ### 2.3 领域对象与不变量
 
@@ -1057,11 +1057,27 @@ scanner TaskResult 和结构化日志至少记录：
 
 #### [NEW] `internal/apps/openflare/pages/source_sync.go`
 
-* runtime 状态、lease、check/sync service、原子 create-or-load/activate、补偿。
+* Remote/GitHub 统一 ingest、deployment create-or-load、原子激活与失败补偿。
+
+#### [NEW] `internal/apps/openflare/pages/source_runtime.go`
+
+* source execution snapshot、短/长 lease、heartbeat、失败终态、过期 lease 精确 CAS 恢复。
+
+#### [NEW] `internal/apps/openflare/pages/github_source.go`、`github_source_action.go`
+
+* GitHub 配置归一化，以及 latest/tag check、ETag/304、精确 revision sync、attention 与 provider 退避。
 
 #### [NEW] `internal/apps/openflare/pages/source_tasks.go`
 
-* scanner/action TaskMeta、payload validation、Handler 与限量 orphan record reconciliation。
+* action TaskMeta、旧/新 payload normalization、actor/trigger 边界与 Handler。
+
+#### [NEW] `internal/apps/openflare/pages/source_scanner.go`
+
+* internal-only scanner、过期 lease 恢复、20 条稳定批次、403/429 退避、backlog 与精确 revision 自动派发。
+
+#### [NEW] `internal/apps/openflare/pages/source_orphan_cleanup.go`、`internal/model/openflare_pages_cleanup.go`
+
+* 100 条/2 小时隔离的 orphan upload 候选查询、统一锁序复检、幂等软删除与缓存修复。
 
 #### [MODIFY] `internal/apps/openflare/pages/logics.go`
 
@@ -1207,6 +1223,7 @@ SQLite `0001` 的 Down 必须通过重建受影响表完整移除新增列、约
 
 * `frontend/tests/openflare/pages-service.test.ts`
 * `frontend/tests/openflare/pages-source-ui.test.tsx`
+* `frontend/tests/openflare/pages-source-auto-update.test.tsx`
 
 ### 3.5 文档与生成物（代码实施时）
 
@@ -1370,7 +1387,7 @@ make code-check
 
 ## 5. 分阶段实施
 
-### 阶段 0：安全与一致性前置（独立合并/发布）
+### 阶段 0：安全与一致性前置（已完成：`4e8ec232`）
 
 * RootDir/EntryFile 严格路径与 LocalRoot 端到端一致；
 * Server 真实归档限制和 tar 流式实现；
@@ -1381,7 +1398,7 @@ make code-check
 
 验收：不引入 source 表/API 的情况下，现有本地上传与旧 URL 路径全部回归；大包内存与路径安全测试通过。
 
-### 阶段 1：数据模型与 Remote 手动同步
+### 阶段 1：数据模型与 Remote 手动同步（已完成：`38b05169`）
 
 * `0001` DDL migration、model、source CRUD/view；
 * runtime 六态、lease、config/content fence；
@@ -1393,7 +1410,7 @@ make code-check
 
 本阶段 API/DTO 变化完成后立即运行 `make swagger` 并将生成物纳入阶段验证，不把 Swagger 漂移累积到阶段 4。
 
-### 阶段 2：GitHub 手动检查与同步
+### 阶段 2：GitHub 手动检查与同步（已完成：`c39a3edc`）
 
 * GitHub client、latest/tag、ETag、asset/digest、rate limit；
 * action check、首次异步 check、update_available；
@@ -1405,7 +1422,7 @@ make code-check
 
 本阶段 API/DTO 变化后再次运行 `make swagger`，保证阶段 2 可独立合并发布。
 
-### 阶段 3：latest scanner 与自动更新
+### 阶段 3：latest scanner 与自动更新（已完成：`848884d8`、`999428cf`、`67b051c2`）
 
 * scanner task、`0002` schedule seed、过期 lease 恢复；
 * serial batch、jitter、退避、自动 sync dispatch；
@@ -1418,20 +1435,20 @@ make code-check
 
 本阶段 API/DTO 变化后再次运行 `make swagger`，阶段 4 只做最终一致性复检。
 
-### 阶段 4：文档、生成物与全门禁
+### 阶段 4：文档、生成物与验证记录（代码收口已完成）
 
 * 同步 Pages design/architecture/guide/README 与中文 changelog；
 * 生成 Swagger；
-* 运行前后端测试、`make prettier`、`make code-check`；
-* 按 §4.7 完成手工矩阵并记录未覆盖的真实外部场景。
+* 运行前后端测试、`make prettier`、`make code-check`，并如实记录全仓失败与未执行边界；
+* 整理 §4.7 手工矩阵，并记录本地环境未覆盖的真实外部场景。
 
 每个阶段只提交本阶段明确路径并独立验证；阶段 0 不与后续 source 功能捆绑成一个大提交。
 
 ---
 
-## 6. 完成定义
+## 6. 生产验收完成定义
 
-只有同时满足以下条件，V2 才视为实现完成：
+只有同时满足以下条件，V2 才视为生产验收完成：
 
 * 三类来源能力边界与 UI/API 完全一致；
 * 数据模型为 config/runtime 分离的瘦表，状态不超过六态；
@@ -1442,3 +1459,47 @@ make code-check
 * history=1、本地 candidate、source sync 和清理补偿均有自动化覆盖；
 * PostgreSQL、SQLite、后端、Agent、前端及项目门禁全部通过；
 * 实际代码、Swagger、中文设计/使用文档和 changelog 同步。
+
+本轮状态中的“代码实施完成”表示功能、迁移、前后端交互、生成物和文档均已落地，范围内自动化门禁已经通过。真实 PostgreSQL、真实外部来源和多 Agent 故障矩阵仍是生产验收条件；未执行项及全仓存量失败不会在本文中伪报为通过，统一记录如下。
+
+---
+
+## 7. 实施结果与验证记录
+
+### 7.1 已交付
+
+* 完成部署包安全与一致性前置：项目 RootDir 生效、归档实际字节限制、Agent 流式下载与复核、历史裁剪、上传记录补偿及共享对象安全边界。
+* 完成 Remote URL 与公开 GitHub Release source/runtime 模型、CRUD、手动 check/sync、revision 幂等、不可变 deployment 与原子激活。
+* 完成 GitHub latest scanner、稳定批次、lease 恢复、ETag/304、403/429 退避、精确 revision 自动派发和 orphan upload 延迟补偿。
+* 完成 Cloudflare Pages 风格的“当前生产部署 → 部署源 → 部署历史”前端交互，并保留独立 `git_repository` Provider、Server build executor 和统一 artifact pipeline 的后续边界。
+* 完成 Swagger、中文 changelog、Pages 设计、总体架构、Agent 设计、使用指南与 README 同步。
+
+### 7.2 已通过的自动化验证
+
+* `make swagger`：通过，生成物已随实现提交。
+* `make prettier`：通过；格式化产生的三个无关存量文件变化已恢复，未混入提交。
+* `make code-check`：通过；`golangci-lint`、前端 TypeScript 与全量 ESLint 均无错误。
+* Pages、Agent、GitHub Release integration、归档、上传和迁移相关 Go 定向测试通过；关键并发路径的 race 测试通过。
+* SQLite Pages source 与 scanner schedule migration 的 Up/Down/Up 通过。
+* 前端 Pages 四个测试文件共 34 条用例全部通过，相关 TypeScript 与 ESLint 检查通过。
+* 全仓 Go 测试中 `internal/apps/openflare/pages`、`internal/apps/openflare/agent`、`internal/integration/githubrelease`、`internal/db/migrator`、`internal/apps/upload/*` 与 `pkg/pagesarchive` 均通过。
+
+### 7.3 全仓测试中仍存在的范围外失败
+
+* `go test ./... -count=1` 未全绿：`internal/apps/admin/system_config` 仍按旧快照断言 32 条默认配置和 3 条 business 配置，实际为 34 和 5；本分支未修改该模块。
+* `internal/apps/flared/frpc` 的 `TestUnexpectedExit0CPUProtection`、`TestBackoffReset` 及 `internal/apps/relay/frps` 的 `TestUnexpectedExitAndAutorestart` 存在进程状态时序失败。
+* `internal/apps/openflare/tasks` 的 `TestRunSSLRenewJobTriggersDueCertificates` 连接本机 Redis 时收到 `NOAUTH Authentication required`，证书状态因此未进入 `applying`。
+* 前端全仓 Vitest 共 101 条通过、1 条失败：`frontend/tests/zone/zone-page.test.tsx:116` 仍查找旧文案“唯一访问者”；Pages 的 34 条测试不受影响。
+
+这些失败点不属于本次 Pages V2 功能路径，因此未通过扩大范围修改存量模块来掩盖；它们仍应在各自模块后续收敛。
+
+### 7.4 本地环境未执行的生产验收
+
+* `OPENFLARE_TEST_POSTGRES_DSN` 未设置，因此 PostgreSQL migration Up/Down/Up、JSONB orphan 候选矩阵和真实行锁竞争未执行；SQLite 对应路径已通过。
+* 未访问真实公开 GitHub Release，也未以真实服务验证 GitHub rate limit、asset redirect、Remote public DNS rebinding 或 `trusted_internal` 自签 TLS；普通测试均使用可注入 client/`httptest.Server` 覆盖协议分支。
+* 未执行多 Agent 实机收敛，以及 Server/Worker 在下载、Ingest、最终提交阶段的进程级中断矩阵。
+* 前端交互由 React Testing Library 覆盖，未执行真实浏览器 E2E。
+
+### 7.5 剩余验证债务
+
+当前 orphan/deployment 竞态测试能验证锁序与事务结果，但 SQLite 串行执行不能替代 PostgreSQL 下两个独立事务的真实行锁竞争。生产发布前应在可用 PostgreSQL 测试实例上补跑 migration、JSONB 候选和双事务交错测试，并按 §4.7 完成真实网络与多 Agent 最小矩阵。
