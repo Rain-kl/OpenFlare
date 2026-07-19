@@ -785,6 +785,9 @@ func TestManagedWAFLuaExecutesCompiledGraphWithoutRequestIO(t *testing.T) {
 	if !strings.Contains(openRestyWAFRuntimeLua, `node.type == "ua_check"`) {
 		t.Fatal("expected WAF runtime to execute compiled UA check nodes")
 	}
+	if !strings.Contains(openRestyWAFRuntimeLua, `node.type == "security_check"`) {
+		t.Fatal("expected WAF runtime to execute compiled security check nodes")
+	}
 	checkStart := strings.Index(openRestyWAFRuntimeLua, "function _M.check()")
 	if checkStart < 0 || strings.Contains(openRestyWAFRuntimeLua[checkStart:], "io.open") {
 		t.Fatal("expected WAF request path not to perform file I/O")

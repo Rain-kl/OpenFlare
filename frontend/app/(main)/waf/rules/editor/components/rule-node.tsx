@@ -6,6 +6,7 @@ import {
   Globe2,
   Play,
   ScanSearch,
+  Shield,
   ShieldCheck,
 } from 'lucide-react';
 
@@ -25,6 +26,7 @@ const meta = {
   ip_match: { icon: Fingerprint },
   geo_match: { icon: Globe2 },
   ua_check: { icon: ScanSearch },
+  security_check: { icon: Shield },
   pow: { icon: ShieldCheck },
   allow: { icon: Flag },
   block: { icon: Ban },
@@ -35,6 +37,7 @@ const outputHandles: Partial<Record<WAFRuleNode['type'], string[]>> = {
   ip_match: ['true', 'false'],
   geo_match: ['true', 'false'],
   ua_check: ['true', 'false'],
+  security_check: ['true', 'false'],
   pow: ['next'],
 };
 

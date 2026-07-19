@@ -790,6 +790,18 @@ export interface UACheckConfig {
   custom_ua_patterns: string[];
 }
 
+export interface SecurityCheckConfig {
+  sql_injection: boolean;
+  path_traversal: boolean;
+  command_injection: boolean;
+  xss: boolean;
+  ssrf: boolean;
+  file_inclusion: boolean;
+  malicious_upload: boolean;
+  xxe: boolean;
+  crlf_injection: boolean;
+}
+
 export type WAFRuleNode =
   | {
       id: string;
@@ -818,6 +830,13 @@ export type WAFRuleNode =
       label?: string;
       position: XYPosition;
       config: UACheckConfig;
+    }
+  | {
+      id: string;
+      type: 'security_check';
+      label?: string;
+      position: XYPosition;
+      config: SecurityCheckConfig;
     }
   | {
       id: string;

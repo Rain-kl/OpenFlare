@@ -42,6 +42,30 @@ func TestCompileRuleGraph(t *testing.T) {
 	}
 }
 
+func TestCompileSecurityCheckConfig(t *testing.T) {
+	graph := RuleGraph{SchemaVersion: RuleGraphSchemaVersion, Nodes: []RuleNode{
+		{ID: "start", Type: RuleNodeStart, Config: rawConfig(`{}`)},
+		{ID: "sec", Type: RuleNodeSecurityCheck, Config: rawConfig(`{"path_traversal":true,"file_inclusion":true,"sql_injection":false}`)},
+		{ID: "allow", Type: RuleNodeAllow, Config: rawConfig(`{}`)},
+		{ID: "block", Type: RuleNodeBlock, Config: rawConfig(`{"status_code":403}`)},
+	}, Edges: []RuleEdge{
+		{ID: "e1", Source: "start", SourceHandle: "next", Target: "sec"},
+		{ID: "e2", Source: "sec", SourceHandle: "true", Target: "allow"},
+		{ID: "e3", Source: "sec", SourceHandle: "false", Target: "block"},
+	}}
+	compiled, err := CompileRuleGraph(graph)
+	if err != nil {
+		t.Fatalf("CompileRuleGraph() error = %v", err)
+	}
+	cfg, ok := compiled.Nodes["sec"].Config.(SecurityCheckConfig)
+	if !ok {
+		t.Fatalf("config type = %T", compiled.Nodes["sec"].Config)
+	}
+	if !cfg.PathTraversal || !cfg.FileInclusion || cfg.SQLInjection {
+		t.Fatalf("unexpected config %#v", cfg)
+	}
+}
+
 func TestCompileUACheckConfigNormalizesListsAndMatchMode(t *testing.T) {
 	graph := RuleGraph{SchemaVersion: RuleGraphSchemaVersion, Nodes: []RuleNode{
 		{ID: "start", Type: RuleNodeStart, Config: rawConfig(`{}`)},

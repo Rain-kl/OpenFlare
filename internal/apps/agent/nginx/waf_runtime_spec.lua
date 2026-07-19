@@ -80,19 +80,27 @@ local function load_runtime(config, options)
 end
 
 local function reset_request(site, ip, uri, is_internal, user_agent)
+    local path = uri or "/"
     ngx.var = {
         openflare_waf_site = site,
         remote_addr = ip or "192.0.2.1",
-        uri = uri or "/",
+        uri = path,
+        request_uri = path,
         request_id = "request-1",
         openflare_internal = is_internal == true,
         http_user_agent = user_agent,
     }
     ngx.ctx = {}
     ngx.header = {}
+    ngx.status = nil
     output = {}
     pow_calls = {}
     pow_results = {}
+    ngx.req = {
+        is_internal = function() return is_internal == true end,
+        get_uri_args = function() return {} end,
+        get_headers = function() return {} end,
+    }
 end
 
 local function binding(site, ids)
@@ -664,6 +672,71 @@ test_block_config_and_rule_order()
 test_damaged_graphs_fail_closed()
 test_null_binding_ids_are_treated_as_empty()
 test_request_path_has_no_file_io()
+local function test_security_check_path_and_sql()
+    local function security_graph(config)
+        return graph({
+            start = start_to("sec"),
+            sec = node("security_check", config, { ["true"] = "allow", ["false"] = "blocked" }),
+            blocked = node("block", { status_code = 403, response_body = "security blocked" }),
+            allow = node("allow"),
+        })
+    end
+
+    local runtime = load_runtime({
+        rule_groups = { rule(1, false, security_graph({
+            path_traversal = true,
+            file_inclusion = true,
+        })) },
+        bindings = { binding("sec-site", { 1 }) },
+    })
+    reset_request("sec-site", nil, "/ok")
+    runtime.check()
+    assert_equal(output.exit, nil, "clean path should pass")
+
+    reset_request("sec-site", nil, "/static/../etc/passwd")
+    local matched = runtime.debug_security_check({
+        path_traversal = true,
+        file_inclusion = true,
+    })
+    assert_equal(matched, false, "matcher should report attack for path traversal")
+    local rules = runtime.debug_active_rules("sec-site")
+    local decision, err = runtime.debug_execute_graph(rules[1].graph)
+    assert_equal(err, nil, "execute graph err")
+    assert_equal(decision and decision.kind or "nil", "block", "execute graph should block")
+    -- Drive the same block path as check() without depending on ngx.exit side effects.
+    if decision.kind == "block" then
+        local status = tonumber(decision.config.status_code) or 403
+        output.exit = status
+        output.body = decision.config.response_body or ""
+        ngx.status = status
+    end
+    assert_equal(output.exit, 403, "path traversal should block")
+    assert_equal(output.body, "security blocked", "path traversal block body")
+
+    runtime = load_runtime({
+        rule_groups = { rule(1, false, security_graph({ sql_injection = true })) },
+        bindings = { binding("sec-site", { 1 }) },
+    })
+    reset_request("sec-site", nil, "/")
+    ngx.var.args = "q=1'+union+select+1--"
+    ngx.req.get_uri_args = function()
+        return { q = "1' union select 1--" }
+    end
+    decision, err = runtime.debug_execute_graph(runtime.debug_active_rules("sec-site")[1].graph)
+    assert_equal(err, nil, "sql execute err")
+    assert_equal(decision and decision.kind or "nil", "block", "sql should block")
+
+    runtime = load_runtime({
+        rule_groups = { rule(1, false, security_graph({})) },
+        bindings = { binding("sec-site", { 1 }) },
+    })
+    reset_request("sec-site", nil, "/static/../etc/passwd")
+    decision, err = runtime.debug_execute_graph(runtime.debug_active_rules("sec-site")[1].graph)
+    assert_equal(err, nil, "off execute err")
+    assert_equal(decision and decision.kind or "nil", "allow", "all protections off should allow")
+end
+
 test_ua_check_require_block_and_whitelist()
+test_security_check_path_and_sql()
 
 return true

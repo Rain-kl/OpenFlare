@@ -344,6 +344,95 @@ function PropertyFields({
         )}
       </FieldGroup>
     );
+  if (node.type === 'security_check')
+    return (
+      <FieldGroup>
+        <DisplayNameField node={node} onChange={onChange} />
+        <div className='space-y-1'>
+          <p className='flex items-center gap-1.5 text-xs font-medium text-muted-foreground'>
+            安全防护
+            <FieldHelp tip='命中任意已启用规则返回 False' />
+          </p>
+        </div>
+        <Separator />
+        <div className='space-y-3'>
+          <p className='text-xs font-medium text-muted-foreground'>基础防护</p>
+          {(
+            [
+              {
+                key: 'path_traversal',
+                label: '路径穿越防护',
+                tip: '检测 Path / Query / Body 中的 ../ 与编码变种',
+              },
+              {
+                key: 'file_inclusion',
+                label: '文件包含（LFI/RFI）',
+                tip: '检测 Path / Query / Body 中的 php://、file://、/etc/passwd 等',
+              },
+              {
+                key: 'sql_injection',
+                label: 'SQL 注入',
+                tip: '检测 Query / Body / Header / Cookie 中的 SQL 注入特征',
+              },
+              {
+                key: 'command_injection',
+                label: '命令注入',
+                tip: '检测 Query / Body / Header 中的 OS 命令注入特征',
+              },
+              {
+                key: 'xss',
+                label: 'XSS',
+                tip: '检测 Query / Body / Header 中的反射型 XSS 特征',
+              },
+              {
+                key: 'ssrf',
+                label: 'SSRF',
+                tip: '检测 Query / Body 中的内网地址与危险协议',
+              },
+              {
+                key: 'malicious_upload',
+                label: '恶意文件上传',
+                tip: '检测 Multipart 文件名与危险扩展名',
+              },
+              {
+                key: 'xxe',
+                label: 'XXE',
+                tip: '检测 XML Body 中的外部实体特征',
+              },
+              {
+                key: 'crlf_injection',
+                label: 'CRLF 注入',
+                tip: '检测 Header / Query / Body 中的换行注入',
+              },
+            ] as const
+          ).map((item) => (
+            <Field
+              key={item.key}
+              orientation='horizontal'
+              className='items-center justify-between gap-3'
+            >
+              <FieldLabel
+                htmlFor={`${node.id}-${item.key}`}
+                className='flex items-center gap-1.5'
+              >
+                {item.label}
+                <FieldHelp tip={item.tip} />
+              </FieldLabel>
+              <Switch
+                id={`${node.id}-${item.key}`}
+                checked={node.config[item.key]}
+                onCheckedChange={(checked) =>
+                  onChange({
+                    ...node,
+                    config: { ...node.config, [item.key]: checked },
+                  })
+                }
+              />
+            </Field>
+          ))}
+        </div>
+      </FieldGroup>
+    );
   if (node.type === 'pow')
     return (
       <FieldGroup>

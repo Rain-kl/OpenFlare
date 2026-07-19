@@ -31,6 +31,7 @@ const handles: Partial<Record<WAFRuleNode['type'], string[]>> = {
   ip_match: ['true', 'false'],
   geo_match: ['true', 'false'],
   ua_check: ['true', 'false'],
+  security_check: ['true', 'false'],
   pow: ['next'],
 };
 

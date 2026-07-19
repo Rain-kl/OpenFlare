@@ -4,7 +4,7 @@ export const WAF_NODE_DRAG_MIME = 'application/openflare-waf-node';
 
 export type AddableNodeType = Extract<
   WAFRuleNode['type'],
-  'ip_match' | 'geo_match' | 'ua_check' | 'pow' | 'block'
+  'ip_match' | 'geo_match' | 'ua_check' | 'security_check' | 'pow' | 'block'
 >;
 
 export const NODE_TYPE_LABELS: Record<WAFRuleNode['type'], string> = {
@@ -12,6 +12,7 @@ export const NODE_TYPE_LABELS: Record<WAFRuleNode['type'], string> = {
   ip_match: 'IP 匹配',
   geo_match: '地域匹配',
   ua_check: 'UA 检查',
+  security_check: '安全防护',
   pow: 'PoW 挑战',
   allow: '通过',
   block: '阻止',
@@ -54,6 +55,23 @@ export function createRuleNode(
         custom_ua_patterns: [],
       },
     };
+  if (type === 'security_check')
+    return {
+      id,
+      type,
+      position,
+      config: {
+        sql_injection: false,
+        path_traversal: true,
+        command_injection: false,
+        xss: false,
+        ssrf: false,
+        file_inclusion: true,
+        malicious_upload: false,
+        xxe: false,
+        crlf_injection: false,
+      },
+    };
   if (type === 'pow')
     return {
       id,
@@ -79,6 +97,7 @@ export function parseAddableNodeType(value: string): AddableNodeType | null {
     value === 'ip_match' ||
     value === 'geo_match' ||
     value === 'ua_check' ||
+    value === 'security_check' ||
     value === 'pow' ||
     value === 'block'
   )

@@ -49,6 +49,7 @@ describe('parseAddableNodeType', () => {
   it('accepts addable types and rejects others', () => {
     expect(parseAddableNodeType('ip_match')).toBe('ip_match');
     expect(parseAddableNodeType('ua_check')).toBe('ua_check');
+    expect(parseAddableNodeType('security_check')).toBe('security_check');
     expect(parseAddableNodeType('start')).toBeNull();
     expect(parseAddableNodeType('')).toBeNull();
   });

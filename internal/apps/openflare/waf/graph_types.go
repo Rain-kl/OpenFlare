@@ -26,6 +26,8 @@ const (
 	RuleNodePoW RuleNodeType = "pow"
 	// RuleNodeUACheck branches on User-Agent presence, classification, and lists.
 	RuleNodeUACheck RuleNodeType = "ua_check"
+	// RuleNodeSecurityCheck branches on basic request payload attack signatures.
+	RuleNodeSecurityCheck RuleNodeType = "security_check"
 )
 
 // RuleGraph is the editor-facing representation of an executable WAF graph.
@@ -102,6 +104,28 @@ const (
 	UACheckMatchModeAnd = "and"
 	UACheckMatchModeOr  = "or"
 )
+
+// SecurityCheckConfig toggles basic payload signature protections.
+// Default graph nodes enable path_traversal and file_inclusion only.
+type SecurityCheckConfig struct {
+	SQLInjection     bool `json:"sql_injection"`
+	PathTraversal    bool `json:"path_traversal"`
+	CommandInjection bool `json:"command_injection"`
+	XSS              bool `json:"xss"`
+	SSRF             bool `json:"ssrf"`
+	FileInclusion    bool `json:"file_inclusion"`
+	MaliciousUpload  bool `json:"malicious_upload"`
+	XXE              bool `json:"xxe"`
+	CRLFInjection    bool `json:"crlf_injection"`
+}
+
+// DefaultSecurityCheckConfig returns low false-positive defaults.
+func DefaultSecurityCheckConfig() SecurityCheckConfig {
+	return SecurityCheckConfig{
+		PathTraversal: true,
+		FileInclusion: true,
+	}
+}
 
 // DefaultRuleGraph returns the minimal start-to-allow graph.
 func DefaultRuleGraph() RuleGraph {

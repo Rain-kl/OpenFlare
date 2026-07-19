@@ -100,6 +100,9 @@ func compileRuleNodeConfig(node RuleNode) (any, error) {
 			config.MatchMode = UACheckMatchModeOr
 		}
 		return config, nil
+	case RuleNodeSecurityCheck:
+		var config SecurityCheckConfig
+		return config, decodeStrictConfig(node.Config, &config)
 	case RuleNodeBlock:
 		var config BlockNodeConfig
 		return config, decodeStrictConfig(node.Config, &config)

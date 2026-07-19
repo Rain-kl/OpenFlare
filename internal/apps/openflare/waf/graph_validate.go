@@ -89,7 +89,7 @@ func validateRuleGraphNodes(ctx context.Context, graphNodes []RuleNode, ipGroupE
 			startID = node.ID
 		case RuleNodeAllow:
 			allowCount++
-		case RuleNodeBlock, RuleNodeIPMatch, RuleNodeGeoMatch, RuleNodePoW, RuleNodeUACheck:
+		case RuleNodeBlock, RuleNodeIPMatch, RuleNodeGeoMatch, RuleNodePoW, RuleNodeUACheck, RuleNodeSecurityCheck:
 		default:
 			return nil, "", fmt.Errorf("节点 %s 的类型 %s 未知", node.ID, node.Type)
 		}
@@ -184,6 +184,8 @@ func validateRuleNodeConfig(ctx context.Context, node RuleNode, exists func(cont
 		return validatePoWNodeConfig(node)
 	case RuleNodeUACheck:
 		return validateUACheckNodeConfig(node)
+	case RuleNodeSecurityCheck:
+		return validateSecurityCheckNodeConfig(node)
 	case RuleNodeBlock:
 		return validateBlockNodeConfig(node)
 	}
@@ -329,6 +331,11 @@ func validateUACheckNodeConfig(node RuleNode) error {
 	return nil
 }
 
+func validateSecurityCheckNodeConfig(node RuleNode) error {
+	var cfg SecurityCheckConfig
+	return decodeNodeConfig(node, &cfg)
+}
+
 var uaBrowserLabels = map[string]bool{
 	"Chrome": true, "Safari": true, "Firefox": true, "Edge": true, "Opera": true,
 	"Chromium": true, "WeChat": true, "Postman": true, "CLI": true, "Bot": true,
@@ -378,7 +385,7 @@ func requiredHandles(t RuleNodeType) []string {
 	switch t {
 	case RuleNodeStart, RuleNodePoW:
 		return []string{"next"}
-	case RuleNodeIPMatch, RuleNodeGeoMatch, RuleNodeUACheck:
+	case RuleNodeIPMatch, RuleNodeGeoMatch, RuleNodeUACheck, RuleNodeSecurityCheck:
 		return []string{"true", "false"}
 	default:
 		return nil

@@ -412,6 +412,187 @@ local function matches_ua_check(config)
     return browser_ok or os_ok
 end
 
+local security_body_max = 65536
+
+local function url_decode(value)
+    value = string.gsub(value or "", "+", " ")
+    value = string.gsub(value, "%%(%x%x)", function(hex)
+        return string.char(tonumber(hex, 16))
+    end)
+    return value
+end
+
+local function security_decode(value)
+    local once = url_decode(value)
+    local twice = url_decode(once)
+    return string.lower(once), string.lower(twice)
+end
+
+local function security_match_any(haystacks, patterns)
+    for _, hay in ipairs(haystacks) do
+        if type(hay) == "string" and hay ~= "" then
+            for _, pattern in ipairs(patterns) do
+                if string.find(hay, pattern, 1, true) then return true end
+            end
+        end
+    end
+    return false
+end
+
+local function security_append_decoded(list, value)
+    if type(value) ~= "string" or value == "" then return end
+    local once, twice = security_decode(value)
+    list[#list + 1] = once
+    if twice ~= once then list[#list + 1] = twice end
+end
+
+local function security_collect_args(list)
+    if not ngx.req or not ngx.req.get_uri_args then
+        security_append_decoded(list, ngx.var.args or "")
+        return
+    end
+    local args = ngx.req.get_uri_args(100)
+    if type(args) ~= "table" then return end
+    for key, value in pairs(args) do
+        security_append_decoded(list, tostring(key))
+        if type(value) == "table" then
+            for _, item in ipairs(value) do security_append_decoded(list, tostring(item)) end
+        else
+            security_append_decoded(list, tostring(value))
+        end
+    end
+end
+
+local function security_collect_headers(list)
+    if not ngx.req or not ngx.req.get_headers then return end
+    local headers = ngx.req.get_headers(100)
+    if type(headers) ~= "table" then return end
+    for name, value in pairs(headers) do
+        local lower_name = string.lower(tostring(name))
+        if lower_name ~= "host" and lower_name ~= "connection" and lower_name ~= "content-length" then
+            security_append_decoded(list, tostring(name))
+            if type(value) == "table" then
+                for _, item in ipairs(value) do security_append_decoded(list, tostring(item)) end
+            else
+                security_append_decoded(list, tostring(value))
+            end
+        end
+    end
+end
+
+local function security_read_body()
+    local content_length = tonumber(ngx.var.content_length or "") or 0
+    if content_length <= 0 or content_length > security_body_max then return nil end
+    if not ngx.req or not ngx.req.read_body or not ngx.req.get_body_data then return nil end
+    local ok = pcall(ngx.req.read_body)
+    if not ok then return nil end
+    local body = ngx.req.get_body_data()
+    if type(body) ~= "string" or body == "" then return nil end
+    return body
+end
+
+local path_traversal_patterns = {
+    "../", "..\\", "..%2f", "..%5c", "%2e%2e", "%252e", "....//",
+    "/etc/passwd", "c:\\windows",
+}
+local file_inclusion_patterns = {
+    "php://", "file://", "zip://", "data://", "expect://", "/etc/passwd",
+    "proc/self", "%00",
+}
+local sql_patterns = {
+    "union select", " or 1=1", "' or '", "\" or \"", "sleep(", "benchmark(",
+    "information_schema", "xp_cmdshell", "load_file(", " into outfile",
+    "/*", "*/", "@@version",
+}
+local command_patterns = {
+    ";wget", ";curl", "|bash", "|sh", "`id`", "$(id)", "&&", "||",
+    "/bin/sh", "/bin/bash", "powershell", "cmd.exe",
+}
+local xss_patterns = {
+    "<script", "javascript:", "onerror=", "onload=", "onmouseover=",
+    "<iframe", "document.cookie", "eval(",
+}
+local ssrf_patterns = {
+    "127.0.0.1", "localhost", "0.0.0.0", "169.254.", "[::1]",
+    "file://", "gopher://", "dict://", "metadata.google",
+}
+local upload_patterns = {
+    ".php.", ".jsp.", ".asp.", ".aspx.", ".phtml", ".phar",
+    "application/x-php", "application/x-httpd-php",
+}
+local xxe_patterns = {
+    "<!entity", " system ", "public ", "file://",
+}
+local crlf_patterns = {
+    "%0d%0a", "%0d", "%0a", "\r\n",
+}
+
+local function security_flag_enabled(value)
+    return value == true or value == 1 or value == "true" or value == "1"
+end
+
+local function matches_security_check(config)
+    config = config or {}
+    local sql_injection = security_flag_enabled(config.sql_injection)
+    local path_traversal = security_flag_enabled(config.path_traversal)
+    local command_injection = security_flag_enabled(config.command_injection)
+    local xss = security_flag_enabled(config.xss)
+    local ssrf = security_flag_enabled(config.ssrf)
+    local file_inclusion = security_flag_enabled(config.file_inclusion)
+    local malicious_upload = security_flag_enabled(config.malicious_upload)
+    local xxe = security_flag_enabled(config.xxe)
+    local crlf_injection = security_flag_enabled(config.crlf_injection)
+    if not (sql_injection or path_traversal or command_injection or xss or ssrf
+        or file_inclusion or malicious_upload or xxe or crlf_injection) then
+        return true
+    end
+
+    local path_inputs, query_inputs, header_inputs, body_inputs = {}, {}, {}, {}
+    security_append_decoded(path_inputs, ngx.var.uri or "")
+    security_append_decoded(path_inputs, ngx.var.request_uri or "")
+    security_collect_args(query_inputs)
+    security_collect_headers(header_inputs)
+    security_append_decoded(header_inputs, ngx.var.http_cookie or "")
+
+    local need_body = sql_injection or path_traversal or command_injection or xss or ssrf
+        or file_inclusion or malicious_upload or xxe or crlf_injection
+    local body
+    if need_body then body = security_read_body() end
+    if body then security_append_decoded(body_inputs, body) end
+
+    local pq = {}
+    for _, item in ipairs(path_inputs) do pq[#pq + 1] = item end
+    for _, item in ipairs(query_inputs) do pq[#pq + 1] = item end
+    for _, item in ipairs(body_inputs) do pq[#pq + 1] = item end
+
+    local qhb = {}
+    for _, item in ipairs(query_inputs) do qhb[#qhb + 1] = item end
+    for _, item in ipairs(header_inputs) do qhb[#qhb + 1] = item end
+    for _, item in ipairs(body_inputs) do qhb[#qhb + 1] = item end
+
+    if path_traversal and security_match_any(pq, path_traversal_patterns) then return false end
+    if file_inclusion and security_match_any(pq, file_inclusion_patterns) then return false end
+    if sql_injection and security_match_any(qhb, sql_patterns) then return false end
+    if command_injection and security_match_any(qhb, command_patterns) then return false end
+    if xss and security_match_any(qhb, xss_patterns) then return false end
+    if ssrf and security_match_any(qhb, ssrf_patterns) then return false end
+    if crlf_injection and security_match_any(qhb, crlf_patterns) then return false end
+
+    if malicious_upload and body then
+        local content_type = string.lower(ngx.var.content_type or "")
+        if string.find(content_type, "multipart/", 1, true) then
+            if security_match_any(body_inputs, upload_patterns) then return false end
+        end
+    end
+    if xxe and body then
+        local content_type = string.lower(ngx.var.content_type or "")
+        if string.find(content_type, "xml", 1, true) or string.find(string.lower(body), "<?xml", 1, true) then
+            if security_match_any(body_inputs, xxe_patterns) then return false end
+        end
+    end
+    return true
+end
+
 local function fail_closed(reason)
     local dict = ngx.shared and ngx.shared.openflare_waf_config
     if not dict or not dict.add or dict:add("_damaged_graph_logged", true, 60) then
@@ -467,6 +648,8 @@ local function execute_graph(graph)
             handle = (list_contains(config.countries, country) or list_contains(config.regions, region)) and "true" or "false"
         elseif node.type == "ua_check" then
             handle = matches_ua_check(node.config or {}) and "true" or "false"
+        elseif node.type == "security_check" then
+            handle = matches_security_check(node.config or {}) and "true" or "false"
         elseif node.type == "pow" then
             if pow_runtime.evaluate(node.config or {}) ~= true then
                 return { kind = "takeover" }
@@ -524,6 +707,19 @@ function _M.check()
         if decision.kind == "takeover" then return end
     end
     return "ok"
+end
+
+-- Test helpers for unit specs.
+function _M.debug_security_check(config)
+    return matches_security_check(config or {})
+end
+
+function _M.debug_active_rules(site)
+    return active_rules(site or "")
+end
+
+function _M.debug_execute_graph(graph)
+    return execute_graph(graph)
 end
 
 return _M
