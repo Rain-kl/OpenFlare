@@ -5,7 +5,7 @@ import type { WAFIPGroup, WAFRuleNode } from '@/lib/services/openflare';
 
 import { NodeProperties } from './node-properties';
 
-it('toggles UA check switches and match mode', () => {
+it('hides match and block until UA check is enabled', () => {
   const node: WAFRuleNode = {
     id: 'ua',
     type: 'ua_check',
@@ -20,17 +20,31 @@ it('toggles UA check switches and match mode', () => {
     },
   };
   const onChange = vi.fn();
-  render(<NodeProperties node={node} ipGroups={[]} onChange={onChange} />);
+  const { rerender } = render(
+    <NodeProperties node={node} ipGroups={[]} onChange={onChange} />,
+  );
+  expect(screen.queryByLabelText('屏蔽常见爬虫 UA')).not.toBeInTheDocument();
+  expect(screen.queryByLabelText('浏览器')).not.toBeInTheDocument();
   fireEvent.click(screen.getByLabelText('开启 UA 检查'));
   expect(onChange).toHaveBeenCalledWith(
     expect.objectContaining({
       config: expect.objectContaining({ require_ua: true }),
     }),
   );
+  rerender(
+    <NodeProperties
+      node={{ ...node, config: { ...node.config, require_ua: true } }}
+      ipGroups={[]}
+      onChange={onChange}
+    />,
+  );
   expect(screen.getByLabelText('屏蔽常见爬虫 UA')).toBeInTheDocument();
   expect(screen.getByLabelText('屏蔽非正常 UA')).toBeInTheDocument();
   expect(
-    screen.getByText('命中返回 false，优先级高于匹配'),
+    screen.getByText(/浏览器或操作系统分类为 Bot/),
+  ).toBeInTheDocument();
+  expect(
+    screen.getByText(/浏览器分类为 Bot、Other 或 Unknown/),
   ).toBeInTheDocument();
 });
 
