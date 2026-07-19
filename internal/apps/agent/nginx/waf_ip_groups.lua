@@ -95,6 +95,7 @@ local function adopt_shared_snapshot_if_changed()
     if type(version) ~= "string" or version == "" or version == current_version then return end
     local snapshot = decode_snapshot(shared:get(raw_snapshot_prefix .. version))
     if not snapshot then return end
+    -- Matchers are compiled lazily in waf.runtime (resty.ipmatcher / fallback index).
     current_groups = snapshot
     current_version = version
 end

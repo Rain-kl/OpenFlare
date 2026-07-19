@@ -6,11 +6,19 @@ local function assert_equal(actual, expected, message)
     end
 end
 
-local output
-local pow_calls
-local pow_results
+-- Stable tables: never rebind `output` (closures capture the upvalue slot; rebinding
+-- can leave stale fields visible under gopher-lua across long test sequences).
+local output = {}
+local pow_calls = {}
+local pow_results = {}
 local shared_keys = {}
 local logs = {}
+
+local function clear_output()
+    output.exit = nil
+    output.body = nil
+    output.log = nil
+end
 
 ngx = {
     WARN = "WARN",
@@ -93,7 +101,7 @@ local function reset_request(site, ip, uri, is_internal, user_agent)
     ngx.ctx = {}
     ngx.header = {}
     ngx.status = nil
-    output = {}
+    clear_output()
     pow_calls = {}
     pow_results = {}
     ngx.req = {
@@ -569,7 +577,6 @@ local function test_ua_check_require_block_and_whitelist()
     runtime.check()
     assert_equal(output.exit, 403, "missing UA with require_ua should block")
     reset_request("ua-site", nil, nil, nil, chrome_ua)
-    output = {}
     runtime.check()
     assert_equal(output.exit, nil, "present UA with require_ua should allow")
 
@@ -589,11 +596,9 @@ local function test_ua_check_require_block_and_whitelist()
     runtime.check()
     assert_equal(output.exit, 403, "abnormal UA should be blocked")
     reset_request("ua-site", nil, nil, nil, bot_ua)
-    output = {}
     runtime.check()
     assert_equal(output.exit, nil, "search bot should not be abnormal when bots switch is off")
     reset_request("ua-site", nil, nil, nil, chrome_ua)
-    output = {}
     runtime.check()
     assert_equal(output.exit, nil, "normal browser should pass abnormal check")
 
@@ -608,7 +613,6 @@ local function test_ua_check_require_block_and_whitelist()
     runtime.check()
     assert_equal(output.exit, 403, "custom regex should block matching UA")
     reset_request("ua-site", nil, nil, nil, chrome_ua)
-    output = {}
     runtime.check()
     assert_equal(output.exit, nil, "custom regex should allow non-matching UA")
 
@@ -620,7 +624,6 @@ local function test_ua_check_require_block_and_whitelist()
     runtime.check()
     assert_equal(output.exit, 403, "Safari should miss Chrome whitelist")
     reset_request("ua-site", nil, nil, nil, chrome_ua)
-    output = {}
     runtime.check()
     assert_equal(output.exit, nil, "Chrome should hit whitelist")
 
@@ -636,7 +639,6 @@ local function test_ua_check_require_block_and_whitelist()
     runtime.check()
     assert_equal(output.exit, 403, "Chrome desktop should fail Chrome+iOS and")
     reset_request("ua-site", nil, nil, nil, safari_ios_ua)
-    output = {}
     runtime.check()
     assert_equal(output.exit, 403, "Safari iOS should fail Chrome+iOS and")
 
@@ -652,7 +654,6 @@ local function test_ua_check_require_block_and_whitelist()
     runtime.check()
     assert_equal(output.exit, nil, "Chrome desktop should pass Chrome|iOS or")
     reset_request("ua-site", nil, nil, nil, safari_ios_ua)
-    output = {}
     runtime.check()
     assert_equal(output.exit, nil, "Safari iOS should pass Chrome|iOS or")
 end
@@ -904,7 +905,60 @@ local function test_security_check_path_and_sql()
     )
 end
 
+local function test_ip_matcher_index_miss_and_hit()
+    local runtime = load_runtime({ rule_groups = {}, bindings = {} }, {
+        ip_groups = {
+            groups = {
+                ["1"] = {
+                    enabled = true,
+                    ip_list = {
+                        "10.0.0.0/8",
+                        "203.0.113.50",
+                        "2001:db8:1::/48",
+                    },
+                },
+            },
+        },
+    })
+
+    local many = {}
+    for i = 1, 5000 do
+        many[i] = string.format("198.51.100.%d", (i % 254) + 1)
+    end
+    many[#many + 1] = "198.51.100.0/24"
+    local matcher = runtime.debug_compile_ip_matcher(many)
+    assert_equal(matcher:match("203.0.113.1"), false, "large list miss")
+    assert_equal(matcher:match("198.51.100.9"), true, "large list CIDR or exact hit")
+
+    assert_equal(
+        runtime.debug_matches_ip_values({ ip_group_ids = { 1 } }, "203.0.113.50"),
+        true,
+        "group exact hit"
+    )
+    assert_equal(
+        runtime.debug_matches_ip_values({ ip_group_ids = { 1 } }, "10.1.2.3"),
+        true,
+        "group CIDR hit"
+    )
+    assert_equal(
+        runtime.debug_matches_ip_values({ ip_group_ids = { 1 } }, "198.51.100.1"),
+        false,
+        "group miss"
+    )
+    assert_equal(
+        runtime.debug_matches_ip_values({ ips = { "192.0.2.9" }, cidrs = { "198.51.100.0/24" } }, "198.51.100.20"),
+        true,
+        "node cidr hit via compiled matcher"
+    )
+    assert_equal(
+        runtime.debug_matches_ip_values({ ips = { "2001:db8::1" } }, "2001:0db8:0:0:0:0:0:1"),
+        true,
+        "node ipv6 canonical exact"
+    )
+end
+
 test_ua_check_require_block_and_whitelist()
 test_security_check_path_and_sql()
+test_ip_matcher_index_miss_and_hit()
 
 return true
