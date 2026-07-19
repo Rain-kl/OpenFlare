@@ -1,23 +1,9 @@
 'use client';
 
-import {
-  Globe2,
-  MoreHorizontal,
-  Pencil,
-  ShieldCheck,
-  Trash2,
-} from 'lucide-react';
+import { Globe2, Pencil, ShieldCheck, Trash2 } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import {
   Table,
   TableBody,
@@ -50,7 +36,7 @@ export function RuleGroupsTable({
           <TableHead>节点数</TableHead>
           <TableHead>应用范围</TableHead>
           <TableHead>更新时间</TableHead>
-          <TableHead className='w-[80px] text-right'>操作</TableHead>
+          <TableHead className='w-[88px] text-right'>操作</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -59,9 +45,9 @@ export function RuleGroupsTable({
             <TableCell>
               <div className='flex items-center gap-2'>
                 {group.is_global ? (
-                  <Globe2 className='size-4 text-primary shrink-0' />
+                  <Globe2 className='size-4 shrink-0 text-primary' />
                 ) : (
-                  <ShieldCheck className='size-4 text-muted-foreground shrink-0' />
+                  <ShieldCheck className='size-4 shrink-0 text-muted-foreground' />
                 )}
                 <span className='font-medium'>{group.name}</span>
               </div>
@@ -82,39 +68,36 @@ export function RuleGroupsTable({
                 ? '全部网站'
                 : `${group.applied_site_count} 个网站`}
             </TableCell>
-            <TableCell className='text-muted-foreground text-sm'>
+            <TableCell className='text-sm text-muted-foreground'>
               {group.updated_at ? formatDateTime(group.updated_at) : '—'}
             </TableCell>
             <TableCell className='text-right'>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant='ghost' size='icon' className='size-8'>
-                    <MoreHorizontal />
+              <div className='flex items-center justify-end gap-1'>
+                <Button
+                  type='button'
+                  variant='ghost'
+                  size='icon'
+                  className='size-8'
+                  title='编排'
+                  aria-label='编排'
+                  onClick={() => onEdit(group)}
+                >
+                  <Pencil />
+                </Button>
+                {!group.is_global ? (
+                  <Button
+                    type='button'
+                    variant='ghost'
+                    size='icon'
+                    className='size-8 text-destructive hover:text-destructive'
+                    title='删除'
+                    aria-label='删除'
+                    onClick={() => onDelete(group)}
+                  >
+                    <Trash2 />
                   </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align='end'>
-                  <DropdownMenuGroup>
-                    <DropdownMenuItem onClick={() => onEdit(group)}>
-                      <Pencil />
-                      编排
-                    </DropdownMenuItem>
-                  </DropdownMenuGroup>
-                  {!group.is_global ? (
-                    <>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuGroup>
-                        <DropdownMenuItem
-                          variant='destructive'
-                          onClick={() => onDelete(group)}
-                        >
-                          <Trash2 />
-                          删除
-                        </DropdownMenuItem>
-                      </DropdownMenuGroup>
-                    </>
-                  ) : null}
-                </DropdownMenuContent>
-              </DropdownMenu>
+                ) : null}
+              </div>
             </TableCell>
           </TableRow>
         ))}
