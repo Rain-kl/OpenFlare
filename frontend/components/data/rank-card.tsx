@@ -18,6 +18,7 @@ type RankCardProps = {
   description: string;
   items: RankCardItem[];
   color?: string;
+  valueFormatter?: (value: number) => string;
 };
 
 export function RankCard({
@@ -25,6 +26,7 @@ export function RankCard({
   description,
   items,
   color = '#3b82f6',
+  valueFormatter,
 }: RankCardProps) {
   return (
     <Card className='border-dashed shadow-none'>
@@ -40,6 +42,7 @@ export function RankCard({
         <RankChart
           items={items}
           color={color}
+          valueFormatter={valueFormatter}
           emptyMessage={`暂无 ${title} 数据`}
         />
       </CardContent>
