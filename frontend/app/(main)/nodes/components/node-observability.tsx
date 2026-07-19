@@ -463,7 +463,7 @@ export function NodeObservability({
             }
             hint={
               latestHealthEvent
-                ? `${getHealthEventLabel(latestHealthEvent)} · ${latestHealthEvent.message || '等待处理'}`
+                ? getHealthEventLabel(latestHealthEvent)
                 : '当前没有活动中的健康事件'
             }
           />
@@ -597,7 +597,7 @@ export function NodeObservability({
           }
           hint={
             latestHealthEvent
-              ? `${getHealthEventLabel(latestHealthEvent)} · ${latestHealthEvent.message || '等待处理'}`
+              ? getHealthEventLabel(latestHealthEvent)
               : '当前没有活动中的健康事件'
           }
         />
