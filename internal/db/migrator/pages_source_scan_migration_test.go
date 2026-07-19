@@ -21,8 +21,8 @@ import (
 )
 
 const (
-	pagesSourceScanPreviousMigration = int64(202607190001)
-	pagesSourceScanMigration         = int64(202607190002)
+	pagesSourceScanPreviousMigration = int64(202607190002)
+	pagesSourceScanMigration         = int64(202607190003)
 	pagesSourceScanTaskType          = "of_pages_source_scan"
 )
 
@@ -114,8 +114,8 @@ func runPagesSourceScanScheduleMigration(
 
 func TestPagesSourceScanScheduleMigrationsUseDatabaseGeneratedIDs(t *testing.T) {
 	for _, name := range []string{
-		"goose/postgres/202607190002_seed_pages_source_scan.sql",
-		"goose/sqlite/202607190002_seed_pages_source_scan.sql",
+		"goose/postgres/202607190003_seed_pages_source_scan.sql",
+		"goose/sqlite/202607190003_seed_pages_source_scan.sql",
 	} {
 		t.Run(name, func(t *testing.T) {
 			content, err := migrationFS.ReadFile(name)
@@ -126,7 +126,7 @@ func TestPagesSourceScanScheduleMigrationsUseDatabaseGeneratedIDs(t *testing.T) 
 		})
 	}
 
-	postgresContent, err := migrationFS.ReadFile("goose/postgres/202607190002_seed_pages_source_scan.sql")
+	postgresContent, err := migrationFS.ReadFile("goose/postgres/202607190003_seed_pages_source_scan.sql")
 	require.NoError(t, err)
 	compactPostgres := strings.Join(strings.Fields(strings.ToLower(string(postgresContent))), " ")
 	assert.Contains(

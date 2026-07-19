@@ -21,8 +21,8 @@ import (
 )
 
 const (
-	pagesSourcePreviousMigration = int64(202607180001)
-	pagesSourceMigration         = int64(202607190001)
+	pagesSourcePreviousMigration = int64(202607190001)
+	pagesSourceMigration         = int64(202607190002)
 	pagesMigrationProjectID      = uint(900001)
 	pagesMigrationDeploymentID   = uint(900001)
 )
