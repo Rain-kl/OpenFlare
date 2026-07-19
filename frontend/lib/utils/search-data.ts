@@ -147,6 +147,21 @@ export const searchData: SearchItem[] = [
     keywords: ['ip', 'ip group', 'ip组', '黑名单', '白名单', '访问控制'],
   },
   {
+    id: 'console-rate-limits',
+    title: '限流',
+    description: '配置边缘站点默认并发与带宽限流策略',
+    url: '/rate-limits',
+    category: 'page',
+    keywords: [
+      '限流',
+      'rate limit',
+      'limit_conn',
+      'limit_rate',
+      '并发',
+      '带宽',
+    ],
+  },
+  {
     id: 'console-pages',
     title: 'Pages 静态托管',
     description: '上传或部署静态网页，提供全球 CDN 加速托管',

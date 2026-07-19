@@ -40,11 +40,11 @@ const rateLimitSchema = z
       if (!rawValue) {
         continue;
       }
-      if (!/^\d+$/.test(rawValue)) {
+      if (!/^-1$|^\d+$/.test(rawValue)) {
         context.addIssue({
           code: z.ZodIssueCode.custom,
           path: [field],
-          message: '请输入大于等于 0 的整数',
+          message: '请输入 -1、0 或正整数',
         });
       }
     }
@@ -60,6 +60,21 @@ const rateLimitSchema = z
   });
 
 type RateLimitValues = z.infer<typeof rateLimitSchema>;
+
+function formatConnValue(value: number | null | undefined) {
+  if (value === null || value === undefined || value === 0) {
+    return '';
+  }
+  return String(value);
+}
+
+function parseConnValue(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return 0;
+  }
+  return Number(trimmed);
+}
 
 interface LimitsSectionProps {
   route: ProxyRouteItem;
@@ -81,24 +96,16 @@ export function LimitsSection({
   const form = useForm<RateLimitValues>({
     resolver: zodResolver(rateLimitSchema),
     defaultValues: {
-      limit_conn_per_server: route.limit_conn_per_server
-        ? String(route.limit_conn_per_server)
-        : '',
-      limit_conn_per_ip: route.limit_conn_per_ip
-        ? String(route.limit_conn_per_ip)
-        : '',
+      limit_conn_per_server: formatConnValue(route.limit_conn_per_server),
+      limit_conn_per_ip: formatConnValue(route.limit_conn_per_ip),
       limit_rate: route.limit_rate || '',
     },
   });
 
   useEffect(() => {
     form.reset({
-      limit_conn_per_server: route.limit_conn_per_server
-        ? String(route.limit_conn_per_server)
-        : '',
-      limit_conn_per_ip: route.limit_conn_per_ip
-        ? String(route.limit_conn_per_ip)
-        : '',
+      limit_conn_per_server: formatConnValue(route.limit_conn_per_server),
+      limit_conn_per_ip: formatConnValue(route.limit_conn_per_ip),
       limit_rate: route.limit_rate || '',
     });
   }, [form, route]);
@@ -106,7 +113,7 @@ export function LimitsSection({
   return (
     <SectionShell
       title='流量限制'
-      description='站点限流，空值或 0 表示关闭。'
+      description='站点限流。空或 0 继承全局默认；-1 显式关闭；大于 0 为自定义。'
       formId={proxyRouteFormIds.limits}
       saving={saving}
     >
@@ -117,12 +124,10 @@ export function LimitsSection({
           onSubmit={form.handleSubmit(async (values) => {
             await save(
               {
-                limit_conn_per_server: Number(
-                  values.limit_conn_per_server.trim() || '0',
+                limit_conn_per_server: parseConnValue(
+                  values.limit_conn_per_server,
                 ),
-                limit_conn_per_ip: Number(
-                  values.limit_conn_per_ip.trim() || '0',
-                ),
+                limit_conn_per_ip: parseConnValue(values.limit_conn_per_ip),
                 limit_rate: normalizeLimitRate(values.limit_rate),
               },
               '流量限制已保存',
@@ -138,7 +143,9 @@ export function LimitsSection({
                 <FormControl>
                   <Input placeholder='120' {...field} />
                 </FormControl>
-                <FormDescription>限制当前站点最大并发连接数。</FormDescription>
+                <FormDescription>
+                  空或 0 继承全局默认；-1 关闭；大于 0 为自定义并发上限。
+                </FormDescription>
                 <FormMessage />
               </FormItem>
             )}
@@ -153,7 +160,9 @@ export function LimitsSection({
                 <FormControl>
                   <Input placeholder='12' {...field} />
                 </FormControl>
-                <FormDescription>限制单个 IP 的最大并发数。</FormDescription>
+                <FormDescription>
+                  空或 0 继承全局默认；-1 关闭；大于 0 为单 IP 自定义上限。
+                </FormDescription>
                 <FormMessage />
               </FormItem>
             )}
@@ -166,10 +175,10 @@ export function LimitsSection({
               <FormItem className='md:col-span-2'>
                 <FormLabel>限速</FormLabel>
                 <FormControl>
-                  <Input placeholder='512k/1m' {...field} />
+                  <Input placeholder='512k/1m 或 -1' {...field} />
                 </FormControl>
                 <FormDescription>
-                  限制单请求带宽，例如 512k 或 1m。
+                  空或 0 继承全局默认；-1 关闭；例如 512k、1m 为自定义带宽。
                 </FormDescription>
                 <FormMessage />
               </FormItem>

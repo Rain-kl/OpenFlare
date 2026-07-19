@@ -16,7 +16,7 @@ export const proxyRouteConfigSections = [
   {
     key: 'limits' as const,
     label: '流量限制',
-    description: '设置连接数和限速。',
+    description: '设置连接数和限速（可继承全局默认）。',
   },
   {
     key: 'proxy' as const,
@@ -263,18 +263,19 @@ export function customHeadersToText(headers: ProxyRouteCustomHeader[]) {
 
 export function validateLimitRate(value: string) {
   const normalized = value.trim();
-  if (!normalized || normalized === '0') {
+  if (!normalized || normalized === '0' || normalized === '-1') {
     return null;
   }
   if (!limitRatePattern.test(normalized)) {
-    return '限速格式不合法，请使用 512k、1m 或纯数字';
+    return '限速格式不合法，请使用 512k、1m、纯数字，或 -1 关闭';
   }
   return null;
 }
 
 export function normalizeLimitRate(value: string) {
   const normalized = value.trim().toLowerCase();
-  return normalized === '0' ? '' : normalized;
+  if (normalized === '0') return '';
+  return normalized;
 }
 
 export function validateCacheRules(

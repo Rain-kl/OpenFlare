@@ -42,6 +42,7 @@ export const openflareSecurityNavGroup: OpenFlareNavGroup = {
   items: [
     { title: 'WAF', url: '/waf' },
     { title: 'IP 组', url: '/ip-groups' },
+    { title: '限流', url: '/rate-limits' },
   ],
 };
 
