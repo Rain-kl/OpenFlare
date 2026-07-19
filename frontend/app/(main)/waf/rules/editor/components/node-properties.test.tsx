@@ -25,9 +25,9 @@ it('hides match and block until UA check is enabled', () => {
   const { rerender } = render(
     <NodeProperties node={node} ipGroups={[]} onChange={onChange} />,
   );
-  expect(screen.queryByLabelText('屏蔽常见爬虫 UA')).not.toBeInTheDocument();
+  expect(screen.queryByRole('switch', { name: /屏蔽常见爬虫/ })).not.toBeInTheDocument();
   expect(screen.queryByLabelText('浏览器')).not.toBeInTheDocument();
-  fireEvent.click(screen.getByLabelText('开启 UA 检查'));
+  fireEvent.click(screen.getByRole('switch', { name: /开启 UA 检查/ }));
   expect(onChange).toHaveBeenCalledWith(
     expect.objectContaining({
       config: expect.objectContaining({ require_ua: true }),
@@ -40,11 +40,10 @@ it('hides match and block until UA check is enabled', () => {
       onChange={onChange}
     />,
   );
-  expect(screen.getByLabelText('屏蔽常见爬虫 UA')).toBeInTheDocument();
-  expect(screen.getByLabelText('屏蔽非正常 UA')).toBeInTheDocument();
-  expect(screen.getByLabelText('屏蔽自定义 UA')).toBeInTheDocument();
-  expect(screen.getByText(/浏览器或操作系统分类为 Bot/)).toBeInTheDocument();
-  expect(screen.getByText(/浏览器分类为 Other 或 Unknown/)).toBeInTheDocument();
+  expect(screen.getByRole('switch', { name: /屏蔽常见爬虫/ })).toBeInTheDocument();
+  expect(screen.getByRole('switch', { name: /屏蔽非正常/ })).toBeInTheDocument();
+  expect(screen.getByRole('switch', { name: /屏蔽自定义/ })).toBeInTheDocument();
+  expect(screen.getAllByLabelText('说明').length).toBeGreaterThan(0);
 });
 
 it('edits display name for configurable nodes', () => {

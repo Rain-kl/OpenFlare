@@ -1,4 +1,4 @@
-import { Settings2 } from 'lucide-react';
+import { CircleHelp, Settings2 } from 'lucide-react';
 import { useState } from 'react';
 
 import { Button } from '@/components/ui/button';
@@ -27,6 +27,11 @@ import {
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import type { WAFIPGroup, WAFRuleNode } from '@/lib/services/openflare';
 
 import { countryOptions, regionOptions, type GeoOption } from './geo-options';
@@ -149,14 +154,13 @@ function PropertyFields({
             orientation='horizontal'
             className='items-center justify-between'
           >
-            <div className='space-y-1'>
-              <FieldLabel htmlFor={`${node.id}-require-ua`}>
-                开启 UA 检查
-              </FieldLabel>
-              <FieldDescription>
-                开启后如果请求头不携带 UA 将返回 False
-              </FieldDescription>
-            </div>
+            <FieldLabel
+              htmlFor={`${node.id}-require-ua`}
+              className='flex items-center gap-1.5'
+            >
+              开启 UA 检查
+              <FieldHelp tip='开启后如果请求头不携带 UA 将返回 False' />
+            </FieldLabel>
             <Switch
               id={`${node.id}-require-ua`}
               checked={node.config.require_ua}
@@ -170,30 +174,23 @@ function PropertyFields({
           <>
             <Separator />
             <div className='space-y-3'>
-              <div className='space-y-1'>
-                <p className='text-xs font-medium text-muted-foreground'>
-                  屏蔽
-                </p>
-                <FieldDescription>
-                  命中返回 false，优先级高于匹配
-                </FieldDescription>
-              </div>
+              <p className='flex items-center gap-1.5 text-xs font-medium text-muted-foreground'>
+                屏蔽
+                <FieldHelp tip='命中返回 false，优先级高于匹配' />
+              </p>
               <Field
                 orientation='horizontal'
-                className='items-start justify-between gap-3'
+                className='items-center justify-between gap-3'
               >
-                <div className='space-y-1'>
-                  <FieldLabel htmlFor={`${node.id}-block-bots`}>
-                    屏蔽常见爬虫 UA
-                  </FieldLabel>
-                  <FieldDescription>
-                    浏览器或操作系统分类为 Bot（含 bot / spider / crawler /
-                    slurp 等特征，如 Googlebot）
-                  </FieldDescription>
-                </div>
+                <FieldLabel
+                  htmlFor={`${node.id}-block-bots`}
+                  className='flex items-center gap-1.5'
+                >
+                  屏蔽常见爬虫 UA
+                  <FieldHelp tip='浏览器或操作系统分类为 Bot（含 bot / spider / crawler / slurp 等特征，如 Googlebot）' />
+                </FieldLabel>
                 <Switch
                   id={`${node.id}-block-bots`}
-                  className='mt-0.5'
                   checked={node.config.block_common_bots}
                   onCheckedChange={(block_common_bots) =>
                     onChange({
@@ -205,20 +202,17 @@ function PropertyFields({
               </Field>
               <Field
                 orientation='horizontal'
-                className='items-start justify-between gap-3'
+                className='items-center justify-between gap-3'
               >
-                <div className='space-y-1'>
-                  <FieldLabel htmlFor={`${node.id}-block-abnormal`}>
-                    屏蔽非正常 UA
-                  </FieldLabel>
-                  <FieldDescription>
-                    浏览器分类为 Other 或 Unknown（不含搜索引擎等爬虫
-                    Bot，爬虫请用上方开关）
-                  </FieldDescription>
-                </div>
+                <FieldLabel
+                  htmlFor={`${node.id}-block-abnormal`}
+                  className='flex items-center gap-1.5'
+                >
+                  屏蔽非正常 UA
+                  <FieldHelp tip='浏览器分类为 Other 或 Unknown（不含搜索引擎等爬虫 Bot，爬虫请用上方开关）' />
+                </FieldLabel>
                 <Switch
                   id={`${node.id}-block-abnormal`}
-                  className='mt-0.5'
                   checked={node.config.block_abnormal_ua}
                   onCheckedChange={(block_abnormal_ua) =>
                     onChange({
@@ -230,19 +224,17 @@ function PropertyFields({
               </Field>
               <Field
                 orientation='horizontal'
-                className='items-start justify-between gap-3'
+                className='items-center justify-between gap-3'
               >
-                <div className='space-y-1'>
-                  <FieldLabel htmlFor={`${node.id}-block-custom`}>
-                    屏蔽自定义 UA
-                  </FieldLabel>
-                  <FieldDescription>
-                    原始 User-Agent 命中任一条正则时返回 false（Lua 模式语法）
-                  </FieldDescription>
-                </div>
+                <FieldLabel
+                  htmlFor={`${node.id}-block-custom`}
+                  className='flex items-center gap-1.5'
+                >
+                  屏蔽自定义 UA
+                  <FieldHelp tip='原始 User-Agent 命中任一条正则时返回 false（Lua 模式语法）' />
+                </FieldLabel>
                 <Switch
                   id={`${node.id}-block-custom`}
-                  className='mt-0.5'
                   checked={node.config.block_custom_ua}
                   onCheckedChange={(block_custom_ua) =>
                     onChange({
@@ -254,8 +246,12 @@ function PropertyFields({
               </Field>
               {node.config.block_custom_ua && (
                 <Field>
-                  <FieldLabel htmlFor={`${node.id}-custom-patterns`}>
+                  <FieldLabel
+                    htmlFor={`${node.id}-custom-patterns`}
+                    className='flex items-center gap-1.5'
+                  >
                     自定义 UA 正则
+                    <FieldHelp tip='每行一条 Lua 模式正则，命中任一条即 false；最多 32 条' />
                   </FieldLabel>
                   <Textarea
                     id={`${node.id}-custom-patterns`}
@@ -275,9 +271,6 @@ function PropertyFields({
                       })
                     }
                   />
-                  <FieldDescription>
-                    每行一条 Lua 模式正则，命中任一条即 false；最多 32 条
-                  </FieldDescription>
                 </Field>
               )}
             </div>
@@ -287,8 +280,12 @@ function PropertyFields({
                 UA 匹配
               </p>
               <Field>
-                <FieldLabel htmlFor={`${node.id}-match-mode`}>
+                <FieldLabel
+                  htmlFor={`${node.id}-match-mode`}
+                  className='flex items-center gap-1.5'
+                >
                   匹配模式
+                  <FieldHelp tip='浏览器与操作系统两侧都有选择时生效' />
                 </FieldLabel>
                 <Select
                   value={node.config.match_mode}
@@ -312,9 +309,6 @@ function PropertyFields({
                     </SelectGroup>
                   </SelectContent>
                 </Select>
-                <FieldDescription>
-                  浏览器与操作系统两侧都有选择时生效
-                </FieldDescription>
               </Field>
               <MultiSelect
                 id={`${node.id}-browsers`}
@@ -428,6 +422,26 @@ function PropertyFields({
         </FieldDescription>
       </Field>
     </FieldGroup>
+  );
+}
+
+function FieldHelp({ tip }: { tip: string }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type='button'
+          className='inline-flex size-4 shrink-0 items-center justify-center text-muted-foreground transition-colors hover:text-foreground'
+          aria-label='说明'
+          onClick={(event) => event.preventDefault()}
+        >
+          <CircleHelp className='size-3.5' />
+        </button>
+      </TooltipTrigger>
+      <TooltipContent side='top' className='max-w-56 text-xs'>
+        {tip}
+      </TooltipContent>
+    </Tooltip>
   );
 }
 
