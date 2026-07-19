@@ -9,8 +9,8 @@ export type SearchDraft = {
 
 export type OverviewRangeHours = 24 | 168 | 360 | 720;
 
-/** 限流分析等短窗口场景：仅 24 小时 / 7 天 */
-export type RateLimitRangeHours = 24 | 168;
+/** 限流分析等短窗口场景：仅 24 小时 / 3 天 */
+export type RateLimitRangeHours = 24 | 72;
 
 export const PAGE_SIZE_OPTIONS = [20, 50, 100, 200];
 
@@ -29,7 +29,7 @@ export const RATE_LIMIT_RANGE_OPTIONS: {
   label: string;
 }[] = [
   { value: 24, label: '24 小时' },
-  { value: 168, label: '7 天' },
+  { value: 72, label: '3 天' },
 ];
 
 export const DETAIL_SORT_OPTIONS = [

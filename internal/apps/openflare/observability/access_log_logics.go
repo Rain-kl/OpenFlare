@@ -374,7 +374,7 @@ func normalizeAccessLogOverviewQuery(input AccessLogOverviewQuery) AccessLogOver
 
 func normalizeAccessLogOverviewBucketMinutes(value int) int {
 	switch value {
-	case 5, 60:
+	case 1, 5, 60:
 		return value
 	default:
 		return defaultAccessLogOverviewBucketMinutes
