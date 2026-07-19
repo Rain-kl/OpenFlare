@@ -3,12 +3,7 @@
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
-import {
-  AlignHorizontalSpaceAround,
-  ArrowLeft,
-  GitBranch,
-  Save,
-} from 'lucide-react';
+import { ArrowLeft, GitBranch, Save } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 
