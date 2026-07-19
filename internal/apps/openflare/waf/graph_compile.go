@@ -95,6 +95,7 @@ func compileRuleNodeConfig(node RuleNode) (any, error) {
 		}
 		config.Browsers = sortedUniqueStrings(config.Browsers)
 		config.OperatingSystems = sortedUniqueStrings(config.OperatingSystems)
+		config.CustomUAPatterns = sortedUniqueStrings(config.CustomUAPatterns)
 		if config.MatchMode == "" {
 			config.MatchMode = UACheckMatchModeOr
 		}

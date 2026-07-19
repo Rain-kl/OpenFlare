@@ -17,6 +17,8 @@ it('hides match and block until UA check is enabled', () => {
       match_mode: 'or',
       block_common_bots: false,
       block_abnormal_ua: false,
+      block_custom_ua: false,
+      custom_ua_patterns: [],
     },
   };
   const onChange = vi.fn();
@@ -40,12 +42,9 @@ it('hides match and block until UA check is enabled', () => {
   );
   expect(screen.getByLabelText('屏蔽常见爬虫 UA')).toBeInTheDocument();
   expect(screen.getByLabelText('屏蔽非正常 UA')).toBeInTheDocument();
-  expect(
-    screen.getByText(/浏览器或操作系统分类为 Bot/),
-  ).toBeInTheDocument();
-  expect(
-    screen.getByText(/浏览器分类为 Bot、Other 或 Unknown/),
-  ).toBeInTheDocument();
+  expect(screen.getByLabelText('屏蔽自定义 UA')).toBeInTheDocument();
+  expect(screen.getByText(/浏览器或操作系统分类为 Bot/)).toBeInTheDocument();
+  expect(screen.getByText(/浏览器分类为 Other 或 Unknown/)).toBeInTheDocument();
 });
 
 it('edits display name for configurable nodes', () => {

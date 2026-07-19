@@ -277,7 +277,8 @@ function PropertyFields({
                     屏蔽非正常 UA
                   </FieldLabel>
                   <FieldDescription>
-                    浏览器分类为 Bot、Other 或 Unknown（无法识别为已知浏览器）
+                    浏览器分类为 Other 或 Unknown（不含搜索引擎等爬虫
+                    Bot，爬虫请用上方开关）
                   </FieldDescription>
                 </div>
                 <Switch
@@ -292,6 +293,58 @@ function PropertyFields({
                   }
                 />
               </Field>
+              <Field
+                orientation='horizontal'
+                className='items-start justify-between gap-3'
+              >
+                <div className='space-y-1'>
+                  <FieldLabel htmlFor={`${node.id}-block-custom`}>
+                    屏蔽自定义 UA
+                  </FieldLabel>
+                  <FieldDescription>
+                    原始 User-Agent 命中任一条正则时返回 false（Lua 模式语法）
+                  </FieldDescription>
+                </div>
+                <Switch
+                  id={`${node.id}-block-custom`}
+                  className='mt-0.5'
+                  checked={node.config.block_custom_ua}
+                  onCheckedChange={(block_custom_ua) =>
+                    onChange({
+                      ...node,
+                      config: { ...node.config, block_custom_ua },
+                    })
+                  }
+                />
+              </Field>
+              {node.config.block_custom_ua && (
+                <Field>
+                  <FieldLabel htmlFor={`${node.id}-custom-patterns`}>
+                    自定义 UA 正则
+                  </FieldLabel>
+                  <Textarea
+                    id={`${node.id}-custom-patterns`}
+                    rows={4}
+                    value={node.config.custom_ua_patterns.join('\n')}
+                    placeholder={'python%-requests\ncurl/'}
+                    onChange={(event) =>
+                      onChange({
+                        ...node,
+                        config: {
+                          ...node.config,
+                          custom_ua_patterns: event.target.value
+                            .split('\n')
+                            .map((item) => item.trim())
+                            .filter(Boolean),
+                        },
+                      })
+                    }
+                  />
+                  <FieldDescription>
+                    每行一条 Lua 模式正则，命中任一条即 false；最多 32 条
+                  </FieldDescription>
+                </Field>
+              )}
             </div>
           </>
         )}

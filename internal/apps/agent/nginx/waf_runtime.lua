@@ -371,6 +371,18 @@ local function parse_os_name(ua)
     return match_ua_rules(string.lower(ua or ""), os_rules, "Other")
 end
 
+local function ua_matches_custom_patterns(ua, patterns)
+    for _, pattern in ipairs(array_or_empty(patterns)) do
+        if type(pattern) == "string" and pattern ~= "" then
+            local ok, matched = pcall(function()
+                return string.find(ua, pattern) ~= nil
+            end)
+            if ok and matched then return true end
+        end
+    end
+    return false
+end
+
 local function matches_ua_check(config)
     config = config or {}
     local ua = ua_trim(ngx.var.http_user_agent or "")
@@ -378,7 +390,11 @@ local function matches_ua_check(config)
     local browser = parse_browser_name(ua)
     local os_name = parse_os_name(ua)
     if config.block_common_bots and (browser == "Bot" or os_name == "Bot") then return false end
-    if config.block_abnormal_ua and (browser == "Bot" or browser == "Other" or browser == "Unknown") then
+    -- Abnormal excludes search-engine / crawler Bot labels; use block_common_bots for those.
+    if config.block_abnormal_ua and (browser == "Other" or browser == "Unknown") then
+        return false
+    end
+    if config.block_custom_ua and ua_matches_custom_patterns(ua, config.custom_ua_patterns) then
         return false
     end
     local browsers = array_or_empty(config.browsers)

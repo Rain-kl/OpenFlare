@@ -786,6 +786,8 @@ export interface UACheckConfig {
   match_mode: 'and' | 'or';
   block_common_bots: boolean;
   block_abnormal_ua: boolean;
+  block_custom_ua: boolean;
+  custom_ua_patterns: string[];
 }
 
 export type WAFRuleNode =

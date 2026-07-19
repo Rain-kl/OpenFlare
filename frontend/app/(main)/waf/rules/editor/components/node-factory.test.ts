@@ -66,6 +66,8 @@ describe('createRuleNode ua_check', () => {
         match_mode: 'or',
         block_common_bots: false,
         block_abnormal_ua: false,
+        block_custom_ua: false,
+        custom_ua_patterns: [],
       });
     }
   });

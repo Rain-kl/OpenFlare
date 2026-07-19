@@ -218,6 +218,23 @@ function validateNodeConfig(node: WAFRuleNode): string | undefined {
       return `节点 ${node.id} 包含无效浏览器标签`;
     if (node.config.operating_systems.some((label) => !UA_OS_LABELS.has(label)))
       return `节点 ${node.id} 包含无效操作系统标签`;
+    if (node.config.custom_ua_patterns.length > 32)
+      return `节点 ${node.id} 的自定义 UA 正则不能超过 32 条`;
+    for (const pattern of node.config.custom_ua_patterns) {
+      if (!pattern.trim()) return `节点 ${node.id} 的自定义 UA 正则不能为空`;
+      if (new TextEncoder().encode(pattern).length > 256)
+        return `节点 ${node.id} 的自定义 UA 正则过长`;
+      try {
+        void new RegExp(pattern);
+      } catch {
+        return `节点 ${node.id} 的自定义 UA 正则无效`;
+      }
+    }
+    if (
+      node.config.block_custom_ua &&
+      node.config.custom_ua_patterns.length === 0
+    )
+      return `节点 ${node.id} 开启屏蔽自定义 UA 时至少需要一条正则`;
   }
   return undefined;
 }

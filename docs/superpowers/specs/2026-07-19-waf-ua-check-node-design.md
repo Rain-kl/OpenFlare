@@ -47,7 +47,9 @@
   "operating_systems": [],
   "match_mode": "or",
   "block_common_bots": false,
-  "block_abnormal_ua": false
+  "block_abnormal_ua": false,
+  "block_custom_ua": false,
+  "custom_ua_patterns": []
 }
 ```
 
@@ -58,7 +60,9 @@
 | `operating_systems` | string[] | 白名单操作系统标签；空表示不限制 OS |
 | `match_mode` | `"and"` \| `"or"` | **浏览器条件与 OS 条件**之间的组合；默认 `"or"` |
 | `block_common_bots` | bool | 屏蔽常见爬虫：分类 browser 或 os 为 `Bot` → **false** |
-| `block_abnormal_ua` | bool | 屏蔽非正常 UA：browser ∈ `{Bot, Other, Unknown}` → **false** |
+| `block_abnormal_ua` | bool | 屏蔽非正常 UA：browser ∈ `{Other, Unknown}`（**不含** Bot/搜索引擎爬虫）→ **false** |
+| `block_custom_ua` | bool | 屏蔽自定义 UA：原始 UA 命中 `custom_ua_patterns` 任一条 → **false** |
+| `custom_ua_patterns` | string[] | 正则列表（边缘为 Lua 模式）；开启 `block_custom_ua` 时至少一条 |
 
 默认值：开关全 `false`，列表空，`match_mode: "or"`。
 
@@ -85,20 +89,21 @@
 1) if require_ua and ua 为空 → false
 2) browser, os := classify(ua)
 3) if block_common_bots and (browser == "Bot" or os == "Bot") → false
-4) if block_abnormal_ua and browser in {"Bot","Other","Unknown"} → false
-5) has_browsers := browsers 非空; has_os := operating_systems 非空
-6) if not has_browsers and not has_os → true
-7) browser_hit := browser ∈ browsers; os_hit := os ∈ operating_systems
-8) if has_browsers and not has_os → browser_hit
-9) if has_os and not has_browsers → os_hit
-10) if both lists set:
+4) if block_abnormal_ua and browser in {"Other","Unknown"} → false
+5) if block_custom_ua and UA matches any custom_ua_patterns → false
+6) has_browsers := browsers 非空; has_os := operating_systems 非空
+7) if not has_browsers and not has_os → true
+8) browser_hit := browser ∈ browsers; os_hit := os ∈ operating_systems
+9) if has_browsers and not has_os → browser_hit
+10) if has_os and not has_browsers → os_hit
+11) if both lists set:
       match_mode == "and" → browser_hit and os_hit
       match_mode == "or"  → browser_hit or os_hit
 ```
 
 说明：
 
-- **屏蔽优先于匹配**：步骤 3–4 在白名单之前。
+- **屏蔽优先于匹配**：步骤 3–5 在白名单之前。
 - **未配置匹配列表**：步骤 6 直接 true（仅受 require / block 约束）。
 - **仅一侧列表有值**：只校验该侧是否命中；`match_mode` 仅在两侧都有值时生效。
 - 节点本身不 allow/block，仅选句柄；下游连线决定动作。

@@ -16,9 +16,11 @@ import (
 )
 
 const (
-	maxRuleGraphNodes = 128
-	maxRuleGraphEdges = 256
-	maxRuleGraphBytes = 256 * 1024
+	maxRuleGraphNodes       = 128
+	maxRuleGraphEdges       = 256
+	maxRuleGraphBytes       = 256 * 1024
+	maxUACustomPatterns     = 32
+	maxUACustomPatternBytes = 256
 )
 
 var (
@@ -306,6 +308,23 @@ func validateUACheckNodeConfig(node RuleNode) error {
 		if !uaOSLabels[label] {
 			return fmt.Errorf("节点 %s 的操作系统标签 %s 无效", node.ID, label)
 		}
+	}
+	if len(cfg.CustomUAPatterns) > maxUACustomPatterns {
+		return fmt.Errorf("节点 %s 的自定义 UA 正则不能超过 %d 条", node.ID, maxUACustomPatterns)
+	}
+	for _, pattern := range cfg.CustomUAPatterns {
+		if strings.TrimSpace(pattern) == "" {
+			return fmt.Errorf("节点 %s 的自定义 UA 正则不能为空", node.ID)
+		}
+		if len(pattern) > maxUACustomPatternBytes {
+			return fmt.Errorf("节点 %s 的自定义 UA 正则不能超过 %d 字节", node.ID, maxUACustomPatternBytes)
+		}
+		if _, err := regexp.Compile(pattern); err != nil {
+			return fmt.Errorf("节点 %s 的自定义 UA 正则无效: %s", node.ID, pattern)
+		}
+	}
+	if cfg.BlockCustomUA && len(cfg.CustomUAPatterns) == 0 {
+		return fmt.Errorf("节点 %s 开启屏蔽自定义 UA 时至少需要一条正则", node.ID)
 	}
 	return nil
 }

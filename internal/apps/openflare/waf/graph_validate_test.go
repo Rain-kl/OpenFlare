@@ -85,6 +85,14 @@ func TestValidateRuleGraph(t *testing.T) {
 			g.Nodes[1].Type = RuleNodeUACheck
 			g.Nodes[1].Config = rawConfig(`{"match_mode":"xor"}`)
 		}, "节点 match-1 的匹配模式必须为 and 或 or"},
+		{"invalid ua custom regex", func(g *RuleGraph) {
+			g.Nodes[1].Type = RuleNodeUACheck
+			g.Nodes[1].Config = rawConfig(`{"block_custom_ua":true,"custom_ua_patterns":["("]}`)
+		}, "节点 match-1 的自定义 UA 正则无效"},
+		{"custom ua requires patterns", func(g *RuleGraph) {
+			g.Nodes[1].Type = RuleNodeUACheck
+			g.Nodes[1].Config = rawConfig(`{"block_custom_ua":true}`)
+		}, "节点 match-1 开启屏蔽自定义 UA 时至少需要一条正则"},
 		{"unknown config field", func(g *RuleGraph) { g.Nodes[1].Config = rawConfig(`{"ips":[],"surprise":true}`) }, "节点 match-1 的配置无效"},
 		{"null config", func(g *RuleGraph) { g.Nodes[1].Config = rawConfig(`null`) }, "节点 match-1 的配置无效"},
 		{"too many nodes", func(g *RuleGraph) {

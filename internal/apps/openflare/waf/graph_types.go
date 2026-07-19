@@ -93,6 +93,8 @@ type UACheckConfig struct {
 	MatchMode        string   `json:"match_mode,omitempty"`
 	BlockCommonBots  bool     `json:"block_common_bots"`
 	BlockAbnormalUA  bool     `json:"block_abnormal_ua"`
+	BlockCustomUA    bool     `json:"block_custom_ua"`
+	CustomUAPatterns []string `json:"custom_ua_patterns,omitempty"`
 }
 
 // UA check match modes.

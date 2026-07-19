@@ -580,10 +580,29 @@ local function test_ua_check_require_block_and_whitelist()
     reset_request("ua-site", nil, nil, nil, weird_ua)
     runtime.check()
     assert_equal(output.exit, 403, "abnormal UA should be blocked")
+    reset_request("ua-site", nil, nil, nil, bot_ua)
+    output = {}
+    runtime.check()
+    assert_equal(output.exit, nil, "search bot should not be abnormal when bots switch is off")
     reset_request("ua-site", nil, nil, nil, chrome_ua)
     output = {}
     runtime.check()
     assert_equal(output.exit, nil, "normal browser should pass abnormal check")
+
+    runtime = load_runtime({
+        rule_groups = { rule(1, false, ua_graph({
+            block_custom_ua = true,
+            custom_ua_patterns = { "[Pp]ython%-requests" },
+        })) },
+        bindings = { binding("ua-site", { 1 }) },
+    })
+    reset_request("ua-site", nil, nil, nil, "python-requests/2.31.0")
+    runtime.check()
+    assert_equal(output.exit, 403, "custom regex should block matching UA")
+    reset_request("ua-site", nil, nil, nil, chrome_ua)
+    output = {}
+    runtime.check()
+    assert_equal(output.exit, nil, "custom regex should allow non-matching UA")
 
     runtime = load_runtime({
         rule_groups = { rule(1, false, ua_graph({ browsers = { "Chrome" }, match_mode = "or" })) },
