@@ -326,8 +326,8 @@ func validateProxyRouteZoneDomainCertificates(ctx context.Context, domains []mod
 }
 
 func normalizeProxyRouteLimitConnValue(value int, field string) (int, error) {
-	if value < 0 {
-		return 0, fmt.Errorf("%s must be greater than or equal to 0", field)
+	if value < -1 {
+		return 0, fmt.Errorf("%s must be greater than or equal to -1", field)
 	}
 	return value, nil
 }
@@ -336,6 +336,9 @@ func normalizeProxyRouteLimitRate(raw string) (string, error) {
 	normalized := strings.ToLower(strings.TrimSpace(raw))
 	if normalized == "" || normalized == "0" {
 		return "", nil
+	}
+	if normalized == "-1" {
+		return "-1", nil
 	}
 	if !proxyRouteLimitRatePattern.MatchString(normalized) {
 		return "", errors.New(errProxyRouteLimitRate)

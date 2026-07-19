@@ -27,7 +27,7 @@ const (
 	errProxyRouteCertDomainLength    = "domain_cert_ids must match domains length"
 	errProxyRouteRedirectHTTP        = "redirect_http requires enable_https"
 	errProxyRouteBasicAuth           = "basic_auth_username and basic_auth_password cannot be empty when basic auth is enabled"
-	errProxyRouteLimitRate           = "limit_rate must be a number or use the 512k / 1m format"
+	errProxyRouteLimitRate           = "limit_rate must be a number or use the 512k / 1m format, or -1 to disable"
 	errProxyRouteCachePolicy         = "cache policy is not supported"
 	errProxyRouteCacheSuffix         = "cache suffix format is invalid"
 	errProxyRouteCachePath           = "cache path rule format is invalid"
