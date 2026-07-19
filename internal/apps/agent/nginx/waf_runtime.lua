@@ -439,6 +439,72 @@ local function security_match_any(haystacks, patterns)
     return false
 end
 
+-- SQL sleep/benchmark: require digit arg to avoid product names like sleep(better).
+local function security_match_sql_timed(haystacks)
+    for _, hay in ipairs(haystacks) do
+        if type(hay) == "string" and hay ~= "" then
+            if string.find(hay, "sleep(%d", 1, true) or string.find(hay, "benchmark(%d", 1, true) then
+                return true
+            end
+            -- Also accept sleep( 1 ) with optional spaces: sleep( + digit
+            local i = 1
+            while true do
+                local s, e = string.find(hay, "sleep(", i, true)
+                if not s then break end
+                local rest = string.sub(hay, e + 1)
+                if string.match(rest, "^%s*%d") then return true end
+                i = e + 1
+            end
+            i = 1
+            while true do
+                local s, e = string.find(hay, "benchmark(", i, true)
+                if not s then break end
+                local rest = string.sub(hay, e + 1)
+                if string.match(rest, "^%s*%d") then return true end
+                i = e + 1
+            end
+        end
+    end
+    return false
+end
+
+-- XSS: tag/event handlers and URI schemes; skip prose like "javascript: the good parts".
+local function security_match_xss(haystacks)
+    local tag_like = { "<script", "<iframe", "onerror=", "onload=", "onmouseover=", "document.cookie" }
+    for _, hay in ipairs(haystacks) do
+        if type(hay) == "string" and hay ~= "" then
+            for _, pattern in ipairs(tag_like) do
+                if string.find(hay, pattern, 1, true) then return true end
+            end
+            -- javascript: as URI scheme with code-like body (alert/void/'/") not prose titles.
+            local i = 1
+            while true do
+                local s, e = string.find(hay, "javascript:", i, true)
+                if not s then break end
+                local prev_ok = (s == 1) or string.match(string.sub(hay, s - 1, s - 1), "[=\"'(<;,]")
+                if prev_ok then
+                    local rest = string.sub(hay, e + 1)
+                    if string.match(rest, "^%s*[\"'`(]")
+                        or string.match(rest, "^%s*alert%s*%(")
+                        or string.match(rest, "^%s*void%s*%(")
+                        or string.match(rest, "^%s*eval%s*%(")
+                        or string.match(rest, "^%s*window%.")
+                        or string.match(rest, "^%s*document%.") then
+                        return true
+                    end
+                end
+                i = e + 1
+            end
+            if string.find(hay, "eval(", 1, true) then
+                local _, e = string.find(hay, "eval(", 1, true)
+                local rest = string.sub(hay, e + 1)
+                if string.match(rest, "^%s*[\"'`(]") then return true end
+            end
+        end
+    end
+    return false
+end
+
 local function security_append_decoded(list, value)
     if type(value) ~= "string" or value == "" then return end
     local once, twice = security_decode(value)
@@ -492,40 +558,36 @@ local function security_read_body()
 end
 
 local path_traversal_patterns = {
-    "../", "..\\", "..%2f", "..%5c", "%2e%2e", "%252e", "....//",
-    "/etc/passwd", "c:\\windows",
+    "../", "..\\", "..%2f", "..%5c", "%2e%2e/", "%2e%2e\\", "%252e%252e",
+    "....//", "/etc/passwd",
 }
 local file_inclusion_patterns = {
-    "php://", "file://", "zip://", "data://", "expect://", "/etc/passwd",
-    "proc/self", "%00",
+    "php://", "file://", "zip://", "data://text", "expect://", "/etc/passwd",
+    "/proc/self", "%00",
 }
-local sql_patterns = {
-    "union select", " or 1=1", "' or '", "\" or \"", "sleep(", "benchmark(",
-    "information_schema", "xp_cmdshell", "load_file(", " into outfile",
-    -- Avoid bare "/*" / "*/": they match normal Accept: */* headers.
-    "/**/", "/*!", "*/--", "@@version",
-}
+-- Prefer attack-shaped tokens; avoid bare "&&"/"||" and bare shell names.
 local command_patterns = {
-    ";wget", ";curl", "|bash", "|sh", "`id`", "$(id)", "&&", "||",
-    "/bin/sh", "/bin/bash", "powershell", "cmd.exe",
+    ";wget", ";curl", ";bash", ";sh ", "|bash", "|sh ", "|sh\t", "`id`", "$(id)",
+    "&&wget", "&&curl", "&&bash", "&&sh ", "||wget", "||curl", "||bash",
+    "/bin/sh ", "/bin/bash ", "cmd.exe /c", "powershell -", "powershell.exe",
 }
-local xss_patterns = {
-    "<script", "javascript:", "onerror=", "onload=", "onmouseover=",
-    "<iframe", "document.cookie", "eval(",
-}
+-- URL-shaped only: bare "localhost"/"0.0.0.0" match Chrome UA / normal text.
 local ssrf_patterns = {
-    "127.0.0.1", "localhost", "0.0.0.0", "169.254.", "[::1]",
-    "file://", "gopher://", "dict://", "metadata.google",
+    "http://127.0.0.1", "https://127.0.0.1", "http://localhost", "https://localhost",
+    "http://0.0.0.0", "https://0.0.0.0", "http://[::1]", "https://[::1]",
+    "://169.254.", "169.254.169.254", "metadata.google",
+    "file://", "gopher://", "dict://",
 }
 local upload_patterns = {
     ".php.", ".jsp.", ".asp.", ".aspx.", ".phtml", ".phar",
     "application/x-php", "application/x-httpd-php",
 }
 local xxe_patterns = {
-    "<!entity", " system ", "public ", "file://",
+    "<!entity", " system \"", " system '", "file://",
 }
+-- Keep encoded CRLF; bare %0a alone is too common in benign encoded text.
 local crlf_patterns = {
-    "%0d%0a", "%0d", "%0a", "\r\n",
+    "%0d%0a", "\r\n",
 }
 
 local function security_flag_enabled(value)
@@ -573,9 +635,19 @@ local function matches_security_check(config)
 
     if path_traversal and security_match_any(pq, path_traversal_patterns) then return false end
     if file_inclusion and security_match_any(pq, file_inclusion_patterns) then return false end
-    if sql_injection and security_match_any(qhb, sql_patterns) then return false end
+    if sql_injection then
+        -- Exclude sleep(/benchmark( bare tokens; use timed helper + other patterns.
+        local sql_static = {
+            "union select", " or 1=1", "' or '", "\" or \"",
+            "information_schema", "xp_cmdshell", "load_file(", " into outfile",
+            "/**/", "/*!", "*/--", "@@version",
+        }
+        if security_match_any(qhb, sql_static) or security_match_sql_timed(qhb) then
+            return false
+        end
+    end
     if command_injection and security_match_any(qhb, command_patterns) then return false end
-    if xss and security_match_any(qhb, xss_patterns) then return false end
+    if xss and security_match_xss(qhb) then return false end
     if ssrf and security_match_any(qhb, ssrf_patterns) then return false end
     if crlf_injection and security_match_any(qhb, crlf_patterns) then return false end
 
