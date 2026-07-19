@@ -282,28 +282,6 @@ export function EdgeNodeDetail({ node }: { node: NodeItem }) {
       <InstallCommand node={node} variant='edge' />
 
       <NodeSectionCard
-        title='节点标识'
-        description='用于 Agent 接入与鉴别的核心字段'
-      >
-        <div className='divide-y'>
-          <NodeInfoRow label='节点 ID'>
-            <span className='font-mono text-xs break-all'>{node.node_id}</span>
-          </NodeInfoRow>
-          <NodeInfoRow label='Agent Token'>
-            <span className='font-mono text-xs break-all'>
-              {node.access_token || '暂无'}
-            </span>
-          </NodeInfoRow>
-          <NodeInfoRow label='创建时间'>
-            {formatDateTime(node.created_at)}
-          </NodeInfoRow>
-          <NodeInfoRow label='更新时间'>
-            {formatDateTime(node.updated_at)}
-          </NodeInfoRow>
-        </div>
-      </NodeSectionCard>
-
-      <NodeSectionCard
         title='运行消息'
         description='OpenResty 与 Agent 上报的状态说明'
       >
