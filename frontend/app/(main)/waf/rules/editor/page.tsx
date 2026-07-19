@@ -196,13 +196,16 @@ function EditorContent() {
   return (
     <div className='flex h-[calc(100dvh-8rem)] w-full flex-col px-1 py-6'>
       <UnsavedChanges dirty={dirty} />
-      <header className='mb-4 flex flex-col gap-3'>
-        <div>
-          <Button variant='outline' size='sm' onClick={leave}>
-            <ArrowLeft data-icon='inline-start' />
-            返回规则组
-          </Button>
-        </div>
+      <header className='mb-4 flex flex-col gap-4'>
+        <Button
+          variant='ghost'
+          size='sm'
+          className='h-8 w-fit gap-1.5 px-0 text-xs'
+          onClick={leave}
+        >
+          <ArrowLeft className='size-3.5' />
+          返回
+        </Button>
         <div className='flex items-center justify-between gap-4'>
           <div className='flex min-w-0 items-center gap-2'>
             <GitBranch className='size-5 text-primary' />
@@ -251,8 +254,7 @@ function EditorContent() {
               disabled={!graph}
               onClick={formatLayout}
             >
-              <AlignHorizontalSpaceAround data-icon='inline-start' />
-              格式化布局
+              格式化
             </Button>
             <Button
               disabled={!dirty || issues.length > 0 || saveMutation.isPending}
