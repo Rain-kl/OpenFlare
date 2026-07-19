@@ -25,10 +25,11 @@ import (
 )
 
 const (
-	pagesSourceTriggerManualSync = "manual_sync"
-	pagesSourceCreatedBySystem   = "system:pages-source-sync"
-	pagesSourceHeartbeatInterval = pagesSourceSyncLeaseDuration / 3
-	pagesSourceCleanupTimeout    = 15 * time.Second
+	pagesSourceTriggerManualSync          = "manual_sync"
+	pagesSourceTriggerScheduledAutoUpdate = "scheduled_auto_update"
+	pagesSourceCreatedBySystem            = "system:pages-source-sync"
+	pagesSourceHeartbeatInterval          = pagesSourceSyncLeaseDuration / 3
+	pagesSourceCleanupTimeout             = 15 * time.Second
 )
 
 var (
@@ -154,16 +155,17 @@ func sourceCleanupContext(ctx context.Context) (context.Context, context.CancelF
 	return context.WithTimeout(context.WithoutCancel(ctx), pagesSourceCleanupTimeout)
 }
 
-func syncRemoteSource(
+func syncRemoteSourceWithTrigger(
 	ctx context.Context,
 	snapshot *sourceExecutionSnapshot,
 	actor string,
+	triggerType string,
 ) (outcome *sourceSyncOutcome, resultErr error) {
 	if snapshot == nil || snapshot.SourceType != PagesSourceTypeRemoteURL {
 		return nil, errors.New(errPagesSourceTypeUnsupported)
 	}
 	actor = strings.TrimSpace(actor)
-	if actor == "" {
+	if actor == "" || !validSourceDeploymentTrigger(triggerType) {
 		return nil, errors.New(errPagesSourceActionInvalid)
 	}
 	defer func() {
@@ -222,7 +224,7 @@ func syncRemoteSource(
 	}
 
 	task.AppendLog(ctx, "[activate] 正在原子切换生产部署")
-	deployment, reused, referenced, err := commitSourceDeployment(
+	deployment, reused, referenced, err := commitSourceDeploymentWithTrigger(
 		ctx,
 		snapshot,
 		prepared.Candidate.Checksum,
@@ -230,6 +232,7 @@ func syncRemoteSource(
 		prepared.Detail,
 		prepared.DetailJSON,
 		actor,
+		triggerType,
 		prepared.Manifest,
 		ingestState.Result,
 		ingestState.HasIngest,
@@ -382,7 +385,7 @@ func findSourceDeployment(
 	return &deployment, nil
 }
 
-func commitSourceDeployment(
+func commitSourceDeploymentWithTrigger(
 	ctx context.Context,
 	snapshot *sourceExecutionSnapshot,
 	revision string,
@@ -390,6 +393,7 @@ func commitSourceDeployment(
 	detail sourceDetail,
 	detailJSON string,
 	actor string,
+	triggerType string,
 	manifest *deploymentManifest,
 	ingestResult upload.IngestResult,
 	hasIngest bool,
@@ -397,6 +401,9 @@ func commitSourceDeployment(
 ) (*model.PagesDeployment, bool, bool, error) {
 	if snapshot == nil || manifest == nil {
 		return nil, false, false, errors.New(errPagesSourceSyncFailed)
+	}
+	if !validSourceDeploymentTrigger(triggerType) {
+		return nil, false, false, errors.New(errPagesSourceActionInvalid)
 	}
 	var committed model.PagesDeployment
 	reused := false
@@ -407,7 +414,8 @@ func commitSourceDeployment(
 			return err
 		}
 		target, targetReused, err := resolveSourceDeploymentTx(
-			tx, state, revision, packageChecksum, detail, detailJSON, actor, manifest, ingestResult, hasIngest,
+			tx, state, revision, packageChecksum, detail, detailJSON, actor, triggerType,
+			manifest, ingestResult, hasIngest,
 		)
 		if err != nil {
 			return err
@@ -499,6 +507,7 @@ func resolveSourceDeploymentTx(
 	detail sourceDetail,
 	detailJSON string,
 	actor string,
+	triggerType string,
 	manifest *deploymentManifest,
 	ingestResult upload.IngestResult,
 	hasIngest bool,
@@ -520,7 +529,7 @@ func resolveSourceDeploymentTx(
 		return nil, false, errSourceFinalFence
 	}
 	return createSourceDeploymentTx(
-		tx, state, revision, packageChecksum, detail, detailJSON, actor, manifest, ingestResult,
+		tx, state, revision, packageChecksum, detail, detailJSON, actor, triggerType, manifest, ingestResult,
 	)
 }
 
@@ -532,6 +541,7 @@ func createSourceDeploymentTx(
 	detail sourceDetail,
 	detailJSON string,
 	actor string,
+	triggerType string,
 	manifest *deploymentManifest,
 	ingestResult upload.IngestResult,
 ) (*model.PagesDeployment, bool, error) {
@@ -558,7 +568,7 @@ func createSourceDeploymentTx(
 		SourceRevision:   &revisionValue,
 		SourceLabel:      sourceDetailLabel(detail),
 		SourceMeta:       detailJSON,
-		TriggerType:      pagesSourceTriggerManualSync,
+		TriggerType:      triggerType,
 	}
 	result := tx.Clauses(clause.OnConflict{DoNothing: true}).Create(target)
 	if result.Error != nil {
@@ -571,6 +581,10 @@ func createSourceDeploymentTx(
 		return nil, false, err
 	}
 	return target, false, nil
+}
+
+func validSourceDeploymentTrigger(triggerType string) bool {
+	return triggerType == pagesSourceTriggerManualSync || triggerType == pagesSourceTriggerScheduledAutoUpdate
 }
 
 func reloadSourceDeploymentTx(
@@ -657,7 +671,7 @@ func activateSourceDeploymentTx(
 		state.Source.ReleaseSelector == githubReleaseSelectorLatest {
 		next := nextGitHubCheckAt(finishedAt, state.Source.ID, state.Source.CheckIntervalMinutes)
 		if nextCheckNotBefore != nil && nextCheckNotBefore.After(next) {
-			next = nextCheckNotBefore.UTC()
+			next = nextCheckNotBefore.In(finishedAt.Location())
 		}
 		nextCheckAt = &next
 	}

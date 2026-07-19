@@ -19,6 +19,7 @@ func TestSourceActionPayloadValidationIsStrictAndCredentialFree(t *testing.T) {
 		ConfigVersion: 3,
 		Action:        sourceActionSync,
 		Actor:         "user:42",
+		TriggerType:   pagesSourceTriggerManualSync,
 	}
 	raw, err := json.Marshal(valid)
 	if err != nil {
@@ -34,6 +35,23 @@ func TestSourceActionPayloadValidationIsStrictAndCredentialFree(t *testing.T) {
 	}
 	if got != valid {
 		t.Errorf("ValidatePayload(valid) = %+v, want %+v", got, valid)
+	}
+	legacy := valid
+	legacy.TriggerType = ""
+	legacyRaw, err := json.Marshal(legacy)
+	if err != nil {
+		t.Fatalf("json.Marshal(legacy payload) error = %v, want nil", err)
+	}
+	legacyNormalized, err := handler.ValidatePayload(legacyRaw)
+	if err != nil {
+		t.Fatalf("ValidatePayload(legacy payload) error = %v, want nil", err)
+	}
+	var legacyGot SourceActionPayload
+	if err := json.Unmarshal(legacyNormalized, &legacyGot); err != nil {
+		t.Fatalf("json.Unmarshal(legacy normalized payload) error = %v, want nil", err)
+	}
+	if legacyGot.TriggerType != pagesSourceTriggerManualSync {
+		t.Errorf("legacy payload trigger_type = %q, want %q", legacyGot.TriggerType, pagesSourceTriggerManualSync)
 	}
 	for _, forbidden := range []string{"remote_url", "content_config_version", "expected_revision", "lease_token", "etag"} {
 		if strings.Contains(string(normalized), forbidden) {

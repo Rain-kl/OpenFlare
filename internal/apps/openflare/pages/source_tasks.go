@@ -51,6 +51,7 @@ type SourceActionPayload struct {
 	ConfigVersion     int    `json:"config_version"`
 	Action            string `json:"action"`
 	Actor             string `json:"actor"`
+	TriggerType       string `json:"trigger_type"`
 	TargetRevision    string `json:"target_revision"`
 	ConfirmedRevision string `json:"confirmed_revision"`
 }
@@ -71,20 +72,57 @@ func (h *SourceActionHandler) ValidatePayload(payload []byte) ([]byte, error) {
 	}
 	input.Action = strings.TrimSpace(input.Action)
 	input.Actor = strings.TrimSpace(input.Actor)
+	input.TriggerType = strings.TrimSpace(input.TriggerType)
 	input.TargetRevision = strings.TrimSpace(input.TargetRevision)
 	input.ConfirmedRevision = strings.TrimSpace(input.ConfirmedRevision)
-	if input.SourceID == 0 || input.ConfigVersion <= 0 ||
-		(input.Action != sourceActionCheck && input.Action != sourceActionSync) ||
-		!validPagesSourceActor(input.Actor) ||
-		!validOptionalSourceRevision(input.TargetRevision) ||
-		!validOptionalSourceRevision(input.ConfirmedRevision) ||
-		(input.Action == sourceActionCheck && (input.TargetRevision != "" || input.ConfirmedRevision != "")) ||
-		(input.TargetRevision != "" && input.ConfirmedRevision != "") ||
-		(input.TargetRevision != "" && input.Actor != pagesSourceCreatedBySystem) ||
-		(input.ConfirmedRevision != "" && !strings.HasPrefix(input.Actor, "user:")) {
+	if input.Action == sourceActionSync && input.TriggerType == "" {
+		// Keep already queued Phase 2 payloads valid while making every new
+		// dispatch carry an explicit deployment trigger.
+		input.TriggerType = pagesSourceTriggerManualSync
+	}
+	if !validSourceActionPayload(input) {
 		return nil, errors.New(errPagesSourceActionInvalid)
 	}
 	return json.Marshal(input)
+}
+
+func validSourceActionPayload(input SourceActionPayload) bool {
+	if input.SourceID == 0 || input.ConfigVersion <= 0 {
+		return false
+	}
+	if input.Action != sourceActionCheck && input.Action != sourceActionSync {
+		return false
+	}
+	if !validPagesSourceActor(input.Actor) {
+		return false
+	}
+	if !validOptionalSourceRevision(input.TargetRevision) ||
+		!validOptionalSourceRevision(input.ConfirmedRevision) {
+		return false
+	}
+	if input.Action == sourceActionCheck {
+		return input.TriggerType == "" && input.TargetRevision == "" && input.ConfirmedRevision == ""
+	}
+	return validSourceSyncPayload(input)
+}
+
+func validSourceSyncPayload(input SourceActionPayload) bool {
+	if !validSourceDeploymentTrigger(input.TriggerType) ||
+		(input.TargetRevision != "" && input.ConfirmedRevision != "") {
+		return false
+	}
+	switch input.TriggerType {
+	case pagesSourceTriggerScheduledAutoUpdate:
+		return input.Actor == pagesSourceCreatedBySystem &&
+			input.TargetRevision != "" && input.ConfirmedRevision == ""
+	case pagesSourceTriggerManualSync:
+		if input.TargetRevision != "" || !strings.HasPrefix(input.Actor, "user:") {
+			return false
+		}
+		return true
+	default:
+		return false
+	}
 }
 
 // Execute validates again inside the worker and performs the source action.
@@ -169,9 +207,11 @@ func executeSourceSyncAction(
 	var result *sourceSyncOutcome
 	var err error
 	if source.SourceType == PagesSourceTypeGitHubRelease {
-		result, err = syncGitHubSource(ctx, snapshot, input.Actor, input.TargetRevision, input.ConfirmedRevision)
+		result, err = syncGitHubSourceWithTrigger(
+			ctx, snapshot, input.Actor, input.TargetRevision, input.ConfirmedRevision, input.TriggerType,
+		)
 	} else {
-		result, err = syncRemoteSource(ctx, snapshot, input.Actor)
+		result, err = syncRemoteSourceWithTrigger(ctx, snapshot, input.Actor, input.TriggerType)
 	}
 	if err != nil {
 		logger.ErrorF(ctx, "[PagesSource] sync failed: project_id=%d source_id=%d error=%v", snapshot.ProjectID, snapshot.SourceID, err)
@@ -334,6 +374,25 @@ func dispatchSourceActionSnapshot(
 	confirmedRevision string,
 	triggeredBy string,
 ) (*SourceActionReceipt, error) {
+	triggerType := ""
+	if action == sourceActionSync {
+		triggerType = pagesSourceTriggerManualSync
+	}
+	return dispatchSourceActionSnapshotWithTrigger(
+		ctx, source, action, actor, triggerType, targetRevision, confirmedRevision, triggeredBy,
+	)
+}
+
+func dispatchSourceActionSnapshotWithTrigger(
+	ctx context.Context,
+	source model.PagesProjectSource,
+	action string,
+	actor string,
+	triggerType string,
+	targetRevision string,
+	confirmedRevision string,
+	triggeredBy string,
+) (*SourceActionReceipt, error) {
 	if task.AsynqClient == nil {
 		return nil, errors.New(errPagesSourceTaskDispatchFailed)
 	}
@@ -343,6 +402,7 @@ func dispatchSourceActionSnapshot(
 		ConfigVersion:     source.ConfigVersion,
 		Action:            action,
 		Actor:             actor,
+		TriggerType:       triggerType,
 		TargetRevision:    targetRevision,
 		ConfirmedRevision: confirmedRevision,
 	})

@@ -61,6 +61,7 @@ const (
 	errPagesSourceActionInvalid       = "pages 部署源任务参数无效"
 	errPagesSourceActionStale         = "pages 部署源配置已变化，本次任务已跳过"
 	errPagesSourceLeaseLost           = "pages 部署源任务执行权已失效"
+	errPagesSourceLeaseExpired        = "上次 pages 部署源任务租约已过期"
 	errPagesSourceSyncFailed          = "pages 部署源同步失败"
 	errPagesSourceTaskDispatchFailed  = "pages 部署源任务入队失败"
 	errPagesSourceInternal            = "pages 部署源操作失败，请稍后重试"

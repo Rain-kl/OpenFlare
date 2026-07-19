@@ -44,6 +44,7 @@ type githubSourceConfig struct {
 	Selector       string
 	Tag            string
 	AssetName      string
+	AutoUpdate     bool
 	CheckInterval  int
 	SourceIdentity string
 }
@@ -55,9 +56,6 @@ func validateGitHubSourceInput(input SourceUpdateInput) error {
 	if input.RemoteURLSet || strings.TrimSpace(input.RemoteURL) != "" ||
 		strings.TrimSpace(input.RemoteNetworkPolicy) != "" {
 		return errors.New(errPagesSourceGitHubFields)
-	}
-	if input.AutoUpdateEnabled {
-		return errors.New(errPagesSourceAutoNotAvailable)
 	}
 	if _, err := normalizeGitHubRepositoryURL(input.RepositoryURL); err != nil {
 		return err
@@ -83,7 +81,7 @@ func validateGitHubSourceInput(input SourceUpdateInput) error {
 			return errors.New(errPagesSourceCheckInterval)
 		}
 	case githubReleaseSelectorTag:
-		if !validGitHubReleaseTagConfig(input.ReleaseTag) || input.CheckIntervalMinutes != 0 {
+		if !validGitHubReleaseTagConfig(input.ReleaseTag) || input.AutoUpdateEnabled || input.CheckIntervalMinutes != 0 {
 			return errors.New(errPagesSourceSelectorInvalid)
 		}
 	default:
@@ -110,11 +108,17 @@ func buildGitHubSourceConfig(input SourceUpdateInput) (githubSourceConfig, error
 	if selector == githubReleaseSelectorLatest && interval == 0 {
 		interval = defaultCheckInterval
 	}
+	autoUpdate := input.AutoUpdateEnabled
+	if selector == githubReleaseSelectorTag {
+		autoUpdate = false
+		interval = 0
+	}
 	return githubSourceConfig{
 		Repository:     repository,
 		Selector:       selector,
 		Tag:            tag,
 		AssetName:      assetName,
+		AutoUpdate:     autoUpdate,
 		CheckInterval:  interval,
 		SourceIdentity: buildGitHubSourceIdentity(repository, selector, tag, assetName),
 	}, nil
@@ -251,7 +255,7 @@ func createGitHubSourceTx(tx *gorm.DB, projectID uint, config githubSourceConfig
 		ReleaseSelector:      config.Selector,
 		ReleaseTag:           config.Tag,
 		AssetName:            config.AssetName,
-		AutoUpdateEnabled:    false,
+		AutoUpdateEnabled:    config.AutoUpdate,
 		CheckIntervalMinutes: config.CheckInterval,
 		ConfigVersion:        1,
 		SourceIdentity:       config.SourceIdentity,
@@ -276,7 +280,7 @@ func githubSourceUpdates(config githubSourceConfig, version int) map[string]any 
 		"release_selector":            config.Selector,
 		"release_tag":                 config.Tag,
 		"asset_name":                  config.AssetName,
-		sourceColumnAutoUpdateEnabled: false,
+		sourceColumnAutoUpdateEnabled: config.AutoUpdate,
 		"check_interval_minutes":      config.CheckInterval,
 		sourceColumnConfigVersion:     version,
 		"source_identity":             config.SourceIdentity,
@@ -287,7 +291,7 @@ func githubSourceConfigChanged(existing *model.PagesProjectSource, config github
 	return existing.SourceType != PagesSourceTypeGitHubRelease || existing.RemoteURL != "" ||
 		existing.RemoteNetworkPolicy != "" || existing.GitHubRepository != config.Repository ||
 		existing.ReleaseSelector != config.Selector || existing.ReleaseTag != config.Tag ||
-		existing.AssetName != config.AssetName || existing.AutoUpdateEnabled ||
+		existing.AssetName != config.AssetName || existing.AutoUpdateEnabled != config.AutoUpdate ||
 		existing.CheckIntervalMinutes != config.CheckInterval
 }
 

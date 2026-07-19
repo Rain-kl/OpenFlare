@@ -53,6 +53,9 @@ func Register() {
 	task.RegisterTaskMeta(openflare.UptimeKumaSyncMeta)
 
 	// pages source actions are only dispatched by the Pages domain API/scanner.
+	task.RegisterHandler(pages.PagesSourceScanTask, &pages.SourceScanHandler{})
+	task.RegisterTaskMeta(pages.PagesSourceScanMeta)
+
 	task.RegisterHandler(pages.PagesSourceActionTask, &pages.SourceActionHandler{})
 	task.RegisterTaskMeta(pages.PagesSourceActionMeta)
 

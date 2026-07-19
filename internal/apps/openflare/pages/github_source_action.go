@@ -28,9 +28,10 @@ const githubSourceDetailProvider = "github"
 var githubDigestPattern = regexp.MustCompile(`^sha256:[0-9a-f]{64}$`)
 
 type githubSourceProviderDomainError struct {
-	message   string
-	permanent bool
-	retryAt   *time.Time
+	message    string
+	permanent  bool
+	retryAt    *time.Time
+	statusCode int
 }
 
 func (domainError *githubSourceProviderDomainError) Error() string {
@@ -56,9 +57,12 @@ type githubSourceTarget struct {
 }
 
 type githubCheckTaskResult struct {
-	Message string
-	Detail  string
-	Stale   bool
+	Message  string
+	Detail   string
+	Revision string
+	Status   string
+	RetryAt  *time.Time
+	Stale    bool
 }
 
 type preparedGitHubSource struct {
@@ -99,13 +103,21 @@ func checkGitHubSource(
 		return nil, domainErr
 	}
 	if result.NotModified {
-		if err := finishGitHubCheckNotModified(ctx, snapshot, result); err != nil {
+		revision, status, err := finishGitHubCheckNotModified(ctx, snapshot, result)
+		if err != nil {
 			if errors.Is(err, errSourceFinalFence) {
 				return &githubCheckTaskResult{Message: errPagesSourceActionStale, Stale: true}, nil
 			}
 			return nil, err
 		}
-		return &githubCheckTaskResult{Message: "GitHub Release 检查完成，内容未变化"}, nil
+		detail, _ := json.Marshal(map[string]string{"revision": revision, pagesDeploymentColumnStatus: status})
+		return &githubCheckTaskResult{
+			Message:  "GitHub Release 检查完成，内容未变化",
+			Detail:   string(detail),
+			Revision: revision,
+			Status:   status,
+			RetryAt:  result.RetryAt,
+		}, nil
 	}
 	target, err := buildGitHubSourceTarget(result.Release, result.Asset, result.RetryAt)
 	if err != nil {
@@ -136,7 +148,10 @@ func checkGitHubSource(
 	case pagesSourceStatusAttention:
 		message = "检测到同一 Release 的资源被替换，需要确认"
 	}
-	return &githubCheckTaskResult{Message: message, Detail: string(detail)}, nil
+	return &githubCheckTaskResult{
+		Message: message, Detail: string(detail), Revision: target.Revision,
+		Status: status, RetryAt: result.RetryAt,
+	}, nil
 }
 
 func buildGitHubSourceTarget(
@@ -183,17 +198,22 @@ func finishGitHubCheckNotModified(
 	ctx context.Context,
 	snapshot *sourceExecutionSnapshot,
 	result githubrelease.ResolveResult,
-) error {
-	return db.DB(ctx).Transaction(func(tx *gorm.DB) error {
+) (string, string, error) {
+	var revision string
+	var status string
+	err := db.DB(ctx).Transaction(func(tx *gorm.DB) error {
 		runtime, now, err := lockOwnedSourceRuntime(tx, snapshot)
 		if err != nil {
 			return err
 		}
+		revision = runtime.LastSeenRevision
+		status = normalizedSourceRuntimeStatus(runtime)
 		updates := githubCheckTerminalUpdates(snapshot, now, result.RetryAt)
 		updates["etag"] = result.ETag
-		updates[sourceRuntimeColumnSyncStatus] = normalizedSourceRuntimeStatus(runtime)
+		updates[sourceRuntimeColumnSyncStatus] = status
 		return tx.Model(runtime).Updates(updates).Error
 	})
+	return revision, status, err
 }
 
 func finishGitHubCheckTarget(
@@ -230,7 +250,7 @@ func githubCheckTerminalUpdates(
 		sourceRuntimeColumnLeaseToken:     "",
 		sourceRuntimeColumnLeaseExpiresAt: nil,
 	}
-	updates["next_check_at"] = nextCheckAfterGitHubResponse(snapshot, now, retryAt)
+	updates[sourceRuntimeColumnNextCheckAt] = nextCheckAfterGitHubResponse(snapshot, now, retryAt)
 	return updates
 }
 
@@ -244,7 +264,7 @@ func nextCheckAfterGitHubResponse(
 	}
 	next := nextGitHubCheckAt(now, snapshot.SourceID, snapshot.CheckIntervalMinutes)
 	if retryAt != nil && retryAt.After(next) {
-		next = retryAt.UTC()
+		next = retryAt.In(now.Location())
 	}
 	return &next
 }
@@ -275,7 +295,7 @@ func failGitHubCheckLease(
 	now := time.Now()
 	next := now.Add(initialCheckRetryDelay)
 	if retryAt.After(next) {
-		next = retryAt.UTC()
+		next = retryAt.In(now.Location())
 	}
 	updates := map[string]any{
 		sourceRuntimeColumnSyncStatus:     pagesSourceStatusFailed,
@@ -285,9 +305,9 @@ func failGitHubCheckLease(
 		sourceRuntimeColumnLeaseExpiresAt: nil,
 	}
 	if snapshot.ReleaseSelector == githubReleaseSelectorLatest {
-		updates["next_check_at"] = &next
+		updates[sourceRuntimeColumnNextCheckAt] = &next
 	} else {
-		updates["next_check_at"] = nil
+		updates[sourceRuntimeColumnNextCheckAt] = nil
 	}
 	result := db.DB(ctx).Model(&model.PagesProjectSourceRuntime{}).
 		Where("source_id = ? AND lease_token = ? AND lease_expires_at > ?", snapshot.SourceID, snapshot.LeaseToken, now).
@@ -332,14 +352,18 @@ func preflightGitHubSyncConfirmation(ctx context.Context, sourceID uint, confirm
 	return nil
 }
 
-func syncGitHubSource(
+func syncGitHubSourceWithTrigger(
 	ctx context.Context,
 	snapshot *sourceExecutionSnapshot,
 	actor string,
 	targetRevision string,
 	confirmedRevision string,
+	triggerType string,
 ) (outcome *sourceSyncOutcome, resultErr error) {
 	if snapshot == nil || snapshot.SourceType != PagesSourceTypeGitHubRelease || !validPagesSourceActor(actor) {
+		return nil, errors.New(errPagesSourceActionInvalid)
+	}
+	if !validSourceDeploymentTrigger(triggerType) {
 		return nil, errors.New(errPagesSourceActionInvalid)
 	}
 	defer func() {
@@ -383,7 +407,7 @@ func syncGitHubSource(
 	if !renewed {
 		return &sourceSyncOutcome{Stale: true}, nil
 	}
-	return activatePreparedGitHubSource(ctx, snapshot, actor, prepared)
+	return activatePreparedGitHubSource(ctx, snapshot, actor, triggerType, prepared)
 }
 
 func finalizeGitHubSyncFailure(
@@ -429,12 +453,13 @@ func activatePreparedGitHubSource(
 	ctx context.Context,
 	snapshot *sourceExecutionSnapshot,
 	actor string,
+	triggerType string,
 	prepared *preparedGitHubSource,
 ) (*sourceSyncOutcome, error) {
 	task.AppendLog(ctx, "[activate] 正在原子切换 GitHub Release 部署")
-	deployment, reused, referenced, err := commitSourceDeployment(
+	deployment, reused, referenced, err := commitSourceDeploymentWithTrigger(
 		ctx, snapshot, prepared.target.Revision, prepared.download.SHA256,
-		prepared.target.Detail, prepared.target.DetailJSON, actor, prepared.manifest,
+		prepared.target.Detail, prepared.target.DetailJSON, actor, triggerType, prepared.manifest,
 		prepared.ingestState.Result, prepared.ingestState.HasIngest, prepared.target.RetryAt,
 	)
 	prepared.ingestState.Referenced = referenced
@@ -634,7 +659,7 @@ func releaseGitHubSyncWithoutActivation(
 	if expedite && snapshot.ReleaseSelector == githubReleaseSelectorLatest {
 		next := now.Add(initialCheckRetryDelay)
 		if retryAt != nil && retryAt.After(next) {
-			next = retryAt.UTC()
+			next = retryAt.In(now.Location())
 		}
 		nextCheckAt = &next
 	}
@@ -644,7 +669,7 @@ func releaseGitHubSyncWithoutActivation(
 		sourceRuntimeColumnSyncStatus:     status,
 		sourceRuntimeColumnLastError:      lastError,
 		sourceRuntimeColumnLastCheckedAt:  &now,
-		"next_check_at":                   nextCheckAt,
+		sourceRuntimeColumnNextCheckAt:    nextCheckAt,
 		sourceRuntimeColumnLeaseToken:     "",
 		sourceRuntimeColumnLeaseExpiresAt: nil,
 	}
@@ -689,32 +714,37 @@ func safeGitHubSourceError(err error) string {
 
 func githubSourceDomainError(err error) error {
 	message := errPagesSourceSyncFailed
+	statusCode := 0
+	var providerError *githubrelease.Error
+	if errors.As(err, &providerError) {
+		statusCode = providerError.StatusCode
+	}
 	retryAt, hasRetryAt := githubrelease.RetryAt(err)
 	var retryDeadline *time.Time
 	if hasRetryAt {
 		retryDeadline = &retryAt
 	}
 	if err == nil {
-		return &githubSourceProviderDomainError{message: message, permanent: false}
+		return &githubSourceProviderDomainError{message: message, permanent: false, statusCode: statusCode}
 	}
 	if githubrelease.IsDigestError(err) {
 		message = errPagesSourceDigestMismatch
-		return &githubSourceProviderDomainError{message: message, permanent: true}
+		return &githubSourceProviderDomainError{message: message, permanent: true, statusCode: statusCode}
 	}
 	if githubrelease.IsNotFound(err) {
 		message = errPagesSourceReleaseNotFound
-		return &githubSourceProviderDomainError{message: message, permanent: true}
+		return &githubSourceProviderDomainError{message: message, permanent: true, statusCode: statusCode}
 	}
 	if errors.Is(err, githubrelease.ErrAssetTooLarge) {
 		message = errPagesPackageURLTooLarge
-		return &githubSourceProviderDomainError{message: message, permanent: true}
+		return &githubSourceProviderDomainError{message: message, permanent: true, statusCode: statusCode}
 	}
 	if errors.Is(err, githubrelease.ErrEmptyAsset) {
 		message = errPagesPackageEmpty
-		return &githubSourceProviderDomainError{message: message, permanent: true}
+		return &githubSourceProviderDomainError{message: message, permanent: true, statusCode: statusCode}
 	}
 	return &githubSourceProviderDomainError{
-		message: message, permanent: !githubrelease.IsRetryable(err), retryAt: retryDeadline,
+		message: message, permanent: !githubrelease.IsRetryable(err), retryAt: retryDeadline, statusCode: statusCode,
 	}
 }
 

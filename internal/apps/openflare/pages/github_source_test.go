@@ -190,7 +190,7 @@ func TestGitHubSourceSaveSurvivesInitialCheckDispatchFailure(t *testing.T) {
 	}
 }
 
-func TestGitHubSourceRejectsUnsafeOrPhaseThreeFields(t *testing.T) {
+func TestGitHubSourceRejectsUnsafeOrModeIncompatibleFields(t *testing.T) {
 	tests := []SourceUpdateInput{
 		{SourceType: PagesSourceTypeGitHubRelease, RepositoryURL: "http://github.com/a/b"},
 		{SourceType: PagesSourceTypeGitHubRelease, RepositoryURL: "https://github.com/a%20b/repo"},
@@ -202,8 +202,8 @@ func TestGitHubSourceRejectsUnsafeOrPhaseThreeFields(t *testing.T) {
 		{SourceType: PagesSourceTypeGitHubRelease, RepositoryURL: "https://github.com/a/b", AssetName: "dist\n.zip"},
 		{SourceType: PagesSourceTypeGitHubRelease, RepositoryURL: "https://github.com/a/b", AssetName: "dist\u202e.zip"},
 		{SourceType: PagesSourceTypeGitHubRelease, RepositoryURL: "https://github.com/a/b", AssetName: "dir/dist.zip"},
-		{SourceType: PagesSourceTypeGitHubRelease, RepositoryURL: "https://github.com/a/b", AutoUpdateEnabled: true},
 		{SourceType: PagesSourceTypeGitHubRelease, RepositoryURL: "https://github.com/a/b", ReleaseSelector: "tag", ReleaseTag: "v1", CheckIntervalMinutes: 60},
+		{SourceType: PagesSourceTypeGitHubRelease, RepositoryURL: "https://github.com/a/b", ReleaseSelector: "tag", ReleaseTag: "v1", AutoUpdateEnabled: true},
 		{SourceType: PagesSourceTypeGitHubRelease, RepositoryURL: "https://github.com/a/b", ReleaseSelector: "tag", ReleaseTag: " v1"},
 		{SourceType: PagesSourceTypeGitHubRelease, RepositoryURL: "https://github.com/a/b", ReleaseSelector: "tag", ReleaseTag: "v1\n"},
 		{SourceType: PagesSourceTypeGitHubRelease, RepositoryURL: "https://github.com/a/b", ReleaseSelector: "tag", ReleaseTag: "v1\u2028draft"},
@@ -779,6 +779,7 @@ func TestSourceActionPayloadSeparatesSystemTargetAndUserConfirmation(t *testing.
 	revision := strings.Repeat("a", 64)
 	invalid := []SourceActionPayload{
 		{SourceID: 1, ConfigVersion: 1, Action: sourceActionSync, Actor: "user:1", TargetRevision: revision},
+		{SourceID: 1, ConfigVersion: 1, Action: sourceActionSync, Actor: pagesSourceCreatedBySystem, TriggerType: pagesSourceTriggerManualSync},
 		{SourceID: 1, ConfigVersion: 1, Action: sourceActionSync, Actor: pagesSourceCreatedBySystem, ConfirmedRevision: revision},
 		{SourceID: 1, ConfigVersion: 1, Action: sourceActionSync, Actor: pagesSourceCreatedBySystem, TargetRevision: revision, ConfirmedRevision: revision},
 	}
@@ -789,8 +790,8 @@ func TestSourceActionPayloadSeparatesSystemTargetAndUserConfirmation(t *testing.
 		}
 	}
 	valid := []SourceActionPayload{
-		{SourceID: 1, ConfigVersion: 1, Action: sourceActionSync, Actor: pagesSourceCreatedBySystem, TargetRevision: revision},
-		{SourceID: 1, ConfigVersion: 1, Action: sourceActionSync, Actor: "user:1", ConfirmedRevision: revision},
+		{SourceID: 1, ConfigVersion: 1, Action: sourceActionSync, Actor: pagesSourceCreatedBySystem, TriggerType: pagesSourceTriggerScheduledAutoUpdate, TargetRevision: revision},
+		{SourceID: 1, ConfigVersion: 1, Action: sourceActionSync, Actor: "user:1", TriggerType: pagesSourceTriggerManualSync, ConfirmedRevision: revision},
 	}
 	for _, payload := range valid {
 		raw, _ := json.Marshal(payload)

@@ -29,6 +29,7 @@ const (
 	sourceRuntimeColumnSyncStatus     = "sync_status"
 	sourceRuntimeColumnLastError      = "last_error"
 	sourceRuntimeColumnLastCheckedAt  = "last_checked_at"
+	sourceRuntimeColumnNextCheckAt    = "next_check_at"
 	sourceRuntimeColumnLeaseToken     = "lease_token"
 	sourceRuntimeColumnLeaseExpiresAt = "lease_expires_at"
 	pagesDeploymentColumnStatus       = "status"
@@ -58,6 +59,7 @@ type sourceExecutionSnapshot struct {
 	ReleaseSelector      string
 	ReleaseTag           string
 	AssetName            string
+	AutoUpdateEnabled    bool
 	CheckIntervalMinutes int
 	ETag                 string
 	LastSeenRevision     string
@@ -179,6 +181,7 @@ func loadSourceExecutionSnapshot(
 			ReleaseSelector:      source.ReleaseSelector,
 			ReleaseTag:           source.ReleaseTag,
 			AssetName:            source.AssetName,
+			AutoUpdateEnabled:    source.AutoUpdateEnabled,
 			CheckIntervalMinutes: source.CheckIntervalMinutes,
 			ETag:                 runtime.ETag,
 			LastSeenRevision:     runtime.LastSeenRevision,
@@ -298,6 +301,41 @@ func sourceLeaseIsBusy(ctx context.Context, sourceID uint) (bool, error) {
 		return false, err
 	}
 	return runtime.LeaseExpiresAt != nil && runtime.LeaseExpiresAt.After(time.Now()), nil
+}
+
+// recoverExpiredSourceLease clears one exact expired lease owner. Matching the
+// token, observed expiry and status prevents a scanner from overwriting a
+// worker that renewed or was replaced after the candidate query.
+func recoverExpiredSourceLease(
+	ctx context.Context,
+	sourceID uint,
+	token string,
+	expiresAt time.Time,
+	status string,
+	now time.Time,
+	nextCheckAt *time.Time,
+) (bool, error) {
+	if sourceID == 0 || token == "" ||
+		(status != pagesSourceStatusChecking && status != pagesSourceStatusSyncing) {
+		return false, nil
+	}
+	updates := map[string]any{
+		sourceRuntimeColumnSyncStatus:     pagesSourceStatusFailed,
+		sourceRuntimeColumnLastError:      errPagesSourceLeaseExpired,
+		sourceRuntimeColumnLeaseToken:     "",
+		sourceRuntimeColumnLeaseExpiresAt: nil,
+		sourceRuntimeColumnNextCheckAt:    nextCheckAt,
+	}
+	result := db.DB(ctx).Model(&model.PagesProjectSourceRuntime{}).
+		Where("source_id = ?", sourceID).
+		Where("lease_token = ?", token).
+		Where("lease_expires_at = ? AND lease_expires_at <= ?", expiresAt, now).
+		Where("sync_status = ?", status).
+		Updates(updates)
+	if result.Error != nil {
+		return false, result.Error
+	}
+	return result.RowsAffected == 1, nil
 }
 
 // fenceAndNormalizeRuntime invalidates in-flight work while preserving safe
