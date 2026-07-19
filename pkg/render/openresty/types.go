@@ -309,6 +309,9 @@ type ConfigSnapshot struct {
 	CacheLockTimeout          string `json:"cache_lock_timeout"`
 	CacheUseStale             string `json:"cache_use_stale"`
 	MainConfigTemplate        string `json:"main_config_template,omitempty"`
+	DefaultLimitConnPerServer int    `json:"default_limit_conn_per_server,omitempty"`
+	DefaultLimitConnPerIP     int    `json:"default_limit_conn_per_ip,omitempty"`
+	DefaultLimitRate          string `json:"default_limit_rate,omitempty"`
 }
 
 // Document is the top-level input structure for the OpenResty renderer,

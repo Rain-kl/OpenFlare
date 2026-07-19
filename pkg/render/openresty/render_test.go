@@ -442,3 +442,126 @@ func TestRenderRouteCacheBlockIncludesStaticWhenEnabled(t *testing.T) {
 		t.Fatalf("expected security bypass for non-GET, got:\n%s", block)
 	}
 }
+
+func TestMergeRouteLimitConfig(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name  string
+		route Route
+		cfg   ConfigSnapshot
+		want  routeLimitConfig
+	}{
+		{
+			name:  "both zero off",
+			route: Route{},
+			cfg:   ConfigSnapshot{},
+			want:  routeLimitConfig{},
+		},
+		{
+			name:  "inherit all defaults",
+			route: Route{},
+			cfg: ConfigSnapshot{
+				DefaultLimitConnPerServer: 100,
+				DefaultLimitConnPerIP:     10,
+				DefaultLimitRate:          "512k",
+			},
+			want: routeLimitConfig{LimitConnPerServer: 100, LimitConnPerIP: 10, LimitRate: "512k"},
+		},
+		{
+			name:  "explicit off ignores default",
+			route: Route{LimitConnPerServer: -1, LimitConnPerIP: -1, LimitRate: "-1"},
+			cfg: ConfigSnapshot{
+				DefaultLimitConnPerServer: 100,
+				DefaultLimitConnPerIP:     10,
+				DefaultLimitRate:          "512k",
+			},
+			want: routeLimitConfig{},
+		},
+		{
+			name:  "route overrides default",
+			route: Route{LimitConnPerServer: 50, LimitConnPerIP: 5, LimitRate: "1m"},
+			cfg: ConfigSnapshot{
+				DefaultLimitConnPerServer: 100,
+				DefaultLimitConnPerIP:     10,
+				DefaultLimitRate:          "512k",
+			},
+			want: routeLimitConfig{LimitConnPerServer: 50, LimitConnPerIP: 5, LimitRate: "1m"},
+		},
+		{
+			name:  "partial inherit",
+			route: Route{LimitConnPerServer: 0, LimitConnPerIP: -1, LimitRate: ""},
+			cfg: ConfigSnapshot{
+				DefaultLimitConnPerServer: 100,
+				DefaultLimitConnPerIP:     10,
+				DefaultLimitRate:          "256k",
+			},
+			want: routeLimitConfig{LimitConnPerServer: 100, LimitConnPerIP: 0, LimitRate: "256k"},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got := mergeRouteLimitConfig(tc.route, tc.cfg)
+			if got != tc.want {
+				t.Fatalf("mergeRouteLimitConfig() = %#v, want %#v", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestRenderRouteConfigAppliesDefaultLimits(t *testing.T) {
+	doc := Document{
+		Routes: []Route{{
+			SiteName:  "example.com",
+			Domains:   []string{"example.com"},
+			Enabled:   true,
+			OriginURL: "http://127.0.0.1:8080",
+			Upstreams: []string{"http://127.0.0.1:8080"},
+		}},
+		OpenRestyConfig: ConfigSnapshot{
+			DefaultLimitConnPerServer: 120,
+			DefaultLimitConnPerIP:     12,
+			DefaultLimitRate:          "512k",
+		},
+	}
+	rendered, err := RenderRouteConfig(doc, nil)
+	if err != nil {
+		t.Fatalf("RenderRouteConfig() error = %v", err)
+	}
+	for _, want := range []string{
+		"limit_conn openflare_conn_per_server 120;",
+		"limit_conn openflare_conn_per_ip 12;",
+		"limit_rate 512k;",
+	} {
+		if !strings.Contains(rendered, want) {
+			t.Fatalf("expected %q in route config, got:\n%s", want, rendered)
+		}
+	}
+}
+
+func TestRenderRouteConfigExplicitOffSkipsDefaultLimits(t *testing.T) {
+	doc := Document{
+		Routes: []Route{{
+			SiteName:           "example.com",
+			Domains:            []string{"example.com"},
+			Enabled:            true,
+			OriginURL:          "http://127.0.0.1:8080",
+			Upstreams:          []string{"http://127.0.0.1:8080"},
+			LimitConnPerServer: -1,
+			LimitConnPerIP:     -1,
+			LimitRate:          "-1",
+		}},
+		OpenRestyConfig: ConfigSnapshot{
+			DefaultLimitConnPerServer: 120,
+			DefaultLimitConnPerIP:     12,
+			DefaultLimitRate:          "512k",
+		},
+	}
+	rendered, err := RenderRouteConfig(doc, nil)
+	if err != nil {
+		t.Fatalf("RenderRouteConfig() error = %v", err)
+	}
+	if strings.Contains(rendered, "limit_conn") || strings.Contains(rendered, "limit_rate") {
+		t.Fatalf("expected no limit directives, got:\n%s", rendered)
+	}
+}

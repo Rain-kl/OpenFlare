@@ -94,7 +94,7 @@ func RenderRouteConfig(doc Document, certificateFiles []SupportFile) (string, er
 		serverNames := renderServerNames(domains)
 		displayName := resolveRouteSiteName(route)
 		cacheConfig := routeCacheConfig{Enabled: route.CacheEnabled, Policy: route.CachePolicy, Rules: route.CacheRules}
-		limitConfig := routeLimitConfig{LimitConnPerServer: route.LimitConnPerServer, LimitConnPerIP: route.LimitConnPerIP, LimitRate: route.LimitRate}
+		limitConfig := mergeRouteLimitConfig(route, doc.OpenRestyConfig)
 		powEnabled, _ := getPoWConfigForRoute(route.ID, doc.WAF)
 		if normalizeRouteUpstreamType(route.UpstreamType) == routeUpstreamTypePages {
 			if err := renderPagesRoute(&builder, route, displayName, serverNames, certificates, limitConfig, powEnabled, doc.OpenRestyConfig); err != nil {
@@ -476,6 +476,42 @@ func renderRouteLimitBlock(limitConfig routeLimitConfig) string {
 		fmt.Fprintf(&builder, "        limit_rate %s;\n", limitConfig.LimitRate)
 	}
 	return builder.String()
+}
+
+func mergeRouteLimitConfig(route Route, cfg ConfigSnapshot) routeLimitConfig {
+	return routeLimitConfig{
+		LimitConnPerServer: mergeLimitConn(route.LimitConnPerServer, cfg.DefaultLimitConnPerServer),
+		LimitConnPerIP:     mergeLimitConn(route.LimitConnPerIP, cfg.DefaultLimitConnPerIP),
+		LimitRate:          mergeLimitRate(route.LimitRate, cfg.DefaultLimitRate),
+	}
+}
+
+func mergeLimitConn(route, def int) int {
+	if route == -1 {
+		return 0
+	}
+	if route > 0 {
+		return route
+	}
+	if def > 0 {
+		return def
+	}
+	return 0
+}
+
+func mergeLimitRate(route, def string) string {
+	r := strings.ToLower(strings.TrimSpace(route))
+	if r == "-1" {
+		return ""
+	}
+	if r != "" && r != "0" {
+		return r
+	}
+	d := strings.ToLower(strings.TrimSpace(def))
+	if d != "" && d != "0" {
+		return d
+	}
+	return ""
 }
 
 func renderRouteCachePolicyCondition(cacheConfig routeCacheConfig) string {
