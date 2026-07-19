@@ -211,8 +211,15 @@ of_pages_projects
 GitHub：
 
 ```text
-SHA-256("github|" + owner_repo + "|" + selector + "|" + tag + "|" + asset_name)
+LP(value) = uint64be(byte_length(UTF8(value))) || UTF8(value)
+
+SHA-256(
+  "openflare:pages:github-release:v2" ||
+  LP(owner_repo) || LP(selector) || LP(tag) || LP(asset_name)
+)
 ```
+
+GitHub identity 对每个 UTF-8 字段使用无歧义的长度前缀编码，不能使用分隔符直接拼接；自动更新开关和检查间隔不参与 identity。
 
 Remote：
 

@@ -388,12 +388,14 @@ func TestCommitSourceDeploymentRechecksLeaseAfterUploadLocks(t *testing.T) {
 		ctx,
 		snapshot,
 		deployment.Checksum,
-		sourceDetail{Provider: PagesSourceTypeRemoteURL, Label: deployment.SourceLabel},
+		deployment.Checksum,
+		sourceDetail{Provider: PagesSourceTypeRemoteURL, DisplayName: deployment.SourceLabel},
 		deployment.SourceMeta,
 		"user:5",
 		&deploymentManifest{},
 		upload.IngestResult{},
 		false,
+		nil,
 	)
 	if !errors.Is(err, errSourceFinalFence) {
 		t.Fatalf("commitSourceDeployment(expired after upload lock) error = %v, want %v", err, errSourceFinalFence)
@@ -552,7 +554,7 @@ func TestCommitSourceDeploymentRejectsDeletedTargetUpload(t *testing.T) {
 		SourceIdentity:   &identity,
 		SourceRevision:   &revision,
 		SourceLabel:      "deleted.zip",
-		SourceMeta:       `{"provider":"remote_url","label":"deleted.zip"}`,
+		SourceMeta:       `{"provider":"remote_url","display_name":"deleted.zip"}`,
 		TriggerType:      pagesSourceTriggerManualSync,
 	}
 	if err := db.DB(ctx).Create(deployment).Error; err != nil {
@@ -575,12 +577,14 @@ func TestCommitSourceDeploymentRejectsDeletedTargetUpload(t *testing.T) {
 		ctx,
 		snapshot,
 		revision,
-		sourceDetail{Provider: PagesSourceTypeRemoteURL, Label: "deleted.zip"},
-		`{"provider":"remote_url","label":"deleted.zip"}`,
+		revision,
+		sourceDetail{Provider: PagesSourceTypeRemoteURL, DisplayName: "deleted.zip"},
+		`{"provider":"remote_url","display_name":"deleted.zip"}`,
 		"user:1",
 		manifest,
 		upload.IngestResult{},
 		false,
+		nil,
 	)
 	if !errors.Is(err, errSourceFinalFence) {
 		t.Errorf("commitSourceDeployment(deleted upload) error = %v, want %v", err, errSourceFinalFence)

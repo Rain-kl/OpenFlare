@@ -26,7 +26,7 @@ const (
 	PagesSourceTypeManual = "manual"
 	// PagesSourceTypeRemoteURL represents a persisted artifact URL.
 	PagesSourceTypeRemoteURL = "remote_url"
-	// PagesSourceTypeGitHubRelease is reserved for Phase 2.
+	// PagesSourceTypeGitHubRelease represents a public GitHub Release asset.
 	PagesSourceTypeGitHubRelease = "github_release"
 
 	pagesSourceStatusIdle            = "idle"
@@ -37,6 +37,10 @@ const (
 	pagesSourceStatusAttention       = "attention"
 
 	defaultRemoteAssetLabel = "pages-package"
+	defaultGitHubAssetName  = "dist.zip"
+	defaultCheckInterval    = 60
+	minimumCheckInterval    = 5
+	maximumCheckInterval    = 1440
 )
 
 // SourceUpdateInput is the discriminated source configuration payload.
@@ -72,7 +76,7 @@ type SourceView struct {
 	ReleaseSelector      string              `json:"release_selector,omitempty"`
 	ReleaseTag           string              `json:"release_tag,omitempty"`
 	AssetName            string              `json:"asset_name,omitempty"`
-	AutoUpdateEnabled    bool                `json:"auto_update_enabled,omitempty"`
+	AutoUpdateEnabled    *bool               `json:"auto_update_enabled,omitempty"`
 	CheckIntervalMinutes int                 `json:"check_interval_minutes,omitempty"`
 	SyncStatus           string              `json:"sync_status,omitempty"`
 	UpdateAvailable      bool                `json:"update_available,omitempty"`
@@ -99,10 +103,15 @@ type SourceUpdateResult struct {
 }
 
 type sourceDetail struct {
-	Provider  string `json:"provider"`
-	Label     string `json:"label"`
-	AssetName string `json:"asset_name,omitempty"`
-	ReleaseID string `json:"release_id,omitempty"`
+	Provider       string `json:"provider"`
+	DisplayName    string `json:"display_name,omitempty"`
+	Tag            string `json:"tag,omitempty"`
+	LegacyLabel    string `json:"label,omitempty"`
+	AssetName      string `json:"asset_name,omitempty"`
+	ReleaseID      string `json:"release_id,omitempty"`
+	AssetID        string `json:"asset_id,omitempty"`
+	AssetUpdatedAt string `json:"asset_updated_at,omitempty"`
+	Digest         string `json:"digest,omitempty"`
 }
 
 type remoteSourceConfig struct {
@@ -126,14 +135,43 @@ func GetSource(ctx context.Context, projectID uint) (*SourceView, error) {
 	return buildSourceView(source, runtime)
 }
 
-// UpdateSource creates or updates a Remote URL source and its 1:1 runtime row.
+// UpdateSource creates or updates a source. Direct callers use the system actor;
+// HTTP handlers should call UpdateSourceAs so the initial check is auditable.
 func UpdateSource(ctx context.Context, projectID uint, input SourceUpdateInput) (*SourceUpdateResult, error) {
-	if err := validateRemoteSourceInput(input); err != nil {
+	return UpdateSourceAs(ctx, projectID, input, pagesSourceCreatedBySystem)
+}
+
+// UpdateSourceAs persists source configuration and queues the first GitHub check
+// after commit when the GitHub configuration was materially changed.
+func UpdateSourceAs(
+	ctx context.Context,
+	projectID uint,
+	input SourceUpdateInput,
+	actor string,
+) (*SourceUpdateResult, error) {
+	if !validPagesSourceActor(actor) {
+		return nil, errors.New(errPagesSourceActionInvalid)
+	}
+	if err := validateSourceUpdateInput(input); err != nil {
 		return nil, err
 	}
 
+	changed := false
+	var persistedSource model.PagesProjectSource
 	err := db.DB(ctx).Transaction(func(tx *gorm.DB) error {
-		return updateRemoteSourceTx(tx, projectID, input)
+		var err error
+		switch strings.TrimSpace(input.SourceType) {
+		case PagesSourceTypeRemoteURL:
+			changed, err = updateRemoteSourceTx(tx, projectID, input)
+		case PagesSourceTypeGitHubRelease:
+			changed, err = updateGitHubSourceTx(tx, projectID, input)
+		default:
+			err = errors.New(errPagesSourceTypeUnsupported)
+		}
+		if err != nil || !changed || strings.TrimSpace(input.SourceType) != PagesSourceTypeGitHubRelease {
+			return err
+		}
+		return tx.Where("project_id = ?", projectID).First(&persistedSource).Error
 	})
 	if err != nil {
 		return nil, err
@@ -143,24 +181,34 @@ func UpdateSource(ctx context.Context, projectID uint, input SourceUpdateInput) 
 	if err != nil {
 		return nil, err
 	}
-	return &SourceUpdateResult{Source: view, Warning: ""}, nil
+	result := &SourceUpdateResult{Source: view, Warning: ""}
+	if changed && strings.TrimSpace(input.SourceType) == PagesSourceTypeGitHubRelease {
+		receipt, dispatchErr := dispatchSourceActionSnapshot(ctx, persistedSource, sourceActionCheck, actor, "", "", "manual")
+		if dispatchErr != nil {
+			result.Warning = errPagesSourceInitialCheckWarning
+			markInitialCheckDispatchFailed(ctx, persistedSource.ID, persistedSource.ConfigVersion)
+		} else {
+			result.CheckTask = receipt
+		}
+	}
+	return result, nil
 }
 
-func updateRemoteSourceTx(tx *gorm.DB, projectID uint, input SourceUpdateInput) error {
+func updateRemoteSourceTx(tx *gorm.DB, projectID uint, input SourceUpdateInput) (bool, error) {
 	var project model.PagesProject
 	if err := tx.Clauses(clause.Locking{Strength: pagesRowLockStrength}).First(&project, projectID).Error; err != nil {
-		return err
+		return false, err
 	}
 	existing, hasExisting, err := loadProjectSourceForUpdate(tx, projectID)
 	if err != nil {
-		return err
+		return false, err
 	}
 	config, err := buildRemoteSourceConfig(existing, hasExisting, input)
 	if err != nil {
-		return err
+		return false, err
 	}
 	if !hasExisting {
-		return createRemoteSourceTx(tx, projectID, config)
+		return true, createRemoteSourceTx(tx, projectID, config)
 	}
 	return updateExistingRemoteSourceTx(tx, existing, config)
 }
@@ -227,33 +275,33 @@ func updateExistingRemoteSourceTx(
 	tx *gorm.DB,
 	existing *model.PagesProjectSource,
 	config remoteSourceConfig,
-) error {
+) (bool, error) {
 	if !remoteSourceConfigChanged(existing, config) {
-		return nil
+		return false, nil
 	}
 	var runtime model.PagesProjectSourceRuntime
 	if err := tx.Clauses(clause.Locking{Strength: pagesRowLockStrength}).
 		Where("source_id = ?", existing.ID).
 		First(&runtime).Error; err != nil {
-		return err
+		return false, err
 	}
 	identityChanged := existing.SourceIdentity != config.Identity
 	if err := tx.Model(existing).Updates(map[string]any{
-		"source_type":            PagesSourceTypeRemoteURL,
-		"remote_url":             config.URL,
-		"remote_network_policy":  config.Policy,
-		"github_repository":      "",
-		"release_selector":       "",
-		"release_tag":            "",
-		"asset_name":             "",
-		"auto_update_enabled":    false,
-		"check_interval_minutes": 0,
-		"config_version":         existing.ConfigVersion + 1,
-		"source_identity":        config.Identity,
+		"source_type":                 PagesSourceTypeRemoteURL,
+		"remote_url":                  config.URL,
+		"remote_network_policy":       config.Policy,
+		"github_repository":           "",
+		"release_selector":            "",
+		"release_tag":                 "",
+		"asset_name":                  "",
+		sourceColumnAutoUpdateEnabled: false,
+		"check_interval_minutes":      0,
+		sourceColumnConfigVersion:     existing.ConfigVersion + 1,
+		"source_identity":             config.Identity,
 	}).Error; err != nil {
-		return err
+		return false, err
 	}
-	return resetRuntimeAfterSourceUpdate(tx, &runtime, identityChanged)
+	return true, resetRuntimeAfterSourceUpdate(tx, &runtime, identityChanged)
 }
 
 func remoteSourceConfigChanged(existing *model.PagesProjectSource, config remoteSourceConfig) bool {
@@ -326,6 +374,19 @@ func validateRemoteSourceInput(input SourceUpdateInput) error {
 		return errors.New(errPagesSourceRemoteURLRequired)
 	}
 	return nil
+}
+
+func validateSourceUpdateInput(input SourceUpdateInput) error {
+	switch strings.TrimSpace(input.SourceType) {
+	case PagesSourceTypeRemoteURL:
+		return validateRemoteSourceInput(input)
+	case PagesSourceTypeGitHubRelease:
+		return validateGitHubSourceInput(input)
+	case "":
+		return errors.New(errPagesSourceTypeRequired)
+	default:
+		return errors.New(errPagesSourceTypeUnsupported)
+	}
 }
 
 func resolveUpdatedRemoteURL(existing *model.PagesProjectSource, hasExisting bool, input SourceUpdateInput) (string, error) {
@@ -430,7 +491,8 @@ func buildSourceView(source *model.PagesProjectSource, runtime *model.PagesProje
 		view.ReleaseSelector = source.ReleaseSelector
 		view.ReleaseTag = source.ReleaseTag
 		view.AssetName = source.AssetName
-		view.AutoUpdateEnabled = source.AutoUpdateEnabled
+		autoUpdateEnabled := source.AutoUpdateEnabled
+		view.AutoUpdateEnabled = &autoUpdateEnabled
 		view.CheckIntervalMinutes = source.CheckIntervalMinutes
 	default:
 		return nil, errors.New(errPagesSourceTypeUnsupported)
@@ -441,7 +503,7 @@ func buildSourceView(source *model.PagesProjectSource, runtime *model.PagesProje
 func revisionView(revision string, detailJSON string) *SourceRevisionView {
 	detail := sourceDetail{}
 	_ = unmarshalSourceDetail(detailJSON, &detail)
-	label := strings.TrimSpace(detail.Label)
+	label := sourceDetailLabel(detail)
 	if label == "" {
 		label = defaultRemoteAssetLabel
 	}
@@ -450,6 +512,19 @@ func revisionView(revision string, detailJSON string) *SourceRevisionView {
 		Label:     label,
 		AssetName: detail.AssetName,
 	}
+}
+
+func sourceDetailLabel(detail sourceDetail) string {
+	if detail.Provider == githubSourceDetailProvider {
+		if label := strings.TrimSpace(detail.Tag); label != "" {
+			return label
+		}
+		return strings.TrimSpace(detail.LegacyLabel)
+	}
+	if label := strings.TrimSpace(detail.DisplayName); label != "" {
+		return label
+	}
+	return strings.TrimSpace(detail.LegacyLabel)
 }
 
 func unmarshalSourceDetail(raw string, detail *sourceDetail) error {

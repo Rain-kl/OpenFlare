@@ -12,10 +12,10 @@ import type {
   PagesDeploymentUploadPayload,
   PagesProject,
   PagesProjectPayload,
-  PagesRemoteSourceUpdatePayload,
   PagesSource,
   PagesSourceActionPayload,
   PagesSourceActionReceipt,
+  PagesSourceUpdatePayload,
   PagesSourceUpdateResult,
 } from './types';
 
@@ -51,7 +51,7 @@ export class PagesService extends OpenFlareBaseService {
 
   static updateSource(
     projectId: number,
-    payload: PagesRemoteSourceUpdatePayload,
+    payload: PagesSourceUpdatePayload,
   ): Promise<PagesSourceUpdateResult> {
     return this.post<PagesSourceUpdateResult>(
       `/${projectId}/source/update`,

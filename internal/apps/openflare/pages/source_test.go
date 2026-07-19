@@ -30,6 +30,33 @@ func setupPagesSourceTest(t *testing.T) context.Context {
 	return t.Context()
 }
 
+func TestRevisionViewReadsLegacySourceDetailLabel(t *testing.T) {
+	tests := []struct {
+		name   string
+		detail string
+		want   string
+	}{
+		{
+			name:   "remote",
+			detail: `{"provider":"remote_url","label":"legacy.zip"}`,
+			want:   "legacy.zip",
+		},
+		{
+			name:   "github",
+			detail: `{"provider":"github","label":"v1.2.3","asset_name":"dist.zip"}`,
+			want:   "v1.2.3",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			view := revisionView(strings.Repeat("a", 64), test.detail)
+			if view.Label != test.want {
+				t.Errorf("revisionView(%s).Label = %q, want %q", test.name, view.Label, test.want)
+			}
+		})
+	}
+}
+
 func mustCreatePagesSourceProject(t *testing.T, ctx context.Context, slug string) *model.PagesProject {
 	t.Helper()
 	view, err := CreateProject(ctx, Input{
@@ -203,9 +230,9 @@ func TestRemoteSourceCRUDPreservesSecretAndResetsRuntimeByIdentity(t *testing.T)
 		Where("source_id = ?", source.ID).
 		Updates(map[string]any{
 			"last_seen_revision":    seenRevision,
-			"last_seen_detail":      `{"provider":"remote_url","label":"new.zip"}`,
+			"last_seen_detail":      `{"provider":"remote_url","display_name":"new.zip"}`,
 			"last_applied_revision": appliedRevision,
-			"last_applied_detail":   `{"provider":"remote_url","label":"old.zip"}`,
+			"last_applied_detail":   `{"provider":"remote_url","display_name":"old.zip"}`,
 			"sync_status":           pagesSourceStatusSyncing,
 			"lease_token":           "in-flight",
 			"lease_expires_at":      &future,

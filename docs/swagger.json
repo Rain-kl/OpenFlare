@@ -8872,7 +8872,7 @@
                         "SessionCookie": []
                     }
                 ],
-                "description": "Remote URL 来源不支持检查更新；该端点为后续 GitHub Release 来源保留统一动作契约",
+                "description": "异步检查 GitHub Release 来源；Remote URL 来源不支持检查更新",
                 "produces": [
                     "application/json"
                 ],
@@ -9105,7 +9105,7 @@
                         "SessionCookie": []
                     }
                 ],
-                "description": "Phase 1 支持 Remote URL 来源；完整地址仅写入，不会在响应中返回",
+                "description": "支持 Remote URL 与公开 GitHub Release 来源；敏感地址仅写入，不会在响应中返回",
                 "consumes": [
                     "application/json"
                 ],

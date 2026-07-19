@@ -77,7 +77,11 @@ func (h *SourceActionHandler) ValidatePayload(payload []byte) ([]byte, error) {
 		(input.Action != sourceActionCheck && input.Action != sourceActionSync) ||
 		!validPagesSourceActor(input.Actor) ||
 		!validOptionalSourceRevision(input.TargetRevision) ||
-		!validOptionalSourceRevision(input.ConfirmedRevision) {
+		!validOptionalSourceRevision(input.ConfirmedRevision) ||
+		(input.Action == sourceActionCheck && (input.TargetRevision != "" || input.ConfirmedRevision != "")) ||
+		(input.TargetRevision != "" && input.ConfirmedRevision != "") ||
+		(input.TargetRevision != "" && input.Actor != pagesSourceCreatedBySystem) ||
+		(input.ConfirmedRevision != "" && !strings.HasPrefix(input.Actor, "user:")) {
 		return nil, errors.New(errPagesSourceActionInvalid)
 	}
 	return json.Marshal(input)
@@ -110,10 +114,13 @@ func (h *SourceActionHandler) Execute(ctx context.Context, payload []byte) (*tas
 	if input.Action == sourceActionCheck && source.SourceType == PagesSourceTypeRemoteURL {
 		return nil, task.PermanentError(errPagesSourceCheckUnsupported)
 	}
-	if source.SourceType != PagesSourceTypeRemoteURL {
+	if source.SourceType != PagesSourceTypeRemoteURL && source.SourceType != PagesSourceTypeGitHubRelease {
 		return nil, task.PermanentError(errPagesSourceTypeUnsupported)
 	}
-	if input.TargetRevision != "" || input.ConfirmedRevision != "" {
+	if source.SourceType == PagesSourceTypeRemoteURL && (input.TargetRevision != "" || input.ConfirmedRevision != "") {
+		return nil, task.PermanentError(errPagesSourceActionInvalid)
+	}
+	if input.Action == sourceActionCheck && (input.TargetRevision != "" || input.ConfirmedRevision != "") {
 		return nil, task.PermanentError(errPagesSourceActionInvalid)
 	}
 
@@ -132,10 +139,43 @@ func (h *SourceActionHandler) Execute(ctx context.Context, payload []byte) (*tas
 		return &task.TaskResult{Message: errPagesSourceActionStale}, nil
 	}
 
-	result, err := syncRemoteSource(ctx, snapshot, input.Actor)
+	if input.Action == sourceActionCheck {
+		return executeGitHubCheckAction(ctx, snapshot)
+	}
+	return executeSourceSyncAction(ctx, &source, snapshot, input)
+}
+
+func executeGitHubCheckAction(ctx context.Context, snapshot *sourceExecutionSnapshot) (*task.TaskResult, error) {
+	checkResult, checkErr := checkGitHubSource(ctx, snapshot)
+	if checkErr != nil {
+		logger.ErrorF(ctx, "[PagesSource] check failed: project_id=%d source_id=%d error=%v", snapshot.ProjectID, snapshot.SourceID, checkErr)
+		if isPermanentSourceSyncError(checkErr) || shouldSkipGitHubActionRetry(checkErr) {
+			return nil, task.PermanentError(checkErr.Error())
+		}
+		return nil, errors.New(errPagesSourceSyncFailed)
+	}
+	if checkResult == nil || checkResult.Stale {
+		return &task.TaskResult{Message: errPagesSourceActionStale}, nil
+	}
+	return &task.TaskResult{Message: checkResult.Message, Detail: checkResult.Detail}, nil
+}
+
+func executeSourceSyncAction(
+	ctx context.Context,
+	source *model.PagesProjectSource,
+	snapshot *sourceExecutionSnapshot,
+	input SourceActionPayload,
+) (*task.TaskResult, error) {
+	var result *sourceSyncOutcome
+	var err error
+	if source.SourceType == PagesSourceTypeGitHubRelease {
+		result, err = syncGitHubSource(ctx, snapshot, input.Actor, input.TargetRevision, input.ConfirmedRevision)
+	} else {
+		result, err = syncRemoteSource(ctx, snapshot, input.Actor)
+	}
 	if err != nil {
 		logger.ErrorF(ctx, "[PagesSource] sync failed: project_id=%d source_id=%d error=%v", snapshot.ProjectID, snapshot.SourceID, err)
-		if isPermanentSourceSyncError(err) {
+		if isPermanentSourceSyncError(err) || shouldSkipGitHubActionRetry(err) {
 			return nil, task.PermanentError(errPagesSourceSyncFailed)
 		}
 		return nil, errors.New(errPagesSourceSyncFailed)
@@ -191,13 +231,19 @@ func isPermanentSourceSyncError(err error) bool {
 	}
 	message := err.Error()
 	return strings.Contains(message, errPagesPackageUnsupported) ||
+		strings.Contains(message, errPagesPackageURLTooLarge) ||
 		strings.Contains(message, errPagesPackageInvalid) ||
 		strings.Contains(message, errPagesPackageEmpty) ||
 		strings.Contains(message, errPagesPackageExtractedTooLarge) ||
 		strings.Contains(message, errPagesPackageFileTooLarge) ||
 		strings.Contains(message, errPagesEntryFileMissing) ||
 		strings.Contains(message, errPagesSourceRemoteURLInvalid) ||
-		strings.Contains(message, errPagesSourceNetworkPolicy)
+		strings.Contains(message, errPagesSourceNetworkPolicy) ||
+		strings.Contains(message, errPagesSourceReleaseNotFound) ||
+		strings.Contains(message, errPagesSourceDigestInvalid) ||
+		strings.Contains(message, errPagesSourceDigestMismatch) ||
+		strings.Contains(message, errPagesSourceConfirmationNeeded) ||
+		strings.Contains(message, errPagesSourceConfirmationStale)
 }
 
 // DispatchSourceAction performs API preflight and enqueues a credential-free action.
@@ -208,7 +254,19 @@ func DispatchSourceAction(
 	actor string,
 	confirmedRevision string,
 ) (*SourceActionReceipt, error) {
+	return dispatchSourceActionByProject(ctx, projectID, action, actor, "", confirmedRevision)
+}
+
+func dispatchSourceActionByProject(
+	ctx context.Context,
+	projectID uint,
+	action string,
+	actor string,
+	targetRevision string,
+	confirmedRevision string,
+) (*SourceActionReceipt, error) {
 	action = strings.TrimSpace(action)
+	targetRevision = strings.TrimSpace(targetRevision)
 	confirmedRevision = strings.TrimSpace(confirmedRevision)
 	if action != sourceActionCheck && action != sourceActionSync {
 		return nil, errors.New(errPagesSourceActionInvalid)
@@ -224,14 +282,8 @@ func DispatchSourceAction(
 		}
 		return nil, err
 	}
-	if source.SourceType != PagesSourceTypeRemoteURL {
-		return nil, errors.New(errPagesSourceTypeUnsupported)
-	}
-	if action == sourceActionCheck {
-		return nil, errors.New(errPagesSourceCheckUnsupported)
-	}
-	if confirmedRevision != "" {
-		return nil, errors.New(errPagesSourceActionInvalid)
+	if err := validateSourceActionPreflight(ctx, &source, action, targetRevision, confirmedRevision); err != nil {
+		return nil, err
 	}
 	busy, err := sourceLeaseIsBusy(ctx, source.ID)
 	if err != nil {
@@ -240,14 +292,58 @@ func DispatchSourceAction(
 	if busy {
 		return nil, errors.New(errPagesSourceActionBusy)
 	}
+	return dispatchSourceActionSnapshot(ctx, source, action, actor, targetRevision, confirmedRevision, "manual")
+}
 
+func validateSourceActionPreflight(
+	ctx context.Context,
+	source *model.PagesProjectSource,
+	action string,
+	targetRevision string,
+	confirmedRevision string,
+) error {
+	if source == nil {
+		return errors.New(errPagesSourceNotFound)
+	}
+	if source.SourceType != PagesSourceTypeRemoteURL && source.SourceType != PagesSourceTypeGitHubRelease {
+		return errors.New(errPagesSourceTypeUnsupported)
+	}
+	if action == sourceActionCheck && source.SourceType == PagesSourceTypeRemoteURL {
+		return errors.New(errPagesSourceCheckUnsupported)
+	}
+	if source.SourceType == PagesSourceTypeRemoteURL && (targetRevision != "" || confirmedRevision != "") {
+		return errors.New(errPagesSourceActionInvalid)
+	}
+	if action == sourceActionCheck && (targetRevision != "" || confirmedRevision != "") {
+		return errors.New(errPagesSourceActionInvalid)
+	}
+	if source.SourceType == PagesSourceTypeGitHubRelease && action == sourceActionSync {
+		if err := preflightGitHubSyncConfirmation(ctx, source.ID, confirmedRevision); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func dispatchSourceActionSnapshot(
+	ctx context.Context,
+	source model.PagesProjectSource,
+	action string,
+	actor string,
+	targetRevision string,
+	confirmedRevision string,
+	triggeredBy string,
+) (*SourceActionReceipt, error) {
+	if task.AsynqClient == nil {
+		return nil, errors.New(errPagesSourceTaskDispatchFailed)
+	}
 	handler := &SourceActionHandler{}
 	rawPayload, err := json.Marshal(SourceActionPayload{
 		SourceID:          source.ID,
 		ConfigVersion:     source.ConfigVersion,
 		Action:            action,
 		Actor:             actor,
-		TargetRevision:    "",
+		TargetRevision:    targetRevision,
 		ConfirmedRevision: confirmedRevision,
 	})
 	if err != nil {
@@ -257,9 +353,9 @@ func DispatchSourceAction(
 	if err != nil {
 		return nil, err
 	}
-	taskID, err := task.DispatchTask(ctx, TaskTypePagesSourceAction, payload, "manual")
+	taskID, err := task.DispatchTask(ctx, TaskTypePagesSourceAction, payload, triggeredBy)
 	if err != nil {
-		logger.ErrorF(ctx, "[PagesSource] dispatch action failed: project_id=%d source_id=%d action=%s error=%v", projectID, source.ID, action, err)
+		logger.ErrorF(ctx, "[PagesSource] dispatch action failed: project_id=%d source_id=%d action=%s error=%v", source.ProjectID, source.ID, action, err)
 		return nil, errors.New(errPagesSourceTaskDispatchFailed)
 	}
 	execution, err := model.GetTaskExecutionByTaskID(ctx, taskID)

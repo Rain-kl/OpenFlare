@@ -45,7 +45,7 @@ const SOURCE_LABELS: Record<PagesDeployment['source_type'], string> = {
   manual_upload: '本地上传',
   manual_url: 'URL 导入',
   remote_url: 'Remote URL',
-  github_release: 'GitHub Release',
+  github_release: 'GitHub',
 };
 
 const TRIGGER_LABELS: Record<PagesDeployment['trigger_type'], string> = {
@@ -172,7 +172,7 @@ export function DeploymentHistory({
           ) : deployments.length === 0 ? (
             <EmptyStateWithBorder
               title='暂无部署'
-              description='上传本地部署包，或配置 Remote URL 来源后同步发布。'
+              description='上传本地部署包，或配置 Remote URL / GitHub Release 来源后同步发布。'
             />
           ) : (
             deployments.map((deployment) => {

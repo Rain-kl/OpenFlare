@@ -91,6 +91,74 @@ describe('PagesService', () => {
     );
   });
 
+  it('sends the complete GitHub latest discriminator payload', async () => {
+    vi.mocked(apiClient.post).mockResolvedValue(
+      response({
+        source: { source_type: 'manual' },
+        check_task: null,
+        warning: '',
+      }),
+    );
+
+    await PagesService.updateSource(12, {
+      source_type: 'github_release',
+      repository_url: 'https://github.com/openflare/site',
+      release_selector: 'latest',
+      release_tag: '',
+      asset_name: 'dist.zip',
+      auto_update_enabled: false,
+      check_interval_minutes: 60,
+    });
+
+    expect(apiClient.post).toHaveBeenCalledWith(
+      '/api/v1/d/pages/12/source/update',
+      {
+        source_type: 'github_release',
+        repository_url: 'https://github.com/openflare/site',
+        release_selector: 'latest',
+        release_tag: '',
+        asset_name: 'dist.zip',
+        auto_update_enabled: false,
+        check_interval_minutes: 60,
+      },
+      undefined,
+    );
+  });
+
+  it('sends safe disabled defaults with the GitHub tag discriminator', async () => {
+    vi.mocked(apiClient.post).mockResolvedValue(
+      response({
+        source: { source_type: 'manual' },
+        check_task: null,
+        warning: '',
+      }),
+    );
+
+    await PagesService.updateSource(12, {
+      source_type: 'github_release',
+      repository_url: 'https://github.com/openflare/site',
+      release_selector: 'tag',
+      release_tag: 'v1.2.3',
+      asset_name: 'site.tar.gz',
+      auto_update_enabled: false,
+      check_interval_minutes: 0,
+    });
+
+    expect(apiClient.post).toHaveBeenCalledWith(
+      '/api/v1/d/pages/12/source/update',
+      {
+        source_type: 'github_release',
+        repository_url: 'https://github.com/openflare/site',
+        release_selector: 'tag',
+        release_tag: 'v1.2.3',
+        asset_name: 'site.tar.gz',
+        auto_update_enabled: false,
+        check_interval_minutes: 0,
+      },
+      undefined,
+    );
+  });
+
   it('uploads only the package multipart field', async () => {
     vi.mocked(apiClient.post).mockResolvedValue(response({}));
     const file = new File(['site'], 'site.zip', {

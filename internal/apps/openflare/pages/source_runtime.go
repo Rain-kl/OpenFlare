@@ -24,10 +24,14 @@ const (
 	sourceRuntimeErrorMaxBytes    = 512
 	sourceRevisionHexLength       = 64
 
+	sourceColumnAutoUpdateEnabled     = "auto_update_enabled"
+	sourceColumnConfigVersion         = "config_version"
 	sourceRuntimeColumnSyncStatus     = "sync_status"
 	sourceRuntimeColumnLastError      = "last_error"
+	sourceRuntimeColumnLastCheckedAt  = "last_checked_at"
 	sourceRuntimeColumnLeaseToken     = "lease_token"
 	sourceRuntimeColumnLeaseExpiresAt = "lease_expires_at"
+	pagesDeploymentColumnStatus       = "status"
 )
 
 type sourceLeaseOutcome string
@@ -50,6 +54,16 @@ type sourceExecutionSnapshot struct {
 	SourceIdentity       string
 	RemoteURL            string
 	RemoteNetworkPolicy  string
+	GitHubRepository     string
+	ReleaseSelector      string
+	ReleaseTag           string
+	AssetName            string
+	CheckIntervalMinutes int
+	ETag                 string
+	LastSeenRevision     string
+	LastSeenDetail       string
+	LastAppliedRevision  string
+	LastAppliedDetail    string
 	RootDir              string
 	EntryFile            string
 	LeaseToken           string
@@ -161,6 +175,16 @@ func loadSourceExecutionSnapshot(
 			SourceIdentity:       source.SourceIdentity,
 			RemoteURL:            source.RemoteURL,
 			RemoteNetworkPolicy:  source.RemoteNetworkPolicy,
+			GitHubRepository:     source.GitHubRepository,
+			ReleaseSelector:      source.ReleaseSelector,
+			ReleaseTag:           source.ReleaseTag,
+			AssetName:            source.AssetName,
+			CheckIntervalMinutes: source.CheckIntervalMinutes,
+			ETag:                 runtime.ETag,
+			LastSeenRevision:     runtime.LastSeenRevision,
+			LastSeenDetail:       runtime.LastSeenDetail,
+			LastAppliedRevision:  runtime.LastAppliedRevision,
+			LastAppliedDetail:    runtime.LastAppliedDetail,
 			RootDir:              project.RootDir,
 			EntryFile:            project.EntryFile,
 			LeaseToken:           token,

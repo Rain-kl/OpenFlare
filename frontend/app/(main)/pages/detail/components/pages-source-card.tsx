@@ -1,11 +1,28 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Download, Pencil, RefreshCw, RotateCcw } from 'lucide-react';
+import {
+  Download,
+  Github,
+  Pencil,
+  RefreshCw,
+  RotateCcw,
+  Search,
+} from 'lucide-react';
 import { toast } from 'sonner';
 
 import { ErrorInline } from '@/components/layout/error';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -21,12 +38,11 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Spinner } from '@/components/ui/spinner';
 import { AdminTaskService } from '@/lib/services/admin';
 import {
-  type PagesSource,
+  type PagesSourceActionPayload,
   type PagesSourceActionReceipt,
   type PagesSourceStatus,
   PagesService,
 } from '@/lib/services/openflare';
-import { formatDateTime } from '@/lib/utils';
 
 import {
   deploymentsQueryKey,
@@ -34,7 +50,11 @@ import {
   projectsQueryKey,
   sourceQueryKey,
 } from '../../components/pages-utils';
-import { PagesSourceDialog } from './pages-source-dialog';
+import { type PagesSourceMode, PagesSourceDialog } from './pages-source-dialog';
+import {
+  GitHubSourceDetails,
+  RemoteSourceDetails,
+} from './pages-source-details';
 
 const ACTION_POLL_INTERVAL = 2_000;
 const ACTION_MAX_WAIT = 16 * 60 * 1_000;
@@ -59,10 +79,8 @@ interface ActiveAction {
   startedAt: number;
 }
 
-function revisionSummary(source: PagesSource) {
-  if (source.source_type === 'manual' || !source.last_applied)
-    return '尚未应用';
-  return `${source.last_applied.label} · ${source.last_applied.revision.slice(0, 12)}`;
+function sourceActionLabel(action: PagesSourceActionReceipt['action']) {
+  return action === 'check' ? '检查' : '同步并发布';
 }
 
 export function PagesSourceCard({ projectId }: { projectId: number }) {
@@ -70,11 +88,10 @@ export function PagesSourceCard({ projectId }: { projectId: number }) {
   const handledExecutionID = useRef<string | null>(null);
   const sourcePollingStartedAt = useRef<number | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [dialogMode, setDialogMode] = useState<'manual' | 'remote_url'>(
-    'manual',
-  );
+  const [dialogMode, setDialogMode] = useState<PagesSourceMode>('manual');
   const [activeAction, setActiveAction] = useState<ActiveAction | null>(null);
   const [actionTimedOut, setActionTimedOut] = useState(false);
+  const [attentionDialogOpen, setAttentionDialogOpen] = useState(false);
 
   const sourceQuery = useQuery({
     queryKey: sourceQueryKey(projectId),
@@ -102,8 +119,11 @@ export function PagesSourceCard({ projectId }: { projectId: number }) {
       'task-execution',
       activeAction?.receipt.execution_id ?? '',
     ],
-    queryFn: () =>
-      AdminTaskService.getTaskExecution(activeAction!.receipt.execution_id),
+    queryFn: () => {
+      const executionID = activeAction?.receipt.execution_id;
+      if (!executionID) throw new Error('缺少任务执行 ID');
+      return AdminTaskService.getTaskExecution(executionID);
+    },
     enabled: Boolean(activeAction) && !actionTimedOut,
     refetchInterval: (query) => {
       if (actionTimedOut) return false;
@@ -113,6 +133,15 @@ export function PagesSourceCard({ projectId }: { projectId: number }) {
         : false;
     },
   });
+
+  const beginActionPolling = useCallback(
+    (receipt: PagesSourceActionReceipt) => {
+      handledExecutionID.current = null;
+      setActiveAction({ receipt, startedAt: Date.now() });
+      setActionTimedOut(false);
+    },
+    [],
+  );
 
   useEffect(() => {
     if (!activeAction || actionTimedOut) return;
@@ -124,7 +153,11 @@ export function PagesSourceCard({ projectId }: { projectId: number }) {
 
   useEffect(() => {
     const execution = executionQuery.data;
-    if (!execution || !['succeeded', 'failed'].includes(execution.status)) {
+    if (
+      !activeAction ||
+      !execution ||
+      !['succeeded', 'failed'].includes(execution.status)
+    ) {
       return;
     }
     if (handledExecutionID.current === execution.id) return;
@@ -142,21 +175,36 @@ export function PagesSourceCard({ projectId }: { projectId: number }) {
       queryClient.invalidateQueries({ queryKey: projectsQueryKey }),
     ]);
 
+    const actionLabel = sourceActionLabel(activeAction.receipt.action);
     if (execution.status === 'succeeded') {
-      toast.success('部署源同步并发布完成');
+      toast.success(`部署源${actionLabel}完成`);
     } else {
-      toast.error(execution.error_message || '部署源同步失败');
+      toast.error(execution.error_message || `部署源${actionLabel}失败`);
     }
     setActiveAction(null);
     setActionTimedOut(false);
-  }, [executionQuery.data, projectId, queryClient]);
+  }, [activeAction, executionQuery.data, projectId, queryClient]);
+
+  const checkMutation = useMutation({
+    mutationFn: () => PagesService.checkSource(projectId),
+    onSuccess: async (receipt) => {
+      beginActionPolling(receipt);
+      await queryClient.invalidateQueries({
+        queryKey: sourceQueryKey(projectId),
+      });
+      toast.success('检查任务已提交');
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : '检查任务提交失败');
+    },
+  });
 
   const syncMutation = useMutation({
-    mutationFn: () => PagesService.syncSource(projectId, {}),
+    mutationFn: (payload: PagesSourceActionPayload) =>
+      PagesService.syncSource(projectId, payload),
     onSuccess: async (receipt) => {
-      handledExecutionID.current = null;
-      setActiveAction({ receipt, startedAt: Date.now() });
-      setActionTimedOut(false);
+      setAttentionDialogOpen(false);
+      beginActionPolling(receipt);
       await queryClient.invalidateQueries({
         queryKey: sourceQueryKey(projectId),
       });
@@ -176,11 +224,36 @@ export function PagesSourceCard({ projectId }: { projectId: number }) {
   const sourceBusy =
     source?.source_type !== 'manual' &&
     (source?.sync_status === 'checking' || source?.sync_status === 'syncing');
-  const actionsDisabled = syncMutation.isPending || executionBusy || sourceBusy;
+  const actionsDisabled =
+    checkMutation.isPending ||
+    syncMutation.isPending ||
+    executionBusy ||
+    sourceBusy;
+  const checkBusy =
+    checkMutation.isPending ||
+    (executionBusy && activeAction?.receipt.action === 'check') ||
+    (source?.source_type !== 'manual' && source?.sync_status === 'checking');
+  const syncBusy =
+    syncMutation.isPending ||
+    (executionBusy && activeAction?.receipt.action === 'sync') ||
+    (source?.source_type !== 'manual' && source?.sync_status === 'syncing');
+  const dispatchError = checkMutation.error ?? syncMutation.error;
 
-  const openSourceDialog = (mode: 'manual' | 'remote_url') => {
+  const openSourceDialog = (mode: PagesSourceMode) => {
     setDialogMode(mode);
     setDialogOpen(true);
+  };
+
+  const dispatchSync = () => {
+    checkMutation.reset();
+    if (
+      source?.source_type === 'github_release' &&
+      source.sync_status === 'attention'
+    ) {
+      setAttentionDialogOpen(true);
+      return;
+    }
+    syncMutation.mutate({});
   };
 
   if (sourceQuery.isLoading) {
@@ -219,10 +292,22 @@ export function PagesSourceCard({ projectId }: { projectId: number }) {
     );
   }
 
+  const effectiveSourceStatus = executionBusy
+    ? activeAction?.receipt.action === 'check'
+      ? 'checking'
+      : 'syncing'
+    : source.source_type === 'manual'
+      ? undefined
+      : (source.sync_status ?? 'idle');
   const status =
     source.source_type === 'manual'
       ? null
-      : SOURCE_STATUS[source.sync_status ?? 'idle'];
+      : SOURCE_STATUS[effectiveSourceStatus ?? 'idle'];
+  const attentionRevision =
+    source.source_type === 'github_release' &&
+    source.sync_status === 'attention'
+      ? source.last_seen
+      : undefined;
 
   return (
     <>
@@ -250,47 +335,20 @@ export function PagesSourceCard({ projectId }: { projectId: number }) {
               </p>
             </div>
           ) : source.source_type === 'remote_url' ? (
-            <div className='grid gap-4 md:grid-cols-2'>
-              <div className='flex min-w-0 flex-col gap-1 rounded-lg border p-4 md:col-span-2'>
-                <span className='text-xs text-muted-foreground'>脱敏地址</span>
-                <code className='truncate text-sm'>{source.display_url}</code>
-              </div>
-              <div className='flex flex-col gap-1 rounded-lg border p-4'>
-                <span className='text-xs text-muted-foreground'>网络策略</span>
-                <span className='text-sm font-medium'>
-                  {source.remote_network_policy === 'trusted_internal'
-                    ? '受信内网模式'
-                    : '公网安全模式'}
-                </span>
-              </div>
-              <div className='flex flex-col gap-1 rounded-lg border p-4'>
-                <span className='text-xs text-muted-foreground'>最近同步</span>
-                <span className='text-sm font-medium'>
-                  {source.last_synced_at
-                    ? formatDateTime(source.last_synced_at)
-                    : '尚未同步'}
-                </span>
-              </div>
-              <div className='flex flex-col gap-1 rounded-lg border p-4 md:col-span-2'>
-                <span className='text-xs text-muted-foreground'>
-                  已应用 revision
-                </span>
-                <span className='font-mono text-sm'>
-                  {revisionSummary(source)}
-                </span>
-              </div>
-              {source.last_error ? (
-                <div className='md:col-span-2'>
-                  <ErrorInline message={source.last_error} />
-                </div>
-              ) : null}
-            </div>
+            <RemoteSourceDetails source={source} />
           ) : (
-            <div className='rounded-lg border p-4 text-sm text-muted-foreground'>
-              当前版本暂不提供该来源类型的编辑界面。
-            </div>
+            <GitHubSourceDetails source={source} />
           )}
 
+          {dispatchError ? (
+            <ErrorInline
+              message={
+                dispatchError instanceof Error
+                  ? dispatchError.message
+                  : '来源任务提交失败'
+              }
+            />
+          ) : null}
           {executionQuery.isError ? (
             <ErrorInline
               message={
@@ -327,30 +385,61 @@ export function PagesSourceCard({ projectId }: { projectId: number }) {
 
         <CardFooter className='flex flex-wrap gap-2 border-t'>
           {source.source_type === 'manual' ? (
-            <Button
-              type='button'
-              onClick={() => openSourceDialog('remote_url')}
-            >
-              <Download data-icon='inline-start' />
-              配置 Remote URL
-            </Button>
-          ) : source.source_type === 'remote_url' ? (
+            <>
+              <Button
+                type='button'
+                variant='outline'
+                onClick={() => openSourceDialog('remote_url')}
+              >
+                <Download data-icon='inline-start' />
+                配置 Remote URL
+              </Button>
+              <Button
+                type='button'
+                onClick={() => openSourceDialog('github_release')}
+              >
+                <Github data-icon='inline-start' />
+                配置 GitHub Release
+              </Button>
+            </>
+          ) : (
             <>
               <Button
                 type='button'
                 variant='outline'
                 disabled={actionsDisabled}
-                onClick={() => openSourceDialog('remote_url')}
+                onClick={() => openSourceDialog(source.source_type)}
               >
                 <Pencil data-icon='inline-start' />
                 编辑来源
               </Button>
+              {source.source_type === 'github_release' ? (
+                <Button
+                  type='button'
+                  variant='outline'
+                  disabled={actionsDisabled}
+                  onClick={() => {
+                    syncMutation.reset();
+                    checkMutation.mutate();
+                  }}
+                >
+                  {checkBusy ? (
+                    <Spinner data-icon='inline-start' />
+                  ) : (
+                    <Search data-icon='inline-start' />
+                  )}
+                  检查更新
+                </Button>
+              ) : null}
               <Button
                 type='button'
-                disabled={actionsDisabled}
-                onClick={() => syncMutation.mutate()}
+                disabled={
+                  actionsDisabled ||
+                  (source.sync_status === 'attention' && !attentionRevision)
+                }
+                onClick={dispatchSync}
               >
-                {actionsDisabled ? (
+                {syncBusy ? (
                   <Spinner data-icon='inline-start' />
                 ) : (
                   <Download data-icon='inline-start' />
@@ -367,7 +456,7 @@ export function PagesSourceCard({ projectId }: { projectId: number }) {
                 切换回手动
               </Button>
             </>
-          ) : null}
+          )}
           <Button
             type='button'
             variant='ghost'
@@ -387,7 +476,48 @@ export function PagesSourceCard({ projectId }: { projectId: number }) {
         projectId={projectId}
         source={source}
         initialMode={dialogMode}
+        onActionDispatched={beginActionPolling}
       />
+
+      <AlertDialog
+        open={attentionDialogOpen}
+        onOpenChange={(open) => {
+          if (!syncMutation.isPending) setAttentionDialogOpen(open);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>确认发布当前 GitHub revision</AlertDialogTitle>
+            <AlertDialogDescription>
+              <span>这将发布卡片当前显示的精确 revision：</span>{' '}
+              <span className='break-all font-mono'>
+                {attentionRevision?.revision ??
+                  '当前 revision 已不可用，请刷新后重试'}
+              </span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={syncMutation.isPending}>
+              取消
+            </AlertDialogCancel>
+            <AlertDialogAction
+              disabled={syncMutation.isPending || !attentionRevision}
+              onClick={(event) => {
+                event.preventDefault();
+                if (!attentionRevision) return;
+                syncMutation.mutate({
+                  confirmed_revision: attentionRevision.revision,
+                });
+              }}
+            >
+              {syncMutation.isPending ? (
+                <Spinner data-icon='inline-start' />
+              ) : null}
+              确认并发布
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

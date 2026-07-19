@@ -226,12 +226,14 @@ func syncRemoteSource(
 		ctx,
 		snapshot,
 		prepared.Candidate.Checksum,
+		prepared.Candidate.Checksum,
 		prepared.Detail,
 		prepared.DetailJSON,
 		actor,
 		prepared.Manifest,
 		ingestState.Result,
 		ingestState.HasIngest,
+		nil,
 	)
 	ingestState.Referenced = referenced
 	if errors.Is(err, errSourceFinalFence) {
@@ -288,7 +290,7 @@ func prepareRemoteSource(
 		cleanupFailedRemoteCandidate(ctx, snapshot, candidate)
 		return nil, err
 	}
-	detail := sourceDetail{Provider: PagesSourceTypeRemoteURL, Label: safeRemoteSourceLabel(candidate.SafeLabel)}
+	detail := sourceDetail{Provider: PagesSourceTypeRemoteURL, DisplayName: safeRemoteSourceLabel(candidate.SafeLabel)}
 	detailJSON, err := json.Marshal(detail)
 	if err != nil {
 		cleanupFailedRemoteCandidate(ctx, snapshot, candidate)
@@ -336,7 +338,7 @@ func resolveSourceIngest(
 		prepared.Candidate.Checksum,
 		snapshot.ProjectID,
 		snapshot.SourceID,
-		prepared.Detail.Label,
+		sourceDetailLabel(prepared.Detail),
 		prepared.Candidate.Format,
 	)
 	if err != nil {
@@ -384,12 +386,14 @@ func commitSourceDeployment(
 	ctx context.Context,
 	snapshot *sourceExecutionSnapshot,
 	revision string,
+	packageChecksum string,
 	detail sourceDetail,
 	detailJSON string,
 	actor string,
 	manifest *deploymentManifest,
 	ingestResult upload.IngestResult,
 	hasIngest bool,
+	nextCheckNotBefore *time.Time,
 ) (*model.PagesDeployment, bool, bool, error) {
 	if snapshot == nil || manifest == nil {
 		return nil, false, false, errors.New(errPagesSourceSyncFailed)
@@ -403,7 +407,7 @@ func commitSourceDeployment(
 			return err
 		}
 		target, targetReused, err := resolveSourceDeploymentTx(
-			tx, state, revision, detail, detailJSON, actor, manifest, ingestResult, hasIngest,
+			tx, state, revision, packageChecksum, detail, detailJSON, actor, manifest, ingestResult, hasIngest,
 		)
 		if err != nil {
 			return err
@@ -417,7 +421,7 @@ func commitSourceDeployment(
 		if err := refreshSourceCommitLease(state, snapshot); err != nil {
 			return err
 		}
-		if err := activateSourceDeploymentTx(tx, state, target, revision, detailJSON); err != nil {
+		if err := activateSourceDeploymentTx(tx, state, target, revision, detailJSON, nextCheckNotBefore); err != nil {
 			return err
 		}
 		committed = *target
@@ -491,6 +495,7 @@ func resolveSourceDeploymentTx(
 	tx *gorm.DB,
 	state *sourceCommitState,
 	revision string,
+	packageChecksum string,
 	detail sourceDetail,
 	detailJSON string,
 	actor string,
@@ -515,7 +520,7 @@ func resolveSourceDeploymentTx(
 		return nil, false, errSourceFinalFence
 	}
 	return createSourceDeploymentTx(
-		tx, state, revision, detail, detailJSON, actor, manifest, ingestResult,
+		tx, state, revision, packageChecksum, detail, detailJSON, actor, manifest, ingestResult,
 	)
 }
 
@@ -523,6 +528,7 @@ func createSourceDeploymentTx(
 	tx *gorm.DB,
 	state *sourceCommitState,
 	revision string,
+	packageChecksum string,
 	detail sourceDetail,
 	detailJSON string,
 	actor string,
@@ -541,7 +547,7 @@ func createSourceDeploymentTx(
 	target := &model.PagesDeployment{
 		ProjectID:        state.Project.ID,
 		DeploymentNumber: maxNumber + 1,
-		Checksum:         revision,
+		Checksum:         packageChecksum,
 		Status:           model.PagesDeploymentStatusUploaded,
 		UploadID:         ingestResult.Upload.ID,
 		FileCount:        manifest.FileCount,
@@ -550,7 +556,7 @@ func createSourceDeploymentTx(
 		SourceType:       state.Source.SourceType,
 		SourceIdentity:   &identity,
 		SourceRevision:   &revisionValue,
-		SourceLabel:      detail.Label,
+		SourceLabel:      sourceDetailLabel(detail),
 		SourceMeta:       detailJSON,
 		TriggerType:      pagesSourceTriggerManualSync,
 	}
@@ -629,6 +635,7 @@ func activateSourceDeploymentTx(
 	target *model.PagesDeployment,
 	revision string,
 	detailJSON string,
+	nextCheckNotBefore *time.Time,
 ) error {
 	if err := tx.Model(&model.PagesDeployment{}).
 		Where("project_id = ?", state.Project.ID).
@@ -636,8 +643,8 @@ func activateSourceDeploymentTx(
 		return err
 	}
 	if err := tx.Model(target).Updates(map[string]any{
-		"status":       model.PagesDeploymentStatusActive,
-		"activated_at": &state.Now,
+		pagesDeploymentColumnStatus: model.PagesDeploymentStatusActive,
+		"activated_at":              &state.Now,
 	}).Error; err != nil {
 		return err
 	}
@@ -645,6 +652,15 @@ func activateSourceDeploymentTx(
 		return err
 	}
 	finishedAt := sourceCommitNow()
+	var nextCheckAt any
+	if state.Source.SourceType == PagesSourceTypeGitHubRelease &&
+		state.Source.ReleaseSelector == githubReleaseSelectorLatest {
+		next := nextGitHubCheckAt(finishedAt, state.Source.ID, state.Source.CheckIntervalMinutes)
+		if nextCheckNotBefore != nil && nextCheckNotBefore.After(next) {
+			next = nextCheckNotBefore.UTC()
+		}
+		nextCheckAt = &next
+	}
 	result := tx.Model(&model.PagesProjectSourceRuntime{}).
 		Where("source_id = ? AND lease_token = ? AND lease_expires_at > ?",
 			state.Runtime.SourceID,
@@ -658,9 +674,9 @@ func activateSourceDeploymentTx(
 			"last_applied_detail":             detailJSON,
 			sourceRuntimeColumnSyncStatus:     pagesSourceStatusIdle,
 			sourceRuntimeColumnLastError:      "",
-			"last_checked_at":                 &finishedAt,
+			sourceRuntimeColumnLastCheckedAt:  &finishedAt,
 			"last_synced_at":                  &finishedAt,
-			"next_check_at":                   nil,
+			"next_check_at":                   nextCheckAt,
 			sourceRuntimeColumnLeaseToken:     "",
 			sourceRuntimeColumnLeaseExpiresAt: nil,
 		})

@@ -822,8 +822,8 @@ func fenceDeploymentActivationSource(
 	audit.SourceIdentity = state.Source.SourceIdentity
 	audit.AutoDisabled = state.Source.AutoUpdateEnabled
 	if err := tx.Model(state.Source).Updates(map[string]any{
-		"config_version":      state.Source.ConfigVersion + 1,
-		"auto_update_enabled": false,
+		sourceColumnConfigVersion:     state.Source.ConfigVersion + 1,
+		sourceColumnAutoUpdateEnabled: false,
 	}).Error; err != nil {
 		return err
 	}
@@ -856,8 +856,8 @@ func switchActiveDeploymentTx(
 		return err
 	}
 	if err := tx.Model(deployment).Updates(map[string]any{
-		"status":       model.PagesDeploymentStatusActive,
-		"activated_at": &now,
+		pagesDeploymentColumnStatus: model.PagesDeploymentStatusActive,
+		"activated_at":              &now,
 	}).Error; err != nil {
 		return err
 	}

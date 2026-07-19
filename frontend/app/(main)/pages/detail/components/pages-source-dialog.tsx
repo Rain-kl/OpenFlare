@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { Eye, EyeOff } from 'lucide-react';
 import { toast } from 'sonner';
 
 import {
@@ -36,6 +37,8 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import {
   type PagesRemoteNetworkPolicy,
   type PagesSource,
+  type PagesSourceActionReceipt,
+  type PagesSourceUpdatePayload,
   PagesService,
 } from '@/lib/services/openflare';
 
@@ -45,8 +48,19 @@ import {
   projectsQueryKey,
   sourceQueryKey,
 } from '../../components/pages-utils';
+import {
+  type PagesGitHubSourceFormErrors,
+  type PagesGitHubSourceFormValue,
+  PagesSourceGitHubFields,
+} from './pages-source-github-fields';
+import {
+  validGitHubAssetName,
+  validGitHubReleaseTag,
+  validGitHubRepositoryURL,
+} from './pages-source-validation';
 
-type SourceMode = 'manual' | 'remote_url';
+export type PagesSourceMode = 'manual' | 'remote_url' | 'github_release';
+
 type Confirmation = 'trusted_internal' | 'manual' | null;
 
 interface PagesSourceDialogProps {
@@ -54,7 +68,21 @@ interface PagesSourceDialogProps {
   onOpenChange: (open: boolean) => void;
   projectId: number;
   source: PagesSource;
-  initialMode?: SourceMode;
+  initialMode?: PagesSourceMode;
+  onActionDispatched?: (receipt: PagesSourceActionReceipt) => void;
+}
+
+const DEFAULT_GITHUB_ASSET = 'dist.zip';
+const DEFAULT_GITHUB_CHECK_INTERVAL = 60;
+const EMPTY_GITHUB_ERRORS: PagesGitHubSourceFormErrors = {
+  repository: '',
+  releaseTag: '',
+  assetName: '',
+};
+
+function githubRepositoryURL(repository: string) {
+  const value = repository.trim();
+  return value ? `https://github.com/${value}` : '';
 }
 
 export function PagesSourceDialog({
@@ -63,21 +91,33 @@ export function PagesSourceDialog({
   projectId,
   source,
   initialMode,
+  onActionDispatched,
 }: PagesSourceDialogProps) {
   const queryClient = useQueryClient();
-  const [mode, setMode] = useState<SourceMode>('manual');
+  const [mode, setMode] = useState<PagesSourceMode>('manual');
   const [networkPolicy, setNetworkPolicy] =
     useState<PagesRemoteNetworkPolicy>('public');
   const [replaceURL, setReplaceURL] = useState(false);
   const [remoteURL, setRemoteURL] = useState('');
+  const [revealRemoteURL, setRevealRemoteURL] = useState(false);
   const [urlError, setURLError] = useState('');
+  const [githubForm, setGitHubForm] = useState<PagesGitHubSourceFormValue>({
+    repositoryURL: '',
+    releaseSelector: 'latest',
+    releaseTag: '',
+    assetName: DEFAULT_GITHUB_ASSET,
+  });
+  const [githubErrors, setGitHubErrors] =
+    useState<PagesGitHubSourceFormErrors>(EMPTY_GITHUB_ERRORS);
   const [confirmation, setConfirmation] = useState<Confirmation>(null);
 
   useEffect(() => {
-    if (!open) return;
-    const nextMode =
-      initialMode ??
-      (source.source_type === 'remote_url' ? 'remote_url' : 'manual');
+    if (!open) {
+      setRemoteURL('');
+      setRevealRemoteURL(false);
+      return;
+    }
+    const nextMode = initialMode ?? source.source_type;
     setMode(nextMode);
     setNetworkPolicy(
       source.source_type === 'remote_url'
@@ -86,7 +126,27 @@ export function PagesSourceDialog({
     );
     setReplaceURL(source.source_type !== 'remote_url');
     setRemoteURL('');
+    setRevealRemoteURL(false);
     setURLError('');
+    setGitHubForm({
+      repositoryURL:
+        source.source_type === 'github_release'
+          ? githubRepositoryURL(source.github_repository)
+          : '',
+      releaseSelector:
+        source.source_type === 'github_release'
+          ? source.release_selector
+          : 'latest',
+      releaseTag:
+        source.source_type === 'github_release'
+          ? (source.release_tag ?? '')
+          : '',
+      assetName:
+        source.source_type === 'github_release'
+          ? source.asset_name
+          : DEFAULT_GITHUB_ASSET,
+    });
+    setGitHubErrors(EMPTY_GITHUB_ERRORS);
     setConfirmation(null);
   }, [initialMode, open, source]);
 
@@ -102,19 +162,17 @@ export function PagesSourceDialog({
   };
 
   const updateMutation = useMutation({
-    mutationFn: () =>
-      PagesService.updateSource(projectId, {
-        source_type: 'remote_url',
-        remote_url_set: replaceURL,
-        remote_url: replaceURL ? remoteURL.trim() : '',
-        remote_network_policy: networkPolicy,
-      }),
+    mutationFn: (payload: PagesSourceUpdatePayload) =>
+      PagesService.updateSource(projectId, payload),
     onSuccess: async (result) => {
       queryClient.setQueryData(sourceQueryKey(projectId), result.source);
+      if (result.check_task) onActionDispatched?.(result.check_task);
       await invalidateSourceState();
       toast.success('部署源已更新');
       if (result.warning) toast.warning(result.warning);
       setConfirmation(null);
+      setRemoteURL('');
+      setRevealRemoteURL(false);
       onOpenChange(false);
     },
     onError: (error) => {
@@ -129,6 +187,8 @@ export function PagesSourceDialog({
       await invalidateSourceState();
       toast.success('已切换回手动部署');
       setConfirmation(null);
+      setRemoteURL('');
+      setRevealRemoteURL(false);
       onOpenChange(false);
     },
     onError: (error) => {
@@ -137,6 +197,13 @@ export function PagesSourceDialog({
   });
 
   const isPending = updateMutation.isPending || deleteMutation.isPending;
+
+  const remotePayload = (): PagesSourceUpdatePayload => ({
+    source_type: 'remote_url',
+    remote_url_set: replaceURL,
+    remote_url: replaceURL ? remoteURL.trim() : '',
+    remote_network_policy: networkPolicy,
+  });
 
   const submitRemote = () => {
     if (replaceURL) {
@@ -158,20 +225,85 @@ export function PagesSourceDialog({
       setConfirmation('trusted_internal');
       return;
     }
-    updateMutation.mutate();
+    updateMutation.mutate(remotePayload());
+  };
+
+  const submitGitHub = () => {
+    const normalizedRepositoryURL = githubForm.repositoryURL.trim();
+    const nextRepositoryError = validGitHubRepositoryURL(
+      normalizedRepositoryURL,
+    )
+      ? ''
+      : '请输入 https://github.com/{owner}/{repo} 格式的公开仓库地址';
+    const nextReleaseTagError =
+      githubForm.releaseSelector === 'tag' &&
+      !validGitHubReleaseTag(githubForm.releaseTag)
+        ? 'Release tag 须为有效 Git ref（1–255 字节，可使用 /、#、&、=）'
+        : '';
+    const nextAssetNameError = validGitHubAssetName(githubForm.assetName)
+      ? ''
+      : 'Asset 文件名须为 1–255 字节，且不能是路径或包含控制、换行、双向文本字符';
+
+    setGitHubErrors({
+      repository: nextRepositoryError,
+      releaseTag: nextReleaseTagError,
+      assetName: nextAssetNameError,
+    });
+    if (nextRepositoryError || nextReleaseTagError || nextAssetNameError) {
+      return;
+    }
+
+    const payload: PagesSourceUpdatePayload =
+      githubForm.releaseSelector === 'latest'
+        ? {
+            source_type: 'github_release',
+            repository_url: normalizedRepositoryURL,
+            release_selector: 'latest',
+            release_tag: '',
+            asset_name: githubForm.assetName,
+            auto_update_enabled: false,
+            check_interval_minutes:
+              source.source_type === 'github_release' &&
+              source.release_selector === 'latest' &&
+              source.check_interval_minutes
+                ? source.check_interval_minutes
+                : DEFAULT_GITHUB_CHECK_INTERVAL,
+          }
+        : {
+            source_type: 'github_release',
+            repository_url: normalizedRepositoryURL,
+            release_selector: 'tag',
+            release_tag: githubForm.releaseTag,
+            asset_name: githubForm.assetName,
+            auto_update_enabled: false,
+            check_interval_minutes: 0,
+          };
+    updateMutation.mutate(payload);
   };
 
   const handleSubmit = () => {
-    if (mode === 'manual') {
-      if (source.source_type === 'manual') {
-        onOpenChange(false);
-      } else {
-        setConfirmation('manual');
-      }
-      return;
+    switch (mode) {
+      case 'manual':
+        if (source.source_type === 'manual') {
+          onOpenChange(false);
+        } else {
+          setConfirmation('manual');
+        }
+        return;
+      case 'remote_url':
+        submitRemote();
+        return;
+      case 'github_release':
+        submitGitHub();
     }
-    submitRemote();
   };
+
+  const submitLabel =
+    mode === 'manual'
+      ? '使用手动部署'
+      : mode === 'remote_url'
+        ? '保存 Remote 来源'
+        : '保存 GitHub 来源';
 
   return (
     <>
@@ -185,8 +317,7 @@ export function PagesSourceDialog({
           <DialogHeader>
             <DialogTitle>部署源设置</DialogTitle>
             <DialogDescription>
-              手动部署与 Remote URL
-              各自保持独立配置；后续仓库构建来源会作为新的来源类型接入。
+              手动部署、Remote URL 与 GitHub Release 使用独立配置。
             </DialogDescription>
           </DialogHeader>
 
@@ -198,10 +329,19 @@ export function PagesSourceDialog({
                 variant='outline'
                 value={mode}
                 aria-labelledby='pages-source-mode'
-                className='grid w-full grid-cols-2'
+                className='grid w-full grid-cols-1 sm:grid-cols-3'
                 onValueChange={(value) => {
-                  if (value === 'manual' || value === 'remote_url') {
+                  if (
+                    value === 'manual' ||
+                    value === 'remote_url' ||
+                    value === 'github_release'
+                  ) {
                     setMode(value);
+                    if (value !== 'remote_url') {
+                      setRemoteURL('');
+                      setRevealRemoteURL(false);
+                      setURLError('');
+                    }
                   }
                 }}
               >
@@ -211,9 +351,17 @@ export function PagesSourceDialog({
                 <ToggleGroupItem value='remote_url' className='w-full'>
                   Remote URL
                 </ToggleGroupItem>
+                <ToggleGroupItem value='github_release' className='w-full'>
+                  GitHub Release
+                </ToggleGroupItem>
               </ToggleGroup>
               <FieldDescription>
-                手动部署由管理员上传本地包；Remote URL 通过显式同步下载并发布。
+                <span>
+                  远端来源只负责发现内容，发布结果始终保留为不可变部署。
+                </span>
+                <span className='block'>
+                  仓库源码构建将在后续作为独立来源类型提供。
+                </span>
               </FieldDescription>
             </Field>
 
@@ -224,7 +372,7 @@ export function PagesSourceDialog({
                   保留现有部署与当前生产版本，后续通过“上传部署包”创建新部署。
                 </div>
               </Field>
-            ) : (
+            ) : mode === 'remote_url' ? (
               <>
                 <Field data-invalid={Boolean(urlError)}>
                   <FieldLabel htmlFor='pages-remote-url'>Remote URL</FieldLabel>
@@ -240,24 +388,48 @@ export function PagesSourceDialog({
                         onClick={() => {
                           setReplaceURL(true);
                           setRemoteURL('');
+                          setRevealRemoteURL(false);
                         }}
                       >
                         更换地址
                       </Button>
                     </div>
                   ) : (
-                    <Input
-                      id='pages-remote-url'
-                      type='url'
-                      placeholder='https://artifacts.example.com/site.zip?token=...'
-                      value={remoteURL}
-                      aria-invalid={Boolean(urlError)}
-                      autoComplete='off'
-                      onChange={(event) => {
-                        setRemoteURL(event.target.value);
-                        setURLError('');
-                      }}
-                    />
+                    <div className='flex gap-2'>
+                      <Input
+                        id='pages-remote-url'
+                        type={revealRemoteURL ? 'url' : 'password'}
+                        placeholder='https://artifacts.example.com/site.zip?token=...'
+                        value={remoteURL}
+                        aria-invalid={Boolean(urlError)}
+                        autoComplete='off'
+                        className='min-w-0 flex-1'
+                        onChange={(event) => {
+                          setRemoteURL(event.target.value);
+                          setURLError('');
+                        }}
+                      />
+                      <Button
+                        type='button'
+                        variant='outline'
+                        size='icon'
+                        aria-label={
+                          revealRemoteURL
+                            ? '隐藏 Remote URL'
+                            : '显示 Remote URL'
+                        }
+                        title={
+                          revealRemoteURL
+                            ? '隐藏 Remote URL'
+                            : '显示 Remote URL'
+                        }
+                        onClick={() =>
+                          setRevealRemoteURL((visible) => !visible)
+                        }
+                      >
+                        {revealRemoteURL ? <EyeOff /> : <Eye />}
+                      </Button>
+                    </div>
                   )}
                   <FieldDescription>
                     {urlError ||
@@ -274,6 +446,7 @@ export function PagesSourceDialog({
                       onClick={() => {
                         setReplaceURL(false);
                         setRemoteURL('');
+                        setRevealRemoteURL(false);
                         setURLError('');
                       }}
                     >
@@ -313,6 +486,14 @@ export function PagesSourceDialog({
                   </FieldDescription>
                 </Field>
               </>
+            ) : (
+              <PagesSourceGitHubFields
+                value={githubForm}
+                errors={githubErrors}
+                defaultAssetName={DEFAULT_GITHUB_ASSET}
+                onChange={setGitHubForm}
+                onErrorsChange={setGitHubErrors}
+              />
             )}
           </FieldGroup>
 
@@ -321,13 +502,17 @@ export function PagesSourceDialog({
               type='button'
               variant='outline'
               disabled={isPending}
-              onClick={() => onOpenChange(false)}
+              onClick={() => {
+                setRemoteURL('');
+                setRevealRemoteURL(false);
+                onOpenChange(false);
+              }}
             >
               取消
             </Button>
             <Button type='button' disabled={isPending} onClick={handleSubmit}>
               {isPending ? <Spinner data-icon='inline-start' /> : null}
-              {mode === 'manual' ? '使用手动部署' : '保存 Remote 来源'}
+              {submitLabel}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -361,7 +546,7 @@ export function PagesSourceDialog({
                 if (confirmation === 'manual') {
                   deleteMutation.mutate();
                 } else if (confirmation === 'trusted_internal') {
-                  updateMutation.mutate();
+                  updateMutation.mutate(remotePayload());
                 }
               }}
             >

@@ -462,6 +462,8 @@ export type PagesSourceStatus =
 
 export type PagesRemoteNetworkPolicy = 'public' | 'trusted_internal';
 
+export type PagesGitHubReleaseSelector = 'latest' | 'tag';
+
 export interface PagesSourceRevision {
   revision: string;
   label: string;
@@ -493,15 +495,15 @@ export interface PagesRemoteURLSource extends PagesSourceRuntimeView {
 export interface PagesGitHubReleaseSource extends PagesSourceRuntimeView {
   source_type: 'github_release';
   github_repository: string;
-  release_selector: 'latest' | 'tag';
-  release_tag: string;
+  release_selector: PagesGitHubReleaseSelector;
+  release_tag?: string;
   asset_name: string;
-  auto_update_enabled: boolean;
-  check_interval_minutes: number;
+  auto_update_enabled?: false;
+  check_interval_minutes?: number;
 }
 
 /**
- * 部署源使用判别联合，后续仓库构建来源只需增加独立 variant，
+ * 部署源使用判别联合，后续仓库构建来源只需增加独立 git_repository variant，
  * 不需要向 Remote 或 GitHub Release 填入构建字段。
  */
 export type PagesSource =
@@ -513,6 +515,35 @@ export interface PagesRemoteSourceUpdatePayload {
   remote_url: string;
   remote_network_policy: PagesRemoteNetworkPolicy;
 }
+
+interface PagesGitHubSourceUpdateBase {
+  source_type: 'github_release';
+  repository_url: string;
+  asset_name: string;
+  auto_update_enabled: false;
+}
+
+export interface PagesGitHubLatestSourceUpdatePayload extends PagesGitHubSourceUpdateBase {
+  release_selector: 'latest';
+  release_tag: '';
+  check_interval_minutes: number;
+}
+
+export interface PagesGitHubTagSourceUpdatePayload extends PagesGitHubSourceUpdateBase {
+  release_selector: 'tag';
+  release_tag: string;
+  check_interval_minutes: 0;
+}
+
+export type PagesGitHubSourceUpdatePayload =
+  PagesGitHubLatestSourceUpdatePayload | PagesGitHubTagSourceUpdatePayload;
+
+/**
+ * Source 更新请求保持 Provider 判别联合；未来仓库拉取构建使用独立 git_repository variant，
+ * 不向 Remote URL 或 GitHub Release payload 混入构建字段。
+ */
+export type PagesSourceUpdatePayload =
+  PagesRemoteSourceUpdatePayload | PagesGitHubSourceUpdatePayload;
 
 export interface PagesSourceActionPayload {
   confirmed_revision?: string;

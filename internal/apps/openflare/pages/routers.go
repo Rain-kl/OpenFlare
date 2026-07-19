@@ -45,6 +45,17 @@ func handleSourceLogicError(c *gin.Context, err error) bool {
 		errPagesSourceRemoteURLMode,
 		errPagesSourceRemoteURLInvalid,
 		errPagesSourceNetworkPolicy,
+		errPagesSourceGitHubFields,
+		errPagesSourceRepositoryInvalid,
+		errPagesSourceSelectorInvalid,
+		errPagesSourceAssetNameInvalid,
+		errPagesSourceCheckInterval,
+		errPagesSourceAutoNotAvailable,
+		errPagesSourceReleaseNotFound,
+		errPagesSourceDigestInvalid,
+		errPagesSourceDigestMismatch,
+		errPagesSourceConfirmationNeeded,
+		errPagesSourceConfirmationStale,
 		errPagesSourceCheckUnsupported,
 		errPagesSourceActionInvalid:
 		response.AbortBadRequest(c, err.Error())
@@ -253,7 +264,7 @@ func GetSourceHandler(c *gin.Context) {
 
 // UpdateSourceHandler 创建或更新 Pages 项目部署源。
 // @Summary 更新 Pages 部署源
-// @Description Phase 1 支持 Remote URL 来源；完整地址仅写入，不会在响应中返回
+// @Description 支持 Remote URL 与公开 GitHub Release 来源；敏感地址仅写入，不会在响应中返回
 // @Tags openflare-pages
 // @Accept json
 // @Produce json
@@ -275,7 +286,11 @@ func UpdateSourceHandler(c *gin.Context) {
 	if !decodeStrictJSON(c, &input, false) {
 		return
 	}
-	result, err := UpdateSource(c.Request.Context(), projectID, input)
+	actor, ok := currentPagesActor(c)
+	if !ok {
+		return
+	}
+	result, err := UpdateSourceAs(c.Request.Context(), projectID, input, actor)
 	if handleSourceLogicError(c, err) {
 		return
 	}
@@ -309,7 +324,7 @@ func DeleteSourceHandler(c *gin.Context) {
 
 // CheckSourceHandler 请求检查 Pages 部署源。
 // @Summary 检查 Pages 部署源
-// @Description Remote URL 来源不支持检查更新；该端点为后续 GitHub Release 来源保留统一动作契约
+// @Description 异步检查 GitHub Release 来源；Remote URL 来源不支持检查更新
 // @Tags openflare-pages
 // @Produce json
 // @Security SessionCookie
