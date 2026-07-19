@@ -492,15 +492,28 @@ export interface PagesRemoteURLSource extends PagesSourceRuntimeView {
   remote_network_policy: PagesRemoteNetworkPolicy;
 }
 
-export interface PagesGitHubReleaseSource extends PagesSourceRuntimeView {
+interface PagesGitHubReleaseSourceBase extends PagesSourceRuntimeView {
   source_type: 'github_release';
   github_repository: string;
-  release_selector: PagesGitHubReleaseSelector;
-  release_tag?: string;
   asset_name: string;
-  auto_update_enabled?: false;
-  check_interval_minutes?: number;
 }
+
+interface PagesGitHubLatestReleaseSource extends PagesGitHubReleaseSourceBase {
+  release_selector: 'latest';
+  release_tag?: '';
+  auto_update_enabled: boolean;
+  check_interval_minutes: number;
+}
+
+interface PagesGitHubTagReleaseSource extends PagesGitHubReleaseSourceBase {
+  release_selector: 'tag';
+  release_tag: string;
+  auto_update_enabled: false;
+  check_interval_minutes?: 0;
+}
+
+export type PagesGitHubReleaseSource =
+  PagesGitHubLatestReleaseSource | PagesGitHubTagReleaseSource;
 
 /**
  * 部署源使用判别联合，后续仓库构建来源只需增加独立 git_repository variant，
@@ -520,18 +533,19 @@ interface PagesGitHubSourceUpdateBase {
   source_type: 'github_release';
   repository_url: string;
   asset_name: string;
-  auto_update_enabled: false;
 }
 
 export interface PagesGitHubLatestSourceUpdatePayload extends PagesGitHubSourceUpdateBase {
   release_selector: 'latest';
   release_tag: '';
+  auto_update_enabled: boolean;
   check_interval_minutes: number;
 }
 
 export interface PagesGitHubTagSourceUpdatePayload extends PagesGitHubSourceUpdateBase {
   release_selector: 'tag';
   release_tag: string;
+  auto_update_enabled: false;
   check_interval_minutes: 0;
 }
 

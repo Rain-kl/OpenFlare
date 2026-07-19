@@ -150,7 +150,7 @@ describe('Pages source UI', () => {
     vi.mocked(AdminTaskService.getTaskExecution).mockReset();
   });
 
-  it('offers the three Phase 2 source types without future repository build controls', async () => {
+  it('offers the three source types without future repository build controls', async () => {
     const user = userEvent.setup();
     vi.mocked(PagesService.getSource).mockResolvedValue({
       source_type: 'manual',
@@ -177,11 +177,13 @@ describe('Pages source UI', () => {
     expect(
       screen.getByText('仓库源码构建将在后续作为独立来源类型提供。'),
     ).toBeVisible();
+    expect(screen.getByRole('switch', { name: '自动更新' })).not.toBeChecked();
+    expect(screen.getByLabelText('检查间隔（分钟）')).toHaveValue(60);
     expect(screen.queryByText('构建命令')).not.toBeInTheDocument();
     expect(screen.queryByText('输出目录')).not.toBeInTheDocument();
   });
 
-  it('submits the GitHub latest payload while keeping automatic controls hidden', async () => {
+  it('submits the GitHub latest automatic update settings', async () => {
     const user = userEvent.setup();
     vi.mocked(PagesService.getSource).mockResolvedValue({
       source_type: 'manual',
@@ -204,8 +206,10 @@ describe('Pages source UI', () => {
     expect(screen.getByLabelText('Release Asset 文件名')).toHaveValue(
       'dist.zip',
     );
-    expect(screen.queryByText('自动更新')).not.toBeInTheDocument();
-    expect(screen.queryByText('检查间隔')).not.toBeInTheDocument();
+    await user.click(screen.getByRole('switch', { name: '自动更新' }));
+    const intervalInput = screen.getByLabelText('检查间隔（分钟）');
+    await user.clear(intervalInput);
+    await user.type(intervalInput, '15');
     await user.click(screen.getByRole('button', { name: '保存 GitHub 来源' }));
 
     await waitFor(() => {
@@ -215,8 +219,8 @@ describe('Pages source UI', () => {
         release_selector: 'latest',
         release_tag: '',
         asset_name: 'dist.zip',
-        auto_update_enabled: false,
-        check_interval_minutes: 60,
+        auto_update_enabled: true,
+        check_interval_minutes: 15,
       });
     });
   });
@@ -257,7 +261,8 @@ describe('Pages source UI', () => {
         ...githubLatestSource,
         release_selector: 'tag',
         release_tag: 'v1.2.3',
-        check_interval_minutes: undefined,
+        auto_update_enabled: false,
+        check_interval_minutes: 0,
         next_check_at: null,
       },
       check_task: null,
@@ -274,6 +279,10 @@ describe('Pages source UI', () => {
       'https://github.com/openflare/site',
     );
     await user.click(screen.getByRole('radio', { name: '固定 Tag' }));
+    expect(
+      screen.queryByRole('switch', { name: '自动更新' }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('检查间隔（分钟）')).not.toBeInTheDocument();
     await user.type(
       screen.getByLabelText('Release tag'),
       'release/candidate#1&channel=stable',
@@ -380,7 +389,7 @@ describe('Pages source UI', () => {
     expect(PagesService.syncSource).not.toHaveBeenCalled();
   });
 
-  it('shows GitHub release state and hides Phase 3 controls', async () => {
+  it('shows GitHub latest automatic update state and schedule', async () => {
     vi.mocked(PagesService.getSource).mockResolvedValue(githubLatestSource);
 
     renderWithQuery(<PagesSourceCard projectId={9} />);
@@ -389,9 +398,11 @@ describe('Pages source UI', () => {
     expect(screen.getByText('v1.2.3 · bbbbbbbbbbbb')).toBeVisible();
     expect(screen.getByText('v1.2.2 · aaaaaaaaaaaa')).toBeVisible();
     expect(screen.getByText('有可用更新')).toBeVisible();
-    expect(screen.queryByText('下次检查时间')).not.toBeInTheDocument();
-    expect(screen.queryByText('自动更新')).not.toBeInTheDocument();
-    expect(screen.queryByText('检查间隔')).not.toBeInTheDocument();
+    expect(screen.getByText('下次检查时间')).toBeVisible();
+    expect(screen.getByText('自动更新')).toBeVisible();
+    expect(screen.getByText('已关闭')).toBeVisible();
+    expect(screen.getByText('检查间隔')).toBeVisible();
+    expect(screen.getByText('60 分钟')).toBeVisible();
   });
 
   it('dispatches a GitHub check and starts TaskExecution polling', async () => {

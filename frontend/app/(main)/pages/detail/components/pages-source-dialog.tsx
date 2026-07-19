@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Eye, EyeOff } from 'lucide-react';
 import { toast } from 'sonner';
@@ -78,6 +78,7 @@ const EMPTY_GITHUB_ERRORS: PagesGitHubSourceFormErrors = {
   repository: '',
   releaseTag: '',
   assetName: '',
+  checkInterval: '',
 };
 
 function githubRepositoryURL(repository: string) {
@@ -106,17 +107,25 @@ export function PagesSourceDialog({
     releaseSelector: 'latest',
     releaseTag: '',
     assetName: DEFAULT_GITHUB_ASSET,
+    autoUpdateEnabled: false,
+    checkIntervalMinutes: String(DEFAULT_GITHUB_CHECK_INTERVAL),
   });
   const [githubErrors, setGitHubErrors] =
     useState<PagesGitHubSourceFormErrors>(EMPTY_GITHUB_ERRORS);
   const [confirmation, setConfirmation] = useState<Confirmation>(null);
+  const initializedForOpen = useRef(false);
 
   useEffect(() => {
     if (!open) {
+      initializedForOpen.current = false;
       setRemoteURL('');
       setRevealRemoteURL(false);
       return;
     }
+    // Runtime polling may replace the source view while the dialog is open.
+    // Initialize only on the open edge so it cannot overwrite an unsaved draft.
+    if (initializedForOpen.current) return;
+    initializedForOpen.current = true;
     const nextMode = initialMode ?? source.source_type;
     setMode(nextMode);
     setNetworkPolicy(
@@ -145,6 +154,18 @@ export function PagesSourceDialog({
         source.source_type === 'github_release'
           ? source.asset_name
           : DEFAULT_GITHUB_ASSET,
+      autoUpdateEnabled:
+        source.source_type === 'github_release' &&
+        source.release_selector === 'latest'
+          ? source.auto_update_enabled
+          : false,
+      checkIntervalMinutes:
+        source.source_type === 'github_release' &&
+        source.release_selector === 'latest'
+          ? String(
+              source.check_interval_minutes || DEFAULT_GITHUB_CHECK_INTERVAL,
+            )
+          : String(DEFAULT_GITHUB_CHECK_INTERVAL),
     });
     setGitHubErrors(EMPTY_GITHUB_ERRORS);
     setConfirmation(null);
@@ -243,13 +264,27 @@ export function PagesSourceDialog({
     const nextAssetNameError = validGitHubAssetName(githubForm.assetName)
       ? ''
       : 'Asset 文件名须为 1–255 字节，且不能是路径或包含控制、换行、双向文本字符';
+    const checkIntervalMinutes = Number(githubForm.checkIntervalMinutes);
+    const nextCheckIntervalError =
+      githubForm.releaseSelector === 'latest' &&
+      (!Number.isInteger(checkIntervalMinutes) ||
+        checkIntervalMinutes < 5 ||
+        checkIntervalMinutes > 1440)
+        ? '检查间隔须为 5–1440 分钟的整数'
+        : '';
 
     setGitHubErrors({
       repository: nextRepositoryError,
       releaseTag: nextReleaseTagError,
       assetName: nextAssetNameError,
+      checkInterval: nextCheckIntervalError,
     });
-    if (nextRepositoryError || nextReleaseTagError || nextAssetNameError) {
+    if (
+      nextRepositoryError ||
+      nextReleaseTagError ||
+      nextAssetNameError ||
+      nextCheckIntervalError
+    ) {
       return;
     }
 
@@ -261,13 +296,8 @@ export function PagesSourceDialog({
             release_selector: 'latest',
             release_tag: '',
             asset_name: githubForm.assetName,
-            auto_update_enabled: false,
-            check_interval_minutes:
-              source.source_type === 'github_release' &&
-              source.release_selector === 'latest' &&
-              source.check_interval_minutes
-                ? source.check_interval_minutes
-                : DEFAULT_GITHUB_CHECK_INTERVAL,
+            auto_update_enabled: githubForm.autoUpdateEnabled,
+            check_interval_minutes: checkIntervalMinutes,
           }
         : {
             source_type: 'github_release',

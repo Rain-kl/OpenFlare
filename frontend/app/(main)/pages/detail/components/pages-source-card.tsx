@@ -38,6 +38,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Spinner } from '@/components/ui/spinner';
 import { AdminTaskService } from '@/lib/services/admin';
 import {
+  type PagesSource,
   type PagesSourceActionPayload,
   type PagesSourceActionReceipt,
   type PagesSourceStatus,
@@ -58,6 +59,9 @@ import {
 
 const ACTION_POLL_INTERVAL = 2_000;
 const ACTION_MAX_WAIT = 16 * 60 * 1_000;
+const LATEST_POLL_INTERVAL = 5 * 60 * 1_000;
+const LATEST_NEAR_DUE_POLL_INTERVAL = 30_000;
+const LATEST_OVERDUE_MAX_WAIT = 10 * 60 * 1_000;
 
 const SOURCE_STATUS: Record<
   PagesSourceStatus,
@@ -79,6 +83,60 @@ interface ActiveAction {
   startedAt: number;
 }
 
+export interface LatestSourceOverdueWindow {
+  nextCheckAt: string;
+  startedAt: number;
+}
+
+export interface LatestSourcePollingDecision {
+  interval: number | false;
+  overdueWindow: LatestSourceOverdueWindow | null;
+}
+
+export function getLatestSourceIdlePollingDecision(
+  source: PagesSource | undefined,
+  now: number,
+  overdueWindow: LatestSourceOverdueWindow | null,
+): LatestSourcePollingDecision {
+  if (
+    source?.source_type !== 'github_release' ||
+    source.release_selector !== 'latest'
+  ) {
+    return { interval: false, overdueWindow: null };
+  }
+
+  const nextCheckAt = source.next_check_at;
+  const nextCheckTime = nextCheckAt ? Date.parse(nextCheckAt) : Number.NaN;
+  if (!nextCheckAt || !Number.isFinite(nextCheckTime)) {
+    return { interval: LATEST_POLL_INTERVAL, overdueWindow: null };
+  }
+
+  const timeUntilCheck = nextCheckTime - now;
+  if (timeUntilCheck > LATEST_POLL_INTERVAL) {
+    return { interval: LATEST_POLL_INTERVAL, overdueWindow: null };
+  }
+  if (timeUntilCheck > 0) {
+    return { interval: LATEST_NEAR_DUE_POLL_INTERVAL, overdueWindow: null };
+  }
+
+  const currentWindow =
+    overdueWindow?.nextCheckAt === nextCheckAt
+      ? overdueWindow
+      : { nextCheckAt, startedAt: now };
+  if (now - currentWindow.startedAt >= LATEST_OVERDUE_MAX_WAIT) {
+    return { interval: false, overdueWindow: currentWindow };
+  }
+  return {
+    interval: LATEST_NEAR_DUE_POLL_INTERVAL,
+    overdueWindow: currentWindow,
+  };
+}
+
+function sourceDeploymentFingerprint(source: PagesSource) {
+  if (source.source_type === 'manual') return '|';
+  return `${source.last_synced_at ?? ''}|${source.last_applied?.revision ?? ''}`;
+}
+
 function sourceActionLabel(action: PagesSourceActionReceipt['action']) {
   return action === 'check' ? '检查' : '同步并发布';
 }
@@ -87,6 +145,8 @@ export function PagesSourceCard({ projectId }: { projectId: number }) {
   const queryClient = useQueryClient();
   const handledExecutionID = useRef<string | null>(null);
   const sourcePollingStartedAt = useRef<number | null>(null);
+  const latestOverdueWindow = useRef<LatestSourceOverdueWindow | null>(null);
+  const sourceDeploymentState = useRef<string | undefined>(undefined);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogMode, setDialogMode] = useState<PagesSourceMode>('manual');
   const [activeAction, setActiveAction] = useState<ActiveAction | null>(null);
@@ -104,14 +164,39 @@ export function PagesSourceCard({ projectId }: { projectId: number }) {
         (source.sync_status === 'checking' || source.sync_status === 'syncing')
       ) {
         sourcePollingStartedAt.current ??= Date.now();
+        latestOverdueWindow.current = null;
         return Date.now() - sourcePollingStartedAt.current < ACTION_MAX_WAIT
           ? ACTION_POLL_INTERVAL
           : false;
       }
       sourcePollingStartedAt.current = null;
-      return false;
+      const decision = getLatestSourceIdlePollingDecision(
+        source,
+        Date.now(),
+        latestOverdueWindow.current,
+      );
+      latestOverdueWindow.current = decision.overdueWindow;
+      return decision.interval;
     },
   });
+
+  const invalidateSourceState = useCallback(
+    () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: sourceQueryKey(projectId) }),
+        queryClient.invalidateQueries({
+          queryKey: projectQueryKey(projectId),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: deploymentsQueryKey(projectId),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ['openflare', 'pages', 'deployment-files', projectId],
+        }),
+        queryClient.invalidateQueries({ queryKey: projectsQueryKey }),
+      ]),
+    [projectId, queryClient],
+  );
 
   const executionQuery = useQuery({
     queryKey: [
@@ -152,6 +237,21 @@ export function PagesSourceCard({ projectId }: { projectId: number }) {
   }, [actionTimedOut, activeAction]);
 
   useEffect(() => {
+    const source = sourceQuery.data;
+    if (!source) return;
+    const fingerprint = sourceDeploymentFingerprint(source);
+    const previousFingerprint = sourceDeploymentState.current;
+    sourceDeploymentState.current = fingerprint;
+    if (
+      previousFingerprint === undefined ||
+      previousFingerprint === fingerprint
+    ) {
+      return;
+    }
+    void invalidateSourceState();
+  }, [invalidateSourceState, sourceQuery.data]);
+
+  useEffect(() => {
     const execution = executionQuery.data;
     if (
       !activeAction ||
@@ -163,17 +263,7 @@ export function PagesSourceCard({ projectId }: { projectId: number }) {
     if (handledExecutionID.current === execution.id) return;
     handledExecutionID.current = execution.id;
 
-    void Promise.all([
-      queryClient.invalidateQueries({ queryKey: sourceQueryKey(projectId) }),
-      queryClient.invalidateQueries({ queryKey: projectQueryKey(projectId) }),
-      queryClient.invalidateQueries({
-        queryKey: deploymentsQueryKey(projectId),
-      }),
-      queryClient.invalidateQueries({
-        queryKey: ['openflare', 'pages', 'deployment-files', projectId],
-      }),
-      queryClient.invalidateQueries({ queryKey: projectsQueryKey }),
-    ]);
+    void invalidateSourceState();
 
     const actionLabel = sourceActionLabel(activeAction.receipt.action);
     if (execution.status === 'succeeded') {
@@ -183,7 +273,7 @@ export function PagesSourceCard({ projectId }: { projectId: number }) {
     }
     setActiveAction(null);
     setActionTimedOut(false);
-  }, [activeAction, executionQuery.data, projectId, queryClient]);
+  }, [activeAction, executionQuery.data, invalidateSourceState]);
 
   const checkMutation = useMutation({
     mutationFn: () => PagesService.checkSource(projectId),

@@ -252,8 +252,9 @@ function PagesDetailRoute() {
         </Card>
       </div>
 
-      <PagesSourceCard projectId={projectId} />
+      <PagesSourceCard key={`source-${projectId}`} projectId={projectId} />
       <DeploymentHistory
+        key={`deployments-${projectId}`}
         projectId={projectId}
         activeDeploymentId={project.active_deployment_id}
       />

@@ -98,6 +98,32 @@ export function GitHubSourceDetails({
           <span className='text-xs text-muted-foreground'>Release Asset</span>
           <code className='truncate text-sm'>{source.asset_name}</code>
         </div>
+        {source.release_selector === 'latest' ? (
+          <>
+            <div className='flex flex-col gap-1 rounded-lg border p-4'>
+              <span className='text-xs text-muted-foreground'>自动更新</span>
+              <span className='text-sm font-medium'>
+                {source.auto_update_enabled ? '已开启' : '已关闭'}
+              </span>
+            </div>
+            <div className='flex flex-col gap-1 rounded-lg border p-4'>
+              <span className='text-xs text-muted-foreground'>检查间隔</span>
+              <span className='text-sm font-medium'>
+                {source.check_interval_minutes} 分钟
+              </span>
+            </div>
+            <div className='flex flex-col gap-1 rounded-lg border p-4 md:col-span-2'>
+              <span className='text-xs text-muted-foreground'>
+                下次检查时间
+              </span>
+              <span className='text-sm font-medium'>
+                {source.next_check_at
+                  ? formatDateTime(source.next_check_at)
+                  : '等待调度'}
+              </span>
+            </div>
+          </>
+        ) : null}
         <div className='flex flex-col gap-1 rounded-lg border p-4'>
           <span className='text-xs text-muted-foreground'>远端已发现</span>
           <span className='font-mono text-sm'>

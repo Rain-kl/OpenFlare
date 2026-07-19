@@ -119,7 +119,7 @@ export function DeploymentHistory({
     mutationFn: (deploymentId: number) =>
       PagesService.activateDeployment(projectId, deploymentId),
     onSuccess: async () => {
-      toast.success('部署已激活');
+      toast.success('历史部署已激活；自动更新（如已开启）已关闭');
       await invalidateDeploymentState();
       setPendingAction(null);
     },
