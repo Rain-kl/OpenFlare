@@ -14,9 +14,13 @@ license-check:
 	scripts/update_go_license.sh --check
 
 prettier:
-	@echo "==> Formatting backend Go source..."
-	gofmt -w $$(find . -type f -name '*.go' -not -path './.git/*' -not -path './frontend/*')
-	@echo "==> Formatting frontend source..."
+	@echo "==> Formatting backend Go source and removing unused imports..."
+	@command -v goimports >/dev/null 2>&1 || { \
+		echo "goimports not found, installing..."; \
+		go install golang.org/x/tools/cmd/goimports@latest; \
+	}
+	goimports -w $$(find . -type f -name '*.go' -not -path './.git/*' -not -path './frontend/*')
+	@echo "==> Formatting frontend source and removing unused imports..."
 	cd frontend && pnpm format
 
 build-embedded:
