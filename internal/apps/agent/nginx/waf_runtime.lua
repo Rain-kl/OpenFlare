@@ -298,12 +298,14 @@ local function ua_trim(value)
     return (string.gsub(value or "", "^%s*(.-)%s*$", "%1"))
 end
 
-local function ua_label_in(items, value)
-    if type(items) ~= "table" or not value then return false end
+local function ua_label_set(items)
+    if type(items) ~= "table" then return nil, false end
+    local set, count = {}, 0
     for _, item in ipairs(items) do
-        if tostring(item) == value then return true end
+        set[tostring(item)] = true
+        count = count + 1
     end
-    return false
+    return set, count > 0
 end
 
 local function match_ua_rules(ua_lower, rules, fallback)
@@ -363,12 +365,12 @@ local os_rules = {
     { label = "Bot", contains = { "bot", "spider", "crawler" } },
 }
 
-local function parse_browser_name(ua)
-    return match_ua_rules(string.lower(ua or ""), browser_rules, "Other")
+local function parse_browser_name_lower(ua_lower)
+    return match_ua_rules(ua_lower, browser_rules, "Other")
 end
 
-local function parse_os_name(ua)
-    return match_ua_rules(string.lower(ua or ""), os_rules, "Other")
+local function parse_os_name_lower(ua_lower)
+    return match_ua_rules(ua_lower, os_rules, "Other")
 end
 
 local function ua_matches_custom_patterns(ua, patterns)
@@ -387,8 +389,9 @@ local function matches_ua_check(config)
     config = config or {}
     local ua = ua_trim(ngx.var.http_user_agent or "")
     if config.require_ua and ua == "" then return false end
-    local browser = parse_browser_name(ua)
-    local os_name = parse_os_name(ua)
+    local ua_lower = string.lower(ua)
+    local browser = parse_browser_name_lower(ua_lower)
+    local os_name = parse_os_name_lower(ua_lower)
     if config.block_common_bots and (browser == "Bot" or os_name == "Bot") then return false end
     -- Abnormal excludes search-engine / crawler Bot labels; use block_common_bots for those.
     if config.block_abnormal_ua and (browser == "Other" or browser == "Unknown") then
@@ -397,13 +400,11 @@ local function matches_ua_check(config)
     if config.block_custom_ua and ua_matches_custom_patterns(ua, config.custom_ua_patterns) then
         return false
     end
-    local browsers = array_or_empty(config.browsers)
-    local operating_systems = array_or_empty(config.operating_systems)
-    local has_browsers = #browsers > 0
-    local has_os = #operating_systems > 0
+    local browser_set, has_browsers = ua_label_set(config.browsers)
+    local os_set, has_os = ua_label_set(config.operating_systems)
     if not has_browsers and not has_os then return true end
-    local browser_ok = ua_label_in(browsers, browser)
-    local os_ok = ua_label_in(operating_systems, os_name)
+    local browser_ok = has_browsers and browser_set[browser] == true
+    local os_ok = has_os and os_set[os_name] == true
     if has_browsers and not has_os then return browser_ok end
     if has_os and not has_browsers then return os_ok end
     local mode = config.match_mode
@@ -529,20 +530,16 @@ local function security_collect_args(list)
     end
 end
 
-local function security_collect_headers(list)
-    if not ngx.req or not ngx.req.get_headers then return end
-    local headers = ngx.req.get_headers(100)
-    if type(headers) ~= "table" then return end
-    for name, value in pairs(headers) do
-        local lower_name = string.lower(tostring(name))
-        if lower_name ~= "host" and lower_name ~= "connection" and lower_name ~= "content-length" then
-            security_append_decoded(list, tostring(name))
-            if type(value) == "table" then
-                for _, item in ipairs(value) do security_append_decoded(list, tostring(item)) end
-            else
-                security_append_decoded(list, tostring(value))
-            end
-        end
+-- Only Cookie / Referer for injection surfaces. Generic browser headers (UA, Accept, …)
+-- are high-volume and high false-positive / CPU cost if scanned for SQL/cmd/XSS.
+local function security_collect_sensitive_headers(list)
+    local cookie = ngx.var.http_cookie
+    if type(cookie) == "string" and cookie ~= "" then
+        security_append_decoded(list, cookie)
+    end
+    local referer = ngx.var.http_referer
+    if type(referer) == "string" and referer ~= "" then
+        security_append_decoded(list, referer)
     end
 end
 
@@ -589,9 +586,18 @@ local xxe_patterns = {
 local crlf_patterns = {
     "%0d%0a", "\r\n",
 }
+local sql_static_patterns = {
+    "union select", " or 1=1", "' or '", "\" or \"",
+    "information_schema", "xp_cmdshell", "load_file(", " into outfile",
+    "/**/", "/*!", "*/--", "@@version",
+}
 
 local function security_flag_enabled(value)
     return value == true or value == 1 or value == "true" or value == "1"
+end
+
+local function security_append_list(dst, src)
+    for _, item in ipairs(src) do dst[#dst + 1] = item end
 end
 
 local function matches_security_check(config)
@@ -610,46 +616,56 @@ local function matches_security_check(config)
         return true
     end
 
-    local path_inputs, query_inputs, header_inputs, body_inputs = {}, {}, {}, {}
-    security_append_decoded(path_inputs, ngx.var.uri or "")
-    security_append_decoded(path_inputs, ngx.var.request_uri or "")
-    security_collect_args(query_inputs)
-    security_collect_headers(header_inputs)
-    security_append_decoded(header_inputs, ngx.var.http_cookie or "")
+    -- Collect only what enabled checks need (P1). Path uses uri only (not request_uri)
+    -- to avoid re-scanning query; query is collected separately when needed (P0).
+    local need_path = path_traversal or file_inclusion
+    local need_query = path_traversal or file_inclusion or sql_injection or command_injection
+        or xss or ssrf or crlf_injection
+    local need_sensitive_headers = sql_injection or command_injection or xss or ssrf or crlf_injection
+    local need_body = malicious_upload or xxe
+        or ((sql_injection or path_traversal or command_injection or xss or ssrf
+            or file_inclusion or crlf_injection)
+            and (tonumber(ngx.var.content_length or "") or 0) > 0)
 
-    local need_body = sql_injection or path_traversal or command_injection or xss or ssrf
-        or file_inclusion or malicious_upload or xxe or crlf_injection
+    local path_inputs, query_inputs, header_inputs, body_inputs = {}, {}, {}, {}
+    if need_path then
+        security_append_decoded(path_inputs, ngx.var.uri or "")
+    end
+    if need_query then
+        security_collect_args(query_inputs)
+    end
+    if need_sensitive_headers then
+        security_collect_sensitive_headers(header_inputs)
+    end
+
     local body
     if need_body then body = security_read_body() end
     if body then security_append_decoded(body_inputs, body) end
 
-    local pq = {}
-    for _, item in ipairs(path_inputs) do pq[#pq + 1] = item end
-    for _, item in ipairs(query_inputs) do pq[#pq + 1] = item end
-    for _, item in ipairs(body_inputs) do pq[#pq + 1] = item end
-
-    local qhb = {}
-    for _, item in ipairs(query_inputs) do qhb[#qhb + 1] = item end
-    for _, item in ipairs(header_inputs) do qhb[#qhb + 1] = item end
-    for _, item in ipairs(body_inputs) do qhb[#qhb + 1] = item end
-
-    if path_traversal and security_match_any(pq, path_traversal_patterns) then return false end
-    if file_inclusion and security_match_any(pq, file_inclusion_patterns) then return false end
-    if sql_injection then
-        -- Exclude sleep(/benchmark( bare tokens; use timed helper + other patterns.
-        local sql_static = {
-            "union select", " or 1=1", "' or '", "\" or \"",
-            "information_schema", "xp_cmdshell", "load_file(", " into outfile",
-            "/**/", "/*!", "*/--", "@@version",
-        }
-        if security_match_any(qhb, sql_static) or security_match_sql_timed(qhb) then
-            return false
-        end
+    if path_traversal or file_inclusion then
+        local pq = {}
+        security_append_list(pq, path_inputs)
+        security_append_list(pq, query_inputs)
+        security_append_list(pq, body_inputs)
+        if path_traversal and security_match_any(pq, path_traversal_patterns) then return false end
+        if file_inclusion and security_match_any(pq, file_inclusion_patterns) then return false end
     end
-    if command_injection and security_match_any(qhb, command_patterns) then return false end
-    if xss and security_match_xss(qhb) then return false end
-    if ssrf and security_match_any(qhb, ssrf_patterns) then return false end
-    if crlf_injection and security_match_any(qhb, crlf_patterns) then return false end
+
+    if sql_injection or command_injection or xss or ssrf or crlf_injection then
+        local qhb = {}
+        security_append_list(qhb, query_inputs)
+        security_append_list(qhb, header_inputs)
+        security_append_list(qhb, body_inputs)
+        if sql_injection then
+            if security_match_any(qhb, sql_static_patterns) or security_match_sql_timed(qhb) then
+                return false
+            end
+        end
+        if command_injection and security_match_any(qhb, command_patterns) then return false end
+        if xss and security_match_xss(qhb) then return false end
+        if ssrf and security_match_any(qhb, ssrf_patterns) then return false end
+        if crlf_injection and security_match_any(qhb, crlf_patterns) then return false end
+    end
 
     if malicious_upload and body then
         local content_type = string.lower(ngx.var.content_type or "")

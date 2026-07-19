@@ -52,15 +52,15 @@
 
 | 字段 | 默认 | UI 文案 | 检测面（v1） |
 |------|------|---------|--------------|
-| `sql_injection` | false | SQL 注入 | Query、Body、Header、Cookie |
-| `path_traversal` | **true** | 路径穿越防护 | Path、Query、Body |
-| `command_injection` | false | 命令注入 | Query、Body、Header |
-| `xss` | false | XSS | Query、Body、Header |
-| `ssrf` | false | SSRF | Query、Body 中 URL 形态参数 |
-| `file_inclusion` | **true** | 文件包含（LFI/RFI） | Path、Query、Body |
+| `sql_injection` | false | SQL 注入 | Query、Cookie、Referer、Body |
+| `path_traversal` | **true** | 路径穿越防护 | Path（`uri`）、Query、Body |
+| `command_injection` | false | 命令注入 | Query、Cookie、Referer、Body |
+| `xss` | false | XSS | Query、Cookie、Referer、Body |
+| `ssrf` | false | SSRF | Query、Cookie、Referer、Body 中 URL 形态 |
+| `file_inclusion` | **true** | 文件包含（LFI/RFI） | Path（`uri`）、Query、Body |
 | `malicious_upload` | false | 恶意文件上传 | Multipart Body |
 | `xxe` | false | XXE | Body（Content-Type 含 xml 时） |
-| `crlf_injection` | false | CRLF 注入 | Header、Query、Body |
+| `crlf_injection` | false | CRLF 注入 | Query、Cookie、Referer、Body |
 
 全部关闭时：节点恒 **true**（空操作），合法。
 
@@ -80,11 +80,11 @@ return true
 
 | 来源 | 方式 |
 |------|------|
-| Path | `ngx.var.uri`，URL 解码（含常见双重编码路径变体） |
-| Query | `ngx.var.args` / `get_uri_args` 键与值 |
-| Header | 请求头名+值（可排除 `Host` 等噪声，实现时固定白名单或全量） |
-| Cookie | `Cookie` 头或 cookie 表 |
-| Body | 仅当某已启用规则需要 Body，且 `Content-Length` 存在且 ≤ **65536**；否则跳过 Body 相关规则 |
+| Path | 仅 `ngx.var.uri`（不重复扫完整 `request_uri`，避免与 Query 双计），URL 解码（含常见双重编码路径变体） |
+| Query | `get_uri_args` 键与值（仅当已启用规则需要 Query） |
+| Header | **不**扫描通用浏览器头（UA / Accept 等）；注入类仅采 **Cookie、Referer** |
+| Cookie | `ngx.var.http_cookie` |
+| Body | 仅当已启用规则需要 Body 且 `Content-Length` > 0 且 ≤ **65536**；GET/零长度不 `read_body` |
 
 Body 读取失败：跳过 Body 类检测并限频 warn（可用性优先，不 fail-closed 整图）。
 

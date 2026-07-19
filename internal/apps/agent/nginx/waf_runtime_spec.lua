@@ -813,6 +813,95 @@ local function test_security_check_path_and_sql()
     decision, err = runtime.debug_execute_graph(runtime.debug_active_rules("sec-site")[1].graph)
     assert_equal(err, nil, "off execute err")
     assert_equal(decision and decision.kind or "nil", "allow", "all protections off should allow")
+
+    -- P0: do not treat generic browser headers (UA/Accept) as SQL/cmd injection surface.
+    reset_request("sec-site", nil, "/")
+    ngx.req.get_headers = function()
+        return {
+            ["User-Agent"] = "Mozilla/5.0 union select 1 from information_schema.tables",
+            Accept = "*/*",
+            ["Accept-Language"] = "en;q=0.9",
+        }
+    end
+    assert_equal(
+        runtime.debug_security_check({
+            sql_injection = true,
+            command_injection = true,
+            xss = true,
+            ssrf = true,
+        }),
+        true,
+        "SQL-like tokens only in generic headers must not block"
+    )
+
+    -- Cookie / Referer remain in-scope for injection / SSRF shaped checks.
+    reset_request("sec-site", nil, "/")
+    ngx.var.http_cookie = "q=1' union select 1--"
+    ngx.req.get_headers = function()
+        return { Cookie = "q=1' union select 1--" }
+    end
+    assert_equal(
+        runtime.debug_security_check({ sql_injection = true }),
+        false,
+        "SQL in Cookie must still block"
+    )
+
+    reset_request("sec-site", nil, "/")
+    ngx.var.http_referer = "http://127.0.0.1/admin"
+    assert_equal(
+        runtime.debug_security_check({ ssrf = true }),
+        false,
+        "URL-shaped SSRF in Referer must still block"
+    )
+
+    -- Path checks use uri only; query-only traversal still caught via args.
+    reset_request("sec-site", nil, "/ok")
+    ngx.var.request_uri = "/ok?x=../../etc/passwd"
+    ngx.var.args = "x=../../etc/passwd"
+    ngx.req.get_uri_args = function()
+        return { x = "../../etc/passwd" }
+    end
+    assert_equal(
+        runtime.debug_security_check({ path_traversal = true }),
+        false,
+        "path traversal in query must still block without scanning full request_uri alone"
+    )
+
+    -- GET / zero body: never call read_body.
+    local read_body_calls = 0
+    reset_request("sec-site", nil, "/")
+    ngx.var.content_length = "0"
+    ngx.req.read_body = function()
+        read_body_calls = read_body_calls + 1
+    end
+    ngx.req.get_body_data = function() return nil end
+    assert_equal(
+        runtime.debug_security_check({
+            sql_injection = true,
+            path_traversal = true,
+            command_injection = true,
+            file_inclusion = true,
+        }),
+        true,
+        "clean GET must pass full default-like security set"
+    )
+    assert_equal(read_body_calls, 0, "zero content-length must not read_body")
+
+    -- Only enabled collectors: path-only config must ignore SQL-like query.
+    reset_request("sec-site", nil, "/safe")
+    ngx.req.get_uri_args = function()
+        return { q = "1' union select 1--" }
+    end
+    assert_equal(
+        runtime.debug_security_check({ path_traversal = true, file_inclusion = true }),
+        true,
+        "SQL payload must not affect path-only checks"
+    )
+    assert_equal(
+        runtime.debug_security_check({ sql_injection = true }),
+        false,
+        "SQL payload must block when SQL is enabled"
+    )
 end
 
 test_ua_check_require_block_and_whitelist()
