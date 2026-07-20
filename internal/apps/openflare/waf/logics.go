@@ -32,7 +32,8 @@ const (
 
 	defaultWAFIPGroupSyncIntervalMinutes = 1440
 	defaultWAFIPGroupAutoLookbackMinutes = 60
-	minWAFIPGroupSyncIntervalMinutes     = 5
+	minWAFIPGroupSyncIntervalMinutes     = 1
+	minWAFIPGroupAutoLookbackMinutes     = 5
 	maxWAFIPGroupSyncIntervalMinutes     = 43200
 	minPoWSessionTTLSeconds              = 60
 	minPoWChallengeTTLSeconds            = 30
@@ -507,8 +508,8 @@ func parseIPGroupAutoConfig(raw json.RawMessage) (ipGroupAutoConfig, error) {
 	if config.LookbackMinutes <= 0 {
 		config.LookbackMinutes = defaultWAFIPGroupAutoLookbackMinutes
 	}
-	if config.LookbackMinutes < minWAFIPGroupSyncIntervalMinutes {
-		config.LookbackMinutes = minWAFIPGroupSyncIntervalMinutes
+	if config.LookbackMinutes < minWAFIPGroupAutoLookbackMinutes {
+		config.LookbackMinutes = minWAFIPGroupAutoLookbackMinutes
 	}
 	if config.LookbackMinutes > maxWAFIPGroupSyncIntervalMinutes {
 		config.LookbackMinutes = maxWAFIPGroupSyncIntervalMinutes

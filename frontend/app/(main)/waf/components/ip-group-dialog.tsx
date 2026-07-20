@@ -58,7 +58,7 @@ const ipGroupSchema = z
     subscription_url: z.string(),
     subscription_format: z.enum(['text', 'json']),
     subscription_mapping_rule: z.string(),
-    sync_interval_minutes: z.number().int().min(5),
+    sync_interval_minutes: z.number().int().min(1),
   })
   .superRefine((value, context) => {
     if (value.type === 'subscription' && !value.subscription_url.trim()) {
@@ -329,7 +329,7 @@ export function IPGroupDialog({
                       <FormControl>
                         <Input
                           type='number'
-                          min={5}
+                          min={1}
                           value={field.value}
                           onChange={(event) =>
                             field.onChange(Number(event.target.value))
@@ -337,7 +337,7 @@ export function IPGroupDialog({
                         />
                       </FormControl>
                       <FormDescription>
-                        最小 5 分钟，默认 1440 分钟。
+                        最小 1 分钟，默认 1440 分钟。
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
@@ -376,7 +376,7 @@ export function IPGroupDialog({
                       <FormControl>
                         <Input
                           type='number'
-                          min={5}
+                          min={1}
                           value={field.value}
                           onChange={(event) =>
                             field.onChange(Number(event.target.value))
@@ -384,7 +384,8 @@ export function IPGroupDialog({
                         />
                       </FormControl>
                       <FormDescription>
-                        定时从请求日志挖掘恶意 IP 的周期。最小 5 分钟。
+                        定时从请求日志挖掘恶意 IP 的周期。最小 1 分钟，默认
+                        1440 分钟。
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
