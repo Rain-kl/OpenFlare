@@ -53,6 +53,7 @@ var openRestyOptionValidators = map[string]func(key, value string) error{
 	model.ConfigKeyOpenRestyDefaultLimitConnPerServer:    validateNonNegativeIntegerOption,
 	model.ConfigKeyOpenRestyDefaultLimitConnPerIP:        validateNonNegativeIntegerOption,
 	model.ConfigKeyOpenRestyDefaultLimitRate:             validateOpenRestyDefaultLimitRate,
+	model.ConfigKeyOpenRestyDefaultLimitReqPerIP:         validateOpenRestyDefaultLimitReqPerIP,
 }
 
 var openRestyDefaultLimitRatePattern = regexp.MustCompile(`^\d+[kKmM]?$`)
@@ -191,6 +192,18 @@ func validateOpenRestyDefaultLimitRate(key, trimmed string) error {
 	}
 	if !openRestyDefaultLimitRatePattern.MatchString(strings.ToLower(trimmed)) {
 		return fmt.Errorf("%s 格式不合法，请使用 512k、1m 或纯数字，空表示关闭", key)
+	}
+	return nil
+}
+
+var openRestyDefaultLimitReqPerIPPattern = regexp.MustCompile(`^\d+r/[sm]$`)
+
+func validateOpenRestyDefaultLimitReqPerIP(key, trimmed string) error {
+	if trimmed == "" || trimmed == "0" {
+		return nil
+	}
+	if !openRestyDefaultLimitReqPerIPPattern.MatchString(strings.ToLower(trimmed)) {
+		return fmt.Errorf("%s 格式不合法，请输入类似 10r/s、100r/m，或留空关闭", key)
 	}
 	return nil
 }

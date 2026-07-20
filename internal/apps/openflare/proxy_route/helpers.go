@@ -23,6 +23,7 @@ import (
 
 var proxyHeaderKeyPattern = regexp.MustCompile(`^[A-Za-z0-9_-]+$`)
 var proxyRouteLimitRatePattern = regexp.MustCompile(`^\d+[kKmM]?$`)
+var proxyRouteLimitReqPattern = regexp.MustCompile(`^\d+r/[sm]$`)
 
 const (
 	proxyRouteCachePolicyStatic     = "static"
@@ -345,6 +346,20 @@ func normalizeProxyRouteLimitRate(raw string) (string, error) {
 	}
 	if strings.TrimRight(normalized, "km") == "" {
 		return "", nil
+	}
+	return normalized, nil
+}
+
+func normalizeProxyRouteLimitReqPerIP(raw string) (string, error) {
+	normalized := strings.ToLower(strings.TrimSpace(raw))
+	if normalized == "" || normalized == "0" {
+		return "", nil
+	}
+	if normalized == "-1" {
+		return "-1", nil
+	}
+	if !proxyRouteLimitReqPattern.MatchString(normalized) {
+		return "", errors.New("请求频率格式不合法，请使用类似 10r/s、100r/m，或 -1 禁用")
 	}
 	return normalized, nil
 }

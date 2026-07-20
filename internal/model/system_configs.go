@@ -108,6 +108,7 @@ const (
 	ConfigKeyOpenRestyDefaultLimitConnPerServer    = "openresty_default_limit_conn_per_server"   // 默认站点并发连接
 	ConfigKeyOpenRestyDefaultLimitConnPerIP        = "openresty_default_limit_conn_per_ip"       // 默认单 IP 并发连接
 	ConfigKeyOpenRestyDefaultLimitRate             = "openresty_default_limit_rate"              // 默认单请求带宽
+	ConfigKeyOpenRestyDefaultLimitReqPerIP         = "openresty_default_limit_req_per_ip"        // 默认单 IP 请求频率限制
 )
 
 const (

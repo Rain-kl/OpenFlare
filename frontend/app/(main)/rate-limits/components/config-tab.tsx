@@ -25,6 +25,7 @@ const optionsQueryKey = ['openflare', 'options'] as const;
 const KEY_CONN_PER_SERVER = 'openresty_default_limit_conn_per_server';
 const KEY_CONN_PER_IP = 'openresty_default_limit_conn_per_ip';
 const KEY_LIMIT_RATE = 'openresty_default_limit_rate';
+const KEY_LIMIT_REQ_PER_IP = 'openresty_default_limit_req_per_ip';
 
 const limitRatePattern = /^\d+(?:[kKmM])?$/;
 
@@ -32,12 +33,14 @@ type RateLimitFields = {
   openresty_default_limit_conn_per_server: string;
   openresty_default_limit_conn_per_ip: string;
   openresty_default_limit_rate: string;
+  openresty_default_limit_req_per_ip: string;
 };
 
 const defaultFields: RateLimitFields = {
   openresty_default_limit_conn_per_server: '0',
   openresty_default_limit_conn_per_ip: '0',
   openresty_default_limit_rate: '',
+  openresty_default_limit_req_per_ip: '',
 };
 
 function optionsToMap(options: Array<{ key: string; value: string }>) {
@@ -55,6 +58,7 @@ function mapOptionsToFields(
       optionMap[KEY_CONN_PER_SERVER] ?? '0',
     openresty_default_limit_conn_per_ip: optionMap[KEY_CONN_PER_IP] ?? '0',
     openresty_default_limit_rate: optionMap[KEY_LIMIT_RATE] ?? '',
+    openresty_default_limit_req_per_ip: optionMap[KEY_LIMIT_REQ_PER_IP] ?? '',
   };
 }
 
@@ -70,6 +74,13 @@ function validateFields(fields: RateLimitFields) {
   const rate = fields.openresty_default_limit_rate.trim();
   if (rate && rate !== '0' && !limitRatePattern.test(rate)) {
     throw new Error('限速格式不合法，请使用 512k、1m、纯数字，或留空关闭');
+  }
+
+  const reqRate = fields.openresty_default_limit_req_per_ip.trim();
+  if (reqRate && reqRate !== '0' && !/^\d+r\/[sm]$/i.test(reqRate)) {
+    throw new Error(
+      '请求频率限制格式不合法，请使用类似 10r/s、100r/m，或留空关闭',
+    );
   }
 }
 
@@ -118,6 +129,10 @@ export function ConfigTab() {
         {
           key: KEY_LIMIT_RATE,
           value: normalizeRateValue(fields.openresty_default_limit_rate),
+        },
+        {
+          key: KEY_LIMIT_REQ_PER_IP,
+          value: normalizeRateValue(fields.openresty_default_limit_req_per_ip),
         },
       ]);
     },
@@ -254,6 +269,25 @@ export function ConfigTab() {
             />
             <p className='text-xs text-muted-foreground'>
               单请求带宽默认值，例如 512k 或 1m
+            </p>
+          </div>
+          <div className='space-y-1.5'>
+            <Label className='text-xs text-muted-foreground'>
+              默认单 IP 请求频率限制
+            </Label>
+            <Input
+              value={fields.openresty_default_limit_req_per_ip}
+              placeholder='10r/s / 100r/m'
+              onChange={(e) =>
+                updateField(
+                  'openresty_default_limit_req_per_ip',
+                  e.target.value,
+                )
+              }
+              className='h-9 text-xs'
+            />
+            <p className='text-xs text-muted-foreground'>
+              单个 IP 请求频率默认值，例如 10r/s 或 100r/m，留空关闭
             </p>
           </div>
         </CardContent>

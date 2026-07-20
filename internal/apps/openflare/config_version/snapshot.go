@@ -54,6 +54,7 @@ type snapshotRoute struct {
 	LimitConnPerServer int                              `json:"limit_conn_per_server,omitempty"`
 	LimitConnPerIP     int                              `json:"limit_conn_per_ip,omitempty"`
 	LimitRate          string                           `json:"limit_rate,omitempty"`
+	LimitReqPerIP      string                           `json:"limit_req_per_ip,omitempty"`
 	CacheEnabled       bool                             `json:"cache_enabled"`
 	CachePolicy        string                           `json:"cache_policy,omitempty"`
 	CacheRules         []string                         `json:"cache_rules,omitempty"`
@@ -138,6 +139,7 @@ type openRestyConfigSnapshot struct {
 	DefaultLimitConnPerServer int    `json:"default_limit_conn_per_server,omitempty"`
 	DefaultLimitConnPerIP     int    `json:"default_limit_conn_per_ip,omitempty"`
 	DefaultLimitRate          string `json:"default_limit_rate,omitempty"`
+	DefaultLimitReqPerIP      string `json:"default_limit_req_per_ip,omitempty"`
 }
 
 type snapshotDocument struct {
@@ -285,6 +287,7 @@ func buildSnapshotRoutes(ctx context.Context, routes []*model.ProxyRoute) ([]sna
 			LimitConnPerServer: route.LimitConnPerServer,
 			LimitConnPerIP:     route.LimitConnPerIP,
 			LimitRate:          route.LimitRate,
+			LimitReqPerIP:      route.LimitReqPerIP,
 			CacheEnabled:       route.CacheEnabled,
 			CachePolicy:        route.CachePolicy,
 			CacheRules:         cacheRules,
@@ -548,9 +551,13 @@ func buildOpenRestyConfigSnapshot(ctx context.Context) openRestyConfigSnapshot {
 		DefaultLimitConnPerServer: getNonNegIntConfig(model.ConfigKeyOpenRestyDefaultLimitConnPerServer, 0),
 		DefaultLimitConnPerIP:     getNonNegIntConfig(model.ConfigKeyOpenRestyDefaultLimitConnPerIP, 0),
 		DefaultLimitRate:          strings.ToLower(strings.TrimSpace(getStringConfig(model.ConfigKeyOpenRestyDefaultLimitRate, ""))),
+		DefaultLimitReqPerIP:      strings.ToLower(strings.TrimSpace(getStringConfig(model.ConfigKeyOpenRestyDefaultLimitReqPerIP, ""))),
 	}
 	if snapshot.DefaultLimitRate == "0" {
 		snapshot.DefaultLimitRate = ""
+	}
+	if snapshot.DefaultLimitReqPerIP == "0" {
+		snapshot.DefaultLimitReqPerIP = ""
 	}
 	snapshot.CachePath = normalizeProxyCachePathForSnapshot(snapshot.CacheEnabled, snapshot.CachePath)
 	return snapshot

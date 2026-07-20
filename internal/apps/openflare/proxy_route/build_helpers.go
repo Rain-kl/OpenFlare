@@ -90,7 +90,7 @@ func populateProxyRouteFields(
 	upstreams []string,
 	originHost, cachePolicy string,
 	limitConnPerServer, limitConnPerIP int,
-	limitRate, upstreamType string,
+	limitRate, limitReqPerIP, upstreamType string,
 ) {
 	route.SiteName = siteName
 	route.OriginID = originID
@@ -103,6 +103,7 @@ func populateProxyRouteFields(
 	route.LimitConnPerServer = limitConnPerServer
 	route.LimitConnPerIP = limitConnPerIP
 	route.LimitRate = limitRate
+	route.LimitReqPerIP = limitReqPerIP
 	route.CacheEnabled = input.CacheEnabled
 	route.CachePolicy = normalizeCachePolicy(input.CacheEnabled, cachePolicy)
 	route.CacheRules = jsonFields.cacheRulesJSON

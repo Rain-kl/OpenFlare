@@ -5571,7 +5571,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "integer",
-                        "description": "趋势桶分钟数（1、5 或 60，默认 60）",
+                        "description": "趋势桶分钟数（1、3、5 或 60，默认 60）",
                         "name": "bucket_minutes",
                         "in": "query"
                     }
@@ -18272,6 +18272,9 @@ const docTemplate = `{
                 "limit_rate": {
                     "type": "string"
                 },
+                "limit_req_per_ip": {
+                    "type": "string"
+                },
                 "origin_address": {
                     "type": "string"
                 },
@@ -18386,6 +18389,9 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "limit_rate": {
+                    "type": "string"
+                },
+                "limit_req_per_ip": {
                     "type": "string"
                 },
                 "origin_host": {

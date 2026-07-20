@@ -531,6 +531,7 @@ func diffOpenRestyOptionDetails(left openRestyConfigSnapshot, right openRestyCon
 	appendIfChanged("OpenRestyDefaultLimitConnPerServer", fmt.Sprintf("%d", left.DefaultLimitConnPerServer), fmt.Sprintf("%d", right.DefaultLimitConnPerServer))
 	appendIfChanged("OpenRestyDefaultLimitConnPerIP", fmt.Sprintf("%d", left.DefaultLimitConnPerIP), fmt.Sprintf("%d", right.DefaultLimitConnPerIP))
 	appendIfChanged("OpenRestyDefaultLimitRate", left.DefaultLimitRate, right.DefaultLimitRate)
+	appendIfChanged("OpenRestyDefaultLimitReqPerIP", left.DefaultLimitReqPerIP, right.DefaultLimitReqPerIP)
 	return changes
 }
 
@@ -582,5 +583,6 @@ func openRestyOptionKeys() []string {
 		"OpenRestyDefaultLimitConnPerServer",
 		"OpenRestyDefaultLimitConnPerIP",
 		"OpenRestyDefaultLimitRate",
+		"OpenRestyDefaultLimitReqPerIP",
 	}
 }

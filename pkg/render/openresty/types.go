@@ -165,6 +165,7 @@ type Route struct {
 	LimitConnPerServer int              `json:"limit_conn_per_server,omitempty"`
 	LimitConnPerIP     int              `json:"limit_conn_per_ip,omitempty"`
 	LimitRate          string           `json:"limit_rate,omitempty"`
+	LimitReqPerIP      string           `json:"limit_req_per_ip,omitempty"`
 	CacheEnabled       bool             `json:"cache_enabled"`
 	CachePolicy        string           `json:"cache_policy,omitempty"`
 	CacheRules         []string         `json:"cache_rules,omitempty"`
@@ -312,6 +313,7 @@ type ConfigSnapshot struct {
 	DefaultLimitConnPerServer int    `json:"default_limit_conn_per_server,omitempty"`
 	DefaultLimitConnPerIP     int    `json:"default_limit_conn_per_ip,omitempty"`
 	DefaultLimitRate          string `json:"default_limit_rate,omitempty"`
+	DefaultLimitReqPerIP      string `json:"default_limit_req_per_ip,omitempty"`
 }
 
 // Document is the top-level input structure for the OpenResty renderer,
@@ -341,6 +343,7 @@ type routeLimitConfig struct {
 	LimitConnPerServer int
 	LimitConnPerIP     int
 	LimitRate          string
+	LimitReqPerIP      string
 }
 
 type routeUpstreamConfig struct {

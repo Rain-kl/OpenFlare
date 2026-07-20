@@ -2928,6 +2928,8 @@ definitions:
         type: integer
       limit_rate:
         type: string
+      limit_req_per_ip:
+        type: string
       origin_address:
         type: string
       origin_host:
@@ -3004,6 +3006,8 @@ definitions:
       limit_conn_per_server:
         type: integer
       limit_rate:
+        type: string
+      limit_req_per_ip:
         type: string
       origin_host:
         type: string
@@ -7522,7 +7526,7 @@ paths:
         in: query
         name: hours
         type: integer
-      - description: 趋势桶分钟数（1、5 或 60，默认 60）
+      - description: 趋势桶分钟数（1、3、5 或 60，默认 60）
         in: query
         name: bucket_minutes
         type: integer

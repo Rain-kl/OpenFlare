@@ -40,6 +40,7 @@ type Input struct {
 	LimitConnPerServer   int                 `json:"limit_conn_per_server"`
 	LimitConnPerIP       int                 `json:"limit_conn_per_ip"`
 	LimitRate            string              `json:"limit_rate"`
+	LimitReqPerIP        string              `json:"limit_req_per_ip"`
 	CacheEnabled         bool                `json:"cache_enabled"`
 	CachePolicy          string              `json:"cache_policy"`
 	CacheRules           []string            `json:"cache_rules"`
@@ -72,6 +73,7 @@ type View struct {
 	LimitConnPerServer   int                 `json:"limit_conn_per_server"`
 	LimitConnPerIP       int                 `json:"limit_conn_per_ip"`
 	LimitRate            string              `json:"limit_rate"`
+	LimitReqPerIP        string              `json:"limit_req_per_ip"`
 	CacheEnabled         bool                `json:"cache_enabled"`
 	CachePolicy          string              `json:"cache_policy"`
 	CacheRules           string              `json:"cache_rules"`
@@ -267,6 +269,10 @@ func buildProxyRoute(ctx context.Context, route *model.ProxyRoute, input Input) 
 	if err != nil {
 		return nil, nil, err
 	}
+	limitReqPerIP, err := normalizeProxyRouteLimitReqPerIP(input.LimitReqPerIP)
+	if err != nil {
+		return nil, nil, err
+	}
 	if err := validateProxyRouteZoneDomainCertificates(ctx, domains, input.EnableHTTPS); err != nil {
 		return nil, nil, err
 	}
@@ -307,6 +313,7 @@ func buildProxyRoute(ctx context.Context, route *model.ProxyRoute, input Input) 
 		limitConnPerServer,
 		limitConnPerIP,
 		limitRate,
+		limitReqPerIP,
 		upstreamType,
 	)
 	if err := applyProxyRouteUpstreamType(ctx, route, upstreamType, input); err != nil {
@@ -369,6 +376,7 @@ func buildProxyRouteView(ctx context.Context, route *model.ProxyRoute) (*View, e
 		LimitConnPerServer:   route.LimitConnPerServer,
 		LimitConnPerIP:       route.LimitConnPerIP,
 		LimitRate:            route.LimitRate,
+		LimitReqPerIP:        route.LimitReqPerIP,
 		CacheEnabled:         route.CacheEnabled,
 		CachePolicy:          displayCachePolicy(route.CacheEnabled, route.CachePolicy),
 		CacheRules:           route.CacheRules,

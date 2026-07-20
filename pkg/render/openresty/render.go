@@ -201,7 +201,7 @@ func renderTemplateDirective(enabled bool, statement string) string {
 }
 
 func renderOpenRestyCacheTemplateBlock(cfg ConfigSnapshot) string {
-	lines := []string{renderOpenRestyLimitZoneBlock()}
+	lines := []string{renderOpenRestyLimitZoneBlock(cfg)}
 	if !cfg.CacheEnabled {
 		lines = append(lines, renderOpenRestyObservabilityTemplateBlock())
 		return strings.Join(lines, "")
@@ -222,8 +222,14 @@ func renderOpenRestyCacheTemplateBlock(cfg ConfigSnapshot) string {
 	return strings.Join(lines, "")
 }
 
-func renderOpenRestyLimitZoneBlock() string {
-	return "    limit_conn_zone $server_name zone=openflare_conn_per_server:10m;\n    limit_conn_zone $binary_remote_addr zone=openflare_conn_per_ip:10m;\n"
+func renderOpenRestyLimitZoneBlock(cfg ConfigSnapshot) string {
+	var builder strings.Builder
+	builder.WriteString("    limit_conn_zone $server_name zone=openflare_conn_per_server:10m;\n")
+	builder.WriteString("    limit_conn_zone $binary_remote_addr zone=openflare_conn_per_ip:10m;\n")
+	if strings.TrimSpace(cfg.DefaultLimitReqPerIP) != "" {
+		fmt.Fprintf(&builder, "    limit_req_zone $binary_remote_addr zone=openflare_req_per_ip:10m rate=%s;\n", strings.TrimSpace(cfg.DefaultLimitReqPerIP))
+	}
+	return builder.String()
 }
 
 func renderOpenRestyObservabilityTemplateBlock() string {
@@ -475,6 +481,11 @@ func renderRouteLimitBlock(limitConfig routeLimitConfig) string {
 	if strings.TrimSpace(limitConfig.LimitRate) != "" {
 		fmt.Fprintf(&builder, "        limit_rate %s;\n", limitConfig.LimitRate)
 	}
+	if strings.TrimSpace(limitConfig.LimitReqPerIP) != "" {
+		burst := calculateBurst(limitConfig.LimitReqPerIP)
+		fmt.Fprintf(&builder, "        limit_req zone=openflare_req_per_ip burst=%d nodelay;\n", burst)
+		fmt.Fprintf(&builder, "        limit_req_status 429;\n")
+	}
 	return builder.String()
 }
 
@@ -483,6 +494,7 @@ func mergeRouteLimitConfig(route Route, cfg ConfigSnapshot) routeLimitConfig {
 		LimitConnPerServer: mergeLimitConn(route.LimitConnPerServer, cfg.DefaultLimitConnPerServer),
 		LimitConnPerIP:     mergeLimitConn(route.LimitConnPerIP, cfg.DefaultLimitConnPerIP),
 		LimitRate:          mergeLimitRate(route.LimitRate, cfg.DefaultLimitRate),
+		LimitReqPerIP:      mergeLimitRate(route.LimitReqPerIP, cfg.DefaultLimitReqPerIP),
 	}
 }
 
@@ -863,4 +875,30 @@ func buildPathExactMatchPattern(rules []string) string {
 		parts = append(parts, regexp.QuoteMeta(rule))
 	}
 	return fmt.Sprintf("^(?:%s)$", strings.Join(parts, "|"))
+}
+
+func calculateBurst(rateStr string) int {
+	rateStr = strings.ToLower(strings.TrimSpace(rateStr))
+	if rateStr == "" {
+		return 0
+	}
+	var val int
+	var unit string
+	_, err := fmt.Sscanf(rateStr, "%dr/%s", &val, &unit)
+	if err != nil {
+		return 5
+	}
+	if val <= 0 {
+		return 5
+	}
+	if unit == "s" {
+		return val * 2
+	} else if unit == "m" {
+		b := val / 5
+		if b < 5 {
+			b = 5
+		}
+		return b
+	}
+	return 5
 }
