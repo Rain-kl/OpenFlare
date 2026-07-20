@@ -1116,7 +1116,7 @@ export interface WAFIPGroupAutoTestPayload {
 export interface WAFIPGroupAutoTestResult {
   matched_ips: string[];
   matched_count: number;
-  lookback_minutes: number;
+  lookback: string;
   rule_count: number;
   tested_at: string;
 }

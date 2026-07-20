@@ -89,7 +89,7 @@ const defaultValues: IPGroupFormValues = {
   enabled: true,
   ip_list_text: '',
   auto_config_text: JSON.stringify(
-    { lookback_minutes: 60, ttl: -1, rules: [] },
+    { lookback: '1h', ttl: -1, rules: [] },
     null,
     2,
   ),
@@ -146,14 +146,20 @@ function appendAutomaticPresetRule(
       (item as { expr?: unknown }).expr === rule.expr,
   );
   const nextRules = exists ? rules : [...rules, rule];
+  const lookback =
+    typeof config.lookback === 'string' && config.lookback.trim()
+      ? config.lookback
+      : typeof config.lookback_minutes === 'number'
+        ? `${config.lookback_minutes}m`
+        : '1h';
+  // strip legacy field so saved JSON only keeps lookback duration string
+  const { lookback_minutes: _legacyLookbackMinutes, ...rest } = config;
   return JSON.stringify(
     {
-      lookback_minutes:
-        typeof config.lookback_minutes === 'number'
-          ? config.lookback_minutes
-          : 60,
-      ttl: typeof config.ttl === 'number' ? config.ttl : -1,
-      ...config,
+      lookback,
+      ttl: typeof rest.ttl === 'number' ? rest.ttl : -1,
+      ...rest,
+      lookback,
       rules: nextRules,
     },
     null,
@@ -384,8 +390,8 @@ export function IPGroupDialog({
                         />
                       </FormControl>
                       <FormDescription>
-                        定时从请求日志挖掘恶意 IP 的周期。最小 1 分钟，默认
-                        1440 分钟。
+                        定时从请求日志挖掘恶意 IP 的周期。最小 1 分钟，默认 1440
+                        分钟。
                       </FormDescription>
                       <FormMessage />
                     </FormItem>

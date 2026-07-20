@@ -30,6 +30,7 @@ sidebar: false
 
 - IP 组自动规则中的 `StatusCount` / `StatusRatio` 支持状态码类写法（如 `"2xx"`、`"4xx"`、`"5xx"`），便于按整类错误率匹配。
 - IP 组同步间隔下限由 5 分钟调整为 1 分钟，便于更频繁同步自动/订阅名单。
+- 自动 IP 组回看窗口字段由 `lookback_minutes` 调整为 `lookback`，支持 `60m`、`1h` 等时长写法，并移除最小 5 分钟限制（兼容旧字段）。
 
 ### 修复
 

@@ -53,7 +53,7 @@ func TestUpdateIPGroupPrunesAutomaticExtIPs(t *testing.T) {
 		Name:       "auto group",
 		Type:       wafIPGroupTypeAutomatic,
 		Enabled:    true,
-		AutoConfig: []byte(`{"lookback_minutes":60,"ttl":-1,"rules":[{"name":"scan","expr":"request_count > 1"}]}`),
+		AutoConfig: []byte(`{"lookback":"60m","ttl":-1,"rules":[{"name":"scan","expr":"request_count > 1"}]}`),
 	})
 	require.NoError(t, err)
 

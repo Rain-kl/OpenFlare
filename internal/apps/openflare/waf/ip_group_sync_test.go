@@ -96,7 +96,7 @@ func TestSyncIPGroupAutomaticExprRules(t *testing.T) {
 		Type:    wafIPGroupTypeAutomatic,
 		Enabled: true,
 		AutoConfig: json.RawMessage(`{
-			"lookback_minutes": 60,
+			"lookback": "60m",
 			"rules": [
 				{"name":"单 IP 404 高频扫描","expr":"request_count > 100 && StatusRatio(404) >= 0.8"},
 				{"name":"单 IP 直连访问异常","expr":"ip_host_count > 50 && ip_host_ratio > 0.5"}
@@ -129,7 +129,7 @@ func TestTestIPGroupAutoConfigReturnsMatchedIPs(t *testing.T) {
 
 	result, err := TestIPGroupAutoConfig(ctx, IPGroupAutoTestInput{
 		AutoConfig: json.RawMessage(`{
-			"lookback_minutes": 60,
+			"lookback": "1h",
 			"rules": [
 				{"name":"单 IP 404 高频扫描","expr":"request_count > 100 && StatusRatio(404) >= 0.8"},
 				{"name":"单 IP 直连访问异常","expr":"ip_host_count > 50 && ip_host_ratio > 0.5"}
@@ -139,7 +139,7 @@ func TestTestIPGroupAutoConfigReturnsMatchedIPs(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 2, result.MatchedCount)
 	assert.Equal(t, 2, result.RuleCount)
-	assert.Equal(t, 60, result.LookbackMinutes)
+	assert.Equal(t, "1h", result.Lookback)
 
 	want := map[string]bool{"203.0.113.10": true, "203.0.113.11": true}
 	for _, item := range result.MatchedIPs {
@@ -210,6 +210,45 @@ func seedWAFAccessLogs(t *testing.T, ctx context.Context, loggedAt time.Time, re
 	require.NoError(t, model.InsertOpenFlareAccessLogsBatch(ctx, records))
 }
 
+func TestParseIPGroupAutoConfigLookback(t *testing.T) {
+	cases := []struct {
+		name    string
+		raw     string
+		want    string
+		wantDur time.Duration
+		wantErr bool
+	}{
+		{name: "duration 60m", raw: `{"lookback":"60m","rules":[]}`, want: "1h", wantDur: time.Hour},
+		{name: "duration 1h", raw: `{"lookback":"1h","rules":[]}`, want: "1h", wantDur: time.Hour},
+		{name: "duration 30m", raw: `{"lookback":"30m","rules":[]}`, want: "30m", wantDur: 30 * time.Minute},
+		{name: "duration 1m no min floor", raw: `{"lookback":"1m","rules":[]}`, want: "1m", wantDur: time.Minute},
+		{name: "legacy minutes", raw: `{"lookback_minutes":45,"rules":[]}`, want: "45m", wantDur: 45 * time.Minute},
+		{name: "default empty", raw: `{"rules":[]}`, want: "1h", wantDur: time.Hour},
+		{name: "invalid", raw: `{"lookback":"abc","rules":[]}`, wantErr: true},
+		{name: "zero lookback uses default", raw: `{"lookback":"","rules":[]}`, want: "1h", wantDur: time.Hour},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg, err := parseIPGroupAutoConfig(json.RawMessage(tc.raw))
+			if tc.wantErr {
+				if err == nil {
+					t.Fatalf("parseIPGroupAutoConfig(%s) error = nil, want error", tc.raw)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("parseIPGroupAutoConfig(%s) error = %v", tc.raw, err)
+			}
+			if cfg.Lookback != tc.want {
+				t.Errorf("Lookback = %q, want %q", cfg.Lookback, tc.want)
+			}
+			if cfg.lookbackDuration != tc.wantDur {
+				t.Errorf("lookbackDuration = %v, want %v", cfg.lookbackDuration, tc.wantDur)
+			}
+		})
+	}
+}
+
 func TestCountStatusMatchesSupportsClassTokens(t *testing.T) {
 	counts := map[int]int{
 		200: 10,
@@ -257,7 +296,7 @@ func TestStatusRatioClassTokenInExpr(t *testing.T) {
 
 	result, err := TestIPGroupAutoConfig(ctx, IPGroupAutoTestInput{
 		AutoConfig: json.RawMessage(`{
-			"lookback_minutes": 60,
+			"lookback": "60m",
 			"rules": [
 				{"name":"高 4xx 占比","expr":"request_count >= 100 && StatusRatio(\"4xx\") >= 0.8"}
 			]

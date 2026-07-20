@@ -42,8 +42,8 @@ export function IPGroupTestDialog({
           <div className='space-y-4'>
             <div className='rounded-lg border border-dashed p-4 text-sm'>
               <p>
-                回看 {result.lookback_minutes} 分钟 · 规则 {result.rule_count}{' '}
-                条 · 命中 {result.matched_count} 个 IP
+                回看 {result.lookback} · 规则 {result.rule_count} 条 · 命中{' '}
+                {result.matched_count} 个 IP
               </p>
               <p className='text-xs text-muted-foreground mt-1'>
                 测试时间：{new Date(result.tested_at).toLocaleString()}

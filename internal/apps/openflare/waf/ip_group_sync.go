@@ -318,8 +318,12 @@ func evaluateParsedIPGroupAutoConfig(ctx context.Context, config ipGroupAutoConf
 		}
 		programs = append(programs, program)
 	}
+	lookback := config.lookbackDuration
+	if lookback <= 0 {
+		lookback = defaultWAFIPGroupAutoLookbackDur
+	}
 	aggregates, err := model.ListOpenFlareAccessLogWAFIPAggregates(ctx, model.OpenFlareAccessLogQuery{
-		Since: now.Add(-time.Duration(config.LookbackMinutes) * time.Minute),
+		Since: now.Add(-lookback),
 		Until: now,
 	})
 	if err != nil {

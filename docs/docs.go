@@ -19675,8 +19675,8 @@ const docTemplate = `{
         "waf.IPGroupAutoTestResult": {
             "type": "object",
             "properties": {
-                "lookback_minutes": {
-                    "type": "integer"
+                "lookback": {
+                    "type": "string"
                 },
                 "matched_count": {
                     "type": "integer"

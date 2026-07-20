@@ -8,7 +8,7 @@
 
 ```json
 {
-  "lookback_minutes": 60,
+  "lookback": "1h",
   "rules": [
     {
       "name": "单 IP 404 高频扫描",
@@ -22,7 +22,7 @@
 
 | 字段 | 类型 | 作用 |
 | --- | --- | --- |
-| `lookback_minutes` | number | 每次执行时回看多少分钟内的请求日志。未填写时默认 60 分钟，最小 5 分钟，最大 43200 分钟。 |
+| `lookback` | string | 回看窗口时长，使用 Go Duration 写法，例如 `30m`、`1h`、`90m`。未填写时默认 `1h`，最大 30 天。兼容旧字段 `lookback_minutes`（整数分钟）。 |
 | `rules` | array | 自动规则列表。任意一条规则命中时，该 IP 会进入自动 IP 组名单。 |
 | `rules[].name` | string | 规则名称，只用于界面展示和错误提示。 |
 | `rules[].expr` | string | Expr 表达式，必须返回布尔值。 |
@@ -31,7 +31,7 @@
 
 自动规则不是逐条请求判断，而是先按单个客户端 IP 聚合：
 
-1. Server 读取最近 `lookback_minutes` 分钟内的请求日志。
+1. Server 读取最近 `lookback` 时长内的请求日志。
 2. 按 `remote_addr` 归一化后的 IP 分组。
 3. 为每个 IP 计算请求数、404 数、直连 IP Host 次数等指标。
 4. 逐个 IP 执行 `rules[].expr`。
@@ -115,7 +115,7 @@ Host 是否为“通过 IP 访问”按请求日志中的 `Host` 字段判断：
 
 ```json
 {
-  "lookback_minutes": 60,
+  "lookback": "1h",
   "rules": [
     {
       "name": "高频 404 扫描",
@@ -129,7 +129,7 @@ IP 直连访问异常：
 
 ```json
 {
-  "lookback_minutes": 30,
+  "lookback": "30m",
   "rules": [
     {
       "name": "IP 直连访问异常",
@@ -143,7 +143,7 @@ IP 直连访问异常：
 
 ```json
 {
-  "lookback_minutes": 120,
+  "lookback": "2h",
   "rules": [
     {
       "name": "异常错误率",
@@ -157,7 +157,7 @@ IP 直连访问异常：
 
 ```json
 {
-  "lookback_minutes": 120,
+  "lookback": "2h",
   "rules": [
     {
       "name": "高 4xx 或 5xx 占比",
@@ -171,7 +171,7 @@ IP 直连访问异常：
 
 ```json
 {
-  "lookback_minutes": 60,
+  "lookback": "1h",
   "rules": [
     {
       "name": "排除可信 IP 的 404 扫描",

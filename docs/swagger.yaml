@@ -3872,8 +3872,8 @@ definitions:
     type: object
   waf.IPGroupAutoTestResult:
     properties:
-      lookback_minutes:
-        type: integer
+      lookback:
+        type: string
       matched_count:
         type: integer
       matched_ips:

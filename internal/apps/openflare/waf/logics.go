@@ -31,10 +31,11 @@ const (
 	wafIPGroupSubscriptionFormatJSON = "json"
 
 	defaultWAFIPGroupSyncIntervalMinutes = 1440
-	defaultWAFIPGroupAutoLookbackMinutes = 60
+	defaultWAFIPGroupAutoLookback        = "1h"
+	defaultWAFIPGroupAutoLookbackDur     = time.Hour
 	minWAFIPGroupSyncIntervalMinutes     = 1
-	minWAFIPGroupAutoLookbackMinutes     = 5
 	maxWAFIPGroupSyncIntervalMinutes     = 43200
+	maxWAFIPGroupAutoLookback            = 30 * 24 * time.Hour
 	minPoWSessionTTLSeconds              = 60
 	minPoWChallengeTTLSeconds            = 30
 	powAlgorithmFast                     = "fast"
@@ -113,17 +114,19 @@ type IPGroupAutoTestInput struct {
 
 // IPGroupAutoTestResult is the response for automatic IP group test.
 type IPGroupAutoTestResult struct {
-	MatchedIPs      []string `json:"matched_ips"`
-	MatchedCount    int      `json:"matched_count"`
-	LookbackMinutes int      `json:"lookback_minutes"`
-	RuleCount       int      `json:"rule_count"`
-	TestedAt        string   `json:"tested_at"`
+	MatchedIPs   []string `json:"matched_ips"`
+	MatchedCount int      `json:"matched_count"`
+	Lookback     string   `json:"lookback"`
+	RuleCount    int      `json:"rule_count"`
+	TestedAt     string   `json:"tested_at"`
 }
 
 type ipGroupAutoConfig struct {
-	LookbackMinutes int               `json:"lookback_minutes"`
-	TTL             int               `json:"ttl"`
-	Rules           []ipGroupAutoRule `json:"rules"`
+	Lookback string            `json:"lookback"`
+	TTL      int               `json:"ttl"`
+	Rules    []ipGroupAutoRule `json:"rules"`
+	// lookbackDuration is resolved from Lookback (and legacy lookback_minutes) for runtime queries.
+	lookbackDuration time.Duration `json:"-"`
 }
 
 type ipGroupAutoRule struct {
@@ -329,11 +332,11 @@ func TestIPGroupAutoConfig(ctx context.Context, input IPGroupAutoTestInput) (*IP
 		return nil, err
 	}
 	return &IPGroupAutoTestResult{
-		MatchedIPs:      ips,
-		MatchedCount:    len(ips),
-		LookbackMinutes: config.LookbackMinutes,
-		RuleCount:       len(config.Rules),
-		TestedAt:        now.Format(time.RFC3339),
+		MatchedIPs:   ips,
+		MatchedCount: len(ips),
+		Lookback:     config.Lookback,
+		RuleCount:    len(config.Rules),
+		TestedAt:     now.Format(time.RFC3339),
 	}, nil
 }
 
@@ -497,23 +500,20 @@ func parseIPGroupAutoConfig(raw json.RawMessage) (ipGroupAutoConfig, error) {
 	if text == "" {
 		text = "{}"
 	}
-	var config ipGroupAutoConfig
-	if err := json.Unmarshal([]byte(text), &config); err != nil {
-		return ipGroupAutoConfig{}, errors.New("自动 IP 组配置必须是 JSON 对象")
-	}
 	var object map[string]any
 	if err := json.Unmarshal([]byte(text), &object); err != nil || object == nil {
 		return ipGroupAutoConfig{}, errors.New("自动 IP 组配置必须是 JSON 对象")
 	}
-	if config.LookbackMinutes <= 0 {
-		config.LookbackMinutes = defaultWAFIPGroupAutoLookbackMinutes
+	var config ipGroupAutoConfig
+	if err := json.Unmarshal([]byte(text), &config); err != nil {
+		return ipGroupAutoConfig{}, errors.New("自动 IP 组配置必须是 JSON 对象")
 	}
-	if config.LookbackMinutes < minWAFIPGroupAutoLookbackMinutes {
-		config.LookbackMinutes = minWAFIPGroupAutoLookbackMinutes
+	lookbackDur, lookbackText, err := resolveIPGroupAutoLookback(object)
+	if err != nil {
+		return ipGroupAutoConfig{}, err
 	}
-	if config.LookbackMinutes > maxWAFIPGroupSyncIntervalMinutes {
-		config.LookbackMinutes = maxWAFIPGroupSyncIntervalMinutes
-	}
+	config.Lookback = lookbackText
+	config.lookbackDuration = lookbackDur
 	if config.TTL == 0 {
 		config.TTL = -1
 	}
@@ -532,6 +532,140 @@ func parseIPGroupAutoConfig(raw json.RawMessage) (ipGroupAutoConfig, error) {
 		config.Rules[i] = rule
 	}
 	return config, nil
+}
+
+// resolveIPGroupAutoLookback accepts lookback as duration string (60m/1h) or legacy lookback_minutes number.
+func resolveIPGroupAutoLookback(object map[string]any) (time.Duration, string, error) {
+	if raw, ok := object["lookback"]; ok && raw != nil {
+		dur, text, err := parseIPGroupLookbackValue(raw)
+		if err != nil {
+			return 0, "", err
+		}
+		return dur, text, nil
+	}
+	if raw, ok := object["lookback_minutes"]; ok && raw != nil {
+		// legacy: minutes as number or numeric string
+		minutes, err := parsePositiveNumber(raw)
+		if err != nil {
+			return 0, "", fmt.Errorf("lookback_minutes 无效: %w", err)
+		}
+		if minutes <= 0 {
+			return defaultWAFIPGroupAutoLookbackDur, defaultWAFIPGroupAutoLookback, nil
+		}
+		dur := time.Duration(minutes) * time.Minute
+		if dur > maxWAFIPGroupAutoLookback {
+			return 0, "", fmt.Errorf("回看窗口不能超过 %s", formatLookbackDuration(maxWAFIPGroupAutoLookback))
+		}
+		return dur, formatLookbackDuration(dur), nil
+	}
+	return defaultWAFIPGroupAutoLookbackDur, defaultWAFIPGroupAutoLookback, nil
+}
+
+func parseIPGroupLookbackValue(raw any) (time.Duration, string, error) {
+	switch v := raw.(type) {
+	case string:
+		trimmed := strings.TrimSpace(v)
+		if trimmed == "" {
+			return defaultWAFIPGroupAutoLookbackDur, defaultWAFIPGroupAutoLookback, nil
+		}
+		// bare integer string → minutes
+		if isAllDigits(trimmed) {
+			minutes, err := parsePositiveNumber(trimmed)
+			if err != nil || minutes <= 0 {
+				return 0, "", errors.New("lookback 格式不合法，请使用 60m、1h 等时长")
+			}
+			dur := time.Duration(minutes) * time.Minute
+			if dur > maxWAFIPGroupAutoLookback {
+				return 0, "", fmt.Errorf("回看窗口不能超过 %s", formatLookbackDuration(maxWAFIPGroupAutoLookback))
+			}
+			return dur, formatLookbackDuration(dur), nil
+		}
+		dur, err := time.ParseDuration(strings.ToLower(trimmed))
+		if err != nil || dur <= 0 {
+			return 0, "", errors.New("lookback 格式不合法，请使用 60m、1h 等时长")
+		}
+		if dur > maxWAFIPGroupAutoLookback {
+			return 0, "", fmt.Errorf("回看窗口不能超过 %s", formatLookbackDuration(maxWAFIPGroupAutoLookback))
+		}
+		return dur, formatLookbackDuration(dur), nil
+	case float64:
+		if v <= 0 {
+			return defaultWAFIPGroupAutoLookbackDur, defaultWAFIPGroupAutoLookback, nil
+		}
+		if v != float64(int64(v)) {
+			return 0, "", errors.New("lookback 数值必须为整数分钟")
+		}
+		dur := time.Duration(int64(v)) * time.Minute
+		if dur > maxWAFIPGroupAutoLookback {
+			return 0, "", fmt.Errorf("回看窗口不能超过 %s", formatLookbackDuration(maxWAFIPGroupAutoLookback))
+		}
+		return dur, formatLookbackDuration(dur), nil
+	case json.Number:
+		return parseIPGroupLookbackValue(string(v))
+	default:
+		return 0, "", errors.New("lookback 格式不合法，请使用 60m、1h 等时长")
+	}
+}
+
+func parsePositiveNumber(raw any) (int, error) {
+	switch v := raw.(type) {
+	case float64:
+		if v != float64(int(v)) {
+			return 0, errors.New("必须为整数")
+		}
+		return int(v), nil
+	case int:
+		return v, nil
+	case int64:
+		return int(v), nil
+	case json.Number:
+		i, err := v.Int64()
+		if err != nil {
+			return 0, err
+		}
+		return int(i), nil
+	case string:
+		trimmed := strings.TrimSpace(v)
+		if trimmed == "" || !isAllDigits(trimmed) {
+			return 0, errors.New("必须为整数")
+		}
+		n := 0
+		for _, ch := range trimmed {
+			n = n*10 + int(ch-'0')
+		}
+		return n, nil
+	default:
+		return 0, errors.New("必须为整数")
+	}
+}
+
+func isAllDigits(s string) bool {
+	if s == "" {
+		return false
+	}
+	for _, ch := range s {
+		if ch < '0' || ch > '9' {
+			return false
+		}
+	}
+	return true
+}
+
+func formatLookbackDuration(d time.Duration) string {
+	if d <= 0 {
+		return defaultWAFIPGroupAutoLookback
+	}
+	// Prefer compact human units used in config examples.
+	if d%time.Hour == 0 {
+		return fmt.Sprintf("%dh", int(d/time.Hour))
+	}
+	if d%time.Minute == 0 {
+		return fmt.Sprintf("%dm", int(d/time.Minute))
+	}
+	if d%time.Second == 0 {
+		return fmt.Sprintf("%ds", int(d/time.Second))
+	}
+	return d.String()
 }
 
 func validateSubscriptionURL(rawURL string) error {
