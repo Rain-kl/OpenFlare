@@ -95,7 +95,13 @@ export function RatePressureChart({ data, hours }: RatePressureChartProps) {
   }, [bucketSeconds, data?.trends.requests, data?.trends.visits, hours]);
 
   const option = useMemo<EChartsOption>(() => {
-    const rpsMax = calculateNiceAxisMax(chartModel.rpsValues);
+    const rpsPeak = Math.max(
+      0,
+      ...chartModel.rpsValues.map((value) =>
+        Number.isFinite(value) && value > 0 ? value : 0,
+      ),
+    );
+    const rpsMax = rpsPeak > 0 ? rpsPeak * 1.5 : 1;
     const visitMax = calculateNiceAxisMax(chartModel.visitValues);
 
     return {
