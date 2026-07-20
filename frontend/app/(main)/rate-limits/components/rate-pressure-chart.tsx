@@ -1,7 +1,8 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 import type { EChartsOption } from 'echarts';
+import type { EChartsType } from 'echarts/core';
 import ReactECharts from 'echarts-for-react';
 import { Clock } from 'lucide-react';
 
@@ -52,12 +53,120 @@ function formatRps(value: number) {
   });
 }
 
+function peakOf(values: number[], startPercent = 0, endPercent = 100) {
+  if (values.length === 0) return 0;
+  const last = values.length - 1;
+  const startIdx = Math.max(
+    0,
+    Math.min(last, Math.floor((startPercent / 100) * last)),
+  );
+  const endIdx = Math.max(
+    startIdx,
+    Math.min(last, Math.ceil((endPercent / 100) * last)),
+  );
+  let peak = 0;
+  for (let i = startIdx; i <= endIdx; i += 1) {
+    const value = values[i];
+    if (Number.isFinite(value) && value > peak) {
+      peak = value;
+    }
+  }
+  return peak;
+}
+
+function rpsAxisMax(values: number[], startPercent = 0, endPercent = 100) {
+  const peak = peakOf(values, startPercent, endPercent);
+  return peak > 0 ? peak * 1.5 : 1;
+}
+
+function visitAxisMax(values: number[], startPercent = 0, endPercent = 100) {
+  if (values.length === 0) {
+    return calculateNiceAxisMax([]);
+  }
+  const last = values.length - 1;
+  const startIdx = Math.max(
+    0,
+    Math.min(last, Math.floor((startPercent / 100) * last)),
+  );
+  const endIdx = Math.max(
+    startIdx,
+    Math.min(last, Math.ceil((endPercent / 100) * last)),
+  );
+  return calculateNiceAxisMax(values.slice(startIdx, endIdx + 1));
+}
+
+function clampPercent(value: number) {
+  if (!Number.isFinite(value)) return 0;
+  return Math.min(100, Math.max(0, value));
+}
+
+function readZoomPercent(
+  params: {
+    start?: number;
+    end?: number;
+    startValue?: number | string;
+    endValue?: number | string;
+    batch?: Array<{
+      start?: number;
+      end?: number;
+      startValue?: number | string;
+      endValue?: number | string;
+    }>;
+  },
+  dataLength: number,
+  chart?: EChartsType,
+): { start: number; end: number } {
+  const source = params.batch?.[0] ?? params;
+  if (
+    typeof source.start === 'number' &&
+    Number.isFinite(source.start) &&
+    typeof source.end === 'number' &&
+    Number.isFinite(source.end)
+  ) {
+    const start = clampPercent(source.start);
+    const end = clampPercent(source.end);
+    return { start: Math.min(start, end), end: Math.max(start, end) };
+  }
+
+  const startValue =
+    typeof source.startValue === 'number' ? source.startValue : undefined;
+  const endValue =
+    typeof source.endValue === 'number' ? source.endValue : undefined;
+  if (startValue !== undefined && endValue !== undefined && dataLength > 1) {
+    const last = dataLength - 1;
+    const start = clampPercent((startValue / last) * 100);
+    const end = clampPercent((endValue / last) * 100);
+    return { start: Math.min(start, end), end: Math.max(start, end) };
+  }
+
+  const option = chart?.getOption() as
+    | {
+        dataZoom?: Array<{ start?: number; end?: number }>;
+      }
+    | undefined;
+  const zoom = option?.dataZoom?.[0];
+  if (
+    typeof zoom?.start === 'number' &&
+    typeof zoom?.end === 'number' &&
+    Number.isFinite(zoom.start) &&
+    Number.isFinite(zoom.end)
+  ) {
+    const start = clampPercent(zoom.start);
+    const end = clampPercent(zoom.end);
+    return { start: Math.min(start, end), end: Math.max(start, end) };
+  }
+
+  return { start: 0, end: 100 };
+}
+
 type RatePressureChartProps = {
   data?: AccessLogOverview;
   hours: RateLimitRangeHours;
 };
 
 export function RatePressureChart({ data, hours }: RatePressureChartProps) {
+  const chartRef = useRef<InstanceType<typeof ReactECharts> | null>(null);
+
   const bucketSeconds =
     (data?.bucket_minutes && data.bucket_minutes > 0
       ? data.bucket_minutes
@@ -94,15 +203,60 @@ export function RatePressureChart({ data, hours }: RatePressureChartProps) {
     return { labels, rpsValues, visitValues, rawTimes };
   }, [bucketSeconds, data?.trends.requests, data?.trends.visits, hours]);
 
+  const applyVisibleAxisMax = useCallback(
+    (startPercent: number, endPercent: number) => {
+      const instance = chartRef.current?.getEchartsInstance?.() as
+        EChartsType | undefined;
+      if (!instance) return;
+      instance.setOption(
+        {
+          yAxis: [
+            { max: rpsAxisMax(chartModel.rpsValues, startPercent, endPercent) },
+            {
+              max: visitAxisMax(
+                chartModel.visitValues,
+                startPercent,
+                endPercent,
+              ),
+            },
+          ],
+        },
+        { lazyUpdate: true },
+      );
+    },
+    [chartModel.rpsValues, chartModel.visitValues],
+  );
+
+  const onChartEvents = useMemo(
+    () => ({
+      datazoom: (params: {
+        start?: number;
+        end?: number;
+        startValue?: number | string;
+        endValue?: number | string;
+        batch?: Array<{
+          start?: number;
+          end?: number;
+          startValue?: number | string;
+          endValue?: number | string;
+        }>;
+      }) => {
+        const instance = chartRef.current?.getEchartsInstance?.() as
+          EChartsType | undefined;
+        const { start, end } = readZoomPercent(
+          params,
+          chartModel.rpsValues.length,
+          instance,
+        );
+        applyVisibleAxisMax(start, end);
+      },
+    }),
+    [applyVisibleAxisMax, chartModel.rpsValues.length],
+  );
+
   const option = useMemo<EChartsOption>(() => {
-    const rpsPeak = Math.max(
-      0,
-      ...chartModel.rpsValues.map((value) =>
-        Number.isFinite(value) && value > 0 ? value : 0,
-      ),
-    );
-    const rpsMax = rpsPeak > 0 ? rpsPeak * 1.5 : 1;
-    const visitMax = calculateNiceAxisMax(chartModel.visitValues);
+    const rpsMax = rpsAxisMax(chartModel.rpsValues);
+    const visitMax = visitAxisMax(chartModel.visitValues);
 
     return {
       animationDuration: 500,
@@ -268,9 +422,11 @@ export function RatePressureChart({ data, hours }: RatePressureChartProps) {
               color: `${RPS_COLOR}33`,
             },
           },
+          filterMode: 'none',
         },
         {
           type: 'inside',
+          filterMode: 'none',
         },
       ],
       series: [
@@ -336,9 +492,11 @@ export function RatePressureChart({ data, hours }: RatePressureChartProps) {
           </div>
         ) : (
           <ReactECharts
+            ref={chartRef}
             option={option}
             notMerge
             lazyUpdate
+            onEvents={onChartEvents}
             style={{ height: 360, width: '100%' }}
           />
         )}
