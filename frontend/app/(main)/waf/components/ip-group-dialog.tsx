@@ -88,7 +88,11 @@ const defaultValues: IPGroupFormValues = {
   type: 'manual',
   enabled: true,
   ip_list_text: '',
-  auto_config_text: '{}',
+  auto_config_text: JSON.stringify(
+    { lookback_minutes: 60, ttl: -1, rules: [] },
+    null,
+    2,
+  ),
   subscription_url: '',
   subscription_format: 'text',
   subscription_mapping_rule: '',
@@ -148,6 +152,7 @@ function appendAutomaticPresetRule(
         typeof config.lookback_minutes === 'number'
           ? config.lookback_minutes
           : 60,
+      ttl: typeof config.ttl === 'number' ? config.ttl : -1,
       ...config,
       rules: nextRules,
     },
