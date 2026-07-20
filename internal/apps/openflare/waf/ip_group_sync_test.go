@@ -209,3 +209,62 @@ func seedWAFAccessLogs(t *testing.T, ctx context.Context, loggedAt time.Time, re
 	}
 	require.NoError(t, model.InsertOpenFlareAccessLogsBatch(ctx, records))
 }
+
+func TestCountStatusMatchesSupportsClassTokens(t *testing.T) {
+	counts := map[int]int{
+		200: 10,
+		201: 5,
+		404: 20,
+		403: 10,
+		500: 4,
+		502: 1,
+	}
+	cases := []struct {
+		name string
+		code any
+		want int
+	}{
+		{name: "exact int", code: 404, want: 20},
+		{name: "exact string", code: "403", want: 10},
+		{name: "2xx class", code: "2xx", want: 15},
+		{name: "4xx class upper", code: "4XX", want: 30},
+		{name: "5xx class", code: "5xx", want: 5},
+		{name: "unknown class", code: "9xx", want: 0},
+		{name: "invalid token", code: "abc", want: 0},
+		{name: "float exact", code: float64(200), want: 10},
+		{name: "float non-int", code: 200.5, want: 0},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := countStatusMatches(counts, tc.code)
+			if got != tc.want {
+				t.Errorf("countStatusMatches(%v) = %d, want %d", tc.code, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestStatusRatioClassTokenInExpr(t *testing.T) {
+	cleanup := setupIPGroupSyncTestDB(t)
+	defer cleanup()
+	ctx := context.Background()
+
+	now := time.Now().UTC()
+	// 100 requests, 80 of which are 404 → 4xx ratio 0.8
+	seedWAFAccessLogs(t, ctx, now, "203.0.113.40", "app.example.com", 100, 80)
+	// mostly OK → should not match
+	seedWAFAccessLogs(t, ctx, now, "203.0.113.41", "app.example.com", 100, 10)
+
+	result, err := TestIPGroupAutoConfig(ctx, IPGroupAutoTestInput{
+		AutoConfig: json.RawMessage(`{
+			"lookback_minutes": 60,
+			"rules": [
+				{"name":"高 4xx 占比","expr":"request_count >= 100 && StatusRatio(\"4xx\") >= 0.8"}
+			]
+		}`),
+	})
+	require.NoError(t, err)
+	assert.Equal(t, 1, result.MatchedCount)
+	require.Len(t, result.MatchedIPs, 1)
+	assert.Equal(t, "203.0.113.40", result.MatchedIPs[0])
+}

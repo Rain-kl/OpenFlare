@@ -61,8 +61,14 @@ Host 是否为“通过 IP 访问”按请求日志中的 `Host` 字段判断：
 
 如果内置的 `status_404_count` 和 `status_404_ratio` 不能满足您的需求，您可以使用以下内置方法来匹配任意状态码的请求数与占比：
 
-* **`StatusCount(code)`**: 获取当前 IP 在回看窗口内返回指定状态码的请求数（如 `StatusCount(403) > 10`）
-* **`StatusRatio(code)`**: 获取当前 IP 在回看窗口内返回指定状态码的请求数占该 IP 总请求数的比例（如 `StatusRatio(502) >= 0.5`）
+* **`StatusCount(code)`**: 获取当前 IP 在回看窗口内返回指定状态码（或状态码类）的请求数。
+  * 精确状态码：`StatusCount(403) > 10`
+  * 状态码类（`1xx`–`5xx`，大小写不敏感）：`StatusCount("4xx") > 50`
+* **`StatusRatio(code)`**: 获取上述计数占该 IP 总请求数的比例。
+  * 精确状态码：`StatusRatio(502) >= 0.5`
+  * 状态码类：`StatusRatio("4xx") >= 0.8`、`StatusRatio("5xx") >= 0.3`
+
+状态码类会汇总该百位区间内全部状态码，例如 `"4xx"` 包含 400–499，`"2xx"` 包含 200–299。
 
 ## Expr 常用写法
 
@@ -142,6 +148,20 @@ IP 直连访问异常：
     {
       "name": "异常错误率",
       "expr": "(client_error_count > 80 && request_count > 100) || server_error_count > 30"
+    }
+  ]
+}
+```
+
+使用状态码类写法（与 `client_error_count` / `server_error_count` 等价思路）：
+
+```json
+{
+  "lookback_minutes": 120,
+  "rules": [
+    {
+      "name": "高 4xx 或 5xx 占比",
+      "expr": "request_count > 100 && (StatusRatio(\"4xx\") >= 0.8 || StatusRatio(\"5xx\") >= 0.3)"
     }
   ]
 }

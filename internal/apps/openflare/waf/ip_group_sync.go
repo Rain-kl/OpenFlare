@@ -40,18 +40,102 @@ type ipGroupAutoRuleEnv struct {
 	statusCounts     map[int]int
 }
 
-func (env ipGroupAutoRuleEnv) StatusCount(code int) int {
+func (env ipGroupAutoRuleEnv) StatusCount(code any) int {
 	if env.statusCounts == nil {
 		return 0
 	}
-	return env.statusCounts[code]
+	return countStatusMatches(env.statusCounts, code)
 }
 
-func (env ipGroupAutoRuleEnv) StatusRatio(code int) float64 {
+func (env ipGroupAutoRuleEnv) StatusRatio(code any) float64 {
 	if env.RequestCount <= 0 || env.statusCounts == nil {
 		return 0.0
 	}
-	return float64(env.statusCounts[code]) / float64(env.RequestCount)
+	return float64(countStatusMatches(env.statusCounts, code)) / float64(env.RequestCount)
+}
+
+// countStatusMatches sums status counts for an exact code or class token.
+// Accepted forms:
+//   - int / int64 / float64: exact status code (e.g. 404)
+//   - string digits: exact status code (e.g. "404")
+//   - string class: "1xx".."5xx" (case-insensitive), matching that hundred range
+func countStatusMatches(statusCounts map[int]int, code any) int {
+	if statusCounts == nil {
+		return 0
+	}
+	switch v := code.(type) {
+	case int:
+		return statusCounts[v]
+	case int8:
+		return statusCounts[int(v)]
+	case int16:
+		return statusCounts[int(v)]
+	case int32:
+		return statusCounts[int(v)]
+	case int64:
+		return statusCounts[int(v)]
+	case uint:
+		return statusCounts[int(v)]
+	case uint8:
+		return statusCounts[int(v)]
+	case uint16:
+		return statusCounts[int(v)]
+	case uint32:
+		return statusCounts[int(v)]
+	case uint64:
+		return statusCounts[int(v)]
+	case float32:
+		if v != float32(int(v)) {
+			return 0
+		}
+		return statusCounts[int(v)]
+	case float64:
+		if v != float64(int(v)) {
+			return 0
+		}
+		return statusCounts[int(v)]
+	case string:
+		return countStatusMatchesString(statusCounts, v)
+	default:
+		return 0
+	}
+}
+
+func countStatusMatchesString(statusCounts map[int]int, raw string) int {
+	token := strings.TrimSpace(strings.ToLower(raw))
+	if token == "" {
+		return 0
+	}
+	if len(token) == 3 && token[1] == 'x' && token[2] == 'x' {
+		classDigit := token[0]
+		if classDigit < '1' || classDigit > '5' {
+			return 0
+		}
+		base := int(classDigit-'0') * 100
+		total := 0
+		for code, count := range statusCounts {
+			if code >= base && code < base+100 {
+				total += count
+			}
+		}
+		return total
+	}
+	// exact numeric string, e.g. "404"
+	var code int
+	for _, ch := range token {
+		if ch < '0' || ch > '9' {
+			return 0
+		}
+		code = code*10 + int(ch-'0')
+		if code > 999 {
+			return 0
+		}
+	}
+	if code < 100 || code > 599 {
+		// still allow lookup for non-standard codes if present
+		return statusCounts[code]
+	}
+	return statusCounts[code]
 }
 
 type ipGroupAutoAccumulator struct {
