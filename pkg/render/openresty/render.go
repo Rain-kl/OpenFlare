@@ -911,6 +911,12 @@ func buildPathExactMatchPattern(rules []string) string {
 	return fmt.Sprintf("^(?:%s)$", strings.Join(parts, "|"))
 }
 
+const (
+	limitReqDefaultBurst      = 5
+	limitReqPerSecondBurstMul = 2
+	limitReqPerMinuteBurstDiv = 5
+)
+
 func calculateBurst(rateStr string) int {
 	rateStr = strings.ToLower(strings.TrimSpace(rateStr))
 	if rateStr == "" {
@@ -919,20 +925,19 @@ func calculateBurst(rateStr string) int {
 	var val int
 	var unit string
 	_, err := fmt.Sscanf(rateStr, "%dr/%s", &val, &unit)
-	if err != nil {
-		return 5
+	if err != nil || val <= 0 {
+		return limitReqDefaultBurst
 	}
-	if val <= 0 {
-		return 5
-	}
-	if unit == "s" {
-		return val * 2
-	} else if unit == "m" {
-		b := val / 5
-		if b < 5 {
-			b = 5
+	switch unit {
+	case "s":
+		return val * limitReqPerSecondBurstMul
+	case "m":
+		b := val / limitReqPerMinuteBurstDiv
+		if b < limitReqDefaultBurst {
+			return limitReqDefaultBurst
 		}
 		return b
+	default:
+		return limitReqDefaultBurst
 	}
-	return 5
 }

@@ -153,13 +153,16 @@ function appendAutomaticPresetRule(
         ? `${config.lookback_minutes}m`
         : '1h';
   // strip legacy field so saved JSON only keeps lookback duration string
-  const { lookback_minutes: _legacyLookbackMinutes, ...rest } = config;
+  const {
+    lookback_minutes: _legacyLookbackMinutes,
+    lookback: _existingLookback,
+    ...rest
+  } = config;
   return JSON.stringify(
     {
-      lookback,
-      ttl: typeof rest.ttl === 'number' ? rest.ttl : -1,
       ...rest,
       lookback,
+      ttl: typeof rest.ttl === 'number' ? rest.ttl : -1,
       rules: nextRules,
     },
     null,

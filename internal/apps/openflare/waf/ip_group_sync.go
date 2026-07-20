@@ -54,6 +54,8 @@ func (env ipGroupAutoRuleEnv) StatusRatio(code any) float64 {
 	return float64(countStatusMatches(env.statusCounts, code)) / float64(env.RequestCount)
 }
 
+const maxHTTPStatusCodeDigits = 999
+
 // countStatusMatches sums status counts for an exact code or class token.
 // Accepted forms:
 //   - int / int64 / float64: exact status code (e.g. 404)
@@ -66,31 +68,13 @@ func countStatusMatches(statusCounts map[int]int, code any) int {
 	switch v := code.(type) {
 	case int:
 		return statusCounts[v]
-	case int8:
-		return statusCounts[int(v)]
-	case int16:
-		return statusCounts[int(v)]
-	case int32:
-		return statusCounts[int(v)]
 	case int64:
-		return statusCounts[int(v)]
-	case uint:
-		return statusCounts[int(v)]
-	case uint8:
-		return statusCounts[int(v)]
-	case uint16:
-		return statusCounts[int(v)]
-	case uint32:
-		return statusCounts[int(v)]
-	case uint64:
-		return statusCounts[int(v)]
-	case float32:
-		if v != float32(int(v)) {
+		if v < 0 || v > int64(maxHTTPStatusCodeDigits) {
 			return 0
 		}
 		return statusCounts[int(v)]
 	case float64:
-		if v != float64(int(v)) {
+		if v != float64(int64(v)) || v < 0 || v > float64(maxHTTPStatusCodeDigits) {
 			return 0
 		}
 		return statusCounts[int(v)]
@@ -127,13 +111,9 @@ func countStatusMatchesString(statusCounts map[int]int, raw string) int {
 			return 0
 		}
 		code = code*10 + int(ch-'0')
-		if code > 999 {
+		if code > maxHTTPStatusCodeDigits {
 			return 0
 		}
-	}
-	if code < 100 || code > 599 {
-		// still allow lookup for non-standard codes if present
-		return statusCounts[code]
 	}
 	return statusCounts[code]
 }
