@@ -19,7 +19,9 @@ import type { ProxyRouteItem } from '@/lib/services/openflare';
 
 import {
   normalizeLimitRate,
+  normalizeLimitReqPerIP,
   validateLimitRate,
+  validateLimitReqPerIP,
 } from '../../components/helpers';
 import { proxyRouteFormIds } from '../helpers';
 import { useRouteSectionSave } from '../hooks/use-route-section-save';
@@ -30,6 +32,7 @@ const rateLimitSchema = z
     limit_conn_per_server: z.string(),
     limit_conn_per_ip: z.string(),
     limit_rate: z.string(),
+    limit_req_per_ip: z.string(),
   })
   .superRefine((value, context) => {
     for (const field of [
@@ -55,6 +58,15 @@ const rateLimitSchema = z
         code: z.ZodIssueCode.custom,
         path: ['limit_rate'],
         message: limitRateError,
+      });
+    }
+
+    const limitReqError = validateLimitReqPerIP(value.limit_req_per_ip);
+    if (limitReqError) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['limit_req_per_ip'],
+        message: limitReqError,
       });
     }
   });
@@ -99,6 +111,7 @@ export function LimitsSection({
       limit_conn_per_server: formatConnValue(route.limit_conn_per_server),
       limit_conn_per_ip: formatConnValue(route.limit_conn_per_ip),
       limit_rate: route.limit_rate || '',
+      limit_req_per_ip: route.limit_req_per_ip || '',
     },
   });
 
@@ -107,6 +120,7 @@ export function LimitsSection({
       limit_conn_per_server: formatConnValue(route.limit_conn_per_server),
       limit_conn_per_ip: formatConnValue(route.limit_conn_per_ip),
       limit_rate: route.limit_rate || '',
+      limit_req_per_ip: route.limit_req_per_ip || '',
     });
   }, [form, route]);
 
@@ -129,6 +143,9 @@ export function LimitsSection({
                 ),
                 limit_conn_per_ip: parseConnValue(values.limit_conn_per_ip),
                 limit_rate: normalizeLimitRate(values.limit_rate),
+                limit_req_per_ip: normalizeLimitReqPerIP(
+                  values.limit_req_per_ip,
+                ),
               },
               '流量限制已保存',
             );
@@ -172,13 +189,31 @@ export function LimitsSection({
             control={form.control}
             name='limit_rate'
             render={({ field }) => (
-              <FormItem className='md:col-span-2'>
+              <FormItem>
                 <FormLabel>限速</FormLabel>
                 <FormControl>
                   <Input placeholder='512k/1m 或 -1' {...field} />
                 </FormControl>
                 <FormDescription>
                   空或 0 继承全局默认；-1 关闭；例如 512k、1m 为自定义带宽。
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name='limit_req_per_ip'
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>单 IP 请求频率</FormLabel>
+                <FormControl>
+                  <Input placeholder='10r/s / 100r/m 或 -1' {...field} />
+                </FormControl>
+                <FormDescription>
+                  空或 0 继承全局默认；-1 关闭；例如 10r/s、100r/m
+                  为自定义频率。
                 </FormDescription>
                 <FormMessage />
               </FormItem>

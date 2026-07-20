@@ -228,6 +228,7 @@ export function ProxyRouteCreateSheet({
         limit_conn_per_server: 0,
         limit_conn_per_ip: 0,
         limit_rate: '',
+        limit_req_per_ip: '',
         cache_enabled: true,
         cache_policy: 'static',
         cache_rules: [],

@@ -278,6 +278,25 @@ export function normalizeLimitRate(value: string) {
   return normalized;
 }
 
+const limitReqPattern = /^\d+r\/[sm]$/i;
+
+export function validateLimitReqPerIP(value: string) {
+  const normalized = value.trim();
+  if (!normalized || normalized === '0' || normalized === '-1') {
+    return null;
+  }
+  if (!limitReqPattern.test(normalized)) {
+    return '请求频率格式不合法，请使用 10r/s、100r/m，或 -1 关闭';
+  }
+  return null;
+}
+
+export function normalizeLimitReqPerIP(value: string) {
+  const normalized = value.trim().toLowerCase();
+  if (!normalized || normalized === '0') return '';
+  return normalized;
+}
+
 export function validateCacheRules(
   policy: 'static' | 'all' | 'url' | 'suffix' | 'path_prefix' | 'path_exact',
   rules: string[],
@@ -335,6 +354,7 @@ export function buildPayloadFromRoute(
     limit_conn_per_server: route.limit_conn_per_server,
     limit_conn_per_ip: route.limit_conn_per_ip,
     limit_rate: route.limit_rate,
+    limit_req_per_ip: route.limit_req_per_ip,
     cache_enabled: route.cache_enabled,
     cache_policy: (() => {
       if (!route.cache_enabled) {

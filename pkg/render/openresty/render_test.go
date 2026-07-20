@@ -537,12 +537,72 @@ func TestRenderRouteConfigAppliesDefaultLimits(t *testing.T) {
 		"limit_conn openflare_conn_per_server 120;",
 		"limit_conn openflare_conn_per_ip 12;",
 		"limit_rate 512k;",
-		"limit_req zone=openflare_req_per_ip burst=20 nodelay;",
+		"limit_req zone=openflare_req_10rs burst=20 nodelay;",
 		"limit_req_status 429;",
 	} {
 		if !strings.Contains(rendered, want) {
 			t.Fatalf("expected %q in route config, got:\n%s", want, rendered)
 		}
+	}
+}
+
+func TestRenderMainConfigEmitsLimitReqZonesByEffectiveRate(t *testing.T) {
+	doc := Document{
+		Routes: []Route{
+			{
+				SiteName:  "a.example.com",
+				Domains:   []string{"a.example.com"},
+				Enabled:   true,
+				OriginURL: "http://127.0.0.1:8080",
+				Upstreams: []string{"http://127.0.0.1:8080"},
+			},
+			{
+				SiteName:      "b.example.com",
+				Domains:       []string{"b.example.com"},
+				Enabled:       true,
+				OriginURL:     "http://127.0.0.1:8081",
+				Upstreams:     []string{"http://127.0.0.1:8081"},
+				LimitReqPerIP: "5r/s",
+			},
+			{
+				SiteName:      "c.example.com",
+				Domains:       []string{"c.example.com"},
+				Enabled:       true,
+				OriginURL:     "http://127.0.0.1:8082",
+				Upstreams:     []string{"http://127.0.0.1:8082"},
+				LimitReqPerIP: "-1",
+			},
+		},
+		OpenRestyConfig: ConfigSnapshot{
+			DefaultLimitReqPerIP: "10r/s",
+		},
+	}
+	mainConfig := RenderMainConfig(doc)
+	for _, want := range []string{
+		"limit_req_zone $openflare_waf_site$binary_remote_addr zone=openflare_req_10rs:10m rate=10r/s;",
+		"limit_req_zone $openflare_waf_site$binary_remote_addr zone=openflare_req_5rs:10m rate=5r/s;",
+	} {
+		if !strings.Contains(mainConfig, want) {
+			t.Fatalf("expected %q in main config, got:\n%s", want, mainConfig)
+		}
+	}
+	if strings.Contains(mainConfig, "openflare_req_per_ip") {
+		t.Fatalf("unexpected legacy zone name in main config:\n%s", mainConfig)
+	}
+
+	routeConfig, err := RenderRouteConfig(doc, nil)
+	if err != nil {
+		t.Fatalf("RenderRouteConfig() error = %v", err)
+	}
+	if !strings.Contains(routeConfig, "limit_req zone=openflare_req_10rs burst=20 nodelay;") {
+		t.Fatalf("expected inherited zone on route a, got:\n%s", routeConfig)
+	}
+	if !strings.Contains(routeConfig, "limit_req zone=openflare_req_5rs burst=10 nodelay;") {
+		t.Fatalf("expected custom zone on route b, got:\n%s", routeConfig)
+	}
+	// route c is off: count limit_req lines should equal 2 routes * (http+https? depends) — assert c server has no limit_req by site name block is hard; ensure -1 route does not force extra zones
+	if strings.Count(mainConfig, "limit_req_zone") != 2 {
+		t.Fatalf("expected exactly 2 limit_req_zone lines, got main:\n%s", mainConfig)
 	}
 }
 

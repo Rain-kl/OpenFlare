@@ -35,7 +35,7 @@ func RenderJSON(sourceJSON string, certificateFiles []SupportFile) (*Result, err
 // Render produces a complete OpenResty configuration Result from a Document and
 // a set of certificate support files.
 func Render(doc Document, certificateFiles []SupportFile) (*Result, error) {
-	mainConfig := RenderMainConfig(doc.OpenRestyConfig)
+	mainConfig := RenderMainConfig(doc)
 	routeConfig, err := RenderRouteConfig(doc, certificateFiles)
 	if err != nil {
 		return nil, err
@@ -56,13 +56,15 @@ func Render(doc Document, certificateFiles []SupportFile) (*Result, error) {
 }
 
 // RenderMainConfig renders the nginx main configuration string from the given
-// ConfigSnapshot, falling back to the built-in default template when none is set.
-func RenderMainConfig(cfg ConfigSnapshot) string {
+// Document, falling back to the built-in default template when none is set.
+// Limit-req zones are derived from each route's effective rate after merge.
+func RenderMainConfig(doc Document) string {
+	cfg := doc.OpenRestyConfig
 	templateText := cfg.MainConfigTemplate
 	if strings.TrimSpace(templateText) == "" {
 		templateText = defaultMainConfigTemplate
 	}
-	return renderMainConfigTemplate(templateText, cfg)
+	return renderMainConfigTemplate(templateText, cfg, collectEffectiveLimitReqRates(doc.Routes, cfg))
 }
 
 // ValidateMainConfigTemplate checks that the provided template text is non-empty
@@ -157,7 +159,7 @@ func DedupeSupportFiles(files []SupportFile) []SupportFile {
 	return result
 }
 
-func renderMainConfigTemplate(templateText string, cfg ConfigSnapshot) string {
+func renderMainConfigTemplate(templateText string, cfg ConfigSnapshot, limitReqRates []string) string {
 	replacer := strings.NewReplacer(
 		"{{OpenRestyWorkerProcesses}}", cfg.WorkerProcesses,
 		"{{OpenRestyWorkerConnections}}", fmt.Sprintf("%d", cfg.WorkerConnections),
@@ -187,7 +189,7 @@ func renderMainConfigTemplate(templateText string, cfg ConfigSnapshot) string {
 		"{{OpenRestyGzipMinLength}}", fmt.Sprintf("%d", cfg.GzipMinLength),
 		"{{OpenRestyGzipCompLevel}}", fmt.Sprintf("%d", cfg.GzipCompLevel),
 		"{{OpenRestyResolverDirective}}", renderTemplateDirective(cfg.Resolvers != "", fmt.Sprintf("resolver %s;", cfg.Resolvers)),
-		"{{OpenRestyCacheBlock}}", renderOpenRestyCacheTemplateBlock(cfg),
+		"{{OpenRestyCacheBlock}}", renderOpenRestyCacheTemplateBlock(cfg, limitReqRates),
 		"{{OpenRestyRouteConfigInclude}}", RouteConfigPlaceholder,
 	)
 	return replacer.Replace(templateText)
@@ -200,8 +202,8 @@ func renderTemplateDirective(enabled bool, statement string) string {
 	return fmt.Sprintf("    %s\n", statement)
 }
 
-func renderOpenRestyCacheTemplateBlock(cfg ConfigSnapshot) string {
-	lines := []string{renderOpenRestyLimitZoneBlock(cfg)}
+func renderOpenRestyCacheTemplateBlock(cfg ConfigSnapshot, limitReqRates []string) string {
+	lines := []string{renderOpenRestyLimitZoneBlock(limitReqRates)}
 	if !cfg.CacheEnabled {
 		lines = append(lines, renderOpenRestyObservabilityTemplateBlock())
 		return strings.Join(lines, "")
@@ -222,14 +224,45 @@ func renderOpenRestyCacheTemplateBlock(cfg ConfigSnapshot) string {
 	return strings.Join(lines, "")
 }
 
-func renderOpenRestyLimitZoneBlock(cfg ConfigSnapshot) string {
+func renderOpenRestyLimitZoneBlock(limitReqRates []string) string {
 	var builder strings.Builder
 	builder.WriteString("    limit_conn_zone $server_name zone=openflare_conn_per_server:10m;\n")
 	builder.WriteString("    limit_conn_zone $binary_remote_addr zone=openflare_conn_per_ip:10m;\n")
-	if strings.TrimSpace(cfg.DefaultLimitReqPerIP) != "" {
-		fmt.Fprintf(&builder, "    limit_req_zone $binary_remote_addr zone=openflare_req_per_ip:10m rate=%s;\n", strings.TrimSpace(cfg.DefaultLimitReqPerIP))
+	for _, rate := range limitReqRates {
+		fmt.Fprintf(
+			&builder,
+			"    limit_req_zone $openflare_waf_site$binary_remote_addr zone=%s:10m rate=%s;\n",
+			limitReqZoneName(rate),
+			rate,
+		)
 	}
 	return builder.String()
+}
+
+func collectEffectiveLimitReqRates(routes []Route, cfg ConfigSnapshot) []string {
+	seen := make(map[string]struct{}, len(routes))
+	for _, route := range routes {
+		rate := strings.TrimSpace(mergeRouteLimitConfig(route, cfg).LimitReqPerIP)
+		if rate == "" {
+			continue
+		}
+		seen[rate] = struct{}{}
+	}
+	if len(seen) == 0 {
+		return nil
+	}
+	rates := make([]string, 0, len(seen))
+	for rate := range seen {
+		rates = append(rates, rate)
+	}
+	sort.Strings(rates)
+	return rates
+}
+
+func limitReqZoneName(rate string) string {
+	normalized := strings.ToLower(strings.TrimSpace(rate))
+	normalized = strings.ReplaceAll(normalized, "/", "")
+	return "openflare_req_" + normalized
 }
 
 func renderOpenRestyObservabilityTemplateBlock() string {
@@ -482,8 +515,9 @@ func renderRouteLimitBlock(limitConfig routeLimitConfig) string {
 		fmt.Fprintf(&builder, "        limit_rate %s;\n", limitConfig.LimitRate)
 	}
 	if strings.TrimSpace(limitConfig.LimitReqPerIP) != "" {
-		burst := calculateBurst(limitConfig.LimitReqPerIP)
-		fmt.Fprintf(&builder, "        limit_req zone=openflare_req_per_ip burst=%d nodelay;\n", burst)
+		rate := strings.TrimSpace(limitConfig.LimitReqPerIP)
+		burst := calculateBurst(rate)
+		fmt.Fprintf(&builder, "        limit_req zone=%s burst=%d nodelay;\n", limitReqZoneName(rate), burst)
 		fmt.Fprintf(&builder, "        limit_req_status 429;\n")
 	}
 	return builder.String()
