@@ -185,7 +185,12 @@ export interface NodeObservability {
 }
 
 export type ProxyRouteConfigSection =
-  'domains' | 'limits' | 'proxy' | 'cache' | 'waf' | 'auth';
+  | 'domains'
+  | 'limits'
+  | 'proxy'
+  | 'cache'
+  | 'waf'
+  | 'auth';
 
 export interface ProxyRouteCustomHeader {
   key: string;
@@ -400,7 +405,10 @@ export interface PagesDeployment {
   source_type: 'manual_upload' | 'manual_url' | 'remote_url' | 'github_release';
   source_label: string;
   trigger_type:
-    'manual_upload' | 'manual_url' | 'manual_sync' | 'scheduled_auto_update';
+    | 'manual_upload'
+    | 'manual_url'
+    | 'manual_sync'
+    | 'scheduled_auto_update';
   created_at: string;
   activated_at?: string | null;
 }
@@ -460,7 +468,12 @@ export interface PagesDeploymentUploadFromURLPayload {
 }
 
 export type PagesSourceStatus =
-  'idle' | 'checking' | 'update_available' | 'syncing' | 'failed' | 'attention';
+  | 'idle'
+  | 'checking'
+  | 'update_available'
+  | 'syncing'
+  | 'failed'
+  | 'attention';
 
 export type PagesGitHubReleaseSelector = 'latest' | 'tag';
 
@@ -512,14 +525,17 @@ interface PagesGitHubTagReleaseSource extends PagesGitHubReleaseSourceBase {
 }
 
 export type PagesGitHubReleaseSource =
-  PagesGitHubLatestReleaseSource | PagesGitHubTagReleaseSource;
+  | PagesGitHubLatestReleaseSource
+  | PagesGitHubTagReleaseSource;
 
 /**
  * 部署源使用判别联合，后续仓库构建来源只需增加独立 git_repository variant，
  * 不需要向 Remote 或 GitHub Release 填入构建字段。
  */
 export type PagesSource =
-  PagesManualSource | PagesRemoteURLSource | PagesGitHubReleaseSource;
+  | PagesManualSource
+  | PagesRemoteURLSource
+  | PagesGitHubReleaseSource;
 
 export interface PagesRemoteSourceUpdatePayload {
   source_type: 'remote_url';
@@ -533,14 +549,16 @@ interface PagesGitHubSourceUpdateBase {
   asset_name: string;
 }
 
-export interface PagesGitHubLatestSourceUpdatePayload extends PagesGitHubSourceUpdateBase {
+export interface PagesGitHubLatestSourceUpdatePayload
+  extends PagesGitHubSourceUpdateBase {
   release_selector: 'latest';
   release_tag: '';
   auto_update_enabled: boolean;
   check_interval_minutes: number;
 }
 
-export interface PagesGitHubTagSourceUpdatePayload extends PagesGitHubSourceUpdateBase {
+export interface PagesGitHubTagSourceUpdatePayload
+  extends PagesGitHubSourceUpdateBase {
   release_selector: 'tag';
   release_tag: string;
   auto_update_enabled: false;
@@ -548,14 +566,16 @@ export interface PagesGitHubTagSourceUpdatePayload extends PagesGitHubSourceUpda
 }
 
 export type PagesGitHubSourceUpdatePayload =
-  PagesGitHubLatestSourceUpdatePayload | PagesGitHubTagSourceUpdatePayload;
+  | PagesGitHubLatestSourceUpdatePayload
+  | PagesGitHubTagSourceUpdatePayload;
 
 /**
  * Source 更新请求保持 Provider 判别联合；未来仓库拉取构建使用独立 git_repository variant，
  * 不向 Remote URL 或 GitHub Release payload 混入构建字段。
  */
 export type PagesSourceUpdatePayload =
-  PagesRemoteSourceUpdatePayload | PagesGitHubSourceUpdatePayload;
+  | PagesRemoteSourceUpdatePayload
+  | PagesGitHubSourceUpdatePayload;
 
 export interface PagesSourceActionPayload {
   confirmed_revision?: string;

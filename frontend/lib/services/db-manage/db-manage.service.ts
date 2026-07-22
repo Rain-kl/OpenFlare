@@ -59,7 +59,8 @@ export class DbManageService extends BaseService {
     } as InternalAxiosRequestConfig);
 
     const disposition = response.headers['content-disposition'] as
-      string | undefined;
+      | string
+      | undefined;
     let filename = 'openflare_export';
     if (disposition) {
       const match = disposition.match(/filename="?([^";]+)"?/);

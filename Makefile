@@ -1,4 +1,4 @@
-.PHONY: swagger license license-check prettier build-embedded build-test cross-build code-check build-backend build-frontend build-agent build-relay build-flared build-all
+.PHONY: swagger license license-check format build-embedded build-test cross-build code-check build-backend build-frontend build-agent build-relay build-flared build-all
 
 VERSION ?= dev
 BUILD_DATE ?= $(shell date -u +'%Y-%m-%dT%H:%M:%SZ')
@@ -13,7 +13,7 @@ license:
 license-check:
 	scripts/update_go_license.sh --check
 
-prettier:
+format:
 	@echo "==> Formatting backend Go source and removing unused imports..."
 	@command -v goimports >/dev/null 2>&1 || { \
 		echo "goimports not found, installing..."; \

@@ -335,7 +335,7 @@ export function RuleFlowCanvas({
   );
   const contextCanDeleteEdge = Boolean(
     contextMenu?.kind === 'edge' &&
-    graph.edges.some((edge) => edge.id === contextMenu.id),
+      graph.edges.some((edge) => edge.id === contextMenu.id),
   );
 
   return (

@@ -206,7 +206,8 @@ export function RatePressureChart({ data, hours }: RatePressureChartProps) {
   const applyVisibleAxisMax = useCallback(
     (startPercent: number, endPercent: number) => {
       const instance = chartRef.current?.getEchartsInstance?.() as
-        EChartsType | undefined;
+        | EChartsType
+        | undefined;
       if (!instance) return;
       instance.setOption(
         {
@@ -242,7 +243,8 @@ export function RatePressureChart({ data, hours }: RatePressureChartProps) {
         }>;
       }) => {
         const instance = chartRef.current?.getEchartsInstance?.() as
-          EChartsType | undefined;
+          | EChartsType
+          | undefined;
         const { start, end } = readZoomPercent(
           params,
           chartModel.rpsValues.length,

@@ -177,7 +177,10 @@ export interface DispatchTaskRequest {
 }
 
 export type TaskExecutionStatus =
-  'pending' | 'running' | 'succeeded' | 'failed';
+  | 'pending'
+  | 'running'
+  | 'succeeded'
+  | 'failed';
 
 /**
  * 任务执行记录

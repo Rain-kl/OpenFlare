@@ -97,7 +97,8 @@ function SparklineMetricCard({
         formatter: (params: unknown) => {
           const items = Array.isArray(params) ? params : [];
           const item = items[0] as
-            { axisValueLabel?: string; value?: number } | undefined;
+            | { axisValueLabel?: string; value?: number }
+            | undefined;
           if (!item) return '';
           const raw = typeof item.value === 'number' ? item.value : 0;
           const formatted = valueFormatter
