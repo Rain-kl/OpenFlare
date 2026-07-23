@@ -2,9 +2,12 @@
 
 import { useEffect } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { CircleHelp, TriangleAlert } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
 import {
   Form,
   FormControl,
@@ -14,6 +17,11 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 import {
   Select,
   SelectContent,
@@ -92,6 +100,55 @@ function needsRulesForPolicy(policy: string) {
   );
 }
 
+function CacheHelpButton() {
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button
+          type='button'
+          variant='ghost'
+          size='icon-sm'
+          className='size-7 text-muted-foreground'
+          aria-label='缓存使用说明'
+        >
+          <CircleHelp />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align='start' className='w-80 flex flex-col gap-3 p-4'>
+        <div className='text-sm font-medium'>缓存使用说明</div>
+        <div className='flex flex-col gap-2 text-xs text-muted-foreground leading-relaxed'>
+          <p>
+            扩展名/策略决定是否可缓存，源站头与Set-Cookie
+            决定是否入库。须同时开启性能设置中的全局 OpenResty 缓存。
+          </p>
+          <p>
+            <span className='font-medium text-foreground'>推荐策略：</span>
+            新建站点建议使用「标准静态资源」（含
+            css/js/map/图片/字体/媒体等，不含 HTML/JSON）。
+          </p>
+          <p>
+            <span className='font-medium text-foreground'>通用规则：</span>非
+            GET 不缓存；登录 Cookie 不会单独跳过缓存；源站 private/no-store
+            或响应 Set-Cookie 不会写入边缘。
+          </p>
+          <p>
+            <span className='font-medium text-foreground'>
+              所有可缓存 GET：
+            </span>
+            高级选项，类似 Cache Everything。个性化页面须由源站声明
+            private/no-store，否则 HTML 可能被边缘缓存并串给其他用户。
+          </p>
+          <p>
+            <span className='font-medium text-foreground'>自定义规则：</span>
+            后缀填 jpg/css/js；路径前缀填 /assets；精确路径填 /robots.txt。
+            保存后须重新发布配置版本才会在节点生效。
+          </p>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 export function CacheSection({
   route,
   onRouteUpdate,
@@ -141,8 +198,8 @@ export function CacheSection({
         : watchedPolicy === 'path_exact'
           ? '每行一个精确路径，例如 /robots.txt。'
           : watchedPolicy === 'static'
-            ? '标准静态资源使用内置扩展名列表（不含 HTML），无需填写规则。'
-            : '所有可缓存 GET 无需额外规则（仍会绕过登录态与 Authorization）。';
+            ? '标准静态资源使用内置扩展名列表，无需填写规则。'
+            : '当前策略无需额外路径规则。';
 
   const rulesPlaceholder =
     watchedPolicy === 'suffix'
@@ -156,7 +213,8 @@ export function CacheSection({
   return (
     <SectionShell
       title='缓存'
-      description='保留现有安全绕过逻辑，只对当前站点生效。'
+      description='配置站点边缘缓存策略。'
+      titleExtra={<CacheHelpButton />}
       formId={proxyRouteFormIds.cache}
       saving={saving}
     >
@@ -187,11 +245,7 @@ export function CacheSection({
               <FormItem className='flex items-center justify-between rounded-lg border p-3'>
                 <div className='space-y-0.5'>
                   <FormLabel>启用站点缓存</FormLabel>
-                  <FormDescription>
-                    新建推荐「标准静态资源」（不含
-                    HTML）。须同时开启性能设置中的全局 OpenResty
-                    缓存。仍会绕过非 GET、Authorization 与常见登录 Cookie。
-                  </FormDescription>
+                  <FormDescription>新建推荐「标准静态资源」。</FormDescription>
                 </div>
                 <FormControl>
                   <Switch
@@ -227,14 +281,21 @@ export function CacheSection({
                     <SelectItem value='path_exact'>精确路径</SelectItem>
                   </SelectContent>
                 </Select>
-                <FormDescription>
-                  标准静态资源含 css/js/图片/字体/媒体等，默认不缓存 HTML
-                  与接口路径。
-                </FormDescription>
                 <FormMessage />
               </FormItem>
             )}
           />
+
+          {watchedEnabled && watchedPolicy === 'all' ? (
+            <Alert>
+              <TriangleAlert />
+              <AlertTitle>高级策略风险</AlertTitle>
+              <AlertDescription>
+                个性化 HTML 在源站未声明 private / no-store
+                时可能被边缘缓存并串给其他用户。详情见标题旁帮助。
+              </AlertDescription>
+            </Alert>
+          ) : null}
 
           <FormField
             control={form.control}

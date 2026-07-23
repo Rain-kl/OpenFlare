@@ -37,9 +37,9 @@ const (
 )
 
 // DefaultStaticCacheExtensions is the built-in suffix allowlist for cache_policy=static.
-// HTML is intentionally excluded (Cloudflare-like default).
+// HTML and JSON are excluded (Cloudflare default). map/mjs/wasm are intentional extras.
 var DefaultStaticCacheExtensions = []string{
-	"css", "js", "mjs", "map", "json",
+	"css", "js", "mjs", "map",
 	"ico", "cur", "gif", "jpg", "jpeg", "png", "webp", "avif", "svg", "svgz",
 	"ttf", "otf", "woff", "woff2", "eot",
 	"mp3", "mp4", "webm", "ogg", "flac",

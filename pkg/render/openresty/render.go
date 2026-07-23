@@ -490,16 +490,16 @@ func renderRouteCacheBlock(cacheConfig routeCacheConfig, cfg ConfigSnapshot) str
 	var builder strings.Builder
 	builder.WriteString("        set $openflare_skip_cache 0;\n")
 	builder.WriteString("        if ($request_method != GET) {\n            set $openflare_skip_cache 1;\n        }\n")
-	builder.WriteString("        if ($http_authorization != \"\") {\n            set $openflare_skip_cache 1;\n        }\n")
-	builder.WriteString("        if ($http_cookie ~* \"(session|sess|token|auth|jwt|logged_in|remember|laravel_session|connect\\\\.sid|_session)\") {\n            set $openflare_skip_cache 1;\n        }\n")
-	builder.WriteString("        if ($http_cache_control ~* \"(no-cache|no-store|private)\") {\n            set $openflare_skip_cache 1;\n        }\n")
 	if condition := renderRouteCachePolicyCondition(cacheConfig); condition != "" {
 		builder.WriteString(condition)
 	}
 	builder.WriteString("        proxy_cache openflare_cache;\n")
 	builder.WriteString("        proxy_cache_methods GET;\n")
 	builder.WriteString("        proxy_cache_bypass $openflare_skip_cache;\n")
-	builder.WriteString("        proxy_no_cache $openflare_skip_cache;\n")
+	builder.WriteString("        proxy_no_cache $openflare_skip_cache $upstream_http_set_cookie;\n")
+	builder.WriteString("        proxy_cache_valid 200 206 301 120m;\n")
+	builder.WriteString("        proxy_cache_valid 302 303 20m;\n")
+	builder.WriteString("        proxy_cache_valid 404 410 3m;\n")
 	return builder.String()
 }
 

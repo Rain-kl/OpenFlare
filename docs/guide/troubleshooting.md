@@ -15,6 +15,7 @@
 | 发布后节点未更新 | 激活版本、节点 heartbeat、应用记录 |
 | OpenResty 应用失败 | 应用记录、Agent 日志、证书、上游地址、端口占用 |
 | 访问分析无数据 | OpenResty 容器状态、观测端口、Agent 补报日志 |
+| 静态资源总不命中缓存 | 全局/站点缓存开关、策略扩展名、配置是否已发布、访问日志 `cache_status`、源站 Set-Cookie / Cache-Control |
 
 ## Server 无法启动
 
@@ -237,6 +238,36 @@ pnpm build
 | 类型错误 | 先运行 `pnpm typecheck` 定位具体文件 |
 | API 类型不一致 | 检查 `lib/api/` 和 `types/` 中的响应结构 |
 | E2E 失败 | 确认 Server 和前端开发服务器都已启动 |
+
+## 边缘缓存命中率异常
+
+访问日志中缓存三态：**命中**（HIT/STALE/REVALIDATED/UPDATING）、**回源**（MISS/EXPIRED）、**未缓存**（BYPASS 或空，请求时未进入可缓存路径或响应未入库）。设计说明见 [边缘缓存策略设计](../design/edge-cache-design.md)。
+
+### 检查清单
+
+1. **性能设置** 中全局 OpenResty 缓存已开启。  
+2. 站点 **缓存** 已启用，策略与路径匹配（「标准静态资源」只覆盖内置扩展名，**不含** HTML/JSON；`.js.map` 的扩展名是 `map`，在默认表内）。  
+3. 已 **发布并激活** 配置版本，对应节点应用记录成功（改缓存规则不发布则节点仍用旧旁路逻辑）。  
+4. 请求方法为 **GET**（非 GET 一律不缓存）。  
+5. 源站未对目标 URL 返回 **`Set-Cookie`**（有则不会写入边缘）。  
+6. 源站未声明 **`Cache-Control: private` / `no-store`**（共享缓存不会存）。  
+7. 浏览器 DevTools「禁用缓存」只影响浏览器；边缘是否 HIT 看访问日志 `cache_status`，不要只看 Network 面板。
+
+### 常见误解
+
+| 现象 | 说明 |
+| --- | --- |
+| 登录后全是「未缓存」且从未发布新版本 | 旧配置曾因会话 Cookie 旁路；升级后须重新发布节点配置 |
+| `static` 下 `/api/foo` 或 `/index.html` 未缓存 | 预期行为（扩展名不在默认可缓存表） |
+| 策略为 `all` 后 HTML 被串用户 | 源站未禁止共享缓存；改回 `static` 或给动态响应加 `private`/`no-store` |
+| 带 `?v=` 的 URL 命中率低 | 默认缓存键含完整 `$request_uri`，query 不同即不同对象 |
+| 第一次 MISS、第二次仍 MISS | 查源站是否每次 `Set-Cookie`、是否 `private`，或节点磁盘/缓存 inactive 过短 |
+
+### 期望行为（对齐 Cloudflare 默认）
+
+* 带登录 Cookie 的用户访问 `/_app/**/*.js` 等静态资源：**可以 HIT**。  
+* 响应带 `Set-Cookie` 或 `private`：**不入库**。  
+* 无源站缓存头的可缓存状态码：使用默认 Edge TTL（如 200 约 120 分钟）。
 
 ## 文档站构建失败
 

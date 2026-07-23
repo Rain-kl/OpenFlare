@@ -407,11 +407,18 @@ func TestRenderRouteCachePolicyConditionStaticDefault(t *testing.T) {
 	if !strings.Contains(staticBlock, "css") || !strings.Contains(staticBlock, "woff2") {
 		t.Fatalf("static policy should include default extensions, got:\n%s", staticBlock)
 	}
+	if !strings.Contains(staticBlock, "map") || !strings.Contains(staticBlock, "mjs") {
+		t.Fatalf("static policy should include map and mjs, got:\n%s", staticBlock)
+	}
 	if strings.Contains(staticBlock, "html") {
 		t.Fatalf("static policy must not include html, got:\n%s", staticBlock)
 	}
+	// Pattern is \.(?:css|js|...)$ — reject bare "json" as an alternation token.
+	if strings.Contains(staticBlock, "|json|") || strings.Contains(staticBlock, "|json)") || strings.Contains(staticBlock, "(?:json|") {
+		t.Fatalf("static policy must not include json (CF default), got:\n%s", staticBlock)
+	}
 
-	// Legacy empty/url = all (wide cache after security bypass).
+	// Legacy empty/url = all (wide cache after method bypass).
 	emptyPolicy := renderRouteCachePolicyCondition(routeCacheConfig{Enabled: true, Policy: ""})
 	if emptyPolicy != "" {
 		t.Fatalf("empty policy should map to all (no path filter), got %q", emptyPolicy)
@@ -427,7 +434,7 @@ func TestRenderRouteCachePolicyConditionStaticDefault(t *testing.T) {
 	}
 }
 
-func TestRenderRouteCacheBlockIncludesStaticWhenEnabled(t *testing.T) {
+func TestRenderRouteCacheBlockAlignsCloudflareDefaults(t *testing.T) {
 	block := renderRouteCacheBlock(
 		routeCacheConfig{Enabled: true, Policy: "static"},
 		ConfigSnapshot{CacheEnabled: true},
@@ -439,7 +446,31 @@ func TestRenderRouteCacheBlockIncludesStaticWhenEnabled(t *testing.T) {
 		t.Fatalf("expected static suffix pattern, got:\n%s", block)
 	}
 	if !strings.Contains(block, "request_method != GET") {
-		t.Fatalf("expected security bypass for non-GET, got:\n%s", block)
+		t.Fatalf("expected method bypass for non-GET, got:\n%s", block)
+	}
+	if strings.Contains(block, "$http_authorization") {
+		t.Fatalf("must not bypass on Authorization (CF-aligned), got:\n%s", block)
+	}
+	if strings.Contains(block, "$http_cookie") {
+		t.Fatalf("must not bypass on Cookie (CF-aligned), got:\n%s", block)
+	}
+	if strings.Contains(block, "$http_cache_control") {
+		t.Fatalf("must not bypass on request Cache-Control (CF-aligned), got:\n%s", block)
+	}
+	if !strings.Contains(block, "proxy_no_cache $openflare_skip_cache $upstream_http_set_cookie") {
+		t.Fatalf("expected Set-Cookie no-cache gate, got:\n%s", block)
+	}
+	if !strings.Contains(block, "proxy_cache_valid 200 206 301 120m") {
+		t.Fatalf("expected default Edge TTL for 200/206/301, got:\n%s", block)
+	}
+	if !strings.Contains(block, "proxy_cache_valid 302 303 20m") {
+		t.Fatalf("expected default Edge TTL for 302/303, got:\n%s", block)
+	}
+	if !strings.Contains(block, "proxy_cache_valid 404 410 3m") {
+		t.Fatalf("expected default Edge TTL for 404/410, got:\n%s", block)
+	}
+	if !strings.Contains(block, "proxy_cache_bypass $openflare_skip_cache") {
+		t.Fatalf("expected proxy_cache_bypass on skip flag only, got:\n%s", block)
 	}
 }
 

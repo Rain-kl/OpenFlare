@@ -20,6 +20,7 @@
 * [边缘缓存默认 static 策略](./20260718-edge-cache-static-default.md)：开启缓存默认仅静态扩展名；存量 url→all。
 * [访问日志 IP 明细 Tab](./20260719-access-log-ip-tab.md)：第三 Tab 按 IP 聚合列表（时间窗/流量/2xx 比例）；IP 情报迁入独立详情；日志详情仅请求字段。
 * [边缘限流全局默认](./20260719-http-default-rate-limit.md)：全局默认并发/带宽；站点 0 继承、-1 关闭；RenderRouteConfig 合并。
+* [边缘缓存对齐 Cloudflare 默认模型](./20260723-edge-cache-cf-align.md)：删除过严请求旁路；Set-Cookie 不入库；默认 Edge TTL；扩展名去 json。
 
 ## 已完成的计划
 

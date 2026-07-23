@@ -28,6 +28,7 @@ sidebar: false
 
 ### 改进
 
+- 边缘缓存对齐 Cloudflare 默认模型：不再因请求会话 Cookie、Authorization 或客户端 Cache-Control 一律跳过缓存；响应带 Set-Cookie 时不写入边缘；无源站缓存头时按状态码使用默认 Edge TTL；标准静态扩展名默认不再包含 JSON。生效需重新发布节点配置。
 - IP 组自动规则中的 `StatusCount` / `StatusRatio` 支持状态码类写法（如 `"2xx"`、`"4xx"`、`"5xx"`），便于按整类错误率匹配。
 - IP 组同步间隔下限由 5 分钟调整为 1 分钟，便于更频繁同步自动/订阅名单。
 - 自动 IP 组回看窗口字段由 `lookback_minutes` 调整为 `lookback`，支持 `60m`、`1h` 等时长写法，并移除最小 5 分钟限制（兼容旧字段）。

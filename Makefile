@@ -111,3 +111,27 @@ cross-build:
 		.
 	@echo "==> Done. Binaries written to ./bin/"
 	@ls -lh bin/
+
+dev-f:
+	@echo "==> Starting frontend development server..."
+	cd frontend && pnpm dev
+
+dev-b:
+	@echo "==> Starting backend development server..."
+	go run main.go all
+
+dev:
+	@echo "==> Starting frontend and backend development servers in parallel..."
+	@PIDS=""; \
+	STATUS=0; \
+	( cd frontend && pnpm dev 2>&1 | sed 's/^/[frontend] /' ) & PIDS="$$PIDS $$!"; \
+	( go run main.go all 2>&1 | sed 's/^/[backend]  /' ) & PIDS="$$PIDS $$!"; \
+	for PID in $$PIDS; do \
+		wait $$PID || STATUS=1; \
+	done; \
+	if [ $$STATUS -eq 0 ]; then \
+		echo "==> All development servers exited successfully."; \
+	else \
+		echo "==> Development servers exited with errors." >&2; \
+		exit 1; \
+	fi
