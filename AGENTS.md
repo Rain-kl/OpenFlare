@@ -51,7 +51,7 @@
 ## 严格遵循事项 (Guardrails)
 
 - 切勿删除 `frontend/node_modules`
-- 保持 `internal/util/` 绝对纯净且不引入任何框架。禁止从 `internal/util/` 及其子包中导入 Gin、GORM、sessions 等 HTTP/Web/数据库相关框架包（例如，Web 会话选项已收敛至 `internal/apps/oauth/session.go`）。
+- 保持 `pkg/util/` 绝对纯净且不引入任何框架。禁止从 `pkg/util/` 及其子包中导入 Gin、GORM、sessions 等 HTTP/Web/数据库相关框架包（例如，Web 会话选项已收敛至 `internal/apps/oauth/session.go`）。
 - 编写测试用例时，禁止使用硬编码的相对路径（如 `"uploads/test_cache"`）在源码目录下创建临时测试目录，必须统一使用 Go 内置的 `t.TempDir()` 以避免污染源码目录。
 - 所有 HTTP 路由仅在 `internal/router/router.go` 中注册。
 - 当 API Handler 发生变化时，更新 Swagger 文档（运行 `make swagger`）。
@@ -121,7 +121,7 @@
 - `internal/infra/objectstore/`：S3 兼容对象存储适配，提供对象上传、读取、删除、CDN/代理读取及远端对象本地缓存。
 - `internal/infra/task/`：Asynq 任务框架；参见 `new-async-task` 了解变更。
 - `internal/shared/`：共享的通用模型及响应（如 `internal/shared/response`）、绑定（bind）、常量以及通用错误。
-- `internal/util/`：纯底层工具包，无任何 HTTP/数据库框架依赖。
+- `pkg/util/`：纯底层无副作用的系统工具（Crypto/Password/UUID、格式化、网络、版本比较等）。
 - `internal/listener/`：域事件分发层。核心域（auth、user 等）在此定义并发射事件（如 `EmitAdminLoggedIn`）；运维模块（push、webhook 等）在 bootstrap 阶段订阅，实现跨模块解耦。
 - `internal/otel_trace/`：链路追踪（tracing）助手。
 - `internal/testhelper/`：后端测试共享辅助能力。
@@ -135,7 +135,6 @@
 - `pkg/push/`：推送渠道客户端集成（Lark/Telegram/Email）。
 - `pkg/mail/`：邮件发送客户端。
 - `pkg/trace/`：OpenTelemetry 链路追踪配置。
-- `pkg/util/`：纯底层无副作用的系统工具（Crypto/Password/UUID、格式化、网络、版本比较等）。
 
 前端目录：
 

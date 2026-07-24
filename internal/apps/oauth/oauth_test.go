@@ -37,7 +37,6 @@ import (
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"github.com/Rain-kl/Wavelet/internal/repository"
 	"github.com/Rain-kl/Wavelet/internal/testhelper"
-	"github.com/Rain-kl/Wavelet/internal/util"
 )
 
 // -----------------------------------------------------------------------------
@@ -453,7 +452,6 @@ func TestGetLoginSources(t *testing.T) {
 			},
 		},
 	}
-	util.SetHTTPClient(httpMock)
 	router := setupTestRouter(dbConn, mockRedis, httpMock)
 
 	// Inject OIDC login enabled config
@@ -527,7 +525,6 @@ func TestGetLoginURL(t *testing.T) {
 			},
 		},
 	}
-	util.SetHTTPClient(httpMock)
 	router := setupTestRouter(dbConn, mockRedis, httpMock)
 
 	// Case 1: Default Login URL
@@ -616,7 +613,6 @@ func TestAuthorize(t *testing.T) {
 			},
 		},
 	}
-	util.SetHTTPClient(httpMock)
 	router := setupTestRouter(dbConn, mockRedis, httpMock)
 
 	// Case 1a: Active Source Authorize with purpose=bind without login -> 401
@@ -694,7 +690,6 @@ func TestCallbackLoginAndUserInfo(t *testing.T) {
 
 	// 1. Mock the outgoing HTTP client for token exchange and user info fetching
 	httpMock := newMockOIDCClient(testIssuerURL, testClientID, &state, "88888", "test_oauth_user", "oauth@linux.do", "Oauth Test User")
-	util.SetHTTPClient(httpMock)
 	router := setupTestRouter(dbConn, mockRedis, httpMock)
 
 	// Get Login URL first to initialize the session and generate the state
@@ -774,7 +769,6 @@ func TestCallbackLoginAndUserInfo(t *testing.T) {
 	var state2 string
 	// Callback with same username but different external ID (99999)
 	httpMock2 := newMockOIDCClient(testIssuerURL, testClientID, &state2, "99999", "test_oauth_user", "another@linux.do", "Another User")
-	util.SetHTTPClient(httpMock2)
 
 	// Create another router for this mock client
 	router2 := setupTestRouter(dbConn, mockRedis, httpMock2)
@@ -826,7 +820,6 @@ func TestCallbackLoginAndUserInfo(t *testing.T) {
 
 		var state4 string
 		httpMock4 := newMockOIDCClient(testIssuerURL, testClientID, &state4, "77777", "need_bind_user", "needbind@linux.do", "Need Bind User")
-		util.SetHTTPClient(httpMock4)
 		router4 := setupTestRouter(dbConn, mockRedis, httpMock4)
 
 		wLogin4 := performRequest(router4, http.MethodGet, "/api/v1/oauth/login?source="+testSourceName, nil, nil, nil)
@@ -898,7 +891,6 @@ func TestCallbackBind(t *testing.T) {
 	var state string
 	// Mock OIDC discovery, JWKS, and Token exchange for custom source (GitHub)
 	httpMock := newMockOIDCClient("https://github.com", "gh_client", &state, "github_user_123", "github_tester", "tester@github.com", "GitHub Tester")
-	util.SetHTTPClient(httpMock)
 	router := setupTestRouter(dbConn, mockRedis, httpMock)
 
 	// Set up login helper
@@ -1017,7 +1009,6 @@ func TestCallbackBind(t *testing.T) {
 	var state3 string
 	// Re-sign token for new state (since state serves as OIDC Nonce)
 	httpMock3 := newMockOIDCClient("https://github.com", "gh_client", &state3, "github_user_123", "github_tester", "tester@github.com", "GitHub Tester")
-	util.SetHTTPClient(httpMock3)
 	router3 := setupTestRouter(dbConn, mockRedis, httpMock3)
 
 	// Generate state3 and SessionHash using activeCookie2
@@ -1131,7 +1122,6 @@ func TestOIDCPolicyEnforcement(t *testing.T) {
 	// Set up mock client & router
 	var state string
 	httpMock := newMockOIDCClient(testIssuerURL, testClientID, &state, "88888", "test_oauth_user", "oauth@linux.do", "Oauth Test User")
-	util.SetHTTPClient(httpMock)
 	router := setupTestRouter(dbConn, mockRedis, httpMock)
 
 	// --- 1. Test GetLoginURL enforcement ---

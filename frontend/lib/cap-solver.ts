@@ -1,6 +1,6 @@
 /**
  * Cap PoW (Proof-of-Work) 人机验证前端实现
- * 与后端 internal/util/cap 算法完全对应
+ * 与后端 pkg/cap 算法完全对应
  *
  * 求解在 Web Worker 中执行，不阻塞主线程 UI。
  */
@@ -24,7 +24,7 @@ export interface RedeemResponse {
 
 // ——— Worker 代码（内联 Blob，避免独立文件的打包配置问题）———
 //
-// 算法与 Go 后端 internal/util/cap/cap.go + prng.go 完全对应：
+// 算法与 Go 后端 pkg/cap/cap.go + prng.go 完全对应：
 //   · FNV-1a 32-bit  (Math.imul 保证 32-bit 截断)
 //   · xorshift32 PRNG → hex 字符串
 //   · SubtleCrypto SHA-256 校验答案
