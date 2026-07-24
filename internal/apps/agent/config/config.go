@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/Rain-kl/Wavelet/internal/apps/edge/nodeip"
-	"github.com/Rain-kl/Wavelet/pkg/utils"
+	"github.com/Rain-kl/Wavelet/pkg/util"
 )
 
 const (
@@ -147,7 +147,7 @@ func Load(path string) (*Config, error) {
 func applyDefaults(cfg *Config, baseDir string) {
 	baseDir = filepath.Clean(baseDir)
 	cfg.Version = Version
-	cfg.OpenrestyResolvers = utils.UniqueAndCleanStringSlice(cfg.OpenrestyResolvers)
+	cfg.OpenrestyResolvers = util.UniqueAndCleanStringSlice(cfg.OpenrestyResolvers)
 	applyAgentIdentityDefaults(cfg)
 	applyAgentPathDefaults(cfg, baseDir)
 	applyAgentTimingDefaults(cfg)

@@ -25,7 +25,7 @@ import (
 
 	sharedprotocol "github.com/Rain-kl/Wavelet/pkg/protocol"
 	openrestyrender "github.com/Rain-kl/Wavelet/pkg/render/openresty"
-	"github.com/Rain-kl/Wavelet/pkg/utils"
+	"github.com/Rain-kl/Wavelet/pkg/util"
 
 	"github.com/Rain-kl/Wavelet/internal/apps/agent/protocol"
 	"github.com/Rain-kl/Wavelet/internal/apps/agent/runtimeuser"
@@ -1506,7 +1506,7 @@ func ResolverDirective(explicitResolvers []string) string {
 }
 
 func resolverAddresses(explicitResolvers []string) []string {
-	if resolvers := utils.UniqueAndCleanStringSlice(explicitResolvers); len(resolvers) > 0 {
+	if resolvers := util.UniqueAndCleanStringSlice(explicitResolvers); len(resolvers) > 0 {
 		return resolvers
 	}
 	data, err := os.ReadFile("/etc/resolv.conf")

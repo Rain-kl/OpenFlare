@@ -17,7 +17,7 @@ import (
 
 	ofws "github.com/Rain-kl/Wavelet/internal/apps/openflare/websocket"
 	"github.com/Rain-kl/Wavelet/internal/model"
-	"github.com/Rain-kl/Wavelet/pkg/utils"
+	"github.com/Rain-kl/Wavelet/pkg/util"
 )
 
 const (
@@ -301,7 +301,7 @@ func isVersionNewer(current string, latest string) bool {
 }
 
 func compareVersions(local, remote string) int {
-	return utils.CompareVersions(local, remote)
+	return util.CompareVersions(local, remote)
 }
 
 func fetchLatestGitHubRelease(ctx context.Context, repo string, channel releaseChannel) (*githubReleaseResponse, error) {

@@ -1,5 +1,5 @@
-// Package utils provides shared formatting and string helper functions.
-package utils
+// Package util provides shared formatting and string helper functions.
+package util
 
 import (
 	"fmt"

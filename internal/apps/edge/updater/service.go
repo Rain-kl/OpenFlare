@@ -15,7 +15,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Rain-kl/Wavelet/pkg/utils"
+	"github.com/Rain-kl/Wavelet/pkg/util"
 )
 
 const (
@@ -418,5 +418,5 @@ func buildReleaseCheckKey(options UpdateOptions, remoteVersion string) string {
 }
 
 func compareVersions(local string, remote string) int {
-	return utils.CompareVersions(local, remote)
+	return util.CompareVersions(local, remote)
 }

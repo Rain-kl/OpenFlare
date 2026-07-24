@@ -135,7 +135,7 @@
 - `pkg/push/`：推送渠道客户端集成（Lark/Telegram/Email）。
 - `pkg/mail/`：邮件发送客户端。
 - `pkg/trace/`：OpenTelemetry 链路追踪配置。
-- `pkg/util/`：纯底层无副作用的系统工具（Crypto/Password/UUID）。
+- `pkg/util/`：纯底层无副作用的系统工具（Crypto/Password/UUID、格式化、网络、版本比较等）。
 
 前端目录：
 
