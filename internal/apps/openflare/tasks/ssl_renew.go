@@ -7,8 +7,9 @@ import (
 	"context"
 	"time"
 
+	"github.com/Rain-kl/Wavelet/internal/repository"
+
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/tls"
-	"github.com/Rain-kl/Wavelet/internal/model"
 	"github.com/Rain-kl/Wavelet/pkg/logger"
 )
 
@@ -16,7 +17,7 @@ import (
 func RunSSLRenewJob(ctx context.Context) error {
 	logger.InfoF(ctx, "[OpenFlareTasks] SSL renew job started")
 
-	certificates, err := model.ListTLSCertificates(ctx)
+	certificates, err := repository.ListTLSCertificates(ctx)
 	if err != nil {
 		logger.ErrorF(ctx, "[OpenFlareTasks] list certificates failed: %v", err)
 		return err

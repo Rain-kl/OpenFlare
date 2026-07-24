@@ -13,6 +13,8 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/Rain-kl/Wavelet/internal/repository"
+
 	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"github.com/Rain-kl/Wavelet/internal/shared/response"
@@ -165,7 +167,7 @@ func TestReplaceSiteRuleGroupsPreservesOrderAndRejectsGlobal(t *testing.T) {
 	assert.Equal(t, []uint{third.ID, first.ID, second.ID}, view.AppliedIDs)
 
 	require.NoError(t, EnsureDefaultRuleGroup(ctx))
-	global, err := model.GetGlobalOpenFlareWAFRuleGroup(ctx)
+	global, err := repository.GetGlobalOpenFlareWAFRuleGroup(ctx)
 	require.NoError(t, err)
 	_, err = ReplaceSiteRuleGroups(ctx, 7, []uint{global.ID, second.ID})
 	require.Error(t, err)

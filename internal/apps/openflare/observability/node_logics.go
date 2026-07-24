@@ -10,6 +10,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Rain-kl/Wavelet/internal/repository"
+
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"gorm.io/gorm"
 )
@@ -94,7 +96,7 @@ type HealthEventCleanupResult struct {
 // GetNodeObservability returns observability details for a node.
 func GetNodeObservability(ctx context.Context, id uint, query NodeQuery) (*NodeView, error) {
 	now := time.Now()
-	node, err := model.GetOpenFlareNodeByID(ctx, id)
+	node, err := repository.GetOpenFlareNodeByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -105,7 +107,7 @@ func GetNodeObservability(ctx context.Context, id uint, query NodeQuery) (*NodeV
 	limit := normalizeObservabilityLimit(query.Limit)
 	since := now.Add(-normalizeObservabilityWindow(query.Hours))
 
-	profile, err := model.GetOpenFlareNodeSystemProfile(ctx, node.NodeID)
+	profile, err := repository.GetOpenFlareNodeSystemProfile(ctx, node.NodeID)
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, err
 	}
@@ -113,19 +115,19 @@ func GetNodeObservability(ctx context.Context, id uint, query NodeQuery) (*NodeV
 		profile = nil
 	}
 
-	snapshots, err := model.ListOpenFlareMetricSnapshotsSince(ctx, node.NodeID, since, limit)
+	snapshots, err := repository.ListOpenFlareMetricSnapshotsSince(ctx, node.NodeID, since, limit)
 	if err != nil {
 		return nil, err
 	}
-	edgeHealth, err := model.ListOpenFlareEdgeHealth(ctx, node.NodeID, since, limit)
+	edgeHealth, err := repository.ListOpenFlareEdgeHealth(ctx, node.NodeID, since, limit)
 	if err != nil {
 		return nil, err
 	}
-	accessLogRegions, err := model.ListOpenFlareAccessLogRegionCounts(ctx, node.NodeID, since, defaultTrafficDistributionLimit)
+	accessLogRegions, err := repository.ListOpenFlareAccessLogRegionCounts(ctx, node.NodeID, since, defaultTrafficDistributionLimit)
 	if err != nil {
 		return nil, err
 	}
-	events, err := model.ListOpenFlareHealthEvents(ctx, node.NodeID, false, limit)
+	events, err := repository.ListOpenFlareHealthEvents(ctx, node.NodeID, false, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -146,7 +148,7 @@ func GetNodeObservability(ctx context.Context, id uint, query NodeQuery) (*NodeV
 		Trends: BuildNodeTrends(ctx, now, node.NodeID, snapshots),
 	}
 	if node.NodeType == "tunnel_relay" {
-		frpsObs, frpsErr := model.ListOpenFlareNodeObservationFrps(ctx, node.NodeID, time.Time{}, 1)
+		frpsObs, frpsErr := repository.ListOpenFlareNodeObservationFrps(ctx, node.NodeID, time.Time{}, 1)
 		if frpsErr != nil {
 			return nil, frpsErr
 		}
@@ -187,11 +189,11 @@ func setCachedNodeObservability(nodeID string, view *NodeView) {
 
 // CleanupHealthEvents removes all health events for a node.
 func CleanupHealthEvents(ctx context.Context, id uint) (*HealthEventCleanupResult, error) {
-	node, err := model.GetOpenFlareNodeByID(ctx, id)
+	node, err := repository.GetOpenFlareNodeByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
-	deletedCount, err := model.DeleteOpenFlareHealthEventsByNodeID(ctx, node.NodeID)
+	deletedCount, err := repository.DeleteOpenFlareHealthEventsByNodeID(ctx, node.NodeID)
 	if err != nil {
 		return nil, err
 	}

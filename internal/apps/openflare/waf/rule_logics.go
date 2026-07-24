@@ -11,6 +11,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Rain-kl/Wavelet/internal/repository"
+
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"gorm.io/gorm"
 )
@@ -57,7 +59,7 @@ func ListRules(ctx context.Context) ([]RuleView, error) {
 	if err := EnsureDefaultRuleGroup(ctx); err != nil {
 		return nil, err
 	}
-	groups, err := model.ListOpenFlareWAFRuleGroups(ctx)
+	groups, err := repository.ListOpenFlareWAFRuleGroups(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -78,7 +80,7 @@ func ListRules(ctx context.Context) ([]RuleView, error) {
 
 // GetRule returns one orchestrated WAF rule.
 func GetRule(ctx context.Context, id uint) (*RuleView, error) {
-	group, err := model.GetOpenFlareWAFRuleGroupByID(ctx, id)
+	group, err := repository.GetOpenFlareWAFRuleGroupByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -101,13 +103,13 @@ func CreateRule(ctx context.Context, input CreateRuleInput) (*RuleView, error) {
 		return nil, err
 	}
 	group := &model.OpenFlareWAFRuleGroup{Name: name, Enabled: false, IsGlobal: false, Graph: string(raw), Revision: 1}
-	if err = model.CreateOpenFlareWAFRuleGroup(ctx, group); err != nil {
+	if err = repository.CreateOpenFlareWAFRuleGroup(ctx, group); err != nil {
 		return nil, err
 	}
 	// GORM applies the model's database default to a false bool on Create, so
 	// explicitly persist the safe disabled state after the row has an ID.
 	group.Enabled = false
-	if err = model.UpdateOpenFlareWAFRuleGroup(ctx, group); err != nil {
+	if err = repository.UpdateOpenFlareWAFRuleGroup(ctx, group); err != nil {
 		return nil, err
 	}
 	return GetRule(ctx, group.ID)
@@ -115,7 +117,7 @@ func CreateRule(ctx context.Context, input CreateRuleInput) (*RuleView, error) {
 
 // UpdateRuleMeta updates rule metadata without touching its graph revision.
 func UpdateRuleMeta(ctx context.Context, id uint, input UpdateRuleMetaInput) (*RuleView, error) {
-	group, err := model.GetOpenFlareWAFRuleGroupByID(ctx, id)
+	group, err := repository.GetOpenFlareWAFRuleGroupByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -124,7 +126,7 @@ func UpdateRuleMeta(ctx context.Context, id uint, input UpdateRuleMetaInput) (*R
 		return nil, &RuleValidationError{Err: errors.New("WAF 规则名称不能为空")}
 	}
 	group.Name, group.Enabled = name, input.Enabled
-	if err = model.UpdateOpenFlareWAFRuleGroup(ctx, group); err != nil {
+	if err = repository.UpdateOpenFlareWAFRuleGroup(ctx, group); err != nil {
 		return nil, err
 	}
 	return GetRule(ctx, id)
@@ -132,19 +134,19 @@ func UpdateRuleMeta(ctx context.Context, id uint, input UpdateRuleMetaInput) (*R
 
 // DeleteRuleGroup deletes a non-global orchestrated WAF rule.
 func DeleteRuleGroup(ctx context.Context, id uint) error {
-	group, err := model.GetOpenFlareWAFRuleGroupByID(ctx, id)
+	group, err := repository.GetOpenFlareWAFRuleGroupByID(ctx, id)
 	if err != nil {
 		return err
 	}
 	if group.IsGlobal {
 		return &RuleValidationError{Err: errors.New("全局 WAF 规则不能删除")}
 	}
-	return model.DeleteOpenFlareWAFRuleGroupWithBindings(ctx, id)
+	return repository.DeleteOpenFlareWAFRuleGroupWithBindings(ctx, id)
 }
 
 // SaveRuleGraph validates and atomically replaces a rule graph.
 func SaveRuleGraph(ctx context.Context, id uint, input SaveRuleGraphInput) (*RuleView, error) {
-	if _, err := model.GetOpenFlareWAFRuleGroupByID(ctx, id); err != nil {
+	if _, err := repository.GetOpenFlareWAFRuleGroupByID(ctx, id); err != nil {
 		return nil, err
 	}
 	if err := ValidateRuleGraph(ctx, input.Graph, ruleIPGroupExists); err != nil {
@@ -154,14 +156,14 @@ func SaveRuleGraph(ctx context.Context, id uint, input SaveRuleGraphInput) (*Rul
 	if err != nil {
 		return nil, err
 	}
-	if _, err = model.UpdateOpenFlareWAFRuleGraph(ctx, id, input.Revision, string(raw)); err != nil {
+	if _, err = repository.UpdateOpenFlareWAFRuleGraph(ctx, id, input.Revision, string(raw)); err != nil {
 		return nil, err
 	}
 	return GetRule(ctx, id)
 }
 
 func ruleIPGroupExists(ctx context.Context, id uint) (bool, error) {
-	_, err := model.GetOpenFlareWAFIPGroupByID(ctx, id)
+	_, err := repository.GetOpenFlareWAFIPGroupByID(ctx, id)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return false, nil
 	}

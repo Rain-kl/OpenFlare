@@ -6,14 +6,13 @@ package ingest
 import (
 	"context"
 
+	"gorm.io/gorm"
+
 	uploadcache "github.com/Rain-kl/Wavelet/internal/apps/upload/cache"
 	"github.com/Rain-kl/Wavelet/internal/apps/upload/shared"
 	uploadstats "github.com/Rain-kl/Wavelet/internal/apps/upload/stats"
-	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"github.com/Rain-kl/Wavelet/internal/repository"
-	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
 
 // Remove soft-deletes an ordinary upload and decrements incremental stats once.
@@ -36,20 +35,23 @@ func RemoveOwned(ctx context.Context, userID, uploadID uint64) (model.Upload, er
 
 func remove(ctx context.Context, userID, uploadID uint64, owned bool) (model.Upload, error) {
 	var upload model.Upload
-	if err := db.DB(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
-			Where("id = ?", uploadID).
-			First(&upload).Error; err != nil {
+	// Multi-step: FOR UPDATE lock + ownership/type checks + soft-delete + stats delta.
+	if err := repository.RunInTransaction(ctx, func(tx *gorm.DB) error {
+		locked, err := repository.GetUploadByIDForUpdateTx(tx, uploadID)
+		if err != nil {
 			return err
 		}
-		if owned && upload.UserID != userID {
+		if owned && locked.UserID != userID {
 			return ErrForbidden
 		}
-		if upload.Type == shared.ReservedPagesDeploymentType {
+		if locked.Type == shared.ReservedPagesDeploymentType {
 			return ErrReservedUploadType
 		}
-		_, err := RemoveLockedTx(tx, &upload)
-		return err
+		if _, err := RemoveLockedTx(tx, &locked); err != nil {
+			return err
+		}
+		upload = locked
+		return nil
 	}); err != nil {
 		return model.Upload{}, err
 	}

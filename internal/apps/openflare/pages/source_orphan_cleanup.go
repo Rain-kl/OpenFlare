@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/Rain-kl/Wavelet/internal/apps/upload"
-	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"github.com/Rain-kl/Wavelet/internal/repository"
 	"github.com/Rain-kl/Wavelet/pkg/logger"
@@ -62,7 +61,7 @@ func ReconcilePagesOrphanUploads(
 	}
 	cutoff := now.UTC().Add(-pagesOrphanUploadIsolation)
 	systemUser := repository.GetSystemUser(ctx)
-	candidates, err := model.ListPagesOrphanUploadCandidates(ctx, model.PagesOrphanUploadCandidateQuery{
+	candidates, err := repository.ListPagesOrphanUploadCandidates(ctx, model.PagesOrphanUploadCandidateQuery{
 		SystemUserID:  systemUser.ID,
 		UploadType:    upload.ReservedPagesDeploymentType,
 		Marker:        pagesIngestMarkerV2,
@@ -130,7 +129,7 @@ func reconcilePagesOrphanUploadCandidate(
 
 	outcome := pagesOrphanCleanupSkipped
 	uploadLocked := false
-	err := db.DB(ctx).Transaction(func(tx *gorm.DB) error {
+	err := repository.WithPagesTx(ctx, func(tx *gorm.DB) error {
 		scopeOutcome, proceed, err := lockPagesOrphanCleanupScope(ctx, tx, candidate.ID, marker)
 		if err != nil {
 			return err
@@ -179,13 +178,12 @@ func lockPagesOrphanCleanupScope(
 		return pagesOrphanCleanupSkipped, true, nil
 	}
 
-	var source model.PagesProjectSource
-	sourceExists, err := lockOptionalPagesCleanupRecord(tx, &source, "id = ?", *marker.SourceID)
+	source, err := repository.LockPagesProjectSourceByIDTx(tx, *marker.SourceID)
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return pagesOrphanCleanupSkipped, true, nil
+	}
 	if err != nil {
 		return pagesOrphanCleanupSkipped, false, err
-	}
-	if !sourceExists {
-		return pagesOrphanCleanupSkipped, true, nil
 	}
 	if source.ProjectID != marker.ProjectID {
 		logger.WarnF(ctx,
@@ -198,15 +196,14 @@ func lockPagesOrphanCleanupScope(
 		return pagesOrphanCleanupInvalidMarker, false, nil
 	}
 
-	var runtime model.PagesProjectSourceRuntime
-	runtimeExists, err := lockOptionalPagesCleanupRecord(tx, &runtime, "source_id = ?", source.ID)
-	if err != nil {
+	runtime, err := repository.LockPagesProjectSourceRuntimeBySourceIDTx(tx, source.ID)
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		return pagesOrphanCleanupSkipped, false, err
 	}
 	// Read the real clock only after obtaining the runtime row lock. The scanner
 	// snapshot time is only an isolation cutoff and may be stale after lock wait.
 	leaseCheckedAt := time.Now()
-	if runtimeExists && runtime.LeaseExpiresAt != nil && runtime.LeaseExpiresAt.After(leaseCheckedAt) {
+	if err == nil && runtime.LeaseExpiresAt != nil && runtime.LeaseExpiresAt.After(leaseCheckedAt) {
 		return pagesOrphanCleanupLeaseBusy, false, nil
 	}
 	return pagesOrphanCleanupSkipped, true, nil

@@ -17,6 +17,8 @@ import (
 	"strings"
 	"unicode"
 
+	"github.com/Rain-kl/Wavelet/internal/repository"
+
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"gorm.io/gorm"
 )
@@ -195,7 +197,7 @@ func getOrCreateOriginByAddress(ctx context.Context, address string) (*model.Ori
 	if err := validateOriginAddress(normalizedAddress); err != nil {
 		return nil, err
 	}
-	existing, err := model.GetOriginByAddress(ctx, normalizedAddress)
+	existing, err := repository.GetOriginByAddress(ctx, normalizedAddress)
 	if err == nil {
 		return existing, nil
 	}
@@ -207,9 +209,9 @@ func getOrCreateOriginByAddress(ctx context.Context, address string) (*model.Ori
 		Address: normalizedAddress,
 		Remark:  "",
 	}
-	if err := model.CreateOriginRecord(ctx, origin); err != nil {
+	if err := repository.CreateOriginRecord(ctx, origin); err != nil {
 		if isUniqueConstraintError(err) {
-			return model.GetOriginByAddress(ctx, normalizedAddress)
+			return repository.GetOriginByAddress(ctx, normalizedAddress)
 		}
 		return nil, err
 	}
@@ -217,15 +219,15 @@ func getOrCreateOriginByAddress(ctx context.Context, address string) (*model.Ori
 }
 
 func lookupTLSCertificateByID(ctx context.Context, id uint) (*model.TLSCertificate, error) {
-	return model.GetTLSCertificateByID(ctx, id)
+	return repository.GetTLSCertificateByID(ctx, id)
 }
 
 func lookupTunnelNodeByID(ctx context.Context, id uint) (*model.OpenFlareNode, error) {
-	return model.GetOpenFlareNodeByID(ctx, id)
+	return repository.GetOpenFlareNodeByID(ctx, id)
 }
 
 func lookupPagesProjectByID(ctx context.Context, id uint) (*model.PagesProject, error) {
-	return model.GetPagesProjectByID(ctx, id)
+	return repository.GetPagesProjectByID(ctx, id)
 }
 
 func parseLeafCertificate(certPEM string) (*x509.Certificate, error) {
@@ -270,7 +272,7 @@ func loadProxyRouteZoneDomains(ctx context.Context, ids []uint) ([]model.ZoneDom
 		}
 		seen[id] = struct{}{}
 	}
-	domains, err := model.ListZoneDomainsByIDs(ctx, ids)
+	domains, err := repository.ListZoneDomainsByIDs(ctx, ids)
 	if err != nil {
 		return nil, errors.New(errProxyRouteZoneDomainNotFound)
 	}
@@ -285,7 +287,7 @@ func validateProxyRouteSiteName(siteName string) error {
 }
 
 func validateProxyRouteSiteNameUniqueness(ctx context.Context, route *model.ProxyRoute, siteName string) error {
-	routes, err := model.ListProxyRoutes(ctx)
+	routes, err := repository.ListProxyRoutes(ctx)
 	if err != nil {
 		return err
 	}

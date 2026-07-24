@@ -9,11 +9,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Rain-kl/Wavelet/internal/repository"
+
 	ofgeoip "github.com/Rain-kl/Wavelet/internal/apps/openflare/geoip"
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/node"
-	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/model"
-	"gorm.io/gorm"
 )
 
 // RegisterWithAccessToken registers an agent on a reserved node token.
@@ -27,7 +27,7 @@ func RegisterWithAccessToken(ctx context.Context, authNode *model.OpenFlareNode,
 		return nil, err
 	}
 	applyNodeRuntime(ctx, authNode, payload, true)
-	if err := model.SaveOpenFlareNode(ctx, authNode); err != nil {
+	if err := repository.SaveOpenFlareNode(ctx, authNode); err != nil {
 		return nil, err
 	}
 	RefreshAccessTokenCache(ctx, authNode)
@@ -71,7 +71,7 @@ func RegisterWithDiscovery(ctx context.Context, payload NodePayload) (*Registrat
 	}
 	applyNodeRuntime(ctx, record, payload, false)
 
-	if err = model.CreateOpenFlareNode(ctx, record); err != nil {
+	if err = repository.CreateOpenFlareNode(ctx, record); err != nil {
 		if isUniqueConstraintError(err) {
 			return nil, errors.New(errNodeIDConflict)
 		}
@@ -115,7 +115,7 @@ func HeartbeatNode(ctx context.Context, authNode *model.OpenFlareNode, payload N
 		for field := range changes {
 			fields = append(fields, field)
 		}
-		if err := model.UpdateOpenFlareNodeFields(ctx, authNode, fields...); err != nil {
+		if err := repository.UpdateOpenFlareNodeFields(ctx, authNode, fields...); err != nil {
 			return nil, err
 		}
 	}
@@ -181,12 +181,12 @@ func ReportApplyLog(ctx context.Context, payload ApplyLogPayload) (*model.OpenFl
 		return nil, errors.New(errInvalidApplyResult)
 	}
 
-	latest, err := model.GetLatestOpenFlareApplyLogByNodeID(ctx, payload.NodeID)
+	latest, err := repository.GetLatestOpenFlareApplyLogByNodeID(ctx, payload.NodeID)
 	if err != nil {
 		return nil, err
 	}
 	if model.IsRepeatSuccessApplyLog(latest, payload.Version, payload.Checksum, payload.Result) {
-		if err := updateNodeFromApplyLog(ctx, payload, now); err != nil {
+		if err := repository.UpdateOpenFlareNodeFromApplyResult(ctx, payload.NodeID, payload.Result, payload.Version, payload.Message, now); err != nil {
 			return nil, err
 		}
 		return latest, nil
@@ -204,47 +204,10 @@ func ReportApplyLog(ctx context.Context, payload ApplyLogPayload) (*model.OpenFl
 		CreatedAt:           now,
 	}
 
-	conn := db.DB(ctx)
-	if conn == nil {
-		return nil, errors.New("database not initialized")
-	}
-
-	err = conn.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Create(log).Error; err != nil {
-			return err
-		}
-		return updateNodeFromApplyLogTx(tx, payload, now)
-	})
-	if err != nil {
+	if err := repository.CreateOpenFlareApplyLogAndUpdateNode(ctx, log, payload.Result, payload.Version, payload.Message); err != nil {
 		return nil, err
 	}
 	return log, nil
-}
-
-func updateNodeFromApplyLog(ctx context.Context, payload ApplyLogPayload, now time.Time) error {
-	conn := db.DB(ctx)
-	if conn == nil {
-		return errors.New("database not initialized")
-	}
-	return conn.Transaction(func(tx *gorm.DB) error {
-		return updateNodeFromApplyLogTx(tx, payload, now)
-	})
-}
-
-func updateNodeFromApplyLogTx(tx *gorm.DB, payload ApplyLogPayload, now time.Time) error {
-	record := &model.OpenFlareNode{}
-	if err := tx.Where("node_id = ?", payload.NodeID).First(record).Error; err != nil {
-		return err
-	}
-	record.Status = nodeStatusOnline
-	record.LastSeenAt = &now
-	if payload.Result == applyResultOK {
-		record.CurrentVersion = payload.Version
-		record.LastError = ""
-	} else {
-		record.LastError = payload.Message
-	}
-	return tx.Model(record).Select("status", "last_seen_at", "current_version", "last_error").Updates(record).Error
 }
 
 // ValidateDiscoveryToken delegates to the node package discovery token helper.

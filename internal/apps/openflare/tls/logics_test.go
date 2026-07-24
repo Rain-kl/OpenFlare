@@ -16,6 +16,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Rain-kl/Wavelet/internal/repository"
+
 	"github.com/Rain-kl/Wavelet/internal/infra/config"
 	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/infra/task"
@@ -123,7 +125,7 @@ func TestCreateCertificateEncryptsPrivateKey(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	stored, err := model.GetTLSCertificateByID(ctx, certificate.ID)
+	stored, err := repository.GetTLSCertificateByID(ctx, certificate.ID)
 	require.NoError(t, err)
 	assert.NotEqual(t, keyPEM, stored.KeyPEM)
 	assert.Contains(t, stored.KeyPEM, sensitiveValuePrefix)

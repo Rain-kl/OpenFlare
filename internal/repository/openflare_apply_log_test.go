@@ -1,9 +1,11 @@
-package model
+package repository
 
 import (
 	"context"
 	"testing"
 	"time"
+
+	"github.com/Rain-kl/Wavelet/internal/model"
 
 	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/glebarez/sqlite"
@@ -19,7 +21,7 @@ func setupApplyLogModelTestDB(t *testing.T) func() {
 		DisableForeignKeyConstraintWhenMigrating: true,
 	})
 	require.NoError(t, err)
-	require.NoError(t, sqliteDB.AutoMigrate(&OpenFlareApplyLog{}))
+	require.NoError(t, sqliteDB.AutoMigrate(&model.OpenFlareApplyLog{}))
 
 	db.SetDB(sqliteDB)
 	return func() {
@@ -28,17 +30,17 @@ func setupApplyLogModelTestDB(t *testing.T) func() {
 }
 
 func TestIsRepeatSuccessApplyLog(t *testing.T) {
-	latest := &OpenFlareApplyLog{
+	latest := &model.OpenFlareApplyLog{
 		Version:  "20260615-001",
 		Checksum: "checksum-a",
 		Result:   "success",
 	}
 
-	assert.True(t, IsRepeatSuccessApplyLog(latest, "20260615-001", "checksum-a", "success"))
-	assert.False(t, IsRepeatSuccessApplyLog(latest, "20260615-002", "checksum-a", "success"))
-	assert.False(t, IsRepeatSuccessApplyLog(latest, "20260615-001", "checksum-b", "success"))
-	assert.False(t, IsRepeatSuccessApplyLog(latest, "20260615-001", "checksum-a", "failed"))
-	assert.False(t, IsRepeatSuccessApplyLog(nil, "20260615-001", "checksum-a", "success"))
+	assert.True(t, model.IsRepeatSuccessApplyLog(latest, "20260615-001", "checksum-a", "success"))
+	assert.False(t, model.IsRepeatSuccessApplyLog(latest, "20260615-002", "checksum-a", "success"))
+	assert.False(t, model.IsRepeatSuccessApplyLog(latest, "20260615-001", "checksum-b", "success"))
+	assert.False(t, model.IsRepeatSuccessApplyLog(latest, "20260615-001", "checksum-a", "failed"))
+	assert.False(t, model.IsRepeatSuccessApplyLog(nil, "20260615-001", "checksum-a", "success"))
 }
 
 func TestGetLatestOpenFlareApplyLogByNodeID(t *testing.T) {
@@ -47,14 +49,14 @@ func TestGetLatestOpenFlareApplyLogByNodeID(t *testing.T) {
 
 	ctx := context.Background()
 	now := time.Now().UTC()
-	require.NoError(t, db.DB(ctx).Create(&OpenFlareApplyLog{
+	require.NoError(t, db.DB(ctx).Create(&model.OpenFlareApplyLog{
 		NodeID:    "node-1",
 		Version:   "v1",
 		Result:    "success",
 		Checksum:  "checksum-1",
 		CreatedAt: now.Add(-time.Hour),
 	}).Error)
-	require.NoError(t, db.DB(ctx).Create(&OpenFlareApplyLog{
+	require.NoError(t, db.DB(ctx).Create(&model.OpenFlareApplyLog{
 		NodeID:    "node-1",
 		Version:   "v2",
 		Result:    "success",

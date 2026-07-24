@@ -8,6 +8,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Rain-kl/Wavelet/internal/repository"
+
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/tls"
 	"github.com/Rain-kl/Wavelet/internal/infra/config"
 	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
@@ -70,16 +72,16 @@ func TestRunSSLRenewJobTriggersDueCertificates(t *testing.T) {
 		KeyPEM:        " ",
 		NotAfter:      now.Add(30 * 24 * time.Hour),
 	}
-	require.NoError(t, model.CreateTLSCertificateRecord(ctx, due))
-	require.NoError(t, model.CreateTLSCertificateRecord(ctx, fresh))
+	require.NoError(t, repository.CreateTLSCertificateRecord(ctx, due))
+	require.NoError(t, repository.CreateTLSCertificateRecord(ctx, fresh))
 
 	require.NoError(t, RunSSLRenewJob(ctx))
 
-	renewed, err := model.GetTLSCertificateByID(ctx, due.ID)
+	renewed, err := repository.GetTLSCertificateByID(ctx, due.ID)
 	require.NoError(t, err)
 	assert.Equal(t, "applying", renewed.ApplyStatus)
 
-	unchanged, err := model.GetTLSCertificateByID(ctx, fresh.ID)
+	unchanged, err := repository.GetTLSCertificateByID(ctx, fresh.ID)
 	require.NoError(t, err)
 	assert.Equal(t, "ready", unchanged.ApplyStatus)
 }

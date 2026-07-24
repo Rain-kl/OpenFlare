@@ -14,6 +14,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Rain-kl/Wavelet/internal/repository"
+
 	"github.com/Rain-kl/Wavelet/internal/model"
 
 	exprlang "github.com/expr-lang/expr"
@@ -141,7 +143,7 @@ type ipGroupExtIP struct {
 
 // GetSiteRuleGroups returns WAF rule groups for a proxy route.
 func GetSiteRuleGroups(ctx context.Context, routeID uint) (*SiteRuleGroupsView, error) {
-	if _, err := model.GetOpenFlareProxyRouteByID(ctx, routeID); err != nil {
+	if _, err := repository.GetOpenFlareProxyRouteByID(ctx, routeID); err != nil {
 		return nil, err
 	}
 	groups, err := ListRules(ctx)
@@ -182,14 +184,14 @@ func GetSiteRuleGroups(ctx context.Context, routeID uint) (*SiteRuleGroupsView, 
 
 // ReplaceSiteRuleGroups replaces rule group bindings for a proxy route.
 func ReplaceSiteRuleGroups(ctx context.Context, routeID uint, groupIDs []uint) (*SiteRuleGroupsView, error) {
-	if _, err := model.GetOpenFlareProxyRouteByID(ctx, routeID); err != nil {
+	if _, err := repository.GetOpenFlareProxyRouteByID(ctx, routeID); err != nil {
 		return nil, err
 	}
 	normalized, err := normalizeRuleGroupIDs(ctx, groupIDs)
 	if err != nil {
 		return nil, &RuleValidationError{Err: err}
 	}
-	if err = model.ReplaceOpenFlareWAFSiteRuleGroupBindings(ctx, routeID, normalized); err != nil {
+	if err = repository.ReplaceOpenFlareWAFSiteRuleGroupBindings(ctx, routeID, normalized); err != nil {
 		return nil, err
 	}
 	return GetSiteRuleGroups(ctx, routeID)
@@ -197,7 +199,7 @@ func ReplaceSiteRuleGroups(ctx context.Context, routeID uint, groupIDs []uint) (
 
 // ListSiteRuleGroupIDs returns rule group ids bound to a proxy route.
 func ListSiteRuleGroupIDs(ctx context.Context, routeID uint) ([]uint, error) {
-	bindings, err := model.ListOpenFlareWAFRuleGroupBindingsByRouteID(ctx, routeID)
+	bindings, err := repository.ListOpenFlareWAFRuleGroupBindingsByRouteID(ctx, routeID)
 	if err != nil {
 		return nil, err
 	}
@@ -210,7 +212,7 @@ func ListSiteRuleGroupIDs(ctx context.Context, routeID uint) ([]uint, error) {
 
 // EnsureDefaultRuleGroup ensures the global WAF rule group exists.
 func EnsureDefaultRuleGroup(ctx context.Context) error {
-	_, err := model.GetGlobalOpenFlareWAFRuleGroup(ctx)
+	_, err := repository.GetGlobalOpenFlareWAFRuleGroup(ctx)
 	if err == nil {
 		return nil
 	}
@@ -224,12 +226,12 @@ func EnsureDefaultRuleGroup(ctx context.Context) error {
 	group := &model.OpenFlareWAFRuleGroup{
 		Name: "全局规则组", Enabled: true, IsGlobal: true, Graph: string(graph), Revision: 1,
 	}
-	return model.CreateOpenFlareWAFRuleGroup(ctx, group)
+	return repository.CreateOpenFlareWAFRuleGroup(ctx, group)
 }
 
 // ListIPGroups returns all WAF IP groups.
 func ListIPGroups(ctx context.Context) ([]IPGroupView, error) {
-	groups, err := model.ListOpenFlareWAFIPGroups(ctx)
+	groups, err := repository.ListOpenFlareWAFIPGroups(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -250,7 +252,7 @@ func ListIPGroups(ctx context.Context) ([]IPGroupView, error) {
 
 // GetIPGroup returns a WAF IP group by id.
 func GetIPGroup(ctx context.Context, id uint) (*IPGroupView, error) {
-	group, err := model.GetOpenFlareWAFIPGroupByID(ctx, id)
+	group, err := repository.GetOpenFlareWAFIPGroupByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -271,7 +273,7 @@ func CreateIPGroup(ctx context.Context, input IPGroupInput) (*IPGroupView, error
 	if err != nil {
 		return nil, &RuleValidationError{Err: err}
 	}
-	if err = model.CreateOpenFlareWAFIPGroup(ctx, group); err != nil {
+	if err = repository.CreateOpenFlareWAFIPGroup(ctx, group); err != nil {
 		return nil, err
 	}
 	broadcastIPGroupToAgents(ctx, group.ID)
@@ -280,7 +282,7 @@ func CreateIPGroup(ctx context.Context, input IPGroupInput) (*IPGroupView, error
 
 // UpdateIPGroup updates a WAF IP group.
 func UpdateIPGroup(ctx context.Context, id uint, input IPGroupInput) (*IPGroupView, error) {
-	group, err := model.GetOpenFlareWAFIPGroupByID(ctx, id)
+	group, err := repository.GetOpenFlareWAFIPGroupByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -288,7 +290,7 @@ func UpdateIPGroup(ctx context.Context, id uint, input IPGroupInput) (*IPGroupVi
 	if err != nil {
 		return nil, &RuleValidationError{Err: err}
 	}
-	if err = model.UpdateOpenFlareWAFIPGroup(ctx, group); err != nil {
+	if err = repository.UpdateOpenFlareWAFIPGroup(ctx, group); err != nil {
 		return nil, err
 	}
 	broadcastIPGroupToAgents(ctx, group.ID)
@@ -297,7 +299,7 @@ func UpdateIPGroup(ctx context.Context, id uint, input IPGroupInput) (*IPGroupVi
 
 // DeleteIPGroup deletes a WAF IP group when not referenced.
 func DeleteIPGroup(ctx context.Context, id uint) error {
-	group, err := model.GetOpenFlareWAFIPGroupByID(ctx, id)
+	group, err := repository.GetOpenFlareWAFIPGroupByID(ctx, id)
 	if err != nil {
 		return err
 	}
@@ -308,12 +310,12 @@ func DeleteIPGroup(ctx context.Context, id uint) error {
 	if counts[group.ID] > 0 {
 		return &RuleValidationError{Err: errors.New("IP 组已被 WAF 规则引用，请先移除引用")}
 	}
-	return model.DeleteOpenFlareWAFIPGroup(ctx, group.ID)
+	return repository.DeleteOpenFlareWAFIPGroup(ctx, group.ID)
 }
 
 // SyncIPGroup synchronizes a subscription or automatic WAF IP group.
 func SyncIPGroup(ctx context.Context, id uint) (*IPGroupSyncResult, error) {
-	group, err := model.GetOpenFlareWAFIPGroupByID(ctx, id)
+	group, err := repository.GetOpenFlareWAFIPGroupByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -341,7 +343,7 @@ func TestIPGroupAutoConfig(ctx context.Context, input IPGroupAutoTestInput) (*IP
 }
 
 func loadRuleGroupBindings(ctx context.Context) (map[uint][]uint, error) {
-	bindings, err := model.ListOpenFlareWAFRuleGroupBindings(ctx)
+	bindings, err := repository.ListOpenFlareWAFRuleGroupBindings(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -353,7 +355,7 @@ func loadRuleGroupBindings(ctx context.Context) (map[uint][]uint, error) {
 }
 
 func loadIPGroupReferenceCounts(ctx context.Context) (map[uint]int, error) {
-	groups, err := model.ListOpenFlareWAFRuleGroups(ctx)
+	groups, err := repository.ListOpenFlareWAFRuleGroups(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -442,7 +444,7 @@ func decodeStringList(raw string) ([]string, error) {
 func normalizeRuleGroupIDs(ctx context.Context, groupIDs []uint) ([]uint, error) {
 	normalized := uniqueUintIDsInOrder(groupIDs)
 	for _, groupID := range normalized {
-		group, err := model.GetOpenFlareWAFRuleGroupByID(ctx, groupID)
+		group, err := repository.GetOpenFlareWAFRuleGroupByID(ctx, groupID)
 		if err != nil {
 			return nil, fmt.Errorf("WAF 规则组 %d 不存在", groupID)
 		}

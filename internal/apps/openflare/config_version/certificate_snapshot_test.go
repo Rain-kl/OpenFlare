@@ -15,6 +15,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Rain-kl/Wavelet/internal/repository"
+
 	oftls "github.com/Rain-kl/Wavelet/internal/apps/openflare/tls"
 	"github.com/Rain-kl/Wavelet/internal/infra/config"
 	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
@@ -76,7 +78,7 @@ func TestBuildSnapshotReadsZoneDomainCertificates(t *testing.T) {
 	require.NoError(t, err)
 
 	route := &model.ProxyRoute{SiteName: "tls-site", OriginURL: "http://origin:8080", Upstreams: `["http://origin:8080"]`, Enabled: true, EnableHTTPS: true}
-	require.NoError(t, model.CreateProxyRouteRecord(ctx, route))
+	require.NoError(t, repository.CreateProxyRouteRecord(ctx, route))
 	zone := &model.Zone{Domain: "example.com"}
 	require.NoError(t, db.DB(ctx).Create(zone).Error)
 	require.NoError(t, db.DB(ctx).Create(&model.ZoneDomain{ZoneID: zone.ID, ProxyRouteID: &route.ID, Domain: "one.example.com", CertID: &first.ID}).Error)

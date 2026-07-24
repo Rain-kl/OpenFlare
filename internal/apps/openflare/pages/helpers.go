@@ -19,7 +19,6 @@ import (
 	"strings"
 
 	"github.com/Rain-kl/Wavelet/internal/apps/upload"
-	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"github.com/Rain-kl/Wavelet/internal/repository"
 	"github.com/Rain-kl/Wavelet/pkg/logger"
@@ -325,11 +324,10 @@ func removePagesUploadIfUnreferenced(ctx context.Context, projectID uint, upload
 	if uploadID == 0 {
 		return nil
 	}
-	err := db.DB(ctx).Transaction(func(tx *gorm.DB) error {
+	err := repository.WithPagesTx(ctx, func(tx *gorm.DB) error {
 		if projectID != 0 {
-			var project model.PagesProject
-			projectErr := tx.Clauses(clause.Locking{Strength: pagesRowLockStrength}).First(&project, projectID).Error
-			if projectErr != nil && !errors.Is(projectErr, gorm.ErrRecordNotFound) {
+			if _, projectErr := repository.LockPagesProjectByIDTx(tx, projectID); projectErr != nil &&
+				!errors.Is(projectErr, gorm.ErrRecordNotFound) {
 				return projectErr
 			}
 		}

@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Rain-kl/Wavelet/internal/repository"
+
 	"github.com/Rain-kl/Wavelet/internal/model"
 	analyticsrepo "github.com/Rain-kl/Wavelet/internal/repository/analytics"
 	"github.com/Rain-kl/Wavelet/pkg/logger"
@@ -309,7 +311,7 @@ func GetAccessLogOverview(ctx context.Context, input AccessLogOverviewQuery) (*A
 		Until:  now,
 	}
 
-	summaryRow, err := model.TrafficSummaryOpenFlareAccessLogs(ctx, query)
+	summaryRow, err := repository.TrafficSummaryOpenFlareAccessLogs(ctx, query)
 	if err != nil {
 		return nil, err
 	}
@@ -408,7 +410,7 @@ func valueCountDistribution(
 	column string,
 	limit int,
 ) []DistributionItem {
-	rows, err := model.ValueCountsOpenFlareAccessLogs(ctx, query, column, limit)
+	rows, err := repository.ValueCountsOpenFlareAccessLogs(ctx, query, column, limit)
 	if err != nil {
 		logger.ErrorF(ctx, "[AccessLog] ValueCountsOpenFlareAccessLogs failed for column %s: %v", column, err)
 		return []DistributionItem{}
@@ -496,7 +498,7 @@ func buildAccessLogOverviewTrends(
 		bandwidth[index].BucketStartedAt = bucketAt
 	}
 
-	buckets, err := model.ListOpenFlareAccessLogBuckets(ctx, model.OpenFlareAccessLogBucketQuery{
+	buckets, err := repository.ListOpenFlareAccessLogBuckets(ctx, model.OpenFlareAccessLogBucketQuery{
 		NodeID:      query.NodeID,
 		Host:        query.Host,
 		Hosts:       query.Hosts,
@@ -532,11 +534,11 @@ func buildAccessLogOverviewTrends(
 func ListAccessLogs(ctx context.Context, input AccessLogQuery) (*AccessLogList, error) {
 	normalized := normalizeAccessLogQuery(input)
 	modelQuery := buildModelAccessLogQuery(normalized)
-	logs, err := model.ListOpenFlareAccessLogs(ctx, modelQuery)
+	logs, err := repository.ListOpenFlareAccessLogs(ctx, modelQuery)
 	if err != nil {
 		return nil, err
 	}
-	totalRecords, totalIPs, _, err := model.CountOpenFlareAccessLogs(ctx, modelQuery)
+	totalRecords, totalIPs, _, err := repository.CountOpenFlareAccessLogs(ctx, modelQuery)
 	if err != nil {
 		return nil, err
 	}
@@ -597,15 +599,15 @@ func ListFoldedAccessLogs(ctx context.Context, input AccessLogQuery) (*FoldedAcc
 		SortOrder:   normalized.SortOrder,
 		FoldMinutes: foldMinutes,
 	}
-	items, err := model.ListOpenFlareAccessLogBuckets(ctx, bucketQuery)
+	items, err := repository.ListOpenFlareAccessLogBuckets(ctx, bucketQuery)
 	if err != nil {
 		return nil, err
 	}
-	totalBuckets, err := model.CountOpenFlareAccessLogBuckets(ctx, bucketQuery)
+	totalBuckets, err := repository.CountOpenFlareAccessLogBuckets(ctx, bucketQuery)
 	if err != nil {
 		return nil, err
 	}
-	totalRecords, totalIPs, _, err := model.CountOpenFlareAccessLogs(ctx, modelQuery)
+	totalRecords, totalIPs, _, err := repository.CountOpenFlareAccessLogs(ctx, modelQuery)
 	if err != nil {
 		return nil, err
 	}
@@ -654,11 +656,11 @@ func ListFoldedAccessLogIPs(ctx context.Context, input FoldedAccessLogIPQuery) (
 		SortBy:          normalized.SortBy,
 		SortOrder:       normalized.SortOrder,
 	}
-	items, err := model.ListOpenFlareAccessLogBucketIPs(ctx, modelQuery)
+	items, err := repository.ListOpenFlareAccessLogBucketIPs(ctx, modelQuery)
 	if err != nil {
 		return nil, err
 	}
-	totalIP, err := model.CountOpenFlareAccessLogBucketIPs(ctx, modelQuery)
+	totalIP, err := repository.CountOpenFlareAccessLogBucketIPs(ctx, modelQuery)
 	if err != nil {
 		return nil, err
 	}
@@ -706,11 +708,11 @@ func ListAccessLogIPSummaries(ctx context.Context, input AccessLogIPSummaryQuery
 		SortBy:     normalized.SortBy,
 		SortOrder:  normalized.SortOrder,
 	}
-	items, err := model.ListOpenFlareAccessLogIPSummaries(ctx, query, time.Time{})
+	items, err := repository.ListOpenFlareAccessLogIPSummaries(ctx, query, time.Time{})
 	if err != nil {
 		return nil, err
 	}
-	totalIP, err := model.CountOpenFlareAccessLogIPSummaries(ctx, query)
+	totalIP, err := repository.CountOpenFlareAccessLogIPSummaries(ctx, query)
 	if err != nil {
 		return nil, err
 	}
@@ -751,7 +753,7 @@ func GetAccessLogIPTrend(ctx context.Context, input AccessLogIPTrendQuery) (*Acc
 	if err != nil {
 		return nil, err
 	}
-	points, err := model.ListOpenFlareAccessLogIPTrend(ctx, model.OpenFlareAccessLogIPTrendQuery{
+	points, err := repository.ListOpenFlareAccessLogIPTrend(ctx, model.OpenFlareAccessLogIPTrendQuery{
 		NodeID:        strings.TrimSpace(normalized.NodeID),
 		RemoteAddr:    strings.TrimSpace(normalized.RemoteAddr),
 		Host:          strings.TrimSpace(normalized.Host),
@@ -802,7 +804,7 @@ func GetAccessLogIPAnalysis(ctx context.Context, input AccessLogIPAnalysisQuery)
 		Until:      now,
 	}
 
-	summaryRow, err := model.TrafficSummaryOpenFlareAccessLogs(ctx, query)
+	summaryRow, err := repository.TrafficSummaryOpenFlareAccessLogs(ctx, query)
 	if err != nil {
 		return nil, err
 	}
@@ -868,7 +870,7 @@ func CleanupAccessLogs(ctx context.Context, input AccessLogCleanupInput) (*Acces
 		return nil, errors.New("retention_days 必须在 1 到 90 之间")
 	}
 	cutoff := time.Now().UTC().Add(-time.Duration(input.RetentionDays) * 24 * time.Hour)
-	deleted, err := model.DeleteOpenFlareAccessLogsBefore(ctx, cutoff)
+	deleted, err := repository.DeleteOpenFlareAccessLogsBefore(ctx, cutoff)
 	if err != nil {
 		return nil, err
 	}
@@ -913,7 +915,7 @@ func listNodeNameMap(ctx context.Context, logs []*model.OpenFlareAccessLog) (map
 	if len(nodeIDs) == 0 {
 		return map[string]string{}, nil
 	}
-	nodes, err := model.ListOpenFlareNodesByNodeIDs(ctx, nodeIDs)
+	nodes, err := repository.ListOpenFlareNodesByNodeIDs(ctx, nodeIDs)
 	if err != nil {
 		return nil, err
 	}

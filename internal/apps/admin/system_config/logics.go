@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/Rain-kl/Wavelet/internal/infra/objectstore"
-	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"github.com/Rain-kl/Wavelet/internal/repository"
 	"github.com/Rain-kl/Wavelet/pkg/logger"
@@ -72,7 +71,7 @@ func updateSystemConfig(ctx context.Context, key string, req UpdateSystemConfigR
 		req.Value = validatedVal
 	}
 
-	if err := db.DB(ctx).Transaction(func(tx *gorm.DB) error {
+	if err := repository.RunInTransaction(ctx, func(tx *gorm.DB) error {
 		updates := map[string]any{
 			"description": req.Description,
 		}
@@ -84,7 +83,7 @@ func updateSystemConfig(ctx context.Context, key string, req UpdateSystemConfigR
 			updates["value"] = req.Value
 			config.Value = req.Value
 		}
-		if err := tx.Model(&config).Updates(updates).Error; err != nil {
+		if err := repository.UpdateSystemConfigFieldsTx(tx, &config, updates); err != nil {
 			return err
 		}
 		resolveStorageMigrationTasksOnDirectDriverUpdate(ctx, tx, key, originalDriver, req.Value)
@@ -116,13 +115,12 @@ func resolveStorageMigrationTasksOnDirectDriverUpdate(
 		return
 	}
 
-	if err := tx.Model(&model.TaskExecution{}).
-		Where("task_type = ? AND status = ?", "storage:migrate", model.TaskExecutionStatusFailed).
-		Updates(map[string]any{
-			"status":      model.TaskExecutionStatusSucceeded,
-			"result":      "存储配置直接更新，故障迁移任务自动标记为已解决",
-			"finished_at": time.Now(),
-		}).Error; err != nil {
+	if err := repository.MarkFailedTaskExecutionsSucceededTx(
+		tx,
+		"storage:migrate",
+		"存储配置直接更新，故障迁移任务自动标记为已解决",
+		time.Now(),
+	); err != nil {
 		logger.ErrorF(ctx, "自动更新迁移任务状态失败: %v", err)
 	}
 }

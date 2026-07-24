@@ -1,11 +1,13 @@
 // Copyright 2026 Arctel.net
 // SPDX-License-Identifier: Apache-2.0
 
-package model
+package repository
 
 import (
 	"context"
 	"testing"
+
+	"github.com/Rain-kl/Wavelet/internal/model"
 
 	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/glebarez/sqlite"
@@ -21,7 +23,7 @@ func setupWAFBindingsTestDB(t *testing.T) func() {
 		DisableForeignKeyConstraintWhenMigrating: true,
 	})
 	require.NoError(t, err)
-	require.NoError(t, sqliteDB.AutoMigrate(&OpenFlareWAFRuleGroupBinding{}))
+	require.NoError(t, sqliteDB.AutoMigrate(&model.OpenFlareWAFRuleGroupBinding{}))
 
 	db.SetDB(sqliteDB)
 	return func() {
@@ -36,7 +38,7 @@ func TestReplaceOpenFlareWAFRuleGroupBindingsAfterExplicitHighID(t *testing.T) {
 
 	conn := db.DB(ctx)
 	require.NotNil(t, conn)
-	require.NoError(t, conn.Create(&OpenFlareWAFRuleGroupBinding{
+	require.NoError(t, conn.Create(&model.OpenFlareWAFRuleGroupBinding{
 		ID:           50,
 		RuleGroupID:  1,
 		ProxyRouteID: 1,
@@ -44,7 +46,7 @@ func TestReplaceOpenFlareWAFRuleGroupBindingsAfterExplicitHighID(t *testing.T) {
 
 	require.NoError(t, ReplaceOpenFlareWAFRuleGroupBindings(ctx, 2, []uint{2, 3}))
 
-	var bindings []OpenFlareWAFRuleGroupBinding
+	var bindings []model.OpenFlareWAFRuleGroupBinding
 	require.NoError(t, conn.Where("rule_group_id = ?", 2).Order("proxy_route_id asc").Find(&bindings).Error)
 	require.Len(t, bindings, 2)
 	assert.Equal(t, uint(2), bindings[0].ProxyRouteID)

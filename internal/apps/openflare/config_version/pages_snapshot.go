@@ -10,6 +10,8 @@ import (
 	"path"
 	"strings"
 
+	"github.com/Rain-kl/Wavelet/internal/repository"
+
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"github.com/Rain-kl/Wavelet/pkg/pagesarchive"
 	openrestyrender "github.com/Rain-kl/Wavelet/pkg/render/openresty"
@@ -26,13 +28,13 @@ func buildPagesRouteSnapshot(
 	if route == nil {
 		return "", nil, nil, nil, errors.New("pages 路由配置无效")
 	}
-	if !model.HasPagesProjectsTable(ctx) {
+	if !repository.HasPagesProjectsTable(ctx) {
 		return "", nil, nil, nil, fmt.Errorf("路由 %s Pages 配置无效: pages 模块不可用", route.SiteName)
 	}
 	if route.PagesProjectID == nil || *route.PagesProjectID == 0 {
 		return "", nil, nil, nil, fmt.Errorf("路由 %s Pages 配置无效: 未绑定 Pages 项目", route.SiteName)
 	}
-	project, err := model.GetPagesProjectByID(ctx, *route.PagesProjectID)
+	project, err := repository.GetPagesProjectByID(ctx, *route.PagesProjectID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return "", nil, nil, nil, fmt.Errorf("路由 %s Pages 配置无效: pages 项目不存在", route.SiteName)
@@ -45,7 +47,7 @@ func buildPagesRouteSnapshot(
 	if project.ActiveDeploymentID == nil || *project.ActiveDeploymentID == 0 {
 		return "", nil, nil, nil, fmt.Errorf("路由 %s Pages 配置无效: pages 项目没有激活部署", route.SiteName)
 	}
-	activeDeployment, err := model.GetPagesDeploymentByID(ctx, *project.ActiveDeploymentID)
+	activeDeployment, err := repository.GetPagesDeploymentByID(ctx, *project.ActiveDeploymentID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return "", nil, nil, nil, fmt.Errorf("路由 %s Pages 配置无效: pages 激活部署不存在", route.SiteName)

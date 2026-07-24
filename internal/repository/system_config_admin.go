@@ -54,7 +54,12 @@ func CreateSystemConfig(ctx context.Context, config *model.SystemConfig) error {
 
 // UpdateSystemConfigFields applies partial updates to a system config row.
 func UpdateSystemConfigFields(ctx context.Context, config *model.SystemConfig, updates map[string]any) error {
-	return db.DB(ctx).Model(config).Updates(updates).Error
+	return UpdateSystemConfigFieldsTx(db.DB(ctx), config, updates)
+}
+
+// UpdateSystemConfigFieldsTx applies partial updates within an existing transaction.
+func UpdateSystemConfigFieldsTx(tx *gorm.DB, config *model.SystemConfig, updates map[string]any) error {
+	return tx.Model(config).Updates(updates).Error
 }
 
 // SaveOrUpdateSystemConfig creates or updates a config row and invalidates cache.

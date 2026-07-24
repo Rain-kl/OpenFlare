@@ -1,13 +1,15 @@
 // Copyright 2026 Arctel.net
 // SPDX-License-Identifier: Apache-2.0
 
-package model
+package repository
 
 import (
 	"context"
 	"fmt"
 	"testing"
 	"time"
+
+	"github.com/Rain-kl/Wavelet/internal/model"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -24,7 +26,7 @@ func setupOpenFlareAccessLogTestEnvironment(t *testing.T) (context.Context, func
 
 func seedOpenFlareAccessLogs(t *testing.T, ctx context.Context, now time.Time) {
 	t.Helper()
-	records := []*OpenFlareAccessLog{
+	records := []*model.OpenFlareAccessLog{
 		{NodeID: "node-a", LoggedAt: now.Add(-5 * time.Minute), RemoteAddr: "1.1.1.1", Region: "US", Host: "a.example.com", Path: "/alpha", StatusCode: 200},
 		{NodeID: "node-a", LoggedAt: now.Add(-4 * time.Minute), RemoteAddr: "2.2.2.2", Region: "US", Host: "a.example.com", Path: "/beta", StatusCode: 404},
 		{NodeID: "node-b", LoggedAt: now.Add(-3 * time.Minute), RemoteAddr: "1.1.1.1", Region: "EU", Host: "b.example.com", Path: "/gamma", StatusCode: 502},
@@ -40,7 +42,7 @@ func TestListOpenFlareAccessLogsPaginated(t *testing.T) {
 
 	now := time.Now().UTC()
 	for index := range 15 {
-		record := &OpenFlareAccessLog{
+		record := &model.OpenFlareAccessLog{
 			NodeID:     "node-page",
 			LoggedAt:   now.Add(-time.Duration(index) * time.Minute),
 			RemoteAddr: fmt.Sprintf("203.0.113.%d", (index%5)+1),
@@ -48,10 +50,10 @@ func TestListOpenFlareAccessLogsPaginated(t *testing.T) {
 			Path:       fmt.Sprintf("/path-%02d", index),
 			StatusCode: 200,
 		}
-		require.NoError(t, InsertOpenFlareAccessLogsBatch(ctx, []*OpenFlareAccessLog{record}))
+		require.NoError(t, InsertOpenFlareAccessLogsBatch(ctx, []*model.OpenFlareAccessLog{record}))
 	}
 
-	query := OpenFlareAccessLogQuery{
+	query := model.OpenFlareAccessLogQuery{
 		NodeID:    "node-page",
 		Since:     now.Add(-24 * time.Hour),
 		Page:      1,
@@ -73,7 +75,7 @@ func TestCountOpenFlareAccessLogs(t *testing.T) {
 	now := time.Now().UTC()
 	seedOpenFlareAccessLogs(t, ctx, now)
 
-	query := OpenFlareAccessLogQuery{
+	query := model.OpenFlareAccessLogQuery{
 		Since: now.Add(-10 * time.Minute),
 	}
 	totalRecords, totalIPs, _, err := CountOpenFlareAccessLogs(ctx, query)
@@ -89,7 +91,7 @@ func TestListOpenFlareAccessLogsFiltersAndSort(t *testing.T) {
 	now := time.Now().UTC()
 	seedOpenFlareAccessLogs(t, ctx, now)
 
-	query := OpenFlareAccessLogQuery{
+	query := model.OpenFlareAccessLogQuery{
 		NodeID:    "node-a",
 		Since:     now.Add(-10 * time.Minute),
 		SortBy:    "status_code",
@@ -113,7 +115,7 @@ func TestDeleteOpenFlareAccessLogsBefore(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, int64(3), deleted)
 
-	totalRecords, _, _, err := CountOpenFlareAccessLogs(ctx, OpenFlareAccessLogQuery{Since: now.Add(-10 * time.Minute)})
+	totalRecords, _, _, err := CountOpenFlareAccessLogs(ctx, model.OpenFlareAccessLogQuery{Since: now.Add(-10 * time.Minute)})
 	require.NoError(t, err)
 	assert.Equal(t, int64(2), totalRecords)
 }

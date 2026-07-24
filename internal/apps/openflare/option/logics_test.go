@@ -123,11 +123,11 @@ func TestCleanupDatabaseObservabilityDeletesRows(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	resetAccessLogStore := model.SetAccessLogStoreForTest(model.NewMemoryAccessLogStore())
+	resetAccessLogStore := repository.SetAccessLogStoreForTest(repository.NewMemoryAccessLogStore())
 	defer resetAccessLogStore()
 
 	now := time.Now().UTC()
-	require.NoError(t, model.InsertOpenFlareAccessLogsBatch(ctx, []*model.OpenFlareAccessLog{
+	require.NoError(t, repository.InsertOpenFlareAccessLogsBatch(ctx, []*model.OpenFlareAccessLog{
 		{
 			NodeID:     "node-a",
 			LoggedAt:   now.Add(-10 * 24 * time.Hour),
@@ -165,7 +165,7 @@ func TestCleanupDatabaseObservabilityDeletesRows(t *testing.T) {
 	assert.True(t, result.DeleteAll)
 	assert.Equal(t, "truncate", result.CleanupMode)
 
-	rows, err := model.ListOpenFlareAccessLogs(ctx, model.OpenFlareAccessLogQuery{Page: 0, PageSize: 10})
+	rows, err := repository.ListOpenFlareAccessLogs(ctx, model.OpenFlareAccessLogQuery{Page: 0, PageSize: 10})
 	require.NoError(t, err)
 	assert.Empty(t, rows)
 }

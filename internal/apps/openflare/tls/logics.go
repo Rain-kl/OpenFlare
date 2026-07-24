@@ -12,6 +12,8 @@ import (
 	"mime/multipart"
 	"strings"
 
+	"github.com/Rain-kl/Wavelet/internal/repository"
+
 	"github.com/Rain-kl/Wavelet/internal/infra/task"
 	"github.com/Rain-kl/Wavelet/internal/model"
 )
@@ -71,17 +73,17 @@ type DNSAccountInput struct {
 
 // ListCertificates 列出全部证书（不含 PEM）。
 func ListCertificates(ctx context.Context) ([]model.TLSCertificate, error) {
-	return model.ListTLSCertificates(ctx)
+	return repository.ListTLSCertificates(ctx)
 }
 
 // GetCertificate 获取证书详情（不含 PEM）。
 func GetCertificate(ctx context.Context, id uint) (*model.TLSCertificate, error) {
-	return model.GetTLSCertificateByID(ctx, id)
+	return repository.GetTLSCertificateByID(ctx, id)
 }
 
 // GetCertificateContent 获取证书 PEM 内容。
 func GetCertificateContent(ctx context.Context, id uint) (*CertificateContent, error) {
-	certificate, err := model.GetTLSCertificateByID(ctx, id)
+	certificate, err := repository.GetTLSCertificateByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -117,7 +119,7 @@ func CreateCertificate(ctx context.Context, input CertificateInput) (*model.TLSC
 	if err != nil {
 		return nil, err
 	}
-	if err = model.CreateTLSCertificateRecord(ctx, certificate); err != nil {
+	if err = repository.CreateTLSCertificateRecord(ctx, certificate); err != nil {
 		if isUniqueConstraintError(err) {
 			return nil, errors.New(errCertificateNameExists)
 		}
@@ -149,7 +151,7 @@ func CreateCertificateFromFiles(ctx context.Context, name string, certFile *mult
 
 // UpdateCertificate 更新上传证书。
 func UpdateCertificate(ctx context.Context, id uint, input CertificateInput) (*model.TLSCertificate, error) {
-	existing, err := model.GetTLSCertificateByID(ctx, id)
+	existing, err := repository.GetTLSCertificateByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -157,7 +159,7 @@ func UpdateCertificate(ctx context.Context, id uint, input CertificateInput) (*m
 	if err != nil {
 		return nil, err
 	}
-	if err = model.SaveTLSCertificate(ctx, certificate); err != nil {
+	if err = repository.SaveTLSCertificate(ctx, certificate); err != nil {
 		if isUniqueConstraintError(err) {
 			return nil, errors.New(errCertificateNameExists)
 		}
@@ -171,10 +173,10 @@ func DeleteCertificate(ctx context.Context, id uint) error {
 	if err := ensureCertificateNotReferenced(ctx, id); err != nil {
 		return err
 	}
-	if _, err := model.GetTLSCertificateByID(ctx, id); err != nil {
+	if _, err := repository.GetTLSCertificateByID(ctx, id); err != nil {
 		return err
 	}
-	return model.DeleteTLSCertificateRecord(ctx, id)
+	return repository.DeleteTLSCertificateRecord(ctx, id)
 }
 
 // ApplyCertificate 申请 ACME 证书。
@@ -188,7 +190,7 @@ func ApplyCertificate(ctx context.Context, input ApplyInput) (*model.TLSCertific
 	if cert.Name == "" {
 		return nil, errors.New(errCertificateNameRequired)
 	}
-	if err := model.CreateTLSCertificateRecord(ctx, cert); err != nil {
+	if err := repository.CreateTLSCertificateRecord(ctx, cert); err != nil {
 		if isUniqueConstraintError(err) {
 			return nil, errors.New(errCertificateNameExists)
 		}
@@ -205,7 +207,7 @@ func ApplyCertificate(ctx context.Context, input ApplyInput) (*model.TLSCertific
 
 // UpdateACMECertificate 更新 ACME 证书配置。
 func UpdateACMECertificate(ctx context.Context, id uint, input ApplyInput) (*model.TLSCertificate, error) {
-	cert, err := model.GetTLSCertificateByID(ctx, id)
+	cert, err := repository.GetTLSCertificateByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -216,7 +218,7 @@ func UpdateACMECertificate(ctx context.Context, id uint, input ApplyInput) (*mod
 	if cert.Name == "" {
 		return nil, errors.New(errCertificateNameRequired)
 	}
-	if err := model.SaveTLSCertificate(ctx, cert); err != nil {
+	if err := repository.SaveTLSCertificate(ctx, cert); err != nil {
 		if isUniqueConstraintError(err) {
 			return nil, errors.New(errCertificateNameExists)
 		}
@@ -233,7 +235,7 @@ func UpdateACMECertificate(ctx context.Context, id uint, input ApplyInput) (*mod
 
 // ConvertCertificateToACME 将上传证书转为 ACME 管理。
 func ConvertCertificateToACME(ctx context.Context, id uint, input ApplyInput) (*model.TLSCertificate, error) {
-	cert, err := model.GetTLSCertificateByID(ctx, id)
+	cert, err := repository.GetTLSCertificateByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -248,7 +250,7 @@ func ConvertCertificateToACME(ctx context.Context, id uint, input ApplyInput) (*
 		return nil, errors.New(errCertificateNameRequired)
 	}
 	cert.ApplyMessage = ""
-	if err := model.SaveTLSCertificate(ctx, cert); err != nil {
+	if err := repository.SaveTLSCertificate(ctx, cert); err != nil {
 		if isUniqueConstraintError(err) {
 			return nil, errors.New(errCertificateNameExists)
 		}
@@ -260,14 +262,14 @@ func ConvertCertificateToACME(ctx context.Context, id uint, input ApplyInput) (*
 		if err := obtainTLSCertificate(asyncCtx, c); err != nil {
 			return
 		}
-		latest, err := model.GetTLSCertificateByID(asyncCtx, c.ID)
+		latest, err := repository.GetTLSCertificateByID(asyncCtx, c.ID)
 		if err != nil {
 			return
 		}
 		latest.Provider = tlsProviderACME
 		latest.ApplyStatus = tlsApplyStatusReady
 		latest.ApplyMessage = ""
-		_ = model.SaveTLSCertificate(asyncCtx, latest)
+		_ = repository.SaveTLSCertificate(asyncCtx, latest)
 	}(cert)
 
 	return sanitizeCertificateForResponse(cert), nil
@@ -275,7 +277,7 @@ func ConvertCertificateToACME(ctx context.Context, id uint, input ApplyInput) (*
 
 // RenewCertificate 续期 ACME 证书。
 func RenewCertificate(ctx context.Context, id uint) (*model.TLSCertificate, error) {
-	cert, err := model.GetTLSCertificateByID(ctx, id)
+	cert, err := repository.GetTLSCertificateByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -295,7 +297,7 @@ func RenewCertificate(ctx context.Context, id uint) (*model.TLSCertificate, erro
 
 	cert.ApplyStatus = tlsApplyStatusApplying
 	cert.ApplyMessage = ""
-	if err := model.SaveTLSCertificate(ctx, cert); err != nil {
+	if err := repository.SaveTLSCertificate(ctx, cert); err != nil {
 		return nil, err
 	}
 	return sanitizeCertificateForResponse(cert), nil
@@ -303,7 +305,7 @@ func RenewCertificate(ctx context.Context, id uint) (*model.TLSCertificate, erro
 
 // ListDNSAccounts 列出 DNS 账号。
 func ListDNSAccounts(ctx context.Context) ([]model.DNSAccount, error) {
-	return model.ListDNSAccounts(ctx)
+	return repository.ListDNSAccounts(ctx)
 }
 
 // CreateDNSAccount 创建 DNS 账号。
@@ -320,7 +322,7 @@ func CreateDNSAccount(ctx context.Context, input DNSAccountInput) (*model.DNSAcc
 	if account.Name == "" || account.Type == "" || authorization == "" {
 		return nil, errors.New("DNS 账号参数不完整")
 	}
-	if err := model.CreateDNSAccountRecord(ctx, account); err != nil {
+	if err := repository.CreateDNSAccountRecord(ctx, account); err != nil {
 		return nil, err
 	}
 	return sanitizeDNSAccountForResponse(account), nil
@@ -328,7 +330,7 @@ func CreateDNSAccount(ctx context.Context, input DNSAccountInput) (*model.DNSAcc
 
 // UpdateDNSAccount 更新 DNS 账号。
 func UpdateDNSAccount(ctx context.Context, id uint, input DNSAccountInput) (*model.DNSAccount, error) {
-	account, err := model.GetDNSAccountByID(ctx, id)
+	account, err := repository.GetDNSAccountByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -342,7 +344,7 @@ func UpdateDNSAccount(ctx context.Context, id uint, input DNSAccountInput) (*mod
 	if account.Name == "" || account.Type == "" || authorization == "" {
 		return nil, errors.New("DNS 账号参数不完整")
 	}
-	if err := model.SaveDNSAccount(ctx, account); err != nil {
+	if err := repository.SaveDNSAccount(ctx, account); err != nil {
 		return nil, err
 	}
 	return sanitizeDNSAccountForResponse(account), nil
@@ -350,22 +352,22 @@ func UpdateDNSAccount(ctx context.Context, id uint, input DNSAccountInput) (*mod
 
 // DeleteDNSAccount 删除 DNS 账号。
 func DeleteDNSAccount(ctx context.Context, id uint) error {
-	if _, err := model.GetDNSAccountByID(ctx, id); err != nil {
+	if _, err := repository.GetDNSAccountByID(ctx, id); err != nil {
 		return err
 	}
-	count, err := model.CountTLSCertificatesByDNSAccountID(ctx, id)
+	count, err := repository.CountTLSCertificatesByDNSAccountID(ctx, id)
 	if err != nil {
 		return err
 	}
 	if count > 0 {
 		return errors.New(errDNSAccountInUse)
 	}
-	return model.DeleteDNSAccountRecord(ctx, id)
+	return repository.DeleteDNSAccountRecord(ctx, id)
 }
 
 // GetDefaultAcmeAccount 获取默认 ACME 账号。
 func GetDefaultAcmeAccount(ctx context.Context) (*model.AcmeAccount, error) {
-	account, err := model.GetDefaultAcmeAccount(ctx)
+	account, err := repository.GetDefaultAcmeAccount(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -430,7 +432,7 @@ func fillAcmeCertificateFields(cert *model.TLSCertificate, input ApplyInput) {
 }
 
 func ensureCertificateNotReferenced(ctx context.Context, id uint) error {
-	count, err := model.CountZoneDomainsByCertificateID(ctx, id)
+	count, err := repository.CountZoneDomainsByCertificateID(ctx, id)
 	if err != nil {
 		return err
 	}

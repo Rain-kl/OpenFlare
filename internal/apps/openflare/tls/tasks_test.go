@@ -9,6 +9,8 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/Rain-kl/Wavelet/internal/repository"
+
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -91,7 +93,7 @@ func TestSSLSingleRenewHandler_Execute(t *testing.T) {
 			Provider:      "custom",
 			PrimaryDomain: "example.com",
 		}
-		err := model.CreateTLSCertificateRecord(ctx, cert)
+		err := repository.CreateTLSCertificateRecord(ctx, cert)
 		require.NoError(t, err)
 
 		payload, err := json.Marshal(SSLSingleRenewPayload{ID: cert.ID})
@@ -108,13 +110,13 @@ func TestSSLSingleRenewHandler_Execute(t *testing.T) {
 			Provider:      tlsProviderACME,
 			PrimaryDomain: "success.example.com",
 		}
-		err := model.CreateTLSCertificateRecord(ctx, cert)
+		err := repository.CreateTLSCertificateRecord(ctx, cert)
 		require.NoError(t, err)
 
 		// Mock obtainCertificate to succeed
 		restore := SetObtainCertificateFuncForTest(func(ctx context.Context, c *model.TLSCertificate) error {
 			c.ApplyStatus = tlsApplyStatusReady
-			return model.SaveTLSCertificate(ctx, c)
+			return repository.SaveTLSCertificate(ctx, c)
 		})
 		defer restore()
 
@@ -125,7 +127,7 @@ func TestSSLSingleRenewHandler_Execute(t *testing.T) {
 		require.NoError(t, err)
 		assert.Contains(t, res.Message, "续签成功")
 
-		updated, err := model.GetTLSCertificateByID(ctx, cert.ID)
+		updated, err := repository.GetTLSCertificateByID(ctx, cert.ID)
 		require.NoError(t, err)
 		assert.Equal(t, tlsApplyStatusReady, updated.ApplyStatus)
 	})
@@ -136,7 +138,7 @@ func TestSSLSingleRenewHandler_Execute(t *testing.T) {
 			Provider:      tlsProviderACME,
 			PrimaryDomain: "fail.example.com",
 		}
-		err := model.CreateTLSCertificateRecord(ctx, cert)
+		err := repository.CreateTLSCertificateRecord(ctx, cert)
 		require.NoError(t, err)
 
 		// Mock obtainCertificate to fail

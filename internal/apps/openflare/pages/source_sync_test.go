@@ -17,6 +17,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Rain-kl/Wavelet/internal/repository"
+
 	"github.com/Rain-kl/Wavelet/internal/apps/upload"
 	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/model"
@@ -70,7 +72,7 @@ func mustCreateActiveManualDeployment(
 	if _, err := ActivateDeploymentAs(ctx, projectID, view.ID, "user:1"); err != nil {
 		t.Fatalf("ActivateDeploymentAs(project=%d, deployment=%d) error = %v, want nil", projectID, view.ID, err)
 	}
-	deployment, err := model.GetPagesDeploymentByID(ctx, view.ID)
+	deployment, err := repository.GetPagesDeploymentByID(ctx, view.ID)
 	if err != nil {
 		t.Fatalf("GetPagesDeploymentByID(%d) error = %v, want nil", view.ID, err)
 	}
@@ -120,14 +122,14 @@ func TestSyncRemoteSourceAtomicallyActivatesAndReusesChecksum(t *testing.T) {
 	if first == nil || first.Stale || first.Reused || first.Deployment == nil {
 		t.Fatalf("syncRemoteSource(first) = %+v, want new active deployment", first)
 	}
-	storedProject, err := model.GetPagesProjectByID(ctx, project.ID)
+	storedProject, err := repository.GetPagesProjectByID(ctx, project.ID)
 	if err != nil {
 		t.Fatalf("GetPagesProjectByID(%d) error = %v, want nil", project.ID, err)
 	}
 	if storedProject.ActiveDeploymentID == nil || *storedProject.ActiveDeploymentID != first.Deployment.ID {
 		t.Fatalf("project ActiveDeploymentID = %v, want %d", storedProject.ActiveDeploymentID, first.Deployment.ID)
 	}
-	deployment, err := model.GetPagesDeploymentByID(ctx, first.Deployment.ID)
+	deployment, err := repository.GetPagesDeploymentByID(ctx, first.Deployment.ID)
 	if err != nil {
 		t.Fatalf("GetPagesDeploymentByID(%d) error = %v, want nil", first.Deployment.ID, err)
 	}
@@ -293,7 +295,7 @@ func TestSyncRemoteSourceFinalFenceCompensatesIngest(t *testing.T) {
 	if outcome == nil || !outcome.Stale || outcome.Deployment != nil {
 		t.Fatalf("syncRemoteSource(final fence) = %+v, want stale outcome without deployment", outcome)
 	}
-	storedProject, err := model.GetPagesProjectByID(ctx, project.ID)
+	storedProject, err := repository.GetPagesProjectByID(ctx, project.ID)
 	if err != nil {
 		t.Fatalf("GetPagesProjectByID(%d) error = %v, want nil", project.ID, err)
 	}
@@ -351,7 +353,7 @@ func TestCommitSourceDeploymentRechecksLeaseAfterUploadLocks(t *testing.T) {
 	if err != nil || first == nil || first.Deployment == nil {
 		t.Fatalf("syncRemoteSource(seed) = (%+v, %v), want deployment", first, err)
 	}
-	deployment, err := model.GetPagesDeploymentByID(ctx, first.Deployment.ID)
+	deployment, err := repository.GetPagesDeploymentByID(ctx, first.Deployment.ID)
 	if err != nil {
 		t.Fatalf("GetPagesDeploymentByID(%d) error = %v, want nil", first.Deployment.ID, err)
 	}
@@ -403,14 +405,14 @@ func TestCommitSourceDeploymentRechecksLeaseAfterUploadLocks(t *testing.T) {
 	if nowCalls != 2 {
 		t.Fatalf("sourceCommitNow calls = %d, want runtime-lock and post-upload checks", nowCalls)
 	}
-	storedProject, err := model.GetPagesProjectByID(ctx, project.ID)
+	storedProject, err := repository.GetPagesProjectByID(ctx, project.ID)
 	if err != nil {
 		t.Fatalf("GetPagesProjectByID(%d) error = %v, want nil", project.ID, err)
 	}
 	if storedProject.ActiveDeploymentID != nil {
 		t.Errorf("ActiveDeploymentID after expiry recheck = %v, want nil", storedProject.ActiveDeploymentID)
 	}
-	storedDeployment, err := model.GetPagesDeploymentByID(ctx, deployment.ID)
+	storedDeployment, err := repository.GetPagesDeploymentByID(ctx, deployment.ID)
 	if err != nil {
 		t.Fatalf("GetPagesDeploymentByID(%d) after expiry error = %v, want nil", deployment.ID, err)
 	}
@@ -479,7 +481,7 @@ func assertPagesSyncFailureState(
 	wantDeploymentCount int64,
 ) {
 	t.Helper()
-	project, err := model.GetPagesProjectByID(ctx, projectID)
+	project, err := repository.GetPagesProjectByID(ctx, projectID)
 	if err != nil {
 		t.Fatalf("GetPagesProjectByID(%d) error = %v, want nil", projectID, err)
 	}
@@ -589,7 +591,7 @@ func TestCommitSourceDeploymentRejectsDeletedTargetUpload(t *testing.T) {
 	if !errors.Is(err, errSourceFinalFence) {
 		t.Errorf("commitSourceDeployment(deleted upload) error = %v, want %v", err, errSourceFinalFence)
 	}
-	storedProject, err := model.GetPagesProjectByID(ctx, project.ID)
+	storedProject, err := repository.GetPagesProjectByID(ctx, project.ID)
 	if err != nil {
 		t.Fatalf("GetPagesProjectByID(%d) error = %v, want nil", project.ID, err)
 	}

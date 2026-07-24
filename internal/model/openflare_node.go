@@ -4,11 +4,7 @@
 package model
 
 import (
-	"context"
-	"errors"
 	"time"
-
-	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 )
 
 // OpenFlareNode stores an edge, relay, or tunnel client node.
@@ -53,111 +49,4 @@ type OpenFlareNode struct {
 // TableName returns the GORM table name.
 func (OpenFlareNode) TableName() string {
 	return "of_nodes"
-}
-
-// ListOpenFlareNodes returns all nodes ordered by id desc.
-func ListOpenFlareNodes(ctx context.Context) ([]OpenFlareNode, error) {
-	conn := db.DB(ctx)
-	if conn == nil {
-		return nil, errors.New(errDatabaseNotInitialized)
-	}
-	var nodes []OpenFlareNode
-	if err := conn.Order("id desc").Find(&nodes).Error; err != nil {
-		return nil, err
-	}
-	return nodes, nil
-}
-
-// ListOpenFlareNodesByNodeIDs returns nodes matching the given node ids.
-func ListOpenFlareNodesByNodeIDs(ctx context.Context, nodeIDs []string) ([]OpenFlareNode, error) {
-	if len(nodeIDs) == 0 {
-		return []OpenFlareNode{}, nil
-	}
-	conn := db.DB(ctx)
-	if conn == nil {
-		return nil, errors.New(errDatabaseNotInitialized)
-	}
-	var nodes []OpenFlareNode
-	if err := conn.Where("node_id IN ?", nodeIDs).Find(&nodes).Error; err != nil {
-		return nil, err
-	}
-	return nodes, nil
-}
-
-// GetOpenFlareNodeByID returns a node by primary key.
-func GetOpenFlareNodeByID(ctx context.Context, id uint) (*OpenFlareNode, error) {
-	conn := db.DB(ctx)
-	if conn == nil {
-		return nil, errors.New(errDatabaseNotInitialized)
-	}
-	var node OpenFlareNode
-	if err := conn.First(&node, id).Error; err != nil {
-		return nil, err
-	}
-	return &node, nil
-}
-
-// GetOpenFlareNodeByNodeID returns a node by node_id.
-func GetOpenFlareNodeByNodeID(ctx context.Context, nodeID string) (*OpenFlareNode, error) {
-	conn := db.DB(ctx)
-	if conn == nil {
-		return nil, errors.New(errDatabaseNotInitialized)
-	}
-	var node OpenFlareNode
-	if err := conn.Where("node_id = ?", nodeID).First(&node).Error; err != nil {
-		return nil, err
-	}
-	return &node, nil
-}
-
-// GetOpenFlareNodeByAccessToken returns a node by access token.
-func GetOpenFlareNodeByAccessToken(ctx context.Context, token string) (*OpenFlareNode, error) {
-	conn := db.DB(ctx)
-	if conn == nil {
-		return nil, errors.New(errDatabaseNotInitialized)
-	}
-	var node OpenFlareNode
-	if err := conn.Where("access_token = ?", token).First(&node).Error; err != nil {
-		return nil, err
-	}
-	return &node, nil
-}
-
-// CreateOpenFlareNode inserts a new node.
-func CreateOpenFlareNode(ctx context.Context, node *OpenFlareNode) error {
-	conn := db.DB(ctx)
-	if conn == nil {
-		return errors.New(errDatabaseNotInitialized)
-	}
-	return conn.Create(node).Error
-}
-
-// SaveOpenFlareNode persists node changes.
-func SaveOpenFlareNode(ctx context.Context, node *OpenFlareNode) error {
-	conn := db.DB(ctx)
-	if conn == nil {
-		return errors.New(errDatabaseNotInitialized)
-	}
-	return conn.Save(node).Error
-}
-
-// UpdateOpenFlareNodeFields updates selected columns for a node.
-func UpdateOpenFlareNodeFields(ctx context.Context, node *OpenFlareNode, fields ...string) error {
-	conn := db.DB(ctx)
-	if conn == nil {
-		return errors.New(errDatabaseNotInitialized)
-	}
-	if len(fields) == 0 {
-		return conn.Save(node).Error
-	}
-	return conn.Model(node).Select(fields).Updates(node).Error
-}
-
-// DeleteOpenFlareNode removes a node by primary key.
-func DeleteOpenFlareNode(ctx context.Context, id uint) error {
-	conn := db.DB(ctx)
-	if conn == nil {
-		return errors.New(errDatabaseNotInitialized)
-	}
-	return conn.Delete(&OpenFlareNode{}, id).Error
 }

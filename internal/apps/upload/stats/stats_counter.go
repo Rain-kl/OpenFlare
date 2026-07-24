@@ -5,13 +5,12 @@ package stats
 
 import (
 	"context"
-	"time"
 
-	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
-	"github.com/Rain-kl/Wavelet/internal/model"
-	"github.com/Rain-kl/Wavelet/pkg/logger"
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
+
+	"github.com/Rain-kl/Wavelet/internal/model"
+	"github.com/Rain-kl/Wavelet/internal/repository"
+	"github.com/Rain-kl/Wavelet/pkg/logger"
 )
 
 // ApplyUploadStatsAdd increments incremental stats for a newly active upload record.
@@ -26,22 +25,8 @@ func ApplyUploadStatsRemove(ctx context.Context, upload *model.Upload) error {
 
 // RebuildUploadStats rebuilds all incremental stats from current upload records.
 func RebuildUploadStats(ctx context.Context) error {
-	return db.DB(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := tx.Where("1 = 1").Delete(&model.UploadStat{}).Error; err != nil {
-			return err
-		}
-
-		var uploads []model.Upload
-		if err := tx.Where("status != ?", model.UploadStatusDeleted).Find(&uploads).Error; err != nil {
-			return err
-		}
-
-		for i := range uploads {
-			if err := ApplyUploadStatsDeltaTx(tx, &uploads[i], 1); err != nil {
-				return err
-			}
-		}
-		return nil
+	return repository.RebuildUploadStats(ctx, func(tx *gorm.DB, upload *model.Upload) error {
+		return ApplyUploadStatsDeltaTx(tx, upload, 1)
 	})
 }
 
@@ -49,7 +34,7 @@ func applyUploadStatsDelta(ctx context.Context, upload *model.Upload, sign int64
 	if upload == nil || !isActiveUploadStatus(upload.Status) {
 		return nil
 	}
-	return db.DB(ctx).Transaction(func(tx *gorm.DB) error {
+	return repository.RunInTransaction(ctx, func(tx *gorm.DB) error {
 		return ApplyUploadStatsDeltaTx(tx, upload, sign)
 	})
 }
@@ -78,38 +63,11 @@ func ApplyUploadStatsDeltaTx(tx *gorm.DB, upload *model.Upload, sign int64) erro
 	}
 
 	for _, entry := range entries {
-		if err := upsertUploadStatDelta(tx, entry.dimension, entry.key, countDelta, sizeDelta); err != nil {
+		if err := repository.UpsertUploadStatDeltaTx(tx, entry.dimension, entry.key, countDelta, sizeDelta); err != nil {
 			return err
 		}
 	}
 	return nil
-}
-
-func upsertUploadStatDelta(tx *gorm.DB, dimension, key string, countDelta, sizeDelta int64) error {
-	return tx.Clauses(clause.OnConflict{
-		Columns: []clause.Column{
-			{Name: "dimension"},
-			{Name: "stat_key"},
-		},
-		DoUpdates: clause.Assignments(map[string]any{
-			"file_count": gorm.Expr(
-				"CASE WHEN w_upload_stats.file_count + ? < 0 THEN 0 ELSE w_upload_stats.file_count + ? END",
-				countDelta,
-				countDelta,
-			),
-			"file_size": gorm.Expr(
-				"CASE WHEN w_upload_stats.file_size + ? < 0 THEN 0 ELSE w_upload_stats.file_size + ? END",
-				sizeDelta,
-				sizeDelta,
-			),
-			"updated_at": time.Now(),
-		}),
-	}).Create(&model.UploadStat{
-		Dimension: dimension,
-		StatKey:   key,
-		FileCount: countDelta,
-		FileSize:  sizeDelta,
-	}).Error
 }
 
 // RecordUploadStatsAdd logs and applies upload stats increment.

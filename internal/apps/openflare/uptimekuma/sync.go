@@ -100,7 +100,7 @@ func SyncToUptimeKuma(ctx context.Context) error {
 		"scope", config.MonitorScope,
 	)
 
-	allRoutes, err := model.ListProxyRoutes(ctx)
+	allRoutes, err := repository.ListProxyRoutes(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to list local proxy routes: %w", err)
 	}
@@ -227,7 +227,7 @@ func routeMonitorURL(ctx context.Context, route *model.ProxyRoute) (string, erro
 	if route == nil {
 		return "", fmt.Errorf("proxy route is nil")
 	}
-	domains, err := model.ListZoneDomainsByRouteID(ctx, route.ID)
+	domains, err := repository.ListZoneDomainsByRouteID(ctx, route.ID)
 	if err != nil {
 		return "", err
 	}

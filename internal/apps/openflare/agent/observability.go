@@ -10,23 +10,16 @@ import (
 	"strings"
 	"time"
 
-	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
+	"github.com/Rain-kl/Wavelet/internal/repository"
+
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"go.uber.org/zap"
-	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
 
 const (
-	healthEventStatusActive       = "active"
-	healthEventStatusResolved     = "resolved"
-	healthSeverityInfo            = "info"
-	healthSeverityWarning         = "warning"
-	healthSeverityCritical        = "critical"
 	accessLogPathMaxLength        = 100
 	accessLogUserAgentMaxLength   = 512
 	accessLogCacheStatusMaxLength = 32
-	healthEventMessageMaxLength   = 4096
 )
 
 // PersistHeartbeatObservability stores profile, host metrics, edge health, and access logs.
@@ -43,28 +36,23 @@ func PersistHeartbeatObservability(ctx context.Context, nodeID string, payload N
 		return
 	}
 
-	conn := db.DB(ctx)
-	if conn == nil {
-		return
-	}
-
 	accessLogRecords, err := buildNodeAccessLogRecords(nodeID, payload.AccessLogs, payload.Buffered, reportedAt)
 	if err != nil {
 		zap.L().Error("build heartbeat access logs failed", zap.String("node_id", nodeID), zap.Error(err))
 		return
 	}
 
-	if err := conn.Transaction(func(tx *gorm.DB) error {
-		if err := persistNodeSystemProfile(tx, nodeID, payload.Profile, reportedAt); err != nil {
-			return err
-		}
-		if payload.HealthEvents != nil {
-			if err := reconcileNodeHealthEvents(tx, nodeID, payload.HealthEvents, reportedAt); err != nil {
-				return err
-			}
-		}
-		return nil
-	}); err != nil {
+	profile := buildNodeSystemProfileModel(nodeID, payload.Profile, reportedAt)
+	healthEvents := healthEventInputs(payload.HealthEvents)
+	if err := repository.PersistOpenFlareNodePGObservability(
+		ctx,
+		profile,
+		nodeID,
+		healthEvents,
+		payload.HealthEvents != nil,
+		reportedAt,
+		nil,
+	); err != nil {
 		zap.L().Error("persist heartbeat observability failed", zap.String("node_id", nodeID), zap.Error(err))
 		return
 	}
@@ -107,7 +95,7 @@ func persistNodeEdgeHealth(ctx context.Context, nodeID string, health *NodeEdgeH
 	if status == "" {
 		status = openrestyStatusUnknown
 	}
-	return model.InsertOpenFlareEdgeHealth(ctx, &model.OpenFlareEdgeHealth{
+	return repository.InsertOpenFlareEdgeHealth(ctx, &model.OpenFlareEdgeHealth{
 		NodeID:      nodeID,
 		CapturedAt:  timeFromUnix(health.CapturedAtUnix, reportedAt),
 		Status:      status,
@@ -115,11 +103,11 @@ func persistNodeEdgeHealth(ctx context.Context, nodeID string, health *NodeEdgeH
 	})
 }
 
-func persistNodeSystemProfile(tx *gorm.DB, nodeID string, profile *NodeSystemProfile, reportedAt time.Time) error {
+func buildNodeSystemProfileModel(nodeID string, profile *NodeSystemProfile, reportedAt time.Time) *model.OpenFlareNodeSystemProfile {
 	if profile == nil {
 		return nil
 	}
-	record := &model.OpenFlareNodeSystemProfile{
+	return &model.OpenFlareNodeSystemProfile{
 		NodeID:           nodeID,
 		Hostname:         strings.TrimSpace(profile.Hostname),
 		OSName:           strings.TrimSpace(profile.OSName),
@@ -133,23 +121,23 @@ func persistNodeSystemProfile(tx *gorm.DB, nodeID string, profile *NodeSystemPro
 		UptimeSeconds:    profile.UptimeSeconds,
 		ReportedAt:       timeFromUnix(profile.ReportedAtUnix, reportedAt),
 	}
-	return tx.Clauses(clause.OnConflict{
-		Columns: []clause.Column{{Name: "node_id"}},
-		DoUpdates: clause.AssignmentColumns([]string{
-			"hostname",
-			"os_name",
-			"os_version",
-			"kernel_version",
-			"architecture",
-			"cpu_model",
-			"cpu_cores",
-			"total_memory_bytes",
-			"total_disk_bytes",
-			"uptime_seconds",
-			"reported_at",
-			"updated_at",
-		}),
-	}).Create(record).Error
+}
+
+func healthEventInputs(events []NodeHealthEvent) []repository.OpenFlareHealthEventInput {
+	if events == nil {
+		return nil
+	}
+	out := make([]repository.OpenFlareHealthEventInput, 0, len(events))
+	for _, event := range events {
+		out = append(out, repository.OpenFlareHealthEventInput{
+			EventType:       event.EventType,
+			Severity:        event.Severity,
+			Message:         event.Message,
+			TriggeredAtUnix: event.TriggeredAtUnix,
+			Metadata:        event.Metadata,
+		})
+	}
+	return out
 }
 
 func persistNodeMetricSnapshot(ctx context.Context, nodeID string, snapshot *NodeMetricSnapshot, reportedAt time.Time) error {
@@ -168,7 +156,7 @@ func persistNodeMetricSnapshot(ctx context.Context, nodeID string, snapshot *Nod
 		DiskWriteBytes:    snapshot.DiskWriteBytes,
 		// NetworkRx/Tx no longer collected from agents; CH columns remain 0.
 	}
-	return model.InsertOpenFlareMetricSnapshot(ctx, record)
+	return repository.InsertOpenFlareMetricSnapshot(ctx, record)
 }
 
 func buildNodeAccessLogRecords(nodeID string, direct []NodeAccessLog, buffered []BufferedObservabilityRecord, reportedAt time.Time) ([]*model.OpenFlareAccessLog, error) {
@@ -234,123 +222,12 @@ func persistNodeAccessLogs(ctx context.Context, _ string, records []*model.OpenF
 	if len(records) == 0 {
 		return nil
 	}
-	return model.InsertOpenFlareAccessLogsBatch(ctx, records)
-}
-
-func reconcileNodeHealthEvents(tx *gorm.DB, nodeID string, events []NodeHealthEvent, reportedAt time.Time) error {
-	return ReconcileScopedNodeHealthEvents(tx, nodeID, events, reportedAt, nil)
+	return repository.InsertOpenFlareAccessLogsBatch(ctx, records)
 }
 
 // ReconcileScopedNodeHealthEvents reconciles health events, optionally scoped to managed event types.
-func ReconcileScopedNodeHealthEvents(tx *gorm.DB, nodeID string, events []NodeHealthEvent, reportedAt time.Time, managedEventTypes map[string]struct{}) error {
-	activeTypes := make(map[string]NodeHealthEvent, len(events))
-	for _, event := range events {
-		eventType := normalizeHealthEventType(event.EventType)
-		if eventType == "" {
-			continue
-		}
-		if len(managedEventTypes) > 0 {
-			if _, ok := managedEventTypes[eventType]; !ok {
-				continue
-			}
-		}
-		event.EventType = eventType
-		event.Severity = normalizeHealthSeverity(event.Severity)
-		if event.TriggeredAtUnix <= 0 {
-			event.TriggeredAtUnix = reportedAt.Unix()
-		}
-		activeTypes[eventType] = event
-	}
-
-	var activeEvents []*model.OpenFlareHealthEvent
-	query := tx.Where("node_id = ? AND status = ?", nodeID, healthEventStatusActive)
-	if len(managedEventTypes) > 0 {
-		scopedTypes := make([]string, 0, len(managedEventTypes))
-		for eventType := range managedEventTypes {
-			eventType = normalizeHealthEventType(eventType)
-			if eventType != "" {
-				scopedTypes = append(scopedTypes, eventType)
-			}
-		}
-		if len(scopedTypes) == 0 {
-			return nil
-		}
-		query = query.Where("event_type IN ?", scopedTypes)
-	}
-	if err := query.Find(&activeEvents).Error; err != nil {
-		return err
-	}
-
-	activeByType := make(map[string]*model.OpenFlareHealthEvent, len(activeEvents))
-	for _, event := range activeEvents {
-		activeByType[event.EventType] = event
-	}
-
-	for eventType, event := range activeTypes {
-		triggeredAt := timeFromUnix(event.TriggeredAtUnix, reportedAt)
-		if existing, ok := activeByType[eventType]; ok {
-			existing.Severity = event.Severity
-			existing.Message = normalizeHealthEventMessage(event.Message)
-			existing.LastTriggeredAt = triggeredAt
-			existing.ReportedAt = reportedAt
-			existing.MetadataJSON = marshalJSON(event.Metadata)
-			existing.ResolvedAt = nil
-			if err := tx.Save(existing).Error; err != nil {
-				return err
-			}
-			continue
-		}
-		record := &model.OpenFlareHealthEvent{
-			NodeID:           nodeID,
-			EventType:        eventType,
-			Severity:         event.Severity,
-			Status:           healthEventStatusActive,
-			Message:          normalizeHealthEventMessage(event.Message),
-			FirstTriggeredAt: triggeredAt,
-			LastTriggeredAt:  triggeredAt,
-			ReportedAt:       reportedAt,
-			MetadataJSON:     marshalJSON(event.Metadata),
-		}
-		if err := tx.Create(record).Error; err != nil {
-			return err
-		}
-	}
-
-	for _, existing := range activeEvents {
-		if _, ok := activeTypes[existing.EventType]; ok {
-			continue
-		}
-		resolvedAt := reportedAt
-		existing.Status = healthEventStatusResolved
-		existing.ReportedAt = reportedAt
-		existing.ResolvedAt = &resolvedAt
-		if err := tx.Save(existing).Error; err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func normalizeHealthEventType(eventType string) string {
-	eventType = strings.TrimSpace(strings.ToLower(eventType))
-	eventType = strings.ReplaceAll(eventType, " ", "_")
-	return eventType
-}
-
-func normalizeHealthSeverity(severity string) string {
-	switch strings.ToLower(strings.TrimSpace(severity)) {
-	case healthSeverityCritical:
-		return healthSeverityCritical
-	case healthSeverityInfo:
-		return healthSeverityInfo
-	default:
-		return healthSeverityWarning
-	}
-}
-
-func normalizeHealthEventMessage(message string) string {
-	return truncateForDatabase(message, healthEventMessageMaxLength)
+func ReconcileScopedNodeHealthEvents(ctx context.Context, nodeID string, events []NodeHealthEvent, reportedAt time.Time, managedEventTypes map[string]struct{}) error {
+	return repository.ReconcileOpenFlareHealthEvents(ctx, nodeID, healthEventInputs(events), reportedAt, managedEventTypes)
 }
 
 func timeFromUnix(unixSeconds int64, fallback time.Time) time.Time {

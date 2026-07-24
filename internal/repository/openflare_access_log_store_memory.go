@@ -1,7 +1,7 @@
 // Copyright 2026 Arctel.net
 // SPDX-License-Identifier: Apache-2.0
 
-package model
+package repository
 
 import (
 	"context"
@@ -13,6 +13,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/Rain-kl/Wavelet/internal/model"
 
 	"github.com/Rain-kl/Wavelet/internal/infra/persistence/idgen"
 )
@@ -27,10 +29,10 @@ const (
 
 type memoryAccessLogStore struct {
 	mu      sync.RWMutex
-	records []*OpenFlareAccessLog
+	records []*model.OpenFlareAccessLog
 }
 
-func (s *memoryAccessLogStore) InsertBatch(_ context.Context, records []*OpenFlareAccessLog) error {
+func (s *memoryAccessLogStore) InsertBatch(_ context.Context, records []*model.OpenFlareAccessLog) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	now := time.Now().UTC()
@@ -52,7 +54,7 @@ func (s *memoryAccessLogStore) InsertBatch(_ context.Context, records []*OpenFla
 	return nil
 }
 
-func (s *memoryAccessLogStore) List(_ context.Context, query OpenFlareAccessLogQuery) ([]*OpenFlareAccessLog, error) {
+func (s *memoryAccessLogStore) List(_ context.Context, query model.OpenFlareAccessLogQuery) ([]*model.OpenFlareAccessLog, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	rows := s.filterRecords(query)
@@ -64,7 +66,7 @@ func (s *memoryAccessLogStore) List(_ context.Context, query OpenFlareAccessLogQ
 	return cloneAccessLogSlice(rows), nil
 }
 
-func (s *memoryAccessLogStore) Count(_ context.Context, query OpenFlareAccessLogQuery) (int64, int64, int64, error) {
+func (s *memoryAccessLogStore) Count(_ context.Context, query model.OpenFlareAccessLogQuery) (int64, int64, int64, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	rows := s.filterRecords(query)
@@ -81,10 +83,10 @@ func (s *memoryAccessLogStore) Count(_ context.Context, query OpenFlareAccessLog
 	return int64(len(rows)), int64(len(ips)), totalBytes, nil
 }
 
-func (s *memoryAccessLogStore) RegionCounts(_ context.Context, nodeID string, since time.Time, limit int) ([]*OpenFlareAccessLogRegionCount, error) {
+func (s *memoryAccessLogStore) RegionCounts(_ context.Context, nodeID string, since time.Time, limit int) ([]*model.OpenFlareAccessLogRegionCount, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	rows := s.filterRecords(OpenFlareAccessLogQuery{NodeID: nodeID, Since: since})
+	rows := s.filterRecords(model.OpenFlareAccessLogQuery{NodeID: nodeID, Since: since})
 	counts := make(map[string]int64)
 	for _, row := range rows {
 		region := strings.TrimSpace(row.Region)
@@ -93,9 +95,9 @@ func (s *memoryAccessLogStore) RegionCounts(_ context.Context, nodeID string, si
 		}
 		counts[region]++
 	}
-	result := make([]*OpenFlareAccessLogRegionCount, 0, len(counts))
+	result := make([]*model.OpenFlareAccessLogRegionCount, 0, len(counts))
 	for region, count := range counts {
-		result = append(result, &OpenFlareAccessLogRegionCount{Region: region, Count: count})
+		result = append(result, &model.OpenFlareAccessLogRegionCount{Region: region, Count: count})
 	}
 	sort.Slice(result, func(i, j int) bool {
 		if result[i].Count == result[j].Count {
@@ -109,7 +111,7 @@ func (s *memoryAccessLogStore) RegionCounts(_ context.Context, nodeID string, si
 	return result, nil
 }
 
-func (s *memoryAccessLogStore) BucketAggregates(_ context.Context, filter OpenFlareAccessLogQuery, bucketSeconds int64) ([]openFlareAccessLogBucketAggregateRow, error) {
+func (s *memoryAccessLogStore) BucketAggregates(_ context.Context, filter model.OpenFlareAccessLogQuery, bucketSeconds int64) ([]openFlareAccessLogBucketAggregateRow, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	rows := s.filterRecords(filter)
@@ -154,9 +156,9 @@ func (s *memoryAccessLogStore) BucketAggregates(_ context.Context, filter OpenFl
 		item.UniqueHostCount = int64(len(item.uniqueHosts))
 		result = append(result, item.openFlareAccessLogBucketAggregateRow)
 	}
-	bucketRows := make([]*OpenFlareAccessLogBucketRow, len(result))
+	bucketRows := make([]*model.OpenFlareAccessLogBucketRow, len(result))
 	for index := range result {
-		bucketRows[index] = &OpenFlareAccessLogBucketRow{
+		bucketRows[index] = &model.OpenFlareAccessLogBucketRow{
 			BucketEpoch:      result[index].BucketEpoch,
 			RequestCount:     result[index].RequestCount,
 			UniqueIPCount:    result[index].UniqueIPCount,
@@ -189,7 +191,7 @@ func (s *memoryAccessLogStore) BucketAggregates(_ context.Context, filter OpenFl
 	return result, nil
 }
 
-func (s *memoryAccessLogStore) CountBuckets(_ context.Context, filter OpenFlareAccessLogQuery, bucketSeconds int64) (int64, error) {
+func (s *memoryAccessLogStore) CountBuckets(_ context.Context, filter model.OpenFlareAccessLogQuery, bucketSeconds int64) (int64, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	rows := s.filterRecords(filter)
@@ -200,7 +202,7 @@ func (s *memoryAccessLogStore) CountBuckets(_ context.Context, filter OpenFlareA
 	return int64(len(seen)), nil
 }
 
-func (s *memoryAccessLogStore) BucketDimensions(_ context.Context, filter OpenFlareAccessLogQuery, column string, bucketSeconds int64) ([]openFlareAccessLogBucketDimensionRow, error) {
+func (s *memoryAccessLogStore) BucketDimensions(_ context.Context, filter model.OpenFlareAccessLogQuery, column string, bucketSeconds int64) ([]openFlareAccessLogBucketDimensionRow, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	rows := s.filterRecords(filter)
@@ -232,7 +234,7 @@ func (s *memoryAccessLogStore) BucketDimensions(_ context.Context, filter OpenFl
 	return result, nil
 }
 
-func (s *memoryAccessLogStore) IPAggregates(_ context.Context, filter OpenFlareAccessLogQuery, exactRemoteAddr bool) ([]openFlareAccessLogIPAggregateRow, error) {
+func (s *memoryAccessLogStore) IPAggregates(_ context.Context, filter model.OpenFlareAccessLogQuery, exactRemoteAddr bool) ([]openFlareAccessLogIPAggregateRow, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	if exactRemoteAddr && strings.TrimSpace(filter.RemoteAddr) == "" {
@@ -274,7 +276,7 @@ func (s *memoryAccessLogStore) IPAggregates(_ context.Context, filter OpenFlareA
 	return result, nil
 }
 
-func (s *memoryAccessLogStore) IPSummaries(_ context.Context, filter OpenFlareAccessLogQuery, _ time.Time) ([]openFlareAccessLogIPSummaryRow, error) {
+func (s *memoryAccessLogStore) IPSummaries(_ context.Context, filter model.OpenFlareAccessLogQuery, _ time.Time) ([]openFlareAccessLogIPSummaryRow, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	rows := s.filterRecords(filter)
@@ -314,13 +316,13 @@ func (s *memoryAccessLogStore) IPSummaries(_ context.Context, filter OpenFlareAc
 			item.Region = strings.TrimSpace(row.Region)
 		}
 	}
-	summaryRows := make([]*OpenFlareAccessLogIPSummaryRow, 0, len(aggregates))
+	summaryRows := make([]*model.OpenFlareAccessLogIPSummaryRow, 0, len(aggregates))
 	for _, item := range aggregates {
 		ratio := 0.0
 		if item.TotalRequests > 0 {
 			ratio = float64(item.Success2xxCount) / float64(item.TotalRequests)
 		}
-		summaryRows = append(summaryRows, &OpenFlareAccessLogIPSummaryRow{
+		summaryRows = append(summaryRows, &model.OpenFlareAccessLogIPSummaryRow{
 			RemoteAddr:      item.RemoteAddr,
 			Region:          item.Region,
 			TotalRequests:   item.TotalRequests,
@@ -354,7 +356,7 @@ func (s *memoryAccessLogStore) IPSummaries(_ context.Context, filter OpenFlareAc
 	return result, nil
 }
 
-func (s *memoryAccessLogStore) CountIPSummaries(_ context.Context, filter OpenFlareAccessLogQuery) (int64, error) {
+func (s *memoryAccessLogStore) CountIPSummaries(_ context.Context, filter model.OpenFlareAccessLogQuery) (int64, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	rows := s.filterRecords(filter)
@@ -369,7 +371,7 @@ func (s *memoryAccessLogStore) CountIPSummaries(_ context.Context, filter OpenFl
 	return int64(len(seen)), nil
 }
 
-func (s *memoryAccessLogStore) WAFIPAggregates(_ context.Context, filter OpenFlareAccessLogQuery) ([]openFlareAccessLogWAFIPAggregateRow, error) {
+func (s *memoryAccessLogStore) WAFIPAggregates(_ context.Context, filter model.OpenFlareAccessLogQuery) ([]openFlareAccessLogWAFIPAggregateRow, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	rows := s.filterRecords(filter)
@@ -417,7 +419,7 @@ func (s *memoryAccessLogStore) WAFIPAggregates(_ context.Context, filter OpenFla
 	return result, nil
 }
 
-func (s *memoryAccessLogStore) IPTrend(_ context.Context, filter OpenFlareAccessLogQuery, bucketSeconds int64) ([]openFlareAccessLogIPTrendRow, error) {
+func (s *memoryAccessLogStore) IPTrend(_ context.Context, filter model.OpenFlareAccessLogQuery, bucketSeconds int64) ([]openFlareAccessLogIPTrendRow, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	rows := s.filterRecords(filter)
@@ -446,7 +448,7 @@ func (s *memoryAccessLogStore) DeleteBefore(_ context.Context, cutoff time.Time)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	cutoff = cutoff.UTC()
-	remaining := make([]*OpenFlareAccessLog, 0, len(s.records))
+	remaining := make([]*model.OpenFlareAccessLog, 0, len(s.records))
 	var deleted int64
 	for _, row := range s.records {
 		if row.LoggedAt.Before(cutoff) {
@@ -463,7 +465,7 @@ func (s *memoryAccessLogStore) DeleteByNodeBefore(_ context.Context, nodeID stri
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	before = before.UTC()
-	remaining := make([]*OpenFlareAccessLog, 0, len(s.records))
+	remaining := make([]*model.OpenFlareAccessLog, 0, len(s.records))
 	var deleted int64
 	for _, row := range s.records {
 		if row.NodeID == nodeID && row.LoggedAt.Before(before) {
@@ -476,13 +478,13 @@ func (s *memoryAccessLogStore) DeleteByNodeBefore(_ context.Context, nodeID stri
 	return deleted, nil
 }
 
-func (s *memoryAccessLogStore) TrafficSummary(_ context.Context, filter OpenFlareAccessLogQuery) (OpenFlareAccessLogTrafficSummary, error) {
+func (s *memoryAccessLogStore) TrafficSummary(_ context.Context, filter model.OpenFlareAccessLogQuery) (model.OpenFlareAccessLogTrafficSummary, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	rows := s.filterRecords(filter)
 	ips := make(map[string]struct{})
 	nodes := make(map[string]struct{})
-	var summary OpenFlareAccessLogTrafficSummary
+	var summary model.OpenFlareAccessLogTrafficSummary
 	for _, row := range rows {
 		summary.RequestCount++
 		summary.BytesSent += row.BytesSent
@@ -502,7 +504,7 @@ func (s *memoryAccessLogStore) TrafficSummary(_ context.Context, filter OpenFlar
 	return summary, nil
 }
 
-func (s *memoryAccessLogStore) ValueCounts(_ context.Context, filter OpenFlareAccessLogQuery, column string, limit int) ([]OpenFlareAccessLogValueCount, error) {
+func (s *memoryAccessLogStore) ValueCounts(_ context.Context, filter model.OpenFlareAccessLogQuery, column string, limit int) ([]model.OpenFlareAccessLogValueCount, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	col := strings.TrimSpace(strings.ToLower(column))
@@ -532,9 +534,9 @@ func (s *memoryAccessLogStore) ValueCounts(_ context.Context, filter OpenFlareAc
 		}
 		counts[value]++
 	}
-	result := make([]OpenFlareAccessLogValueCount, 0, len(counts))
+	result := make([]model.OpenFlareAccessLogValueCount, 0, len(counts))
 	for value, count := range counts {
-		result = append(result, OpenFlareAccessLogValueCount{Value: value, Count: count})
+		result = append(result, model.OpenFlareAccessLogValueCount{Value: value, Count: count})
 	}
 	sort.Slice(result, func(i, j int) bool {
 		if result[i].Count == result[j].Count {
@@ -548,12 +550,12 @@ func (s *memoryAccessLogStore) ValueCounts(_ context.Context, filter OpenFlareAc
 	return result, nil
 }
 
-func (s *memoryAccessLogStore) NodeAggregates(_ context.Context, filter OpenFlareAccessLogQuery) ([]OpenFlareAccessLogNodeAggregate, error) {
+func (s *memoryAccessLogStore) NodeAggregates(_ context.Context, filter model.OpenFlareAccessLogQuery) ([]model.OpenFlareAccessLogNodeAggregate, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	rows := s.filterRecords(filter)
 	type acc struct {
-		OpenFlareAccessLogNodeAggregate
+		model.OpenFlareAccessLogNodeAggregate
 		ips map[string]struct{}
 	}
 	byNode := make(map[string]*acc)
@@ -565,7 +567,7 @@ func (s *memoryAccessLogStore) NodeAggregates(_ context.Context, filter OpenFlar
 		item := byNode[id]
 		if item == nil {
 			item = &acc{
-				OpenFlareAccessLogNodeAggregate: OpenFlareAccessLogNodeAggregate{NodeID: id},
+				OpenFlareAccessLogNodeAggregate: model.OpenFlareAccessLogNodeAggregate{NodeID: id},
 				ips:                             make(map[string]struct{}),
 			}
 			byNode[id] = item
@@ -578,7 +580,7 @@ func (s *memoryAccessLogStore) NodeAggregates(_ context.Context, filter OpenFlar
 			item.ips[ip] = struct{}{}
 		}
 	}
-	result := make([]OpenFlareAccessLogNodeAggregate, 0, len(byNode))
+	result := make([]model.OpenFlareAccessLogNodeAggregate, 0, len(byNode))
 	for _, item := range byNode {
 		item.UniqueIPCount = int64(len(item.ips))
 		result = append(result, item.OpenFlareAccessLogNodeAggregate)
@@ -592,8 +594,8 @@ func (s *memoryAccessLogStore) NodeAggregates(_ context.Context, filter OpenFlar
 	return result, nil
 }
 
-func (s *memoryAccessLogStore) filterRecords(query OpenFlareAccessLogQuery) []*OpenFlareAccessLog {
-	result := make([]*OpenFlareAccessLog, 0, len(s.records))
+func (s *memoryAccessLogStore) filterRecords(query model.OpenFlareAccessLogQuery) []*model.OpenFlareAccessLog {
+	result := make([]*model.OpenFlareAccessLog, 0, len(s.records))
 	for _, row := range s.records {
 		if !memoryAccessLogMatches(row, query) {
 			continue
@@ -603,7 +605,7 @@ func (s *memoryAccessLogStore) filterRecords(query OpenFlareAccessLogQuery) []*O
 	return result
 }
 
-func memoryAccessLogMatches(row *OpenFlareAccessLog, query OpenFlareAccessLogQuery) bool {
+func memoryAccessLogMatches(row *model.OpenFlareAccessLog, query model.OpenFlareAccessLogQuery) bool {
 	if row == nil {
 		return false
 	}
@@ -661,8 +663,8 @@ func memoryAccessLogBucketEpoch(loggedAt time.Time, bucketSeconds int64) int64 {
 	return (epoch / bucketSeconds) * bucketSeconds
 }
 
-func cloneAccessLogSlice(rows []*OpenFlareAccessLog) []*OpenFlareAccessLog {
-	result := make([]*OpenFlareAccessLog, len(rows))
+func cloneAccessLogSlice(rows []*model.OpenFlareAccessLog) []*model.OpenFlareAccessLog {
+	result := make([]*model.OpenFlareAccessLog, len(rows))
 	for index, row := range rows {
 		if row == nil {
 			continue
@@ -673,7 +675,7 @@ func cloneAccessLogSlice(rows []*OpenFlareAccessLog) []*OpenFlareAccessLog {
 	return result
 }
 
-func sortOpenFlareAccessLogRows(items []*OpenFlareAccessLog, sortBy string, sortOrder string) {
+func sortOpenFlareAccessLogRows(items []*model.OpenFlareAccessLog, sortBy string, sortOrder string) {
 	desc := openFlareAccessLogNormalizeSortOrder(sortOrder) != sortOrderAsc
 	sort.Slice(items, func(i, j int) bool {
 		left := items[i]

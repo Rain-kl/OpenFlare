@@ -18,7 +18,6 @@ import (
 	"github.com/Rain-kl/Wavelet/internal/apps/cap"
 	"github.com/Rain-kl/Wavelet/internal/apps/upload"
 	"github.com/Rain-kl/Wavelet/internal/infra/objectstore"
-	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"github.com/Rain-kl/Wavelet/internal/repository"
 	"github.com/Rain-kl/Wavelet/internal/shared/response"
@@ -325,10 +324,8 @@ func validateAndMergeStorageConfig(ctx context.Context, value string, currentCon
 
 func validateMergedStorageConfig(ctx context.Context, currentCfg, newCfg, targetCfg objectstore.Config) error {
 	if newCfg.Driver != "" && newCfg.Driver != currentCfg.Driver {
-		var uploadCount int64
-		if err := db.DB(ctx).Model(&model.Upload{}).
-			Where("status != ?", model.UploadStatusDeleted).
-			Count(&uploadCount).Error; err != nil {
+		uploadCount, err := repository.CountActiveUploads(ctx)
+		if err != nil {
 			return fmt.Errorf("检查存量文件失败: %w", err)
 		}
 		if uploadCount > 0 {

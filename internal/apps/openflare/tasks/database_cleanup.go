@@ -193,15 +193,15 @@ func deleteAllObservabilityRows(ctx context.Context, target string) (int64, stri
 	)
 	switch target {
 	case DatabaseCleanupTargetAccessLogs:
-		deleted, err = model.DeleteAllOpenFlareAccessLogs(ctx)
+		deleted, err = repository.DeleteAllOpenFlareAccessLogs(ctx)
 	case DatabaseCleanupTargetMetricSnapshots:
-		deleted, err = model.DeleteAllOpenFlareMetricSnapshots(ctx)
+		deleted, err = repository.DeleteAllOpenFlareMetricSnapshots(ctx)
 	case DatabaseCleanupTargetEdgeHealth:
-		deleted, err = model.DeleteAllOpenFlareEdgeHealth(ctx)
+		deleted, err = repository.DeleteAllOpenFlareEdgeHealth(ctx)
 	case DatabaseCleanupTargetObsFrps:
-		deleted, err = model.DeleteAllOpenFlareNodeObservationFrps(ctx)
+		deleted, err = repository.DeleteAllOpenFlareNodeObservationFrps(ctx)
 	case DatabaseCleanupTargetObsFrpc:
-		deleted, err = model.DeleteAllOpenFlareNodeObservationFrpc(ctx)
+		deleted, err = repository.DeleteAllOpenFlareNodeObservationFrpc(ctx)
 	default:
 		return 0, "", errors.New("unsupported cleanup target")
 	}
@@ -226,15 +226,15 @@ func materializeObservabilityTableTTL(ctx context.Context, target string) (int64
 	)
 	switch target {
 	case DatabaseCleanupTargetAccessLogs:
-		eligible, err = model.DeleteOpenFlareAccessLogsBefore(ctx, cutoff)
+		eligible, err = repository.DeleteOpenFlareAccessLogsBefore(ctx, cutoff)
 	case DatabaseCleanupTargetMetricSnapshots:
-		eligible, err = model.DeleteOpenFlareMetricSnapshotsBefore(ctx, cutoff)
+		eligible, err = repository.DeleteOpenFlareMetricSnapshotsBefore(ctx, cutoff)
 	case DatabaseCleanupTargetEdgeHealth:
-		eligible, err = model.DeleteOpenFlareEdgeHealthBefore(ctx, cutoff)
+		eligible, err = repository.DeleteOpenFlareEdgeHealthBefore(ctx, cutoff)
 	case DatabaseCleanupTargetObsFrps:
-		eligible, err = model.DeleteOpenFlareNodeObservationFrpsBefore(ctx, cutoff)
+		eligible, err = repository.DeleteOpenFlareNodeObservationFrpsBefore(ctx, cutoff)
 	case DatabaseCleanupTargetObsFrpc:
-		eligible, err = model.DeleteOpenFlareNodeObservationFrpcBefore(ctx, cutoff)
+		eligible, err = repository.DeleteOpenFlareNodeObservationFrpcBefore(ctx, cutoff)
 	default:
 		return 0, "", errors.New("unsupported cleanup target")
 	}

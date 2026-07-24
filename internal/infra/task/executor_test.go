@@ -11,6 +11,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Rain-kl/Wavelet/internal/repository"
+
 	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"github.com/Rain-kl/Wavelet/internal/testhelper"
@@ -122,7 +124,7 @@ func TestAppendLogWithTaskID(t *testing.T) {
 		Status:      model.TaskExecutionStatusRunning,
 		TriggeredBy: "manual",
 	}
-	err := model.CreateTaskExecution(ctx, execution)
+	err := repository.CreateTaskExecution(ctx, execution)
 	require.NoError(t, err)
 
 	// 注入 taskID 并追加日志
@@ -131,7 +133,7 @@ func TestAppendLogWithTaskID(t *testing.T) {
 	AppendLog(ctx, "处理了 %d 条数据", 50)
 
 	// 验证日志
-	found, err := model.GetTaskExecutionByTaskID(ctx, "log_test_001")
+	found, err := repository.GetTaskExecutionByTaskID(ctx, "log_test_001")
 	require.NoError(t, err)
 	assert.Contains(t, found.Log, "第一条日志")
 	assert.Contains(t, found.Log, "处理了 50 条数据")
@@ -190,7 +192,7 @@ func TestProcessTaskSuccess(t *testing.T) {
 		MaxRetry:    3,
 		TriggeredBy: "manual",
 	}
-	err := model.CreateTaskExecution(ctx, execution)
+	err := repository.CreateTaskExecution(ctx, execution)
 	require.NoError(t, err)
 
 	// 通过 asynq 的 Task 不能直接设置 taskID，ProcessTask 通过 t.ResultWriter().TaskID() 获取
@@ -208,7 +210,7 @@ func TestProcessTaskSuccess(t *testing.T) {
 	assert.Equal(t, "处理完成，共 100 条", result.Message)
 
 	// 验证日志被追加
-	found, err := model.GetTaskExecutionByTaskID(ctx, "process_success_001")
+	found, err := repository.GetTaskExecutionByTaskID(ctx, "process_success_001")
 	require.NoError(t, err)
 	assert.Contains(t, found.Log, "执行成功，处理了 100 条数据")
 }
@@ -231,7 +233,7 @@ func TestProcessTaskFailure(t *testing.T) {
 		MaxRetry:    3,
 		TriggeredBy: "manual",
 	}
-	err := model.CreateTaskExecution(ctx, execution)
+	err := repository.CreateTaskExecution(ctx, execution)
 	require.NoError(t, err)
 
 	// 直接调用 handler
@@ -244,7 +246,7 @@ func TestProcessTaskFailure(t *testing.T) {
 	assert.Contains(t, err.Error(), "模拟执行失败")
 
 	// 验证日志
-	found, err := model.GetTaskExecutionByTaskID(ctx, "process_fail_001")
+	found, err := repository.GetTaskExecutionByTaskID(ctx, "process_fail_001")
 	require.NoError(t, err)
 	assert.Contains(t, found.Log, "开始执行任务")
 }
@@ -261,7 +263,7 @@ func TestCompleteTaskExecutionFlushesLog(t *testing.T) {
 		Status:      model.TaskExecutionStatusRunning,
 		TriggeredBy: "manual",
 	}
-	err := model.CreateTaskExecution(ctx, execution)
+	err := repository.CreateTaskExecution(ctx, execution)
 	require.NoError(t, err)
 
 	ctx = withTaskID(ctx, execution.TaskID)
@@ -279,7 +281,7 @@ func TestCompleteTaskExecutionFlushesLog(t *testing.T) {
 		trace.SpanFromContext(ctx),
 	)
 
-	found, err := model.GetTaskExecutionByTaskID(ctx, execution.TaskID)
+	found, err := repository.GetTaskExecutionByTaskID(ctx, execution.TaskID)
 	require.NoError(t, err)
 	assert.Equal(t, model.TaskExecutionStatusSucceeded, found.Status)
 	assert.Contains(t, found.Log, "任务执行中的日志")
@@ -300,7 +302,7 @@ func TestCompleteTaskExecutionFlushesPermanentFailureLog(t *testing.T) {
 		MaxRetry:    3,
 		TriggeredBy: "manual",
 	}
-	err := model.CreateTaskExecution(ctx, execution)
+	err := repository.CreateTaskExecution(ctx, execution)
 	require.NoError(t, err)
 
 	ctx = withTaskID(ctx, execution.TaskID)
@@ -319,7 +321,7 @@ func TestCompleteTaskExecutionFlushesPermanentFailureLog(t *testing.T) {
 		trace.SpanFromContext(ctx),
 	)
 
-	found, err := model.GetTaskExecutionByTaskID(ctx, execution.TaskID)
+	found, err := repository.GetTaskExecutionByTaskID(ctx, execution.TaskID)
 	require.NoError(t, err)
 	assert.Equal(t, model.TaskExecutionStatusFailed, found.Status)
 	assert.Equal(t, "来源配置无效", found.ErrorMessage)
@@ -356,7 +358,7 @@ func TestRetryTask(t *testing.T) {
 		Duration:     100,
 		TriggeredBy:  "manual",
 	}
-	err := model.CreateTaskExecution(ctx, execution)
+	err := repository.CreateTaskExecution(ctx, execution)
 	require.NoError(t, err)
 
 	// 重试
@@ -366,7 +368,7 @@ func TestRetryTask(t *testing.T) {
 	assert.Contains(t, newTaskID, "retry_1_")
 
 	// 验证新记录
-	newExecution, err := model.GetTaskExecutionByTaskID(ctx, newTaskID)
+	newExecution, err := repository.GetTaskExecutionByTaskID(ctx, newTaskID)
 	require.NoError(t, err)
 	assert.Equal(t, model.TaskExecutionStatusPending, newExecution.Status)
 	assert.Equal(t, 1, newExecution.RetryCount)
@@ -375,7 +377,7 @@ func TestRetryTask(t *testing.T) {
 	assert.True(t, newExecution.Retryable)
 
 	// 原记录不变
-	original, err := model.GetTaskExecutionByID(ctx, execution.ID)
+	original, err := repository.GetTaskExecutionByID(ctx, execution.ID)
 	require.NoError(t, err)
 	assert.Equal(t, model.TaskExecutionStatusFailed, original.Status)
 	assert.Equal(t, 0, original.RetryCount)
@@ -396,7 +398,7 @@ func TestRetryTaskNotFailed(t *testing.T) {
 		MaxRetry:    3,
 		TriggeredBy: "manual",
 	}
-	err := model.CreateTaskExecution(ctx, execution)
+	err := repository.CreateTaskExecution(ctx, execution)
 	require.NoError(t, err)
 
 	// 尝试重试成功的任务
@@ -419,7 +421,7 @@ func TestRetryTaskNotRetryable(t *testing.T) {
 		MaxRetry:    0,
 		TriggeredBy: "manual",
 	}
-	err := model.CreateTaskExecution(ctx, execution)
+	err := repository.CreateTaskExecution(ctx, execution)
 	require.NoError(t, err)
 
 	_, err = RetryTask(ctx, execution.ID)

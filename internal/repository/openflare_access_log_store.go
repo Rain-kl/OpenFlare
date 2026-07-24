@@ -1,13 +1,15 @@
 // Copyright 2026 Arctel.net
 // SPDX-License-Identifier: Apache-2.0
 
-package model
+package repository
 
 import (
 	"context"
 	"math"
 	"sync"
 	"time"
+
+	"github.com/Rain-kl/Wavelet/internal/model"
 
 	analyticsmodel "github.com/Rain-kl/Wavelet/internal/model/analytics"
 	analyticsrepo "github.com/Rain-kl/Wavelet/internal/repository/analytics"
@@ -38,48 +40,24 @@ func currentAccessLogInsertHooks() AccessLogInsertHooks {
 }
 
 type accessLogStore interface {
-	InsertBatch(ctx context.Context, records []*OpenFlareAccessLog) error
-	List(ctx context.Context, query OpenFlareAccessLogQuery) ([]*OpenFlareAccessLog, error)
-	Count(ctx context.Context, query OpenFlareAccessLogQuery) (int64, int64, int64, error)
-	RegionCounts(ctx context.Context, nodeID string, since time.Time, limit int) ([]*OpenFlareAccessLogRegionCount, error)
-	BucketAggregates(ctx context.Context, filter OpenFlareAccessLogQuery, bucketSeconds int64) ([]openFlareAccessLogBucketAggregateRow, error)
-	CountBuckets(ctx context.Context, filter OpenFlareAccessLogQuery, bucketSeconds int64) (int64, error)
-	BucketDimensions(ctx context.Context, filter OpenFlareAccessLogQuery, column string, bucketSeconds int64) ([]openFlareAccessLogBucketDimensionRow, error)
-	IPAggregates(ctx context.Context, filter OpenFlareAccessLogQuery, exactRemoteAddr bool) ([]openFlareAccessLogIPAggregateRow, error)
-	WAFIPAggregates(ctx context.Context, filter OpenFlareAccessLogQuery) ([]openFlareAccessLogWAFIPAggregateRow, error)
-	IPSummaries(ctx context.Context, filter OpenFlareAccessLogQuery, recentSince time.Time) ([]openFlareAccessLogIPSummaryRow, error)
-	CountIPSummaries(ctx context.Context, filter OpenFlareAccessLogQuery) (int64, error)
-	IPTrend(ctx context.Context, filter OpenFlareAccessLogQuery, bucketSeconds int64) ([]openFlareAccessLogIPTrendRow, error)
-	TrafficSummary(ctx context.Context, filter OpenFlareAccessLogQuery) (OpenFlareAccessLogTrafficSummary, error)
-	ValueCounts(ctx context.Context, filter OpenFlareAccessLogQuery, column string, limit int) ([]OpenFlareAccessLogValueCount, error)
-	NodeAggregates(ctx context.Context, filter OpenFlareAccessLogQuery) ([]OpenFlareAccessLogNodeAggregate, error)
+	InsertBatch(ctx context.Context, records []*model.OpenFlareAccessLog) error
+	List(ctx context.Context, query model.OpenFlareAccessLogQuery) ([]*model.OpenFlareAccessLog, error)
+	Count(ctx context.Context, query model.OpenFlareAccessLogQuery) (int64, int64, int64, error)
+	RegionCounts(ctx context.Context, nodeID string, since time.Time, limit int) ([]*model.OpenFlareAccessLogRegionCount, error)
+	BucketAggregates(ctx context.Context, filter model.OpenFlareAccessLogQuery, bucketSeconds int64) ([]openFlareAccessLogBucketAggregateRow, error)
+	CountBuckets(ctx context.Context, filter model.OpenFlareAccessLogQuery, bucketSeconds int64) (int64, error)
+	BucketDimensions(ctx context.Context, filter model.OpenFlareAccessLogQuery, column string, bucketSeconds int64) ([]openFlareAccessLogBucketDimensionRow, error)
+	IPAggregates(ctx context.Context, filter model.OpenFlareAccessLogQuery, exactRemoteAddr bool) ([]openFlareAccessLogIPAggregateRow, error)
+	WAFIPAggregates(ctx context.Context, filter model.OpenFlareAccessLogQuery) ([]openFlareAccessLogWAFIPAggregateRow, error)
+	IPSummaries(ctx context.Context, filter model.OpenFlareAccessLogQuery, recentSince time.Time) ([]openFlareAccessLogIPSummaryRow, error)
+	CountIPSummaries(ctx context.Context, filter model.OpenFlareAccessLogQuery) (int64, error)
+	IPTrend(ctx context.Context, filter model.OpenFlareAccessLogQuery, bucketSeconds int64) ([]openFlareAccessLogIPTrendRow, error)
+	TrafficSummary(ctx context.Context, filter model.OpenFlareAccessLogQuery) (model.OpenFlareAccessLogTrafficSummary, error)
+	ValueCounts(ctx context.Context, filter model.OpenFlareAccessLogQuery, column string, limit int) ([]model.OpenFlareAccessLogValueCount, error)
+	NodeAggregates(ctx context.Context, filter model.OpenFlareAccessLogQuery) ([]model.OpenFlareAccessLogNodeAggregate, error)
 	DeleteAll(ctx context.Context) (int64, error)
 	DeleteBefore(ctx context.Context, cutoff time.Time) (int64, error)
 	DeleteByNodeBefore(ctx context.Context, nodeID string, before time.Time) (int64, error)
-}
-
-// OpenFlareAccessLogTrafficSummary is a window-level traffic summary from access logs.
-type OpenFlareAccessLogTrafficSummary struct {
-	RequestCount  int64
-	ErrorCount    int64
-	UniqueIPCount int64
-	BytesSent     int64
-	RequestLength int64
-	NodeCount     int64
-}
-
-// OpenFlareAccessLogValueCount is a dimension value count.
-type OpenFlareAccessLogValueCount struct {
-	Value string
-	Count int64
-}
-
-// OpenFlareAccessLogNodeAggregate is per-node traffic over a window.
-type OpenFlareAccessLogNodeAggregate struct {
-	NodeID        string
-	RequestCount  int64
-	ErrorCount    int64
-	UniqueIPCount int64
 }
 
 var (
@@ -112,13 +90,13 @@ func SetAccessLogStoreForTest(store accessLogStore) func() {
 // NewMemoryAccessLogStore returns an in-memory access log store for unit tests.
 func NewMemoryAccessLogStore() accessLogStore {
 	return &memoryAccessLogStore{
-		records: make([]*OpenFlareAccessLog, 0),
+		records: make([]*model.OpenFlareAccessLog, 0),
 	}
 }
 
 type clickhouseAccessLogStore struct{}
 
-func (clickhouseAccessLogStore) InsertBatch(_ context.Context, records []*OpenFlareAccessLog) error {
+func (clickhouseAccessLogStore) InsertBatch(_ context.Context, records []*model.OpenFlareAccessLog) error {
 	logs := make([]analyticsmodel.NodeAccessLog, 0, len(records))
 	for _, record := range records {
 		if record == nil {
@@ -132,7 +110,7 @@ func (clickhouseAccessLogStore) InsertBatch(_ context.Context, records []*OpenFl
 	return nil
 }
 
-func (clickhouseAccessLogStore) List(ctx context.Context, query OpenFlareAccessLogQuery) ([]*OpenFlareAccessLog, error) {
+func (clickhouseAccessLogStore) List(ctx context.Context, query model.OpenFlareAccessLogQuery) ([]*model.OpenFlareAccessLog, error) {
 	rows, err := analyticsrepo.ListNodeAccessLogs(ctx, toNodeAccessLogFilter(query))
 	if err != nil {
 		return nil, err
@@ -140,18 +118,18 @@ func (clickhouseAccessLogStore) List(ctx context.Context, query OpenFlareAccessL
 	return fromAnalyticsNodeAccessLogs(rows), nil
 }
 
-func (clickhouseAccessLogStore) Count(ctx context.Context, query OpenFlareAccessLogQuery) (int64, int64, int64, error) {
+func (clickhouseAccessLogStore) Count(ctx context.Context, query model.OpenFlareAccessLogQuery) (int64, int64, int64, error) {
 	return analyticsrepo.CountNodeAccessLogs(ctx, toNodeAccessLogFilter(query))
 }
 
-func (clickhouseAccessLogStore) RegionCounts(ctx context.Context, nodeID string, since time.Time, limit int) ([]*OpenFlareAccessLogRegionCount, error) {
+func (clickhouseAccessLogStore) RegionCounts(ctx context.Context, nodeID string, since time.Time, limit int) ([]*model.OpenFlareAccessLogRegionCount, error) {
 	rows, err := analyticsrepo.RegionCountsNodeAccessLogs(ctx, nodeID, since, limit)
 	if err != nil {
 		return nil, err
 	}
-	result := make([]*OpenFlareAccessLogRegionCount, len(rows))
+	result := make([]*model.OpenFlareAccessLogRegionCount, len(rows))
 	for index, row := range rows {
-		result[index] = &OpenFlareAccessLogRegionCount{
+		result[index] = &model.OpenFlareAccessLogRegionCount{
 			Region: row.Region,
 			Count:  row.Count,
 		}
@@ -159,35 +137,35 @@ func (clickhouseAccessLogStore) RegionCounts(ctx context.Context, nodeID string,
 	return result, nil
 }
 
-func (clickhouseAccessLogStore) BucketAggregates(ctx context.Context, filter OpenFlareAccessLogQuery, bucketSeconds int64) ([]openFlareAccessLogBucketAggregateRow, error) {
+func (clickhouseAccessLogStore) BucketAggregates(ctx context.Context, filter model.OpenFlareAccessLogQuery, bucketSeconds int64) ([]openFlareAccessLogBucketAggregateRow, error) {
 	return analyticsrepo.BucketAggregatesNodeAccessLogs(ctx, toNodeAccessLogFilter(filter), bucketSeconds)
 }
 
-func (clickhouseAccessLogStore) CountBuckets(ctx context.Context, filter OpenFlareAccessLogQuery, bucketSeconds int64) (int64, error) {
+func (clickhouseAccessLogStore) CountBuckets(ctx context.Context, filter model.OpenFlareAccessLogQuery, bucketSeconds int64) (int64, error) {
 	return analyticsrepo.CountBucketAggregatesNodeAccessLogs(ctx, toNodeAccessLogFilter(filter), bucketSeconds)
 }
 
-func (clickhouseAccessLogStore) BucketDimensions(ctx context.Context, filter OpenFlareAccessLogQuery, column string, bucketSeconds int64) ([]openFlareAccessLogBucketDimensionRow, error) {
+func (clickhouseAccessLogStore) BucketDimensions(ctx context.Context, filter model.OpenFlareAccessLogQuery, column string, bucketSeconds int64) ([]openFlareAccessLogBucketDimensionRow, error) {
 	return analyticsrepo.BucketDimensionsNodeAccessLogs(ctx, toNodeAccessLogFilter(filter), column, bucketSeconds)
 }
 
-func (clickhouseAccessLogStore) IPAggregates(ctx context.Context, filter OpenFlareAccessLogQuery, exactRemoteAddr bool) ([]openFlareAccessLogIPAggregateRow, error) {
+func (clickhouseAccessLogStore) IPAggregates(ctx context.Context, filter model.OpenFlareAccessLogQuery, exactRemoteAddr bool) ([]openFlareAccessLogIPAggregateRow, error) {
 	return analyticsrepo.IPAggregatesNodeAccessLogs(ctx, toNodeAccessLogFilter(filter), exactRemoteAddr)
 }
 
-func (clickhouseAccessLogStore) IPSummaries(ctx context.Context, filter OpenFlareAccessLogQuery, recentSince time.Time) ([]openFlareAccessLogIPSummaryRow, error) {
+func (clickhouseAccessLogStore) IPSummaries(ctx context.Context, filter model.OpenFlareAccessLogQuery, recentSince time.Time) ([]openFlareAccessLogIPSummaryRow, error) {
 	return analyticsrepo.IPSummariesNodeAccessLogs(ctx, toNodeAccessLogFilter(filter), recentSince)
 }
 
-func (clickhouseAccessLogStore) CountIPSummaries(ctx context.Context, filter OpenFlareAccessLogQuery) (int64, error) {
+func (clickhouseAccessLogStore) CountIPSummaries(ctx context.Context, filter model.OpenFlareAccessLogQuery) (int64, error) {
 	return analyticsrepo.CountIPSummaryNodeAccessLogs(ctx, toNodeAccessLogFilter(filter))
 }
 
-func (clickhouseAccessLogStore) WAFIPAggregates(ctx context.Context, filter OpenFlareAccessLogQuery) ([]openFlareAccessLogWAFIPAggregateRow, error) {
+func (clickhouseAccessLogStore) WAFIPAggregates(ctx context.Context, filter model.OpenFlareAccessLogQuery) ([]openFlareAccessLogWAFIPAggregateRow, error) {
 	return analyticsrepo.IPAggregatesForWAFNodeAccessLogs(ctx, toNodeAccessLogFilter(filter))
 }
 
-func (clickhouseAccessLogStore) IPTrend(ctx context.Context, filter OpenFlareAccessLogQuery, bucketSeconds int64) ([]openFlareAccessLogIPTrendRow, error) {
+func (clickhouseAccessLogStore) IPTrend(ctx context.Context, filter model.OpenFlareAccessLogQuery, bucketSeconds int64) ([]openFlareAccessLogIPTrendRow, error) {
 	return analyticsrepo.IPTrendNodeAccessLogs(ctx, toNodeAccessLogFilter(filter), bucketSeconds)
 }
 
@@ -203,12 +181,12 @@ func (clickhouseAccessLogStore) DeleteByNodeBefore(ctx context.Context, nodeID s
 	return analyticsrepo.DeleteNodeAccessLogsByNodeBefore(ctx, nodeID, before)
 }
 
-func (clickhouseAccessLogStore) TrafficSummary(ctx context.Context, filter OpenFlareAccessLogQuery) (OpenFlareAccessLogTrafficSummary, error) {
+func (clickhouseAccessLogStore) TrafficSummary(ctx context.Context, filter model.OpenFlareAccessLogQuery) (model.OpenFlareAccessLogTrafficSummary, error) {
 	row, err := analyticsrepo.TrafficSummaryNodeAccessLogs(ctx, toNodeAccessLogFilter(filter))
 	if err != nil {
-		return OpenFlareAccessLogTrafficSummary{}, err
+		return model.OpenFlareAccessLogTrafficSummary{}, err
 	}
-	return OpenFlareAccessLogTrafficSummary{
+	return model.OpenFlareAccessLogTrafficSummary{
 		RequestCount:  row.RequestCount,
 		ErrorCount:    row.ErrorCount,
 		UniqueIPCount: row.UniqueIPCount,
@@ -218,26 +196,26 @@ func (clickhouseAccessLogStore) TrafficSummary(ctx context.Context, filter OpenF
 	}, nil
 }
 
-func (clickhouseAccessLogStore) ValueCounts(ctx context.Context, filter OpenFlareAccessLogQuery, column string, limit int) ([]OpenFlareAccessLogValueCount, error) {
+func (clickhouseAccessLogStore) ValueCounts(ctx context.Context, filter model.OpenFlareAccessLogQuery, column string, limit int) ([]model.OpenFlareAccessLogValueCount, error) {
 	rows, err := analyticsrepo.ValueCountsNodeAccessLogs(ctx, toNodeAccessLogFilter(filter), column, limit)
 	if err != nil {
 		return nil, err
 	}
-	result := make([]OpenFlareAccessLogValueCount, len(rows))
+	result := make([]model.OpenFlareAccessLogValueCount, len(rows))
 	for i, row := range rows {
-		result[i] = OpenFlareAccessLogValueCount{Value: row.Value, Count: row.Count}
+		result[i] = model.OpenFlareAccessLogValueCount{Value: row.Value, Count: row.Count}
 	}
 	return result, nil
 }
 
-func (clickhouseAccessLogStore) NodeAggregates(ctx context.Context, filter OpenFlareAccessLogQuery) ([]OpenFlareAccessLogNodeAggregate, error) {
+func (clickhouseAccessLogStore) NodeAggregates(ctx context.Context, filter model.OpenFlareAccessLogQuery) ([]model.OpenFlareAccessLogNodeAggregate, error) {
 	rows, err := analyticsrepo.NodeAggregatesNodeAccessLogs(ctx, toNodeAccessLogFilter(filter))
 	if err != nil {
 		return nil, err
 	}
-	result := make([]OpenFlareAccessLogNodeAggregate, len(rows))
+	result := make([]model.OpenFlareAccessLogNodeAggregate, len(rows))
 	for i, row := range rows {
-		result[i] = OpenFlareAccessLogNodeAggregate{
+		result[i] = model.OpenFlareAccessLogNodeAggregate{
 			NodeID:        row.NodeID,
 			RequestCount:  row.RequestCount,
 			ErrorCount:    row.ErrorCount,
@@ -247,7 +225,7 @@ func (clickhouseAccessLogStore) NodeAggregates(ctx context.Context, filter OpenF
 	return result, nil
 }
 
-func toNodeAccessLogFilter(query OpenFlareAccessLogQuery) analyticsrepo.NodeAccessLogFilter {
+func toNodeAccessLogFilter(query model.OpenFlareAccessLogQuery) analyticsrepo.NodeAccessLogFilter {
 	return analyticsrepo.NodeAccessLogFilter{
 		NodeID:     query.NodeID,
 		RemoteAddr: query.RemoteAddr,
@@ -263,7 +241,7 @@ func toNodeAccessLogFilter(query OpenFlareAccessLogQuery) analyticsrepo.NodeAcce
 	}
 }
 
-func toAnalyticsNodeAccessLog(record *OpenFlareAccessLog) analyticsmodel.NodeAccessLog {
+func toAnalyticsNodeAccessLog(record *model.OpenFlareAccessLog) analyticsmodel.NodeAccessLog {
 	var bytesSent uint64
 	if record.BytesSent > 0 {
 		bytesSent = uint64(record.BytesSent)
@@ -294,8 +272,8 @@ func toAnalyticsNodeAccessLog(record *OpenFlareAccessLog) analyticsmodel.NodeAcc
 	}
 }
 
-func fromAnalyticsNodeAccessLogs(rows []analyticsmodel.NodeAccessLog) []*OpenFlareAccessLog {
-	result := make([]*OpenFlareAccessLog, len(rows))
+func fromAnalyticsNodeAccessLogs(rows []analyticsmodel.NodeAccessLog) []*model.OpenFlareAccessLog {
+	result := make([]*model.OpenFlareAccessLog, len(rows))
 	for index, row := range rows {
 		var bytesSent int64
 		if row.BytesSent <= math.MaxInt64 {
@@ -309,7 +287,7 @@ func fromAnalyticsNodeAccessLogs(rows []analyticsmodel.NodeAccessLog) []*OpenFla
 		} else {
 			requestLength = math.MaxInt64
 		}
-		result[index] = &OpenFlareAccessLog{
+		result[index] = &model.OpenFlareAccessLog{
 			ID:            row.ID,
 			NodeID:        row.NodeID,
 			LoggedAt:      row.LoggedAt,

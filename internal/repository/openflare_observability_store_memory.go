@@ -1,7 +1,7 @@
 // Copyright 2026 Arctel.net
 // SPDX-License-Identifier: Apache-2.0
 
-package model
+package repository
 
 import (
 	"context"
@@ -10,18 +10,20 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Rain-kl/Wavelet/internal/model"
+
 	"github.com/Rain-kl/Wavelet/internal/infra/persistence/idgen"
 )
 
 type memoryObservabilityStore struct {
 	mu              sync.RWMutex
-	metricSnapshots []*OpenFlareMetricSnapshot
-	edgeHealth      []*OpenFlareEdgeHealth
-	frpsObs         []*OpenFlareNodeObservationFrps
-	frpcObs         []*OpenFlareNodeObservationFrpc
+	metricSnapshots []*model.OpenFlareMetricSnapshot
+	edgeHealth      []*model.OpenFlareEdgeHealth
+	frpsObs         []*model.OpenFlareNodeObservationFrps
+	frpcObs         []*model.OpenFlareNodeObservationFrpc
 }
 
-func (s *memoryObservabilityStore) InsertMetricSnapshot(_ context.Context, record *OpenFlareMetricSnapshot) error {
+func (s *memoryObservabilityStore) InsertMetricSnapshot(_ context.Context, record *model.OpenFlareMetricSnapshot) error {
 	if record == nil {
 		return nil
 	}
@@ -35,7 +37,7 @@ func (s *memoryObservabilityStore) InsertMetricSnapshot(_ context.Context, recor
 	return nil
 }
 
-func (s *memoryObservabilityStore) ListMetricSnapshots(_ context.Context, nodeID string, since time.Time, limit int) ([]*OpenFlareMetricSnapshot, error) {
+func (s *memoryObservabilityStore) ListMetricSnapshots(_ context.Context, nodeID string, since time.Time, limit int) ([]*model.OpenFlareMetricSnapshot, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	rows := memoryFilterMetricSnapshots(s.metricSnapshots, nodeID, since)
@@ -55,7 +57,7 @@ func (s *memoryObservabilityStore) DeleteMetricSnapshotsBefore(_ context.Context
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	cutoff = cutoff.UTC()
-	remaining := make([]*OpenFlareMetricSnapshot, 0, len(s.metricSnapshots))
+	remaining := make([]*model.OpenFlareMetricSnapshot, 0, len(s.metricSnapshots))
 	var deleted int64
 	for _, row := range s.metricSnapshots {
 		if row.CapturedAt.Before(cutoff) {
@@ -68,7 +70,7 @@ func (s *memoryObservabilityStore) DeleteMetricSnapshotsBefore(_ context.Context
 	return deleted, nil
 }
 
-func (s *memoryObservabilityStore) InsertEdgeHealth(_ context.Context, record *OpenFlareEdgeHealth) error {
+func (s *memoryObservabilityStore) InsertEdgeHealth(_ context.Context, record *model.OpenFlareEdgeHealth) error {
 	if record == nil {
 		return nil
 	}
@@ -78,7 +80,7 @@ func (s *memoryObservabilityStore) InsertEdgeHealth(_ context.Context, record *O
 	return nil
 }
 
-func (s *memoryObservabilityStore) ListEdgeHealth(_ context.Context, nodeID string, since time.Time, limit int) ([]*OpenFlareEdgeHealth, error) {
+func (s *memoryObservabilityStore) ListEdgeHealth(_ context.Context, nodeID string, since time.Time, limit int) ([]*model.OpenFlareEdgeHealth, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	rows := memoryFilterEdgeHealth(s.edgeHealth, nodeID, since)
@@ -98,7 +100,7 @@ func (s *memoryObservabilityStore) DeleteEdgeHealthBefore(_ context.Context, cut
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	cutoff = cutoff.UTC()
-	remaining := make([]*OpenFlareEdgeHealth, 0, len(s.edgeHealth))
+	remaining := make([]*model.OpenFlareEdgeHealth, 0, len(s.edgeHealth))
 	var deleted int64
 	for _, row := range s.edgeHealth {
 		if row.CapturedAt.Before(cutoff) {
@@ -111,7 +113,7 @@ func (s *memoryObservabilityStore) DeleteEdgeHealthBefore(_ context.Context, cut
 	return deleted, nil
 }
 
-func (s *memoryObservabilityStore) InsertNodeObservationFrps(_ context.Context, record *OpenFlareNodeObservationFrps) error {
+func (s *memoryObservabilityStore) InsertNodeObservationFrps(_ context.Context, record *model.OpenFlareNodeObservationFrps) error {
 	if record == nil {
 		return nil
 	}
@@ -121,7 +123,7 @@ func (s *memoryObservabilityStore) InsertNodeObservationFrps(_ context.Context, 
 	return nil
 }
 
-func (s *memoryObservabilityStore) ListNodeObservationFrps(_ context.Context, nodeID string, since time.Time, limit int) ([]*OpenFlareNodeObservationFrps, error) {
+func (s *memoryObservabilityStore) ListNodeObservationFrps(_ context.Context, nodeID string, since time.Time, limit int) ([]*model.OpenFlareNodeObservationFrps, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	rows := memoryFilterFrpsObservations(s.frpsObs, nodeID, since)
@@ -141,7 +143,7 @@ func (s *memoryObservabilityStore) DeleteNodeObservationFrpsBefore(_ context.Con
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	cutoff = cutoff.UTC()
-	remaining := make([]*OpenFlareNodeObservationFrps, 0, len(s.frpsObs))
+	remaining := make([]*model.OpenFlareNodeObservationFrps, 0, len(s.frpsObs))
 	var deleted int64
 	for _, row := range s.frpsObs {
 		if row.CapturedAt.Before(cutoff) {
@@ -154,7 +156,7 @@ func (s *memoryObservabilityStore) DeleteNodeObservationFrpsBefore(_ context.Con
 	return deleted, nil
 }
 
-func (s *memoryObservabilityStore) InsertNodeObservationFrpc(_ context.Context, record *OpenFlareNodeObservationFrpc) error {
+func (s *memoryObservabilityStore) InsertNodeObservationFrpc(_ context.Context, record *model.OpenFlareNodeObservationFrpc) error {
 	if record == nil {
 		return nil
 	}
@@ -164,7 +166,7 @@ func (s *memoryObservabilityStore) InsertNodeObservationFrpc(_ context.Context, 
 	return nil
 }
 
-func (s *memoryObservabilityStore) ListNodeObservationFrpc(_ context.Context, nodeID string, since time.Time, limit int) ([]*OpenFlareNodeObservationFrpc, error) {
+func (s *memoryObservabilityStore) ListNodeObservationFrpc(_ context.Context, nodeID string, since time.Time, limit int) ([]*model.OpenFlareNodeObservationFrpc, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	rows := memoryFilterFrpcObservations(s.frpcObs, nodeID, since)
@@ -184,7 +186,7 @@ func (s *memoryObservabilityStore) DeleteNodeObservationFrpcBefore(_ context.Con
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	cutoff = cutoff.UTC()
-	remaining := make([]*OpenFlareNodeObservationFrpc, 0, len(s.frpcObs))
+	remaining := make([]*model.OpenFlareNodeObservationFrpc, 0, len(s.frpcObs))
 	var deleted int64
 	for _, row := range s.frpcObs {
 		if row.CapturedAt.Before(cutoff) {
@@ -197,8 +199,8 @@ func (s *memoryObservabilityStore) DeleteNodeObservationFrpcBefore(_ context.Con
 	return deleted, nil
 }
 
-func memoryFilterMetricSnapshots(rows []*OpenFlareMetricSnapshot, nodeID string, since time.Time) []*OpenFlareMetricSnapshot {
-	result := make([]*OpenFlareMetricSnapshot, 0, len(rows))
+func memoryFilterMetricSnapshots(rows []*model.OpenFlareMetricSnapshot, nodeID string, since time.Time) []*model.OpenFlareMetricSnapshot {
+	result := make([]*model.OpenFlareMetricSnapshot, 0, len(rows))
 	for _, row := range rows {
 		if !memoryObservabilityMatchesNodeID(row.NodeID, nodeID) {
 			continue
@@ -211,8 +213,8 @@ func memoryFilterMetricSnapshots(rows []*OpenFlareMetricSnapshot, nodeID string,
 	return result
 }
 
-func memoryFilterEdgeHealth(rows []*OpenFlareEdgeHealth, nodeID string, since time.Time) []*OpenFlareEdgeHealth {
-	result := make([]*OpenFlareEdgeHealth, 0, len(rows))
+func memoryFilterEdgeHealth(rows []*model.OpenFlareEdgeHealth, nodeID string, since time.Time) []*model.OpenFlareEdgeHealth {
+	result := make([]*model.OpenFlareEdgeHealth, 0, len(rows))
 	for _, row := range rows {
 		if !memoryObservabilityMatchesNodeID(row.NodeID, nodeID) {
 			continue
@@ -225,8 +227,8 @@ func memoryFilterEdgeHealth(rows []*OpenFlareEdgeHealth, nodeID string, since ti
 	return result
 }
 
-func memoryFilterFrpsObservations(rows []*OpenFlareNodeObservationFrps, nodeID string, since time.Time) []*OpenFlareNodeObservationFrps {
-	result := make([]*OpenFlareNodeObservationFrps, 0, len(rows))
+func memoryFilterFrpsObservations(rows []*model.OpenFlareNodeObservationFrps, nodeID string, since time.Time) []*model.OpenFlareNodeObservationFrps {
+	result := make([]*model.OpenFlareNodeObservationFrps, 0, len(rows))
 	for _, row := range rows {
 		if !memoryObservabilityMatchesNodeID(row.NodeID, nodeID) {
 			continue
@@ -239,8 +241,8 @@ func memoryFilterFrpsObservations(rows []*OpenFlareNodeObservationFrps, nodeID s
 	return result
 }
 
-func memoryFilterFrpcObservations(rows []*OpenFlareNodeObservationFrpc, nodeID string, since time.Time) []*OpenFlareNodeObservationFrpc {
-	result := make([]*OpenFlareNodeObservationFrpc, 0, len(rows))
+func memoryFilterFrpcObservations(rows []*model.OpenFlareNodeObservationFrpc, nodeID string, since time.Time) []*model.OpenFlareNodeObservationFrpc {
+	result := make([]*model.OpenFlareNodeObservationFrpc, 0, len(rows))
 	for _, row := range rows {
 		if !memoryObservabilityMatchesNodeID(row.NodeID, nodeID) {
 			continue
@@ -261,7 +263,7 @@ func memoryObservabilityMatchesNodeID(rowNodeID string, nodeID string) bool {
 	return rowNodeID == trimmed
 }
 
-func memoryMetricSnapshotExists(rows []*OpenFlareMetricSnapshot, nodeID string, capturedAt time.Time) bool {
+func memoryMetricSnapshotExists(rows []*model.OpenFlareMetricSnapshot, nodeID string, capturedAt time.Time) bool {
 	capturedAt = capturedAt.UTC()
 	for _, row := range rows {
 		if row.NodeID == nodeID && row.CapturedAt.UTC().Equal(capturedAt) {
@@ -271,7 +273,7 @@ func memoryMetricSnapshotExists(rows []*OpenFlareMetricSnapshot, nodeID string, 
 	return false
 }
 
-func sortOpenFlareMetricSnapshots(items []*OpenFlareMetricSnapshot) {
+func sortOpenFlareMetricSnapshots(items []*model.OpenFlareMetricSnapshot) {
 	sort.Slice(items, func(i, j int) bool {
 		left := items[i]
 		right := items[j]
@@ -285,7 +287,7 @@ func sortOpenFlareMetricSnapshots(items []*OpenFlareMetricSnapshot) {
 	})
 }
 
-func sortOpenFlareEdgeHealth(items []*OpenFlareEdgeHealth) {
+func sortOpenFlareEdgeHealth(items []*model.OpenFlareEdgeHealth) {
 	sort.Slice(items, func(i, j int) bool {
 		left := items[i]
 		right := items[j]
@@ -299,7 +301,7 @@ func sortOpenFlareEdgeHealth(items []*OpenFlareEdgeHealth) {
 	})
 }
 
-func sortOpenFlareNodeObservationFrps(items []*OpenFlareNodeObservationFrps) {
+func sortOpenFlareNodeObservationFrps(items []*model.OpenFlareNodeObservationFrps) {
 	sort.Slice(items, func(i, j int) bool {
 		left := items[i]
 		right := items[j]
@@ -313,7 +315,7 @@ func sortOpenFlareNodeObservationFrps(items []*OpenFlareNodeObservationFrps) {
 	})
 }
 
-func sortOpenFlareNodeObservationFrpc(items []*OpenFlareNodeObservationFrpc) {
+func sortOpenFlareNodeObservationFrpc(items []*model.OpenFlareNodeObservationFrpc) {
 	sort.Slice(items, func(i, j int) bool {
 		left := items[i]
 		right := items[j]
@@ -338,7 +340,7 @@ func memoryLimitObservabilityRows[T any](rows []T, limit int) []T {
 	return result
 }
 
-func cloneOpenFlareMetricSnapshot(record *OpenFlareMetricSnapshot) *OpenFlareMetricSnapshot {
+func cloneOpenFlareMetricSnapshot(record *model.OpenFlareMetricSnapshot) *model.OpenFlareMetricSnapshot {
 	copyRecord := *record
 	if copyRecord.ID == 0 {
 		copyRecord.ID = uint(idgen.NextUint64ID())
@@ -352,7 +354,7 @@ func cloneOpenFlareMetricSnapshot(record *OpenFlareMetricSnapshot) *OpenFlareMet
 	return &copyRecord
 }
 
-func cloneOpenFlareEdgeHealth(record *OpenFlareEdgeHealth) *OpenFlareEdgeHealth {
+func cloneOpenFlareEdgeHealth(record *model.OpenFlareEdgeHealth) *model.OpenFlareEdgeHealth {
 	copyRecord := *record
 	if copyRecord.ID == 0 {
 		copyRecord.ID = uint(idgen.NextUint64ID())
@@ -372,7 +374,7 @@ func cloneOpenFlareEdgeHealth(record *OpenFlareEdgeHealth) *OpenFlareEdgeHealth 
 	return &copyRecord
 }
 
-func cloneOpenFlareNodeObservationFrps(record *OpenFlareNodeObservationFrps) *OpenFlareNodeObservationFrps {
+func cloneOpenFlareNodeObservationFrps(record *model.OpenFlareNodeObservationFrps) *model.OpenFlareNodeObservationFrps {
 	copyRecord := *record
 	if copyRecord.ID == 0 {
 		copyRecord.ID = uint(idgen.NextUint64ID())
@@ -389,7 +391,7 @@ func cloneOpenFlareNodeObservationFrps(record *OpenFlareNodeObservationFrps) *Op
 	return &copyRecord
 }
 
-func cloneOpenFlareNodeObservationFrpc(record *OpenFlareNodeObservationFrpc) *OpenFlareNodeObservationFrpc {
+func cloneOpenFlareNodeObservationFrpc(record *model.OpenFlareNodeObservationFrpc) *model.OpenFlareNodeObservationFrpc {
 	copyRecord := *record
 	if copyRecord.ID == 0 {
 		copyRecord.ID = uint(idgen.NextUint64ID())

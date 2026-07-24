@@ -8,6 +8,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Rain-kl/Wavelet/internal/repository"
+
 	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"github.com/glebarez/sqlite"
@@ -41,13 +43,13 @@ func TestDeleteDomainRejectsBoundRoute(t *testing.T) {
 	require.NoError(t, err)
 	routeID := uint(9)
 	item.ProxyRouteID = &routeID
-	require.NoError(t, db.DB(ctx).Save(item).Error)
+	require.NoError(t, repository.SaveZoneDomain(ctx, item))
 
 	err = DeleteDomain(ctx, zone.ID, item.ID)
 	require.EqualError(t, err, errDomainBoundToRoute)
 
 	item.ProxyRouteID = nil
-	require.NoError(t, db.DB(ctx).Save(item).Error)
+	require.NoError(t, repository.SaveZoneDomain(ctx, item))
 	require.NoError(t, DeleteDomain(ctx, zone.ID, item.ID))
 }
 
@@ -59,7 +61,7 @@ func TestLegacyImportUsesEffectiveTLDPlusOne(t *testing.T) {
 
 func TestGetStatsAggregatesZoneHosts(t *testing.T) {
 	ctx := setupZoneDB(t)
-	reset := model.SetAccessLogStoreForTest(model.NewMemoryAccessLogStore())
+	reset := repository.SetAccessLogStoreForTest(repository.NewMemoryAccessLogStore())
 	t.Cleanup(reset)
 
 	zone, err := Create(ctx, Input{Domain: "example.com"})
@@ -70,7 +72,7 @@ func TestGetStatsAggregatesZoneHosts(t *testing.T) {
 	require.NoError(t, err)
 
 	now := time.Now().UTC()
-	require.NoError(t, model.InsertOpenFlareAccessLogsBatch(ctx, []*model.OpenFlareAccessLog{
+	require.NoError(t, repository.InsertOpenFlareAccessLogsBatch(ctx, []*model.OpenFlareAccessLog{
 		{NodeID: "n1", LoggedAt: now.Add(-1 * time.Hour), RemoteAddr: "1.1.1.1", Host: "api.example.com", Path: "/", StatusCode: 200, BytesSent: 1000},
 		{NodeID: "n1", LoggedAt: now.Add(-2 * time.Hour), RemoteAddr: "1.1.1.1", Host: "www.example.com", Path: "/", StatusCode: 200, BytesSent: 500},
 		{NodeID: "n1", LoggedAt: now.Add(-3 * time.Hour), RemoteAddr: "2.2.2.2", Host: "api.example.com", Path: "/x", StatusCode: 404, BytesSent: 200},

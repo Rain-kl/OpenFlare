@@ -13,14 +13,13 @@ import (
 	"strings"
 	"time"
 
-	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/infra/task"
 	"github.com/Rain-kl/Wavelet/internal/integration/githubrelease"
 	"github.com/Rain-kl/Wavelet/internal/model"
+	"github.com/Rain-kl/Wavelet/internal/repository"
 	"github.com/Rain-kl/Wavelet/pkg/logger"
 	"github.com/Rain-kl/Wavelet/pkg/pagesarchive"
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
 
 const githubSourceDetailProvider = "github"
@@ -201,7 +200,7 @@ func finishGitHubCheckNotModified(
 ) (string, string, error) {
 	var revision string
 	var status string
-	err := db.DB(ctx).Transaction(func(tx *gorm.DB) error {
+	err := repository.WithPagesTx(ctx, func(tx *gorm.DB) error {
 		runtime, now, err := lockOwnedSourceRuntime(tx, snapshot)
 		if err != nil {
 			return err
@@ -211,7 +210,7 @@ func finishGitHubCheckNotModified(
 		updates := githubCheckTerminalUpdates(snapshot, now, result.RetryAt)
 		updates["etag"] = result.ETag
 		updates[sourceRuntimeColumnSyncStatus] = status
-		return tx.Model(runtime).Updates(updates).Error
+		return repository.UpdatePagesProjectSourceRuntimeTx(tx, runtime, updates)
 	})
 	return revision, status, err
 }
@@ -223,7 +222,7 @@ func finishGitHubCheckTarget(
 	target *githubSourceTarget,
 ) (string, error) {
 	status := pagesSourceStatusIdle
-	err := db.DB(ctx).Transaction(func(tx *gorm.DB) error {
+	err := repository.WithPagesTx(ctx, func(tx *gorm.DB) error {
 		runtime, now, err := lockOwnedSourceRuntime(tx, snapshot)
 		if err != nil {
 			return err
@@ -234,7 +233,7 @@ func finishGitHubCheckTarget(
 		updates["last_seen_revision"] = target.Revision
 		updates["last_seen_detail"] = target.DetailJSON
 		updates[sourceRuntimeColumnSyncStatus] = status
-		return tx.Model(runtime).Updates(updates).Error
+		return repository.UpdatePagesProjectSourceRuntimeTx(tx, runtime, updates)
 	})
 	return status, err
 }
@@ -273,9 +272,8 @@ func lockOwnedSourceRuntime(
 	tx *gorm.DB,
 	snapshot *sourceExecutionSnapshot,
 ) (*model.PagesProjectSourceRuntime, time.Time, error) {
-	var runtime model.PagesProjectSourceRuntime
-	if err := tx.Clauses(clause.Locking{Strength: pagesRowLockStrength}).
-		Where("source_id = ?", snapshot.SourceID).First(&runtime).Error; err != nil {
+	runtime, err := repository.LockPagesProjectSourceRuntimeBySourceIDTx(tx, snapshot.SourceID)
+	if err != nil {
 		return nil, time.Time{}, err
 	}
 	now := time.Now()
@@ -283,7 +281,7 @@ func lockOwnedSourceRuntime(
 		!runtime.LeaseExpiresAt.After(now) {
 		return nil, time.Time{}, errSourceFinalFence
 	}
-	return &runtime, now, nil
+	return runtime, now, nil
 }
 
 func failGitHubCheckLease(
@@ -309,13 +307,13 @@ func failGitHubCheckLease(
 	} else {
 		updates[sourceRuntimeColumnNextCheckAt] = nil
 	}
-	result := db.DB(ctx).Model(&model.PagesProjectSourceRuntime{}).
-		Where("source_id = ? AND lease_token = ? AND lease_expires_at > ?", snapshot.SourceID, snapshot.LeaseToken, now).
-		Updates(updates)
-	if result.Error != nil {
-		return result.Error
+	rows, err := repository.UpdatePagesSourceRuntimeByActiveLease(
+		ctx, snapshot.SourceID, snapshot.LeaseToken, now, updates,
+	)
+	if err != nil {
+		return err
 	}
-	if result.RowsAffected != 1 {
+	if rows != 1 {
 		return errSourceFinalFence
 	}
 	return nil
@@ -338,11 +336,11 @@ func targetRuntimeStatus(
 }
 
 func preflightGitHubSyncConfirmation(ctx context.Context, sourceID uint, confirmedRevision string) error {
-	var runtime model.PagesProjectSourceRuntime
-	if err := db.DB(ctx).Where("source_id = ?", sourceID).First(&runtime).Error; err != nil {
+	runtime, err := repository.GetPagesProjectSourceRuntimeBySourceID(ctx, sourceID)
+	if err != nil {
 		return err
 	}
-	replacement := sourceHasSameReleaseReplacement(&runtime)
+	replacement := sourceHasSameReleaseReplacement(runtime)
 	if replacement && confirmedRevision == "" {
 		return errors.New(errPagesSourceConfirmationNeeded)
 	}
@@ -673,13 +671,13 @@ func releaseGitHubSyncWithoutActivation(
 		sourceRuntimeColumnLeaseToken:     "",
 		sourceRuntimeColumnLeaseExpiresAt: nil,
 	}
-	result := db.DB(ctx).Model(&model.PagesProjectSourceRuntime{}).
-		Where("source_id = ? AND lease_token = ? AND lease_expires_at > ?", snapshot.SourceID, snapshot.LeaseToken, now).
-		Updates(updates)
-	if result.Error != nil {
-		return result.Error
+	rows, err := repository.UpdatePagesSourceRuntimeByActiveLease(
+		ctx, snapshot.SourceID, snapshot.LeaseToken, now, updates,
+	)
+	if err != nil {
+		return err
 	}
-	if result.RowsAffected != 1 {
+	if rows != 1 {
 		return errSourceFinalFence
 	}
 	return nil

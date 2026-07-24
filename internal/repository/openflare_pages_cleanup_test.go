@@ -1,13 +1,15 @@
 // Copyright 2026 Arctel.net
 // SPDX-License-Identifier: Apache-2.0
 
-package model
+package repository
 
 import (
 	"context"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/Rain-kl/Wavelet/internal/model"
 
 	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/glebarez/sqlite"
@@ -56,53 +58,53 @@ func TestListPagesOrphanUploadCandidatesFiltersAndLimits(t *testing.T) {
 	gormDB := setupPagesCleanupModelTestDB(t)
 	cutoff := time.Now().UTC().Add(-2 * time.Hour)
 	old := cutoff.Add(-time.Minute)
-	marker := UploadMetadata{Extra: map[string]any{
+	marker := model.UploadMetadata{Extra: map[string]any{
 		"pages_ingest_marker": "pages_deployment_v2",
 		"pages_project_id":    "1",
 	}}
 
-	valid := make([]Upload, 0, PagesOrphanUploadCandidateLimit+1)
-	for index := 0; index < PagesOrphanUploadCandidateLimit+1; index++ {
-		valid = append(valid, pagesCleanupModelUpload(uint64(index+100), 999, "openflare_pages_deployment", UploadStatusUsed, old, marker))
+	valid := make([]model.Upload, 0, model.PagesOrphanUploadCandidateLimit+1)
+	for index := 0; index < model.PagesOrphanUploadCandidateLimit+1; index++ {
+		valid = append(valid, pagesCleanupModelUpload(uint64(index+100), 999, "openflare_pages_deployment", model.UploadStatusUsed, old, marker))
 	}
 	if err := gormDB.Create(&valid).Error; err != nil {
 		t.Fatalf("create valid candidates error = %v, want nil", err)
 	}
 
-	referenced := pagesCleanupModelUpload(1, 999, "openflare_pages_deployment", UploadStatusUsed, old, marker)
-	wrongOwner := pagesCleanupModelUpload(2, 1000, "openflare_pages_deployment", UploadStatusUsed, old, marker)
-	wrongType := pagesCleanupModelUpload(3, 999, "generic", UploadStatusUsed, old, marker)
-	wrongStatus := pagesCleanupModelUpload(4, 999, "openflare_pages_deployment", UploadStatusPending, old, marker)
-	fresh := pagesCleanupModelUpload(5, 999, "openflare_pages_deployment", UploadStatusUsed, cutoff, marker)
-	wrongMarker := pagesCleanupModelUpload(6, 999, "openflare_pages_deployment", UploadStatusUsed, old, UploadMetadata{Extra: map[string]any{
+	referenced := pagesCleanupModelUpload(1, 999, "openflare_pages_deployment", model.UploadStatusUsed, old, marker)
+	wrongOwner := pagesCleanupModelUpload(2, 1000, "openflare_pages_deployment", model.UploadStatusUsed, old, marker)
+	wrongType := pagesCleanupModelUpload(3, 999, "generic", model.UploadStatusUsed, old, marker)
+	wrongStatus := pagesCleanupModelUpload(4, 999, "openflare_pages_deployment", model.UploadStatusPending, old, marker)
+	fresh := pagesCleanupModelUpload(5, 999, "openflare_pages_deployment", model.UploadStatusUsed, cutoff, marker)
+	wrongMarker := pagesCleanupModelUpload(6, 999, "openflare_pages_deployment", model.UploadStatusUsed, old, model.UploadMetadata{Extra: map[string]any{
 		"pages_ingest_marker": "pages_deployment_v1",
 		"pages_project_id":    "1",
 	}})
-	for _, upload := range []Upload{referenced, wrongOwner, wrongType, wrongStatus, fresh, wrongMarker} {
+	for _, upload := range []model.Upload{referenced, wrongOwner, wrongType, wrongStatus, fresh, wrongMarker} {
 		if err := gormDB.Create(&upload).Error; err != nil {
 			t.Fatalf("create filtered upload %d error = %v, want nil", upload.ID, err)
 		}
 	}
-	if err := gormDB.Create(&PagesDeployment{
+	if err := gormDB.Create(&model.PagesDeployment{
 		ProjectID:        1,
 		DeploymentNumber: 1,
 		Checksum:         "referenced",
-		Status:           PagesDeploymentStatusUploaded,
+		Status:           model.PagesDeploymentStatusUploaded,
 		UploadID:         referenced.ID,
 	}).Error; err != nil {
 		t.Fatalf("create referenced deployment error = %v, want nil", err)
 	}
 
-	invalidJSON := pagesCleanupModelUpload(7, 999, "openflare_pages_deployment", UploadStatusUsed, old, marker)
+	invalidJSON := pagesCleanupModelUpload(7, 999, "openflare_pages_deployment", model.UploadStatusUsed, old, marker)
 	if err := gormDB.Create(&invalidJSON).Error; err != nil {
 		t.Fatalf("create invalid JSON upload error = %v, want nil", err)
 	}
-	if err := gormDB.Table((Upload{}).TableName()).Where("id = ?", invalidJSON.ID).
+	if err := gormDB.Table((model.Upload{}).TableName()).Where("id = ?", invalidJSON.ID).
 		UpdateColumn("metadata", "{invalid").Error; err != nil {
 		t.Fatalf("corrupt upload metadata error = %v, want nil", err)
 	}
 
-	got, err := ListPagesOrphanUploadCandidates(ctx, PagesOrphanUploadCandidateQuery{
+	got, err := ListPagesOrphanUploadCandidates(ctx, model.PagesOrphanUploadCandidateQuery{
 		SystemUserID:  999,
 		UploadType:    "openflare_pages_deployment",
 		Marker:        "pages_deployment_v2",
@@ -111,8 +113,8 @@ func TestListPagesOrphanUploadCandidatesFiltersAndLimits(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListPagesOrphanUploadCandidates() error = %v, want nil", err)
 	}
-	if len(got) != PagesOrphanUploadCandidateLimit {
-		t.Fatalf("ListPagesOrphanUploadCandidates() count = %d, want %d", len(got), PagesOrphanUploadCandidateLimit)
+	if len(got) != model.PagesOrphanUploadCandidateLimit {
+		t.Fatalf("ListPagesOrphanUploadCandidates() count = %d, want %d", len(got), model.PagesOrphanUploadCandidateLimit)
 	}
 	for index, candidate := range got {
 		wantID := uint64(index + 100)
@@ -126,16 +128,16 @@ func TestListPagesOrphanUploadCandidatesSkipsInvalidSQLiteJSON(t *testing.T) {
 	ctx := context.Background()
 	gormDB := setupPagesCleanupModelTestDB(t)
 	cutoff := time.Now().UTC().Add(-2 * time.Hour)
-	upload := pagesCleanupModelUpload(1, 999, "openflare_pages_deployment", UploadStatusUsed, cutoff.Add(-time.Minute), UploadMetadata{})
+	upload := pagesCleanupModelUpload(1, 999, "openflare_pages_deployment", model.UploadStatusUsed, cutoff.Add(-time.Minute), model.UploadMetadata{})
 	if err := gormDB.Create(&upload).Error; err != nil {
 		t.Fatalf("create invalid JSON candidate error = %v, want nil", err)
 	}
-	if err := gormDB.Table((Upload{}).TableName()).Where("id = ?", upload.ID).
+	if err := gormDB.Table((model.Upload{}).TableName()).Where("id = ?", upload.ID).
 		UpdateColumn("metadata", "{invalid").Error; err != nil {
 		t.Fatalf("corrupt upload metadata error = %v, want nil", err)
 	}
 
-	got, err := ListPagesOrphanUploadCandidates(ctx, PagesOrphanUploadCandidateQuery{
+	got, err := ListPagesOrphanUploadCandidates(ctx, model.PagesOrphanUploadCandidateQuery{
 		SystemUserID:  999,
 		UploadType:    "openflare_pages_deployment",
 		Marker:        "pages_deployment_v2",
@@ -158,7 +160,7 @@ func setupPagesCleanupModelTestDB(t *testing.T) *gorm.DB {
 	if err != nil {
 		t.Fatalf("open Pages cleanup model test database error = %v, want nil", err)
 	}
-	if err := gormDB.AutoMigrate(&Upload{}, &PagesDeployment{}); err != nil {
+	if err := gormDB.AutoMigrate(&model.Upload{}, &model.PagesDeployment{}); err != nil {
 		t.Fatalf("migrate Pages cleanup model test database error = %v, want nil", err)
 	}
 	db.SetDB(gormDB)
@@ -170,11 +172,11 @@ func pagesCleanupModelUpload(
 	id uint64,
 	userID uint64,
 	uploadType string,
-	status UploadStatus,
+	status model.UploadStatus,
 	createdAt time.Time,
-	metadata UploadMetadata,
-) Upload {
-	return Upload{
+	metadata model.UploadMetadata,
+) model.Upload {
+	return model.Upload{
 		ID:         id,
 		UserID:     userID,
 		FileName:   "site.zip",

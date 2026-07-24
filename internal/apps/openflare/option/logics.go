@@ -149,7 +149,7 @@ func getStatus(ctx context.Context, baseAPIPath string) (*statusView, error) {
 }
 
 func publicAuthSources(ctx context.Context, baseAPIPath string) ([]publicAuthSourceView, error) {
-	sources, err := model.GetActiveAuthSources(ctx)
+	sources, err := repository.GetActiveAuthSources(ctx)
 	if err != nil {
 		return nil, err
 	}

@@ -17,6 +17,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Rain-kl/Wavelet/internal/repository"
+
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/agent"
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/websocket"
 	"github.com/Rain-kl/Wavelet/internal/model"
@@ -132,7 +134,7 @@ type ipGroupAutoAccumulator struct {
 // SyncDueWAFIPGroups syncs all enabled automatic/subscription IP groups that are due.
 func SyncDueWAFIPGroups(ctx context.Context) error {
 	now := time.Now().UTC()
-	groups, err := model.ListDueOpenFlareWAFIPGroups(ctx, now)
+	groups, err := repository.ListDueOpenFlareWAFIPGroups(ctx, now)
 	if err != nil {
 		return err
 	}
@@ -176,7 +178,7 @@ func syncIPGroupSubscription(ctx context.Context, group *model.OpenFlareWAFIPGro
 	group.NextSyncAt = &nextSyncAt
 	group.LastSyncStatus = "success"
 	group.LastSyncMessage = fmt.Sprintf("同步成功，共 %d 条 IP/IP 段", len(ips))
-	if err := model.UpdateOpenFlareWAFIPGroupSyncResult(ctx, group); err != nil {
+	if err := repository.UpdateOpenFlareWAFIPGroupSyncResult(ctx, group); err != nil {
 		return nil, err
 	}
 	broadcastIPGroupToAgents(ctx, group.ID)
@@ -259,7 +261,7 @@ func syncIPGroupAutomatic(ctx context.Context, group *model.OpenFlareWAFIPGroup,
 	group.NextSyncAt = &nextSyncAt
 	group.LastSyncStatus = "success"
 	group.LastSyncMessage = fmt.Sprintf("自动规则执行成功，共命中 %d 个 IP，当前生效 %d 个 IP", len(ips), len(finalIPs))
-	if err := model.UpdateOpenFlareWAFIPGroupSyncResult(ctx, group); err != nil {
+	if err := repository.UpdateOpenFlareWAFIPGroupSyncResult(ctx, group); err != nil {
 		return nil, err
 	}
 	broadcastIPGroupToAgents(ctx, group.ID)
@@ -283,7 +285,7 @@ func recordIPGroupSyncFailure(ctx context.Context, group *model.OpenFlareWAFIPGr
 	group.NextSyncAt = &nextSyncAt
 	group.LastSyncStatus = "failed"
 	group.LastSyncMessage = syncErr.Error()
-	_ = model.UpdateOpenFlareWAFIPGroupSyncResult(ctx, group)
+	_ = repository.UpdateOpenFlareWAFIPGroupSyncResult(ctx, group)
 }
 
 func evaluateParsedIPGroupAutoConfig(ctx context.Context, config ipGroupAutoConfig, now time.Time) ([]string, error) {
@@ -302,7 +304,7 @@ func evaluateParsedIPGroupAutoConfig(ctx context.Context, config ipGroupAutoConf
 	if lookback <= 0 {
 		lookback = defaultWAFIPGroupAutoLookbackDur
 	}
-	aggregates, err := model.ListOpenFlareAccessLogWAFIPAggregates(ctx, model.OpenFlareAccessLogQuery{
+	aggregates, err := repository.ListOpenFlareAccessLogWAFIPAggregates(ctx, model.OpenFlareAccessLogQuery{
 		Since: now.Add(-lookback),
 		Until: now,
 	})

@@ -8,8 +8,8 @@ import (
 	"context"
 	"errors"
 
-	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/model"
+	"github.com/Rain-kl/Wavelet/internal/repository"
 	"github.com/Rain-kl/Wavelet/internal/shared"
 	"github.com/Rain-kl/Wavelet/internal/shared/response"
 
@@ -33,8 +33,8 @@ func getUserByToken(ctx context.Context, tokenStr string) (*model.User, *model.A
 	tokenHash := model.HashToken(tokenStr)
 	tokenRecord, err := GetCachedToken(ctx, tokenHash)
 	if err != nil {
-		var dbToken model.AccessToken
-		if err := db.DB(ctx).Where("token_hash = ?", tokenHash).First(&dbToken).Error; err != nil {
+		dbToken, err := repository.GetAccessTokenByHash(ctx, tokenHash)
+		if err != nil {
 			return nil, nil, err
 		}
 		tokenRecord = &dbToken
@@ -43,8 +43,8 @@ func getUserByToken(ctx context.Context, tokenStr string) (*model.User, *model.A
 
 	user, err := GetCachedUser(ctx, tokenRecord.UserID)
 	if err != nil || !user.IsActive {
-		var dbUser model.User
-		if err := db.DB(ctx).Where("id = ? AND is_active = ?", tokenRecord.UserID, true).First(&dbUser).Error; err != nil {
+		dbUser, err := repository.GetActiveUserByID(ctx, tokenRecord.UserID)
+		if err != nil {
 			return nil, nil, err
 		}
 		user = &dbUser
@@ -87,11 +87,10 @@ func GetUserFromRequest(c *gin.Context) (*model.User, error) {
 
 	user, err := GetCachedUser(ctx, userID)
 	if err != nil || !user.IsActive {
-		var dbUser model.User
 		// load user from db to make sure is active
-		tx := db.DB(ctx).Where("id = ? AND is_active = ?", userID, true).First(&dbUser)
-		if tx.Error != nil {
-			return nil, tx.Error
+		dbUser, loadErr := repository.GetActiveUserByID(ctx, userID)
+		if loadErr != nil {
+			return nil, loadErr
 		}
 		user = &dbUser
 		SetCachedUser(ctx, userID, user)

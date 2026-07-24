@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Rain-kl/Wavelet/internal/repository"
+
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/tls/acme"
 	"github.com/Rain-kl/Wavelet/internal/infra/task"
 	"github.com/Rain-kl/Wavelet/internal/model"
@@ -35,7 +37,7 @@ func SetObtainCertificateFuncForTest(fn func(context.Context, *model.TLSCertific
 func obtainCertificate(ctx context.Context, cert *model.TLSCertificate) error {
 	task.AppendLog(ctx, "【续签任务】开始续签，设置申请状态为 applying...")
 	cert.ApplyStatus = tlsApplyStatusApplying
-	if err := model.SaveTLSCertificate(ctx, cert); err != nil {
+	if err := repository.SaveTLSCertificate(ctx, cert); err != nil {
 		return err
 	}
 
@@ -46,7 +48,7 @@ func obtainCertificate(ctx context.Context, cert *model.TLSCertificate) error {
 	}
 
 	task.AppendLog(ctx, "【续签任务】正在解析 DNS 账户信息 (ID=%d)...", cert.DNSAccountID)
-	dnsAccount, err := model.GetDNSAccountByID(ctx, cert.DNSAccountID)
+	dnsAccount, err := repository.GetDNSAccountByID(ctx, cert.DNSAccountID)
 	if err != nil {
 		return updateCertError(ctx, cert, fmt.Sprintf("Failed to get DNS account: %v", err))
 	}
@@ -100,7 +102,7 @@ func obtainCertificate(ctx context.Context, cert *model.TLSCertificate) error {
 func updateCertError(ctx context.Context, cert *model.TLSCertificate, message string) error {
 	cert.ApplyStatus = "error"
 	cert.ApplyMessage = message
-	if err := model.SaveTLSCertificate(ctx, cert); err != nil {
+	if err := repository.SaveTLSCertificate(ctx, cert); err != nil {
 		return err
 	}
 	return fmt.Errorf("%s", message)

@@ -49,7 +49,7 @@ type ToggleAuthSourceRequest struct {
 // @Failure 500 {object} response.Any "内部错误"
 // @Router /api/v1/admin/auth-sources [get]
 func ListAuthSources(c *gin.Context) {
-	sources, err := model.GetAuthSources(c.Request.Context())
+	sources, err := repository.GetAuthSources(c.Request.Context())
 	if err != nil {
 		response.AbortInternal(c, err.Error())
 		return
@@ -88,7 +88,7 @@ func CreateAuthSource(c *gin.Context) {
 		Scopes:             req.Scopes,
 		IconURL:            req.IconURL,
 	}
-	if err := model.CreateAuthSource(c.Request.Context(), &source); err != nil {
+	if err := repository.CreateAuthSource(c.Request.Context(), &source); err != nil {
 		response.AbortBadRequest(c, err.Error())
 		return
 	}
@@ -126,7 +126,7 @@ func UpdateAuthSource(c *gin.Context) {
 	}
 
 	// 记录更新前的 Discovery URL，以便更新成功后清除旧缓存条目。
-	existing, _ := model.GetAuthSourceByID(c.Request.Context(), id)
+	existing, _ := repository.GetAuthSourceByID(c.Request.Context(), id)
 
 	source := model.AuthSource{
 		ID:                 id,
@@ -141,7 +141,7 @@ func UpdateAuthSource(c *gin.Context) {
 		IconURL:            req.IconURL,
 	}
 	keepSecret := source.ClientSecret == ""
-	if err := model.UpdateAuthSource(c.Request.Context(), &source, keepSecret); err != nil {
+	if err := repository.UpdateAuthSource(c.Request.Context(), &source, keepSecret); err != nil {
 		response.AbortBadRequest(c, err.Error())
 		return
 	}
@@ -154,7 +154,7 @@ func UpdateAuthSource(c *gin.Context) {
 	oauth.InvalidateOIDCProviderCache(normalizeIssuer(req.OpenIDDiscoveryURL))
 	_ = repository.InvalidateAuthSourceCache(c.Request.Context())
 
-	updated, err := model.GetAuthSourceByID(c.Request.Context(), id)
+	updated, err := repository.GetAuthSourceByID(c.Request.Context(), id)
 	if err != nil {
 		response.AbortInternal(c, err.Error())
 		return
@@ -190,7 +190,7 @@ func ToggleAuthSource(c *gin.Context) {
 		return
 	}
 
-	if err := model.ToggleAuthSource(c.Request.Context(), id, req.IsActive); err != nil {
+	if err := repository.ToggleAuthSource(c.Request.Context(), id, req.IsActive); err != nil {
 		response.AbortBadRequest(c, err.Error())
 		return
 	}
@@ -216,7 +216,7 @@ func DeleteAuthSource(c *gin.Context) {
 		response.AbortBadRequest(c, err.Error())
 		return
 	}
-	if err := model.DeleteAuthSource(c.Request.Context(), id); err != nil {
+	if err := repository.DeleteAuthSource(c.Request.Context(), id); err != nil {
 		response.AbortBadRequest(c, err.Error())
 		return
 	}
@@ -229,7 +229,7 @@ func parseSourceID(c *gin.Context) (uint64, error) {
 	if raw == "" {
 		return 0, errors.New(admin.InvalidAuthSourceID)
 	}
-	source, err := model.GetAuthSourceByName(c.Request.Context(), raw)
+	source, err := repository.GetAuthSourceByName(c.Request.Context(), raw)
 	if err == nil {
 		return source.ID, nil
 	}

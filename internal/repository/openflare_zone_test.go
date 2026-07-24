@@ -1,11 +1,13 @@
 // Copyright 2026 Arctel.net
 // SPDX-License-Identifier: Apache-2.0
 
-package model
+package repository
 
 import (
 	"context"
 	"testing"
+
+	"github.com/Rain-kl/Wavelet/internal/model"
 
 	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/glebarez/sqlite"
@@ -20,7 +22,7 @@ func setupZoneTestDB(t *testing.T) *gorm.DB {
 		DisableForeignKeyConstraintWhenMigrating: true,
 	})
 	require.NoError(t, err)
-	require.NoError(t, sqliteDB.AutoMigrate(&Zone{}, &ZoneDomain{}))
+	require.NoError(t, sqliteDB.AutoMigrate(&model.Zone{}, &model.ZoneDomain{}))
 	db.SetDB(sqliteDB)
 	t.Cleanup(func() { db.SetDB(nil) })
 	return sqliteDB
@@ -30,10 +32,10 @@ func TestReplaceZoneDomainRouteBindingsRejectsForeignDomain(t *testing.T) {
 	conn := setupZoneTestDB(t)
 	ctx := context.Background()
 
-	zone := Zone{Domain: "example.com"}
+	zone := model.Zone{Domain: "example.com"}
 	require.NoError(t, conn.Create(&zone).Error)
 	foreignRouteID := uint(11)
-	domain := ZoneDomain{
+	domain := model.ZoneDomain{
 		ZoneID:       zone.ID,
 		ProxyRouteID: &foreignRouteID,
 		Domain:       "api.example.com",
@@ -43,7 +45,7 @@ func TestReplaceZoneDomainRouteBindingsRejectsForeignDomain(t *testing.T) {
 	err := ReplaceZoneDomainRouteBindings(ctx, 12, []uint{domain.ID})
 	require.Error(t, err)
 
-	var got ZoneDomain
+	var got model.ZoneDomain
 	require.NoError(t, conn.First(&got, domain.ID).Error)
 	require.Equal(t, &foreignRouteID, got.ProxyRouteID)
 }
@@ -52,17 +54,17 @@ func TestReplaceZoneDomainRouteBindingsReplacesCurrentRouteBindings(t *testing.T
 	conn := setupZoneTestDB(t)
 	ctx := context.Background()
 
-	zone := Zone{Domain: "example.com"}
+	zone := model.Zone{Domain: "example.com"}
 	require.NoError(t, conn.Create(&zone).Error)
 	routeID := uint(21)
-	boundDomain := ZoneDomain{ZoneID: zone.ID, ProxyRouteID: &routeID, Domain: "old.example.com"}
-	requestedDomain := ZoneDomain{ZoneID: zone.ID, Domain: "new.example.com"}
+	boundDomain := model.ZoneDomain{ZoneID: zone.ID, ProxyRouteID: &routeID, Domain: "old.example.com"}
+	requestedDomain := model.ZoneDomain{ZoneID: zone.ID, Domain: "new.example.com"}
 	require.NoError(t, conn.Create(&boundDomain).Error)
 	require.NoError(t, conn.Create(&requestedDomain).Error)
 
 	require.NoError(t, ReplaceZoneDomainRouteBindings(ctx, routeID, []uint{requestedDomain.ID}))
 
-	var domains []ZoneDomain
+	var domains []model.ZoneDomain
 	require.NoError(t, conn.Order("id asc").Find(&domains).Error)
 	require.Len(t, domains, 2)
 	require.Nil(t, domains[0].ProxyRouteID)
@@ -73,11 +75,11 @@ func TestListZoneDomainsByRouteID(t *testing.T) {
 	conn := setupZoneTestDB(t)
 	ctx := context.Background()
 
-	zone := Zone{Domain: "example.com"}
+	zone := model.Zone{Domain: "example.com"}
 	require.NoError(t, conn.Create(&zone).Error)
 	routeID := uint(31)
-	boundDomain := ZoneDomain{ZoneID: zone.ID, ProxyRouteID: &routeID, Domain: "api.example.com"}
-	unboundDomain := ZoneDomain{ZoneID: zone.ID, Domain: "www.example.com"}
+	boundDomain := model.ZoneDomain{ZoneID: zone.ID, ProxyRouteID: &routeID, Domain: "api.example.com"}
+	unboundDomain := model.ZoneDomain{ZoneID: zone.ID, Domain: "www.example.com"}
 	require.NoError(t, conn.Create(&boundDomain).Error)
 	require.NoError(t, conn.Create(&unboundDomain).Error)
 

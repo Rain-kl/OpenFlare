@@ -8,7 +8,8 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/Rain-kl/Wavelet/internal/model"
+	"github.com/Rain-kl/Wavelet/internal/repository"
+
 	"gorm.io/gorm"
 )
 
@@ -32,7 +33,7 @@ func resolveStructuredOriginInput(ctx context.Context, input Input) (string, *ui
 }
 
 func resolveOriginByID(ctx context.Context, scheme, port, uri string, originID uint) (string, *uint, error) {
-	origin, err := model.GetOriginByID(ctx, originID)
+	origin, err := repository.GetOriginByID(ctx, originID)
 	if err != nil {
 		return "", nil, errors.New(errProxyRouteOriginNotFound)
 	}
@@ -67,7 +68,7 @@ func resolveLegacyOriginInput(ctx context.Context, originURL string) (string, *u
 	if err != nil {
 		return "", nil, err
 	}
-	origin, findErr := model.GetOriginByAddress(ctx, address)
+	origin, findErr := repository.GetOriginByAddress(ctx, address)
 	if findErr == nil {
 		return originURL, &origin.ID, nil
 	}

@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/Rain-kl/Wavelet/internal/repository"
+
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/agent"
 	ofnode "github.com/Rain-kl/Wavelet/internal/apps/openflare/node"
 	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
@@ -38,8 +40,8 @@ func setupProtocolTestEnv(t *testing.T) (*gin.Engine, func()) {
 
 	db.SetDB(sqliteDB)
 	agent.ResetAuthCacheForTest()
-	resetAccessLogStore := model.SetAccessLogStoreForTest(model.NewMemoryAccessLogStore())
-	resetObservabilityStore := model.SetObservabilityStoreForTest(model.NewMemoryObservabilityStore())
+	resetAccessLogStore := repository.SetAccessLogStoreForTest(repository.NewMemoryAccessLogStore())
+	resetObservabilityStore := repository.SetObservabilityStoreForTest(repository.NewMemoryObservabilityStore())
 
 	engine := testhelper.NewTestGinEngine()
 	mountOpenFlareTestRoutes(engine)
@@ -110,7 +112,7 @@ func TestAgentRelayFlaredProtocol(t *testing.T) {
 		assert.NotNil(t, heartbeatData.RelayConfig)
 		assert.NotNil(t, heartbeatData.RelaySettings)
 
-		stored, err := model.GetOpenFlareNodeByNodeID(ctx, relayNode.NodeID)
+		stored, err := repository.GetOpenFlareNodeByNodeID(ctx, relayNode.NodeID)
 		require.NoError(t, err)
 		assert.Equal(t, "online", stored.Status)
 		assert.Equal(t, "healthy", stored.RelayStatus)
@@ -134,7 +136,7 @@ func TestAgentRelayFlaredProtocol(t *testing.T) {
 		assert.Equal(t, http.StatusOK, rec.Code)
 		requireAPIOK(t, rec)
 
-		stored, err := model.GetOpenFlareNodeByNodeID(ctx, clientNode.NodeID)
+		stored, err := repository.GetOpenFlareNodeByNodeID(ctx, clientNode.NodeID)
 		require.NoError(t, err)
 		assert.Equal(t, "online", stored.Status)
 		assert.Equal(t, "v0.2.0", stored.Version)
@@ -161,7 +163,7 @@ func TestAgentRelayFlaredProtocol(t *testing.T) {
 		assert.NotEmpty(t, registration.AccessToken)
 		assert.Equal(t, "discovered-edge", registration.Name)
 
-		stored, err := model.GetOpenFlareNodeByNodeID(ctx, registration.NodeID)
+		stored, err := repository.GetOpenFlareNodeByNodeID(ctx, registration.NodeID)
 		require.NoError(t, err)
 		assert.Equal(t, "online", stored.Status)
 		assert.Equal(t, registration.AccessToken, stored.AccessToken)
@@ -190,7 +192,7 @@ func TestAgentRelayFlaredProtocol(t *testing.T) {
 		assert.Equal(t, "success", applyLog.Result)
 		assert.Equal(t, "20260618-001", applyLog.Version)
 
-		stored, err := model.GetOpenFlareNodeByNodeID(ctx, edge.NodeID)
+		stored, err := repository.GetOpenFlareNodeByNodeID(ctx, edge.NodeID)
 		require.NoError(t, err)
 		assert.Equal(t, "online", stored.Status)
 		assert.Equal(t, "20260618-001", stored.CurrentVersion)

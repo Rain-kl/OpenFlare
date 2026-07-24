@@ -14,6 +14,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Rain-kl/Wavelet/internal/repository"
+
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/websocket"
 	"github.com/Rain-kl/Wavelet/internal/model"
 	pkgprotocol "github.com/Rain-kl/Wavelet/pkg/protocol"
@@ -75,17 +77,17 @@ type CleanupResult struct {
 
 // ListConfigVersions returns all config version summaries.
 func ListConfigVersions(ctx context.Context) ([]*model.ConfigVersionSummary, error) {
-	return model.ListConfigVersionSummaries(ctx)
+	return repository.ListConfigVersionSummaries(ctx)
 }
 
 // GetConfigVersionDetail returns a config version by version.
 func GetConfigVersionDetail(ctx context.Context, version string) (*model.ConfigVersion, error) {
-	return model.GetConfigVersionByVersion(ctx, version)
+	return repository.GetConfigVersionByVersion(ctx, version)
 }
 
 // GetActiveConfigVersion returns the active config version.
 func GetActiveConfigVersion(ctx context.Context) (*model.ConfigVersion, error) {
-	return model.GetActiveConfigVersion(ctx)
+	return repository.GetActiveConfigVersion(ctx)
 }
 
 // PreviewConfigVersion renders the current draft configuration.
@@ -123,7 +125,7 @@ func DiffConfigVersion(ctx context.Context) (*ConfigDiffResult, error) {
 		ChangedOptionDetails: []ConfigOptionDiffItem{},
 		CurrentWebsiteCount:  len(bundle.SnapshotRoutes),
 	}
-	activeVersion, err := model.GetActiveConfigVersion(ctx)
+	activeVersion, err := repository.GetActiveConfigVersion(ctx)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			for _, route := range bundle.SnapshotRoutes {
@@ -203,7 +205,7 @@ func PublishConfigVersion(ctx context.Context, createdBy string, force bool) (*m
 	if len(bundle.Routes) == 0 {
 		return nil, errors.New(errNoEnabledRoutes)
 	}
-	activeVersion, err := model.GetActiveConfigVersion(ctx)
+	activeVersion, err := repository.GetActiveConfigVersion(ctx)
 	if !force && err == nil && activeVersion.Checksum == bundle.Checksum {
 		return nil, errors.New(errNoChangesToPublish)
 	}
@@ -228,7 +230,7 @@ func PublishConfigVersion(ctx context.Context, createdBy string, force bool) (*m
 		IsActive:         true,
 		CreatedBy:        createdBy,
 	}
-	if err = model.PublishConfigVersionTx(ctx, record); err != nil {
+	if err = repository.PublishConfigVersionTx(ctx, record); err != nil {
 		if isUniqueConstraintError(err) {
 			return nil, errors.New(errVersionConflict)
 		}
@@ -243,11 +245,11 @@ func PublishConfigVersion(ctx context.Context, createdBy string, force bool) (*m
 
 // ActivateConfigVersion activates an existing config version.
 func ActivateConfigVersion(ctx context.Context, versionStr string) (*model.ConfigVersion, error) {
-	version, err := model.GetConfigVersionByVersion(ctx, versionStr)
+	version, err := repository.GetConfigVersionByVersion(ctx, versionStr)
 	if err != nil {
 		return nil, err
 	}
-	if err = model.ActivateConfigVersionTx(ctx, versionStr); err != nil {
+	if err = repository.ActivateConfigVersionTx(ctx, versionStr); err != nil {
 		return nil, err
 	}
 	version.IsActive = true
@@ -263,7 +265,7 @@ func CleanupConfigVersions(ctx context.Context, keepCount int) (*CleanupResult, 
 	if keepCount < minConfigVersionKeepCount {
 		keepCount = minConfigVersionKeepCount
 	}
-	versions, err := model.ListConfigVersionSummaries(ctx)
+	versions, err := repository.ListConfigVersionSummaries(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -283,7 +285,7 @@ func CleanupConfigVersions(ctx context.Context, keepCount int) (*CleanupResult, 
 	if len(deleteVersions) == 0 {
 		return &CleanupResult{DeletedCount: 0, Message: cleanupSuccessMessage}, nil
 	}
-	deletedCount, err := model.DeleteConfigVersionsByVersions(ctx, deleteVersions)
+	deletedCount, err := repository.DeleteConfigVersionsByVersions(ctx, deleteVersions)
 	if err != nil {
 		return nil, err
 	}
@@ -292,7 +294,7 @@ func CleanupConfigVersions(ctx context.Context, keepCount int) (*CleanupResult, 
 
 func nextVersionNumber(ctx context.Context, now time.Time) (string, error) {
 	prefix := now.Format("20060102")
-	latest, err := model.GetLatestConfigVersionByPrefix(ctx, prefix)
+	latest, err := repository.GetLatestConfigVersionByPrefix(ctx, prefix)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return fmt.Sprintf("%s-%03d", prefix, 1), nil
 	}

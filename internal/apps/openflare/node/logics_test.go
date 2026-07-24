@@ -40,8 +40,8 @@ func setupNodeTestDB(t *testing.T) func() {
 	))
 
 	db.SetDB(sqliteDB)
-	resetAccessLogStore := model.SetAccessLogStoreForTest(model.NewMemoryAccessLogStore())
-	resetObservabilityStore := model.SetObservabilityStoreForTest(model.NewMemoryObservabilityStore())
+	resetAccessLogStore := repository.SetAccessLogStoreForTest(repository.NewMemoryAccessLogStore())
+	resetObservabilityStore := repository.SetObservabilityStoreForTest(repository.NewMemoryObservabilityStore())
 
 	return func() {
 		resetObservabilityStore()
@@ -83,7 +83,7 @@ func TestCreateTunnelRelayNode(t *testing.T) {
 	assert.Equal(t, 7000, view.RelayBindPort)
 	assert.Equal(t, 8080, view.RelayVhostHTTPPort)
 
-	stored, err := model.GetOpenFlareNodeByID(ctx, view.ID)
+	stored, err := repository.GetOpenFlareNodeByID(ctx, view.ID)
 	require.NoError(t, err)
 	assert.NotEmpty(t, stored.RelayAuthToken)
 }
@@ -139,7 +139,7 @@ func TestDeleteNode(t *testing.T) {
 	require.NoError(t, err)
 
 	require.NoError(t, DeleteNode(ctx, created.ID))
-	_, err = model.GetOpenFlareNodeByID(ctx, created.ID)
+	_, err = repository.GetOpenFlareNodeByID(ctx, created.ID)
 	require.Error(t, err)
 	assert.ErrorIs(t, err, gorm.ErrRecordNotFound)
 }

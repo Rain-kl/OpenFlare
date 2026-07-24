@@ -10,6 +10,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Rain-kl/Wavelet/internal/repository"
+
 	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/model"
 )
@@ -286,7 +288,7 @@ func TestSourceConfigAndProjectContentChangesFenceLease(t *testing.T) {
 	if renewed {
 		t.Error("renewSourceLease(after content update) = true, want false")
 	}
-	storedProject, err := model.GetPagesProjectByID(ctx, project.ID)
+	storedProject, err := repository.GetPagesProjectByID(ctx, project.ID)
 	if err != nil {
 		t.Fatalf("GetPagesProjectByID(%d) error = %v, want nil", project.ID, err)
 	}

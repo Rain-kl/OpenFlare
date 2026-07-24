@@ -10,6 +10,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Rain-kl/Wavelet/internal/repository"
+
 	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/model"
 )
@@ -67,7 +69,7 @@ func mustCreatePagesSourceProject(t *testing.T, ctx context.Context, slug string
 	if err != nil {
 		t.Fatalf("CreateProject(%q) error = %v, want nil", slug, err)
 	}
-	project, err := model.GetPagesProjectByID(ctx, view.ID)
+	project, err := repository.GetPagesProjectByID(ctx, view.ID)
 	if err != nil {
 		t.Fatalf("GetPagesProjectByID(%d) error = %v, want nil", view.ID, err)
 	}
@@ -356,7 +358,7 @@ func TestDeleteSourceIsIdempotentAndKeepsDeploymentState(t *testing.T) {
 	if sourceCount != 0 || runtimeCount != 0 || deploymentCount != 1 {
 		t.Errorf("DeleteSource counts = source:%d runtime:%d deployment:%d, want 0, 0, 1", sourceCount, runtimeCount, deploymentCount)
 	}
-	storedProject, err := model.GetPagesProjectByID(ctx, project.ID)
+	storedProject, err := repository.GetPagesProjectByID(ctx, project.ID)
 	if err != nil {
 		t.Fatalf("GetPagesProjectByID(%d) error = %v, want nil", project.ID, err)
 	}

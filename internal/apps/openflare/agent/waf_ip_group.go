@@ -15,6 +15,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/Rain-kl/Wavelet/internal/repository"
+
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"github.com/Rain-kl/Wavelet/pkg/protocol"
 	openrestyrender "github.com/Rain-kl/Wavelet/pkg/render/openresty"
@@ -96,7 +98,7 @@ func buildAgentWAFIPGroups(ctx context.Context, ids []uint) ([]WAFIPGroup, error
 		return []WAFIPGroup{}, nil
 	}
 	sort.Slice(ids, func(i, j int) bool { return ids[i] < ids[j] })
-	groups, err := model.ListOpenFlareWAFIPGroupsByIDs(ctx, ids)
+	groups, err := repository.ListOpenFlareWAFIPGroupsByIDs(ctx, ids)
 	if err != nil {
 		return nil, err
 	}
@@ -158,7 +160,7 @@ func checksumAgentWAFIPGroup(group WAFIPGroup) string {
 }
 
 func activeConfigWAFIPGroupIDs(ctx context.Context) ([]uint, error) {
-	version, err := model.GetActiveConfigVersion(ctx)
+	version, err := repository.GetActiveConfigVersion(ctx)
 	if err != nil {
 		if isActiveConfigNotFound(err) {
 			return []uint{}, nil

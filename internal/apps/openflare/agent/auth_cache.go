@@ -10,6 +10,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Rain-kl/Wavelet/internal/repository"
+
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"gorm.io/gorm"
 )
@@ -39,7 +41,7 @@ func newAccessTokenAuthCache() *accessTokenAuthCache {
 		positive:        make(map[string]cachedAgentNode),
 		negative:        make(map[string]time.Time),
 		now:             time.Now,
-		loadNodeByToken: model.GetOpenFlareNodeByAccessToken,
+		loadNodeByToken: repository.GetOpenFlareNodeByAccessToken,
 	}
 }
 

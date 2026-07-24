@@ -14,6 +14,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Rain-kl/Wavelet/internal/repository"
+
 	"github.com/Rain-kl/Wavelet/internal/apps/oauth"
 	uploadtask "github.com/Rain-kl/Wavelet/internal/apps/upload/task"
 	"github.com/Rain-kl/Wavelet/internal/apps/user"
@@ -154,8 +156,8 @@ func TestInternalOnlyTaskAdminBoundaries(t *testing.T) {
 			Payload:  "{}",
 			IsActive: true,
 		}
-		require.NoError(t, model.CreateSchedule(ctx, internalSchedule))
-		require.NoError(t, model.CreateSchedule(ctx, publicSchedule))
+		require.NoError(t, repository.CreateSchedule(ctx, internalSchedule))
+		require.NoError(t, repository.CreateSchedule(ctx, publicSchedule))
 
 		req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/tasks/schedules", nil)
 		w := httptest.NewRecorder()
@@ -215,7 +217,7 @@ func TestInternalOnlyTaskAdminBoundaries(t *testing.T) {
 			Cron:     "0 * * * *",
 			IsActive: true,
 		}
-		require.NoError(t, model.CreateSchedule(ctx, schedule))
+		require.NoError(t, repository.CreateSchedule(ctx, schedule))
 		isActive := false
 		body, err := json.Marshal(UpdateScheduleRequest{
 			Name:     "尝试修改内部排程",
@@ -235,7 +237,7 @@ func TestInternalOnlyTaskAdminBoundaries(t *testing.T) {
 		router.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusBadRequest, w.Code)
-		unchanged, err := model.GetScheduleByID(ctx, schedule.ID)
+		unchanged, err := repository.GetScheduleByID(ctx, schedule.ID)
 		require.NoError(t, err)
 		assert.Equal(t, "系统内部排程", unchanged.Name)
 		assert.Equal(t, testInternalOnlyTaskType, unchanged.TaskType)
@@ -249,7 +251,7 @@ func TestInternalOnlyTaskAdminBoundaries(t *testing.T) {
 			Cron:     "0 * * * *",
 			IsActive: true,
 		}
-		require.NoError(t, model.CreateSchedule(ctx, schedule))
+		require.NoError(t, repository.CreateSchedule(ctx, schedule))
 		isActive := true
 		body, err := json.Marshal(UpdateScheduleRequest{
 			Name:     "尝试切入内部任务",
@@ -269,7 +271,7 @@ func TestInternalOnlyTaskAdminBoundaries(t *testing.T) {
 		router.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusBadRequest, w.Code)
-		unchanged, err := model.GetScheduleByID(ctx, schedule.ID)
+		unchanged, err := repository.GetScheduleByID(ctx, schedule.ID)
 		require.NoError(t, err)
 		assert.Equal(t, "公开排程", unchanged.Name)
 		assert.Equal(t, uploadtask.TaskTypeSystemCleanup, unchanged.TaskType)
@@ -282,7 +284,7 @@ func TestInternalOnlyTaskAdminBoundaries(t *testing.T) {
 			Cron:     "*/5 * * * *",
 			IsActive: true,
 		}
-		require.NoError(t, model.CreateSchedule(ctx, schedule))
+		require.NoError(t, repository.CreateSchedule(ctx, schedule))
 		req := httptest.NewRequest(
 			http.MethodDelete,
 			fmt.Sprintf("/api/v1/admin/tasks/schedules/%d", schedule.ID),
@@ -296,7 +298,7 @@ func TestInternalOnlyTaskAdminBoundaries(t *testing.T) {
 		var resp response.Any
 		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
 		assert.Equal(t, InvalidTaskType, resp.ErrorMsg)
-		preserved, err := model.GetScheduleByID(ctx, schedule.ID)
+		preserved, err := repository.GetScheduleByID(ctx, schedule.ID)
 		require.NoError(t, err)
 		assert.Equal(t, testInternalOnlyTaskType, preserved.TaskType)
 	})
@@ -320,7 +322,7 @@ func TestInternalOnlyTaskAdminBoundaries(t *testing.T) {
 			Cron:     "0 * * * *",
 			IsActive: false,
 		}
-		require.NoError(t, model.CreateSchedule(ctx, schedule))
+		require.NoError(t, repository.CreateSchedule(ctx, schedule))
 		req := httptest.NewRequest(
 			http.MethodDelete,
 			fmt.Sprintf("/api/v1/admin/tasks/schedules/%d", schedule.ID),
@@ -331,7 +333,7 @@ func TestInternalOnlyTaskAdminBoundaries(t *testing.T) {
 		router.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusOK, w.Code)
-		_, err := model.GetScheduleByID(ctx, schedule.ID)
+		_, err := repository.GetScheduleByID(ctx, schedule.ID)
 		assert.Error(t, err)
 	})
 }
@@ -470,7 +472,7 @@ func TestListTaskExecutions(t *testing.T) {
 		{TaskID: "exec_003", TaskType: "system:cleanup", TaskName: "系统垃圾清理", Status: model.TaskExecutionStatusPending, TriggeredBy: "manual", Retryable: true, MaxRetry: 3},
 	}
 	for _, r := range records {
-		err := model.CreateTaskExecution(ctx, r)
+		err := repository.CreateTaskExecution(ctx, r)
 		require.NoError(t, err)
 	}
 
@@ -581,7 +583,7 @@ func TestGetTaskExecution(t *testing.T) {
 		MaxRetry:    3,
 		TriggeredBy: "manual",
 	}
-	err := model.CreateTaskExecution(ctx, execution)
+	err := repository.CreateTaskExecution(ctx, execution)
 	require.NoError(t, err)
 
 	t.Run("get existing execution", func(t *testing.T) {
@@ -646,7 +648,7 @@ func TestRetryTask(t *testing.T) {
 			StartedAt:    &now,
 			FinishedAt:   &now,
 		}
-		err := model.CreateTaskExecution(ctx, execution)
+		err := repository.CreateTaskExecution(ctx, execution)
 		require.NoError(t, err)
 
 		url := fmt.Sprintf("/api/v1/admin/tasks/executions/%d/retry", execution.ID)
@@ -666,7 +668,7 @@ func TestRetryTask(t *testing.T) {
 		assert.True(t, ok)
 		assert.NotEmpty(t, newTaskID)
 
-		newExecution, err := model.GetTaskExecutionByTaskID(ctx, newTaskID)
+		newExecution, err := repository.GetTaskExecutionByTaskID(ctx, newTaskID)
 		require.NoError(t, err)
 		assert.Equal(t, 1, newExecution.RetryCount)
 		assert.Equal(t, "retry", newExecution.TriggeredBy)
@@ -682,7 +684,7 @@ func TestRetryTask(t *testing.T) {
 			MaxRetry:    3,
 			TriggeredBy: "manual",
 		}
-		err := model.CreateTaskExecution(ctx, execution)
+		err := repository.CreateTaskExecution(ctx, execution)
 		require.NoError(t, err)
 
 		url := fmt.Sprintf("/api/v1/admin/tasks/executions/%d/retry", execution.ID)
@@ -702,7 +704,7 @@ func TestRetryTask(t *testing.T) {
 			Retryable:   false,
 			TriggeredBy: "manual",
 		}
-		err := model.CreateTaskExecution(ctx, execution)
+		err := repository.CreateTaskExecution(ctx, execution)
 		require.NoError(t, err)
 
 		url := fmt.Sprintf("/api/v1/admin/tasks/executions/%d/retry", execution.ID)

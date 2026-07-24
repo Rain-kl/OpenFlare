@@ -11,17 +11,17 @@ import (
 	"strings"
 	"time"
 
+	"gorm.io/gorm"
+
 	uploadcache "github.com/Rain-kl/Wavelet/internal/apps/upload/cache"
 	"github.com/Rain-kl/Wavelet/internal/apps/upload/shared"
 	uploadstats "github.com/Rain-kl/Wavelet/internal/apps/upload/stats"
 	uploadstorage "github.com/Rain-kl/Wavelet/internal/apps/upload/storage"
 	"github.com/Rain-kl/Wavelet/internal/infra/objectstore"
-	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/infra/persistence/idgen"
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"github.com/Rain-kl/Wavelet/internal/repository"
 	"github.com/Rain-kl/Wavelet/pkg/logger"
-	"gorm.io/gorm"
 )
 
 func normalizeRequest(req *Request) {
@@ -122,7 +122,8 @@ func cleanupUnpersistedObject(ctx context.Context, objectKey string) {
 }
 
 func createUploadWithStats(ctx context.Context, upload *model.Upload) error {
-	return db.DB(ctx).Transaction(func(tx *gorm.DB) error {
+	// Multi-step: create upload row + apply incremental stats in one transaction.
+	return repository.RunInTransaction(ctx, func(tx *gorm.DB) error {
 		if err := repository.CreateUploadTx(tx, upload); err != nil {
 			return err
 		}

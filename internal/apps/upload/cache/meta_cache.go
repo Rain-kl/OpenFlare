@@ -11,6 +11,7 @@ import (
 
 	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/model"
+	"github.com/Rain-kl/Wavelet/internal/repository"
 	"github.com/Rain-kl/Wavelet/pkg/cache/ram"
 )
 
@@ -99,10 +100,8 @@ func GetUploadByID(ctx context.Context, id uint64) (model.Upload, error) {
 		}
 	}
 
-	var upload model.Upload
-	if err := db.DB(ctx).
-		Where("id = ? AND status IN (?, ?)", id, model.UploadStatusPending, model.UploadStatusUsed).
-		First(&upload).Error; err != nil {
+	upload, err := repository.GetCacheableUploadByID(ctx, id)
+	if err != nil {
 		return model.Upload{}, err
 	}
 

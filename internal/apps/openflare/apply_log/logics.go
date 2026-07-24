@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Rain-kl/Wavelet/internal/repository"
+
 	"github.com/Rain-kl/Wavelet/internal/model"
 )
 
@@ -53,7 +55,7 @@ func ListPage(ctx context.Context, input ListQuery) (*ListResult, error) {
 	pageSize := normalizePageSize(input.PageSize)
 	nodeID := strings.TrimSpace(input.NodeID)
 
-	rows, err := model.ListOpenFlareApplyLogs(ctx, model.OpenFlareApplyLogQuery{
+	rows, err := repository.ListOpenFlareApplyLogs(ctx, model.OpenFlareApplyLogQuery{
 		NodeID:   nodeID,
 		PageNo:   pageNo,
 		PageSize: pageSize,
@@ -62,7 +64,7 @@ func ListPage(ctx context.Context, input ListQuery) (*ListResult, error) {
 		return nil, err
 	}
 
-	total, err := model.CountOpenFlareApplyLogs(ctx, nodeID)
+	total, err := repository.CountOpenFlareApplyLogs(ctx, nodeID)
 	if err != nil {
 		return nil, err
 	}
@@ -83,7 +85,7 @@ func ListPage(ctx context.Context, input ListQuery) (*ListResult, error) {
 // Cleanup removes old apply logs or deletes all records.
 func Cleanup(ctx context.Context, input CleanupInput) (*CleanupResult, error) {
 	if input.DeleteAll {
-		deleted, err := model.DeleteAllOpenFlareApplyLogs(ctx)
+		deleted, err := repository.DeleteAllOpenFlareApplyLogs(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -98,7 +100,7 @@ func Cleanup(ctx context.Context, input CleanupInput) (*CleanupResult, error) {
 	}
 
 	cutoff := time.Now().UTC().Add(-time.Duration(input.RetentionDays) * 24 * time.Hour)
-	deleted, err := model.DeleteOpenFlareApplyLogsBefore(ctx, cutoff)
+	deleted, err := repository.DeleteOpenFlareApplyLogsBefore(ctx, cutoff)
 	if err != nil {
 		return nil, err
 	}

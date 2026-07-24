@@ -8,7 +8,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Rain-kl/Wavelet/internal/model"
+	"github.com/Rain-kl/Wavelet/internal/repository"
+
 	"github.com/Rain-kl/Wavelet/internal/shared"
 	"github.com/Rain-kl/Wavelet/internal/shared/response"
 	"github.com/gin-gonic/gin"
@@ -26,7 +27,7 @@ import (
 // @Router /api/v1/oauth/external-accounts [get]
 func ListExternalAccounts(c *gin.Context) {
 	userID := GetUserIDFromContext(c)
-	accounts, err := model.ListExternalAccountsByUserID(c.Request.Context(), userID)
+	accounts, err := repository.ListExternalAccountsByUserID(c.Request.Context(), userID)
 	if err != nil {
 		response.AbortInternal(c, err.Error())
 		return
@@ -57,7 +58,7 @@ func DeleteExternalAccount(c *gin.Context) {
 		response.AbortBadRequest(c, errInvalidExternalAccountBindingID)
 		return
 	}
-	if err := model.DeleteExternalAccountForUser(c.Request.Context(), id, userID); err != nil {
+	if err := repository.DeleteExternalAccountForUser(c.Request.Context(), id, userID); err != nil {
 		response.AbortBadRequest(c, err.Error())
 		return
 	}

@@ -38,6 +38,12 @@ build-embedded:
 		main.go
 
 code-check:
+	@echo "==> Architecture guards..."
+	@command -v rg >/dev/null 2>&1 || { echo 'error: rg (ripgrep) is required for architecture guards' >&2; exit 1; }
+	@if rg -n 'db\.DB\(|db\.Redis' internal/model --glob '*.go' -g '!*_test.go' ; then \
+		echo 'error: internal/model must not access db.DB or db.Redis (non-test code)' >&2; \
+		exit 1; \
+	fi
 	golangci-lint run
 	cd frontend && pnpm tsc --noEmit --jsx preserve && npx eslint . --max-warnings 0
 

@@ -8,6 +8,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Rain-kl/Wavelet/internal/repository"
+
 	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"github.com/glebarez/sqlite"
@@ -24,8 +26,8 @@ func setupDashboardTestDB(t *testing.T) func() {
 	require.NoError(t, sqliteDB.AutoMigrate(&model.OpenFlareNode{}))
 
 	db.SetDB(sqliteDB)
-	resetAccessLogStore := model.SetAccessLogStoreForTest(model.NewMemoryAccessLogStore())
-	resetObservabilityStore := model.SetObservabilityStoreForTest(model.NewMemoryObservabilityStore())
+	resetAccessLogStore := repository.SetAccessLogStoreForTest(repository.NewMemoryAccessLogStore())
+	resetObservabilityStore := repository.SetObservabilityStoreForTest(repository.NewMemoryObservabilityStore())
 	return func() {
 		resetObservabilityStore()
 		resetAccessLogStore()
@@ -59,14 +61,14 @@ func TestGetOverviewStructure(t *testing.T) {
 	}).Error)
 
 	// Seed older + newer snapshots per node; health must use latest-per-node, not a global raw limit.
-	require.NoError(t, model.InsertOpenFlareMetricSnapshot(ctx, &model.OpenFlareMetricSnapshot{
+	require.NoError(t, repository.InsertOpenFlareMetricSnapshot(ctx, &model.OpenFlareMetricSnapshot{
 		NodeID:           "node-dashboard-1",
 		CapturedAt:       now.Add(-2 * time.Hour),
 		CPUUsagePercent:  10,
 		MemoryUsedBytes:  1,
 		MemoryTotalBytes: 10,
 	}))
-	require.NoError(t, model.InsertOpenFlareMetricSnapshot(ctx, &model.OpenFlareMetricSnapshot{
+	require.NoError(t, repository.InsertOpenFlareMetricSnapshot(ctx, &model.OpenFlareMetricSnapshot{
 		NodeID:            "node-dashboard-1",
 		CapturedAt:        now.Add(-time.Minute),
 		CPUUsagePercent:   55,
@@ -101,7 +103,7 @@ func TestGetOverviewStructure(t *testing.T) {
 		StatusCode: 502,
 		BytesSent:  10,
 	})
-	require.NoError(t, model.InsertOpenFlareAccessLogsBatch(ctx, logs))
+	require.NoError(t, repository.InsertOpenFlareAccessLogsBatch(ctx, logs))
 
 	overview, err := GetOverview(ctx)
 	require.NoError(t, err)

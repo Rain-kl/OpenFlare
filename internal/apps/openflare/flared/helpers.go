@@ -10,6 +10,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/Rain-kl/Wavelet/internal/repository"
+
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/relay"
 	"github.com/Rain-kl/Wavelet/internal/model"
 )
@@ -51,7 +53,7 @@ func normalizeFlaredHeartbeatPayload(payload HeartbeatPayload) HeartbeatPayload 
 }
 
 func getActiveConfigMeta(ctx context.Context) (*ActiveConfigMeta, error) {
-	version, err := model.GetActiveConfigVersion(ctx)
+	version, err := repository.GetActiveConfigVersion(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -62,7 +64,7 @@ func getActiveConfigMeta(ctx context.Context) (*ActiveConfigMeta, error) {
 }
 
 func listTunnelRelayNodes(ctx context.Context) ([]model.OpenFlareNode, error) {
-	nodes, err := model.ListOpenFlareNodes(ctx)
+	nodes, err := repository.ListOpenFlareNodes(ctx)
 	if err != nil {
 		return nil, err
 	}

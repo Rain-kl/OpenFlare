@@ -243,7 +243,7 @@ func TestUpdateProjectValidatesActiveDeploymentEntry(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), errPagesEntryFileMissing)
 
-	stored, err := model.GetPagesProjectByID(ctx, project.ID)
+	stored, err := repository.GetPagesProjectByID(ctx, project.ID)
 	require.NoError(t, err)
 	assert.Equal(t, "dist", stored.RootDir)
 	assert.Equal(t, "index.html", stored.EntryFile)
@@ -291,7 +291,7 @@ func TestUploadDeploymentStoresPackageInUploadFramework(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotZero(t, deployment.UploadID)
 
-	storedDeployment, err := model.GetPagesDeploymentByID(ctx, deployment.ID)
+	storedDeployment, err := repository.GetPagesDeploymentByID(ctx, deployment.ID)
 	require.NoError(t, err)
 	assert.NotZero(t, storedDeployment.UploadID)
 	assert.Empty(t, storedDeployment.ArtifactPath)
@@ -371,7 +371,7 @@ func TestOpenDeploymentPackageHydratesLegacyArtifactPath(t *testing.T) {
 	require.Len(t, reader.File, 1)
 	assert.Equal(t, "index.html", reader.File[0].Name)
 
-	storedDeployment, err := model.GetPagesDeploymentByID(ctx, deployment.ID)
+	storedDeployment, err := repository.GetPagesDeploymentByID(ctx, deployment.ID)
 	require.NoError(t, err)
 	assert.NotZero(t, storedDeployment.UploadID)
 	assert.Empty(t, storedDeployment.ArtifactPath)
@@ -607,7 +607,7 @@ func TestPruneProjectDeploymentHistory(t *testing.T) {
 		ids = append(ids, deployment.ID)
 	}
 	// After 3 uploads with keep=2 and no active: only 2 newest remain.
-	deployments, err := model.ListPagesDeployments(ctx, project.ID)
+	deployments, err := repository.ListPagesDeployments(ctx, project.ID)
 	require.NoError(t, err)
 	require.Len(t, deployments, 2)
 	assert.Equal(t, ids[2], deployments[0].ID)
@@ -622,11 +622,11 @@ func TestPruneProjectDeploymentHistory(t *testing.T) {
 	})), "root")
 	require.NoError(t, err)
 
-	deployments, err = model.ListPagesDeployments(ctx, project.ID)
+	deployments, err = repository.ListPagesDeployments(ctx, project.ID)
 	require.NoError(t, err)
 	require.Len(t, deployments, 2, "must be at most N=2, not active+N newest")
 
-	storedProject, err := model.GetPagesProjectByID(ctx, project.ID)
+	storedProject, err := repository.GetPagesProjectByID(ctx, project.ID)
 	require.NoError(t, err)
 	require.NotNil(t, storedProject.ActiveDeploymentID)
 	assert.Equal(t, ids[1], *storedProject.ActiveDeploymentID)
@@ -666,7 +666,7 @@ func TestHistoryCountOnePreservesFreshCandidateUntilActivation(t *testing.T) {
 		"index.html": "v2",
 	})), "user:1")
 	require.NoError(t, err)
-	deployments, err := model.ListPagesDeployments(ctx, project.ID)
+	deployments, err := repository.ListPagesDeployments(ctx, project.ID)
 	require.NoError(t, err)
 	require.Len(t, deployments, 2)
 
@@ -674,7 +674,7 @@ func TestHistoryCountOnePreservesFreshCandidateUntilActivation(t *testing.T) {
 		"index.html": "v3",
 	})), "user:1")
 	require.NoError(t, err)
-	deployments, err = model.ListPagesDeployments(ctx, project.ID)
+	deployments, err = repository.ListPagesDeployments(ctx, project.ID)
 	require.NoError(t, err)
 	require.Len(t, deployments, 2)
 	kept := map[uint]bool{}
@@ -690,7 +690,7 @@ func TestHistoryCountOnePreservesFreshCandidateUntilActivation(t *testing.T) {
 
 	_, err = ActivateDeployment(ctx, project.ID, newCandidate.ID)
 	require.NoError(t, err)
-	deployments, err = model.ListPagesDeployments(ctx, project.ID)
+	deployments, err = repository.ListPagesDeployments(ctx, project.ID)
 	require.NoError(t, err)
 	require.Len(t, deployments, 1)
 	assert.Equal(t, newCandidate.ID, deployments[0].ID)
@@ -723,7 +723,7 @@ func TestPruneUsesLockTimeNewestCandidateInsteadOfStaleCaller(t *testing.T) {
 	deleted, err := pruneProjectDeploymentHistoryOnce(ctx, project.ID, 1, staleCandidate.ID)
 	require.NoError(t, err)
 	assert.Equal(t, 1, deleted)
-	deployments, err := model.ListPagesDeployments(ctx, project.ID)
+	deployments, err := repository.ListPagesDeployments(ctx, project.ID)
 	require.NoError(t, err)
 	require.Len(t, deployments, 2)
 	kept := map[uint]bool{}
@@ -762,7 +762,7 @@ func TestDeleteDeploymentAndProjectSoftDeleteUnreferencedArtifacts(t *testing.T)
 	var firstUpload model.Upload
 	require.NoError(t, db.DB(ctx).First(&firstUpload, first.UploadID).Error)
 	assert.Equal(t, model.UploadStatusDeleted, firstUpload.Status)
-	_, err = model.GetPagesProjectByID(ctx, project.ID)
+	_, err = repository.GetPagesProjectByID(ctx, project.ID)
 	assert.Error(t, err)
 }
 

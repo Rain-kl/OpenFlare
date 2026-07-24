@@ -10,15 +10,15 @@ import (
 	"fmt"
 	"time"
 
+	"gorm.io/gorm"
+
 	"github.com/Rain-kl/Wavelet/internal/apps/upload/ingest"
 	"github.com/Rain-kl/Wavelet/internal/apps/upload/shared"
 	uploadstorage "github.com/Rain-kl/Wavelet/internal/apps/upload/storage"
-	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/infra/task"
 	"github.com/Rain-kl/Wavelet/internal/model"
+	"github.com/Rain-kl/Wavelet/internal/repository"
 	"github.com/Rain-kl/Wavelet/pkg/logger"
-	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
 
 const (
@@ -58,12 +58,8 @@ func (h *SystemCleanupHandler) Execute(ctx context.Context, _ []byte) (*task.Tas
 	task.AppendLog(ctx, "开始扫描未使用上传文件，阈值: %s", oneHourAgo.Format(time.RFC3339))
 
 	for {
-		var unusedUploads []model.Upload
-		if err := db.DB(ctx).
-			Where("id > ? AND status = ? AND created_at < ?", lastID, model.UploadStatusPending, oneHourAgo).
-			Order("id ASC").
-			Limit(batchSize).
-			Find(&unusedUploads).Error; err != nil {
+		unusedUploads, err := repository.ListPendingUploadsOlderThan(ctx, lastID, oneHourAgo, batchSize)
+		if err != nil {
 			task.AppendLog(ctx, "查询未使用的上传文件失败: %v", err)
 			return nil, fmt.Errorf(shared.ErrQueryUnusedUploadsFailed, err)
 		}
@@ -78,19 +74,18 @@ func (h *SystemCleanupHandler) Execute(ctx context.Context, _ []byte) (*task.Tas
 			totalProcessed++
 			transitioned := false
 
-			if err := db.DB(ctx).Transaction(func(tx *gorm.DB) error {
-				var locked model.Upload
-				if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
-					Where("id = ?", u.ID).
-					First(&locked).Error; err != nil {
+			// Multi-step: row lock + ownership-safe soft-delete + stats delta stay orchestrated here.
+			if err := repository.RunInTransaction(ctx, func(tx *gorm.DB) error {
+				locked, err := repository.GetUploadByIDForUpdateTx(tx, u.ID)
+				if err != nil {
 					return err
 				}
 				if locked.Status != model.UploadStatusPending || !locked.CreatedAt.Before(oneHourAgo) {
 					return nil
 				}
-				var err error
-				transitioned, err = ingest.RemoveLockedTx(tx, &locked)
-				return err
+				var removeErr error
+				transitioned, removeErr = ingest.RemoveLockedTx(tx, &locked)
+				return removeErr
 			}); err != nil {
 				task.AppendLog(ctx, "清理上传文件失败 [ID:%d]: %v", u.ID, err)
 				lastID = u.ID
@@ -107,21 +102,22 @@ func (h *SystemCleanupHandler) Execute(ctx context.Context, _ []byte) (*task.Tas
 
 	task.AppendLog(ctx, "开始清理历史推送审计日志，只保留最近7天数据...")
 	cutoff := time.Now().AddDate(0, 0, -7)
-	var pushHistoryCount int64
-	if err := db.DB(ctx).Model(&model.PushHistory{}).Where("created_at < ?", cutoff).Count(&pushHistoryCount).Error; err != nil {
+	pushHistoryCount, err := repository.CountPushHistoriesCreatedBefore(ctx, cutoff)
+	switch {
+	case err != nil:
 		task.AppendLog(ctx, "统计待清理的历史推送记录失败: %v", err)
-	} else if pushHistoryCount > 0 {
-		if err := db.DB(ctx).Where("created_at < ?", cutoff).Delete(&model.PushHistory{}).Error; err != nil {
-			task.AppendLog(ctx, "删除历史推送记录失败: %v", err)
+	case pushHistoryCount == 0:
+		task.AppendLog(ctx, "没有需要清理的历史推送记录 (截止时间: %s)", cutoff.Format("2006-01-02 15:04:05"))
+	default:
+		if _, delErr := repository.DeletePushHistoriesCreatedBefore(ctx, cutoff); delErr != nil {
+			task.AppendLog(ctx, "删除历史推送记录失败: %v", delErr)
 		} else {
 			task.AppendLog(ctx, "成功删除 %d 条历史推送记录 (截止时间: %s)", pushHistoryCount, cutoff.Format("2006-01-02 15:04:05"))
 		}
-	} else {
-		task.AppendLog(ctx, "没有需要清理的历史推送记录 (截止时间: %s)", cutoff.Format("2006-01-02 15:04:05"))
 	}
 
 	task.AppendLog(ctx, "开始清理任务执行日志：高频任务保留最近3天，低频任务保留最近30天...")
-	taskLogStats, err := model.CleanupTaskExecutionLogs(ctx, time.Now())
+	taskLogStats, err := repository.CleanupTaskExecutionLogs(ctx, time.Now())
 	if err != nil {
 		task.AppendLog(ctx, "清理任务执行日志失败: %v", err)
 		logger.ErrorF(ctx, "清理任务执行日志失败: %v", err)

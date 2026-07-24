@@ -17,11 +17,10 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/model"
+	"github.com/Rain-kl/Wavelet/internal/repository"
 	"github.com/Rain-kl/Wavelet/pkg/logger"
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
 
 const (
@@ -213,8 +212,7 @@ func unsafeGitHubInputRune(character rune) bool {
 }
 
 func updateGitHubSourceTx(tx *gorm.DB, projectID uint, input SourceUpdateInput) (bool, error) {
-	var project model.PagesProject
-	if err := tx.Clauses(clause.Locking{Strength: pagesRowLockStrength}).First(&project, projectID).Error; err != nil {
+	if _, err := repository.LockPagesProjectByIDTx(tx, projectID); err != nil {
 		return false, err
 	}
 	existing, hasExisting, err := loadProjectSourceForUpdate(tx, projectID)
@@ -231,16 +229,15 @@ func updateGitHubSourceTx(tx *gorm.DB, projectID uint, input SourceUpdateInput) 
 	if !githubSourceConfigChanged(existing, config) {
 		return false, nil
 	}
-	var runtime model.PagesProjectSourceRuntime
-	if err := tx.Clauses(clause.Locking{Strength: pagesRowLockStrength}).
-		Where("source_id = ?", existing.ID).First(&runtime).Error; err != nil {
+	runtime, err := repository.LockPagesProjectSourceRuntimeBySourceIDTx(tx, existing.ID)
+	if err != nil {
 		return false, err
 	}
 	identityChanged := existing.SourceIdentity != config.SourceIdentity
-	if err := tx.Model(existing).Updates(githubSourceUpdates(config, existing.ConfigVersion+1)).Error; err != nil {
+	if err := repository.UpdatePagesProjectSourceTx(tx, existing, githubSourceUpdates(config, existing.ConfigVersion+1)); err != nil {
 		return false, err
 	}
-	if err := resetRuntimeAfterGitHubUpdate(tx, &runtime, config, identityChanged); err != nil {
+	if err := resetRuntimeAfterGitHubUpdate(tx, runtime, config, identityChanged); err != nil {
 		return false, err
 	}
 	return true, nil
@@ -259,7 +256,7 @@ func createGitHubSourceTx(tx *gorm.DB, projectID uint, config githubSourceConfig
 		ConfigVersion:        1,
 		SourceIdentity:       config.SourceIdentity,
 	}
-	if err := tx.Create(source).Error; err != nil {
+	if err := repository.CreatePagesProjectSourceTx(tx, source); err != nil {
 		return err
 	}
 	runtime := &model.PagesProjectSourceRuntime{SourceID: source.ID, SyncStatus: pagesSourceStatusIdle}
@@ -267,7 +264,7 @@ func createGitHubSourceTx(tx *gorm.DB, projectID uint, config githubSourceConfig
 		next := nextGitHubCheckAt(time.Now(), source.ID, config.CheckInterval)
 		runtime.NextCheckAt = &next
 	}
-	return tx.Create(runtime).Error
+	return repository.CreatePagesProjectSourceRuntimeTx(tx, runtime)
 }
 
 func githubSourceUpdates(config githubSourceConfig, version int) map[string]any {
@@ -308,7 +305,7 @@ func resetRuntimeAfterGitHubUpdate(
 		next := nextGitHubCheckAt(time.Now(), runtime.SourceID, config.CheckInterval)
 		nextCheckAt = &next
 	}
-	return tx.Model(runtime).Update("next_check_at", nextCheckAt).Error
+	return repository.UpdatePagesProjectSourceRuntimeFieldTx(tx, runtime, "next_check_at", nextCheckAt)
 }
 
 func nextGitHubCheckAt(now time.Time, sourceID uint, intervalMinutes int) time.Time {
@@ -323,8 +320,8 @@ func markInitialCheckDispatchFailed(ctx context.Context, sourceID uint, configVe
 		sourceRuntimeColumnSyncStatus: pagesSourceStatusFailed,
 		sourceRuntimeColumnLastError:  errPagesSourceInitialCheckWarning,
 	}
-	var source model.PagesProjectSource
-	if err := db.DB(ctx).Where("id = ? AND config_version = ?", sourceID, configVersion).First(&source).Error; err != nil {
+	source, err := repository.GetPagesProjectSourceByIDAndConfigVersion(ctx, sourceID, configVersion)
+	if err != nil {
 		if !errors.Is(err, gorm.ErrRecordNotFound) {
 			logger.ErrorF(ctx, "[PagesSource] load initial check source snapshot failed: source_id=%d error=%v", sourceID, err)
 		}
@@ -335,12 +332,7 @@ func markInitialCheckDispatchFailed(ctx context.Context, sourceID uint, configVe
 		updates["next_check_at"] = &next
 	}
 	now := time.Now()
-	result := db.DB(ctx).Model(&model.PagesProjectSourceRuntime{}).
-		Where("source_id = ?", sourceID).
-		Where("lease_expires_at IS NULL OR lease_expires_at <= ?", now).
-		Where("EXISTS (SELECT 1 FROM of_pages_project_sources source WHERE source.id = ? AND source.config_version = ?)", sourceID, configVersion).
-		Updates(updates)
-	if result.Error != nil {
-		logger.ErrorF(ctx, "[PagesSource] mark initial check dispatch failure: source_id=%d error=%v", sourceID, result.Error)
+	if _, err := repository.MarkPagesSourceInitialCheckDispatchFailed(ctx, sourceID, configVersion, now, updates); err != nil {
+		logger.ErrorF(ctx, "[PagesSource] mark initial check dispatch failure: source_id=%d error=%v", sourceID, err)
 	}
 }

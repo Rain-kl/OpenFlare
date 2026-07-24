@@ -8,8 +8,9 @@ import (
 	"encoding/json"
 	"log/slog"
 
+	"github.com/Rain-kl/Wavelet/internal/repository"
+
 	ofws "github.com/Rain-kl/Wavelet/internal/apps/openflare/websocket"
-	"github.com/Rain-kl/Wavelet/internal/model"
 )
 
 // HandleWSStatus processes an agent websocket status payload (replaces HTTP heartbeat in WS mode).
@@ -20,7 +21,7 @@ func HandleWSStatus(ctx context.Context, nodeID, remoteAddr string, rawPayload j
 		return
 	}
 
-	authNode, err := model.GetOpenFlareNodeByNodeID(ctx, nodeID)
+	authNode, err := repository.GetOpenFlareNodeByNodeID(ctx, nodeID)
 	if err != nil {
 		slog.Debug("agent ws status reload node failed", "node_id", nodeID, "error", err)
 		return

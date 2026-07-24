@@ -2,13 +2,15 @@
 // Copyright 2026 Arctel.net
 // SPDX-License-Identifier: Apache-2.0
 
-package model
+package repository
 
 import (
 	"context"
 	"fmt"
 	"testing"
 	"time"
+
+	"github.com/Rain-kl/Wavelet/internal/model"
 
 	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/alicebob/miniredis/v2"
@@ -26,7 +28,7 @@ func setupTaskExecutionTestEnvironment(t *testing.T) func() {
 	})
 	require.NoError(t, err)
 
-	err = sqliteDB.AutoMigrate(&TaskExecution{})
+	err = sqliteDB.AutoMigrate(&model.TaskExecution{})
 	require.NoError(t, err)
 
 	miniRedis, err := miniredis.Run()
@@ -54,11 +56,11 @@ func TestCreateTaskExecution(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	execution := &TaskExecution{
+	execution := &model.TaskExecution{
 		TaskID:      "manual_cleanup_123",
 		TaskType:    "system:cleanup",
 		TaskName:    "清理未使用上传",
-		Status:      TaskExecutionStatusPending,
+		Status:      model.TaskExecutionStatusPending,
 		Retryable:   true,
 		MaxRetry:    3,
 		RetryCount:  0,
@@ -79,11 +81,11 @@ func TestGetTaskExecutionByTaskID(t *testing.T) {
 	ctx := context.Background()
 
 	// 创建记录
-	execution := &TaskExecution{
+	execution := &model.TaskExecution{
 		TaskID:      "test_task_id_001",
 		TaskType:    "system:cleanup",
 		TaskName:    "清理未使用上传",
-		Status:      TaskExecutionStatusPending,
+		Status:      model.TaskExecutionStatusPending,
 		Retryable:   true,
 		MaxRetry:    3,
 		TriggeredBy: "manual",
@@ -96,7 +98,7 @@ func TestGetTaskExecutionByTaskID(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, execution.ID, found.ID)
 	assert.Equal(t, "test_task_id_001", found.TaskID)
-	assert.Equal(t, TaskExecutionStatusPending, found.Status)
+	assert.Equal(t, model.TaskExecutionStatusPending, found.Status)
 	assert.True(t, found.Retryable)
 	assert.Equal(t, 3, found.MaxRetry)
 
@@ -110,11 +112,11 @@ func TestGetTaskExecutionByID(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	execution := &TaskExecution{
+	execution := &model.TaskExecution{
 		TaskID:      "test_by_id_001",
 		TaskType:    "system:cleanup",
 		TaskName:    "清理未使用上传",
-		Status:      TaskExecutionStatusPending,
+		Status:      model.TaskExecutionStatusPending,
 		TriggeredBy: "system",
 	}
 	err := CreateTaskExecution(ctx, execution)
@@ -132,11 +134,11 @@ func TestUpdateTaskExecution(t *testing.T) {
 	ctx := context.Background()
 
 	// 创建记录
-	execution := &TaskExecution{
+	execution := &model.TaskExecution{
 		TaskID:      "test_update_001",
 		TaskType:    "system:cleanup",
 		TaskName:    "清理未使用上传",
-		Status:      TaskExecutionStatusPending,
+		Status:      model.TaskExecutionStatusPending,
 		TriggeredBy: "manual",
 	}
 	err := CreateTaskExecution(ctx, execution)
@@ -144,7 +146,7 @@ func TestUpdateTaskExecution(t *testing.T) {
 
 	// 更新状态为 running
 	now := time.Now()
-	execution.Status = TaskExecutionStatusRunning
+	execution.Status = model.TaskExecutionStatusRunning
 	execution.StartedAt = &now
 	err = UpdateTaskExecution(ctx, execution)
 	require.NoError(t, err)
@@ -152,12 +154,12 @@ func TestUpdateTaskExecution(t *testing.T) {
 	// 验证更新
 	found, err := GetTaskExecutionByTaskID(ctx, "test_update_001")
 	require.NoError(t, err)
-	assert.Equal(t, TaskExecutionStatusRunning, found.Status)
+	assert.Equal(t, model.TaskExecutionStatusRunning, found.Status)
 	assert.NotNil(t, found.StartedAt)
 
 	// 更新为 succeeded
 	finishTime := time.Now()
-	execution.Status = TaskExecutionStatusSucceeded
+	execution.Status = model.TaskExecutionStatusSucceeded
 	execution.FinishedAt = &finishTime
 	execution.Duration = 1500
 	execution.Result = "共清理 50 个文件"
@@ -166,7 +168,7 @@ func TestUpdateTaskExecution(t *testing.T) {
 
 	found, err = GetTaskExecutionByTaskID(ctx, "test_update_001")
 	require.NoError(t, err)
-	assert.Equal(t, TaskExecutionStatusSucceeded, found.Status)
+	assert.Equal(t, model.TaskExecutionStatusSucceeded, found.Status)
 	assert.Equal(t, int64(1500), found.Duration)
 	assert.Equal(t, "共清理 50 个文件", found.Result)
 }
@@ -176,11 +178,11 @@ func TestUpdateTaskExecutionFailed(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	execution := &TaskExecution{
+	execution := &model.TaskExecution{
 		TaskID:      "test_fail_001",
 		TaskType:    "system:cleanup",
 		TaskName:    "清理未使用上传",
-		Status:      TaskExecutionStatusPending,
+		Status:      model.TaskExecutionStatusPending,
 		Retryable:   true,
 		MaxRetry:    3,
 		TriggeredBy: "manual",
@@ -190,7 +192,7 @@ func TestUpdateTaskExecutionFailed(t *testing.T) {
 
 	// 标记为失败
 	now := time.Now()
-	execution.Status = TaskExecutionStatusFailed
+	execution.Status = model.TaskExecutionStatusFailed
 	execution.StartedAt = &now
 	execution.FinishedAt = &now
 	execution.Duration = 200
@@ -200,7 +202,7 @@ func TestUpdateTaskExecutionFailed(t *testing.T) {
 
 	found, err := GetTaskExecutionByTaskID(ctx, "test_fail_001")
 	require.NoError(t, err)
-	assert.Equal(t, TaskExecutionStatusFailed, found.Status)
+	assert.Equal(t, model.TaskExecutionStatusFailed, found.Status)
 	assert.Equal(t, "S3 连接超时", found.ErrorMessage)
 	assert.Equal(t, int64(200), found.Duration)
 }
@@ -210,11 +212,11 @@ func TestUpdateTaskExecutionDoesNotPersistBufferedLog(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	execution := &TaskExecution{
+	execution := &model.TaskExecution{
 		TaskID:      "test_omit_log_001",
 		TaskType:    "system:cleanup",
 		TaskName:    "清理未使用上传",
-		Status:      TaskExecutionStatusPending,
+		Status:      model.TaskExecutionStatusPending,
 		TriggeredBy: "manual",
 	}
 	err := CreateTaskExecution(ctx, execution)
@@ -226,15 +228,15 @@ func TestUpdateTaskExecutionDoesNotPersistBufferedLog(t *testing.T) {
 
 	assert.Empty(t, execution.Log)
 
-	execution.Status = TaskExecutionStatusSucceeded
+	execution.Status = model.TaskExecutionStatusSucceeded
 	execution.Duration = 100
 	err = UpdateTaskExecution(ctx, execution)
 	require.NoError(t, err)
 
-	var persisted TaskExecution
+	var persisted model.TaskExecution
 	err = db.DB(ctx).Where("task_id = ?", "test_omit_log_001").First(&persisted).Error
 	require.NoError(t, err)
-	assert.Equal(t, TaskExecutionStatusSucceeded, persisted.Status)
+	assert.Equal(t, model.TaskExecutionStatusSucceeded, persisted.Status)
 	assert.Empty(t, persisted.Log)
 
 	found, err := GetTaskExecutionByTaskID(ctx, "test_omit_log_001")
@@ -247,11 +249,11 @@ func TestAppendTaskExecutionLog(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	execution := &TaskExecution{
+	execution := &model.TaskExecution{
 		TaskID:      "test_log_001",
 		TaskType:    "system:cleanup",
 		TaskName:    "清理未使用上传",
-		Status:      TaskExecutionStatusPending,
+		Status:      model.TaskExecutionStatusPending,
 		TriggeredBy: "manual",
 	}
 	err := CreateTaskExecution(ctx, execution)
@@ -274,7 +276,7 @@ func TestAppendTaskExecutionLog(t *testing.T) {
 	assert.Contains(t, found.Log, "本批次找到 42 个待清理文件")
 	assert.Contains(t, found.Log, "清理完成，共删除 42 个文件")
 
-	var persisted TaskExecution
+	var persisted model.TaskExecution
 	err = db.DB(ctx).Where("task_id = ?", "test_log_001").First(&persisted).Error
 	require.NoError(t, err)
 	assert.Empty(t, persisted.Log)
@@ -332,11 +334,11 @@ func TestGetTaskExecutionLogPrefersRedis(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	execution := &TaskExecution{
+	execution := &model.TaskExecution{
 		TaskID:      "redis_priority_001",
 		TaskType:    "system:cleanup",
 		TaskName:    "清理未使用上传",
-		Status:      TaskExecutionStatusRunning,
+		Status:      model.TaskExecutionStatusRunning,
 		Log:         "数据库旧日志",
 		TriggeredBy: "manual",
 	}
@@ -357,12 +359,12 @@ func TestListTaskExecutions(t *testing.T) {
 	ctx := context.Background()
 
 	// 创建多条记录，包含不同状态和类型
-	records := []*TaskExecution{
-		{TaskID: "list_001", TaskType: "system:cleanup", TaskName: "系统垃圾清理", Status: TaskExecutionStatusSucceeded, TriggeredBy: "manual"},
-		{TaskID: "list_002", TaskType: "system:cleanup", TaskName: "系统垃圾清理", Status: TaskExecutionStatusFailed, TriggeredBy: "system"},
-		{TaskID: "list_003", TaskType: "other:task", TaskName: "其他任务", Status: TaskExecutionStatusPending, TriggeredBy: "manual"},
-		{TaskID: "list_004", TaskType: "system:cleanup", TaskName: "系统垃圾清理", Status: TaskExecutionStatusRunning, TriggeredBy: "manual"},
-		{TaskID: "list_005", TaskType: "other:task", TaskName: "其他任务", Status: TaskExecutionStatusSucceeded, TriggeredBy: "system"},
+	records := []*model.TaskExecution{
+		{TaskID: "list_001", TaskType: "system:cleanup", TaskName: "系统垃圾清理", Status: model.TaskExecutionStatusSucceeded, TriggeredBy: "manual"},
+		{TaskID: "list_002", TaskType: "system:cleanup", TaskName: "系统垃圾清理", Status: model.TaskExecutionStatusFailed, TriggeredBy: "system"},
+		{TaskID: "list_003", TaskType: "other:task", TaskName: "其他任务", Status: model.TaskExecutionStatusPending, TriggeredBy: "manual"},
+		{TaskID: "list_004", TaskType: "system:cleanup", TaskName: "系统垃圾清理", Status: model.TaskExecutionStatusRunning, TriggeredBy: "manual"},
+		{TaskID: "list_005", TaskType: "other:task", TaskName: "其他任务", Status: model.TaskExecutionStatusSucceeded, TriggeredBy: "system"},
 	}
 	for _, r := range records {
 		err := CreateTaskExecution(ctx, r)
@@ -372,7 +374,7 @@ func TestListTaskExecutions(t *testing.T) {
 	require.NoError(t, err)
 
 	// 查询全部（分页）
-	items, total, err := ListTaskExecutions(ctx, ListTaskExecutionsRequest{Page: 1, PageSize: 10})
+	items, total, err := ListTaskExecutions(ctx, model.ListTaskExecutionsRequest{Page: 1, PageSize: 10})
 	require.NoError(t, err)
 	assert.Equal(t, int64(5), total)
 	assert.Len(t, items, 5)
@@ -383,24 +385,24 @@ func TestListTaskExecutions(t *testing.T) {
 	}
 
 	// 按状态筛选：failed
-	items, total, err = ListTaskExecutions(ctx, ListTaskExecutionsRequest{Status: "failed", Page: 1, PageSize: 10})
+	items, total, err = ListTaskExecutions(ctx, model.ListTaskExecutionsRequest{Status: "failed", Page: 1, PageSize: 10})
 	require.NoError(t, err)
 	assert.Equal(t, int64(1), total)
 	assert.Len(t, items, 1)
 	assert.Equal(t, "list_002", items[0].TaskID)
 
 	// 按类型筛选
-	_, total, err = ListTaskExecutions(ctx, ListTaskExecutionsRequest{TaskType: "other:task", Page: 1, PageSize: 10})
+	_, total, err = ListTaskExecutions(ctx, model.ListTaskExecutionsRequest{TaskType: "other:task", Page: 1, PageSize: 10})
 	require.NoError(t, err)
 	assert.Equal(t, int64(2), total)
 
 	// 分页测试
-	items, total, err = ListTaskExecutions(ctx, ListTaskExecutionsRequest{Page: 1, PageSize: 2})
+	items, total, err = ListTaskExecutions(ctx, model.ListTaskExecutionsRequest{Page: 1, PageSize: 2})
 	require.NoError(t, err)
 	assert.Equal(t, int64(5), total)
 	assert.Len(t, items, 2)
 
-	items2, total2, err := ListTaskExecutions(ctx, ListTaskExecutionsRequest{Page: 2, PageSize: 2})
+	items2, total2, err := ListTaskExecutions(ctx, model.ListTaskExecutionsRequest{Page: 2, PageSize: 2})
 	require.NoError(t, err)
 	assert.Equal(t, int64(5), total2)
 	assert.Len(t, items2, 2)
@@ -409,7 +411,7 @@ func TestListTaskExecutions(t *testing.T) {
 	assert.NotEqual(t, items[0].ID, items2[0].ID)
 
 	// 状态 + 类型组合筛选
-	items, total, err = ListTaskExecutions(ctx, ListTaskExecutionsRequest{Status: "succeeded", TaskType: "system:cleanup", Page: 1, PageSize: 10})
+	items, total, err = ListTaskExecutions(ctx, model.ListTaskExecutionsRequest{Status: "succeeded", TaskType: "system:cleanup", Page: 1, PageSize: 10})
 	require.NoError(t, err)
 	assert.Equal(t, int64(1), total)
 	assert.Equal(t, "list_001", items[0].TaskID)
@@ -421,7 +423,7 @@ func TestListTaskExecutionsDefaultPaging(t *testing.T) {
 	ctx := context.Background()
 
 	// 不传分页参数，应使用默认值 page=1, pageSize=20
-	items, total, err := ListTaskExecutions(ctx, ListTaskExecutionsRequest{})
+	items, total, err := ListTaskExecutions(ctx, model.ListTaskExecutionsRequest{})
 	require.NoError(t, err)
 	assert.Equal(t, int64(0), total)
 	assert.Len(t, items, 0)
@@ -434,14 +436,14 @@ func TestCleanupTaskExecutionLogs(t *testing.T) {
 
 	now := time.Date(2026, 6, 17, 12, 0, 0, 0, time.UTC)
 	for i := 0; i < 31; i++ {
-		createTaskExecutionForCleanup(t, ctx, fmt.Sprintf("high_recent_%02d", i), "high:task", TaskExecutionStatusSucceeded, now.Add(-2*time.Hour))
+		createTaskExecutionForCleanup(t, ctx, fmt.Sprintf("high_recent_%02d", i), "high:task", model.TaskExecutionStatusSucceeded, now.Add(-2*time.Hour))
 	}
-	createTaskExecutionForCleanup(t, ctx, "high_old_4d", "high:task", TaskExecutionStatusSucceeded, now.AddDate(0, 0, -4))
-	createTaskExecutionForCleanup(t, ctx, "high_old_40d", "high:task", TaskExecutionStatusFailed, now.AddDate(0, 0, -40))
-	createTaskExecutionForCleanup(t, ctx, "high_running_old", "high:task", TaskExecutionStatusRunning, now.AddDate(0, 0, -10))
-	createTaskExecutionForCleanup(t, ctx, "low_old_31d", "low:task", TaskExecutionStatusSucceeded, now.AddDate(0, 0, -31))
-	createTaskExecutionForCleanup(t, ctx, "low_recent_29d", "low:task", TaskExecutionStatusSucceeded, now.AddDate(0, 0, -29))
-	createTaskExecutionForCleanup(t, ctx, "low_pending_old", "low:task", TaskExecutionStatusPending, now.AddDate(0, 0, -45))
+	createTaskExecutionForCleanup(t, ctx, "high_old_4d", "high:task", model.TaskExecutionStatusSucceeded, now.AddDate(0, 0, -4))
+	createTaskExecutionForCleanup(t, ctx, "high_old_40d", "high:task", model.TaskExecutionStatusFailed, now.AddDate(0, 0, -40))
+	createTaskExecutionForCleanup(t, ctx, "high_running_old", "high:task", model.TaskExecutionStatusRunning, now.AddDate(0, 0, -10))
+	createTaskExecutionForCleanup(t, ctx, "low_old_31d", "low:task", model.TaskExecutionStatusSucceeded, now.AddDate(0, 0, -31))
+	createTaskExecutionForCleanup(t, ctx, "low_recent_29d", "low:task", model.TaskExecutionStatusSucceeded, now.AddDate(0, 0, -29))
+	createTaskExecutionForCleanup(t, ctx, "low_pending_old", "low:task", model.TaskExecutionStatusPending, now.AddDate(0, 0, -45))
 
 	stats, err := CleanupTaskExecutionLogs(ctx, now)
 	require.NoError(t, err)
@@ -450,27 +452,27 @@ func TestCleanupTaskExecutionLogs(t *testing.T) {
 
 	for _, taskID := range []string{"high_old_4d", "high_old_40d", "low_old_31d"} {
 		var count int64
-		err := db.DB(ctx).Model(&TaskExecution{}).Where("task_id = ?", taskID).Count(&count).Error
+		err := db.DB(ctx).Model(&model.TaskExecution{}).Where("task_id = ?", taskID).Count(&count).Error
 		require.NoError(t, err)
 		assert.Equal(t, int64(0), count, "CleanupTaskExecutionLogs(%s) should delete expired log", taskID)
 	}
 	for _, taskID := range []string{"high_recent_00", "high_running_old", "low_recent_29d", "low_pending_old"} {
 		var count int64
-		err := db.DB(ctx).Model(&TaskExecution{}).Where("task_id = ?", taskID).Count(&count).Error
+		err := db.DB(ctx).Model(&model.TaskExecution{}).Where("task_id = ?", taskID).Count(&count).Error
 		require.NoError(t, err)
 		assert.Equal(t, int64(1), count, "CleanupTaskExecutionLogs(%s) should keep retained log", taskID)
 	}
 }
 
 func TestTaskExecutionTableName(t *testing.T) {
-	execution := TaskExecution{}
+	execution := model.TaskExecution{}
 	assert.Equal(t, "w_task_executions", execution.TableName())
 }
 
-func createTaskExecutionForCleanup(t *testing.T, ctx context.Context, taskID string, taskType string, status TaskExecutionStatus, createdAt time.Time) {
+func createTaskExecutionForCleanup(t *testing.T, ctx context.Context, taskID string, taskType string, status model.TaskExecutionStatus, createdAt time.Time) {
 	t.Helper()
 
-	execution := &TaskExecution{
+	execution := &model.TaskExecution{
 		TaskID:      taskID,
 		TaskType:    taskType,
 		TaskName:    taskType,

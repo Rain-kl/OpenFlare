@@ -56,3 +56,19 @@ type PagesProjectSourceRuntime struct {
 func (PagesProjectSourceRuntime) TableName() string {
 	return "of_pages_project_source_runtime"
 }
+
+// PagesExpiredSourceLeaseCandidate is a scanner query DTO for expired runtime leases.
+type PagesExpiredSourceLeaseCandidate struct {
+	SourceID        uint
+	LeaseToken      string
+	LeaseExpiresAt  time.Time
+	SyncStatus      string
+	SourceType      string
+	ReleaseSelector string
+}
+
+// PagesDueGitHubSourceCandidate is a scanner query DTO for due GitHub latest checks.
+type PagesDueGitHubSourceCandidate struct {
+	SourceID      uint
+	ConfigVersion int
+}

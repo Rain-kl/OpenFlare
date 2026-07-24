@@ -13,9 +13,9 @@ import (
 	"strconv"
 	"strings"
 
-	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/infra/task"
 	"github.com/Rain-kl/Wavelet/internal/model"
+	"github.com/Rain-kl/Wavelet/internal/repository"
 	"github.com/Rain-kl/Wavelet/pkg/logger"
 	"gorm.io/gorm"
 )
@@ -135,8 +135,8 @@ func (h *SourceActionHandler) Execute(ctx context.Context, payload []byte) (*tas
 		return nil, task.PermanentError(errPagesSourceActionInvalid)
 	}
 
-	var source model.PagesProjectSource
-	if err := db.DB(ctx).Where("id = ?", input.SourceID).First(&source).Error; err != nil {
+	source, err := repository.GetPagesProjectSourceByID(ctx, input.SourceID)
+	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			task.AppendLog(ctx, "[resolve] 来源已不存在，本次任务跳过")
 			return &task.TaskResult{Message: errPagesSourceActionStale}, nil
@@ -179,7 +179,7 @@ func (h *SourceActionHandler) Execute(ctx context.Context, payload []byte) (*tas
 	if input.Action == sourceActionCheck {
 		return executeGitHubCheckAction(ctx, snapshot)
 	}
-	return executeSourceSyncAction(ctx, &source, snapshot, input)
+	return executeSourceSyncAction(ctx, source, snapshot, input)
 }
 
 func executeGitHubCheckAction(ctx context.Context, snapshot *sourceExecutionSnapshot) (*task.TaskResult, error) {
@@ -313,14 +313,14 @@ func dispatchSourceActionByProject(
 		return nil, errors.New(errPagesSourceActionInvalid)
 	}
 
-	var source model.PagesProjectSource
-	if err := db.DB(ctx).Where("project_id = ?", projectID).First(&source).Error; err != nil {
+	source, err := repository.GetPagesProjectSourceByProjectID(ctx, projectID)
+	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, errors.New(errPagesSourceNotFound)
 		}
 		return nil, err
 	}
-	if err := validateSourceActionPreflight(ctx, &source, action, targetRevision, confirmedRevision); err != nil {
+	if err := validateSourceActionPreflight(ctx, source, action, targetRevision, confirmedRevision); err != nil {
 		return nil, err
 	}
 	busy, err := sourceLeaseIsBusy(ctx, source.ID)
@@ -330,7 +330,7 @@ func dispatchSourceActionByProject(
 	if busy {
 		return nil, errors.New(errPagesSourceActionBusy)
 	}
-	return dispatchSourceActionSnapshot(ctx, source, action, actor, targetRevision, confirmedRevision, "manual")
+	return dispatchSourceActionSnapshot(ctx, *source, action, actor, targetRevision, confirmedRevision, "manual")
 }
 
 func validateSourceActionPreflight(
@@ -416,7 +416,7 @@ func dispatchSourceActionSnapshotWithTrigger(
 		logger.ErrorF(ctx, "[PagesSource] dispatch action failed: project_id=%d source_id=%d action=%s error=%v", source.ProjectID, source.ID, action, err)
 		return nil, errors.New(errPagesSourceTaskDispatchFailed)
 	}
-	execution, err := model.GetTaskExecutionByTaskID(ctx, taskID)
+	execution, err := repository.GetTaskExecutionByTaskID(ctx, taskID)
 	if err != nil {
 		logger.ErrorF(ctx, "[PagesSource] load dispatched execution failed: source_id=%d task_id=%s error=%v", source.ID, taskID, err)
 		return nil, errors.New(errPagesSourceTaskDispatchFailed)

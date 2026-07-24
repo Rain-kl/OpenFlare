@@ -11,10 +11,9 @@ import (
 	"strings"
 	"time"
 
-	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/model"
+	"github.com/Rain-kl/Wavelet/internal/repository"
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
 
 const (
@@ -89,24 +88,16 @@ func acquireSourceLease(
 	now := time.Now()
 	expiresAt := now.Add(leaseDuration)
 
-	result := db.DB(ctx).Model(&model.PagesProjectSourceRuntime{}).
-		Where("source_id = ?", sourceID).
-		Where("lease_expires_at IS NULL OR lease_expires_at <= ?", now).
-		Where(
-			"EXISTS (SELECT 1 FROM of_pages_project_sources source WHERE source.id = ? AND source.config_version = ?)",
-			sourceID,
-			expectedConfigVersion,
-		).
-		Updates(map[string]any{
-			sourceRuntimeColumnLeaseToken:     token,
-			sourceRuntimeColumnLeaseExpiresAt: expiresAt,
-			sourceRuntimeColumnSyncStatus:     status,
-			sourceRuntimeColumnLastError:      "",
-		})
-	if result.Error != nil {
-		return nil, sourceLeaseStale, result.Error
+	rows, err := repository.TryAcquirePagesSourceRuntimeLease(ctx, sourceID, expectedConfigVersion, now, map[string]any{
+		sourceRuntimeColumnLeaseToken:     token,
+		sourceRuntimeColumnLeaseExpiresAt: expiresAt,
+		sourceRuntimeColumnSyncStatus:     status,
+		sourceRuntimeColumnLastError:      "",
+	})
+	if err != nil {
+		return nil, sourceLeaseStale, err
 	}
-	if result.RowsAffected == 0 {
+	if rows == 0 {
 		outcome, inspectErr := inspectSourceLeaseMiss(ctx, sourceID, expectedConfigVersion, now)
 		return nil, outcome, inspectErr
 	}
@@ -129,34 +120,30 @@ func loadSourceExecutionSnapshot(
 	token string,
 ) (*sourceExecutionSnapshot, error) {
 	var snapshot sourceExecutionSnapshot
-	err := db.DB(ctx).Transaction(func(tx *gorm.DB) error {
-		var source model.PagesProjectSource
-		if err := tx.Where("id = ?", sourceID).First(&source).Error; err != nil {
+	err := repository.WithPagesTx(ctx, func(tx *gorm.DB) error {
+		source, err := repository.GetPagesProjectSourceByIDTx(tx, sourceID)
+		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return errSourceLeaseSnapshotStale
 			}
 			return err
 		}
-		var project model.PagesProject
-		if err := tx.Clauses(clause.Locking{Strength: pagesRowLockStrength}).
-			First(&project, source.ProjectID).Error; err != nil {
+		project, err := repository.LockPagesProjectByIDTx(tx, source.ProjectID)
+		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return errSourceLeaseSnapshotStale
 			}
 			return err
 		}
-		if err := tx.Clauses(clause.Locking{Strength: pagesRowLockStrength}).
-			Where("id = ?", sourceID).
-			First(&source).Error; err != nil {
+		source, err = repository.LockPagesProjectSourceByIDTx(tx, sourceID)
+		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return errSourceLeaseSnapshotStale
 			}
 			return err
 		}
-		var runtime model.PagesProjectSourceRuntime
-		if err := tx.Clauses(clause.Locking{Strength: pagesRowLockStrength}).
-			Where("source_id = ?", source.ID).
-			First(&runtime).Error; err != nil {
+		runtime, err := repository.LockPagesProjectSourceRuntimeBySourceIDTx(tx, source.ID)
+		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return errSourceLeaseSnapshotStale
 			}
@@ -207,8 +194,8 @@ func inspectSourceLeaseMiss(
 	expectedConfigVersion int,
 	now time.Time,
 ) (sourceLeaseOutcome, error) {
-	var source model.PagesProjectSource
-	if err := db.DB(ctx).Where("id = ?", sourceID).First(&source).Error; err != nil {
+	source, err := repository.GetPagesProjectSourceByID(ctx, sourceID)
+	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return sourceLeaseStale, nil
 		}
@@ -217,8 +204,8 @@ func inspectSourceLeaseMiss(
 	if source.ConfigVersion != expectedConfigVersion {
 		return sourceLeaseStale, nil
 	}
-	var runtime model.PagesProjectSourceRuntime
-	if err := db.DB(ctx).Where("source_id = ?", sourceID).First(&runtime).Error; err != nil {
+	runtime, err := repository.GetPagesProjectSourceRuntimeBySourceID(ctx, sourceID)
+	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return sourceLeaseStale, nil
 		}
@@ -255,13 +242,11 @@ func renewSourceLease(ctx context.Context, snapshot *sourceExecutionSnapshot, du
 	}
 	now := time.Now()
 	expiresAt := now.Add(duration)
-	result := db.DB(ctx).Model(&model.PagesProjectSourceRuntime{}).
-		Where("source_id = ? AND lease_token = ? AND lease_expires_at > ?", snapshot.SourceID, snapshot.LeaseToken, now).
-		Updates(map[string]any{sourceRuntimeColumnLeaseExpiresAt: expiresAt})
-	if result.Error != nil {
-		return false, result.Error
+	rows, err := repository.RenewPagesSourceRuntimeLease(ctx, snapshot.SourceID, snapshot.LeaseToken, now, expiresAt)
+	if err != nil {
+		return false, err
 	}
-	if result.RowsAffected == 0 {
+	if rows == 0 {
 		return false, nil
 	}
 	snapshot.LeaseExpiresAt = expiresAt
@@ -274,14 +259,19 @@ func failSourceLease(ctx context.Context, snapshot *sourceExecutionSnapshot, mes
 	}
 	message = safeSourceRuntimeError(message)
 	now := time.Now()
-	return db.DB(ctx).Model(&model.PagesProjectSourceRuntime{}).
-		Where("source_id = ? AND lease_token = ? AND lease_expires_at > ?", snapshot.SourceID, snapshot.LeaseToken, now).
-		Updates(map[string]any{
+	_, err := repository.UpdatePagesSourceRuntimeByActiveLease(
+		ctx,
+		snapshot.SourceID,
+		snapshot.LeaseToken,
+		now,
+		map[string]any{
 			sourceRuntimeColumnSyncStatus:     pagesSourceStatusFailed,
 			sourceRuntimeColumnLastError:      message,
 			sourceRuntimeColumnLeaseToken:     "",
 			sourceRuntimeColumnLeaseExpiresAt: nil,
-		}).Error
+		},
+	)
+	return err
 }
 
 func safeSourceRuntimeError(message string) string {
@@ -296,8 +286,8 @@ func safeSourceRuntimeError(message string) string {
 }
 
 func sourceLeaseIsBusy(ctx context.Context, sourceID uint) (bool, error) {
-	var runtime model.PagesProjectSourceRuntime
-	if err := db.DB(ctx).Where("source_id = ?", sourceID).First(&runtime).Error; err != nil {
+	runtime, err := repository.GetPagesProjectSourceRuntimeBySourceID(ctx, sourceID)
+	if err != nil {
 		return false, err
 	}
 	return runtime.LeaseExpiresAt != nil && runtime.LeaseExpiresAt.After(time.Now()), nil
@@ -326,35 +316,30 @@ func recoverExpiredSourceLease(
 		sourceRuntimeColumnLeaseExpiresAt: nil,
 		sourceRuntimeColumnNextCheckAt:    nextCheckAt,
 	}
-	result := db.DB(ctx).Model(&model.PagesProjectSourceRuntime{}).
-		Where("source_id = ?", sourceID).
-		Where("lease_token = ?", token).
-		Where("lease_expires_at = ? AND lease_expires_at <= ?", expiresAt, now).
-		Where("sync_status = ?", status).
-		Updates(updates)
-	if result.Error != nil {
-		return false, result.Error
+	rows, err := repository.RecoverExpiredPagesSourceRuntimeLease(
+		ctx, sourceID, token, expiresAt, status, now, updates,
+	)
+	if err != nil {
+		return false, err
 	}
-	return result.RowsAffected == 1, nil
+	return rows == 1, nil
 }
 
 // fenceAndNormalizeRuntime invalidates in-flight work while preserving safe
 // seen/applied cursors. The caller must already hold the source row lock.
 func fenceAndNormalizeRuntime(tx *gorm.DB, sourceID uint) error {
-	var runtime model.PagesProjectSourceRuntime
-	if err := tx.Clauses(clause.Locking{Strength: pagesRowLockStrength}).
-		Where("source_id = ?", sourceID).
-		First(&runtime).Error; err != nil {
+	runtime, err := repository.LockPagesProjectSourceRuntimeBySourceIDTx(tx, sourceID)
+	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil
 		}
 		return err
 	}
-	return tx.Model(&runtime).Updates(map[string]any{
+	return repository.UpdatePagesProjectSourceRuntimeTx(tx, runtime, map[string]any{
 		sourceRuntimeColumnLeaseToken:     "",
 		sourceRuntimeColumnLeaseExpiresAt: nil,
-		sourceRuntimeColumnSyncStatus:     normalizedSourceRuntimeStatus(&runtime),
-	}).Error
+		sourceRuntimeColumnSyncStatus:     normalizedSourceRuntimeStatus(runtime),
+	})
 }
 
 func sourceHasSameReleaseReplacement(runtime *model.PagesProjectSourceRuntime) bool {

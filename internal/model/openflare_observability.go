@@ -4,14 +4,7 @@
 package model
 
 import (
-	"context"
-	"errors"
-	"strings"
 	"time"
-
-	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
-	analyticsrepo "github.com/Rain-kl/Wavelet/internal/repository/analytics"
-	"gorm.io/gorm"
 )
 
 // OpenFlareMetricSnapshot stores a node capacity snapshot in ClickHouse (database: openflare, table: of_node_metric_snapshots).
@@ -285,80 +278,6 @@ type OpenFlareAccessLogWAFIPAggregate struct {
 	StatusCounts     map[int]int
 }
 
-func isMissingTableError(err error) bool {
-	if err == nil {
-		return false
-	}
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return false
-	}
-	msg := strings.ToLower(err.Error())
-	return strings.Contains(msg, "no such table") ||
-		strings.Contains(msg, "doesn't exist") ||
-		strings.Contains(msg, "does not exist")
-}
-
-// InsertOpenFlareMetricSnapshot inserts a metric snapshot into ClickHouse.
-func InsertOpenFlareMetricSnapshot(ctx context.Context, record *OpenFlareMetricSnapshot) error {
-	return currentObservabilityStore().InsertMetricSnapshot(ctx, record)
-}
-
-// InsertOpenFlareEdgeHealth inserts an L2 edge health snapshot into ClickHouse.
-func InsertOpenFlareEdgeHealth(ctx context.Context, record *OpenFlareEdgeHealth) error {
-	return currentObservabilityStore().InsertEdgeHealth(ctx, record)
-}
-
-// InsertOpenFlareNodeObservationFrps inserts an FRPS observation into ClickHouse.
-func InsertOpenFlareNodeObservationFrps(ctx context.Context, record *OpenFlareNodeObservationFrps) error {
-	return currentObservabilityStore().InsertNodeObservationFrps(ctx, record)
-}
-
-// InsertOpenFlareNodeObservationFrpc inserts an FRPC observation into ClickHouse.
-func InsertOpenFlareNodeObservationFrpc(ctx context.Context, record *OpenFlareNodeObservationFrpc) error {
-	return currentObservabilityStore().InsertNodeObservationFrpc(ctx, record)
-}
-
-// ListOpenFlareMetricSnapshotsSince returns metric snapshots since the given time.
-func ListOpenFlareMetricSnapshotsSince(ctx context.Context, nodeID string, since time.Time, limit int) ([]*OpenFlareMetricSnapshot, error) {
-	return currentObservabilityStore().ListMetricSnapshots(ctx, nodeID, since, limit)
-}
-
-// ListOpenFlareLatestMetricSnapshotsSince returns the latest metric snapshot per node.
-// Prefer ClickHouse LIMIT 1 BY; on CH unavailability fall back to store list + reduce.
-func ListOpenFlareLatestMetricSnapshotsSince(ctx context.Context, nodeID string, since time.Time) ([]*OpenFlareMetricSnapshot, error) {
-	rows, err := analyticsrepo.ListLatestNodeMetricSnapshots(ctx, analyticsrepo.NodeObservabilityFilter{
-		NodeID: nodeID,
-		Since:  since,
-	})
-	if err == nil {
-		return fromAnalyticsNodeMetricSnapshots(rows), nil
-	}
-	// Fallback for unit tests (memory store) and environments without ClickHouse.
-	all, listErr := ListOpenFlareMetricSnapshotsSince(ctx, nodeID, since, 0)
-	if listErr != nil {
-		return nil, err
-	}
-	return openFlareLatestMetricSnapshots(all), nil
-}
-
-func openFlareLatestMetricSnapshots(snapshots []*OpenFlareMetricSnapshot) []*OpenFlareMetricSnapshot {
-	latestByNode := make(map[string]*OpenFlareMetricSnapshot, len(snapshots))
-	for _, snapshot := range snapshots {
-		if snapshot == nil || snapshot.NodeID == "" {
-			continue
-		}
-		if existing, ok := latestByNode[snapshot.NodeID]; ok && !snapshot.CapturedAt.After(existing.CapturedAt) {
-			continue
-		}
-		latestByNode[snapshot.NodeID] = snapshot
-	}
-	result := make([]*OpenFlareMetricSnapshot, 0, len(latestByNode))
-	for _, snapshot := range latestByNode {
-		result = append(result, snapshot)
-	}
-	return result
-}
-
 // OpenFlareTrafficHourly is an hourly traffic rollup row.
 type OpenFlareTrafficHourly struct {
 	NodeID             string    `json:"node_id"`
@@ -366,29 +285,6 @@ type OpenFlareTrafficHourly struct {
 	RequestCount       int64     `json:"request_count"`
 	ErrorCount         int64     `json:"error_count"`
 	UniqueVisitorCount int64     `json:"unique_visitor_count"`
-}
-
-// ListOpenFlareTrafficHourlySince returns hourly traffic rollup rows since the given time.
-// Source: of_access_log_hourly (M5).
-func ListOpenFlareTrafficHourlySince(ctx context.Context, nodeID string, since time.Time) ([]*OpenFlareTrafficHourly, error) {
-	rows, err := analyticsrepo.ListNodeTrafficHourly(ctx, analyticsrepo.NodeObservabilityFilter{
-		NodeID: nodeID,
-		Since:  since,
-	})
-	if err != nil {
-		return nil, err
-	}
-	result := make([]*OpenFlareTrafficHourly, len(rows))
-	for index, row := range rows {
-		result[index] = &OpenFlareTrafficHourly{
-			NodeID:             row.NodeID,
-			Hour:               row.Hour,
-			RequestCount:       row.RequestCount,
-			ErrorCount:         row.ErrorCount,
-			UniqueVisitorCount: row.UniqueVisitorCount,
-		}
-	}
-	return result, nil
 }
 
 // OpenFlareAccessLogHourly is a per-node/host hourly access log rollup.
@@ -402,30 +298,6 @@ type OpenFlareAccessLogHourly struct {
 	RequestLength int64     `json:"request_length"`
 }
 
-// ListOpenFlareAccessLogHourlySince returns of_access_log_hourly rows since the given time.
-func ListOpenFlareAccessLogHourlySince(ctx context.Context, nodeID string, since time.Time) ([]*OpenFlareAccessLogHourly, error) {
-	rows, err := analyticsrepo.ListAccessLogHourly(ctx, analyticsrepo.NodeObservabilityFilter{
-		NodeID: nodeID,
-		Since:  since,
-	})
-	if err != nil {
-		return nil, err
-	}
-	result := make([]*OpenFlareAccessLogHourly, len(rows))
-	for index, row := range rows {
-		result[index] = &OpenFlareAccessLogHourly{
-			NodeID:        row.NodeID,
-			Hour:          row.Hour,
-			Host:          row.Host,
-			RequestCount:  row.RequestCount,
-			ErrorCount:    row.ErrorCount,
-			BytesSent:     row.BytesSent,
-			RequestLength: row.RequestLength,
-		}
-	}
-	return result, nil
-}
-
 // OpenFlareMetricHourly is an hourly metric snapshot aggregation row.
 type OpenFlareMetricHourly struct {
 	Hour                      time.Time `json:"hour"`
@@ -436,155 +308,4 @@ type OpenFlareMetricHourly struct {
 	DiskReadBytes             int64     `json:"disk_read_bytes"`
 	DiskWriteBytes            int64     `json:"disk_write_bytes"`
 	ReportedNodes             int       `json:"reported_nodes"`
-}
-
-// ListOpenFlareMetricHourlySince returns hourly metric aggregates since the given time.
-func ListOpenFlareMetricHourlySince(ctx context.Context, nodeID string, since time.Time) ([]*OpenFlareMetricHourly, error) {
-	rows, err := analyticsrepo.ListNodeMetricHourly(ctx, analyticsrepo.NodeObservabilityFilter{
-		NodeID: nodeID,
-		Since:  since,
-	})
-	if err != nil {
-		return nil, err
-	}
-	result := make([]*OpenFlareMetricHourly, len(rows))
-	for index, row := range rows {
-		result[index] = &OpenFlareMetricHourly{
-			Hour:                      row.Hour,
-			AverageCPUUsagePercent:    row.AverageCPUUsagePercent,
-			AverageMemoryUsagePercent: row.AverageMemoryUsagePercent,
-			NetworkRxBytes:            row.NetworkRxBytes,
-			NetworkTxBytes:            row.NetworkTxBytes,
-			DiskReadBytes:             row.DiskReadBytes,
-			DiskWriteBytes:            row.DiskWriteBytes,
-			ReportedNodes:             row.ReportedNodes,
-		}
-	}
-	return result, nil
-}
-
-// ListOpenFlareActiveHealthEvents returns active health events across all nodes.
-func ListOpenFlareActiveHealthEvents(ctx context.Context) ([]*OpenFlareHealthEvent, error) {
-	conn := db.DB(ctx)
-	if conn == nil {
-		return nil, errors.New(errDatabaseNotInitialized)
-	}
-	var rows []*OpenFlareHealthEvent
-	if err := conn.Where("status = ?", "active").Order("last_triggered_at desc").Find(&rows).Error; err != nil {
-		if isMissingTableError(err) {
-			return []*OpenFlareHealthEvent{}, nil
-		}
-		return nil, err
-	}
-	return rows, nil
-}
-
-// ListOpenFlareHealthEvents returns health events for a node.
-func ListOpenFlareHealthEvents(ctx context.Context, nodeID string, activeOnly bool, limit int) ([]*OpenFlareHealthEvent, error) {
-	conn := db.DB(ctx)
-	if conn == nil {
-		return nil, errors.New(errDatabaseNotInitialized)
-	}
-	query := conn.Model(&OpenFlareHealthEvent{}).Where("node_id = ?", nodeID).Order("last_triggered_at desc")
-	if activeOnly {
-		query = query.Where("status = ?", "active")
-	}
-	if limit > 0 {
-		query = query.Limit(limit)
-	}
-	var rows []*OpenFlareHealthEvent
-	if err := query.Find(&rows).Error; err != nil {
-		if isMissingTableError(err) {
-			return []*OpenFlareHealthEvent{}, nil
-		}
-		return nil, err
-	}
-	return rows, nil
-}
-
-// DeleteOpenFlareMetricSnapshotsBefore deletes metric snapshots captured before cutoff.
-func DeleteOpenFlareMetricSnapshotsBefore(ctx context.Context, cutoff time.Time) (int64, error) {
-	return currentObservabilityStore().DeleteMetricSnapshotsBefore(ctx, cutoff)
-}
-
-// DeleteAllOpenFlareMetricSnapshots deletes all metric snapshots.
-func DeleteAllOpenFlareMetricSnapshots(ctx context.Context) (int64, error) {
-	return currentObservabilityStore().DeleteAllMetricSnapshots(ctx)
-}
-
-// DeleteOpenFlareEdgeHealthBefore deletes edge health rows captured before cutoff.
-func DeleteOpenFlareEdgeHealthBefore(ctx context.Context, cutoff time.Time) (int64, error) {
-	return currentObservabilityStore().DeleteEdgeHealthBefore(ctx, cutoff)
-}
-
-// DeleteAllOpenFlareEdgeHealth deletes all edge health snapshots.
-func DeleteAllOpenFlareEdgeHealth(ctx context.Context) (int64, error) {
-	return currentObservabilityStore().DeleteAllEdgeHealth(ctx)
-}
-
-// DeleteOpenFlareNodeObservationFrpsBefore deletes FRPS observations captured before cutoff.
-func DeleteOpenFlareNodeObservationFrpsBefore(ctx context.Context, cutoff time.Time) (int64, error) {
-	return currentObservabilityStore().DeleteNodeObservationFrpsBefore(ctx, cutoff)
-}
-
-// DeleteAllOpenFlareNodeObservationFrps deletes all FRPS observations.
-func DeleteAllOpenFlareNodeObservationFrps(ctx context.Context) (int64, error) {
-	return currentObservabilityStore().DeleteAllNodeObservationFrps(ctx)
-}
-
-// DeleteOpenFlareNodeObservationFrpcBefore deletes FRPC observations captured before cutoff.
-func DeleteOpenFlareNodeObservationFrpcBefore(ctx context.Context, cutoff time.Time) (int64, error) {
-	return currentObservabilityStore().DeleteNodeObservationFrpcBefore(ctx, cutoff)
-}
-
-// DeleteAllOpenFlareNodeObservationFrpc deletes all FRPC observations.
-func DeleteAllOpenFlareNodeObservationFrpc(ctx context.Context) (int64, error) {
-	return currentObservabilityStore().DeleteAllNodeObservationFrpc(ctx)
-}
-
-// DeleteOpenFlareHealthEventsByNodeID deletes all health events for a node.
-func DeleteOpenFlareHealthEventsByNodeID(ctx context.Context, nodeID string) (int64, error) {
-	conn := db.DB(ctx)
-	if conn == nil {
-		return 0, errors.New(errDatabaseNotInitialized)
-	}
-	result := conn.Where("node_id = ?", nodeID).Delete(&OpenFlareHealthEvent{})
-	if result.Error != nil {
-		if isMissingTableError(result.Error) {
-			return 0, nil
-		}
-		return 0, result.Error
-	}
-	return result.RowsAffected, nil
-}
-
-// GetOpenFlareNodeSystemProfile returns the system profile for a node.
-func GetOpenFlareNodeSystemProfile(ctx context.Context, nodeID string) (*OpenFlareNodeSystemProfile, error) {
-	conn := db.DB(ctx)
-	if conn == nil {
-		return nil, errors.New(errDatabaseNotInitialized)
-	}
-	var profile OpenFlareNodeSystemProfile
-	if err := conn.Where("node_id = ?", nodeID).First(&profile).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) || isMissingTableError(err) {
-			return nil, gorm.ErrRecordNotFound
-		}
-		return nil, err
-	}
-	return &profile, nil
-}
-
-// ListOpenFlareEdgeHealth returns L2 edge health snapshots.
-func ListOpenFlareEdgeHealth(ctx context.Context, nodeID string, since time.Time, limit int) ([]*OpenFlareEdgeHealth, error) {
-	return currentObservabilityStore().ListEdgeHealth(ctx, nodeID, since, limit)
-}
-
-// ListOpenFlareNodeObservationFrpc returns frpc observations.
-func ListOpenFlareNodeObservationFrpc(ctx context.Context, nodeID string, since time.Time, limit int) ([]*OpenFlareNodeObservationFrpc, error) {
-	return currentObservabilityStore().ListNodeObservationFrpc(ctx, nodeID, since, limit)
-}
-
-// ListOpenFlareNodeObservationFrps returns frps observations.
-func ListOpenFlareNodeObservationFrps(ctx context.Context, nodeID string, since time.Time, limit int) ([]*OpenFlareNodeObservationFrps, error) {
-	return currentObservabilityStore().ListNodeObservationFrps(ctx, nodeID, since, limit)
 }

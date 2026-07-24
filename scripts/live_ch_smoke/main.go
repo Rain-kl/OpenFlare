@@ -10,6 +10,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/Rain-kl/Wavelet/internal/repository"
+
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/chwriter"
 	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/model"
@@ -38,7 +40,7 @@ func run() error {
 
 	now := time.Now().UTC()
 	nodeID := "e2e-app-" + now.Format("150405")
-	if err := model.InsertOpenFlareMetricSnapshot(ctx, &model.OpenFlareMetricSnapshot{
+	if err := repository.InsertOpenFlareMetricSnapshot(ctx, &model.OpenFlareMetricSnapshot{
 		NodeID: nodeID, CapturedAt: now, CPUUsagePercent: 41.2,
 		MemoryUsedBytes: 123, MemoryTotalBytes: 1000,
 		StorageUsedBytes: 456, StorageTotalBytes: 2000,
@@ -64,7 +66,7 @@ func run() error {
 func waitForSnapshot(ctx context.Context, nodeID string, now time.Time) error {
 	deadline := time.Now().Add(flushWaitTimeout)
 	for time.Now().Before(deadline) {
-		rows, err := model.ListOpenFlareMetricSnapshotsSince(ctx, nodeID, now.Add(-time.Minute), listLimit)
+		rows, err := repository.ListOpenFlareMetricSnapshotsSince(ctx, nodeID, now.Add(-time.Minute), listLimit)
 		if err != nil {
 			return fmt.Errorf("list: %w", err)
 		}
@@ -78,7 +80,7 @@ func waitForSnapshot(ctx context.Context, nodeID string, now time.Time) error {
 }
 
 func assertLatestIncludes(ctx context.Context, nodeID string, now time.Time) error {
-	latest, err := model.ListOpenFlareLatestMetricSnapshotsSince(ctx, "", now.Add(-time.Hour))
+	latest, err := repository.ListOpenFlareLatestMetricSnapshotsSince(ctx, "", now.Add(-time.Hour))
 	if err != nil {
 		return fmt.Errorf("latest: %w", err)
 	}

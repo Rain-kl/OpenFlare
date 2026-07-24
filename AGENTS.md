@@ -59,6 +59,13 @@
 - 在完成代码开发后或者 git 提交前必须运行 `make format` 格式化代码。
 - 需要缓存或文件管理能力时，必须复用现有平台实现，禁止在业务包中自行创建缓存目录、直接管理缓存文件或重复封装存储后端。
 - 文件摄取必须通过 `upload.Ingest`（`upload.PolicyCreate` / `PolicyDedupNewRecord` / `PolicyResolveExisting`）；删除必须通过 `upload.Remove` 或 `upload.RemoveOwned`。禁止业务模块直接调用 `repository.CreateUpload` / `repository.SoftDeleteUpload`，禁止 `db.Create(&model.Upload{})` 旁路写 `w_uploads`。
+- **`internal/model` 与 `internal/repository` 分层（硬规则）**：
+  - `internal/model/`：仅 GORM 实体、表名、配置 key、查询 DTO、无 IO 领域规则（如密码哈希校验、字段规范化）。**禁止**在 model 中调用 `db.DB` / Redis / ClickHouse，**禁止** `import internal/repository`。
+  - 实体上允许仅 mutate 自身字段的 GORM hook（如 `AfterFind(*gorm.DB)`），**禁止**在 hook 内再发起 DB/缓存查询。
+  - `internal/repository/`：唯一持久化入口（CRUD、事务、缓存、分析查询）。apps / logics / task 框架通过 repository 访问数据，**禁止**在 Handler 内直接写复杂 SQL。
+  - apps 不得为业务 CRUD 直接调用 `db.DB`；必须走 repository（管理端 SQL 控制台、infra 内部实现等例外可保留）。
+  - 依赖方向只能是 `apps → repository → model` 与 `repository → infra/persistence`；**禁止** `model → repository`。
+  - 新增代码不得再增加 `model.Get/List/Create/Update/Delete*(ctx…)` 类数据访问 API；存量迁移按域收敛至 repository。
 - 禁止在 `init()` 中注册跨模块集成（任务 Handler、推送内置事件、域事件监听器、任务完成钩子）。统一通过 `internal/platform/bootstrap` 在 `internal/cmd` 入口显式装配。
 - `internal/router/router.go` 的 `Serve()` 仅负责 HTTP 路由与中间件，禁止在其中执行 `SyncEvents`、`InitLogWriter` 等进程级运行时初始化。
 - 核心业务模块（如 `oauth`、`user`）禁止直接 `import` `internal/apps/admin/push` 或 `custom_events` 触发通知；应通过 `internal/listener` 发射域事件，由 push 模块在 bootstrap 阶段订阅。
@@ -115,7 +122,8 @@
 - `internal/router/`：唯一的 HTTP 路由注册点。
 - `internal/apps/`：按功能（Feature-based）组织的 HTTP Handler、中间件、内部服务与模块逻辑。移除全局 service 层，模块内部业务逻辑（如验证码业务逻辑管理器 `internal/apps/cap/manager.go`）均收敛于各自模块中；管理端模块位于 `internal/apps/admin/`。
 - `internal/apps/upload/`：上传记录、文件访问控制、本地/S3 文件响应、下载及图片 WebP 压缩。业务应复用 `upload.Ingest` / `upload.Remove` 与 `GET /f/:id` 文件服务，不直接操作底层 storage 或旁路写 `w_uploads`。
-- `internal/model/`：GORM 实体和模型级业务方法。
+- `internal/model/`：GORM 实体、表映射、配置 key、查询 DTO 与无 IO 领域规则；不含数据库访问。
+- `internal/repository/`：数据访问层（平台与业务域 CRUD、缓存、ClickHouse 分析读写）；唯一持久化入口。
 - `internal/infra/persistence/`：PostgreSQL、Redis、ClickHouse、GORM 日志、ID 生成和 goose SQL 迁移的布线。
 - `internal/infra/diskcache/`：平台级磁盘字节缓存，通过 `diskcache.GetGlobalCache()` 提供 TTL、最大空间限制、LRU 淘汰、清空、状态统计和配置热更新。写入时使用 `DefaultExpiration`（全局默认 TTL）、正数 `time.Duration`（业务 TTL）或 `NoExpiration`（无 TTL，仍受空间限制和 LRU 淘汰）。
 - `internal/infra/objectstore/`：S3 兼容对象存储适配，提供对象上传、读取、删除、CDN/代理读取及远端对象本地缓存。
@@ -303,9 +311,10 @@ func doSomething(c *gin.Context) { response.AbortBadRequest(c, "...") }
 
 数据库操作：
 
-- 简单查询可以直接从 model 层使用 GORM。
-- 管理员代码应首选 `db.DB(ctx)` 以获得链路追踪感知的 DB 访问。
-- 不要在 Handler 中放置复杂的 SQL；将其移至 `internal/model/` 或模块内的业务服务层（如 `internal/apps/<module>/service.go` 或 `logics.go`）。
+- **持久化只通过 `internal/repository`**（或 analytics 子包）。apps / logics 不要直接 `db.DB(ctx).Where...` 拼复杂查询；简单事务编排可在 logics 中调用多个 repository 方法。
+- repository 内管理员/业务查询应使用 `db.DB(ctx)` 以获得链路追踪感知的 DB 访问。
+- 不要在 Handler 中放置 SQL；复杂查询放 `internal/repository/`，业务编排放 `internal/apps/<module>/logics.go`（或 `service.go`）。
+- `internal/model` 只定义实体与无 IO 规则，不访问数据库。
 - 在 `internal/infra/persistence/migrator/goose/` 下使用 goose SQL 迁移；不要添加基于 GORM AutoMigrate 的 Schema 升级。
 - 不要创建物理数据库外键。改为关系字段添加显式索引。
 - 数据库默认值必须与 Go 模型零值（`nil`、`0`、`false`、`""`）匹配，以避免意外的插入。

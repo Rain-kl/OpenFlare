@@ -10,6 +10,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Rain-kl/Wavelet/internal/repository"
+
 	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"github.com/Rain-kl/Wavelet/pkg/protocol"
@@ -124,7 +126,7 @@ func TestChangedWAFIPGroupsForAgentDiscoversGraphReferences(t *testing.T) {
 		Enabled: true,
 		IPList:  `["192.0.2.88"]`,
 	}
-	require.NoError(t, model.CreateOpenFlareWAFIPGroup(ctx, ipGroup))
+	require.NoError(t, repository.CreateOpenFlareWAFIPGroup(ctx, ipGroup))
 	seedActiveConfigWithWAFGraphIPGroup(t, ctx, ipGroup.ID)
 
 	groups, err := ChangedWAFIPGroupsForAgent(ctx, nil, nil)
@@ -163,7 +165,7 @@ func TestChangedWAFIPGroupsForAgentRejectsOversizedSnapshotBeforeChecksumDelta(t
 		Enabled: true,
 		IPList:  `[]`,
 	}
-	require.NoError(t, model.CreateOpenFlareWAFIPGroup(ctx, ipGroup))
+	require.NoError(t, repository.CreateOpenFlareWAFIPGroup(ctx, ipGroup))
 	agentGroup, err := buildAgentWAFIPGroup(ipGroup)
 	require.NoError(t, err)
 
@@ -185,7 +187,7 @@ func TestChangedWAFIPGroupsForAgentReturnsChecksumDelta(t *testing.T) {
 		Enabled: true,
 		IPList:  `["203.0.113.44"]`,
 	}
-	require.NoError(t, model.CreateOpenFlareWAFIPGroup(ctx, ipGroup))
+	require.NoError(t, repository.CreateOpenFlareWAFIPGroup(ctx, ipGroup))
 	seedActiveConfigWithWAFIPGroup(t, ctx, ipGroup.ID)
 
 	groups, err := ChangedWAFIPGroupsForAgent(ctx, nil, nil)
@@ -201,7 +203,7 @@ func TestChangedWAFIPGroupsForAgentReturnsChecksumDelta(t *testing.T) {
 	assert.Empty(t, same)
 
 	ipGroup.IPList = `["203.0.113.45"]`
-	require.NoError(t, model.UpdateOpenFlareWAFIPGroup(ctx, ipGroup))
+	require.NoError(t, repository.UpdateOpenFlareWAFIPGroup(ctx, ipGroup))
 
 	delta, err := ChangedWAFIPGroupsForAgent(ctx, nil, map[string]string{groupKey: groups[0].Checksum})
 	require.NoError(t, err)
@@ -222,7 +224,7 @@ func TestSyncWAFIPGroupsReturnsChangedGroups(t *testing.T) {
 		Enabled: true,
 		IPList:  `["198.51.100.10"]`,
 	}
-	require.NoError(t, model.CreateOpenFlareWAFIPGroup(ctx, ipGroup))
+	require.NoError(t, repository.CreateOpenFlareWAFIPGroup(ctx, ipGroup))
 	seedActiveConfigWithWAFIPGroup(t, ctx, ipGroup.ID)
 
 	result, err := SyncWAFIPGroups(ctx, WAFIPGroupSyncInput{
@@ -255,9 +257,9 @@ func TestChangedWAFIPGroupsForAgentDisabledGroupClearsIPList(t *testing.T) {
 		Enabled: true,
 		IPList:  `["203.0.113.10"]`,
 	}
-	require.NoError(t, model.CreateOpenFlareWAFIPGroup(ctx, ipGroup))
+	require.NoError(t, repository.CreateOpenFlareWAFIPGroup(ctx, ipGroup))
 	ipGroup.Enabled = false
-	require.NoError(t, model.UpdateOpenFlareWAFIPGroup(ctx, ipGroup))
+	require.NoError(t, repository.UpdateOpenFlareWAFIPGroup(ctx, ipGroup))
 	seedActiveConfigWithWAFIPGroup(t, ctx, ipGroup.ID)
 
 	groups, err := ChangedWAFIPGroupsForAgent(ctx, nil, nil)

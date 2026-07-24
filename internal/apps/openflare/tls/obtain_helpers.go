@@ -7,21 +7,23 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/Rain-kl/Wavelet/internal/repository"
+
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/tls/acme"
 	"github.com/Rain-kl/Wavelet/internal/model"
 )
 
 func resolveAcmeAccount(ctx context.Context, cert *model.TLSCertificate) (*model.AcmeAccount, error) {
-	acmeAccount, err := model.GetAcmeAccountByID(ctx, cert.AcmeAccountID)
+	acmeAccount, err := repository.GetAcmeAccountByID(ctx, cert.AcmeAccountID)
 	if err == nil {
 		return acmeAccount, nil
 	}
-	acmeAccount, err = model.GetDefaultAcmeAccount(ctx)
+	acmeAccount, err = repository.GetDefaultAcmeAccount(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get ACME account: %w", err)
 	}
 	cert.AcmeAccountID = acmeAccount.ID
-	if err := model.SaveTLSCertificate(ctx, cert); err != nil {
+	if err := repository.SaveTLSCertificate(ctx, cert); err != nil {
 		return nil, err
 	}
 	return acmeAccount, nil
@@ -49,14 +51,14 @@ func persistAcmeAccountUpdates(
 		acmeAccount.URL = newAccountURL
 	}
 	if acmeAccount.ID == 0 {
-		if dbErr := model.CreateAcmeAccountRecord(ctx, acmeAccount); dbErr != nil {
+		if dbErr := repository.CreateAcmeAccountRecord(ctx, acmeAccount); dbErr != nil {
 			return fmt.Errorf("failed to create ACME account: %w", dbErr)
 		}
-	} else if dbErr := model.SaveAcmeAccount(ctx, acmeAccount); dbErr != nil {
+	} else if dbErr := repository.SaveAcmeAccount(ctx, acmeAccount); dbErr != nil {
 		return fmt.Errorf("failed to save ACME account: %w", dbErr)
 	}
 	cert.AcmeAccountID = acmeAccount.ID
-	return model.SaveTLSCertificate(ctx, cert)
+	return repository.SaveTLSCertificate(ctx, cert)
 }
 
 func saveObtainedCertificate(ctx context.Context, cert *model.TLSCertificate, result *acme.CertificateResult) error {
@@ -70,5 +72,5 @@ func saveObtainedCertificate(ctx context.Context, cert *model.TLSCertificate, re
 	cert.NotAfter = result.NotAfter
 	cert.ApplyStatus = tlsApplyStatusReady
 	cert.ApplyMessage = ""
-	return model.SaveTLSCertificate(ctx, cert)
+	return repository.SaveTLSCertificate(ctx, cert)
 }

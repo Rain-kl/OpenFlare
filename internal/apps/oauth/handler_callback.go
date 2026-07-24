@@ -130,12 +130,12 @@ func handleCallbackBind(ctx context.Context, c *gin.Context, source *model.AuthS
 		response.AbortUnauthorized(c, shared.UnAuthorized)
 		return
 	}
-	var user model.User
-	if err := db.DB(ctx).First(&user, "id = ?", userID).Error; err != nil {
+	user, err := repository.GetUserByID(ctx, userID)
+	if err != nil {
 		response.AbortInternal(c, err.Error())
 		return
 	}
-	if err := model.BindExternalAccount(ctx, &model.ExternalAccount{
+	if err := repository.BindExternalAccount(ctx, &model.ExternalAccount{
 		AuthSourceID:     source.ID,
 		UserID:           user.ID,
 		ExternalID:       userInfo.Sub,
@@ -146,7 +146,7 @@ func handleCallbackBind(ctx context.Context, c *gin.Context, source *model.AuthS
 		return
 	}
 	user.LastLoginAt = time.Now()
-	_ = db.DB(ctx).Model(&user).Update("last_login_at", user.LastLoginAt).Error
+	_ = repository.UpdateUserLastLoginAt(ctx, user.ID, user.LastLoginAt)
 	c.JSON(http.StatusOK, response.OK(buildCallbackResult(&user, "bound")))
 }
 
@@ -154,13 +154,15 @@ func handleCallbackBind(ctx context.Context, c *gin.Context, source *model.AuthS
 func handleCallbackLogin(ctx context.Context, c *gin.Context, source *model.AuthSource, userInfo *model.OAuthUserInfo) {
 	var user model.User
 
-	account, err := model.FindExternalAccount(ctx, source.ID, userInfo.Sub)
+	account, err := repository.FindExternalAccount(ctx, source.ID, userInfo.Sub)
 	switch {
 	case err == nil:
-		if err := db.DB(ctx).First(&user, "id = ?", account.UserID).Error; err != nil {
-			response.AbortInternal(c, err.Error())
+		loaded, loadErr := repository.GetUserByID(ctx, account.UserID)
+		if loadErr != nil {
+			response.AbortInternal(c, loadErr.Error())
 			return
 		}
+		user = loaded
 	case errors.Is(err, gorm.ErrRecordNotFound):
 		newUser, ok := handleCallbackRegister(ctx, c, source, userInfo)
 		if !ok {
@@ -173,7 +175,7 @@ func handleCallbackLogin(ctx context.Context, c *gin.Context, source *model.Auth
 	}
 
 	user.LastLoginAt = time.Now()
-	_ = db.DB(ctx).Model(&user).Update("last_login_at", user.LastLoginAt).Error
+	_ = repository.UpdateUserLastLoginAt(ctx, user.ID, user.LastLoginAt)
 	if err := setLoginSession(ctx, c, &user); err != nil {
 		response.AbortInternal(c, err.Error())
 		return
@@ -209,11 +211,11 @@ func handleCallbackRegister(ctx context.Context, c *gin.Context, source *model.A
 	userInfo.Username = username
 
 	var user model.User
-	if err := user.CreateUser(ctx, db.DB(ctx), userInfo); err != nil {
+	if err := repository.CreateUserFromOAuth(ctx, &user, userInfo); err != nil {
 		response.AbortInternal(c, err.Error())
 		return model.User{}, false
 	}
-	if err := model.BindExternalAccount(ctx, &model.ExternalAccount{
+	if err := repository.BindExternalAccount(ctx, &model.ExternalAccount{
 		AuthSourceID:     source.ID,
 		UserID:           user.ID,
 		ExternalID:       userInfo.Sub,

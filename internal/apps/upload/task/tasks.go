@@ -14,9 +14,8 @@ import (
 
 	"github.com/Rain-kl/Wavelet/internal/apps/upload/filesrv"
 	"github.com/Rain-kl/Wavelet/internal/apps/upload/shared"
-	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/infra/task"
-	"github.com/Rain-kl/Wavelet/internal/model"
+	"github.com/Rain-kl/Wavelet/internal/repository"
 )
 
 const (
@@ -113,17 +112,8 @@ func (h *WarmImageCacheHandler) Execute(ctx context.Context, payload []byte) (*t
 			return nil, fmt.Errorf("image cache warmup canceled: %w", err)
 		}
 
-		var uploads []model.Upload
-		if err := db.DB(ctx).
-			Where("id > ? AND status != ? AND (LOWER(mime_type) LIKE ? OR LOWER(extension) IN ?)",
-				lastID,
-				model.UploadStatusDeleted,
-				"image/%",
-				[]string{"jpg", "jpeg", "png", "webp", "gif"},
-			).
-			Order("id ASC").
-			Limit(batchSize).
-			Find(&uploads).Error; err != nil {
+		uploads, err := repository.ListActiveImageUploadsAfterID(ctx, lastID, batchSize)
+		if err != nil {
 			task.AppendLog(ctx, "查询图片上传记录失败: %v", err)
 			return nil, fmt.Errorf(shared.ErrQueryImagesForCacheWarmup, err)
 		}

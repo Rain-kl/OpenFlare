@@ -9,6 +9,7 @@ import (
 
 	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/model"
+	"github.com/Rain-kl/Wavelet/internal/repository"
 	"github.com/glebarez/sqlite"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -115,7 +116,7 @@ func TestPagesRouteLocksAndRevalidatesTargetProject(t *testing.T) {
 
 	require.NoError(t, db.DB(ctx).Delete(&model.PagesProject{}, project.ID).Error)
 	route := &model.ProxyRoute{UpstreamType: proxyRouteUpstreamTypePages, PagesProjectID: &project.ID}
-	err = db.DB(ctx).Transaction(func(tx *gorm.DB) error {
+	err = repository.WithProxyRouteTx(ctx, func(tx *gorm.DB) error {
 		return lockPagesProjectsForRouteMutation(tx, 0, route)
 	})
 	require.EqualError(t, err, errProxyRoutePagesNotFound)
@@ -128,7 +129,7 @@ func TestRouteCanMoveAwayFromAlreadyMissingPagesProject(t *testing.T) {
 	missingProjectID := uint(404)
 	route := &model.ProxyRoute{UpstreamType: "direct"}
 
-	err := db.DB(ctx).Transaction(func(tx *gorm.DB) error {
+	err := repository.WithProxyRouteTx(ctx, func(tx *gorm.DB) error {
 		return lockPagesProjectsForRouteMutation(tx, missingProjectID, route)
 	})
 	require.NoError(t, err)

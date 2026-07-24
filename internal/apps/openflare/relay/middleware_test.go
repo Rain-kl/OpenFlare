@@ -9,6 +9,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/Rain-kl/Wavelet/internal/repository"
+
 	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"github.com/Rain-kl/Wavelet/internal/shared/response"
@@ -44,7 +46,7 @@ func seedRelayNode(t *testing.T, nodeType, accessToken string) *model.OpenFlareN
 		NodeType:    nodeType,
 		AccessToken: accessToken,
 	}
-	require.NoError(t, model.CreateOpenFlareNode(ctx, node))
+	require.NoError(t, repository.CreateOpenFlareNode(ctx, node))
 	return node
 }
 

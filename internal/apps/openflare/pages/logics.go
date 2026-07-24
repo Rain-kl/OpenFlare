@@ -17,8 +17,8 @@ import (
 	"time"
 
 	"github.com/Rain-kl/Wavelet/internal/apps/upload"
-	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/model"
+	"github.com/Rain-kl/Wavelet/internal/repository"
 	"github.com/Rain-kl/Wavelet/pkg/logger"
 	"github.com/Rain-kl/Wavelet/pkg/pagesarchive"
 	"gorm.io/gorm"
@@ -101,7 +101,7 @@ type View struct {
 
 // ListProjects 列出全部 Pages 项目。
 func ListProjects(ctx context.Context) ([]View, error) {
-	projects, err := model.ListPagesProjects(ctx)
+	projects, err := repository.ListPagesProjects(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -118,7 +118,7 @@ func ListProjects(ctx context.Context) ([]View, error) {
 
 // GetProject 获取 Pages 项目详情。
 func GetProject(ctx context.Context, id uint) (*View, error) {
-	project, err := model.GetPagesProjectByID(ctx, id)
+	project, err := repository.GetPagesProjectByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -131,7 +131,7 @@ func CreateProject(ctx context.Context, input Input) (*View, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err = model.CreatePagesProjectRecord(ctx, project); err != nil {
+	if err = repository.CreatePagesProjectRecord(ctx, project); err != nil {
 		if isUniqueConstraintError(err) {
 			return nil, errors.New(errPagesSlugExists)
 		}
@@ -143,7 +143,7 @@ func CreateProject(ctx context.Context, input Input) (*View, error) {
 // UpdateProject 更新 Pages 项目。
 func UpdateProject(ctx context.Context, id uint, input Input) (*View, error) {
 	var project *model.PagesProject
-	err := db.DB(ctx).Transaction(func(tx *gorm.DB) error {
+	err := repository.WithPagesTx(ctx, func(tx *gorm.DB) error {
 		var existing model.PagesProject
 		if err := tx.Clauses(clause.Locking{Strength: pagesRowLockStrength}).First(&existing, id).Error; err != nil {
 			return err
@@ -177,10 +177,7 @@ func UpdateProject(ctx context.Context, id uint, input Input) (*View, error) {
 		}
 		if contentConfigChanged {
 			updates["content_config_version"] = existing.ContentConfigVersion + 1
-			var source model.PagesProjectSource
-			sourceErr := tx.Clauses(clause.Locking{Strength: pagesRowLockStrength}).
-				Where("project_id = ?", existing.ID).
-				First(&source).Error
+			source, sourceErr := repository.LockPagesProjectSourceByProjectIDTx(tx, existing.ID)
 			if sourceErr != nil && !errors.Is(sourceErr, gorm.ErrRecordNotFound) {
 				return sourceErr
 			}
@@ -220,12 +217,12 @@ func ensureDeploymentEntry(conn *gorm.DB, deploymentID uint, rootDir, entryFile 
 
 // DeleteProject 删除 Pages 项目。
 func DeleteProject(ctx context.Context, id uint) error {
-	project, err := model.GetPagesProjectByID(ctx, id)
+	project, err := repository.GetPagesProjectByID(ctx, id)
 	if err != nil {
 		return err
 	}
 	var deployments []model.PagesDeployment
-	err = db.DB(ctx).Transaction(func(tx *gorm.DB) error {
+	err = repository.WithPagesTx(ctx, func(tx *gorm.DB) error {
 		var lockedProject model.PagesProject
 		if err := tx.Clauses(clause.Locking{Strength: pagesRowLockStrength}).First(&lockedProject, project.ID).Error; err != nil {
 			return err
@@ -241,25 +238,19 @@ func DeleteProject(ctx context.Context, id uint) error {
 				return errors.New(errPagesDeleteReferenced)
 			}
 		}
-		var source model.PagesProjectSource
-		sourceErr := tx.Clauses(clause.Locking{Strength: pagesRowLockStrength}).
-			Where("project_id = ?", project.ID).
-			First(&source).Error
+		source, sourceErr := repository.LockPagesProjectSourceByProjectIDTx(tx, project.ID)
 		if sourceErr != nil && !errors.Is(sourceErr, gorm.ErrRecordNotFound) {
 			return sourceErr
 		}
 		if sourceErr == nil {
-			var runtime model.PagesProjectSourceRuntime
-			runtimeErr := tx.Clauses(clause.Locking{Strength: pagesRowLockStrength}).
-				Where("source_id = ?", source.ID).
-				First(&runtime).Error
-			if runtimeErr != nil && !errors.Is(runtimeErr, gorm.ErrRecordNotFound) {
+			if _, runtimeErr := repository.LockPagesProjectSourceRuntimeBySourceIDTx(tx, source.ID); runtimeErr != nil &&
+				!errors.Is(runtimeErr, gorm.ErrRecordNotFound) {
 				return runtimeErr
 			}
-			if err := tx.Where("source_id = ?", source.ID).Delete(&model.PagesProjectSourceRuntime{}).Error; err != nil {
+			if err := repository.DeletePagesProjectSourceRuntimeBySourceIDTx(tx, source.ID); err != nil {
 				return err
 			}
-			if err := tx.Delete(&source).Error; err != nil {
+			if err := repository.DeletePagesProjectSourceTx(tx, source); err != nil {
 				return err
 			}
 		}
@@ -291,10 +282,10 @@ func DeleteProject(ctx context.Context, id uint) error {
 
 // ListProjectDeployments 列出项目的全部部署。
 func ListProjectDeployments(ctx context.Context, projectID uint) ([]DeploymentView, error) {
-	if _, err := model.GetPagesProjectByID(ctx, projectID); err != nil {
+	if _, err := repository.GetPagesProjectByID(ctx, projectID); err != nil {
 		return nil, err
 	}
-	deployments, err := model.ListPagesDeployments(ctx, projectID)
+	deployments, err := repository.ListPagesDeployments(ctx, projectID)
 	if err != nil {
 		return nil, err
 	}
@@ -307,10 +298,10 @@ func ListProjectDeployments(ctx context.Context, projectID uint) ([]DeploymentVi
 
 // ListDeploymentFiles 列出部署文件清单。
 func ListDeploymentFiles(ctx context.Context, deploymentID uint) ([]DeploymentFileView, error) {
-	if _, err := model.GetPagesDeploymentByID(ctx, deploymentID); err != nil {
+	if _, err := repository.GetPagesDeploymentByID(ctx, deploymentID); err != nil {
 		return nil, err
 	}
-	files, err := model.ListPagesDeploymentFiles(ctx, deploymentID)
+	files, err := repository.ListPagesDeploymentFiles(ctx, deploymentID)
 	if err != nil {
 		return nil, err
 	}
@@ -330,7 +321,7 @@ func ListDeploymentFiles(ctx context.Context, deploymentID uint) ([]DeploymentFi
 
 // UploadDeployment 上传 Pages 部署包（本地 multipart 文件）。
 func UploadDeployment(ctx context.Context, projectID uint, fileHeader *multipart.FileHeader, createdBy string) (*DeploymentView, error) {
-	project, err := model.GetPagesProjectByID(ctx, projectID)
+	project, err := repository.GetPagesProjectByID(ctx, projectID)
 	if err != nil {
 		return nil, err
 	}
@@ -364,7 +355,7 @@ type UploadFromURLInput struct {
 
 // UploadDeploymentFromURL downloads a package from url and creates a deployment.
 func UploadDeploymentFromURL(ctx context.Context, projectID uint, rawURL string, createdBy string) (*DeploymentView, error) {
-	project, err := model.GetPagesProjectByID(ctx, projectID)
+	project, err := repository.GetPagesProjectByID(ctx, projectID)
 	if err != nil {
 		return nil, err
 	}
@@ -438,7 +429,7 @@ func createDeploymentFromTempPackage(
 		}
 	}()
 	deployment := &model.PagesDeployment{}
-	err = db.DB(ctx).Transaction(func(tx *gorm.DB) error {
+	err = repository.WithPagesTx(ctx, func(tx *gorm.DB) error {
 		var lockedProject model.PagesProject
 		if err := tx.Clauses(clause.Locking{Strength: pagesRowLockStrength}).First(&lockedProject, project.ID).Error; err != nil {
 			return err
@@ -539,7 +530,7 @@ func pruneProjectDeploymentHistory(ctx context.Context, projectID uint, keepCoun
 // Returns the number of deployments deleted from the database.
 func pruneProjectDeploymentHistoryOnce(ctx context.Context, projectID uint, keepCount int, preserveCandidateID uint) (int, error) {
 	var deletedDeployments []model.PagesDeployment
-	err := db.DB(ctx).Transaction(func(tx *gorm.DB) error {
+	err := repository.WithPagesTx(ctx, func(tx *gorm.DB) error {
 		var project model.PagesProject
 		if err := tx.Clauses(clause.Locking{Strength: pagesRowLockStrength}).First(&project, projectID).Error; err != nil {
 			return fmt.Errorf("load pages project: %w", err)
@@ -705,7 +696,7 @@ type deploymentActivationSource struct {
 }
 
 func ensureActivationDeploymentUpload(ctx context.Context, projectID uint, deploymentID uint) error {
-	deployment, err := model.GetPagesDeploymentByID(ctx, deploymentID)
+	deployment, err := repository.GetPagesDeploymentByID(ctx, deploymentID)
 	if err != nil {
 		return err
 	}
@@ -725,7 +716,7 @@ func activateDeploymentTransaction(
 	now time.Time,
 ) (deploymentActivationAudit, error) {
 	audit := deploymentActivationAudit{}
-	err := db.DB(ctx).Transaction(func(tx *gorm.DB) error {
+	err := repository.WithPagesTx(ctx, func(tx *gorm.DB) error {
 		var project model.PagesProject
 		if err := tx.Clauses(clause.Locking{Strength: pagesRowLockStrength}).First(&project, projectID).Error; err != nil {
 			return err
@@ -755,23 +746,18 @@ func activateDeploymentTransaction(
 }
 
 func lockDeploymentActivationSource(tx *gorm.DB, projectID uint) (*deploymentActivationSource, error) {
-	var source model.PagesProjectSource
-	err := tx.Clauses(clause.Locking{Strength: pagesRowLockStrength}).
-		Where("project_id = ?", projectID).
-		First(&source).Error
+	source, err := repository.LockPagesProjectSourceByProjectIDTx(tx, projectID)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, nil
 	}
 	if err != nil {
 		return nil, err
 	}
-	var runtime model.PagesProjectSourceRuntime
-	if err := tx.Clauses(clause.Locking{Strength: pagesRowLockStrength}).
-		Where("source_id = ?", source.ID).
-		First(&runtime).Error; err != nil {
+	runtime, err := repository.LockPagesProjectSourceRuntimeBySourceIDTx(tx, source.ID)
+	if err != nil {
 		return nil, err
 	}
-	return &deploymentActivationSource{Source: &source, Runtime: &runtime}, nil
+	return &deploymentActivationSource{Source: source, Runtime: runtime}, nil
 }
 
 func loadDeploymentActivationTarget(
@@ -821,10 +807,10 @@ func fenceDeploymentActivationSource(
 	audit.SourceType = state.Source.SourceType
 	audit.SourceIdentity = state.Source.SourceIdentity
 	audit.AutoDisabled = state.Source.AutoUpdateEnabled
-	if err := tx.Model(state.Source).Updates(map[string]any{
+	if err := repository.UpdatePagesProjectSourceTx(tx, state.Source, map[string]any{
 		sourceColumnConfigVersion:     state.Source.ConfigVersion + 1,
 		sourceColumnAutoUpdateEnabled: false,
-	}).Error; err != nil {
+	}); err != nil {
 		return err
 	}
 	if deployment.SourceIdentity != nil && *deployment.SourceIdentity == state.Source.SourceIdentity &&
@@ -835,13 +821,13 @@ func fenceDeploymentActivationSource(
 		state.Runtime.LastAppliedRevision = ""
 		state.Runtime.LastAppliedDetail = ""
 	}
-	return tx.Model(state.Runtime).Updates(map[string]any{
+	return repository.UpdatePagesProjectSourceRuntimeTx(tx, state.Runtime, map[string]any{
 		"last_applied_revision":           state.Runtime.LastAppliedRevision,
 		"last_applied_detail":             state.Runtime.LastAppliedDetail,
 		sourceRuntimeColumnSyncStatus:     normalizedSourceRuntimeStatus(state.Runtime),
 		sourceRuntimeColumnLeaseToken:     "",
 		sourceRuntimeColumnLeaseExpiresAt: nil,
-	}).Error
+	})
 }
 
 func switchActiveDeploymentTx(
@@ -867,7 +853,7 @@ func switchActiveDeploymentTx(
 // GetDeploymentPackageHash returns the upload SHA-256 hash of the deployment package.
 // Prefer GetProjectLatestPackageHash for Agent latest-pointer pulls.
 func GetDeploymentPackageHash(ctx context.Context, deploymentID uint) (string, error) {
-	deployment, err := model.GetPagesDeploymentByID(ctx, deploymentID)
+	deployment, err := repository.GetPagesDeploymentByID(ctx, deploymentID)
 	if err != nil {
 		return "", err
 	}
@@ -893,7 +879,7 @@ func GetProjectLatestPackageHash(ctx context.Context, projectID uint) (uint, str
 
 // OpenDeploymentPackage opens the deployment artifact from the upload storage framework.
 func OpenDeploymentPackage(ctx context.Context, deploymentID uint) (DeploymentPackage, error) {
-	deployment, err := model.GetPagesDeploymentByID(ctx, deploymentID)
+	deployment, err := repository.GetPagesDeploymentByID(ctx, deploymentID)
 	if err != nil {
 		return DeploymentPackage{}, err
 	}
@@ -926,7 +912,7 @@ func resolveProjectActiveDeploymentForAgent(ctx context.Context, projectID uint)
 	if projectID == 0 {
 		return nil, errors.New(errPagesProjectNotFound)
 	}
-	project, err := model.GetPagesProjectByID(ctx, projectID)
+	project, err := repository.GetPagesProjectByID(ctx, projectID)
 	if err != nil {
 		return nil, err
 	}
@@ -939,7 +925,7 @@ func resolveProjectActiveDeploymentForAgent(ctx context.Context, projectID uint)
 	if err := ensureProjectInActiveConfig(ctx, project.ID); err != nil {
 		return nil, err
 	}
-	deployment, err := model.GetPagesDeploymentByID(ctx, *project.ActiveDeploymentID)
+	deployment, err := repository.GetPagesDeploymentByID(ctx, *project.ActiveDeploymentID)
 	if err != nil {
 		return nil, err
 	}
@@ -957,7 +943,7 @@ func deploymentPackageHash(ctx context.Context, deployment *model.PagesDeploymen
 		if err := ensureDeploymentUploadRecord(ctx, deployment); err != nil {
 			return "", err
 		}
-		reloaded, err := model.GetPagesDeploymentByID(ctx, deployment.ID)
+		reloaded, err := repository.GetPagesDeploymentByID(ctx, deployment.ID)
 		if err != nil {
 			return "", err
 		}
@@ -1012,7 +998,7 @@ func ensureDeploymentUploadRecord(ctx context.Context, deployment *model.PagesDe
 	if deployment.UploadID > 0 {
 		return nil
 	}
-	project, err := model.GetPagesProjectByID(ctx, deployment.ProjectID)
+	project, err := repository.GetPagesProjectByID(ctx, deployment.ProjectID)
 	if err != nil {
 		return err
 	}
@@ -1089,7 +1075,7 @@ func attachLegacyDeploymentUpload(
 	uploadID uint64,
 ) (uint64, error) {
 	winnerUploadID := uint64(0)
-	err := db.DB(ctx).Transaction(func(tx *gorm.DB) error {
+	err := repository.WithPagesTx(ctx, func(tx *gorm.DB) error {
 		var err error
 		winnerUploadID, err = attachLegacyDeploymentUploadTx(tx, projectID, deploymentID, uploadID)
 		return err
@@ -1146,11 +1132,11 @@ func attachLegacyDeploymentUploadTx(
 // it is the project's current active deployment and the project is used by the
 // active main config.
 func ensureDeploymentInActiveSnapshot(ctx context.Context, deploymentID uint) error {
-	deployment, err := model.GetPagesDeploymentByID(ctx, deploymentID)
+	deployment, err := repository.GetPagesDeploymentByID(ctx, deploymentID)
 	if err != nil {
 		return err
 	}
-	project, err := model.GetPagesProjectByID(ctx, deployment.ProjectID)
+	project, err := repository.GetPagesProjectByID(ctx, deployment.ProjectID)
 	if err != nil {
 		return err
 	}
@@ -1163,7 +1149,7 @@ func ensureDeploymentInActiveSnapshot(ctx context.Context, deploymentID uint) er
 // ensureProjectInActiveConfig checks that the Pages project is referenced by at
 // least one pages route in the active main config snapshot.
 func ensureProjectInActiveConfig(ctx context.Context, projectID uint) error {
-	version, err := model.GetActiveConfigVersion(ctx)
+	version, err := repository.GetActiveConfigVersion(ctx)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return errors.New(errPagesPackageNotInActiveConfig)
@@ -1192,7 +1178,7 @@ func ensureProjectInActiveConfig(ctx context.Context, projectID uint) error {
 		}
 		if route.PagesDeployment.DeploymentID != 0 {
 			// Historical snapshot may only pin deployment_id.
-			snapDeployment, snapErr := model.GetPagesDeploymentByID(ctx, route.PagesDeployment.DeploymentID)
+			snapDeployment, snapErr := repository.GetPagesDeploymentByID(ctx, route.PagesDeployment.DeploymentID)
 			if snapErr != nil {
 				continue
 			}
@@ -1239,7 +1225,7 @@ func parseSnapshotRoutes(snapshotJSON string) ([]snapshotRouteRef, error) {
 // DeleteDeployment 删除 Pages 部署。
 func DeleteDeployment(ctx context.Context, projectID uint, deploymentID uint) error {
 	var removed model.PagesDeployment
-	err := db.DB(ctx).Transaction(func(tx *gorm.DB) error {
+	err := repository.WithPagesTx(ctx, func(tx *gorm.DB) error {
 		var project model.PagesProject
 		if err := tx.Clauses(clause.Locking{Strength: pagesRowLockStrength}).First(&project, projectID).Error; err != nil {
 			return err
@@ -1354,13 +1340,13 @@ func buildProjectView(ctx context.Context, project *model.PagesProject) (*View, 
 		CreatedAt:          project.CreatedAt,
 		UpdatedAt:          project.UpdatedAt,
 	}
-	count, err := model.CountPagesDeploymentsByProjectID(ctx, project.ID)
+	count, err := repository.CountPagesDeploymentsByProjectID(ctx, project.ID)
 	if err != nil {
 		return nil, err
 	}
 	view.DeploymentCount = count
 	if project.ActiveDeploymentID != nil && *project.ActiveDeploymentID != 0 {
-		deployment, err := model.GetPagesDeploymentByID(ctx, *project.ActiveDeploymentID)
+		deployment, err := repository.GetPagesDeploymentByID(ctx, *project.ActiveDeploymentID)
 		if err == nil {
 			active := buildDeploymentView(deployment)
 			view.ActiveDeployment = &active

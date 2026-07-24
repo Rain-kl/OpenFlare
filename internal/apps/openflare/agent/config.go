@@ -9,14 +9,15 @@ import (
 	"errors"
 	"strings"
 
+	"github.com/Rain-kl/Wavelet/internal/repository"
+
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/pages"
-	"github.com/Rain-kl/Wavelet/internal/model"
 	openrestyrender "github.com/Rain-kl/Wavelet/pkg/render/openresty"
 	"gorm.io/gorm"
 )
 
 func getActiveConfigMeta(ctx context.Context) (*ActiveConfigMeta, error) {
-	version, err := model.GetActiveConfigVersion(ctx)
+	version, err := repository.GetActiveConfigVersion(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -27,7 +28,7 @@ func getActiveConfigMeta(ctx context.Context) (*ActiveConfigMeta, error) {
 }
 
 func getActiveConfigForAgent(ctx context.Context) (*ConfigResponse, error) {
-	version, err := model.GetActiveConfigVersion(ctx)
+	version, err := repository.GetActiveConfigVersion(ctx)
 	if err != nil {
 		return nil, err
 	}

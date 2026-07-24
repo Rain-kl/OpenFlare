@@ -5,16 +5,13 @@
 package model
 
 import (
-	"context"
 	"errors"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/Rain-kl/Wavelet/internal/infra/persistence/idgen"
 	"github.com/Rain-kl/Wavelet/internal/shared"
 	"github.com/Rain-kl/Wavelet/pkg/util"
-	"gorm.io/gorm"
 )
 
 // OAuthUserInfo 用户信息结构（同时支持 OIDC ID Token claims 和 UserEndpoint 响应）
@@ -104,14 +101,6 @@ func (u *User) CheckPassword(password string) bool {
 	return u.Password == password
 }
 
-// GetByID 根据 ID 查询用户
-func (u *User) GetByID(tx *gorm.DB, id uint64) error {
-	if err := tx.Where("id = ?", id).First(u).Error; err != nil {
-		return err
-	}
-	return nil
-}
-
 // UpdateFromOAuthInfo 根据 OAuth 信息更新用户数据
 func (u *User) UpdateFromOAuthInfo(oauthInfo *OAuthUserInfo) {
 	u.Username = oauthInfo.Username
@@ -126,70 +115,6 @@ func (u *User) UpdateFromOAuthInfo(oauthInfo *OAuthUserInfo) {
 func (u *User) CheckActive() error {
 	if !u.IsActive {
 		return errors.New(shared.BannedAccount)
-	}
-	return nil
-}
-
-func (u *User) assignIDIfMissing() error {
-	if u.ID != 0 {
-		return nil
-	}
-	u.ID = idgen.NextUint64ID()
-	return nil
-}
-
-// CreateUser 创建新用户（用于 OAuth/OIDC 自动注册，含底层权限校验）
-func (u *User) CreateUser(_ context.Context, tx *gorm.DB, oauthInfo *OAuthUserInfo) error {
-	now := time.Now()
-	userID := oauthInfo.GetID()
-	newUser := User{
-		ID:          userID,
-		Username:    oauthInfo.Username,
-		Nickname:    oauthInfo.Name,
-		Email:       oauthInfo.Email,
-		AvatarURL:   oauthInfo.AvatarURL,
-		IsActive:    oauthInfo.Active,
-		LastLoginAt: now,
-		IsAdmin:     false,
-	}
-	if err := newUser.assignIDIfMissing(); err != nil {
-		return err
-	}
-	if err := tx.Create(&newUser).Error; err != nil {
-		return err
-	}
-
-	*u = newUser
-	return nil
-}
-
-// RegisterUser 创建新用户并注册（用于本地密码注册，含全局开关和唯一性多重底层校验）
-func (u *User) RegisterUser(_ context.Context, tx *gorm.DB) error {
-	// 检查用户名冲突
-	var count int64
-	if err := tx.Model(&User{}).Where("username = ?", u.Username).Count(&count).Error; err != nil {
-		return err
-	}
-	if count > 0 {
-		return errors.New(errUsernameExists)
-	}
-
-	// 检查邮箱冲突
-	if u.Email != "" {
-		var emailCount int64
-		if err := tx.Model(&User{}).Where("email = ?", u.Email).Count(&emailCount).Error; err != nil {
-			return err
-		}
-		if emailCount > 0 {
-			return errors.New(errEmailAlreadyBound)
-		}
-	}
-
-	if err := u.assignIDIfMissing(); err != nil {
-		return err
-	}
-	if err := tx.Create(u).Error; err != nil {
-		return err
 	}
 	return nil
 }

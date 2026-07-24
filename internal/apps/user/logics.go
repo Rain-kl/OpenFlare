@@ -218,8 +218,8 @@ func sendRegisterEmailCode(ctx context.Context, email string) error {
 		return errors.New(errEmailRequired)
 	}
 
-	var count int64
-	if err := db.DB(ctx).Model(&model.User{}).Where("email = ?", email).Count(&count).Error; err != nil {
+	count, err := repository.CountUsersByEmail(ctx, email)
+	if err != nil {
 		return err
 	}
 	if count > 0 {
@@ -249,8 +249,8 @@ func validateRegisterEmailVerification(ctx context.Context, email, code string) 
 }
 
 func updateUserProfile(ctx context.Context, userID uint64, input updateProfileInput) (*model.User, error) {
-	var dbUser model.User
-	if err := db.DB(ctx).Where("id = ?", userID).First(&dbUser).Error; err != nil {
+	dbUser, err := repository.GetUserByID(ctx, userID)
+	if err != nil {
 		return nil, errors.New(errUserNotFound)
 	}
 
@@ -260,8 +260,8 @@ func updateUserProfile(ctx context.Context, userID uint64, input updateProfileIn
 			return nil, errors.New(errEmailFormatInvalid)
 		}
 
-		var count int64
-		if err := db.DB(ctx).Model(&model.User{}).Where("email = ? AND id != ?", input.Email, dbUser.ID).Count(&count).Error; err != nil {
+		count, err := repository.CountUsersByEmailExceptID(ctx, input.Email, dbUser.ID)
+		if err != nil {
 			return nil, err
 		}
 		if count > 0 {
@@ -281,26 +281,26 @@ func updateUserProfile(ctx context.Context, userID uint64, input updateProfileIn
 	dbUser.Website = strings.TrimSpace(input.Website)
 	dbUser.Location = strings.TrimSpace(input.Location)
 
-	if err := db.DB(ctx).Save(&dbUser).Error; err != nil {
+	if err := repository.UpdateUser(ctx, &dbUser); err != nil {
 		return nil, err
 	}
 	return &dbUser, nil
 }
 
 func getUserByUsernameOrEmail(ctx context.Context, input string) (*model.User, error) {
-	var user model.User
-	if err := db.DB(ctx).Where("username = ? OR email = ?", input, input).First(&user).Error; err != nil {
+	user, err := repository.GetUserByUsernameOrEmail(ctx, input)
+	if err != nil {
 		return nil, err
 	}
 	return &user, nil
 }
 
 func updateLastLogin(ctx context.Context, user *model.User) error {
-	return db.DB(ctx).Model(user).Update("last_login_at", user.LastLoginAt).Error
+	return repository.UpdateUserLastLoginAt(ctx, user.ID, user.LastLoginAt)
 }
 
 func registerUserLogic(ctx context.Context, u *model.User) error {
-	if err := u.RegisterUser(ctx, db.DB(ctx)); err != nil {
+	if err := repository.RegisterUserWithChecks(ctx, u); err != nil {
 		if strings.Contains(err.Error(), "duplicate key") || strings.Contains(err.Error(), "UNIQUE") {
 			return errors.New("用户名或邮箱已被占用")
 		}
@@ -310,8 +310,8 @@ func registerUserLogic(ctx context.Context, u *model.User) error {
 }
 
 func changePasswordLogic(ctx context.Context, userID uint64, oldPass, newPass string) error {
-	var dbUser model.User
-	if err := db.DB(ctx).Where("id = ?", userID).First(&dbUser).Error; err != nil {
+	dbUser, err := repository.GetUserByID(ctx, userID)
+	if err != nil {
 		return errors.New(errUserNotFound)
 	}
 
@@ -323,18 +323,17 @@ func changePasswordLogic(ctx context.Context, userID uint64, oldPass, newPass st
 		return errors.New(errPasswordEncryptFailed)
 	}
 
-	if err := db.DB(ctx).Model(&dbUser).Update("password", dbUser.Password).Error; err != nil {
+	if err := repository.UpdateUserPassword(ctx, dbUser.ID, dbUser.Password); err != nil {
 		return errors.New("更新密码失败，请稍后再试")
 	}
 
 	// 吊销该用户所有的 Access Token
-	var tokens []model.AccessToken
-	if err := db.DB(ctx).Where("user_id = ?", dbUser.ID).Find(&tokens).Error; err == nil {
+	if tokens, err := repository.ListAccessTokensByUserID(ctx, dbUser.ID); err == nil {
 		for _, token := range tokens {
 			oauth.InvalidateCachedToken(ctx, token.TokenHash)
 		}
 	}
-	if err := db.DB(ctx).Where("user_id = ?", dbUser.ID).Delete(&model.AccessToken{}).Error; err != nil {
+	if err := repository.DeleteAccessTokensByUserID(ctx, dbUser.ID); err != nil {
 		return errors.New("吊销 Access Token 失败，请稍后再试")
 	}
 
@@ -343,23 +342,23 @@ func changePasswordLogic(ctx context.Context, userID uint64, oldPass, newPass st
 }
 
 func listAccessTokensLogic(ctx context.Context, userID uint64) ([]model.AccessToken, error) {
-	var tokens []model.AccessToken
-	if err := db.DB(ctx).Where("user_id = ?", userID).Order("created_at desc").Find(&tokens).Error; err != nil {
+	tokens, err := repository.ListAccessTokensByUserID(ctx, userID)
+	if err != nil {
 		return nil, errors.New("获取令牌列表失败，请稍后再试")
 	}
 	return tokens, nil
 }
 
 func countAccessTokensLogic(ctx context.Context, userID uint64) (int64, error) {
-	var count int64
-	if err := db.DB(ctx).Model(&model.AccessToken{}).Where("user_id = ?", userID).Count(&count).Error; err != nil {
+	count, err := repository.CountAccessTokensByUserID(ctx, userID)
+	if err != nil {
 		return 0, errors.New("查询令牌数量失败，请稍后再试")
 	}
 	return count, nil
 }
 
 func createAccessTokenLogic(ctx context.Context, record *model.AccessToken) error {
-	if err := db.DB(ctx).Create(record).Error; err != nil {
+	if err := repository.CreateAccessToken(ctx, record); err != nil {
 		return errors.New("创建令牌失败，请稍后再试")
 	}
 	oauth.SetCachedToken(ctx, record.TokenHash, record)
@@ -367,25 +366,25 @@ func createAccessTokenLogic(ctx context.Context, record *model.AccessToken) erro
 }
 
 func deleteAccessTokenLogic(ctx context.Context, id, userID uint64) error {
-	var tokenRecord model.AccessToken
-	if err := db.DB(ctx).Where("id = ? AND user_id = ?", id, userID).First(&tokenRecord).Error; err != nil {
+	tokenRecord, err := repository.GetAccessTokenByIDAndUserID(ctx, id, userID)
+	if err != nil {
 		return errors.New(errTokenNotFoundOrForbidden)
 	}
 	oauth.InvalidateCachedToken(ctx, tokenRecord.TokenHash)
 
-	tx := db.DB(ctx).Where("id = ? AND user_id = ?", id, userID).Delete(&model.AccessToken{})
-	if tx.Error != nil {
+	rows, err := repository.DeleteAccessTokenForUser(ctx, id, userID)
+	if err != nil {
 		return errors.New("删除令牌失败，请稍后再试")
 	}
-	if tx.RowsAffected == 0 {
+	if rows == 0 {
 		return errors.New(errTokenNotFoundOrForbidden)
 	}
 	return nil
 }
 
 func rotateAccessTokenLogic(ctx context.Context, id, userID uint64) (string, *model.AccessToken, error) {
-	var tokenRecord model.AccessToken
-	if err := db.DB(ctx).Where("id = ? AND user_id = ?", id, userID).First(&tokenRecord).Error; err != nil {
+	tokenRecord, err := repository.GetAccessTokenByIDAndUserID(ctx, id, userID)
+	if err != nil {
 		return "", nil, errors.New(errTokenNotFoundOrForbidden)
 	}
 
@@ -402,7 +401,7 @@ func rotateAccessTokenLogic(ctx context.Context, id, userID uint64) (string, *mo
 	tokenRecord.TokenHash = newTokenHash
 	tokenRecord.MaskedToken = newMaskedToken
 
-	if err := db.DB(ctx).Save(&tokenRecord).Error; err != nil {
+	if err := repository.SaveAccessToken(ctx, &tokenRecord); err != nil {
 		return "", nil, errors.New("轮换令牌失败，请稍后再试")
 	}
 

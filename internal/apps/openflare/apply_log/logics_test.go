@@ -8,6 +8,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Rain-kl/Wavelet/internal/repository"
+
 	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"github.com/glebarez/sqlite"
@@ -67,7 +69,7 @@ func TestListPageAndCleanup(t *testing.T) {
 	assert.Equal(t, int64(1), cleanupResult.DeletedCount)
 	assert.NotNil(t, cleanupResult.Cutoff)
 
-	remaining, err := model.ListOpenFlareApplyLogs(ctx, model.OpenFlareApplyLogQuery{
+	remaining, err := repository.ListOpenFlareApplyLogs(ctx, model.OpenFlareApplyLogQuery{
 		NodeID:   "node-logs",
 		PageNo:   1,
 		PageSize: 10,
@@ -80,7 +82,7 @@ func TestListPageAndCleanup(t *testing.T) {
 	assert.Equal(t, int64(2), cleanupAll.DeletedCount)
 	assert.True(t, cleanupAll.DeleteAll)
 
-	finalLogs, err := model.ListOpenFlareApplyLogs(ctx, model.OpenFlareApplyLogQuery{
+	finalLogs, err := repository.ListOpenFlareApplyLogs(ctx, model.OpenFlareApplyLogQuery{
 		NodeID:   "node-logs",
 		PageNo:   1,
 		PageSize: 10,

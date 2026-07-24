@@ -11,6 +11,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Rain-kl/Wavelet/internal/repository"
+
 	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"github.com/glebarez/sqlite"
@@ -32,7 +34,7 @@ func setupIPGroupSyncTestDB(t *testing.T) func() {
 	))
 
 	db.SetDB(sqliteDB)
-	resetAccessLogStore := model.SetAccessLogStoreForTest(model.NewMemoryAccessLogStore())
+	resetAccessLogStore := repository.SetAccessLogStoreForTest(repository.NewMemoryAccessLogStore())
 	return func() {
 		resetAccessLogStore()
 		db.SetDB(nil)
@@ -161,28 +163,28 @@ func TestListDueOpenFlareWAFIPGroups(t *testing.T) {
 		Name: "due auto", Type: wafIPGroupTypeAutomatic, Enabled: true,
 		IPList: "[]", AutoConfig: "{}", ExtIPs: "[]", NextSyncAt: &past,
 	}
-	require.NoError(t, model.CreateOpenFlareWAFIPGroup(ctx, dueAuto))
+	require.NoError(t, repository.CreateOpenFlareWAFIPGroup(ctx, dueAuto))
 
 	futureAuto := &model.OpenFlareWAFIPGroup{
 		Name: "future auto", Type: wafIPGroupTypeAutomatic, Enabled: true,
 		IPList: "[]", AutoConfig: "{}", ExtIPs: "[]", NextSyncAt: &future,
 	}
-	require.NoError(t, model.CreateOpenFlareWAFIPGroup(ctx, futureAuto))
+	require.NoError(t, repository.CreateOpenFlareWAFIPGroup(ctx, futureAuto))
 
 	dueSub := &model.OpenFlareWAFIPGroup{
 		Name: "due sub", Type: wafIPGroupTypeSubscription, Enabled: true,
 		IPList: "[]", AutoConfig: "{}", ExtIPs: "[]",
 		SubscriptionURL: "https://example.com/list", NextSyncAt: &past,
 	}
-	require.NoError(t, model.CreateOpenFlareWAFIPGroup(ctx, dueSub))
+	require.NoError(t, repository.CreateOpenFlareWAFIPGroup(ctx, dueSub))
 
 	manual := &model.OpenFlareWAFIPGroup{
 		Name: "manual", Type: wafIPGroupTypeManual, Enabled: true,
 		IPList: "[]", AutoConfig: "{}", ExtIPs: "[]", NextSyncAt: &past,
 	}
-	require.NoError(t, model.CreateOpenFlareWAFIPGroup(ctx, manual))
+	require.NoError(t, repository.CreateOpenFlareWAFIPGroup(ctx, manual))
 
-	groups, err := model.ListDueOpenFlareWAFIPGroups(ctx, time.Now().UTC())
+	groups, err := repository.ListDueOpenFlareWAFIPGroups(ctx, time.Now().UTC())
 	require.NoError(t, err)
 	require.Len(t, groups, 2)
 	ids := []uint{groups[0].ID, groups[1].ID}
@@ -207,7 +209,7 @@ func seedWAFAccessLogs(t *testing.T, ctx context.Context, loggedAt time.Time, re
 			StatusCode: statusCode,
 		})
 	}
-	require.NoError(t, model.InsertOpenFlareAccessLogsBatch(ctx, records))
+	require.NoError(t, repository.InsertOpenFlareAccessLogsBatch(ctx, records))
 }
 
 func TestParseIPGroupAutoConfigLookback(t *testing.T) {

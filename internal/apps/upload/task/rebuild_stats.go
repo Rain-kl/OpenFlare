@@ -8,9 +8,8 @@ import (
 	"fmt"
 
 	uploadstats "github.com/Rain-kl/Wavelet/internal/apps/upload/stats"
-	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/infra/task"
-	"github.com/Rain-kl/Wavelet/internal/model"
+	"github.com/Rain-kl/Wavelet/internal/repository"
 )
 
 const (
@@ -37,11 +36,8 @@ type RebuildUploadStatsHandler struct{}
 
 // Execute scans active uploads and rebuilds all upload stat dimensions.
 func (h *RebuildUploadStatsHandler) Execute(ctx context.Context, _ []byte) (*task.TaskResult, error) {
-	var activeCount int64
-	if err := db.DB(ctx).
-		Model(&model.Upload{}).
-		Where("status != ?", model.UploadStatusDeleted).
-		Count(&activeCount).Error; err != nil {
+	activeCount, err := repository.CountActiveUploads(ctx)
+	if err != nil {
 		task.AppendLog(ctx, "统计活跃上传记录失败: %v", err)
 		return nil, fmt.Errorf("count active uploads: %w", err)
 	}
@@ -53,10 +49,8 @@ func (h *RebuildUploadStatsHandler) Execute(ctx context.Context, _ []byte) (*tas
 		return nil, fmt.Errorf("rebuild upload stats: %w", err)
 	}
 
-	var totalStat model.UploadStat
-	if err := db.DB(ctx).
-		Where("dimension = ? AND stat_key = ?", model.UploadStatDimensionTotal, "").
-		First(&totalStat).Error; err != nil {
+	totalStat, err := repository.GetTotalUploadStat(ctx)
+	if err != nil {
 		task.AppendLog(ctx, "读取总量统计失败: %v", err)
 		return nil, fmt.Errorf("load total upload stats: %w", err)
 	}

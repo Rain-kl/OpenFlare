@@ -10,6 +10,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Rain-kl/Wavelet/internal/repository"
+
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/waf"
 	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/model"
@@ -101,7 +103,7 @@ func TestPublishConfigVersionCreatesVersion(t *testing.T) {
 		Upstreams: `["http://origin.publish.example.com:8080"]`,
 		Enabled:   true,
 	}
-	require.NoError(t, model.CreateProxyRouteRecord(ctx, route))
+	require.NoError(t, repository.CreateProxyRouteRecord(ctx, route))
 	createSnapshotZoneDomains(t, ctx, route, "publish.example.com")
 
 	version, err := PublishConfigVersion(ctx, "tester", false)
@@ -145,15 +147,15 @@ func TestBuildSnapshotWAFDocumentUsesNormalizedSiteNames(t *testing.T) {
 		Upstreams: `["http://origin.example.com:8080"]`,
 		Enabled:   true,
 	}
-	require.NoError(t, model.CreateProxyRouteRecord(ctx, route))
+	require.NoError(t, repository.CreateProxyRouteRecord(ctx, route))
 	createSnapshotZoneDomains(t, ctx, route, "example.com", "www.example.com")
 
 	require.NoError(t, waf.EnsureDefaultRuleGroup(ctx))
-	globalGroup, err := model.GetGlobalOpenFlareWAFRuleGroup(ctx)
+	globalGroup, err := repository.GetGlobalOpenFlareWAFRuleGroup(ctx)
 	require.NoError(t, err)
 
 	customGroup := createSnapshotRule(t, ctx, "pow-group", waf.DefaultRuleGraph())
-	require.NoError(t, model.ReplaceOpenFlareWAFRuleGroupBindings(ctx, customGroup.ID, []uint{route.ID}))
+	require.NoError(t, repository.ReplaceOpenFlareWAFRuleGroupBindings(ctx, customGroup.ID, []uint{route.ID}))
 
 	bundle, err := buildCurrentConfigBundle(ctx, true)
 	require.NoError(t, err)
@@ -203,11 +205,11 @@ func TestBuildCurrentConfigBundleEnablesGlobalPoWWithoutExplicitBinding(t *testi
 		Upstreams: `["http://origin.example.com:8080"]`,
 		Enabled:   true,
 	}
-	require.NoError(t, model.CreateProxyRouteRecord(ctx, route))
+	require.NoError(t, repository.CreateProxyRouteRecord(ctx, route))
 	createSnapshotZoneDomains(t, ctx, route, "pow-global.example.com")
 
 	require.NoError(t, waf.EnsureDefaultRuleGroup(ctx))
-	globalGroup, err := model.GetGlobalOpenFlareWAFRuleGroup(ctx)
+	globalGroup, err := repository.GetGlobalOpenFlareWAFRuleGroup(ctx)
 	require.NoError(t, err)
 	graphJSON, err := json.Marshal(snapshotPoWGraph())
 	require.NoError(t, err)

@@ -7,6 +7,8 @@ import (
 	"context"
 	"testing"
 
+	"github.com/Rain-kl/Wavelet/internal/repository"
+
 	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"github.com/glebarez/sqlite"
@@ -57,11 +59,11 @@ func TestUpdateIPGroupPrunesAutomaticExtIPs(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	group, err := model.GetOpenFlareWAFIPGroupByID(ctx, created.ID)
+	group, err := repository.GetOpenFlareWAFIPGroupByID(ctx, created.ID)
 	require.NoError(t, err)
 	group.IPList = `["203.0.113.10","203.0.113.11"]`
 	group.ExtIPs = `[{"ip":"203.0.113.10","captured_at":"2026-06-18T10:00:00Z"},{"ip":"203.0.113.11","captured_at":"2026-06-18T11:00:00Z"}]`
-	require.NoError(t, model.UpdateOpenFlareWAFIPGroup(ctx, group))
+	require.NoError(t, repository.UpdateOpenFlareWAFIPGroup(ctx, group))
 
 	updated, err := UpdateIPGroup(ctx, created.ID, IPGroupInput{
 		Name:       created.Name,

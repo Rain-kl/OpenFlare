@@ -5,10 +5,12 @@ package repository
 
 import (
 	"context"
+	"time"
+
+	"gorm.io/gorm"
 
 	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/model"
-	"gorm.io/gorm"
 )
 
 // PushHistoryListFilter filters push history pagination queries.
@@ -46,6 +48,19 @@ func ListPushHistories(ctx context.Context, filter PushHistoryListFilter) (int64
 // CreatePushHistory persists a push history audit record.
 func CreatePushHistory(ctx context.Context, history *model.PushHistory) error {
 	return db.DB(ctx).Create(history).Error
+}
+
+// CountPushHistoriesCreatedBefore returns how many push history rows were created before cutoff.
+func CountPushHistoriesCreatedBefore(ctx context.Context, cutoff time.Time) (int64, error) {
+	var count int64
+	err := db.DB(ctx).Model(&model.PushHistory{}).Where("created_at < ?", cutoff).Count(&count).Error
+	return count, err
+}
+
+// DeletePushHistoriesCreatedBefore deletes push history rows created before cutoff.
+func DeletePushHistoriesCreatedBefore(ctx context.Context, cutoff time.Time) (int64, error) {
+	result := db.DB(ctx).Where("created_at < ?", cutoff).Delete(&model.PushHistory{})
+	return result.RowsAffected, result.Error
 }
 
 // PushHistoryQuery returns a scoped query builder for push histories.

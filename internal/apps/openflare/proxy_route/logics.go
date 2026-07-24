@@ -10,10 +10,9 @@ import (
 	"strings"
 	"time"
 
-	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/model"
+	"github.com/Rain-kl/Wavelet/internal/repository"
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
 
 // CustomHeaderInput 自定义响应头。
@@ -103,7 +102,7 @@ type ZoneDomainView struct {
 
 // ListProxyRoutes 列出全部代理规则。
 func ListProxyRoutes(ctx context.Context) ([]*View, error) {
-	routes, err := model.ListProxyRoutes(ctx)
+	routes, err := repository.ListProxyRoutes(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -112,7 +111,7 @@ func ListProxyRoutes(ctx context.Context) ([]*View, error) {
 
 // GetProxyRoute 获取代理规则详情。
 func GetProxyRoute(ctx context.Context, id uint) (*View, error) {
-	route, err := model.GetProxyRouteByID(ctx, id)
+	route, err := repository.GetProxyRouteByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -125,17 +124,17 @@ func CreateProxyRoute(ctx context.Context, input Input) (*View, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err = db.DB(ctx).Transaction(func(tx *gorm.DB) error {
+	if err = repository.WithProxyRouteTx(ctx, func(tx *gorm.DB) error {
 		if err := lockPagesProjectsForRouteMutation(tx, 0, route); err != nil {
 			return err
 		}
-		if err := tx.Create(route).Error; err != nil {
+		if err := repository.CreateProxyRouteRecordTx(tx, route); err != nil {
 			return err
 		}
-		return replaceZoneDomainRouteBindings(tx, route.ID, input.ZoneDomainIDs)
+		return repository.ReplaceZoneDomainRouteBindingsTx(tx, route.ID, input.ZoneDomainIDs)
 	}); err != nil {
-		if isUniqueConstraintError(err) {
-			return nil, errors.New(errProxyRouteIdentityExists)
+		if mapped := mapProxyRoutePersistError(err); mapped != nil {
+			return nil, mapped
 		}
 		return nil, err
 	}
@@ -144,7 +143,7 @@ func CreateProxyRoute(ctx context.Context, input Input) (*View, error) {
 
 // UpdateProxyRoute 更新代理规则。
 func UpdateProxyRoute(ctx context.Context, id uint, input Input) (*View, error) {
-	route, err := model.GetProxyRouteByID(ctx, id)
+	route, err := repository.GetProxyRouteByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -153,21 +152,37 @@ func UpdateProxyRoute(ctx context.Context, id uint, input Input) (*View, error) 
 	if err != nil {
 		return nil, err
 	}
-	if err = db.DB(ctx).Transaction(func(tx *gorm.DB) error {
+	if err = repository.WithProxyRouteTx(ctx, func(tx *gorm.DB) error {
 		if err := lockPagesProjectsForRouteMutation(tx, previousPagesProjectID, route); err != nil {
 			return err
 		}
-		if err := updateProxyRouteRecord(tx, route); err != nil {
+		if err := repository.UpdateProxyRouteRecordTx(tx, route); err != nil {
 			return err
 		}
-		return replaceZoneDomainRouteBindings(tx, route.ID, input.ZoneDomainIDs)
+		return repository.ReplaceZoneDomainRouteBindingsTx(tx, route.ID, input.ZoneDomainIDs)
 	}); err != nil {
-		if isUniqueConstraintError(err) {
-			return nil, errors.New(errProxyRouteIdentityExists)
+		if mapped := mapProxyRoutePersistError(err); mapped != nil {
+			return nil, mapped
 		}
 		return nil, err
 	}
 	return buildProxyRouteView(ctx, route)
+}
+
+func mapProxyRoutePersistError(err error) error {
+	if err == nil {
+		return nil
+	}
+	if isUniqueConstraintError(err) {
+		return errors.New(errProxyRouteIdentityExists)
+	}
+	if errors.Is(err, repository.ErrZoneDomainBoundToAnotherRoute) {
+		return errors.New(errProxyRouteZoneDomainBound)
+	}
+	if errors.Is(err, repository.ErrZoneDomainNotFound) {
+		return errors.New(errProxyRouteZoneDomainNotFound)
+	}
+	return nil
 }
 
 func pagesProjectIDForRoute(route *model.ProxyRoute) uint {
@@ -189,8 +204,7 @@ func lockPagesProjectsForRouteMutation(tx *gorm.DB, previousProjectID uint, rout
 	sort.Slice(projectIDs, func(i int, j int) bool { return projectIDs[i] < projectIDs[j] })
 
 	for _, projectID := range projectIDs {
-		var project model.PagesProject
-		err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&project, projectID).Error
+		project, err := repository.LockPagesProjectByIDTx(tx, projectID)
 		if errors.Is(err, gorm.ErrRecordNotFound) && projectID != nextProjectID {
 			continue
 		}
@@ -201,7 +215,7 @@ func lockPagesProjectsForRouteMutation(tx *gorm.DB, previousProjectID uint, rout
 			return err
 		}
 		if projectID == nextProjectID {
-			if err := validateLockedPagesRouteProject(&project); err != nil {
+			if err := validateLockedPagesRouteProject(project); err != nil {
 				return err
 			}
 		}
@@ -224,15 +238,10 @@ func validateLockedPagesRouteProject(project *model.PagesProject) error {
 
 // DeleteProxyRoute 删除代理规则。
 func DeleteProxyRoute(ctx context.Context, id uint) error {
-	if _, err := model.GetProxyRouteByID(ctx, id); err != nil {
+	if _, err := repository.GetProxyRouteByID(ctx, id); err != nil {
 		return err
 	}
-	return db.DB(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := tx.Model(&model.ZoneDomain{}).Where("proxy_route_id = ?", id).Update("proxy_route_id", nil).Error; err != nil {
-			return err
-		}
-		return tx.Delete(&model.ProxyRoute{}, id).Error
-	})
+	return repository.DeleteProxyRouteAndUnbind(ctx, id)
 }
 
 func buildProxyRoute(ctx context.Context, route *model.ProxyRoute, input Input) (*model.ProxyRoute, []model.ZoneDomain, error) {
@@ -338,7 +347,7 @@ func buildProxyRouteView(ctx context.Context, route *model.ProxyRoute) (*View, e
 	if route == nil {
 		return nil, errors.New("proxy route is nil")
 	}
-	domains, err := model.ListZoneDomainsByRouteID(ctx, route.ID)
+	domains, err := repository.ListZoneDomainsByRouteID(ctx, route.ID)
 	if err != nil {
 		return nil, err
 	}

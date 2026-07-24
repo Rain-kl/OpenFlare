@@ -74,7 +74,7 @@ func TestGetActiveAuthSourcesCached_LoadsFromRedisBeforeDB(t *testing.T) {
 		ClientSecret:       "client-secret",
 		OpenIDDiscoveryURL: "https://issuer.example.com",
 	}
-	if err := model.CreateAuthSource(ctx, &source); err != nil {
+	if err := CreateAuthSource(ctx, &source); err != nil {
 		t.Fatalf("CreateAuthSource() error = %v", err)
 	}
 
@@ -119,7 +119,7 @@ func TestGetAuthSourceByNameCached_LoadsFromRedisBeforeDB(t *testing.T) {
 		ClientSecret:       "client-secret",
 		OpenIDDiscoveryURL: "https://issuer.example.com",
 	}
-	if err := model.CreateAuthSource(ctx, &source); err != nil {
+	if err := CreateAuthSource(ctx, &source); err != nil {
 		t.Fatalf("CreateAuthSource() error = %v", err)
 	}
 
@@ -164,7 +164,7 @@ func TestInvalidateAuthSourceCache_ClearsRedisKeys(t *testing.T) {
 		ClientSecret:       "client-secret",
 		OpenIDDiscoveryURL: "https://issuer.example.com",
 	}
-	if err := model.CreateAuthSource(ctx, &source); err != nil {
+	if err := CreateAuthSource(ctx, &source); err != nil {
 		t.Fatalf("CreateAuthSource() error = %v", err)
 	}
 	if _, err := GetActiveAuthSourcesCached(ctx); err != nil {
@@ -209,7 +209,7 @@ func TestAuthSourceInvalidationPubSubClearsPeerRAM(t *testing.T) {
 		ClientSecret:       "client-secret",
 		OpenIDDiscoveryURL: "https://issuer.example.com",
 	}
-	if err := model.CreateAuthSource(ctx, &source); err != nil {
+	if err := CreateAuthSource(ctx, &source); err != nil {
 		t.Fatalf("CreateAuthSource() error = %v", err)
 	}
 

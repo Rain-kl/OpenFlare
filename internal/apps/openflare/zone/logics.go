@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/model"
+	"github.com/Rain-kl/Wavelet/internal/repository"
 	"golang.org/x/net/publicsuffix"
 	"gorm.io/gorm"
 )
@@ -74,7 +74,7 @@ func Create(ctx context.Context, input Input) (*model.Zone, error) {
 		return nil, errors.New(errZoneRootInvalid)
 	}
 	zone := &model.Zone{Domain: domain}
-	if err := db.DB(ctx).Create(zone).Error; err != nil {
+	if err := repository.CreateZone(ctx, zone); err != nil {
 		if isUnique(err) {
 			return nil, errors.New(errDomainExists)
 		}
@@ -85,8 +85,8 @@ func Create(ctx context.Context, input Input) (*model.Zone, error) {
 
 // Update replaces a Zone's mutable fields.
 func Update(ctx context.Context, id uint, input Input) (*model.Zone, error) {
-	var zone model.Zone
-	if err := db.DB(ctx).First(&zone, id).Error; err != nil {
+	zone, err := repository.GetZoneByID(ctx, id)
+	if err != nil {
 		return nil, err
 	}
 	domain, err := normalizeDomain(input.Domain)
@@ -98,31 +98,24 @@ func Update(ctx context.Context, id uint, input Input) (*model.Zone, error) {
 		return nil, errors.New(errZoneRootInvalid)
 	}
 	zone.Domain = domain
-	if err := db.DB(ctx).Save(&zone).Error; err != nil {
+	if err := repository.SaveZone(ctx, zone); err != nil {
 		if isUnique(err) {
 			return nil, errors.New(errDomainExists)
 		}
 		return nil, err
 	}
-	return &zone, nil
+	return zone, nil
 }
 
 // List returns all Zones in stable domain order, with domain counts for list cards.
 func List(ctx context.Context) ([]ListItem, error) {
-	var zones []model.Zone
-	if err := db.DB(ctx).Order("domain asc").Find(&zones).Error; err != nil {
+	zones, err := repository.ListZones(ctx)
+	if err != nil {
 		return nil, err
 	}
 
-	type countRow struct {
-		ZoneID uint  `gorm:"column:zone_id"`
-		Count  int64 `gorm:"column:count"`
-	}
-	var rows []countRow
-	if err := db.DB(ctx).Model(&model.ZoneDomain{}).
-		Select("zone_id, count(*) as count").
-		Group("zone_id").
-		Scan(&rows).Error; err != nil {
+	rows, err := repository.ListZoneDomainCounts(ctx)
+	if err != nil {
 		return nil, err
 	}
 	counts := make(map[uint]int64, len(rows))
@@ -145,21 +138,21 @@ func List(ctx context.Context) ([]ListItem, error) {
 
 // GetOverview returns a Zone and its domains.
 func GetOverview(ctx context.Context, id uint) (*Overview, error) {
-	var zone model.Zone
-	if err := db.DB(ctx).First(&zone, id).Error; err != nil {
+	zone, err := repository.GetZoneByID(ctx, id)
+	if err != nil {
 		return nil, err
 	}
-	var domains []model.ZoneDomain
-	if err := db.DB(ctx).Where("zone_id = ?", id).Order("domain asc").Find(&domains).Error; err != nil {
+	domains, err := repository.ListZoneDomainsByZoneID(ctx, id)
+	if err != nil {
 		return nil, err
 	}
-	return &Overview{Zone: zone, Domains: domains}, nil
+	return &Overview{Zone: *zone, Domains: domains}, nil
 }
 
 // CreateDomain adds a validated exact hostname to a Zone.
 func CreateDomain(ctx context.Context, zoneID uint, input DomainInput) (*model.ZoneDomain, error) {
-	var zone model.Zone
-	if err := db.DB(ctx).First(&zone, zoneID).Error; err != nil {
+	zone, err := repository.GetZoneByID(ctx, zoneID)
+	if err != nil {
 		return nil, err
 	}
 	domain, err := normalizeDomain(input.Domain)
@@ -171,12 +164,12 @@ func CreateDomain(ctx context.Context, zoneID uint, input DomainInput) (*model.Z
 		return nil, errors.New(errDomainOutsideZone)
 	}
 	if input.CertID != nil {
-		if _, err := model.GetTLSCertificateByID(ctx, *input.CertID); err != nil {
+		if _, err := repository.GetTLSCertificateByID(ctx, *input.CertID); err != nil {
 			return nil, errors.New(errCertificateNotFound)
 		}
 	}
 	item := &model.ZoneDomain{ZoneID: zoneID, Domain: domain, CertID: input.CertID}
-	if err := db.DB(ctx).Create(item).Error; err != nil {
+	if err := repository.CreateZoneDomain(ctx, item); err != nil {
 		if isUnique(err) {
 			return nil, errors.New(errDomainExists)
 		}
@@ -187,16 +180,16 @@ func CreateDomain(ctx context.Context, zoneID uint, input DomainInput) (*model.Z
 
 // UpdateDomain replaces a Zone-domain's mutable fields.
 func UpdateDomain(ctx context.Context, zoneID, id uint, input DomainInput) (*model.ZoneDomain, error) {
-	var item model.ZoneDomain
-	if err := db.DB(ctx).Where("id = ? AND zone_id = ?", id, zoneID).First(&item).Error; err != nil {
+	item, err := repository.GetZoneDomainByZoneAndID(ctx, zoneID, id)
+	if err != nil {
 		return nil, err
 	}
 	domain, err := normalizeDomain(input.Domain)
 	if err != nil {
 		return nil, err
 	}
-	var zone model.Zone
-	if err = db.DB(ctx).First(&zone, zoneID).Error; err != nil {
+	zone, err := repository.GetZoneByID(ctx, zoneID)
+	if err != nil {
 		return nil, err
 	}
 	root, err := zoneRoot(domain)
@@ -204,46 +197,45 @@ func UpdateDomain(ctx context.Context, zoneID, id uint, input DomainInput) (*mod
 		return nil, errors.New(errDomainOutsideZone)
 	}
 	if input.CertID != nil {
-		if _, err = model.GetTLSCertificateByID(ctx, *input.CertID); err != nil {
+		if _, err = repository.GetTLSCertificateByID(ctx, *input.CertID); err != nil {
 			return nil, errors.New(errCertificateNotFound)
 		}
 	}
 	item.Domain, item.CertID = domain, input.CertID
-	if err = db.DB(ctx).Save(&item).Error; err != nil {
+	if err = repository.SaveZoneDomain(ctx, item); err != nil {
 		if isUnique(err) {
 			return nil, errors.New(errDomainExists)
 		}
 		return nil, err
 	}
-	return &item, nil
+	return item, nil
 }
 
 // DeleteDomain removes a Zone domain that is not bound to a proxy route.
 func DeleteDomain(ctx context.Context, zoneID, id uint) error {
-	var item model.ZoneDomain
-	if err := db.DB(ctx).Where("id = ? AND zone_id = ?", id, zoneID).First(&item).Error; err != nil {
+	item, err := repository.GetZoneDomainByZoneAndID(ctx, zoneID, id)
+	if err != nil {
 		return err
 	}
 	if item.ProxyRouteID != nil {
 		return errors.New(errDomainBoundToRoute)
 	}
-	return db.DB(ctx).Delete(&item).Error
+	return repository.DeleteZoneDomain(ctx, item)
 }
 
 // Delete removes a Zone that has no remaining domains.
 func Delete(ctx context.Context, id uint) error {
-	var zone model.Zone
-	if err := db.DB(ctx).First(&zone, id).Error; err != nil {
+	if _, err := repository.GetZoneByID(ctx, id); err != nil {
 		return err
 	}
-	var count int64
-	if err := db.DB(ctx).Model(&model.ZoneDomain{}).Where("zone_id = ?", id).Count(&count).Error; err != nil {
+	count, err := repository.CountZoneDomainsByZoneID(ctx, id)
+	if err != nil {
 		return err
 	}
 	if count > 0 {
 		return errors.New(errZoneHasDomains)
 	}
-	return db.DB(ctx).Delete(&zone).Error
+	return repository.DeleteZone(ctx, id)
 }
 
 func isUnique(err error) bool {

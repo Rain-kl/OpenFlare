@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Rain-kl/Wavelet/internal/repository"
+
 	"github.com/Rain-kl/Wavelet/internal/model"
 )
 
@@ -135,7 +137,7 @@ func buildTrafficWindowSummaryFromAccessLogs(
 	nodeID string,
 	since, until time.Time,
 ) *TrafficWindowSummary {
-	row, err := model.TrafficSummaryOpenFlareAccessLogs(ctx, model.OpenFlareAccessLogQuery{
+	row, err := repository.TrafficSummaryOpenFlareAccessLogs(ctx, model.OpenFlareAccessLogQuery{
 		NodeID: nodeID,
 		Since:  since,
 		Until:  until,
@@ -203,7 +205,7 @@ func BuildTrafficDistributionsFromAccessLogs(
 	topDomains := make(distributionAccumulator)
 
 	query := model.OpenFlareAccessLogQuery{Since: since, Until: until}
-	if statusRows, err := model.ValueCountsOpenFlareAccessLogs(ctx, query, "status_code", limit); err == nil {
+	if statusRows, err := repository.ValueCountsOpenFlareAccessLogs(ctx, query, "status_code", limit); err == nil {
 		for _, row := range statusRows {
 			if strings.TrimSpace(row.Value) == "" || row.Count <= 0 {
 				continue
@@ -211,7 +213,7 @@ func BuildTrafficDistributionsFromAccessLogs(
 			statusCodes[row.Value] = row.Count
 		}
 	}
-	if hostRows, err := model.ValueCountsOpenFlareAccessLogs(ctx, query, "host", limit); err == nil {
+	if hostRows, err := repository.ValueCountsOpenFlareAccessLogs(ctx, query, "host", limit); err == nil {
 		for _, row := range hostRows {
 			if strings.TrimSpace(row.Value) == "" || row.Count <= 0 {
 				continue
@@ -287,7 +289,7 @@ func BuildNodeTrends(
 	applyAccessLogBytesToNetworkTrend(ctx, now, nodeID, trendSince, networkTrend)
 	diskIOTrend := BuildDiskIOTrendPoints(now, snapshots)
 
-	metricHourly, metricErr := model.ListOpenFlareMetricHourlySince(ctx, nodeID, trendSince)
+	metricHourly, metricErr := repository.ListOpenFlareMetricHourlySince(ctx, nodeID, trendSince)
 	if metricErr == nil && len(metricHourly) > 0 {
 		capacityTrend = BuildCapacityTrendPointsFromHourly(now, metricHourly)
 		diskIOTrend = BuildDiskIOTrendPointsFromHourly(now, metricHourly)
@@ -311,7 +313,7 @@ func BuildTrafficTrendPointsFromAccessLogs(ctx context.Context, now time.Time, n
 		points[index].BucketStartedAt = start.Add(time.Duration(index) * time.Hour)
 	}
 
-	if hourly, err := model.ListOpenFlareTrafficHourlySince(ctx, nodeID, since); err == nil && len(hourly) > 0 {
+	if hourly, err := repository.ListOpenFlareTrafficHourlySince(ctx, nodeID, since); err == nil && len(hourly) > 0 {
 		for _, row := range hourly {
 			if row == nil {
 				continue
@@ -327,7 +329,7 @@ func BuildTrafficTrendPointsFromAccessLogs(ctx context.Context, now time.Time, n
 		return points
 	}
 
-	buckets, err := model.ListOpenFlareAccessLogBuckets(ctx, model.OpenFlareAccessLogBucketQuery{
+	buckets, err := repository.ListOpenFlareAccessLogBuckets(ctx, model.OpenFlareAccessLogBucketQuery{
 		NodeID:      nodeID,
 		Since:       since,
 		Until:       now,
@@ -373,7 +375,7 @@ func applyAccessLogBytesToNetworkTrend(ctx context.Context, now time.Time, nodeI
 		return
 	}
 
-	buckets, err := model.ListOpenFlareAccessLogBuckets(ctx, model.OpenFlareAccessLogBucketQuery{
+	buckets, err := repository.ListOpenFlareAccessLogBuckets(ctx, model.OpenFlareAccessLogBucketQuery{
 		NodeID:      nodeID,
 		Since:       since,
 		Until:       now,
@@ -406,7 +408,7 @@ type accessLogHourBytes struct {
 }
 
 func analyticsListAccessLogHourlyBytes(ctx context.Context, nodeID string, since time.Time) (map[int64]accessLogHourBytes, error) {
-	rows, err := model.ListOpenFlareAccessLogHourlySince(ctx, nodeID, since)
+	rows, err := repository.ListOpenFlareAccessLogHourlySince(ctx, nodeID, since)
 	if err != nil {
 		return nil, err
 	}

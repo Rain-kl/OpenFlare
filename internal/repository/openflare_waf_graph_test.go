@@ -1,7 +1,7 @@
 // Copyright 2026 Arctel.net
 // SPDX-License-Identifier: Apache-2.0
 
-package model
+package repository
 
 import (
 	"context"
@@ -11,6 +11,8 @@ import (
 	"runtime"
 	"testing"
 	"testing/fstest"
+
+	"github.com/Rain-kl/Wavelet/internal/model"
 
 	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/glebarez/sqlite"
@@ -26,7 +28,7 @@ func wafMigrationFS(t *testing.T) fs.FS {
 	t.Helper()
 	_, filename, _, ok := runtime.Caller(0)
 	require.True(t, ok)
-	dir := filepath.Join(filepath.Dir(filename), "..", "db", "migrator", "goose", "sqlite")
+	dir := filepath.Join(filepath.Dir(filename), "..", "infra", "persistence", "migrator", "goose", "sqlite")
 	migrations := fstest.MapFS{}
 	for _, name := range []string{
 		"202607150001_orchestrate_waf_rules.sql",
@@ -55,7 +57,7 @@ func TestOpenFlareWAFGraphMigrationResetsGraphsAndOrdersBindings(t *testing.T) {
 	require.NoError(t, goose.SetDialect("sqlite3"))
 	require.NoError(t, goose.Up(sqlDB, "."))
 
-	var groups []OpenFlareWAFRuleGroup
+	var groups []model.OpenFlareWAFRuleGroup
 	require.NoError(t, conn.Order("id asc").Find(&groups).Error)
 	require.Len(t, groups, 2)
 	for _, group := range groups {
@@ -67,12 +69,12 @@ func TestOpenFlareWAFGraphMigrationResetsGraphsAndOrdersBindings(t *testing.T) {
 	}
 
 	require.NoError(t, conn.Exec(`INSERT INTO of_waf_rule_groups (name) VALUES ('new')`).Error)
-	var newGroup OpenFlareWAFRuleGroup
+	var newGroup model.OpenFlareWAFRuleGroup
 	require.NoError(t, conn.First(&newGroup, 3).Error)
 	assert.Empty(t, newGroup.Graph)
 	assert.Equal(t, uint64(1), newGroup.Revision)
 
-	var bindings []OpenFlareWAFRuleGroupBinding
+	var bindings []model.OpenFlareWAFRuleGroupBinding
 	require.NoError(t, conn.Where("proxy_route_id = ?", 7).Order("sequence asc").Order("id asc").Find(&bindings).Error)
 	require.Len(t, bindings, 2)
 	assert.Equal(t, []int{0, 1}, []int{bindings[0].Sequence, bindings[1].Sequence})
@@ -82,11 +84,11 @@ func TestOpenFlareWAFGraphMigrationResetsGraphsAndOrdersBindings(t *testing.T) {
 func TestOpenFlareWAFGraphOptimisticUpdate(t *testing.T) {
 	conn, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
 	require.NoError(t, err)
-	require.NoError(t, conn.AutoMigrate(&OpenFlareWAFRuleGroup{}))
+	require.NoError(t, conn.AutoMigrate(&model.OpenFlareWAFRuleGroup{}))
 	db.SetDB(conn)
 	t.Cleanup(func() { db.SetDB(nil) })
 
-	group := OpenFlareWAFRuleGroup{Name: "rule", Graph: defaultWAFRuleGraph, Revision: 1}
+	group := model.OpenFlareWAFRuleGroup{Name: "rule", Graph: defaultWAFRuleGraph, Revision: 1}
 	require.NoError(t, conn.Create(&group).Error)
 
 	nextRevision, err := UpdateOpenFlareWAFRuleGraph(context.Background(), group.ID, 1, `{"schema_version":1}`)
@@ -94,7 +96,7 @@ func TestOpenFlareWAFGraphOptimisticUpdate(t *testing.T) {
 	assert.Equal(t, uint64(2), nextRevision)
 
 	_, err = UpdateOpenFlareWAFRuleGraph(context.Background(), group.ID, 1, defaultWAFRuleGraph)
-	assert.ErrorIs(t, err, ErrWAFRuleRevisionConflict)
+	assert.ErrorIs(t, err, model.ErrWAFRuleRevisionConflict)
 }
 
 func TestReplaceOpenFlareWAFRuleGroupBindingsPreservesInputOrder(t *testing.T) {
@@ -113,10 +115,10 @@ func TestReplaceOpenFlareWAFRuleGroupBindingsPreservesInputOrder(t *testing.T) {
 func TestLegacyWAFColumnsRemoved(t *testing.T) {
 	conn, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
 	require.NoError(t, err)
-	require.NoError(t, conn.AutoMigrate(&OpenFlareWAFRuleGroup{}))
+	require.NoError(t, conn.AutoMigrate(&model.OpenFlareWAFRuleGroup{}))
 	legacy := []string{"block_status_code", "block_response_body", "ip_whitelist", "ip_blacklist", "ip_whitelist_groups", "ip_blacklist_groups", "country_whitelist", "country_blacklist", "region_whitelist", "region_blacklist", "pow_enabled", "pow_config"}
 	for _, column := range legacy {
-		if conn.Migrator().HasColumn(&OpenFlareWAFRuleGroup{}, column) {
+		if conn.Migrator().HasColumn(&model.OpenFlareWAFRuleGroup{}, column) {
 			t.Fatalf("legacy WAF column %s still exists", column)
 		}
 	}

@@ -9,8 +9,9 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/Rain-kl/Wavelet/internal/repository"
+
 	"github.com/Rain-kl/Wavelet/internal/apps/upload"
-	"github.com/Rain-kl/Wavelet/internal/model"
 )
 
 // ProjectLatestPackageMetadata describes the active package limits published to Agents.
@@ -33,7 +34,7 @@ func GetProjectLatestPackageMetadata(ctx context.Context, projectID uint) (*Proj
 		if err := ensureDeploymentUploadRecord(ctx, deployment); err != nil {
 			return nil, err
 		}
-		deployment, err = model.GetPagesDeploymentByID(ctx, deployment.ID)
+		deployment, err = repository.GetPagesDeploymentByID(ctx, deployment.ID)
 		if err != nil {
 			return nil, err
 		}

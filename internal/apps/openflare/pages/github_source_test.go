@@ -16,7 +16,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Rain-kl/Wavelet/internal/repository"
+
 	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
+	"github.com/Rain-kl/Wavelet/internal/infra/task"
 	"github.com/Rain-kl/Wavelet/internal/integration/githubrelease"
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"github.com/hibiken/asynq"
@@ -100,7 +103,7 @@ func TestGitHubSourceValidationNormalizationAndProviderSwitch(t *testing.T) {
 	if result.CheckTask == nil || result.CheckTask.Action != sourceActionCheck || result.Warning != "" {
 		t.Errorf("UpdateSourceAs(GitHub) result = %+v, want initial check receipt without warning", result)
 	}
-	execution, err := model.GetTaskExecutionByTaskID(ctx, result.CheckTask.TaskID)
+	execution, err := repository.GetTaskExecutionByTaskID(ctx, result.CheckTask.TaskID)
 	if err != nil {
 		t.Fatalf("GetTaskExecutionByTaskID(%q) error = %v, want nil", result.CheckTask.TaskID, err)
 	}
@@ -171,6 +174,11 @@ func TestGitHubSourceValidationNormalizationAndProviderSwitch(t *testing.T) {
 
 func TestGitHubSourceSaveSurvivesInitialCheckDispatchFailure(t *testing.T) {
 	ctx := setupPagesSourceTest(t)
+	// Isolate from other tests that may leave a global Asynq client registered.
+	previousClient := task.AsynqClient
+	task.AsynqClient = nil
+	t.Cleanup(func() { task.AsynqClient = previousClient })
+
 	project := mustCreatePagesSourceProject(t, ctx, "github-dispatch-warning")
 	result, err := UpdateSourceAs(ctx, project.ID, SourceUpdateInput{
 		SourceType:    PagesSourceTypeGitHubRelease,
@@ -679,7 +687,7 @@ func TestGitHubSyncActivatesWithMetadataRevisionAndPackageChecksum(t *testing.T)
 	if outcome == nil || outcome.Deployment == nil || outcome.Stale {
 		t.Fatalf("syncGitHubSource() = %+v, want active deployment", outcome)
 	}
-	deployment, err := model.GetPagesDeploymentByID(ctx, outcome.Deployment.ID)
+	deployment, err := repository.GetPagesDeploymentByID(ctx, outcome.Deployment.ID)
 	if err != nil {
 		t.Fatalf("GetPagesDeploymentByID(%d) error = %v, want nil", outcome.Deployment.ID, err)
 	}
@@ -878,7 +886,7 @@ func TestGitHubSyncRejectsStaleConfirmationWithoutChangingActive(t *testing.T) {
 	if err == nil || err.Error() != errPagesSourceConfirmationStale {
 		t.Errorf("syncGitHubSource(stale confirmation) error = %v, want %q", err, errPagesSourceConfirmationStale)
 	}
-	storedProject, loadErr := model.GetPagesProjectByID(ctx, project.ID)
+	storedProject, loadErr := repository.GetPagesProjectByID(ctx, project.ID)
 	if loadErr != nil {
 		t.Fatalf("GetPagesProjectByID() error = %v, want nil", loadErr)
 	}

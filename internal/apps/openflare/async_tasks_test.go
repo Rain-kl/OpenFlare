@@ -42,8 +42,8 @@ func TestDatabaseAutoCleanupHandlerDeletesRowsWhenEnabled(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, sqliteDB.AutoMigrate(&model.SystemConfig{}))
 	db.SetDB(sqliteDB)
-	resetAccessLogStore := model.SetAccessLogStoreForTest(model.NewMemoryAccessLogStore())
-	resetObservabilityStore := model.SetObservabilityStoreForTest(model.NewMemoryObservabilityStore())
+	resetAccessLogStore := repository.SetAccessLogStoreForTest(repository.NewMemoryAccessLogStore())
+	resetObservabilityStore := repository.SetObservabilityStoreForTest(repository.NewMemoryObservabilityStore())
 	t.Cleanup(func() {
 		resetObservabilityStore()
 		resetAccessLogStore()
@@ -52,7 +52,7 @@ func TestDatabaseAutoCleanupHandlerDeletesRowsWhenEnabled(t *testing.T) {
 
 	ctx := context.Background()
 	now := time.Now().UTC()
-	require.NoError(t, model.InsertOpenFlareAccessLogsBatch(ctx, []*model.OpenFlareAccessLog{{
+	require.NoError(t, repository.InsertOpenFlareAccessLogsBatch(ctx, []*model.OpenFlareAccessLog{{
 		NodeID:     "node-a",
 		LoggedAt:   now.Add(-95 * 24 * time.Hour),
 		RemoteAddr: "203.0.113.10",
@@ -69,7 +69,7 @@ func TestDatabaseAutoCleanupHandlerDeletesRowsWhenEnabled(t *testing.T) {
 	require.NotNil(t, result)
 	assert.Contains(t, result.Message, "共删除")
 
-	rows, err := model.ListOpenFlareAccessLogs(ctx, model.OpenFlareAccessLogQuery{Page: 0, PageSize: 10})
+	rows, err := repository.ListOpenFlareAccessLogs(ctx, model.OpenFlareAccessLogQuery{Page: 0, PageSize: 10})
 	require.NoError(t, err)
 	assert.Empty(t, rows)
 }

@@ -9,6 +9,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Rain-kl/Wavelet/internal/repository"
+
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -81,7 +83,7 @@ func TestRenewCertificateSetsApplying(t *testing.T) {
 		CertPEM:       " ",
 		KeyPEM:        " ",
 	}
-	require.NoError(t, model.CreateTLSCertificateRecord(ctx, cert))
+	require.NoError(t, repository.CreateTLSCertificateRecord(ctx, cert))
 
 	restore := SetObtainCertificateFuncForTest(func(ctx context.Context, c *model.TLSCertificate) error {
 		return nil
@@ -106,19 +108,19 @@ func TestConvertCertificateToACMEPreservesUploadOnFailure(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	stored, err := model.GetTLSCertificateByID(ctx, cert.ID)
+	stored, err := repository.GetTLSCertificateByID(ctx, cert.ID)
 	require.NoError(t, err)
 	originalStoredCertPEM := stored.CertPEM
 	originalStoredKeyPEM := stored.KeyPEM
 
 	stored.ApplyStatus = "applying"
 	stored.PrimaryDomain = "manual.example.com"
-	require.NoError(t, model.SaveTLSCertificate(ctx, stored))
+	require.NoError(t, repository.SaveTLSCertificate(ctx, stored))
 
 	err = updateCertError(ctx, stored, "dns challenge failed")
 	require.Error(t, err)
 
-	finalCert, err := model.GetTLSCertificateByID(ctx, cert.ID)
+	finalCert, err := repository.GetTLSCertificateByID(ctx, cert.ID)
 	require.NoError(t, err)
 	assert.Equal(t, "upload", finalCert.Provider)
 	assert.Equal(t, "error", finalCert.ApplyStatus)
@@ -141,14 +143,14 @@ func TestConvertCertificateToACMERejectsInvalidStates(t *testing.T) {
 	require.NoError(t, err)
 
 	cert.Provider = "acme"
-	require.NoError(t, model.SaveTLSCertificate(ctx, cert))
+	require.NoError(t, repository.SaveTLSCertificate(ctx, cert))
 	_, err = ConvertCertificateToACME(ctx, cert.ID, ApplyInput{Name: "manual-cert"})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "only uploaded")
 
 	cert.Provider = "upload"
 	cert.ApplyStatus = "applying"
-	require.NoError(t, model.SaveTLSCertificate(ctx, cert))
+	require.NoError(t, repository.SaveTLSCertificate(ctx, cert))
 	_, err = ConvertCertificateToACME(ctx, cert.ID, ApplyInput{Name: "manual-cert"})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "already applying")

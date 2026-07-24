@@ -27,8 +27,8 @@ func setupDatabaseCleanupTestDB(t *testing.T) context.Context {
 	require.NoError(t, err)
 	require.NoError(t, sqliteDB.AutoMigrate(&model.SystemConfig{}))
 	db.SetDB(sqliteDB)
-	resetAccessLogStore := model.SetAccessLogStoreForTest(model.NewMemoryAccessLogStore())
-	resetObservabilityStore := model.SetObservabilityStoreForTest(model.NewMemoryObservabilityStore())
+	resetAccessLogStore := repository.SetAccessLogStoreForTest(repository.NewMemoryAccessLogStore())
+	resetObservabilityStore := repository.SetObservabilityStoreForTest(repository.NewMemoryObservabilityStore())
 	t.Cleanup(func() {
 		resetObservabilityStore()
 		resetAccessLogStore()
@@ -69,12 +69,12 @@ func TestCleanupDatabaseObservabilityMaterializeDoesNotClaimHardDelete(t *testin
 	now := time.Now().UTC()
 
 	// One row past metric table TTL (30d), one still inside the window.
-	require.NoError(t, model.InsertOpenFlareMetricSnapshot(ctx, &model.OpenFlareMetricSnapshot{
+	require.NoError(t, repository.InsertOpenFlareMetricSnapshot(ctx, &model.OpenFlareMetricSnapshot{
 		NodeID:          "node-a",
 		CapturedAt:      now.Add(-40 * 24 * time.Hour),
 		CPUUsagePercent: 10,
 	}))
-	require.NoError(t, model.InsertOpenFlareMetricSnapshot(ctx, &model.OpenFlareMetricSnapshot{
+	require.NoError(t, repository.InsertOpenFlareMetricSnapshot(ctx, &model.OpenFlareMetricSnapshot{
 		NodeID:          "node-a",
 		CapturedAt:      now.Add(-12 * time.Hour),
 		CPUUsagePercent: 20,
@@ -96,7 +96,7 @@ func TestCleanupDatabaseObservabilityMaterializeDoesNotClaimHardDelete(t *testin
 	assert.True(t, result.Cutoff.Before(now.Add(-29*24*time.Hour)))
 
 	// Memory store applies the table-TTL cutoff for tests; only the recent row remains.
-	rows, err := model.ListOpenFlareMetricSnapshotsSince(ctx, "", time.Time{}, 0)
+	rows, err := repository.ListOpenFlareMetricSnapshotsSince(ctx, "", time.Time{}, 0)
 	require.NoError(t, err)
 	require.Len(t, rows, 1)
 	assert.Equal(t, float64(20), rows[0].CPUUsagePercent)
@@ -106,7 +106,7 @@ func TestCleanupDatabaseObservabilityDeletesAllRowsWhenRetentionMissing(t *testi
 	ctx := setupDatabaseCleanupTestDB(t)
 	now := time.Now().UTC()
 
-	require.NoError(t, model.InsertOpenFlareAccessLogsBatch(ctx, []*model.OpenFlareAccessLog{
+	require.NoError(t, repository.InsertOpenFlareAccessLogsBatch(ctx, []*model.OpenFlareAccessLog{
 		{
 			NodeID:     "node-a",
 			LoggedAt:   now.Add(-3 * time.Hour),
@@ -134,7 +134,7 @@ func TestCleanupDatabaseObservabilityDeletesAllRowsWhenRetentionMissing(t *testi
 	assert.Equal(t, int64(2), result.DeletedCount)
 	assert.Equal(t, int64(2), result.EligibleCount)
 
-	rows, err := model.ListOpenFlareAccessLogs(ctx, model.OpenFlareAccessLogQuery{Page: 0, PageSize: 10})
+	rows, err := repository.ListOpenFlareAccessLogs(ctx, model.OpenFlareAccessLogQuery{Page: 0, PageSize: 10})
 	require.NoError(t, err)
 	assert.Empty(t, rows)
 }
@@ -144,7 +144,7 @@ func TestRunDatabaseAutoCleanupOnceClampsRetentionToTableTTL(t *testing.T) {
 	now := time.Now().UTC()
 
 	// Access logs TTL=90d, metrics TTL=30d. Config retention=1 must clamp, not reject.
-	require.NoError(t, model.InsertOpenFlareAccessLogsBatch(ctx, []*model.OpenFlareAccessLog{{
+	require.NoError(t, repository.InsertOpenFlareAccessLogsBatch(ctx, []*model.OpenFlareAccessLog{{
 		NodeID:     "node-a",
 		LoggedAt:   now.Add(-100 * 24 * time.Hour),
 		RemoteAddr: "203.0.113.10",
@@ -152,12 +152,12 @@ func TestRunDatabaseAutoCleanupOnceClampsRetentionToTableTTL(t *testing.T) {
 		Path:       "/access",
 		StatusCode: 200,
 	}}))
-	require.NoError(t, model.InsertOpenFlareMetricSnapshot(ctx, &model.OpenFlareMetricSnapshot{
+	require.NoError(t, repository.InsertOpenFlareMetricSnapshot(ctx, &model.OpenFlareMetricSnapshot{
 		NodeID:          "node-a",
 		CapturedAt:      now.Add(-40 * 24 * time.Hour),
 		CPUUsagePercent: 10,
 	}))
-	require.NoError(t, model.InsertOpenFlareEdgeHealth(ctx, &model.OpenFlareEdgeHealth{
+	require.NoError(t, repository.InsertOpenFlareEdgeHealth(ctx, &model.OpenFlareEdgeHealth{
 		NodeID:      "node-a",
 		CapturedAt:  now.Add(-40 * 24 * time.Hour),
 		Status:      "healthy",
@@ -181,15 +181,15 @@ func TestRunDatabaseAutoCleanupOnceClampsRetentionToTableTTL(t *testing.T) {
 		assert.GreaterOrEqual(t, *result.RetentionDays, result.TableTTLDays)
 	}
 
-	accessLogs, err := model.ListOpenFlareAccessLogs(ctx, model.OpenFlareAccessLogQuery{Page: 0, PageSize: 10})
+	accessLogs, err := repository.ListOpenFlareAccessLogs(ctx, model.OpenFlareAccessLogQuery{Page: 0, PageSize: 10})
 	require.NoError(t, err)
 	assert.Empty(t, accessLogs)
 
-	metricSnapshots, err := model.ListOpenFlareMetricSnapshotsSince(ctx, "", time.Time{}, 0)
+	metricSnapshots, err := repository.ListOpenFlareMetricSnapshotsSince(ctx, "", time.Time{}, 0)
 	require.NoError(t, err)
 	assert.Empty(t, metricSnapshots)
 
-	edgeHealth, err := model.ListOpenFlareEdgeHealth(ctx, "", time.Time{}, 0)
+	edgeHealth, err := repository.ListOpenFlareEdgeHealth(ctx, "", time.Time{}, 0)
 	require.NoError(t, err)
 	assert.Empty(t, edgeHealth)
 }

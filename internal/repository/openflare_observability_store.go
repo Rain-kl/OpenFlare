@@ -1,7 +1,7 @@
 // Copyright 2026 Arctel.net
 // SPDX-License-Identifier: Apache-2.0
 
-package model
+package repository
 
 import (
 	"context"
@@ -9,6 +9,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/Rain-kl/Wavelet/internal/model"
 
 	analyticsmodel "github.com/Rain-kl/Wavelet/internal/model/analytics"
 	analyticsrepo "github.com/Rain-kl/Wavelet/internal/repository/analytics"
@@ -42,23 +44,23 @@ func currentObservabilityInsertHooks() ObservabilityInsertHooks {
 }
 
 type observabilityStore interface {
-	InsertMetricSnapshot(ctx context.Context, record *OpenFlareMetricSnapshot) error
-	ListMetricSnapshots(ctx context.Context, nodeID string, since time.Time, limit int) ([]*OpenFlareMetricSnapshot, error)
+	InsertMetricSnapshot(ctx context.Context, record *model.OpenFlareMetricSnapshot) error
+	ListMetricSnapshots(ctx context.Context, nodeID string, since time.Time, limit int) ([]*model.OpenFlareMetricSnapshot, error)
 	DeleteAllMetricSnapshots(ctx context.Context) (int64, error)
 	DeleteMetricSnapshotsBefore(ctx context.Context, cutoff time.Time) (int64, error)
 
-	InsertEdgeHealth(ctx context.Context, record *OpenFlareEdgeHealth) error
-	ListEdgeHealth(ctx context.Context, nodeID string, since time.Time, limit int) ([]*OpenFlareEdgeHealth, error)
+	InsertEdgeHealth(ctx context.Context, record *model.OpenFlareEdgeHealth) error
+	ListEdgeHealth(ctx context.Context, nodeID string, since time.Time, limit int) ([]*model.OpenFlareEdgeHealth, error)
 	DeleteAllEdgeHealth(ctx context.Context) (int64, error)
 	DeleteEdgeHealthBefore(ctx context.Context, cutoff time.Time) (int64, error)
 
-	InsertNodeObservationFrps(ctx context.Context, record *OpenFlareNodeObservationFrps) error
-	ListNodeObservationFrps(ctx context.Context, nodeID string, since time.Time, limit int) ([]*OpenFlareNodeObservationFrps, error)
+	InsertNodeObservationFrps(ctx context.Context, record *model.OpenFlareNodeObservationFrps) error
+	ListNodeObservationFrps(ctx context.Context, nodeID string, since time.Time, limit int) ([]*model.OpenFlareNodeObservationFrps, error)
 	DeleteAllNodeObservationFrps(ctx context.Context) (int64, error)
 	DeleteNodeObservationFrpsBefore(ctx context.Context, cutoff time.Time) (int64, error)
 
-	InsertNodeObservationFrpc(ctx context.Context, record *OpenFlareNodeObservationFrpc) error
-	ListNodeObservationFrpc(ctx context.Context, nodeID string, since time.Time, limit int) ([]*OpenFlareNodeObservationFrpc, error)
+	InsertNodeObservationFrpc(ctx context.Context, record *model.OpenFlareNodeObservationFrpc) error
+	ListNodeObservationFrpc(ctx context.Context, nodeID string, since time.Time, limit int) ([]*model.OpenFlareNodeObservationFrpc, error)
 	DeleteAllNodeObservationFrpc(ctx context.Context) (int64, error)
 	DeleteNodeObservationFrpcBefore(ctx context.Context, cutoff time.Time) (int64, error)
 }
@@ -97,7 +99,7 @@ func NewMemoryObservabilityStore() observabilityStore {
 
 type clickhouseObservabilityStore struct{}
 
-func (clickhouseObservabilityStore) InsertMetricSnapshot(_ context.Context, record *OpenFlareMetricSnapshot) error {
+func (clickhouseObservabilityStore) InsertMetricSnapshot(_ context.Context, record *model.OpenFlareMetricSnapshot) error {
 	if record == nil {
 		return nil
 	}
@@ -107,7 +109,7 @@ func (clickhouseObservabilityStore) InsertMetricSnapshot(_ context.Context, reco
 	return nil
 }
 
-func (clickhouseObservabilityStore) ListMetricSnapshots(ctx context.Context, nodeID string, since time.Time, limit int) ([]*OpenFlareMetricSnapshot, error) {
+func (clickhouseObservabilityStore) ListMetricSnapshots(ctx context.Context, nodeID string, since time.Time, limit int) ([]*model.OpenFlareMetricSnapshot, error) {
 	rows, err := analyticsrepo.ListNodeMetricSnapshots(ctx, toNodeObservabilityFilter(nodeID, since, limit))
 	if err != nil {
 		return nil, err
@@ -133,7 +135,7 @@ func normalizeEdgeHealthStatus(status string) string {
 	return status
 }
 
-func (clickhouseObservabilityStore) InsertEdgeHealth(_ context.Context, record *OpenFlareEdgeHealth) error {
+func (clickhouseObservabilityStore) InsertEdgeHealth(_ context.Context, record *model.OpenFlareEdgeHealth) error {
 	if record == nil {
 		return nil
 	}
@@ -143,7 +145,7 @@ func (clickhouseObservabilityStore) InsertEdgeHealth(_ context.Context, record *
 	return nil
 }
 
-func (clickhouseObservabilityStore) ListEdgeHealth(ctx context.Context, nodeID string, since time.Time, limit int) ([]*OpenFlareEdgeHealth, error) {
+func (clickhouseObservabilityStore) ListEdgeHealth(ctx context.Context, nodeID string, since time.Time, limit int) ([]*model.OpenFlareEdgeHealth, error) {
 	rows, err := analyticsrepo.ListNodeEdgeHealth(ctx, toNodeObservabilityFilter(nodeID, since, limit))
 	if err != nil {
 		return nil, err
@@ -159,7 +161,7 @@ func (clickhouseObservabilityStore) DeleteEdgeHealthBefore(ctx context.Context, 
 	return analyticsrepo.DeleteNodeEdgeHealthBefore(ctx, cutoff)
 }
 
-func (clickhouseObservabilityStore) InsertNodeObservationFrps(_ context.Context, record *OpenFlareNodeObservationFrps) error {
+func (clickhouseObservabilityStore) InsertNodeObservationFrps(_ context.Context, record *model.OpenFlareNodeObservationFrps) error {
 	if record == nil {
 		return nil
 	}
@@ -169,7 +171,7 @@ func (clickhouseObservabilityStore) InsertNodeObservationFrps(_ context.Context,
 	return nil
 }
 
-func (clickhouseObservabilityStore) ListNodeObservationFrps(ctx context.Context, nodeID string, since time.Time, limit int) ([]*OpenFlareNodeObservationFrps, error) {
+func (clickhouseObservabilityStore) ListNodeObservationFrps(ctx context.Context, nodeID string, since time.Time, limit int) ([]*model.OpenFlareNodeObservationFrps, error) {
 	rows, err := analyticsrepo.ListNodeObsFrps(ctx, toNodeObservabilityFilter(nodeID, since, limit))
 	if err != nil {
 		return nil, err
@@ -185,7 +187,7 @@ func (clickhouseObservabilityStore) DeleteNodeObservationFrpsBefore(ctx context.
 	return analyticsrepo.DeleteNodeObsFrpsBefore(ctx, cutoff)
 }
 
-func (clickhouseObservabilityStore) InsertNodeObservationFrpc(_ context.Context, record *OpenFlareNodeObservationFrpc) error {
+func (clickhouseObservabilityStore) InsertNodeObservationFrpc(_ context.Context, record *model.OpenFlareNodeObservationFrpc) error {
 	if record == nil {
 		return nil
 	}
@@ -195,7 +197,7 @@ func (clickhouseObservabilityStore) InsertNodeObservationFrpc(_ context.Context,
 	return nil
 }
 
-func (clickhouseObservabilityStore) ListNodeObservationFrpc(ctx context.Context, nodeID string, since time.Time, limit int) ([]*OpenFlareNodeObservationFrpc, error) {
+func (clickhouseObservabilityStore) ListNodeObservationFrpc(ctx context.Context, nodeID string, since time.Time, limit int) ([]*model.OpenFlareNodeObservationFrpc, error) {
 	rows, err := analyticsrepo.ListNodeObsFrpc(ctx, toNodeObservabilityFilter(nodeID, since, limit))
 	if err != nil {
 		return nil, err
@@ -219,7 +221,7 @@ func toNodeObservabilityFilter(nodeID string, since time.Time, limit int) analyt
 	}
 }
 
-func toAnalyticsNodeMetricSnapshot(record *OpenFlareMetricSnapshot) analyticsmodel.NodeMetricSnapshot {
+func toAnalyticsNodeMetricSnapshot(record *model.OpenFlareMetricSnapshot) analyticsmodel.NodeMetricSnapshot {
 	return analyticsmodel.NodeMetricSnapshot{
 		ID:                uint64(record.ID),
 		NodeID:            record.NodeID,
@@ -237,10 +239,10 @@ func toAnalyticsNodeMetricSnapshot(record *OpenFlareMetricSnapshot) analyticsmod
 	}
 }
 
-func fromAnalyticsNodeMetricSnapshots(rows []analyticsmodel.NodeMetricSnapshot) []*OpenFlareMetricSnapshot {
-	result := make([]*OpenFlareMetricSnapshot, len(rows))
+func fromAnalyticsNodeMetricSnapshots(rows []analyticsmodel.NodeMetricSnapshot) []*model.OpenFlareMetricSnapshot {
+	result := make([]*model.OpenFlareMetricSnapshot, len(rows))
 	for index, row := range rows {
-		result[index] = &OpenFlareMetricSnapshot{
+		result[index] = &model.OpenFlareMetricSnapshot{
 			ID:                uint(row.ID),
 			NodeID:            row.NodeID,
 			CapturedAt:        row.CapturedAt,
@@ -259,7 +261,7 @@ func fromAnalyticsNodeMetricSnapshots(rows []analyticsmodel.NodeMetricSnapshot) 
 	return result
 }
 
-func toAnalyticsNodeEdgeHealth(record *OpenFlareEdgeHealth) analyticsmodel.NodeEdgeHealth {
+func toAnalyticsNodeEdgeHealth(record *model.OpenFlareEdgeHealth) analyticsmodel.NodeEdgeHealth {
 	return analyticsmodel.NodeEdgeHealth{
 		ID:          uint64(record.ID),
 		NodeID:      record.NodeID,
@@ -270,10 +272,10 @@ func toAnalyticsNodeEdgeHealth(record *OpenFlareEdgeHealth) analyticsmodel.NodeE
 	}
 }
 
-func fromAnalyticsNodeEdgeHealth(rows []analyticsmodel.NodeEdgeHealth) []*OpenFlareEdgeHealth {
-	result := make([]*OpenFlareEdgeHealth, len(rows))
+func fromAnalyticsNodeEdgeHealth(rows []analyticsmodel.NodeEdgeHealth) []*model.OpenFlareEdgeHealth {
+	result := make([]*model.OpenFlareEdgeHealth, len(rows))
 	for index, row := range rows {
-		result[index] = &OpenFlareEdgeHealth{
+		result[index] = &model.OpenFlareEdgeHealth{
 			ID:          uint(row.ID),
 			NodeID:      row.NodeID,
 			CapturedAt:  row.CapturedAt,
@@ -285,7 +287,7 @@ func fromAnalyticsNodeEdgeHealth(rows []analyticsmodel.NodeEdgeHealth) []*OpenFl
 	return result
 }
 
-func toAnalyticsNodeObsFrps(record *OpenFlareNodeObservationFrps) analyticsmodel.NodeObsFrps {
+func toAnalyticsNodeObsFrps(record *model.OpenFlareNodeObservationFrps) analyticsmodel.NodeObsFrps {
 	return analyticsmodel.NodeObsFrps{
 		ID:              uint64(record.ID),
 		NodeID:          record.NodeID,
@@ -298,10 +300,10 @@ func toAnalyticsNodeObsFrps(record *OpenFlareNodeObservationFrps) analyticsmodel
 	}
 }
 
-func fromAnalyticsNodeObsFrps(rows []analyticsmodel.NodeObsFrps) []*OpenFlareNodeObservationFrps {
-	result := make([]*OpenFlareNodeObservationFrps, len(rows))
+func fromAnalyticsNodeObsFrps(rows []analyticsmodel.NodeObsFrps) []*model.OpenFlareNodeObservationFrps {
+	result := make([]*model.OpenFlareNodeObservationFrps, len(rows))
 	for index, row := range rows {
-		result[index] = &OpenFlareNodeObservationFrps{
+		result[index] = &model.OpenFlareNodeObservationFrps{
 			ID:              uint(row.ID),
 			NodeID:          row.NodeID,
 			CapturedAt:      row.CapturedAt,
@@ -315,7 +317,7 @@ func fromAnalyticsNodeObsFrps(rows []analyticsmodel.NodeObsFrps) []*OpenFlareNod
 	return result
 }
 
-func toAnalyticsNodeObsFrpc(record *OpenFlareNodeObservationFrpc) analyticsmodel.NodeObsFrpc {
+func toAnalyticsNodeObsFrpc(record *model.OpenFlareNodeObservationFrpc) analyticsmodel.NodeObsFrpc {
 	return analyticsmodel.NodeObsFrpc{
 		ID:                   uint64(record.ID),
 		NodeID:               record.NodeID,
@@ -337,10 +339,10 @@ func openFlareObservabilityIntToInt32(value int) int32 {
 	}
 }
 
-func fromAnalyticsNodeObsFrpc(rows []analyticsmodel.NodeObsFrpc) []*OpenFlareNodeObservationFrpc {
-	result := make([]*OpenFlareNodeObservationFrpc, len(rows))
+func fromAnalyticsNodeObsFrpc(rows []analyticsmodel.NodeObsFrpc) []*model.OpenFlareNodeObservationFrpc {
+	result := make([]*model.OpenFlareNodeObservationFrpc, len(rows))
 	for index, row := range rows {
-		result[index] = &OpenFlareNodeObservationFrpc{
+		result[index] = &model.OpenFlareNodeObservationFrpc{
 			ID:                   uint(row.ID),
 			NodeID:               row.NodeID,
 			CapturedAt:           row.CapturedAt,

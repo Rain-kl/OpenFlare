@@ -9,6 +9,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Rain-kl/Wavelet/internal/repository"
+
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/agent"
 	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/model"
@@ -36,7 +38,7 @@ func setupRelayTestDB(t *testing.T) func() {
 
 	db.SetDB(sqliteDB)
 	agent.ResetAuthCacheForTest()
-	resetObservabilityStore := model.SetObservabilityStoreForTest(model.NewMemoryObservabilityStore())
+	resetObservabilityStore := repository.SetObservabilityStoreForTest(repository.NewMemoryObservabilityStore())
 
 	return func() {
 		resetObservabilityStore()
@@ -107,17 +109,17 @@ func TestHeartbeatPayloadBindingAndFrpsObservationInsert(t *testing.T) {
 	assert.Equal(t, "v0.1.0", stored.Version)
 	assert.Equal(t, "0.61.0", stored.ExtVersion)
 
-	profile, err := model.GetOpenFlareNodeSystemProfile(ctx, node.NodeID)
+	profile, err := repository.GetOpenFlareNodeSystemProfile(ctx, node.NodeID)
 	require.NoError(t, err)
 	assert.Equal(t, "relay-runtime", profile.Hostname)
 	assert.Equal(t, "Ubuntu", profile.OSName)
 
-	snapshots, err := model.ListOpenFlareMetricSnapshotsSince(ctx, node.NodeID, now.Add(-time.Minute), 10)
+	snapshots, err := repository.ListOpenFlareMetricSnapshotsSince(ctx, node.NodeID, now.Add(-time.Minute), 10)
 	require.NoError(t, err)
 	require.Len(t, snapshots, 1)
 	assert.Equal(t, 12.5, snapshots[0].CPUUsagePercent)
 
-	frpsObs, err := model.ListOpenFlareNodeObservationFrps(ctx, node.NodeID, time.Time{}, 1)
+	frpsObs, err := repository.ListOpenFlareNodeObservationFrps(ctx, node.NodeID, time.Time{}, 1)
 	require.NoError(t, err)
 	require.Len(t, frpsObs, 1)
 	assert.Equal(t, 7, frpsObs[0].FrpsConnections)
@@ -153,7 +155,7 @@ func TestHeartbeatRelayReconcilesFrpsUnhealthyEvent(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	events, err := model.ListOpenFlareHealthEvents(ctx, node.NodeID, true, 10)
+	events, err := repository.ListOpenFlareHealthEvents(ctx, node.NodeID, true, 10)
 	require.NoError(t, err)
 	require.Len(t, events, 1)
 	assert.Equal(t, relayFrpsUnhealthyEventType, events[0].EventType)
@@ -166,7 +168,7 @@ func TestHeartbeatRelayReconcilesFrpsUnhealthyEvent(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	events, err = model.ListOpenFlareHealthEvents(ctx, node.NodeID, false, 10)
+	events, err = repository.ListOpenFlareHealthEvents(ctx, node.NodeID, false, 10)
 	require.NoError(t, err)
 	require.Len(t, events, 1)
 	assert.Equal(t, "resolved", events[0].Status)

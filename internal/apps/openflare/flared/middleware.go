@@ -8,6 +8,8 @@ import (
 	"errors"
 	"strings"
 
+	"github.com/Rain-kl/Wavelet/internal/repository"
+
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"github.com/Rain-kl/Wavelet/internal/shared/response"
 	"github.com/gin-gonic/gin"
@@ -38,7 +40,7 @@ func authenticateAccessToken(ctx context.Context, token string) (*model.OpenFlar
 	if token == "" {
 		return nil, errors.New("missing tunnel token")
 	}
-	node, err := model.GetOpenFlareNodeByAccessToken(ctx, token)
+	node, err := repository.GetOpenFlareNodeByAccessToken(ctx, token)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, errors.New("invalid tunnel token")

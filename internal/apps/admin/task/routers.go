@@ -11,6 +11,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Rain-kl/Wavelet/internal/repository"
+
 	"github.com/Rain-kl/Wavelet/internal/apps/admin"
 	"github.com/Rain-kl/Wavelet/internal/infra/task"
 	"github.com/Rain-kl/Wavelet/internal/infra/task/scheduler"
@@ -119,7 +121,7 @@ func ListTaskExecutions(c *gin.Context) {
 		}
 	}
 
-	executions, total, err := model.ListTaskExecutions(c.Request.Context(), req)
+	executions, total, err := repository.ListTaskExecutions(c.Request.Context(), req)
 	if err != nil {
 		response.AbortInternal(c, err.Error())
 		return
@@ -153,7 +155,7 @@ func GetTaskExecution(c *gin.Context) {
 		return
 	}
 
-	execution, err := model.GetTaskExecutionByID(c.Request.Context(), id)
+	execution, err := repository.GetTaskExecutionByID(c.Request.Context(), id)
 	if err != nil {
 		response.AbortNotFound(c, TaskNotFound)
 		return
@@ -211,7 +213,7 @@ func RetryTask(c *gin.Context) {
 // @Failure 403 {object} response.Any "无管理员权限"
 // @Router /api/v1/admin/tasks/schedules [get]
 func ListSchedules(c *gin.Context) {
-	schedules, err := model.ListSchedules(c.Request.Context())
+	schedules, err := repository.ListSchedules(c.Request.Context())
 	if err != nil {
 		response.AbortInternal(c, err.Error())
 		return
@@ -289,7 +291,7 @@ func CreateSchedule(c *gin.Context) {
 		IsActive: *req.IsActive,
 	}
 
-	if err := model.CreateSchedule(c.Request.Context(), schedule); err != nil {
+	if err := repository.CreateSchedule(c.Request.Context(), schedule); err != nil {
 		response.AbortInternal(c, fmt.Sprintf("%s: %v", ScheduleSaveFailed, err))
 		return
 	}
@@ -341,7 +343,7 @@ func UpdateSchedule(c *gin.Context) {
 	}
 
 	// 检查定时任务是否存在
-	schedule, err := model.GetScheduleByID(c.Request.Context(), id)
+	schedule, err := repository.GetScheduleByID(c.Request.Context(), id)
 	if err != nil {
 		response.AbortNotFound(c, ScheduleNotFound)
 		return
@@ -381,7 +383,7 @@ func UpdateSchedule(c *gin.Context) {
 	schedule.Payload = string(validated)
 	schedule.IsActive = *req.IsActive
 
-	if err := model.UpdateSchedule(c.Request.Context(), schedule); err != nil {
+	if err := repository.UpdateSchedule(c.Request.Context(), schedule); err != nil {
 		response.AbortInternal(c, fmt.Sprintf("%s: %v", ScheduleSaveFailed, err))
 		return
 	}
@@ -422,7 +424,7 @@ func DeleteSchedule(c *gin.Context) {
 		response.AbortBadRequest(c, "无效的定时任务ID")
 		return
 	}
-	schedule, err := model.GetScheduleByID(c.Request.Context(), id)
+	schedule, err := repository.GetScheduleByID(c.Request.Context(), id)
 	if err != nil {
 		response.AbortNotFound(c, ScheduleNotFound)
 		return
@@ -432,7 +434,7 @@ func DeleteSchedule(c *gin.Context) {
 		return
 	}
 
-	if err := model.DeleteSchedule(c.Request.Context(), id); err != nil {
+	if err := repository.DeleteSchedule(c.Request.Context(), id); err != nil {
 		response.AbortInternal(c, fmt.Sprintf("%s: %v", ScheduleDeleteFailed, err))
 		return
 	}

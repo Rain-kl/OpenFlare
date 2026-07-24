@@ -11,8 +11,8 @@ import (
 
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/agent"
 	ofgeoip "github.com/Rain-kl/Wavelet/internal/apps/openflare/geoip"
-	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/model"
+	"github.com/Rain-kl/Wavelet/internal/repository"
 )
 
 const nodeStatusOnline = "online"
@@ -88,7 +88,7 @@ func Heartbeat(ctx context.Context, node *model.OpenFlareNode, payload Heartbeat
 	node.LastSeenAt = &lastSeen
 	node.Status = nodeStatusOnline
 
-	if err := db.DB(ctx).Model(node).Updates(changes).Error; err != nil {
+	if err := repository.UpdateOpenFlareNodeColumns(ctx, node, changes); err != nil {
 		return nil, fmt.Errorf("update relay heartbeat: %w", err)
 	}
 	if err := reconcileRelayHealthEvents(ctx, node.NodeID, payload.RelayStatus, now); err != nil {

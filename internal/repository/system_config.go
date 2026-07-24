@@ -18,14 +18,7 @@ import (
 	"github.com/Rain-kl/Wavelet/pkg/cache/ram"
 )
 
-const (
-	configTypeSystem                = "system"
-	errDatabaseNotInitialized       = "database not initialized"
-	errConfigIntParseFailed         = "配置 %s 的值 '%s' 无法转换为整数: %w"
-	errConfigDecimalParseFailed     = "配置 %s 的值 '%s' 无法转换为decimal: %w"
-	errConfigBoolParseFailed        = "配置 %s 的值 '%s' 无法转换为布尔值: %w"
-	errParseMenuDisplayConfigFailed = "解析目录显示配置失败: %w"
-)
+const configTypeSystem = "system"
 
 // PreheatSystemConfigs loads all system configs from database.
 // This function strictly performs database read and does not perform any cache read or write operations.

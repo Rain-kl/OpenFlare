@@ -9,8 +9,8 @@ import (
 	"fmt"
 	"strings"
 
-	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/model"
+	"github.com/Rain-kl/Wavelet/internal/repository"
 	"github.com/coreos/go-oidc/v3/oidc"
 	"golang.org/x/oauth2"
 )
@@ -21,10 +21,8 @@ func uniqueUsername(ctx context.Context, base string) (string, error) {
 		base = "user"
 	}
 
-	var existingUsernames []string
-	if err := db.DB(ctx).Model(&model.User{}).
-		Where("username = ? OR username LIKE ?", base, base+"-%").
-		Pluck("username", &existingUsernames).Error; err != nil {
+	existingUsernames, err := repository.ListUsernamesMatchingBase(ctx, base)
+	if err != nil {
 		return "", err
 	}
 

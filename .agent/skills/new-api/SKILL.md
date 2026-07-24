@@ -115,7 +115,7 @@ internal/
 ## 核心开发步骤 (Step-by-Step Flow)
 
 ### 步骤 1：数据库定义与迁移
-如果自定义功能涉及新表或字段，请参考 [database-migration](../database-migration/SKILL.md) 技能，在 `internal/infra/persistence/migrator/goose/` 目录下编写迁移文件并在 `internal/model/` 中定义 GORM 数据模型。
+如果自定义功能涉及新表或字段，请参考 [database-migration](../database-migration/SKILL.md) 技能，在 `internal/infra/persistence/migrator/goose/` 目录下编写迁移文件，在 `internal/model/` 中定义 GORM 实体（无 CRUD / 无 DB 访问），并在 `internal/repository/` 中实现数据访问（**repository 为唯一持久化入口**）。
 
 ### 步骤 2：在模块内实现业务逻辑 (`logics.go` / `service.go`)
 业务逻辑逻辑应当实现于 `internal/apps/custom/` 目录下：

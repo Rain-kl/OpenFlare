@@ -16,9 +16,9 @@ import (
 	"unicode/utf8"
 
 	"github.com/Rain-kl/Wavelet/internal/apps/upload"
-	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/infra/task"
 	"github.com/Rain-kl/Wavelet/internal/model"
+	"github.com/Rain-kl/Wavelet/internal/repository"
 	"github.com/Rain-kl/Wavelet/pkg/logger"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -375,14 +375,7 @@ func findSourceDeployment(
 	sourceIdentity string,
 	revision string,
 ) (*model.PagesDeployment, error) {
-	var deployment model.PagesDeployment
-	err := db.DB(ctx).
-		Where("project_id = ? AND source_identity = ? AND source_revision = ?", projectID, sourceIdentity, revision).
-		First(&deployment).Error
-	if err != nil {
-		return nil, err
-	}
-	return &deployment, nil
+	return repository.GetPagesDeploymentBySourceRevision(ctx, projectID, sourceIdentity, revision)
 }
 
 func commitSourceDeploymentWithTrigger(
@@ -408,7 +401,7 @@ func commitSourceDeploymentWithTrigger(
 	var committed model.PagesDeployment
 	reused := false
 	ingestReferenced := false
-	err := db.DB(ctx).Transaction(func(tx *gorm.DB) error {
+	err := repository.WithPagesTx(ctx, func(tx *gorm.DB) error {
 		state, err := lockSourceCommitState(tx, snapshot)
 		if err != nil {
 			return err
@@ -445,18 +438,15 @@ func commitSourceDeploymentWithTrigger(
 
 func lockSourceCommitState(tx *gorm.DB, snapshot *sourceExecutionSnapshot) (*sourceCommitState, error) {
 	state := &sourceCommitState{}
-	var project model.PagesProject
-	if err := tx.Clauses(clause.Locking{Strength: pagesRowLockStrength}).
-		First(&project, snapshot.ProjectID).Error; err != nil {
+	project, err := repository.LockPagesProjectByIDTx(tx, snapshot.ProjectID)
+	if err != nil {
 		return nil, sourceFenceRecordError(err)
 	}
 	if project.ContentConfigVersion != snapshot.ContentConfigVersion {
 		return nil, errSourceFinalFence
 	}
-	var source model.PagesProjectSource
-	if err := tx.Clauses(clause.Locking{Strength: pagesRowLockStrength}).
-		Where("id = ? AND project_id = ?", snapshot.SourceID, snapshot.ProjectID).
-		First(&source).Error; err != nil {
+	source, err := repository.LockPagesProjectSourceByIDAndProjectIDTx(tx, snapshot.SourceID, snapshot.ProjectID)
+	if err != nil {
 		return nil, sourceFenceRecordError(err)
 	}
 	if source.ConfigVersion != snapshot.SourceConfigVersion ||
@@ -464,15 +454,13 @@ func lockSourceCommitState(tx *gorm.DB, snapshot *sourceExecutionSnapshot) (*sou
 		source.SourceType != snapshot.SourceType {
 		return nil, errSourceFinalFence
 	}
-	var runtime model.PagesProjectSourceRuntime
-	if err := tx.Clauses(clause.Locking{Strength: pagesRowLockStrength}).
-		Where("source_id = ?", source.ID).
-		First(&runtime).Error; err != nil {
+	runtime, err := repository.LockPagesProjectSourceRuntimeBySourceIDTx(tx, source.ID)
+	if err != nil {
 		return nil, sourceFenceRecordError(err)
 	}
-	state.Project = &project
-	state.Source = &source
-	state.Runtime = &runtime
+	state.Project = project
+	state.Source = source
+	state.Runtime = runtime
 	if err := refreshSourceCommitLease(state, snapshot); err != nil {
 		return nil, err
 	}
@@ -675,13 +663,12 @@ func activateSourceDeploymentTx(
 		}
 		nextCheckAt = &next
 	}
-	result := tx.Model(&model.PagesProjectSourceRuntime{}).
-		Where("source_id = ? AND lease_token = ? AND lease_expires_at > ?",
-			state.Runtime.SourceID,
-			state.Runtime.LeaseToken,
-			finishedAt,
-		).
-		Updates(map[string]any{
+	rows, err := repository.UpdatePagesSourceRuntimeByActiveLeaseTx(
+		tx,
+		state.Runtime.SourceID,
+		state.Runtime.LeaseToken,
+		finishedAt,
+		map[string]any{
 			"last_seen_revision":              revision,
 			"last_seen_detail":                detailJSON,
 			"last_applied_revision":           revision,
@@ -693,11 +680,12 @@ func activateSourceDeploymentTx(
 			"next_check_at":                   nextCheckAt,
 			sourceRuntimeColumnLeaseToken:     "",
 			sourceRuntimeColumnLeaseExpiresAt: nil,
-		})
-	if result.Error != nil {
-		return result.Error
+		},
+	)
+	if err != nil {
+		return err
 	}
-	if result.RowsAffected != 1 {
+	if rows != 1 {
 		return errSourceFinalFence
 	}
 	return nil

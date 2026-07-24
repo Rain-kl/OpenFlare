@@ -10,6 +10,8 @@ import (
 	"path"
 	"strings"
 
+	"github.com/Rain-kl/Wavelet/internal/repository"
+
 	"github.com/Rain-kl/Wavelet/internal/model"
 	openrestyrender "github.com/Rain-kl/Wavelet/pkg/render/openresty"
 	"gorm.io/gorm"
@@ -156,7 +158,7 @@ func loadActivePagesProject(ctx context.Context, projectID uint, siteName string
 	if siteName == "" {
 		siteName = "pages"
 	}
-	project, err := model.GetPagesProjectByID(ctx, projectID)
+	project, err := repository.GetPagesProjectByID(ctx, projectID)
 	if err != nil {
 		if errorsIsNotFound(err) {
 			return nil, nil, fmt.Errorf("路由 %s Pages 配置无效: pages 项目不存在", siteName)
@@ -169,7 +171,7 @@ func loadActivePagesProject(ctx context.Context, projectID uint, siteName string
 	if project.ActiveDeploymentID == nil || *project.ActiveDeploymentID == 0 {
 		return nil, nil, fmt.Errorf("路由 %s Pages 配置无效: pages 项目没有激活部署", siteName)
 	}
-	activeDeployment, err := model.GetPagesDeploymentByID(ctx, *project.ActiveDeploymentID)
+	activeDeployment, err := repository.GetPagesDeploymentByID(ctx, *project.ActiveDeploymentID)
 	if err != nil {
 		if errorsIsNotFound(err) {
 			return nil, nil, fmt.Errorf("路由 %s Pages 配置无效: pages 激活部署不存在", siteName)

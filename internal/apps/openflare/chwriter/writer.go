@@ -11,9 +11,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Rain-kl/Wavelet/internal/repository"
+
 	"github.com/Rain-kl/Wavelet/internal/infra/config"
 	"github.com/Rain-kl/Wavelet/internal/infra/persistence/batchwriter"
-	"github.com/Rain-kl/Wavelet/internal/model"
 	analyticsmodel "github.com/Rain-kl/Wavelet/internal/model/analytics"
 	"github.com/Rain-kl/Wavelet/internal/platform/lifecycle"
 	analyticsrepo "github.com/Rain-kl/Wavelet/internal/repository/analytics"
@@ -279,13 +280,13 @@ func withFlushRetries[T any](flush batchwriter.FlushFunc[T]) batchwriter.FlushFu
 }
 
 func wireModelInsertHooks() {
-	model.SetObservabilityInsertHooks(model.ObservabilityInsertHooks{
+	repository.SetObservabilityInsertHooks(repository.ObservabilityInsertHooks{
 		QueueMetricSnapshot:  QueueMetricSnapshot,
 		QueueEdgeHealth:      QueueEdgeHealth,
 		QueueFrpsObservation: QueueFrpsObservation,
 		QueueFrpcObservation: QueueFrpcObservation,
 	})
-	model.SetAccessLogInsertHooks(model.AccessLogInsertHooks{
+	repository.SetAccessLogInsertHooks(repository.AccessLogInsertHooks{
 		QueueNodeAccessLogs: QueueNodeAccessLogs,
 	})
 }

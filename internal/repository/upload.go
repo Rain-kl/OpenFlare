@@ -6,10 +6,13 @@ package repository
 import (
 	"context"
 	"strings"
+	"time"
+
+	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/model"
-	"gorm.io/gorm"
 )
 
 // UploadListFilter filters paginated upload queries.
@@ -20,6 +23,22 @@ type UploadListFilter struct {
 	Extension string
 	Page      int
 	PageSize  int
+}
+
+// UploadStorageObject is a distinct active object path with aggregated metadata for migration.
+type UploadStorageObject struct {
+	FilePath string `gorm:"column:file_path"`
+	FileSize int64  `gorm:"column:file_size"`
+	MimeType string `gorm:"column:mime_type"`
+	Hash     string `gorm:"column:hash"`
+}
+
+// RunInTransaction executes fn inside a database transaction.
+// Prefer domain-specific repository methods when the full operation can live in repository.
+// Upload package multi-step flows (lock + soft-delete + stats) use this boundary so apps
+// do not call db.DB directly.
+func RunInTransaction(ctx context.Context, fn func(tx *gorm.DB) error) error {
+	return db.DB(ctx).Transaction(fn)
 }
 
 // ListUploads returns paginated upload records matching the filter.
@@ -57,6 +76,28 @@ func ListUploads(ctx context.Context, filter UploadListFilter) (int64, []model.U
 func GetActiveUploadByID(ctx context.Context, id uint64) (model.Upload, error) {
 	var upload model.Upload
 	if err := db.DB(ctx).Where("id = ? AND status != ?", id, model.UploadStatusDeleted).First(&upload).Error; err != nil {
+		return model.Upload{}, err
+	}
+	return upload, nil
+}
+
+// GetCacheableUploadByID loads a pending or used upload by ID (for metadata cache DB fallback).
+func GetCacheableUploadByID(ctx context.Context, id uint64) (model.Upload, error) {
+	var upload model.Upload
+	if err := db.DB(ctx).
+		Where("id = ? AND status IN (?, ?)", id, model.UploadStatusPending, model.UploadStatusUsed).
+		First(&upload).Error; err != nil {
+		return model.Upload{}, err
+	}
+	return upload, nil
+}
+
+// GetUploadByIDForUpdateTx loads and row-locks an upload by ID within an existing transaction.
+func GetUploadByIDForUpdateTx(tx *gorm.DB, id uint64) (model.Upload, error) {
+	var upload model.Upload
+	if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+		Where("id = ?", id).
+		First(&upload).Error; err != nil {
 		return model.Upload{}, err
 	}
 	return upload, nil
@@ -126,6 +167,108 @@ func ListUploadsByIDs(ctx context.Context, ids []uint64) ([]model.Upload, error)
 	if err := db.DB(ctx).
 		Where("id IN ? AND status IN (?, ?)", ids, model.UploadStatusPending, model.UploadStatusUsed).
 		Find(&uploads).Error; err != nil {
+		return nil, err
+	}
+	return uploads, nil
+}
+
+// CountActiveUploads returns the number of non-deleted upload records.
+func CountActiveUploads(ctx context.Context) (int64, error) {
+	var count int64
+	err := db.DB(ctx).Model(&model.Upload{}).
+		Where("status != ?", model.UploadStatusDeleted).
+		Count(&count).Error
+	return count, err
+}
+
+// ListPendingUploadsOlderThan returns pending uploads created before olderThan, after lastID, ordered by id.
+func ListPendingUploadsOlderThan(ctx context.Context, lastID uint64, olderThan time.Time, limit int) ([]model.Upload, error) {
+	var uploads []model.Upload
+	err := db.DB(ctx).
+		Where("id > ? AND status = ? AND created_at < ?", lastID, model.UploadStatusPending, olderThan).
+		Order("id ASC").
+		Limit(limit).
+		Find(&uploads).Error
+	return uploads, err
+}
+
+// ListActiveImageUploadsAfterID returns non-deleted image uploads with id greater than lastID.
+func ListActiveImageUploadsAfterID(ctx context.Context, lastID uint64, limit int) ([]model.Upload, error) {
+	var uploads []model.Upload
+	err := db.DB(ctx).
+		Where("id > ? AND status != ? AND (LOWER(mime_type) LIKE ? OR LOWER(extension) IN ?)",
+			lastID,
+			model.UploadStatusDeleted,
+			"image/%",
+			[]string{"jpg", "jpeg", "png", "webp", "gif"},
+		).
+		Order("id ASC").
+		Limit(limit).
+		Find(&uploads).Error
+	return uploads, err
+}
+
+// CountDistinctActiveFilePaths returns the number of distinct non-deleted upload file paths.
+func CountDistinctActiveFilePaths(ctx context.Context) (int64, error) {
+	var count int64
+	err := db.DB(ctx).Model(&model.Upload{}).
+		Where("status != ?", model.UploadStatusDeleted).
+		Distinct("file_path").
+		Count(&count).Error
+	return count, err
+}
+
+// ListDistinctActiveStorageObjects returns a page of distinct active file paths ordered by path.
+// When afterFilePath is non-empty, only paths strictly greater than it are returned.
+func ListDistinctActiveStorageObjects(ctx context.Context, afterFilePath string, limit int) ([]UploadStorageObject, error) {
+	var objects []UploadStorageObject
+	query := db.DB(ctx).Model(&model.Upload{}).
+		Select("file_path, MAX(file_size) AS file_size, MAX(mime_type) AS mime_type, MAX(hash) AS hash").
+		Where("status != ?", model.UploadStatusDeleted)
+	if afterFilePath != "" {
+		query = query.Where("file_path > ?", afterFilePath)
+	}
+	err := query.Group("file_path").
+		Order("file_path ASC").
+		Limit(limit).
+		Scan(&objects).Error
+	return objects, err
+}
+
+// UpdateActiveUploadsFilePath rewrites file_path for all non-deleted uploads matching oldPath.
+func UpdateActiveUploadsFilePath(ctx context.Context, oldPath, newPath string) error {
+	return db.DB(ctx).Model(&model.Upload{}).
+		Where("file_path = ? AND status != ?", oldPath, model.UploadStatusDeleted).
+		Update("file_path", newPath).Error
+}
+
+// MarkActiveUploadsDeletedByFilePath marks all non-deleted uploads with the given path as deleted
+// and returns the rows that transitioned (for stats adjustment).
+func MarkActiveUploadsDeletedByFilePath(ctx context.Context, filePath string) ([]model.Upload, error) {
+	var affected []model.Upload
+	err := db.DB(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.
+			Where("file_path = ? AND status != ?", filePath, model.UploadStatusDeleted).
+			Find(&affected).Error; err != nil {
+			return err
+		}
+		if len(affected) == 0 {
+			return nil
+		}
+		return tx.Model(&model.Upload{}).
+			Where("file_path = ?", filePath).
+			Update("status", model.UploadStatusDeleted).Error
+	})
+	if err != nil {
+		return nil, err
+	}
+	return affected, nil
+}
+
+// ListActiveUploadsTx returns all non-deleted uploads within an existing transaction.
+func ListActiveUploadsTx(tx *gorm.DB) ([]model.Upload, error) {
+	var uploads []model.Upload
+	if err := tx.Where("status != ?", model.UploadStatusDeleted).Find(&uploads).Error; err != nil {
 		return nil, err
 	}
 	return uploads, nil

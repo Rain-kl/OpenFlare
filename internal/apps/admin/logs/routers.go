@@ -16,7 +16,7 @@ import (
 	"github.com/Rain-kl/Wavelet/internal/apps/admin"
 	"github.com/Rain-kl/Wavelet/internal/infra/config"
 	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
-	"github.com/Rain-kl/Wavelet/internal/model"
+	"github.com/Rain-kl/Wavelet/internal/repository"
 	analyticsrepo "github.com/Rain-kl/Wavelet/internal/repository/analytics"
 	"github.com/Rain-kl/Wavelet/pkg/logger"
 	"github.com/gin-gonic/gin"
@@ -163,10 +163,7 @@ func buildAccessLogFilter(ctx context.Context, c *gin.Context) (analyticsrepo.Ac
 
 	username := c.Query("username")
 	if username != "" {
-		var userIDs []uint64
-		err := db.DB(ctx).Model(&model.User{}).
-			Where("username LIKE ?", "%"+username+"%").
-			Pluck("id", &userIDs).Error
+		userIDs, err := repository.ListUserIDsByUsernameContains(ctx, username)
 		if err != nil {
 			return filter, fmt.Errorf("查询用户信息失败: %w", err)
 		}
@@ -215,8 +212,7 @@ func enrichAccessLogsWithUsers(ctx context.Context, list []accessLogItem) {
 	}
 
 	userMap := make(map[uint64]struct{ Username, Nickname string })
-	var users []model.User
-	if err := db.DB(ctx).Where("id IN ?", userIDs).Find(&users).Error; err == nil {
+	if users, err := repository.ListUsersByIDs(ctx, userIDs); err == nil {
 		for _, u := range users {
 			userMap[u.ID] = struct{ Username, Nickname string }{Username: u.Username, Nickname: u.Nickname}
 		}
@@ -402,8 +398,7 @@ func GetLogsAnalytics(c *gin.Context) {
 			Username string
 			Nickname string
 		})
-		var users []model.User
-		if errProfile := db.DB(ctx).Where("id IN ?", userIDs).Find(&users).Error; errProfile == nil {
+		if users, errProfile := repository.ListUsersByIDs(ctx, userIDs); errProfile == nil {
 			for _, u := range users {
 				userProfileMap[u.ID] = struct {
 					Username string

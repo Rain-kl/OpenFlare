@@ -7,11 +7,11 @@ import (
 	"context"
 	"time"
 
+	"github.com/Rain-kl/Wavelet/internal/repository"
+
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/agent"
-	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"go.uber.org/zap"
-	"gorm.io/gorm"
 )
 
 const relayFrpsUnhealthyEventType = "frps_unhealthy"
@@ -35,13 +35,7 @@ func reconcileRelayHealthEvents(ctx context.Context, nodeID string, relayStatus 
 			},
 		})
 	}
-	conn := db.DB(ctx)
-	if conn == nil {
-		return nil
-	}
-	return conn.Transaction(func(tx *gorm.DB) error {
-		return agent.ReconcileScopedNodeHealthEvents(tx, nodeID, events, reportedAt, managedTypes)
-	})
+	return agent.ReconcileScopedNodeHealthEvents(ctx, nodeID, events, reportedAt, managedTypes)
 }
 
 func persistRelayHeartbeatObservability(ctx context.Context, nodeID string, payload HeartbeatPayload, reportedAt time.Time) {
@@ -59,7 +53,7 @@ func persistRelayHeartbeatObservability(ctx context.Context, nodeID string, payl
 		FrpsClientCount: payload.FrpsClientCount,
 		FrpsProxies:     agent.MarshalJSON(payload.FrpsProxies),
 	}
-	if err := model.InsertOpenFlareNodeObservationFrps(ctx, frpsObs); err != nil {
+	if err := repository.InsertOpenFlareNodeObservationFrps(ctx, frpsObs); err != nil {
 		zap.L().Error("persist relay frps observation failed", zap.String("node_id", nodeID), zap.Error(err))
 	}
 }

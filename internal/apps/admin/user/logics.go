@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/Rain-kl/Wavelet/internal/apps/oauth"
-	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/infra/persistence/idgen"
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"github.com/Rain-kl/Wavelet/internal/repository"
@@ -41,7 +40,7 @@ func updateUserStatus(ctx context.Context, id uint64, active bool) error {
 
 	var tokens []model.AccessToken
 	if !active {
-		_ = db.DB(ctx).Where("user_id = ?", id).Find(&tokens).Error
+		tokens, _ = repository.ListAccessTokensByUserID(ctx, id)
 	}
 
 	err = repository.UpdateUserActive(ctx, id, active)
@@ -68,8 +67,7 @@ func deleteUser(ctx context.Context, currentUserID, targetID uint64) error {
 		return errors.New(cannotDelete)
 	}
 
-	var tokens []model.AccessToken
-	_ = db.DB(ctx).Where("user_id = ?", targetID).Find(&tokens).Error
+	tokens, _ := repository.ListAccessTokensByUserID(ctx, targetID)
 
 	err = repository.DeleteUserWithRelations(ctx, targetID)
 	if err == nil {
@@ -181,7 +179,7 @@ func updateUser(ctx context.Context, currentUserID uint64, param updateUserParam
 	needRevokeTokens := (param.Password != "") || (targetUser.IsAdmin && !param.IsAdmin)
 	var tokens []model.AccessToken
 	if needRevokeTokens {
-		_ = db.DB(ctx).Where("user_id = ?", param.ID).Find(&tokens).Error
+		tokens, _ = repository.ListAccessTokensByUserID(ctx, param.ID)
 	}
 
 	// 更新字段

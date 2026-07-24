@@ -1,12 +1,14 @@
 // Copyright 2026 Arctel.net
 // SPDX-License-Identifier: Apache-2.0
 
-package model
+package repository
 
 import (
 	"context"
 	"testing"
 	"time"
+
+	"github.com/Rain-kl/Wavelet/internal/model"
 
 	analyticsmodel "github.com/Rain-kl/Wavelet/internal/model/analytics"
 )
@@ -24,7 +26,7 @@ func TestObservabilityInsertHooksAreInvoked(t *testing.T) {
 		SetObservabilityInsertHooks(ObservabilityInsertHooks{})
 	})
 
-	record := &OpenFlareMetricSnapshot{
+	record := &model.OpenFlareMetricSnapshot{
 		NodeID:     "node-1",
 		CapturedAt: time.Unix(100, 0).UTC(),
 	}
@@ -47,7 +49,7 @@ func TestAccessLogInsertHooksAreInvoked(t *testing.T) {
 		SetAccessLogInsertHooks(AccessLogInsertHooks{})
 	})
 
-	records := []*OpenFlareAccessLog{
+	records := []*model.OpenFlareAccessLog{
 		{NodeID: "n1", Path: "/a"},
 		{NodeID: "n1", Path: "/b"},
 	}
@@ -66,10 +68,10 @@ func TestInsertHooksNoopWhenUnset(t *testing.T) {
 	SetObservabilityInsertHooks(ObservabilityInsertHooks{})
 	SetAccessLogInsertHooks(AccessLogInsertHooks{})
 
-	if err := (clickhouseObservabilityStore{}).InsertMetricSnapshot(context.Background(), &OpenFlareMetricSnapshot{NodeID: "x"}); err != nil {
+	if err := (clickhouseObservabilityStore{}).InsertMetricSnapshot(context.Background(), &model.OpenFlareMetricSnapshot{NodeID: "x"}); err != nil {
 		t.Fatalf("InsertMetricSnapshot with nil hook error = %v", err)
 	}
-	if err := (clickhouseAccessLogStore{}).InsertBatch(context.Background(), []*OpenFlareAccessLog{{NodeID: "x"}}); err != nil {
+	if err := (clickhouseAccessLogStore{}).InsertBatch(context.Background(), []*model.OpenFlareAccessLog{{NodeID: "x"}}); err != nil {
 		t.Fatalf("InsertBatch with nil hook error = %v", err)
 	}
 }

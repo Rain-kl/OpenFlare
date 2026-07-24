@@ -10,8 +10,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Rain-kl/Wavelet/internal/repository"
+
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/agent"
-	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"gorm.io/gorm"
 )
@@ -74,7 +75,7 @@ func Heartbeat(ctx context.Context, node *model.OpenFlareNode, payload Heartbeat
 	node.LastSeenAt = &lastSeen
 	node.Status = nodeStatusOnline
 
-	if err := db.DB(ctx).Model(node).Updates(changes).Error; err != nil {
+	if err := repository.UpdateOpenFlareNodeColumns(ctx, node, changes); err != nil {
 		return nil, fmt.Errorf("update flared heartbeat: %w", err)
 	}
 	agent.RefreshAccessTokenCache(ctx, node)
@@ -102,7 +103,7 @@ func GetTunnelConfig(ctx context.Context, node *model.OpenFlareNode) (*TunnelCon
 		return nil, fmt.Errorf("no active config version: %w", err)
 	}
 
-	routes, err := model.ListProxyRoutes(ctx)
+	routes, err := repository.ListProxyRoutes(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("get proxy routes: %w", err)
 	}
@@ -133,7 +134,7 @@ func GetTunnelConfig(ctx context.Context, node *model.OpenFlareNode) (*TunnelCon
 		if !route.Enabled {
 			continue
 		}
-		zoneDomains, domainErr := model.ListZoneDomainsByRouteID(ctx, route.ID)
+		zoneDomains, domainErr := repository.ListZoneDomainsByRouteID(ctx, route.ID)
 		if domainErr != nil || len(zoneDomains) == 0 {
 			continue
 		}
@@ -177,12 +178,12 @@ func ReportApplyLog(ctx context.Context, payload ApplyLogPayload) (*model.OpenFl
 		return nil, errors.New("result 仅支持 success、warning 或 failed")
 	}
 
-	latest, err := model.GetLatestOpenFlareApplyLogByNodeID(ctx, payload.NodeID)
+	latest, err := repository.GetLatestOpenFlareApplyLogByNodeID(ctx, payload.NodeID)
 	if err != nil {
 		return nil, err
 	}
 	if model.IsRepeatSuccessApplyLog(latest, payload.Version, payload.Checksum, payload.Result) {
-		if err := updateFlaredNodeFromApplyLog(ctx, payload, now); err != nil {
+		if err := repository.UpdateOpenFlareNodeFromApplyResult(ctx, payload.NodeID, payload.Result, payload.Version, payload.Message, now); err != nil {
 			return nil, err
 		}
 		return latest, nil
@@ -200,43 +201,10 @@ func ReportApplyLog(ctx context.Context, payload ApplyLogPayload) (*model.OpenFl
 		CreatedAt:           now,
 	}
 
-	err = db.DB(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := tx.Create(log).Error; err != nil {
-			return err
-		}
-		return updateFlaredNodeFromApplyLogTx(tx, payload, now)
-	})
-	if err != nil {
+	if err := repository.CreateOpenFlareApplyLogAndUpdateNode(ctx, log, payload.Result, payload.Version, payload.Message); err != nil {
 		return nil, err
 	}
 	return log, nil
-}
-
-func updateFlaredNodeFromApplyLog(ctx context.Context, payload ApplyLogPayload, now time.Time) error {
-	conn := db.DB(ctx)
-	if conn == nil {
-		return errors.New("database not initialized")
-	}
-	return conn.Transaction(func(tx *gorm.DB) error {
-		return updateFlaredNodeFromApplyLogTx(tx, payload, now)
-	})
-}
-
-func updateFlaredNodeFromApplyLogTx(tx *gorm.DB, payload ApplyLogPayload, now time.Time) error {
-	var node model.OpenFlareNode
-	if err := tx.Where("node_id = ?", payload.NodeID).First(&node).Error; err != nil {
-		return err
-	}
-	node.Status = nodeStatusOnline
-	lastSeen := now
-	node.LastSeenAt = &lastSeen
-	if payload.Result == applyResultOK {
-		node.CurrentVersion = payload.Version
-		node.LastError = ""
-	} else {
-		node.LastError = payload.Message
-	}
-	return tx.Model(&node).Select("status", "last_seen_at", "current_version", "last_error").Updates(&node).Error
 }
 
 func normalizeApplyLogPayload(payload ApplyLogPayload) ApplyLogPayload {

@@ -10,6 +10,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Rain-kl/Wavelet/internal/repository"
+
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/chwriter"
 	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/model"
@@ -27,7 +29,7 @@ func TestLiveAppWritePath(t *testing.T) {
 
 	now := time.Now().UTC()
 	nodeID := "e2e-app-write-" + now.Format("150405")
-	if err := model.InsertOpenFlareMetricSnapshot(ctx, &model.OpenFlareMetricSnapshot{
+	if err := repository.InsertOpenFlareMetricSnapshot(ctx, &model.OpenFlareMetricSnapshot{
 		NodeID:            nodeID,
 		CapturedAt:        now,
 		CPUUsagePercent:   33.3,
@@ -46,7 +48,7 @@ func TestLiveAppWritePath(t *testing.T) {
 	deadline := time.Now().Add(45 * time.Second)
 	var found bool
 	for time.Now().Before(deadline) {
-		rows, err := model.ListOpenFlareMetricSnapshotsSince(ctx, nodeID, now.Add(-time.Minute), 10)
+		rows, err := repository.ListOpenFlareMetricSnapshotsSince(ctx, nodeID, now.Add(-time.Minute), 10)
 		if err != nil {
 			t.Fatalf("ListOpenFlareMetricSnapshotsSince: %v", err)
 		}
@@ -61,7 +63,7 @@ func TestLiveAppWritePath(t *testing.T) {
 		t.Fatal("metric snapshot not visible in ClickHouse after flush wait")
 	}
 
-	latest, err := model.ListOpenFlareLatestMetricSnapshotsSince(ctx, "", now.Add(-time.Hour))
+	latest, err := repository.ListOpenFlareLatestMetricSnapshotsSince(ctx, "", now.Add(-time.Hour))
 	if err != nil {
 		t.Fatalf("ListOpenFlareLatestMetricSnapshotsSince: %v", err)
 	}

@@ -16,6 +16,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Rain-kl/Wavelet/internal/repository"
+
 	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/integration/githubrelease"
 	"github.com/Rain-kl/Wavelet/internal/model"
@@ -241,7 +243,7 @@ func TestScheduledAutoSyncPersistsExplicitDeploymentTrigger(t *testing.T) {
 	if err != nil || synced == nil || synced.Deployment == nil || synced.Stale {
 		t.Fatalf("syncGitHubSourceWithTrigger() = %+v, %v; want active deployment", synced, err)
 	}
-	deployment, err := model.GetPagesDeploymentByID(ctx, synced.Deployment.ID)
+	deployment, err := repository.GetPagesDeploymentByID(ctx, synced.Deployment.ID)
 	if err != nil {
 		t.Fatalf("GetPagesDeploymentByID(%d) error = %v", synced.Deployment.ID, err)
 	}

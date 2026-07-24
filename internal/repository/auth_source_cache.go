@@ -178,7 +178,7 @@ func GetActiveAuthSourcesCached(ctx context.Context) ([]model.AuthSource, error)
 		}
 	}
 
-	sources, err := model.GetActiveAuthSources(ctx)
+	sources, err := GetActiveAuthSources(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -192,7 +192,7 @@ func GetAuthSourceByNameCached(ctx context.Context, name string) (*model.AuthSou
 
 	normalized := normalizeAuthSourceName(name)
 	if normalized == "" {
-		return model.GetAuthSourceByName(ctx, name)
+		return GetAuthSourceByName(ctx, name)
 	}
 
 	if source, ok := authSourceByNameRAM.GetIfPresent(normalized); ok {
@@ -210,7 +210,7 @@ func GetAuthSourceByNameCached(ctx context.Context, name string) (*model.AuthSou
 		}
 	}
 
-	source, err := model.GetAuthSourceByName(ctx, name)
+	source, err := GetAuthSourceByName(ctx, name)
 	if err != nil {
 		return nil, err
 	}

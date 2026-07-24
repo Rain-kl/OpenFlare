@@ -7,6 +7,8 @@ import (
 	"context"
 	"testing"
 
+	"github.com/Rain-kl/Wavelet/internal/repository"
+
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/agent"
 	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/model"
@@ -62,7 +64,7 @@ func TestHeartbeatFlaredEmitsHealthEventOnUnhealthy(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	events, err := model.ListOpenFlareHealthEvents(ctx, node.NodeID, false, 20)
+	events, err := repository.ListOpenFlareHealthEvents(ctx, node.NodeID, false, 20)
 	require.NoError(t, err)
 	require.Len(t, events, 1)
 	assert.Equal(t, flaredRuntimeUnhealthyEventType, events[0].EventType)

@@ -162,7 +162,7 @@ type configBundle struct {
 }
 
 func buildCurrentConfigBundle(ctx context.Context, requireRoutes bool) (*configBundle, error) {
-	routes, err := model.ListEnabledProxyRoutes(ctx)
+	routes, err := repository.ListEnabledProxyRoutes(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -224,7 +224,7 @@ func buildCurrentConfigBundle(ctx context.Context, requireRoutes bool) (*configB
 func buildSnapshotRoutes(ctx context.Context, routes []*model.ProxyRoute) ([]snapshotRoute, error) {
 	items := make([]snapshotRoute, 0, len(routes))
 	for _, route := range routes {
-		zoneDomains, err := model.ListZoneDomainsByRouteID(ctx, route.ID)
+		zoneDomains, err := repository.ListZoneDomainsByRouteID(ctx, route.ID)
 		if err != nil {
 			return nil, err
 		}
@@ -310,7 +310,7 @@ func buildSnapshotWAFDocument(ctx context.Context, routes []*model.ProxyRoute) (
 	if err := waf.EnsureDefaultRuleGroup(ctx); err != nil {
 		return snapshotWAFDocument{}, err
 	}
-	groups, err := model.ListOpenFlareWAFRuleGroups(ctx)
+	groups, err := repository.ListOpenFlareWAFRuleGroups(ctx)
 	if err != nil {
 		return snapshotWAFDocument{}, err
 	}
@@ -349,7 +349,7 @@ func buildSnapshotWAFDocument(ctx context.Context, routes []*model.ProxyRoute) (
 		if route == nil {
 			continue
 		}
-		domains, domainErr := model.ListZoneDomainsByRouteID(ctx, route.ID)
+		domains, domainErr := repository.ListZoneDomainsByRouteID(ctx, route.ID)
 		if domainErr != nil {
 			return snapshotWAFDocument{}, domainErr
 		}
@@ -358,7 +358,7 @@ func buildSnapshotWAFDocument(ctx context.Context, routes []*model.ProxyRoute) (
 		}
 		enabledRouteSiteNames[route.ID] = route.SiteName
 	}
-	rawBindings, err := model.ListOpenFlareWAFRuleGroupBindings(ctx)
+	rawBindings, err := repository.ListOpenFlareWAFRuleGroupBindings(ctx)
 	if err != nil {
 		return snapshotWAFDocument{}, err
 	}
@@ -456,7 +456,7 @@ func buildSnapshotWAFIPGroups(ctx context.Context, idSet map[uint]struct{}) ([]s
 }
 
 func snapshotWAFIPGroupExists(ctx context.Context, id uint) (bool, error) {
-	group, err := model.GetOpenFlareWAFIPGroupByID(ctx, id)
+	group, err := repository.GetOpenFlareWAFIPGroupByID(ctx, id)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return false, nil
 	}
@@ -593,7 +593,7 @@ func buildCertificateSupportFiles(ctx context.Context, routes []snapshotRoute) (
 	sort.Slice(certIDs, func(i, j int) bool { return certIDs[i] < certIDs[j] })
 	files := make([]SupportFile, 0, len(certIDs)*supportFilesPerCertificate)
 	for _, certID := range certIDs {
-		certificate, err := model.GetTLSCertificateByID(ctx, certID)
+		certificate, err := repository.GetTLSCertificateByID(ctx, certID)
 		if err != nil {
 			return nil, err
 		}

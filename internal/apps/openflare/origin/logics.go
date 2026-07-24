@@ -11,8 +11,8 @@ import (
 	"sort"
 	"strings"
 
-	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/model"
+	"github.com/Rain-kl/Wavelet/internal/repository"
 	"gorm.io/gorm"
 )
 
@@ -51,7 +51,7 @@ type DetailView struct {
 
 // ListOrigins 列出全部源站。
 func ListOrigins(ctx context.Context) ([]View, error) {
-	origins, err := model.ListOrigins(ctx)
+	origins, err := repository.ListOrigins(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -60,7 +60,7 @@ func ListOrigins(ctx context.Context) ([]View, error) {
 
 // GetOriginDetail 获取源站详情。
 func GetOriginDetail(ctx context.Context, id uint) (*DetailView, error) {
-	origin, err := model.GetOriginByID(ctx, id)
+	origin, err := repository.GetOriginByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -68,13 +68,13 @@ func GetOriginDetail(ctx context.Context, id uint) (*DetailView, error) {
 	if err != nil {
 		return nil, err
 	}
-	routes, err := model.ListProxyRoutesByOriginID(ctx, id)
+	routes, err := repository.ListProxyRoutesByOriginID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
 	items := make([]RouteSummary, 0, len(routes))
 	for _, route := range routes {
-		domains, err := model.ListZoneDomainsByRouteID(ctx, route.ID)
+		domains, err := repository.ListZoneDomainsByRouteID(ctx, route.ID)
 		if err != nil {
 			return nil, err
 		}
@@ -105,7 +105,7 @@ func CreateOrigin(ctx context.Context, input Input) (*model.Origin, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err = model.CreateOriginRecord(ctx, origin); err != nil {
+	if err = repository.CreateOriginRecord(ctx, origin); err != nil {
 		if isUniqueConstraintError(err) {
 			return nil, errors.New(errOriginAddressExists)
 		}
@@ -116,7 +116,7 @@ func CreateOrigin(ctx context.Context, input Input) (*model.Origin, error) {
 
 // UpdateOrigin 更新源站。
 func UpdateOrigin(ctx context.Context, id uint, input Input) (*model.Origin, error) {
-	origin, err := model.GetOriginByID(ctx, id)
+	origin, err := repository.GetOriginByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -125,8 +125,8 @@ func UpdateOrigin(ctx context.Context, id uint, input Input) (*model.Origin, err
 	if err != nil {
 		return nil, err
 	}
-	err = db.DB(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := tx.Save(nextOrigin).Error; err != nil {
+	err = repository.WithOriginTx(ctx, func(tx *gorm.DB) error {
+		if err := repository.SaveOriginTx(tx, nextOrigin); err != nil {
 			if isUniqueConstraintError(err) {
 				return errors.New(errOriginAddressExists)
 			}
@@ -145,17 +145,17 @@ func UpdateOrigin(ctx context.Context, id uint, input Input) (*model.Origin, err
 
 // DeleteOrigin 删除源站。
 func DeleteOrigin(ctx context.Context, id uint) error {
-	count, err := model.CountProxyRoutesByOriginID(ctx, id)
+	count, err := repository.CountProxyRoutesByOriginID(ctx, id)
 	if err != nil {
 		return err
 	}
 	if count > 0 {
 		return errors.New(errOriginDeleteReferenced)
 	}
-	if _, err = model.GetOriginByID(ctx, id); err != nil {
+	if _, err = repository.GetOriginByID(ctx, id); err != nil {
 		return err
 	}
-	return model.DeleteOriginRecord(ctx, id)
+	return repository.DeleteOriginRecord(ctx, id)
 }
 
 func buildOrigin(existing *model.Origin, input Input) (*model.Origin, error) {
@@ -173,7 +173,7 @@ func buildOrigin(existing *model.Origin, input Input) (*model.Origin, error) {
 }
 
 func buildOriginViews(ctx context.Context, origins []model.Origin) ([]View, error) {
-	countRows, err := model.ListOriginRouteCounts(ctx)
+	countRows, err := repository.ListOriginRouteCounts(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -197,11 +197,11 @@ func buildOriginViews(ctx context.Context, origins []model.Origin) ([]View, erro
 }
 
 func updateRoutesForOriginAddress(ctx context.Context, tx *gorm.DB, originID uint, address string) error {
-	if !model.HasProxyRoutesTable(ctx) {
+	if !repository.HasProxyRoutesTable(ctx) {
 		return nil
 	}
-	var routes []model.OriginProxyRoute
-	if err := tx.Where("origin_id = ?", originID).Order("id asc").Find(&routes).Error; err != nil {
+	routes, err := repository.ListProxyRoutesByOriginIDAscTx(tx, originID)
+	if err != nil {
 		return fmt.Errorf("query routes for origin update failed: %w", err)
 	}
 	for _, route := range routes {
@@ -224,12 +224,7 @@ func updateRoutesForOriginAddress(ctx context.Context, tx *gorm.DB, originID uin
 		if err != nil {
 			return fmt.Errorf("encode route %d upstreams failed: %w", route.ID, err)
 		}
-		if err := tx.Model(&model.OriginProxyRoute{}).
-			Where("id = ?", route.ID).
-			Updates(map[string]any{
-				"origin_url": rewrittenOriginURL,
-				"upstreams":  string(upstreamsJSON),
-			}).Error; err != nil {
+		if err := repository.UpdateProxyRouteOriginAddressTx(tx, route.ID, rewrittenOriginURL, string(upstreamsJSON)); err != nil {
 			return fmt.Errorf("update route %d origin address failed: %w", route.ID, err)
 		}
 	}

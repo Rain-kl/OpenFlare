@@ -217,9 +217,9 @@ func TestSyncToUptimeKumaSuccess(t *testing.T) {
 		EnableHTTPS: false,
 	}
 
-	require.NoError(t, model.CreateProxyRouteRecord(ctx, routeA))
-	require.NoError(t, model.CreateProxyRouteRecord(ctx, routeB))
-	require.NoError(t, model.CreateProxyRouteRecord(ctx, routeC))
+	require.NoError(t, repository.CreateProxyRouteRecord(ctx, routeA))
+	require.NoError(t, repository.CreateProxyRouteRecord(ctx, routeB))
+	require.NoError(t, repository.CreateProxyRouteRecord(ctx, routeC))
 	createRouteZoneDomain(t, ctx, routeA, "site-a.com")
 	createRouteZoneDomain(t, ctx, routeB, "site-b.com")
 	createRouteZoneDomain(t, ctx, routeC, "site-c.com")
@@ -320,8 +320,8 @@ func TestSyncToUptimeKumaSelectedScope(t *testing.T) {
 		EnableHTTPS: false,
 	}
 
-	require.NoError(t, model.CreateProxyRouteRecord(ctx, routeA))
-	require.NoError(t, model.CreateProxyRouteRecord(ctx, routeB))
+	require.NoError(t, repository.CreateProxyRouteRecord(ctx, routeA))
+	require.NoError(t, repository.CreateProxyRouteRecord(ctx, routeB))
 	createRouteZoneDomain(t, ctx, routeA, "site-a.com")
 	createRouteZoneDomain(t, ctx, routeB, "site-b.com")
 

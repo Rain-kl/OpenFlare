@@ -11,11 +11,10 @@ import (
 	"fmt"
 	"time"
 
-	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/infra/task"
 	"github.com/Rain-kl/Wavelet/internal/model"
+	"github.com/Rain-kl/Wavelet/internal/repository"
 	"github.com/Rain-kl/Wavelet/pkg/logger"
-	"gorm.io/gorm"
 )
 
 const (
@@ -63,20 +62,6 @@ type pagesSourceProviderBackoff struct {
 	SourceID   uint   `json:"source_id"`
 	StatusCode int    `json:"status_code"`
 	RetryAt    string `json:"retry_at"`
-}
-
-type expiredSourceLeaseCandidate struct {
-	SourceID        uint
-	LeaseToken      string
-	LeaseExpiresAt  time.Time
-	SyncStatus      string
-	SourceType      string
-	ReleaseSelector string
-}
-
-type dueGitHubSourceCandidate struct {
-	SourceID      uint
-	ConfigVersion int
 }
 
 var (
@@ -173,17 +158,11 @@ func recoverExpiredPagesSourceLeases(
 	now time.Time,
 	summary *pagesSourceScanSummary,
 ) error {
-	var candidates []expiredSourceLeaseCandidate
-	err := db.DB(ctx).
-		Table("of_pages_project_source_runtime AS runtime").
-		Select(`runtime.source_id, runtime.lease_token, runtime.lease_expires_at,
-			runtime.sync_status, source.source_type, source.release_selector`).
-		Joins("JOIN of_pages_project_sources AS source ON source.id = runtime.source_id").
-		Where("runtime.lease_token <> ''").
-		Where("runtime.lease_expires_at IS NOT NULL AND runtime.lease_expires_at <= ?", now).
-		Where("runtime.sync_status IN ?", []string{pagesSourceStatusChecking, pagesSourceStatusSyncing}).
-		Order("runtime.source_id ASC").
-		Scan(&candidates).Error
+	candidates, err := repository.ListExpiredPagesSourceLeaseCandidates(
+		ctx,
+		now,
+		[]string{pagesSourceStatusChecking, pagesSourceStatusSyncing},
+	)
 	if err != nil {
 		return err
 	}
@@ -227,27 +206,18 @@ func scanDueGitHubSources(
 	now time.Time,
 	summary *pagesSourceScanSummary,
 ) error {
-	dueQuery := func() *gorm.DB {
-		return db.DB(ctx).
-			Table("of_pages_project_source_runtime AS runtime").
-			Joins("JOIN of_pages_project_sources AS source ON source.id = runtime.source_id").
-			Where("source.source_type = ?", PagesSourceTypeGitHubRelease).
-			Where("source.release_selector = ?", githubReleaseSelectorLatest).
-			Where("runtime.next_check_at IS NOT NULL AND runtime.next_check_at <= ?", now)
-	}
-	var dueCount int64
-	if err := dueQuery().Count(&dueCount).Error; err != nil {
+	dueCount, err := repository.CountDueGitHubPagesSourceChecks(
+		ctx, now, PagesSourceTypeGitHubRelease, githubReleaseSelectorLatest,
+	)
+	if err != nil {
 		return err
 	}
 	summary.DueSources = int(dueCount)
 
-	var candidates []dueGitHubSourceCandidate
-	if err := dueQuery().
-		Select("source.id AS source_id, source.config_version").
-		Order("runtime.next_check_at ASC").
-		Order("source.id ASC").
-		Limit(pagesSourceScanBatchSize).
-		Scan(&candidates).Error; err != nil {
+	candidates, err := repository.ListDueGitHubPagesSourceChecks(
+		ctx, now, PagesSourceTypeGitHubRelease, githubReleaseSelectorLatest, pagesSourceScanBatchSize,
+	)
+	if err != nil {
 		return err
 	}
 	summary.SelectedSources = len(candidates)
@@ -261,8 +231,10 @@ func scanDueGitHubSources(
 	for _, candidate := range candidates {
 		scanOneDueGitHubSource(ctx, candidate, summary)
 	}
-	var remainingDue int64
-	if err := dueQuery().Count(&remainingDue).Error; err != nil {
+	remainingDue, err := repository.CountDueGitHubPagesSourceChecks(
+		ctx, now, PagesSourceTypeGitHubRelease, githubReleaseSelectorLatest,
+	)
+	if err != nil {
 		return err
 	}
 	summary.Backlog = int(remainingDue)
@@ -272,7 +244,7 @@ func scanDueGitHubSources(
 
 func scanOneDueGitHubSource(
 	ctx context.Context,
-	candidate dueGitHubSourceCandidate,
+	candidate model.PagesDueGitHubSourceCandidate,
 	summary *pagesSourceScanSummary,
 ) {
 	snapshot, outcome, err := acquireSourceLease(
@@ -343,11 +315,8 @@ func recordPagesSourceProviderBackoff(
 	}
 
 	retryAt := domainError.retryAt
-	var runtime model.PagesProjectSourceRuntime
-	if err := db.DB(ctx).
-		Select("next_check_at").
-		Where("source_id = ?", sourceID).
-		First(&runtime).Error; err != nil {
+	runtime, err := repository.GetPagesProjectSourceRuntimeBySourceID(ctx, sourceID)
+	if err != nil {
 		logger.WarnF(ctx, "[PagesSourceScan] load provider backoff deadline failed: source_id=%d error=%v", sourceID, err)
 	} else if runtime.NextCheckAt != nil {
 		retryAt = runtime.NextCheckAt
@@ -448,29 +417,23 @@ func recordPagesSourceAutoDispatchFailure(
 	if retryAt != nil && retryAt.After(next) {
 		next = retryAt.In(now.Location())
 	}
-	result := db.DB(ctx).Model(&model.PagesProjectSourceRuntime{}).
-		Where("source_id = ?", snapshot.SourceID).
-		Where("sync_status = ? AND last_seen_revision = ?", pagesSourceStatusUpdateAvailable, revision).
-		Where("lease_expires_at IS NULL OR lease_expires_at <= ?", now).
-		Where(`EXISTS (
-			SELECT 1 FROM of_pages_project_sources AS source
-			WHERE source.id = ? AND source.config_version = ?
-				AND source.source_type = ? AND source.release_selector = ?
-				AND source.auto_update_enabled = ?
-		)`,
-			snapshot.SourceID,
-			snapshot.SourceConfigVersion,
-			PagesSourceTypeGitHubRelease,
-			githubReleaseSelectorLatest,
-			true,
-		).
-		Updates(map[string]any{
+	rows, err := repository.RecordPagesSourceAutoDispatchFailure(
+		ctx,
+		snapshot.SourceID,
+		snapshot.SourceConfigVersion,
+		PagesSourceTypeGitHubRelease,
+		githubReleaseSelectorLatest,
+		revision,
+		pagesSourceStatusUpdateAvailable,
+		now,
+		map[string]any{
 			sourceRuntimeColumnSyncStatus:  pagesSourceStatusUpdateAvailable,
 			sourceRuntimeColumnLastError:   errPagesSourceTaskDispatchFailed,
 			sourceRuntimeColumnNextCheckAt: &next,
-		})
-	if result.Error != nil {
-		return false, result.Error
+		},
+	)
+	if err != nil {
+		return false, err
 	}
-	return result.RowsAffected == 1, nil
+	return rows == 1, nil
 }

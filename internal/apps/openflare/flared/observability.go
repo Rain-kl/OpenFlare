@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/agent"
-	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"go.uber.org/zap"
 )
 
@@ -40,11 +39,7 @@ func persistFlaredObservability(ctx context.Context, nodeID string, payload Hear
 			},
 		})
 	}
-	conn := db.DB(ctx)
-	if conn == nil {
-		return
-	}
-	if err := agent.ReconcileScopedNodeHealthEvents(conn, nodeID, events, reportedAt, managedTypes); err != nil {
+	if err := agent.ReconcileScopedNodeHealthEvents(ctx, nodeID, events, reportedAt, managedTypes); err != nil {
 		zap.L().Error("persist flared health events failed", zap.String("node_id", nodeID), zap.Error(err))
 	}
 }

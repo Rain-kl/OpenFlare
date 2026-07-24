@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/model"
+	"github.com/Rain-kl/Wavelet/internal/repository"
 	"gorm.io/gorm"
 )
 
@@ -80,13 +80,12 @@ func GetStats(ctx context.Context, id uint, rangeRaw string) (*Stats, error) {
 		return nil, err
 	}
 
-	var zone model.Zone
-	if err := db.DB(ctx).First(&zone, id).Error; err != nil {
+	if _, err := repository.GetZoneByID(ctx, id); err != nil {
 		return nil, err
 	}
 
-	var domains []model.ZoneDomain
-	if err := db.DB(ctx).Where("zone_id = ?", id).Order("domain asc").Find(&domains).Error; err != nil {
+	domains, err := repository.ListZoneDomainsByZoneID(ctx, id)
+	if err != nil {
 		return nil, err
 	}
 
@@ -120,7 +119,7 @@ func GetStats(ctx context.Context, id uint, rangeRaw string) (*Stats, error) {
 		return result, nil
 	}
 
-	requestCount, uniqueVisitors, totalBytesSent, err := model.CountOpenFlareAccessLogs(ctx, model.OpenFlareAccessLogQuery{
+	requestCount, uniqueVisitors, totalBytesSent, err := repository.CountOpenFlareAccessLogs(ctx, model.OpenFlareAccessLogQuery{
 		Hosts: hosts,
 		Since: since,
 		Until: now,
@@ -136,7 +135,7 @@ func GetStats(ctx context.Context, id uint, rangeRaw string) (*Stats, error) {
 	result.UniqueVisitors = uniqueVisitors
 	result.BytesSent = totalBytesSent
 
-	buckets, err := model.ListOpenFlareAccessLogBuckets(ctx, model.OpenFlareAccessLogBucketQuery{
+	buckets, err := repository.ListOpenFlareAccessLogBuckets(ctx, model.OpenFlareAccessLogBucketQuery{
 		Hosts:       hosts,
 		Since:       since,
 		Until:       now,

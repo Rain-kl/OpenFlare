@@ -4,10 +4,7 @@
 package model
 
 import (
-	"context"
 	"time"
-
-	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 )
 
 // ProxyRoute OpenFlare 代理规则实体。
@@ -46,62 +43,4 @@ type ProxyRoute struct {
 // TableName 表名。
 func (ProxyRoute) TableName() string {
 	return tableOfProxyRoutes
-}
-
-// ListProxyRoutes 列出全部代理规则。
-func ListProxyRoutes(ctx context.Context) ([]*ProxyRoute, error) {
-	var routes []*ProxyRoute
-	if err := db.DB(ctx).Order("id desc").Find(&routes).Error; err != nil {
-		return nil, err
-	}
-	return routes, nil
-}
-
-// GetProxyRouteByID 按 ID 查询代理规则。
-func GetProxyRouteByID(ctx context.Context, id uint) (*ProxyRoute, error) {
-	var route ProxyRoute
-	if err := db.DB(ctx).First(&route, id).Error; err != nil {
-		return nil, err
-	}
-	return &route, nil
-}
-
-// CreateProxyRouteRecord 创建代理规则。
-func CreateProxyRouteRecord(ctx context.Context, route *ProxyRoute) error {
-	return db.DB(ctx).Create(route).Error
-}
-
-// UpdateProxyRouteRecord 更新代理规则。
-func UpdateProxyRouteRecord(ctx context.Context, route *ProxyRoute) error {
-	return db.DB(ctx).Model(&ProxyRoute{}).Where("id = ?", route.ID).Updates(map[string]any{
-		"site_name":              route.SiteName,
-		"origin_id":              route.OriginID,
-		"origin_url":             route.OriginURL,
-		"origin_host":            route.OriginHost,
-		"upstreams":              route.Upstreams,
-		colEnabled:               route.Enabled,
-		"enable_https":           route.EnableHTTPS,
-		"redirect_http":          route.RedirectHTTP,
-		"limit_conn_per_server":  route.LimitConnPerServer,
-		"limit_conn_per_ip":      route.LimitConnPerIP,
-		"limit_rate":             route.LimitRate,
-		"limit_req_per_ip":       route.LimitReqPerIP,
-		"cache_enabled":          route.CacheEnabled,
-		"cache_policy":           route.CachePolicy,
-		"cache_rules":            route.CacheRules,
-		"custom_headers":         route.CustomHeaders,
-		"basic_auth_enabled":     route.BasicAuthEnabled,
-		"basic_auth_username":    route.BasicAuthUsername,
-		"basic_auth_password":    route.BasicAuthPassword,
-		"upstream_type":          route.UpstreamType,
-		"tunnel_node_id":         route.TunnelNodeID,
-		"tunnel_target_addr":     route.TunnelTargetAddr,
-		"tunnel_target_protocol": route.TunnelTargetProtocol,
-		"pages_project_id":       route.PagesProjectID,
-	}).Error
-}
-
-// DeleteProxyRouteRecord 删除代理规则。
-func DeleteProxyRouteRecord(ctx context.Context, id uint) error {
-	return db.DB(ctx).Delete(&ProxyRoute{}, id).Error
 }

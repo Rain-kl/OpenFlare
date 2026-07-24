@@ -8,6 +8,8 @@ import (
 	"encoding/json"
 	"testing"
 
+	"github.com/Rain-kl/Wavelet/internal/repository"
+
 	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/model"
 	openrestyrender "github.com/Rain-kl/Wavelet/pkg/render/openresty"
@@ -52,7 +54,7 @@ func TestBuildSnapshotRoutesPages(t *testing.T) {
 		UpstreamType:   "pages",
 		PagesProjectID: &project.ID,
 	}
-	require.NoError(t, model.CreateProxyRouteRecord(ctx, route))
+	require.NoError(t, repository.CreateProxyRouteRecord(ctx, route))
 	createSnapshotZoneDomains(t, ctx, route, "speedtest.arctel.net")
 
 	bundle, err := buildCurrentConfigBundle(ctx, true)

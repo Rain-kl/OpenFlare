@@ -19,7 +19,8 @@ description: "Wavelet 项目专用：新增或修改 Asynq 异步任务、后台
 - `internal/infra/task/worker/worker.go`：Worker 路由和队列
 - `internal/infra/task/scheduler/scheduler.go`：定时调度
 - `internal/apps/admin/task/routers.go`：Admin 任务 API
-- `internal/model/task_execution.go`：执行记录和日志持久化
+- `internal/model/task_execution.go`：执行记录实体与 DTO
+- `internal/repository/task_execution.go`：执行记录和日志持久化
 
 需要模板时阅读 [references/CODE-EXAMPLES.md](references/CODE-EXAMPLES.md)。
 
@@ -42,7 +43,7 @@ description: "Wavelet 项目专用：新增或修改 Asynq 异步任务、后台
 - 成功返回 `&task.TaskResult{Message: ..., Detail: ...}`。
 - 失败返回 error，由任务框架处理状态和重试。
 - 不要吞掉关键错误。
-- 复杂 SQL 放到 `internal/model/` 或模块内的业务服务层（如 `internal/apps/<module>/service.go` 或 `logics.go`）。
+- 持久化只通过 `internal/repository/`（唯一入口）；业务编排放模块内 `logics.go` / `service.go`。`internal/model` 仅实体/DTO，禁止 CRUD 与 DB 访问。
 
 ### 注册
 

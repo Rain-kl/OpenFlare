@@ -9,6 +9,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Rain-kl/Wavelet/internal/repository"
+
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/waf"
 	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/model"
@@ -51,7 +53,7 @@ func TestWAFGraphSnapshotPreservesOrderAndGraphReferences(t *testing.T) {
 	ctx := context.Background()
 
 	route := &model.ProxyRoute{SiteName: "ordered.example.com", OriginURL: "http://origin:8080", Upstreams: `["http://origin:8080"]`, Enabled: true}
-	require.NoError(t, model.CreateProxyRouteRecord(ctx, route))
+	require.NoError(t, repository.CreateProxyRouteRecord(ctx, route))
 	createSnapshotZoneDomains(t, ctx, route, route.SiteName)
 
 	referenced := &model.OpenFlareWAFIPGroup{Name: "referenced", Type: "manual", Enabled: true, IPList: `["192.0.2.1"]`}
@@ -61,7 +63,7 @@ func TestWAFGraphSnapshotPreservesOrderAndGraphReferences(t *testing.T) {
 
 	customA := createSnapshotRule(t, ctx, "custom-a", waf.DefaultRuleGraph())
 	customB := createSnapshotRule(t, ctx, "custom-b", snapshotIPMatchGraph(referenced.ID))
-	require.NoError(t, model.ReplaceOpenFlareWAFSiteRuleGroupBindings(ctx, route.ID, []uint{customB.ID, customA.ID}))
+	require.NoError(t, repository.ReplaceOpenFlareWAFSiteRuleGroupBindings(ctx, route.ID, []uint{customB.ID, customA.ID}))
 
 	snapshot, err := buildSnapshotWAFDocument(ctx, []*model.ProxyRoute{route})
 	require.NoError(t, err)
@@ -91,7 +93,7 @@ func TestWAFGraphSnapshotEncodesEmptyBindingsAsArrays(t *testing.T) {
 	ctx := context.Background()
 
 	route := &model.ProxyRoute{SiteName: "empty-binding.example.com", OriginURL: "http://origin:8080", Upstreams: `["http://origin:8080"]`, Enabled: true}
-	require.NoError(t, model.CreateProxyRouteRecord(ctx, route))
+	require.NoError(t, repository.CreateProxyRouteRecord(ctx, route))
 	createSnapshotZoneDomains(t, ctx, route, route.SiteName)
 
 	snapshot, err := buildSnapshotWAFDocument(ctx, []*model.ProxyRoute{route})

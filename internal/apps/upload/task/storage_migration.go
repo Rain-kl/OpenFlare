@@ -15,13 +15,15 @@ import (
 	"sync/atomic"
 	"time"
 
+	"golang.org/x/sync/errgroup"
+
 	uploadstats "github.com/Rain-kl/Wavelet/internal/apps/upload/stats"
 	uploadstorage "github.com/Rain-kl/Wavelet/internal/apps/upload/storage"
 	"github.com/Rain-kl/Wavelet/internal/infra/objectstore"
 	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/infra/task"
 	"github.com/Rain-kl/Wavelet/internal/model"
-	"golang.org/x/sync/errgroup"
+	"github.com/Rain-kl/Wavelet/internal/repository"
 )
 
 const (
@@ -171,12 +173,7 @@ func (h *MigrationHandler) Execute(ctx context.Context, payload []byte) (*task.T
 }
 
 func countStorageObjects(ctx context.Context) (int64, error) {
-	var count int64
-	err := db.DB(ctx).Model(&model.Upload{}).
-		Where("status != ?", model.UploadStatusDeleted).
-		Distinct("file_path").
-		Count(&count).Error
-	return count, err
+	return repository.CountDistinctActiveFilePaths(ctx)
 }
 
 func hasUnresolvedMigrationTask(ctx context.Context) (bool, error) {
@@ -185,13 +182,6 @@ func hasUnresolvedMigrationTask(ctx context.Context) (bool, error) {
 		return false, err
 	}
 	return execution.Status == model.TaskExecutionStatusPending || execution.Status == model.TaskExecutionStatusRunning, nil
-}
-
-type migrationObject struct {
-	FilePath string `gorm:"column:file_path"`
-	FileSize int64  `gorm:"column:file_size"`
-	MimeType string `gorm:"column:mime_type"`
-	Hash     string `gorm:"column:hash"`
 }
 
 func migrateObjects(
@@ -212,17 +202,8 @@ func migrateObjects(
 
 		task.AppendLog(ctx, "正在查询待迁移对象批次，当前已完成迁移: %d/%d", atomic.LoadInt64(&migrated), total)
 
-		var objects []migrationObject
-		query := db.DB(ctx).Model(&model.Upload{}).
-			Select("file_path, MAX(file_size) AS file_size, MAX(mime_type) AS mime_type, MAX(hash) AS hash").
-			Where("status != ?", model.UploadStatusDeleted)
-		if lastFilePath != "" {
-			query = query.Where("file_path > ?", lastFilePath)
-		}
-		if err := query.Group("file_path").
-			Order("file_path ASC").
-			Limit(batchSize).
-			Scan(&objects).Error; err != nil {
+		objects, err := repository.ListDistinctActiveStorageObjects(ctx, lastFilePath, batchSize)
+		if err != nil {
 			return atomic.LoadInt64(&migrated), fmt.Errorf("query source objects: %w", err)
 		}
 		if len(objects) == 0 {
@@ -260,7 +241,7 @@ func migrateSingleObject(
 	ctx context.Context,
 	sourceBackend objectstore.Backend,
 	targetBackend objectstore.Backend,
-	obj migrationObject,
+	obj repository.UploadStorageObject,
 	sha256HexLength int,
 ) error {
 	if shouldSkipMigration(ctx, targetBackend, obj) {
@@ -310,9 +291,7 @@ func migrateSingleObject(
 
 	if targetResult.Key != obj.FilePath {
 		task.AppendLog(ctx, "[更新数据库] 正在更新文件路径: %s -> %s", obj.FilePath, targetResult.Key)
-		if err := db.DB(ctx).Model(&model.Upload{}).
-			Where("file_path = ? AND status != ?", obj.FilePath, model.UploadStatusDeleted).
-			Update("file_path", targetResult.Key).Error; err != nil {
+		if err := repository.UpdateActiveUploadsFilePath(ctx, obj.FilePath, targetResult.Key); err != nil {
 			return fmt.Errorf("update migrated object %q: %w", obj.FilePath, err)
 		}
 	}
@@ -323,7 +302,7 @@ func migrateSingleObject(
 func shouldSkipMigration(
 	ctx context.Context,
 	targetBackend objectstore.Backend,
-	obj migrationObject,
+	obj repository.UploadStorageObject,
 ) bool {
 	targetObj, err := targetBackend.Get(ctx, obj.FilePath)
 	if err != nil || targetObj == nil || targetObj.Body == nil {
@@ -343,16 +322,9 @@ func markMissingMigrationObjectDeleted(
 ) error {
 	task.AppendLog(ctx, "警告: 源存储中物理文件不存在，标记为已删除并跳过: %s (错误: %v)", filePath, sourceErr)
 
-	var affectedUploads []model.Upload
-	if err := db.DB(ctx).
-		Where("file_path = ? AND status != ?", filePath, model.UploadStatusDeleted).
-		Find(&affectedUploads).Error; err != nil {
-		return fmt.Errorf("load missing object uploads %q: %w", filePath, err)
-	}
-	if err := db.DB(ctx).Model(&model.Upload{}).
-		Where("file_path = ?", filePath).
-		Update("status", model.UploadStatusDeleted).Error; err != nil {
-		return fmt.Errorf("update missing object %q: %w", filePath, err)
+	affectedUploads, err := repository.MarkActiveUploadsDeletedByFilePath(ctx, filePath)
+	if err != nil {
+		return fmt.Errorf("mark missing object deleted %q: %w", filePath, err)
 	}
 	for i := range affectedUploads {
 		uploadstats.RecordUploadStatsRemove(ctx, &affectedUploads[i])

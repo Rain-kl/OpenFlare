@@ -134,7 +134,7 @@ type HealthEventCleanupResult = observability.HealthEventCleanupResult
 
 // ListNodes returns all node views with latest apply log metadata.
 func ListNodes(ctx context.Context) ([]*View, error) {
-	nodes, err := model.ListOpenFlareNodes(ctx)
+	nodes, err := repository.ListOpenFlareNodes(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -142,7 +142,7 @@ func ListNodes(ctx context.Context) ([]*View, error) {
 	for _, node := range nodes {
 		nodeIDs = append(nodeIDs, node.NodeID)
 	}
-	latestLogs, err := model.GetLatestOpenFlareApplyLogsByNodeIDs(ctx, nodeIDs)
+	latestLogs, err := repository.GetLatestOpenFlareApplyLogsByNodeIDs(ctx, nodeIDs)
 	if err != nil {
 		return nil, err
 	}
@@ -209,7 +209,7 @@ func CreateNode(ctx context.Context, input Input) (*View, error) {
 		node.RelayClientProxyURL = strings.TrimSpace(input.RelayClientProxyURL)
 		node.RelayWebServerEnabled = input.RelayWebServerEnabled
 	}
-	if err = model.CreateOpenFlareNode(ctx, node); err != nil {
+	if err = repository.CreateOpenFlareNode(ctx, node); err != nil {
 		if isUniqueConstraintError(err) {
 			return nil, errors.New(errNodeIDConflict)
 		}
@@ -227,7 +227,7 @@ func UpdateNode(ctx context.Context, id uint, input Input) (*View, error) {
 	if name == "" {
 		return nil, errors.New(errNodeNameRequired)
 	}
-	node, err := model.GetOpenFlareNodeByID(ctx, id)
+	node, err := repository.GetOpenFlareNodeByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -252,7 +252,7 @@ func UpdateNode(ctx context.Context, id uint, input Input) (*View, error) {
 			node.RelayVhostHTTPPort = input.RelayVhostHTTPPort
 		}
 	}
-	if err = model.SaveOpenFlareNode(ctx, node); err != nil {
+	if err = repository.SaveOpenFlareNode(ctx, node); err != nil {
 		return nil, err
 	}
 	return buildNodeView(node), nil
@@ -260,10 +260,10 @@ func UpdateNode(ctx context.Context, id uint, input Input) (*View, error) {
 
 // DeleteNode removes a node by id.
 func DeleteNode(ctx context.Context, id uint) error {
-	if _, err := model.GetOpenFlareNodeByID(ctx, id); err != nil {
+	if _, err := repository.GetOpenFlareNodeByID(ctx, id); err != nil {
 		return err
 	}
-	return model.DeleteOpenFlareNode(ctx, id)
+	return repository.DeleteOpenFlareNode(ctx, id)
 }
 
 // GetBootstrapToken returns the global discovery token, creating one if missing.
@@ -289,7 +289,7 @@ func RotateBootstrapToken(ctx context.Context) (*BootstrapView, error) {
 
 // GetAgentRelease checks the latest agent release for a node.
 func GetAgentRelease(ctx context.Context, id uint, channel string) (*AgentReleaseInfo, error) {
-	node, err := model.GetOpenFlareNodeByID(ctx, id)
+	node, err := repository.GetOpenFlareNodeByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -302,7 +302,7 @@ func GetAgentRelease(ctx context.Context, id uint, channel string) (*AgentReleas
 
 // RequestAgentUpdate marks a node for manual agent update.
 func RequestAgentUpdate(ctx context.Context, id uint, input AgentUpdateInput) (*View, error) {
-	node, err := model.GetOpenFlareNodeByID(ctx, id)
+	node, err := repository.GetOpenFlareNodeByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -323,7 +323,7 @@ func RequestAgentUpdate(ctx context.Context, id uint, input AgentUpdateInput) (*
 	node.UpdateRequested = true
 	node.UpdateChannel = channel.String()
 	node.UpdateTag = tagName
-	if err = model.UpdateOpenFlareNodeFields(ctx, node, "update_requested", "update_channel", "update_tag"); err != nil {
+	if err = repository.UpdateOpenFlareNodeFields(ctx, node, "update_requested", "update_channel", "update_tag"); err != nil {
 		return nil, err
 	}
 	return buildNodeView(node), nil
@@ -331,12 +331,12 @@ func RequestAgentUpdate(ctx context.Context, id uint, input AgentUpdateInput) (*
 
 // RequestOpenrestyRestart marks a node for openresty restart.
 func RequestOpenrestyRestart(ctx context.Context, id uint) (*View, error) {
-	node, err := model.GetOpenFlareNodeByID(ctx, id)
+	node, err := repository.GetOpenFlareNodeByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
 	node.RestartOpenrestyRequested = true
-	if err = model.UpdateOpenFlareNodeFields(ctx, node, "restart_openresty_requested"); err != nil {
+	if err = repository.UpdateOpenFlareNodeFields(ctx, node, "restart_openresty_requested"); err != nil {
 		return nil, err
 	}
 	return buildNodeView(node), nil
@@ -344,11 +344,11 @@ func RequestOpenrestyRestart(ctx context.Context, id uint) (*View, error) {
 
 // RequestForceSync pushes force_sync_config to a connected agent websocket.
 func RequestForceSync(ctx context.Context, id uint) (*View, error) {
-	node, err := model.GetOpenFlareNodeByID(ctx, id)
+	node, err := repository.GetOpenFlareNodeByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
-	activeConfig, err := model.GetActiveConfigVersion(ctx)
+	activeConfig, err := repository.GetActiveConfigVersion(ctx)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, fmt.Errorf("无法获取当前激活的配置版本：%s", errNoActiveConfigVersion)

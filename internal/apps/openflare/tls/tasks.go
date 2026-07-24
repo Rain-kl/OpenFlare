@@ -9,8 +9,9 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/Rain-kl/Wavelet/internal/repository"
+
 	"github.com/Rain-kl/Wavelet/internal/infra/task"
-	"github.com/Rain-kl/Wavelet/internal/model"
 )
 
 const (
@@ -77,7 +78,7 @@ func (h *SSLSingleRenewHandler) Execute(ctx context.Context, payload []byte) (*t
 
 	task.AppendLog(ctx, "开始续期证书，ID: %d", req.ID)
 
-	cert, err := model.GetTLSCertificateByID(ctx, req.ID)
+	cert, err := repository.GetTLSCertificateByID(ctx, req.ID)
 	if err != nil {
 		task.AppendLog(ctx, "获取证书记录失败 ID=%d: %v", req.ID, err)
 		return nil, fmt.Errorf("获取证书记录失败: %w", err)

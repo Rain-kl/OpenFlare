@@ -15,10 +15,9 @@ import (
 	"strings"
 	"time"
 
-	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/model"
+	"github.com/Rain-kl/Wavelet/internal/repository"
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
 
 const (
@@ -120,7 +119,7 @@ type remoteSourceConfig struct {
 
 // GetSource returns the current persisted source or a manual discriminator.
 func GetSource(ctx context.Context, projectID uint) (*SourceView, error) {
-	if _, err := model.GetPagesProjectByID(ctx, projectID); err != nil {
+	if _, err := repository.GetPagesProjectByID(ctx, projectID); err != nil {
 		return nil, err
 	}
 	source, runtime, err := loadSourceByProject(ctx, projectID)
@@ -156,7 +155,7 @@ func UpdateSourceAs(
 
 	changed := false
 	var persistedSource model.PagesProjectSource
-	err := db.DB(ctx).Transaction(func(tx *gorm.DB) error {
+	err := repository.WithPagesTx(ctx, func(tx *gorm.DB) error {
 		var err error
 		switch strings.TrimSpace(input.SourceType) {
 		case PagesSourceTypeRemoteURL:
@@ -169,7 +168,12 @@ func UpdateSourceAs(
 		if err != nil || !changed || strings.TrimSpace(input.SourceType) != PagesSourceTypeGitHubRelease {
 			return err
 		}
-		return tx.Where("project_id = ?", projectID).First(&persistedSource).Error
+		source, loadErr := repository.LockPagesProjectSourceByProjectIDTx(tx, projectID)
+		if loadErr != nil {
+			return loadErr
+		}
+		persistedSource = *source
+		return nil
 	})
 	if err != nil {
 		return nil, err
@@ -193,8 +197,7 @@ func UpdateSourceAs(
 }
 
 func updateRemoteSourceTx(tx *gorm.DB, projectID uint, input SourceUpdateInput) (bool, error) {
-	var project model.PagesProject
-	if err := tx.Clauses(clause.Locking{Strength: pagesRowLockStrength}).First(&project, projectID).Error; err != nil {
+	if _, err := repository.LockPagesProjectByIDTx(tx, projectID); err != nil {
 		return false, err
 	}
 	existing, hasExisting, err := loadProjectSourceForUpdate(tx, projectID)
@@ -212,17 +215,14 @@ func updateRemoteSourceTx(tx *gorm.DB, projectID uint, input SourceUpdateInput) 
 }
 
 func loadProjectSourceForUpdate(tx *gorm.DB, projectID uint) (*model.PagesProjectSource, bool, error) {
-	var source model.PagesProjectSource
-	err := tx.Clauses(clause.Locking{Strength: pagesRowLockStrength}).
-		Where("project_id = ?", projectID).
-		First(&source).Error
+	source, err := repository.LockPagesProjectSourceByProjectIDTx(tx, projectID)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return &source, false, nil
+		return &model.PagesProjectSource{}, false, nil
 	}
 	if err != nil {
 		return nil, false, err
 	}
-	return &source, true, nil
+	return source, true, nil
 }
 
 func buildRemoteSourceConfig(
@@ -256,13 +256,13 @@ func createRemoteSourceTx(tx *gorm.DB, projectID uint, config remoteSourceConfig
 		ConfigVersion:        1,
 		SourceIdentity:       config.Identity,
 	}
-	if err := tx.Create(source).Error; err != nil {
+	if err := repository.CreatePagesProjectSourceTx(tx, source); err != nil {
 		return err
 	}
-	return tx.Create(&model.PagesProjectSourceRuntime{
+	return repository.CreatePagesProjectSourceRuntimeTx(tx, &model.PagesProjectSourceRuntime{
 		SourceID:   source.ID,
 		SyncStatus: pagesSourceStatusIdle,
-	}).Error
+	})
 }
 
 func updateExistingRemoteSourceTx(
@@ -273,14 +273,12 @@ func updateExistingRemoteSourceTx(
 	if !remoteSourceConfigChanged(existing, config) {
 		return false, nil
 	}
-	var runtime model.PagesProjectSourceRuntime
-	if err := tx.Clauses(clause.Locking{Strength: pagesRowLockStrength}).
-		Where("source_id = ?", existing.ID).
-		First(&runtime).Error; err != nil {
+	runtime, err := repository.LockPagesProjectSourceRuntimeBySourceIDTx(tx, existing.ID)
+	if err != nil {
 		return false, err
 	}
 	identityChanged := existing.SourceIdentity != config.Identity
-	if err := tx.Model(existing).Updates(map[string]any{
+	if err := repository.UpdatePagesProjectSourceTx(tx, existing, map[string]any{
 		"source_type":                 PagesSourceTypeRemoteURL,
 		"remote_url":                  config.URL,
 		"allow_insecure":              config.AllowInsecure,
@@ -292,10 +290,10 @@ func updateExistingRemoteSourceTx(
 		"check_interval_minutes":      0,
 		sourceColumnConfigVersion:     existing.ConfigVersion + 1,
 		"source_identity":             config.Identity,
-	}).Error; err != nil {
+	}); err != nil {
 		return false, err
 	}
-	return true, resetRuntimeAfterSourceUpdate(tx, &runtime, identityChanged)
+	return true, resetRuntimeAfterSourceUpdate(tx, runtime, identityChanged)
 }
 
 func remoteSourceConfigChanged(existing *model.PagesProjectSource, config remoteSourceConfig) bool {
@@ -312,31 +310,25 @@ func remoteSourceConfigChanged(existing *model.PagesProjectSource, config remote
 
 // DeleteSource idempotently switches a project back to manual mode.
 func DeleteSource(ctx context.Context, projectID uint) (*SourceView, error) {
-	err := db.DB(ctx).Transaction(func(tx *gorm.DB) error {
-		var project model.PagesProject
-		if err := tx.Clauses(clause.Locking{Strength: pagesRowLockStrength}).First(&project, projectID).Error; err != nil {
+	err := repository.WithPagesTx(ctx, func(tx *gorm.DB) error {
+		if _, err := repository.LockPagesProjectByIDTx(tx, projectID); err != nil {
 			return err
 		}
-		var source model.PagesProjectSource
-		err := tx.Clauses(clause.Locking{Strength: pagesRowLockStrength}).
-			Where("project_id = ?", projectID).
-			First(&source).Error
+		source, err := repository.LockPagesProjectSourceByProjectIDTx(tx, projectID)
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil
 		}
 		if err != nil {
 			return err
 		}
-		var runtime model.PagesProjectSourceRuntime
-		if err := tx.Clauses(clause.Locking{Strength: pagesRowLockStrength}).
-			Where("source_id = ?", source.ID).
-			First(&runtime).Error; err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		if _, err := repository.LockPagesProjectSourceRuntimeBySourceIDTx(tx, source.ID); err != nil &&
+			!errors.Is(err, gorm.ErrRecordNotFound) {
 			return err
 		}
-		if err := tx.Where("source_id = ?", source.ID).Delete(&model.PagesProjectSourceRuntime{}).Error; err != nil {
+		if err := repository.DeletePagesProjectSourceRuntimeBySourceIDTx(tx, source.ID); err != nil {
 			return err
 		}
-		return tx.Delete(&source).Error
+		return repository.DeletePagesProjectSourceTx(tx, source)
 	})
 	if err != nil {
 		return nil, err
@@ -414,15 +406,7 @@ func remoteSourceIdentity(parsed *url.URL) string {
 }
 
 func loadSourceByProject(ctx context.Context, projectID uint) (*model.PagesProjectSource, *model.PagesProjectSourceRuntime, error) {
-	var source model.PagesProjectSource
-	if err := db.DB(ctx).Where("project_id = ?", projectID).First(&source).Error; err != nil {
-		return nil, nil, err
-	}
-	var runtime model.PagesProjectSourceRuntime
-	if err := db.DB(ctx).Where("source_id = ?", source.ID).First(&runtime).Error; err != nil {
-		return nil, nil, err
-	}
-	return &source, &runtime, nil
+	return repository.GetPagesProjectSourceAndRuntimeByProjectID(ctx, projectID)
 }
 
 func buildSourceView(source *model.PagesProjectSource, runtime *model.PagesProjectSourceRuntime) (*SourceView, error) {
@@ -515,7 +499,7 @@ func resetRuntimeAfterSourceUpdate(tx *gorm.DB, runtime *model.PagesProjectSourc
 	} else {
 		updates[sourceRuntimeColumnSyncStatus] = normalizedSourceRuntimeStatus(runtime)
 	}
-	return tx.Model(runtime).Updates(updates).Error
+	return repository.UpdatePagesProjectSourceRuntimeTx(tx, runtime, updates)
 }
 
 func normalizedSourceRuntimeStatus(runtime *model.PagesProjectSourceRuntime) string {

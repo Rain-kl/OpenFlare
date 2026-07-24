@@ -11,6 +11,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/Rain-kl/Wavelet/internal/repository"
+
 	"github.com/Rain-kl/Wavelet/internal/model"
 )
 
@@ -208,7 +210,7 @@ func relayAgentAddress(node *model.OpenFlareNode) string {
 }
 
 func resolveTunnelOpenRestyUpstreamURL(ctx context.Context) string {
-	nodes, err := model.ListOpenFlareNodes(ctx)
+	nodes, err := repository.ListOpenFlareNodes(ctx)
 	if err == nil {
 		for index := range nodes {
 			node := &nodes[index]
@@ -230,7 +232,7 @@ func listWAFIPGroupsByIDs(ctx context.Context, ids []uint) ([]*model.OpenFlareWA
 	}
 	groups := make([]*model.OpenFlareWAFIPGroup, 0, len(ids))
 	for _, id := range ids {
-		group, err := model.GetOpenFlareWAFIPGroupByID(ctx, id)
+		group, err := repository.GetOpenFlareWAFIPGroupByID(ctx, id)
 		if err != nil {
 			return nil, err
 		}

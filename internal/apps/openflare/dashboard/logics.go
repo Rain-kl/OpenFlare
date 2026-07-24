@@ -8,6 +8,8 @@ import (
 	"sort"
 	"time"
 
+	"github.com/Rain-kl/Wavelet/internal/repository"
+
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/observability"
 	"github.com/Rain-kl/Wavelet/internal/model"
 )
@@ -113,24 +115,24 @@ func buildOverviewView(ctx context.Context) (*OverviewView, error) {
 	now := time.Now()
 	since := now.Add(-24 * time.Hour)
 
-	nodes, err := model.ListOpenFlareNodes(ctx)
+	nodes, err := repository.ListOpenFlareNodes(ctx)
 	if err != nil {
 		return nil, err
 	}
 	// Latest-per-node health: dedicated LIMIT 1 BY queries (not a global raw LIMIT).
-	latestSnapshotRows, err := model.ListOpenFlareLatestMetricSnapshotsSince(ctx, "", since)
+	latestSnapshotRows, err := repository.ListOpenFlareLatestMetricSnapshotsSince(ctx, "", since)
 	if err != nil {
 		return nil, err
 	}
-	snapshots, err := model.ListOpenFlareMetricSnapshotsSince(ctx, "", since, dashboardOverviewSnapshotLimit)
+	snapshots, err := repository.ListOpenFlareMetricSnapshotsSince(ctx, "", since, dashboardOverviewSnapshotLimit)
 	if err != nil {
 		return nil, err
 	}
-	accessLogRegions, err := model.ListOpenFlareAccessLogRegionCounts(ctx, "", since, dashboardDistributionLimit)
+	accessLogRegions, err := repository.ListOpenFlareAccessLogRegionCounts(ctx, "", since, dashboardDistributionLimit)
 	if err != nil {
 		return nil, err
 	}
-	activeEvents, err := model.ListOpenFlareActiveHealthEvents(ctx)
+	activeEvents, err := repository.ListOpenFlareActiveHealthEvents(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -146,7 +148,7 @@ func buildOverviewView(ctx context.Context) (*OverviewView, error) {
 	}
 
 	// Global traffic summary uses true window uniqExact for UV (not sum of hourly uniques).
-	if summary, sumErr := model.TrafficSummaryOpenFlareAccessLogs(ctx, model.OpenFlareAccessLogQuery{
+	if summary, sumErr := repository.TrafficSummaryOpenFlareAccessLogs(ctx, model.OpenFlareAccessLogQuery{
 		Since: since,
 		Until: now,
 	}); sumErr == nil {
@@ -164,7 +166,7 @@ func buildOverviewView(ctx context.Context) (*OverviewView, error) {
 	}
 
 	nodeTraffic := map[string]model.OpenFlareAccessLogNodeAggregate{}
-	if aggregates, aggErr := model.NodeAggregatesOpenFlareAccessLogs(ctx, model.OpenFlareAccessLogQuery{
+	if aggregates, aggErr := repository.NodeAggregatesOpenFlareAccessLogs(ctx, model.OpenFlareAccessLogQuery{
 		Since: since,
 		Until: now,
 	}); aggErr == nil {

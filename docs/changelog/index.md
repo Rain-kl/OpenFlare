@@ -22,6 +22,12 @@ sidebar: false
 
 ## [unreleased]
 
+### 改进
+
+- 统一数据访问分层：业务持久化经 `internal/repository`，`internal/model` 仅保留实体与无 IO 领域规则，避免双轨 CRUD 与职责混淆。
+- 构建检查增加 `internal/model` 禁止直接访问数据库/Redis 的架构守卫，并收敛 model 与 repository 的错误文案定义边界。
+
+
 ## [v3.4.3] - 2026-07-24
 
 ### 新增

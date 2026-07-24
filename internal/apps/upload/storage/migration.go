@@ -11,9 +11,8 @@ import (
 	"strings"
 
 	"github.com/Rain-kl/Wavelet/internal/infra/objectstore"
-	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/model"
-	"gorm.io/gorm"
+	"github.com/Rain-kl/Wavelet/internal/repository"
 )
 
 // StorageMigrationTask is the Asynq task name for storage migration.
@@ -21,18 +20,7 @@ const StorageMigrationTask = "storage:migrate"
 
 // LatestMigrationExecution returns the most recent storage migration task execution.
 func LatestMigrationExecution(ctx context.Context) (*model.TaskExecution, bool, error) {
-	var execution model.TaskExecution
-	err := db.DB(ctx).
-		Where("task_type = ?", StorageMigrationTask).
-		Order("id DESC").
-		First(&execution).Error
-	if err == nil {
-		return &execution, true, nil
-	}
-	if !errors.Is(err, gorm.ErrRecordNotFound) {
-		return nil, false, err
-	}
-	return nil, false, nil
+	return repository.GetLatestTaskExecutionByTaskType(ctx, StorageMigrationTask)
 }
 
 // ParseMigrationTargetConfig parses and validates a storage migration target payload.

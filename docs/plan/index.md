@@ -24,6 +24,8 @@
 
 ## 已完成的计划
 
+* [model / repository 分层治理](./20260724-model-repository-layering.md)：model 无 IO；repository 唯一持久化；已完成 OpenFlare/平台 CRUD 迁入 repository。
+
 * [Pages 项目部署源与 GitHub Releases 自动更新 V2](./20260719-pages-source-sync-v2.md)：已完成 Remote URL / GitHub Release 来源、不可变部署、自动检查更新与安全回滚，并预留独立仓库构建 Provider 边界；生产环境验收边界见计划内验证记录。
 
 ## 使用建议

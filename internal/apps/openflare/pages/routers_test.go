@@ -13,6 +13,8 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/Rain-kl/Wavelet/internal/repository"
+
 	"github.com/Rain-kl/Wavelet/internal/apps/oauth"
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"github.com/gin-gonic/gin"
@@ -48,7 +50,7 @@ func TestUploadDeploymentHandlerRecordsCurrentUserActor(t *testing.T) {
 
 	UploadDeploymentHandler(c)
 	assert.Equal(t, http.StatusOK, recorder.Code)
-	deployments, err := model.ListPagesDeployments(t.Context(), project.ID)
+	deployments, err := repository.ListPagesDeployments(t.Context(), project.ID)
 	require.NoError(t, err)
 	require.Len(t, deployments, 1)
 	assert.Equal(t, "user:42", deployments[0].CreatedBy)
@@ -83,7 +85,7 @@ func TestUploadDeploymentFromURLHandlerRecordsCurrentUserActor(t *testing.T) {
 
 	UploadDeploymentFromURLHandler(c)
 	assert.Equal(t, http.StatusOK, recorder.Code, recorder.Body.String())
-	deployments, err := model.ListPagesDeployments(t.Context(), project.ID)
+	deployments, err := repository.ListPagesDeployments(t.Context(), project.ID)
 	require.NoError(t, err)
 	require.Len(t, deployments, 1)
 	assert.Equal(t, "user:77", deployments[0].CreatedBy)
