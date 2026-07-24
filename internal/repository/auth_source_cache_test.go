@@ -14,7 +14,7 @@ import (
 	"github.com/redis/go-redis/v9/maintnotifications"
 	"gorm.io/gorm"
 
-	"github.com/Rain-kl/Wavelet/internal/db"
+	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/model"
 )
 

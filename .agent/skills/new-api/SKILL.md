@@ -115,19 +115,19 @@ internal/
 ## 核心开发步骤 (Step-by-Step Flow)
 
 ### 步骤 1：数据库定义与迁移
-如果自定义功能涉及新表或字段，请参考 [database-migration](../database-migration/SKILL.md) 技能，在 `internal/db/migrator/goose/` 目录下编写迁移文件并在 `internal/model/` 中定义 GORM 数据模型。
+如果自定义功能涉及新表或字段，请参考 [database-migration](../database-migration/SKILL.md) 技能，在 `internal/infra/persistence/migrator/goose/` 目录下编写迁移文件并在 `internal/model/` 中定义 GORM 数据模型。
 
 ### 步骤 2：在模块内实现业务逻辑 (`logics.go` / `service.go`)
 业务逻辑逻辑应当实现于 `internal/apps/custom/` 目录下：
 - **优先使用纯函数（`logics.go`）**：定义接收 `context.Context` 且不依赖 `*gin.Context` 的函数，易于单元测试与 Worker 复用。参考 `internal/apps/user/logics.go`。
 - **有状态服务（`service.go`）**：若需注入依赖（如 DB 连接、外部客户端等），可定义 Service 结构体和构造函数。
-- **跨模块副作用（推送、任务监听等）**：核心业务代码通过 `internal/listener` 发射域事件，禁止直接 `import` push 模块；装配在 `internal/bootstrap` 完成（参见 `push-notification` skill）。
+- **跨模块副作用（推送、任务监听等）**：核心业务代码通过 `internal/listener` 发射域事件，禁止直接 `import` push 模块；装配在 `internal/platform/bootstrap` 完成（参见 `push-notification` skill）。
 
 ### 步骤 3：编写 HTTP Handler (`routers.go`)
 在 `internal/apps/custom/routers.go` 中编写 Handler：
 - 负责请求参数绑定与校验（使用 `ShouldBindJSON`/`ShouldBindQuery`）。
 - 负责提取 Session / 用户身份。
-- 调用业务逻辑层，并使用 `github.com/Rain-kl/Wavelet/internal/common/response` 统一返回响应：
+- 调用业务逻辑层，并使用 `github.com/Rain-kl/Wavelet/internal/shared/response` 统一返回响应：
   - 成功时返回：`response.OK(data)` 或 `response.OKNil()`
   - 失败时返回：`response.Err(msg)`
 - 编写规范的 Swagger 注释。

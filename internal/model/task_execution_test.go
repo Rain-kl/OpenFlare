@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Rain-kl/Wavelet/internal/db"
+	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/alicebob/miniredis/v2"
 	"github.com/glebarez/sqlite"
 	"github.com/redis/go-redis/v9"

@@ -10,9 +10,9 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/Rain-kl/Wavelet/internal/infra/task"
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"github.com/Rain-kl/Wavelet/internal/repository"
-	"github.com/Rain-kl/Wavelet/internal/task"
 	pkgpush "github.com/Rain-kl/Wavelet/pkg/push"
 	"gorm.io/gorm"
 )

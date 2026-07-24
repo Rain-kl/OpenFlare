@@ -8,7 +8,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/Rain-kl/Wavelet/internal/db"
+	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 )
 
 const (

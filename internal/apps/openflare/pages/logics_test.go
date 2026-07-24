@@ -18,10 +18,10 @@ import (
 	"testing"
 
 	"github.com/Rain-kl/Wavelet/internal/apps/upload"
-	"github.com/Rain-kl/Wavelet/internal/db"
+	"github.com/Rain-kl/Wavelet/internal/infra/objectstore"
+	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"github.com/Rain-kl/Wavelet/internal/repository"
-	"github.com/Rain-kl/Wavelet/internal/storage"
 	"github.com/glebarez/sqlite"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -82,7 +82,7 @@ func setupPagesTestDB(t *testing.T) func() {
 func setupPagesStorageMock(t *testing.T) (restore func(), disable func()) {
 	t.Helper()
 	mockFiles := make(map[string][]byte)
-	restore = storage.MockStorage(
+	restore = objectstore.MockStorage(
 		func(_ context.Context, key string, body io.Reader, _ int64, _ string) error {
 			data, err := io.ReadAll(body)
 			if err != nil {
@@ -91,12 +91,12 @@ func setupPagesStorageMock(t *testing.T) (restore func(), disable func()) {
 			mockFiles[key] = data
 			return nil
 		},
-		func(_ context.Context, key string) (*storage.Object, error) {
+		func(_ context.Context, key string) (*objectstore.Object, error) {
 			data, ok := mockFiles[key]
 			if !ok {
 				return nil, os.ErrNotExist
 			}
-			return &storage.Object{
+			return &objectstore.Object{
 				Body:          io.NopCloser(bytes.NewReader(data)),
 				ContentLength: int64(len(data)),
 				ContentType:   "application/zip",
@@ -107,11 +107,11 @@ func setupPagesStorageMock(t *testing.T) (restore func(), disable func()) {
 			return nil
 		},
 	)
-	storage.IsEnabledFunc = func() bool { return true }
-	storage.ResetCache()
+	objectstore.IsEnabledFunc = func() bool { return true }
+	objectstore.ResetCache()
 	disable = func() {
-		storage.IsEnabledFunc = func() bool { return false }
-		storage.ResetCache()
+		objectstore.IsEnabledFunc = func() bool { return false }
+		objectstore.ResetCache()
 		restore()
 	}
 	return restore, disable

@@ -20,10 +20,10 @@ import (
 	"github.com/Rain-kl/Wavelet/internal/apps/upload/shared"
 	uploadstorage "github.com/Rain-kl/Wavelet/internal/apps/upload/storage"
 	"github.com/Rain-kl/Wavelet/internal/apps/upload/util"
-	"github.com/Rain-kl/Wavelet/internal/common"
-	"github.com/Rain-kl/Wavelet/internal/common/response"
-	"github.com/Rain-kl/Wavelet/internal/diskcache"
+	"github.com/Rain-kl/Wavelet/internal/infra/diskcache"
 	"github.com/Rain-kl/Wavelet/internal/model"
+	appshared "github.com/Rain-kl/Wavelet/internal/shared"
+	"github.com/Rain-kl/Wavelet/internal/shared/response"
 
 	"github.com/Rain-kl/Wavelet/pkg/logger"
 	"github.com/gin-gonic/gin"
@@ -77,7 +77,7 @@ func ServeFileByID(c *gin.Context) {
 	}
 
 	if err := CheckFileAccessPermission(c, upload); err != nil {
-		response.AbortUnauthorized(c, common.UnAuthorized)
+		response.AbortUnauthorized(c, appshared.UnAuthorized)
 		return
 	}
 

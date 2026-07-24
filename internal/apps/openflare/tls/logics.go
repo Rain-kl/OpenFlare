@@ -12,8 +12,8 @@ import (
 	"mime/multipart"
 	"strings"
 
+	"github.com/Rain-kl/Wavelet/internal/infra/task"
 	"github.com/Rain-kl/Wavelet/internal/model"
-	"github.com/Rain-kl/Wavelet/internal/task"
 )
 
 // CertificateInput TLS 证书创建/更新请求。

@@ -6,7 +6,7 @@ package cmd
 import (
 	"context"
 
-	"github.com/Rain-kl/Wavelet/internal/bootstrap"
+	"github.com/Rain-kl/Wavelet/internal/platform/bootstrap"
 	"github.com/Rain-kl/Wavelet/pkg/trace"
 )
 

@@ -25,7 +25,7 @@
 
 | 路径 | 职责 |
 | --- | --- |
-| `internal/db/migrator/goose/{postgres,sqlite}/202607120001_create_zone_domain_tables.sql` | 第一阶段 Zone/ZoneDomain DDL 与索引。 |
+| `internal/infra/persistence/migrator/goose/{postgres,sqlite}/202607120001_create_zone_domain_tables.sql` | 第一阶段 Zone/ZoneDomain DDL 与索引。 |
 | `internal/model/openflare_zone.go` | Zone、ZoneDomain 模型及数据访问。 |
 | `internal/apps/openflare/zone/{logics.go,routers.go,errs.go,legacy_import.go}` | Zone CRUD、概览、输入验证和历史导入。 |
 | `internal/cmd/migrate_zones.go` | 显式、可重复运行的历史 Zone 数据导入命令。 |
@@ -36,17 +36,17 @@
 | `frontend/vitest.config.ts`、`frontend/tests/zone/*.test.tsx` | Zone 页面与域名选择器的最小前端测试运行环境。 |
 | `frontend/app/(main)/websites/*` | Zone 列表、`[zoneId]` 动态详情页和局部组件。 |
 | `frontend/app/(main)/proxy-routes/*` | Zone 域名选择器替换旧域名/证书编辑器。 |
-| `internal/db/migrator/goose/{postgres,sqlite}/202607130001_drop_legacy_route_domain_columns.sql` | 第二阶段删除旧表、列与索引。 |
+| `internal/infra/persistence/migrator/goose/{postgres,sqlite}/202607130001_drop_legacy_route_domain_columns.sql` | 第二阶段删除旧表、列与索引。 |
 
 ### Task 1: 第一阶段 Schema、模型与迁移测试
 
 **Files:**
-- Create: `internal/db/migrator/goose/postgres/202607120001_create_zone_domain_tables.sql`
-- Create: `internal/db/migrator/goose/sqlite/202607120001_create_zone_domain_tables.sql`
+- Create: `internal/infra/persistence/migrator/goose/postgres/202607120001_create_zone_domain_tables.sql`
+- Create: `internal/infra/persistence/migrator/goose/sqlite/202607120001_create_zone_domain_tables.sql`
 - Create: `internal/model/openflare_zone.go`
 - Create: `internal/model/openflare_zone_test.go`
 - Modify: `internal/model/openflare_proxy_route.go`
-- Test: `internal/db/migrator/migrator_test.go`
+- Test: `internal/infra/persistence/migrator/migrator_test.go`
 
 **Interfaces:**
 - Produces: `model.Zone`, `model.ZoneDomain`, `ListZoneDomainsByRouteID(ctx, routeID)`, `ReplaceZoneDomainRouteBindings(ctx, routeID, domainIDs)`.
@@ -60,7 +60,7 @@ func TestReplaceZoneDomainRouteBindingsRejectsForeignDomain(t *testing.T) {
 }
 ```
 
-Run: `go test ./internal/model ./internal/db/migrator -run 'Zone|Migrat' -count=1`
+Run: `go test ./internal/model ./internal/infra/persistence/migrator -run 'Zone|Migrat' -count=1`
 
 Expected: FAIL，因为 Zone 模型和 goose 文件尚不存在。
 
@@ -107,14 +107,14 @@ func ReplaceZoneDomainRouteBindings(ctx context.Context, routeID uint, domainIDs
 
 - [x] **Step 4: 运行模型与迁移测试**
 
-Run: `go test ./internal/model ./internal/db/migrator -run 'Zone|Migrat' -count=1`
+Run: `go test ./internal/model ./internal/infra/persistence/migrator -run 'Zone|Migrat' -count=1`
 
 Expected: PASS，空 SQLite 库可应用迁移，唯一域名和绑定排他性受保护。
 
 - [x] **Step 5: Commit**
 
 ```bash
-git add internal/db/migrator/goose internal/model
+git add internal/infra/persistence/migrator/goose internal/model
 git commit -m "feat(zone): add normalized zone domain schema"
 ```
 
@@ -448,8 +448,8 @@ git commit -m "docs(zone): add migration and release verification guide"
 **Precondition:** 已在生产环境完成 Task 7 的导入、预览对比和至少一次发布/回滚验证；`migrate-zones` 报告无冲突。
 
 **Files:**
-- Create: `internal/db/migrator/goose/postgres/202607130001_drop_legacy_route_domain_columns.sql`
-- Create: `internal/db/migrator/goose/sqlite/202607130001_drop_legacy_route_domain_columns.sql`
+- Create: `internal/infra/persistence/migrator/goose/postgres/202607130001_drop_legacy_route_domain_columns.sql`
+- Create: `internal/infra/persistence/migrator/goose/sqlite/202607130001_drop_legacy_route_domain_columns.sql`
 - Delete: `internal/model/openflare_managed_domain.go`
 - Delete: `internal/apps/openflare/tls/managed_domain.go`
 - Delete: `internal/apps/openflare/tls/helpers.go` 中仅用于旧路由证书数组的函数
@@ -473,14 +473,14 @@ PostgreSQL 删除旧唯一索引和 `domain`、`domains`、`cert_id`、`cert_ids
 
 - [x] **Step 4: 验证升级和完整回归**
 
-Run: `go test ./internal/db/migrator ./internal/model ./internal/apps/openflare/... ./pkg/render/openresty -count=1 && make code-check`
+Run: `go test ./internal/infra/persistence/migrator ./internal/model ./internal/apps/openflare/... ./pkg/render/openresty -count=1 && make code-check`
 
 Expected: PASS；全仓搜索不再发现旧 `ManagedDomain` 业务代码、`ProxyRoute` 持久化字段或管理端 API；渲染快照中的临时 `DomainCertIDs` 类型允许保留。
 
 - [x] **Step 5: Commit**
 
 ```bash
-git add internal/db/migrator internal/model internal/apps frontend docs
+git add internal/infra/persistence/migrator internal/model internal/apps frontend docs
 git commit -m "refactor(zone): remove legacy route domain storage"
 ```
 

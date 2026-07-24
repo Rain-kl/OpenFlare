@@ -125,7 +125,7 @@ func startThingCacheInvalidationListener() {
 | Auth Source | `repository/auth_source_cache.go` | Otter | Redis JSON | `oauth:auth_source_invalidation` ✅ |
 | OAuth 用户/Token | `apps/oauth/cache.go` | 自研 map | Redis JSON | ❌ 无 pub/sub（历史债） |
 | 推送渠道 | `repository/push_channel.go` | 无 | Redis JSON | ❌ 仅 Redis Del |
-| Storage 驱动 | `internal/storage/storage.go` | RWMutex 快照 | — | `storage:config_invalidation` ✅ |
+| Storage 驱动 | `internal/infra/objectstore/storage.go` | RWMutex 快照 | — | `storage:config_invalidation` ✅ |
 
 ## 新增缓存工作流
 
@@ -210,7 +210,7 @@ make code-check
 ## 相关文件
 
 - L1 引擎：`pkg/cache/ram/cache.go`
-- DB/Redis 助手：`internal/db/redis.go`（`GetJSON`, `SetJSON`, `HGetJSON`, `PrefixedKey`）
+- DB/Redis 助手：`internal/infra/persistence/redis.go`（`GetJSON`, `SetJSON`, `HGetJSON`, `PrefixedKey`）
 - 金标准：`internal/repository/system_config_cache.go`
 - 上传元数据：`internal/apps/upload/cache/meta_cache.go`
 - Auth Source：`internal/repository/auth_source_cache.go`

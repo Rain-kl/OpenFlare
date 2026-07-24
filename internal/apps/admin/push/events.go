@@ -11,9 +11,9 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/Rain-kl/Wavelet/internal/infra/task"
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"github.com/Rain-kl/Wavelet/internal/repository"
-	"github.com/Rain-kl/Wavelet/internal/task"
 	"github.com/Rain-kl/Wavelet/pkg/logger"
 	pkgpush "github.com/Rain-kl/Wavelet/pkg/push"
 	"gorm.io/gorm"

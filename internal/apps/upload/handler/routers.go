@@ -28,9 +28,9 @@ import (
 	"github.com/Rain-kl/Wavelet/internal/apps/upload/shared"
 	uploadstorage "github.com/Rain-kl/Wavelet/internal/apps/upload/storage"
 	"github.com/Rain-kl/Wavelet/internal/apps/upload/util"
-	"github.com/Rain-kl/Wavelet/internal/common"
-	"github.com/Rain-kl/Wavelet/internal/common/response"
 	"github.com/Rain-kl/Wavelet/internal/model"
+	appshared "github.com/Rain-kl/Wavelet/internal/shared"
+	"github.com/Rain-kl/Wavelet/internal/shared/response"
 	"github.com/Rain-kl/Wavelet/pkg/logger"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -187,7 +187,7 @@ func DownloadFile(c *gin.Context) {
 	}
 
 	if err := filesrv.CheckFileAccessPermission(c, upload); err != nil {
-		response.AbortUnauthorized(c, common.UnAuthorized)
+		response.AbortUnauthorized(c, appshared.UnAuthorized)
 		return
 	}
 

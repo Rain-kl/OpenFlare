@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/Rain-kl/Wavelet/internal/storage"
+	"github.com/Rain-kl/Wavelet/internal/infra/objectstore"
 )
 
 // LocalFileCandidateRequest describes filesystem locations that may host a legacy blob.
@@ -103,7 +103,7 @@ func buildLocalFileCandidates(ctx context.Context, req LocalFileCandidateRequest
 }
 
 func localStorageRoots(ctx context.Context) []string {
-	cfg, err := storage.LoadConfig(ctx)
+	cfg, err := objectstore.LoadConfig(ctx)
 	if err != nil {
 		return nil
 	}

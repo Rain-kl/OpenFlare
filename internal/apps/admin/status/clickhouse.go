@@ -8,11 +8,11 @@ import (
 
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/chwriter"
 	"github.com/Rain-kl/Wavelet/internal/apps/risk_control"
-	"github.com/Rain-kl/Wavelet/internal/common/response"
-	"github.com/Rain-kl/Wavelet/internal/config"
-	"github.com/Rain-kl/Wavelet/internal/db"
-	"github.com/Rain-kl/Wavelet/internal/db/batchwriter"
+	"github.com/Rain-kl/Wavelet/internal/infra/config"
+	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
+	"github.com/Rain-kl/Wavelet/internal/infra/persistence/batchwriter"
 	analyticsrepo "github.com/Rain-kl/Wavelet/internal/repository/analytics"
+	"github.com/Rain-kl/Wavelet/internal/shared/response"
 	"github.com/gin-gonic/gin"
 )
 

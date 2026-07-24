@@ -8,10 +8,10 @@ import (
 	"context"
 	"errors"
 
-	"github.com/Rain-kl/Wavelet/internal/common"
-	"github.com/Rain-kl/Wavelet/internal/common/response"
-	"github.com/Rain-kl/Wavelet/internal/db"
+	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/model"
+	"github.com/Rain-kl/Wavelet/internal/shared"
+	"github.com/Rain-kl/Wavelet/internal/shared/response"
 
 	otel_trace "github.com/Rain-kl/Wavelet/pkg/trace"
 	"github.com/gin-contrib/sessions"
@@ -127,7 +127,7 @@ func LoginRequired() gin.HandlerFunc {
 
 		user, err := GetUserFromRequest(c)
 		if err != nil {
-			response.AbortUnauthorized(c, common.UnAuthorized)
+			response.AbortUnauthorized(c, shared.UnAuthorized)
 			return
 		}
 

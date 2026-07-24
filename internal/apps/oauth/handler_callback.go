@@ -10,12 +10,12 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/Rain-kl/Wavelet/internal/common"
-	"github.com/Rain-kl/Wavelet/internal/common/response"
-	"github.com/Rain-kl/Wavelet/internal/db"
+	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/listener"
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"github.com/Rain-kl/Wavelet/internal/repository"
+	"github.com/Rain-kl/Wavelet/internal/shared"
+	"github.com/Rain-kl/Wavelet/internal/shared/response"
 	"github.com/Rain-kl/Wavelet/pkg/logger"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
@@ -60,7 +60,7 @@ func Callback(c *gin.Context) {
 	currentUserID := GetUserIDFromSession(session)
 
 	if payload.Purpose == OAuthPurposeBind && currentUserID == 0 {
-		response.AbortUnauthorized(c, common.UnAuthorized)
+		response.AbortUnauthorized(c, shared.UnAuthorized)
 		return
 	}
 
@@ -127,7 +127,7 @@ func Callback(c *gin.Context) {
 func handleCallbackBind(ctx context.Context, c *gin.Context, source *model.AuthSource, userInfo *model.OAuthUserInfo) {
 	userID := GetUserIDFromContext(c)
 	if userID == 0 {
-		response.AbortUnauthorized(c, common.UnAuthorized)
+		response.AbortUnauthorized(c, shared.UnAuthorized)
 		return
 	}
 	var user model.User

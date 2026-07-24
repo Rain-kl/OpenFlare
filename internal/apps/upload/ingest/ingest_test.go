@@ -17,9 +17,9 @@ import (
 
 	uploadcache "github.com/Rain-kl/Wavelet/internal/apps/upload/cache"
 	"github.com/Rain-kl/Wavelet/internal/apps/upload/shared"
-	"github.com/Rain-kl/Wavelet/internal/db"
+	"github.com/Rain-kl/Wavelet/internal/infra/objectstore"
+	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/model"
-	"github.com/Rain-kl/Wavelet/internal/storage"
 	"github.com/Rain-kl/Wavelet/internal/testhelper"
 	"gorm.io/gorm"
 )
@@ -270,7 +270,7 @@ func TestDedupRecordFailureDoesNotDeleteSharedObject(t *testing.T) {
 		t.Fatalf("shared object delete count = %d, want 0", deleteCount)
 	}
 
-	_, backend, err := storage.Active(ctx)
+	_, backend, err := objectstore.Active(ctx)
 	if err != nil {
 		t.Fatalf("load active storage: %v", err)
 	}
@@ -519,7 +519,7 @@ func setupMockStorage(t *testing.T, putCount *int) (restore func(), disable func
 func setupMockStorageWithDeleteCount(t *testing.T, putCount, deleteCount *int) (restore func(), disable func()) {
 	t.Helper()
 	mockFiles := make(map[string][]byte)
-	restore = storage.MockStorage(
+	restore = objectstore.MockStorage(
 		func(ctx context.Context, key string, body io.Reader, size int64, contentType string) error {
 			data, err := io.ReadAll(body)
 			if err != nil {
@@ -531,12 +531,12 @@ func setupMockStorageWithDeleteCount(t *testing.T, putCount, deleteCount *int) (
 			}
 			return nil
 		},
-		func(ctx context.Context, key string) (*storage.Object, error) {
+		func(ctx context.Context, key string) (*objectstore.Object, error) {
 			data, ok := mockFiles[key]
 			if !ok {
 				return nil, os.ErrNotExist
 			}
-			return &storage.Object{
+			return &objectstore.Object{
 				Body:          io.NopCloser(bytes.NewReader(data)),
 				ContentLength: int64(len(data)),
 				ContentType:   "application/octet-stream",
@@ -550,11 +550,11 @@ func setupMockStorageWithDeleteCount(t *testing.T, putCount, deleteCount *int) (
 			return nil
 		},
 	)
-	storage.IsEnabledFunc = func() bool { return true }
-	storage.ResetCache()
+	objectstore.IsEnabledFunc = func() bool { return true }
+	objectstore.ResetCache()
 	disable = func() {
-		storage.IsEnabledFunc = func() bool { return false }
-		storage.ResetCache()
+		objectstore.IsEnabledFunc = func() bool { return false }
+		objectstore.ResetCache()
 	}
 	return restore, disable
 }

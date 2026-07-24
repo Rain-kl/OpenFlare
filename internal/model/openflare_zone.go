@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/Rain-kl/Wavelet/internal/db"
+	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )

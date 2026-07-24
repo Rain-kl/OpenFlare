@@ -23,7 +23,7 @@
 | 文件 | 职责 |
 |------|------|
 | `internal/model/system_configs.go` | 三个 ConfigKey 常量 |
-| `internal/db/migrator/goose/{postgres,sqlite}/202607190001_add_openresty_default_rate_limits.sql` | seed 默认值 |
+| `internal/infra/persistence/migrator/goose/{postgres,sqlite}/202607190001_add_openresty_default_rate_limits.sql` | seed 默认值 |
 | `internal/apps/openflare/option/openresty_validators.go` + `validate.go` | 全局默认校验 |
 | `internal/apps/openflare/config_version/snapshot.go` | 快照字段 + 读取 |
 | `internal/apps/openflare/config_version/logics.go` | option diff keys |
@@ -273,8 +273,8 @@ git commit -m "feat(openresty): merge global default limits at route render"
 
 **Files:**
 - Modify: `internal/model/system_configs.go`
-- Create: `internal/db/migrator/goose/postgres/202607190001_add_openresty_default_rate_limits.sql`
-- Create: `internal/db/migrator/goose/sqlite/202607190001_add_openresty_default_rate_limits.sql`
+- Create: `internal/infra/persistence/migrator/goose/postgres/202607190001_add_openresty_default_rate_limits.sql`
+- Create: `internal/infra/persistence/migrator/goose/sqlite/202607190001_add_openresty_default_rate_limits.sql`
 - Modify: `internal/apps/openflare/option/validate.go`
 - Modify: `internal/apps/openflare/option/openresty_validators.go`
 - Modify: `internal/apps/openflare/config_version/snapshot.go`
@@ -407,8 +407,8 @@ Expected: PASS
 
 ```bash
 git add internal/model/system_configs.go \
-  internal/db/migrator/goose/postgres/202607190001_add_openresty_default_rate_limits.sql \
-  internal/db/migrator/goose/sqlite/202607190001_add_openresty_default_rate_limits.sql \
+  internal/infra/persistence/migrator/goose/postgres/202607190001_add_openresty_default_rate_limits.sql \
+  internal/infra/persistence/migrator/goose/sqlite/202607190001_add_openresty_default_rate_limits.sql \
   internal/apps/openflare/option/validate.go \
   internal/apps/openflare/option/openresty_validators.go \
   internal/apps/openflare/config_version/snapshot.go \

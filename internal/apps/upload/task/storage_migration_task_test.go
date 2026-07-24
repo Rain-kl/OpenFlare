@@ -16,9 +16,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Rain-kl/Wavelet/internal/db"
+	"github.com/Rain-kl/Wavelet/internal/infra/objectstore"
+	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/model"
-	"github.com/Rain-kl/Wavelet/internal/storage"
 	"github.com/Rain-kl/Wavelet/internal/testhelper"
 	"github.com/alicebob/miniredis/v2"
 	"github.com/redis/go-redis/v9"
@@ -39,21 +39,21 @@ func TestMigrationHandlerExecute(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	active := storage.DefaultConfig()
+	active := objectstore.DefaultConfig()
 	active.Local.Root = sourceRoot
-	if err := storage.SaveActiveConfig(ctx, active); err != nil {
+	if err := objectstore.SaveActiveConfig(ctx, active); err != nil {
 		t.Fatalf("SaveActiveConfig() returned error: %v", err)
 	}
-	target := storage.DefaultConfig()
-	target.Driver = storage.DriverS3
-	target.S3 = storage.ObjectConfig{
+	target := objectstore.DefaultConfig()
+	target.Driver = objectstore.DriverS3
+	target.S3 = objectstore.ObjectConfig{
 		Region:          "us-east-1",
 		Bucket:          "target",
 		AccessKeyID:     "key",
 		SecretAccessKey: "secret",
 	}
 	payload, err := json.Marshal(struct {
-		Target storage.Config `json:"target"`
+		Target objectstore.Config `json:"target"`
 	}{Target: target})
 	if err != nil {
 		t.Fatalf("Marshal(storageMigrationPayload) returned error: %v", err)
@@ -76,12 +76,12 @@ func TestMigrationHandlerExecute(t *testing.T) {
 	}
 
 	var copied bytes.Buffer
-	restore := storage.MockStorage(
+	restore := objectstore.MockStorage(
 		func(_ context.Context, _ string, body io.Reader, _ int64, _ string) error {
 			_, err := io.Copy(&copied, body)
 			return err
 		},
-		func(context.Context, string) (*storage.Object, error) {
+		func(context.Context, string) (*objectstore.Object, error) {
 			return nil, nil
 		},
 		func(context.Context, string) error {
@@ -105,12 +105,12 @@ func TestMigrationHandlerExecute(t *testing.T) {
 	if err := dbConn.First(&migrated, upload.ID).Error; err != nil {
 		t.Fatalf("First(upload) returned error: %v", err)
 	}
-	current, err := storage.LoadConfig(ctx)
+	current, err := objectstore.LoadConfig(ctx)
 	if err != nil {
 		t.Fatalf("LoadConfig() returned error: %v", err)
 	}
-	if current.Driver != storage.DriverS3 {
-		t.Errorf("active driver = %q, want %q", current.Driver, storage.DriverS3)
+	if current.Driver != objectstore.DriverS3 {
+		t.Errorf("active driver = %q, want %q", current.Driver, objectstore.DriverS3)
 	}
 }
 
@@ -134,22 +134,22 @@ func TestMigrationHandlerExecuteWithHashValidation(t *testing.T) {
 	correctHash := hex.EncodeToString(h.Sum(nil))
 
 	ctx := context.Background()
-	active := storage.DefaultConfig()
+	active := objectstore.DefaultConfig()
 	active.Local.Root = sourceRoot
-	if err := storage.SaveActiveConfig(ctx, active); err != nil {
+	if err := objectstore.SaveActiveConfig(ctx, active); err != nil {
 		t.Fatalf("SaveActiveConfig() returned error: %v", err)
 	}
 
-	target := storage.DefaultConfig()
-	target.Driver = storage.DriverS3
-	target.S3 = storage.ObjectConfig{
+	target := objectstore.DefaultConfig()
+	target.Driver = objectstore.DriverS3
+	target.S3 = objectstore.ObjectConfig{
 		Region:          "us-east-1",
 		Bucket:          "target",
 		AccessKeyID:     "key",
 		SecretAccessKey: "secret",
 	}
 	payload, err := json.Marshal(struct {
-		Target storage.Config `json:"target"`
+		Target objectstore.Config `json:"target"`
 	}{Target: target})
 	if err != nil {
 		t.Fatalf("Marshal(storageMigrationPayload) returned error: %v", err)
@@ -173,14 +173,14 @@ func TestMigrationHandlerExecuteWithHashValidation(t *testing.T) {
 	}
 
 	var copied bytes.Buffer
-	restore := storage.MockStorage(
+	restore := objectstore.MockStorage(
 		func(_ context.Context, _ string, body io.Reader, _ int64, _ string) error {
 			copied.Reset()
 			_, err := io.Copy(&copied, body)
 			return err
 		},
-		func(context.Context, string) (*storage.Object, error) {
-			return &storage.Object{
+		func(context.Context, string) (*objectstore.Object, error) {
+			return &objectstore.Object{
 				Body:          io.NopCloser(bytes.NewBuffer(copied.Bytes())),
 				ContentLength: int64(copied.Len()),
 				ContentType:   "text/plain",
@@ -253,13 +253,13 @@ func TestMigrationHandlerExecuteWithRedisLock(t *testing.T) {
 		t.Fatalf("Failed to set manual lock in Redis: %v", err)
 	}
 
-	active := storage.DefaultConfig()
-	if err := storage.SaveActiveConfig(ctx, active); err != nil {
+	active := objectstore.DefaultConfig()
+	if err := objectstore.SaveActiveConfig(ctx, active); err != nil {
 		t.Fatalf("SaveActiveConfig() returned error: %v", err)
 	}
 
 	payload, err := json.Marshal(struct {
-		Target storage.Config `json:"target"`
+		Target objectstore.Config `json:"target"`
 	}{Target: active})
 	if err != nil {
 		t.Fatalf("Marshal payload failed: %v", err)

@@ -6,8 +6,8 @@ package storage
 import (
 	"context"
 
+	"github.com/Rain-kl/Wavelet/internal/infra/objectstore"
 	"github.com/Rain-kl/Wavelet/internal/model"
-	"github.com/Rain-kl/Wavelet/internal/storage"
 	"github.com/Rain-kl/Wavelet/pkg/logger"
 )
 
@@ -22,8 +22,8 @@ func ReadOnly(ctx context.Context) bool {
 }
 
 // OpenStoredObject opens a stored upload object from the active storage backend.
-func OpenStoredObject(ctx context.Context, upload *model.Upload) (*storage.Object, error) {
-	_, backend, err := storage.Active(ctx)
+func OpenStoredObject(ctx context.Context, upload *model.Upload) (*objectstore.Object, error) {
+	_, backend, err := objectstore.Active(ctx)
 	if err != nil {
 		return nil, err
 	}

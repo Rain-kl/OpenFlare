@@ -7,9 +7,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/Rain-kl/Wavelet/internal/config"
-	"github.com/Rain-kl/Wavelet/internal/db"
-	"github.com/Rain-kl/Wavelet/internal/db/batchwriter"
+	"github.com/Rain-kl/Wavelet/internal/infra/config"
+	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
+	"github.com/Rain-kl/Wavelet/internal/infra/persistence/batchwriter"
 )
 
 // ClickHouseOperationalStats summarizes ClickHouse merge/mutation pressure

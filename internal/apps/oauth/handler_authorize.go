@@ -9,10 +9,10 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/Rain-kl/Wavelet/internal/common"
-	"github.com/Rain-kl/Wavelet/internal/common/response"
-	"github.com/Rain-kl/Wavelet/internal/db"
+	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/model"
+	"github.com/Rain-kl/Wavelet/internal/shared"
+	"github.com/Rain-kl/Wavelet/internal/shared/response"
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
@@ -134,7 +134,7 @@ func Authorize(c *gin.Context) {
 	session := sessions.Default(c)
 	userID := GetUserIDFromSession(session)
 	if purpose == OAuthPurposeBind && userID == 0 {
-		response.AbortUnauthorized(c, common.UnAuthorized)
+		response.AbortUnauthorized(c, shared.UnAuthorized)
 		return
 	}
 

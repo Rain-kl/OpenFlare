@@ -17,10 +17,10 @@ import (
 
 	uploadstats "github.com/Rain-kl/Wavelet/internal/apps/upload/stats"
 	uploadstorage "github.com/Rain-kl/Wavelet/internal/apps/upload/storage"
-	"github.com/Rain-kl/Wavelet/internal/db"
+	"github.com/Rain-kl/Wavelet/internal/infra/objectstore"
+	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
+	"github.com/Rain-kl/Wavelet/internal/infra/task"
 	"github.com/Rain-kl/Wavelet/internal/model"
-	"github.com/Rain-kl/Wavelet/internal/storage"
-	"github.com/Rain-kl/Wavelet/internal/task"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -117,7 +117,7 @@ func (h *MigrationHandler) Execute(ctx context.Context, payload []byte) (*task.T
 		}()
 	}
 
-	active, err := storage.LoadConfig(ctx)
+	active, err := objectstore.LoadConfig(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("load active storage config: %w", err)
 	}
@@ -126,7 +126,7 @@ func (h *MigrationHandler) Execute(ctx context.Context, payload []byte) (*task.T
 		return nil, err
 	}
 	if target.Driver == active.Driver {
-		if err := storage.SaveActiveConfig(ctx, target); err != nil {
+		if err := objectstore.SaveActiveConfig(ctx, target); err != nil {
 			return nil, fmt.Errorf("activate same-driver storage config: %w", err)
 		}
 		message := fmt.Sprintf("存储配置已更新，活动存储保持为 %s", target.Driver)
@@ -139,7 +139,7 @@ func (h *MigrationHandler) Execute(ctx context.Context, payload []byte) (*task.T
 		return nil, fmt.Errorf("count source objects: %w", err)
 	}
 	if total == 0 {
-		if err := storage.SaveActiveConfig(ctx, target); err != nil {
+		if err := objectstore.SaveActiveConfig(ctx, target); err != nil {
 			return nil, fmt.Errorf("activate empty storage config: %w", err)
 		}
 		message := fmt.Sprintf("当前存储没有需要迁移的对象，活动存储已切换为 %s", target.Driver)
@@ -147,11 +147,11 @@ func (h *MigrationHandler) Execute(ctx context.Context, payload []byte) (*task.T
 		return &task.TaskResult{Message: message}, nil
 	}
 
-	sourceBackend, err := storage.NewBackend(ctx, active, active.Driver)
+	sourceBackend, err := objectstore.NewBackend(ctx, active, active.Driver)
 	if err != nil {
 		return nil, fmt.Errorf("create source storage: %w", err)
 	}
-	targetBackend, err := storage.NewBackend(ctx, target, target.Driver)
+	targetBackend, err := objectstore.NewBackend(ctx, target, target.Driver)
 	if err != nil {
 		return nil, fmt.Errorf("create target storage: %w", err)
 	}
@@ -162,7 +162,7 @@ func (h *MigrationHandler) Execute(ctx context.Context, payload []byte) (*task.T
 		return nil, err
 	}
 
-	if err := storage.SaveActiveConfig(ctx, target); err != nil {
+	if err := objectstore.SaveActiveConfig(ctx, target); err != nil {
 		return nil, fmt.Errorf("activate target storage: %w", err)
 	}
 	message := fmt.Sprintf("存储迁移完成，共迁移 %d 个对象，活动存储已切换为 %s", migrated, target.Driver)
@@ -196,8 +196,8 @@ type migrationObject struct {
 
 func migrateObjects(
 	ctx context.Context,
-	sourceBackend storage.Backend,
-	targetBackend storage.Backend,
+	sourceBackend objectstore.Backend,
+	targetBackend objectstore.Backend,
 	total int64,
 ) (int64, error) {
 	const batchSize = 50
@@ -258,8 +258,8 @@ func migrateObjects(
 
 func migrateSingleObject(
 	ctx context.Context,
-	sourceBackend storage.Backend,
-	targetBackend storage.Backend,
+	sourceBackend objectstore.Backend,
+	targetBackend objectstore.Backend,
 	obj migrationObject,
 	sha256HexLength int,
 ) error {
@@ -322,7 +322,7 @@ func migrateSingleObject(
 
 func shouldSkipMigration(
 	ctx context.Context,
-	targetBackend storage.Backend,
+	targetBackend objectstore.Backend,
 	obj migrationObject,
 ) bool {
 	targetObj, err := targetBackend.Get(ctx, obj.FilePath)

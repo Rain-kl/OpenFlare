@@ -31,8 +31,8 @@ Wavelet 当前有两套设置入口：
 修改前快速查看这些文件，确认当前实现没有漂移：
 
 - `internal/model/system_configs.go`: 配置 key 常量、`SystemConfig` 模型、`GetByKey`、`GetBoolByKey`、`GetIntByKey`、`GetDecimalByKey` 等读取方法。
-- `internal/db/migrator/goose/postgres/*.sql` 和 `internal/db/migrator/goose/sqlite/*.sql`: `system_configs` 表结构、初始化 seed、后续升级迁移。
-- `internal/db/migrator/migrator.go`: goose 迁移入口和 PostgreSQL/SQLite 方言选择。
+- `internal/infra/persistence/migrator/goose/postgres/*.sql` 和 `internal/infra/persistence/migrator/goose/sqlite/*.sql`: `system_configs` 表结构、初始化 seed、后续升级迁移。
+- `internal/infra/persistence/migrator/migrator.go`: goose 迁移入口和 PostgreSQL/SQLite 方言选择。
 - `internal/testhelper/test_helper.go`: Go 测试用默认系统配置 seed。
 - `internal/apps/admin/system_config/routers.go`: `/api/v1/admin/system-configs` 参数表 API。
 - `internal/apps/config/routers.go`: `/api/v1/config/public` 公共配置响应。
@@ -52,7 +52,7 @@ Wavelet 当前有两套设置入口：
    - 值仍存为字符串；布尔值用 `"true"` / `"false"`，数值用十进制字符串，复杂结构用 JSON 字符串。
 
 2. 初始化默认配置。
-   - 如果修改初始 schema，必须同步 `internal/db/migrator/goose/postgres/` 和 `internal/db/migrator/goose/sqlite/` 中的 goose SQL。
+   - 如果修改初始 schema，必须同步 `internal/infra/persistence/migrator/goose/postgres/` 和 `internal/infra/persistence/migrator/goose/sqlite/` 中的 goose SQL。
    - 既有库新增配置时，新增一组时间戳递增的双 SQL 迁移文件，分别放在 PostgreSQL 和 SQLite 目录；不要回到 GORM AutoMigrate 或 Go 代码 seed。
    - 新库初始化也需要包含同一个默认 key：当前初始 seed 在 `202606090001_initial_schema.sql` 的 `INSERT INTO system_configs (...) VALUES ... ON CONFLICT (key) DO NOTHING`。
    - 设置正确的 `Type`：只能是 `"system"` 或 `"business"`。
@@ -62,7 +62,7 @@ Wavelet 当前有两套设置入口：
 
 3. 读取配置。
    - 后端业务代码优先使用 `model.GetBoolByKey`、`model.GetIntByKey`、`model.GetDecimalByKey` 或 `SystemConfig.GetByKey`。
-   - 运行时可热更新的规则不要放进 `config.Config`；启动时设置才走 `internal/config/model.go` 和 `config.example.yaml`。
+   - 运行时可热更新的规则不要放进 `config.Config`；启动时设置才走 `internal/infra/config/model.go` 和 `config.example.yaml`。
    - 不要在 handler 或业务代码里直接读 `os.Getenv()`。
 
 4. 如果前端需要未登录或全局消费，暴露为公共可见配置。
@@ -89,7 +89,7 @@ Wavelet 当前有两套设置入口：
 
 只有在配置必须随进程启动确定、不能或不应热更新时，才走启动时设置。
 
-1. 在 `internal/config/model.go` 添加配置字段。
+1. 在 `internal/infra/config/model.go` 添加配置字段。
 2. 在 `config.example.yaml` 添加示例值和说明。
 3. 确认 Viper 现有加载逻辑能绑定该字段；需要环境变量时沿用当前命名和绑定方式。
 4. 运行时代码从 `config.Config.<Section>.<Field>` 读取。

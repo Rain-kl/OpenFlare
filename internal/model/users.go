@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Rain-kl/Wavelet/internal/common"
-	"github.com/Rain-kl/Wavelet/internal/db/idgen"
+	"github.com/Rain-kl/Wavelet/internal/infra/persistence/idgen"
+	"github.com/Rain-kl/Wavelet/internal/shared"
 	"github.com/Rain-kl/Wavelet/pkg/util"
 	"gorm.io/gorm"
 )
@@ -125,7 +125,7 @@ func (u *User) UpdateFromOAuthInfo(oauthInfo *OAuthUserInfo) {
 // CheckActive 检查用户账户是否激活,未激活则返回错误
 func (u *User) CheckActive() error {
 	if !u.IsActive {
-		return errors.New(common.BannedAccount)
+		return errors.New(shared.BannedAccount)
 	}
 	return nil
 }

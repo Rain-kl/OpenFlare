@@ -10,14 +10,14 @@ import (
 	"time"
 
 	"github.com/Rain-kl/Wavelet/internal/apps/upload/shared"
+	"github.com/Rain-kl/Wavelet/internal/infra/objectstore"
 	"github.com/Rain-kl/Wavelet/internal/model"
-	"github.com/Rain-kl/Wavelet/internal/storage"
 )
 
 // MigrationAccessState captures cached migration maintenance state.
 type MigrationAccessState struct {
 	ReadOnly  bool
-	Target    storage.Config
+	Target    objectstore.Config
 	HasTarget bool
 	TargetErr error
 	LoadErr   error

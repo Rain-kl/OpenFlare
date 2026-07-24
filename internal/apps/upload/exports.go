@@ -12,7 +12,7 @@ import (
 	uploadstats "github.com/Rain-kl/Wavelet/internal/apps/upload/stats"
 	uploadtask "github.com/Rain-kl/Wavelet/internal/apps/upload/task"
 	"github.com/Rain-kl/Wavelet/internal/apps/upload/util"
-	"github.com/Rain-kl/Wavelet/internal/task"
+	"github.com/Rain-kl/Wavelet/internal/infra/task"
 )
 
 // HTTP handlers

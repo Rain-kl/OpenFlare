@@ -18,7 +18,7 @@ import (
 	"time"
 
 	"github.com/Rain-kl/Wavelet/internal/apps/upload"
-	"github.com/Rain-kl/Wavelet/internal/db"
+	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"github.com/Rain-kl/Wavelet/pkg/pagesarchive"
 	"gorm.io/gorm"

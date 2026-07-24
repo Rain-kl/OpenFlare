@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Rain-kl/Wavelet/internal/db/idgen"
+	"github.com/Rain-kl/Wavelet/internal/infra/persistence/idgen"
 )
 
 type memoryObservabilityStore struct {

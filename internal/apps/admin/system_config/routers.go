@@ -17,11 +17,11 @@ import (
 
 	"github.com/Rain-kl/Wavelet/internal/apps/cap"
 	"github.com/Rain-kl/Wavelet/internal/apps/upload"
-	"github.com/Rain-kl/Wavelet/internal/common/response"
-	"github.com/Rain-kl/Wavelet/internal/db"
+	"github.com/Rain-kl/Wavelet/internal/infra/objectstore"
+	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"github.com/Rain-kl/Wavelet/internal/repository"
-	"github.com/Rain-kl/Wavelet/internal/storage"
+	"github.com/Rain-kl/Wavelet/internal/shared/response"
 	"github.com/Rain-kl/Wavelet/pkg/logger"
 	mail "github.com/Rain-kl/Wavelet/pkg/mail"
 )
@@ -187,8 +187,8 @@ func invalidateCachesAfterConfigUpdate(ctx context.Context, key string) {
 	if key == model.ConfigKeyStorageConfig {
 		upload.ResetAccessCaches()
 		upload.PublishAccessCacheInvalidation(ctx)
-		storage.ResetCache()
-		storage.PublishCacheInvalidation(ctx)
+		objectstore.ResetCache()
+		objectstore.PublishCacheInvalidation(ctx)
 	}
 	if key == model.ConfigKeyFileAccessWhitelist {
 		upload.ResetAccessCaches()
@@ -284,9 +284,9 @@ func maskSensitiveConfig(key, value string) string {
 	case model.ConfigKeySMTPPassword:
 		return maskedConfigValue
 	case model.ConfigKeyStorageConfig:
-		var cfg storage.Config
+		var cfg objectstore.Config
 		if err := json.Unmarshal([]byte(value), &cfg); err == nil {
-			masked := storage.MaskSecrets(cfg)
+			masked := objectstore.MaskSecrets(cfg)
 			if val, err := json.Marshal(masked); err == nil {
 				return string(val)
 			}
@@ -298,18 +298,18 @@ func maskSensitiveConfig(key, value string) string {
 // validateAndMergeStorageConfig parses, merges unmasked secrets, validates parameter values,
 // and tests connectivity of the new storage configuration.
 func validateAndMergeStorageConfig(ctx context.Context, value string, currentConfig string) (string, error) {
-	var currentCfg storage.Config
+	var currentCfg objectstore.Config
 	if err := json.Unmarshal([]byte(currentConfig), &currentCfg); err != nil {
 		return "", fmt.Errorf("解析当前存储配置失败: %w", err)
 	}
 
-	var newCfg storage.Config
+	var newCfg objectstore.Config
 	if err := json.Unmarshal([]byte(value), &newCfg); err != nil {
 		return "", fmt.Errorf("解析目标存储配置失败: %w", err)
 	}
 
 	// 合并被掩码屏蔽的敏感信息，获取完整的真实配置
-	targetCfg := storage.MergeMaskedSecrets(newCfg, currentCfg)
+	targetCfg := objectstore.MergeMaskedSecrets(newCfg, currentCfg)
 	if err := validateMergedStorageConfig(ctx, currentCfg, newCfg, targetCfg); err != nil {
 		return "", err
 	}
@@ -323,7 +323,7 @@ func validateAndMergeStorageConfig(ctx context.Context, value string, currentCon
 	return string(unmaskedVal), nil
 }
 
-func validateMergedStorageConfig(ctx context.Context, currentCfg, newCfg, targetCfg storage.Config) error {
+func validateMergedStorageConfig(ctx context.Context, currentCfg, newCfg, targetCfg objectstore.Config) error {
 	if newCfg.Driver != "" && newCfg.Driver != currentCfg.Driver {
 		var uploadCount int64
 		if err := db.DB(ctx).Model(&model.Upload{}).
@@ -342,19 +342,19 @@ func validateMergedStorageConfig(ctx context.Context, currentCfg, newCfg, target
 		return testStorageBackend(ctx, pendingCfg, newCfg.Driver)
 	}
 
-	if err := storage.ValidateConfig(targetCfg); err != nil {
+	if err := objectstore.ValidateConfig(targetCfg); err != nil {
 		return fmt.Errorf("验证存储配置参数失败: %w", err)
 	}
 	return testStorageBackend(ctx, targetCfg, targetCfg.Driver)
 }
 
-func validateDriverConfig(cfg storage.Config, driver storage.Driver) error {
+func validateDriverConfig(cfg objectstore.Config, driver objectstore.Driver) error {
 	cfg.Driver = driver
-	return storage.ValidateConfig(cfg)
+	return objectstore.ValidateConfig(cfg)
 }
 
-func testStorageBackend(ctx context.Context, cfg storage.Config, driver storage.Driver) error {
-	testBackend, err := storage.NewBackend(ctx, cfg, driver)
+func testStorageBackend(ctx context.Context, cfg objectstore.Config, driver objectstore.Driver) error {
+	testBackend, err := objectstore.NewBackend(ctx, cfg, driver)
 	if err != nil {
 		return fmt.Errorf("初始化测试存储实例失败: %w", err)
 	}

@@ -37,7 +37,7 @@ make run   # 以项目实际入口为准
 clickhouse-client --host 127.0.0.1 --port 9000 \
   --user default --password "$CLICKHOUSE_PASSWORD" \
   --database openflare \
-  --multiquery < internal/db/migrator/goose/clickhouse/202607180003_backfill_access_log_hourly.sql
+  --multiquery < internal/infra/persistence/migrator/goose/clickhouse/202607180003_backfill_access_log_hourly.sql
 ```
 
 （goose 文件含 `+goose Up` 注释，若 client 报错可去掉注释行后执行 INSERT 主体。）

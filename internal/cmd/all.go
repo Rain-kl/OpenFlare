@@ -9,10 +9,10 @@ import (
 	"log"
 	"sync"
 
-	"github.com/Rain-kl/Wavelet/internal/bootstrap"
+	"github.com/Rain-kl/Wavelet/internal/infra/task/scheduler"
+	"github.com/Rain-kl/Wavelet/internal/infra/task/worker"
+	"github.com/Rain-kl/Wavelet/internal/platform/bootstrap"
 	"github.com/Rain-kl/Wavelet/internal/router"
-	"github.com/Rain-kl/Wavelet/internal/task/scheduler"
-	"github.com/Rain-kl/Wavelet/internal/task/worker"
 	"github.com/spf13/cobra"
 )
 

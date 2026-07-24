@@ -9,10 +9,10 @@ import (
 	"errors"
 	"time"
 
-	"github.com/Rain-kl/Wavelet/internal/db"
+	"github.com/Rain-kl/Wavelet/internal/infra/objectstore"
+	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"github.com/Rain-kl/Wavelet/internal/repository"
-	"github.com/Rain-kl/Wavelet/internal/storage"
 	"github.com/Rain-kl/Wavelet/pkg/logger"
 	"gorm.io/gorm"
 )
@@ -58,9 +58,9 @@ func updateSystemConfig(ctx context.Context, key string, req UpdateSystemConfigR
 		return err
 	}
 
-	var originalDriver storage.Driver
+	var originalDriver objectstore.Driver
 	if key == model.ConfigKeyStorageConfig {
-		var currentCfg storage.Config
+		var currentCfg objectstore.Config
 		if err := json.Unmarshal([]byte(config.Value), &currentCfg); err == nil {
 			originalDriver = currentCfg.Driver
 		}
@@ -101,14 +101,14 @@ func resolveStorageMigrationTasksOnDirectDriverUpdate(
 	ctx context.Context,
 	tx *gorm.DB,
 	key string,
-	originalDriver storage.Driver,
+	originalDriver objectstore.Driver,
 	newValue string,
 ) {
 	if key != model.ConfigKeyStorageConfig || originalDriver == "" {
 		return
 	}
 
-	var newCfg storage.Config
+	var newCfg objectstore.Config
 	if err := json.Unmarshal([]byte(newValue), &newCfg); err != nil {
 		return
 	}

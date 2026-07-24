@@ -16,7 +16,7 @@ import (
 	"github.com/Rain-kl/Wavelet/internal/repository"
 	"github.com/gin-gonic/gin"
 
-	"github.com/Rain-kl/Wavelet/internal/common/response"
+	"github.com/Rain-kl/Wavelet/internal/shared/response"
 )
 
 // AuthSourceRequest 创建或更新认证源的请求参数

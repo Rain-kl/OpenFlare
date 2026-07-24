@@ -10,7 +10,7 @@ import (
 
 	"github.com/ClickHouse/clickhouse-go/v2/lib/column"
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
-	"github.com/Rain-kl/Wavelet/internal/db"
+	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	analyticsmodel "github.com/Rain-kl/Wavelet/internal/model/analytics"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

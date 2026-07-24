@@ -12,14 +12,14 @@ import (
 	"time"
 
 	"github.com/Rain-kl/Wavelet/internal/apps/admin"
+	"github.com/Rain-kl/Wavelet/internal/infra/task"
+	"github.com/Rain-kl/Wavelet/internal/infra/task/scheduler"
 	"github.com/Rain-kl/Wavelet/internal/model"
-	"github.com/Rain-kl/Wavelet/internal/task"
-	"github.com/Rain-kl/Wavelet/internal/task/scheduler"
 	"github.com/Rain-kl/Wavelet/pkg/logger"
 	"github.com/gin-gonic/gin"
 	"github.com/robfig/cron/v3"
 
-	"github.com/Rain-kl/Wavelet/internal/common/response"
+	"github.com/Rain-kl/Wavelet/internal/shared/response"
 )
 
 // ListTaskTypes 获取支持的任务类型列表

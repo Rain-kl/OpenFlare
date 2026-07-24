@@ -17,12 +17,12 @@ import (
 	"time"
 
 	"github.com/Rain-kl/Wavelet/internal/apps/risk_control"
-	"github.com/Rain-kl/Wavelet/internal/bootstrap"
+	"github.com/Rain-kl/Wavelet/internal/platform/bootstrap"
 	router_root "github.com/Rain-kl/Wavelet/internal/router/root"
 	v1 "github.com/Rain-kl/Wavelet/internal/router/v1"
 
 	"github.com/Rain-kl/Wavelet/internal/apps/oauth"
-	"github.com/Rain-kl/Wavelet/internal/config"
+	"github.com/Rain-kl/Wavelet/internal/infra/config"
 	otel_trace "github.com/Rain-kl/Wavelet/pkg/trace"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/redis"

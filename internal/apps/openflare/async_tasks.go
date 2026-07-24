@@ -10,9 +10,9 @@ import (
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/tasks"
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/uptimekuma"
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/waf"
+	"github.com/Rain-kl/Wavelet/internal/infra/task"
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"github.com/Rain-kl/Wavelet/internal/repository"
-	"github.com/Rain-kl/Wavelet/internal/task"
 )
 
 const (

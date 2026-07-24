@@ -8,8 +8,8 @@ import (
 
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/apiutil"
 	ofws "github.com/Rain-kl/Wavelet/internal/apps/openflare/websocket"
-	"github.com/Rain-kl/Wavelet/internal/common/response"
 	"github.com/Rain-kl/Wavelet/internal/model"
+	"github.com/Rain-kl/Wavelet/internal/shared/response"
 	"github.com/gin-gonic/gin"
 )
 

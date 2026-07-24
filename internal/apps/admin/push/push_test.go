@@ -14,8 +14,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Rain-kl/Wavelet/internal/infra/task"
 	"github.com/Rain-kl/Wavelet/internal/model"
-	"github.com/Rain-kl/Wavelet/internal/task"
 	"github.com/Rain-kl/Wavelet/internal/testhelper"
 	pkgpush "github.com/Rain-kl/Wavelet/pkg/push"
 	"github.com/alicebob/miniredis/v2"
@@ -26,8 +26,8 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/Rain-kl/Wavelet/internal/apps/oauth"
-	"github.com/Rain-kl/Wavelet/internal/common/response"
 	"github.com/Rain-kl/Wavelet/internal/repository"
+	"github.com/Rain-kl/Wavelet/internal/shared/response"
 )
 
 var adminLoginEvent = EventMetadata{

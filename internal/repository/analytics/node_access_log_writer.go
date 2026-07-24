@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Rain-kl/Wavelet/internal/db"
-	"github.com/Rain-kl/Wavelet/internal/db/idgen"
+	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
+	"github.com/Rain-kl/Wavelet/internal/infra/persistence/idgen"
 	analyticsmodel "github.com/Rain-kl/Wavelet/internal/model/analytics"
 )
 

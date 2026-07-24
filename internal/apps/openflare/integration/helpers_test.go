@@ -10,9 +10,9 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/Rain-kl/Wavelet/internal/common/response"
 	v1 "github.com/Rain-kl/Wavelet/internal/router/v1"
 	ofrouter "github.com/Rain-kl/Wavelet/internal/router/v1/openflare"
+	"github.com/Rain-kl/Wavelet/internal/shared/response"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 )

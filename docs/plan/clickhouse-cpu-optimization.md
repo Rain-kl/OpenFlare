@@ -13,13 +13,13 @@ ClickHouse CPU 偏高由写入侧（小 part 频繁 flush、心跳同步 DELETE 
 ### PR 1: 写入路径 P0 优化
 
 - **Description:** 移除心跳路径同步 `ALTER DELETE`；为 `batchwriter` 增加 `MinBatchSize`；调大可观测 writer 批次与 flush 间隔；为 openresty/frps/frpc 补全去重。
-- **Files/components affected:** `internal/apps/openflare/agent/observability.go`, `internal/db/batchwriter/`, `internal/apps/openflare/chwriter/`, `internal/db/batchwriter/*_test.go`
+- **Files/components affected:** `internal/apps/openflare/agent/observability.go`, `internal/infra/persistence/batchwriter/`, `internal/apps/openflare/chwriter/`, `internal/infra/persistence/batchwriter/*_test.go`
 - **Dependencies:** None
 
 ### PR 2: ClickHouse 客户端与配置 P1
 
 - **Description:** 启用 `async_insert` 等写入优化 settings；提高 `block_buffer_size` 默认值；更新 `config.example.yaml` 与配置模型注释。
-- **Files/components affected:** `internal/db/clickhouse.go`, `internal/config/model.go`, `internal/config/config.go`, `config.example.yaml`
+- **Files/components affected:** `internal/infra/persistence/clickhouse.go`, `internal/infra/config/model.go`, `internal/infra/config/config.go`, `config.example.yaml`
 - **Dependencies:** None
 
 ### PR 3: Dashboard 与可观测查询 P0
@@ -37,7 +37,7 @@ ClickHouse CPU 偏高由写入侧（小 part 频繁 flush、心跳同步 DELETE 
 ### PR 5: ClickHouse DDL 与数据规范化 P1
 
 - **Description:** 为 7 张分析表添加 TTL；收窄 `of_node_access_logs` ORDER BY；插入时规范化 `remote_addr`（去 trim 查询）；将可观测 obs 三表纳入自动清理。
-- **Files/components affected:** `internal/db/migrator/goose/clickhouse/`, `internal/repository/analytics/node_access_log_writer.go`, `internal/apps/openflare/tasks/database_cleanup.go`, `internal/model/analytics/`
+- **Files/components affected:** `internal/infra/persistence/migrator/goose/clickhouse/`, `internal/repository/analytics/node_access_log_writer.go`, `internal/apps/openflare/tasks/database_cleanup.go`, `internal/model/analytics/`
 - **Dependencies:** PR 1
 
 ### PR 6: 基础设施与审计减负 P2

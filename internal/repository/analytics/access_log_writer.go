@@ -7,7 +7,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/Rain-kl/Wavelet/internal/db"
+	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	analyticsmodel "github.com/Rain-kl/Wavelet/internal/model/analytics"
 )
 

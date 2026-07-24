@@ -17,17 +17,17 @@ import (
 	"testing"
 
 	"github.com/Rain-kl/Wavelet/internal/apps/oauth"
-	"github.com/Rain-kl/Wavelet/internal/db"
+	"github.com/Rain-kl/Wavelet/internal/infra/objectstore"
+	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"github.com/Rain-kl/Wavelet/internal/repository"
-	"github.com/Rain-kl/Wavelet/internal/storage"
 	"github.com/Rain-kl/Wavelet/internal/testhelper"
 	"github.com/gin-gonic/gin"
 
-	"github.com/Rain-kl/Wavelet/internal/common/response"
+	"github.com/Rain-kl/Wavelet/internal/shared/response"
 )
 
-const expectedDefaultConfigsCount = 32
+const expectedDefaultConfigsCount = 34
 
 func setupTestRouter(authUser *model.User) *gin.Engine {
 	r := testhelper.NewTestGinEngine()
@@ -168,8 +168,8 @@ func TestListSystemConfigs(t *testing.T) {
 		var configs []model.SystemConfig
 		_ = json.Unmarshal(dataBytes, &configs)
 
-		if len(configs) != 3 {
-			t.Errorf("expected 3 business configs, got %d: %v", len(configs), configs)
+		if len(configs) != 5 {
+			t.Errorf("expected 5 business configs, got %d: %v", len(configs), configs)
 		}
 	})
 }
@@ -394,7 +394,7 @@ func TestUpdateStorageConfigValidation(t *testing.T) {
 
 	t.Run("update storage config successfully", func(t *testing.T) {
 		tempDir := t.TempDir()
-		cfg := storage.DefaultConfig()
+		cfg := objectstore.DefaultConfig()
 		cfg.Local.Root = tempDir
 
 		cfgBytes, _ := json.Marshal(cfg)
@@ -414,7 +414,7 @@ func TestUpdateStorageConfigValidation(t *testing.T) {
 		// Verify database
 		var dbCfg model.SystemConfig
 		dbConn.Where("key = ?", "storage_config").First(&dbCfg)
-		var savedCfg storage.Config
+		var savedCfg objectstore.Config
 		_ = json.Unmarshal([]byte(dbCfg.Value), &savedCfg)
 		if savedCfg.Local.Root != tempDir {
 			t.Errorf("expected local root to be updated to %s, got %s", tempDir, savedCfg.Local.Root)
@@ -422,8 +422,8 @@ func TestUpdateStorageConfigValidation(t *testing.T) {
 	})
 
 	t.Run("update storage config failed connectivity check", func(t *testing.T) {
-		cfg := storage.DefaultConfig()
-		cfg.Driver = storage.DriverS3
+		cfg := objectstore.DefaultConfig()
+		cfg.Driver = objectstore.DriverS3
 		cfg.S3.Bucket = "non-existent-bucket"
 		cfg.S3.Endpoint = "http://127.0.0.1:9999" // Will fail connectivity check
 
@@ -459,8 +459,8 @@ func TestUpdateStorageConfigValidation(t *testing.T) {
 		}
 
 		tempDir := t.TempDir()
-		cfg := storage.DefaultConfig()
-		cfg.Driver = storage.DriverS3
+		cfg := objectstore.DefaultConfig()
+		cfg.Driver = objectstore.DriverS3
 		cfg.S3.Endpoint = "http://127.0.0.1:19998"
 		cfg.S3.Region = "us-east-1"
 		cfg.S3.Bucket = "wavelet"
@@ -489,8 +489,8 @@ func TestUpdateStorageConfigValidation(t *testing.T) {
 			t.Fatalf("clear uploads failed: %v", err)
 		}
 
-		activeCfg := storage.DefaultConfig()
-		activeCfg.Driver = storage.DriverS3
+		activeCfg := objectstore.DefaultConfig()
+		activeCfg.Driver = objectstore.DriverS3
 		activeCfg.S3.Endpoint = "http://127.0.0.1:9999"
 		activeCfg.S3.Region = "us-east-1"
 		activeCfg.S3.Bucket = "wavelet"
@@ -510,7 +510,7 @@ func TestUpdateStorageConfigValidation(t *testing.T) {
 
 		tempDir := t.TempDir()
 		stagedCfg := activeCfg
-		stagedCfg.Driver = storage.DriverLocal
+		stagedCfg.Driver = objectstore.DriverLocal
 		stagedCfg.Local.Root = tempDir
 
 		cfgBytes, _ := json.Marshal(stagedCfg)
@@ -529,12 +529,12 @@ func TestUpdateStorageConfigValidation(t *testing.T) {
 		if err := dbConn.Where("key = ?", "storage_config").First(&dbCfg).Error; err != nil {
 			t.Fatalf("load saved storage config failed: %v", err)
 		}
-		var savedCfg storage.Config
+		var savedCfg objectstore.Config
 		if err := json.Unmarshal([]byte(dbCfg.Value), &savedCfg); err != nil {
 			t.Fatalf("parse saved storage config failed: %v", err)
 		}
-		if savedCfg.Driver != storage.DriverLocal {
-			t.Fatalf("active driver = %q, want %q after save", savedCfg.Driver, storage.DriverLocal)
+		if savedCfg.Driver != objectstore.DriverLocal {
+			t.Fatalf("active driver = %q, want %q after save", savedCfg.Driver, objectstore.DriverLocal)
 		}
 		if savedCfg.Local.Root != tempDir {
 			t.Fatalf("staged local root = %q, want %q", savedCfg.Local.Root, tempDir)

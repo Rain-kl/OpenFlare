@@ -10,7 +10,7 @@ import (
 
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/agent"
 	ofnode "github.com/Rain-kl/Wavelet/internal/apps/openflare/node"
-	"github.com/Rain-kl/Wavelet/internal/db"
+	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"github.com/Rain-kl/Wavelet/internal/testhelper"
 	"github.com/gin-gonic/gin"

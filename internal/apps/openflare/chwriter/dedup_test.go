@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Rain-kl/Wavelet/internal/db/batchwriter"
+	"github.com/Rain-kl/Wavelet/internal/infra/persistence/batchwriter"
 	analyticsmodel "github.com/Rain-kl/Wavelet/internal/model/analytics"
 )
 

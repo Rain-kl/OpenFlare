@@ -65,10 +65,10 @@ flowchart LR
 ### Task 1: 数据库迁移与持久化模型
 
 **Files:**
-- Create: `internal/db/migrator/goose/postgres/202607150001_orchestrate_waf_rules.sql`
-- Create: `internal/db/migrator/goose/sqlite/202607150001_orchestrate_waf_rules.sql`
-- Create: `internal/db/migrator/goose/postgres/202607150002_reset_waf_rule_graphs.sql`
-- Create: `internal/db/migrator/goose/sqlite/202607150002_reset_waf_rule_graphs.sql`
+- Create: `internal/infra/persistence/migrator/goose/postgres/202607150001_orchestrate_waf_rules.sql`
+- Create: `internal/infra/persistence/migrator/goose/sqlite/202607150001_orchestrate_waf_rules.sql`
+- Create: `internal/infra/persistence/migrator/goose/postgres/202607150002_reset_waf_rule_graphs.sql`
+- Create: `internal/infra/persistence/migrator/goose/sqlite/202607150002_reset_waf_rule_graphs.sql`
 - Modify: `internal/model/openflare_waf.go`
 - Create: `internal/model/openflare_waf_graph_test.go`
 
@@ -115,7 +115,7 @@ func UpdateOpenFlareWAFRuleGraph(ctx context.Context, id uint, revision uint64, 
 
 - [ ] **Step 5: 运行测试并提交**
 
-Run: `go test ./internal/model ./internal/db/migrator/... -count=1`
+Run: `go test ./internal/model ./internal/infra/persistence/migrator/... -count=1`
 
 Expected: PASS。
 
@@ -571,8 +571,8 @@ Commit: `refactor(frontend): order waf bindings and remove legacy editor`
 ### Task 11: 旧后端字段清理、Swagger、中文文档与端到端验证
 
 **Files:**
-- Create: `internal/db/migrator/goose/postgres/202607150003_drop_legacy_waf_rule_fields.sql`
-- Create: `internal/db/migrator/goose/sqlite/202607150003_drop_legacy_waf_rule_fields.sql`
+- Create: `internal/infra/persistence/migrator/goose/postgres/202607150003_drop_legacy_waf_rule_fields.sql`
+- Create: `internal/infra/persistence/migrator/goose/sqlite/202607150003_drop_legacy_waf_rule_fields.sql`
 - Modify: `internal/model/openflare_waf.go`
 - Modify: `internal/apps/openflare/waf/logics_test.go`
 - Modify: `docs/design/waf-design.md`

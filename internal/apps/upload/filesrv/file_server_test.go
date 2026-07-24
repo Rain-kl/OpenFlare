@@ -20,13 +20,13 @@ import (
 	"github.com/Rain-kl/Wavelet/internal/apps/upload/cache"
 	"github.com/Rain-kl/Wavelet/internal/apps/upload/shared"
 	"github.com/Rain-kl/Wavelet/internal/apps/upload/util"
-	"github.com/Rain-kl/Wavelet/internal/common"
-	"github.com/Rain-kl/Wavelet/internal/common/response"
-	"github.com/Rain-kl/Wavelet/internal/db"
-	"github.com/Rain-kl/Wavelet/internal/diskcache"
+	"github.com/Rain-kl/Wavelet/internal/infra/diskcache"
+	"github.com/Rain-kl/Wavelet/internal/infra/objectstore"
+	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"github.com/Rain-kl/Wavelet/internal/repository"
-	"github.com/Rain-kl/Wavelet/internal/storage"
+	appshared "github.com/Rain-kl/Wavelet/internal/shared"
+	"github.com/Rain-kl/Wavelet/internal/shared/response"
 	"github.com/Rain-kl/Wavelet/internal/testhelper"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
@@ -138,8 +138,8 @@ func TestServeFileByIDAccessControl(t *testing.T) {
 		if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil {
 			t.Fatalf("failed to parse JSON: %v", err)
 		}
-		if body["error_msg"] != common.UnAuthorized {
-			t.Errorf("expected error_msg %q, got %v", common.UnAuthorized, body["error_msg"])
+		if body["error_msg"] != appshared.UnAuthorized {
+			t.Errorf("expected error_msg %q, got %v", appshared.UnAuthorized, body["error_msg"])
 		}
 	})
 
@@ -361,7 +361,7 @@ func configureLocalStorageRoot(t *testing.T, dbConn *gorm.DB, tempDir string) {
 	if err := dbConn.Where("key = ?", model.ConfigKeyStorageConfig).First(&sc).Error; err != nil {
 		t.Fatalf("failed to find storage config: %v", err)
 	}
-	var cfg storage.Config
+	var cfg objectstore.Config
 	if err := json.Unmarshal([]byte(sc.Value), &cfg); err != nil {
 		t.Fatalf("failed to unmarshal storage config: %v", err)
 	}
@@ -376,5 +376,5 @@ func configureLocalStorageRoot(t *testing.T, dbConn *gorm.DB, tempDir string) {
 	}
 	_ = db.HSetJSON(context.Background(), repository.SystemConfigRedisHashKey, sc.Key, &sc)
 	repository.ResetSystemConfigRAMCacheForTest()
-	storage.ResetCache()
+	objectstore.ResetCache()
 }

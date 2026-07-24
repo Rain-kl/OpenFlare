@@ -13,10 +13,10 @@ import (
 
 	"github.com/Rain-kl/Wavelet/internal/apps/upload/shared"
 	uploadstorage "github.com/Rain-kl/Wavelet/internal/apps/upload/storage"
-	"github.com/Rain-kl/Wavelet/internal/db"
+	"github.com/Rain-kl/Wavelet/internal/infra/objectstore"
+	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"github.com/Rain-kl/Wavelet/internal/repository"
-	"github.com/Rain-kl/Wavelet/internal/storage"
 )
 
 const fileAccessInvalidationChannel = "upload:file_access_invalidation"
@@ -59,7 +59,7 @@ func startAccessCacheInvalidationListener() {
 	go func() {
 		pubsub := db.Redis.Subscribe(
 			context.Background(),
-			storage.ConfigInvalidationChannel,
+			objectstore.ConfigInvalidationChannel,
 			fileAccessInvalidationChannel,
 		)
 		defer func() {

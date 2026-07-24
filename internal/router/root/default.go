@@ -8,7 +8,7 @@ import (
 	publicconfig "github.com/Rain-kl/Wavelet/internal/apps/config"
 	"github.com/Rain-kl/Wavelet/internal/apps/health"
 	"github.com/Rain-kl/Wavelet/internal/apps/upload"
-	"github.com/Rain-kl/Wavelet/internal/config"
+	"github.com/Rain-kl/Wavelet/internal/infra/config"
 	"github.com/gin-gonic/gin"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"

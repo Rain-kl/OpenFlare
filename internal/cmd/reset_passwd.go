@@ -14,10 +14,10 @@ import (
 	"strings"
 
 	"github.com/Rain-kl/Wavelet/internal/apps/oauth"
-	"github.com/Rain-kl/Wavelet/internal/bootstrap"
-	"github.com/Rain-kl/Wavelet/internal/db"
-	"github.com/Rain-kl/Wavelet/internal/db/migrator"
+	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
+	"github.com/Rain-kl/Wavelet/internal/infra/persistence/migrator"
 	"github.com/Rain-kl/Wavelet/internal/model"
+	"github.com/Rain-kl/Wavelet/internal/platform/bootstrap"
 	"github.com/Rain-kl/Wavelet/internal/repository"
 	"github.com/spf13/cobra"
 	"gorm.io/gorm"

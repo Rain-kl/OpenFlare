@@ -11,7 +11,7 @@ import (
 
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/agent"
 	ofgeoip "github.com/Rain-kl/Wavelet/internal/apps/openflare/geoip"
-	"github.com/Rain-kl/Wavelet/internal/db"
+	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/model"
 )
 

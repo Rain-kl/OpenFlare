@@ -9,8 +9,8 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/Rain-kl/Wavelet/internal/infra/task"
 	"github.com/Rain-kl/Wavelet/internal/model"
-	"github.com/Rain-kl/Wavelet/internal/task"
 )
 
 const (

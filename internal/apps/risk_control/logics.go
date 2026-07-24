@@ -8,10 +8,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Rain-kl/Wavelet/internal/config"
-	"github.com/Rain-kl/Wavelet/internal/db/batchwriter"
-	"github.com/Rain-kl/Wavelet/internal/lifecycle"
+	"github.com/Rain-kl/Wavelet/internal/infra/config"
+	"github.com/Rain-kl/Wavelet/internal/infra/persistence/batchwriter"
 	"github.com/Rain-kl/Wavelet/internal/model/analytics"
+	"github.com/Rain-kl/Wavelet/internal/platform/lifecycle"
 	analyticsrepo "github.com/Rain-kl/Wavelet/internal/repository/analytics"
 	"github.com/Rain-kl/Wavelet/pkg/logger"
 )

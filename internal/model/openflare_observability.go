@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Rain-kl/Wavelet/internal/db"
+	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	analyticsrepo "github.com/Rain-kl/Wavelet/internal/repository/analytics"
 	"gorm.io/gorm"
 )

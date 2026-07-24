@@ -9,7 +9,7 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/Rain-kl/Wavelet/internal/config"
+	"github.com/Rain-kl/Wavelet/internal/infra/config"
 	"github.com/Rain-kl/Wavelet/pkg/util"
 )
 

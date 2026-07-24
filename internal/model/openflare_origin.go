@@ -7,7 +7,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/Rain-kl/Wavelet/internal/db"
+	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 )
 
 // Origin OpenFlare 源站实体。

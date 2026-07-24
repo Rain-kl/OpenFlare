@@ -8,9 +8,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Rain-kl/Wavelet/internal/common"
-	"github.com/Rain-kl/Wavelet/internal/common/response"
 	"github.com/Rain-kl/Wavelet/internal/model"
+	"github.com/Rain-kl/Wavelet/internal/shared"
+	"github.com/Rain-kl/Wavelet/internal/shared/response"
 	"github.com/gin-gonic/gin"
 )
 
@@ -48,7 +48,7 @@ func ListExternalAccounts(c *gin.Context) {
 func DeleteExternalAccount(c *gin.Context) {
 	userID := GetUserIDFromContext(c)
 	if userID == 0 {
-		response.AbortUnauthorized(c, common.UnAuthorized)
+		response.AbortUnauthorized(c, shared.UnAuthorized)
 		return
 	}
 	rawID := strings.TrimSpace(c.Param("id"))

@@ -5,7 +5,7 @@
 package cmd
 
 import (
-	"github.com/Rain-kl/Wavelet/internal/bootstrap"
+	"github.com/Rain-kl/Wavelet/internal/platform/bootstrap"
 	"github.com/Rain-kl/Wavelet/internal/router"
 	"github.com/spf13/cobra"
 )

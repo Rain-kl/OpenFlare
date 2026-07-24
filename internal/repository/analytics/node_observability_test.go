@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Rain-kl/Wavelet/internal/db"
+	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	analyticsmodel "github.com/Rain-kl/Wavelet/internal/model/analytics"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

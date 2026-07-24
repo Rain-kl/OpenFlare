@@ -10,7 +10,7 @@
 package upload
 
 import (
-    "github.com/Rain-kl/Wavelet/internal/task"
+    "github.com/Rain-kl/Wavelet/internal/infra/task"
 )
 
 // 异步任务类型标识。格式建议为 "{module}:{action}"。
@@ -83,7 +83,7 @@ package upload
 import (
     "context"
 
-    "github.com/Rain-kl/Wavelet/internal/task"
+    "github.com/Rain-kl/Wavelet/internal/infra/task"
 )
 
 type CleanupUnusedUploadsHandler struct{}
@@ -114,7 +114,7 @@ import (
     "fmt"
     "strings"
 
-    "github.com/Rain-kl/Wavelet/internal/task"
+    "github.com/Rain-kl/Wavelet/internal/infra/task"
 )
 
 type SendEmailPayload struct {
@@ -163,7 +163,7 @@ func (h *SendEmailHandler) Execute(ctx context.Context, payload []byte) (*task.T
 
 ## 统一注册
 
-在 `internal/task/handlers/register.go` 注册。Admin dispatch 的 `ValidateAndNormalizePayload` 和 Worker 执行都依赖这里。
+在 `internal/infra/task/handlers/register.go` 注册。Admin dispatch 的 `ValidateAndNormalizePayload` 和 Worker 执行都依赖这里。
 
 ```go
 package handlers
@@ -171,7 +171,7 @@ package handlers
 import (
     "github.com/Rain-kl/Wavelet/internal/apps/upload"
     "github.com/Rain-kl/Wavelet/internal/apps/user"
-    "github.com/Rain-kl/Wavelet/internal/task"
+    "github.com/Rain-kl/Wavelet/internal/infra/task"
 )
 
 func Register() {
@@ -184,7 +184,7 @@ func Register() {
 
 系统默认的定时任务必须通过 Goose SQL 迁移初始化插入到 `schedules` 表。
 
-在 `internal/db/migrator/goose/postgres` 下的示例：
+在 `internal/infra/persistence/migrator/goose/postgres` 下的示例：
 
 ```sql
 -- +goose Up
@@ -274,4 +274,4 @@ func TestDispatchTaskValidatesPayload(t *testing.T) {
 }
 ```
 
-需要 Redis/Asynq 时优先复用项目现有测试模式；没有现成依赖时可用 `miniredis` 初始化 `task.AsynqClient`。不要把 `internal/task` 依赖塞进通用 testhelper 造成 import cycle。
+需要 Redis/Asynq 时优先复用项目现有测试模式；没有现成依赖时可用 `miniredis` 初始化 `task.AsynqClient`。不要把 `internal/infra/task` 依赖塞进通用 testhelper 造成 import cycle。

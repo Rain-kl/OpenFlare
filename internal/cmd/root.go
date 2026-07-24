@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"github.com/Rain-kl/Wavelet/internal/buildinfo"
-	"github.com/Rain-kl/Wavelet/internal/config"
-	"github.com/Rain-kl/Wavelet/internal/db/migrator"
+	"github.com/Rain-kl/Wavelet/internal/infra/config"
+	"github.com/Rain-kl/Wavelet/internal/infra/persistence/migrator"
 	"github.com/Rain-kl/Wavelet/pkg/logger"
 	"github.com/Rain-kl/Wavelet/pkg/trace"
 	"github.com/spf13/cobra"
