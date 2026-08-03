@@ -4,11 +4,17 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Image version/tag to publish, for example v1.0.0-beta"
+        description: "Image version/tag to publish (e.g. v1.0.0-beta). Leave empty to publish as canary."
         required: false
         type: string
   push:
     tags: ["v*"]
+    branches: ["canary"]
+
+# One active run per ref (e.g. canary); newer runs cancel older in-progress builds.
+concurrency:
+  group: build-image-openflare-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -21,61 +27,131 @@ env:
   DOCKERFILE: docker/Dockerfile
 
 jobs:
+  # Resolve version / registries once. No checkout: triggers alone determine the tag.
+  prepare:
+    name: Prepare metadata
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.prep.outputs.version }}
+      build_date: ${{ steps.prep.outputs.build_date }}
+      image: ${{ steps.prep.outputs.image }}
+      image_names: ${{ steps.prep.outputs.image_names }}
+      images: ${{ steps.prep.outputs.images }}
+      push_dockerhub: ${{ steps.prep.outputs.push_dockerhub }}
+      is_stable: ${{ steps.prep.outputs.is_stable }}
+      is_prerelease: ${{ steps.prep.outputs.is_prerelease }}
+    steps:
+      - name: Resolve version and images
+        id: prep
+        env:
+          INPUT_VERSION: ${{ github.event.inputs.version }}
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+          DOCKERHUB_NAMESPACE: ${{ secrets.DOCKERHUB_NAMESPACE }}
+        run: |
+          set -euo pipefail
+          INPUT_VERSION="${INPUT_VERSION//[[:space:]]/}"
+          OWNER="${GITHUB_REPOSITORY_OWNER,,}"
+          BUILD_DATE="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+
+          if [[ "${GITHUB_REF}" == refs/heads/canary ]]; then
+            VERSION="canary"
+          elif [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            VERSION="${GITHUB_REF_NAME}"
+          elif [[ -n "$INPUT_VERSION" ]]; then
+            VERSION="$INPUT_VERSION"
+          elif [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
+            VERSION="canary"
+          else
+            echo "unable to determine image version/tag" >&2
+            exit 1
+          fi
+
+          if [[ "$VERSION" == "canary" ]]; then
+            IS_STABLE="false"
+            IS_PRERELEASE="false"
+          elif [[ "$VERSION" =~ (alpha|beta|rc) ]]; then
+            IS_STABLE="false"
+            IS_PRERELEASE="true"
+          else
+            IS_STABLE="true"
+            IS_PRERELEASE="false"
+          fi
+
+          IMAGE="ghcr.io/${OWNER}/${IMAGE_NAME}"
+          IMAGE_NAMES="${IMAGE}"
+          # Newline-separated list for docker/metadata-action
+          IMAGES="${IMAGE}"
+
+          DOCKERHUB_USERNAME="${DOCKERHUB_USERNAME//[[:space:]]/}"
+          DOCKERHUB_TOKEN="${DOCKERHUB_TOKEN//[[:space:]]/}"
+          DOCKERHUB_NAMESPACE="${DOCKERHUB_NAMESPACE//[[:space:]]/}"
+          PUSH_DOCKERHUB="false"
+          if [[ -n "$DOCKERHUB_USERNAME" && -n "$DOCKERHUB_TOKEN" ]]; then
+            HUB_NS="${DOCKERHUB_NAMESPACE:-$DOCKERHUB_USERNAME}"
+            HUB_NS="${HUB_NS,,}"
+            IMAGE_DOCKERHUB="${HUB_NS}/${IMAGE_NAME}"
+            IMAGE_NAMES="${IMAGE_NAMES},${IMAGE_DOCKERHUB}"
+            IMAGES="${IMAGES}"$'\n'"${IMAGE_DOCKERHUB}"
+            PUSH_DOCKERHUB="true"
+            echo "Docker Hub publish enabled: ${IMAGE_DOCKERHUB}"
+          else
+            echo "Docker Hub secrets not set; publishing to GHCR only."
+          fi
+
+          {
+            echo "version=${VERSION}"
+            echo "build_date=${BUILD_DATE}"
+            echo "image=${IMAGE}"
+            echo "image_names=${IMAGE_NAMES}"
+            echo "push_dockerhub=${PUSH_DOCKERHUB}"
+            echo "is_stable=${IS_STABLE}"
+            echo "is_prerelease=${IS_PRERELEASE}"
+            echo "images<<EOF"
+            printf '%s\n' "${IMAGES}"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+          echo "Resolved version=${VERSION} build_date=${BUILD_DATE} stable=${IS_STABLE} prerelease=${IS_PRERELEASE}"
+
   build:
     name: Build (${{ matrix.arch }})
+    needs: prepare
     strategy:
       fail-fast: false
       matrix:
         include:
           - arch: amd64
             platform: linux/amd64
-            runner: ubuntu-24.04
+            runner: ubuntu-latest
           - arch: arm64
             platform: linux/arm64
+            # No ubuntu-latest-arm alias from GitHub; 24.04-arm is the current stable arm64 image.
             runner: ubuntu-24.04-arm
     runs-on: ${{ matrix.runner }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-tags: true
-          fetch-depth: 0
+          fetch-depth: 1
           persist-credentials: false
-
-      - name: Set image metadata
-        shell: bash
-        env:
-          INPUT_VERSION: ${{ github.event.inputs.version }}
-        run: |
-          POINTED_TAG="$(git tag --points-at HEAD --list 'v*' | sort -V | tail -n1)"
-          INPUT_VERSION="${INPUT_VERSION//[[:space:]]/}"
-
-          OWNER="${GITHUB_REPOSITORY_OWNER,,}"
-
-          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
-            VERSION="${GITHUB_REF_NAME}"
-          elif [[ -n "$INPUT_VERSION" ]]; then
-            VERSION="$INPUT_VERSION"
-          elif [[ -n "$POINTED_TAG" ]]; then
-            VERSION="$POINTED_TAG"
-          else
-            echo "workflow_dispatch requires an explicit version input when HEAD is not tagged" >&2
-            exit 1
-          fi
-
-          echo "IMAGE=ghcr.io/${OWNER}/openflare" >> "$GITHUB_ENV"
-          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
-          echo "BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> "$GITHUB_ENV"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
 
-      - name: Log into registry
+      - name: Log into GHCR
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Log into Docker Hub
+        if: needs.prepare.outputs.push_dockerhub == 'true'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Build and push
         id: build
@@ -84,10 +160,10 @@ jobs:
           context: .
           file: ${{ env.DOCKERFILE }}
           platforms: ${{ matrix.platform }}
-          outputs: type=image,name=${{ env.IMAGE }},push-by-digest=true,name-canonical=true,push=true
+          outputs: type=image,"name=${{ needs.prepare.outputs.image_names }}",push-by-digest=true,name-canonical=true,push=true
           build-args: |
-            VERSION=${{ env.VERSION }}
-            BUILD_DATE=${{ env.BUILD_DATE }}
+            VERSION=${{ needs.prepare.outputs.version }}
+            BUILD_DATE=${{ needs.prepare.outputs.build_date }}
           cache-from: type=gha,scope=docker-${{ env.IMAGE_NAME }}-${{ matrix.arch }}
           cache-to: type=gha,mode=max,ignore-error=true,timeout=20m,scope=docker-${{ env.IMAGE_NAME }}-${{ matrix.arch }}
 
@@ -110,45 +186,27 @@ jobs:
       - name: Generate artifact attestation
         uses: actions/attest-build-provenance@v3
         with:
-          subject-name: ${{ env.IMAGE }}
+          subject-name: ${{ needs.prepare.outputs.image }}
           subject-digest: ${{ steps.build.outputs.digest }}
           push-to-registry: true
 
   merge:
     name: Merge multi-arch manifest
-    runs-on: ubuntu-24.04
-    needs: build
+    runs-on: ubuntu-latest
+    needs: [prepare, build]
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      # No repo checkout: tags come from prepare + metadata-action.
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v5
         with:
-          fetch-tags: true
-          fetch-depth: 0
-          persist-credentials: false
-
-      - name: Set image metadata
-        shell: bash
-        env:
-          INPUT_VERSION: ${{ github.event.inputs.version }}
-        run: |
-          POINTED_TAG="$(git tag --points-at HEAD --list 'v*' | sort -V | tail -n1)"
-          INPUT_VERSION="${INPUT_VERSION//[[:space:]]/}"
-
-          OWNER="${GITHUB_REPOSITORY_OWNER,,}"
-
-          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
-            VERSION="${GITHUB_REF_NAME}"
-          elif [[ -n "$INPUT_VERSION" ]]; then
-            VERSION="$INPUT_VERSION"
-          elif [[ -n "$POINTED_TAG" ]]; then
-            VERSION="$POINTED_TAG"
-          else
-            echo "workflow_dispatch requires an explicit version input when HEAD is not tagged" >&2
-            exit 1
-          fi
-
-          echo "IMAGE=ghcr.io/${OWNER}/openflare" >> "$GITHUB_ENV"
-          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          images: ${{ needs.prepare.outputs.images }}
+          flavor: |
+            latest=false
+          tags: |
+            type=raw,value=${{ needs.prepare.outputs.version }}
+            type=raw,value=latest,enable=${{ needs.prepare.outputs.is_stable == 'true' }}
+            type=raw,value=beta,enable=${{ needs.prepare.outputs.is_prerelease == 'true' }}
 
       - name: Download digests
         uses: actions/download-artifact@v4
@@ -160,17 +218,28 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
 
-      - name: Log into registry
+      - name: Log into GHCR
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Log into Docker Hub
+        if: needs.prepare.outputs.push_dockerhub == 'true'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
       - name: Create and push manifest list
         working-directory: /tmp/${{ env.IMAGE_NAME }}-digests
         shell: bash
+        env:
+          IMAGE: ${{ needs.prepare.outputs.image }}
+          DOCKER_METADATA_OUTPUT_JSON: ${{ steps.meta.outputs.json }}
         run: |
+          set -euo pipefail
           shopt -s nullglob
           references=()
           for digest in *; do
@@ -182,21 +251,13 @@ jobs:
             exit 1
           fi
 
-          if [[ "${VERSION}" =~ (alpha|beta|rc) ]]; then
-            FLOATING_TAG="beta"
-          else
-            FLOATING_TAG="latest"
-          fi
-
+          # shellcheck disable=SC2046
           docker buildx imagetools create \
-            -t "${IMAGE}:${VERSION}" \
-            -t "${IMAGE}:${FLOATING_TAG}" \
+            $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
             "${references[@]}"
-        env:
-          IMAGE: ${{ env.IMAGE }}
 
       - name: Inspect image
-        run: docker buildx imagetools inspect "${{ env.IMAGE }}:${{ env.VERSION }}"
+        run: docker buildx imagetools inspect "${{ needs.prepare.outputs.image }}:${{ needs.prepare.outputs.version }}"
 
       - name: Trigger webhook
         env:

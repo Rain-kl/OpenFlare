@@ -141,3 +141,38 @@ dev:
 		echo "==> Development servers exited with errors." >&2; \
 		exit 1; \
 	fi
+
+# Merge the current branch into canary and push, triggering Build Image (:canary).
+canary:
+	@set -e; \
+	if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then \
+		echo "error: not a git repository" >&2; \
+		exit 1; \
+	fi; \
+	if [ -n "$$(git status --porcelain)" ]; then \
+		echo "error: working tree is dirty; commit or stash changes first" >&2; \
+		exit 1; \
+	fi; \
+	CURRENT_BRANCH=$$(git rev-parse --abbrev-ref HEAD); \
+	if [ "$$CURRENT_BRANCH" = "HEAD" ]; then \
+		echo "error: detached HEAD; checkout a branch first" >&2; \
+		exit 1; \
+	fi; \
+	echo "==> Publishing $$CURRENT_BRANCH to canary..."; \
+	git fetch origin; \
+	if git show-ref --verify --quiet refs/remotes/origin/canary; then \
+		git checkout -B canary origin/canary; \
+	else \
+		git checkout -B canary; \
+	fi; \
+	if [ "$$CURRENT_BRANCH" != "canary" ]; then \
+		if ! git merge --no-edit "$$CURRENT_BRANCH"; then \
+			echo "error: merge failed; resolve conflicts on canary, then: git push -u origin canary" >&2; \
+			exit 1; \
+		fi; \
+	fi; \
+	git push -u origin canary; \
+	if [ "$$CURRENT_BRANCH" != "canary" ]; then \
+		git checkout "$$CURRENT_BRANCH"; \
+	fi; \
+	echo "==> canary updated and pushed (image tag: canary)"
