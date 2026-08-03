@@ -142,37 +142,31 @@ dev:
 		exit 1; \
 	fi
 
-# Merge the current branch into canary and push, triggering Build Image (:canary).
+
+# Merge local feat into canary, push canary, then restore the previous branch.
+# Does not leave the working tree on canary when started from another branch.
 canary:
 	@set -e; \
-	if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then \
-		echo "error: not a git repository" >&2; \
-		exit 1; \
+	if ! git rev-parse --git-dir >/dev/null 2>&1; then \
+		echo "Error: not a git repository"; exit 1; \
 	fi; \
 	if [ -n "$$(git status --porcelain)" ]; then \
-		echo "error: working tree is dirty; commit or stash changes first" >&2; \
-		exit 1; \
+		echo "Error: working tree is dirty; commit or stash first"; exit 1; \
 	fi; \
-	CURRENT_BRANCH=$$(git rev-parse --abbrev-ref HEAD); \
-	if [ "$$CURRENT_BRANCH" = "HEAD" ]; then \
-		echo "error: detached HEAD; checkout a branch first" >&2; \
-		exit 1; \
+	orig=$$(git rev-parse --abbrev-ref HEAD); \
+	if [ "$$orig" = "HEAD" ]; then \
+		echo "Error: detached HEAD; checkout a branch first"; exit 1; \
 	fi; \
-	echo "==> Publishing $$CURRENT_BRANCH to canary..."; \
-	git fetch origin; \
-	if git show-ref --verify --quiet refs/remotes/origin/canary; then \
-		git checkout -B canary origin/canary; \
-	else \
-		git checkout -B canary; \
-	fi; \
-	if [ "$$CURRENT_BRANCH" != "canary" ]; then \
-		if ! git merge --no-edit "$$CURRENT_BRANCH"; then \
-			echo "error: merge failed; resolve conflicts on canary, then: git push -u origin canary" >&2; \
-			exit 1; \
+	cleanup() { \
+		cur=$$(git rev-parse --abbrev-ref HEAD 2>/dev/null || true); \
+		if [ "$$cur" != "$$orig" ]; then \
+			echo "Restoring branch $$orig..."; \
+			git checkout -q "$$orig"; \
 		fi; \
-	fi; \
+	}; \
+	trap cleanup EXIT; \
+	echo "Merging feat -> canary (started from $$orig)..."; \
+	git checkout canary; \
+	git merge --no-edit feat; \
 	git push -u origin canary; \
-	if [ "$$CURRENT_BRANCH" != "canary" ]; then \
-		git checkout "$$CURRENT_BRANCH"; \
-	fi; \
-	echo "==> canary updated and pushed (image tag: canary)"
+	echo "Done: feat merged into canary and pushed."
