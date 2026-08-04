@@ -127,6 +127,7 @@ function sidebarDesign(): DefaultTheme.SidebarItem[] {
         { text: '产品边界', link: '' },
         { text: '系统架构', link: 'architecture' },
         { text: 'Zone 与域名资源设计', link: 'zone-design' },
+        { text: 'Cloudflare DNS 指向设计', link: 'cloudflare-pointing' },
         { text: 'Agent 与发布模型', link: 'agent-design' },
         { text: '内网穿透隧道设计', link: 'tunnel-design' },
         { text: 'WAF 设计', link: 'waf-design' },
