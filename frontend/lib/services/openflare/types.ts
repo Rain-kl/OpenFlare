@@ -1419,6 +1419,8 @@ export interface CloudflareAvailableDomain {
   id: number;
   zone_id: number;
   domain: string;
+  /** Zone apex / root domain used for hierarchical grouping. */
+  zone_domain: string;
 }
 
 export interface CloudflareOverview {

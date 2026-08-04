@@ -146,6 +146,10 @@ func ListTaskExecutions(ctx context.Context, req model.ListTaskExecutionsRequest
 	}
 	if req.TaskType != "" {
 		query = query.Where("task_type = ?", req.TaskType)
+	} else if types := parseTaskTypesFilter(req.TaskTypes); len(types) > 0 {
+		query = query.Where("task_type IN ?", types)
+	} else if req.TaskTypePrefix != "" {
+		query = query.Where("task_type LIKE ?", req.TaskTypePrefix+"%")
 	}
 
 	var total int64
@@ -163,6 +167,21 @@ func ListTaskExecutions(ctx context.Context, req model.ListTaskExecutionsRequest
 	}
 
 	return executions, total, nil
+}
+
+func parseTaskTypesFilter(raw string) []string {
+	if strings.TrimSpace(raw) == "" {
+		return nil
+	}
+	parts := strings.Split(raw, ",")
+	out := make([]string, 0, len(parts))
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part != "" {
+			out = append(out, part)
+		}
+	}
+	return out
 }
 
 // MarkFailedTaskExecutionsSucceededTx marks failed executions of a task type as succeeded within a transaction.

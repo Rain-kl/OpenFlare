@@ -85,9 +85,10 @@ type GroupDetail struct {
 
 // AvailableDomain is a ZoneDomain eligible for pointing.
 type AvailableDomain struct {
-	ID     uint   `json:"id"`
-	ZoneID uint   `json:"zone_id"`
-	Domain string `json:"domain"`
+	ID         uint   `json:"id"`
+	ZoneID     uint   `json:"zone_id"`
+	Domain     string `json:"domain"`
+	ZoneDomain string `json:"zone_domain"`
 }
 
 // Overview summarizes Cloudflare pointing readiness and sync health.

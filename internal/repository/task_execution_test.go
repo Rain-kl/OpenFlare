@@ -415,6 +415,34 @@ func TestListTaskExecutions(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, int64(1), total)
 	assert.Equal(t, "list_001", items[0].TaskID)
+
+	// 按类型前缀筛选
+	items, total, err = ListTaskExecutions(ctx, model.ListTaskExecutionsRequest{TaskTypePrefix: "system:", Page: 1, PageSize: 10})
+	require.NoError(t, err)
+	assert.Equal(t, int64(3), total)
+	assert.Len(t, items, 3)
+
+	// 按多类型 IN 筛选
+	items, total, err = ListTaskExecutions(ctx, model.ListTaskExecutionsRequest{
+		TaskTypes: "system:cleanup,other:task",
+		Page:      1,
+		PageSize:  10,
+	})
+	require.NoError(t, err)
+	assert.Equal(t, int64(5), total)
+	assert.Len(t, items, 5)
+
+	// 精确类型优先于 task_types / 前缀
+	items, total, err = ListTaskExecutions(ctx, model.ListTaskExecutionsRequest{
+		TaskType:       "other:task",
+		TaskTypes:      "system:cleanup",
+		TaskTypePrefix: "system:",
+		Page:           1,
+		PageSize:       10,
+	})
+	require.NoError(t, err)
+	assert.Equal(t, int64(2), total)
+	assert.Len(t, items, 2)
 }
 
 func TestListTaskExecutionsDefaultPaging(t *testing.T) {

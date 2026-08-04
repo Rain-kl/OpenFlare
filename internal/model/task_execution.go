@@ -54,8 +54,12 @@ func (TaskExecution) TableName() string {
 
 // ListTaskExecutionsRequest 查询任务执行记录列表请求
 type ListTaskExecutionsRequest struct {
-	Status   string `form:"status"`
-	TaskType string `form:"task_type"`
-	Page     int    `form:"page"`
-	PageSize int    `form:"page_size"`
+	Status         string `form:"status"`
+	TaskType       string `form:"task_type"`
+	TaskTypePrefix string `form:"task_type_prefix"`
+	// TaskTypes is a comma-separated list of exact asynq task types (IN filter).
+	// Used when TaskType is empty; takes precedence over TaskTypePrefix.
+	TaskTypes string `form:"task_types"`
+	Page      int    `form:"page"`
+	PageSize  int    `form:"page_size"`
 }

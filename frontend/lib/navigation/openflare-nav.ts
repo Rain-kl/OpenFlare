@@ -57,7 +57,7 @@ export const openflareWebsiteNavGroup: OpenFlareNavGroup = {
     {
       title: 'Cloudflare',
       url: '/cloudflare',
-      childUrls: ['/cloudflare/settings', '/cloudflare/groups'],
+      childUrls: ['/cloudflare/settings'],
     },
     { title: '源站地址', url: '/origins', childUrls: ['/origins/detail'] },
   ],

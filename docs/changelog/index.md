@@ -28,6 +28,11 @@ sidebar: false
 
 ### 改进
 
+- Cloudflare 分组添加域名成员时支持按顶级域分层展示、搜索筛选与批量勾选，可一次加入多个域名并排队同步。
+- Cloudflare 首页展示域名同步（sync_member）与分组同步（sync_group）任务执行记录，可筛选状态、查看详情与失败重试。
+- Cloudflare 域名/分组同步任务日志补充域名、分组、生效节点 IP、橙云状态及逐域名进度等关键信息，便于排查同步结果。
+- Cloudflare 域名同步与分组同步任务改为可在任务管理中调度的标准任务类型，并提供成员 ID / 分组 ID 参数表单。
+- Cloudflare 首页直接提供指向分组管理，并为分组详情增加自动刷新与手动刷新，减少页面跳转并及时展示同步状态。
 - 统一数据访问分层：业务持久化经 `internal/repository`，`internal/model` 仅保留实体与无 IO 领域规则，避免双轨 CRUD 与职责混淆。
 - 构建检查增加 `internal/model` 禁止直接访问数据库/Redis 的架构守卫，并收敛 model 与 repository 的错误文案定义边界。
 

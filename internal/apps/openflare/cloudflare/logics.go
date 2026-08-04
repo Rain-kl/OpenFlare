@@ -394,9 +394,22 @@ func ListAvailableDomains(ctx context.Context) ([]AvailableDomain, error) {
 	if err != nil {
 		return nil, err
 	}
+	zones, err := repository.ListZones(ctx)
+	if err != nil {
+		return nil, err
+	}
+	zoneRoots := make(map[uint]string, len(zones))
+	for i := range zones {
+		zoneRoots[zones[i].ID] = zones[i].Domain
+	}
 	items := make([]AvailableDomain, 0, len(domains))
 	for _, domain := range domains {
-		items = append(items, AvailableDomain{ID: domain.ID, ZoneID: domain.ZoneID, Domain: domain.Domain})
+		items = append(items, AvailableDomain{
+			ID:         domain.ID,
+			ZoneID:     domain.ZoneID,
+			Domain:     domain.Domain,
+			ZoneDomain: zoneRoots[domain.ZoneID],
+		})
 	}
 	return items, nil
 }

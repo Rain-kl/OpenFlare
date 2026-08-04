@@ -1,7 +1,15 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Cloud, Plus, RefreshCw, Settings, Trash2 } from 'lucide-react';
+import {
+  ArrowLeft,
+  Cloud,
+  Loader2,
+  Plus,
+  RefreshCw,
+  Settings,
+  Trash2,
+} from 'lucide-react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useState } from 'react';
@@ -48,6 +56,7 @@ export default function CloudflareGroupDetailPage() {
     queryKey: [...cloudflareQueryKey, 'groups', groupID],
     queryFn: () => CloudflareService.getGroup(groupID),
     enabled: Number.isInteger(groupID) && groupID > 0,
+    refetchInterval: 5000,
   });
   const domainsQuery = useQuery({
     queryKey: [...cloudflareQueryKey, 'domains', 'available'],
@@ -71,19 +80,37 @@ export default function CloudflareGroupDetailPage() {
     onError: (error) => toast.error(getErrorMessage(error)),
   });
   const addMutation = useMutation({
-    mutationFn: ({
-      domainID,
+    mutationFn: async ({
+      domainIDs,
       proxied,
     }: {
-      domainID: number;
+      domainIDs: number[];
       proxied: boolean;
-    }) =>
-      CloudflareService.createMember(groupID, {
-        zone_domain_id: domainID,
-        proxied,
-      }),
-    onSuccess: async () => {
-      toast.success('域名已加入并排队同步');
+    }) => {
+      const results = await Promise.allSettled(
+        domainIDs.map((domainID) =>
+          CloudflareService.createMember(groupID, {
+            zone_domain_id: domainID,
+            proxied,
+          }),
+        ),
+      );
+      const failed = results.filter((r) => r.status === 'rejected');
+      const succeeded = results.length - failed.length;
+      return { succeeded, failed: failed.length, total: results.length };
+    },
+    onSuccess: async ({ succeeded, failed, total }) => {
+      if (failed === 0) {
+        toast.success(
+          total === 1
+            ? '域名已加入并排队同步'
+            : `已添加 ${succeeded} 个域名并排队同步`,
+        );
+      } else if (succeeded === 0) {
+        toast.error(`添加失败：${failed} 个域名未能加入`);
+      } else {
+        toast.warning(`部分成功：${succeeded} 个已加入，${failed} 个失败`);
+      }
       setAddOpen(false);
       await invalidate();
     },
@@ -138,31 +165,53 @@ export default function CloudflareGroupDetailPage() {
 
   return (
     <div className='flex w-full flex-col gap-6 py-6 px-1'>
-      <div className='flex items-center justify-between gap-3'>
-        <div className='flex items-center gap-2'>
-          <Cloud className='size-5 text-primary' />
-          <h1 className='text-2xl font-semibold tracking-tight'>
-            {group.name}
-          </h1>
-        </div>
-        <div className='flex items-center gap-2'>
-          <Button asChild variant='outline' size='sm'>
-            <Link href='/cloudflare/groups'>返回分组</Link>
-          </Button>
-          <Button variant='outline' size='sm' onClick={() => setEditOpen(true)}>
-            <Settings data-icon='inline-start' />
-            编辑
-          </Button>
-          <Button size='sm' onClick={() => setAddOpen(true)}>
-            <Plus data-icon='inline-start' />
-            添加域名
-          </Button>
+      <div className='flex flex-col gap-4'>
+        <Button variant='ghost' size='sm' className='self-start' asChild>
+          <Link href='/cloudflare'>
+            <ArrowLeft data-icon='inline-start' />
+            返回列表
+          </Link>
+        </Button>
+        <div className='flex items-center justify-between gap-3'>
+          <div className='flex items-center gap-2'>
+            <Cloud className='size-5 text-primary' />
+            <h1 className='text-2xl font-semibold tracking-tight'>
+              {group.name}
+            </h1>
+          </div>
+          <div className='flex items-center gap-2'>
+            <Button
+              variant='outline'
+              size='sm'
+              onClick={() => void detailQuery.refetch()}
+              disabled={detailQuery.isFetching}
+            >
+              {detailQuery.isFetching ? (
+                <Loader2 data-icon='inline-start' className='animate-spin' />
+              ) : (
+                <RefreshCw data-icon='inline-start' />
+              )}
+              刷新
+            </Button>
+            <Button
+              variant='outline'
+              size='sm'
+              onClick={() => setEditOpen(true)}
+            >
+              <Settings data-icon='inline-start' />
+              编辑
+            </Button>
+            <Button size='sm' onClick={() => setAddOpen(true)}>
+              <Plus data-icon='inline-start' />
+              添加域名
+            </Button>
+          </div>
         </div>
       </div>
 
-      <Card>
+      <Card className='border-dashed shadow-none'>
         <CardHeader>
-          <CardTitle>当前指向</CardTitle>
+          <CardTitle className='text-base'>当前指向</CardTitle>
           <CardDescription>
             生效节点 {group.active_node.name} · {group.active_node.ip}
           </CardDescription>
@@ -178,18 +227,9 @@ export default function CloudflareGroupDetailPage() {
         </CardContent>
       </Card>
 
-      <Alert>
-        <Cloud />
-        <AlertTitle>远端记录所有权</AlertTitle>
-        <AlertDescription>
-          移出成员会立即删除本模块缓存或唯一同名 A 记录；存在多条同名 A
-          时会拒绝操作并要求先手动清理。
-        </AlertDescription>
-      </Alert>
-
-      <Card>
+      <Card className='border-dashed shadow-none'>
         <CardHeader>
-          <CardTitle>域名成员</CardTitle>
+          <CardTitle className='text-base'>域名成员</CardTitle>
           <CardDescription>成员级橙云是同步时的唯一依据。</CardDescription>
         </CardHeader>
         <CardContent>
@@ -286,8 +326,8 @@ export default function CloudflareGroupDetailPage() {
         domains={domainsQuery.data ?? []}
         defaultProxied={group.default_proxied}
         pending={addMutation.isPending}
-        onSubmit={(domainID, proxied) =>
-          addMutation.mutate({ domainID, proxied })
+        onSubmit={(domainIDs, proxied) =>
+          addMutation.mutate({ domainIDs, proxied })
         }
       />
     </div>

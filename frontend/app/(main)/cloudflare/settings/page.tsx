@@ -1,7 +1,7 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Cloud, Save, ShieldCheck, Trash2 } from 'lucide-react';
+import { ArrowLeft, Cloud, Save, ShieldCheck, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
@@ -114,16 +114,19 @@ export default function CloudflareSettingsPage() {
 
   return (
     <div className='flex w-full flex-col gap-6 py-6 px-1'>
-      <div className='flex items-center justify-between gap-3'>
+      <div className='flex flex-col gap-4'>
+        <Button variant='ghost' size='sm' className='self-start' asChild>
+          <Link href='/cloudflare'>
+            <ArrowLeft data-icon='inline-start' />
+            返回列表
+          </Link>
+        </Button>
         <div className='flex items-center gap-2'>
           <Cloud className='size-5 text-primary' />
           <h1 className='text-2xl font-semibold tracking-tight'>
             Cloudflare 连接设置
           </h1>
         </div>
-        <Button asChild variant='outline' size='sm'>
-          <Link href='/cloudflare'>返回总览</Link>
-        </Button>
       </div>
 
       {connectionQuery.isError ? (
@@ -133,9 +136,9 @@ export default function CloudflareSettingsPage() {
         />
       ) : null}
 
-      <Card>
+      <Card className='border-dashed shadow-none'>
         <CardHeader>
-          <CardTitle>凭据来源</CardTitle>
+          <CardTitle className='text-base'>凭据来源</CardTitle>
           <CardDescription>
             Token 建议授予 Zone:Read 与 DNS:Edit 权限；Token 不会在 API
             或页面中回显。

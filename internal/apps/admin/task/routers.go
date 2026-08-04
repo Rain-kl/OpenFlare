@@ -102,6 +102,8 @@ func DispatchTask(c *gin.Context) {
 // @Security SessionCookie
 // @Param status query string false "状态筛选 (pending/running/succeeded/failed)"
 // @Param task_type query string false "任务类型筛选"
+// @Param task_type_prefix query string false "任务类型前缀筛选（与 task_type / task_types 互斥，精确类型优先）"
+// @Param task_types query string false "逗号分隔的精确任务类型列表（IN 筛选，优先于前缀）"
 // @Param page query int false "页码" default(1)
 // @Param page_size query int false "每页条数" default(20)
 // @Success 200 {object} response.Any{data=object} "任务执行记录列表"
