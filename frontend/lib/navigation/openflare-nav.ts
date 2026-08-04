@@ -54,6 +54,11 @@ export const openflareWebsiteNavGroup: OpenFlareNavGroup = {
     { title: '域名列表', url: '/websites', childUrls: ['/websites/detail'] },
     { title: 'TLS证书', url: '/certificates' },
     { title: 'DNS账号', url: '/dns-accounts' },
+    {
+      title: 'Cloudflare',
+      url: '/cloudflare',
+      childUrls: ['/cloudflare/settings', '/cloudflare/groups'],
+    },
     { title: '源站地址', url: '/origins', childUrls: ['/origins/detail'] },
   ],
 };
@@ -109,6 +114,7 @@ export const openflareWebsiteSubNav = [
   { title: '网站列表', url: '/websites' },
   { title: '证书', url: '/certificates' },
   { title: 'DNS 账号', url: '/dns-accounts' },
+  { title: 'Cloudflare', url: '/cloudflare' },
 ] as const;
 
 const nonConsoleRoutePrefixes = [

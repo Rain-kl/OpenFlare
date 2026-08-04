@@ -1347,6 +1347,93 @@ export interface ZoneStats {
   series: ZoneStatsPoint[];
 }
 
+export type CloudflareConnectionSource = 'dns_account' | 'standalone';
+export type CloudflareSyncStatus = 'pending' | 'syncing' | 'ok' | 'error';
+
+export interface CloudflareConnection {
+  configured: boolean;
+  ready: boolean;
+  source: CloudflareConnectionSource | '';
+  dns_account_id: number | null;
+  status: string;
+  verified_at: string | null;
+}
+
+export interface CloudflareConnectionPayload {
+  source: CloudflareConnectionSource;
+  dns_account_id: number;
+  api_token: string;
+}
+
+export interface CloudflareNodeOption {
+  id: number;
+  name: string;
+  ip: string;
+}
+
+export interface CloudflareGroup {
+  id: number;
+  name: string;
+  primary_node: CloudflareNodeOption;
+  backup_node: CloudflareNodeOption | null;
+  active_node: CloudflareNodeOption;
+  default_proxied: boolean;
+  enabled: boolean;
+  member_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CloudflareGroupPayload {
+  name: string;
+  primary_node_id: number;
+  backup_node_id: number | null;
+  default_proxied: boolean;
+  enabled: boolean;
+}
+
+export interface CloudflareMember {
+  id: number;
+  group_id: number;
+  zone_domain_id: number;
+  domain: string;
+  zone_id: number;
+  proxied: boolean;
+  desired_ip: string;
+  sync_status: CloudflareSyncStatus;
+  last_error: string;
+  synced_at: string | null;
+}
+
+export interface CloudflareMemberCreatePayload {
+  zone_domain_id: number;
+  proxied?: boolean;
+}
+
+export interface CloudflareGroupDetail {
+  group: CloudflareGroup;
+  members: CloudflareMember[];
+}
+
+export interface CloudflareAvailableDomain {
+  id: number;
+  zone_id: number;
+  domain: string;
+}
+
+export interface CloudflareOverview {
+  connection: CloudflareConnection;
+  group_count: number;
+  member_count: number;
+  ok_count: number;
+  pending_count: number;
+  error_count: number;
+}
+
+export interface CloudflareSyncReceipt {
+  task_id: string;
+}
+
 export interface TlsCertificateItem {
   id: number;
   name: string;

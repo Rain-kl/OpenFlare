@@ -295,6 +295,148 @@ definitions:
     - solutions
     - token
     type: object
+  cloudflare.AvailableDomain:
+    properties:
+      domain:
+        type: string
+      id:
+        type: integer
+      zone_id:
+        type: integer
+    type: object
+  cloudflare.ConnectionInput:
+    properties:
+      api_token:
+        type: string
+      dns_account_id:
+        type: integer
+      source:
+        type: string
+    type: object
+  cloudflare.ConnectionView:
+    properties:
+      configured:
+        type: boolean
+      dns_account_id:
+        type: integer
+      ready:
+        type: boolean
+      source:
+        type: string
+      status:
+        type: string
+      verified_at:
+        type: string
+    type: object
+  cloudflare.GroupDetail:
+    properties:
+      group:
+        $ref: '#/definitions/cloudflare.GroupItem'
+      members:
+        items:
+          $ref: '#/definitions/cloudflare.MemberItem'
+        type: array
+    type: object
+  cloudflare.GroupInput:
+    properties:
+      backup_node_id:
+        type: integer
+      default_proxied:
+        type: boolean
+      enabled:
+        type: boolean
+      name:
+        type: string
+      primary_node_id:
+        type: integer
+    type: object
+  cloudflare.GroupItem:
+    properties:
+      active_node:
+        $ref: '#/definitions/cloudflare.NodeOption'
+      backup_node:
+        $ref: '#/definitions/cloudflare.NodeOption'
+      created_at:
+        type: string
+      default_proxied:
+        type: boolean
+      enabled:
+        type: boolean
+      id:
+        type: integer
+      member_count:
+        type: integer
+      name:
+        type: string
+      primary_node:
+        $ref: '#/definitions/cloudflare.NodeOption'
+      updated_at:
+        type: string
+    type: object
+  cloudflare.MemberCreateInput:
+    properties:
+      proxied:
+        type: boolean
+      zone_domain_id:
+        type: integer
+    type: object
+  cloudflare.MemberItem:
+    properties:
+      desired_ip:
+        type: string
+      domain:
+        type: string
+      group_id:
+        type: integer
+      id:
+        type: integer
+      last_error:
+        type: string
+      proxied:
+        type: boolean
+      sync_status:
+        type: string
+      synced_at:
+        type: string
+      zone_domain_id:
+        type: integer
+      zone_id:
+        type: integer
+    type: object
+  cloudflare.MemberUpdateInput:
+    properties:
+      proxied:
+        type: boolean
+    type: object
+  cloudflare.NodeOption:
+    properties:
+      id:
+        type: integer
+      ip:
+        type: string
+      name:
+        type: string
+    type: object
+  cloudflare.Overview:
+    properties:
+      connection:
+        $ref: '#/definitions/cloudflare.ConnectionView'
+      error_count:
+        type: integer
+      group_count:
+        type: integer
+      member_count:
+        type: integer
+      ok_count:
+        type: integer
+      pending_count:
+        type: integer
+    type: object
+  cloudflare.SyncReceipt:
+    properties:
+      task_id:
+        type: string
+    type: object
   config_version.CleanupInput:
     properties:
       keep_count:
@@ -7693,6 +7835,472 @@ paths:
       summary: 清理配置下发日志
       tags:
       - openflare-apply-log
+  /api/v1/d/cloudflare/connection:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/cloudflare.ConnectionView'
+              type: object
+      security:
+      - SessionCookie: []
+      summary: 获取 Cloudflare 连接
+      tags:
+      - openflare-cloudflare
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: 连接参数
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/cloudflare.ConnectionInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/cloudflare.ConnectionView'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 保存 Cloudflare 连接
+      tags:
+      - openflare-cloudflare
+  /api/v1/d/cloudflare/connection/clear:
+    post:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 清除 Cloudflare 连接
+      tags:
+      - openflare-cloudflare
+  /api/v1/d/cloudflare/connection/verify:
+    post:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/cloudflare.ConnectionView'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 测试 Cloudflare 连接
+      tags:
+      - openflare-cloudflare
+  /api/v1/d/cloudflare/domains/available:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/cloudflare.AvailableDomain'
+                  type: array
+              type: object
+      security:
+      - SessionCookie: []
+      summary: 获取可加入 Cloudflare 指向的域名
+      tags:
+      - openflare-cloudflare
+  /api/v1/d/cloudflare/groups:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/cloudflare.GroupItem'
+                  type: array
+              type: object
+      security:
+      - SessionCookie: []
+      summary: 获取 Cloudflare 指向分组
+      tags:
+      - openflare-cloudflare
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 分组参数
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/cloudflare.GroupInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/cloudflare.GroupItem'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 创建 Cloudflare 指向分组
+      tags:
+      - openflare-cloudflare
+  /api/v1/d/cloudflare/groups/{id}:
+    get:
+      parameters:
+      - description: 分组 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/cloudflare.GroupDetail'
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 获取 Cloudflare 指向分组详情
+      tags:
+      - openflare-cloudflare
+  /api/v1/d/cloudflare/groups/{id}/delete:
+    post:
+      parameters:
+      - description: 分组 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Any'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Any'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 删除 Cloudflare 指向分组
+      tags:
+      - openflare-cloudflare
+  /api/v1/d/cloudflare/groups/{id}/members:
+    get:
+      parameters:
+      - description: 分组 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/cloudflare.MemberItem'
+                  type: array
+              type: object
+      security:
+      - SessionCookie: []
+      summary: 获取 Cloudflare 指向分组成员
+      tags:
+      - openflare-cloudflare
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 分组 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 成员参数
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/cloudflare.MemberCreateInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/cloudflare.MemberItem'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Any'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 添加 Cloudflare 指向成员
+      tags:
+      - openflare-cloudflare
+  /api/v1/d/cloudflare/groups/{id}/members/{memberId}/remove:
+    post:
+      parameters:
+      - description: 分组 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 成员 ID
+        in: path
+        name: memberId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 移出 Cloudflare 指向成员
+      tags:
+      - openflare-cloudflare
+  /api/v1/d/cloudflare/groups/{id}/members/{memberId}/sync:
+    post:
+      parameters:
+      - description: 分组 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 成员 ID
+        in: path
+        name: memberId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/cloudflare.SyncReceipt'
+              type: object
+      security:
+      - SessionCookie: []
+      summary: 同步 Cloudflare 指向成员
+      tags:
+      - openflare-cloudflare
+  /api/v1/d/cloudflare/groups/{id}/members/{memberId}/update:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 分组 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 成员 ID
+        in: path
+        name: memberId
+        required: true
+        type: integer
+      - description: 成员参数
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/cloudflare.MemberUpdateInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/cloudflare.MemberItem'
+              type: object
+      security:
+      - SessionCookie: []
+      summary: 更新 Cloudflare 指向成员
+      tags:
+      - openflare-cloudflare
+  /api/v1/d/cloudflare/groups/{id}/sync:
+    post:
+      parameters:
+      - description: 分组 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/cloudflare.SyncReceipt'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 同步 Cloudflare 指向分组
+      tags:
+      - openflare-cloudflare
+  /api/v1/d/cloudflare/groups/{id}/update:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 分组 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 分组参数
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/cloudflare.GroupInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/cloudflare.GroupItem'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Any'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 更新 Cloudflare 指向分组
+      tags:
+      - openflare-cloudflare
+  /api/v1/d/cloudflare/overview:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/cloudflare.Overview'
+              type: object
+      security:
+      - SessionCookie: []
+      summary: 获取 Cloudflare 指向总览
+      tags:
+      - openflare-cloudflare
   /api/v1/d/config-versions:
     get:
       description: 返回所有已发布的 OpenResty 配置版本摘要，按创建时间倒序排列，需要管理员权限

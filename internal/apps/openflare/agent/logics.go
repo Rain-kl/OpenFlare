@@ -9,11 +9,13 @@ import (
 	"strings"
 	"time"
 
+	cf "github.com/Rain-kl/Wavelet/internal/apps/openflare/cloudflare"
 	"github.com/Rain-kl/Wavelet/internal/repository"
 
 	ofgeoip "github.com/Rain-kl/Wavelet/internal/apps/openflare/geoip"
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/node"
 	"github.com/Rain-kl/Wavelet/internal/model"
+	"github.com/Rain-kl/Wavelet/pkg/logger"
 )
 
 // RegisterWithAccessToken registers an agent on a reserved node token.
@@ -117,6 +119,11 @@ func HeartbeatNode(ctx context.Context, authNode *model.OpenFlareNode, payload N
 		}
 		if err := repository.UpdateOpenFlareNodeFields(ctx, authNode, fields...); err != nil {
 			return nil, err
+		}
+		if previous.IP != authNode.IP {
+			if _, dispatchErr := cf.DispatchNodeSync(ctx, authNode.ID, "cloudflare_agent_ip_update"); dispatchErr != nil {
+				logger.ErrorF(ctx, "[Cloudflare] enqueue heartbeat node sync failed: node_id=%d error=%v", authNode.ID, dispatchErr)
+			}
 		}
 	}
 

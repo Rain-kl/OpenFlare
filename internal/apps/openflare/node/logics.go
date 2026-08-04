@@ -10,10 +10,12 @@ import (
 	"strings"
 	"time"
 
+	cf "github.com/Rain-kl/Wavelet/internal/apps/openflare/cloudflare"
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/observability"
 	ofws "github.com/Rain-kl/Wavelet/internal/apps/openflare/websocket"
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"github.com/Rain-kl/Wavelet/internal/repository"
+	"github.com/Rain-kl/Wavelet/pkg/logger"
 	"gorm.io/gorm"
 )
 
@@ -232,6 +234,7 @@ func UpdateNode(ctx context.Context, id uint, input Input) (*View, error) {
 		return nil, err
 	}
 	ipManualOverride := resolveNodeIPManualOverride(input, node, ip)
+	previousIP := node.IP
 	node.Name = name
 	node.IP = ip
 	node.IPManualOverride = ipManualOverride
@@ -254,6 +257,11 @@ func UpdateNode(ctx context.Context, id uint, input Input) (*View, error) {
 	}
 	if err = repository.SaveOpenFlareNode(ctx, node); err != nil {
 		return nil, err
+	}
+	if strings.TrimSpace(previousIP) != strings.TrimSpace(node.IP) {
+		if _, dispatchErr := cf.DispatchNodeSync(ctx, node.ID, "cloudflare_node_ip_update"); dispatchErr != nil {
+			logger.ErrorF(ctx, "[Cloudflare] enqueue node sync failed: node_id=%d error=%v", node.ID, dispatchErr)
+		}
 	}
 	return buildNodeView(node), nil
 }

@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	cf "github.com/Rain-kl/Wavelet/internal/apps/openflare/cloudflare"
 	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"github.com/Rain-kl/Wavelet/internal/repository"
@@ -128,6 +129,27 @@ func TestUpdateNode(t *testing.T) {
 	assert.Equal(t, "edge-updated", updated.Name)
 	assert.Equal(t, "192.168.1.10", updated.IP)
 	assert.True(t, updated.AutoUpdateEnabled)
+}
+
+func TestUpdateNodeDispatchesCloudflareSyncWhenIPChanges(t *testing.T) {
+	cleanup := setupNodeTestDB(t)
+	defer cleanup()
+	ctx := context.Background()
+	created, err := CreateNode(ctx, Input{Name: "edge-update", IP: "192.0.2.10"})
+	require.NoError(t, err)
+
+	var dispatchedNodeID uint
+	restore := cf.SetDispatchTaskForTest(func(_ context.Context, taskType string, payload []byte, _ string) (string, error) {
+		assert.Equal(t, cf.TaskTypeSyncByNode, taskType)
+		assert.Contains(t, string(payload), `"node_id":`)
+		dispatchedNodeID = created.ID
+		return "task-1", nil
+	})
+	defer restore()
+
+	_, err = UpdateNode(ctx, created.ID, Input{Name: "edge-update", IP: "192.0.2.11"})
+	require.NoError(t, err)
+	assert.Equal(t, created.ID, dispatchedNodeID)
 }
 
 func TestDeleteNode(t *testing.T) {

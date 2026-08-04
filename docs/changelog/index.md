@@ -22,6 +22,10 @@ sidebar: false
 
 ## [unreleased]
 
+### 新增
+
+- 新增 Cloudflare DNS 指向管理：可复用现有 Cloudflare DNS 账号或配置独立 Token，按分组将 ZoneDomain 的单条 A 记录异步同步到边缘节点 IPv4，并支持成员橙云、同步状态与节点 IP 变更联动。
+
 ### 改进
 
 - 统一数据访问分层：业务持久化经 `internal/repository`，`internal/model` 仅保留实体与无 IO 领域规则，避免双轨 CRUD 与职责混淆。

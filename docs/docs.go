@@ -5839,6 +5839,817 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/d/cloudflare/connection": {
+            "get": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "openflare-cloudflare"
+                ],
+                "summary": "获取 Cloudflare 连接",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/cloudflare.ConnectionView"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "openflare-cloudflare"
+                ],
+                "summary": "保存 Cloudflare 连接",
+                "parameters": [
+                    {
+                        "description": "连接参数",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/cloudflare.ConnectionInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/cloudflare.ConnectionView"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/d/cloudflare/connection/clear": {
+            "post": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "openflare-cloudflare"
+                ],
+                "summary": "清除 Cloudflare 连接",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/d/cloudflare/connection/verify": {
+            "post": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "openflare-cloudflare"
+                ],
+                "summary": "测试 Cloudflare 连接",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/cloudflare.ConnectionView"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/d/cloudflare/domains/available": {
+            "get": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "openflare-cloudflare"
+                ],
+                "summary": "获取可加入 Cloudflare 指向的域名",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/cloudflare.AvailableDomain"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/d/cloudflare/groups": {
+            "get": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "openflare-cloudflare"
+                ],
+                "summary": "获取 Cloudflare 指向分组",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/cloudflare.GroupItem"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "openflare-cloudflare"
+                ],
+                "summary": "创建 Cloudflare 指向分组",
+                "parameters": [
+                    {
+                        "description": "分组参数",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/cloudflare.GroupInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/cloudflare.GroupItem"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/d/cloudflare/groups/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "openflare-cloudflare"
+                ],
+                "summary": "获取 Cloudflare 指向分组详情",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "分组 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/cloudflare.GroupDetail"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/d/cloudflare/groups/{id}/delete": {
+            "post": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "openflare-cloudflare"
+                ],
+                "summary": "删除 Cloudflare 指向分组",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "分组 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/d/cloudflare/groups/{id}/members": {
+            "get": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "openflare-cloudflare"
+                ],
+                "summary": "获取 Cloudflare 指向分组成员",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "分组 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/cloudflare.MemberItem"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "openflare-cloudflare"
+                ],
+                "summary": "添加 Cloudflare 指向成员",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "分组 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "成员参数",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/cloudflare.MemberCreateInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/cloudflare.MemberItem"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/d/cloudflare/groups/{id}/members/{memberId}/remove": {
+            "post": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "openflare-cloudflare"
+                ],
+                "summary": "移出 Cloudflare 指向成员",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "分组 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "成员 ID",
+                        "name": "memberId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/d/cloudflare/groups/{id}/members/{memberId}/sync": {
+            "post": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "openflare-cloudflare"
+                ],
+                "summary": "同步 Cloudflare 指向成员",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "分组 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "成员 ID",
+                        "name": "memberId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/cloudflare.SyncReceipt"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/d/cloudflare/groups/{id}/members/{memberId}/update": {
+            "post": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "openflare-cloudflare"
+                ],
+                "summary": "更新 Cloudflare 指向成员",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "分组 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "成员 ID",
+                        "name": "memberId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "成员参数",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/cloudflare.MemberUpdateInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/cloudflare.MemberItem"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/d/cloudflare/groups/{id}/sync": {
+            "post": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "openflare-cloudflare"
+                ],
+                "summary": "同步 Cloudflare 指向分组",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "分组 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/cloudflare.SyncReceipt"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/d/cloudflare/groups/{id}/update": {
+            "post": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "openflare-cloudflare"
+                ],
+                "summary": "更新 Cloudflare 指向分组",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "分组 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "分组参数",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/cloudflare.GroupInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/cloudflare.GroupItem"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/d/cloudflare/overview": {
+            "get": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "openflare-cloudflare"
+                ],
+                "summary": "获取 Cloudflare 指向总览",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/cloudflare.Overview"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/d/config-versions": {
             "get": {
                 "security": [
@@ -14281,6 +15092,225 @@ const docTemplate = `{
                     }
                 },
                 "token": {
+                    "type": "string"
+                }
+            }
+        },
+        "cloudflare.AvailableDomain": {
+            "type": "object",
+            "properties": {
+                "domain": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "zone_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "cloudflare.ConnectionInput": {
+            "type": "object",
+            "properties": {
+                "api_token": {
+                    "type": "string"
+                },
+                "dns_account_id": {
+                    "type": "integer"
+                },
+                "source": {
+                    "type": "string"
+                }
+            }
+        },
+        "cloudflare.ConnectionView": {
+            "type": "object",
+            "properties": {
+                "configured": {
+                    "type": "boolean"
+                },
+                "dns_account_id": {
+                    "type": "integer"
+                },
+                "ready": {
+                    "type": "boolean"
+                },
+                "source": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "verified_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "cloudflare.GroupDetail": {
+            "type": "object",
+            "properties": {
+                "group": {
+                    "$ref": "#/definitions/cloudflare.GroupItem"
+                },
+                "members": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/cloudflare.MemberItem"
+                    }
+                }
+            }
+        },
+        "cloudflare.GroupInput": {
+            "type": "object",
+            "properties": {
+                "backup_node_id": {
+                    "type": "integer"
+                },
+                "default_proxied": {
+                    "type": "boolean"
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "primary_node_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "cloudflare.GroupItem": {
+            "type": "object",
+            "properties": {
+                "active_node": {
+                    "$ref": "#/definitions/cloudflare.NodeOption"
+                },
+                "backup_node": {
+                    "$ref": "#/definitions/cloudflare.NodeOption"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "default_proxied": {
+                    "type": "boolean"
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "member_count": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "primary_node": {
+                    "$ref": "#/definitions/cloudflare.NodeOption"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "cloudflare.MemberCreateInput": {
+            "type": "object",
+            "properties": {
+                "proxied": {
+                    "type": "boolean"
+                },
+                "zone_domain_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "cloudflare.MemberItem": {
+            "type": "object",
+            "properties": {
+                "desired_ip": {
+                    "type": "string"
+                },
+                "domain": {
+                    "type": "string"
+                },
+                "group_id": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "last_error": {
+                    "type": "string"
+                },
+                "proxied": {
+                    "type": "boolean"
+                },
+                "sync_status": {
+                    "type": "string"
+                },
+                "synced_at": {
+                    "type": "string"
+                },
+                "zone_domain_id": {
+                    "type": "integer"
+                },
+                "zone_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "cloudflare.MemberUpdateInput": {
+            "type": "object",
+            "properties": {
+                "proxied": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "cloudflare.NodeOption": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "integer"
+                },
+                "ip": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "cloudflare.Overview": {
+            "type": "object",
+            "properties": {
+                "connection": {
+                    "$ref": "#/definitions/cloudflare.ConnectionView"
+                },
+                "error_count": {
+                    "type": "integer"
+                },
+                "group_count": {
+                    "type": "integer"
+                },
+                "member_count": {
+                    "type": "integer"
+                },
+                "ok_count": {
+                    "type": "integer"
+                },
+                "pending_count": {
+                    "type": "integer"
+                }
+            }
+        },
+        "cloudflare.SyncReceipt": {
+            "type": "object",
+            "properties": {
+                "task_id": {
                     "type": "string"
                 }
             }

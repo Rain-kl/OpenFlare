@@ -8,6 +8,7 @@ package handlers
 import (
 	"github.com/Rain-kl/Wavelet/internal/apps/admin/push"
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare"
+	cf "github.com/Rain-kl/Wavelet/internal/apps/openflare/cloudflare"
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/pages"
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/tls"
 	"github.com/Rain-kl/Wavelet/internal/apps/upload"
@@ -51,6 +52,13 @@ func Register() {
 
 	task.RegisterHandler(openflare.UptimeKumaSyncTask, &openflare.UptimeKumaSyncHandler{})
 	task.RegisterTaskMeta(openflare.UptimeKumaSyncMeta)
+
+	task.RegisterHandler(cf.SyncMemberTask, &cf.SyncMemberTaskHandler{})
+	task.RegisterTaskMeta(cf.SyncMemberMeta)
+	task.RegisterHandler(cf.SyncGroupTask, &cf.SyncGroupTaskHandler{})
+	task.RegisterTaskMeta(cf.SyncGroupMeta)
+	task.RegisterHandler(cf.SyncByNodeTask, &cf.SyncByNodeTaskHandler{})
+	task.RegisterTaskMeta(cf.SyncByNodeMeta)
 
 	// pages source actions are only dispatched by the Pages domain API/scanner.
 	task.RegisterHandler(pages.PagesSourceScanTask, &pages.SourceScanHandler{})

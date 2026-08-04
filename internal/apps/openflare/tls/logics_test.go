@@ -16,6 +16,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Rain-kl/Wavelet/internal/apps/openflare/credential"
 	"github.com/Rain-kl/Wavelet/internal/repository"
 
 	"github.com/Rain-kl/Wavelet/internal/infra/config"
@@ -128,7 +129,7 @@ func TestCreateCertificateEncryptsPrivateKey(t *testing.T) {
 	stored, err := repository.GetTLSCertificateByID(ctx, certificate.ID)
 	require.NoError(t, err)
 	assert.NotEqual(t, keyPEM, stored.KeyPEM)
-	assert.Contains(t, stored.KeyPEM, sensitiveValuePrefix)
+	assert.Contains(t, stored.KeyPEM, credential.Prefix)
 
 	content, err := GetCertificateContent(ctx, certificate.ID)
 	require.NoError(t, err)

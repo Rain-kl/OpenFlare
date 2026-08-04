@@ -15,6 +15,10 @@ export { AccessLogService } from './access-log.service';
 export { OptionService } from './option.service';
 export { UptimeKumaService } from './uptimekuma.service';
 export { StatusService } from './status.service';
+export {
+  CloudflareService,
+  cloudflareQueryKey,
+} from './cloudflare.service';
 
 export type {
   ApplyLogCleanupPayload,
@@ -143,6 +147,19 @@ export type {
   TlsCertificateFileImportPayload,
   TlsCertificateItem,
   TlsCertificateMutationPayload,
+  CloudflareAvailableDomain,
+  CloudflareConnection,
+  CloudflareConnectionPayload,
+  CloudflareConnectionSource,
+  CloudflareGroup,
+  CloudflareGroupDetail,
+  CloudflareGroupPayload,
+  CloudflareMember,
+  CloudflareMemberCreatePayload,
+  CloudflareNodeOption,
+  CloudflareOverview,
+  CloudflareSyncReceipt,
+  CloudflareSyncStatus,
 } from './types';
 
 import { AccessLogService } from './access-log.service';
@@ -160,6 +177,7 @@ import { ProxyRouteService } from './proxy-route.service';
 import { TlsCertificateService } from './tls-certificate.service';
 import { WafService } from './waf.service';
 import { ZoneDomainService, ZoneService } from './zone.service';
+import { CloudflareService } from './cloudflare.service';
 
 export const openflareServices = {
   node: NodeService,
@@ -178,4 +196,5 @@ export const openflareServices = {
   option: OptionService,
   uptimeKuma: UptimeKumaService,
   status: StatusService,
+  cloudflare: CloudflareService,
 } as const;

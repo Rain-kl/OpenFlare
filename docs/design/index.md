@@ -24,6 +24,7 @@ OpenFlare 适合需要统一管理多台 OpenResty 代理节点的团队，具�
 | **反代配置管理** | 以网站规则（Proxy Route）为聚合边界，支持多域名与多上游负载均衡 | [新建反代配置](../guide/proxy-config.md) |
 | **边缘缓存** | 单节点 OpenResty `proxy_cache`；默认 static 扩展名 + 源站头/Set-Cookie 闸门 + 默认 Edge TTL（对标 CF 默认模型） | [边缘缓存策略设计](./edge-cache-design.md) |
 | **Zone 与域名管理** | 以可注册根域为管理入口，聚合明确域名、域名证书与反代路由 | [Zone 与域名资源设计](./zone-design.md) |
+| **Cloudflare DNS 指向** | 以 ZoneDomain 为粒度，将单条 Cloudflare A 记录幂等指向边缘节点 IPv4；支持连接配置、分组、成员橙云与异步同步，一期不含自动故障切换 | [Cloudflare DNS 指向设计](./cloudflare-pointing.md) |
 | **配置版本控制** | 支持全局单一激活版本的预览、发布、不可变快照历史与秒级一键回滚 | [Agent 与发布模型](./agent-design.md) |
 | **WAF 安全防护** | 支持可视化 DAG 编排规则、手动/自动/订阅型 IP 组、GeoIP 匹配与 PoW CC 防护 | [WAF 设计](./waf-design.md) / [WAF 可编排规则设计](./waf-orchestration-design.md) / [WAF 使用指南](../guide/waf-usage.md) |
 | **内网穿透** | 通过中继节点（Relay）与内网客户端（OpenFlared），反向穿透暴露内网 Web 服务 | [内网穿透设计](./tunnel-design.md) / [穿透使用指南](../guide/tunnel-usage.md) |

@@ -84,6 +84,15 @@ func TestMigrateInitializesSQLiteDatabase(t *testing.T) {
 	if !sqliteDB.Migrator().HasTable("of_zone_domains") {
 		t.Error("Migrate() did not create of_zone_domains")
 	}
+	for _, table := range []string{
+		"of_cf_connections",
+		"of_cf_pointing_groups",
+		"of_cf_pointing_members",
+	} {
+		if !sqliteDB.Migrator().HasTable(table) {
+			t.Errorf("Migrate() did not create %s", table)
+		}
+	}
 	if sqliteDB.Migrator().HasTable("of_managed_domains") {
 		t.Error("Migrate() should drop of_managed_domains after phase-2 cleanup")
 	}
@@ -117,6 +126,17 @@ func TestMigrateInitializesSQLiteDatabase(t *testing.T) {
 	}
 	if err := sqliteDB.Create(&model.ZoneDomain{ZoneID: zone.ID, Domain: domain.Domain}).Error; err == nil {
 		t.Error("Migrate() allowed duplicate of_zone_domains.domain")
+	}
+
+	if err := sqliteDB.Exec(`INSERT INTO of_cf_pointing_members
+		(group_id, zone_domain_id, proxied, cf_zone_id, cf_record_id, desired_ip, sync_status, last_error)
+		VALUES (?, ?, ?, '', '', '', 'pending', '')`, 1, domain.ID, false).Error; err != nil {
+		t.Fatalf("Migrate() insert Cloudflare member error = %v", err)
+	}
+	if err := sqliteDB.Exec(`INSERT INTO of_cf_pointing_members
+		(group_id, zone_domain_id, proxied, cf_zone_id, cf_record_id, desired_ip, sync_status, last_error)
+		VALUES (?, ?, ?, '', '', '', 'pending', '')`, 2, domain.ID, false).Error; err == nil {
+		t.Error("Migrate() allowed duplicate of_cf_pointing_members.zone_domain_id")
 	}
 }
 
