@@ -8,7 +8,7 @@ import {
 } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import CloudflareGroupDetailPage from '@/app/(main)/cloudflare/groups/[id]/page';
+import { CloudflareGroupDetailPageClient } from '@/app/(main)/cloudflare/groups/[id]/page-client';
 import { CloudflareService, NodeService } from '@/lib/services/openflare';
 
 vi.mock('next/navigation', () => ({
@@ -40,7 +40,7 @@ function renderPage() {
   });
   render(
     <QueryClientProvider client={client}>
-      <CloudflareGroupDetailPage />
+      <CloudflareGroupDetailPageClient />
     </QueryClientProvider>,
   );
 }

@@ -232,10 +232,10 @@ importers:
         specifier: ^14.6.1
         version: 14.6.1(@testing-library/dom@10.4.1)
       '@types/node':
-        specifier: ^20
+        specifier: ^20.19.24
         version: 20.19.24
       '@types/react':
-        specifier: ^19
+        specifier: ^19.2.2
         version: 19.2.2
       '@types/react-dom':
         specifier: ^19

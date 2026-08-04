@@ -61,7 +61,7 @@ describe('Cloudflare sync tasks panel', () => {
 
   it('queries only sync_member and sync_group and hides other tasks', async () => {
     vi.mocked(AdminTaskService.listTaskExecutions).mockImplementation(
-      async (request) => {
+      async (request = {}) => {
         if (request.task_type === 'cloudflare:sync_member') {
           return {
             items: [
