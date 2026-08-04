@@ -3,7 +3,7 @@ CREATE TABLE IF NOT EXISTS of_cf_connections (
     id BIGSERIAL PRIMARY KEY,
     source VARCHAR(32) NOT NULL DEFAULT '',
     dns_account_id BIGINT,
-    authorization TEXT NOT NULL DEFAULT '',
+    "authorization" TEXT NOT NULL DEFAULT '',
     status VARCHAR(16) NOT NULL DEFAULT '',
     verified_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,

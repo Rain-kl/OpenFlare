@@ -49,6 +49,8 @@ sidebar: false
 
 ### 修复
 
+- 修复 Cloudflare DNS 指向功能在 PostgreSQL 初始化迁移时因 `authorization` 保留关键字导致启动失败的问题。
+
 - 修复 IP 组自动抓取使用预设规则时未写入 `ttl` 字段的问题，避免配置 JSON 缺少封禁时长。
 - 修复限流相关迁移中表名错误，确保升级脚本正确执行。
 

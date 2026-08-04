@@ -5,6 +5,7 @@ package migrator
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/Rain-kl/Wavelet/internal/infra/config"
@@ -93,6 +94,9 @@ func TestMigrateInitializesSQLiteDatabase(t *testing.T) {
 			t.Errorf("Migrate() did not create %s", table)
 		}
 	}
+	if !sqliteDB.Migrator().HasColumn("of_cf_connections", "authorization") {
+		t.Error("Migrate() did not create of_cf_connections.authorization")
+	}
 	if sqliteDB.Migrator().HasTable("of_managed_domains") {
 		t.Error("Migrate() should drop of_managed_domains after phase-2 cleanup")
 	}
@@ -137,6 +141,16 @@ func TestMigrateInitializesSQLiteDatabase(t *testing.T) {
 		(group_id, zone_domain_id, proxied, cf_zone_id, cf_record_id, desired_ip, sync_status, last_error)
 		VALUES (?, ?, ?, '', '', '', 'pending', '')`, 2, domain.ID, false).Error; err == nil {
 		t.Error("Migrate() allowed duplicate of_cf_pointing_members.zone_domain_id")
+	}
+}
+
+func TestCloudflarePointingPostgresMigrationQuotesAuthorizationColumn(t *testing.T) {
+	content, err := migrationFS.ReadFile("goose/postgres/202608040001_create_cloudflare_pointing.sql")
+	if err != nil {
+		t.Fatalf("read Cloudflare pointing migration: %v", err)
+	}
+	if !strings.Contains(string(content), `"authorization" TEXT NOT NULL DEFAULT ''`) {
+		t.Error("Cloudflare pointing PostgreSQL migration must quote reserved column authorization")
 	}
 }
 
