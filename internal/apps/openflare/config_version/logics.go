@@ -537,6 +537,7 @@ func diffOpenRestyOptionDetails(left openRestyConfigSnapshot, right openRestyCon
 	appendIfChanged("OriginErrorPageEnabled", fmt.Sprintf("%t", left.OriginErrorPageEnabled), fmt.Sprintf("%t", right.OriginErrorPageEnabled))
 	appendIfChanged("OriginErrorPageStatusCodes", encodeOriginErrorPageStatusCodes(left.OriginErrorPageStatusCodes), encodeOriginErrorPageStatusCodes(right.OriginErrorPageStatusCodes))
 	appendIfChanged("OriginErrorPageHTML", left.OriginErrorPageHTML, right.OriginErrorPageHTML)
+	appendIfChanged("OriginErrorPageGetOnly", fmt.Sprintf("%t", left.OriginErrorPageGetOnly), fmt.Sprintf("%t", right.OriginErrorPageGetOnly))
 	return changes
 }
 
@@ -603,5 +604,6 @@ func openRestyOptionKeys() []string {
 		"OriginErrorPageEnabled",
 		"OriginErrorPageStatusCodes",
 		"OriginErrorPageHTML",
+		"OriginErrorPageGetOnly",
 	}
 }

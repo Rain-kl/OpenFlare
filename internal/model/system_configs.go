@@ -114,6 +114,7 @@ const (
 	ConfigKeyOriginErrorPageEnabled     = "origin_error_page_enabled"      // 是否启用源站错误页
 	ConfigKeyOriginErrorPageStatusCodes = "origin_error_page_status_codes" // 源站错误页触发状态码标签 JSON 数组
 	ConfigKeyOriginErrorPageHTML        = "origin_error_page_html"         // 源站错误页自定义 HTML（空则内置默认）
+	ConfigKeyOriginErrorPageGetOnly     = "origin_error_page_get_only"     // 是否仅对 GET 请求返回自定义错误页
 )
 
 const (

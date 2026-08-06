@@ -143,6 +143,7 @@ type openRestyConfigSnapshot struct {
 	OriginErrorPageEnabled     bool     `json:"origin_error_page_enabled"`
 	OriginErrorPageStatusCodes []string `json:"origin_error_page_status_codes,omitempty"`
 	OriginErrorPageHTML        string   `json:"origin_error_page_html,omitempty"`
+	OriginErrorPageGetOnly     bool     `json:"origin_error_page_get_only,omitempty"`
 }
 
 type snapshotDocument struct {
@@ -558,6 +559,7 @@ func buildOpenRestyConfigSnapshot(ctx context.Context) openRestyConfigSnapshot {
 		OriginErrorPageEnabled:     getBoolConfig(model.ConfigKeyOriginErrorPageEnabled, true),
 		OriginErrorPageStatusCodes: parseOriginErrorPageStatusCodes(getStringConfig(model.ConfigKeyOriginErrorPageStatusCodes, `["500-599"]`)),
 		OriginErrorPageHTML:        getStringConfig(model.ConfigKeyOriginErrorPageHTML, ""),
+		OriginErrorPageGetOnly:     getBoolConfig(model.ConfigKeyOriginErrorPageGetOnly, false),
 	}
 	if snapshot.DefaultLimitRate == "0" {
 		snapshot.DefaultLimitRate = ""

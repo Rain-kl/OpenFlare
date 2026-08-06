@@ -10,15 +10,18 @@ export const OPTIONS_QUERY_KEY = ['openflare', 'options'] as const;
 export const KEY_ENABLED = 'origin_error_page_enabled';
 export const KEY_STATUS_CODES = 'origin_error_page_status_codes';
 export const KEY_HTML = 'origin_error_page_html';
+export const KEY_GET_ONLY = 'origin_error_page_get_only';
 
 export type ErrorPageFields = {
   enabled: boolean;
+  getOnly: boolean;
   statusCodes: string[];
   html: string;
 };
 
 export const defaultErrorPageFields: ErrorPageFields = {
   enabled: true,
+  getOnly: false,
   statusCodes: [...DEFAULT_ORIGIN_ERROR_PAGE_STATUS_TAGS],
   html: '',
 };
@@ -34,8 +37,10 @@ export function mapOptionsToFields(
   optionMap: Record<string, string>,
 ): ErrorPageFields {
   const enabledRaw = optionMap[KEY_ENABLED];
+  const getOnlyRaw = optionMap[KEY_GET_ONLY];
   return {
     enabled: enabledRaw === undefined ? true : enabledRaw === 'true',
+    getOnly: getOnlyRaw === undefined ? false : getOnlyRaw === 'true',
     statusCodes: parseStatusCodeTagsJSON(optionMap[KEY_STATUS_CODES]),
     html: optionMap[KEY_HTML] ?? '',
   };

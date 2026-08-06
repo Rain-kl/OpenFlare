@@ -61,6 +61,7 @@ var openRestyOptionValidators = map[string]func(key, value string) error{
 	model.ConfigKeyOriginErrorPageEnabled:                validateBooleanOption,
 	model.ConfigKeyOriginErrorPageStatusCodes:            validateOriginErrorPageStatusCodes,
 	model.ConfigKeyOriginErrorPageHTML:                   validateOriginErrorPageHTML,
+	model.ConfigKeyOriginErrorPageGetOnly:                validateBooleanOption,
 }
 
 var openRestyDefaultLimitRatePattern = regexp.MustCompile(`^\d+[kKmM]?$`)

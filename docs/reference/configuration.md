@@ -266,6 +266,7 @@ Server 的所有核心基础配置定义在 `config.yaml` 中，且均支持环�
 | 配置键 (Key) | 数据类型 | 作用说明 | 默认值 |
 | --- | --- | --- | --- |
 | `origin_error_page_enabled` | `bool` | 是否启用全局源站错误页。开启后，源站或网关返回的匹配状态码由自定义/默认 HTML 替换，**HTTP 状态码保持原值**；关闭后不生成相关指令，恢复透传。修改后需发布配置版本生效 | `true` |
+| `origin_error_page_get_only` | `bool` | 是否仅对 **GET** 请求生效。开启后仅 GET 的匹配错误状态码返回自定义错误页；POST/PUT 等其它方法透传源站响应 | `false` |
 | `origin_error_page_status_codes` | `json` | 触发错误页的状态码标签 JSON 数组。支持单码（如 `522`）与闭区间（如 `500-599`）；单码与区间两端均须在 **400–599**，且 `lo ≤ hi`。启用时展开结果不能为空 | `["500-599"]` |
 | `origin_error_page_html` | `string` | 错误页自定义 HTML。空字符串表示使用内置 OpenFlare 默认模板（极简白底）；支持占位符 `{{status}}`（与 HTTP 状态码一致）、`{{host}}`（请求 Host）。最大 **256 KiB**（按字节）。勿嵌入不可信第三方脚本 | 空 |
 

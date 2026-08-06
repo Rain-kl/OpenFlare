@@ -130,7 +130,17 @@ func renderOriginErrorPageIntercept(cfg ConfigSnapshot) string {
 	if _, err := ExpandStatusCodeTags(effectiveOriginErrorPageStatusTags(cfg)); err != nil {
 		return ""
 	}
-	return "        proxy_intercept_errors on;\n"
+	// Always enable intercept for GET (and all methods when get_only is false).
+	// limit_except GET applies to non-GET methods: turn intercept off so origin
+	// error bodies (e.g. JSON 5xx) pass through unchanged.
+	var builder strings.Builder
+	builder.WriteString("        proxy_intercept_errors on;\n")
+	if cfg.OriginErrorPageGetOnly {
+		builder.WriteString("        limit_except GET {\n")
+		builder.WriteString("            proxy_intercept_errors off;\n")
+		builder.WriteString("        }\n")
+	}
+	return builder.String()
 }
 
 // renderOriginErrorPageServerBits emits server-level error_page + internal location.
@@ -155,22 +165,30 @@ func renderOriginErrorPageServerBits(cfg ConfigSnapshot) string {
 	var builder strings.Builder
 	// No `=` — preserve original error status (502 stays 502).
 	fmt.Fprintf(&builder, "    error_page %s %s;\n", strings.Join(parts, " "), OriginErrorPageInternalLocation)
-	builder.WriteString(renderOriginErrorPageInternalLocation())
+	builder.WriteString(renderOriginErrorPageInternalLocation(cfg.OriginErrorPageGetOnly))
 	return builder.String()
 }
 
-func renderOriginErrorPageInternalLocation() string {
+func renderOriginErrorPageInternalLocation(getOnly bool) string {
 	// Resolve status from $status (set by error_page internal redirect), then
 	// upstream_status, then ngx.status. Force ngx.status so the client receives
 	// the real error code. Use function replacers so host/status with `%` are safe.
 	//
-	// Note: fmt.Sprintf is used only for the two path placeholders; Lua `%` must be
+	// Note: fmt.Sprintf is used only for the path placeholders; Lua `%` must be
 	// written as `%%` so Sprintf does not treat them as format verbs.
+	//
+	// When getOnly is true, non-GET that still hit this location (e.g. nginx-local
+	// 502 without upstream body) exit with the original status and no HTML body.
+	getOnlyLua := "false"
+	if getOnly {
+		getOnlyLua = "true"
+	}
 	return fmt.Sprintf(`    location = %s {
         internal;
         default_type text/html;
         charset utf-8;
         content_by_lua_block {
+            local get_only = %s
             local function resolve_error_status()
                 local code = tonumber(ngx.var.status)
                 if code and code >= 400 then
@@ -193,6 +211,11 @@ func renderOriginErrorPageInternalLocation() string {
             local code = resolve_error_status()
             ngx.status = code
 
+            if get_only and ngx.req.get_method() ~= "GET" then
+                -- Non-GET: do not replace with HTML; exit with status only.
+                return ngx.exit(code)
+            end
+
             local f = io.open("%s", "r")
             if not f then
                 ngx.header["Content-Type"] = "text/html; charset=utf-8"
@@ -210,5 +233,5 @@ func renderOriginErrorPageInternalLocation() string {
             ngx.say(body)
         }
     }
-`, OriginErrorPageInternalLocation, ErrorPageTmplPlaceholder)
+`, OriginErrorPageInternalLocation, getOnlyLua, ErrorPageTmplPlaceholder)
 }

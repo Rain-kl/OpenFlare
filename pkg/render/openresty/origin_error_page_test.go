@@ -68,6 +68,40 @@ func TestRenderOriginErrorPageEnabled(t *testing.T) {
 	}
 }
 
+func TestRenderOriginErrorPageGetOnly(t *testing.T) {
+	t.Parallel()
+	doc := Document{
+		Routes: []Route{{
+			ID: 1, SiteName: "ex", Domains: []string{"ex.test"},
+			OriginURL: "http://127.0.0.1:9", Enabled: true,
+		}},
+		OpenRestyConfig: ConfigSnapshot{
+			OriginErrorPageEnabled:     true,
+			OriginErrorPageStatusCodes: []string{"500-599"},
+			OriginErrorPageGetOnly:     true,
+		},
+	}
+	out, err := RenderRouteConfig(doc, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out, "proxy_intercept_errors on") {
+		t.Fatal("missing intercept on")
+	}
+	if !strings.Contains(out, "limit_except GET") {
+		t.Fatal("get_only must emit limit_except GET")
+	}
+	if !strings.Contains(out, "proxy_intercept_errors off") {
+		t.Fatal("get_only must turn intercept off for non-GET")
+	}
+	if !strings.Contains(out, `get_only = true`) {
+		t.Fatal("internal location must set get_only = true")
+	}
+	if !strings.Contains(out, `ngx.req.get_method() ~= "GET"`) {
+		t.Fatal("internal location must skip HTML for non-GET")
+	}
+}
+
 func TestRenderOriginErrorPageDisabled(t *testing.T) {
 	t.Parallel()
 	doc := Document{

@@ -30,6 +30,7 @@ import {
   defaultErrorPageFields,
   invalidateErrorPageQueries,
   KEY_ENABLED,
+  KEY_GET_ONLY,
   KEY_STATUS_CODES,
   mapOptionsToFields,
   OPTIONS_QUERY_KEY,
@@ -60,12 +61,13 @@ export default function ErrorPagesPage() {
     [fields.html],
   );
 
-  /** 仅保存启用开关 + 触发状态码（HTML 在编辑页单独保存） */
+  /** 仅保存策略项（HTML 在编辑页单独保存） */
   const savePolicyMutation = useMutation({
     mutationFn: async () => {
       validateStatusCodeTags(fields.statusCodes);
       await OptionService.updateBatch([
         { key: KEY_ENABLED, value: String(fields.enabled) },
+        { key: KEY_GET_ONLY, value: String(fields.getOnly) },
         {
           key: KEY_STATUS_CODES,
           value: JSON.stringify(fields.statusCodes),
@@ -125,12 +127,33 @@ export default function ErrorPagesPage() {
         </Card>
 
         <Card className='border-dashed shadow-none'>
+          <CardHeader className='flex flex-row items-center justify-between gap-4'>
+            <div>
+              <CardTitle className='text-base'>仅针对 GET 请求</CardTitle>
+              <CardDescription>
+                开启后仅对 GET
+                请求的匹配错误状态码返回自定义错误页；POST/PUT
+                等其它方法直接透传源站响应。
+              </CardDescription>
+            </div>
+            <Switch
+              checked={fields.getOnly}
+              disabled={!fields.enabled}
+              onCheckedChange={(getOnly) =>
+                setFields((prev) => ({ ...prev, getOnly }))
+              }
+              aria-label='仅针对 GET 请求'
+            />
+          </CardHeader>
+        </Card>
+
+        <Card className='border-dashed shadow-none'>
           <CardHeader className='flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between space-y-0'>
             <div className='space-y-1.5'>
               <CardTitle className='text-base'>触发状态码</CardTitle>
               <CardDescription>
                 支持单码（如 502）或闭区间（如 500-599），范围 400–599。默认
-                500-599。修改启用开关或状态码后需点击保存。
+                500-599。修改策略开关或状态码后需点击保存。
               </CardDescription>
             </div>
             <Button

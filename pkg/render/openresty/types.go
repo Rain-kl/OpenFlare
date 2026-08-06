@@ -318,6 +318,8 @@ type ConfigSnapshot struct {
 	OriginErrorPageEnabled     bool     `json:"origin_error_page_enabled"`
 	OriginErrorPageStatusCodes []string `json:"origin_error_page_status_codes,omitempty"`
 	OriginErrorPageHTML        string   `json:"origin_error_page_html,omitempty"`
+	// OriginErrorPageGetOnly limits custom error HTML to GET requests; other methods pass through.
+	OriginErrorPageGetOnly bool `json:"origin_error_page_get_only,omitempty"`
 }
 
 // Document is the top-level input structure for the OpenResty renderer,
