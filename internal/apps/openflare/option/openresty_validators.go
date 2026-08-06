@@ -4,13 +4,17 @@
 package option
 
 import (
+	"encoding/json"
 	"fmt"
 	"regexp"
 	"strconv"
 	"strings"
 
 	"github.com/Rain-kl/Wavelet/internal/model"
+	openrestyrender "github.com/Rain-kl/Wavelet/pkg/render/openresty"
 )
+
+const maxOriginErrorPageHTMLBytes = 256 << 10 // 256 KiB
 
 var openRestyOptionValidators = map[string]func(key, value string) error{
 	model.ConfigKeyOpenRestyDefaultServerReturnStatus:    validateOpenRestyDefaultServerReturnStatus,
@@ -54,11 +58,18 @@ var openRestyOptionValidators = map[string]func(key, value string) error{
 	model.ConfigKeyOpenRestyDefaultLimitConnPerIP:        validateNonNegativeIntegerOption,
 	model.ConfigKeyOpenRestyDefaultLimitRate:             validateOpenRestyDefaultLimitRate,
 	model.ConfigKeyOpenRestyDefaultLimitReqPerIP:         validateOpenRestyDefaultLimitReqPerIP,
+	model.ConfigKeyOriginErrorPageEnabled:                validateBooleanOption,
+	model.ConfigKeyOriginErrorPageStatusCodes:            validateOriginErrorPageStatusCodes,
+	model.ConfigKeyOriginErrorPageHTML:                   validateOriginErrorPageHTML,
 }
 
 var openRestyDefaultLimitRatePattern = regexp.MustCompile(`^\d+[kKmM]?$`)
 
 func validateOpenRestyOption(key, value string) error {
+	// HTML 按原始字节长度校验，避免 TrimSpace 影响上限判断
+	if key == model.ConfigKeyOriginErrorPageHTML {
+		return validateOriginErrorPageHTML(key, value)
+	}
 	trimmed := strings.TrimSpace(value)
 	if validator, ok := openRestyOptionValidators[key]; ok {
 		return validator(key, trimmed)
@@ -204,6 +215,34 @@ func validateOpenRestyDefaultLimitReqPerIP(key, trimmed string) error {
 	}
 	if !openRestyDefaultLimitReqPerIPPattern.MatchString(strings.ToLower(trimmed)) {
 		return fmt.Errorf("%s 格式不合法，请输入类似 10r/s、100r/m，或留空关闭", key)
+	}
+	return nil
+}
+
+func validateOriginErrorPageStatusCodes(key, trimmed string) error {
+	if trimmed == "" {
+		return fmt.Errorf("%s 不能为空", key)
+	}
+	var tags []string
+	if err := json.Unmarshal([]byte(trimmed), &tags); err != nil {
+		return fmt.Errorf("%s 必须为 JSON 字符串数组", key)
+	}
+	if len(tags) == 0 {
+		return fmt.Errorf("%s 至少包含一个状态码标签", key)
+	}
+	codes, err := openrestyrender.ExpandStatusCodeTags(tags)
+	if err != nil {
+		return fmt.Errorf("%s: %v", key, err)
+	}
+	if len(codes) == 0 {
+		return fmt.Errorf("%s 展开后不能为空", key)
+	}
+	return nil
+}
+
+func validateOriginErrorPageHTML(key, value string) error {
+	if len(value) > maxOriginErrorPageHTMLBytes {
+		return fmt.Errorf("%s 长度不能超过 %d 字节（256 KiB）", key, maxOriginErrorPageHTMLBytes)
 	}
 	return nil
 }

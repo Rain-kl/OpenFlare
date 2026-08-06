@@ -259,6 +259,16 @@ Server 的所有核心基础配置定义在 `config.yaml` 中，且均支持环�
 | `openresty_default_limit_rate` | `string` | 站点未配置时的默认单请求带宽（如 `512k`）；空表示默认关闭 | 空 |
 | `openresty_main_config_template` | `string` | 允许用户完全重写整个 OpenResty nginx.conf 的底层结构大骨架模板 | 空 (内置缺省骨架) |
 
+### 7. 源站错误页 (Origin Error Page)
+
+全局源站错误页配置，写入配置版本快照后随发布/回滚下发到边缘 Agent。仅作用于**反代**路由；Pages 静态路由不受影响。管理端入口：「网站管理 → 错误页」。设计说明见 [源站错误页设计](../design/origin-error-page.md)。
+
+| 配置键 (Key) | 数据类型 | 作用说明 | 默认值 |
+| --- | --- | --- | --- |
+| `origin_error_page_enabled` | `bool` | 是否启用全局源站错误页。开启后，源站或网关返回的匹配状态码由自定义/默认 HTML 替换，**HTTP 状态码保持原值**；关闭后不生成相关指令，恢复透传。修改后需发布配置版本生效 | `true` |
+| `origin_error_page_status_codes` | `json` | 触发错误页的状态码标签 JSON 数组。支持单码（如 `522`）与闭区间（如 `500-599`）；单码与区间两端均须在 **400–599**，且 `lo ≤ hi`。启用时展开结果不能为空 | `["500-599"]` |
+| `origin_error_page_html` | `string` | 错误页自定义 HTML。空字符串表示使用内置 Cloudflare 风格默认模板；支持占位符 `{{status}}`（与 HTTP 状态码一致）、`{{host}}`（请求 Host）。最大 **256 KiB**（按字节）。勿嵌入不可信第三方脚本 | 空 |
+
 ---
 
 ## 前端构建环境变量

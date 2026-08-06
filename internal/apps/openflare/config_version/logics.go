@@ -534,7 +534,21 @@ func diffOpenRestyOptionDetails(left openRestyConfigSnapshot, right openRestyCon
 	appendIfChanged("OpenRestyDefaultLimitConnPerIP", fmt.Sprintf("%d", left.DefaultLimitConnPerIP), fmt.Sprintf("%d", right.DefaultLimitConnPerIP))
 	appendIfChanged("OpenRestyDefaultLimitRate", left.DefaultLimitRate, right.DefaultLimitRate)
 	appendIfChanged("OpenRestyDefaultLimitReqPerIP", left.DefaultLimitReqPerIP, right.DefaultLimitReqPerIP)
+	appendIfChanged("OriginErrorPageEnabled", fmt.Sprintf("%t", left.OriginErrorPageEnabled), fmt.Sprintf("%t", right.OriginErrorPageEnabled))
+	appendIfChanged("OriginErrorPageStatusCodes", encodeOriginErrorPageStatusCodes(left.OriginErrorPageStatusCodes), encodeOriginErrorPageStatusCodes(right.OriginErrorPageStatusCodes))
+	appendIfChanged("OriginErrorPageHTML", left.OriginErrorPageHTML, right.OriginErrorPageHTML)
 	return changes
+}
+
+func encodeOriginErrorPageStatusCodes(tags []string) string {
+	if len(tags) == 0 {
+		return ""
+	}
+	payload, err := json.Marshal(tags)
+	if err != nil {
+		return strings.Join(tags, ",")
+	}
+	return string(payload)
 }
 
 func extractOptionDiffKeys(details []ConfigOptionDiffItem) []string {
@@ -586,5 +600,8 @@ func openRestyOptionKeys() []string {
 		"OpenRestyDefaultLimitConnPerIP",
 		"OpenRestyDefaultLimitRate",
 		"OpenRestyDefaultLimitReqPerIP",
+		"OriginErrorPageEnabled",
+		"OriginErrorPageStatusCodes",
+		"OriginErrorPageHTML",
 	}
 }

@@ -1,0 +1,185 @@
+package openresty
+
+import (
+	"strings"
+	"testing"
+)
+
+func TestRenderOriginErrorPageEnabled(t *testing.T) {
+	t.Parallel()
+	doc := Document{
+		Routes: []Route{{
+			ID: 1, SiteName: "ex", Domains: []string{"ex.test"},
+			OriginURL: "http://127.0.0.1:9", Enabled: true,
+		}},
+		OpenRestyConfig: ConfigSnapshot{
+			OriginErrorPageEnabled:     true,
+			OriginErrorPageStatusCodes: []string{"500-599"},
+		},
+	}
+	out, err := RenderRouteConfig(doc, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out, "proxy_intercept_errors on") {
+		t.Fatal("missing intercept")
+	}
+	if !strings.Contains(out, "error_page") || !strings.Contains(out, "/__openflare_origin_error") {
+		t.Fatal("missing error_page")
+	}
+	if !strings.Contains(out, "error_page 500") {
+		t.Fatalf("expected expanded status codes in error_page, got:\n%s", out)
+	}
+	if !strings.Contains(out, "= /__openflare_origin_error") {
+		t.Fatal("error_page must keep original status via = redirect form")
+	}
+	if !strings.Contains(out, ErrorPageTmplPlaceholder) {
+		t.Fatal("missing error page template placeholder")
+	}
+	res, err := Render(doc, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, f := range res.SupportFiles {
+		if f.Path == OriginErrorPageSupportPath {
+			found = true
+			if !strings.Contains(f.Content, "{{status}}") {
+				t.Fatal("template missing placeholder")
+			}
+			if !strings.Contains(f.Content, "{{host}}") {
+				t.Fatal("template missing host placeholder")
+			}
+		}
+	}
+	if !found {
+		t.Fatal("missing support file")
+	}
+}
+
+func TestRenderOriginErrorPageDisabled(t *testing.T) {
+	t.Parallel()
+	doc := Document{
+		Routes: []Route{{
+			ID: 1, SiteName: "ex", Domains: []string{"ex.test"},
+			OriginURL: "http://127.0.0.1:9", Enabled: true,
+		}},
+		OpenRestyConfig: ConfigSnapshot{OriginErrorPageEnabled: false},
+	}
+	out, err := RenderRouteConfig(doc, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(out, "proxy_intercept_errors") {
+		t.Fatal("should not intercept when disabled")
+	}
+	if strings.Contains(out, "/__openflare_origin_error") {
+		t.Fatal("should not emit internal error location when disabled")
+	}
+	res, err := Render(doc, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, f := range res.SupportFiles {
+		if f.Path == OriginErrorPageSupportPath {
+			t.Fatal("should not emit support file when disabled")
+		}
+	}
+}
+
+func TestRenderOriginErrorPageDefaultsEmptyHTMLAndStatusCodes(t *testing.T) {
+	t.Parallel()
+	doc := Document{
+		Routes: []Route{{
+			ID: 1, SiteName: "ex", Domains: []string{"ex.test"},
+			OriginURL: "http://127.0.0.1:9", Enabled: true,
+		}},
+		OpenRestyConfig: ConfigSnapshot{
+			OriginErrorPageEnabled: true,
+		},
+	}
+	out, err := RenderRouteConfig(doc, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out, "error_page 500") {
+		t.Fatalf("empty status codes should default to 500-599, got:\n%s", out)
+	}
+	html := EffectiveOriginErrorPageHTML(doc.OpenRestyConfig)
+	if html != DefaultOriginErrorPageHTML {
+		t.Fatal("empty HTML should use default template")
+	}
+	if !strings.Contains(html, "{{status}}") || !strings.Contains(html, "{{host}}") {
+		t.Fatal("default HTML must include placeholders")
+	}
+	if !strings.Contains(html, "源站暂时无法提供服务") {
+		t.Fatal("default HTML missing neutral copy")
+	}
+}
+
+func TestRenderOriginErrorPageCustomHTMLInSupportFile(t *testing.T) {
+	t.Parallel()
+	custom := "<html><body>custom {{status}} @ {{host}}</body></html>"
+	doc := Document{
+		Routes: []Route{{
+			ID: 1, SiteName: "ex", Domains: []string{"ex.test"},
+			OriginURL: "http://127.0.0.1:9", Enabled: true,
+		}},
+		OpenRestyConfig: ConfigSnapshot{
+			OriginErrorPageEnabled:     true,
+			OriginErrorPageStatusCodes: []string{"502"},
+			OriginErrorPageHTML:        custom,
+		},
+	}
+	res, err := Render(doc, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, f := range res.SupportFiles {
+		if f.Path == OriginErrorPageSupportPath {
+			found = true
+			if f.Content != custom {
+				t.Fatalf("support file content = %q, want custom HTML", f.Content)
+			}
+		}
+	}
+	if !found {
+		t.Fatal("missing support file")
+	}
+	out, err := RenderRouteConfig(doc, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out, "error_page 502 = /__openflare_origin_error") {
+		t.Fatalf("expected single 502 error_page, got:\n%s", out)
+	}
+}
+
+func TestRenderOriginErrorPageSkipsPagesRoutes(t *testing.T) {
+	t.Parallel()
+	doc := Document{
+		Routes: []Route{{
+			ID: 1, SiteName: "pages", Domains: []string{"pages.test"},
+			UpstreamType: "pages", Enabled: true,
+			PagesDeployment: &PagesDeployment{
+				ProjectID: 1, LocalRoot: PagesDirPlaceholder + "/projects/1/current",
+				EntryFile: "index.html",
+			},
+		}},
+		OpenRestyConfig: ConfigSnapshot{
+			OriginErrorPageEnabled:     true,
+			OriginErrorPageStatusCodes: []string{"500-599"},
+		},
+	}
+	out, err := RenderRouteConfig(doc, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(out, "proxy_intercept_errors") {
+		t.Fatal("pages routes must not get proxy_intercept_errors")
+	}
+	if strings.Contains(out, "/__openflare_origin_error") {
+		t.Fatal("pages routes must not get origin error location")
+	}
+}
