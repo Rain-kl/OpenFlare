@@ -22,6 +22,7 @@ OpenFlare 适合需要统一管理多台 OpenResty 代理节点的团队，具�
 | 能力 | 说明 | 详细设计/使用指南 |
 | --- | --- | --- |
 | **反代配置管理** | 以网站规则（Proxy Route）为聚合边界，支持多域名与多上游负载均衡 | [新建反代配置](../guide/proxy-config.md) |
+| **源站错误页** | 全局可配置：源站/网关匹配状态码时返回 Cloudflare 风格或自定义 HTML，HTTP 状态码保持原值 | [源站错误页设计](./origin-error-page.md) |
 | **边缘缓存** | 单节点 OpenResty `proxy_cache`；默认 static 扩展名 + 源站头/Set-Cookie 闸门 + 默认 Edge TTL（对标 CF 默认模型） | [边缘缓存策略设计](./edge-cache-design.md) |
 | **Zone 与域名管理** | 以可注册根域为管理入口，聚合明确域名、域名证书与反代路由 | [Zone 与域名资源设计](./zone-design.md) |
 | **Cloudflare DNS 指向** | 以 ZoneDomain 为粒度，将单条 Cloudflare A 记录幂等指向边缘节点 IPv4；支持连接配置、分组、成员橙云与异步同步，一期不含自动故障切换 | [Cloudflare DNS 指向设计](./cloudflare-pointing.md) |

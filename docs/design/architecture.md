@@ -16,12 +16,14 @@ Browser
   |
   | HTTPS/HTTP request
   v
-OpenResty (WAF, TLS, Rate Limit)
+OpenResty (WAF, TLS, Rate Limit, 可选源站错误页)
   |
   | reverse proxy (proxy_pass)
   v
 Origin Server (直连公网/局域网上游)
 ```
+
+源站或网关返回配置列表内错误状态码时，可返回全局自定义/默认 HTML，且保持真实 HTTP 状态码；详见 [源站错误页设计](./origin-error-page.md)。
 
 ### 2. 内网穿透流量路径
 适用于内网受限服务器上的源站服务接入：
@@ -67,7 +69,7 @@ OpenResty (Agent, TLS/WAF)
 | --------------- | ---------------------------------------------------------------------- | ------------ |
 | **Server**      | 管理端 UI/API、控制面状态持久化、配置编译渲染、发布版本控制、Pages 部署包存储、Cloudflare A 记录指向、访问日志入库与业务流量聚合、Uptime Kuma 监控同步与登录验证码防护 | [Agent 与发布模型](./agent-design.md) / [Cloudflare DNS 指向设计](./cloudflare-pointing.md) / [边缘可观测与业务流量统计](./observability-design.md) / [Uptime Kuma 监控同步设计](./kuma-design.md) / [登录验证码设计](./login-captcha.md) |
 | **Agent**       | 周期心跳与 WS 同步、静态资源包拉取与解压、OpenResty 配置写入/校验/重载与自愈；观测仅上报访问明细与主机/健康读数，不做业务预聚合 | [Agent 与发布模型](./agent-design.md) / [边缘可观测与业务流量统计](./observability-design.md) |
-| **OpenResty**   | 接收真实流量，执行 WAF 过滤、PoW 防护、Basic Auth 认证与静态/反代服务 | [WAF 设计](./waf-design.md) / [Pages 设计](./pages-design.md) |
+| **OpenResty**   | 接收真实流量，执行 WAF 过滤、PoW 防护、Basic Auth 认证、静态/反代服务与可选源站错误页 | [WAF 设计](./waf-design.md) / [Pages 设计](./pages-design.md) / [源站错误页设计](./origin-error-page.md) |
 | **Relay**       | 部署于边缘节点，管理 `frps` 守护进程生命周期，接受心跳派发的穿透中继配置 | [内网穿透设计](./tunnel-design.md) |
 | **OpenFlared**  | 部署于内网，管理 `frpc` 进程组，向多个 Relay 建立反向隧道，上报连接状态 | [内网穿透设计](./tunnel-design.md) |
 
