@@ -1,4 +1,5 @@
 # syntax=docker/dockerfile:1.7
+# Agent image: slim binary + MMDB files on disk (not embedded in the binary).
 ARG VERSION=dev
 
 FROM golang:1.25-alpine AS builder
@@ -17,11 +18,13 @@ RUN --mount=type=cache,target=/go/pkg/mod \
     go mod download
 
 COPY . .
-RUN apk add --no-cache bash curl \
-    && bash scripts/fetch-agent-geoip-mmdb.sh
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
     go build -trimpath -ldflags "-s -w -X 'github.com/Rain-kl/Wavelet/internal/apps/agent/config.Version=$VERSION'" -o /build/bin/openflare-agent ./cmd/agent/main.go
+
+# Fetch MMDB into dist/geoip for COPY into the runtime image (not go:embed).
+RUN apk add --no-cache bash curl \
+    && bash scripts/fetch-agent-geoip-mmdb.sh
 
 FROM openresty/openresty:alpine
 
@@ -30,7 +33,7 @@ RUN apk add --no-cache ca-certificates tzdata perl libmaxminddb su-exec libcap \
     && opm get anjia0532/lua-resty-maxminddb \
     && addgroup -S openflare \
     && adduser -S -G openflare -H -h /data -s /sbin/nologin openflare \
-    && mkdir -p /etc/openflare /data \
+    && mkdir -p /etc/openflare /data/etc/openflare \
     && chown -R openflare:openflare /etc/openflare /data \
     && setcap 'cap_net_bind_service=+ep' /usr/local/openresty/nginx/sbin/nginx
 
@@ -38,6 +41,12 @@ ENV OPENFLARE_OPENRESTY_PATH=openresty \
     OPENFLARE_DATA_DIR=/data
 
 COPY --from=builder /build/bin/openflare-agent /usr/local/bin/openflare-agent
+# Default agent paths: data_dir/etc/openflare/GeoLite2-*.mmdb
+COPY --from=builder /build/dist/geoip/GeoLite2-Country.mmdb /data/etc/openflare/GeoLite2-Country.mmdb
+COPY --from=builder /build/dist/geoip/GeoLite2-City.mmdb /data/etc/openflare/GeoLite2-City.mmdb
+RUN chown openflare:openflare /data/etc/openflare/GeoLite2-Country.mmdb /data/etc/openflare/GeoLite2-City.mmdb \
+    && chmod 644 /data/etc/openflare/GeoLite2-Country.mmdb /data/etc/openflare/GeoLite2-City.mmdb
+
 COPY scripts/agent-entrypoint.sh /usr/local/bin/openflare-agent-entrypoint.sh
 RUN chmod +x /usr/local/bin/openflare-agent-entrypoint.sh
 

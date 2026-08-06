@@ -298,9 +298,7 @@ jobs:
         with:
           go-version-file: go.mod
 
-      - name: Fetch embedded GeoIP database
-        run: bash scripts/fetch-agent-geoip-mmdb.sh
-
+      # GeoIP MMDB is not embedded; Docker images COPY mmdb files, bare binaries seed via download on first start.
       - name: Build Agent
         env:
           CGO_ENABLED: 0

@@ -22,6 +22,10 @@ sidebar: false
 
 ## [unreleased]
 
+### 改进
+
+- Agent 不再将 GeoLite2 Country/City MMDB 嵌入二进制：Docker 镜像在默认数据目录 COPY 数据库文件，裸二进制首次启动时按需下载，显著减小 Agent 包体积；OpenResty 仍从磁盘路径读取 MMDB。Server 控制面仍仅内嵌 Country MMDB（不含 City），供可选 MaxMind 提供方离线初始化。
+
 ## [v3.4.4] - 2026-08-06
 
 ### 新增
@@ -31,11 +35,19 @@ sidebar: false
 
 ### 修复
 
+- 修复源站错误页在边缘返回 HTTP 200、页面状态码显示异常（如 0）的问题：错误响应现在正确透传上游状态码，并在页面中展示真实状态码。
 - 修复 Agent 在配置已对齐但磁盘校验和不一致时，Pages 等对账成功后仍保留 `LastError` 的问题，避免偶发网络失败被健康事件长期显示为「活动中」且无法自动恢复。
 
 ### 改进
 
 - 删除、撤销与未保存离开等确认操作统一改用页面内 AlertDialog，不再使用浏览器原生 `confirm` 弹窗，交互风格与系统其余对话框保持一致。
+- Cloudflare 分组添加域名成员时支持按顶级域分层展示、搜索筛选与批量勾选，可一次加入多个域名并排队同步。
+- Cloudflare 首页展示域名同步（sync_member）与分组同步（sync_group）任务执行记录，可筛选状态、查看详情与失败重试。
+- Cloudflare 域名/分组同步任务日志补充域名、分组、生效节点 IP、橙云状态及逐域名进度等关键信息，便于排查同步结果。
+- Cloudflare 域名同步与分组同步任务改为可在任务管理中调度的标准任务类型，并提供成员 ID / 分组 ID 参数表单。
+- Cloudflare 首页直接提供指向分组管理，并为分组详情增加自动刷新与手动刷新，减少页面跳转并及时展示同步状态。
+- 统一数据访问分层：业务持久化经 `internal/repository`，`internal/model` 仅保留实体与无 IO 领域规则，避免双轨 CRUD 与职责混淆。
+- 构建检查增加 `internal/model` 禁止直接访问数据库/Redis 的架构守卫，并收敛 model 与 repository 的错误文案定义边界。
 
 ## [v3.4.3] - 2026-07-24
 

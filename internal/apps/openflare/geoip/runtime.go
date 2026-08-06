@@ -11,7 +11,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/Rain-kl/Wavelet/internal/apps/agent/geoipdata"
+	geodata "github.com/Rain-kl/Wavelet/internal/apps/openflare/geoip/data"
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"github.com/Rain-kl/Wavelet/internal/repository"
 	pkggeoip "github.com/Rain-kl/Wavelet/pkg/geoip"
@@ -94,11 +94,12 @@ func ensureServerMMDB() (string, error) {
 	if _, err := os.Stat(path); err == nil {
 		return path, nil
 	}
-	if !os.IsNotExist(err) {
+	if err != nil && !os.IsNotExist(err) {
 		return "", err
 	}
 
-	data, err := fs.ReadFile(geoipdata.FS, geoipdata.DefaultMMDBName)
+	// Control plane: seed Country from embedded asset (no City; Agent uses disk/image).
+	data, err := fs.ReadFile(geodata.FS, geodata.DefaultMMDBName)
 	if err != nil {
 		return "", err
 	}

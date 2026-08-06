@@ -5,23 +5,16 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/fs"
 	"log/slog"
 	"os"
 	"path/filepath"
 	"time"
 
-	"github.com/Rain-kl/Wavelet/internal/apps/agent/geoipdata"
 	"github.com/Rain-kl/Wavelet/pkg/geoip"
 )
 
-const (
-	mmdbDirPerm  = 0o750
-	mmdbFilePerm = 0o600
-)
-
-// Updater periodically downloads a fresh GeoIP MMDB file and seeds the
-// initial embedded database when none is present on disk.
+// Updater periodically downloads a fresh GeoIP MMDB file and seeds missing
+// databases via download (or relies on image-provided files under data_dir).
 type Updater struct {
 	MMDBPath         string
 	DownloadURL      string
@@ -31,46 +24,56 @@ type Updater struct {
 	downloadDatabase func(context.Context, string, string) error
 }
 
-// EnsureInitialDatabase seeds the Country MMDB file from the embedded database if it does not exist on disk.
-func (u *Updater) EnsureInitialDatabase() error {
-	return ensureEmbeddedDatabase(u.MMDBPath, geoipdata.DefaultMMDBName, "Country")
-}
-
-func ensureEmbeddedDatabase(targetPath string, embeddedName string, databaseName string) error {
-	path := filepath.Clean(targetPath)
-	if path == "" || path == "." {
+// EnsureInitialDatabases downloads any missing Country/City MMDB once.
+// When files already exist (e.g. Docker image COPY), this is a no-op.
+// Network is used only when a managed path is absent — not for binary embeds.
+func (u *Updater) EnsureInitialDatabases(ctx context.Context) error {
+	if u == nil {
 		return nil
 	}
-	if _, err := os.Stat(path); err == nil {
-		return nil
-	} else if !os.IsNotExist(err) {
-		return fmt.Errorf("stat mmdb file failed: %w", err)
-	}
-	data, err := fs.ReadFile(geoipdata.FS, embeddedName)
-	if err != nil {
-		return fmt.Errorf("read embedded %s mmdb failed: %w", databaseName, err)
-	}
-	if err := os.MkdirAll(filepath.Dir(path), mmdbDirPerm); err != nil {
-		return fmt.Errorf("create mmdb directory failed: %w", err)
-	}
-	if err := os.WriteFile(path, data, mmdbFilePerm); err != nil {
-		return fmt.Errorf("write initial mmdb failed: %w", err)
-	}
-	slog.Info("initialized GeoIP mmdb from embedded database", "database", databaseName, "path", path, "size", len(data))
-	return nil
+	return u.ensureMissingDatabases(ctx)
 }
 
-// EnsureInitialDatabases seeds both Country and City from embedded databases
-// when either managed file is absent. Network downloads are reserved for the periodic updater.
-func (u *Updater) EnsureInitialDatabases(_ context.Context) error {
+func (u *Updater) ensureMissingDatabases(ctx context.Context) error {
+	databases := u.managedDatabases()
 	var errs []error
-	if err := u.EnsureInitialDatabase(); err != nil {
-		errs = append(errs, err)
-	}
-	if err := ensureEmbeddedDatabase(u.CityMMDBPath, geoipdata.DefaultCityMMDBName, "City"); err != nil {
-		errs = append(errs, err)
+	for _, database := range databases {
+		if database.path == "" || database.downloadURL == "" {
+			continue
+		}
+		exists, err := fileExists(database.path)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("stat GeoIP %s mmdb failed: %w", database.name, err))
+			continue
+		}
+		if exists {
+			continue
+		}
+		if err := u.download(ctx, database.path, database.downloadURL); err != nil {
+			errs = append(errs, fmt.Errorf("seed GeoIP %s mmdb failed: %w", database.name, err))
+			continue
+		}
+		slog.Info("seeded GeoIP mmdb via download", "database", database.name, "path", database.path)
 	}
 	return errors.Join(errs...)
+}
+
+func fileExists(path string) (bool, error) {
+	path = filepath.Clean(path)
+	if path == "" || path == "." {
+		return false, nil
+	}
+	info, err := os.Stat(path)
+	if err == nil {
+		if !info.Mode().IsRegular() {
+			return false, fmt.Errorf("GeoIP MMDB path is not a regular file: %s", path)
+		}
+		return true, nil
+	}
+	if os.IsNotExist(err) {
+		return false, nil
+	}
+	return false, err
 }
 
 func (u *Updater) download(ctx context.Context, path string, downloadURL string) error {
@@ -80,8 +83,12 @@ func (u *Updater) download(ctx context.Context, path string, downloadURL string)
 	return geoip.DownloadMaxMindDatabase(ctx, path, downloadURL)
 }
 
-func (u *Updater) updateDatabases(ctx context.Context) error {
-	databases := []struct {
+func (u *Updater) managedDatabases() []struct {
+	name        string
+	path        string
+	downloadURL string
+} {
+	return []struct {
 		name        string
 		path        string
 		downloadURL string
@@ -89,9 +96,12 @@ func (u *Updater) updateDatabases(ctx context.Context) error {
 		{name: "Country", path: u.MMDBPath, downloadURL: u.DownloadURL},
 		{name: "City", path: u.CityMMDBPath, downloadURL: u.CityDownloadURL},
 	}
+}
+
+func (u *Updater) updateDatabases(ctx context.Context) error {
 	var errs []error
-	for _, database := range databases {
-		if database.path == "" || (database.name == "City" && database.downloadURL == "") {
+	for _, database := range u.managedDatabases() {
+		if database.path == "" || database.downloadURL == "" {
 			continue
 		}
 		if err := u.download(ctx, database.path, database.downloadURL); err != nil {

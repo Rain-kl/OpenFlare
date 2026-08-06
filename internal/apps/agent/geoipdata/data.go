@@ -1,16 +1,13 @@
-// Package geoipdata embeds the default MaxMind GeoLite2 databases.
+// Package geoipdata holds shared GeoIP database filename constants.
+//
+// MaxMind MMDB files are NOT embedded into the agent binary. Docker images
+// COPY them onto the default data paths; bare binary installs seed via download
+// on first start (see geoipupdate).
 package geoipdata
 
-import "embed"
-
-// FS holds the embedded GeoLite2 Country and City databases.
-//
-//go:embed GeoLite2-Country.mmdb GeoLite2-City.mmdb
-var FS embed.FS
-
 const (
-	// DefaultMMDBName is the filename of the embedded MaxMind Country database.
+	// DefaultMMDBName is the default Country database filename.
 	DefaultMMDBName = "GeoLite2-Country.mmdb"
-	// DefaultCityMMDBName is the filename of the embedded MaxMind City database.
+	// DefaultCityMMDBName is the default City database filename.
 	DefaultCityMMDBName = "GeoLite2-City.mmdb"
 )

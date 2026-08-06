@@ -333,8 +333,8 @@ Server 的所有核心基础配置定义在 `config.yaml` 中，且均支持环�
 | `mmdb_path` | WAF GeoIP mmdb 文件路径 | 否 | `data_dir/etc/openflare/GeoLite2-Country.mmdb` |
 | `city_mmdb_path` | WAF 地区匹配 City MMDB 文件路径 | 否 | `data_dir/etc/openflare/GeoLite2-City.mmdb` |
 | `mmdb_update_interval` | WAF GeoIP mmdb 更新间隔 | 否 | `86400000` 毫秒 (24h) |
-| `mmdb_download_url` | WAF GeoIP mmdb 周期更新地址 | 否 | GeoLite2 Country 更新地址；首次缺失时从程序内嵌数据库初始化 |
-| `city_mmdb_download_url` | WAF City MMDB 周期更新地址 | 否 | GeoLite2 City 更新地址；首次缺失时从程序内嵌数据库初始化 |
+| `mmdb_download_url` | WAF GeoIP mmdb 周期更新地址 | 否 | GeoLite2 Country 更新地址；磁盘文件缺失时首次下载（Docker 镜像已 COPY 默认路径文件） |
+| `city_mmdb_download_url` | WAF City MMDB 周期更新地址 | 否 | GeoLite2 City 更新地址；磁盘文件缺失时首次下载（Docker 镜像已 COPY 默认路径文件） |
 | `observability_buffer_path` | 观测补报缓冲文件路径 | 否 | `data_dir/var/lib/openflare/observability-buffer.json` |
 | `observability_replay_minutes` | 自动补传最近观测窗口分钟数 | 否 | `60` |
 | `state_path` | Agent 本地状态文件路径 | 否 | `data_dir/var/lib/openflare/agent-state.json` |

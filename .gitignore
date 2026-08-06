@@ -77,8 +77,8 @@ profile.cov
 .grok
 /.gomodcache/
 *.mmdb
-!internal/apps/agent/geoipdata/GeoLite2-Country.mmdb
-!internal/apps/agent/geoipdata/GeoLite2-City.mmdb
+# Server control-plane MaxMind Country seed (Country only; Agent does not embed)
+!internal/apps/openflare/geoip/data/GeoLite2-Country.mmdb
 
 /.superpowers/
 /.worktrees/
