@@ -24,6 +24,7 @@ sidebar: false
 
 ### 改进
 
+- 错误页「触发策略」将启用开关、仅 GET、触发状态码合并为同一卡片，保存按钮置于卡片右上角，布局更紧凑。
 - 升级后端 Go 依赖至最新稳定版（Gin、GORM、OpenTelemetry、ClickHouse 驱动、AWS SDK、Redis 客户端等），并完成升级兼容性适配：OpenTelemetry 资源 schema 与语义约定版本对齐，ClickHouse 驱动新增格式查询/插入接口的测试替身补齐。
 - 升级前端 npm 依赖至最新稳定版（Next.js 16.3、React 19.2、recharts 3、react-day-picker 10、lucide-react 1.x、Tailwind CSS 4.3 等），适配图表/日历组件 API 变化，并将 ESLint 配置迁移为 eslint-config-next 16 的 flat config。
 - 受工具链兼容性限制，TypeScript 固定 6.0.3（typescript-eslint 尚不支持 7.x）、ESLint 固定 9.39.5（eslint-plugin-react 尚不支持 10.x）；react-hooks v7 新增的严格规则暂在 lint 配置中豁免，后续可分批采纳。
