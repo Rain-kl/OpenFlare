@@ -30,8 +30,19 @@ func TestRenderOriginErrorPageEnabled(t *testing.T) {
 	if !strings.Contains(out, "error_page 500") {
 		t.Fatalf("expected expanded status codes in error_page, got:\n%s", out)
 	}
-	if !strings.Contains(out, "= /__openflare_origin_error") {
-		t.Fatal("error_page must keep original status via = redirect form")
+	// Must NOT use `error_page … = /uri` (adopts error-URI status → often 200).
+	// `location = /path` is unrelated and expected.
+	for _, line := range strings.Split(out, "\n") {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "error_page ") && strings.Contains(trimmed, " = ") {
+			t.Fatalf("error_page must not use '=' form, got: %s", trimmed)
+		}
+	}
+	if !strings.Contains(out, "error_page ") || !strings.Contains(out, " /__openflare_origin_error;") {
+		t.Fatal("error_page must redirect to internal location without '='")
+	}
+	if !strings.Contains(out, "resolve_error_status") || !strings.Contains(out, "ngx.status = code") {
+		t.Fatal("internal location must resolve and set ngx.status to the original error code")
 	}
 	if !strings.Contains(out, ErrorPageTmplPlaceholder) {
 		t.Fatal("missing error page template placeholder")
@@ -151,8 +162,8 @@ func TestRenderOriginErrorPageCustomHTMLInSupportFile(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(out, "error_page 502 = /__openflare_origin_error") {
-		t.Fatalf("expected single 502 error_page, got:\n%s", out)
+	if !strings.Contains(out, "error_page 502 /__openflare_origin_error;") {
+		t.Fatalf("expected single 502 error_page without '=', got:\n%s", out)
 	}
 }
 

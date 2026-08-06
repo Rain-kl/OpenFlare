@@ -135,6 +135,11 @@ func renderOriginErrorPageIntercept(cfg ConfigSnapshot) string {
 
 // renderOriginErrorPageServerBits emits server-level error_page + internal location.
 // Returns empty string when disabled, expand fails, or no codes remain.
+//
+// IMPORTANT: do NOT use `error_page CODE = /uri` (equals without response code).
+// That form adopts the status returned by the error URI; content_by_lua defaults
+// to 200 and ngx.status is often 0, so clients saw 200 with body "{{status}}"→"0".
+// Without `=`, nginx keeps the original error status for the internal redirect.
 func renderOriginErrorPageServerBits(cfg ConfigSnapshot) string {
 	if !cfg.OriginErrorPageEnabled {
 		return ""
@@ -148,31 +153,59 @@ func renderOriginErrorPageServerBits(cfg ConfigSnapshot) string {
 		parts[i] = strconv.Itoa(code)
 	}
 	var builder strings.Builder
-	fmt.Fprintf(&builder, "    error_page %s = %s;\n", strings.Join(parts, " "), OriginErrorPageInternalLocation)
+	// No `=` — preserve original error status (502 stays 502).
+	fmt.Fprintf(&builder, "    error_page %s %s;\n", strings.Join(parts, " "), OriginErrorPageInternalLocation)
 	builder.WriteString(renderOriginErrorPageInternalLocation())
 	return builder.String()
 }
 
 func renderOriginErrorPageInternalLocation() string {
+	// Resolve status from $status (set by error_page internal redirect), then
+	// upstream_status, then ngx.status. Force ngx.status so the client receives
+	// the real error code. Use function replacers so host/status with `%` are safe.
+	//
+	// Note: fmt.Sprintf is used only for the two path placeholders; Lua `%` must be
+	// written as `%%` so Sprintf does not treat them as format verbs.
 	return fmt.Sprintf(`    location = %s {
         internal;
         default_type text/html;
         charset utf-8;
         content_by_lua_block {
+            local function resolve_error_status()
+                local code = tonumber(ngx.var.status)
+                if code and code >= 400 then
+                    return code
+                end
+                local upstream = ngx.var.upstream_status or ""
+                -- multi-upstream: "502, 502" or failed connect "0"
+                local first = upstream:match("(%%d+)")
+                code = tonumber(first)
+                if code and code >= 400 then
+                    return code
+                end
+                code = tonumber(ngx.status)
+                if code and code >= 400 then
+                    return code
+                end
+                return 502
+            end
+
+            local code = resolve_error_status()
+            ngx.status = code
+
             local f = io.open("%s", "r")
             if not f then
-                ngx.status = ngx.status
-                ngx.say("Error ", ngx.status)
+                ngx.header["Content-Type"] = "text/html; charset=utf-8"
+                ngx.say("Error ", tostring(code))
                 return
             end
             local body = f:read("*a")
             f:close()
-            local status = tostring(ngx.status)
+            local status = tostring(code)
             local host = ngx.var.host or ""
-            body = body:gsub("{{status}}", status, 1)
-            body = body:gsub("{{host}}", host, 1)
-            body = body:gsub("{{status}}", status)
-            body = body:gsub("{{host}}", host)
+            -- function replacer: plain insert, no percent pattern side effects
+            body = body:gsub("{{status}}", function() return status end)
+            body = body:gsub("{{host}}", function() return host end)
             ngx.header["Content-Type"] = "text/html; charset=utf-8"
             ngx.say(body)
         }
