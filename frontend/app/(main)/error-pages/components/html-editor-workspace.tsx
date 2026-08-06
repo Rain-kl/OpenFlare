@@ -72,7 +72,9 @@ export function HtmlEditorWorkspace({
             {value.trim() === '' ? ' · 空则使用内置默认' : ''}
           </span>
         </div>
-        <div className='flex items-center gap-1.5 flex-wrap'>{toolbarRight}</div>
+        <div className='flex items-center gap-1.5 flex-wrap'>
+          {toolbarRight}
+        </div>
       </div>
 
       <div className='flex flex-1 min-h-0 overflow-hidden'>

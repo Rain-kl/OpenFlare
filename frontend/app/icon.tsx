@@ -1,5 +1,4 @@
 import { ImageResponse } from 'next/og';
-import { WavesIcon } from 'lucide-react';
 
 export const dynamic = 'force-static';
 
@@ -22,7 +21,21 @@ export default function Icon() {
         borderRadius: '20%',
       }}
     >
-      <WavesIcon color='white' size={20} />
+      {/* lucide-react 1.x 将图标标记为客户端组件，无法在 ImageResponse 服务端渲染，改用内联 SVG */}
+      <svg
+        width={20}
+        height={20}
+        viewBox='0 0 24 24'
+        fill='none'
+        stroke='white'
+        strokeWidth={2}
+        strokeLinecap='round'
+        strokeLinejoin='round'
+      >
+        <path d='M2 12q2.5 2 5 0t5 0 5 0 5 0' />
+        <path d='M2 19q2.5 2 5 0t5 0 5 0 5 0' />
+        <path d='M2 5q2.5 2 5 0t5 0 5 0 5 0' />
+      </svg>
     </div>,
     {
       ...size,

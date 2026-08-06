@@ -59,7 +59,9 @@ it('restores declined Back and Forward transitions by indexed delta', async () =
     );
   });
   expect(go).toHaveBeenLastCalledWith(1);
-  expect(await screen.findByText('存在未保存的更改，确定离开吗？')).toBeTruthy();
+  expect(
+    await screen.findByText('存在未保存的更改，确定离开吗？'),
+  ).toBeTruthy();
   await user.click(screen.getByRole('button', { name: '取消' }));
 
   act(() => {
@@ -86,7 +88,9 @@ it('prompts and restores the current URL for an unknown unindexed history entry'
     );
   });
 
-  expect(await screen.findByText('存在未保存的更改，确定离开吗？')).toBeTruthy();
+  expect(
+    await screen.findByText('存在未保存的更改，确定离开吗？'),
+  ).toBeTruthy();
   expect(push).toHaveBeenCalledWith(
     expect.objectContaining({ __wafEditorIndex: 4 }),
     '',

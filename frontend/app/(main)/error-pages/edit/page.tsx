@@ -113,9 +113,7 @@ export default function ErrorPageEditPage() {
             <div className='flex items-center gap-2'>
               <FileCode2 className='size-5 text-primary' />
               <div>
-                <h1 className='text-2xl font-semibold tracking-tight'>
-                  编辑
-                </h1>
+                <h1 className='text-2xl font-semibold tracking-tight'>编辑</h1>
               </div>
             </div>
           </div>

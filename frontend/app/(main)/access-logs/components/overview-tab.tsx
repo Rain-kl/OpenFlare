@@ -244,8 +244,12 @@ function PieDistributionCard({
                 }
               />
               <ChartLegend
-                content={<ChartLegendContent nameKey='name' />}
-                className='flex-wrap justify-center gap-x-4 gap-y-1 pt-2 text-[11px]'
+                content={
+                  <ChartLegendContent
+                    nameKey='name'
+                    className='flex-wrap justify-center gap-x-4 gap-y-1 pt-2 text-[11px]'
+                  />
+                }
               />
             </PieChart>
           </ChartContainer>

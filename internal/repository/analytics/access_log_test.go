@@ -5,6 +5,7 @@ package analytics
 
 import (
 	"context"
+	"io"
 	"testing"
 	"time"
 
@@ -131,6 +132,12 @@ func (m *mockConn) PrepareBatch(_ context.Context, query string, _ ...driver.Pre
 func (m *mockConn) Exec(_ context.Context, _ string, _ ...any) error { return nil }
 
 func (m *mockConn) AsyncInsert(_ context.Context, _ string, _ bool, _ ...any) error { return nil }
+
+func (m *mockConn) InsertFormat(_ context.Context, _ string, _ string, _ io.Reader) error { return nil }
+
+func (m *mockConn) QueryFormat(_ context.Context, _ string, _ string, _ ...any) (io.ReadCloser, error) {
+	return nil, nil
+}
 
 func (m *mockConn) Ping(_ context.Context) error { return nil }
 

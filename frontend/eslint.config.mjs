@@ -1,17 +1,10 @@
-import { dirname } from 'path';
-import { fileURLToPath } from 'url';
-import { FlatCompat } from '@eslint/eslintrc';
 import unusedImports from 'eslint-plugin-unused-imports';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
-const compat = new FlatCompat({
-  baseDirectory: __dirname,
-});
+import nextCoreWebVitals from 'eslint-config-next/core-web-vitals';
+import nextTypescript from 'eslint-config-next/typescript';
 
 const eslintConfig = [
-  ...compat.extends('next/core-web-vitals', 'next/typescript'),
+  ...nextCoreWebVitals,
+  ...nextTypescript,
   {
     ignores: [
       'node_modules/**',
@@ -38,6 +31,16 @@ const eslintConfig = [
           argsIgnorePattern: '^_',
         },
       ],
+      // eslint-config-next 16 启用的 react-hooks v7 新规则对既有代码大量告警，
+      // 属 React Compiler 时代的最佳实践；此处先豁免，后续可分批采纳修复。
+      'react-hooks/set-state-in-effect': 'off',
+      'react-hooks/static-components': 'off',
+      'react-hooks/incompatible-library': 'off',
+      'react-hooks/preserve-manual-memoization': 'off',
+      'react-hooks/refs': 'off',
+      'react-hooks/purity': 'off',
+      'react-hooks/immutability': 'off',
+      '@next/next/no-location-assign-relative-destination': 'off',
     },
   },
 ];

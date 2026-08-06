@@ -3,13 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import {
-  Expand,
-  FileWarning,
-  Loader2,
-  Pencil,
-  Save,
-} from 'lucide-react';
+import { Expand, FileWarning, Loader2, Pencil, Save } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { useAuth } from '@/components/providers/auth-provider';
@@ -135,8 +129,8 @@ export default function ErrorPagesPage() {
             <div className='space-y-1.5'>
               <CardTitle className='text-base'>触发状态码</CardTitle>
               <CardDescription>
-                支持单码（如 502）或闭区间（如 500-599），范围
-                400–599。默认 500-599。修改启用开关或状态码后需点击保存。
+                支持单码（如 502）或闭区间（如 500-599），范围 400–599。默认
+                500-599。修改启用开关或状态码后需点击保存。
               </CardDescription>
             </div>
             <Button
@@ -170,7 +164,7 @@ export default function ErrorPagesPage() {
             />
             {tagError ? (
               <p className='text-xs text-destructive'>{tagError}</p>
-            ) : (null)}
+            ) : null}
           </CardContent>
         </Card>
 

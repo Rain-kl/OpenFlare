@@ -34,10 +34,7 @@ export default function ErrorPagePreviewPage() {
     return mapOptionsToFields(optionsToMap(optionsQuery.data)).html;
   }, [optionsQuery.data]);
 
-  const previewSrcDoc = useMemo(
-    () => previewOriginErrorPageHTML(html),
-    [html],
-  );
+  const previewSrcDoc = useMemo(() => previewOriginErrorPageHTML(html), [html]);
 
   return (
     <ErrorPageGate optionsQuery={optionsQuery}>

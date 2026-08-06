@@ -484,8 +484,12 @@ export function FileStats() {
                       }
                     />
                     <ChartLegend
-                      content={<ChartLegendContent nameKey='name' />}
-                      className='flex-wrap justify-center gap-x-4 gap-y-1 text-[11px] pt-4'
+                      content={
+                        <ChartLegendContent
+                          nameKey='name'
+                          className='flex-wrap justify-center gap-x-4 gap-y-1 text-[11px] pt-4'
+                        />
+                      }
                     />
                   </PieChart>
                 </ChartContainer>
@@ -577,8 +581,12 @@ export function FileStats() {
                       }
                     />
                     <ChartLegend
-                      content={<ChartLegendContent nameKey='name' />}
-                      className='flex-wrap justify-center gap-x-4 gap-y-1 text-[11px] pt-4'
+                      content={
+                        <ChartLegendContent
+                          nameKey='name'
+                          className='flex-wrap justify-center gap-x-4 gap-y-1 text-[11px] pt-4'
+                        />
+                      }
                     />
                   </PieChart>
                 </ChartContainer>
