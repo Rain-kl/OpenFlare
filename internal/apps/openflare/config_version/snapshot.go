@@ -99,47 +99,50 @@ type snapshotWAFDocument struct {
 }
 
 type openRestyConfigSnapshot struct {
-	DefaultServerReturnStatus int    `json:"default_server_return_status"`
-	WorkerProcesses           string `json:"worker_processes"`
-	WorkerConnections         int    `json:"worker_connections"`
-	WorkerRlimitNofile        int    `json:"worker_rlimit_nofile"`
-	EventsUse                 string `json:"events_use,omitempty"`
-	EventsMultiAcceptEnabled  bool   `json:"events_multi_accept_enabled"`
-	KeepaliveTimeout          int    `json:"keepalive_timeout"`
-	KeepaliveRequests         int    `json:"keepalive_requests"`
-	ClientHeaderTimeout       int    `json:"client_header_timeout"`
-	ClientBodyTimeout         int    `json:"client_body_timeout"`
-	ClientMaxBodySize         string `json:"client_max_body_size"`
-	LargeClientHeaderBuffers  string `json:"large_client_header_buffers"`
-	SendTimeout               int    `json:"send_timeout"`
-	ProxyConnectTimeout       int    `json:"proxy_connect_timeout"`
-	ProxySendTimeout          int    `json:"proxy_send_timeout"`
-	ProxyReadTimeout          int    `json:"proxy_read_timeout"`
-	WebsocketEnabled          bool   `json:"websocket_enabled"`
-	HTTP3Enabled              bool   `json:"http3_enabled"`
-	ProxyRequestBuffering     bool   `json:"proxy_request_buffering"`
-	ProxyBufferingEnabled     bool   `json:"proxy_buffering_enabled"`
-	ProxyBuffers              string `json:"proxy_buffers"`
-	ProxyBufferSize           string `json:"proxy_buffer_size"`
-	ProxyBusyBuffersSize      string `json:"proxy_busy_buffers_size"`
-	GzipEnabled               bool   `json:"gzip_enabled"`
-	GzipMinLength             int    `json:"gzip_min_length"`
-	GzipCompLevel             int    `json:"gzip_comp_level"`
-	Resolvers                 string `json:"resolvers,omitempty"`
-	CacheEnabled              bool   `json:"cache_enabled"`
-	CachePath                 string `json:"cache_path,omitempty"`
-	CacheLevels               string `json:"cache_levels"`
-	CacheInactive             string `json:"cache_inactive"`
-	CacheMaxSize              string `json:"cache_max_size"`
-	CacheKeyTemplate          string `json:"cache_key_template"`
-	CacheLockEnabled          bool   `json:"cache_lock_enabled"`
-	CacheLockTimeout          string `json:"cache_lock_timeout"`
-	CacheUseStale             string `json:"cache_use_stale"`
-	MainConfigTemplate        string `json:"main_config_template,omitempty"`
-	DefaultLimitConnPerServer int    `json:"default_limit_conn_per_server,omitempty"`
-	DefaultLimitConnPerIP     int    `json:"default_limit_conn_per_ip,omitempty"`
-	DefaultLimitRate          string `json:"default_limit_rate,omitempty"`
-	DefaultLimitReqPerIP      string `json:"default_limit_req_per_ip,omitempty"`
+	DefaultServerReturnStatus  int      `json:"default_server_return_status"`
+	WorkerProcesses            string   `json:"worker_processes"`
+	WorkerConnections          int      `json:"worker_connections"`
+	WorkerRlimitNofile         int      `json:"worker_rlimit_nofile"`
+	EventsUse                  string   `json:"events_use,omitempty"`
+	EventsMultiAcceptEnabled   bool     `json:"events_multi_accept_enabled"`
+	KeepaliveTimeout           int      `json:"keepalive_timeout"`
+	KeepaliveRequests          int      `json:"keepalive_requests"`
+	ClientHeaderTimeout        int      `json:"client_header_timeout"`
+	ClientBodyTimeout          int      `json:"client_body_timeout"`
+	ClientMaxBodySize          string   `json:"client_max_body_size"`
+	LargeClientHeaderBuffers   string   `json:"large_client_header_buffers"`
+	SendTimeout                int      `json:"send_timeout"`
+	ProxyConnectTimeout        int      `json:"proxy_connect_timeout"`
+	ProxySendTimeout           int      `json:"proxy_send_timeout"`
+	ProxyReadTimeout           int      `json:"proxy_read_timeout"`
+	WebsocketEnabled           bool     `json:"websocket_enabled"`
+	HTTP3Enabled               bool     `json:"http3_enabled"`
+	ProxyRequestBuffering      bool     `json:"proxy_request_buffering"`
+	ProxyBufferingEnabled      bool     `json:"proxy_buffering_enabled"`
+	ProxyBuffers               string   `json:"proxy_buffers"`
+	ProxyBufferSize            string   `json:"proxy_buffer_size"`
+	ProxyBusyBuffersSize       string   `json:"proxy_busy_buffers_size"`
+	GzipEnabled                bool     `json:"gzip_enabled"`
+	GzipMinLength              int      `json:"gzip_min_length"`
+	GzipCompLevel              int      `json:"gzip_comp_level"`
+	Resolvers                  string   `json:"resolvers,omitempty"`
+	CacheEnabled               bool     `json:"cache_enabled"`
+	CachePath                  string   `json:"cache_path,omitempty"`
+	CacheLevels                string   `json:"cache_levels"`
+	CacheInactive              string   `json:"cache_inactive"`
+	CacheMaxSize               string   `json:"cache_max_size"`
+	CacheKeyTemplate           string   `json:"cache_key_template"`
+	CacheLockEnabled           bool     `json:"cache_lock_enabled"`
+	CacheLockTimeout           string   `json:"cache_lock_timeout"`
+	CacheUseStale              string   `json:"cache_use_stale"`
+	MainConfigTemplate         string   `json:"main_config_template,omitempty"`
+	DefaultLimitConnPerServer  int      `json:"default_limit_conn_per_server,omitempty"`
+	DefaultLimitConnPerIP      int      `json:"default_limit_conn_per_ip,omitempty"`
+	DefaultLimitRate           string   `json:"default_limit_rate,omitempty"`
+	DefaultLimitReqPerIP       string   `json:"default_limit_req_per_ip,omitempty"`
+	OriginErrorPageEnabled     bool     `json:"origin_error_page_enabled"`
+	OriginErrorPageStatusCodes []string `json:"origin_error_page_status_codes,omitempty"`
+	OriginErrorPageHTML        string   `json:"origin_error_page_html,omitempty"`
 }
 
 type snapshotDocument struct {
@@ -511,47 +514,50 @@ func buildOpenRestyConfigSnapshot(ctx context.Context) openRestyConfigSnapshot {
 	}
 
 	snapshot := openRestyConfigSnapshot{
-		DefaultServerReturnStatus: getIntConfig(model.ConfigKeyOpenRestyDefaultServerReturnStatus, defaultOpenRestyReturnStatus),
-		WorkerProcesses:           getStringConfig(model.ConfigKeyOpenRestyWorkerProcesses, "auto"),
-		WorkerConnections:         getIntConfig(model.ConfigKeyOpenRestyWorkerConnections, defaultOpenRestyWorkerConns),
-		WorkerRlimitNofile:        getIntConfig(model.ConfigKeyOpenRestyWorkerRlimitNofile, defaultOpenRestyRlimitNofile),
-		EventsUse:                 getStringConfig(model.ConfigKeyOpenRestyEventsUse, "epoll"),
-		EventsMultiAcceptEnabled:  getBoolConfig(model.ConfigKeyOpenRestyEventsMultiAcceptEnabled, true),
-		KeepaliveTimeout:          getIntConfig(model.ConfigKeyOpenRestyKeepaliveTimeout, defaultOpenRestyKeepaliveTimeout),
-		KeepaliveRequests:         getIntConfig(model.ConfigKeyOpenRestyKeepaliveRequests, defaultOpenRestyKeepaliveReqs),
-		ClientHeaderTimeout:       getIntConfig(model.ConfigKeyOpenRestyClientHeaderTimeout, defaultOpenRestyHeaderTimeout),
-		ClientBodyTimeout:         getIntConfig(model.ConfigKeyOpenRestyClientBodyTimeout, defaultOpenRestyBodyTimeout),
-		ClientMaxBodySize:         getStringConfig(model.ConfigKeyOpenRestyClientMaxBodySize, "64m"),
-		LargeClientHeaderBuffers:  getStringConfig(model.ConfigKeyOpenRestyLargeClientHeaderBuffers, "4 16k"),
-		SendTimeout:               getIntConfig(model.ConfigKeyOpenRestySendTimeout, defaultOpenRestySendTimeout),
-		ProxyConnectTimeout:       getIntConfig(model.ConfigKeyOpenRestyProxyConnectTimeout, defaultOpenRestyConnectTimeout),
-		ProxySendTimeout:          getIntConfig(model.ConfigKeyOpenRestyProxySendTimeout, defaultOpenRestyProxyTimeout),
-		ProxyReadTimeout:          getIntConfig(model.ConfigKeyOpenRestyProxyReadTimeout, defaultOpenRestyProxyTimeout),
-		WebsocketEnabled:          getBoolConfig(model.ConfigKeyOpenRestyWebsocketEnabled, true),
-		HTTP3Enabled:              getBoolConfig(model.ConfigKeyOpenRestyHTTP3Enabled, true),
-		ProxyRequestBuffering:     getBoolConfig(model.ConfigKeyOpenRestyProxyRequestBufferingEnabled, false),
-		ProxyBufferingEnabled:     getBoolConfig(model.ConfigKeyOpenRestyProxyBufferingEnabled, true),
-		ProxyBuffers:              getStringConfig(model.ConfigKeyOpenRestyProxyBuffers, "16 16k"),
-		ProxyBufferSize:           getStringConfig(model.ConfigKeyOpenRestyProxyBufferSize, "8k"),
-		ProxyBusyBuffersSize:      getStringConfig(model.ConfigKeyOpenRestyProxyBusyBuffersSize, "64k"),
-		GzipEnabled:               getBoolConfig(model.ConfigKeyOpenRestyGzipEnabled, true),
-		GzipMinLength:             getIntConfig(model.ConfigKeyOpenRestyGzipMinLength, defaultOpenRestyGzipMinLen),
-		GzipCompLevel:             getIntConfig(model.ConfigKeyOpenRestyGzipCompLevel, defaultOpenRestyGzipLevel),
-		Resolvers:                 getStringConfig(model.ConfigKeyOpenRestyResolvers, ""),
-		CacheEnabled:              getBoolConfig(model.ConfigKeyOpenRestyCacheEnabled, false),
-		CachePath:                 getStringConfig(model.ConfigKeyOpenRestyCachePath, ""),
-		CacheLevels:               getStringConfig(model.ConfigKeyOpenRestyCacheLevels, "1:2"),
-		CacheInactive:             getStringConfig(model.ConfigKeyOpenRestyCacheInactive, "30m"),
-		CacheMaxSize:              getStringConfig(model.ConfigKeyOpenRestyCacheMaxSize, "1g"),
-		CacheKeyTemplate:          getStringConfig(model.ConfigKeyOpenRestyCacheKeyTemplate, "$scheme$host$request_uri"),
-		CacheLockEnabled:          getBoolConfig(model.ConfigKeyOpenRestyCacheLockEnabled, true),
-		CacheLockTimeout:          getStringConfig(model.ConfigKeyOpenRestyCacheLockTimeout, "5s"),
-		CacheUseStale:             getStringConfig(model.ConfigKeyOpenRestyCacheUseStale, "error timeout updating http_500 http_502 http_503 http_504"),
-		MainConfigTemplate:        getStringConfig(model.ConfigKeyOpenRestyMainConfigTemplate, model.DefaultOpenRestyMainConfigTemplate),
-		DefaultLimitConnPerServer: getNonNegIntConfig(model.ConfigKeyOpenRestyDefaultLimitConnPerServer, 0),
-		DefaultLimitConnPerIP:     getNonNegIntConfig(model.ConfigKeyOpenRestyDefaultLimitConnPerIP, 0),
-		DefaultLimitRate:          strings.ToLower(strings.TrimSpace(getStringConfig(model.ConfigKeyOpenRestyDefaultLimitRate, ""))),
-		DefaultLimitReqPerIP:      strings.ToLower(strings.TrimSpace(getStringConfig(model.ConfigKeyOpenRestyDefaultLimitReqPerIP, ""))),
+		DefaultServerReturnStatus:  getIntConfig(model.ConfigKeyOpenRestyDefaultServerReturnStatus, defaultOpenRestyReturnStatus),
+		WorkerProcesses:            getStringConfig(model.ConfigKeyOpenRestyWorkerProcesses, "auto"),
+		WorkerConnections:          getIntConfig(model.ConfigKeyOpenRestyWorkerConnections, defaultOpenRestyWorkerConns),
+		WorkerRlimitNofile:         getIntConfig(model.ConfigKeyOpenRestyWorkerRlimitNofile, defaultOpenRestyRlimitNofile),
+		EventsUse:                  getStringConfig(model.ConfigKeyOpenRestyEventsUse, "epoll"),
+		EventsMultiAcceptEnabled:   getBoolConfig(model.ConfigKeyOpenRestyEventsMultiAcceptEnabled, true),
+		KeepaliveTimeout:           getIntConfig(model.ConfigKeyOpenRestyKeepaliveTimeout, defaultOpenRestyKeepaliveTimeout),
+		KeepaliveRequests:          getIntConfig(model.ConfigKeyOpenRestyKeepaliveRequests, defaultOpenRestyKeepaliveReqs),
+		ClientHeaderTimeout:        getIntConfig(model.ConfigKeyOpenRestyClientHeaderTimeout, defaultOpenRestyHeaderTimeout),
+		ClientBodyTimeout:          getIntConfig(model.ConfigKeyOpenRestyClientBodyTimeout, defaultOpenRestyBodyTimeout),
+		ClientMaxBodySize:          getStringConfig(model.ConfigKeyOpenRestyClientMaxBodySize, "64m"),
+		LargeClientHeaderBuffers:   getStringConfig(model.ConfigKeyOpenRestyLargeClientHeaderBuffers, "4 16k"),
+		SendTimeout:                getIntConfig(model.ConfigKeyOpenRestySendTimeout, defaultOpenRestySendTimeout),
+		ProxyConnectTimeout:        getIntConfig(model.ConfigKeyOpenRestyProxyConnectTimeout, defaultOpenRestyConnectTimeout),
+		ProxySendTimeout:           getIntConfig(model.ConfigKeyOpenRestyProxySendTimeout, defaultOpenRestyProxyTimeout),
+		ProxyReadTimeout:           getIntConfig(model.ConfigKeyOpenRestyProxyReadTimeout, defaultOpenRestyProxyTimeout),
+		WebsocketEnabled:           getBoolConfig(model.ConfigKeyOpenRestyWebsocketEnabled, true),
+		HTTP3Enabled:               getBoolConfig(model.ConfigKeyOpenRestyHTTP3Enabled, true),
+		ProxyRequestBuffering:      getBoolConfig(model.ConfigKeyOpenRestyProxyRequestBufferingEnabled, false),
+		ProxyBufferingEnabled:      getBoolConfig(model.ConfigKeyOpenRestyProxyBufferingEnabled, true),
+		ProxyBuffers:               getStringConfig(model.ConfigKeyOpenRestyProxyBuffers, "16 16k"),
+		ProxyBufferSize:            getStringConfig(model.ConfigKeyOpenRestyProxyBufferSize, "8k"),
+		ProxyBusyBuffersSize:       getStringConfig(model.ConfigKeyOpenRestyProxyBusyBuffersSize, "64k"),
+		GzipEnabled:                getBoolConfig(model.ConfigKeyOpenRestyGzipEnabled, true),
+		GzipMinLength:              getIntConfig(model.ConfigKeyOpenRestyGzipMinLength, defaultOpenRestyGzipMinLen),
+		GzipCompLevel:              getIntConfig(model.ConfigKeyOpenRestyGzipCompLevel, defaultOpenRestyGzipLevel),
+		Resolvers:                  getStringConfig(model.ConfigKeyOpenRestyResolvers, ""),
+		CacheEnabled:               getBoolConfig(model.ConfigKeyOpenRestyCacheEnabled, false),
+		CachePath:                  getStringConfig(model.ConfigKeyOpenRestyCachePath, ""),
+		CacheLevels:                getStringConfig(model.ConfigKeyOpenRestyCacheLevels, "1:2"),
+		CacheInactive:              getStringConfig(model.ConfigKeyOpenRestyCacheInactive, "30m"),
+		CacheMaxSize:               getStringConfig(model.ConfigKeyOpenRestyCacheMaxSize, "1g"),
+		CacheKeyTemplate:           getStringConfig(model.ConfigKeyOpenRestyCacheKeyTemplate, "$scheme$host$request_uri"),
+		CacheLockEnabled:           getBoolConfig(model.ConfigKeyOpenRestyCacheLockEnabled, true),
+		CacheLockTimeout:           getStringConfig(model.ConfigKeyOpenRestyCacheLockTimeout, "5s"),
+		CacheUseStale:              getStringConfig(model.ConfigKeyOpenRestyCacheUseStale, "error timeout updating http_500 http_502 http_503 http_504"),
+		MainConfigTemplate:         getStringConfig(model.ConfigKeyOpenRestyMainConfigTemplate, model.DefaultOpenRestyMainConfigTemplate),
+		DefaultLimitConnPerServer:  getNonNegIntConfig(model.ConfigKeyOpenRestyDefaultLimitConnPerServer, 0),
+		DefaultLimitConnPerIP:      getNonNegIntConfig(model.ConfigKeyOpenRestyDefaultLimitConnPerIP, 0),
+		DefaultLimitRate:           strings.ToLower(strings.TrimSpace(getStringConfig(model.ConfigKeyOpenRestyDefaultLimitRate, ""))),
+		DefaultLimitReqPerIP:       strings.ToLower(strings.TrimSpace(getStringConfig(model.ConfigKeyOpenRestyDefaultLimitReqPerIP, ""))),
+		OriginErrorPageEnabled:     getBoolConfig(model.ConfigKeyOriginErrorPageEnabled, true),
+		OriginErrorPageStatusCodes: parseOriginErrorPageStatusCodes(getStringConfig(model.ConfigKeyOriginErrorPageStatusCodes, `["500-599"]`)),
+		OriginErrorPageHTML:        getStringConfig(model.ConfigKeyOriginErrorPageHTML, ""),
 	}
 	if snapshot.DefaultLimitRate == "0" {
 		snapshot.DefaultLimitRate = ""
@@ -561,6 +567,19 @@ func buildOpenRestyConfigSnapshot(ctx context.Context) openRestyConfigSnapshot {
 	}
 	snapshot.CachePath = normalizeProxyCachePathForSnapshot(snapshot.CacheEnabled, snapshot.CachePath)
 	return snapshot
+}
+
+func parseOriginErrorPageStatusCodes(raw string) []string {
+	const defaultTag = "500-599"
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return []string{defaultTag}
+	}
+	var tags []string
+	if err := json.Unmarshal([]byte(trimmed), &tags); err != nil || len(tags) == 0 {
+		return []string{defaultTag}
+	}
+	return tags
 }
 
 func normalizeProxyCachePathForSnapshot(cacheEnabled bool, cachePath string) string {

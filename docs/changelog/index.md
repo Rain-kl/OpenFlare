@@ -24,6 +24,7 @@ sidebar: false
 
 ### 新增
 
+- 新增源站错误页全局配置（开关、状态码标签、自定义 HTML），写入配置版本快照后随发布下发到边缘；默认拦截 5xx 并使用内置错误页模板。
 - 新增 Cloudflare DNS 指向管理：可复用现有 Cloudflare DNS 账号或配置独立 Token，按分组将 ZoneDomain 的单条 A 记录异步同步到边缘节点 IPv4，并支持成员橙云、同步状态与节点 IP 变更联动。
 
 ### 改进

@@ -109,6 +109,11 @@ const (
 	ConfigKeyOpenRestyDefaultLimitConnPerIP        = "openresty_default_limit_conn_per_ip"       // 默认单 IP 并发连接
 	ConfigKeyOpenRestyDefaultLimitRate             = "openresty_default_limit_rate"              // 默认单请求带宽
 	ConfigKeyOpenRestyDefaultLimitReqPerIP         = "openresty_default_limit_req_per_ip"        // 默认单 IP 请求频率限制
+
+	// 源站错误页
+	ConfigKeyOriginErrorPageEnabled     = "origin_error_page_enabled"      // 是否启用源站错误页
+	ConfigKeyOriginErrorPageStatusCodes = "origin_error_page_status_codes" // 源站错误页触发状态码标签 JSON 数组
+	ConfigKeyOriginErrorPageHTML        = "origin_error_page_html"         // 源站错误页自定义 HTML（空则内置默认）
 )
 
 const (

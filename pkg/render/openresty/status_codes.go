@@ -1,3 +1,6 @@
+// Copyright 2026 Arctel.net
+// SPDX-License-Identifier: Apache-2.0
+
 package openresty
 
 import (
@@ -8,10 +11,14 @@ import (
 )
 
 const (
+	// StatusCodeMin is the lowest HTTP status code accepted for origin error pages.
 	StatusCodeMin = 400
+	// StatusCodeMax is the highest HTTP status code accepted for origin error pages.
 	StatusCodeMax = 599
 )
 
+// ParseStatusCodeTag parses a single tag such as "502" or "500-599".
+// Bounds must fall within StatusCodeMin–StatusCodeMax inclusive.
 func ParseStatusCodeTag(tag string) (lo, hi int, err error) {
 	tag = strings.TrimSpace(tag)
 	if tag == "" {
@@ -42,6 +49,7 @@ func ParseStatusCodeTag(tag string) (lo, hi int, err error) {
 	return lo, hi, nil
 }
 
+// ExpandStatusCodeTags expands status code tags into a sorted unique list of integers.
 func ExpandStatusCodeTags(tags []string) ([]int, error) {
 	set := map[int]struct{}{}
 	for _, tag := range tags {
