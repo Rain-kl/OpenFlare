@@ -60,7 +60,11 @@ export const openflareWebsiteNavGroup: OpenFlareNavGroup = {
       childUrls: ['/cloudflare/settings'],
     },
     { title: '源站地址', url: '/origins', childUrls: ['/origins/detail'] },
-    { title: '错误页', url: '/error-pages' },
+    {
+      title: '错误页',
+      url: '/error-pages',
+      childUrls: ['/error-pages/edit', '/error-pages/preview'],
+    },
   ],
 };
 

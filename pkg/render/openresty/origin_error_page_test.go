@@ -112,8 +112,8 @@ func TestRenderOriginErrorPageDefaultsEmptyHTMLAndStatusCodes(t *testing.T) {
 	if !strings.Contains(html, "{{status}}") || !strings.Contains(html, "{{host}}") {
 		t.Fatal("default HTML must include placeholders")
 	}
-	if !strings.Contains(html, "源站暂时无法提供服务") {
-		t.Fatal("default HTML missing neutral copy")
+	if !strings.Contains(html, "OpenFlare") || !strings.Contains(html, "upstream server is unreachable") {
+		t.Fatal("default HTML missing minimalist copy")
 	}
 }
 
