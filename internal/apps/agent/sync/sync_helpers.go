@@ -122,6 +122,8 @@ func (s *Service) syncMismatchedChecksum(ctx context.Context, mode string, start
 		if !reconciled {
 			slog.Debug("skipping config fetch because state already records target version/checksum", "version", target.Version, "checksum", target.Checksum)
 		}
+		// Successful reconcile must clear sticky LastError so health events can resolve.
+		snapshot.LastError = ""
 		return s.stateStore.Save(snapshot)
 	}
 

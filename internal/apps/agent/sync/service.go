@@ -166,6 +166,8 @@ func (s *Service) applyIfNeeded(ctx context.Context, mode string, startup bool, 
 			return err
 		}
 		slog.Debug("skipping apply because state already records target version/checksum", "version", config.Version, "checksum", config.Checksum)
+		// Successful reconcile must clear sticky LastError so health events can resolve.
+		snapshot.LastError = ""
 		return s.stateStore.Save(snapshot)
 	}
 	return s.applyRenderedConfig(ctx, mode, snapshot, currentChecksum, config)
