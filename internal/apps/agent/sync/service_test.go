@@ -1804,3 +1804,163 @@ func TestSyncOnceDownloadsPagesDeploymentWithTopLevelFolder(t *testing.T) {
 		t.Fatalf("unexpected Pages assets/app.js content: %s", string(jsData))
 	}
 }
+
+func TestSyncOnceClearsStickyLastErrorWhenChecksumMatches(t *testing.T) {
+	const sticky = "pages project 1: fetch latest hash: context deadline exceeded"
+	client := &fakeClient{
+		config: protocol.ActiveConfigResponse{
+			Version:          "20260309-201",
+			Checksum:         "checksum-201",
+			SourceConfigJSON: testSourceConfigJSON("auto", 90),
+			CreatedAt:        time.Now().Format(time.RFC3339),
+		},
+	}
+	stateStore := state.NewStore(filepath.Join(t.TempDir(), "state.json"))
+	nodeID, err := stateStore.EnsureNodeID()
+	if err != nil {
+		t.Fatalf("EnsureNodeID failed: %v", err)
+	}
+	if err = stateStore.Save(&state.Snapshot{
+		NodeID:           nodeID,
+		CurrentVersion:   client.config.Version,
+		CurrentChecksum:  client.config.Checksum,
+		PagesDeployments: []state.PagesDeployment{},
+		LastError:        sticky,
+	}); err != nil {
+		t.Fatalf("failed to seed state: %v", err)
+	}
+
+	manager := &fakeManager{currentChecksum: client.config.Checksum}
+	service := New(client, manager, stateStore)
+	if err = service.SyncOnce(context.Background(), &protocol.ActiveConfigMeta{
+		Version:  client.config.Version,
+		Checksum: client.config.Checksum,
+	}); err != nil {
+		t.Fatalf("SyncOnce failed: %v", err)
+	}
+
+	snapshot, err := stateStore.Load()
+	if err != nil {
+		t.Fatalf("failed to load state: %v", err)
+	}
+	if snapshot.LastError != "" {
+		t.Fatalf("expected sticky LastError to clear after successful up-to-date sync, got %q", snapshot.LastError)
+	}
+}
+
+func TestSyncOnceClearsStickyLastErrorWhenStateMatchesButDiskChecksumDiffers(t *testing.T) {
+	// Reproduces the production sticky-alert bug: nginx on-disk checksum no longer
+	// equals the active config checksum, but agent state already records the target.
+	// Pages reconcile succeeds, yet older code saved state without clearing LastError.
+	const sticky = "pages project 1: fetch latest hash: connection reset by peer"
+	const version = "20260309-202"
+	const checksum = "checksum-202"
+
+	packageBytes := testPagesPackage(t, map[string]string{"index.html": "ok"})
+	hash := testBytesChecksum(packageBytes)
+	projectID := uint(1)
+	client := &fakeClient{
+		config: protocol.ActiveConfigResponse{
+			Version:          version,
+			Checksum:         checksum,
+			SourceConfigJSON: testPagesSourceConfigJSON(projectID, projectID, hash),
+			CreatedAt:        time.Now().Format(time.RFC3339),
+		},
+		pagesPackages: map[uint][]byte{projectID: packageBytes},
+		pagesHashes:   map[uint]string{projectID: hash},
+	}
+	stateStore := state.NewStore(filepath.Join(t.TempDir(), "state.json"))
+	nodeID, err := stateStore.EnsureNodeID()
+	if err != nil {
+		t.Fatalf("EnsureNodeID failed: %v", err)
+	}
+	if err = stateStore.Save(&state.Snapshot{
+		NodeID:          nodeID,
+		CurrentVersion:  version,
+		CurrentChecksum: checksum,
+		LastError:       sticky,
+		PagesDeployments: []state.PagesDeployment{{
+			ProjectID:    projectID,
+			DeploymentID: projectID,
+			Hash:         hash,
+		}},
+	}); err != nil {
+		t.Fatalf("failed to seed state: %v", err)
+	}
+
+	// Disk checksum differs from target → mismatched path; state already matches target.
+	manager := &fakeManager{currentChecksum: "on-disk-differs-from-target"}
+	service := New(client, manager, stateStore)
+	service.SetPagesDir(t.TempDir())
+
+	if err = service.SyncOnce(context.Background(), &protocol.ActiveConfigMeta{
+		Version:  version,
+		Checksum: checksum,
+	}); err != nil {
+		t.Fatalf("SyncOnce failed: %v", err)
+	}
+
+	snapshot, err := stateStore.Load()
+	if err != nil {
+		t.Fatalf("failed to load state: %v", err)
+	}
+	if snapshot.LastError != "" {
+		t.Fatalf("expected sticky LastError to clear when pages reconcile succeeds, got %q", snapshot.LastError)
+	}
+}
+
+func TestSyncOnceClearsStickyLastErrorAfterStaleHeartbeatFetchesActiveConfig(t *testing.T) {
+	// Heartbeat meta is stale vs active config; disk checksum mismatches heartbeat.
+	// After fetch, snapshot already matches active config → applyIfNeeded state-match path.
+	const sticky = "previous transient pages hash timeout"
+	const activeVersion = "20260309-203"
+	const activeChecksum = "checksum-203"
+
+	client := &fakeClient{
+		config: protocol.ActiveConfigResponse{
+			Version:          activeVersion,
+			Checksum:         activeChecksum,
+			SourceConfigJSON: testSourceConfigJSON("auto", 91),
+			CreatedAt:        time.Now().Format(time.RFC3339),
+		},
+	}
+	stateStore := state.NewStore(filepath.Join(t.TempDir(), "state.json"))
+	nodeID, err := stateStore.EnsureNodeID()
+	if err != nil {
+		t.Fatalf("EnsureNodeID failed: %v", err)
+	}
+	if err = stateStore.Save(&state.Snapshot{
+		NodeID:           nodeID,
+		CurrentVersion:   activeVersion,
+		CurrentChecksum:  activeChecksum,
+		PagesDeployments: []state.PagesDeployment{},
+		LastError:        sticky,
+	}); err != nil {
+		t.Fatalf("failed to seed state: %v", err)
+	}
+
+	// Disk differs from stale heartbeat target so SyncOnce does not take the matching path.
+	manager := &fakeManager{currentChecksum: "disk-checksum-differs"}
+	service := New(client, manager, stateStore)
+
+	if err = service.SyncOnce(context.Background(), &protocol.ActiveConfigMeta{
+		Version:  "20260309-202",
+		Checksum: "checksum-stale-heartbeat",
+	}); err != nil {
+		t.Fatalf("SyncOnce failed: %v", err)
+	}
+
+	snapshot, err := stateStore.Load()
+	if err != nil {
+		t.Fatalf("failed to load state: %v", err)
+	}
+	if snapshot.LastError != "" {
+		t.Fatalf("expected sticky LastError to clear on applyIfNeeded state-match success, got %q", snapshot.LastError)
+	}
+	if client.fetchCalls != 1 {
+		t.Fatalf("expected one config fetch for stale heartbeat target, got %d", client.fetchCalls)
+	}
+	if len(manager.applyMainContents) != 0 {
+		t.Fatal("expected state-match path to skip OpenResty apply")
+	}
+}

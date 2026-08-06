@@ -26,6 +26,10 @@ sidebar: false
 
 - 新增 Cloudflare DNS 指向管理：可复用现有 Cloudflare DNS 账号或配置独立 Token，按分组将 ZoneDomain 的单条 A 记录异步同步到边缘节点 IPv4，并支持成员橙云、同步状态与节点 IP 变更联动。
 
+### 修复
+
+- 修复 Agent 在配置已对齐但磁盘校验和不一致时，Pages 等对账成功后仍保留 `LastError` 的问题，避免偶发网络失败被健康事件长期显示为「活动中」且无法自动恢复。
+
 ### 改进
 
 - 删除、撤销与未保存离开等确认操作统一改用页面内 AlertDialog，不再使用浏览器原生 `confirm` 弹窗，交互风格与系统其余对话框保持一致。
