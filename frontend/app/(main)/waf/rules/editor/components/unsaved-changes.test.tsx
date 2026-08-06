@@ -1,12 +1,13 @@
-import { render } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { afterEach, expect, it, vi } from 'vitest';
 
 import { UnsavedChanges } from './unsaved-changes';
 
 afterEach(() => vi.restoreAllMocks());
 
-it('blocks same-origin application links when dirty and confirmation is declined', () => {
-  vi.spyOn(window, 'confirm').mockReturnValue(false);
+it('blocks same-origin application links when dirty and confirmation is declined', async () => {
+  const user = userEvent.setup();
   const { container } = render(
     <>
       <UnsavedChanges dirty />
@@ -18,13 +19,18 @@ it('blocks same-origin application links when dirty and confirmation is declined
     cancelable: true,
     button: 0,
   });
-  container.querySelector('a')!.dispatchEvent(event);
-  expect(window.confirm).toHaveBeenCalledOnce();
+  act(() => {
+    container.querySelector('a')!.dispatchEvent(event);
+  });
   expect(event.defaultPrevented).toBe(true);
+  expect(
+    await screen.findByText('存在未保存的更改，确定离开吗？'),
+  ).toBeTruthy();
+  await user.click(screen.getByRole('button', { name: '取消' }));
+  expect(screen.queryByText('存在未保存的更改，确定离开吗？')).toBeNull();
 });
 
 it('does not block application links without changes', () => {
-  const confirm = vi.spyOn(window, 'confirm');
   const { getByRole } = render(
     <>
       <UnsavedChanges dirty={false} />
@@ -38,36 +44,49 @@ it('does not block application links without changes', () => {
   });
   event.preventDefault();
   getByRole('link').dispatchEvent(event);
-  expect(confirm).not.toHaveBeenCalled();
+  expect(screen.queryByText('存在未保存的更改，确定离开吗？')).toBeNull();
 });
 
-it('restores declined Back and Forward transitions by indexed delta', () => {
-  vi.spyOn(window, 'confirm').mockReturnValue(false);
+it('restores declined Back and Forward transitions by indexed delta', async () => {
+  const user = userEvent.setup();
   const go = vi.spyOn(history, 'go').mockImplementation(() => undefined);
   history.replaceState({ __wafEditorIndex: 4 }, '');
   render(<UnsavedChanges dirty />);
-  window.dispatchEvent(
-    new PopStateEvent('popstate', { state: { __wafEditorIndex: 3 } }),
-  );
+
+  act(() => {
+    window.dispatchEvent(
+      new PopStateEvent('popstate', { state: { __wafEditorIndex: 3 } }),
+    );
+  });
   expect(go).toHaveBeenLastCalledWith(1);
-  window.dispatchEvent(
-    new PopStateEvent('popstate', { state: { __wafEditorIndex: 4 } }),
-  );
-  window.dispatchEvent(
-    new PopStateEvent('popstate', { state: { __wafEditorIndex: 6 } }),
-  );
+  expect(await screen.findByText('存在未保存的更改，确定离开吗？')).toBeTruthy();
+  await user.click(screen.getByRole('button', { name: '取消' }));
+
+  act(() => {
+    window.dispatchEvent(
+      new PopStateEvent('popstate', { state: { __wafEditorIndex: 4 } }),
+    );
+  });
+  act(() => {
+    window.dispatchEvent(
+      new PopStateEvent('popstate', { state: { __wafEditorIndex: 6 } }),
+    );
+  });
   expect(go).toHaveBeenLastCalledWith(-2);
 });
 
-it('prompts and restores the current URL for an unknown unindexed history entry', () => {
-  vi.spyOn(window, 'confirm').mockReturnValue(false);
+it('prompts and restores the current URL for an unknown unindexed history entry', async () => {
   history.replaceState({ __wafEditorIndex: 4 }, '', '/waf/rules/editor?id=9');
   const push = vi.spyOn(history, 'pushState');
   render(<UnsavedChanges dirty />);
-  window.dispatchEvent(
-    new PopStateEvent('popstate', { state: { legacy: true } }),
-  );
-  expect(window.confirm).toHaveBeenCalledOnce();
+
+  act(() => {
+    window.dispatchEvent(
+      new PopStateEvent('popstate', { state: { legacy: true } }),
+    );
+  });
+
+  expect(await screen.findByText('存在未保存的更改，确定离开吗？')).toBeTruthy();
   expect(push).toHaveBeenCalledWith(
     expect.objectContaining({ __wafEditorIndex: 4 }),
     '',

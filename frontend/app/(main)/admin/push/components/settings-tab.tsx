@@ -32,6 +32,16 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -52,6 +62,9 @@ import { PushService } from '@/lib/services/push';
 
 export function SettingsTab() {
   const queryClient = useQueryClient();
+  const [deleteTarget, setDeleteTarget] = React.useState<PushChannel | null>(
+    null,
+  );
 
   // --- 获取所有自定义消息通道 ---
   const channelsQuery = useQuery({
@@ -94,6 +107,7 @@ export function SettingsTab() {
   const deleteChannelMutation = useMutation({
     mutationFn: (id: number) => PushService.deleteChannel(id),
     onSuccess: () => {
+      setDeleteTarget(null);
       toast.success('通道删除成功');
       queryClient.invalidateQueries({ queryKey: ['admin', 'push-channels'] });
     },
@@ -417,11 +431,7 @@ export function SettingsTab() {
                         variant='ghost'
                         size='sm'
                         disabled={deleteChannelMutation.isPending}
-                        onClick={() => {
-                          if (confirm(`确定要删除通道 "${ch.name}" 吗？`)) {
-                            deleteChannelMutation.mutate(ch.id);
-                          }
-                        }}
+                        onClick={() => setDeleteTarget(ch)}
                         className='h-6 px-2 text-[10px] text-destructive hover:text-destructive hover:bg-destructive/10'
                       >
                         <Trash2 className='size-2.5 mr-1' />
@@ -761,6 +771,33 @@ export function SettingsTab() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog
+        open={Boolean(deleteTarget)}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>确认删除通道</AlertDialogTitle>
+            <AlertDialogDescription>
+              确定要删除通道「{deleteTarget?.name}」吗？删除后无法恢复。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteChannelMutation.isPending}>
+              取消
+            </AlertDialogCancel>
+            <AlertDialogAction
+              disabled={deleteChannelMutation.isPending}
+              onClick={() =>
+                deleteTarget && deleteChannelMutation.mutate(deleteTarget.id)
+              }
+            >
+              {deleteChannelMutation.isPending ? '删除中...' : '确认删除'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

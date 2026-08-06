@@ -7,6 +7,16 @@ import { ArrowLeft, GitBranch, Save } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -165,9 +175,13 @@ function EditorContent() {
     if (!graph) return;
     changeGraph(layoutRuleGraph(graph));
   }, [changeGraph, graph]);
+  const [leaveConfirmOpen, setLeaveConfirmOpen] = useState(false);
   const leave = () => {
-    if (!dirty || window.confirm('存在未保存的更改，确定离开吗？'))
+    if (!dirty) {
       router.push('/waf');
+      return;
+    }
+    setLeaveConfirmOpen(true);
   };
 
   if (!Number.isFinite(id) || id <= 0)
@@ -280,6 +294,23 @@ function EditorContent() {
           />
         )}
       </div>
+
+      <AlertDialog open={leaveConfirmOpen} onOpenChange={setLeaveConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>未保存的更改</AlertDialogTitle>
+            <AlertDialogDescription>
+              存在未保存的更改，确定离开吗？
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogAction onClick={() => router.push('/waf')}>
+              确定离开
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

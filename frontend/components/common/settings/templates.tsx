@@ -23,6 +23,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import services from '@/lib/services';
 import type { Template } from '@/lib/services/admin/types';
 import { toast } from 'sonner';
@@ -33,6 +43,7 @@ export function TemplatesManager() {
   const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(
     null,
   );
+  const [deleteTarget, setDeleteTarget] = useState<Template | null>(null);
 
   // Form states
   const [key, setKey] = useState('');
@@ -93,6 +104,7 @@ export function TemplatesManager() {
       await services.adminTemplate.deleteTemplate(key);
     },
     onSuccess: async () => {
+      setDeleteTarget(null);
       await queryClient.invalidateQueries({ queryKey: ['admin', 'templates'] });
       toast.success('通知模板已删除');
     },
@@ -223,13 +235,7 @@ export function TemplatesManager() {
                       disabled={
                         tmpl.is_system || deleteTemplateMutation.isPending
                       }
-                      onClick={() => {
-                        if (
-                          window.confirm(`确定删除模板「${tmpl.name}」吗？`)
-                        ) {
-                          deleteTemplateMutation.mutate(tmpl.key);
-                        }
-                      }}
+                      onClick={() => setDeleteTarget(tmpl)}
                     >
                       <Trash2 className='size-4' />
                     </Button>
@@ -398,6 +404,33 @@ export function TemplatesManager() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog
+        open={Boolean(deleteTarget)}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>确认删除模板</AlertDialogTitle>
+            <AlertDialogDescription>
+              确定删除模板「{deleteTarget?.name}」吗？删除后无法恢复。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteTemplateMutation.isPending}>
+              取消
+            </AlertDialogCancel>
+            <AlertDialogAction
+              disabled={deleteTemplateMutation.isPending}
+              onClick={() =>
+                deleteTarget && deleteTemplateMutation.mutate(deleteTarget.key)
+              }
+            >
+              {deleteTemplateMutation.isPending ? '删除中...' : '确认删除'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

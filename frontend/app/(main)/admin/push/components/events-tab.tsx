@@ -44,6 +44,16 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -71,6 +81,9 @@ import { PushService } from '@/lib/services/push';
 
 export function EventsTab() {
   const queryClient = useQueryClient();
+  const [deleteTarget, setDeleteTarget] = React.useState<PushEvent | null>(
+    null,
+  );
 
   // --- 获取所有自定义消息通道 ---
   const channelsQuery = useQuery({
@@ -146,6 +159,7 @@ export function EventsTab() {
   const deleteEventMutation = useMutation({
     mutationFn: (id: number) => PushService.deleteEvent(id),
     onSuccess: () => {
+      setDeleteTarget(null);
       toast.success('配置删除成功');
       queryClient.invalidateQueries({ queryKey: ['admin', 'push-events'] });
     },
@@ -452,11 +466,7 @@ export function EventsTab() {
                               size='icon'
                               className='h-6 w-6 text-muted-foreground hover:text-destructive hover:bg-destructive/10'
                               disabled={deleteEventMutation.isPending}
-                              onClick={() => {
-                                if (confirm('确定要删除该通知事件配置吗？')) {
-                                  deleteEventMutation.mutate(event.id);
-                                }
-                              }}
+                              onClick={() => setDeleteTarget(event)}
                             >
                               <Trash2 className='size-3' />
                             </Button>
@@ -908,6 +918,33 @@ export function EventsTab() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog
+        open={Boolean(deleteTarget)}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>确认删除通知事件</AlertDialogTitle>
+            <AlertDialogDescription>
+              确定要删除该通知事件配置吗？删除后无法恢复。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteEventMutation.isPending}>
+              取消
+            </AlertDialogCancel>
+            <AlertDialogAction
+              disabled={deleteEventMutation.isPending}
+              onClick={() =>
+                deleteTarget && deleteEventMutation.mutate(deleteTarget.id)
+              }
+            >
+              {deleteEventMutation.isPending ? '删除中...' : '确认删除'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
