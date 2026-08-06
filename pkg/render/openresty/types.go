@@ -20,6 +20,7 @@ const (
 	ObservabilityPortPlaceholder   = "__OPENFLARE_OBSERVABILITY_PORT__"
 	PowStaticDirPlaceholder        = "__OPENFLARE_POW_STATIC_DIR__"
 	PagesDirPlaceholder            = "__OPENFLARE_PAGES_DIR__"
+	ErrorPageTmplPlaceholder       = "__OPENFLARE_ERROR_PAGE_TMPL__"
 
 	SourceConfigFileName = "openresty_config.json"
 )
@@ -273,47 +274,50 @@ type WAFDocument struct {
 // ConfigSnapshot holds the full set of OpenResty tuning parameters that are
 // rendered into the nginx main configuration template.
 type ConfigSnapshot struct {
-	DefaultServerReturnStatus int    `json:"default_server_return_status"`
-	WorkerProcesses           string `json:"worker_processes"`
-	WorkerConnections         int    `json:"worker_connections"`
-	WorkerRlimitNofile        int    `json:"worker_rlimit_nofile"`
-	EventsUse                 string `json:"events_use,omitempty"`
-	EventsMultiAcceptEnabled  bool   `json:"events_multi_accept_enabled"`
-	KeepaliveTimeout          int    `json:"keepalive_timeout"`
-	KeepaliveRequests         int    `json:"keepalive_requests"`
-	ClientHeaderTimeout       int    `json:"client_header_timeout"`
-	ClientBodyTimeout         int    `json:"client_body_timeout"`
-	ClientMaxBodySize         string `json:"client_max_body_size"`
-	LargeClientHeaderBuffers  string `json:"large_client_header_buffers"`
-	SendTimeout               int    `json:"send_timeout"`
-	ProxyConnectTimeout       int    `json:"proxy_connect_timeout"`
-	ProxySendTimeout          int    `json:"proxy_send_timeout"`
-	ProxyReadTimeout          int    `json:"proxy_read_timeout"`
-	WebsocketEnabled          bool   `json:"websocket_enabled"`
-	HTTP3Enabled              bool   `json:"http3_enabled"`
-	ProxyRequestBuffering     bool   `json:"proxy_request_buffering"`
-	ProxyBufferingEnabled     bool   `json:"proxy_buffering_enabled"`
-	ProxyBuffers              string `json:"proxy_buffers"`
-	ProxyBufferSize           string `json:"proxy_buffer_size"`
-	ProxyBusyBuffersSize      string `json:"proxy_busy_buffers_size"`
-	GzipEnabled               bool   `json:"gzip_enabled"`
-	GzipMinLength             int    `json:"gzip_min_length"`
-	GzipCompLevel             int    `json:"gzip_comp_level"`
-	Resolvers                 string `json:"resolvers,omitempty"`
-	CacheEnabled              bool   `json:"cache_enabled"`
-	CachePath                 string `json:"cache_path,omitempty"`
-	CacheLevels               string `json:"cache_levels"`
-	CacheInactive             string `json:"cache_inactive"`
-	CacheMaxSize              string `json:"cache_max_size"`
-	CacheKeyTemplate          string `json:"cache_key_template"`
-	CacheLockEnabled          bool   `json:"cache_lock_enabled"`
-	CacheLockTimeout          string `json:"cache_lock_timeout"`
-	CacheUseStale             string `json:"cache_use_stale"`
-	MainConfigTemplate        string `json:"main_config_template,omitempty"`
-	DefaultLimitConnPerServer int    `json:"default_limit_conn_per_server,omitempty"`
-	DefaultLimitConnPerIP     int    `json:"default_limit_conn_per_ip,omitempty"`
-	DefaultLimitRate          string `json:"default_limit_rate,omitempty"`
-	DefaultLimitReqPerIP      string `json:"default_limit_req_per_ip,omitempty"`
+	DefaultServerReturnStatus  int      `json:"default_server_return_status"`
+	WorkerProcesses            string   `json:"worker_processes"`
+	WorkerConnections          int      `json:"worker_connections"`
+	WorkerRlimitNofile         int      `json:"worker_rlimit_nofile"`
+	EventsUse                  string   `json:"events_use,omitempty"`
+	EventsMultiAcceptEnabled   bool     `json:"events_multi_accept_enabled"`
+	KeepaliveTimeout           int      `json:"keepalive_timeout"`
+	KeepaliveRequests          int      `json:"keepalive_requests"`
+	ClientHeaderTimeout        int      `json:"client_header_timeout"`
+	ClientBodyTimeout          int      `json:"client_body_timeout"`
+	ClientMaxBodySize          string   `json:"client_max_body_size"`
+	LargeClientHeaderBuffers   string   `json:"large_client_header_buffers"`
+	SendTimeout                int      `json:"send_timeout"`
+	ProxyConnectTimeout        int      `json:"proxy_connect_timeout"`
+	ProxySendTimeout           int      `json:"proxy_send_timeout"`
+	ProxyReadTimeout           int      `json:"proxy_read_timeout"`
+	WebsocketEnabled           bool     `json:"websocket_enabled"`
+	HTTP3Enabled               bool     `json:"http3_enabled"`
+	ProxyRequestBuffering      bool     `json:"proxy_request_buffering"`
+	ProxyBufferingEnabled      bool     `json:"proxy_buffering_enabled"`
+	ProxyBuffers               string   `json:"proxy_buffers"`
+	ProxyBufferSize            string   `json:"proxy_buffer_size"`
+	ProxyBusyBuffersSize       string   `json:"proxy_busy_buffers_size"`
+	GzipEnabled                bool     `json:"gzip_enabled"`
+	GzipMinLength              int      `json:"gzip_min_length"`
+	GzipCompLevel              int      `json:"gzip_comp_level"`
+	Resolvers                  string   `json:"resolvers,omitempty"`
+	CacheEnabled               bool     `json:"cache_enabled"`
+	CachePath                  string   `json:"cache_path,omitempty"`
+	CacheLevels                string   `json:"cache_levels"`
+	CacheInactive              string   `json:"cache_inactive"`
+	CacheMaxSize               string   `json:"cache_max_size"`
+	CacheKeyTemplate           string   `json:"cache_key_template"`
+	CacheLockEnabled           bool     `json:"cache_lock_enabled"`
+	CacheLockTimeout           string   `json:"cache_lock_timeout"`
+	CacheUseStale              string   `json:"cache_use_stale"`
+	MainConfigTemplate         string   `json:"main_config_template,omitempty"`
+	DefaultLimitConnPerServer  int      `json:"default_limit_conn_per_server,omitempty"`
+	DefaultLimitConnPerIP      int      `json:"default_limit_conn_per_ip,omitempty"`
+	DefaultLimitRate           string   `json:"default_limit_rate,omitempty"`
+	DefaultLimitReqPerIP       string   `json:"default_limit_req_per_ip,omitempty"`
+	OriginErrorPageEnabled     bool     `json:"origin_error_page_enabled"`
+	OriginErrorPageStatusCodes []string `json:"origin_error_page_status_codes,omitempty"`
+	OriginErrorPageHTML        string   `json:"origin_error_page_html,omitempty"`
 }
 
 // Document is the top-level input structure for the OpenResty renderer,

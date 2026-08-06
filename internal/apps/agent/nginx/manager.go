@@ -522,6 +522,9 @@ func (m *Manager) CurrentChecksum() (string, error) {
 	}
 	normalizedRoute := string(data)
 	if m.NginxCertDir != "" {
+		// Longer error-page path must be restored before the cert-dir prefix rewrite.
+		errorPagePath := filepath.ToSlash(filepath.Join(m.NginxCertDir, openrestyrender.OriginErrorPageSupportPath))
+		normalizedRoute = strings.ReplaceAll(normalizedRoute, errorPagePath, openrestyrender.ErrorPageTmplPlaceholder)
 		normalizedRoute = strings.ReplaceAll(normalizedRoute, m.NginxCertDir, openrestyrender.CertDirPlaceholder)
 	}
 	if luaDir := m.luaRuntimePath(); luaDir != "" {
@@ -1375,6 +1378,8 @@ func (m *Manager) renderRouteConfig(content string) string {
 	rendered := content
 	if m.NginxCertDir != "" {
 		rendered = strings.ReplaceAll(rendered, openrestyrender.CertDirPlaceholder, m.NginxCertDir)
+		errorPagePath := filepath.ToSlash(filepath.Join(m.NginxCertDir, openrestyrender.OriginErrorPageSupportPath))
+		rendered = strings.ReplaceAll(rendered, openrestyrender.ErrorPageTmplPlaceholder, errorPagePath)
 	}
 	if luaDir := m.luaRuntimePath(); luaDir != "" {
 		rendered = strings.ReplaceAll(rendered, openrestyrender.LuaDirPlaceholder, luaDir)

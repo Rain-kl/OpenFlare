@@ -15,6 +15,7 @@ import (
 
 	"github.com/Rain-kl/Wavelet/internal/apps/agent/protocol"
 	sharedprotocol "github.com/Rain-kl/Wavelet/pkg/protocol"
+	openrestyrender "github.com/Rain-kl/Wavelet/pkg/render/openresty"
 )
 
 type runCall struct {
@@ -299,12 +300,16 @@ func TestManagerApplyWritesSupportFilesAndReplacesPlaceholder(t *testing.T) {
 	if !strings.Contains(string(routeData), "/etc/nginx/openflare-certs/1.crt") {
 		t.Fatalf("expected placeholder replacement in route config, got %s", string(routeData))
 	}
-	renderedRoute := manager.renderRouteConfig("access_by_lua_file __OPENFLARE_LUA_DIR__/pow/check.lua;\nlocation /.within.website/x/cmd/anubis/static/ { alias __OPENFLARE_POW_STATIC_DIR__/; }\n")
+	renderedRoute := manager.renderRouteConfig("access_by_lua_file __OPENFLARE_LUA_DIR__/pow/check.lua;\nlocation /.within.website/x/cmd/anubis/static/ { alias __OPENFLARE_POW_STATIC_DIR__/; }\nio.open(\"__OPENFLARE_ERROR_PAGE_TMPL__\", \"r\")\n")
 	if !strings.Contains(renderedRoute, "access_by_lua_file /etc/nginx/openflare-lua/pow/check.lua;") {
 		t.Fatalf("expected lua dir placeholder replacement in route config, got %s", renderedRoute)
 	}
 	if !strings.Contains(renderedRoute, "alias /etc/nginx/openflare-lua/pow/static/;") {
 		t.Fatalf("expected pow static dir placeholder replacement in route config, got %s", renderedRoute)
+	}
+	wantErrorPagePath := filepath.ToSlash(filepath.Join(manager.NginxCertDir, openrestyrender.OriginErrorPageSupportPath))
+	if !strings.Contains(renderedRoute, `io.open("`+wantErrorPagePath+`", "r")`) {
+		t.Fatalf("expected error page template placeholder replacement, got %s", renderedRoute)
 	}
 	mainData, err := os.ReadFile(manager.MainConfigPath)
 	if err != nil {
