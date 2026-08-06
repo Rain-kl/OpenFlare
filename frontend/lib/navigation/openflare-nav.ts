@@ -60,6 +60,7 @@ export const openflareWebsiteNavGroup: OpenFlareNavGroup = {
       childUrls: ['/cloudflare/settings'],
     },
     { title: '源站地址', url: '/origins', childUrls: ['/origins/detail'] },
+    { title: '错误页', url: '/error-pages' },
   ],
 };
 
@@ -115,6 +116,7 @@ export const openflareWebsiteSubNav = [
   { title: '证书', url: '/certificates' },
   { title: 'DNS 账号', url: '/dns-accounts' },
   { title: 'Cloudflare', url: '/cloudflare' },
+  { title: '错误页', url: '/error-pages' },
 ] as const;
 
 const nonConsoleRoutePrefixes = [

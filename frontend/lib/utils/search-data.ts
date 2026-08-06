@@ -131,6 +131,23 @@ export const searchData: SearchItem[] = [
     keywords: ['origin', '源站', '后端', 'backend', '服务器', '负载均衡'],
   },
   {
+    id: 'console-error-pages',
+    title: '错误页',
+    description: '配置源站错误状态码触发的统一 HTML 错误页',
+    url: '/error-pages',
+    category: 'page',
+    keywords: [
+      '错误页',
+      '源站',
+      '502',
+      '503',
+      '5xx',
+      'error page',
+      'origin error',
+      'error_page',
+    ],
+  },
+  {
     id: 'console-waf',
     title: 'WAF 防火墙',
     description: '配置 Web 应用防火墙规则，阻断恶意请求',
