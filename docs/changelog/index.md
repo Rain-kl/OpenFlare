@@ -20,14 +20,13 @@ sidebar: false
 > - Pages 无法迁移, 升级前请先手动下载并备份 Pages 静态站点的 ZIP 包，升级后重新创建。
 > - 性能调优参数重置, 升级后请重新配置
 
-## [unreleased]
+## [v3.4.5] - 2026-08-08
 
 ### 改进
 
-- 错误页「触发策略」将启用开关、仅 GET、触发状态码合并为同一卡片，保存按钮置于卡片右上角，布局更紧凑。
+- 源站错误页支持「仅针对 GET 请求」：开启后仅对 GET 的匹配错误状态码返回自定义错误页，其它 HTTP 方法透传源站响应。
 - 升级后端 Go 依赖至最新稳定版（Gin、GORM、OpenTelemetry、ClickHouse 驱动、AWS SDK、Redis 客户端等），并完成升级兼容性适配：OpenTelemetry 资源 schema 与语义约定版本对齐，ClickHouse 驱动新增格式查询/插入接口的测试替身补齐。
 - 升级前端 npm 依赖至最新稳定版（Next.js 16.3、React 19.2、recharts 3、react-day-picker 10、lucide-react 1.x、Tailwind CSS 4.3 等），适配图表/日历组件 API 变化，并将 ESLint 配置迁移为 eslint-config-next 16 的 flat config。
-- 受工具链兼容性限制，TypeScript 固定 6.0.3（typescript-eslint 尚不支持 7.x）、ESLint 固定 9.39.5（eslint-plugin-react 尚不支持 10.x）；react-hooks v7 新增的严格规则暂在 lint 配置中豁免，后续可分批采纳。
 
 - Agent 不再将 GeoLite2 Country/City MMDB 嵌入二进制：Docker 镜像在默认数据目录 COPY 数据库文件，裸二进制首次启动时按需下载，显著减小 Agent 包体积；OpenResty 仍从磁盘路径读取 MMDB。Server 控制面仍仅内嵌 Country MMDB（不含 City），供可选 MaxMind 提供方离线初始化。
 
