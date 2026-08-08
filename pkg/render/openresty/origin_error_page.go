@@ -130,17 +130,11 @@ func renderOriginErrorPageIntercept(cfg ConfigSnapshot) string {
 	if _, err := ExpandStatusCodeTags(effectiveOriginErrorPageStatusTags(cfg)); err != nil {
 		return ""
 	}
-	// Always enable intercept for GET (and all methods when get_only is false).
-	// limit_except GET applies to non-GET methods: turn intercept off so origin
-	// error bodies (e.g. JSON 5xx) pass through unchanged.
-	var builder strings.Builder
-	builder.WriteString("        proxy_intercept_errors on;\n")
-	if cfg.OriginErrorPageGetOnly {
-		builder.WriteString("        limit_except GET {\n")
-		builder.WriteString("            proxy_intercept_errors off;\n")
-		builder.WriteString("        }\n")
-	}
-	return builder.String()
+	// Intercept at the proxy level for all methods. nginx does not allow
+	// proxy_intercept_errors inside limit_except (only allow/deny are valid
+	// there), so GET-only is enforced in the internal error location's Lua:
+	// non-GET requests exit with the original status and no custom HTML.
+	return "        proxy_intercept_errors on;\n"
 }
 
 // renderOriginErrorPageServerBits emits server-level error_page + internal location.

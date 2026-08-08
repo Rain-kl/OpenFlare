@@ -28,6 +28,7 @@ sidebar: false
 
 ### 修复
 
+- 修复源站错误页「仅针对 GET 请求」导致配置发布失败并回滚：`proxy_intercept_errors` 不能写在 `limit_except` 内，现改为内部错误页按请求方法处理，非 GET 请求保留原始状态码且不注入自定义错误页，配置可通过 `openresty -t` 校验。
 - 修复 PoW 挑战页潜在 XSS：错误提示与状态文案改用纯文本渲染，挑战通过后的 `redir` 跳转参数仅允许 http/https 协议，防止异常文本被当作 HTML 执行或跳转到危险协议。
 - 修复邮件发送的邮件头注入风险：标题、发件人、收件人在写入邮件头前清除 CR/LF 换行符，防止注入额外邮件头（CWE-93）。
 - 修复 UptimeKuma 同步调试日志泄露凭据：输出日志前对 password/token/secret 等敏感字段打码，避免凭据进入日志。

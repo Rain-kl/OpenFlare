@@ -88,11 +88,14 @@ func TestRenderOriginErrorPageGetOnly(t *testing.T) {
 	if !strings.Contains(out, "proxy_intercept_errors on") {
 		t.Fatal("missing intercept on")
 	}
-	if !strings.Contains(out, "limit_except GET") {
-		t.Fatal("get_only must emit limit_except GET")
+	// nginx rejects proxy_intercept_errors inside limit_except (only allow/deny
+	// are valid there), which made the generated config fail `openresty -t` and
+	// caused apply rollback. GET-only must rely on the internal location's Lua.
+	if strings.Contains(out, "limit_except") {
+		t.Fatal("get_only must not emit limit_except (proxy_intercept_errors is not allowed there)")
 	}
-	if !strings.Contains(out, "proxy_intercept_errors off") {
-		t.Fatal("get_only must turn intercept off for non-GET")
+	if strings.Contains(out, "proxy_intercept_errors off") {
+		t.Fatal("get_only must not emit proxy_intercept_errors off")
 	}
 	if !strings.Contains(out, `get_only = true`) {
 		t.Fatal("internal location must set get_only = true")
