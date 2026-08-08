@@ -39,8 +39,8 @@ import {
 } from '@/lib/openflare/origin-error-page-templates';
 import { OptionService } from '@/lib/services/openflare';
 
+import { HtmlEditorWorkspace } from '@/components/common/html-editor-workspace';
 import { ErrorPageGate } from '../components/error-page-gate';
-import { HtmlEditorWorkspace } from '../components/html-editor-workspace';
 import {
   invalidateErrorPageQueries,
   KEY_HTML,

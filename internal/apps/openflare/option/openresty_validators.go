@@ -14,7 +14,10 @@ import (
 	openrestyrender "github.com/Rain-kl/Wavelet/pkg/render/openresty"
 )
 
-const maxOriginErrorPageHTMLBytes = 256 << 10 // 256 KiB
+const (
+	maxOriginErrorPageHTMLBytes = 256 << 10 // 256 KiB
+	maxSWOfflineDomains         = 1000
+)
 
 var openRestyOptionValidators = map[string]func(key, value string) error{
 	model.ConfigKeyOpenRestyDefaultServerReturnStatus:    validateOpenRestyDefaultServerReturnStatus,
@@ -62,13 +65,16 @@ var openRestyOptionValidators = map[string]func(key, value string) error{
 	model.ConfigKeyOriginErrorPageStatusCodes:            validateOriginErrorPageStatusCodes,
 	model.ConfigKeyOriginErrorPageHTML:                   validateOriginErrorPageHTML,
 	model.ConfigKeyOriginErrorPageGetOnly:                validateBooleanOption,
+	model.ConfigKeySWOfflineEnabled:                      validateBooleanOption,
+	model.ConfigKeySWOfflineHTML:                         validateSWOfflineHTML,
+	model.ConfigKeySWOfflineDomains:                      validateSWOfflineDomains,
 }
 
 var openRestyDefaultLimitRatePattern = regexp.MustCompile(`^\d+[kKmM]?$`)
 
 func validateOpenRestyOption(key, value string) error {
 	// HTML 按原始字节长度校验，避免 TrimSpace 影响上限判断
-	if key == model.ConfigKeyOriginErrorPageHTML {
+	if key == model.ConfigKeyOriginErrorPageHTML || key == model.ConfigKeySWOfflineHTML {
 		return validateOriginErrorPageHTML(key, value)
 	}
 	trimmed := strings.TrimSpace(value)
@@ -244,6 +250,32 @@ func validateOriginErrorPageStatusCodes(key, trimmed string) error {
 func validateOriginErrorPageHTML(key, value string) error {
 	if len(value) > maxOriginErrorPageHTMLBytes {
 		return fmt.Errorf("%s 长度不能超过 %d 字节（256 KiB）", key, maxOriginErrorPageHTMLBytes)
+	}
+	return nil
+}
+
+func validateSWOfflineHTML(key, value string) error {
+	return validateOriginErrorPageHTML(key, value)
+}
+
+func validateSWOfflineDomains(key, value string) error {
+	var domains []string
+	if err := json.Unmarshal([]byte(value), &domains); err != nil {
+		return fmt.Errorf("%s 必须为 JSON 字符串数组", key)
+	}
+	if len(domains) > maxSWOfflineDomains {
+		return fmt.Errorf("%s 最多支持 %d 个域名", key, maxSWOfflineDomains)
+	}
+	seen := make(map[string]struct{}, len(domains))
+	for _, raw := range domains {
+		domain := strings.ToLower(strings.TrimSpace(raw))
+		if domain == "" {
+			return fmt.Errorf("%s 包含空域名", key)
+		}
+		if _, ok := seen[domain]; ok {
+			return fmt.Errorf("%s 包含重复域名 %s", key, domain)
+		}
+		seen[domain] = struct{}{}
 	}
 	return nil
 }

@@ -49,6 +49,9 @@ func Render(doc Document, certificateFiles []SupportFile) (*Result, error) {
 	if doc.OpenRestyConfig.OriginErrorPageEnabled {
 		files = append(files, originErrorPageSupportFile(doc.OpenRestyConfig))
 	}
+	if doc.OpenRestyConfig.SWOfflineEnabled && len(doc.OpenRestyConfig.SWOfflineDomains) > 0 {
+		files = append(files, ServiceWorkerSupportFiles(doc.OpenRestyConfig)...)
+	}
 	files = DedupeSupportFiles(files)
 	return &Result{
 		MainConfig:   mainConfig,
@@ -272,7 +275,7 @@ func renderOpenRestyObservabilityTemplateBlock() string {
 	return fmt.Sprintf("    lua_shared_dict openflare_observability 10m;\n    lua_shared_dict openflare_pow_challenges 10m;\n    lua_shared_dict openflare_pow_sessions 10m;\n    lua_shared_dict openflare_pow_config 1m;\n    lua_shared_dict openflare_waf_config 1m;\n    lua_shared_dict openflare_waf_ip_groups 64m;\n    init_worker_by_lua_file %s/observability/init.lua;\n    log_by_lua_file %s/observability/log.lua;\n\n    server {\n        listen %s;\n        server_name openflare-observability;\n        access_log off;\n\n        location = /openflare/stub_status {\n            stub_status;\n        }\n\n        location = /openflare/observability {\n            default_type application/json;\n            content_by_lua_file %s/observability/read.lua;\n        }\n    }\n\n", LuaDirPlaceholder, LuaDirPlaceholder, ObservabilityListenPlaceholder, LuaDirPlaceholder)
 }
 
-func renderHTTPProxyServer(serverNames string, siteName string, originURL string, originHost string, customHeaders []CustomHeader, cacheConfig routeCacheConfig, limitConfig routeLimitConfig, upstreamConfig routeUpstreamConfig, powEnabled bool, basicAuthEnabled bool, basicAuthUsername string, basicAuthPassword string, cfg ConfigSnapshot) string {
+func renderHTTPProxyServer(serverNames string, siteName string, originURL string, originHost string, customHeaders []CustomHeader, cacheConfig routeCacheConfig, limitConfig routeLimitConfig, upstreamConfig routeUpstreamConfig, powEnabled bool, basicAuthEnabled bool, basicAuthUsername string, basicAuthPassword string, _ bool, cfg ConfigSnapshot) string {
 	return fmt.Sprintf("server {\n    listen 80;\n    server_name %s;\n%s%s    location / {\n%s%s%s%s%s%s    }\n%s%s}\n\n", serverNames, renderAccessBlock(siteName, powEnabled), renderPowLocationBlocks(powEnabled), renderBasicAuthBlock(basicAuthEnabled, basicAuthUsername, basicAuthPassword), renderProxyHeaderBlock(originURL, originHost, customHeaders, upstreamConfig, cfg), renderRouteLimitBlock(limitConfig), renderRouteCacheBlock(cacheConfig, cfg), renderOriginErrorPageIntercept(cfg), renderProxyPassBlock(originURL, upstreamConfig), renderOriginErrorPageServerBits(cfg), renderPowStaticLocationBlock(powEnabled))
 }
 
@@ -319,7 +322,7 @@ func renderPagesAPIProxyLocationBlock(deployment *PagesDeployment) string {
 	return builder.String()
 }
 
-func renderHTTPPagesServer(serverNames string, siteName string, deployment *PagesDeployment, limitConfig routeLimitConfig, powEnabled bool, basicAuthEnabled bool, basicAuthUsername string, basicAuthPassword string) string {
+func renderHTTPPagesServer(serverNames string, siteName string, deployment *PagesDeployment, limitConfig routeLimitConfig, powEnabled bool, basicAuthEnabled bool, basicAuthUsername string, basicAuthPassword string, _ bool, _ ConfigSnapshot) string {
 	return fmt.Sprintf("server {\n    listen 80;\n    server_name %s;\n%s%s    root %s;\n    index %s;%s%s\n\n    location / {\n%s%s    }\n%s}\n\n", serverNames, renderAccessBlock(siteName, powEnabled), renderPowLocationBlocks(powEnabled), quoteNginxStringLiteral(pagesDeploymentRoot(deployment)), quoteNginxStringLiteral(pagesEntryFile(deployment)), renderPagesAPIProxyLocationBlock(deployment), renderPagesRootLocationBlock(deployment, limitConfig, basicAuthEnabled, basicAuthUsername, basicAuthPassword), renderBasicAuthBlock(basicAuthEnabled, basicAuthUsername, basicAuthPassword), renderPagesLocationBlock(deployment, limitConfig), renderPowStaticLocationBlock(powEnabled))
 }
 
@@ -327,7 +330,7 @@ func renderHTTPRedirectServer(serverNames string) string {
 	return fmt.Sprintf("server {\n    listen 80;\n    server_name %s;\n\n    return 301 https://$host$request_uri;\n}\n\n", serverNames)
 }
 
-func renderHTTPSServer(serverNames string, siteName string, originURL string, originHost string, certificateID uint, customHeaders []CustomHeader, cacheConfig routeCacheConfig, limitConfig routeLimitConfig, upstreamConfig routeUpstreamConfig, powEnabled bool, basicAuthEnabled bool, basicAuthUsername string, basicAuthPassword string, cfg ConfigSnapshot) string {
+func renderHTTPSServer(serverNames string, siteName string, originURL string, originHost string, certificateID uint, customHeaders []CustomHeader, cacheConfig routeCacheConfig, limitConfig routeLimitConfig, upstreamConfig routeUpstreamConfig, powEnabled bool, basicAuthEnabled bool, basicAuthUsername string, basicAuthPassword string, swEnabled bool, cfg ConfigSnapshot) string {
 	certPath := fmt.Sprintf("%s/%d.crt", CertDirPlaceholder, certificateID)
 	keyPath := fmt.Sprintf("%s/%d.key", CertDirPlaceholder, certificateID)
 	var h3Listen string
@@ -336,10 +339,13 @@ func renderHTTPSServer(serverNames string, siteName string, originURL string, or
 		h3Listen = "    listen 443 quic;\n"
 		h3Header = "    add_header Alt-Svc 'h3=\":443\"; ma=86400';\n"
 	}
+	if swEnabled {
+		return fmt.Sprintf("server {\n    listen 443 ssl;\n%s    http2 on;\n    server_name %s;\n    ssl_certificate %s;\n    ssl_certificate_key %s;\n%s%s%s    location / {\n%s%s%s%s%s%s    }\n%s%s%s}\n\n", h3Listen, serverNames, certPath, keyPath, h3Header, renderAccessBlockWithSW(siteName, powEnabled, cfg), renderPowLocationBlocks(powEnabled), renderBasicAuthBlock(basicAuthEnabled, basicAuthUsername, basicAuthPassword), renderProxyHeaderBlock(originURL, originHost, customHeaders, upstreamConfig, cfg), renderRouteLimitBlock(limitConfig), renderRouteCacheBlock(cacheConfig, cfg), renderOriginErrorPageIntercept(cfg), renderProxyPassBlock(originURL, upstreamConfig), renderOriginErrorPageServerBits(cfg), renderPowStaticLocationBlock(powEnabled), renderServiceWorkerChallenger(cfg))
+	}
 	return fmt.Sprintf("server {\n    listen 443 ssl;\n%s    http2 on;\n    server_name %s;\n    ssl_certificate %s;\n    ssl_certificate_key %s;\n%s%s%s    location / {\n%s%s%s%s%s%s    }\n%s%s}\n\n", h3Listen, serverNames, certPath, keyPath, h3Header, renderAccessBlock(siteName, powEnabled), renderPowLocationBlocks(powEnabled), renderBasicAuthBlock(basicAuthEnabled, basicAuthUsername, basicAuthPassword), renderProxyHeaderBlock(originURL, originHost, customHeaders, upstreamConfig, cfg), renderRouteLimitBlock(limitConfig), renderRouteCacheBlock(cacheConfig, cfg), renderOriginErrorPageIntercept(cfg), renderProxyPassBlock(originURL, upstreamConfig), renderOriginErrorPageServerBits(cfg), renderPowStaticLocationBlock(powEnabled))
 }
 
-func renderHTTPSPagesServer(serverNames string, siteName string, certificateID uint, deployment *PagesDeployment, limitConfig routeLimitConfig, powEnabled bool, basicAuthEnabled bool, basicAuthUsername string, basicAuthPassword string, cfg ConfigSnapshot) string {
+func renderHTTPSPagesServer(serverNames string, siteName string, certificateID uint, deployment *PagesDeployment, limitConfig routeLimitConfig, powEnabled bool, basicAuthEnabled bool, basicAuthUsername string, basicAuthPassword string, swEnabled bool, cfg ConfigSnapshot) string {
 	certPath := fmt.Sprintf("%s/%d.crt", CertDirPlaceholder, certificateID)
 	keyPath := fmt.Sprintf("%s/%d.key", CertDirPlaceholder, certificateID)
 	var h3Listen string
@@ -347,6 +353,9 @@ func renderHTTPSPagesServer(serverNames string, siteName string, certificateID u
 	if cfg.HTTP3Enabled {
 		h3Listen = "    listen 443 quic;\n"
 		h3Header = "    add_header Alt-Svc 'h3=\":443\"; ma=86400';\n"
+	}
+	if swEnabled {
+		return fmt.Sprintf("server {\n    listen 443 ssl;\n%s    http2 on;\n    server_name %s;\n    ssl_certificate %s;\n    ssl_certificate_key %s;\n%s%s%s    root %s;\n    index %s;%s%s\n\n    location / {\n%s%s    }\n%s%s}\n\n", h3Listen, serverNames, certPath, keyPath, h3Header, renderAccessBlockWithSW(siteName, powEnabled, cfg), renderPowLocationBlocks(powEnabled), quoteNginxStringLiteral(pagesDeploymentRoot(deployment)), quoteNginxStringLiteral(pagesEntryFile(deployment)), renderPagesAPIProxyLocationBlock(deployment), renderPagesRootLocationBlock(deployment, limitConfig, basicAuthEnabled, basicAuthUsername, basicAuthPassword), renderBasicAuthBlock(basicAuthEnabled, basicAuthUsername, basicAuthPassword), renderPagesLocationBlock(deployment, limitConfig), renderPowStaticLocationBlock(powEnabled), renderServiceWorkerChallenger(cfg))
 	}
 	return fmt.Sprintf("server {\n    listen 443 ssl;\n%s    http2 on;\n    server_name %s;\n    ssl_certificate %s;\n    ssl_certificate_key %s;\n%s%s%s    root %s;\n    index %s;%s%s\n\n    location / {\n%s%s    }\n%s}\n\n", h3Listen, serverNames, certPath, keyPath, h3Header, renderAccessBlock(siteName, powEnabled), renderPowLocationBlocks(powEnabled), quoteNginxStringLiteral(pagesDeploymentRoot(deployment)), quoteNginxStringLiteral(pagesEntryFile(deployment)), renderPagesAPIProxyLocationBlock(deployment), renderPagesRootLocationBlock(deployment, limitConfig, basicAuthEnabled, basicAuthUsername, basicAuthPassword), renderBasicAuthBlock(basicAuthEnabled, basicAuthUsername, basicAuthPassword), renderPagesLocationBlock(deployment, limitConfig), renderPowStaticLocationBlock(powEnabled))
 }
@@ -460,6 +469,42 @@ func renderAccessBlock(siteName string, powEnabled bool) string {
             return
         end
         require("pow.runtime").check()
+    }
+`, escapedSiteName, LuaDirPlaceholder, LuaDirPlaceholder, LuaDirPlaceholder)
+}
+
+// renderAccessBlockWithSW emits the access phase directives for a server block,
+// merging the Service Worker runtime check into the single access directive.
+// nginx runs only the last access_by_lua* directive in a scope, so the SW check
+// must never be emitted as a second directive; otherwise it would silently
+// override (or be overridden by) the WAF/PoW check.
+func renderAccessBlockWithSW(siteName string, powEnabled bool, _ ConfigSnapshot) string {
+	escapedSiteName := escapeNginxString(siteName)
+	if !powEnabled {
+		return fmt.Sprintf(`    set $openflare_waf_site "%s";
+    access_by_lua_block {
+        if not string.find(package.path, "%s/?.lua", 1, true) then
+            package.path = "%s/?.lua;%s/?/init.lua;" .. package.path
+        end
+        require("waf.runtime").check()
+        if ngx.ctx.openflare_waf_blocked then
+            return
+        end
+        require("sw.runtime").check()
+    }
+`, escapedSiteName, LuaDirPlaceholder, LuaDirPlaceholder, LuaDirPlaceholder)
+	}
+	return fmt.Sprintf(`    set $openflare_waf_site "%s";
+    access_by_lua_block {
+        if not string.find(package.path, "%s/?.lua", 1, true) then
+            package.path = "%s/?.lua;%s/?/init.lua;" .. package.path
+        end
+        require("waf.runtime").check()
+        if ngx.ctx.openflare_waf_blocked then
+            return
+        end
+        require("pow.runtime").check()
+        require("sw.runtime").check()
     }
 `, escapedSiteName, LuaDirPlaceholder, LuaDirPlaceholder, LuaDirPlaceholder)
 }

@@ -337,6 +337,85 @@ func TestManagerApplyWritesSupportFilesAndReplacesPlaceholder(t *testing.T) {
 	}
 }
 
+func TestManagerApplyShipsSWAssetsAndReplacesSWDirPlaceholder(t *testing.T) {
+	tempDir := t.TempDir()
+	manager := &Manager{
+		MainConfigPath:  filepath.Join(tempDir, "nginx.conf"),
+		RouteConfigPath: filepath.Join(tempDir, "routes.conf"),
+		CertDir:         filepath.Join(tempDir, "certs"),
+		NginxCertDir:    "/etc/nginx/openflare-certs",
+		LuaDir:          filepath.Join(tempDir, "lua"),
+		NginxLuaDir:     "/etc/nginx/openflare-lua",
+		Executor:        &fakeExecutor{},
+	}
+
+	outcome := manager.Apply(
+		context.Background(),
+		"include __OPENFLARE_ROUTE_CONFIG__;",
+		"alias __OPENFLARE_SW_DIR__/sw.js;\nalias __OPENFLARE_SW_DIR__/offline.html;\ncontent_by_lua_file __OPENFLARE_SW_DIR__/challenge.lua;\nrequire(\"__OPENFLARE_LUA_DIR__\")",
+		[]protocol.SupportFile{
+			{Path: "sw/sw.js", Content: "js"},
+			{Path: "sw/offline.html", Content: "html"},
+		},
+	)
+	if outcome.Status != ApplyStatusSuccess {
+		t.Fatalf("Apply failed: %#v", outcome)
+	}
+
+	routeData, err := os.ReadFile(manager.RouteConfigPath)
+	if err != nil {
+		t.Fatalf("failed to read route config: %v", err)
+	}
+	rendered := string(routeData)
+	for _, want := range []string{
+		"/etc/nginx/openflare-certs/sw/sw.js",
+		"/etc/nginx/openflare-certs/sw/offline.html",
+		"/etc/nginx/openflare-certs/sw/challenge.lua",
+	} {
+		if !strings.Contains(rendered, want) {
+			t.Fatalf("route config missing %q, got %s", want, rendered)
+		}
+	}
+	if strings.Contains(rendered, openrestyrender.SWDirPlaceholder) {
+		t.Fatalf("route config still contains SW dir placeholder: %s", rendered)
+	}
+
+	for _, path := range []string{
+		filepath.Join(manager.CertDir, "sw", "sw.js"),
+		filepath.Join(manager.CertDir, "sw", "offline.html"),
+		filepath.Join(manager.CertDir, "sw", "challenge.lua"),
+		filepath.Join(manager.CertDir, "sw", "runtime.lua"),
+	} {
+		if _, err := os.Stat(path); err != nil {
+			t.Fatalf("expected SW asset %s to exist: %v", path, err)
+		}
+	}
+	for _, path := range []string{
+		filepath.Join(manager.LuaDir, "sw", "challenge.lua"),
+		filepath.Join(manager.LuaDir, "sw", "runtime.lua"),
+	} {
+		if _, err := os.Stat(path); err != nil {
+			t.Fatalf("expected SW lua asset %s to exist: %v", path, err)
+		}
+	}
+
+	checksum, err := manager.CurrentChecksum()
+	if err != nil {
+		t.Fatalf("CurrentChecksum failed: %v", err)
+	}
+	expected := bundleChecksum(
+		"include __OPENFLARE_ROUTE_CONFIG__;",
+		"alias __OPENFLARE_SW_DIR__/sw.js;\nalias __OPENFLARE_SW_DIR__/offline.html;\ncontent_by_lua_file __OPENFLARE_SW_DIR__/challenge.lua;\nrequire(\"__OPENFLARE_LUA_DIR__\")",
+		[]protocol.SupportFile{
+			{Path: "sw/sw.js", Content: "js"},
+			{Path: "sw/offline.html", Content: "html"},
+		},
+	)
+	if checksum != expected {
+		t.Fatalf("unexpected checksum: got %s want %s", checksum, expected)
+	}
+}
+
 func TestManagerRenderMainConfigInitializesWAFRuntimeInWorker(t *testing.T) {
 	manager := &Manager{NginxLuaDir: "/etc/nginx/openflare-lua"}
 	rendered := manager.renderMainConfig("events {}\nhttp {\n    lua_shared_dict openflare_waf_config 1m;\n    server {}\n}\n")

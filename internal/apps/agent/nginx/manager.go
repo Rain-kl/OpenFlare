@@ -401,6 +401,7 @@ func (m *Manager) EnsureLuaAssets() error {
 		return fmt.Errorf("load pow static files: %w", err)
 	}
 	allSupportFiles = append(allSupportFiles, powStaticFiles...)
+	allSupportFiles = append(allSupportFiles, ManagedSWLuaFiles()...)
 	files := make([]managedFile, 0, len(allSupportFiles))
 	for _, file := range allSupportFiles {
 		targetPath, err := luaFileTargetPath(m.LuaDir, file.Path)
@@ -525,6 +526,8 @@ func (m *Manager) CurrentChecksum() (string, error) {
 		// Longer error-page path must be restored before the cert-dir prefix rewrite.
 		errorPagePath := filepath.ToSlash(filepath.Join(m.NginxCertDir, openrestyrender.OriginErrorPageSupportPath))
 		normalizedRoute = strings.ReplaceAll(normalizedRoute, errorPagePath, openrestyrender.ErrorPageTmplPlaceholder)
+		swDir := filepath.ToSlash(filepath.Join(m.NginxCertDir, "sw"))
+		normalizedRoute = strings.ReplaceAll(normalizedRoute, swDir, openrestyrender.SWDirPlaceholder)
 		normalizedRoute = strings.ReplaceAll(normalizedRoute, m.NginxCertDir, openrestyrender.CertDirPlaceholder)
 	}
 	if luaDir := m.luaRuntimePath(); luaDir != "" {
@@ -1022,6 +1025,7 @@ func (m *Manager) writeSourceConfig(supportFiles []protocol.SupportFile) error {
 }
 
 func (m *Manager) writeManagedCertFiles(certFiles []protocol.SupportFile) error {
+	certFiles = append(certFiles, ManagedSWLuaFiles()...)
 	files := make([]managedFile, 0, len(certFiles))
 	for _, file := range certFiles {
 		if file.Path == powConfigFileName || file.Path == "waf_config.json" || file.Path == openrestyrender.SourceConfigFileName {
@@ -1115,6 +1119,20 @@ func (m *Manager) readManagedSupportFiles() ([]protocol.SupportFile, error) {
 	if err != nil {
 		return nil, err
 	}
+	// Agent-shipped SW Lua assets are not part of the rendered bundle, so they
+	// must stay out of the bundle checksum to keep it aligned with the server.
+	swManaged := make(map[string]struct{}, len(ManagedSWLuaFiles()))
+	for _, file := range ManagedSWLuaFiles() {
+		swManaged[file.Path] = struct{}{}
+	}
+	kept := files[:0]
+	for _, file := range files {
+		if _, skip := swManaged[file.Path]; skip {
+			continue
+		}
+		kept = append(kept, file)
+	}
+	files = kept
 	powConfig, err := m.readPowConfigFile()
 	if err != nil {
 		return nil, err
@@ -1380,6 +1398,8 @@ func (m *Manager) renderRouteConfig(content string) string {
 		rendered = strings.ReplaceAll(rendered, openrestyrender.CertDirPlaceholder, m.NginxCertDir)
 		errorPagePath := filepath.ToSlash(filepath.Join(m.NginxCertDir, openrestyrender.OriginErrorPageSupportPath))
 		rendered = strings.ReplaceAll(rendered, openrestyrender.ErrorPageTmplPlaceholder, errorPagePath)
+		swDir := filepath.ToSlash(filepath.Join(m.NginxCertDir, "sw"))
+		rendered = strings.ReplaceAll(rendered, openrestyrender.SWDirPlaceholder, swDir)
 	}
 	if luaDir := m.luaRuntimePath(); luaDir != "" {
 		rendered = strings.ReplaceAll(rendered, openrestyrender.LuaDirPlaceholder, luaDir)

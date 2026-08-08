@@ -144,6 +144,9 @@ type openRestyConfigSnapshot struct {
 	OriginErrorPageStatusCodes []string `json:"origin_error_page_status_codes,omitempty"`
 	OriginErrorPageHTML        string   `json:"origin_error_page_html,omitempty"`
 	OriginErrorPageGetOnly     bool     `json:"origin_error_page_get_only,omitempty"`
+	SWOfflineEnabled           bool     `json:"sw_offline_enabled,omitempty"`
+	SWOfflineHTML              string   `json:"sw_offline_html,omitempty"`
+	SWOfflineDomains           []string `json:"sw_offline_domains,omitempty"`
 }
 
 type snapshotDocument struct {
@@ -514,6 +517,18 @@ func buildOpenRestyConfigSnapshot(ctx context.Context) openRestyConfigSnapshot {
 		return config.Value
 	}
 
+	getStringSliceConfig := func(key string, defaultVal []string) []string {
+		config, err := repository.GetSystemConfigByKey(ctx, key)
+		if err != nil {
+			return defaultVal
+		}
+		var values []string
+		if err := json.Unmarshal([]byte(config.Value), &values); err != nil {
+			return defaultVal
+		}
+		return values
+	}
+
 	snapshot := openRestyConfigSnapshot{
 		DefaultServerReturnStatus:  getIntConfig(model.ConfigKeyOpenRestyDefaultServerReturnStatus, defaultOpenRestyReturnStatus),
 		WorkerProcesses:            getStringConfig(model.ConfigKeyOpenRestyWorkerProcesses, "auto"),
@@ -560,6 +575,9 @@ func buildOpenRestyConfigSnapshot(ctx context.Context) openRestyConfigSnapshot {
 		OriginErrorPageStatusCodes: parseOriginErrorPageStatusCodes(getStringConfig(model.ConfigKeyOriginErrorPageStatusCodes, `["500-599"]`)),
 		OriginErrorPageHTML:        getStringConfig(model.ConfigKeyOriginErrorPageHTML, ""),
 		OriginErrorPageGetOnly:     getBoolConfig(model.ConfigKeyOriginErrorPageGetOnly, false),
+		SWOfflineEnabled:           getBoolConfig(model.ConfigKeySWOfflineEnabled, false),
+		SWOfflineHTML:              getStringConfig(model.ConfigKeySWOfflineHTML, ""),
+		SWOfflineDomains:           getStringSliceConfig(model.ConfigKeySWOfflineDomains, nil),
 	}
 	if snapshot.DefaultLimitRate == "0" {
 		snapshot.DefaultLimitRate = ""

@@ -17,22 +17,33 @@ type HtmlEditorWorkspaceProps = {
   value: string;
   onChange: (value: string) => void;
   toolbarRight?: React.ReactNode;
+  maxBytes?: number;
+  preview?: (html: string) => string;
+  footerHint?: React.ReactNode;
+  showPreviewLink?: boolean;
 };
 
 /**
- * SQL 查询终端同款工作区：整体边框 + 工具栏 + 可拖拽分隔；
- * 本页为左代码 / 右实时预览横向布局。
+ * 通用 HTML 编辑器工作区：左代码 / 右实时预览横向布局，可拖拽分隔。
  */
 export function HtmlEditorWorkspace({
   value,
   onChange,
   toolbarRight,
+  maxBytes = ORIGIN_ERROR_PAGE_HTML_MAX_BYTES,
+  preview = previewOriginErrorPageHTML,
+  footerHint = (
+    <>
+      {'{{status}}'}→502 · {'{{host}}'}→example.com
+    </>
+  ),
+  showPreviewLink = true,
 }: HtmlEditorWorkspaceProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [editorWidthPercent, setEditorWidthPercent] = useState(48);
   const { resolvedTheme } = useTheme();
   const cmTheme = resolvedTheme === 'dark' ? 'dark' : 'light';
-  const previewSrcDoc = previewOriginErrorPageHTML(value);
+  const previewSrcDoc = preview(value);
   const htmlBytes = new TextEncoder().encode(value).length;
 
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -68,7 +79,7 @@ export function HtmlEditorWorkspace({
           <Terminal className='size-4 text-primary shrink-0' />
           <span className='text-xs font-semibold'>HTML 编辑器</span>
           <span className='text-[11px] text-muted-foreground font-mono truncate'>
-            {htmlBytes} / {ORIGIN_ERROR_PAGE_HTML_MAX_BYTES} 字节
+            {htmlBytes} / {maxBytes} 字节
             {value.trim() === '' ? ' · 空则使用内置默认' : ''}
           </span>
         </div>
@@ -112,20 +123,24 @@ export function HtmlEditorWorkspace({
           <div className='flex items-center justify-between px-4 py-1.5 border-b bg-muted/20 shrink-0 text-[11px] text-muted-foreground font-mono gap-2'>
             <span className='font-semibold'>实时预览</span>
             <div className='flex items-center gap-2'>
-              <span className='hidden sm:inline'>
-                {'{{status}}'}→502 · {'{{host}}'}→example.com
-              </span>
-              <Button
-                variant='ghost'
-                size='sm'
-                className='h-6 px-2 text-[11px]'
-                asChild
+              <span
+                className={footerHint === null ? 'hidden' : 'hidden sm:inline'}
               >
-                <Link href='/error-pages/preview'>
-                  <Expand className='size-3' />
-                  真实预览
-                </Link>
-              </Button>
+                {footerHint ?? null}
+              </span>
+              {showPreviewLink ? (
+                <Button
+                  variant='ghost'
+                  size='sm'
+                  className='h-6 px-2 text-[11px]'
+                  asChild
+                >
+                  <Link href='/error-pages/preview'>
+                    <Expand className='size-3' />
+                    真实预览
+                  </Link>
+                </Button>
+              ) : null}
             </div>
           </div>
           <div className='flex-1 min-h-0 overflow-hidden bg-background'>

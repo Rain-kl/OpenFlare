@@ -4,6 +4,7 @@
 package option
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -93,4 +94,32 @@ func TestValidateOriginErrorPageEnabled(t *testing.T) {
 	err := validateOpenRestyOption(model.ConfigKeyOriginErrorPageEnabled, "yes")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "true 或 false")
+}
+
+func TestValidateSWOfflineDomains(t *testing.T) {
+	cases := []struct {
+		name  string
+		value string
+		ok    bool
+	}{
+		{"empty array", `[]`, true},
+		{"single", `["example.com"]`, true},
+		{"multiple", `["example.com","api.example.com"]`, true},
+		{"invalid json", `not-json`, false},
+		{"empty element", `[""]`, false},
+		{"duplicate", `["example.com","example.com"]`, false},
+		{"whitespace dedup", `[" Example.com ","example.com"]`, false},
+		{"over limit", fmt.Sprintf(`[%s]`, strings.Repeat(`"a.com",`, maxSWOfflineDomains)+`"a.com"`), false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := validateSWOfflineDomains("sw_offline_domains", tc.value)
+			if tc.ok && err != nil {
+				t.Fatalf("want ok, got %v", err)
+			}
+			if !tc.ok && err == nil {
+				t.Fatal("want error, got nil")
+			}
+		})
+	}
 }

@@ -21,6 +21,7 @@ const (
 	PowStaticDirPlaceholder        = "__OPENFLARE_POW_STATIC_DIR__"
 	PagesDirPlaceholder            = "__OPENFLARE_PAGES_DIR__"
 	ErrorPageTmplPlaceholder       = "__OPENFLARE_ERROR_PAGE_TMPL__"
+	SWDirPlaceholder               = "__OPENFLARE_SW_DIR__"
 
 	SourceConfigFileName = "openresty_config.json"
 )
@@ -320,6 +321,12 @@ type ConfigSnapshot struct {
 	OriginErrorPageHTML        string   `json:"origin_error_page_html,omitempty"`
 	// OriginErrorPageGetOnly limits custom error HTML to GET requests; other methods pass through.
 	OriginErrorPageGetOnly bool `json:"origin_error_page_get_only,omitempty"`
+	// SWOfflineEnabled enables the Service Worker offline fallback for HTTPS routes.
+	SWOfflineEnabled bool `json:"sw_offline_enabled,omitempty"`
+	// SWOfflineHTML is the contact-page HTML served offline; empty uses the built-in default.
+	SWOfflineHTML string `json:"sw_offline_html,omitempty"`
+	// SWOfflineDomains restricts the offline fallback to matching HTTPS routes.
+	SWOfflineDomains []string `json:"sw_offline_domains,omitempty"`
 }
 
 // Document is the top-level input structure for the OpenResty renderer,

@@ -61,9 +61,9 @@ export const openflareWebsiteNavGroup: OpenFlareNavGroup = {
     },
     { title: '源站地址', url: '/origins', childUrls: ['/origins/detail'] },
     {
-      title: '错误页',
-      url: '/error-pages',
-      childUrls: ['/error-pages/edit', '/error-pages/preview'],
+      title: '响应页面',
+      url: '/responses',
+      childUrls: ['/error-pages', '/responses/contact'],
     },
   ],
 };
@@ -120,7 +120,7 @@ export const openflareWebsiteSubNav = [
   { title: '证书', url: '/certificates' },
   { title: 'DNS 账号', url: '/dns-accounts' },
   { title: 'Cloudflare', url: '/cloudflare' },
-  { title: '错误页', url: '/error-pages' },
+  { title: '响应页面', url: '/responses' },
 ] as const;
 
 const nonConsoleRoutePrefixes = [
