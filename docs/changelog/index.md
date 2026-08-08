@@ -22,24 +22,20 @@ sidebar: false
 
 ## [Unreleased]
 
+## [v3.5.0] - 2026-08-08
+
 ### 新增
 
 - 支持 Service Worker 离线兜底：为启用 HTTPS 的网站下发 Service Worker 并缓存离线页，域名无法访问时浏览器展示离线兜底页面，减少用户流失。可指定生效域名范围（仅对选中的 HTTPS 域名生效），配置位于「响应页面」-「离线页」，可在版本发布中批量生效。
 
 ### 修复
 
-- 修复源站错误页「仅针对 GET 请求」导致配置发布失败并回滚：`proxy_intercept_errors` 不能写在 `limit_except` 内，现改为内部错误页按请求方法处理，非 GET 请求保留原始状态码且不注入自定义错误页，配置可通过 `openresty -t` 校验。
 - 修复 PoW 挑战页潜在 XSS：错误提示与状态文案改用纯文本渲染，挑战通过后的 `redir` 跳转参数仅允许 http/https 协议，防止异常文本被当作 HTML 执行或跳转到危险协议。
 - 修复邮件发送的邮件头注入风险：标题、发件人、收件人在写入邮件头前清除 CR/LF 换行符，防止注入额外邮件头（CWE-93）。
 - 修复 UptimeKuma 同步调试日志泄露凭据：输出日志前对 password/token/secret 等敏感字段打码，避免凭据进入日志。
-- 修复 `SWOfflineDomains` 校验与版本比对逻辑：校验器严格拒绝 JSON `null` 输入，配置版本 Diff 比对改用 JSON 序列化避免 `strings.Join` 逗号分隔符歧义。
-- 修复 HTML 编辑器预览标题：`HtmlEditorWorkspace` 支持传入 `previewTitle`，离线页预览使用「离线页实时预览」。
 
 ### 改进
 
-- 响应页面统一：将源站错误页与 Service Worker 离线兜底离线页整合至统一的「响应页面」（`/responses`）标签页中，移除原 `/error-pages` 独立路由。
-- 响应页面 Tab 状态 URL 同步：响应页面（`/responses`）的 Tab 状态增加 URL 查询参数 `tab` 支持，刷新页面时自动保持当前选中的标签页。
-- 响应页面编辑与真实预览独立路由：为「源站错误页」与「离线页」提供独立的 `/responses/error-page/edit`、`/responses/error-page/preview`、`/responses/offline/edit` 及 `/responses/offline/preview` 路由入口，恢复默认展示网页预览图、点击编辑进入包含预制模板与代码编辑器的独立编辑页逻辑。
 - 离线页预制模板支持：新增离线页内置预制模板套件（「极简白底」、「线框拓扑」、「包豪斯」），与源站错误页模板风格保持一致，可在编辑界面一键加载与预览。
 
 ## [v3.4.5] - 2026-08-08
