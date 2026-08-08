@@ -194,6 +194,7 @@ export function ContactPageTab({
             preview={(html) => html}
             footerHint={null}
             showPreviewLink={false}
+            previewTitle='离线联系页实时预览'
           />
         </CardContent>
       </Card>

@@ -21,6 +21,7 @@ type HtmlEditorWorkspaceProps = {
   preview?: (html: string) => string;
   footerHint?: React.ReactNode;
   showPreviewLink?: boolean;
+  previewTitle?: string;
 };
 
 /**
@@ -38,6 +39,7 @@ export function HtmlEditorWorkspace({
     </>
   ),
   showPreviewLink = true,
+  previewTitle = '源站错误页实时预览',
 }: HtmlEditorWorkspaceProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [editorWidthPercent, setEditorWidthPercent] = useState(48);
@@ -145,7 +147,7 @@ export function HtmlEditorWorkspace({
           </div>
           <div className='flex-1 min-h-0 overflow-hidden bg-background'>
             <iframe
-              title='源站错误页实时预览'
+              title={previewTitle}
               sandbox=''
               srcDoc={previewSrcDoc}
               className='h-full w-full border-0 bg-background'

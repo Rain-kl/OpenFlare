@@ -42,9 +42,7 @@ export function ErrorPageTab({
   optionMap: Record<string, string>;
 }) {
   const queryClient = useQueryClient();
-  const [fields, setFields] = useState<ErrorPageFields>(
-    defaultErrorPageFields,
-  );
+  const [fields, setFields] = useState<ErrorPageFields>(defaultErrorPageFields);
   const [tagError, setTagError] = useState<string | null>(null);
 
   useEffect(() => {

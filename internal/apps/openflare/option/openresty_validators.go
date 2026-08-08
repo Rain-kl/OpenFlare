@@ -260,7 +260,7 @@ func validateSWOfflineHTML(key, value string) error {
 
 func validateSWOfflineDomains(key, value string) error {
 	var domains []string
-	if err := json.Unmarshal([]byte(value), &domains); err != nil {
+	if err := json.Unmarshal([]byte(value), &domains); err != nil || domains == nil {
 		return fmt.Errorf("%s 必须为 JSON 字符串数组", key)
 	}
 	if len(domains) > maxSWOfflineDomains {

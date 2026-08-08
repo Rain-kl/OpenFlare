@@ -106,6 +106,7 @@ func TestValidateSWOfflineDomains(t *testing.T) {
 		{"single", `["example.com"]`, true},
 		{"multiple", `["example.com","api.example.com"]`, true},
 		{"invalid json", `not-json`, false},
+		{"null", "null", false},
 		{"empty element", `[""]`, false},
 		{"duplicate", `["example.com","example.com"]`, false},
 		{"whitespace dedup", `[" Example.com ","example.com"]`, false},

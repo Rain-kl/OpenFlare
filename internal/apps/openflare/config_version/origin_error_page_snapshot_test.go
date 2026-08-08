@@ -101,3 +101,21 @@ func TestDiffOpenRestyOptionDetailsOriginErrorPage(t *testing.T) {
 	assert.Equal(t, "", keys["OriginErrorPageHTML"].PreviousValue)
 	assert.Equal(t, "<p>x</p>", keys["OriginErrorPageHTML"].CurrentValue)
 }
+
+func TestDiffOpenRestyOptionDetailsSWOfflineDomains(t *testing.T) {
+	t.Parallel()
+
+	left := openRestyConfigSnapshot{
+		SWOfflineDomains: []string{"a.com,b.com"},
+	}
+	right := openRestyConfigSnapshot{
+		SWOfflineDomains: []string{"a.com", "b.com"},
+	}
+	details := diffOpenRestyOptionDetails(left, right)
+	keys := make(map[string]ConfigOptionDiffItem, len(details))
+	for _, item := range details {
+		keys[item.Key] = item
+	}
+	assert.Equal(t, `["a.com,b.com"]`, keys["SWOfflineDomains"].PreviousValue)
+	assert.Equal(t, `["a.com","b.com"]`, keys["SWOfflineDomains"].CurrentValue)
+}

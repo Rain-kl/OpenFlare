@@ -540,7 +540,7 @@ func diffOpenRestyOptionDetails(left openRestyConfigSnapshot, right openRestyCon
 	appendIfChanged("OriginErrorPageGetOnly", fmt.Sprintf("%t", left.OriginErrorPageGetOnly), fmt.Sprintf("%t", right.OriginErrorPageGetOnly))
 	appendIfChanged("SWOfflineEnabled", fmt.Sprintf("%t", left.SWOfflineEnabled), fmt.Sprintf("%t", right.SWOfflineEnabled))
 	appendIfChanged("SWOfflineHTML", left.SWOfflineHTML, right.SWOfflineHTML)
-	appendIfChanged("SWOfflineDomains", strings.Join(left.SWOfflineDomains, ","), strings.Join(right.SWOfflineDomains, ","))
+	appendIfChanged("SWOfflineDomains", encodeSWOfflineDomains(left.SWOfflineDomains), encodeSWOfflineDomains(right.SWOfflineDomains))
 	return changes
 }
 
@@ -551,6 +551,17 @@ func encodeOriginErrorPageStatusCodes(tags []string) string {
 	payload, err := json.Marshal(tags)
 	if err != nil {
 		return strings.Join(tags, ",")
+	}
+	return string(payload)
+}
+
+func encodeSWOfflineDomains(domains []string) string {
+	if len(domains) == 0 {
+		return ""
+	}
+	payload, err := json.Marshal(domains)
+	if err != nil {
+		return strings.Join(domains, ",")
 	}
 	return string(payload)
 }
