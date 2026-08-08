@@ -2250,6 +2250,10 @@ func (h *LogDBSwitchHandler) Execute(ctx context.Context, payload []byte) (*task
     }
     defer func() { _ = setMigrationFlag(ctx, "") }() // 失败也清除，保持源库可写
 
+    if err := drainLogWriters(ctx); err != nil {
+        return nil, fmt.Errorf("排空日志写入队列失败: %w", err)
+    }
+
     src, err := logstore.Active(ctx)
     if err != nil {
         return nil, err

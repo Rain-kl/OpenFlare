@@ -5,11 +5,13 @@ package logstore
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 	"time"
 
 	"github.com/Rain-kl/Wavelet/internal/model"
+	"github.com/Rain-kl/Wavelet/pkg/logger"
 )
 
 // CleanupSummary 汇总本次清理结果。
@@ -39,10 +41,14 @@ func retentionDaysForDatabase(ctx context.Context, dbName string) int {
 	}
 	v, err := getConfig(ctx, key)
 	if err != nil {
+		if !errors.Is(err, errConfigReaderNotWired) {
+			logger.ErrorF(ctx, "读取日志保留天数配置失败(key=%s)，回退默认 %d 天: %v", key, defaultLogRetentionDays, err)
+		}
 		return defaultLogRetentionDays
 	}
 	days, perr := strconv.Atoi(v)
 	if perr != nil || days <= 0 {
+		logger.ErrorF(ctx, "日志保留天数配置非法(key=%s, value=%q)，回退默认 %d 天", key, v, defaultLogRetentionDays)
 		return defaultLogRetentionDays
 	}
 	return days

@@ -88,12 +88,7 @@ func (h *LogDBSwitchHandler) Execute(ctx context.Context, payload []byte) (*task
 	}
 	task.AppendLog(ctx, "开始切换日志数据库：%s -> %s", source, p.Target)
 
-	// 冻结前先排空在途批次（chwriter + 用户访问日志 writer），避免迁移期间积压丢失；
-	// 只等 flush 完成，不停止 writer（置位后由 ensureWritable 拒绝新写入）。
-	if err := drainLogWriters(ctx); err != nil {
-		return nil, fmt.Errorf("排空日志写入队列失败: %w", err)
-	}
-
+	// 设置迁移冻结标记（置位后由 ensureWritable 拒绝新写入）。
 	if err := setMigrationFlag(ctx, "migrating"); err != nil {
 		return nil, err
 	}
@@ -103,6 +98,12 @@ func (h *LogDBSwitchHandler) Execute(ctx context.Context, payload []byte) (*task
 			logger.ErrorF(ctx, "清除日志迁移冻结标记失败: %v", err)
 		}
 	}()
+
+	// 冻结标记置位后再排空在途批次（chwriter + 用户访问日志 writer），
+	// 保证排空完成后不再有新批次进入源库。
+	if err := drainLogWriters(ctx); err != nil {
+		return nil, fmt.Errorf("排空日志写入队列失败: %w", err)
+	}
 
 	src, err := logstore.Active(ctx)
 	if err != nil {
