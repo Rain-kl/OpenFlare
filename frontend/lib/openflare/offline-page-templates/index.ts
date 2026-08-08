@@ -35,6 +35,13 @@ export const OFFLINE_PAGE_TEMPLATES: OfflinePageTemplate[] = [
 /** 默认预制模板 */
 export const DEFAULT_OFFLINE_PAGE_TEMPLATE_ID = 'minimalist';
 
+export const DEFAULT_OFFLINE_PAGE_HTML =
+  getOfflinePageTemplate(DEFAULT_OFFLINE_PAGE_TEMPLATE_ID)?.html ?? '';
+
+export function effectiveOfflinePageHTML(html: string): string {
+  return html.trim() === '' ? DEFAULT_OFFLINE_PAGE_HTML : html;
+}
+
 export function getOfflinePageTemplate(
   id: string,
 ): OfflinePageTemplate | undefined {

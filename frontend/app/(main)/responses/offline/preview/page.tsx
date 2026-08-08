@@ -12,6 +12,7 @@ import { ErrorInline } from '@/components/layout/error';
 import { LoadingStateWithBorder } from '@/components/layout/loading';
 import { OptionService } from '@/lib/services/openflare';
 
+import { effectiveOfflinePageHTML } from '@/lib/openflare/offline-page-templates';
 import {
   mapOptionsToOfflineFields,
   OPTIONS_QUERY_KEY,
@@ -29,7 +30,10 @@ export default function OfflinePagePreviewPage() {
 
   const html = useMemo(() => {
     if (!optionsQuery.data) return '';
-    return mapOptionsToOfflineFields(optionsToMap(optionsQuery.data)).html;
+    const rawHtml = mapOptionsToOfflineFields(
+      optionsToMap(optionsQuery.data),
+    ).html;
+    return effectiveOfflinePageHTML(rawHtml);
   }, [optionsQuery.data]);
 
   if (authLoading) {

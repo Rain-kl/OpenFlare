@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Expand, Loader2, Pencil, Plus, Save, X } from 'lucide-react';
 import { toast } from 'sonner';
@@ -17,6 +17,7 @@ import {
 } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { effectiveOfflinePageHTML } from '@/lib/openflare/offline-page-templates';
 import {
   OptionService,
   ZoneService,
@@ -48,6 +49,11 @@ export function OfflinePageTab({
   useEffect(() => {
     setFields(mapOptionsToOfflineFields(optionMap));
   }, [optionMap]);
+
+  const previewSrcDoc = useMemo(
+    () => effectiveOfflinePageHTML(fields.html),
+    [fields.html],
+  );
 
   const zonesQuery = useQuery({
     queryKey: [...zoneQueryKey, 'sw-scope'],
@@ -204,7 +210,7 @@ export function OfflinePageTab({
             <iframe
               title='离线页预览'
               sandbox=''
-              srcDoc={fields.html}
+              srcDoc={previewSrcDoc}
               className='h-[32rem] w-full bg-background'
             />
           </div>
