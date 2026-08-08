@@ -106,6 +106,9 @@ func retentionOr(ctx context.Context, key string) int {
 		}
 		return defaultLogRetentionDays
 	}
+	if v < 1 {
+		return defaultLogRetentionDays
+	}
 	return v
 }
 
