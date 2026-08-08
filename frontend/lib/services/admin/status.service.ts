@@ -1,11 +1,15 @@
 import { BaseService } from '@/lib/services/core';
-import type { AppUpdateStatus, SystemStatus } from './types';
+import type { AppUpdateStatus, LogDatabaseStatus, SystemStatus } from './types';
 
 export class AdminStatusService extends BaseService {
   protected static readonly basePath = '/api/v1/admin';
 
   static async getSystemStatus(): Promise<SystemStatus> {
     return this.get<SystemStatus>('/status');
+  }
+
+  static async getLogDatabaseStatus(): Promise<LogDatabaseStatus> {
+    return this.get<LogDatabaseStatus>('/status/log-database');
   }
 
   static async getUpdateStatus(): Promise<AppUpdateStatus> {

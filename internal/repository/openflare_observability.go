@@ -15,7 +15,9 @@ import (
 
 	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/model"
+	analyticsmodel "github.com/Rain-kl/Wavelet/internal/model/analytics"
 	analyticsrepo "github.com/Rain-kl/Wavelet/internal/repository/analytics"
+	"github.com/Rain-kl/Wavelet/internal/repository/logstore"
 )
 
 const (
@@ -25,6 +27,9 @@ const (
 	openFlareHealthSeverityWarning     = "warning"
 	openFlareHealthSeverityCritical    = "critical"
 	openFlareHealthEventMessageMaxLen  = 4096
+
+	// logStoreNameClickHouse 与 logstore 内部 dbNameClickHouse 取值一致。
+	logStoreNameClickHouse = "clickhouse"
 )
 
 // OpenFlareHealthEventInput describes a desired active health event for reconciliation.
@@ -51,43 +56,68 @@ func isMissingTableError(err error) bool {
 
 // InsertOpenFlareMetricSnapshot inserts a metric snapshot into ClickHouse.
 func InsertOpenFlareMetricSnapshot(ctx context.Context, record *model.OpenFlareMetricSnapshot) error {
-	return currentObservabilityStore().InsertMetricSnapshot(ctx, record)
+	s, err := logstore.Active(ctx)
+	if err != nil {
+		return err
+	}
+	return s.Observability.InsertMetricSnapshot(ctx, record)
 }
 
 // InsertOpenFlareEdgeHealth inserts an L2 edge health snapshot into ClickHouse.
 func InsertOpenFlareEdgeHealth(ctx context.Context, record *model.OpenFlareEdgeHealth) error {
-	return currentObservabilityStore().InsertEdgeHealth(ctx, record)
+	s, err := logstore.Active(ctx)
+	if err != nil {
+		return err
+	}
+	return s.Observability.InsertEdgeHealth(ctx, record)
 }
 
 // InsertOpenFlareNodeObservationFrps inserts an FRPS observation into ClickHouse.
 func InsertOpenFlareNodeObservationFrps(ctx context.Context, record *model.OpenFlareNodeObservationFrps) error {
-	return currentObservabilityStore().InsertNodeObservationFrps(ctx, record)
+	s, err := logstore.Active(ctx)
+	if err != nil {
+		return err
+	}
+	return s.Observability.InsertNodeObservationFrps(ctx, record)
 }
 
 // InsertOpenFlareNodeObservationFrpc inserts an FRPC observation into ClickHouse.
 func InsertOpenFlareNodeObservationFrpc(ctx context.Context, record *model.OpenFlareNodeObservationFrpc) error {
-	return currentObservabilityStore().InsertNodeObservationFrpc(ctx, record)
+	s, err := logstore.Active(ctx)
+	if err != nil {
+		return err
+	}
+	return s.Observability.InsertNodeObservationFrpc(ctx, record)
 }
 
 // ListOpenFlareMetricSnapshotsSince returns metric snapshots since the given time.
 func ListOpenFlareMetricSnapshotsSince(ctx context.Context, nodeID string, since time.Time, limit int) ([]*model.OpenFlareMetricSnapshot, error) {
-	return currentObservabilityStore().ListMetricSnapshots(ctx, nodeID, since, limit)
+	s, err := logstore.Active(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return s.Observability.ListMetricSnapshots(ctx, nodeID, since, limit)
 }
 
 // ListOpenFlareLatestMetricSnapshotsSince returns the latest metric snapshot per node.
-// Prefer ClickHouse LIMIT 1 BY; on CH unavailability fall back to store list + reduce.
+// The ClickHouse LIMIT 1 BY fast path is used only when ClickHouse is the ACTIVE log
+// database; otherwise the request goes straight to the active log store (PG/SQLite),
+// avoiding stale reads of the previous CH store after a migration.
 func ListOpenFlareLatestMetricSnapshotsSince(ctx context.Context, nodeID string, since time.Time) ([]*model.OpenFlareMetricSnapshot, error) {
-	rows, err := analyticsrepo.ListLatestNodeMetricSnapshots(ctx, analyticsrepo.NodeObservabilityFilter{
-		NodeID: nodeID,
-		Since:  since,
-	})
-	if err == nil {
-		return fromAnalyticsNodeMetricSnapshots(rows), nil
+	active, err := logstore.ActiveDatabase(ctx)
+	if err == nil && active == logStoreNameClickHouse {
+		rows, err := analyticsrepo.ListLatestNodeMetricSnapshots(ctx, analyticsrepo.NodeObservabilityFilter{
+			NodeID: nodeID,
+			Since:  since,
+		})
+		if err == nil {
+			return fromAnalyticsNodeMetricSnapshots(rows), nil
+		}
 	}
-	// Fallback for unit tests (memory store) and environments without ClickHouse.
+	// Routes through the active log store (CH unavailable or PG/SQLite active).
 	all, listErr := ListOpenFlareMetricSnapshotsSince(ctx, nodeID, since, 0)
 	if listErr != nil {
-		return nil, err
+		return nil, listErr
 	}
 	return openFlareLatestMetricSnapshots(all), nil
 }
@@ -110,13 +140,37 @@ func openFlareLatestMetricSnapshots(snapshots []*model.OpenFlareMetricSnapshot) 
 	return result
 }
 
+// fromAnalyticsNodeMetricSnapshots converts analytics rows back to the business model.
+func fromAnalyticsNodeMetricSnapshots(rows []analyticsmodel.NodeMetricSnapshot) []*model.OpenFlareMetricSnapshot {
+	result := make([]*model.OpenFlareMetricSnapshot, len(rows))
+	for index, row := range rows {
+		result[index] = &model.OpenFlareMetricSnapshot{
+			ID:                uint(row.ID),
+			NodeID:            row.NodeID,
+			CapturedAt:        row.CapturedAt,
+			CPUUsagePercent:   row.CPUUsagePercent,
+			MemoryUsedBytes:   row.MemoryUsedBytes,
+			MemoryTotalBytes:  row.MemoryTotalBytes,
+			StorageUsedBytes:  row.StorageUsedBytes,
+			StorageTotalBytes: row.StorageTotalBytes,
+			DiskReadBytes:     row.DiskReadBytes,
+			DiskWriteBytes:    row.DiskWriteBytes,
+			NetworkRxBytes:    row.NetworkRxBytes,
+			NetworkTxBytes:    row.NetworkTxBytes,
+			CreatedAt:         row.CreatedAt,
+		}
+	}
+	return result
+}
+
 // ListOpenFlareTrafficHourlySince returns hourly traffic rollup rows since the given time.
-// Source: of_access_log_hourly (M5).
+// CH 读 of_access_log_hourly rollup；PG/SQLite 经 logstore 从 of_node_access_logs 实时聚合。
 func ListOpenFlareTrafficHourlySince(ctx context.Context, nodeID string, since time.Time) ([]*model.OpenFlareTrafficHourly, error) {
-	rows, err := analyticsrepo.ListNodeTrafficHourly(ctx, analyticsrepo.NodeObservabilityFilter{
-		NodeID: nodeID,
-		Since:  since,
-	})
+	s, err := logstore.Active(ctx)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := s.Observability.ListTrafficHourly(ctx, nodeID, since)
 	if err != nil {
 		return nil, err
 	}
@@ -133,12 +187,15 @@ func ListOpenFlareTrafficHourlySince(ctx context.Context, nodeID string, since t
 	return result, nil
 }
 
-// ListOpenFlareAccessLogHourlySince returns of_access_log_hourly rows since the given time.
+// ListOpenFlareAccessLogHourlySince returns hourly access-log rollups since the given time,
+// read through logstore's active backend (ClickHouse of_access_log_hourly rollup;
+// PostgreSQL/SQLite real-time aggregation from of_node_access_logs).
 func ListOpenFlareAccessLogHourlySince(ctx context.Context, nodeID string, since time.Time) ([]*model.OpenFlareAccessLogHourly, error) {
-	rows, err := analyticsrepo.ListAccessLogHourly(ctx, analyticsrepo.NodeObservabilityFilter{
-		NodeID: nodeID,
-		Since:  since,
-	})
+	s, err := logstore.Active(ctx)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := s.Observability.ListAccessLogHourly(ctx, nodeID, since)
 	if err != nil {
 		return nil, err
 	}
@@ -159,10 +216,11 @@ func ListOpenFlareAccessLogHourlySince(ctx context.Context, nodeID string, since
 
 // ListOpenFlareMetricHourlySince returns hourly metric aggregates since the given time.
 func ListOpenFlareMetricHourlySince(ctx context.Context, nodeID string, since time.Time) ([]*model.OpenFlareMetricHourly, error) {
-	rows, err := analyticsrepo.ListNodeMetricHourly(ctx, analyticsrepo.NodeObservabilityFilter{
-		NodeID: nodeID,
-		Since:  since,
-	})
+	s, err := logstore.Active(ctx)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := s.Observability.ListMetricHourly(ctx, nodeID, since)
 	if err != nil {
 		return nil, err
 	}
@@ -223,42 +281,74 @@ func ListOpenFlareHealthEvents(ctx context.Context, nodeID string, activeOnly bo
 
 // DeleteOpenFlareMetricSnapshotsBefore deletes metric snapshots captured before cutoff.
 func DeleteOpenFlareMetricSnapshotsBefore(ctx context.Context, cutoff time.Time) (int64, error) {
-	return currentObservabilityStore().DeleteMetricSnapshotsBefore(ctx, cutoff)
+	s, err := logstore.Active(ctx)
+	if err != nil {
+		return 0, err
+	}
+	return s.Observability.DeleteMetricSnapshotsBefore(ctx, cutoff)
 }
 
 // DeleteAllOpenFlareMetricSnapshots deletes all metric snapshots.
 func DeleteAllOpenFlareMetricSnapshots(ctx context.Context) (int64, error) {
-	return currentObservabilityStore().DeleteAllMetricSnapshots(ctx)
+	s, err := logstore.Active(ctx)
+	if err != nil {
+		return 0, err
+	}
+	return s.Observability.DeleteAllMetricSnapshots(ctx)
 }
 
 // DeleteOpenFlareEdgeHealthBefore deletes edge health rows captured before cutoff.
 func DeleteOpenFlareEdgeHealthBefore(ctx context.Context, cutoff time.Time) (int64, error) {
-	return currentObservabilityStore().DeleteEdgeHealthBefore(ctx, cutoff)
+	s, err := logstore.Active(ctx)
+	if err != nil {
+		return 0, err
+	}
+	return s.Observability.DeleteEdgeHealthBefore(ctx, cutoff)
 }
 
 // DeleteAllOpenFlareEdgeHealth deletes all edge health snapshots.
 func DeleteAllOpenFlareEdgeHealth(ctx context.Context) (int64, error) {
-	return currentObservabilityStore().DeleteAllEdgeHealth(ctx)
+	s, err := logstore.Active(ctx)
+	if err != nil {
+		return 0, err
+	}
+	return s.Observability.DeleteAllEdgeHealth(ctx)
 }
 
 // DeleteOpenFlareNodeObservationFrpsBefore deletes FRPS observations captured before cutoff.
 func DeleteOpenFlareNodeObservationFrpsBefore(ctx context.Context, cutoff time.Time) (int64, error) {
-	return currentObservabilityStore().DeleteNodeObservationFrpsBefore(ctx, cutoff)
+	s, err := logstore.Active(ctx)
+	if err != nil {
+		return 0, err
+	}
+	return s.Observability.DeleteNodeObservationFrpsBefore(ctx, cutoff)
 }
 
 // DeleteAllOpenFlareNodeObservationFrps deletes all FRPS observations.
 func DeleteAllOpenFlareNodeObservationFrps(ctx context.Context) (int64, error) {
-	return currentObservabilityStore().DeleteAllNodeObservationFrps(ctx)
+	s, err := logstore.Active(ctx)
+	if err != nil {
+		return 0, err
+	}
+	return s.Observability.DeleteAllNodeObservationFrps(ctx)
 }
 
 // DeleteOpenFlareNodeObservationFrpcBefore deletes FRPC observations captured before cutoff.
 func DeleteOpenFlareNodeObservationFrpcBefore(ctx context.Context, cutoff time.Time) (int64, error) {
-	return currentObservabilityStore().DeleteNodeObservationFrpcBefore(ctx, cutoff)
+	s, err := logstore.Active(ctx)
+	if err != nil {
+		return 0, err
+	}
+	return s.Observability.DeleteNodeObservationFrpcBefore(ctx, cutoff)
 }
 
 // DeleteAllOpenFlareNodeObservationFrpc deletes all FRPC observations.
 func DeleteAllOpenFlareNodeObservationFrpc(ctx context.Context) (int64, error) {
-	return currentObservabilityStore().DeleteAllNodeObservationFrpc(ctx)
+	s, err := logstore.Active(ctx)
+	if err != nil {
+		return 0, err
+	}
+	return s.Observability.DeleteAllNodeObservationFrpc(ctx)
 }
 
 // DeleteOpenFlareHealthEventsByNodeID deletes all health events for a node.
@@ -523,15 +613,27 @@ func marshalOpenFlareHealthMetadata(value map[string]string) string {
 
 // ListOpenFlareEdgeHealth returns L2 edge health snapshots.
 func ListOpenFlareEdgeHealth(ctx context.Context, nodeID string, since time.Time, limit int) ([]*model.OpenFlareEdgeHealth, error) {
-	return currentObservabilityStore().ListEdgeHealth(ctx, nodeID, since, limit)
+	s, err := logstore.Active(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return s.Observability.ListEdgeHealth(ctx, nodeID, since, limit)
 }
 
 // ListOpenFlareNodeObservationFrpc returns frpc observations.
 func ListOpenFlareNodeObservationFrpc(ctx context.Context, nodeID string, since time.Time, limit int) ([]*model.OpenFlareNodeObservationFrpc, error) {
-	return currentObservabilityStore().ListNodeObservationFrpc(ctx, nodeID, since, limit)
+	s, err := logstore.Active(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return s.Observability.ListNodeObservationFrpc(ctx, nodeID, since, limit)
 }
 
 // ListOpenFlareNodeObservationFrps returns frps observations.
 func ListOpenFlareNodeObservationFrps(ctx context.Context, nodeID string, since time.Time, limit int) ([]*model.OpenFlareNodeObservationFrps, error) {
-	return currentObservabilityStore().ListNodeObservationFrps(ctx, nodeID, since, limit)
+	s, err := logstore.Active(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return s.Observability.ListNodeObservationFrps(ctx, nodeID, since, limit)
 }

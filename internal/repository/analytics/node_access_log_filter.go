@@ -6,7 +6,8 @@ package analytics
 import (
 	"fmt"
 	"strings"
-	"time"
+
+	analyticsmodel "github.com/Rain-kl/Wavelet/internal/model/analytics"
 )
 
 const (
@@ -25,20 +26,7 @@ const (
 )
 
 // NodeAccessLogFilter scopes ClickHouse node access log queries.
-type NodeAccessLogFilter struct {
-	NodeID     string
-	RemoteAddr string
-	Host       string
-	// Hosts exact-matches any host (case-insensitive). Prefer over Host for multi-domain scopes.
-	Hosts     []string
-	Path      string
-	Since     time.Time
-	Until     time.Time
-	Page      int
-	PageSize  int
-	SortBy    string
-	SortOrder string
-}
+type NodeAccessLogFilter = analyticsmodel.NodeAccessLogFilter
 
 func buildNodeAccessLogFilterClause(filter NodeAccessLogFilter) (string, []any) {
 	parts := make([]string, 0, nodeAccessLogFilterClauseCapacity)

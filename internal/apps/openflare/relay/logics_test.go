@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/Rain-kl/Wavelet/internal/repository"
+	"github.com/Rain-kl/Wavelet/internal/testhelper"
 
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/agent"
 	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
@@ -38,10 +39,9 @@ func setupRelayTestDB(t *testing.T) func() {
 
 	db.SetDB(sqliteDB)
 	agent.ResetAuthCacheForTest()
-	resetObservabilityStore := repository.SetObservabilityStoreForTest(repository.NewMemoryObservabilityStore())
+	testhelper.SetupLogStoresForTest(t)
 
 	return func() {
-		resetObservabilityStore()
 		db.SetDB(nil)
 		agent.ResetAuthCacheForTest()
 	}

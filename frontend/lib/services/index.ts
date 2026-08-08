@@ -158,6 +158,7 @@ export type {
   CreateUserRequest,
   UpdateUserRequest,
   SystemStatus,
+  LogDatabaseStatus,
   AppUpdateStatus,
   Schedule,
   CreateScheduleRequest,
@@ -260,6 +261,5 @@ export type {
   AccessLogOverview,
   OptionItem,
   GeoIPLookupResult,
-  DatabaseCleanupResult,
   OpenFlarePublicStatus,
 } from './openflare';

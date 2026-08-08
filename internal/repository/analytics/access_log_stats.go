@@ -16,22 +16,13 @@ import (
 const hoursInDay = 24
 
 // DailyTrend is a single day's access count.
-type DailyTrend struct {
-	Date  string
-	Count uint64
-}
+type DailyTrend = analyticsmodel.DailyTrend
 
 // BrowserShare is a browser group's share of access logs.
-type BrowserShare struct {
-	Browser string
-	Count   uint64
-}
+type BrowserShare = analyticsmodel.BrowserShare
 
 // TopUser is an active user ranked by access count.
-type TopUser struct {
-	UserID uint64
-	Count  uint64
-}
+type TopUser = analyticsmodel.TopUser
 
 // GetDailyTrend returns per-day access counts for the last days days (inclusive of today).
 func GetDailyTrend(ctx context.Context, days int) ([]DailyTrend, error) {

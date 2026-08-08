@@ -211,33 +211,11 @@ func scanNodeObsFrpsRows(rows driver.Rows) ([]analyticsmodel.NodeObsFrps, error)
 	return result, nil
 }
 
-// NodeTrafficHourly is an hourly traffic rollup row.
-//
-// UniqueVisitorCount is always 0 when sourced from of_access_log_hourly
-// (true UV requires raw uniqExact on access logs).
-type NodeTrafficHourly struct {
-	NodeID             string
-	Hour               time.Time
-	RequestCount       int64
-	ErrorCount         int64
-	UniqueVisitorCount int64
-}
+// NodeTrafficHourly 为小时级流量汇总行（别名，定义见 model/analytics）。
+type NodeTrafficHourly = analyticsmodel.NodeTrafficHourly
 
-// NodeMetricHourly is an hourly metric snapshot aggregation row.
-//
-// Disk and host network counters are cumulative. Prefer pre-aggregated min/max
-// deltas from of_node_metric_capacity_hourly; raw fallback uses consecutive
-// lagInFrame samples per node (negative deltas after counter reset are dropped).
-type NodeMetricHourly struct {
-	Hour                      time.Time
-	AverageCPUUsagePercent    float64
-	AverageMemoryUsagePercent float64
-	NetworkRxBytes            int64
-	NetworkTxBytes            int64
-	DiskReadBytes             int64
-	DiskWriteBytes            int64
-	ReportedNodes             int
-}
+// NodeMetricHourly 为小时级指标聚合行（别名，定义见 model/analytics）。
+type NodeMetricHourly = analyticsmodel.NodeMetricHourly
 
 // ListNodeTrafficHourly returns hourly traffic from of_access_log_hourly (M5).
 // UniqueVisitorCount is always 0 here (UV requires raw uniqExact on access logs).

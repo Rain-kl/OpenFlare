@@ -1024,7 +1024,7 @@ const docTemplate = `{
                         "SessionCookie": []
                     }
                 ],
-                "description": "分页并按照用户、接口路径、时间范围等维度检索 ClickHouse 用户访问日志列表（需要管理员权限，ClickHouse 未启用时报错）",
+                "description": "分页并按照用户、接口路径、时间范围等维度检索用户访问日志列表（需要管理员权限，日志存储未启用时报错）",
                 "produces": [
                     "application/json"
                 ],
@@ -1119,7 +1119,7 @@ const docTemplate = `{
                         "SessionCookie": []
                     }
                 ],
-                "description": "聚合统计最近 7 天的每日访问趋势、浏览器分布以及前 10 名最活跃用户排行（需要管理员权限，ClickHouse 未启用时报错）",
+                "description": "聚合统计最近 7 天的每日访问趋势、浏览器分布以及前 10 名最活跃用户排行（需要管理员权限，日志存储未启用时报错）",
                 "produces": [
                     "application/json"
                 ],
@@ -1147,7 +1147,7 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "ClickHouse 未启用",
+                        "description": "日志存储未启用",
                         "schema": {
                             "$ref": "#/definitions/response.Any"
                         }
@@ -1877,21 +1877,21 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/admin/status/clickhouse": {
+        "/api/v1/admin/status/log-database": {
             "get": {
                 "security": [
                     {
                         "SessionCookie": []
                     }
                 ],
-                "description": "返回 ClickHouse parts、mutation、async_insert 队列及进程内 batch writer 指标，需要管理员权限",
+                "description": "返回当前日志主库、迁移状态、各库保留天数与合法迁移目标，需要管理员权限",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "admin"
                 ],
-                "summary": "获取 ClickHouse 运行指标",
+                "summary": "获取日志数据库状态",
                 "responses": {
                     "200": {
                         "description": "获取成功",
@@ -1904,17 +1904,11 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/analytics.ClickHouseOperationalStats"
+                                            "$ref": "#/definitions/status.LogDatabaseStatus"
                                         }
                                     }
                                 }
                             ]
-                        }
-                    },
-                    "400": {
-                        "description": "ClickHouse 未启用",
-                        "schema": {
-                            "$ref": "#/definitions/response.Any"
                         }
                     },
                     "401": {
@@ -2391,6 +2385,18 @@ const docTemplate = `{
                         "type": "string",
                         "description": "任务类型筛选",
                         "name": "task_type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "任务类型前缀筛选（与 task_type / task_types 互斥，精确类型优先）",
+                        "name": "task_type_prefix",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "逗号分隔的精确任务类型列表（IN 筛选，优先于前缀）",
+                        "name": "task_types",
                         "in": "query"
                     },
                     {
@@ -8272,80 +8278,6 @@ const docTemplate = `{
                                             "items": {
                                                 "$ref": "#/definitions/model.OpenFlareOption"
                                             }
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    },
-                    "400": {
-                        "description": "参数错误",
-                        "schema": {
-                            "$ref": "#/definitions/response.Any"
-                        }
-                    },
-                    "401": {
-                        "description": "未登录",
-                        "schema": {
-                            "$ref": "#/definitions/response.Any"
-                        }
-                    },
-                    "404": {
-                        "description": "无权限或不存在",
-                        "schema": {
-                            "$ref": "#/definitions/response.Any"
-                        }
-                    },
-                    "500": {
-                        "description": "内部错误",
-                        "schema": {
-                            "$ref": "#/definitions/response.Any"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/d/option/database/cleanup": {
-            "post": {
-                "security": [
-                    {
-                        "SessionCookie": []
-                    }
-                ],
-                "description": "按目标与保留天数清理可观测性相关数据表，需要管理员权限",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "openflare-option"
-                ],
-                "summary": "清理可观测性数据库",
-                "parameters": [
-                    {
-                        "description": "清理参数",
-                        "name": "request",
-                        "in": "body",
-                        "schema": {
-                            "$ref": "#/definitions/option.databaseCleanupInput"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "清理结果",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/response.Any"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "$ref": "#/definitions/option.databaseCleanupResult"
                                         }
                                     }
                                 }
@@ -14906,33 +14838,26 @@ const docTemplate = `{
                 }
             }
         },
-        "analytics.ClickHouseOperationalStats": {
+        "analytics.BatchWriterStats": {
             "type": "object",
             "properties": {
-                "active_parts": {
+                "cap": {
                     "type": "integer"
                 },
-                "async_insert_bytes": {
+                "depth": {
                     "type": "integer"
                 },
-                "async_insert_queue": {
+                "drops": {
                     "type": "integer"
                 },
-                "batch_writers": {
-                    "description": "BatchWriters reports in-process queue depth/drops/flush errors for CH writers.",
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/batchwriter.Stats"
-                    }
+                "flush_errors": {
+                    "type": "integer"
                 },
-                "database": {
+                "name": {
                     "type": "string"
                 },
-                "pending_mutations": {
-                    "type": "integer"
-                },
-                "total_rows": {
-                    "type": "integer"
+                "running": {
+                    "type": "boolean"
                 }
             }
         },
@@ -15024,29 +14949,6 @@ const docTemplate = `{
                 }
             }
         },
-        "batchwriter.Stats": {
-            "type": "object",
-            "properties": {
-                "cap": {
-                    "type": "integer"
-                },
-                "depth": {
-                    "type": "integer"
-                },
-                "drops": {
-                    "type": "integer"
-                },
-                "flush_errors": {
-                    "type": "integer"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "running": {
-                    "type": "boolean"
-                }
-            }
-        },
         "cache.updateCacheConfigRequest": {
             "type": "object",
             "required": [
@@ -15104,6 +15006,9 @@ const docTemplate = `{
                 },
                 "id": {
                     "type": "integer"
+                },
+                "zone_domain": {
+                    "type": "string"
                 },
                 "zone_id": {
                     "type": "integer"
@@ -15823,6 +15728,36 @@ const docTemplate = `{
                 },
                 "token": {
                     "type": "string"
+                }
+            }
+        },
+        "github_com_Rain-kl_Wavelet_internal_model_analytics.ClickHouseOperationalStats": {
+            "type": "object",
+            "properties": {
+                "active_parts": {
+                    "type": "integer"
+                },
+                "async_insert_bytes": {
+                    "type": "integer"
+                },
+                "async_insert_queue": {
+                    "type": "integer"
+                },
+                "batch_writers": {
+                    "description": "BatchWriters reports in-process queue depth/drops/flush errors for CH writers.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/analytics.BatchWriterStats"
+                    }
+                },
+                "database": {
+                    "type": "string"
+                },
+                "pending_mutations": {
+                    "type": "integer"
+                },
+                "total_rows": {
+                    "type": "integer"
                 }
             }
         },
@@ -18481,46 +18416,6 @@ const docTemplate = `{
                 }
             }
         },
-        "option.databaseCleanupInput": {
-            "type": "object",
-            "properties": {
-                "retention_days": {
-                    "type": "integer"
-                },
-                "target": {
-                    "type": "string"
-                }
-            }
-        },
-        "option.databaseCleanupResult": {
-            "type": "object",
-            "properties": {
-                "cleanup_mode": {
-                    "type": "string"
-                },
-                "delete_all": {
-                    "type": "boolean"
-                },
-                "deleted_count": {
-                    "type": "integer"
-                },
-                "eligible_count": {
-                    "type": "integer"
-                },
-                "retention_days": {
-                    "type": "integer"
-                },
-                "table_ttl_days": {
-                    "type": "integer"
-                },
-                "target": {
-                    "type": "string"
-                },
-                "target_label": {
-                    "type": "string"
-                }
-            }
-        },
         "option.geoIPLookupRequest": {
             "type": "object",
             "properties": {
@@ -19856,6 +19751,33 @@ const docTemplate = `{
                 },
                 "version": {
                     "type": "string"
+                }
+            }
+        },
+        "status.LogDatabaseStatus": {
+            "type": "object",
+            "properties": {
+                "active_database": {
+                    "type": "string"
+                },
+                "available_targets": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "clickhouse": {
+                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_model_analytics.ClickHouseOperationalStats"
+                },
+                "migration": {
+                    "description": "idle | migrating",
+                    "type": "string"
+                },
+                "retention_days": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "integer"
+                    }
                 }
             }
         },

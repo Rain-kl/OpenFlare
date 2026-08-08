@@ -15,10 +15,7 @@ import (
 )
 
 // NodeAccessLogRegionCount aggregates access log regions.
-type NodeAccessLogRegionCount struct {
-	Region string
-	Count  int64
-}
+type NodeAccessLogRegionCount = analyticsmodel.NodeAccessLogRegionCount
 
 func nodeAccessLogConn() (driver.Conn, error) {
 	if db.ChConn == nil {
@@ -151,28 +148,13 @@ ORDER BY count DESC, trimmed_region ASC`, tableName, clause)
 }
 
 // NodeAccessLogTrafficSummary is a window-level access log traffic summary.
-type NodeAccessLogTrafficSummary struct {
-	RequestCount  int64
-	ErrorCount    int64
-	UniqueIPCount int64
-	BytesSent     int64
-	RequestLength int64
-	NodeCount     int64
-}
+type NodeAccessLogTrafficSummary = analyticsmodel.NodeAccessLogTrafficSummary
 
 // NodeAccessLogValueCount is a grouped value count (status_code, host, ...).
-type NodeAccessLogValueCount struct {
-	Value string
-	Count int64
-}
+type NodeAccessLogValueCount = analyticsmodel.NodeAccessLogValueCount
 
 // NodeAccessLogNodeAggregate is per-node traffic over a window.
-type NodeAccessLogNodeAggregate struct {
-	NodeID        string
-	RequestCount  int64
-	ErrorCount    int64
-	UniqueIPCount int64
-}
+type NodeAccessLogNodeAggregate = analyticsmodel.NodeAccessLogNodeAggregate
 
 // TrafficSummaryNodeAccessLogs returns request/error/UV/bytes/node counts for the filter.
 func TrafficSummaryNodeAccessLogs(ctx context.Context, filter NodeAccessLogFilter) (NodeAccessLogTrafficSummary, error) {

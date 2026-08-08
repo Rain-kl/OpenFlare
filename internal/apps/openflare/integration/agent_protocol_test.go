@@ -40,15 +40,12 @@ func setupProtocolTestEnv(t *testing.T) (*gin.Engine, func()) {
 
 	db.SetDB(sqliteDB)
 	agent.ResetAuthCacheForTest()
-	resetAccessLogStore := repository.SetAccessLogStoreForTest(repository.NewMemoryAccessLogStore())
-	resetObservabilityStore := repository.SetObservabilityStoreForTest(repository.NewMemoryObservabilityStore())
+	testhelper.SetupLogStoresForTest(t)
 
 	engine := testhelper.NewTestGinEngine()
 	mountOpenFlareTestRoutes(engine)
 
 	cleanup := func() {
-		resetObservabilityStore()
-		resetAccessLogStore()
 		db.SetDB(nil)
 		agent.ResetAuthCacheForTest()
 	}

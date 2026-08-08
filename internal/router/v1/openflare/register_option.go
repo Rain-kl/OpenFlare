@@ -19,7 +19,6 @@ func registerOptionRoutes(apiGroup *gin.RouterGroup) {
 		optionRoute.POST("/update", option.UpdateOptionHandler)
 		optionRoute.POST("/update-batch", option.UpdateOptionsBatchHandler)
 		optionRoute.POST("/geoip/lookup", option.LookupGeoIPHandler)
-		optionRoute.POST("/database/cleanup", option.CleanupDatabaseHandler)
 	}
 
 	uptimeKumaRoute := apiGroup.Group("/uptimekuma")

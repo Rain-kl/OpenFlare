@@ -15,6 +15,7 @@ import (
 	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"github.com/Rain-kl/Wavelet/internal/repository"
+	"github.com/Rain-kl/Wavelet/internal/testhelper"
 	"github.com/glebarez/sqlite"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -41,12 +42,9 @@ func setupNodeTestDB(t *testing.T) func() {
 	))
 
 	db.SetDB(sqliteDB)
-	resetAccessLogStore := repository.SetAccessLogStoreForTest(repository.NewMemoryAccessLogStore())
-	resetObservabilityStore := repository.SetObservabilityStoreForTest(repository.NewMemoryObservabilityStore())
+	testhelper.SetupLogStoresForTest(t)
 
 	return func() {
-		resetObservabilityStore()
-		resetAccessLogStore()
 		db.SetDB(nil)
 	}
 }

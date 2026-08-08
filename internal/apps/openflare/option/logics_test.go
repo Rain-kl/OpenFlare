@@ -6,7 +6,6 @@ package option
 import (
 	"context"
 	"testing"
-	"time"
 
 	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/model"
@@ -116,56 +115,4 @@ func TestLookupGeoIPDisabledProvider(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "disabled", view.Provider)
 	assert.Equal(t, "8.8.8.8", view.IP)
-}
-
-func TestCleanupDatabaseObservabilityDeletesRows(t *testing.T) {
-	cleanup := setupOptionTestDB(t)
-	defer cleanup()
-	ctx := context.Background()
-
-	resetAccessLogStore := repository.SetAccessLogStoreForTest(repository.NewMemoryAccessLogStore())
-	defer resetAccessLogStore()
-
-	now := time.Now().UTC()
-	require.NoError(t, repository.InsertOpenFlareAccessLogsBatch(ctx, []*model.OpenFlareAccessLog{
-		{
-			NodeID:     "node-a",
-			LoggedAt:   now.Add(-10 * 24 * time.Hour),
-			RemoteAddr: "203.0.113.1",
-			Host:       "example.com",
-			Path:       "/old",
-			StatusCode: 200,
-		},
-		{
-			NodeID:     "node-a",
-			LoggedAt:   now.Add(-2 * time.Hour),
-			RemoteAddr: "203.0.113.2",
-			Host:       "example.com",
-			Path:       "/recent",
-			StatusCode: 200,
-		},
-	}))
-
-	// Retention shorter than table TTL (90d for access logs) must be rejected.
-	shortRetention := 7
-	_, err := cleanupDatabaseObservability(ctx, databaseCleanupInput{
-		Target:        "node_access_logs",
-		RetentionDays: &shortRetention,
-	})
-	require.Error(t, err)
-
-	// Full truncate still hard-deletes all rows.
-	result, err := cleanupDatabaseObservability(ctx, databaseCleanupInput{
-		Target: "node_access_logs",
-	})
-	require.NoError(t, err)
-	assert.Equal(t, "node_access_logs", result.Target)
-	assert.Equal(t, "访问日志", result.TargetLabel)
-	assert.Equal(t, int64(2), result.DeletedCount)
-	assert.True(t, result.DeleteAll)
-	assert.Equal(t, "truncate", result.CleanupMode)
-
-	rows, err := repository.ListOpenFlareAccessLogs(ctx, model.OpenFlareAccessLogQuery{Page: 0, PageSize: 10})
-	require.NoError(t, err)
-	assert.Empty(t, rows)
 }

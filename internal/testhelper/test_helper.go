@@ -11,11 +11,14 @@ import (
 
 	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/model"
+	analyticsmodel "github.com/Rain-kl/Wavelet/internal/model/analytics"
 	"github.com/Rain-kl/Wavelet/internal/repository"
+	"github.com/Rain-kl/Wavelet/internal/repository/logstore"
 	"github.com/alicebob/miniredis/v2"
 	"github.com/glebarez/sqlite"
 	"github.com/redis/go-redis/v9"
 	"github.com/redis/go-redis/v9/maintnotifications"
+	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 )
 
@@ -307,6 +310,24 @@ func getSeedConfigsPart2() []model.SystemConfig {
 			Type:        configTypeBusiness,
 			Description: "Pages 每个项目最大历史部署保留数（0 表示不限制）",
 		},
+		{
+			Key:         model.ConfigKeyLogRetentionDaysPostgres,
+			Value:       "90",
+			Type:        configTypeBusiness,
+			Description: "PostgreSQL 日志保留天数（访问日志与可观测统一）",
+		},
+		{
+			Key:         model.ConfigKeyLogRetentionDaysSQLite,
+			Value:       "90",
+			Type:        configTypeBusiness,
+			Description: "SQLite 日志保留天数",
+		},
+		{
+			Key:         model.ConfigKeyLogRetentionDaysClickHouse,
+			Value:       "90",
+			Type:        configTypeBusiness,
+			Description: "ClickHouse 日志保留天数",
+		},
 	}
 }
 
@@ -351,4 +372,56 @@ func seedDefaultConfigs(t *testing.T, tx *gorm.DB) {
 		}
 		_ = db.HSetJSON(context.Background(), repository.SystemConfigRedisHashKey, config.Key, &config)
 	}
+}
+
+// SetupLogStoresForTest 将 logstore 指向测试已通过 db.SetDB 注入的 sqlite 库，
+// 并注册立即 flush 的 hooks，使 repository 层日志写入对后续读取立即可见。
+// 调用方必须先 db.SetDB(sqliteDB)（并迁移业务表），本函数负责迁移日志分析表。
+func SetupLogStoresForTest(t *testing.T) {
+	t.Helper()
+
+	gdb := db.DB(context.Background())
+	require.NoError(t, gdb.AutoMigrate(
+		&analyticsmodel.NodeAccessLog{},
+		&analyticsmodel.NodeMetricSnapshot{},
+		&analyticsmodel.NodeEdgeHealth{},
+		&analyticsmodel.NodeObsFrps{},
+		&analyticsmodel.NodeObsFrpc{},
+	))
+
+	logstore.ResetForTest()
+	logstore.SetConfigReader(func(_ context.Context, key string) (string, error) {
+		if key == model.ConfigKeyLogDatabase {
+			return "sqlite", nil
+		}
+		return "", nil
+	})
+	store, err := logstore.Active(context.Background())
+	require.NoError(t, err)
+
+	logstore.SetAccessLogHooks(logstore.AccessLogHooks{
+		QueueNodeAccessLogs: func(logs []analyticsmodel.NodeAccessLog) {
+			_ = store.AccessLogs.BatchInsertNodeAccessLogs(context.Background(), logs)
+		},
+	})
+	logstore.SetObservabilityHooks(logstore.ObservabilityHooks{
+		QueueMetricSnapshot: func(record analyticsmodel.NodeMetricSnapshot) {
+			_ = store.Observability.BatchInsertNodeMetricSnapshots(context.Background(), []analyticsmodel.NodeMetricSnapshot{record})
+		},
+		QueueEdgeHealth: func(record analyticsmodel.NodeEdgeHealth) {
+			_ = store.Observability.BatchInsertNodeEdgeHealth(context.Background(), []analyticsmodel.NodeEdgeHealth{record})
+		},
+		QueueNodeObsFrps: func(record analyticsmodel.NodeObsFrps) {
+			_ = store.Observability.BatchInsertNodeObsFrps(context.Background(), []analyticsmodel.NodeObsFrps{record})
+		},
+		QueueNodeObsFrpc: func(record analyticsmodel.NodeObsFrpc) {
+			_ = store.Observability.BatchInsertNodeObsFrpc(context.Background(), []analyticsmodel.NodeObsFrpc{record})
+		},
+	})
+
+	t.Cleanup(func() {
+		logstore.SetAccessLogHooks(logstore.AccessLogHooks{})
+		logstore.SetObservabilityHooks(logstore.ObservabilityHooks{})
+		logstore.ResetForTest()
+	})
 }

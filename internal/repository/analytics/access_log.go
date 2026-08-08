@@ -38,6 +38,18 @@ func CountAccessLogs(ctx context.Context, filter AccessLogFilter) (uint64, error
 	return count, nil
 }
 
+// DeleteAllUserAccessLogs hard-deletes all user access logs via TRUNCATE.
+func DeleteAllUserAccessLogs(ctx context.Context) (int64, error) {
+	if err := userAccessLogConn(); err != nil {
+		return 0, err
+	}
+	outcome, err := truncateClickHouseTable(ctx, db.ChConn, analyticsmodel.UserAccessLog{}.TableName())
+	if err != nil {
+		return 0, err
+	}
+	return outcome.DeletedCount, nil
+}
+
 // ListAccessLogs returns paginated access logs and the total match count.
 func ListAccessLogs(ctx context.Context, filter AccessLogFilter, page, pageSize int) ([]analyticsmodel.UserAccessLog, uint64, error) {
 	clause, args, ok := buildUserAccessLogFilterClause(filter)

@@ -20,6 +20,18 @@ sidebar: false
 > - Pages 无法迁移, 升级前请先手动下载并备份 Pages 静态站点的 ZIP 包，升级后重新创建。
 > - 性能调优参数重置, 升级后请重新配置
 
+## [Unreleased]
+
+### 新增
+
+- 日志存储解耦：新增日志存储抽象（`internal/repository/logstore`），ClickHouse 变为可选项，不启用时由 PostgreSQL/SQLite 承担全部日志功能；新增「切换日志数据库」任务支持 PostgreSQL/SQLite 与 ClickHouse 间数据迁移（迁移期间冻结日志写入，成功后自动切换主库并保留源数据）；日志保留时间改为按存储库在业务配置中设置（`log_retention_days_*`），过期清理并入系统垃圾清理每日任务。
+
+### 修复
+
+- 「切换日志数据库」迁移任务补齐第 6 张表（用户访问日志）的复制与清空；目标为 PostgreSQL 时按源库时间范围预建分区，历史日志可正常迁移；冻结前先排空批写入队列，避免在途日志丢失。
+- 节点监控最新指标读取仅在 ClickHouse 为当前日志库时走 ClickHouse 快速路径，日志库切换后仪表盘不再读到旧库数据。
+- `log_database` / `log_db_migration` 为受保护配置，管理端创建/修改接口均拒绝手动写入。
+
 ## [v3.4.5] - 2026-08-08
 
 ### 改进

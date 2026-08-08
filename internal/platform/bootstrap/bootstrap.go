@@ -7,6 +7,9 @@ package bootstrap
 
 import (
 	"context"
+	"errors"
+	"fmt"
+	"log"
 	"sync"
 
 	admin_push "github.com/Rain-kl/Wavelet/internal/apps/admin/push"
@@ -14,11 +17,15 @@ import (
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/chwriter"
 	ofgeoip "github.com/Rain-kl/Wavelet/internal/apps/openflare/geoip"
 	"github.com/Rain-kl/Wavelet/internal/apps/risk_control"
+	"github.com/Rain-kl/Wavelet/internal/infra/config"
 	taskhandlers "github.com/Rain-kl/Wavelet/internal/infra/task/handlers"
+	"github.com/Rain-kl/Wavelet/internal/model"
 	"github.com/Rain-kl/Wavelet/internal/platform/lifecycle"
 	"github.com/Rain-kl/Wavelet/internal/repository"
+	"github.com/Rain-kl/Wavelet/internal/repository/logstore"
 	"github.com/Rain-kl/Wavelet/pkg/cache/ram"
 	"github.com/Rain-kl/Wavelet/pkg/logger"
+	"gorm.io/gorm"
 )
 
 // Options selects role-specific runtime bootstrap steps for the current process.
@@ -129,6 +136,21 @@ func RegisterAll() {
 // Call from cmd entry points after wiring registration and database migration, not from router.
 func Init(ctx context.Context, opts Options) {
 	initRuntimeOnce.Do(func() {
+		if err := validateAndSeedLogDatabase(ctx); err != nil {
+			logger.ErrorF(ctx, "[Bootstrap] 日志主库配置校验失败: %v", err)
+			log.Fatalf("[Bootstrap] 日志主库配置校验失败: %v", err)
+		}
+
+		// 注入 logstore 配置读取（避免 logstore ↔ repository 循环依赖），并预热激活 store。
+		logstore.SetConfigReader(func(ctx context.Context, key string) (string, error) {
+			cfg, err := repository.GetSystemConfigByKey(ctx, key)
+			if err != nil {
+				return "", err
+			}
+			return cfg.Value, nil
+		})
+		logstore.Init(ctx)
+
 		// Register config cache loader
 		RegisterCache(repository.ConfigCacheType, CacheRegistry{
 			Loader: repository.ConfigLoader{},
@@ -150,6 +172,47 @@ func Init(ctx context.Context, opts Options) {
 			chwriter.Init(ctx)
 		}
 	})
+}
+
+// validateAndSeedLogDatabase 校验日志主库标记与运行配置的一致性，首次启动 seed。
+func validateAndSeedLogDatabase(ctx context.Context) error {
+	cfg, err := repository.GetSystemConfigByKey(ctx, model.ConfigKeyLogDatabase)
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return fmt.Errorf("读取日志主库配置失败: %w", err)
+	}
+	current := cfg.Value
+	if current == "" {
+		// 首次启动 seed：CH 启用 → clickhouse；否则随主库。
+		current = "sqlite"
+		if config.Config.Database.Enabled {
+			current = "postgres"
+		}
+		if config.Config.ClickHouse.Enabled {
+			current = "clickhouse"
+		}
+		// 行缺失时 UpdateSystemConfigFields 仅为 UPDATE 无法插入，改用可创建可更新的 SaveOrUpdateSystemConfig。
+		if err := repository.SaveOrUpdateSystemConfig(ctx, model.ConfigKeyLogDatabase, current); err != nil {
+			return fmt.Errorf("初始化日志主库配置失败: %w", err)
+		}
+		return nil
+	}
+	switch current {
+	case "clickhouse":
+		if !config.Config.ClickHouse.Enabled {
+			return errors.New("当前日志主库为 ClickHouse 但 ClickHouse 未启用。请先重新启用 ClickHouse 配置并启动，在任务管理运行『切换日志数据库』迁移到 PostgreSQL/SQLite 后再禁用 ClickHouse")
+		}
+	case "postgres":
+		if !config.Config.Database.Enabled {
+			return errors.New("当前日志主库为 PostgreSQL 但 PostgreSQL 未启用（当前为 SQLite 主库）。请运行『切换日志数据库』迁回 SQLite 或启用 PostgreSQL")
+		}
+	case "sqlite":
+		if config.Config.Database.Enabled {
+			return errors.New("当前日志主库为 SQLite 但当前主库为 PostgreSQL。请运行『切换日志数据库』迁移到 PostgreSQL")
+		}
+	default:
+		return fmt.Errorf("未知的日志主库配置: %s", current)
+	}
+	return nil
 }
 
 // Stop stops all batch writers and background resources.

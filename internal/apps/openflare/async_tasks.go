@@ -21,11 +21,6 @@ const (
 	// TaskTypeSSLRenew is the admin task type for SSL renewal.
 	TaskTypeSSLRenew = "of_ssl_renew"
 
-	// DatabaseAutoCleanupTask prunes observability tables by retention policy.
-	DatabaseAutoCleanupTask = "openflare:database_auto_cleanup"
-	// TaskTypeDatabaseAutoCleanup is the admin task type for observability cleanup.
-	TaskTypeDatabaseAutoCleanup = "of_database_auto_cleanup"
-
 	// WAFIPGroupSyncTask syncs due automatic/subscription WAF IP groups.
 	WAFIPGroupSyncTask = "openflare:waf_ip_group_sync"
 	// TaskTypeWAFIPGroupSync is the admin task type for WAF IP group sync.
@@ -35,6 +30,11 @@ const (
 	UptimeKumaSyncTask = "openflare:uptime_kuma_sync"
 	// TaskTypeUptimeKumaSync is the admin task type for Uptime Kuma sync.
 	TaskTypeUptimeKumaSync = "of_uptime_kuma_sync"
+
+	// LogDBSwitchTask 切换日志数据库任务标识。
+	LogDBSwitchTask = "openflare:log_db_switch"
+	// TaskTypeLogDBSwitch is the admin task type for log database switch.
+	TaskTypeLogDBSwitch = "of_log_db_switch"
 )
 
 var (
@@ -48,18 +48,6 @@ var SSLRenewMeta = task.TaskMeta{
 	AsynqTask:    SSLRenewTask,
 	Name:         "OpenFlare SSL 自动续期",
 	Description:  "扫描即将到期的 ACME 证书并触发自动续期",
-	SupportsTime: false,
-	MaxRetry:     task.DefaultMaxRetry,
-	Queue:        task.QueueDefault,
-	Retryable:    true,
-}
-
-// DatabaseAutoCleanupMeta describes the observability auto-cleanup task.
-var DatabaseAutoCleanupMeta = task.TaskMeta{
-	Type:         TaskTypeDatabaseAutoCleanup,
-	AsynqTask:    DatabaseAutoCleanupTask,
-	Name:         "OpenFlare 可观测数据自动清理",
-	Description:  "按保留天数清理访问日志、性能快照与请求聚合数据",
 	SupportsTime: false,
 	MaxRetry:     task.DefaultMaxRetry,
 	Queue:        task.QueueDefault,
@@ -90,6 +78,22 @@ var UptimeKumaSyncMeta = task.TaskMeta{
 	Retryable:    true,
 }
 
+// LogDBSwitchMeta 描述切换日志数据库任务。
+var LogDBSwitchMeta = task.TaskMeta{
+	Type:         TaskTypeLogDBSwitch,
+	AsynqTask:    LogDBSwitchTask,
+	Name:         "切换日志数据库",
+	Description:  "复制迁移日志数据并在成功后切换日志主库（期间禁止日志写入）",
+	SupportsTime: false,
+	MaxRetry:     task.DefaultMaxRetry,
+	Queue:        task.QueueDefault,
+	Retryable:    true,
+	Params: []task.TaskParam{
+		{Name: "target", Label: "目标日志库", Type: "string", Required: true,
+			Placeholder: "postgres|sqlite|clickhouse", Description: "迁移目标：postgres（主库为 PG 时）、sqlite（主库为 SQLite 时）或 clickhouse"},
+	},
+}
+
 // SSLRenewHandler renews due TLS certificates.
 type SSLRenewHandler struct{}
 
@@ -101,51 +105,6 @@ func (h *SSLRenewHandler) Execute(ctx context.Context, _ []byte) (*task.TaskResu
 		return nil, err
 	}
 	msg := "SSL 自动续期任务完成"
-	task.AppendLog(ctx, "%s", msg)
-	return &task.TaskResult{Message: msg}, nil
-}
-
-// DatabaseAutoCleanupHandler prunes observability data when auto-cleanup is enabled.
-type DatabaseAutoCleanupHandler struct{}
-
-// Execute runs retention-based cleanup for all observability targets.
-func (h *DatabaseAutoCleanupHandler) Execute(ctx context.Context, _ []byte) (*task.TaskResult, error) {
-	// 从 SystemConfig 读取自动清理配置
-	enabled, _ := repository.GetBoolByKey(ctx, model.ConfigKeyDatabaseAutoCleanupEnabled)
-	if !enabled {
-		msg := "自动清理未启用，跳过执行"
-		task.AppendLog(ctx, "%s", msg)
-		return &task.TaskResult{Message: msg}, nil
-	}
-
-	retentionDays, _ := repository.GetIntByKey(ctx, model.ConfigKeyDatabaseAutoCleanupRetentionDays)
-	if retentionDays <= 0 {
-		retentionDays = 30 // 默认保留 30 天
-	}
-
-	task.AppendLog(ctx, "开始执行可观测数据自动清理，保留天数=%d", retentionDays)
-	summary, err := tasks.RunDatabaseAutoCleanupOnce(ctx, time.Now())
-	if err != nil {
-		task.AppendLog(ctx, "可观测数据自动清理失败: %v", err)
-		return nil, err
-	}
-	if summary == nil {
-		msg := "自动清理未启用，跳过执行"
-		task.AppendLog(ctx, "%s", msg)
-		return &task.TaskResult{Message: msg}, nil
-	}
-
-	var totalDeleted int64
-	for _, item := range summary.Results {
-		totalDeleted += item.DeletedCount
-		task.AppendLog(ctx, "清理 %s：删除 %d 条", item.TargetLabel, item.DeletedCount)
-	}
-
-	msg := fmt.Sprintf(
-		"可观测数据自动清理完成，保留 %d 天，共删除 %d 条",
-		summary.RetentionDays,
-		totalDeleted,
-	)
 	task.AppendLog(ctx, "%s", msg)
 	return &task.TaskResult{Message: msg}, nil
 }

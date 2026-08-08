@@ -1,13 +1,13 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   useMutation,
   useQuery,
   useQueryClient,
   type UseQueryResult,
 } from '@tanstack/react-query';
-import { KeyRound, ShieldAlert, X } from 'lucide-react';
+import { Database, KeyRound, Save, ShieldAlert, X } from 'lucide-react';
 import {
   Card,
   CardContent,
@@ -16,6 +16,10 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Spinner } from '@/components/ui/spinner';
+import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
@@ -27,6 +31,24 @@ import services from '@/lib/services';
 import type { SystemConfig } from '@/lib/services/admin';
 import { TemplatesManager } from './templates';
 import { toast } from 'sonner';
+
+const LOG_RETENTION_FIELDS = [
+  {
+    key: 'log_retention_days_postgres',
+    label: 'PostgreSQL',
+    description: '访问日志与可观测指标统一保留天数',
+  },
+  {
+    key: 'log_retention_days_sqlite',
+    label: 'SQLite',
+    description: 'SQLite 日志保留天数',
+  },
+  {
+    key: 'log_retention_days_clickhouse',
+    label: 'ClickHouse',
+    description: 'ClickHouse 日志保留天数',
+  },
+] as const;
 
 interface OperationTabProps {
   configs: Record<string, SystemConfig>;
@@ -42,6 +64,60 @@ export function OperationTab({
   const uploadTypesQuery = useQuery({
     queryKey: ['admin', 'upload-types'],
     queryFn: () => services.adminSystemConfig.listUploadTypes(),
+  });
+
+  const businessConfigsQuery = useQuery({
+    queryKey: ['admin', 'system-configs', 'business'],
+    queryFn: () => services.adminSystemConfig.listSystemConfigs('business'),
+  });
+
+  const businessConfigs = useMemo(() => {
+    return (businessConfigsQuery.data ?? []).reduce<
+      Record<string, SystemConfig>
+    >((acc, config) => {
+      acc[config.key] = config;
+      return acc;
+    }, {});
+  }, [businessConfigsQuery.data]);
+
+  const [retentionValues, setRetentionValues] = useState<
+    Record<string, string>
+  >({});
+
+  useEffect(() => {
+    if (!businessConfigsQuery.data) return;
+    setRetentionValues((prev) => {
+      const next: Record<string, string> = {};
+      LOG_RETENTION_FIELDS.forEach((field) => {
+        const config = businessConfigs[field.key];
+        next[field.key] = config?.value || prev[field.key] || '90';
+      });
+      return next;
+    });
+  }, [businessConfigsQuery.data, businessConfigs]);
+
+  const updateRetentionMutation = useMutation({
+    mutationFn: async (values: Record<string, string>) => {
+      for (const field of LOG_RETENTION_FIELDS) {
+        const config = businessConfigs[field.key];
+        if (!config) {
+          throw new Error(`缺少配置项: ${field.key}`);
+        }
+        await services.adminSystemConfig.updateSystemConfig(field.key, {
+          value: values[field.key] ?? '90',
+          description: config.description,
+        });
+      }
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: ['admin', 'system-configs'],
+      });
+      toast.success('日志保留时间已更新');
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || '更新日志保留时间失败');
+    },
   });
 
   const updateWhitelistMutation = useMutation({
@@ -204,6 +280,77 @@ export function OperationTab({
                 </p>
               )}
             </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* 日志保留时间设置 */}
+      <Card className='border border-dashed shadow-sm'>
+        <CardHeader className='border-b border-dashed pb-4'>
+          <div className='flex items-center gap-2'>
+            <div className='p-1.5 rounded-lg bg-primary/10 text-primary'>
+              <Database className='size-4' />
+            </div>
+            <div>
+              <CardTitle className='text-base font-semibold'>
+                日志保留时间
+              </CardTitle>
+              <CardDescription className='text-xs'>
+                配置各日志数据库的日志保留天数，切换日志数据库后自动按对应配置清理过期日志。
+              </CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className='pt-6'>
+          <div className='grid gap-4 sm:grid-cols-3'>
+            {LOG_RETENTION_FIELDS.map((field) => (
+              <div key={field.key} className='grid gap-2'>
+                <Label htmlFor={field.key}>{field.label}</Label>
+                <div className='flex items-center gap-2'>
+                  <Input
+                    id={field.key}
+                    type='number'
+                    min={1}
+                    className='text-xs'
+                    value={retentionValues[field.key] ?? ''}
+                    disabled={
+                      updateRetentionMutation.isPending ||
+                      businessConfigsQuery.isPending
+                    }
+                    onChange={(e) =>
+                      setRetentionValues((prev) => ({
+                        ...prev,
+                        [field.key]: e.target.value,
+                      }))
+                    }
+                  />
+                  <span className='text-xs text-muted-foreground whitespace-nowrap'>
+                    天
+                  </span>
+                </div>
+                <p className='text-[10px] text-muted-foreground'>
+                  {field.description}
+                </p>
+              </div>
+            ))}
+          </div>
+          <div className='mt-4 flex justify-end'>
+            <Button
+              type='button'
+              size='sm'
+              onClick={() => updateRetentionMutation.mutate(retentionValues)}
+              disabled={
+                updateRetentionMutation.isPending ||
+                businessConfigsQuery.isPending
+              }
+            >
+              {updateRetentionMutation.isPending ? (
+                <Spinner className='size-3' />
+              ) : (
+                <Save className='size-3' />
+              )}
+              保存
+            </Button>
           </div>
         </CardContent>
       </Card>

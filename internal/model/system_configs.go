@@ -41,14 +41,12 @@ const (
 	ConfigKeyRelayFRPSWebUIPort               = "relay_frps_web_ui_port"              // FRPS 内置 Web 界面端口
 
 	// OpenFlare 业务配置（从 of_options 迁移）
-	ConfigKeyAgentDiscoveryToken              = "agent_discovery_token"                //nolint:gosec // false positive: config key name. Agent 发现令牌
-	ConfigKeyAgentHeartbeatInterval           = "agent_heartbeat_interval"             // Agent 心跳间隔（毫秒）
-	ConfigKeyAgentWebsocketUpgradeEnabled     = "agent_websocket_upgrade_enabled"      // Agent WebSocket 升级开关
-	ConfigKeyNodeOfflineThreshold             = "node_offline_threshold"               // 节点离线阈值（毫秒）
-	ConfigKeyAgentUpdateRepo                  = "agent_update_repo"                    // Agent 更新仓库
-	ConfigKeyGeoIPProvider                    = "geoip_provider"                       // GeoIP 服务商
-	ConfigKeyDatabaseAutoCleanupEnabled       = "database_auto_cleanup_enabled"        // 数据库自动清理开关
-	ConfigKeyDatabaseAutoCleanupRetentionDays = "database_auto_cleanup_retention_days" // 数据库保留天数
+	ConfigKeyAgentDiscoveryToken          = "agent_discovery_token"           //nolint:gosec // false positive: config key name. Agent 发现令牌
+	ConfigKeyAgentHeartbeatInterval       = "agent_heartbeat_interval"        // Agent 心跳间隔（毫秒）
+	ConfigKeyAgentWebsocketUpgradeEnabled = "agent_websocket_upgrade_enabled" // Agent WebSocket 升级开关
+	ConfigKeyNodeOfflineThreshold         = "node_offline_threshold"          // 节点离线阈值（毫秒）
+	ConfigKeyAgentUpdateRepo              = "agent_update_repo"               // Agent 更新仓库
+	ConfigKeyGeoIPProvider                = "geoip_provider"                  // GeoIP 服务商
 
 	// Pages 静态托管配置
 	ConfigKeyPagesMaxPackageSizeMB = "pages_max_package_size_mb" // Pages 部署包上传大小上限（MiB）
@@ -115,6 +113,15 @@ const (
 	ConfigKeyOriginErrorPageStatusCodes = "origin_error_page_status_codes" // 源站错误页触发状态码标签 JSON 数组
 	ConfigKeyOriginErrorPageHTML        = "origin_error_page_html"         // 源站错误页自定义 HTML（空则内置默认）
 	ConfigKeyOriginErrorPageGetOnly     = "origin_error_page_get_only"     // 是否仅对 GET 请求返回自定义错误页
+)
+
+// 日志数据库解耦
+const (
+	ConfigKeyLogDatabase                = "log_database"                  // 当前日志主库：postgres|sqlite|clickhouse（仅迁移任务写入）
+	ConfigKeyLogDBMigration             = "log_db_migration"              // 迁移冻结标记："migrating" 或空
+	ConfigKeyLogRetentionDaysPostgres   = "log_retention_days_postgres"   // PostgreSQL 日志保留天数
+	ConfigKeyLogRetentionDaysSQLite     = "log_retention_days_sqlite"     // SQLite 日志保留天数
+	ConfigKeyLogRetentionDaysClickHouse = "log_retention_days_clickhouse" // ClickHouse 日志保留天数
 )
 
 const (

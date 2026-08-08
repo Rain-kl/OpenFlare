@@ -169,26 +169,20 @@ definitions:
           $ref: '#/definitions/github_com_Rain-kl_Wavelet_pkg_protocol.WAFIPGroup'
         type: array
     type: object
-  analytics.ClickHouseOperationalStats:
+  analytics.BatchWriterStats:
     properties:
-      active_parts:
+      cap:
         type: integer
-      async_insert_bytes:
+      depth:
         type: integer
-      async_insert_queue:
+      drops:
         type: integer
-      batch_writers:
-        description: BatchWriters reports in-process queue depth/drops/flush errors
-          for CH writers.
-        items:
-          $ref: '#/definitions/batchwriter.Stats'
-        type: array
-      database:
+      flush_errors:
+        type: integer
+      name:
         type: string
-      pending_mutations:
-        type: integer
-      total_rows:
-        type: integer
+      running:
+        type: boolean
     type: object
   apply_log.CleanupInput:
     properties:
@@ -247,21 +241,6 @@ definitions:
       is_active:
         type: boolean
     type: object
-  batchwriter.Stats:
-    properties:
-      cap:
-        type: integer
-      depth:
-        type: integer
-      drops:
-        type: integer
-      flush_errors:
-        type: integer
-      name:
-        type: string
-      running:
-        type: boolean
-    type: object
   cache.updateCacheConfigRequest:
     properties:
       lru_enabled:
@@ -301,6 +280,8 @@ definitions:
         type: string
       id:
         type: integer
+      zone_domain:
+        type: string
       zone_id:
         type: integer
     type: object
@@ -773,6 +754,27 @@ definitions:
         type: boolean
       token:
         type: string
+    type: object
+  github_com_Rain-kl_Wavelet_internal_model_analytics.ClickHouseOperationalStats:
+    properties:
+      active_parts:
+        type: integer
+      async_insert_bytes:
+        type: integer
+      async_insert_queue:
+        type: integer
+      batch_writers:
+        description: BatchWriters reports in-process queue depth/drops/flush errors
+          for CH writers.
+        items:
+          $ref: '#/definitions/analytics.BatchWriterStats'
+        type: array
+      database:
+        type: string
+      pending_mutations:
+        type: integer
+      total_rows:
+        type: integer
     type: object
   github_com_Rain-kl_Wavelet_pkg_protocol.ActiveConfigMeta:
     properties:
@@ -2533,32 +2535,6 @@ definitions:
       window_started_at:
         type: string
     type: object
-  option.databaseCleanupInput:
-    properties:
-      retention_days:
-        type: integer
-      target:
-        type: string
-    type: object
-  option.databaseCleanupResult:
-    properties:
-      cleanup_mode:
-        type: string
-      delete_all:
-        type: boolean
-      deleted_count:
-        type: integer
-      eligible_count:
-        type: integer
-      retention_days:
-        type: integer
-      table_ttl_days:
-        type: integer
-      target:
-        type: string
-      target_label:
-        type: string
-    type: object
   option.geoIPLookupRequest:
     properties:
       ip:
@@ -3441,6 +3417,24 @@ definitions:
         type: string
       version:
         type: string
+    type: object
+  status.LogDatabaseStatus:
+    properties:
+      active_database:
+        type: string
+      available_targets:
+        items:
+          type: string
+        type: array
+      clickhouse:
+        $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_model_analytics.ClickHouseOperationalStats'
+      migration:
+        description: idle | migrating
+        type: string
+      retention_days:
+        additionalProperties:
+          type: integer
+        type: object
     type: object
   status.SystemStatusResponse:
     properties:
@@ -4935,7 +4929,7 @@ paths:
       - admin
   /api/v1/admin/logs/access:
     get:
-      description: 分页并按照用户、接口路径、时间范围等维度检索 ClickHouse 用户访问日志列表（需要管理员权限，ClickHouse 未启用时报错）
+      description: 分页并按照用户、接口路径、时间范围等维度检索用户访问日志列表（需要管理员权限，日志存储未启用时报错）
       parameters:
       - default: 1
         description: 页码
@@ -4994,7 +4988,7 @@ paths:
       - admin
   /api/v1/admin/logs/analytics:
     get:
-      description: 聚合统计最近 7 天的每日访问趋势、浏览器分布以及前 10 名最活跃用户排行（需要管理员权限，ClickHouse 未启用时报错）
+      description: 聚合统计最近 7 天的每日访问趋势、浏览器分布以及前 10 名最活跃用户排行（需要管理员权限，日志存储未启用时报错）
       produces:
       - application/json
       responses:
@@ -5008,7 +5002,7 @@ paths:
                   $ref: '#/definitions/logs.logsAnalyticsResponse'
               type: object
         "400":
-          description: ClickHouse 未启用
+          description: 日志存储未启用
           schema:
             $ref: '#/definitions/response.Any'
         "401":
@@ -5434,9 +5428,9 @@ paths:
       summary: 获取系统状态信息
       tags:
       - admin
-  /api/v1/admin/status/clickhouse:
+  /api/v1/admin/status/log-database:
     get:
-      description: 返回 ClickHouse parts、mutation、async_insert 队列及进程内 batch writer 指标，需要管理员权限
+      description: 返回当前日志主库、迁移状态、各库保留天数与合法迁移目标，需要管理员权限
       produces:
       - application/json
       responses:
@@ -5447,12 +5441,8 @@ paths:
             - $ref: '#/definitions/response.Any'
             - properties:
                 data:
-                  $ref: '#/definitions/analytics.ClickHouseOperationalStats'
+                  $ref: '#/definitions/status.LogDatabaseStatus'
               type: object
-        "400":
-          description: ClickHouse 未启用
-          schema:
-            $ref: '#/definitions/response.Any'
         "401":
           description: 未登录
           schema:
@@ -5467,7 +5457,7 @@ paths:
             $ref: '#/definitions/response.Any'
       security:
       - SessionCookie: []
-      summary: 获取 ClickHouse 运行指标
+      summary: 获取日志数据库状态
       tags:
       - admin
   /api/v1/admin/system-configs:
@@ -5737,6 +5727,14 @@ paths:
       - description: 任务类型筛选
         in: query
         name: task_type
+        type: string
+      - description: 任务类型前缀筛选（与 task_type / task_types 互斥，精确类型优先）
+        in: query
+        name: task_type_prefix
+        type: string
+      - description: 逗号分隔的精确任务类型列表（IN 筛选，优先于前缀）
+        in: query
+        name: task_types
         type: string
       - default: 1
         description: 页码
@@ -9283,50 +9281,6 @@ paths:
       security:
       - SessionCookie: []
       summary: 列出 OpenFlare 配置项
-      tags:
-      - openflare-option
-  /api/v1/d/option/database/cleanup:
-    post:
-      consumes:
-      - application/json
-      description: 按目标与保留天数清理可观测性相关数据表，需要管理员权限
-      parameters:
-      - description: 清理参数
-        in: body
-        name: request
-        schema:
-          $ref: '#/definitions/option.databaseCleanupInput'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: 清理结果
-          schema:
-            allOf:
-            - $ref: '#/definitions/response.Any'
-            - properties:
-                data:
-                  $ref: '#/definitions/option.databaseCleanupResult'
-              type: object
-        "400":
-          description: 参数错误
-          schema:
-            $ref: '#/definitions/response.Any'
-        "401":
-          description: 未登录
-          schema:
-            $ref: '#/definitions/response.Any'
-        "404":
-          description: 无权限或不存在
-          schema:
-            $ref: '#/definitions/response.Any'
-        "500":
-          description: 内部错误
-          schema:
-            $ref: '#/definitions/response.Any'
-      security:
-      - SessionCookie: []
-      summary: 清理可观测性数据库
       tags:
       - openflare-option
   /api/v1/d/option/geoip/lookup:
