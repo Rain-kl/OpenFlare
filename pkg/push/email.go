@@ -19,6 +19,14 @@ func init() {
 // EmailPusher 极简 SMTP 邮件推送实现 (静态、解耦)
 type EmailPusher struct{}
 
+// sanitizeEmailHeader removes CR/LF bytes so untrusted values cannot inject
+// additional email headers (email header injection).
+func sanitizeEmailHeader(v string) string {
+	v = strings.ReplaceAll(v, "\r", "")
+	v = strings.ReplaceAll(v, "\n", "")
+	return v
+}
+
 // Send 发送邮件
 func (p *EmailPusher) Send(ctx context.Context, cfg Config, target string, body map[string]any, _ string, ext map[string]any) error {
 	if cfg.URL == "" || cfg.Key == "" || cfg.Secret == "" {
@@ -57,9 +65,9 @@ func (p *EmailPusher) Send(ctx context.Context, cfg Config, target string, body 
 		}
 	}
 
-	subjectHeader := fmt.Sprintf("Subject: %s\r\n", title)
-	fromHeader := fmt.Sprintf("From: %s <%s>\r\n", fromName, from)
-	toHeader := fmt.Sprintf("To: %s\r\n", to)
+	subjectHeader := fmt.Sprintf("Subject: %s\r\n", sanitizeEmailHeader(title))
+	fromHeader := fmt.Sprintf("From: %s <%s>\r\n", sanitizeEmailHeader(fromName), sanitizeEmailHeader(from))
+	toHeader := fmt.Sprintf("To: %s\r\n", sanitizeEmailHeader(to))
 	mimeHeader := "MIME-version: 1.0;\r\nContent-Type: text/html; charset=\"UTF-8\";\r\n\r\n"
 
 	// 拼装完整的邮件报文

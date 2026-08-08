@@ -12,6 +12,7 @@ import (
 	"net"
 	"net/smtp"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -29,6 +30,14 @@ type Config struct {
 	Password string
 }
 
+// sanitizeHeaderValue removes CR/LF bytes so untrusted values cannot inject
+// additional email headers (email header injection).
+func sanitizeHeaderValue(v string) string {
+	v = strings.ReplaceAll(v, "\r", "")
+	v = strings.ReplaceAll(v, "\n", "")
+	return v
+}
+
 // SendMail sends an HTML email using the provided config and message details
 func SendMail(ctx context.Context, cfg Config, to string, subject, body string) error {
 	return SendMailHTML(ctx, cfg, to, subject, body)
@@ -40,9 +49,9 @@ func SendMailHTML(ctx context.Context, cfg Config, to string, subject, body stri
 
 	// Header & MIME settings for HTML email
 	header := make(map[string]string)
-	header["From"] = cfg.Username
-	header["To"] = to
-	header["Subject"] = subject
+	header["From"] = sanitizeHeaderValue(cfg.Username)
+	header["To"] = sanitizeHeaderValue(to)
+	header["Subject"] = sanitizeHeaderValue(subject)
 	header["MIME-Version"] = "1.0"
 	header["Content-Type"] = "text/html; charset=UTF-8"
 
@@ -212,9 +221,9 @@ func SendMailWithLog(ctx context.Context, cfg Config, to string, subject, body s
 
 	// Header & MIME settings for HTML email
 	header := make(map[string]string)
-	header["From"] = cfg.Username
-	header["To"] = to
-	header["Subject"] = subject
+	header["From"] = sanitizeHeaderValue(cfg.Username)
+	header["To"] = sanitizeHeaderValue(to)
+	header["Subject"] = sanitizeHeaderValue(subject)
 	header["MIME-Version"] = "1.0"
 	header["Content-Type"] = "text/html; charset=UTF-8"
 
