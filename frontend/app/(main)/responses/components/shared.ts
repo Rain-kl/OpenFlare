@@ -1,8 +1,32 @@
+import {
+  DEFAULT_ORIGIN_ERROR_PAGE_STATUS_TAGS,
+  parseStatusCodeTagsJSON,
+} from '@/lib/openflare/status-code-tags';
+
 export const OPTIONS_QUERY_KEY = ['openflare', 'options'] as const;
+
+export const KEY_ENABLED = 'origin_error_page_enabled';
+export const KEY_STATUS_CODES = 'origin_error_page_status_codes';
+export const KEY_HTML = 'origin_error_page_html';
+export const KEY_GET_ONLY = 'origin_error_page_get_only';
 
 export const KEY_SW_ENABLED = 'sw_offline_enabled';
 export const KEY_SW_HTML = 'sw_offline_html';
 export const KEY_SW_DOMAINS = 'sw_offline_domains';
+
+export type ErrorPageFields = {
+  enabled: boolean;
+  getOnly: boolean;
+  statusCodes: string[];
+  html: string;
+};
+
+export const defaultErrorPageFields: ErrorPageFields = {
+  enabled: true,
+  getOnly: false,
+  statusCodes: [...DEFAULT_ORIGIN_ERROR_PAGE_STATUS_TAGS],
+  html: '',
+};
 
 export type ContactPageFields = {
   enabled: boolean;
@@ -33,6 +57,19 @@ function parseDomains(raw: string | undefined): string[] {
   } catch {
     return [];
   }
+}
+
+export function mapOptionsToErrorFields(
+  optionMap: Record<string, string>,
+): ErrorPageFields {
+  const enabledRaw = optionMap[KEY_ENABLED];
+  const getOnlyRaw = optionMap[KEY_GET_ONLY];
+  return {
+    enabled: enabledRaw === undefined ? true : enabledRaw === 'true',
+    getOnly: getOnlyRaw === undefined ? false : getOnlyRaw === 'true',
+    statusCodes: parseStatusCodeTagsJSON(optionMap[KEY_STATUS_CODES]),
+    html: optionMap[KEY_HTML] ?? '',
+  };
 }
 
 export function mapOptionsToContactFields(

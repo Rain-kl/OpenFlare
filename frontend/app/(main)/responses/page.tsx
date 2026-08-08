@@ -1,26 +1,18 @@
 'use client';
 
-import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { FileWarning, MessageSquareText } from 'lucide-react';
+import { MessageSquareText } from 'lucide-react';
 
 import { EmptyStateWithBorder } from '@/components/layout/empty';
 import { ErrorInline } from '@/components/layout/error';
 import { LoadingStateWithBorder } from '@/components/layout/loading';
 import { useAuth } from '@/components/providers/auth-provider';
-import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { OptionService } from '@/lib/services/openflare';
 
 import { ContactPageTab } from './components/contact-page-tab';
+import { ErrorPageTab } from './components/error-page-tab';
 import { OPTIONS_QUERY_KEY, optionsToMap } from './components/shared';
 
 export default function ResponsesPage() {
@@ -117,31 +109,8 @@ export default function ResponsesPage() {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent
-          value='error'
-          className='space-y-4 focus-visible:outline-none'
-        >
-          <Card className='border-dashed shadow-none'>
-            <CardHeader className='flex flex-row items-start justify-between gap-4 space-y-0'>
-              <div className='space-y-1.5'>
-                <CardTitle className='text-base'>源站错误页</CardTitle>
-                <CardDescription>
-                  配置源站/网关错误响应时的统一 HTML 页面与触发策略。
-                </CardDescription>
-              </div>
-              <Button size='sm' className='shrink-0' asChild>
-                <Link href='/error-pages'>
-                  <FileWarning className='size-3.5' />
-                  前往错误页设置
-                </Link>
-              </Button>
-            </CardHeader>
-            <CardContent>
-              <p className='text-sm text-muted-foreground'>
-                错误页的触发策略、模板编辑与页面预览仍在「错误页」页面维护。
-              </p>
-            </CardContent>
-          </Card>
+        <TabsContent value='error' className='focus-visible:outline-none'>
+          <ErrorPageTab optionMap={optionMap} />
         </TabsContent>
 
         <TabsContent value='contact' className='focus-visible:outline-none'>

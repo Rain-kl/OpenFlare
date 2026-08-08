@@ -63,7 +63,7 @@ export const openflareWebsiteNavGroup: OpenFlareNavGroup = {
     {
       title: '响应页面',
       url: '/responses',
-      childUrls: ['/error-pages', '/responses/contact'],
+      childUrls: ['/error-pages'],
     },
   ],
 };
