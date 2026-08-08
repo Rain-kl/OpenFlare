@@ -109,6 +109,15 @@ func TestValidateAndSeedLogDatabaseUpdatesEmptyMarker(t *testing.T) {
 	_, _, cleanup := testhelper.SetupTestEnvironment(t)
 	defer cleanup()
 
+	dbPrev := config.Config.Database.Enabled
+	chPrev := config.Config.ClickHouse.Enabled
+	config.Config.Database.Enabled = true
+	config.Config.ClickHouse.Enabled = false
+	t.Cleanup(func() {
+		config.Config.Database.Enabled = dbPrev
+		config.Config.ClickHouse.Enabled = chPrev
+	})
+
 	ctx := context.Background()
 	// 标记行已存在但值为空，等同首次启动，应写入默认值（走更新路径）。
 	if err := repository.CreateSystemConfig(ctx, &model.SystemConfig{Key: model.ConfigKeyLogDatabase, Value: "", Type: "system"}); err != nil {
@@ -125,13 +134,7 @@ func TestValidateAndSeedLogDatabaseUpdatesEmptyMarker(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetSystemConfigByKey(%s) error = %v", model.ConfigKeyLogDatabase, err)
 	}
-	want := "sqlite"
-	if config.Config.Database.Enabled {
-		want = "postgres"
-	}
-	if config.Config.ClickHouse.Enabled {
-		want = "clickhouse"
-	}
+	want := "postgres"
 	if cfg.Value != want {
 		t.Fatalf("log_database = %q, want %q", cfg.Value, want)
 	}

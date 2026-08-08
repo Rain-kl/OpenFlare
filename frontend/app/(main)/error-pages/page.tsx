@@ -152,8 +152,7 @@ export default function ErrorPagesPage() {
               <div className='space-y-1'>
                 <Label className='text-sm font-medium'>仅针对 GET 请求</Label>
                 <p className='text-sm text-muted-foreground'>
-                  开启后仅对 GET
-                  请求的匹配错误状态码返回自定义错误页；POST/PUT
+                  开启后仅对 GET 请求的匹配错误状态码返回自定义错误页；POST/PUT
                   等其它方法直接透传源站响应。
                 </p>
               </div>

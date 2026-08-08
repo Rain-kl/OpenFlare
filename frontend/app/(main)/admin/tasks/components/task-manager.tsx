@@ -588,7 +588,11 @@ export function TaskManager() {
                             }
                             disabled={dispatching}
                           >
-                            <SelectTrigger className='w-full text-xs' size='sm'>
+                            <SelectTrigger
+                              id={`param-${param.name}`}
+                              className='w-full text-xs'
+                              size='sm'
+                            >
                               <SelectValue placeholder='选择目标日志库...' />
                             </SelectTrigger>
                             <SelectContent>

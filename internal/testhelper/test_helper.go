@@ -401,21 +401,31 @@ func SetupLogStoresForTest(t *testing.T) {
 
 	logstore.SetAccessLogHooks(logstore.AccessLogHooks{
 		QueueNodeAccessLogs: func(logs []analyticsmodel.NodeAccessLog) {
-			_ = store.AccessLogs.BatchInsertNodeAccessLogs(context.Background(), logs)
+			if err := store.AccessLogs.BatchInsertNodeAccessLogs(context.Background(), logs); err != nil {
+				t.Errorf("batch insert node access logs failed in test hook: %v", err)
+			}
 		},
 	})
 	logstore.SetObservabilityHooks(logstore.ObservabilityHooks{
 		QueueMetricSnapshot: func(record analyticsmodel.NodeMetricSnapshot) {
-			_ = store.Observability.BatchInsertNodeMetricSnapshots(context.Background(), []analyticsmodel.NodeMetricSnapshot{record})
+			if err := store.Observability.BatchInsertNodeMetricSnapshots(context.Background(), []analyticsmodel.NodeMetricSnapshot{record}); err != nil {
+				t.Errorf("batch insert node metric snapshots failed in test hook: %v", err)
+			}
 		},
 		QueueEdgeHealth: func(record analyticsmodel.NodeEdgeHealth) {
-			_ = store.Observability.BatchInsertNodeEdgeHealth(context.Background(), []analyticsmodel.NodeEdgeHealth{record})
+			if err := store.Observability.BatchInsertNodeEdgeHealth(context.Background(), []analyticsmodel.NodeEdgeHealth{record}); err != nil {
+				t.Errorf("batch insert node edge health failed in test hook: %v", err)
+			}
 		},
 		QueueNodeObsFrps: func(record analyticsmodel.NodeObsFrps) {
-			_ = store.Observability.BatchInsertNodeObsFrps(context.Background(), []analyticsmodel.NodeObsFrps{record})
+			if err := store.Observability.BatchInsertNodeObsFrps(context.Background(), []analyticsmodel.NodeObsFrps{record}); err != nil {
+				t.Errorf("batch insert node obs frps failed in test hook: %v", err)
+			}
 		},
 		QueueNodeObsFrpc: func(record analyticsmodel.NodeObsFrpc) {
-			_ = store.Observability.BatchInsertNodeObsFrpc(context.Background(), []analyticsmodel.NodeObsFrpc{record})
+			if err := store.Observability.BatchInsertNodeObsFrpc(context.Background(), []analyticsmodel.NodeObsFrpc{record}); err != nil {
+				t.Errorf("batch insert node obs frpc failed in test hook: %v", err)
+			}
 		},
 	})
 

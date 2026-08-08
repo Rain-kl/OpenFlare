@@ -8,10 +8,12 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/Rain-kl/Wavelet/internal/infra/config"
 	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/model"
+	"github.com/Rain-kl/Wavelet/pkg/logger"
 )
 
 // logDatabaseKey / logMigrationKey 对应 model.ConfigKeyLogDatabase / ConfigKeyLogDBMigration。
@@ -33,12 +35,16 @@ var errConfigReaderNotWired = errors.New("logstore: config reader not wired")
 // ConfigReader 读取系统配置字符串值，由 bootstrap 注入（避免 logstore ↔ repository 循环依赖）。
 type ConfigReader func(ctx context.Context, key string) (string, error)
 
+const resolveCacheTTL = 1 * time.Second
+
 var (
 	configReader ConfigReader
 
-	storeMu  sync.RWMutex
-	active   *Store
-	activeDB string
+	storeMu         sync.RWMutex
+	active          *Store
+	activeDB        string
+	lastResolveDB   string
+	lastResolveTime time.Time
 )
 
 // SetConfigReader 注入系统配置读取函数（bootstrap 调用，测试可注入内存实现）。
@@ -124,6 +130,9 @@ func buildStore(ctx context.Context, database string, skipFreeze bool) (*Store, 
 func Migrating(ctx context.Context) bool {
 	v, err := getConfig(ctx, logMigrationKey)
 	if err != nil {
+		if !errors.Is(err, errConfigReaderNotWired) {
+			logger.ErrorF(ctx, "read log migration config failed: %v", err)
+		}
 		return false
 	}
 	return v == "migrating"
@@ -134,11 +143,21 @@ func Init(ctx context.Context) {
 	_, _ = Active(ctx)
 }
 
+// InvalidateCache 清空日志库解析缓存（在修改 log_database 配置后显式调用）。
+func InvalidateCache() {
+	storeMu.Lock()
+	defer storeMu.Unlock()
+	lastResolveTime = time.Time{}
+	lastResolveDB = ""
+}
+
 // ResetForTest 清空缓存的激活 store 与 config reader，便于测试注入。
 func ResetForTest() {
 	storeMu.Lock()
 	active = nil
 	activeDB = ""
+	lastResolveDB = ""
+	lastResolveTime = time.Time{}
 	storeMu.Unlock()
 	configReader = nil
 }
@@ -151,20 +170,35 @@ func ActiveDatabase(ctx context.Context) (string, error) {
 // resolveDatabase 读取 log_database：值缺失或 reader 未装配（首启）时按启动规则 seed；
 // 已装配 reader 的真实读取错误直接透出，避免把读失败当首次启动。
 func resolveDatabase(ctx context.Context) (string, error) {
+	storeMu.RLock()
+	if active != nil && time.Since(lastResolveTime) < resolveCacheTTL {
+		db := lastResolveDB
+		storeMu.RUnlock()
+		return db, nil
+	}
+	storeMu.RUnlock()
+
 	v, err := getConfig(ctx, logDatabaseKey)
 	if err != nil && !errors.Is(err, errConfigReaderNotWired) {
 		return "", err
 	}
-	if v != "" {
-		return v, nil
+
+	resolved := v
+	if resolved == "" {
+		// 首次启动 seed：CH 启用 → clickhouse；否则随主库。
+		resolved = dbNameSQLite
+		if config.Config.Database.Enabled {
+			resolved = dbNamePostgres
+		}
+		if config.Config.ClickHouse.Enabled {
+			resolved = dbNameClickHouse
+		}
 	}
-	// 首次启动 seed：CH 启用 → clickhouse；否则随主库。
-	defaultDB := dbNameSQLite
-	if config.Config.Database.Enabled {
-		defaultDB = dbNamePostgres
-	}
-	if config.Config.ClickHouse.Enabled {
-		defaultDB = dbNameClickHouse
-	}
-	return defaultDB, nil
+
+	storeMu.Lock()
+	lastResolveDB = resolved
+	lastResolveTime = time.Now()
+	storeMu.Unlock()
+
+	return resolved, nil
 }

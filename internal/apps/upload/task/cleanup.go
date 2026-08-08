@@ -134,6 +134,7 @@ func (h *SystemCleanupHandler) Execute(ctx context.Context, _ []byte) (*task.Tas
 	summary, err := logstore.CleanupExpired(ctx)
 	switch {
 	case err != nil:
+		logger.ErrorF(ctx, "清理过期日志失败: %v", err)
 		task.AppendLog(ctx, "清理过期日志失败: %v", err)
 	case summary.Deleted == 0:
 		task.AppendLog(ctx, "没有需要清理的过期日志 (保留 %d 天)", summary.RetentionDays)

@@ -5,6 +5,7 @@ package status
 
 import (
 	"context"
+	"errors"
 	"net/http"
 
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/chwriter"
@@ -18,6 +19,7 @@ import (
 	"github.com/Rain-kl/Wavelet/internal/shared/response"
 	"github.com/Rain-kl/Wavelet/pkg/logger"
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 // 日志库名取值（与 model 配置值、logstore provider 分支保持一致）。
@@ -54,6 +56,7 @@ func GetLogDatabaseStatus(c *gin.Context) {
 	ctx := c.Request.Context()
 	store, err := logstore.Active(ctx)
 	if err != nil {
+		logger.ErrorF(ctx, "获取日志存储实例失败: %v", err)
 		response.AbortInternal(c, "日志存储初始化失败")
 		return
 	}
@@ -61,6 +64,7 @@ func GetLogDatabaseStatus(c *gin.Context) {
 	// 分支判定复用同一 store 实例的 ActiveDatabase，避免与 Active 解析之间出现 TOCTOU。
 	activeDB, err := store.Status.ActiveDatabase(ctx)
 	if err != nil {
+		logger.ErrorF(ctx, "获取日志库状态失败: %v", err)
 		response.AbortInternal(c, "获取日志库状态失败")
 		return
 	}
@@ -97,6 +101,9 @@ func GetLogDatabaseStatus(c *gin.Context) {
 func retentionOr(ctx context.Context, key string) int {
 	v, err := repository.GetIntByKey(ctx, key)
 	if err != nil {
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
+			logger.ErrorF(ctx, "读取日志保留天数配置失败 key=%s: %v", key, err)
+		}
 		return defaultLogRetentionDays
 	}
 	return v

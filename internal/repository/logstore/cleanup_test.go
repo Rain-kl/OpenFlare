@@ -140,8 +140,8 @@ func TestCleanupExpiredSQLite(t *testing.T) {
 	}
 }
 
-// TestRetentionDaysForActive 覆盖保留天数读取：按激活库选 key、非法值回退默认 90。
-func TestRetentionDaysForActive(t *testing.T) {
+// TestRetentionDaysForDatabase 覆盖保留天数读取：按激活库选 key、非法值回退默认 90。
+func TestRetentionDaysForDatabase(t *testing.T) {
 	ResetForTest()
 	SetConfigReader(func(_ context.Context, key string) (string, error) {
 		switch key {
@@ -152,8 +152,8 @@ func TestRetentionDaysForActive(t *testing.T) {
 		}
 		return "", nil
 	})
-	if got := retentionDaysForActive(context.Background()); got != 30 {
-		t.Fatalf("retentionDaysForActive = %d, want 30", got)
+	if got := retentionDaysForDatabase(context.Background(), "sqlite"); got != 30 {
+		t.Fatalf("retentionDaysForDatabase = %d, want 30", got)
 	}
 
 	// 非法值（非数字/<=0）回退默认 90。
@@ -166,16 +166,16 @@ func TestRetentionDaysForActive(t *testing.T) {
 		}
 		return "", nil
 	})
-	if got := retentionDaysForActive(context.Background()); got != 90 {
-		t.Fatalf("retentionDaysForActive invalid value = %d, want 90", got)
+	if got := retentionDaysForDatabase(context.Background(), "postgres"); got != 90 {
+		t.Fatalf("retentionDaysForDatabase invalid value = %d, want 90", got)
 	}
 
 	// reader 报错回退默认 90。
 	SetConfigReader(func(_ context.Context, _ string) (string, error) {
 		return "", fmt.Errorf("boom")
 	})
-	if got := retentionDaysForActive(context.Background()); got != 90 {
-		t.Fatalf("retentionDaysForActive reader error = %d, want 90", got)
+	if got := retentionDaysForDatabase(context.Background(), "postgres"); got != 90 {
+		t.Fatalf("retentionDaysForDatabase reader error = %d, want 90", got)
 	}
 }
 

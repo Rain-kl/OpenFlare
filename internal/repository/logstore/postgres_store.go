@@ -1076,7 +1076,7 @@ FROM (
 		` + counterDelta("disk_write_bytes") + ` AS write_delta
 	FROM of_node_metric_snapshots
 	WHERE ` + where + `
-)
+) AS deltas
 GROUP BY hour_epoch
 ORDER BY hour_epoch ASC`
 	type row struct {

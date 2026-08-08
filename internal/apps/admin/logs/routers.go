@@ -237,7 +237,7 @@ func enrichAccessLogsWithUsers(ctx context.Context, list []accessLogItem) {
 // @Param start_time query string false "起始时间（RFC3339 或 YYYY-MM-DD HH:MM:SS）"
 // @Param end_time query string false "结束时间（RFC3339 或 YYYY-MM-DD HH:MM:SS）"
 // @Success 200 {object} response.Any{data=logs.accessLogsResponse} "访问日志列表"
-// @Failure 400 {object} response.Any "ClickHouse 未启用或参数错误"
+// @Failure 400 {object} response.Any "日志存储未启用或参数错误"
 // @Failure 401 {object} response.Any "未登录"
 // @Failure 403 {object} response.Any "无管理员权限"
 // @Router /api/v1/admin/logs/access [get]
@@ -245,6 +245,7 @@ func GetAccessLogs(c *gin.Context) {
 	ctx := c.Request.Context()
 	store, err := logstore.Active(ctx)
 	if err != nil {
+		logger.ErrorF(ctx, "获取日志存储实例失败: %v", err)
 		response.AbortWithError(c, http.StatusBadRequest, "日志存储未启用，无法检索访问日志")
 		return
 	}
@@ -346,6 +347,7 @@ func GetLogsAnalytics(c *gin.Context) {
 	ctx := c.Request.Context()
 	store, err := logstore.Active(ctx)
 	if err != nil {
+		logger.ErrorF(ctx, "获取日志存储实例失败: %v", err)
 		response.AbortWithError(c, http.StatusBadRequest, "日志存储未启用，无法获取分析数据")
 		return
 	}

@@ -99,12 +99,17 @@ export function OperationTab({
   const updateRetentionMutation = useMutation({
     mutationFn: async (values: Record<string, string>) => {
       for (const field of LOG_RETENTION_FIELDS) {
+        const raw = (values[field.key] ?? '').trim();
+        const num = Number(raw);
+        if (!raw || !Number.isInteger(num) || num < 1) {
+          throw new Error(`${field.label}必须为大于等于 1 的整数`);
+        }
         const config = businessConfigs[field.key];
         if (!config) {
           throw new Error(`缺少配置项: ${field.key}`);
         }
         await services.adminSystemConfig.updateSystemConfig(field.key, {
-          value: values[field.key] ?? '90',
+          value: String(num),
           description: config.description,
         });
       }

@@ -33,8 +33,7 @@ var allowedInfraPersistence = []string{
 
 func TestAppsMustNotImportLogBackendDirectly(t *testing.T) {
 	t.Chdir("../../..") // module root，保证 ./internal/apps/... 可解析
-	// -test 同时列出测试二进制依赖，覆盖仅测试文件引入的底层日志实现。
-	out, err := exec.Command("go", "list", "-test", "-deps", "-f", `{{.ImportPath}} {{join .Imports " "}}`, "./internal/apps/...").Output()
+	out, err := exec.Command("go", "list", "-test", "-f", `{{.ImportPath}} {{join .Imports " "}}`, "./internal/apps/...").Output()
 	if err != nil {
 		t.Fatalf("go list: %v", err)
 	}
@@ -44,23 +43,26 @@ func TestAppsMustNotImportLogBackendDirectly(t *testing.T) {
 			continue
 		}
 		pkg := fields[0]
-		for _, forbidden := range forbiddenImports {
-			for _, imp := range fields[1:] {
-				if imp == forbidden && !allowedAnalyticsDelegation[pkg] {
-					t.Errorf("internal/apps must not import %s (via %s)", forbidden, pkg)
-				}
-			}
+		if !strings.HasPrefix(pkg, "github.com/Rain-kl/Wavelet/internal/apps") {
+			continue
 		}
-		if strings.HasPrefix(pkg, "github.com/Rain-kl/Wavelet/internal/infra/persistence/") {
-			allowed := false
-			for _, a := range allowedInfraPersistence {
-				if pkg == a || strings.HasPrefix(pkg, a+"/") {
-					allowed = true
-					break
+		for _, imp := range fields[1:] {
+			for _, forbidden := range forbiddenImports {
+				if imp == forbidden && !allowedAnalyticsDelegation[pkg] {
+					t.Errorf("%s must not import forbidden log backend %s", pkg, forbidden)
 				}
 			}
-			if !allowed {
-				t.Errorf("internal/apps must not import infra/persistence subpackage: %s", pkg)
+			if strings.HasPrefix(imp, "github.com/Rain-kl/Wavelet/internal/infra/persistence/") {
+				allowed := false
+				for _, a := range allowedInfraPersistence {
+					if imp == a || strings.HasPrefix(imp, a+"/") {
+						allowed = true
+						break
+					}
+				}
+				if !allowed {
+					t.Errorf("%s must not import infra/persistence subpackage directly: %s", pkg, imp)
+				}
 			}
 		}
 	}

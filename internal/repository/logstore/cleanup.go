@@ -28,12 +28,13 @@ const defaultLogRetentionDays = 90
 // partitionLeadMonths 清理时确保「当前月 + 未来 2 个月」分区持续存在。
 const partitionLeadMonths = 2
 
-// retentionDaysForActive 按当前激活库读取保留天数（默认 90）。
-func retentionDaysForActive(ctx context.Context) int {
+// retentionDaysForDatabase 按给定日志库读取保留天数（默认 90）。
+func retentionDaysForDatabase(ctx context.Context, dbName string) int {
 	key := model.ConfigKeyLogRetentionDaysPostgres
-	if dbName, _ := resolveDatabase(ctx); dbName == dbNameSQLite {
+	switch dbName {
+	case dbNameSQLite:
 		key = model.ConfigKeyLogRetentionDaysSQLite
-	} else if dbName == dbNameClickHouse {
+	case dbNameClickHouse:
 		key = model.ConfigKeyLogRetentionDaysClickHouse
 	}
 	v, err := getConfig(ctx, key)
@@ -49,14 +50,17 @@ func retentionDaysForActive(ctx context.Context) int {
 
 // CleanupExpired 按当前激活库保留天数清理过期日志（每日由 system_cleanup 调用）。
 func CleanupExpired(ctx context.Context) (*CleanupSummary, error) {
+	dbName, err := resolveDatabase(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("resolve active database: %w", err)
+	}
 	s, err := Active(ctx)
 	if err != nil {
 		return nil, err
 	}
-	days := retentionDaysForActive(ctx)
+	days := retentionDaysForDatabase(ctx, dbName)
 	cutoff := time.Now().AddDate(0, 0, -days)
-	summary := &CleanupSummary{RetentionDays: days, Tables: []string{}}
-	summary.ActiveDatabase, _ = resolveDatabase(ctx)
+	summary := &CleanupSummary{ActiveDatabase: dbName, RetentionDays: days, Tables: []string{}}
 
 	// PG 分区表仅在迁移时预建「当前+2 月」分区，此处确保分区持续存在，
 	// 否则跨月后新写入会报 "no partition of relation found"（SQLite/CH 为 no-op）。

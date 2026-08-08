@@ -1532,30 +1532,37 @@ var allowedInfraPersistence = []string{
 }
 
 func TestAppsMustNotImportLogBackendDirectly(t *testing.T) {
-    out, err := exec.Command("go", "list", "-deps", "./internal/apps/...").Output()
+    t.Chdir("../../..")
+    out, err := exec.Command("go", "list", "-test", "-f", `{{.ImportPath}} {{join .Imports " "}}`, "./internal/apps/...").Output()
     if err != nil {
         t.Fatalf("go list: %v", err)
     }
     for _, line := range strings.Split(string(out), "\n") {
-        pkg := strings.TrimSpace(line)
-        if pkg == "" {
+        fields := strings.Fields(line)
+        if len(fields) == 0 {
             continue
         }
-        for _, forbidden := range forbiddenImports {
-            if pkg == forbidden {
-                t.Errorf("internal/apps must not import %s", forbidden)
-            }
+        pkg := fields[0]
+        if !strings.HasPrefix(pkg, "github.com/Rain-kl/Wavelet/internal/apps") {
+            continue
         }
-        if strings.HasPrefix(pkg, "github.com/Rain-kl/Wavelet/internal/infra/persistence/") {
-            allowed := false
-            for _, a := range allowedInfraPersistence {
-                if pkg == a || strings.HasPrefix(pkg, a+"/") {
-                    allowed = true
-                    break
+        for _, imp := range fields[1:] {
+            for _, forbidden := range forbiddenImports {
+                if imp == forbidden && !allowedAnalyticsDelegation[pkg] {
+                    t.Errorf("%s must not import forbidden log backend %s", pkg, forbidden)
                 }
             }
-            if !allowed {
-                t.Errorf("internal/apps must not import infra/persistence subpackage: %s", pkg)
+            if strings.HasPrefix(imp, "github.com/Rain-kl/Wavelet/internal/infra/persistence/") {
+                allowed := false
+                for _, a := range allowedInfraPersistence {
+                    if imp == a || strings.HasPrefix(imp, a+"/") {
+                        allowed = true
+                        break
+                    }
+                }
+                if !allowed {
+                    t.Errorf("%s must not import infra/persistence subpackage directly: %s", pkg, imp)
+                }
             }
         }
     }
@@ -2261,6 +2268,9 @@ func (h *LogDBSwitchHandler) Execute(ctx context.Context, payload []byte) (*task
     if err := copyAccessLogs(ctx, src, dst); err != nil {
         return nil, err
     }
+    if err := copyUserAccessLogs(ctx, src, dst); err != nil {
+        return nil, err
+    }
     if err := copyObservability(ctx, src, dst); err != nil {
         return nil, err
     }
@@ -2329,9 +2339,12 @@ func buildTargetStore(ctx context.Context, database string) (*logstore.Store, er
 }
 
 func clearTargetLogTables(ctx context.Context, dst *logstore.Store, target string) error {
-    // 依次清空 6 张表：AccessLogs.DeleteAll、Observability.DeleteAll*（SQLite/PG 用 DeleteAll；CH 用 TRUNCATE 语义）。
+    // 依次清空 6 张表：AccessLogs.DeleteAll、UserAccessLogs.DeleteAll、Observability.DeleteAll*（SQLite/PG 用 DeleteAll；CH 用 TRUNCATE 语义）。
     if _, err := dst.AccessLogs.DeleteAll(ctx); err != nil {
         return fmt.Errorf("清空目标访问日志失败: %w", err)
+    }
+    if _, err := dst.UserAccessLogs.DeleteAll(ctx); err != nil {
+        return fmt.Errorf("清空目标用户访问日志失败: %w", err)
     }
     for _, fn := range []func(context.Context) (int64, error){
         dst.Observability.DeleteAllMetricSnapshots,

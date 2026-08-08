@@ -18,6 +18,7 @@ import (
 	analyticsmodel "github.com/Rain-kl/Wavelet/internal/model/analytics"
 	analyticsrepo "github.com/Rain-kl/Wavelet/internal/repository/analytics"
 	"github.com/Rain-kl/Wavelet/internal/repository/logstore"
+	"github.com/Rain-kl/Wavelet/pkg/logger"
 )
 
 const (
@@ -105,16 +106,20 @@ func ListOpenFlareMetricSnapshotsSince(ctx context.Context, nodeID string, since
 // avoiding stale reads of the previous CH store after a migration.
 func ListOpenFlareLatestMetricSnapshotsSince(ctx context.Context, nodeID string, since time.Time) ([]*model.OpenFlareMetricSnapshot, error) {
 	active, err := logstore.ActiveDatabase(ctx)
-	if err == nil && active == logStoreNameClickHouse {
-		rows, err := analyticsrepo.ListLatestNodeMetricSnapshots(ctx, analyticsrepo.NodeObservabilityFilter{
+	if err != nil {
+		logger.ErrorF(ctx, "failed to resolve active log database for latest metric snapshots: %v", err)
+	} else if active == logStoreNameClickHouse {
+		rows, chErr := analyticsrepo.ListLatestNodeMetricSnapshots(ctx, analyticsrepo.NodeObservabilityFilter{
 			NodeID: nodeID,
 			Since:  since,
 		})
-		if err == nil {
+		if chErr == nil {
 			return fromAnalyticsNodeMetricSnapshots(rows), nil
 		}
+		logger.ErrorF(ctx, "clickhouse fast-path ListLatestNodeMetricSnapshots failed: %v", chErr)
+		return nil, chErr
 	}
-	// Routes through the active log store (CH unavailable or PG/SQLite active).
+	// Routes through the active log store (PG/SQLite active).
 	all, listErr := ListOpenFlareMetricSnapshotsSince(ctx, nodeID, since, 0)
 	if listErr != nil {
 		return nil, listErr

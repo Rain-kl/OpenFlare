@@ -1092,7 +1092,7 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "ClickHouse 未启用或参数错误",
+                        "description": "日志存储未启用或参数错误",
                         "schema": {
                             "$ref": "#/definitions/response.Any"
                         }

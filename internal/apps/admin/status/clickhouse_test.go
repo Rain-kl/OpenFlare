@@ -72,6 +72,8 @@ func TestAvailableTargets(t *testing.T) {
 // TestGetLogDatabaseStatusSmoke 覆盖 handler 的 CH 激活分支（无需 DB/CH 连接）。
 func TestGetLogDatabaseStatusSmoke(t *testing.T) {
 	restoreConfig(t)
+	config.Config.Database.Enabled = false
+	config.Config.ClickHouse.Enabled = true
 	logstore.ResetForTest()
 	t.Cleanup(logstore.ResetForTest)
 
