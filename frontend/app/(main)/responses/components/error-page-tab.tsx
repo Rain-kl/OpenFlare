@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Loader2, Save } from 'lucide-react';
+import { Expand, Loader2, Pencil, Save } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
@@ -16,21 +17,18 @@ import {
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { TagsInput } from '@/components/ui/tags-input';
-import { HtmlEditorWorkspace } from '@/components/common/html-editor-workspace';
 import { previewOriginErrorPageHTML } from '@/lib/openflare/default-origin-error-page-html';
 import {
   validateStatusCodeTagMessage,
   validateStatusCodeTags,
 } from '@/lib/openflare/status-code-tags';
 import { OptionService } from '@/lib/services/openflare';
-import { cn } from '@/lib/utils';
 
 import {
   defaultErrorPageFields,
   invalidateResponseQueries,
   KEY_ENABLED,
   KEY_GET_ONLY,
-  KEY_HTML,
   KEY_STATUS_CODES,
   mapOptionsToErrorFields,
   type ErrorPageFields,
@@ -42,6 +40,7 @@ export function ErrorPageTab({
   optionMap: Record<string, string>;
 }) {
   const queryClient = useQueryClient();
+
   const [fields, setFields] = useState<ErrorPageFields>(defaultErrorPageFields);
   const [tagError, setTagError] = useState<string | null>(null);
 
@@ -50,7 +49,13 @@ export function ErrorPageTab({
     setTagError(null);
   }, [optionMap]);
 
-  const saveMutation = useMutation({
+  const previewSrcDoc = useMemo(
+    () => previewOriginErrorPageHTML(fields.html),
+    [fields.html],
+  );
+
+  /** 仅保存策略项 */
+  const savePolicyMutation = useMutation({
     mutationFn: async () => {
       validateStatusCodeTags(fields.statusCodes);
       await OptionService.updateBatch([
@@ -60,11 +65,10 @@ export function ErrorPageTab({
           key: KEY_STATUS_CODES,
           value: JSON.stringify(fields.statusCodes),
         },
-        { key: KEY_HTML, value: fields.html },
       ]);
     },
     onSuccess: async () => {
-      toast.success('源站错误页已保存，请前往版本发布使配置生效');
+      toast.success('触发策略已保存，请前往版本发布使配置生效');
       await invalidateResponseQueries(queryClient);
     },
     onError: (error) => {
@@ -96,10 +100,10 @@ export function ErrorPageTab({
           <Button
             size='sm'
             className='shrink-0'
-            disabled={saveMutation.isPending}
-            onClick={() => saveMutation.mutate()}
+            disabled={savePolicyMutation.isPending}
+            onClick={() => savePolicyMutation.mutate()}
           >
-            {saveMutation.isPending ? (
+            {savePolicyMutation.isPending ? (
               <Loader2 className='size-3.5 animate-spin' />
             ) : (
               <Save className='size-3.5' />
@@ -176,19 +180,35 @@ export function ErrorPageTab({
         </CardContent>
       </Card>
 
-      <Card className='border-dashed shadow-none'>
-        <CardHeader>
-          <CardTitle className='text-base'>错误页 HTML</CardTitle>
-          <CardDescription>留空则使用内置默认模板。</CardDescription>
+      <Card className='border-dashed shadow-none overflow-hidden'>
+        <CardHeader className='flex flex-row items-start justify-between gap-3 space-y-0'>
+          <div className='space-y-1.5'>
+            <CardTitle className='text-base'>页面预览</CardTitle>
+          </div>
+          <div className='flex shrink-0 flex-wrap gap-2'>
+            <Button variant='outline' size='sm' asChild>
+              <Link href='/responses/error-page/preview'>
+                <Expand className='size-3.5' />
+                真实预览
+              </Link>
+            </Button>
+            <Button size='sm' asChild>
+              <Link href='/responses/error-page/edit'>
+                <Pencil className='size-3.5' />
+                编辑
+              </Link>
+            </Button>
+          </div>
         </CardHeader>
-        <CardContent
-          className={cn(!fields.enabled && 'pointer-events-none opacity-60')}
-        >
-          <HtmlEditorWorkspace
-            value={fields.html}
-            onChange={(v) => setFields((prev) => ({ ...prev, html: v }))}
-            preview={previewOriginErrorPageHTML}
-          />
+        <CardContent>
+          <div className='overflow-hidden rounded-md border bg-muted/30'>
+            <iframe
+              title='源站错误页预览'
+              sandbox=''
+              srcDoc={previewSrcDoc}
+              className='h-[32rem] w-full bg-background'
+            />
+          </div>
         </CardContent>
       </Card>
     </div>

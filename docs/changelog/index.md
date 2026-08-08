@@ -34,6 +34,8 @@ sidebar: false
 ### 改进
 
 - 响应页面统一：将源站错误页与 Service Worker 离线兜底联系页整合至统一的「响应页面」（`/responses`）标签页中，移除原 `/error-pages` 独立路由。
+- 响应页面 Tab 状态 URL 同步：响应页面（`/responses`）的 Tab 状态增加 URL 查询参数 `tab` 支持，刷新页面时自动保持当前选中的标签页。
+- 响应页面编辑与真实预览独立路由：为「源站错误页」与「离线联系页」提供独立的 `/responses/error-page/edit`、`/responses/error-page/preview`、`/responses/contact/edit` 及 `/responses/contact/preview` 路由入口，恢复默认展示网页预览图、点击编辑进入包含预制模板与代码编辑器的独立编辑页逻辑。
 
 ## [v3.4.5] - 2026-08-08
 

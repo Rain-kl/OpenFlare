@@ -1,8 +1,9 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Loader2, Plus, Save, X } from 'lucide-react';
+import { Expand, Loader2, Pencil, Plus, Save, X } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { Badge } from '@/components/ui/badge';
@@ -16,13 +17,11 @@ import {
 } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { HtmlEditorWorkspace } from '@/components/common/html-editor-workspace';
 import {
   OptionService,
   ZoneService,
   zoneQueryKey,
 } from '@/lib/services/openflare';
-import { cn } from '@/lib/utils';
 
 import { ScopeDomainDialog } from './scope-domain-dialog';
 import {
@@ -180,22 +179,35 @@ export function ContactPageTab({
           </div>
         </CardContent>
       </Card>
-      <Card className='border-dashed shadow-none'>
-        <CardHeader>
-          <CardTitle className='text-base'>联系页 HTML</CardTitle>
-          <CardDescription>留空则使用内置默认模板。</CardDescription>
+      <Card className='border-dashed shadow-none overflow-hidden'>
+        <CardHeader className='flex flex-row items-start justify-between gap-3 space-y-0'>
+          <div className='space-y-1.5'>
+            <CardTitle className='text-base'>页面预览</CardTitle>
+          </div>
+          <div className='flex shrink-0 flex-wrap gap-2'>
+            <Button variant='outline' size='sm' asChild>
+              <Link href='/responses/contact/preview'>
+                <Expand className='size-3.5' />
+                真实预览
+              </Link>
+            </Button>
+            <Button size='sm' asChild>
+              <Link href='/responses/contact/edit'>
+                <Pencil className='size-3.5' />
+                编辑
+              </Link>
+            </Button>
+          </div>
         </CardHeader>
-        <CardContent
-          className={cn(!fields.enabled && 'pointer-events-none opacity-60')}
-        >
-          <HtmlEditorWorkspace
-            value={fields.html}
-            onChange={(v) => setFields((prev) => ({ ...prev, html: v }))}
-            preview={(html) => html}
-            footerHint={null}
-            showPreviewLink={false}
-            previewTitle='离线联系页实时预览'
-          />
+        <CardContent>
+          <div className='overflow-hidden rounded-md border bg-muted/30'>
+            <iframe
+              title='离线联系页预览'
+              sandbox=''
+              srcDoc={fields.html}
+              className='h-[32rem] w-full bg-background'
+            />
+          </div>
         </CardContent>
       </Card>
       <ScopeDomainDialog

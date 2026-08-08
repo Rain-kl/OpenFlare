@@ -1,6 +1,7 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { Suspense, useMemo } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { MessageSquareText } from 'lucide-react';
 
@@ -15,9 +16,35 @@ import { ContactPageTab } from './components/contact-page-tab';
 import { ErrorPageTab } from './components/error-page-tab';
 import { OPTIONS_QUERY_KEY, optionsToMap } from './components/shared';
 
-export default function ResponsesPage() {
+type ResponseTab = 'error' | 'contact';
+
+function resolveTab(tabParam: string | null): ResponseTab {
+  if (tabParam === 'contact') {
+    return 'contact';
+  }
+  return 'error';
+}
+
+function ResponsesPageContent() {
   const { user, loading: authLoading } = useAuth();
-  const [activeTab, setActiveTab] = useState('error');
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const activeTab = resolveTab(searchParams.get('tab'));
+
+  const handleTabChange = (value: string) => {
+    const nextTab = resolveTab(value);
+    const params = new URLSearchParams(searchParams.toString());
+    if (nextTab === 'error') {
+      params.delete('tab');
+    } else {
+      params.set('tab', nextTab);
+    }
+    const query = params.toString();
+    router.replace(query ? `/responses?${query}` : '/responses', {
+      scroll: false,
+    });
+  };
 
   const optionsQuery = useQuery({
     queryKey: OPTIONS_QUERY_KEY,
@@ -93,7 +120,11 @@ export default function ResponsesPage() {
         </div>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className='w-full'>
+      <Tabs
+        value={activeTab}
+        onValueChange={handleTabChange}
+        className='w-full'
+      >
         <TabsList variant='line' className='mb-6 inline-flex w-fit gap-8'>
           <TabsTrigger
             value='error'
@@ -118,5 +149,22 @@ export default function ResponsesPage() {
         </TabsContent>
       </Tabs>
     </div>
+  );
+}
+
+export default function ResponsesPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className='w-full py-6 px-1'>
+          <LoadingStateWithBorder
+            icon={MessageSquareText}
+            description='加载响应页面...'
+          />
+        </div>
+      }
+    >
+      <ResponsesPageContent />
+    </Suspense>
   );
 }
