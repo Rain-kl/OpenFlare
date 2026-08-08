@@ -39,7 +39,7 @@ func setupOpenFlareAccessLogTestEnvironment(t *testing.T) (context.Context, func
 
 	logstore.ResetForTest()
 	logstore.SetConfigReader(func(_ context.Context, key string) (string, error) {
-		if key == "log_database" {
+		if key == model.ConfigKeyLogDatabase {
 			return "sqlite", nil
 		}
 		return "", nil
