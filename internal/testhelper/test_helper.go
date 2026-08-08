@@ -383,6 +383,7 @@ func SetupLogStoresForTest(t *testing.T) {
 	gdb := db.DB(context.Background())
 	require.NoError(t, gdb.AutoMigrate(
 		&analyticsmodel.NodeAccessLog{},
+		&analyticsmodel.UserAccessLog{},
 		&analyticsmodel.NodeMetricSnapshot{},
 		&analyticsmodel.NodeEdgeHealth{},
 		&analyticsmodel.NodeObsFrps{},
