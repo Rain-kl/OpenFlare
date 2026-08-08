@@ -272,6 +272,9 @@ func validateSWOfflineDomains(key, value string) error {
 		if domain == "" {
 			return fmt.Errorf("%s 包含空域名", key)
 		}
+		if raw != domain {
+			return fmt.Errorf("%s 域名必须为小写且不含首尾空格：%s", key, raw)
+		}
 		if _, ok := seen[domain]; ok {
 			return fmt.Errorf("%s 包含重复域名 %s", key, domain)
 		}
