@@ -24,18 +24,19 @@ sidebar: false
 
 ### 新增
 
-- 支持 Service Worker 离线兜底：为启用 HTTPS 的网站下发 Service Worker 并缓存离线联系页，域名无法访问时浏览器展示联系站长页面，减少用户流失。可指定生效域名范围（仅对选中的 HTTPS 域名生效），配置位于「响应页面」-「联系页」，可在版本发布中批量生效。
+- 支持 Service Worker 离线兜底：为启用 HTTPS 的网站下发 Service Worker 并缓存离线页，域名无法访问时浏览器展示离线兜底页面，减少用户流失。可指定生效域名范围（仅对选中的 HTTPS 域名生效），配置位于「响应页面」-「离线页」，可在版本发布中批量生效。
 
 ### 修复
 
 - 修复 `SWOfflineDomains` 校验与版本比对逻辑：校验器严格拒绝 JSON `null` 输入，配置版本 Diff 比对改用 JSON 序列化避免 `strings.Join` 逗号分隔符歧义。
-- 修复 HTML 编辑器预览标题：`HtmlEditorWorkspace` 支持传入 `previewTitle`，离线联系页预览使用「离线联系页实时预览」。
+- 修复 HTML 编辑器预览标题：`HtmlEditorWorkspace` 支持传入 `previewTitle`，离线页预览使用「离线页实时预览」。
 
 ### 改进
 
-- 响应页面统一：将源站错误页与 Service Worker 离线兜底联系页整合至统一的「响应页面」（`/responses`）标签页中，移除原 `/error-pages` 独立路由。
+- 响应页面统一：将源站错误页与 Service Worker 离线兜底离线页整合至统一的「响应页面」（`/responses`）标签页中，移除原 `/error-pages` 独立路由。
 - 响应页面 Tab 状态 URL 同步：响应页面（`/responses`）的 Tab 状态增加 URL 查询参数 `tab` 支持，刷新页面时自动保持当前选中的标签页。
-- 响应页面编辑与真实预览独立路由：为「源站错误页」与「离线联系页」提供独立的 `/responses/error-page/edit`、`/responses/error-page/preview`、`/responses/contact/edit` 及 `/responses/contact/preview` 路由入口，恢复默认展示网页预览图、点击编辑进入包含预制模板与代码编辑器的独立编辑页逻辑。
+- 响应页面编辑与真实预览独立路由：为「源站错误页」与「离线页」提供独立的 `/responses/error-page/edit`、`/responses/error-page/preview`、`/responses/offline/edit` 及 `/responses/offline/preview` 路由入口，恢复默认展示网页预览图、点击编辑进入包含预制模板与代码编辑器的独立编辑页逻辑。
+- 离线页预制模板支持：新增离线页内置预制模板套件（「极简白底」、「线框拓扑」、「包豪斯」），与源站错误页模板风格保持一致，可在编辑界面一键加载与预览。
 
 ## [v3.4.5] - 2026-08-08
 

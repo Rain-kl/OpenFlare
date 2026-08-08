@@ -28,13 +28,13 @@ export const defaultErrorPageFields: ErrorPageFields = {
   html: '',
 };
 
-export type ContactPageFields = {
+export type OfflinePageFields = {
   enabled: boolean;
   html: string;
   domains: string[];
 };
 
-export const defaultContactPageFields: ContactPageFields = {
+export const defaultOfflinePageFields: OfflinePageFields = {
   enabled: false,
   html: '',
   domains: [],
@@ -72,9 +72,9 @@ export function mapOptionsToErrorFields(
   };
 }
 
-export function mapOptionsToContactFields(
+export function mapOptionsToOfflineFields(
   optionMap: Record<string, string>,
-): ContactPageFields {
+): OfflinePageFields {
   return {
     enabled: optionMap[KEY_SW_ENABLED] === 'true',
     html: optionMap[KEY_SW_HTML] ?? '',

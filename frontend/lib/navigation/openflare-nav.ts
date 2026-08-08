@@ -66,8 +66,8 @@ export const openflareWebsiteNavGroup: OpenFlareNavGroup = {
       childUrls: [
         '/responses/error-page/edit',
         '/responses/error-page/preview',
-        '/responses/contact/edit',
-        '/responses/contact/preview',
+        '/responses/offline/edit',
+        '/responses/offline/preview',
       ],
     },
   ],

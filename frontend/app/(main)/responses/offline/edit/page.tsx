@@ -3,7 +3,14 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, FileCode2, Loader2, RotateCcw, Save } from 'lucide-react';
+import {
+  ArrowLeft,
+  FileCode2,
+  Loader2,
+  RotateCcw,
+  Save,
+  Sparkles,
+} from 'lucide-react';
 import { toast } from 'sonner';
 
 import { useAuth } from '@/components/providers/auth-provider';
@@ -21,24 +28,39 @@ import { Button } from '@/components/ui/button';
 import { EmptyStateWithBorder } from '@/components/layout/empty';
 import { ErrorInline } from '@/components/layout/error';
 import { LoadingStateWithBorder } from '@/components/layout/loading';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { HtmlEditorWorkspace } from '@/components/common/html-editor-workspace';
+import {
+  OFFLINE_PAGE_TEMPLATES,
+  DEFAULT_OFFLINE_PAGE_TEMPLATE_ID,
+  getOfflinePageTemplate,
+} from '@/lib/openflare/offline-page-templates';
 import { OptionService } from '@/lib/services/openflare';
 
 import {
   invalidateResponseQueries,
   KEY_SW_HTML,
-  mapOptionsToContactFields,
+  mapOptionsToOfflineFields,
   OPTIONS_QUERY_KEY,
   optionsToMap,
 } from '../../components/shared';
 
-const CONTACT_PAGE_HTML_MAX_BYTES = 256 * 1024;
+const OFFLINE_PAGE_HTML_MAX_BYTES = 256 * 1024;
 
-export default function ContactPageEditPage() {
+export default function OfflinePageEditPage() {
   const { user, loading: authLoading } = useAuth();
   const queryClient = useQueryClient();
   const [html, setHtml] = useState('');
   const [restoreOpen, setRestoreOpen] = useState(false);
+  const [templateId, setTemplateId] = useState(
+    DEFAULT_OFFLINE_PAGE_TEMPLATE_ID,
+  );
 
   const optionsQuery = useQuery({
     queryKey: OPTIONS_QUERY_KEY,
@@ -48,25 +70,35 @@ export default function ContactPageEditPage() {
 
   useEffect(() => {
     if (!optionsQuery.data) return;
-    setHtml(mapOptionsToContactFields(optionsToMap(optionsQuery.data)).html);
+    setHtml(mapOptionsToOfflineFields(optionsToMap(optionsQuery.data)).html);
   }, [optionsQuery.data]);
 
   const saveMutation = useMutation({
     mutationFn: async () => {
       const bytes = new TextEncoder().encode(html).length;
-      if (bytes > CONTACT_PAGE_HTML_MAX_BYTES) {
+      if (bytes > OFFLINE_PAGE_HTML_MAX_BYTES) {
         throw new Error('HTML 大小超出限制（最大 256KB）');
       }
       await OptionService.updateBatch([{ key: KEY_SW_HTML, value: html }]);
     },
     onSuccess: async () => {
-      toast.success('离线联系页 HTML 已保存，请前往版本发布使配置生效');
+      toast.success('离线页 HTML 已保存，请前往版本发布使配置生效');
       await invalidateResponseQueries(queryClient);
     },
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : '保存失败');
     },
   });
+
+  const loadSelectedTemplate = () => {
+    const tmpl = getOfflinePageTemplate(templateId);
+    if (!tmpl) {
+      toast.error('未找到所选模板');
+      return;
+    }
+    setHtml(tmpl.html);
+    toast.success(`已加载模板「${tmpl.name}」到编辑器`);
+  };
 
   const restoreDefault = () => {
     setHtml('');
@@ -91,7 +123,7 @@ export default function ContactPageEditPage() {
         <EmptyStateWithBorder
           icon={FileCode2}
           title='权限不足'
-          description='只有管理员可以编辑联系页 HTML。'
+          description='只有管理员可以编辑离线页 HTML。'
         />
       </div>
     );
@@ -102,7 +134,7 @@ export default function ContactPageEditPage() {
       <div className='w-full py-6 px-1'>
         <LoadingStateWithBorder
           icon={FileCode2}
-          description='加载联系页配置...'
+          description='加载离线页配置...'
         />
       </div>
     );
@@ -128,7 +160,7 @@ export default function ContactPageEditPage() {
       <div className='flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between'>
         <div className='flex items-center gap-3'>
           <Button variant='outline' size='icon' className='h-8 w-8' asChild>
-            <Link href='/responses?tab=contact' aria-label='返回联系页'>
+            <Link href='/responses?tab=offline' aria-label='返回离线页'>
               <ArrowLeft className='size-4' />
             </Link>
           </Button>
@@ -136,7 +168,7 @@ export default function ContactPageEditPage() {
             <FileCode2 className='size-5 text-primary' />
             <div>
               <h1 className='text-2xl font-semibold tracking-tight'>
-                编辑离线联系页 HTML
+                编辑离线页 HTML
               </h1>
             </div>
           </div>
@@ -149,9 +181,40 @@ export default function ContactPageEditPage() {
         preview={(h) => h}
         footerHint={null}
         showPreviewLink={false}
-        previewTitle='离线联系页实时预览'
+        previewTitle='离线页实时预览'
         toolbarRight={
           <>
+            <div className='flex items-center gap-1.5'>
+              <span className='text-[11px] text-muted-foreground hidden sm:inline'>
+                内置模板
+              </span>
+              <Select value={templateId} onValueChange={setTemplateId}>
+                <SelectTrigger className='h-7 w-[160px] text-[11px] bg-background'>
+                  <SelectValue placeholder='选择模板' />
+                </SelectTrigger>
+                <SelectContent>
+                  {OFFLINE_PAGE_TEMPLATES.map((tmpl) => (
+                    <SelectItem
+                      key={tmpl.id}
+                      value={tmpl.id}
+                      className='text-xs'
+                    >
+                      {tmpl.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button
+                type='button'
+                variant='ghost'
+                size='sm'
+                className='h-7 px-2 text-[11px]'
+                onClick={loadSelectedTemplate}
+              >
+                <Sparkles className='size-3.5' />
+                加载模板
+              </Button>
+            </div>
             <Button
               type='button'
               variant='ghost'

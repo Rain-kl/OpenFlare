@@ -13,12 +13,12 @@ import { LoadingStateWithBorder } from '@/components/layout/loading';
 import { OptionService } from '@/lib/services/openflare';
 
 import {
-  mapOptionsToContactFields,
+  mapOptionsToOfflineFields,
   OPTIONS_QUERY_KEY,
   optionsToMap,
 } from '../../components/shared';
 
-export default function ContactPagePreviewPage() {
+export default function OfflinePagePreviewPage() {
   const { user, loading: authLoading } = useAuth();
 
   const optionsQuery = useQuery({
@@ -29,7 +29,7 @@ export default function ContactPagePreviewPage() {
 
   const html = useMemo(() => {
     if (!optionsQuery.data) return '';
-    return mapOptionsToContactFields(optionsToMap(optionsQuery.data)).html;
+    return mapOptionsToOfflineFields(optionsToMap(optionsQuery.data)).html;
   }, [optionsQuery.data]);
 
   if (authLoading) {
@@ -45,7 +45,7 @@ export default function ContactPagePreviewPage() {
       <div className='w-full py-6 px-1'>
         <EmptyStateWithBorder
           title='权限不足'
-          description='只有管理员可以预览联系页。'
+          description='只有管理员可以预览离线页。'
         />
       </div>
     );
@@ -54,7 +54,7 @@ export default function ContactPagePreviewPage() {
   if (optionsQuery.isLoading) {
     return (
       <div className='w-full py-6 px-1'>
-        <LoadingStateWithBorder description='加载联系页配置...' />
+        <LoadingStateWithBorder description='加载离线页配置...' />
       </div>
     );
   }
@@ -79,12 +79,12 @@ export default function ContactPagePreviewPage() {
       <div className='flex items-center justify-between gap-3 border-b bg-background/95 px-4 py-2 backdrop-blur shrink-0'>
         <div className='flex items-center gap-2 min-w-0'>
           <Button variant='outline' size='icon' className='h-8 w-8' asChild>
-            <Link href='/responses?tab=contact' aria-label='返回联系页'>
+            <Link href='/responses?tab=offline' aria-label='返回离线页'>
               <ArrowLeft className='size-4' />
             </Link>
           </Button>
           <div className='min-w-0'>
-            <p className='text-sm font-semibold truncate'>离线联系页真实预览</p>
+            <p className='text-sm font-semibold truncate'>离线页真实预览</p>
             <p className='text-[11px] text-muted-foreground font-mono truncate'>
               全屏展示
             </p>
@@ -92,20 +92,20 @@ export default function ContactPagePreviewPage() {
         </div>
         <div className='flex items-center gap-2 shrink-0'>
           <Button variant='outline' size='sm' asChild>
-            <Link href='/responses/contact/edit'>
+            <Link href='/responses/offline/edit'>
               <Pencil className='size-3.5' />
               编辑
             </Link>
           </Button>
           <Button variant='ghost' size='icon' className='h-8 w-8' asChild>
-            <Link href='/responses?tab=contact' aria-label='关闭预览'>
+            <Link href='/responses?tab=offline' aria-label='关闭预览'>
               <X className='size-4' />
             </Link>
           </Button>
         </div>
       </div>
       <iframe
-        title='离线联系页真实预览'
+        title='离线页真实预览'
         sandbox=''
         srcDoc={html}
         className='flex-1 w-full border-0 bg-background min-h-0'

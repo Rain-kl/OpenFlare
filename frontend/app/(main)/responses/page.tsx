@@ -12,15 +12,15 @@ import { useAuth } from '@/components/providers/auth-provider';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { OptionService } from '@/lib/services/openflare';
 
-import { ContactPageTab } from './components/contact-page-tab';
 import { ErrorPageTab } from './components/error-page-tab';
+import { OfflinePageTab } from './components/offline-page-tab';
 import { OPTIONS_QUERY_KEY, optionsToMap } from './components/shared';
 
-type ResponseTab = 'error' | 'contact';
+type ResponseTab = 'error' | 'offline';
 
 function resolveTab(tabParam: string | null): ResponseTab {
-  if (tabParam === 'contact') {
-    return 'contact';
+  if (tabParam === 'offline') {
+    return 'offline';
   }
   return 'error';
 }
@@ -115,7 +115,7 @@ function ResponsesPageContent() {
         <div>
           <h1 className='text-2xl font-semibold tracking-tight'>响应页面</h1>
           <p className='text-sm text-muted-foreground'>
-            配置源站错误页与离线兜底联系页。保存后需发布配置版本后生效。
+            配置源站错误页与离线页。保存后需发布配置版本后生效。
           </p>
         </div>
       </div>
@@ -133,10 +133,10 @@ function ResponsesPageContent() {
             错误页
           </TabsTrigger>
           <TabsTrigger
-            value='contact'
+            value='offline'
             className='px-0 pb-2 text-xs font-semibold'
           >
-            联系页
+            离线页
           </TabsTrigger>
         </TabsList>
 
@@ -144,8 +144,8 @@ function ResponsesPageContent() {
           <ErrorPageTab optionMap={optionMap} />
         </TabsContent>
 
-        <TabsContent value='contact' className='focus-visible:outline-none'>
-          <ContactPageTab optionMap={optionMap} />
+        <TabsContent value='offline' className='focus-visible:outline-none'>
+          <OfflinePageTab optionMap={optionMap} />
         </TabsContent>
       </Tabs>
     </div>

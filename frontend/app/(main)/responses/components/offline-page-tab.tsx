@@ -25,28 +25,28 @@ import {
 
 import { ScopeDomainDialog } from './scope-domain-dialog';
 import {
-  defaultContactPageFields,
+  defaultOfflinePageFields,
   invalidateResponseQueries,
   KEY_SW_DOMAINS,
   KEY_SW_ENABLED,
   KEY_SW_HTML,
-  mapOptionsToContactFields,
-  type ContactPageFields,
+  mapOptionsToOfflineFields,
+  type OfflinePageFields,
 } from './shared';
 
-export function ContactPageTab({
+export function OfflinePageTab({
   optionMap,
 }: {
   optionMap: Record<string, string>;
 }) {
   const queryClient = useQueryClient();
-  const [fields, setFields] = useState<ContactPageFields>(
-    defaultContactPageFields,
+  const [fields, setFields] = useState<OfflinePageFields>(
+    defaultOfflinePageFields,
   );
   const [scopeOpen, setScopeOpen] = useState(false);
 
   useEffect(() => {
-    setFields(mapOptionsToContactFields(optionMap));
+    setFields(mapOptionsToOfflineFields(optionMap));
   }, [optionMap]);
 
   const zonesQuery = useQuery({
@@ -72,7 +72,7 @@ export function ContactPageTab({
       ]);
     },
     onSuccess: async () => {
-      toast.success('联系页已保存，请前往版本发布使配置生效');
+      toast.success('离线页已保存，请前往版本发布使配置生效');
       await invalidateResponseQueries(queryClient);
     },
     onError: (error) => {
@@ -88,7 +88,7 @@ export function ContactPageTab({
             <CardTitle className='text-base'>离线兜底</CardTitle>
             <CardDescription>
               启用后给启用 HTTPS 的网站下发 Service
-              Worker，域名被墙时浏览器从缓存展示此联系页。
+              Worker，域名被墙时浏览器从缓存展示此离线页。
             </CardDescription>
           </div>
           <Button
@@ -186,13 +186,13 @@ export function ContactPageTab({
           </div>
           <div className='flex shrink-0 flex-wrap gap-2'>
             <Button variant='outline' size='sm' asChild>
-              <Link href='/responses/contact/preview'>
+              <Link href='/responses/offline/preview'>
                 <Expand className='size-3.5' />
                 真实预览
               </Link>
             </Button>
             <Button size='sm' asChild>
-              <Link href='/responses/contact/edit'>
+              <Link href='/responses/offline/edit'>
                 <Pencil className='size-3.5' />
                 编辑
               </Link>
@@ -202,7 +202,7 @@ export function ContactPageTab({
         <CardContent>
           <div className='overflow-hidden rounded-md border bg-muted/30'>
             <iframe
-              title='离线联系页预览'
+              title='离线页预览'
               sandbox=''
               srcDoc={fields.html}
               className='h-[32rem] w-full bg-background'
