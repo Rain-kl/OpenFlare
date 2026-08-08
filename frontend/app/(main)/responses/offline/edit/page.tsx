@@ -39,6 +39,7 @@ import { HtmlEditorWorkspace } from '@/components/common/html-editor-workspace';
 import {
   OFFLINE_PAGE_TEMPLATES,
   DEFAULT_OFFLINE_PAGE_TEMPLATE_ID,
+  effectiveOfflinePageHTML,
   getOfflinePageTemplate,
 } from '@/lib/openflare/offline-page-templates';
 import { OptionService } from '@/lib/services/openflare';
@@ -178,7 +179,7 @@ export default function OfflinePageEditPage() {
       <HtmlEditorWorkspace
         value={html}
         onChange={setHtml}
-        preview={(h) => h}
+        preview={effectiveOfflinePageHTML}
         footerHint={null}
         showPreviewLink={false}
         previewTitle='离线页实时预览'
