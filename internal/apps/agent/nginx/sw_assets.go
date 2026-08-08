@@ -63,6 +63,8 @@ local function escape_redir(value)
     local escaped = string.gsub(value, "\\", "\\\\")
     escaped = string.gsub(escaped, '"', '\\"')
     escaped = string.gsub(escaped, "<", "\\x3C")
+    escaped = string.gsub(escaped, string.char(0xE2, 0x80, 0xA8), "\\u2028")
+    escaped = string.gsub(escaped, string.char(0xE2, 0x80, 0xA9), "\\u2029")
     escaped = string.gsub(escaped, "\r", "\\r")
     escaped = string.gsub(escaped, "\n", "\\n")
     return escaped
