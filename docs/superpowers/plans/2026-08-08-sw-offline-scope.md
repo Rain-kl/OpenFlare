@@ -546,7 +546,7 @@ function parseDomains(raw: string | undefined): string[] {
 
 - 无橙云 Switch、无 Cloudflare 依赖。
 - 数据源为 `{ zoneDomain: string; domains: { domain: string }[] }` 分组（zone 根域并入）。
-- 预勾选：打开时以当前已生效域名初始化 `selected`（Set<string>）。
+- 预勾选：打开时以当前已生效域名初始化 `selected`（`Set<string>`）。
 - 确认回调 `onSubmit([...selected])`（域名字符串数组）。
 
 组件骨架（沿用 member-add-dialog 的 Dialog 结构，`sw` 前缀类名无冲突）：

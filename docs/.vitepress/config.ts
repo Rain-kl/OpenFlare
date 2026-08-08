@@ -14,7 +14,8 @@ export default defineConfig({
     'components/**',
     'snippets/**',
     'plan/**',
-    'guideline/**'
+    'guideline/**',
+    'superpowers/**'
   ],
 
   markdown: {
