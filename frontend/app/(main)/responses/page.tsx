@@ -115,7 +115,7 @@ function ResponsesPageContent() {
         <div>
           <h1 className='text-2xl font-semibold tracking-tight'>响应页面</h1>
           <p className='text-sm text-muted-foreground'>
-            配置源站错误页与离线页。保存后需发布配置版本后生效。
+            配置源站错误页与离线页。
           </p>
         </div>
       </div>

@@ -91,10 +91,10 @@ export function OfflinePageTab({
       <Card className='border-dashed shadow-none'>
         <CardHeader className='flex flex-row items-start justify-between gap-4 space-y-0'>
           <div className='space-y-1.5'>
-            <CardTitle className='text-base'>离线兜底</CardTitle>
+            <CardTitle className='text-base'>离线页</CardTitle>
             <CardDescription>
               启用后给启用 HTTPS 的网站下发 Service
-              Worker，域名被墙时浏览器从缓存展示此离线页。
+              Worker，域名无法访问时浏览器从缓存展示此离线页。
             </CardDescription>
           </div>
           <Button
@@ -115,10 +115,10 @@ export function OfflinePageTab({
           <div className='flex items-start justify-between gap-6'>
             <div className='space-y-1'>
               <Label className='text-sm font-medium'>
-                启用 Service Worker 离线兜底
+                启用 Service Worker 离线页
               </Label>
               <p className='text-sm text-muted-foreground'>
-                仅对 HTTPS 网站生效；未启用的站点不受影响。
+                仅对 HTTPS 网站生效。
               </p>
             </div>
             <Switch
@@ -126,7 +126,7 @@ export function OfflinePageTab({
               onCheckedChange={(enabled) =>
                 setFields((prev) => ({ ...prev, enabled }))
               }
-              aria-label='启用离线兜底'
+              aria-label='启用离线页'
               className='mt-0.5 shrink-0'
             />
           </div>
@@ -194,7 +194,7 @@ export function OfflinePageTab({
             <Button variant='outline' size='sm' asChild>
               <Link href='/responses/offline/preview'>
                 <Expand className='size-3.5' />
-                真实预览
+                预览
               </Link>
             </Button>
             <Button size='sm' asChild>

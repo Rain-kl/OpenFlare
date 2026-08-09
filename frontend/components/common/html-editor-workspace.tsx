@@ -139,7 +139,7 @@ export function HtmlEditorWorkspace({
                 >
                   <Link href='/error-pages/preview'>
                     <Expand className='size-3' />
-                    真实预览
+                    预览
                   </Link>
                 </Button>
               ) : null}

@@ -88,7 +88,7 @@ export default function OfflinePagePreviewPage() {
             </Link>
           </Button>
           <div className='min-w-0'>
-            <p className='text-sm font-semibold truncate'>离线页真实预览</p>
+            <p className='text-sm font-semibold truncate'>离线页预览</p>
             <p className='text-[11px] text-muted-foreground font-mono truncate'>
               全屏展示
             </p>
@@ -109,7 +109,7 @@ export default function OfflinePagePreviewPage() {
         </div>
       </div>
       <iframe
-        title='离线页真实预览'
+        title='离线页预览'
         sandbox=''
         srcDoc={html}
         className='flex-1 w-full border-0 bg-background min-h-0'

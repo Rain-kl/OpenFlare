@@ -78,22 +78,27 @@ ngx.say([[<!DOCTYPE html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex,nofollow">
-<title>加载中...</title>
+<title></title>
 <script>
+console.debug("[sw-challenge] challenge page loaded, redirect target: ]] .. redir .. [[");
 if ("serviceWorker" in navigator) {
+  console.debug("[sw-challenge] registering service worker /sw.js");
   navigator.serviceWorker.register("/sw.js").then(function () {
+    console.debug("[sw-challenge] service worker registered");
     document.cookie = "__openflare_sw=1; Path=/; Max-Age=31536000; Secure; SameSite=Lax";
     location.replace("]] .. redir .. [[");
-  }).catch(function () {
+  }).catch(function (err) {
+    console.debug("[sw-challenge] service worker registration failed, redirecting anyway: ", err);
     location.replace("]] .. redir .. [[");
   });
 } else {
+  console.debug("[sw-challenge] service worker unsupported, redirecting");
   document.cookie = "__openflare_sw=1; Path=/; Max-Age=31536000; Secure; SameSite=Lax";
   location.replace("]] .. redir .. [[");
 }
 </script>
 </head>
-<body>正在加载...</body>
+<body></body>
 </html>]])
 `
 

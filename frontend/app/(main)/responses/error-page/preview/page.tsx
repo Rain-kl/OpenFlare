@@ -87,7 +87,7 @@ export default function ErrorPagePreviewPage() {
             </Link>
           </Button>
           <div className='min-w-0'>
-            <p className='text-sm font-semibold truncate'>错误页真实预览</p>
+            <p className='text-sm font-semibold truncate'>错误页预览</p>
             <p className='text-[11px] text-muted-foreground font-mono truncate'>
               {'{{status}}'}→502 · {'{{host}}'}→example.com · 全屏展示
             </p>
@@ -108,7 +108,7 @@ export default function ErrorPagePreviewPage() {
         </div>
       </div>
       <iframe
-        title='源站错误页真实预览'
+        title='源站错误页预览'
         sandbox=''
         srcDoc={previewSrcDoc}
         className='flex-1 w-full border-0 bg-background min-h-0'

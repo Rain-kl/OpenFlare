@@ -94,7 +94,7 @@ export function ErrorPageTab({
           <div className='space-y-1.5'>
             <CardTitle className='text-base'>触发策略</CardTitle>
             <CardDescription>
-              配置源站错误页的启用条件与触发状态码。修改后需点击保存。
+              配置源站错误页的启用条件与触发状态码。
             </CardDescription>
           </div>
           <Button
@@ -133,8 +133,7 @@ export function ErrorPageTab({
             <div className='space-y-1'>
               <Label className='text-sm font-medium'>仅针对 GET 请求</Label>
               <p className='text-sm text-muted-foreground'>
-                开启后仅对 GET 请求的匹配错误状态码返回自定义错误页；POST/PUT
-                等其它方法直接透传源站响应。
+                开启后仅对 GET 请求的匹配错误状态码返回自定义错误页。
               </p>
             </div>
             <Switch
@@ -157,8 +156,7 @@ export function ErrorPageTab({
                 触发状态码
               </Label>
               <p className='text-sm text-muted-foreground'>
-                支持单码（如 502）或闭区间（如 500-599），范围 400–599。默认
-                500-599。
+                支持单码（如 502）或闭区间（如 500-599）。
               </p>
             </div>
             <TagsInput
@@ -189,7 +187,7 @@ export function ErrorPageTab({
             <Button variant='outline' size='sm' asChild>
               <Link href='/responses/error-page/preview'>
                 <Expand className='size-3.5' />
-                真实预览
+                预览
               </Link>
             </Button>
             <Button size='sm' asChild>
