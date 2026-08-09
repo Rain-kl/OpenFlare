@@ -48,6 +48,9 @@ type AccessLogStore interface {
 	// EnsurePartitions 幂等预建 PG 分区（按月），覆盖 [from, to] 月份；CH/SQLite 为 no-op。
 	// 目标为 PG 的迁移在复制前调用，避免历史数据写入报 "no partition of relation found"。
 	EnsurePartitions(ctx context.Context, from, to time.Time) error
+	// DropEmptyPartitions 幂等清理 PG 空分区表：删除 before 月份之前、且无任何数据的按月分区；
+	// CH/SQLite 为 no-op（CH 分区随数据删除自动消失、SQLite 无分区）。
+	DropEmptyPartitions(ctx context.Context, before time.Time) error
 }
 
 // ObservabilityStore 可观测 4 表（metric snapshots / edge health / frps / frpc）。

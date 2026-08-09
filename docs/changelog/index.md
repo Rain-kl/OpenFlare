@@ -32,6 +32,7 @@ sidebar: false
 - 服务工作者（SW）注入挑战页改为前台无感知：不再显示「加载中…」文案，页面空白，仅通过浏览器控制台输出 `[sw-challenge]` 调试信息（注册成功/失败/回退重定向），注入过程不打扰访客。
 - 性能指标（CPU/内存/磁盘/网络）与访问日志的保留时长解耦：新增三库共用的 `metric_retention_days` 配置（默认 3 天），系统垃圾清理每日任务按独立短留存清理指标快照；访问日志仍按 `log_retention_days_*` 清理。
 - ClickHouse 改为默认关闭：`clickhouse.enabled` 缺省或为 `false` 时不启用（此前会被强制置为 `true`），日志/指标由 PostgreSQL/SQLite 主库承担；显式 `true` 或设置 `CLICKHOUSE_HOST` / `CLICKHOUSE_ENABLED=true` 时启用。
+- 系统垃圾清理任务在删除过期日志后，会同时清理旧月份空分区表：PostgreSQL 按月分区的访问日志表（节点/用户）在数据删除后若该月分区已无数据，则自动删除对应分区表，避免历史分区表无限累积；仅删除「当前月之前」且为空的月份分区，当月/未来月及仍有数据的分区保留。
 
 ### 修复
 

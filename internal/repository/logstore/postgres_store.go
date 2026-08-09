@@ -668,6 +668,39 @@ func (s *gormLogStore) EnsurePartitions(ctx context.Context, from, to time.Time)
 	return nil
 }
 
+// DropEmptyPartitions 幂等清理 PG 空分区表：仅删除 before 月份之前、且无任何数据的分区
+// （of_node_access_logs / w_user_access_logs 按月分区）；非 PG 方言为 no-op（SQLite 无分区、CH 不走本实现）。
+func (s *gormLogStore) DropEmptyPartitions(ctx context.Context, before time.Time) error {
+	if !isPostgresDialect(s.db) {
+		return nil
+	}
+	for _, table := range accessLogPartitionTables {
+		var names []string
+		if err := s.db.WithContext(ctx).Raw(`
+SELECT c.relname
+FROM pg_inherits i
+JOIN pg_class c ON c.oid = i.inhrelid
+JOIN pg_class p ON p.oid = i.inhparent
+JOIN pg_namespace n ON n.oid = p.relnamespace AND n.nspname = current_schema()
+WHERE p.relname = ?`, table).Scan(&names).Error; err != nil {
+			return fmt.Errorf("list partitions of %s: %w", table, err)
+		}
+		for _, name := range dropEligiblePartitionNames(table, names, before) {
+			var one int
+			if err := s.db.WithContext(ctx).Raw("SELECT 1 FROM " + name + " LIMIT 1").Scan(&one).Error; err != nil {
+				return fmt.Errorf("check partition %s empty: %w", name, err)
+			}
+			if one == 1 {
+				continue // 仍有数据，保留
+			}
+			if err := s.db.WithContext(ctx).Exec("DROP TABLE IF EXISTS " + name).Error; err != nil {
+				return fmt.Errorf("drop empty partition %s: %w", name, err)
+			}
+		}
+	}
+	return nil
+}
+
 // gormMigrationRange 按时间列 ORDER BY ± LIMIT 1 取首尾记录（经 GORM schema 扫描，
 // 避免 SQLite 时间存文本导致 MIN/MAX 原始 Scan 失败）；空表返回两个零值。
 func gormMigrationRange[T any](

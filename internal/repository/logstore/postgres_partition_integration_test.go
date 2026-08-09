@@ -86,7 +86,7 @@ func TestEnsurePartitionsPostgresInsertAcrossMonths(t *testing.T) {
 
 	var partitionCount int64
 	if err := gdb.Raw(
-		"SELECT count(*) FROM pg_inherits WHERE inhrelid = to_regclass('of_node_access_logs')",
+		"SELECT count(*) FROM pg_inherits WHERE inhparent = to_regclass('of_node_access_logs')",
 	).Scan(&partitionCount).Error; err != nil {
 		t.Fatalf("count partitions: %v", err)
 	}
@@ -143,6 +143,105 @@ func TestEnsurePartitionsPostgresInsertAcrossMonths(t *testing.T) {
 	}
 	if !uaFrom.Equal(time.Date(2026, 1, 16, 0, 0, 0, 0, time.UTC)) || !uaTo.Equal(time.Date(2026, 3, 17, 0, 0, 0, 0, time.UTC)) {
 		t.Fatalf("user MigrationRange = %s ~ %s", uaFrom, uaTo)
+	}
+}
+
+// TestDropEmptyPartitionsPostgres 需要 TEST_POSTGRES_DSN（未设置时跳过）：
+// 验证空分区清理只删除 before 月份之前且无数据的分区：空旧月删除、有数据旧月保留、
+// 当月/未来月保留；用户访问日志分区同步清理。
+func TestDropEmptyPartitionsPostgres(t *testing.T) {
+	dsn := strings.TrimSpace(os.Getenv("TEST_POSTGRES_DSN"))
+	if dsn == "" {
+		t.Skip("TEST_POSTGRES_DSN is not set")
+	}
+
+	gdb, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
+		DisableForeignKeyConstraintWhenMigrating: true,
+		Logger:                                   logger.Default.LogMode(logger.Silent),
+	})
+	if err != nil {
+		t.Fatalf("open postgres: %v", err)
+	}
+	sqlDB, err := gdb.DB()
+	if err != nil {
+		t.Fatalf("sql db: %v", err)
+	}
+	sqlDB.SetMaxOpenConns(1)
+
+	schema := fmt.Sprintf("logstore_drop_partition_%d", time.Now().UnixNano())
+	if !regexp.MustCompile(`^[a-z0-9_]+$`).MatchString(schema) {
+		t.Fatalf("invalid schema: %s", schema)
+	}
+	if err := gdb.Exec(`CREATE SCHEMA "` + schema + `"`).Error; err != nil {
+		t.Fatalf("create schema: %v", err)
+	}
+	if err := gdb.Exec(`SET search_path TO "` + schema + `"`).Error; err != nil {
+		t.Fatalf("set search_path: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = gdb.Exec("SET search_path TO public").Error
+		_ = gdb.Exec(`DROP SCHEMA IF EXISTS "` + schema + `" CASCADE`).Error
+		_ = sqlDB.Close()
+	})
+
+	for _, ddl := range []string{postgresNodeAccessLogsDDL, postgresUserAccessLogsDDL} {
+		if err := gdb.Exec(ddl).Error; err != nil {
+			t.Fatalf("create partitioned table: %v", err)
+		}
+	}
+
+	ctx := context.Background()
+	store := newGormStore(gdb)
+	ua := newUserAccessLogGormStore(gdb)
+
+	// 预建 202601..202603 分区，仅 202602 有数据（节点+用户各 1 条），202601/202603 为空。
+	if err := store.EnsurePartitions(ctx,
+		time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
+		time.Date(2026, 3, 20, 0, 0, 0, 0, time.UTC)); err != nil {
+		t.Fatalf("EnsurePartitions: %v", err)
+	}
+	if err := store.BatchInsertNodeAccessLogs(ctx, []analyticsmodel.NodeAccessLog{
+		{ID: 1, NodeID: "n1", LoggedAt: time.Date(2026, 2, 10, 0, 0, 0, 0, time.UTC), RemoteAddr: "1.1.1.1"},
+	}); err != nil {
+		t.Fatalf("insert node access log: %v", err)
+	}
+	if err := ua.BatchInsert(ctx, []analyticsmodel.UserAccessLog{
+		{ID: 1, UserID: 101, Path: "/a", CreatedAt: time.Date(2026, 2, 11, 0, 0, 0, 0, time.UTC)},
+	}); err != nil {
+		t.Fatalf("insert user access log: %v", err)
+	}
+
+	// before=2026-03：202601（空）应删，202602（有数据）与 202603（当月）保留。
+	if err := store.DropEmptyPartitions(ctx, time.Date(2026, 3, 15, 0, 0, 0, 0, time.UTC)); err != nil {
+		t.Fatalf("DropEmptyPartitions: %v", err)
+	}
+
+	assertPartitions := func(parent string, want int64) {
+		t.Helper()
+		var n int64
+		if err := gdb.Raw(
+			"SELECT count(*) FROM pg_inherits WHERE inhparent = to_regclass(?)",
+			parent,
+		).Scan(&n).Error; err != nil {
+			t.Fatalf("count partitions of %s: %v", parent, err)
+		}
+		if n != want {
+			t.Fatalf("%s partitions = %d, want %d", parent, n, want)
+		}
+	}
+	assertPartitions("of_node_access_logs", 2)
+	assertPartitions("w_user_access_logs", 2)
+
+	// 数据未受影响。
+	var nodeCount, userCount int64
+	if err := gdb.Model(&analyticsmodel.NodeAccessLog{}).Count(&nodeCount).Error; err != nil {
+		t.Fatalf("count node access logs: %v", err)
+	}
+	if err := gdb.Model(&analyticsmodel.UserAccessLog{}).Count(&userCount).Error; err != nil {
+		t.Fatalf("count user access logs: %v", err)
+	}
+	if nodeCount != 1 || userCount != 1 {
+		t.Fatalf("data counts = (%d, %d), want (1, 1)", nodeCount, userCount)
 	}
 }
 

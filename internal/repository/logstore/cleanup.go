@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/Rain-kl/Wavelet/internal/model"
@@ -36,6 +37,9 @@ const defaultMetricRetentionDays = 3
 
 // partitionLeadMonths 清理时确保「当前月 + 未来 2 个月」分区持续存在。
 const partitionLeadMonths = 2
+
+// accessLogPartitionTables 按月分区的访问日志表（分区预建/空分区清理共用）。
+var accessLogPartitionTables = []string{"of_node_access_logs", "w_user_access_logs"}
 
 // retentionDaysForDatabase 按给定日志库读取保留天数（默认 90）。
 func retentionDaysForDatabase(ctx context.Context, dbName string) int {
@@ -108,6 +112,13 @@ func CleanupExpired(ctx context.Context) (*CleanupSummary, error) {
 	}, summary); err != nil {
 		return nil, err
 	}
+
+	// 过期数据删除后清理旧月份空分区表，避免分区表无限累积；
+	// 仅删「当前月之前」且无数据的分区（best-effort，失败不阻断数据保留清理）。
+	if err := s.AccessLogs.DropEmptyPartitions(ctx, now); err != nil {
+		logger.WarnF(ctx, "drop empty log partitions failed: %v", err)
+	}
+
 	if err := cleanupTable("metric_snapshots", func() (int64, error) {
 		return s.Observability.DeleteMetricSnapshotsBefore(ctx, metricCutoff)
 	}, summary); err != nil {
@@ -153,11 +164,38 @@ func partitionStatementsRange(from, to time.Time) []string {
 		suffix := start.Format("200601")
 		fromDay := start.Format("2006-01-02")
 		toDay := monthEnd.Format("2006-01-02")
-		for _, table := range []string{"of_node_access_logs", "w_user_access_logs"} {
+		for _, table := range accessLogPartitionTables {
 			out = append(out, fmt.Sprintf(
 				"CREATE TABLE IF NOT EXISTS %s_%s PARTITION OF %s FOR VALUES FROM ('%s') TO ('%s')",
 				table, suffix, table, fromDay, toDay))
 		}
+	}
+	return out
+}
+
+// partitionNameMonth 解析按月分区表名 <table>_YYYYMM 的所属月份；命名不匹配返回 (零值, false)。
+func partitionNameMonth(table, name string) (time.Time, bool) {
+	suffix, ok := strings.CutPrefix(name, table+"_")
+	if !ok || len(suffix) != 6 {
+		return time.Time{}, false
+	}
+	m, err := time.Parse("200601", suffix)
+	if err != nil {
+		return time.Time{}, false
+	}
+	return m, true
+}
+
+// dropEligiblePartitionNames 返回 before 月份之前、命名合法的分区表名（是否为空由调用方校验）。
+func dropEligiblePartitionNames(table string, names []string, before time.Time) []string {
+	beforeMonth := time.Date(before.Year(), before.Month(), 1, 0, 0, 0, 0, time.UTC)
+	out := make([]string, 0, len(names))
+	for _, name := range names {
+		month, ok := partitionNameMonth(table, name)
+		if !ok || !month.Before(beforeMonth) {
+			continue // 非法命名或当月/未来月分区，必须保留
+		}
+		out = append(out, name)
 	}
 	return out
 }

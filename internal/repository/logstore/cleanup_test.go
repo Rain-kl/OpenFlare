@@ -313,3 +313,59 @@ func hasAnySuffix(stmt string, suffixes []string) bool {
 	}
 	return false
 }
+
+// TestPartitionNameMonth 覆盖按月分区表名解析：合法命名返回所属月份，非法/其它表前缀返回 false。
+func TestPartitionNameMonth(t *testing.T) {
+	cases := []struct {
+		table string
+		name  string
+		want  string // 期望 "YYYY-MM"；空串表示应解析失败
+	}{
+		{"of_node_access_logs", "of_node_access_logs_202608", "2026-08"},
+		{"w_user_access_logs", "w_user_access_logs_202612", "2026-12"},
+		{"of_node_access_logs", "w_user_access_logs_202608", ""},   // 其它表前缀
+		{"of_node_access_logs", "of_node_access_logs_20268", ""},   // 位数不足
+		{"of_node_access_logs", "of_node_access_logs_202613", ""},  // 非法月份
+		{"of_node_access_logs", "of_node_access_logs_default", ""}, // 非数字后缀
+	}
+	for _, c := range cases {
+		got, ok := partitionNameMonth(c.table, c.name)
+		if c.want == "" {
+			if ok {
+				t.Fatalf("partitionNameMonth(%q, %q) ok = true, want false", c.table, c.name)
+			}
+			continue
+		}
+		if !ok || got.Format("2006-01") != c.want {
+			t.Fatalf("partitionNameMonth(%q, %q) = %v, want %s", c.table, c.name, got, c.want)
+		}
+	}
+}
+
+// TestDropEligiblePartitionNames 覆盖空分区清理筛选：只保留 before 月份之前、命名合法的分区。
+func TestDropEligiblePartitionNames(t *testing.T) {
+	before := time.Date(2026, 10, 15, 0, 0, 0, 0, time.UTC)
+	names := []string{
+		"of_node_access_logs_202608",
+		"of_node_access_logs_202609",
+		"of_node_access_logs_202610",  // 当月：保留
+		"of_node_access_logs_202611",  // 未来：保留
+		"of_node_access_logs_default", // 非法命名：忽略
+	}
+	got := dropEligiblePartitionNames("of_node_access_logs", names, before)
+	want := []string{"of_node_access_logs_202608", "of_node_access_logs_202609"}
+	if len(got) != len(want) {
+		t.Fatalf("eligible = %v, want %v", got, want)
+	}
+	for i, w := range want {
+		if got[i] != w {
+			t.Fatalf("eligible[%d] = %q, want %q", i, got[i], w)
+		}
+	}
+
+	// 月初边界：before 恰为当月 1 日 0 点，当月分区仍保留。
+	first := time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
+	if got := dropEligiblePartitionNames("of_node_access_logs", []string{"of_node_access_logs_202610"}, first); len(got) != 0 {
+		t.Fatalf("eligible at month boundary = %v, want empty", got)
+	}
+}
