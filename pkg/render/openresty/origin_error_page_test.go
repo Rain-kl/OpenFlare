@@ -90,33 +90,46 @@ func TestRenderOriginErrorPageGetOnly(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(out, "proxy_intercept_errors on") {
-		t.Fatal("missing intercept on")
+	// Regression: GET-only must NOT intercept at the proxy level.
+	// proxy_intercept_errors discards the upstream error body, so non-GET requests
+	// would receive nginx's own default error page instead of the original
+	// response (this was the reported bug: POST 503 returned OpenResty's page).
+	if strings.Contains(out, "proxy_intercept_errors") {
+		t.Fatal("get_only must not emit proxy_intercept_errors (it discards the upstream body for non-GET)")
+	}
+	// The body replacement must happen in Lua filters that only fire for GET.
+	if !strings.Contains(out, "header_filter_by_lua_block") {
+		t.Fatal("get_only must emit header_filter_by_lua_block inside the proxy location")
+	}
+	if !strings.Contains(out, "body_filter_by_lua_block") {
+		t.Fatal("get_only must emit body_filter_by_lua_block inside the proxy location")
+	}
+	if !strings.Contains(out, `ngx.req.get_method() == "GET"`) {
+		t.Fatal("Lua filter must replace the body only for GET requests")
+	}
+	if !strings.Contains(out, `ngx.ctx.openflare_error_html`) {
+		t.Fatal("Lua filter must stash the error HTML in ngx.ctx for the body filter")
+	}
+	if !strings.Contains(out, `local codes = {500`) {
+		t.Fatal("Lua filter must carry the expanded status codes")
+	}
+	if !strings.Contains(out, ErrorPageTmplPlaceholder) {
+		t.Fatal("missing error page template placeholder")
+	}
+	// No error_page / named location machinery in GET-only mode.
+	if strings.Contains(out, "error_page") {
+		t.Fatal("get_only must not emit error_page (named-location path can only serve HTML or an empty status, never the original body)")
+	}
+	if strings.Contains(out, "@__openflare_origin_error") {
+		t.Fatal("get_only must not emit the named error location")
 	}
 	// nginx rejects proxy_intercept_errors inside limit_except (only allow/deny
-	// are valid there), which made the generated config fail `openresty -t` and
-	// caused apply rollback. GET-only must rely on the internal location's Lua.
+	// are valid there); GET-only must rely on Lua filters instead.
 	if strings.Contains(out, "limit_except") {
 		t.Fatal("get_only must not emit limit_except (proxy_intercept_errors is not allowed there)")
 	}
-	if strings.Contains(out, "proxy_intercept_errors off") {
-		t.Fatal("get_only must not emit proxy_intercept_errors off")
-	}
-	if !strings.Contains(out, `get_only = true`) {
-		t.Fatal("internal location must set get_only = true")
-	}
-	if !strings.Contains(out, `ngx.req.get_method() ~= "GET"`) {
-		t.Fatal("internal location must skip HTML for non-GET")
-	}
-	// Regression: error_page must target the NAMED location. URI internal redirects
-	// (location = /uri) rewrite the request method to GET, so ngx.req.get_method()
-	// would always return "GET" and the get_only gate would never skip HTML for
-	// POST/PUT. Named locations preserve the original method.
-	if !strings.Contains(out, "error_page 500") || !strings.Contains(out, " @__openflare_origin_error;") {
-		t.Fatalf("error_page must target the named location, got:\n%s", out)
-	}
 	if strings.Contains(out, "location = /__openflare_origin_error") {
-		t.Fatal("get_only must not use URI internal redirect (rewrites method to GET, breaking the gate)")
+		t.Fatal("must not use URI internal redirect (rewrites method to GET, breaking the GET gate)")
 	}
 }
 

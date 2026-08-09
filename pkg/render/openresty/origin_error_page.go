@@ -11,12 +11,16 @@ const (
 	OriginErrorPageSupportPath = "error_pages/origin_error.html.tmpl"
 
 	// OriginErrorPageInternalLocation is the named nginx location that serves the error body.
-	// Must be a NAMED location (@...), not a URI internal redirect: error_page URI redirects
-	// rewrite the request method to GET, so the get_only Lua check (ngx.req.get_method() ~= "GET")
-	// would never fire and POST/PUT would still receive the custom HTML. Named locations preserve
-	// the original request method and the original error status (without the `=` form).
+	// OriginErrorPageInternalLocation is the named nginx location that serves the error body
+	// for the all-methods mode (get_only disabled). Must be a NAMED location (@...), not a
+	// URI internal redirect: error_page URI redirects rewrite the request method to GET, so a
+	// method check inside the location could never distinguish POST/PUT. Named locations keep
+	// the original method and (without the `=` form) the original error status.
+	//
+	// When get_only is enabled this location is NOT emitted: GET-only mode replaces the body
+	// via Lua header/body filters inside the proxy location, so non-GET responses pass through
+	// with their original status and body.
 	OriginErrorPageInternalLocation = "@__openflare_origin_error"
-
 	defaultOriginErrorPageStatusTag = "500-599"
 )
 
@@ -131,25 +135,83 @@ func renderOriginErrorPageIntercept(cfg ConfigSnapshot) string {
 	if !cfg.OriginErrorPageEnabled {
 		return ""
 	}
-	if _, err := ExpandStatusCodeTags(effectiveOriginErrorPageStatusTags(cfg)); err != nil {
+	codes, err := ExpandStatusCodeTags(effectiveOriginErrorPageStatusTags(cfg))
+	if err != nil || len(codes) == 0 {
 		return ""
+	}
+	if cfg.OriginErrorPageGetOnly {
+		// GET-only mode must NOT use proxy_intercept_errors: interception discards
+		// the upstream error body, so non-GET requests could never receive the
+		// original response (nginx would serve its own default error page instead).
+		// The body is replaced by Lua header/body filters that only fire for GET;
+		// non-GET responses pass through with status, headers and body untouched.
+		return renderOriginErrorPageLuaFilterBlock(codes)
 	}
 	// Intercept at the proxy level for all methods. nginx does not allow
 	// proxy_intercept_errors inside limit_except (only allow/deny are valid
-	// there), so GET-only is enforced in the internal error location's Lua:
-	// non-GET requests exit with the original status and no custom HTML.
+	// there), so the custom HTML is served by the named error location.
 	return "        proxy_intercept_errors on;\n"
 }
 
-// renderOriginErrorPageServerBits emits server-level error_page + named error location.
-// Returns empty string when disabled, expand fails, or no codes remain.
+// renderOriginErrorPageLuaFilterBlock emits the GET-only body replacement inside the
+// proxy location. header_filter decides whether the response should be replaced and
+// reads the template once into ngx.ctx; body_filter swaps the upstream body for the
+// custom HTML and forces end-of-body so remaining upstream chunks are discarded.
+// Non-GET requests (or statuses outside the configured set) are never touched.
+func renderOriginErrorPageLuaFilterBlock(codes []int) string {
+	codeList := make([]string, len(codes))
+	for i, code := range codes {
+		codeList[i] = strconv.Itoa(code)
+	}
+	return fmt.Sprintf(`        header_filter_by_lua_block {
+            local codes = {%s}
+            local function match(code)
+                for _, c in ipairs(codes) do
+                    if c == code then
+                        return true
+                    end
+                end
+                return false
+            end
+            local status = ngx.status
+            if match(status) and ngx.req.get_method() == "GET" then
+                ngx.header.content_length = nil
+                ngx.header["Content-Type"] = "text/html; charset=utf-8"
+                local f = io.open("%s", "r")
+                local body = f and f:read("*a")
+                if f then
+                    f:close()
+                end
+                if not body then
+                    body = "<!DOCTYPE html><html><head><meta charset=\"utf-8\"><title>" .. tostring(status) .. "</title></head><body><h1>" .. tostring(status) .. "</h1></body></html>"
+                end
+                body = body:gsub("{{status}}", function() return tostring(status) end)
+                body = body:gsub("{{host}}", function() return ngx.var.host or "" end)
+                ngx.ctx.openflare_error_html = body
+            end
+        }
+        body_filter_by_lua_block {
+            local html = ngx.ctx.openflare_error_html
+            if html then
+                ngx.arg[1] = html
+                ngx.arg[2] = true
+                ngx.ctx.openflare_error_html = nil
+            end
+        }
+`, strings.Join(codeList, ", "), ErrorPageTmplPlaceholder)
+}
+
+// renderOriginErrorPageServerBits emits server-level error_page + named error location
+// for the all-methods mode. Returns empty string when disabled, expand fails, no codes
+// remain, or get_only is enabled (GET-only mode replaces the body via Lua filters inside
+// the proxy location, see renderOriginErrorPageIntercept).
 //
 // IMPORTANT: do NOT use `error_page CODE = @name` (equals without response code).
 // That form adopts the status returned by the error URI; content_by_lua defaults
 // to 200 and ngx.status is often 0, so clients saw 200 with body "{{status}}"→"0".
 // Without `=`, nginx keeps the original error status for the redirect.
 func renderOriginErrorPageServerBits(cfg ConfigSnapshot) string {
-	if !cfg.OriginErrorPageEnabled {
+	if !cfg.OriginErrorPageEnabled || cfg.OriginErrorPageGetOnly {
 		return ""
 	}
 	codes, err := ExpandStatusCodeTags(effectiveOriginErrorPageStatusTags(cfg))
@@ -163,11 +225,11 @@ func renderOriginErrorPageServerBits(cfg ConfigSnapshot) string {
 	var builder strings.Builder
 	// No `=` — preserve original error status (502 stays 502).
 	fmt.Fprintf(&builder, "    error_page %s %s;\n", strings.Join(parts, " "), OriginErrorPageInternalLocation)
-	builder.WriteString(renderOriginErrorPageInternalLocation(cfg.OriginErrorPageGetOnly))
+	builder.WriteString(renderOriginErrorPageInternalLocation())
 	return builder.String()
 }
 
-func renderOriginErrorPageInternalLocation(getOnly bool) string {
+func renderOriginErrorPageInternalLocation() string {
 	// Resolve status from $status (set by error_page redirect), then
 	// upstream_status, then ngx.status. Force ngx.status so the client receives
 	// the real error code. Use function replacers so host/status with `%` are safe.
@@ -176,18 +238,12 @@ func renderOriginErrorPageInternalLocation(getOnly bool) string {
 	// written as `%%` so Sprintf does not treat them as format verbs.
 	//
 	// The location is NAMED (@...), not a URI internal redirect: URI redirects
-	// (location = /uri) rewrite the request method to GET, which defeats the
-	// get_only gate below. Named locations keep the original method, so a POST
-	// that reaches this location exits with the original status and no HTML body.
-	getOnlyLua := "false"
-	if getOnly {
-		getOnlyLua = "true"
-	}
+	// (location = /uri) rewrite the request method to GET. Named locations keep
+	// the original method and (without `=`) the original error status.
 	return fmt.Sprintf(`    location %s {
         default_type text/html;
         charset utf-8;
         content_by_lua_block {
-            local get_only = %s
             local function resolve_error_status()
                 local code = tonumber(ngx.var.status)
                 if code and code >= 400 then
@@ -210,11 +266,6 @@ func renderOriginErrorPageInternalLocation(getOnly bool) string {
             local code = resolve_error_status()
             ngx.status = code
 
-            if get_only and ngx.req.get_method() ~= "GET" then
-                -- Non-GET: do not replace with HTML; exit with status only.
-                return ngx.exit(code)
-            end
-
             local f = io.open("%s", "r")
             if not f then
                 ngx.header["Content-Type"] = "text/html; charset=utf-8"
@@ -232,5 +283,5 @@ func renderOriginErrorPageInternalLocation(getOnly bool) string {
             ngx.say(body)
         }
     }
-`, OriginErrorPageInternalLocation, getOnlyLua, ErrorPageTmplPlaceholder)
+`, OriginErrorPageInternalLocation, ErrorPageTmplPlaceholder)
 }

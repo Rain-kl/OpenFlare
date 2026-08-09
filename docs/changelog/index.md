@@ -19,7 +19,7 @@ sidebar: false
 ## [Unreleased]
 
 ### 🛠 修复
-- 修复源站错误页「仅针对 GET 请求」未生效：`error_page` 内部重定向会把请求方法改写成 GET，导致内部 Lua 无法识别 POST/PUT 等原始方法、仍返回自定义错误页；现改为命名 location（`@__openflare_origin_error`）承载错误页，保留原始请求方法与错误状态码，非 GET 请求不再返回自定义错误页。
+- 修复源站错误页「仅针对 GET 请求」未真正透传非 GET 响应：`proxy_intercept_errors` 会在 Lua 判断前丢弃源站错误响应体，POST/PUT 等请求收到 503 时被 OpenResty 自带错误页覆盖原始报错数据；现改为在代理层用 Lua 过滤器（`header_filter`/`body_filter`）仅对 GET 请求替换错误页，非 GET 请求完整透传源站原始状态码与响应体；非仅 GET 模式继续使用命名 location（`@__openflare_origin_error`）承载错误页，保留原始请求方法与错误状态码。
 - 修复 PostgreSQL 作为日志库时节点访问日志/可观测指标/用户访问日志批量写入失败：GORM 对零值 `uint64` 主键会省略 `id` 列，而 PG 日志表 `id` 无默认值，导致持续报「null value in column id violates not-null constraint」；现于落库前为零 ID 行生成雪花 ID（与 ClickHouse 写入路径一致），并新增回归测试覆盖六张日志表。
 
 ## [v3.5.1] - 2026-08-09
