@@ -10,8 +10,12 @@ const (
 	// OriginErrorPageSupportPath is the SupportFile path for the origin error HTML template.
 	OriginErrorPageSupportPath = "error_pages/origin_error.html.tmpl"
 
-	// OriginErrorPageInternalLocation is the internal nginx location that serves the error body.
-	OriginErrorPageInternalLocation = "/__openflare_origin_error"
+	// OriginErrorPageInternalLocation is the named nginx location that serves the error body.
+	// Must be a NAMED location (@...), not a URI internal redirect: error_page URI redirects
+	// rewrite the request method to GET, so the get_only Lua check (ngx.req.get_method() ~= "GET")
+	// would never fire and POST/PUT would still receive the custom HTML. Named locations preserve
+	// the original request method and the original error status (without the `=` form).
+	OriginErrorPageInternalLocation = "@__openflare_origin_error"
 
 	defaultOriginErrorPageStatusTag = "500-599"
 )
@@ -137,13 +141,13 @@ func renderOriginErrorPageIntercept(cfg ConfigSnapshot) string {
 	return "        proxy_intercept_errors on;\n"
 }
 
-// renderOriginErrorPageServerBits emits server-level error_page + internal location.
+// renderOriginErrorPageServerBits emits server-level error_page + named error location.
 // Returns empty string when disabled, expand fails, or no codes remain.
 //
-// IMPORTANT: do NOT use `error_page CODE = /uri` (equals without response code).
+// IMPORTANT: do NOT use `error_page CODE = @name` (equals without response code).
 // That form adopts the status returned by the error URI; content_by_lua defaults
 // to 200 and ngx.status is often 0, so clients saw 200 with body "{{status}}"→"0".
-// Without `=`, nginx keeps the original error status for the internal redirect.
+// Without `=`, nginx keeps the original error status for the redirect.
 func renderOriginErrorPageServerBits(cfg ConfigSnapshot) string {
 	if !cfg.OriginErrorPageEnabled {
 		return ""
@@ -164,21 +168,22 @@ func renderOriginErrorPageServerBits(cfg ConfigSnapshot) string {
 }
 
 func renderOriginErrorPageInternalLocation(getOnly bool) string {
-	// Resolve status from $status (set by error_page internal redirect), then
+	// Resolve status from $status (set by error_page redirect), then
 	// upstream_status, then ngx.status. Force ngx.status so the client receives
 	// the real error code. Use function replacers so host/status with `%` are safe.
 	//
 	// Note: fmt.Sprintf is used only for the path placeholders; Lua `%` must be
 	// written as `%%` so Sprintf does not treat them as format verbs.
 	//
-	// When getOnly is true, non-GET that still hit this location (e.g. nginx-local
-	// 502 without upstream body) exit with the original status and no HTML body.
+	// The location is NAMED (@...), not a URI internal redirect: URI redirects
+	// (location = /uri) rewrite the request method to GET, which defeats the
+	// get_only gate below. Named locations keep the original method, so a POST
+	// that reaches this location exits with the original status and no HTML body.
 	getOnlyLua := "false"
 	if getOnly {
 		getOnlyLua = "true"
 	}
-	return fmt.Sprintf(`    location = %s {
-        internal;
+	return fmt.Sprintf(`    location %s {
         default_type text/html;
         charset utf-8;
         content_by_lua_block {

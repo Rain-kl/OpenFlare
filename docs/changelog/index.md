@@ -18,6 +18,9 @@ sidebar: false
 
 ## [Unreleased]
 
+### 🛠 修复
+- 修复源站错误页「仅针对 GET 请求」未生效：`error_page` 内部重定向会把请求方法改写成 GET，导致内部 Lua 无法识别 POST/PUT 等原始方法、仍返回自定义错误页；现改为命名 location（`@__openflare_origin_error`）承载错误页，保留原始请求方法与错误状态码，非 GET 请求不再返回自定义错误页。
+
 ## [v3.5.1] - 2026-08-09
 
 ### 新增

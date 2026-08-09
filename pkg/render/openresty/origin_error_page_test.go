@@ -24,22 +24,27 @@ func TestRenderOriginErrorPageEnabled(t *testing.T) {
 	if !strings.Contains(out, "proxy_intercept_errors on") {
 		t.Fatal("missing intercept")
 	}
-	if !strings.Contains(out, "error_page") || !strings.Contains(out, "/__openflare_origin_error") {
+	if !strings.Contains(out, "error_page") || !strings.Contains(out, "@__openflare_origin_error") {
 		t.Fatal("missing error_page")
 	}
 	if !strings.Contains(out, "error_page 500") {
 		t.Fatalf("expected expanded status codes in error_page, got:\n%s", out)
 	}
-	// Must NOT use `error_page … = /uri` (adopts error-URI status → often 200).
-	// `location = /path` is unrelated and expected.
+	// Must NOT use `error_page … = @name` (adopts error-URI status → often 200).
 	for _, line := range strings.Split(out, "\n") {
 		trimmed := strings.TrimSpace(line)
 		if strings.HasPrefix(trimmed, "error_page ") && strings.Contains(trimmed, " = ") {
 			t.Fatalf("error_page must not use '=' form, got: %s", trimmed)
 		}
 	}
-	if !strings.Contains(out, "error_page ") || !strings.Contains(out, " /__openflare_origin_error;") {
-		t.Fatal("error_page must redirect to internal location without '='")
+	if !strings.Contains(out, "error_page ") || !strings.Contains(out, " @__openflare_origin_error;") {
+		t.Fatal("error_page must redirect to the named error location without '='")
+	}
+	if !strings.Contains(out, "location @__openflare_origin_error {") {
+		t.Fatal("error location must be a named location (@...) that preserves the request method")
+	}
+	if strings.Contains(out, "location = /__openflare_origin_error") {
+		t.Fatal("error location must NOT be a URI internal redirect (error_page URI redirects rewrite the method to GET, breaking the get_only gate)")
 	}
 	if !strings.Contains(out, "resolve_error_status") || !strings.Contains(out, "ngx.status = code") {
 		t.Fatal("internal location must resolve and set ngx.status to the original error code")
@@ -103,6 +108,16 @@ func TestRenderOriginErrorPageGetOnly(t *testing.T) {
 	if !strings.Contains(out, `ngx.req.get_method() ~= "GET"`) {
 		t.Fatal("internal location must skip HTML for non-GET")
 	}
+	// Regression: error_page must target the NAMED location. URI internal redirects
+	// (location = /uri) rewrite the request method to GET, so ngx.req.get_method()
+	// would always return "GET" and the get_only gate would never skip HTML for
+	// POST/PUT. Named locations preserve the original method.
+	if !strings.Contains(out, "error_page 500") || !strings.Contains(out, " @__openflare_origin_error;") {
+		t.Fatalf("error_page must target the named location, got:\n%s", out)
+	}
+	if strings.Contains(out, "location = /__openflare_origin_error") {
+		t.Fatal("get_only must not use URI internal redirect (rewrites method to GET, breaking the gate)")
+	}
 }
 
 func TestRenderOriginErrorPageDisabled(t *testing.T) {
@@ -121,8 +136,8 @@ func TestRenderOriginErrorPageDisabled(t *testing.T) {
 	if strings.Contains(out, "proxy_intercept_errors") {
 		t.Fatal("should not intercept when disabled")
 	}
-	if strings.Contains(out, "/__openflare_origin_error") {
-		t.Fatal("should not emit internal error location when disabled")
+	if strings.Contains(out, "@__openflare_origin_error") {
+		t.Fatal("should not emit error location when disabled")
 	}
 	res, err := Render(doc, nil)
 	if err != nil {
@@ -199,7 +214,7 @@ func TestRenderOriginErrorPageCustomHTMLInSupportFile(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(out, "error_page 502 /__openflare_origin_error;") {
+	if !strings.Contains(out, "error_page 502 @__openflare_origin_error;") {
 		t.Fatalf("expected single 502 error_page without '=', got:\n%s", out)
 	}
 }
@@ -227,7 +242,7 @@ func TestRenderOriginErrorPageSkipsPagesRoutes(t *testing.T) {
 	if strings.Contains(out, "proxy_intercept_errors") {
 		t.Fatal("pages routes must not get proxy_intercept_errors")
 	}
-	if strings.Contains(out, "/__openflare_origin_error") {
+	if strings.Contains(out, "@__openflare_origin_error") {
 		t.Fatal("pages routes must not get origin error location")
 	}
 }
