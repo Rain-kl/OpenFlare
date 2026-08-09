@@ -278,9 +278,9 @@ Server 的所有核心基础配置定义在 `config.yaml` 中，且均支持环�
 | --- | --- | --- | --- |
 | `log_database` | `string` | 当前日志主库（`postgres` / `sqlite` / `clickhouse`）。**内部受保护 key**：仅「切换日志数据库」迁移任务写入，管理员不可手动创建/修改 | 随主库（PostgreSQL 启用时为 `postgres`，否则 `sqlite`；ClickHouse 启用时优先 `clickhouse`） |
 | `log_db_migration` | `string` | 日志迁移冻结标记（`migrating` 或空）。**内部受保护 key**：仅迁移任务写入，置位期间日志写入返回 503「日志数据库迁移中，暂不可写」 | 空 |
-| `log_retention_days_postgres` | `int` | PostgreSQL 日志库的访问日志过期清理保留天数（过期日志由系统垃圾清理每日任务删除） | `90` |
-| `log_retention_days_sqlite` | `int` | SQLite 日志库的访问日志过期清理保留天数 | `90` |
-| `log_retention_days_clickhouse` | `int` | ClickHouse 日志库的访问日志过期清理保留天数 | `90` |
+| `log_retention_days_postgres` | `int` | PostgreSQL 日志库的访问日志过期清理保留天数（过期日志由系统垃圾清理每日任务删除） | `30` |
+| `log_retention_days_sqlite` | `int` | SQLite 日志库的访问日志过期清理保留天数 | `30` |
+| `log_retention_days_clickhouse` | `int` | ClickHouse 日志库的访问日志过期清理保留天数 | `30` |
 | `metric_retention_days` | `int` | 性能指标（CPU/内存/磁盘/网络）保留天数，三库共用独立短留存（不随访问日志保留配置） | `3` |
 
 ---

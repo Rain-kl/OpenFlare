@@ -1,7 +1,8 @@
 -- +goose Up
 -- 日志保留天数配置（business），替换旧的 database_auto_cleanup_* 键。
+-- 默认统一 30 天：不继承旧键值，避免旧配置被静默带入导致日志被过度清理。
 INSERT INTO w_system_configs (key, value, type, visibility, description, created_at, updated_at)
-SELECT k, COALESCE((SELECT value FROM w_system_configs WHERE key = 'database_auto_cleanup_retention_days'), '90'), 'business', 0, descr, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+SELECT k, '30', 'business', 0, descr, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
 FROM (VALUES
     ('log_retention_days_postgres',   'PostgreSQL 日志保留天数（访问日志与可观测统一）'),
     ('log_retention_days_sqlite',     'SQLite 日志保留天数'),
