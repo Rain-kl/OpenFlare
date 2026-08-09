@@ -2,9 +2,9 @@
 
 # OpenFlare
 
-**[English](./README.en.md) | [📖 中文](./README.md)**
+**[📖 中文](./README.md) | [English](./README.en.md)**
 
-OpenFlare is an open-source CDN orchestration and edge security platform. It supports reverse proxies, centralized configuration synchronization, secure intranet penetration (Tunnels), dynamic WAF protection, and anti-CC challenges.
+OpenFlare is an open-source CDN orchestration and edge security platform. It supports reverse proxy, centralized configuration synchronization, in-network tunneling (Tunnels), dynamic WAF protection, and CC defense challenges.
 
 </div>
 
@@ -21,37 +21,67 @@ OpenFlare is an open-source CDN orchestration and edge security platform. It sup
 </p>
 
 > [!WARNING]
-> After logging in for the first time with the `root` user, make sure to change the default password `123456`.
-> 
-> The BETA version is a temporary product for the development and testing phase. It may contain unknown issues and should not be used in production environments.
+> After the first login with the `admin` user, you must change the default password `12345678`.
+>
+> The BETA version is a temporary product in the development and testing stage and may have unknown issues. It should not be used in production environments.
 
 ## Documentation
 
 **https://open-flare.pages.dev**
 
-Quick links:
+Common entry points:
 
-* [Quick Start](https://open-flare.pages.dev/en/guide/quick-start)
-* [Deployment Guide](https://open-flare.pages.dev/en/deployment/deployment)
+* [Quick Start](https://open-flare.pages.dev/guide/quick-start)
+* [Deployment Guide](https://open-flare.pages.dev/deployment/deployment)
 * [Configuration Reference](https://open-flare.pages.dev/reference/configuration)
 * [System Design](https://open-flare.pages.dev/design/)
 
-## Core Features
+## Core Capabilities
 
-* **Reverse Proxy Management**: Website rules as the aggregation boundary, supporting multi-domain binding and multi-upstream load balancing with unified management of all OpenResty node configurations.
-* **Immutable Config Version Control**: Full-snapshot publish model based on version numbers (`YYYYMMDD-NNN`), with pre-publish diff preview, a single globally active version, and one-click sub-second rollback.
-* **Secure Intranet Penetration (Tunnels)**: An open-source alternative to Cloudflare Tunnels. Securely expose local intranet Web services to the public network via Relay and OpenFlared clients — no public IP or open inbound ports required.
-* **Edge WAF Safety Protection**: Provides global and custom rule groups, supporting manual/automatic/subscription IP groups, MaxMind GeoIP country-level access control, Checksum-based differential IP group sync (no Nginx reload), and custom block responses.
-* **Anti-CC & Human-Machine Challenge (PoW)**: Built-in high-performance client-side cryptographic Proof of Work challenges (similar to Turnstile) to block and intercept botnets and scrapers at the gateway edge in seconds.
-* **Pages Static Hosting**: Upload pre-built ZIP packages directly; edge Agents pull and serve them via local OpenResty, with SPA Fallback and built-in API reverse proxy configuration.
-* **Automated TLS Certificate Management**: Supports dynamic certificate upload, automatic multi-domain certificate matching and binding, and ACME-based automatic issuance and renewal via Let's Encrypt.
-* **Uptime Kuma Monitoring Sync**: Integrates with Uptime Kuma to automatically sync the monitoring site list using differential updates, providing real-time awareness of node availability and service health.
-* **SSO Single Sign-On**: Supports GitHub OAuth and standard OIDC protocol for seamless integration with enterprise identity providers.
-* **Unified Observability**: Aggregates node request metrics, real-time access log details, host/Nginx resource snapshots, health events, and a re-upload buffer for network fluctuations.
+* **Reverse Proxy Configuration Management**: Uses website rules as the aggregation boundary, supports multi-domain binding and multi-upstream load balancing, and centrally manages reverse proxy configurations for all OpenResty nodes.
+* **Secure In-Network Tunneling (Tunnels)**: Open-source version of Cloudflare Tunnels. No public IP or exposed inbound ports are required. Securely reverse-proxy internal web services to the public internet through Relay relay nodes and OpenFlared clients.
+* **Edge WAF Security Protection**: Provides global and custom rule groups, supports manual/auto/subscription-type IP groups, MaxMind GeoIP national-level geographic access control, IP group member Checksum differential synchronization (no Nginx reload required), and custom blocking responses.
+* **CC Defense and Human-Computer Challenge (PoW)**: Built-in high-performance client-side cryptography Proof of Work challenge (similar to Turnstile). Secures high-speed interception and blocking of zombie networks and crawlers at the gateway edge.
+* **Pages Static Hosting**: Supports uploading or synchronizing pre-built artifacts from restricted Remote URLs or public GitHub Release assets. GitHub latest can be checked periodically and optionally auto-published. All sources are unified to generate immutable deployments, pulled by the edge Agent and served locally by OpenResty, supporting rollbacks, SPA Fallback, and API reverse proxy.
+* **TLS Certificate Automation**: Supports dynamic certificate uploads, automatic multi-domain certificate matching and binding, and automatic issuance and renewal of certificates from Let's Encrypt via the ACME protocol.
+* **Uptime Kuma Monitoring Synchronization**: Integrated with Uptime Kuma to automatically perform differential synchronization of monitoring site lists, real-time awareness of node availability and service status.
+* **SSO Single Sign-On**: Supports GitHub OAuth and standard OIDC protocol for seamless integration with enterprise identity providers to achieve unified login.
+* **Unified Observability**: Aggregates node request metrics, real-time access log details, host and Nginx resource snapshots, health events, and network fluctuation replenishment buffers.
+
+## Interface Preview
+
+### Dashboard Overview
+
+![OpenFlare dashboard overview](./docs/assets/readme/dashboard-overview.png)
+
+### Access Logs
+
+![OpenFlare version release](./docs/assets/readme/domain_overview.png)
+
+### WAF Protection
+
+![OpenFlare version release](./docs/assets/readme/waf.png)
 
 ## Quick Start
 
-### 1. Launch Server
+### Hardware Configuration Recommendations
+
+| Component              | Minimum Hardware Requirements     | Recommended Hardware Requirements | Notes |
+|------------------------|-----------------------------------|-----------------------------------|-------|
+| **Server Control Plane** | 1 CPU core / 2 GB RAM / 20 GB disk | 2 CPU cores / 4 GB RAM / 50 GB+ disk | Disk usage should be expanded reasonably based on access log retention duration and concurrent traffic |
+| **Agent Data Plane**     | 1 CPU core / 512 MB RAM / 2 GB disk | 2 CPU cores / 2 GB RAM / 10 GB+ disk | Expanded based on OpenResty concurrent proxy connections and WAF interception processing |
+| **Relay Relay Node**     | 1 CPU core / 1 GB RAM / 5 GB disk | 2 CPU cores / 2 GB RAM / 20 GB disk | frps transmission relay throughput is mainly limited by bandwidth and CPU throughput |
+| **OpenFlared Client**    | 1 CPU core / 256 MB RAM / 1 GB disk | 1 CPU core / 512 MB RAM / 5 GB disk | Runs independently on the internal network with extremely low resource consumption; only network throughput needs to be guaranteed |
+
+### 1. Start the Server
+
+Use `docker-compose`:
+
+```bash
+# Download environment variable template and create .env file
+curl -o .env.example https://raw.githubusercontent.com/Rain-kl/OpenFlare/refs/heads/main/.env.example
+cp .env.example .env
+```
 
 ```yaml
 services:
@@ -69,8 +99,6 @@ services:
       postgres:
         condition: service_healthy
       redis:
-        condition: service_healthy
-      clickhouse:
         condition: service_healthy
 
   postgres:
@@ -101,118 +129,45 @@ services:
       retries: 5
       start_period: 5s
 
-  clickhouse:
-    image: clickhouse/clickhouse-server:25.3-alpine
-    restart: unless-stopped
-    environment:
-      CLICKHOUSE_DB: ${CLICKHOUSE_NAME:-openflare}
-      CLICKHOUSE_USER: ${CLICKHOUSE_USERNAME:-default}
-      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-replace-with-clickhouse-password}
-      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
-      TZ: ${TZ:-Asia/Shanghai}
-    volumes:
-      - openflare_clickhouse_data:/var/lib/clickhouse
-    healthcheck:
-      test: ["CMD", "clickhouse-client", "--user", "${CLICKHOUSE_USERNAME:-default}", "--password", "${CLICKHOUSE_PASSWORD:-replace-with-clickhouse-password}", "--query", "SELECT 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 15s
-
 volumes:
     openflare_uploads:
     openflare_postgres_data:
     openflare_redis_data:
-    openflare_clickhouse_data:
 ```
 
-```bash
-docker compose up -d
-```
+See the [deployment documentation](https://open-flare.pages.dev/deployment/deployment) for details.
 
-Access at: `http://localhost:3000`
+Access address: `http://localhost:3000`
 
-Default credentials:
+Default account:
 
-* Username: `root`
-* Password: `123456`
+* Username: `admin`
+* Password: `12345678`
 
 ### 2. Install Agent
 
-Before installing an Agent, please install OpenResty on the target node first, or use the Agent Docker image with OpenResty built-in.
+Before installing the Agent, first install OpenResty on the node or use the built-in OpenResty Agent Docker image.
 
-You can copy the installation command from **Node Management -> Details -> Node Info -> Node Token & Deployment** in the control panel, or directly use the scripts below:
+You can copy the installation command from the control panel's **Nodes Management -> Details -> Node Information -> Node ID and Deployment**, or use the script below:
 
 #### Docker Deployment
 
-For Docker deployment, you can directly run the Agent image:
+Docker deployment can directly run the Agent image:
 
 ```bash
 docker pull ghcr.io/rain-kl/openflare-agent:latest
 docker rm -f openflare-agent 2>/dev/null || true
 docker run -d --name openflare-agent --restart unless-stopped \
   -p 80:80 -p 443:443/tcp -p 443:443/udp \
+  -v openflare-agent-pages:/data/var/lib/openflare/pages \
   -e OPENFLARE_SERVER_URL=http://your-server:3000 \
   -e OPENFLARE_AGENT_TOKEN=YOUR_AGENT_TOKEN \
   ghcr.io/rain-kl/openflare-agent:latest
 ```
 
-#### Local Installation
+## Open Source License
 
-Using `discovery_token` to register:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/Rain-kl/OpenFlare/main/scripts/install-agent.sh | bash -s -- \
-  --server-url http://your-server:3000 \
-  --discovery-token YOUR_DISCOVERY_TOKEN
-```
-
-Using node-specific `agent_token`:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/Rain-kl/OpenFlare/main/scripts/install-agent.sh | bash -s -- \
-  --server-url http://your-server:3000 \
-  --agent-token YOUR_AGENT_TOKEN
-```
-
-The installation script defaults to `/opt/openflare-agent`, creates a `openflare-agent.service`, automatically searches for `openresty`, and can be executed repeatedly to reinstall or upgrade the Agent.
-
-### 3. Uninstall Agent
-
-To completely uninstall the Agent and clear local data, run:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/Rain-kl/OpenFlare/main/scripts/uninstall-agent.sh | bash
-```
-
-The uninstallation script will stop and remove the `openflare-agent.service`, and delete the entire `/opt/openflare-agent` directory. It will not delete the local OpenResty installation.
-
-### 4. Publish Your First Configuration
-
-1. Log in to the management panel and add a reverse proxy rule.
-2. View the preview or change summary before publishing.
-3. Activate the new version.
-4. Agents will receive the configuration and apply it via WebSocket notification or subsequent heartbeats.
-
-The version number format is fixed as `YYYYMMDD-NNN`. Historical versions are immutable, and rollback is achieved by reactivating an older version.
-
-## UI Preview
-
-### Dashboard Overview
-
-![OpenFlare dashboard overview](./docs/assets/readme/dashboard-overview.png)
-
-### Node Details
-
-![OpenFlare node detail](./docs/assets/readme/node-detail.png)
-
-### Proxy Configuration
-
-![OpenFlare version release](./docs/assets/readme/proxy-route-detail.png)
-
-## License
-
-This project is licensed under [Apache License 2.0](./LICENSE).
+This project is licensed under the [Apache License 2.0](./LICENSE).
 
 ## Star History
 
