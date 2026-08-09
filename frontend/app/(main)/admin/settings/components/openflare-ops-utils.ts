@@ -18,8 +18,6 @@ export type OpenFlareOpsFields = {
   uptime_kuma_retry: string;
   uptime_kuma_retry_interval: string;
   uptime_kuma_timeout: string;
-  database_auto_cleanup_enabled: boolean;
-  database_auto_cleanup_retention_days: string;
   pages_max_package_size_mb: string;
   pages_max_history_count: string;
 };
@@ -42,8 +40,6 @@ export const defaultOpenFlareOpsFields: OpenFlareOpsFields = {
   uptime_kuma_retry: '0',
   uptime_kuma_retry_interval: '60',
   uptime_kuma_timeout: '48',
-  database_auto_cleanup_enabled: false,
-  database_auto_cleanup_retention_days: '30',
   pages_max_package_size_mb: '100',
   pages_max_history_count: '20',
 };
@@ -88,12 +84,6 @@ export function mapOptionsToOpsFields(
     uptime_kuma_retry: optionMap.uptime_kuma_retry ?? '0',
     uptime_kuma_retry_interval: optionMap.uptime_kuma_retry_interval ?? '60',
     uptime_kuma_timeout: optionMap.uptime_kuma_timeout ?? '48',
-    database_auto_cleanup_enabled: toBoolean(
-      optionMap.database_auto_cleanup_enabled,
-      false,
-    ),
-    database_auto_cleanup_retention_days:
-      optionMap.database_auto_cleanup_retention_days ?? '30',
     pages_max_package_size_mb: optionMap.pages_max_package_size_mb ?? '100',
     pages_max_history_count: optionMap.pages_max_history_count ?? '20',
   };
@@ -165,16 +155,6 @@ export function validateUptimeKumaFields(fields: OpenFlareOpsFields) {
     throw new Error('请求超时必须为正整数。');
 }
 
-export function validateDatabaseAutoCleanup(fields: OpenFlareOpsFields) {
-  const retentionDays = Number.parseInt(
-    fields.database_auto_cleanup_retention_days,
-    10,
-  );
-  if (Number.isNaN(retentionDays) || retentionDays < 1) {
-    throw new Error('自动清理保留天数至少为 1 天。');
-  }
-}
-
 export function agentOptionEntries(fields: OpenFlareOpsFields): OptionItem[] {
   validateAgentFields(fields);
   return [
@@ -217,22 +197,6 @@ export function uptimeKumaOptionEntries(
       value: fields.uptime_kuma_retry_interval,
     },
     { key: 'uptime_kuma_timeout', value: fields.uptime_kuma_timeout },
-  ];
-}
-
-export function databaseAutoCleanupEntries(
-  fields: OpenFlareOpsFields,
-): OptionItem[] {
-  validateDatabaseAutoCleanup(fields);
-  return [
-    {
-      key: 'database_auto_cleanup_enabled',
-      value: String(fields.database_auto_cleanup_enabled),
-    },
-    {
-      key: 'database_auto_cleanup_retention_days',
-      value: fields.database_auto_cleanup_retention_days,
-    },
   ];
 }
 

@@ -11,6 +11,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/Rain-kl/Wavelet/internal/model/analytics"
 )
 
 // FlushFunc persists a batch of queued items. It is invoked from the worker goroutine.
@@ -22,14 +24,8 @@ type FlushFunc[T any] func(ctx context.Context, items []T) error
 type FlushErrorHandler[T any] func(ctx context.Context, items []T, err error)
 
 // Stats is a point-in-time snapshot of Writer queue and failure counters.
-type Stats struct {
-	Name        string `json:"name"`
-	Depth       int    `json:"depth"`
-	Cap         int    `json:"cap"`
-	Drops       int64  `json:"drops"`
-	FlushErrors int64  `json:"flush_errors"`
-	Running     bool   `json:"running"`
-}
+// It is an alias of analyticsmodel.BatchWriterStats (moved to keep model pure data).
+type Stats = analytics.BatchWriterStats
 
 // Writer buffers items and flushes them by size or interval.
 type Writer[T any] struct {

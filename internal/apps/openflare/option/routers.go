@@ -4,9 +4,6 @@
 package option
 
 import (
-	"encoding/json"
-	"errors"
-	"io"
 	"net/http"
 
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/apiutil"
@@ -128,33 +125,6 @@ func LookupGeoIPHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, response.OK(view))
 }
 
-// CleanupDatabaseHandler 清理可观测性数据库数据。
-// @Summary 清理可观测性数据库
-// @Description 按目标与保留天数清理可观测性相关数据表，需要管理员权限
-// @Tags openflare-option
-// @Accept json
-// @Produce json
-// @Security SessionCookie
-// @Param request body option.databaseCleanupInput false "清理参数"
-// @Success 200 {object} response.Any{data=option.databaseCleanupResult} "清理结果"
-// @Failure 400 {object} response.Any "参数错误"
-// @Failure 401 {object} response.Any "未登录"
-// @Failure 404 {object} response.Any "无权限或不存在"
-// @Failure 500 {object} response.Any "内部错误"
-// @Router /api/v1/d/option/database/cleanup [post]
-func CleanupDatabaseHandler(c *gin.Context) {
-	var input databaseCleanupInput
-	if err := bindOptionalJSON(c.Request.Body, &input); err != nil {
-		response.AbortBadRequest(c, errInvalidParams)
-		return
-	}
-	result, err := cleanupDatabaseObservability(c.Request.Context(), input)
-	if apiutil.AbortBadRequestOnError(c, err) {
-		return
-	}
-	c.JSON(http.StatusOK, response.OK(result))
-}
-
 // SyncUptimeKumaHandler 同步 Uptime Kuma 监控。
 // @Summary 同步 Uptime Kuma
 // @Description 将 OpenFlare 节点同步到 Uptime Kuma，需要管理员权限
@@ -173,11 +143,4 @@ func SyncUptimeKumaHandler(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, response.OK("同步成功"))
-}
-
-func bindOptionalJSON(body io.Reader, target any) error {
-	if err := json.NewDecoder(body).Decode(target); err != nil && !errors.Is(err, io.EOF) {
-		return err
-	}
-	return nil
 }

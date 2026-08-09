@@ -197,8 +197,6 @@ Server 的所有核心基础配置定义在 `config.yaml` 中，且均支持环�
 | `node_offline_threshold` | `int` | 在管理后台中判定节点失去心跳并标注为离线状态的无响应阈值（毫秒） | `60000` (60s) |
 | `agent_update_repo` | `string` | Agent 节点更新下载自身二进制的 Release 仓库源 | `Rain-kl/OpenFlare` |
 | `geoip_provider` | `string` | GeoIP 提供商，支持 `maxmind` 等，用于 WAF 防护时地域分析 | `ipinfo` |
-| `database_auto_cleanup_enabled` | `bool` | 是否在每天凌晨 3:00 自动清理过期观测历史日志（降低数据库空间） | `true` |
-| `database_auto_cleanup_retention_days` | `int` | 自动清理观测数据（访问日志、度量曲线、审计等）的默认保留天数 | `30` |
 
 ### 5. Uptime Kuma 监控联动同步
 | 配置键 (Key) | 数据类型 | 作用说明 | 默认值 |
@@ -269,6 +267,20 @@ Server 的所有核心基础配置定义在 `config.yaml` 中，且均支持环�
 | `origin_error_page_get_only` | `bool` | 是否仅对 **GET** 请求生效。开启后仅 GET 的匹配错误状态码返回自定义错误页；POST/PUT 等其它方法不返回自定义错误页（保留原始错误状态码） | `false` |
 | `origin_error_page_status_codes` | `json` | 触发错误页的状态码标签 JSON 数组。支持单码（如 `522`）与闭区间（如 `500-599`）；单码与区间两端均须在 **400–599**，且 `lo ≤ hi`。启用时展开结果不能为空 | `["500-599"]` |
 | `origin_error_page_html` | `string` | 错误页自定义 HTML。空字符串表示使用内置 OpenFlare 默认模板（极简白底）；支持占位符 `{{status}}`（与 HTTP 状态码一致）、`{{host}}`（请求 Host）。最大 **256 KiB**（按字节）。勿嵌入不可信第三方脚本 | 空 |
+
+---
+
+### 8. 日志存储（Log Database）
+
+日志存储解耦后的运行时配置：日志主库由「切换日志数据库」任务管理（内部/受保护 key，禁止管理员手动修改），保留天数按存储库分别在业务配置中设置。
+
+| 配置键 (Key) | 数据类型 | 作用说明 | 默认值 |
+| --- | --- | --- | --- |
+| `log_database` | `string` | 当前日志主库（`postgres` / `sqlite` / `clickhouse`）。**内部受保护 key**：仅「切换日志数据库」迁移任务写入，管理员不可手动创建/修改 | 随主库（PostgreSQL 启用时为 `postgres`，否则 `sqlite`；ClickHouse 启用时优先 `clickhouse`） |
+| `log_db_migration` | `string` | 日志迁移冻结标记（`migrating` 或空）。**内部受保护 key**：仅迁移任务写入，置位期间日志写入返回 503「日志数据库迁移中，暂不可写」 | 空 |
+| `log_retention_days_postgres` | `int` | PostgreSQL 日志库的过期清理保留天数（过期日志由系统垃圾清理每日任务删除） | `90` |
+| `log_retention_days_sqlite` | `int` | SQLite 日志库的过期清理保留天数 | `90` |
+| `log_retention_days_clickhouse` | `int` | ClickHouse 日志库的过期清理保留天数 | `90` |
 
 ---
 

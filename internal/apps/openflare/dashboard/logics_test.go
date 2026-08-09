@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/Rain-kl/Wavelet/internal/repository"
+	"github.com/Rain-kl/Wavelet/internal/testhelper"
 
 	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/model"
@@ -26,11 +27,8 @@ func setupDashboardTestDB(t *testing.T) func() {
 	require.NoError(t, sqliteDB.AutoMigrate(&model.OpenFlareNode{}))
 
 	db.SetDB(sqliteDB)
-	resetAccessLogStore := repository.SetAccessLogStoreForTest(repository.NewMemoryAccessLogStore())
-	resetObservabilityStore := repository.SetObservabilityStoreForTest(repository.NewMemoryObservabilityStore())
+	testhelper.SetupLogStoresForTest(t)
 	return func() {
-		resetObservabilityStore()
-		resetAccessLogStore()
 		db.SetDB(nil)
 	}
 }

@@ -11,20 +11,8 @@ import {
   RotateCw,
   Save,
   Server,
-  Trash2,
 } from 'lucide-react';
 import { toast } from 'sonner';
-
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -46,7 +34,6 @@ import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { ErrorInline } from '@/components/layout/error';
 import { LoadingStateWithBorder } from '@/components/layout/loading';
-import type { DatabaseCleanupTarget } from '@/lib/services/openflare';
 import {
   NodeService,
   OptionService,
@@ -57,7 +44,6 @@ import {
 import {
   agentOptionEntries,
   buildDiscoveryCommand,
-  databaseAutoCleanupEntries,
   defaultOpenFlareOpsFields,
   formatDurationLabel,
   getBrowserOrigin,
@@ -72,31 +58,6 @@ import { UptimeKumaSiteSelectModal } from './uptimekuma-site-modal';
 const optionsQueryKey = ['openflare', 'options'] as const;
 const openflarePublicStatusQueryKey = ['openflare', 'public-status'] as const;
 
-const cleanupTargets: Array<{
-  target: DatabaseCleanupTarget;
-  label: string;
-  description: string;
-}> = [
-  {
-    target: 'node_access_logs',
-    label: '访问日志',
-    description:
-      '清理 node_access_logs，影响访问明细与 IP 汇总；表 TTL 为 90 天。',
-  },
-  {
-    target: 'node_metric_snapshots',
-    label: '性能快照',
-    description:
-      '清理 node_metric_snapshots，影响节点资源趋势；表 TTL 为 30 天。',
-  },
-  {
-    target: 'node_edge_health',
-    label: 'OpenResty 健康',
-    description:
-      '清理 node_edge_health（OpenResty 连接/健康快照）；表 TTL 为 30 天。业务流量请清理访问日志。',
-  },
-];
-
 async function copyText(value: string) {
   await navigator.clipboard.writeText(value);
 }
@@ -109,11 +70,6 @@ export function OpenFlareOpsSettings() {
   const [savingSection, setSavingSection] = useState<string | null>(null);
   const [geoIPTestIP, setGeoIPTestIP] = useState('8.8.8.8');
   const [uptimeKumaModalOpen, setUptimeKumaModalOpen] = useState(false);
-  const [cleanupTarget, setCleanupTarget] = useState<{
-    target: DatabaseCleanupTarget;
-    label: string;
-  } | null>(null);
-  const [cleanupRetentionDays, setCleanupRetentionDays] = useState('');
 
   const optionsQuery = useQuery({
     queryKey: optionsQueryKey,
@@ -194,25 +150,6 @@ export function OpenFlareOpsSettings() {
       toast.error(error instanceof Error ? error.message : '同步失败'),
   });
 
-  const cleanupMutation = useMutation({
-    mutationFn: (payload: {
-      target: DatabaseCleanupTarget;
-      retention_days?: number;
-    }) => OptionService.cleanupDatabase(payload),
-    onSuccess: (result) => {
-      setCleanupTarget(null);
-      setCleanupRetentionDays('');
-      toast.success(
-        result.delete_all
-          ? `已清空${result.target_label}，共删除 ${result.deleted_count} 条。`
-          : `已清理${result.target_label}，共删除 ${result.deleted_count} 条。`,
-      );
-    },
-    onError: (error) => {
-      toast.error(error instanceof Error ? error.message : '清理失败');
-    },
-  });
-
   const discoveryToken = bootstrapQuery.data?.discovery_token ?? '';
   const discoveryCommand = useMemo(() => {
     if (!fields.server_address || !discoveryToken) return '';
@@ -242,17 +179,6 @@ export function OpenFlareOpsSettings() {
       saveMutation.mutate({
         section: 'uptimekuma',
         entries: uptimeKumaOptionEntries(fields),
-      });
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : '参数校验失败');
-    }
-  };
-
-  const saveDatabaseAutoCleanup = () => {
-    try {
-      saveMutation.mutate({
-        section: 'database-auto',
-        entries: databaseAutoCleanupEntries(fields),
       });
     } catch (error) {
       toast.error(error instanceof Error ? error.message : '参数校验失败');
@@ -690,86 +616,6 @@ export function OpenFlareOpsSettings() {
         </CardContent>
       </Card>
 
-      <div className='grid gap-6 xl:grid-cols-2'>
-        <Card className='border-dashed shadow-none'>
-          <CardHeader className='flex flex-row items-center justify-between gap-4'>
-            <div>
-              <CardTitle className='text-base'>数据库自动清理</CardTitle>
-              <CardDescription>
-                每天凌晨 3 点物化 ClickHouse 表 TTL；访问日志至少保留 90
-                天，其它观测数据至少保留 30 天。
-              </CardDescription>
-            </div>
-            <Button
-              size='sm'
-              disabled={savingSection === 'database-auto'}
-              onClick={saveDatabaseAutoCleanup}
-            >
-              保存
-            </Button>
-          </CardHeader>
-          <CardContent className='space-y-4'>
-            <ToggleRow
-              label='启用每日自动清理'
-              checked={fields.database_auto_cleanup_enabled}
-              onChange={(value) =>
-                updateField('database_auto_cleanup_enabled', value)
-              }
-            />
-            <div className='space-y-1.5'>
-              <FieldInput
-                label='期望保留天数'
-                value={fields.database_auto_cleanup_retention_days}
-                type='number'
-                onChange={(value) =>
-                  updateField('database_auto_cleanup_retention_days', value)
-                }
-              />
-              <p className='text-xs text-muted-foreground'>
-                小于表 TTL 时自动按下限执行：访问日志 90 天，其它观测数据 30
-                天。
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className='border-dashed shadow-none'>
-          <CardHeader>
-            <CardTitle className='text-base'>手动数据清理</CardTitle>
-            <CardDescription>
-              按表 TTL 清理；输入天数不能小于对应表
-              TTL，留空时将删除该类数据的全部历史记录。
-            </CardDescription>
-          </CardHeader>
-          <CardContent className='space-y-3'>
-            {cleanupTargets.map((item) => (
-              <div
-                key={item.target}
-                className='flex items-start justify-between gap-3 rounded-lg border border-dashed p-3'
-              >
-                <div>
-                  <p className='text-sm font-medium'>{item.label}</p>
-                  <p className='mt-1 text-xs text-muted-foreground'>
-                    {item.description}
-                  </p>
-                </div>
-                <Button
-                  type='button'
-                  variant='destructive'
-                  size='sm'
-                  onClick={() =>
-                    setCleanupTarget({ target: item.target, label: item.label })
-                  }
-                >
-                  <Trash2 className='size-3.5 mr-1' />
-                  清理
-                </Button>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      </div>
-
       <UptimeKumaSiteSelectModal
         open={uptimeKumaModalOpen}
         selectedSites={
@@ -782,56 +628,6 @@ export function OpenFlareOpsSettings() {
           updateField('uptime_kuma_selected_sites', sites.join(','))
         }
       />
-
-      <AlertDialog
-        open={cleanupTarget !== null}
-        onOpenChange={(open) => !open && setCleanupTarget(null)}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>清理{cleanupTarget?.label}</AlertDialogTitle>
-            <AlertDialogDescription>
-              输入保留天数后会按该表 TTL 物化过期数据；小于表 TTL
-              的天数会被拒绝。留空则删除全部历史记录，操作不可恢复。
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <FieldInput
-            label='保留天数'
-            value={cleanupRetentionDays}
-            type='number'
-            onChange={setCleanupRetentionDays}
-            placeholder='留空则全部删除'
-          />
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={cleanupMutation.isPending}>
-              取消
-            </AlertDialogCancel>
-            <AlertDialogAction
-              disabled={cleanupMutation.isPending}
-              onClick={(event) => {
-                event.preventDefault();
-                if (!cleanupTarget) return;
-                const trimmed = cleanupRetentionDays.trim();
-                if (trimmed !== '') {
-                  const retentionDays = Number.parseInt(trimmed, 10);
-                  if (Number.isNaN(retentionDays) || retentionDays < 1) {
-                    toast.error('保留天数至少为 1 天');
-                    return;
-                  }
-                  cleanupMutation.mutate({
-                    target: cleanupTarget.target,
-                    retention_days: retentionDays,
-                  });
-                  return;
-                }
-                cleanupMutation.mutate({ target: cleanupTarget.target });
-              }}
-            >
-              {cleanupMutation.isPending ? '清理中...' : '确认清理'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }

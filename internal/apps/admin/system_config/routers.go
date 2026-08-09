@@ -27,6 +27,17 @@ import (
 
 const maskedConfigValue = "******"
 
+// protectedConfigKeyMessage 命中受保护 key 时返回给管理员的业务错误文案。
+const protectedConfigKeyMessage = "该配置项由系统任务管理，禁止手动修改"
+
+// protectedConfigKeys 仅允许内部（迁移任务/bootstrap）写入的 key。
+var protectedConfigKeys = map[string]bool{
+	model.ConfigKeyLogDatabase:    true,
+	model.ConfigKeyLogDBMigration: true,
+}
+
+func isProtectedConfigKey(key string) bool { return protectedConfigKeys[key] }
+
 // CreateSystemConfigRequest 创建系统配置请求
 type CreateSystemConfigRequest struct {
 	Key         string `json:"key" binding:"required,max=64"`
@@ -64,9 +75,19 @@ func CreateSystemConfig(c *gin.Context) {
 		return
 	}
 
+	// 与 PUT 路径一致：log_database / log_db_migration 仅允许内部（迁移任务/bootstrap）写入。
+	if isProtectedConfigKey(req.Key) {
+		response.AbortBadRequest(c, protectedConfigKeyMessage)
+		return
+	}
+
 	if err := createSystemConfig(c.Request.Context(), req); err != nil {
 		if err.Error() == ConfigKeyExists {
 			response.AbortBadRequest(c, ConfigKeyExists)
+			return
+		}
+		if err.Error() == protectedConfigKeyMessage {
+			response.AbortBadRequest(c, protectedConfigKeyMessage)
 			return
 		}
 		response.AbortInternal(c, err.Error())
@@ -155,6 +176,10 @@ func UpdateSystemConfig(c *gin.Context) {
 	}
 
 	key := c.Param("key")
+	if isProtectedConfigKey(key) {
+		response.AbortBadRequest(c, protectedConfigKeyMessage)
+		return
+	}
 	if err := updateSystemConfig(c.Request.Context(), key, req); err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			response.AbortNotFound(c, SystemConfigNotFound)

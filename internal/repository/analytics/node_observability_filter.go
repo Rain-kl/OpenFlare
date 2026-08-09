@@ -5,17 +5,14 @@ package analytics
 
 import (
 	"strings"
-	"time"
+
+	analyticsmodel "github.com/Rain-kl/Wavelet/internal/model/analytics"
 )
 
 const nodeObservabilityFilterClauseCapacity = 3
 
 // NodeObservabilityFilter scopes ClickHouse node observability queries.
-type NodeObservabilityFilter struct {
-	NodeID string
-	Since  time.Time
-	Limit  int
-}
+type NodeObservabilityFilter = analyticsmodel.NodeObservabilityFilter
 
 func buildNodeObservabilityFilterClause(filter NodeObservabilityFilter, sinceColumn string) (string, []any) {
 	parts := make([]string, 0, nodeObservabilityFilterClauseCapacity)

@@ -11,7 +11,7 @@ import (
 	"github.com/Rain-kl/Wavelet/internal/repository"
 
 	"github.com/Rain-kl/Wavelet/internal/model"
-	analyticsrepo "github.com/Rain-kl/Wavelet/internal/repository/analytics"
+	analyticsmodel "github.com/Rain-kl/Wavelet/internal/model/analytics"
 	"github.com/Rain-kl/Wavelet/pkg/logger"
 )
 
@@ -448,9 +448,9 @@ func buildAccessLogUADistributions(
 	for _, row := range uaRows {
 		ua := row.Key
 		count := row.Value
-		deviceAcc[analyticsrepo.ParseDeviceType(ua)] += count
-		browserAcc[analyticsrepo.ParseBrowserName(ua)] += count
-		osAcc[analyticsrepo.ParseOSName(ua)] += count
+		deviceAcc[analyticsmodel.ParseDeviceType(ua)] += count
+		browserAcc[analyticsmodel.ParseBrowserName(ua)] += count
+		osAcc[analyticsmodel.ParseOSName(ua)] += count
 	}
 
 	topUserAgents = make([]DistributionItem, 0, accessLogOverviewTopLimit)

@@ -14,10 +14,9 @@ import (
 	"time"
 
 	"github.com/Rain-kl/Wavelet/internal/apps/admin"
-	"github.com/Rain-kl/Wavelet/internal/infra/config"
-	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
+	analyticsmodel "github.com/Rain-kl/Wavelet/internal/model/analytics"
 	"github.com/Rain-kl/Wavelet/internal/repository"
-	analyticsrepo "github.com/Rain-kl/Wavelet/internal/repository/analytics"
+	"github.com/Rain-kl/Wavelet/internal/repository/logstore"
 	"github.com/Rain-kl/Wavelet/pkg/logger"
 	"github.com/gin-gonic/gin"
 
@@ -158,8 +157,8 @@ type accessLogsResponse struct {
 	List  []accessLogItem `json:"list"`
 }
 
-func buildAccessLogFilter(ctx context.Context, c *gin.Context) (analyticsrepo.AccessLogFilter, error) {
-	filter := analyticsrepo.AccessLogFilter{}
+func buildAccessLogFilter(ctx context.Context, c *gin.Context) (analyticsmodel.AccessLogFilter, error) {
+	filter := analyticsmodel.AccessLogFilter{}
 
 	username := c.Query("username")
 	if username != "" {
@@ -227,7 +226,7 @@ func enrichAccessLogsWithUsers(ctx context.Context, list []accessLogItem) {
 
 // GetAccessLogs 获取 ClickHouse 异步采集的访问日志
 // @Summary 获取用户访问日志
-// @Description 分页并按照用户、接口路径、时间范围等维度检索 ClickHouse 用户访问日志列表（需要管理员权限，ClickHouse 未启用时报错）
+// @Description 分页并按照用户、接口路径、时间范围等维度检索用户访问日志列表（需要管理员权限，日志存储未启用时报错）
 // @Tags admin
 // @Produce json
 // @Security SessionCookie
@@ -238,14 +237,16 @@ func enrichAccessLogsWithUsers(ctx context.Context, list []accessLogItem) {
 // @Param start_time query string false "起始时间（RFC3339 或 YYYY-MM-DD HH:MM:SS）"
 // @Param end_time query string false "结束时间（RFC3339 或 YYYY-MM-DD HH:MM:SS）"
 // @Success 200 {object} response.Any{data=logs.accessLogsResponse} "访问日志列表"
-// @Failure 400 {object} response.Any "ClickHouse 未启用或参数错误"
+// @Failure 400 {object} response.Any "日志存储未启用或参数错误"
 // @Failure 401 {object} response.Any "未登录"
 // @Failure 403 {object} response.Any "无管理员权限"
 // @Router /api/v1/admin/logs/access [get]
 func GetAccessLogs(c *gin.Context) {
 	ctx := c.Request.Context()
-	if !config.Config.ClickHouse.Enabled || !db.ChConnReady() {
-		response.AbortWithError(c, http.StatusBadRequest, "ClickHouse 存储服务未启用，无法检索访问日志")
+	store, err := logstore.Active(ctx)
+	if err != nil {
+		logger.ErrorF(ctx, "获取日志存储实例失败: %v", err)
+		response.AbortWithError(c, http.StatusBadRequest, "日志存储未启用，无法检索访问日志")
 		return
 	}
 
@@ -271,7 +272,7 @@ func GetAccessLogs(c *gin.Context) {
 		return
 	}
 
-	logs, total, err := analyticsrepo.ListAccessLogs(ctx, filter, page, pageSize)
+	logs, total, err := store.UserAccessLogs.List(ctx, filter, page, pageSize)
 	if err != nil {
 		response.AbortWithError(c, http.StatusInternalServerError, err.Error())
 		return
@@ -333,25 +334,27 @@ type logsAnalyticsResponse struct {
 
 // GetLogsAnalytics 获取 ClickHouse 访问日志图表聚合指标
 // @Summary 获取访问日志分析数据
-// @Description 聚合统计最近 7 天的每日访问趋势、浏览器分布以及前 10 名最活跃用户排行（需要管理员权限，ClickHouse 未启用时报错）
+// @Description 聚合统计最近 7 天的每日访问趋势、浏览器分布以及前 10 名最活跃用户排行（需要管理员权限，日志存储未启用时报错）
 // @Tags admin
 // @Produce json
 // @Security SessionCookie
 // @Success 200 {object} response.Any{data=logs.logsAnalyticsResponse} "分析统计数据"
-// @Failure 400 {object} response.Any "ClickHouse 未启用"
+// @Failure 400 {object} response.Any "日志存储未启用"
 // @Failure 401 {object} response.Any "未登录"
 // @Failure 403 {object} response.Any "无管理员权限"
 // @Router /api/v1/admin/logs/analytics [get]
 func GetLogsAnalytics(c *gin.Context) {
 	ctx := c.Request.Context()
-	if !config.Config.ClickHouse.Enabled || !db.ChConnReady() {
-		response.AbortWithError(c, http.StatusBadRequest, "ClickHouse 存储服务未启用，无法获取分析数据")
+	store, err := logstore.Active(ctx)
+	if err != nil {
+		logger.ErrorF(ctx, "获取日志存储实例失败: %v", err)
+		response.AbortWithError(c, http.StatusBadRequest, "日志存储未启用，无法获取分析数据")
 		return
 	}
 
 	startTime := time.Now().AddDate(0, 0, -(analyticsDays - 1)).Truncate(hoursInDay * time.Hour)
 
-	trendPoints, err := analyticsrepo.GetDailyTrend(ctx, analyticsDays)
+	trendPoints, err := store.UserAccessLogs.GetDailyTrend(ctx, analyticsDays)
 	if err != nil {
 		response.AbortWithError(c, http.StatusInternalServerError, "查询访问趋势失败: "+err.Error())
 		return
@@ -364,7 +367,7 @@ func GetLogsAnalytics(c *gin.Context) {
 		}
 	}
 
-	browserPoints, err := analyticsrepo.GetBrowserDistribution(ctx, startTime)
+	browserPoints, err := store.UserAccessLogs.GetBrowserDistribution(ctx, startTime)
 	if err != nil {
 		response.AbortWithError(c, http.StatusInternalServerError, "查询浏览器分布失败: "+err.Error())
 		return
@@ -377,7 +380,7 @@ func GetLogsAnalytics(c *gin.Context) {
 		}
 	}
 
-	topUserPoints, err := analyticsrepo.GetTopActiveUsers(ctx, startTime, topActiveLimit)
+	topUserPoints, err := store.UserAccessLogs.GetTopActiveUsers(ctx, startTime, topActiveLimit)
 	if err != nil {
 		response.AbortWithError(c, http.StatusInternalServerError, "查询活跃用户失败: "+err.Error())
 		return

@@ -10,6 +10,7 @@ import (
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare"
 	cf "github.com/Rain-kl/Wavelet/internal/apps/openflare/cloudflare"
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/pages"
+	"github.com/Rain-kl/Wavelet/internal/apps/openflare/tasks"
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/tls"
 	"github.com/Rain-kl/Wavelet/internal/apps/upload"
 	"github.com/Rain-kl/Wavelet/internal/apps/user"
@@ -44,14 +45,14 @@ func Register() {
 	task.RegisterHandler(openflare.SSLRenewTask, &openflare.SSLRenewHandler{})
 	task.RegisterTaskMeta(openflare.SSLRenewMeta)
 
-	task.RegisterHandler(openflare.DatabaseAutoCleanupTask, &openflare.DatabaseAutoCleanupHandler{})
-	task.RegisterTaskMeta(openflare.DatabaseAutoCleanupMeta)
-
 	task.RegisterHandler(openflare.WAFIPGroupSyncTask, &openflare.WAFIPGroupSyncHandler{})
 	task.RegisterTaskMeta(openflare.WAFIPGroupSyncMeta)
 
 	task.RegisterHandler(openflare.UptimeKumaSyncTask, &openflare.UptimeKumaSyncHandler{})
 	task.RegisterTaskMeta(openflare.UptimeKumaSyncMeta)
+
+	task.RegisterHandler(openflare.LogDBSwitchTask, &tasks.LogDBSwitchHandler{})
+	task.RegisterTaskMeta(openflare.LogDBSwitchMeta)
 
 	task.RegisterHandler(cf.SyncMemberTask, &cf.SyncMemberTaskHandler{})
 	task.RegisterTaskMeta(cf.SyncMemberMeta)

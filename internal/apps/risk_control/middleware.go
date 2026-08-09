@@ -13,11 +13,12 @@ import (
 	"time"
 
 	"github.com/Rain-kl/Wavelet/internal/apps/oauth"
-	"github.com/Rain-kl/Wavelet/internal/infra/config"
 	"github.com/Rain-kl/Wavelet/internal/infra/persistence/idgen"
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"github.com/Rain-kl/Wavelet/internal/model/analytics"
+	"github.com/Rain-kl/Wavelet/internal/repository/logstore"
 	"github.com/Rain-kl/Wavelet/internal/shared/response"
+	"github.com/Rain-kl/Wavelet/pkg/logger"
 	"github.com/gin-gonic/gin"
 )
 
@@ -79,8 +80,9 @@ func hashAuditLogSensitiveValue(value string) string {
 // RiskControlMiddleware 全局日志采集中间件
 func RiskControlMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// 如果未启用 ClickHouse，直接放行
-		if !config.Config.ClickHouse.Enabled {
+		// 日志库迁移冻结期跳过采集，不阻断业务请求。
+		if logstore.Migrating(c.Request.Context()) {
+			logger.WarnF(c.Request.Context(), "[RiskControl] log DB migrating, skip audit log")
 			c.Next()
 			return
 		}

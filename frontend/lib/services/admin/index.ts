@@ -29,6 +29,7 @@ export type {
   UpdateUserStatusRequest,
   UpdateUserRequest,
   SystemStatus,
+  LogDatabaseStatus,
   AppUpdateStatus,
   Schedule,
   CreateScheduleRequest,

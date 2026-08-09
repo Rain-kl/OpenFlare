@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/Rain-kl/Wavelet/internal/repository"
+	"github.com/Rain-kl/Wavelet/internal/testhelper"
 
 	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/model"
@@ -61,8 +62,7 @@ func TestLegacyImportUsesEffectiveTLDPlusOne(t *testing.T) {
 
 func TestGetStatsAggregatesZoneHosts(t *testing.T) {
 	ctx := setupZoneDB(t)
-	reset := repository.SetAccessLogStoreForTest(repository.NewMemoryAccessLogStore())
-	t.Cleanup(reset)
+	testhelper.SetupLogStoresForTest(t)
 
 	zone, err := Create(ctx, Input{Domain: "example.com"})
 	require.NoError(t, err)

@@ -27,6 +27,17 @@ var (
 
 const optionValueTrue = "true"
 
+// protectedConfigKeyMessage 命中受保护 key 时返回给管理员的业务错误文案。
+const protectedConfigKeyMessage = "该配置项由系统任务管理，禁止手动修改"
+
+// protectedConfigKeys 仅允许内部（迁移任务/bootstrap）写入的 key。
+var protectedConfigKeys = map[string]bool{
+	model.ConfigKeyLogDatabase:    true,
+	model.ConfigKeyLogDBMigration: true,
+}
+
+func isProtectedConfigKey(key string) bool { return protectedConfigKeys[key] }
+
 func buildOptionValidationState(ctx context.Context, options []model.OpenFlareOption) map[string]string {
 	// 从 SystemConfig 读取所有业务配置构建状态
 	configs, err := repository.ListAdminSystemConfigs(ctx, "business")
@@ -53,7 +64,7 @@ func validateOptionWithState(ctx context.Context, option model.OpenFlareOption, 
 	if err := validateGeoIPOption(option.Key, option.Value); err != nil {
 		return err
 	}
-	if err := validateDatabaseCleanupOption(option.Key, option.Value); err != nil {
+	if err := validateLogRetentionOption(option.Key, option.Value); err != nil {
 		return err
 	}
 	if err := validateAgentOption(option.Key, option.Value); err != nil {
@@ -100,11 +111,9 @@ func validateGeoIPOption(key, value string) error {
 	return fmt.Errorf("%s 仅支持 disabled、mmdb、ip-api、geojs、ipinfo", key)
 }
 
-func validateDatabaseCleanupOption(key, value string) error {
+func validateLogRetentionOption(key, value string) error {
 	switch key {
-	case model.ConfigKeyDatabaseAutoCleanupEnabled:
-		return validateBooleanOption(key, value)
-	case model.ConfigKeyDatabaseAutoCleanupRetentionDays:
+	case model.ConfigKeyLogRetentionDaysPostgres, model.ConfigKeyLogRetentionDaysSQLite, model.ConfigKeyLogRetentionDaysClickHouse:
 		intValue, err := strconv.Atoi(value)
 		if err != nil || intValue < 1 {
 			return fmt.Errorf("%s 必须为大于等于 1 的整数天", key)
@@ -220,6 +229,9 @@ func validateOptions(ctx context.Context, options []model.OpenFlareOption) error
 	for _, option := range options {
 		if strings.TrimSpace(option.Key) == "" {
 			return errors.New(errInvalidParams)
+		}
+		if isProtectedConfigKey(option.Key) {
+			return errors.New(protectedConfigKeyMessage)
 		}
 		if err := validateOptionWithState(ctx, option, state); err != nil {
 			return err

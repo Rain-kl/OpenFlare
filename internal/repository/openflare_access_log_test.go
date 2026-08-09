@@ -6,21 +6,60 @@ package repository
 import (
 	"context"
 	"fmt"
+	"sync/atomic"
 	"testing"
 	"time"
 
+	"github.com/glebarez/sqlite"
+	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
+
+	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/model"
+	analyticsmodel "github.com/Rain-kl/Wavelet/internal/model/analytics"
+	"github.com/Rain-kl/Wavelet/internal/repository/logstore"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
+// accessLogTestDBSeq 保证每个测试获得独立的 sqlite 内存库（cache=shared 下同名 DSN 复用同一库）。
+var accessLogTestDBSeq int64
+
 func setupOpenFlareAccessLogTestEnvironment(t *testing.T) (context.Context, func()) {
 	t.Helper()
-	store := NewMemoryAccessLogStore()
-	reset := SetAccessLogStoreForTest(store)
-	return context.Background(), func() {
-		reset()
+	dsn := fmt.Sprintf("file:repo-access-log-test-%d?mode=memory&cache=shared", atomic.AddInt64(&accessLogTestDBSeq, 1))
+	gdb, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{
+		DisableForeignKeyConstraintWhenMigrating: true,
+		Logger:                                   logger.Default.LogMode(logger.Silent),
+	})
+	require.NoError(t, err)
+	require.NoError(t, gdb.AutoMigrate(&analyticsmodel.NodeAccessLog{}))
+	db.SetDB(gdb)
+
+	logstore.ResetForTest()
+	logstore.SetConfigReader(func(_ context.Context, key string) (string, error) {
+		if key == model.ConfigKeyLogDatabase {
+			return "sqlite", nil
+		}
+		return "", nil
+	})
+	logstore.SetAccessLogHooks(logstore.AccessLogHooks{})
+	logstore.SetObservabilityHooks(logstore.ObservabilityHooks{})
+
+	ctx := context.Background()
+	store, err := logstore.Active(ctx)
+	require.NoError(t, err)
+	// 写入入口只入队；测试环境立即 flush，保证后续查询可见。
+	logstore.SetAccessLogHooks(logstore.AccessLogHooks{
+		QueueNodeAccessLogs: func(logs []analyticsmodel.NodeAccessLog) {
+			require.NoError(t, store.AccessLogs.BatchInsertNodeAccessLogs(context.Background(), logs))
+		},
+	})
+	return ctx, func() {
+		logstore.SetAccessLogHooks(logstore.AccessLogHooks{})
+		logstore.ResetForTest()
+		db.SetDB(nil)
 	}
 }
 
@@ -53,6 +92,7 @@ func TestListOpenFlareAccessLogsPaginated(t *testing.T) {
 		require.NoError(t, InsertOpenFlareAccessLogsBatch(ctx, []*model.OpenFlareAccessLog{record}))
 	}
 
+	// 0-based 分页与 CH ListNodeAccessLogs 一致：page=1 size=5 → OFFSET 5 → /path-05..09。
 	query := model.OpenFlareAccessLogQuery{
 		NodeID:    "node-page",
 		Since:     now.Add(-24 * time.Hour),
@@ -81,6 +121,7 @@ func TestCountOpenFlareAccessLogs(t *testing.T) {
 	totalRecords, totalIPs, _, err := CountOpenFlareAccessLogs(ctx, query)
 	require.NoError(t, err)
 	assert.Equal(t, int64(5), totalRecords)
+	// GORM 与 CH 一致：distinct IP 排除空 remote_addr（CH uniqExactIf(remote_addr, remote_addr != '')）。
 	assert.Equal(t, int64(3), totalIPs)
 }
 

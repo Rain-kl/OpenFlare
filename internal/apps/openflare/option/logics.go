@@ -10,7 +10,6 @@ import (
 	"strings"
 
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/geoip"
-	oftasks "github.com/Rain-kl/Wavelet/internal/apps/openflare/tasks"
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/uptimekuma"
 	"github.com/Rain-kl/Wavelet/internal/buildinfo"
 	"github.com/Rain-kl/Wavelet/internal/model"
@@ -48,22 +47,6 @@ type geoIPLookupView struct {
 	Name      string   `json:"name"`
 	Latitude  *float64 `json:"latitude,omitempty"`
 	Longitude *float64 `json:"longitude,omitempty"`
-}
-
-type databaseCleanupInput struct {
-	Target        string `json:"target"`
-	RetentionDays *int   `json:"retention_days"`
-}
-
-type databaseCleanupResult struct {
-	Target        string `json:"target"`
-	TargetLabel   string `json:"target_label"`
-	DeletedCount  int64  `json:"deleted_count"`
-	EligibleCount int64  `json:"eligible_count,omitempty"`
-	CleanupMode   string `json:"cleanup_mode,omitempty"`
-	TableTTLDays  int    `json:"table_ttl_days,omitempty"`
-	DeleteAll     bool   `json:"delete_all"`
-	RetentionDays *int   `json:"retention_days,omitempty"`
 }
 
 type optionBatchPayload struct {
@@ -180,32 +163,6 @@ func lookupGeoIP(_ context.Context, provider, rawIP string) (*geoIPLookupView, e
 		Name:      view.Name,
 		Latitude:  view.Latitude,
 		Longitude: view.Longitude,
-	}, nil
-}
-
-func cleanupDatabaseObservability(ctx context.Context, input databaseCleanupInput) (*databaseCleanupResult, error) {
-	target := strings.TrimSpace(input.Target)
-	if target == "" {
-		return nil, errors.New(errInvalidParams)
-	}
-
-	result, err := oftasks.CleanupDatabaseObservability(ctx, oftasks.DatabaseCleanupInput{
-		Target:        target,
-		RetentionDays: input.RetentionDays,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	return &databaseCleanupResult{
-		Target:        result.Target,
-		TargetLabel:   result.TargetLabel,
-		DeletedCount:  result.DeletedCount,
-		EligibleCount: result.EligibleCount,
-		CleanupMode:   result.CleanupMode,
-		TableTTLDays:  result.TableTTLDays,
-		DeleteAll:     result.DeleteAll,
-		RetentionDays: result.RetentionDays,
 	}, nil
 }
 

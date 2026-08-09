@@ -1,7 +1,5 @@
 import { OpenFlareBaseService } from './base.service';
 import type {
-  DatabaseCleanupPayload,
-  DatabaseCleanupResult,
   GeoIPLookupResult,
   OptionBatchPayload,
   OptionItem,
@@ -25,11 +23,5 @@ export class OptionService extends OpenFlareBaseService {
 
   static lookupGeoIP(provider: string, ip: string): Promise<GeoIPLookupResult> {
     return this.post<GeoIPLookupResult>('/geoip/lookup', { provider, ip });
-  }
-
-  static cleanupDatabase(
-    payload: DatabaseCleanupPayload,
-  ): Promise<DatabaseCleanupResult> {
-    return this.post<DatabaseCleanupResult>('/database/cleanup', payload);
   }
 }

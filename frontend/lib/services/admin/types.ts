@@ -406,6 +406,22 @@ export interface ToggleAuthSourceRequest {
 }
 
 /**
+ * 日志数据库状态
+ */
+export interface LogDatabaseStatus {
+  /** 当前日志主库：postgres | sqlite | clickhouse */
+  active_database: string;
+  /** 迁移状态：idle | migrating */
+  migration: string;
+  /** 各日志库保留天数 */
+  retention_days: Record<string, number>;
+  /** 当前主库的合法迁移目标 */
+  available_targets: string[];
+  /** ClickHouse 运行指标（仅主库为 ClickHouse 时） */
+  clickhouse?: unknown;
+}
+
+/**
  * 系统状态信息
  */
 export interface SystemStatus {

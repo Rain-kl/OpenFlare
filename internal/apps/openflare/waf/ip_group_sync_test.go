@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/Rain-kl/Wavelet/internal/repository"
+	"github.com/Rain-kl/Wavelet/internal/testhelper"
 
 	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/model"
@@ -34,9 +35,8 @@ func setupIPGroupSyncTestDB(t *testing.T) func() {
 	))
 
 	db.SetDB(sqliteDB)
-	resetAccessLogStore := repository.SetAccessLogStoreForTest(repository.NewMemoryAccessLogStore())
+	testhelper.SetupLogStoresForTest(t)
 	return func() {
-		resetAccessLogStore()
 		db.SetDB(nil)
 	}
 }

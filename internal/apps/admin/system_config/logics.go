@@ -17,6 +17,11 @@ import (
 )
 
 func createSystemConfig(ctx context.Context, req CreateSystemConfigRequest) error {
+	// 防御：受保护 key（log_database / log_db_migration）仅允许内部写入，Handler 已拦截。
+	if isProtectedConfigKey(req.Key) {
+		return errors.New(protectedConfigKeyMessage)
+	}
+
 	exists, err := repository.SystemConfigExists(ctx, req.Key)
 	if err != nil {
 		return err

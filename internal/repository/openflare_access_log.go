@@ -5,7 +5,6 @@ package repository
 
 import (
 	"context"
-	"math"
 	"sort"
 	"strings"
 	"time"
@@ -13,25 +12,21 @@ import (
 	analyticsmodel "github.com/Rain-kl/Wavelet/internal/model/analytics"
 
 	"github.com/Rain-kl/Wavelet/internal/model"
+	"github.com/Rain-kl/Wavelet/internal/repository/logstore"
 )
-
-type openFlareAccessLogBucketAggregateRow = analyticsmodel.NodeAccessLogBucketAggregate
-type openFlareAccessLogBucketDimensionRow = analyticsmodel.NodeAccessLogBucketDimension
-type openFlareAccessLogIPAggregateRow = analyticsmodel.NodeAccessLogIPAggregate
-type openFlareAccessLogIPSummaryRow = analyticsmodel.NodeAccessLogIPSummary
-type openFlareAccessLogIPTrendRow = analyticsmodel.NodeAccessLogIPTrend
-type openFlareAccessLogWAFIPAggregateRow = analyticsmodel.NodeAccessLogWAFIPAggregate
 
 const (
 	sortOrderAsc     = "asc"
-	columnRemoteAddr = "remote_addr"
-	columnHost       = "host"
 	secondsPerMinute = 60
 )
 
 // ListOpenFlareAccessLogWAFIPAggregates returns per-IP aggregates for WAF automatic rules.
 func ListOpenFlareAccessLogWAFIPAggregates(ctx context.Context, query model.OpenFlareAccessLogQuery) ([]*model.OpenFlareAccessLogWAFIPAggregate, error) {
-	rows, err := currentAccessLogStore().WAFIPAggregates(ctx, query)
+	s, err := logstore.Active(ctx)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := s.AccessLogs.WAFIPAggregates(ctx, query)
 	if err != nil {
 		return nil, err
 	}
@@ -59,39 +54,67 @@ func ListOpenFlareAccessLogWAFIPAggregates(ctx context.Context, query model.Open
 	return result, nil
 }
 
-// InsertOpenFlareAccessLogsBatch inserts access log rows into ClickHouse.
+// InsertOpenFlareAccessLogsBatch inserts access log rows into the active log store.
 func InsertOpenFlareAccessLogsBatch(ctx context.Context, records []*model.OpenFlareAccessLog) error {
-	return currentAccessLogStore().InsertBatch(ctx, records)
+	s, err := logstore.Active(ctx)
+	if err != nil {
+		return err
+	}
+	return s.AccessLogs.InsertBatch(ctx, records)
 }
 
 // ListOpenFlareAccessLogs lists access logs matching the query.
 func ListOpenFlareAccessLogs(ctx context.Context, query model.OpenFlareAccessLogQuery) ([]*model.OpenFlareAccessLog, error) {
-	return currentAccessLogStore().List(ctx, query)
+	s, err := logstore.Active(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return s.AccessLogs.List(ctx, query)
 }
 
 // CountOpenFlareAccessLogs counts access logs, distinct IPs, and total bytes sent matching the query.
 func CountOpenFlareAccessLogs(ctx context.Context, query model.OpenFlareAccessLogQuery) (int64, int64, int64, error) {
-	return currentAccessLogStore().Count(ctx, query)
+	s, err := logstore.Active(ctx)
+	if err != nil {
+		return 0, 0, 0, err
+	}
+	return s.AccessLogs.Count(ctx, query)
 }
 
 // TrafficSummaryOpenFlareAccessLogs returns window-level request/error/UV/bytes summary.
 func TrafficSummaryOpenFlareAccessLogs(ctx context.Context, query model.OpenFlareAccessLogQuery) (model.OpenFlareAccessLogTrafficSummary, error) {
-	return currentAccessLogStore().TrafficSummary(ctx, query)
+	s, err := logstore.Active(ctx)
+	if err != nil {
+		return model.OpenFlareAccessLogTrafficSummary{}, err
+	}
+	return s.AccessLogs.TrafficSummary(ctx, query)
 }
 
 // ValueCountsOpenFlareAccessLogs groups logs by status_code, host, path, remote_addr, or user_agent.
 func ValueCountsOpenFlareAccessLogs(ctx context.Context, query model.OpenFlareAccessLogQuery, column string, limit int) ([]model.OpenFlareAccessLogValueCount, error) {
-	return currentAccessLogStore().ValueCounts(ctx, query, column, limit)
+	s, err := logstore.Active(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return s.AccessLogs.ValueCounts(ctx, query, column, limit)
 }
 
 // NodeAggregatesOpenFlareAccessLogs returns per-node request/error/UV for the window.
 func NodeAggregatesOpenFlareAccessLogs(ctx context.Context, query model.OpenFlareAccessLogQuery) ([]model.OpenFlareAccessLogNodeAggregate, error) {
-	return currentAccessLogStore().NodeAggregates(ctx, query)
+	s, err := logstore.Active(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return s.AccessLogs.NodeAggregates(ctx, query)
 }
 
 // ListOpenFlareAccessLogRegionCounts returns region counts for access logs.
 func ListOpenFlareAccessLogRegionCounts(ctx context.Context, nodeID string, since time.Time, limit int) ([]*model.OpenFlareAccessLogRegionCount, error) {
-	return currentAccessLogStore().RegionCounts(ctx, nodeID, since, limit)
+	s, err := logstore.Active(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return s.AccessLogs.RegionCounts(ctx, nodeID, since, limit)
 }
 
 // ListOpenFlareAccessLogBuckets lists folded access log buckets.
@@ -106,7 +129,11 @@ func CountOpenFlareAccessLogBuckets(ctx context.Context, query model.OpenFlareAc
 	if bucketSeconds <= 0 {
 		bucketSeconds = 180
 	}
-	return currentAccessLogStore().CountBuckets(ctx, filter, bucketSeconds)
+	s, err := logstore.Active(ctx)
+	if err != nil {
+		return 0, err
+	}
+	return s.AccessLogs.CountBuckets(ctx, filter, bucketSeconds)
 }
 
 // ListOpenFlareAccessLogBucketIPs lists folded IP rows for a bucket window.
@@ -139,7 +166,11 @@ func ListOpenFlareAccessLogIPSummaries(ctx context.Context, query model.OpenFlar
 // CountOpenFlareAccessLogIPSummaries counts IP summaries.
 func CountOpenFlareAccessLogIPSummaries(ctx context.Context, query model.OpenFlareAccessLogIPSummaryQuery) (int64, error) {
 	filter := openFlareAccessLogQueryFromIPSummary(query)
-	return currentAccessLogStore().CountIPSummaries(ctx, filter)
+	s, err := logstore.Active(ctx)
+	if err != nil {
+		return 0, err
+	}
+	return s.AccessLogs.CountIPSummaries(ctx, filter)
 }
 
 // ListOpenFlareAccessLogIPTrend lists IP trend points.
@@ -158,7 +189,11 @@ func ListOpenFlareAccessLogIPTrend(ctx context.Context, query model.OpenFlareAcc
 	if bucketSeconds <= 0 {
 		bucketSeconds = 1800
 	}
-	rows, err := currentAccessLogStore().IPTrend(ctx, filter, bucketSeconds)
+	s, err := logstore.Active(ctx)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := s.AccessLogs.IPTrend(ctx, filter, bucketSeconds)
 	if err != nil {
 		return nil, err
 	}
@@ -174,17 +209,29 @@ func ListOpenFlareAccessLogIPTrend(ctx context.Context, query model.OpenFlareAcc
 
 // DeleteAllOpenFlareAccessLogs deletes all access logs.
 func DeleteAllOpenFlareAccessLogs(ctx context.Context) (int64, error) {
-	return currentAccessLogStore().DeleteAll(ctx)
+	s, err := logstore.Active(ctx)
+	if err != nil {
+		return 0, err
+	}
+	return s.AccessLogs.DeleteAll(ctx)
 }
 
 // DeleteOpenFlareAccessLogsBefore deletes access logs older than cutoff.
 func DeleteOpenFlareAccessLogsBefore(ctx context.Context, cutoff time.Time) (int64, error) {
-	return currentAccessLogStore().DeleteBefore(ctx, cutoff)
+	s, err := logstore.Active(ctx)
+	if err != nil {
+		return 0, err
+	}
+	return s.AccessLogs.DeleteBefore(ctx, cutoff)
 }
 
 // DeleteOpenFlareAccessLogsByNodeBefore deletes access logs for a node older than cutoff.
 func DeleteOpenFlareAccessLogsByNodeBefore(ctx context.Context, nodeID string, cutoff time.Time) (int64, error) {
-	return currentAccessLogStore().DeleteByNodeBefore(ctx, nodeID, cutoff)
+	s, err := logstore.Active(ctx)
+	if err != nil {
+		return 0, err
+	}
+	return s.AccessLogs.DeleteByNodeBefore(ctx, nodeID, cutoff)
 }
 
 func buildOpenFlareAccessLogBucketRows(ctx context.Context, query model.OpenFlareAccessLogBucketQuery) ([]*model.OpenFlareAccessLogBucketRow, error) {
@@ -193,8 +240,11 @@ func buildOpenFlareAccessLogBucketRows(ctx context.Context, query model.OpenFlar
 	if bucketSeconds <= 0 {
 		bucketSeconds = 180
 	}
-
-	partials, err := currentAccessLogStore().BucketAggregates(ctx, filter, bucketSeconds)
+	s, err := logstore.Active(ctx)
+	if err != nil {
+		return nil, err
+	}
+	partials, err := s.AccessLogs.BucketAggregates(ctx, filter, bucketSeconds)
 	if err != nil {
 		return nil, err
 	}
@@ -242,7 +292,11 @@ func buildOpenFlareAccessLogBucketIPRows(ctx context.Context, query model.OpenFl
 
 func buildOpenFlareAccessLogIPSummaryRows(ctx context.Context, query model.OpenFlareAccessLogIPSummaryQuery, recentSince time.Time) ([]*analyticsmodel.NodeAccessLogIPSummary, error) {
 	filter := openFlareAccessLogQueryFromIPSummary(query)
-	partials, err := currentAccessLogStore().IPSummaries(ctx, filter, recentSince)
+	s, err := logstore.Active(ctx)
+	if err != nil {
+		return nil, err
+	}
+	partials, err := s.AccessLogs.IPSummaries(ctx, filter, recentSince)
 	if err != nil {
 		return nil, err
 	}
@@ -268,7 +322,11 @@ func buildOpenFlareAccessLogIPSummaryRows(ctx context.Context, query model.OpenF
 }
 
 func queryOpenFlareAccessLogIPAggregateRows(ctx context.Context, filter model.OpenFlareAccessLogQuery, exactRemoteAddr bool) ([]*model.OpenFlareAccessLogBucketIPRow, error) {
-	partials, err := currentAccessLogStore().IPAggregates(ctx, filter, exactRemoteAddr)
+	s, err := logstore.Active(ctx)
+	if err != nil {
+		return nil, err
+	}
+	partials, err := s.AccessLogs.IPAggregates(ctx, filter, exactRemoteAddr)
 	if err != nil {
 		return nil, err
 	}
@@ -384,93 +442,4 @@ func openFlareAccessLogCompareInt64(left int64, right int64) int {
 	default:
 		return 0
 	}
-}
-
-func openFlareAccessLogStatusCodeToInt32(code int) int32 {
-	switch {
-	case code > math.MaxInt32:
-		return math.MaxInt32
-	case code < math.MinInt32:
-		return math.MinInt32
-	default:
-		return int32(code)
-	}
-}
-
-func sortOpenFlareAccessLogBucketRows(items []*model.OpenFlareAccessLogBucketRow, sortBy string, sortOrder string) {
-	desc := openFlareAccessLogNormalizeSortOrder(sortOrder) != sortOrderAsc
-	sort.Slice(items, func(i, j int) bool {
-		left := items[i]
-		right := items[j]
-		if left == nil || right == nil {
-			return left != nil
-		}
-		var compare int
-		switch strings.TrimSpace(sortBy) {
-		case "request_count":
-			compare = openFlareAccessLogCompareInt64(left.RequestCount, right.RequestCount)
-		default:
-			compare = openFlareAccessLogCompareInt64(left.BucketEpoch, right.BucketEpoch)
-		}
-		if compare == 0 {
-			compare = openFlareAccessLogCompareInt64(left.BucketEpoch, right.BucketEpoch)
-		}
-		if desc {
-			return compare > 0
-		}
-		return compare < 0
-	})
-}
-
-func sortOpenFlareAccessLogIPSummaryRows(items []*model.OpenFlareAccessLogIPSummaryRow, sortBy string, sortOrder string) {
-	desc := openFlareAccessLogNormalizeSortOrder(sortOrder) != sortOrderAsc
-	sort.Slice(items, func(i, j int) bool {
-		left := items[i]
-		right := items[j]
-		if left == nil || right == nil {
-			return left != nil
-		}
-		var compare int
-		switch strings.TrimSpace(sortBy) {
-		case "request_length", "bytes_received":
-			compare = openFlareAccessLogCompareInt64(left.BytesReceived, right.BytesReceived)
-		case "bytes_sent":
-			compare = openFlareAccessLogCompareInt64(left.BytesSent, right.BytesSent)
-		case "success_ratio":
-			compare = openFlareAccessLogCompareFloat64(left.SuccessRatio, right.SuccessRatio)
-		case "last_seen_at":
-			compare = openFlareAccessLogCompareInt64(left.LastSeenEpoch, right.LastSeenEpoch)
-		case "remote_addr":
-			compare = strings.Compare(left.RemoteAddr, right.RemoteAddr)
-		default:
-			compare = openFlareAccessLogCompareInt64(left.TotalRequests, right.TotalRequests)
-		}
-		if compare == 0 {
-			compare = openFlareAccessLogCompareInt64(left.LastSeenEpoch, right.LastSeenEpoch)
-		}
-		if compare == 0 {
-			compare = strings.Compare(left.RemoteAddr, right.RemoteAddr)
-		}
-		if desc {
-			return compare > 0
-		}
-		return compare < 0
-	})
-}
-
-func openFlareAccessLogCompareFloat64(left, right float64) int {
-	if left < right {
-		return -1
-	}
-	if left > right {
-		return 1
-	}
-	return 0
-}
-
-func openFlareAccessLogUintToInt64(value uint64) int64 {
-	if value > math.MaxInt64 {
-		return math.MaxInt64
-	}
-	return int64(value)
 }
