@@ -55,7 +55,6 @@ import {
   LogOut,
   Settings,
   ShieldCheck,
-  Terminal,
   UserRound,
 } from 'lucide-react';
 
