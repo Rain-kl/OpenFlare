@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/chwriter"
-	"github.com/Rain-kl/Wavelet/internal/apps/risk_control"
 	"github.com/Rain-kl/Wavelet/internal/infra/config"
 	"github.com/Rain-kl/Wavelet/internal/infra/task"
 	"github.com/Rain-kl/Wavelet/internal/model"
@@ -179,13 +178,10 @@ func currentLogDatabase(ctx context.Context) (string, error) {
 	return cfg.Value, nil
 }
 
-// drainLogWriters 等待 chwriter（节点访问日志 + 可观测 4 表）与 risk_control
-// （用户访问日志）的在途批次全部落库。见设计 §7.2：先排空再冻结。
+// drainLogWriters 等待 chwriter（节点访问日志 + 可观测 4 表）的在途批次全部落库。
+// 见设计 §7.2：先排空再冻结。用户访问日志（w_user_access_logs）记录已禁用，无在途批次。
 func drainLogWriters(ctx context.Context) error {
-	if err := chwriter.Drain(ctx); err != nil {
-		return err
-	}
-	return risk_control.DrainLogWriter(ctx)
+	return chwriter.Drain(ctx)
 }
 
 // setMigrationFlag 写入迁移冻结标记。用 SaveOrUpdateSystemConfig：行缺失时 upsert，

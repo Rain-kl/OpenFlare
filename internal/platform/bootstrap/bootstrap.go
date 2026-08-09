@@ -16,7 +16,6 @@ import (
 	"github.com/Rain-kl/Wavelet/internal/apps/admin/push/custom_events"
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/chwriter"
 	ofgeoip "github.com/Rain-kl/Wavelet/internal/apps/openflare/geoip"
-	"github.com/Rain-kl/Wavelet/internal/apps/risk_control"
 	"github.com/Rain-kl/Wavelet/internal/infra/config"
 	taskhandlers "github.com/Rain-kl/Wavelet/internal/infra/task/handlers"
 	"github.com/Rain-kl/Wavelet/internal/model"
@@ -168,7 +167,6 @@ func Init(ctx context.Context, opts Options) {
 			logger.ErrorF(ctx, "[Bootstrap] sync push events failed: %v", err)
 		}
 		if opts.API {
-			risk_control.InitLogWriter(ctx)
 			chwriter.Init(ctx)
 		}
 	})

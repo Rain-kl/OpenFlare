@@ -9,7 +9,6 @@ import (
 	"net/http"
 
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/chwriter"
-	"github.com/Rain-kl/Wavelet/internal/apps/risk_control"
 	"github.com/Rain-kl/Wavelet/internal/infra/config"
 	"github.com/Rain-kl/Wavelet/internal/infra/persistence/batchwriter"
 	"github.com/Rain-kl/Wavelet/internal/model"
@@ -132,6 +131,5 @@ func collectBatchWriterStats() []batchwriter.Stats {
 	if out == nil {
 		out = make([]batchwriter.Stats, 0, 1)
 	}
-	out = append(out, risk_control.LogWriterStats())
 	return out
 }

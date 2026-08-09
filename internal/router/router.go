@@ -16,7 +16,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/Rain-kl/Wavelet/internal/apps/risk_control"
 	"github.com/Rain-kl/Wavelet/internal/platform/bootstrap"
 	router_root "github.com/Rain-kl/Wavelet/internal/router/root"
 	v1 "github.com/Rain-kl/Wavelet/internal/router/v1"
@@ -76,7 +75,7 @@ func Serve(onStarted func()) {
 	r.Use(sessions.Sessions(config.Config.App.SessionCookieName, sessionStore))
 
 	// 补充中间件
-	r.Use(otelgin.Middleware(config.Config.App.AppName), errorHandlerMiddleware(), loggerMiddleware(), risk_control.RiskControlMiddleware())
+	r.Use(otelgin.Middleware(config.Config.App.AppName), errorHandlerMiddleware(), loggerMiddleware())
 
 	registerRoutes(r)
 
