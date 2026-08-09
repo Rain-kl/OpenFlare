@@ -54,15 +54,24 @@ OpenFlare 是开源 CDN 编排与边缘安全平台。它支持反向代理、�
 
 ![OpenFlare dashboard overview](./docs/assets/readme/dashboard-overview.png)
 
-### 节点详情
+### 访问日志
 
-![OpenFlare node detail](./docs/assets/readme/node-detail.png)
+![OpenFlare version release](./docs/assets/readme/domain_overview.png)
 
-### 配置新增
+### WAF 防护
 
-![OpenFlare version release](./docs/assets/readme/proxy-route-detail.png)
+![OpenFlare version release](./docs/assets/readme/waf.png)
 
 ## 快速开始
+
+### 硬件配置推荐
+
+| 组件 | 最低硬件配额                        | 推荐硬件配额 | 说明 |
+| --- |-------------------------------| --- | --- |
+| **Server 控制面** | 1 核 CPU / 2 GB 内存 / 20 GB 磁盘  | 2 核 CPU / 4 GB 内存 / 50 GB+ 磁盘 | 磁盘用量需根据访问日志留存时长与并发流量合理扩容 |
+| **Agent 数据面** | 1 核 CPU / 512 MB 内存 / 2 GB 磁盘 | 2 核 CPU / 2 GB 内存 / 10 GB+ 磁盘 | 根据 OpenResty 的并发代理连接量与 WAF 拦截处理扩容 |
+| **Relay 中继节点**| 1 核 CPU / 1 GB 内存 / 5 GB 磁盘   | 2 核 CPU / 2 GB 内存 / 20 GB 磁盘 | frps 传输中继吞吐量主要受带宽与 CPU 吞吐能力限制 |
+| **OpenFlared 客户端**| 1 核 CPU / 256 MB 内存 / 1 GB 磁盘 | 1 核 CPU / 512 MB 内存 / 5 GB 磁盘 | 独立运行于内网，自身资源占用极小，保障网络吞吐即可 |
 
 ### 1. 启动 Server
 
@@ -72,11 +81,6 @@ OpenFlare 是开源 CDN 编排与边缘安全平台。它支持反向代理、�
 # 下载环境变量模板并创建 .env 文件
 curl -o .env.example https://raw.githubusercontent.com/Rain-kl/OpenFlare/refs/heads/main/.env.example
 cp .env.example .env
-
-# ClickHouse 服务端：curl performance.xml 到 ./config/clickhouse，并以单文件方式挂载到 config.d
-mkdir -p ./config/clickhouse
-curl -fsSL -o ./config/clickhouse/performance.xml \
-  https://raw.githubusercontent.com/Rain-kl/OpenFlare/refs/heads/main/config/clickhouse/performance.xml
 ```
 
 ```yaml
@@ -95,8 +99,6 @@ services:
       postgres:
         condition: service_healthy
       redis:
-        condition: service_healthy
-      clickhouse:
         condition: service_healthy
 
   postgres:
@@ -127,34 +129,10 @@ services:
       retries: 5
       start_period: 5s
 
-  clickhouse:
-    image: clickhouse/clickhouse-server:25.3-alpine
-    restart: unless-stopped
-    environment:
-      CLICKHOUSE_DB: ${CLICKHOUSE_NAME:-openflare}
-      CLICKHOUSE_USER: ${CLICKHOUSE_USERNAME:-default}
-      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-replace-with-clickhouse-password}
-      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
-      TZ: ${TZ:-Asia/Shanghai}
-    ulimits:
-      nofile:
-        soft: 262144
-        hard: 262144
-    volumes:
-      - openflare_clickhouse_data:/var/lib/clickhouse
-      - ./config/clickhouse/performance.xml:/etc/clickhouse-server/config.d/performance.xml:ro
-    healthcheck:
-      test: ["CMD", "clickhouse-client", "--user", "${CLICKHOUSE_USERNAME:-default}", "--password", "${CLICKHOUSE_PASSWORD:-replace-with-clickhouse-password}", "--query", "SELECT 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 15s
-
 volumes:
     openflare_uploads:
     openflare_postgres_data:
     openflare_redis_data:
-    openflare_clickhouse_data:
 ```
 
 详细部署说明见 [部署文档](https://open-flare.pages.dev/deployment/deployment)。

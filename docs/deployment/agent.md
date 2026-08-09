@@ -136,55 +136,6 @@ docker run -d --name openflare-agent --restart unless-stopped \
 > **Pages 持久化**
 > 默认将 Pages 部署目录挂载到 Docker 命名卷 `openflare-agent-pages`（容器内路径 `/data/var/lib/openflare/pages`）。重建或升级 Agent 容器时无需重新拉取静态站点包。
 
-> [!NOTE]
-> **非 Root 安全加固运行**
-> Agent 容器内部已完成安全加固，在启动后会统一以低权限非 root 用户 `openflare` 运行。
-> 容器已内置了 `cap_net_bind_service` 内核能力，使得低权限进程依然能够正常监听宿主机的 `80` 和 `443` 特权端口。
-> 同时，OpenResty 运行时所需的各种临时路径（包括 PID 路径、各类临时缓存目录如 `client_body_temp_path`、`proxy_temp_path` 等）都由 Agent 控制器动态渲染并自动重定向至容器内的 `/data` 目录，彻底避免在非 root 权限运行时写入默认系统路径而导致的权限拒绝错误（Permission Denied）。
-> 具体物理缓存写入路径为：
-> * 临时缓存目录：`/data/var/cache/nginx`
-> * 代理缓存目录：`/data/var/cache/openflare_proxy`
-
-## 启动与验证
-
-systemd 环境：
-
-```bash
-systemctl status openflare-agent
-journalctl -u openflare-agent -f
-```
-
-手动启动：
-
-```bash
-/opt/openflare-agent/openflare-agent -config /opt/openflare-agent/agent.json
-```
-
-源码运行：
-
-```bash
-
-export LOG_LEVEL='info'
-go run ./cmd/agent -config /path/to/agent.json
-```
-
-编译后二进制运行：
-
-```bash
-
-go build -o openflare-agent ./cmd/agent
-export LOG_LEVEL='info'
-./openflare-agent -config /path/to/agent.json
-```
-
-在管理端确认：
-
-| 位置 | 期望结果 |
-| --- | --- |
-| 节点列表 | 节点在线 |
-| 节点详情 | 能看到心跳时间、当前版本和基础资源信息 |
-| 应用记录 | 发布配置后出现应用结果 |
-
 ## 卸载
 
 ### 交互式卸载 (推荐)
@@ -195,38 +146,14 @@ export LOG_LEVEL='info'
 curl -fsSL https://raw.githubusercontent.com/Rain-kl/OpenFlare/main/scripts/uninstall-agent.sh | bash
 ```
 
-### 自动化 (非交互式) 卸载
+### 卸载
 
-使用命令行传参进行无人值守卸载。
-
-本地卸载（默认）：
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/Rain-kl/OpenFlare/main/scripts/uninstall-agent.sh | bash -s -- --install-dir /opt/openflare-agent
-```
-
-Docker 容器卸载：
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/Rain-kl/OpenFlare/main/scripts/uninstall-agent.sh | bash -s -- --docker
-```
-
-支持参数：
-
-| 参数 | 说明 |
-| --- | --- |
-| `--install-dir` | 安装目录，默认 `/opt/openflare-agent`（仅本地卸载生效） |
-| `--service-name` | systemd 服务名，默认 `openflare-agent`（仅本地卸载生效） |
-| `--docker` | 使用 Docker 容器方式卸载 |
-| `--method` | 卸载方式，可选 `local` 或 `docker`（默认 `local`） |
-
-本地卸载只会移除 Agent 服务、进程和安装目录，不会删除本机 OpenResty。Docker 卸载会停止并删除 `openflare-agent` 容器，交互模式下还可以选择是否清理对应的 Docker 镜像。
+停止并删除 `openflare-agent` 容器即可
 
 ## 常见问题
 
-| 现象 | 处理步骤 |
-| --- | --- |
-| `agent_token 和 discovery_token 不能同时为空` | 检查 `agent.json` 至少配置了一个 Token |
-| 节点一直离线 | 在 Agent 节点执行 `curl -I http://your-server:3000`，确认 Server 地址可达 |
-| OpenResty 没有启动 | 查看 `journalctl -u openflare-agent`，确认 `openresty_path` 可执行，80/443 端口未被占用，且运行用户（如 `openflare`）对数据目录具有读写权限 |
-| 发布后重复失败 | Agent 会阻断同一 `version + checksum` 的重复应用；需要修正配置后重新发布，或激活旧版本回滚 |
+| 现象 | 处理步骤                                                                                                    |
+| --- |---------------------------------------------------------------------------------------------------------|
+| `agent_token 和 discovery_token 不能同时为空` | 检查 `agent.json` 至少配置了一个 Token                                                                           |
+| 节点一直离线 | 在 Agent 节点执行 `curl -I http://your-server:3000`，确认 Server 地址可达                                           |
+| 发布后重复失败 | Agent 会阻断同一 `version + checksum` 的重复应用；在节点尝试强制同步,或者重新发布版本                                |

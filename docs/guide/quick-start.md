@@ -14,12 +14,12 @@ Agent 统一通过 OpenResty 二进制控制运行时。本地部署需要节点
 
 ## 环境要求
 
-| 项目 | 要求 |
-| --- | --- |
-| Docker / Docker Compose | 用于启动 Server 及其依赖的 PostgreSQL、Redis 和 ClickHouse 容器；如采用 Docker Agent，也用于运行 Agent |
-| OpenResty | 本地安装 Agent 时需要可执行 `openresty`，或在安装脚本中指定路径 |
-| 可访问端口 | Server 默认监听 `3000`，Agent 节点需要能访问 Server 地址 |
-| 浏览器 | 用于访问管理端 |
+| 项目 | 要求                                                               |
+| --- |------------------------------------------------------------------|
+| Docker / Docker Compose | 用于启动 Server 及其依赖的 PostgreSQL、Valkey；如采用 Docker Agent，也用于运行 Agent |
+| OpenResty | 本地安装 Agent 时需要可执行 `openresty`，或在安装脚本中指定路径                        |
+| 可访问端口 | Server 默认监听 `3000`，Agent 节点需要能访问 Server 地址                       |
+| 浏览器 | 用于访问管理端                                                          |
 
 - **Docker**：`20.10.0+`
 - **Docker Compose**：`2.0.0+`
@@ -28,15 +28,7 @@ Agent 统一通过 OpenResty 二进制控制运行时。本地部署需要节点
 
 ## 1. 启动 Server
 
-为了保证异步任务队列（Asynq 框架）及可观测流量看板功能完整运行，快速开始推荐采用 **PostgreSQL + Redis + ClickHouse** 经典单机版编排。
-
-先拉取 ClickHouse 服务端性能配置到 `./config/clickhouse`，并以单文件方式挂载：
-
-```bash
-mkdir -p ./config/clickhouse
-curl -fsSL -o ./config/clickhouse/performance.xml \
-  https://raw.githubusercontent.com/Rain-kl/OpenFlare/refs/heads/main/config/clickhouse/performance.xml
-```
+快速开始推荐采用 **PostgreSQL + Redis ** 标准部署方案。
 
 在空目录中创建 `docker-compose.yaml`：
 
@@ -63,14 +55,10 @@ services:
       DB_NAME: "${DB_NAME:-openflare}"
       REDIS_ENABLED: "true"
       REDIS_ADDR: "redis:6379"
-      CLICKHOUSE_ENABLED: "true"
-      CLICKHOUSE_HOST: "clickhouse:9000"
     depends_on:
       postgres:
         condition: service_healthy
       redis:
-        condition: service_healthy
-      clickhouse:
         condition: service_healthy
 
   postgres:
@@ -100,34 +88,11 @@ services:
       timeout: 5s
       retries: 5
 
-  clickhouse:
-    image: clickhouse/clickhouse-server:25.3-alpine
-    restart: unless-stopped
-    environment:
-      CLICKHOUSE_DB: openflare
-      CLICKHOUSE_USER: default
-      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-replace-with-clickhouse-password}
-      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
-      TZ: Asia/Shanghai
-    ulimits:
-      nofile:
-        soft: 262144
-        hard: 262144
-    volumes:
-      - openflare_clickhouse_data:/var/lib/clickhouse
-      - ./config/clickhouse/performance.xml:/etc/clickhouse-server/config.d/performance.xml:ro
-    healthcheck:
-      test: ["CMD", "clickhouse-client", "--user", "default", "--password", "${CLICKHOUSE_PASSWORD:-replace-with-clickhouse-password}", "--query", "SELECT 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 15s
 
 volumes:
     openflare_uploads:
     openflare_postgres_data:
     openflare_redis_data:
-    openflare_clickhouse_data:
 ```
 
 启动服务：
@@ -157,6 +122,12 @@ http://localhost:3000
 
 > [!WARNING]
 > 为了你的系统安全，首次登录后请立即修改默认密码。
+
+如果忘记密码并且没有配置找回密码渠道, 可以使用命令进行重置
+
+```bash
+go run main.go reset-paswd     # 重置管理员密码
+```
 
 ---
 

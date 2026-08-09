@@ -72,7 +72,7 @@ const data = {
     { title: '存储管理', url: '/admin/files', icon: FolderOpen },
     { title: '数据管理', url: '/admin/database', icon: Database },
     { title: '通知推送', url: '/admin/push', icon: Bell },
-    { title: '系统日志', url: '/admin/logs', icon: Terminal },
+    // { title: '系统日志', url: '/admin/logs', icon: Terminal },
     { title: '系统配置', url: '/admin/system', icon: ShieldCheck },
     { title: '系统设置', url: '/admin/settings', icon: Settings },
   ],

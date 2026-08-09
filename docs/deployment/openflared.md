@@ -34,7 +34,7 @@
 
 ---
 
-## Docker 运行（推荐）
+## Docker 运行
 
 Docker 部署是内网运行最简单也最安全的方式。官方的 `openflared` 镜像已经内置了客户端控制器以及 `frpc v0.69.0` 二进制运行时，无需额外搭建环境。
 
@@ -47,40 +47,6 @@ docker run -d --name openflared --restart unless-stopped \
   -e OPENFLARE_TUNNEL_TOKEN=YOUR_TUNNEL_TOKEN \
   -v openflared-data:/app/data \
   ghcr.io/rain-kl/openflared:latest
-```
-
----
-
-## 宿主机手动运行
-
-如果您需要直接在内网的 Linux/macOS/Windows 宿主机上独立运行：
-
-### 1. 编译二进制
-
-```bash
-go build -o bin/flared ./cmd/flared
-```
-
-### 2. 准备 `flared.json`
-
-在程序同级目录下创建 `flared.json` 配置文件：
-
-```json
-{
-  "server_url": "http://your-server-ip:3000",
-  "tunnel_token": "your-tunnel-auth-token",
-  "frpc_path": "/usr/local/bin/frpc",
-  "data_dir": "./data",
-  "heartbeat_interval": "10s",
-  "sync_interval": "30s"
-}
-```
-
-### 3. 运行服务
-
-```bash
-export LOG_LEVEL='info'
-./flared -config ./flared.json
 ```
 
 ---
