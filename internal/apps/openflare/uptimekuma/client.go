@@ -17,35 +17,6 @@ import (
 	"time"
 )
 
-// redactSensitiveJSON masks values of sensitive keys (password, token, secret,
-// api key) so credentials never appear in logs.
-func redactSensitiveJSON(v any) any {
-	switch t := v.(type) {
-	case map[string]any:
-		for k, val := range t {
-			if isSensitiveLogKey(k) {
-				t[k] = "***"
-			} else {
-				t[k] = redactSensitiveJSON(val)
-			}
-		}
-	case []any:
-		for i, val := range t {
-			t[i] = redactSensitiveJSON(val)
-		}
-	}
-	return v
-}
-
-func isSensitiveLogKey(k string) bool {
-	switch strings.ToLower(k) {
-	case "password", "passwd", "secret", "token", "access_token", "api_key", "apikey":
-		return true
-	default:
-		return false
-	}
-}
-
 const emitAckTimeout = 10 * time.Second
 
 // Monitor represents a monitor entry from Uptime Kuma.
@@ -321,14 +292,7 @@ func (c *SocketIOClient) Emit(event string, args ...any) (string, error) {
 	}
 
 	body := fmt.Sprintf("42%d%s", id, string(bs))
-	logPayload := string(bs)
-	var decoded any
-	if err := json.Unmarshal(bs, &decoded); err == nil {
-		if redacted, err := json.Marshal(redactSensitiveJSON(decoded)); err == nil {
-			logPayload = string(redacted)
-		}
-	}
-	slog.Debug("Emitting Socket.IO event", "event", event, "ackID", id, "payload", logPayload)
+	slog.Debug("Emitting Socket.IO event", "event", event, "ackID", id, "payload_len", len(bs))
 
 	u := fmt.Sprintf("%s/socket.io/?EIO=4&transport=polling&sid=%s", c.baseURL, c.sid)
 	req, err := http.NewRequestWithContext(c.ctx, http.MethodPost, u, strings.NewReader(body))
