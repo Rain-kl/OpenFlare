@@ -130,16 +130,16 @@ func (h *SystemCleanupHandler) Execute(ctx context.Context, _ []byte) (*task.Tas
 		)
 	}
 
-	task.AppendLog(ctx, "开始清理过期日志（按当前日志库保留天数）...")
+	task.AppendLog(ctx, "开始清理过期日志（访问日志按当前日志库保留天数，性能指标按独立短留存）...")
 	summary, err := logstore.CleanupExpired(ctx)
 	switch {
 	case err != nil:
 		logger.ErrorF(ctx, "清理过期日志失败: %v", err)
 		task.AppendLog(ctx, "清理过期日志失败: %v", err)
 	case summary.Deleted == 0:
-		task.AppendLog(ctx, "没有需要清理的过期日志 (保留 %d 天)", summary.RetentionDays)
+		task.AppendLog(ctx, "没有需要清理的过期日志 (访问日志保留 %d 天，性能指标保留 %d 天)", summary.RetentionDays, summary.MetricRetentionDays)
 	default:
-		task.AppendLog(ctx, "日志清理完成：保留 %d 天，删除 %d 条", summary.RetentionDays, summary.Deleted)
+		task.AppendLog(ctx, "日志清理完成：访问日志保留 %d 天，性能指标保留 %d 天，删除 %d 条", summary.RetentionDays, summary.MetricRetentionDays, summary.Deleted)
 	}
 
 	msg := fmt.Sprintf("系统清理完成。成功清理未使用的上传文件 %d/%d 个；清理历史推送审计日志 %d 条；清理任务执行日志 %d 条。",

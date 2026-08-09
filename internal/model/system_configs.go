@@ -127,6 +127,9 @@ const (
 	ConfigKeyLogRetentionDaysPostgres   = "log_retention_days_postgres"   // PostgreSQL 日志保留天数
 	ConfigKeyLogRetentionDaysSQLite     = "log_retention_days_sqlite"     // SQLite 日志保留天数
 	ConfigKeyLogRetentionDaysClickHouse = "log_retention_days_clickhouse" // ClickHouse 日志保留天数
+	// ConfigKeyMetricRetentionDays 性能指标（CPU/内存/磁盘/网络）保留天数，三库共用；
+	// 性能数据价值衰减快，默认短留存（3 天），不随访问日志保留配置。
+	ConfigKeyMetricRetentionDays = "metric_retention_days"
 )
 
 const (

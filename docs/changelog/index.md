@@ -28,6 +28,7 @@ sidebar: false
 
 ### 变更
 
+- 性能指标（CPU/内存/磁盘/网络）与访问日志的保留时长解耦：新增三库共用的 `metric_retention_days` 配置（默认 3 天），系统垃圾清理每日任务按独立短留存清理指标快照；访问日志仍按 `log_retention_days_*` 清理。
 - ClickHouse 改为默认关闭：`clickhouse.enabled` 缺省或为 `false` 时不启用（此前会被强制置为 `true`），日志/指标由 PostgreSQL/SQLite 主库承担；显式 `true` 或设置 `CLICKHOUSE_HOST` / `CLICKHOUSE_ENABLED=true` 时启用。
 
 ### 修复

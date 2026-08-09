@@ -57,6 +57,8 @@ func TestCleanupExpiredSQLite(t *testing.T) {
 			return "sqlite", nil
 		case model.ConfigKeyLogRetentionDaysSQLite:
 			return "30", nil
+		case model.ConfigKeyMetricRetentionDays:
+			return "3", nil
 		}
 		return "", nil
 	})
@@ -108,6 +110,9 @@ func TestCleanupExpiredSQLite(t *testing.T) {
 	if summary.RetentionDays != 30 {
 		t.Fatalf("RetentionDays = %d, want 30", summary.RetentionDays)
 	}
+	if summary.MetricRetentionDays != 3 {
+		t.Fatalf("MetricRetentionDays = %d, want 3", summary.MetricRetentionDays)
+	}
 	if summary.Deleted != 5 {
 		t.Fatalf("Deleted = %d, want 5", summary.Deleted)
 	}
@@ -137,6 +142,93 @@ func TestCleanupExpiredSQLite(t *testing.T) {
 	}
 	if kept.ID != 2 {
 		t.Fatalf("kept log ID = %d, want 2 (recent)", kept.ID)
+	}
+}
+
+// TestCleanupExpiredMetricShortRetention 回归：性能指标（CPU/内存/磁盘/网络）按三库共用
+// 的短留存（默认 3 天）清理，与访问日志保留天数（log_retention_days_*）解耦。
+// 10 天前的指标快照被删（> 3 天），同日期的访问日志保留（< 30 天）。
+func TestCleanupExpiredMetricShortRetention(t *testing.T) {
+	ResetForTest()
+	SetConfigReader(func(_ context.Context, key string) (string, error) {
+		switch key {
+		case logDatabaseKey:
+			return "sqlite", nil
+		case model.ConfigKeyLogRetentionDaysSQLite:
+			return "30", nil
+		case model.ConfigKeyMetricRetentionDays:
+			return "3", nil
+		}
+		return "", nil
+	})
+	defer ResetForTest()
+
+	gdb := newCleanupTestDB(t)
+	ctx := context.Background()
+	mid := time.Now().AddDate(0, 0, -10).UTC() // 10 天前：超指标留存、未超日志留存
+
+	if err := gdb.Create(&analyticsmodel.NodeAccessLog{ID: 1, NodeID: "n1", LoggedAt: mid, RemoteAddr: "1.1.1.1"}).Error; err != nil {
+		t.Fatalf("seed node access log: %v", err)
+	}
+	if err := gdb.Create(&analyticsmodel.NodeMetricSnapshot{ID: 1, NodeID: "n1", CapturedAt: mid}).Error; err != nil {
+		t.Fatalf("seed metric snapshot: %v", err)
+	}
+
+	summary, err := CleanupExpired(ctx)
+	if err != nil {
+		t.Fatalf("CleanupExpired: %v", err)
+	}
+	if summary.RetentionDays != 30 || summary.MetricRetentionDays != 3 {
+		t.Fatalf("retention = (%d, %d), want (30, 3)", summary.RetentionDays, summary.MetricRetentionDays)
+	}
+
+	var accessCount, metricCount int64
+	if err := gdb.Model(&analyticsmodel.NodeAccessLog{}).Count(&accessCount).Error; err != nil {
+		t.Fatalf("count access logs: %v", err)
+	}
+	if err := gdb.Model(&analyticsmodel.NodeMetricSnapshot{}).Count(&metricCount).Error; err != nil {
+		t.Fatalf("count metric snapshots: %v", err)
+	}
+	if accessCount != 1 {
+		t.Fatalf("node_access_logs count = %d, want 1 (10 天在 30 天日志留存内)", accessCount)
+	}
+	if metricCount != 0 {
+		t.Fatalf("metric_snapshots count = %d, want 0 (10 天超 3 天指标留存)", metricCount)
+	}
+}
+
+// TestMetricRetentionDays 覆盖性能指标保留天数读取：合法值、非法值回退默认 3。
+func TestMetricRetentionDays(t *testing.T) {
+	ResetForTest()
+	SetConfigReader(func(_ context.Context, key string) (string, error) {
+		switch key {
+		case model.ConfigKeyMetricRetentionDays:
+			return "5", nil
+		}
+		return "", nil
+	})
+	if got := metricRetentionDays(context.Background()); got != 5 {
+		t.Fatalf("metricRetentionDays = %d, want 5", got)
+	}
+
+	// 非法值（非数字/<=0）回退默认 3。
+	SetConfigReader(func(_ context.Context, key string) (string, error) {
+		switch key {
+		case model.ConfigKeyMetricRetentionDays:
+			return "abc", nil
+		}
+		return "", nil
+	})
+	if got := metricRetentionDays(context.Background()); got != defaultMetricRetentionDays {
+		t.Fatalf("metricRetentionDays invalid value = %d, want %d", got, defaultMetricRetentionDays)
+	}
+
+	// reader 报错回退默认 3。
+	SetConfigReader(func(_ context.Context, _ string) (string, error) {
+		return "", fmt.Errorf("boom")
+	})
+	if got := metricRetentionDays(context.Background()); got != defaultMetricRetentionDays {
+		t.Fatalf("metricRetentionDays reader error = %d, want %d", got, defaultMetricRetentionDays)
 	}
 }
 

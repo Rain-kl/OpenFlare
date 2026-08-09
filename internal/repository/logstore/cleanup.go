@@ -17,8 +17,11 @@ import (
 // CleanupSummary 汇总本次清理结果。
 type CleanupSummary struct {
 	ActiveDatabase string `json:"active_database"`
-	RetentionDays  int    `json:"retention_days"`
-	Deleted        int64  `json:"deleted"`
+	// RetentionDays 访问日志（节点访问/用户访问）保留天数，按日志库读取。
+	RetentionDays int `json:"retention_days"`
+	// MetricRetentionDays 性能指标（CPU/内存/磁盘/网络）保留天数，三库共用短留存。
+	MetricRetentionDays int   `json:"metric_retention_days"`
+	Deleted             int64 `json:"deleted"`
 	// Tables 记录本次清理的物理表简写名（去掉 of_ 前缀，如 node_access_logs 对应
 	// of_node_access_logs；CH 侧物理表名相同，简写仅便于状态展示）。
 	Tables []string `json:"tables"`
@@ -26,6 +29,10 @@ type CleanupSummary struct {
 
 // defaultLogRetentionDays 默认日志保留天数（配置缺失/非法时回退）。
 const defaultLogRetentionDays = 90
+
+// defaultMetricRetentionDays 默认性能指标保留天数（配置缺失/非法时回退）。
+// 性能数据价值衰减快，默认短留存（3 天）。
+const defaultMetricRetentionDays = 3
 
 // partitionLeadMonths 清理时确保「当前月 + 未来 2 个月」分区持续存在。
 const partitionLeadMonths = 2
@@ -54,7 +61,26 @@ func retentionDaysForDatabase(ctx context.Context, dbName string) int {
 	return days
 }
 
-// CleanupExpired 按当前激活库保留天数清理过期日志（每日由 system_cleanup 调用）。
+// metricRetentionDays 读取性能指标保留天数（三库共用，默认 3 天）。
+func metricRetentionDays(ctx context.Context) int {
+	v, err := getConfig(ctx, model.ConfigKeyMetricRetentionDays)
+	if err != nil {
+		if !errors.Is(err, errConfigReaderNotWired) {
+			logger.ErrorF(ctx, "读取性能指标保留天数配置失败(key=%s)，回退默认 %d 天: %v", model.ConfigKeyMetricRetentionDays, defaultMetricRetentionDays, err)
+		}
+		return defaultMetricRetentionDays
+	}
+	days, perr := strconv.Atoi(v)
+	if perr != nil || days <= 0 {
+		logger.ErrorF(ctx, "性能指标保留天数配置非法(key=%s, value=%q)，回退默认 %d 天", model.ConfigKeyMetricRetentionDays, v, defaultMetricRetentionDays)
+		return defaultMetricRetentionDays
+	}
+	return days
+}
+
+// CleanupExpired 按当前激活库保留天数清理过期日志（每日由 system_cleanup 调用）：
+// 访问日志（节点访问/用户访问）按 log_retention_days_* 清理；
+// 性能指标（CPU/内存/磁盘/网络）按三库共用的短留存 metric_retention_days 清理。
 func CleanupExpired(ctx context.Context) (*CleanupSummary, error) {
 	dbName, err := resolveDatabase(ctx)
 	if err != nil {
@@ -65,8 +91,10 @@ func CleanupExpired(ctx context.Context) (*CleanupSummary, error) {
 		return nil, err
 	}
 	days := retentionDaysForDatabase(ctx, dbName)
+	metricDays := metricRetentionDays(ctx)
 	cutoff := time.Now().AddDate(0, 0, -days)
-	summary := &CleanupSummary{ActiveDatabase: dbName, RetentionDays: days, Tables: []string{}}
+	metricCutoff := time.Now().AddDate(0, 0, -metricDays)
+	summary := &CleanupSummary{ActiveDatabase: dbName, RetentionDays: days, MetricRetentionDays: metricDays, Tables: []string{}}
 
 	// PG 分区表仅在迁移时预建「当前+2 月」分区，此处确保分区持续存在，
 	// 否则跨月后新写入会报 "no partition of relation found"（SQLite/CH 为 no-op）。
@@ -81,7 +109,7 @@ func CleanupExpired(ctx context.Context) (*CleanupSummary, error) {
 		return nil, err
 	}
 	if err := cleanupTable("metric_snapshots", func() (int64, error) {
-		return s.Observability.DeleteMetricSnapshotsBefore(ctx, cutoff)
+		return s.Observability.DeleteMetricSnapshotsBefore(ctx, metricCutoff)
 	}, summary); err != nil {
 		return nil, err
 	}
