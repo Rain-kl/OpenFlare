@@ -4,9 +4,11 @@
 package logstore
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -42,6 +44,70 @@ func TestGormBatchInsertAndCount(t *testing.T) {
 	}
 	if total != 2 || uniqIP != 2 || bytesSent != 300 {
 		t.Fatalf("count got total=%d uniq=%d bytes=%d", total, uniqIP, bytesSent)
+	}
+}
+
+// testLogCaptureWriter 捕获 GORM logger 输出（logger.Writer 需实现 Printf）。
+type testLogCaptureWriter struct {
+	buf *bytes.Buffer
+}
+
+func (w testLogCaptureWriter) Write(p []byte) (int, error) { return w.buf.Write(p) }
+func (w testLogCaptureWriter) Printf(format string, args ...any) {
+	fmt.Fprintf(w.buf, format, args...)
+}
+
+// TestGormBatchInsertFillsZeroIDs 回归测试：PG 日志表 id 为 NOT NULL 且无默认值，GORM 对零值
+// uint64 主键（视为自增）会省略 id 列，导致 PG 插入报 not-null 违例（SQLSTATE 23502）。
+// 验证 BatchInsert* 落库前为零 ID 行生成雪花 ID：INSERT 语句必须包含 id 列且回填非零、唯一 ID。
+func TestGormBatchInsertFillsZeroIDs(t *testing.T) {
+	ResetForTest()
+	SetConfigReader(func(_ context.Context, _ string) (string, error) { return "", nil })
+	defer ResetForTest()
+
+	var buf bytes.Buffer
+	dsn := fmt.Sprintf("file:logstore-idtest-%d?mode=memory&cache=shared", atomic.AddInt64(&testGormStoreSeq, 1))
+	db, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{
+		Logger: logger.New(testLogCaptureWriter{&buf}, logger.Config{LogLevel: logger.Info, Colorful: false}),
+	})
+	if err != nil {
+		t.Fatalf("open sqlite: %v", err)
+	}
+	if err := db.AutoMigrate(&analyticsmodel.NodeAccessLog{}); err != nil {
+		t.Fatalf("automigrate: %v", err)
+	}
+	s := newGormStore(db)
+
+	now := time.Now()
+	rows := []analyticsmodel.NodeAccessLog{
+		{NodeID: "n1", LoggedAt: now, RemoteAddr: "1.1.1.1", StatusCode: 200},
+		{NodeID: "n1", LoggedAt: now.Add(time.Second), RemoteAddr: "2.2.2.2", StatusCode: 500},
+	}
+	if err := s.BatchInsertNodeAccessLogs(context.Background(), rows); err != nil {
+		t.Fatalf("insert with zero ids: %v", err)
+	}
+	if rows[0].ID == 0 || rows[1].ID == 0 {
+		t.Fatalf("zero ids not filled: %+v %+v", rows[0], rows[1])
+	}
+	if rows[0].ID == rows[1].ID {
+		t.Fatalf("ids not unique: %d == %d", rows[0].ID, rows[1].ID)
+	}
+	// 捕获日志含 CREATE TABLE 等其它语句，仅校验 INSERT 语句的列清单（而非 RETURNING 子句，
+	// 后者无论是否省略列都含 id）。
+	var insertStmt string
+	for _, line := range strings.Split(buf.String(), "\n") {
+		if strings.Contains(line, "INSERT INTO") {
+			insertStmt = line
+			break
+		}
+	}
+	start := strings.Index(insertStmt, "(")
+	end := strings.Index(insertStmt, ") VALUES")
+	if start < 0 || end <= start {
+		t.Fatalf("cannot parse insert statement: %s", insertStmt)
+	}
+	if columns := insertStmt[start+1 : end]; !strings.Contains(columns, "`id`") {
+		t.Fatalf("insert SQL omits id column: %s", insertStmt)
 	}
 }
 

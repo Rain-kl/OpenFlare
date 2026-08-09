@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Rain-kl/Wavelet/internal/infra/persistence/idgen"
 	"github.com/Rain-kl/Wavelet/internal/model"
 	analyticsmodel "github.com/Rain-kl/Wavelet/internal/model/analytics"
 	"gorm.io/gorm"
@@ -112,6 +113,13 @@ func (s *gormLogStore) BatchInsertNodeAccessLogs(ctx context.Context, rows []ana
 	}
 	if err := s.ensureWritable(ctx); err != nil {
 		return err
+	}
+	// GORM 对零值 uint64 主键会省略 id 列；PG 日志表 id 为 NOT NULL 且无默认值，
+	// 须在落库前显式生成雪花 ID（与 CH 写入路径 analytics repo BatchInsert* 行为一致）。
+	for i := range rows {
+		if rows[i].ID == 0 {
+			rows[i].ID = idgen.NextUint64ID()
+		}
 	}
 	return s.db.WithContext(ctx).CreateInBatches(rows, insertBatchSize).Error
 }
@@ -1000,6 +1008,11 @@ func (s *gormLogStore) BatchInsertNodeMetricSnapshots(ctx context.Context, rows 
 	if err := s.ensureWritable(ctx); err != nil {
 		return err
 	}
+	for i := range rows {
+		if rows[i].ID == 0 {
+			rows[i].ID = idgen.NextUint64ID()
+		}
+	}
 	return s.db.WithContext(ctx).CreateInBatches(rows, insertBatchSize).Error
 }
 
@@ -1200,6 +1213,11 @@ func (s *gormLogStore) BatchInsertNodeEdgeHealth(ctx context.Context, rows []ana
 	if err := s.ensureWritable(ctx); err != nil {
 		return err
 	}
+	for i := range rows {
+		if rows[i].ID == 0 {
+			rows[i].ID = idgen.NextUint64ID()
+		}
+	}
 	return s.db.WithContext(ctx).CreateInBatches(rows, insertBatchSize).Error
 }
 
@@ -1250,6 +1268,11 @@ func (s *gormLogStore) BatchInsertNodeObsFrps(ctx context.Context, rows []analyt
 	if err := s.ensureWritable(ctx); err != nil {
 		return err
 	}
+	for i := range rows {
+		if rows[i].ID == 0 {
+			rows[i].ID = idgen.NextUint64ID()
+		}
+	}
 	return s.db.WithContext(ctx).CreateInBatches(rows, insertBatchSize).Error
 }
 
@@ -1299,6 +1322,11 @@ func (s *gormLogStore) BatchInsertNodeObsFrpc(ctx context.Context, rows []analyt
 	}
 	if err := s.ensureWritable(ctx); err != nil {
 		return err
+	}
+	for i := range rows {
+		if rows[i].ID == 0 {
+			rows[i].ID = idgen.NextUint64ID()
+		}
 	}
 	return s.db.WithContext(ctx).CreateInBatches(rows, insertBatchSize).Error
 }
@@ -1364,6 +1392,11 @@ func (s *userAccessLogGormStore) BatchInsert(ctx context.Context, logs []analyti
 	}
 	if err := s.ensureWritable(ctx); err != nil {
 		return err
+	}
+	for i := range logs {
+		if logs[i].ID == 0 {
+			logs[i].ID = idgen.NextUint64ID()
+		}
 	}
 	return s.db.WithContext(ctx).CreateInBatches(logs, insertBatchSize).Error
 }

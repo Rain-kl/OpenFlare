@@ -459,6 +459,159 @@ func TestDropExpiredPartitionsTimezoneSafety(t *testing.T) {
 	}
 }
 
+// TestBatchInsertGeneratesIDsPostgres 回归：PG 日志表 id BIGINT NOT NULL 且无默认值；
+// GORM 把零值 uint64 主键视为自增并省略 id 列，直接插入会报 23502 not-null 违例。
+// 验证 6 张日志表 BatchInsert* 为零 ID 行生成雪花 ID 后正常落库（修复前本测试失败）。
+func TestBatchInsertGeneratesIDsPostgres(t *testing.T) {
+	dsn := strings.TrimSpace(os.Getenv("TEST_POSTGRES_DSN"))
+	if dsn == "" {
+		t.Skip("TEST_POSTGRES_DSN is not set")
+	}
+
+	gdb, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
+		DisableForeignKeyConstraintWhenMigrating: true,
+		Logger:                                   logger.Default.LogMode(logger.Silent),
+	})
+	if err != nil {
+		t.Fatalf("open postgres: %v", err)
+	}
+	sqlDB, err := gdb.DB()
+	if err != nil {
+		t.Fatalf("sql db: %v", err)
+	}
+	sqlDB.SetMaxOpenConns(1)
+
+	schema := fmt.Sprintf("logstore_ids_%d", time.Now().UnixNano())
+	if !regexp.MustCompile(`^[a-z0-9_]+$`).MatchString(schema) {
+		t.Fatalf("invalid schema: %s", schema)
+	}
+	if err := gdb.Exec(`CREATE SCHEMA "` + schema + `"`).Error; err != nil {
+		t.Fatalf("create schema: %v", err)
+	}
+	if err := gdb.Exec(`SET search_path TO "` + schema + `"`).Error; err != nil {
+		t.Fatalf("set search_path: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = gdb.Exec("SET search_path TO public").Error
+		_ = gdb.Exec(`DROP SCHEMA IF EXISTS "` + schema + `" CASCADE`).Error
+		_ = sqlDB.Close()
+	})
+
+	for _, ddl := range []string{
+		postgresNodeAccessLogsDDL,
+		postgresUserAccessLogsDDL,
+		postgresMetricSnapshotsDDL,
+		postgresEdgeHealthDDL,
+		postgresObsFrpsDDL,
+		postgresObsFrpcDDL,
+	} {
+		if err := gdb.Exec(ddl).Error; err != nil {
+			t.Fatalf("create table: %v", err)
+		}
+	}
+
+	ResetForTest()
+	SetConfigReader(func(_ context.Context, _ string) (string, error) { return "", nil })
+	defer ResetForTest()
+
+	ctx := context.Background()
+	store := newGormStore(gdb)
+	ua := newUserAccessLogGormStore(gdb)
+
+	now := time.Now().UTC()
+	if err := store.EnsurePartitions(ctx, now, now.AddDate(0, 1, 0)); err != nil {
+		t.Fatalf("EnsurePartitions: %v", err)
+	}
+
+	nodeRows := []analyticsmodel.NodeAccessLog{
+		{NodeID: "n1", LoggedAt: now, RemoteAddr: "1.1.1.1", StatusCode: 200},
+		{NodeID: "n1", LoggedAt: now.Add(time.Second), RemoteAddr: "2.2.2.2", StatusCode: 500},
+	}
+	if err := store.BatchInsertNodeAccessLogs(ctx, nodeRows); err != nil {
+		t.Fatalf("insert node access logs with zero ids: %v", err)
+	}
+	if nodeRows[0].ID == 0 || nodeRows[1].ID == 0 || nodeRows[0].ID == nodeRows[1].ID {
+		t.Fatalf("node access log ids not generated: %+v", nodeRows)
+	}
+
+	metricRows := []analyticsmodel.NodeMetricSnapshot{
+		{NodeID: "n1", CapturedAt: now},
+		{NodeID: "n2", CapturedAt: now},
+	}
+	if err := store.BatchInsertNodeMetricSnapshots(ctx, metricRows); err != nil {
+		t.Fatalf("insert metric snapshots with zero ids: %v", err)
+	}
+	if metricRows[0].ID == 0 || metricRows[1].ID == 0 || metricRows[0].ID == metricRows[1].ID {
+		t.Fatalf("metric snapshot ids not generated: %+v", metricRows)
+	}
+
+	edgeRows := []analyticsmodel.NodeEdgeHealth{
+		{NodeID: "n1", CapturedAt: now, Status: "ok"},
+		{NodeID: "n2", CapturedAt: now, Status: "ok"},
+	}
+	if err := store.BatchInsertNodeEdgeHealth(ctx, edgeRows); err != nil {
+		t.Fatalf("insert edge health with zero ids: %v", err)
+	}
+	if edgeRows[0].ID == 0 || edgeRows[1].ID == 0 || edgeRows[0].ID == edgeRows[1].ID {
+		t.Fatalf("edge health ids not generated: %+v", edgeRows)
+	}
+
+	frpsRows := []analyticsmodel.NodeObsFrps{
+		{NodeID: "n1", CapturedAt: now, FrpsConnections: 1},
+		{NodeID: "n2", CapturedAt: now, FrpsConnections: 2},
+	}
+	if err := store.BatchInsertNodeObsFrps(ctx, frpsRows); err != nil {
+		t.Fatalf("insert obs frps with zero ids: %v", err)
+	}
+	if frpsRows[0].ID == 0 || frpsRows[1].ID == 0 || frpsRows[0].ID == frpsRows[1].ID {
+		t.Fatalf("obs frps ids not generated: %+v", frpsRows)
+	}
+
+	frpcRows := []analyticsmodel.NodeObsFrpc{
+		{NodeID: "n1", CapturedAt: now, TunnelStatus: "online"},
+		{NodeID: "n2", CapturedAt: now, TunnelStatus: "online"},
+	}
+	if err := store.BatchInsertNodeObsFrpc(ctx, frpcRows); err != nil {
+		t.Fatalf("insert obs frpc with zero ids: %v", err)
+	}
+	if frpcRows[0].ID == 0 || frpcRows[1].ID == 0 || frpcRows[0].ID == frpcRows[1].ID {
+		t.Fatalf("obs frpc ids not generated: %+v", frpcRows)
+	}
+
+	userRows := []analyticsmodel.UserAccessLog{
+		{UserID: 101, Path: "/a", CreatedAt: now},
+		{UserID: 102, Path: "/b", CreatedAt: now},
+	}
+	if err := ua.BatchInsert(ctx, userRows); err != nil {
+		t.Fatalf("insert user access logs with zero ids: %v", err)
+	}
+	if userRows[0].ID == 0 || userRows[1].ID == 0 || userRows[0].ID == userRows[1].ID {
+		t.Fatalf("user access log ids not generated: %+v", userRows)
+	}
+
+	expect := []struct {
+		name  string
+		model any
+		want  int64
+	}{
+		{"of_node_access_logs", &analyticsmodel.NodeAccessLog{}, 2},
+		{"of_node_metric_snapshots", &analyticsmodel.NodeMetricSnapshot{}, 2},
+		{"of_node_edge_health", &analyticsmodel.NodeEdgeHealth{}, 2},
+		{"of_node_obs_frps", &analyticsmodel.NodeObsFrps{}, 2},
+		{"of_node_obs_frpc", &analyticsmodel.NodeObsFrpc{}, 2},
+		{"w_user_access_logs", &analyticsmodel.UserAccessLog{}, 2},
+	}
+	for _, e := range expect {
+		var got int64
+		if err := gdb.Model(e.model).Count(&got).Error; err != nil {
+			t.Fatalf("count %s: %v", e.name, err)
+		}
+		if got != e.want {
+			t.Fatalf("%s count = %d, want %d", e.name, got, e.want)
+		}
+	}
+}
+
 // postgresNodeAccessLogsDDL 与 goose/postgres/202608080001_create_log_tables.sql 对齐。
 const postgresNodeAccessLogsDDL = `
 CREATE TABLE IF NOT EXISTS of_node_access_logs (
@@ -494,3 +647,54 @@ CREATE TABLE IF NOT EXISTS w_user_access_logs (
     created_at  TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (id, created_at)
 ) PARTITION BY RANGE (created_at)`
+
+// postgresMetricSnapshotsDDL / postgresEdgeHealthDDL / postgresObsFrpsDDL / postgresObsFrpcDDL
+// 与 goose/postgres/202608080001_create_log_tables.sql 对齐（普通表，无分区）。
+const postgresMetricSnapshotsDDL = `
+CREATE TABLE IF NOT EXISTS of_node_metric_snapshots (
+    id                 BIGINT NOT NULL PRIMARY KEY,
+    node_id            VARCHAR(64) NOT NULL DEFAULT '',
+    captured_at        TIMESTAMPTZ NOT NULL,
+    cpu_usage_percent  DOUBLE PRECISION NOT NULL DEFAULT 0,
+    memory_used_bytes  BIGINT NOT NULL DEFAULT 0,
+    memory_total_bytes BIGINT NOT NULL DEFAULT 0,
+    storage_used_bytes BIGINT NOT NULL DEFAULT 0,
+    storage_total_bytes BIGINT NOT NULL DEFAULT 0,
+    disk_read_bytes    BIGINT NOT NULL DEFAULT 0,
+    disk_write_bytes   BIGINT NOT NULL DEFAULT 0,
+    network_rx_bytes   BIGINT NOT NULL DEFAULT 0,
+    network_tx_bytes   BIGINT NOT NULL DEFAULT 0,
+    created_at         TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+)`
+
+const postgresEdgeHealthDDL = `
+CREATE TABLE IF NOT EXISTS of_node_edge_health (
+    id          BIGINT NOT NULL PRIMARY KEY,
+    node_id     VARCHAR(64) NOT NULL DEFAULT '',
+    captured_at TIMESTAMPTZ NOT NULL,
+    status      VARCHAR(64) NOT NULL DEFAULT '',
+    connections BIGINT NOT NULL DEFAULT 0,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+)`
+
+const postgresObsFrpsDDL = `
+CREATE TABLE IF NOT EXISTS of_node_obs_frps (
+    id                BIGINT NOT NULL PRIMARY KEY,
+    node_id           VARCHAR(64) NOT NULL DEFAULT '',
+    captured_at       TIMESTAMPTZ NOT NULL,
+    frps_connections  INTEGER NOT NULL DEFAULT 0,
+    frps_proxy_count  INTEGER NOT NULL DEFAULT 0,
+    frps_client_count INTEGER NOT NULL DEFAULT 0,
+    frps_proxies      TEXT NOT NULL DEFAULT '',
+    created_at        TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+)`
+
+const postgresObsFrpcDDL = `
+CREATE TABLE IF NOT EXISTS of_node_obs_frpc (
+    id                     BIGINT NOT NULL PRIMARY KEY,
+    node_id                VARCHAR(64) NOT NULL DEFAULT '',
+    captured_at            TIMESTAMPTZ NOT NULL,
+    tunnel_status          VARCHAR(16) NOT NULL DEFAULT '',
+    connected_relays_count INTEGER NOT NULL DEFAULT 0,
+    created_at             TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+)`
