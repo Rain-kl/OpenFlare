@@ -26,6 +26,10 @@ sidebar: false
 
 - 日志存储解耦：新增日志存储抽象（`internal/repository/logstore`），ClickHouse 变为可选项，不启用时由 PostgreSQL/SQLite 承担全部日志功能；新增「切换日志数据库」任务支持 PostgreSQL/SQLite 与 ClickHouse 间数据迁移（迁移期间冻结日志写入，成功后自动切换主库并保留源数据）；日志保留时间改为按存储库在业务配置中设置（`log_retention_days_*`），过期清理并入系统垃圾清理每日任务。
 
+### 变更
+
+- ClickHouse 改为默认关闭：`clickhouse.enabled` 缺省或为 `false` 时不启用（此前会被强制置为 `true`），日志/指标由 PostgreSQL/SQLite 主库承担；显式 `true` 或设置 `CLICKHOUSE_HOST` / `CLICKHOUSE_ENABLED=true` 时启用。
+
 ### 修复
 
 - 「切换日志数据库」迁移任务修复冻结期目标库用户访问日志写入被误拦：`BuildForMigration` 未将跳过冻结标记传播到用户访问日志存储，导致迁移任务在清空目标库阶段以「log database is migrating」失败；现在目标库的清空与复制全程放行，任务可正常完成切换。

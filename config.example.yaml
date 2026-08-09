@@ -99,10 +99,12 @@ otel:
   tracer_name: "github.com/Rain-kl/OpenFlare" # Global tracer instrumentation name
 
 
-# ─── ClickHouse (required) ──────────────────────────────────────────────────────
+# ─── ClickHouse (optional) ─────────────────────────────────────────────────────
 # Analytics / observability OLAP store. Telemetry writes are best-effort (async batch).
+# 默认关闭：缺失本配置块或 enabled: false 时不启用 ClickHouse，日志/指标由主库承担；
+# 设置 CLICKHOUSE_HOST 或 CLICKHOUSE_ENABLED=true 可经环境变量启用。
 clickhouse:
-  enabled: true
+  enabled: false
   hosts:
     - "127.0.0.1:9000"        # compose 内应用可用 clickhouse:9000（经 CLICKHOUSE_HOST）
   username: "default"

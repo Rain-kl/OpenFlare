@@ -105,7 +105,7 @@ Server 的所有核心基础配置定义在 `config.yaml` 中，且均支持环�
 
 | 配置文件 YAML 路径 | 对应覆盖环境变量 | 作用说明 | 默认值 |
 | --- | --- | --- | --- |
-| `clickhouse.enabled` | `CLICKHOUSE_ENABLED` | 是否启用 ClickHouse。**系统节点指标与访问日志在此进行海量写入** | `true` |
+| `clickhouse.enabled` | `CLICKHOUSE_ENABLED` | 是否启用 ClickHouse。**系统节点指标与访问日志在此进行海量写入**。默认关闭：缺失本配置项或为 `false` 时不启用，日志/指标由主库承担；显式 `true` 或设置 `CLICKHOUSE_HOST` 时启用 | `false` |
 | `clickhouse.hosts` | `CLICKHOUSE_HOST` | ClickHouse 集群连接地址数组（环境变量仅设置单地址） | `["127.0.0.1:9000"]` |
 | `clickhouse.username` | `CLICKHOUSE_USERNAME` | ClickHouse 账号用户名 | `default` |
 | `clickhouse.password` | `CLICKHOUSE_PASSWORD` | ClickHouse 密码 | `replace-with-clickhouse-password` |

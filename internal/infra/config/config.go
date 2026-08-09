@@ -130,9 +130,8 @@ func applyClickHouseDefaults(c *configModel) {
 		}
 		// Keep Enabled=true from env and continue applying host/pool defaults.
 	}
-	if !c.ClickHouse.Enabled {
-		c.ClickHouse.Enabled = true
-	}
+	// 未显式启用（缺省或 enabled: false）时保持关闭，不再强制打开；
+	// 显式启用后补齐连接默认参数。
 	if c.ClickHouse.Database == "" {
 		c.ClickHouse.Database = "openflare"
 	}
