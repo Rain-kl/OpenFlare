@@ -142,9 +142,18 @@ func Migrating(ctx context.Context) bool {
 	return v == "migrating"
 }
 
-// Init 在 bootstrap 阶段预热一次激活 store（幂等，失败不致命——首次使用时再解析）。
+// Init 在 bootstrap 阶段预热一次激活 store（幂等，失败不致命——首次使用时再解析），
+// 并兜底预建「当前月 + 未来 2 个月」分区：进程停机跨月边界、重启后每日 cleanup 之前
+// 首次写入不会报 "no partition of relation found"（CH/SQLite 分支 EnsurePartitions 为 no-op）。
 func Init(ctx context.Context) {
-	_, _ = Active(ctx)
+	s, err := Active(ctx)
+	if err != nil {
+		return
+	}
+	now := time.Now().UTC()
+	if err := s.AccessLogs.EnsurePartitions(ctx, now, now.AddDate(0, partitionLeadMonths, 0)); err != nil {
+		logger.WarnF(ctx, "logstore: ensure startup partitions failed: %v", err)
+	}
 }
 
 // InvalidateCache 清空日志库解析缓存（在修改 log_database 配置后显式调用）。

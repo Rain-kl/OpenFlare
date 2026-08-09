@@ -107,6 +107,12 @@ func CleanupExpired(ctx context.Context) (*CleanupSummary, error) {
 		return nil, fmt.Errorf("ensure partitions: %w", err)
 	}
 
+	// 先直接删除完全过期的整月分区（比逐行 DELETE 快几个数量级、无 MVCC/WAL 负担），
+	// 再对边界月份执行 DeleteBefore（边界月仍可能含未过期数据，不可整表删）。
+	if err := s.AccessLogs.DropExpiredPartitions(ctx, cutoff); err != nil {
+		return nil, fmt.Errorf("drop expired partitions: %w", err)
+	}
+
 	if err := cleanupTable("node_access_logs", func() (int64, error) {
 		return s.AccessLogs.DeleteBefore(ctx, cutoff)
 	}, summary); err != nil {

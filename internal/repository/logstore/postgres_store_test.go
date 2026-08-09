@@ -803,6 +803,76 @@ func TestGormWAFAndIPSummaries(t *testing.T) {
 	}
 }
 
+// TestGormIPSummariesRegionWithinFilterWindow 验证 IPSummaries 的 region 取过滤窗口内该 IP
+// 最近一条（对齐 CH argMax(region, logged_at)）：窗口外更新的 region 记录不参与，
+// 旧实现（子查询不带窗口条件）会错误返回窗口外那条。
+func TestGormIPSummariesRegionWithinFilterWindow(t *testing.T) {
+	ResetForTest()
+	SetConfigReader(func(_ context.Context, _ string) (string, error) { return "", nil })
+	s := newTestGormStore(t)
+	ctx := context.Background()
+	base := time.Now().UTC().Truncate(time.Minute)
+	rows := []analyticsmodel.NodeAccessLog{
+		// 窗口外（晚于 Until）：同一 IP 的更新 region，旧实现会误取。
+		{ID: 1, NodeID: "n1", LoggedAt: base.Add(3 * time.Hour), RemoteAddr: "1.1.1.1", Region: "outside-new", StatusCode: 200},
+		// 窗口内 [base, base+2h) 最新一条：region 应为 inside-old。
+		{ID: 2, NodeID: "n1", LoggedAt: base.Add(time.Hour), RemoteAddr: "1.1.1.1", Region: "inside-old", StatusCode: 200},
+		// 窗口内更早的一条，不应覆盖窗口内最新 region。
+		{ID: 3, NodeID: "n1", LoggedAt: base, RemoteAddr: "1.1.1.1", Region: "inside-earlier", StatusCode: 200},
+	}
+	if err := s.BatchInsertNodeAccessLogs(ctx, rows); err != nil {
+		t.Fatalf("insert: %v", err)
+	}
+	sums, err := s.IPSummaries(ctx, model.OpenFlareAccessLogQuery{
+		NodeID: "n1",
+		Since:  base,
+		Until:  base.Add(2 * time.Hour),
+	}, time.Time{})
+	if err != nil {
+		t.Fatalf("ip summaries: %v", err)
+	}
+	if len(sums) != 1 || sums[0].RemoteAddr != "1.1.1.1" || sums[0].Region != "inside-old" {
+		t.Fatalf("ip summaries = %+v, want 1.1.1.1 region inside-old (window-external outside-new excluded)", sums)
+	}
+}
+
+// TestGormIPSummariesEmptyFilter 覆盖 IPSummaries 空过滤分支（cond=="" 时 region 子查询
+// 不带参数、Select 走无 args 路径）：OpenFlareAccessLogQuery{} 不报错、返回全部 IP 分组，
+// region 为各 IP 全部行中最新一条（无窗口即全部行）。
+func TestGormIPSummariesEmptyFilter(t *testing.T) {
+	ResetForTest()
+	SetConfigReader(func(_ context.Context, _ string) (string, error) { return "", nil })
+	s := newTestGormStore(t)
+	ctx := context.Background()
+	base := time.Now().UTC().Truncate(time.Minute)
+	rows := []analyticsmodel.NodeAccessLog{
+		{ID: 1, NodeID: "n1", LoggedAt: base, RemoteAddr: "1.1.1.1", Region: "cn", StatusCode: 200},
+		{ID: 2, NodeID: "n1", LoggedAt: base.Add(time.Minute), RemoteAddr: "1.1.1.1", Region: "us", StatusCode: 200},
+		{ID: 3, NodeID: "n2", LoggedAt: base, RemoteAddr: "2.2.2.2", Region: "jp", StatusCode: 404},
+	}
+	if err := s.BatchInsertNodeAccessLogs(ctx, rows); err != nil {
+		t.Fatalf("insert: %v", err)
+	}
+	sums, err := s.IPSummaries(ctx, model.OpenFlareAccessLogQuery{}, time.Time{})
+	if err != nil {
+		t.Fatalf("ip summaries empty filter: %v", err)
+	}
+	if len(sums) != 2 {
+		t.Fatalf("ip summaries = %d groups, want 2", len(sums))
+	}
+	byIP := map[string]analyticsmodel.NodeAccessLogIPSummary{}
+	for _, x := range sums {
+		byIP[x.RemoteAddr] = x
+	}
+	// 无窗口即全部行：1.1.1.1 最新一条 region 为 us（region 子查询不带参数路径）。
+	if byIP["1.1.1.1"].Region != "us" || byIP["1.1.1.1"].TotalRequests != 2 {
+		t.Fatalf("ip summaries 1.1.1.1 = %+v, want region us requests 2", byIP["1.1.1.1"])
+	}
+	if byIP["2.2.2.2"].Region != "jp" || byIP["2.2.2.2"].TotalRequests != 1 {
+		t.Fatalf("ip summaries 2.2.2.2 = %+v, want region jp requests 1", byIP["2.2.2.2"])
+	}
+}
+
 // TestGormListRejectsUnsupportedSortBy 验证 List 对不支持的 SortBy 直接报错，
 // 默认 logged_at 路径与 CH 支持的 status_code/remote_addr 正常可用。
 func TestGormListRejectsUnsupportedSortBy(t *testing.T) {

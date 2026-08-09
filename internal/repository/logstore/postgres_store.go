@@ -171,22 +171,21 @@ func nodeAccessLogOrderClauseGORM(sortBy, sortOrder string) (string, error) {
 
 func (s *gormLogStore) Count(ctx context.Context, query model.OpenFlareAccessLogQuery) (int64, int64, int64, error) {
 	f := toNodeAccessLogFilter(query)
-	var total, uniqIP, bytesSent int64
+	// 对齐 CH CountNodeAccessLogs：单次扫描聚合 total/uniq IP/bytes_sent；
+	// distinct IP 排除空 remote_addr（uniqExactIf(remote_addr, remote_addr != '')，
+	// 由 distinctNonEmptyCountSQL 按方言处理 PG FILTER / SQLite CASE 差异）。
+	type row struct {
+		Total     int64
+		UniqIP    int64
+		BytesSent int64
+	}
+	var out row
 	q := applyNodeAccessLogFilter(s.db.WithContext(ctx).Model(&analyticsmodel.NodeAccessLog{}), f)
-	if err := q.Count(&total).Error; err != nil {
+	q = q.Select("COUNT(*) AS total, " + distinctNonEmptyCountSQL(s.db, "remote_addr") + " AS uniq_ip, COALESCE(SUM(bytes_sent),0) AS bytes_sent")
+	if err := q.Scan(&out).Error; err != nil {
 		return 0, 0, 0, err
 	}
-	// 对齐 CH CountNodeAccessLogs：distinct IP 排除空 remote_addr（uniqExactIf(remote_addr, remote_addr != '')）。
-	// 独立查询链，避免 remote_addr <> '' 条件泄漏到下面的 bytes_sent 求和。
-	uniqQ := applyNodeAccessLogFilter(s.db.WithContext(ctx).Model(&analyticsmodel.NodeAccessLog{}), f)
-	uniqQ = uniqQ.Where("remote_addr <> ''").Distinct("remote_addr")
-	if err := uniqQ.Count(&uniqIP).Error; err != nil {
-		return 0, 0, 0, err
-	}
-	if err := q.Select("COALESCE(SUM(bytes_sent),0)").Scan(&bytesSent).Error; err != nil {
-		return 0, 0, 0, err
-	}
-	return total, uniqIP, bytesSent, nil
+	return out.Total, out.UniqIP, out.BytesSent, nil
 }
 
 func (s *gormLogStore) TrafficSummary(ctx context.Context, query model.OpenFlareAccessLogQuery) (model.OpenFlareAccessLogTrafficSummary, error) {
@@ -417,7 +416,8 @@ func (s *gormLogStore) IPAggregates(ctx context.Context, query model.OpenFlareAc
 	return out, nil
 }
 
-// IPSummaries 按 IP 汇总（region 取该 IP 最近一条日志的 region；recent_requests 恒 0）。
+// IPSummaries 按 IP 汇总（region 取过滤窗口内该 IP 最近一条日志的 region，对齐 CH
+// argMax(region, logged_at)；recent_requests 恒 0）。
 func (s *gormLogStore) IPSummaries(ctx context.Context, query model.OpenFlareAccessLogQuery, _ time.Time) ([]analyticsmodel.NodeAccessLogIPSummary, error) {
 	f := toNodeAccessLogFilter(query)
 	type row struct {
@@ -432,15 +432,31 @@ func (s *gormLogStore) IPSummaries(ctx context.Context, query model.OpenFlareAcc
 	}
 	var rows []row
 	q := applyNodeAccessLogFilter(s.db.WithContext(ctx).Model(&analyticsmodel.NodeAccessLog{}), f)
-	q = q.Select(`
+	// region 子查询携带与外层完全相同的过滤条件（复用 buildNodeAccessLogFilterParts），
+	// 只取窗口内该 IP 最近一条：避免每个 IP 组全分区扫最新（可命中 (remote_addr, logged_at DESC)
+	// 索引并分区裁剪）；cond 为空时省略 AND。
+	cond, condArgs := buildNodeAccessLogFilterParts(f)
+	regionExpr := `(SELECT t2.region FROM of_node_access_logs t2 WHERE t2.remote_addr = of_node_access_logs.remote_addr`
+	if cond != "" {
+		regionExpr += " AND " + cond
+	}
+	regionExpr += ` ORDER BY t2.logged_at DESC LIMIT 1)`
+	selectStr := `
 		remote_addr,
-		(SELECT t2.region FROM of_node_access_logs t2 WHERE t2.remote_addr = of_node_access_logs.remote_addr ORDER BY t2.logged_at DESC LIMIT 1) AS region,
+		` + regionExpr + ` AS region,
 		COUNT(*) AS total_requests,
 		COUNT(*) FILTER (WHERE status_code >= 200 AND status_code < 300) AS success2xx_count,
 		CASE WHEN COUNT(*) = 0 THEN 0.0 ELSE CAST(COUNT(*) FILTER (WHERE status_code >= 200 AND status_code < 300) AS REAL) / CAST(COUNT(*) AS REAL) END AS success_ratio,
 		COALESCE(SUM(request_length),0) AS request_length,
 		COALESCE(SUM(bytes_sent),0) AS bytes_sent,
-		MAX(` + epochSQL(s.db, "logged_at") + `) AS last_seen_epoch`)
+		MAX(` + epochSQL(s.db, "logged_at") + `) AS last_seen_epoch`
+	if len(condArgs) > 0 {
+		// GORM Select(query, args...) 在字符串含恰好 len(args) 个 "?" 时把 args 作为 SELECT 子句
+		// 参数（绑定顺序在 WHERE 参数之前），与外层 applyNodeAccessLogFilter 的同一批参数不会错位。
+		q = q.Select(selectStr, condArgs...)
+	} else {
+		q = q.Select(selectStr)
+	}
 	q = q.Where("remote_addr != ''")
 	q = q.Group("remote_addr").Order("total_requests DESC, last_seen_epoch DESC, remote_addr ASC")
 	// 对齐 CH IPSummariesNodeAccessLogs 的 0-based 分页（仅 PageSize>0 时分页）。
@@ -519,10 +535,7 @@ func (s *gormLogStore) WAFIPAggregates(ctx context.Context, query model.OpenFlar
 		order = append(order, remoteAddr)
 	}
 	if len(aggregates) > 0 {
-		if err := s.mergeWAFIPStatusCounts(ctx, f, aggregates); err != nil {
-			return nil, err
-		}
-		if err := s.mergeWAFIPHostCounts(ctx, f, aggregates); err != nil {
+		if err := s.mergeWAFIPStatusAndHostCounts(ctx, f, aggregates); err != nil {
 			return nil, err
 		}
 	}
@@ -535,18 +548,22 @@ func (s *gormLogStore) WAFIPAggregates(ctx context.Context, query model.OpenFlar
 	return result, nil
 }
 
-// mergeWAFIPStatusCounts 填充 WAF 每 IP 状态码分布。
-func (s *gormLogStore) mergeWAFIPStatusCounts(ctx context.Context, f analyticsmodel.NodeAccessLogFilter, aggregates map[string]*analyticsmodel.NodeAccessLogWAFIPAggregate) error {
+// mergeWAFIPStatusAndHostCounts 一次扫描填充每 IP 状态码分布与 IP 字面量 host 计数
+// （GROUP BY remote_addr, status_code, host；CH 对应 countIf(hostIsIP) 折入主查询 + 状态码二次聚合）。
+// 不筛 host 非空以保持状态计数口径（含空 host 行）；isIPLiteralHost 对空 host 返回 false，
+// 故空 host 不计入 IPHostCount，与旧 mergeWAFIPHostCounts 的 host 非空过滤语义一致。
+func (s *gormLogStore) mergeWAFIPStatusAndHostCounts(ctx context.Context, f analyticsmodel.NodeAccessLogFilter, aggregates map[string]*analyticsmodel.NodeAccessLogWAFIPAggregate) error {
 	type row struct {
-		RemoteAddr  string
-		StatusCode  int32
-		StatusCount int64
+		RemoteAddr string
+		StatusCode int32
+		Host       string
+		RowCount   int64
 	}
 	var rows []row
 	q := applyNodeAccessLogFilter(s.db.WithContext(ctx).Model(&analyticsmodel.NodeAccessLog{}), f)
-	q = q.Select("remote_addr, status_code, COUNT(*) AS status_count").
+	q = q.Select("remote_addr, status_code, host, COUNT(*) AS row_count").
 		Where("remote_addr != ''")
-	if err := q.Group("remote_addr, status_code").Scan(&rows).Error; err != nil {
+	if err := q.Group("remote_addr, status_code, host").Scan(&rows).Error; err != nil {
 		return err
 	}
 	for _, r := range rows {
@@ -557,30 +574,7 @@ func (s *gormLogStore) mergeWAFIPStatusCounts(ctx context.Context, f analyticsmo
 		if a.StatusCounts == nil {
 			a.StatusCounts = make(map[int]int64)
 		}
-		a.StatusCounts[int(r.StatusCode)] += r.StatusCount
-	}
-	return nil
-}
-
-// mergeWAFIPHostCounts 按 (remote_addr, host) 行数累加 IP 字面量 host 的访问行数。
-func (s *gormLogStore) mergeWAFIPHostCounts(ctx context.Context, f analyticsmodel.NodeAccessLogFilter, aggregates map[string]*analyticsmodel.NodeAccessLogWAFIPAggregate) error {
-	type row struct {
-		RemoteAddr string
-		Host       string
-		RowCount   int64
-	}
-	var rows []row
-	q := applyNodeAccessLogFilter(s.db.WithContext(ctx).Model(&analyticsmodel.NodeAccessLog{}), f)
-	q = q.Select("remote_addr, host, COUNT(*) AS row_count").
-		Where("remote_addr != '' AND trim(host) != ''")
-	if err := q.Group("remote_addr, host").Scan(&rows).Error; err != nil {
-		return err
-	}
-	for _, r := range rows {
-		a := aggregates[strings.TrimSpace(r.RemoteAddr)]
-		if a == nil {
-			continue
-		}
+		a.StatusCounts[int(r.StatusCode)] += r.RowCount
 		if isIPLiteralHost(r.Host) {
 			a.IPHostCount += r.RowCount
 		}
@@ -675,15 +669,9 @@ func (s *gormLogStore) DropEmptyPartitions(ctx context.Context, before time.Time
 		return nil
 	}
 	for _, table := range accessLogPartitionTables {
-		var names []string
-		if err := s.db.WithContext(ctx).Raw(`
-SELECT c.relname
-FROM pg_inherits i
-JOIN pg_class c ON c.oid = i.inhrelid
-JOIN pg_class p ON p.oid = i.inhparent
-JOIN pg_namespace n ON n.oid = p.relnamespace AND n.nspname = current_schema()
-WHERE p.relname = ?`, table).Scan(&names).Error; err != nil {
-			return fmt.Errorf("list partitions of %s: %w", table, err)
+		names, err := listPartitionNames(ctx, s.db, table)
+		if err != nil {
+			return err
 		}
 		for _, name := range dropEligiblePartitionNames(table, names, before) {
 			var one int
@@ -801,32 +789,55 @@ func toNodeAccessLogFilter(query model.OpenFlareAccessLogQuery) analyticsmodel.N
 	}
 }
 
+// buildNodeAccessLogFilterParts 拼装节点访问日志过滤条件（node_id 等值、remote_addr/host/path
+// 前缀 LIKE、hosts 走 lower(trim(host)) IN、since/until 时间窗，顺序与 applyNodeAccessLogFilter
+// 完全一致），返回 WHERE 片段与参数；无任何条件时返回空串与 nil。
+func buildNodeAccessLogFilterParts(f analyticsmodel.NodeAccessLogFilter) (string, []any) {
+	var parts []string
+	var args []any
+	if nodeID := strings.TrimSpace(f.NodeID); nodeID != "" {
+		parts = append(parts, "node_id = ?")
+		args = append(args, nodeID)
+	}
+	if remoteAddr := strings.TrimSpace(f.RemoteAddr); remoteAddr != "" {
+		parts = append(parts, "remote_addr LIKE ?")
+		args = append(args, remoteAddr+"%")
+	}
+	hosts := normalizeNodeAccessLogHosts(f.Hosts)
+	if len(hosts) > 0 {
+		parts = append(parts, "lower(trim(host)) IN ?")
+		args = append(args, hosts)
+	} else if host := strings.TrimSpace(f.Host); host != "" {
+		parts = append(parts, "host LIKE ?")
+		args = append(args, host+"%")
+	}
+	if path := strings.TrimSpace(f.Path); path != "" {
+		parts = append(parts, "path LIKE ?")
+		args = append(args, path+"%")
+	}
+	if !f.Since.IsZero() {
+		parts = append(parts, "logged_at >= ?")
+		args = append(args, f.Since)
+	}
+	if !f.Until.IsZero() {
+		parts = append(parts, "logged_at < ?")
+		args = append(args, f.Until)
+	}
+	if len(parts) == 0 {
+		return "", nil
+	}
+	return strings.Join(parts, " AND "), args
+}
+
 // applyNodeAccessLogFilter 对齐 CH 过滤语义（node_access_log_filter.go）：
 // node_id trim 后等值；remote_addr/host/path 前缀 LIKE；hosts 走 lower(trim(host)) IN（参数已归一化）；
 // since 闭区间 >=；until 开区间 <。
 func applyNodeAccessLogFilter(q *gorm.DB, f analyticsmodel.NodeAccessLogFilter) *gorm.DB {
-	if nodeID := strings.TrimSpace(f.NodeID); nodeID != "" {
-		q = q.Where("node_id = ?", nodeID)
+	cond, args := buildNodeAccessLogFilterParts(f)
+	if cond == "" {
+		return q
 	}
-	if remoteAddr := strings.TrimSpace(f.RemoteAddr); remoteAddr != "" {
-		q = q.Where("remote_addr LIKE ?", remoteAddr+"%")
-	}
-	hosts := normalizeNodeAccessLogHosts(f.Hosts)
-	if len(hosts) > 0 {
-		q = q.Where("lower(trim(host)) IN ?", hosts)
-	} else if host := strings.TrimSpace(f.Host); host != "" {
-		q = q.Where("host LIKE ?", host+"%")
-	}
-	if path := strings.TrimSpace(f.Path); path != "" {
-		q = q.Where("path LIKE ?", path+"%")
-	}
-	if !f.Since.IsZero() {
-		q = q.Where("logged_at >= ?", f.Since)
-	}
-	if !f.Until.IsZero() {
-		q = q.Where("logged_at < ?", f.Until)
-	}
-	return q
+	return q.Where(cond, args...)
 }
 
 // normalizeNodeAccessLogHosts 对 hosts 归一化：trim + lowercase + 去重去空。

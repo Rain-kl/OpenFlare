@@ -51,6 +51,9 @@ type AccessLogStore interface {
 	// DropEmptyPartitions 幂等清理 PG 空分区表：删除 before 月份之前、且无任何数据的按月分区；
 	// CH/SQLite 为 no-op（CH 分区随数据删除自动消失、SQLite 无分区）。
 	DropEmptyPartitions(ctx context.Context, before time.Time) error
+	// DropExpiredPartitions 直接删除完全过期的 PG 整月分区（候选为月份早于 cutoff 月的分区，
+	// 删除前校验分区内无保留期内数据，避免时区偏移下误删；迁移冻结期间拒绝执行）；CH/SQLite 为 no-op。
+	DropExpiredPartitions(ctx context.Context, cutoff time.Time) error
 }
 
 // ObservabilityStore 可观测 4 表（metric snapshots / edge health / frps / frpc）。

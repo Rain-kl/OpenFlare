@@ -439,6 +439,11 @@ func (s *clickhouseLogStore) DropEmptyPartitions(_ context.Context, _ time.Time)
 	return nil
 }
 
+// DropExpiredPartitions 是 CH 分支 no-op（CH 无 PG 式分区，retention 仍走 DeleteBefore）。
+func (s *clickhouseLogStore) DropExpiredPartitions(_ context.Context, _ time.Time) error {
+	return nil
+}
+
 // chMigrationRange 查询 CH 表时间列 MIN/MAX；空表（NULL）返回零值。
 func chMigrationRange(ctx context.Context, table, column string) (time.Time, time.Time, error) {
 	if err := chConnErr(); err != nil {

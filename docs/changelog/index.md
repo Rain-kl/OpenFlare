@@ -33,6 +33,7 @@ sidebar: false
 - 性能指标（CPU/内存/磁盘/网络）与访问日志的保留时长解耦：新增三库共用的 `metric_retention_days` 配置（默认 3 天），系统垃圾清理每日任务按独立短留存清理指标快照；访问日志仍按 `log_retention_days_*` 清理。
 - ClickHouse 改为默认关闭：`clickhouse.enabled` 缺省或为 `false` 时不启用（此前会被强制置为 `true`），日志/指标由 PostgreSQL/SQLite 主库承担；显式 `true` 或设置 `CLICKHOUSE_HOST` / `CLICKHOUSE_ENABLED=true` 时启用。
 - 系统垃圾清理任务在删除过期日志后，会同时清理旧月份空分区表：PostgreSQL 按月分区的访问日志表（节点/用户）在数据删除后若该月分区已无数据，则自动删除对应分区表，避免历史分区表无限累积；仅删除「当前月之前」且为空的月份分区，当月/未来月及仍有数据的分区保留。
+- 日志存储（PostgreSQL/SQLite 实现）性能优化：节点访问日志统计查询合并为单次扫描；IP 汇总的归属地改为取查询窗口内最新记录（与 ClickHouse 口径一致）并避免跨全部分区扫描；WAF 按 IP 聚合由三次扫描合并为两次；新增 `logged_at` 前导索引与主机名小写表达式索引，加速日志列表排序与主机过滤；过期日志清理改为按数据校验后直接删除完全过期的整月分区（比逐行删除快，且不会误删保留期内数据），并新增启动时分区兜底，跨月停机重启后首次写入不再报「no partition of relation found」。
 
 ### 修复
 

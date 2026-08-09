@@ -369,3 +369,35 @@ func TestDropEligiblePartitionNames(t *testing.T) {
 		t.Fatalf("eligible at month boundary = %v, want empty", got)
 	}
 }
+
+// TestDropExpiredPartitionsSQLiteNoop 验证 SQLite 下 DropExpiredPartitions 为 no-op：
+// 直接返回 nil、不触碰任何分区 SQL（SQLite 无分区），数据不受影响。
+func TestDropExpiredPartitionsSQLiteNoop(t *testing.T) {
+	ResetForTest()
+	SetConfigReader(func(_ context.Context, key string) (string, error) {
+		if key == logDatabaseKey {
+			return "sqlite", nil
+		}
+		return "", nil
+	})
+	defer ResetForTest()
+
+	gdb := newCleanupTestDB(t)
+	ctx := context.Background()
+	if err := gdb.Create(&analyticsmodel.NodeAccessLog{ID: 1, NodeID: "n1", LoggedAt: time.Now().AddDate(0, 0, -100).UTC(), RemoteAddr: "1.1.1.1"}).Error; err != nil {
+		t.Fatalf("seed node access log: %v", err)
+	}
+
+	store := newGormStore(gdb)
+	if err := store.DropExpiredPartitions(ctx, time.Now().AddDate(0, 0, -90)); err != nil {
+		t.Fatalf("DropExpiredPartitions on sqlite: %v", err)
+	}
+
+	var n int64
+	if err := gdb.Model(&analyticsmodel.NodeAccessLog{}).Count(&n).Error; err != nil {
+		t.Fatalf("count node access logs: %v", err)
+	}
+	if n != 1 {
+		t.Fatalf("node access log count = %d, want 1（no-op 不应删除任何行）", n)
+	}
+}
