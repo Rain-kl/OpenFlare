@@ -172,6 +172,45 @@ func TestClearTargetLogTablesClearsUserAccessLogs(t *testing.T) {
 	assert.Zero(t, count, "用户访问日志应被清空")
 }
 
+// TestClearTargetLogTablesDuringMigration 回归：冻结标记置位后，BuildForMigration 构造的
+// 目标 store 必须放行用户访问日志清空/写入。skipFreeze 未传播到 UserAccessLogs store 时
+// DeleteAll 会误报 ErrMigrating，导致真实切换任务在清空目标库阶段失败。
+func TestClearTargetLogTablesDuringMigration(t *testing.T) {
+	logstore.ResetForTest()
+	defer logstore.ResetForTest()
+
+	gdb := newLogDBSwitchDB(t)
+	db.SetDB(gdb)
+	t.Cleanup(func() { db.SetDB(nil) })
+	ctx := context.Background()
+
+	logstore.SetConfigReader(func(ctx context.Context, key string) (string, error) {
+		cfg, err := repository.GetSystemConfigByKey(ctx, key)
+		if err != nil {
+			return "", err
+		}
+		return cfg.Value, nil
+	})
+
+	// 预置目标库已有日志（迁移「覆盖目标库已有日志」幂等前提）。
+	now := time.Now().UTC()
+	require.NoError(t, gdb.Create(&analyticsmodel.UserAccessLog{ID: 1, UserID: 1, Path: "/a", CreatedAt: now}).Error)
+
+	// 冻结标记置位（与真实任务 Execute 流程一致）。
+	require.NoError(t, setMigrationFlag(ctx, "migrating"))
+	t.Cleanup(func() { _ = setMigrationFlag(ctx, "") })
+	require.True(t, logstore.Migrating(ctx))
+
+	dst, err := logstore.BuildForMigration(ctx, "sqlite")
+	require.NoError(t, err)
+
+	require.NoError(t, clearTargetLogTables(ctx, dst), "迁移冻结期间目标库清空必须放行")
+
+	var count int64
+	require.NoError(t, gdb.Model(&analyticsmodel.UserAccessLog{}).Count(&count).Error)
+	assert.Zero(t, count, "用户访问日志应被清空")
+}
+
 // TestValidateSwitch 各非法组合报错。
 func TestValidateSwitch(t *testing.T) {
 	oldDB, oldCH := config.Config.Database.Enabled, config.Config.ClickHouse.Enabled

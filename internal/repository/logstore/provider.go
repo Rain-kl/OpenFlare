@@ -105,20 +105,24 @@ func buildStore(ctx context.Context, database string, skipFreeze bool) (*Store, 
 	case dbNameClickHouse:
 		ch := newClickHouseStore()
 		ch.skipFreeze = skipFreeze
+		ual := newClickHouseUserAccessLogStore()
+		ual.skipFreeze = skipFreeze
 		return &Store{
 			AccessLogs:     ch,
 			Observability:  ch,
-			UserAccessLogs: newClickHouseUserAccessLogStore(),
+			UserAccessLogs: ual,
 			Status:         ch,
 		}, nil
 	case dbNamePostgres, dbNameSQLite:
 		gdb := db.DB(ctx)
 		g := newGormStore(gdb)
 		g.skipFreeze = skipFreeze
+		ual := newUserAccessLogGormStore(gdb)
+		ual.skipFreeze = skipFreeze
 		return &Store{
 			AccessLogs:     g,
 			Observability:  g,
-			UserAccessLogs: newUserAccessLogGormStore(gdb),
+			UserAccessLogs: ual,
 			Status:         g,
 		}, nil
 	default:
