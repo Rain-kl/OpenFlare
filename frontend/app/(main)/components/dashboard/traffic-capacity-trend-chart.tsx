@@ -3,39 +3,29 @@
 import { TrendChart } from '@/components/data/trend-chart';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type {
-  DiskIOTrendPoint,
+  CapacityTrendPoint,
   NetworkTrendPoint,
 } from '@/lib/services/openflare';
 
 import {
   formatBytes,
-  formatBytesPerSecond,
+  formatPercent,
   formatTrendHour,
 } from './dashboard-utils';
 
-/** Backend disk points are per-hour totals; chart displays bytes/s within each hour. */
-const DISK_BUCKET_SECONDS = 3600;
-
-function diskBytesToRate(bytes: number) {
-  return bytes > 0 ? bytes / DISK_BUCKET_SECONDS : 0;
-}
-
-function formatDiskRate(bytesPerSecond: number) {
-  return formatBytesPerSecond(bytesPerSecond, 1, { zeroText: '0 B' });
-}
-
-export function NetworkDiskTrendChart({
+/** 业务流量（来自访问日志）与容量趋势（节点 Agent 宿主机指标）合并展示。 */
+export function TrafficCapacityTrendChart({
   networkPoints,
-  diskPoints,
+  capacityPoints,
 }: {
   networkPoints: NetworkTrendPoint[];
-  diskPoints: DiskIOTrendPoint[];
+  capacityPoints: CapacityTrendPoint[];
 }) {
   return (
     <Card className='border-dashed shadow-none'>
       <CardHeader>
         <CardTitle className='text-sm font-semibold'>
-          24 小时业务流量与宿主机磁盘
+          24 小时业务流量与容量趋势
         </CardTitle>
       </CardHeader>
       <CardContent className='space-y-6'>
@@ -66,31 +56,31 @@ export function NetworkDiskTrendChart({
         />
 
         <TrendChart
-          labels={diskPoints.map((point) =>
+          labels={capacityPoints.map((point) =>
             formatTrendHour(point.bucket_started_at),
           )}
           height={180}
           summaryScope='average'
-          summaryHint='近 24 小时 · 宿主机磁盘 · 平均速率'
-          yAxisValueFormatter={formatDiskRate}
+          summaryHint='近 24 小时 · 宿主机容量 · 平均值'
+          yAxisValueFormatter={formatPercent}
           series={[
             {
-              label: '磁盘读',
-              color: '#a78bfa',
-              fillColor: 'rgba(167, 139, 250, 0.14)',
+              label: '平均 CPU',
+              color: '#0f766e',
+              fillColor: 'rgba(15, 118, 110, 0.15)',
               variant: 'area',
-              values: diskPoints.map((point) =>
-                diskBytesToRate(point.disk_read_bytes),
+              values: capacityPoints.map(
+                (point) => point.average_cpu_usage_percent,
               ),
-              valueFormatter: formatDiskRate,
+              valueFormatter: formatPercent,
             },
             {
-              label: '磁盘写',
-              color: '#fb7185',
-              values: diskPoints.map((point) =>
-                diskBytesToRate(point.disk_write_bytes),
+              label: '平均内存',
+              color: '#2563eb',
+              values: capacityPoints.map(
+                (point) => point.average_memory_usage_percent,
               ),
-              valueFormatter: formatDiskRate,
+              valueFormatter: formatPercent,
             },
           ]}
         />

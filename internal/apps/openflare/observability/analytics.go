@@ -85,6 +85,9 @@ type TrafficTrendPoint struct {
 	RequestCount       int64     `json:"request_count"`
 	ErrorCount         int64     `json:"error_count"`
 	UniqueVisitorCount int64     `json:"unique_visitor_count"`
+	Status2xxCount     int64     `json:"status_2xx_count"`
+	Status4xxCount     int64     `json:"status_4xx_count"`
+	Status5xxCount     int64     `json:"status_5xx_count"`
 }
 
 // CapacityTrendPoint is a capacity trend bucket.
@@ -303,30 +306,15 @@ func BuildNodeTrends(
 	}
 }
 
-// BuildTrafficTrendPointsFromAccessLogs builds 24h request/error buckets from access logs.
-// Prefers of_access_log_hourly when available; falls back to raw bucket aggregates.
-// UniqueVisitorCount on hourly path is 0 (use TrafficSummary for exact UV).
+// BuildTrafficTrendPointsFromAccessLogs builds 24h request/error/status buckets from access logs.
+// Uses raw bucket aggregates: the hourly rollup (of_access_log_hourly) has no per-status counts,
+// and the 24h window on the dashboard is cached, so the raw scan is acceptable.
+// UniqueVisitorCount from buckets is exact (uniqExact on raw); TrafficSummary is used elsewhere for UV.
 func BuildTrafficTrendPointsFromAccessLogs(ctx context.Context, now time.Time, nodeID string, since time.Time) []TrafficTrendPoint {
 	start := trendWindowStart(now)
 	points := make([]TrafficTrendPoint, observabilityTrendBuckets)
 	for index := range points {
 		points[index].BucketStartedAt = start.Add(time.Duration(index) * time.Hour)
-	}
-
-	if hourly, err := repository.ListOpenFlareTrafficHourlySince(ctx, nodeID, since); err == nil && len(hourly) > 0 {
-		for _, row := range hourly {
-			if row == nil {
-				continue
-			}
-			index, ok := trendBucketIndex(row.Hour, start)
-			if !ok {
-				continue
-			}
-			points[index].RequestCount += row.RequestCount
-			points[index].ErrorCount += row.ErrorCount
-			// UniqueVisitorCount intentionally not summed from hourly rollup (always 0 / overcounts).
-		}
-		return points
 	}
 
 	buckets, err := repository.ListOpenFlareAccessLogBuckets(ctx, model.OpenFlareAccessLogBucketQuery{
@@ -353,6 +341,9 @@ func BuildTrafficTrendPointsFromAccessLogs(ctx context.Context, now time.Time, n
 			points[index].RequestCount = row.RequestCount
 			points[index].ErrorCount = row.ServerErrorCount
 			points[index].UniqueVisitorCount = row.UniqueIPCount
+			points[index].Status2xxCount = row.Status2xxCount
+			points[index].Status4xxCount = row.Status4xxCount
+			points[index].Status5xxCount = row.Status5xxCount
 		}
 	}
 	return points

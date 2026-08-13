@@ -46,6 +46,9 @@ SELECT
 	countIf(status_code < 400) AS success_count,
 	countIf(status_code >= 400 AND status_code < 500) AS client_error_count,
 	countIf(status_code >= 500) AS server_error_count,
+	countIf(status_code >= 200 AND status_code < 300) AS status_2xx_count,
+	countIf(status_code >= 400 AND status_code < 500) AS status_4xx_count,
+	countIf(status_code >= 500) AS status_5xx_count,
 	uniqExactIf(remote_addr, remote_addr != '') AS unique_ip_count,
 	uniqExactIf(host, host != '') AS unique_host_count,
 	sum(bytes_sent) AS bytes_sent,
@@ -70,10 +73,10 @@ ORDER BY %s`, bucketExpr, tableName, clause, nodeAccessLogBucketOrderClause(filt
 	var result []NodeAccessLogBucketAggregate
 	for rows.Next() {
 		var (
-			bucketEpoch                                                                                                              int64
-			requestCount, successCount, clientErrorCount, serverErrorCount, uniqueIPCount, uniqueHostCount, bytesSent, requestLength uint64
+			bucketEpoch                                                                                                                                                              int64
+			requestCount, successCount, clientErrorCount, serverErrorCount, status2xxCount, status4xxCount, status5xxCount, uniqueIPCount, uniqueHostCount, bytesSent, requestLength uint64
 		)
-		if err := rows.Scan(&bucketEpoch, &requestCount, &successCount, &clientErrorCount, &serverErrorCount, &uniqueIPCount, &uniqueHostCount, &bytesSent, &requestLength); err != nil {
+		if err := rows.Scan(&bucketEpoch, &requestCount, &successCount, &clientErrorCount, &serverErrorCount, &status2xxCount, &status4xxCount, &status5xxCount, &uniqueIPCount, &uniqueHostCount, &bytesSent, &requestLength); err != nil {
 			return nil, fmt.Errorf("scan bucket aggregate row: %w", err)
 		}
 		result = append(result, NodeAccessLogBucketAggregate{
@@ -82,6 +85,9 @@ ORDER BY %s`, bucketExpr, tableName, clause, nodeAccessLogBucketOrderClause(filt
 			SuccessCount:     safeInt64Count(successCount),
 			ClientErrorCount: safeInt64Count(clientErrorCount),
 			ServerErrorCount: safeInt64Count(serverErrorCount),
+			Status2xxCount:   safeInt64Count(status2xxCount),
+			Status4xxCount:   safeInt64Count(status4xxCount),
+			Status5xxCount:   safeInt64Count(status5xxCount),
 			UniqueIPCount:    safeInt64Count(uniqueIPCount),
 			UniqueHostCount:  safeInt64Count(uniqueHostCount),
 			BytesSent:        safeInt64Count(bytesSent),

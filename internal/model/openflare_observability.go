@@ -198,6 +198,9 @@ type OpenFlareAccessLogBucketRow struct {
 	SuccessCount     int64 `json:"success_count"`
 	ClientErrorCount int64 `json:"client_error_count"`
 	ServerErrorCount int64 `json:"server_error_count"`
+	Status2xxCount   int64 `json:"status_2xx_count"`
+	Status4xxCount   int64 `json:"status_4xx_count"`
+	Status5xxCount   int64 `json:"status_5xx_count"`
 	BytesSent        int64 `json:"bytes_sent"`
 	RequestLength    int64 `json:"request_length"`
 }

@@ -307,6 +307,9 @@ func (s *gormLogStore) BucketAggregates(ctx context.Context, query model.OpenFla
 		SuccessCount     int64
 		ClientErrorCount int64
 		ServerErrorCount int64
+		Status2xxCount   int64 `gorm:"column:status_2xx_count"`
+		Status4xxCount   int64 `gorm:"column:status_4xx_count"`
+		Status5xxCount   int64 `gorm:"column:status_5xx_count"`
 		UniqueIPCount    int64
 		UniqueHostCount  int64
 		BytesSent        int64
@@ -322,6 +325,9 @@ func (s *gormLogStore) BucketAggregates(ctx context.Context, query model.OpenFla
 			"COUNT(*) FILTER (WHERE status_code < 400) AS success_count, " +
 			"COUNT(*) FILTER (WHERE status_code >= 400 AND status_code < 500) AS client_error_count, " +
 			"COUNT(*) FILTER (WHERE status_code >= 500) AS server_error_count, " +
+			"COUNT(*) FILTER (WHERE status_code >= 200 AND status_code < 300) AS status_2xx_count, " +
+			"COUNT(*) FILTER (WHERE status_code >= 400 AND status_code < 500) AS status_4xx_count, " +
+			"COUNT(*) FILTER (WHERE status_code >= 500) AS status_5xx_count, " +
 			distinctNonEmptyCountSQL(s.db, "remote_addr") + " AS unique_ip_count, " +
 			distinctNonEmptyCountSQL(s.db, "host") + " AS unique_host_count, " +
 			"COALESCE(SUM(bytes_sent),0) AS bytes_sent, " +
@@ -338,6 +344,9 @@ func (s *gormLogStore) BucketAggregates(ctx context.Context, query model.OpenFla
 			SuccessCount:     r.SuccessCount,
 			ClientErrorCount: r.ClientErrorCount,
 			ServerErrorCount: r.ServerErrorCount,
+			Status2xxCount:   r.Status2xxCount,
+			Status4xxCount:   r.Status4xxCount,
+			Status5xxCount:   r.Status5xxCount,
 			UniqueIPCount:    r.UniqueIPCount,
 			UniqueHostCount:  r.UniqueHostCount,
 			BytesSent:        r.BytesSent,

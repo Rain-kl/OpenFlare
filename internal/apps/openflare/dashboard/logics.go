@@ -330,11 +330,15 @@ func compressDistributionItems(items []observability.DistributionItem) [][]any {
 func compressTrafficTrendPoints(points []observability.TrafficTrendPoint) [][]any {
 	rows := make([][]any, 0, len(points))
 	for _, point := range points {
+		// Compact layout: [0] bucket, [1] request, [2] error, [3] uv, [4] 2xx, [5] 4xx, [6] 5xx
 		rows = append(rows, []any{
 			point.BucketStartedAt,
 			point.RequestCount,
 			point.ErrorCount,
 			point.UniqueVisitorCount,
+			point.Status2xxCount,
+			point.Status4xxCount,
+			point.Status5xxCount,
 		})
 	}
 	return rows

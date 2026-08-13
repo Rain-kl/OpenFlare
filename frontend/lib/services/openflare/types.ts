@@ -1159,6 +1159,9 @@ export interface TrafficTrendPoint {
   request_count: number;
   error_count: number;
   unique_visitor_count: number;
+  status_2xx_count: number;
+  status_4xx_count: number;
+  status_5xx_count: number;
 }
 
 export interface CapacityTrendPoint {
@@ -1227,7 +1230,15 @@ export interface DashboardOverview {
   nodes: DashboardNodeHealth[];
 }
 
-export type CompactTrafficTrendPoint = [string, number, number, number];
+export type CompactTrafficTrendPoint = [
+  string,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+];
 export type CompactCapacityTrendPoint = [string, number, number, number];
 /** [bucket, bytes_received, bytes_provided, reported_nodes] */
 export type CompactNetworkTrendPoint = [string, number, number, number];

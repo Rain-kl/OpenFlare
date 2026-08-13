@@ -258,6 +258,9 @@ func buildOpenFlareAccessLogBucketRows(ctx context.Context, query model.OpenFlar
 			SuccessCount:     partial.SuccessCount,
 			ClientErrorCount: partial.ClientErrorCount,
 			ServerErrorCount: partial.ServerErrorCount,
+			Status2xxCount:   partial.Status2xxCount,
+			Status4xxCount:   partial.Status4xxCount,
+			Status5xxCount:   partial.Status5xxCount,
 			BytesSent:        partial.BytesSent,
 			RequestLength:    partial.RequestLength,
 		})

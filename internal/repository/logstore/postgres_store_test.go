@@ -709,9 +709,9 @@ func TestGormBucketAggregatesFullFieldSet(t *testing.T) {
 	rows := []analyticsmodel.NodeAccessLog{
 		{ID: 1, NodeID: "n1", LoggedAt: base, RemoteAddr: "1.1.1.1", Host: "a.example.com", StatusCode: 200, BytesSent: 100, RequestLength: 10},
 		{ID: 2, NodeID: "n1", LoggedAt: base.Add(time.Minute), RemoteAddr: "1.1.1.1", Host: "a.example.com", StatusCode: 301, BytesSent: 200, RequestLength: 20},
-		{ID: 3, NodeID: "n1", LoggedAt: base.Add(2 * time.Minute), RemoteAddr: "2.2.2.2", Host: "b.example.com", StatusCode: 404, BytesSent: 300, RequestLength: 30},
+		{ID: 3, NodeID: "n1", LoggedAt: base.Add(2 * time.Minute), RemoteAddr: "2.2.2.2", Host: "b.example.com", StatusCode: 400, BytesSent: 300, RequestLength: 30},
 		{ID: 4, NodeID: "n1", LoggedAt: base.Add(3 * time.Minute), RemoteAddr: "", Host: "b.example.com", StatusCode: 500, BytesSent: 400, RequestLength: 40},
-		{ID: 5, NodeID: "n1", LoggedAt: base.Add(4 * time.Minute), RemoteAddr: "3.3.3.3", Host: "c.example.com", StatusCode: 502, BytesSent: 500, RequestLength: 50},
+		{ID: 5, NodeID: "n1", LoggedAt: base.Add(4 * time.Minute), RemoteAddr: "3.3.3.3", Host: "c.example.com", StatusCode: 500, BytesSent: 500, RequestLength: 50},
 		{ID: 6, NodeID: "n2", LoggedAt: base.Add(time.Hour), RemoteAddr: "9.9.9.9", Host: "d.example.com", StatusCode: 200, BytesSent: 999, RequestLength: 99},
 	}
 	if err := s.BatchInsertNodeAccessLogs(ctx, rows); err != nil {
@@ -740,6 +740,10 @@ func TestGormBucketAggregatesFullFieldSet(t *testing.T) {
 	}
 	if b.ServerErrorCount != 2 {
 		t.Errorf("server_error_count = %d, want 2", b.ServerErrorCount)
+	}
+	if b.Status2xxCount != 1 || b.Status4xxCount != 1 || b.Status5xxCount != 2 {
+		t.Errorf("status class counts = 2xx:%d 4xx:%d 5xx:%d, want 1/1/2 (200/301/400/500/500)",
+			b.Status2xxCount, b.Status4xxCount, b.Status5xxCount)
 	}
 	if b.UniqueIPCount != 3 {
 		t.Errorf("unique_ip_count = %d, want 3 (empty remote_addr excluded)", b.UniqueIPCount)

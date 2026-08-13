@@ -15,7 +15,7 @@ import { formatTrendHour } from './dashboard-utils';
 export function TrafficTrendChart({
   points,
   title = '24 小时请求趋势',
-  description = '观察整体请求量和错误量是否出现异常抬升。',
+  description = '按小时拆分请求总量与 2xx/4xx/5xx 状态码请求量，判断各状态是否异常抬升。',
 }: {
   points: TrafficTrendPoint[];
   title?: string;
@@ -43,9 +43,19 @@ export function TrafficTrendChart({
               values: points.map((point) => point.request_count),
             },
             {
-              label: '错误量',
+              label: '2xx 请求',
+              color: '#22c55e',
+              values: points.map((point) => point.status_2xx_count),
+            },
+            {
+              label: '4xx 请求',
+              color: '#f97316',
+              values: points.map((point) => point.status_4xx_count),
+            },
+            {
+              label: '5xx 请求',
               color: '#ef4444',
-              values: points.map((point) => point.error_count),
+              values: points.map((point) => point.status_5xx_count),
             },
           ]}
         />

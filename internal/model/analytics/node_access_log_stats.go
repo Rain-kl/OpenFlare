@@ -10,6 +10,9 @@ type NodeAccessLogBucketAggregate struct {
 	SuccessCount     int64 `gorm:"column:success_count"`
 	ClientErrorCount int64 `gorm:"column:client_error_count"`
 	ServerErrorCount int64 `gorm:"column:server_error_count"`
+	Status2xxCount   int64 `gorm:"column:status_2xx_count"`
+	Status4xxCount   int64 `gorm:"column:status_4xx_count"`
+	Status5xxCount   int64 `gorm:"column:status_5xx_count"`
 	UniqueIPCount    int64 `gorm:"column:unique_ip_count"`
 	UniqueHostCount  int64 `gorm:"column:unique_host_count"`
 	BytesSent        int64 `gorm:"column:bytes_sent"`

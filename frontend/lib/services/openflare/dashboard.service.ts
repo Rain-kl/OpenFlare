@@ -89,6 +89,9 @@ function normalizeTrafficTrendPoints(
           request_count: Number(item[1] ?? 0),
           error_count: Number(item[2] ?? 0),
           unique_visitor_count: Number(item[3] ?? 0),
+          status_2xx_count: Number(item[4] ?? 0),
+          status_4xx_count: Number(item[5] ?? 0),
+          status_5xx_count: Number(item[6] ?? 0),
         }
       : item,
   );
