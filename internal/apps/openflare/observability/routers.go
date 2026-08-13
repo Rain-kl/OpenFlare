@@ -54,6 +54,8 @@ func GetAccessLogOverviewHandler(c *gin.Context) {
 // @Param host query string false "请求 Host"
 // @Param path query string false "请求路径"
 // @Param status_code query int false "HTTP 状态码（100-599）"
+// @Param since query string false "起始时间（RFC3339，需与 until 成对提供）"
+// @Param until query string false "结束时间（RFC3339，需与 since 成对提供）"
 // @Param p query int false "页码"
 // @Param page_size query int false "每页条数"
 // @Param sort_by query string false "排序字段"
@@ -284,6 +286,8 @@ func readAccessLogQuery(c *gin.Context) (AccessLogQuery, error) {
 		RemoteAddr: c.Query("remote_addr"),
 		Host:       c.Query("host"),
 		Path:       c.Query("path"),
+		Since:      c.Query("since"),
+		Until:      c.Query("until"),
 		Page:       readQueryInt(c, "p"),
 		PageSize:   readQueryInt(c, "page_size"),
 		SortBy:     c.Query("sort_by"),

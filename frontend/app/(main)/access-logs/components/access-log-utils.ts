@@ -6,6 +6,8 @@ export type SearchDraft = {
   host: string;
   path: string;
   statusCode: string;
+  since: string;
+  until: string;
 };
 
 export type OverviewRangeHours = 24 | 168 | 360 | 720;

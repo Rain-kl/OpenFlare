@@ -40,6 +40,8 @@ type AccessLogQuery struct {
 	Host        string `json:"host"`
 	Path        string `json:"path"`
 	StatusCode  int    `json:"status_code"`
+	Since       string `json:"since"`
+	Until       string `json:"until"`
 	Page        int    `json:"page"`
 	PageSize    int    `json:"page_size"`
 	SortBy      string `json:"sort_by"`
@@ -534,7 +536,10 @@ func buildAccessLogOverviewTrends(
 // ListAccessLogs returns paginated access logs.
 func ListAccessLogs(ctx context.Context, input AccessLogQuery) (*AccessLogList, error) {
 	normalized := normalizeAccessLogQuery(input)
-	modelQuery := buildModelAccessLogQuery(normalized)
+	modelQuery, err := buildModelAccessLogQuery(normalized)
+	if err != nil {
+		return nil, err
+	}
 	logs, err := repository.ListOpenFlareAccessLogs(ctx, modelQuery)
 	if err != nil {
 		return nil, err
@@ -587,13 +592,17 @@ func ListFoldedAccessLogs(ctx context.Context, input AccessLogQuery) (*FoldedAcc
 	if err != nil {
 		return nil, err
 	}
-	modelQuery := buildModelAccessLogQuery(normalized)
+	modelQuery, err := buildModelAccessLogQuery(normalized)
+	if err != nil {
+		return nil, err
+	}
 	bucketQuery := model.OpenFlareAccessLogBucketQuery{
 		NodeID:      modelQuery.NodeID,
 		RemoteAddr:  modelQuery.RemoteAddr,
 		Host:        modelQuery.Host,
 		Path:        modelQuery.Path,
 		Since:       modelQuery.Since,
+		Until:       modelQuery.Until,
 		Page:        normalized.Page,
 		PageSize:    normalized.PageSize,
 		SortBy:      normalizeFoldSortBy(input.SortBy),
@@ -882,19 +891,49 @@ func CleanupAccessLogs(ctx context.Context, input AccessLogCleanupInput) (*Acces
 	}, nil
 }
 
-func buildModelAccessLogQuery(input AccessLogQuery) model.OpenFlareAccessLogQuery {
+func buildModelAccessLogQuery(input AccessLogQuery) (model.OpenFlareAccessLogQuery, error) {
+	since := defaultAccessLogSince()
+	until := time.Now().UTC()
+	if input.Since != "" || input.Until != "" {
+		parsedSince, parsedUntil, err := resolveAccessLogWindow(input.Since, input.Until)
+		if err != nil {
+			return model.OpenFlareAccessLogQuery{}, err
+		}
+		since, until = parsedSince, parsedUntil
+	}
 	return model.OpenFlareAccessLogQuery{
 		NodeID:     strings.TrimSpace(input.NodeID),
 		RemoteAddr: strings.TrimSpace(input.RemoteAddr),
 		Host:       strings.TrimSpace(input.Host),
 		Path:       strings.TrimSpace(input.Path),
 		StatusCode: input.StatusCode,
-		Since:      defaultAccessLogSince(),
+		Since:      since,
+		Until:      until,
 		Page:       input.Page,
 		PageSize:   input.PageSize,
 		SortBy:     input.SortBy,
 		SortOrder:  input.SortOrder,
+	}, nil
+}
+
+// resolveAccessLogWindow 校验并解析 RFC3339 时间窗；since/until 必须成对提供，
+// 且 until 需晚于 since。
+func resolveAccessLogWindow(sinceRaw, untilRaw string) (time.Time, time.Time, error) {
+	if sinceRaw == "" || untilRaw == "" {
+		return time.Time{}, time.Time{}, errors.New("since 与 until 需同时提供")
 	}
+	parsedSince, err := time.Parse(time.RFC3339, sinceRaw)
+	if err != nil {
+		return time.Time{}, time.Time{}, errors.New("since 时间格式无效，需为 RFC3339")
+	}
+	parsedUntil, err := time.Parse(time.RFC3339, untilRaw)
+	if err != nil {
+		return time.Time{}, time.Time{}, errors.New("until 时间格式无效，需为 RFC3339")
+	}
+	if !parsedUntil.After(parsedSince) {
+		return time.Time{}, time.Time{}, errors.New("until 必须晚于 since")
+	}
+	return parsedSince, parsedUntil, nil
 }
 
 func defaultAccessLogSince() time.Time {
@@ -935,6 +974,8 @@ func normalizeAccessLogQuery(input AccessLogQuery) AccessLogQuery {
 		Host:        strings.TrimSpace(input.Host),
 		Path:        strings.TrimSpace(input.Path),
 		StatusCode:  input.StatusCode,
+		Since:       strings.TrimSpace(input.Since),
+		Until:       strings.TrimSpace(input.Until),
 		Page:        normalizeAccessLogPage(input.Page),
 		PageSize:    normalizeAccessLogPageSize(input.PageSize),
 		SortBy:      normalizeAccessLogSortBy(input.SortBy),

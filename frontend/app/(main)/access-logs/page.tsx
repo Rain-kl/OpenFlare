@@ -34,6 +34,8 @@ const emptyDraft: SearchDraft = {
   host: '',
   path: '',
   statusCode: '',
+  since: '',
+  until: '',
 };
 
 function resolveTab(value: string | null): AccessLogTab {
@@ -115,6 +117,8 @@ function AccessLogsPageContent() {
         status_code: filters.statusCode
           ? Number.parseInt(filters.statusCode, 10)
           : undefined,
+        since: filters.since || undefined,
+        until: filters.until || undefined,
         p: page,
         page_size: pageSize,
         sort_by: detailSortState.sortBy,
@@ -166,6 +170,8 @@ function AccessLogsPageContent() {
       host: draft.host.trim(),
       path: draft.path.trim(),
       statusCode: draft.statusCode.trim(),
+      since: draft.since.trim(),
+      until: draft.until.trim(),
     });
     setPage(0);
   }, [draft]);

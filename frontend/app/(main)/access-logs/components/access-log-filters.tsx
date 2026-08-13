@@ -1,15 +1,22 @@
 'use client';
 
 import { useState } from 'react';
-import { ChevronDown, Search } from 'lucide-react';
+import { format } from 'date-fns';
+import { CalendarIcon, ChevronDown, Search } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
+import { Calendar } from '@/components/ui/calendar';
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
 import { Input } from '@/components/ui/input';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 import {
   Select,
   SelectContent,
@@ -29,6 +36,14 @@ interface AccessLogFiltersProps {
   onReset: () => void;
 }
 
+const CUSTOM_STATUS_CODE = '__custom__';
+const HOUR_OPTIONS = Array.from({ length: 24 }, (_, i) =>
+  String(i).padStart(2, '0'),
+);
+const MINUTE_OPTIONS = Array.from({ length: 60 }, (_, i) =>
+  String(i).padStart(2, '0'),
+);
+
 function FilterField({
   label,
   children,
@@ -44,6 +59,97 @@ function FilterField({
   );
 }
 
+function TimeSelect({
+  value,
+  options,
+  onValueChange,
+}: {
+  value: string;
+  options: string[];
+  onValueChange: (value: string) => void;
+}) {
+  return (
+    <Select value={value} onValueChange={onValueChange}>
+      <SelectTrigger className='h-8 w-18 text-xs'>
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        {options.map((option) => (
+          <SelectItem key={option} value={option}>
+            {option}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
+/** shadcn 日期 + 时间选择器，value 为 ISO 字符串。 */
+function DateTimePicker({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const current = value ? new Date(value) : undefined;
+
+  const applyDate = (date: Date | undefined) => {
+    if (!date) return;
+    const next = value ? new Date(value) : new Date();
+    next.setFullYear(date.getFullYear(), date.getMonth(), date.getDate());
+    onChange(next.toISOString());
+  };
+
+  const applyTime = (hh: string, mm: string) => {
+    const next = value ? new Date(value) : new Date();
+    next.setHours(Number(hh), Number(mm), 0, 0);
+    onChange(next.toISOString());
+  };
+
+  const hour = current ? String(current.getHours()).padStart(2, '0') : '00';
+  const minute = current ? String(current.getMinutes()).padStart(2, '0') : '00';
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant='outline'
+          className='h-9 w-full justify-start gap-2 px-3 text-xs font-normal'
+        >
+          <CalendarIcon className='size-3.5 text-muted-foreground' />
+          {current ? (
+            format(current, 'yyyy-MM-dd HH:mm')
+          ) : (
+            <span className='text-muted-foreground'>选择时间</span>
+          )}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className='w-auto p-0' align='start'>
+        <Calendar
+          mode='single'
+          selected={current}
+          onSelect={applyDate}
+        />
+        <div className='flex items-center gap-1.5 border-t p-2'>
+          <TimeSelect
+            value={hour}
+            options={HOUR_OPTIONS}
+            onValueChange={(h) => applyTime(h, minute)}
+          />
+          <span className='text-xs text-muted-foreground'>:</span>
+          <TimeSelect
+            value={minute}
+            options={MINUTE_OPTIONS}
+            onValueChange={(m) => applyTime(hour, m)}
+          />
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 export function AccessLogFilters({
   draft,
   pageSize,
@@ -53,6 +159,15 @@ export function AccessLogFilters({
   onReset,
 }: AccessLogFiltersProps) {
   const [moreOpen, setMoreOpen] = useState(false);
+  const isPresetStatus = STATUS_CODE_OPTIONS.some(
+    (option) => option.value === draft.statusCode,
+  );
+  const statusSelectValue =
+    draft.statusCode === ''
+      ? ''
+      : isPresetStatus
+        ? draft.statusCode
+        : CUSTOM_STATUS_CODE;
 
   return (
     <div className='space-y-3'>
@@ -70,24 +185,64 @@ export function AccessLogFilters({
             className='h-9 text-xs'
           />
         </FilterField>
-        <FilterField label='状态码'>
-          <Select
-            value={draft.statusCode}
-            onValueChange={(value) =>
-              onDraftChange({ ...draft, statusCode: value })
+        <FilterField label='访问域名'>
+          <Input
+            value={draft.host}
+            onChange={(e) =>
+              onDraftChange({ ...draft, host: e.target.value })
             }
-          >
-            <SelectTrigger className='h-9 text-xs'>
-              <SelectValue placeholder='全部状态码' />
-            </SelectTrigger>
-            <SelectContent>
-              {STATUS_CODE_OPTIONS.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') onSearch();
+            }}
+            placeholder='按域名搜索'
+            className='h-9 text-xs'
+          />
+        </FilterField>
+        <FilterField label='状态码'>
+          <div className='flex flex-col gap-1.5'>
+            <Select
+              value={statusSelectValue}
+              onValueChange={(value) => {
+                if (value === CUSTOM_STATUS_CODE) {
+                  onDraftChange({
+                    ...draft,
+                    statusCode: isPresetStatus ? '' : draft.statusCode,
+                  });
+                } else {
+                  onDraftChange({ ...draft, statusCode: value });
+                }
+              }}
+            >
+              <SelectTrigger className='h-9 text-xs'>
+                <SelectValue placeholder='全部状态码' />
+              </SelectTrigger>
+              <SelectContent>
+                {STATUS_CODE_OPTIONS.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+                <SelectItem value={CUSTOM_STATUS_CODE}>自定义…</SelectItem>
+              </SelectContent>
+            </Select>
+            {statusSelectValue === CUSTOM_STATUS_CODE ? (
+              <Input
+                value={draft.statusCode}
+                onChange={(e) =>
+                  onDraftChange({
+                    ...draft,
+                    statusCode: e.target.value.replace(/\D/g, '').slice(0, 3),
+                  })
+                }
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') onSearch();
+                }}
+                placeholder='输入状态码，如 201'
+                autoFocus
+                className='h-9 text-xs'
+              />
+            ) : null}
+          </div>
         </FilterField>
       </div>
 
@@ -124,19 +279,6 @@ export function AccessLogFilters({
                 />
               </div>
             </FilterField>
-            <FilterField label='访问域名'>
-              <Input
-                value={draft.host}
-                onChange={(e) =>
-                  onDraftChange({ ...draft, host: e.target.value })
-                }
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') onSearch();
-                }}
-                placeholder='按域名搜索'
-                className='h-9 text-xs'
-              />
-            </FilterField>
             <FilterField label='请求路径'>
               <Input
                 value={draft.path}
@@ -149,6 +291,22 @@ export function AccessLogFilters({
                 placeholder='按路径搜索'
                 className='h-9 text-xs'
               />
+            </FilterField>
+            <FilterField label='时间范围'>
+              <div className='grid grid-cols-2 gap-2'>
+                <DateTimePicker
+                  value={draft.since}
+                  onChange={(value) =>
+                    onDraftChange({ ...draft, since: value })
+                  }
+                />
+                <DateTimePicker
+                  value={draft.until}
+                  onChange={(value) =>
+                    onDraftChange({ ...draft, until: value })
+                  }
+                />
+              </div>
             </FilterField>
           </div>
         </CollapsibleContent>

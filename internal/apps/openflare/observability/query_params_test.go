@@ -101,3 +101,30 @@ func TestReadAccessLogQueryRejectsInvalidStatusCode(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 0, got.StatusCode)
 }
+
+func TestResolveAccessLogWindow(t *testing.T) {
+	since, until, err := resolveAccessLogWindow(
+		"2026-08-01T00:00:00Z",
+		"2026-08-02T00:00:00Z",
+	)
+	require.NoError(t, err)
+	require.True(t, until.After(since))
+
+	for _, tc := range []struct {
+		name  string
+		since string
+		until string
+	}{
+		{name: "missing both", since: "", until: ""},
+		{name: "only since", since: "2026-08-01T00:00:00Z", until: ""},
+		{name: "only until", since: "", until: "2026-08-02T00:00:00Z"},
+		{name: "bad since", since: "not-a-time", until: "2026-08-02T00:00:00Z"},
+		{name: "bad until", since: "2026-08-01T00:00:00Z", until: "not-a-time"},
+		{name: "reversed", since: "2026-08-02T00:00:00Z", until: "2026-08-01T00:00:00Z"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, _, err := resolveAccessLogWindow(tc.since, tc.until)
+			require.Error(t, err)
+		})
+	}
+}

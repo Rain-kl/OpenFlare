@@ -7216,6 +7216,14 @@ paths:
         in: query
         name: status_code
         type: integer
+      - description: 起始时间（RFC3339，需与 until 成对提供）
+        in: query
+        name: since
+        type: string
+      - description: 结束时间（RFC3339，需与 since 成对提供）
+        in: query
+        name: until
+        type: string
       - description: 页码
         in: query
         name: p

@@ -631,6 +631,8 @@ export interface AccessLogFilters {
   host?: string;
   path?: string;
   status_code?: number;
+  since?: string;
+  until?: string;
   p?: number;
   page_size?: number;
   sort_by?: string;
