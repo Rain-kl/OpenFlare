@@ -7,11 +7,7 @@ import type {
   NetworkTrendPoint,
 } from '@/lib/services/openflare';
 
-import {
-  formatBytes,
-  formatPercent,
-  formatTrendHour,
-} from './dashboard-utils';
+import { formatBytes, formatPercent, formatTrendHour } from './dashboard-utils';
 
 /** 业务流量（来自访问日志）与容量趋势（节点 Agent 宿主机指标）合并展示。 */
 export function TrafficCapacityTrendChart({

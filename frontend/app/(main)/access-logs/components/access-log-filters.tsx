@@ -25,7 +25,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import type { SearchDraft } from './access-log-utils';
-import { PAGE_SIZE_OPTIONS, STATUS_CODE_OPTIONS } from './access-log-utils';
+import { PAGE_SIZE_OPTIONS } from './access-log-utils';
 
 interface AccessLogFiltersProps {
   draft: SearchDraft;
@@ -36,7 +36,6 @@ interface AccessLogFiltersProps {
   onReset: () => void;
 }
 
-const CUSTOM_STATUS_CODE = '__custom__';
 const HOUR_OPTIONS = Array.from({ length: 24 }, (_, i) =>
   String(i).padStart(2, '0'),
 );
@@ -127,11 +126,7 @@ function DateTimePicker({
         </Button>
       </PopoverTrigger>
       <PopoverContent className='w-auto p-0' align='start'>
-        <Calendar
-          mode='single'
-          selected={current}
-          onSelect={applyDate}
-        />
+        <Calendar mode='single' selected={current} onSelect={applyDate} />
         <div className='flex items-center gap-1.5 border-t p-2'>
           <TimeSelect
             value={hour}
@@ -159,15 +154,6 @@ export function AccessLogFilters({
   onReset,
 }: AccessLogFiltersProps) {
   const [moreOpen, setMoreOpen] = useState(false);
-  const isPresetStatus = STATUS_CODE_OPTIONS.some(
-    (option) => option.value === draft.statusCode,
-  );
-  const statusSelectValue =
-    draft.statusCode === ''
-      ? ''
-      : isPresetStatus
-        ? draft.statusCode
-        : CUSTOM_STATUS_CODE;
 
   return (
     <div className='space-y-3'>
@@ -188,9 +174,7 @@ export function AccessLogFilters({
         <FilterField label='访问域名'>
           <Input
             value={draft.host}
-            onChange={(e) =>
-              onDraftChange({ ...draft, host: e.target.value })
-            }
+            onChange={(e) => onDraftChange({ ...draft, host: e.target.value })}
             onKeyDown={(e) => {
               if (e.key === 'Enter') onSearch();
             }}
@@ -199,50 +183,20 @@ export function AccessLogFilters({
           />
         </FilterField>
         <FilterField label='状态码'>
-          <div className='flex flex-col gap-1.5'>
-            <Select
-              value={statusSelectValue}
-              onValueChange={(value) => {
-                if (value === CUSTOM_STATUS_CODE) {
-                  onDraftChange({
-                    ...draft,
-                    statusCode: isPresetStatus ? '' : draft.statusCode,
-                  });
-                } else {
-                  onDraftChange({ ...draft, statusCode: value });
-                }
-              }}
-            >
-              <SelectTrigger className='h-9 text-xs'>
-                <SelectValue placeholder='全部状态码' />
-              </SelectTrigger>
-              <SelectContent>
-                {STATUS_CODE_OPTIONS.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-                <SelectItem value={CUSTOM_STATUS_CODE}>自定义…</SelectItem>
-              </SelectContent>
-            </Select>
-            {statusSelectValue === CUSTOM_STATUS_CODE ? (
-              <Input
-                value={draft.statusCode}
-                onChange={(e) =>
-                  onDraftChange({
-                    ...draft,
-                    statusCode: e.target.value.replace(/\D/g, '').slice(0, 3),
-                  })
-                }
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') onSearch();
-                }}
-                placeholder='输入状态码，如 201'
-                autoFocus
-                className='h-9 text-xs'
-              />
-            ) : null}
-          </div>
+          <Input
+            value={draft.statusCode}
+            onChange={(e) =>
+              onDraftChange({
+                ...draft,
+                statusCode: e.target.value.replace(/\D/g, '').slice(0, 3),
+              })
+            }
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') onSearch();
+            }}
+            placeholder='输入状态码，如 404'
+            className='h-9 text-xs'
+          />
         </FilterField>
       </div>
 
