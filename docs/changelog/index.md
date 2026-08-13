@@ -18,7 +18,11 @@ sidebar: false
 
 ## [Unreleased]
 
+### 新增
+- 访问日志「日志明细」支持按 HTTP 状态码筛选：状态码下拉含常用 2xx/3xx/4xx/5xx 快捷选项，筛选条件贯穿 ClickHouse 与 PostgreSQL/SQLite 日志库。
+
 ### 🛠 修复
+- 修复首页「来源分布」卡片在 PostgreSQL/SQLite 日志库下无数据：聚合查询对空节点 ID 误拼 `node_id = ''` 恒空条件，现改为空节点 ID 表示全节点聚合（与 ClickHouse 语义一致），并同步过滤空白归属地。
 - 修复源站错误页「仅针对 GET 请求」未真正透传非 GET 响应：`proxy_intercept_errors` 会在 Lua 判断前丢弃源站错误响应体，POST/PUT 等请求收到 503 时被 OpenResty 自带错误页覆盖原始报错数据；现改为在代理层用 Lua 过滤器（`header_filter`/`body_filter`）仅对 GET 请求替换错误页，非 GET 请求完整透传源站原始状态码与响应体；非仅 GET 模式继续使用命名 location（`@__openflare_origin_error`）承载错误页，保留原始请求方法与错误状态码。
 - 修复 PostgreSQL 作为日志库时节点访问日志/可观测指标/用户访问日志批量写入失败：GORM 对零值 `uint64` 主键会省略 `id` 列，而 PG 日志表 `id` 无默认值，导致持续报「null value in column id violates not-null constraint」；现于落库前为零 ID 行生成雪花 ID（与 ClickHouse 写入路径一致），并新增回归测试覆盖六张日志表。
 

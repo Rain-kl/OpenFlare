@@ -25,14 +25,16 @@ type NodeAccessLogFilter struct {
 	RemoteAddr string
 	Host       string
 	// Hosts exact-matches any host (case-insensitive). Prefer over Host for multi-domain scopes.
-	Hosts     []string
-	Path      string
-	Since     time.Time
-	Until     time.Time
-	Page      int
-	PageSize  int
-	SortBy    string
-	SortOrder string
+	Hosts []string
+	Path  string
+	// StatusCode filters by exact HTTP status code when > 0.
+	StatusCode int
+	Since      time.Time
+	Until      time.Time
+	Page       int
+	PageSize   int
+	SortBy     string
+	SortOrder  string
 }
 
 // NodeObservabilityFilter scopes ClickHouse node observability queries.

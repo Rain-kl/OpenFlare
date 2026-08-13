@@ -630,6 +630,7 @@ export interface AccessLogFilters {
   remote_addr?: string;
   host?: string;
   path?: string;
+  status_code?: number;
   p?: number;
   page_size?: number;
   sort_by?: string;

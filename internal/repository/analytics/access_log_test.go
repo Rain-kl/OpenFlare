@@ -45,6 +45,16 @@ func TestBuildUserAccessLogFilterClause_EmptyUserIDs(t *testing.T) {
 	assert.False(t, ok)
 }
 
+func TestBuildNodeAccessLogFilterClause_StatusCode(t *testing.T) {
+	clause, args := buildNodeAccessLogFilterClause(NodeAccessLogFilter{StatusCode: 404})
+	assert.Equal(t, "status_code = ?", clause)
+	assert.Equal(t, []any{404}, args)
+
+	clause, args = buildNodeAccessLogFilterClause(NodeAccessLogFilter{})
+	assert.Equal(t, "1", clause)
+	assert.Nil(t, args)
+}
+
 func TestCountAccessLogs_EmptyUserIDs(t *testing.T) {
 	count, err := CountAccessLogs(context.Background(), AccessLogFilter{UserIDs: []uint64{}})
 	require.NoError(t, err)

@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	nodeAccessLogFilterClauseCapacity = 6
+	nodeAccessLogFilterClauseCapacity = 7
 
 	nodeAccessLogSortDesc     = "DESC"
 	nodeAccessLogSortAsc      = "ASC"
@@ -54,6 +54,10 @@ func buildNodeAccessLogFilterClause(filter NodeAccessLogFilter) (string, []any) 
 	if trimmed := strings.TrimSpace(filter.Path); trimmed != "" {
 		parts = append(parts, "path LIKE ?")
 		args = append(args, trimmed+"%")
+	}
+	if filter.StatusCode > 0 {
+		parts = append(parts, "status_code = ?")
+		args = append(args, filter.StatusCode)
 	}
 	if !filter.Since.IsZero() {
 		parts = append(parts, "logged_at >= ?")

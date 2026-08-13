@@ -39,6 +39,7 @@ type AccessLogQuery struct {
 	RemoteAddr  string `json:"remote_addr"`
 	Host        string `json:"host"`
 	Path        string `json:"path"`
+	StatusCode  int    `json:"status_code"`
 	Page        int    `json:"page"`
 	PageSize    int    `json:"page_size"`
 	SortBy      string `json:"sort_by"`
@@ -887,6 +888,7 @@ func buildModelAccessLogQuery(input AccessLogQuery) model.OpenFlareAccessLogQuer
 		RemoteAddr: strings.TrimSpace(input.RemoteAddr),
 		Host:       strings.TrimSpace(input.Host),
 		Path:       strings.TrimSpace(input.Path),
+		StatusCode: input.StatusCode,
 		Since:      defaultAccessLogSince(),
 		Page:       input.Page,
 		PageSize:   input.PageSize,
@@ -932,6 +934,7 @@ func normalizeAccessLogQuery(input AccessLogQuery) AccessLogQuery {
 		RemoteAddr:  strings.TrimSpace(input.RemoteAddr),
 		Host:        strings.TrimSpace(input.Host),
 		Path:        strings.TrimSpace(input.Path),
+		StatusCode:  input.StatusCode,
 		Page:        normalizeAccessLogPage(input.Page),
 		PageSize:    normalizeAccessLogPageSize(input.PageSize),
 		SortBy:      normalizeAccessLogSortBy(input.SortBy),

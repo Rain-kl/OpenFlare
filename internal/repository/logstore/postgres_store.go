@@ -282,7 +282,12 @@ func (s *gormLogStore) RegionCounts(ctx context.Context, nodeID string, since ti
 	var rows []row
 	q := s.db.WithContext(ctx).Model(&analyticsmodel.NodeAccessLog{}).
 		Select("region, COUNT(*) AS count").
-		Where("node_id = ? AND region <> '' AND logged_at >= ?", nodeID, since)
+		Where("trim(region) <> '' AND logged_at >= ?", since)
+	// 空 nodeID 表示全节点聚合（对齐 CH 语义），仅非空时追加 node_id 过滤，
+	// 避免 `node_id = ''` 恒空导致首页来源分布无数据。
+	if nodeID = strings.TrimSpace(nodeID); nodeID != "" {
+		q = q.Where("node_id = ?", nodeID)
+	}
 	if err := q.Group("region").Order("count DESC").Limit(limitOr(limit, defaultTopN)).Scan(&rows).Error; err != nil {
 		return nil, err
 	}
@@ -788,6 +793,7 @@ func toNodeAccessLogFilter(query model.OpenFlareAccessLogQuery) analyticsmodel.N
 		Host:       query.Host,
 		Hosts:      query.Hosts,
 		Path:       query.Path,
+		StatusCode: query.StatusCode,
 		Since:      query.Since,
 		Until:      query.Until,
 		Page:       query.Page,
@@ -822,6 +828,10 @@ func buildNodeAccessLogFilterParts(f analyticsmodel.NodeAccessLogFilter) (string
 	if path := strings.TrimSpace(f.Path); path != "" {
 		parts = append(parts, "path LIKE ?")
 		args = append(args, path+"%")
+	}
+	if f.StatusCode > 0 {
+		parts = append(parts, "status_code = ?")
+		args = append(args, f.StatusCode)
 	}
 	if !f.Since.IsZero() {
 		parts = append(parts, "logged_at >= ?")

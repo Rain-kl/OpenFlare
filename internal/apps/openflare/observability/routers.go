@@ -4,12 +4,12 @@
 package observability
 
 import (
-	"net/http"
-	"strconv"
-
+	"errors"
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/apiutil"
 	"github.com/Rain-kl/Wavelet/internal/shared/response"
 	"github.com/gin-gonic/gin"
+	"net/http"
+	"strconv"
 )
 
 // GetAccessLogOverviewHandler 获取访问日志概览。
@@ -45,7 +45,7 @@ func GetAccessLogOverviewHandler(c *gin.Context) {
 
 // GetAccessLogsHandler 分页列出访问日志。
 // @Summary 列出访问日志
-// @Description 分页返回 OpenFlare 访问日志，支持按节点、IP、主机与路径筛选，需要管理员权限
+// @Description 分页返回 OpenFlare 访问日志，支持按节点、IP、主机、路径与状态码筛选，需要管理员权限
 // @Tags openflare-observability
 // @Produce json
 // @Security SessionCookie
@@ -53,6 +53,7 @@ func GetAccessLogOverviewHandler(c *gin.Context) {
 // @Param remote_addr query string false "客户端 IP"
 // @Param host query string false "请求 Host"
 // @Param path query string false "请求路径"
+// @Param status_code query int false "HTTP 状态码（100-599）"
 // @Param p query int false "页码"
 // @Param page_size query int false "每页条数"
 // @Param sort_by query string false "排序字段"
@@ -64,7 +65,11 @@ func GetAccessLogOverviewHandler(c *gin.Context) {
 // @Failure 500 {object} response.Any "内部错误"
 // @Router /api/v1/d/access-logs [get]
 func GetAccessLogsHandler(c *gin.Context) {
-	logs, err := ListAccessLogs(c.Request.Context(), readAccessLogQuery(c))
+	query, err := readAccessLogQuery(c)
+	if apiutil.AbortBadRequestOnError(c, err) {
+		return
+	}
+	logs, err := ListAccessLogs(c.Request.Context(), query)
 	if apiutil.AbortBadRequestOnError(c, err) {
 		return
 	}
@@ -93,7 +98,10 @@ func GetAccessLogsHandler(c *gin.Context) {
 // @Failure 500 {object} response.Any "内部错误"
 // @Router /api/v1/d/access-logs/folds [get]
 func GetFoldedAccessLogsHandler(c *gin.Context) {
-	query := readAccessLogQuery(c)
+	query, err := readAccessLogQuery(c)
+	if apiutil.AbortBadRequestOnError(c, err) {
+		return
+	}
 	query.FoldMinutes = readQueryInt(c, "fold_minutes")
 	logs, err := ListFoldedAccessLogs(c.Request.Context(), query)
 	if apiutil.AbortBadRequestOnError(c, err) {
@@ -270,8 +278,8 @@ func CleanupAccessLogsHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, response.OK(result))
 }
 
-func readAccessLogQuery(c *gin.Context) AccessLogQuery {
-	return AccessLogQuery{
+func readAccessLogQuery(c *gin.Context) (AccessLogQuery, error) {
+	query := AccessLogQuery{
 		NodeID:     c.Query("node_id"),
 		RemoteAddr: c.Query("remote_addr"),
 		Host:       c.Query("host"),
@@ -281,6 +289,14 @@ func readAccessLogQuery(c *gin.Context) AccessLogQuery {
 		SortBy:     c.Query("sort_by"),
 		SortOrder:  c.Query("sort_order"),
 	}
+	if raw := c.Query("status_code"); raw != "" {
+		code, err := strconv.Atoi(raw)
+		if err != nil || code < 100 || code > 599 {
+			return AccessLogQuery{}, errors.New(errInvalidStatusCode)
+		}
+		query.StatusCode = code
+	}
+	return query, nil
 }
 
 func readQueryInt(c *gin.Context, key string) int {

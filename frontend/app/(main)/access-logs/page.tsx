@@ -33,6 +33,7 @@ const emptyDraft: SearchDraft = {
   remoteAddr: '',
   host: '',
   path: '',
+  statusCode: '',
 };
 
 function resolveTab(value: string | null): AccessLogTab {
@@ -111,6 +112,9 @@ function AccessLogsPageContent() {
         remote_addr: filters.remoteAddr || undefined,
         host: filters.host || undefined,
         path: filters.path || undefined,
+        status_code: filters.statusCode
+          ? Number.parseInt(filters.statusCode, 10)
+          : undefined,
         p: page,
         page_size: pageSize,
         sort_by: detailSortState.sortBy,
@@ -161,6 +165,7 @@ function AccessLogsPageContent() {
       remoteAddr: draft.remoteAddr.trim(),
       host: draft.host.trim(),
       path: draft.path.trim(),
+      statusCode: draft.statusCode.trim(),
     });
     setPage(0);
   }, [draft]);

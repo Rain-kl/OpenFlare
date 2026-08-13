@@ -5,6 +5,7 @@ export type SearchDraft = {
   remoteAddr: string;
   host: string;
   path: string;
+  statusCode: string;
 };
 
 export type OverviewRangeHours = 24 | 168 | 360 | 720;
@@ -13,6 +14,23 @@ export type OverviewRangeHours = 24 | 168 | 360 | 720;
 export type RateLimitRangeHours = 24 | 72;
 
 export const PAGE_SIZE_OPTIONS = [20, 50, 100, 200];
+
+/** 状态码快捷筛选项（空值表示全部，由 Select placeholder 兜底）。 */
+export const STATUS_CODE_OPTIONS: { value: string; label: string }[] = [
+  { value: '200', label: '200 OK' },
+  { value: '301', label: '301 永久重定向' },
+  { value: '302', label: '302 临时重定向' },
+  { value: '304', label: '304 未修改' },
+  { value: '400', label: '400 请求错误' },
+  { value: '401', label: '401 未授权' },
+  { value: '403', label: '403 禁止访问' },
+  { value: '404', label: '404 未找到' },
+  { value: '429', label: '429 请求过多' },
+  { value: '500', label: '500 服务器错误' },
+  { value: '502', label: '502 网关错误' },
+  { value: '503', label: '503 服务不可用' },
+  { value: '504', label: '504 网关超时' },
+];
 
 export const OVERVIEW_RANGE_OPTIONS: {
   value: OverviewRangeHours;

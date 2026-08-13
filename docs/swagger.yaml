@@ -7194,7 +7194,7 @@ paths:
       - config
   /api/v1/d/access-logs:
     get:
-      description: 分页返回 OpenFlare 访问日志，支持按节点、IP、主机与路径筛选，需要管理员权限
+      description: 分页返回 OpenFlare 访问日志，支持按节点、IP、主机、路径与状态码筛选，需要管理员权限
       parameters:
       - description: 节点 ID
         in: query
@@ -7212,6 +7212,10 @@ paths:
         in: query
         name: path
         type: string
+      - description: HTTP 状态码（100-599）
+        in: query
+        name: status_code
+        type: integer
       - description: 页码
         in: query
         name: p

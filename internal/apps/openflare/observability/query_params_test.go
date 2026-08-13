@@ -55,3 +55,49 @@ func TestReadQueryStringArrayAcceptsHostsBracketForm(t *testing.T) {
 		})
 	}
 }
+
+func TestReadAccessLogQueryIncludesStatusCode(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	req, err := http.NewRequest(
+		http.MethodGet,
+		"/?node_id=n1&remote_addr=1.2.3.4&host=a.example&path=/api&status_code=404&p=2&page_size=50",
+		nil,
+	)
+	require.NoError(t, err)
+	c.Request = req
+
+	got, err := readAccessLogQuery(c)
+	require.NoError(t, err)
+	require.Equal(t, "n1", got.NodeID)
+	require.Equal(t, "1.2.3.4", got.RemoteAddr)
+	require.Equal(t, "a.example", got.Host)
+	require.Equal(t, "/api", got.Path)
+	require.Equal(t, 404, got.StatusCode)
+	require.Equal(t, 2, got.Page)
+	require.Equal(t, 50, got.PageSize)
+}
+
+func TestReadAccessLogQueryRejectsInvalidStatusCode(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	for _, raw := range []string{"abc", "99", "600", "-1"} {
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		req, err := http.NewRequest(http.MethodGet, "/?status_code="+raw, nil)
+		require.NoError(t, err)
+		c.Request = req
+
+		_, err = readAccessLogQuery(c)
+		require.Error(t, err, "status_code=%s should be rejected", raw)
+	}
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	req, err := http.NewRequest(http.MethodGet, "/", nil)
+	require.NoError(t, err)
+	c.Request = req
+	got, err := readAccessLogQuery(c)
+	require.NoError(t, err)
+	require.Equal(t, 0, got.StatusCode)
+}

@@ -231,6 +231,44 @@ func TestGormNodeAggregatesExcludeEmptyNodeID(t *testing.T) {
 	}
 }
 
+// TestGormRegionCountsEmptyNodeIDAggregatesAll 回归测试：首页「来源分布」以空 node_id
+// 表示全节点聚合，RegionCounts 不得拼出 `node_id = ”` 恒空条件（对齐 CH 语义）。
+func TestGormRegionCountsEmptyNodeIDAggregatesAll(t *testing.T) {
+	ResetForTest()
+	SetConfigReader(func(_ context.Context, _ string) (string, error) { return "", nil })
+	s := newTestGormStore(t)
+	ctx := context.Background()
+	now := time.Now()
+	rows := []analyticsmodel.NodeAccessLog{
+		{ID: 1, NodeID: "n1", LoggedAt: now, RemoteAddr: "1.1.1.1", Region: "CN"},
+		{ID: 2, NodeID: "n2", LoggedAt: now, RemoteAddr: "2.2.2.2", Region: "CN"},
+		{ID: 3, NodeID: "n3", LoggedAt: now, RemoteAddr: "3.3.3.3", Region: "US"},
+		{ID: 4, NodeID: "n4", LoggedAt: now, RemoteAddr: "4.4.4.4", Region: "  "},
+	}
+	if err := s.BatchInsertNodeAccessLogs(ctx, rows); err != nil {
+		t.Fatalf("insert: %v", err)
+	}
+
+	all, err := s.RegionCounts(ctx, "", now.Add(-time.Hour), 0)
+	if err != nil {
+		t.Fatalf("region counts (all nodes): %v", err)
+	}
+	if len(all) != 2 {
+		t.Fatalf("all-nodes region counts want 2 regions (empty region excluded), got %+v", all)
+	}
+	if all[0].Region != "CN" || all[0].Count != 2 || all[1].Region != "US" || all[1].Count != 1 {
+		t.Fatalf("all-nodes region counts got %+v, want CN=2 US=1", all)
+	}
+
+	cnOnly, err := s.RegionCounts(ctx, "n1", now.Add(-time.Hour), 0)
+	if err != nil {
+		t.Fatalf("region counts (node): %v", err)
+	}
+	if len(cnOnly) != 1 || cnOnly[0].Region != "CN" || cnOnly[0].Count != 1 {
+		t.Fatalf("node-scoped region counts got %+v, want CN=1", cnOnly)
+	}
+}
+
 // testGormStoreSeq 保证每个测试获得独立的共享内存库（cache=shared 下同名 DSN 会复用同一库，
 // 导致跨测试 id 冲突）。
 var testGormStoreSeq int64

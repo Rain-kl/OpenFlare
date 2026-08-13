@@ -4809,7 +4809,7 @@ const docTemplate = `{
                         "SessionCookie": []
                     }
                 ],
-                "description": "分页返回 OpenFlare 访问日志，支持按节点、IP、主机与路径筛选，需要管理员权限",
+                "description": "分页返回 OpenFlare 访问日志，支持按节点、IP、主机、路径与状态码筛选，需要管理员权限",
                 "produces": [
                     "application/json"
                 ],
@@ -4840,6 +4840,12 @@ const docTemplate = `{
                         "type": "string",
                         "description": "请求路径",
                         "name": "path",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "HTTP 状态码（100-599）",
+                        "name": "status_code",
                         "in": "query"
                     },
                     {
