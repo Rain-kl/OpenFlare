@@ -1,3 +1,6 @@
+// Copyright 2026 Arctel.net
+// SPDX-License-Identifier: Apache-2.0
+
 // Package httpclient provides an HTTP client for relay control-plane communication.
 package httpclient
 

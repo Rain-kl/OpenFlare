@@ -1,3 +1,6 @@
+// Copyright 2026 Arctel.net
+// SPDX-License-Identifier: Apache-2.0
+
 // Command flared runs the OpenFlare tunnel client daemon.
 package main
 

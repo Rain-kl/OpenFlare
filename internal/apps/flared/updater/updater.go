@@ -1,3 +1,6 @@
+// Copyright 2026 Arctel.net
+// SPDX-License-Identifier: Apache-2.0
+
 // Package updater provides update service capabilities for flared.
 package updater
 

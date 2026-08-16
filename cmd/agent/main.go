@@ -1,3 +1,6 @@
+// Copyright 2026 Arctel.net
+// SPDX-License-Identifier: Apache-2.0
+
 // Command agent runs the OpenFlare edge agent daemon.
 package main
 

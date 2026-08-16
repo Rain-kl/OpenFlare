@@ -1,3 +1,6 @@
+// Copyright 2026 Arctel.net
+// SPDX-License-Identifier: Apache-2.0
+
 // Package observability provides helpers that read Linux /proc and /sys metrics for system monitoring.
 package observability
 

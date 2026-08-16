@@ -1,3 +1,6 @@
+// Copyright 2026 Arctel.net
+// SPDX-License-Identifier: Apache-2.0
+
 // Package runtimeuser defines the shared OS account used by the agent process
 // and OpenResty worker processes so file ownership stays aligned.
 package runtimeuser

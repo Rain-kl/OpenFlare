@@ -1,3 +1,6 @@
+// Copyright 2026 Arctel.net
+// SPDX-License-Identifier: Apache-2.0
+
 // Package main is a manual smoke tool for ClickHouse app write path.
 // Usage (from repo root, with config.yaml and Docker CH up):
 //

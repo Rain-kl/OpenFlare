@@ -1,3 +1,6 @@
+// Copyright 2026 Arctel.net
+// SPDX-License-Identifier: Apache-2.0
+
 // Package frpc manages frpc child processes for tunnel relay connections.
 package frpc
 

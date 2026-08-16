@@ -1,3 +1,6 @@
+// Copyright 2026 Arctel.net
+// SPDX-License-Identifier: Apache-2.0
+
 // Package heartbeat implements the periodic heartbeat cycle executed by the agent,
 // including payload preparation, config sync, WAF IP group application, and observability buffering.
 package heartbeat

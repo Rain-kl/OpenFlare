@@ -1,3 +1,6 @@
+// Copyright 2026 Arctel.net
+// SPDX-License-Identifier: Apache-2.0
+
 // Package frps manages the lifecycle of the frps reverse-proxy process:
 // rendering its TOML config, supervising the child process with exponential-
 // backoff restarts, and exposing runtime status to the heartbeat subsystem.
