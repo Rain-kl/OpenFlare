@@ -258,8 +258,8 @@ func StatFilesystem(path string) (int64, int64) {
 	if err := syscall.Statfs(absPath, &stat); err != nil {
 		return 0, 0
 	}
-	total := multiplyUint64Int64(stat.Blocks, stat.Bsize)
-	free := multiplyUint64Int64(stat.Bavail, stat.Bsize)
+	total := multiplyUint64Int64(stat.Blocks, int64(stat.Bsize))
+	free := multiplyUint64Int64(stat.Bavail, int64(stat.Bsize))
 	used := max(total-free, 0)
 	return total, used
 }
