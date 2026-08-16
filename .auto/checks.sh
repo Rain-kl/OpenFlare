@@ -29,6 +29,16 @@ echo "==> pnpm exec vitest run (frontend)"
   exit 1
 }
 
+# SPDX license 头门禁（repo 自带约定）
+echo "==> make license-check"
+make license-check 2>&1 | grep "needs license" | head -10 || true
+if make license-check > /tmp/auto_license.log 2>&1; then
+  :
+else
+  tail -15 /tmp/auto_license.log
+  exit 1
+fi
+
 # 并发密集包 -race 门禁（2026-08-16 全仓 -race 清零后纳入，防回归；
 # frpc/frps 慢套件不含在此，另做全量周期验证）
 echo "==> go test -race (concurrency packages)"
