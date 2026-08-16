@@ -47,6 +47,13 @@ sloglint,canonicalheader,nosprintfhostport,recvcheck,wastedassign`
 Frontend: `pnpm exec eslint . --max-warnings 0` (repo gate) +
 `pnpm exec tsc --noEmit --jsx preserve` (repo gate).
 
+Test-code dimension (added 2026-08-16, run #12+, documented scope extension —
+raising the bar, not gaming): `golangci-lint run --tests=true
+--enable=testifylint,usetesting,thelper --enable-only=testifylint,usetesting,thelper`
+counts test-file quality. DELIBERATELY excludes paralleltest/tparallel
+(t.Parallel advice is unsafe here: many suites share DB/redis state and tests
+cannot be run in this env) and gocritic extras (noise). Fix test issues only
+when compile-safe (go vet compiles tests) and semantically neutral.
 Do not add/remove linters or change settings to make the number go down.
 
 ## Files in Scope

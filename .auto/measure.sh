@@ -20,6 +20,19 @@ while IFS= read -r line; do
 done <<< "$golang_out"
 echo "METRIC golint_total=$golang_total"
 
+# ---------- Backend: test-code quality (tests excluded from repo config; safe linters only) ----------
+test_out=$(golangci-lint run --tests=true --enable=testifylint,usetesting,thelper --enable-only=testifylint,usetesting,thelper 2>&1 || true)
+golang_test_total=0
+while IFS= read -r line; do
+  if [[ "$line" =~ ^\*\ ([a-zA-Z0-9_]+):\ ([0-9]+)$ ]]; then
+    name="${BASH_REMATCH[1]}"
+    n="${BASH_REMATCH[2]}"
+    golang_test_total=$((golang_test_total + n))
+    echo "METRIC golint_test_${name}=$n"
+  fi
+done <<< "$test_out"
+echo "METRIC golint_test_total=$golang_test_total"
+
 # ---------- Frontend: eslint (repo gate) ----------
 cd frontend
 eslint_out=$(pnpm exec eslint . --max-warnings 0 2>&1 || true)
@@ -37,6 +50,6 @@ tsc_errors=$(grep -cE "error TS" <<< "$tsc_out" || true)
 echo "METRIC tsc_errors=$tsc_errors"
 
 end=$(date +%s)
-total=$((golang_total + eslint_problems + tsc_errors))
+total=$((golang_total + golang_test_total + eslint_problems + tsc_errors))
 echo "METRIC total_issues=$total"
 echo "METRIC measure_s=$((end - start))"
