@@ -50,7 +50,7 @@ func GetDailyTrend(ctx context.Context, days int) ([]DailyTrend, error) {
 	defer func() { _ = rows.Close() }()
 
 	trendMap := make(map[string]uint64, days)
-	for i := 0; i < days; i++ {
+	for i := range days {
 		dateStr := time.Now().AddDate(0, 0, -i).Format("2006-01-02")
 		trendMap[dateStr] = 0
 	}

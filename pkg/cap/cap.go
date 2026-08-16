@@ -215,7 +215,7 @@ func VerifyChallengeSolutions(token string, solutions []int, secret []byte, expe
 	}
 
 	tokenFnv := fnv1a(token)
-	for i := 0; i < payload.Count; i++ {
+	for i := range payload.Count {
 		idxStr := strconv.Itoa(i + 1)
 		saltSeed := fnv1aResume(tokenFnv, idxStr)
 		targetSeed := fnv1aResume(saltSeed, "d")

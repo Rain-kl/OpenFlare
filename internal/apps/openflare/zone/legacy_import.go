@@ -292,7 +292,7 @@ func rebindSQL(query string, postgres bool) string {
 	var b strings.Builder
 	b.Grow(len(query) + len(query)/4)
 	n := 0
-	for i := 0; i < len(query); i++ {
+	for i := range len(query) {
 		if query[i] == '?' {
 			n++
 			b.WriteByte('$')
