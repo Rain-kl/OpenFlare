@@ -95,6 +95,7 @@
     "@types/node": "^26.1.2",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
+    "axe-core": "^4.13.0",
     "eslint": "^9.39.5",
     "eslint-config-next": "16.3.0",
     "eslint-plugin-unused-imports": "^4.4.1",
