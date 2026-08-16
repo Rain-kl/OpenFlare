@@ -298,9 +298,7 @@ function AddToIPGroupPanel({
                 </div>
               </div>
             ) : (
-              <p className='text-sm text-muted-foreground'>
-                {t('notInAny')}
-              </p>
+              <p className='text-sm text-muted-foreground'>{t('notInAny')}</p>
             )}
 
             <div className='space-y-2'>

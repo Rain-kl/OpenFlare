@@ -349,9 +349,7 @@ export function SQLConsole({ dbType, onClose }: SQLConsoleProps) {
             {!executingSQL && !sqlResult && !sqlError && (
               <div className='flex flex-col items-center justify-center h-full py-10 text-muted-foreground opacity-60'>
                 <Terminal className='size-8 mb-2' />
-                <span className='text-xs'>
-                  {t('editorReady')}
-                </span>
+                <span className='text-xs'>{t('editorReady')}</span>
               </div>
             )}
           </div>

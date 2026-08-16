@@ -41,7 +41,11 @@ function renderPage() {
     defaultOptions: { queries: { retry: false, gcTime: 0 } },
   });
   render(
-    <NextIntlClientProvider locale='zh-CN' messages={zhCN} timeZone='Asia/Shanghai'>
+    <NextIntlClientProvider
+      locale='zh-CN'
+      messages={zhCN}
+      timeZone='Asia/Shanghai'
+    >
       <QueryClientProvider client={client}>
         <CloudflareGroupDetailPageClient />
       </QueryClientProvider>

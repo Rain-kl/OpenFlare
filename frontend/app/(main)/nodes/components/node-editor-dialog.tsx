@@ -207,7 +207,9 @@ export function NodeEditorDialog({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value='edge_node'>{t('editor.typeEdge')}</SelectItem>
+                <SelectItem value='edge_node'>
+                  {t('editor.typeEdge')}
+                </SelectItem>
                 <SelectItem value='tunnel_relay'>
                   {t('editor.typeRelay')}
                 </SelectItem>

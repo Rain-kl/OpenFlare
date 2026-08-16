@@ -76,7 +76,9 @@ function RateLimitsPageContent() {
       <div className='flex items-center gap-2'>
         <Gauge className='size-5 text-primary' />
         <div>
-          <h1 className='text-2xl font-semibold tracking-tight'>{t('title')}</h1>
+          <h1 className='text-2xl font-semibold tracking-tight'>
+            {t('title')}
+          </h1>
           <p className='text-sm text-muted-foreground'>{t('subtitle')}</p>
         </div>
       </div>
@@ -116,10 +118,7 @@ export default function RateLimitsPage() {
     <Suspense
       fallback={
         <div className='py-6 px-1'>
-          <LoadingStateWithBorder
-            icon={Gauge}
-            description={t('loadingPage')}
-          />
+          <LoadingStateWithBorder icon={Gauge} description={t('loadingPage')} />
         </div>
       }
     >

@@ -116,7 +116,9 @@ export function ErrorPageTab({
         <CardContent className='space-y-0 divide-y'>
           <div className='flex items-start justify-between gap-6 pb-5'>
             <div className='space-y-1'>
-              <Label className='text-sm font-medium'>{t('enableErrorPage')}</Label>
+              <Label className='text-sm font-medium'>
+                {t('enableErrorPage')}
+              </Label>
               <p className='text-sm text-muted-foreground'>
                 {t('enableErrorPageDesc')}
               </p>
@@ -134,7 +136,9 @@ export function ErrorPageTab({
           <div className='flex items-start justify-between gap-6 py-5'>
             <div className='space-y-1'>
               <Label className='text-sm font-medium'>{t('getOnly')}</Label>
-              <p className='text-sm text-muted-foreground'>{t('getOnlyDesc')}</p>
+              <p className='text-sm text-muted-foreground'>
+                {t('getOnlyDesc')}
+              </p>
             </div>
             <Switch
               checked={fields.getOnly}

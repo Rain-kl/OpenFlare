@@ -48,7 +48,11 @@ function renderSelector(ui: React.ReactElement) {
     defaultOptions: { queries: { retry: false } },
   });
   return render(
-    <NextIntlClientProvider locale='zh-CN' messages={zhCN} timeZone='Asia/Shanghai'>
+    <NextIntlClientProvider
+      locale='zh-CN'
+      messages={zhCN}
+      timeZone='Asia/Shanghai'
+    >
       <QueryClientProvider client={client}>{ui}</QueryClientProvider>
     </NextIntlClientProvider>,
   );

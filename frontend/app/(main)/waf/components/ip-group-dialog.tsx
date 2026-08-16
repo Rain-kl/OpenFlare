@@ -205,7 +205,11 @@ export function IPGroupDialog({
   const tWaf = useTranslations('waf');
   const tCommon = useTranslations('common');
   const ipGroupSchema = useMemo(
-    () => createIPGroupSchema((key) => t(key), (key) => tWaf(key)),
+    () =>
+      createIPGroupSchema(
+        (key) => t(key),
+        (key) => tWaf(key),
+      ),
     [t, tWaf],
   );
   const form = useForm<IPGroupFormValues>({
@@ -226,8 +230,7 @@ export function IPGroupDialog({
       onOpenChange(false);
     } catch (error) {
       form.setError('root', {
-        message:
-          error instanceof Error ? error.message : tWaf('saveFailed'),
+        message: error instanceof Error ? error.message : tWaf('saveFailed'),
       });
     }
   });

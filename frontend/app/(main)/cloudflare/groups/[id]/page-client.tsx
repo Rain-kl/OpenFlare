@@ -150,10 +150,7 @@ export function CloudflareGroupDetailPageClient() {
   if (detailQuery.isLoading)
     return (
       <div className='w-full py-6 px-1'>
-        <LoadingStateWithBorder
-          icon={Cloud}
-          description={t('loadingDetail')}
-        />
+        <LoadingStateWithBorder icon={Cloud} description={t('loadingDetail')} />
       </div>
     );
   if (detailQuery.isError || !detailQuery.data)

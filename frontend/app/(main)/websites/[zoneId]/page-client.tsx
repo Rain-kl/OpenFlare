@@ -110,17 +110,13 @@ export function ZonePageClient() {
       await queryClient.invalidateQueries({ queryKey: zoneQueryKey });
       window.location.assign('/websites');
     },
-    onError: (error) =>
-      toast.error(getErrorMessage(error, t('requestFailed'))),
+    onError: (error) => toast.error(getErrorMessage(error, t('requestFailed'))),
   });
 
   if (!mounted) {
     return (
       <div className='py-6 px-1'>
-        <LoadingStateWithBorder
-          icon={Globe}
-          description={t('loadingDetail')}
-        />
+        <LoadingStateWithBorder icon={Globe} description={t('loadingDetail')} />
       </div>
     );
   }
@@ -128,10 +124,7 @@ export function ZonePageClient() {
   if (!Number.isInteger(zoneId) || zoneId <= 0) {
     return (
       <div className='py-6 px-1'>
-        <EmptyStateWithBorder
-          icon={Globe}
-          description={t('invalidId')}
-        />
+        <EmptyStateWithBorder icon={Globe} description={t('invalidId')} />
       </div>
     );
   }
@@ -139,10 +132,7 @@ export function ZonePageClient() {
   if (overviewQuery.isLoading) {
     return (
       <div className='py-6 px-1'>
-        <LoadingStateWithBorder
-          icon={Globe}
-          description={t('loadingDetail')}
-        />
+        <LoadingStateWithBorder icon={Globe} description={t('loadingDetail')} />
       </div>
     );
   }
@@ -159,10 +149,7 @@ export function ZonePageClient() {
           <ArrowLeft className='size-3.5' />
           {t('back')}
         </Button>
-        <EmptyStateWithBorder
-          icon={Globe}
-          description={t('notFound')}
-        />
+        <EmptyStateWithBorder icon={Globe} description={t('notFound')} />
       </div>
     );
   }
@@ -195,7 +182,9 @@ export function ZonePageClient() {
             <h1 className='text-2xl font-semibold tracking-tight'>
               {overview.zone.domain}
             </h1>
-            <p className='text-sm text-muted-foreground'>{t('detailSubtitle')}</p>
+            <p className='text-sm text-muted-foreground'>
+              {t('detailSubtitle')}
+            </p>
           </div>
         </div>
       </div>
@@ -257,13 +246,17 @@ export function ZonePageClient() {
               </p>
               <div className='mt-3 grid gap-2 text-sm sm:grid-cols-2'>
                 <div>
-                  <p className='text-xs text-muted-foreground'>{t('currentRoot')}</p>
+                  <p className='text-xs text-muted-foreground'>
+                    {t('currentRoot')}
+                  </p>
                   <p className='mt-1 font-mono text-[13px] font-medium'>
                     {overview.zone.domain}
                   </p>
                 </div>
                 <div>
-                  <p className='text-xs text-muted-foreground'>{t('domainCount')}</p>
+                  <p className='text-xs text-muted-foreground'>
+                    {t('domainCount')}
+                  </p>
                   <p className='mt-1 font-mono text-[13px] font-medium'>
                     {overview.domains.length}
                   </p>
@@ -281,7 +274,9 @@ export function ZonePageClient() {
             </div>
 
             <div className='rounded-lg border border-destructive/30 p-4'>
-              <p className='text-sm font-semibold text-destructive'>{t('dangerZone')}</p>
+              <p className='text-sm font-semibold text-destructive'>
+                {t('dangerZone')}
+              </p>
               <p className='mt-1 text-sm text-muted-foreground'>
                 {t('dangerZoneDesc')}
               </p>

@@ -26,7 +26,10 @@ function createPagesProjectSchema(t: (key: string) => string) {
       entry_file: z.string().trim().min(1, t('form.entryRequired')).max(512),
     })
     .superRefine((data, ctx) => {
-      if (data.spa_fallback_enabled && !data.spa_fallback_path.startsWith('/')) {
+      if (
+        data.spa_fallback_enabled &&
+        !data.spa_fallback_path.startsWith('/')
+      ) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           path: ['spa_fallback_path'],

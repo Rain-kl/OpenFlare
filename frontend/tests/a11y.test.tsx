@@ -16,12 +16,13 @@ vi.mock('next/navigation', () => ({
   useSearchParams: () => new URLSearchParams(''),
 }));
 
-const { getUserInfoMock, getPublicConfigMock, getAuthSourcesMock } =
-  vi.hoisted(() => ({
+const { getUserInfoMock, getPublicConfigMock, getAuthSourcesMock } = vi.hoisted(
+  () => ({
     getUserInfoMock: vi.fn(),
     getPublicConfigMock: vi.fn(),
     getAuthSourcesMock: vi.fn(),
-  }));
+  }),
+);
 
 vi.mock('@/lib/services/auth', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/services/auth')>();
@@ -127,7 +128,11 @@ describe('a11y（axe-core 结构性规则）', () => {
   });
 
   it('人机验证小部件（手动模式）无 axe 违规', async () => {
-    renderWithProviders(<main><CapWidget autoStart={false} onToken={() => {}} /></main>);
+    renderWithProviders(
+      <main>
+        <CapWidget autoStart={false} onToken={() => {}} />
+      </main>,
+    );
 
     await screen.findByRole('button');
     expect(await runAxe(document.body)).toEqual([]);

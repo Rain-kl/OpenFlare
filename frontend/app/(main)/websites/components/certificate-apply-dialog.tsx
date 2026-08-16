@@ -181,7 +181,10 @@ export function CertificateApplyDialog({
           <div className='grid gap-4 md:grid-cols-2'>
             <div className='space-y-2'>
               <Label>{t('name')}</Label>
-              <Input placeholder={t('namePlaceholder')} {...form.register('name')} />
+              <Input
+                placeholder={t('namePlaceholder')}
+                {...form.register('name')}
+              />
             </div>
             <div className='space-y-2'>
               <Label>{t('primaryDomain')}</Label>

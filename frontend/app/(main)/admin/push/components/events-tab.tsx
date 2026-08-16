@@ -315,7 +315,10 @@ export function EventsTab() {
         </Button>
       </div>
       {eventsQuery.isLoading ? (
-        <LoadingStateWithBorder icon={Layers} description={t('loadingEvents')} />
+        <LoadingStateWithBorder
+          icon={Layers}
+          description={t('loadingEvents')}
+        />
       ) : eventsQuery.isError ? (
         <div className='p-8 border border-dashed rounded-xl bg-card'>
           <ErrorInline
@@ -325,10 +328,7 @@ export function EventsTab() {
           />
         </div>
       ) : (eventsQuery.data ?? []).length === 0 ? (
-        <EmptyStateWithBorder
-          icon={Layers}
-          description={t('noEvents')}
-        />
+        <EmptyStateWithBorder icon={Layers} description={t('noEvents')} />
       ) : (
         <div className='border border-dashed shadow-none rounded-lg overflow-hidden'>
           <Table className='w-full caption-bottom text-sm min-w-full'>
@@ -492,9 +492,7 @@ export function EventsTab() {
         <DialogContent className='sm:max-w-[550px] max-h-[85vh] overflow-y-auto'>
           <DialogHeader>
             <DialogTitle>{t('addEventDialogTitle')}</DialogTitle>
-            <DialogDescription>
-              {t('addEventDialogDesc')}
-            </DialogDescription>
+            <DialogDescription>{t('addEventDialogDesc')}</DialogDescription>
           </DialogHeader>
 
           <div className='space-y-4 py-4'>
@@ -534,7 +532,9 @@ export function EventsTab() {
 
             {newEventType === 'builtin' ? (
               <div className='space-y-1.5'>
-                <Label className='text-xs font-semibold'>{t('systemEvent')}</Label>
+                <Label className='text-xs font-semibold'>
+                  {t('systemEvent')}
+                </Label>
                 {builtInEventsQuery.isLoading ? (
                   <div className='flex items-center gap-2 text-xs text-muted-foreground'>
                     <Loader2 className='size-3.5 animate-spin' />
@@ -724,7 +724,9 @@ export function EventsTab() {
 
             <div className='flex items-center justify-between p-3 border rounded-lg bg-muted/10'>
               <div className='space-y-0.5'>
-                <Label className='text-xs font-semibold'>{t('enableStatus')}</Label>
+                <Label className='text-xs font-semibold'>
+                  {t('enableStatus')}
+                </Label>
                 <div className='text-[10px] text-muted-foreground'>
                   {t('enableStatusDesc')}
                 </div>
@@ -770,9 +772,7 @@ export function EventsTab() {
         <DialogContent className='sm:max-w-[550px] max-h-[85vh] overflow-y-auto'>
           <DialogHeader>
             <DialogTitle>{t('editEventDialogTitle')}</DialogTitle>
-            <DialogDescription>
-              {t('editEventDialogDesc')}
-            </DialogDescription>
+            <DialogDescription>{t('editEventDialogDesc')}</DialogDescription>
           </DialogHeader>
 
           {selectedEvent && (

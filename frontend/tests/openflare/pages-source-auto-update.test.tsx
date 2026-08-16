@@ -50,7 +50,11 @@ function renderWithQuery(ui: React.ReactNode) {
     },
   });
   const rendered = render(
-    <NextIntlClientProvider locale='zh-CN' messages={zhCN} timeZone='Asia/Shanghai'>
+    <NextIntlClientProvider
+      locale='zh-CN'
+      messages={zhCN}
+      timeZone='Asia/Shanghai'
+    >
       <QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>
     </NextIntlClientProvider>,
   );
@@ -59,8 +63,14 @@ function renderWithQuery(ui: React.ReactNode) {
     queryClient,
     rerenderWithQuery: (nextUI: React.ReactNode) =>
       rendered.rerender(
-        <NextIntlClientProvider locale='zh-CN' messages={zhCN} timeZone='Asia/Shanghai'>
-          <QueryClientProvider client={queryClient}>{nextUI}</QueryClientProvider>
+        <NextIntlClientProvider
+          locale='zh-CN'
+          messages={zhCN}
+          timeZone='Asia/Shanghai'
+        >
+          <QueryClientProvider client={queryClient}>
+            {nextUI}
+          </QueryClientProvider>
         </NextIntlClientProvider>,
       ),
   };

@@ -54,8 +54,7 @@ export function VersionSnapshotSheet({
       .catch((err) => {
         if (!cancelled) {
           toast.error(t('snapshotLoadFailed'), {
-            description:
-              err instanceof Error ? err.message : t('unknownError'),
+            description: err instanceof Error ? err.message : t('unknownError'),
           });
         }
       })

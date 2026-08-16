@@ -29,9 +29,7 @@ function mergeLocale(locale) {
   const suffix = `.${locale}.json`;
   for (const name of readdirSync(fragmentsDir).sort()) {
     if (!name.endsWith(suffix)) continue;
-    const frag = JSON.parse(
-      readFileSync(resolve(fragmentsDir, name), 'utf8'),
-    );
+    const frag = JSON.parse(readFileSync(resolve(fragmentsDir, name), 'utf8'));
     deepMerge(data, frag);
     console.log(`merged ${name}`);
   }

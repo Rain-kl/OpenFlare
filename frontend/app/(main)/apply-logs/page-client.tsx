@@ -174,8 +174,7 @@ export function ApplyLogsPageClient() {
       await fetchLogs();
     } catch (err) {
       toast.error(t('clearFailed'), {
-        description:
-          err instanceof Error ? err.message : t('unknownError'),
+        description: err instanceof Error ? err.message : t('unknownError'),
       });
     } finally {
       setCleaning(false);

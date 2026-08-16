@@ -148,7 +148,8 @@ export default function ConfigVersionsPage() {
       setPreview(previewData);
       setDiff(diffData);
     } catch (err) {
-      const message = err instanceof Error ? err.message : t('previewLoadFailed');
+      const message =
+        err instanceof Error ? err.message : t('previewLoadFailed');
       setPreviewError(message);
       setDiffError(message);
     } finally {

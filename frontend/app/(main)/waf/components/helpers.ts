@@ -89,7 +89,9 @@ export function formatIPGroupBanRemaining(
     (expireDate.getTime() - reference.getTime()) / (60 * 1000),
   );
   if (diffMins < 60) {
-    return t ? t('ban.minutesLater', { count: diffMins }) : `${diffMins} 分钟后`;
+    return t
+      ? t('ban.minutesLater', { count: diffMins })
+      : `${diffMins} 分钟后`;
   }
   const hours = Math.round(diffMins / 60);
   return t ? t('ban.hoursLater', { count: hours }) : `${hours} 小时后`;
@@ -105,7 +107,12 @@ export function getIPGroupViewEntries(
     return group.ext_ips.map((item) => ({
       ip: item.ip,
       capturedAt: item.captured_at,
-      banRemaining: formatIPGroupBanRemaining(item.captured_at, ttl, undefined, t),
+      banRemaining: formatIPGroupBanRemaining(
+        item.captured_at,
+        ttl,
+        undefined,
+        t,
+      ),
     }));
   }
   return (group.ip_list ?? []).map((ip) => ({ ip }));

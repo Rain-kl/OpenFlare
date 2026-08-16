@@ -110,9 +110,7 @@ export function LoginPage() {
           }, 1500);
         } catch (error) {
           console.error('OAuth callback error:', error);
-          toast.error(
-            error instanceof Error ? error.message : t('failed'),
-          );
+          toast.error(error instanceof Error ? error.message : t('failed'));
           setIsProcessingCallback(false);
           router.replace('/login');
         }

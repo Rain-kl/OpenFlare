@@ -269,8 +269,7 @@ export function ProxyRouteCreateSheet({
       onCreated(route);
     } catch (error) {
       form.setError('root', {
-        message:
-          error instanceof Error ? error.message : t('createFailed'),
+        message: error instanceof Error ? error.message : t('createFailed'),
       });
     }
   });
@@ -400,7 +399,9 @@ export function ProxyRouteCreateSheet({
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value='none'>{t('pleaseSelect')}</SelectItem>
+                          <SelectItem value='none'>
+                            {t('pleaseSelect')}
+                          </SelectItem>
                           {tunnelClients.map((tunnel) => (
                             <SelectItem
                               key={tunnel.id}
@@ -415,7 +416,9 @@ export function ProxyRouteCreateSheet({
                           ))}
                         </SelectContent>
                       </Select>
-                      <FormDescription>{t('tunnelForwardHint')}</FormDescription>
+                      <FormDescription>
+                        {t('tunnelForwardHint')}
+                      </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -455,7 +458,9 @@ export function ProxyRouteCreateSheet({
                       <FormControl>
                         <Input placeholder='127.0.0.1:8080' {...field} />
                       </FormControl>
-                      <FormDescription>{t('tunnelAddressHint')}</FormDescription>
+                      <FormDescription>
+                        {t('tunnelAddressHint')}
+                      </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -483,7 +488,9 @@ export function ProxyRouteCreateSheet({
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value='none'>{t('pleaseSelect')}</SelectItem>
+                          <SelectItem value='none'>
+                            {t('pleaseSelect')}
+                          </SelectItem>
                           {pagesProjects.map((project) => (
                             <SelectItem
                               key={project.id}

@@ -144,9 +144,7 @@ export function InstallCommand({
               variant='secondary'
               size='sm'
               className='h-7 text-xs'
-              onClick={() =>
-                void handleCopy(scriptCommand, t('copiedScript'))
-              }
+              onClick={() => void handleCopy(scriptCommand, t('copiedScript'))}
             >
               <Copy className='size-3.5 mr-1' />
               {t('copyScript')}
@@ -157,9 +155,7 @@ export function InstallCommand({
               variant='secondary'
               size='sm'
               className='h-7 text-xs'
-              onClick={() =>
-                void handleCopy(dockerCommand, t('copiedDocker'))
-              }
+              onClick={() => void handleCopy(dockerCommand, t('copiedDocker'))}
             >
               <Copy className='size-3.5 mr-1' />
               {t('copyDocker')}
@@ -182,28 +178,20 @@ export function InstallCommand({
         </div>
 
         <div className='space-y-2'>
-          <Label htmlFor={`server-url-${variant}`}>
-            {t('serverUrl')}
-          </Label>
+          <Label htmlFor={`server-url-${variant}`}>{t('serverUrl')}</Label>
           <Input
             id={`server-url-${variant}`}
             value={serverUrl}
             onChange={(event) => setServerUrl(event.target.value)}
             placeholder='https://openflare.example.com'
           />
-          <p className='text-xs text-muted-foreground'>
-            {t('serverUrlHint')}
-          </p>
+          <p className='text-xs text-muted-foreground'>{t('serverUrlHint')}</p>
         </div>
 
         {!node.access_token ? (
-          <p className='text-sm text-muted-foreground'>
-            {t('noToken')}
-          </p>
+          <p className='text-sm text-muted-foreground'>{t('noToken')}</p>
         ) : !normalizedServerUrl ? (
-          <p className='text-sm text-muted-foreground'>
-            {t('needServerUrl')}
-          </p>
+          <p className='text-sm text-muted-foreground'>{t('needServerUrl')}</p>
         ) : (
           <>
             {scriptCommand && meta.scriptLabel ? (

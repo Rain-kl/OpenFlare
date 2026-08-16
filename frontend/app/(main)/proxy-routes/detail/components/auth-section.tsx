@@ -162,9 +162,7 @@ export function AuthSection({
                     <SelectItem value='basic'>Basic Auth</SelectItem>
                   </SelectContent>
                 </Select>
-                <FormDescription>
-                  {t('powHint')}
-                </FormDescription>
+                <FormDescription>{t('powHint')}</FormDescription>
                 <FormMessage />
               </FormItem>
             )}

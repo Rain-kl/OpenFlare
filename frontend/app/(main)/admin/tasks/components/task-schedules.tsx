@@ -75,7 +75,9 @@ export function TaskSchedulesManager() {
       setSchedules(schedulesData || []);
       setTaskTypes(taskTypesData || []);
     } catch (err) {
-      setError(err instanceof Error ? err : new Error(t('loadSchedulesFailed')));
+      setError(
+        err instanceof Error ? err : new Error(t('loadSchedulesFailed')),
+      );
     } finally {
       setLoading(false);
     }
@@ -304,10 +306,7 @@ export function TaskSchedulesManager() {
           description={t('loadingSchedules')}
         />
       ) : schedules.length === 0 ? (
-        <EmptyStateWithBorder
-          icon={Clock}
-          description={t('noSchedules')}
-        />
+        <EmptyStateWithBorder icon={Clock} description={t('noSchedules')} />
       ) : (
         <div className='rounded-lg border bg-card'>
           <Table className='min-w-[800px]'>
@@ -395,9 +394,7 @@ export function TaskSchedulesManager() {
             <DialogTitle>
               {editingSchedule ? t('editSchedule') : t('addSchedule')}
             </DialogTitle>
-            <DialogDescription>
-              {t('scheduleDialogDesc')}
-            </DialogDescription>
+            <DialogDescription>{t('scheduleDialogDesc')}</DialogDescription>
           </DialogHeader>
 
           <div className='grid gap-4 py-4'>
@@ -574,9 +571,7 @@ export function TaskSchedulesManager() {
         <DialogContent className='sm:max-w-[400px]'>
           <DialogHeader>
             <DialogTitle>{t('deleteScheduleTitle')}</DialogTitle>
-            <DialogDescription>
-              {t('deleteScheduleDesc')}
-            </DialogDescription>
+            <DialogDescription>{t('deleteScheduleDesc')}</DialogDescription>
           </DialogHeader>
           <DialogFooter className='gap-2 sm:gap-0'>
             <Button

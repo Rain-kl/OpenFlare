@@ -397,8 +397,7 @@ export function AccessAnalytics() {
                           {user.nickname
                             ? `(${user.nickname})`
                             : t('noNickname')}{' '}
-                          |
-                          ID: {user.user_id}
+                          | ID: {user.user_id}
                         </div>
                       </div>
                     </div>

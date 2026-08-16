@@ -71,19 +71,22 @@ export function DatabasePageClient() {
   const [refreshTrigger, setRefreshTrigger] = useState<number>(0);
 
   // 1. 获取运行概览
-  const fetchOverview = useCallback(async (isSilent = false) => {
-    if (!isSilent) setLoadingOverview(true);
-    try {
-      const data = await services.dbManage.getOverview();
-      setOverview(data);
-    } catch (err) {
-      toast.error(t('fetchOverviewFailed'), {
-        description: err instanceof Error ? err.message : t('unknownError'),
-      });
-    } finally {
-      setLoadingOverview(false);
-    }
-  }, [t]);
+  const fetchOverview = useCallback(
+    async (isSilent = false) => {
+      if (!isSilent) setLoadingOverview(true);
+      try {
+        const data = await services.dbManage.getOverview();
+        setOverview(data);
+      } catch (err) {
+        toast.error(t('fetchOverviewFailed'), {
+          description: err instanceof Error ? err.message : t('unknownError'),
+        });
+      } finally {
+        setLoadingOverview(false);
+      }
+    },
+    [t],
+  );
 
   // 2. 获取表列表
   const fetchTables = useCallback(async () => {

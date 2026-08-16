@@ -60,38 +60,41 @@ export function SystemStatusManager() {
   );
 
   // 获取状态数据
-  const fetchStatus = useCallback(async (isSilent = false) => {
-    if (!isSilent) setWavelet(true);
-    try {
-      const data = await services.adminStatus.getSystemStatus();
+  const fetchStatus = useCallback(
+    async (isSilent = false) => {
+      if (!isSilent) setWavelet(true);
+      try {
+        const data = await services.adminStatus.getSystemStatus();
 
-      // 检测变化的字段用于微动画效果
-      if (prevStatusRef.current) {
-        const changes: Record<string, boolean> = {};
-        Object.keys(data).forEach((key) => {
-          const k = key as keyof SystemStatus;
-          if (prevStatusRef.current && prevStatusRef.current[k] !== data[k]) {
-            changes[k] = true;
-          }
+        // 检测变化的字段用于微动画效果
+        if (prevStatusRef.current) {
+          const changes: Record<string, boolean> = {};
+          Object.keys(data).forEach((key) => {
+            const k = key as keyof SystemStatus;
+            if (prevStatusRef.current && prevStatusRef.current[k] !== data[k]) {
+              changes[k] = true;
+            }
+          });
+          setChangedFields(changes);
+          // 1秒后清除变化状态
+          setTimeout(() => {
+            setChangedFields({});
+          }, 1000);
+        }
+
+        setStatus(data);
+        prevStatusRef.current = data;
+      } catch (err) {
+        toast.error(t('loadFailed'), {
+          description: err instanceof Error ? err.message : t('unknownError'),
         });
-        setChangedFields(changes);
-        // 1秒后清除变化状态
-        setTimeout(() => {
-          setChangedFields({});
-        }, 1000);
+      } finally {
+        setLoading(false);
+        setWavelet(false);
       }
-
-      setStatus(data);
-      prevStatusRef.current = data;
-    } catch (err) {
-      toast.error(t('loadFailed'), {
-        description: err instanceof Error ? err.message : t('unknownError'),
-      });
-    } finally {
-      setLoading(false);
-      setWavelet(false);
-    }
-  }, [t]);
+    },
+    [t],
+  );
 
   // 轮询逻辑
   useEffect(() => {

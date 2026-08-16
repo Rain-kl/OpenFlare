@@ -90,7 +90,9 @@ export default function ErrorPagePreviewPage() {
             </Link>
           </Button>
           <div className='min-w-0'>
-            <p className='text-sm font-semibold truncate'>{t('errorPreview')}</p>
+            <p className='text-sm font-semibold truncate'>
+              {t('errorPreview')}
+            </p>
             <p className='text-[11px] text-muted-foreground font-mono truncate'>
               {'{{status}}'}→502 · {'{{host}}'}→example.com · {t('fullscreen')}
             </p>

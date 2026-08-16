@@ -478,9 +478,7 @@ export function FileList() {
         <SheetContent className='w-full sm:max-w-md overflow-y-auto p-6'>
           <SheetHeader className='border-b pb-4 px-0'>
             <SheetTitle>{t('list.detailTitle')}</SheetTitle>
-            <SheetDescription>
-              {t('list.detailDesc')}
-            </SheetDescription>
+            <SheetDescription>{t('list.detailDesc')}</SheetDescription>
           </SheetHeader>
 
           {detailTarget && (
@@ -542,8 +540,7 @@ export function FileList() {
                   </span>
                   <span className='col-span-2 text-foreground/90'>
                     {formatFileSize(detailTarget.file_size)} (
-                    {detailTarget.file_size.toLocaleString()} {t('list.bytes')}
-                    )
+                    {detailTarget.file_size.toLocaleString()} {t('list.bytes')})
                   </span>
                 </div>
 

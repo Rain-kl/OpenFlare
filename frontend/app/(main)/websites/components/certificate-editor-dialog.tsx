@@ -115,7 +115,10 @@ export function CertificateEditorDialog({
           <LoadingStateWithBorder description={t('loadingContent')} />
         ) : certificateQuery.isError ? (
           <ErrorInline
-            message={getErrorMessage(certificateQuery.error, t('requestFailed'))}
+            message={getErrorMessage(
+              certificateQuery.error,
+              t('requestFailed'),
+            )}
             className='justify-center'
           />
         ) : !certificateQuery.data ? (

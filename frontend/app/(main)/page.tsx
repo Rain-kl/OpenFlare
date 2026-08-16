@@ -39,12 +39,16 @@ export default function OpenFlareDashboardPage() {
       <div className='flex flex-wrap items-center justify-between gap-3'>
         <div className='flex items-center gap-2'>
           <LayoutDashboard className='size-5 text-primary' />
-          <h1 className='text-2xl font-semibold tracking-tight'>{t('title')}</h1>
+          <h1 className='text-2xl font-semibold tracking-tight'>
+            {t('title')}
+          </h1>
         </div>
         <div className='flex items-center gap-2 text-xs text-muted-foreground'>
           {overview?.generated_at ? (
             <span>
-              {t('generatedAt', { time: formatDateTime(overview.generated_at) })}
+              {t('generatedAt', {
+                time: formatDateTime(overview.generated_at),
+              })}
             </span>
           ) : null}
           <Button

@@ -96,7 +96,9 @@ export default function WafPage() {
       <div className='flex items-center justify-between gap-3'>
         <div className='flex items-center gap-2'>
           <Shield className='size-5 text-primary' />
-          <h1 className='text-2xl font-semibold tracking-tight'>{t('title')}</h1>
+          <h1 className='text-2xl font-semibold tracking-tight'>
+            {t('title')}
+          </h1>
         </div>
         <div className='flex items-center gap-2'>
           <Button
@@ -137,10 +139,7 @@ export default function WafPage() {
         </CardHeader>
         <CardContent>
           {loading ? (
-            <LoadingStateWithBorder
-              icon={Shield}
-              description={t('loading')}
-            />
+            <LoadingStateWithBorder icon={Shield} description={t('loading')} />
           ) : error ? (
             <div className='p-8 border border-dashed rounded-lg'>
               <ErrorInline
@@ -150,10 +149,7 @@ export default function WafPage() {
               />
             </div>
           ) : groups.length === 0 ? (
-            <EmptyStateWithBorder
-              icon={Shield}
-              description={t('empty')}
-            />
+            <EmptyStateWithBorder icon={Shield} description={t('empty')} />
           ) : (
             <RuleGroupsTable
               groups={groups}

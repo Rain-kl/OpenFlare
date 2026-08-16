@@ -65,7 +65,9 @@ function mapOptionsToFields(
 
 function validateFields(
   fields: RateLimitFields,
-  t: (key: 'config.invalidConn' | 'config.invalidRate' | 'config.invalidReq') => string,
+  t: (
+    key: 'config.invalidConn' | 'config.invalidRate' | 'config.invalidReq',
+  ) => string,
 ) {
   for (const key of [KEY_CONN_PER_SERVER, KEY_CONN_PER_IP] as const) {
     const raw = fields[key].trim();
@@ -155,7 +157,9 @@ export function ConfigTab() {
     },
     onError: (error) => {
       setSaving(false);
-      toast.error(error instanceof Error ? error.message : t('config.saveFailed'));
+      toast.error(
+        error instanceof Error ? error.message : t('config.saveFailed'),
+      );
     },
   });
 

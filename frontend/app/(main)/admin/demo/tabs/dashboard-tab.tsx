@@ -77,9 +77,7 @@ export function DashboardTab() {
                 <span className='font-semibold text-foreground'>34</span>
               </div>
             </div>
-            <p className='text-[10px] text-muted-foreground'>
-              {t('dbStatus')}
-            </p>
+            <p className='text-[10px] text-muted-foreground'>{t('dbStatus')}</p>
           </CardContent>
         </Card>
       </div>

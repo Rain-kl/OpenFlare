@@ -58,7 +58,9 @@ export function NodeHealthTable({ nodes }: { nodes: DashboardNodeHealth[] }) {
       <CardHeader className='flex flex-row items-start justify-between gap-4'>
         <div>
           <CardTitle className='text-sm font-semibold'>{t('title')}</CardTitle>
-          <CardDescription className='text-xs'>{t('description')}</CardDescription>
+          <CardDescription className='text-xs'>
+            {t('description')}
+          </CardDescription>
         </div>
         <Button variant='outline' size='sm' className='h-8 text-xs' asChild>
           <Link href='/nodes'>{t('openNodes')}</Link>
@@ -80,7 +82,9 @@ export function NodeHealthTable({ nodes }: { nodes: DashboardNodeHealth[] }) {
                   <TableHead className='py-2 h-8'>{t('colCpuMem')}</TableHead>
                   <TableHead className='py-2 h-8'>{t('colReqErr')}</TableHead>
                   <TableHead className='py-2 h-8'>{t('colEvents')}</TableHead>
-                  <TableHead className='py-2 h-8'>{t('colHeartbeat')}</TableHead>
+                  <TableHead className='py-2 h-8'>
+                    {t('colHeartbeat')}
+                  </TableHead>
                   <TableHead className='py-2 h-8 text-right'>
                     {t('colActions')}
                   </TableHead>

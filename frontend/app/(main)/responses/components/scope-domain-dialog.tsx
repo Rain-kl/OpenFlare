@@ -157,7 +157,9 @@ export function ScopeDomainDialog({
                   <Badge variant='secondary' className='font-normal'>
                     {t('selectedCount', { count: selectedSet.size })}
                   </Badge>
-                  <span>{t('visibleCount', { count: visibleDomains.length })}</span>
+                  <span>
+                    {t('visibleCount', { count: visibleDomains.length })}
+                  </span>
                 </div>
                 <div className='flex items-center gap-1'>
                   <Button

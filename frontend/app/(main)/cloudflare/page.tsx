@@ -194,7 +194,9 @@ export default function CloudflarePage() {
                   <p className='text-sm text-muted-foreground'>
                     {t('memberSummary', {
                       count: group.member_count,
-                      proxy: group.default_proxied ? t('proxyOn') : t('proxyOff'),
+                      proxy: group.default_proxied
+                        ? t('proxyOn')
+                        : t('proxyOff'),
                     })}
                   </p>
                   <div className='flex flex-wrap gap-2'>

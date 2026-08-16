@@ -218,7 +218,9 @@ export function EditUserModal({
 
             <div className='flex items-center justify-between rounded-lg border border-dashed p-3 bg-muted/10'>
               <div>
-                <div className='font-medium text-sm'>{t('adminPermission')}</div>
+                <div className='font-medium text-sm'>
+                  {t('adminPermission')}
+                </div>
                 <div className='text-xs text-muted-foreground'>
                   {isSelf
                     ? t('cannotRevokeSelfAdmin')
@@ -288,7 +290,9 @@ export function EditUserModal({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={saving}>{t('cancel')}</AlertDialogCancel>
+            <AlertDialogCancel disabled={saving}>
+              {t('cancel')}
+            </AlertDialogCancel>
             <AlertDialogAction
               onClick={(e) => {
                 e.preventDefault();

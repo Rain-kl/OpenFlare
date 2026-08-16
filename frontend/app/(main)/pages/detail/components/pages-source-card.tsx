@@ -267,7 +267,8 @@ export function PagesSourceCard({ projectId }: { projectId: number }) {
       toast.success(t('source.actionDone', { action: actionLabel }));
     } else {
       toast.error(
-        execution.error_message || t('source.actionFailed', { action: actionLabel }),
+        execution.error_message ||
+          t('source.actionFailed', { action: actionLabel }),
       );
     }
     setActiveAction(null);
@@ -284,7 +285,9 @@ export function PagesSourceCard({ projectId }: { projectId: number }) {
       toast.success(t('source.checkQueued'));
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : t('source.checkQueueFailed'));
+      toast.error(
+        error instanceof Error ? error.message : t('source.checkQueueFailed'),
+      );
     },
   });
 
@@ -300,7 +303,9 @@ export function PagesSourceCard({ projectId }: { projectId: number }) {
       toast.success(t('source.syncQueued'));
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : t('source.syncQueueFailed'));
+      toast.error(
+        error instanceof Error ? error.message : t('source.syncQueueFailed'),
+      );
     },
   });
 
@@ -405,9 +410,7 @@ export function PagesSourceCard({ projectId }: { projectId: number }) {
           <div className='flex items-start justify-between gap-3'>
             <div>
               <CardTitle className='text-base'>{t('source.title')}</CardTitle>
-              <CardDescription>
-                {t('source.configDesc')}
-              </CardDescription>
+              <CardDescription>{t('source.configDesc')}</CardDescription>
             </div>
             {status ? (
               <Badge variant={status.variant}>{t(status.labelKey)}</Badge>

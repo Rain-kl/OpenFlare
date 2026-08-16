@@ -141,9 +141,7 @@ export default function CloudflareSettingsPage() {
       <Card className='border-dashed shadow-none'>
         <CardHeader>
           <CardTitle className='text-base'>{t('sourceTitle')}</CardTitle>
-          <CardDescription>
-            {t('sourceDesc')}
-          </CardDescription>
+          <CardDescription>{t('sourceDesc')}</CardDescription>
         </CardHeader>
         <CardContent>
           <FieldGroup>
@@ -254,9 +252,7 @@ export default function CloudflareSettingsPage() {
         <ShieldCheck />
         <AlertTitle>{t('statusTitle')}</AlertTitle>
         <AlertDescription>
-          {connectionQuery.data?.ready
-            ? t('ready')
-            : t('notReady')}
+          {connectionQuery.data?.ready ? t('ready') : t('notReady')}
         </AlertDescription>
       </Alert>
     </div>

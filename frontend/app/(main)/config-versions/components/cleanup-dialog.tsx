@@ -75,9 +75,7 @@ export function CleanupDialog({
             disabled={loading}
             {...form.register('keepCount', { valueAsNumber: true })}
           />
-          <p className='text-xs text-muted-foreground'>
-            {t('keepHint')}
-          </p>
+          <p className='text-xs text-muted-foreground'>{t('keepHint')}</p>
           {form.formState.errors.keepCount ? (
             <p className='text-xs text-destructive'>
               {form.formState.errors.keepCount.message}
@@ -86,7 +84,9 @@ export function CleanupDialog({
         </div>
 
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={loading}>{tc('cancel')}</AlertDialogCancel>
+          <AlertDialogCancel disabled={loading}>
+            {tc('cancel')}
+          </AlertDialogCancel>
           <Button
             variant='destructive'
             onClick={() => void handleConfirm()}

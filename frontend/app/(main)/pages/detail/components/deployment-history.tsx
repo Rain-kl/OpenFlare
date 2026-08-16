@@ -282,7 +282,9 @@ export function DeploymentHistory({
       setPendingAction(null);
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : t('history.activateFailed'));
+      toast.error(
+        error instanceof Error ? error.message : t('history.activateFailed'),
+      );
     },
   });
 
@@ -298,7 +300,9 @@ export function DeploymentHistory({
       setPendingAction(null);
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : t('history.deleteFailed'));
+      toast.error(
+        error instanceof Error ? error.message : t('history.deleteFailed'),
+      );
     },
   });
 
@@ -398,9 +402,7 @@ export function DeploymentHistory({
       <Card className='border-dashed shadow-none'>
         <CardHeader className='pb-3'>
           <CardTitle className='text-base'>Production</CardTitle>
-          <CardDescription>
-            {t('history.productionHint')}
-          </CardDescription>
+          <CardDescription>{t('history.productionHint')}</CardDescription>
           <CardAction>
             <Button
               type='button'
@@ -439,9 +441,7 @@ export function DeploymentHistory({
       <Card className='border-dashed shadow-none'>
         <CardHeader className='pb-3'>
           <CardTitle className='text-base'>All deployments</CardTitle>
-          <CardDescription>
-            {t('history.historyHint')}
-          </CardDescription>
+          <CardDescription>{t('history.historyHint')}</CardDescription>
         </CardHeader>
         <CardContent className='space-y-3'>
           {allDeployments.length === 0 ? (

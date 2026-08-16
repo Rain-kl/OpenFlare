@@ -44,10 +44,7 @@ export function ZoneEditorDialog({
       .string()
       .trim()
       .min(1, t('rootRequired'))
-      .refine(
-        (value) => !/[*/?#@]|:\/\//.test(value),
-        t('rootInvalid'),
-      ),
+      .refine((value) => !/[*/?#@]|:\/\//.test(value), t('rootInvalid')),
   });
   const form = useForm<Values>({
     resolver: zodResolver(schema),

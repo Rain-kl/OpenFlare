@@ -67,10 +67,7 @@ export function getProxyRouteConfigSection(
     : 'domains';
 }
 
-export function validateDomain(
-  domain: string,
-  t: TranslateFn,
-): string | null {
+export function validateDomain(domain: string, t: TranslateFn): string | null {
   const normalized = domain.trim().toLowerCase();
   if (!normalized) {
     return t('validation.enterDomain');

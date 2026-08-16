@@ -335,9 +335,7 @@ export function SettingsTab() {
             className='size-8 mb-2 opacity-30 animate-spin'
             style={{ animationDuration: '3s' }}
           />
-          <span className='text-xs font-medium'>
-            {t('noCustomChannels')}
-          </span>
+          <span className='text-xs font-medium'>{t('noCustomChannels')}</span>
         </div>
       ) : (
         <div className='border border-dashed shadow-none rounded-lg overflow-hidden'>
@@ -464,7 +462,9 @@ export function SettingsTab() {
 
           <div className='space-y-4 py-4'>
             <div className='space-y-1.5'>
-              <Label className='text-xs font-semibold'>{t('channelName')}</Label>
+              <Label className='text-xs font-semibold'>
+                {t('channelName')}
+              </Label>
               <Input
                 type='text'
                 placeholder={t('channelNamePlaceholder')}
@@ -479,7 +479,9 @@ export function SettingsTab() {
             </div>
 
             <div className='space-y-1.5'>
-              <Label className='text-xs font-semibold'>{t('channelRemark')}</Label>
+              <Label className='text-xs font-semibold'>
+                {t('channelRemark')}
+              </Label>
               <Input
                 type='text'
                 placeholder={t('channelRemarkPlaceholder')}
@@ -490,7 +492,9 @@ export function SettingsTab() {
             </div>
 
             <div className='space-y-1.5'>
-              <Label className='text-xs font-semibold'>{t('channelType')}</Label>
+              <Label className='text-xs font-semibold'>
+                {t('channelType')}
+              </Label>
               <Select
                 value={channelType}
                 onValueChange={handleChannelTypeChange}

@@ -98,7 +98,11 @@ describe('WAF route binding order', () => {
       defaultOptions: { queries: { retry: false } },
     });
     render(
-      <NextIntlClientProvider locale='zh-CN' messages={zhCN} timeZone='Asia/Shanghai'>
+      <NextIntlClientProvider
+        locale='zh-CN'
+        messages={zhCN}
+        timeZone='Asia/Shanghai'
+      >
         <QueryClientProvider client={client}>
           <WafSection route={{ id: 9 } as ProxyRouteItem} />
         </QueryClientProvider>

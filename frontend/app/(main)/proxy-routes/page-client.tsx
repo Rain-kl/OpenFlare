@@ -116,7 +116,9 @@ export function ProxyRoutesPageClient() {
       <div className='flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between'>
         <div className='flex items-center gap-2'>
           <Route className='size-5 text-primary' />
-          <h1 className='text-2xl font-semibold tracking-tight'>{t('title')}</h1>
+          <h1 className='text-2xl font-semibold tracking-tight'>
+            {t('title')}
+          </h1>
         </div>
         <div className='flex flex-wrap gap-2'>
           <Button
@@ -143,7 +145,9 @@ export function ProxyRoutesPageClient() {
       <Card className='border-border/40 shadow-sm'>
         <CardHeader className='pb-3'>
           <div className='flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between'>
-            <CardTitle className='text-sm font-semibold'>{t('listTitle')}</CardTitle>
+            <CardTitle className='text-sm font-semibold'>
+              {t('listTitle')}
+            </CardTitle>
             <Input
               value={keyword}
               onChange={(event) => setKeyword(event.target.value)}
@@ -261,7 +265,9 @@ export function ProxyRoutesPageClient() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleting}>{tc('cancel')}</AlertDialogCancel>
+            <AlertDialogCancel disabled={deleting}>
+              {tc('cancel')}
+            </AlertDialogCancel>
             <AlertDialogAction
               className='bg-destructive text-white hover:bg-destructive/90'
               disabled={deleting}

@@ -109,7 +109,9 @@ export default function CertificatesPage() {
       <div className='flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between'>
         <div className='flex items-center gap-2'>
           <FileKey className='size-5 text-primary' />
-          <h1 className='text-2xl font-semibold tracking-tight'>{t('title')}</h1>
+          <h1 className='text-2xl font-semibold tracking-tight'>
+            {t('title')}
+          </h1>
         </div>
         <div className='flex flex-wrap gap-2'>
           <Button
@@ -146,7 +148,9 @@ export default function CertificatesPage() {
 
       <Card className='border-dashed shadow-none'>
         <CardHeader className='pb-3'>
-          <CardTitle className='text-base font-semibold'>{t('listTitle')}</CardTitle>
+          <CardTitle className='text-base font-semibold'>
+            {t('listTitle')}
+          </CardTitle>
           <CardDescription>{t('listDesc')}</CardDescription>
         </CardHeader>
         <CardContent>
@@ -167,10 +171,7 @@ export default function CertificatesPage() {
               />
             </div>
           ) : certificates.length === 0 ? (
-            <EmptyStateWithBorder
-              icon={FileKey}
-              description={t('emptyList')}
-            />
+            <EmptyStateWithBorder icon={FileKey} description={t('emptyList')} />
           ) : (
             <div className='space-y-3'>
               {certificates.map((certificate) => {

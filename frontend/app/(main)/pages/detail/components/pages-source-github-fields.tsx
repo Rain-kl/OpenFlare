@@ -136,9 +136,7 @@ export function PagesSourceGitHubFields({
               <FieldLabel htmlFor='pages-github-auto-update'>
                 {t('autoUpdate')}
               </FieldLabel>
-              <FieldDescription>
-                {t('autoUpdateHint')}
-              </FieldDescription>
+              <FieldDescription>{t('autoUpdateHint')}</FieldDescription>
             </FieldContent>
             <Switch
               id='pages-github-auto-update'
@@ -182,9 +180,7 @@ export function PagesSourceGitHubFields({
       ) : null}
 
       <Field data-invalid={Boolean(errors.assetName)}>
-        <FieldLabel htmlFor='pages-github-asset'>
-          {t('assetName')}
-        </FieldLabel>
+        <FieldLabel htmlFor='pages-github-asset'>{t('assetName')}</FieldLabel>
         <Input
           id='pages-github-asset'
           placeholder={defaultAssetName}

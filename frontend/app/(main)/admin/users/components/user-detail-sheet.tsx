@@ -172,7 +172,9 @@ export function UserDetailSheet({
                     </h4>
                     <div className='rounded-lg border divide-y bg-background/50'>
                       <div className='flex items-center justify-between p-3.5 text-sm'>
-                        <span className='text-[10px]'>{t('accountStatus')}</span>
+                        <span className='text-[10px]'>
+                          {t('accountStatus')}
+                        </span>
                         <Badge
                           variant={
                             selectedUser.is_active ? 'secondary' : 'outline'

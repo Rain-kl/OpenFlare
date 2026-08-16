@@ -165,7 +165,11 @@ function DatePickerWithTime({
               )}
             >
               <CalendarIcon className='mr-1 size-3' />
-              {date ? format(date, 'yyyy-MM-dd') : <span>{t('selectDate')}</span>}
+              {date ? (
+                format(date, 'yyyy-MM-dd')
+              ) : (
+                <span>{t('selectDate')}</span>
+              )}
             </Button>
           </PopoverTrigger>
           <PopoverContent className='w-auto p-0' align='start'>
@@ -213,7 +217,9 @@ export function TaskManager() {
       const data = await services.adminTask.getTaskTypes();
       setTaskTypes(data);
     } catch (err) {
-      setError(err instanceof Error ? err : new Error(t('loadTaskTypesFailed')));
+      setError(
+        err instanceof Error ? err : new Error(t('loadTaskTypesFailed')),
+      );
     } finally {
       setLoading(false);
     }

@@ -259,10 +259,7 @@ export function SyncTasksPanel() {
             onRetry={() => void executionsQuery.refetch()}
           />
         ) : loading && executions.length === 0 ? (
-          <LoadingStateWithBorder
-            icon={Activity}
-            description={t('loading')}
-          />
+          <LoadingStateWithBorder icon={Activity} description={t('loading')} />
         ) : executions.length === 0 ? (
           <EmptyStateWithBorder
             icon={Activity}

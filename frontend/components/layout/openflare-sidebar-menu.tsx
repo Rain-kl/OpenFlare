@@ -93,7 +93,11 @@ function SidebarNavGroupMenuItem({
                 <SidebarMenuSubItem key={item.url}>
                   <SidebarMenuSubButton
                     asChild
-                    isActive={matchesNavPath(pathname, item.url, item.childUrls)}
+                    isActive={matchesNavPath(
+                      pathname,
+                      item.url,
+                      item.childUrls,
+                    )}
                   >
                     <Link href={item.url} onClick={onNavigate}>
                       <span>{title}</span>

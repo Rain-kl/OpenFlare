@@ -41,10 +41,7 @@ export function NodeDetailPageClient() {
   if (!nodeId) {
     return (
       <div className='py-6 px-1'>
-        <EmptyStateWithBorder
-          icon={Server}
-          description={t('missingId')}
-        />
+        <EmptyStateWithBorder icon={Server} description={t('missingId')} />
       </div>
     );
   }

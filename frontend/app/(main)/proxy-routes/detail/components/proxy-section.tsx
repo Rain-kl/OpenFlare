@@ -349,7 +349,9 @@ export function ProxySection({
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value='none'>{t('pleaseSelect')}</SelectItem>
+                        <SelectItem value='none'>
+                          {t('pleaseSelect')}
+                        </SelectItem>
                         {tunnelClients.map((tunnel) => (
                           <SelectItem key={tunnel.id} value={String(tunnel.id)}>
                             {tunnel.name} (
@@ -426,7 +428,9 @@ export function ProxySection({
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value='none'>{t('pleaseSelect')}</SelectItem>
+                        <SelectItem value='none'>
+                          {t('pleaseSelect')}
+                        </SelectItem>
                         {pagesProjects.map((project) => (
                           <SelectItem
                             key={project.id}
@@ -454,9 +458,7 @@ export function ProxySection({
                 <FormControl>
                   <Input placeholder='origin.example.internal' {...field} />
                 </FormControl>
-                <FormDescription>
-                  {t('originHostHint')}
-                </FormDescription>
+                <FormDescription>{t('originHostHint')}</FormDescription>
                 <FormMessage />
               </FormItem>
             )}

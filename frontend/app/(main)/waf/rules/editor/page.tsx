@@ -305,9 +305,7 @@ function EditorContent() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{t('leaveTitle')}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {t('leaveDesc')}
-            </AlertDialogDescription>
+            <AlertDialogDescription>{t('leaveDesc')}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>{tCommon('cancel')}</AlertDialogCancel>

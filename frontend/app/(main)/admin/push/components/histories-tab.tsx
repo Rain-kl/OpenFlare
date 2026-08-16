@@ -271,9 +271,7 @@ export function HistoriesTab() {
 
       {historiesQuery.data && historiesQuery.data.total > 0 && (
         <div className='flex justify-between items-center text-xs text-muted-foreground'>
-          <span>
-            {t('totalRecords', { total: historiesQuery.data.total })}
-          </span>
+          <span>{t('totalRecords', { total: historiesQuery.data.total })}</span>
           <div className='flex items-center gap-1.5'>
             <Button
               variant='outline'

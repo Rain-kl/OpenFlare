@@ -256,7 +256,9 @@ export function TaskExecutionsManager() {
                 <TableHead className='w-[110px]'>{t('colTrigger')}</TableHead>
                 <TableHead className='w-[120px]'>{t('colRetry')}</TableHead>
                 <TableHead className='w-[120px]'>{t('colDuration')}</TableHead>
-                <TableHead className='min-w-[220px]'>{t('colResult')}</TableHead>
+                <TableHead className='min-w-[220px]'>
+                  {t('colResult')}
+                </TableHead>
                 <TableHead className='w-[170px]'>{t('colCreatedAt')}</TableHead>
               </TableRow>
             </TableHeader>
@@ -376,9 +378,8 @@ export function TaskExecutionsManager() {
                       {t('detailTrigger')}
                     </div>
                     <div className='mt-2 text-sm font-medium'>
-                      {t(
-                        TRIGGER_LABELS_KEYS[selectedExecution.triggered_by],
-                      ) || selectedExecution.triggered_by}
+                      {t(TRIGGER_LABELS_KEYS[selectedExecution.triggered_by]) ||
+                        selectedExecution.triggered_by}
                     </div>
                   </div>
                   <div className='rounded-lg border p-3'>

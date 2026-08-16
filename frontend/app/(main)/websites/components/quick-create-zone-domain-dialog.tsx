@@ -268,15 +268,9 @@ export function QuickCreateZoneDomainDialog({
             ) : (
               <p className='text-xs text-muted-foreground'>
                 {t.rich('domainExample', {
-                  api: (chunks) => (
-                    <code className='font-mono'>{chunks}</code>
-                  ),
-                  fqdn: (chunks) => (
-                    <code className='font-mono'>{chunks}</code>
-                  ),
-                  apex: (chunks) => (
-                    <code className='font-mono'>{chunks}</code>
-                  ),
+                  api: (chunks) => <code className='font-mono'>{chunks}</code>,
+                  fqdn: (chunks) => <code className='font-mono'>{chunks}</code>,
+                  apex: (chunks) => <code className='font-mono'>{chunks}</code>,
                 })}
               </p>
             )}

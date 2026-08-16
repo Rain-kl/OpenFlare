@@ -286,7 +286,9 @@ export function CacheSection({
                     <SelectItem value='path_prefix'>
                       {t('policyPrefix')}
                     </SelectItem>
-                    <SelectItem value='path_exact'>{t('policyExact')}</SelectItem>
+                    <SelectItem value='path_exact'>
+                      {t('policyExact')}
+                    </SelectItem>
                   </SelectContent>
                 </Select>
                 <FormMessage />

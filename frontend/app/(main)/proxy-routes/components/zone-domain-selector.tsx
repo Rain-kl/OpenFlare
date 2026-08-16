@@ -119,22 +119,20 @@ export function ZoneDomainSelector({
 
       {filtered.length === 0 ? (
         <div className='rounded-lg border border-dashed px-4 py-8 text-center text-sm text-muted-foreground'>
-          {domains.length === 0 ? (
-            t.rich('noZoneDomains', {
-              websites: (chunks) => (
-                <Link
-                  href='/websites'
-                  className='text-primary underline-offset-4 hover:underline'
-                >
-                  {chunks}
-                </Link>
-              ),
-            })
-          ) : availableDomains.length === 0 ? (
-            t('noBindableDomains')
-          ) : (
-            t('noMatchingDomains')
-          )}
+          {domains.length === 0
+            ? t.rich('noZoneDomains', {
+                websites: (chunks) => (
+                  <Link
+                    href='/websites'
+                    className='text-primary underline-offset-4 hover:underline'
+                  >
+                    {chunks}
+                  </Link>
+                ),
+              })
+            : availableDomains.length === 0
+              ? t('noBindableDomains')
+              : t('noMatchingDomains')}
         </div>
       ) : (
         <div className='max-h-72 space-y-1 overflow-y-auto rounded-lg border p-2'>

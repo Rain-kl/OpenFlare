@@ -39,7 +39,10 @@ export const defaultFileImportValues: FileImportFormValues = {
 export function createAcmeApplySchema(t: TranslateFn) {
   return z.object({
     name: z.string().trim().min(1, t('validation.nameRequired')).max(255),
-    primary_domain: z.string().trim().min(1, t('validation.primaryDomainRequired')),
+    primary_domain: z
+      .string()
+      .trim()
+      .min(1, t('validation.primaryDomainRequired')),
     other_domains: z.string(),
     dns_account_id: z.number().min(1, t('validation.dnsAccountRequired')),
     acme_account_id: z.number(),

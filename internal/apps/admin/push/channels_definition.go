@@ -3,9 +3,10 @@
 
 package push
 
-import "slices"
-
-import "sync"
+import (
+	"slices"
+	"sync"
+)
 
 const (
 	// KeyURL represents the URL field key

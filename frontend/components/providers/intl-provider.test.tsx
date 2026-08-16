@@ -39,7 +39,7 @@ describe('AppIntlProvider (static export locale resolution)', () => {
     document.cookie = 'NEXT_LOCALE=en; Path=/';
 
     render(
-      <AppIntlProvider locale="zh-CN" messages={zhCNMessages}>
+      <AppIntlProvider locale='zh-CN' messages={zhCNMessages}>
         <Probe />
       </AppIntlProvider>,
     );
@@ -52,7 +52,7 @@ describe('AppIntlProvider (static export locale resolution)', () => {
     document.cookie = 'NEXT_LOCALE=zh-CN; Path=/';
 
     render(
-      <AppIntlProvider locale="zh-CN" messages={zhCNMessages}>
+      <AppIntlProvider locale='zh-CN' messages={zhCNMessages}>
         <Probe />
       </AppIntlProvider>,
     );
@@ -63,7 +63,7 @@ describe('AppIntlProvider (static export locale resolution)', () => {
 
   it('does not flip without a cookie preference', () => {
     render(
-      <AppIntlProvider locale="zh-CN" messages={zhCNMessages}>
+      <AppIntlProvider locale='zh-CN' messages={zhCNMessages}>
         <Probe />
       </AppIntlProvider>,
     );

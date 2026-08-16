@@ -201,9 +201,7 @@ export function OpenFlareOpsSettings() {
   };
 
   if (optionsQuery.isLoading) {
-    return (
-      <LoadingStateWithBorder icon={Server} description={t('loading')} />
-    );
+    return <LoadingStateWithBorder icon={Server} description={t('loading')} />;
   }
 
   if (optionsQuery.isError) {
@@ -406,9 +404,7 @@ export function OpenFlareOpsSettings() {
       <Card className='border-dashed shadow-none'>
         <CardHeader className='flex flex-row items-center justify-between gap-4'>
           <div>
-            <CardTitle className='text-base'>
-              {t('discovery.title')}
-            </CardTitle>
+            <CardTitle className='text-base'>{t('discovery.title')}</CardTitle>
             <CardDescription>{t('discovery.description')}</CardDescription>
           </div>
           <div className='flex flex-wrap gap-2'>

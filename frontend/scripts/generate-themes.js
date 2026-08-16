@@ -68,7 +68,11 @@ try {
     fs.mkdirSync(outputDir, { recursive: true });
   }
 
-  fs.writeFileSync(OUTPUT_FILE, JSON.stringify(themes, null, 2) + '\n', 'utf-8');
+  fs.writeFileSync(
+    OUTPUT_FILE,
+    JSON.stringify(themes, null, 2) + '\n',
+    'utf-8',
+  );
   console.log(`Successfully generated themes.json at ${OUTPUT_FILE}`);
 } catch (error) {
   console.error('Failed to generate themes.json:', error);

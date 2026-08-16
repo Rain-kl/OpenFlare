@@ -91,7 +91,9 @@ export default function OfflinePagePreviewPage() {
             </Link>
           </Button>
           <div className='min-w-0'>
-            <p className='text-sm font-semibold truncate'>{t('offlinePreview')}</p>
+            <p className='text-sm font-semibold truncate'>
+              {t('offlinePreview')}
+            </p>
             <p className='text-[11px] text-muted-foreground font-mono truncate'>
               {t('fullscreen')}
             </p>

@@ -56,7 +56,9 @@ export default function WebsitesPage() {
       <div className='flex items-center justify-between gap-3 pb-2'>
         <div className='flex items-center gap-2'>
           <Globe className='size-5 text-primary' />
-          <h1 className='text-2xl font-semibold tracking-tight'>{t('title')}</h1>
+          <h1 className='text-2xl font-semibold tracking-tight'>
+            {t('title')}
+          </h1>
         </div>
         <Button
           variant='secondary'
@@ -81,10 +83,7 @@ export default function WebsitesPage() {
       </div>
 
       {zonesQuery.isLoading ? (
-        <LoadingStateWithBorder
-          icon={Globe}
-          description={t('loadingList')}
-        />
+        <LoadingStateWithBorder icon={Globe} description={t('loadingList')} />
       ) : zonesQuery.isError ? (
         <div className='rounded-lg border border-dashed p-8'>
           <ErrorInline
@@ -96,9 +95,7 @@ export default function WebsitesPage() {
       ) : zones.length === 0 ? (
         <EmptyStateWithBorder
           icon={Globe}
-          description={
-            search ? t('emptySearch') : t('emptyList')
-          }
+          description={search ? t('emptySearch') : t('emptyList')}
         />
       ) : (
         <div className='overflow-hidden rounded-lg border border-dashed shadow-none'>

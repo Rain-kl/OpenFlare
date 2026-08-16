@@ -69,9 +69,7 @@ export function GroupDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>
-            {group ? t('editTitle') : t('createTitle')}
-          </DialogTitle>
+          <DialogTitle>{group ? t('editTitle') : t('createTitle')}</DialogTitle>
           <DialogDescription>{t('description')}</DialogDescription>
         </DialogHeader>
         <FieldGroup>

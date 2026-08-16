@@ -37,17 +37,21 @@ describe('MemberAddDialog advanced domain picker', () => {
   it('groups domains under top-level zone roots and supports batch select', () => {
     const onSubmit = vi.fn();
     render(
-        <NextIntlClientProvider locale='zh-CN' messages={zhCN} timeZone='Asia/Shanghai'>
-          <MemberAddDialog
-        open
-        onOpenChange={vi.fn()}
-        domains={domains}
-        defaultProxied
-        pending={false}
-        onSubmit={onSubmit}
-      />
-        </NextIntlClientProvider>,
-      );
+      <NextIntlClientProvider
+        locale='zh-CN'
+        messages={zhCN}
+        timeZone='Asia/Shanghai'
+      >
+        <MemberAddDialog
+          open
+          onOpenChange={vi.fn()}
+          domains={domains}
+          defaultProxied
+          pending={false}
+          onSubmit={onSubmit}
+        />
+      </NextIntlClientProvider>,
+    );
 
     expect(screen.getAllByText('example.com').length).toBeGreaterThan(0);
     expect(screen.getAllByText('other.io').length).toBeGreaterThan(0);
@@ -65,17 +69,21 @@ describe('MemberAddDialog advanced domain picker', () => {
 
   it('filters by keyword across domain and zone root', () => {
     render(
-        <NextIntlClientProvider locale='zh-CN' messages={zhCN} timeZone='Asia/Shanghai'>
-          <MemberAddDialog
-        open
-        onOpenChange={vi.fn()}
-        domains={domains}
-        defaultProxied={false}
-        pending={false}
-        onSubmit={vi.fn()}
-      />
-        </NextIntlClientProvider>,
-      );
+      <NextIntlClientProvider
+        locale='zh-CN'
+        messages={zhCN}
+        timeZone='Asia/Shanghai'
+      >
+        <MemberAddDialog
+          open
+          onOpenChange={vi.fn()}
+          domains={domains}
+          defaultProxied={false}
+          pending={false}
+          onSubmit={vi.fn()}
+        />
+      </NextIntlClientProvider>,
+    );
 
     fireEvent.change(screen.getByPlaceholderText('搜索域名或顶级域…'), {
       target: { value: 'other' },
@@ -89,17 +97,21 @@ describe('MemberAddDialog advanced domain picker', () => {
   it('selects an entire top-level domain group', () => {
     const onSubmit = vi.fn();
     render(
-        <NextIntlClientProvider locale='zh-CN' messages={zhCN} timeZone='Asia/Shanghai'>
-          <MemberAddDialog
-        open
-        onOpenChange={vi.fn()}
-        domains={domains}
-        defaultProxied
-        pending={false}
-        onSubmit={onSubmit}
-      />
-        </NextIntlClientProvider>,
-      );
+      <NextIntlClientProvider
+        locale='zh-CN'
+        messages={zhCN}
+        timeZone='Asia/Shanghai'
+      >
+        <MemberAddDialog
+          open
+          onOpenChange={vi.fn()}
+          domains={domains}
+          defaultProxied
+          pending={false}
+          onSubmit={onSubmit}
+        />
+      </NextIntlClientProvider>,
+    );
 
     fireEvent.click(
       screen.getByRole('checkbox', { name: '选择顶级域 example.com' }),
@@ -115,17 +127,21 @@ describe('MemberAddDialog advanced domain picker', () => {
   it('toggles individual domains within a group', () => {
     const onSubmit = vi.fn();
     render(
-        <NextIntlClientProvider locale='zh-CN' messages={zhCN} timeZone='Asia/Shanghai'>
-          <MemberAddDialog
-        open
-        onOpenChange={vi.fn()}
-        domains={domains}
-        defaultProxied={false}
-        pending={false}
-        onSubmit={onSubmit}
-      />
-        </NextIntlClientProvider>,
-      );
+      <NextIntlClientProvider
+        locale='zh-CN'
+        messages={zhCN}
+        timeZone='Asia/Shanghai'
+      >
+        <MemberAddDialog
+          open
+          onOpenChange={vi.fn()}
+          domains={domains}
+          defaultProxied={false}
+          pending={false}
+          onSubmit={onSubmit}
+        />
+      </NextIntlClientProvider>,
+    );
 
     const wwwLabel = screen.getByText('www.example.com').closest('label');
     expect(wwwLabel).toBeTruthy();

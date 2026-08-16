@@ -165,9 +165,7 @@ export function DeploymentUploadDialog({
               }}
             >
               <UploadCloud className='size-8 text-muted-foreground' />
-              <span className='text-sm font-medium'>
-                {t('dropHint')}
-              </span>
+              <span className='text-sm font-medium'>{t('dropHint')}</span>
               <span className='text-xs text-muted-foreground'>
                 zip、tar.gz、tar.xz、tar.bz2、tar、7z
               </span>
@@ -199,9 +197,7 @@ export function DeploymentUploadDialog({
             <div className='rounded-md border bg-muted/20 px-3 py-2 font-mono text-sm'>
               {pagesEntryPath(rootDir, entryFile)}
             </div>
-            <FieldDescription>
-              {t('entryHint')}
-            </FieldDescription>
+            <FieldDescription>{t('entryHint')}</FieldDescription>
           </Field>
 
           {uploadProgress !== null ? (
@@ -211,7 +207,9 @@ export function DeploymentUploadDialog({
                   {uploadProgress >= 100 ? t('processing') : t('progress')}
                 </span>
                 <span>
-                  {uploadProgress >= 100 ? t('pleaseWait') : `${uploadProgress}%`}
+                  {uploadProgress >= 100
+                    ? t('pleaseWait')
+                    : `${uploadProgress}%`}
                 </span>
               </div>
               <Progress value={Math.min(uploadProgress, 100)} />

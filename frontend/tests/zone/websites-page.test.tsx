@@ -32,7 +32,11 @@ function renderPage() {
     defaultOptions: { queries: { retry: false } },
   });
   return render(
-    <NextIntlClientProvider locale='zh-CN' messages={zhCN} timeZone='Asia/Shanghai'>
+    <NextIntlClientProvider
+      locale='zh-CN'
+      messages={zhCN}
+      timeZone='Asia/Shanghai'
+    >
       <QueryClientProvider client={client}>
         <WebsitesPage />
       </QueryClientProvider>

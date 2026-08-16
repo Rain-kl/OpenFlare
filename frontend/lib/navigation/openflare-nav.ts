@@ -108,7 +108,12 @@ export const openflareSidebarNav: OpenFlareSidebarNavEntry[] = [
     url: '/config-versions',
     icon: GitBranch,
   },
-  { kind: 'item', titleKey: 'accessLogs', url: '/access-logs', icon: ScrollText },
+  {
+    kind: 'item',
+    titleKey: 'accessLogs',
+    url: '/access-logs',
+    icon: ScrollText,
+  },
   { kind: 'item', titleKey: 'performance', url: '/performance', icon: Gauge },
 ];
 

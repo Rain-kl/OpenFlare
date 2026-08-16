@@ -70,7 +70,11 @@ function renderPage(zoneId: number, paramZoneId = zoneId) {
     },
   });
   return render(
-    <NextIntlClientProvider locale='zh-CN' messages={zhCN} timeZone='Asia/Shanghai'>
+    <NextIntlClientProvider
+      locale='zh-CN'
+      messages={zhCN}
+      timeZone='Asia/Shanghai'
+    >
       <QueryClientProvider client={client}>
         <ZonePageClient />
       </QueryClientProvider>

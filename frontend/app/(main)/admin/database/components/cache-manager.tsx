@@ -66,22 +66,25 @@ export function CacheManager({ refreshTrigger }: CacheManagerProps) {
   const [lruEnabled, setLruEnabled] = useState<boolean>(true);
 
   // 获取磁盘缓存状态
-  const fetchCacheStatus = useCallback(async (isSilent = false) => {
-    if (!isSilent) setLoadingCache(true);
-    try {
-      const data = await services.adminCache.getCacheStatus();
-      setCacheStatus(data);
-      setMaxSizeMB(data.max_size_mb.toString());
-      setTtlMinutes(data.ttl_minutes.toString());
-      setLruEnabled(data.lru_enabled);
-    } catch (err) {
-      toast.error(t('fetchCacheStatusFailed'), {
-        description: err instanceof Error ? err.message : t('unknownError'),
-      });
-    } finally {
-      setLoadingCache(false);
-    }
-  }, [t]);
+  const fetchCacheStatus = useCallback(
+    async (isSilent = false) => {
+      if (!isSilent) setLoadingCache(true);
+      try {
+        const data = await services.adminCache.getCacheStatus();
+        setCacheStatus(data);
+        setMaxSizeMB(data.max_size_mb.toString());
+        setTtlMinutes(data.ttl_minutes.toString());
+        setLruEnabled(data.lru_enabled);
+      } catch (err) {
+        toast.error(t('fetchCacheStatusFailed'), {
+          description: err instanceof Error ? err.message : t('unknownError'),
+        });
+      } finally {
+        setLoadingCache(false);
+      }
+    },
+    [t],
+  );
 
   // 保存配置
   const handleSaveConfig = async (e: React.FormEvent) => {

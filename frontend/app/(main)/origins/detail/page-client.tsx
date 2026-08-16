@@ -82,7 +82,10 @@ export function OriginDetailPageClient() {
   if (originQuery.isLoading) {
     return (
       <div className='py-6 px-1'>
-        <LoadingStateWithBorder icon={MapPin} description={t('loadingDetail')} />
+        <LoadingStateWithBorder
+          icon={MapPin}
+          description={t('loadingDetail')}
+        />
       </div>
     );
   }
@@ -200,11 +203,15 @@ export function OriginDetailPageClient() {
           <Table>
             <TableHeader className='bg-muted/40'>
               <TableRow className='border-dashed hover:bg-transparent'>
-                <TableHead className='text-xs font-semibold'>{t('domain')}</TableHead>
+                <TableHead className='text-xs font-semibold'>
+                  {t('domain')}
+                </TableHead>
                 <TableHead className='text-xs font-semibold'>
                   {t('address')}
                 </TableHead>
-                <TableHead className='text-xs font-semibold'>{t('status')}</TableHead>
+                <TableHead className='text-xs font-semibold'>
+                  {t('status')}
+                </TableHead>
                 <TableHead className='text-xs font-semibold'>
                   {t('updatedAt')}
                 </TableHead>

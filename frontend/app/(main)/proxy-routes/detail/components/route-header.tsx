@@ -153,7 +153,9 @@ export function RouteHeader({ route }: RouteHeaderProps) {
             <AlertDialogDescription>{t('publishDesc')}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={publishing}>{tc('cancel')}</AlertDialogCancel>
+            <AlertDialogCancel disabled={publishing}>
+              {tc('cancel')}
+            </AlertDialogCancel>
             <Button onClick={() => void handlePublish()} disabled={publishing}>
               {publishing ? (
                 <Loader2 className='size-4 animate-spin' />

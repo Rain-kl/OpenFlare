@@ -24,9 +24,7 @@ export function TrafficCapacityTrendChart({
   return (
     <Card className='border-dashed shadow-none'>
       <CardHeader>
-        <CardTitle className='text-sm font-semibold'>
-          {t('title')}
-        </CardTitle>
+        <CardTitle className='text-sm font-semibold'>{t('title')}</CardTitle>
       </CardHeader>
       <CardContent className='space-y-6'>
         <TrendChart

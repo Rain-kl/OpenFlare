@@ -73,7 +73,9 @@ const MAX_CUSTOM_RANGE_MS = 30 * 24 * 3_600_000;
 export function validateCustomTimeRange(
   sinceLocal: string,
   untilLocal: string,
-  t?: (key: 'ip.needRange' | 'ip.invalidTime' | 'ip.endAfterStart' | 'ip.maxRange') => string,
+  t?: (
+    key: 'ip.needRange' | 'ip.invalidTime' | 'ip.endAfterStart' | 'ip.maxRange',
+  ) => string,
 ): string | null {
   if (!sinceLocal.trim() || !untilLocal.trim()) {
     return t ? t('ip.needRange') : 'needRange';
@@ -306,7 +308,9 @@ export function IpTab({
             <div className='space-y-2'>
               <div className='flex flex-wrap items-end gap-3'>
                 <div className='space-y-1'>
-                  <p className='text-xs text-muted-foreground'>{t('ip.start')}</p>
+                  <p className='text-xs text-muted-foreground'>
+                    {t('ip.start')}
+                  </p>
                   <Input
                     type='datetime-local'
                     className='h-9 w-52 text-xs'
@@ -364,7 +368,9 @@ export function IpTab({
               </Select>
             </div>
             <div className='space-y-1'>
-              <p className='text-xs text-muted-foreground'>{t('ip.pageSize')}</p>
+              <p className='text-xs text-muted-foreground'>
+                {t('ip.pageSize')}
+              </p>
               <Select
                 value={String(pageSize)}
                 onValueChange={(value) =>

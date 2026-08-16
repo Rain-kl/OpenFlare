@@ -223,7 +223,9 @@ export default function WafIPGroupsPage() {
       <div className='flex items-center justify-between gap-3'>
         <div className='flex items-center gap-2'>
           <Network className='size-5 text-primary' />
-          <h1 className='text-2xl font-semibold tracking-tight'>{t('title')}</h1>
+          <h1 className='text-2xl font-semibold tracking-tight'>
+            {t('title')}
+          </h1>
         </div>
         <div className='flex items-center gap-2'>
           <Button
@@ -265,23 +267,20 @@ export default function WafIPGroupsPage() {
         </CardHeader>
         <CardContent>
           {groupsQuery.isLoading ? (
-            <LoadingStateWithBorder
-              icon={Network}
-              description={t('loading')}
-            />
+            <LoadingStateWithBorder icon={Network} description={t('loading')} />
           ) : groupsQuery.isError ? (
             <div className='p-8 border border-dashed rounded-lg'>
               <ErrorInline
-                message={getErrorMessage(groupsQuery.error, t('operationFailed'))}
+                message={getErrorMessage(
+                  groupsQuery.error,
+                  t('operationFailed'),
+                )}
                 onRetry={handleRefresh}
                 className='justify-center'
               />
             </div>
           ) : groups.length === 0 ? (
-            <EmptyStateWithBorder
-              icon={Network}
-              description={t('empty')}
-            />
+            <EmptyStateWithBorder icon={Network} description={t('empty')} />
           ) : (
             <IPGroupsTable
               groups={groups}

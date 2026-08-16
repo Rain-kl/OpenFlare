@@ -174,13 +174,16 @@ export function AppLogs() {
   }, [logs, autoScroll]);
 
   // ---- Data fetching ---------------------------------------------------
-  const fetchLogs = useCallback(async (cursor: number = 0) => {
-    try {
-      return await services.adminLog.getLogs(cursor);
-    } catch (err) {
-      throw err instanceof Error ? err : new Error(t('fetchFailed'));
-    }
-  }, [t]);
+  const fetchLogs = useCallback(
+    async (cursor: number = 0) => {
+      try {
+        return await services.adminLog.getLogs(cursor);
+      } catch (err) {
+        throw err instanceof Error ? err : new Error(t('fetchFailed'));
+      }
+    },
+    [t],
+  );
 
   const loadHistory = useCallback(
     async (cursor: number = 0) => {
