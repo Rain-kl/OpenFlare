@@ -55,8 +55,8 @@ func TestListNodeMetricHourly_PrefersRollup(t *testing.T) {
 	rows, err := ListNodeMetricHourly(ctx, NodeObservabilityFilter{Since: since})
 	require.NoError(t, err)
 	require.Len(t, rows, 1)
-	assert.Equal(t, 42.5, rows[0].AverageCPUUsagePercent)
-	assert.Equal(t, 60.0, rows[0].AverageMemoryUsagePercent)
+	assert.InDelta(t, 42.5, rows[0].AverageCPUUsagePercent, 1e-9)
+	assert.InDelta(t, 60.0, rows[0].AverageMemoryUsagePercent, 1e-9)
 	assert.Equal(t, int64(100), rows[0].NetworkRxBytes)
 	assert.Equal(t, 2, rows[0].ReportedNodes)
 	require.Len(t, mock.queries, 1)
@@ -92,10 +92,10 @@ func TestListNodeMetricHourly_MergesRawGapsWithPartialRollup(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, rows, 2)
 	assert.Equal(t, rawHour, rows[0].Hour)
-	assert.Equal(t, 12.0, rows[0].AverageCPUUsagePercent)
+	assert.InDelta(t, 12.0, rows[0].AverageCPUUsagePercent, 1e-9)
 	// Overlapping hour prefers rollup (99) over raw (50).
 	assert.Equal(t, rollupHour, rows[1].Hour)
-	assert.Equal(t, 99.0, rows[1].AverageCPUUsagePercent)
+	assert.InDelta(t, 99.0, rows[1].AverageCPUUsagePercent, 1e-9)
 	require.GreaterOrEqual(t, len(mock.queries), 2)
 	assert.Contains(t, mock.queries[1], "lagInFrame")
 }
@@ -112,9 +112,9 @@ func TestMergeNodeMetricHourlyPreferRollup(t *testing.T) {
 	)
 	require.Len(t, merged, 2)
 	assert.Equal(t, h1, merged[0].Hour)
-	assert.Equal(t, 10.0, merged[0].AverageCPUUsagePercent)
+	assert.InDelta(t, 10.0, merged[0].AverageCPUUsagePercent, 1e-9)
 	assert.Equal(t, h2, merged[1].Hour)
-	assert.Equal(t, 80.0, merged[1].AverageCPUUsagePercent)
+	assert.InDelta(t, 80.0, merged[1].AverageCPUUsagePercent, 1e-9)
 }
 
 func TestHourlyRollupCoversWindow(t *testing.T) {
@@ -147,7 +147,7 @@ func TestListNodeMetricHourly_FallsBackToRawOnRollupError(t *testing.T) {
 	rows, err := ListNodeMetricHourly(ctx, NodeObservabilityFilter{})
 	require.NoError(t, err)
 	require.Len(t, rows, 1)
-	assert.Equal(t, 10.0, rows[0].AverageCPUUsagePercent)
+	assert.InDelta(t, 10.0, rows[0].AverageCPUUsagePercent, 1e-9)
 	assert.Equal(t, int64(3), rows[0].DiskReadBytes)
 	require.GreaterOrEqual(t, len(mock.queries), 2)
 	assert.Contains(t, mock.queries[0], nodeMetricCapacityHourlyTableName())

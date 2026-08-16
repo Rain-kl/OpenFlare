@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestLogRingBuffer_WriteAndQuery(t *testing.T) {
@@ -18,7 +19,7 @@ func TestLogRingBuffer_WriteAndQuery(t *testing.T) {
 
 	entries, hasMore := rb.Query(0, 10)
 	assert.False(t, hasMore)
-	assert.Equal(t, 3, len(entries))
+	assert.Len(t, entries, 3)
 	assert.Equal(t, "line1", entries[0].Data)
 	assert.Equal(t, "line2", entries[1].Data)
 	assert.Equal(t, "line3", entries[2].Data)
@@ -34,7 +35,7 @@ func TestLogRingBuffer_CapacityOverflow(t *testing.T) {
 
 	entries, hasMore := rb.Query(0, 10)
 	assert.False(t, hasMore)
-	assert.Equal(t, 3, len(entries))
+	assert.Len(t, entries, 3)
 	assert.Equal(t, "c", entries[0].Data)
 	assert.Equal(t, "d", entries[1].Data)
 	assert.Equal(t, "e", entries[2].Data)
@@ -48,7 +49,7 @@ func TestLogRingBuffer_QueryLatest(t *testing.T) {
 	// Query latest 2
 	entries, hasMore := rb.Query(0, 2)
 	assert.True(t, hasMore)
-	assert.Equal(t, 2, len(entries))
+	assert.Len(t, entries, 2)
 	assert.Equal(t, "d", entries[0].Data)
 	assert.Equal(t, "e", entries[1].Data)
 }
@@ -60,12 +61,12 @@ func TestLogRingBuffer_QueryByCursor(t *testing.T) {
 
 	// First get all to find indices
 	all, _ := rb.Query(0, 10)
-	assert.Equal(t, 5, len(all))
+	assert.Len(t, all, 5)
 
 	// Query entries before index 3
 	entries, hasMore := rb.Query(3, 10)
 	assert.False(t, hasMore)
-	assert.Equal(t, 3, len(entries))
+	assert.Len(t, entries, 3)
 	assert.Equal(t, "a", entries[0].Data)
 	assert.Equal(t, "b", entries[1].Data)
 	assert.Equal(t, "c", entries[2].Data)
@@ -79,7 +80,7 @@ func TestLogRingBuffer_QueryByCursorWithLimit(t *testing.T) {
 	// Query 2 entries before index 4
 	entries, hasMore := rb.Query(4, 2)
 	assert.True(t, hasMore)
-	assert.Equal(t, 2, len(entries))
+	assert.Len(t, entries, 2)
 	assert.Equal(t, "c", entries[0].Data)
 	assert.Equal(t, "d", entries[1].Data)
 }
@@ -98,7 +99,7 @@ func TestLogRingBuffer_QueryNonExistentCursor(t *testing.T) {
 
 	entries, hasMore := rb.Query(999, 10)
 	assert.False(t, hasMore)
-	assert.Equal(t, 2, len(entries))
+	assert.Len(t, entries, 2)
 	assert.Equal(t, "a", entries[0].Data)
 	assert.Equal(t, "b", entries[1].Data)
 }
@@ -138,7 +139,7 @@ func TestLogRingBuffer_WriteNoNewline(t *testing.T) {
 	_, _ = rb.Write([]byte("partial"))
 
 	entries, _ := rb.Query(0, 10)
-	assert.Equal(t, 1, len(entries))
+	assert.Len(t, entries, 1)
 	assert.Equal(t, "partial", entries[0].Data)
 }
 
@@ -147,7 +148,7 @@ func TestLogRingBuffer_WriteEmpty(t *testing.T) {
 
 	n, err := rb.Write([]byte(""))
 	assert.Equal(t, 0, n)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	entries, _ := rb.Query(0, 10)
 	assert.Nil(t, entries)
@@ -160,7 +161,7 @@ func TestLogRingBuffer_QueryAfterOverflow(t *testing.T) {
 
 	entries, hasMore := rb.Query(0, 10)
 	assert.False(t, hasMore)
-	assert.Equal(t, 3, len(entries))
+	assert.Len(t, entries, 3)
 	assert.Equal(t, "5", entries[0].Data)
 	assert.Equal(t, "6", entries[1].Data)
 	assert.Equal(t, "7", entries[2].Data)
@@ -178,14 +179,14 @@ func TestLogRingBuffer_NextCursor(t *testing.T) {
 
 	// Query latest 2, should return next_cursor pointing to first returned entry
 	entries, _ := rb.Query(0, 2)
-	assert.Equal(t, 2, len(entries))
+	assert.Len(t, entries, 2)
 	// entries[0].Index = 3 ("d"), entries[1].Index = 4 ("e")
 	assert.Equal(t, 3, entries[0].Index)
 
 	// Now use that index as cursor to get older entries
 	older, hasMore := rb.Query(entries[0].Index, 10)
 	assert.False(t, hasMore)
-	assert.Equal(t, 3, len(older))
+	assert.Len(t, older, 3)
 	assert.Equal(t, "a", older[0].Data)
 	assert.Equal(t, "b", older[1].Data)
 	assert.Equal(t, "c", older[2].Data)

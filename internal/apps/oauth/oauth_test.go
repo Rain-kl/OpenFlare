@@ -336,6 +336,7 @@ func newMockOIDCClient(issuer, clientID string, expectedState *string, sub, user
 }
 
 func setupTestDB(t *testing.T) *gorm.DB {
+	t.Helper()
 	repository.ResetSystemConfigRAMCacheForTest()
 	repository.ResetAuthSourceRAMCacheForTest()
 

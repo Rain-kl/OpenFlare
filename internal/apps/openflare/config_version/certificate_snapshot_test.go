@@ -94,6 +94,7 @@ func TestBuildSnapshotReadsZoneDomainCertificates(t *testing.T) {
 }
 
 func generateTestCertKeyPairForSnapshot(t *testing.T) (certPEM string, keyPEM string) {
+	t.Helper()
 	return generateTestCertKeyPairForSnapshotForDomain(t, "test.example.com")
 }
 

@@ -136,7 +136,7 @@ func TestRouteCanMoveAwayFromAlreadyMissingPagesProject(t *testing.T) {
 }
 
 func TestNormalizeCachePolicyDefaultsAndLegacy(t *testing.T) {
-	assert.Equal(t, "", normalizeCachePolicy(false, "static"))
+	assert.Empty(t, normalizeCachePolicy(false, "static"))
 	// Empty/url on write = legacy all (compat); UI sends static explicitly for new default.
 	assert.Equal(t, proxyRouteCachePolicyAll, normalizeCachePolicy(true, ""))
 	assert.Equal(t, proxyRouteCachePolicyStatic, normalizeCachePolicy(true, "static"))
@@ -144,7 +144,7 @@ func TestNormalizeCachePolicyDefaultsAndLegacy(t *testing.T) {
 	assert.Equal(t, proxyRouteCachePolicyAll, normalizeCachePolicy(true, "all"))
 	assert.Equal(t, proxyRouteCachePolicySuffix, normalizeCachePolicy(true, "suffix"))
 
-	assert.Equal(t, "", displayCachePolicy(false, "all"))
+	assert.Empty(t, displayCachePolicy(false, "all"))
 	assert.Equal(t, proxyRouteCachePolicyAll, displayCachePolicy(true, ""))
 	assert.Equal(t, proxyRouteCachePolicyAll, displayCachePolicy(true, "url"))
 	assert.Equal(t, proxyRouteCachePolicyStatic, displayCachePolicy(true, "static"))

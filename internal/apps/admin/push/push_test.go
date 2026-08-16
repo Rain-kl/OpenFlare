@@ -65,6 +65,7 @@ func (m *mockPusher) ValidateConfig(cfg pkgpush.Config) error {
 }
 
 func setupPushTest(t *testing.T) (*gorm.DB, *miniredis.Miniredis, func()) {
+	t.Helper()
 	dbConn, mr, cleanup := testhelper.SetupTestEnvironment(t)
 
 	// AutoMigrate push tables in SQLite test environment
@@ -319,7 +320,7 @@ func TestPushHandler(t *testing.T) {
 		assert.Equal(t, "Structured Alert", mPusher.sentBody["title"])
 		assert.Equal(t, "Hello World", mPusher.sentBody["content"])
 		assert.Equal(t, "WARNING", mPusher.sentBody["level"])
-		assert.Equal(t, float64(42), mPusher.sentBody["extra_val"]) // unmarshaled json numbers are float64 by default
+		assert.InDelta(t, float64(42), mPusher.sentBody["extra_val"], 1e-9) // unmarshaled json numbers are float64 by default
 		mPusher.mu.Unlock()
 
 		// Verify PushHistory recorded
@@ -436,7 +437,7 @@ func TestPushRouters(t *testing.T) {
 
 		dataMap, ok := resp.Data.(map[string]any)
 		assert.True(t, ok)
-		assert.Equal(t, float64(1), dataMap["total"])
+		assert.InDelta(t, float64(1), dataMap["total"], 1e-9)
 	})
 
 	t.Run("test push endpoint", func(t *testing.T) {
@@ -614,37 +615,37 @@ func TestPushChannelAPI(t *testing.T) {
 	t.Run("validate push channel model constraints", func(t *testing.T) {
 		// 校验名称合法性
 		c1 := &model.PushChannel{Name: "invalid-name!", URL: "https://hook.com", Other: "{}"}
-		assert.Error(t, c1.Validate())
+		require.Error(t, c1.Validate())
 
 		// 校验 URL 安全前缀 HTTPS
 		c2 := &model.PushChannel{Name: "custom_channel", URL: "http://insecure-hook.com", Other: "{}"}
-		assert.Error(t, c2.Validate())
+		require.Error(t, c2.Validate())
 
 		// 校验 JSON 格式
 		c3 := &model.PushChannel{Name: "custom_channel", URL: "https://hook.com", Other: "{invalid-json}"}
-		assert.Error(t, c3.Validate())
+		require.Error(t, c3.Validate())
 
 		// 正确配置
 		c4 := &model.PushChannel{Name: "custom_channel", URL: "https://hook.com", Other: "{\"content\":\"$content\"}"}
-		assert.NoError(t, c4.Validate())
+		require.NoError(t, c4.Validate())
 
 		// 飞书渠道校验：非 HTTPS 地址报错
 		c5 := &model.PushChannel{Name: "lark_channel", Type: "lark", URL: "http://open.feishu.cn", Other: ""}
-		assert.Error(t, c5.Validate())
+		require.Error(t, c5.Validate())
 
 		// 飞书正确配置
 		c6 := &model.PushChannel{Name: "lark_channel", Type: "lark", URL: "https://open.feishu.cn", Other: ""}
-		assert.NoError(t, c6.Validate())
+		require.NoError(t, c6.Validate())
 
 		// Telegram 渠道校验
 		cTelegramErr := &model.PushChannel{Name: "tg_channel", Type: "telegram", URL: "https://api.telegram.org", Token: "", Other: ""}
-		assert.Error(t, cTelegramErr.Validate())
+		require.Error(t, cTelegramErr.Validate())
 
 		cTelegramErr2 := &model.PushChannel{Name: "tg_channel", Type: "telegram", URL: "http://api.telegram.org", Token: "123:abc", Other: ""}
-		assert.Error(t, cTelegramErr2.Validate())
+		require.Error(t, cTelegramErr2.Validate())
 
 		cTelegramOk := &model.PushChannel{Name: "tg_channel", Type: "telegram", URL: "", Token: "123:abc", Other: "-100123"}
-		assert.NoError(t, cTelegramOk.Validate())
+		require.NoError(t, cTelegramOk.Validate())
 		assert.Equal(t, "https://api.telegram.org", cTelegramOk.URL)
 
 		// 邮件配置校验：允许空配置以复用系统全局设置
@@ -733,7 +734,7 @@ func TestPushChannelAPI(t *testing.T) {
 		dbConn.First(&updated, createdID)
 		assert.Equal(t, "Updated remark", updated.Description)
 		assert.Equal(t, "new_chan_token", updated.Token)
-		assert.Equal(t, `{"text": "$content"}`, updated.Other)
+		assert.JSONEq(t, `{"text": "$content"}`, updated.Other)
 	})
 
 	t.Run("admin test channel endpoint", func(t *testing.T) {

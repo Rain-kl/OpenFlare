@@ -23,7 +23,7 @@ func TestTelegramPusher_Send(t *testing.T) {
 			assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
 
 			err := json.NewDecoder(r.Body).Decode(&receivedReq)
-			require.NoError(t, err)
+			assert.NoError(t, err)
 
 			w.WriteHeader(http.StatusOK)
 			_, _ = w.Write([]byte(`{"ok": true}`))
@@ -55,7 +55,7 @@ func TestTelegramPusher_Send(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			var req telegramMessageRequest
 			err := json.NewDecoder(r.Body).Decode(&req)
-			require.NoError(t, err)
+			assert.NoError(t, err)
 			requests = append(requests, &req)
 
 			if len(requests) == 1 {
@@ -84,7 +84,7 @@ func TestTelegramPusher_Send(t *testing.T) {
 
 		require.Len(t, requests, 2)
 		assert.Equal(t, "HTML", requests[0].ParseMode)
-		assert.Equal(t, "", requests[1].ParseMode)
+		assert.Empty(t, requests[1].ParseMode)
 		assert.Contains(t, requests[1].Text, "[INFO] Alert & Info")
 		assert.Contains(t, requests[1].Text, "A < B comparison")
 	})
@@ -96,7 +96,7 @@ func TestTelegramPusher_Send(t *testing.T) {
 			URL:     "https://api.telegram.org",
 		}
 		err := pusher.ValidateConfig(cfg)
-		assert.Error(t, err)
+		require.Error(t, err)
 
 		cfg = Config{
 			Channel: "telegram",
@@ -104,7 +104,7 @@ func TestTelegramPusher_Send(t *testing.T) {
 			Secret:  "token",
 		}
 		err = pusher.ValidateConfig(cfg)
-		assert.Error(t, err)
+		require.Error(t, err)
 
 		cfg = Config{
 			Channel: "telegram",

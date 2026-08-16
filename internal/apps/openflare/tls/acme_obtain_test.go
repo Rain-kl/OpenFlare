@@ -5,7 +5,6 @@ package tls
 
 import (
 	"context"
-	"strings"
 	"testing"
 	"time"
 
@@ -126,7 +125,7 @@ func TestConvertCertificateToACMEPreservesUploadOnFailure(t *testing.T) {
 	assert.Equal(t, "error", finalCert.ApplyStatus)
 	assert.Equal(t, originalStoredCertPEM, finalCert.CertPEM)
 	assert.Equal(t, originalStoredKeyPEM, finalCert.KeyPEM)
-	assert.True(t, strings.Contains(finalCert.ApplyMessage, "dns challenge failed"))
+	assert.Contains(t, finalCert.ApplyMessage, "dns challenge failed")
 }
 
 func TestConvertCertificateToACMERejectsInvalidStates(t *testing.T) {

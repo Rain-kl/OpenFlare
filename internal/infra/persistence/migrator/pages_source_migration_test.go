@@ -198,7 +198,7 @@ func assertPagesSourceConstraints(t *testing.T, gormDB *gorm.DB, sourceID uint) 
 		ConfigVersion:  1,
 		SourceIdentity: strings.Repeat("c", 64),
 	}
-	assert.Error(t, gormDB.Create(&duplicateSource).Error)
+	require.Error(t, gormDB.Create(&duplicateSource).Error)
 
 	for number := 2; number <= 3; number++ {
 		require.NoError(t, createMigrationDeployment(
@@ -219,14 +219,14 @@ func assertPagesSourceConstraints(t *testing.T, gormDB *gorm.DB, sourceID uint) 
 		&identity,
 		&revision,
 	))
-	assert.Error(t, createMigrationDeployment(
+	require.Error(t, createMigrationDeployment(
 		gormDB,
 		5,
 		strings.Repeat("0", 64),
 		&identity,
 		&revision,
 	))
-	assert.Error(t, createMigrationDeployment(
+	require.Error(t, createMigrationDeployment(
 		gormDB,
 		1,
 		strings.Repeat("1", 64),

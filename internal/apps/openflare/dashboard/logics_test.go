@@ -20,6 +20,7 @@ import (
 )
 
 func setupDashboardTestDB(t *testing.T) func() {
+	t.Helper()
 	sqliteDB, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{
 		DisableForeignKeyConstraintWhenMigrating: true,
 	})
@@ -124,8 +125,8 @@ func TestGetOverviewStructure(t *testing.T) {
 	onlineNodeCheck := overview.Nodes
 	require.NotEmpty(t, onlineNodeCheck)
 
-	assert.Equal(t, 55.0, overview.Capacity.AverageCPUUsagePercent)
-	assert.Equal(t, 50.0, overview.Capacity.AverageMemoryUsagePercent)
+	assert.InDelta(t, 55.0, overview.Capacity.AverageCPUUsagePercent, 1e-9)
+	assert.InDelta(t, 50.0, overview.Capacity.AverageMemoryUsagePercent, 1e-9)
 	assert.Equal(t, 0, overview.Capacity.HighCPUNodes)
 	assert.Equal(t, 0, overview.Capacity.HighMemoryNodes)
 	assert.Equal(t, 0, overview.Capacity.HighStorageNodes)
@@ -171,11 +172,11 @@ func TestGetOverviewStructure(t *testing.T) {
 	assert.Equal(t, "online", onlineNode[6])
 	assert.Equal(t, "healthy", onlineNode[7])
 	// Latest-per-node health fields (indexes match compressDashboardNodes).
-	assert.Equal(t, 55.0, onlineNode[11])      // cpu_usage_percent from latest snapshot
-	assert.Equal(t, 50.0, onlineNode[12])      // memory_usage_percent
-	assert.Equal(t, int64(12), onlineNode[14]) // request_count from access logs
-	assert.Equal(t, int64(1), onlineNode[15])  // error_count
-	assert.Equal(t, int64(4), onlineNode[16])  // unique visitors
+	assert.InDelta(t, 55.0, onlineNode[11], 1e-9) // cpu_usage_percent from latest snapshot
+	assert.InDelta(t, 50.0, onlineNode[12], 1e-9) // memory_usage_percent
+	assert.Equal(t, int64(12), onlineNode[14])    // request_count from access logs
+	assert.Equal(t, int64(1), onlineNode[15])     // error_count
+	assert.Equal(t, int64(4), onlineNode[16])     // unique visitors
 
 	pendingNode := nodeByID["node-dashboard-2"]
 	require.NotNil(t, pendingNode)
@@ -183,6 +184,6 @@ func TestGetOverviewStructure(t *testing.T) {
 	assert.Equal(t, "pending", pendingNode[6])
 	assert.Equal(t, "unknown", pendingNode[7])
 
-	assert.Equal(t, 55.0, overview.Capacity.AverageCPUUsagePercent)
+	assert.InDelta(t, 55.0, overview.Capacity.AverageCPUUsagePercent, 1e-9)
 	assert.Equal(t, 1, overview.Traffic.ReportedNodes)
 }

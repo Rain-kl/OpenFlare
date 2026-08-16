@@ -16,6 +16,7 @@ import (
 )
 
 func setupTestDB(t *testing.T) *gorm.DB {
+	t.Helper()
 	dbConn, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
 	if err != nil {
 		t.Fatalf("failed to open sqlite in memory: %v", err)

@@ -16,6 +16,7 @@ import (
 
 // Helper to write control file for the dummy script
 func writeControl(t *testing.T, dir string, exitCode int, delaySeconds int) {
+	t.Helper()
 	controlPath := filepath.Join(dir, "control.txt")
 	content := fmt.Sprintf("%d %d\n", exitCode, delaySeconds)
 	err := os.WriteFile(controlPath, []byte(content), 0644)
@@ -26,6 +27,7 @@ func writeControl(t *testing.T, dir string, exitCode int, delaySeconds int) {
 
 // Setup a dummy executable script that reads control.txt to decide exit code and sleep duration
 func setupDummyScript(t *testing.T) (string, string) {
+	t.Helper()
 	dir := t.TempDir()
 	scriptPath := filepath.Join(dir, "dummy_frpc")
 
@@ -53,6 +55,7 @@ exit "${EXIT_CODE:-0}"
 
 // Helper to poll for status to eliminate timing flakiness in tests
 func assertStatusEventually(t *testing.T, m *Manager, relayID string, expectedStatus string, timeout time.Duration) {
+	t.Helper()
 	deadline := time.Now().Add(timeout)
 	for time.Now().Before(deadline) {
 		m.mu.RLock()
