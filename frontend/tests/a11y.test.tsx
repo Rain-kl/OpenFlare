@@ -35,6 +35,10 @@ vi.mock('@/lib/services/auth', async (importOriginal) => {
   };
 });
 
+vi.mock('@/lib/cap-solver', () => ({
+  getCapToken: vi.fn().mockResolvedValue('test-cap-token'),
+}));
+
 vi.mock('@/lib/services/config', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/services/config')>();
   return {
@@ -126,6 +130,21 @@ describe('a11y（axe-core 结构性规则）', () => {
     renderWithProviders(<main><CapWidget autoStart={false} onToken={() => {}} /></main>);
 
     await screen.findByRole('button');
+    expect(await runAxe(document.body)).toEqual([]);
+  });
+
+  it('注册页（开启人机验证）无 axe 违规', async () => {
+    getPublicConfigMock.mockResolvedValue({
+      registration_enabled: 'true',
+      password_register_enabled: 'true',
+      cap_login_enabled: 'true',
+      cap_auto_solve: 'true',
+    });
+    renderWithProviders(<RegisterPage />);
+
+    await screen.findByRole('button', { name: /创建账号|submit/ });
+    // CAPTCHA 自动求解完成后进入已通过状态
+    await screen.findByText('人机验证通过');
     expect(await runAxe(document.body)).toEqual([]);
   });
 });
