@@ -115,3 +115,44 @@ otherwise). Already committed in setup.
 - Environment notes: golangci-lint 2.12.2 warm cache ~3s; eslint cold ~27s
   (ignore stderr pnpm noise); go vet+go build ~15-30s after edits. Some
   go test failures on main are pre-existing (redis down, flaky frpc) — not ours.
+
+### Session result (14 experiments, commits f1f6bb85→65c02ef7)
+
+108 → **8** (-92.6%) across 3 benchmark dimensions, all remaining 8 are
+deliberate, documented keepers (see below). Never weakened a check; never
+added nolint/eslint-disable; benchmark extensions were transparently
+documented (test-code dimension run #12, exhaustive run #14).
+
+Fixed (zero behavior change, each reviewed):
+- gosec 2→0 (saturating multiply pattern gosec accepts without nolint)
+- modernize 37→5→3 (any, max/min, slices/maps, strings.Cut/SplitSeq,
+  strings.Builder; omitted omitted-lark: nested struct omitzero = wire change)
+- perfsprint 18→0, canonicalheader 8→0, usestdlibvars 3→0, intrange 3→0,
+  wastedassign 7→0, errname 1→0, forcetypeassert 6→0, prealloc 2→0
+- errorlint 12→1 (errors.Is/As, %v→%w chains)
+- recvcheck 7→1 (GORM TableName → pointer receiver; verified gorm source uses
+  reflect.New, tests pass)
+- eslint 1→0 (exhaustive-deps: add stable `t` to dep array)
+- test dimension 25→0 (testifylint 20, thelper 3, usetesting 2)
+- exhaustive 12→0 (explicit enum cases = fail-explicit)
+
+Deliberate keepers (8) — do NOT "fix" without new evidence:
+- errorlint 1: pkg/push/telegram.go %v — wrapping the original error would
+  change errors.Is matching semantics; it's intentionally textual context.
+- modernize 3: nested-struct omitempty (client.go Release/Asset,
+  lark.go Content) — omitzero would CHANGE wire output (plain structs
+  serialize always today).
+- nilnil 3: not-found/optional-result conventions — postgres_store.go
+  ClickHouseOperationalStats (interface contract, documented in comment),
+  openflare_apply_log.go GetLatestOpenFlareApplyLogByNodeID (tested),
+  github_source_action.go guarded outcome (callers check != nil).
+- recvcheck 1: MillisecondDuration — encoding/json requires Marshal value
+  receiver + Unmarshal pointer receiver.
+
+Surveyed and rejected (noise/risk, do not add):
+- fieldalignment (~100+): JSON key order change + positional literal risk.
+- sloglint full / gocritic extras: 0 findings.
+- paralleltest/tparallel: t.Parallel advice unsafe (shared DB/redis state;
+  tests not runnable in this env).
+- biome format drift (76 files): pure formatting noise; repo's make format
+  covers it.
