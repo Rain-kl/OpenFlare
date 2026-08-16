@@ -26,7 +26,7 @@ const (
 
 var (
 	runtimeOnce       sync.Once
-	runtimeInitErr    error
+	errRuntimeInit    error
 	currentProviderMu sync.RWMutex
 	currentProvider   string
 )
@@ -34,9 +34,9 @@ var (
 // EnsureRuntimeProvider loads GeoIP provider config from SystemConfig.
 func EnsureRuntimeProvider(ctx context.Context) error {
 	runtimeOnce.Do(func() {
-		runtimeInitErr = applyProviderFromSystemConfig(ctx)
+		errRuntimeInit = applyProviderFromSystemConfig(ctx)
 	})
-	return runtimeInitErr
+	return errRuntimeInit
 }
 
 // RefreshRuntimeProvider reapplies GeoIPProvider after config updates.
@@ -115,7 +115,7 @@ func ensureServerMMDB() (string, error) {
 // ResetRuntimeForTest clears lazy-init state for unit tests.
 func ResetRuntimeForTest() {
 	runtimeOnce = sync.Once{}
-	runtimeInitErr = nil
+	errRuntimeInit = nil
 	currentProviderMu.Lock()
 	currentProvider = ""
 	currentProviderMu.Unlock()

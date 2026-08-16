@@ -206,7 +206,10 @@ func EnsureCompressedImageCache(
 		return nil, false, err
 	}
 
-	res := result.(compressedImageCacheResult)
+	res, ok := result.(compressedImageCacheResult)
+	if !ok {
+		return nil, false, fmt.Errorf("image compression flight returned unexpected type %T", result)
+	}
 	return res.bytes, res.cached, res.err
 }
 

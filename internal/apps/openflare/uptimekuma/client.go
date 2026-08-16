@@ -281,7 +281,8 @@ func (c *SocketIOClient) Emit(event string, args ...any) (string, error) {
 	c.ackChanMap[id] = ch
 	c.ackMutex.Unlock()
 
-	payloadArr := []any{event}
+	payloadArr := make([]any, 1, 1+len(args))
+	payloadArr[0] = event
 	payloadArr = append(payloadArr, args...)
 	bs, err := json.Marshal(payloadArr)
 	if err != nil {

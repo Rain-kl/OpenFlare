@@ -38,7 +38,11 @@ func PostHeartbeat(c *gin.Context) {
 		response.AbortUnauthorized(c, errAgentTokenInvalid)
 		return
 	}
-	node := authNode.(*model.OpenFlareNode)
+	node, ok := authNode.(*model.OpenFlareNode)
+	if !ok {
+		response.AbortUnauthorized(c, errAgentTokenInvalid)
+		return
+	}
 
 	result, err := Heartbeat(c.Request.Context(), node, payload)
 	if apiutil.AbortBadRequestOnError(c, err) {
@@ -61,6 +65,10 @@ func GetWebSocket(c *gin.Context) {
 		response.AbortUnauthorized(c, errAgentTokenInvalid)
 		return
 	}
-	node := authNode.(*model.OpenFlareNode)
+	node, ok := authNode.(*model.OpenFlareNode)
+	if !ok {
+		response.AbortUnauthorized(c, errAgentTokenInvalid)
+		return
+	}
 	ofws.ServeRelay(c, node.NodeID)
 }

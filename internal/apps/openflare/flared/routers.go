@@ -37,7 +37,11 @@ func PostHeartbeat(c *gin.Context) {
 		response.AbortUnauthorized(c, errTunnelTokenInvalid)
 		return
 	}
-	node := authNode.(*model.OpenFlareNode)
+	node, ok := authNode.(*model.OpenFlareNode)
+	if !ok {
+		response.AbortUnauthorized(c, errTunnelTokenInvalid)
+		return
+	}
 
 	result, err := Heartbeat(c.Request.Context(), node, payload)
 	if apiutil.AbortBadRequestOnError(c, err) {
@@ -63,7 +67,11 @@ func GetActiveConfig(c *gin.Context) {
 		response.AbortUnauthorized(c, errTunnelTokenInvalid)
 		return
 	}
-	node := authNode.(*model.OpenFlareNode)
+	node, ok := authNode.(*model.OpenFlareNode)
+	if !ok {
+		response.AbortUnauthorized(c, errTunnelTokenInvalid)
+		return
+	}
 
 	config, err := GetTunnelConfig(c.Request.Context(), node)
 	if apiutil.AbortBadRequestOnError(c, err) {
@@ -91,7 +99,9 @@ func PostApplyLog(c *gin.Context) {
 		return
 	}
 	if authNode, ok := c.Get(ctxFlaredNodeKey); ok {
-		payload.NodeID = authNode.(*model.OpenFlareNode).NodeID
+		if node, ok := authNode.(*model.OpenFlareNode); ok {
+			payload.NodeID = node.NodeID
+		}
 	}
 
 	log, err := ReportApplyLog(c.Request.Context(), payload)
@@ -115,6 +125,10 @@ func GetWebSocket(c *gin.Context) {
 		response.AbortUnauthorized(c, errTunnelTokenInvalid)
 		return
 	}
-	node := authNode.(*model.OpenFlareNode)
+	node, ok := authNode.(*model.OpenFlareNode)
+	if !ok {
+		response.AbortUnauthorized(c, errTunnelTokenInvalid)
+		return
+	}
 	ofws.ServeFlared(c, node.NodeID)
 }

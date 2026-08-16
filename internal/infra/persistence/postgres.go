@@ -21,6 +21,9 @@ import (
 	"gorm.io/plugin/opentelemetry/tracing"
 )
 
+// baseTracingOptionCount 是 newGORMTracingPlugin 预置的 tracing 选项数量。
+const baseTracingOptionCount = 3
+
 var (
 	db *gorm.DB
 )
@@ -106,7 +109,7 @@ func initPostgres() {
 	}
 
 	if len(dbConfig.Replicas) > 0 {
-		var replicaDialectors []gorm.Dialector
+		var replicaDialectors = make([]gorm.Dialector, 0, len(dbConfig.Replicas))
 		for _, replica := range dbConfig.Replicas {
 			username := replica.Username
 			if username == "" {
@@ -156,11 +159,12 @@ func initPostgres() {
 
 // newGORMTracingPlugin 构造数据库链路追踪插件。查询参数只保留占位符，避免凭据等绑定值进入 Span。
 func newGORMTracingPlugin(attrs []attribute.KeyValue, extraOptions ...tracing.Option) gorm.Plugin {
-	options := []tracing.Option{
+	options := make([]tracing.Option, 0, baseTracingOptionCount+len(extraOptions))
+	options = append(options,
 		tracing.WithoutMetrics(),
 		tracing.WithoutQueryVariables(),
 		tracing.WithAttributes(attrs...),
-	}
+	)
 	options = append(options, extraOptions...)
 	return tracing.NewPlugin(options...)
 }
