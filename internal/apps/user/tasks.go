@@ -152,7 +152,7 @@ func (h *SendEmailHandler) Execute(ctx context.Context, payload []byte) (*task.T
 		return nil, fmt.Errorf(errSendMailFailed, err)
 	}
 
-	msg := fmt.Sprintf("邮件成功发送至: %s", req.To)
+	msg := "邮件成功发送至: " + req.To
 	task.AppendLog(ctx, "%s", msg)
 
 	return &task.TaskResult{

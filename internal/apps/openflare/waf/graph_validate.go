@@ -68,7 +68,7 @@ func validateRuleGraphLimits(graph RuleGraph) error {
 	if raw, err := json.Marshal(graph); err != nil {
 		return fmt.Errorf("规则图无法序列化: %w", err)
 	} else if len(raw) > maxRuleGraphBytes {
-		return fmt.Errorf("规则图大小不能超过 256 KiB")
+		return errors.New("规则图大小不能超过 256 KiB")
 	}
 	return nil
 }

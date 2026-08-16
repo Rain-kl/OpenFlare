@@ -4,6 +4,7 @@
 package updater
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -37,7 +38,7 @@ func replaceAndRestart(execPath string, tmpPath string) error {
 	if err := syscall.Exec(execPath, os.Args, os.Environ()); err != nil { //nolint:gosec // execPath is the validated edge updater binary path
 		return fmt.Errorf("exec restart: %w", err)
 	}
-	return fmt.Errorf("unreachable after exec")
+	return errors.New("unreachable after exec")
 }
 
 func removeBackupBinary(path string) error {

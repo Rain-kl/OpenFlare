@@ -5,6 +5,7 @@ package oauth
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 	"sync"
@@ -140,7 +141,7 @@ func GetCachedToken(ctx context.Context, tokenHash string) (*model.AccessToken, 
 			return &token, nil
 		}
 	}
-	return nil, fmt.Errorf("cache miss")
+	return nil, errors.New("cache miss")
 }
 
 // SetCachedToken 设置 AccessToken 缓存
@@ -183,7 +184,7 @@ func GetCachedUser(ctx context.Context, userID uint64) (*model.User, error) {
 			return &u, nil
 		}
 	}
-	return nil, fmt.Errorf("cache miss")
+	return nil, errors.New("cache miss")
 }
 
 // SetCachedUser 设置 User 缓存

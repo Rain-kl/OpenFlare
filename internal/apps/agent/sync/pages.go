@@ -15,6 +15,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/Rain-kl/Wavelet/internal/apps/agent/protocol"
@@ -392,7 +393,7 @@ func (s *Service) downloadPagesProjectPackage(
 	metadata *protocol.PagesProjectLatestHashResponse,
 	maxBytes int64,
 ) (packagePath string, hash string, err error) {
-	releasesRoot := filepath.Join(s.pagesDir, "projects", fmt.Sprintf("%d", projectID), "releases")
+	releasesRoot := filepath.Join(s.pagesDir, "projects", strconv.FormatUint(uint64(projectID), 10), "releases")
 	if err := os.MkdirAll(releasesRoot, pagesDirPerm); err != nil {
 		return "", "", err
 	}
@@ -441,7 +442,7 @@ func cleanupPagesProjectStaleReleases(baseDir string, projectID uint, keepHash s
 	if projectID == 0 || keepHash == "" {
 		return nil
 	}
-	releasesRoot := filepath.Join(baseDir, "projects", fmt.Sprintf("%d", projectID), "releases")
+	releasesRoot := filepath.Join(baseDir, "projects", strconv.FormatUint(uint64(projectID), 10), "releases")
 	entries, err := os.ReadDir(releasesRoot) //nolint:gosec // managed PagesDir
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -982,9 +983,9 @@ func writePagesMarker(dir string, project pagesProjectRef) error {
 }
 
 func pagesProjectCurrentDir(baseDir string, projectID uint) string {
-	return filepath.Join(baseDir, "projects", fmt.Sprintf("%d", projectID), "current")
+	return filepath.Join(baseDir, "projects", strconv.FormatUint(uint64(projectID), 10), "current")
 }
 
 func pagesProjectReleaseDir(baseDir string, projectID uint, checksum string) string {
-	return filepath.Join(baseDir, "projects", fmt.Sprintf("%d", projectID), "releases", checksum)
+	return filepath.Join(baseDir, "projects", strconv.FormatUint(uint64(projectID), 10), "releases", checksum)
 }

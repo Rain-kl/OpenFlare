@@ -5,6 +5,7 @@ package analytics
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/Rain-kl/Wavelet/internal/infra/config"
@@ -19,7 +20,7 @@ type ClickHouseOperationalStats = analyticsmodel.ClickHouseOperationalStats
 // GetClickHouseOperationalStats returns operational metrics for the configured database.
 func GetClickHouseOperationalStats(ctx context.Context) (*ClickHouseOperationalStats, error) {
 	if db.ChConn == nil {
-		return nil, fmt.Errorf("clickhouse native connection is not initialized")
+		return nil, errors.New("clickhouse native connection is not initialized")
 	}
 	database := config.Config.ClickHouse.Database
 	stats := &ClickHouseOperationalStats{Database: database}

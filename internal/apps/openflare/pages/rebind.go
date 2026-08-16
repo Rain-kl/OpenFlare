@@ -6,6 +6,7 @@ package pages
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"path"
 	"strings"
@@ -151,7 +152,7 @@ func resolveProjectIDFromRouteMap(route map[string]json.RawMessage) (uint, error
 			return deployment.ProjectID, nil
 		}
 	}
-	return 0, fmt.Errorf("pages 配置无效: 缺少 pages_project_id")
+	return 0, errors.New("pages 配置无效: 缺少 pages_project_id")
 }
 
 func loadActivePagesProject(ctx context.Context, projectID uint, siteName string) (*model.PagesProject, *model.PagesDeployment, error) {

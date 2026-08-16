@@ -5,6 +5,7 @@ package uptimekuma
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -75,11 +76,11 @@ func SyncToUptimeKuma(ctx context.Context) error {
 	// 检查是否启用
 	enabled, _ := repository.GetBoolByKey(ctx, model.ConfigKeyUptimeKumaEnabled)
 	if !enabled {
-		return fmt.Errorf("uptime Kuma integration is disabled")
+		return errors.New("uptime Kuma integration is disabled")
 	}
 
 	if !isSyncing.CompareAndSwap(false, true) {
-		return fmt.Errorf("sync task is already in progress, please try again later")
+		return errors.New("sync task is already in progress, please try again later")
 	}
 	defer isSyncing.Store(false)
 
@@ -225,7 +226,7 @@ func filterOpenFlareMonitors(monitors map[string]Monitor, openFlareTagID int) ma
 
 func routeMonitorURL(ctx context.Context, route *model.ProxyRoute) (string, error) {
 	if route == nil {
-		return "", fmt.Errorf("proxy route is nil")
+		return "", errors.New("proxy route is nil")
 	}
 	domains, err := repository.ListZoneDomainsByRouteID(ctx, route.ID)
 	if err != nil {

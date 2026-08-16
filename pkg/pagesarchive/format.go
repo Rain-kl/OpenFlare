@@ -7,7 +7,7 @@ package pagesarchive
 
 import (
 	"bytes"
-	"fmt"
+	"errors"
 	"path/filepath"
 	"strings"
 )
@@ -87,7 +87,7 @@ func DetectFormat(fileName string, data []byte) (Format, error) {
 	if format, ok := DetectFormatFromBytes(data); ok {
 		return format, nil
 	}
-	return "", fmt.Errorf("unsupported pages package format")
+	return "", errors.New("unsupported pages package format")
 }
 
 // Extension returns the canonical file extension for a format (without leading dot).

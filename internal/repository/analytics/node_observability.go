@@ -5,6 +5,7 @@ package analytics
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"slices"
 	"time"
@@ -16,7 +17,7 @@ import (
 
 func observabilityConn() (driver.Conn, error) {
 	if db.ChConn == nil {
-		return nil, fmt.Errorf("clickhouse connection is not initialized")
+		return nil, errors.New("clickhouse connection is not initialized")
 	}
 	return db.ChConn, nil
 }

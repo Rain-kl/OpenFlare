@@ -89,7 +89,7 @@ func NewSocketIOClient(baseURL string) *SocketIOClient {
 // Connect performs the Engine.IO handshake and starts the polling loop.
 func (c *SocketIOClient) Connect() error {
 	slog.Debug("Uptime Kuma client starting handshake", "baseURL", c.baseURL)
-	u := fmt.Sprintf("%s/socket.io/?EIO=4&transport=polling", c.baseURL)
+	u := c.baseURL + "/socket.io/?EIO=4&transport=polling"
 	reqHandshake, err := http.NewRequestWithContext(c.ctx, http.MethodGet, u, nil)
 	if err != nil {
 		return fmt.Errorf("create handshake request failed: %w", err)

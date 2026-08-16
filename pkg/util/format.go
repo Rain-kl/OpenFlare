@@ -29,13 +29,13 @@ func Bytes2Size(num int64) string {
 		numStr = fmt.Sprintf("%.2f", float64(num)/float64(sizeGB))
 		unit = "GB"
 	case num/int64(sizeMB) >= 1:
-		numStr = fmt.Sprintf("%d", int(float64(num)/float64(sizeMB)))
+		numStr = strconv.Itoa(int(float64(num) / float64(sizeMB)))
 		unit = "MB"
 	case num/int64(sizeKB) >= 1:
-		numStr = fmt.Sprintf("%d", int(float64(num)/float64(sizeKB)))
+		numStr = strconv.Itoa(int(float64(num) / float64(sizeKB)))
 		unit = "KB"
 	default:
-		numStr = fmt.Sprintf("%d", num)
+		numStr = strconv.FormatInt(num, 10)
 	}
 	return numStr + " " + unit
 }

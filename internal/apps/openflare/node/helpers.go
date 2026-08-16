@@ -8,6 +8,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -317,7 +318,7 @@ func fetchLatestStableGitHubRelease(ctx context.Context, repo string) (*githubRe
 	url := fmt.Sprintf(githubReleasesAPIBase+"/latest", strings.TrimSpace(repo))
 	req, err := newGitHubReleaseRequest(ctx, url)
 	if err != nil {
-		return nil, fmt.Errorf("创建更新请求失败")
+		return nil, errors.New("创建更新请求失败")
 	}
 	resp, err := releaseHTTPClient.Do(req)
 	if err != nil {
@@ -334,7 +335,7 @@ func fetchLatestPreviewGitHubRelease(ctx context.Context, repo string) (*githubR
 	url := fmt.Sprintf(githubReleasesAPIBase+"?per_page=20", strings.TrimSpace(repo))
 	req, err := newGitHubReleaseRequest(ctx, url)
 	if err != nil {
-		return nil, fmt.Errorf("创建更新请求失败")
+		return nil, errors.New("创建更新请求失败")
 	}
 	resp, err := releaseHTTPClient.Do(req)
 	if err != nil {
@@ -346,7 +347,7 @@ func fetchLatestPreviewGitHubRelease(ctx context.Context, repo string) (*githubR
 	}
 	var releases []githubReleaseResponse
 	if err = json.NewDecoder(resp.Body).Decode(&releases); err != nil {
-		return nil, fmt.Errorf("解析 preview 版本信息失败")
+		return nil, errors.New("解析 preview 版本信息失败")
 	}
 	for _, release := range releases {
 		if release.Draft || !release.Prerelease {
@@ -355,18 +356,18 @@ func fetchLatestPreviewGitHubRelease(ctx context.Context, repo string) (*githubR
 		releaseCopy := release
 		return &releaseCopy, nil
 	}
-	return nil, fmt.Errorf("当前没有可用的 preview 发布")
+	return nil, errors.New("当前没有可用的 preview 发布")
 }
 
 func fetchGitHubReleaseByTag(ctx context.Context, repo string, tag string) (*githubReleaseResponse, error) {
 	tag = strings.TrimSpace(tag)
 	if tag == "" {
-		return nil, fmt.Errorf("缺少发布版本号")
+		return nil, errors.New("缺少发布版本号")
 	}
 	url := fmt.Sprintf(githubReleasesAPIBase+"/tags/%s", strings.TrimSpace(repo), tag)
 	req, err := newGitHubReleaseRequest(ctx, url)
 	if err != nil {
-		return nil, fmt.Errorf("创建更新请求失败")
+		return nil, errors.New("创建更新请求失败")
 	}
 	resp, err := releaseHTTPClient.Do(req)
 	if err != nil {
@@ -395,7 +396,7 @@ func newGitHubReleaseRequest(ctx context.Context, url string) (*http.Request, er
 func decodeGitHubRelease(reader io.Reader) (*githubReleaseResponse, error) {
 	var release githubReleaseResponse
 	if err := json.NewDecoder(reader).Decode(&release); err != nil {
-		return nil, fmt.Errorf("解析版本信息失败")
+		return nil, errors.New("解析版本信息失败")
 	}
 	return &release, nil
 }

@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -295,7 +296,7 @@ func parseSHA256Checksum(content string, assetName string) (string, error) {
 		}
 	}
 	if assetName == "" {
-		return "", fmt.Errorf("checksum asset does not contain a valid sha256 digest")
+		return "", errors.New("checksum asset does not contain a valid sha256 digest")
 	}
 	return "", fmt.Errorf("checksum asset does not contain a sha256 digest for %q", assetName)
 }
@@ -340,7 +341,7 @@ func isSHA256Hex(value string) bool {
 func (s *Service) downloadAndRestart(ctx context.Context, url string, expectedChecksum string, targetPath string) error {
 	expectedChecksum = strings.ToLower(strings.TrimSpace(expectedChecksum))
 	if !isSHA256Hex(expectedChecksum) {
-		return fmt.Errorf("invalid expected sha256 checksum")
+		return errors.New("invalid expected sha256 checksum")
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {

@@ -516,7 +516,7 @@ func (m *Manager) CurrentChecksum() (string, error) {
 		normalizedMain = strings.ReplaceAll(normalizedMain, listen, openrestyrender.ObservabilityListenPlaceholder)
 	}
 	if m.OpenrestyObservabilityPort > 0 {
-		normalizedMain = strings.ReplaceAll(normalizedMain, fmt.Sprintf("%d", m.OpenrestyObservabilityPort), openrestyrender.ObservabilityPortPlaceholder)
+		normalizedMain = strings.ReplaceAll(normalizedMain, strconv.Itoa(m.OpenrestyObservabilityPort), openrestyrender.ObservabilityPortPlaceholder)
 	}
 	if resolverDirective := strings.TrimSpace(m.OpenrestyResolverDirective); resolverDirective != "" {
 		normalizedMain = strings.ReplaceAll(normalizedMain, resolverDirective, ResolverDirectivePlaceholder)
@@ -1463,7 +1463,7 @@ func (m *Manager) renderMainConfig(content string) string {
 		rendered = strings.ReplaceAll(rendered, openrestyrender.ObservabilityListenPlaceholder, listen)
 	}
 	if m.OpenrestyObservabilityPort > 0 {
-		rendered = strings.ReplaceAll(rendered, openrestyrender.ObservabilityPortPlaceholder, fmt.Sprintf("%d", m.OpenrestyObservabilityPort))
+		rendered = strings.ReplaceAll(rendered, openrestyrender.ObservabilityPortPlaceholder, strconv.Itoa(m.OpenrestyObservabilityPort))
 	}
 	if resolverDirective := strings.TrimSpace(m.OpenrestyResolverDirective); resolverDirective != "" {
 		rendered = strings.ReplaceAll(rendered, ResolverDirectivePlaceholder, resolverDirective)

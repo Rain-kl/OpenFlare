@@ -478,7 +478,7 @@ func decodeIPList(raw string) ([]string, error) {
 	}
 	var items []string
 	if err := json.Unmarshal([]byte(text), &items); err != nil {
-		return nil, fmt.Errorf("ip_list payload is invalid")
+		return nil, errors.New("ip_list payload is invalid")
 	}
 	return items, nil
 }

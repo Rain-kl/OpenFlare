@@ -204,7 +204,7 @@ func DownloadFile(c *gin.Context) {
 		}
 	}
 
-	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename*=UTF-8''%s", url.PathEscape(fileName)))
+	c.Header("Content-Disposition", "attachment; filename*=UTF-8''"+url.PathEscape(fileName))
 	filesrv.ServeUpload(c, upload)
 }
 

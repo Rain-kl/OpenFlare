@@ -265,7 +265,7 @@ func (p *LarkPusher) ValidateConfig(cfg Config) error {
 }
 
 func larkSign(secret string, timestamp int64) (string, error) {
-	stringToSign := fmt.Sprintf("%v", timestamp) + "\n" + secret
+	stringToSign := strconv.FormatInt(timestamp, 10) + "\n" + secret
 	h := hmac.New(sha256.New, []byte(stringToSign))
 	_, err := h.Write(nil)
 	if err != nil {

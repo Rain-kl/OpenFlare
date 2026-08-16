@@ -46,7 +46,7 @@ func ChangedWAFIPGroupsForAgent(ctx context.Context, ids []uint, checksums map[s
 	}
 	changed := make([]WAFIPGroup, 0, len(groups))
 	for _, group := range groups {
-		if strings.TrimSpace(checksums[fmt.Sprintf("%d", group.ID)]) == group.Checksum {
+		if strings.TrimSpace(checksums[strconv.FormatUint(uint64(group.ID), 10)]) == group.Checksum {
 			continue
 		}
 		changed = append(changed, group)

@@ -4,6 +4,7 @@
 package openresty
 
 import (
+	"errors"
 	"fmt"
 	"sort"
 	"strconv"
@@ -22,7 +23,7 @@ const (
 func ParseStatusCodeTag(tag string) (lo, hi int, err error) {
 	tag = strings.TrimSpace(tag)
 	if tag == "" {
-		return 0, 0, fmt.Errorf("状态码标签不能为空")
+		return 0, 0, errors.New("状态码标签不能为空")
 	}
 	if before, after, ok := strings.Cut(tag, "-"); ok {
 		lo, err = strconv.Atoi(before)

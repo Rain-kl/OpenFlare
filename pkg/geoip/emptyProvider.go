@@ -1,7 +1,7 @@
 package geoip
 
 import (
-	"fmt"
+	"errors"
 	"net"
 )
 
@@ -20,12 +20,12 @@ func (e *EmptyProvider) Initialize() error {
 
 // GetGeoInfo reports that no GeoIP provider has been configured.
 func (e *EmptyProvider) GetGeoInfo(_ net.IP) (*GeoInfo, error) {
-	return nil, fmt.Errorf("you are using an empty GeoIP provider, please set a valid provider")
+	return nil, errors.New("you are using an empty GeoIP provider, please set a valid provider")
 }
 
 // UpdateDatabase reports that no GeoIP provider has been configured.
 func (e *EmptyProvider) UpdateDatabase() error {
-	return fmt.Errorf("you are using an empty GeoIP provider, please set a valid provider")
+	return errors.New("you are using an empty GeoIP provider, please set a valid provider")
 }
 
 // Close releases resources held by the empty provider.

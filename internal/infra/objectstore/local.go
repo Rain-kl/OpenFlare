@@ -5,6 +5,7 @@ package objectstore
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"mime"
@@ -20,7 +21,7 @@ type localBackend struct {
 func newLocalBackend(cfg LocalConfig) (*localBackend, error) {
 	root := filepath.Clean(cfg.Root)
 	if root == "" {
-		return nil, fmt.Errorf("local root is required")
+		return nil, errors.New("local root is required")
 	}
 	return &localBackend{root: root}, nil
 }
@@ -103,7 +104,7 @@ func (b *localBackend) path(key string) (string, error) {
 		}
 		rel, err := filepath.Rel(absRoot, absPath)
 		if err != nil || strings.HasPrefix(rel, "..") {
-			return "", fmt.Errorf("storage key escapes local root")
+			return "", errors.New("storage key escapes local root")
 		}
 		return cleanPath, nil
 	}
@@ -114,7 +115,7 @@ func (b *localBackend) path(key string) (string, error) {
 	path := filepath.Join(b.root, cleanKey)
 	rel, err := filepath.Rel(b.root, path)
 	if err != nil || strings.HasPrefix(rel, "..") {
-		return "", fmt.Errorf("storage key escapes local root")
+		return "", errors.New("storage key escapes local root")
 	}
 	return path, nil
 }

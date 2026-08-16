@@ -14,6 +14,7 @@ import (
 	"path"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -168,32 +169,32 @@ func DedupeSupportFiles(files []SupportFile) []SupportFile {
 func renderMainConfigTemplate(templateText string, cfg ConfigSnapshot, limitReqRates []string) string {
 	replacer := strings.NewReplacer(
 		"{{OpenRestyWorkerProcesses}}", cfg.WorkerProcesses,
-		"{{OpenRestyWorkerConnections}}", fmt.Sprintf("%d", cfg.WorkerConnections),
-		"{{OpenRestyWorkerRlimitNofile}}", fmt.Sprintf("%d", cfg.WorkerRlimitNofile),
+		"{{OpenRestyWorkerConnections}}", strconv.Itoa(cfg.WorkerConnections),
+		"{{OpenRestyWorkerRlimitNofile}}", strconv.Itoa(cfg.WorkerRlimitNofile),
 		"{{OpenRestyConnectionUpgradeMap}}", renderConnectionUpgradeMap(),
 		"{{OpenRestyDefaultServerBlock}}", renderDefaultServerBlock(cfg.DefaultServerReturnStatus, cfg.HTTP3Enabled),
 		"{{OpenRestyAccessLogPath}}", AccessLogPlaceholder,
 		"{{OpenRestyErrorLogPath}}", ErrorLogPlaceholder,
 		"{{OpenRestyEventsUseDirective}}", renderTemplateDirective(cfg.EventsUse != "", fmt.Sprintf("use %s;", cfg.EventsUse)),
 		"{{OpenRestyEventsMultiAcceptDirective}}", renderTemplateDirective(cfg.EventsMultiAcceptEnabled, "multi_accept on;"),
-		"{{OpenRestyKeepaliveTimeout}}", fmt.Sprintf("%d", cfg.KeepaliveTimeout),
-		"{{OpenRestyKeepaliveRequests}}", fmt.Sprintf("%d", cfg.KeepaliveRequests),
-		"{{OpenRestyClientHeaderTimeout}}", fmt.Sprintf("%d", cfg.ClientHeaderTimeout),
-		"{{OpenRestyClientBodyTimeout}}", fmt.Sprintf("%d", cfg.ClientBodyTimeout),
+		"{{OpenRestyKeepaliveTimeout}}", strconv.Itoa(cfg.KeepaliveTimeout),
+		"{{OpenRestyKeepaliveRequests}}", strconv.Itoa(cfg.KeepaliveRequests),
+		"{{OpenRestyClientHeaderTimeout}}", strconv.Itoa(cfg.ClientHeaderTimeout),
+		"{{OpenRestyClientBodyTimeout}}", strconv.Itoa(cfg.ClientBodyTimeout),
 		"{{OpenRestyClientMaxBodySize}}", cfg.ClientMaxBodySize,
 		"{{OpenRestyLargeClientHeaderBuffers}}", cfg.LargeClientHeaderBuffers,
-		"{{OpenRestySendTimeout}}", fmt.Sprintf("%d", cfg.SendTimeout),
-		"{{OpenRestyProxyConnectTimeout}}", fmt.Sprintf("%d", cfg.ProxyConnectTimeout),
-		"{{OpenRestyProxySendTimeout}}", fmt.Sprintf("%d", cfg.ProxySendTimeout),
-		"{{OpenRestyProxyReadTimeout}}", fmt.Sprintf("%d", cfg.ProxyReadTimeout),
+		"{{OpenRestySendTimeout}}", strconv.Itoa(cfg.SendTimeout),
+		"{{OpenRestyProxyConnectTimeout}}", strconv.Itoa(cfg.ProxyConnectTimeout),
+		"{{OpenRestyProxySendTimeout}}", strconv.Itoa(cfg.ProxySendTimeout),
+		"{{OpenRestyProxyReadTimeout}}", strconv.Itoa(cfg.ProxyReadTimeout),
 		"{{OpenRestyProxyRequestBuffering}}", onOff(cfg.ProxyRequestBuffering),
 		"{{OpenRestyProxyBuffering}}", onOff(cfg.ProxyBufferingEnabled),
 		"{{OpenRestyProxyBuffers}}", cfg.ProxyBuffers,
 		"{{OpenRestyProxyBufferSize}}", cfg.ProxyBufferSize,
 		"{{OpenRestyProxyBusyBuffersSize}}", cfg.ProxyBusyBuffersSize,
 		"{{OpenRestyGzip}}", onOff(cfg.GzipEnabled),
-		"{{OpenRestyGzipMinLength}}", fmt.Sprintf("%d", cfg.GzipMinLength),
-		"{{OpenRestyGzipCompLevel}}", fmt.Sprintf("%d", cfg.GzipCompLevel),
+		"{{OpenRestyGzipMinLength}}", strconv.Itoa(cfg.GzipMinLength),
+		"{{OpenRestyGzipCompLevel}}", strconv.Itoa(cfg.GzipCompLevel),
 		"{{OpenRestyResolverDirective}}", renderTemplateDirective(cfg.Resolvers != "", fmt.Sprintf("resolver %s;", cfg.Resolvers)),
 		"{{OpenRestyCacheBlock}}", renderOpenRestyCacheTemplateBlock(cfg, limitReqRates),
 		"{{OpenRestyRouteConfigInclude}}", RouteConfigPlaceholder,
@@ -765,7 +766,7 @@ func renderDefaultServerBlock(statusCode int, http3Enabled bool) string {
 		"    }",
 		"",
 		"    server {",
-		fmt.Sprintf("        listen 443 ssl default_server;%s", h3Default),
+		"        listen 443 ssl default_server;" + h3Default,
 		"        server_name _;",
 		"",
 		"        ssl_reject_handshake on;",
@@ -946,7 +947,7 @@ func buildPathPrefixMatchPattern(rules []string) string {
 			parts = append(parts, "/")
 			continue
 		}
-		parts = append(parts, fmt.Sprintf("%s(?:/|$)", regexp.QuoteMeta(trimmed)))
+		parts = append(parts, regexp.QuoteMeta(trimmed)+"(?:/|$)")
 	}
 	return fmt.Sprintf("^(?:%s)", strings.Join(parts, "|"))
 }

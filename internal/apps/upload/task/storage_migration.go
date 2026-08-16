@@ -69,7 +69,7 @@ func (h *MigrationHandler) ValidatePayload(payload []byte) ([]byte, error) {
 		return payload, err
 	}
 	if active {
-		return payload, fmt.Errorf("storage migration task is already unresolved")
+		return payload, errors.New("storage migration task is already unresolved")
 	}
 	return normalized, nil
 }

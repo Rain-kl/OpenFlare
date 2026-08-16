@@ -6,6 +6,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"time"
@@ -32,7 +33,7 @@ func main() {
 
 func run() error {
 	if !db.ChConnReady() {
-		return fmt.Errorf("ChConn not ready — check config.yaml clickhouse.enabled")
+		return errors.New("ChConn not ready — check config.yaml clickhouse.enabled")
 	}
 	ctx := context.Background()
 	chwriter.Init(ctx)
@@ -76,7 +77,7 @@ func waitForSnapshot(ctx context.Context, nodeID string, now time.Time) error {
 		}
 		time.Sleep(pollInterval)
 	}
-	return fmt.Errorf("not flushed within timeout")
+	return errors.New("not flushed within timeout")
 }
 
 func assertLatestIncludes(ctx context.Context, nodeID string, now time.Time) error {

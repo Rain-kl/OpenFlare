@@ -137,7 +137,7 @@ func scanTarFamilyAt(
 	enforceLimits bool,
 ) (*measuredArchive, error) {
 	if size < 0 {
-		return nil, fmt.Errorf("invalid pages package size")
+		return nil, errors.New("invalid pages package size")
 	}
 	tarReader, closeReader, err := openTarFamilyReader(io.NewSectionReader(ra, 0, size), format)
 	if err != nil {
@@ -183,7 +183,7 @@ func scanTarReader(tarReader *tar.Reader, limits Limits, enforceLimits bool) (*m
 
 func buildMeasuredManifest(measured *measuredArchive, opts InspectOptions) (*Manifest, error) {
 	if measured == nil || measured.fileCount == 0 {
-		return nil, fmt.Errorf("pages package is empty")
+		return nil, errors.New("pages package is empty")
 	}
 	targetEntryPath, err := resolveTargetEntryPath(opts.RootDir, opts.EntryFile)
 	if err != nil {
@@ -231,7 +231,7 @@ func prepareMeasuredFile(measured *measuredArchive, normalizedPath string, decla
 	}
 	remaining := limits.MaxTotalBytes - measured.totalSize
 	if remaining < 0 || declaredSize > uint64(remaining) { //nolint:gosec // remaining is checked non-negative
-		return fmt.Errorf("pages extracted size exceeds limit")
+		return errors.New("pages extracted size exceeds limit")
 	}
 	return nil
 }

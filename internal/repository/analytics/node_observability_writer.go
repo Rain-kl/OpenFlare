@@ -5,6 +5,7 @@ package analytics
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -30,7 +31,7 @@ func BatchInsertNodeMetricSnapshots(ctx context.Context, snapshots []analyticsmo
 		return nil
 	}
 	if db.ChConn == nil {
-		return fmt.Errorf("clickhouse connection is not initialized")
+		return errors.New("clickhouse connection is not initialized")
 	}
 
 	batch, err := db.ChConn.PrepareBatch(ctx, analyticsmodel.NodeMetricSnapshot{}.BatchInsertSQL())
@@ -102,7 +103,7 @@ func BatchInsertNodeEdgeHealth(ctx context.Context, rows []analyticsmodel.NodeEd
 		return nil
 	}
 	if db.ChConn == nil {
-		return fmt.Errorf("clickhouse connection is not initialized")
+		return errors.New("clickhouse connection is not initialized")
 	}
 	batch, err := db.ChConn.PrepareBatch(ctx, analyticsmodel.NodeEdgeHealth{}.BatchInsertSQL())
 	if err != nil {
@@ -160,7 +161,7 @@ func BatchInsertNodeObsFrps(ctx context.Context, observations []analyticsmodel.N
 		return nil
 	}
 	if db.ChConn == nil {
-		return fmt.Errorf("clickhouse connection is not initialized")
+		return errors.New("clickhouse connection is not initialized")
 	}
 
 	batch, err := db.ChConn.PrepareBatch(ctx, analyticsmodel.NodeObsFrps{}.BatchInsertSQL())
@@ -223,7 +224,7 @@ func BatchInsertNodeObsFrpc(ctx context.Context, observations []analyticsmodel.N
 		return nil
 	}
 	if db.ChConn == nil {
-		return fmt.Errorf("clickhouse connection is not initialized")
+		return errors.New("clickhouse connection is not initialized")
 	}
 
 	batch, err := db.ChConn.PrepareBatch(ctx, analyticsmodel.NodeObsFrpc{}.BatchInsertSQL())

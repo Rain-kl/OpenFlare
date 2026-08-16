@@ -176,16 +176,16 @@ func validateUptimeKumaEnabled(ctx context.Context, key, trimmed string, state m
 	username := strings.TrimSpace(state[model.ConfigKeyUptimeKumaUsername])
 	password := strings.TrimSpace(state[model.ConfigKeyUptimeKumaPassword])
 	if url == "" {
-		return fmt.Errorf("启用 Uptime Kuma 时地址不能为空")
+		return errors.New("启用 Uptime Kuma 时地址不能为空")
 	}
 	if username == "" {
-		return fmt.Errorf("启用 Uptime Kuma 时用户名不能为空")
+		return errors.New("启用 Uptime Kuma 时用户名不能为空")
 	}
 	// 如果待验证的密码为空，且当前配置中也没有密码，则报错
 	if password == "" {
 		existingPwd, _ := repository.GetSystemConfigByKey(ctx, model.ConfigKeyUptimeKumaPassword)
 		if strings.TrimSpace(existingPwd.Value) == "" {
-			return fmt.Errorf("启用 Uptime Kuma 时密码不能为空")
+			return errors.New("启用 Uptime Kuma 时密码不能为空")
 		}
 	}
 	return nil
@@ -193,21 +193,21 @@ func validateUptimeKumaEnabled(ctx context.Context, key, trimmed string, state m
 
 func validateUptimeKumaUsername(trimmed string, state map[string]string) error {
 	if trimmed == "" && state[model.ConfigKeyUptimeKumaEnabled] == optionValueTrue {
-		return fmt.Errorf("启用 Uptime Kuma 时用户名不能为空")
+		return errors.New("启用 Uptime Kuma 时用户名不能为空")
 	}
 	return nil
 }
 
 func validateUptimeKumaURL(trimmed string) error {
 	if trimmed != "" && !strings.HasPrefix(trimmed, "http://") && !strings.HasPrefix(trimmed, "https://") {
-		return fmt.Errorf("uptime Kuma 地址必须以 http:// 或 https:// 开头")
+		return errors.New("uptime Kuma 地址必须以 http:// 或 https:// 开头")
 	}
 	return nil
 }
 
 func validateUptimeKumaMonitorScope(trimmed string) error {
 	if trimmed != "all" && trimmed != "selected" {
-		return fmt.Errorf("监控范围必须为全部站点 (all) 或选择站点 (selected)")
+		return errors.New("监控范围必须为全部站点 (all) 或选择站点 (selected)")
 	}
 	return nil
 }

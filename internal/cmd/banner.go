@@ -34,18 +34,18 @@ func formatStartupBanner(state startupState) string {
 		"/ /_/ / /_/ /  __/ / / / __/ / / /_/ / /  /  __/",
 		"\\____/ .___/\\___/_/ /_/_/   /_/\\__,_/_/   \\___/ ",
 		"      /_/                                         ",
-		fmt.Sprintf(" OpenFlare %s", buildinfo.Version),
+		" OpenFlare " + buildinfo.Version,
 		"",
-		fmt.Sprintf(" Environment: %s", config.Config.App.Env),
+		" Environment: " + config.Config.App.Env,
 		fmt.Sprintf(" Runtime:     %s/%s (%s)", runtime.GOOS, runtime.GOARCH, runtime.Version()),
-		fmt.Sprintf(" Build time:  %s", buildTime()),
-		fmt.Sprintf(" Database:    %s", formatMigration(state.relationalDB)),
-		fmt.Sprintf(" Analytics:   %s", formatMigration(state.clickHouseDB)),
+		" Build time:  " + buildTime(),
+		" Database:    " + formatMigration(state.relationalDB),
+		" Analytics:   " + formatMigration(state.clickHouseDB),
 	}
 	if state.listensForHTTP {
-		lines = append(lines, fmt.Sprintf(" Listening:   http://%s", config.Config.App.Addr))
+		lines = append(lines, " Listening:   http://"+config.Config.App.Addr)
 	}
-	lines = append(lines, fmt.Sprintf(" Mode:        %s", state.mode), "")
+	lines = append(lines, " Mode:        "+state.mode, "")
 	return strings.Join(lines, "\n")
 }
 

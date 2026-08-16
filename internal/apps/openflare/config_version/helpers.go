@@ -6,6 +6,7 @@ package config_version
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"strconv"
@@ -27,7 +28,7 @@ func normalizeSnapshotDomains(domains []string) ([]string, error) {
 	for _, raw := range domains {
 		domain := strings.ToLower(strings.TrimSpace(raw))
 		if domain == "" || strings.Contains(domain, "://") || strings.Contains(domain, "/") {
-			return nil, fmt.Errorf("domains payload is invalid")
+			return nil, errors.New("domains payload is invalid")
 		}
 		if _, ok := seen[domain]; ok {
 			continue
@@ -36,7 +37,7 @@ func normalizeSnapshotDomains(domains []string) ([]string, error) {
 		normalized = append(normalized, domain)
 	}
 	if len(normalized) == 0 {
-		return nil, fmt.Errorf("domain is required")
+		return nil, errors.New("domain is required")
 	}
 	return normalized, nil
 }
@@ -55,7 +56,7 @@ func decodeStoredUpstreams(raw string, fallbackOriginURL string) ([]string, erro
 	}
 	var upstreams []string
 	if err := json.Unmarshal([]byte(text), &upstreams); err != nil {
-		return nil, fmt.Errorf("upstreams payload is invalid")
+		return nil, errors.New("upstreams payload is invalid")
 	}
 	return normalizeUpstreams(fallbackOriginURL, upstreams)
 }
@@ -79,7 +80,7 @@ func normalizeUpstreams(originURL string, upstreams []string) ([]string, error) 
 		normalized = append(normalized, value)
 	}
 	if len(normalized) == 0 {
-		return nil, fmt.Errorf("upstream is required")
+		return nil, errors.New("upstream is required")
 	}
 	return normalized, nil
 }
@@ -91,7 +92,7 @@ func decodeStoredCustomHeaders(raw string) ([]customHeaderInput, error) {
 	}
 	var headers []customHeaderInput
 	if err := json.Unmarshal([]byte(text), &headers); err != nil {
-		return nil, fmt.Errorf("custom_headers payload is invalid")
+		return nil, errors.New("custom_headers payload is invalid")
 	}
 	return headers, nil
 }
@@ -103,7 +104,7 @@ func decodeStoredCacheRules(raw string) ([]string, error) {
 	}
 	var rules []string
 	if err := json.Unmarshal([]byte(text), &rules); err != nil {
-		return nil, fmt.Errorf("cache_rules payload is invalid")
+		return nil, errors.New("cache_rules payload is invalid")
 	}
 	normalized := make([]string, 0, len(rules))
 	for _, rule := range rules {

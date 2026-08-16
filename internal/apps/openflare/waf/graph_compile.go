@@ -4,6 +4,7 @@
 package waf
 
 import (
+	"errors"
 	"fmt"
 	"slices"
 	"sort"
@@ -35,14 +36,14 @@ func CompileRuleGraph(graph RuleGraph) (RuntimeRuleGraph, error) {
 		}
 		if node.Type == RuleNodeStart {
 			if runtime.Entry != "" {
-				return RuntimeRuleGraph{}, fmt.Errorf("规则图包含多个开始节点")
+				return RuntimeRuleGraph{}, errors.New("规则图包含多个开始节点")
 			}
 			runtime.Entry = node.ID
 		}
 		runtime.Nodes[node.ID] = RuntimeRuleNode{Type: node.Type, Config: config}
 	}
 	if runtime.Entry == "" {
-		return RuntimeRuleGraph{}, fmt.Errorf("规则图缺少开始节点")
+		return RuntimeRuleGraph{}, errors.New("规则图缺少开始节点")
 	}
 	for _, edge := range graph.Edges {
 		node, ok := runtime.Nodes[edge.Source]
