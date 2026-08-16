@@ -1,0 +1,477 @@
+{
+  "common": {
+    "save": "保存",
+    "cancel": "取消",
+    "confirm": "确认",
+    "delete": "删除",
+    "loading": "加载中...",
+    "retry": "重试",
+    "optional": "（可选）",
+    "settings": "设置",
+    "search": "搜索",
+    "unknownError": "发生错误，请重试",
+    "loadFailed": "加载失败"
+  },
+  "contexts": {
+    "adminUsers": {
+      "userStatusChanged": "已{action}用户 {username}",
+      "enabled": "启用",
+      "disabled": "禁用",
+      "updateStatusFailed": "更新状态失败",
+      "userCreated": "已成功创建用户 {username}",
+      "createUserFailed": "创建用户失败",
+      "userDeleted": "已删除用户 {username}",
+      "deleteUserFailed": "删除用户失败",
+      "updateUserSuccess": "更新用户信息成功",
+      "updateUserFailed": "更新用户信息失败"
+    },
+    "admin": {
+      "loadConfigFailed": "加载系统配置失败",
+      "updateConfigFailed": "更新系统配置失败"
+    },
+    "user": {
+      "getUserInfoFailed": "获取用户信息失败",
+      "logoutFailed": "登出失败"
+    }
+  },
+  "docs": {
+    "backToHome": "返回首页",
+    "sectionCount": "共 {count} 个章节",
+    "lastUpdated": "最后更新",
+    "copied": "已复制",
+    "copyMarkdown": "复制 Markdown",
+    "toc": "目录",
+    "haveQuestions": "还有疑问？",
+    "contactSupport": "联系客服支持",
+    "api": {
+      "title": "接口文档",
+      "description": "Wavelet Platform 后端 API 完整参考，涵盖认证、用户、令牌与配置管理。",
+      "field": "字段",
+      "type": "类型",
+      "descriptionLabel": "说明",
+      "endpoint": "端点",
+      "desc": "描述",
+      "param": "参数",
+      "required": "必需",
+      "yes": "是",
+      "no": "否",
+      "username": "用户名",
+      "password": "密码",
+      "optional": "可选",
+      "default": "默认",
+      "section1": {
+        "title": "通用约定",
+        "desc": "所有 API 响应遵循统一信封格式。",
+        "responseFormat": "响应格式",
+        "responseFormatDesc": "所有接口均返回以下 JSON 结构：",
+        "errorMsgDesc": "成功时为空字符串，失败时为可读错误信息",
+        "dataDesc": "业务数据，结构因接口而异",
+        "successExample": "成功响应示例",
+        "failExample": "失败响应示例",
+        "failExampleErrorMsg": "错误信息",
+        "authentication": "认证方式",
+        "authenticationDesc": "系统支持两种认证方式，所有受保护的接口均需携带其一：",
+        "sessionCredential": "Session 凭证",
+        "sessionCredentialDesc": "登录后由服务端 Set-Cookie 返回，浏览器自动携带。",
+        "accessTokenCredential": "AccessToken 凭证",
+        "accessTokenCredentialDesc": "通过 Header 传递，适用于 API 调用与第三方集成：",
+        "supportedHeaders": "支持的 Header"
+      },
+      "section2": {
+        "title": "认证接口",
+        "register": "注册",
+        "registerDesc": "创建新用户账号并自动登录。",
+        "usernameDesc": "用户名，唯一，至少 3 位",
+        "passwordDesc": "密码，至少 8 位",
+        "nicknameDesc": "昵称（可选）",
+        "passwordLogin": "密码登录",
+        "passwordLoginDesc": "使用邮箱/用户名 + 密码登录，成功后 Set-Cookie。",
+        "logout": "登出",
+        "logoutDesc": "销毁当前会话。",
+        "getProfile": "获取当前用户信息",
+        "getProfileDesc": "返回当前已登录用户的完整档案。"
+      },
+      "section3": {
+        "title": "访问令牌管理",
+        "desc": "管理个人 API 访问令牌（AccessToken），用于无浏览器场景的 API 调用。",
+        "listTokens": "列出令牌",
+        "listTokensDesc": "获取当前用户的所有活跃访问令牌。",
+        "createToken": "创建令牌",
+        "tokenName": "令牌名称",
+        "createTokenDesc": "创建新的访问令牌，返回一次性密钥。",
+        "isAdminDesc": "是否授予管理员权限（默认 false）",
+        "endpoint": "端点",
+        "successResponseExample": "成功响应示例",
+        "deleteToken": "删除令牌",
+        "deleteTokenDesc": "撤销指定的访问令牌。",
+        "rotateToken": "轮换令牌",
+        "rotateTokenDesc": "为指定令牌生成新密钥，旧密钥立即失效。"
+      },
+      "section4": {
+        "title": "系统配置管理",
+        "publicConfig": "获取公开配置",
+        "publicConfigDesc": "返回所有标记为公开的系统配置项，无需认证。",
+        "responseExample": "响应示例",
+        "adminConfigs": "管理员配置接口",
+        "adminConfigsDesc": "以下接口需要管理员权限。",
+        "getConfigList": "获取配置列表",
+        "createConfig": "创建配置",
+        "updateConfig": "更新配置",
+        "deleteConfig": "删除配置"
+      }
+    },
+    "howToUse": {
+      "title": "使用文档",
+      "description": "Wavelet Platform 快速上手指南，涵盖认证、令牌、配置、任务与可观测性。",
+      "section1": {
+        "title": "系统架构概览",
+        "desc": "Wavelet Platform 采用 Go + Next.js 前后端分离架构。",
+        "architecture": "技术栈",
+        "architectureDesc": "Go 1.25+ / Gin / GORM / PostgreSQL / Redis / Asynq",
+        "authSystem": "认证系统",
+        "authSystemDesc": "支持密码登录 + OIDC 第三方认证",
+        "accessToken": "访问令牌",
+        "accessTokenDesc": "用于 API 调用的 Personal Access Token",
+        "observability": "可观测性",
+        "observabilityDesc": "OpenTelemetry + 结构化日志"
+      },
+      "section2": {
+        "title": "认证与注册",
+        "desc": "系统支持多种认证方式，可通过管理后台灵活配置。",
+        "passwordAuth": "密码认证",
+        "selfRegister": "自主注册",
+        "selfRegisterDesc": "用户可通过注册页面创建账号。",
+        "bcryptDesc": "密码使用 bcrypt 加密存储。",
+        "switchControl": "开关控制",
+        "switchControlDesc": "管理员可在后台独立控制：",
+        "oidc": "OIDC 第三方登录",
+        "oidcDesc": "支持配置任意 OIDC 兼容的认证源（如 Google、GitHub、企业 SSO）。",
+        "oidcStep1": "在「系统设置 → 安全设置」中新增认证源",
+        "oidcStep2": "填写 Discovery URL、Client ID、Client Secret",
+        "oidcStep3": "启用后，登录页将自动显示对应入口"
+      },
+      "section3": {
+        "title": "访问令牌 (AccessToken)",
+        "desc": "用于无浏览器场景的 API 调用。",
+        "generation": "生成与管理",
+        "oneTimeDisplay": "一次性显示",
+        "oneTimeDisplayDesc": "创建令牌后，密钥仅显示一次。",
+        "oneTimeDisplayHint": "请务必在创建后立即复制保存。",
+        "secureHash": "安全存储",
+        "secureHashDesc": "系统仅存储令牌的 SHA-256 哈希，原始密钥不可恢复。",
+        "headerUsage": "使用方式",
+        "headerUsageDesc": "在请求 Header 中携带令牌：",
+        "bearerHeader": "Bearer Token 方式",
+        "customHeader": "自定义 Header 方式"
+      },
+      "section4": {
+        "title": "系统配置",
+        "desc": "通过管理后台或 API 动态管理系统配置。",
+        "cacheAccel": "缓存加速",
+        "cacheAccelDesc": "公开配置项支持多级缓存（内存 → Redis → 数据库），高频读取场景下性能优异。",
+        "coreConfigs": "核心配置项",
+        "siteName": "站点名称",
+        "passwordLoginEnabled": "密码登录开关",
+        "registrationEnabled": "注册开关",
+        "maxApiKeys": "最大 API Key 数量"
+      },
+      "section5": {
+        "title": "异步任务",
+        "desc": "基于 Asynq 的分布式任务队列系统。",
+        "scheduler": "定时任务 (Scheduler)",
+        "schedulerDesc": "支持 Cron 表达式配置定时任务。",
+        "worker": "Worker",
+        "workerDesc": "后台 Worker 进程负责消费和执行任务。"
+      },
+      "section6": {
+        "title": "可观测性",
+        "desc": "内置 OpenTelemetry 支持。",
+        "tracing": "链路追踪",
+        "tracingDesc": "支持将 Trace 数据导出到 Jaeger、Zipkin 等后端。",
+        "structuredLog": "结构化日志",
+        "structuredLogDesc": "基于 Zap 的高性能结构化日志，支持按级别输出。"
+      }
+    },
+    "terms": {
+      "title": "服务协议",
+      "description": "使用 Wavelet Platform 前，请仔细阅读以下服务条款。",
+      "section1": {
+        "title": "总则",
+        "subject": "协议主体",
+        "subjectDesc": "本协议是您与 Wavelet Platform 运营方之间关于使用平台服务所订立的协议。",
+        "readCarefully": "请仔细阅读",
+        "readCarefullyDesc": "请您在使用服务前仔细阅读本协议全部内容。如您不同意本协议的任何条款，请勿使用本平台服务。",
+        "composition": "协议构成",
+        "compositionDesc": "本协议正文包括协议正文、平台已经发布或将来可能发布的各类规则。所有规则为本协议不可分割的组成部分，与协议正文具有同等法律效力。"
+      },
+      "section2": {
+        "title": "服务内容",
+        "liability": "责任范围",
+        "liabilityDesc": "本平台仅提供技术基础设施和开发工具服务。用户应自行承担使用平台过程中产生的所有责任。"
+      },
+      "section3": {
+        "title": "用户账号",
+        "accountSystem": "账号体系",
+        "accountSystemDesc": "用户在本平台注册并获得账号后，应妥善保管其账号和密码。用户应对其账号项下的所有行为负责。",
+        "securityResponsibility": "安全责任",
+        "passwordSecurity": "密码安全",
+        "passwordSecurityDesc": "用户应使用安全强度足够的密码，并定期更换。因用户密码保管不当导致的损失，由用户自行承担。",
+        "tokenSecurity": "令牌安全",
+        "tokenSecurityDesc": "访问令牌（AccessToken）等同于账号凭证，用户应妥善保管。",
+        "tokenLeakLiability": "因令牌泄露导致的任何损失，由用户自行承担。"
+      },
+      "section4": {
+        "title": "使用规范",
+        "desc": "用户在使用本平台服务时，必须遵守以下规范：",
+        "redLine": "禁止行为红线",
+        "nationalSecurity": "危害国家安全",
+        "nationalSecurityDesc": "不得利用平台服务制作、复制、发布含有危害国家安全的信息。",
+        "illegalInfo": "违法信息",
+        "illegalInfoDesc": "不得制作、复制、发布违反国家法律法规的信息。",
+        "harmfulContent": "有害内容",
+        "harmfulContentDesc": "不得发布含有骚扰、侮辱、恐吓或其他有害内容的信息。",
+        "ipInfringement": "知识产权侵权",
+        "ipInfringementDesc": "不得侵犯他人知识产权、商业秘密等合法权益。",
+        "otherIllegal": "其他违法行为",
+        "otherIllegalDesc": "不得利用平台服务从事其他违反法律法规的行为。",
+        "enforcement": "违规处理",
+        "enforcementDesc": "如用户违反上述规范，平台有权采取以下措施：",
+        "enforcementAction": "警告、暂停或终止服务"
+      },
+      "section5": {
+        "title": "免责声明",
+        "basicDisclaimer": "基本免责",
+        "basicDisclaimerDesc": "平台将尽最大努力确保服务的安全性和稳定性，但不对以下情形承担责任：",
+        "techInterruption": "技术中断",
+        "techInterruptionDesc": "因以下原因导致的服务中断或数据丢失：",
+        "naturalDisaster": "自然灾害等不可抗力",
+        "govAction": "政府行为或法律法规变更",
+        "telecomFailure": "电信运营商故障",
+        "hacking": "黑客攻击或计算机病毒"
+      },
+      "section6": {
+        "title": "法律适用与争议解决",
+        "applicableLaw": "适用法律",
+        "applicableLawDesc": "本协议的签订、履行和解释均适用：",
+        "lawName": "中华人民共和国法律",
+        "lawScope": "不含冲突法规则",
+        "disputeResolution": "争议解决",
+        "disputeResolutionDesc": "因本协议引起的或与本协议有关的任何争议，双方应友好协商解决。协商不成的，任何一方均有权向有管辖权的人民法院提起诉讼。"
+      }
+    },
+    "privacy": {
+      "title": "隐私政策",
+      "description": "Wavelet Platform 重视用户隐私保护。本政策说明我们如何收集、使用和保护您的个人信息。",
+      "descriptionRights": "请在使用我们的服务前仔细阅读本政策。",
+      "section1": {
+        "title": "信息收集",
+        "desc": "我们收集以下类型的信息：",
+        "authInfo": "认证信息",
+        "authInfoDesc": "包括用户名、邮箱地址、加密后的密码哈希。",
+        "authInfoNote": "我们不会存储您的明文密码。",
+        "logInfo": "访问日志",
+        "logInfoDesc": "包括 IP 地址、浏览器类型、访问时间、请求路径。"
+      },
+      "section2": {
+        "title": "信息使用",
+        "desc": "我们收集的信息用于以下目的：",
+        "storageSecurity": "存储安全",
+        "storageSecurityDesc": "所有用户数据均加密存储于安全的服务器环境中。",
+        "encryption": "加密措施",
+        "encryptionDesc": "密码使用 bcrypt 单向哈希加密，令牌使用 SHA-256 哈希存储。",
+        "accessControl": "访问控制",
+        "accessControlDesc": "严格的权限管理机制确保只有授权人员才能访问用户数据。"
+      },
+      "section3": {
+        "title": "信息使用目的",
+        "desc": "我们收集的信息将用于以下目的：",
+        "identity": "身份验证",
+        "identityDesc": "验证用户身份，确保账号安全。",
+        "business": "业务运营",
+        "businessDesc": "提供、维护和改进我们的服务。",
+        "riskControl": "风险控制",
+        "riskControlDesc": "检测、预防和处理安全风险及欺诈行为。",
+        "prohibited": "禁止用途",
+        "prohibitedDesc": "我们承诺不会将用户信息用于以下用途：出售给第三方、发送未经许可的商业推广。"
+      },
+      "section4": {
+        "title": "信息共享与披露",
+        "sharingPrinciple": "共享原则",
+        "sharingPrincipleDesc": "未经用户同意，我们不会向第三方共享用户个人信息，但以下情况除外：",
+        "sharingException1": "法律法规要求、政府机关依法定程序调取",
+        "sharingException2": "为保护平台或公众的合法权益所必需",
+        "transfer": "信息转让",
+        "transferDesc": "如平台发生合并、收购等情形，我们会要求新的持有者继续受本政策约束。"
+      },
+      "section5": {
+        "title": "用户权利",
+        "desc": "用户对其个人信息享有以下权利：",
+        "viewManage": "查看与管理",
+        "viewManageDesc": "用户可随时在个人设置中查看和修改其个人信息。",
+        "deleteAccount": "账号删除",
+        "deleteAccountDesc": "用户可申请删除其账号及关联的所有个人数据。"
+      },
+      "section6": {
+        "title": "政策更新",
+        "desc": "我们可能会不时更新本隐私政策。政策更新后，我们会在平台上发布通知。",
+        "notification": "重大变更将通过站内通知或邮件方式告知用户。"
+      }
+    }
+  },
+  "files": {
+    "uploadSuccess": "文件上传成功",
+    "uploadFailed": "上传失败",
+    "deleteSuccess": "文件已成功删除",
+    "deleteFailed": "删除失败",
+    "searchPlaceholder": "搜索文件名...",
+    "private": "私有",
+    "public": "公开",
+    "uploading": "正在上传...",
+    "uploadFile": "上传文件",
+    "noFiles": "还没有上传文件",
+    "noMatchingFiles": "未搜索到匹配的文件",
+    "uploadFirstFile": "上传您的第一个文件，支持图片、视频、文档和压缩包等格式。",
+    "selectFileUpload": "选择文件上传",
+    "downloadFile": "下载文件",
+    "deleteFile": "删除文件",
+    "prevPage": "上一页",
+    "nextPage": "下一页",
+    "confirmDeleteFile": "确认删除文件",
+    "confirmDeleteFileDesc": "确定要删除文件「{name}」吗？删除后此文件将无法恢复。",
+    "cancel": "取消",
+    "confirmDelete": "确认删除",
+    "myFiles": "我的文件"
+  },
+  "general": {
+    "manage": {
+      "saveSuccess": "保存成功",
+      "saveFailed": "保存失败",
+      "unknownError": "未知错误",
+      "deleteSuccess": "删除成功",
+      "deleteFailed": "删除失败",
+      "loading": "加载中",
+      "noData": "暂无数据",
+      "configList": "配置列表",
+      "confirmDelete": "确认删除?",
+      "confirmDeleteDesc": "此操作无法撤销。这将永久删除该配置。",
+      "cancel": "取消",
+      "confirmDeleteAction": "确认删除",
+      "configInfo": "配置信息",
+      "selectConfigToView": "请选择配置查看详情",
+      "updating": "更新中",
+      "update": "更新",
+      "actions": "操作"
+    },
+    "passwordDialog": {
+      "enterPassword": "请输入密码",
+      "enterPasswordDesc": "为了您的账户安全，请输入6位认证密码进行验证",
+      "cancel": "取消",
+      "verifying": "验证中...",
+      "confirm": "确认"
+    }
+  },
+  "home": {
+    "banner": {
+      "description": "这是一个通用的二次开发基础平台，内置用户管理、认证鉴权、文件存储、任务调度、通知推送和可观测性等常用功能模块，帮助开发者快速启动新项目。",
+      "getStarted": "快速开始",
+      "hideHint": "收起提示"
+    },
+    "navigation": {
+      "title": "导航"
+    },
+    "quickLinks": {
+      "profile": {
+        "title": "个人资料",
+        "description": "查看和编辑您的账户信息"
+      },
+      "apiDocs": {
+        "title": "接口文档",
+        "description": "API 接口完整参考"
+      },
+      "userDocs": {
+        "title": "使用文档",
+        "description": "快速上手指南"
+      }
+    },
+    "adminLinks": {
+      "settings": {
+        "title": "系统设置",
+        "description": "配置系统安全、业务与外观参数"
+      },
+      "systemConfig": {
+        "title": "系统配置",
+        "description": "管理 Key-Value 系统配置项"
+      },
+      "userManagement": {
+        "title": "用户管理",
+        "description": "查看和管理所有注册用户"
+      },
+      "tasks": {
+        "title": "任务管理",
+        "description": "异步任务队列与定时任务调度"
+      },
+      "logs": {
+        "title": "系统日志",
+        "description": "用户访问日志与应用运行日志"
+      }
+    },
+    "jumpNow": "立即跳转",
+    "enterNow": "立即进入",
+    "adminConsole": "管理后台",
+    "developerSection": {
+      "heading": "开发者友好",
+      "description": "内置完整的 RESTful API 文档、Swagger UI 与 TypeScript SDK 示例，帮助您快速集成。",
+      "features": {
+        "restful": "完整 RESTful API",
+        "swagger": "在线 Swagger 文档",
+        "typescript": "TypeScript SDK 示例",
+        "examples": "丰富的使用示例"
+      },
+      "apiDocs": "查看接口文档",
+      "codeComment": "// 快速开始 — API 调用示例",
+      "codeQuickStart": "快速开始"
+    },
+    "hero": {
+      "subtitle": "内置用户认证、文件存储、任务调度",
+      "subtitleLine2": "通知推送与可观测性，帮助您快速启动下一个项目。",
+      "getStarted": "快速开始",
+      "learnMore": "了解更多",
+      "features": {
+        "readyToUse": "开箱即用",
+        "highlyExtensible": "高度可扩展",
+        "industrialGrade": "工业级品质"
+      }
+    },
+    "footer": {
+      "description": "通用二次开发标准范式平台",
+      "product": "产品",
+      "dashboard": "控制台",
+      "personalSettings": "个人设置",
+      "development": "开发",
+      "quickStart": "快速开始",
+      "apiDocs": "接口文档",
+      "sourceCode": "源代码",
+      "community": "社区",
+      "discussions": "Discussions",
+      "privacyPolicy": "隐私政策",
+      "termsOfService": "服务条款"
+    }
+  },
+  "metadata": {
+    "title": "OpenFlare",
+    "description": "OpenFlare 边缘节点与反向代理管理平台"
+  },
+  "notFound": {
+    "description": "抱歉，您访问的页面似已迷失在数字星云中。请检查路径或返回安全地带。",
+    "previousPage": "上一页",
+    "home": "首页"
+  },
+  "providers": {
+    "titleUpdater": {
+      "login": "登录",
+      "register": "注册",
+      "admin": "后台管理",
+      "dashboard": "控制台"
+    }
+  }
+}

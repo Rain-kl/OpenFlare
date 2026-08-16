@@ -45,7 +45,7 @@ code-check:
 		exit 1; \
 	fi
 	golangci-lint run
-	cd frontend && pnpm tsc --noEmit --jsx preserve && npx eslint . --max-warnings 0
+	cd frontend && node scripts/merge-i18n-fragments.mjs && pnpm tsc --noEmit --jsx preserve && npx eslint . --max-warnings 0
 
 build-backend:
 	@echo "==> Building backend version=$(VERSION) build_date=$(BUILD_DATE)..."

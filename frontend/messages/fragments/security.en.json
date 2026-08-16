@@ -181,7 +181,6 @@
     "deleting": "Deleting...",
     "confirmDelete": "Delete",
     "operationFailed": "Operation failed",
-    "autoConfigMustBeObject": "Automatic configuration must be a JSON object.",
     "types": {
       "manual": "Manual",
       "automatic": "Automatic",
@@ -274,7 +273,8 @@
       "deleteDesc": "Remove {ip} from IP group “{name}”?",
       "deleting": "Deleting...",
       "confirmDelete": "Delete"
-    }
+    },
+    "autoConfigMustBeObject": "Automatic configuration must be a JSON object."
   },
   "rateLimits": {
     "title": "Rate limits",

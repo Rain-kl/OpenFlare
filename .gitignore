@@ -83,3 +83,7 @@ profile.cov
 /.superpowers/
 /.worktrees/
 /.pi-subagents/
+
+# i18n 生成物（由 scripts/merge-i18n-fragments.mjs 从 fragments 生成）
+frontend/messages/zh-CN.json
+frontend/messages/en.json

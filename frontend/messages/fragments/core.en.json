@@ -1,0 +1,477 @@
+{
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "delete": "Delete",
+    "loading": "Loading...",
+    "retry": "Retry",
+    "optional": "(optional)",
+    "settings": "Settings",
+    "search": "Search",
+    "unknownError": "Something went wrong. Please try again.",
+    "loadFailed": "Load failed"
+  },
+  "contexts": {
+    "adminUsers": {
+      "userStatusChanged": "User {username} has been {action}",
+      "enabled": "enabled",
+      "disabled": "disabled",
+      "updateStatusFailed": "Failed to update status",
+      "userCreated": "User {username} created successfully",
+      "createUserFailed": "Failed to create user",
+      "userDeleted": "User {username} deleted",
+      "deleteUserFailed": "Failed to delete user",
+      "updateUserSuccess": "User information updated",
+      "updateUserFailed": "Failed to update user information"
+    },
+    "admin": {
+      "loadConfigFailed": "Failed to load system configuration",
+      "updateConfigFailed": "Failed to update system configuration"
+    },
+    "user": {
+      "getUserInfoFailed": "Failed to get user information",
+      "logoutFailed": "Logout failed"
+    }
+  },
+  "docs": {
+    "backToHome": "Back to home",
+    "sectionCount": "{count} sections",
+    "lastUpdated": "Last updated",
+    "copied": "Copied",
+    "copyMarkdown": "Copy Markdown",
+    "toc": "Table of contents",
+    "haveQuestions": "Have questions?",
+    "contactSupport": "Contact support",
+    "api": {
+      "title": "API documentation",
+      "description": "Complete reference for the Wavelet Platform backend API, covering authentication, users, tokens, and configuration management.",
+      "field": "Field",
+      "type": "Type",
+      "descriptionLabel": "Description",
+      "endpoint": "Endpoint",
+      "desc": "Description",
+      "param": "Parameter",
+      "required": "Required",
+      "yes": "Yes",
+      "no": "No",
+      "username": "Username",
+      "password": "Password",
+      "optional": "Optional",
+      "default": "Default",
+      "section1": {
+        "title": "General conventions",
+        "desc": "All API responses follow a unified envelope format.",
+        "responseFormat": "Response format",
+        "responseFormatDesc": "All endpoints return the following JSON structure:",
+        "errorMsgDesc": "Empty string on success, human-readable error message on failure",
+        "dataDesc": "Business data; structure varies by endpoint",
+        "successExample": "Success response example",
+        "failExample": "Failure response example",
+        "failExampleErrorMsg": "Error message",
+        "authentication": "Authentication",
+        "authenticationDesc": "The system supports two authentication methods. All protected endpoints require one of them:",
+        "sessionCredential": "Session credential",
+        "sessionCredentialDesc": "Returned via Set-Cookie after login. Browsers carry it automatically.",
+        "accessTokenCredential": "AccessToken credential",
+        "accessTokenCredentialDesc": "Passed via Header. Suitable for API calls and third-party integrations:",
+        "supportedHeaders": "Supported headers"
+      },
+      "section2": {
+        "title": "Authentication endpoints",
+        "register": "Register",
+        "registerDesc": "Create a new user account and log in automatically.",
+        "usernameDesc": "Username, unique, at least 3 characters",
+        "passwordDesc": "Password, at least 8 characters",
+        "nicknameDesc": "Nickname (optional)",
+        "passwordLogin": "Password login",
+        "passwordLoginDesc": "Log in with email/username + password. Sets cookie on success.",
+        "logout": "Logout",
+        "logoutDesc": "Destroy the current session.",
+        "getProfile": "Get current user info",
+        "getProfileDesc": "Returns the complete profile of the currently logged-in user."
+      },
+      "section3": {
+        "title": "Access token management",
+        "desc": "Manage personal API access tokens (AccessToken) for non-browser API usage.",
+        "listTokens": "List tokens",
+        "listTokensDesc": "Get all active access tokens for the current user.",
+        "createToken": "Create token",
+        "tokenName": "Token name",
+        "createTokenDesc": "Create a new access token. Returns the secret once.",
+        "isAdminDesc": "Whether to grant admin permissions (default false)",
+        "endpoint": "Endpoint",
+        "successResponseExample": "Success response example",
+        "deleteToken": "Delete token",
+        "deleteTokenDesc": "Revoke the specified access token.",
+        "rotateToken": "Rotate token",
+        "rotateTokenDesc": "Generate a new secret for the specified token. The old secret is immediately invalidated."
+      },
+      "section4": {
+        "title": "System configuration management",
+        "publicConfig": "Get public configuration",
+        "publicConfigDesc": "Returns all system configuration items marked as public. No authentication required.",
+        "responseExample": "Response example",
+        "adminConfigs": "Admin configuration endpoints",
+        "adminConfigsDesc": "The following endpoints require admin permissions.",
+        "getConfigList": "Get configuration list",
+        "createConfig": "Create configuration",
+        "updateConfig": "Update configuration",
+        "deleteConfig": "Delete configuration"
+      }
+    },
+    "howToUse": {
+      "title": "User guide",
+      "description": "Quick start guide for Wavelet Platform, covering authentication, tokens, configuration, tasks, and observability.",
+      "section1": {
+        "title": "System architecture overview",
+        "desc": "Wavelet Platform uses a Go + Next.js frontend-backend separated architecture.",
+        "architecture": "Tech stack",
+        "architectureDesc": "Go 1.25+ / Gin / GORM / PostgreSQL / Redis / Asynq",
+        "authSystem": "Authentication system",
+        "authSystemDesc": "Supports password login + OIDC third-party authentication",
+        "accessToken": "Access tokens",
+        "accessTokenDesc": "Personal Access Tokens for API calls",
+        "observability": "Observability",
+        "observabilityDesc": "OpenTelemetry + structured logging"
+      },
+      "section2": {
+        "title": "Authentication & registration",
+        "desc": "The system supports multiple authentication methods, configurable via the admin panel.",
+        "passwordAuth": "Password authentication",
+        "selfRegister": "Self-registration",
+        "selfRegisterDesc": "Users can create accounts via the registration page.",
+        "bcryptDesc": "Passwords are stored with bcrypt encryption.",
+        "switchControl": "Toggle controls",
+        "switchControlDesc": "Admins can independently control:",
+        "oidc": "OIDC third-party login",
+        "oidcDesc": "Supports configuring any OIDC-compatible authentication source (e.g. Google, GitHub, enterprise SSO).",
+        "oidcStep1": "Add an authentication source in “System settings → Security”",
+        "oidcStep2": "Enter Discovery URL, Client ID, Client Secret",
+        "oidcStep3": "Once enabled, the login page will show the corresponding button"
+      },
+      "section3": {
+        "title": "Access tokens (AccessToken)",
+        "desc": "Used for non-browser API calls.",
+        "generation": "Generation & management",
+        "oneTimeDisplay": "One-time display",
+        "oneTimeDisplayDesc": "The secret is only shown once when the token is created.",
+        "oneTimeDisplayHint": "Copy and save it immediately after creation.",
+        "secureHash": "Secure storage",
+        "secureHashDesc": "The system only stores a SHA-256 hash of the token. The original secret cannot be recovered.",
+        "headerUsage": "Usage",
+        "headerUsageDesc": "Include the token in the request header:",
+        "bearerHeader": "Bearer Token method",
+        "customHeader": "Custom header method"
+      },
+      "section4": {
+        "title": "System configuration",
+        "desc": "Manage system configuration dynamically via the admin panel or API.",
+        "cacheAccel": "Cache acceleration",
+        "cacheAccelDesc": "Public configuration items support multi-level caching (memory → Redis → database), performing well in high-frequency read scenarios.",
+        "coreConfigs": "Core configuration items",
+        "siteName": "Site name",
+        "passwordLoginEnabled": "Password login toggle",
+        "registrationEnabled": "Registration toggle",
+        "maxApiKeys": "Max API keys"
+      },
+      "section5": {
+        "title": "Async tasks",
+        "desc": "Distributed task queue system based on Asynq.",
+        "scheduler": "Scheduler",
+        "schedulerDesc": "Supports Cron expression configuration for scheduled tasks.",
+        "worker": "Worker",
+        "workerDesc": "Background worker processes consume and execute tasks."
+      },
+      "section6": {
+        "title": "Observability",
+        "desc": "Built-in OpenTelemetry support.",
+        "tracing": "Distributed tracing",
+        "tracingDesc": "Supports exporting trace data to Jaeger, Zipkin, and other backends.",
+        "structuredLog": "Structured logging",
+        "structuredLogDesc": "High-performance structured logging based on Zap, with level-based output."
+      }
+    },
+    "terms": {
+      "title": "Terms of service",
+      "description": "Please read the following terms of service carefully before using Wavelet Platform.",
+      "section1": {
+        "title": "General provisions",
+        "subject": "Agreement parties",
+        "subjectDesc": "This agreement is between you and the operator of Wavelet Platform regarding the use of platform services.",
+        "readCarefully": "Please read carefully",
+        "readCarefullyDesc": "Please read all contents of this agreement before using the service. If you disagree with any terms, please do not use the platform.",
+        "composition": "Agreement composition",
+        "compositionDesc": "This agreement includes the agreement text and all rules that the platform has published or may publish in the future. All rules are integral parts of this agreement and have the same legal effect as the agreement text."
+      },
+      "section2": {
+        "title": "Service content",
+        "liability": "Scope of responsibility",
+        "liabilityDesc": "This platform provides only technical infrastructure and development tool services. Users bear all responsibilities arising from their use of the platform."
+      },
+      "section3": {
+        "title": "User accounts",
+        "accountSystem": "Account system",
+        "accountSystemDesc": "After registering and obtaining an account on this platform, users should properly keep their account and password. Users are responsible for all actions under their account.",
+        "securityResponsibility": "Security responsibility",
+        "passwordSecurity": "Password security",
+        "passwordSecurityDesc": "Users should use sufficiently strong passwords and change them regularly. Losses caused by improper password keeping are the user's responsibility.",
+        "tokenSecurity": "Token security",
+        "tokenSecurityDesc": "Access tokens (AccessToken) are equivalent to account credentials and should be properly safeguarded.",
+        "tokenLeakLiability": "Any losses caused by token leakage are the user's responsibility."
+      },
+      "section4": {
+        "title": "Usage rules",
+        "desc": "Users must comply with the following rules when using platform services:",
+        "redLine": "Prohibited actions",
+        "nationalSecurity": "Endangering national security",
+        "nationalSecurityDesc": "Must not use platform services to produce, copy, or publish information that endangers national security.",
+        "illegalInfo": "Illegal information",
+        "illegalInfoDesc": "Must not produce, copy, or publish information that violates national laws and regulations.",
+        "harmfulContent": "Harmful content",
+        "harmfulContentDesc": "Must not publish information containing harassment, insults, intimidation, or other harmful content.",
+        "ipInfringement": "Intellectual property infringement",
+        "ipInfringementDesc": "Must not infringe on others' intellectual property, trade secrets, or other legitimate rights.",
+        "otherIllegal": "Other illegal acts",
+        "otherIllegalDesc": "Must not use platform services to engage in other acts that violate laws and regulations.",
+        "enforcement": "Enforcement",
+        "enforcementDesc": "If users violate the above rules, the platform reserves the right to take the following actions:",
+        "enforcementAction": "Warning, suspension, or termination of service"
+      },
+      "section5": {
+        "title": "Disclaimer",
+        "basicDisclaimer": "Basic disclaimer",
+        "basicDisclaimerDesc": "The platform will make every effort to ensure service security and stability, but is not responsible for the following situations:",
+        "techInterruption": "Technical interruption",
+        "techInterruptionDesc": "Service interruption or data loss caused by:",
+        "naturalDisaster": "Natural disasters and other force majeure",
+        "govAction": "Government actions or legal changes",
+        "telecomFailure": "Telecom operator failures",
+        "hacking": "Hacker attacks or computer viruses"
+      },
+      "section6": {
+        "title": "Governing law & dispute resolution",
+        "applicableLaw": "Governing law",
+        "applicableLawDesc": "The conclusion, performance, and interpretation of this agreement are governed by:",
+        "lawName": "The laws of the People's Republic of China",
+        "lawScope": "Excluding conflict of laws rules",
+        "disputeResolution": "Dispute resolution",
+        "disputeResolutionDesc": "Any dispute arising from or related to this agreement shall be resolved through friendly negotiation. If negotiation fails, either party may file a lawsuit with a court of competent jurisdiction."
+      }
+    },
+    "privacy": {
+      "title": "Privacy policy",
+      "description": "Wavelet Platform values user privacy. This policy explains how we collect, use, and protect your personal information.",
+      "descriptionRights": "Please read this policy carefully before using our services.",
+      "section1": {
+        "title": "Information collection",
+        "desc": "We collect the following types of information:",
+        "authInfo": "Authentication information",
+        "authInfoDesc": "Including username, email address, and encrypted password hash.",
+        "authInfoNote": "We do not store your plaintext password.",
+        "logInfo": "Access logs",
+        "logInfoDesc": "Including IP address, browser type, access time, and request path."
+      },
+      "section2": {
+        "title": "Information usage",
+        "desc": "The information we collect is used for the following purposes:",
+        "storageSecurity": "Storage security",
+        "storageSecurityDesc": "All user data is encrypted and stored in secure server environments.",
+        "encryption": "Encryption measures",
+        "encryptionDesc": "Passwords use bcrypt one-way hash encryption. Tokens use SHA-256 hash storage.",
+        "accessControl": "Access control",
+        "accessControlDesc": "Strict permission management ensures only authorized personnel can access user data."
+      },
+      "section3": {
+        "title": "Purpose of information use",
+        "desc": "The information we collect is used for the following purposes:",
+        "identity": "Identity verification",
+        "identityDesc": "Verify user identity and ensure account security.",
+        "business": "Business operations",
+        "businessDesc": "Provide, maintain, and improve our services.",
+        "riskControl": "Risk control",
+        "riskControlDesc": "Detect, prevent, and handle security risks and fraudulent activities.",
+        "prohibited": "Prohibited uses",
+        "prohibitedDesc": "We commit not to use user information for: selling to third parties, sending unsolicited commercial promotions."
+      },
+      "section4": {
+        "title": "Information sharing & disclosure",
+        "sharingPrinciple": "Sharing principle",
+        "sharingPrincipleDesc": "We do not share personal information with third parties without user consent, except in the following situations:",
+        "sharingException1": "Required by laws, regulations, or government authorities through legal procedures",
+        "sharingException2": "Necessary to protect the platform's or the public's legitimate rights",
+        "transfer": "Information transfer",
+        "transferDesc": "In the event of a merger, acquisition, or similar transaction, we will require the new holder to continue to be bound by this policy."
+      },
+      "section5": {
+        "title": "User rights",
+        "desc": "Users have the following rights regarding their personal information:",
+        "viewManage": "View and manage",
+        "viewManageDesc": "Users can view and modify their personal information at any time in their settings.",
+        "deleteAccount": "Account deletion",
+        "deleteAccountDesc": "Users can request deletion of their account and all associated personal data."
+      },
+      "section6": {
+        "title": "Policy updates",
+        "desc": "We may update this privacy policy from time to time. After updates, we will post a notice on the platform.",
+        "notification": "Significant changes will be notified via in-app notification or email."
+      }
+    }
+  },
+  "files": {
+    "uploadSuccess": "File uploaded successfully",
+    "uploadFailed": "Upload failed",
+    "deleteSuccess": "File deleted successfully",
+    "deleteFailed": "Delete failed",
+    "searchPlaceholder": "Search file name...",
+    "private": "Private",
+    "public": "Public",
+    "uploading": "Uploading...",
+    "uploadFile": "Upload file",
+    "noFiles": "No files uploaded yet",
+    "noMatchingFiles": "No matching files found",
+    "uploadFirstFile": "Upload your first file. Supports images, videos, documents, and archives.",
+    "selectFileUpload": "Select file to upload",
+    "downloadFile": "Download file",
+    "deleteFile": "Delete file",
+    "prevPage": "Previous",
+    "nextPage": "Next",
+    "confirmDeleteFile": "Confirm file deletion",
+    "confirmDeleteFileDesc": "Delete file “{name}”? This file cannot be recovered after deletion.",
+    "cancel": "Cancel",
+    "confirmDelete": "Confirm delete",
+    "myFiles": "My files"
+  },
+  "general": {
+    "manage": {
+      "saveSuccess": "Saved",
+      "saveFailed": "Save failed",
+      "unknownError": "Unknown error",
+      "deleteSuccess": "Deleted",
+      "deleteFailed": "Delete failed",
+      "loading": "Loading",
+      "noData": "No data",
+      "configList": "Configuration list",
+      "confirmDelete": "Confirm delete?",
+      "confirmDeleteDesc": "This cannot be undone. This will permanently delete the configuration.",
+      "cancel": "Cancel",
+      "confirmDeleteAction": "Confirm delete",
+      "configInfo": "Configuration info",
+      "selectConfigToView": "Select a configuration to view details",
+      "updating": "Updating",
+      "update": "Update",
+      "actions": "Actions"
+    },
+    "passwordDialog": {
+      "enterPassword": "Enter password",
+      "enterPasswordDesc": "For your account security, please enter the 6-digit verification password",
+      "cancel": "Cancel",
+      "verifying": "Verifying...",
+      "confirm": "Confirm"
+    }
+  },
+  "home": {
+    "banner": {
+      "description": "A general-purpose secondary development platform with built-in user management, authentication, file storage, task scheduling, push notifications, and observability to help developers quickly start new projects.",
+      "getStarted": "Get started",
+      "hideHint": "Dismiss"
+    },
+    "navigation": {
+      "title": "Navigation"
+    },
+    "quickLinks": {
+      "profile": {
+        "title": "Profile",
+        "description": "View and edit your account information"
+      },
+      "apiDocs": {
+        "title": "API docs",
+        "description": "Complete API reference"
+      },
+      "userDocs": {
+        "title": "User guide",
+        "description": "Quick start guide"
+      }
+    },
+    "adminLinks": {
+      "settings": {
+        "title": "System settings",
+        "description": "Configure security, operations, and appearance"
+      },
+      "systemConfig": {
+        "title": "System config",
+        "description": "Manage key-value system configuration items"
+      },
+      "userManagement": {
+        "title": "User management",
+        "description": "View and manage all registered users"
+      },
+      "tasks": {
+        "title": "Tasks",
+        "description": "Async task queue and scheduled task scheduling"
+      },
+      "logs": {
+        "title": "System logs",
+        "description": "User access logs and application runtime logs"
+      }
+    },
+    "jumpNow": "Jump now",
+    "enterNow": "Enter now",
+    "adminConsole": "Admin console",
+    "developerSection": {
+      "heading": "Developer friendly",
+      "description": "Built-in complete RESTful API docs, Swagger UI, and TypeScript SDK examples for quick integration.",
+      "features": {
+        "restful": "Complete RESTful API",
+        "swagger": "Online Swagger docs",
+        "typescript": "TypeScript SDK examples",
+        "examples": "Rich usage examples"
+      },
+      "apiDocs": "View API docs",
+      "codeComment": "// Quick start — API call example",
+      "codeQuickStart": "Quick start"
+    },
+    "hero": {
+      "subtitle": "Built-in user authentication, file storage, task scheduling,",
+      "subtitleLine2": "push notifications, and observability to help you quickly launch your next project.",
+      "getStarted": "Get started",
+      "learnMore": "Learn more",
+      "features": {
+        "readyToUse": "Ready to use",
+        "highlyExtensible": "Highly extensible",
+        "industrialGrade": "Industrial grade"
+      }
+    },
+    "footer": {
+      "description": "A general-purpose platform scaffold for secondary development",
+      "product": "Product",
+      "dashboard": "Dashboard",
+      "personalSettings": "Personal settings",
+      "development": "Development",
+      "quickStart": "Quick start",
+      "apiDocs": "API docs",
+      "sourceCode": "Source code",
+      "community": "Community",
+      "discussions": "Discussions",
+      "privacyPolicy": "Privacy policy",
+      "termsOfService": "Terms of service"
+    }
+  },
+  "metadata": {
+    "title": "OpenFlare",
+    "description": "OpenFlare edge node and reverse proxy control plane"
+  },
+  "notFound": {
+    "description": "Sorry, the page you're looking for seems lost in the digital nebula. Please check the path or return to safety.",
+    "previousPage": "Previous page",
+    "home": "Home"
+  },
+  "providers": {
+    "titleUpdater": {
+      "login": "Login",
+      "register": "Register",
+      "admin": "Admin",
+      "dashboard": "Dashboard"
+    }
+  }
+}

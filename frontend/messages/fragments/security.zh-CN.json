@@ -181,7 +181,6 @@
     "deleting": "删除中...",
     "confirmDelete": "确认删除",
     "operationFailed": "操作失败",
-    "autoConfigMustBeObject": "自动配置必须是 JSON 对象。",
     "types": {
       "manual": "手动",
       "automatic": "自动",
@@ -274,7 +273,8 @@
       "deleteDesc": "确认从 IP 组「{name}」中移除 {ip} 吗？",
       "deleting": "删除中...",
       "confirmDelete": "确认删除"
-    }
+    },
+    "autoConfigMustBeObject": "自动配置必须是 JSON 对象。"
   },
   "rateLimits": {
     "title": "限流",

@@ -1,12 +1,92 @@
 {
   "layout": {
+    "nav": {
+      "home": "Home",
+      "myFiles": "My Files",
+      "users": "Users",
+      "tasks": "Tasks",
+      "storage": "Storage",
+      "database": "Database",
+      "push": "Notifications",
+      "messageGateway": "Messaging",
+      "logs": "System Logs",
+      "system": "System Config",
+      "adminSettings": "System Settings",
+      "demo": "Demo",
+      "apiDocs": "API Docs",
+      "usageDocs": "User Guide",
+      "dashboard": "Dashboard",
+      "nodes": "Nodes",
+      "proxyRoutes": "Proxy Routes",
+      "websites": "Domains",
+      "certificates": "TLS Certificates",
+      "dnsAccounts": "DNS Accounts",
+      "cloudflare": "Cloudflare",
+      "origins": "Origins",
+      "responses": "Response Pages",
+      "waf": "WAF",
+      "ipGroups": "IP Groups",
+      "rateLimits": "Rate Limits",
+      "pages": "Pages",
+      "configVersions": "Releases",
+      "accessLogs": "Access Logs",
+      "performance": "Performance",
+      "applyLogs": "Apply Logs"
+    },
+    "groups": {
+      "admin": "Admin",
+      "docs": "Docs",
+      "security": "Security",
+      "websites": "Websites"
+    },
     "user": {
+      "adminRole": "Administrator",
+      "userRole": "User",
+      "notLoggedIn": "Not signed in",
+      "syncing": "Syncing account",
+      "profile": "My Profile",
+      "settings": "Settings",
+      "help": "Help",
+      "logout": "Sign out",
       "unknownUser": "Unknown user"
     },
+    "logoutDialog": {
+      "title": "Sign out",
+      "description": "Are you sure you want to sign out?",
+      "loggingOut": "Signing out…",
+      "confirm": "Sign out",
+      "inProgress": "Signing out…",
+      "failed": "Sign-out failed",
+      "failedDescription": "An error occurred while signing out. Please try again."
+    },
     "header": {
+      "notifications": "Notifications",
+      "settings": "Settings",
+      "search": "Search",
+      "toggleFullWidth": "Toggle full width",
+      "toggleTheme": "Toggle theme",
+      "changePasswordBanner": "For your account security, please change your password now.",
+      "changePasswordAction": "Change password",
+      "bannerTitle": "Announcement",
+      "bannerLink": "Learn more",
+      "dismiss": "Dismiss",
       "guest": "Guest"
     },
     "search": {
+      "categoryPage": "Page",
+      "categoryFeature": "Feature",
+      "categorySetting": "Setting",
+      "categoryAdmin": "Admin",
+      "tipPrefix": "Tips:",
+      "tipSlash": "You can also press / to open this dialog",
+      "tipArrow": "to navigate items",
+      "tipNewTab": "Open in new tab",
+      "tipDidYouKnow": "Did you know: search is still being improved",
+      "searchPlaceholder": "Search pages and features...",
+      "noResults": "No results found. Try a different term?",
+      "openInNewTab": "Open in new tab",
+      "open": "Open",
+      "closeSearch": "Close search",
       "items": {
         "globalSettings": "Settings",
         "appearance": "Appearance",
@@ -39,6 +119,21 @@
         "pushDesc": "Configure email, Lark, and Telegram notification channels (admin only)",
         "logsDesc": "View system logs and background task execution logs (admin only)"
       }
+    },
+    "error": {
+      "loadFailed": "Load failed",
+      "retry": "Retry",
+      "unknownError": "An unknown error occurred. Please try again later.",
+      "viewDetails": "View error details",
+      "unknownErrorShort": "Unknown error"
+    },
+    "loading": {
+      "loading": "Loading",
+      "loadingDesc": "Fetching data..."
+    },
+    "empty": {
+      "noData": "No data",
+      "noContent": "No records found"
     }
   }
 }

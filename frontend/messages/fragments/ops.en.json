@@ -582,7 +582,7 @@
     "close": "Close"
   },
   "configVersions": {
-    "title": "Config versions",
+    "title": "Release versions",
     "description": "Browse historical snapshots, preview pending diffs, and reactivate an older version when needed.",
     "refresh": "Refresh",
     "cleanupOld": "Clean",

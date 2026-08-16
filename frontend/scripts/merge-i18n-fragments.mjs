@@ -25,7 +25,8 @@ function deepMerge(target, source) {
 
 function mergeLocale(locale) {
   const mainPath = resolve(root, `messages/${locale}.json`);
-  const data = JSON.parse(readFileSync(mainPath, 'utf8'));
+  // 主包是纯生成物：从空对象开始合并全部 fragment（fragments 为唯一源）
+  const data = {};
   const suffix = `.${locale}.json`;
   for (const name of readdirSync(fragmentsDir).sort()) {
     if (!name.endsWith(suffix)) continue;

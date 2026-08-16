@@ -1,12 +1,92 @@
 {
   "layout": {
+    "nav": {
+      "home": "首页",
+      "myFiles": "我的文件",
+      "users": "用户管理",
+      "tasks": "任务管理",
+      "storage": "存储管理",
+      "database": "数据管理",
+      "push": "通知推送",
+      "messageGateway": "消息通道",
+      "logs": "系统日志",
+      "system": "系统配置",
+      "adminSettings": "系统设置",
+      "demo": "规范示例",
+      "apiDocs": "接口文档",
+      "usageDocs": "使用文档",
+      "dashboard": "数据看板",
+      "nodes": "节点管理",
+      "proxyRoutes": "规则管理",
+      "websites": "域名列表",
+      "certificates": "TLS证书",
+      "dnsAccounts": "DNS账号",
+      "cloudflare": "Cloudflare",
+      "origins": "源站地址",
+      "responses": "响应页面",
+      "waf": "WAF",
+      "ipGroups": "IP 组",
+      "rateLimits": "限流",
+      "pages": "Pages",
+      "configVersions": "版本发布",
+      "accessLogs": "访问日志",
+      "performance": "性能调优",
+      "applyLogs": "应用日志"
+    },
+    "groups": {
+      "admin": "管理",
+      "docs": "文档库",
+      "security": "安全性",
+      "websites": "网站管理"
+    },
     "user": {
+      "adminRole": "系统管理员",
+      "userRole": "普通用户",
+      "notLoggedIn": "未登录",
+      "syncing": "正在同步账户",
+      "profile": "我的资料",
+      "settings": "设置",
+      "help": "使用帮助",
+      "logout": "退出登录",
       "unknownUser": "未知用户"
     },
+    "logoutDialog": {
+      "title": "确认登出",
+      "description": "您确定要登出当前账户吗？",
+      "loggingOut": "正在登出，请稍候...",
+      "confirm": "确认登出",
+      "inProgress": "登出中...",
+      "failed": "登出失败",
+      "failedDescription": "登出时发生错误，请重试"
+    },
     "header": {
+      "notifications": "通知",
+      "settings": "设置",
+      "search": "搜索",
+      "toggleFullWidth": "切换全宽",
+      "toggleTheme": "主题切换",
+      "changePasswordBanner": "为了您的账号安全，请立即修改密码！",
+      "changePasswordAction": "去修改密码",
+      "bannerTitle": "最新通知",
+      "bannerLink": "查看详情",
+      "dismiss": "关闭",
       "guest": "访客"
     },
     "search": {
+      "categoryPage": "页面",
+      "categoryFeature": "功能",
+      "categorySetting": "设置",
+      "categoryAdmin": "管理",
+      "tipPrefix": "Tips:",
+      "tipSlash": "还可以使用 / 来打开此界面",
+      "tipArrow": "来切换选中项",
+      "tipNewTab": "在新标签页打开",
+      "tipDidYouKnow": "你知道吗：搜索功能还在持续升级中",
+      "searchPlaceholder": "搜索页面和功能...",
+      "noResults": "没有找到相关内容，换个词试试？",
+      "openInNewTab": "在新标签页打开",
+      "open": "打开",
+      "closeSearch": "关闭搜索界面",
       "items": {
         "globalSettings": "全局设置",
         "appearance": "外观设置",
@@ -39,6 +119,21 @@
         "pushDesc": "配置与下发邮件、Lark 和 Telegram 渠道通知推送 (管理员专属)",
         "logsDesc": "查看系统日志与后台异步任务执行日志 (管理员专属)"
       }
+    },
+    "error": {
+      "loadFailed": "加载失败",
+      "retry": "重试",
+      "unknownError": "发生未知错误，请稍后重试",
+      "viewDetails": "查看详细错误信息",
+      "unknownErrorShort": "发生未知错误"
+    },
+    "loading": {
+      "loading": "加载中",
+      "loadingDesc": "正在获取活动数据..."
+    },
+    "empty": {
+      "noData": "暂无数据",
+      "noContent": "当前没有任何记录"
     }
   }
 }
