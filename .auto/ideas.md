@@ -28,3 +28,13 @@
   （如 recvcheck 之后的 new receivers 检查）随版本跟进。
 - 文档/示例代码（docs/、scripts/）质量：目前不在 golangci 范围（tests:false
   之外还有 scripts 目录），可用同一扩展集扫 scripts/ 下的 main.go。
+
+## 会话收尾（2026-08-16，run #23 后）
+
+- 已确认收敛：基准 5 维全下限、-race 全仓清零、双端测试全绿、发布构建可复现、
+  config.example.yaml ↔ model.go 同步无漂移、无 flaky 测试。
+- 明确评估为不值得做的方向：paralleltest/tparallel（共享全局状态风险）、
+  fieldalignment（JSON key 顺序变化）、biome 格式漂移（纯噪声）、
+  frpc/frps 慢测试注入 backoff（为省 ~40s 改生产时序逻辑，不值）。
+- 未来如继续：可周期跑 `go test -race ./...` 全量（frpc/frps 慢套件）；
+  或前端 a11y 用 axe 做浏览器级审计（超出 eslint 静态规则）。

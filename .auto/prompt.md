@@ -117,8 +117,15 @@ otherwise). Already committed in setup.
    [react-hooks/exhaustive-deps in
    app/(main)/pages/detail/components/pages-source-card.tsx:275]; tsc 0).
 - Environment notes: golangci-lint 2.12.2 warm cache ~3s; eslint cold ~27s
-  (ignore stderr pnpm noise); go vet+go build ~15-30s after edits. Some
-  go test failures on main are pre-existing (redis down, flaky frpc) — not ours.
+  (ignore stderr pnpm noise); go vet+go build ~15-30s after edits.
+
+### 最终状态（run #23，提交 aa4fadda，本会话收敛点）
+
+基准 5 维全下限 total=8（全为刻意保留）；后端 94 包 + 前端 vitest 116 全绿；
+`go test -race ./internal/... ./pkg/...` 93 包零警告；`make build-embedded`
+（发布路径）成功且工作树干净；`make license-check` / `go mod tidy -diff` /
+`go test -count=3`（时序敏感包）全部通过。checks.sh 门禁：vet + build +
+golangci + 单测 + vitest + 并发包 -race + license-check。
 
 ### Session result (14 experiments, commits f1f6bb85→65c02ef7)
 
