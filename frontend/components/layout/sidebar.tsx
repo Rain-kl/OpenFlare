@@ -85,7 +85,7 @@ const adminItems: NavItem[] = [
 const documentItems: NavItem[] = [
   {
     titleKey: 'usageDocs',
-    url: 'https://open-flare.pages.dev/',
+    url: 'https://openflare.fyrn.link/',
     icon: FileText,
     external: true,
   },
@@ -332,7 +332,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               <DropdownMenuItem
                 onClick={() => {
                   window.open(
-                    'https://open-flare.pages.dev/',
+                    'https://openflare.fyrn.link/',
                     '_blank',
                     'noopener,noreferrer',
                   );

@@ -75,7 +75,7 @@ export const FooterSection = React.memo(function FooterSection({
             <h3 className='font-semibold text-foreground mb-6'>开发</h3>
             <ul className='space-y-4 text-sm text-muted-foreground'>
               <li>
-                <FooterLink href='https://open-flare.pages.dev/'>
+                <FooterLink href='https://openflare.fyrn.link/'>
                   使用文档
                 </FooterLink>
               </li>

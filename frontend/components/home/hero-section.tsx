@@ -83,7 +83,7 @@ export const HeroSection = React.memo(function HeroSection({
               </Link>
 
               <Link
-                href='https://open-flare.pages.dev/'
+                href='https://openflare.fyrn.link/'
                 target='_blank'
                 rel='noopener noreferrer'
                 className='w-full sm:w-auto'

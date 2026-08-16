@@ -161,7 +161,7 @@ curl -X POST https://api.example.com/api/v1/auth/register \\
 
             <div className='flex flex-wrap gap-4'>
               <Link
-                href='https://open-flare.pages.dev/'
+                href='https://openflare.fyrn.link/'
                 target='_blank'
                 rel='noopener noreferrer'
               >

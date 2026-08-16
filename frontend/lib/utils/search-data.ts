@@ -65,7 +65,7 @@ export const searchData: SearchItemSource[] = [
     id: 'docs-how-to-use',
     titleKey: 'nav.usageDocs',
     descriptionKey: 'search.items.usageDocsDesc',
-    url: 'https://open-flare.pages.dev/',
+    url: 'https://openflare.fyrn.link/',
     category: 'page',
     keywords: ['docs', '文档', '使用', 'how to', 'tutorial', '教程', 'help'],
   },

@@ -35,7 +35,7 @@ export function HomeMain() {
       title: '使用文档',
       description: '学习如何集成 API 及日常操作帮助指南',
       icon: HelpCircle,
-      url: 'https://open-flare.pages.dev/',
+      url: 'https://openflare.fyrn.link/',
       color: 'text-purple-500',
       bgColor: 'bg-purple-500/10',
       borderColor: 'hover:border-purple-500/30',
