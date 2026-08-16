@@ -8,17 +8,16 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Rain-kl/Wavelet/internal/repository"
-
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/tls"
 	"github.com/Rain-kl/Wavelet/internal/infra/config"
 	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/infra/task"
 	"github.com/Rain-kl/Wavelet/internal/model"
-	"github.com/glebarez/sqlite"
+	"github.com/Rain-kl/Wavelet/internal/repository"
+	"github.com/Rain-kl/Wavelet/internal/testhelper"
+	"github.com/hibiken/asynq"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gorm.io/gorm"
 )
 
 func setupSSLRenewTestDB(t *testing.T) func() {
@@ -26,18 +25,23 @@ func setupSSLRenewTestDB(t *testing.T) func() {
 
 	task.RegisterTaskMeta(tls.SSLSingleRenewMeta)
 
-	sqliteDB, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{
-		DisableForeignKeyConstraintWhenMigrating: true,
-	})
-	require.NoError(t, err)
-	require.NoError(t, sqliteDB.AutoMigrate(&model.TLSCertificate{}, &model.TaskExecution{}))
+	_, mr, cleanup := testhelper.SetupTestEnvironment(t)
+	require.NoError(t, db.DB(nil).AutoMigrate(&model.TLSCertificate{}, &model.TaskExecution{}))
 
-	db.SetDB(sqliteDB)
+	// task 包 init() 会按配置创建指向真实 Redis 的客户端；测试显式改用
+	// miniredis（与 executor_test 一致），避免依赖本地 redis 实例。
+	oldClient := task.AsynqClient
+	task.AsynqClient = asynq.NewClient(asynq.RedisClientOpt{Addr: mr.Addr()})
+	t.Cleanup(func() {
+		_ = task.AsynqClient.Close()
+		task.AsynqClient = oldClient
+	})
+
 	oldSecret := config.Config.App.SessionSecret
 	config.Config.App.SessionSecret = "test_session_secret_for_ssl_renew"
 	return func() {
-		db.SetDB(nil)
 		config.Config.App.SessionSecret = oldSecret
+		cleanup()
 	}
 }
 

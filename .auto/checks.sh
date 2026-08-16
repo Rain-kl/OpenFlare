@@ -12,4 +12,14 @@ go build ./... 2>&1 | tail -20
 echo "==> golangci-lint run (repo config)"
 golangci-lint run 2>&1 | tail -20
 
+# 全量单测（sqlite + miniredis，纯本地无需外部服务；2026-08-16 起全绿）
+echo "==> go test ./internal/... ./pkg/..."
+go test ./internal/... ./pkg/... 2>&1 | grep -E "^--- FAIL|^FAIL" | head -20 || true
+if go test ./internal/... ./pkg/... > /tmp/auto_gotest.log 2>&1; then
+  :
+else
+  tail -30 /tmp/auto_gotest.log
+  exit 1
+fi
+
 echo "OK: checks passed"

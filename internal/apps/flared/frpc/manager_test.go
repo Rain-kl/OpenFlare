@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -80,6 +81,7 @@ func assertStatusEventually(t *testing.T, m *Manager, relayID string, expectedSt
 	t.Fatalf("expected status eventually %s, got %s (err: %s)", expectedStatus, got, errStr)
 }
 
+// assertCommandExitedEventually 等待测试自建进程退出（本测试持有其 Wait 权）。
 func assertCommandExitedEventually(t *testing.T, cmd *exec.Cmd, timeout time.Duration) {
 	t.Helper()
 
@@ -93,6 +95,22 @@ func assertCommandExitedEventually(t *testing.T, cmd *exec.Cmd, timeout time.Dur
 		t.Fatalf("expected process pid=%d to exit within %s", cmd.Process.Pid, timeout)
 	case <-done:
 	}
+}
+
+// assertManagedCommandExitedEventually 探测受管进程是否已退出。不能对其调用
+// Wait —— Wait 由 Manager 拥有，测试并发 Wait 会与 os/exec 的 ctxResult
+// 通道竞争而永久挂起；Signal(0) 在进程被 Manager 收割后即报错。
+func assertManagedCommandExitedEventually(t *testing.T, cmd *exec.Cmd, timeout time.Duration) {
+	t.Helper()
+
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		if err := cmd.Process.Signal(syscall.Signal(0)); err != nil {
+			return
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	t.Fatalf("expected managed process pid=%d to exit within %s", cmd.Process.Pid, timeout)
 }
 
 func TestStartProcessSuccess(t *testing.T) {
@@ -380,7 +398,7 @@ func TestStopCancelsRunningProcesses(t *testing.T) {
 	m.mu.RUnlock()
 
 	m.Stop()
-	assertCommandExitedEventually(t, cmd, 2*time.Second)
+	assertManagedCommandExitedEventually(t, cmd, 2*time.Second)
 
 	m.mu.RLock()
 	defer m.mu.RUnlock()

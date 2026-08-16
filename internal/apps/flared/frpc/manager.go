@@ -195,6 +195,17 @@ func (m *Manager) restartProcess(ctx context.Context, relayID string, configPath
 			var stderrBuf bytes.Buffer
 			cmd.Stderr = &stderrBuf
 
+			// frpc 及其中间子进程必须整体随上下文终止：CommandContext 默认只杀
+			// 直接子进程，孤儿孙进程会继续持有 stderr 管道导致 cmd.Wait 阻塞到其
+			// 自然退出。这里为 frpc 单独建进程组并整组 SIGKILL。
+			cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+			cmd.Cancel = func() error {
+				if cmd.Process == nil {
+					return nil
+				}
+				return syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
+			}
+
 			m.mu.Lock()
 			proc.Cmd = cmd
 			proc.Status = "running"
