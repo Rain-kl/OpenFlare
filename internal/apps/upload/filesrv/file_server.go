@@ -134,6 +134,8 @@ func ServeUpload(c *gin.Context, upload *model.Upload) {
 			return
 		}
 		fallthrough
+	case fileTypeVideo, fileTypeAudio, fileTypeOther:
+		serveOriginalWithConditionalCheck(c, upload)
 	default:
 		serveOriginalWithConditionalCheck(c, upload)
 	}

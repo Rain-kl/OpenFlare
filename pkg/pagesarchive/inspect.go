@@ -295,6 +295,8 @@ func isTarFamily(format Format) bool {
 	switch format {
 	case FormatTar, FormatTarGz, FormatTarXz, FormatTarBz2:
 		return true
+	case FormatZip, FormatSevenZip:
+		return false
 	default:
 		return false
 	}

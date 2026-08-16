@@ -6,7 +6,7 @@ cd "$(dirname "$0")/.."
 start=$(date +%s)
 
 # ---------- Backend: golangci-lint, repo config + fixed best-practice extras ----------
-EXTRA_LINTERS="errorlint,errname,nilnil,forcetypeassert,copyloopvar,intrange,mirror,perfsprint,prealloc,usestdlibvars,modernize,sloglint,canonicalheader,nosprintfhostport,recvcheck,wastedassign"
+EXTRA_LINTERS="errorlint,errname,nilnil,forcetypeassert,copyloopvar,intrange,mirror,perfsprint,prealloc,usestdlibvars,modernize,sloglint,canonicalheader,nosprintfhostport,recvcheck,wastedassign,exhaustive"
 golang_out=$(golangci-lint run --enable="$EXTRA_LINTERS" 2>&1 || true)
 
 golang_total=0

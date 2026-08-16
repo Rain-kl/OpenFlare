@@ -226,6 +226,8 @@ func safeTempSuffix(format pagesarchive.Format) string {
 		return "7z"
 	case pagesarchive.FormatTar:
 		return "tar"
+	case pagesarchive.FormatZip:
+		return "zip"
 	default:
 		return "zip"
 	}

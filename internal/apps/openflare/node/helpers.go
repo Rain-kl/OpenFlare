@@ -309,6 +309,8 @@ func fetchLatestGitHubRelease(ctx context.Context, repo string, channel releaseC
 	switch normalizeReleaseChannel(string(channel)) {
 	case releaseChannelPreview:
 		return fetchLatestPreviewGitHubRelease(ctx, repo)
+	case releaseChannelStable:
+		return fetchLatestStableGitHubRelease(ctx, repo)
 	default:
 		return fetchLatestStableGitHubRelease(ctx, repo)
 	}

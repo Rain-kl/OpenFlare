@@ -60,6 +60,8 @@ func listRandomAccessEntriesAt(ra io.ReaderAt, size int64, format Format) ([]Ent
 		return listZipEntriesAt(ra, size)
 	case FormatSevenZip:
 		return listSevenZipEntriesAt(ra, size)
+	case FormatTar, FormatTarGz, FormatTarXz, FormatTarBz2:
+		return nil, fmt.Errorf("unsupported random-access pages package format: %s", format)
 	default:
 		return nil, fmt.Errorf("unsupported random-access pages package format: %s", format)
 	}
@@ -127,6 +129,8 @@ func openTarFamilyReader(r io.Reader, format Format) (*tar.Reader, func() error,
 		return tar.NewReader(xzReader), func() error { return nil }, nil
 	case FormatTarBz2:
 		return tar.NewReader(bzip2.NewReader(r)), func() error { return nil }, nil
+	case FormatZip, FormatSevenZip:
+		return nil, nil, fmt.Errorf("unsupported tar family format: %s", format)
 	default:
 		return nil, nil, fmt.Errorf("unsupported tar family format: %s", format)
 	}

@@ -383,6 +383,8 @@ func requiredHandles(t RuleNodeType) []string {
 		return []string{"next"}
 	case RuleNodeIPMatch, RuleNodeGeoMatch, RuleNodeUACheck, RuleNodeSecurityCheck:
 		return []string{"true", "false"}
+	case RuleNodeAllow, RuleNodeBlock:
+		return nil
 	default:
 		return nil
 	}
