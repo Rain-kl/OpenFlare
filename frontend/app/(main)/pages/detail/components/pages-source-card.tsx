@@ -272,7 +272,7 @@ export function PagesSourceCard({ projectId }: { projectId: number }) {
     }
     setActiveAction(null);
     setActionTimedOut(false);
-  }, [activeAction, executionQuery.data, invalidateSourceState]);
+  }, [activeAction, executionQuery.data, invalidateSourceState, t]);
 
   const checkMutation = useMutation({
     mutationFn: () => PagesService.checkSource(projectId),
