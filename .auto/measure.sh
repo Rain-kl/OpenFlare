@@ -33,6 +33,32 @@ while IFS= read -r line; do
 done <<< "$test_out"
 echo "METRIC golint_test_total=$golang_test_total"
 
+# ---------- Backend: govet extra analyzers (dead code / nil deref — real-bug finders) ----------
+cat > /tmp/govetx.yml <<'EOF'
+version: "2"
+linters:
+  default: none
+  enable:
+    - govet
+  settings:
+    govet:
+      enable:
+        - nilness
+        - unusedwrite
+EOF
+vetx_out=$(golangci-lint run --config /tmp/govetx.yml --max-issues-per-linter=0 2>&1 || true)
+rm -f /tmp/govetx.yml
+golang_vetx_total=0
+while IFS= read -r line; do
+  if [[ "$line" =~ ^\*\ ([a-zA-Z0-9_]+):\ ([0-9]+)$ ]]; then
+    name="${BASH_REMATCH[1]}"
+    n="${BASH_REMATCH[2]}"
+    golang_vetx_total=$((golang_vetx_total + n))
+    echo "METRIC golint_vetx_${name}=$n"
+  fi
+done <<< "$vetx_out"
+echo "METRIC golint_vetx_total=$golang_vetx_total"
+
 # ---------- Frontend: eslint (repo gate) ----------
 cd frontend
 eslint_out=$(pnpm exec eslint . --max-warnings 0 2>&1 || true)
@@ -50,6 +76,6 @@ tsc_errors=$(grep -cE "error TS" <<< "$tsc_out" || true)
 echo "METRIC tsc_errors=$tsc_errors"
 
 end=$(date +%s)
-total=$((golang_total + golang_test_total + eslint_problems + tsc_errors))
+total=$((golang_total + golang_test_total + golang_vetx_total + eslint_problems + tsc_errors))
 echo "METRIC total_issues=$total"
 echo "METRIC measure_s=$((end - start))"

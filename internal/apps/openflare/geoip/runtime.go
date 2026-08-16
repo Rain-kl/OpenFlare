@@ -91,11 +91,12 @@ func ensureServerMMDB() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if _, err := os.Stat(path); err == nil {
+	_, statErr := os.Stat(path)
+	if statErr == nil {
 		return path, nil
 	}
-	if err != nil && !os.IsNotExist(err) {
-		return "", err
+	if !os.IsNotExist(statErr) {
+		return "", statErr
 	}
 
 	// Control plane: seed Country from embedded asset (no City; Agent uses disk/image).
