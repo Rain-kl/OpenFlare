@@ -8,10 +8,10 @@ import (
 	"context"
 	"os"
 
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
-	semconv "go.opentelemetry.io/otel/semconv/v1.43.0"
 )
 
 func newTracerProvider(cfg Config) (*sdktrace.TracerProvider, error) {
@@ -21,16 +21,15 @@ func newTracerProvider(cfg Config) (*sdktrace.TracerProvider, error) {
 		return nil, err
 	}
 
-	// 初始化 Resource
+	// 业务属性不绑定 schema URL，合并时继承 resource.Default() 的 SDK 内置版本，避免 semconv 与 otel/sdk 升级不同步。
 	r, err := resource.Merge(
 		resource.Default(),
-		resource.NewWithAttributes(
-			semconv.SchemaURL,
-			semconv.ServiceName(cfg.AppName),
-			semconv.HostName(hostname),
-			semconv.K8SNamespaceName(os.Getenv("KUBERNETES_NAMESPACE")),
-			semconv.K8SPodName(os.Getenv("KUBERNETES_POD_NAME")),
-			semconv.K8SPodUID(os.Getenv("KUBERNETES_POD_UID")),
+		resource.NewSchemaless(
+			attribute.String("service.name", cfg.AppName),
+			attribute.String("host.name", hostname),
+			attribute.String("k8s.namespace.name", os.Getenv("KUBERNETES_NAMESPACE")),
+			attribute.String("k8s.pod.name", os.Getenv("KUBERNETES_POD_NAME")),
+			attribute.String("k8s.pod.uid", os.Getenv("KUBERNETES_POD_UID")),
 		),
 	)
 	if err != nil {

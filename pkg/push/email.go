@@ -28,12 +28,12 @@ func sanitizeEmailHeader(v string) string {
 }
 
 // Send 发送邮件
-func (p *EmailPusher) Send(ctx context.Context, cfg Config, target string, body map[string]any, _ string, ext map[string]any) error {
+func (p *EmailPusher) Send(ctx context.Context, cfg Config, target string, body map[string]any, _ string, ext map[string]any) (string, error) {
 	if cfg.URL == "" || cfg.Key == "" || cfg.Secret == "" {
-		return errors.New("email: SMTP configuration (url, key, secret) is incomplete")
+		return "", errors.New("email: SMTP configuration (url, key, secret) is incomplete")
 	}
 	if target == "" {
-		return errors.New("email: target email address is required")
+		return "", errors.New("email: target email address is required")
 	}
 
 	title := defaultTitle
@@ -92,14 +92,14 @@ func (p *EmailPusher) Send(ctx context.Context, cfg Config, target string, body 
 
 	select {
 	case <-ctx.Done():
-		return ctx.Err()
+		return "", ctx.Err()
 	case err := <-errChan:
 		if err != nil {
-			return fmt.Errorf("email: send smtp mail failed: %w", err)
+			return "", fmt.Errorf("email: send smtp mail failed: %w", err)
 		}
 	}
 
-	return nil
+	return "", nil
 }
 
 // ValidateConfig 校验邮件 SMTP 配置

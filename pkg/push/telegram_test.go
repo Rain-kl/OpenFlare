@@ -41,7 +41,7 @@ func TestTelegramPusher_Send(t *testing.T) {
 			"content": "Host down",
 			"level":   "CRITICAL",
 		}
-		err := pusher.Send(context.Background(), cfg, "123456", body, "", nil)
+		_, err := pusher.Send(context.Background(), cfg, "123456", body, "", nil)
 		require.NoError(t, err)
 
 		assert.Equal(t, "123456", receivedReq.ChatID)
@@ -79,7 +79,7 @@ func TestTelegramPusher_Send(t *testing.T) {
 			"content": "A < B comparison",
 			"level":   "INFO",
 		}
-		err := pusher.Send(context.Background(), cfg, "123456", body, "", nil)
+		_, err := pusher.Send(context.Background(), cfg, "123456", body, "", nil)
 		require.NoError(t, err)
 
 		require.Len(t, requests, 2)

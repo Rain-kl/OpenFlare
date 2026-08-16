@@ -93,13 +93,16 @@ func (h *PushHandler) Execute(ctx context.Context, payload []byte) (*task.TaskRe
 
 	// 执行真正的消息推送，扁平化为原始 json 格式
 	flatBody := req.Body.Flatten()
-	err = pusher.Send(ctx, req.Config, req.Target, flatBody, req.Template, nil)
+	upstreamResp, err := pusher.Send(ctx, req.Config, req.Target, flatBody, req.Template, nil)
 
 	title := req.Body.Title
 	content := req.Body.Content
 
 	if err != nil {
 		task.AppendLog(ctx, "消息推送失败 (标题: %s): %v", title, err)
+		if upstreamResp != "" {
+			task.AppendLog(ctx, "上游返回: %s", upstreamResp)
+		}
 		if task.IsFinalAttempt(ctx) {
 			h.recordHistory(ctx, req, "failed", err.Error())
 		}
@@ -107,6 +110,9 @@ func (h *PushHandler) Execute(ctx context.Context, payload []byte) (*task.TaskRe
 	}
 
 	task.AppendLog(ctx, "消息推送成功 (标题: %s, 内容摘要: %s)", title, content)
+	if upstreamResp != "" {
+		task.AppendLog(ctx, "上游返回: %s", upstreamResp)
+	}
 	h.recordHistory(ctx, req, "success", "")
 
 	return &task.TaskResult{

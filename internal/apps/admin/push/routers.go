@@ -284,7 +284,7 @@ func TestPush(c *gin.Context) {
 		keyContent: "当您收到这条消息，说明当前渠道连通性测试通过。",
 		keyLevel:   defaultLevelInfo,
 	}
-	if err := pusher.Send(c.Request.Context(), req.Config, req.Target, testBody, "", nil); err != nil {
+	if _, err := pusher.Send(c.Request.Context(), req.Config, req.Target, testBody, "", nil); err != nil {
 		response.AbortBadRequest(c, err.Error())
 		return
 	}

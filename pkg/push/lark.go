@@ -76,9 +76,9 @@ type larkMessageResponse struct {
 // Send 执行飞书消息发送
 //
 //nolint:nestif,cyclop
-func (p *LarkPusher) Send(ctx context.Context, cfg Config, _ string, body map[string]any, template string, _ map[string]any) error {
+func (p *LarkPusher) Send(ctx context.Context, cfg Config, _ string, body map[string]any, template string, _ map[string]any) (string, error) {
 	if cfg.URL == "" {
-		return errors.New("lark: URL is required")
+		return "", errors.New("lark: URL is required")
 	}
 
 	var req larkMessageRequest
@@ -212,7 +212,7 @@ func (p *LarkPusher) Send(ctx context.Context, cfg Config, _ string, body map[st
 		timestamp := time.Now().Unix()
 		sign, err := larkSign(cfg.Secret, timestamp)
 		if err != nil {
-			return fmt.Errorf("lark: sign failed: %w", err)
+			return "", fmt.Errorf("lark: sign failed: %w", err)
 		}
 		req.Timestamp = strconv.FormatInt(timestamp, 10)
 		req.Sign = sign
@@ -220,37 +220,37 @@ func (p *LarkPusher) Send(ctx context.Context, cfg Config, _ string, body map[st
 
 	jsonData, err := json.Marshal(req)
 	if err != nil {
-		return fmt.Errorf("lark: marshal request failed: %w", err)
+		return "", fmt.Errorf("lark: marshal request failed: %w", err)
 	}
 
 	// 4. 发送 POST 请求
 	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, cfg.URL, bytes.NewBuffer(jsonData))
 	if err != nil {
-		return fmt.Errorf("lark: create http request failed: %w", err)
+		return "", fmt.Errorf("lark: create http request failed: %w", err)
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
 
 	client := httppool.NewClient(defaultHTTPClientTimeout)
 	resp, err := client.Do(httpReq)
 	if err != nil {
-		return fmt.Errorf("lark: http request failed: %w", err)
+		return "", fmt.Errorf("lark: http request failed: %w", err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("lark: http status %s", resp.Status)
+		return "", fmt.Errorf("lark: http status %s", resp.Status)
 	}
 
 	var res larkMessageResponse
 	if err := json.NewDecoder(resp.Body).Decode(&res); err != nil {
-		return fmt.Errorf("lark: decode response failed: %w", err)
+		return "", fmt.Errorf("lark: decode response failed: %w", err)
 	}
 
 	if res.Code != 0 {
-		return fmt.Errorf("lark: send message failed, code %d: %s", res.Code, res.Msg)
+		return "", fmt.Errorf("lark: send message failed, code %d: %s", res.Code, res.Msg)
 	}
 
-	return nil
+	return "", nil
 }
 
 // ValidateConfig 校验飞书配置

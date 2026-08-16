@@ -52,12 +52,12 @@ type mockPusher struct {
 	sentTgt  string
 }
 
-func (m *mockPusher) Send(ctx context.Context, cfg pkgpush.Config, target string, body map[string]any, template string, ext map[string]any) error {
+func (m *mockPusher) Send(ctx context.Context, cfg pkgpush.Config, target string, body map[string]any, template string, ext map[string]any) (string, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.sentBody = body
 	m.sentTgt = target
-	return nil
+	return "", nil
 }
 
 func (m *mockPusher) ValidateConfig(cfg pkgpush.Config) error {

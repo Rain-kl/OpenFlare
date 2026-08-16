@@ -8,6 +8,15 @@ sidebar: false
 
 格式基于 [Keep a Changelog](http://keepachangelog.com/)，版本号遵循 [语义化版本](http://semver.org/)。
 
+## [Unreleased]
+
+### 🛠 修复
+- 修复自定义 Webhook 推送在企业微信/钉钉返回 HTTP 200 但 `errcode` 非零时仍记为成功的问题；任务日志会记录上游响应体。
+- 修复 OpenTelemetry Resource 绑定 semconv schema 版本导致 SDK 升级后可能无法启动的问题。
+
+### 💄 其他/体验
+- 前端使用 `next/font` 自托管 Inter，并忽略浏览器扩展改写 `body` 属性引起的 hydration 警告。
+
 ## 重大变更
 
 > [!IMPORTANT]

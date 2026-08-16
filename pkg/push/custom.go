@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 
@@ -19,13 +20,16 @@ func init() {
 	Register("custom", &CustomPusher{})
 }
 
+// maxCustomResponseBytes 限制读取 Webhook 响应体的最大字节数，防止无界读取。
+const maxCustomResponseBytes = 4096
+
 // CustomPusher 自定义 Webhook 发送实现
 type CustomPusher struct{}
 
 // Send 发送自定义 webhook
-func (p *CustomPusher) Send(ctx context.Context, cfg Config, _ string, body map[string]any, template string, _ map[string]any) error {
+func (p *CustomPusher) Send(ctx context.Context, cfg Config, _ string, body map[string]any, template string, _ map[string]any) (string, error) {
 	if cfg.URL == "" {
-		return errors.New("custom: URL is required")
+		return "", errors.New("custom: URL is required")
 	}
 
 	var reqBody []byte
@@ -39,13 +43,13 @@ func (p *CustomPusher) Send(ctx context.Context, cfg Config, _ string, body map[
 		var err error
 		reqBody, err = json.Marshal(body)
 		if err != nil {
-			return fmt.Errorf("custom: marshal body failed: %w", err)
+			return "", fmt.Errorf("custom: marshal body failed: %w", err)
 		}
 	}
 
 	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, cfg.URL, bytes.NewReader(reqBody))
 	if err != nil {
-		return fmt.Errorf("custom: create http request failed: %w", err)
+		return "", fmt.Errorf("custom: create http request failed: %w", err)
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
 
@@ -58,15 +62,28 @@ func (p *CustomPusher) Send(ctx context.Context, cfg Config, _ string, body map[
 	client := httppool.NewClient(defaultHTTPClientTimeout)
 	resp, err := client.Do(httpReq)
 	if err != nil {
-		return fmt.Errorf("custom: http request failed: %w", err)
+		return "", fmt.Errorf("custom: http request failed: %w", err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return fmt.Errorf("custom: http status %s", resp.Status)
+	bodyBytes, _ := io.ReadAll(io.LimitReader(resp.Body, maxCustomResponseBytes))
+	upstreamResp := strings.TrimSpace(string(bodyBytes))
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 { //nolint:mnd
+		return upstreamResp, fmt.Errorf("custom: http status %s", resp.Status)
 	}
 
-	return nil
+	// 部分 Webhook（如企业微信、钉钉）即使业务失败也返回 HTTP 200，
+	// 仅当响应体包含非零 errcode 时才判定为发送失败，避免审计记录误报成功。
+	var apiResp struct {
+		ErrCode int    `json:"errcode"`
+		ErrMsg  string `json:"errmsg"`
+	}
+	if err := json.Unmarshal(bodyBytes, &apiResp); err == nil && apiResp.ErrCode != 0 {
+		return upstreamResp, fmt.Errorf("custom: webhook rejected: errcode=%d errmsg=%q", apiResp.ErrCode, apiResp.ErrMsg)
+	}
+
+	return upstreamResp, nil
 }
 
 // ValidateConfig 校验自定义配置

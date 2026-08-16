@@ -33,7 +33,8 @@ type Pusher interface {
 	// body: 消息体数据 (含默认字段如 title, content, level)
 	// template: 消息卡片/模板 JSON (可选)
 	// ext: 预留的单次发送拓展数据
-	Send(ctx context.Context, cfg Config, target string, body map[string]any, template string, ext map[string]any) error
+	// 返回 upstreamResp: 上游服务返回的响应内容（如 Webhook 响应体），用于任务日志审计；无响应时为空字符串
+	Send(ctx context.Context, cfg Config, target string, body map[string]any, template string, ext map[string]any) (upstreamResp string, err error)
 
 	// ValidateConfig 校验渠道配置合法性
 	ValidateConfig(cfg Config) error

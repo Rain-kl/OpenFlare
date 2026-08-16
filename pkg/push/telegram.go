@@ -37,9 +37,9 @@ type telegramErrorResponse struct {
 // Send 执行 Telegram 消息发送
 //
 //nolint:cyclop
-func (p *TelegramPusher) Send(ctx context.Context, cfg Config, target string, body map[string]any, template string, _ map[string]any) error {
+func (p *TelegramPusher) Send(ctx context.Context, cfg Config, target string, body map[string]any, template string, _ map[string]any) (string, error) {
 	if cfg.Secret == "" {
-		return errors.New("telegram: Bot Token (Secret) is required")
+		return "", errors.New("telegram: Bot Token (Secret) is required")
 	}
 
 	chatID := target
@@ -47,7 +47,7 @@ func (p *TelegramPusher) Send(ctx context.Context, cfg Config, target string, bo
 		chatID = cfg.Key // Use default chat ID (Key) if target is blank
 	}
 	if chatID == "" {
-		return errors.New("telegram: chat_id (target or default Key) is required")
+		return "", errors.New("telegram: chat_id (target or default Key) is required")
 	}
 
 	baseURL := cfg.URL
@@ -92,11 +92,11 @@ func (p *TelegramPusher) Send(ctx context.Context, cfg Config, target string, bo
 		}
 		fallbackErr := p.sendMessage(ctx, baseURL, cfg.Secret, chatID, plainText, "")
 		if fallbackErr != nil {
-			return fmt.Errorf("telegram: send message failed (fallback also failed): %w (original HTML error: %v)", fallbackErr, err)
+			return "", fmt.Errorf("telegram: send message failed (fallback also failed): %w (original HTML error: %v)", fallbackErr, err)
 		}
 	}
 
-	return nil
+	return "", nil
 }
 
 // ValidateConfig 校验 Telegram 配置
