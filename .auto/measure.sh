@@ -75,7 +75,16 @@ tsc_out=$(pnpm exec tsc --noEmit --jsx preserve 2>&1 || true)
 tsc_errors=$(grep -cE "error TS" <<< "$tsc_out" || true)
 echo "METRIC tsc_errors=$tsc_errors"
 
+# ---------- Frontend: vitest (2026-08-16 起全绿，纳入基准防回归) ----------
+vitest_out=$(pnpm exec vitest run --reporter=dot 2>&1 || true)
+vitest_failed=0; vitest_total=0
+if [[ "$vitest_out" =~ ([0-9]+)\ failed ]]; then vitest_failed="${BASH_REMATCH[1]}"; fi
+if [[ "$vitest_out" =~ Tests[[:space:]]+([0-9]+)\ passed ]]; then vitest_total="${BASH_REMATCH[1]}"; fi
+if [[ "$vitest_out" =~ Tests[[:space:]]+([0-9]+) ]]; then vitest_total="${BASH_REMATCH[1]}"; fi
+echo "METRIC vitest_failed=$vitest_failed"
+echo "METRIC vitest_total=$vitest_total"
+
 end=$(date +%s)
-total=$((golang_total + golang_test_total + golang_vetx_total + eslint_problems + tsc_errors))
+total=$((golang_total + golang_test_total + golang_vetx_total + eslint_problems + tsc_errors + vitest_failed))
 echo "METRIC total_issues=$total"
 echo "METRIC measure_s=$((end - start))"
