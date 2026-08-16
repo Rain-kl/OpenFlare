@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Loader2 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
@@ -32,6 +33,7 @@ interface ProjectSettingsCardProps {
 }
 
 export function ProjectSettingsCard({ project }: ProjectSettingsCardProps) {
+  const t = useTranslations('pages');
   const queryClient = useQueryClient();
   const form = usePagesProjectForm(project);
 
@@ -45,7 +47,7 @@ export function ProjectSettingsCard({ project }: ProjectSettingsCardProps) {
       return PagesService.updateProject(project.id, payload);
     },
     onSuccess: async () => {
-      toast.success('项目已更新');
+      toast.success(t('updated'));
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: projectsQueryKey }),
         queryClient.invalidateQueries({
@@ -57,7 +59,7 @@ export function ProjectSettingsCard({ project }: ProjectSettingsCardProps) {
       ]);
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : '保存失败');
+      toast.error(error instanceof Error ? error.message : t('saveFailed'));
     },
   });
 
@@ -65,10 +67,8 @@ export function ProjectSettingsCard({ project }: ProjectSettingsCardProps) {
     <Card className='border-dashed shadow-none'>
       <CardHeader className='flex flex-row items-center justify-between gap-4'>
         <div>
-          <CardTitle className='text-base'>编辑 Pages 项目</CardTitle>
-          <CardDescription>
-            配置静态站点托管参数，保存后会同步到项目详情与代理引用。
-          </CardDescription>
+          <CardTitle className='text-base'>{t('editTitle')}</CardTitle>
+          <CardDescription>{t('settingsDesc')}</CardDescription>
         </div>
         <div className='flex shrink-0 flex-wrap gap-2'>
           <Button
@@ -78,7 +78,7 @@ export function ProjectSettingsCard({ project }: ProjectSettingsCardProps) {
             disabled={!form.formState.isDirty || mutation.isPending}
             onClick={() => form.reset(toFormValues(project))}
           >
-            重置
+            {t('reset')}
           </Button>
           <Button
             type='submit'
@@ -89,10 +89,10 @@ export function ProjectSettingsCard({ project }: ProjectSettingsCardProps) {
             {mutation.isPending ? (
               <>
                 <Loader2 className='mr-1 size-4 animate-spin' />
-                保存中...
+                {t('saving')}
               </>
             ) : (
-              '保存修改'
+              t('saveChanges')
             )}
           </Button>
         </div>

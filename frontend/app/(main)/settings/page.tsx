@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 import {
   Card,
   CardContent,
@@ -9,39 +10,40 @@ import {
 } from '@/components/ui/card';
 import { Bell, Key, Palette, UserRound } from 'lucide-react';
 
-/* 设置项 */
-const settingsItems = [
-  {
-    title: '个人资料',
-    description: '查看您的账户信息',
-    icon: UserRound,
-    href: '/settings/profile',
-    category: '个人设置',
-  },
-  {
-    title: '访问令牌 (AccessToken)',
-    description: '管理用于 API 访问的个人 Token',
-    icon: Key,
-    href: '/settings/access-token',
-    category: '个人设置',
-  },
-  {
-    title: '通知设置',
-    description: '设置您的通知偏好',
-    icon: Bell,
-    href: '/settings/notifications',
-    category: '账户设置',
-  },
-  {
-    title: '外观设置',
-    description: '自定义界面主题 and 显示',
-    icon: Palette,
-    href: '/settings/appearance',
-    category: '个人设置',
-  },
-];
-
 export default function SettingsPage() {
+  const t = useTranslations('settings');
+
+  const settingsItems = [
+    {
+      title: t('items.profile'),
+      description: t('items.profileDesc'),
+      icon: UserRound,
+      href: '/settings/profile',
+      category: t('categories.personal'),
+    },
+    {
+      title: t('items.accessToken'),
+      description: t('items.accessTokenDesc'),
+      icon: Key,
+      href: '/settings/access-token',
+      category: t('categories.personal'),
+    },
+    {
+      title: t('items.notifications'),
+      description: t('items.notificationsDesc'),
+      icon: Bell,
+      href: '/settings/notifications',
+      category: t('categories.account'),
+    },
+    {
+      title: t('items.appearance'),
+      description: t('items.appearanceDesc'),
+      icon: Palette,
+      href: '/settings/appearance',
+      category: t('categories.personal'),
+    },
+  ];
+
   const groupedSettings = settingsItems.reduce(
     (acc, item) => {
       if (!acc[item.category]) {
@@ -55,7 +57,7 @@ export default function SettingsPage() {
 
   return (
     <div className='space-y-6 py-6'>
-      <div className='font-semibold text-lg'>设置</div>
+      <div className='font-semibold text-lg'>{t('title')}</div>
 
       {Object.entries(groupedSettings).map(([category, items]) => (
         <div key={category} className='space-y-4'>

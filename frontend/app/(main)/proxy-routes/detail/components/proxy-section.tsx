@@ -28,6 +28,8 @@ import { Textarea } from '@/components/ui/textarea';
 import type { ProxyRouteItem } from '@/lib/services/openflare';
 import { NodeService, PagesService } from '@/lib/services/openflare';
 
+import { useTranslations } from 'next-intl';
+
 import {
   customHeadersToText,
   parseCustomHeadersText,
@@ -39,80 +41,16 @@ import { proxyRouteFormIds } from '../helpers';
 import { useRouteSectionSave } from '../hooks/use-route-section-save';
 import { SectionShell } from './section-shell';
 
-const reverseProxySchema = z
-  .object({
-    upstream_type: z.enum(['direct', 'tunnel', 'pages']),
-    origin_urls_text: z.string().trim(),
-    origin_host: z.string(),
-    tunnel_id: z.string().optional(),
-    tunnel_target_addr: z.string().trim().optional(),
-    tunnel_target_protocol: z.enum(['http', 'https']).optional(),
-    pages_project_id: z.string().optional(),
-    custom_headers_text: z.string(),
-  })
-  .superRefine((value, context) => {
-    if (value.upstream_type === 'direct') {
-      if (!value.origin_urls_text.trim()) {
-        context.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ['origin_urls_text'],
-          message: '请至少填写一个上游地址',
-        });
-      } else {
-        const { error } = parseOriginUrls(value.origin_urls_text);
-        if (error) {
-          context.addIssue({
-            code: z.ZodIssueCode.custom,
-            path: ['origin_urls_text'],
-            message: error,
-          });
-        }
-      }
-    } else if (value.upstream_type === 'tunnel') {
-      if (!value.tunnel_id) {
-        context.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ['tunnel_id'],
-          message: '请选择内网穿透隧道',
-        });
-      }
-      if (!value.tunnel_target_addr) {
-        context.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ['tunnel_target_addr'],
-          message: '请填写内网服务地址 (如 127.0.0.1:8080)',
-        });
-      }
-    } else if (!value.pages_project_id) {
-      context.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['pages_project_id'],
-        message: '请选择 Pages 项目',
-      });
-    }
-
-    const originHostError = validateOriginHost(value.origin_host);
-    if (originHostError) {
-      context.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['origin_host'],
-        message: originHostError,
-      });
-    }
-
-    const { error: headerError } = parseCustomHeadersText(
-      value.custom_headers_text,
-    );
-    if (headerError) {
-      context.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['custom_headers_text'],
-        message: headerError,
-      });
-    }
-  });
-
-type ReverseProxyValues = z.infer<typeof reverseProxySchema>;
+type ReverseProxyValues = {
+  upstream_type: 'direct' | 'tunnel' | 'pages';
+  origin_urls_text: string;
+  origin_host: string;
+  tunnel_id?: string;
+  tunnel_target_addr?: string;
+  tunnel_target_protocol?: 'http' | 'https';
+  pages_project_id?: string;
+  custom_headers_text: string;
+};
 
 interface ProxySectionProps {
   route: ProxyRouteItem;
@@ -125,6 +63,80 @@ export function ProxySection({
   onRouteUpdate,
   onSavingChange,
 }: ProxySectionProps) {
+  const t = useTranslations('proxyRoutes');
+  const reverseProxySchema = z
+    .object({
+      upstream_type: z.enum(['direct', 'tunnel', 'pages']),
+      origin_urls_text: z.string().trim(),
+      origin_host: z.string(),
+      tunnel_id: z.string().optional(),
+      tunnel_target_addr: z.string().trim().optional(),
+      tunnel_target_protocol: z.enum(['http', 'https']).optional(),
+      pages_project_id: z.string().optional(),
+      custom_headers_text: z.string(),
+    })
+    .superRefine((value, context) => {
+      if (value.upstream_type === 'direct') {
+        if (!value.origin_urls_text.trim()) {
+          context.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ['origin_urls_text'],
+            message: t('validation.enterAtLeastOneUpstream'),
+          });
+        } else {
+          const { error } = parseOriginUrls(value.origin_urls_text, t);
+          if (error) {
+            context.addIssue({
+              code: z.ZodIssueCode.custom,
+              path: ['origin_urls_text'],
+              message: error,
+            });
+          }
+        }
+      } else if (value.upstream_type === 'tunnel') {
+        if (!value.tunnel_id) {
+          context.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ['tunnel_id'],
+            message: t('validation.selectTunnel'),
+          });
+        }
+        if (!value.tunnel_target_addr) {
+          context.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ['tunnel_target_addr'],
+            message: t('validation.enterTunnelTarget'),
+          });
+        }
+      } else if (!value.pages_project_id) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['pages_project_id'],
+          message: t('validation.selectPagesProject'),
+        });
+      }
+
+      const originHostError = validateOriginHost(value.origin_host, t);
+      if (originHostError) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['origin_host'],
+          message: originHostError,
+        });
+      }
+
+      const { error: headerError } = parseCustomHeadersText(
+        value.custom_headers_text,
+        t,
+      );
+      if (headerError) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['custom_headers_text'],
+          message: headerError,
+        });
+      }
+    });
   const { saving, save } = useRouteSectionSave(
     route,
     onRouteUpdate,
@@ -185,8 +197,8 @@ export function ProxySection({
 
   return (
     <SectionShell
-      title='反向代理'
-      description='配置请求回源上游的策略与地址。'
+      title={t('reverseProxy')}
+      description={t('reverseProxyDesc')}
       formId={proxyRouteFormIds.proxy}
       saving={saving}
     >
@@ -203,7 +215,7 @@ export function ProxySection({
             let upstreams: string[] = [];
 
             if (values.upstream_type === 'direct') {
-              const { urls } = parseOriginUrls(values.origin_urls_text);
+              const { urls } = parseOriginUrls(values.origin_urls_text, t);
               const primaryOrigin = parseOriginUrl(urls[0]);
               originUrl = urls[0];
               originScheme = primaryOrigin.scheme;
@@ -224,6 +236,7 @@ export function ProxySection({
 
             const { headers } = parseCustomHeadersText(
               values.custom_headers_text,
+              t,
             );
 
             await save(
@@ -255,7 +268,7 @@ export function ProxySection({
                     ? Number(values.pages_project_id)
                     : null,
               },
-              '反向代理设置已保存',
+              t('proxySaved'),
             );
           })}
         >
@@ -264,13 +277,13 @@ export function ProxySection({
             name='upstream_type'
             render={({ field }) => (
               <FormItem className='space-y-3'>
-                <FormLabel>回源方式</FormLabel>
+                <FormLabel>{t('upstreamType')}</FormLabel>
                 <div className='flex flex-wrap gap-4'>
                   {(
                     [
-                      ['direct', '直连上游'],
-                      ['tunnel', '内网穿透 (Tunnel)'],
-                      ['pages', 'Pages 静态站点'],
+                      ['direct', t('upstreamDirect')],
+                      ['tunnel', t('upstreamTunnel')],
+                      ['pages', t('upstreamPages')],
                     ] as const
                   ).map(([value, label]) => (
                     <label
@@ -299,7 +312,7 @@ export function ProxySection({
               name='origin_urls_text'
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>上游地址</FormLabel>
+                  <FormLabel>{t('upstreamAddresses')}</FormLabel>
                   <FormControl>
                     <Textarea
                       className='min-h-40 font-mono text-xs'
@@ -309,11 +322,7 @@ export function ProxySection({
                       {...field}
                     />
                   </FormControl>
-                  <FormDescription>
-                    每行一个完整
-                    URL。第一行作为主回源，多上游模式请保持相同协议且不要包含
-                    path 或 query。
-                  </FormDescription>
+                  <FormDescription>{t('upstreamUrlsHint')}</FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
@@ -327,7 +336,7 @@ export function ProxySection({
                 name='tunnel_id'
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>选择内网穿透隧道</FormLabel>
+                    <FormLabel>{t('selectTunnel')}</FormLabel>
                     <Select
                       value={field.value || 'none'}
                       onValueChange={(value) =>
@@ -336,22 +345,23 @@ export function ProxySection({
                     >
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder='请选择...' />
+                          <SelectValue placeholder={t('pleaseSelect')} />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value='none'>请选择...</SelectItem>
+                        <SelectItem value='none'>{t('pleaseSelect')}</SelectItem>
                         {tunnelClients.map((tunnel) => (
                           <SelectItem key={tunnel.id} value={String(tunnel.id)}>
                             {tunnel.name} (
-                            {tunnel.status === 'online' ? '在线' : '离线'})
+                            {tunnel.status === 'online'
+                              ? t('online')
+                              : t('offline')}
+                            )
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
-                    <FormDescription>
-                      将请求转发到该隧道连接的客户端节点。
-                    </FormDescription>
+                    <FormDescription>{t('tunnelForwardHint')}</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -362,7 +372,7 @@ export function ProxySection({
                 name='tunnel_target_protocol'
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>内网服务协议</FormLabel>
+                    <FormLabel>{t('tunnelProtocol')}</FormLabel>
                     <Select value={field.value} onValueChange={field.onChange}>
                       <FormControl>
                         <SelectTrigger>
@@ -384,13 +394,11 @@ export function ProxySection({
                 name='tunnel_target_addr'
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>内网服务地址</FormLabel>
+                    <FormLabel>{t('tunnelAddress')}</FormLabel>
                     <FormControl>
                       <Input placeholder='127.0.0.1:8080' {...field} />
                     </FormControl>
-                    <FormDescription>
-                      例如: 127.0.0.1:8080 或 192.168.1.10:80
-                    </FormDescription>
+                    <FormDescription>{t('tunnelAddressHint')}</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -405,7 +413,7 @@ export function ProxySection({
                 name='pages_project_id'
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>选择 Pages 项目</FormLabel>
+                    <FormLabel>{t('selectPagesProject')}</FormLabel>
                     <Select
                       value={field.value || 'none'}
                       onValueChange={(value) =>
@@ -414,11 +422,11 @@ export function ProxySection({
                     >
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder='请选择...' />
+                          <SelectValue placeholder={t('pleaseSelect')} />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value='none'>请选择...</SelectItem>
+                        <SelectItem value='none'>{t('pleaseSelect')}</SelectItem>
                         {pagesProjects.map((project) => (
                           <SelectItem
                             key={project.id}
@@ -429,9 +437,7 @@ export function ProxySection({
                         ))}
                       </SelectContent>
                     </Select>
-                    <FormDescription>
-                      仅显示已启用且已有激活部署的 Pages 项目。
-                    </FormDescription>
+                    <FormDescription>{t('pagesProjectHint')}</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -449,7 +455,7 @@ export function ProxySection({
                   <Input placeholder='origin.example.internal' {...field} />
                 </FormControl>
                 <FormDescription>
-                  留空时默认透传访问域名 $host。
+                  {t('originHostHint')}
                 </FormDescription>
                 <FormMessage />
               </FormItem>
@@ -461,7 +467,7 @@ export function ProxySection({
             name='custom_headers_text'
             render={({ field }) => (
               <FormItem>
-                <FormLabel>自定义请求头</FormLabel>
+                <FormLabel>{t('customHeaders')}</FormLabel>
                 <FormControl>
                   <Textarea
                     className='min-h-32 font-mono text-xs'
@@ -469,7 +475,7 @@ export function ProxySection({
                     {...field}
                   />
                 </FormControl>
-                <FormDescription>每行一条，格式为 Key: Value。</FormDescription>
+                <FormDescription>{t('customHeadersHint')}</FormDescription>
                 <FormMessage />
               </FormItem>
             )}

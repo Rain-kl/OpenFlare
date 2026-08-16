@@ -44,6 +44,8 @@ import {
 } from '@/lib/openflare/offline-page-templates';
 import { OptionService } from '@/lib/services/openflare';
 
+import { useTranslations } from 'next-intl';
+
 import {
   invalidateResponseQueries,
   KEY_SW_HTML,
@@ -55,6 +57,8 @@ import {
 const OFFLINE_PAGE_HTML_MAX_BYTES = 256 * 1024;
 
 export default function OfflinePageEditPage() {
+  const t = useTranslations('responses');
+  const tc = useTranslations('common');
   const { user, loading: authLoading } = useAuth();
   const queryClient = useQueryClient();
   const [html, setHtml] = useState('');
@@ -78,33 +82,33 @@ export default function OfflinePageEditPage() {
     mutationFn: async () => {
       const bytes = new TextEncoder().encode(html).length;
       if (bytes > OFFLINE_PAGE_HTML_MAX_BYTES) {
-        throw new Error('HTML 大小超出限制（最大 256KB）');
+        throw new Error(t('htmlTooLarge'));
       }
       await OptionService.updateBatch([{ key: KEY_SW_HTML, value: html }]);
     },
     onSuccess: async () => {
-      toast.success('离线页 HTML 已保存，请前往版本发布使配置生效');
+      toast.success(t('offlineHtmlSaved'));
       await invalidateResponseQueries(queryClient);
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : '保存失败');
+      toast.error(error instanceof Error ? error.message : t('saveFailed'));
     },
   });
 
   const loadSelectedTemplate = () => {
     const tmpl = getOfflinePageTemplate(templateId);
     if (!tmpl) {
-      toast.error('未找到所选模板');
+      toast.error(t('templateNotFound'));
       return;
     }
     setHtml(tmpl.html);
-    toast.success(`已加载模板「${tmpl.name}」到编辑器`);
+    toast.success(t('templateLoaded', { name: tmpl.name }));
   };
 
   const restoreDefault = () => {
     setHtml('');
     setRestoreOpen(false);
-    toast.success('已清空为使用内置默认模板（需保存后生效）');
+    toast.success(t('offlineRestored'));
   };
 
   if (authLoading) {
@@ -112,7 +116,7 @@ export default function OfflinePageEditPage() {
       <div className='w-full py-6 px-1'>
         <LoadingStateWithBorder
           icon={FileCode2}
-          description='加载权限信息...'
+          description={t('loadingPermission')}
         />
       </div>
     );
@@ -123,8 +127,8 @@ export default function OfflinePageEditPage() {
       <div className='w-full py-6 px-1'>
         <EmptyStateWithBorder
           icon={FileCode2}
-          title='权限不足'
-          description='只有管理员可以编辑离线页 HTML。'
+          title={t('forbidden')}
+          description={t('forbiddenEditOffline')}
         />
       </div>
     );
@@ -135,7 +139,7 @@ export default function OfflinePageEditPage() {
       <div className='w-full py-6 px-1'>
         <LoadingStateWithBorder
           icon={FileCode2}
-          description='加载离线页配置...'
+          description={t('loadingOfflineConfig')}
         />
       </div>
     );
@@ -148,7 +152,7 @@ export default function OfflinePageEditPage() {
           message={
             optionsQuery.error instanceof Error
               ? optionsQuery.error.message
-              : '加载失败'
+              : t('loadFailed')
           }
           onRetry={() => void optionsQuery.refetch()}
         />
@@ -161,7 +165,7 @@ export default function OfflinePageEditPage() {
       <div className='flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between'>
         <div className='flex items-center gap-3'>
           <Button variant='outline' size='icon' className='h-8 w-8' asChild>
-            <Link href='/responses?tab=offline' aria-label='返回离线页'>
+            <Link href='/responses?tab=offline' aria-label={t('backToOffline')}>
               <ArrowLeft className='size-4' />
             </Link>
           </Button>
@@ -169,7 +173,7 @@ export default function OfflinePageEditPage() {
             <FileCode2 className='size-5 text-primary' />
             <div>
               <h1 className='text-2xl font-semibold tracking-tight'>
-                编辑离线页 HTML
+                {t('editOfflineHtml')}
               </h1>
             </div>
           </div>
@@ -182,16 +186,16 @@ export default function OfflinePageEditPage() {
         preview={effectiveOfflinePageHTML}
         footerHint={null}
         showPreviewLink={false}
-        previewTitle='离线页实时预览'
+        previewTitle={t('offlineLivePreview')}
         toolbarRight={
           <>
             <div className='flex items-center gap-1.5'>
               <span className='text-[11px] text-muted-foreground hidden sm:inline'>
-                内置模板
+                {t('builtinTemplates')}
               </span>
               <Select value={templateId} onValueChange={setTemplateId}>
                 <SelectTrigger className='h-7 w-[160px] text-[11px] bg-background'>
-                  <SelectValue placeholder='选择模板' />
+                  <SelectValue placeholder={t('selectTemplate')} />
                 </SelectTrigger>
                 <SelectContent>
                   {OFFLINE_PAGE_TEMPLATES.map((tmpl) => (
@@ -213,7 +217,7 @@ export default function OfflinePageEditPage() {
                 onClick={loadSelectedTemplate}
               >
                 <Sparkles className='size-3.5' />
-                加载模板
+                {t('loadTemplate')}
               </Button>
             </div>
             <Button
@@ -224,7 +228,7 @@ export default function OfflinePageEditPage() {
               onClick={() => setRestoreOpen(true)}
             >
               <RotateCcw className='size-3.5' />
-              恢复默认
+              {t('restoreDefault')}
             </Button>
             <Button
               size='sm'
@@ -237,7 +241,7 @@ export default function OfflinePageEditPage() {
               ) : (
                 <Save className='size-3' />
               )}
-              保存
+              {tc('save')}
             </Button>
           </>
         }
@@ -246,15 +250,15 @@ export default function OfflinePageEditPage() {
       <AlertDialog open={restoreOpen} onOpenChange={setRestoreOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>恢复默认 HTML？</AlertDialogTitle>
+            <AlertDialogTitle>{t('restoreTitle')}</AlertDialogTitle>
             <AlertDialogDescription>
-              将清空编辑器内容，保存后使用内置默认模板。此操作不会自动保存。
+              {t('restoreOfflineDesc')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogCancel>{tc('cancel')}</AlertDialogCancel>
             <AlertDialogAction onClick={restoreDefault}>
-              确认恢复
+              {t('confirmRestore')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

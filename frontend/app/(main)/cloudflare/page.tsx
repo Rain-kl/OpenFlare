@@ -10,6 +10,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { toast } from 'sonner';
 
@@ -48,6 +49,8 @@ import {
 import { getErrorMessage } from '../websites/components/website-utils';
 
 export default function CloudflarePage() {
+  const t = useTranslations('cloudflare');
+  const tCommon = useTranslations('common');
   const queryClient = useQueryClient();
   const [createOpen, setCreateOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<CloudflareGroup | null>(
@@ -72,7 +75,7 @@ export default function CloudflarePage() {
     mutationFn: (payload: CloudflareGroupPayload) =>
       CloudflareService.createGroup(payload),
     onSuccess: async () => {
-      toast.success('指向分组已创建');
+      toast.success(t('created'));
       setCreateOpen(false);
       await invalidate();
     },
@@ -81,7 +84,7 @@ export default function CloudflarePage() {
   const syncMutation = useMutation({
     mutationFn: (id: number) => CloudflareService.syncGroup(id),
     onSuccess: async () => {
-      toast.success('分组同步任务已入队');
+      toast.success(t('syncQueued'));
       await queryClient.invalidateQueries({
         queryKey: [...cloudflareQueryKey, 'sync-executions'],
       });
@@ -91,7 +94,7 @@ export default function CloudflarePage() {
   const deleteMutation = useMutation({
     mutationFn: (id: number) => CloudflareService.deleteGroup(id),
     onSuccess: async () => {
-      toast.success('指向分组及远端记录已删除');
+      toast.success(t('deleted'));
       setDeleteTarget(null);
       await invalidate();
     },
@@ -105,18 +108,20 @@ export default function CloudflarePage() {
       <div className='flex items-center justify-between gap-3'>
         <div className='flex items-center gap-2'>
           <Cloud className='size-5 text-primary' />
-          <h1 className='text-2xl font-semibold tracking-tight'>Cloudflare</h1>
+          <h1 className='text-2xl font-semibold tracking-tight'>
+            {t('title')}
+          </h1>
         </div>
         <div className='flex items-center gap-2'>
           <Button asChild variant='outline' size='sm'>
             <Link href='/cloudflare/settings'>
               <Settings data-icon='inline-start' />
-              连接设置
+              {t('connectionSettings')}
             </Link>
           </Button>
           <Button size='sm' onClick={() => setCreateOpen(true)}>
             <Plus data-icon='inline-start' />
-            新增分组
+            {t('addGroup')}
           </Button>
         </div>
       </div>
@@ -124,7 +129,7 @@ export default function CloudflarePage() {
       {overviewQuery.isLoading ? (
         <LoadingStateWithBorder
           icon={Cloud}
-          description='加载 Cloudflare 总览中...'
+          description={t('loadingOverview')}
         />
       ) : overviewQuery.isError ? (
         <ErrorInline
@@ -134,14 +139,11 @@ export default function CloudflarePage() {
       ) : !overview?.connection.ready ? (
         <Alert>
           <AlertTriangle />
-          <AlertTitle>Cloudflare 连接尚未就绪</AlertTitle>
+          <AlertTitle>{t('notReadyTitle')}</AlertTitle>
           <AlertDescription className='flex flex-col items-start gap-3'>
-            <span>
-              请先导入现有 Cloudflare DNS 账号，或录入独立 API Token
-              并完成连接测试。
-            </span>
+            <span>{t('notReadyDesc')}</span>
             <Button asChild size='sm'>
-              <Link href='/cloudflare/settings'>配置连接</Link>
+              <Link href='/cloudflare/settings'>{t('configure')}</Link>
             </Button>
           </AlertDescription>
         </Alert>
@@ -149,16 +151,14 @@ export default function CloudflarePage() {
 
       <div className='flex flex-col gap-4'>
         <div>
-          <h2 className='text-lg font-semibold'>指向分组</h2>
-          <p className='text-sm text-muted-foreground'>
-            管理 Cloudflare A 记录对应的节点与域名成员。
-          </p>
+          <h2 className='text-lg font-semibold'>{t('groupsTitle')}</h2>
+          <p className='text-sm text-muted-foreground'>{t('groupsDesc')}</p>
         </div>
 
         {groupsQuery.isLoading ? (
           <LoadingStateWithBorder
             icon={Cloud}
-            description='加载指向分组中...'
+            description={t('loadingGroups')}
           />
         ) : groupsQuery.isError ? (
           <ErrorInline
@@ -168,9 +168,9 @@ export default function CloudflarePage() {
         ) : (groupsQuery.data ?? []).length === 0 ? (
           <EmptyStateWithBorder
             icon={Cloud}
-            title='暂无指向分组'
-            description='创建分组后，可将域名成员同步到指定的边缘节点。'
-            actionText='新增分组'
+            title={t('emptyTitle')}
+            description={t('emptyDesc')}
+            actionText={t('addGroup')}
             onAction={() => setCreateOpen(true)}
           />
         ) : (
@@ -186,20 +186,22 @@ export default function CloudflarePage() {
                       </CardDescription>
                     </div>
                     <Badge variant={group.enabled ? 'default' : 'secondary'}>
-                      {group.enabled ? '已启用' : '已停用'}
+                      {group.enabled ? t('enabled') : t('disabled')}
                     </Badge>
                   </div>
                 </CardHeader>
                 <CardContent className='flex flex-col gap-4'>
                   <p className='text-sm text-muted-foreground'>
-                    成员 {group.member_count} 个 · 新成员默认
-                    {group.default_proxied ? '开启' : '关闭'}橙云
+                    {t('memberSummary', {
+                      count: group.member_count,
+                      proxy: group.default_proxied ? t('proxyOn') : t('proxyOff'),
+                    })}
                   </p>
                   <div className='flex flex-wrap gap-2'>
                     <Button asChild size='sm'>
                       <Link href={`/cloudflare/groups/${group.id}`}>
                         <Settings data-icon='inline-start' />
-                        管理
+                        {t('manage')}
                       </Link>
                     </Button>
                     <Button
@@ -208,7 +210,7 @@ export default function CloudflarePage() {
                       onClick={() => syncMutation.mutate(group.id)}
                     >
                       <RefreshCw data-icon='inline-start' />
-                      同步
+                      {t('sync')}
                     </Button>
                     <Button
                       variant='destructive'
@@ -216,7 +218,7 @@ export default function CloudflarePage() {
                       onClick={() => setDeleteTarget(group)}
                     >
                       <Trash2 data-icon='inline-start' />
-                      删除
+                      {t('delete')}
                     </Button>
                   </div>
                 </CardContent>
@@ -242,20 +244,19 @@ export default function CloudflarePage() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>删除指向分组</AlertDialogTitle>
+            <AlertDialogTitle>{t('deleteTitle')}</AlertDialogTitle>
             <AlertDialogDescription>
-              将删除 {deleteTarget?.name} 的全部成员及本模块管理的远端 A
-              记录。此操作不可撤销。
+              {t('deleteDesc', { name: deleteTarget?.name ?? '' })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogCancel>{tCommon('cancel')}</AlertDialogCancel>
             <AlertDialogAction
               onClick={() =>
                 deleteTarget && deleteMutation.mutate(deleteTarget.id)
               }
             >
-              确认删除
+              {t('confirmDelete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

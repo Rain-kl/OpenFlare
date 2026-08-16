@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 import { Bell } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
@@ -16,6 +17,8 @@ import {
 
 export function NotificationsMain() {
   const { showBell, setShowBell } = useNotificationSettings();
+  const t = useTranslations('settings');
+  const tn = useTranslations('settings.notifications');
 
   return (
     <div className='py-6 space-y-6'>
@@ -25,14 +28,14 @@ export function NotificationsMain() {
             <BreadcrumbItem>
               <BreadcrumbLink asChild>
                 <Link href='/settings' className='text-base text-primary'>
-                  设置
+                  {t('title')}
                 </Link>
               </BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbSeparator />
             <BreadcrumbItem>
               <BreadcrumbPage className='text-base font-semibold'>
-                通知设置
+                {tn('breadcrumb')}
               </BreadcrumbPage>
             </BreadcrumbItem>
           </BreadcrumbList>
@@ -41,10 +44,10 @@ export function NotificationsMain() {
 
       <div className='space-y-6'>
         <div>
-          <h2 className='font-medium text-sm text-foreground'>通知显示</h2>
-          <p className='text-xs text-muted-foreground'>
-            设置通知相关的显示选项
-          </p>
+          <h2 className='font-medium text-sm text-foreground'>
+            {tn('display')}
+          </h2>
+          <p className='text-xs text-muted-foreground'>{tn('displayDesc')}</p>
         </div>
 
         <div className='flex items-center justify-between rounded-lg border p-4'>
@@ -55,10 +58,10 @@ export function NotificationsMain() {
                 htmlFor='show-bell'
                 className='text-sm font-medium cursor-pointer'
               >
-                显示通知铃铛
+                {tn('showBell')}
               </Label>
               <p className='text-xs text-muted-foreground'>
-                在顶部导航栏中显示通知铃铛图标
+                {tn('showBellDesc')}
               </p>
             </div>
           </div>

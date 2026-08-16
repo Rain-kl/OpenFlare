@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { Trash2 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 
 import {
@@ -28,6 +29,8 @@ interface DangerZoneCardProps {
 }
 
 export function DangerZoneCard({ project }: DangerZoneCardProps) {
+  const t = useTranslations('pages');
+  const tCommon = useTranslations('common');
   const router = useRouter();
   const queryClient = useQueryClient();
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -35,12 +38,12 @@ export function DangerZoneCard({ project }: DangerZoneCardProps) {
   const deleteProjectMutation = useMutation({
     mutationFn: () => PagesService.deleteProject(project.id),
     onSuccess: async () => {
-      toast.success('项目已删除');
+      toast.success(t('deleted'));
       await queryClient.invalidateQueries({ queryKey: projectsQueryKey });
       router.push('/pages');
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : '删除失败');
+      toast.error(error instanceof Error ? error.message : t('deleteFailed'));
     },
   });
 
@@ -48,13 +51,18 @@ export function DangerZoneCard({ project }: DangerZoneCardProps) {
     <>
       <Card className='border-dashed border-destructive/30 bg-destructive/5 shadow-none'>
         <CardHeader className='pb-3'>
-          <CardTitle className='text-base text-destructive'>危险区域</CardTitle>
+          <CardTitle className='text-base text-destructive'>
+            {t('danger.title')}
+          </CardTitle>
         </CardHeader>
         <CardContent className='flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between'>
           <div className='space-y-1'>
-            <p className='text-sm font-medium'>删除项目</p>
+            <p className='text-sm font-medium'>{t('danger.deleteProject')}</p>
             <p className='text-xs text-muted-foreground'>
-              将永久删除 {project.name}（{project.slug}）及其全部部署。
+              {t('danger.deleteHint', {
+                name: project.name,
+                slug: project.slug,
+              })}
             </p>
           </div>
           <Button
@@ -64,7 +72,7 @@ export function DangerZoneCard({ project }: DangerZoneCardProps) {
             onClick={() => setDeleteOpen(true)}
           >
             <Trash2 data-icon='inline-start' />
-            删除项目
+            {t('danger.deleteProject')}
           </Button>
         </CardContent>
       </Card>
@@ -72,14 +80,14 @@ export function DangerZoneCard({ project }: DangerZoneCardProps) {
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>删除 Pages 项目</AlertDialogTitle>
+            <AlertDialogTitle>{t('danger.confirmTitle')}</AlertDialogTitle>
             <AlertDialogDescription>
-              确认删除项目 {project.name} 吗？此操作不可恢复。
+              {t('danger.confirmDesc', { name: project.name })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={deleteProjectMutation.isPending}>
-              取消
+              {tCommon('cancel')}
             </AlertDialogCancel>
             <AlertDialogAction
               disabled={deleteProjectMutation.isPending}
@@ -91,7 +99,7 @@ export function DangerZoneCard({ project }: DangerZoneCardProps) {
               {deleteProjectMutation.isPending ? (
                 <Spinner data-icon='inline-start' />
               ) : null}
-              确认删除
+              {t('danger.confirm')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

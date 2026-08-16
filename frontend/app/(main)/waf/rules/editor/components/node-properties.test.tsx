@@ -1,9 +1,27 @@
 import { fireEvent, render, screen } from '@testing-library/react';
+import { NextIntlClientProvider } from 'next-intl';
+import type { ReactElement } from 'react';
 import { expect, it, vi } from 'vitest';
 
 import type { WAFIPGroup, WAFRuleNode } from '@/lib/services/openflare';
+import mainZh from '@/messages/zh-CN.json';
+import securityZh from '@/messages/fragments/security.zh-CN.json';
 
 import { NodeProperties } from './node-properties';
+
+const messages = { ...mainZh, ...securityZh };
+
+function renderWithIntl(ui: ReactElement) {
+  return render(
+    <NextIntlClientProvider
+      locale='zh-CN'
+      messages={messages}
+      timeZone='Asia/Shanghai'
+    >
+      {ui}
+    </NextIntlClientProvider>,
+  );
+}
 
 it('hides match and block until UA check is enabled', () => {
   const node: WAFRuleNode = {
@@ -22,7 +40,7 @@ it('hides match and block until UA check is enabled', () => {
     },
   };
   const onChange = vi.fn();
-  const { rerender } = render(
+  const { rerender } = renderWithIntl(
     <NodeProperties node={node} ipGroups={[]} onChange={onChange} />,
   );
   expect(
@@ -36,11 +54,17 @@ it('hides match and block until UA check is enabled', () => {
     }),
   );
   rerender(
-    <NodeProperties
-      node={{ ...node, config: { ...node.config, require_ua: true } }}
-      ipGroups={[]}
-      onChange={onChange}
-    />,
+    <NextIntlClientProvider
+      locale='zh-CN'
+      messages={messages}
+      timeZone='Asia/Shanghai'
+    >
+      <NodeProperties
+        node={{ ...node, config: { ...node.config, require_ua: true } }}
+        ipGroups={[]}
+        onChange={onChange}
+      />
+    </NextIntlClientProvider>,
   );
   expect(
     screen.getByRole('switch', { name: /屏蔽常见爬虫/ }),
@@ -62,7 +86,9 @@ it('edits display name for configurable nodes', () => {
     config: { ips: [], cidrs: [], ip_group_ids: [] },
   };
   const onChange = vi.fn();
-  render(<NodeProperties node={node} ipGroups={[]} onChange={onChange} />);
+  renderWithIntl(
+    <NodeProperties node={node} ipGroups={[]} onChange={onChange} />,
+  );
   fireEvent.change(screen.getByLabelText('显示名称'), {
     target: { value: '内网放行' },
   });
@@ -78,7 +104,9 @@ it('hides display name for system nodes', () => {
     position: { x: 0, y: 0 },
     config: {},
   };
-  render(<NodeProperties node={node} ipGroups={[]} onChange={vi.fn()} />);
+  renderWithIntl(
+    <NodeProperties node={node} ipGroups={[]} onChange={vi.fn()} />,
+  );
   expect(screen.queryByLabelText('显示名称')).not.toBeInTheDocument();
   expect(screen.getByText('系统节点无需配置。')).toBeInTheDocument();
 });
@@ -92,7 +120,9 @@ it('edits IP group config through a typed multi-select', async () => {
   };
   const group = { id: 7, name: '办公室出口' } as WAFIPGroup;
   const onChange = vi.fn();
-  render(<NodeProperties node={node} ipGroups={[group]} onChange={onChange} />);
+  renderWithIntl(
+    <NodeProperties node={node} ipGroups={[group]} onChange={onChange} />,
+  );
   fireEvent.click(screen.getByRole('button', { name: 'IP 组' }));
   fireEvent.click(await screen.findByText('办公室出口'));
   expect(onChange).toHaveBeenCalledWith(
@@ -114,7 +144,9 @@ it('associates numeric property labels and constrains server ranges', () => {
       challenge_ttl: 30,
     },
   };
-  render(<NodeProperties node={node} ipGroups={[]} onChange={vi.fn()} />);
+  renderWithIntl(
+    <NodeProperties node={node} ipGroups={[]} onChange={vi.fn()} />,
+  );
   expect(screen.getByLabelText('难度')).toHaveAttribute('min', '1');
   expect(screen.getByLabelText('难度')).toHaveAttribute('max', '16');
   expect(screen.getByLabelText('会话 TTL（秒）')).toHaveAttribute('min', '60');
@@ -128,7 +160,9 @@ it('creates any normalized valid geography code', async () => {
     config: { countries: [], regions: [] },
   };
   const onChange = vi.fn();
-  render(<NodeProperties node={node} ipGroups={[]} onChange={onChange} />);
+  renderWithIntl(
+    <NodeProperties node={node} ipGroups={[]} onChange={onChange} />,
+  );
   fireEvent.click(screen.getByRole('button', { name: '国家代码' }));
   fireEvent.change(await screen.findByPlaceholderText('搜索名称或代码'), {
     target: { value: 'nz' },
@@ -148,7 +182,9 @@ it('shows localized country names together with their codes', async () => {
     position: { x: 0, y: 0 },
     config: { countries: [], regions: [] },
   };
-  render(<NodeProperties node={node} ipGroups={[]} onChange={vi.fn()} />);
+  renderWithIntl(
+    <NodeProperties node={node} ipGroups={[]} onChange={vi.fn()} />,
+  );
   fireEvent.click(screen.getByRole('button', { name: '国家代码' }));
   expect(await screen.findByText('中国')).toBeInTheDocument();
   expect(screen.getByText('CN')).toBeInTheDocument();

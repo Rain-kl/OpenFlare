@@ -4,6 +4,7 @@ import { Suspense, useCallback, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { RefreshCw, ScrollText, Trash2 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 
 import { LoadingStateWithBorder } from '@/components/layout/loading';
@@ -45,6 +46,7 @@ function resolveTab(value: string | null): AccessLogTab {
 }
 
 function AccessLogsPageContent() {
+  const t = useTranslations('accessLogs');
   const router = useRouter();
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
@@ -152,14 +154,14 @@ function AccessLogsPageContent() {
     mutationFn: (retentionDays: number) =>
       AccessLogService.cleanup({ retention_days: retentionDays }),
     onSuccess: async (result) => {
-      toast.success(`已清理 ${result.deleted_count} 条日志`);
+      toast.success(t('cleaned', { count: result.deleted_count }));
       setCleanupOpen(false);
       await queryClient.invalidateQueries({
         queryKey: ['openflare', 'access-logs'],
       });
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : '清理失败');
+      toast.error(error instanceof Error ? error.message : t('cleanupFailed'));
     },
   });
 
@@ -213,10 +215,10 @@ function AccessLogsPageContent() {
         <div className='flex items-center gap-2'>
           <ScrollText className='size-5 text-primary' />
           <div>
-            <h1 className='text-2xl font-semibold tracking-tight'>访问日志</h1>
-            <p className='text-sm text-muted-foreground'>
-              查看访问概览、IP 明细与请求日志。
-            </p>
+            <h1 className='text-2xl font-semibold tracking-tight'>
+              {t('title')}
+            </h1>
+            <p className='text-sm text-muted-foreground'>{t('subtitle')}</p>
           </div>
         </div>
         <div className='flex gap-2'>
@@ -229,7 +231,7 @@ function AccessLogsPageContent() {
             <RefreshCw
               className={`size-3.5 mr-1 ${isFetching ? 'animate-spin' : ''}`}
             />
-            刷新
+            {t('refresh')}
           </Button>
           <Button
             variant='destructive'
@@ -237,16 +239,16 @@ function AccessLogsPageContent() {
             onClick={() => setCleanupOpen(true)}
           >
             <Trash2 className='size-3.5 mr-1' />
-            清理日志
+            {t('cleanup')}
           </Button>
         </div>
       </div>
 
       <Tabs value={tab} onValueChange={handleTabChange}>
         <TabsList className='grid w-full max-w-lg grid-cols-3'>
-          <TabsTrigger value='overview'>概览</TabsTrigger>
-          <TabsTrigger value='ips'>IP 明细</TabsTrigger>
-          <TabsTrigger value='list'>日志明细</TabsTrigger>
+          <TabsTrigger value='overview'>{t('tabOverview')}</TabsTrigger>
+          <TabsTrigger value='ips'>{t('tabIps')}</TabsTrigger>
+          <TabsTrigger value='list'>{t('tabList')}</TabsTrigger>
         </TabsList>
 
         <TabsContent value='overview' className='mt-4'>
@@ -343,12 +345,13 @@ function AccessLogsPageContent() {
 }
 
 export default function AccessLogsPage() {
+  const t = useTranslations('accessLogs');
   return (
     <Suspense
       fallback={
         <LoadingStateWithBorder
-          title='加载访问日志'
-          description='正在准备页面...'
+          title={t('loadingTitle')}
+          description={t('loadingDesc')}
         />
       }
     >

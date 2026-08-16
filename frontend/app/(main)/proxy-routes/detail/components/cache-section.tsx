@@ -33,6 +33,8 @@ import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import type { ProxyRouteItem } from '@/lib/services/openflare';
 
+import { useTranslations } from 'next-intl';
+
 import {
   linesFromTextarea,
   validateCacheRules,
@@ -41,35 +43,11 @@ import { proxyRouteFormIds } from '../helpers';
 import { useRouteSectionSave } from '../hooks/use-route-section-save';
 import { SectionShell } from './section-shell';
 
-const cacheSchema = z
-  .object({
-    cache_enabled: z.boolean(),
-    cache_policy: z.enum([
-      'static',
-      'all',
-      'suffix',
-      'path_prefix',
-      'path_exact',
-    ]),
-    cache_rules_text: z.string(),
-  })
-  .superRefine((value, context) => {
-    if (!value.cache_enabled) {
-      return;
-    }
-
-    const rules = linesFromTextarea(value.cache_rules_text);
-    const error = validateCacheRules(value.cache_policy, rules);
-    if (error) {
-      context.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['cache_rules_text'],
-        message: error,
-      });
-    }
-  });
-
-type CacheValues = z.infer<typeof cacheSchema>;
+type CacheValues = {
+  cache_enabled: boolean;
+  cache_policy: 'static' | 'all' | 'suffix' | 'path_prefix' | 'path_exact';
+  cache_rules_text: string;
+};
 
 interface CacheSectionProps {
   route: ProxyRouteItem;
@@ -101,6 +79,7 @@ function needsRulesForPolicy(policy: string) {
 }
 
 function CacheHelpButton() {
+  const t = useTranslations('proxyRoutes');
   return (
     <Popover>
       <PopoverTrigger asChild>
@@ -109,39 +88,38 @@ function CacheHelpButton() {
           variant='ghost'
           size='icon-sm'
           className='size-7 text-muted-foreground'
-          aria-label='缓存使用说明'
+          aria-label={t('cacheHelpTitle')}
         >
           <CircleHelp />
         </Button>
       </PopoverTrigger>
       <PopoverContent align='start' className='w-80 flex flex-col gap-3 p-4'>
-        <div className='text-sm font-medium'>缓存使用说明</div>
+        <div className='text-sm font-medium'>{t('cacheHelpTitle')}</div>
         <div className='flex flex-col gap-2 text-xs text-muted-foreground leading-relaxed'>
+          <p>{t('cacheHelpIntro')}</p>
           <p>
-            扩展名/策略决定是否可缓存，源站头与Set-Cookie
-            决定是否入库。须同时开启性能设置中的全局 OpenResty 缓存。
-          </p>
-          <p>
-            <span className='font-medium text-foreground'>推荐策略：</span>
-            新建站点建议使用「标准静态资源」（含
-            css/js/map/图片/字体/媒体等，不含 HTML/JSON）。
-          </p>
-          <p>
-            <span className='font-medium text-foreground'>通用规则：</span>非
-            GET 不缓存；登录 Cookie 不会单独跳过缓存；源站 private/no-store
-            或响应 Set-Cookie 不会写入边缘。
+            <span className='font-medium text-foreground'>
+              {t('cacheHelpRecommendLabel')}
+            </span>
+            {t('cacheHelpRecommend')}
           </p>
           <p>
             <span className='font-medium text-foreground'>
-              所有可缓存 GET：
+              {t('cacheHelpGeneralLabel')}
             </span>
-            高级选项，类似 Cache Everything。个性化页面须由源站声明
-            private/no-store，否则 HTML 可能被边缘缓存并串给其他用户。
+            {t('cacheHelpGeneral')}
           </p>
           <p>
-            <span className='font-medium text-foreground'>自定义规则：</span>
-            后缀填 jpg/css/js；路径前缀填 /assets；精确路径填 /robots.txt。
-            保存后须重新发布配置版本才会在节点生效。
+            <span className='font-medium text-foreground'>
+              {t('cacheHelpAllGetLabel')}
+            </span>
+            {t('cacheHelpAllGet')}
+          </p>
+          <p>
+            <span className='font-medium text-foreground'>
+              {t('cacheHelpCustomLabel')}
+            </span>
+            {t('cacheHelpCustom')}
           </p>
         </div>
       </PopoverContent>
@@ -154,6 +132,34 @@ export function CacheSection({
   onRouteUpdate,
   onSavingChange,
 }: CacheSectionProps) {
+  const t = useTranslations('proxyRoutes');
+  const cacheSchema = z
+    .object({
+      cache_enabled: z.boolean(),
+      cache_policy: z.enum([
+        'static',
+        'all',
+        'suffix',
+        'path_prefix',
+        'path_exact',
+      ]),
+      cache_rules_text: z.string(),
+    })
+    .superRefine((value, context) => {
+      if (!value.cache_enabled) {
+        return;
+      }
+
+      const rules = linesFromTextarea(value.cache_rules_text);
+      const error = validateCacheRules(value.cache_policy, rules, t);
+      if (error) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['cache_rules_text'],
+          message: error,
+        });
+      }
+    });
   const { saving, save } = useRouteSectionSave(
     route,
     onRouteUpdate,
@@ -192,14 +198,14 @@ export function CacheSection({
 
   const rulesHint =
     watchedPolicy === 'suffix'
-      ? '每行一个后缀，例如 jpg、css、js。'
+      ? t('cacheHintSuffix')
       : watchedPolicy === 'path_prefix'
-        ? '每行一个路径前缀，例如 /assets、/static。'
+        ? t('cacheHintPrefix')
         : watchedPolicy === 'path_exact'
-          ? '每行一个精确路径，例如 /robots.txt。'
+          ? t('cacheHintExact')
           : watchedPolicy === 'static'
-            ? '标准静态资源使用内置扩展名列表，无需填写规则。'
-            : '当前策略无需额外路径规则。';
+            ? t('cacheHintStatic')
+            : t('cacheHintNone');
 
   const rulesPlaceholder =
     watchedPolicy === 'suffix'
@@ -208,12 +214,12 @@ export function CacheSection({
         ? '/assets\n/static'
         : watchedPolicy === 'path_exact'
           ? '/robots.txt\n/manifest.json'
-          : '当前策略无需额外规则';
+          : t('cachePlaceholderNone');
 
   return (
     <SectionShell
-      title='缓存'
-      description='配置站点边缘缓存策略。'
+      title={t('cache')}
+      description={t('cacheDesc')}
       titleExtra={<CacheHelpButton />}
       formId={proxyRouteFormIds.cache}
       saving={saving}
@@ -234,7 +240,7 @@ export function CacheSection({
                     ? rules
                     : [],
               },
-              '缓存设置已保存',
+              t('cacheSaved'),
             );
           })}
         >
@@ -244,8 +250,8 @@ export function CacheSection({
             render={({ field }) => (
               <FormItem className='flex items-center justify-between rounded-lg border p-3'>
                 <div className='space-y-0.5'>
-                  <FormLabel>启用站点缓存</FormLabel>
-                  <FormDescription>新建推荐「标准静态资源」。</FormDescription>
+                  <FormLabel>{t('enableCache')}</FormLabel>
+                  <FormDescription>{t('enableCacheDesc')}</FormDescription>
                 </div>
                 <FormControl>
                   <Switch
@@ -262,7 +268,7 @@ export function CacheSection({
             name='cache_policy'
             render={({ field }) => (
               <FormItem>
-                <FormLabel>缓存策略</FormLabel>
+                <FormLabel>{t('cachePolicy')}</FormLabel>
                 <Select
                   disabled={!watchedEnabled}
                   value={field.value}
@@ -274,11 +280,13 @@ export function CacheSection({
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    <SelectItem value='static'>标准静态资源（推荐）</SelectItem>
-                    <SelectItem value='all'>所有可缓存 GET（高级）</SelectItem>
-                    <SelectItem value='suffix'>自定义后缀</SelectItem>
-                    <SelectItem value='path_prefix'>路径前缀</SelectItem>
-                    <SelectItem value='path_exact'>精确路径</SelectItem>
+                    <SelectItem value='static'>{t('policyStatic')}</SelectItem>
+                    <SelectItem value='all'>{t('policyAll')}</SelectItem>
+                    <SelectItem value='suffix'>{t('policySuffix')}</SelectItem>
+                    <SelectItem value='path_prefix'>
+                      {t('policyPrefix')}
+                    </SelectItem>
+                    <SelectItem value='path_exact'>{t('policyExact')}</SelectItem>
                   </SelectContent>
                 </Select>
                 <FormMessage />
@@ -289,11 +297,8 @@ export function CacheSection({
           {watchedEnabled && watchedPolicy === 'all' ? (
             <Alert>
               <TriangleAlert />
-              <AlertTitle>高级策略风险</AlertTitle>
-              <AlertDescription>
-                个性化 HTML 在源站未声明 private / no-store
-                时可能被边缘缓存并串给其他用户。详情见标题旁帮助。
-              </AlertDescription>
+              <AlertTitle>{t('advancedRiskTitle')}</AlertTitle>
+              <AlertDescription>{t('advancedRiskDesc')}</AlertDescription>
             </Alert>
           ) : null}
 
@@ -302,7 +307,7 @@ export function CacheSection({
             name='cache_rules_text'
             render={({ field }) => (
               <FormItem>
-                <FormLabel>缓存规则</FormLabel>
+                <FormLabel>{t('cacheRules')}</FormLabel>
                 <FormControl>
                   <Textarea
                     className='min-h-32'

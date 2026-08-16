@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -49,18 +50,18 @@ import {
   TableRow,
 } from '@/components/ui/table';
 
-const STATUS_LABELS: Record<TaskExecutionStatus, string> = {
-  pending: '等待中',
-  running: '执行中',
-  succeeded: '成功',
-  failed: '失败',
+const STATUS_LABELS_KEYS: Record<TaskExecutionStatus, string> = {
+  pending: 'statusPending',
+  running: 'statusRunning',
+  succeeded: 'statusSucceeded',
+  failed: 'statusFailed',
 };
 
-const TRIGGER_LABELS: Record<string, string> = {
-  system: '系统',
-  manual: '手动',
-  retry: '重试',
-  schedule: '定时',
+const TRIGGER_LABELS_KEYS: Record<string, string> = {
+  system: 'triggerSystem',
+  manual: 'triggerManual',
+  retry: 'triggerRetry',
+  schedule: 'triggerSchedule',
 };
 
 const PAGE_SIZE = 10;
@@ -85,6 +86,7 @@ function statusVariant(status: TaskExecutionStatus) {
 }
 
 export function TaskExecutionsManager() {
+  const t = useTranslations('admin.tasks');
   const queryClient = useQueryClient();
   const [executionsPage, setExecutionsPage] = useState(1);
   const [executionStatus, setExecutionStatus] = useState<
@@ -129,16 +131,16 @@ export function TaskExecutionsManager() {
   const retryMutation = useMutation({
     mutationFn: (id: string) => services.adminTask.retryTaskExecution(id),
     onSuccess: (taskID) => {
-      toast.success('任务已重新下发', {
-        description: `新任务 ID：${taskID}`,
+      toast.success(t('retrySuccess'), {
+        description: t('retrySuccessDesc', { taskId: taskID }),
       });
       void queryClient.invalidateQueries({
         queryKey: ['admin', 'task-executions'],
       });
     },
     onError: (err: Error) => {
-      toast.error('任务重试失败', {
-        description: err.message || '未知错误',
+      toast.error(t('retryFailed'), {
+        description: err.message || t('unknownError'),
       });
     },
   });
@@ -187,14 +189,14 @@ export function TaskExecutionsManager() {
             }
           >
             <SelectTrigger size='sm' className='w-[120px]'>
-              <SelectValue placeholder='状态' />
+              <SelectValue placeholder={t('colStatus')} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value='all'>全部状态</SelectItem>
-              <SelectItem value='pending'>等待中</SelectItem>
-              <SelectItem value='running'>执行中</SelectItem>
-              <SelectItem value='succeeded'>成功</SelectItem>
-              <SelectItem value='failed'>失败</SelectItem>
+              <SelectItem value='all'>{t('allStatuses')}</SelectItem>
+              <SelectItem value='pending'>{t('statusPending')}</SelectItem>
+              <SelectItem value='running'>{t('statusRunning')}</SelectItem>
+              <SelectItem value='succeeded'>{t('statusSucceeded')}</SelectItem>
+              <SelectItem value='failed'>{t('statusFailed')}</SelectItem>
             </SelectContent>
           </Select>
           <Select
@@ -202,10 +204,10 @@ export function TaskExecutionsManager() {
             onValueChange={handleTaskTypeChange}
           >
             <SelectTrigger size='sm' className='w-[180px]'>
-              <SelectValue placeholder='任务类型' />
+              <SelectValue placeholder={t('taskTypeFilter')} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value='all'>全部任务</SelectItem>
+              <SelectItem value='all'>{t('allTasks')}</SelectItem>
               {taskTypes.map((task) => (
                 <SelectItem key={task.type} value={task.type}>
                   {task.name || task.type}
@@ -224,7 +226,7 @@ export function TaskExecutionsManager() {
             ) : (
               <RefreshCw className='size-4' />
             )}
-            刷新
+            {t('refresh')}
           </Button>
         </div>
       </div>
@@ -240,22 +242,22 @@ export function TaskExecutionsManager() {
       ) : executionsLoading && executions.length === 0 ? (
         <LoadingStateWithBorder
           icon={Activity}
-          description='加载任务执行记录中...'
+          description={t('loadingExecutions')}
         />
       ) : executions.length === 0 ? (
-        <EmptyStateWithBorder icon={Activity} description='暂无任务执行记录' />
+        <EmptyStateWithBorder icon={Activity} description={t('noExecutions')} />
       ) : (
         <div className='rounded-lg border bg-card'>
           <Table className='min-w-[900px]'>
             <TableHeader>
               <TableRow className='hover:bg-transparent'>
-                <TableHead className='w-[180px]'>任务</TableHead>
-                <TableHead className='w-[100px]'>状态</TableHead>
-                <TableHead className='w-[110px]'>触发</TableHead>
-                <TableHead className='w-[120px]'>重试</TableHead>
-                <TableHead className='w-[120px]'>耗时</TableHead>
-                <TableHead className='min-w-[220px]'>结果/错误</TableHead>
-                <TableHead className='w-[170px]'>创建时间</TableHead>
+                <TableHead className='w-[180px]'>{t('colTask')}</TableHead>
+                <TableHead className='w-[100px]'>{t('colStatus')}</TableHead>
+                <TableHead className='w-[110px]'>{t('colTrigger')}</TableHead>
+                <TableHead className='w-[120px]'>{t('colRetry')}</TableHead>
+                <TableHead className='w-[120px]'>{t('colDuration')}</TableHead>
+                <TableHead className='min-w-[220px]'>{t('colResult')}</TableHead>
+                <TableHead className='w-[170px]'>{t('colCreatedAt')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -277,12 +279,13 @@ export function TaskExecutionsManager() {
                   </TableCell>
                   <TableCell>
                     <Badge variant={statusVariant(execution.status)}>
-                      {STATUS_LABELS[execution.status] || execution.status}
+                      {t(STATUS_LABELS_KEYS[execution.status]) ||
+                        execution.status}
                     </Badge>
                   </TableCell>
                   <TableCell>
                     <Badge variant='outline'>
-                      {TRIGGER_LABELS[execution.triggered_by] ||
+                      {t(TRIGGER_LABELS_KEYS[execution.triggered_by]) ||
                         execution.triggered_by}
                     </Badge>
                   </TableCell>
@@ -307,7 +310,11 @@ export function TaskExecutionsManager() {
 
       <div className='flex items-center justify-between'>
         <div className='text-xs text-muted-foreground'>
-          共 {executionsTotal} 条，当前第 {executionsPage}/{totalPages} 页
+          {t('paginationInfo', {
+            total: executionsTotal,
+            current: executionsPage,
+            totalPages,
+          })}
         </div>
         <div className='flex items-center gap-2'>
           <Button
@@ -317,7 +324,7 @@ export function TaskExecutionsManager() {
             disabled={executionsPage <= 1 || executionsLoading}
           >
             <ChevronLeft className='size-4' />
-            上一页
+            {t('prevPage')}
           </Button>
           <Button
             variant='outline'
@@ -327,7 +334,7 @@ export function TaskExecutionsManager() {
             }
             disabled={executionsPage >= totalPages || executionsLoading}
           >
-            下一页
+            {t('nextPage')}
             <ChevronRight className='size-4' />
           </Button>
         </div>
@@ -336,11 +343,11 @@ export function TaskExecutionsManager() {
       <Sheet open={detailOpen} onOpenChange={setDetailOpen}>
         <SheetContent className='w-full p-0 sm:max-w-[640px]'>
           <SheetHeader className='border-b'>
-            <SheetTitle>任务执行详情</SheetTitle>
+            <SheetTitle>{t('executionDetailTitle')}</SheetTitle>
             <SheetDescription>
               {selectedExecution?.task_name ||
                 selectedExecution?.task_type ||
-                '任务记录'}
+                t('executionRecord')}
             </SheetDescription>
           </SheetHeader>
 
@@ -348,32 +355,35 @@ export function TaskExecutionsManager() {
             {detailLoading && !selectedExecution ? (
               <LoadingStateWithBorder
                 icon={Activity}
-                description='加载任务详情中...'
+                description={t('loadingDetail')}
               />
             ) : selectedExecution ? (
               <div className='space-y-5 py-4'>
                 <div className='grid grid-cols-2 gap-3'>
                   <div className='rounded-lg border p-3'>
-                    <div className='text-xs text-muted-foreground'>状态</div>
+                    <div className='text-xs text-muted-foreground'>
+                      {t('detailStatus')}
+                    </div>
                     <div className='mt-2'>
                       <Badge variant={statusVariant(selectedExecution.status)}>
-                        {STATUS_LABELS[selectedExecution.status] ||
+                        {t(STATUS_LABELS_KEYS[selectedExecution.status]) ||
                           selectedExecution.status}
                       </Badge>
                     </div>
                   </div>
                   <div className='rounded-lg border p-3'>
                     <div className='text-xs text-muted-foreground'>
-                      触发来源
+                      {t('detailTrigger')}
                     </div>
                     <div className='mt-2 text-sm font-medium'>
-                      {TRIGGER_LABELS[selectedExecution.triggered_by] ||
-                        selectedExecution.triggered_by}
+                      {t(
+                        TRIGGER_LABELS_KEYS[selectedExecution.triggered_by],
+                      ) || selectedExecution.triggered_by}
                     </div>
                   </div>
                   <div className='rounded-lg border p-3'>
                     <div className='text-xs text-muted-foreground'>
-                      重试次数
+                      {t('detailRetryCount')}
                     </div>
                     <div className='mt-2 font-mono text-sm'>
                       {selectedExecution.retry_count}/
@@ -381,7 +391,9 @@ export function TaskExecutionsManager() {
                     </div>
                   </div>
                   <div className='rounded-lg border p-3'>
-                    <div className='text-xs text-muted-foreground'>耗时</div>
+                    <div className='text-xs text-muted-foreground'>
+                      {t('detailDuration')}
+                    </div>
                     <div className='mt-2 font-mono text-sm'>
                       {formatDuration(selectedExecution.duration)}
                     </div>
@@ -389,7 +401,7 @@ export function TaskExecutionsManager() {
                 </div>
 
                 <div className='grid gap-2'>
-                  <Label>任务标识</Label>
+                  <Label>{t('detailTaskId')}</Label>
                   <div className='rounded-md border bg-muted/40 px-3 py-2 font-mono text-xs break-all'>
                     {selectedExecution.task_id}
                   </div>
@@ -397,25 +409,25 @@ export function TaskExecutionsManager() {
 
                 <div className='grid grid-cols-1 gap-3 sm:grid-cols-2'>
                   <div className='grid gap-2'>
-                    <Label>创建时间</Label>
+                    <Label>{t('detailCreatedAt')}</Label>
                     <div className='font-mono text-xs text-muted-foreground'>
                       {formatDateTime(selectedExecution.created_at)}
                     </div>
                   </div>
                   <div className='grid gap-2'>
-                    <Label>开始时间</Label>
+                    <Label>{t('detailStartedAt')}</Label>
                     <div className='font-mono text-xs text-muted-foreground'>
                       {formatDateTime(selectedExecution.started_at)}
                     </div>
                   </div>
                   <div className='grid gap-2'>
-                    <Label>结束时间</Label>
+                    <Label>{t('detailFinishedAt')}</Label>
                     <div className='font-mono text-xs text-muted-foreground'>
                       {formatDateTime(selectedExecution.finished_at)}
                     </div>
                   </div>
                   <div className='grid gap-2'>
-                    <Label>更新时间</Label>
+                    <Label>{t('detailUpdatedAt')}</Label>
                     <div className='font-mono text-xs text-muted-foreground'>
                       {formatDateTime(selectedExecution.updated_at)}
                     </div>
@@ -423,7 +435,7 @@ export function TaskExecutionsManager() {
                 </div>
 
                 <div className='grid gap-2'>
-                  <Label>执行结果</Label>
+                  <Label>{t('detailResult')}</Label>
                   <div className='min-h-10 rounded-md border bg-muted/30 px-3 py-2 text-sm whitespace-pre-wrap break-all'>
                     {selectedExecution.result || '-'}
                   </div>
@@ -431,7 +443,7 @@ export function TaskExecutionsManager() {
 
                 {selectedExecution.error_message && (
                   <div className='grid gap-2'>
-                    <Label>错误信息</Label>
+                    <Label>{t('detailError')}</Label>
                     <div className='rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive whitespace-pre-wrap break-all'>
                       {selectedExecution.error_message}
                     </div>
@@ -439,23 +451,23 @@ export function TaskExecutionsManager() {
                 )}
 
                 <div className='grid gap-2'>
-                  <Label>Payload</Label>
+                  <Label>{t('detailPayload')}</Label>
                   <pre className='max-h-40 overflow-auto rounded-md border bg-muted/40 p-3 text-xs leading-relaxed'>
                     {selectedExecution.payload || '{}'}
                   </pre>
                 </div>
 
                 <div className='grid gap-2'>
-                  <Label>执行日志</Label>
+                  <Label>{t('detailLog')}</Label>
                   <pre className='min-h-48 max-h-[420px] overflow-auto rounded-md border bg-muted/40 p-3 text-xs leading-relaxed whitespace-pre-wrap'>
-                    {selectedExecution.log || '暂无日志'}
+                    {selectedExecution.log || t('noLog')}
                   </pre>
                 </div>
               </div>
             ) : (
               <EmptyStateWithBorder
                 icon={Activity}
-                description='未选择任务记录'
+                description={t('noExecutionSelected')}
               />
             )}
           </div>
@@ -471,7 +483,7 @@ export function TaskExecutionsManager() {
               ) : (
                 <RefreshCw className='size-4' />
               )}
-              刷新详情
+              {t('refreshDetail')}
             </Button>
             {selectedExecution &&
               selectedExecution.status === 'failed' &&
@@ -485,7 +497,7 @@ export function TaskExecutionsManager() {
                   ) : (
                     <RotateCcw className='size-4' />
                   )}
-                  重试任务
+                  {t('retryTask')}
                 </Button>
               )}
           </SheetFooter>

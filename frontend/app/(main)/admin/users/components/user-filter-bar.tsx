@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { useTranslations } from 'next-intl';
 import {
   ChevronDown,
   ChevronLeft,
@@ -24,6 +25,7 @@ import { useAdminUsers } from '@/contexts/admin-users-context';
 import { cn } from '@/lib/utils';
 
 export function UserFilterBar() {
+  const t = useTranslations('admin.users');
   const {
     total,
     loading,
@@ -61,7 +63,7 @@ export function UserFilterBar() {
               )}
             >
               <Search className='size-3 mr-1' />
-              搜索
+              {t('search')}
               {hasSearchFilter && (
                 <>
                   <Separator orientation='vertical' className='mx-1' />
@@ -79,19 +81,19 @@ export function UserFilterBar() {
             <div className='space-y-2.5'>
               <input
                 className='w-full h-7 px-2 text-xs border border-dashed rounded-md outline-none focus:border-primary bg-background'
-                placeholder='输入用户 ID...'
+                placeholder={t('searchUserIdPlaceholder')}
                 value={searchUserId}
                 onChange={(e) => setSearchUserId(e.target.value)}
               />
               <input
                 className='w-full h-7 px-2 text-xs border border-dashed rounded-md outline-none focus:border-primary bg-background'
-                placeholder='输入 username...'
+                placeholder={t('searchUsernamePlaceholder')}
                 value={searchUsername}
                 onChange={(e) => setSearchUsername(e.target.value)}
               />
               <input
                 className='w-full h-7 px-2 text-xs border border-dashed rounded-md outline-none focus:border-primary bg-background'
-                placeholder='输入邮箱...'
+                placeholder={t('searchEmailPlaceholder')}
                 value={searchEmail}
                 onChange={(e) => setSearchEmail(e.target.value)}
               />
@@ -106,7 +108,7 @@ export function UserFilterBar() {
                     setSearchEmail('');
                   }}
                 >
-                  清除
+                  {t('clear')}
                 </Button>
               )}
             </div>
@@ -124,7 +126,7 @@ export function UserFilterBar() {
               )}
             >
               <Filter className='size-3' />
-              状态
+              {t('status')}
               {statusFilter !== 'all' && (
                 <>
                   <Separator orientation='vertical' className='mx-1' />
@@ -153,7 +155,7 @@ export function UserFilterBar() {
                     : 'opacity-50',
                 )}
               />
-              <span className='text-xs'>全部状态</span>
+              <span className='text-xs'>{t('statusAll')}</span>
             </DropdownMenuItem>
             <DropdownMenuItem
               onSelect={(e) => {
@@ -169,7 +171,7 @@ export function UserFilterBar() {
                     : 'opacity-50',
                 )}
               />
-              <span className='text-xs'>正常</span>
+              <span className='text-xs'>{t('statusActive')}</span>
             </DropdownMenuItem>
             <DropdownMenuItem
               onSelect={(e) => {
@@ -185,7 +187,7 @@ export function UserFilterBar() {
                     : 'opacity-50',
                 )}
               />
-              <span className='text-xs'>禁用</span>
+              <span className='text-xs'>{t('statusDisabled')}</span>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -205,7 +207,7 @@ export function UserFilterBar() {
               className='h-5 px-2 lg:px-3 text-[11px] font-medium text-muted-foreground hover:text-foreground'
             >
               <X className='size-3' />
-              清空筛选
+              {t('clearFilters')}
             </Button>
           </>
         )}
@@ -215,7 +217,7 @@ export function UserFilterBar() {
 
       <div className='flex items-center gap-1.5 self-end lg:self-auto'>
         <span className='text-[10px] text-muted-foreground whitespace-nowrap'>
-          {total} 条记录
+          {t('totalRecords', { total })}
         </span>
         <div className='flex items-center border border-dashed rounded-md shadow-none'>
           <Button
@@ -249,7 +251,7 @@ export function UserFilterBar() {
               className='h-6 border-dashed text-[10px] px-2 font-mono shadow-none'
               disabled={loading}
             >
-              {pageSize}条/页
+              {t('perPage', { count: pageSize })}
               <ChevronDown className='size-3 opacity-50' />
             </Button>
           </DropdownMenuTrigger>
@@ -263,7 +265,7 @@ export function UserFilterBar() {
                   pageSize === size && 'bg-accent',
                 )}
               >
-                {size}条/页
+                {t('perPage', { count: size })}
               </DropdownMenuItem>
             ))}
           </DropdownMenuContent>
@@ -275,7 +277,7 @@ export function UserFilterBar() {
           className='h-6 w-6 border-dashed shadow-none'
           onClick={() => fetchUsers(true)}
           disabled={loading}
-          title='刷新数据'
+          title={t('refreshData')}
         >
           <Loader2 className={cn('size-3', loading && 'animate-spin')} />
         </Button>

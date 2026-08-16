@@ -3,6 +3,7 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { ExternalLink, RefreshCw, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
+import { useTranslations } from 'next-intl';
 
 import services from '@/lib/services';
 import {
@@ -39,6 +40,7 @@ function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
 }
 
 export function InfoTab() {
+  const t = useTranslations('settings.info');
   const updateQuery = useQuery({
     queryKey: ['admin', 'update'],
     queryFn: () => services.adminStatus.getUpdateStatus(),
@@ -49,10 +51,10 @@ export function InfoTab() {
   const applyUpdateMutation = useMutation({
     mutationFn: () => services.adminStatus.applyUpdate(),
     onSuccess: () => {
-      toast.success('升级包已校验完成，服务正在重启');
+      toast.success(t('upgradeVerified'));
     },
     onError: (error: Error) => {
-      toast.error(error.message || '应用升级失败');
+      toast.error(error.message || t('applyUpgradeFailed'));
     },
   });
 
@@ -69,17 +71,17 @@ export function InfoTab() {
               </div>
               <div>
                 <CardTitle className='text-base font-semibold'>
-                  应用更新
+                  {t('appUpdate')}
                 </CardTitle>
                 <CardDescription className='text-xs'>
-                  检查上游 GitHub Actions Release 并升级当前服务
+                  {t('appUpdateDesc')}
                 </CardDescription>
               </div>
             </div>
             {update?.update_available ? (
-              <Badge>发现新版本</Badge>
+              <Badge>{t('newVersionAvailable')}</Badge>
             ) : update ? (
-              <Badge variant='secondary'>已是最新</Badge>
+              <Badge variant='secondary'>{t('alreadyLatest')}</Badge>
             ) : null}
           </div>
         </CardHeader>
@@ -91,7 +93,7 @@ export function InfoTab() {
           ) : updateQuery.isError ? (
             <div className='flex min-h-32 flex-col items-center justify-center gap-3 text-center'>
               <p className='text-xs text-muted-foreground'>
-                {updateQuery.error.message || '无法获取上游版本信息'}
+                {updateQuery.error.message || t('cannotGetVersion')}
               </p>
               <Button
                 type='button'
@@ -100,25 +102,34 @@ export function InfoTab() {
                 onClick={() => updateQuery.refetch()}
               >
                 <RefreshCw data-icon='inline-start' />
-                重新检查
+                {t('recheck')}
               </Button>
             </div>
           ) : update ? (
             <>
               <div>
-                <InfoRow label='当前版本' value={update.current_version} />
-                <InfoRow label='最新版本' value={update.latest_version} />
+                <InfoRow
+                  label={t('currentVersion')}
+                  value={update.current_version}
+                />
+                <InfoRow
+                  label={t('latestVersion')}
+                  value={update.latest_version}
+                />
                 {update.build_time && (
-                  <InfoRow label='构建时间' value={update.build_time} />
+                  <InfoRow label={t('buildTime')} value={update.build_time} />
                 )}
-                <InfoRow label='运行平台' value={update.platform} />
-                <InfoRow label='上游仓库' value={update.upstream_repository} />
-                <InfoRow label='Release 资产' value={update.asset_name} />
+                <InfoRow label={t('platform')} value={update.platform} />
+                <InfoRow
+                  label={t('upstreamRepo')}
+                  value={update.upstream_repository}
+                />
+                <InfoRow label={t('releaseAsset')} value={update.asset_name} />
               </div>
 
               {update.release_notes && (
                 <div className='flex flex-col gap-2 rounded-md border border-dashed p-3'>
-                  <p className='text-xs font-medium'>更新说明</p>
+                  <p className='text-xs font-medium'>{t('releaseNotes')}</p>
                   <p className='max-h-40 overflow-y-auto whitespace-pre-wrap text-xs leading-relaxed text-muted-foreground'>
                     {update.release_notes}
                   </p>
@@ -138,7 +149,7 @@ export function InfoTab() {
                   ) : (
                     <RefreshCw data-icon='inline-start' />
                   )}
-                  检查更新
+                  {t('checkUpdate')}
                 </Button>
                 {update.release_url && (
                   <Button asChild variant='outline' size='sm'>
@@ -148,7 +159,7 @@ export function InfoTab() {
                       rel='noreferrer'
                     >
                       <ExternalLink data-icon='inline-start' />
-                      查看 Release
+                      {t('viewRelease')}
                     </a>
                   </Button>
                 )}
@@ -164,25 +175,24 @@ export function InfoTab() {
                       {applyUpdateMutation.isPending && (
                         <Spinner data-icon='inline-start' />
                       )}
-                      立即升级
+                      {t('upgradeNow')}
                     </Button>
                   </AlertDialogTrigger>
                   <AlertDialogContent>
                     <AlertDialogHeader>
                       <AlertDialogTitle>
-                        升级到 {update.latest_version}？
+                        {t('upgradeTo', { version: update.latest_version })}
                       </AlertDialogTitle>
                       <AlertDialogDescription>
-                        服务将下载并校验 {update.asset_name}
-                        ，随后替换当前二进制并重启。请确保安装目录可写，且服务允许原地重启。
+                        {t('upgradeDesc', { asset: update.asset_name })}
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                      <AlertDialogCancel>取消</AlertDialogCancel>
+                      <AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
                       <AlertDialogAction
                         onClick={() => applyUpdateMutation.mutate()}
                       >
-                        确认升级
+                        {t('confirmUpgrade')}
                       </AlertDialogAction>
                     </AlertDialogFooter>
                   </AlertDialogContent>
@@ -192,10 +202,10 @@ export function InfoTab() {
               {!update.can_upgrade && (
                 <p className='text-xs text-muted-foreground'>
                   {update.current_version === 'dev'
-                    ? '开发构建没有可比较的 Release 版本，不能执行自动升级。'
+                    ? t('devBuildNoUpgrade')
                     : update.update_available
-                      ? '当前平台暂不支持自动替换二进制，请从 Release 页面手动升级。'
-                      : '当前版本无需升级。'}
+                      ? t('platformNotSupported')
+                      : t('noUpgradeNeeded')}
                 </p>
               )}
             </>

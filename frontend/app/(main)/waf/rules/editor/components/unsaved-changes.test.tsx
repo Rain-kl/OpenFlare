@@ -1,14 +1,33 @@
 import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { NextIntlClientProvider } from 'next-intl';
+import type { ReactElement } from 'react';
 import { afterEach, expect, it, vi } from 'vitest';
 
+import mainZh from '@/messages/zh-CN.json';
+import securityZh from '@/messages/fragments/security.zh-CN.json';
+
 import { UnsavedChanges } from './unsaved-changes';
+
+const messages = { ...mainZh, ...securityZh };
+
+function renderWithIntl(ui: ReactElement) {
+  return render(
+    <NextIntlClientProvider
+      locale='zh-CN'
+      messages={messages}
+      timeZone='Asia/Shanghai'
+    >
+      {ui}
+    </NextIntlClientProvider>,
+  );
+}
 
 afterEach(() => vi.restoreAllMocks());
 
 it('blocks same-origin application links when dirty and confirmation is declined', async () => {
   const user = userEvent.setup();
-  const { container } = render(
+  const { container } = renderWithIntl(
     <>
       <UnsavedChanges dirty />
       <a href='/waf'>WAF</a>
@@ -31,7 +50,7 @@ it('blocks same-origin application links when dirty and confirmation is declined
 });
 
 it('does not block application links without changes', () => {
-  const { getByRole } = render(
+  const { getByRole } = renderWithIntl(
     <>
       <UnsavedChanges dirty={false} />
       <a href='/waf'>WAF</a>
@@ -51,7 +70,7 @@ it('restores declined Back and Forward transitions by indexed delta', async () =
   const user = userEvent.setup();
   const go = vi.spyOn(history, 'go').mockImplementation(() => undefined);
   history.replaceState({ __wafEditorIndex: 4 }, '');
-  render(<UnsavedChanges dirty />);
+  renderWithIntl(<UnsavedChanges dirty />);
 
   act(() => {
     window.dispatchEvent(
@@ -80,7 +99,7 @@ it('restores declined Back and Forward transitions by indexed delta', async () =
 it('prompts and restores the current URL for an unknown unindexed history entry', async () => {
   history.replaceState({ __wafEditorIndex: 4 }, '', '/waf/rules/editor?id=9');
   const push = vi.spyOn(history, 'pushState');
-  render(<UnsavedChanges dirty />);
+  renderWithIntl(<UnsavedChanges dirty />);
 
   act(() => {
     window.dispatchEvent(

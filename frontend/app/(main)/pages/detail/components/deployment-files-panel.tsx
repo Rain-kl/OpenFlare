@@ -1,6 +1,7 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
+import { useTranslations } from 'next-intl';
 
 import { EmptyInline } from '@/components/layout/empty';
 import { ErrorInline } from '@/components/layout/error';
@@ -29,6 +30,7 @@ export function DeploymentFilesPanel({
   projectId,
   deploymentId,
 }: DeploymentFilesPanelProps) {
+  const t = useTranslations('pages.files');
   const filesQuery = useQuery({
     queryKey: deploymentFilesQueryKey(projectId, deploymentId),
     queryFn: () => PagesService.listDeploymentFiles(deploymentId),
@@ -50,7 +52,7 @@ export function DeploymentFilesPanel({
           message={
             filesQuery.error instanceof Error
               ? filesQuery.error.message
-              : '文件清单加载失败'
+              : t('loadFailed')
           }
           onRetry={() => void filesQuery.refetch()}
         />
@@ -60,15 +62,15 @@ export function DeploymentFilesPanel({
 
   const files = filesQuery.data ?? [];
   if (files.length === 0) {
-    return <EmptyInline message='暂无文件记录' />;
+    return <EmptyInline message={t('empty')} />;
   }
 
   return (
     <Table>
       <TableHeader>
         <TableRow>
-          <TableHead>路径</TableHead>
-          <TableHead className='text-right'>大小</TableHead>
+          <TableHead>{t('path')}</TableHead>
+          <TableHead className='text-right'>{t('size')}</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>

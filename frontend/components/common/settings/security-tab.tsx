@@ -54,43 +54,43 @@ import { AuthSourceModal } from '@/components/common/settings/auth-source-modal'
 import services from '@/lib/services';
 import type { AuthSource, SystemConfig } from '@/lib/services/admin';
 import { toast } from 'sonner';
+import { useTranslations } from 'next-intl';
 
 const SECURITY_KEYS = [
   {
     key: 'password_login_enabled',
-    title: '允许密码登录',
-    description: '关闭后仅保留第三方 OIDC 认证源进行系统登录。',
+    titleKey: 'passwordLoginEnabled',
+    descKey: 'passwordLoginEnabledDesc',
     icon: Lock,
   },
   {
     key: 'registration_enabled',
-    title: '允许注册',
-    description: '关闭后系统将禁止新用户进行自主账号注册。',
+    titleKey: 'registrationEnabled',
+    descKey: 'registrationEnabledDesc',
     icon: UserPlus,
   },
   {
     key: 'password_register_enabled',
-    title: '允许密码注册',
-    description: '关闭后只能通过管理员创建或第三方认证关联建号。',
+    titleKey: 'passwordRegisterEnabled',
+    descKey: 'passwordRegisterEnabledDesc',
     icon: Fingerprint,
   },
   {
     key: 'oidc_login_enabled',
-    title: '允许 OIDC 登录',
-    description: '关闭后所有的第三方 OIDC 认证登录入口都会被隐藏。',
+    titleKey: 'oidcLoginEnabled',
+    descKey: 'oidcLoginEnabledDesc',
     icon: Globe,
   },
   {
     key: 'email_login_verification_enabled',
-    title: '邮箱登录验证',
-    description:
-      '开启后，使用账号密码登录时需要通过邮箱接收并验证 6 位验证码。',
+    titleKey: 'emailLoginVerification',
+    descKey: 'emailLoginVerificationDesc',
     icon: Mail,
   },
   {
     key: 'email_register_verification_enabled',
-    title: '邮箱注册验证',
-    description: '开启后，用户注册账号时需要通过邮箱接收并验证 6 位验证码。',
+    titleKey: 'emailRegisterVerification',
+    descKey: 'emailRegisterVerificationDesc',
     icon: Mail,
   },
 ] as const;
@@ -102,6 +102,8 @@ interface SecurityTabProps {
 
 export function SecurityTab({ configs, systemConfigsQuery }: SecurityTabProps) {
   const queryClient = useQueryClient();
+  const t = useTranslations('settings.security');
+  const tCommon = useTranslations('common');
   const [authSourceModalOpen, setAuthSourceModalOpen] = useState(false);
   const [selectedSource, setSelectedSource] = useState<AuthSource | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<AuthSource | null>(null);
@@ -166,10 +168,10 @@ export function SecurityTab({ configs, systemConfigsQuery }: SecurityTabProps) {
       await queryClient.invalidateQueries({
         queryKey: ['admin', 'system-configs'],
       });
-      toast.success('登录状态保持时间已更新');
+      toast.success(t('loginSessionTTLUpdated'));
     },
     onError: (error: Error) => {
-      toast.error(error.message || '更新配置失败');
+      toast.error(error.message || t('updateConfigFailed'));
     },
   });
 
@@ -183,7 +185,7 @@ export function SecurityTab({ configs, systemConfigsQuery }: SecurityTabProps) {
   const handleCustomBlur = () => {
     const parsed = parseInt(customHours, 10);
     if (isNaN(parsed) || parsed <= 0) {
-      toast.error('请输入有效的过期小时数（正整数）');
+      toast.error(t('invalidHours'));
       // 重置为原本的值
       const originalVal = configs['login_session_ttl_hours']?.value || '0';
       setCustomHours(
@@ -213,10 +215,10 @@ export function SecurityTab({ configs, systemConfigsQuery }: SecurityTabProps) {
         queryKey: ['admin', 'system-configs'],
       });
       await queryClient.invalidateQueries({ queryKey: ['public-config'] });
-      toast.success('系统安全配置已更新');
+      toast.success(t('securityConfigUpdated'));
     },
     onError: (error: Error) => {
-      toast.error(error.message || '更新配置失败');
+      toast.error(error.message || t('updateConfigFailed'));
     },
   });
 
@@ -231,10 +233,10 @@ export function SecurityTab({ configs, systemConfigsQuery }: SecurityTabProps) {
       await queryClient.invalidateQueries({
         queryKey: ['auth', 'public-sources'],
       });
-      toast.success('认证源状态已更新');
+      toast.success(t('authSourceStatusUpdated'));
     },
     onError: (error: Error) => {
-      toast.error(error.message || '切换状态失败');
+      toast.error(error.message || t('toggleStatusFailed'));
     },
   });
 
@@ -248,10 +250,10 @@ export function SecurityTab({ configs, systemConfigsQuery }: SecurityTabProps) {
       await queryClient.invalidateQueries({
         queryKey: ['auth', 'public-sources'],
       });
-      toast.success('认证源已删除');
+      toast.success(t('authSourceDeleted'));
     },
     onError: (error: Error) => {
-      toast.error(error.message || '删除认证源失败');
+      toast.error(error.message || t('deleteAuthSourceFailed'));
     },
   });
 
@@ -282,10 +284,10 @@ export function SecurityTab({ configs, systemConfigsQuery }: SecurityTabProps) {
       await queryClient.invalidateQueries({
         queryKey: ['admin', 'system-configs'],
       });
-      toast.success('人机验证配置已成功保存');
+      toast.success(t('captchaConfigSaved'));
     },
     onError: (error: Error) => {
-      toast.error(error.message || '保存配置失败');
+      toast.error(error.message || t('saveConfigFailed'));
     },
   });
 
@@ -305,10 +307,10 @@ export function SecurityTab({ configs, systemConfigsQuery }: SecurityTabProps) {
             </div>
             <div>
               <CardTitle className='text-base font-semibold'>
-                系统登录/注册设置
+                {t('loginRegistrationSettings')}
               </CardTitle>
               <CardDescription className='text-xs'>
-                配置系统的登录限制与用户自主注册权限
+                {t('loginRegistrationSettingsDesc')}
               </CardDescription>
             </div>
           </div>
@@ -328,11 +330,11 @@ export function SecurityTab({ configs, systemConfigsQuery }: SecurityTabProps) {
                     <div className='flex items-center gap-2'>
                       {Icon && <Icon className='size-4 text-primary' />}
                       <span className='font-medium text-sm text-foreground'>
-                        {item.title}
+                        {t(item.titleKey)}
                       </span>
                     </div>
                     <p className='text-xs text-muted-foreground leading-relaxed pr-2'>
-                      {item.description}
+                      {t(item.descKey)}
                     </p>
                   </div>
                   <Switch
@@ -350,11 +352,11 @@ export function SecurityTab({ configs, systemConfigsQuery }: SecurityTabProps) {
                 <div className='flex items-center gap-2'>
                   <Clock className='size-4 text-primary' />
                   <span className='font-medium text-sm text-foreground'>
-                    登录状态保持时间
+                    {t('loginSessionTTL')}
                   </span>
                 </div>
                 <p className='text-xs text-muted-foreground leading-relaxed pr-2'>
-                  配置用户登录会话在浏览器中的保持期限。设置为“关闭”则在浏览器关闭后自动退登。
+                  {t('loginSessionTTLDesc')}
                 </p>
               </div>
 
@@ -365,14 +367,16 @@ export function SecurityTab({ configs, systemConfigsQuery }: SecurityTabProps) {
                   onValueChange={handleTTLChange}
                 >
                   <SelectTrigger className='w-[180px] bg-card border-dashed text-xs h-8'>
-                    <SelectValue placeholder='选择保留时间' />
+                    <SelectValue placeholder={t('selectRetentionTime')} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value='0'>关闭 (浏览器关闭自动退登)</SelectItem>
-                    <SelectItem value='168'>7 天</SelectItem>
-                    <SelectItem value='720'>30 天</SelectItem>
-                    <SelectItem value='-1'>永不过期</SelectItem>
-                    <SelectItem value='custom'>自定义时长</SelectItem>
+                    <SelectItem value='0'>{t('sessionOff')}</SelectItem>
+                    <SelectItem value='168'>{t('session7Days')}</SelectItem>
+                    <SelectItem value='720'>{t('session30Days')}</SelectItem>
+                    <SelectItem value='-1'>
+                      {t('sessionNeverExpire')}
+                    </SelectItem>
+                    <SelectItem value='custom'>{t('sessionCustom')}</SelectItem>
                   </SelectContent>
                 </Select>
 
@@ -388,7 +392,7 @@ export function SecurityTab({ configs, systemConfigsQuery }: SecurityTabProps) {
                         handleCustomBlur();
                       }
                     }}
-                    placeholder='小时'
+                    placeholder={t('hoursPlaceholder')}
                     disabled={updateTTLMutation.isPending}
                     className='w-20 bg-card border-dashed text-xs h-8 px-2'
                   />
@@ -408,10 +412,10 @@ export function SecurityTab({ configs, systemConfigsQuery }: SecurityTabProps) {
             </div>
             <div>
               <CardTitle className='text-base font-semibold'>
-                认证源管理
+                {t('authSourceManagement')}
               </CardTitle>
               <CardDescription className='text-xs'>
-                添加、修改并启用系统自定义的 OIDC 认证源
+                {t('authSourceManagementDesc')}
               </CardDescription>
             </div>
           </div>
@@ -425,7 +429,7 @@ export function SecurityTab({ configs, systemConfigsQuery }: SecurityTabProps) {
             variant='secondary'
           >
             <Plus className='mr-1.5 size-3.5' />
-            新增认证源
+            {t('addAuthSource')}
           </Button>
         </CardHeader>
         <CardContent className='pt-6 space-y-3'>
@@ -451,11 +455,12 @@ export function SecurityTab({ configs, systemConfigsQuery }: SecurityTabProps) {
                           : 'bg-amber-500/10 text-amber-500 border-amber-500/20'
                       }`}
                     >
-                      {source.is_active ? '已启用' : '已禁用'}
+                      {source.is_active ? t('enabled') : t('disabled')}
                     </span>
                   </div>
                   <div className='text-xs text-muted-foreground font-mono'>
-                    标识符: {source.name} · 类型: {source.type.toUpperCase()}
+                    {t('identifier')}: {source.name} · {t('type')}:{' '}
+                    {source.type.toUpperCase()}
                   </div>
                 </div>
                 <div className='flex items-center gap-4'>
@@ -467,8 +472,8 @@ export function SecurityTab({ configs, systemConfigsQuery }: SecurityTabProps) {
                     }`}
                   >
                     {source.client_secret_configured
-                      ? 'Secret 已配置'
-                      : 'Secret 未配置'}
+                      ? t('secretConfigured')
+                      : t('secretNotConfigured')}
                   </span>
 
                   <div className='flex items-center gap-2'>
@@ -508,7 +513,7 @@ export function SecurityTab({ configs, systemConfigsQuery }: SecurityTabProps) {
             ))
           ) : (
             <div className='rounded-xl border border-dashed border-border/50 px-4 py-8 text-center text-xs text-muted-foreground bg-muted/5 flex flex-col items-center justify-center gap-3'>
-              <span>暂无配置的认证源，点击上方按钮新增</span>
+              <span>{t('noAuthSources')}</span>
               <Button
                 type='button'
                 size='sm'
@@ -520,7 +525,7 @@ export function SecurityTab({ configs, systemConfigsQuery }: SecurityTabProps) {
                 className='border-dashed'
               >
                 <Plus className='mr-1.5 size-3.5' />
-                新增认证源
+                {t('addAuthSource')}
               </Button>
             </div>
           )}
@@ -536,11 +541,10 @@ export function SecurityTab({ configs, systemConfigsQuery }: SecurityTabProps) {
             </div>
             <div>
               <CardTitle className='text-base font-semibold'>
-                人机验证配置 (Cap CAPTCHA)
+                {t('captchaConfig')}
               </CardTitle>
               <CardDescription className='text-xs'>
-                配置基于 Proof-of-Work (PoW)
-                的无感人机验证，保护系统登录免受暴力破解和撞库攻击
+                {t('captchaConfigDesc')}
               </CardDescription>
             </div>
           </div>
@@ -556,7 +560,7 @@ export function SecurityTab({ configs, systemConfigsQuery }: SecurityTabProps) {
           {/* 自动开始计算 Switch */}
           <div className='flex items-center justify-between rounded-xl border border-dashed p-4 bg-card mb-4'>
             <div className='space-y-0.5'>
-              <p className='text-sm font-semibold'>打开页面后自动开始计算</p>
+              <p className='text-sm font-semibold'>{t('autoStartSolving')}</p>
             </div>
             <Switch checked={capAutoSolve} onCheckedChange={setCapAutoSolve} />
           </div>
@@ -567,7 +571,7 @@ export function SecurityTab({ configs, systemConfigsQuery }: SecurityTabProps) {
                   htmlFor='cap_challenge_count'
                   className='text-xs font-semibold'
                 >
-                  难题数量 (Count)
+                  {t('challengeCount')}
                 </Label>
                 <Input
                   id='cap_challenge_count'
@@ -580,7 +584,7 @@ export function SecurityTab({ configs, systemConfigsQuery }: SecurityTabProps) {
                   className='bg-card border-dashed text-xs'
                 />
                 <p className='text-[10px] text-muted-foreground leading-normal'>
-                  客户端需求解的难题总数。默认 1，推荐 1 至 5
+                  {t('challengeCountDesc')}
                 </p>
               </div>
 
@@ -589,7 +593,7 @@ export function SecurityTab({ configs, systemConfigsQuery }: SecurityTabProps) {
                   htmlFor='cap_challenge_difficulty'
                   className='text-xs font-semibold'
                 >
-                  验证难度 (Difficulty)
+                  {t('challengeDifficulty')}
                 </Label>
                 <Input
                   id='cap_challenge_difficulty'
@@ -602,7 +606,7 @@ export function SecurityTab({ configs, systemConfigsQuery }: SecurityTabProps) {
                   className='bg-card border-dashed text-xs'
                 />
                 <p className='text-[10px] text-muted-foreground leading-normal'>
-                  PoW 前缀哈希位数，每加 1 计算时间翻倍。默认 4，推荐 4
+                  {t('challengeDifficultyDesc')}
                 </p>
               </div>
 
@@ -611,7 +615,7 @@ export function SecurityTab({ configs, systemConfigsQuery }: SecurityTabProps) {
                   htmlFor='cap_challenge_size'
                   className='text-xs font-semibold'
                 >
-                  盐值长度 (Size)
+                  {t('challengeSize')}
                 </Label>
                 <Input
                   id='cap_challenge_size'
@@ -624,7 +628,7 @@ export function SecurityTab({ configs, systemConfigsQuery }: SecurityTabProps) {
                   className='bg-card border-dashed text-xs'
                 />
                 <p className='text-[10px] text-muted-foreground leading-normal'>
-                  难题盐值混淆字符长度。默认 32
+                  {t('challengeSizeDesc')}
                 </p>
               </div>
 
@@ -633,7 +637,7 @@ export function SecurityTab({ configs, systemConfigsQuery }: SecurityTabProps) {
                   htmlFor='cap_challenge_ttl'
                   className='text-xs font-semibold'
                 >
-                  难题超时时长 (秒)
+                  {t('challengeTTL')}
                 </Label>
                 <Input
                   id='cap_challenge_ttl'
@@ -645,7 +649,7 @@ export function SecurityTab({ configs, systemConfigsQuery }: SecurityTabProps) {
                   className='bg-card border-dashed text-xs'
                 />
                 <p className='text-[10px] text-muted-foreground leading-normal'>
-                  难题有效期限。默认 600 秒 (10 分钟)
+                  {t('challengeTTLDesc')}
                 </p>
               </div>
 
@@ -654,7 +658,7 @@ export function SecurityTab({ configs, systemConfigsQuery }: SecurityTabProps) {
                   htmlFor='cap_token_ttl'
                   className='text-xs font-semibold'
                 >
-                  验证凭证有效时长 (秒)
+                  {t('tokenTTL')}
                 </Label>
                 <Input
                   id='cap_token_ttl'
@@ -666,8 +670,7 @@ export function SecurityTab({ configs, systemConfigsQuery }: SecurityTabProps) {
                   className='bg-card border-dashed text-xs'
                 />
                 <p className='text-[10px] text-muted-foreground leading-normal'>
-                  PoW 计算求解通过后，签发的登录凭证有效时长。默认 1200 秒 (20
-                  分钟)
+                  {t('tokenTTLDesc')}
                 </p>
               </div>
             </div>
@@ -681,10 +684,10 @@ export function SecurityTab({ configs, systemConfigsQuery }: SecurityTabProps) {
                 {saveCapMutation.isPending ? (
                   <>
                     <Loader2 className='mr-1.5 size-3.5 animate-spin' />
-                    保存中...
+                    {t('saving')}
                   </>
                 ) : (
-                  '保存配置'
+                  t('saveConfig')
                 )}
               </Button>
             </div>
@@ -713,16 +716,16 @@ export function SecurityTab({ configs, systemConfigsQuery }: SecurityTabProps) {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>确认删除认证源</AlertDialogTitle>
+            <AlertDialogTitle>{t('deleteAuthSourceTitle')}</AlertDialogTitle>
             <AlertDialogDescription>
-              确定删除认证源「
-              {deleteTarget?.display_name || deleteTarget?.name}
-              」吗？删除后无法恢复。
+              {t('deleteAuthSourceConfirm', {
+                name: deleteTarget?.display_name || deleteTarget?.name || '',
+              })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={deleteSourceMutation.isPending}>
-              取消
+              {tCommon('cancel')}
             </AlertDialogCancel>
             <AlertDialogAction
               disabled={deleteSourceMutation.isPending}
@@ -730,7 +733,9 @@ export function SecurityTab({ configs, systemConfigsQuery }: SecurityTabProps) {
                 deleteTarget && deleteSourceMutation.mutate(deleteTarget.id)
               }
             >
-              {deleteSourceMutation.isPending ? '删除中...' : '确认删除'}
+              {deleteSourceMutation.isPending
+                ? t('deleting')
+                : t('confirmDelete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

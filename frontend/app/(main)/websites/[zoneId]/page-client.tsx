@@ -26,6 +26,7 @@ import {
   ZoneService,
   zoneQueryKey,
 } from '@/lib/services/openflare';
+import { useTranslations } from 'next-intl';
 
 import { getErrorMessage } from '../components/website-utils';
 import { ZoneCertificatesPanel } from './components/zone-certificates';
@@ -48,6 +49,8 @@ function getZoneIdFromPathname(pathname: string | null): number {
 }
 
 export function ZonePageClient() {
+  const t = useTranslations('websites');
+  const tc = useTranslations('common');
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
     setMounted(true);
@@ -103,11 +106,12 @@ export function ZonePageClient() {
   const deleteZone = useMutation({
     mutationFn: () => ZoneService.deleteById(zoneId),
     onSuccess: async () => {
-      toast.success('Zone 已删除');
+      toast.success(t('zoneDeleted'));
       await queryClient.invalidateQueries({ queryKey: zoneQueryKey });
       window.location.assign('/websites');
     },
-    onError: (error) => toast.error(getErrorMessage(error)),
+    onError: (error) =>
+      toast.error(getErrorMessage(error, t('requestFailed'))),
   });
 
   if (!mounted) {
@@ -115,7 +119,7 @@ export function ZonePageClient() {
       <div className='py-6 px-1'>
         <LoadingStateWithBorder
           icon={Globe}
-          description='加载 Zone 详情中...'
+          description={t('loadingDetail')}
         />
       </div>
     );
@@ -126,7 +130,7 @@ export function ZonePageClient() {
       <div className='py-6 px-1'>
         <EmptyStateWithBorder
           icon={Globe}
-          description='无效的网站 ID，请从网站列表进入详情页。'
+          description={t('invalidId')}
         />
       </div>
     );
@@ -137,7 +141,7 @@ export function ZonePageClient() {
       <div className='py-6 px-1'>
         <LoadingStateWithBorder
           icon={Globe}
-          description='加载 Zone 详情中...'
+          description={t('loadingDetail')}
         />
       </div>
     );
@@ -153,11 +157,11 @@ export function ZonePageClient() {
           onClick={() => router.back()}
         >
           <ArrowLeft className='size-3.5' />
-          返回
+          {t('back')}
         </Button>
         <EmptyStateWithBorder
           icon={Globe}
-          description='网站不存在，可能已被删除或 ID 无效。'
+          description={t('notFound')}
         />
       </div>
     );
@@ -182,7 +186,7 @@ export function ZonePageClient() {
           onClick={() => router.back()}
         >
           <ArrowLeft className='size-3.5' />
-          返回
+          {t('back')}
         </Button>
 
         <div className='flex items-center gap-2'>
@@ -191,7 +195,7 @@ export function ZonePageClient() {
             <h1 className='text-2xl font-semibold tracking-tight'>
               {overview.zone.domain}
             </h1>
-            <p className='text-sm text-muted-foreground'>Zone 网站管理</p>
+            <p className='text-sm text-muted-foreground'>{t('detailSubtitle')}</p>
           </div>
         </div>
       </div>
@@ -202,25 +206,25 @@ export function ZonePageClient() {
             value='overview'
             className='px-0 pb-2 text-xs font-semibold'
           >
-            概览
+            {t('tabOverview')}
           </TabsTrigger>
           <TabsTrigger
             value='domains'
             className='px-0 pb-2 text-xs font-semibold'
           >
-            域名 ({overview.domains.length})
+            {t('tabDomains', { count: overview.domains.length })}
           </TabsTrigger>
           <TabsTrigger
             value='certificates'
             className='px-0 pb-2 text-xs font-semibold'
           >
-            证书 ({boundCertCount})
+            {t('tabCertificates', { count: boundCertCount })}
           </TabsTrigger>
           <TabsTrigger
             value='settings'
             className='px-0 pb-2 text-xs font-semibold'
           >
-            设置
+            {tc('settings')}
           </TabsTrigger>
         </TabsList>
 
@@ -247,19 +251,19 @@ export function ZonePageClient() {
         <TabsContent value='settings'>
           <div className='space-y-4'>
             <div className='rounded-lg border p-4'>
-              <p className='text-sm font-semibold'>基本信息</p>
+              <p className='text-sm font-semibold'>{t('basicInfo')}</p>
               <p className='mt-1 text-sm text-muted-foreground'>
-                维护 Zone 的可注册根域。根域变更后，请确认其下域名仍归属该根域。
+                {t('basicInfoDesc')}
               </p>
               <div className='mt-3 grid gap-2 text-sm sm:grid-cols-2'>
                 <div>
-                  <p className='text-xs text-muted-foreground'>当前根域</p>
+                  <p className='text-xs text-muted-foreground'>{t('currentRoot')}</p>
                   <p className='mt-1 font-mono text-[13px] font-medium'>
                     {overview.zone.domain}
                   </p>
                 </div>
                 <div>
-                  <p className='text-xs text-muted-foreground'>域名数量</p>
+                  <p className='text-xs text-muted-foreground'>{t('domainCount')}</p>
                   <p className='mt-1 font-mono text-[13px] font-medium'>
                     {overview.domains.length}
                   </p>
@@ -272,14 +276,14 @@ export function ZonePageClient() {
                 onClick={() => setEditZone(true)}
               >
                 <Pencil className='mr-1 size-3.5' />
-                编辑根域
+                {t('editRoot')}
               </Button>
             </div>
 
             <div className='rounded-lg border border-destructive/30 p-4'>
-              <p className='text-sm font-semibold text-destructive'>危险操作</p>
+              <p className='text-sm font-semibold text-destructive'>{t('dangerZone')}</p>
               <p className='mt-1 text-sm text-muted-foreground'>
-                删除 Zone 前须清空其下全部域名；删除后不可恢复。
+                {t('dangerZoneDesc')}
               </p>
               <Button
                 variant='destructive'
@@ -288,7 +292,7 @@ export function ZonePageClient() {
                 onClick={() => setConfirmDelete(true)}
               >
                 <Trash2 className='mr-1 size-3.5' />
-                删除 Zone
+                {t('deleteZone')}
               </Button>
             </div>
           </div>
@@ -304,15 +308,14 @@ export function ZonePageClient() {
       <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>确认删除 Zone</AlertDialogTitle>
+            <AlertDialogTitle>{t('deleteZoneTitle')}</AlertDialogTitle>
             <AlertDialogDescription>
-              确认删除 {overview.zone.domain}{' '}
-              吗？其下域名须先解绑路由后才能删除，此操作不可撤销。
+              {t('deleteZoneDesc', { domain: overview.zone.domain })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={deleteZone.isPending}>
-              取消
+              {tc('cancel')}
             </AlertDialogCancel>
             <AlertDialogAction
               className='bg-destructive text-white hover:bg-destructive/90'
@@ -322,7 +325,7 @@ export function ZonePageClient() {
                 deleteZone.mutate();
               }}
             >
-              {deleteZone.isPending ? '删除中…' : '确认删除'}
+              {deleteZone.isPending ? t('deleting') : t('confirmDelete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

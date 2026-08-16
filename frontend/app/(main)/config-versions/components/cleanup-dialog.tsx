@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Loader2 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 
@@ -19,11 +20,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
-const cleanupSchema = z.object({
-  keepCount: z.number().int().min(3, '最少保留 3 个历史快照'),
-});
+function buildCleanupSchema(t: (key: string) => string) {
+  return z.object({
+    keepCount: z.number().int().min(3, t('keepMin')),
+  });
+}
 
-type CleanupFormValues = z.infer<typeof cleanupSchema>;
+type CleanupFormValues = z.infer<ReturnType<typeof buildCleanupSchema>>;
 
 interface CleanupDialogProps {
   open: boolean;
@@ -38,8 +41,10 @@ export function CleanupDialog({
   onConfirm,
   loading,
 }: CleanupDialogProps) {
+  const t = useTranslations('configVersions');
+  const tc = useTranslations('common');
   const form = useForm<CleanupFormValues>({
-    resolver: zodResolver(cleanupSchema),
+    resolver: zodResolver(buildCleanupSchema(t)),
     defaultValues: { keepCount: 10 },
   });
 
@@ -57,14 +62,12 @@ export function CleanupDialog({
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>清理历史快照</AlertDialogTitle>
-          <AlertDialogDescription>
-            删除旧的历史快照配置，系统将始终保护当前已激活的版本不被删除。
-          </AlertDialogDescription>
+          <AlertDialogTitle>{t('cleanupTitle')}</AlertDialogTitle>
+          <AlertDialogDescription>{t('cleanupDesc')}</AlertDialogDescription>
         </AlertDialogHeader>
 
         <div className='space-y-2'>
-          <Label htmlFor='keepCount'>保留最近快照个数</Label>
+          <Label htmlFor='keepCount'>{t('keepCount')}</Label>
           <Input
             id='keepCount'
             type='number'
@@ -73,7 +76,7 @@ export function CleanupDialog({
             {...form.register('keepCount', { valueAsNumber: true })}
           />
           <p className='text-xs text-muted-foreground'>
-            默认为 10 个，最少需保留 3 个。
+            {t('keepHint')}
           </p>
           {form.formState.errors.keepCount ? (
             <p className='text-xs text-destructive'>
@@ -83,7 +86,7 @@ export function CleanupDialog({
         </div>
 
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={loading}>取消</AlertDialogCancel>
+          <AlertDialogCancel disabled={loading}>{tc('cancel')}</AlertDialogCancel>
           <Button
             variant='destructive'
             onClick={() => void handleConfirm()}
@@ -92,10 +95,10 @@ export function CleanupDialog({
             {loading ? (
               <>
                 <Loader2 className='size-4 animate-spin mr-1' />
-                清理中...
+                {t('cleaning')}
               </>
             ) : (
-              '确认清理'
+              t('confirmCleanup')
             )}
           </Button>
         </AlertDialogFooter>

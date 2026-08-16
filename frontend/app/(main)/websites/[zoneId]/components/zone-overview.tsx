@@ -23,24 +23,7 @@ import {
 import { formatDateTime } from '@/lib/utils';
 import { formatBytes, formatCompactNumber } from '@/lib/utils/metrics';
 import { cn } from '@/lib/utils';
-
-const rangeOptions: Array<{ value: ZoneStatsRange; label: string }> = [
-  { value: '24h', label: '24 小时' },
-  { value: '7d', label: '7 天' },
-  { value: '30d', label: '30 天' },
-];
-
-const visitorsChartConfig = {
-  value: { label: '分桶 UV', color: 'hsl(217 91% 60%)' },
-} satisfies ChartConfig;
-
-const requestsChartConfig = {
-  value: { label: '请求总数', color: 'hsl(217 91% 60%)' },
-} satisfies ChartConfig;
-
-const bytesChartConfig = {
-  value: { label: '已提供数据', color: 'hsl(217 91% 60%)' },
-} satisfies ChartConfig;
+import { useTranslations } from 'next-intl';
 
 function formatAxisLabel(iso: string, range: ZoneStatsRange) {
   const date = new Date(iso);
@@ -83,7 +66,23 @@ export function ZoneOverviewPanel({
   overview: ZoneOverview;
   zoneId: number;
 }) {
+  const t = useTranslations('websites');
+  const tc = useTranslations('common');
   const [range, setRange] = useState<ZoneStatsRange>('24h');
+  const rangeOptions: Array<{ value: ZoneStatsRange; label: string }> = [
+    { value: '24h', label: t('range24h') },
+    { value: '7d', label: t('range7d') },
+    { value: '30d', label: t('range30d') },
+  ];
+  const visitorsChartConfig = {
+    value: { label: t('chartUv'), color: 'hsl(217 91% 60%)' },
+  } satisfies ChartConfig;
+  const requestsChartConfig = {
+    value: { label: t('totalRequests'), color: 'hsl(217 91% 60%)' },
+  } satisfies ChartConfig;
+  const bytesChartConfig = {
+    value: { label: t('chartBytes'), color: 'hsl(217 91% 60%)' },
+  } satisfies ChartConfig;
 
   const statsQuery = useQuery({
     queryKey: [...zoneQueryKey, zoneId, 'stats', range],
@@ -143,7 +142,7 @@ export function ZoneOverviewPanel({
           </div>
         ) : statsQuery.isError ? (
           <div className='rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground'>
-            加载流量统计失败
+            {t('statsFailed')}
             <div className='mt-3'>
               <Button
                 size='sm'
@@ -151,7 +150,7 @@ export function ZoneOverviewPanel({
                 className='h-7 text-xs'
                 onClick={() => void statsQuery.refetch()}
               >
-                重试
+                {tc('retry')}
               </Button>
             </div>
           </div>
@@ -159,14 +158,14 @@ export function ZoneOverviewPanel({
           <div className='space-y-3'>
             {!stats?.available ? (
               <p className='text-xs text-muted-foreground'>
-                分析存储暂不可用，图表可能为空。请确认 ClickHouse 已启用。
+                {t('analyticsUnavailable')}
               </p>
             ) : null}
 
             <MetricTrendCard
               icon={Users}
-              label='查询窗口独立访客'
-              description='顶部合计为整窗去重；曲线为各时间桶内 UV，桶间不可相加'
+              label={t('uniqueVisitors')}
+              description={t('uniqueVisitorsDesc')}
               value={formatCompactNumber(stats?.unique_visitors ?? 0)}
               data={chartData}
               dataKey='visitors'
@@ -175,7 +174,7 @@ export function ZoneOverviewPanel({
             />
             <MetricTrendCard
               icon={Activity}
-              label='请求总数'
+              label={t('totalRequests')}
               value={formatCompactNumber(stats?.request_count ?? 0)}
               data={chartData}
               dataKey='requests'
@@ -184,7 +183,7 @@ export function ZoneOverviewPanel({
             />
             <MetricTrendCard
               icon={HardDrive}
-              label='已提供的数据总计'
+              label={t('totalBytes')}
               value={formatBytes(stats?.bytes_sent ?? 0, { zeroText: '0 B' })}
               data={chartData}
               dataKey='bytes'
@@ -201,15 +200,15 @@ export function ZoneOverviewPanel({
       <div className='grid gap-4 md:grid-cols-3'>
         <Card className='border-dashed shadow-none md:col-span-3'>
           <CardHeader className='pb-2'>
-            <CardTitle className='text-sm'>Zone 信息</CardTitle>
+            <CardTitle className='text-sm'>{t('zoneInfo')}</CardTitle>
           </CardHeader>
           <CardContent className='grid gap-3 text-sm sm:grid-cols-2'>
             <div>
-              <p className='text-xs text-muted-foreground'>根域</p>
+              <p className='text-xs text-muted-foreground'>{t('rootDomain')}</p>
               <p className='mt-1 font-medium'>{overview.zone.domain}</p>
             </div>
             <div>
-              <p className='text-xs text-muted-foreground'>创建时间</p>
+              <p className='text-xs text-muted-foreground'>{t('createdAt')}</p>
               <p className='mt-1'>{formatDateTime(overview.zone.created_at)}</p>
             </div>
           </CardContent>

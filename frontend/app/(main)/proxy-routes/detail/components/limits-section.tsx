@@ -17,6 +17,8 @@ import {
 import { Input } from '@/components/ui/input';
 import type { ProxyRouteItem } from '@/lib/services/openflare';
 
+import { useTranslations } from 'next-intl';
+
 import {
   normalizeLimitRate,
   normalizeLimitReqPerIP,
@@ -27,51 +29,12 @@ import { proxyRouteFormIds } from '../helpers';
 import { useRouteSectionSave } from '../hooks/use-route-section-save';
 import { SectionShell } from './section-shell';
 
-const rateLimitSchema = z
-  .object({
-    limit_conn_per_server: z.string(),
-    limit_conn_per_ip: z.string(),
-    limit_rate: z.string(),
-    limit_req_per_ip: z.string(),
-  })
-  .superRefine((value, context) => {
-    for (const field of [
-      'limit_conn_per_server',
-      'limit_conn_per_ip',
-    ] as const) {
-      const rawValue = value[field].trim();
-      if (!rawValue) {
-        continue;
-      }
-      if (!/^-1$|^\d+$/.test(rawValue)) {
-        context.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: [field],
-          message: '请输入 -1、0 或正整数',
-        });
-      }
-    }
-
-    const limitRateError = validateLimitRate(value.limit_rate);
-    if (limitRateError) {
-      context.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['limit_rate'],
-        message: limitRateError,
-      });
-    }
-
-    const limitReqError = validateLimitReqPerIP(value.limit_req_per_ip);
-    if (limitReqError) {
-      context.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['limit_req_per_ip'],
-        message: limitReqError,
-      });
-    }
-  });
-
-type RateLimitValues = z.infer<typeof rateLimitSchema>;
+type RateLimitValues = {
+  limit_conn_per_server: string;
+  limit_conn_per_ip: string;
+  limit_rate: string;
+  limit_req_per_ip: string;
+};
 
 function formatConnValue(value: number | null | undefined) {
   if (value === null || value === undefined || value === 0) {
@@ -99,6 +62,50 @@ export function LimitsSection({
   onRouteUpdate,
   onSavingChange,
 }: LimitsSectionProps) {
+  const t = useTranslations('proxyRoutes');
+  const rateLimitSchema = z
+    .object({
+      limit_conn_per_server: z.string(),
+      limit_conn_per_ip: z.string(),
+      limit_rate: z.string(),
+      limit_req_per_ip: z.string(),
+    })
+    .superRefine((value, context) => {
+      for (const field of [
+        'limit_conn_per_server',
+        'limit_conn_per_ip',
+      ] as const) {
+        const rawValue = value[field].trim();
+        if (!rawValue) {
+          continue;
+        }
+        if (!/^-1$|^\d+$/.test(rawValue)) {
+          context.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: [field],
+            message: t('validation.enterIntegerOrMinusOne'),
+          });
+        }
+      }
+
+      const limitRateError = validateLimitRate(value.limit_rate, t);
+      if (limitRateError) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['limit_rate'],
+          message: limitRateError,
+        });
+      }
+
+      const limitReqError = validateLimitReqPerIP(value.limit_req_per_ip, t);
+      if (limitReqError) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['limit_req_per_ip'],
+          message: limitReqError,
+        });
+      }
+    });
   const { saving, save } = useRouteSectionSave(
     route,
     onRouteUpdate,
@@ -126,8 +133,8 @@ export function LimitsSection({
 
   return (
     <SectionShell
-      title='流量限制'
-      description='站点限流。空或 0 继承全局默认；-1 显式关闭；大于 0 为自定义。'
+      title={t('limits')}
+      description={t('limitsDesc')}
       formId={proxyRouteFormIds.limits}
       saving={saving}
     >
@@ -147,7 +154,7 @@ export function LimitsSection({
                   values.limit_req_per_ip,
                 ),
               },
-              '流量限制已保存',
+              t('limitsSaved'),
             );
           })}
         >
@@ -156,13 +163,11 @@ export function LimitsSection({
             name='limit_conn_per_server'
             render={({ field }) => (
               <FormItem>
-                <FormLabel>并发限制</FormLabel>
+                <FormLabel>{t('connLimit')}</FormLabel>
                 <FormControl>
                   <Input placeholder='120' {...field} />
                 </FormControl>
-                <FormDescription>
-                  空或 0 继承全局默认；-1 关闭；大于 0 为自定义并发上限。
-                </FormDescription>
+                <FormDescription>{t('connLimitHint')}</FormDescription>
                 <FormMessage />
               </FormItem>
             )}
@@ -173,13 +178,11 @@ export function LimitsSection({
             name='limit_conn_per_ip'
             render={({ field }) => (
               <FormItem>
-                <FormLabel>单 IP 限制</FormLabel>
+                <FormLabel>{t('ipLimit')}</FormLabel>
                 <FormControl>
                   <Input placeholder='12' {...field} />
                 </FormControl>
-                <FormDescription>
-                  空或 0 继承全局默认；-1 关闭；大于 0 为单 IP 自定义上限。
-                </FormDescription>
+                <FormDescription>{t('ipLimitHint')}</FormDescription>
                 <FormMessage />
               </FormItem>
             )}
@@ -190,13 +193,11 @@ export function LimitsSection({
             name='limit_rate'
             render={({ field }) => (
               <FormItem>
-                <FormLabel>限速</FormLabel>
+                <FormLabel>{t('rateLimit')}</FormLabel>
                 <FormControl>
-                  <Input placeholder='512k/1m 或 -1' {...field} />
+                  <Input placeholder={t('rateLimitPlaceholder')} {...field} />
                 </FormControl>
-                <FormDescription>
-                  空或 0 继承全局默认；-1 关闭；例如 512k、1m 为自定义带宽。
-                </FormDescription>
+                <FormDescription>{t('rateLimitHint')}</FormDescription>
                 <FormMessage />
               </FormItem>
             )}
@@ -207,14 +208,11 @@ export function LimitsSection({
             name='limit_req_per_ip'
             render={({ field }) => (
               <FormItem>
-                <FormLabel>单 IP 请求频率</FormLabel>
+                <FormLabel>{t('reqLimit')}</FormLabel>
                 <FormControl>
-                  <Input placeholder='10r/s / 100r/m 或 -1' {...field} />
+                  <Input placeholder={t('reqLimitPlaceholder')} {...field} />
                 </FormControl>
-                <FormDescription>
-                  空或 0 继承全局默认；-1 关闭；例如 10r/s、100r/m
-                  为自定义频率。
-                </FormDescription>
+                <FormDescription>{t('reqLimitHint')}</FormDescription>
                 <FormMessage />
               </FormItem>
             )}

@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { useTranslations } from 'next-intl';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import {
@@ -51,13 +52,14 @@ function SystemConfigDetailPanel({
   onSave: () => void;
   saving: boolean;
 }) {
+  const t = useTranslations('admin.system');
   return (
     <ManageDetailPanel isEmpty={!config} onSave={onSave} saving={saving}>
       <div className='grid grid-cols-1 gap-0'>
         <div className='border border-dashed rounded-lg'>
           <div className='px-3 py-2 flex items-center justify-between border-b border-dashed last:border-b-0'>
             <label className='text-xs font-medium text-muted-foreground'>
-              配置键
+              {t('configKey')}
             </label>
             <p className='text-xs text-muted-foreground font-mono'>
               {config?.key}
@@ -66,7 +68,7 @@ function SystemConfigDetailPanel({
 
           <div className='pl-3 py-2 flex items-center justify-between border-b border-dashed last:border-b-0'>
             <label className='text-xs font-medium text-muted-foreground'>
-              配置值
+              {t('configValue')}
             </label>
             <div className='flex gap-1 w-[90%] justify-end items-center pr-3'>
               {config?.key.endsWith('_enabled') ? (
@@ -107,7 +109,9 @@ function SystemConfigDetailPanel({
                       : config?.value || ''
                   }
                   placeholder={
-                    editData.value === undefined && !config?.value ? '必需' : ''
+                    editData.value === undefined && !config?.value
+                      ? t('required')
+                      : ''
                   }
                   onChange={(e) => {
                     const value = e.target.value;
@@ -128,7 +132,7 @@ function SystemConfigDetailPanel({
 
           <div className='pl-3 py-2 flex items-center justify-between border-b border-dashed last:border-b-0'>
             <label className='text-xs font-medium text-muted-foreground'>
-              配置描述
+              {t('configDescription')}
             </label>
             <div className='flex gap-1 w-[90%]'>
               <Input
@@ -138,7 +142,7 @@ function SystemConfigDetailPanel({
                     ? editData.description
                     : config?.description || ''
                 }
-                placeholder='可选描述'
+                placeholder={t('optionalDescription')}
                 onChange={(e) => {
                   const value = e.target.value;
                   onEditDataChange('description', value);
@@ -150,7 +154,7 @@ function SystemConfigDetailPanel({
 
           <div className='px-3 py-2 flex items-center justify-between border-b border-dashed last:border-b-0'>
             <label className='text-xs font-medium text-muted-foreground'>
-              公共可见
+              {t('publicVisibility')}
             </label>
             <Switch
               checked={(editData.visibility ?? config?.visibility ?? 0) === 1}
@@ -162,7 +166,7 @@ function SystemConfigDetailPanel({
 
           <div className='px-3 py-2 flex items-center justify-between border-b border-dashed last:border-b-0'>
             <label className='text-xs font-medium text-muted-foreground'>
-              配置类型
+              {t('configType')}
             </label>
             <span
               className={`text-[11px] px-1.5 py-0.5 rounded font-medium ${
@@ -171,13 +175,15 @@ function SystemConfigDetailPanel({
                   : 'bg-indigo-500/10 text-indigo-600 dark:bg-indigo-500/20 dark:text-indigo-400'
               }`}
             >
-              {config?.type === 'system' ? '系统配置' : '业务配置'}
+              {config?.type === 'system'
+                ? t('systemConfig')
+                : t('businessConfig')}
             </span>
           </div>
 
           <div className='px-3 py-2 flex items-center justify-between'>
             <label className='text-xs font-medium text-muted-foreground'>
-              创建时间
+              {t('createdAt')}
             </label>
             <p className='text-xs text-muted-foreground'>
               {config ? formatDateTime(config.created_at) : ''}
@@ -199,6 +205,7 @@ function SystemConfigDetailPanel({
  * @returns {React.ReactNode} 系统配置管理组件
  */
 export function SystemConfigs() {
+  const t = useTranslations('admin.system');
   const {
     systemConfigs: configs,
     systemConfigsLoading: loading,
@@ -236,7 +243,7 @@ export function SystemConfigs() {
 
   return (
     <ManagePage<SystemConfig>
-      title='系统配置'
+      title={t('pageTitle')}
       icon={ShieldCheck}
       data={configs}
       loading={loading}
@@ -245,8 +252,8 @@ export function SystemConfigs() {
       getInitialEditData={getInitialEditData}
       onSave={handleSave}
       getId={(config) => config.key}
-      emptyDescription='未发现系统配置'
-      loadingDescription='配置加载中'
+      emptyDescription={t('emptyDescription')}
+      loadingDescription={t('loadingDescription')}
       headerExtra={
         <Tabs
           value={activeTab}
@@ -255,24 +262,24 @@ export function SystemConfigs() {
         >
           <TabsList className='grid w-full grid-cols-2 h-8'>
             <TabsTrigger value='business' className='text-[11px] h-7'>
-              业务配置
+              {t('businessConfig')}
             </TabsTrigger>
             <TabsTrigger value='system' className='text-[11px] h-7'>
-              系统配置
+              {t('systemConfig')}
             </TabsTrigger>
           </TabsList>
         </Tabs>
       }
       columns={[
         {
-          header: '配置键',
+          header: t('configKey'),
           cell: (item) => (
             <span className='font-mono font-medium'>{item.key}</span>
           ),
           width: '200px',
         },
         {
-          header: '配置值',
+          header: t('configValue'),
           cell: (item) => (
             <span
               className='truncate max-w-[120px] inline-block'
@@ -284,14 +291,14 @@ export function SystemConfigs() {
           width: '120px',
         },
         {
-          header: '公共可见',
+          header: t('publicVisibility'),
           cell: (item) => (
-            <span>{item.visibility === 1 ? '可见' : '不可见'}</span>
+            <span>{item.visibility === 1 ? t('visible') : t('invisible')}</span>
           ),
           width: '80px',
         },
         {
-          header: '描述',
+          header: t('description'),
           cell: (item) => (
             <span
               className='truncate max-w-[200px] inline-block text-muted-foreground'

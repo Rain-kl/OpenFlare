@@ -1,6 +1,7 @@
 'use client';
 
 import { Download, Eye, Pencil, Play, Trash2 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -12,10 +13,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import type { WAFIPGroup } from '@/lib/services/openflare';
+import type { WAFIPGroup, WAFIPGroupType } from '@/lib/services/openflare';
 import { formatDateTime } from '@/lib/utils';
-
-import { ipGroupTypeLabels } from './helpers';
 
 interface IPGroupsTableProps {
   groups: WAFIPGroup[];
@@ -36,18 +35,22 @@ export function IPGroupsTable({
   onSync,
   onTest,
 }: IPGroupsTableProps) {
+  const t = useTranslations('ipGroups');
+  const typeLabel = (type: WAFIPGroupType) => t(`types.${type}`);
   return (
     <Table>
       <TableHeader>
         <TableRow>
-          <TableHead>名称</TableHead>
-          <TableHead>类型</TableHead>
-          <TableHead>状态</TableHead>
-          <TableHead>IP 数</TableHead>
-          <TableHead>引用次数</TableHead>
-          <TableHead>同步状态</TableHead>
-          <TableHead>更新时间</TableHead>
-          <TableHead className='w-[168px] text-right'>操作</TableHead>
+          <TableHead>{t('columns.name')}</TableHead>
+          <TableHead>{t('columns.type')}</TableHead>
+          <TableHead>{t('columns.status')}</TableHead>
+          <TableHead>{t('columns.ipCount')}</TableHead>
+          <TableHead>{t('columns.refCount')}</TableHead>
+          <TableHead>{t('columns.syncStatus')}</TableHead>
+          <TableHead>{t('columns.updatedAt')}</TableHead>
+          <TableHead className='w-[168px] text-right'>
+            {t('columns.actions')}
+          </TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -55,11 +58,11 @@ export function IPGroupsTable({
           <TableRow key={group.id}>
             <TableCell className='font-medium'>{group.name}</TableCell>
             <TableCell>
-              <Badge variant='outline'>{ipGroupTypeLabels[group.type]}</Badge>
+              <Badge variant='outline'>{typeLabel(group.type)}</Badge>
             </TableCell>
             <TableCell>
               <Badge variant={group.enabled ? 'default' : 'secondary'}>
-                {group.enabled ? '启用' : '停用'}
+                {group.enabled ? t('enabled') : t('disabled')}
               </Badge>
             </TableCell>
             <TableCell>{group.ip_list.length}</TableCell>
@@ -67,7 +70,7 @@ export function IPGroupsTable({
             <TableCell className='max-w-[200px] truncate text-sm text-muted-foreground'>
               {group.last_sync_status
                 ? `${group.last_sync_status}: ${group.last_sync_message}`
-                : '尚无同步记录'}
+                : t('noSyncRecord')}
             </TableCell>
             <TableCell className='text-sm text-muted-foreground'>
               {group.updated_at ? formatDateTime(group.updated_at) : '—'}
@@ -79,8 +82,8 @@ export function IPGroupsTable({
                   variant='ghost'
                   size='icon'
                   className='size-8'
-                  title='查看'
-                  aria-label='查看'
+                  title={t('actions.view')}
+                  aria-label={t('actions.view')}
                   onClick={() => onView(group)}
                 >
                   <Eye />
@@ -90,8 +93,8 @@ export function IPGroupsTable({
                   variant='ghost'
                   size='icon'
                   className='size-8'
-                  title='编辑'
-                  aria-label='编辑'
+                  title={t('actions.edit')}
+                  aria-label={t('actions.edit')}
                   onClick={() => onEdit(group)}
                 >
                   <Pencil />
@@ -102,8 +105,8 @@ export function IPGroupsTable({
                     variant='ghost'
                     size='icon'
                     className='size-8'
-                    title='测试规则'
-                    aria-label='测试规则'
+                    title={t('actions.test')}
+                    aria-label={t('actions.test')}
                     onClick={() => onTest(group)}
                   >
                     <Play />
@@ -115,9 +118,15 @@ export function IPGroupsTable({
                     variant='ghost'
                     size='icon'
                     className='size-8'
-                    title={group.type === 'automatic' ? '立即执行' : '立即同步'}
+                    title={
+                      group.type === 'automatic'
+                        ? t('actions.runNow')
+                        : t('actions.syncNow')
+                    }
                     aria-label={
-                      group.type === 'automatic' ? '立即执行' : '立即同步'
+                      group.type === 'automatic'
+                        ? t('actions.runNow')
+                        : t('actions.syncNow')
                     }
                     disabled={syncingId === group.id}
                     onClick={() => onSync(group)}
@@ -130,8 +139,8 @@ export function IPGroupsTable({
                   variant='ghost'
                   size='icon'
                   className='size-8 text-destructive hover:text-destructive'
-                  title='删除'
-                  aria-label='删除'
+                  title={t('actions.delete')}
+                  aria-label={t('actions.delete')}
                   onClick={() => onDelete(group)}
                 >
                   <Trash2 />

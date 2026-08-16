@@ -89,11 +89,18 @@ export function mapOptionsToOpsFields(
   };
 }
 
-export function formatDurationLabel(value: string) {
+export type OpsMessage = (
+  key: string,
+  values?: Record<string, string | number>,
+) => string;
+
+export function formatDurationLabel(value: string, t: OpsMessage) {
   const milliseconds = Number.parseInt(value, 10);
   if (Number.isNaN(milliseconds)) return value;
-  if (milliseconds >= 60000) return `${milliseconds / 60000} 分钟`;
-  return `${milliseconds / 1000} 秒`;
+  if (milliseconds >= 60000) {
+    return t('duration.minutes', { count: milliseconds / 60000 });
+  }
+  return t('duration.seconds', { count: milliseconds / 1000 });
 }
 
 export function normalizeServerUrl(value: string) {
@@ -116,21 +123,24 @@ export function buildDiscoveryCommand(
   ].join('\n');
 }
 
-export function validateAgentFields(fields: OpenFlareOpsFields) {
+export function validateAgentFields(fields: OpenFlareOpsFields, t: OpsMessage) {
   const heartbeat = Number.parseInt(fields.agent_heartbeat_interval, 10);
   const offline = Number.parseInt(fields.node_offline_threshold, 10);
   if (Number.isNaN(heartbeat) || heartbeat < 1000) {
-    throw new Error('心跳间隔不能小于 1000 毫秒。');
+    throw new Error(t('errors.heartbeatMin'));
   }
   if (Number.isNaN(offline) || offline < 10000) {
-    throw new Error('离线阈值不能小于 10000 毫秒。');
+    throw new Error(t('errors.offlineMin'));
   }
   if (offline < heartbeat * 3) {
-    throw new Error('离线阈值建议至少为心跳间隔的 3 倍。');
+    throw new Error(t('errors.offlineRatio'));
   }
 }
 
-export function validateUptimeKumaFields(fields: OpenFlareOpsFields) {
+export function validateUptimeKumaFields(
+  fields: OpenFlareOpsFields,
+  t: OpsMessage,
+) {
   const syncInt = Number.parseInt(fields.uptime_kuma_sync_interval, 10);
   const interval = Number.parseInt(fields.uptime_kuma_interval, 10);
   const retry = Number.parseInt(fields.uptime_kuma_retry, 10);
@@ -138,25 +148,26 @@ export function validateUptimeKumaFields(fields: OpenFlareOpsFields) {
   const timeout = Number.parseInt(fields.uptime_kuma_timeout, 10);
 
   if (fields.uptime_kuma_enabled) {
-    if (!fields.uptime_kuma_url.trim())
-      throw new Error('请输入 Uptime Kuma 地址。');
+    if (!fields.uptime_kuma_url.trim()) throw new Error(t('errors.kumaUrl'));
     if (!fields.uptime_kuma_username.trim())
-      throw new Error('请输入 Uptime Kuma 用户名。');
+      throw new Error(t('errors.kumaUser'));
   }
   if (Number.isNaN(syncInt) || syncInt <= 0)
-    throw new Error('同步间隔必须为正整数。');
+    throw new Error(t('errors.syncInterval'));
   if (Number.isNaN(interval) || interval <= 0)
-    throw new Error('心跳间隔必须为正整数。');
-  if (Number.isNaN(retry) || retry < 0)
-    throw new Error('重试次数必须为非负整数。');
+    throw new Error(t('errors.interval'));
+  if (Number.isNaN(retry) || retry < 0) throw new Error(t('errors.retry'));
   if (Number.isNaN(retryInt) || retryInt <= 0)
-    throw new Error('心跳重试间隔必须为正整数。');
+    throw new Error(t('errors.retryInterval'));
   if (Number.isNaN(timeout) || timeout <= 0)
-    throw new Error('请求超时必须为正整数。');
+    throw new Error(t('errors.timeout'));
 }
 
-export function agentOptionEntries(fields: OpenFlareOpsFields): OptionItem[] {
-  validateAgentFields(fields);
+export function agentOptionEntries(
+  fields: OpenFlareOpsFields,
+  t: OpsMessage,
+): OptionItem[] {
+  validateAgentFields(fields, t);
   return [
     { key: 'agent_heartbeat_interval', value: fields.agent_heartbeat_interval },
     {
@@ -171,8 +182,9 @@ export function agentOptionEntries(fields: OpenFlareOpsFields): OptionItem[] {
 
 export function uptimeKumaOptionEntries(
   fields: OpenFlareOpsFields,
+  t: OpsMessage,
 ): OptionItem[] {
-  validateUptimeKumaFields(fields);
+  validateUptimeKumaFields(fields, t);
   return [
     { key: 'uptime_kuma_enabled', value: String(fields.uptime_kuma_enabled) },
     { key: 'uptime_kuma_url', value: fields.uptime_kuma_url.trim() },
@@ -200,21 +212,22 @@ export function uptimeKumaOptionEntries(
   ];
 }
 
-export function validatePagesFields(fields: OpenFlareOpsFields) {
+export function validatePagesFields(fields: OpenFlareOpsFields, t: OpsMessage) {
   const packageSize = Number.parseInt(fields.pages_max_package_size_mb, 10);
   const historyCount = Number.parseInt(fields.pages_max_history_count, 10);
   if (Number.isNaN(packageSize) || packageSize < 1 || packageSize > 2048) {
-    throw new Error('Pages 部署包大小上限必须为 1～2048 MiB。');
+    throw new Error(t('errors.pagesSize'));
   }
   if (Number.isNaN(historyCount) || historyCount < 0) {
-    throw new Error(
-      'Pages 历史保留数必须为大于等于 0 的整数（0 表示不限制）。',
-    );
+    throw new Error(t('errors.pagesHistory'));
   }
 }
 
-export function pagesOptionEntries(fields: OpenFlareOpsFields): OptionItem[] {
-  validatePagesFields(fields);
+export function pagesOptionEntries(
+  fields: OpenFlareOpsFields,
+  t: OpsMessage,
+): OptionItem[] {
+  validatePagesFields(fields, t);
   return [
     {
       key: 'pages_max_package_size_mb',

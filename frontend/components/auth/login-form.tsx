@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useSearchParams } from 'next/navigation';
 import { EyeIcon, EyeOffIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 
 import { useAuth } from '@/components/providers/auth-provider';
 import { Button } from '@/components/ui/button';
@@ -45,6 +46,7 @@ export function LoginForm({
 }) {
   const searchParams = useSearchParams();
   const { setUser } = useAuth();
+  const t = useTranslations('auth.login');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -52,7 +54,7 @@ export function LoginForm({
   const [showLoginCodeInput, setShowLoginCodeInput] = useState(false);
   const [loginCooldown, setLoginCooldown] = useState(0);
   const [errorMessage, setErrorMessage] = useState('');
-  const [loginCodeTip, setLoginCodeTip] = useState<React.ReactNode>(null);
+  const [loginCodeTip, setLoginCodeTip] = useState<ReactNode>(null);
 
   useEffect(() => {
     onOTPStateChange?.(showLoginCodeInput);
@@ -103,22 +105,16 @@ export function LoginForm({
     },
     onSuccess: (user) => {
       setUser(user);
-      toast.success('登录成功');
+      toast.success(t('success'));
     },
     onError: (error: Error) => {
       const errorMsg = error.message || '';
       if (errorMsg.startsWith('need_email_code:')) {
         const emailMasked = errorMsg.substring('need_email_code:'.length);
-        setLoginCodeTip(
-          <>
-            已向您的安全邮箱{' '}
-            <span className='font-medium text-foreground'>{emailMasked}</span>{' '}
-            发送了登录验证码。
-          </>,
-        );
+        setLoginCodeTip(t('codeTipMasked', { email: emailMasked }));
         setShowLoginCodeInput(true);
         setLoginCooldown(60);
-        toast.success('登录验证码已发送至您的邮箱，请注意查收');
+        toast.success(t('codeSent'));
         if (capEnabled) {
           capTokenRef.current = null;
           setCapReady(false);
@@ -129,7 +125,7 @@ export function LoginForm({
 
       if (errorMsg.startsWith('smtp_invalid:')) {
         const tip = errorMsg.substring('smtp_invalid:'.length);
-        setLoginCodeTip('请输入您的登录验证码。');
+        setLoginCodeTip(t('codeTipGeneric'));
         setShowLoginCodeInput(true);
         setLoginCooldown(0);
         toast.warning(tip);
@@ -141,7 +137,7 @@ export function LoginForm({
         return;
       }
 
-      setErrorMessage(errorMsg || '登录失败，请重试');
+      setErrorMessage(errorMsg || t('failed'));
       if (capEnabled) {
         capTokenRef.current = null;
         setCapReady(false);
@@ -154,17 +150,13 @@ export function LoginForm({
     setErrorMessage('');
     const trimmedUsername = username.trim();
     if (!trimmedUsername || !password) {
-      toast.error('邮箱/用户名或密码未填写完整', {
-        description: '请先输入邮箱/用户名和密码后再登录',
+      toast.error(t('incomplete'), {
+        description: t('incompleteDesc'),
       });
       return;
     }
     if (capEnabled && !capReady) {
-      toast.error(
-        capAutoSolve
-          ? '人机验证尚未完成，请稍候…'
-          : '请先点击「开始验证」完成人机验证',
-      );
+      toast.error(capAutoSolve ? t('capPending') : t('capRequired'));
       return;
     }
     loginMutation.mutate({
@@ -189,7 +181,7 @@ export function LoginForm({
       const { authorize_url } = await AuthService.getAuthorizeUrl(sourceName);
       window.location.href = authorize_url;
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : '第三方登录失败');
+      toast.error(error instanceof Error ? error.message : t('oauthFailed'));
     }
   };
 
@@ -250,21 +242,21 @@ export function LoginForm({
     <div className='flex flex-col gap-6 [@media(max-height:700px)]:gap-4'>
       <AuthHeading
         siteName={publicConfigQuery.data?.site_name}
-        title='登录到您的账号'
-        description='欢迎回来，请输入您的账号信息继续。'
+        title={t('title')}
+        description={t('description')}
       />
 
       <div className='flex flex-col gap-5 [@media(max-height:700px)]:gap-3'>
         <FieldGroup className='gap-4 [@media(max-height:700px)]:gap-3'>
           <Field className='gap-1.5'>
             <FieldLabel htmlFor='username'>
-              邮箱或用户名 <span className='text-destructive'>*</span>
+              {t('username')} <span className='text-destructive'>*</span>
             </FieldLabel>
             <Input
               id='username'
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              placeholder='输入邮箱或用户名'
+              placeholder={t('usernamePlaceholder')}
               autoComplete='username'
               className='h-10 text-sm [@media(max-height:700px)]:h-9'
               onKeyDown={(e) => e.key === 'Enter' && handlePasswordLogin()}
@@ -272,7 +264,7 @@ export function LoginForm({
           </Field>
           <Field className='gap-1.5'>
             <FieldLabel htmlFor='password'>
-              密码 <span className='text-destructive'>*</span>
+              {t('password')} <span className='text-destructive'>*</span>
             </FieldLabel>
             <div className='relative'>
               <Input
@@ -280,7 +272,7 @@ export function LoginForm({
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 type={showPassword ? 'text' : 'password'}
-                placeholder='输入您的密码'
+                placeholder={t('passwordPlaceholder')}
                 autoComplete='current-password'
                 className='h-10 pr-11 text-sm [@media(max-height:700px)]:h-9'
                 onKeyDown={(e) => e.key === 'Enter' && handlePasswordLogin()}
@@ -289,7 +281,9 @@ export function LoginForm({
                 type='button'
                 variant='ghost'
                 size='icon-sm'
-                aria-label={showPassword ? '隐藏密码' : '显示密码'}
+                aria-label={
+                  showPassword ? t('hidePassword') : t('showPassword')
+                }
                 className='absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground'
                 onClick={() => setShowPassword((visible) => !visible)}
               >
@@ -325,10 +319,10 @@ export function LoginForm({
           {loginMutation.isPending ? (
             <>
               <Spinner />
-              登录中...
+              {t('submitting')}
             </>
           ) : (
-            '登录'
+            t('submit')
           )}
         </Button>
       </div>
@@ -337,7 +331,7 @@ export function LoginForm({
         <div className='flex flex-col gap-3'>
           <div className='flex items-center gap-3'>
             <Separator className='flex-1' />
-            <span className='text-xs text-muted-foreground'>或者使用</span>
+            <span className='text-xs text-muted-foreground'>{t('orUse')}</span>
             <Separator className='flex-1' />
           </div>
           <div className='grid gap-2'>
@@ -349,7 +343,7 @@ export function LoginForm({
                 className='h-10 [@media(max-height:700px)]:h-9'
                 onClick={() => void handleOAuthLogin(source.name)}
               >
-                {source.display_name || source.name} 登录
+                {t('oauthLogin', { name: source.display_name || source.name })}
               </Button>
             ))}
           </div>
@@ -358,12 +352,12 @@ export function LoginForm({
 
       {registrationEnabled && (
         <div className='text-center text-sm text-muted-foreground'>
-          还没有账号？{' '}
+          {t('noAccount')}{' '}
           <Link
             href='/register'
             className='font-medium text-foreground underline underline-offset-4'
           >
-            立即注册
+            {t('registerNow')}
           </Link>
         </div>
       )}

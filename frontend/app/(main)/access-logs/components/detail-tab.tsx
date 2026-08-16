@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Eye } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 import { EmptyStateWithBorder } from '@/components/layout/empty';
 import { ErrorInline } from '@/components/layout/error';
@@ -65,9 +66,12 @@ function PaginationBar({
   onPrev: () => void;
   onNext: () => void;
 }) {
+  const t = useTranslations('accessLogs.detail');
   return (
     <div className='flex items-center justify-between px-4 py-3 border-t border-dashed'>
-      <p className='text-xs text-muted-foreground'>当前第 {page + 1} 页</p>
+      <p className='text-xs text-muted-foreground'>
+        {t('page', { page: page + 1 })}
+      </p>
       <div className='flex gap-2'>
         <Button
           variant='outline'
@@ -75,7 +79,7 @@ function PaginationBar({
           disabled={loading || page <= 0}
           onClick={onPrev}
         >
-          上一页
+          {t('prev')}
         </Button>
         <Button
           variant='outline'
@@ -83,7 +87,7 @@ function PaginationBar({
           disabled={loading || !hasMore}
           onClick={onNext}
         >
-          下一页
+          {t('next')}
         </Button>
       </div>
     </div>
@@ -113,6 +117,7 @@ export function DetailTab({
   onNextPage: () => void;
   isFetching: boolean;
 }) {
+  const t = useTranslations('accessLogs');
   const [selected, setSelected] = useState<AccessLogItem | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
 
@@ -120,7 +125,7 @@ export function DetailTab({
     <>
       <div className='rounded-lg border border-dashed overflow-hidden bg-background'>
         <div className='flex items-center justify-between px-4 py-3 border-b border-dashed'>
-          <p className='text-sm font-medium'>日志明细</p>
+          <p className='text-sm font-medium'>{t('detail.listTitle')}</p>
           <Select value={detailSort} onValueChange={onDetailSortChange}>
             <SelectTrigger className='h-8 w-44 text-xs'>
               <SelectValue />
@@ -128,7 +133,7 @@ export function DetailTab({
             <SelectContent>
               {DETAIL_SORT_OPTIONS.map((option) => (
                 <SelectItem key={option.value} value={option.value}>
-                  {option.label}
+                  {t(option.labelKey)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -137,25 +142,25 @@ export function DetailTab({
         {error ? (
           <div className='p-4'>
             <ErrorInline
-              message={error.message || '加载失败'}
+              message={error.message || t('loadFailed')}
               onRetry={onRetry}
             />
           </div>
         ) : loading ? (
           <LoadingStateWithBorder />
         ) : (data?.items ?? []).length === 0 ? (
-          <EmptyStateWithBorder title='暂无访问日志' />
+          <EmptyStateWithBorder title={t('detail.empty')} />
         ) : (
           <Table>
             <TableHeader className='bg-muted/40'>
               <TableRow className='border-dashed hover:bg-transparent'>
-                <TableHead className='text-xs'>时间</TableHead>
-                <TableHead className='text-xs'>节点</TableHead>
+                <TableHead className='text-xs'>{t('detail.time')}</TableHead>
+                <TableHead className='text-xs'>{t('detail.node')}</TableHead>
                 <TableHead className='text-xs'>IP</TableHead>
-                <TableHead className='text-xs'>域名</TableHead>
-                <TableHead className='text-xs'>路径</TableHead>
-                <TableHead className='text-xs'>缓存</TableHead>
-                <TableHead className='text-xs'>状态码</TableHead>
+                <TableHead className='text-xs'>{t('detail.host')}</TableHead>
+                <TableHead className='text-xs'>{t('detail.path')}</TableHead>
+                <TableHead className='text-xs'>{t('detail.cache')}</TableHead>
+                <TableHead className='text-xs'>{t('detail.status')}</TableHead>
                 <TableHead className='w-12 text-center text-xs' />
               </TableRow>
             </TableHeader>
@@ -190,7 +195,7 @@ export function DetailTab({
                         className='text-[10px]'
                         title={item.cache_status || undefined}
                       >
-                        {cacheOutcomeLabel(outcome)}
+                        {cacheOutcomeLabel(outcome, (key) => t(key))}
                       </Badge>
                     </TableCell>
                     <TableCell>
@@ -214,7 +219,7 @@ export function DetailTab({
                           </Button>
                         </TooltipTrigger>
                         <TooltipContent side='top' className='text-xs'>
-                          查看详情
+                          {t('detail.view')}
                         </TooltipContent>
                       </Tooltip>
                     </TableCell>

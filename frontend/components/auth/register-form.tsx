@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
+import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 
 import { useAuth } from '@/components/providers/auth-provider';
@@ -36,6 +37,8 @@ export function RegisterForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { setUser } = useAuth();
+  const t = useTranslations('auth.register');
+  const tCommon = useTranslations('common');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [nickname, setNickname] = useState('');
@@ -108,10 +111,10 @@ export function RegisterForm() {
   // Redirect to login if registration is closed
   useEffect(() => {
     if (publicConfigQuery.isSuccess && !registrationEnabled) {
-      toast.error('系统注册功能已关闭');
+      toast.error(t('closed'));
       router.replace('/login');
     }
-  }, [publicConfigQuery.isSuccess, registrationEnabled, router]);
+  }, [publicConfigQuery.isSuccess, registrationEnabled, router, t]);
 
   const registerMutation = useMutation({
     mutationFn: (req: RegisterRequest) => {
@@ -129,10 +132,10 @@ export function RegisterForm() {
     onSuccess: (user) => {
       setUser(user);
       router.replace(redirectTarget);
-      toast.success('注册并登录成功');
+      toast.success(t('success'));
     },
     onError: (error: Error) => {
-      setErrorMessage(error.message || '注册失败，请重试');
+      setErrorMessage(error.message || t('failed'));
       if (capEnabled) {
         capTokenRef.current = null;
         setCapReady(false);
@@ -157,7 +160,7 @@ export function RegisterForm() {
     },
     onSuccess: () => {
       setRegisterCooldown(60);
-      toast.success('验证码已发送至您的邮箱，请查收');
+      toast.success(t('codeSent'));
       if (capEnabled) {
         setCapScope('register');
         capTokenRef.current = null;
@@ -166,7 +169,7 @@ export function RegisterForm() {
       }
     },
     onError: (error: Error) => {
-      toast.error(error.message || '发送验证码失败，请重试');
+      toast.error(error.message || t('sendCodeFailed'));
       if (capEnabled) {
         capTokenRef.current = null;
         setCapReady(false);
@@ -195,20 +198,16 @@ export function RegisterForm() {
   const handleSendRegisterCode = () => {
     const trimmedEmail = email.trim();
     if (!trimmedEmail) {
-      toast.error('请先输入邮箱地址');
+      toast.error(t('emailRequired'));
       return;
     }
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(trimmedEmail)) {
-      toast.error('请输入有效的邮箱地址');
+      toast.error(t('emailInvalid'));
       return;
     }
     if (capEnabled && capScope === 'send_email_code' && !capReady) {
-      toast.error(
-        capAutoSolve
-          ? '人机验证尚未完成，请稍候…'
-          : '请先点击「开始验证」完成人机验证',
-      );
+      toast.error(capAutoSolve ? t('capPending') : t('capRequired'));
       return;
     }
     sendRegisterCodeMutation.mutate(trimmedEmail);
@@ -217,33 +216,29 @@ export function RegisterForm() {
   const handleRegister = () => {
     setErrorMessage('');
     if (!username.trim() || !password) {
-      toast.error('用户名和密码不能为空');
+      toast.error(t('usernamePasswordRequired'));
       return;
     }
     if (password.length < 8) {
-      toast.error('密码长度不能少于 8 位');
+      toast.error(t('passwordTooShort'));
       return;
     }
     const trimmedEmail = email.trim();
     if (!trimmedEmail) {
-      toast.error('邮箱不能为空');
+      toast.error(t('emailEmpty'));
       return;
     }
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(trimmedEmail)) {
-      toast.error('请输入有效的邮箱地址');
+      toast.error(t('emailInvalid'));
       return;
     }
     if (emailRegisterEnabled && !code.trim()) {
-      toast.error('验证码不能为空');
+      toast.error(t('codeRequired'));
       return;
     }
     if (capEnabled && capScope === 'register' && !capReady) {
-      toast.error(
-        capAutoSolve
-          ? '人机验证尚未完成，请稍候…'
-          : '请先点击「开始验证」完成人机验证',
-      );
+      toast.error(capAutoSolve ? t('capPending') : t('capRequired'));
       return;
     }
     registerMutation.mutate({
@@ -271,21 +266,21 @@ export function RegisterForm() {
     <div className='flex flex-col gap-6 [@media(max-height:700px)]:gap-4'>
       <AuthHeading
         siteName={publicConfigQuery.data?.site_name}
-        title='创建您的账号'
-        description='填写以下信息，开始使用平台服务。'
+        title={t('title')}
+        description={t('description')}
       />
 
       <div className='flex flex-col gap-5 [@media(max-height:700px)]:gap-3'>
         <FieldGroup className='gap-4 [@media(min-width:500px)]:grid [@media(min-width:500px)]:grid-cols-2 [@media(max-height:700px)]:gap-3'>
           <Field className='gap-1.5'>
             <FieldLabel htmlFor='username'>
-              用户名 <span className='text-destructive'>*</span>
+              {t('username')} <span className='text-destructive'>*</span>
             </FieldLabel>
             <Input
               id='username'
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              placeholder='请输入用户名'
+              placeholder={t('usernamePlaceholder')}
               autoComplete='username'
               className='h-10 text-sm [@media(max-height:700px)]:h-9'
               onKeyDown={(e) => e.key === 'Enter' && handleRegister()}
@@ -293,16 +288,16 @@ export function RegisterForm() {
           </Field>
           <Field className='gap-1.5'>
             <FieldLabel htmlFor='nickname'>
-              昵称
+              {t('nickname')}
               <span className='ml-1 text-xs font-normal text-muted-foreground'>
-                （可选）
+                {tCommon('optional')}
               </span>
             </FieldLabel>
             <Input
               id='nickname'
               value={nickname}
               onChange={(e) => setNickname(e.target.value)}
-              placeholder='请输入昵称'
+              placeholder={t('nicknamePlaceholder')}
               autoComplete='nickname'
               className='h-10 text-sm [@media(max-height:700px)]:h-9'
               onKeyDown={(e) => e.key === 'Enter' && handleRegister()}
@@ -310,13 +305,13 @@ export function RegisterForm() {
           </Field>
           <Field className='gap-1.5'>
             <FieldLabel htmlFor='email'>
-              电子邮箱 <span className='text-destructive'>*</span>
+              {t('email')} <span className='text-destructive'>*</span>
             </FieldLabel>
             <Input
               id='email'
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder='请输入电子邮箱'
+              placeholder={t('emailPlaceholder')}
               autoComplete='email'
               className='h-10 text-sm [@media(max-height:700px)]:h-9'
               onKeyDown={(e) => e.key === 'Enter' && handleRegister()}
@@ -324,14 +319,14 @@ export function RegisterForm() {
           </Field>
           <Field className='gap-1.5'>
             <FieldLabel htmlFor='password'>
-              密码 <span className='text-destructive'>*</span>
+              {t('password')} <span className='text-destructive'>*</span>
             </FieldLabel>
             <Input
               id='password'
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               type='password'
-              placeholder='请输入密码（至少 8 位）'
+              placeholder={t('passwordPlaceholder')}
               autoComplete='new-password'
               className='h-10 text-sm [@media(max-height:700px)]:h-9'
               onKeyDown={(e) => e.key === 'Enter' && handleRegister()}
@@ -340,14 +335,14 @@ export function RegisterForm() {
           {emailRegisterEnabled && (
             <Field className='gap-1.5 [@media(min-width:500px)]:col-span-2'>
               <FieldLabel htmlFor='code'>
-                邮箱验证码 <span className='text-destructive'>*</span>
+                {t('emailCode')} <span className='text-destructive'>*</span>
               </FieldLabel>
               <div className='flex gap-2'>
                 <Input
                   id='code'
                   value={code}
                   onChange={(e) => setCode(e.target.value)}
-                  placeholder='请输入 6 位邮箱验证码'
+                  placeholder={t('emailCodePlaceholder')}
                   maxLength={6}
                   className='h-10 flex-1 text-sm [@media(max-height:700px)]:h-9'
                   onKeyDown={(e) => e.key === 'Enter' && handleRegister()}
@@ -360,8 +355,8 @@ export function RegisterForm() {
                   className='h-10 w-[120px] text-xs [@media(max-height:700px)]:h-9'
                 >
                   {registerCooldown > 0
-                    ? `${registerCooldown}秒后重发`
-                    : '获取验证码'}
+                    ? t('resendIn', { seconds: registerCooldown })
+                    : t('getCode')}
                 </Button>
               </div>
             </Field>
@@ -394,21 +389,21 @@ export function RegisterForm() {
           {registerMutation.isPending ? (
             <>
               <Spinner />
-              注册中...
+              {t('submitting')}
             </>
           ) : (
-            '创建账号'
+            t('submit')
           )}
         </Button>
       </div>
 
       <div className='text-center text-sm text-muted-foreground'>
-        已经有账号？{' '}
+        {t('hasAccount')}{' '}
         <Link
           href='/login'
           className='font-medium text-foreground underline underline-offset-4'
         >
-          返回登录
+          {t('backToLogin')}
         </Link>
       </div>
     </div>

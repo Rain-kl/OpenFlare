@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -39,6 +40,7 @@ import { LoadingStateWithBorder } from '@/components/layout/loading';
 import { EmptyStateWithBorder } from '@/components/layout/empty';
 
 export function TaskSchedulesManager() {
+  const t = useTranslations('admin.tasks');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const [schedules, setSchedules] = useState<Schedule[]>([]);
@@ -73,11 +75,11 @@ export function TaskSchedulesManager() {
       setSchedules(schedulesData || []);
       setTaskTypes(taskTypesData || []);
     } catch (err) {
-      setError(err instanceof Error ? err : new Error('加载定时任务配置失败'));
+      setError(err instanceof Error ? err : new Error(t('loadSchedulesFailed')));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     fetchData();
@@ -130,12 +132,12 @@ export function TaskSchedulesManager() {
       );
       toast.success(
         updated.is_active
-          ? `已启用定时任务：${updated.name}`
-          : `已停用定时任务：${updated.name}`,
+          ? t('scheduleEnabled', { name: updated.name })
+          : t('scheduleDisabled', { name: updated.name }),
       );
     } catch (err) {
-      toast.error('修改任务状态失败', {
-        description: err instanceof Error ? err.message : '未知错误',
+      toast.error(t('changeScheduleStatusFailed'), {
+        description: err instanceof Error ? err.message : t('unknownError'),
       });
     }
   };
@@ -161,11 +163,11 @@ export function TaskSchedulesManager() {
 
   const handleSubmit = async () => {
     if (!name.trim()) {
-      toast.error('任务名称不能为空');
+      toast.error(t('scheduleNameRequired'));
       return;
     }
     if (!cron.trim()) {
-      toast.error('Cron 表达式不能为空');
+      toast.error(t('cronRequired'));
       return;
     }
 
@@ -203,7 +205,7 @@ export function TaskSchedulesManager() {
         setSchedules((prev) =>
           prev.map((s) => (s.id === editingSchedule.id ? updated : s)),
         );
-        toast.success('定时任务更新成功');
+        toast.success(t('scheduleUpdateSuccess'));
       } else {
         const req: CreateScheduleRequest = {
           name,
@@ -214,13 +216,13 @@ export function TaskSchedulesManager() {
         };
         const created = await services.adminTask.createSchedule(req);
         setSchedules((prev) => [created, ...prev]);
-        toast.success('定时任务创建成功');
+        toast.success(t('scheduleCreateSuccess'));
       }
 
       setDialogOpen(false);
     } catch (err) {
-      toast.error('提交失败', {
-        description: err instanceof Error ? err.message : '未知错误',
+      toast.error(t('submitFailed'), {
+        description: err instanceof Error ? err.message : t('unknownError'),
       });
     } finally {
       setSubmitLoading(false);
@@ -238,11 +240,11 @@ export function TaskSchedulesManager() {
       setDeleteLoading(true);
       await services.adminTask.deleteSchedule(deletingId);
       setSchedules((prev) => prev.filter((s) => s.id !== deletingId));
-      toast.success('定时任务删除成功');
+      toast.success(t('scheduleDeleteSuccess'));
       setDeleteOpen(false);
     } catch (err) {
-      toast.error('删除失败', {
-        description: err instanceof Error ? err.message : '未知错误',
+      toast.error(t('deleteFailed'), {
+        description: err instanceof Error ? err.message : t('unknownError'),
       });
     } finally {
       setDeleteLoading(false);
@@ -274,7 +276,7 @@ export function TaskSchedulesManager() {
             ) : (
               <RefreshCw className='size-4' />
             )}
-            刷新
+            {t('refresh')}
           </Button>
           <Button
             size='sm'
@@ -283,7 +285,7 @@ export function TaskSchedulesManager() {
             variant={'secondary'}
           >
             <Plus className='size-4 mr-1' />
-            新增定时任务
+            {t('addSchedule')}
           </Button>
         </div>
       </div>
@@ -299,28 +301,34 @@ export function TaskSchedulesManager() {
       ) : loading && schedules.length === 0 ? (
         <LoadingStateWithBorder
           icon={Clock}
-          description='加载定时任务配置中...'
+          description={t('loadingSchedules')}
         />
       ) : schedules.length === 0 ? (
         <EmptyStateWithBorder
           icon={Clock}
-          description='暂无定时任务配置，点击上方按钮新增'
+          description={t('noSchedules')}
         />
       ) : (
         <div className='rounded-lg border bg-card'>
           <Table className='min-w-[800px]'>
             <TableHeader>
               <TableRow className='hover:bg-transparent'>
-                <TableHead className='w-[180px]'>任务名称</TableHead>
-                <TableHead className='w-[160px]'>关联异步任务</TableHead>
-                <TableHead className='w-[120px]'>Cron 表达式</TableHead>
+                <TableHead className='w-[180px]'>
+                  {t('colScheduleName')}
+                </TableHead>
+                <TableHead className='w-[160px]'>
+                  {t('colAssociatedTask')}
+                </TableHead>
+                <TableHead className='w-[120px]'>{t('colCron')}</TableHead>
                 <TableHead className='min-w-[200px]'>
-                  执行参数 (Payload)
+                  {t('colPayload')}
                 </TableHead>
                 <TableHead className='w-[100px] text-center'>
-                  启用状态
+                  {t('colEnabled')}
                 </TableHead>
-                <TableHead className='w-[120px] text-right'>操作</TableHead>
+                <TableHead className='w-[120px] text-right'>
+                  {t('colActions')}
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -385,19 +393,19 @@ export function TaskSchedulesManager() {
         <DialogContent className='sm:max-w-[500px]'>
           <DialogHeader>
             <DialogTitle>
-              {editingSchedule ? '修改定时任务' : '新增定时任务'}
+              {editingSchedule ? t('editSchedule') : t('addSchedule')}
             </DialogTitle>
             <DialogDescription>
-              配置定时任务的调度参数和运行载荷。
+              {t('scheduleDialogDesc')}
             </DialogDescription>
           </DialogHeader>
 
           <div className='grid gap-4 py-4'>
             <div className='grid gap-2'>
-              <Label htmlFor='sched-name'>任务名称</Label>
+              <Label htmlFor='sched-name'>{t('scheduleName')}</Label>
               <Input
                 id='sched-name'
-                placeholder='例如：每日数据清理'
+                placeholder={t('scheduleNamePlaceholder')}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 className='text-xs'
@@ -405,7 +413,7 @@ export function TaskSchedulesManager() {
             </div>
 
             <div className='grid gap-2'>
-              <Label htmlFor='sched-type'>关联异步任务</Label>
+              <Label htmlFor='sched-type'>{t('associatedTask')}</Label>
               <select
                 id='sched-type'
                 value={selectedTaskType}
@@ -422,24 +430,24 @@ export function TaskSchedulesManager() {
             </div>
 
             <div className='grid gap-2'>
-              <Label htmlFor='sched-cron'>Cron 表达式</Label>
+              <Label htmlFor='sched-cron'>{t('cronExpression')}</Label>
               <Input
                 id='sched-cron'
-                placeholder='e.g. 0 */2 * * * 或 @daily'
+                placeholder={t('cronPlaceholder')}
                 value={cron}
                 onChange={(e) => setCron(e.target.value)}
                 className='text-xs font-mono'
               />
               <p className='text-[10px] text-muted-foreground'>
-                使用标准 5 位 Cron 字段格式（分钟、小时、日期、月份、星期几）。
+                {t('cronHint')}
               </p>
             </div>
 
             <div className='flex items-center justify-between rounded-lg border p-3'>
               <div className='space-y-0.5'>
-                <Label htmlFor='sched-active'>启用状态</Label>
+                <Label htmlFor='sched-active'>{t('scheduleActive')}</Label>
                 <p className='text-[10px] text-muted-foreground'>
-                  决定此定时任务是否会定时触发执行。
+                  {t('scheduleActiveDesc')}
                 </p>
               </div>
               <Switch
@@ -459,14 +467,14 @@ export function TaskSchedulesManager() {
                 return (
                   <div className='flex items-center gap-2 text-xs text-muted-foreground bg-muted/40 p-3 rounded-md border border-dashed'>
                     <Info className='h-4 w-4 shrink-0' />
-                    <span>所选任务类型不需要运行参数参数。</span>
+                    <span>{t('noParamsRequired')}</span>
                   </div>
                 );
               }
               return (
                 <div className='space-y-4 pt-2 border-t'>
                   <Label className='text-xs font-semibold'>
-                    运行参数配置 (Payload)
+                    {t('payloadConfig')}
                   </Label>
                   {targetTask.params.map((param) => (
                     <div
@@ -509,8 +517,8 @@ export function TaskSchedulesManager() {
                           />
                           <span className='text-xs text-muted-foreground'>
                             {paramValues[param.name] === 'true'
-                              ? '开启'
-                              : '关闭'}
+                              ? t('paramOn')
+                              : t('paramOff')}
                           </span>
                         </div>
                       ) : (
@@ -547,7 +555,7 @@ export function TaskSchedulesManager() {
               disabled={submitLoading}
               className='h-8 text-xs'
             >
-              取消
+              {t('cancel')}
             </Button>
             <Button
               onClick={handleSubmit}
@@ -555,7 +563,7 @@ export function TaskSchedulesManager() {
               className='h-8 text-xs'
             >
               {submitLoading && <Spinner className='size-3 mr-1' />}
-              {editingSchedule ? '保存修改' : '确认创建'}
+              {editingSchedule ? t('saveChanges') : t('confirmCreate')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -565,9 +573,9 @@ export function TaskSchedulesManager() {
       <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <DialogContent className='sm:max-w-[400px]'>
           <DialogHeader>
-            <DialogTitle>删除定时任务</DialogTitle>
+            <DialogTitle>{t('deleteScheduleTitle')}</DialogTitle>
             <DialogDescription>
-              确定要删除此定时任务吗？该操作不可撤销，且会立即取消其在调度器中的调度计划。
+              {t('deleteScheduleDesc')}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className='gap-2 sm:gap-0'>
@@ -577,7 +585,7 @@ export function TaskSchedulesManager() {
               disabled={deleteLoading}
               className='h-8 text-xs'
             >
-              取消
+              {t('cancel')}
             </Button>
             <Button
               variant='destructive'
@@ -586,7 +594,7 @@ export function TaskSchedulesManager() {
               className='h-8 text-xs'
             >
               {deleteLoading && <Spinner className='size-3 mr-1' />}
-              确认删除
+              {t('confirmDelete')}
             </Button>
           </DialogFooter>
         </DialogContent>

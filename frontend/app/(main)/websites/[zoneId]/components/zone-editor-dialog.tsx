@@ -23,18 +23,9 @@ import {
   zoneQueryKey,
   type ZoneItem,
 } from '@/lib/services/openflare';
+import { useTranslations } from 'next-intl';
 
-const schema = z.object({
-  domain: z
-    .string()
-    .trim()
-    .min(1, '请输入 Zone 根域')
-    .refine(
-      (value) => !/[*/?#@]|:\/\//.test(value),
-      '请输入不含协议或通配符的根域',
-    ),
-});
-type Values = z.infer<typeof schema>;
+type Values = { domain: string };
 
 export function ZoneEditorDialog({
   open,
@@ -45,7 +36,19 @@ export function ZoneEditorDialog({
   onOpenChange(open: boolean): void;
   zone?: ZoneItem | null;
 }) {
+  const t = useTranslations('websites');
+  const tc = useTranslations('common');
   const queryClient = useQueryClient();
+  const schema = z.object({
+    domain: z
+      .string()
+      .trim()
+      .min(1, t('rootRequired'))
+      .refine(
+        (value) => !/[*/?#@]|:\/\//.test(value),
+        t('rootInvalid'),
+      ),
+  });
   const form = useForm<Values>({
     resolver: zodResolver(schema),
     defaultValues: { domain: '' },
@@ -59,21 +62,19 @@ export function ZoneEditorDialog({
         ? ZoneService.update(zone.id, { domain: values.domain.toLowerCase() })
         : ZoneService.create({ domain: values.domain.toLowerCase() }),
     onSuccess: async () => {
-      toast.success(zone ? 'Zone 已更新' : 'Zone 已创建');
+      toast.success(zone ? t('zoneUpdated') : t('zoneCreated'));
       await queryClient.invalidateQueries({ queryKey: zoneQueryKey });
       onOpenChange(false);
     },
     onError: (error) =>
-      toast.error(error instanceof Error ? error.message : '保存失败'),
+      toast.error(error instanceof Error ? error.message : t('saveFailed')),
   });
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{zone ? '编辑 Zone' : '新增 Zone'}</DialogTitle>
-          <DialogDescription>
-            Zone 仅接受可注册根域，例如 example.com。
-          </DialogDescription>
+          <DialogTitle>{zone ? t('editZone') : t('createZone')}</DialogTitle>
+          <DialogDescription>{t('editorDesc')}</DialogDescription>
         </DialogHeader>
         <form
           id='zone-editor'
@@ -83,7 +84,7 @@ export function ZoneEditorDialog({
           )}
         >
           <div className='space-y-1.5'>
-            <Label htmlFor='zone-domain'>根域</Label>
+            <Label htmlFor='zone-domain'>{t('rootDomain')}</Label>
             <Input
               id='zone-domain'
               placeholder='example.com'
@@ -98,7 +99,7 @@ export function ZoneEditorDialog({
         </form>
         <DialogFooter>
           <Button variant='outline' onClick={() => onOpenChange(false)}>
-            取消
+            {tc('cancel')}
           </Button>
           <Button
             form='zone-editor'
@@ -108,7 +109,7 @@ export function ZoneEditorDialog({
             {mutation.isPending && (
               <Loader2 className='mr-1 size-4 animate-spin' />
             )}
-            {zone ? '保存修改' : '新增 Zone'}
+            {zone ? t('saveChanges') : t('createZone')}
           </Button>
         </DialogFooter>
       </DialogContent>

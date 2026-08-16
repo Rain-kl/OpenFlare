@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 
 import { Badge } from '@/components/ui/badge';
@@ -60,6 +61,7 @@ export function AccessLogDetailDialog({
   item: AccessLogItem | null;
   onOpenChange: (open: boolean) => void;
 }) {
+  const t = useTranslations('accessLogs');
   // Keep last selected item while the dialog closes to avoid empty-state flash.
   const [displayItem, setDisplayItem] = useState<AccessLogItem | null>(item);
   if (item && item !== displayItem) {
@@ -71,21 +73,23 @@ export function AccessLogDetailDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className='max-h-[90vh] sm:max-w-2xl overflow-y-auto hide-scrollbar'>
         <DialogHeader>
-          <DialogTitle>访问日志详情</DialogTitle>
-          <DialogDescription>
-            本条请求的全部业务字段。IP 访问分析请前往「IP 明细」。
-          </DialogDescription>
+          <DialogTitle>{t('detail.title')}</DialogTitle>
+          <DialogDescription>{t('detail.description')}</DialogDescription>
         </DialogHeader>
 
         {activeItem ? (
           <div className='grid gap-4 sm:grid-cols-2'>
-            <DetailField label='日志 ID' value={activeItem.id || '—'} mono />
             <DetailField
-              label='请求时间'
+              label={t('detail.logId')}
+              value={activeItem.id || '—'}
+              mono
+            />
+            <DetailField
+              label={t('detail.requestTime')}
               value={formatDateTime(activeItem.logged_at)}
             />
             <DetailField
-              label='入库时间'
+              label={t('detail.storedAt')}
               value={
                 activeItem.created_at
                   ? formatDateTime(activeItem.created_at)
@@ -93,23 +97,29 @@ export function AccessLogDetailDialog({
               }
             />
             <DetailField
-              label='节点'
+              label={t('detail.node')}
               value={activeItem.node_name || activeItem.node_id || '—'}
             />
             <DetailField
-              label='节点 ID'
+              label={t('detail.nodeId')}
               value={activeItem.node_id || '—'}
               mono
             />
             <DetailField
-              label='客户端 IP'
+              label={t('detail.clientIp')}
               value={activeItem.remote_addr || '—'}
               mono
             />
-            <DetailField label='地区' value={activeItem.region || '—'} />
-            <DetailField label='域名' value={activeItem.host || '—'} />
             <DetailField
-              label='状态码'
+              label={t('detail.region')}
+              value={activeItem.region || '—'}
+            />
+            <DetailField
+              label={t('detail.host')}
+              value={activeItem.host || '—'}
+            />
+            <DetailField
+              label={t('detail.status')}
               value={
                 <Badge variant='outline' className='text-[10px]'>
                   {activeItem.status_code}
@@ -117,12 +127,13 @@ export function AccessLogDetailDialog({
               }
             />
             <DetailField
-              label='缓存'
+              label={t('detail.cache')}
               value={
                 <div className='flex flex-wrap items-center gap-2'>
                   <Badge variant='outline' className='text-[10px]'>
                     {cacheOutcomeLabel(
                       resolveCacheOutcome(activeItem.cache_status),
+                      (key) => t(key),
                     )}
                   </Badge>
                   <span className='font-mono text-xs text-muted-foreground'>
@@ -132,19 +143,19 @@ export function AccessLogDetailDialog({
               }
             />
             <DetailField
-              label='出站流量'
+              label={t('detail.bytesSent')}
               value={formatBytes(activeItem.bytes_sent ?? 0)}
             />
             <DetailField
-              label='入站流量'
+              label={t('detail.requestLength')}
               value={formatBytes(activeItem.request_length ?? 0)}
             />
             <DetailField
-              label='请求耗时'
+              label={t('detail.duration')}
               value={formatRequestTimeMs(activeItem.request_time_ms)}
             />
             <DetailField
-              label='路径'
+              label={t('detail.path')}
               value={activeItem.path || '—'}
               full
               mono

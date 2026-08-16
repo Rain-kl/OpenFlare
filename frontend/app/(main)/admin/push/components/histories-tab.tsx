@@ -4,6 +4,7 @@
 'use client';
 
 import * as React from 'react';
+import { useTranslations } from 'next-intl';
 import { useQuery } from '@tanstack/react-query';
 import {
   ChevronLeft,
@@ -62,6 +63,7 @@ function getLevelBadgeVariant(
 }
 
 export function HistoriesTab() {
+  const t = useTranslations('admin.push.histories');
   const [historyPage, setHistoryPage] = React.useState(1);
   const [historySearch, setHistorySearch] = React.useState('');
   const [historyStatus, setHistoryStatus] = React.useState('all');
@@ -99,7 +101,7 @@ export function HistoriesTab() {
           <Search className='absolute left-2.5 top-2.5 size-4 text-muted-foreground' />
           <Input
             type='text'
-            placeholder='输入事件键过滤...'
+            placeholder={t('searchPlaceholder')}
             className='pl-8 text-xs h-9'
             value={historySearch}
             onChange={(e) => {
@@ -117,17 +119,17 @@ export function HistoriesTab() {
             }}
           >
             <SelectTrigger className='text-xs h-9'>
-              <SelectValue placeholder='发送状态' />
+              <SelectValue placeholder={t('sendStatus')} />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value='all' className='text-xs'>
-                全部状态
+                {t('allStatus')}
               </SelectItem>
               <SelectItem value='success' className='text-xs'>
-                发送成功
+                {t('sendSuccess')}
               </SelectItem>
               <SelectItem value='failed' className='text-xs'>
-                发送失败
+                {t('sendFailed')}
               </SelectItem>
             </SelectContent>
           </Select>
@@ -151,13 +153,27 @@ export function HistoriesTab() {
         <Table>
           <TableHeader>
             <TableRow className='bg-muted/30'>
-              <TableHead className='text-xs font-semibold'>事件</TableHead>
-              <TableHead className='text-xs font-semibold'>渠道</TableHead>
-              <TableHead className='text-xs font-semibold'>目标</TableHead>
-              <TableHead className='text-xs font-semibold'>标题</TableHead>
-              <TableHead className='text-xs font-semibold'>等级</TableHead>
-              <TableHead className='text-xs font-semibold'>状态</TableHead>
-              <TableHead className='text-xs font-semibold'>时间</TableHead>
+              <TableHead className='text-xs font-semibold'>
+                {t('colEvent')}
+              </TableHead>
+              <TableHead className='text-xs font-semibold'>
+                {t('colChannel')}
+              </TableHead>
+              <TableHead className='text-xs font-semibold'>
+                {t('colTarget')}
+              </TableHead>
+              <TableHead className='text-xs font-semibold'>
+                {t('colTitle')}
+              </TableHead>
+              <TableHead className='text-xs font-semibold'>
+                {t('colLevel')}
+              </TableHead>
+              <TableHead className='text-xs font-semibold'>
+                {t('colStatus')}
+              </TableHead>
+              <TableHead className='text-xs font-semibold'>
+                {t('colTime')}
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -166,7 +182,7 @@ export function HistoriesTab() {
                 <TableCell colSpan={7} className='h-32'>
                   <LoadingStateWithBorder
                     icon={History}
-                    description='加载推送历史记录中...'
+                    description={t('loadingHistories')}
                     className='border-0 shadow-none'
                   />
                 </TableCell>
@@ -187,7 +203,7 @@ export function HistoriesTab() {
                   colSpan={7}
                   className='h-32 text-center text-xs text-muted-foreground'
                 >
-                  无推送历史数据
+                  {t('noHistoryData')}
                 </TableCell>
               </TableRow>
             ) : (
@@ -201,7 +217,9 @@ export function HistoriesTab() {
                     {hist.event_key}
                   </TableCell>
                   <TableCell className='text-xs uppercase font-semibold text-muted-foreground'>
-                    {hist.channel === 'email' ? '邮件' : hist.channel}
+                    {hist.channel === 'email'
+                      ? t('emailChannel')
+                      : hist.channel}
                   </TableCell>
                   <TableCell
                     className='text-xs font-mono text-muted-foreground max-w-[120px] truncate'
@@ -230,7 +248,7 @@ export function HistoriesTab() {
                       }
                       className='text-[10px] font-semibold'
                     >
-                      {hist.status === 'success' ? '成功' : '失败'}
+                      {hist.status === 'success' ? t('success') : t('failed')}
                     </Badge>
                     {hist.status !== 'success' && hist.error_msg && (
                       <div
@@ -253,7 +271,9 @@ export function HistoriesTab() {
 
       {historiesQuery.data && historiesQuery.data.total > 0 && (
         <div className='flex justify-between items-center text-xs text-muted-foreground'>
-          <span>共 {historiesQuery.data.total} 条历史记录</span>
+          <span>
+            {t('totalRecords', { total: historiesQuery.data.total })}
+          </span>
           <div className='flex items-center gap-1.5'>
             <Button
               variant='outline'
@@ -284,10 +304,10 @@ export function HistoriesTab() {
           <DialogHeader>
             <DialogTitle className='flex items-center gap-2'>
               <History className='size-5 text-primary' />
-              推送通知详情
+              {t('pushNotificationDetail')}
             </DialogTitle>
             <DialogDescription>
-              查看该条通知发送的详细审计信息与内容
+              {t('pushNotificationDetailDesc')}
             </DialogDescription>
           </DialogHeader>
 
@@ -296,7 +316,7 @@ export function HistoriesTab() {
               <div className='grid grid-cols-2 gap-4'>
                 <div className='space-y-1.5'>
                   <span className='font-semibold text-muted-foreground block'>
-                    事件标识
+                    {t('eventIdentifier')}
                   </span>
                   <div className='font-mono bg-muted/40 p-2 rounded border'>
                     {selectedHistory.event_key}
@@ -304,11 +324,11 @@ export function HistoriesTab() {
                 </div>
                 <div className='space-y-1.5'>
                   <span className='font-semibold text-muted-foreground block'>
-                    发送渠道
+                    {t('sendChannel')}
                   </span>
                   <div className='bg-muted/40 p-2 rounded border uppercase font-medium'>
                     {selectedHistory.channel === 'email'
-                      ? '邮件推送'
+                      ? t('emailPush')
                       : selectedHistory.channel}
                   </div>
                 </div>
@@ -317,7 +337,7 @@ export function HistoriesTab() {
               <div className='grid grid-cols-2 gap-4'>
                 <div className='space-y-1.5'>
                   <span className='font-semibold text-muted-foreground block'>
-                    推送目标
+                    {t('pushTarget')}
                   </span>
                   <div
                     className='font-mono bg-muted/40 p-2 rounded border truncate'
@@ -328,7 +348,7 @@ export function HistoriesTab() {
                 </div>
                 <div className='space-y-1.5'>
                   <span className='font-semibold text-muted-foreground block'>
-                    发送时间
+                    {t('sendTime')}
                   </span>
                   <div className='bg-muted/40 p-2 rounded border'>
                     {new Date(selectedHistory.created_at).toLocaleString()}
@@ -339,7 +359,7 @@ export function HistoriesTab() {
               <div className='grid grid-cols-2 gap-4'>
                 <div className='space-y-1.5'>
                   <span className='font-semibold text-muted-foreground block'>
-                    通知等级
+                    {t('notificationLevel')}
                   </span>
                   <div>
                     <Badge
@@ -352,7 +372,7 @@ export function HistoriesTab() {
                 </div>
                 <div className='space-y-1.5'>
                   <span className='font-semibold text-muted-foreground block'>
-                    发送状态
+                    {t('sendStatus')}
                   </span>
                   <div>
                     <Badge
@@ -363,7 +383,9 @@ export function HistoriesTab() {
                       }
                       className='text-[10px] font-semibold py-0.5 px-2'
                     >
-                      {selectedHistory.status === 'success' ? '成功' : '失败'}
+                      {selectedHistory.status === 'success'
+                        ? t('success')
+                        : t('failed')}
                     </Badge>
                   </div>
                 </div>
@@ -373,7 +395,7 @@ export function HistoriesTab() {
                 selectedHistory.error_msg && (
                   <div className='space-y-1.5'>
                     <span className='font-semibold text-destructive block'>
-                      失败原因
+                      {t('failureReason')}
                     </span>
                     <div className='font-mono text-destructive bg-destructive/10 p-2.5 rounded border border-destructive/20 whitespace-pre-wrap break-all'>
                       {selectedHistory.error_msg}
@@ -383,7 +405,7 @@ export function HistoriesTab() {
 
               <div className='space-y-1.5'>
                 <span className='font-semibold text-muted-foreground block'>
-                  通知标题
+                  {t('notificationTitle')}
                 </span>
                 <div className='bg-muted/30 p-2.5 rounded border font-medium text-[13px]'>
                   {selectedHistory.title}
@@ -392,7 +414,7 @@ export function HistoriesTab() {
 
               <div className='space-y-1.5'>
                 <span className='font-semibold text-muted-foreground block'>
-                  通知内容
+                  {t('notificationContent')}
                 </span>
                 <div className='bg-muted/30 p-3 rounded border whitespace-pre-wrap break-all leading-relaxed font-sans text-xs'>
                   {selectedHistory.content}
@@ -408,7 +430,7 @@ export function HistoriesTab() {
               onClick={() => setDetailOpen(false)}
               className='h-9 text-xs'
             >
-              关闭
+              {t('close')}
             </Button>
           </DialogFooter>
         </DialogContent>

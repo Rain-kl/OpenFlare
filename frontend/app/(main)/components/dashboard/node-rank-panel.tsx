@@ -1,5 +1,7 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
+
 import { RankChart } from '@/components/data/rank-chart';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type { DashboardNodeHealth } from '@/lib/services/openflare';
@@ -27,25 +29,26 @@ function buildNodeRankItems(
 }
 
 export function NodeRankPanel({ nodes }: { nodes: DashboardNodeHealth[] }) {
+  const t = useTranslations('dashboard.nodeRank');
   return (
     <Card className='border-dashed shadow-none'>
       <CardHeader>
-        <CardTitle className='text-sm font-semibold'>Top 节点榜单</CardTitle>
+        <CardTitle className='text-sm font-semibold'>{t('title')}</CardTitle>
       </CardHeader>
       <CardContent className='grid gap-6'>
         <div>
           <p className='mb-3 text-xs tracking-[0.22em] text-muted-foreground uppercase'>
-            流量最高节点
+            {t('traffic')}
           </p>
           <RankChart
             items={buildNodeRankItems(nodes, (node) => node.request_count)}
             color='#38bdf8'
-            emptyMessage='暂无流量榜单'
+            emptyMessage={t('trafficEmpty')}
           />
         </div>
         <div>
           <p className='mb-3 text-xs tracking-[0.22em] text-muted-foreground uppercase'>
-            容量压力节点
+            {t('pressure')}
           </p>
           <RankChart
             items={buildNodeRankItems(nodes, (node) =>
@@ -59,7 +62,7 @@ export function NodeRankPanel({ nodes }: { nodes: DashboardNodeHealth[] }) {
             )}
             color='#ef4444'
             valueFormatter={(value) => `${value}%`}
-            emptyMessage='暂无容量压力数据'
+            emptyMessage={t('pressureEmpty')}
           />
         </div>
       </CardContent>

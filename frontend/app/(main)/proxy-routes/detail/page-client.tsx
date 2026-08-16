@@ -13,9 +13,11 @@ import type {
 } from '@/lib/services/openflare';
 import { ProxyRouteService } from '@/lib/services/openflare';
 
+import { useTranslations } from 'next-intl';
+
 import {
   getProxyRouteConfigSection,
-  proxyRouteConfigSections,
+  getProxyRouteConfigSections,
 } from '../components/helpers';
 import { AuthSection } from './components/auth-section';
 import { CacheSection } from './components/cache-section';
@@ -26,6 +28,7 @@ import { RouteHeader } from './components/route-header';
 import { WafSection } from './components/waf-section';
 
 export function ProxyRouteDetailPageClient() {
+  const t = useTranslations('proxyRoutes');
   const router = useRouter();
   const searchParams = useSearchParams();
   const routeId = Number(searchParams.get('id'));
@@ -65,11 +68,11 @@ export function ProxyRouteDetailPageClient() {
       setRoute(data);
     } catch (error) {
       setRoute(null);
-      setLoadError(error instanceof Error ? error.message : '未知错误');
+      setLoadError(error instanceof Error ? error.message : t('unknownError'));
     } finally {
       setLoading(false);
     }
-  }, [hasValidId, routeId]);
+  }, [hasValidId, routeId, t]);
 
   useEffect(() => {
     void fetchRoute();
@@ -78,7 +81,7 @@ export function ProxyRouteDetailPageClient() {
   if (!hasValidId) {
     return (
       <div className='py-6 px-1'>
-        <ErrorInline message='缺少有效的规则 ID。' />
+        <ErrorInline message={t('missingId')} />
       </div>
     );
   }
@@ -105,8 +108,8 @@ export function ProxyRouteDetailPageClient() {
     return (
       <div className='py-6 px-1'>
         <EmptyStateWithBorder
-          title='未找到对应规则'
-          description='请返回列表重试。'
+          title={t('notFound')}
+          description={t('notFoundDesc')}
         />
       </div>
     );
@@ -129,7 +132,7 @@ export function ProxyRouteDetailPageClient() {
         className='w-full'
       >
         <TabsList variant='line' className='w-fit inline-flex gap-8 mb-6'>
-          {proxyRouteConfigSections.map((section) => (
+          {getProxyRouteConfigSections(t).map((section) => (
             <TabsTrigger
               key={section.key}
               value={section.key}

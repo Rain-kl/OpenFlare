@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ExternalLink, Gauge, Loader2, Save } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 
 import { useAuth } from '@/components/providers/auth-provider';
@@ -45,6 +46,8 @@ import {
 const optionsQueryKey = ['openflare', 'options'] as const;
 
 export default function PerformancePage() {
+  const t = useTranslations('performance');
+  const tc = useTranslations('common');
   const { user, loading: authLoading } = useAuth();
   const queryClient = useQueryClient();
   const [fields, setFields] = useState<PerformanceFields>(
@@ -78,7 +81,7 @@ export default function PerformancePage() {
       await OptionService.updateBatch(entries);
     },
     onSuccess: async () => {
-      toast.success('性能参数已保存');
+      toast.success(t('saved'));
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: optionsQueryKey }),
         queryClient.invalidateQueries({
@@ -92,7 +95,7 @@ export default function PerformancePage() {
     },
     onError: (error) => {
       setSavingSection(null);
-      toast.error(error instanceof Error ? error.message : '保存失败');
+      toast.error(error instanceof Error ? error.message : t('saveFailed'));
     },
   });
 
@@ -106,7 +109,7 @@ export default function PerformancePage() {
   if (authLoading) {
     return (
       <div className='py-6 px-1'>
-        <LoadingStateWithBorder icon={Gauge} description='加载权限信息...' />
+        <LoadingStateWithBorder icon={Gauge} description={t('loadingAuth')} />
       </div>
     );
   }
@@ -116,8 +119,8 @@ export default function PerformancePage() {
       <div className='py-6 px-1'>
         <EmptyStateWithBorder
           icon={Gauge}
-          title='权限不足'
-          description='只有管理员可以访问性能设置。'
+          title={t('forbiddenTitle')}
+          description={t('forbiddenDesc')}
         />
       </div>
     );
@@ -126,7 +129,7 @@ export default function PerformancePage() {
   if (optionsQuery.isLoading) {
     return (
       <div className='py-6 px-1'>
-        <LoadingStateWithBorder icon={Gauge} description='加载性能参数...' />
+        <LoadingStateWithBorder icon={Gauge} description={t('loading')} />
       </div>
     );
   }
@@ -138,7 +141,7 @@ export default function PerformancePage() {
           message={
             optionsQuery.error instanceof Error
               ? optionsQuery.error.message
-              : '加载失败'
+              : tc('loadFailed')
           }
           onRetry={() => void optionsQuery.refetch()}
         />
@@ -152,16 +155,16 @@ export default function PerformancePage() {
         <div className='flex items-center gap-2'>
           <Gauge className='size-5 text-primary' />
           <div>
-            <h1 className='text-2xl font-semibold tracking-tight'>性能</h1>
-            <p className='text-sm text-muted-foreground'>
-              集中管理 OpenResty 全局性能参数，保存后进入统一配置发布链路。
-            </p>
+            <h1 className='text-2xl font-semibold tracking-tight'>
+              {t('title')}
+            </h1>
+            <p className='text-sm text-muted-foreground'>{t('description')}</p>
           </div>
         </div>
         <Button variant='outline' size='sm' asChild>
           <Link href='/config-versions'>
             <ExternalLink className='size-3.5 mr-1' />
-            查看配置预览
+            {t('preview')}
           </Link>
         </Button>
       </div>
@@ -169,10 +172,8 @@ export default function PerformancePage() {
       <Card className='border-dashed shadow-none'>
         <CardHeader className='flex flex-row items-center justify-between'>
           <div>
-            <CardTitle className='text-base'>连接与事件</CardTitle>
-            <CardDescription>
-              worker、超时、请求体大小等运行参数
-            </CardDescription>
+            <CardTitle className='text-base'>{t('runtimeTitle')}</CardTitle>
+            <CardDescription>{t('runtimeDesc')}</CardDescription>
           </div>
           <Button
             size='sm'
@@ -180,7 +181,7 @@ export default function PerformancePage() {
             onClick={() =>
               saveMutation.mutate({
                 section: 'runtime',
-                validator: validateRuntimeFields,
+                validator: (fields) => validateRuntimeFields(fields, t),
                 entries: entriesFromKeys(fields, [
                   'openresty_default_server_return_status',
                   'openresty_worker_processes',
@@ -205,7 +206,7 @@ export default function PerformancePage() {
             ) : (
               <Save className='size-3.5 mr-1' />
             )}
-            保存
+            {tc('save')}
           </Button>
         </CardHeader>
         <CardContent className='grid gap-4 md:grid-cols-2 xl:grid-cols-3'>
@@ -281,10 +282,8 @@ export default function PerformancePage() {
       <Card className='border-dashed shadow-none'>
         <CardHeader className='flex flex-row items-center justify-between'>
           <div>
-            <CardTitle className='text-base'>反代缓冲与超时</CardTitle>
-            <CardDescription>
-              upstream 连接、缓冲与 WebSocket/HTTP3 开关
-            </CardDescription>
+            <CardTitle className='text-base'>{t('proxyTitle')}</CardTitle>
+            <CardDescription>{t('proxyDesc')}</CardDescription>
           </div>
           <Button
             size='sm'
@@ -292,7 +291,7 @@ export default function PerformancePage() {
             onClick={() =>
               saveMutation.mutate({
                 section: 'proxy',
-                validator: validateProxyFields,
+                validator: (fields) => validateProxyFields(fields, t),
                 entries: entriesFromKeys(fields, [
                   'openresty_proxy_connect_timeout',
                   'openresty_proxy_send_timeout',
@@ -313,7 +312,7 @@ export default function PerformancePage() {
             ) : (
               <Save className='size-3.5 mr-1' />
             )}
-            保存
+            {tc('save')}
           </Button>
         </CardHeader>
         <CardContent className='grid gap-4 md:grid-cols-2'>
@@ -357,14 +356,14 @@ export default function PerformancePage() {
       <div className='grid gap-6 xl:grid-cols-2'>
         <Card className='border-dashed shadow-none'>
           <CardHeader className='flex flex-row items-center justify-between'>
-            <CardTitle className='text-base'>压缩</CardTitle>
+            <CardTitle className='text-base'>{t('gzipTitle')}</CardTitle>
             <Button
               size='sm'
               disabled={savingSection === 'gzip'}
               onClick={() =>
                 saveMutation.mutate({
                   section: 'gzip',
-                  validator: validateGzipFields,
+                  validator: (fields) => validateGzipFields(fields, t),
                   entries: entriesFromKeys(fields, [
                     'openresty_gzip_enabled',
                     'openresty_gzip_min_length',
@@ -373,7 +372,7 @@ export default function PerformancePage() {
                 })
               }
             >
-              保存
+              {tc('save')}
             </Button>
           </CardHeader>
           <CardContent className='space-y-4'>
@@ -400,8 +399,8 @@ export default function PerformancePage() {
         <Card className='border-dashed shadow-none'>
           <CardHeader className='flex flex-row items-center justify-between'>
             <div>
-              <CardTitle className='text-base'>缓存</CardTitle>
-              <CardDescription>单节点反代缓存优化场景</CardDescription>
+              <CardTitle className='text-base'>{t('cacheTitle')}</CardTitle>
+              <CardDescription>{t('cacheDesc')}</CardDescription>
             </div>
             <Button
               size='sm'
@@ -409,7 +408,7 @@ export default function PerformancePage() {
               onClick={() =>
                 saveMutation.mutate({
                   section: 'cache',
-                  validator: validateCacheFields,
+                  validator: (fields) => validateCacheFields(fields, t),
                   entries: entriesFromKeys(fields, [
                     'openresty_cache_enabled',
                     'openresty_cache_path',
@@ -424,7 +423,7 @@ export default function PerformancePage() {
                 })
               }
             >
-              保存
+              {tc('save')}
             </Button>
           </CardHeader>
           <CardContent className='space-y-4'>

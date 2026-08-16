@@ -24,6 +24,8 @@ import {
   zoneQueryKey,
 } from '@/lib/services/openflare';
 
+import { useTranslations } from 'next-intl';
+
 import { ScopeDomainDialog } from './scope-domain-dialog';
 import {
   defaultOfflinePageFields,
@@ -40,6 +42,8 @@ export function OfflinePageTab({
 }: {
   optionMap: Record<string, string>;
 }) {
+  const t = useTranslations('responses');
+  const tc = useTranslations('common');
   const queryClient = useQueryClient();
   const [fields, setFields] = useState<OfflinePageFields>(
     defaultOfflinePageFields,
@@ -78,11 +82,11 @@ export function OfflinePageTab({
       ]);
     },
     onSuccess: async () => {
-      toast.success('离线页已保存，请前往版本发布使配置生效');
+      toast.success(t('offlineSaved'));
       await invalidateResponseQueries(queryClient);
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : '保存失败');
+      toast.error(error instanceof Error ? error.message : t('saveFailed'));
     },
   });
 
@@ -91,11 +95,8 @@ export function OfflinePageTab({
       <Card className='border-dashed shadow-none'>
         <CardHeader className='flex flex-row items-start justify-between gap-4 space-y-0'>
           <div className='space-y-1.5'>
-            <CardTitle className='text-base'>离线页</CardTitle>
-            <CardDescription>
-              启用后给启用 HTTPS 的网站下发 Service
-              Worker，域名无法访问时浏览器从缓存展示此离线页。
-            </CardDescription>
+            <CardTitle className='text-base'>{t('offlinePage')}</CardTitle>
+            <CardDescription>{t('offlinePageDesc')}</CardDescription>
           </div>
           <Button
             size='sm'
@@ -108,17 +109,17 @@ export function OfflinePageTab({
             ) : (
               <Save className='size-3.5' />
             )}
-            保存
+            {tc('save')}
           </Button>
         </CardHeader>
         <CardContent className='space-y-4'>
           <div className='flex items-start justify-between gap-6'>
             <div className='space-y-1'>
               <Label className='text-sm font-medium'>
-                启用 Service Worker 离线页
+                {t('enableOffline')}
               </Label>
               <p className='text-sm text-muted-foreground'>
-                仅对 HTTPS 网站生效。
+                {t('enableOfflineDesc')}
               </p>
             </div>
             <Switch
@@ -126,16 +127,16 @@ export function OfflinePageTab({
               onCheckedChange={(enabled) =>
                 setFields((prev) => ({ ...prev, enabled }))
               }
-              aria-label='启用离线页'
+              aria-label={t('enableOfflineAria')}
               className='mt-0.5 shrink-0'
             />
           </div>
           <div className='space-y-2'>
             <div className='flex items-center justify-between gap-3'>
               <div>
-                <Label className='text-sm font-medium'>生效范围</Label>
+                <Label className='text-sm font-medium'>{t('scope')}</Label>
                 <p className='text-sm text-muted-foreground'>
-                  仅对选中的 HTTPS 域名生效；留空则不注入。
+                  {t('scopeDesc')}
                 </p>
               </div>
               <Button
@@ -146,14 +147,14 @@ export function OfflinePageTab({
                 onClick={() => setScopeOpen(true)}
               >
                 <Plus className='size-3.5' />
-                添加域名
+                {t('addDomain')}
               </Button>
             </div>
             {fields.domains.length === 0 ? (
               <p className='text-sm text-muted-foreground'>
                 {fields.enabled
-                  ? '尚未选择生效域名，保存后不注入任何站点。'
-                  : '启用离线兜底后可选择生效域名。'}
+                  ? t('noScopeSelected')
+                  : t('enableThenSelectScope')}
               </p>
             ) : (
               <div className='flex flex-wrap gap-2'>
@@ -168,7 +169,7 @@ export function OfflinePageTab({
                       type='button'
                       className='hover:text-destructive'
                       disabled={!fields.enabled}
-                      aria-label={`移除 ${domain}`}
+                      aria-label={t('removeDomain', { domain })}
                       onClick={() =>
                         setFields((prev) => ({
                           ...prev,
@@ -188,19 +189,19 @@ export function OfflinePageTab({
       <Card className='border-dashed shadow-none overflow-hidden'>
         <CardHeader className='flex flex-row items-start justify-between gap-3 space-y-0'>
           <div className='space-y-1.5'>
-            <CardTitle className='text-base'>页面预览</CardTitle>
+            <CardTitle className='text-base'>{t('pagePreview')}</CardTitle>
           </div>
           <div className='flex shrink-0 flex-wrap gap-2'>
             <Button variant='outline' size='sm' asChild>
               <Link href='/responses/offline/preview'>
                 <Expand className='size-3.5' />
-                预览
+                {t('preview')}
               </Link>
             </Button>
             <Button size='sm' asChild>
               <Link href='/responses/offline/edit'>
                 <Pencil className='size-3.5' />
-                编辑
+                {t('edit')}
               </Link>
             </Button>
           </div>
@@ -208,7 +209,7 @@ export function OfflinePageTab({
         <CardContent>
           <div className='overflow-hidden rounded-md border bg-muted/30'>
             <iframe
-              title='离线页预览'
+              title={t('offlinePreview')}
               sandbox=''
               srcDoc={previewSrcDoc}
               className='h-[32rem] w-full bg-background'

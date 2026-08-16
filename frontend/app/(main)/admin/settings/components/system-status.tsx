@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import {
@@ -45,6 +46,7 @@ const formatNumber = (num: number | string) => {
  * 运行时系统状态展示与管理组件
  */
 export function SystemStatusManager() {
+  const t = useTranslations('openflareOps.status');
   const [status, setStatus] = useState<SystemStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [wavelet, setWavelet] = useState(false);
@@ -82,14 +84,14 @@ export function SystemStatusManager() {
       setStatus(data);
       prevStatusRef.current = data;
     } catch (err) {
-      toast.error('获取系统状态失败', {
-        description: err instanceof Error ? err.message : '请求时发生未知错误',
+      toast.error(t('loadFailed'), {
+        description: err instanceof Error ? err.message : t('unknownError'),
       });
     } finally {
       setLoading(false);
       setWavelet(false);
     }
-  }, []);
+  }, [t]);
 
   // 轮询逻辑
   useEffect(() => {
@@ -196,7 +198,9 @@ export function SystemStatusManager() {
         <div className='flex items-center gap-2'>
           <Activity className='size-5 text-primary' />
           <div>
-            <h1 className='text-2xl font-semibold tracking-tight'>系统状态</h1>
+            <h1 className='text-2xl font-semibold tracking-tight'>
+              {t('title')}
+            </h1>
           </div>
         </div>
 
@@ -211,7 +215,7 @@ export function SystemStatusManager() {
               htmlFor='auto-refresh'
               className='text-xs font-medium cursor-pointer select-none'
             >
-              自动刷新
+              {t('autoRefresh')}
             </label>
           </div>
 
@@ -237,7 +241,7 @@ export function SystemStatusManager() {
             disabled={wavelet}
           >
             <RefreshCw className={`size-3 ${wavelet ? 'animate-spin' : ''}`} />
-            刷新
+            {t('refresh')}
           </Button>
         </div>
       </div>
@@ -251,10 +255,10 @@ export function SystemStatusManager() {
               <CardHeader className='flex flex-row items-center justify-between pb-2 space-y-0'>
                 <div className='space-y-0.5'>
                   <CardTitle className='text-sm font-semibold'>
-                    服务概览
+                    {t('overview')}
                   </CardTitle>
                   <CardDescription className='text-[10px]'>
-                    服务的基础生命指标
+                    {t('overviewDesc')}
                   </CardDescription>
                 </div>
                 <Badge
@@ -266,17 +270,17 @@ export function SystemStatusManager() {
               </CardHeader>
               <CardContent className='space-y-1'>
                 <RenderMetricRow
-                  label='服务运行时间'
+                  label={t('uptime')}
                   value={status.uptime}
                   field='uptime'
                 />
                 <RenderMetricRow
-                  label='当前 Goroutines 数量'
+                  label={t('goroutines')}
                   value={status.num_goroutine}
                   field='num_goroutine'
                 />
                 <RenderMetricRow
-                  label='Heap 对象数量'
+                  label={t('heapObjects')}
                   value={status.heap_objects}
                   field='heap_objects'
                 />
@@ -288,10 +292,10 @@ export function SystemStatusManager() {
               <CardHeader className='flex flex-row items-center justify-between pb-2 space-y-0'>
                 <div className='space-y-0.5'>
                   <CardTitle className='text-sm font-semibold'>
-                    内存统计
+                    {t('memory')}
                   </CardTitle>
                   <CardDescription className='text-[10px]'>
-                    主内存消耗概览
+                    {t('memoryDesc')}
                   </CardDescription>
                 </div>
                 <Badge
@@ -304,22 +308,22 @@ export function SystemStatusManager() {
               <CardContent className='space-y-3'>
                 <div className='space-y-1'>
                   <RenderMetricRow
-                    label='当前内存使用量'
+                    label={t('alloc')}
                     value={status.alloc}
                     field='alloc'
                   />
                   <RenderMetricRow
-                    label='所有已分配的内存'
+                    label={t('totalAlloc')}
                     value={status.total_alloc}
                     field='total_alloc'
                   />
                   <RenderMetricRow
-                    label='内存占用量'
+                    label={t('sys')}
                     value={status.sys}
                     field='sys'
                   />
                   <RenderMetricRow
-                    label='下次 GC 内存回收量'
+                    label={t('nextGc')}
                     value={status.next_gc}
                     field='next_gc'
                   />
@@ -327,7 +331,7 @@ export function SystemStatusManager() {
                 {/* 物理内存水位比例 */}
                 <div className='space-y-1 px-1 pt-1'>
                   <div className='flex justify-between text-[10px] text-muted-foreground'>
-                    <span>当前使用率 (Alloc / Sys)</span>
+                    <span>{t('usageRatio')}</span>
                     <span className='font-mono'>
                       {getMemoryUsagePercent()}%
                     </span>
@@ -342,10 +346,10 @@ export function SystemStatusManager() {
               <CardHeader className='flex flex-row items-center justify-between pb-2 space-y-0'>
                 <div className='space-y-0.5'>
                   <CardTitle className='text-sm font-semibold'>
-                    堆/栈详情
+                    {t('heapStack')}
                   </CardTitle>
                   <CardDescription className='text-[10px]'>
-                    运行时堆栈内存空间细节
+                    {t('heapStackDesc')}
                   </CardDescription>
                 </div>
                 <Badge
@@ -357,37 +361,37 @@ export function SystemStatusManager() {
               </CardHeader>
               <CardContent className='space-y-1'>
                 <RenderMetricRow
-                  label='当前 Heap 内存使用量'
+                  label={t('heapAlloc')}
                   value={status.heap_alloc}
                   field='heap_alloc'
                 />
                 <RenderMetricRow
-                  label='Heap 内存占用量'
+                  label={t('heapSys')}
                   value={status.heap_sys}
                   field='heap_sys'
                 />
                 <RenderMetricRow
-                  label='Heap 内存空闲量'
+                  label={t('heapIdle')}
                   value={status.heap_idle}
                   field='heap_idle'
                 />
                 <RenderMetricRow
-                  label='正在使用的 Heap 内存'
+                  label={t('heapInuse')}
                   value={status.heap_inuse}
                   field='heap_inuse'
                 />
                 <RenderMetricRow
-                  label='已释放的 Heap 内存'
+                  label={t('heapReleased')}
                   value={status.heap_released}
                   field='heap_released'
                 />
                 <RenderMetricRow
-                  label='启动 Stack 使用量'
+                  label={t('stackInuse')}
                   value={status.stack_inuse}
                   field='stack_inuse'
                 />
                 <RenderMetricRow
-                  label='已分配的 Stack 内存'
+                  label={t('stackSys')}
                   value={status.stack_sys}
                   field='stack_sys'
                 />
@@ -399,10 +403,10 @@ export function SystemStatusManager() {
               <CardHeader className='flex flex-row items-center justify-between pb-2 space-y-0'>
                 <div className='space-y-0.5'>
                   <CardTitle className='text-sm font-semibold'>
-                    底层及结构体内存
+                    {t('structs')}
                   </CardTitle>
                   <CardDescription className='text-[10px]'>
-                    运行时底层管理结构体开销
+                    {t('structsDesc')}
                   </CardDescription>
                 </div>
                 <Badge
@@ -414,37 +418,37 @@ export function SystemStatusManager() {
               </CardHeader>
               <CardContent className='space-y-1'>
                 <RenderMetricRow
-                  label='MSpan 结构内存使用量'
+                  label={t('mspanInuse')}
                   value={status.mspan_inuse}
                   field='mspan_inuse'
                 />
                 <RenderMetricRow
-                  label='已分配的 MSpan 结构内存'
+                  label={t('mspanSys')}
                   value={status.mspan_sys}
                   field='mspan_sys'
                 />
                 <RenderMetricRow
-                  label='MCache 结构内存使用量'
+                  label={t('mcacheInuse')}
                   value={status.mcache_inuse}
                   field='mcache_inuse'
                 />
                 <RenderMetricRow
-                  label='已分配的 MCache 结构内存'
+                  label={t('mcacheSys')}
                   value={status.mcache_sys}
                   field='mcache_sys'
                 />
                 <RenderMetricRow
-                  label='已分配的剖析哈希表内存'
+                  label={t('buckHashSys')}
                   value={status.buck_hash_sys}
                   field='buck_hash_sys'
                 />
                 <RenderMetricRow
-                  label='已分配的 GC 元数据内存'
+                  label={t('gcSys')}
                   value={status.gc_sys}
                   field='gc_sys'
                 />
                 <RenderMetricRow
-                  label='其它已分配的系统内存'
+                  label={t('otherSys')}
                   value={status.other_sys}
                   field='other_sys'
                 />
@@ -456,10 +460,10 @@ export function SystemStatusManager() {
               <CardHeader className='flex flex-row items-center justify-between pb-2 space-y-0'>
                 <div className='space-y-0.5'>
                   <CardTitle className='text-sm font-semibold'>
-                    垃圾回收与分配计数
+                    {t('gc')}
                   </CardTitle>
                   <CardDescription className='text-[10px]'>
-                    GC 历史数据与分配频次
+                    {t('gcDesc')}
                   </CardDescription>
                 </div>
                 <Badge
@@ -473,39 +477,39 @@ export function SystemStatusManager() {
                 <div className='grid grid-cols-1 sm:grid-cols-2 gap-x-6'>
                   <div>
                     <RenderMetricRow
-                      label='GC 执行次数'
+                      label={t('numGc')}
                       value={status.num_gc}
                       field='num_gc'
                     />
                     <RenderMetricRow
-                      label='距离上次 GC 时间'
+                      label={t('lastGc')}
                       value={status.last_gc_time}
                       field='last_gc_time'
                     />
                     <RenderMetricRow
-                      label='GC 暂停时间总量'
+                      label={t('pauseTotal')}
                       value={status.pause_total_ns}
                       field='pause_total_ns'
                     />
                     <RenderMetricRow
-                      label='上次 GC 暂停时间'
+                      label={t('lastPause')}
                       value={status.last_pause}
                       field='last_pause'
                     />
                   </div>
                   <div>
                     <RenderMetricRow
-                      label='内存分配次数'
+                      label={t('mallocs')}
                       value={status.mallocs}
                       field='mallocs'
                     />
                     <RenderMetricRow
-                      label='内存释放次数'
+                      label={t('frees')}
                       value={status.frees}
                       field='frees'
                     />
                     <RenderMetricRow
-                      label='指针查找次数'
+                      label={t('lookups')}
                       value={status.lookups}
                       field='lookups'
                     />

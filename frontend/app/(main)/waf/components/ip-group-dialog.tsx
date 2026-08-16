@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Plus } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 
@@ -48,40 +49,51 @@ import {
   parseTextareaList,
 } from './helpers';
 
-const ipGroupSchema = z
-  .object({
-    name: z.string().trim().min(1, '请输入 IP 组名称').max(255),
-    type: z.enum(['manual', 'automatic', 'subscription']),
-    enabled: z.boolean(),
-    ip_list_text: z.string(),
-    auto_config_text: z.string(),
-    subscription_url: z.string(),
-    subscription_format: z.enum(['text', 'json']),
-    subscription_mapping_rule: z.string(),
-    sync_interval_minutes: z.number().int().min(1),
-  })
-  .superRefine((value, context) => {
-    if (value.type === 'subscription' && !value.subscription_url.trim()) {
-      context.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['subscription_url'],
-        message: '订阅类型需要填写订阅 URL',
-      });
-    }
-    if (value.type === 'automatic') {
-      try {
-        parseAutomaticConfig(value.auto_config_text);
-      } catch (error) {
+function createIPGroupSchema(
+  t: (key: string) => string,
+  tWaf: (key: string) => string,
+) {
+  return z
+    .object({
+      name: z.string().trim().min(1, t('dialog.nameRequired')).max(255),
+      type: z.enum(['manual', 'automatic', 'subscription']),
+      enabled: z.boolean(),
+      ip_list_text: z.string(),
+      auto_config_text: z.string(),
+      subscription_url: z.string(),
+      subscription_format: z.enum(['text', 'json']),
+      subscription_mapping_rule: z.string(),
+      sync_interval_minutes: z.number().int().min(1),
+    })
+    .superRefine((value, context) => {
+      if (value.type === 'subscription' && !value.subscription_url.trim()) {
         context.addIssue({
           code: z.ZodIssueCode.custom,
-          path: ['auto_config_text'],
-          message: error instanceof Error ? error.message : '自动配置格式错误',
+          path: ['subscription_url'],
+          message: t('dialog.subscriptionUrlRequired'),
         });
       }
-    }
-  });
+      if (value.type === 'automatic') {
+        try {
+          parseAutomaticConfig(
+            value.auto_config_text,
+            tWaf('autoConfigMustBeObject'),
+          );
+        } catch (error) {
+          context.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ['auto_config_text'],
+            message:
+              error instanceof Error
+                ? error.message
+                : tWaf('autoConfigInvalid'),
+          });
+        }
+      }
+    });
+}
 
-type IPGroupFormValues = z.infer<typeof ipGroupSchema>;
+type IPGroupFormValues = z.infer<ReturnType<typeof createIPGroupSchema>>;
 
 const defaultValues: IPGroupFormValues = {
   name: '',
@@ -114,10 +126,13 @@ function buildFormValues(group: WAFIPGroup | null): IPGroupFormValues {
   };
 }
 
-function buildPayload(values: IPGroupFormValues): WAFIPGroupPayload {
+function buildPayload(
+  values: IPGroupFormValues,
+  invalidMessage: string,
+): WAFIPGroupPayload {
   const autoConfig =
     values.type === 'automatic'
-      ? parseAutomaticConfig(values.auto_config_text)
+      ? parseAutomaticConfig(values.auto_config_text, invalidMessage)
       : {};
   return {
     name: values.name.trim(),
@@ -135,8 +150,9 @@ function buildPayload(values: IPGroupFormValues): WAFIPGroupPayload {
 function appendAutomaticPresetRule(
   autoConfigText: string,
   rule: (typeof automaticPresetRules)[number],
+  invalidMessage: string,
 ) {
-  const config = parseAutomaticConfig(autoConfigText);
+  const config = parseAutomaticConfig(autoConfigText, invalidMessage);
   const rules = Array.isArray(config.rules) ? config.rules : [];
   const exists = rules.some(
     (item) =>
@@ -185,6 +201,13 @@ export function IPGroupDialog({
   onOpenChange,
   onSubmit,
 }: IPGroupDialogProps) {
+  const t = useTranslations('ipGroups');
+  const tWaf = useTranslations('waf');
+  const tCommon = useTranslations('common');
+  const ipGroupSchema = useMemo(
+    () => createIPGroupSchema((key) => t(key), (key) => tWaf(key)),
+    [t, tWaf],
+  );
   const form = useForm<IPGroupFormValues>({
     resolver: zodResolver(ipGroupSchema),
     defaultValues,
@@ -199,11 +222,12 @@ export function IPGroupDialog({
 
   const handleSubmit = form.handleSubmit(async (values) => {
     try {
-      await onSubmit(buildPayload(values));
+      await onSubmit(buildPayload(values, tWaf('autoConfigMustBeObject')));
       onOpenChange(false);
     } catch (error) {
       form.setError('root', {
-        message: error instanceof Error ? error.message : '保存失败',
+        message:
+          error instanceof Error ? error.message : tWaf('saveFailed'),
       });
     }
   });
@@ -213,11 +237,11 @@ export function IPGroupDialog({
       <DialogContent className='max-w-3xl max-h-[90vh] overflow-y-auto'>
         <DialogHeader>
           <DialogTitle>
-            {group ? `编辑 ${group.name}` : '新建 IP 组'}
+            {group
+              ? t('dialog.editTitle', { name: group.name })
+              : t('dialog.createTitle')}
           </DialogTitle>
-          <DialogDescription>
-            维护可被 WAF IP 黑白名单引用的手动、自动与订阅 IP 集合。
-          </DialogDescription>
+          <DialogDescription>{t('dialog.description')}</DialogDescription>
         </DialogHeader>
 
         <Form {...form}>
@@ -228,7 +252,7 @@ export function IPGroupDialog({
                 name='name'
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>IP 组名称</FormLabel>
+                    <FormLabel>{t('dialog.name')}</FormLabel>
                     <FormControl>
                       <Input {...field} />
                     </FormControl>
@@ -241,7 +265,7 @@ export function IPGroupDialog({
                 name='type'
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>类型</FormLabel>
+                    <FormLabel>{t('dialog.type')}</FormLabel>
                     <Select
                       value={field.value}
                       onValueChange={(value) =>
@@ -254,9 +278,15 @@ export function IPGroupDialog({
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value='manual'>手动</SelectItem>
-                        <SelectItem value='automatic'>自动</SelectItem>
-                        <SelectItem value='subscription'>订阅</SelectItem>
+                        <SelectItem value='manual'>
+                          {t('types.manual')}
+                        </SelectItem>
+                        <SelectItem value='automatic'>
+                          {t('types.automatic')}
+                        </SelectItem>
+                        <SelectItem value='subscription'>
+                          {t('types.subscription')}
+                        </SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -269,9 +299,9 @@ export function IPGroupDialog({
                 render={({ field }) => (
                   <FormItem className='flex items-center justify-between rounded-lg border border-dashed p-4 md:col-span-2'>
                     <div className='space-y-0.5'>
-                      <FormLabel>启用 IP 组</FormLabel>
+                      <FormLabel>{t('dialog.enable')}</FormLabel>
                       <FormDescription>
-                        关闭后保留配置，但发布时不会展开到 WAF 运行时名单。
+                        {t('dialog.enableDesc')}
                       </FormDescription>
                     </div>
                     <FormControl>
@@ -292,7 +322,7 @@ export function IPGroupDialog({
                   name='subscription_url'
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>订阅 URL</FormLabel>
+                      <FormLabel>{t('dialog.subscriptionUrl')}</FormLabel>
                       <FormControl>
                         <Input
                           placeholder='https://example.com/ip-list.txt'
@@ -308,7 +338,7 @@ export function IPGroupDialog({
                   name='subscription_format'
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>订阅格式</FormLabel>
+                      <FormLabel>{t('dialog.subscriptionFormat')}</FormLabel>
                       <Select
                         value={field.value}
                         onValueChange={(value) =>
@@ -321,7 +351,9 @@ export function IPGroupDialog({
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value='text'>文本列表</SelectItem>
+                          <SelectItem value='text'>
+                            {t('dialog.formatText')}
+                          </SelectItem>
                           <SelectItem value='json'>JSON</SelectItem>
                         </SelectContent>
                       </Select>
@@ -334,7 +366,7 @@ export function IPGroupDialog({
                   name='sync_interval_minutes'
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>同步间隔（分钟）</FormLabel>
+                      <FormLabel>{t('dialog.syncInterval')}</FormLabel>
                       <FormControl>
                         <Input
                           type='number'
@@ -346,7 +378,7 @@ export function IPGroupDialog({
                         />
                       </FormControl>
                       <FormDescription>
-                        最小 1 分钟，默认 1440 分钟。
+                        {t('dialog.syncIntervalDesc')}
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
@@ -357,13 +389,13 @@ export function IPGroupDialog({
                   name='subscription_mapping_rule'
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>JSON 映射规则</FormLabel>
+                      <FormLabel>{t('dialog.mappingRule')}</FormLabel>
                       <FormControl>
                         <Input
                           disabled={
                             form.watch('subscription_format') !== 'json'
                           }
-                          placeholder='留空表示根数组'
+                          placeholder={t('dialog.mappingPlaceholder')}
                           {...field}
                         />
                       </FormControl>
@@ -381,7 +413,7 @@ export function IPGroupDialog({
                   name='sync_interval_minutes'
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>同步间隔（分钟）</FormLabel>
+                      <FormLabel>{t('dialog.syncInterval')}</FormLabel>
                       <FormControl>
                         <Input
                           type='number'
@@ -393,15 +425,14 @@ export function IPGroupDialog({
                         />
                       </FormControl>
                       <FormDescription>
-                        定时从请求日志挖掘恶意 IP 的周期。最小 1 分钟，默认 1440
-                        分钟。
+                        {t('dialog.autoIntervalDesc')}
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
                 <div className='space-y-2'>
-                  <FormLabel>预设规则</FormLabel>
+                  <FormLabel>{t('dialog.presetRules')}</FormLabel>
                   <div className='flex flex-wrap gap-2'>
                     {automaticPresetRules.map((rule) => (
                       <Button
@@ -413,12 +444,16 @@ export function IPGroupDialog({
                           const current = form.getValues('auto_config_text');
                           form.setValue(
                             'auto_config_text',
-                            appendAutomaticPresetRule(current, rule),
+                            appendAutomaticPresetRule(
+                              current,
+                              rule,
+                              tWaf('autoConfigMustBeObject'),
+                            ),
                           );
                         }}
                       >
                         <Plus className='size-3.5 mr-1' />
-                        {rule.name}
+                        {t(rule.labelKey)}
                       </Button>
                     ))}
                   </div>
@@ -428,7 +463,7 @@ export function IPGroupDialog({
                   name='auto_config_text'
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>自动配置 JSON</FormLabel>
+                      <FormLabel>{t('dialog.autoConfigJson')}</FormLabel>
                       <FormControl>
                         <Textarea
                           className='min-h-48 font-mono text-xs'
@@ -448,7 +483,7 @@ export function IPGroupDialog({
                 name='ip_list_text'
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>IP / IP 段</FormLabel>
+                    <FormLabel>{t('dialog.ipList')}</FormLabel>
                     <FormControl>
                       <Textarea
                         className='min-h-48 font-mono text-xs'
@@ -458,8 +493,8 @@ export function IPGroupDialog({
                     </FormControl>
                     <FormDescription>
                       {type === 'subscription'
-                        ? '订阅同步会覆盖此列表；也可以先手动保存当前内容。'
-                        : '支持单个 IP 或 CIDR，每行一个。'}
+                        ? t('dialog.ipListSubscriptionHint')
+                        : t('dialog.ipListManualHint')}
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -479,10 +514,10 @@ export function IPGroupDialog({
                 variant='outline'
                 onClick={() => onOpenChange(false)}
               >
-                取消
+                {tCommon('cancel')}
               </Button>
               <Button type='submit' disabled={submitting}>
-                {submitting ? '保存中...' : '保存 IP 组'}
+                {submitting ? t('dialog.saving') : t('dialog.save')}
               </Button>
             </DialogFooter>
           </form>

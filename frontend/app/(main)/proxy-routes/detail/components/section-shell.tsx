@@ -1,6 +1,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
+import { useTranslations } from 'next-intl';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -28,6 +29,8 @@ export function SectionShell({
   saving = false,
   children,
 }: SectionShellProps) {
+  const t = useTranslations('proxyRoutes');
+  const tc = useTranslations('common');
   return (
     <Card>
       <CardHeader className='flex flex-row items-start justify-between gap-4 space-y-0'>
@@ -45,7 +48,7 @@ export function SectionShell({
           className='h-8 shrink-0 text-xs'
           disabled={saving}
         >
-          {saving ? '保存中...' : '保存'}
+          {saving ? t('saving') : tc('save')}
         </Button>
       </CardHeader>
       <CardContent>{children}</CardContent>

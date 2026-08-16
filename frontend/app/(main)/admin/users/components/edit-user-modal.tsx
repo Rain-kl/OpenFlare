@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -43,6 +44,7 @@ export function EditUserModal({
   onClose: () => void;
   user: AdminUser | null;
 }) {
+  const t = useTranslations('admin.users');
   const { updateUser, deleteUser, getUserDetail } = useAdminUsers();
   const { user: currentUser } = useAuth();
 
@@ -96,13 +98,13 @@ export function EditUserModal({
     const newErrors: Record<string, string> = {};
 
     if (!form.email.trim()) {
-      newErrors.email = '邮箱不能为空';
+      newErrors.email = t('validation.emailRequired');
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
-      newErrors.email = '邮箱格式不正确';
+      newErrors.email = t('validation.emailInvalid');
     }
 
     if (form.password && form.password.length < 8) {
-      newErrors.password = '密码长度不能少于 8 位';
+      newErrors.password = t('validation.passwordTooShort');
     }
 
     setErrors(newErrors);
@@ -150,10 +152,8 @@ export function EditUserModal({
       <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
         <DialogContent className='max-w-md'>
           <DialogHeader>
-            <DialogTitle>编辑用户</DialogTitle>
-            <DialogDescription>
-              修改用户档案、授予/撤销管理权限或重置其密码。
-            </DialogDescription>
+            <DialogTitle>{t('editTitle')}</DialogTitle>
+            <DialogDescription>{t('editDesc')}</DialogDescription>
           </DialogHeader>
 
           <form onSubmit={handleSave} className='space-y-4 pt-2'>
@@ -162,7 +162,7 @@ export function EditUserModal({
                 htmlFor='username'
                 className='text-xs text-muted-foreground'
               >
-                用户名 (不可修改)
+                {t('usernameImmutable')}
               </Label>
               <Input
                 id='username'
@@ -173,19 +173,19 @@ export function EditUserModal({
             </div>
 
             <div className='space-y-1.5'>
-              <Label htmlFor='nickname'>昵称 (选填)</Label>
+              <Label htmlFor='nickname'>{t('nicknameOptional')}</Label>
               <Input
                 id='nickname'
                 value={form.nickname}
                 onChange={(e) =>
                   setForm((prev) => ({ ...prev, nickname: e.target.value }))
                 }
-                placeholder='请输入昵称'
+                placeholder={t('nicknamePlaceholder')}
               />
             </div>
 
             <div className='space-y-1.5'>
-              <Label htmlFor='email'>邮箱</Label>
+              <Label htmlFor='email'>{t('email')}</Label>
               <Input
                 id='email'
                 type='email'
@@ -193,7 +193,7 @@ export function EditUserModal({
                 onChange={(e) =>
                   setForm((prev) => ({ ...prev, email: e.target.value }))
                 }
-                placeholder='请输入邮箱地址'
+                placeholder={t('emailPlaceholder')}
               />
               {errors.email && (
                 <p className='text-xs text-destructive'>{errors.email}</p>
@@ -201,7 +201,7 @@ export function EditUserModal({
             </div>
 
             <div className='space-y-1.5'>
-              <Label htmlFor='password'>重置密码 (选填)</Label>
+              <Label htmlFor='password'>{t('resetPasswordOptional')}</Label>
               <Input
                 id='password'
                 type='password'
@@ -209,7 +209,7 @@ export function EditUserModal({
                 onChange={(e) =>
                   setForm((prev) => ({ ...prev, password: e.target.value }))
                 }
-                placeholder='留空表示保持当前密码，输入则重置 (至少 8 位)'
+                placeholder={t('resetPasswordPlaceholder')}
               />
               {errors.password && (
                 <p className='text-xs text-destructive'>{errors.password}</p>
@@ -218,11 +218,11 @@ export function EditUserModal({
 
             <div className='flex items-center justify-between rounded-lg border border-dashed p-3 bg-muted/10'>
               <div>
-                <div className='font-medium text-sm'>管理员权限</div>
+                <div className='font-medium text-sm'>{t('adminPermission')}</div>
                 <div className='text-xs text-muted-foreground'>
                   {isSelf
-                    ? '不能撤销当前登录用户的管理员权限。'
-                    : '开启后此账号将拥有后台管理权限。'}
+                    ? t('cannotRevokeSelfAdmin')
+                    : t('adminPermissionDesc')}
                 </div>
               </div>
               <Switch
@@ -255,7 +255,7 @@ export function EditUserModal({
                     onClick={() => setShowDeleteConfirm(true)}
                     disabled={saving}
                   >
-                    删除用户
+                    {t('deleteUser')}
                   </Button>
                 )}
               </div>
@@ -266,10 +266,10 @@ export function EditUserModal({
                   onClick={onClose}
                   disabled={saving}
                 >
-                  取消
+                  {t('cancel')}
                 </Button>
                 <Button type='submit' disabled={saving} variant='secondary'>
-                  {saving ? '保存中...' : '保存'}
+                  {saving ? t('saving') : t('save')}
                 </Button>
               </div>
             </div>
@@ -280,14 +280,15 @@ export function EditUserModal({
       <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>确认删除用户</AlertDialogTitle>
+            <AlertDialogTitle>{t('deleteConfirmTitle')}</AlertDialogTitle>
             <AlertDialogDescription>
-              确定要删除用户 {user.nickname || user.username}{' '}
-              吗？该操作会移除用户账号，删除后无法撤销。
+              {t('deleteConfirmDesc', {
+                name: user.nickname || user.username,
+              })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={saving}>取消</AlertDialogCancel>
+            <AlertDialogCancel disabled={saving}>{t('cancel')}</AlertDialogCancel>
             <AlertDialogAction
               onClick={(e) => {
                 e.preventDefault();
@@ -296,7 +297,7 @@ export function EditUserModal({
               disabled={saving}
             >
               {saving && <Loader2 className='size-3 animate-spin mr-1' />}
-              确认删除
+              {t('confirmDelete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

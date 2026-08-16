@@ -1,16 +1,20 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
+
 import { Progress } from '@/components/ui/progress';
 
 import { formatCompactNumber } from '../../components/dashboard/dashboard-utils';
 
 export function DistributionList({
   items,
-  emptyMessage = '暂无分布数据',
+  emptyMessage,
 }: {
   items: Array<{ label: string; value: number }>;
   emptyMessage?: string;
 }) {
+  const t = useTranslations('nodes.obs');
+  const resolvedEmpty = emptyMessage ?? t('distEmpty');
   const sortedItems = [...items]
     .sort((left, right) => right.value - left.value)
     .slice(0, 8);
@@ -19,7 +23,7 @@ export function DistributionList({
   if (sortedItems.length === 0) {
     return (
       <div className='flex min-h-[180px] items-center justify-center text-xs text-muted-foreground'>
-        {emptyMessage}
+        {resolvedEmpty}
       </div>
     );
   }
@@ -32,7 +36,7 @@ export function DistributionList({
           <div key={item.label} className='space-y-1.5'>
             <div className='flex items-center justify-between gap-3 text-xs'>
               <span className='truncate font-medium'>
-                {item.label || '未知'}
+                {item.label || t('unknownLabel')}
               </span>
               <span className='shrink-0 font-mono tabular-nums text-muted-foreground'>
                 {formatCompactNumber(item.value)}

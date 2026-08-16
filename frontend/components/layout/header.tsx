@@ -2,6 +2,7 @@
 
 import { memo, useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
+import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import {
   Bell,
@@ -21,6 +22,7 @@ import { useTheme } from 'next-themes';
 import { useRouter } from 'next/navigation';
 import { SearchDialog } from '@/components/layout/search-dialog';
 import { Kbd } from '@/components/ui/kbd';
+import { LanguageSwitcher } from '@/components/common/language-switcher';
 
 /**
  * 铃铛按钮组件
@@ -28,6 +30,7 @@ import { Kbd } from '@/components/ui/kbd';
 const BellButton = memo(function BellButton() {
   const { isRinging } = useBellRing();
   const { showBell, isMounted } = useNotificationSettings();
+  const t = useTranslations('layout.header');
   const [isClickAnimating, setIsClickAnimating] = useState(false);
 
   if (!isMounted) return null;
@@ -56,7 +59,7 @@ const BellButton = memo(function BellButton() {
             : undefined
         }
       />
-      <span className='sr-only'>通知</span>
+      <span className='sr-only'>{t('notifications')}</span>
     </Button>
   );
 });
@@ -80,6 +83,7 @@ export function SiteHeader({
   const { user } = useUser();
   const { setTheme, resolvedTheme } = useTheme();
   const router = useRouter();
+  const t = useTranslations('layout.header');
   const [mounted, setMounted] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
 
@@ -102,7 +106,7 @@ export function SiteHeader({
         <div className='bg-amber-500/10 border-b border-amber-500/20 px-4 py-3 text-amber-500 text-xs sm:text-sm flex items-center justify-between gap-4'>
           <div className='flex items-center gap-2'>
             <Info className='size-4 shrink-0 text-amber-500' />
-            <span>为了您的账号安全，请立即修改密码！</span>
+            <span>{t('changePasswordBanner')}</span>
           </div>
           <Button
             variant='outline'
@@ -110,7 +114,7 @@ export function SiteHeader({
             className='text-amber-500 hover:text-amber-600 border-amber-500/30 hover:border-amber-500/50 bg-transparent shrink-0 h-8 px-3 text-xs'
             onClick={() => router.push('/settings/profile')}
           >
-            去修改密码
+            {t('changePasswordAction')}
           </Button>
         </div>
       )}
@@ -119,7 +123,7 @@ export function SiteHeader({
           <div className='flex items-center gap-2'>
             <SidebarTrigger />
             <span className='text-sm font-medium truncate max-w-[120px]'>
-              {user?.nickname || user?.username || 'Guest'}
+              {user?.nickname || user?.username || t('guest')}
             </span>
           </div>
           <div className='flex items-center gap-1'>
@@ -130,9 +134,10 @@ export function SiteHeader({
               onClick={() => setSearchOpen(true)}
             >
               <Search className='size-[18px]' />
-              <span className='sr-only'>搜索</span>
+              <span className='sr-only'>{t('search')}</span>
             </Button>
             <BellButton />
+            <LanguageSwitcher />
             <Button
               variant='ghost'
               size='icon'
@@ -140,7 +145,7 @@ export function SiteHeader({
               onClick={() => router.push('/settings')}
             >
               <Settings className='size-[18px]' />
-              <span className='sr-only'>设置</span>
+              <span className='sr-only'>{t('settings')}</span>
             </Button>
           </div>
         </div>
@@ -154,7 +159,7 @@ export function SiteHeader({
           >
             <Search className='absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground' />
             <div className='flex h-8 items-center rounded-md border border-border/60 bg-muted/70 pl-10 pr-2.5 text-sm text-muted-foreground transition-colors hover:border-border hover:bg-muted'>
-              <span>搜索</span>
+              <span>{t('search')}</span>
               <Kbd className='ml-auto gap-0.5 font-mono'>
                 <span>{metaKey}</span>
                 <span>K</span>
@@ -164,6 +169,7 @@ export function SiteHeader({
 
           <div className='ml-auto flex items-center gap-1'>
             <BellButton />
+            <LanguageSwitcher />
             <Button
               variant='ghost'
               size='icon'
@@ -171,7 +177,7 @@ export function SiteHeader({
               onClick={() => router.push('/settings')}
             >
               <Settings className='size-[18px]' />
-              <span className='sr-only'>设置</span>
+              <span className='sr-only'>{t('settings')}</span>
             </Button>
 
             <Button
@@ -185,7 +191,7 @@ export function SiteHeader({
               ) : (
                 <Maximize2 className='size-[18px]' />
               )}
-              <span className='sr-only'>切换全宽</span>
+              <span className='sr-only'>{t('toggleFullWidth')}</span>
             </Button>
 
             <Button
@@ -205,7 +211,7 @@ export function SiteHeader({
               ) : (
                 <Moon className='size-[18px]' />
               )}
-              <span className='sr-only'>主题切换</span>
+              <span className='sr-only'>{t('toggleTheme')}</span>
             </Button>
           </div>
         </div>
@@ -219,6 +225,7 @@ export function SiteHeader({
 }
 
 function AppBanner() {
+  const t = useTranslations('layout.header');
   const [isVisible, setIsVisible] = useState(false);
   const bannerKey = 'ldc-banner-dismissed-script';
 
@@ -246,13 +253,13 @@ function AppBanner() {
         >
           <div className='flex w-full items-center justify-center px-4 pr-10 py-2 text-xs md:text-[13px] font-medium text-muted-foreground'>
             <p className='flex flex-wrap items-center justify-center gap-x-2 text-center'>
-              <span className='text-foreground'>更新日志</span>
+              <span className='text-foreground'>{t('bannerTitle')}</span>
               <a
                 href='https://open-flare.pages.dev/changelog/'
                 target='_blank'
                 className='underline underline-offset-4 hover:text-foreground'
               >
-                查看详情
+                {t('bannerLink')}
               </a>
             </p>
             <Button
@@ -261,7 +268,7 @@ function AppBanner() {
               className='absolute right-2 top-1/2 size-6 -translate-y-1/2 text-muted-foreground hover:text-foreground shrink-0'
               onClick={handleDismiss}
             >
-              <span className='sr-only'>Dismiss</span>
+              <span className='sr-only'>{t('dismiss')}</span>
               <svg
                 xmlns='http://www.w3.org/2000/svg'
                 width='14'

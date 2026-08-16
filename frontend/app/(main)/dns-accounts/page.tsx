@@ -30,12 +30,16 @@ import type { DnsAccountItem } from '@/lib/services/openflare';
 import { DnsAccountService } from '@/lib/services/openflare';
 import { formatDateTime } from '@/lib/utils';
 
+import { useTranslations } from 'next-intl';
+
 import { DnsAccountCreateDialog } from '../websites/components/dns-account-create-dialog';
 import { getErrorMessage } from '../websites/components/website-utils';
 
 const dnsAccountsQueryKey = ['openflare', 'dns-accounts'];
 
 export default function DnsAccountsPage() {
+  const t = useTranslations('dnsAccounts');
+  const tc = useTranslations('common');
   const queryClient = useQueryClient();
   const [createOpen, setCreateOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<DnsAccountItem | null>(null);
@@ -48,11 +52,11 @@ export default function DnsAccountsPage() {
   const deleteMutation = useMutation({
     mutationFn: (id: number) => DnsAccountService.deleteById(id),
     onSuccess: async () => {
-      toast.success('DNS 账号已删除');
+      toast.success(t('deleted'));
       setDeleteTarget(null);
       await queryClient.invalidateQueries({ queryKey: dnsAccountsQueryKey });
     },
-    onError: (error) => toast.error(getErrorMessage(error)),
+    onError: (error) => toast.error(getErrorMessage(error, t('requestFailed'))),
   });
 
   const accounts = useMemo(
@@ -65,7 +69,7 @@ export default function DnsAccountsPage() {
       <div className='flex items-center justify-between gap-3'>
         <div className='flex items-center gap-2'>
           <Cloud className='size-5 text-primary' />
-          <h1 className='text-2xl font-semibold tracking-tight'>DNS 账号</h1>
+          <h1 className='text-2xl font-semibold tracking-tight'>{t('title')}</h1>
         </div>
         <div className='flex items-center gap-2'>
           <Button
@@ -74,7 +78,7 @@ export default function DnsAccountsPage() {
             onClick={() => setCreateOpen(true)}
           >
             <Plus className='size-3.5 mr-1' />
-            添加账号
+            {t('addAccount')}
           </Button>
         </div>
       </div>
@@ -82,22 +86,23 @@ export default function DnsAccountsPage() {
       <Card className='border-dashed shadow-none'>
         <CardHeader className='pb-3'>
           <CardTitle className='text-base font-semibold'>
-            DNS 账号列表
+            {t('listTitle')}
           </CardTitle>
-          <CardDescription>
-            统一管理 DNS 服务商账号，用于 ACME 证书的 DNS 验证申请。
-          </CardDescription>
+          <CardDescription>{t('listDesc')}</CardDescription>
         </CardHeader>
         <CardContent>
           {dnsAccountsQuery.isLoading ? (
             <LoadingStateWithBorder
               icon={Cloud}
-              description='加载 DNS 账号中...'
+              description={t('loadingList')}
             />
           ) : dnsAccountsQuery.isError ? (
             <div className='p-8 border border-dashed rounded-lg'>
               <ErrorInline
-                message={getErrorMessage(dnsAccountsQuery.error)}
+                message={getErrorMessage(
+                  dnsAccountsQuery.error,
+                  t('requestFailed'),
+                )}
                 onRetry={() => void dnsAccountsQuery.refetch()}
                 className='justify-center'
               />
@@ -105,7 +110,7 @@ export default function DnsAccountsPage() {
           ) : accounts.length === 0 ? (
             <EmptyStateWithBorder
               icon={Cloud}
-              description='暂无 DNS 账号，点击右上角「添加账号」开始录入。'
+              description={t('emptyList')}
             />
           ) : (
             <div className='space-y-3'>
@@ -122,7 +127,9 @@ export default function DnsAccountsPage() {
                       </span>
                     </p>
                     <p className='text-xs text-muted-foreground'>
-                      创建于：{formatDateTime(account.created_at)}
+                      {t('createdAt', {
+                        date: formatDateTime(account.created_at),
+                      })}
                     </p>
                   </div>
                   <Button
@@ -143,7 +150,7 @@ export default function DnsAccountsPage() {
       <DnsAccountCreateDialog
         open={createOpen}
         onOpenChange={setCreateOpen}
-        onCreated={() => toast.success('DNS 账号已添加')}
+        onCreated={() => toast.success(t('created'))}
       />
 
       <AlertDialog
@@ -152,20 +159,20 @@ export default function DnsAccountsPage() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>确认删除 DNS 账号</AlertDialogTitle>
+            <AlertDialogTitle>{t('deleteTitle')}</AlertDialogTitle>
             <AlertDialogDescription>
-              确认删除 DNS 账号 {deleteTarget?.name} 吗？
+              {t('deleteDesc', { name: deleteTarget?.name ?? '' })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogCancel>{tc('cancel')}</AlertDialogCancel>
             <AlertDialogAction
               className='bg-destructive text-destructive-foreground hover:bg-destructive/90'
               onClick={() =>
                 deleteTarget && deleteMutation.mutate(deleteTarget.id)
               }
             >
-              删除
+              {tc('delete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { Eye } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 import { EmptyStateWithBorder } from '@/components/layout/empty';
 import { ErrorInline } from '@/components/layout/error';
@@ -72,20 +73,21 @@ const MAX_CUSTOM_RANGE_MS = 30 * 24 * 3_600_000;
 export function validateCustomTimeRange(
   sinceLocal: string,
   untilLocal: string,
+  t?: (key: 'ip.needRange' | 'ip.invalidTime' | 'ip.endAfterStart' | 'ip.maxRange') => string,
 ): string | null {
   if (!sinceLocal.trim() || !untilLocal.trim()) {
-    return '请填写开始与结束时间';
+    return t ? t('ip.needRange') : 'needRange';
   }
   const sinceMs = new Date(sinceLocal).getTime();
   const untilMs = new Date(untilLocal).getTime();
   if (Number.isNaN(sinceMs) || Number.isNaN(untilMs)) {
-    return '时间格式无效';
+    return t ? t('ip.invalidTime') : 'invalidTime';
   }
   if (untilMs <= sinceMs) {
-    return '结束时间必须晚于开始时间';
+    return t ? t('ip.endAfterStart') : 'endAfterStart';
   }
   if (untilMs - sinceMs > MAX_CUSTOM_RANGE_MS) {
-    return '时间范围不能超过 30 天';
+    return t ? t('ip.maxRange') : 'maxRange';
   }
   return null;
 }
@@ -128,11 +130,12 @@ function PaginationBar({
   onPrev: () => void;
   onNext: () => void;
 }) {
+  const t = useTranslations('accessLogs.ip');
   return (
     <div className='flex items-center justify-between px-4 py-3 border-t border-dashed'>
       <p className='text-xs text-muted-foreground'>
-        当前第 {page + 1} 页
-        {typeof totalIp === 'number' ? ` · 共 ${totalIp} 个 IP` : ''}
+        {t('page', { page: page + 1 })}
+        {typeof totalIp === 'number' ? t('total', { count: totalIp }) : ''}
       </p>
       <div className='flex gap-2'>
         <Button
@@ -141,7 +144,7 @@ function PaginationBar({
           disabled={loading || page <= 0}
           onClick={onPrev}
         >
-          上一页
+          {t('prev')}
         </Button>
         <Button
           variant='outline'
@@ -149,7 +152,7 @@ function PaginationBar({
           disabled={loading || !hasMore}
           onClick={onNext}
         >
-          下一页
+          {t('next')}
         </Button>
       </div>
     </div>
@@ -201,6 +204,7 @@ export function IpTab({
   onNextPage: () => void;
   isFetching: boolean;
 }) {
+  const t = useTranslations('accessLogs');
   const [selected, setSelected] = useState<AccessLogIPSummaryItem | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [draftSince, setDraftSince] = useState(customSince);
@@ -232,13 +236,15 @@ export function IpTab({
 
   const rangeHint =
     timeMode === 'custom' && customSince && customUntil
-      ? '自定义区间'
+      ? t('ip.customRange')
       : timeMode === 'custom'
-        ? '自定义（未应用）'
-        : formatOverviewRangeHint(hours);
+        ? t('ip.customPending')
+        : formatOverviewRangeHint(hours, (key, values) => t(key, values));
 
   const handleApplyCustom = () => {
-    const message = validateCustomTimeRange(draftSince, draftUntil);
+    const message = validateCustomTimeRange(draftSince, draftUntil, (key) =>
+      t(key),
+    );
     if (message) {
       setCustomError(message);
       return;
@@ -253,11 +259,11 @@ export function IpTab({
         <div className='rounded-lg border border-dashed bg-background p-4 space-y-3'>
           <div className='flex flex-wrap items-center justify-between gap-3'>
             <div className='space-y-1'>
-              <p className='text-sm font-medium'>时间范围</p>
+              <p className='text-sm font-medium'>{t('ip.timeRange')}</p>
               <p className='text-xs text-muted-foreground'>
-                当前：{rangeHint}
+                {t('ip.current', { range: rangeHint })}
                 {data?.total_ip != null
-                  ? ` · ${formatCompactNumber(data.total_ip)} 个 IP`
+                  ? t('ip.total', { count: data.total_ip })
                   : ''}
               </p>
             </div>
@@ -281,7 +287,7 @@ export function IpTab({
                     value={String(option.value)}
                     className='px-2.5 text-xs'
                   >
-                    {option.label}
+                    {t(option.labelKey)}
                   </ToggleGroupItem>
                 ))}
               </ToggleGroup>
@@ -291,7 +297,7 @@ export function IpTab({
                 className='h-8 text-xs'
                 onClick={() => onTimeModeChange('custom')}
               >
-                自定义
+                {t('ip.custom')}
               </Button>
             </div>
           </div>
@@ -300,7 +306,7 @@ export function IpTab({
             <div className='space-y-2'>
               <div className='flex flex-wrap items-end gap-3'>
                 <div className='space-y-1'>
-                  <p className='text-xs text-muted-foreground'>开始</p>
+                  <p className='text-xs text-muted-foreground'>{t('ip.start')}</p>
                   <Input
                     type='datetime-local'
                     className='h-9 w-52 text-xs'
@@ -312,7 +318,7 @@ export function IpTab({
                   />
                 </div>
                 <div className='space-y-1'>
-                  <p className='text-xs text-muted-foreground'>结束</p>
+                  <p className='text-xs text-muted-foreground'>{t('ip.end')}</p>
                   <Input
                     type='datetime-local'
                     className='h-9 w-52 text-xs'
@@ -328,14 +334,14 @@ export function IpTab({
                   className='h-9 text-xs'
                   onClick={handleApplyCustom}
                 >
-                  应用
+                  {t('ip.apply')}
                 </Button>
               </div>
               {customError ? (
                 <p className='text-xs text-destructive'>{customError}</p>
               ) : (
                 <p className='text-xs text-muted-foreground'>
-                  修改时间后点击「应用」再查询；详情分析窗口与列表时长对齐。
+                  {t('ip.applyHint')}
                 </p>
               )}
             </div>
@@ -343,7 +349,7 @@ export function IpTab({
 
           <div className='flex flex-wrap items-center gap-3'>
             <div className='space-y-1'>
-              <p className='text-xs text-muted-foreground'>排序</p>
+              <p className='text-xs text-muted-foreground'>{t('ip.sort')}</p>
               <Select value={sort} onValueChange={onSortChange}>
                 <SelectTrigger className='h-8 w-48 text-xs'>
                   <SelectValue />
@@ -351,14 +357,14 @@ export function IpTab({
                 <SelectContent>
                   {IP_SORT_OPTIONS.map((option) => (
                     <SelectItem key={option.value} value={option.value}>
-                      {option.label}
+                      {t(option.labelKey)}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             <div className='space-y-1'>
-              <p className='text-xs text-muted-foreground'>每页</p>
+              <p className='text-xs text-muted-foreground'>{t('ip.pageSize')}</p>
               <Select
                 value={String(pageSize)}
                 onValueChange={(value) =>
@@ -382,30 +388,38 @@ export function IpTab({
 
         <div className='rounded-lg border border-dashed overflow-hidden bg-background'>
           <div className='flex items-center justify-between px-4 py-3 border-b border-dashed'>
-            <p className='text-sm font-medium'>IP 明细</p>
+            <p className='text-sm font-medium'>{t('ip.title')}</p>
           </div>
           {error ? (
             <div className='p-4'>
               <ErrorInline
-                message={error.message || '加载失败'}
+                message={error.message || t('loadFailed')}
                 onRetry={onRetry}
               />
             </div>
           ) : loading ? (
             <LoadingStateWithBorder />
           ) : (data?.items ?? []).length === 0 ? (
-            <EmptyStateWithBorder title='暂无 IP 数据' />
+            <EmptyStateWithBorder title={t('ip.empty')} />
           ) : (
             <Table>
               <TableHeader className='bg-muted/40'>
                 <TableRow className='border-dashed hover:bg-transparent'>
                   <TableHead className='text-xs'>IP</TableHead>
-                  <TableHead className='text-xs'>地区</TableHead>
-                  <TableHead className='text-xs text-right'>请求数</TableHead>
-                  <TableHead className='text-xs text-right'>2xx 比例</TableHead>
-                  <TableHead className='text-xs text-right'>入站</TableHead>
-                  <TableHead className='text-xs text-right'>出站</TableHead>
-                  <TableHead className='text-xs'>最后访问</TableHead>
+                  <TableHead className='text-xs'>{t('ip.region')}</TableHead>
+                  <TableHead className='text-xs text-right'>
+                    {t('ip.requests')}
+                  </TableHead>
+                  <TableHead className='text-xs text-right'>
+                    {t('ip.successRatio')}
+                  </TableHead>
+                  <TableHead className='text-xs text-right'>
+                    {t('ip.inbound')}
+                  </TableHead>
+                  <TableHead className='text-xs text-right'>
+                    {t('ip.outbound')}
+                  </TableHead>
+                  <TableHead className='text-xs'>{t('ip.lastSeen')}</TableHead>
                   <TableHead className='w-12 text-center text-xs' />
                 </TableRow>
               </TableHeader>
@@ -453,7 +467,7 @@ export function IpTab({
                           </Button>
                         </TooltipTrigger>
                         <TooltipContent side='top' className='text-xs'>
-                          查看 IP 详情
+                          {t('ip.view')}
                         </TooltipContent>
                       </Tooltip>
                     </TableCell>

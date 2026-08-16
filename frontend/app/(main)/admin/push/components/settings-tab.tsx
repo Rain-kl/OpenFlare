@@ -4,6 +4,7 @@
 'use client';
 
 import * as React from 'react';
+import { useTranslations } from 'next-intl';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
@@ -61,6 +62,7 @@ import type {
 import { PushService } from '@/lib/services/push';
 
 export function SettingsTab() {
+  const t = useTranslations('admin.push.settings');
   const queryClient = useQueryClient();
   const [deleteTarget, setDeleteTarget] = React.useState<PushChannel | null>(
     null,
@@ -82,12 +84,12 @@ export function SettingsTab() {
   const createChannelMutation = useMutation({
     mutationFn: (data: CreateChannelRequest) => PushService.createChannel(data),
     onSuccess: () => {
-      toast.success('通道创建成功');
+      toast.success(t('channelCreateSuccess'));
       queryClient.invalidateQueries({ queryKey: ['admin', 'push-channels'] });
       setChannelDialogOpen(false);
     },
     onError: (err: unknown) => {
-      toast.error('通道创建失败: ' + (err as Error).message);
+      toast.error(t('channelCreateFailed') + ': ' + (err as Error).message);
     },
   });
 
@@ -95,12 +97,12 @@ export function SettingsTab() {
     mutationFn: ({ id, data }: { id: number; data: UpdateChannelRequest }) =>
       PushService.updateChannel(id, data),
     onSuccess: () => {
-      toast.success('通道更新成功');
+      toast.success(t('channelUpdateSuccess'));
       queryClient.invalidateQueries({ queryKey: ['admin', 'push-channels'] });
       setChannelDialogOpen(false);
     },
     onError: (err: unknown) => {
-      toast.error('通道更新失败: ' + (err as Error).message);
+      toast.error(t('channelUpdateFailed') + ': ' + (err as Error).message);
     },
   });
 
@@ -108,11 +110,11 @@ export function SettingsTab() {
     mutationFn: (id: number) => PushService.deleteChannel(id),
     onSuccess: () => {
       setDeleteTarget(null);
-      toast.success('通道删除成功');
+      toast.success(t('channelDeleteSuccess'));
       queryClient.invalidateQueries({ queryKey: ['admin', 'push-channels'] });
     },
     onError: (err: unknown) => {
-      toast.error('通道删除失败: ' + (err as Error).message);
+      toast.error(t('channelDeleteFailed') + ': ' + (err as Error).message);
     },
   });
 
@@ -195,16 +197,16 @@ export function SettingsTab() {
 
   const handleSaveChannel = () => {
     if (!channelName && !editingChannel) {
-      toast.error('通道名称不能为空');
+      toast.error(t('channelNameRequired'));
       return;
     }
     if (!/^[a-zA-Z_0-9]+$/.test(channelName)) {
-      toast.error('通道名称只能使用英文字母、数字和下划线');
+      toast.error(t('channelNameFormat'));
       return;
     }
 
     if (!activeDef) {
-      toast.error('无效的通道类型');
+      toast.error(t('invalidChannelType'));
       return;
     }
 
@@ -217,7 +219,7 @@ export function SettingsTab() {
             ? channelToken
             : channelOther;
       if (field.required && !value.trim()) {
-        toast.error(`${field.label}不能为空`);
+        toast.error(t('fieldRequired', { label: field.label }));
         return;
       }
     }
@@ -225,7 +227,7 @@ export function SettingsTab() {
     // 协议安全校验（非邮件服务且配置了地址时，强制 HTTPS 协议）
     if (channelType !== 'email') {
       if (channelUrl && !channelUrl.startsWith('https://')) {
-        toast.error('地址必须以 https:// 开头以确保安全性');
+        toast.error(t('httpsRequired'));
         return;
       }
     }
@@ -235,14 +237,14 @@ export function SettingsTab() {
       try {
         JSON.parse(channelOther);
       } catch {
-        toast.error('请求体必须是合法的 JSON 格式');
+        toast.error(t('jsonFormatRequired'));
         return;
       }
     } else if (channelType === 'lark' && channelOther) {
       try {
         JSON.parse(channelOther);
       } catch {
-        toast.error('自定义卡片模版必须是合法的 JSON 格式');
+        toast.error(t('larkTemplateFormat'));
         return;
       }
     }
@@ -281,15 +283,15 @@ export function SettingsTab() {
   const handleSendChannelTest = async () => {
     try {
       setIsTestingChannel(true);
-      toast.info('正在发送测试推送...');
+      toast.info(t('sendingTestPush'));
       await PushService.testChannel({
         name: testChannelName,
         target: testChannelTarget || undefined,
       });
-      toast.success('测试推送发送成功，请前往对应平台确认。');
+      toast.success(t('testPushSuccess'));
       setTestChannelOpen(false);
     } catch (err: unknown) {
-      toast.error('连通性测试失败: ' + (err as Error).message);
+      toast.error(t('connectivityTestFailed') + ': ' + (err as Error).message);
     } finally {
       setIsTestingChannel(false);
     }
@@ -299,9 +301,9 @@ export function SettingsTab() {
     <div className='pt-4 space-y-4'>
       <div className='flex items-center justify-between'>
         <div>
-          <h2 className='text-sm font-semibold'>自定义推送通道</h2>
+          <h2 className='text-sm font-semibold'>{t('customPushChannels')}</h2>
           <p className='text-[11px] text-muted-foreground mt-0.5'>
-            添加、配置及管理用于第三方 Webhook 对接的自定义数据推送通道
+            {t('customPushChannelsDesc')}
           </p>
         </div>
         <Button
@@ -310,14 +312,14 @@ export function SettingsTab() {
           className='text-xs'
         >
           <Plus className='size-3.5 mr-1' />
-          新建消息通道
+          {t('createChannel')}
         </Button>
       </div>
 
       {channelsQuery.isLoading ? (
         <LoadingStateWithBorder
           icon={Settings}
-          description='加载消息通道中...'
+          description={t('loadingChannels')}
         />
       ) : channelsQuery.isError ? (
         <div className='p-8 border border-dashed rounded-xl bg-card'>
@@ -334,7 +336,7 @@ export function SettingsTab() {
             style={{ animationDuration: '3s' }}
           />
           <span className='text-xs font-medium'>
-            暂无自定义通道配置，请点击右上角新建
+            {t('noCustomChannels')}
           </span>
         </div>
       ) : (
@@ -343,19 +345,19 @@ export function SettingsTab() {
             <TableHeader className='sticky top-0 z-20 bg-background'>
               <TableRow className='border-b border-dashed hover:bg-transparent'>
                 <TableHead className='w-[120px] whitespace-nowrap py-2 h-8'>
-                  名称
+                  {t('colName')}
                 </TableHead>
                 <TableHead className='w-[100px] whitespace-nowrap py-2 h-8'>
-                  类型
+                  {t('colType')}
                 </TableHead>
                 <TableHead className='whitespace-nowrap py-2 h-8'>
-                  备注
+                  {t('colRemark')}
                 </TableHead>
                 <TableHead className='w-[80px] text-center whitespace-nowrap py-2 h-8'>
-                  状态
+                  {t('colStatus')}
                 </TableHead>
                 <TableHead className='sticky right-0 text-center bg-background z-10 w-[180px] py-2 h-8'>
-                  操作
+                  {t('colActions')}
                 </TableHead>
               </TableRow>
             </TableHeader>
@@ -380,7 +382,9 @@ export function SettingsTab() {
                     </Badge>
                   </TableCell>
                   <TableCell className='text-xs text-muted-foreground max-w-[200px] truncate py-1'>
-                    {ch.description || <span className='italic'>无备注</span>}
+                    {ch.description || (
+                      <span className='italic'>{t('noRemark')}</span>
+                    )}
                   </TableCell>
                   <TableCell
                     className='text-center py-1'
@@ -416,7 +420,7 @@ export function SettingsTab() {
                         className='h-6 px-2 text-[10px] text-primary hover:text-primary hover:bg-primary/10'
                       >
                         <Play className='size-2.5 mr-1' />
-                        测试
+                        {t('test')}
                       </Button>
                       <Button
                         variant='ghost'
@@ -425,7 +429,7 @@ export function SettingsTab() {
                         className='h-6 px-2 text-[10px] text-muted-foreground hover:text-foreground'
                       >
                         <Edit2 className='size-2.5 mr-1' />
-                        编辑
+                        {t('edit')}
                       </Button>
                       <Button
                         variant='ghost'
@@ -435,7 +439,7 @@ export function SettingsTab() {
                         className='h-6 px-2 text-[10px] text-destructive hover:text-destructive hover:bg-destructive/10'
                       >
                         <Trash2 className='size-2.5 mr-1' />
-                        删除
+                        {t('delete')}
                       </Button>
                     </div>
                   </TableCell>
@@ -451,35 +455,34 @@ export function SettingsTab() {
         <DialogContent className='sm:max-w-[600px] max-h-[85vh] overflow-y-auto'>
           <DialogHeader>
             <DialogTitle>
-              {editingChannel ? '编辑消息通道' : '新建消息通道'}
+              {editingChannel
+                ? t('editChannelDialogTitle')
+                : t('createChannelDialogTitle')}
             </DialogTitle>
-            <DialogDescription>
-              配置自定义通知推送通道，支持以 POST 请求方式向第三方 Webhook
-              或推送服务投递数据
-            </DialogDescription>
+            <DialogDescription>{t('channelDialogDesc')}</DialogDescription>
           </DialogHeader>
 
           <div className='space-y-4 py-4'>
             <div className='space-y-1.5'>
-              <Label className='text-xs font-semibold'>名称</Label>
+              <Label className='text-xs font-semibold'>{t('channelName')}</Label>
               <Input
                 type='text'
-                placeholder='请输入通道名称，请仅使用英文字母和下划线，该名称必须唯一'
+                placeholder={t('channelNamePlaceholder')}
                 value={channelName}
                 onChange={(e) => setChannelName(e.target.value)}
                 disabled={!!editingChannel}
                 className='text-xs h-9 font-mono'
               />
               <p className='text-[10px] text-muted-foreground'>
-                通道唯一标识，创建后不可修改
+                {t('channelNameHint')}
               </p>
             </div>
 
             <div className='space-y-1.5'>
-              <Label className='text-xs font-semibold'>备注</Label>
+              <Label className='text-xs font-semibold'>{t('channelRemark')}</Label>
               <Input
                 type='text'
-                placeholder='请输入备注信息'
+                placeholder={t('channelRemarkPlaceholder')}
                 value={channelDescription}
                 onChange={(e) => setChannelDescription(e.target.value)}
                 className='text-xs h-9'
@@ -487,13 +490,13 @@ export function SettingsTab() {
             </div>
 
             <div className='space-y-1.5'>
-              <Label className='text-xs font-semibold'>通道类型</Label>
+              <Label className='text-xs font-semibold'>{t('channelType')}</Label>
               <Select
                 value={channelType}
                 onValueChange={handleChannelTypeChange}
               >
                 <SelectTrigger className='text-xs h-9'>
-                  <SelectValue placeholder='选择通道类型' />
+                  <SelectValue placeholder={t('selectChannelType')} />
                 </SelectTrigger>
                 <SelectContent>
                   {(definitionsQuery.data ?? []).map((d) => (
@@ -509,7 +512,7 @@ export function SettingsTab() {
               <>
                 <div className='p-3.5 border rounded-lg bg-muted/20 space-y-1.5'>
                   <div className='text-xs font-semibold'>
-                    {activeDef.name}配置说明
+                    {t('configHelp', { name: activeDef.name })}
                   </div>
                   <p className='text-[11px] text-muted-foreground leading-relaxed'>
                     {activeDef.description}
@@ -572,7 +575,7 @@ export function SettingsTab() {
                 {channelType === 'custom' && (
                   <div className='p-3.5 border rounded-lg bg-muted/20 space-y-2.5'>
                     <Label className='text-[11px] font-semibold'>
-                      快捷加载常用模版实例：
+                      {t('quickLoadTemplates')}
                     </Label>
                     <div className='flex flex-wrap gap-1.5'>
                       <Button
@@ -596,7 +599,7 @@ export function SettingsTab() {
                               2,
                             ),
                           );
-                          toast.success('已加载飞书 Webhook 模版');
+                          toast.success(t('loadedFeishuTemplate'));
                         }}
                       >
                         飞书 Webhook
@@ -623,7 +626,7 @@ export function SettingsTab() {
                               2,
                             ),
                           );
-                          toast.success('已加载钉钉机器人模版');
+                          toast.success(t('loadedDingTalkTemplate'));
                         }}
                       >
                         钉钉群机器人
@@ -650,7 +653,7 @@ export function SettingsTab() {
                               2,
                             ),
                           );
-                          toast.success('已加载企业微信机器人模版');
+                          toast.success(t('loadedWeChatTemplate'));
                         }}
                       >
                         企业微信群机器人
@@ -674,7 +677,7 @@ export function SettingsTab() {
                               2,
                             ),
                           );
-                          toast.success('已加载 Bark App 模版');
+                          toast.success(t('loadedBarkTemplate'));
                         }}
                       >
                         Bark App
@@ -693,7 +696,7 @@ export function SettingsTab() {
               onClick={() => setChannelDialogOpen(false)}
               className='h-9 text-xs'
             >
-              取消
+              {t('cancel')}
             </Button>
             <Button
               variant='default'
@@ -709,7 +712,7 @@ export function SettingsTab() {
                 updateChannelMutation.isPending) && (
                 <Loader2 className='size-3 animate-spin mr-1' />
               )}
-              确定
+              {t('confirm')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -719,15 +722,15 @@ export function SettingsTab() {
       <Dialog open={testChannelOpen} onOpenChange={setTestChannelOpen}>
         <DialogContent className='sm:max-w-[450px]'>
           <DialogHeader>
-            <DialogTitle>发送测试通知</DialogTitle>
+            <DialogTitle>{t('sendTestNotification')}</DialogTitle>
             <DialogDescription>
-              请输入消息测试的接收目标，点击发送后系统将通过此通道执行连通性推送测试
+              {t('sendTestNotificationDesc')}
             </DialogDescription>
           </DialogHeader>
 
           <div className='space-y-4 py-3'>
             <div className='space-y-1.5'>
-              <Label className='text-xs'>推送通道名称</Label>
+              <Label className='text-xs'>{t('pushChannelName')}</Label>
               <Input
                 type='text'
                 value={testChannelName}
@@ -736,10 +739,10 @@ export function SettingsTab() {
               />
             </div>
             <div className='space-y-1.5'>
-              <Label className='text-xs'>测试推送目标 (对应模板变量 $to)</Label>
+              <Label className='text-xs'>{t('testPushTarget')}</Label>
               <Input
                 type='text'
-                placeholder='请输入测试推送接收人/目标标识，如 Bark Token、邮箱等'
+                placeholder={t('testPushTargetPlaceholder')}
                 value={testChannelTarget}
                 onChange={(e) => setTestChannelTarget(e.target.value)}
                 className='text-xs h-9'
@@ -754,7 +757,7 @@ export function SettingsTab() {
               onClick={() => setTestChannelOpen(false)}
               className='h-9 text-xs'
             >
-              取消
+              {t('cancel')}
             </Button>
             <Button
               variant='default'
@@ -766,7 +769,7 @@ export function SettingsTab() {
               {isTestingChannel && (
                 <Loader2 className='size-3 animate-spin mr-1' />
               )}
-              发送测试
+              {t('sendTest')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -778,14 +781,14 @@ export function SettingsTab() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>确认删除通道</AlertDialogTitle>
+            <AlertDialogTitle>{t('deleteChannelTitle')}</AlertDialogTitle>
             <AlertDialogDescription>
-              确定要删除通道「{deleteTarget?.name}」吗？删除后无法恢复。
+              {t('deleteChannelConfirm', { name: deleteTarget?.name ?? '' })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={deleteChannelMutation.isPending}>
-              取消
+              {t('cancel')}
             </AlertDialogCancel>
             <AlertDialogAction
               disabled={deleteChannelMutation.isPending}
@@ -793,7 +796,9 @@ export function SettingsTab() {
                 deleteTarget && deleteChannelMutation.mutate(deleteTarget.id)
               }
             >
-              {deleteChannelMutation.isPending ? '删除中...' : '确认删除'}
+              {deleteChannelMutation.isPending
+                ? t('deleting')
+                : t('confirmDelete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

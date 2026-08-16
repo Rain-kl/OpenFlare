@@ -5,6 +5,8 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { Gauge } from 'lucide-react';
 
+import { useTranslations } from 'next-intl';
+
 import { useAuth } from '@/components/providers/auth-provider';
 import { EmptyStateWithBorder } from '@/components/layout/empty';
 import { LoadingStateWithBorder } from '@/components/layout/loading';
@@ -23,6 +25,7 @@ function resolveTab(value: string | null): RateLimitTab {
 }
 
 function RateLimitsPageContent() {
+  const t = useTranslations('rateLimits');
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -51,7 +54,7 @@ function RateLimitsPageContent() {
   if (authLoading) {
     return (
       <div className='py-6 px-1'>
-        <LoadingStateWithBorder icon={Gauge} description='加载权限信息...' />
+        <LoadingStateWithBorder icon={Gauge} description={t('loadingAuth')} />
       </div>
     );
   }
@@ -61,8 +64,8 @@ function RateLimitsPageContent() {
       <div className='py-6 px-1'>
         <EmptyStateWithBorder
           icon={Gauge}
-          title='权限不足'
-          description='只有管理员可以访问限流设置。'
+          title={t('forbiddenTitle')}
+          description={t('forbiddenDesc')}
         />
       </div>
     );
@@ -73,17 +76,15 @@ function RateLimitsPageContent() {
       <div className='flex items-center gap-2'>
         <Gauge className='size-5 text-primary' />
         <div>
-          <h1 className='text-2xl font-semibold tracking-tight'>限流</h1>
-          <p className='text-sm text-muted-foreground'>
-            查看边缘请求压力，并配置站点默认并发与带宽限流。
-          </p>
+          <h1 className='text-2xl font-semibold tracking-tight'>{t('title')}</h1>
+          <p className='text-sm text-muted-foreground'>{t('subtitle')}</p>
         </div>
       </div>
 
       <Tabs value={tab} onValueChange={handleTabChange}>
         <TabsList className='grid w-full max-w-md grid-cols-2'>
-          <TabsTrigger value='analysis'>分析</TabsTrigger>
-          <TabsTrigger value='config'>配置</TabsTrigger>
+          <TabsTrigger value='analysis'>{t('tabAnalysis')}</TabsTrigger>
+          <TabsTrigger value='config'>{t('tabConfig')}</TabsTrigger>
         </TabsList>
 
         <TabsContent value='analysis' className='mt-4'>
@@ -110,11 +111,15 @@ function RateLimitsPageContent() {
 }
 
 export default function RateLimitsPage() {
+  const t = useTranslations('rateLimits');
   return (
     <Suspense
       fallback={
         <div className='py-6 px-1'>
-          <LoadingStateWithBorder icon={Gauge} description='加载限流页面...' />
+          <LoadingStateWithBorder
+            icon={Gauge}
+            description={t('loadingPage')}
+          />
         </div>
       }
     >

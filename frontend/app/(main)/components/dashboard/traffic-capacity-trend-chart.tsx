@@ -1,5 +1,7 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
+
 import { TrendChart } from '@/components/data/trend-chart';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type {
@@ -17,11 +19,13 @@ export function TrafficCapacityTrendChart({
   networkPoints: NetworkTrendPoint[];
   capacityPoints: CapacityTrendPoint[];
 }) {
+  const t = useTranslations('dashboard.trafficCapacity');
+  const tc = useTranslations('dashboard.capacityTrend');
   return (
     <Card className='border-dashed shadow-none'>
       <CardHeader>
         <CardTitle className='text-sm font-semibold'>
-          24 小时业务流量与容量趋势
+          {t('title')}
         </CardTitle>
       </CardHeader>
       <CardContent className='space-y-6'>
@@ -31,11 +35,11 @@ export function TrafficCapacityTrendChart({
           )}
           height={180}
           summaryScope='total'
-          summaryHint='近 24 小时 · 来自访问日志'
+          summaryHint={t('networkHint')}
           yAxisValueFormatter={formatBytes}
           series={[
             {
-              label: '接收数据',
+              label: t('received'),
               color: '#22c55e',
               fillColor: 'rgba(34, 197, 94, 0.14)',
               variant: 'area',
@@ -43,7 +47,7 @@ export function TrafficCapacityTrendChart({
               valueFormatter: formatBytes,
             },
             {
-              label: '已提供数据',
+              label: t('provided'),
               color: '#38bdf8',
               values: networkPoints.map((point) => point.bytes_provided),
               valueFormatter: formatBytes,
@@ -57,11 +61,11 @@ export function TrafficCapacityTrendChart({
           )}
           height={180}
           summaryScope='average'
-          summaryHint='近 24 小时 · 宿主机容量 · 平均值'
+          summaryHint={t('capacityHint')}
           yAxisValueFormatter={formatPercent}
           series={[
             {
-              label: '平均 CPU',
+              label: tc('avgCpu'),
               color: '#0f766e',
               fillColor: 'rgba(15, 118, 110, 0.15)',
               variant: 'area',
@@ -71,7 +75,7 @@ export function TrafficCapacityTrendChart({
               valueFormatter: formatPercent,
             },
             {
-              label: '平均内存',
+              label: tc('avgMemory'),
               color: '#2563eb',
               values: capacityPoints.map(
                 (point) => point.average_memory_usage_percent,

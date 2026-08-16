@@ -1,6 +1,7 @@
 'use client';
 
 import { Gauge } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 import { RankCard } from '@/components/data/rank-card';
 import { EmptyStateWithBorder } from '@/components/layout/empty';
@@ -57,7 +58,15 @@ export function AnalysisTab({
   onHostsChange: (hosts: string[]) => void;
   onRetry: () => void;
 }) {
-  const rangeHint = formatOverviewRangeHint(hours);
+  const t = useTranslations('rateLimits');
+  const tLogs = useTranslations('accessLogs');
+  const rangeHint = formatOverviewRangeHint(hours, (key, values) =>
+    tLogs(key, values),
+  );
+  const rangeOptions = RATE_LIMIT_RANGE_OPTIONS.map((option) => ({
+    value: option.value,
+    label: t(option.labelKey),
+  }));
   const hostItems = toAvgRpsItems(data?.top_hosts, hours);
   const ipItems = toAvgRpsItems(data?.top_ips, hours);
 
@@ -68,33 +77,39 @@ export function AnalysisTab({
         hosts={hosts}
         onHoursChange={(next) => onHoursChange(next as RateLimitRangeHours)}
         onHostsChange={onHostsChange}
-        rangeOptions={RATE_LIMIT_RANGE_OPTIONS}
+        rangeOptions={rangeOptions}
       />
 
       {loading ? (
-        <LoadingStateWithBorder icon={Gauge} description='加载请求压力...' />
+        <LoadingStateWithBorder
+          icon={Gauge}
+          description={t('loadingPressure')}
+        />
       ) : error ? (
-        <ErrorInline message={error.message || '加载失败'} onRetry={onRetry} />
+        <ErrorInline
+          message={error.message || t('loadFailed')}
+          onRetry={onRetry}
+        />
       ) : !data ? (
         <EmptyStateWithBorder
           icon={Gauge}
-          title='暂无数据'
-          description='当前时间范围内没有可用的访问日志。'
+          title={t('emptyTitle')}
+          description={t('emptyDesc')}
         />
       ) : (
         <>
           <RatePressureChart data={data} hours={hours} />
           <div className='grid gap-4 lg:grid-cols-2'>
             <RankCard
-              title='平均 RPS 最高域名'
-              description={`${rangeHint}平均请求速率`}
+              title={t('topHost')}
+              description={t('avgRate', { range: rangeHint })}
               items={hostItems}
               color='#38bdf8'
               valueFormatter={(value) => `${formatRps(value)} req/s`}
             />
             <RankCard
-              title='平均 RPS 最高 IP'
-              description={`${rangeHint}平均请求速率`}
+              title={t('topIp')}
+              description={t('avgRate', { range: rangeHint })}
               items={ipItems}
               color='#a78bfa'
               valueFormatter={(value) => `${formatRps(value)} req/s`}

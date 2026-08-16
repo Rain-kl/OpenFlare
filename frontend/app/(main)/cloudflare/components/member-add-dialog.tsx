@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { useEffect, useMemo, useState } from 'react';
 import { Check, ChevronDown, Search } from 'lucide-react';
 
@@ -72,6 +73,8 @@ export function MemberAddDialog({
   pending: boolean;
   onSubmit: (zoneDomainIDs: number[], proxied: boolean) => void;
 }) {
+  const t = useTranslations('cloudflare.memberDialog');
+  const tCommon = useTranslations('common');
   const [keyword, setKeyword] = useState('');
   const [selectedIDs, setSelectedIDs] = useState<number[]>([]);
   const [proxied, setProxied] = useState(defaultProxied);
@@ -157,15 +160,14 @@ export function MemberAddDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className='sm:max-w-lg'>
         <DialogHeader>
-          <DialogTitle>添加域名成员</DialogTitle>
-          <DialogDescription>
-            支持搜索筛选与批量勾选；加入后会创建或接管唯一同名 A 记录，多条同名
-            A 会拒绝同步。
-          </DialogDescription>
+          <DialogTitle>{t('title')}</DialogTitle>
+          <DialogDescription>{t('description')}</DialogDescription>
         </DialogHeader>
         <FieldGroup>
           <Field>
-            <FieldLabel htmlFor='cf-domain-search'>Zone 域名</FieldLabel>
+            <FieldLabel htmlFor='cf-domain-search'>
+              {t('zoneDomain')}
+            </FieldLabel>
             <div className='space-y-2'>
               <div className='relative'>
                 <Search className='pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground' />
@@ -173,7 +175,7 @@ export function MemberAddDialog({
                   id='cf-domain-search'
                   value={keyword}
                   onChange={(event) => setKeyword(event.target.value)}
-                  placeholder='搜索域名或顶级域…'
+                  placeholder={t('searchPlaceholder')}
                   className='pl-8'
                   disabled={pending}
                 />
@@ -182,9 +184,9 @@ export function MemberAddDialog({
               <div className='flex flex-wrap items-center justify-between gap-2'>
                 <div className='flex items-center gap-2 text-xs text-muted-foreground'>
                   <Badge variant='secondary' className='font-normal'>
-                    已选 {selectedIDs.length}
+                    {t('selected', { count: selectedIDs.length })}
                   </Badge>
-                  <span>可见 {visibleIDs.length}</span>
+                  <span>{t('visible', { count: visibleIDs.length })}</span>
                 </div>
                 <div className='flex items-center gap-1'>
                   <Button
@@ -195,7 +197,7 @@ export function MemberAddDialog({
                     disabled={pending || visibleIDs.length === 0}
                     onClick={toggleAllVisible}
                   >
-                    {allVisibleSelected ? '取消全选' : '全选可见'}
+                    {allVisibleSelected ? t('unselectAll') : t('selectVisible')}
                   </Button>
                   <Button
                     type='button'
@@ -205,18 +207,18 @@ export function MemberAddDialog({
                     disabled={pending || selectedIDs.length === 0}
                     onClick={() => setSelectedIDs([])}
                   >
-                    清空
+                    {t('clear')}
                   </Button>
                 </div>
               </div>
 
               {domains.length === 0 ? (
                 <div className='rounded-lg border border-dashed px-4 py-8 text-center text-sm text-muted-foreground'>
-                  暂无可用域名（均已加入分组，或尚未在网站管理中添加）。
+                  {t('noAvailable')}
                 </div>
               ) : filteredGroups.length === 0 ? (
                 <div className='rounded-lg border border-dashed px-4 py-8 text-center text-sm text-muted-foreground'>
-                  没有匹配的域名
+                  {t('noMatch')}
                 </div>
               ) : (
                 <div className='max-h-72 space-y-1 overflow-y-auto rounded-lg border p-2'>
@@ -233,7 +235,7 @@ export function MemberAddDialog({
                       disabled={pending}
                       onCheckedChange={toggleAllVisible}
                     />
-                    <span>按顶级域分组</span>
+                    <span>{t('groupByZone')}</span>
                   </label>
 
                   {filteredGroups.map((group) => {
@@ -270,7 +272,9 @@ export function MemberAddDialog({
                               }
                               disabled={pending}
                               onCheckedChange={() => toggleGroup(group)}
-                              aria-label={`选择顶级域 ${group.zoneDomain}`}
+                              aria-label={t('selectZone', {
+                                name: group.zoneDomain,
+                              })}
                               className='ml-1'
                             />
                             <CollapsibleTrigger asChild>
@@ -330,7 +334,7 @@ export function MemberAddDialog({
                                         variant='secondary'
                                         className='shrink-0 text-[10px] font-normal'
                                       >
-                                        顶级域
+                                        {t('zone')}
                                       </Badge>
                                     ) : null}
                                     {checked ? (
@@ -350,7 +354,7 @@ export function MemberAddDialog({
             </div>
           </Field>
           <Field orientation='horizontal'>
-            <FieldLabel htmlFor='cf-member-proxied'>开启橙云代理</FieldLabel>
+            <FieldLabel htmlFor='cf-member-proxied'>{t('proxied')}</FieldLabel>
             <Switch
               id='cf-member-proxied'
               checked={proxied}
@@ -365,7 +369,7 @@ export function MemberAddDialog({
             disabled={pending}
             onClick={() => onOpenChange(false)}
           >
-            取消
+            {tCommon('cancel')}
           </Button>
           <Button
             disabled={pending || selectedIDs.length === 0}
@@ -377,8 +381,8 @@ export function MemberAddDialog({
             }
           >
             {selectedIDs.length > 1
-              ? `添加并同步（${selectedIDs.length}）`
-              : '添加并同步'}
+              ? t('submitCount', { count: selectedIDs.length })
+              : t('submit')}
           </Button>
         </DialogFooter>
       </DialogContent>

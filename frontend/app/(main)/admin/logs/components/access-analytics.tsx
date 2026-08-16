@@ -28,6 +28,7 @@ import {
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from 'recharts';
 
 import services from '@/lib/services';
+import { useTranslations } from 'next-intl';
 import { ErrorInline } from '@/components/layout/error';
 import { LoadingStateWithBorder } from '@/components/layout/loading';
 import { EmptyStateWithBorder } from '@/components/layout/empty';
@@ -65,12 +66,15 @@ interface TopUserData {
   count: number;
 }
 
-const chartConfig = {
-  count: {
-    label: '请求量',
-    color: 'hsl(var(--primary))',
-  },
-} satisfies ChartConfig;
+function useAnalyticsChartConfig() {
+  const t = useTranslations('admin.logs.analytics');
+  return {
+    count: {
+      label: t('requestVolume'),
+      color: 'hsl(var(--primary))',
+    },
+  } satisfies ChartConfig;
+}
 
 // Format YYYY-MM-DD to MM/DD
 function formatDateLabel(dateStr: string) {
@@ -83,6 +87,8 @@ function formatDateLabel(dateStr: string) {
 }
 
 export function AccessAnalytics() {
+  const t = useTranslations('admin.logs.analytics');
+  const chartConfig = useAnalyticsChartConfig();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const [clickhouseDisabled, setClickhouseDisabled] = useState(false);
@@ -109,7 +115,7 @@ export function AccessAnalytics() {
       setClickhouseDisabled(false);
     } catch (err) {
       const errorInstance =
-        err instanceof Error ? err : new Error('获取数据统计失败');
+        err instanceof Error ? err : new Error(t('fetchFailed'));
       const errMsg = errorInstance.message || '';
       if (errMsg.includes('ClickHouse') || errMsg.includes('未启用')) {
         setClickhouseDisabled(true);
@@ -119,7 +125,7 @@ export function AccessAnalytics() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     fetchAnalytics();
@@ -135,11 +141,9 @@ export function AccessAnalytics() {
     return (
       <div className='flex flex-col items-center justify-center p-8 border border-dashed rounded-lg bg-card text-center my-6 min-h-[300px]'>
         <XCircle className='size-10 text-muted-foreground mb-3' />
-        <h3 className='text-base font-semibold'>ClickHouse 未启用</h3>
+        <h3 className='text-base font-semibold'>{t('clickhouseDisabled')}</h3>
         <p className='text-sm text-muted-foreground mt-1 max-w-[400px] mb-4'>
-          当前系统配置未启用 ClickHouse
-          存储，系统不会收集用户访问日志。如需使用此功能，请在后端 `config.yaml`
-          配置文件中配置并启用 ClickHouse。
+          {t('clickhouseDisabledDesc')}
         </p>
       </div>
     );
@@ -153,7 +157,7 @@ export function AccessAnalytics() {
     return (
       <LoadingStateWithBorder
         icon={BarChart3}
-        description='加载访问统计指标中...'
+        description={t('loadingAnalytics')}
       />
     );
   }
@@ -165,7 +169,7 @@ export function AccessAnalytics() {
         <Card className='bg-card/25 border-border/40'>
           <CardHeader className='flex flex-row items-center justify-between pb-2 space-y-0'>
             <CardTitle className='text-sm font-semibold tracking-tight'>
-              近 7 天总请求数
+              {t('totalRequests7d')}
             </CardTitle>
             <TrendingUp className='size-4 text-muted-foreground' />
           </CardHeader>
@@ -174,14 +178,14 @@ export function AccessAnalytics() {
               {totalTrendRequests.toLocaleString()}
             </div>
             <p className='text-[10px] text-muted-foreground mt-1'>
-              系统记录的所有成功认证的访问总频次
+              {t('totalRequests7dDesc')}
             </p>
           </CardContent>
         </Card>
         <Card className='bg-card/25 border-border/40'>
           <CardHeader className='flex flex-row items-center justify-between pb-2 space-y-0'>
             <CardTitle className='text-sm font-semibold tracking-tight'>
-              活跃终端分类数
+              {t('activeBrowserTypes')}
             </CardTitle>
             <Globe className='size-4 text-muted-foreground' />
           </CardHeader>
@@ -190,14 +194,14 @@ export function AccessAnalytics() {
               {browsers.length}
             </div>
             <p className='text-[10px] text-muted-foreground mt-1'>
-              在一周内发起请求的浏览器代理大类统计
+              {t('activeBrowserTypesDesc')}
             </p>
           </CardContent>
         </Card>
         <Card className='bg-card/25 border-border/40 sm:col-span-2 lg:col-span-1'>
           <CardHeader className='flex flex-row items-center justify-between pb-2 space-y-0'>
             <CardTitle className='text-sm font-semibold tracking-tight'>
-              活跃独立用户数
+              {t('activeUsers')}
             </CardTitle>
             <Users className='size-4 text-muted-foreground' />
           </CardHeader>
@@ -206,7 +210,7 @@ export function AccessAnalytics() {
               {topUsers.length}
             </div>
             <p className='text-[10px] text-muted-foreground mt-1'>
-              一周内累计发起高频请求的注册账户总量
+              {t('activeUsersDesc')}
             </p>
           </CardContent>
         </Card>
@@ -217,10 +221,10 @@ export function AccessAnalytics() {
         <CardHeader className='flex flex-row items-center justify-between'>
           <div>
             <CardTitle className='text-base font-bold'>
-              一周访问量趋势
+              {t('weeklyAccessTrend')}
             </CardTitle>
             <CardDescription className='text-xs'>
-              展现系统最近 7 天内的每日 API 请求曲线
+              {t('weeklyAccessTrendDesc')}
             </CardDescription>
           </div>
           <Button
@@ -241,7 +245,7 @@ export function AccessAnalytics() {
           {trend.length === 0 ? (
             <EmptyStateWithBorder
               icon={TrendingUp}
-              description='暂无趋势数据'
+              description={t('noTrendData')}
             />
           ) : (
             <div className='h-[280px] w-full'>
@@ -289,7 +293,7 @@ export function AccessAnalytics() {
                     strokeWidth={2}
                     fillOpacity={1}
                     fill='url(#colorCount)'
-                    name='请求次数'
+                    name={t('requestCount')}
                   />
                 </AreaChart>
               </ChartContainer>
@@ -305,17 +309,17 @@ export function AccessAnalytics() {
           <CardHeader>
             <CardTitle className='text-base font-bold flex items-center gap-1.5'>
               <Globe className='size-4.5 text-muted-foreground' />
-              使用的浏览器排行
+              {t('browserRanking')}
             </CardTitle>
             <CardDescription className='text-xs'>
-              基于请求头 User-Agent 智能分类的一周占比统计
+              {t('browserRankingDesc')}
             </CardDescription>
           </CardHeader>
           <CardContent className='flex-1'>
             {browsers.length === 0 ? (
               <EmptyStateWithBorder
                 icon={Globe}
-                description='暂无浏览器排行数据'
+                description={t('noBrowserData')}
               />
             ) : (
               <div className='space-y-4'>
@@ -337,8 +341,10 @@ export function AccessAnalytics() {
                           <span className='font-semibold'>{item.browser}</span>
                         </span>
                         <span className='text-muted-foreground font-mono text-xs'>
-                          {item.count.toLocaleString()} 次 ({percent.toFixed(1)}
-                          %)
+                          {t('countTimes', {
+                            count: item.count.toLocaleString(),
+                            percent: percent.toFixed(1),
+                          })}
                         </span>
                       </div>
                       <div className='h-2 w-full rounded-full bg-muted overflow-hidden'>
@@ -360,17 +366,17 @@ export function AccessAnalytics() {
           <CardHeader>
             <CardTitle className='text-base font-bold flex items-center gap-1.5'>
               <Users className='size-4.5 text-muted-foreground' />
-              最活跃的用户排行 (Top 10)
+              {t('topActiveUsers')}
             </CardTitle>
             <CardDescription className='text-xs'>
-              统计最近一周发起接口访问请求数量最多的账户
+              {t('topActiveUsersDesc')}
             </CardDescription>
           </CardHeader>
           <CardContent className='flex-1'>
             {topUsers.length === 0 ? (
               <EmptyStateWithBorder
                 icon={Users}
-                description='暂无活跃用户数据'
+                description={t('noActiveUsersData')}
               />
             ) : (
               <div className='divide-y divide-border/40'>
@@ -385,10 +391,13 @@ export function AccessAnalytics() {
                       </div>
                       <div className='truncate max-w-[180px] sm:max-w-xs'>
                         <div className='text-xs font-bold leading-tight truncate'>
-                          {user.username || '未知'}
+                          {user.username || t('unknown')}
                         </div>
                         <div className='text-[10px] text-muted-foreground leading-normal truncate'>
-                          {user.nickname ? `(${user.nickname})` : '(无昵称)'} |
+                          {user.nickname
+                            ? `(${user.nickname})`
+                            : t('noNickname')}{' '}
+                          |
                           ID: {user.user_id}
                         </div>
                       </div>
@@ -398,7 +407,7 @@ export function AccessAnalytics() {
                         {user.count.toLocaleString()}
                       </div>
                       <div className='text-[9px] text-muted-foreground uppercase font-bold tracking-wider'>
-                        次请求
+                        {t('requests')}
                       </div>
                     </div>
                   </div>

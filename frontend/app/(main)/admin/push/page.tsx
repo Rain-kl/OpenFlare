@@ -6,6 +6,7 @@
 import * as React from 'react';
 import { motion } from 'motion/react';
 import { Bell, History, Layers, Settings } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { EventsTab } from './components/events-tab';
@@ -13,6 +14,7 @@ import { HistoriesTab } from './components/histories-tab';
 import { SettingsTab } from './components/settings-tab';
 
 export default function PushAdminPage() {
+  const t = useTranslations('admin.push');
   const [activeTab, setActiveTab] = React.useState('events');
 
   return (
@@ -26,7 +28,7 @@ export default function PushAdminPage() {
         <Bell className='size-5 text-primary' />
         <div>
           <h1 className='text-2xl font-semibold tracking-tight'>
-            通知推送管理
+            {t('pageTitle')}
           </h1>
         </div>
       </div>
@@ -38,21 +40,21 @@ export default function PushAdminPage() {
             className='px-0 pb-2 text-xs font-semibold'
           >
             <Layers className='size-3.5 mr-1' />
-            事件管理
+            {t('eventsTab')}
           </TabsTrigger>
           <TabsTrigger
             value='histories'
             className='px-0 pb-2 text-xs font-semibold'
           >
             <History className='size-3.5 mr-1' />
-            通知历史
+            {t('historiesTab')}
           </TabsTrigger>
           <TabsTrigger
             value='settings'
             className='px-0 pb-2 text-xs font-semibold'
           >
             <Settings className='size-3.5 mr-1' />
-            通道管理与设置
+            {t('settingsTab')}
           </TabsTrigger>
         </TabsList>
 

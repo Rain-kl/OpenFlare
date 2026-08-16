@@ -11,6 +11,8 @@ import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import type { ZoneDomainItem, ZoneItem } from '@/lib/services/openflare';
 
+import { useTranslations } from 'next-intl';
+
 import { QuickCreateZoneDomainDialog } from '../../websites/components/quick-create-zone-domain-dialog';
 
 export interface ZoneDomainSelectorProps {
@@ -36,6 +38,7 @@ export function ZoneDomainSelector({
   className,
   onDomainCreated,
 }: ZoneDomainSelectorProps) {
+  const t = useTranslations('proxyRoutes');
   const [keyword, setKeyword] = useState('');
   const [createOpen, setCreateOpen] = useState(false);
   const selected = useMemo(() => new Set(value), [value]);
@@ -97,7 +100,7 @@ export function ZoneDomainSelector({
         <Input
           value={keyword}
           onChange={(event) => setKeyword(event.target.value)}
-          placeholder='搜索域名或 Zone…'
+          placeholder={t('searchDomainOrZone')}
           disabled={disabled}
           className='sm:flex-1'
         />
@@ -110,27 +113,27 @@ export function ZoneDomainSelector({
           onClick={() => setCreateOpen(true)}
         >
           <Plus className='mr-1 size-3.5' />
-          快捷新增域名
+          {t('quickAddDomain')}
         </Button>
       </div>
 
       {filtered.length === 0 ? (
         <div className='rounded-lg border border-dashed px-4 py-8 text-center text-sm text-muted-foreground'>
           {domains.length === 0 ? (
-            <>
-              暂无可用 Zone 域名。请先在{' '}
-              <Link
-                href='/websites'
-                className='text-primary underline-offset-4 hover:underline'
-              >
-                网站管理
-              </Link>{' '}
-              中添加 FQDN，或使用「快捷新增域名」。
-            </>
+            t.rich('noZoneDomains', {
+              websites: (chunks) => (
+                <Link
+                  href='/websites'
+                  className='text-primary underline-offset-4 hover:underline'
+                >
+                  {chunks}
+                </Link>
+              ),
+            })
           ) : availableDomains.length === 0 ? (
-            '没有可绑定的域名（其余域名已绑定其他路由）。可用「快捷新增域名」创建。'
+            t('noBindableDomains')
           ) : (
-            '没有匹配的域名'
+            t('noMatchingDomains')
           )}
         </div>
       ) : (
@@ -160,11 +163,11 @@ export function ZoneDomainSelector({
                     </span>
                     {domain.cert_id ? (
                       <Badge variant='secondary' className='text-[10px]'>
-                        证书 #{domain.cert_id}
+                        {t('certNumber', { id: domain.cert_id })}
                       </Badge>
                     ) : (
                       <Badge variant='outline' className='text-[10px]'>
-                        无证书
+                        {t('noCert')}
                       </Badge>
                     )}
                   </span>
@@ -175,11 +178,11 @@ export function ZoneDomainSelector({
                         className='inline-flex items-center gap-0.5 hover:text-foreground'
                         onClick={(event) => event.stopPropagation()}
                       >
-                        Zone {zoneRoot}
+                        {t('zoneName', { name: zoneRoot })}
                         <ExternalLink className='size-3' />
                       </Link>
                     ) : (
-                      <span>Zone #{domain.zone_id}</span>
+                      <span>{t('zoneId', { id: domain.zone_id })}</span>
                     )}
                   </span>
                 </span>

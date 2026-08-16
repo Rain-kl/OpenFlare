@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ChevronDown, ChevronRight, Rocket, Upload } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 
 import { EmptyStateWithBorder } from '@/components/layout/empty';
@@ -43,18 +44,27 @@ import {
 } from '../../components/pages-utils';
 import { DeploymentFilesPanel } from './deployment-files-panel';
 
-const SOURCE_LABELS: Record<PagesDeployment['source_type'], string> = {
-  manual_upload: '本地上传',
-  manual_url: 'URL 导入',
-  remote_url: 'Remote URL',
-  github_release: 'GitHub',
+const SOURCE_LABEL_KEYS: Record<
+  PagesDeployment['source_type'],
+  'history.source.manual_upload' | 'history.source.manual_url' | null
+> = {
+  manual_upload: 'history.source.manual_upload',
+  manual_url: 'history.source.manual_url',
+  remote_url: null,
+  github_release: null,
 };
 
-const TRIGGER_LABELS: Record<PagesDeployment['trigger_type'], string> = {
-  manual_upload: '手动上传',
-  manual_url: '手动导入',
-  manual_sync: '手动同步',
-  scheduled_auto_update: '定时更新',
+const TRIGGER_LABEL_KEYS: Record<
+  PagesDeployment['trigger_type'],
+  | 'history.trigger.manual_upload'
+  | 'history.trigger.manual_url'
+  | 'history.trigger.manual_sync'
+  | 'history.trigger.scheduled_auto_update'
+> = {
+  manual_upload: 'history.trigger.manual_upload',
+  manual_url: 'history.trigger.manual_url',
+  manual_sync: 'history.trigger.manual_sync',
+  scheduled_auto_update: 'history.trigger.scheduled_auto_update',
 };
 
 interface DeploymentHistoryProps {
@@ -76,27 +86,47 @@ function isActiveDeployment(
   return deployment.id === activeDeploymentId || deployment.status === 'active';
 }
 
-function deploymentSnapshot(deployment: PagesDeployment) {
+function sourceLabel(
+  type: PagesDeployment['source_type'],
+  t: (key: string) => string,
+) {
+  const key = SOURCE_LABEL_KEYS[type];
+  if (key) return t(key);
+  return type === 'remote_url' ? 'Remote URL' : 'GitHub';
+}
+
+function deploymentSnapshot(
+  deployment: PagesDeployment,
+  t: (key: string) => string,
+) {
   return [
-    SOURCE_LABELS[deployment.source_type],
+    sourceLabel(deployment.source_type, t),
     deployment.source_label,
-    TRIGGER_LABELS[deployment.trigger_type],
+    t(TRIGGER_LABEL_KEYS[deployment.trigger_type]),
   ]
     .filter(Boolean)
     .join(' · ');
 }
 
 function DeploymentMeta({ deployment }: { deployment: PagesDeployment }) {
+  const t = useTranslations('pages');
   return (
     <>
       <p className='truncate text-xs text-muted-foreground'>
-        {deployment.checksum.slice(0, 16)} · {deployment.file_count} 个文件 ·{' '}
+        {t('history.fileMeta', {
+          checksum: deployment.checksum.slice(0, 16),
+          count: deployment.file_count,
+        })}
         {formatBytes(deployment.total_size)}
       </p>
       <p className='text-xs text-muted-foreground'>
-        创建于 {formatDateTime(deployment.created_at)}
+        {t('history.createdAt', {
+          time: formatDateTime(deployment.created_at),
+        })}
         {deployment.activated_at
-          ? ` · 激活于 ${formatDateTime(deployment.activated_at)}`
+          ? t('history.activatedAt', {
+              time: formatDateTime(deployment.activated_at),
+            })
           : ''}
       </p>
     </>
@@ -126,6 +156,7 @@ function DeploymentRow({
   onDelete,
   projectId,
 }: DeploymentRowProps) {
+  const t = useTranslations('pages');
   return (
     <div
       className={cn(
@@ -139,7 +170,9 @@ function DeploymentRow({
             type='button'
             variant='ghost'
             size='icon-sm'
-            aria-label={expanded ? '收起文件清单' : '展开文件清单'}
+            aria-label={
+              expanded ? t('history.collapseFiles') : t('history.expandFiles')
+            }
             onClick={onToggleExpand}
           >
             {expanded ? <ChevronDown /> : <ChevronRight />}
@@ -147,10 +180,12 @@ function DeploymentRow({
           <div className='flex min-w-0 flex-col gap-2'>
             <div className='flex flex-wrap items-center gap-2'>
               <span className='text-sm font-medium'>
-                部署 #{deployment.deployment_number}
+                {t('history.deploymentNumber', {
+                  number: deployment.deployment_number,
+                })}
               </span>
               <Badge variant='secondary'>
-                {deploymentSnapshot(deployment)}
+                {deploymentSnapshot(deployment, (key) => t(key))}
               </Badge>
             </div>
             <DeploymentMeta deployment={deployment} />
@@ -165,7 +200,7 @@ function DeploymentRow({
               disabled={active || actionPending}
               onClick={onActivate}
             >
-              激活
+              {t('history.activate')}
             </Button>
             <Button
               type='button'
@@ -174,7 +209,7 @@ function DeploymentRow({
               disabled={active || actionPending}
               onClick={onDelete}
             >
-              删除
+              {t('history.delete')}
             </Button>
           </div>
         ) : null}
@@ -195,6 +230,8 @@ export function DeploymentHistory({
   rootDir = '',
   entryFile = 'index.html',
 }: DeploymentHistoryProps) {
+  const t = useTranslations('pages');
+  const tCommon = useTranslations('common');
   const queryClient = useQueryClient();
   const [uploadOpen, setUploadOpen] = useState(false);
   const [expandedDeploymentId, setExpandedDeploymentId] = useState<
@@ -240,12 +277,12 @@ export function DeploymentHistory({
     mutationFn: (deploymentId: number) =>
       PagesService.activateDeployment(projectId, deploymentId),
     onSuccess: async () => {
-      toast.success('历史部署已激活；自动更新（如已开启）已关闭');
+      toast.success(t('history.activated'));
       await invalidateDeploymentState();
       setPendingAction(null);
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : '激活失败');
+      toast.error(error instanceof Error ? error.message : t('history.activateFailed'));
     },
   });
 
@@ -253,7 +290,7 @@ export function DeploymentHistory({
     mutationFn: (deploymentId: number) =>
       PagesService.deleteDeployment(projectId, deploymentId),
     onSuccess: async (_, deploymentId) => {
-      toast.success('部署已删除');
+      toast.success(t('history.deleted'));
       queryClient.removeQueries({
         queryKey: deploymentFilesQueryKey(projectId, deploymentId),
       });
@@ -261,7 +298,7 @@ export function DeploymentHistory({
       setPendingAction(null);
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : '删除失败');
+      toast.error(error instanceof Error ? error.message : t('history.deleteFailed'));
     },
   });
 
@@ -284,16 +321,22 @@ export function DeploymentHistory({
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {pendingAction?.type === 'activate' ? '激活历史部署' : '删除部署'}
+              {pendingAction?.type === 'activate'
+                ? t('history.activateTitle')
+                : t('history.deleteTitle')}
             </AlertDialogTitle>
             <AlertDialogDescription>
               {pendingAction?.type === 'activate'
-                ? '激活其它历史部署会终止当前来源任务；若已开启自动更新，将同时关闭自动更新。'
-                : `确认删除部署 #${pendingAction?.deployment.deployment_number} 吗？此操作不可恢复。`}
+                ? t('history.activateDesc')
+                : t('history.deleteDesc', {
+                    number: pendingAction?.deployment.deployment_number ?? 0,
+                  })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={actionPending}>取消</AlertDialogCancel>
+            <AlertDialogCancel disabled={actionPending}>
+              {tCommon('cancel')}
+            </AlertDialogCancel>
             <AlertDialogAction
               disabled={actionPending}
               onClick={(event) => {
@@ -307,7 +350,7 @@ export function DeploymentHistory({
               }}
             >
               {actionPending ? <Spinner data-icon='inline-start' /> : null}
-              确认
+              {t('history.confirm')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -326,7 +369,7 @@ export function DeploymentHistory({
   if (deploymentsQuery.isLoading) {
     return (
       <>
-        <LoadingStateWithBorder description='加载部署历史...' />
+        <LoadingStateWithBorder description={t('history.loading')} />
         {dialogs}
       </>
     );
@@ -340,7 +383,7 @@ export function DeploymentHistory({
             message={
               deploymentsQuery.error instanceof Error
                 ? deploymentsQuery.error.message
-                : '部署历史加载失败'
+                : t('history.loadFailed')
             }
             onRetry={() => void deploymentsQuery.refetch()}
           />
@@ -356,7 +399,7 @@ export function DeploymentHistory({
         <CardHeader className='pb-3'>
           <CardTitle className='text-base'>Production</CardTitle>
           <CardDescription>
-            当前对外生效的生产部署；切换激活状态后会立即生效。
+            {t('history.productionHint')}
           </CardDescription>
           <CardAction>
             <Button
@@ -366,7 +409,7 @@ export function DeploymentHistory({
               onClick={() => setUploadOpen(true)}
             >
               <Upload data-icon='inline-start' />
-              手动上传
+              {t('history.manualUpload')}
             </Button>
           </CardAction>
         </CardHeader>
@@ -386,8 +429,8 @@ export function DeploymentHistory({
           ) : (
             <EmptyStateWithBorder
               icon={Rocket}
-              title='暂无 Production 部署'
-              description='上传本地部署包，或配置 Remote URL / GitHub Release 来源后同步发布。'
+              title={t('history.emptyProductionTitle')}
+              description={t('history.emptyProductionDesc')}
             />
           )}
         </CardContent>
@@ -397,14 +440,14 @@ export function DeploymentHistory({
         <CardHeader className='pb-3'>
           <CardTitle className='text-base'>All deployments</CardTitle>
           <CardDescription>
-            部署记录不可变，来源信息是创建部署时的安全快照。可从历史部署激活或删除。
+            {t('history.historyHint')}
           </CardDescription>
         </CardHeader>
         <CardContent className='space-y-3'>
           {allDeployments.length === 0 ? (
             <EmptyStateWithBorder
-              title='暂无部署'
-              description='上传本地部署包，或配置 Remote URL / GitHub Release 来源后同步发布。'
+              title={t('history.emptyTitle')}
+              description={t('history.emptyDesc')}
             />
           ) : (
             allDeployments.map((deployment) => {

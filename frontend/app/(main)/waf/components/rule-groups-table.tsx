@@ -1,6 +1,7 @@
 'use client';
 
 import { Globe2, Pencil, ShieldCheck, Trash2 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -26,17 +27,20 @@ export function RuleGroupsTable({
   onEdit,
   onDelete,
 }: RuleGroupsTableProps) {
+  const t = useTranslations('waf');
   return (
     <Table>
       <TableHeader>
         <TableRow>
-          <TableHead>名称</TableHead>
-          <TableHead>类型</TableHead>
-          <TableHead>状态</TableHead>
-          <TableHead>节点数</TableHead>
-          <TableHead>应用范围</TableHead>
-          <TableHead>更新时间</TableHead>
-          <TableHead className='w-[88px] text-right'>操作</TableHead>
+          <TableHead>{t('columns.name')}</TableHead>
+          <TableHead>{t('columns.type')}</TableHead>
+          <TableHead>{t('columns.status')}</TableHead>
+          <TableHead>{t('columns.nodeCount')}</TableHead>
+          <TableHead>{t('columns.scope')}</TableHead>
+          <TableHead>{t('columns.updatedAt')}</TableHead>
+          <TableHead className='w-[88px] text-right'>
+            {t('columns.actions')}
+          </TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -54,19 +58,19 @@ export function RuleGroupsTable({
             </TableCell>
             <TableCell>
               <Badge variant='outline'>
-                {group.is_global ? '全局' : '自定义'}
+                {group.is_global ? t('global') : t('custom')}
               </Badge>
             </TableCell>
             <TableCell>
               <Badge variant={group.enabled ? 'default' : 'secondary'}>
-                {group.enabled ? '启用' : '停用'}
+                {group.enabled ? t('enable') : t('disable')}
               </Badge>
             </TableCell>
             <TableCell>{group.graph.nodes.length}</TableCell>
             <TableCell>
               {group.is_global
-                ? '全部网站'
-                : `${group.applied_site_count} 个网站`}
+                ? t('allSites')
+                : t('siteCount', { count: group.applied_site_count })}
             </TableCell>
             <TableCell className='text-sm text-muted-foreground'>
               {group.updated_at ? formatDateTime(group.updated_at) : '—'}
@@ -78,8 +82,8 @@ export function RuleGroupsTable({
                   variant='ghost'
                   size='icon'
                   className='size-8'
-                  title='编排'
-                  aria-label='编排'
+                  title={t('actions.compose')}
+                  aria-label={t('actions.compose')}
                   onClick={() => onEdit(group)}
                 >
                   <Pencil />
@@ -90,8 +94,8 @@ export function RuleGroupsTable({
                     variant='ghost'
                     size='icon'
                     className='size-8 text-destructive hover:text-destructive'
-                    title='删除'
-                    aria-label='删除'
+                    title={t('actions.delete')}
+                    aria-label={t('actions.delete')}
                     onClick={() => onDelete(group)}
                   >
                     <Trash2 />

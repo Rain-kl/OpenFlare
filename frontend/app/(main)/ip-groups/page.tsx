@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Loader2, Network, Plus, RefreshCw } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { toast } from 'sonner';
 
@@ -46,6 +47,8 @@ import { IPGroupsTable } from '../waf/components/ip-groups-table';
 const ipGroupsQueryKey = ['openflare', 'waf', 'ip-groups'];
 
 export default function WafIPGroupsPage() {
+  const t = useTranslations('ipGroups');
+  const tCommon = useTranslations('common');
   const queryClient = useQueryClient();
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingGroup, setEditingGroup] = useState<WAFIPGroup | null>(null);
@@ -90,25 +93,25 @@ export default function WafIPGroupsPage() {
       return WafService.createIPGroup(payload);
     },
     onSuccess: async () => {
-      toast.success(editingGroup ? 'IP 组已更新' : 'IP 组已创建');
+      toast.success(editingGroup ? t('updated') : t('created'));
       setEditingGroup(null);
       setEditorOpen(false);
       await invalidate();
     },
     onError: (error) => {
-      toast.error(getErrorMessage(error));
+      toast.error(getErrorMessage(error, t('operationFailed')));
     },
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => WafService.deleteIPGroup(id),
     onSuccess: async () => {
-      toast.success('IP 组已删除');
+      toast.success(t('deleted'));
       setDeleteTarget(null);
       await invalidate();
     },
     onError: (error) => {
-      toast.error(getErrorMessage(error));
+      toast.error(getErrorMessage(error, t('operationFailed')));
     },
   });
 
@@ -118,11 +121,11 @@ export default function WafIPGroupsPage() {
       setSyncingId(id);
     },
     onSuccess: async (result) => {
-      toast.success(result.message || '同步完成');
+      toast.success(result.message || t('synced'));
       await invalidate();
     },
     onError: (error) => {
-      toast.error(getErrorMessage(error));
+      toast.error(getErrorMessage(error, t('operationFailed')));
     },
     onSettled: () => {
       setSyncingId(null);
@@ -147,12 +150,12 @@ export default function WafIPGroupsPage() {
       setRemovingIp(ip);
     },
     onSuccess: async (updatedGroup) => {
-      toast.success('IP 已移除');
+      toast.success(t('ipRemoved'));
       setViewingGroup(updatedGroup);
       await invalidate();
     },
     onError: (error) => {
-      toast.error(getErrorMessage(error));
+      toast.error(getErrorMessage(error, t('operationFailed')));
     },
     onSettled: () => {
       setRemovingIp(null);
@@ -164,19 +167,20 @@ export default function WafIPGroupsPage() {
       WafService.testIPGroup({
         auto_config: parseAutomaticConfig(
           JSON.stringify(group.auto_config ?? {}, null, 2),
+          t('autoConfigMustBeObject'),
         ),
       }),
     onSuccess: (result) => {
       setTestResult(result);
       toast.success(
         result.matched_count > 0
-          ? `规则测试完成，命中 ${result.matched_count} 个 IP`
-          : '规则测试完成，当前未命中任何 IP',
+          ? t('testHit', { count: result.matched_count })
+          : t('testMiss'),
       );
     },
     onError: (error) => {
       setTestResult(null);
-      toast.error(getErrorMessage(error));
+      toast.error(getErrorMessage(error, t('operationFailed')));
     },
   });
 
@@ -219,7 +223,7 @@ export default function WafIPGroupsPage() {
       <div className='flex items-center justify-between gap-3'>
         <div className='flex items-center gap-2'>
           <Network className='size-5 text-primary' />
-          <h1 className='text-2xl font-semibold tracking-tight'>IP 组</h1>
+          <h1 className='text-2xl font-semibold tracking-tight'>{t('title')}</h1>
         </div>
         <div className='flex items-center gap-2'>
           <Button
@@ -229,7 +233,7 @@ export default function WafIPGroupsPage() {
             onClick={handleCreate}
           >
             <Plus className='size-3.5 mr-1' />
-            新建 IP 组
+            {t('create')}
           </Button>
         </div>
       </div>
@@ -239,11 +243,9 @@ export default function WafIPGroupsPage() {
           <div className='flex items-center justify-between gap-3'>
             <div>
               <CardTitle className='text-base font-semibold'>
-                IP 组列表
+                {t('listTitle')}
               </CardTitle>
-              <CardDescription>
-                维护可被 WAF IP 黑白名单引用的手动、自动与订阅 IP 集合。
-              </CardDescription>
+              <CardDescription>{t('listDesc')}</CardDescription>
             </div>
             <Button
               variant='outline'
@@ -257,7 +259,7 @@ export default function WafIPGroupsPage() {
               ) : (
                 <RefreshCw className='size-3.5 mr-1' />
               )}
-              刷新
+              {t('refresh')}
             </Button>
           </div>
         </CardHeader>
@@ -265,12 +267,12 @@ export default function WafIPGroupsPage() {
           {groupsQuery.isLoading ? (
             <LoadingStateWithBorder
               icon={Network}
-              description='加载 IP 组中...'
+              description={t('loading')}
             />
           ) : groupsQuery.isError ? (
             <div className='p-8 border border-dashed rounded-lg'>
               <ErrorInline
-                message={getErrorMessage(groupsQuery.error)}
+                message={getErrorMessage(groupsQuery.error, t('operationFailed'))}
                 onRetry={handleRefresh}
                 className='justify-center'
               />
@@ -278,7 +280,7 @@ export default function WafIPGroupsPage() {
           ) : groups.length === 0 ? (
             <EmptyStateWithBorder
               icon={Network}
-              description='暂无 IP 组，请先创建一个。'
+              description={t('empty')}
             />
           ) : (
             <IPGroupsTable
@@ -334,14 +336,14 @@ export default function WafIPGroupsPage() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>确认删除 IP 组</AlertDialogTitle>
+            <AlertDialogTitle>{t('deleteTitle')}</AlertDialogTitle>
             <AlertDialogDescription>
-              确认删除 IP 组「{deleteTarget?.name}」吗？删除后无法恢复。
+              {t('deleteDesc', { name: deleteTarget?.name ?? '' })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={deleteMutation.isPending}>
-              取消
+              {tCommon('cancel')}
             </AlertDialogCancel>
             <AlertDialogAction
               className='bg-destructive text-white hover:bg-destructive/90'
@@ -350,7 +352,7 @@ export default function WafIPGroupsPage() {
                 deleteTarget && deleteMutation.mutate(deleteTarget.id)
               }
             >
-              {deleteMutation.isPending ? '删除中...' : '确认删除'}
+              {deleteMutation.isPending ? t('deleting') : t('confirmDelete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

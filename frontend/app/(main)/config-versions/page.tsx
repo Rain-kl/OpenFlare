@@ -10,6 +10,7 @@ import {
   RefreshCw,
   Trash2,
 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 
 import { EmptyStateWithBorder } from '@/components/layout/empty';
@@ -68,6 +69,8 @@ function hasConfigDiff(diff: ConfigDiffResult) {
 }
 
 export default function ConfigVersionsPage() {
+  const t = useTranslations('configVersions');
+  const tc = useTranslations('common');
   const [versions, setVersions] = useState<ConfigVersionSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -121,11 +124,11 @@ export default function ConfigVersionsPage() {
       const data = await ConfigVersionService.list();
       setVersions(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : '加载失败');
+      setError(err instanceof Error ? err.message : t('loadFailed'));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     void fetchVersions();
@@ -145,7 +148,7 @@ export default function ConfigVersionsPage() {
       setPreview(previewData);
       setDiff(diffData);
     } catch (err) {
-      const message = err instanceof Error ? err.message : '加载预览失败';
+      const message = err instanceof Error ? err.message : t('previewLoadFailed');
       setPreviewError(message);
       setDiffError(message);
     } finally {
@@ -170,7 +173,7 @@ export default function ConfigVersionsPage() {
         const diffData = await ConfigVersionService.diff();
         setDiff(diffData);
       } catch (err) {
-        setDiffError(err instanceof Error ? err.message : '加载差异失败');
+        setDiffError(err instanceof Error ? err.message : t('diffLoadFailed'));
       } finally {
         setDiffLoading(false);
       }
@@ -181,7 +184,9 @@ export default function ConfigVersionsPage() {
     setPublishing(true);
     try {
       const version = await ConfigVersionService.publish(force);
-      toast.success('发布成功', { description: `版本 ${version.version}` });
+      toast.success(t('publishSuccess'), {
+        description: t('publishSuccessDesc', { version: version.version }),
+      });
       setPreviewOpen(false);
       setPublishConfirmOpen(false);
       setForcePublishConfirmOpen(false);
@@ -189,8 +194,8 @@ export default function ConfigVersionsPage() {
       setDiff(null);
       await fetchVersions();
     } catch (err) {
-      toast.error('发布失败', {
-        description: err instanceof Error ? err.message : '未知错误',
+      toast.error(t('publishFailed'), {
+        description: err instanceof Error ? err.message : t('unknownError'),
       });
     } finally {
       setPublishing(false);
@@ -203,12 +208,14 @@ export default function ConfigVersionsPage() {
     setActivating(true);
     try {
       const version = await ConfigVersionService.activate(activateTarget.id);
-      toast.success('激活成功', { description: `版本 ${version.version}` });
+      toast.success(t('activateSuccess'), {
+        description: t('activateSuccessDesc', { version: version.version }),
+      });
       setActivateTarget(null);
       await fetchVersions();
     } catch (err) {
-      toast.error('激活失败', {
-        description: err instanceof Error ? err.message : '未知错误',
+      toast.error(t('activateFailed'), {
+        description: err instanceof Error ? err.message : t('unknownError'),
       });
     } finally {
       setActivating(false);
@@ -221,14 +228,14 @@ export default function ConfigVersionsPage() {
       const result = await ConfigVersionService.cleanup({
         keep_count: keepCount,
       });
-      toast.success('清理完成', {
-        description: `已删除 ${result.deleted_count} 个历史快照`,
+      toast.success(t('cleanupDone'), {
+        description: t('cleanupDoneDesc', { count: result.deleted_count }),
       });
       setCleanupOpen(false);
       await fetchVersions();
     } catch (err) {
-      toast.error('清理失败', {
-        description: err instanceof Error ? err.message : '未知错误',
+      toast.error(t('cleanupFailed'), {
+        description: err instanceof Error ? err.message : t('unknownError'),
       });
     } finally {
       setCleaning(false);
@@ -241,10 +248,10 @@ export default function ConfigVersionsPage() {
         <div className='flex items-center gap-2'>
           <History className='size-5 text-primary' />
           <div>
-            <h1 className='text-2xl font-semibold tracking-tight'>配置版本</h1>
-            <p className='text-sm text-muted-foreground'>
-              查看历史快照、预览待发布配置差异，并在需要时重新激活旧版本。
-            </p>
+            <h1 className='text-2xl font-semibold tracking-tight'>
+              {t('title')}
+            </h1>
+            <p className='text-sm text-muted-foreground'>{t('description')}</p>
           </div>
         </div>
 
@@ -258,7 +265,7 @@ export default function ConfigVersionsPage() {
             <RefreshCw
               className={`size-3.5 mr-1 ${loading ? 'animate-spin' : ''}`}
             />
-            刷新
+            {t('refresh')}
           </Button>
           <Button
             variant='outline'
@@ -266,7 +273,7 @@ export default function ConfigVersionsPage() {
             onClick={() => setCleanupOpen(true)}
           >
             <Trash2 className='size-3.5 mr-1' />
-            清理旧版本
+            {t('cleanupOld')}
           </Button>
           <Button
             variant='outline'
@@ -274,18 +281,18 @@ export default function ConfigVersionsPage() {
             onClick={() => void handleOpenDiff()}
           >
             <GitCompare className='size-3.5 mr-1' />
-            查看差异
+            {t('viewDiff')}
           </Button>
           <Button
             variant='outline'
             size='sm'
             onClick={() => setForcePublishConfirmOpen(true)}
           >
-            强制发布
+            {t('forcePublish')}
           </Button>
           <Button size='sm' onClick={() => void handleOpenPreview()}>
             <Eye className='size-3.5 mr-1' />
-            预览并发布
+            {t('previewPublish')}
           </Button>
         </div>
       </div>
@@ -299,24 +306,30 @@ export default function ConfigVersionsPage() {
           <LoadingStateWithBorder />
         ) : sortedVersions.length === 0 ? (
           <EmptyStateWithBorder
-            title='暂无历史版本'
-            description='当前还没有可查看的发布记录，请先触发一次配置发布。'
+            title={t('emptyTitle')}
+            description={t('emptyDesc')}
           />
         ) : (
           <Table>
             <TableHeader className='bg-muted/40'>
               <TableRow className='border-dashed hover:bg-transparent'>
-                <TableHead className='text-xs font-semibold'>版本号</TableHead>
-                <TableHead className='text-xs font-semibold'>状态</TableHead>
-                <TableHead className='text-xs font-semibold'>创建人</TableHead>
                 <TableHead className='text-xs font-semibold'>
-                  Checksum
+                  {t('colVersion')}
                 </TableHead>
                 <TableHead className='text-xs font-semibold'>
-                  创建时间
+                  {t('colStatus')}
+                </TableHead>
+                <TableHead className='text-xs font-semibold'>
+                  {t('colAuthor')}
+                </TableHead>
+                <TableHead className='text-xs font-semibold'>
+                  {t('colChecksum')}
+                </TableHead>
+                <TableHead className='text-xs font-semibold'>
+                  {t('colCreatedAt')}
                 </TableHead>
                 <TableHead className='text-xs font-semibold text-right'>
-                  操作
+                  {t('colActions')}
                 </TableHead>
               </TableRow>
             </TableHeader>
@@ -336,19 +349,19 @@ export default function ConfigVersionsPage() {
                         className='text-[10px] bg-emerald-500/10 border-emerald-500/20 text-emerald-600 rounded-full py-0 px-2'
                       >
                         <span className='size-1 bg-emerald-500 rounded-full mr-1.5 shrink-0' />
-                        当前激活
+                        {t('active')}
                       </Badge>
                     ) : (
                       <Badge
                         variant='outline'
                         className='text-[10px] rounded-full py-0 px-2'
                       >
-                        历史版本
+                        {t('history')}
                       </Badge>
                     )}
                   </TableCell>
                   <TableCell className='text-xs text-muted-foreground'>
-                    {version.created_by || '系统'}
+                    {version.created_by || t('system')}
                   </TableCell>
                   <TableCell
                     className='text-xs font-mono text-muted-foreground'
@@ -371,7 +384,7 @@ export default function ConfigVersionsPage() {
                         }}
                       >
                         <Eye className='size-3 mr-1' />
-                        快照
+                        {t('snapshot')}
                       </Button>
                       {!version.is_active ? (
                         <Button
@@ -381,7 +394,7 @@ export default function ConfigVersionsPage() {
                           onClick={() => setActivateTarget(version)}
                         >
                           <Play className='size-3 mr-1' />
-                          激活
+                          {t('activate')}
                         </Button>
                       ) : null}
                     </div>
@@ -431,13 +444,15 @@ export default function ConfigVersionsPage() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>确认发布配置</AlertDialogTitle>
+            <AlertDialogTitle>{t('confirmPublishTitle')}</AlertDialogTitle>
             <AlertDialogDescription>
-              将把当前待发布配置生成新版本并设为激活版本，节点将随后拉取更新。
+              {t('confirmPublishDesc')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={publishing}>取消</AlertDialogCancel>
+            <AlertDialogCancel disabled={publishing}>
+              {tc('cancel')}
+            </AlertDialogCancel>
             <Button
               onClick={() => void handlePublish(false)}
               disabled={publishing}
@@ -445,7 +460,7 @@ export default function ConfigVersionsPage() {
               {publishing ? (
                 <Loader2 className='size-4 animate-spin' />
               ) : (
-                '确认发布'
+                t('confirmPublish')
               )}
             </Button>
           </AlertDialogFooter>
@@ -458,13 +473,15 @@ export default function ConfigVersionsPage() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>确认强制发布</AlertDialogTitle>
+            <AlertDialogTitle>{t('confirmForceTitle')}</AlertDialogTitle>
             <AlertDialogDescription>
-              将忽略配置变化检查并立即生成一个新版本，请确认你确实需要重新发布。
+              {t('confirmForceDesc')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={publishing}>取消</AlertDialogCancel>
+            <AlertDialogCancel disabled={publishing}>
+              {tc('cancel')}
+            </AlertDialogCancel>
             <Button
               variant='destructive'
               onClick={() => void handlePublish(true)}
@@ -473,7 +490,7 @@ export default function ConfigVersionsPage() {
               {publishing ? (
                 <Loader2 className='size-4 animate-spin' />
               ) : (
-                '强制发布'
+                t('forcePublish')
               )}
             </Button>
           </AlertDialogFooter>
@@ -488,20 +505,22 @@ export default function ConfigVersionsPage() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>确认激活版本</AlertDialogTitle>
+            <AlertDialogTitle>{t('confirmActivateTitle')}</AlertDialogTitle>
             <AlertDialogDescription>
               {activateTarget
-                ? `确认将版本 ${activateTarget.version} 设为当前激活版本吗？`
+                ? t('confirmActivateDesc', { version: activateTarget.version })
                 : ''}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={activating}>取消</AlertDialogCancel>
+            <AlertDialogCancel disabled={activating}>
+              {tc('cancel')}
+            </AlertDialogCancel>
             <Button onClick={() => void handleActivate()} disabled={activating}>
               {activating ? (
                 <Loader2 className='size-4 animate-spin' />
               ) : (
-                '确认激活'
+                t('confirmActivate')
               )}
             </Button>
           </AlertDialogFooter>

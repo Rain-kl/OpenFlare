@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Loader2, Plus, RefreshCw, Shield } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { toast } from 'sonner';
@@ -37,6 +38,8 @@ import { RuleGroupsTable } from './components/rule-groups-table';
 const ruleGroupsQueryKey = ['openflare', 'waf', 'rule-groups'];
 
 export default function WafPage() {
+  const t = useTranslations('waf');
+  const tCommon = useTranslations('common');
   const router = useRouter();
   const queryClient = useQueryClient();
   const [createOpen, setCreateOpen] = useState(false);
@@ -59,24 +62,24 @@ export default function WafPage() {
   const createMutation = useMutation({
     mutationFn: (name: string) => WafService.createRule({ name }),
     onSuccess: (rule) => {
-      toast.success('规则已创建');
+      toast.success(t('created'));
       setCreateOpen(false);
       router.push(`/waf/rules/editor?id=${rule.id}`);
     },
     onError: (error) => {
-      toast.error(getErrorMessage(error));
+      toast.error(getErrorMessage(error, t('operationFailed')));
     },
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => WafService.deleteRuleGroup(id),
     onSuccess: async () => {
-      toast.success('规则组已删除');
+      toast.success(t('groupDeleted'));
       setDeleteTarget(null);
       await invalidate();
     },
     onError: (error) => {
-      toast.error(getErrorMessage(error));
+      toast.error(getErrorMessage(error, t('operationFailed')));
     },
   });
 
@@ -93,7 +96,7 @@ export default function WafPage() {
       <div className='flex items-center justify-between gap-3'>
         <div className='flex items-center gap-2'>
           <Shield className='size-5 text-primary' />
-          <h1 className='text-2xl font-semibold tracking-tight'>WAF</h1>
+          <h1 className='text-2xl font-semibold tracking-tight'>{t('title')}</h1>
         </div>
         <div className='flex items-center gap-2'>
           <Button
@@ -102,7 +105,7 @@ export default function WafPage() {
             onClick={() => setCreateOpen(true)}
           >
             <Plus data-icon='inline-start' />
-            新建规则
+            {t('createRule')}
           </Button>
         </div>
       </div>
@@ -111,10 +114,10 @@ export default function WafPage() {
         <CardHeader className='pb-3'>
           <div className='flex items-center justify-between gap-3'>
             <div>
-              <CardTitle className='text-base font-semibold'>规则组</CardTitle>
-              <CardDescription>
-                使用可视化流程编排 WAF 防护规则；全局规则始终应用到所有网站。
-              </CardDescription>
+              <CardTitle className='text-base font-semibold'>
+                {t('ruleGroups')}
+              </CardTitle>
+              <CardDescription>{t('ruleGroupsDesc')}</CardDescription>
             </div>
             <Button
               variant='outline'
@@ -128,7 +131,7 @@ export default function WafPage() {
               ) : (
                 <RefreshCw className='size-3.5 mr-1' />
               )}
-              刷新
+              {t('refresh')}
             </Button>
           </div>
         </CardHeader>
@@ -136,12 +139,12 @@ export default function WafPage() {
           {loading ? (
             <LoadingStateWithBorder
               icon={Shield}
-              description='加载 WAF 规则组中...'
+              description={t('loading')}
             />
           ) : error ? (
             <div className='p-8 border border-dashed rounded-lg'>
               <ErrorInline
-                message={getErrorMessage(error)}
+                message={getErrorMessage(error, t('operationFailed'))}
                 onRetry={handleRefresh}
                 className='justify-center'
               />
@@ -149,7 +152,7 @@ export default function WafPage() {
           ) : groups.length === 0 ? (
             <EmptyStateWithBorder
               icon={Shield}
-              description='暂无规则组，系统通常会自动创建全局规则组。'
+              description={t('empty')}
             />
           ) : (
             <RuleGroupsTable
@@ -176,14 +179,14 @@ export default function WafPage() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>确认删除规则组</AlertDialogTitle>
+            <AlertDialogTitle>{t('deleteTitle')}</AlertDialogTitle>
             <AlertDialogDescription>
-              确认删除规则组「{deleteTarget?.name}」吗？删除后无法恢复。
+              {t('deleteDesc', { name: deleteTarget?.name ?? '' })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={deleteMutation.isPending}>
-              取消
+              {tCommon('cancel')}
             </AlertDialogCancel>
             <AlertDialogAction
               className='bg-destructive text-white hover:bg-destructive/90'
@@ -192,7 +195,7 @@ export default function WafPage() {
                 deleteTarget && deleteMutation.mutate(deleteTarget.id)
               }
             >
-              {deleteMutation.isPending ? '删除中...' : '确认删除'}
+              {deleteMutation.isPending ? t('deleting') : t('confirmDelete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -27,11 +27,13 @@ import {
 } from '@/components/ui/tooltip';
 import { ZoneService, zoneQueryKey } from '@/lib/services/openflare';
 import { formatDateTime } from '@/lib/utils';
+import { useTranslations } from 'next-intl';
 
 import { ZoneEditorDialog } from './[zoneId]/components/zone-editor-dialog';
 import { getErrorMessage } from './components/website-utils';
 
 export default function WebsitesPage() {
+  const t = useTranslations('websites');
   const router = useRouter();
   const [search, setSearch] = useState('');
   const [editorOpen, setEditorOpen] = useState(false);
@@ -54,7 +56,7 @@ export default function WebsitesPage() {
       <div className='flex items-center justify-between gap-3 pb-2'>
         <div className='flex items-center gap-2'>
           <Globe className='size-5 text-primary' />
-          <h1 className='text-2xl font-semibold tracking-tight'>网站</h1>
+          <h1 className='text-2xl font-semibold tracking-tight'>{t('title')}</h1>
         </div>
         <Button
           variant='secondary'
@@ -63,15 +65,15 @@ export default function WebsitesPage() {
           onClick={() => setEditorOpen(true)}
         >
           <Plus className='mr-1 size-3.5' />
-          新增 Zone
+          {t('createZone')}
         </Button>
       </div>
 
       <div className='relative w-full sm:w-64'>
         <Search className='pointer-events-none absolute left-2.5 top-2.5 size-3.5 text-muted-foreground' />
         <Input
-          aria-label='搜索 Zone 根域'
-          placeholder='搜索 Zone 根域'
+          aria-label={t('searchRoot')}
+          placeholder={t('searchRoot')}
           value={search}
           onChange={(event) => setSearch(event.target.value)}
           className='h-8 pl-8 text-xs'
@@ -81,13 +83,13 @@ export default function WebsitesPage() {
       {zonesQuery.isLoading ? (
         <LoadingStateWithBorder
           icon={Globe}
-          description='加载 Zone 列表中...'
+          description={t('loadingList')}
         />
       ) : zonesQuery.isError ? (
         <div className='rounded-lg border border-dashed p-8'>
           <ErrorInline
             className='justify-center'
-            message={getErrorMessage(zonesQuery.error)}
+            message={getErrorMessage(zonesQuery.error, t('requestFailed'))}
             onRetry={() => void zonesQuery.refetch()}
           />
         </div>
@@ -95,9 +97,7 @@ export default function WebsitesPage() {
         <EmptyStateWithBorder
           icon={Globe}
           description={
-            search
-              ? '未找到匹配的 Zone。'
-              : '暂无 Zone，点击右上角「新增 Zone」开始录入。'
+            search ? t('emptySearch') : t('emptyList')
           }
         />
       ) : (
@@ -110,19 +110,19 @@ export default function WebsitesPage() {
                     ID
                   </TableHead>
                   <TableHead className='h-8 min-w-[180px] whitespace-nowrap py-2'>
-                    根域
+                    {t('rootDomain')}
                   </TableHead>
                   <TableHead className='h-8 min-w-[100px] whitespace-nowrap py-2'>
-                    域名数
+                    {t('domainCount')}
                   </TableHead>
                   <TableHead className='h-8 min-w-[140px] whitespace-nowrap py-2'>
-                    创建时间
+                    {t('createdAt')}
                   </TableHead>
                   <TableHead className='h-8 min-w-[140px] whitespace-nowrap py-2'>
-                    更新时间
+                    {t('updatedAt')}
                   </TableHead>
                   <TableHead className='sticky right-0 z-10 h-8 w-[90px] bg-background py-2 text-center'>
-                    操作
+                    {t('actions')}
                   </TableHead>
                 </TableRow>
               </TableHeader>
@@ -163,12 +163,12 @@ export default function WebsitesPage() {
                             >
                               <Link href={`/websites/${zone.id}`}>
                                 <Eye className='size-3' />
-                                <span className='sr-only'>管理</span>
+                                <span className='sr-only'>{t('manage')}</span>
                               </Link>
                             </Button>
                           </TooltipTrigger>
                           <TooltipContent side='top' className='text-xs'>
-                            管理 Zone
+                            {t('manageZone')}
                           </TooltipContent>
                         </Tooltip>
                       </div>

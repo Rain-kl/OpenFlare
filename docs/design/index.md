@@ -33,6 +33,7 @@ OpenFlare 适合需要统一管理多台 OpenResty 代理节点的团队，具�
 | **TLS 证书自动续期** | 将证书显式绑定到 Zone 域名，并通过 ACME 协议向 Let's Encrypt 申请/续期证书 | [Zone 与域名资源设计](./zone-design.md) |
 | **多节点监控与观测** | 访问日志为业务流量唯一真相；Agent 只上报明细与主机读数，Server 统一聚合；与 Zone/看板对账 | [观测数据传输模型](./observability-transport-model.md) / [边缘可观测与业务流量统计](./observability-design.md) / [上报协议与表结构](./observability-data-model.md) / [系统架构](./architecture.md) |
 | **日志存储** | 访问日志与可观测时序走可切换日志主库（随业务主库或 ClickHouse）；关闭 ClickHouse 后仍可写可查 | [日志存储解耦](./logstore.md) |
+| **控制台双语** | 无 URL 前缀的 zh-CN / en，cookie `NEXT_LOCALE` 优先，兼容静态导出 | [前端 i18n 设计](../superpowers/specs/2026-07-24-frontend-i18n-design.md) |
 
 ---
 

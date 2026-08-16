@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import {
@@ -33,6 +34,7 @@ import { UserDetailSheet } from './components/user-detail-sheet';
 import { EditUserModal } from './components/edit-user-modal';
 
 export default function UsersPage() {
+  const t = useTranslations('admin.users');
   const { users, loading, error, fetchUsers, getUserDetail, updateUserStatus } =
     useAdminUsers();
 
@@ -78,7 +80,9 @@ export default function UsersPage() {
         <div className='flex items-center gap-2'>
           <UserRound className='size-5 text-primary' />
           <div>
-            <h1 className='text-2xl font-semibold tracking-tight'>用户管理</h1>
+            <h1 className='text-2xl font-semibold tracking-tight'>
+              {t('pageTitle')}
+            </h1>
           </div>
         </div>
         <Button
@@ -88,7 +92,7 @@ export default function UsersPage() {
           onClick={() => setCreateModalOpen(true)}
         >
           <Plus className='size-3.5 mr-1' />
-          新增用户
+          {t('createUser')}
         </Button>
       </div>
 
@@ -104,9 +108,9 @@ export default function UsersPage() {
           />
         </div>
       ) : loading && users.length === 0 ? (
-        <LoadingStateWithBorder icon={Layers} description='加载用户列表中...' />
+        <LoadingStateWithBorder icon={Layers} description={t('loadingUsers')} />
       ) : users.length === 0 ? (
-        <EmptyStateWithBorder icon={UserX} description='暂无用户数据' />
+        <EmptyStateWithBorder icon={UserX} description={t('noUsers')} />
       ) : (
         <div className='border border-dashed shadow-none rounded-lg overflow-hidden'>
           <TooltipProvider delayDuration={0}>
@@ -117,22 +121,22 @@ export default function UsersPage() {
                     ID
                   </TableHead>
                   <TableHead className='w-[120px] whitespace-nowrap py-2 h-8'>
-                    用户
+                    {t('colUser')}
                   </TableHead>
                   <TableHead className='whitespace-nowrap min-w-[160px] py-2 h-8 pl-4'>
-                    邮箱
+                    {t('colEmail')}
                   </TableHead>
                   <TableHead className='whitespace-nowrap min-w-[140px] py-2 h-8'>
-                    上次登陆
+                    {t('colLastLogin')}
                   </TableHead>
                   <TableHead className='whitespace-nowrap min-w-[140px] py-2 h-8'>
-                    注册时间
+                    {t('colRegisteredAt')}
                   </TableHead>
                   <TableHead className='whitespace-nowrap min-w-[140px] py-2 h-8'>
-                    上次更新
+                    {t('colLastUpdate')}
                   </TableHead>
                   <TableHead className='sticky right-0 text-center bg-background z-10 w-[110px] py-2 h-8'>
-                    操作
+                    {t('colActions')}
                   </TableHead>
                 </TableRow>
               </TableHeader>
@@ -211,10 +215,10 @@ export default function UsersPage() {
                           </TooltipTrigger>
                           <TooltipContent side='top' className='text-xs'>
                             {user.is_admin
-                              ? '管理员账户'
+                              ? t('adminAccount')
                               : user.is_active
-                                ? '禁用账户'
-                                : '启用账户'}
+                                ? t('disableAccount')
+                                : t('enableAccount')}
                           </TooltipContent>
                         </Tooltip>
 
@@ -230,7 +234,7 @@ export default function UsersPage() {
                             </Button>
                           </TooltipTrigger>
                           <TooltipContent side='top' className='text-xs'>
-                            查看详情
+                            {t('viewDetail')}
                           </TooltipContent>
                         </Tooltip>
 
@@ -246,7 +250,7 @@ export default function UsersPage() {
                             </Button>
                           </TooltipTrigger>
                           <TooltipContent side='top' className='text-xs'>
-                            编辑用户
+                            {t('editUser')}
                           </TooltipContent>
                         </Tooltip>
                       </div>

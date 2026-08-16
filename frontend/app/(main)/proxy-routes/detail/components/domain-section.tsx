@@ -20,26 +20,20 @@ import { Switch } from '@/components/ui/switch';
 import type { ProxyRouteItem } from '@/lib/services/openflare';
 import { zoneQueryKey, ZoneService } from '@/lib/services/openflare';
 
+import { useTranslations } from 'next-intl';
+
 import { listAllZoneDomains } from '../../components/helpers';
 import { ZoneDomainSelector } from '../../components/zone-domain-selector';
 import { proxyRouteFormIds } from '../helpers';
 import { useRouteSectionSave } from '../hooks/use-route-section-save';
 import { SectionShell } from './section-shell';
 
-const domainSettingsSchema = z.object({
-  site_name: z
-    .string()
-    .trim()
-    .min(1, '请输入站点标识')
-    .max(255, '站点标识不能超过 255 个字符'),
-  zone_domain_ids: z
-    .array(z.number().int().positive())
-    .min(1, '请至少选择一个域名'),
-  enabled: z.boolean(),
-  redirect_http: z.boolean(),
-});
-
-type DomainSettingsValues = z.infer<typeof domainSettingsSchema>;
+type DomainSettingsValues = {
+  site_name: string;
+  zone_domain_ids: number[];
+  enabled: boolean;
+  redirect_http: boolean;
+};
 
 interface DomainSectionProps {
   route: ProxyRouteItem;
@@ -52,6 +46,19 @@ export function DomainSection({
   onRouteUpdate,
   onSavingChange,
 }: DomainSectionProps) {
+  const t = useTranslations('proxyRoutes');
+  const domainSettingsSchema = z.object({
+    site_name: z
+      .string()
+      .trim()
+      .min(1, t('validation.enterSiteId'))
+      .max(255, t('validation.siteNameTooLong')),
+    zone_domain_ids: z
+      .array(z.number().int().positive())
+      .min(1, t('validation.selectAtLeastOneDomain')),
+    enabled: z.boolean(),
+    redirect_http: z.boolean(),
+  });
   const { saving, save } = useRouteSectionSave(
     route,
     onRouteUpdate,
@@ -121,8 +128,8 @@ export function DomainSection({
 
   return (
     <SectionShell
-      title='域名设置'
-      description='绑定已在 Zone 中注册的 FQDN。证书请在 Zone 域名管理中维护。'
+      title={t('domainSettings')}
+      description={t('domainSettingsDesc')}
       formId={proxyRouteFormIds.domains}
       saving={saving}
     >
@@ -133,8 +140,7 @@ export function DomainSection({
           onSubmit={form.handleSubmit(async (values) => {
             if (values.redirect_http && !hasCertificate) {
               form.setError('redirect_http', {
-                message:
-                  '启用 HTTP 跳转前，请先为所选域名绑定证书（在 Zone 中配置）',
+                message: t('redirectNeedsCert'),
               });
               return;
             }
@@ -147,7 +153,7 @@ export function DomainSection({
                 enable_https: hasCertificate,
                 redirect_http: hasCertificate ? values.redirect_http : false,
               },
-              '域名设置已保存',
+              t('domainSettingsSaved'),
             );
           })}
         >
@@ -157,10 +163,8 @@ export function DomainSection({
             render={({ field }) => (
               <FormItem className='flex items-center justify-between rounded-lg border p-3'>
                 <div className='space-y-0.5'>
-                  <FormLabel>启用站点</FormLabel>
-                  <FormDescription>
-                    关闭后会保留配置，但不会参与发布。
-                  </FormDescription>
+                  <FormLabel>{t('enableSite')}</FormLabel>
+                  <FormDescription>{t('enableSiteDesc')}</FormDescription>
                 </div>
                 <FormControl>
                   <Switch
@@ -177,13 +181,11 @@ export function DomainSection({
             name='site_name'
             render={({ field }) => (
               <FormItem>
-                <FormLabel>站点标识</FormLabel>
+                <FormLabel>{t('siteId')}</FormLabel>
                 <FormControl>
                   <Input placeholder='marketing-site' {...field} />
                 </FormControl>
-                <FormDescription>
-                  建议使用稳定、可读的业务标识，不必与域名完全一致。
-                </FormDescription>
+                <FormDescription>{t('siteIdStableDesc')}</FormDescription>
                 <FormMessage />
               </FormItem>
             )}
@@ -194,7 +196,7 @@ export function DomainSection({
             name='zone_domain_ids'
             render={({ field }) => (
               <FormItem>
-                <FormLabel>绑定域名</FormLabel>
+                <FormLabel>{t('bindDomains')}</FormLabel>
                 <FormControl>
                   <ZoneDomainSelector
                     value={field.value}
@@ -208,10 +210,7 @@ export function DomainSection({
                     }}
                   />
                 </FormControl>
-                <FormDescription>
-                  从已登记域名中勾选绑定；可用「快捷新增域名」在 Zone 下创建
-                  FQDN 并自动勾选。
-                </FormDescription>
+                <FormDescription>{t('bindDomainsHint')}</FormDescription>
                 <FormMessage />
               </FormItem>
             )}
@@ -223,11 +222,11 @@ export function DomainSection({
             render={({ field }) => (
               <FormItem className='flex items-center justify-between rounded-lg border p-3'>
                 <div className='space-y-0.5'>
-                  <FormLabel>HTTP 自动跳转到 HTTPS</FormLabel>
+                  <FormLabel>{t('redirectHttp')}</FormLabel>
                   <FormDescription>
                     {hasCertificate
-                      ? '开启后会额外生成 80 端口重定向规则。'
-                      : '所选域名至少绑定一张证书后才能启用。'}
+                      ? t('redirectHttpEnabledHint')
+                      : t('redirectHttpNeedsCert')}
                   </FormDescription>
                 </div>
                 <FormControl>

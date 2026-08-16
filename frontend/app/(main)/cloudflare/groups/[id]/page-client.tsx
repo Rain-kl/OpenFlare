@@ -11,6 +11,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 import { useParams } from 'next/navigation';
 import { useState } from 'react';
 import { toast } from 'sonner';
@@ -46,6 +47,7 @@ import { GroupDialog } from '../../components/group-dialog';
 import { MemberAddDialog } from '../../components/member-add-dialog';
 
 export function CloudflareGroupDetailPageClient() {
+  const t = useTranslations('cloudflare');
   const params = useParams<{ id: string }>();
   const groupID = Number(params.id);
   const queryClient = useQueryClient();
@@ -72,7 +74,7 @@ export function CloudflareGroupDetailPageClient() {
     mutationFn: (payload: CloudflareGroupPayload) =>
       CloudflareService.updateGroup(groupID, payload),
     onSuccess: async () => {
-      toast.success('分组配置已更新');
+      toast.success(t('groupUpdated'));
       setEditOpen(false);
       await invalidate();
     },
@@ -102,13 +104,13 @@ export function CloudflareGroupDetailPageClient() {
       if (failed === 0) {
         toast.success(
           total === 1
-            ? '域名已加入并排队同步'
-            : `已添加 ${succeeded} 个域名并排队同步`,
+            ? t('memberAddedOne')
+            : t('memberAddedMany', { count: succeeded }),
         );
       } else if (succeeded === 0) {
-        toast.error(`添加失败：${failed} 个域名未能加入`);
+        toast.error(t('memberAddFailed', { count: failed }));
       } else {
-        toast.warning(`部分成功：${succeeded} 个已加入，${failed} 个失败`);
+        toast.warning(t('memberPartial', { succeeded, failed }));
       }
       setAddOpen(false);
       await invalidate();
@@ -124,7 +126,7 @@ export function CloudflareGroupDetailPageClient() {
       proxied: boolean;
     }) => CloudflareService.updateMember(groupID, memberID, proxied),
     onSuccess: async () => {
-      toast.success('橙云设置已更新并排队同步');
+      toast.success(t('proxyUpdated'));
       await invalidate();
     },
     onError: (error) => toast.error(getErrorMessage(error)),
@@ -132,14 +134,14 @@ export function CloudflareGroupDetailPageClient() {
   const syncMutation = useMutation({
     mutationFn: (memberID: number) =>
       CloudflareService.syncMember(groupID, memberID),
-    onSuccess: () => toast.success('成员同步任务已入队'),
+    onSuccess: () => toast.success(t('memberSyncQueued')),
     onError: (error) => toast.error(getErrorMessage(error)),
   });
   const removeMutation = useMutation({
     mutationFn: (memberID: number) =>
       CloudflareService.removeMember(groupID, memberID),
     onSuccess: async () => {
-      toast.success('成员及远端 A 记录已删除');
+      toast.success(t('memberDeleted'));
       await invalidate();
     },
     onError: (error) => toast.error(getErrorMessage(error)),
@@ -148,7 +150,10 @@ export function CloudflareGroupDetailPageClient() {
   if (detailQuery.isLoading)
     return (
       <div className='w-full py-6 px-1'>
-        <LoadingStateWithBorder icon={Cloud} description='加载分组详情中...' />
+        <LoadingStateWithBorder
+          icon={Cloud}
+          description={t('loadingDetail')}
+        />
       </div>
     );
   if (detailQuery.isError || !detailQuery.data)
@@ -168,7 +173,7 @@ export function CloudflareGroupDetailPageClient() {
         <Button variant='ghost' size='sm' className='self-start' asChild>
           <Link href='/cloudflare'>
             <ArrowLeft data-icon='inline-start' />
-            返回列表
+            {t('back')}
           </Link>
         </Button>
         <div className='flex items-center justify-between gap-3'>
@@ -190,7 +195,7 @@ export function CloudflareGroupDetailPageClient() {
               ) : (
                 <RefreshCw data-icon='inline-start' />
               )}
-              刷新
+              {t('refresh')}
             </Button>
             <Button
               variant='outline'
@@ -198,11 +203,11 @@ export function CloudflareGroupDetailPageClient() {
               onClick={() => setEditOpen(true)}
             >
               <Settings data-icon='inline-start' />
-              编辑
+              {t('edit')}
             </Button>
             <Button size='sm' onClick={() => setAddOpen(true)}>
               <Plus data-icon='inline-start' />
-              添加域名
+              {t('addDomain')}
             </Button>
           </div>
         </div>
@@ -210,41 +215,50 @@ export function CloudflareGroupDetailPageClient() {
 
       <Card className='border-dashed shadow-none'>
         <CardHeader>
-          <CardTitle className='text-base'>当前指向</CardTitle>
+          <CardTitle className='text-base'>{t('currentPoint')}</CardTitle>
           <CardDescription>
-            生效节点 {group.active_node.name} · {group.active_node.ip}
+            {t('activeNode', {
+              name: group.active_node.name,
+              ip: group.active_node.ip,
+            })}
           </CardDescription>
         </CardHeader>
         <CardContent className='flex flex-wrap gap-2'>
           <Badge variant={group.enabled ? 'default' : 'secondary'}>
-            {group.enabled ? '同步已启用' : '同步已停用'}
+            {group.enabled ? t('syncEnabled') : t('syncDisabled')}
           </Badge>
-          <Badge variant='outline'>主节点 {group.primary_node.name}</Badge>
           <Badge variant='outline'>
-            备用节点 {group.backup_node?.name ?? '未设置'}
+            {t('primaryNode', { name: group.primary_node.name })}
+          </Badge>
+          <Badge variant='outline'>
+            {t('backupNode', {
+              name: group.backup_node?.name ?? t('backupUnset'),
+            })}
           </Badge>
         </CardContent>
       </Card>
 
       <Card className='border-dashed shadow-none'>
         <CardHeader>
-          <CardTitle className='text-base'>域名成员</CardTitle>
-          <CardDescription>成员级橙云是同步时的唯一依据。</CardDescription>
+          <CardTitle className='text-base'>{t('members')}</CardTitle>
+          <CardDescription>{t('membersDesc')}</CardDescription>
         </CardHeader>
         <CardContent>
           {members.length === 0 ? (
             <p className='py-8 text-center text-sm text-muted-foreground'>
-              暂无域名成员。
+              {t('noMembers')}
             </p>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>域名</TableHead>
-                  <TableHead>期望 IP</TableHead>
-                  <TableHead>状态</TableHead>
-                  <TableHead>橙云</TableHead>
-                  <TableHead className='text-right'>操作</TableHead>
+                  <TableHead>{t('columns.domain')}</TableHead>
+                  <TableHead>{t('columns.desiredIp')}</TableHead>
+                  <TableHead>{t('columns.status')}</TableHead>
+                  <TableHead>{t('columns.proxied')}</TableHead>
+                  <TableHead className='text-right'>
+                    {t('columns.actions')}
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -258,7 +272,9 @@ export function CloudflareGroupDetailPageClient() {
                         </p>
                       ) : null}
                     </TableCell>
-                    <TableCell>{member.desired_ip || '待同步'}</TableCell>
+                    <TableCell>
+                      {member.desired_ip || t('pendingSync')}
+                    </TableCell>
                     <TableCell>
                       <Badge
                         variant={
@@ -291,7 +307,7 @@ export function CloudflareGroupDetailPageClient() {
                           onClick={() => syncMutation.mutate(member.id)}
                         >
                           <RefreshCw data-icon='inline-start' />
-                          同步
+                          {t('sync')}
                         </Button>
                         <Button
                           variant='destructive'
@@ -299,7 +315,7 @@ export function CloudflareGroupDetailPageClient() {
                           onClick={() => removeMutation.mutate(member.id)}
                         >
                           <Trash2 data-icon='inline-start' />
-                          移出
+                          {t('remove')}
                         </Button>
                       </div>
                     </TableCell>

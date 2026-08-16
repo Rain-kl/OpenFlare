@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -88,10 +89,10 @@ const TASK_CONFIGS: Record<
   },
 };
 
-const LOG_DATABASE_LABELS: Record<string, string> = {
-  postgres: 'PostgreSQL（主库）',
-  sqlite: 'SQLite（主库）',
-  clickhouse: 'ClickHouse',
+const LOG_DATABASE_LABEL_KEYS: Record<string, string> = {
+  postgres: 'dbPostgresPrimary',
+  sqlite: 'dbSqlitePrimary',
+  clickhouse: 'dbClickhouse',
 };
 
 const DEFAULT_TASK_CONFIG = {
@@ -108,6 +109,7 @@ function DatePickerWithTime({
   date: Date | undefined;
   setDate: (date: Date | undefined) => void;
 }) {
+  const t = useTranslations('admin.tasks');
   const timeString = date ? format(date, 'HH:mm:ss') : '';
 
   const handleDateSelect = (newDate: Date | undefined) => {
@@ -163,7 +165,7 @@ function DatePickerWithTime({
               )}
             >
               <CalendarIcon className='mr-1 size-3' />
-              {date ? format(date, 'yyyy-MM-dd') : <span>选择日期</span>}
+              {date ? format(date, 'yyyy-MM-dd') : <span>{t('selectDate')}</span>}
             </Button>
           </PopoverTrigger>
           <PopoverContent className='w-auto p-0' align='start'>
@@ -190,6 +192,7 @@ function DatePickerWithTime({
 }
 
 export function TaskManager() {
+  const t = useTranslations('admin.tasks');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const [taskTypes, setTaskTypes] = useState<TaskMeta[]>([]);
@@ -210,11 +213,11 @@ export function TaskManager() {
       const data = await services.adminTask.getTaskTypes();
       setTaskTypes(data);
     } catch (err) {
-      setError(err instanceof Error ? err : new Error('加载任务类型失败'));
+      setError(err instanceof Error ? err : new Error(t('loadTaskTypesFailed')));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   const [logDbStatus, setLogDbStatus] = useState<LogDatabaseStatus | null>(
     null,
@@ -302,8 +305,11 @@ export function TaskManager() {
 
       const taskID = await services.adminTask.dispatchTask(params);
 
-      toast.success('任务下发成功', {
-        description: `已成功将任务 ${targetTask?.name || selectedTaskType} 加入队列：${taskID}`,
+      toast.success(t('dispatchSuccess'), {
+        description: t('dispatchSuccessDesc', {
+          name: targetTask?.name || selectedTaskType,
+          taskId: taskID,
+        }),
       });
       setDialogOpen(false);
 
@@ -312,8 +318,8 @@ export function TaskManager() {
       setUserId('');
       setParamValues({});
     } catch (err) {
-      toast.error('任务下发失败', {
-        description: err instanceof Error ? err.message : '未知错误',
+      toast.error(t('dispatchFailed'), {
+        description: err instanceof Error ? err.message : t('unknownError'),
       });
     } finally {
       setDispatching(false);
@@ -345,10 +351,10 @@ export function TaskManager() {
         ) : loading && taskTypes.length === 0 ? (
           <LoadingStateWithBorder
             icon={Layers}
-            description='加载任务类型中...'
+            description={t('loadingTaskTypes')}
           />
         ) : taskTypes.length === 0 ? (
-          <EmptyStateWithBorder icon={Layers} description='暂无可用任务类型' />
+          <EmptyStateWithBorder icon={Layers} description={t('noTaskTypes')} />
         ) : (
           <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4'>
             {taskTypes.map((task, index) => {
@@ -386,13 +392,15 @@ export function TaskManager() {
                           variant='outline'
                           className='text-[9px] h-4.5 bg-background/50 font-mono text-muted-foreground border-border/50 px-1'
                         >
-                          类型：{task.type}
+                          {t('taskType')}
+                          {task.type}
                         </Badge>
                         <Badge
                           variant='outline'
                           className='text-[9px] h-4.5 bg-background/50 font-mono text-muted-foreground border-border/50 px-1'
                         >
-                          重试：{task.max_retry}
+                          {t('taskRetry')}
+                          {task.max_retry}
                         </Badge>
                       </div>
                     </div>
@@ -401,16 +409,23 @@ export function TaskManager() {
                       <div className='pt-3 mt-3 border-t border-border/50 space-y-1.5'>
                         <div className='flex items-center justify-between gap-2'>
                           <span className='text-[10px] text-muted-foreground shrink-0'>
-                            日志主库
+                            {t('logPrimaryDb')}
                           </span>
                           <span className='text-[10px] font-mono text-foreground truncate'>
-                            {LOG_DATABASE_LABELS[logDbStatus.active_database] ||
-                              logDbStatus.active_database}
+                            {LOG_DATABASE_LABEL_KEYS[
+                              logDbStatus.active_database
+                            ]
+                              ? t(
+                                  LOG_DATABASE_LABEL_KEYS[
+                                    logDbStatus.active_database
+                                  ],
+                                )
+                              : logDbStatus.active_database}
                           </span>
                         </div>
                         <div className='flex items-center justify-between gap-2'>
                           <span className='text-[10px] text-muted-foreground shrink-0'>
-                            保留天数
+                            {t('retentionDays')}
                           </span>
                           <span className='text-[10px] font-mono text-muted-foreground truncate'>
                             {retentionSummary || '-'}
@@ -418,7 +433,7 @@ export function TaskManager() {
                         </div>
                         <div className='flex items-center justify-between gap-2'>
                           <span className='text-[10px] text-muted-foreground shrink-0'>
-                            迁移状态
+                            {t('migrationStatus')}
                           </span>
                           <Badge
                             variant={
@@ -429,8 +444,8 @@ export function TaskManager() {
                             className='text-[10px] h-5 px-1.5'
                           >
                             {logDbStatus.migration === 'migrating'
-                              ? '迁移中'
-                              : '空闲'}
+                              ? t('migrating')
+                              : t('idle')}
                           </Badge>
                         </div>
                       </div>
@@ -443,7 +458,7 @@ export function TaskManager() {
                         onClick={() => openDispatchDialog(task.type)}
                       >
                         <Play className='size-3 mr-1' />
-                        立即执行
+                        {t('executeNow')}
                       </Button>
                     </div>
                   </div>
@@ -457,15 +472,13 @@ export function TaskManager() {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className='sm:max-w-[500px]'>
           <DialogHeader>
-            <DialogTitle>下发任务</DialogTitle>
-            <DialogDescription>
-              配置任务参数并启动，任务将在后台异步执行。
-            </DialogDescription>
+            <DialogTitle>{t('dispatchTask')}</DialogTitle>
+            <DialogDescription>{t('dispatchTaskDesc')}</DialogDescription>
           </DialogHeader>
 
           <div className='grid gap-4 py-4'>
             <div className='grid gap-2'>
-              <Label>执行任务</Label>
+              <Label>{t('executeTask')}</Label>
               <div className='flex items-center gap-2 p-2 rounded-lg bg-muted/50'>
                 {(() => {
                   const meta = getSelectedTaskMeta();
@@ -495,20 +508,20 @@ export function TaskManager() {
                 return (
                   <>
                     <div className='grid gap-2'>
-                      <Label>开始时间</Label>
+                      <Label>{t('startTime')}</Label>
                       <DatePickerWithTime
                         date={startTime}
                         setDate={setStartTime}
                       />
                       <p className='text-xs text-muted-foreground'>
-                        选择同步的起始时间点
+                        {t('startTimeDesc')}
                       </p>
                     </div>
                     <div className='grid gap-2'>
-                      <Label>结束时间</Label>
+                      <Label>{t('endTime')}</Label>
                       <DatePickerWithTime date={endTime} setDate={setEndTime} />
                       <p className='text-xs text-muted-foreground'>
-                        选择同步的结束时间点
+                        {t('endTimeDesc')}
                       </p>
                     </div>
                   </>
@@ -572,8 +585,8 @@ export function TaskManager() {
                             />
                             <span className='text-xs text-muted-foreground'>
                               {paramValues[param.name] === 'true'
-                                ? '开启'
-                                : '关闭'}
+                                ? t('paramOn')
+                                : t('paramOff')}
                             </span>
                           </div>
                         ) : isSwitchTarget &&
@@ -593,12 +606,14 @@ export function TaskManager() {
                               className='w-full text-xs'
                               size='sm'
                             >
-                              <SelectValue placeholder='选择目标日志库...' />
+                              <SelectValue placeholder={t('selectLogDb')} />
                             </SelectTrigger>
                             <SelectContent>
                               {availableLogDbTargets.map((target) => (
                                 <SelectItem key={target} value={target}>
-                                  {LOG_DATABASE_LABELS[target] || target}
+                                  {LOG_DATABASE_LABEL_KEYS[target]
+                                    ? t(LOG_DATABASE_LABEL_KEYS[target])
+                                    : target}
                                 </SelectItem>
                               ))}
                             </SelectContent>
@@ -639,7 +654,7 @@ export function TaskManager() {
                 return (
                   <div className='flex items-center gap-2 text-sm text-muted-foreground bg-muted/50 p-3 rounded-md border border-dashed'>
                     <Info className='h-4 w-4' />
-                    <span>此任务无需额外配置参数，确认后将直接下发。</span>
+                    <span>{t('noParamsHint')}</span>
                   </div>
                 );
               }
@@ -654,7 +669,7 @@ export function TaskManager() {
               disabled={dispatching}
               className='h-8 text-xs'
             >
-              取消
+              {t('cancel')}
             </Button>
             <Button
               onClick={handleDispatch}
@@ -666,7 +681,7 @@ export function TaskManager() {
               ) : (
                 <Play className='size-3' />
               )}
-              {dispatching ? '下发中' : '启动'}
+              {dispatching ? t('dispatching') : t('start')}
             </Button>
           </DialogFooter>
         </DialogContent>

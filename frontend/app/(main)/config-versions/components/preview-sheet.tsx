@@ -1,6 +1,7 @@
 'use client';
 
 import { Loader2 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -36,21 +37,20 @@ export function PreviewSheet({
   canPublish,
   onPublish,
 }: PreviewSheetProps) {
+  const t = useTranslations('configVersions');
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className='sm:max-w-2xl w-full p-0 flex h-svh flex-col gap-0'>
         <SheetHeader className='px-5 py-4 border-b'>
-          <SheetTitle>发布预览</SheetTitle>
-          <SheetDescription>
-            查看待发布配置的渲染结果与支持文件。
-          </SheetDescription>
+          <SheetTitle>{t('previewTitle')}</SheetTitle>
+          <SheetDescription>{t('previewDesc')}</SheetDescription>
         </SheetHeader>
 
         <div className='flex-1 min-h-0 overflow-y-auto px-5 py-4'>
           {loading ? (
             <div className='flex items-center justify-center gap-2 py-16 text-sm text-muted-foreground'>
               <Loader2 className='size-4 animate-spin' />
-              正在加载预览...
+              {t('loadingPreview')}
             </div>
           ) : error ? (
             <p className='text-sm text-destructive'>{error}</p>
@@ -58,10 +58,10 @@ export function PreviewSheet({
             <div className='space-y-5 pb-4'>
               <div className='flex flex-wrap gap-2'>
                 <Badge variant='outline' className='rounded-full text-[10px]'>
-                  规则 {preview.route_count} 条
+                  {t('routeCount', { count: preview.route_count })}
                 </Badge>
                 <Badge variant='outline' className='rounded-full text-[10px]'>
-                  网站 {preview.website_count} 个
+                  {t('websiteCount', { count: preview.website_count })}
                 </Badge>
                 <Badge
                   variant='outline'
@@ -72,7 +72,7 @@ export function PreviewSheet({
               </div>
 
               <div className='space-y-2'>
-                <p className='text-xs font-semibold'>主配置</p>
+                <p className='text-xs font-semibold'>{t('mainConfig')}</p>
                 <CodeBlock
                   code={preview.main_config}
                   language='nginx'
@@ -81,7 +81,7 @@ export function PreviewSheet({
               </div>
 
               <div className='space-y-2'>
-                <p className='text-xs font-semibold'>路由配置</p>
+                <p className='text-xs font-semibold'>{t('routeConfig')}</p>
                 <CodeBlock
                   code={preview.rendered_config}
                   language='nginx'
@@ -92,7 +92,9 @@ export function PreviewSheet({
               {preview.support_files.length > 0 ? (
                 <div className='space-y-2'>
                   <p className='text-xs font-semibold'>
-                    支持文件 ({preview.support_files.length})
+                    {t('supportFiles', {
+                      count: preview.support_files.length,
+                    })}
                   </p>
                   {preview.support_files.map((file) => (
                     <details
@@ -112,13 +114,13 @@ export function PreviewSheet({
                 </div>
               ) : (
                 <p className='text-xs text-muted-foreground'>
-                  当前发布不需要额外支持文件。
+                  {t('noSupportFiles')}
                 </p>
               )}
 
               {!canPublish ? (
                 <p className='text-xs text-muted-foreground'>
-                  当前规则与已激活版本一致，无法重复发布。
+                  {t('noChanges')}
                 </p>
               ) : null}
             </div>
@@ -131,7 +133,7 @@ export function PreviewSheet({
             onClick={() => onOpenChange(false)}
             disabled={publishing}
           >
-            关闭
+            {t('close')}
           </Button>
           <Button
             onClick={onPublish}
@@ -140,10 +142,10 @@ export function PreviewSheet({
             {publishing ? (
               <>
                 <Loader2 className='size-4 animate-spin mr-1' />
-                发布中...
+                {t('publishing')}
               </>
             ) : (
-              '确认发布'
+              t('confirmPublish')
             )}
           </Button>
         </SheetFooter>

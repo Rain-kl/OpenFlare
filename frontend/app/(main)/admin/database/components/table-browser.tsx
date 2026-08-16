@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import { useCallback, useEffect, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { Layers, RefreshCw } from 'lucide-react';
 
@@ -67,6 +68,7 @@ export function TableBrowser({
   loadingTables,
   refreshTrigger,
 }: TableBrowserProps) {
+  const t = useTranslations('admin.database.tableBrowser');
   const [selectedTable, setSelectedTable] = useState<string>('');
   const [tableData, setTableData] = useState<TableDataResponse | null>(null);
   const [page, setPage] = useState<number>(1);
@@ -86,14 +88,14 @@ export function TableBrowser({
         });
         setTableData(data);
       } catch (err) {
-        toast.error(`获取数据表 ${tableName} 数据失败`, {
-          description: err instanceof Error ? err.message : '未知错误',
+        toast.error(t('fetchTableFailed', { table: tableName }), {
+          description: err instanceof Error ? err.message : t('unknownError'),
         });
       } finally {
         setLoadingData(false);
       }
     },
-    [],
+    [t],
   );
 
   // 默认选择第一张表
@@ -125,9 +127,11 @@ export function TableBrowser({
     <Card className='border-border/40 bg-card/50 backdrop-blur-sm shadow-sm'>
       <CardHeader className='pb-3 border-b border-dashed flex flex-col md:flex-row md:items-center md:justify-between gap-4'>
         <div className='space-y-0.5'>
-          <CardTitle className='text-sm font-semibold'>数据表浏览器</CardTitle>
+          <CardTitle className='text-sm font-semibold'>
+            {t('tableBrowser')}
+          </CardTitle>
           <CardDescription className='text-[11px]'>
-            浏览数据库中的物理数据表详情及内容
+            {t('tableBrowserDesc')}
           </CardDescription>
         </div>
 
@@ -137,7 +141,7 @@ export function TableBrowser({
           ) : (
             <Select value={selectedTable} onValueChange={handleTableChange}>
               <SelectTrigger className='h-8 w-[200px] text-xs bg-background border-border/40'>
-                <SelectValue placeholder='选择数据表' />
+                <SelectValue placeholder={t('selectTable')} />
               </SelectTrigger>
               <SelectContent className='max-h-[300px]'>
                 {tables.map((t) => (
@@ -202,7 +206,7 @@ export function TableBrowser({
                         colSpan={tableData.columns.length}
                         className='text-center py-10 text-muted-foreground'
                       >
-                        表中无记录数据
+                        {t('noRecordsInTable')}
                       </TableCell>
                     </TableRow>
                   )}
@@ -213,11 +217,11 @@ export function TableBrowser({
             {/* 分页控制 */}
             <div className='flex items-center justify-between text-xs text-muted-foreground flex-wrap gap-2 pt-2 border-t border-dashed'>
               <div>
-                总行数:{' '}
+                {t('totalRows')}:{' '}
                 <span className='font-mono text-foreground font-semibold'>
                   {formatNumber(tableData.total)}
                 </span>{' '}
-                条记录
+                {t('records')}
               </div>
               <div className='flex items-center gap-2'>
                 <Button
@@ -227,11 +231,13 @@ export function TableBrowser({
                   onClick={() => handlePageChange(page - 1)}
                   disabled={page <= 1 || loadingData}
                 >
-                  上一页
+                  {t('prevPage')}
                 </Button>
                 <span className='text-xs px-2 font-mono'>
-                  第 {page} /{' '}
-                  {Math.max(1, Math.ceil(tableData.total / pageSize))} 页
+                  {t('pageIndicator', {
+                    current: page,
+                    total: Math.max(1, Math.ceil(tableData.total / pageSize)),
+                  })}
                 </span>
                 <Button
                   variant='outline'
@@ -242,7 +248,7 @@ export function TableBrowser({
                     page >= Math.ceil(tableData.total / pageSize) || loadingData
                   }
                 >
-                  下一页
+                  {t('nextPage')}
                 </Button>
               </div>
             </div>
@@ -250,7 +256,7 @@ export function TableBrowser({
         ) : (
           <div className='flex flex-col items-center justify-center py-10 text-muted-foreground'>
             <Layers className='size-8 opacity-45 mb-2' />
-            <span className='text-xs'>未选择数据表或表结构无法加载</span>
+            <span className='text-xs'>{t('noTableSelected')}</span>
           </div>
         )}
       </CardContent>

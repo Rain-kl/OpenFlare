@@ -31,22 +31,23 @@ import services from '@/lib/services';
 import type { SystemConfig } from '@/lib/services/admin';
 import { TemplatesManager } from './templates';
 import { toast } from 'sonner';
+import { useTranslations } from 'next-intl';
 
 const LOG_RETENTION_FIELDS = [
   {
     key: 'log_retention_days_postgres',
     label: 'PostgreSQL',
-    description: '访问日志与可观测指标统一保留天数',
+    descKey: 'retentionPostgresDesc',
   },
   {
     key: 'log_retention_days_sqlite',
     label: 'SQLite',
-    description: 'SQLite 日志保留天数',
+    descKey: 'retentionSqliteDesc',
   },
   {
     key: 'log_retention_days_clickhouse',
     label: 'ClickHouse',
-    description: 'ClickHouse 日志保留天数',
+    descKey: 'retentionClickhouseDesc',
   },
 ] as const;
 
@@ -60,6 +61,7 @@ export function OperationTab({
   systemConfigsQuery,
 }: OperationTabProps) {
   const queryClient = useQueryClient();
+  const t = useTranslations('settings.operation');
 
   const uploadTypesQuery = useQuery({
     queryKey: ['admin', 'upload-types'],
@@ -102,7 +104,7 @@ export function OperationTab({
         const raw = (values[field.key] ?? '').trim();
         const num = Number(raw);
         if (!raw || !Number.isInteger(num) || num < 1) {
-          throw new Error(`${field.label}必须为大于等于 1 的整数`);
+          throw new Error(t('retentionInvalid', { label: field.label }));
         }
         const config = businessConfigs[field.key];
         if (!config) {
@@ -118,10 +120,10 @@ export function OperationTab({
       await queryClient.invalidateQueries({
         queryKey: ['admin', 'system-configs'],
       });
-      toast.success('日志保留时间已更新');
+      toast.success(t('logRetentionUpdated'));
     },
     onError: (error: Error) => {
-      toast.error(error.message || '更新日志保留时间失败');
+      toast.error(error.message || t('logRetentionUpdateFailed'));
     },
   });
 
@@ -144,10 +146,10 @@ export function OperationTab({
         queryKey: ['admin', 'system-configs'],
       });
       await queryClient.invalidateQueries({ queryKey: ['public-config'] });
-      toast.success('文件访问白名单已更新');
+      toast.success(t('whitelistUpdated'));
     },
     onError: (error: Error) => {
-      toast.error(error.message || '更新白名单失败');
+      toast.error(error.message || t('updateWhitelistFailed'));
     },
   });
 
@@ -180,15 +182,15 @@ export function OperationTab({
 
   const availableTypes = useMemo(() => {
     const types = uploadTypesQuery.data ?? [];
-    return types.map((t) => {
-      let label = t;
-      if (t === 'avatar') label = '头像 (avatar)';
-      else if (t === 'attachment') label = '附件 (attachment)';
-      else if (t === 'doc') label = '文档 (doc)';
-      else if (t === 'generic') label = '通用 (generic)';
-      return { value: t, label };
+    return types.map((type) => {
+      let label = type;
+      if (type === 'avatar') label = t('typeAvatar');
+      else if (type === 'attachment') label = t('typeAttachment');
+      else if (type === 'doc') label = t('typeDoc');
+      else if (type === 'generic') label = t('typeGeneric');
+      return { value: type, label };
     });
-  }, [uploadTypesQuery.data]);
+  }, [t, uploadTypesQuery.data]);
 
   return (
     <div className='space-y-6'>
@@ -201,10 +203,10 @@ export function OperationTab({
             </div>
             <div>
               <CardTitle className='text-base font-semibold'>
-                文件访问权限控制
+                {t('fileAccessControl')}
               </CardTitle>
               <CardDescription className='text-xs'>
-                配置免登录直接访问的文件业务类型。不在白名单内的文件将要求登录鉴权。
+                {t('fileAccessControlDesc')}
               </CardDescription>
             </div>
           </div>
@@ -213,7 +215,7 @@ export function OperationTab({
           <div className='flex flex-col gap-4'>
             <div className='flex items-center gap-3'>
               <span className='text-sm font-medium text-muted-foreground'>
-                添加免鉴权类型:
+                {t('addAuthFreeType')}
               </span>
               <Select
                 value=''
@@ -225,7 +227,7 @@ export function OperationTab({
                 }
               >
                 <SelectTrigger className='w-[200px]' size='sm'>
-                  <SelectValue placeholder='选择业务类型...' />
+                  <SelectValue placeholder={t('selectBusinessType')} />
                 </SelectTrigger>
                 <SelectContent>
                   {availableTypes
@@ -239,7 +241,7 @@ export function OperationTab({
                     (t) => !currentWhitelist.includes(t.value),
                   ).length === 0 && (
                     <div className='text-xs text-muted-foreground p-2 text-center'>
-                      所有类型已添加
+                      {t('allTypesAdded')}
                     </div>
                   )}
                 </SelectContent>
@@ -251,7 +253,7 @@ export function OperationTab({
               <div className='flex items-center gap-2'>
                 <ShieldAlert className='size-4 text-primary' />
                 <span className='font-medium text-sm text-foreground'>
-                  当前免鉴权列表
+                  {t('currentAuthFreeList')}
                 </span>
               </div>
 
@@ -281,7 +283,7 @@ export function OperationTab({
                 </div>
               ) : (
                 <p className='text-xs text-muted-foreground'>
-                  白名单已空，所有类型文件的访问都将需要登录。
+                  {t('whitelistEmpty')}
                 </p>
               )}
             </div>
@@ -298,10 +300,10 @@ export function OperationTab({
             </div>
             <div>
               <CardTitle className='text-base font-semibold'>
-                日志保留时间
+                {t('logRetentionTitle')}
               </CardTitle>
               <CardDescription className='text-xs'>
-                配置各日志数据库的日志保留天数，切换日志数据库后自动按对应配置清理过期日志。
+                {t('logRetentionDesc')}
               </CardDescription>
             </div>
           </div>
@@ -330,11 +332,11 @@ export function OperationTab({
                     }
                   />
                   <span className='text-xs text-muted-foreground whitespace-nowrap'>
-                    天
+                    {t('days')}
                   </span>
                 </div>
                 <p className='text-[10px] text-muted-foreground'>
-                  {field.description}
+                  {t(field.descKey)}
                 </p>
               </div>
             ))}
@@ -354,7 +356,7 @@ export function OperationTab({
               ) : (
                 <Save className='size-3' />
               )}
-              保存
+              {t('save')}
             </Button>
           </div>
         </CardContent>

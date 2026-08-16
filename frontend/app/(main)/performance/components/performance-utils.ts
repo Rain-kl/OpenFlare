@@ -190,12 +190,17 @@ function isCacheLevelsValue(value: string) {
   return /^\d{1,2}(?::\d{1,2}){0,2}$/.test(value.trim());
 }
 
-export function validateRuntimeFields(fields: PerformanceFields) {
+type PerformanceMessageT = (key: string) => string;
+
+export function validateRuntimeFields(
+  fields: PerformanceFields,
+  t: PerformanceMessageT,
+) {
   if (
     fields.openresty_worker_processes !== 'auto' &&
     !isPositiveInteger(fields.openresty_worker_processes)
   ) {
-    throw new Error('worker_processes 必须为 auto 或大于 0 的整数');
+    throw new Error(t('errors.workerProcesses'));
   }
   const integers = [
     fields.openresty_worker_connections,
@@ -207,57 +212,66 @@ export function validateRuntimeFields(fields: PerformanceFields) {
     fields.openresty_send_timeout,
   ];
   if (integers.some((value) => !isPositiveInteger(value))) {
-    throw new Error('超时与连接参数必须为大于 0 的整数');
+    throw new Error(t('errors.timeouts'));
   }
   const status = Number.parseInt(
     fields.openresty_default_server_return_status,
     10,
   );
   if (Number.isNaN(status) || status < 100 || status > 999) {
-    throw new Error('空白页面返回状态码必须在 100 到 999 之间');
+    throw new Error(t('errors.statusCode'));
   }
   if (!isSizeValue(fields.openresty_client_max_body_size)) {
-    throw new Error('client_max_body_size 格式不合法');
+    throw new Error(t('errors.bodySize'));
   }
   if (!isProxyBuffersValue(fields.openresty_large_client_header_buffers)) {
-    throw new Error('large_client_header_buffers 格式必须类似 "4 16k"');
+    throw new Error(t('errors.headerBuffers'));
   }
 }
 
-export function validateProxyFields(fields: PerformanceFields) {
+export function validateProxyFields(
+  fields: PerformanceFields,
+  t: PerformanceMessageT,
+) {
   const timeouts = [
     fields.openresty_proxy_connect_timeout,
     fields.openresty_proxy_send_timeout,
     fields.openresty_proxy_read_timeout,
   ];
   if (timeouts.some((value) => !isPositiveInteger(value))) {
-    throw new Error('代理超时参数必须为大于 0 的整数秒');
+    throw new Error(t('errors.proxyTimeouts'));
   }
   if (!isProxyBuffersValue(fields.openresty_proxy_buffers)) {
-    throw new Error('proxy_buffers 格式必须类似 "16 16k"');
+    throw new Error(t('errors.proxyBuffers'));
   }
   if (
     !isSizeValue(fields.openresty_proxy_buffer_size) ||
     !isSizeValue(fields.openresty_proxy_busy_buffers_size)
   ) {
-    throw new Error('缓冲大小必须为整数或带 k/m/g 单位的值');
+    throw new Error(t('errors.bufferSize'));
   }
 }
 
-export function validateGzipFields(fields: PerformanceFields) {
+export function validateGzipFields(
+  fields: PerformanceFields,
+  t: PerformanceMessageT,
+) {
   if (!isPositiveInteger(fields.openresty_gzip_min_length)) {
-    throw new Error('gzip_min_length 必须为大于 0 的整数');
+    throw new Error(t('errors.gzipMinLength'));
   }
   const level = Number.parseInt(fields.openresty_gzip_comp_level, 10);
   if (Number.isNaN(level) || level < 1 || level > 9) {
-    throw new Error('gzip_comp_level 必须在 1 到 9 之间');
+    throw new Error(t('errors.gzipLevel'));
   }
 }
 
-export function validateCacheFields(fields: PerformanceFields) {
+export function validateCacheFields(
+  fields: PerformanceFields,
+  t: PerformanceMessageT,
+) {
   if (!fields.openresty_cache_enabled) return;
   if (!fields.openresty_cache_path.trim()) {
-    throw new Error('启用缓存时必须填写 proxy_cache_path 目录');
+    throw new Error(t('errors.cachePath'));
   }
   if (
     !isCacheLevelsValue(fields.openresty_cache_levels) ||
@@ -265,12 +279,10 @@ export function validateCacheFields(fields: PerformanceFields) {
     !isSizeValue(fields.openresty_cache_max_size) ||
     !isDurationToken(fields.openresty_cache_lock_timeout)
   ) {
-    throw new Error(
-      '缓存 levels、inactive、max_size 或 lock_timeout 格式不合法',
-    );
+    throw new Error(t('errors.cacheFormat'));
   }
   if (!fields.openresty_cache_key_template.trim()) {
-    throw new Error('启用缓存时必须填写缓存 Key 模板');
+    throw new Error(t('errors.cacheKey'));
   }
 }
 

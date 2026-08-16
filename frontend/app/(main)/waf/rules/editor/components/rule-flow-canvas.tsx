@@ -8,6 +8,7 @@ import {
   useRef,
   useState,
 } from 'react';
+import { useTranslations } from 'next-intl';
 import {
   addEdge,
   applyEdgeChanges,
@@ -82,6 +83,7 @@ export function RuleFlowCanvas({
   onSelect,
   onSelectEdge,
 }: RuleFlowCanvasProps) {
+  const t = useTranslations('waf.editor');
   const instance = useRef<ReactFlowInstance<FlowNode, FlowEdge> | null>(null);
   const [nodes, setNodes, applyFlowNodeChanges] = useNodesState<FlowNode>(
     buildFlowNodes(graph, issues, selectedId),
@@ -415,7 +417,7 @@ export function RuleFlowCanvas({
               }}
             >
               <Trash2 className='size-4' />
-              {contextCanDeleteNode ? '删除节点' : '系统节点不可删除'}
+              {contextCanDeleteNode ? t('deleteNode') : t('systemNodeLocked')}
             </button>
           )}
           {contextMenu.kind === 'edge' && (
@@ -435,7 +437,7 @@ export function RuleFlowCanvas({
               }}
             >
               <Trash2 className='size-4' />
-              删除连线
+              {t('deleteEdge')}
             </button>
           )}
         </div>

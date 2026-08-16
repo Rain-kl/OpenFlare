@@ -1,7 +1,7 @@
 import type { WAFIPGroup, WAFIPGroupPayload } from '@/lib/services/openflare';
 
-export function getErrorMessage(error: unknown) {
-  return error instanceof Error ? error.message : '操作失败';
+export function getErrorMessage(error: unknown, fallback?: string) {
+  return error instanceof Error ? error.message : (fallback ?? '操作失败');
 }
 
 export function listToText(items: string[] | undefined) {
@@ -15,27 +15,26 @@ export function parseTextareaList(text: string) {
     .filter(Boolean);
 }
 
-export function parseAutomaticConfig(text: string): Record<string, unknown> {
+export function parseAutomaticConfig(
+  text: string,
+  invalidMessage = '自动配置必须是 JSON 对象。',
+): Record<string, unknown> {
   const parsed = JSON.parse(text || '{}') as unknown;
   if (!parsed || Array.isArray(parsed) || typeof parsed !== 'object') {
-    throw new Error('自动配置必须是 JSON 对象。');
+    throw new Error(invalidMessage);
   }
   return parsed as Record<string, unknown>;
 }
 
-export const ipGroupTypeLabels = {
-  manual: '手动',
-  automatic: '自动',
-  subscription: '订阅',
-} as const;
-
 export const automaticPresetRules = [
   {
     name: '单 IP 404 高频扫描',
+    labelKey: 'presets.scan404' as const,
     expr: 'request_count > 100 && StatusRatio(404) >= 0.8',
   },
   {
     name: '单 IP 直连访问异常',
+    labelKey: 'presets.directAccess' as const,
     expr: 'ip_host_count > 50 && ip_host_ratio > 0.5',
   },
 ];
@@ -63,39 +62,50 @@ export function buildIPGroupPayloadFromGroup(
   };
 }
 
+type BanRemainingTranslator = (
+  key: 'ban.permanent' | 'ban.expired' | 'ban.minutesLater' | 'ban.hoursLater',
+  values?: { count: number },
+) => string;
+
 export function formatIPGroupBanRemaining(
   capturedAt: string,
   ttlSeconds: number,
-  now = new Date(),
+  now?: Date,
+  t?: BanRemainingTranslator,
 ): string {
+  const reference = now ?? new Date();
   if (ttlSeconds <= 0) {
-    return '永久';
+    return t ? t('ban.permanent') : '永久';
   }
   const capturedDate = new Date(capturedAt);
   if (Number.isNaN(capturedDate.getTime())) {
     return '—';
   }
   const expireDate = new Date(capturedDate.getTime() + ttlSeconds * 1000);
-  if (expireDate.getTime() <= now.getTime()) {
-    return '已过期';
+  if (expireDate.getTime() <= reference.getTime()) {
+    return t ? t('ban.expired') : '已过期';
   }
   const diffMins = Math.round(
-    (expireDate.getTime() - now.getTime()) / (60 * 1000),
+    (expireDate.getTime() - reference.getTime()) / (60 * 1000),
   );
   if (diffMins < 60) {
-    return `${diffMins} 分钟后`;
+    return t ? t('ban.minutesLater', { count: diffMins }) : `${diffMins} 分钟后`;
   }
-  return `${Math.round(diffMins / 60)} 小时后`;
+  const hours = Math.round(diffMins / 60);
+  return t ? t('ban.hoursLater', { count: hours }) : `${hours} 小时后`;
 }
 
-export function getIPGroupViewEntries(group: WAFIPGroup): IPGroupViewEntry[] {
+export function getIPGroupViewEntries(
+  group: WAFIPGroup,
+  t?: BanRemainingTranslator,
+): IPGroupViewEntry[] {
   if (group.type === 'automatic' && group.ext_ips && group.ext_ips.length > 0) {
     const ttl =
       typeof group.auto_config?.ttl === 'number' ? group.auto_config.ttl : -1;
     return group.ext_ips.map((item) => ({
       ip: item.ip,
       capturedAt: item.captured_at,
-      banRemaining: formatIPGroupBanRemaining(item.captured_at, ttl),
+      banRemaining: formatIPGroupBanRemaining(item.captured_at, ttl, undefined, t),
     }));
   }
   return (group.ip_list ?? []).map((ip) => ({ ip }));

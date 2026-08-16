@@ -39,6 +39,8 @@ import {
   type ZoneDomainItem,
 } from '@/lib/services/openflare';
 
+import { useTranslations } from 'next-intl';
+
 import { getUpstreamLabels } from '../../../proxy-routes/components/helpers';
 import { ZoneDomainDialog } from './zone-domain-dialog';
 
@@ -59,18 +61,21 @@ export function ZoneDomainsTable({
   routesLoading?: boolean;
   onChanged(): Promise<unknown> | void;
 }) {
+  const t = useTranslations('websites');
+  const tc = useTranslations('common');
+  const tp = useTranslations('proxyRoutes');
   const [createOpen, setCreateOpen] = useState(false);
   const [deleting, setDeleting] = useState<ZoneDomainItem | null>(null);
 
   const remove = useMutation({
     mutationFn: (id: number) => ZoneDomainService.deleteById(zoneId, id),
     onSuccess: async () => {
-      toast.success('域名已删除');
+      toast.success(t('domainDeleted'));
       setDeleting(null);
       await onChanged();
     },
     onError: (error) =>
-      toast.error(error instanceof Error ? error.message : '删除失败'),
+      toast.error(error instanceof Error ? error.message : t('deleteFailed')),
   });
 
   const certificateMap = useMemo(
@@ -93,12 +98,12 @@ export function ZoneDomainsTable({
           onClick={() => setCreateOpen(true)}
         >
           <Plus className='mr-1 size-3.5' />
-          添加域名
+          {t('addDomain')}
         </Button>
       </div>
 
       {domains.length === 0 ? (
-        <EmptyStateWithBorder description='暂无已添加域名' />
+        <EmptyStateWithBorder description={t('emptyDomains')} />
       ) : (
         <div className='overflow-hidden rounded-lg border border-dashed shadow-none'>
           <TooltipProvider delayDuration={0}>
@@ -109,13 +114,13 @@ export function ZoneDomainsTable({
                     FQDN
                   </TableHead>
                   <TableHead className='h-8 whitespace-nowrap py-2 min-w-[120px]'>
-                    证书
+                    {t('certificate')}
                   </TableHead>
                   <TableHead className='h-8 whitespace-nowrap py-2 min-w-[200px]'>
-                    上游
+                    {t('upstream')}
                   </TableHead>
                   <TableHead className='sticky right-0 z-10 h-8 w-[90px] bg-background py-2 text-center'>
-                    操作
+                    {t('actions')}
                   </TableHead>
                 </TableRow>
               </TableHeader>
@@ -125,11 +130,11 @@ export function ZoneDomainsTable({
                     domain.proxy_route_id != null
                       ? routeMap.get(domain.proxy_route_id)
                       : undefined;
-                  const upstreams = route ? getUpstreamLabels(route) : [];
+                  const upstreams = route ? getUpstreamLabels(route, tp) : [];
                   const certLabel = domain.cert_id
                     ? (certificateMap.get(domain.cert_id)?.name ??
-                      `证书 #${domain.cert_id}`)
-                    : '未绑定';
+                      t('certNumber', { id: domain.cert_id }))
+                    : t('unbound');
 
                   return (
                     <TableRow
@@ -150,15 +155,15 @@ export function ZoneDomainsTable({
                       <TableCell className='max-w-[280px] py-1'>
                         {!domain.proxy_route_id ? (
                           <span className='font-mono text-[10px] text-muted-foreground'>
-                            未关联路由
+                            {t('unlinkedRoute')}
                           </span>
                         ) : routesLoading && !route ? (
                           <span className='font-mono text-[10px] text-muted-foreground'>
-                            加载中…
+                            {t('loadingEllipsis')}
                           </span>
                         ) : upstreams.length === 0 ? (
                           <span className='font-mono text-[10px] text-muted-foreground'>
-                            未配置上游
+                            {t('upstreamUnset')}
                           </span>
                         ) : (
                           <div className='flex flex-col gap-0'>
@@ -196,7 +201,7 @@ export function ZoneDomainsTable({
                                 </Button>
                               </TooltipTrigger>
                               <TooltipContent side='top' className='text-xs'>
-                                查看路由详情
+                                {t('viewRoute')}
                               </TooltipContent>
                             </Tooltip>
                           ) : null}
@@ -213,7 +218,7 @@ export function ZoneDomainsTable({
                               </Button>
                             </TooltipTrigger>
                             <TooltipContent side='top' className='text-xs'>
-                              删除域名
+                              {t('deleteDomain')}
                             </TooltipContent>
                           </Tooltip>
                         </div>
@@ -245,14 +250,14 @@ export function ZoneDomainsTable({
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>确认删除域名</AlertDialogTitle>
+            <AlertDialogTitle>{t('deleteDomainTitle')}</AlertDialogTitle>
             <AlertDialogDescription>
-              确认删除 {deleting?.domain} 吗？此操作不可撤销。
+              {t('deleteDomainDesc', { domain: deleting?.domain ?? '' })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={remove.isPending}>
-              取消
+              {tc('cancel')}
             </AlertDialogCancel>
             <AlertDialogAction
               className='bg-destructive text-white hover:bg-destructive/90'
@@ -264,7 +269,7 @@ export function ZoneDomainsTable({
                 }
               }}
             >
-              {remove.isPending ? '删除中…' : '确认删除'}
+              {remove.isPending ? t('deleting') : t('confirmDelete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

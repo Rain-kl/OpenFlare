@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import { ChevronRight } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 import {
   Collapsible,
@@ -58,6 +59,8 @@ function SidebarNavGroupMenuItem({
   pathname: string;
   onNavigate?: () => void;
 }) {
+  const t = useTranslations('layout');
+  const groupTitle = t(`groups.${group.titleKey}`);
   const groupActive = isNavGroupActive(pathname, group);
   const [open, setOpen] = useState(groupActive);
 
@@ -76,26 +79,29 @@ function SidebarNavGroupMenuItem({
     >
       <SidebarMenuItem>
         <CollapsibleTrigger asChild>
-          <SidebarMenuButton tooltip={group.title} isActive={groupActive}>
+          <SidebarMenuButton tooltip={groupTitle} isActive={groupActive}>
             <group.icon />
-            <span>{group.title}</span>
+            <span>{groupTitle}</span>
             <ChevronRight className='ml-auto size-4 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90' />
           </SidebarMenuButton>
         </CollapsibleTrigger>
         <CollapsibleContent>
           <SidebarMenuSub>
-            {group.items.map((item) => (
-              <SidebarMenuSubItem key={item.title}>
-                <SidebarMenuSubButton
-                  asChild
-                  isActive={matchesNavPath(pathname, item.url, item.childUrls)}
-                >
-                  <Link href={item.url} onClick={onNavigate}>
-                    <span>{item.title}</span>
-                  </Link>
-                </SidebarMenuSubButton>
-              </SidebarMenuSubItem>
-            ))}
+            {group.items.map((item) => {
+              const title = t(`nav.${item.titleKey}`);
+              return (
+                <SidebarMenuSubItem key={item.url}>
+                  <SidebarMenuSubButton
+                    asChild
+                    isActive={matchesNavPath(pathname, item.url, item.childUrls)}
+                  >
+                    <Link href={item.url} onClick={onNavigate}>
+                      <span>{title}</span>
+                    </Link>
+                  </SidebarMenuSubButton>
+                </SidebarMenuSubItem>
+              );
+            })}
           </SidebarMenuSub>
         </CollapsibleContent>
       </SidebarMenuItem>
@@ -109,6 +115,7 @@ export function OpenFlareSidebarMenu({
   onNavigate?: () => void;
 }) {
   const pathname = usePathname();
+  const t = useTranslations('layout');
   const { config } = usePublicConfig();
   const displayConfig = useMemo(
     () => parseMenuDisplayConfig(config?.menu_display_config),
@@ -126,7 +133,7 @@ export function OpenFlareSidebarMenu({
 
           return (
             <SidebarNavGroupMenuItem
-              key={entry.title}
+              key={entry.titleKey}
               group={{ ...entry, items: filteredItems }}
               pathname={pathname}
               onNavigate={onNavigate}
@@ -138,16 +145,17 @@ export function OpenFlareSidebarMenu({
           return null;
         }
 
+        const title = t(`nav.${entry.titleKey}`);
         return (
-          <SidebarMenuItem key={entry.title}>
+          <SidebarMenuItem key={entry.url}>
             <SidebarMenuButton
-              tooltip={entry.title}
+              tooltip={title}
               isActive={matchesNavPath(pathname, entry.url, entry.childUrls)}
               asChild
             >
               <Link href={entry.url} onClick={onNavigate}>
                 <entry.icon />
-                <span>{entry.title}</span>
+                <span>{title}</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>

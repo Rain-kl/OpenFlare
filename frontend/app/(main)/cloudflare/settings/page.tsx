@@ -1,6 +1,7 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useTranslations } from 'next-intl';
 import { ArrowLeft, Cloud, Save, ShieldCheck, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
@@ -42,6 +43,7 @@ import { getErrorMessage } from '../../websites/components/website-utils';
 const dnsAccountsQueryKey = ['openflare', 'dns-accounts'] as const;
 
 export default function CloudflareSettingsPage() {
+  const t = useTranslations('cloudflare.settings');
   const queryClient = useQueryClient();
   const [source, setSource] =
     useState<CloudflareConnectionSource>('dns_account');
@@ -85,7 +87,7 @@ export default function CloudflareSettingsPage() {
         api_token: source === 'standalone' ? apiToken : '',
       }),
     onSuccess: async () => {
-      toast.success('Cloudflare 连接配置已保存');
+      toast.success(t('saved'));
       setAPIToken('');
       await refresh();
     },
@@ -95,7 +97,7 @@ export default function CloudflareSettingsPage() {
   const verifyMutation = useMutation({
     mutationFn: () => CloudflareService.verifyConnection(),
     onSuccess: async () => {
-      toast.success('Cloudflare 连接验证成功');
+      toast.success(t('verified'));
       await refresh();
     },
     onError: (error) => toast.error(getErrorMessage(error)),
@@ -104,7 +106,7 @@ export default function CloudflareSettingsPage() {
   const clearMutation = useMutation({
     mutationFn: () => CloudflareService.clearConnection(),
     onSuccess: async () => {
-      toast.success('Cloudflare 连接已清除');
+      toast.success(t('cleared'));
       setDNSAccountID('');
       setAPIToken('');
       await refresh();
@@ -118,13 +120,13 @@ export default function CloudflareSettingsPage() {
         <Button variant='ghost' size='sm' className='self-start' asChild>
           <Link href='/cloudflare'>
             <ArrowLeft data-icon='inline-start' />
-            返回列表
+            {t('back')}
           </Link>
         </Button>
         <div className='flex items-center gap-2'>
           <Cloud className='size-5 text-primary' />
           <h1 className='text-2xl font-semibold tracking-tight'>
-            Cloudflare 连接设置
+            {t('title')}
           </h1>
         </div>
       </div>
@@ -138,16 +140,15 @@ export default function CloudflareSettingsPage() {
 
       <Card className='border-dashed shadow-none'>
         <CardHeader>
-          <CardTitle className='text-base'>凭据来源</CardTitle>
+          <CardTitle className='text-base'>{t('sourceTitle')}</CardTitle>
           <CardDescription>
-            Token 建议授予 Zone:Read 与 DNS:Edit 权限；Token 不会在 API
-            或页面中回显。
+            {t('sourceDesc')}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <FieldGroup>
             <Field>
-              <FieldLabel htmlFor='cf-source'>连接来源</FieldLabel>
+              <FieldLabel htmlFor='cf-source'>{t('source')}</FieldLabel>
               <Select
                 value={source}
                 onValueChange={(value) =>
@@ -160,9 +161,11 @@ export default function CloudflareSettingsPage() {
                 <SelectContent>
                   <SelectGroup>
                     <SelectItem value='dns_account'>
-                      导入现有 DNS 账号
+                      {t('importDns')}
                     </SelectItem>
-                    <SelectItem value='standalone'>独立 API Token</SelectItem>
+                    <SelectItem value='standalone'>
+                      {t('standalone')}
+                    </SelectItem>
                   </SelectGroup>
                 </SelectContent>
               </Select>
@@ -171,11 +174,11 @@ export default function CloudflareSettingsPage() {
             {source === 'dns_account' ? (
               <Field>
                 <FieldLabel htmlFor='cf-dns-account'>
-                  Cloudflare DNS 账号
+                  {t('dnsAccount')}
                 </FieldLabel>
                 <Select value={dnsAccountID} onValueChange={setDNSAccountID}>
                   <SelectTrigger id='cf-dns-account' className='w-full'>
-                    <SelectValue placeholder='选择 DNS 账号' />
+                    <SelectValue placeholder={t('selectAccount')} />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectGroup>
@@ -188,8 +191,9 @@ export default function CloudflareSettingsPage() {
                   </SelectContent>
                 </Select>
                 <FieldDescription>
-                  仅显示类型为 cloudflare 的 DNS 账号。可前往{' '}
-                  <Link href='/dns-accounts'>DNS 账号</Link> 新增。
+                  {t('dnsHint')}{' '}
+                  <Link href='/dns-accounts'>{t('dnsLink')}</Link>
+                  {t('dnsHintAfter')}
                 </FieldDescription>
               </Field>
             ) : (
@@ -203,8 +207,8 @@ export default function CloudflareSettingsPage() {
                   onChange={(event) => setAPIToken(event.target.value)}
                   placeholder={
                     connectionQuery.data?.configured
-                      ? '留空不会回显现有 Token；保存将替换'
-                      : '输入 Cloudflare API Token'
+                      ? t('tokenKeep')
+                      : t('tokenEnter')
                   }
                 />
               </Field>
@@ -219,7 +223,7 @@ export default function CloudflareSettingsPage() {
                 }
               >
                 <Save data-icon='inline-start' />
-                保存配置
+                {t('save')}
               </Button>
               <Button
                 variant='outline'
@@ -229,7 +233,7 @@ export default function CloudflareSettingsPage() {
                 }
               >
                 <ShieldCheck data-icon='inline-start' />
-                测试连接
+                {t('test')}
               </Button>
               <Button
                 variant='destructive'
@@ -239,7 +243,7 @@ export default function CloudflareSettingsPage() {
                 }
               >
                 <Trash2 data-icon='inline-start' />
-                清除连接
+                {t('clear')}
               </Button>
             </div>
           </FieldGroup>
@@ -248,11 +252,11 @@ export default function CloudflareSettingsPage() {
 
       <Alert>
         <ShieldCheck />
-        <AlertTitle>当前状态</AlertTitle>
+        <AlertTitle>{t('statusTitle')}</AlertTitle>
         <AlertDescription>
           {connectionQuery.data?.ready
-            ? 'Token 已验证，Cloudflare 指向同步可以执行。'
-            : '保存配置后仍需测试连接；未验证状态下同步任务会被拒绝。'}
+            ? t('ready')
+            : t('notReady')}
         </AlertDescription>
       </Alert>
     </div>

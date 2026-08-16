@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { useEffect, useMemo, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
@@ -43,6 +44,8 @@ export function GroupDialog({
   pending: boolean;
   onSubmit: (payload: CloudflareGroupPayload) => void;
 }) {
+  const t = useTranslations('cloudflare.groupDialog');
+  const tCommon = useTranslations('common');
   const edgeNodes = useMemo(
     () => nodes.filter((node) => node.node_type === 'edge_node'),
     [nodes],
@@ -66,14 +69,14 @@ export function GroupDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{group ? '编辑指向分组' : '新增指向分组'}</DialogTitle>
-          <DialogDescription>
-            一期使用主节点作为生效节点；备用节点仅保存，不会自动切换。
-          </DialogDescription>
+          <DialogTitle>
+            {group ? t('editTitle') : t('createTitle')}
+          </DialogTitle>
+          <DialogDescription>{t('description')}</DialogDescription>
         </DialogHeader>
         <FieldGroup>
           <Field>
-            <FieldLabel htmlFor='cf-group-name'>分组名称</FieldLabel>
+            <FieldLabel htmlFor='cf-group-name'>{t('name')}</FieldLabel>
             <Input
               id='cf-group-name'
               value={name}
@@ -81,10 +84,10 @@ export function GroupDialog({
             />
           </Field>
           <Field>
-            <FieldLabel htmlFor='cf-primary-node'>主节点</FieldLabel>
+            <FieldLabel htmlFor='cf-primary-node'>{t('primary')}</FieldLabel>
             <Select value={primaryNodeID} onValueChange={setPrimaryNodeID}>
               <SelectTrigger id='cf-primary-node' className='w-full'>
-                <SelectValue placeholder='选择带 IPv4 的边缘节点' />
+                <SelectValue placeholder={t('primaryPlaceholder')} />
               </SelectTrigger>
               <SelectContent>
                 <SelectGroup>
@@ -94,7 +97,7 @@ export function GroupDialog({
                       value={String(node.id)}
                       disabled={!node.ip}
                     >
-                      {node.name} · {node.ip || '未配置 IP'}
+                      {node.name} · {node.ip || t('noIp')}
                     </SelectItem>
                   ))}
                 </SelectGroup>
@@ -102,19 +105,19 @@ export function GroupDialog({
             </Select>
           </Field>
           <Field>
-            <FieldLabel htmlFor='cf-backup-node'>备用节点</FieldLabel>
+            <FieldLabel htmlFor='cf-backup-node'>{t('backup')}</FieldLabel>
             <Select value={backupNodeID} onValueChange={setBackupNodeID}>
               <SelectTrigger id='cf-backup-node' className='w-full'>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 <SelectGroup>
-                  <SelectItem value='none'>不设置</SelectItem>
+                  <SelectItem value='none'>{t('none')}</SelectItem>
                   {edgeNodes
                     .filter((node) => String(node.id) !== primaryNodeID)
                     .map((node) => (
                       <SelectItem key={node.id} value={String(node.id)}>
-                        {node.name} · {node.ip || '未配置 IP'}
+                        {node.name} · {node.ip || t('noIp')}
                       </SelectItem>
                     ))}
                 </SelectGroup>
@@ -123,7 +126,7 @@ export function GroupDialog({
           </Field>
           <Field orientation='horizontal'>
             <FieldLabel htmlFor='cf-default-proxied'>
-              新成员默认开启橙云
+              {t('defaultProxied')}
             </FieldLabel>
             <Switch
               id='cf-default-proxied'
@@ -132,7 +135,7 @@ export function GroupDialog({
             />
           </Field>
           <Field orientation='horizontal'>
-            <FieldLabel htmlFor='cf-enabled'>启用同步</FieldLabel>
+            <FieldLabel htmlFor='cf-enabled'>{t('enableSync')}</FieldLabel>
             <Switch
               id='cf-enabled'
               checked={enabled}
@@ -142,7 +145,7 @@ export function GroupDialog({
         </FieldGroup>
         <DialogFooter>
           <Button variant='outline' onClick={() => onOpenChange(false)}>
-            取消
+            {tCommon('cancel')}
           </Button>
           <Button
             disabled={pending || !name.trim() || !primaryNodeID}
@@ -157,7 +160,7 @@ export function GroupDialog({
               })
             }
           >
-            保存
+            {t('save')}
           </Button>
         </DialogFooter>
       </DialogContent>

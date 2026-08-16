@@ -31,6 +31,7 @@ import { Badge } from '@/components/ui/badge';
 import services from '@/lib/services';
 import type { SystemConfig } from '@/lib/services/admin';
 import { toast } from 'sonner';
+import { useTranslations } from 'next-intl';
 
 interface SystemTabProps {
   configs: Record<string, SystemConfig>;
@@ -39,6 +40,7 @@ interface SystemTabProps {
 
 export function SystemTab({ configs, systemConfigsQuery }: SystemTabProps) {
   const queryClient = useQueryClient();
+  const t = useTranslations('settings.system');
   const [serverAddress, setServerAddress] = useState('');
   const [siteName, setSiteName] = useState('');
   const [smtpHost, setSmtpHost] = useState('');
@@ -65,7 +67,7 @@ export function SystemTab({ configs, systemConfigsQuery }: SystemTabProps) {
   const handleDetectAddress = () => {
     if (typeof window !== 'undefined') {
       setServerAddress(window.location.origin);
-      toast.success('已自动获取当前域名并填充');
+      toast.success(t('addressAutoDetected'));
     }
   };
 
@@ -85,10 +87,10 @@ export function SystemTab({ configs, systemConfigsQuery }: SystemTabProps) {
         queryKey: ['admin', 'system-configs'],
       });
       await queryClient.invalidateQueries({ queryKey: ['public-config'] });
-      toast.success('配置已更新');
+      toast.success(t('configUpdated'));
     },
     onError: (error: Error) => {
-      toast.error(error.message || '更新配置失败');
+      toast.error(error.message || t('updateConfigFailed'));
     },
   });
 
@@ -114,10 +116,10 @@ export function SystemTab({ configs, systemConfigsQuery }: SystemTabProps) {
         }),
         queryClient.invalidateQueries({ queryKey: ['public-config'] }),
       ]);
-      toast.success('通用配置已成功保存');
+      toast.success(t('generalConfigSaved'));
     },
     onError: (error: Error) => {
-      toast.error(error.message || '保存配置失败');
+      toast.error(error.message || t('saveConfigFailed'));
     },
   });
 
@@ -156,10 +158,10 @@ export function SystemTab({ configs, systemConfigsQuery }: SystemTabProps) {
       await queryClient.invalidateQueries({
         queryKey: ['admin', 'system-configs'],
       });
-      toast.success('SMTP 邮件配置已成功保存');
+      toast.success(t('smtpConfigSaved'));
     },
     onError: (error: Error) => {
-      toast.error(error.message || '保存配置失败');
+      toast.error(error.message || t('saveConfigFailed'));
     },
   });
 
@@ -170,7 +172,7 @@ export function SystemTab({ configs, systemConfigsQuery }: SystemTabProps) {
 
   const testSmtpMutation = useMutation({
     mutationFn: async () => {
-      setSmtpTestLog('正在发起连接测试...\n');
+      setSmtpTestLog(t('connectingTest'));
       setSmtpTestSuccess(null);
       setSmtpTestError('');
 
@@ -187,25 +189,27 @@ export function SystemTab({ configs, systemConfigsQuery }: SystemTabProps) {
       setSmtpTestLog(data.log);
       if (data.success) {
         setSmtpTestSuccess(true);
-        toast.success('测试邮件发送成功');
+        toast.success(t('testEmailSent'));
       } else {
         setSmtpTestSuccess(false);
-        setSmtpTestError(data.error || '发送失败，请检查配置和日志。');
-        toast.error('测试邮件发送失败');
+        setSmtpTestError(data.error || t('sendFailedCheckConfig'));
+        toast.error(t('testEmailFailed'));
       }
     },
     onError: (error: Error) => {
       setSmtpTestSuccess(false);
-      setSmtpTestError(error.message || '请求发送失败');
-      setSmtpTestLog((prev) => prev + `\n[请求错误] ${error.message}\n`);
-      toast.error(error.message || '测试请求发送失败');
+      setSmtpTestError(error.message || t('requestFailed'));
+      setSmtpTestLog(
+        (prev) => prev + `\n${t('requestError')} ${error.message}\n`,
+      );
+      toast.error(error.message || t('testRequestFailed'));
     },
   });
 
   const handleSmtpTestSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!smtpTestTo) {
-      toast.error('请输入目标邮箱地址');
+      toast.error(t('enterTargetEmail'));
       return;
     }
     testSmtpMutation.mutate();
@@ -225,10 +229,10 @@ export function SystemTab({ configs, systemConfigsQuery }: SystemTabProps) {
             </div>
             <div>
               <CardTitle className='text-base font-semibold'>
-                通用设置
+                {t('generalSettings')}
               </CardTitle>
               <CardDescription className='text-xs'>
-                配置站点标识、服务地址与搜索引擎收录策略
+                {t('generalSettingsDesc')}
               </CardDescription>
             </div>
           </div>
@@ -238,7 +242,7 @@ export function SystemTab({ configs, systemConfigsQuery }: SystemTabProps) {
             <div className='grid grid-cols-1 gap-4 lg:grid-cols-2'>
               <div className='flex flex-col gap-1.5'>
                 <Label htmlFor='site_name' className='text-xs font-semibold'>
-                  站点名称
+                  {t('siteName')}
                 </Label>
                 <Input
                   id='site_name'
@@ -249,7 +253,7 @@ export function SystemTab({ configs, systemConfigsQuery }: SystemTabProps) {
                   className='border-dashed bg-card text-xs'
                 />
                 <p className='text-[11px] leading-relaxed text-muted-foreground'>
-                  用于网页标题、登录注册页面、管理后台与系统邮件。
+                  {t('siteNameDesc')}
                 </p>
               </div>
 
@@ -259,7 +263,7 @@ export function SystemTab({ configs, systemConfigsQuery }: SystemTabProps) {
                     htmlFor='server_address'
                     className='text-xs font-semibold'
                   >
-                    服务器访问地址
+                    {t('serverAddress')}
                   </Label>
                   <Button
                     type='button'
@@ -269,7 +273,7 @@ export function SystemTab({ configs, systemConfigsQuery }: SystemTabProps) {
                     className='h-auto px-0 text-xs'
                   >
                     <Sparkles data-icon='inline-start' />
-                    使用当前域名
+                    {t('useCurrentDomain')}
                   </Button>
                 </div>
                 <Input
@@ -281,7 +285,7 @@ export function SystemTab({ configs, systemConfigsQuery }: SystemTabProps) {
                   className='border-dashed bg-card text-xs'
                 />
                 <p className='text-[11px] leading-relaxed text-muted-foreground'>
-                  限定 API 的允许来源；留空将开放任意来源访问。
+                  {t('serverAddressDesc')}
                 </p>
               </div>
             </div>
@@ -294,14 +298,16 @@ export function SystemTab({ configs, systemConfigsQuery }: SystemTabProps) {
                 <div className='flex min-w-0 flex-col gap-1'>
                   <div className='flex flex-wrap items-center gap-2'>
                     <span className='text-xs font-semibold'>
-                      搜索引擎抓取与收录
+                      {t('searchEngineIndexing')}
                     </span>
                     <Badge variant={indexingEnabled ? 'default' : 'secondary'}>
-                      {indexingEnabled ? '允许收录' : '禁止收录'}
+                      {indexingEnabled
+                        ? t('indexingAllowed')
+                        : t('indexingDenied')}
                     </Badge>
                   </div>
                   <p className='text-[11px] leading-relaxed text-muted-foreground'>
-                    控制 Google、Baidu、Bing 等搜索引擎是否可以索引公开页面。
+                    {t('searchEngineIndexingDesc')}
                   </p>
                 </div>
               </div>
@@ -324,7 +330,7 @@ export function SystemTab({ configs, systemConfigsQuery }: SystemTabProps) {
             <div className='flex flex-col-reverse gap-2 border-t border-dashed pt-4 sm:flex-row sm:items-center sm:justify-between'>
               <div className='flex items-center gap-2 text-[11px] text-muted-foreground'>
                 <Globe className='size-3.5' />
-                地址变更会影响跨域访问策略，请填写完整协议与域名。
+                {t('addressChangeWarning')}
               </div>
               <Button
                 type='submit'
@@ -337,10 +343,10 @@ export function SystemTab({ configs, systemConfigsQuery }: SystemTabProps) {
                       data-icon='inline-start'
                       className='animate-spin'
                     />
-                    保存中...
+                    {t('saving')}
                   </>
                 ) : (
-                  '保存配置'
+                  t('saveConfig')
                 )}
               </Button>
             </div>
@@ -357,10 +363,10 @@ export function SystemTab({ configs, systemConfigsQuery }: SystemTabProps) {
             </div>
             <div>
               <CardTitle className='text-base font-semibold'>
-                SMTP 邮件设置
+                {t('smtpSettings')}
               </CardTitle>
               <CardDescription className='text-xs'>
-                配置系统的邮件发送服务 (SMTP)
+                {t('smtpSettingsDesc')}
               </CardDescription>
             </div>
           </div>
@@ -370,7 +376,7 @@ export function SystemTab({ configs, systemConfigsQuery }: SystemTabProps) {
             <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
               <div className='space-y-1.5'>
                 <Label htmlFor='smtp_host' className='text-xs font-semibold'>
-                  SMTP 服务器地址
+                  {t('smtpHost')}
                 </Label>
                 <Input
                   id='smtp_host'
@@ -384,7 +390,7 @@ export function SystemTab({ configs, systemConfigsQuery }: SystemTabProps) {
 
               <div className='space-y-1.5'>
                 <Label htmlFor='smtp_port' className='text-xs font-semibold'>
-                  SMTP 端口
+                  {t('smtpPort')}
                 </Label>
                 <Input
                   id='smtp_port'
@@ -401,7 +407,7 @@ export function SystemTab({ configs, systemConfigsQuery }: SystemTabProps) {
                   htmlFor='smtp_username'
                   className='text-xs font-semibold'
                 >
-                  SMTP 账户
+                  {t('smtpUsername')}
                 </Label>
                 <Input
                   id='smtp_username'
@@ -418,7 +424,7 @@ export function SystemTab({ configs, systemConfigsQuery }: SystemTabProps) {
                   htmlFor='smtp_password'
                   className='text-xs font-semibold'
                 >
-                  SMTP 访问凭证
+                  {t('smtpPassword')}
                 </Label>
                 <Input
                   id='smtp_password'
@@ -427,8 +433,8 @@ export function SystemTab({ configs, systemConfigsQuery }: SystemTabProps) {
                   onChange={(e) => setSmtpPassword(e.target.value)}
                   placeholder={
                     configs['smtp_password']?.value === '******'
-                      ? '•••••• (已配置，留空或输入新值)'
-                      : '输入凭证密码'
+                      ? t('smtpPasswordMasked')
+                      : t('smtpPasswordPlaceholder')
                   }
                   className='bg-card border-dashed text-xs'
                 />
@@ -449,7 +455,7 @@ export function SystemTab({ configs, systemConfigsQuery }: SystemTabProps) {
                 }}
                 disabled={saveSmtpMutation.isPending}
               >
-                测试发件
+                {t('testSend')}
               </Button>
               <Button
                 type='submit'
@@ -459,10 +465,10 @@ export function SystemTab({ configs, systemConfigsQuery }: SystemTabProps) {
                 {saveSmtpMutation.isPending ? (
                   <>
                     <Loader2 className='mr-1.5 size-3.5 animate-spin' />
-                    保存中...
+                    {t('saving')}
                   </>
                 ) : (
-                  '保存配置'
+                  t('saveConfig')
                 )}
               </Button>
             </div>
@@ -474,18 +480,17 @@ export function SystemTab({ configs, systemConfigsQuery }: SystemTabProps) {
         <DialogContent className='max-w-lg border border-dashed'>
           <DialogHeader>
             <DialogTitle className='text-base font-semibold'>
-              SMTP 发件测试
+              {t('smtpTestTitle')}
             </DialogTitle>
             <DialogDescription className='text-xs'>
-              输入接收测试邮件的邮箱地址。系统将使用您在表单中当前填写的 SMTP
-              配置进行发件测试。
+              {t('smtpTestDesc')}
             </DialogDescription>
           </DialogHeader>
 
           <form onSubmit={handleSmtpTestSubmit} className='space-y-4'>
             <div className='space-y-1.5'>
               <Label htmlFor='smtp_test_to' className='text-xs font-semibold'>
-                目标邮箱地址
+                {t('targetEmail')}
               </Label>
               <Input
                 id='smtp_test_to'
@@ -501,7 +506,9 @@ export function SystemTab({ configs, systemConfigsQuery }: SystemTabProps) {
 
             {smtpTestLog && (
               <div className='space-y-1.5'>
-                <Label className='text-xs font-semibold'>连接与传输日志</Label>
+                <Label className='text-xs font-semibold'>
+                  {t('connectionLog')}
+                </Label>
                 <pre className='bg-zinc-950 text-zinc-50 font-mono p-4 rounded-lg text-[10px] h-60 overflow-y-auto whitespace-pre-wrap border border-dashed border-zinc-800 leading-relaxed'>
                   {smtpTestLog}
                 </pre>
@@ -510,13 +517,13 @@ export function SystemTab({ configs, systemConfigsQuery }: SystemTabProps) {
 
             {smtpTestSuccess === true && (
               <div className='p-3 rounded-lg border border-dashed border-emerald-500/30 bg-emerald-500/5 text-emerald-500 text-xs'>
-                测试成功！邮件已顺利发出。
+                {t('testSuccess')}
               </div>
             )}
 
             {smtpTestSuccess === false && (
               <div className='p-3 rounded-lg border border-dashed border-rose-500/30 bg-rose-500/5 text-rose-500 text-xs break-all'>
-                测试失败：{smtpTestError}
+                {t('testFailed')}: {smtpTestError}
               </div>
             )}
 
@@ -528,7 +535,7 @@ export function SystemTab({ configs, systemConfigsQuery }: SystemTabProps) {
                 onClick={() => setSmtpTestOpen(false)}
                 disabled={testSmtpMutation.isPending}
               >
-                关闭
+                {t('close')}
               </Button>
               <Button
                 type='submit'
@@ -538,10 +545,10 @@ export function SystemTab({ configs, systemConfigsQuery }: SystemTabProps) {
                 {testSmtpMutation.isPending ? (
                   <>
                     <Loader2 className='mr-1.5 size-3.5 animate-spin' />
-                    测试中...
+                    {t('testing')}
                   </>
                 ) : (
-                  '开始测试'
+                  t('startTest')
                 )}
               </Button>
             </DialogFooter>

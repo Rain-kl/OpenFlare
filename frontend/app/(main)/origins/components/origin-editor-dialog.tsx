@@ -25,21 +25,13 @@ import {
   type OriginMutationPayload,
   OriginService,
 } from '@/lib/services/openflare';
+import { useTranslations } from 'next-intl';
 
-const originSchema = z.object({
-  name: z.string().max(255),
-  address: z
-    .string()
-    .trim()
-    .min(1, '请输入源站地址')
-    .refine(
-      (value) => !/[/?#]/.test(value) && !value.includes('://'),
-      '源站地址格式不合法',
-    ),
-  remark: z.string().max(255),
-});
-
-type OriginFormValues = z.infer<typeof originSchema>;
+type OriginFormValues = {
+  name: string;
+  address: string;
+  remark: string;
+};
 
 const originsQueryKey = ['openflare', 'origins'] as const;
 
@@ -73,7 +65,21 @@ export function OriginEditorDialog({
   origin,
   onSaved,
 }: OriginEditorDialogProps) {
+  const t = useTranslations('origins');
+  const tc = useTranslations('common');
   const queryClient = useQueryClient();
+  const originSchema = z.object({
+    name: z.string().max(255),
+    address: z
+      .string()
+      .trim()
+      .min(1, t('addressRequired'))
+      .refine(
+        (value) => !/[/?#]/.test(value) && !value.includes('://'),
+        t('addressInvalid'),
+      ),
+    remark: z.string().max(255),
+  });
   const form = useForm<OriginFormValues>({
     resolver: zodResolver(originSchema),
     defaultValues: toFormValues(origin),
@@ -91,7 +97,7 @@ export function OriginEditorDialog({
         : OriginService.create(payload);
     },
     onSuccess: async () => {
-      toast.success(origin ? '源站已更新' : '源站已创建');
+      toast.success(origin ? t('updated') : t('created'));
       await queryClient.invalidateQueries({ queryKey: originsQueryKey });
       if (origin) {
         await queryClient.invalidateQueries({
@@ -102,7 +108,7 @@ export function OriginEditorDialog({
       onOpenChange(false);
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : '保存失败');
+      toast.error(error instanceof Error ? error.message : t('saveFailed'));
     },
   });
 
@@ -110,10 +116,8 @@ export function OriginEditorDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{origin ? '编辑源站' : '新增源站'}</DialogTitle>
-          <DialogDescription>
-            源站作为规则里的可复用地址目录，协议和端口仍由规则决定。
-          </DialogDescription>
+          <DialogTitle>{origin ? t('editOrigin') : t('create')}</DialogTitle>
+          <DialogDescription>{t('editorDesc')}</DialogDescription>
         </DialogHeader>
 
         <form
@@ -122,7 +126,7 @@ export function OriginEditorDialog({
           onSubmit={form.handleSubmit((values) => mutation.mutate(values))}
         >
           <div className='space-y-1.5'>
-            <Label htmlFor='address'>源站地址</Label>
+            <Label htmlFor='address'>{t('address')}</Label>
             <Input
               id='address'
               placeholder='origin.internal'
@@ -135,22 +139,22 @@ export function OriginEditorDialog({
             ) : null}
           </div>
           <div className='space-y-1.5'>
-            <Label htmlFor='name'>源站名</Label>
+            <Label htmlFor='name'>{t('name')}</Label>
             <Input
               id='name'
-              placeholder='主站源站'
+              placeholder={t('namePlaceholder')}
               {...form.register('name')}
             />
           </div>
           <div className='space-y-1.5'>
-            <Label htmlFor='remark'>备注</Label>
+            <Label htmlFor='remark'>{t('remark')}</Label>
             <Textarea id='remark' rows={2} {...form.register('remark')} />
           </div>
         </form>
 
         <DialogFooter>
           <Button variant='outline' onClick={() => onOpenChange(false)}>
-            取消
+            {tc('cancel')}
           </Button>
           <Button
             type='submit'
@@ -160,12 +164,12 @@ export function OriginEditorDialog({
             {mutation.isPending ? (
               <>
                 <Loader2 className='size-4 animate-spin mr-1' />
-                保存中...
+                {t('saving')}
               </>
             ) : origin ? (
-              '保存修改'
+              t('saveChanges')
             ) : (
-              '新增源站'
+              t('create')
             )}
           </Button>
         </DialogFooter>

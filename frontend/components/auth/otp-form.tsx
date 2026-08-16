@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { useTranslations } from 'next-intl';
 import { RefreshCwIcon } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -33,12 +34,11 @@ export function OTPForm({
   onResend,
   onSubmit,
 }: OTPFormProps) {
+  const t = useTranslations('auth.otp');
+
   return (
     <div className='flex flex-col gap-6 [@media(max-height:700px)]:gap-4'>
-      <AuthHeading
-        title='验证您的登录'
-        description='输入发送到安全邮箱的 6 位验证码。'
-      />
+      <AuthHeading title={t('title')} description={t('description')} />
       {loginCodeTip ? (
         <p className='text-sm leading-6 text-muted-foreground'>
           {loginCodeTip}
@@ -51,7 +51,7 @@ export function OTPForm({
               htmlFor='otp-verification'
               className='text-sm font-medium'
             >
-              验证码
+              {t('code')}
             </FieldLabel>
             <Button
               variant='outline'
@@ -62,7 +62,9 @@ export function OTPForm({
               className='h-8 text-xs'
             >
               <RefreshCwIcon className={cn(isPending && 'animate-spin')} />
-              {loginCooldown > 0 ? `${loginCooldown}秒后重发` : '重新发送'}
+              {loginCooldown > 0
+                ? t('resendIn', { seconds: loginCooldown })
+                : t('resend')}
             </Button>
           </div>
           <div className='flex justify-start'>
@@ -96,15 +98,15 @@ export function OTPForm({
           onClick={onSubmit}
           disabled={isPending || code.length < 6}
         >
-          {isPending ? '验证中...' : '验证'}
+          {isPending ? t('submitting') : t('submit')}
         </Button>
         <div className='text-center text-sm text-muted-foreground'>
-          遇到登录问题？{' '}
+          {t('help')}{' '}
           <a
             href='#'
             className='underline underline-offset-4 transition-colors hover:text-primary'
           >
-            联系客服
+            {t('contactSupport')}
           </a>
         </div>
       </div>

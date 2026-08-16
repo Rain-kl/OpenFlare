@@ -5,21 +5,29 @@
  * - single label `name` → `name.example.com`
  * - full FQDN must equal the root or end with `.root`
  */
+export type ZoneDomainInputError =
+  | 'selectZone'
+  | 'enterDomain'
+  | 'noWildcard'
+  | 'invalidFormat'
+  | 'invalidSubdomain'
+  | 'mustBelongToZone';
+
 export function resolveZoneDomainInput(
   rawInput: string,
   zoneRoot: string,
-): { domain: string; error?: string } {
+): { domain: string; error?: ZoneDomainInputError } {
   const input = rawInput.trim().toLowerCase();
   const root = zoneRoot.trim().toLowerCase();
 
   if (!root) {
-    return { domain: '', error: '请先选择 Zone' };
+    return { domain: '', error: 'selectZone' };
   }
   if (!input) {
-    return { domain: '', error: '请输入域名' };
+    return { domain: '', error: 'enterDomain' };
   }
   if (input.includes('*')) {
-    return { domain: '', error: 'Zone 域名不支持通配符' };
+    return { domain: '', error: 'noWildcard' };
   }
   if (
     input.includes('://') ||
@@ -27,7 +35,7 @@ export function resolveZoneDomainInput(
     input.includes('?') ||
     input.includes('#')
   ) {
-    return { domain: '', error: '域名格式不合法' };
+    return { domain: '', error: 'invalidFormat' };
   }
 
   if (input === '@') {
@@ -37,7 +45,7 @@ export function resolveZoneDomainInput(
   // Short label: no dots → prefix under zone root
   if (!input.includes('.')) {
     if (!/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/i.test(input)) {
-      return { domain: '', error: '子域名称格式不合法' };
+      return { domain: '', error: 'invalidSubdomain' };
     }
     return { domain: `${input}.${root}` };
   }
@@ -47,7 +55,7 @@ export function resolveZoneDomainInput(
     return { domain: input };
   }
 
-  return { domain: '', error: `域名必须属于 Zone ${root}` };
+  return { domain: '', error: 'mustBelongToZone' };
 }
 
 /** Live preview string for the input helper text. */

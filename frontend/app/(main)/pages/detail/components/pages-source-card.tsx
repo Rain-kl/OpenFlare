@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Download, Pencil, RefreshCw, Search } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 
 import { ErrorInline } from '@/components/layout/error';
@@ -58,16 +59,19 @@ const LATEST_OVERDUE_MAX_WAIT = 10 * 60 * 1_000;
 const SOURCE_STATUS: Record<
   PagesSourceStatus,
   {
-    label: string;
+    labelKey: string;
     variant: 'default' | 'secondary' | 'destructive' | 'outline';
   }
 > = {
-  idle: { label: '空闲', variant: 'outline' },
-  checking: { label: '检查中', variant: 'secondary' },
-  update_available: { label: '有可用更新', variant: 'default' },
-  syncing: { label: '同步中', variant: 'secondary' },
-  failed: { label: '最近同步失败', variant: 'destructive' },
-  attention: { label: '需要确认', variant: 'destructive' },
+  idle: { labelKey: 'source.status.idle', variant: 'outline' },
+  checking: { labelKey: 'source.status.checking', variant: 'secondary' },
+  update_available: {
+    labelKey: 'source.status.update_available',
+    variant: 'default',
+  },
+  syncing: { labelKey: 'source.status.syncing', variant: 'secondary' },
+  failed: { labelKey: 'source.status.failed', variant: 'destructive' },
+  attention: { labelKey: 'source.status.attention', variant: 'destructive' },
 };
 
 interface ActiveAction {
@@ -129,11 +133,9 @@ function sourceDeploymentFingerprint(source: PagesSource) {
   return `${source.last_synced_at ?? ''}|${source.last_applied?.revision ?? ''}`;
 }
 
-function sourceActionLabel(action: PagesSourceActionReceipt['action']) {
-  return action === 'check' ? '检查' : '同步并发布';
-}
-
 export function PagesSourceCard({ projectId }: { projectId: number }) {
+  const t = useTranslations('pages');
+  const tCommon = useTranslations('common');
   const queryClient = useQueryClient();
   const handledExecutionID = useRef<string | null>(null);
   const sourcePollingStartedAt = useRef<number | null>(null);
@@ -198,7 +200,7 @@ export function PagesSourceCard({ projectId }: { projectId: number }) {
     ],
     queryFn: () => {
       const executionID = activeAction?.receipt.execution_id;
-      if (!executionID) throw new Error('缺少任务执行 ID');
+      if (!executionID) throw new Error(t('source.missingExecutionId'));
       return AdminTaskService.getTaskExecution(executionID);
     },
     enabled: Boolean(activeAction) && !actionTimedOut,
@@ -257,11 +259,16 @@ export function PagesSourceCard({ projectId }: { projectId: number }) {
 
     void invalidateSourceState();
 
-    const actionLabel = sourceActionLabel(activeAction.receipt.action);
+    const actionLabel =
+      activeAction.receipt.action === 'check'
+        ? t('source.check')
+        : t('source.syncPublish');
     if (execution.status === 'succeeded') {
-      toast.success(`部署源${actionLabel}完成`);
+      toast.success(t('source.actionDone', { action: actionLabel }));
     } else {
-      toast.error(execution.error_message || `部署源${actionLabel}失败`);
+      toast.error(
+        execution.error_message || t('source.actionFailed', { action: actionLabel }),
+      );
     }
     setActiveAction(null);
     setActionTimedOut(false);
@@ -274,10 +281,10 @@ export function PagesSourceCard({ projectId }: { projectId: number }) {
       await queryClient.invalidateQueries({
         queryKey: sourceQueryKey(projectId),
       });
-      toast.success('检查任务已提交');
+      toast.success(t('source.checkQueued'));
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : '检查任务提交失败');
+      toast.error(error instanceof Error ? error.message : t('source.checkQueueFailed'));
     },
   });
 
@@ -290,10 +297,10 @@ export function PagesSourceCard({ projectId }: { projectId: number }) {
       await queryClient.invalidateQueries({
         queryKey: sourceQueryKey(projectId),
       });
-      toast.success('同步任务已提交');
+      toast.success(t('source.syncQueued'));
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : '同步任务提交失败');
+      toast.error(error instanceof Error ? error.message : t('source.syncQueueFailed'));
     },
   });
 
@@ -342,8 +349,8 @@ export function PagesSourceCard({ projectId }: { projectId: number }) {
     return (
       <Card className='border-dashed shadow-none'>
         <CardHeader className='pb-3'>
-          <CardTitle className='text-base'>部署源</CardTitle>
-          <CardDescription>加载来源配置...</CardDescription>
+          <CardTitle className='text-base'>{t('source.title')}</CardTitle>
+          <CardDescription>{t('source.loadingDesc')}</CardDescription>
         </CardHeader>
         <CardContent className='space-y-3'>
           <Skeleton className='h-10 w-full' />
@@ -357,15 +364,15 @@ export function PagesSourceCard({ projectId }: { projectId: number }) {
     return (
       <Card className='border-dashed shadow-none'>
         <CardHeader className='pb-3'>
-          <CardTitle className='text-base'>部署源</CardTitle>
-          <CardDescription>来源配置与部署历史相互独立。</CardDescription>
+          <CardTitle className='text-base'>{t('source.title')}</CardTitle>
+          <CardDescription>{t('source.independentDesc')}</CardDescription>
         </CardHeader>
         <CardContent>
           <ErrorInline
             message={
               sourceQuery.error instanceof Error
                 ? sourceQuery.error.message
-                : '部署源加载失败'
+                : t('source.loadFailed')
             }
             onRetry={() => void sourceQuery.refetch()}
           />
@@ -397,15 +404,15 @@ export function PagesSourceCard({ projectId }: { projectId: number }) {
         <CardHeader className='pb-3'>
           <div className='flex items-start justify-between gap-3'>
             <div>
-              <CardTitle className='text-base'>部署源</CardTitle>
+              <CardTitle className='text-base'>{t('source.title')}</CardTitle>
               <CardDescription>
-                配置远端来源并同步发布；发布结果见部署历史。
+                {t('source.configDesc')}
               </CardDescription>
             </div>
             {status ? (
-              <Badge variant={status.variant}>{status.label}</Badge>
+              <Badge variant={status.variant}>{t(status.labelKey)}</Badge>
             ) : (
-              <Badge variant='outline'>手动部署</Badge>
+              <Badge variant='outline'>{t('source.manualBadge')}</Badge>
             )}
           </div>
         </CardHeader>
@@ -413,9 +420,9 @@ export function PagesSourceCard({ projectId }: { projectId: number }) {
         <CardContent className='space-y-4'>
           {source.source_type === 'manual' ? (
             <div className='rounded-lg border border-dashed bg-muted/20 p-4'>
-              <p className='text-sm font-medium'>本地部署包</p>
+              <p className='text-sm font-medium'>{t('source.localPackage')}</p>
               <p className='mt-1 text-sm text-muted-foreground'>
-                当前没有持久化远端来源。上传部署包后，再从部署历史显式激活。
+                {t('source.noRemote')}
               </p>
             </div>
           ) : source.source_type === 'remote_url' ? (
@@ -429,7 +436,7 @@ export function PagesSourceCard({ projectId }: { projectId: number }) {
               message={
                 dispatchError instanceof Error
                   ? dispatchError.message
-                  : '来源任务提交失败'
+                  : t('source.submitFailed')
               }
             />
           ) : null}
@@ -438,7 +445,7 @@ export function PagesSourceCard({ projectId }: { projectId: number }) {
               message={
                 executionQuery.error instanceof Error
                   ? executionQuery.error.message
-                  : '任务状态读取失败'
+                  : t('source.statusFailed')
               }
               onRetry={() => void executionQuery.refetch()}
             />
@@ -446,7 +453,7 @@ export function PagesSourceCard({ projectId }: { projectId: number }) {
           {actionTimedOut ? (
             <div className='flex flex-col gap-2 rounded-lg border border-dashed p-3 sm:flex-row sm:items-center sm:justify-between'>
               <span className='text-xs text-muted-foreground'>
-                自动等待已停止，任务可能仍在后台运行。
+                {t('source.waitStopped')}
               </span>
               <Button
                 type='button'
@@ -461,7 +468,7 @@ export function PagesSourceCard({ projectId }: { projectId: number }) {
                 }}
               >
                 <RefreshCw data-icon='inline-start' />
-                刷新任务状态
+                {t('source.refreshStatus')}
               </Button>
             </div>
           ) : null}
@@ -476,7 +483,7 @@ export function PagesSourceCard({ projectId }: { projectId: number }) {
             onClick={() => openSourceDialog(source.source_type)}
           >
             <Pencil data-icon='inline-start' />
-            配置
+            {t('source.configure')}
           </Button>
           {source.source_type !== 'manual' ? (
             <>
@@ -496,7 +503,7 @@ export function PagesSourceCard({ projectId }: { projectId: number }) {
                   ) : (
                     <Search data-icon='inline-start' />
                   )}
-                  检查更新
+                  {t('source.checkUpdate')}
                 </Button>
               ) : null}
               <Button
@@ -513,7 +520,7 @@ export function PagesSourceCard({ projectId }: { projectId: number }) {
                 ) : (
                   <Download data-icon='inline-start' />
                 )}
-                同步并发布
+                {t('source.syncPublish')}
               </Button>
             </>
           ) : null}
@@ -525,7 +532,7 @@ export function PagesSourceCard({ projectId }: { projectId: number }) {
             onClick={() => void sourceQuery.refetch()}
           >
             <RefreshCw data-icon='inline-start' />
-            刷新
+            {t('source.refresh')}
           </Button>
         </CardFooter>
       </Card>
@@ -547,18 +554,17 @@ export function PagesSourceCard({ projectId }: { projectId: number }) {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>确认发布当前 GitHub revision</AlertDialogTitle>
+            <AlertDialogTitle>{t('source.confirmTitle')}</AlertDialogTitle>
             <AlertDialogDescription>
-              <span>这将发布卡片当前显示的精确 revision：</span>{' '}
+              <span>{t('source.confirmLead')}</span>{' '}
               <span className='break-all font-mono'>
-                {attentionRevision?.revision ??
-                  '当前 revision 已不可用，请刷新后重试'}
+                {attentionRevision?.revision ?? t('source.revisionUnavailable')}
               </span>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={syncMutation.isPending}>
-              取消
+              {tCommon('cancel')}
             </AlertDialogCancel>
             <AlertDialogAction
               disabled={syncMutation.isPending || !attentionRevision}
@@ -573,7 +579,7 @@ export function PagesSourceCard({ projectId }: { projectId: number }) {
               {syncMutation.isPending ? (
                 <Spinner data-icon='inline-start' />
               ) : null}
-              确认并发布
+              {t('source.confirmPublish')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

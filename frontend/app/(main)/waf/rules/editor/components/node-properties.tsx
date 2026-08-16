@@ -1,4 +1,5 @@
 import { CircleHelp, Settings2 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 
 import { Button } from '@/components/ui/button';
@@ -47,6 +48,7 @@ export function NodeProperties({
   ipGroups: WAFIPGroup[];
   onChange: (node: WAFRuleNode) => void;
 }) {
+  const t = useTranslations('waf.editor');
   return (
     <aside className='w-80 shrink-0 border-l bg-card'>
       <ScrollArea className='h-full'>
@@ -54,8 +56,8 @@ export function NodeProperties({
           <div className='flex items-center gap-2'>
             <Settings2 className='size-5 text-primary' />
             <div>
-              <h2 className='text-sm font-semibold'>节点属性</h2>
-              <p className='text-xs text-muted-foreground'>配置当前处理单元</p>
+              <h2 className='text-sm font-semibold'>{t('propsTitle')}</h2>
+              <p className='text-xs text-muted-foreground'>{t('propsDesc')}</p>
             </div>
           </div>
           <Separator />
@@ -75,15 +77,18 @@ function PropertyFields({
   ipGroups: WAFIPGroup[];
   onChange: (node: WAFRuleNode) => void;
 }) {
+  const t = useTranslations('waf.editor');
   if (node.type === 'start' || node.type === 'allow')
-    return <p className='text-sm text-muted-foreground'>系统节点无需配置。</p>;
+    return (
+      <p className='text-sm text-muted-foreground'>{t('systemNodeNoConfig')}</p>
+    );
   if (node.type === 'ip_match')
     return (
       <FieldGroup>
         <DisplayNameField node={node} onChange={onChange} />
         <CsvField
           id={`${node.id}-ips`}
-          label='IP 地址'
+          label={t('ips')}
           value={node.config.ips}
           onChange={(ips) =>
             onChange({ ...node, config: { ...node.config, ips } })
@@ -91,7 +96,7 @@ function PropertyFields({
         />
         <CsvField
           id={`${node.id}-cidrs`}
-          label='CIDR 网段'
+          label={t('cidrs')}
           value={node.config.cidrs}
           onChange={(cidrs) =>
             onChange({ ...node, config: { ...node.config, cidrs } })
@@ -99,7 +104,7 @@ function PropertyFields({
         />
         <MultiSelect
           id={`${node.id}-groups`}
-          label='IP 组'
+          label={t('ipGroups')}
           options={ipGroups.map((group) => ({
             value: String(group.id),
             label: group.name,
@@ -121,8 +126,8 @@ function PropertyFields({
         <DisplayNameField node={node} onChange={onChange} />
         <MultiSelect
           id={`${node.id}-countries`}
-          label='国家代码'
-          description={`共 ${countryOptions.length} 个国家/地区，显示国家名与 ISO 代码`}
+          label={t('countries')}
+          description={t('countriesDesc', { count: countryOptions.length })}
           options={countryOptions}
           value={node.config.countries}
           creatablePattern={/^[A-Z]{2}$/}
@@ -132,8 +137,8 @@ function PropertyFields({
         />
         <MultiSelect
           id={`${node.id}-regions`}
-          label='地区代码'
-          description={`共 ${regionOptions.length} 个一级行政区，输入名称或代码搜索`}
+          label={t('regions')}
+          description={t('regionsDesc', { count: regionOptions.length })}
           options={regionOptions}
           value={node.config.regions}
           creatablePattern={/^[A-Z]{2}-[A-Z0-9]{1,3}$/}
@@ -149,7 +154,9 @@ function PropertyFields({
       <FieldGroup>
         <DisplayNameField node={node} onChange={onChange} />
         <div className='space-y-1'>
-          <p className='text-xs font-medium text-muted-foreground'>UA 检查</p>
+          <p className='text-xs font-medium text-muted-foreground'>
+            {t('uaCheck')}
+          </p>
           <Field
             orientation='horizontal'
             className='items-center justify-between'
@@ -158,8 +165,8 @@ function PropertyFields({
               htmlFor={`${node.id}-require-ua`}
               className='flex items-center gap-1.5'
             >
-              开启 UA 检查
-              <FieldHelp tip='开启后如果请求头不携带 UA 将返回 False' />
+              {t('enableUaCheck')}
+              <FieldHelp tip={t('enableUaCheckTip')} />
             </FieldLabel>
             <Switch
               id={`${node.id}-require-ua`}
@@ -175,8 +182,8 @@ function PropertyFields({
             <Separator />
             <div className='space-y-3'>
               <p className='flex items-center gap-1.5 text-xs font-medium text-muted-foreground'>
-                屏蔽
-                <FieldHelp tip='命中返回 false，优先级高于匹配' />
+                {t('block')}
+                <FieldHelp tip={t('blockTip')} />
               </p>
               <Field
                 orientation='horizontal'
@@ -186,8 +193,8 @@ function PropertyFields({
                   htmlFor={`${node.id}-block-bots`}
                   className='flex items-center gap-1.5'
                 >
-                  屏蔽常见爬虫 UA
-                  <FieldHelp tip='浏览器或操作系统分类为 Bot（含 bot / spider / crawler / slurp 等特征，如 Googlebot）' />
+                  {t('blockBots')}
+                  <FieldHelp tip={t('blockBotsTip')} />
                 </FieldLabel>
                 <Switch
                   id={`${node.id}-block-bots`}
@@ -208,8 +215,8 @@ function PropertyFields({
                   htmlFor={`${node.id}-block-abnormal`}
                   className='flex items-center gap-1.5'
                 >
-                  屏蔽非正常 UA
-                  <FieldHelp tip='浏览器分类为 Other 或 Unknown（不含搜索引擎等爬虫 Bot，爬虫请用上方开关）' />
+                  {t('blockAbnormal')}
+                  <FieldHelp tip={t('blockAbnormalTip')} />
                 </FieldLabel>
                 <Switch
                   id={`${node.id}-block-abnormal`}
@@ -230,8 +237,8 @@ function PropertyFields({
                   htmlFor={`${node.id}-block-custom`}
                   className='flex items-center gap-1.5'
                 >
-                  屏蔽自定义 UA
-                  <FieldHelp tip='原始 User-Agent 命中任一条正则时返回 false（Lua 模式语法）' />
+                  {t('blockCustom')}
+                  <FieldHelp tip={t('blockCustomTip')} />
                 </FieldLabel>
                 <Switch
                   id={`${node.id}-block-custom`}
@@ -250,8 +257,8 @@ function PropertyFields({
                     htmlFor={`${node.id}-custom-patterns`}
                     className='flex items-center gap-1.5'
                   >
-                    自定义 UA 正则
-                    <FieldHelp tip='每行一条 Lua 模式正则，命中任一条即 false；最多 32 条' />
+                    {t('customUaPatterns')}
+                    <FieldHelp tip={t('customUaPatternsTip')} />
                   </FieldLabel>
                   <Textarea
                     id={`${node.id}-custom-patterns`}
@@ -277,15 +284,15 @@ function PropertyFields({
             <Separator />
             <div className='space-y-3'>
               <p className='text-xs font-medium text-muted-foreground'>
-                UA 匹配
+                {t('uaMatch')}
               </p>
               <Field>
                 <FieldLabel
                   htmlFor={`${node.id}-match-mode`}
                   className='flex items-center gap-1.5'
                 >
-                  匹配模式
-                  <FieldHelp tip='浏览器与操作系统两侧都有选择时生效' />
+                  {t('matchMode')}
+                  <FieldHelp tip={t('matchModeTip')} />
                 </FieldLabel>
                 <Select
                   value={node.config.match_mode}
@@ -304,15 +311,15 @@ function PropertyFields({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectGroup>
-                      <SelectItem value='or'>或（OR）</SelectItem>
-                      <SelectItem value='and'>且（AND）</SelectItem>
+                      <SelectItem value='or'>{t('matchOr')}</SelectItem>
+                      <SelectItem value='and'>{t('matchAnd')}</SelectItem>
                     </SelectGroup>
                   </SelectContent>
                 </Select>
               </Field>
               <MultiSelect
                 id={`${node.id}-browsers`}
-                label='浏览器'
+                label={t('browsers')}
                 options={UA_BROWSER_OPTIONS.map((option) => ({
                   value: option.value,
                   label: option.label,
@@ -325,7 +332,7 @@ function PropertyFields({
               />
               <MultiSelect
                 id={`${node.id}-os`}
-                label='操作系统'
+                label={t('os')}
                 options={UA_OS_OPTIONS.map((option) => ({
                   value: option.value,
                   label: option.label,
@@ -350,81 +357,47 @@ function PropertyFields({
         <DisplayNameField node={node} onChange={onChange} />
         <div className='space-y-1'>
           <p className='flex items-center gap-1.5 text-xs font-medium text-muted-foreground'>
-            安全防护
-            <FieldHelp tip='命中任意已启用规则返回 False' />
+            {t('security')}
+            <FieldHelp tip={t('securityTip')} />
           </p>
         </div>
         <Separator />
         <div className='space-y-3'>
-          <p className='text-xs font-medium text-muted-foreground'>基础防护</p>
+          <p className='text-xs font-medium text-muted-foreground'>
+            {t('basicProtection')}
+          </p>
           {(
             [
-              {
-                key: 'path_traversal',
-                label: '路径穿越防护',
-                tip: '检测 Path / Query / Body 中的 ../ 与编码变种',
-              },
-              {
-                key: 'file_inclusion',
-                label: '文件包含（LFI/RFI）',
-                tip: '检测 Path / Query / Body 中的 php://、file://、/etc/passwd 等',
-              },
-              {
-                key: 'sql_injection',
-                label: 'SQL 注入',
-                tip: '检测 Query / Body / Header / Cookie 中的 SQL 注入特征',
-              },
-              {
-                key: 'command_injection',
-                label: '命令注入',
-                tip: '检测 Query / Body / Header 中的 OS 命令注入特征',
-              },
-              {
-                key: 'xss',
-                label: 'XSS',
-                tip: '检测 Query / Body / Header 中的反射型 XSS 特征',
-              },
-              {
-                key: 'ssrf',
-                label: 'SSRF',
-                tip: '检测 Query / Body 中的内网地址与危险协议',
-              },
-              {
-                key: 'malicious_upload',
-                label: '恶意文件上传',
-                tip: '检测 Multipart 文件名与危险扩展名',
-              },
-              {
-                key: 'xxe',
-                label: 'XXE',
-                tip: '检测 XML Body 中的外部实体特征',
-              },
-              {
-                key: 'crlf_injection',
-                label: 'CRLF 注入',
-                tip: '检测 Header / Query / Body 中的换行注入',
-              },
+              'path_traversal',
+              'file_inclusion',
+              'sql_injection',
+              'command_injection',
+              'xss',
+              'ssrf',
+              'malicious_upload',
+              'xxe',
+              'crlf_injection',
             ] as const
-          ).map((item) => (
+          ).map((key) => (
             <Field
-              key={item.key}
+              key={key}
               orientation='horizontal'
               className='items-center justify-between gap-3'
             >
               <FieldLabel
-                htmlFor={`${node.id}-${item.key}`}
+                htmlFor={`${node.id}-${key}`}
                 className='flex items-center gap-1.5'
               >
-                {item.label}
-                <FieldHelp tip={item.tip} />
+                {t(`securityRules.${key}.label`)}
+                <FieldHelp tip={t(`securityRules.${key}.tip`)} />
               </FieldLabel>
               <Switch
-                id={`${node.id}-${item.key}`}
-                checked={node.config[item.key]}
+                id={`${node.id}-${key}`}
+                checked={node.config[key]}
                 onCheckedChange={(checked) =>
                   onChange({
                     ...node,
-                    config: { ...node.config, [item.key]: checked },
+                    config: { ...node.config, [key]: checked },
                   })
                 }
               />
@@ -438,7 +411,9 @@ function PropertyFields({
       <FieldGroup>
         <DisplayNameField node={node} onChange={onChange} />
         <Field>
-          <FieldLabel htmlFor={`${node.id}-algorithm`}>算法</FieldLabel>
+          <FieldLabel htmlFor={`${node.id}-algorithm`}>
+            {t('algorithm')}
+          </FieldLabel>
           <Select
             value={node.config.algorithm}
             onValueChange={(algorithm: 'fast' | 'slow') =>
@@ -450,8 +425,8 @@ function PropertyFields({
             </SelectTrigger>
             <SelectContent>
               <SelectGroup>
-                <SelectItem value='fast'>快速</SelectItem>
-                <SelectItem value='slow'>稳健</SelectItem>
+                <SelectItem value='fast'>{t('algorithmFast')}</SelectItem>
+                <SelectItem value='slow'>{t('algorithmSlow')}</SelectItem>
               </SelectGroup>
             </SelectContent>
           </Select>
@@ -465,9 +440,9 @@ function PropertyFields({
               max={key === 'difficulty' ? 16 : undefined}
               label={
                 {
-                  difficulty: '难度',
-                  session_ttl: '会话 TTL（秒）',
-                  challenge_ttl: '挑战 TTL（秒）',
+                  difficulty: t('difficulty'),
+                  session_ttl: t('sessionTtl'),
+                  challenge_ttl: t('challengeTtl'),
                 }[key]
               }
               value={node.config[key]}
@@ -486,14 +461,14 @@ function PropertyFields({
         id={`${node.id}-status`}
         min={400}
         max={599}
-        label='HTTP 状态码'
+        label={t('statusCode')}
         value={node.config.status_code}
         onChange={(status_code) =>
           onChange({ ...node, config: { ...node.config, status_code } })
         }
       />
       <Field>
-        <FieldLabel htmlFor={`${node.id}-body`}>HTML 响应体</FieldLabel>
+        <FieldLabel htmlFor={`${node.id}-body`}>{t('responseBody')}</FieldLabel>
         <Textarea
           id={`${node.id}-body`}
           rows={9}
@@ -506,8 +481,8 @@ function PropertyFields({
           }
         />
         <FieldDescription>
-          {new TextEncoder().encode(node.config.response_body).length} / 16384
-          字节
+          {new TextEncoder().encode(node.config.response_body).length} / 16384{' '}
+          {t('bytes')}
         </FieldDescription>
       </Field>
     </FieldGroup>
@@ -515,13 +490,14 @@ function PropertyFields({
 }
 
 function FieldHelp({ tip }: { tip: string }) {
+  const t = useTranslations('waf.editor');
   return (
     <Tooltip>
       <TooltipTrigger asChild>
         <button
           type='button'
           className='inline-flex size-4 shrink-0 items-center justify-center text-muted-foreground transition-colors hover:text-foreground'
-          aria-label='说明'
+          aria-label={t('help')}
           onClick={(event) => event.preventDefault()}
         >
           <CircleHelp className='size-3.5' />
@@ -541,9 +517,10 @@ function DisplayNameField({
   node: WAFRuleNode;
   onChange: (node: WAFRuleNode) => void;
 }) {
+  const t = useTranslations('waf.editor');
   return (
     <Field>
-      <FieldLabel htmlFor={`${node.id}-label`}>显示名称</FieldLabel>
+      <FieldLabel htmlFor={`${node.id}-label`}>{t('displayName')}</FieldLabel>
       <Input
         id={`${node.id}-label`}
         value={node.label ?? ''}
@@ -565,6 +542,7 @@ function CsvField({
   value: string[];
   onChange: (value: string[]) => void;
 }) {
+  const t = useTranslations('waf.editor');
   return (
     <Field>
       <FieldLabel htmlFor={id}>{label}</FieldLabel>
@@ -580,7 +558,7 @@ function CsvField({
           )
         }
       />
-      <FieldDescription>每行一个值</FieldDescription>
+      <FieldDescription>{t('oneValuePerLine')}</FieldDescription>
     </Field>
   );
 }
@@ -633,6 +611,7 @@ function MultiSelect({
   searchRequired?: boolean;
   onChange: (value: string[]) => void;
 }) {
+  const t = useTranslations('waf.editor');
   const [draft, setDraft] = useState('');
   const normalized = draft.trim().toUpperCase();
   const query = draft.trim().toLocaleLowerCase();
@@ -661,15 +640,17 @@ function MultiSelect({
       <Popover>
         <PopoverTrigger asChild>
           <Button id={id} variant='outline' className='w-full justify-start'>
-            {value.length ? `已选择 ${value.length} 项` : '请选择'}
+            {value.length
+              ? t('selectedCount', { count: value.length })
+              : t('pleaseSelect')}
           </Button>
         </PopoverTrigger>
         <PopoverContent align='start' className='flex w-80 flex-col gap-2 p-3'>
           {(creatablePattern || options.length > 0) && (
             <div className='flex gap-2'>
               <Input
-                aria-label={`新建${label}`}
-                placeholder='搜索名称或代码'
+                aria-label={t('createLabel', { label })}
+                placeholder={t('searchNameOrCode')}
                 value={draft}
                 onChange={(event) => setDraft(event.target.value)}
               />
@@ -682,7 +663,7 @@ function MultiSelect({
                     setDraft('');
                   }}
                 >
-                  添加代码
+                  {t('addCode')}
                 </Button>
               )}
             </div>
@@ -691,8 +672,8 @@ function MultiSelect({
             {visible.length === 0 ? (
               <p className='px-1 py-3 text-sm text-muted-foreground'>
                 {searchRequired && !query
-                  ? `输入名称或代码搜索 ${options.length} 个选项`
-                  : '没有匹配的选项'}
+                  ? t('searchOptions', { count: options.length })
+                  : t('noMatchingOptions')}
               </p>
             ) : (
               visible.map((option) => (

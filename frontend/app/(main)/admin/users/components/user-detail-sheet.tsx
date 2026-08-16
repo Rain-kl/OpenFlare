@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { useTranslations } from 'next-intl';
 import {
   Globe,
   Loader2,
@@ -33,13 +34,14 @@ export function UserDetailSheet({
   detailLoading,
   onStatusToggle,
 }: UserDetailSheetProps) {
+  const t = useTranslations('admin.users');
   const displayValue = (value?: string) =>
     value && value.trim() ? value : '-';
 
   return (
     <Sheet open={isOpen} onOpenChange={onOpenChange}>
       <SheetContent className='sm:max-w-[400px] w-full p-0 flex flex-col gap-0'>
-        <SheetTitle className='px-5 py-3'>用户档案</SheetTitle>
+        <SheetTitle className='px-5 py-3'>{t('userProfile')}</SheetTitle>
 
         {selectedUser && (
           <>
@@ -79,14 +81,14 @@ export function UserDetailSheet({
                     {detailLoading && (
                       <div className='flex items-center gap-1 text-[10px] text-muted-foreground'>
                         <Loader2 className='size-3 animate-spin' />
-                        正在刷新详情
+                        {t('refreshingDetail')}
                       </div>
                     )}
 
                     <div className='gap-4 w-full max-w-[240px] mt-1 pt-4 border-t border-border/50'>
                       <div className='flex flex-col gap-0.5'>
                         <span className='text-[9px] uppercase tracking-widest text-muted-foreground font-medium'>
-                          注册时间
+                          {t('registeredAt')}
                         </span>
                         <span className='font-mono text-xs font-semibold'>
                           {
@@ -103,13 +105,13 @@ export function UserDetailSheet({
                 <div className='p-6 space-y-6'>
                   <div className='space-y-4'>
                     <h4 className='text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1'>
-                      个人资料
+                      {t('personalInfo')}
                     </h4>
                     <div className='rounded-lg border divide-y bg-background/50'>
                       <div className='flex items-center justify-between gap-4 p-3.5 text-sm'>
                         <span className='flex items-center gap-2 text-[10px] text-muted-foreground'>
                           <Mail className='size-3' />
-                          邮箱
+                          {t('email')}
                         </span>
                         <span className='min-w-0 truncate text-right text-[10px]'>
                           {displayValue(selectedUser.email)}
@@ -118,7 +120,7 @@ export function UserDetailSheet({
                       <div className='flex items-center justify-between gap-4 p-3.5 text-sm'>
                         <span className='flex items-center gap-2 text-[10px] text-muted-foreground'>
                           <Smartphone className='size-3' />
-                          手机
+                          {t('phone')}
                         </span>
                         <span className='min-w-0 truncate text-right text-[10px]'>
                           {displayValue(selectedUser.phone)}
@@ -129,7 +131,7 @@ export function UserDetailSheet({
                           <span className='size-3 flex items-center justify-center font-bold text-[9px]'>
                             ⚧
                           </span>
-                          性别
+                          {t('gender')}
                         </span>
                         <span className='min-w-0 truncate text-right text-[10px]'>
                           {displayValue(selectedUser.gender)}
@@ -138,7 +140,7 @@ export function UserDetailSheet({
                       <div className='flex items-center justify-between gap-4 p-3.5 text-sm'>
                         <span className='flex items-center gap-2 text-[10px] text-muted-foreground'>
                           <MapPin className='size-3' />
-                          所在地
+                          {t('location')}
                         </span>
                         <span className='min-w-0 truncate text-right text-[10px]'>
                           {displayValue(selectedUser.location)}
@@ -147,7 +149,7 @@ export function UserDetailSheet({
                       <div className='flex items-center justify-between gap-4 p-3.5 text-sm'>
                         <span className='flex items-center gap-2 text-[10px] text-muted-foreground'>
                           <Globe className='size-3' />
-                          网站
+                          {t('website')}
                         </span>
                         <span className='min-w-0 truncate text-right text-[10px]'>
                           {displayValue(selectedUser.website)}
@@ -155,7 +157,7 @@ export function UserDetailSheet({
                       </div>
                       <div className='flex flex-col gap-2 p-3.5 text-sm'>
                         <span className='text-[10px] text-muted-foreground'>
-                          简介
+                          {t('bio')}
                         </span>
                         <span className='break-words text-[10px] leading-5'>
                           {displayValue(selectedUser.bio)}
@@ -166,40 +168,42 @@ export function UserDetailSheet({
 
                   <div className='space-y-4'>
                     <h4 className='text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1'>
-                      系统记录
+                      {t('systemRecords')}
                     </h4>
                     <div className='rounded-lg border divide-y bg-background/50'>
                       <div className='flex items-center justify-between p-3.5 text-sm'>
-                        <span className='text-[10px]'>账户状态</span>
+                        <span className='text-[10px]'>{t('accountStatus')}</span>
                         <Badge
                           variant={
                             selectedUser.is_active ? 'secondary' : 'outline'
                           }
                           className='text-[10px]'
                         >
-                          {selectedUser.is_active ? '正常' : '禁用'}
+                          {selectedUser.is_active
+                            ? t('statusActive')
+                            : t('statusDisabled')}
                         </Badge>
                       </div>
                       <div className='flex items-center justify-between p-3.5 text-sm'>
-                        <span className='text-[10px]'>管理员</span>
+                        <span className='text-[10px]'>{t('isAdmin')}</span>
                         <span className='font-mono text-[10px]'>
-                          {selectedUser.is_admin ? '是' : '否'}
+                          {selectedUser.is_admin ? t('yes') : t('no')}
                         </span>
                       </div>
                       <div className='flex items-center justify-between p-3.5 text-sm'>
-                        <span className='text-[10px]'>最后登录</span>
+                        <span className='text-[10px]'>{t('lastLogin')}</span>
                         <span className='font-mono text-[10px]'>
                           {formatDateTime(selectedUser.last_login_at)}
                         </span>
                       </div>
                       <div className='flex items-center justify-between p-3.5 text-sm'>
-                        <span className='text-[10px]'>注册时间</span>
+                        <span className='text-[10px]'>{t('registeredAt')}</span>
                         <span className='font-mono text-[10px]'>
                           {formatDateTime(selectedUser.created_at)}
                         </span>
                       </div>
                       <div className='flex items-center justify-between p-3.5 text-sm'>
-                        <span className='text-[10px]'>最后更新</span>
+                        <span className='text-[10px]'>{t('lastUpdate')}</span>
                         <span className='font-mono text-[10px]'>
                           {formatDateTime(selectedUser.updated_at)}
                         </span>
@@ -219,12 +223,12 @@ export function UserDetailSheet({
                     {selectedUser.is_active ? (
                       <>
                         <ShieldCheck className='size-3 mr-1' />
-                        封禁账户
+                        {t('banAccount')}
                       </>
                     ) : (
                       <>
                         <UserCheck className='size-3 mr-1' />
-                        解除封禁
+                        {t('unbanAccount')}
                       </>
                     )}
                   </Button>

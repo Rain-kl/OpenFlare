@@ -1,5 +1,7 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
+
 import { TrendChart } from '@/components/data/trend-chart';
 import {
   Card,
@@ -14,18 +16,23 @@ import { formatTrendHour } from './dashboard-utils';
 
 export function TrafficTrendChart({
   points,
-  title = '24 小时请求趋势',
-  description = '按小时拆分请求总量与 2xx/4xx/5xx 状态码请求量，判断各状态是否异常抬升。',
+  title,
+  description,
 }: {
   points: TrafficTrendPoint[];
   title?: string;
   description?: string;
 }) {
+  const t = useTranslations('dashboard.trafficTrend');
   return (
     <Card className='border-dashed shadow-none'>
       <CardHeader>
-        <CardTitle className='text-sm font-semibold'>{title}</CardTitle>
-        <CardDescription className='text-xs'>{description}</CardDescription>
+        <CardTitle className='text-sm font-semibold'>
+          {title ?? t('title')}
+        </CardTitle>
+        <CardDescription className='text-xs'>
+          {description ?? t('description')}
+        </CardDescription>
       </CardHeader>
       <CardContent>
         <TrendChart
@@ -33,27 +40,27 @@ export function TrafficTrendChart({
             formatTrendHour(point.bucket_started_at),
           )}
           summaryScope='total'
-          summaryHint='近 24 小时'
+          summaryHint={t('summaryHint')}
           series={[
             {
-              label: '请求量',
+              label: t('requests'),
               color: '#f59e0b',
               fillColor: 'rgba(245, 158, 11, 0.18)',
               variant: 'area',
               values: points.map((point) => point.request_count),
             },
             {
-              label: '2xx 请求',
+              label: t('status2xx'),
               color: '#22c55e',
               values: points.map((point) => point.status_2xx_count),
             },
             {
-              label: '4xx 请求',
+              label: t('status4xx'),
               color: '#f97316',
               values: points.map((point) => point.status_4xx_count),
             },
             {
-              label: '5xx 请求',
+              label: t('status5xx'),
               color: '#ef4444',
               values: points.map((point) => point.status_5xx_count),
             },

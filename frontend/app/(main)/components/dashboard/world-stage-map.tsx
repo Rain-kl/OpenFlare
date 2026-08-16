@@ -7,6 +7,7 @@ import { MapChart, ScatterChart } from 'echarts/charts';
 import { GeoComponent, TooltipComponent } from 'echarts/components';
 import { CanvasRenderer } from 'echarts/renderers';
 import { useTheme } from 'next-themes';
+import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
@@ -276,6 +277,8 @@ export function WorldStageMap({
   nodes: DashboardNodeHealth[];
   sourceCountries: DistributionItem[];
 }) {
+  const t = useTranslations('dashboard.map');
+  const tn = useTranslations('nodes');
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === 'dark';
   const router = useRouter();
@@ -503,7 +506,7 @@ export function WorldStageMap({
           ) {
             return [
               `<div style="font-weight:600;margin-bottom:6px;">${payload.name ?? data.name}</div>`,
-              `<div>最近 24 小时来源请求 ${data.value.toLocaleString('zh-CN')}</div>`,
+              `<div>${t('sourceRequests', { count: data.value.toLocaleString('zh-CN') })}</div>`,
             ].join('');
           }
 
@@ -513,14 +516,22 @@ export function WorldStageMap({
 
           const locationLine = data.derivedFromGeo
             ? data.geoName
-            : `${data.geoName} · 预设落点`;
+            : `${data.geoName} · ${t('presetPin')}`;
 
           return [
             `<div style="font-weight:600;margin-bottom:6px;">${data.name}</div>`,
             `<div>${locationLine}</div>`,
-            `<div>请求量 ${data.requestCount.toLocaleString('zh-CN')} · 错误数 ${data.errorCount.toLocaleString('zh-CN')}</div>`,
-            `<div>活动事件 ${data.activeEventCount} · 节点状态 ${getNodeStatusLabel(data.status)}</div>`,
-            `<div>OpenResty 状态 ${getOpenrestyStatusLabel(data.openrestyStatus)}</div>`,
+            `<div>${t('requestsErrors', {
+              requests: data.requestCount.toLocaleString('zh-CN'),
+              errors: data.errorCount.toLocaleString('zh-CN'),
+            })}</div>`,
+            `<div>${t('eventsStatus', {
+              events: data.activeEventCount,
+              status: getNodeStatusLabel(data.status, tn),
+            })}</div>`,
+            `<div>${t('openrestyStatus', {
+              status: getOpenrestyStatusLabel(data.openrestyStatus, tn),
+            })}</div>`,
           ].join('');
         },
       },
@@ -610,6 +621,8 @@ export function WorldStageMap({
       mapNodes,
       mapPalette,
       responsiveMapScale,
+      t,
+      tn,
     ],
   );
 
@@ -617,12 +630,8 @@ export function WorldStageMap({
     return (
       <div className='flex h-full items-center justify-center'>
         <EmptyState
-          title={mapFailed ? '全球地图加载失败' : '全球地图加载中'}
-          description={
-            mapFailed
-              ? 'ECharts 世界地图资源未能成功注册，请稍后刷新重试。'
-              : '正在按需初始化全球地图，这一步会延后到首屏内容稳定后执行。'
-          }
+          title={mapFailed ? t('loadFailed') : t('loading')}
+          description={mapFailed ? t('loadFailedDesc') : t('loadingDesc')}
         />
       </div>
     );
@@ -654,8 +663,8 @@ export function WorldStageMap({
       ) : (
         <div className='flex h-full items-center justify-center'>
           <EmptyState
-            title='全球地图加载中'
-            description='正在测量地图容器尺寸...'
+            title={t('loading')}
+            description={t('measuring')}
             iconSize='sm'
           />
         </div>

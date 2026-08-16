@@ -31,9 +31,11 @@ import {
   TlsCertificateService,
 } from '@/lib/services/openflare';
 
+import { useTranslations } from 'next-intl';
+
 import {
   type AcmeApplyFormValues,
-  acmeApplySchema,
+  createAcmeApplySchema,
   defaultAcmeApplyValues,
 } from './schemas';
 import { getErrorMessage } from './website-utils';
@@ -57,6 +59,7 @@ export function CertificateApplyDialog({
   mode = 'create',
   certificate,
 }: CertificateApplyDialogProps) {
+  const t = useTranslations('certificates');
   const queryClient = useQueryClient();
   const [error, setError] = useState('');
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -74,7 +77,7 @@ export function CertificateApplyDialog({
   });
 
   const form = useForm<AcmeApplyFormValues>({
-    resolver: zodResolver(acmeApplySchema),
+    resolver: zodResolver(createAcmeApplySchema(t)),
     defaultValues: defaultAcmeApplyValues,
   });
 
@@ -141,22 +144,22 @@ export function CertificateApplyDialog({
       onApplied?.(result);
       onOpenChange(false);
     },
-    onError: (err) => setError(getErrorMessage(err)),
+    onError: (err) => setError(getErrorMessage(err, t('requestFailed'))),
   });
 
   const title =
     mode === 'edit-acme'
-      ? '编辑并重新申请证书'
+      ? t('applyEditTitle')
       : mode === 'convert-upload'
-        ? '转换为申请证书'
-        : '申请证书';
+        ? t('applyConvertTitle')
+        : t('applyTitle');
 
   const description =
     mode === 'edit-acme'
-      ? '修改 ACME 证书配置。保存后将使用新配置重新申请证书。'
+      ? t('applyEditDesc')
       : mode === 'convert-upload'
-        ? '填写 ACME 申请资料。申请成功后，当前手动证书会原地转换为可自动续签的申请证书。'
-        : "使用 ACME (Let's Encrypt 等) 自动申请和续期证书，支持通配符域名。";
+        ? t('applyConvertDesc')
+        : t('applyDesc');
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -177,33 +180,33 @@ export function CertificateApplyDialog({
 
           <div className='grid gap-4 md:grid-cols-2'>
             <div className='space-y-2'>
-              <Label>证书名称</Label>
-              <Input placeholder='例如：主站证书' {...form.register('name')} />
+              <Label>{t('name')}</Label>
+              <Input placeholder={t('namePlaceholder')} {...form.register('name')} />
             </div>
             <div className='space-y-2'>
-              <Label>主域名</Label>
+              <Label>{t('primaryDomain')}</Label>
               <Input
-                placeholder='example.com 或 *.example.com'
+                placeholder={t('primaryDomainPlaceholder')}
                 {...form.register('primary_domain')}
               />
             </div>
           </div>
 
           <div className='space-y-2'>
-            <Label>其他域名</Label>
+            <Label>{t('otherDomains')}</Label>
             <Textarea
               rows={3}
               placeholder='example.net'
               {...form.register('other_domains')}
             />
             <p className='text-xs text-muted-foreground'>
-              每行一个域名。如申请通配符证书，请填写对应的根域名以便一并签发。
+              {t('otherDomainsHint')}
             </p>
           </div>
 
           <div className='grid gap-4 md:grid-cols-2'>
             <div className='space-y-2'>
-              <Label>DNS 服务商账号</Label>
+              <Label>{t('dnsAccount')}</Label>
               <Select
                 value={String(form.watch('dns_account_id') || 0)}
                 onValueChange={(value) =>
@@ -213,10 +216,10 @@ export function CertificateApplyDialog({
                 }
               >
                 <SelectTrigger>
-                  <SelectValue placeholder='请选择 DNS 账号' />
+                  <SelectValue placeholder={t('selectDnsAccount')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value='0'>请选择 DNS 账号</SelectItem>
+                  <SelectItem value='0'>{t('selectDnsAccount')}</SelectItem>
                   {dnsAccountsQuery.data?.map((account) => (
                     <SelectItem key={account.id} value={String(account.id)}>
                       {account.name} ({account.type})
@@ -227,7 +230,7 @@ export function CertificateApplyDialog({
             </div>
 
             <div className='space-y-2'>
-              <Label>密钥算法</Label>
+              <Label>{t('keyAlgorithm')}</Label>
               <Select
                 value={form.watch('key_algorithm')}
                 onValueChange={(value) => form.setValue('key_algorithm', value)}
@@ -246,18 +249,18 @@ export function CertificateApplyDialog({
           </div>
 
           <div className='space-y-2'>
-            <Label>备注</Label>
+            <Label>{t('remark')}</Label>
             <Input
-              placeholder='可选，用于记录证书用途。'
+              placeholder={t('remarkPlaceholder')}
               {...form.register('remark')}
             />
           </div>
 
           <div className='flex items-center justify-between rounded-lg border px-3 py-2'>
             <div>
-              <p className='text-sm font-medium'>开启自动续签</p>
+              <p className='text-sm font-medium'>{t('autoRenew')}</p>
               <p className='text-xs text-muted-foreground'>
-                开启后，将在证书过期前 7 天自动续期。
+                {t('autoRenewDesc')}
               </p>
             </div>
             <Switch
@@ -275,7 +278,7 @@ export function CertificateApplyDialog({
               className='w-full justify-between rounded-none'
               onClick={() => setShowAdvanced((current) => !current)}
             >
-              高级选项
+              {t('advanced')}
               <ChevronDown
                 className={`size-4 transition-transform ${showAdvanced ? 'rotate-180' : ''}`}
               />
@@ -284,16 +287,16 @@ export function CertificateApplyDialog({
               <div className='space-y-4 border-t p-3'>
                 <div className='grid gap-4 md:grid-cols-2'>
                   <div className='space-y-2'>
-                    <Label>DNS 验证服务器 1</Label>
+                    <Label>{t('dnsServer1')}</Label>
                     <Input
-                      placeholder='为空则使用默认权威 DNS'
+                      placeholder={t('dnsServerPlaceholder')}
                       {...form.register('dns1')}
                     />
                   </div>
                   <div className='space-y-2'>
-                    <Label>DNS 验证服务器 2</Label>
+                    <Label>{t('dnsServer2')}</Label>
                     <Input
-                      placeholder='为空则使用默认权威 DNS'
+                      placeholder={t('dnsServerPlaceholder')}
                       {...form.register('dns2')}
                     />
                   </div>
@@ -301,9 +304,9 @@ export function CertificateApplyDialog({
                 <div className='grid gap-4 md:grid-cols-2'>
                   <div className='flex items-center justify-between rounded-lg border px-3 py-2'>
                     <div>
-                      <p className='text-sm font-medium'>跳过 CNAME 检查</p>
+                      <p className='text-sm font-medium'>{t('skipCname')}</p>
                       <p className='text-xs text-muted-foreground'>
-                        在执行 DNS-01 验证时不追踪 CNAME 记录。
+                        {t('skipCnameDesc')}
                       </p>
                     </div>
                     <Switch
@@ -315,9 +318,9 @@ export function CertificateApplyDialog({
                   </div>
                   <div className='flex items-center justify-between rounded-lg border px-3 py-2'>
                     <div>
-                      <p className='text-sm font-medium'>跳过 DNS 前置检查</p>
+                      <p className='text-sm font-medium'>{t('skipDns')}</p>
                       <p className='text-xs text-muted-foreground'>
-                        直接请求 Let&apos;s Encrypt 验证而不做本地校验。
+                        {t('skipDnsDesc')}
                       </p>
                     </div>
                     <Switch
@@ -336,14 +339,14 @@ export function CertificateApplyDialog({
             {applyMutation.isPending ? (
               <>
                 <Loader2 className='mr-1 size-3.5 animate-spin' />
-                提交中...
+                {t('submitting')}
               </>
             ) : mode === 'edit-acme' ? (
-              '保存并申请'
+              t('saveAndApply')
             ) : mode === 'convert-upload' ? (
-              '开始转换'
+              t('startConvert')
             ) : (
-              '开始申请'
+              t('startApply')
             )}
           </Button>
         </form>

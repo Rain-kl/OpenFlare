@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { useTranslations } from 'next-intl';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AnimatePresence, motion } from 'motion/react';
 import {
@@ -81,6 +82,7 @@ function formatDate(dateStr: string) {
 }
 
 export function FileList() {
+  const t = useTranslations('admin.files');
   const queryClient = useQueryClient();
   const [keyword, setKeyword] = React.useState('');
   const [debouncedKeyword, setDebouncedKeyword] = React.useState('');
@@ -157,10 +159,10 @@ export function FileList() {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['files', 'my'] });
       void queryClient.invalidateQueries({ queryKey: ['files', 'stats'] });
-      toast.success('文件已删除');
+      toast.success(t('list.deleteSuccess'));
       setDeleteTarget(null);
     },
-    onError: (err: Error) => toast.error(err.message || '删除失败'),
+    onError: (err: Error) => toast.error(err.message || t('list.deleteFailed')),
   });
 
   // 批量 ZIP 下载
@@ -173,9 +175,9 @@ export function FileList() {
       a.download = 'batch_download.zip';
       a.click();
       URL.revokeObjectURL(url);
-      toast.success('批量下载已开始');
+      toast.success(t('list.batchDownloadSuccess'));
     },
-    onError: () => toast.error('批量下载失败'),
+    onError: () => toast.error(t('list.batchDownloadFailed')),
   });
 
   const toggleSelect = (id: string) => {
@@ -209,7 +211,7 @@ export function FileList() {
         <div className='relative flex-1 max-w-sm'>
           <Search className='absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground' />
           <Input
-            placeholder='搜索文件名...'
+            placeholder={t('list.searchPlaceholder')}
             className='pl-8 h-8 text-xs border-dashed rounded-lg focus-visible:ring-0'
             value={keyword}
             onChange={(e) => setKeyword(e.target.value)}
@@ -232,7 +234,9 @@ export function FileList() {
               selectedIds.size === files.length ? clearSelection : selectAll
             }
           >
-            {selectedIds.size === files.length ? '取消全选' : '全选本页'}
+            {selectedIds.size === files.length
+              ? t('list.deselectAll')
+              : t('list.selectAll')}
           </Button>
         )}
 
@@ -247,7 +251,7 @@ export function FileList() {
                 className='flex items-center gap-2'
               >
                 <Badge variant='secondary' className='text-xs px-2.5'>
-                  已选 {selectedIds.size} 个
+                  {t('list.selectedCount', { count: selectedIds.size })}
                 </Badge>
                 <Button
                   size='sm'
@@ -261,7 +265,7 @@ export function FileList() {
                   ) : (
                     <FileArchive className='size-3.5 mr-1' />
                   )}
-                  打包下载
+                  {t('list.batchDownload')}
                 </Button>
                 <Button
                   size='sm'
@@ -278,7 +282,7 @@ export function FileList() {
 
         {total > 0 && (
           <span className='text-xs text-muted-foreground shrink-0'>
-            共 {total} 个文件
+            {t('list.totalFiles', { count: total })}
           </span>
         )}
       </div>
@@ -292,7 +296,7 @@ export function FileList() {
         <div className='flex flex-col items-center justify-center py-20 gap-4 text-muted-foreground'>
           <Upload className='size-12 text-muted-foreground/30' />
           <p className='text-sm'>
-            {debouncedKeyword ? '没有匹配的文件' : '您还没有上传任何文件'}
+            {debouncedKeyword ? t('list.noMatch') : t('list.noFiles')}
           </p>
         </div>
       ) : (
@@ -309,18 +313,28 @@ export function FileList() {
                     onCheckedChange={handleSelectAll}
                   />
                 </TableHead>
-                <TableHead className='w-[80px] py-3'>预览</TableHead>
-                <TableHead className='w-[180px] py-3'>ID</TableHead>
-                <TableHead className='py-3'>文件名</TableHead>
-                <TableHead className='max-w-[200px] truncate py-3'>
-                  路径
+                <TableHead className='w-[80px] py-3'>
+                  {t('list.colPreview')}
                 </TableHead>
-                <TableHead className='w-[100px] py-3'>业务类别</TableHead>
-                <TableHead className='w-[125px] py-3'>MIME类型</TableHead>
-                <TableHead className='w-[100px] py-3'>大小</TableHead>
-                <TableHead className='w-[150px] py-3'>上传时间</TableHead>
+                <TableHead className='w-[180px] py-3'>ID</TableHead>
+                <TableHead className='py-3'>{t('list.colName')}</TableHead>
+                <TableHead className='max-w-[200px] truncate py-3'>
+                  {t('list.colPath')}
+                </TableHead>
+                <TableHead className='w-[100px] py-3'>
+                  {t('list.colType')}
+                </TableHead>
+                <TableHead className='w-[125px] py-3'>
+                  {t('list.colMime')}
+                </TableHead>
+                <TableHead className='w-[100px] py-3'>
+                  {t('list.colSize')}
+                </TableHead>
+                <TableHead className='w-[150px] py-3'>
+                  {t('list.colUploadedAt')}
+                </TableHead>
                 <TableHead className='w-[120px] text-right pr-4 py-3'>
-                  操作
+                  {t('list.colActions')}
                 </TableHead>
               </TableRow>
             </TableHeader>
@@ -396,7 +410,7 @@ export function FileList() {
                           size='icon'
                           variant='ghost'
                           className='h-7 w-7 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground'
-                          title='查看详情'
+                          title={t('list.viewDetail')}
                           onClick={() => setDetailTarget(file)}
                         >
                           <Eye className='size-3.5' />
@@ -405,7 +419,7 @@ export function FileList() {
                           size='icon'
                           variant='ghost'
                           className='h-7 w-7 rounded-md hover:bg-muted'
-                          title='下载'
+                          title={t('list.download')}
                           onClick={() => handleDownload(file)}
                         >
                           <Download className='size-3.5' />
@@ -414,7 +428,7 @@ export function FileList() {
                           size='icon'
                           variant='ghost'
                           className='h-7 w-7 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive'
-                          title='删除'
+                          title={t('list.delete')}
                           onClick={() => setDeleteTarget(file)}
                         >
                           <Trash2 className='size-3.5' />
@@ -439,7 +453,7 @@ export function FileList() {
             disabled={page <= 1}
             onClick={() => setPage((p) => p - 1)}
           >
-            上一页
+            {t('list.prevPage')}
           </Button>
           <span className='text-xs text-muted-foreground'>
             {page} / {totalPages}
@@ -451,7 +465,7 @@ export function FileList() {
             disabled={page >= totalPages}
             onClick={() => setPage((p) => p + 1)}
           >
-            下一页
+            {t('list.nextPage')}
           </Button>
         </div>
       )}
@@ -463,9 +477,9 @@ export function FileList() {
       >
         <SheetContent className='w-full sm:max-w-md overflow-y-auto p-6'>
           <SheetHeader className='border-b pb-4 px-0'>
-            <SheetTitle>文件详情</SheetTitle>
+            <SheetTitle>{t('list.detailTitle')}</SheetTitle>
             <SheetDescription>
-              查看文件的完整元数据与配置属性。
+              {t('list.detailDesc')}
             </SheetDescription>
           </SheetHeader>
 
@@ -485,7 +499,9 @@ export function FileList() {
                   <div className='flex flex-col items-center gap-3'>
                     {getFileIcon(detailTarget.mime_type, 'size-14')}
                     <span className='text-xs font-medium text-muted-foreground uppercase'>
-                      {detailTarget.extension} 文件
+                      {t('list.extensionFile', {
+                        ext: detailTarget.extension,
+                      })}
                     </span>
                   </div>
                 )}
@@ -495,7 +511,7 @@ export function FileList() {
               <div className='space-y-4 text-xs'>
                 <div className='grid grid-cols-3 gap-2 border-b border-dashed pb-2'>
                   <span className='text-muted-foreground font-medium'>
-                    文件 ID
+                    {t('list.detailId')}
                   </span>
                   <span className='col-span-2 font-mono break-all select-all text-foreground/90'>
                     {detailTarget.id}
@@ -504,7 +520,7 @@ export function FileList() {
 
                 <div className='grid grid-cols-3 gap-2 border-b border-dashed pb-2'>
                   <span className='text-muted-foreground font-medium'>
-                    文件名
+                    {t('list.detailName')}
                   </span>
                   <span className='col-span-2 break-all font-medium text-foreground/90'>
                     {detailTarget.file_name}
@@ -513,7 +529,7 @@ export function FileList() {
 
                 <div className='grid grid-cols-3 gap-2 border-b border-dashed pb-2'>
                   <span className='text-muted-foreground font-medium'>
-                    存储路径
+                    {t('list.detailPath')}
                   </span>
                   <span className='col-span-2 font-mono break-all select-all text-foreground/90'>
                     {detailTarget.file_path}
@@ -522,17 +538,18 @@ export function FileList() {
 
                 <div className='grid grid-cols-3 gap-2 border-b border-dashed pb-2'>
                   <span className='text-muted-foreground font-medium'>
-                    大小
+                    {t('list.detailSize')}
                   </span>
                   <span className='col-span-2 text-foreground/90'>
                     {formatFileSize(detailTarget.file_size)} (
-                    {detailTarget.file_size.toLocaleString()} 字节)
+                    {detailTarget.file_size.toLocaleString()} {t('list.bytes')}
+                    )
                   </span>
                 </div>
 
                 <div className='grid grid-cols-3 gap-2 border-b border-dashed pb-2'>
                   <span className='text-muted-foreground font-medium'>
-                    MIME 类型
+                    {t('list.detailMime')}
                   </span>
                   <span className='col-span-2 font-mono text-foreground/90'>
                     {detailTarget.mime_type}
@@ -541,7 +558,7 @@ export function FileList() {
 
                 <div className='grid grid-cols-3 gap-2 border-b border-dashed pb-2'>
                   <span className='text-muted-foreground font-medium'>
-                    文件后缀
+                    {t('list.detailExtension')}
                   </span>
                   <span className='col-span-2 font-mono text-foreground/90'>
                     {detailTarget.extension}
@@ -559,7 +576,7 @@ export function FileList() {
 
                 <div className='grid grid-cols-3 gap-2 border-b border-dashed pb-2'>
                   <span className='text-muted-foreground font-medium'>
-                    业务类型
+                    {t('list.detailBizType')}
                   </span>
                   <span className='col-span-2'>
                     <Badge
@@ -573,7 +590,7 @@ export function FileList() {
 
                 <div className='grid grid-cols-3 gap-2 border-b border-dashed pb-2'>
                   <span className='text-muted-foreground font-medium'>
-                    存储驱动
+                    {t('list.detailDriver')}
                   </span>
                   <span className='col-span-2 font-mono text-foreground/90'>
                     {storageDriverQuery.data ?? 'local'}
@@ -582,7 +599,7 @@ export function FileList() {
 
                 <div className='grid grid-cols-3 gap-2 border-b border-dashed pb-2'>
                   <span className='text-muted-foreground font-medium'>
-                    上传者 ID
+                    {t('list.detailUploaderId')}
                   </span>
                   <span className='col-span-2 font-mono text-foreground/90'>
                     {detailTarget.user_id}
@@ -591,7 +608,7 @@ export function FileList() {
 
                 <div className='grid grid-cols-3 gap-2 border-b border-dashed pb-2'>
                   <span className='text-muted-foreground font-medium'>
-                    上传时间
+                    {t('list.detailUploadedAt')}
                   </span>
                   <span className='col-span-2 text-foreground/90'>
                     {formatDate(detailTarget.created_at)}
@@ -602,7 +619,7 @@ export function FileList() {
                   Object.keys(detailTarget.metadata).length > 0 && (
                     <div className='space-y-1.5 pt-2'>
                       <span className='text-muted-foreground font-medium block'>
-                        额外元数据
+                        {t('list.detailMetadata')}
                       </span>
                       <pre className='p-3 bg-muted/40 border rounded-lg text-[10px] font-mono overflow-x-auto text-foreground/90 max-h-40 overflow-y-auto'>
                         {JSON.stringify(detailTarget.metadata, null, 2)}
@@ -622,18 +639,16 @@ export function FileList() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>确认删除文件</AlertDialogTitle>
+            <AlertDialogTitle>{t('list.deleteTitle')}</AlertDialogTitle>
             <AlertDialogDescription>
-              确定要删除文件{' '}
-              <span className='font-semibold text-foreground'>
-                「{deleteTarget?.file_name}」
-              </span>{' '}
-              吗？此操作不可撤销。
+              {t('list.deleteConfirm', {
+                name: deleteTarget?.file_name ?? '',
+              })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={deleteMutation.isPending}>
-              取消
+              {t('list.cancel')}
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={() =>
@@ -645,7 +660,7 @@ export function FileList() {
               {deleteMutation.isPending && (
                 <Loader2 className='mr-1.5 size-3.5 animate-spin' />
               )}
-              确认删除
+              {t('list.confirmDelete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

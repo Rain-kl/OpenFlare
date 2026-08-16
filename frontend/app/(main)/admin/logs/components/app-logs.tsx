@@ -22,6 +22,7 @@ import { toast } from 'sonner';
 import { ArrowDown, ChevronUp, Loader2 } from 'lucide-react';
 
 import services from '@/lib/services';
+import { useTranslations } from 'next-intl';
 import { ErrorInline } from '@/components/layout/error';
 import { LoadingStateWithBorder } from '@/components/layout/loading';
 import { Button } from '@/components/ui/button';
@@ -92,6 +93,7 @@ function parseLogLevel(
 }
 
 export function AppLogs() {
+  const t = useTranslations('admin.logs.appLogs');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
@@ -176,9 +178,9 @@ export function AppLogs() {
     try {
       return await services.adminLog.getLogs(cursor);
     } catch (err) {
-      throw err instanceof Error ? err : new Error('获取日志失败');
+      throw err instanceof Error ? err : new Error(t('fetchFailed'));
     }
-  }, []);
+  }, [t]);
 
   const loadHistory = useCallback(
     async (cursor: number = 0) => {
@@ -209,16 +211,16 @@ export function AppLogs() {
         setNextCursor(data.next_cursor);
       } catch (err) {
         if (isInitial) {
-          setError(err instanceof Error ? err : new Error('获取日志失败'));
+          setError(err instanceof Error ? err : new Error(t('fetchFailed')));
         } else {
-          toast.error('加载更早日志失败');
+          toast.error(t('loadOlderFailed'));
         }
       } finally {
         if (isInitial) setLoading(false);
         else setLoadingMore(false);
       }
     },
-    [fetchLogs],
+    [fetchLogs, t],
   );
 
   // ---- WebSocket -------------------------------------------------------
@@ -300,12 +302,12 @@ export function AppLogs() {
               {loadingMore ? (
                 <>
                   <Loader2 className='size-3 mr-1.5 animate-spin' />
-                  加载中...
+                  {t('loading')}
                 </>
               ) : (
                 <>
                   <ChevronUp className='size-3 mr-1.5' />
-                  加载更早日志
+                  {t('loadOlderLogs')}
                 </>
               )}
             </Button>
@@ -313,7 +315,9 @@ export function AppLogs() {
         )}
 
         {logs.length === 0 ? (
-          <div className='px-4 py-8 text-center text-gray-500'>暂无日志</div>
+          <div className='px-4 py-8 text-center text-gray-500'>
+            {t('noLogs')}
+          </div>
         ) : (
           <div
             className='relative px-3 py-3'
@@ -349,7 +353,7 @@ export function AppLogs() {
             className='shadow-lg bg-background/80 backdrop-blur-sm border-border/50'
           >
             <ArrowDown className='size-3.5 mr-1.5' />
-            回到最新
+            {t('backToLatest')}
           </Button>
         </div>
       )}

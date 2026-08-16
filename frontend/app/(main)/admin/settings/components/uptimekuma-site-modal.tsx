@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 
@@ -29,6 +30,8 @@ export function UptimeKumaSiteSelectModal({
   onOpenChange,
   onSave,
 }: UptimeKumaSiteSelectModalProps) {
+  const t = useTranslations('openflareOps.siteModal');
+  const tCommon = useTranslations('common');
   const [searchTerm, setSearchTerm] = useState('');
   const [tempSelected, setTempSelected] = useState<Set<string>>(new Set());
 
@@ -90,19 +93,17 @@ export function UptimeKumaSiteSelectModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className='max-w-2xl'>
         <DialogHeader>
-          <DialogTitle>选择监控站点</DialogTitle>
-          <DialogDescription>
-            选择要同步到 Uptime Kuma 的反代站点，支持按站点名称和域名搜索。
-          </DialogDescription>
+          <DialogTitle>{t('title')}</DialogTitle>
+          <DialogDescription>{t('description')}</DialogDescription>
         </DialogHeader>
 
         <div className='space-y-4'>
           <div className='space-y-1.5'>
-            <Label>搜索站点</Label>
+            <Label>{t('search')}</Label>
             <Input
               value={searchTerm}
               onChange={(event) => setSearchTerm(event.target.value)}
-              placeholder='按名称或域名搜索...'
+              placeholder={t('searchPlaceholder')}
             />
           </div>
 
@@ -113,7 +114,7 @@ export function UptimeKumaSiteSelectModal({
               size='sm'
               onClick={handleSelectAll}
             >
-              全选过滤项
+              {t('selectFiltered')}
             </Button>
             <Button
               type='button'
@@ -121,30 +122,32 @@ export function UptimeKumaSiteSelectModal({
               size='sm'
               onClick={handleDeselectAll}
             >
-              清空过滤项
+              {t('clearFiltered')}
             </Button>
           </div>
 
           <div className='max-h-72 overflow-y-auto rounded-lg border'>
             {routesQuery.isLoading ? (
               <p className='p-4 text-sm text-muted-foreground'>
-                加载站点列表...
+                {t('loading')}
               </p>
             ) : routesQuery.isError ? (
               <p className='p-4 text-sm text-destructive'>
                 {routesQuery.error instanceof Error
                   ? routesQuery.error.message
-                  : '加载站点失败'}
+                  : t('loadFailed')}
               </p>
             ) : filteredRoutes.length === 0 ? (
-              <p className='p-4 text-sm text-muted-foreground'>无匹配的站点</p>
+              <p className='p-4 text-sm text-muted-foreground'>
+                {t('noMatch')}
+              </p>
             ) : (
               <table className='w-full text-left text-sm'>
                 <thead className='sticky top-0 bg-muted/60 text-xs uppercase text-muted-foreground'>
                   <tr>
-                    <th className='w-12 px-3 py-2'>选择</th>
-                    <th className='px-3 py-2'>站点名称</th>
-                    <th className='px-3 py-2'>主域名</th>
+                    <th className='w-12 px-3 py-2'>{t('select')}</th>
+                    <th className='px-3 py-2'>{t('siteName')}</th>
+                    <th className='px-3 py-2'>{t('primaryDomain')}</th>
                   </tr>
                 </thead>
                 <tbody className='divide-y'>
@@ -184,7 +187,7 @@ export function UptimeKumaSiteSelectModal({
           </div>
 
           <p className='text-right text-xs text-muted-foreground'>
-            已选择 {tempSelected.size} 个监控站点
+            {t('selectedCount', { count: tempSelected.size })}
           </p>
         </div>
 
@@ -194,7 +197,7 @@ export function UptimeKumaSiteSelectModal({
             variant='outline'
             onClick={() => onOpenChange(false)}
           >
-            取消
+            {tCommon('cancel')}
           </Button>
           <Button
             type='button'
@@ -203,7 +206,7 @@ export function UptimeKumaSiteSelectModal({
               onOpenChange(false);
             }}
           >
-            保存选择
+            {t('save')}
           </Button>
         </DialogFooter>
       </DialogContent>

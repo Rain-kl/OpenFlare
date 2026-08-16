@@ -28,6 +28,8 @@ import type {
 } from '@/lib/services/openflare';
 import { formatDateTime } from '@/lib/utils';
 
+import { useTranslations } from 'next-intl';
+
 import { getCertificateStatus } from '../../components/website-utils';
 
 export function ZoneCertificatesPanel({
@@ -37,6 +39,8 @@ export function ZoneCertificatesPanel({
   domains: ZoneDomainItem[];
   certificates: TlsCertificateItem[];
 }) {
+  const t = useTranslations('websites');
+  const tc = useTranslations('certificates');
   const certificateMap = useMemo(
     () =>
       new Map(certificates.map((certificate) => [certificate.id, certificate])),
@@ -79,14 +83,12 @@ export function ZoneCertificatesPanel({
       <Card className='shadow-none'>
         <CardHeader className='flex flex-row items-start justify-between gap-3 space-y-0'>
           <div>
-            <CardTitle className='text-base'>本 Zone 使用的证书</CardTitle>
-            <CardDescription>
-              证书在全局证书库管理；此处仅展示已绑定到本 Zone 域名的证书。
-            </CardDescription>
+            <CardTitle className='text-base'>{t('zoneCertsTitle')}</CardTitle>
+            <CardDescription>{t('zoneCertsDesc')}</CardDescription>
           </div>
           <Button variant='outline' size='sm' className='h-7 text-xs' asChild>
             <Link href='/certificates'>
-              证书库
+              {t('certLibrary')}
               <ExternalLink className='ml-1 size-3.5' />
             </Link>
           </Button>
@@ -94,37 +96,37 @@ export function ZoneCertificatesPanel({
         <CardContent className='space-y-3'>
           {unboundCount > 0 ? (
             <p className='text-xs text-muted-foreground'>
-              还有 {unboundCount} 个域名未绑定证书，可在「域名」Tab 中选择证书。
+              {t('unboundCertHint', { count: unboundCount })}
             </p>
           ) : null}
 
           {boundCertificates.length === 0 ? (
             <EmptyStateWithBorder
               icon={FileKey}
-              description='暂无绑定证书。请先在域名行选择证书，或前往证书库导入/申请。'
+              description={t('emptyBoundCerts')}
             />
           ) : (
             <div className='rounded-lg border'>
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>证书</TableHead>
-                    <TableHead>状态</TableHead>
-                    <TableHead>覆盖域名</TableHead>
-                    <TableHead>到期时间</TableHead>
+                    <TableHead>{t('certificate')}</TableHead>
+                    <TableHead>{t('status')}</TableHead>
+                    <TableHead>{t('coverage')}</TableHead>
+                    <TableHead>{t('expiresAt')}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {boundCertificates.map(
                     ({ certificate, domains: boundDomains }) => {
-                      const status = getCertificateStatus(certificate);
+                      const status = getCertificateStatus(certificate, tc);
                       return (
                         <TableRow key={certificate.id}>
                           <TableCell className='font-medium'>
                             {certificate.name}
                             <p className='mt-0.5 text-xs text-muted-foreground'>
                               {certificate.primary_domain ||
-                                `证书 #${certificate.id}`}
+                                t('certNumber', { id: certificate.id })}
                             </p>
                           </TableCell>
                           <TableCell>

@@ -2,6 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { LayoutDashboard, RefreshCw } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 import { EmptyStateWithBorder } from '@/components/layout/empty';
 import { ErrorInline } from '@/components/layout/error';
@@ -24,6 +25,7 @@ import { getErrorMessage } from './nodes/components/node-utils';
 const dashboardQueryKey = ['openflare', 'dashboard', 'overview'];
 
 export default function OpenFlareDashboardPage() {
+  const t = useTranslations('dashboard');
   const overviewQuery = useQuery({
     queryKey: dashboardQueryKey,
     queryFn: () => DashboardService.getOverview(),
@@ -37,11 +39,13 @@ export default function OpenFlareDashboardPage() {
       <div className='flex flex-wrap items-center justify-between gap-3'>
         <div className='flex items-center gap-2'>
           <LayoutDashboard className='size-5 text-primary' />
-          <h1 className='text-2xl font-semibold tracking-tight'>总览</h1>
+          <h1 className='text-2xl font-semibold tracking-tight'>{t('title')}</h1>
         </div>
         <div className='flex items-center gap-2 text-xs text-muted-foreground'>
           {overview?.generated_at ? (
-            <span>数据生成于 {formatDateTime(overview.generated_at)}</span>
+            <span>
+              {t('generatedAt', { time: formatDateTime(overview.generated_at) })}
+            </span>
           ) : null}
           <Button
             variant='outline'
@@ -53,25 +57,27 @@ export default function OpenFlareDashboardPage() {
             <RefreshCw
               className={`size-3.5 mr-1.5 ${overviewQuery.isFetching ? 'animate-spin' : ''}`}
             />
-            刷新
+            {t('refresh')}
           </Button>
         </div>
       </div>
 
       {overviewQuery.isLoading ? (
         <LoadingStateWithBorder
-          title='加载总览数据'
-          description='正在聚合节点健康、流量与容量指标...'
+          title={t('loadingTitle')}
+          description={t('loadingDesc')}
         />
       ) : overviewQuery.isError ? (
         <ErrorInline
-          message={`总览看板加载失败：${getErrorMessage(overviewQuery.error)}`}
+          message={t('loadFailed', {
+            error: getErrorMessage(overviewQuery.error, t('requestFailed')),
+          })}
           onRetry={() => overviewQuery.refetch()}
         />
       ) : !overview ? (
         <EmptyStateWithBorder
-          title='暂无总览数据'
-          description='系统已经启动，但还没有可展示的总览聚合结果。'
+          title={t('emptyTitle')}
+          description={t('emptyDesc')}
         />
       ) : (
         <>

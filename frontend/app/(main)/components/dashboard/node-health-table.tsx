@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 
 import { EmptyStateWithBorder } from '@/components/layout/empty';
 import { Button } from '@/components/ui/button';
@@ -33,6 +34,8 @@ import {
 import { formatCompactNumber, formatPercent } from './dashboard-utils';
 
 export function NodeHealthTable({ nodes }: { nodes: DashboardNodeHealth[] }) {
+  const t = useTranslations('dashboard.nodeHealth');
+  const tn = useTranslations('nodes');
   const sortedNodes = [...nodes].sort((left, right) => {
     if (right.active_event_count !== left.active_event_count) {
       return right.active_event_count - left.active_event_count;
@@ -54,33 +57,33 @@ export function NodeHealthTable({ nodes }: { nodes: DashboardNodeHealth[] }) {
     <Card className='border-dashed shadow-none'>
       <CardHeader className='flex flex-row items-start justify-between gap-4'>
         <div>
-          <CardTitle className='text-sm font-semibold'>节点健康列表</CardTitle>
-          <CardDescription className='text-xs'>
-            按异常数量和资源压力排序。
-          </CardDescription>
+          <CardTitle className='text-sm font-semibold'>{t('title')}</CardTitle>
+          <CardDescription className='text-xs'>{t('description')}</CardDescription>
         </div>
         <Button variant='outline' size='sm' className='h-8 text-xs' asChild>
-          <Link href='/nodes'>进入节点页</Link>
+          <Link href='/nodes'>{t('openNodes')}</Link>
         </Button>
       </CardHeader>
       <CardContent>
         {sortedNodes.length === 0 ? (
           <EmptyStateWithBorder
-            title='暂无节点'
-            description='节点接入后，这里会展示系统健康与容量摘要。'
+            title={t('emptyTitle')}
+            description={t('emptyDesc')}
           />
         ) : (
           <div className='border border-dashed rounded-lg overflow-hidden'>
             <Table>
               <TableHeader>
                 <TableRow className='border-dashed hover:bg-transparent'>
-                  <TableHead className='py-2 h-8'>节点</TableHead>
-                  <TableHead className='py-2 h-8'>状态</TableHead>
-                  <TableHead className='py-2 h-8'>CPU / 内存</TableHead>
-                  <TableHead className='py-2 h-8'>请求 / 错误</TableHead>
-                  <TableHead className='py-2 h-8'>活动异常</TableHead>
-                  <TableHead className='py-2 h-8'>最近心跳</TableHead>
-                  <TableHead className='py-2 h-8 text-right'>操作</TableHead>
+                  <TableHead className='py-2 h-8'>{t('colNode')}</TableHead>
+                  <TableHead className='py-2 h-8'>{t('colStatus')}</TableHead>
+                  <TableHead className='py-2 h-8'>{t('colCpuMem')}</TableHead>
+                  <TableHead className='py-2 h-8'>{t('colReqErr')}</TableHead>
+                  <TableHead className='py-2 h-8'>{t('colEvents')}</TableHead>
+                  <TableHead className='py-2 h-8'>{t('colHeartbeat')}</TableHead>
+                  <TableHead className='py-2 h-8 text-right'>
+                    {t('colActions')}
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -96,18 +99,21 @@ export function NodeHealthTable({ nodes }: { nodes: DashboardNodeHealth[] }) {
                           {node.node_id}
                         </p>
                         <p className='text-xs text-muted-foreground'>
-                          {node.geo_name || '未配置地图点位'}
+                          {node.geo_name || t('noGeo')}
                         </p>
                       </div>
                     </TableCell>
                     <TableCell className='py-3'>
                       <div className='flex flex-wrap gap-1.5'>
                         <NodeStatusBadge
-                          label={getNodeStatusLabel(node.status)}
+                          label={getNodeStatusLabel(node.status, tn)}
                           tone={getNodeStatusTone(node.status)}
                         />
                         <NodeStatusBadge
-                          label={getOpenrestyStatusLabel(node.openresty_status)}
+                          label={getOpenrestyStatusLabel(
+                            node.openresty_status,
+                            tn,
+                          )}
                           tone={getOpenrestyStatusTone(node.openresty_status)}
                         />
                       </div>
@@ -130,10 +136,10 @@ export function NodeHealthTable({ nodes }: { nodes: DashboardNodeHealth[] }) {
                     </TableCell>
                     <TableCell className='py-3 text-xs text-muted-foreground'>
                       {isWSConnectedLastSeen(node.last_seen_at)
-                        ? 'WS 已连接'
+                        ? t('wsConnected')
                         : node.last_seen_at
-                          ? formatRelativeTime(node.last_seen_at)
-                          : '暂无'}
+                          ? formatRelativeTime(node.last_seen_at, tn)
+                          : t('na')}
                     </TableCell>
                     <TableCell className='py-3 text-right'>
                       <Button
@@ -142,7 +148,9 @@ export function NodeHealthTable({ nodes }: { nodes: DashboardNodeHealth[] }) {
                         className='h-8 text-xs'
                         asChild
                       >
-                        <Link href={`/nodes/detail?id=${node.id}`}>详情</Link>
+                        <Link href={`/nodes/detail?id=${node.id}`}>
+                          {t('detail')}
+                        </Link>
                       </Button>
                     </TableCell>
                   </TableRow>

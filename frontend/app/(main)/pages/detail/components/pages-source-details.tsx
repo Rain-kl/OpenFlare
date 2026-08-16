@@ -1,4 +1,5 @@
 import { TriangleAlert } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import type { ReactNode } from 'react';
 
 import { ErrorInline } from '@/components/layout/error';
@@ -11,8 +12,11 @@ import {
 } from '@/lib/services/openflare';
 import { cn, formatDateTime } from '@/lib/utils';
 
-function revisionSummary(revision?: PagesSourceRevision) {
-  if (!revision) return '尚无记录';
+function revisionSummary(
+  revision: PagesSourceRevision | undefined,
+  empty: string,
+) {
+  if (!revision) return empty;
   const label = revision.label?.trim();
   const short = revision.revision.slice(0, 12);
   return label ? `${label} · ${short}` : short;
@@ -51,23 +55,24 @@ export function RemoteSourceDetails({
 }: {
   source: PagesRemoteURLSource;
 }) {
+  const t = useTranslations('pages.source');
   return (
     <div className='space-y-4'>
       <div className='rounded-lg border border-dashed bg-muted/15 px-5 py-5'>
         <dl className='space-y-3.5'>
-          <SourceMetaRow label='地址' mono>
+          <SourceMetaRow label={t('address')} mono>
             {source.remote_url || '—'}
           </SourceMetaRow>
           <div className='grid gap-3.5 sm:grid-cols-2'>
             <SourceMetaRow label='TLS'>
-              {source.allow_insecure ? '允许不安全连接' : '校验证书'}
+              {source.allow_insecure ? t('allowInsecure') : t('verifyCert')}
             </SourceMetaRow>
-            <SourceMetaRow label='最近同步'>
-              {formatOptionalTime(source.last_synced_at, '尚未同步')}
+            <SourceMetaRow label={t('lastSync')}>
+              {formatOptionalTime(source.last_synced_at, t('neverSynced'))}
             </SourceMetaRow>
           </div>
-          <SourceMetaRow label='已应用' mono>
-            {revisionSummary(source.last_applied)}
+          <SourceMetaRow label={t('applied')} mono>
+            {revisionSummary(source.last_applied, t('noRecord'))}
           </SourceMetaRow>
         </dl>
       </div>
@@ -82,25 +87,22 @@ export function GitHubSourceDetails({
 }: {
   source: PagesGitHubReleaseSource;
 }) {
+  const t = useTranslations('pages.source');
   const attentionRevision =
     source.sync_status === 'attention' ? source.last_seen : undefined;
   const releaseLabel =
     source.release_selector === 'latest'
-      ? '最新 Release'
-      : `固定 Tag · ${source.release_tag || '未提供'}`;
+      ? t('latestReleaseLabel')
+      : t('pinnedTagLabel', { tag: source.release_tag || t('tagMissing') });
 
   return (
     <div className='space-y-4'>
       {attentionRevision ? (
         <Alert variant='destructive'>
           <TriangleAlert />
-          <AlertTitle>Release Asset 发生变化，需要显式确认</AlertTitle>
+          <AlertTitle>{t('assetChangedTitle')}</AlertTitle>
           <AlertDescription>
-            <p>
-              当前远端 revision
-              与已发布内容不一致。请核对版本和资源后，再确认发布这一精确
-              revision。
-            </p>
+            <p>{t('assetChangedDesc')}</p>
             <code className='break-all'>{attentionRevision.revision}</code>
           </AlertDescription>
         </Alert>
@@ -122,32 +124,36 @@ export function GitHubSourceDetails({
         <dl className='grid gap-x-8 gap-y-3.5 sm:grid-cols-2'>
           {source.release_selector === 'latest' ? (
             <>
-              <SourceMetaRow label='自动更新'>
-                {source.auto_update_enabled ? '已开启' : '已关闭'}
+              <SourceMetaRow label={t('autoUpdate')}>
+                {source.auto_update_enabled
+                  ? t('autoUpdateOn')
+                  : t('autoUpdateOff')}
               </SourceMetaRow>
-              <SourceMetaRow label='检查间隔'>
-                {source.check_interval_minutes} 分钟
+              <SourceMetaRow label={t('checkInterval')}>
+                {t('intervalMinutes', {
+                  count: source.check_interval_minutes,
+                })}
               </SourceMetaRow>
-              <SourceMetaRow label='下次检查'>
-                {formatOptionalTime(source.next_check_at, '等待调度')}
+              <SourceMetaRow label={t('nextCheck')}>
+                {formatOptionalTime(source.next_check_at, t('waitingSchedule'))}
               </SourceMetaRow>
-              <SourceMetaRow label='最近检查'>
-                {formatOptionalTime(source.last_checked_at, '尚未检查')}
+              <SourceMetaRow label={t('lastCheck')}>
+                {formatOptionalTime(source.last_checked_at, t('neverChecked'))}
               </SourceMetaRow>
             </>
           ) : (
-            <SourceMetaRow label='最近检查'>
-              {formatOptionalTime(source.last_checked_at, '尚未检查')}
+            <SourceMetaRow label={t('lastCheck')}>
+              {formatOptionalTime(source.last_checked_at, t('neverChecked'))}
             </SourceMetaRow>
           )}
-          <SourceMetaRow label='远端' mono>
-            {revisionSummary(source.last_seen)}
+          <SourceMetaRow label={t('remote')} mono>
+            {revisionSummary(source.last_seen, t('noRecord'))}
           </SourceMetaRow>
-          <SourceMetaRow label='已应用' mono>
-            {revisionSummary(source.last_applied)}
+          <SourceMetaRow label={t('applied')} mono>
+            {revisionSummary(source.last_applied, t('noRecord'))}
           </SourceMetaRow>
-          <SourceMetaRow label='最近同步'>
-            {formatOptionalTime(source.last_synced_at, '尚未同步')}
+          <SourceMetaRow label={t('lastSync')}>
+            {formatOptionalTime(source.last_synced_at, t('neverSynced'))}
           </SourceMetaRow>
         </dl>
       </div>

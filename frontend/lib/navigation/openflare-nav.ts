@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 
 export interface OpenFlareNavItem {
-  title: string;
+  titleKey: string;
   url: string;
   icon: LucideIcon;
   /** 子页面在侧栏中仍高亮父级菜单项 */
@@ -20,13 +20,13 @@ export interface OpenFlareNavItem {
 }
 
 export interface OpenFlareNavSubItem {
-  title: string;
+  titleKey: string;
   url: string;
   childUrls?: string[];
 }
 
 export interface OpenFlareNavGroup {
-  title: string;
+  titleKey: string;
   icon: LucideIcon;
   items: OpenFlareNavSubItem[];
 }
@@ -37,31 +37,31 @@ export type OpenFlareSidebarNavEntry =
 
 /** 安全性折叠组 */
 export const openflareSecurityNavGroup: OpenFlareNavGroup = {
-  title: '安全性',
+  titleKey: 'security',
   icon: ShieldCheck,
   items: [
-    { title: 'WAF', url: '/waf' },
-    { title: 'IP 组', url: '/ip-groups' },
-    { title: '限流', url: '/rate-limits' },
+    { titleKey: 'waf', url: '/waf' },
+    { titleKey: 'ipGroups', url: '/ip-groups' },
+    { titleKey: 'rateLimits', url: '/rate-limits' },
   ],
 };
 
 /** 网站管理折叠组 */
 export const openflareWebsiteNavGroup: OpenFlareNavGroup = {
-  title: '网站管理',
+  titleKey: 'websites',
   icon: Globe,
   items: [
-    { title: '域名列表', url: '/websites', childUrls: ['/websites/detail'] },
-    { title: 'TLS证书', url: '/certificates' },
-    { title: 'DNS账号', url: '/dns-accounts' },
+    { titleKey: 'websites', url: '/websites', childUrls: ['/websites/detail'] },
+    { titleKey: 'certificates', url: '/certificates' },
+    { titleKey: 'dnsAccounts', url: '/dns-accounts' },
     {
-      title: 'Cloudflare',
+      titleKey: 'cloudflare',
       url: '/cloudflare',
       childUrls: ['/cloudflare/settings'],
     },
-    { title: '源站地址', url: '/origins', childUrls: ['/origins/detail'] },
+    { titleKey: 'origins', url: '/origins', childUrls: ['/origins/detail'] },
     {
-      title: '响应页面',
+      titleKey: 'responses',
       url: '/responses',
       childUrls: [
         '/responses/error-page/edit',
@@ -78,17 +78,17 @@ export const openflareWebsiteNavGroup: OpenFlareNavGroup = {
  * 调整菜单顺序或折叠组位置时，只需修改此数组。
  */
 export const openflareSidebarNav: OpenFlareSidebarNavEntry[] = [
-  { kind: 'item', title: '数据看板', url: '/', icon: LayoutDashboard },
+  { kind: 'item', titleKey: 'dashboard', url: '/', icon: LayoutDashboard },
   {
     kind: 'item',
-    title: '节点管理',
+    titleKey: 'nodes',
     url: '/nodes',
     icon: Server,
     childUrls: ['/nodes/detail'],
   },
   {
     kind: 'item',
-    title: '规则管理',
+    titleKey: 'proxyRoutes',
     url: '/proxy-routes',
     icon: Route,
     childUrls: ['/proxy-routes/detail'],
@@ -97,14 +97,19 @@ export const openflareSidebarNav: OpenFlareSidebarNavEntry[] = [
   { kind: 'group', ...openflareSecurityNavGroup },
   {
     kind: 'item',
-    title: 'Pages',
+    titleKey: 'pages',
     url: '/pages',
     icon: FileText,
     childUrls: ['/pages/detail'],
   },
-  { kind: 'item', title: '版本发布', url: '/config-versions', icon: GitBranch },
-  { kind: 'item', title: '访问日志', url: '/access-logs', icon: ScrollText },
-  { kind: 'item', title: '性能调优', url: '/performance', icon: Gauge },
+  {
+    kind: 'item',
+    titleKey: 'configVersions',
+    url: '/config-versions',
+    icon: GitBranch,
+  },
+  { kind: 'item', titleKey: 'accessLogs', url: '/access-logs', icon: ScrollText },
+  { kind: 'item', titleKey: 'performance', url: '/performance', icon: Gauge },
 ];
 
 /** 扁平菜单项（供路由判断等逻辑复用） */
@@ -121,11 +126,11 @@ export const openflareNavItems: OpenFlareNavItem[] = openflareSidebarNav
 
 /** 网站模块页内二级导航 */
 export const openflareWebsiteSubNav = [
-  { title: '网站列表', url: '/websites' },
-  { title: '证书', url: '/certificates' },
-  { title: 'DNS 账号', url: '/dns-accounts' },
-  { title: 'Cloudflare', url: '/cloudflare' },
-  { title: '响应页面', url: '/responses' },
+  { titleKey: 'websites', url: '/websites' },
+  { titleKey: 'certificates', url: '/certificates' },
+  { titleKey: 'dnsAccounts', url: '/dns-accounts' },
+  { titleKey: 'cloudflare', url: '/cloudflare' },
+  { titleKey: 'responses', url: '/responses' },
 ] as const;
 
 const nonConsoleRoutePrefixes = [

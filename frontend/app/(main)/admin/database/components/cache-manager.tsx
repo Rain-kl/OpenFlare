@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import { useCallback, useEffect, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { HardDrive, RefreshCw, Trash2 } from 'lucide-react';
 
@@ -52,6 +53,7 @@ interface CacheManagerProps {
 }
 
 export function CacheManager({ refreshTrigger }: CacheManagerProps) {
+  const t = useTranslations('admin.database.cache');
   const [cacheStatus, setCacheStatus] = useState<CacheStatus | null>(null);
   const [loadingCache, setLoadingCache] = useState<boolean>(true);
   const [savingConfig, setSavingConfig] = useState<boolean>(false);
@@ -73,13 +75,13 @@ export function CacheManager({ refreshTrigger }: CacheManagerProps) {
       setTtlMinutes(data.ttl_minutes.toString());
       setLruEnabled(data.lru_enabled);
     } catch (err) {
-      toast.error('获取磁盘缓存状态失败', {
-        description: err instanceof Error ? err.message : '未知错误',
+      toast.error(t('fetchCacheStatusFailed'), {
+        description: err instanceof Error ? err.message : t('unknownError'),
       });
     } finally {
       setLoadingCache(false);
     }
-  }, []);
+  }, [t]);
 
   // 保存配置
   const handleSaveConfig = async (e: React.FormEvent) => {
@@ -87,14 +89,14 @@ export function CacheManager({ refreshTrigger }: CacheManagerProps) {
     const size = parseInt(maxSizeMB, 10);
     const ttl = parseInt(ttlMinutes, 10);
     if (isNaN(size) || size < 1) {
-      toast.error('保存失败', {
-        description: '最大容量限制必须是大于等于 1 的整数',
+      toast.error(t('saveFailed'), {
+        description: t('maxSizeMustBePositive'),
       });
       return;
     }
     if (isNaN(ttl) || ttl < 0) {
-      toast.error('保存失败', {
-        description: '默认过期时间必须是大于等于 0 的整数',
+      toast.error(t('saveFailed'), {
+        description: t('ttlMustBeNonNegative'),
       });
       return;
     }
@@ -105,11 +107,13 @@ export function CacheManager({ refreshTrigger }: CacheManagerProps) {
         ttl_minutes: ttl,
         lru_enabled: lruEnabled,
       });
-      toast.success('保存成功', { description: '磁盘缓存策略已热更新' });
+      toast.success(t('saveSuccess'), {
+        description: t('cachePolicyHotUpdated'),
+      });
       await fetchCacheStatus(true);
     } catch (err) {
-      toast.error('保存配置失败', {
-        description: err instanceof Error ? err.message : '未知错误',
+      toast.error(t('saveConfigFailed'), {
+        description: err instanceof Error ? err.message : t('unknownError'),
       });
     } finally {
       setSavingConfig(false);
@@ -121,12 +125,12 @@ export function CacheManager({ refreshTrigger }: CacheManagerProps) {
     setClearingCache(true);
     try {
       await services.adminCache.clearCache();
-      toast.success('清空成功', { description: '缓存数据已全部清除' });
+      toast.success(t('clearSuccess'), { description: t('cacheDataCleared') });
       setShowClearConfirm(false);
       await fetchCacheStatus(true);
     } catch (err) {
-      toast.error('清空缓存失败', {
-        description: err instanceof Error ? err.message : '未知错误',
+      toast.error(t('clearCacheFailed'), {
+        description: err instanceof Error ? err.message : t('unknownError'),
       });
     } finally {
       setClearingCache(false);
@@ -149,10 +153,12 @@ export function CacheManager({ refreshTrigger }: CacheManagerProps) {
         <div className='space-y-0.5'>
           <div className='flex items-center gap-2'>
             <HardDrive className='size-4 text-primary animate-pulse' />
-            <CardTitle className='text-sm font-semibold'>缓存管理</CardTitle>
+            <CardTitle className='text-sm font-semibold'>
+              {t('cacheManagement')}
+            </CardTitle>
           </div>
           <CardDescription className='text-[11px]'>
-            管理和监控系统级磁盘缓存的资源占用、生命周期及淘汰策略
+            {t('cacheManagementDesc')}
           </CardDescription>
         </div>
 
@@ -166,7 +172,7 @@ export function CacheManager({ refreshTrigger }: CacheManagerProps) {
           <RefreshCw
             className={`size-3 ${loadingCache ? 'animate-spin' : ''}`}
           />
-          刷新状态
+          {t('refreshStatus')}
         </Button>
       </CardHeader>
       <CardContent className='pt-4'>
@@ -181,13 +187,13 @@ export function CacheManager({ refreshTrigger }: CacheManagerProps) {
             {/* 左边：状态区 (2/5 cols) */}
             <div className='lg:col-span-2 space-y-4'>
               <h4 className='text-xs font-semibold text-muted-foreground uppercase tracking-wider'>
-                运行状态
+                {t('runtimeStatus')}
               </h4>
               <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
                 {/* 已占空间 */}
                 <div className='p-4 rounded-xl border border-border/40 bg-background/30 backdrop-blur-xs hover:border-primary/20 transition-all duration-300'>
                   <p className='text-[10px] text-muted-foreground font-medium mb-1'>
-                    已用空间
+                    {t('usedSpace')}
                   </p>
                   <p className='text-xl font-bold tracking-tight text-foreground'>
                     {formatBytes(cacheStatus.total_size)}
@@ -196,12 +202,12 @@ export function CacheManager({ refreshTrigger }: CacheManagerProps) {
                 {/* Key数量 */}
                 <div className='p-4 rounded-xl border border-border/40 bg-background/30 backdrop-blur-xs hover:border-primary/20 transition-all duration-300'>
                   <p className='text-[10px] text-muted-foreground font-medium mb-1'>
-                    缓存键数量
+                    {t('cacheKeysCount')}
                   </p>
                   <p className='text-xl font-bold tracking-tight text-foreground'>
                     {formatNumber(cacheStatus.keys_count)}{' '}
                     <span className='text-xs text-muted-foreground font-normal'>
-                      个文件
+                      {t('files')}
                     </span>
                   </p>
                 </div>
@@ -210,7 +216,7 @@ export function CacheManager({ refreshTrigger }: CacheManagerProps) {
               {/* 存储路径 */}
               <div className='p-4 rounded-xl border border-border/40 bg-background/30 backdrop-blur-xs hover:border-primary/20 transition-all duration-300'>
                 <p className='text-[10px] text-muted-foreground font-medium mb-1.5'>
-                  缓存基准目录
+                  {t('cacheBaseDirectory')}
                 </p>
                 <code
                   className='text-xs font-mono bg-muted/60 px-2 py-1 rounded-md block truncate'
@@ -225,20 +231,20 @@ export function CacheManager({ refreshTrigger }: CacheManagerProps) {
                 className='h-8 text-xs font-medium w-full'
                 onClick={() => setShowClearConfirm(true)}
               >
-                立即清空缓存
+                {t('clearCacheNow')}
               </Button>
             </div>
 
             {/* 右边：配置区 (3/5 cols) */}
             <div className='lg:col-span-3 border-t lg:border-t-0 lg:border-l border-border/40 pt-6 lg:pt-0 lg:pl-6 space-y-4'>
               <h4 className='text-xs font-semibold text-muted-foreground uppercase tracking-wider'>
-                策略配置
+                {t('policyConfig')}
               </h4>
               <form onSubmit={handleSaveConfig} className='space-y-4'>
                 <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
                   <div className='space-y-1.5'>
                     <Label htmlFor='maxSizeMB' className='text-xs font-medium'>
-                      最大容量限制 (MB)
+                      {t('maxSizeLimit')}
                     </Label>
                     <Input
                       id='maxSizeMB'
@@ -247,17 +253,17 @@ export function CacheManager({ refreshTrigger }: CacheManagerProps) {
                       value={maxSizeMB}
                       onChange={(e) => setMaxSizeMB(e.target.value)}
                       className='h-8 text-xs bg-background/50 border-border/40'
-                      placeholder='例如 100'
+                      placeholder={t('maxSizePlaceholder')}
                       required
                     />
                     <p className='text-[9px] text-muted-foreground'>
-                      当总大小超出该值时，自动触发淘汰算法
+                      {t('maxSizeHint')}
                     </p>
                   </div>
 
                   <div className='space-y-1.5'>
                     <Label htmlFor='ttlMinutes' className='text-xs font-medium'>
-                      生存时间限制 (分钟)
+                      {t('ttlLimit')}
                     </Label>
                     <Input
                       id='ttlMinutes'
@@ -266,11 +272,11 @@ export function CacheManager({ refreshTrigger }: CacheManagerProps) {
                       value={ttlMinutes}
                       onChange={(e) => setTtlMinutes(e.target.value)}
                       className='h-8 text-xs bg-background/50 border-border/40'
-                      placeholder='例如 60，0 表示永不过期'
+                      placeholder={t('ttlPlaceholder')}
                       required
                     />
                     <p className='text-[9px] text-muted-foreground'>
-                      缓存项的最长存活时间，超期后将失效被清理
+                      {t('ttlHint')}
                     </p>
                   </div>
                 </div>
@@ -281,10 +287,10 @@ export function CacheManager({ refreshTrigger }: CacheManagerProps) {
                       htmlFor='lruEnabled'
                       className='text-xs font-semibold block cursor-pointer'
                     >
-                      启用 LRU 淘汰机制
+                      {t('enableLru')}
                     </Label>
                     <span className='text-[10px] text-muted-foreground block'>
-                      在到达最大容量限制时，自动移除最久未被访问的缓存项。关闭该功能仅清理过期项。
+                      {t('enableLruDesc')}
                     </span>
                   </div>
                   <Switch
@@ -300,7 +306,7 @@ export function CacheManager({ refreshTrigger }: CacheManagerProps) {
                     disabled={savingConfig}
                     className='h-8 text-xs px-4'
                   >
-                    {savingConfig ? '正在保存...' : '保存设置'}
+                    {savingConfig ? t('saving') : t('saveSettings')}
                   </Button>
                 </div>
               </form>
@@ -309,7 +315,7 @@ export function CacheManager({ refreshTrigger }: CacheManagerProps) {
         ) : (
           <div className='flex flex-col items-center justify-center py-10 text-muted-foreground'>
             <HardDrive className='size-8 opacity-45 mb-2' />
-            <span className='text-xs'>未加载到缓存状态信息</span>
+            <span className='text-xs'>{t('noCacheStatus')}</span>
           </div>
         )}
       </CardContent>
@@ -320,11 +326,10 @@ export function CacheManager({ refreshTrigger }: CacheManagerProps) {
           <DialogHeader>
             <DialogTitle className='text-sm font-semibold flex items-center gap-2 text-destructive'>
               <Trash2 className='size-4' />
-              确认清空所有缓存？
+              {t('confirmClearAllCache')}
             </DialogTitle>
             <DialogDescription className='text-xs text-muted-foreground pt-1'>
-              该操作将彻底清空磁盘目录下的全部缓存文件（包含临时解压、处理后的图片及各种块文件），重置键数量统计为
-              0。此操作不可撤销，且可能导致用户拉取资源时出现一过性的响应变慢。
+              {t('confirmClearDesc')}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className='flex gap-2 justify-end mt-4'>
@@ -335,7 +340,7 @@ export function CacheManager({ refreshTrigger }: CacheManagerProps) {
               onClick={() => setShowClearConfirm(false)}
               disabled={clearingCache}
             >
-              取消
+              {t('cancel')}
             </Button>
             <Button
               variant='destructive'
@@ -344,7 +349,7 @@ export function CacheManager({ refreshTrigger }: CacheManagerProps) {
               onClick={handleClearCache}
               disabled={clearingCache}
             >
-              {clearingCache ? '清理中...' : '确认清空'}
+              {clearingCache ? t('clearing') : t('confirmClear')}
             </Button>
           </DialogFooter>
         </DialogContent>

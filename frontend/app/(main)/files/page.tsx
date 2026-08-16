@@ -6,8 +6,10 @@ import { motion } from 'motion/react';
 import { RequireAuth } from '@/components/auth/require-auth';
 import { UserFileManager } from '@/components/common/user/file-manager';
 import { FolderOpen } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 export default function UserFilesPage() {
+  const t = useTranslations('files');
   return (
     <RequireAuth>
       <motion.div
@@ -22,7 +24,7 @@ export default function UserFilesPage() {
             <FolderOpen className='size-5 text-primary' />
             <div>
               <h1 className='text-2xl font-semibold tracking-tight'>
-                我的文件
+                {t('myFiles')}
               </h1>
             </div>
           </div>

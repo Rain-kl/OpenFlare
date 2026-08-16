@@ -13,6 +13,8 @@ import { LoadingStateWithBorder } from '@/components/layout/loading';
 import { OptionService } from '@/lib/services/openflare';
 
 import { effectiveOfflinePageHTML } from '@/lib/openflare/offline-page-templates';
+import { useTranslations } from 'next-intl';
+
 import {
   mapOptionsToOfflineFields,
   OPTIONS_QUERY_KEY,
@@ -20,6 +22,7 @@ import {
 } from '../../components/shared';
 
 export default function OfflinePagePreviewPage() {
+  const t = useTranslations('responses');
   const { user, loading: authLoading } = useAuth();
 
   const optionsQuery = useQuery({
@@ -39,7 +42,7 @@ export default function OfflinePagePreviewPage() {
   if (authLoading) {
     return (
       <div className='w-full py-6 px-1'>
-        <LoadingStateWithBorder description='加载权限信息...' />
+        <LoadingStateWithBorder description={t('loadingPermission')} />
       </div>
     );
   }
@@ -48,8 +51,8 @@ export default function OfflinePagePreviewPage() {
     return (
       <div className='w-full py-6 px-1'>
         <EmptyStateWithBorder
-          title='权限不足'
-          description='只有管理员可以预览离线页。'
+          title={t('forbidden')}
+          description={t('forbiddenPreviewOffline')}
         />
       </div>
     );
@@ -58,7 +61,7 @@ export default function OfflinePagePreviewPage() {
   if (optionsQuery.isLoading) {
     return (
       <div className='w-full py-6 px-1'>
-        <LoadingStateWithBorder description='加载离线页配置...' />
+        <LoadingStateWithBorder description={t('loadingOfflineConfig')} />
       </div>
     );
   }
@@ -70,7 +73,7 @@ export default function OfflinePagePreviewPage() {
           message={
             optionsQuery.error instanceof Error
               ? optionsQuery.error.message
-              : '加载失败'
+              : t('loadFailed')
           }
           onRetry={() => void optionsQuery.refetch()}
         />
@@ -83,14 +86,14 @@ export default function OfflinePagePreviewPage() {
       <div className='flex items-center justify-between gap-3 border-b bg-background/95 px-4 py-2 backdrop-blur shrink-0'>
         <div className='flex items-center gap-2 min-w-0'>
           <Button variant='outline' size='icon' className='h-8 w-8' asChild>
-            <Link href='/responses?tab=offline' aria-label='返回离线页'>
+            <Link href='/responses?tab=offline' aria-label={t('backToOffline')}>
               <ArrowLeft className='size-4' />
             </Link>
           </Button>
           <div className='min-w-0'>
-            <p className='text-sm font-semibold truncate'>离线页预览</p>
+            <p className='text-sm font-semibold truncate'>{t('offlinePreview')}</p>
             <p className='text-[11px] text-muted-foreground font-mono truncate'>
-              全屏展示
+              {t('fullscreen')}
             </p>
           </div>
         </div>
@@ -98,18 +101,18 @@ export default function OfflinePagePreviewPage() {
           <Button variant='outline' size='sm' asChild>
             <Link href='/responses/offline/edit'>
               <Pencil className='size-3.5' />
-              编辑
+              {t('edit')}
             </Link>
           </Button>
           <Button variant='ghost' size='icon' className='h-8 w-8' asChild>
-            <Link href='/responses?tab=offline' aria-label='关闭预览'>
+            <Link href='/responses?tab=offline' aria-label={t('closePreview')}>
               <X className='size-4' />
             </Link>
           </Button>
         </div>
       </div>
       <iframe
-        title='离线页预览'
+        title={t('offlinePreview')}
         sandbox=''
         srcDoc={html}
         className='flex-1 w-full border-0 bg-background min-h-0'

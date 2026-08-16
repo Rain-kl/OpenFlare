@@ -2,6 +2,7 @@
 
 import { Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { TaskManager } from './components/task-manager';
 import { TaskSchedulesManager } from './components/task-schedules';
@@ -10,6 +11,7 @@ import { Spinner } from '@/components/ui/spinner';
 import { Layers } from 'lucide-react';
 
 function TasksPageContent() {
+  const t = useTranslations('admin.tasks');
   const searchParams = useSearchParams();
   const router = useRouter();
   const activeTab = searchParams.get('tab') || 'tasks';
@@ -22,7 +24,9 @@ function TasksPageContent() {
       <div className='flex items-center gap-2'>
         <Layers className='size-5 text-primary' />
         <div>
-          <h1 className='text-2xl font-semibold tracking-tight'>任务管理</h1>
+          <h1 className='text-2xl font-semibold tracking-tight'>
+            {t('pageTitle')}
+          </h1>
         </div>
       </div>
 
@@ -36,19 +40,19 @@ function TasksPageContent() {
             value='tasks'
             className='px-0 pb-2 text-xs font-semibold'
           >
-            任务管理
+            {t('tabTasks')}
           </TabsTrigger>
           <TabsTrigger
             value='schedules'
             className='px-0 pb-2 text-xs font-semibold'
           >
-            定时任务
+            {t('tabSchedules')}
           </TabsTrigger>
           <TabsTrigger
             value='executions'
             className='px-0 pb-2 text-xs font-semibold'
           >
-            任务日志
+            {t('tabExecutions')}
           </TabsTrigger>
         </TabsList>
         <TabsContent value='tasks' className='space-y-4 outline-none'>

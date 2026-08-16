@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { useEffect, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
@@ -28,6 +29,8 @@ export function CreateRuleDialog({
   onOpenChange,
   onCreate,
 }: CreateRuleDialogProps) {
+  const t = useTranslations('waf');
+  const tCommon = useTranslations('common');
   const [name, setName] = useState('');
 
   useEffect(() => {
@@ -48,19 +51,21 @@ export function CreateRuleDialog({
           }}
         >
           <DialogHeader>
-            <DialogTitle>新建 WAF 规则</DialogTitle>
+            <DialogTitle>{t('createDialog.title')}</DialogTitle>
             <DialogDescription>
-              创建后将进入编排页面，通过处理单元配置规则执行流程。
+              {t('createDialog.description')}
             </DialogDescription>
           </DialogHeader>
           <FieldGroup>
             <Field>
-              <FieldLabel htmlFor='waf-rule-name'>规则名称</FieldLabel>
+              <FieldLabel htmlFor='waf-rule-name'>
+                {t('createDialog.name')}
+              </FieldLabel>
               <Input
                 id='waf-rule-name'
                 value={name}
                 onChange={(event) => setName(event.target.value)}
-                placeholder='例如：入口防护'
+                placeholder={t('createDialog.namePlaceholder')}
                 autoComplete='off'
                 autoFocus
               />
@@ -73,11 +78,11 @@ export function CreateRuleDialog({
               disabled={pending}
               onClick={() => onOpenChange(false)}
             >
-              取消
+              {tCommon('cancel')}
             </Button>
             <Button type='submit' disabled={!trimmedName || pending}>
               {pending ? <Spinner data-icon='inline-start' /> : null}
-              创建并编排
+              {t('createDialog.submit')}
             </Button>
           </DialogFooter>
         </form>

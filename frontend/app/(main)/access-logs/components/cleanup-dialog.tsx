@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Loader2 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 import {
   AlertDialog,
@@ -38,6 +39,8 @@ export function CleanupDialog({
   onConfirm,
   loading,
 }: CleanupDialogProps) {
+  const t = useTranslations('accessLogs.cleanupDialog');
+  const tCommon = useTranslations('common');
   const [mode, setMode] = useState<string>('7');
   const [customDays, setCustomDays] = useState('14');
   const [error, setError] = useState<string | null>(null);
@@ -49,7 +52,7 @@ export function CleanupDialog({
         : Number.parseInt(mode, 10);
 
     if (!Number.isFinite(retentionDays) || retentionDays < 1) {
-      setError('保留天数必须大于 0');
+      setError(t('invalidDays'));
       return;
     }
 
@@ -61,15 +64,13 @@ export function CleanupDialog({
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>清理访问日志</AlertDialogTitle>
-          <AlertDialogDescription>
-            删除早于指定保留天数的访问日志记录，操作不可恢复。
-          </AlertDialogDescription>
+          <AlertDialogTitle>{t('title')}</AlertDialogTitle>
+          <AlertDialogDescription>{t('description')}</AlertDialogDescription>
         </AlertDialogHeader>
 
         <div className='space-y-3'>
           <div className='space-y-1.5'>
-            <Label>保留策略</Label>
+            <Label>{t('policy')}</Label>
             <Select value={mode} onValueChange={setMode}>
               <SelectTrigger>
                 <SelectValue />
@@ -77,17 +78,17 @@ export function CleanupDialog({
               <SelectContent>
                 {CLEANUP_PRESETS.map((days) => (
                   <SelectItem key={days} value={String(days)}>
-                    保留最近 {days} 天
+                    {t('keepDays', { days })}
                   </SelectItem>
                 ))}
-                <SelectItem value='custom'>自定义天数</SelectItem>
+                <SelectItem value='custom'>{t('custom')}</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
           {mode === 'custom' ? (
             <div className='space-y-1.5'>
-              <Label htmlFor='customDays'>自定义保留天数</Label>
+              <Label htmlFor='customDays'>{t('customDays')}</Label>
               <Input
                 id='customDays'
                 type='number'
@@ -103,7 +104,9 @@ export function CleanupDialog({
         </div>
 
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={loading}>取消</AlertDialogCancel>
+          <AlertDialogCancel disabled={loading}>
+            {tCommon('cancel')}
+          </AlertDialogCancel>
           <Button
             variant='destructive'
             onClick={handleConfirm}
@@ -112,10 +115,10 @@ export function CleanupDialog({
             {loading ? (
               <>
                 <Loader2 className='size-4 animate-spin mr-1' />
-                清理中...
+                {t('cleaning')}
               </>
             ) : (
-              '确认清理'
+              t('confirm')
             )}
           </Button>
         </AlertDialogFooter>

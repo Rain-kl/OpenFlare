@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { ChevronDown, Filter, Loader2, X } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -71,6 +72,7 @@ export function OverviewHostFilter({
   hosts: string[];
   onHostsChange: (hosts: string[]) => void;
 }) {
+  const t = useTranslations('accessLogs.toolbar');
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [expandedZones, setExpandedZones] = useState<Record<number, boolean>>(
@@ -160,10 +162,14 @@ export function OverviewHostFilter({
             hosts.length > 0 ? 'border-primary text-primary' : undefined,
           )}
           title={
-            hosts.length > 0 ? `已筛选 ${hosts.length} 个域名` : '按域名筛选'
+            hosts.length > 0
+              ? t('hostsFiltered', { count: hosts.length })
+              : t('filterByHost')
           }
           aria-label={
-            hosts.length > 0 ? `已筛选 ${hosts.length} 个域名` : '按域名筛选'
+            hosts.length > 0
+              ? t('hostsFiltered', { count: hosts.length })
+              : t('filterByHost')
           }
         >
           <Filter className='size-3.5' />
@@ -171,7 +177,7 @@ export function OverviewHostFilter({
       </PopoverTrigger>
       <PopoverContent align='end' className='w-96 space-y-3 p-3'>
         <div className='flex items-center justify-between gap-2'>
-          <p className='text-sm font-medium'>筛选域名</p>
+          <p className='text-sm font-medium'>{t('filterHosts')}</p>
           {hosts.length > 0 ? (
             <Button
               type='button'
@@ -181,25 +187,25 @@ export function OverviewHostFilter({
               onClick={() => onHostsChange([])}
             >
               <X className='mr-1 size-3' />
-              清除
+              {t('clear')}
             </Button>
           ) : null}
         </div>
         <Input
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder='搜索 Zone 或域名'
+          placeholder={t('searchPlaceholder')}
           className='h-8 text-xs'
         />
         <div className='max-h-72 space-y-2 overflow-y-auto hide-scrollbar'>
           {zonesQuery.isLoading ? (
             <div className='flex items-center justify-center gap-2 py-6 text-xs text-muted-foreground'>
               <Loader2 className='size-3.5 animate-spin' />
-              加载域名…
+              {t('loadingHosts')}
             </div>
           ) : zonesQuery.isError ? (
             <div className='space-y-2 py-2'>
-              <p className='text-xs text-destructive'>加载域名失败</p>
+              <p className='text-xs text-destructive'>{t('loadHostsFailed')}</p>
               <Button
                 type='button'
                 variant='outline'
@@ -207,12 +213,12 @@ export function OverviewHostFilter({
                 className='h-7 text-xs'
                 onClick={() => void zonesQuery.refetch()}
               >
-                重试
+                {t('retry')}
               </Button>
             </div>
           ) : filteredZones.length === 0 ? (
             <p className='py-6 text-center text-xs text-muted-foreground'>
-              {zones.length === 0 ? '暂无已登记域名' : '没有匹配的域名'}
+              {zones.length === 0 ? t('noRegistered') : t('noMatch')}
             </p>
           ) : (
             filteredZones.map((zone) => {
@@ -247,7 +253,7 @@ export function OverviewHostFilter({
                       onCheckedChange={(checked) =>
                         toggleZone(zone.domains, checked)
                       }
-                      aria-label={`选择 Zone ${zone.zoneName}`}
+                      aria-label={t('selectZone', { name: zone.zoneName })}
                     />
                     <CollapsibleTrigger asChild>
                       <button
@@ -286,7 +292,7 @@ export function OverviewHostFilter({
                               onCheckedChange={(checked) =>
                                 toggleHost(domain, checked)
                               }
-                              aria-label={`选择域名 ${domain}`}
+                              aria-label={t('selectHost', { name: domain })}
                             />
                             <span className='min-w-0 flex-1 truncate font-mono'>
                               {domain}
@@ -311,7 +317,7 @@ export function OverviewToolbar({
   hosts,
   onHoursChange,
   onHostsChange,
-  rangeOptions = OVERVIEW_RANGE_OPTIONS,
+  rangeOptions,
 }: {
   hours: OverviewRangeHours | RateLimitRangeHours;
   hosts: string[];
@@ -319,11 +325,20 @@ export function OverviewToolbar({
   onHostsChange: (hosts: string[]) => void;
   rangeOptions?: ReadonlyArray<{ value: number; label: string }>;
 }) {
+  const t = useTranslations('accessLogs');
+  const options =
+    rangeOptions ??
+    OVERVIEW_RANGE_OPTIONS.map((option) => ({
+      value: option.value,
+      label: t(option.labelKey),
+    }));
   return (
     <div className='flex flex-wrap items-center justify-end gap-2'>
       {hosts.length > 0 ? (
         <Badge variant='secondary' className='max-w-[260px] truncate'>
-          {hosts.length === 1 ? hosts[0] : `已选 ${hosts.length} 个域名`}
+          {hosts.length === 1
+            ? hosts[0]
+            : t('toolbar.selectedCount', { count: hosts.length })}
         </Badge>
       ) : null}
       <OverviewHostFilter hosts={hosts} onHostsChange={onHostsChange} />
@@ -338,7 +353,7 @@ export function OverviewToolbar({
         size='sm'
         className='justify-end'
       >
-        {rangeOptions.map((option) => (
+        {options.map((option) => (
           <ToggleGroupItem
             key={option.value}
             value={String(option.value)}

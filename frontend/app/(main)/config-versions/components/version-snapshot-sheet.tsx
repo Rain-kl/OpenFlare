@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Loader2 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 
 import { Badge } from '@/components/ui/badge';
@@ -33,6 +34,7 @@ export function VersionSnapshotSheet({
   open,
   onOpenChange,
 }: VersionSnapshotSheetProps) {
+  const t = useTranslations('configVersions');
   const [detail, setDetail] = useState<ConfigVersionDetail | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -51,8 +53,9 @@ export function VersionSnapshotSheet({
       })
       .catch((err) => {
         if (!cancelled) {
-          toast.error('加载版本快照失败', {
-            description: err instanceof Error ? err.message : '未知错误',
+          toast.error(t('snapshotLoadFailed'), {
+            description:
+              err instanceof Error ? err.message : t('unknownError'),
           });
         }
       })
@@ -63,32 +66,36 @@ export function VersionSnapshotSheet({
     return () => {
       cancelled = true;
     };
-  }, [open, version]);
+  }, [open, version, t]);
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className='sm:max-w-2xl w-full p-0 flex h-svh flex-col gap-0'>
         <SheetHeader className='px-5 py-4 border-b'>
           <SheetTitle>
-            {version ? `版本 ${version.version}` : '版本快照'}
+            {version
+              ? t('snapshotVersion', { version: version.version })
+              : t('snapshotTitle')}
           </SheetTitle>
-          <SheetDescription>查看历史配置版本的完整快照内容。</SheetDescription>
+          <SheetDescription>{t('snapshotDesc')}</SheetDescription>
         </SheetHeader>
 
         <div className='flex-1 min-h-0 overflow-y-auto px-5 py-4'>
           {loading ? (
             <div className='flex items-center justify-center gap-2 py-16 text-sm text-muted-foreground'>
               <Loader2 className='size-4 animate-spin' />
-              正在加载快照...
+              {t('loadingSnapshot')}
             </div>
           ) : detail ? (
             <div className='space-y-5 pb-4'>
               <div className='flex flex-wrap gap-2'>
                 {detail.is_active ? (
-                  <Badge className='rounded-full text-[10px]'>当前激活</Badge>
+                  <Badge className='rounded-full text-[10px]'>
+                    {t('active')}
+                  </Badge>
                 ) : (
                   <Badge variant='outline' className='rounded-full text-[10px]'>
-                    历史版本
+                    {t('history')}
                   </Badge>
                 )}
                 <Badge
@@ -101,11 +108,13 @@ export function VersionSnapshotSheet({
 
               <div className='grid gap-3 sm:grid-cols-2 text-xs'>
                 <div>
-                  <p className='text-muted-foreground'>创建人</p>
-                  <p className='font-medium'>{detail.created_by || '系统'}</p>
+                  <p className='text-muted-foreground'>{t('createdBy')}</p>
+                  <p className='font-medium'>
+                    {detail.created_by || t('system')}
+                  </p>
                 </div>
                 <div>
-                  <p className='text-muted-foreground'>创建时间</p>
+                  <p className='text-muted-foreground'>{t('createdAt')}</p>
                   <p className='font-medium'>
                     {formatDateTime(detail.created_at)}
                   </p>
@@ -113,7 +122,7 @@ export function VersionSnapshotSheet({
               </div>
 
               <div className='space-y-2'>
-                <p className='text-xs font-semibold'>主配置</p>
+                <p className='text-xs font-semibold'>{t('mainConfig')}</p>
                 <CodeBlock
                   code={detail.main_config}
                   language='nginx'
@@ -122,7 +131,7 @@ export function VersionSnapshotSheet({
               </div>
 
               <div className='space-y-2'>
-                <p className='text-xs font-semibold'>路由配置</p>
+                <p className='text-xs font-semibold'>{t('routeConfig')}</p>
                 <CodeBlock
                   code={detail.rendered_config}
                   language='nginx'
@@ -135,7 +144,7 @@ export function VersionSnapshotSheet({
 
         <SheetFooter className='px-5 py-4 border-t'>
           <Button variant='outline' onClick={() => onOpenChange(false)}>
-            关闭
+            {t('close')}
           </Button>
         </SheetFooter>
       </SheetContent>

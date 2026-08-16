@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -31,6 +32,7 @@ export function CreateUserModal({
   isOpen: boolean;
   onClose: () => void;
 }) {
+  const t = useTranslations('admin.users');
   const { createUser } = useAdminUsers();
   const [form, setForm] = useState<CreateUserRequest>(emptyForm);
   const [saving, setSaving] = useState(false);
@@ -48,21 +50,21 @@ export function CreateUserModal({
   const validate = () => {
     const newErrors: Record<string, string> = {};
     if (!form.username.trim()) {
-      newErrors.username = '用户名不能为空';
+      newErrors.username = t('validation.usernameRequired');
     } else if (form.username.trim().length < 3) {
-      newErrors.username = '用户名长度不能少于 3 位';
+      newErrors.username = t('validation.usernameTooShort');
     }
 
     if (!form.email.trim()) {
-      newErrors.email = '邮箱不能为空';
+      newErrors.email = t('validation.emailRequired');
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
-      newErrors.email = '邮箱格式不正确';
+      newErrors.email = t('validation.emailInvalid');
     }
 
     if (!form.password) {
-      newErrors.password = '密码不能为空';
+      newErrors.password = t('validation.passwordRequired');
     } else if (form.password.length < 8) {
-      newErrors.password = '密码长度不能少于 8 位';
+      newErrors.password = t('validation.passwordTooShort');
     }
 
     setErrors(newErrors);
@@ -93,22 +95,20 @@ export function CreateUserModal({
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className='max-w-md'>
         <DialogHeader>
-          <DialogTitle>新增用户</DialogTitle>
-          <DialogDescription>
-            直接创建一个本地密码登录的新账户。
-          </DialogDescription>
+          <DialogTitle>{t('createTitle')}</DialogTitle>
+          <DialogDescription>{t('createDesc')}</DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSave} className='space-y-4 pt-2'>
           <div className='space-y-1.5'>
-            <Label htmlFor='username'>用户名</Label>
+            <Label htmlFor='username'>{t('username')}</Label>
             <Input
               id='username'
               value={form.username}
               onChange={(e) =>
                 setForm((prev) => ({ ...prev, username: e.target.value }))
               }
-              placeholder='请输入用户名 (至少 3 位)'
+              placeholder={t('usernamePlaceholder')}
             />
             {errors.username && (
               <p className='text-xs text-destructive'>{errors.username}</p>
@@ -116,19 +116,19 @@ export function CreateUserModal({
           </div>
 
           <div className='space-y-1.5'>
-            <Label htmlFor='nickname'>昵称 (选填)</Label>
+            <Label htmlFor='nickname'>{t('nicknameOptional')}</Label>
             <Input
               id='nickname'
               value={form.nickname}
               onChange={(e) =>
                 setForm((prev) => ({ ...prev, nickname: e.target.value }))
               }
-              placeholder='请输入昵称'
+              placeholder={t('nicknamePlaceholder')}
             />
           </div>
 
           <div className='space-y-1.5'>
-            <Label htmlFor='email'>邮箱</Label>
+            <Label htmlFor='email'>{t('email')}</Label>
             <Input
               id='email'
               type='email'
@@ -136,7 +136,7 @@ export function CreateUserModal({
               onChange={(e) =>
                 setForm((prev) => ({ ...prev, email: e.target.value }))
               }
-              placeholder='请输入邮箱地址'
+              placeholder={t('emailPlaceholder')}
             />
             {errors.email && (
               <p className='text-xs text-destructive'>{errors.email}</p>
@@ -144,7 +144,7 @@ export function CreateUserModal({
           </div>
 
           <div className='space-y-1.5'>
-            <Label htmlFor='password'>密码</Label>
+            <Label htmlFor='password'>{t('password')}</Label>
             <Input
               id='password'
               type='password'
@@ -152,7 +152,7 @@ export function CreateUserModal({
               onChange={(e) =>
                 setForm((prev) => ({ ...prev, password: e.target.value }))
               }
-              placeholder='请输入登录密码 (至少 8 位)'
+              placeholder={t('passwordPlaceholder')}
             />
             {errors.password && (
               <p className='text-xs text-destructive'>{errors.password}</p>
@@ -161,9 +161,11 @@ export function CreateUserModal({
 
           <div className='flex items-center justify-between rounded-lg border border-dashed p-3 bg-muted/10'>
             <div>
-              <div className='font-medium text-sm'>启用账户</div>
+              <div className='font-medium text-sm'>
+                {t('enableAccountLabel')}
+              </div>
               <div className='text-xs text-muted-foreground'>
-                禁用后此账号将无法登录系统。
+                {t('enableAccountDesc')}
               </div>
             </div>
             <Switch
@@ -176,9 +178,9 @@ export function CreateUserModal({
 
           <div className='flex items-center justify-between rounded-lg border border-dashed p-3 bg-muted/10'>
             <div>
-              <div className='font-medium text-sm'>管理员权限</div>
+              <div className='font-medium text-sm'>{t('adminPermission')}</div>
               <div className='text-xs text-muted-foreground'>
-                开启后此账号将拥有后台管理权限。
+                {t('adminPermissionDesc')}
               </div>
             </div>
             <Switch
@@ -191,10 +193,10 @@ export function CreateUserModal({
 
           <div className='flex justify-end gap-2 pt-2 border-t mt-2'>
             <Button variant='outline' type='button' onClick={onClose}>
-              取消
+              {t('cancel')}
             </Button>
             <Button type='submit' disabled={saving} variant='secondary'>
-              {saving ? '创建中...' : '创建'}
+              {saving ? t('creating') : t('create')}
             </Button>
           </div>
         </form>

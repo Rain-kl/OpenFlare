@@ -1,3 +1,5 @@
+import { useTranslations } from 'next-intl';
+
 import {
   Field,
   FieldContent,
@@ -42,11 +44,12 @@ export function PagesSourceGitHubFields({
   onChange,
   onErrorsChange,
 }: PagesSourceGitHubFieldsProps) {
+  const t = useTranslations('pages.source');
   return (
     <>
       <Field data-invalid={Boolean(errors.repository)}>
         <FieldLabel htmlFor='pages-github-repository'>
-          GitHub 仓库 URL
+          {t('githubUrl')}
         </FieldLabel>
         <Input
           id='pages-github-repository'
@@ -62,7 +65,7 @@ export function PagesSourceGitHubFields({
           }}
         />
         <FieldDescription id='pages-github-repository-description'>
-          仅支持公开 github.com 仓库。
+          {t('githubUrlHint')}
         </FieldDescription>
         <FieldError id='pages-github-repository-error'>
           {errors.repository}
@@ -70,7 +73,7 @@ export function PagesSourceGitHubFields({
       </Field>
 
       <Field>
-        <FieldTitle id='pages-github-selector'>Release 选择</FieldTitle>
+        <FieldTitle id='pages-github-selector'>{t('releaseSelect')}</FieldTitle>
         <ToggleGroup
           type='single'
           variant='outline'
@@ -94,10 +97,10 @@ export function PagesSourceGitHubFields({
           }}
         >
           <ToggleGroupItem value='latest' className='w-full'>
-            最新 Release
+            {t('latestRelease')}
           </ToggleGroupItem>
           <ToggleGroupItem value='tag' className='w-full'>
-            固定 Tag
+            {t('pinnedTag')}
           </ToggleGroupItem>
         </ToggleGroup>
       </Field>
@@ -118,7 +121,7 @@ export function PagesSourceGitHubFields({
             }}
           />
           <FieldDescription id='pages-github-tag-description'>
-            精确检查并同步指定 tag。
+            {t('pinnedTagHint')}
           </FieldDescription>
           <FieldError id='pages-github-tag-error'>
             {errors.releaseTag}
@@ -131,10 +134,10 @@ export function PagesSourceGitHubFields({
           <Field orientation='horizontal'>
             <FieldContent>
               <FieldLabel htmlFor='pages-github-auto-update'>
-                自动更新
+                {t('autoUpdate')}
               </FieldLabel>
               <FieldDescription>
-                检查到新的 Release 后自动同步并发布。
+                {t('autoUpdateHint')}
               </FieldDescription>
             </FieldContent>
             <Switch
@@ -148,7 +151,7 @@ export function PagesSourceGitHubFields({
 
           <Field data-invalid={Boolean(errors.checkInterval)}>
             <FieldLabel htmlFor='pages-github-check-interval'>
-              检查间隔（分钟）
+              {t('checkInterval')}
             </FieldLabel>
             <Input
               id='pages-github-check-interval'
@@ -169,7 +172,7 @@ export function PagesSourceGitHubFields({
               }}
             />
             <FieldDescription id='pages-github-check-interval-description'>
-              可设置为 5–1440 分钟。
+              {t('checkIntervalHint')}
             </FieldDescription>
             <FieldError id='pages-github-check-interval-error'>
               {errors.checkInterval}
@@ -180,7 +183,7 @@ export function PagesSourceGitHubFields({
 
       <Field data-invalid={Boolean(errors.assetName)}>
         <FieldLabel htmlFor='pages-github-asset'>
-          Release Asset 文件名
+          {t('assetName')}
         </FieldLabel>
         <Input
           id='pages-github-asset'

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { ClipboardList, Eye, RefreshCw, Search, Trash2 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 
 import { EmptyStateWithBorder } from '@/components/layout/empty';
@@ -49,7 +50,8 @@ function truncateHash(value: string) {
   return value.length > 12 ? `${value.slice(0, 12)}...` : value;
 }
 
-function getResultBadge(result: string) {
+function ResultBadge({ result }: { result: string }) {
+  const t = useTranslations('applyLogs');
   if (result === 'success') {
     return (
       <Badge
@@ -57,7 +59,7 @@ function getResultBadge(result: string) {
         className='text-[10px] bg-emerald-500/10 border-emerald-500/20 text-emerald-600 rounded-full py-0 px-2'
       >
         <span className='size-1 bg-emerald-500 rounded-full mr-1.5 shrink-0' />
-        成功
+        {t('success')}
       </Badge>
     );
   }
@@ -68,7 +70,7 @@ function getResultBadge(result: string) {
         className='text-[10px] bg-amber-500/10 border-amber-500/20 text-amber-600 rounded-full py-0 px-2'
       >
         <span className='size-1 bg-amber-500 rounded-full mr-1.5 shrink-0' />
-        警告
+        {t('warning')}
       </Badge>
     );
   }
@@ -78,12 +80,14 @@ function getResultBadge(result: string) {
       className='text-[10px] bg-destructive/10 border-destructive/20 text-destructive rounded-full py-0 px-2'
     >
       <span className='size-1 bg-destructive rounded-full mr-1.5 shrink-0' />
-      失败
+      {t('failed')}
     </Badge>
   );
 }
 
 export function ApplyLogsPageClient() {
+  const t = useTranslations('applyLogs');
+  const tc = useTranslations('common');
   const searchParams = useSearchParams();
   const initialNodeId = searchParams.get('node_id')?.trim() ?? '';
 
@@ -108,12 +112,12 @@ export function ApplyLogsPageClient() {
   const summary = useMemo(() => {
     const nodeIds = new Set(rows.map((item) => item.node_id));
     return [
-      { label: '总记录数', value: total },
-      { label: '当前页', value: current },
-      { label: '总页数', value: totalPage },
-      { label: '当前页节点数', value: nodeIds.size },
+      { label: t('totalRecords'), value: total },
+      { label: t('currentPage'), value: current },
+      { label: t('totalPages'), value: totalPage },
+      { label: t('pageNodes'), value: nodeIds.size },
     ];
-  }, [rows, total, current, totalPage]);
+  }, [rows, total, current, totalPage, t]);
 
   const fetchLogs = useCallback(async () => {
     setLoading(true);
@@ -129,11 +133,11 @@ export function ApplyLogsPageClient() {
       setTotal(data.total);
       setTotalPage(data.totalPage);
     } catch (err) {
-      setError(err instanceof Error ? err.message : '加载失败');
+      setError(err instanceof Error ? err.message : t('loadFailed'));
     } finally {
       setLoading(false);
     }
-  }, [nodeFilter, pageNo, pageSize]);
+  }, [nodeFilter, pageNo, pageSize, t]);
 
   useEffect(() => {
     void fetchLogs();
@@ -162,15 +166,16 @@ export function ApplyLogsPageClient() {
     setCleaning(true);
     try {
       const result = await ApplyLogService.cleanup({ delete_all: true });
-      toast.success('应用日志已清空', {
-        description: `共删除 ${result.deleted_count} 条记录`,
+      toast.success(t('cleared'), {
+        description: t('clearedDesc', { count: result.deleted_count }),
       });
       setCleanupOpen(false);
       setPageNo(1);
       await fetchLogs();
     } catch (err) {
-      toast.error('清空应用日志失败', {
-        description: err instanceof Error ? err.message : '未知错误',
+      toast.error(t('clearFailed'), {
+        description:
+          err instanceof Error ? err.message : t('unknownError'),
       });
     } finally {
       setCleaning(false);
@@ -183,10 +188,10 @@ export function ApplyLogsPageClient() {
         <div className='flex items-center gap-2'>
           <ClipboardList className='size-5 text-primary' />
           <div>
-            <h1 className='text-2xl font-semibold tracking-tight'>应用日志</h1>
-            <p className='text-sm text-muted-foreground'>
-              查看节点应用配置的成功、警告和失败记录，支持按 node_id 过滤。
-            </p>
+            <h1 className='text-2xl font-semibold tracking-tight'>
+              {t('title')}
+            </h1>
+            <p className='text-sm text-muted-foreground'>{t('description')}</p>
           </div>
         </div>
 
@@ -200,7 +205,7 @@ export function ApplyLogsPageClient() {
             <RefreshCw
               className={`size-3.5 mr-1 ${loading ? 'animate-spin' : ''}`}
             />
-            刷新
+            {t('refresh')}
           </Button>
           <Button
             variant='outline'
@@ -209,10 +214,10 @@ export function ApplyLogsPageClient() {
             disabled={loading || cleaning || total === 0}
           >
             <Trash2 className='size-3.5 mr-1' />
-            清空日志
+            {t('clear')}
           </Button>
           <Button variant='outline' size='sm' asChild>
-            <Link href='/nodes'>返回节点</Link>
+            <Link href='/nodes'>{t('backToNodes')}</Link>
           </Button>
         </div>
       </div>
@@ -234,7 +239,9 @@ export function ApplyLogsPageClient() {
       <div className='flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between'>
         <div className='grid flex-1 gap-3 md:grid-cols-[minmax(0,1fr)_160px]'>
           <div className='space-y-1.5'>
-            <p className='text-xs font-medium text-muted-foreground'>Node ID</p>
+            <p className='text-xs font-medium text-muted-foreground'>
+              {t('nodeId')}
+            </p>
             <div className='relative'>
               <Search className='absolute left-2.5 top-2.5 size-3.5 text-muted-foreground' />
               <Input
@@ -243,14 +250,14 @@ export function ApplyLogsPageClient() {
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') handleSearch();
                 }}
-                placeholder='输入 node_id 过滤应用日志'
+                placeholder={t('nodePlaceholder')}
                 className='pl-8 h-9 text-xs'
               />
             </div>
           </div>
           <div className='space-y-1.5'>
             <p className='text-xs font-medium text-muted-foreground'>
-              每页条数
+              {t('pageSize')}
             </p>
             <Select
               value={String(pageSize)}
@@ -265,7 +272,7 @@ export function ApplyLogsPageClient() {
               <SelectContent>
                 {PAGE_SIZE_OPTIONS.map((option) => (
                   <SelectItem key={option} value={String(option)}>
-                    {option} 条
+                    {t('pageSizeOption', { count: option })}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -274,10 +281,10 @@ export function ApplyLogsPageClient() {
         </div>
         <div className='flex flex-wrap gap-2'>
           <Button size='sm' onClick={handleSearch}>
-            筛选
+            {t('filter')}
           </Button>
           <Button variant='outline' size='sm' onClick={handleResetFilters}>
-            重置筛选
+            {t('reset')}
           </Button>
         </div>
       </div>
@@ -291,23 +298,33 @@ export function ApplyLogsPageClient() {
           <LoadingStateWithBorder />
         ) : rows.length === 0 ? (
           <EmptyStateWithBorder
-            title='暂无应用日志'
-            description='当前筛选条件下没有可展示的应用记录。'
+            title={t('emptyTitle')}
+            description={t('emptyDesc')}
           />
         ) : (
           <Table>
             <TableHeader className='bg-muted/40'>
               <TableRow className='border-dashed hover:bg-transparent'>
-                <TableHead className='text-xs font-semibold'>Node ID</TableHead>
-                <TableHead className='text-xs font-semibold'>版本</TableHead>
-                <TableHead className='text-xs font-semibold'>结果</TableHead>
                 <TableHead className='text-xs font-semibold'>
-                  Checksum
+                  {t('colNodeId')}
                 </TableHead>
-                <TableHead className='text-xs font-semibold'>时间</TableHead>
-                <TableHead className='text-xs font-semibold'>消息</TableHead>
+                <TableHead className='text-xs font-semibold'>
+                  {t('colVersion')}
+                </TableHead>
+                <TableHead className='text-xs font-semibold'>
+                  {t('colResult')}
+                </TableHead>
+                <TableHead className='text-xs font-semibold'>
+                  {t('colChecksum')}
+                </TableHead>
+                <TableHead className='text-xs font-semibold'>
+                  {t('colTime')}
+                </TableHead>
+                <TableHead className='text-xs font-semibold'>
+                  {t('colMessage')}
+                </TableHead>
                 <TableHead className='text-xs font-semibold text-right'>
-                  操作
+                  {t('colActions')}
                 </TableHead>
               </TableRow>
             </TableHeader>
@@ -323,7 +340,9 @@ export function ApplyLogsPageClient() {
                   <TableCell className='text-xs text-muted-foreground'>
                     {log.version}
                   </TableCell>
-                  <TableCell>{getResultBadge(log.result)}</TableCell>
+                  <TableCell>
+                    <ResultBadge result={log.result} />
+                  </TableCell>
                   <TableCell
                     className='text-xs font-mono text-muted-foreground'
                     title={log.checksum}
@@ -349,7 +368,7 @@ export function ApplyLogsPageClient() {
                       }}
                     >
                       <Eye className='size-3 mr-1' />
-                      详情
+                      {t('detail')}
                     </Button>
                   </TableCell>
                 </TableRow>
@@ -362,7 +381,11 @@ export function ApplyLogsPageClient() {
       {!loading && rows.length > 0 ? (
         <div className='flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between'>
           <p className='text-xs text-muted-foreground'>
-            第 {current} / {Math.max(totalPage, 1)} 页，共 {total} 条记录。
+            {t('pageInfo', {
+              current,
+              total: Math.max(totalPage, 1),
+              count: total,
+            })}
           </p>
           <div className='flex gap-2'>
             <Button
@@ -371,7 +394,7 @@ export function ApplyLogsPageClient() {
               disabled={current <= 1}
               onClick={() => setPageNo((prev) => Math.max(1, prev - 1))}
             >
-              上一页
+              {t('prev')}
             </Button>
             <Button
               variant='outline'
@@ -383,7 +406,7 @@ export function ApplyLogsPageClient() {
                 )
               }
             >
-              下一页
+              {t('next')}
             </Button>
           </div>
         </div>
@@ -398,14 +421,15 @@ export function ApplyLogsPageClient() {
       <AlertDialog open={cleanupOpen} onOpenChange={setCleanupOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>确认清空应用日志？</AlertDialogTitle>
+            <AlertDialogTitle>{t('clearTitle')}</AlertDialogTitle>
             <AlertDialogDescription>
-              该操作将删除全部 {total}{' '}
-              条应用日志记录，且不可撤销。清空后节点仍会照常上报新的应用结果。
+              {t('clearDesc', { count: total })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={cleaning}>取消</AlertDialogCancel>
+            <AlertDialogCancel disabled={cleaning}>
+              {tc('cancel')}
+            </AlertDialogCancel>
             <AlertDialogAction
               className='bg-destructive text-destructive-foreground hover:bg-destructive/90'
               disabled={cleaning}
@@ -414,7 +438,7 @@ export function ApplyLogsPageClient() {
                 void handleCleanupLogs();
               }}
             >
-              {cleaning ? '清空中...' : '确认清空'}
+              {cleaning ? t('clearing') : t('confirmClear')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

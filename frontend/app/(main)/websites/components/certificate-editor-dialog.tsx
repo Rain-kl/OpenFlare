@@ -24,10 +24,12 @@ import { Textarea } from '@/components/ui/textarea';
 import type { TlsCertificateItem } from '@/lib/services/openflare';
 import { TlsCertificateService } from '@/lib/services/openflare';
 
+import { useTranslations } from 'next-intl';
+
 import {
+  createManualImportSchema,
   defaultManualImportValues,
   type ManualImportFormValues,
-  manualImportSchema,
 } from './schemas';
 import { getErrorMessage, toManualPayload } from './website-utils';
 
@@ -48,9 +50,11 @@ export function CertificateEditorDialog({
   onSaved,
   onConvert,
 }: CertificateEditorDialogProps) {
+  const t = useTranslations('certificates');
+  const tc = useTranslations('common');
   const queryClient = useQueryClient();
   const form = useForm<ManualImportFormValues>({
-    resolver: zodResolver(manualImportSchema),
+    resolver: zodResolver(createManualImportSchema(t)),
     defaultValues: defaultManualImportValues,
   });
 
@@ -103,21 +107,19 @@ export function CertificateEditorDialog({
     <Dialog open={open} onOpenChange={(next) => !next && handleClose()}>
       <DialogContent className='max-w-2xl max-h-[90vh] overflow-y-auto'>
         <DialogHeader>
-          <DialogTitle>编辑证书</DialogTitle>
-          <DialogDescription>
-            可以修改证书名称、备注，以及重新上传 PEM 证书和私钥内容。
-          </DialogDescription>
+          <DialogTitle>{t('editTitle')}</DialogTitle>
+          <DialogDescription>{t('editDesc')}</DialogDescription>
         </DialogHeader>
 
         {certificateQuery.isLoading ? (
-          <LoadingStateWithBorder description='加载证书内容中...' />
+          <LoadingStateWithBorder description={t('loadingContent')} />
         ) : certificateQuery.isError ? (
           <ErrorInline
-            message={getErrorMessage(certificateQuery.error)}
+            message={getErrorMessage(certificateQuery.error, t('requestFailed'))}
             className='justify-center'
           />
         ) : !certificateQuery.data ? (
-          <EmptyStateWithBorder description='证书不存在，可能已被删除。' />
+          <EmptyStateWithBorder description={t('notFound')} />
         ) : (
           <form
             id='certificate-editor-form'
@@ -126,23 +128,23 @@ export function CertificateEditorDialog({
           >
             {updateMutation.isError ? (
               <p className='text-sm text-destructive'>
-                {getErrorMessage(updateMutation.error)}
+                {getErrorMessage(updateMutation.error, t('requestFailed'))}
               </p>
             ) : null}
 
             <div className='grid gap-4 md:grid-cols-2'>
               <div className='space-y-2'>
-                <Label>证书名称</Label>
+                <Label>{t('name')}</Label>
                 <Input {...form.register('name')} />
               </div>
               <div className='space-y-2'>
-                <Label>备注</Label>
+                <Label>{t('remark')}</Label>
                 <Input {...form.register('remark')} />
               </div>
             </div>
 
             <div className='space-y-2'>
-              <Label>证书 PEM</Label>
+              <Label>{t('certPem')}</Label>
               <Textarea
                 className='min-h-32 font-mono text-xs'
                 {...form.register('cert_pem')}
@@ -150,7 +152,7 @@ export function CertificateEditorDialog({
             </div>
 
             <div className='space-y-2'>
-              <Label>私钥 PEM</Label>
+              <Label>{t('keyPem')}</Label>
               <Textarea
                 className='min-h-32 font-mono text-xs'
                 {...form.register('key_pem')}
@@ -170,22 +172,22 @@ export function CertificateEditorDialog({
                     }}
                     disabled={updateMutation.isPending}
                   >
-                    转换来源
+                    {t('convertSource')}
                   </Button>
                 ) : null}
               </div>
               <div className='flex gap-2'>
                 <Button type='button' variant='outline' onClick={handleClose}>
-                  取消
+                  {tc('cancel')}
                 </Button>
                 <Button type='submit' disabled={updateMutation.isPending}>
                   {updateMutation.isPending ? (
                     <>
                       <Loader2 className='mr-1 size-3.5 animate-spin' />
-                      保存中...
+                      {t('saving')}
                     </>
                   ) : (
-                    '保存证书'
+                    t('saveCert')
                   )}
                 </Button>
               </div>

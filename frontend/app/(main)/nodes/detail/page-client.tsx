@@ -5,6 +5,7 @@ import { useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft, Server } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 import { Button } from '@/components/ui/button';
 import { EmptyStateWithBorder } from '@/components/layout/empty';
@@ -20,6 +21,7 @@ import { getErrorMessage } from '../components/node-utils';
 const nodesQueryKey = ['openflare', 'nodes'];
 
 export function NodeDetailPageClient() {
+  const t = useTranslations('nodes');
   const searchParams = useSearchParams();
   const nodeId = searchParams.get('id')?.trim() ?? '';
 
@@ -41,7 +43,7 @@ export function NodeDetailPageClient() {
       <div className='py-6 px-1'>
         <EmptyStateWithBorder
           icon={Server}
-          description='缺少节点 ID，请从节点列表进入详情页。'
+          description={t('missingId')}
         />
       </div>
     );
@@ -50,7 +52,10 @@ export function NodeDetailPageClient() {
   if (nodesQuery.isLoading) {
     return (
       <div className='py-6 px-1'>
-        <LoadingStateWithBorder icon={Server} description='加载节点详情中...' />
+        <LoadingStateWithBorder
+          icon={Server}
+          description={t('loadingDetail')}
+        />
       </div>
     );
   }
@@ -60,7 +65,7 @@ export function NodeDetailPageClient() {
       <div className='py-6 px-1'>
         <div className='p-8 border border-dashed rounded-lg'>
           <ErrorInline
-            message={getErrorMessage(nodesQuery.error)}
+            message={getErrorMessage(nodesQuery.error, t('requestFailed'))}
             onRetry={() => void nodesQuery.refetch()}
             className='justify-center'
           />
@@ -75,13 +80,10 @@ export function NodeDetailPageClient() {
         <Button variant='ghost' size='sm' className='h-8 px-2' asChild>
           <Link href='/nodes'>
             <ArrowLeft className='size-4 mr-1' />
-            返回节点列表
+            {t('backToList')}
           </Link>
         </Button>
-        <EmptyStateWithBorder
-          icon={Server}
-          description='节点不存在，可能已被删除或 ID 无效。'
-        />
+        <EmptyStateWithBorder icon={Server} description={t('notFound')} />
       </div>
     );
   }

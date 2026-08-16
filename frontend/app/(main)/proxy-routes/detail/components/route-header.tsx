@@ -22,6 +22,8 @@ import type {
 } from '@/lib/services/openflare';
 import { ConfigVersionService } from '@/lib/services/openflare';
 
+import { useTranslations } from 'next-intl';
+
 import { getErrorMessage } from '../../components/helpers';
 
 function hasConfigDiff(diff: ConfigDiffResult) {
@@ -44,6 +46,8 @@ interface RouteHeaderProps {
 }
 
 export function RouteHeader({ route }: RouteHeaderProps) {
+  const t = useTranslations('proxyRoutes');
+  const tc = useTranslations('common');
   const router = useRouter();
   const [publishConfirmOpen, setPublishConfirmOpen] = useState(false);
   const [diff, setDiff] = useState<ConfigDiffResult | null>(null);
@@ -57,13 +61,13 @@ export function RouteHeader({ route }: RouteHeaderProps) {
       setDiff(diffData);
       return diffData;
     } catch (error) {
-      const message = getErrorMessage(error);
-      toast.error('获取配置差异失败', { description: message });
+      const message = getErrorMessage(error, t('requestFailed'));
+      toast.error(t('diffFailed'), { description: message });
       return null;
     } finally {
       setDiffLoading(false);
     }
-  }, []);
+  }, [t]);
 
   const handlePublishClick = useCallback(async () => {
     const diffData = diff ?? (await loadDiff());
@@ -71,25 +75,29 @@ export function RouteHeader({ route }: RouteHeaderProps) {
       return;
     }
     if (!hasConfigDiff(diffData)) {
-      toast.info('当前配置与激活版本一致，无需发布');
+      toast.info(t('noPublishNeeded'));
       return;
     }
     setPublishConfirmOpen(true);
-  }, [diff, loadDiff]);
+  }, [diff, loadDiff, t]);
 
   const handlePublish = useCallback(async () => {
     setPublishing(true);
     try {
       const version = await ConfigVersionService.publish();
-      toast.success('发布成功', { description: `版本 ${version.version}` });
+      toast.success(t('publishSuccess'), {
+        description: t('versionLabel', { version: version.version }),
+      });
       setPublishConfirmOpen(false);
       setDiff(null);
     } catch (error) {
-      toast.error('发布失败', { description: getErrorMessage(error) });
+      toast.error(t('publishFailed'), {
+        description: getErrorMessage(error, t('requestFailed')),
+      });
     } finally {
       setPublishing(false);
     }
-  }, []);
+  }, [t]);
 
   return (
     <>
@@ -101,7 +109,7 @@ export function RouteHeader({ route }: RouteHeaderProps) {
           onClick={() => router.back()}
         >
           <ArrowLeft className='size-3.5' />
-          返回
+          {t('back')}
         </Button>
 
         <div className='flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between'>
@@ -112,7 +120,7 @@ export function RouteHeader({ route }: RouteHeaderProps) {
                 {route.site_name}
               </h1>
               <Badge variant={route.enabled ? 'default' : 'secondary'}>
-                {route.enabled ? '已启用' : '已停用'}
+                {route.enabled ? t('enabled') : t('disabled')}
               </Badge>
             </div>
           </div>
@@ -129,7 +137,7 @@ export function RouteHeader({ route }: RouteHeaderProps) {
               ) : (
                 <Upload className='size-3.5' />
               )}
-              发布配置
+              {t('publish')}
             </Button>
           </div>
         </div>
@@ -141,18 +149,16 @@ export function RouteHeader({ route }: RouteHeaderProps) {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>确认发布配置</AlertDialogTitle>
-            <AlertDialogDescription>
-              将把当前待发布配置生成新版本并设为激活版本，节点将随后拉取更新。
-            </AlertDialogDescription>
+            <AlertDialogTitle>{t('publishTitle')}</AlertDialogTitle>
+            <AlertDialogDescription>{t('publishDesc')}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={publishing}>取消</AlertDialogCancel>
+            <AlertDialogCancel disabled={publishing}>{tc('cancel')}</AlertDialogCancel>
             <Button onClick={() => void handlePublish()} disabled={publishing}>
               {publishing ? (
                 <Loader2 className='size-4 animate-spin' />
               ) : (
-                '确认发布'
+                t('confirmPublish')
               )}
             </Button>
           </AlertDialogFooter>

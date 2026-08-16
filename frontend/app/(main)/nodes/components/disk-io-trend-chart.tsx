@@ -1,5 +1,7 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
+
 import { TrendChart } from '@/components/data/trend-chart';
 import {
   Card,
@@ -26,18 +28,23 @@ function formatDiskRate(bytesPerSecond: number) {
 
 export function DiskIOTrendChart({
   points,
-  title = '24 小时磁盘 IO 趋势',
-  description = '按小时展示磁盘读写速率（B/s），辅助判断日志放大、缓存抖动或磁盘压力。',
+  title,
+  description,
 }: {
   points: DiskIOTrendPoint[];
   title?: string;
   description?: string;
 }) {
+  const t = useTranslations('nodes.diskIo');
   return (
     <Card className='border-dashed shadow-none'>
       <CardHeader>
-        <CardTitle className='text-sm font-semibold'>{title}</CardTitle>
-        <CardDescription className='text-xs'>{description}</CardDescription>
+        <CardTitle className='text-sm font-semibold'>
+          {title ?? t('title')}
+        </CardTitle>
+        <CardDescription className='text-xs'>
+          {description ?? t('description')}
+        </CardDescription>
       </CardHeader>
       <CardContent>
         <TrendChart
@@ -45,11 +52,11 @@ export function DiskIOTrendChart({
             formatTrendHour(point.bucket_started_at),
           )}
           summaryScope='average'
-          summaryHint='近 24 小时 · 平均速率'
+          summaryHint={t('summaryHint')}
           yAxisValueFormatter={formatDiskRate}
           series={[
             {
-              label: '磁盘读',
+              label: t('read'),
               color: '#a78bfa',
               fillColor: 'rgba(167, 139, 250, 0.14)',
               variant: 'area',
@@ -59,7 +66,7 @@ export function DiskIOTrendChart({
               valueFormatter: formatDiskRate,
             },
             {
-              label: '磁盘写',
+              label: t('write'),
               color: '#fb7185',
               values: points.map((point) =>
                 diskBytesToRate(point.disk_write_bytes),

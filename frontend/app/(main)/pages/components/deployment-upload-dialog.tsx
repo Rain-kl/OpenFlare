@@ -3,6 +3,7 @@
 import { useRef, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { UploadCloud } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
@@ -76,6 +77,8 @@ export function DeploymentUploadDialog({
   rootDir,
   entryFile,
 }: DeploymentUploadDialogProps) {
+  const t = useTranslations('pages.upload');
+  const tCommon = useTranslations('common');
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
@@ -96,14 +99,14 @@ export function DeploymentUploadDialog({
 
   const uploadMutation = useMutation({
     mutationFn: () => {
-      if (!file) throw new Error('请选择部署包');
+      if (!file) throw new Error(t('selectFile'));
       return PagesService.uploadDeployment(projectId, {
         file,
         onProgress: setUploadProgress,
       });
     },
     onSuccess: async () => {
-      toast.success('部署包上传成功');
+      toast.success(t('success'));
       await Promise.all([
         queryClient.invalidateQueries({
           queryKey: deploymentsQueryKey(projectId),
@@ -114,7 +117,7 @@ export function DeploymentUploadDialog({
       handleOpenChange(false);
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : '上传失败');
+      toast.error(error instanceof Error ? error.message : t('failed'));
       setUploadProgress(null);
     },
   });
@@ -122,7 +125,7 @@ export function DeploymentUploadDialog({
   const handleFileSelect = (selected: File | null) => {
     if (!selected) return;
     if (!isSupportedPagesPackage(selected.name)) {
-      toast.error('仅支持 zip、tar.gz、tar.xz、tar.bz2、tar、7z 格式的部署包');
+      toast.error(t('unsupported'));
       return;
     }
     setFile(selected);
@@ -132,15 +135,13 @@ export function DeploymentUploadDialog({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className='sm:max-w-lg'>
         <DialogHeader>
-          <DialogTitle>上传部署包</DialogTitle>
-          <DialogDescription>
-            上传不可变的静态资源压缩包，完成后可在部署历史中激活。
-          </DialogDescription>
+          <DialogTitle>{t('title')}</DialogTitle>
+          <DialogDescription>{t('description')}</DialogDescription>
         </DialogHeader>
 
         <FieldGroup>
           <Field>
-            <FieldLabel htmlFor='pages-package'>本地部署包</FieldLabel>
+            <FieldLabel htmlFor='pages-package'>{t('localPackage')}</FieldLabel>
             <button
               type='button'
               className={cn(
@@ -165,7 +166,7 @@ export function DeploymentUploadDialog({
             >
               <UploadCloud className='size-8 text-muted-foreground' />
               <span className='text-sm font-medium'>
-                拖拽部署包到此处，或点击选择文件
+                {t('dropHint')}
               </span>
               <span className='text-xs text-muted-foreground'>
                 zip、tar.gz、tar.xz、tar.bz2、tar、7z
@@ -183,20 +184,23 @@ export function DeploymentUploadDialog({
             />
             {file ? (
               <FieldDescription>
-                已选择 {file.name}（{formatBytes(file.size)}）
+                {t('selected', {
+                  name: file.name,
+                  size: formatBytes(file.size),
+                })}
               </FieldDescription>
             ) : (
-              <FieldDescription>请选择一个受支持的压缩包。</FieldDescription>
+              <FieldDescription>{t('chooseArchive')}</FieldDescription>
             )}
           </Field>
 
           <Field>
-            <FieldLabel>部署入口</FieldLabel>
+            <FieldLabel>{t('entry')}</FieldLabel>
             <div className='rounded-md border bg-muted/20 px-3 py-2 font-mono text-sm'>
               {pagesEntryPath(rootDir, entryFile)}
             </div>
             <FieldDescription>
-              入口来自项目设置；部署包上传不会覆盖该配置。
+              {t('entryHint')}
             </FieldDescription>
           </Field>
 
@@ -204,10 +208,10 @@ export function DeploymentUploadDialog({
             <Field>
               <div className='flex items-center justify-between text-xs text-muted-foreground'>
                 <span>
-                  {uploadProgress >= 100 ? '服务端处理中' : '上传进度'}
+                  {uploadProgress >= 100 ? t('processing') : t('progress')}
                 </span>
                 <span>
-                  {uploadProgress >= 100 ? '请稍候' : `${uploadProgress}%`}
+                  {uploadProgress >= 100 ? t('pleaseWait') : `${uploadProgress}%`}
                 </span>
               </div>
               <Progress value={Math.min(uploadProgress, 100)} />
@@ -221,7 +225,7 @@ export function DeploymentUploadDialog({
             variant='outline'
             onClick={() => handleOpenChange(false)}
           >
-            取消
+            {tCommon('cancel')}
           </Button>
           <Button
             type='button'
@@ -233,7 +237,7 @@ export function DeploymentUploadDialog({
             ) : (
               <UploadCloud data-icon='inline-start' />
             )}
-            {uploadMutation.isPending ? '上传中...' : '上传并创建部署'}
+            {uploadMutation.isPending ? t('uploading') : t('submit')}
           </Button>
         </DialogFooter>
       </DialogContent>

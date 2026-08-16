@@ -32,6 +32,7 @@ import {
 } from 'lucide-react';
 
 import services from '@/lib/services';
+import { useTranslations } from 'next-intl';
 import { ErrorInline } from '@/components/layout/error';
 import { LoadingStateWithBorder } from '@/components/layout/loading';
 import { EmptyStateWithBorder } from '@/components/layout/empty';
@@ -97,6 +98,7 @@ function isClickhouseDisabledError(error: Error) {
 }
 
 export function AccessLogs() {
+  const t = useTranslations('admin.logs.accessLogs');
   const [page, setPage] = useState(1);
 
   // 搜索过滤条件
@@ -184,12 +186,12 @@ export function AccessLogs() {
 
   const copyToClipboard = (text: string, subject: string) => {
     navigator.clipboard.writeText(text);
-    toast.success(`${subject}已复制到剪贴板`);
+    toast.success(t('copiedToClipboard', { subject }));
   };
 
   // Prettify Headers JSON string
   const getPrettyHeaders = (headersRaw?: string) => {
-    if (!headersRaw) return '暂无头部数据';
+    if (!headersRaw) return t('noHeaderData');
     try {
       const parsed = JSON.parse(headersRaw);
       return JSON.stringify(parsed, null, 2);
@@ -202,11 +204,9 @@ export function AccessLogs() {
     return (
       <div className='flex flex-col items-center justify-center p-8 border border-dashed rounded-lg bg-card text-center my-6 min-h-[300px]'>
         <XCircle className='size-10 text-muted-foreground mb-3' />
-        <h3 className='text-base font-semibold'>ClickHouse 未启用</h3>
+        <h3 className='text-base font-semibold'>{t('clickhouseDisabled')}</h3>
         <p className='text-sm text-muted-foreground mt-1 max-w-[400px] mb-4'>
-          当前系统配置未启用 ClickHouse
-          存储，系统不会收集用户访问日志。如需使用此功能，请在后端 `config.yaml`
-          配置文件中配置并启用 ClickHouse。
+          {t('clickhouseDisabledDesc')}
         </p>
       </div>
     );
@@ -227,11 +227,11 @@ export function AccessLogs() {
       >
         <div className='grid gap-1.5'>
           <Label htmlFor='search-user' className='text-xs'>
-            用户名
+            {t('username')}
           </Label>
           <Input
             id='search-user'
-            placeholder='输入用户名搜索...'
+            placeholder={t('usernamePlaceholder')}
             value={usernameFilter}
             onChange={(e) => setUsernameFilter(e.target.value)}
             className='h-8 text-xs'
@@ -239,11 +239,11 @@ export function AccessLogs() {
         </div>
         <div className='grid gap-1.5'>
           <Label htmlFor='search-path' className='text-xs'>
-            接口路径
+            {t('apiPath')}
           </Label>
           <Input
             id='search-path'
-            placeholder='模糊匹配路径...'
+            placeholder={t('pathPlaceholder')}
             value={pathFilter}
             onChange={(e) => setPathFilter(e.target.value)}
             className='h-8 text-xs'
@@ -251,7 +251,7 @@ export function AccessLogs() {
         </div>
         <div className='grid gap-1.5'>
           <Label htmlFor='search-start' className='text-xs'>
-            起始时间
+            {t('startTime')}
           </Label>
           <Input
             id='search-start'
@@ -263,7 +263,7 @@ export function AccessLogs() {
         </div>
         <div className='grid gap-1.5'>
           <Label htmlFor='search-end' className='text-xs'>
-            结束时间
+            {t('endTime')}
           </Label>
           <Input
             id='search-end'
@@ -276,7 +276,7 @@ export function AccessLogs() {
         <div className='flex gap-2'>
           <Button type='submit' size='sm' className='h-8 flex-1'>
             <Search className='size-3.5 mr-1' />
-            搜索
+            {t('search')}
           </Button>
           <Button
             type='button'
@@ -286,7 +286,7 @@ export function AccessLogs() {
             className='h-8 flex-1'
           >
             <RotateCcw className='size-3.5 mr-1' />
-            重置
+            {t('reset')}
           </Button>
         </div>
       </form>
@@ -295,26 +295,27 @@ export function AccessLogs() {
       {loading && logs.length === 0 ? (
         <LoadingStateWithBorder
           icon={Activity}
-          description='加载访问日志中...'
+          description={t('loadingAccessLogs')}
         />
       ) : logs.length === 0 ? (
-        <EmptyStateWithBorder
-          icon={Activity}
-          description='未查询到任何访问日志数据'
-        />
+        <EmptyStateWithBorder icon={Activity} description={t('noAccessLogs')} />
       ) : (
         <div className='rounded-lg border bg-card overflow-hidden'>
           <Table className='min-w-[900px]'>
             <TableHeader>
               <TableRow className='hover:bg-transparent'>
-                <TableHead className='w-[100px]'>请求方法</TableHead>
-                <TableHead className='min-w-[200px]'>路径</TableHead>
-                <TableHead className='w-[150px]'>用户</TableHead>
-                <TableHead className='w-[120px]'>IP</TableHead>
-                <TableHead className='w-[90px]'>状态</TableHead>
-                <TableHead className='w-[100px]'>耗时</TableHead>
-                <TableHead className='w-[170px]'>请求时间</TableHead>
-                <TableHead className='w-[80px] text-center'>详情</TableHead>
+                <TableHead className='w-[100px]'>{t('colMethod')}</TableHead>
+                <TableHead className='min-w-[200px]'>{t('colPath')}</TableHead>
+                <TableHead className='w-[150px]'>{t('colUser')}</TableHead>
+                <TableHead className='w-[120px]'>{t('colIp')}</TableHead>
+                <TableHead className='w-[90px]'>{t('colStatus')}</TableHead>
+                <TableHead className='w-[100px]'>{t('colLatency')}</TableHead>
+                <TableHead className='w-[170px]'>
+                  {t('colRequestTime')}
+                </TableHead>
+                <TableHead className='w-[80px] text-center'>
+                  {t('colDetail')}
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -334,7 +335,7 @@ export function AccessLogs() {
                   <TableCell>
                     <div className='flex flex-col'>
                       <span className='text-xs font-medium'>
-                        {log.username || '未知用户'}
+                        {log.username || t('unknownUser')}
                       </span>
                       {log.nickname && (
                         <span className='text-[10px] text-muted-foreground'>
@@ -381,7 +382,7 @@ export function AccessLogs() {
       {logs.length > 0 && (
         <div className='flex items-center justify-between py-1'>
           <div className='text-xs text-muted-foreground'>
-            共 {total} 条记录，当前第 {page}/{totalPages} 页
+            {t('paginationInfo', { total, page, totalPages })}
           </div>
           <div className='flex items-center gap-2'>
             <Button
@@ -392,7 +393,7 @@ export function AccessLogs() {
               className='h-8 text-xs'
             >
               <ChevronLeft className='size-3.5 mr-1' />
-              上一页
+              {t('prevPage')}
             </Button>
             <Button
               variant='outline'
@@ -401,7 +402,7 @@ export function AccessLogs() {
               disabled={page >= totalPages || loading}
               className='h-8 text-xs'
             >
-              下一页
+              {t('nextPage')}
               <ChevronRight className='size-3.5 ml-1' />
             </Button>
           </div>
@@ -412,9 +413,11 @@ export function AccessLogs() {
       <Sheet open={detailOpen} onOpenChange={setDetailOpen}>
         <SheetContent className='w-full p-0 sm:max-w-[640px] flex flex-col h-full bg-background border-l'>
           <SheetHeader className='border-b px-5 py-4 shrink-0'>
-            <SheetTitle className='text-lg font-bold'>访问日志详情</SheetTitle>
+            <SheetTitle className='text-lg font-bold'>
+              {t('accessLogDetail')}
+            </SheetTitle>
             <SheetDescription className='text-xs'>
-              访问 ID: {selectedLog?.id}
+              {t('accessId', { id: selectedLog?.id ?? '' })}
             </SheetDescription>
           </SheetHeader>
 
@@ -424,7 +427,7 @@ export function AccessLogs() {
               <div className='grid grid-cols-2 gap-3 sm:grid-cols-3'>
                 <div className='rounded-lg border p-3 bg-muted/10'>
                   <div className='text-[10px] text-muted-foreground uppercase font-bold tracking-wider'>
-                    请求方法
+                    {t('method')}
                   </div>
                   <div className='mt-1 font-mono text-sm font-bold uppercase'>
                     {selectedLog.method}
@@ -432,7 +435,7 @@ export function AccessLogs() {
                 </div>
                 <div className='rounded-lg border p-3 bg-muted/10'>
                   <div className='text-[10px] text-muted-foreground uppercase font-bold tracking-wider'>
-                    响应状态
+                    {t('responseStatus')}
                   </div>
                   <div className='mt-1'>
                     <Badge variant={statusVariant(selectedLog.status)}>
@@ -442,7 +445,7 @@ export function AccessLogs() {
                 </div>
                 <div className='rounded-lg border p-3 bg-muted/10'>
                   <div className='text-[10px] text-muted-foreground uppercase font-bold tracking-wider'>
-                    耗时
+                    {t('latency')}
                   </div>
                   <div className='mt-1 font-mono text-sm'>
                     {formatLatency(selectedLog.latency)}
@@ -450,18 +453,18 @@ export function AccessLogs() {
                 </div>
                 <div className='rounded-lg border p-3 bg-muted/10 col-span-2 sm:col-span-1'>
                   <div className='text-[10px] text-muted-foreground uppercase font-bold tracking-wider'>
-                    IP 地址
+                    {t('ipAddress')}
                   </div>
                   <div className='mt-1 font-mono text-sm'>{selectedLog.ip}</div>
                 </div>
                 <div className='rounded-lg border p-3 bg-muted/10 col-span-2'>
                   <div className='text-[10px] text-muted-foreground uppercase font-bold tracking-wider'>
-                    用户
+                    {t('user')}
                   </div>
                   <div className='mt-1 text-sm font-medium'>
                     {selectedLog.username
-                      ? `${selectedLog.username} (${selectedLog.nickname || '无昵称'})`
-                      : '未知/游客'}
+                      ? `${selectedLog.username} (${selectedLog.nickname || t('noNickname')})`
+                      : t('unknownGuest')}
                     <span className='block font-mono text-[10px] text-muted-foreground mt-0.5'>
                       ID: {selectedLog.user_id}
                     </span>
@@ -472,7 +475,7 @@ export function AccessLogs() {
               {/* Path */}
               <div className='grid gap-2'>
                 <Label className='text-xs font-bold text-muted-foreground'>
-                  请求路径
+                  {t('requestPath')}
                 </Label>
                 <div className='rounded-md border bg-muted/30 px-3 py-2 font-mono text-xs break-all'>
                   {selectedLog.path}
@@ -482,7 +485,7 @@ export function AccessLogs() {
               {/* Request Time */}
               <div className='grid gap-2'>
                 <Label className='text-xs font-bold text-muted-foreground'>
-                  请求时间
+                  {t('requestTime')}
                 </Label>
                 <div className='font-mono text-xs'>
                   {formatDateTime(selectedLog.created_at)}
@@ -502,7 +505,7 @@ export function AccessLogs() {
                     onClick={() =>
                       copyToClipboard(selectedLog.user_agent, 'User-Agent')
                     }
-                    title='复制 User-Agent'
+                    title={t('copyUserAgent')}
                   >
                     <Copy className='size-3' />
                   </Button>
@@ -528,7 +531,7 @@ export function AccessLogs() {
                         'Headers',
                       )
                     }
-                    title='复制 Headers'
+                    title={t('copyHeaders')}
                   >
                     <Copy className='size-3' />
                   </Button>
@@ -542,7 +545,7 @@ export function AccessLogs() {
             <div className='flex-grow flex items-center justify-center'>
               <EmptyStateWithBorder
                 icon={Activity}
-                description='未选中日志明细'
+                description={t('noLogSelected')}
               />
             </div>
           )}

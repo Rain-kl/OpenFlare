@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 
 import {
@@ -31,19 +32,20 @@ export function IpDetailDialog({
     setDisplayAddr(remoteAddr);
     setDisplayRegion(region);
   }
+  const t = useTranslations('accessLogs.ip');
   const ip = remoteAddr ?? displayAddr ?? '';
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className='max-h-[90vh] sm:max-w-6xl md:max-w-6xl overflow-y-auto hide-scrollbar'>
         <DialogHeader>
-          <DialogTitle>IP 详情</DialogTitle>
+          <DialogTitle>{t('dialogTitle')}</DialogTitle>
           <DialogDescription>
             <span className='font-mono text-foreground'>{ip || '—'}</span>
             {displayRegion ? (
               <span className='text-muted-foreground'> · {displayRegion}</span>
             ) : null}
-            。查看该 IP 的访问趋势、分布与 WAF IP 组操作。
+            {t('dialogDesc')}
           </DialogDescription>
         </DialogHeader>
         <IpAnalysisPanel

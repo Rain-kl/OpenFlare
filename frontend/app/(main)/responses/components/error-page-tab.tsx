@@ -24,6 +24,8 @@ import {
 } from '@/lib/openflare/status-code-tags';
 import { OptionService } from '@/lib/services/openflare';
 
+import { useTranslations } from 'next-intl';
+
 import {
   defaultErrorPageFields,
   invalidateResponseQueries,
@@ -39,6 +41,8 @@ export function ErrorPageTab({
 }: {
   optionMap: Record<string, string>;
 }) {
+  const t = useTranslations('responses');
+  const tc = useTranslations('common');
   const queryClient = useQueryClient();
 
   const [fields, setFields] = useState<ErrorPageFields>(defaultErrorPageFields);
@@ -68,11 +72,11 @@ export function ErrorPageTab({
       ]);
     },
     onSuccess: async () => {
-      toast.success('触发策略已保存，请前往版本发布使配置生效');
+      toast.success(t('policySaved'));
       await invalidateResponseQueries(queryClient);
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : '保存失败');
+      toast.error(error instanceof Error ? error.message : t('saveFailed'));
     },
   });
 
@@ -92,10 +96,8 @@ export function ErrorPageTab({
       <Card className='border-dashed shadow-none'>
         <CardHeader className='flex flex-row items-start justify-between gap-4 space-y-0'>
           <div className='space-y-1.5'>
-            <CardTitle className='text-base'>触发策略</CardTitle>
-            <CardDescription>
-              配置源站错误页的启用条件与触发状态码。
-            </CardDescription>
+            <CardTitle className='text-base'>{t('triggerPolicy')}</CardTitle>
+            <CardDescription>{t('triggerPolicyDesc')}</CardDescription>
           </div>
           <Button
             size='sm'
@@ -108,15 +110,15 @@ export function ErrorPageTab({
             ) : (
               <Save className='size-3.5' />
             )}
-            保存
+            {tc('save')}
           </Button>
         </CardHeader>
         <CardContent className='space-y-0 divide-y'>
           <div className='flex items-start justify-between gap-6 pb-5'>
             <div className='space-y-1'>
-              <Label className='text-sm font-medium'>启用源站错误页</Label>
+              <Label className='text-sm font-medium'>{t('enableErrorPage')}</Label>
               <p className='text-sm text-muted-foreground'>
-                关闭后会透传源站或 Nginx 默认错误响应。
+                {t('enableErrorPageDesc')}
               </p>
             </div>
             <Switch
@@ -124,17 +126,15 @@ export function ErrorPageTab({
               onCheckedChange={(enabled) =>
                 setFields((prev) => ({ ...prev, enabled }))
               }
-              aria-label='启用源站错误页'
+              aria-label={t('enableErrorPage')}
               className='mt-0.5 shrink-0'
             />
           </div>
 
           <div className='flex items-start justify-between gap-6 py-5'>
             <div className='space-y-1'>
-              <Label className='text-sm font-medium'>仅针对 GET 请求</Label>
-              <p className='text-sm text-muted-foreground'>
-                开启后仅对 GET 请求的匹配错误状态码返回自定义错误页。
-              </p>
+              <Label className='text-sm font-medium'>{t('getOnly')}</Label>
+              <p className='text-sm text-muted-foreground'>{t('getOnlyDesc')}</p>
             </div>
             <Switch
               checked={fields.getOnly}
@@ -142,7 +142,7 @@ export function ErrorPageTab({
               onCheckedChange={(getOnly) =>
                 setFields((prev) => ({ ...prev, getOnly }))
               }
-              aria-label='仅针对 GET 请求'
+              aria-label={t('getOnly')}
               className='mt-0.5 shrink-0'
             />
           </div>
@@ -153,10 +153,10 @@ export function ErrorPageTab({
                 htmlFor='origin-error-status-codes'
                 className='text-sm font-medium'
               >
-                触发状态码
+                {t('statusCodes')}
               </Label>
               <p className='text-sm text-muted-foreground'>
-                支持单码（如 502）或闭区间（如 500-599）。
+                {t('statusCodesDesc')}
               </p>
             </div>
             <TagsInput
@@ -167,7 +167,7 @@ export function ErrorPageTab({
                 setTagError(null);
               }}
               validateTag={handleValidateTag}
-              placeholder='例如 502 或 500-599，回车添加'
+              placeholder={t('statusCodesPlaceholder')}
               aria-invalid={!!tagError}
               disabled={!fields.enabled}
             />
@@ -181,19 +181,19 @@ export function ErrorPageTab({
       <Card className='border-dashed shadow-none overflow-hidden'>
         <CardHeader className='flex flex-row items-start justify-between gap-3 space-y-0'>
           <div className='space-y-1.5'>
-            <CardTitle className='text-base'>页面预览</CardTitle>
+            <CardTitle className='text-base'>{t('pagePreview')}</CardTitle>
           </div>
           <div className='flex shrink-0 flex-wrap gap-2'>
             <Button variant='outline' size='sm' asChild>
               <Link href='/responses/error-page/preview'>
                 <Expand className='size-3.5' />
-                预览
+                {t('preview')}
               </Link>
             </Button>
             <Button size='sm' asChild>
               <Link href='/responses/error-page/edit'>
                 <Pencil className='size-3.5' />
-                编辑
+                {t('edit')}
               </Link>
             </Button>
           </div>
@@ -201,7 +201,7 @@ export function ErrorPageTab({
         <CardContent>
           <div className='overflow-hidden rounded-md border bg-muted/30'>
             <iframe
-              title='源站错误页预览'
+              title={t('errorPagePreview')}
               sandbox=''
               srcDoc={previewSrcDoc}
               className='h-[32rem] w-full bg-background'

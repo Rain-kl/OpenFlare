@@ -8,6 +8,8 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { useCustomTheme } from '@/lib/theme';
 import { cn } from '@/lib/utils';
+import { LanguageSwitcher } from '@/components/common/language-switcher';
+import { useTranslations } from 'next-intl';
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -19,6 +21,7 @@ import {
 
 function ThemeModeSection() {
   const { theme, setTheme } = useTheme();
+  const t = useTranslations('settings.appearance');
   const [mounted, setMounted] = React.useState(false);
 
   React.useEffect(() => {
@@ -26,19 +29,19 @@ function ThemeModeSection() {
   }, []);
 
   const modes = [
-    { id: 'light', name: '明亮', icon: Sun },
-    { id: 'dark', name: '黑暗', icon: Moon },
-    { id: 'system', name: '自动', icon: Monitor },
+    { id: 'light', name: t('modeLight'), icon: Sun },
+    { id: 'dark', name: t('modeDark'), icon: Moon },
+    { id: 'system', name: t('modeSystem'), icon: Monitor },
   ];
 
   if (!mounted) {
     return (
       <div className='space-y-6'>
         <div>
-          <h2 className='font-medium text-sm text-foreground'>主题模式</h2>
-          <p className='text-xs text-muted-foreground'>
-            选择应用程序的整体明暗主题
-          </p>
+          <h2 className='font-medium text-sm text-foreground'>
+            {t('themeMode')}
+          </h2>
+          <p className='text-xs text-muted-foreground'>{t('themeModeDesc')}</p>
         </div>
         <div className='flex gap-2'>
           {modes.map((mode) => {
@@ -63,10 +66,10 @@ function ThemeModeSection() {
   return (
     <div className='space-y-6'>
       <div>
-        <h2 className='font-medium text-sm text-foreground'>主题模式</h2>
-        <p className='text-xs text-muted-foreground'>
-          选择应用程序的整体明暗主题
-        </p>
+        <h2 className='font-medium text-sm text-foreground'>
+          {t('themeMode')}
+        </h2>
+        <p className='text-xs text-muted-foreground'>{t('themeModeDesc')}</p>
       </div>
 
       <div className='flex gap-2'>
@@ -100,6 +103,7 @@ function InterfaceAppearanceSection() {
     isLoading,
   } = useCustomTheme();
   const { theme: mode } = useTheme();
+  const t = useTranslations('settings.appearance');
   const [mounted, setMounted] = React.useState(false);
   const [switching, setSwitching] = React.useState<string | null>(null);
 
@@ -113,9 +117,9 @@ function InterfaceAppearanceSection() {
     try {
       setCustomTheme(themeId);
       const themeName = themes.find((t) => t.id === themeId)?.name || themeId;
-      toast.success(`外观已切换为 ${themeName}`);
+      toast.success(t('switched', { name: themeName }));
     } catch {
-      toast.error('切换失败');
+      toast.error(t('switchFailed'));
     } finally {
       setSwitching(null);
     }
@@ -131,10 +135,10 @@ function InterfaceAppearanceSection() {
   return (
     <div className='space-y-6'>
       <div>
-        <h2 className='font-medium text-sm text-foreground'>界面外观</h2>
-        <p className='text-xs text-muted-foreground'>
-          选择界面的配色方案和视觉风格
-        </p>
+        <h2 className='font-medium text-sm text-foreground'>
+          {t('interface')}
+        </h2>
+        <p className='text-xs text-muted-foreground'>{t('interfaceDesc')}</p>
       </div>
 
       <div>
@@ -229,6 +233,9 @@ function InterfaceAppearanceSection() {
 }
 
 export function AppearanceMain() {
+  const t = useTranslations('settings');
+  const ta = useTranslations('settings.appearance');
+
   return (
     <div className='py-6 space-y-6'>
       <div className='font-semibold'>
@@ -237,14 +244,14 @@ export function AppearanceMain() {
             <BreadcrumbItem>
               <BreadcrumbLink asChild>
                 <Link href='/settings' className='text-base text-primary'>
-                  设置
+                  {t('title')}
                 </Link>
               </BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbSeparator />
             <BreadcrumbItem>
               <BreadcrumbPage className='text-base font-semibold'>
-                外观设置
+                {ta('breadcrumb')}
               </BreadcrumbPage>
             </BreadcrumbItem>
           </BreadcrumbList>
@@ -253,13 +260,25 @@ export function AppearanceMain() {
 
       <ThemeModeSection />
 
+      <div className='space-y-6'>
+        <div>
+          <h2 className='font-medium text-sm text-foreground'>
+            {ta('language')}
+          </h2>
+          <p className='text-xs text-muted-foreground'>{ta('languageDesc')}</p>
+        </div>
+        <LanguageSwitcher variant='full' />
+      </div>
+
       <InterfaceAppearanceSection />
 
       <div className='space-y-4 opacity-50 pointer-events-none grayscale'>
-        <h2 className='font-medium text-sm text-muted-foreground'>即将推出</h2>
+        <h2 className='font-medium text-sm text-muted-foreground'>
+          {ta('comingSoon')}
+        </h2>
         <div className='bg-muted/30 rounded-xl p-6 h-32 flex items-center justify-center border border-border/50'>
           <span className='text-sm text-muted-foreground'>
-            更多自定义选项正在开发中...
+            {ta('comingSoonBody')}
           </span>
         </div>
       </div>

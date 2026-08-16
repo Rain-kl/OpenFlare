@@ -44,70 +44,22 @@ import {
   zoneQueryKey,
 } from '@/lib/services/openflare';
 
+import { useTranslations } from 'next-intl';
+
 import { listAllZoneDomains, parseOriginUrl, parseOriginUrls } from './helpers';
 import { ZoneDomainSelector } from './zone-domain-selector';
 
-const createProxyRouteSchema = z
-  .object({
-    site_name: z.string().trim().max(255, '站点标识不能超过 255 个字符'),
-    zone_domain_ids: z
-      .array(z.number().int().positive())
-      .min(1, '请至少选择一个域名'),
-    upstream_type: z.enum(['direct', 'tunnel', 'pages']),
-    origin_urls_text: z.string().trim(),
-    tunnel_id: z.string().optional(),
-    tunnel_target_addr: z.string().trim().optional(),
-    tunnel_target_protocol: z.enum(['http', 'https']).optional(),
-    pages_project_id: z.string().optional(),
-    enabled: z.boolean(),
-  })
-  .superRefine((value, context) => {
-    if (value.upstream_type === 'direct') {
-      if (!value.origin_urls_text.trim()) {
-        context.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ['origin_urls_text'],
-          message: '请至少填写一个上游地址',
-        });
-      } else {
-        const { error } = parseOriginUrls(value.origin_urls_text);
-        if (error) {
-          context.addIssue({
-            code: z.ZodIssueCode.custom,
-            path: ['origin_urls_text'],
-            message: error,
-          });
-        }
-      }
-      return;
-    }
-    if (value.upstream_type === 'tunnel') {
-      if (!value.tunnel_id) {
-        context.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ['tunnel_id'],
-          message: '请选择内网穿透隧道',
-        });
-      }
-      if (!value.tunnel_target_addr?.trim()) {
-        context.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ['tunnel_target_addr'],
-          message: '请填写内网服务地址 (如 127.0.0.1:8080)',
-        });
-      }
-      return;
-    }
-    if (!value.pages_project_id) {
-      context.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['pages_project_id'],
-        message: '请选择 Pages 项目',
-      });
-    }
-  });
-
-type CreateProxyRouteFormValues = z.infer<typeof createProxyRouteSchema>;
+type CreateProxyRouteFormValues = {
+  site_name: string;
+  zone_domain_ids: number[];
+  upstream_type: 'direct' | 'tunnel' | 'pages';
+  origin_urls_text: string;
+  tunnel_id?: string;
+  tunnel_target_addr?: string;
+  tunnel_target_protocol?: 'http' | 'https';
+  pages_project_id?: string;
+  enabled: boolean;
+};
 
 const defaultValues: CreateProxyRouteFormValues = {
   site_name: '',
@@ -132,6 +84,67 @@ export function ProxyRouteCreateSheet({
   onOpenChange,
   onCreated,
 }: ProxyRouteCreateSheetProps) {
+  const t = useTranslations('proxyRoutes');
+  const tc = useTranslations('common');
+  const createProxyRouteSchema = z
+    .object({
+      site_name: z.string().trim().max(255, t('validation.siteNameTooLong')),
+      zone_domain_ids: z
+        .array(z.number().int().positive())
+        .min(1, t('validation.selectAtLeastOneDomain')),
+      upstream_type: z.enum(['direct', 'tunnel', 'pages']),
+      origin_urls_text: z.string().trim(),
+      tunnel_id: z.string().optional(),
+      tunnel_target_addr: z.string().trim().optional(),
+      tunnel_target_protocol: z.enum(['http', 'https']).optional(),
+      pages_project_id: z.string().optional(),
+      enabled: z.boolean(),
+    })
+    .superRefine((value, context) => {
+      if (value.upstream_type === 'direct') {
+        if (!value.origin_urls_text.trim()) {
+          context.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ['origin_urls_text'],
+            message: t('validation.enterAtLeastOneUpstream'),
+          });
+        } else {
+          const { error } = parseOriginUrls(value.origin_urls_text, t);
+          if (error) {
+            context.addIssue({
+              code: z.ZodIssueCode.custom,
+              path: ['origin_urls_text'],
+              message: error,
+            });
+          }
+        }
+        return;
+      }
+      if (value.upstream_type === 'tunnel') {
+        if (!value.tunnel_id) {
+          context.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ['tunnel_id'],
+            message: t('validation.selectTunnel'),
+          });
+        }
+        if (!value.tunnel_target_addr?.trim()) {
+          context.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ['tunnel_target_addr'],
+            message: t('validation.enterTunnelTarget'),
+          });
+        }
+        return;
+      }
+      if (!value.pages_project_id) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['pages_project_id'],
+          message: t('validation.selectPagesProject'),
+        });
+      }
+    });
   const form = useForm<CreateProxyRouteFormValues>({
     resolver: zodResolver(createProxyRouteSchema),
     defaultValues,
@@ -185,7 +198,7 @@ export function ProxyRouteCreateSheet({
     let upstreams: string[] = [];
 
     if (values.upstream_type === 'direct') {
-      const { urls } = parseOriginUrls(values.origin_urls_text);
+      const { urls } = parseOriginUrls(values.origin_urls_text, t);
       const primaryOrigin = parseOriginUrl(urls[0]);
       originUrl = urls[0];
       originScheme = primaryOrigin.scheme;
@@ -257,7 +270,7 @@ export function ProxyRouteCreateSheet({
     } catch (error) {
       form.setError('root', {
         message:
-          error instanceof Error ? error.message : '创建失败，请稍后重试',
+          error instanceof Error ? error.message : t('createFailed'),
       });
     }
   });
@@ -266,11 +279,8 @@ export function ProxyRouteCreateSheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side='right' className='w-full sm:max-w-lg overflow-y-auto'>
         <SheetHeader>
-          <SheetTitle>新建规则</SheetTitle>
-          <SheetDescription>
-            从已注册的 Zone
-            域名中选择绑定关系，创建后可继续配置缓存和限流等高级选项。
-          </SheetDescription>
+          <SheetTitle>{t('createRule')}</SheetTitle>
+          <SheetDescription>{t('createDesc')}</SheetDescription>
         </SheetHeader>
 
         <Form {...form}>
@@ -280,13 +290,11 @@ export function ProxyRouteCreateSheet({
               name='site_name'
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>站点标识</FormLabel>
+                  <FormLabel>{t('siteId')}</FormLabel>
                   <FormControl>
                     <Input placeholder='marketing-site' {...field} />
                   </FormControl>
-                  <FormDescription>
-                    可选，留空时会自动使用首个域名。
-                  </FormDescription>
+                  <FormDescription>{t('siteIdOptionalDesc')}</FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
@@ -297,7 +305,7 @@ export function ProxyRouteCreateSheet({
               name='zone_domain_ids'
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>绑定域名</FormLabel>
+                  <FormLabel>{t('bindDomains')}</FormLabel>
                   <FormControl>
                     <ZoneDomainSelector
                       value={field.value}
@@ -320,13 +328,13 @@ export function ProxyRouteCreateSheet({
               name='upstream_type'
               render={({ field }) => (
                 <FormItem className='space-y-3'>
-                  <FormLabel>回源方式</FormLabel>
+                  <FormLabel>{t('upstreamType')}</FormLabel>
                   <div className='flex flex-wrap gap-4'>
                     {(
                       [
-                        ['direct', '直连上游'],
-                        ['tunnel', '内网穿透 (Tunnel)'],
-                        ['pages', 'Pages 静态站点'],
+                        ['direct', t('upstreamDirect')],
+                        ['tunnel', t('upstreamTunnel')],
+                        ['pages', t('upstreamPages')],
                       ] as const
                     ).map(([value, label]) => (
                       <label
@@ -355,7 +363,7 @@ export function ProxyRouteCreateSheet({
                 name='origin_urls_text'
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>上游地址</FormLabel>
+                    <FormLabel>{t('upstreamAddresses')}</FormLabel>
                     <FormControl>
                       <Textarea
                         className='min-h-32 font-mono text-xs'
@@ -365,11 +373,7 @@ export function ProxyRouteCreateSheet({
                         {...field}
                       />
                     </FormControl>
-                    <FormDescription>
-                      每行一个完整
-                      URL。第一行作为主回源，多上游模式请保持相同协议且不要包含
-                      path 或 query。
-                    </FormDescription>
+                    <FormDescription>{t('upstreamUrlsHint')}</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -383,7 +387,7 @@ export function ProxyRouteCreateSheet({
                   name='tunnel_id'
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>选择内网穿透隧道</FormLabel>
+                      <FormLabel>{t('selectTunnel')}</FormLabel>
                       <Select
                         value={field.value || 'none'}
                         onValueChange={(value) =>
@@ -392,25 +396,26 @@ export function ProxyRouteCreateSheet({
                       >
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue placeholder='请选择...' />
+                            <SelectValue placeholder={t('pleaseSelect')} />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value='none'>请选择...</SelectItem>
+                          <SelectItem value='none'>{t('pleaseSelect')}</SelectItem>
                           {tunnelClients.map((tunnel) => (
                             <SelectItem
                               key={tunnel.id}
                               value={String(tunnel.id)}
                             >
                               {tunnel.name} (
-                              {tunnel.status === 'online' ? '在线' : '离线'})
+                              {tunnel.status === 'online'
+                                ? t('online')
+                                : t('offline')}
+                              )
                             </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
-                      <FormDescription>
-                        将请求转发到该隧道连接的客户端节点。
-                      </FormDescription>
+                      <FormDescription>{t('tunnelForwardHint')}</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -421,7 +426,7 @@ export function ProxyRouteCreateSheet({
                   name='tunnel_target_protocol'
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>内网服务协议</FormLabel>
+                      <FormLabel>{t('tunnelProtocol')}</FormLabel>
                       <Select
                         value={field.value}
                         onValueChange={field.onChange}
@@ -446,13 +451,11 @@ export function ProxyRouteCreateSheet({
                   name='tunnel_target_addr'
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>内网服务地址</FormLabel>
+                      <FormLabel>{t('tunnelAddress')}</FormLabel>
                       <FormControl>
                         <Input placeholder='127.0.0.1:8080' {...field} />
                       </FormControl>
-                      <FormDescription>
-                        例如: 127.0.0.1:8080 或 192.168.1.10:80
-                      </FormDescription>
+                      <FormDescription>{t('tunnelAddressHint')}</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -467,7 +470,7 @@ export function ProxyRouteCreateSheet({
                   name='pages_project_id'
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>选择 Pages 项目</FormLabel>
+                      <FormLabel>{t('selectPagesProject')}</FormLabel>
                       <Select
                         value={field.value || 'none'}
                         onValueChange={(value) =>
@@ -476,11 +479,11 @@ export function ProxyRouteCreateSheet({
                       >
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue placeholder='请选择...' />
+                            <SelectValue placeholder={t('pleaseSelect')} />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value='none'>请选择...</SelectItem>
+                          <SelectItem value='none'>{t('pleaseSelect')}</SelectItem>
                           {pagesProjects.map((project) => (
                             <SelectItem
                               key={project.id}
@@ -504,10 +507,8 @@ export function ProxyRouteCreateSheet({
               render={({ field }) => (
                 <FormItem className='flex items-center justify-between rounded-lg border p-3'>
                   <div className='space-y-0.5'>
-                    <FormLabel>启用站点</FormLabel>
-                    <FormDescription>
-                      关闭后会保留配置，但不会参与发布。
-                    </FormDescription>
+                    <FormLabel>{t('enableSite')}</FormLabel>
+                    <FormDescription>{t('enableSiteDesc')}</FormDescription>
                   </div>
                   <FormControl>
                     <Switch
@@ -531,10 +532,10 @@ export function ProxyRouteCreateSheet({
                 variant='outline'
                 onClick={() => onOpenChange(false)}
               >
-                取消
+                {tc('cancel')}
               </Button>
               <Button type='submit' disabled={form.formState.isSubmitting}>
-                {form.formState.isSubmitting ? '创建中…' : '创建'}
+                {form.formState.isSubmitting ? t('creating') : t('create')}
               </Button>
             </SheetFooter>
           </form>

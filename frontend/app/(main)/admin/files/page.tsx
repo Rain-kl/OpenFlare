@@ -3,6 +3,7 @@
 import * as React from 'react';
 import { motion } from 'motion/react';
 import { FolderOpen } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { FileStats } from './components/file-stats';
@@ -10,6 +11,7 @@ import { FileList } from './components/file-list';
 import { StorageConfigTab } from './components/storage-config-tab';
 
 export default function FilesPage() {
+  const t = useTranslations('admin.files');
   const [activeTab, setActiveTab] = React.useState('stats');
 
   return (
@@ -23,7 +25,9 @@ export default function FilesPage() {
       <div className='flex items-center gap-2'>
         <FolderOpen className='size-5 text-primary' />
         <div>
-          <h1 className='text-2xl font-semibold tracking-tight'>存储管理</h1>
+          <h1 className='text-2xl font-semibold tracking-tight'>
+            {t('pageTitle')}
+          </h1>
         </div>
       </div>
 
@@ -33,16 +37,16 @@ export default function FilesPage() {
             value='stats'
             className='px-0 pb-2 text-xs font-semibold'
           >
-            文件存储信息
+            {t('tabStats')}
           </TabsTrigger>
           <TabsTrigger value='list' className='px-0 pb-2 text-xs font-semibold'>
-            文件列表
+            {t('tabList')}
           </TabsTrigger>
           <TabsTrigger
             value='storage'
             className='px-0 pb-2 text-xs font-semibold'
           >
-            存储配置
+            {t('tabStorage')}
           </TabsTrigger>
         </TabsList>
 

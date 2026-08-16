@@ -5,6 +5,7 @@ import { Loader2 } from 'lucide-react';
 
 import { ErrorPage } from '@/components/layout/error';
 import { useUser } from '@/contexts/user-context';
+import { useTranslations } from 'next-intl';
 
 type RequireAuthProps = {
   children: ReactNode;
@@ -49,6 +50,7 @@ type RequireAdminAuthProps = {
 /** Guards admin routes after the shared shell has rendered. */
 export function RequireAdminAuth({ children }: RequireAdminAuthProps) {
   const { user, loading } = useUser();
+  const t = useTranslations('auth.requireAuth');
 
   if (loading) {
     return (
@@ -59,7 +61,7 @@ export function RequireAdminAuth({ children }: RequireAdminAuthProps) {
   }
 
   if (!user?.is_admin) {
-    return <ErrorPage title='访问被拒绝' message='您没有权限访问此页面' />;
+    return <ErrorPage title={t('accessDenied')} message={t('noPermission')} />;
   }
 
   return <>{children}</>;

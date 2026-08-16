@@ -9,6 +9,7 @@ import {
   ShieldQuestion,
 } from 'lucide-react';
 import { getCapToken } from '@/lib/cap-solver';
+import { useTranslations } from 'next-intl';
 
 type CapStatus = 'idle' | 'solving' | 'solved' | 'error';
 
@@ -38,6 +39,7 @@ export function CapWidget({
   const [status, setStatus] = useState<CapStatus>('idle');
   const [errorMsg, setErrorMsg] = useState('');
   const solving = useRef(false);
+  const t = useTranslations('auth.capWidget');
 
   const solve = async () => {
     if (solving.current) return;
@@ -76,7 +78,9 @@ export function CapWidget({
           onClick={() => void solve()}
         >
           <ShieldQuestion className='size-4 shrink-0 text-muted-foreground' />
-          <span className='flex-1 text-muted-foreground'>点击开始人机验证</span>
+          <span className='flex-1 text-muted-foreground'>
+            {t('clickToStart')}
+          </span>
         </button>
       )}
 
@@ -84,14 +88,16 @@ export function CapWidget({
       {status === 'idle' && autoStart && (
         <>
           <ShieldAlert className='size-4 shrink-0 text-muted-foreground' />
-          <span className='text-muted-foreground'>等待人机验证…</span>
+          <span className='text-muted-foreground'>
+            {t('waitingVerification')}
+          </span>
         </>
       )}
 
       {status === 'solving' && (
         <>
           <Loader2 className='size-4 shrink-0 animate-spin text-primary' />
-          <span className='text-muted-foreground'>正在完成人机验证…</span>
+          <span className='text-muted-foreground'>{t('verifying')}</span>
         </>
       )}
 
@@ -99,7 +105,7 @@ export function CapWidget({
         <>
           <CheckCircle2 className='size-4 shrink-0 text-green-500' />
           <span className='text-green-600 dark:text-green-400'>
-            人机验证通过
+            {t('verificationPassed')}
           </span>
           <ShieldCheck className='ml-auto size-4 shrink-0 text-green-500' />
         </>
@@ -113,9 +119,11 @@ export function CapWidget({
         >
           <ShieldAlert className='size-4 shrink-0 text-destructive' />
           <span className='flex-1 text-destructive'>
-            {errorMsg || '人机验证失败'}
+            {errorMsg || t('verificationFailed')}
           </span>
-          <span className='text-xs text-muted-foreground underline'>重试</span>
+          <span className='text-xs text-muted-foreground underline'>
+            {t('retry')}
+          </span>
         </button>
       )}
     </div>

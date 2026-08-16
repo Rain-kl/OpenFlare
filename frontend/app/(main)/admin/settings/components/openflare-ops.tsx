@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -63,6 +64,7 @@ async function copyText(value: string) {
 }
 
 export function OpenFlareOpsSettings() {
+  const t = useTranslations('openflareOps');
   const queryClient = useQueryClient();
   const [fields, setFields] = useState<OpenFlareOpsFields>(
     defaultOpenFlareOpsFields,
@@ -113,20 +115,20 @@ export function OpenFlareOpsSettings() {
       await OptionService.updateBatch(entries);
     },
     onSuccess: async () => {
-      toast.success('OpenFlare 运维设置已保存');
+      toast.success(t('saved'));
       await queryClient.invalidateQueries({ queryKey: optionsQueryKey });
       setSavingSection(null);
     },
     onError: (error) => {
       setSavingSection(null);
-      toast.error(error instanceof Error ? error.message : '保存失败');
+      toast.error(error instanceof Error ? error.message : t('saveFailed'));
     },
   });
 
   const rotateTokenMutation = useMutation({
     mutationFn: () => NodeService.rotateBootstrapToken(),
     onSuccess: async (data) => {
-      toast.success('Discovery Token 已重新生成');
+      toast.success(t('tokenRotated'));
       await queryClient.invalidateQueries({
         queryKey: ['openflare', 'bootstrap-token'],
       });
@@ -139,15 +141,17 @@ export function OpenFlareOpsSettings() {
       }
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : 'Token 轮换失败');
+      toast.error(
+        error instanceof Error ? error.message : t('tokenRotateFailed'),
+      );
     },
   });
 
   const syncUptimeKumaMutation = useMutation({
     mutationFn: () => UptimeKumaService.sync(),
-    onSuccess: () => toast.success('Uptime Kuma 同步任务已执行'),
+    onSuccess: () => toast.success(t('kumaSynced')),
     onError: (error) =>
-      toast.error(error instanceof Error ? error.message : '同步失败'),
+      toast.error(error instanceof Error ? error.message : t('syncFailed')),
   });
 
   const discoveryToken = bootstrapQuery.data?.discovery_token ?? '';
@@ -167,10 +171,10 @@ export function OpenFlareOpsSettings() {
     try {
       saveMutation.mutate({
         section: 'agent',
-        entries: agentOptionEntries(fields),
+        entries: agentOptionEntries(fields, t),
       });
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : '参数校验失败');
+      toast.error(error instanceof Error ? error.message : t('invalidParams'));
     }
   };
 
@@ -178,10 +182,10 @@ export function OpenFlareOpsSettings() {
     try {
       saveMutation.mutate({
         section: 'uptimekuma',
-        entries: uptimeKumaOptionEntries(fields),
+        entries: uptimeKumaOptionEntries(fields, t),
       });
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : '参数校验失败');
+      toast.error(error instanceof Error ? error.message : t('invalidParams'));
     }
   };
 
@@ -189,19 +193,16 @@ export function OpenFlareOpsSettings() {
     try {
       saveMutation.mutate({
         section: 'pages',
-        entries: pagesOptionEntries(fields),
+        entries: pagesOptionEntries(fields, t),
       });
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : '参数校验失败');
+      toast.error(error instanceof Error ? error.message : t('invalidParams'));
     }
   };
 
   if (optionsQuery.isLoading) {
     return (
-      <LoadingStateWithBorder
-        icon={Server}
-        description='加载 OpenFlare 运维设置...'
-      />
+      <LoadingStateWithBorder icon={Server} description={t('loading')} />
     );
   }
 
@@ -211,7 +212,7 @@ export function OpenFlareOpsSettings() {
         message={
           optionsQuery.error instanceof Error
             ? optionsQuery.error.message
-            : '加载失败'
+            : t('loadFailed')
         }
         onRetry={() => void optionsQuery.refetch()}
       />
@@ -224,10 +225,8 @@ export function OpenFlareOpsSettings() {
         <Card className='border-dashed shadow-none'>
           <CardHeader className='flex flex-row items-center justify-between gap-4'>
             <div>
-              <CardTitle className='text-base'>Agent 运行参数</CardTitle>
-              <CardDescription>
-                心跳间隔与离线阈值会在下个心跳周期同步到节点。
-              </CardDescription>
+              <CardTitle className='text-base'>{t('agent.title')}</CardTitle>
+              <CardDescription>{t('agent.description')}</CardDescription>
             </div>
             <Button
               size='sm'
@@ -239,13 +238,18 @@ export function OpenFlareOpsSettings() {
               ) : (
                 <Save className='size-3.5 mr-1' />
               )}
-              保存
+              {t('save')}
             </Button>
           </CardHeader>
           <CardContent className='space-y-4'>
             <div className='grid gap-4 md:grid-cols-2'>
               <FieldInput
-                label={`心跳间隔 (${formatDurationLabel(fields.agent_heartbeat_interval)})`}
+                label={t('agent.heartbeat', {
+                  duration: formatDurationLabel(
+                    fields.agent_heartbeat_interval,
+                    t,
+                  ),
+                })}
                 value={fields.agent_heartbeat_interval}
                 type='number'
                 onChange={(value) =>
@@ -253,7 +257,12 @@ export function OpenFlareOpsSettings() {
                 }
               />
               <FieldInput
-                label={`离线阈值 (${formatDurationLabel(fields.node_offline_threshold)})`}
+                label={t('agent.offline', {
+                  duration: formatDurationLabel(
+                    fields.node_offline_threshold,
+                    t,
+                  ),
+                })}
                 value={fields.node_offline_threshold}
                 type='number'
                 onChange={(value) =>
@@ -262,15 +271,15 @@ export function OpenFlareOpsSettings() {
               />
             </div>
             <ToggleRow
-              label='开启 WS 连接升级'
-              description='HTTP 心跳成功后尝试升级为 WebSocket，配置发布可即时通知。'
+              label={t('agent.wsUpgrade')}
+              description={t('agent.wsUpgradeDesc')}
               checked={fields.agent_websocket_upgrade_enabled}
               onChange={(value) =>
                 updateField('agent_websocket_upgrade_enabled', value)
               }
             />
             <FieldInput
-              label='Agent 更新仓库'
+              label={t('agent.updateRepo')}
               value={fields.agent_update_repo}
               placeholder='Rain-kl/OpenFlare'
               onChange={(value) => updateField('agent_update_repo', value)}
@@ -281,11 +290,8 @@ export function OpenFlareOpsSettings() {
         <Card className='border-dashed shadow-none'>
           <CardHeader className='flex flex-row items-center justify-between gap-4'>
             <div>
-              <CardTitle className='text-base'>IP 归属解析</CardTitle>
-              <CardDescription>
-                控制节点地图等场景的 GeoIP 来源；访客访问记录归属地固定使用
-                MaxMind mmdb。
-              </CardDescription>
+              <CardTitle className='text-base'>{t('geo.title')}</CardTitle>
+              <CardDescription>{t('geo.description')}</CardDescription>
             </div>
             <Button
               size='sm'
@@ -297,12 +303,12 @@ export function OpenFlareOpsSettings() {
               ) : (
                 <Save className='size-3.5 mr-1' />
               )}
-              保存
+              {t('save')}
             </Button>
           </CardHeader>
           <CardContent className='space-y-4'>
             <div className='space-y-1.5'>
-              <Label>归属方式</Label>
+              <Label>{t('geo.mode')}</Label>
               <Select
                 value={fields.geoip_provider}
                 onValueChange={(value) => updateField('geoip_provider', value)}
@@ -311,7 +317,7 @@ export function OpenFlareOpsSettings() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value='disabled'>关闭</SelectItem>
+                  <SelectItem value='disabled'>{t('geo.disabled')}</SelectItem>
                   <SelectItem value='mmdb'>MaxMind mmdb</SelectItem>
                   <SelectItem value='ip-api'>ip-api.com</SelectItem>
                   <SelectItem value='geojs'>geojs.io</SelectItem>
@@ -321,7 +327,7 @@ export function OpenFlareOpsSettings() {
             </div>
             <div className='flex flex-col gap-3 rounded-lg border border-dashed p-3 sm:flex-row sm:items-end'>
               <FieldInput
-                label='测试 IP'
+                label={t('geo.testIp')}
                 value={geoIPTestIP}
                 onChange={setGeoIPTestIP}
                 placeholder='8.8.8.8'
@@ -332,13 +338,13 @@ export function OpenFlareOpsSettings() {
                 disabled={geoIPMutation.isPending}
                 onClick={() => geoIPMutation.mutate()}
               >
-                {geoIPMutation.isPending ? '查询中...' : '查询归属'}
+                {geoIPMutation.isPending ? t('geo.querying') : t('geo.query')}
               </Button>
             </div>
             {geoIPMutation.data ? (
               <div className='grid gap-2 text-sm sm:grid-cols-2'>
                 <InfoCell
-                  label='国家/地区'
+                  label={t('geo.country')}
                   value={geoIPMutation.data.name || '—'}
                 />
                 <InfoCell
@@ -354,10 +360,8 @@ export function OpenFlareOpsSettings() {
       <Card className='border-dashed shadow-none'>
         <CardHeader className='flex flex-row items-center justify-between gap-4'>
           <div>
-            <CardTitle className='text-base'>Pages 静态托管</CardTitle>
-            <CardDescription>
-              配置部署包上传体积上限与每个项目的历史部署保留数量。
-            </CardDescription>
+            <CardTitle className='text-base'>{t('pages.title')}</CardTitle>
+            <CardDescription>{t('pages.description')}</CardDescription>
           </div>
           <Button
             size='sm'
@@ -369,13 +373,13 @@ export function OpenFlareOpsSettings() {
             ) : (
               <Save className='size-3.5 mr-1' />
             )}
-            保存
+            {t('save')}
           </Button>
         </CardHeader>
         <CardContent className='space-y-4'>
           <div className='grid gap-4 md:grid-cols-2'>
             <FieldInput
-              label='部署包大小上限 (MiB)'
+              label={t('pages.maxSize')}
               value={fields.pages_max_package_size_mb}
               type='number'
               onChange={(value) =>
@@ -384,7 +388,7 @@ export function OpenFlareOpsSettings() {
               placeholder='100'
             />
             <FieldInput
-              label='历史部署保留数（0 不限制）'
+              label={t('pages.history')}
               value={fields.pages_max_history_count}
               type='number'
               onChange={(value) =>
@@ -394,9 +398,7 @@ export function OpenFlareOpsSettings() {
             />
           </div>
           <p className='text-xs text-muted-foreground'>
-            每个项目最多保留 N
-            条部署：激活部署始终保留，其余按从新到旧填充；超出的非激活部署会在上传成功后自动清理。支持
-            zip、tar.gz、tar.xz、tar.bz2、tar、7z 格式。
+            {t('pages.historyHint')}
           </p>
         </CardContent>
       </Card>
@@ -404,17 +406,16 @@ export function OpenFlareOpsSettings() {
       <Card className='border-dashed shadow-none'>
         <CardHeader className='flex flex-row items-center justify-between gap-4'>
           <div>
-            <CardTitle className='text-base'>Discovery Token 与部署</CardTitle>
-            <CardDescription>
-              新节点首次接入使用 Discovery
-              Token；轮换请前往节点管理或使用下方操作。
-            </CardDescription>
+            <CardTitle className='text-base'>
+              {t('discovery.title')}
+            </CardTitle>
+            <CardDescription>{t('discovery.description')}</CardDescription>
           </div>
           <div className='flex flex-wrap gap-2'>
             <Button variant='outline' size='sm' asChild>
               <Link href='/nodes'>
                 <ExternalLink className='size-3.5 mr-1' />
-                节点管理
+                {t('discovery.manageNodes')}
               </Link>
             </Button>
             <Button
@@ -424,7 +425,7 @@ export function OpenFlareOpsSettings() {
               onClick={() => rotateTokenMutation.mutate()}
             >
               <RotateCw className='size-3.5 mr-1' />
-              轮换 Token
+              {t('discovery.rotate')}
             </Button>
           </div>
         </CardHeader>
@@ -437,21 +438,19 @@ export function OpenFlareOpsSettings() {
           />
           <div className='rounded-lg border border-dashed p-3'>
             <p className='text-[10px] uppercase tracking-wider text-muted-foreground'>
-              Discovery Token（只读）
+              {t('discovery.tokenReadonly')}
             </p>
             <p className='mt-2 break-all text-sm font-mono'>
               {bootstrapQuery.isLoading
-                ? '加载中...'
-                : discoveryToken || '未生成'}
+                ? t('discovery.loading')
+                : discoveryToken || t('discovery.notGenerated')}
             </p>
           </div>
           <div className='space-y-1.5'>
-            <Label>一键部署命令</Label>
+            <Label>{t('discovery.command')}</Label>
             <Textarea
               readOnly
-              value={
-                discoveryCommand || '请先填写可访问的 Server URL 并获取 Token。'
-              }
+              value={discoveryCommand || t('discovery.commandHint')}
               className='min-h-24 font-mono text-xs'
             />
             {discoveryCommand ? (
@@ -461,12 +460,12 @@ export function OpenFlareOpsSettings() {
                 size='sm'
                 onClick={() =>
                   void copyText(discoveryCommand).then(() =>
-                    toast.success('命令已复制'),
+                    toast.success(t('discovery.copied')),
                   )
                 }
               >
                 <Copy className='size-3.5 mr-1' />
-                复制命令
+                {t('discovery.copy')}
               </Button>
             ) : null}
           </div>
@@ -476,10 +475,8 @@ export function OpenFlareOpsSettings() {
       <Card className='border-dashed shadow-none'>
         <CardHeader className='flex flex-row items-center justify-between gap-4'>
           <div>
-            <CardTitle className='text-base'>Uptime Kuma 集成</CardTitle>
-            <CardDescription>
-              将反代站点差分同步至 Uptime Kuma 监控实例。
-            </CardDescription>
+            <CardTitle className='text-base'>{t('kuma.title')}</CardTitle>
+            <CardDescription>{t('kuma.description')}</CardDescription>
           </div>
           <div className='flex flex-wrap gap-2'>
             <Button
@@ -491,20 +488,20 @@ export function OpenFlareOpsSettings() {
               onClick={() => syncUptimeKumaMutation.mutate()}
             >
               <RefreshCw className='size-3.5 mr-1' />
-              立即同步
+              {t('kuma.syncNow')}
             </Button>
             <Button
               size='sm'
               disabled={savingSection === 'uptimekuma'}
               onClick={saveUptimeKumaSettings}
             >
-              保存
+              {t('save')}
             </Button>
           </div>
         </CardHeader>
         <CardContent className='space-y-4'>
           <ToggleRow
-            label='开启 Uptime Kuma'
+            label={t('kuma.enable')}
             checked={fields.uptime_kuma_enabled}
             onChange={(value) => updateField('uptime_kuma_enabled', value)}
           />
@@ -512,29 +509,29 @@ export function OpenFlareOpsSettings() {
             <>
               <div className='grid gap-4 md:grid-cols-2'>
                 <FieldInput
-                  label='Uptime Kuma 地址'
+                  label={t('kuma.url')}
                   value={fields.uptime_kuma_url}
                   onChange={(value) => updateField('uptime_kuma_url', value)}
                   placeholder='http://localhost:3001'
                 />
                 <FieldInput
-                  label='用户名'
+                  label={t('kuma.username')}
                   value={fields.uptime_kuma_username}
                   onChange={(value) =>
                     updateField('uptime_kuma_username', value)
                   }
                 />
                 <FieldInput
-                  label='密码'
+                  label={t('kuma.password')}
                   value={fields.uptime_kuma_password}
                   type='password'
                   onChange={(value) =>
                     updateField('uptime_kuma_password', value)
                   }
-                  placeholder='留空表示不更新'
+                  placeholder={t('kuma.passwordKeep')}
                 />
                 <FieldInput
-                  label='同步间隔 (分钟)'
+                  label={t('kuma.syncInterval')}
                   value={fields.uptime_kuma_sync_interval}
                   type='number'
                   onChange={(value) =>
@@ -542,7 +539,7 @@ export function OpenFlareOpsSettings() {
                   }
                 />
                 <div className='space-y-1.5'>
-                  <Label>监控范围</Label>
+                  <Label>{t('kuma.scope')}</Label>
                   <Select
                     value={fields.uptime_kuma_monitor_scope}
                     onValueChange={(value) =>
@@ -553,8 +550,10 @@ export function OpenFlareOpsSettings() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value='all'>全部站点</SelectItem>
-                      <SelectItem value='selected'>选择站点</SelectItem>
+                      <SelectItem value='all'>{t('kuma.allSites')}</SelectItem>
+                      <SelectItem value='selected'>
+                        {t('kuma.selectedSites')}
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -562,26 +561,28 @@ export function OpenFlareOpsSettings() {
               {fields.uptime_kuma_monitor_scope === 'selected' ? (
                 <div className='rounded-lg border border-dashed p-3'>
                   <div className='flex items-center justify-between gap-2'>
-                    <p className='text-sm font-medium'>已选站点</p>
+                    <p className='text-sm font-medium'>
+                      {t('kuma.selectedLabel')}
+                    </p>
                     <Button
                       type='button'
                       variant='outline'
                       size='sm'
                       onClick={() => setUptimeKumaModalOpen(true)}
                     >
-                      选择监控站点
+                      {t('kuma.pickSites')}
                     </Button>
                   </div>
                   <p className='mt-2 break-all text-xs text-muted-foreground'>
                     {fields.uptime_kuma_selected_sites
                       ? fields.uptime_kuma_selected_sites.split(',').join(', ')
-                      : '未选择任何站点'}
+                      : t('kuma.noneSelected')}
                   </p>
                 </div>
               ) : null}
               <div className='grid gap-4 md:grid-cols-2'>
                 <FieldInput
-                  label='检测频率 (秒)'
+                  label={t('kuma.interval')}
                   value={fields.uptime_kuma_interval}
                   type='number'
                   onChange={(value) =>
@@ -589,13 +590,13 @@ export function OpenFlareOpsSettings() {
                   }
                 />
                 <FieldInput
-                  label='重试次数'
+                  label={t('kuma.retry')}
                   value={fields.uptime_kuma_retry}
                   type='number'
                   onChange={(value) => updateField('uptime_kuma_retry', value)}
                 />
                 <FieldInput
-                  label='重试间隔 (秒)'
+                  label={t('kuma.retryInterval')}
                   value={fields.uptime_kuma_retry_interval}
                   type='number'
                   onChange={(value) =>
@@ -603,7 +604,7 @@ export function OpenFlareOpsSettings() {
                   }
                 />
                 <FieldInput
-                  label='请求超时 (秒)'
+                  label={t('kuma.timeout')}
                   value={fields.uptime_kuma_timeout}
                   type='number'
                   onChange={(value) =>

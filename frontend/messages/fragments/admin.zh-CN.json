@@ -1,0 +1,141 @@
+{
+  "auth": {
+    "login": {
+      "needBind": "您的第三方账号未绑定本地账号，系统已关闭注册。请登录已有本地账号进行绑定。",
+      "bindSuccess": "绑定成功",
+      "checkingSession": "正在检查登录状态",
+      "checkingSessionDesc": "请稍候，我们正在确认当前会话...",
+      "redirecting": "正在跳转至控制台...",
+      "verifyingCredentials": "正在验证凭据",
+      "establishingSession": "请稍候，我们正在为您建立安全会话..."
+    }
+  },
+  "settings": {
+    "other": {
+      "groupBusiness": "业务菜单",
+      "groupAdmin": "管理菜单",
+      "groupDocs": "文档菜单",
+      "descDashboard": "查看边缘节点请求、访客与流量等多维度图表看板",
+      "descNodes": "注册与管理反向代理边缘节点服务状态",
+      "descProxyRoutes": "配置和发布反代路由规则、负载均衡与源站绑定",
+      "descWebsites": "配置站点根域名并查看关联网站详情",
+      "descCertificates": "管理和下发网站 SSL/TLS 证书",
+      "descDnsAccounts": "配置 Cloudflare/Alidns 等 DNS 服务商 API 凭证",
+      "descOrigins": "集中维护和管理后端业务源站服务器组",
+      "descWaf": "配置 Web 应用防火墙自定义规则与频率限制",
+      "descIpGroups": "管理黑白名单 IP 集合，用于 WAF 规则过滤",
+      "descPages": "托管和发布静态网页项目，支持自动关联域名",
+      "descConfigVersions": "查看规则快照版本并进行配置热更新分发与回滚",
+      "descAccessLogs": "多维度实时浏览边缘节点请求访问明细",
+      "descPerformance": "配置缓存、图片压缩等页面性能加速策略",
+      "descUsers": "查看和管理系统用户列表及其状态",
+      "descTasks": "查看和调度系统异步及定时任务",
+      "descStorage": "管理系统文件存储和清理无用文件",
+      "descDatabase": "监控物理数据库状态、分页浏览表数据及交互式 SQL 查询",
+      "descPush": "配置和发送系统通知及推送消息",
+      "descLogs": "查看异步任务执行日志和系统运行情况",
+      "descSystem": "管理和维护系统基础键值对配置",
+      "descAdminSettings": "配置安全验证、邮箱服务及目录显示",
+      "descUsageDocs": "面向开发与运营的部署使用指南"
+    },
+    "operation": {
+      "typeAvatar": "头像 (avatar)",
+      "typeAttachment": "附件 (attachment)",
+      "typeDoc": "文档 (doc)",
+      "typeGeneric": "通用 (generic)",
+      "logRetentionTitle": "日志保留时间",
+      "logRetentionDesc": "配置各日志数据库的日志保留天数，切换日志数据库后自动按对应配置清理过期日志。",
+      "days": "天",
+      "save": "保存",
+      "logRetentionUpdated": "日志保留时间已更新",
+      "logRetentionUpdateFailed": "更新日志保留时间失败",
+      "retentionInvalid": "{label}必须为大于等于 1 的整数",
+      "retentionPostgresDesc": "访问日志与可观测指标统一保留天数",
+      "retentionSqliteDesc": "SQLite 日志保留天数",
+      "retentionClickhouseDesc": "ClickHouse 日志保留天数"
+    }
+  },
+  "admin": {
+    "settings": {
+      "tabs": {
+        "openflare": "OpenFlare"
+      }
+    },
+    "files": {
+      "stats": {
+        "catImages": "图片",
+        "catVideos": "视频",
+        "catAudio": "音频",
+        "catDocuments": "文档",
+        "catArchives": "压缩包",
+        "catOthers": "其他",
+        "none": "无"
+      },
+      "list": {
+        "extensionFile": "{ext} 文件"
+      }
+    },
+    "tasks": {
+      "selectDate": "选择日期",
+      "logPrimaryDb": "日志主库",
+      "retentionDays": "保留天数",
+      "migrationStatus": "迁移状态",
+      "migrating": "迁移中",
+      "idle": "空闲",
+      "selectLogDb": "选择日志数据库",
+      "dbPostgresPrimary": "PostgreSQL（主库）",
+      "dbSqlitePrimary": "SQLite（主库）",
+      "dbClickhouse": "ClickHouse",
+      "taskTypeFilter": "任务类型",
+      "executionRecord": "执行记录"
+    },
+    "push": {
+      "events": {
+        "taskCompleteTitle": "任务完成: {name}",
+        "taskCompleteContent": "异步任务 {{task_name}} 已完成。状态: {{task_status}}，耗时: {{task_duration}} ms。"
+      },
+      "settings": {
+        "fieldRequired": "{label}不能为空",
+        "configHelp": "{name}配置说明"
+      }
+    },
+    "database": {
+      "unknownError": "未知错误",
+      "exportException": "导出异常",
+      "cache": {
+        "unknownError": "未知错误",
+        "maxSizePlaceholder": "例如 100",
+        "ttlPlaceholder": "例如 60，0 表示永不过期"
+      },
+      "sql": {
+        "unknownExecError": "未知执行错误",
+        "clearEditor": "清空编辑器",
+        "dragResize": "拖动调整大小",
+        "execErrorTitle": "SQL 执行报错 (Error):"
+      },
+      "tableBrowser": {
+        "fetchTableFailed": "获取数据表 {table} 数据失败",
+        "unknownError": "未知错误"
+      }
+    },
+    "logs": {
+      "accessLogs": {
+        "copiedToClipboard": "{subject}已复制到剪贴板",
+        "noHeaderData": "暂无头部数据",
+        "accessId": "访问 ID: {id}",
+        "copyUserAgent": "复制 User-Agent",
+        "copyHeaders": "复制 Headers"
+      },
+      "analytics": {
+        "fetchFailed": "获取数据统计失败",
+        "requestVolume": "请求量",
+        "requestCount": "请求次数",
+        "countTimes": "{count} 次 ({percent}%)"
+      },
+      "appLogs": {
+        "fetchFailed": "获取日志失败",
+        "loadOlderFailed": "加载更早日志失败"
+      }
+    }
+  }
+}

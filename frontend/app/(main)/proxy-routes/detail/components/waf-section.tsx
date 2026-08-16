@@ -39,6 +39,8 @@ import { LoadingStateWithBorder } from '@/components/layout/loading';
 import type { ProxyRouteItem } from '@/lib/services/openflare';
 import { WafService } from '@/lib/services/openflare';
 
+import { useTranslations } from 'next-intl';
+
 import { getErrorMessage } from '../../components/helpers';
 import { proxyRouteFormIds } from '../helpers';
 import { SectionShell } from './section-shell';
@@ -67,6 +69,7 @@ export function reorderRuleIDs(
 }
 
 function SortableRule({ id, name, index, total, onMove }: SortableRuleProps) {
+  const t = useTranslations('proxyRoutes');
   const { attributes, listeners, setNodeRef, transform, transition } =
     useSortable({ id });
   return (
@@ -79,7 +82,7 @@ function SortableRule({ id, name, index, total, onMove }: SortableRuleProps) {
         type='button'
         variant='ghost'
         size='icon-sm'
-        aria-label={`拖动${name}`}
+        aria-label={t('dragRule', { name })}
         {...attributes}
         {...listeners}
       >
@@ -92,7 +95,7 @@ function SortableRule({ id, name, index, total, onMove }: SortableRuleProps) {
         type='button'
         variant='ghost'
         size='icon-sm'
-        aria-label={`上移${name}`}
+        aria-label={t('moveUpRule', { name })}
         disabled={index === 0}
         onClick={() => onMove(index, index - 1)}
       >
@@ -102,7 +105,7 @@ function SortableRule({ id, name, index, total, onMove }: SortableRuleProps) {
         type='button'
         variant='ghost'
         size='icon-sm'
-        aria-label={`下移${name}`}
+        aria-label={t('moveDownRule', { name })}
         disabled={index === total - 1}
         onClick={() => onMove(index, index + 1)}
       >
@@ -113,6 +116,7 @@ function SortableRule({ id, name, index, total, onMove }: SortableRuleProps) {
 }
 
 export function WafSection({ route, onSavingChange }: WafSectionProps) {
+  const t = useTranslations('proxyRoutes');
   const queryClient = useQueryClient();
   const [selectedIDs, setSelectedIDs] = useState<number[]>([]);
   const sensors = useSensors(
@@ -138,7 +142,7 @@ export function WafSection({ route, onSavingChange }: WafSectionProps) {
     },
     onSuccess: async (result) => {
       setSelectedIDs(result.applied_ids);
-      toast.success('WAF 规则组已更新');
+      toast.success(t('wafUpdated'));
       await Promise.all([
         queryClient.invalidateQueries({
           queryKey: ['openflare', 'waf', 'site-rule-groups', route.id],
@@ -152,7 +156,9 @@ export function WafSection({ route, onSavingChange }: WafSectionProps) {
       ]);
     },
     onError: (error) => {
-      toast.error('保存失败', { description: getErrorMessage(error) });
+      toast.error(t('saveFailed'), {
+        description: getErrorMessage(error, t('requestFailed')),
+      });
     },
   });
 
@@ -186,15 +192,15 @@ export function WafSection({ route, onSavingChange }: WafSectionProps) {
   return (
     <SectionShell
       title='WAF'
-      description='全局规则组始终生效；这里可以为当前网站叠加自定义规则组。'
+      description={t('wafDesc')}
       formId={proxyRouteFormIds.waf}
       saving={wafMutation.isPending}
     >
       {wafQuery.isLoading ? (
-        <LoadingStateWithBorder description='加载 WAF 规则组...' />
+        <LoadingStateWithBorder description={t('loadingWaf')} />
       ) : wafQuery.isError ? (
         <ErrorInline
-          message={getErrorMessage(wafQuery.error)}
+          message={getErrorMessage(wafQuery.error, t('requestFailed'))}
           onRetry={() => void wafQuery.refetch()}
         />
       ) : (
@@ -220,16 +226,14 @@ export function WafSection({ route, onSavingChange }: WafSectionProps) {
                     {wafQuery.data.global_rule_group.name}
                   </p>
                 </div>
-                <Badge variant='outline'>始终生效</Badge>
+                <Badge variant='outline'>{t('alwaysOn')}</Badge>
               </div>
             </div>
           ) : null}
 
           <FieldSet>
-            <FieldLegend variant='label'>选择自定义规则</FieldLegend>
-            <FieldDescription>
-              选中的规则会按下方执行顺序依次运行。
-            </FieldDescription>
+            <FieldLegend variant='label'>{t('selectCustomRules')}</FieldLegend>
+            <FieldDescription>{t('selectCustomRulesDesc')}</FieldDescription>
             <FieldGroup
               data-slot='checkbox-group'
               className='grid gap-3 md:grid-cols-2'
@@ -244,7 +248,7 @@ export function WafSection({ route, onSavingChange }: WafSectionProps) {
                   >
                     <Checkbox
                       id={checkboxID}
-                      aria-label={`选择${group.name}`}
+                      aria-label={t('selectRule', { name: group.name })}
                       checked={selectedSet.has(group.id)}
                       onCheckedChange={(checked) => {
                         setSelectedIDs((current) =>
@@ -262,8 +266,8 @@ export function WafSection({ route, onSavingChange }: WafSectionProps) {
                         {group.name}
                       </span>
                       <span className='text-xs text-muted-foreground'>
-                        {group.enabled ? '启用中' : '已停用'} ·{' '}
-                        {group.graph.nodes.length} 个节点
+                        {group.enabled ? t('ruleEnabled') : t('ruleDisabled')} ·{' '}
+                        {t('nodeCount', { count: group.graph.nodes.length })}
                       </span>
                     </FieldLabel>
                   </Field>
@@ -274,9 +278,9 @@ export function WafSection({ route, onSavingChange }: WafSectionProps) {
 
           {selectedIDs.length > 0 ? (
             <div className='flex flex-col gap-2'>
-              <p className='text-sm font-medium'>执行顺序</p>
+              <p className='text-sm font-medium'>{t('executionOrder')}</p>
               <p className='text-xs text-muted-foreground'>
-                自定义规则按此顺序执行，可拖动或使用上下移动按钮调整。
+                {t('executionOrderDesc')}
               </p>
               <DndContext
                 sensors={sensors}
@@ -308,7 +312,7 @@ export function WafSection({ route, onSavingChange }: WafSectionProps) {
           ) : null}
 
           {(wafQuery.data?.rule_groups ?? []).length === 0 ? (
-            <EmptyStateWithBorder description='暂无自定义 WAF 规则组' />
+            <EmptyStateWithBorder description={t('noCustomWaf')} />
           ) : null}
         </form>
       )}

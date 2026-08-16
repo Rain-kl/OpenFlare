@@ -64,10 +64,12 @@ import {
   ImageCropReset,
 } from '@/components/ui/image-crop';
 import { toast } from 'sonner';
+import { useTranslations } from 'next-intl';
 
 export function ProfileMain() {
   const { user, loading, refetch } = useUser();
   const controls = useAnimation();
+  const t = useTranslations('settings.profile');
   const isAnimatingRef = React.useRef(false);
   const queryClient = useQueryClient();
 
@@ -109,25 +111,25 @@ export function ProfileMain() {
   const changePasswordMutation = useMutation({
     mutationFn: (req: ChangePasswordRequest) => AuthService.changePassword(req),
     onSuccess: () => {
-      toast.success('密码修改成功');
+      toast.success(t('passwordChangeSuccess'));
       setOldPassword('');
       setNewPassword('');
       setConfirmPassword('');
       void refetch();
     },
     onError: (error: Error) => {
-      toast.error(error.message || '修改密码失败，请重试');
+      toast.error(error.message || t('passwordChangeFailed'));
     },
   });
 
   const handlePasswordChange = (e: React.FormEvent) => {
     e.preventDefault();
     if (newPassword !== confirmPassword) {
-      toast.error('两次输入的新密码不一致');
+      toast.error(t('passwordMismatch'));
       return;
     }
     if (newPassword.length < 8) {
-      toast.error('新密码长度不能少于 8 位');
+      toast.error(t('passwordTooShort'));
       return;
     }
     changePasswordMutation.mutate({
@@ -139,12 +141,12 @@ export function ProfileMain() {
   const updateProfileMutation = useMutation({
     mutationFn: (req: UpdateProfileRequest) => AuthService.updateProfile(req),
     onSuccess: () => {
-      toast.success('个人信息修改成功');
+      toast.success(t('profileUpdateSuccess'));
       setIsEditDialogOpen(false);
       void refetch();
     },
     onError: (error: Error) => {
-      toast.error(error.message || '修改个人信息失败，请重试');
+      toast.error(error.message || t('profileUpdateFailed'));
     },
   });
 
@@ -185,7 +187,7 @@ export function ProfileMain() {
       window.location.href = authorize_url;
     },
     onError: (error: Error) => {
-      toast.error(error.message || '绑定认证源失败');
+      toast.error(error.message || t('bindSourceFailed'));
     },
   });
 
@@ -221,22 +223,22 @@ export function ProfileMain() {
       setAvatarUrl(`/f/${res.id}`);
       setIsCropDialogOpen(false);
       setCropFile(null);
-      toast.success('头像上传成功，点击保存以生效');
+      toast.success(t('avatarUploadSuccess'));
     } catch (err) {
-      toast.error((err as Error).message || '上传头像失败');
+      toast.error((err as Error).message || t('avatarUploadFailed'));
     }
   };
 
   const getGenderLabel = (g?: string) => {
     switch (g) {
       case 'male':
-        return '男';
+        return t('genderMale');
       case 'female':
-        return '女';
+        return t('genderFemale');
       case 'secret':
-        return '保密';
+        return t('genderSecret');
       default:
-        return g || '保密';
+        return g || t('genderSecret');
     }
   };
 
@@ -244,7 +246,7 @@ export function ProfileMain() {
     return (
       <div className='py-6 space-y-4 max-w-4xl mx-auto'>
         <div className='border-b border-border pb-4'>
-          <h1 className='text-2xl font-semibold'>个人资料</h1>
+          <h1 className='text-2xl font-semibold'>{t('title')}</h1>
         </div>
       </div>
     );
@@ -253,7 +255,7 @@ export function ProfileMain() {
   if (!user) {
     return (
       <div className='py-6 space-y-6 max-w-4xl mx-auto'>
-        <div className='text-sm text-muted-foreground'>未找到用户信息</div>
+        <div className='text-sm text-muted-foreground'>{t('userNotFound')}</div>
       </div>
     );
   }
@@ -266,14 +268,14 @@ export function ProfileMain() {
             <BreadcrumbItem>
               <BreadcrumbLink asChild>
                 <Link href='/settings' className='text-base text-primary'>
-                  设置
+                  {t('breadcrumbSettings')}
                 </Link>
               </BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbSeparator />
             <BreadcrumbItem>
               <BreadcrumbPage className='text-base font-semibold'>
-                个人资料
+                {t('breadcrumbProfile')}
               </BreadcrumbPage>
             </BreadcrumbItem>
           </BreadcrumbList>
@@ -284,9 +286,11 @@ export function ProfileMain() {
       <div className='space-y-6 bg-card border border-dashed rounded-lg p-6'>
         <div className='border-b pb-4 flex justify-between items-center'>
           <div>
-            <h2 className='text-lg font-semibold tracking-tight'>基本资料</h2>
+            <h2 className='text-lg font-semibold tracking-tight'>
+              {t('basicInfo')}
+            </h2>
             <p className='text-xs text-muted-foreground'>
-              您的个人账户基本信息
+              {t('basicInfoDesc')}
             </p>
           </div>
           <Button
@@ -296,7 +300,7 @@ export function ProfileMain() {
             onClick={() => setIsEditDialogOpen(true)}
           >
             <Edit className='size-3.5 mr-1.5' />
-            编辑资料
+            {t('editProfile')}
           </Button>
         </div>
 
@@ -323,7 +327,7 @@ export function ProfileMain() {
               <div className='space-y-1'>
                 <div className='text-xs text-muted-foreground flex items-center gap-1.5'>
                   <UserIcon className='size-3 text-muted-foreground/70' />
-                  账户
+                  {t('account')}
                 </div>
                 <div className='text-sm font-semibold'>@{user.username}</div>
               </div>
@@ -331,17 +335,17 @@ export function ProfileMain() {
               <div className='space-y-1'>
                 <div className='text-xs text-muted-foreground flex items-center gap-1.5'>
                   <UserIcon className='size-3 text-muted-foreground/70' />
-                  昵称
+                  {t('nickname')}
                 </div>
                 <div className='text-sm font-semibold'>
-                  {user.nickname || '未设置'}
+                  {user.nickname || t('notSet')}
                 </div>
               </div>
 
               <div className='space-y-1'>
                 <div className='text-xs text-muted-foreground flex items-center gap-1.5'>
                   <Info className='size-3 text-muted-foreground/70' />
-                  用户ID (UID)
+                  {t('uid')}
                 </div>
                 <div className='text-sm font-mono font-semibold'>{user.id}</div>
               </div>
@@ -349,27 +353,27 @@ export function ProfileMain() {
               <div className='space-y-1'>
                 <div className='text-xs text-muted-foreground flex items-center gap-1.5'>
                   <Mail className='size-3 text-muted-foreground/70' />
-                  邮箱
+                  {t('email')}
                 </div>
                 <div className='text-sm font-semibold truncate max-w-[220px]'>
-                  {user.email || '未绑定'}
+                  {user.email || t('notBound')}
                 </div>
               </div>
 
               <div className='space-y-1'>
                 <div className='text-xs text-muted-foreground flex items-center gap-1.5'>
                   <Phone className='size-3 text-muted-foreground/70' />
-                  手机号码
+                  {t('phone')}
                 </div>
                 <div className='text-sm font-semibold'>
-                  {user.phone || '未设置'}
+                  {user.phone || t('notSet')}
                 </div>
               </div>
 
               <div className='space-y-1'>
                 <div className='text-xs text-muted-foreground flex items-center gap-1.5'>
                   <UserIcon className='size-3 text-muted-foreground/70' />
-                  性别
+                  {t('gender')}
                 </div>
                 <div className='text-sm font-semibold'>
                   {getGenderLabel(user.gender)}
@@ -379,7 +383,7 @@ export function ProfileMain() {
               <div className='space-y-1'>
                 <div className='text-xs text-muted-foreground flex items-center gap-1.5'>
                   <Globe className='size-3 text-muted-foreground/70' />
-                  个人网站
+                  {t('website')}
                 </div>
                 <div className='text-sm font-semibold truncate max-w-[220px]'>
                   {user.website ? (
@@ -396,7 +400,7 @@ export function ProfileMain() {
                       {user.website}
                     </a>
                   ) : (
-                    '未设置'
+                    t('notSet')
                   )}
                 </div>
               </div>
@@ -404,25 +408,26 @@ export function ProfileMain() {
               <div className='space-y-1'>
                 <div className='text-xs text-muted-foreground flex items-center gap-1.5'>
                   <MapPin className='size-3 text-muted-foreground/70' />
-                  所在地
+                  {t('location')}
                 </div>
                 <div className='text-sm font-semibold'>
-                  {user.location || '未设置'}
+                  {user.location || t('notSet')}
                 </div>
               </div>
 
               <div className='space-y-1'>
                 <div className='text-xs text-muted-foreground flex items-center gap-1.5'>
                   <Shield className='size-3 text-muted-foreground/70' />
-                  管理员身份
+                  {t('isAdmin')}
                 </div>
                 <div className='text-sm font-semibold flex items-center gap-1'>
                   {user.is_admin ? (
                     <span className='text-rose-600 flex items-center gap-1'>
-                      <Shield className='size-3.5' />是
+                      <Shield className='size-3.5' />
+                      {t('yes')}
                     </span>
                   ) : (
-                    <span>否</span>
+                    <span>{t('no')}</span>
                   )}
                 </div>
               </div>
@@ -433,10 +438,10 @@ export function ProfileMain() {
             <div className='space-y-1'>
               <div className='text-xs text-muted-foreground flex items-center gap-1.5'>
                 <BookOpen className='size-3 text-muted-foreground/70' />
-                个人简介
+                {t('bio')}
               </div>
               <div className='text-sm text-foreground/80 leading-relaxed max-w-2xl bg-muted/20 border border-dashed rounded-lg p-3'>
-                {user.bio || '这个人很懒，什么都没有留下。'}
+                {user.bio || t('bioDefault')}
               </div>
             </div>
           </div>
@@ -454,10 +459,10 @@ export function ProfileMain() {
               </div>
               <div>
                 <h2 className='text-base font-semibold tracking-tight'>
-                  修改密码
+                  {t('changePassword')}
                 </h2>
                 <p className='text-[11px] text-muted-foreground'>
-                  更改您的账号密码以确保安全。密码长度不能少于 8 位。
+                  {t('changePasswordDesc')}
                 </p>
               </div>
             </div>
@@ -466,9 +471,9 @@ export function ProfileMain() {
               <div className='mt-4 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3.5 py-2.5 text-xs text-amber-500 flex items-start gap-2.5'>
                 <Info className='size-4 shrink-0 mt-0.5' />
                 <div>
-                  <p className='font-semibold'>密码风险提示</p>
+                  <p className='font-semibold'>{t('passwordRiskWarning')}</p>
                   <p className='mt-0.5 text-amber-500/80 leading-relaxed font-normal'>
-                    为了账号安全，您必须修改初始密码。
+                    {t('mustChangePassword')}
                   </p>
                 </div>
               </div>
@@ -477,11 +482,11 @@ export function ProfileMain() {
             <form onSubmit={handlePasswordChange} className='space-y-3 pt-4'>
               <div className='space-y-1.5'>
                 <label className='text-xs font-medium text-muted-foreground'>
-                  当前密码
+                  {t('currentPassword')}
                 </label>
                 <Input
                   type='password'
-                  placeholder='请输入当前密码'
+                  placeholder={t('currentPasswordPlaceholder')}
                   value={oldPassword}
                   onChange={(e) => setOldPassword(e.target.value)}
                   className='h-8 text-xs rounded-lg'
@@ -490,11 +495,11 @@ export function ProfileMain() {
               </div>
               <div className='space-y-1.5'>
                 <label className='text-xs font-medium text-muted-foreground'>
-                  新密码
+                  {t('newPassword')}
                 </label>
                 <Input
                   type='password'
-                  placeholder='新密码（至少 8 位）'
+                  placeholder={t('newPasswordPlaceholder')}
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   className='h-8 text-xs rounded-lg'
@@ -503,11 +508,11 @@ export function ProfileMain() {
               </div>
               <div className='space-y-1.5'>
                 <label className='text-xs font-medium text-muted-foreground'>
-                  确认新密码
+                  {t('confirmNewPassword')}
                 </label>
                 <Input
                   type='password'
-                  placeholder='确认新密码'
+                  placeholder={t('confirmNewPasswordPlaceholder')}
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   className='h-8 text-xs rounded-lg'
@@ -522,7 +527,9 @@ export function ProfileMain() {
                   className='w-full sm:w-auto h-8 text-xs'
                   disabled={changePasswordMutation.isPending}
                 >
-                  {changePasswordMutation.isPending ? '提交中...' : '确认修改'}
+                  {changePasswordMutation.isPending
+                    ? t('submitting')
+                    : t('confirmChange')}
                 </Button>
               </div>
             </form>
@@ -538,10 +545,10 @@ export function ProfileMain() {
               </div>
               <div>
                 <h2 className='text-base font-semibold tracking-tight'>
-                  第三方账号绑定
+                  {t('thirdPartyBinding')}
                 </h2>
                 <p className='text-[11px] text-muted-foreground'>
-                  管理并关联您的第三方授权账户，便于快捷登录与验证
+                  {t('thirdPartyBindingDesc')}
                 </p>
               </div>
             </div>
@@ -549,7 +556,7 @@ export function ProfileMain() {
             {/* 已绑定账号列表 */}
             <div className='space-y-2 pt-4'>
               <h3 className='text-[11px] font-semibold text-muted-foreground uppercase tracking-wider'>
-                已绑定账号
+                {t('boundAccounts')}
               </h3>
               {externalAccountBindingsQuery.isPending ? (
                 <div className='flex items-center justify-center py-4'>
@@ -569,7 +576,7 @@ export function ProfileMain() {
                         <span className='text-[10px] text-muted-foreground font-mono block truncate max-w-[150px]'>
                           {binding.external_username ||
                             binding.email ||
-                            '未提供账号标识'}
+                            t('noAccountIdentifier')}
                         </span>
                       </div>
                       <Button
@@ -584,11 +591,11 @@ export function ProfileMain() {
                           await queryClient.invalidateQueries({
                             queryKey: ['auth', 'external-accounts'],
                           });
-                          toast.success('绑定已移除');
+                          toast.success(t('bindingRemoved'));
                         }}
                       >
                         <Unlink className='size-3 mr-1' />
-                        解绑
+                        {t('unbind')}
                       </Button>
                     </div>
                   ))}
@@ -596,7 +603,7 @@ export function ProfileMain() {
               ) : (
                 <div className='rounded-xl border border-dashed border-border/50 px-4 py-6 text-center text-[11px] text-muted-foreground bg-muted/5 flex flex-col items-center justify-center'>
                   <Link2 className='size-5 text-muted-foreground/30 mb-1' />
-                  暂无绑定的第三方账号
+                  {t('noBoundAccounts')}
                 </div>
               )}
             </div>
@@ -606,7 +613,7 @@ export function ProfileMain() {
             {/* 绑定新账号列表 */}
             <div className='space-y-2'>
               <h3 className='text-[11px] font-semibold text-muted-foreground uppercase tracking-wider'>
-                绑定新账号
+                {t('bindNewAccount')}
               </h3>
               {publicAuthSourcesQuery.isPending ? (
                 <div className='flex items-center justify-center py-4'>
@@ -626,7 +633,11 @@ export function ProfileMain() {
                     >
                       <div className='flex items-center gap-1.5'>
                         <Link2 className='size-3 text-muted-foreground group-hover:text-primary' />
-                        <span>绑定 {source.display_name || source.name}</span>
+                        <span>
+                          {t('bindSource', {
+                            name: source.display_name || source.name,
+                          })}
+                        </span>
                       </div>
                       <ArrowRight className='size-3 opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all text-primary' />
                     </Button>
@@ -634,7 +645,7 @@ export function ProfileMain() {
                 </div>
               ) : (
                 <div className='text-[11px] text-muted-foreground text-center py-2'>
-                  暂无可用第三方认证源
+                  {t('noAvailableSources')}
                 </div>
               )}
             </div>
@@ -646,10 +657,8 @@ export function ProfileMain() {
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent className='max-w-md'>
           <DialogHeader>
-            <DialogTitle>编辑个人资料</DialogTitle>
-            <DialogDescription>
-              修改您的基本信息，保存后立即生效。
-            </DialogDescription>
+            <DialogTitle>{t('editProfileTitle')}</DialogTitle>
+            <DialogDescription>{t('editProfileDesc')}</DialogDescription>
           </DialogHeader>
 
           <form onSubmit={handleProfileSubmit} className='space-y-4'>
@@ -670,7 +679,7 @@ export function ProfileMain() {
                 </div>
               </div>
               <span className='text-[10px] text-muted-foreground'>
-                点击上传/修改头像
+                {t('uploadAvatar')}
               </span>
               <input
                 type='file'
@@ -684,21 +693,21 @@ export function ProfileMain() {
             <div className='grid grid-cols-2 gap-3'>
               <div className='space-y-1'>
                 <Label htmlFor='nickname' className='text-xs'>
-                  昵称
+                  {t('nickname')}
                 </Label>
                 <Input
                   id='nickname'
                   value={nickname}
                   onChange={(e) => setNickname(e.target.value)}
                   className='h-8 text-xs rounded-lg'
-                  placeholder='请输入您的昵称'
+                  placeholder={t('nicknamePlaceholder')}
                   required
                 />
               </div>
 
               <div className='space-y-1'>
                 <Label htmlFor='email' className='text-xs'>
-                  邮箱
+                  {t('email')}
                 </Label>
                 <Input
                   id='email'
@@ -706,26 +715,26 @@ export function ProfileMain() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className='h-8 text-xs rounded-lg'
-                  placeholder='请输入您的邮箱'
+                  placeholder={t('emailPlaceholder')}
                 />
               </div>
 
               <div className='space-y-1'>
                 <Label htmlFor='phone' className='text-xs'>
-                  手机号码
+                  {t('phone')}
                 </Label>
                 <Input
                   id='phone'
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   className='h-8 text-xs rounded-lg'
-                  placeholder='请输入手机号'
+                  placeholder={t('phonePlaceholder')}
                 />
               </div>
 
               <div className='space-y-1'>
                 <Label htmlFor='gender' className='text-xs'>
-                  性别
+                  {t('gender')}
                 </Label>
                 <Select value={gender} onValueChange={setGender}>
                   <SelectTrigger
@@ -733,19 +742,19 @@ export function ProfileMain() {
                     size='sm'
                     className='w-full text-xs h-8'
                   >
-                    <SelectValue placeholder='选择性别' />
+                    <SelectValue placeholder={t('genderPlaceholder')} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value='male'>男</SelectItem>
-                    <SelectItem value='female'>女</SelectItem>
-                    <SelectItem value='secret'>保密</SelectItem>
+                    <SelectItem value='male'>{t('genderMale')}</SelectItem>
+                    <SelectItem value='female'>{t('genderFemale')}</SelectItem>
+                    <SelectItem value='secret'>{t('genderSecret')}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
               <div className='space-y-1'>
                 <Label htmlFor='website' className='text-xs'>
-                  个人网站
+                  {t('website')}
                 </Label>
                 <Input
                   id='website'
@@ -758,28 +767,28 @@ export function ProfileMain() {
 
               <div className='space-y-1'>
                 <Label htmlFor='location' className='text-xs'>
-                  所在地
+                  {t('location')}
                 </Label>
                 <Input
                   id='location'
                   value={location}
                   onChange={(e) => setLocation(e.target.value)}
                   className='h-8 text-xs rounded-lg'
-                  placeholder='如：北京'
+                  placeholder={t('locationPlaceholder')}
                 />
               </div>
             </div>
 
             <div className='space-y-1'>
               <Label htmlFor='bio' className='text-xs'>
-                个人简介
+                {t('bio')}
               </Label>
               <Textarea
                 id='bio'
                 value={bio}
                 onChange={(e) => setBio(e.target.value)}
                 className='text-xs min-h-[60px] rounded-lg'
-                placeholder='介绍一下自己吧...'
+                placeholder={t('bioPlaceholder')}
               />
             </div>
 
@@ -791,7 +800,7 @@ export function ProfileMain() {
                 className='h-8 text-xs'
                 onClick={() => setIsEditDialogOpen(false)}
               >
-                取消
+                {t('cancel')}
               </Button>
               <Button
                 type='submit'
@@ -799,7 +808,9 @@ export function ProfileMain() {
                 className='h-8 text-xs'
                 disabled={updateProfileMutation.isPending}
               >
-                {updateProfileMutation.isPending ? '保存中...' : '保存修改'}
+                {updateProfileMutation.isPending
+                  ? t('saving')
+                  : t('saveChanges')}
               </Button>
             </DialogFooter>
           </form>
@@ -810,10 +821,8 @@ export function ProfileMain() {
       <Dialog open={isCropDialogOpen} onOpenChange={setIsCropDialogOpen}>
         <DialogContent className='max-w-md'>
           <DialogHeader>
-            <DialogTitle>裁剪头像</DialogTitle>
-            <DialogDescription>
-              调整头像位置和大小，使其处于居中圆形区域内。
-            </DialogDescription>
+            <DialogTitle>{t('cropAvatar')}</DialogTitle>
+            <DialogDescription>{t('cropAvatarDesc')}</DialogDescription>
           </DialogHeader>
 
           {cropFile && (
@@ -839,7 +848,7 @@ export function ProfileMain() {
                 setCropFile(null);
               }}
             >
-              取消
+              {t('cancel')}
             </Button>
           </DialogFooter>
         </DialogContent>

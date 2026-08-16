@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 
 import {
@@ -93,6 +94,8 @@ export function PagesSourceDialog({
   initialMode,
   onActionDispatched,
 }: PagesSourceDialogProps) {
+  const t = useTranslations('pages.source');
+  const tCommon = useTranslations('common');
   const queryClient = useQueryClient();
   const [mode, setMode] = useState<PagesSourceMode>('manual');
   const [allowInsecure, setAllowInsecure] = useState(false);
@@ -181,13 +184,13 @@ export function PagesSourceDialog({
       queryClient.setQueryData(sourceQueryKey(projectId), result.source);
       if (result.check_task) onActionDispatched?.(result.check_task);
       await invalidateSourceState();
-      toast.success('部署源已更新');
+      toast.success(t('updated'));
       if (result.warning) toast.warning(result.warning);
       setConfirmation(null);
       onOpenChange(false);
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : '部署源更新失败');
+      toast.error(error instanceof Error ? error.message : t('updateFailed'));
     },
   });
 
@@ -196,12 +199,12 @@ export function PagesSourceDialog({
     onSuccess: async (manualSource) => {
       queryClient.setQueryData(sourceQueryKey(projectId), manualSource);
       await invalidateSourceState();
-      toast.success('已切换回手动部署');
+      toast.success(t('switchedManual'));
       setConfirmation(null);
       onOpenChange(false);
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : '切换失败');
+      toast.error(error instanceof Error ? error.message : t('switchFailed'));
     },
   });
 
@@ -216,14 +219,14 @@ export function PagesSourceDialog({
   const submitRemote = () => {
     const value = remoteURL.trim();
     if (!value) {
-      setURLError('请输入 Remote URL');
+      setURLError(t('urlRequired'));
       return;
     }
     try {
       const parsed = new URL(value);
       if (!['http:', 'https:'].includes(parsed.protocol)) throw new Error();
     } catch {
-      setURLError('请输入有效的 HTTP(S) URL');
+      setURLError(t('urlInvalid'));
       return;
     }
     setURLError('');
@@ -236,22 +239,22 @@ export function PagesSourceDialog({
       normalizedRepositoryURL,
     )
       ? ''
-      : '请输入 https://github.com/{owner}/{repo} 格式的公开仓库地址';
+      : t('githubUrlInvalid');
     const nextReleaseTagError =
       githubForm.releaseSelector === 'tag' &&
       !validGitHubReleaseTag(githubForm.releaseTag)
-        ? 'Release tag 须为有效 Git ref（1–255 字节，可使用 /、#、&、=）'
+        ? t('tagInvalid')
         : '';
     const nextAssetNameError = validGitHubAssetName(githubForm.assetName)
       ? ''
-      : 'Asset 文件名须为 1–255 字节，且不能是路径或包含控制、换行、双向文本字符';
+      : t('assetInvalid');
     const checkIntervalMinutes = Number(githubForm.checkIntervalMinutes);
     const nextCheckIntervalError =
       githubForm.releaseSelector === 'latest' &&
       (!Number.isInteger(checkIntervalMinutes) ||
         checkIntervalMinutes < 5 ||
         checkIntervalMinutes > 1440)
-        ? '检查间隔须为 5–1440 分钟的整数'
+        ? t('intervalInvalid')
         : '';
 
     setGitHubErrors({
@@ -311,10 +314,10 @@ export function PagesSourceDialog({
 
   const submitLabel =
     mode === 'manual'
-      ? '使用手动部署'
+      ? t('useManual')
       : mode === 'remote_url'
-        ? '保存 Remote 来源'
-        : '保存 GitHub 来源';
+        ? t('saveRemote')
+        : t('saveGithub');
 
   return (
     <>
@@ -326,13 +329,13 @@ export function PagesSourceDialog({
       >
         <DialogContent className='sm:max-w-xl'>
           <DialogHeader>
-            <DialogTitle>部署源设置</DialogTitle>
-            <DialogDescription>选择部署来源。</DialogDescription>
+            <DialogTitle>{t('settingsTitle')}</DialogTitle>
+            <DialogDescription>{t('settingsDesc')}</DialogDescription>
           </DialogHeader>
 
           <FieldGroup>
             <Field>
-              <FieldTitle id='pages-source-mode'>来源类型</FieldTitle>
+              <FieldTitle id='pages-source-mode'>{t('mode')}</FieldTitle>
               <ToggleGroup
                 type='single'
                 variant='outline'
@@ -355,7 +358,7 @@ export function PagesSourceDialog({
                 }}
               >
                 <ToggleGroupItem value='manual' className='w-full'>
-                  手动部署
+                  {t('manual')}
                 </ToggleGroupItem>
                 <ToggleGroupItem value='remote_url' className='w-full'>
                   Remote URL
@@ -368,9 +371,9 @@ export function PagesSourceDialog({
 
             {mode === 'manual' ? (
               <Field>
-                <FieldLabel>手动部署</FieldLabel>
+                <FieldLabel>{t('manual')}</FieldLabel>
                 <div className='rounded-lg border bg-muted/20 p-4 text-sm text-muted-foreground'>
-                  保留现有部署与当前生产版本，后续通过“上传部署包”创建新部署。
+                  {t('manualHint')}
                 </div>
               </Field>
             ) : mode === 'remote_url' ? (
@@ -390,22 +393,21 @@ export function PagesSourceDialog({
                     }}
                   />
                   <FieldDescription>
-                    {urlError || '填写可直接下载的部署包 HTTP(S) 地址。'}
+                    {urlError || t('urlHint')}
                   </FieldDescription>
                 </Field>
 
                 <div className='flex items-center justify-between rounded-lg border border-dashed px-4 py-3'>
                   <div className='space-y-1 pr-4'>
-                    <p className='text-sm font-medium'>允许不安全的连接</p>
+                    <p className='text-sm font-medium'>{t('allowInsecure')}</p>
                     <p className='text-xs text-muted-foreground'>
-                      默认允许公网与内网地址；开启后跳过 TLS
-                      证书校验，适用于自签名或私有 CA。
+                      {t('allowInsecureDesc')}
                     </p>
                   </div>
                   <Switch
                     checked={allowInsecure}
                     onCheckedChange={setAllowInsecure}
-                    aria-label='允许不安全的连接'
+                    aria-label={t('allowInsecure')}
                   />
                 </div>
               </>
@@ -427,7 +429,7 @@ export function PagesSourceDialog({
               disabled={isPending}
               onClick={() => onOpenChange(false)}
             >
-              取消
+              {tCommon('cancel')}
             </Button>
             <Button type='button' disabled={isPending} onClick={handleSubmit}>
               {isPending ? <Spinner data-icon='inline-start' /> : null}
@@ -445,13 +447,15 @@ export function PagesSourceDialog({
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>切换回手动部署</AlertDialogTitle>
+            <AlertDialogTitle>{t('switchManualTitle')}</AlertDialogTitle>
             <AlertDialogDescription>
-              当前来源配置将被删除，但已有部署与当前生产版本会保留。
+              {t('switchManualDesc')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isPending}>取消</AlertDialogCancel>
+            <AlertDialogCancel disabled={isPending}>
+              {tCommon('cancel')}
+            </AlertDialogCancel>
             <AlertDialogAction
               disabled={isPending}
               onClick={(event) => {
@@ -462,7 +466,7 @@ export function PagesSourceDialog({
               }}
             >
               {isPending ? <Spinner data-icon='inline-start' /> : null}
-              确认
+              {tCommon('confirm')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

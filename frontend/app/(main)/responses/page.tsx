@@ -14,6 +14,8 @@ import { OptionService } from '@/lib/services/openflare';
 
 import { ErrorPageTab } from './components/error-page-tab';
 import { OfflinePageTab } from './components/offline-page-tab';
+import { useTranslations } from 'next-intl';
+
 import { OPTIONS_QUERY_KEY, optionsToMap } from './components/shared';
 
 type ResponseTab = 'error' | 'offline';
@@ -26,6 +28,7 @@ function resolveTab(tabParam: string | null): ResponseTab {
 }
 
 function ResponsesPageContent() {
+  const t = useTranslations('responses');
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -62,7 +65,7 @@ function ResponsesPageContent() {
       <div className='w-full py-6 px-1'>
         <LoadingStateWithBorder
           icon={MessageSquareText}
-          description='加载权限信息...'
+          description={t('loadingPermission')}
         />
       </div>
     );
@@ -73,8 +76,8 @@ function ResponsesPageContent() {
       <div className='w-full py-6 px-1'>
         <EmptyStateWithBorder
           icon={MessageSquareText}
-          title='权限不足'
-          description='只有管理员可以访问响应页面设置。'
+          title={t('forbidden')}
+          description={t('forbiddenSettings')}
         />
       </div>
     );
@@ -85,7 +88,7 @@ function ResponsesPageContent() {
       <div className='w-full py-6 px-1'>
         <LoadingStateWithBorder
           icon={MessageSquareText}
-          description='加载响应页面配置...'
+          description={t('loadingConfig')}
         />
       </div>
     );
@@ -98,7 +101,7 @@ function ResponsesPageContent() {
           message={
             optionsQuery.error instanceof Error
               ? optionsQuery.error.message
-              : '加载失败'
+              : t('loadFailed')
           }
           onRetry={() => void optionsQuery.refetch()}
         />
@@ -113,10 +116,8 @@ function ResponsesPageContent() {
       <div className='flex items-center gap-2'>
         <MessageSquareText className='size-5 text-primary' />
         <div>
-          <h1 className='text-2xl font-semibold tracking-tight'>响应页面</h1>
-          <p className='text-sm text-muted-foreground'>
-            配置源站错误页与离线页。
-          </p>
+          <h1 className='text-2xl font-semibold tracking-tight'>{t('title')}</h1>
+          <p className='text-sm text-muted-foreground'>{t('subtitle')}</p>
         </div>
       </div>
 
@@ -130,13 +131,13 @@ function ResponsesPageContent() {
             value='error'
             className='px-0 pb-2 text-xs font-semibold'
           >
-            错误页
+            {t('errorPage')}
           </TabsTrigger>
           <TabsTrigger
             value='offline'
             className='px-0 pb-2 text-xs font-semibold'
           >
-            离线页
+            {t('offlinePage')}
           </TabsTrigger>
         </TabsList>
 
@@ -153,13 +154,14 @@ function ResponsesPageContent() {
 }
 
 export default function ResponsesPage() {
+  const t = useTranslations('responses');
   return (
     <Suspense
       fallback={
         <div className='w-full py-6 px-1'>
           <LoadingStateWithBorder
             icon={MessageSquareText}
-            description='加载响应页面...'
+            description={t('loadingPage')}
           />
         </div>
       }

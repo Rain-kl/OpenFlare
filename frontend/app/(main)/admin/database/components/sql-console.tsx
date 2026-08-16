@@ -6,6 +6,7 @@ import { useTheme } from 'next-themes';
 import CodeMirror from '@uiw/react-codemirror';
 import { sql } from '@codemirror/lang-sql';
 import { toast } from 'sonner';
+import { useTranslations } from 'next-intl';
 import { ArrowLeft, Play, RefreshCw, Terminal, Trash2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -49,6 +50,7 @@ interface SQLConsoleProps {
 }
 
 export function SQLConsole({ dbType, onClose }: SQLConsoleProps) {
+  const t = useTranslations('admin.database.sql');
   // SQL 控制台状态
   const [sqlQuery, setSqlQuery] = useState<string>('');
   const [executingSQL, setExecutingSQL] = useState<boolean>(false);
@@ -97,10 +99,10 @@ export function SQLConsole({ dbType, onClose }: SQLConsoleProps) {
     try {
       const result = await DbManageService.executeSQL(sqlQuery);
       setSqlResult(result);
-      toast.success('SQL 执行成功');
+      toast.success(t('sqlExecSuccess'));
     } catch (err) {
-      setSqlError(err instanceof Error ? err.message : '未知执行错误');
-      toast.error('SQL 执行失败');
+      setSqlError(err instanceof Error ? err.message : t('unknownExecError'));
+      toast.error(t('sqlExecFailed'));
     } finally {
       setExecutingSQL(false);
     }
@@ -134,7 +136,7 @@ export function SQLConsole({ dbType, onClose }: SQLConsoleProps) {
             <Terminal className='size-5 text-primary' />
             <div>
               <h1 className='text-2xl font-semibold tracking-tight'>
-                SQL 查询终端
+                {t('sqlQueryTerminal')}
               </h1>
             </div>
           </div>
@@ -153,34 +155,34 @@ export function SQLConsole({ dbType, onClose }: SQLConsoleProps) {
         <div className='flex items-center justify-between px-4 py-2 border-b bg-muted/40 shrink-0 gap-4 flex-wrap'>
           <div className='flex items-center gap-2'>
             <Terminal className='size-4 text-primary' />
-            <span className='text-xs font-semibold'>SQL 编辑器</span>
+            <span className='text-xs font-semibold'>{t('sqlEditor')}</span>
           </div>
 
           <div className='flex items-center gap-3 flex-wrap'>
             {/* 快速模板 */}
             <div className='flex items-center gap-1.5'>
               <span className='text-[11px] text-muted-foreground'>
-                快速模板:
+                {t('quickTemplates')}
               </span>
               <Select onValueChange={handlePresetSQLChange}>
                 <SelectTrigger className='h-7 w-[180px] text-[11px] bg-background'>
-                  <SelectValue placeholder='选择预设 SQL' />
+                  <SelectValue placeholder={t('selectPresetSQL')} />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value='SELECT * FROM users LIMIT 10;'>
-                    查询用户 (SELECT users)
+                    {t('queryUsers')}
                   </SelectItem>
                   <SelectItem value='SELECT * FROM uploads LIMIT 10;'>
-                    查询文件 (SELECT uploads)
+                    {t('queryFiles')}
                   </SelectItem>
                   <SelectItem value='SELECT * FROM task_executions ORDER BY created_at DESC LIMIT 10;'>
-                    查询任务流水 (SELECT task_executions)
+                    {t('queryTaskExecutions')}
                   </SelectItem>
                   <SelectItem value='SELECT sqlite_version();'>
-                    SQLite 版本 (SQLite only)
+                    {t('sqliteVersion')}
                   </SelectItem>
                   <SelectItem value='SELECT version();'>
-                    PostgreSQL 版本 (Postgres only)
+                    {t('postgresVersion')}
                   </SelectItem>
                 </SelectContent>
               </Select>
@@ -193,7 +195,7 @@ export function SQLConsole({ dbType, onClose }: SQLConsoleProps) {
                 size='icon'
                 className='h-7 w-7 text-muted-foreground hover:text-foreground'
                 onClick={() => setSqlQuery('')}
-                title='清空编辑器'
+                title={t('clearEditor')}
               >
                 <Trash2 className='size-3.5' />
               </Button>
@@ -204,7 +206,7 @@ export function SQLConsole({ dbType, onClose }: SQLConsoleProps) {
                 disabled={executingSQL || !sqlQuery.trim()}
               >
                 <Play className='size-3' />
-                {executingSQL ? '运行中...' : '运行'}
+                {executingSQL ? t('running') : t('run')}
               </Button>
             </div>
           </div>
@@ -236,7 +238,7 @@ export function SQLConsole({ dbType, onClose }: SQLConsoleProps) {
         <div
           onMouseDown={handleMouseDown}
           className='h-1.5 bg-border/60 hover:bg-primary/50 cursor-row-resize transition-colors flex items-center justify-center shrink-0 select-none z-10'
-          title='拖动调整大小'
+          title={t('dragResize')}
         >
           <div className='w-8 h-1 rounded bg-muted-foreground/30' />
         </div>
@@ -245,10 +247,10 @@ export function SQLConsole({ dbType, onClose }: SQLConsoleProps) {
         <div className='flex-1 min-h-[100px] flex flex-col overflow-hidden bg-muted/10'>
           {/* 结果栏工具提示 */}
           <div className='flex items-center justify-between px-4 py-1.5 border-b bg-muted/20 shrink-0 text-[11px] text-muted-foreground font-mono'>
-            <span className='font-semibold'>执行输出</span>
+            <span className='font-semibold'>{t('executionOutput')}</span>
             {sqlResult && (
               <span>
-                类型: {sqlResult.type.toUpperCase()} | 耗时:{' '}
+                {t('type')}: {sqlResult.type.toUpperCase()} | {t('duration')}:{' '}
                 {sqlResult.execution_time_ms} ms
               </span>
             )}
@@ -260,14 +262,14 @@ export function SQLConsole({ dbType, onClose }: SQLConsoleProps) {
               <div className='flex flex-col items-center justify-center h-full py-10 space-y-2'>
                 <RefreshCw className='size-5 text-primary animate-spin' />
                 <span className='text-xs text-muted-foreground'>
-                  正在在数据库执行查询，请稍候...
+                  {t('executingQuery')}
                 </span>
               </div>
             )}
 
             {sqlError && (
               <div className='bg-destructive/10 border border-destructive/20 text-destructive font-mono text-xs p-4 rounded-lg overflow-auto h-full max-h-[300px]'>
-                <p className='font-semibold mb-1'>SQL 执行报错 (Error):</p>
+                <p className='font-semibold mb-1'>{t('execErrorTitle')}</p>
                 <pre className='whitespace-pre-wrap'>{sqlError}</pre>
               </div>
             )}
@@ -319,7 +321,7 @@ export function SQLConsole({ dbType, onClose }: SQLConsoleProps) {
                                 colSpan={sqlResult.columns.length}
                                 className='text-center py-10 text-muted-foreground'
                               >
-                                查询结果为空
+                                {t('queryResultEmpty')}
                               </TableCell>
                             </TableRow>
                           )}
@@ -331,11 +333,13 @@ export function SQLConsole({ dbType, onClose }: SQLConsoleProps) {
                 {sqlResult.type === 'exec' && (
                   <div className='bg-primary/5 border border-primary/10 text-primary-foreground font-mono text-xs p-6 rounded-lg text-center my-auto'>
                     <p className='text-foreground text-sm font-semibold'>
-                      SQL 执行成功
+                      {t('sqlExecSuccessTitle')}
                     </p>
                     <p className='text-muted-foreground mt-2'>
-                      受影响行数: {sqlResult.affected_rows} 行，耗时{' '}
-                      {sqlResult.execution_time_ms} 毫秒。
+                      {t('affectedRows', {
+                        rows: sqlResult.affected_rows,
+                        ms: sqlResult.execution_time_ms,
+                      })}
                     </p>
                   </div>
                 )}
@@ -346,7 +350,7 @@ export function SQLConsole({ dbType, onClose }: SQLConsoleProps) {
               <div className='flex flex-col items-center justify-center h-full py-10 text-muted-foreground opacity-60'>
                 <Terminal className='size-8 mb-2' />
                 <span className='text-xs'>
-                  编辑器就绪，请在上方编写 SQL 并运行查看结果
+                  {t('editorReady')}
                 </span>
               </div>
             )}

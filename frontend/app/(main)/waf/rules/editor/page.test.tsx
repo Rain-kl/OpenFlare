@@ -7,9 +7,12 @@ import {
   waitFor,
 } from '@testing-library/react';
 import { AxiosError, type AxiosResponse } from 'axios';
+import { NextIntlClientProvider } from 'next-intl';
 import { beforeEach, expect, it, vi } from 'vitest';
 
 import type { WAFRule, WAFRuleGraph } from '@/lib/services';
+import mainZh from '@/messages/zh-CN.json';
+import securityZh from '@/messages/fragments/security.zh-CN.json';
 
 import WAFRuleEditorPage from './page';
 
@@ -105,9 +108,15 @@ function renderPage() {
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
   return render(
-    <QueryClientProvider client={client}>
-      <WAFRuleEditorPage />
-    </QueryClientProvider>,
+    <NextIntlClientProvider
+      locale='zh-CN'
+      messages={{ ...mainZh, ...securityZh }}
+      timeZone='Asia/Shanghai'
+    >
+      <QueryClientProvider client={client}>
+        <WAFRuleEditorPage />
+      </QueryClientProvider>
+    </NextIntlClientProvider>,
   );
 }
 

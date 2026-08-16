@@ -4,6 +4,7 @@ import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
 import { ArrowLeft, GitBranch, Save } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 
@@ -49,6 +50,9 @@ export default function WAFRuleEditorPage() {
 }
 
 function EditorContent() {
+  const t = useTranslations('waf.editor');
+  const tWaf = useTranslations('waf');
+  const tCommon = useTranslations('common');
   const router = useRouter();
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
@@ -89,12 +93,12 @@ function EditorContent() {
       setDirty(false);
       setConflict(false);
       queryClient.setQueryData(['waf-rule', id], rule);
-      toast.success('规则图已保存');
+      toast.success(t('saved'));
     },
     onError: (error) => {
       if (axios.isAxiosError(error) && error.response?.status === 409) {
         setConflict(true);
-        toast.error('规则已在其他页面更新，请重新加载');
+        toast.error(t('conflict'));
         return;
       }
       const payload = axios.isAxiosError(error) ? error.response?.data : error;
@@ -114,7 +118,7 @@ function EditorContent() {
         setSelectedEdgeId(target.id);
       }
       setFocusTarget(target ? { ...target } : undefined);
-      toast.error('保存失败，请检查标记的节点和连线');
+      toast.error(t('saveCheckNodes'));
     },
   });
 
@@ -136,7 +140,7 @@ function EditorContent() {
       if (context?.previous) {
         queryClient.setQueryData(ruleQueryKey, context.previous);
       }
-      toast.error(getErrorMessage(error));
+      toast.error(getErrorMessage(error, tWaf('operationFailed')));
     },
     onSuccess: (rule) => {
       queryClient.setQueryData(ruleQueryKey, rule);
@@ -150,7 +154,7 @@ function EditorContent() {
       void queryClient.invalidateQueries({
         queryKey: ['openflare', 'config-versions', 'diff'],
       });
-      toast.success(rule.enabled ? '规则已启用' : '规则已停用');
+      toast.success(rule.enabled ? t('ruleEnabled') : t('ruleDisabled'));
     },
   });
 
@@ -187,15 +191,15 @@ function EditorContent() {
   if (!Number.isFinite(id) || id <= 0)
     return (
       <div className='w-full px-1 py-6'>
-        <p className='text-sm text-destructive'>缺少有效的规则 ID。</p>
+        <p className='text-sm text-destructive'>{t('missingId')}</p>
       </div>
     );
   if (ruleQuery.isError)
     return (
       <div className='flex w-full flex-col items-start gap-3 px-1 py-6'>
-        <p className='text-sm text-destructive'>规则加载失败，请重试。</p>
+        <p className='text-sm text-destructive'>{t('loadFailed')}</p>
         <Button variant='outline' onClick={() => void ruleQuery.refetch()}>
-          重新加载
+          {t('reload')}
         </Button>
       </div>
     );
@@ -213,7 +217,7 @@ function EditorContent() {
           onClick={leave}
         >
           <ArrowLeft className='size-3.5' />
-          返回
+          {t('back')}
         </Button>
         <div className='flex items-center justify-between gap-4'>
           <div className='flex min-w-0 items-center gap-2'>
@@ -222,12 +226,14 @@ function EditorContent() {
               {ruleQuery.data.name}
             </h1>
             <Badge variant={ruleQuery.data.enabled ? 'default' : 'secondary'}>
-              {ruleQuery.data.enabled ? '已启用' : '已停用'}
+              {ruleQuery.data.enabled ? tWaf('enabled') : tWaf('disabled')}
             </Badge>
             <Badge variant={issues.length === 0 ? 'outline' : 'destructive'}>
-              {issues.length === 0 ? '图校验通过' : `${issues.length} 个问题`}
+              {issues.length === 0
+                ? t('graphValid')
+                : t('issueCount', { count: issues.length })}
             </Badge>
-            {dirty && <Badge variant='secondary'>未保存</Badge>}
+            {dirty && <Badge variant='secondary'>{t('unsaved')}</Badge>}
           </div>
           <div className='flex shrink-0 items-center gap-2'>
             <div className='flex items-center gap-2'>
@@ -242,7 +248,7 @@ function EditorContent() {
                 }
                 onCheckedChange={(enabled) => metaMutation.mutate(enabled)}
               />
-              <Label htmlFor='rule-enabled'>启用规则</Label>
+              <Label htmlFor='rule-enabled'>{t('enableRule')}</Label>
             </div>
             {conflict && (
               <Button
@@ -253,24 +259,24 @@ function EditorContent() {
                   void ruleQuery.refetch();
                 }}
               >
-                重新加载
+                {t('reload')}
               </Button>
             )}
             <Button
               type='button'
               variant='outline'
-              title='自动整理节点与连线布局'
+              title={t('formatTitle')}
               disabled={!graph}
               onClick={formatLayout}
             >
-              格式化
+              {t('format')}
             </Button>
             <Button
               disabled={!dirty || issues.length > 0 || saveMutation.isPending}
               onClick={() => saveMutation.mutate()}
             >
               <Save data-icon='inline-start' />
-              {saveMutation.isPending ? '保存中...' : '保存'}
+              {saveMutation.isPending ? t('saving') : t('save')}
             </Button>
           </div>
         </div>
@@ -298,15 +304,15 @@ function EditorContent() {
       <AlertDialog open={leaveConfirmOpen} onOpenChange={setLeaveConfirmOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>未保存的更改</AlertDialogTitle>
+            <AlertDialogTitle>{t('leaveTitle')}</AlertDialogTitle>
             <AlertDialogDescription>
-              存在未保存的更改，确定离开吗？
+              {t('leaveDesc')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogCancel>{tCommon('cancel')}</AlertDialogCancel>
             <AlertDialogAction onClick={() => router.push('/waf')}>
-              确定离开
+              {t('leaveConfirm')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

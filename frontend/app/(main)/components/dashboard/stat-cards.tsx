@@ -1,6 +1,7 @@
 'use client';
 
 import { Activity, Cpu, Gauge, Server, Users } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
@@ -21,6 +22,7 @@ export function DashboardStatCards({
   traffic: DashboardTraffic;
   capacity: DashboardCapacity;
 }) {
+  const t = useTranslations('dashboard.stats');
   const onlineRate =
     summary.total_nodes > 0
       ? (summary.online_nodes / summary.total_nodes) * 100
@@ -31,7 +33,7 @@ export function DashboardStatCards({
       <Card className='border-dashed shadow-none'>
         <CardHeader className='flex flex-row items-center justify-between pb-2'>
           <span className='text-xs font-medium text-muted-foreground'>
-            24h 请求量
+            {t('requests24h')}
           </span>
           <Activity className='size-4 text-primary' />
         </CardHeader>
@@ -40,9 +42,11 @@ export function DashboardStatCards({
             {formatCompactNumber(traffic.request_count)}
           </div>
           <p className='text-[10px] text-muted-foreground'>
-            24h 独立访客 {formatCompactNumber(traffic.unique_visitors)} · 错误{' '}
-            {formatCompactNumber(traffic.error_count)} · 估算 QPS{' '}
-            {traffic.estimated_qps.toFixed(2)}
+            {t('requestsMeta', {
+              visitors: formatCompactNumber(traffic.unique_visitors),
+              errors: formatCompactNumber(traffic.error_count),
+              qps: traffic.estimated_qps.toFixed(2),
+            })}
           </p>
         </CardContent>
       </Card>
@@ -50,7 +54,7 @@ export function DashboardStatCards({
       <Card className='border-dashed shadow-none'>
         <CardHeader className='flex flex-row items-center justify-between pb-2'>
           <span className='text-xs font-medium text-muted-foreground'>
-            集群容量
+            {t('clusterCapacity')}
           </span>
           <Cpu className='size-4 text-primary' />
         </CardHeader>
@@ -66,9 +70,12 @@ export function DashboardStatCards({
             className='h-1.5'
           />
           <p className='text-[10px] text-muted-foreground'>
-            平均内存 {formatPercent(capacity.average_memory_usage_percent)} ·
-            高负载节点 CPU {capacity.high_cpu_nodes} / 内存{' '}
-            {capacity.high_memory_nodes} / 存储 {capacity.high_storage_nodes}
+            {t('avgMemoryHighLoad', {
+              memory: formatPercent(capacity.average_memory_usage_percent),
+              cpu: capacity.high_cpu_nodes,
+              memoryNodes: capacity.high_memory_nodes,
+              storage: capacity.high_storage_nodes,
+            })}
           </p>
         </CardContent>
       </Card>
@@ -76,7 +83,7 @@ export function DashboardStatCards({
       <Card className='border-dashed shadow-none md:col-span-2 xl:col-span-1'>
         <CardHeader className='flex flex-row items-center justify-between pb-2'>
           <span className='text-xs font-medium text-muted-foreground'>
-            节点概览
+            {t('nodeOverview')}
           </span>
           <Server className='size-4 text-primary' />
         </CardHeader>
@@ -85,18 +92,21 @@ export function DashboardStatCards({
             {summary.online_nodes}
             <span className='text-sm font-normal text-muted-foreground'>
               {' '}
-              / {summary.total_nodes} 在线
+              {t('onlineOf', { total: summary.total_nodes })}
             </span>
           </div>
           <Progress value={onlineRate} className='h-1.5' />
           <p className='text-[10px] text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1'>
             <span className='inline-flex items-center gap-1'>
               <Users className='size-3' />
-              待接入 {summary.pending_nodes}
+              {t('pending', { count: summary.pending_nodes })}
             </span>
             <span className='inline-flex items-center gap-1'>
               <Gauge className='size-3' />
-              异常 {summary.unhealthy_nodes} · 离线 {summary.offline_nodes}
+              {t('unhealthyOffline', {
+                unhealthy: summary.unhealthy_nodes,
+                offline: summary.offline_nodes,
+              })}
             </span>
           </p>
         </CardContent>

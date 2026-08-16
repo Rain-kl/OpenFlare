@@ -24,11 +24,15 @@ import { Button } from '@/components/ui/button';
 import { type OriginItem, OriginService } from '@/lib/services/openflare';
 import { formatDateTime } from '@/lib/utils';
 
+import { useTranslations } from 'next-intl';
+
 import { OriginEditorDialog } from './components/origin-editor-dialog';
 
 const originsQueryKey = ['openflare', 'origins'] as const;
 
 export default function OriginsPage() {
+  const t = useTranslations('origins');
+  const tc = useTranslations('common');
   const queryClient = useQueryClient();
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingOrigin, setEditingOrigin] = useState<OriginItem | null>(null);
@@ -44,12 +48,12 @@ export default function OriginsPage() {
   const deleteMutation = useMutation({
     mutationFn: (id: number) => OriginService.deleteById(id),
     onSuccess: async () => {
-      toast.success('源站已删除');
+      toast.success(t('deleted'));
       setDeleteTarget(null);
       await queryClient.invalidateQueries({ queryKey: originsQueryKey });
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : '删除失败');
+      toast.error(error instanceof Error ? error.message : t('deleteFailed'));
     },
   });
 
@@ -59,10 +63,8 @@ export default function OriginsPage() {
         <div className='flex items-center gap-2'>
           <MapPin className='size-5 text-primary' />
           <div>
-            <h1 className='text-2xl font-semibold tracking-tight'>源站</h1>
-            <p className='text-sm text-muted-foreground'>
-              集中维护规则复用的源站地址，减少批量改地址时的重复操作。
-            </p>
+            <h1 className='text-2xl font-semibold tracking-tight'>{t('title')}</h1>
+            <p className='text-sm text-muted-foreground'>{t('subtitle')}</p>
           </div>
         </div>
         <div className='flex gap-2'>
@@ -75,7 +77,7 @@ export default function OriginsPage() {
             <RefreshCw
               className={`size-3.5 mr-1 ${originsQuery.isFetching ? 'animate-spin' : ''}`}
             />
-            刷新
+            {t('refresh')}
           </Button>
           <Button
             size='sm'
@@ -85,7 +87,7 @@ export default function OriginsPage() {
             }}
           >
             <Plus className='size-3.5 mr-1' />
-            新增源站
+            {t('create')}
           </Button>
         </div>
       </div>
@@ -95,7 +97,7 @@ export default function OriginsPage() {
           message={
             originsQuery.error instanceof Error
               ? originsQuery.error.message
-              : '加载失败'
+              : t('loadFailed')
           }
           onRetry={() => void originsQuery.refetch()}
         />
@@ -106,8 +108,8 @@ export default function OriginsPage() {
           <LoadingStateWithBorder />
         ) : origins.length === 0 ? (
           <EmptyStateWithBorder
-            title='暂无源站'
-            description='点击右上角新增源站，后续规则可直接复用这些地址。'
+            title={t('emptyTitle')}
+            description={t('emptyDesc')}
           />
         ) : (
           <div className='grid gap-0 md:grid-cols-2'>
@@ -128,20 +130,24 @@ export default function OriginsPage() {
                             : 'text-amber-600 border-amber-500/20'
                         }`}
                       >
-                        {origin.route_count} 条规则
+                        {t('routeCount', { count: origin.route_count })}
                       </Badge>
                     </div>
                     <p className='text-sm'>{origin.address}</p>
                     <p className='text-sm text-muted-foreground'>
-                      {origin.remark || '暂无备注'}
+                      {origin.remark || t('noRemark')}
                     </p>
                     <p className='text-xs text-muted-foreground'>
-                      最后更新：{formatDateTime(origin.updated_at)}
+                      {t('lastUpdated', {
+                        date: formatDateTime(origin.updated_at),
+                      })}
                     </p>
                   </div>
                   <div className='flex flex-wrap gap-2'>
                     <Button variant='outline' size='sm' asChild>
-                      <Link href={`/origins/detail?id=${origin.id}`}>详情</Link>
+                      <Link href={`/origins/detail?id=${origin.id}`}>
+                        {t('detail')}
+                      </Link>
                     </Button>
                     <Button
                       variant='outline'
@@ -151,7 +157,7 @@ export default function OriginsPage() {
                         setEditorOpen(true);
                       }}
                     >
-                      编辑
+                      {t('edit')}
                     </Button>
                     <Button
                       variant='destructive'
@@ -159,7 +165,7 @@ export default function OriginsPage() {
                       onClick={() => setDeleteTarget(origin)}
                     >
                       <Trash2 className='size-3.5 mr-1' />
-                      删除
+                      {tc('delete')}
                     </Button>
                   </div>
                 </div>
@@ -183,20 +189,20 @@ export default function OriginsPage() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>删除源站</AlertDialogTitle>
+            <AlertDialogTitle>{t('deleteTitle')}</AlertDialogTitle>
             <AlertDialogDescription>
-              确认删除源站 {deleteTarget?.name} 吗？
+              {t('deleteDesc', { name: deleteTarget?.name ?? '' })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogCancel>{tc('cancel')}</AlertDialogCancel>
             <AlertDialogAction
               className='bg-destructive text-destructive-foreground hover:bg-destructive/90'
               onClick={() => {
                 if (deleteTarget) deleteMutation.mutate(deleteTarget.id);
               }}
             >
-              确认删除
+              {t('confirmDelete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -21,6 +21,7 @@ import {
 } from '@/components/ui/dialog';
 import { Field, FieldGroup, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
+import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 
 type ScopeZoneGroup = {
@@ -43,6 +44,8 @@ export function ScopeDomainDialog({
   pending: boolean;
   onSubmit: (domains: string[]) => void;
 }) {
+  const t = useTranslations('responses');
+  const tc = useTranslations('common');
   const [keyword, setKeyword] = useState('');
   const [selectedSet, setSelectedSet] = useState<Set<string>>(() => new Set());
   const [collapsedZones, setCollapsedZones] = useState<Set<string>>(
@@ -131,14 +134,12 @@ export function ScopeDomainDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className='sm:max-w-lg'>
         <DialogHeader>
-          <DialogTitle>选择生效域名</DialogTitle>
-          <DialogDescription>
-            仅对选中的 HTTPS 域名注入离线兜底；搜索筛选与批量勾选。
-          </DialogDescription>
+          <DialogTitle>{t('selectScopeTitle')}</DialogTitle>
+          <DialogDescription>{t('selectScopeDesc')}</DialogDescription>
         </DialogHeader>
         <FieldGroup>
           <Field>
-            <FieldLabel htmlFor='sw-scope-search'>域名</FieldLabel>
+            <FieldLabel htmlFor='sw-scope-search'>{t('domain')}</FieldLabel>
             <div className='space-y-2'>
               <div className='relative'>
                 <Search className='pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground' />
@@ -146,7 +147,7 @@ export function ScopeDomainDialog({
                   id='sw-scope-search'
                   value={keyword}
                   onChange={(event) => setKeyword(event.target.value)}
-                  placeholder='搜索域名或顶级域…'
+                  placeholder={t('searchDomainOrZone')}
                   className='pl-8'
                   disabled={pending}
                 />
@@ -154,9 +155,9 @@ export function ScopeDomainDialog({
               <div className='flex flex-wrap items-center justify-between gap-2'>
                 <div className='flex items-center gap-2 text-xs text-muted-foreground'>
                   <Badge variant='secondary' className='font-normal'>
-                    已选 {selectedSet.size}
+                    {t('selectedCount', { count: selectedSet.size })}
                   </Badge>
-                  <span>可见 {visibleDomains.length}</span>
+                  <span>{t('visibleCount', { count: visibleDomains.length })}</span>
                 </div>
                 <div className='flex items-center gap-1'>
                   <Button
@@ -167,7 +168,9 @@ export function ScopeDomainDialog({
                     disabled={pending || visibleDomains.length === 0}
                     onClick={toggleAllVisible}
                   >
-                    {allVisibleSelected ? '取消全选' : '全选可见'}
+                    {allVisibleSelected
+                      ? t('unselectVisible')
+                      : t('selectVisible')}
                   </Button>
                   <Button
                     type='button'
@@ -177,17 +180,17 @@ export function ScopeDomainDialog({
                     disabled={pending || selectedSet.size === 0}
                     onClick={() => setSelectedSet(new Set())}
                   >
-                    清空
+                    {t('clear')}
                   </Button>
                 </div>
               </div>
               {zones.length === 0 ? (
                 <div className='rounded-lg border border-dashed px-4 py-8 text-center text-sm text-muted-foreground'>
-                  暂无可用域名，请先在 Zone 管理中注册域名。
+                  {t('noAvailableDomains')}
                 </div>
               ) : filtered.length === 0 ? (
                 <div className='rounded-lg border border-dashed px-4 py-8 text-center text-sm text-muted-foreground'>
-                  没有匹配的域名
+                  {t('noMatchingDomains')}
                 </div>
               ) : (
                 <div className='max-h-72 space-y-1 overflow-y-auto rounded-lg border p-2'>
@@ -223,7 +226,9 @@ export function ScopeDomainDialog({
                               }
                               disabled={pending}
                               onCheckedChange={() => toggleGroup(group.domains)}
-                              aria-label={`选择顶级域 ${group.zoneDomain}`}
+                              aria-label={t('selectZone', {
+                                domain: group.zoneDomain,
+                              })}
                               className='ml-1'
                             />
                             <CollapsibleTrigger asChild>
@@ -275,7 +280,7 @@ export function ScopeDomainDialog({
                                         variant='secondary'
                                         className='shrink-0 text-[10px] font-normal'
                                       >
-                                        顶级域
+                                        {t('apex')}
                                       </Badge>
                                     ) : null}
                                     {checked ? (
@@ -301,13 +306,13 @@ export function ScopeDomainDialog({
             disabled={pending}
             onClick={() => onOpenChange(false)}
           >
-            取消
+            {tc('cancel')}
           </Button>
           <Button
             disabled={pending}
             onClick={() => onSubmit([...selectedSet].sort())}
           >
-            确定
+            {t('confirm')}
           </Button>
         </DialogFooter>
       </DialogContent>

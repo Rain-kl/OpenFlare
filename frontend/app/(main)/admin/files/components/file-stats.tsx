@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { useTranslations } from 'next-intl';
 import { useQuery } from '@tanstack/react-query';
 import {
   Database,
@@ -49,42 +50,47 @@ const categoryMap: Record<string, string> = {
   其他: 'others',
 };
 
-const statsChartConfig = {
-  images: {
-    label: '图片',
-    color: 'hsl(var(--chart-1))',
-  },
-  videos: {
-    label: '视频',
-    color: 'hsl(var(--chart-2))',
-  },
-  audio: {
-    label: '音频',
-    color: 'hsl(var(--chart-3))',
-  },
-  documents: {
-    label: '文档',
-    color: 'hsl(var(--chart-4))',
-  },
-  archives: {
-    label: '压缩包',
-    color: 'hsl(var(--chart-5))',
-  },
-  others: {
-    label: '其他',
-    color: 'hsl(var(--chart-6))',
-  },
-  count: {
-    label: '新增文件数',
-    color: 'hsl(var(--primary))',
-  },
-  size: {
-    label: '新增大小',
-    color: 'hsl(var(--chart-2))',
-  },
-} satisfies ChartConfig;
+function useStatsChartConfig() {
+  const t = useTranslations('admin.files');
+  return {
+    images: {
+      label: t('stats.catImages'),
+      color: 'hsl(var(--chart-1))',
+    },
+    videos: {
+      label: t('stats.catVideos'),
+      color: 'hsl(var(--chart-2))',
+    },
+    audio: {
+      label: t('stats.catAudio'),
+      color: 'hsl(var(--chart-3))',
+    },
+    documents: {
+      label: t('stats.catDocuments'),
+      color: 'hsl(var(--chart-4))',
+    },
+    archives: {
+      label: t('stats.catArchives'),
+      color: 'hsl(var(--chart-5))',
+    },
+    others: {
+      label: t('stats.catOthers'),
+      color: 'hsl(var(--chart-6))',
+    },
+    count: {
+      label: t('stats.chartLabelCount'),
+      color: 'hsl(var(--primary))',
+    },
+    size: {
+      label: t('stats.chartLabelSize'),
+      color: 'hsl(var(--chart-2))',
+    },
+  } satisfies ChartConfig;
+}
 
 export function FileStats() {
+  const t = useTranslations('admin.files');
+  const statsChartConfig = useStatsChartConfig();
   const [trendMetric, setTrendMetric] = React.useState<'count' | 'size'>(
     'count',
   );
@@ -137,11 +143,16 @@ export function FileStats() {
 
   const maxStats = React.useMemo(() => {
     if (!stats?.categories || stats.categories.length === 0) {
-      return { maxCountName: '无', maxCount: 0, maxSizeName: '无', maxSize: 0 };
+      return {
+        maxCountName: t('stats.none'),
+        maxCount: 0,
+        maxSizeName: t('stats.none'),
+        maxSize: 0,
+      };
     }
-    let maxCountName = '无';
+    let maxCountName = t('stats.none');
     let maxCount = 0;
-    let maxSizeName = '无';
+    let maxSizeName = t('stats.none');
     let maxSize = 0;
 
     stats.categories.forEach((cat) => {
@@ -156,7 +167,7 @@ export function FileStats() {
     });
 
     return { maxCountName, maxCount, maxSizeName, maxSize };
-  }, [stats?.categories]);
+  }, [stats?.categories, t]);
 
   const trendSummary = React.useMemo(() => {
     if (!stats?.trend) return { count: 0, size: 0 };
@@ -182,9 +193,9 @@ export function FileStats() {
       <div className='flex flex-col items-center justify-center py-24 border border-dashed rounded-xl bg-card text-muted-foreground gap-4'>
         <Upload className='size-14 text-muted-foreground/25' />
         <div className='text-center space-y-1'>
-          <p className='font-medium'>暂无上传数据</p>
+          <p className='font-medium'>{t('stats.noData')}</p>
           <p className='text-xs text-muted-foreground'>
-            上传文件后即可在此查看容量与文件分布分析。
+            {t('stats.noDataDesc')}
           </p>
         </div>
       </div>
@@ -198,7 +209,7 @@ export function FileStats() {
         <Card className='bg-card/25 border-border/40 hover:shadow-md transition-shadow'>
           <CardHeader className='flex flex-row items-center justify-between pb-2 space-y-0'>
             <CardTitle className='text-xs font-semibold tracking-tight text-muted-foreground'>
-              总文件数
+              {t('stats.totalFiles')}
             </CardTitle>
             <Files className='size-4 text-sky-500' />
           </CardHeader>
@@ -206,11 +217,11 @@ export function FileStats() {
             <div className='text-2xl font-bold font-mono text-sky-500'>
               {stats.total_count.toLocaleString()}{' '}
               <span className='text-xs font-normal text-muted-foreground'>
-                个
+                {t('stats.countUnit')}
               </span>
             </div>
             <p className='text-[10px] text-muted-foreground mt-1'>
-              您上传的可用文件数量汇总
+              {t('stats.totalFilesDesc')}
             </p>
           </CardContent>
         </Card>
@@ -218,7 +229,7 @@ export function FileStats() {
         <Card className='bg-card/25 border-border/40 hover:shadow-md transition-shadow'>
           <CardHeader className='flex flex-row items-center justify-between pb-2 space-y-0'>
             <CardTitle className='text-xs font-semibold tracking-tight text-muted-foreground'>
-              占用存储容量
+              {t('stats.totalSize')}
             </CardTitle>
             <Database className='size-4 text-emerald-500' />
           </CardHeader>
@@ -227,7 +238,7 @@ export function FileStats() {
               {formatFileSize(stats.total_size)}
             </div>
             <p className='text-[10px] text-muted-foreground mt-1'>
-              文件实际在磁盘/S3中占用的总空间
+              {t('stats.totalSizeDesc')}
             </p>
           </CardContent>
         </Card>
@@ -235,7 +246,7 @@ export function FileStats() {
         <Card className='bg-card/25 border-border/40 hover:shadow-md transition-shadow'>
           <CardHeader className='flex flex-row items-center justify-between pb-2 space-y-0'>
             <CardTitle className='text-xs font-semibold tracking-tight text-muted-foreground'>
-              近 7 天新增文件
+              {t('stats.weeklyNewFiles')}
             </CardTitle>
             <TrendingUp className='size-4 text-indigo-500' />
           </CardHeader>
@@ -243,11 +254,11 @@ export function FileStats() {
             <div className='text-2xl font-bold font-mono text-indigo-500'>
               +{trendSummary.count.toLocaleString()}{' '}
               <span className='text-xs font-normal text-muted-foreground'>
-                个
+                {t('stats.countUnit')}
               </span>
             </div>
             <p className='text-[10px] text-muted-foreground mt-1'>
-              最近 7 天上传成功的文件总数
+              {t('stats.weeklyNewFilesDesc')}
             </p>
           </CardContent>
         </Card>
@@ -255,7 +266,7 @@ export function FileStats() {
         <Card className='bg-card/25 border-border/40 hover:shadow-md transition-shadow'>
           <CardHeader className='flex flex-row items-center justify-between pb-2 space-y-0'>
             <CardTitle className='text-xs font-semibold tracking-tight text-muted-foreground'>
-              近 7 天新增大小
+              {t('stats.weeklyNewSize')}
             </CardTitle>
             <HardDrive className='size-4 text-amber-500' />
           </CardHeader>
@@ -264,7 +275,7 @@ export function FileStats() {
               +{formatFileSize(trendSummary.size)}
             </div>
             <p className='text-[10px] text-muted-foreground mt-1'>
-              最近 7 天上传所消耗的存储带宽
+              {t('stats.weeklyNewSizeDesc')}
             </p>
           </CardContent>
         </Card>
@@ -275,10 +286,10 @@ export function FileStats() {
         <CardHeader className='flex flex-row items-center justify-between'>
           <div>
             <CardTitle className='text-sm font-bold'>
-              最近 7 天新增趋势
+              {t('stats.trendTitle')}
             </CardTitle>
             <CardDescription className='text-xs'>
-              按日统计近一周期内的上传波动
+              {t('stats.trendDesc')}
             </CardDescription>
           </div>
           <div className='flex items-center gap-1 border rounded-lg p-0.5 bg-muted/30'>
@@ -288,7 +299,7 @@ export function FileStats() {
               className='h-7 text-xs px-2.5 rounded-md'
               onClick={() => setTrendMetric('count')}
             >
-              新增数量 (个)
+              {t('stats.trendCount')}
             </Button>
             <Button
               size='sm'
@@ -296,7 +307,7 @@ export function FileStats() {
               className='h-7 text-xs px-2.5 rounded-md'
               onClick={() => setTrendMetric('size')}
             >
-              新增大小 (MB)
+              {t('stats.trendSize')}
             </Button>
           </div>
         </CardHeader>
@@ -361,11 +372,13 @@ export function FileStats() {
                       hideLabel
                       formatter={(value) => {
                         const label =
-                          trendMetric === 'count' ? '新增文件数' : '新增大小';
+                          trendMetric === 'count'
+                            ? t('stats.chartLabelCount')
+                            : t('stats.chartLabelSize');
                         const formattedValue =
                           trendMetric === 'size'
                             ? formatFileSize(Number(value))
-                            : `${value} 个`;
+                            : `${value} ${t('stats.countUnit')}`;
                         return (
                           <>
                             <div className='flex items-center gap-1.5'>
@@ -419,16 +432,16 @@ export function FileStats() {
         <Card className='bg-card/20 border-border/40 flex flex-col'>
           <CardHeader>
             <CardTitle className='text-sm font-bold'>
-              文件格式数量分布
+              {t('stats.countDistTitle')}
             </CardTitle>
             <CardDescription className='text-xs'>
-              各种格式类型的文件个数占比
+              {t('stats.countDistDesc')}
             </CardDescription>
           </CardHeader>
           <CardContent className='flex-1 flex flex-col justify-between gap-4'>
             {categoryCountData.length === 0 ? (
               <div className='h-[240px] flex items-center justify-center text-xs text-muted-foreground'>
-                暂无分类数据
+                {t('stats.noCategoryData')}
               </div>
             ) : (
               <div className='h-[240px] w-full'>
@@ -475,7 +488,7 @@ export function FileStats() {
                                   </span>
                                 </div>
                                 <span className='text-foreground font-mono font-medium tabular-nums ml-auto'>
-                                  {value} 个
+                                  {value} {t('stats.countUnit')}
                                 </span>
                               </>
                             );
@@ -498,15 +511,10 @@ export function FileStats() {
             <div className='bg-sky-500/5 border border-sky-500/10 rounded-lg p-3 flex items-start gap-2.5 text-xs text-sky-600 dark:text-sky-400'>
               <Info className='size-4 shrink-0 mt-0.5' />
               <p className='leading-normal'>
-                文件类型中数量最多的是{' '}
-                <strong className='font-bold'>
-                  「{maxStats.maxCountName}」
-                </strong>
-                ，累计上传了{' '}
-                <strong className='font-mono font-bold'>
-                  {maxStats.maxCount}
-                </strong>{' '}
-                个文件。
+                {t('stats.maxCountHint', {
+                  name: maxStats.maxCountName,
+                  count: maxStats.maxCount,
+                })}
               </p>
             </div>
           </CardContent>
@@ -516,16 +524,16 @@ export function FileStats() {
         <Card className='bg-card/20 border-border/40 flex flex-col'>
           <CardHeader>
             <CardTitle className='text-sm font-bold'>
-              文件占用容量分布
+              {t('stats.sizeDistTitle')}
             </CardTitle>
             <CardDescription className='text-xs'>
-              各种格式类型的文件大小占比
+              {t('stats.sizeDistDesc')}
             </CardDescription>
           </CardHeader>
           <CardContent className='flex-1 flex flex-col justify-between gap-4'>
             {categorySizeData.length === 0 ? (
               <div className='h-[240px] flex items-center justify-center text-xs text-muted-foreground'>
-                暂无容量数据
+                {t('stats.noSizeData')}
               </div>
             ) : (
               <div className='h-[240px] w-full'>
@@ -595,15 +603,10 @@ export function FileStats() {
             <div className='bg-emerald-500/5 border border-emerald-500/10 rounded-lg p-3 flex items-start gap-2.5 text-xs text-emerald-600 dark:text-emerald-400'>
               <Info className='size-4 shrink-0 mt-0.5' />
               <p className='leading-normal'>
-                文件类型中占用存储最大的是{' '}
-                <strong className='font-bold'>
-                  「{maxStats.maxSizeName}」
-                </strong>
-                ，共消耗了{' '}
-                <strong className='font-mono font-bold'>
-                  {formatFileSize(maxStats.maxSize)}
-                </strong>{' '}
-                存储容量。
+                {t('stats.maxSizeHint', {
+                  name: maxStats.maxSizeName,
+                  size: formatFileSize(maxStats.maxSize),
+                })}
               </p>
             </div>
           </CardContent>

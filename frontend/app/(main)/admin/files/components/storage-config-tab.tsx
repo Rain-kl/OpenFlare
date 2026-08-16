@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { useTranslations } from 'next-intl';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Database, Loader2, Play, Save } from 'lucide-react';
 import { toast } from 'sonner';
@@ -44,13 +45,13 @@ import type {
 const storageConfigKey = 'storage_config';
 const storageMigrationTaskType = 'storage_migration';
 
-const driverLabels: Record<StorageDriver, string> = {
-  local: '本地文件系统',
-  s3: 'AWS S3',
-  r2: 'Cloudflare R2',
-  minio: 'MinIO',
-  oss: '阿里云 OSS',
-  webdav: 'WebDAV',
+const driverLabelKeys: Record<StorageDriver, string> = {
+  local: 'driverLocal',
+  s3: 'driverS3',
+  r2: 'driverR2',
+  minio: 'driverMinio',
+  oss: 'driverOss',
+  webdav: 'driverWebdav',
 };
 
 const emptyObjectConfig: ObjectStorageConfig = {
@@ -112,8 +113,8 @@ function parseMigrationPayload(payload: string): StorageConfig | undefined {
   }
 }
 
-function driverLabel(driver?: StorageDriver): string {
-  return driver ? driverLabels[driver] : '未知';
+function driverLabelKey(driver?: StorageDriver): string {
+  return driver ? driverLabelKeys[driver] : 'driverUnknown';
 }
 
 function latestMigration(
@@ -136,6 +137,7 @@ function latestMigration(
 }
 
 export function StorageConfigTab() {
+  const t = useTranslations('admin.files');
   const queryClient = useQueryClient();
   const [config, setConfig] = React.useState<StorageConfig | null>(null);
   const query = useQuery({
@@ -186,13 +188,13 @@ export function StorageConfigTab() {
       });
     },
     onSuccess: () => {
-      toast.success('存储配置已保存');
+      toast.success(t('storage.saveSuccess'));
       void queryClient.invalidateQueries({
         queryKey: ['admin', 'storage-config'],
       });
     },
     onError: (error: Error) => {
-      toast.error(error.message || '保存存储配置失败');
+      toast.error(error.message || t('storage.saveFailed'));
       void queryClient.invalidateQueries({
         queryKey: ['admin', 'storage-config'],
       });
@@ -208,13 +210,13 @@ export function StorageConfigTab() {
       });
     },
     onSuccess: () => {
-      toast.success('存储迁移任务已下发');
+      toast.success(t('storage.migrateSuccess'));
       void queryClient.invalidateQueries({
         queryKey: ['admin', 'storage-config'],
       });
     },
     onError: (error: Error) => {
-      toast.error(error.message || '下发存储迁移任务失败');
+      toast.error(error.message || t('storage.migrateFailed'));
       void queryClient.invalidateQueries({
         queryKey: ['admin', 'storage-config'],
       });
@@ -224,12 +226,13 @@ export function StorageConfigTab() {
     mutationFn: (executionID: string) =>
       services.adminTask.retryTaskExecution(executionID),
     onSuccess: () => {
-      toast.success('存储迁移任务已重新下发');
+      toast.success(t('storage.retrySuccess'));
       void queryClient.invalidateQueries({
         queryKey: ['admin', 'storage-config'],
       });
     },
-    onError: (error: Error) => toast.error(error.message || '运行存储迁移失败'),
+    onError: (error: Error) =>
+      toast.error(error.message || t('storage.retryFailed')),
   });
 
   if (query.isPending || !config) {
@@ -269,7 +272,7 @@ export function StorageConfigTab() {
         <Card>
           <CardHeader>
             <CardTitle className='flex items-center gap-2'>
-              存储维护模式
+              {t('storage.maintenanceMode')}
               <Badge
                 variant={
                   migration.state === 'failed' ? 'destructive' : 'secondary'
@@ -279,9 +282,10 @@ export function StorageConfigTab() {
               </Badge>
             </CardTitle>
             <CardDescription>
-              {driverLabel(migration.source_driver)} →{' '}
-              {driverLabel(migration.target_driver)}
-              。迁移期间文件只允许读取，禁止上传、删除和清理。
+              {t('storage.maintenanceDesc', {
+                source: t(`storage.${driverLabelKey(migration.source_driver)}`),
+                target: t(`storage.${driverLabelKey(migration.target_driver)}`),
+              })}
             </CardDescription>
           </CardHeader>
           <CardContent className='flex flex-col gap-3'>
@@ -289,7 +293,9 @@ export function StorageConfigTab() {
               value={migration.state === 'succeeded' ? 100 : undefined}
             />
             <p className='text-sm text-muted-foreground'>
-              迁移进度请查看任务执行日志：{migration.task_id || '尚未下发'}
+              {t('storage.migrationProgress', {
+                taskId: migration.task_id || t('storage.notDispatched'),
+              })}
             </p>
             {migration.error && (
               <p className='text-sm text-destructive'>{migration.error}</p>
@@ -310,7 +316,7 @@ export function StorageConfigTab() {
               ) : (
                 <Play data-icon='inline-start' />
               )}
-              重试迁移
+              {t('storage.retryMigration')}
             </Button>
           </CardFooter>
         </Card>
@@ -324,10 +330,10 @@ export function StorageConfigTab() {
             </div>
             <div>
               <CardTitle className='text-base font-semibold'>
-                文件存储
+                {t('storage.fileStorage')}
               </CardTitle>
               <CardDescription className='text-xs'>
-                默认使用本地存储。配置系统文件的存储媒介，切换存储类型且已有文件时，系统会自动进入维护模式并迁移文件。
+                {t('storage.fileStorageDesc')}
               </CardDescription>
             </div>
           </div>
@@ -337,7 +343,7 @@ export function StorageConfigTab() {
             <div className='grid grid-cols-1 gap-4 md:grid-cols-2'>
               <Field className='flex flex-col gap-1.5 md:col-span-2'>
                 <FieldLabel className='text-xs font-semibold'>
-                  存储类型
+                  {t('storage.storageType')}
                 </FieldLabel>
                 <Select
                   value={config.driver}
@@ -351,10 +357,10 @@ export function StorageConfigTab() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectGroup>
-                      {(Object.keys(driverLabels) as StorageDriver[]).map(
+                      {(Object.keys(driverLabelKeys) as StorageDriver[]).map(
                         (driver) => (
                           <SelectItem key={driver} value={driver}>
-                            {driverLabels[driver]}
+                            {t(`storage.${driverLabelKeys[driver]}`)}
                           </SelectItem>
                         ),
                       )}
@@ -366,7 +372,7 @@ export function StorageConfigTab() {
               {config.driver === 'local' && (
                 <div className='md:col-span-2'>
                   <TextField
-                    label='根目录'
+                    label={t('storage.rootDir')}
                     value={config.local.root}
                     placeholder='.'
                     onChange={(root) =>
@@ -396,7 +402,7 @@ export function StorageConfigTab() {
                 <>
                   <div className='md:col-span-2'>
                     <TextField
-                      label='服务地址'
+                      label={t('storage.endpoint')}
                       value={config.webdav.endpoint}
                       placeholder='https://dav.example.com'
                       onChange={(endpoint) =>
@@ -408,7 +414,7 @@ export function StorageConfigTab() {
                     />
                   </div>
                   <TextField
-                    label='用户名'
+                    label={t('storage.username')}
                     value={config.webdav.username}
                     onChange={(username) =>
                       setConfig({
@@ -418,7 +424,7 @@ export function StorageConfigTab() {
                     }
                   />
                   <TextField
-                    label='密码'
+                    label={t('storage.password')}
                     type='password'
                     value={config.webdav.password}
                     onChange={(password) =>
@@ -430,7 +436,7 @@ export function StorageConfigTab() {
                   />
                   <div className='md:col-span-2'>
                     <TextField
-                      label='基础路径'
+                      label={t('storage.basePath')}
                       value={config.webdav.base_path}
                       placeholder='openflare'
                       onChange={(base_path) =>
@@ -449,8 +455,7 @@ export function StorageConfigTab() {
         <CardFooter className='justify-end gap-2 flex-col sm:flex-row items-end sm:items-center border-t border-dashed pt-4 mt-6'>
           {config.driver !== query.data?.config.driver && (
             <span className='text-xs text-amber-500 mr-auto text-left max-w-md'>
-              ⚠️
-              您已切换存储类型。点击「保存配置」将立即切换活动存储引擎，并同步更新已有文件的存储驱动标记。仅在需要复制物理文件时才使用「开始迁移」。
+              {t('storage.switchWarning')}
             </span>
           )}
           <div className='flex gap-2'>
@@ -465,7 +470,7 @@ export function StorageConfigTab() {
               ) : (
                 <Save data-icon='inline-start' />
               )}
-              保存配置
+              {t('storage.saveConfig')}
             </Button>
             {config.driver !== query.data?.config.driver && (
               <Button
@@ -477,7 +482,7 @@ export function StorageConfigTab() {
                 ) : (
                   <Play data-icon='inline-start' />
                 )}
-                开始迁移
+                {t('storage.startMigration')}
               </Button>
             )}
           </div>
@@ -496,6 +501,7 @@ function ObjectFields({
   value: ObjectStorageConfig;
   onChange: (patch: Partial<ObjectStorageConfig>) => void;
 }) {
+  const t = useTranslations('admin.files');
   return (
     <>
       {driver === 'r2' && (
@@ -539,13 +545,13 @@ function ObjectFields({
         onChange={(secret_access_key) => onChange({ secret_access_key })}
       />
       <TextField
-        label='对象前缀'
+        label={t('storage.keyPrefix')}
         value={value.key_prefix}
         placeholder='uploads'
         onChange={(key_prefix) => onChange({ key_prefix })}
       />
       <TextField
-        label='CDN 地址'
+        label={t('storage.cdnUrl')}
         value={value.cdn_url}
         placeholder='https://cdn.example.com'
         onChange={(cdn_url) => onChange({ cdn_url })}
@@ -561,7 +567,7 @@ function ObjectFields({
                 Path Style
               </FieldLabel>
               <FieldDescription className='text-[11px] leading-relaxed text-muted-foreground'>
-                MinIO 等自托管 S3 通常需要开启。
+                {t('storage.pathStyleDesc')}
               </FieldDescription>
             </div>
             <Switch

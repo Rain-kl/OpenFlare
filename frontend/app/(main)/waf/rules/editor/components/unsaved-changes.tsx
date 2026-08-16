@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { useEffect, useRef, useState } from 'react';
 
 import {
@@ -22,6 +23,8 @@ type PendingLeave =
   | { kind: 'history'; restoreDelta: number };
 
 export function UnsavedChanges({ dirty }: { dirty: boolean }) {
+  const t = useTranslations('waf.editor');
+  const tCommon = useTranslations('common');
   const [pendingLeave, setPendingLeave] = useState<PendingLeave | null>(null);
   const dirtyRef = useRef(dirty);
   const allowLeaveRef = useRef(false);
@@ -180,15 +183,13 @@ export function UnsavedChanges({ dirty }: { dirty: boolean }) {
     >
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>未保存的更改</AlertDialogTitle>
-          <AlertDialogDescription>
-            存在未保存的更改，确定离开吗？
-          </AlertDialogDescription>
+          <AlertDialogTitle>{t('leaveTitle')}</AlertDialogTitle>
+          <AlertDialogDescription>{t('leaveDesc')}</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>取消</AlertDialogCancel>
+          <AlertDialogCancel>{tCommon('cancel')}</AlertDialogCancel>
           <AlertDialogAction onClick={handleConfirmLeave}>
-            确定离开
+            {t('leaveConfirm')}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from 'recharts';
 import { Loader2, ShieldPlus, Trash2 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 
 import { RankChart } from '@/components/data/rank-chart';
@@ -50,9 +51,12 @@ import {
   type OverviewRangeHours,
 } from './access-log-utils';
 
-const trendChartConfig = {
-  requests: { label: '请求数', color: 'hsl(var(--primary))' },
-} satisfies ChartConfig;
+function useTrendChartConfig() {
+  const t = useTranslations('accessLogs');
+  return {
+    requests: { label: t('ip.requests'), color: 'hsl(var(--primary))' },
+  } satisfies ChartConfig;
+}
 
 function resolveBucketMinutes(hours: number) {
   if (hours <= 24) return 30;
@@ -104,6 +108,7 @@ function MiniRankCard({
   items: { label: string; value: number }[];
   color: string;
 }) {
+  const t = useTranslations('accessLogs.analysis');
   return (
     <div className='rounded-lg border border-dashed p-3'>
       <p className='mb-2 text-sm font-medium'>{title}</p>
@@ -111,7 +116,7 @@ function MiniRankCard({
         items={items}
         color={color}
         className='!h-[220px]'
-        emptyMessage={`暂无 ${title} 数据`}
+        emptyMessage={t('emptySeries', { title })}
       />
     </div>
   );
@@ -126,6 +131,7 @@ function AddToIPGroupPanel({
   open: boolean;
   onClose: () => void;
 }) {
+  const t = useTranslations('accessLogs.analysis');
   const queryClient = useQueryClient();
   const [selectedGroupId, setSelectedGroupId] = useState<string>('');
 
@@ -179,7 +185,7 @@ function AddToIPGroupPanel({
     const groupId = Number.parseInt(selectedGroupId, 10);
     const group = addableGroups.find((item) => item.id === groupId);
     if (!group) {
-      toast.error('请选择要加入的 IP 组');
+      toast.error(t('selectGroup'));
       return;
     }
     try {
@@ -187,10 +193,10 @@ function AddToIPGroupPanel({
         group,
         nextList: [...(group.ip_list ?? []), ip.trim()],
       });
-      toast.success(`已将 ${ip} 加入 IP 组「${group.name}」`);
+      toast.success(t('added', { ip, name: group.name }));
       setSelectedGroupId('');
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : '加入 IP 组失败');
+      toast.error(error instanceof Error ? error.message : t('addFailed'));
     }
   };
 
@@ -202,9 +208,9 @@ function AddToIPGroupPanel({
           (entry) => entry.trim() !== ip.trim(),
         ),
       });
-      toast.success(`已从 IP 组「${group.name}」移除 ${ip}`);
+      toast.success(t('removed', { name: group.name, ip }));
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : '移除失败');
+      toast.error(error instanceof Error ? error.message : t('removeFailed'));
     }
   };
 
@@ -220,21 +226,21 @@ function AddToIPGroupPanel({
     >
       <DialogContent className='max-w-lg'>
         <DialogHeader>
-          <DialogTitle>将 IP 加入 IP 组</DialogTitle>
+          <DialogTitle>{t('joinTitle')}</DialogTitle>
           <DialogDescription>
-            目标 IP：
+            {t('targetIp')}
             <span className='font-mono text-foreground'>{ip}</span>
           </DialogDescription>
         </DialogHeader>
 
         {groupsQuery.isLoading ? (
-          <LoadingStateWithBorder title='加载 IP 组' />
+          <LoadingStateWithBorder title={t('loadingGroups')} />
         ) : groupsQuery.isError ? (
           <ErrorInline
             message={
               groupsQuery.error instanceof Error
                 ? groupsQuery.error.message
-                : '加载 IP 组失败'
+                : t('loadGroupsFailed')
             }
             onRetry={() => void groupsQuery.refetch()}
           />
@@ -243,10 +249,10 @@ function AddToIPGroupPanel({
             {matchedGroups.length > 0 ? (
               <div className='space-y-2 rounded-lg border border-dashed p-3'>
                 <p className='text-sm font-medium text-foreground'>
-                  该 IP 已存在于以下 IP 组
+                  {t('alreadyIn')}
                 </p>
                 <p className='text-xs text-muted-foreground'>
-                  可选择删除，或继续添加到其他 IP 组。
+                  {t('alreadyInHint')}
                 </p>
                 <div className='space-y-2'>
                   {matchedGroups.map((group) => (
@@ -259,7 +265,10 @@ function AddToIPGroupPanel({
                           {group.name}
                         </p>
                         <p className='text-[11px] text-muted-foreground'>
-                          {group.type} · {group.ip_list?.length ?? 0} 条
+                          {t('entryCount', {
+                            type: group.type,
+                            count: group.ip_list?.length ?? 0,
+                          })}
                         </p>
                       </div>
                       {group.type === 'manual' ? (
@@ -275,13 +284,13 @@ function AddToIPGroupPanel({
                           ) : (
                             <>
                               <Trash2 className='mr-1 size-3.5' />
-                              删除
+                              {t('delete')}
                             </>
                           )}
                         </Button>
                       ) : (
                         <Badge variant='outline' className='text-[10px]'>
-                          不可手动删除
+                          {t('cannotDelete')}
                         </Badge>
                       )}
                     </div>
@@ -290,15 +299,15 @@ function AddToIPGroupPanel({
               </div>
             ) : (
               <p className='text-sm text-muted-foreground'>
-                该 IP 尚未加入任何 IP 组。
+                {t('notInAny')}
               </p>
             )}
 
             <div className='space-y-2'>
-              <p className='text-sm font-medium'>添加到其他 IP 组</p>
+              <p className='text-sm font-medium'>{t('addToOther')}</p>
               {addableGroups.length === 0 ? (
                 <p className='text-xs text-muted-foreground'>
-                  没有可写入的手动 IP 组（或已全部包含该 IP）。
+                  {t('noWritable')}
                 </p>
               ) : (
                 <Select
@@ -306,7 +315,7 @@ function AddToIPGroupPanel({
                   onValueChange={setSelectedGroupId}
                 >
                   <SelectTrigger className='h-9 text-xs'>
-                    <SelectValue placeholder='选择手动 IP 组' />
+                    <SelectValue placeholder={t('selectManual')} />
                   </SelectTrigger>
                   <SelectContent>
                     {addableGroups.map((group) => (
@@ -323,7 +332,7 @@ function AddToIPGroupPanel({
 
         <DialogFooter>
           <Button variant='outline' onClick={onClose}>
-            关闭
+            {t('close')}
           </Button>
           <Button
             onClick={() => void handleAdd()}
@@ -336,10 +345,10 @@ function AddToIPGroupPanel({
             {updateMutation.isPending ? (
               <>
                 <Loader2 className='mr-1 size-3.5 animate-spin' />
-                处理中...
+                {t('processing')}
               </>
             ) : (
-              '加入所选 IP 组'
+              t('joinSelected')
             )}
           </Button>
         </DialogFooter>
@@ -361,6 +370,8 @@ export function IpAnalysisPanel({
    */
   initialHours?: number;
 }) {
+  const t = useTranslations('accessLogs');
+  const trendChartConfig = useTrendChartConfig();
   const [ipGroupOpen, setIpGroupOpen] = useState(false);
   const [rangeHours, setRangeHours] = useState(() =>
     clampAnalysisHours(initialHours),
@@ -368,8 +379,8 @@ export function IpAnalysisPanel({
 
   const bucketMinutes = resolveBucketMinutes(rangeHours);
   const rangeHint = isOverviewPreset(rangeHours)
-    ? formatOverviewRangeHint(rangeHours)
-    : `近 ${rangeHours} 小时`;
+    ? formatOverviewRangeHint(rangeHours, (key, values) => t(key, values))
+    : t('analysis.recentHours', { hours: rangeHours });
 
   const trendQuery = useQuery({
     queryKey: [
@@ -411,7 +422,7 @@ export function IpAnalysisPanel({
   const isFetchingIP = trendQuery.isFetching || analysisQuery.isFetching;
 
   if (!ip) {
-    return <EmptyStateWithBorder description='没有有效 IP。' />;
+    return <EmptyStateWithBorder description={t('analysis.invalidIp')} />;
   }
 
   return (
@@ -423,7 +434,8 @@ export function IpAnalysisPanel({
             variant='outline'
             onClick={() => setIpGroupOpen(true)}
           >
-            <ShieldPlus className='mr-1 size-3.5' />将 IP 加入到 IP 组
+            <ShieldPlus className='mr-1 size-3.5' />
+            {t('analysis.addToGroup')}
           </Button>
           <ToggleGroup
             type='single'
@@ -441,14 +453,14 @@ export function IpAnalysisPanel({
                 value={String(option.value)}
                 className='px-2.5 text-xs'
               >
-                {option.label}
+                {t(option.labelKey)}
               </ToggleGroupItem>
             ))}
           </ToggleGroup>
         </div>
 
         {isLoadingIP ? (
-          <LoadingStateWithBorder title='加载 IP 分析' />
+          <LoadingStateWithBorder title={t('analysis.loading')} />
         ) : (
           <div className='space-y-4'>
             {analysisQuery.isError ? (
@@ -456,34 +468,34 @@ export function IpAnalysisPanel({
                 message={
                   analysisQuery.error instanceof Error
                     ? analysisQuery.error.message
-                    : '加载 IP 分析失败'
+                    : t('analysis.loadFailed')
                 }
                 onRetry={() => void analysisQuery.refetch()}
               />
             ) : analysis ? (
               <div className='grid gap-3 sm:grid-cols-2 lg:grid-cols-3'>
                 <MetricCard
-                  label='总请求'
+                  label={t('analysis.totalRequests')}
                   value={formatCompactNumber(analysis.summary.total_requests)}
                 />
                 <MetricCard
-                  label='错误数'
+                  label={t('analysis.errors')}
                   value={formatCompactNumber(analysis.summary.error_count)}
                 />
                 <MetricCard
-                  label='已提供带宽'
+                  label={t('analysis.bandwidth')}
                   value={formatBytes(analysis.summary.bandwidth_served)}
                 />
                 <MetricCard
-                  label='接收数据'
+                  label={t('analysis.received')}
                   value={formatBytes(analysis.summary.bytes_received)}
                 />
                 <MetricCard
-                  label='独立域名'
+                  label={t('analysis.uniqueHosts')}
                   value={formatCompactNumber(analysis.summary.unique_hosts)}
                 />
                 <MetricCard
-                  label='独立路径'
+                  label={t('analysis.uniquePaths')}
                   value={formatCompactNumber(analysis.summary.unique_paths)}
                 />
               </div>
@@ -492,9 +504,13 @@ export function IpAnalysisPanel({
             <div className='space-y-3 rounded-lg border border-dashed p-4'>
               <div className='flex items-center justify-between gap-2'>
                 <div>
-                  <p className='text-sm font-medium'>IP 请求趋势</p>
+                  <p className='text-sm font-medium'>{t('analysis.trend')}</p>
                   <p className='text-xs text-muted-foreground'>
-                    {ip} · {rangeHint} · {bucketMinutes} 分钟桶
+                    {t('analysis.trendMeta', {
+                      ip,
+                      range: rangeHint,
+                      minutes: bucketMinutes,
+                    })}
                   </p>
                 </div>
                 <Button
@@ -506,7 +522,7 @@ export function IpAnalysisPanel({
                     void analysisQuery.refetch();
                   }}
                 >
-                  刷新
+                  {t('analysis.refresh')}
                 </Button>
               </div>
 
@@ -515,13 +531,13 @@ export function IpAnalysisPanel({
                   message={
                     trendQuery.error instanceof Error
                       ? trendQuery.error.message
-                      : '加载趋势失败'
+                      : t('analysis.trendFailed')
                   }
                   onRetry={() => void trendQuery.refetch()}
                 />
               ) : trendChartData.every((point) => point.requests === 0) ? (
                 <EmptyStateWithBorder
-                  description={`该 IP 在${rangeHint}内没有访问记录。`}
+                  description={t('analysis.trendEmpty', { range: rangeHint })}
                 />
               ) : (
                 <ChartContainer

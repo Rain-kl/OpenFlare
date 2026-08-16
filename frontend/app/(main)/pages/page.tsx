@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { FileText, Plus, RefreshCw } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 import { EmptyStateWithBorder } from '@/components/layout/empty';
 import { ErrorInline } from '@/components/layout/error';
@@ -15,6 +16,8 @@ import { ProjectListItem } from './components/project-list-item';
 import { projectsQueryKey } from './components/pages-utils';
 
 export default function PagesPage() {
+  const t = useTranslations('pages');
+  const tCommon = useTranslations('common');
   const [editorOpen, setEditorOpen] = useState(false);
 
   const projectsQuery = useQuery({
@@ -28,11 +31,10 @@ export default function PagesPage() {
         <div className='flex items-center gap-2'>
           <FileText className='size-5 text-primary' />
           <div>
-            <h1 className='text-2xl font-semibold tracking-tight'>Pages</h1>
-            <p className='text-sm text-muted-foreground'>
-              边缘静态站点托管，上传静态资源部署包并在代理规则中选择 Pages
-              上游。
-            </p>
+            <h1 className='text-2xl font-semibold tracking-tight'>
+              {t('title')}
+            </h1>
+            <p className='text-sm text-muted-foreground'>{t('subtitle')}</p>
           </div>
         </div>
         <div className='flex gap-2'>
@@ -45,11 +47,11 @@ export default function PagesPage() {
             <RefreshCw
               className={`size-3.5 mr-1 ${projectsQuery.isFetching ? 'animate-spin' : ''}`}
             />
-            刷新
+            {t('refresh')}
           </Button>
           <Button size='sm' onClick={() => setEditorOpen(true)}>
             <Plus className='size-3.5 mr-1' />
-            新建项目
+            {t('create')}
           </Button>
         </div>
       </div>
@@ -59,7 +61,7 @@ export default function PagesPage() {
           message={
             projectsQuery.error instanceof Error
               ? projectsQuery.error.message
-              : '加载失败'
+              : tCommon('loadFailed')
           }
           onRetry={() => void projectsQuery.refetch()}
         />
@@ -70,8 +72,8 @@ export default function PagesPage() {
           <LoadingStateWithBorder />
         ) : (projectsQuery.data ?? []).length === 0 ? (
           <EmptyStateWithBorder
-            title='还没有 Pages 项目'
-            description='先创建一个项目，再上传静态资源部署包。'
+            title={t('emptyTitle')}
+            description={t('emptyDesc')}
           />
         ) : (
           (projectsQuery.data ?? []).map((project) => (

@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { format } from 'date-fns';
 import { CalendarIcon, ChevronDown, Search } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
@@ -91,6 +92,7 @@ function DateTimePicker({
   value: string;
   onChange: (value: string) => void;
 }) {
+  const t = useTranslations('accessLogs.filters');
   const [open, setOpen] = useState(false);
   const current = value ? new Date(value) : undefined;
 
@@ -121,7 +123,7 @@ function DateTimePicker({
           {current ? (
             format(current, 'yyyy-MM-dd HH:mm')
           ) : (
-            <span className='text-muted-foreground'>选择时间</span>
+            <span className='text-muted-foreground'>{t('pickTime')}</span>
           )}
         </Button>
       </PopoverTrigger>
@@ -153,12 +155,13 @@ export function AccessLogFilters({
   onSearch,
   onReset,
 }: AccessLogFiltersProps) {
+  const t = useTranslations('accessLogs.filters');
   const [moreOpen, setMoreOpen] = useState(false);
 
   return (
     <div className='space-y-3'>
       <div className='grid gap-3 md:grid-cols-2 xl:grid-cols-4'>
-        <FilterField label='来源 IP'>
+        <FilterField label={t('remoteAddr')}>
           <Input
             value={draft.remoteAddr}
             onChange={(e) =>
@@ -167,22 +170,22 @@ export function AccessLogFilters({
             onKeyDown={(e) => {
               if (e.key === 'Enter') onSearch();
             }}
-            placeholder='按 IP 搜索'
+            placeholder={t('remoteAddrPlaceholder')}
             className='h-9 text-xs'
           />
         </FilterField>
-        <FilterField label='访问域名'>
+        <FilterField label={t('host')}>
           <Input
             value={draft.host}
             onChange={(e) => onDraftChange({ ...draft, host: e.target.value })}
             onKeyDown={(e) => {
               if (e.key === 'Enter') onSearch();
             }}
-            placeholder='按域名搜索'
+            placeholder={t('hostPlaceholder')}
             className='h-9 text-xs'
           />
         </FilterField>
-        <FilterField label='状态码'>
+        <FilterField label={t('statusCode')}>
           <Input
             value={draft.statusCode}
             onChange={(e) =>
@@ -194,7 +197,7 @@ export function AccessLogFilters({
             onKeyDown={(e) => {
               if (e.key === 'Enter') onSearch();
             }}
-            placeholder='输入状态码，如 404'
+            placeholder={t('statusCodePlaceholder')}
             className='h-9 text-xs'
           />
         </FilterField>
@@ -207,7 +210,7 @@ export function AccessLogFilters({
             size='sm'
             className='-ml-1 h-8 gap-1 px-1 text-xs text-muted-foreground'
           >
-            更多筛选
+            {t('more')}
             <ChevronDown
               className={`size-3.5 transition-transform ${
                 moreOpen ? 'rotate-180' : ''
@@ -217,7 +220,7 @@ export function AccessLogFilters({
         </CollapsibleTrigger>
         <CollapsibleContent>
           <div className='grid gap-3 pt-3 md:grid-cols-2 xl:grid-cols-3'>
-            <FilterField label='节点 ID'>
+            <FilterField label={t('nodeId')}>
               <div className='relative'>
                 <Search className='absolute left-2.5 top-2.5 size-3.5 text-muted-foreground' />
                 <Input
@@ -228,12 +231,12 @@ export function AccessLogFilters({
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') onSearch();
                   }}
-                  placeholder='按 node_id 搜索'
+                  placeholder={t('nodeIdPlaceholder')}
                   className='pl-8 h-9 text-xs'
                 />
               </div>
             </FilterField>
-            <FilterField label='请求路径'>
+            <FilterField label={t('path')}>
               <Input
                 value={draft.path}
                 onChange={(e) =>
@@ -242,11 +245,11 @@ export function AccessLogFilters({
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') onSearch();
                 }}
-                placeholder='按路径搜索'
+                placeholder={t('pathPlaceholder')}
                 className='h-9 text-xs'
               />
             </FilterField>
-            <FilterField label='时间范围'>
+            <FilterField label={t('timeRange')}>
               <div className='grid grid-cols-2 gap-2'>
                 <DateTimePicker
                   value={draft.since}
@@ -268,7 +271,9 @@ export function AccessLogFilters({
 
       <div className='flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between'>
         <div className='space-y-1.5 w-full sm:max-w-[180px]'>
-          <p className='text-xs font-medium text-muted-foreground'>每页条数</p>
+          <p className='text-xs font-medium text-muted-foreground'>
+            {t('pageSize')}
+          </p>
           <Select
             value={String(pageSize)}
             onValueChange={(value) =>
@@ -281,7 +286,7 @@ export function AccessLogFilters({
             <SelectContent>
               {PAGE_SIZE_OPTIONS.map((option) => (
                 <SelectItem key={option} value={String(option)}>
-                  {option} 条
+                  {t('pageSizeItem', { count: option })}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -289,10 +294,10 @@ export function AccessLogFilters({
         </div>
         <div className='flex gap-2'>
           <Button size='sm' onClick={onSearch}>
-            筛选
+            {t('apply')}
           </Button>
           <Button variant='outline' size='sm' onClick={onReset}>
-            清空
+            {t('clear')}
           </Button>
         </div>
       </div>

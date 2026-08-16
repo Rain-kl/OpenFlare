@@ -5,6 +5,7 @@
 
 import dynamic from 'next/dynamic';
 import { useEffect, useMemo } from 'react';
+import { useTranslations } from 'next-intl';
 import { useQuery } from '@tanstack/react-query';
 import { Loader2, Settings } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -79,6 +80,7 @@ function systemConfigMap(configs: SystemConfig[]) {
 }
 
 export function AdminSettingsPageClient() {
+  const t = useTranslations('admin.settings');
   const { user, loading } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -136,7 +138,9 @@ export function AdminSettingsPageClient() {
       <div className='flex items-center gap-2'>
         <Settings className='size-5 text-primary' />
         <div>
-          <h1 className='text-2xl font-semibold tracking-tight'>系统设置</h1>
+          <h1 className='text-2xl font-semibold tracking-tight'>
+            {t('pageTitle')}
+          </h1>
         </div>
       </div>
       <Tabs
@@ -149,40 +153,40 @@ export function AdminSettingsPageClient() {
             value='openflare-ops'
             className='px-0 pb-2 text-xs font-semibold'
           >
-            OpenFlare
+            {t('tabs.openflare')}
           </TabsTrigger>
           <TabsTrigger
             value='security'
             className='px-0 pb-2 text-xs font-semibold'
           >
-            安全设置
+            {t('tabs.security')}
           </TabsTrigger>
           <TabsTrigger
             value='operation'
             className='px-0 pb-2 text-xs font-semibold'
           >
-            业务设置
+            {t('tabs.operation')}
           </TabsTrigger>
           <TabsTrigger
             value='system'
             className='px-0 pb-2 text-xs font-semibold'
           >
-            系统设置
+            {t('tabs.system')}
           </TabsTrigger>
           <TabsTrigger
             value='other'
             className='px-0 pb-2 text-xs font-semibold'
           >
-            其他设置
+            {t('tabs.other')}
           </TabsTrigger>
           <TabsTrigger
             value='status'
             className='px-0 pb-2 text-xs font-semibold'
           >
-            系统状态
+            {t('tabs.status')}
           </TabsTrigger>
           <TabsTrigger value='info' className='px-0 pb-2 text-xs font-semibold'>
-            系统信息
+            {t('tabs.info')}
           </TabsTrigger>
         </TabsList>
 

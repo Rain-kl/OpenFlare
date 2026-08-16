@@ -28,17 +28,17 @@ import {
 import type { DnsAccountMutationPayload } from '@/lib/services/openflare';
 import { DnsAccountService } from '@/lib/services/openflare';
 
+import { useTranslations } from 'next-intl';
+
 import { getErrorMessage } from './website-utils';
 
 const dnsAccountsQueryKey = ['openflare', 'dns-accounts'];
 
-const dnsAccountSchema = z.object({
-  name: z.string().trim().min(1, '请输入名称').max(255),
-  type: z.string().min(1),
-  authorization: z.string().trim().min(1, '请输入 Token'),
-});
-
-type DnsAccountFormValues = z.infer<typeof dnsAccountSchema>;
+type DnsAccountFormValues = {
+  name: string;
+  type: string;
+  authorization: string;
+};
 
 interface DnsAccountCreateDialogProps {
   open: boolean;
@@ -51,8 +51,15 @@ export function DnsAccountCreateDialog({
   onOpenChange,
   onCreated,
 }: DnsAccountCreateDialogProps) {
+  const t = useTranslations('dnsAccounts');
+  const tc = useTranslations('common');
   const queryClient = useQueryClient();
   const [error, setError] = useState('');
+  const dnsAccountSchema = z.object({
+    name: z.string().trim().min(1, t('nameRequired')).max(255),
+    type: z.string().min(1),
+    authorization: z.string().trim().min(1, t('tokenRequired')),
+  });
   const form = useForm<DnsAccountFormValues>({
     resolver: zodResolver(dnsAccountSchema),
     defaultValues: { name: '', type: 'cloudflare', authorization: '' },
@@ -68,7 +75,7 @@ export function DnsAccountCreateDialog({
       onCreated?.();
       onOpenChange(false);
     },
-    onError: (err) => setError(getErrorMessage(err)),
+    onError: (err) => setError(getErrorMessage(err, t('requestFailed'))),
   });
 
   const onSubmit = form.handleSubmit((values) => {
@@ -90,19 +97,17 @@ export function DnsAccountCreateDialog({
     <Dialog open={open} onOpenChange={(next) => !next && handleClose()}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>添加 DNS 账号</DialogTitle>
-          <DialogDescription>
-            统一管理 DNS 服务商账号，用于 ACME 证书的 DNS 验证申请。
-          </DialogDescription>
+          <DialogTitle>{t('createTitle')}</DialogTitle>
+          <DialogDescription>{t('createDesc')}</DialogDescription>
         </DialogHeader>
 
         <form className='space-y-4' onSubmit={onSubmit}>
           {error ? <p className='text-sm text-destructive'>{error}</p> : null}
 
           <div className='space-y-2'>
-            <Label>账号名称</Label>
+            <Label>{t('accountName')}</Label>
             <Input
-              placeholder='Cloudflare 邮箱账号'
+              placeholder={t('accountNamePlaceholder')}
               {...form.register('name')}
             />
             {form.formState.errors.name ? (
@@ -113,7 +118,7 @@ export function DnsAccountCreateDialog({
           </div>
 
           <div className='space-y-2'>
-            <Label>DNS 服务商</Label>
+            <Label>{t('provider')}</Label>
             <Select
               value={form.watch('type')}
               onValueChange={(value) => form.setValue('type', value)}
@@ -131,7 +136,7 @@ export function DnsAccountCreateDialog({
             <Label>API Token</Label>
             <Input
               {...form.register('authorization')}
-              placeholder='请勿使用 Global API Key'
+              placeholder={t('tokenPlaceholder')}
             />
             {form.formState.errors.authorization ? (
               <p className='text-xs text-destructive'>
@@ -142,16 +147,16 @@ export function DnsAccountCreateDialog({
 
           <DialogFooter>
             <Button type='button' variant='outline' onClick={handleClose}>
-              取消
+              {tc('cancel')}
             </Button>
             <Button type='submit' disabled={createMutation.isPending}>
               {createMutation.isPending ? (
                 <>
                   <Loader2 className='mr-1 size-3.5 animate-spin' />
-                  提交中...
+                  {t('submitting')}
                 </>
               ) : (
-                '提交'
+                t('submit')
               )}
             </Button>
           </DialogFooter>

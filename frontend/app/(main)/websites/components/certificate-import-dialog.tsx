@@ -21,12 +21,14 @@ import { Textarea } from '@/components/ui/textarea';
 import type { TlsCertificateItem } from '@/lib/services/openflare';
 import { TlsCertificateService } from '@/lib/services/openflare';
 
+import { useTranslations } from 'next-intl';
+
 import {
+  createManualImportSchema,
   defaultFileImportValues,
   defaultManualImportValues,
   type FileImportFormValues,
   type ManualImportFormValues,
-  manualImportSchema,
 } from './schemas';
 import {
   getErrorMessage,
@@ -47,6 +49,7 @@ export function CertificateImportDialog({
   onOpenChange,
   onImported,
 }: CertificateImportDialogProps) {
+  const t = useTranslations('certificates');
   const queryClient = useQueryClient();
   const [importMode, setImportMode] = useState<'manual' | 'file'>('manual');
   const [error, setError] = useState('');
@@ -58,7 +61,7 @@ export function CertificateImportDialog({
   const [fileInputNonce, setFileInputNonce] = useState(0);
 
   const manualForm = useForm<ManualImportFormValues>({
-    resolver: zodResolver(manualImportSchema),
+    resolver: zodResolver(createManualImportSchema(t)),
     defaultValues: defaultManualImportValues,
   });
 
@@ -100,20 +103,20 @@ export function CertificateImportDialog({
       onImported?.(certificate);
       handleClose();
     },
-    onError: (err) => setError(getErrorMessage(err)),
+    onError: (err) => setError(getErrorMessage(err, t('requestFailed'))),
   });
 
   const fileImportMutation = useMutation({
     mutationFn: (values: FileImportFormValues) =>
       TlsCertificateService.importFile(
-        toFilePayload(values, certFile, keyFile),
+        toFilePayload(values, certFile, keyFile, t('selectFiles')),
       ),
     onSuccess: async (certificate) => {
       await invalidateQueries();
       onImported?.(certificate);
       handleClose();
     },
-    onError: (err) => setError(getErrorMessage(err)),
+    onError: (err) => setError(getErrorMessage(err, t('requestFailed'))),
   });
 
   const handleManualSubmit = manualForm.handleSubmit((values) => {
@@ -134,10 +137,8 @@ export function CertificateImportDialog({
     <Dialog open={open} onOpenChange={(next) => !next && handleClose()}>
       <DialogContent className='max-w-2xl'>
         <DialogHeader>
-          <DialogTitle>添加证书</DialogTitle>
-          <DialogDescription>
-            支持手动粘贴 PEM 或上传证书文件。导入成功后可立即在网站表单里选择。
-          </DialogDescription>
+          <DialogTitle>{t('importTitle')}</DialogTitle>
+          <DialogDescription>{t('importDesc')}</DialogDescription>
         </DialogHeader>
 
         {error ? <p className='text-sm text-destructive'>{error}</p> : null}
@@ -147,15 +148,15 @@ export function CertificateImportDialog({
           onValueChange={(value) => setImportMode(value as 'manual' | 'file')}
         >
           <TabsList className='grid w-full grid-cols-2'>
-            <TabsTrigger value='manual'>手动导入</TabsTrigger>
-            <TabsTrigger value='file'>文件导入</TabsTrigger>
+            <TabsTrigger value='manual'>{t('manualImport')}</TabsTrigger>
+            <TabsTrigger value='file'>{t('fileImport')}</TabsTrigger>
           </TabsList>
 
           <TabsContent value='manual' className='space-y-4'>
             <form className='space-y-4' onSubmit={handleManualSubmit}>
               <div className='grid gap-4 md:grid-cols-2'>
                 <div className='space-y-2'>
-                  <Label>证书名称</Label>
+                  <Label>{t('name')}</Label>
                   <Input
                     placeholder='example-com'
                     {...manualForm.register('name')}
@@ -167,16 +168,16 @@ export function CertificateImportDialog({
                   ) : null}
                 </div>
                 <div className='space-y-2'>
-                  <Label>备注</Label>
+                  <Label>{t('remark')}</Label>
                   <Input
-                    placeholder='例如：主站生产证书'
+                    placeholder={t('remarkProdPlaceholder')}
                     {...manualForm.register('remark')}
                   />
                 </div>
               </div>
 
               <div className='space-y-2'>
-                <Label>证书 PEM</Label>
+                <Label>{t('certPem')}</Label>
                 <Textarea
                   className='min-h-32 font-mono text-xs'
                   placeholder='-----BEGIN CERTIFICATE-----'
@@ -185,7 +186,7 @@ export function CertificateImportDialog({
               </div>
 
               <div className='space-y-2'>
-                <Label>私钥 PEM</Label>
+                <Label>{t('keyPem')}</Label>
                 <Textarea
                   className='min-h-32 font-mono text-xs'
                   placeholder='-----BEGIN PRIVATE KEY-----'
@@ -197,10 +198,10 @@ export function CertificateImportDialog({
                 {pending ? (
                   <>
                     <Loader2 className='mr-1 size-3.5 animate-spin' />
-                    导入中...
+                    {t('importing')}
                   </>
                 ) : (
-                  '导入证书'
+                  t('importCert')
                 )}
               </Button>
             </form>
@@ -210,7 +211,7 @@ export function CertificateImportDialog({
             <form className='space-y-4' onSubmit={handleFileSubmit}>
               <div className='grid gap-4 md:grid-cols-2'>
                 <div className='space-y-2'>
-                  <Label>证书名称</Label>
+                  <Label>{t('name')}</Label>
                   <Input
                     value={fileForm.name}
                     onChange={(event) =>
@@ -223,7 +224,7 @@ export function CertificateImportDialog({
                   />
                 </div>
                 <div className='space-y-2'>
-                  <Label>备注</Label>
+                  <Label>{t('remark')}</Label>
                   <Input
                     value={fileForm.remark}
                     onChange={(event) =>
@@ -232,14 +233,14 @@ export function CertificateImportDialog({
                         remark: event.target.value,
                       }))
                     }
-                    placeholder='例如：泛域名生产证书'
+                    placeholder={t('remarkWildcardPlaceholder')}
                   />
                 </div>
               </div>
 
               <div className='grid gap-4 md:grid-cols-2'>
                 <div className='space-y-2'>
-                  <Label>证书文件</Label>
+                  <Label>{t('certFile')}</Label>
                   <Input
                     key={`cert-${fileInputNonce}`}
                     type='file'
@@ -250,12 +251,12 @@ export function CertificateImportDialog({
                   />
                   <p className='text-xs text-muted-foreground'>
                     {certFile
-                      ? `已选择：${certFile.name}`
-                      : '请选择 PEM/CRT 文件'}
+                      ? t('fileSelected', { name: certFile.name })
+                      : t('selectCertFile')}
                   </p>
                 </div>
                 <div className='space-y-2'>
-                  <Label>私钥文件</Label>
+                  <Label>{t('keyFile')}</Label>
                   <Input
                     key={`key-${fileInputNonce}`}
                     type='file'
@@ -266,8 +267,8 @@ export function CertificateImportDialog({
                   />
                   <p className='text-xs text-muted-foreground'>
                     {keyFile
-                      ? `已选择：${keyFile.name}`
-                      : '请选择 KEY/PEM 文件'}
+                      ? t('fileSelected', { name: keyFile.name })
+                      : t('selectKeyFile')}
                   </p>
                 </div>
               </div>
@@ -277,10 +278,10 @@ export function CertificateImportDialog({
                   {pending ? (
                     <>
                       <Loader2 className='mr-1 size-3.5 animate-spin' />
-                      上传中...
+                      {t('uploading')}
                     </>
                   ) : (
-                    '上传文件'
+                    t('uploadFiles')
                   )}
                 </Button>
                 <Button
@@ -289,7 +290,7 @@ export function CertificateImportDialog({
                   disabled={pending}
                   onClick={resetFileForm}
                 >
-                  清空文件
+                  {t('clearFiles')}
                 </Button>
               </div>
             </form>

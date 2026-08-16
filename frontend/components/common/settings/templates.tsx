@@ -36,9 +36,11 @@ import {
 import services from '@/lib/services';
 import type { Template } from '@/lib/services/admin/types';
 import { toast } from 'sonner';
+import { useTranslations } from 'next-intl';
 
 export function TemplatesManager() {
   const queryClient = useQueryClient();
+  const t = useTranslations('settings.templates');
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(
     null,
@@ -71,11 +73,11 @@ export function TemplatesManager() {
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['admin', 'templates'] });
-      toast.success('通知模板已成功创建');
+      toast.success(t('templateCreated'));
       setModalOpen(false);
     },
     onError: (error: Error) => {
-      toast.error(error.message || '创建模板失败');
+      toast.error(error.message || t('createTemplateFailed'));
     },
   });
 
@@ -91,11 +93,11 @@ export function TemplatesManager() {
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['admin', 'templates'] });
-      toast.success('通知模板已成功保存');
+      toast.success(t('templateSaved'));
       setModalOpen(false);
     },
     onError: (error: Error) => {
-      toast.error(error.message || '修改模板失败');
+      toast.error(error.message || t('updateTemplateFailed'));
     },
   });
 
@@ -106,10 +108,10 @@ export function TemplatesManager() {
     onSuccess: async () => {
       setDeleteTarget(null);
       await queryClient.invalidateQueries({ queryKey: ['admin', 'templates'] });
-      toast.success('通知模板已删除');
+      toast.success(t('templateDeleted'));
     },
     onError: (error: Error) => {
-      toast.error(error.message || '删除模板失败');
+      toast.error(error.message || t('deleteTemplateFailed'));
     },
   });
 
@@ -157,10 +159,10 @@ export function TemplatesManager() {
             </div>
             <div>
               <CardTitle className='text-base font-semibold'>
-                通知模板管理
+                {t('templateManagement')}
               </CardTitle>
               <CardDescription className='text-xs'>
-                配置与编辑系统各类场景的通知邮件/短信模板，支持动态变量渲染
+                {t('templateManagementDesc')}
               </CardDescription>
             </div>
           </div>
@@ -171,7 +173,7 @@ export function TemplatesManager() {
             variant='secondary'
           >
             <Plus className='mr-1.5 size-3.5' />
-            新增模板
+            {t('addTemplate')}
           </Button>
         </CardHeader>
         <CardContent className='pt-6 space-y-4'>
@@ -198,18 +200,18 @@ export function TemplatesManager() {
                             : 'bg-amber-500/10 text-amber-500 border-amber-500/20'
                         }`}
                       >
-                        {tmpl.is_system ? '系统内置' : '自定义'}
+                        {tmpl.is_system ? t('systemBuiltIn') : t('custom')}
                       </span>
                       <span className='text-[10px] px-2 py-0.5 rounded-full border border-border/50 bg-muted/50 text-muted-foreground font-mono'>
                         {tmpl.type.toUpperCase()}
                       </span>
                     </div>
                     <div className='text-xs text-muted-foreground'>
-                      标识符:{' '}
+                      {t('identifier')}:{' '}
                       <span className='font-mono text-primary bg-primary/5 px-1.5 py-0.5 rounded'>
                         {tmpl.key}
                       </span>
-                      {tmpl.subject && ` · 主题: ${tmpl.subject}`}
+                      {tmpl.subject && ` · ${t('subject')}: ${tmpl.subject}`}
                     </div>
                     {tmpl.description && (
                       <p className='text-xs text-muted-foreground/80 leading-relaxed max-w-xl'>
@@ -245,7 +247,7 @@ export function TemplatesManager() {
             </div>
           ) : (
             <div className='rounded-xl border border-dashed border-border/50 px-4 py-8 text-center text-xs text-muted-foreground bg-muted/5 flex flex-col items-center justify-center gap-3'>
-              <span>暂无配置的通知模板，点击上方按钮新增</span>
+              <span>{t('noTemplates')}</span>
               <Button
                 type='button'
                 size='sm'
@@ -254,7 +256,7 @@ export function TemplatesManager() {
                 className='border-dashed'
               >
                 <Plus className='mr-1.5 size-3.5' />
-                新增模板
+                {t('addTemplate')}
               </Button>
             </div>
           )}
@@ -265,11 +267,10 @@ export function TemplatesManager() {
         <DialogContent className='max-w-xl border border-dashed'>
           <DialogHeader>
             <DialogTitle className='text-base font-semibold'>
-              {selectedTemplate ? '编辑通知模板' : '新增通知模板'}
+              {selectedTemplate ? t('editTemplate') : t('addTemplateTitle')}
             </DialogTitle>
             <DialogDescription className='text-xs'>
-              配置模板渲染逻辑，支持 Go `text/template` 语法（例如 `
-              {'{{.Code}}'}` 表示验证码变量）。
+              {t('templateDesc')}
             </DialogDescription>
           </DialogHeader>
 
@@ -277,7 +278,7 @@ export function TemplatesManager() {
             <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
               <div className='space-y-1.5'>
                 <Label htmlFor='tmpl_key' className='text-xs font-semibold'>
-                  模板标识符 (Key)
+                  {t('templateKey')}
                 </Label>
                 <Input
                   id='tmpl_key'
@@ -290,13 +291,13 @@ export function TemplatesManager() {
                   disabled={!!selectedTemplate}
                 />
                 <p className='text-[10px] text-muted-foreground leading-normal'>
-                  模板的唯一标识，在代码中通过此 Key 调用。
+                  {t('templateKeyDesc')}
                 </p>
               </div>
 
               <div className='space-y-1.5'>
                 <Label htmlFor='tmpl_name' className='text-xs font-semibold'>
-                  模板名称
+                  {t('templateName')}
                 </Label>
                 <Input
                   id='tmpl_name'
@@ -308,13 +309,13 @@ export function TemplatesManager() {
                   className='bg-card border-dashed text-xs'
                 />
                 <p className='text-[10px] text-muted-foreground leading-normal'>
-                  用于后台识别该模板的可读名称。
+                  {t('templateNameDesc')}
                 </p>
               </div>
 
               <div className='space-y-1.5'>
                 <Label htmlFor='tmpl_type' className='text-xs font-semibold'>
-                  模板类型
+                  {t('templateType')}
                 </Label>
                 <Input
                   id='tmpl_type'
@@ -326,13 +327,13 @@ export function TemplatesManager() {
                   className='bg-card border-dashed text-xs'
                 />
                 <p className='text-[10px] text-muted-foreground leading-normal'>
-                  模板分类标识，目前支持 `email`。
+                  {t('templateTypeDesc')}
                 </p>
               </div>
 
               <div className='space-y-1.5'>
                 <Label htmlFor='tmpl_subject' className='text-xs font-semibold'>
-                  模板主题 (Subject)
+                  {t('templateSubject')}
                 </Label>
                 <Input
                   id='tmpl_subject'
@@ -343,7 +344,7 @@ export function TemplatesManager() {
                   className='bg-card border-dashed text-xs'
                 />
                 <p className='text-[10px] text-muted-foreground leading-normal'>
-                  邮件标题（类型为 email 时生效）。
+                  {t('templateSubjectDesc')}
                 </p>
               </div>
             </div>
@@ -353,7 +354,7 @@ export function TemplatesManager() {
                 htmlFor='tmpl_description'
                 className='text-xs font-semibold'
               >
-                模板说明与变量描述
+                {t('templateDescription')}
               </Label>
               <Input
                 id='tmpl_description'
@@ -367,7 +368,7 @@ export function TemplatesManager() {
 
             <div className='space-y-1.5'>
               <Label htmlFor='tmpl_content' className='text-xs font-semibold'>
-                模板正文内容 (Content)
+                {t('templateContent')}
               </Label>
               <Textarea
                 id='tmpl_content'
@@ -388,16 +389,16 @@ export function TemplatesManager() {
                 onClick={() => setModalOpen(false)}
                 disabled={isPending}
               >
-                取消
+                {t('cancel')}
               </Button>
               <Button type='submit' size='sm' disabled={isPending}>
                 {isPending ? (
                   <>
                     <Loader2 className='mr-1.5 size-3.5 animate-spin' />
-                    保存中...
+                    {t('saving')}
                   </>
                 ) : (
-                  '保存配置'
+                  t('saveConfig')
                 )}
               </Button>
             </DialogFooter>
@@ -411,14 +412,14 @@ export function TemplatesManager() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>确认删除模板</AlertDialogTitle>
+            <AlertDialogTitle>{t('deleteTemplateTitle')}</AlertDialogTitle>
             <AlertDialogDescription>
-              确定删除模板「{deleteTarget?.name}」吗？删除后无法恢复。
+              {t('deleteTemplateConfirm', { name: deleteTarget?.name ?? '' })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={deleteTemplateMutation.isPending}>
-              取消
+              {t('cancel')}
             </AlertDialogCancel>
             <AlertDialogAction
               disabled={deleteTemplateMutation.isPending}
@@ -426,7 +427,9 @@ export function TemplatesManager() {
                 deleteTarget && deleteTemplateMutation.mutate(deleteTarget.key)
               }
             >
-              {deleteTemplateMutation.isPending ? '删除中...' : '确认删除'}
+              {deleteTemplateMutation.isPending
+                ? t('deleting')
+                : t('confirmDelete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

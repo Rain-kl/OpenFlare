@@ -9,6 +9,7 @@ import {
   RefreshCw,
   RotateCcw,
 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -109,20 +110,6 @@ async function listCloudflareSyncExecutions(options: {
   };
 }
 
-const STATUS_LABELS: Record<TaskExecutionStatus, string> = {
-  pending: '等待中',
-  running: '执行中',
-  succeeded: '成功',
-  failed: '失败',
-};
-
-const TRIGGER_LABELS: Record<string, string> = {
-  system: '系统',
-  manual: '手动',
-  retry: '重试',
-  schedule: '定时',
-};
-
 function formatDateTime(value?: string | null) {
   if (!value) return '-';
   const date = new Date(value);
@@ -143,6 +130,7 @@ function statusVariant(status: TaskExecutionStatus) {
 }
 
 export function SyncTasksPanel() {
+  const t = useTranslations('cloudflare.tasks');
   const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
   const [status, setStatus] = useState<TaskExecutionStatus | 'all'>('all');
@@ -175,16 +163,16 @@ export function SyncTasksPanel() {
   const retryMutation = useMutation({
     mutationFn: (id: string) => AdminTaskService.retryTaskExecution(id),
     onSuccess: (taskID) => {
-      toast.success('同步任务已重新下发', {
-        description: `新任务 ID：${taskID}`,
+      toast.success(t('retried'), {
+        description: t('newTaskId', { id: taskID }),
       });
       void queryClient.invalidateQueries({
         queryKey: [...cloudflareQueryKey, 'sync-executions'],
       });
     },
     onError: (err: Error) => {
-      toast.error('任务重试失败', {
-        description: err.message || '未知错误',
+      toast.error(t('retryFailed'), {
+        description: err.message || t('unknownError'),
       });
     },
   });
@@ -197,6 +185,18 @@ export function SyncTasksPanel() {
     () => Math.max(1, Math.ceil(total / PAGE_SIZE)),
     [total],
   );
+  const statusLabels: Record<TaskExecutionStatus, string> = {
+    pending: t('pending'),
+    running: t('running'),
+    succeeded: t('succeeded'),
+    failed: t('failed'),
+  };
+  const triggerLabels: Record<string, string> = {
+    system: t('system'),
+    manual: t('manual'),
+    retry: t('retry'),
+    schedule: t('schedule'),
+  };
 
   const openDetail = (execution: TaskExecution) => {
     setPreview(execution);
@@ -210,12 +210,9 @@ export function SyncTasksPanel() {
         <div className='space-y-1'>
           <CardTitle className='flex items-center gap-2 text-base'>
             <Activity className='size-4 text-primary' />
-            同步任务
+            {t('title')}
           </CardTitle>
-          <CardDescription>
-            仅展示 Cloudflare
-            域名同步（sync_member）与分组同步（sync_group）的执行记录。
-          </CardDescription>
+          <CardDescription>{t('description')}</CardDescription>
         </div>
         <div className='flex flex-wrap items-center gap-2'>
           <Select
@@ -226,14 +223,14 @@ export function SyncTasksPanel() {
             }}
           >
             <SelectTrigger size='sm' className='w-[120px]'>
-              <SelectValue placeholder='状态' />
+              <SelectValue placeholder={t('statusPlaceholder')} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value='all'>全部状态</SelectItem>
-              <SelectItem value='pending'>等待中</SelectItem>
-              <SelectItem value='running'>执行中</SelectItem>
-              <SelectItem value='succeeded'>成功</SelectItem>
-              <SelectItem value='failed'>失败</SelectItem>
+              <SelectItem value='all'>{t('allStatus')}</SelectItem>
+              <SelectItem value='pending'>{t('pending')}</SelectItem>
+              <SelectItem value='running'>{t('running')}</SelectItem>
+              <SelectItem value='succeeded'>{t('succeeded')}</SelectItem>
+              <SelectItem value='failed'>{t('failed')}</SelectItem>
             </SelectContent>
           </Select>
           <Button
@@ -247,7 +244,7 @@ export function SyncTasksPanel() {
             ) : (
               <RefreshCw data-icon='inline-start' />
             )}
-            刷新
+            {t('refresh')}
           </Button>
         </div>
       </CardHeader>
@@ -257,32 +254,44 @@ export function SyncTasksPanel() {
             message={
               executionsQuery.error instanceof Error
                 ? executionsQuery.error.message
-                : '加载同步任务失败'
+                : t('loadFailed')
             }
             onRetry={() => void executionsQuery.refetch()}
           />
         ) : loading && executions.length === 0 ? (
           <LoadingStateWithBorder
             icon={Activity}
-            description='加载同步任务中...'
+            description={t('loading')}
           />
         ) : executions.length === 0 ? (
           <EmptyStateWithBorder
             icon={Activity}
-            title='暂无同步任务'
-            description='添加域名或同步分组后，这里会显示 Cloudflare 域名 / 分组同步执行记录。'
+            title={t('emptyTitle')}
+            description={t('emptyDesc')}
           />
         ) : (
           <div className='rounded-lg border'>
             <Table className='min-w-[720px]'>
               <TableHeader>
                 <TableRow className='hover:bg-transparent'>
-                  <TableHead className='w-[200px]'>任务</TableHead>
-                  <TableHead className='w-[100px]'>状态</TableHead>
-                  <TableHead className='w-[100px]'>触发</TableHead>
-                  <TableHead className='w-[100px]'>耗时</TableHead>
-                  <TableHead className='min-w-[180px]'>结果/错误</TableHead>
-                  <TableHead className='w-[160px]'>创建时间</TableHead>
+                  <TableHead className='w-[200px]'>
+                    {t('columns.task')}
+                  </TableHead>
+                  <TableHead className='w-[100px]'>
+                    {t('columns.status')}
+                  </TableHead>
+                  <TableHead className='w-[100px]'>
+                    {t('columns.trigger')}
+                  </TableHead>
+                  <TableHead className='w-[100px]'>
+                    {t('columns.duration')}
+                  </TableHead>
+                  <TableHead className='min-w-[180px]'>
+                    {t('columns.result')}
+                  </TableHead>
+                  <TableHead className='w-[160px]'>
+                    {t('columns.createdAt')}
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -304,12 +313,12 @@ export function SyncTasksPanel() {
                     </TableCell>
                     <TableCell>
                       <Badge variant={statusVariant(execution.status)}>
-                        {STATUS_LABELS[execution.status] || execution.status}
+                        {statusLabels[execution.status] || execution.status}
                       </Badge>
                     </TableCell>
                     <TableCell>
                       <Badge variant='outline'>
-                        {TRIGGER_LABELS[execution.triggered_by] ||
+                        {triggerLabels[execution.triggered_by] ||
                           execution.triggered_by}
                       </Badge>
                     </TableCell>
@@ -331,7 +340,7 @@ export function SyncTasksPanel() {
 
         <div className='flex items-center justify-between gap-2'>
           <div className='text-xs text-muted-foreground'>
-            共 {total} 条，第 {page}/{totalPages} 页
+            {t('pageSummary', { total, page, pages: totalPages })}
           </div>
           <div className='flex items-center gap-2'>
             <Button
@@ -341,7 +350,7 @@ export function SyncTasksPanel() {
               disabled={page <= 1 || loading}
             >
               <ChevronLeft className='size-4' />
-              上一页
+              {t('prev')}
             </Button>
             <Button
               variant='outline'
@@ -349,7 +358,7 @@ export function SyncTasksPanel() {
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               disabled={page >= totalPages || loading}
             >
-              下一页
+              {t('next')}
               <ChevronRight className='size-4' />
             </Button>
           </div>
@@ -359,43 +368,51 @@ export function SyncTasksPanel() {
       <Sheet open={detailOpen} onOpenChange={setDetailOpen}>
         <SheetContent className='w-full p-0 sm:max-w-[560px]'>
           <SheetHeader className='border-b'>
-            <SheetTitle>同步任务详情</SheetTitle>
+            <SheetTitle>{t('detailTitle')}</SheetTitle>
             <SheetDescription>
-              {selected?.task_name || selected?.task_type || 'Cloudflare 同步'}
+              {selected?.task_name || selected?.task_type || t('defaultName')}
             </SheetDescription>
           </SheetHeader>
           <div className='flex-1 space-y-4 overflow-y-auto px-4 py-4'>
             {detailQuery.isFetching && !selected ? (
               <LoadingStateWithBorder
                 icon={Activity}
-                description='加载任务详情中...'
+                description={t('loadingDetail')}
               />
             ) : selected ? (
               <>
                 <div className='grid grid-cols-2 gap-3'>
                   <div className='rounded-lg border p-3'>
-                    <div className='text-xs text-muted-foreground'>状态</div>
+                    <div className='text-xs text-muted-foreground'>
+                      {t('status')}
+                    </div>
                     <div className='mt-2'>
                       <Badge variant={statusVariant(selected.status)}>
-                        {STATUS_LABELS[selected.status] || selected.status}
+                        {statusLabels[selected.status] || selected.status}
                       </Badge>
                     </div>
                   </div>
                   <div className='rounded-lg border p-3'>
-                    <div className='text-xs text-muted-foreground'>触发</div>
+                    <div className='text-xs text-muted-foreground'>
+                      {t('trigger')}
+                    </div>
                     <div className='mt-2 text-sm font-medium'>
-                      {TRIGGER_LABELS[selected.triggered_by] ||
+                      {triggerLabels[selected.triggered_by] ||
                         selected.triggered_by}
                     </div>
                   </div>
                   <div className='rounded-lg border p-3'>
-                    <div className='text-xs text-muted-foreground'>重试</div>
+                    <div className='text-xs text-muted-foreground'>
+                      {t('retries')}
+                    </div>
                     <div className='mt-2 font-mono text-sm'>
                       {selected.retry_count}/{selected.max_retry}
                     </div>
                   </div>
                   <div className='rounded-lg border p-3'>
-                    <div className='text-xs text-muted-foreground'>耗时</div>
+                    <div className='text-xs text-muted-foreground'>
+                      {t('duration')}
+                    </div>
                     <div className='mt-2 font-mono text-sm'>
                       {formatDuration(selected.duration)}
                     </div>
@@ -403,7 +420,9 @@ export function SyncTasksPanel() {
                 </div>
 
                 <div className='space-y-1'>
-                  <div className='text-xs text-muted-foreground'>任务 ID</div>
+                  <div className='text-xs text-muted-foreground'>
+                    {t('taskId')}
+                  </div>
                   <div className='rounded-md border bg-muted/40 px-3 py-2 font-mono text-xs break-all'>
                     {selected.task_id}
                   </div>
@@ -412,7 +431,7 @@ export function SyncTasksPanel() {
                 <div className='grid gap-3 sm:grid-cols-2'>
                   <div className='space-y-1'>
                     <div className='text-xs text-muted-foreground'>
-                      创建时间
+                      {t('createdAt')}
                     </div>
                     <div className='font-mono text-xs'>
                       {formatDateTime(selected.created_at)}
@@ -420,7 +439,7 @@ export function SyncTasksPanel() {
                   </div>
                   <div className='space-y-1'>
                     <div className='text-xs text-muted-foreground'>
-                      结束时间
+                      {t('finishedAt')}
                     </div>
                     <div className='font-mono text-xs'>
                       {formatDateTime(selected.finished_at)}
@@ -429,7 +448,9 @@ export function SyncTasksPanel() {
                 </div>
 
                 <div className='space-y-1'>
-                  <div className='text-xs text-muted-foreground'>执行结果</div>
+                  <div className='text-xs text-muted-foreground'>
+                    {t('result')}
+                  </div>
                   <div className='min-h-10 rounded-md border bg-muted/30 px-3 py-2 text-sm whitespace-pre-wrap break-all'>
                     {selected.result || '-'}
                   </div>
@@ -438,7 +459,7 @@ export function SyncTasksPanel() {
                 {selected.error_message ? (
                   <div className='space-y-1'>
                     <div className='text-xs text-muted-foreground'>
-                      错误信息
+                      {t('error')}
                     </div>
                     <div className='rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive whitespace-pre-wrap break-all'>
                       {selected.error_message}
@@ -456,7 +477,7 @@ export function SyncTasksPanel() {
                 {selected.log ? (
                   <div className='space-y-1'>
                     <div className='text-xs text-muted-foreground'>
-                      执行日志
+                      {t('logs')}
                     </div>
                     <pre className='max-h-48 overflow-auto rounded-md border bg-muted/40 p-3 text-xs leading-relaxed'>
                       {selected.log}
@@ -478,11 +499,11 @@ export function SyncTasksPanel() {
                 ) : (
                   <RotateCcw data-icon='inline-start' />
                 )}
-                重试
+                {t('retry')}
               </Button>
             ) : null}
             <Button variant='outline' onClick={() => setDetailOpen(false)}>
-              关闭
+              {t('close')}
             </Button>
           </SheetFooter>
         </SheetContent>

@@ -3,6 +3,7 @@
 import dynamic from 'next/dynamic';
 import * as React from 'react';
 import { useCallback, useEffect, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import {
   Activity,
@@ -57,6 +58,7 @@ const formatNumber = (num: number | string) => {
 };
 
 export function DatabasePageClient() {
+  const t = useTranslations('admin.database');
   // 核心状态
   const [overview, setOverview] = useState<DBOverview | null>(null);
   const [tables, setTables] = useState<string[]>([]);
@@ -75,13 +77,13 @@ export function DatabasePageClient() {
       const data = await services.dbManage.getOverview();
       setOverview(data);
     } catch (err) {
-      toast.error('获取数据库概览失败', {
-        description: err instanceof Error ? err.message : '未知错误',
+      toast.error(t('fetchOverviewFailed'), {
+        description: err instanceof Error ? err.message : t('unknownError'),
       });
     } finally {
       setLoadingOverview(false);
     }
-  }, []);
+  }, [t]);
 
   // 2. 获取表列表
   const fetchTables = useCallback(async () => {
@@ -90,13 +92,13 @@ export function DatabasePageClient() {
       const data = await services.dbManage.listTables();
       setTables(data);
     } catch (err) {
-      toast.error('获取数据库数据表列表失败', {
-        description: err instanceof Error ? err.message : '未知错误',
+      toast.error(t('fetchTablesFailed'), {
+        description: err instanceof Error ? err.message : t('unknownError'),
       });
     } finally {
       setLoadingTables(false);
     }
-  }, []);
+  }, [t]);
 
   // 3. 协调刷新
   const handleRefreshAll = () => {
@@ -118,12 +120,12 @@ export function DatabasePageClient() {
       a.click();
       a.remove();
       URL.revokeObjectURL(url);
-      toast.success('数据库导出成功', {
-        description: `已下载归档文件: ${filename}`,
+      toast.success(t('exportSuccess'), {
+        description: t('exportSuccessDesc', { filename }),
       });
     } catch (err) {
-      toast.error('数据库导出失败', {
-        description: err instanceof Error ? err.message : '导出异常',
+      toast.error(t('exportFailed'), {
+        description: err instanceof Error ? err.message : t('exportException'),
       });
     } finally {
       setExporting(false);
@@ -170,7 +172,9 @@ export function DatabasePageClient() {
         <div className='flex items-center gap-2'>
           <Database className='size-5 text-primary' />
           <div>
-            <h1 className='text-2xl font-semibold tracking-tight'>数据管理</h1>
+            <h1 className='text-2xl font-semibold tracking-tight'>
+              {t('pageTitle')}
+            </h1>
           </div>
         </div>
         <Button
@@ -183,7 +187,7 @@ export function DatabasePageClient() {
           <RefreshCw
             className={`size-3 ${loadingOverview ? 'animate-spin' : ''}`}
           />
-          刷新数据
+          {t('refreshData')}
         </Button>
       </div>
 
@@ -196,7 +200,7 @@ export function DatabasePageClient() {
               <Card className='shadow-sm border-border/40 bg-card/50 backdrop-blur-sm hover:border-primary/20 transition-all duration-300'>
                 <CardHeader className='flex flex-row items-center justify-between pb-2 space-y-0'>
                   <CardDescription className='text-[10px] font-medium'>
-                    数据库类型
+                    {t('dbType')}
                   </CardDescription>
                   <Server className='size-3.5 text-muted-foreground' />
                 </CardHeader>
@@ -211,7 +215,7 @@ export function DatabasePageClient() {
               <Card className='shadow-sm border-border/40 bg-card/50 backdrop-blur-sm hover:border-primary/20 transition-all duration-300 col-span-1 md:col-span-2 lg:col-span-1'>
                 <CardHeader className='flex flex-row items-center justify-between pb-2 space-y-0'>
                   <CardDescription className='text-[10px] font-medium'>
-                    版本信息
+                    {t('versionInfo')}
                   </CardDescription>
                   <Cpu className='size-3.5 text-muted-foreground' />
                 </CardHeader>
@@ -229,7 +233,7 @@ export function DatabasePageClient() {
               <Card className='shadow-sm border-border/40 bg-card/50 backdrop-blur-sm hover:border-primary/20 transition-all duration-300'>
                 <CardHeader className='flex flex-row items-center justify-between pb-2 space-y-0'>
                   <CardDescription className='text-[10px] font-medium'>
-                    名称/路径
+                    {t('nameOrPath')}
                   </CardDescription>
                   <Database className='size-3.5 text-muted-foreground' />
                 </CardHeader>
@@ -249,7 +253,7 @@ export function DatabasePageClient() {
               <Card className='shadow-sm border-border/40 bg-card/50 backdrop-blur-sm hover:border-primary/20 transition-all duration-300'>
                 <CardHeader className='flex flex-row items-center justify-between pb-2 space-y-0'>
                   <CardDescription className='text-[10px] font-medium'>
-                    数据库大小
+                    {t('dbSize')}
                   </CardDescription>
                   <HardDrive className='size-3.5 text-muted-foreground' />
                 </CardHeader>
@@ -262,7 +266,7 @@ export function DatabasePageClient() {
               <Card className='shadow-sm border-border/40 bg-card/50 backdrop-blur-sm hover:border-primary/20 transition-all duration-300'>
                 <CardHeader className='flex flex-row items-center justify-between pb-2 space-y-0'>
                   <CardDescription className='text-[10px] font-medium'>
-                    物理数据表
+                    {t('physicalTables')}
                   </CardDescription>
                   <Layers className='size-3.5 text-muted-foreground' />
                 </CardHeader>
@@ -277,7 +281,7 @@ export function DatabasePageClient() {
               <Card className='shadow-sm border-border/40 bg-card/50 backdrop-blur-sm hover:border-primary/20 transition-all duration-300'>
                 <CardHeader className='flex flex-row items-center justify-between pb-2 space-y-0'>
                   <CardDescription className='text-[10px] font-medium'>
-                    活跃连接数
+                    {t('activeConnections')}
                   </CardDescription>
                   <Activity className='size-3.5 text-muted-foreground' />
                 </CardHeader>
@@ -303,9 +307,11 @@ export function DatabasePageClient() {
       {/* 4. 底部功能卡片区 */}
       <Card className='border-border/40 bg-card/50 backdrop-blur-sm shadow-sm'>
         <CardHeader className='pb-3 border-b border-dashed'>
-          <CardTitle className='text-sm font-semibold'>功能区</CardTitle>
+          <CardTitle className='text-sm font-semibold'>
+            {t('featureArea')}
+          </CardTitle>
           <CardDescription className='text-[11px]'>
-            数据库导出及自定义高级 SQL 执行终端
+            {t('featureAreaDesc')}
           </CardDescription>
         </CardHeader>
         <CardContent className='pt-4'>
@@ -315,11 +321,10 @@ export function DatabasePageClient() {
               <div className='space-y-1 pr-4'>
                 <p className='text-xs font-semibold flex items-center gap-1.5'>
                   <Download className='size-4 text-primary' />
-                  数据库备份导出
+                  {t('dbBackupExport')}
                 </p>
                 <p className='text-[10px] text-muted-foreground'>
-                  直接导出并下载物理数据库镜像文件（SQLite 导出 .db，PostgreSQL
-                  导出为打包的 .sql 文本文件）
+                  {t('dbBackupExportDesc')}
                 </p>
               </div>
               <Button
@@ -332,7 +337,7 @@ export function DatabasePageClient() {
                 <RefreshCw
                   className={`size-3 ${exporting ? 'animate-spin' : ''}`}
                 />
-                {exporting ? '正在准备...' : '开始导出'}
+                {exporting ? t('preparing') : t('startExport')}
               </Button>
             </div>
 
@@ -341,11 +346,10 @@ export function DatabasePageClient() {
               <div className='space-y-1 pr-4'>
                 <p className='text-xs font-semibold flex items-center gap-1.5'>
                   <Terminal className='size-4 text-primary' />
-                  SQL 查询控台
+                  {t('sqlQueryConsole')}
                 </p>
                 <p className='text-[10px] text-muted-foreground'>
-                  打开在线 SQL 控制终端，执行原生的 SQL
-                  进行数据筛选、更新、调试或性能优化
+                  {t('sqlQueryConsoleDesc')}
                 </p>
               </div>
               <Button
@@ -356,7 +360,7 @@ export function DatabasePageClient() {
                 }}
               >
                 <FileText className='size-3.5' />
-                进入控台
+                {t('enterConsole')}
               </Button>
             </div>
           </div>

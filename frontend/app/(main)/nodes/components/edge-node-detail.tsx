@@ -15,6 +15,7 @@ import {
   Trash2,
   Upload,
 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 
 import {
@@ -62,6 +63,8 @@ import {
 const nodesQueryKey = ['openflare', 'nodes'];
 
 export function EdgeNodeDetail({ node }: { node: NodeItem }) {
+  const t = useTranslations('nodes');
+  const tc = useTranslations('common');
   const router = useRouter();
   const queryClient = useQueryClient();
   const [editorOpen, setEditorOpen] = useState(false);
@@ -72,29 +75,29 @@ export function EdgeNodeDetail({ node }: { node: NodeItem }) {
     mutationFn: (payload: Parameters<typeof NodeService.updateNode>[1]) =>
       NodeService.updateNode(node.id, payload),
     onSuccess: async () => {
-      toast.success('节点已更新');
+      toast.success(t('edge.toastUpdated'));
       setEditorOpen(false);
       await queryClient.invalidateQueries({ queryKey: nodesQueryKey });
     },
-    onError: (error) => toast.error(getErrorMessage(error)),
+    onError: (error) => toast.error(getErrorMessage(error, t('requestFailed'))),
   });
 
   const forceSyncMutation = useMutation({
     mutationFn: () => NodeService.requestForceSync(node.id),
     onSuccess: async (updated) => {
-      toast.success(`已向节点 ${updated.name} 下发强制同步指令`);
+      toast.success(t('edge.toastForceSync', { name: updated.name }));
       await queryClient.invalidateQueries({ queryKey: nodesQueryKey });
     },
-    onError: (error) => toast.error(getErrorMessage(error)),
+    onError: (error) => toast.error(getErrorMessage(error, t('requestFailed'))),
   });
 
   const restartMutation = useMutation({
     mutationFn: () => NodeService.requestOpenrestyRestart(node.id),
     onSuccess: async (updated) => {
-      toast.success(`已向节点 ${updated.name} 下发 OpenResty 重启指令`);
+      toast.success(t('edge.toastRestart', { name: updated.name }));
       await queryClient.invalidateQueries({ queryKey: nodesQueryKey });
     },
-    onError: (error) => toast.error(getErrorMessage(error)),
+    onError: (error) => toast.error(getErrorMessage(error, t('requestFailed'))),
   });
 
   const upgradeMutation = useMutation({
@@ -114,22 +117,28 @@ export function EdgeNodeDetail({ node }: { node: NodeItem }) {
       }),
     onSuccess: async (updated) => {
       toast.success(
-        `已向节点 ${updated.name} 下发${updated.update_channel === 'preview' ? '预览版' : '正式版'}升级指令`,
+        t('edge.toastUpgrade', {
+          name: updated.name,
+          channel:
+            updated.update_channel === 'preview'
+              ? t('channel.preview')
+              : t('channel.stable'),
+        }),
       );
       setUpgradeOpen(false);
       await queryClient.invalidateQueries({ queryKey: nodesQueryKey });
     },
-    onError: (error) => toast.error(getErrorMessage(error)),
+    onError: (error) => toast.error(getErrorMessage(error, t('requestFailed'))),
   });
 
   const deleteMutation = useMutation({
     mutationFn: () => NodeService.deleteNode(node.id),
     onSuccess: async () => {
-      toast.success('节点已删除');
+      toast.success(t('edge.toastDeleted'));
       await queryClient.invalidateQueries({ queryKey: nodesQueryKey });
       router.push('/nodes');
     },
-    onError: (error) => toast.error(getErrorMessage(error)),
+    onError: (error) => toast.error(getErrorMessage(error, t('requestFailed'))),
   });
 
   const handleRefresh = () => {
@@ -149,7 +158,7 @@ export function EdgeNodeDetail({ node }: { node: NodeItem }) {
         className='h-8'
         onClick={() => setEditorOpen(true)}
       >
-        编辑
+        {t('edit')}
       </Button>
       <Button
         variant='outline'
@@ -158,7 +167,7 @@ export function EdgeNodeDetail({ node }: { node: NodeItem }) {
         onClick={handleRefresh}
       >
         <RefreshCw className='size-3.5 mr-1.5' />
-        刷新
+        {t('refresh')}
       </Button>
       <Button
         variant='outline'
@@ -168,7 +177,7 @@ export function EdgeNodeDetail({ node }: { node: NodeItem }) {
         onClick={() => forceSyncMutation.mutate()}
       >
         <RotateCcw className='size-3.5 mr-1.5' />
-        {forceSyncMutation.isPending ? '同步中...' : '强制同步'}
+        {forceSyncMutation.isPending ? t('syncing') : t('forceSync')}
       </Button>
       <Button
         variant='outline'
@@ -177,7 +186,9 @@ export function EdgeNodeDetail({ node }: { node: NodeItem }) {
         disabled={restartMutation.isPending}
         onClick={() => restartMutation.mutate()}
       >
-        {restartMutation.isPending ? '下发中...' : '重启 OpenResty'}
+        {restartMutation.isPending
+          ? t('dispatching')
+          : t('edge.restartOpenresty')}
       </Button>
       <Button
         variant='secondary'
@@ -186,7 +197,7 @@ export function EdgeNodeDetail({ node }: { node: NodeItem }) {
         onClick={() => setUpgradeOpen(true)}
       >
         <Upload className='size-3.5 mr-1.5' />
-        {node.update_requested ? '查看升级' : '升级 Agent'}
+        {node.update_requested ? t('viewUpgrade') : t('edge.upgrade')}
       </Button>
       <Button
         variant='outline'
@@ -195,7 +206,7 @@ export function EdgeNodeDetail({ node }: { node: NodeItem }) {
         onClick={() => setDeleteOpen(true)}
       >
         <Trash2 className='size-3.5 mr-1.5' />
-        删除
+        {t('delete')}
       </Button>
     </>
   );
@@ -206,74 +217,74 @@ export function EdgeNodeDetail({ node }: { node: NodeItem }) {
 
       <div className='grid gap-6 xl:grid-cols-2'>
         <NodeSectionCard
-          title='运行状态'
-          description='节点在线情况与 OpenResty 健康'
+          title={t('edge.runStatus')}
+          description={t('edge.runStatusDesc')}
         >
           <div className='divide-y'>
-            <NodeInfoRow label='运行状态'>
+            <NodeInfoRow label={t('edge.runStatus')}>
               <NodeStatusBadge
-                label={getNodeStatusLabel(node.status)}
+                label={getNodeStatusLabel(node.status, t)}
                 tone={getNodeStatusTone(node.status)}
               />
             </NodeInfoRow>
-            <NodeInfoRow label='OpenResty 健康'>
+            <NodeInfoRow label={t('edge.openrestyHealth')}>
               <NodeStatusBadge
-                label={getOpenrestyStatusLabel(node.openresty_status)}
+                label={getOpenrestyStatusLabel(node.openresty_status, t)}
                 tone={getOpenrestyStatusTone(node.openresty_status)}
               />
             </NodeInfoRow>
-            <NodeInfoRow label='最近心跳'>
+            <NodeInfoRow label={t('edge.lastSeen')}>
               {isMeaningfulTime(node.last_seen_at)
-                ? `${formatRelativeTime(node.last_seen_at)} · ${formatDateTime(node.last_seen_at)}`
-                : '暂无'}
+                ? `${formatRelativeTime(node.last_seen_at, t)} · ${formatDateTime(node.last_seen_at)}`
+                : t('na')}
             </NodeInfoRow>
-            <NodeInfoRow label='IP 地址'>
+            <NodeInfoRow label={t('edge.ip')}>
               {node.ip || '—'}
-              {node.ip_manual_override ? '（已锁定）' : ''}
+              {node.ip_manual_override ? t('lockedSuffix') : ''}
             </NodeInfoRow>
-            <NodeInfoRow label='地图点位'>
-              {node.geo_name || '未配置'}
+            <NodeInfoRow label={t('edge.geo')}>
+              {node.geo_name || t('notConfigured')}
             </NodeInfoRow>
           </div>
         </NodeSectionCard>
 
         <NodeSectionCard
-          title='配置同步'
-          description='版本追平与应用结果摘要'
+          title={t('edge.syncTitle')}
+          description={t('edge.syncDesc')}
           action={
             <Button variant='outline' size='sm' className='h-8' asChild>
               <Link
                 href={`/apply-logs?node_id=${encodeURIComponent(node.node_id)}`}
               >
                 <FileText className='size-3.5 mr-1.5' />
-                应用记录
+                {t('applyLogs')}
               </Link>
             </Button>
           }
         >
           <div className='divide-y'>
-            <NodeInfoRow label='当前配置版本'>
-              {node.current_version || '未应用'}
+            <NodeInfoRow label={t('edge.currentVersion')}>
+              {node.current_version || t('notApplied')}
             </NodeInfoRow>
-            <NodeInfoRow label='最近应用'>
+            <NodeInfoRow label={t('edge.latestApply')}>
               <NodeStatusBadge
-                label={getApplyLabel(node.latest_apply_result)}
+                label={getApplyLabel(node.latest_apply_result, t)}
                 tone={getApplyTone(node.latest_apply_result)}
               />
             </NodeInfoRow>
-            <NodeInfoRow label='最近应用时间'>
+            <NodeInfoRow label={t('edge.latestApplyAt')}>
               {isMeaningfulTime(node.latest_apply_at)
-                ? `${formatRelativeTime(node.latest_apply_at)} · ${formatDateTime(node.latest_apply_at)}`
-                : '暂无'}
+                ? `${formatRelativeTime(node.latest_apply_at, t)} · ${formatDateTime(node.latest_apply_at)}`
+                : t('na')}
             </NodeInfoRow>
-            <NodeInfoRow label='Agent 版本'>
+            <NodeInfoRow label={t('edge.agentVersion')}>
               {node.version || 'unknown'}
             </NodeInfoRow>
-            <NodeInfoRow label='Nginx 版本'>
+            <NodeInfoRow label={t('edge.nginxVersion')}>
               {node.ext_version || 'unknown'}
             </NodeInfoRow>
-            <NodeInfoRow label='自动更新'>
-              {node.auto_update_enabled ? '已启用' : '手动'}
+            <NodeInfoRow label={t('edge.autoUpdate')}>
+              {node.auto_update_enabled ? t('enabled') : t('manual')}
             </NodeInfoRow>
           </div>
         </NodeSectionCard>
@@ -282,22 +293,22 @@ export function EdgeNodeDetail({ node }: { node: NodeItem }) {
       <InstallCommand node={node} variant='edge' />
 
       <NodeSectionCard
-        title='运行消息'
-        description='OpenResty 与 Agent 上报的状态说明'
+        title={t('edge.runtimeMessages')}
+        description={t('edge.runtimeMessagesDesc')}
       >
         <div className='space-y-4 text-sm'>
           <div>
             <p className='mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground'>
-              OpenResty 状态消息
+              {t('edge.openrestyMessage')}
             </p>
             <p className='rounded-lg border bg-muted/30 px-3 py-3 leading-6 break-words whitespace-pre-wrap'>
-              {node.openresty_message || '当前未上报额外错误。'}
+              {node.openresty_message || t('edge.noExtraError')}
             </p>
           </div>
           {node.restart_openresty_requested ? (
             <div className='flex items-center gap-2 text-sm text-amber-700 dark:text-amber-300'>
               <Activity className='size-4' />
-              已等待节点在下一次心跳后执行 OpenResty 重启。
+              {t('edge.restartPending')}
             </div>
           ) : null}
         </div>
@@ -313,28 +324,32 @@ export function EdgeNodeDetail({ node }: { node: NodeItem }) {
         typeTone='info'
         statusBadges={[
           {
-            label: getNodeStatusLabel(node.status),
+            label: getNodeStatusLabel(node.status, t),
             tone: getNodeStatusTone(node.status),
           },
           {
-            label: getOpenrestyStatusLabel(node.openresty_status),
+            label: getOpenrestyStatusLabel(node.openresty_status, t),
             tone: getOpenrestyStatusTone(node.openresty_status),
           },
         ]}
         actions={headerActions}
         kpis={[
-          { label: '节点 ID', value: node.node_id, icon: Fingerprint },
-          { label: 'Agent 版本', value: node.version || 'unknown', icon: Cpu },
+          { label: t('kpiNodeId'), value: node.node_id, icon: Fingerprint },
           {
-            label: '当前配置',
-            value: node.current_version || '未应用',
+            label: t('edge.kpiAgent'),
+            value: node.version || 'unknown',
+            icon: Cpu,
+          },
+          {
+            label: t('kpiCurrentConfig'),
+            value: node.current_version || t('notApplied'),
             icon: Package,
           },
           {
-            label: '最近心跳',
+            label: t('kpiLastSeen'),
             value: isMeaningfulTime(node.last_seen_at)
-              ? formatRelativeTime(node.last_seen_at)
-              : '暂无',
+              ? formatRelativeTime(node.last_seen_at, t)
+              : t('na'),
             icon: Activity,
           },
         ]}
@@ -343,7 +358,7 @@ export function EdgeNodeDetail({ node }: { node: NodeItem }) {
             nodeId={node.id}
             node={node}
             variant='edge'
-            connectionHint='OpenResty 当前连接'
+            connectionHint={t('edge.connectionHint')}
           />
         }
         manage={manageTab}
@@ -373,22 +388,21 @@ export function EdgeNodeDetail({ node }: { node: NodeItem }) {
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>确认删除节点</AlertDialogTitle>
+            <AlertDialogTitle>{t('deleteTitle')}</AlertDialogTitle>
             <AlertDialogDescription>
-              确认删除节点「{node.name}
-              」吗？删除后该节点需要重新创建并重新接入。
+              {t('deleteDesc', { name: node.name })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={deleteMutation.isPending}>
-              取消
+              {tc('cancel')}
             </AlertDialogCancel>
             <AlertDialogAction
               className='bg-destructive text-white hover:bg-destructive/90'
               disabled={deleteMutation.isPending}
               onClick={() => deleteMutation.mutate()}
             >
-              {deleteMutation.isPending ? '删除中...' : '确认删除'}
+              {deleteMutation.isPending ? t('deleting') : t('confirmDelete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

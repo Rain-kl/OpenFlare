@@ -35,18 +35,19 @@ import {
   type ZoneItem,
 } from '@/lib/services/openflare';
 
+import { useTranslations } from 'next-intl';
+
 import {
   previewZoneDomainInput,
   resolveZoneDomainInput,
+  type ZoneDomainInputError,
 } from './resolve-zone-domain-input';
 
-const schema = z.object({
-  zone_id: z.string().min(1, '请选择 Zone'),
-  domain_input: z.string().trim().min(1, '请输入域名'),
-  cert_id: z.string(),
-});
-
-type Values = z.infer<typeof schema>;
+type Values = {
+  zone_id: string;
+  domain_input: string;
+  cert_id: string;
+};
 
 export function QuickCreateZoneDomainDialog({
   open,
@@ -64,7 +65,19 @@ export function QuickCreateZoneDomainDialog({
   zones?: ZoneItem[];
   onCreated(domain: ZoneDomainItem): void | Promise<void>;
 }) {
+  const t = useTranslations('websites');
+  const tc = useTranslations('common');
   const queryClient = useQueryClient();
+  const domainErrorMessage = (
+    error: ZoneDomainInputError | undefined,
+    root?: string,
+  ) => {
+    if (!error) return t('invalidFormat');
+    if (error === 'mustBelongToZone') {
+      return t('mustBelongToZone', { root: root ?? '' });
+    }
+    return t(error);
+  };
   const zonesQuery = useQuery({
     queryKey: zoneQueryKey,
     queryFn: () => ZoneService.list(),
@@ -97,6 +110,11 @@ export function QuickCreateZoneDomainDialog({
     );
   }, [fixedZoneId, fixedZoneRoot, zones]);
 
+  const schema = z.object({
+    zone_id: z.string().min(1, t('selectZone')),
+    domain_input: z.string().trim().min(1, t('enterDomain')),
+    cert_id: z.string(),
+  });
   const form = useForm<Values>({
     resolver: zodResolver(schema),
     defaultValues: {
@@ -136,11 +154,11 @@ export function QuickCreateZoneDomainDialog({
       const zoneId = Number(values.zone_id);
       const zone = fixedZone ?? zones.find((item) => item.id === zoneId);
       if (!zone) {
-        throw new Error('请选择 Zone');
+        throw new Error(t('selectZone'));
       }
       const resolved = resolveZoneDomainInput(values.domain_input, zone.domain);
       if (resolved.error || !resolved.domain) {
-        throw new Error(resolved.error || '域名格式不合法');
+        throw new Error(domainErrorMessage(resolved.error, zone.domain));
       }
       return ZoneDomainService.create(zone.id, {
         domain: resolved.domain,
@@ -148,7 +166,7 @@ export function QuickCreateZoneDomainDialog({
       });
     },
     onSuccess: async (domain) => {
-      toast.success('域名已添加', { description: domain.domain });
+      toast.success(t('domainAdded'), { description: domain.domain });
       await Promise.all([
         onCreated(domain),
         queryClient.invalidateQueries({ queryKey: zoneQueryKey }),
@@ -159,17 +177,15 @@ export function QuickCreateZoneDomainDialog({
       onOpenChange(false);
     },
     onError: (error) =>
-      toast.error(error instanceof Error ? error.message : '添加失败'),
+      toast.error(error instanceof Error ? error.message : t('addFailed')),
   });
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>快捷新增域名</DialogTitle>
-          <DialogDescription>
-            选择 Zone 后输入：子域名称（如 api）、@（根域）或完整 FQDN。
-          </DialogDescription>
+          <DialogTitle>{t('quickCreateTitle')}</DialogTitle>
+          <DialogDescription>{t('quickCreateDesc')}</DialogDescription>
         </DialogHeader>
 
         <form
@@ -177,7 +193,7 @@ export function QuickCreateZoneDomainDialog({
           className='space-y-4'
           onSubmit={form.handleSubmit((values) => {
             if (!selectedZone) {
-              form.setError('zone_id', { message: '请选择 Zone' });
+              form.setError('zone_id', { message: t('selectZone') });
               return;
             }
             const resolved = resolveZoneDomainInput(
@@ -185,7 +201,12 @@ export function QuickCreateZoneDomainDialog({
               selectedZone.domain,
             );
             if (resolved.error) {
-              form.setError('domain_input', { message: resolved.error });
+              form.setError('domain_input', {
+                message: domainErrorMessage(
+                  resolved.error,
+                  selectedZone.domain,
+                ),
+              });
               return;
             }
             mutation.mutate(values);
@@ -199,7 +220,7 @@ export function QuickCreateZoneDomainDialog({
                 onValueChange={(value) => form.setValue('zone_id', value)}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder='选择注册根域' />
+                  <SelectValue placeholder={t('selectRegisteredRoot')} />
                 </SelectTrigger>
                 <SelectContent>
                   {zones.map((zone) => (
@@ -217,7 +238,7 @@ export function QuickCreateZoneDomainDialog({
             </div>
           ) : (
             <div className='rounded-md border bg-muted/30 px-3 py-2 text-sm'>
-              Zone：
+              {t('zoneLabel')}
               <span className='ml-1 font-medium'>
                 {fixedZoneRoot || fixedZone?.domain || `#${fixedZoneId}`}
               </span>
@@ -225,28 +246,38 @@ export function QuickCreateZoneDomainDialog({
           )}
 
           <div className='space-y-1.5'>
-            <Label htmlFor='domain-input'>域名</Label>
+            <Label htmlFor='domain-input'>{t('domain')}</Label>
             <Input
               id='domain-input'
               placeholder={
                 selectedZone
-                  ? `api 或 @ 或 api.${selectedZone.domain}`
-                  : 'api / @ / 完整域名'
+                  ? t('domainPlaceholderWithZone', {
+                      domain: selectedZone.domain,
+                    })
+                  : t('domainPlaceholder')
               }
               {...form.register('domain_input')}
             />
             {preview ? (
               <p className='text-xs text-muted-foreground'>
-                将创建：
+                {t('willCreate')}
                 <code className='ml-1 rounded bg-muted px-1 py-0.5 font-mono text-[11px]'>
                   {preview}
                 </code>
               </p>
             ) : (
               <p className='text-xs text-muted-foreground'>
-                示例：输入 <code className='font-mono'>api</code> →{' '}
-                <code className='font-mono'>api.zone.com</code>；
-                <code className='font-mono'>@</code> → 根域本身
+                {t.rich('domainExample', {
+                  api: (chunks) => (
+                    <code className='font-mono'>{chunks}</code>
+                  ),
+                  fqdn: (chunks) => (
+                    <code className='font-mono'>{chunks}</code>
+                  ),
+                  apex: (chunks) => (
+                    <code className='font-mono'>{chunks}</code>
+                  ),
+                })}
               </p>
             )}
             {form.formState.errors.domain_input ? (
@@ -257,7 +288,7 @@ export function QuickCreateZoneDomainDialog({
           </div>
 
           <div className='space-y-1.5'>
-            <Label>证书（可选）</Label>
+            <Label>{t('certOptional')}</Label>
             <Select
               value={form.watch('cert_id') || '__none'}
               onValueChange={(value) =>
@@ -265,10 +296,10 @@ export function QuickCreateZoneDomainDialog({
               }
             >
               <SelectTrigger>
-                <SelectValue placeholder='不绑定证书' />
+                <SelectValue placeholder={t('noCert')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value='__none'>不绑定证书</SelectItem>
+                <SelectItem value='__none'>{t('noCert')}</SelectItem>
                 {(certificatesQuery.data ?? []).map((certificate) => (
                   <SelectItem
                     key={certificate.id}
@@ -284,7 +315,7 @@ export function QuickCreateZoneDomainDialog({
 
         <DialogFooter>
           <Button variant='outline' onClick={() => onOpenChange(false)}>
-            取消
+            {tc('cancel')}
           </Button>
           <Button
             type='submit'
@@ -294,7 +325,7 @@ export function QuickCreateZoneDomainDialog({
             {mutation.isPending ? (
               <Loader2 className='mr-1 size-4 animate-spin' />
             ) : null}
-            添加域名
+            {t('addDomain')}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { useMemo } from 'react';
 import type { EChartsOption } from 'echarts';
 import ReactECharts from 'echarts-for-react';
@@ -278,6 +279,7 @@ export function OverviewTab({
   onHostsChange: (hosts: string[]) => void;
   onRetry: () => void;
 }) {
+  const t = useTranslations('accessLogs.overview');
   return (
     <div className='space-y-6'>
       <OverviewToolbar
@@ -289,18 +291,18 @@ export function OverviewTab({
 
       {loading ? (
         <LoadingStateWithBorder
-          title='加载访问概览'
-          description='正在聚合请求量、访问量与带宽趋势...'
+          title={t('loadingTitle')}
+          description={t('loadingDesc')}
         />
       ) : error ? (
         <ErrorInline
-          message={error.message || '加载访问概览失败'}
+          message={error.message || t('loadFailed')}
           onRetry={onRetry}
         />
       ) : !data ? (
         <EmptyStateWithBorder
-          title='暂无概览数据'
-          description='当前时间范围内没有可展示的访问统计。'
+          title={t('emptyTitle')}
+          description={t('emptyDesc')}
         />
       ) : (
         <OverviewContent data={data} hours={hours} />
@@ -316,13 +318,14 @@ function OverviewContent({
   data: AccessLogOverview;
   hours: number;
 }) {
+  const t = useTranslations('accessLogs');
   const requestLabels = data.trends.requests.map((point) =>
     formatOverviewTrendLabel(point.bucket_started_at, hours),
   );
   const requestValues = data.trends.requests.map((point) => point.value);
   const visitValues = data.trends.visits.map((point) => point.value);
   const bandwidthValues = data.trends.bandwidth.map((point) => point.value);
-  const hint = formatOverviewRangeHint(hours);
+  const hint = formatOverviewRangeHint(hours, (key, values) => t(key, values));
 
   return (
     <>
@@ -339,7 +342,7 @@ function OverviewContent({
         <SparklineMetricCard
           title='Total Visits'
           value={formatCompactNumber(data.summary.total_visits)}
-          hint={`${hint} · 独立访客`}
+          hint={t('overview.uniqueVisitors', { hint })}
           color='#38bdf8'
           fillColor='rgba(56, 189, 248, 0.16)'
           labels={requestLabels}
@@ -348,7 +351,7 @@ function OverviewContent({
         <SparklineMetricCard
           title='Bandwidth Served'
           value={formatBytes(data.summary.bandwidth_served)}
-          hint={`${hint} · 已提供数据`}
+          hint={t('overview.served', { hint })}
           color='#34d399'
           fillColor='rgba(52, 211, 153, 0.16)'
           labels={requestLabels}
@@ -363,7 +366,7 @@ function OverviewContent({
             Requests over time
           </CardTitle>
           <CardDescription className='text-xs'>
-            观察请求量是否出现异常抬升或回落。
+            {t('overview.requestsHint')}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -373,7 +376,7 @@ function OverviewContent({
             showSummary={false}
             series={[
               {
-                label: '请求量',
+                label: t('overview.requests'),
                 color: '#f59e0b',
                 fillColor: 'rgba(245, 158, 11, 0.18)',
                 variant: 'area',
@@ -387,32 +390,32 @@ function OverviewContent({
       <div className='grid gap-6 xl:grid-cols-2'>
         <PieDistributionCard
           title='Requests by device type'
-          description='按设备类型统计请求占比。'
+          description={t('overview.deviceDesc')}
           items={data.device_types ?? []}
-          emptyMessage='暂无设备类型数据'
+          emptyMessage={t('overview.deviceEmpty')}
         />
         <PieDistributionCard
           title='Status code'
-          description='按 HTTP 状态码统计请求占比。'
+          description={t('overview.statusDesc')}
           items={data.status_codes ?? []}
-          emptyMessage='暂无状态码分布数据'
+          emptyMessage={t('overview.statusEmpty')}
         />
       </div>
 
       <div className='grid gap-6 xl:grid-cols-3'>
         <RankCard
           title='Top Paths'
-          description='访问量最高的请求路径。'
+          description={t('overview.topPathsDesc')}
           items={toRankItems(data.top_paths)}
         />
         <RankCard
           title='Top Hosts'
-          description='流量集中的访问域名。'
+          description={t('overview.topHostsDesc')}
           items={toRankItems(data.top_hosts)}
         />
         <RankCard
           title='Top IPs'
-          description='请求次数最多的来源 IP。'
+          description={t('overview.topIpsDesc')}
           items={toRankItems(data.top_ips)}
         />
       </div>
@@ -420,17 +423,17 @@ function OverviewContent({
       <div className='grid gap-6 xl:grid-cols-3'>
         <RankCard
           title='Top browsers'
-          description='按浏览器聚合的请求排行。'
+          description={t('overview.browsersDesc')}
           items={toRankItems(data.top_browsers)}
         />
         <RankCard
           title='Top Operating System'
-          description='按操作系统聚合的请求排行。'
+          description={t('overview.osDesc')}
           items={toRankItems(data.top_operating_systems)}
         />
         <RankCard
           title='Top User-Agent'
-          description='原始 User-Agent 请求排行。'
+          description={t('overview.uaDesc')}
           items={toRankItems(data.top_user_agents)}
         />
       </div>

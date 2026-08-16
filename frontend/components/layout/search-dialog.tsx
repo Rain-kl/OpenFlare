@@ -14,6 +14,7 @@ import { Kbd, KbdGroup } from '@/components/ui/kbd';
 import { type SearchItem, searchItems } from '@/lib/utils/search-data';
 import { FileText, Home, Settings, Shield } from 'lucide-react';
 import { useUser } from '@/contexts/user-context';
+import { useTranslations } from 'next-intl';
 
 interface SearchDialogProps {
   open: boolean;
@@ -28,34 +29,43 @@ const categoryIcons = {
 };
 
 const categoryLabels = {
-  page: '页面',
-  feature: '功能',
-  setting: '设置',
-  admin: '管理',
+  page: 'categoryPage',
+  feature: 'categoryFeature',
+  setting: 'categorySetting',
+  admin: 'categoryAdmin',
 };
 
-const getTips = (metaKey: string) => [
+const getTips = (metaKey: string, t: (key: string) => string) => [
   <>
-    <span className='text-muted-foreground/80 lowercase'>Tips: 还可以使用</span>
+    <span className='text-muted-foreground/80 lowercase'>
+      {t('tipPrefix')}{' '}
+    </span>
     <Kbd className='mx-1'>/</Kbd>
-    <span className='text-muted-foreground/80 lowercase'>来打开此界面</span>
-  </>,
-  <>
-    <span className='text-muted-foreground/80 lowercase'>Tips: 使用</span>
-    <Kbd className='mx-1'>↑</Kbd>
-    <Kbd className='mx-1'>↓</Kbd>
-    <span className='text-muted-foreground/80 lowercase'>来切换选中项</span>
-  </>,
-  <>
-    <span className='text-muted-foreground/80 lowercase'>Tips: 按住</span>
-    <Kbd className='mx-1'>{metaKey}</Kbd>
-    <span className='text-muted-foreground/80 lowercase'>+</span>
-    <Kbd className='mx-1'>↵</Kbd>
-    <span className='text-muted-foreground/80 lowercase'>在新标签页打开</span>
+    <span className='text-muted-foreground/80 lowercase'> {t('tipSlash')}</span>
   </>,
   <>
     <span className='text-muted-foreground/80 lowercase'>
-      你知道吗：搜索功能还在持续升级中
+      {t('tipPrefix')}{' '}
+    </span>
+    <Kbd className='mx-1'>↑</Kbd>
+    <Kbd className='mx-1'>↓</Kbd>
+    <span className='text-muted-foreground/80 lowercase'> {t('tipArrow')}</span>
+  </>,
+  <>
+    <span className='text-muted-foreground/80 lowercase'>
+      {t('tipPrefix')}{' '}
+    </span>
+    <Kbd className='mx-1'>{metaKey}</Kbd>
+    <span className='text-muted-foreground/80 lowercase'>+</span>
+    <Kbd className='mx-1'>↵</Kbd>
+    <span className='text-muted-foreground/80 lowercase'>
+      {' '}
+      {t('tipNewTab')}
+    </span>
+  </>,
+  <>
+    <span className='text-muted-foreground/80 lowercase'>
+      {t('tipDidYouKnow')}
     </span>
   </>,
 ];
@@ -63,6 +73,8 @@ const getTips = (metaKey: string) => [
 export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
   const router = useRouter();
   const { user } = useUser();
+  const t = useTranslations('layout.search');
+  const tLayout = useTranslations('layout');
   const [search, setSearch] = useState('');
   const [currentTip, setCurrentTip] = useState<React.ReactNode>(null);
   const [results, setResults] = useState<SearchItem[]>([]);
@@ -99,16 +111,16 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
 
   useEffect(() => {
     if (open) {
-      const tips = getTips(metaKey);
+      const tips = getTips(metaKey, t);
       const randomTip = tips[Math.floor(Math.random() * tips.length)];
       setCurrentTip(randomTip);
     }
-  }, [open, metaKey]);
+  }, [open, metaKey, t]);
 
   useEffect(() => {
-    const items = searchItems(search, user?.is_admin);
+    const items = searchItems(search, user?.is_admin, (key) => tLayout(key));
     setResults(items);
-  }, [search, user?.is_admin]);
+  }, [search, user?.is_admin, tLayout]);
 
   const handleSelect = useCallback(
     (item: SearchItem, openInNewTab = false) => {
@@ -170,18 +182,20 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
       className='max-w-[calc(100%-1.5rem)] sm:max-w-[500px] md:max-w-[540px]'
     >
       <CommandInput
-        placeholder='搜索页面和功能...'
+        placeholder={t('searchPlaceholder')}
         value={search}
         onValueChange={setSearch}
       />
       <CommandList>
-        <CommandEmpty>没有找到相关内容，换个词试试？</CommandEmpty>
+        <CommandEmpty>{t('noResults')}</CommandEmpty>
         {Object.entries(groupedResults).map(([category, items]) => {
           const Icon = categoryIcons[category as keyof typeof categoryIcons];
           return (
             <CommandGroup
               key={category}
-              heading={categoryLabels[category as keyof typeof categoryLabels]}
+              heading={t(
+                categoryLabels[category as keyof typeof categoryLabels],
+              )}
             >
               {items.map((item) => (
                 <CommandItem
@@ -217,11 +231,11 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
                     </div>
                   </div>
                   <span className='ml-3 shrink-0 rounded-md bg-muted px-1.5 py-0.5 text-[10px] leading-none font-medium text-muted-foreground'>
-                    {
+                    {t(
                       categoryLabels[
                         item.category as keyof typeof categoryLabels
-                      ]
-                    }
+                      ],
+                    )}
                   </span>
                 </CommandItem>
               ))}
@@ -235,11 +249,11 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
             {isCtrlPressed && <Kbd>{metaKey}</Kbd>}
             <Kbd>↵</Kbd>
           </KbdGroup>
-          <span>{isCtrlPressed ? '在新标签页打开' : '打开'}</span>
+          <span>{isCtrlPressed ? t('openInNewTab') : t('open')}</span>
         </div>
         <div className='flex items-center gap-1'>
           <Kbd>Esc</Kbd>
-          <span>关闭搜索界面</span>
+          <span>{t('closeSearch')}</span>
         </div>
         <div className='ml-auto flex items-center gap-1'>{currentTip}</div>
       </div>

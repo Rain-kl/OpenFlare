@@ -5,6 +5,7 @@ import { Suspense } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft, FileText } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 import { EmptyStateWithBorder } from '@/components/layout/empty';
 import { ErrorInline } from '@/components/layout/error';
@@ -38,6 +39,7 @@ function PagesDetailPageFallback() {
 }
 
 function PagesDetailRoute() {
+  const t = useTranslations('pages');
   const searchParams = useSearchParams();
   const router = useRouter();
 
@@ -66,7 +68,7 @@ function PagesDetailRoute() {
   if (!validProjectId) {
     return (
       <div className='w-full px-1 py-6'>
-        <EmptyStateWithBorder description='缺少有效的 Pages 项目 ID。' />
+        <EmptyStateWithBorder description={t('detail.invalidId')} />
       </div>
     );
   }
@@ -74,7 +76,10 @@ function PagesDetailRoute() {
   if (projectQuery.isLoading) {
     return (
       <div className='w-full px-1 py-6'>
-        <LoadingStateWithBorder icon={FileText} description='加载项目详情...' />
+        <LoadingStateWithBorder
+          icon={FileText}
+          description={t('detail.loading')}
+        />
       </div>
     );
   }
@@ -87,7 +92,7 @@ function PagesDetailRoute() {
             message={
               projectQuery.error instanceof Error
                 ? projectQuery.error.message
-                : '项目详情加载失败'
+                : t('detail.loadFailed')
             }
             onRetry={() => void projectQuery.refetch()}
           />
@@ -103,10 +108,10 @@ function PagesDetailRoute() {
         <Button variant='ghost' size='sm' asChild>
           <Link href='/pages'>
             <ArrowLeft data-icon='inline-start' />
-            返回列表
+            {t('detail.back')}
           </Link>
         </Button>
-        <EmptyStateWithBorder description='Pages 项目不存在或已被删除。' />
+        <EmptyStateWithBorder description={t('detail.notFound')} />
       </div>
     );
   }
@@ -117,7 +122,7 @@ function PagesDetailRoute() {
         <Button variant='ghost' size='sm' className='self-start' asChild>
           <Link href='/pages'>
             <ArrowLeft data-icon='inline-start' />
-            返回列表
+            {t('detail.back')}
           </Link>
         </Button>
         <div className='flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between'>
@@ -128,11 +133,12 @@ function PagesDetailRoute() {
                 {project.name}
               </h1>
               <Badge variant={project.enabled ? 'secondary' : 'outline'}>
-                {project.enabled ? '已启用' : '已停用'}
+                {project.enabled ? t('enabled') : t('disabled')}
               </Badge>
             </div>
             <p className='text-sm text-muted-foreground'>
-              {project.slug} · {project.deployment_count} 个部署
+              {project.slug} ·{' '}
+              {t('detail.deploymentCount', { count: project.deployment_count })}
             </p>
           </div>
         </div>
@@ -144,13 +150,13 @@ function PagesDetailRoute() {
             value='deployments'
             className='px-0 pb-2 text-xs font-semibold'
           >
-            部署
+            {t('detail.tabDeployments')}
           </TabsTrigger>
           <TabsTrigger
             value='settings'
             className='px-0 pb-2 text-xs font-semibold'
           >
-            设置
+            {t('detail.tabSettings')}
           </TabsTrigger>
         </TabsList>
 

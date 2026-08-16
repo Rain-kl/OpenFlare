@@ -2,16 +2,17 @@
 
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 
 import { cn } from '@/lib/utils';
 
 export type NodeFilter = 'all' | 'edge' | 'relay' | 'tunnel';
 
-const filters: Array<{ key: NodeFilter; label: string; href: string }> = [
-  { key: 'all', label: '全部节点', href: '/nodes' },
-  { key: 'edge', label: 'Edge', href: '/nodes?filter=edge' },
-  { key: 'relay', label: 'Relay', href: '/nodes?filter=relay' },
-  { key: 'tunnel', label: 'Tunnel', href: '/nodes?filter=tunnel' },
+const filters: Array<{ key: NodeFilter; href: string }> = [
+  { key: 'all', href: '/nodes' },
+  { key: 'edge', href: '/nodes?filter=edge' },
+  { key: 'relay', href: '/nodes?filter=relay' },
+  { key: 'tunnel', href: '/nodes?filter=tunnel' },
 ];
 
 export function getNodeFilter(searchParams: URLSearchParams): NodeFilter {
@@ -44,23 +45,33 @@ export function filterNodesByType<T extends { node_type: string }>(
   }
 }
 
-export function getFilterDescription(filter: NodeFilter) {
+export function getFilterDescription(
+  filter: NodeFilter,
+  t: (key: string) => string,
+) {
   switch (filter) {
     case 'relay':
-      return '当前仅展示 Relay 节点。';
+      return t('filter.descRelay');
     case 'tunnel':
-      return '当前仅展示 Tunnel 节点。';
+      return t('filter.descTunnel');
     case 'edge':
-      return '当前仅展示 Edge 节点。';
+      return t('filter.descEdge');
     case 'all':
     default:
-      return '当前展示全部节点。';
+      return t('filter.descAll');
   }
 }
 
 export function NodeTypeFilter() {
+  const t = useTranslations('nodes');
   const searchParams = useSearchParams();
   const activeFilter = getNodeFilter(searchParams);
+  const filterLabels: Record<NodeFilter, string> = {
+    all: t('filter.all'),
+    edge: 'Edge',
+    relay: 'Relay',
+    tunnel: 'Tunnel',
+  };
 
   return (
     <div className='flex flex-wrap gap-2'>
@@ -75,7 +86,7 @@ export function NodeTypeFilter() {
               : 'border-border text-muted-foreground hover:bg-muted/50',
           )}
         >
-          {item.label}
+          {filterLabels[item.key]}
         </Link>
       ))}
     </div>

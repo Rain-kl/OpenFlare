@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Loader2 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
@@ -35,6 +36,8 @@ export function ProjectEditorDialog({
   onOpenChange,
   project,
 }: ProjectEditorDialogProps) {
+  const t = useTranslations('pages');
+  const tCommon = useTranslations('common');
   const queryClient = useQueryClient();
   const form = usePagesProjectForm(project);
 
@@ -50,7 +53,7 @@ export function ProjectEditorDialog({
         : PagesService.createProject(payload);
     },
     onSuccess: async () => {
-      toast.success(project ? '项目已更新' : '项目已创建');
+      toast.success(project ? t('updated') : t('created'));
       await queryClient.invalidateQueries({ queryKey: projectsQueryKey });
       if (project) {
         await queryClient.invalidateQueries({
@@ -60,7 +63,7 @@ export function ProjectEditorDialog({
       onOpenChange(false);
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : '保存失败');
+      toast.error(error instanceof Error ? error.message : t('saveFailed'));
     },
   });
 
@@ -69,11 +72,9 @@ export function ProjectEditorDialog({
       <DialogContent className='max-w-2xl max-h-[90vh] overflow-y-auto'>
         <DialogHeader>
           <DialogTitle>
-            {project ? '编辑 Pages 项目' : '新建 Pages 项目'}
+            {project ? t('editTitle') : t('createTitle')}
           </DialogTitle>
-          <DialogDescription>
-            配置静态站点托管参数，上传部署包后在代理规则中选择 Pages 上游。
-          </DialogDescription>
+          <DialogDescription>{t('editorDesc')}</DialogDescription>
         </DialogHeader>
 
         <form
@@ -86,7 +87,7 @@ export function ProjectEditorDialog({
 
         <DialogFooter>
           <Button variant='outline' onClick={() => onOpenChange(false)}>
-            取消
+            {tCommon('cancel')}
           </Button>
           <Button
             type='submit'
@@ -96,12 +97,12 @@ export function ProjectEditorDialog({
             {mutation.isPending ? (
               <>
                 <Loader2 className='size-4 animate-spin mr-1' />
-                保存中...
+                {t('saving')}
               </>
             ) : project ? (
-              '保存修改'
+              t('saveChanges')
             ) : (
-              '创建项目'
+              t('createProject')
             )}
           </Button>
         </DialogFooter>

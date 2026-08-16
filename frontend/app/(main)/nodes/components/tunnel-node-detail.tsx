@@ -15,6 +15,7 @@ import {
   Trash2,
   Upload,
 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 
 import {
@@ -63,6 +64,8 @@ import {
 const nodesQueryKey = ['openflare', 'nodes'];
 
 export function TunnelNodeDetail({ node }: { node: NodeItem }) {
+  const t = useTranslations('nodes');
+  const tc = useTranslations('common');
   const router = useRouter();
   const queryClient = useQueryClient();
   const [editorOpen, setEditorOpen] = useState(false);
@@ -73,20 +76,20 @@ export function TunnelNodeDetail({ node }: { node: NodeItem }) {
     mutationFn: (payload: Parameters<typeof NodeService.updateNode>[1]) =>
       NodeService.updateNode(node.id, payload),
     onSuccess: async () => {
-      toast.success('隧道节点已更新');
+      toast.success(t('tunnel.toastUpdated'));
       setEditorOpen(false);
       await queryClient.invalidateQueries({ queryKey: nodesQueryKey });
     },
-    onError: (error) => toast.error(getErrorMessage(error)),
+    onError: (error) => toast.error(getErrorMessage(error, t('requestFailed'))),
   });
 
   const forceSyncMutation = useMutation({
     mutationFn: () => NodeService.requestForceSync(node.id),
     onSuccess: async (updated) => {
-      toast.success(`已向隧道节点 ${updated.name} 下发强制同步指令`);
+      toast.success(t('tunnel.toastForceSync', { name: updated.name }));
       await queryClient.invalidateQueries({ queryKey: nodesQueryKey });
     },
-    onError: (error) => toast.error(getErrorMessage(error)),
+    onError: (error) => toast.error(getErrorMessage(error, t('requestFailed'))),
   });
 
   const upgradeMutation = useMutation({
@@ -106,22 +109,28 @@ export function TunnelNodeDetail({ node }: { node: NodeItem }) {
       }),
     onSuccess: async (updated) => {
       toast.success(
-        `已向隧道节点 ${updated.name} 下发${updated.update_channel === 'preview' ? '预览版' : '正式版'}升级指令`,
+        t('tunnel.toastUpgrade', {
+          name: updated.name,
+          channel:
+            updated.update_channel === 'preview'
+              ? t('channel.preview')
+              : t('channel.stable'),
+        }),
       );
       setUpgradeOpen(false);
       await queryClient.invalidateQueries({ queryKey: nodesQueryKey });
     },
-    onError: (error) => toast.error(getErrorMessage(error)),
+    onError: (error) => toast.error(getErrorMessage(error, t('requestFailed'))),
   });
 
   const deleteMutation = useMutation({
     mutationFn: () => NodeService.deleteNode(node.id),
     onSuccess: async () => {
-      toast.success('隧道节点已删除');
+      toast.success(t('tunnel.toastDeleted'));
       await queryClient.invalidateQueries({ queryKey: nodesQueryKey });
       router.push('/nodes');
     },
-    onError: (error) => toast.error(getErrorMessage(error)),
+    onError: (error) => toast.error(getErrorMessage(error, t('requestFailed'))),
   });
 
   const handleRefresh = () => {
@@ -141,7 +150,7 @@ export function TunnelNodeDetail({ node }: { node: NodeItem }) {
         className='h-8'
         onClick={() => setEditorOpen(true)}
       >
-        编辑
+        {t('edit')}
       </Button>
       <Button
         variant='outline'
@@ -150,7 +159,7 @@ export function TunnelNodeDetail({ node }: { node: NodeItem }) {
         onClick={handleRefresh}
       >
         <RefreshCw className='size-3.5 mr-1.5' />
-        刷新
+        {t('refresh')}
       </Button>
       <Button
         variant='outline'
@@ -160,7 +169,7 @@ export function TunnelNodeDetail({ node }: { node: NodeItem }) {
         onClick={() => forceSyncMutation.mutate()}
       >
         <RotateCcw className='size-3.5 mr-1.5' />
-        {forceSyncMutation.isPending ? '同步中...' : '强制同步'}
+        {forceSyncMutation.isPending ? t('syncing') : t('forceSync')}
       </Button>
       <Button
         variant='secondary'
@@ -169,7 +178,7 @@ export function TunnelNodeDetail({ node }: { node: NodeItem }) {
         onClick={() => setUpgradeOpen(true)}
       >
         <Upload className='size-3.5 mr-1.5' />
-        {node.update_requested ? '查看升级' : '升级 openflared'}
+        {node.update_requested ? t('viewUpgrade') : t('tunnel.upgrade')}
       </Button>
       <Button
         variant='outline'
@@ -178,7 +187,7 @@ export function TunnelNodeDetail({ node }: { node: NodeItem }) {
         onClick={() => setDeleteOpen(true)}
       >
         <Trash2 className='size-3.5 mr-1.5' />
-        删除
+        {t('delete')}
       </Button>
     </>
   );
@@ -189,81 +198,83 @@ export function TunnelNodeDetail({ node }: { node: NodeItem }) {
 
       <div className='grid gap-6 xl:grid-cols-2'>
         <NodeSectionCard
-          title='隧道运行状态'
-          description='openflared 连接与在线情况'
+          title={t('tunnel.runStatus')}
+          description={t('tunnel.runStatusDesc')}
         >
           <div className='divide-y'>
-            <NodeInfoRow label='运行状态'>
+            <NodeInfoRow label={t('edge.runStatus')}>
               <NodeStatusBadge
-                label={getNodeStatusLabel(node.status)}
+                label={getNodeStatusLabel(node.status, t)}
                 tone={getNodeStatusTone(node.status)}
               />
             </NodeInfoRow>
-            <NodeInfoRow label='flared 状态'>
+            <NodeInfoRow label={t('tunnel.flaredStatus')}>
               <NodeStatusBadge
-                label={getFlaredStatusLabel(node)}
+                label={getFlaredStatusLabel(node, t)}
                 tone={getFlaredStatusTone(node)}
               />
             </NodeInfoRow>
-            <NodeInfoRow label='最近心跳'>
+            <NodeInfoRow label={t('kpiLastSeen')}>
               {isWSConnectedLastSeen(node.last_seen_at)
-                ? 'WebSocket 长连接已建立'
+                ? t('wsEstablished')
                 : isMeaningfulTime(node.last_seen_at)
-                  ? `${formatRelativeTime(node.last_seen_at)} · ${formatDateTime(node.last_seen_at)}`
-                  : '暂无'}
+                  ? `${formatRelativeTime(node.last_seen_at, t)} · ${formatDateTime(node.last_seen_at)}`
+                  : t('na')}
             </NodeInfoRow>
-            <NodeInfoRow label='IP 地址'>
+            <NodeInfoRow label={t('edge.ip')}>
               {node.ip || '—'}
-              {node.ip_manual_override ? '（已锁定）' : ''}
+              {node.ip_manual_override ? t('lockedSuffix') : ''}
             </NodeInfoRow>
-            <NodeInfoRow label='自动更新'>
-              {node.auto_update_enabled ? '已启用' : '手动'}
+            <NodeInfoRow label={t('tunnel.autoUpdate')}>
+              {node.auto_update_enabled ? t('enabled') : t('manual')}
             </NodeInfoRow>
           </div>
         </NodeSectionCard>
 
         <NodeSectionCard
-          title='配置同步'
-          description='隧道客户端配置追平状态'
+          title={t('tunnel.syncTitle')}
+          description={t('tunnel.syncDesc')}
           action={
             <Button variant='outline' size='sm' className='h-8' asChild>
               <Link
                 href={`/apply-logs?node_id=${encodeURIComponent(node.node_id)}`}
               >
                 <FileText className='size-3.5 mr-1.5' />
-                应用记录
+                {t('applyLogs')}
               </Link>
             </Button>
           }
         >
           <div className='divide-y'>
-            <NodeInfoRow label='当前配置版本'>
-              {node.current_version || '未应用'}
+            <NodeInfoRow label={t('tunnel.currentVersion')}>
+              {node.current_version || t('notApplied')}
             </NodeInfoRow>
-            <NodeInfoRow label='最近应用'>
+            <NodeInfoRow label={t('tunnel.latestApply')}>
               <NodeStatusBadge
-                label={getApplyLabel(node.latest_apply_result)}
+                label={getApplyLabel(node.latest_apply_result, t)}
                 tone={getApplyTone(node.latest_apply_result)}
               />
             </NodeInfoRow>
-            <NodeInfoRow label='最近应用时间'>
+            <NodeInfoRow label={t('tunnel.latestApplyAt')}>
               {isMeaningfulTime(node.latest_apply_at)
-                ? `${formatRelativeTime(node.latest_apply_at)} · ${formatDateTime(node.latest_apply_at)}`
-                : '暂无'}
+                ? `${formatRelativeTime(node.latest_apply_at, t)} · ${formatDateTime(node.latest_apply_at)}`
+                : t('na')}
             </NodeInfoRow>
             {node.latest_apply_checksum ? (
-              <NodeInfoRow label='同步文件数'>
-                {node.latest_support_file_count} 个
+              <NodeInfoRow label={t('tunnel.fileCount')}>
+                {t('tunnel.fileCountValue', {
+                  count: node.latest_support_file_count,
+                })}
               </NodeInfoRow>
             ) : null}
-            <NodeInfoRow label='升级状态'>
+            <NodeInfoRow label={t('tunnel.upgradeStatus')}>
               <NodeStatusBadge
                 label={
                   node.update_requested
                     ? node.update_channel === 'preview'
-                      ? '等待预览更新'
-                      : '等待更新'
-                    : '未下发'
+                      ? t('update.waitingPreview')
+                      : t('update.waitingUpdate')
+                    : t('update.notRequested')
                 }
                 tone={node.update_requested ? 'warning' : 'info'}
               />
@@ -274,20 +285,23 @@ export function TunnelNodeDetail({ node }: { node: NodeItem }) {
 
       <InstallCommand node={node} variant='tunnel' />
 
-      <NodeSectionCard title='接入凭证' description='隧道客户端接入所需 Token'>
+      <NodeSectionCard
+        title={t('tunnel.credentials')}
+        description={t('tunnel.credentialsDesc')}
+      >
         <div className='divide-y'>
-          <NodeInfoRow label='Tunnel Token'>
+          <NodeInfoRow label={t('tunnel.tunnelToken')}>
             <span className='font-mono text-xs break-all'>
-              {node.access_token || '暂无'}
+              {node.access_token || t('na')}
             </span>
           </NodeInfoRow>
-          <NodeInfoRow label='节点 ID'>
+          <NodeInfoRow label={t('kpiNodeId')}>
             <span className='font-mono text-xs break-all'>{node.node_id}</span>
           </NodeInfoRow>
-          <NodeInfoRow label='创建时间'>
+          <NodeInfoRow label={t('tunnel.createdAt')}>
             {formatDateTime(node.created_at)}
           </NodeInfoRow>
-          <NodeInfoRow label='更新时间'>
+          <NodeInfoRow label={t('tunnel.updatedAt')}>
             {formatDateTime(node.updated_at)}
           </NodeInfoRow>
         </div>
@@ -303,34 +317,34 @@ export function TunnelNodeDetail({ node }: { node: NodeItem }) {
         typeTone='info'
         statusBadges={[
           {
-            label: getNodeStatusLabel(node.status),
+            label: getNodeStatusLabel(node.status, t),
             tone: getNodeStatusTone(node.status),
           },
           {
-            label: getFlaredStatusLabel(node),
+            label: getFlaredStatusLabel(node, t),
             tone: getFlaredStatusTone(node),
           },
         ]}
         actions={headerActions}
         kpis={[
-          { label: '节点 ID', value: node.node_id, icon: Fingerprint },
+          { label: t('kpiNodeId'), value: node.node_id, icon: Fingerprint },
           {
-            label: 'openflared',
+            label: t('tunnel.kpiOpenflared'),
             value: node.version || 'unknown',
             icon: Package,
           },
           {
-            label: '当前配置',
-            value: node.current_version || '未应用',
+            label: t('kpiCurrentConfig'),
+            value: node.current_version || t('notApplied'),
             icon: KeyRound,
           },
           {
-            label: '最近心跳',
+            label: t('kpiLastSeen'),
             value: isWSConnectedLastSeen(node.last_seen_at)
-              ? 'WS 已连接'
+              ? t('wsConnected')
               : isMeaningfulTime(node.last_seen_at)
-                ? formatRelativeTime(node.last_seen_at)
-                : '暂无',
+                ? formatRelativeTime(node.last_seen_at, t)
+                : t('na'),
             icon: Activity,
           },
         ]}
@@ -338,7 +352,7 @@ export function TunnelNodeDetail({ node }: { node: NodeItem }) {
           <NodeObservability
             nodeId={node.id}
             variant='compact'
-            connectionHint='隧道并发连接数'
+            connectionHint={t('tunnel.connectionHint')}
           />
         }
         manage={manageTab}
@@ -368,22 +382,21 @@ export function TunnelNodeDetail({ node }: { node: NodeItem }) {
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>确认删除隧道节点</AlertDialogTitle>
+            <AlertDialogTitle>{t('tunnel.deleteTitle')}</AlertDialogTitle>
             <AlertDialogDescription>
-              确认删除隧道节点「{node.name}
-              」吗？删除后该节点需要重新创建并重新接入。
+              {t('tunnel.deleteDesc', { name: node.name })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={deleteMutation.isPending}>
-              取消
+              {tc('cancel')}
             </AlertDialogCancel>
             <AlertDialogAction
               className='bg-destructive text-white hover:bg-destructive/90'
               disabled={deleteMutation.isPending}
               onClick={() => deleteMutation.mutate()}
             >
-              {deleteMutation.isPending ? '删除中...' : '确认删除'}
+              {deleteMutation.isPending ? t('deleting') : t('confirmDelete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

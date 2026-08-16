@@ -1,6 +1,7 @@
 'use client';
 
 import { Loader2, Trash2 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { useMemo, useState } from 'react';
 
 import {
@@ -34,11 +35,7 @@ import {
 import type { WAFIPGroup } from '@/lib/services/openflare';
 import { formatDateTime } from '@/lib/utils';
 
-import {
-  getIPGroupViewEntries,
-  ipGroupTypeLabels,
-  type IPGroupViewEntry,
-} from './helpers';
+import { getIPGroupViewEntries, type IPGroupViewEntry } from './helpers';
 
 interface IPGroupViewDialogProps {
   open: boolean;
@@ -57,13 +54,18 @@ export function IPGroupViewDialog({
   onOpenChange,
   onRemoveIp,
 }: IPGroupViewDialogProps) {
+  const t = useTranslations('ipGroups');
+  const tCommon = useTranslations('common');
   const [deleteTarget, setDeleteTarget] = useState<IPGroupViewEntry | null>(
     null,
   );
 
   const entries = useMemo(
-    () => (group ? getIPGroupViewEntries(group) : []),
-    [group],
+    () =>
+      group
+        ? getIPGroupViewEntries(group, (key, values) => t(key, values))
+        : [],
+    [group, t],
   );
 
   const showAutomaticMeta = group?.type === 'automatic';
@@ -82,52 +84,57 @@ export function IPGroupViewDialog({
         <DialogContent className='max-w-3xl max-h-[90vh] overflow-y-auto'>
           <DialogHeader>
             <DialogTitle>
-              {group ? `查看 ${group.name}` : '查看 IP 组'}
+              {group
+                ? t('viewDialog.titleNamed', { name: group.name })
+                : t('viewDialog.title')}
             </DialogTitle>
             <DialogDescription>
               {group
-                ? `${ipGroupTypeLabels[group.type]} · 共 ${entries.length} 条 IP`
-                : '查看当前 IP 组中的 IP 列表，并可移除不需要的条目。'}
+                ? t('viewDialog.summary', {
+                    type: t(`types.${group.type}`),
+                    count: entries.length,
+                  })
+                : t('viewDialog.fallbackDesc')}
             </DialogDescription>
           </DialogHeader>
 
           {loading ? (
             <div className='flex items-center justify-center gap-2 py-12 text-sm text-muted-foreground'>
               <Loader2 className='size-4 animate-spin' />
-              加载 IP 列表...
+              {t('viewDialog.loading')}
             </div>
           ) : !group ? (
             <p className='py-8 text-center text-sm text-muted-foreground'>
-              未选择 IP 组。
+              {t('viewDialog.noGroup')}
             </p>
           ) : entries.length === 0 ? (
             <EmptyStateWithBorder
               description={
                 group.type === 'automatic'
-                  ? '该自动规则暂未抓取任何 IP，可点击「立即执行」手动触发抓取。'
-                  : '当前 IP 组暂无 IP 条目。'
+                  ? t('viewDialog.emptyAuto')
+                  : t('viewDialog.empty')
               }
             />
           ) : (
             <div className='space-y-3'>
               {group.type === 'subscription' ? (
                 <p className='text-xs text-muted-foreground'>
-                  订阅类型在下次同步时可能重新拉取已删除的 IP。
+                  {t('viewDialog.subscriptionHint')}
                 </p>
               ) : null}
               <div className='rounded-lg border border-dashed'>
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>IP 地址</TableHead>
+                      <TableHead>{t('viewDialog.ipAddress')}</TableHead>
                       {showAutomaticMeta ? (
                         <>
-                          <TableHead>抓取时间</TableHead>
-                          <TableHead>封禁剩余</TableHead>
+                          <TableHead>{t('viewDialog.capturedAt')}</TableHead>
+                          <TableHead>{t('viewDialog.banRemaining')}</TableHead>
                         </>
                       ) : null}
                       <TableHead className='w-[80px] text-right'>
-                        操作
+                        {t('viewDialog.actions')}
                       </TableHead>
                     </TableRow>
                   </TableHeader>
@@ -163,7 +170,9 @@ export function IPGroupViewDialog({
                             ) : (
                               <Trash2 className='size-4' />
                             )}
-                            <span className='sr-only'>删除 {entry.ip}</span>
+                            <span className='sr-only'>
+                              {t('viewDialog.deleteIp', { ip: entry.ip })}
+                            </span>
                           </Button>
                         </TableCell>
                       </TableRow>
@@ -180,7 +189,7 @@ export function IPGroupViewDialog({
               variant='outline'
               onClick={() => onOpenChange(false)}
             >
-              关闭
+              {t('viewDialog.close')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -192,14 +201,17 @@ export function IPGroupViewDialog({
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>确认删除 IP</AlertDialogTitle>
+            <AlertDialogTitle>{t('viewDialog.deleteTitle')}</AlertDialogTitle>
             <AlertDialogDescription>
-              确认从 IP 组「{group?.name}」中移除 {deleteTarget?.ip} 吗？
+              {t('viewDialog.deleteDesc', {
+                name: group?.name ?? '',
+                ip: deleteTarget?.ip ?? '',
+              })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={Boolean(removingIp)}>
-              取消
+              {tCommon('cancel')}
             </AlertDialogCancel>
             <AlertDialogAction
               className='bg-destructive text-white hover:bg-destructive/90'
@@ -210,7 +222,9 @@ export function IPGroupViewDialog({
                 setDeleteTarget(null);
               }}
             >
-              {removingIp ? '删除中...' : '确认删除'}
+              {removingIp
+                ? t('viewDialog.deleting')
+                : t('viewDialog.confirmDelete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

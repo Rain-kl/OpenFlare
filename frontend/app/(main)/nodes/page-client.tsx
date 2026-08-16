@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Loader2, Plus, RefreshCw, Server } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 
 import {
@@ -44,6 +45,8 @@ import { getErrorMessage } from './components/node-utils';
 const nodesQueryKey = ['openflare', 'nodes'];
 
 export function NodesPageClient() {
+  const t = useTranslations('nodes');
+  const tc = useTranslations('common');
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
   const [editingNode, setEditingNode] = useState<NodeItem | null>(null);
@@ -75,25 +78,25 @@ export function NodesPageClient() {
       return NodeService.createNode(payload);
     },
     onSuccess: async () => {
-      toast.success(editingNode ? '节点已更新' : '节点已创建');
+      toast.success(editingNode ? t('updated') : t('created'));
       setEditingNode(null);
       setEditorOpen(false);
       await queryClient.invalidateQueries({ queryKey: nodesQueryKey });
     },
     onError: (error) => {
-      toast.error(getErrorMessage(error));
+      toast.error(getErrorMessage(error, t('requestFailed')));
     },
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => NodeService.deleteNode(id),
     onSuccess: async () => {
-      toast.success('节点已删除');
+      toast.success(t('deleted'));
       setDeleteTarget(null);
       await queryClient.invalidateQueries({ queryKey: nodesQueryKey });
     },
     onError: (error) => {
-      toast.error(getErrorMessage(error));
+      toast.error(getErrorMessage(error, t('requestFailed')));
     },
   });
 
@@ -116,11 +119,11 @@ export function NodesPageClient() {
       <div className='flex items-center justify-between gap-3'>
         <div className='flex items-center gap-2'>
           <Server className='size-5 text-primary' />
-          <h1 className='text-2xl font-semibold tracking-tight'>节点管理</h1>
+          <h1 className='text-2xl font-semibold tracking-tight'>{t('title')}</h1>
         </div>
         <div className='flex items-center gap-2'>
           <Button variant='outline' size='sm' className='h-7 text-xs' asChild>
-            <Link href='/apply-logs'>应用记录</Link>
+            <Link href='/apply-logs'>{t('applyLogs')}</Link>
           </Button>
           <Button
             variant='secondary'
@@ -129,7 +132,7 @@ export function NodesPageClient() {
             onClick={handleCreate}
           >
             <Plus className='size-3.5 mr-1' />
-            新增节点
+            {t('create')}
           </Button>
         </div>
       </div>
@@ -139,10 +142,10 @@ export function NodesPageClient() {
           <div className='flex items-center justify-between gap-3'>
             <div>
               <CardTitle className='text-base font-semibold'>
-                节点列表
+                {t('listTitle')}
               </CardTitle>
               <CardDescription>
-                {getFilterDescription(nodeFilter)}
+                {getFilterDescription(nodeFilter, t)}
               </CardDescription>
             </div>
             <Button
@@ -157,7 +160,7 @@ export function NodesPageClient() {
               ) : (
                 <RefreshCw className='size-3.5 mr-1' />
               )}
-              立即刷新
+              {t('refreshNow')}
             </Button>
           </div>
         </CardHeader>
@@ -167,12 +170,12 @@ export function NodesPageClient() {
           {nodesQuery.isLoading ? (
             <LoadingStateWithBorder
               icon={Server}
-              description='加载节点列表中...'
+              description={t('loadingList')}
             />
           ) : nodesQuery.isError ? (
             <div className='p-8 border border-dashed rounded-lg'>
               <ErrorInline
-                message={getErrorMessage(nodesQuery.error)}
+                message={getErrorMessage(nodesQuery.error, t('requestFailed'))}
                 onRetry={handleRefresh}
                 className='justify-center'
               />
@@ -181,9 +184,7 @@ export function NodesPageClient() {
             <EmptyStateWithBorder
               icon={Server}
               description={
-                nodes.length === 0
-                  ? '暂无节点，请先创建一个节点。'
-                  : '当前筛选无结果'
+                nodes.length === 0 ? t('emptyAll') : t('emptyFilter')
               }
             />
           ) : (
@@ -218,15 +219,14 @@ export function NodesPageClient() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>确认删除节点</AlertDialogTitle>
+            <AlertDialogTitle>{t('deleteTitle')}</AlertDialogTitle>
             <AlertDialogDescription>
-              确认删除节点「{deleteTarget?.name}
-              」吗？删除后该节点需要重新创建并重新接入。
+              {t('deleteDesc', { name: deleteTarget?.name ?? '' })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={deleteMutation.isPending}>
-              取消
+              {tc('cancel')}
             </AlertDialogCancel>
             <AlertDialogAction
               className='bg-destructive text-white hover:bg-destructive/90'
@@ -235,7 +235,7 @@ export function NodesPageClient() {
                 deleteTarget && deleteMutation.mutate(deleteTarget.id)
               }
             >
-              {deleteMutation.isPending ? '删除中...' : '确认删除'}
+              {deleteMutation.isPending ? t('deleting') : t('confirmDelete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

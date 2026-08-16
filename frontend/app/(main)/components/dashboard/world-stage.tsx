@@ -2,6 +2,7 @@
 
 import dynamic from 'next/dynamic';
 import { type ComponentType, useEffect, useRef, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import {
   Activity,
   Cpu,
@@ -40,10 +41,10 @@ const WorldStageMap = dynamic(
 );
 
 const LEGEND_ITEMS = [
-  { dot: 'bg-blue-500', label: '来源' },
-  { dot: 'bg-emerald-500', label: '正常' },
-  { dot: 'bg-amber-500', label: '承压' },
-  { dot: 'bg-destructive', label: '异常' },
+  { dot: 'bg-blue-500', key: 'legendSource' },
+  { dot: 'bg-emerald-500', key: 'legendHealthy' },
+  { dot: 'bg-amber-500', key: 'legendPressure' },
+  { dot: 'bg-destructive', key: 'legendUnhealthy' },
 ] as const;
 
 function SummaryMetric({
@@ -128,6 +129,7 @@ export function WorldStage({
   nodes: DashboardNodeHealth[];
   sourceCountries: DistributionItem[];
 }) {
+  const t = useTranslations('dashboard.world');
   const mapViewportRef = useRef<HTMLDivElement | null>(null);
   const [shouldRenderMap, setShouldRenderMap] = useState(false);
 
@@ -177,62 +179,71 @@ export function WorldStage({
 
   const mapModeLabel =
     sourceCountries.length > 0
-      ? '访客来源'
+      ? t('modeVisitorSource')
       : geoConfiguredNodes > 0
-        ? '节点坐标'
-        : '覆盖信号';
+        ? t('modeNodeCoords')
+        : t('modeCoverage');
 
   const headlineMetrics = [
     {
-      label: '在线覆盖',
+      label: t('onlineCoverage'),
       value: formatPercent(onlineRate),
-      hint: `${summary.online_nodes}/${summary.total_nodes} 在线`,
+      hint: t('onlineHint', {
+        online: summary.online_nodes,
+        total: summary.total_nodes,
+      }),
       icon: Server,
       progress: onlineRate,
     },
     {
-      label: '运行健康',
+      label: t('runHealth'),
       value: formatPercent(healthyRate),
-      hint: `${summary.unhealthy_nodes} 个异常`,
+      hint: t('unhealthyCount', { count: summary.unhealthy_nodes }),
       icon: ShieldCheck,
       progress: healthyRate,
     },
     {
-      label: '24小时请求',
+      label: t('requests24h'),
       value: formatCompactNumber(traffic.request_count),
-      hint: `QPS ${traffic.estimated_qps.toFixed(1)} · ${traffic.reported_nodes} 个节点上报`,
+      hint: t('qpsReported', {
+        qps: traffic.estimated_qps.toFixed(1),
+        count: traffic.reported_nodes,
+      }),
       icon: Activity,
     },
     {
-      label: '节点坐标',
+      label: t('nodeCoords'),
       value: formatCompactNumber(geoConfiguredNodes),
       hint:
         geoConfiguredNodes > 0
-          ? `${sourceCountries.length} 个来源国家`
-          : '未配置时使用预设落点',
+          ? t('sourceCountries', { count: sourceCountries.length })
+          : t('fallbackPins'),
       icon: Network,
     },
   ] as const;
 
   const detailMetrics = [
     {
-      label: '平均 CPU',
+      label: t('avgCpu'),
       value: formatPercent(capacity.average_cpu_usage_percent),
-      hint: `${capacity.high_cpu_nodes} 个偏高`,
+      hint: t('highCount', { count: capacity.high_cpu_nodes }),
       icon: Cpu,
       progress: capacity.average_cpu_usage_percent,
     },
     {
-      label: '平均内存',
+      label: t('avgMemory'),
       value: formatPercent(capacity.average_memory_usage_percent),
-      hint: `${capacity.high_memory_nodes} 个偏高`,
+      hint: t('highCount', { count: capacity.high_memory_nodes }),
       icon: MemoryStick,
       progress: capacity.average_memory_usage_percent,
     },
     {
-      label: '高存储',
+      label: t('highStorage'),
       value: formatCompactNumber(capacity.high_storage_nodes),
-      hint: `${summary.offline_nodes} 离线 · ${summary.pending_nodes} 待接入`,
+      hint: t('offlinePending', {
+        offline: summary.offline_nodes,
+        pending: summary.pending_nodes,
+      }),
       icon: HardDrive,
     },
   ] as const;
@@ -244,7 +255,7 @@ export function WorldStage({
           <div className='min-w-0'>
             <CardTitle className='flex items-center gap-1.5 text-sm font-semibold'>
               <Globe2 className='size-4 shrink-0 text-primary' />
-              全球态势板
+              {t('title')}
               <Badge
                 variant='outline'
                 className='ml-1 text-[10px] font-normal text-muted-foreground'
@@ -253,17 +264,17 @@ export function WorldStage({
               </Badge>
             </CardTitle>
             <CardDescription className='mt-1 text-xs'>
-              汇总节点分布、来源国家热度与最近窗口运行状态。
+              {t('description')}
             </CardDescription>
           </div>
           <div className='flex flex-wrap items-center gap-x-3 gap-y-1 rounded-full border border-dashed bg-muted/15 px-3 py-1.5'>
             {LEGEND_ITEMS.map((item) => (
               <span
-                key={item.label}
+                key={item.key}
                 className='inline-flex items-center gap-1 text-[10px] text-muted-foreground'
               >
                 <span className={cn('size-1.5 rounded-full', item.dot)} />
-                {item.label}
+                {t(item.key)}
               </span>
             ))}
           </div>
@@ -291,8 +302,8 @@ export function WorldStage({
               ) : (
                 <div className='flex h-full items-center justify-center px-4'>
                   <EmptyState
-                    title='地图准备中'
-                    description='进入可视区域后加载'
+                    title={t('mapPreparing')}
+                    description={t('mapPreparingDesc')}
                     iconSize='sm'
                   />
                 </div>
@@ -301,7 +312,7 @@ export function WorldStage({
               {shouldRenderMap && nodes.length === 0 ? (
                 <div className='pointer-events-none absolute inset-x-3 bottom-2 z-10'>
                   <p className='rounded-md border border-dashed bg-background/90 px-2.5 py-1.5 text-[10px] text-muted-foreground backdrop-blur-sm'>
-                    暂无节点，接入后将展示地理分布
+                    {t('noNodesOverlay')}
                   </p>
                 </div>
               ) : null}

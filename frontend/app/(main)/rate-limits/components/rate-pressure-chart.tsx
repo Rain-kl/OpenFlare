@@ -5,6 +5,7 @@ import type { EChartsOption } from 'echarts';
 import type { EChartsType } from 'echarts/core';
 import ReactECharts from 'echarts-for-react';
 import { Clock } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type { AccessLogOverview } from '@/lib/services/openflare';
@@ -165,6 +166,9 @@ type RatePressureChartProps = {
 };
 
 export function RatePressureChart({ data, hours }: RatePressureChartProps) {
+  const t = useTranslations('rateLimits.chart');
+  const requestRateLabel = t('requestRate');
+  const uniqueVisitorsLabel = t('uniqueVisitors');
   const chartRef = useRef<InstanceType<typeof ReactECharts> | null>(null);
 
   const bucketSeconds =
@@ -301,7 +305,7 @@ export function RatePressureChart({ data, hours }: RatePressureChartProps) {
               typeof row.value === 'number'
                 ? row.value
                 : Number(row.value ?? 0);
-            const isRps = row.seriesName === '请求速率';
+            const isRps = row.seriesName === requestRateLabel;
             const formatted = isRps
               ? `${formatRps(numeric)} req/s`
               : formatCompactNumber(numeric);
@@ -327,7 +331,7 @@ export function RatePressureChart({ data, hours }: RatePressureChartProps) {
           color: '#94a3b8',
           fontSize: 12,
         },
-        data: ['请求速率', '独立访客'],
+        data: [requestRateLabel, uniqueVisitorsLabel],
       },
       graphic: [
         {
@@ -345,7 +349,7 @@ export function RatePressureChart({ data, hours }: RatePressureChartProps) {
           right: 16,
           top: 12,
           style: {
-            text: '访客 / 桶',
+            text: t('visitorsPerBucket'),
             fill: '#94a3b8',
             fontSize: 12,
           },
@@ -433,7 +437,7 @@ export function RatePressureChart({ data, hours }: RatePressureChartProps) {
       ],
       series: [
         {
-          name: '请求速率',
+          name: requestRateLabel,
           type: 'line',
           yAxisIndex: 0,
           smooth: true,
@@ -453,7 +457,7 @@ export function RatePressureChart({ data, hours }: RatePressureChartProps) {
           data: chartModel.rpsValues,
         },
         {
-          name: '独立访客',
+          name: uniqueVisitorsLabel,
           type: 'line',
           yAxisIndex: 1,
           smooth: true,
@@ -474,13 +478,13 @@ export function RatePressureChart({ data, hours }: RatePressureChartProps) {
         },
       ],
     };
-  }, [chartModel, hours]);
+  }, [chartModel, hours, requestRateLabel, uniqueVisitorsLabel, t]);
 
   return (
     <Card className='border-dashed shadow-none'>
       <CardHeader className='flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between pb-2'>
         <CardTitle className='text-base font-semibold tracking-tight'>
-          请求压力
+          {t('title')}
         </CardTitle>
         <div className='flex items-center gap-1.5 text-xs text-muted-foreground font-mono'>
           <Clock className='size-3.5 shrink-0' />
@@ -490,7 +494,7 @@ export function RatePressureChart({ data, hours }: RatePressureChartProps) {
       <CardContent className='pt-0'>
         {chartModel.labels.length === 0 ? (
           <div className='flex h-[360px] items-center justify-center rounded-md border border-dashed bg-muted/20 text-sm text-muted-foreground'>
-            暂无请求压力数据
+            {t('empty')}
           </div>
         ) : (
           <ReactECharts

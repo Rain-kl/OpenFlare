@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { ExternalLink, Loader2 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -40,6 +41,7 @@ export function AgentUpdateDialog({
     channel: ReleaseChannel,
   ) => Promise<void>;
 }) {
+  const t = useTranslations('nodes');
   const [channel, setChannel] = useState<ReleaseChannel>('stable');
 
   const releaseQuery = useQuery({
@@ -54,36 +56,42 @@ export function AgentUpdateDialog({
     <Dialog open={open} onOpenChange={(next) => !next && onClose()}>
       <DialogContent className='sm:max-w-xl'>
         <DialogHeader>
-          <DialogTitle>Agent 升级</DialogTitle>
-          <DialogDescription>
-            检查 GitHub 发布并向节点下发升级指令，节点将在下一次心跳后执行。
-          </DialogDescription>
+          <DialogTitle>{t('update.title')}</DialogTitle>
+          <DialogDescription>{t('update.description')}</DialogDescription>
         </DialogHeader>
 
         <div className='space-y-4'>
           <div className='grid gap-3 sm:grid-cols-3'>
             <div className='rounded-lg border p-3'>
-              <p className='text-xs text-muted-foreground'>当前版本</p>
+              <p className='text-xs text-muted-foreground'>
+                {t('update.currentVersion')}
+              </p>
               <p className='mt-1 text-sm font-medium'>
                 {node.version || 'unknown'}
               </p>
             </div>
             <div className='rounded-lg border p-3'>
-              <p className='text-xs text-muted-foreground'>检查通道</p>
+              <p className='text-xs text-muted-foreground'>
+                {t('update.channel')}
+              </p>
               <p className='mt-1 text-sm font-medium'>
-                {channel === 'preview' ? '预览版' : '正式版'}
+                {channel === 'preview'
+                  ? t('channel.preview')
+                  : t('channel.stable')}
               </p>
             </div>
             <div className='rounded-lg border p-3'>
-              <p className='text-xs text-muted-foreground'>更新状态</p>
+              <p className='text-xs text-muted-foreground'>
+                {t('update.updateStatus')}
+              </p>
               <div className='mt-1'>
                 <NodeStatusBadge
                   label={
                     node.update_requested
                       ? node.update_channel === 'preview'
-                        ? '等待预览更新'
-                        : '等待更新'
-                      : '未下发'
+                        ? t('update.waitingPreview')
+                        : t('update.waitingUpdate')
+                      : t('update.notRequested')
                   }
                   tone={node.update_requested ? 'warning' : 'info'}
                 />
@@ -94,45 +102,57 @@ export function AgentUpdateDialog({
           {releaseQuery.isFetching ? (
             <div className='flex items-center justify-center py-8 text-sm text-muted-foreground'>
               <Loader2 className='size-4 mr-2 animate-spin' />
-              检查发布版本中...
+              {t('update.checking')}
             </div>
           ) : releaseQuery.isError ? (
             <p className='text-sm text-destructive'>
-              {getErrorMessage(releaseQuery.error)}
+              {getErrorMessage(releaseQuery.error, t('requestFailed'))}
             </p>
           ) : release ? (
             <div className='space-y-3 rounded-lg border p-4'>
               <div className='flex flex-wrap items-center gap-2'>
                 <NodeStatusBadge
                   label={
-                    release.has_update ? '发现可升级版本' : '当前已是最新版本'
+                    release.has_update
+                      ? t('update.hasUpdate')
+                      : t('update.upToDate')
                   }
                   tone={release.has_update ? 'warning' : 'success'}
                 />
                 {release.prerelease ? (
-                  <NodeStatusBadge label='Preview 发布' tone='warning' />
+                  <NodeStatusBadge
+                    label={t('update.previewRelease')}
+                    tone='warning'
+                  />
                 ) : (
-                  <NodeStatusBadge label='正式发布' tone='info' />
+                  <NodeStatusBadge
+                    label={t('update.stableRelease')}
+                    tone='info'
+                  />
                 )}
               </div>
               <div className='grid gap-3 sm:grid-cols-2 text-sm'>
                 <div>
-                  <p className='text-xs text-muted-foreground'>目标版本</p>
+                  <p className='text-xs text-muted-foreground'>
+                    {t('update.targetVersion')}
+                  </p>
                   <p className='mt-1 font-medium'>
-                    {release.tag_name || '未找到'}
+                    {release.tag_name || t('update.notFound')}
                   </p>
                 </div>
                 <div>
-                  <p className='text-xs text-muted-foreground'>发布时间</p>
+                  <p className='text-xs text-muted-foreground'>
+                    {t('update.publishedAt')}
+                  </p>
                   <p className='mt-1'>
                     {release.published_at
-                      ? `${formatRelativeTime(release.published_at)} · ${formatDateTime(release.published_at)}`
+                      ? `${formatRelativeTime(release.published_at, t)} · ${formatDateTime(release.published_at)}`
                       : '—'}
                   </p>
                 </div>
               </div>
               <p className='text-sm text-muted-foreground whitespace-pre-wrap'>
-                {release.body || '暂无更新说明'}
+                {release.body || t('update.noNotes')}
               </p>
               {release.html_url ? (
                 <a
@@ -141,7 +161,7 @@ export function AgentUpdateDialog({
                   rel='noreferrer'
                   className='inline-flex items-center text-sm text-primary hover:underline'
                 >
-                  查看发布详情
+                  {t('update.viewRelease')}
                   <ExternalLink className='size-3 ml-1' />
                 </a>
               ) : null}
@@ -156,7 +176,7 @@ export function AgentUpdateDialog({
             disabled={submitting || releaseQuery.isFetching}
             onClick={() => setChannel('stable')}
           >
-            检查正式版
+            {t('update.checkStable')}
           </Button>
           <Button
             type='button'
@@ -164,7 +184,7 @@ export function AgentUpdateDialog({
             disabled={submitting || releaseQuery.isFetching}
             onClick={() => setChannel('preview')}
           >
-            检查预览版
+            {t('update.checkPreview')}
           </Button>
           <Button
             type='button'
@@ -177,10 +197,10 @@ export function AgentUpdateDialog({
             onClick={() => void onConfirm(release, channel)}
           >
             {submitting
-              ? '下发中...'
+              ? t('dispatching')
               : channel === 'preview'
-                ? '升级到预览版'
-                : '升级到正式版'}
+                ? t('update.upgradePreview')
+                : t('update.upgradeStable')}
           </Button>
         </DialogFooter>
       </DialogContent>

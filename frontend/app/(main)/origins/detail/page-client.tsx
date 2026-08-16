@@ -33,9 +33,13 @@ import {
 import { OriginService } from '@/lib/services/openflare';
 import { formatDateTime } from '@/lib/utils';
 
+import { useTranslations } from 'next-intl';
+
 import { OriginEditorDialog } from '../components/origin-editor-dialog';
 
 export function OriginDetailPageClient() {
+  const t = useTranslations('origins');
+  const tc = useTranslations('common');
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
   const originId = searchParams.get('id')?.trim() ?? '';
@@ -54,14 +58,14 @@ export function OriginDetailPageClient() {
   const deleteMutation = useMutation({
     mutationFn: () => OriginService.deleteById(parsedId),
     onSuccess: async () => {
-      toast.success('源站已删除');
+      toast.success(t('deleted'));
       await queryClient.invalidateQueries({
         queryKey: ['openflare', 'origins'],
       });
       window.location.href = '/origins';
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : '删除失败');
+      toast.error(error instanceof Error ? error.message : t('deleteFailed'));
     },
   });
 
@@ -70,7 +74,7 @@ export function OriginDetailPageClient() {
   if (!enabled) {
     return (
       <div className='py-6 px-1'>
-        <EmptyStateWithBorder description='缺少有效的源站 ID。' />
+        <EmptyStateWithBorder description={t('missingId')} />
       </div>
     );
   }
@@ -78,7 +82,7 @@ export function OriginDetailPageClient() {
   if (originQuery.isLoading) {
     return (
       <div className='py-6 px-1'>
-        <LoadingStateWithBorder icon={MapPin} description='加载源站详情...' />
+        <LoadingStateWithBorder icon={MapPin} description={t('loadingDetail')} />
       </div>
     );
   }
@@ -90,7 +94,7 @@ export function OriginDetailPageClient() {
           message={
             originQuery.error instanceof Error
               ? originQuery.error.message
-              : '加载失败'
+              : t('loadFailed')
           }
           onRetry={() => void originQuery.refetch()}
         />
@@ -104,10 +108,10 @@ export function OriginDetailPageClient() {
         <Button variant='ghost' size='sm' asChild>
           <Link href='/origins'>
             <ArrowLeft className='size-4 mr-1' />
-            返回列表
+            {t('backToList')}
           </Link>
         </Button>
-        <EmptyStateWithBorder description='源站不存在或已被删除。' />
+        <EmptyStateWithBorder description={t('notFound')} />
       </div>
     );
   }
@@ -119,7 +123,7 @@ export function OriginDetailPageClient() {
           <Button variant='ghost' size='sm' className='h-8 px-2 -ml-2' asChild>
             <Link href='/origins'>
               <ArrowLeft className='size-4 mr-1' />
-              返回列表
+              {t('backToList')}
             </Link>
           </Button>
           <div className='flex items-center gap-2'>
@@ -136,7 +140,7 @@ export function OriginDetailPageClient() {
             size='sm'
             onClick={() => setEditorOpen(true)}
           >
-            编辑源站
+            {t('editOrigin')}
           </Button>
           <Button
             variant='destructive'
@@ -144,7 +148,7 @@ export function OriginDetailPageClient() {
             onClick={() => setDeleteOpen(true)}
           >
             <Trash2 className='size-3.5 mr-1' />
-            删除源站
+            {t('deleteOrigin')}
           </Button>
         </div>
       </div>
@@ -152,57 +156,57 @@ export function OriginDetailPageClient() {
       <div className='grid gap-3 sm:grid-cols-2 xl:grid-cols-4'>
         <div className='rounded-lg border border-dashed px-4 py-3'>
           <p className='text-[10px] uppercase tracking-wider text-muted-foreground'>
-            绑定规则
+            {t('boundRoutes')}
           </p>
           <Badge variant='outline' className='mt-2 text-[10px]'>
-            {origin.route_count} 条规则
+            {t('routeCount', { count: origin.route_count })}
           </Badge>
         </div>
         <div className='rounded-lg border border-dashed px-4 py-3'>
           <p className='text-[10px] uppercase tracking-wider text-muted-foreground'>
-            创建时间
+            {t('createdAt')}
           </p>
           <p className='mt-2 text-sm'>{formatDateTime(origin.created_at)}</p>
         </div>
         <div className='rounded-lg border border-dashed px-4 py-3'>
           <p className='text-[10px] uppercase tracking-wider text-muted-foreground'>
-            更新时间
+            {t('updatedAt')}
           </p>
           <p className='mt-2 text-sm'>{formatDateTime(origin.updated_at)}</p>
         </div>
         <div className='rounded-lg border border-dashed px-4 py-3 sm:col-span-2 xl:col-span-1'>
           <p className='text-[10px] uppercase tracking-wider text-muted-foreground'>
-            备注
+            {t('remark')}
           </p>
           <p className='mt-2 text-sm text-muted-foreground'>
-            {origin.remark || '暂无备注'}
+            {origin.remark || t('noRemark')}
           </p>
         </div>
       </div>
 
       <div className='border border-dashed rounded-lg overflow-hidden bg-background'>
         <div className='px-4 py-3 border-b border-dashed'>
-          <h2 className='text-sm font-semibold'>关联规则</h2>
+          <h2 className='text-sm font-semibold'>{t('relatedRoutes')}</h2>
           <p className='text-xs text-muted-foreground mt-1'>
-            展示当前源站作为主源站绑定的规则。
+            {t('relatedRoutesDesc')}
           </p>
         </div>
         {origin.routes.length === 0 ? (
           <EmptyStateWithBorder
-            title='暂无关联规则'
-            description='当前源站还没有被任何规则引用。'
+            title={t('noRelatedRoutes')}
+            description={t('noRelatedRoutesDesc')}
           />
         ) : (
           <Table>
             <TableHeader className='bg-muted/40'>
               <TableRow className='border-dashed hover:bg-transparent'>
-                <TableHead className='text-xs font-semibold'>域名</TableHead>
+                <TableHead className='text-xs font-semibold'>{t('domain')}</TableHead>
                 <TableHead className='text-xs font-semibold'>
-                  源站地址
+                  {t('address')}
                 </TableHead>
-                <TableHead className='text-xs font-semibold'>状态</TableHead>
+                <TableHead className='text-xs font-semibold'>{t('status')}</TableHead>
                 <TableHead className='text-xs font-semibold'>
-                  更新时间
+                  {t('updatedAt')}
                 </TableHead>
               </TableRow>
             </TableHeader>
@@ -217,7 +221,7 @@ export function OriginDetailPageClient() {
                   </TableCell>
                   <TableCell>
                     <Badge variant='outline' className='text-[10px]'>
-                      {route.enabled ? '启用' : '停用'}
+                      {route.enabled ? t('enabled') : t('disabled')}
                     </Badge>
                   </TableCell>
                   <TableCell className='text-xs text-muted-foreground'>
@@ -240,18 +244,18 @@ export function OriginDetailPageClient() {
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>删除源站</AlertDialogTitle>
+            <AlertDialogTitle>{t('deleteTitle')}</AlertDialogTitle>
             <AlertDialogDescription>
-              确认删除源站 {origin.name} 吗？
+              {t('deleteDesc', { name: origin.name })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogCancel>{tc('cancel')}</AlertDialogCancel>
             <AlertDialogAction
               className='bg-destructive text-destructive-foreground hover:bg-destructive/90'
               onClick={() => deleteMutation.mutate()}
             >
-              确认删除
+              {t('confirmDelete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

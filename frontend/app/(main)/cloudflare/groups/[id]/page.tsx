@@ -1,5 +1,6 @@
-import { Suspense } from 'react';
 import { Cloud } from 'lucide-react';
+import { getTranslations } from 'next-intl/server';
+import { Suspense } from 'react';
 
 import { LoadingStateWithBorder } from '@/components/layout/loading';
 
@@ -11,13 +12,14 @@ export async function generateStaticParams() {
 }
 
 export default async function CloudflareGroupDetailPage() {
+  const t = await getTranslations('cloudflare');
   return (
     <Suspense
       fallback={
         <div className='w-full py-6 px-1'>
           <LoadingStateWithBorder
             icon={Cloud}
-            description='加载分组详情中...'
+            description={t('loadingDetail')}
           />
         </div>
       }

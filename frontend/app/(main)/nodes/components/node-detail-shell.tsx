@@ -5,6 +5,7 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { type ReactNode, useCallback, useMemo } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import { ArrowLeft } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -28,16 +29,7 @@ export type NodeDetailKpi = {
   icon?: LucideIcon;
 };
 
-const TAB_CONFIGS: NodeDetailTabConfig[] = [
-  {
-    id: 'overview',
-    label: '概览',
-  },
-  {
-    id: 'manage',
-    label: '状态与部署',
-  },
-];
+const TAB_IDS: NodeDetailTabId[] = ['overview', 'manage'];
 
 function resolveTab(value: string | null): NodeDetailTabId | null {
   if (value === 'overview' || value === 'dashboard') {
@@ -70,6 +62,7 @@ export function NodeDetailShell({
   manage: ReactNode;
   defaultTab?: NodeDetailTabId;
 }) {
+  const t = useTranslations('nodes');
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -110,7 +103,7 @@ export function NodeDetailShell({
                 className='mt-0.5 h-8 w-8 shrink-0 p-0'
                 asChild
               >
-                <Link href='/nodes' aria-label='返回节点列表'>
+                <Link href='/nodes' aria-label={t('backToList')}>
                   <ArrowLeft className='size-4' />
                 </Link>
               </Button>
@@ -162,16 +155,16 @@ export function NodeDetailShell({
             variant='line'
             className='h-auto w-full justify-start gap-6 bg-transparent p-0'
           >
-            {TAB_CONFIGS.map((tab) => (
+            {TAB_IDS.map((tabId) => (
               <TabsTrigger
-                key={tab.id}
-                value={tab.id}
+                key={tabId}
+                value={tabId}
                 className={cn(
                   'h-auto flex-none rounded-none px-0 pb-3 pt-1 text-sm font-semibold',
                   'data-[state=active]:text-foreground data-[state=inactive]:text-muted-foreground',
                 )}
               >
-                {tab.label}
+                {tabId === 'overview' ? t('tabOverview') : t('tabManage')}
               </TabsTrigger>
             ))}
           </TabsList>

@@ -20,6 +20,7 @@ import {
   Upload,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useTranslations } from 'next-intl';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -70,6 +71,7 @@ function formatDate(dateStr: string) {
 
 export function UserFileManager() {
   const queryClient = useQueryClient();
+  const t = useTranslations('files');
   const [keyword, setKeyword] = React.useState('');
   const [debouncedKeyword, setDebouncedKeyword] = React.useState('');
   const [page, setPage] = React.useState(1);
@@ -119,11 +121,11 @@ export function UserFileManager() {
       setUploading(true);
     },
     onSuccess: () => {
-      toast.success('文件上传成功');
+      toast.success(t('uploadSuccess'));
       void queryClient.invalidateQueries({ queryKey: ['user-files'] });
     },
     onError: (err: Error) => {
-      toast.error(err.message || '上传失败');
+      toast.error(err.message || t('uploadFailed'));
     },
     onSettled: () => {
       setUploading(false);
@@ -137,12 +139,12 @@ export function UserFileManager() {
   const deleteMutation = useMutation({
     mutationFn: (id: string) => services.upload.deleteMyFile(id),
     onSuccess: () => {
-      toast.success('文件已成功删除');
+      toast.success(t('deleteSuccess'));
       void queryClient.invalidateQueries({ queryKey: ['user-files'] });
       setDeleteTarget(null);
     },
     onError: (err: Error) => {
-      toast.error(err.message || '删除失败');
+      toast.error(err.message || t('deleteFailed'));
     },
   });
 
@@ -172,7 +174,7 @@ export function UserFileManager() {
         <div className='relative flex-1 max-w-md'>
           <Search className='absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground' />
           <Input
-            placeholder='搜索文件名...'
+            placeholder={t('searchPlaceholder')}
             value={keyword}
             onChange={(e) => setKeyword(e.target.value)}
             className='pl-9 h-9'
@@ -189,7 +191,7 @@ export function UserFileManager() {
               onClick={() => setUploadAccessMode(0)}
             >
               <Lock className='mr-1 size-3 text-amber-500' />
-              私有
+              {t('private')}
             </Button>
             <Button
               variant={uploadAccessMode === 1 ? 'secondary' : 'ghost'}
@@ -198,7 +200,7 @@ export function UserFileManager() {
               onClick={() => setUploadAccessMode(1)}
             >
               <Globe className='mr-1 size-3 text-sky-500' />
-              公开
+              {t('public')}
             </Button>
           </div>
 
@@ -219,7 +221,7 @@ export function UserFileManager() {
             ) : (
               <Plus className='size-3.5' />
             )}
-            {uploading ? '正在上传...' : '上传文件'}
+            {uploading ? t('uploading') : t('uploadFile')}
           </Button>
         </div>
       </div>
@@ -236,11 +238,9 @@ export function UserFileManager() {
               <Upload className='size-10' />
             </div>
             <div className='space-y-1'>
-              <h3 className='font-semibold text-sm'>还没有上传文件</h3>
+              <h3 className='font-semibold text-sm'>{t('noFiles')}</h3>
               <p className='text-xs text-muted-foreground max-w-xs'>
-                {debouncedKeyword
-                  ? '未搜索到匹配的文件'
-                  : '上传您的第一个文件，支持图片、视频、文档和压缩包等格式。'}
+                {debouncedKeyword ? t('noMatchingFiles') : t('uploadFirstFile')}
               </p>
             </div>
             {!debouncedKeyword && (
@@ -250,7 +250,7 @@ export function UserFileManager() {
                 size='sm'
                 className='mt-2 text-xs'
               >
-                选择文件上传
+                {t('selectFileUpload')}
               </Button>
             )}
           </CardContent>
@@ -284,7 +284,7 @@ export function UserFileManager() {
                       className='bg-amber-500/10 text-amber-600 dark:text-amber-400 text-[10px] gap-1 px-1.5 py-0 rounded-md border border-amber-500/20 font-normal'
                     >
                       <Lock className='size-2.5' />
-                      私有
+                      {t('private')}
                     </Badge>
                   ) : (
                     <Badge
@@ -292,7 +292,7 @@ export function UserFileManager() {
                       className='bg-sky-500/10 text-sky-600 dark:text-sky-400 text-[10px] gap-1 px-1.5 py-0 rounded-md border border-sky-500/20 font-normal'
                     >
                       <Globe className='size-2.5' />
-                      公开
+                      {t('public')}
                     </Badge>
                   )}
                 </div>
@@ -328,7 +328,7 @@ export function UserFileManager() {
                       size='icon'
                       variant='ghost'
                       className='size-7 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground'
-                      title='下载文件'
+                      title={t('downloadFile')}
                       onClick={() => handleDownload(file)}
                     >
                       <Download className='size-3.5' />
@@ -337,7 +337,7 @@ export function UserFileManager() {
                       size='icon'
                       variant='ghost'
                       className='size-7 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive'
-                      title='删除文件'
+                      title={t('deleteFile')}
                       onClick={() => setDeleteTarget(file)}
                     >
                       <Trash2 className='size-3.5' />
@@ -361,7 +361,7 @@ export function UserFileManager() {
             onClick={() => setPage((p) => p - 1)}
           >
             <ChevronLeft className='mr-1 size-3.5' />
-            上一页
+            {t('prevPage')}
           </Button>
           <span className='text-xs text-muted-foreground font-medium px-2'>
             {page} / {totalPages}
@@ -373,7 +373,7 @@ export function UserFileManager() {
             disabled={page >= totalPages}
             onClick={() => setPage((p) => p + 1)}
           >
-            下一页
+            {t('nextPage')}
             <ChevronRight className='ml-1 size-3.5' />
           </Button>
         </div>
@@ -386,18 +386,16 @@ export function UserFileManager() {
       >
         <AlertDialogContent suppressHydrationWarning>
           <AlertDialogHeader>
-            <AlertDialogTitle>确认删除文件</AlertDialogTitle>
+            <AlertDialogTitle>{t('confirmDeleteFile')}</AlertDialogTitle>
             <AlertDialogDescription>
-              确定要删除文件{' '}
-              <span className='font-semibold text-foreground'>
-                「{deleteTarget?.file_name}」
-              </span>{' '}
-              吗？删除后此文件将无法恢复。
+              {t('confirmDeleteFileDesc', {
+                name: deleteTarget?.file_name || '',
+              })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={deleteMutation.isPending}>
-              取消
+              {t('cancel')}
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={() =>
@@ -409,7 +407,7 @@ export function UserFileManager() {
               {deleteMutation.isPending && (
                 <Loader2 className='mr-1.5 size-3.5 animate-spin' />
               )}
-              确认删除
+              {t('confirmDelete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

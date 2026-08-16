@@ -4,6 +4,7 @@
 'use client';
 
 import * as React from 'react';
+import { useTranslations } from 'next-intl';
 import { Code } from 'lucide-react';
 import {
   Card,
@@ -25,6 +26,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
 
 export function ControlsTab() {
+  const t = useTranslations('admin.demo.controls');
   const [formData, setFormData] = React.useState({
     name: '',
     category: 'database',
@@ -38,11 +40,9 @@ export function ControlsTab() {
       <Card className='border-dashed shadow-none'>
         <CardHeader className='pb-3'>
           <CardTitle className='text-sm font-semibold'>
-            表单与输入框交互演示
+            {t('formDemoTitle')}
           </CardTitle>
-          <CardDescription>
-            包含按钮变体、下拉选择、多选框及基础输入框的标准样式
-          </CardDescription>
+          <CardDescription>{t('formDemoDesc')}</CardDescription>
         </CardHeader>
         <CardContent className='space-y-4'>
           {/* 输入框 */}
@@ -51,7 +51,7 @@ export function ControlsTab() {
               htmlFor='task-name'
               className='text-xs font-medium text-foreground'
             >
-              任务名称
+              {t('taskName')}
             </Label>
             <Input
               id='task-name'
@@ -59,18 +59,18 @@ export function ControlsTab() {
               onChange={(e) =>
                 setFormData((prev) => ({ ...prev, name: e.target.value }))
               }
-              placeholder='输入要创建的任务描述...'
+              placeholder={t('taskNamePlaceholder')}
               className='h-8 text-xs shadow-none bg-background focus-visible:ring-1'
             />
             <p className='text-[10px] text-muted-foreground'>
-              任务名称将用于后台执行记录的可读性显示
+              {t('taskNameHint')}
             </p>
           </div>
 
           {/* 下拉框 */}
           <div className='space-y-1.5'>
             <Label className='text-xs font-medium text-foreground'>
-              任务分类
+              {t('taskCategory')}
             </Label>
             <Select
               value={formData.category}
@@ -82,9 +82,11 @@ export function ControlsTab() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value='database'>数据库运维</SelectItem>
-                <SelectItem value='sync'>数据批量同步</SelectItem>
-                <SelectItem value='cleanup'>过期磁盘清理</SelectItem>
+                <SelectItem value='database'>
+                  {t('categoryDatabase')}
+                </SelectItem>
+                <SelectItem value='sync'>{t('categorySync')}</SelectItem>
+                <SelectItem value='cleanup'>{t('categoryCleanup')}</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -107,10 +109,10 @@ export function ControlsTab() {
                 htmlFor='allow-notify'
                 className='text-xs font-medium text-foreground cursor-pointer select-none leading-none'
               >
-                允许触发异步通知推送
+                {t('allowNotify')}
               </label>
               <p className='text-[10px] text-muted-foreground leading-normal'>
-                勾选后，在当前后台任务顺利执行结束时，会关联派发多渠道通知推送。
+                {t('allowNotifyDesc')}
               </p>
             </div>
           </div>
@@ -118,32 +120,32 @@ export function ControlsTab() {
           {/* 按钮变体 */}
           <div className='pt-2'>
             <div className='text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2'>
-              按钮样式对齐：
+              {t('buttonStyles')}
             </div>
             <div className='flex flex-wrap items-center gap-2'>
               <Button size='sm' className='h-8 text-xs shadow-none'>
-                主要操作 (Primary)
+                {t('primaryButton')}
               </Button>
               <Button
                 variant='secondary'
                 size='sm'
                 className='h-8 text-xs shadow-none'
               >
-                次要操作 (Secondary)
+                {t('secondaryButton')}
               </Button>
               <Button
                 variant='outline'
                 size='sm'
                 className='h-8 border-dashed text-xs shadow-none'
               >
-                辅助线框 (Outline)
+                {t('outlineButton')}
               </Button>
               <Button
                 variant='ghost'
                 size='sm'
                 className='h-8 text-xs hover:bg-muted'
               >
-                幽灵按钮 (Ghost)
+                {t('ghostButton')}
               </Button>
             </div>
           </div>
@@ -155,13 +157,13 @@ export function ControlsTab() {
         <CardHeader className='pb-3'>
           <CardTitle className='text-sm font-semibold flex items-center gap-1.5'>
             <Code className='size-4 text-primary' />
-            表单设计规范
+            {t('formDesignSpec')}
           </CardTitle>
         </CardHeader>
         <CardContent className='space-y-4 text-xs text-muted-foreground'>
           <div className='space-y-2 leading-relaxed'>
             <p className='font-semibold text-foreground text-[11px]'>
-              1. 统一控件高度与投影：
+              {t('spec.unifiedHeight')}
             </p>
             <p>
               输入框 (
@@ -188,7 +190,7 @@ export function ControlsTab() {
             </p>
 
             <p className='font-semibold text-foreground text-[11px] pt-1'>
-              2. Checkbox 与文本的对齐：
+              {t('spec.checkboxAlignment')}
             </p>
             <p>
               Checkbox 应在左侧垂直偏上对齐，使用容器{' '}
@@ -203,7 +205,7 @@ export function ControlsTab() {
             </p>
 
             <p className='font-semibold text-foreground text-[11px] pt-1'>
-              3. 按钮使用策略：
+              {t('spec.buttonStrategy')}
             </p>
             <p>
               普通主表单及新增/保存按钮，一律使用默认 Primary 按钮或次要{' '}

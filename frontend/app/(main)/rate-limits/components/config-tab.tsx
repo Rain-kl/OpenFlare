@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ExternalLink, Gauge, Loader2, Save } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 
 import { ErrorInline } from '@/components/layout/error';
@@ -62,25 +63,26 @@ function mapOptionsToFields(
   };
 }
 
-function validateFields(fields: RateLimitFields) {
+function validateFields(
+  fields: RateLimitFields,
+  t: (key: 'config.invalidConn' | 'config.invalidRate' | 'config.invalidReq') => string,
+) {
   for (const key of [KEY_CONN_PER_SERVER, KEY_CONN_PER_IP] as const) {
     const raw = fields[key].trim();
     if (!raw) continue;
     if (!/^\d+$/.test(raw)) {
-      throw new Error('并发限制请输入非负整数，或留空表示关闭');
+      throw new Error(t('config.invalidConn'));
     }
   }
 
   const rate = fields.openresty_default_limit_rate.trim();
   if (rate && rate !== '0' && !limitRatePattern.test(rate)) {
-    throw new Error('限速格式不合法，请使用 512k、1m、纯数字，或留空关闭');
+    throw new Error(t('config.invalidRate'));
   }
 
   const reqRate = fields.openresty_default_limit_req_per_ip.trim();
   if (reqRate && reqRate !== '0' && !/^\d+r\/[sm]$/i.test(reqRate)) {
-    throw new Error(
-      '请求频率限制格式不合法，请使用类似 10r/s、100r/m，或留空关闭',
-    );
+    throw new Error(t('config.invalidReq'));
   }
 }
 
@@ -97,6 +99,8 @@ function normalizeRateValue(value: string) {
 }
 
 export function ConfigTab() {
+  const t = useTranslations('rateLimits');
+  const tCommon = useTranslations('common');
   const queryClient = useQueryClient();
   const [fields, setFields] = useState<RateLimitFields>(defaultFields);
   const [saving, setSaving] = useState(false);
@@ -113,7 +117,7 @@ export function ConfigTab() {
 
   const saveMutation = useMutation({
     mutationFn: async () => {
-      validateFields(fields);
+      validateFields(fields, (key) => t(key));
       setSaving(true);
       await OptionService.updateBatch([
         {
@@ -137,7 +141,7 @@ export function ConfigTab() {
       ]);
     },
     onSuccess: async () => {
-      toast.success('限流参数已保存');
+      toast.success(t('config.saved'));
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: optionsQueryKey }),
         queryClient.invalidateQueries({
@@ -151,7 +155,7 @@ export function ConfigTab() {
     },
     onError: (error) => {
       setSaving(false);
-      toast.error(error instanceof Error ? error.message : '保存失败');
+      toast.error(error instanceof Error ? error.message : t('config.saveFailed'));
     },
   });
 
@@ -164,7 +168,7 @@ export function ConfigTab() {
 
   if (optionsQuery.isLoading) {
     return (
-      <LoadingStateWithBorder icon={Gauge} description='加载限流参数...' />
+      <LoadingStateWithBorder icon={Gauge} description={t('config.loading')} />
     );
   }
 
@@ -174,7 +178,7 @@ export function ConfigTab() {
         message={
           optionsQuery.error instanceof Error
             ? optionsQuery.error.message
-            : '加载失败'
+            : t('loadFailed')
         }
         onRetry={() => void optionsQuery.refetch()}
       />
@@ -187,7 +191,7 @@ export function ConfigTab() {
         <Button variant='outline' size='sm' asChild>
           <Link href='/config-versions'>
             <ExternalLink className='size-3.5 mr-1' />
-            查看配置预览
+            {t('config.preview')}
           </Link>
         </Button>
       </div>
@@ -195,11 +199,8 @@ export function ConfigTab() {
       <Card className='border-dashed shadow-none'>
         <CardHeader className='flex flex-row items-center justify-between'>
           <div>
-            <CardTitle className='text-base'>全局默认限流</CardTitle>
-            <CardDescription>
-              0
-              或空表示默认关闭；站点未单独配置时继承此处设置。修改后需在版本发布中生效。
-            </CardDescription>
+            <CardTitle className='text-base'>{t('config.title')}</CardTitle>
+            <CardDescription>{t('config.description')}</CardDescription>
           </div>
           <Button
             size='sm'
@@ -211,13 +212,13 @@ export function ConfigTab() {
             ) : (
               <Save className='size-3.5 mr-1' />
             )}
-            保存
+            {tCommon('save')}
           </Button>
         </CardHeader>
         <CardContent className='grid gap-4 md:grid-cols-2 xl:grid-cols-3'>
           <div className='space-y-1.5'>
             <Label className='text-xs text-muted-foreground'>
-              默认并发限制（每站点）
+              {t('config.connPerServer')}
             </Label>
             <Input
               type='number'
@@ -233,12 +234,12 @@ export function ConfigTab() {
               className='h-9 text-xs'
             />
             <p className='text-xs text-muted-foreground'>
-              站点最大并发连接数默认值
+              {t('config.connPerServerHint')}
             </p>
           </div>
           <div className='space-y-1.5'>
             <Label className='text-xs text-muted-foreground'>
-              默认单 IP 并发
+              {t('config.connPerIp')}
             </Label>
             <Input
               type='number'
@@ -254,11 +255,13 @@ export function ConfigTab() {
               className='h-9 text-xs'
             />
             <p className='text-xs text-muted-foreground'>
-              单个 IP 最大并发连接数默认值
+              {t('config.connPerIpHint')}
             </p>
           </div>
           <div className='space-y-1.5'>
-            <Label className='text-xs text-muted-foreground'>默认限速</Label>
+            <Label className='text-xs text-muted-foreground'>
+              {t('config.limitRate')}
+            </Label>
             <Input
               value={fields.openresty_default_limit_rate}
               placeholder='512k / 1m'
@@ -268,12 +271,12 @@ export function ConfigTab() {
               className='h-9 text-xs'
             />
             <p className='text-xs text-muted-foreground'>
-              单请求带宽默认值，例如 512k 或 1m
+              {t('config.limitRateHint')}
             </p>
           </div>
           <div className='space-y-1.5'>
             <Label className='text-xs text-muted-foreground'>
-              默认单 IP 请求频率限制
+              {t('config.reqPerIp')}
             </Label>
             <Input
               value={fields.openresty_default_limit_req_per_ip}
@@ -287,7 +290,7 @@ export function ConfigTab() {
               className='h-9 text-xs'
             />
             <p className='text-xs text-muted-foreground'>
-              单个 IP 请求频率默认值，例如 10r/s 或 100r/m，留空关闭
+              {t('config.reqPerIpHint')}
             </p>
           </div>
         </CardContent>
