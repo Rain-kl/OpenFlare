@@ -588,7 +588,7 @@
     "cleanupOld": "清理旧版本",
     "viewDiff": "查看差异",
     "forcePublish": "强制发布",
-    "previewPublish": "预览并发布",
+    "previewPublish": "发布",
     "emptyTitle": "暂无历史版本",
     "emptyDesc": "当前还没有可查看的发布记录，请先触发一次配置发布。",
     "colVersion": "版本号",
