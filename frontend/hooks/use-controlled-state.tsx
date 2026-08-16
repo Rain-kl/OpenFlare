@@ -14,8 +14,7 @@ interface CommonControlledStateProps<T> {
  * const [value, setValue] = useControlledState({ value: propValue, onChange: console.log })
  * ```
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function useControlledState<T, Rest extends any[] = []>(
+export function useControlledState<T, Rest extends unknown[] = []>(
   props: CommonControlledStateProps<T> & {
     onChange?: (value: T, ...args: Rest) => void;
   },
