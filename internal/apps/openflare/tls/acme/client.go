@@ -173,7 +173,7 @@ func SetupDNSProvider(client *lego.Client, dnsType, dnsAuth string, dns1, dns2 s
 	case "cloudflare":
 		var creds map[string]string
 		if err := json.Unmarshal([]byte(dnsAuth), &creds); err != nil {
-			return fmt.Errorf("failed to parse cloudflare credentials: %v", err)
+			return fmt.Errorf("failed to parse cloudflare credentials: %w", err)
 		}
 
 		config := cloudflare.NewDefaultConfig()

@@ -361,7 +361,7 @@ func RequestForceSync(ctx context.Context, id uint) (*View, error) {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, fmt.Errorf("无法获取当前激活的配置版本：%s", errNoActiveConfigVersion)
 		}
-		return nil, fmt.Errorf("无法获取当前激活的配置版本：%v", err)
+		return nil, fmt.Errorf("无法获取当前激活的配置版本：%w", err)
 	}
 	if !ofws.SendForceSyncConfig(node.NodeID, forceSyncConfigPayload{
 		Version:  activeConfig.Version,

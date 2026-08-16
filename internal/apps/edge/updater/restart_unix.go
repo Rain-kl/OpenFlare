@@ -20,7 +20,7 @@ func replaceAndRestart(execPath string, tmpPath string) error {
 		renameErr := err
 		if err := os.Remove(tmpPath); err != nil && !os.IsNotExist(err) {
 			slog.Error("remove tmp binary failed", "path", tmpPath, "error", err)
-			return fmt.Errorf("backup current binary: %w; remove tmp binary: %v", renameErr, err)
+			return fmt.Errorf("backup current binary: %w; remove tmp binary: %w", renameErr, err)
 		}
 		return fmt.Errorf("backup current binary: %w", renameErr)
 	}
@@ -28,7 +28,7 @@ func replaceAndRestart(execPath string, tmpPath string) error {
 		replaceErr := err
 		if err := os.Rename(backupPath, execPath); err != nil {
 			slog.Error("restore backup binary failed", "path", backupPath, "error", err)
-			return fmt.Errorf("replace binary: %w; restore backup binary: %v", replaceErr, err)
+			return fmt.Errorf("replace binary: %w; restore backup binary: %w", replaceErr, err)
 		}
 		return fmt.Errorf("replace binary: %w", replaceErr)
 	}

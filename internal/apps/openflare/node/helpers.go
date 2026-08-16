@@ -322,7 +322,7 @@ func fetchLatestStableGitHubRelease(ctx context.Context, repo string) (*githubRe
 	}
 	resp, err := releaseHTTPClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("获取最新版本失败: %v", err)
+		return nil, fmt.Errorf("获取最新版本失败: %w", err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
@@ -339,7 +339,7 @@ func fetchLatestPreviewGitHubRelease(ctx context.Context, repo string) (*githubR
 	}
 	resp, err := releaseHTTPClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("获取 preview 版本失败: %v", err)
+		return nil, fmt.Errorf("获取 preview 版本失败: %w", err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
@@ -371,7 +371,7 @@ func fetchGitHubReleaseByTag(ctx context.Context, repo string, tag string) (*git
 	}
 	resp, err := releaseHTTPClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("获取指定版本失败: %v", err)
+		return nil, fmt.Errorf("获取指定版本失败: %w", err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode == http.StatusNotFound {

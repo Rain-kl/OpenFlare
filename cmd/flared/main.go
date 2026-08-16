@@ -3,6 +3,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"log/slog"
 	"os"
@@ -63,7 +64,7 @@ func main() {
 
 	slog.Info("flared process started")
 
-	if err := runner.Run(ctx); err != nil && err != context.Canceled {
+	if err := runner.Run(ctx); err != nil && !errors.Is(err, context.Canceled) {
 		slog.Error("flared process exited with error", "error", err)
 		stop()
 		os.Exit(1)

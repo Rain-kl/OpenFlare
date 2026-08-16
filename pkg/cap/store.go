@@ -5,6 +5,7 @@ package cap
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"time"
 
@@ -149,7 +150,7 @@ func NewRedisStore(client redis.UniversalClient) *RedisStore {
 // Get 从 RedisStore 获取指定 key 的值
 func (s *RedisStore) Get(ctx context.Context, key string) (string, bool, error) {
 	val, err := s.client.Get(ctx, key).Result()
-	if err == redis.Nil {
+	if errors.Is(err, redis.Nil) {
 		return "", false, nil
 	}
 	if err != nil {
@@ -176,7 +177,7 @@ func (s *RedisStore) SetNX(ctx context.Context, key string, val string, ttl time
 // GetAndDelete wraps Redis GETDEL (available since Redis 6.2).
 func (s *RedisStore) GetAndDelete(ctx context.Context, key string) (string, bool, error) {
 	val, err := s.client.GetDel(ctx, key).Result()
-	if err == redis.Nil {
+	if errors.Is(err, redis.Nil) {
 		return "", false, nil
 	}
 	if err != nil {

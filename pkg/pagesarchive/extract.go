@@ -177,7 +177,7 @@ func extractTarReader(
 	measured := &measuredArchive{files: make([]measuredFile, 0)}
 	for {
 		header, err := tarReader.Next()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break
 		}
 		if err != nil {

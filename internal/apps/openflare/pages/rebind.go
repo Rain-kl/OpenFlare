@@ -246,5 +246,5 @@ func putJSON(route map[string]json.RawMessage, key string, value any) error {
 }
 
 func errorsIsNotFound(err error) bool {
-	return err != nil && (err == gorm.ErrRecordNotFound || strings.Contains(strings.ToLower(err.Error()), "record not found"))
+	return err != nil && (errors.Is(err, gorm.ErrRecordNotFound) || strings.Contains(strings.ToLower(err.Error()), "record not found"))
 }

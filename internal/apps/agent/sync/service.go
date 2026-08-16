@@ -426,7 +426,7 @@ func (s *Service) ensureRuntimeForCurrentConfig(ctx context.Context, mode string
 				snapshot.OpenrestyMessage = "safe default fallback runtime started"
 				return nil
 			}
-			err = fmt.Errorf("%v; fallback recovery failed: %w", err, fallbackErr)
+			err = fmt.Errorf("%w; fallback recovery failed: %w", err, fallbackErr)
 		}
 		snapshot.OpenrestyStatus = protocol.OpenrestyStatusUnhealthy
 		snapshot.OpenrestyMessage = err.Error()

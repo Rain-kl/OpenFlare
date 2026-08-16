@@ -239,7 +239,7 @@ func validateOriginErrorPageStatusCodes(key, trimmed string) error {
 	}
 	codes, err := openrestyrender.ExpandStatusCodeTags(tags)
 	if err != nil {
-		return fmt.Errorf("%s: %v", key, err)
+		return fmt.Errorf("%s: %w", key, err)
 	}
 	if len(codes) == 0 {
 		return fmt.Errorf("%s 展开后不能为空", key)

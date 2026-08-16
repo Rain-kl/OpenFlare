@@ -178,7 +178,8 @@ func DownloadFile(c *gin.Context) {
 			response.AbortNotFound(c, "文件记录未找到")
 			return
 		}
-		if _, ok := err.(*strconv.NumError); ok {
+		var numErr *strconv.NumError
+		if errors.As(err, &numErr) {
 			response.AbortBadRequest(c, shared.ErrInvalidFileID)
 			return
 		}

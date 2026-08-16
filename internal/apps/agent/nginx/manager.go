@@ -134,7 +134,7 @@ func (e *PathExecutor) Reload(ctx context.Context) error {
 			slog.Warn("openresty reload reported runtime is not running, starting binary", "path", e.Path)
 			startOutput, startErr := e.Runner.Run(ctx, e.Path, "-c", e.ConfigPath)
 			if startErr != nil {
-				return fmt.Errorf("openresty reload failed: %w: %s; start failed: %v: %s", err, string(output), startErr, string(startOutput))
+				return fmt.Errorf("openresty reload failed: %w: %s; start failed: %w: %s", err, string(output), startErr, string(startOutput))
 			}
 			return nil
 		}
@@ -355,14 +355,14 @@ func (m *Manager) activateConfig(ctx context.Context) error {
 func (m *Manager) rollbackAfterFailedApply(ctx context.Context, backup *backupState, applyErr error) ApplyOutcome {
 	slog.Warn("openresty apply failed, restoring previous config", "error", applyErr)
 	if err := m.restore(backup); err != nil {
-		return fatalApplyOutcome(fmt.Errorf("restore openresty backup failed after apply error %v: %w", applyErr, err))
+		return fatalApplyOutcome(fmt.Errorf("restore openresty backup failed after apply error %w: %w", applyErr, err))
 	}
 	if err := m.activateConfig(ctx); err != nil {
 		if backup != nil && backup.MainExisted {
-			return fatalApplyOutcome(fmt.Errorf("apply failed: %v; rollback recovery failed: %w", applyErr, err))
+			return fatalApplyOutcome(fmt.Errorf("apply failed: %w; rollback recovery failed: %w", applyErr, err))
 		}
 		if fallbackErr := m.EnsureSafeFallbackRuntime(ctx, fmt.Sprintf("apply failed: %v; rollback recovery failed: %v", applyErr, err)); fallbackErr != nil {
-			return fatalApplyOutcome(fmt.Errorf("apply failed: %v; rollback recovery failed: %w; fallback recovery failed: %v", applyErr, err, fallbackErr))
+			return fatalApplyOutcome(fmt.Errorf("apply failed: %w; rollback recovery failed: %w; fallback recovery failed: %w", applyErr, err, fallbackErr))
 		}
 		message := fmt.Sprintf("apply failed, but fallback runtime started: %v; rollback recovery failed: %v", applyErr, err)
 		slog.Warn("openresty apply recovered with safe default fallback", "message", message)
