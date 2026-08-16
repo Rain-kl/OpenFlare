@@ -75,6 +75,7 @@ func setupTestRouter(authUser *model.User) *gin.Engine {
 }
 
 func createMultipartRequest(t *testing.T, fieldName, fileName string, fileContent []byte, extraFields map[string]string) (string, *bytes.Buffer) {
+	t.Helper()
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
 
@@ -1086,6 +1087,7 @@ func TestDeleteReservedUploadType(t *testing.T) {
 }
 
 func configureLocalStorageRoot(t *testing.T, dbConn *gorm.DB, tempDir string) {
+	t.Helper()
 	var sc model.SystemConfig
 	if err := dbConn.Where("key = ?", model.ConfigKeyStorageConfig).First(&sc).Error; err != nil {
 		t.Fatalf("failed to find storage config: %v", err)

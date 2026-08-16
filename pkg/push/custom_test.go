@@ -82,7 +82,7 @@ func TestCustomPusherSend_ResponseBodyErrcode(t *testing.T) {
 				assert.Contains(t, err.Error(), tt.wantErrMsg)
 				return
 			}
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			if tt.body != "" {
 				assert.Contains(t, upstreamResp, tt.body)
 			}

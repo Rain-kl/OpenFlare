@@ -15,7 +15,7 @@ type redisClientConnOpt struct {
 	options redis.Options
 }
 
-func (opt redisClientConnOpt) MakeRedisClient() interface{} {
+func (opt redisClientConnOpt) MakeRedisClient() any {
 	return redis.NewClient(&opt.options)
 }
 
@@ -23,7 +23,7 @@ type redisClusterConnOpt struct {
 	options redis.ClusterOptions
 }
 
-func (opt redisClusterConnOpt) MakeRedisClient() interface{} {
+func (opt redisClusterConnOpt) MakeRedisClient() any {
 	return redis.NewClusterClient(&opt.options)
 }
 
@@ -32,7 +32,7 @@ type redisFailoverConnOpt struct {
 	maintNotificationsEnabled bool
 }
 
-func (opt redisFailoverConnOpt) MakeRedisClient() interface{} {
+func (opt redisFailoverConnOpt) MakeRedisClient() any {
 	client := redis.NewFailoverClient(&opt.options)
 	// go-redis v9.16 does not expose maintenance notification settings on
 	// FailoverOptions, so apply the configured mode before the client is used.

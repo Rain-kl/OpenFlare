@@ -35,8 +35,8 @@ func getUpgrader() *websocket.Upgrader {
 			ctx := r.Context()
 			if sc, err := repository.GetSystemConfigByKey(ctx, model.ConfigKeyServerAddress); err == nil && sc.Value != "" {
 				originToCheck := strings.TrimRight(strings.TrimSpace(origin), "/")
-				allowedOrigins := strings.Split(sc.Value, ",")
-				for _, allowed := range allowedOrigins {
+				allowedOrigins := strings.SplitSeq(sc.Value, ",")
+				for allowed := range allowedOrigins {
 					allowed = strings.TrimRight(strings.TrimSpace(allowed), "/")
 					if allowed != "" && strings.EqualFold(allowed, originToCheck) {
 						return true
@@ -49,15 +49,15 @@ func getUpgrader() *websocket.Upgrader {
 }
 
 // parsePositiveInt 解析非负整数字符串
-func parsePositiveInt(s string, result *int) (bool, error) {
+func parsePositiveInt(s string, result *int) error {
 	if s == "" {
 		*result = 0
-		return true, nil
+		return nil
 	}
 	n, err := strconv.Atoi(s)
 	if err != nil || n < 0 {
-		return false, err
+		return err
 	}
 	*result = n
-	return true, nil
+	return nil
 }

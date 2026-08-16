@@ -5,6 +5,7 @@ package uptimekuma
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -18,13 +19,13 @@ const monitorListWaitTimeout = 5 * time.Second
 // validateKumaConfig 验证 kumaConfig 配置完整性
 func validateKumaConfig(config *kumaConfig) error {
 	if strings.TrimSpace(config.URL) == "" {
-		return fmt.Errorf("uptime Kuma URL is not configured")
+		return errors.New("uptime Kuma URL is not configured")
 	}
 	if strings.TrimSpace(config.Username) == "" {
-		return fmt.Errorf("uptime Kuma username is not configured")
+		return errors.New("uptime Kuma username is not configured")
 	}
 	if strings.TrimSpace(config.Password) == "" {
-		return fmt.Errorf("uptime Kuma password is not configured")
+		return errors.New("uptime Kuma password is not configured")
 	}
 	return nil
 }
@@ -65,7 +66,7 @@ func connectAndLoginUptimeKuma(kumaURL, kumaUsername, kumaPassword string) (*Soc
 	case <-time.After(monitorListWaitTimeout):
 		client.Close()
 		slog.Error("Timeout waiting for Uptime Kuma monitorList push event")
-		return nil, fmt.Errorf("timeout waiting for monitorList event from Uptime Kuma")
+		return nil, errors.New("timeout waiting for monitorList event from Uptime Kuma")
 	}
 	return client, nil
 }

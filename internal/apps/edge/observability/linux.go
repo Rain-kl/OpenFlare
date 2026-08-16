@@ -1,3 +1,6 @@
+// Copyright 2026 Arctel.net
+// SPDX-License-Identifier: Apache-2.0
+
 // Package observability provides helpers that read Linux /proc and /sys metrics for system monitoring.
 package observability
 
@@ -96,10 +99,7 @@ func ReadMemInfo() (int64, int64) {
 	if total == 0 {
 		return 0, 0
 	}
-	used := total - (memAvailableKB * 1024)
-	if used < 0 {
-		used = 0
-	}
+	used := max(total-(memAvailableKB*1024), 0)
 	return total, used
 }
 
@@ -138,8 +138,8 @@ func ReadLinuxCPUStat() (uint64, uint64) {
 	if err != nil {
 		return 0, 0
 	}
-	lines := strings.Split(string(content), "\n")
-	for _, line := range lines {
+	lines := strings.SplitSeq(string(content), "\n")
+	for line := range lines {
 		if !strings.HasPrefix(line, "cpu ") {
 			continue
 		}
@@ -258,23 +258,23 @@ func StatFilesystem(path string) (int64, int64) {
 	if err := syscall.Statfs(absPath, &stat); err != nil {
 		return 0, 0
 	}
-	total := multiplyUint64ToInt64(stat.Blocks, uint64(stat.Bsize))
-	free := multiplyUint64ToInt64(stat.Bavail, uint64(stat.Bsize))
-	used := total - free
-	if used < 0 {
-		used = 0
-	}
+	total := multiplyUint64Int64(stat.Blocks, stat.Bsize)
+	free := multiplyUint64Int64(stat.Bavail, stat.Bsize)
+	used := max(total-free, 0)
 	return total, used
 }
 
-func multiplyUint64ToInt64(a uint64, b uint64) int64 {
-	if a == 0 || b == 0 {
+// multiplyUint64Int64 multiplies a uint64 by a positive int64, saturating at
+// math.MaxInt64 to avoid int64 overflow.
+func multiplyUint64Int64(a uint64, b int64) int64 {
+	if a == 0 || b <= 0 {
 		return 0
 	}
-	if a > math.MaxInt64/b {
+	v := a * uint64(b)
+	if v > math.MaxInt64 {
 		return math.MaxInt64
 	}
-	return int64(a * b) //nolint:gosec // product is bounded to math.MaxInt64 above
+	return int64(v)
 }
 
 // ReadFirstLine reads and returns the trimmed first line of a file.

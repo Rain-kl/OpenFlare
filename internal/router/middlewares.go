@@ -63,7 +63,7 @@ func loggerMiddleware() gin.HandlerFunc {
 
 func logRequest(ctx context.Context, c *gin.Context, path string, start, end time.Time, latency time.Duration) {
 	format := "[LoggerMiddleware] %s %s\nStartTime: %s\nEndTime: %s\nLatency: %d\nClientIP: %s\nResponse: %d %d"
-	args := []interface{}{
+	args := []any{
 		c.Request.Method,
 		path,
 		start.Format(time.RFC3339),
@@ -89,8 +89,8 @@ func isOriginAllowed(ctx context.Context, origin string) bool {
 	if err != nil || sc.Value == "" {
 		return false
 	}
-	allowedOrigins := strings.Split(sc.Value, ",")
-	for _, allowed := range allowedOrigins {
+	allowedOrigins := strings.SplitSeq(sc.Value, ",")
+	for allowed := range allowedOrigins {
 		allowed = strings.TrimRight(strings.TrimSpace(allowed), "/")
 		if allowed != "" && strings.EqualFold(allowed, origin) {
 			return true
@@ -109,7 +109,7 @@ func corsMiddleware() gin.HandlerFunc {
 			c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT, DELETE, PATCH")
 		}
 
-		if c.Request.Method == "OPTIONS" {
+		if c.Request.Method == http.MethodOptions {
 			c.AbortWithStatus(http.StatusNoContent)
 			return
 		}

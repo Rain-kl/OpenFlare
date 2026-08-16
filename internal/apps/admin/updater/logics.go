@@ -17,6 +17,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -163,13 +164,7 @@ func selectLatestRelease(repository string, releases []githubRelease) (githubRel
 		}
 		expectedNames := expectedAssetNames(repository, release.TagName)
 		for _, asset := range release.Assets {
-			matched := false
-			for _, name := range expectedNames {
-				if asset.Name == name {
-					matched = true
-					break
-				}
-			}
+			matched := slices.Contains(expectedNames, asset.Name)
 			if !matched || asset.BrowserDownloadURL == "" || asset.State != "uploaded" {
 				continue
 			}
@@ -199,7 +194,7 @@ func (m *manager) fetchRelease(ctx context.Context, repository string) (githubRe
 	}
 	req.Header.Set("Accept", "application/vnd.github+json")
 	req.Header.Set("User-Agent", "OpenFlare-Updater")
-	req.Header.Set("X-GitHub-Api-Version", "2022-11-28")
+	req.Header.Set("X-Github-Api-Version", "2022-11-28")
 
 	resp, err := m.client.Do(req)
 	if err != nil {
@@ -348,10 +343,8 @@ func getCandidateBinaryNames(executable string, repository string) []string {
 		if runtime.GOOS == windowsOS && !strings.HasSuffix(strings.ToLower(name), ".exe") {
 			name += ".exe"
 		}
-		for _, existing := range names {
-			if existing == name {
-				return
-			}
+		if slices.Contains(names, name) {
+			return
 		}
 		names = append(names, name)
 	}

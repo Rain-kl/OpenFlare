@@ -103,7 +103,7 @@ func ImportLegacyTx(ctx context.Context, tx *sql.Tx, postgres bool) (report Impo
 		`), domain).Scan(&existingID, &existingZoneDomain)
 		if scanErr == nil {
 			if existingZoneDomain != root {
-				report.Conflicts = append(report.Conflicts, fmt.Sprintf("%s: global domain conflict", domain))
+				report.Conflicts = append(report.Conflicts, domain+": global domain conflict")
 			} else if item.ProxyRouteID != nil {
 				if _, bindErr := tx.ExecContext(ctx, q(`
 					UPDATE of_zone_domains
@@ -147,7 +147,7 @@ func ImportLegacyTx(ctx context.Context, tx *sql.Tx, postgres bool) (report Impo
 	}
 
 	if len(report.Conflicts) > 0 {
-		return report, fmt.Errorf("legacy data has conflicts")
+		return report, errors.New("legacy data has conflicts")
 	}
 	return report, nil
 }
@@ -292,7 +292,7 @@ func rebindSQL(query string, postgres bool) string {
 	var b strings.Builder
 	b.Grow(len(query) + len(query)/4)
 	n := 0
-	for i := 0; i < len(query); i++ {
+	for i := range len(query) {
 		if query[i] == '?' {
 			n++
 			b.WriteByte('$')

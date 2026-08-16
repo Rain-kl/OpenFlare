@@ -111,6 +111,8 @@ func (summary *PagesOrphanCleanupSummary) add(outcome pagesOrphanCleanupOutcome)
 		summary.LeaseBusy++
 	case pagesOrphanCleanupInvalidMarker:
 		summary.InvalidMarker++
+	case pagesOrphanCleanupSkipped:
+		summary.Skipped++
 	default:
 		summary.Skipped++
 	}

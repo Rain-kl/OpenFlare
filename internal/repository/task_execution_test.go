@@ -23,6 +23,7 @@ import (
 )
 
 func setupTaskExecutionTestEnvironment(t *testing.T) func() {
+	t.Helper()
 	sqliteDB, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{
 		DisableForeignKeyConstraintWhenMigrating: true,
 	})
@@ -323,7 +324,7 @@ func TestAppendTaskExecutionLogNonExistent(t *testing.T) {
 
 	// Redis 缓冲不依赖数据库记录是否已经创建。
 	err := AppendTaskExecutionLog(ctx, "nonexistent_task", "测试日志")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	err = FlushTaskExecutionLog(ctx, "nonexistent_task")
 	assert.Error(t, err)
@@ -454,7 +455,7 @@ func TestListTaskExecutionsDefaultPaging(t *testing.T) {
 	items, total, err := ListTaskExecutions(ctx, model.ListTaskExecutionsRequest{})
 	require.NoError(t, err)
 	assert.Equal(t, int64(0), total)
-	assert.Len(t, items, 0)
+	assert.Empty(t, items)
 }
 
 func TestCleanupTaskExecutionLogs(t *testing.T) {

@@ -41,7 +41,7 @@ func (p *EmailPusher) Send(ctx context.Context, cfg Config, target string, body 
 		title = t
 	}
 
-	content := ""
+	var content string
 	if c, ok := body["content"].(string); ok && c != "" {
 		content = c
 	} else {

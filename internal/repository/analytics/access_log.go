@@ -6,6 +6,7 @@ package analytics
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -15,7 +16,7 @@ import (
 
 func userAccessLogConn() error {
 	if db.ChConn == nil {
-		return fmt.Errorf("clickhouse native connection is not initialized")
+		return errors.New("clickhouse native connection is not initialized")
 	}
 	return nil
 }

@@ -1,3 +1,6 @@
+// Copyright 2026 Arctel.net
+// SPDX-License-Identifier: Apache-2.0
+
 // Package util provides shared formatting and string helper functions.
 package util
 
@@ -22,20 +25,20 @@ const (
 
 // Bytes2Size converts a byte count to a human-readable string with unit (B, KB, MB, GB).
 func Bytes2Size(num int64) string {
-	numStr := ""
+	var numStr string
 	unit := "B"
 	switch {
 	case num/int64(sizeGB) >= 1:
 		numStr = fmt.Sprintf("%.2f", float64(num)/float64(sizeGB))
 		unit = "GB"
 	case num/int64(sizeMB) >= 1:
-		numStr = fmt.Sprintf("%d", int(float64(num)/float64(sizeMB)))
+		numStr = strconv.Itoa(int(float64(num) / float64(sizeMB)))
 		unit = "MB"
 	case num/int64(sizeKB) >= 1:
-		numStr = fmt.Sprintf("%d", int(float64(num)/float64(sizeKB)))
+		numStr = strconv.Itoa(int(float64(num) / float64(sizeKB)))
 		unit = "KB"
 	default:
-		numStr = fmt.Sprintf("%d", num)
+		numStr = strconv.FormatInt(num, 10)
 	}
 	return numStr + " " + unit
 }

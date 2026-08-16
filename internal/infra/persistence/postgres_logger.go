@@ -31,26 +31,26 @@ func (l *gormZapLogger) LogMode(level gormLogger.LogLevel) gormLogger.Interface 
 	return &clone
 }
 
-func (l *gormZapLogger) Info(ctx context.Context, fmt string, args ...interface{}) {
+func (l *gormZapLogger) Info(ctx context.Context, fmt string, args ...any) {
 	if l.logLevel >= gormLogger.Info {
 		logger.InfoF(ctx, fmt, args...)
 	}
 }
 
-func (l *gormZapLogger) Warn(ctx context.Context, fmt string, args ...interface{}) {
+func (l *gormZapLogger) Warn(ctx context.Context, fmt string, args ...any) {
 	if l.logLevel >= gormLogger.Warn {
 		logger.WarnF(ctx, fmt, args...)
 	}
 }
 
-func (l *gormZapLogger) Error(ctx context.Context, fmt string, args ...interface{}) {
+func (l *gormZapLogger) Error(ctx context.Context, fmt string, args ...any) {
 	if l.logLevel >= gormLogger.Error {
 		logger.ErrorF(ctx, fmt, args...)
 	}
 }
 
 // ParamsFilter 让 GORM 的 Trace 回调只接收参数化 SQL，避免绑定值被 Dialector.Explain 展开到日志。
-func (l *gormZapLogger) ParamsFilter(_ context.Context, sql string, _ ...interface{}) (string, []interface{}) {
+func (l *gormZapLogger) ParamsFilter(_ context.Context, sql string, _ ...any) (string, []any) {
 	return sql, nil
 }
 
@@ -70,7 +70,7 @@ func (l *gormZapLogger) Trace(ctx context.Context, begin time.Time, fc func() (s
 	}
 }
 
-func formatRows(rows int64) interface{} {
+func formatRows(rows int64) any {
 	if rows == -1 {
 		return "-"
 	}

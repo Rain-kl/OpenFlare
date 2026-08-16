@@ -1,7 +1,11 @@
+// Copyright 2026 Arctel.net
+// SPDX-License-Identifier: Apache-2.0
+
 // Package geoip resolves geographic information for IP addresses.
 package geoip
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 	"net"
@@ -138,7 +142,7 @@ func InitGeoIP(provider string) {
 // GetGeoInfo looks up geographic information for ip using the active provider.
 func GetGeoInfo(ip net.IP) (*GeoInfo, error) {
 	if ip == nil {
-		return nil, fmt.Errorf("IP address cannot be nil")
+		return nil, errors.New("IP address cannot be nil")
 	}
 	provider := getProvider()
 	cacheKey := provider.Name() + ":" + ip.String()
@@ -157,7 +161,7 @@ func GetGeoInfo(ip net.IP) (*GeoInfo, error) {
 // LookupGeoInfoWithProvider looks up geographic information using a temporary provider.
 func LookupGeoInfoWithProvider(providerName string, ip net.IP) (*GeoInfo, error) {
 	if ip == nil {
-		return nil, fmt.Errorf("IP address cannot be nil")
+		return nil, errors.New("IP address cannot be nil")
 	}
 
 	provider, err := providerFactory(normalizeProvider(providerName))

@@ -4,7 +4,9 @@
 package waf
 
 import (
+	"errors"
 	"fmt"
+	"slices"
 	"sort"
 )
 
@@ -34,14 +36,14 @@ func CompileRuleGraph(graph RuleGraph) (RuntimeRuleGraph, error) {
 		}
 		if node.Type == RuleNodeStart {
 			if runtime.Entry != "" {
-				return RuntimeRuleGraph{}, fmt.Errorf("规则图包含多个开始节点")
+				return RuntimeRuleGraph{}, errors.New("规则图包含多个开始节点")
 			}
 			runtime.Entry = node.ID
 		}
 		runtime.Nodes[node.ID] = RuntimeRuleNode{Type: node.Type, Config: config}
 	}
 	if runtime.Entry == "" {
-		return RuntimeRuleGraph{}, fmt.Errorf("规则图缺少开始节点")
+		return RuntimeRuleGraph{}, errors.New("规则图缺少开始节点")
 	}
 	for _, edge := range graph.Edges {
 		node, ok := runtime.Nodes[edge.Source]
@@ -142,7 +144,7 @@ func sortedUniqueStrings(values []string) []string {
 
 func sortedUniqueUints(values []uint) []uint {
 	result := append([]uint(nil), values...)
-	sort.Slice(result, func(i, j int) bool { return result[i] < result[j] })
+	slices.Sort(result)
 	write := 0
 	for _, value := range result {
 		if write == 0 || result[write-1] != value {

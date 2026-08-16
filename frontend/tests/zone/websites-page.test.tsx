@@ -4,6 +4,8 @@ import { describe, expect, it, vi } from 'vitest';
 
 import WebsitesPage from '@/app/(main)/websites/page';
 import { ZoneService } from '@/lib/services/openflare';
+import { NextIntlClientProvider } from 'next-intl';
+import zhCN from '@/messages/zh-CN.json';
 
 vi.mock('next/link', () => ({
   default: ({
@@ -30,9 +32,11 @@ function renderPage() {
     defaultOptions: { queries: { retry: false } },
   });
   return render(
-    <QueryClientProvider client={client}>
-      <WebsitesPage />
-    </QueryClientProvider>,
+    <NextIntlClientProvider locale='zh-CN' messages={zhCN} timeZone='Asia/Shanghai'>
+      <QueryClientProvider client={client}>
+        <WebsitesPage />
+      </QueryClientProvider>
+    </NextIntlClientProvider>,
   );
 }
 

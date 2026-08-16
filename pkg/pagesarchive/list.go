@@ -8,6 +8,7 @@ import (
 	"archive/zip"
 	"compress/bzip2"
 	"compress/gzip"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -52,13 +53,15 @@ func (z sevenZipArchiveFile) Open() (io.ReadCloser, error) {
 // Tar-family archives use the sequential streaming paths in inspect.go/extract.go.
 func listRandomAccessEntriesAt(ra io.ReaderAt, size int64, format Format) ([]Entry, error) {
 	if size < 0 {
-		return nil, fmt.Errorf("invalid pages package size")
+		return nil, errors.New("invalid pages package size")
 	}
 	switch format {
 	case FormatZip:
 		return listZipEntriesAt(ra, size)
 	case FormatSevenZip:
 		return listSevenZipEntriesAt(ra, size)
+	case FormatTar, FormatTarGz, FormatTarXz, FormatTarBz2:
+		return nil, fmt.Errorf("unsupported random-access pages package format: %s", format)
 	default:
 		return nil, fmt.Errorf("unsupported random-access pages package format: %s", format)
 	}
@@ -126,6 +129,8 @@ func openTarFamilyReader(r io.Reader, format Format) (*tar.Reader, func() error,
 		return tar.NewReader(xzReader), func() error { return nil }, nil
 	case FormatTarBz2:
 		return tar.NewReader(bzip2.NewReader(r)), func() error { return nil }, nil
+	case FormatZip, FormatSevenZip:
+		return nil, nil, fmt.Errorf("unsupported tar family format: %s", format)
 	default:
 		return nil, nil, fmt.Errorf("unsupported tar family format: %s", format)
 	}

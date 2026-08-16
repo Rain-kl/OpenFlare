@@ -1,13 +1,13 @@
+// Copyright 2026 Arctel.net
+// SPDX-License-Identifier: Apache-2.0
+
 package util
 
 import "strconv"
 
 func compareVersionNumbers(left, right VersionInfo) int {
-	maxLen := len(left.Numbers)
-	if len(right.Numbers) > maxLen {
-		maxLen = len(right.Numbers)
-	}
-	for index := 0; index < maxLen; index++ {
+	maxLen := max(len(right.Numbers), len(left.Numbers))
+	for index := range maxLen {
 		leftValue := 0
 		rightValue := 0
 		if index < len(left.Numbers) {
@@ -37,11 +37,8 @@ func compareGitDescribeDistance(left, right VersionInfo) int {
 }
 
 func compareGitDescribeTails(left, right VersionInfo) int {
-	maxLen := len(left.GitDescribeTail)
-	if len(right.GitDescribeTail) > maxLen {
-		maxLen = len(right.GitDescribeTail)
-	}
-	for index := 0; index < maxLen; index++ {
+	maxLen := max(len(right.GitDescribeTail), len(left.GitDescribeTail))
+	for index := range maxLen {
 		if index >= len(left.GitDescribeTail) {
 			return -1
 		}
@@ -69,11 +66,8 @@ func comparePrereleaseIdentifiers(left, right VersionInfo) int {
 		return -1
 	}
 
-	maxLen := len(left.Prerelease)
-	if len(right.Prerelease) > maxLen {
-		maxLen = len(right.Prerelease)
-	}
-	for index := 0; index < maxLen; index++ {
+	maxLen := max(len(right.Prerelease), len(left.Prerelease))
+	for index := range maxLen {
 		if index >= len(left.Prerelease) {
 			return -1
 		}

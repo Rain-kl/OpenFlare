@@ -54,6 +54,8 @@ func ingestWithHashPolicy(ctx context.Context, req Request) (Result, error) {
 				return Result{}, ErrStorageReadOnly
 			}
 			return createDedupRecord(ctx, existing, req)
+		case PolicyCreate:
+			// 忽略已存在记录，走下方的新建流程。
 		}
 	}
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {

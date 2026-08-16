@@ -1,9 +1,11 @@
+// Copyright 2026 Arctel.net
+// SPDX-License-Identifier: Apache-2.0
+
 package repository
 
 import (
 	"context"
 	"errors"
-	"fmt"
 
 	"gorm.io/gorm"
 
@@ -124,7 +126,7 @@ func ListZoneDomainsByIDs(ctx context.Context, domainIDs []uint) ([]model.ZoneDo
 	for _, id := range domainIDs {
 		domain, ok := byID[id]
 		if !ok {
-			return nil, fmt.Errorf("one or more zone domains do not exist")
+			return nil, errors.New("one or more zone domains do not exist")
 		}
 		ordered = append(ordered, domain)
 	}

@@ -1,3 +1,6 @@
+// Copyright 2026 Arctel.net
+// SPDX-License-Identifier: Apache-2.0
+
 // Package nodeip detects the preferred public IP address for edge nodes.
 package nodeip
 

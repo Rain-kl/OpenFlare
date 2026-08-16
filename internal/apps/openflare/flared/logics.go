@@ -28,7 +28,7 @@ const (
 // Heartbeat processes an OpenFlared heartbeat and returns runtime settings.
 func Heartbeat(ctx context.Context, node *model.OpenFlareNode, payload HeartbeatPayload) (*HeartbeatResponse, error) {
 	if node == nil {
-		return nil, fmt.Errorf("tunnel client node is nil")
+		return nil, errors.New("tunnel client node is nil")
 	}
 	if node.NodeType != "tunnel_client" {
 		return nil, fmt.Errorf("node %s is not a tunnel_client", node.NodeID)
@@ -95,7 +95,7 @@ func Heartbeat(ctx context.Context, node *model.OpenFlareNode, payload Heartbeat
 // GetTunnelConfig builds the full tunnel routing config for an OpenFlared client.
 func GetTunnelConfig(ctx context.Context, node *model.OpenFlareNode) (*TunnelConfigResponse, error) {
 	if node == nil {
-		return nil, fmt.Errorf("node is nil")
+		return nil, errors.New("node is nil")
 	}
 
 	activeVersion, err := getActiveConfigMeta(ctx)

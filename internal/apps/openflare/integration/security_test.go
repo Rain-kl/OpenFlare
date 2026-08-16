@@ -119,7 +119,7 @@ func TestSecurityWAFTLSMigrationFlow(t *testing.T) {
 		assert.NotZero(t, ruleGroupID)
 		assert.Equal(t, "edge-security", data["name"])
 		assert.Equal(t, false, data["is_global"])
-		assert.Equal(t, float64(1), data["revision"])
+		assert.InDelta(t, float64(1), data["revision"], 1e-9)
 		assert.NotNil(t, data["graph"])
 	})
 
@@ -161,7 +161,7 @@ func TestSecurityWAFTLSMigrationFlow(t *testing.T) {
 
 		resp := requireAPIOK(t, rec)
 		data := unmarshalAPIMap(t, resp.Data)
-		assert.Equal(t, float64(ruleGroupID), data["id"])
+		assert.InDelta(t, float64(ruleGroupID), data["id"], 1e-9)
 		assert.Equal(t, "edge-security", data["name"])
 	})
 
@@ -244,12 +244,12 @@ func TestSecurityWAFTLSMigrationFlow(t *testing.T) {
 
 		resp := requireAPIOK(t, rec)
 		data := unmarshalAPIMap(t, resp.Data)
-		assert.Equal(t, float64(proxyRouteID), data["route_id"])
+		assert.InDelta(t, float64(proxyRouteID), data["route_id"], 1e-9)
 
 		appliedIDs, ok := data["applied_ids"].([]any)
 		require.True(t, ok)
 		require.Len(t, appliedIDs, 1)
-		assert.Equal(t, float64(ruleGroupID), appliedIDs[0])
+		assert.InDelta(t, float64(ruleGroupID), appliedIDs[0], 1e-9)
 	})
 
 	t.Run("verify site rule groups binding", func(t *testing.T) {
@@ -272,7 +272,7 @@ func TestSecurityWAFTLSMigrationFlow(t *testing.T) {
 		require.Len(t, appliedGroups, 1)
 		group, ok := appliedGroups[0].(map[string]any)
 		require.True(t, ok)
-		assert.Equal(t, float64(ruleGroupID), group["id"])
+		assert.InDelta(t, float64(ruleGroupID), group["id"], 1e-9)
 	})
 
 	t.Run("create TLS certificate with PEM", func(t *testing.T) {
@@ -319,7 +319,7 @@ func TestSecurityWAFTLSMigrationFlow(t *testing.T) {
 		domainID = uint(data["id"].(float64))
 		assert.NotZero(t, domainID)
 		assert.Equal(t, "security.example.com", data["domain"])
-		assert.Equal(t, float64(certID), data["cert_id"])
+		assert.InDelta(t, float64(certID), data["cert_id"], 1e-9)
 	})
 
 	t.Run("create DNS account", func(t *testing.T) {

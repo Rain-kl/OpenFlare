@@ -1,3 +1,6 @@
+// Copyright 2026 Arctel.net
+// SPDX-License-Identifier: Apache-2.0
+
 // Package observability provides monitoring, metrics, and access log analysis for OpenFlare.
 package observability
 
@@ -175,7 +178,7 @@ type AccessLogIPSummaryList struct {
 	TotalIP   int64                    `json:"total_ip"`
 	Hours     int                      `json:"hours"`
 	Since     time.Time                `json:"since"`
-	Until     time.Time                `json:"until,omitempty"`
+	Until     time.Time                `json:"until,omitzero"`
 	SortBy    string                   `json:"sort_by"`
 	SortOrder string                   `json:"sort_order"`
 }

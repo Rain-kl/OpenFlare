@@ -123,7 +123,7 @@ func splitAcmeDomains(primaryDomain, otherDomains string) []string {
 	if !strings.Contains(otherDomains, "\n") && strings.Contains(otherDomains, ",") {
 		separator = ","
 	}
-	for _, domain := range strings.Split(otherDomains, separator) {
+	for domain := range strings.SplitSeq(otherDomains, separator) {
 		domain = strings.TrimSpace(domain)
 		if domain != "" {
 			domains = append(domains, domain)

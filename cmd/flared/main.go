@@ -1,8 +1,12 @@
+// Copyright 2026 Arctel.net
+// SPDX-License-Identifier: Apache-2.0
+
 // Command flared runs the OpenFlare tunnel client daemon.
 package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"log/slog"
 	"os"
@@ -63,7 +67,7 @@ func main() {
 
 	slog.Info("flared process started")
 
-	if err := runner.Run(ctx); err != nil && err != context.Canceled {
+	if err := runner.Run(ctx); err != nil && !errors.Is(err, context.Canceled) {
 		slog.Error("flared process exited with error", "error", err)
 		stop()
 		os.Exit(1)

@@ -22,10 +22,7 @@ import (
 // @Failure 500 {object} response.Any "内部错误"
 // @Router /api/v1/d/status [get]
 func GetStatusHandler(c *gin.Context) {
-	view, err := getStatus(c.Request.Context(), "/api/v1/d")
-	if apiutil.AbortBadRequestOnError(c, err) {
-		return
-	}
+	view := getStatus(c.Request.Context(), "/api/v1/d")
 	c.JSON(http.StatusOK, response.OK(view))
 }
 

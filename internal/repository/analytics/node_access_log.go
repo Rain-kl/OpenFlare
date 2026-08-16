@@ -5,6 +5,7 @@ package analytics
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -19,7 +20,7 @@ type NodeAccessLogRegionCount = analyticsmodel.NodeAccessLogRegionCount
 
 func nodeAccessLogConn() (driver.Conn, error) {
 	if db.ChConn == nil {
-		return nil, fmt.Errorf("clickhouse connection is not initialized")
+		return nil, errors.New("clickhouse connection is not initialized")
 	}
 	return db.ChConn, nil
 }

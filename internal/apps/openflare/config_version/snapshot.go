@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -199,9 +200,7 @@ func buildCurrentConfigBundle(ctx context.Context, requireRoutes bool) (*configB
 		return nil, err
 	}
 
-	mainConfig := ""
-	routeConfig := ""
-	checksum := ""
+	var mainConfig, routeConfig, checksum string
 	supportFiles := []SupportFile(nil)
 
 	rendered, renderErr := renderSnapshotConfig(string(snapshotJSON), certificateFiles)
@@ -429,7 +428,7 @@ func buildSnapshotWAFIPGroups(ctx context.Context, idSet map[uint]struct{}) ([]s
 	for id := range idSet {
 		ids = append(ids, id)
 	}
-	sort.Slice(ids, func(i, j int) bool { return ids[i] < ids[j] })
+	slices.Sort(ids)
 	groups, err := listWAFIPGroupsByIDs(ctx, ids)
 	if err != nil {
 		return nil, err
@@ -477,7 +476,7 @@ func decodeIPList(raw string) ([]string, error) {
 	}
 	var items []string
 	if err := json.Unmarshal([]byte(text), &items); err != nil {
-		return nil, fmt.Errorf("ip_list payload is invalid")
+		return nil, errors.New("ip_list payload is invalid")
 	}
 	return items, nil
 }
@@ -629,7 +628,7 @@ func buildCertificateSupportFiles(ctx context.Context, routes []snapshotRoute) (
 	for certID := range certIDSet {
 		certIDs = append(certIDs, certID)
 	}
-	sort.Slice(certIDs, func(i, j int) bool { return certIDs[i] < certIDs[j] })
+	slices.Sort(certIDs)
 	files := make([]SupportFile, 0, len(certIDs)*supportFilesPerCertificate)
 	for _, certID := range certIDs {
 		certificate, err := repository.GetTLSCertificateByID(ctx, certID)

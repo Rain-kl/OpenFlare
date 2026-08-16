@@ -1,3 +1,6 @@
+// Copyright 2026 Arctel.net
+// SPDX-License-Identifier: Apache-2.0
+
 // Package runtimeuser defines the shared OS account used by the agent process
 // and OpenResty worker processes so file ownership stays aligned.
 package runtimeuser
@@ -120,7 +123,7 @@ func ensureWorldTraversablePath(targetDir string) error {
 	if current == "" || current == "." {
 		return nil
 	}
-	for depth := 0; depth < maxDepth; depth++ {
+	for range maxDepth {
 		if err := os.Chmod(current, DefaultDirPerm); err != nil { //nolint:gosec // parent dirs must be traversable by the runtime user
 			if os.IsNotExist(err) || os.IsPermission(err) {
 				break

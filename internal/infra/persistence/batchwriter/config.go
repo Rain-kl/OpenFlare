@@ -4,7 +4,7 @@
 package batchwriter
 
 import (
-	"fmt"
+	"errors"
 	"time"
 )
 
@@ -51,19 +51,19 @@ func DefaultConfig() Config {
 
 func (c Config) validate() error {
 	if c.QueueSize <= 0 {
-		return fmt.Errorf("batchwriter: queue size must be positive")
+		return errors.New("batchwriter: queue size must be positive")
 	}
 	if c.MaxBatchSize <= 0 {
-		return fmt.Errorf("batchwriter: max batch size must be positive")
+		return errors.New("batchwriter: max batch size must be positive")
 	}
 	if c.MinBatchSize < 0 {
-		return fmt.Errorf("batchwriter: min batch size must be non-negative")
+		return errors.New("batchwriter: min batch size must be non-negative")
 	}
 	if c.FlushInterval <= 0 {
-		return fmt.Errorf("batchwriter: flush interval must be positive")
+		return errors.New("batchwriter: flush interval must be positive")
 	}
 	if c.MaxFlushWait < 0 {
-		return fmt.Errorf("batchwriter: max flush wait must be non-negative")
+		return errors.New("batchwriter: max flush wait must be non-negative")
 	}
 	return nil
 }

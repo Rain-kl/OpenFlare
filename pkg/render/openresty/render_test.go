@@ -1,3 +1,6 @@
+// Copyright 2026 Arctel.net
+// SPDX-License-Identifier: Apache-2.0
+
 package openresty
 
 import (
@@ -108,12 +111,9 @@ func TestGetPoWConfigForRouteUsesGlobalGroupWithoutExplicitBinding(t *testing.T)
 		},
 	}
 
-	enabled, config := getPoWConfigForRoute(42, snapshot)
+	enabled := getPoWConfigForRoute(42, snapshot)
 	if !enabled {
 		t.Fatal("expected pow to be enabled via global rule group")
-	}
-	if config != nil {
-		t.Fatalf("expected node config to stay in runtime graph, got legacy config %#v", config)
 	}
 }
 

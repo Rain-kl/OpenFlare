@@ -5,6 +5,8 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { ZoneDomainSelector } from '@/app/(main)/proxy-routes/components/zone-domain-selector';
 import type { ZoneDomainItem, ZoneItem } from '@/lib/services/openflare';
+import { NextIntlClientProvider } from 'next-intl';
+import zhCN from '@/messages/zh-CN.json';
 
 vi.mock('next/link', () => ({
   default: ({
@@ -46,7 +48,9 @@ function renderSelector(ui: React.ReactElement) {
     defaultOptions: { queries: { retry: false } },
   });
   return render(
-    <QueryClientProvider client={client}>{ui}</QueryClientProvider>,
+    <NextIntlClientProvider locale='zh-CN' messages={zhCN} timeZone='Asia/Shanghai'>
+      <QueryClientProvider client={client}>{ui}</QueryClientProvider>
+    </NextIntlClientProvider>,
   );
 }
 

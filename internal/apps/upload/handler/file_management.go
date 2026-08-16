@@ -301,7 +301,7 @@ func UpdateMyFile(c *gin.Context) {
 			response.AbortNotFound(c, "文件记录未找到")
 			return
 		}
-		if err == ingest.ErrForbidden {
+		if errors.Is(err, ingest.ErrForbidden) {
 			response.AbortForbidden(c, "无权操作")
 			return
 		}

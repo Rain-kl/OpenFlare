@@ -5,6 +5,7 @@ package analytics
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -20,7 +21,7 @@ func BatchInsertNodeAccessLogs(ctx context.Context, logs []analyticsmodel.NodeAc
 		return nil
 	}
 	if db.ChConn == nil {
-		return fmt.Errorf("clickhouse connection is not initialized")
+		return errors.New("clickhouse connection is not initialized")
 	}
 
 	batch, err := db.ChConn.PrepareBatch(ctx, analyticsmodel.NodeAccessLog{}.BatchInsertSQL())

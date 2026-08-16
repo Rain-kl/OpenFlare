@@ -100,7 +100,7 @@ type Release struct {
 	Name        string    `json:"name,omitempty"`
 	Draft       bool      `json:"draft"`
 	Prerelease  bool      `json:"prerelease"`
-	PublishedAt time.Time `json:"published_at,omitempty"`
+	PublishedAt time.Time `json:"published_at,omitzero"`
 }
 
 // Asset contains the immutable target metadata returned by a resolve call.
@@ -109,7 +109,7 @@ type Asset struct {
 	Name      string    `json:"asset_name"`
 	State     string    `json:"state"`
 	Size      int64     `json:"size"`
-	UpdatedAt time.Time `json:"updated_at,omitempty"`
+	UpdatedAt time.Time `json:"updated_at,omitzero"`
 	Digest    string    `json:"digest,omitempty"`
 }
 
@@ -338,7 +338,7 @@ func (client *Client) Resolve(ctx context.Context, request ResolveRequest) (Reso
 	return ResolveResult{}, safeError(
 		errAssetMissing,
 		response.StatusCode,
-		response.Header.Get("X-GitHub-Request-Id"),
+		response.Header.Get("X-Github-Request-Id"),
 		repository,
 		release.Tag,
 		request.AssetName,
@@ -379,7 +379,7 @@ func (client *Client) Download(ctx context.Context, request DownloadRequest) (*D
 
 	result, err := client.streamAsset(response.Body, request.MaxBytes, request.Asset.Digest)
 	if err != nil {
-		return nil, safeError(err, response.StatusCode, response.Header.Get("X-GitHub-Request-Id"), repository, "", request.Asset.Name, nil, retryAt)
+		return nil, safeError(err, response.StatusCode, response.Header.Get("X-Github-Request-Id"), repository, "", request.Asset.Name, nil, retryAt)
 	}
 	return result, nil
 }
@@ -533,7 +533,7 @@ func validTag(tag string) bool {
 		strings.HasPrefix(tag, "/") || strings.HasSuffix(tag, "/") || strings.HasSuffix(tag, ".") {
 		return false
 	}
-	for _, component := range strings.Split(tag, "/") {
+	for component := range strings.SplitSeq(tag, "/") {
 		if component == "" || strings.HasPrefix(component, ".") || strings.HasSuffix(component, ".lock") {
 			return false
 		}
@@ -635,10 +635,7 @@ func verifyDeclaredDigest(declaredDigest string, checksum string) error {
 }
 
 func safeAssetNames(assets []Asset) []string {
-	count := len(assets)
-	if count > maxAssetErrorNames {
-		count = maxAssetErrorNames
-	}
+	count := min(len(assets), maxAssetErrorNames)
 	names := make([]string, 0, count)
 	for _, asset := range assets[:count] {
 		name := safeText(asset.Name, maxSafeAssetNameLen)
@@ -682,7 +679,7 @@ func safeHTTPError(kind error, response *http.Response, repository string, tag s
 	return safeError(
 		kind,
 		response.StatusCode,
-		response.Header.Get("X-GitHub-Request-Id"),
+		response.Header.Get("X-Github-Request-Id"),
 		repository,
 		tag,
 		assetName,

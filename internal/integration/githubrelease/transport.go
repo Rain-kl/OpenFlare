@@ -148,7 +148,7 @@ func newClient(options clientOptions) *Client {
 func applyMetadataHeaders(request *http.Request, etag string) {
 	request.Header.Set("Accept", metadataAccept)
 	request.Header.Set("User-Agent", defaultUserAgent)
-	request.Header.Set("X-GitHub-Api-Version", APIVersion)
+	request.Header.Set("X-Github-Api-Version", APIVersion)
 	if etag = safeETag(etag); etag != "" {
 		request.Header.Set("If-None-Match", etag)
 	}
@@ -158,7 +158,7 @@ func applyAssetHeaders(request *http.Request) {
 	request.Header.Set("Accept", assetAccept)
 	request.Header.Set("Accept-Encoding", "identity")
 	request.Header.Set("User-Agent", defaultUserAgent)
-	request.Header.Set("X-GitHub-Api-Version", APIVersion)
+	request.Header.Set("X-Github-Api-Version", APIVersion)
 }
 
 func stripCrossHostHeaders(request *http.Request) {
@@ -300,10 +300,10 @@ func responseRetryAt(response *http.Response, now time.Time) *time.Time {
 			return &retryAt
 		}
 	}
-	if strings.TrimSpace(response.Header.Get("X-RateLimit-Remaining")) != "0" {
+	if strings.TrimSpace(response.Header.Get("X-Ratelimit-Remaining")) != "0" {
 		return nil
 	}
-	reset, err := strconv.ParseInt(strings.TrimSpace(response.Header.Get("X-RateLimit-Reset")), 10, 64)
+	reset, err := strconv.ParseInt(strings.TrimSpace(response.Header.Get("X-Ratelimit-Reset")), 10, 64)
 	if err != nil || reset <= 0 {
 		return nil
 	}

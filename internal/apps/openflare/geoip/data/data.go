@@ -1,3 +1,6 @@
+// Copyright 2026 Arctel.net
+// SPDX-License-Identifier: Apache-2.0
+
 // Package data embeds the MaxMind GeoLite2 Country database for the control plane.
 //
 // Server keeps a Country-only embed so MaxMind provider can seed without network.

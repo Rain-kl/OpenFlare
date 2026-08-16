@@ -5,6 +5,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { SyncTasksPanel } from '@/app/(main)/cloudflare/components/sync-tasks-panel';
 import { AdminTaskService } from '@/lib/services/admin';
 import type { TaskExecution } from '@/lib/services/admin';
+import { NextIntlClientProvider } from 'next-intl';
+import zhCN from '@/messages/zh-CN.json';
 
 vi.mock('@/lib/services/admin', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/services/admin')>();
@@ -24,9 +26,11 @@ function renderPanel() {
     defaultOptions: { queries: { retry: false, gcTime: 0 } },
   });
   render(
-    <QueryClientProvider client={client}>
-      <SyncTasksPanel />
-    </QueryClientProvider>,
+    <NextIntlClientProvider locale='zh-CN' messages={zhCN} timeZone='Asia/Shanghai'>
+      <QueryClientProvider client={client}>
+        <SyncTasksPanel />
+      </QueryClientProvider>
+    </NextIntlClientProvider>,
   );
 }
 

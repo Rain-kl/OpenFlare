@@ -15582,7 +15582,7 @@ const docTemplate = `{
                     "type": "array",
                     "items": {
                         "type": "object",
-                        "additionalProperties": true
+                        "additionalProperties": {}
                     }
                 },
                 "type": {
@@ -18401,6 +18401,15 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "request_count": {
+                    "type": "integer"
+                },
+                "status_2xx_count": {
+                    "type": "integer"
+                },
+                "status_4xx_count": {
+                    "type": "integer"
+                },
+                "status_5xx_count": {
                     "type": "integer"
                 },
                 "unique_visitor_count": {

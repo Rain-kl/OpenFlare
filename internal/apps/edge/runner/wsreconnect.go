@@ -1,3 +1,6 @@
+// Copyright 2026 Arctel.net
+// SPDX-License-Identifier: Apache-2.0
+
 // Package runner provides shared WebSocket reconnect helpers for edge daemons.
 package runner
 

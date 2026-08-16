@@ -1,3 +1,6 @@
+// Copyright 2026 Arctel.net
+// SPDX-License-Identifier: Apache-2.0
+
 // Package updater provides capabilities to check for, download, and apply updates.
 package updater
 
@@ -6,6 +9,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -285,7 +289,7 @@ func (s *Service) downloadChecksum(ctx context.Context, url string, assetName st
 
 func parseSHA256Checksum(content string, assetName string) (string, error) {
 	assetName = strings.TrimSpace(assetName)
-	for _, line := range strings.Split(content, "\n") {
+	for line := range strings.SplitSeq(content, "\n") {
 		line = strings.TrimSpace(line)
 		if line == "" || strings.HasPrefix(line, "#") {
 			continue
@@ -295,7 +299,7 @@ func parseSHA256Checksum(content string, assetName string) (string, error) {
 		}
 	}
 	if assetName == "" {
-		return "", fmt.Errorf("checksum asset does not contain a valid sha256 digest")
+		return "", errors.New("checksum asset does not contain a valid sha256 digest")
 	}
 	return "", fmt.Errorf("checksum asset does not contain a sha256 digest for %q", assetName)
 }
@@ -340,7 +344,7 @@ func isSHA256Hex(value string) bool {
 func (s *Service) downloadAndRestart(ctx context.Context, url string, expectedChecksum string, targetPath string) error {
 	expectedChecksum = strings.ToLower(strings.TrimSpace(expectedChecksum))
 	if !isSHA256Hex(expectedChecksum) {
-		return fmt.Errorf("invalid expected sha256 checksum")
+		return errors.New("invalid expected sha256 checksum")
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {

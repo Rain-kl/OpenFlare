@@ -35,7 +35,7 @@ type PushChannel struct {
 }
 
 // TableName 指定 GORM 表名
-func (PushChannel) TableName() string {
+func (*PushChannel) TableName() string {
 	return "w_push_channels"
 }
 

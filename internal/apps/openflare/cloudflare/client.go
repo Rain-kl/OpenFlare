@@ -192,7 +192,7 @@ func (client *HTTPClient) do(ctx context.Context, method, path string, query url
 		return err
 	}
 	requestURL := buildRequestURL(client.baseURL, path, query)
-	for attempt := 0; attempt < maxRequestAttempts; attempt++ {
+	for attempt := range maxRequestAttempts {
 		statusCode, retryHeader, responseBody, requestErr := client.send(ctx, method, requestURL, encodedBody)
 		if requestErr != nil {
 			return requestErr

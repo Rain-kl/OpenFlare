@@ -1,6 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { createElement } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
@@ -9,6 +8,8 @@ import {
 } from '@/app/(main)/proxy-routes/detail/components/waf-section';
 import type { ProxyRouteItem, WAFRule } from '@/lib/services/openflare';
 import { WafService } from '@/lib/services/openflare';
+import { NextIntlClientProvider } from 'next-intl';
+import zhCN from '@/messages/zh-CN.json';
 
 vi.mock('@/lib/services/openflare', async (importOriginal) => {
   const actual =
@@ -97,11 +98,11 @@ describe('WAF route binding order', () => {
       defaultOptions: { queries: { retry: false } },
     });
     render(
-      createElement(
-        QueryClientProvider,
-        { client },
-        createElement(WafSection, { route: { id: 9 } as ProxyRouteItem }),
-      ),
+      <NextIntlClientProvider locale='zh-CN' messages={zhCN} timeZone='Asia/Shanghai'>
+        <QueryClientProvider client={client}>
+          <WafSection route={{ id: 9 } as ProxyRouteItem} />
+        </QueryClientProvider>
+      </NextIntlClientProvider>,
     );
 
     expect(await screen.findByText('全局规则')).toBeInTheDocument();

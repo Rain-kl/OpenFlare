@@ -1,3 +1,6 @@
+// Copyright 2026 Arctel.net
+// SPDX-License-Identifier: Apache-2.0
+
 // Package nginx manages OpenResty configuration, runtime, and supporting assets.
 package nginx
 
@@ -134,7 +137,7 @@ func (e *PathExecutor) Reload(ctx context.Context) error {
 			slog.Warn("openresty reload reported runtime is not running, starting binary", "path", e.Path)
 			startOutput, startErr := e.Runner.Run(ctx, e.Path, "-c", e.ConfigPath)
 			if startErr != nil {
-				return fmt.Errorf("openresty reload failed: %w: %s; start failed: %v: %s", err, string(output), startErr, string(startOutput))
+				return fmt.Errorf("openresty reload failed: %w: %s; start failed: %w: %s", err, string(output), startErr, string(startOutput))
 			}
 			return nil
 		}
@@ -355,14 +358,14 @@ func (m *Manager) activateConfig(ctx context.Context) error {
 func (m *Manager) rollbackAfterFailedApply(ctx context.Context, backup *backupState, applyErr error) ApplyOutcome {
 	slog.Warn("openresty apply failed, restoring previous config", "error", applyErr)
 	if err := m.restore(backup); err != nil {
-		return fatalApplyOutcome(fmt.Errorf("restore openresty backup failed after apply error %v: %w", applyErr, err))
+		return fatalApplyOutcome(fmt.Errorf("restore openresty backup failed after apply error %w: %w", applyErr, err))
 	}
 	if err := m.activateConfig(ctx); err != nil {
 		if backup != nil && backup.MainExisted {
-			return fatalApplyOutcome(fmt.Errorf("apply failed: %v; rollback recovery failed: %w", applyErr, err))
+			return fatalApplyOutcome(fmt.Errorf("apply failed: %w; rollback recovery failed: %w", applyErr, err))
 		}
 		if fallbackErr := m.EnsureSafeFallbackRuntime(ctx, fmt.Sprintf("apply failed: %v; rollback recovery failed: %v", applyErr, err)); fallbackErr != nil {
-			return fatalApplyOutcome(fmt.Errorf("apply failed: %v; rollback recovery failed: %w; fallback recovery failed: %v", applyErr, err, fallbackErr))
+			return fatalApplyOutcome(fmt.Errorf("apply failed: %w; rollback recovery failed: %w; fallback recovery failed: %w", applyErr, err, fallbackErr))
 		}
 		message := fmt.Sprintf("apply failed, but fallback runtime started: %v; rollback recovery failed: %v", applyErr, err)
 		slog.Warn("openresty apply recovered with safe default fallback", "message", message)
@@ -516,7 +519,7 @@ func (m *Manager) CurrentChecksum() (string, error) {
 		normalizedMain = strings.ReplaceAll(normalizedMain, listen, openrestyrender.ObservabilityListenPlaceholder)
 	}
 	if m.OpenrestyObservabilityPort > 0 {
-		normalizedMain = strings.ReplaceAll(normalizedMain, fmt.Sprintf("%d", m.OpenrestyObservabilityPort), openrestyrender.ObservabilityPortPlaceholder)
+		normalizedMain = strings.ReplaceAll(normalizedMain, strconv.Itoa(m.OpenrestyObservabilityPort), openrestyrender.ObservabilityPortPlaceholder)
 	}
 	if resolverDirective := strings.TrimSpace(m.OpenrestyResolverDirective); resolverDirective != "" {
 		normalizedMain = strings.ReplaceAll(normalizedMain, resolverDirective, ResolverDirectivePlaceholder)
@@ -1463,7 +1466,7 @@ func (m *Manager) renderMainConfig(content string) string {
 		rendered = strings.ReplaceAll(rendered, openrestyrender.ObservabilityListenPlaceholder, listen)
 	}
 	if m.OpenrestyObservabilityPort > 0 {
-		rendered = strings.ReplaceAll(rendered, openrestyrender.ObservabilityPortPlaceholder, fmt.Sprintf("%d", m.OpenrestyObservabilityPort))
+		rendered = strings.ReplaceAll(rendered, openrestyrender.ObservabilityPortPlaceholder, strconv.Itoa(m.OpenrestyObservabilityPort))
 	}
 	if resolverDirective := strings.TrimSpace(m.OpenrestyResolverDirective); resolverDirective != "" {
 		rendered = strings.ReplaceAll(rendered, ResolverDirectivePlaceholder, resolverDirective)

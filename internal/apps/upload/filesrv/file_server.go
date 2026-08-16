@@ -68,7 +68,8 @@ func ServeFileByID(c *gin.Context) {
 			response.AbortNotFound(c, "文件记录未找到")
 			return
 		}
-		if _, ok := err.(*strconv.NumError); ok {
+		var numErr *strconv.NumError
+		if errors.As(err, &numErr) {
 			response.AbortBadRequest(c, "无效的上传ID")
 			return
 		}
@@ -133,6 +134,8 @@ func ServeUpload(c *gin.Context, upload *model.Upload) {
 			return
 		}
 		fallthrough
+	case fileTypeVideo, fileTypeAudio, fileTypeOther:
+		serveOriginalWithConditionalCheck(c, upload)
 	default:
 		serveOriginalWithConditionalCheck(c, upload)
 	}
@@ -205,7 +208,10 @@ func EnsureCompressedImageCache(
 		return nil, false, err
 	}
 
-	res := result.(compressedImageCacheResult)
+	res, ok := result.(compressedImageCacheResult)
+	if !ok {
+		return nil, false, fmt.Errorf("image compression flight returned unexpected type %T", result)
+	}
 	return res.bytes, res.cached, res.err
 }
 
