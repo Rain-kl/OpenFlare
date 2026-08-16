@@ -233,5 +233,5 @@ frontend/lib/services/<name>/
 
 - 使用 `next-intl`（无 URL locale 前缀 / provider 模式），兼容 `NEXT_STANDALONE_EXPORT`。
 - 语言：`zh-CN`、`en`；默认 `zh-CN`。优先级：cookie `NEXT_LOCALE` → 浏览器语言 → 默认。
-- 文案放在 `frontend/messages/{locale}.json`。组件内用户可见文案必须 `useTranslations` / `getTranslations`，禁止新增中英硬编码 UI 字符串（后端 `error_msg`、日志除外）。
-- 新增或修改文案必须同步 `zh-CN.json` 与 `en.json`。设计见 `docs/superpowers/specs/2026-07-24-frontend-i18n-design.md`。
+- 文案放在 `frontend/messages/fragments`。参考已有代码，按模块拆文件夹，en.json 和 zh-CN.json 是 ci 生成的(node scripts/merge-i18n-fragments.mjs)，禁止手动修改。
+- 禁止在页面/组件里直接写文案，文案必须支持 i18
