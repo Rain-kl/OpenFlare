@@ -29,4 +29,15 @@ echo "==> pnpm exec vitest run (frontend)"
   exit 1
 }
 
+# 并发密集包 -race 门禁（2026-08-16 全仓 -race 清零后纳入，防回归；
+# frpc/frps 慢套件不含在此，另做全量周期验证）
+echo "==> go test -race (concurrency packages)"
+RACE_PKGS="./internal/apps/oauth/ ./internal/apps/openflare/tls/ ./internal/apps/openflare/uptimekuma/ ./internal/apps/upload/cache/ ./internal/repository/ ./pkg/cache/disk/ ./pkg/logger/ ./internal/infra/persistence/batchwriter/"
+if go test -race -count=1 $RACE_PKGS > /tmp/auto_race.log 2>&1; then
+  :
+else
+  grep -E "WARNING: DATA RACE|^--- FAIL|^FAIL" /tmp/auto_race.log | head -20
+  exit 1
+fi
+
 echo "OK: checks passed"
