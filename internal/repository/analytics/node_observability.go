@@ -6,7 +6,7 @@ package analytics
 import (
 	"context"
 	"fmt"
-	"sort"
+	"slices"
 	"time"
 
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
@@ -367,7 +367,7 @@ func mergeNodeMetricHourlyPreferRollup(rollup, raw []NodeMetricHourly) []NodeMet
 	}
 	result := make([]NodeMetricHourly, 0, len(order))
 	// Keep chronological order of first-seen keys; re-sort by hour for stability.
-	sort.Slice(order, func(i, j int) bool { return order[i] < order[j] })
+	slices.Sort(order)
 	for _, key := range order {
 		result = append(result, byHour[key])
 	}

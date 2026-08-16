@@ -6,7 +6,7 @@ package proxy_route
 import (
 	"context"
 	"errors"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 
@@ -201,7 +201,7 @@ func lockPagesProjectsForRouteMutation(tx *gorm.DB, previousProjectID uint, rout
 	if nextProjectID != 0 && nextProjectID != previousProjectID {
 		projectIDs = append(projectIDs, nextProjectID)
 	}
-	sort.Slice(projectIDs, func(i int, j int) bool { return projectIDs[i] < projectIDs[j] })
+	slices.Sort(projectIDs)
 
 	for _, projectID := range projectIDs {
 		project, err := repository.LockPagesProjectByIDTx(tx, projectID)

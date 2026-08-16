@@ -179,18 +179,9 @@ func buildNodeAccessLogRecords(nodeID string, direct []NodeAccessLog, buffered [
 	records := make([]*model.OpenFlareAccessLog, 0, total)
 	appendLogs := func(logs []NodeAccessLog) {
 		for _, item := range logs {
-			bytesSent := item.BytesSent
-			if bytesSent < 0 {
-				bytesSent = 0
-			}
-			requestLength := item.RequestLength
-			if requestLength < 0 {
-				requestLength = 0
-			}
-			requestTimeMs := item.RequestTimeMs
-			if requestTimeMs < 0 {
-				requestTimeMs = 0
-			}
+			bytesSent := max(item.BytesSent, 0)
+			requestLength := max(item.RequestLength, 0)
+			requestTimeMs := max(item.RequestTimeMs, 0)
 			record := &model.OpenFlareAccessLog{
 				NodeID:        nodeID,
 				LoggedAt:      timeFromUnix(item.LoggedAtUnix, reportedAt),

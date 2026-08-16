@@ -414,7 +414,7 @@ func pagesFallbackPath(deployment *PagesDeployment) string {
 	if value == "/" || strings.HasSuffix(value, "/") || strings.Contains(value, "\\") || strings.ContainsAny(value, "\"';") || strings.ContainsAny(value, " \t\r\n") {
 		return indexHTML
 	}
-	for _, segment := range strings.Split(value, "/") {
+	for segment := range strings.SplitSeq(value, "/") {
 		if segment == "." || segment == ".." {
 			return indexHTML
 		}

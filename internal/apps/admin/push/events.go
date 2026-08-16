@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"strings"
 
 	"github.com/Rain-kl/Wavelet/internal/infra/task"
@@ -34,9 +35,7 @@ func (m NotificationMessage) Flatten() map[string]any {
 		keyContent: m.Content,
 		keyLevel:   m.Level,
 	}
-	for k, v := range m.Ext {
-		res[k] = v
-	}
+	maps.Copy(res, m.Ext)
 	return res
 }
 

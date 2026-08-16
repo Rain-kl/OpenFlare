@@ -141,10 +141,7 @@ func (r *LogRingBuffer) Query(cursor int, limit int) ([]LogEntry, bool) {
 	}
 
 	// 返回 cut 之前的最后 limit 条
-	start := cut - limit
-	if start < 0 {
-		start = 0
-	}
+	start := max(cut-limit, 0)
 
 	hasMore := start > 0
 	return ordered[start:cut], hasMore

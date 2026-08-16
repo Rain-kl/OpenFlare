@@ -240,7 +240,7 @@ func (m *Manager) supervise(ctx context.Context, generation uint64) {
 			continue
 		}
 
-		_ = os.WriteFile(m.pidPath, []byte(fmt.Sprintf("%d", cmd.Process.Pid)), frpsPidFilePerm)
+		_ = os.WriteFile(m.pidPath, fmt.Appendf(nil, "%d", cmd.Process.Pid), frpsPidFilePerm)
 
 		m.cmd = cmd
 		m.status = "healthy"

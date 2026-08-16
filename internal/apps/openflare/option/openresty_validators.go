@@ -189,7 +189,7 @@ func validateOpenRestyCacheUseStale(key, trimmed string) error {
 		"http_500": {}, "http_502": {}, "http_503": {}, "http_504": {},
 		"http_403": {}, "http_404": {}, "http_429": {}, "off": {},
 	}
-	for _, token := range strings.Fields(trimmed) {
+	for token := range strings.FieldsSeq(trimmed) {
 		if _, ok := allowedTokens[token]; !ok {
 			return fmt.Errorf("%s 包含不支持的值 %q", key, token)
 		}

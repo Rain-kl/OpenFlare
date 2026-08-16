@@ -31,10 +31,11 @@ func findConfigPath(configPath string) string {
 	if _, err := os.Stat(configPath); err == nil {
 		return configPath
 	}
-	dir := "."
-	for i := 0; i < 5; i++ {
-		dir += "/.."
-		path := dir + "/" + configPath
+	var dir strings.Builder
+	dir.WriteString(".")
+	for range 5 {
+		dir.WriteString("/..")
+		path := dir.String() + "/" + configPath
 		if _, err := os.Stat(path); err == nil {
 			return path
 		}

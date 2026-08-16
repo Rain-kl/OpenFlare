@@ -183,10 +183,7 @@ func emptyStatsSeries(since, until time.Time, bucketMinutes int) []StatsPoint {
 	}
 	// Cap points to keep chart readable.
 	maxPoints := 120
-	capacity := int(end.Sub(start)/bucket) + 1
-	if capacity > maxPoints {
-		capacity = maxPoints
-	}
+	capacity := min(int(end.Sub(start)/bucket)+1, maxPoints)
 	points := make([]StatsPoint, 0, capacity)
 	for cursor := start; !cursor.After(end) && len(points) < maxPoints; cursor = cursor.Add(bucket) {
 		points = append(points, StatsPoint{BucketStartedAt: cursor})

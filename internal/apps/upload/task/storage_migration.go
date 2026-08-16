@@ -193,18 +193,18 @@ func migrateObjects(
 	const batchSize = 50
 	const migrationConcurrency = 10
 	const sha256HexLength = 64
-	var migrated int64
+	var migrated atomic.Int64
 	var lastFilePath string
 	for {
 		if err := ctx.Err(); err != nil {
-			return atomic.LoadInt64(&migrated), fmt.Errorf("storage migration canceled: %w", err)
+			return migrated.Load(), fmt.Errorf("storage migration canceled: %w", err)
 		}
 
-		task.AppendLog(ctx, "正在查询待迁移对象批次，当前已完成迁移: %d/%d", atomic.LoadInt64(&migrated), total)
+		task.AppendLog(ctx, "正在查询待迁移对象批次，当前已完成迁移: %d/%d", migrated.Load(), total)
 
 		objects, err := repository.ListDistinctActiveStorageObjects(ctx, lastFilePath, batchSize)
 		if err != nil {
-			return atomic.LoadInt64(&migrated), fmt.Errorf("query source objects: %w", err)
+			return migrated.Load(), fmt.Errorf("query source objects: %w", err)
 		}
 		if len(objects) == 0 {
 			task.AppendLog(ctx, "所有对象迁移完毕")
@@ -223,18 +223,18 @@ func migrateObjects(
 				if err := migrateSingleObject(ctx, sourceBackend, targetBackend, obj, sha256HexLength); err != nil {
 					return err
 				}
-				atomic.AddInt64(&migrated, 1)
+				migrated.Add(1)
 				return nil
 			})
 		}
 
 		if err := g.Wait(); err != nil {
-			return atomic.LoadInt64(&migrated), err
+			return migrated.Load(), err
 		}
 
-		task.AppendLog(ctx, "当前批次迁移完成。迁移进度: %d/%d", atomic.LoadInt64(&migrated), total)
+		task.AppendLog(ctx, "当前批次迁移完成。迁移进度: %d/%d", migrated.Load(), total)
 	}
-	return atomic.LoadInt64(&migrated), nil
+	return migrated.Load(), nil
 }
 
 func migrateSingleObject(

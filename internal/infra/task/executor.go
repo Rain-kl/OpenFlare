@@ -103,7 +103,7 @@ func IsFinalAttempt(ctx context.Context) bool {
 
 // AppendLog 追加日志到任务执行记录
 // 在 TaskHandler.Execute 中调用，日志会自动追加到 TaskExecution.Log 字段
-func AppendLog(ctx context.Context, format string, args ...interface{}) {
+func AppendLog(ctx context.Context, format string, args ...any) {
 	taskID := GetTaskID(ctx)
 	if taskID == "" {
 		// 上下文中没有 taskID，降级到普通日志

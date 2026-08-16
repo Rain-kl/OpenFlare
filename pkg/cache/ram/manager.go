@@ -6,6 +6,7 @@ package ram
 import (
 	"context"
 	"errors"
+	"maps"
 	"sync"
 	"time"
 )
@@ -119,9 +120,7 @@ func Set(item CacheItem) {
 	currentMap, ok := managerCache.GetIfPresent(item.Type)
 	newMap := make(map[string]cacheEntry)
 	if ok {
-		for k, v := range currentMap {
-			newMap[k] = v
-		}
+		maps.Copy(newMap, currentMap)
 	}
 
 	var expireAt time.Time

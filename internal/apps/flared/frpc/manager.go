@@ -203,7 +203,7 @@ func (m *Manager) restartProcess(ctx context.Context, relayID string, configPath
 			startedAt := time.Now()
 			err := cmd.Start()
 			if err == nil {
-				_ = os.WriteFile(pidPath, []byte(fmt.Sprintf("%d", cmd.Process.Pid)), frpcConfigFilePerm)
+				_ = os.WriteFile(pidPath, fmt.Appendf(nil, "%d", cmd.Process.Pid), frpcConfigFilePerm)
 				err = cmd.Wait()
 			}
 			_ = os.Remove(pidPath)

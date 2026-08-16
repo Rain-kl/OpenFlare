@@ -50,9 +50,9 @@ type GetTableDataRequest struct {
 
 // TableDataResponse 动态数据表响应结构体
 type TableDataResponse struct {
-	Columns []string                 `json:"columns"`
-	Total   int64                    `json:"total"`
-	Results []map[string]interface{} `json:"results"`
+	Columns []string         `json:"columns"`
+	Total   int64            `json:"total"`
+	Results []map[string]any `json:"results"`
 }
 
 // ExecuteSQLRequest 执行自定义 SQL 请求结构体
@@ -62,11 +62,11 @@ type ExecuteSQLRequest struct {
 
 // ExecuteSQLResponse 执行自定义 SQL 响应结构体
 type ExecuteSQLResponse struct {
-	Type            string                   `json:"type"` // "select" 或 "exec"
-	Columns         []string                 `json:"columns,omitempty"`
-	Results         []map[string]interface{} `json:"results,omitempty"`
-	AffectedRows    int64                    `json:"affected_rows"`
-	ExecutionTimeMs int64                    `json:"execution_time_ms"`
+	Type            string           `json:"type"` // "select" 或 "exec"
+	Columns         []string         `json:"columns,omitempty"`
+	Results         []map[string]any `json:"results,omitempty"`
+	AffectedRows    int64            `json:"affected_rows"`
+	ExecutionTimeMs int64            `json:"execution_time_ms"`
 }
 
 // formatBytes 格式化字节大小为可读字符串
@@ -119,10 +119,7 @@ func getSQLiteOverview(gormDB *gorm.DB) (DBOverviewResponse, error) {
 
 	var sizeStr string
 	if fi, err := os.Stat(name); err == nil {
-		size := fi.Size()
-		if size < 0 {
-			size = 0
-		}
+		size := max(fi.Size(), 0)
 		sizeStr = formatBytes(uint64(size))
 	} else {
 		sizeStr = "0 B"
@@ -165,10 +162,7 @@ func getPostgresOverview(gormDB *gorm.DB) (DBOverviewResponse, error) {
 	var sizeStr string
 	var sizeBytes sql.NullInt64
 	if err := gormDB.Raw("SELECT pg_database_size(current_database())").Scan(&sizeBytes).Error; err == nil && sizeBytes.Valid {
-		size := sizeBytes.Int64
-		if size < 0 {
-			size = 0
-		}
+		size := max(sizeBytes.Int64, 0)
 		sizeStr = formatBytes(uint64(size))
 	} else {
 		sizeStr = "0 B"
@@ -294,10 +288,7 @@ func GetDBTableData(c *gin.Context) {
 		return
 	}
 
-	offset := (req.Page - 1) * req.PageSize
-	if offset < 0 {
-		offset = 0
-	}
+	offset := max((req.Page-1)*req.PageSize, 0)
 	limit := req.PageSize
 	if limit <= 0 {
 		limit = 10
@@ -332,11 +323,11 @@ func GetDBTableData(c *gin.Context) {
 }
 
 // scanTableRows 扫描并提取数据表行数据，做截断处理
-func scanTableRows(rows *sql.Rows, cols []string) ([]map[string]interface{}, error) {
-	results := make([]map[string]interface{}, 0)
+func scanTableRows(rows *sql.Rows, cols []string) ([]map[string]any, error) {
+	results := make([]map[string]any, 0)
 	for rows.Next() {
-		columns := make([]interface{}, len(cols))
-		columnPointers := make([]interface{}, len(cols))
+		columns := make([]any, len(cols))
+		columnPointers := make([]any, len(cols))
 		for i := range columns {
 			columnPointers[i] = &columns[i]
 		}
@@ -345,7 +336,7 @@ func scanTableRows(rows *sql.Rows, cols []string) ([]map[string]interface{}, err
 			return nil, err
 		}
 
-		rowMap := make(map[string]interface{})
+		rowMap := make(map[string]any)
 		for i, colName := range cols {
 			val := columns[i]
 			if b, ok := val.([]byte); ok {
@@ -385,10 +376,10 @@ func executeSQLQuery(gormDB *gorm.DB, sqlStr string, startTime time.Time) (Execu
 		return ExecuteSQLResponse{}, err
 	}
 
-	results := make([]map[string]interface{}, 0)
+	results := make([]map[string]any, 0)
 	for rows.Next() {
-		columns := make([]interface{}, len(cols))
-		columnPointers := make([]interface{}, len(cols))
+		columns := make([]any, len(cols))
+		columnPointers := make([]any, len(cols))
 		for i := range columns {
 			columnPointers[i] = &columns[i]
 		}
@@ -397,7 +388,7 @@ func executeSQLQuery(gormDB *gorm.DB, sqlStr string, startTime time.Time) (Execu
 			return ExecuteSQLResponse{}, err
 		}
 
-		rowMap := make(map[string]interface{})
+		rowMap := make(map[string]any)
 		for i, colName := range cols {
 			val := columns[i]
 			if b, ok := val.([]byte); ok {

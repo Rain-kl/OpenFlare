@@ -285,7 +285,7 @@ func (s *Service) downloadChecksum(ctx context.Context, url string, assetName st
 
 func parseSHA256Checksum(content string, assetName string) (string, error) {
 	assetName = strings.TrimSpace(assetName)
-	for _, line := range strings.Split(content, "\n") {
+	for line := range strings.SplitSeq(content, "\n") {
 		line = strings.TrimSpace(line)
 		if line == "" || strings.HasPrefix(line, "#") {
 			continue

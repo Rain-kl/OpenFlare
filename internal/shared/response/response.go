@@ -16,8 +16,8 @@ type Response[T any] struct {
 // Any 用于 Swagger 文档的响应类型（非泛型）
 // swag 不支持泛型，使用此类型替代 Response[T]
 type Any struct {
-	ErrorMsg string      `json:"error_msg" example:""`
-	Data     interface{} `json:"data"`
+	ErrorMsg string `json:"error_msg" example:""`
+	Data     any    `json:"data"`
 }
 
 // APIError 统一的 API 业务错误类型，可被全局错误处理中间件捕获

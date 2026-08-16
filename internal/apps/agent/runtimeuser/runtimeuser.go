@@ -120,7 +120,7 @@ func ensureWorldTraversablePath(targetDir string) error {
 	if current == "" || current == "." {
 		return nil
 	}
-	for depth := 0; depth < maxDepth; depth++ {
+	for range maxDepth {
 		if err := os.Chmod(current, DefaultDirPerm); err != nil { //nolint:gosec // parent dirs must be traversable by the runtime user
 			if os.IsNotExist(err) || os.IsPermission(err) {
 				break

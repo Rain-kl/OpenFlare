@@ -238,14 +238,14 @@ func VerifyChallengeSolutions(token string, solutions []int, secret []byte, expe
 func Solve(token string, count, size, difficulty int) []int {
 	solutions := make([]int, count)
 	tokenFnv := fnv1a(token)
-	for i := 0; i < count; i++ {
+	for i := range count {
 		idxStr := strconv.Itoa(i + 1)
 		saltSeed := fnv1aResume(tokenFnv, idxStr)
 		targetSeed := fnv1aResume(saltSeed, "d")
 		salt := prngFromHash(saltSeed, size)
 		target := prngFromHash(targetSeed, difficulty)
 
-		for nonce := 0; nonce < 1000000; nonce++ {
+		for nonce := range 1000000 {
 			hashInput := salt + strconv.Itoa(nonce)
 			hashBytes := sha256.Sum256([]byte(hashInput))
 			hashHex := hex.EncodeToString(hashBytes[:])

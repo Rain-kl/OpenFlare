@@ -66,7 +66,7 @@ func validateLogicalPathRunes(raw string) error {
 }
 
 func validateLogicalPathSegments(raw string) error {
-	for _, segment := range strings.Split(raw, "/") {
+	for segment := range strings.SplitSeq(raw, "/") {
 		if len(segment) >= 2 && segment[1] == ':' {
 			return fmt.Errorf("pages path contains a Windows drive: %s", raw)
 		}

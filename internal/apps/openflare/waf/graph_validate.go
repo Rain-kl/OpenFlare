@@ -12,6 +12,7 @@ import (
 	"io"
 	"net/netip"
 	"regexp"
+	"slices"
 	"strings"
 )
 
@@ -374,12 +375,7 @@ func decodeStrictConfig(raw json.RawMessage, dst any) error {
 }
 
 func validSourceHandle(t RuleNodeType, handle string) bool {
-	for _, expected := range requiredHandles(t) {
-		if handle == expected {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(requiredHandles(t), handle)
 }
 func requiredHandles(t RuleNodeType) []string {
 	switch t {

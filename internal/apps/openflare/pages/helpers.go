@@ -80,18 +80,11 @@ func resolvePagesLimits(ctx context.Context) pagesLimits {
 
 	historyCount := defaultPagesMaxHistoryCount
 	if value, err := repository.GetIntByKey(ctx, model.ConfigKeyPagesMaxHistoryCount); err == nil {
-		if value < 0 {
-			historyCount = 0
-		} else {
-			historyCount = value
-		}
+		historyCount = max(value, 0)
 	}
 
 	packageBytes := int64(packageMB) * bytesPerMiB
-	extractedBytes := packageBytes * pagesExtractedSizeMultiplier
-	if extractedBytes < pagesMinExtractedSizeBytes {
-		extractedBytes = pagesMinExtractedSizeBytes
-	}
+	extractedBytes := max(packageBytes*pagesExtractedSizeMultiplier, pagesMinExtractedSizeBytes)
 
 	return pagesLimits{
 		PackageBytes:   packageBytes,
@@ -154,7 +147,7 @@ func normalizePagesFallbackPath(raw string) (string, error) {
 			return "", errors.New("spa fallback 回退路径不能包含空白或控制字符")
 		}
 	}
-	for _, segment := range strings.Split(value, "/") {
+	for segment := range strings.SplitSeq(value, "/") {
 		if segment == "." || segment == ".." {
 			return "", errors.New("spa fallback 回退路径不能包含 . 或 .. 路径段")
 		}

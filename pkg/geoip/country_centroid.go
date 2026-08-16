@@ -194,7 +194,7 @@ func CountryCentroidByName(name string) (lat float64, lon float64, ok bool) {
 		return v.lat, v.lon, true
 	}
 	// Try comma-separated parts (city / region / country / ISO).
-	for _, part := range strings.Split(name, ",") {
+	for part := range strings.SplitSeq(name, ",") {
 		part = strings.TrimSpace(part)
 		if part == "" {
 			continue

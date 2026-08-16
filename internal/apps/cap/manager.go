@@ -78,10 +78,7 @@ func (m *Manager) Redeem(ctx context.Context, token string, solutions []int, sco
 	}
 
 	now := time.Now().UnixNano() / int64(time.Millisecond)
-	nonceTTL := time.Duration(payload.Expires-now) * time.Millisecond
-	if nonceTTL < time.Second {
-		nonceTTL = time.Second
-	}
+	nonceTTL := max(time.Duration(payload.Expires-now)*time.Millisecond, time.Second)
 
 	set, err := m.store.SetNX(ctx, nonceKey, "1", nonceTTL)
 	if err != nil {

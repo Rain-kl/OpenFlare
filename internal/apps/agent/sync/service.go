@@ -12,7 +12,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -363,7 +363,7 @@ func referencedWAFIPGroupIDs(supportFiles []protocol.SupportFile) ([]uint, error
 	for id := range seen {
 		ids = append(ids, id)
 	}
-	sort.Slice(ids, func(i, j int) bool { return ids[i] < ids[j] })
+	slices.Sort(ids)
 	return ids, nil
 }
 

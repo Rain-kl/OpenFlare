@@ -6,6 +6,7 @@ package oauth
 import (
 	"context"
 	"errors"
+	"slices"
 	"strings"
 
 	"github.com/Rain-kl/Wavelet/internal/model"
@@ -109,10 +110,5 @@ func buildOAuthConfig(ctx context.Context, source *model.AuthSource, redirectURL
 }
 
 func containsScope(scopes []string, scope string) bool {
-	for _, item := range scopes {
-		if item == scope {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(scopes, scope)
 }

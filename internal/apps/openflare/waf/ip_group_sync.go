@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"maps"
 	"net"
 	"net/http"
 	"net/netip"
@@ -325,9 +326,7 @@ func evaluateParsedIPGroupAutoConfig(ctx context.Context, config ipGroupAutoConf
 			lastSeen = time.Unix(item.LastSeenEpoch, 0).UTC()
 		}
 		statusCounts := make(map[int]int, len(item.StatusCounts))
-		for code, count := range item.StatusCounts {
-			statusCounts[code] = count
-		}
+		maps.Copy(statusCounts, item.StatusCounts)
 		accumulators[ip] = &ipGroupAutoAccumulator{
 			ip:               ip,
 			requestCount:     item.RequestCount,
@@ -479,7 +478,7 @@ func selectJSONMappingNodes(payload any, mappingRule string) ([]any, error) {
 	}
 	rule = strings.TrimPrefix(rule, "$.")
 	nodes := []any{payload}
-	for _, rawSegment := range strings.Split(rule, ".") {
+	for rawSegment := range strings.SplitSeq(rule, ".") {
 		segment := strings.TrimSpace(rawSegment)
 		if segment == "" {
 			continue

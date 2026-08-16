@@ -3,7 +3,7 @@ package util
 import "fmt"
 
 // Interface2String converts a string, int, or float64 value to its string representation.
-func Interface2String(inter interface{}) string {
+func Interface2String(inter any) string {
 	switch v := inter.(type) {
 	case string:
 		return v

@@ -513,7 +513,7 @@ func pruneProjectDeploymentHistory(ctx context.Context, projectID uint, keepCoun
 	// Two passes: first pass after upload, second pass heals a concurrent race
 	// that inserted another deployment between our list and delete.
 	var lastErr error
-	for pass := 0; pass < 2; pass++ {
+	for range 2 {
 		deleted, err := pruneProjectDeploymentHistoryOnce(ctx, projectID, keepCount, preserveCandidateID)
 		if err != nil {
 			lastErr = err

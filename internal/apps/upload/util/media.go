@@ -4,6 +4,7 @@
 package util
 
 import (
+	"slices"
 	"strings"
 
 	"github.com/Rain-kl/Wavelet/internal/apps/upload/shared"
@@ -11,32 +12,17 @@ import (
 
 // IsImageExtension reports whether ext is a common image format.
 func IsImageExtension(ext string) bool {
-	for _, imgExt := range []string{"jpg", "jpeg", "png", "webp", "gif"} {
-		if ext == imgExt {
-			return true
-		}
-	}
-	return false
+	return slices.Contains([]string{"jpg", "jpeg", "png", "webp", "gif"}, ext)
 }
 
 // IsArchiveExtension reports whether ext is a common archive format.
 func IsArchiveExtension(ext string) bool {
-	for _, e := range []string{"zip", "rar", "7z", "tar", "gz", "tgz", "bz2", "xz"} {
-		if ext == e {
-			return true
-		}
-	}
-	return false
+	return slices.Contains([]string{"zip", "rar", "7z", "tar", "gz", "tgz", "bz2", "xz"}, ext)
 }
 
 // IsDocumentExtension reports whether ext is a common document format.
 func IsDocumentExtension(ext string) bool {
-	for _, e := range []string{"pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "txt", "md", "csv", "json", "yaml", "yml", "xml"} {
-		if ext == e {
-			return true
-		}
-	}
-	return false
+	return slices.Contains([]string{"pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "txt", "md", "csv", "json", "yaml", "yml", "xml"}, ext)
 }
 
 // NormalizeImageQuality normalizes the requested image quality query parameter.

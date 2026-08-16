@@ -78,25 +78,25 @@ func Init(cfg Config) {
 }
 
 // DebugF 输出 Debug 级别日志
-func DebugF(ctx context.Context, format string, args ...interface{}) {
+func DebugF(ctx context.Context, format string, args ...any) {
 	msg := fmt.Sprintf(format, args...)
 	logger.Ctx(ctx).Debug(msg, getTraceIDFields(ctx)...)
 }
 
 // InfoF 输出 Info 级别日志
-func InfoF(ctx context.Context, format string, args ...interface{}) {
+func InfoF(ctx context.Context, format string, args ...any) {
 	msg := fmt.Sprintf(format, args...)
 	logger.Ctx(ctx).Info(msg, getTraceIDFields(ctx)...)
 }
 
 // WarnF 输出 Warn 级别日志
-func WarnF(ctx context.Context, format string, args ...interface{}) {
+func WarnF(ctx context.Context, format string, args ...any) {
 	msg := fmt.Sprintf(format, args...)
 	logger.Ctx(ctx).Warn(msg, getTraceIDFields(ctx)...)
 }
 
 // ErrorF 输出 Error 级别日志
-func ErrorF(ctx context.Context, format string, args ...interface{}) {
+func ErrorF(ctx context.Context, format string, args ...any) {
 	msg := fmt.Sprintf(format, args...)
 	logger.Ctx(ctx).Error(msg, getTraceIDFields(ctx)...)
 }

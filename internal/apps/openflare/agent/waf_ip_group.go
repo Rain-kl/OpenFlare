@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -97,7 +98,7 @@ func buildAgentWAFIPGroups(ctx context.Context, ids []uint) ([]WAFIPGroup, error
 	if len(ids) == 0 {
 		return []WAFIPGroup{}, nil
 	}
-	sort.Slice(ids, func(i, j int) bool { return ids[i] < ids[j] })
+	slices.Sort(ids)
 	groups, err := repository.ListOpenFlareWAFIPGroupsByIDs(ctx, ids)
 	if err != nil {
 		return nil, err
@@ -204,7 +205,7 @@ func activeConfigWAFIPGroupIDs(ctx context.Context) ([]uint, error) {
 	for id := range idSet {
 		ids = append(ids, id)
 	}
-	sort.Slice(ids, func(i, j int) bool { return ids[i] < ids[j] })
+	slices.Sort(ids)
 	return ids, nil
 }
 

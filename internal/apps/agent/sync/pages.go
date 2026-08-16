@@ -198,7 +198,7 @@ func (s *Service) ensurePagesProject(ctx context.Context, snapshot *state.Snapsh
 	}
 
 	var lastErr error
-	for attempt := 0; attempt < pagesLatestPullAttempts; attempt++ {
+	for attempt := range pagesLatestPullAttempts {
 		latest, err := s.client.GetPagesProjectLatestHash(ctx, projectID)
 		if err != nil {
 			return fmt.Errorf("fetch Pages project %d latest hash: %w", projectID, err)
@@ -359,10 +359,7 @@ func validatePagesPackageMetadata(
 	if extractedBytes == 0 {
 		extractedBytes = 1
 	}
-	maxFileBytes := extractedBytes
-	if maxFileBytes > agentPagesMaxFileBytes {
-		maxFileBytes = agentPagesMaxFileBytes
-	}
+	maxFileBytes := min(extractedBytes, agentPagesMaxFileBytes)
 
 	return pagesPackageLimits{
 		PackageBytes: metadata.PackageSize,

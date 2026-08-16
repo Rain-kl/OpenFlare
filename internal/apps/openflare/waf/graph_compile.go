@@ -5,6 +5,7 @@ package waf
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 )
 
@@ -142,7 +143,7 @@ func sortedUniqueStrings(values []string) []string {
 
 func sortedUniqueUints(values []uint) []uint {
 	result := append([]uint(nil), values...)
-	sort.Slice(result, func(i, j int) bool { return result[i] < result[j] })
+	slices.Sort(result)
 	write := 0
 	for _, value := range result {
 		if write == 0 || result[write-1] != value {

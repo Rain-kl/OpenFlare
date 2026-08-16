@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -429,7 +430,7 @@ func buildSnapshotWAFIPGroups(ctx context.Context, idSet map[uint]struct{}) ([]s
 	for id := range idSet {
 		ids = append(ids, id)
 	}
-	sort.Slice(ids, func(i, j int) bool { return ids[i] < ids[j] })
+	slices.Sort(ids)
 	groups, err := listWAFIPGroupsByIDs(ctx, ids)
 	if err != nil {
 		return nil, err
@@ -629,7 +630,7 @@ func buildCertificateSupportFiles(ctx context.Context, routes []snapshotRoute) (
 	for certID := range certIDSet {
 		certIDs = append(certIDs, certID)
 	}
-	sort.Slice(certIDs, func(i, j int) bool { return certIDs[i] < certIDs[j] })
+	slices.Sort(certIDs)
 	files := make([]SupportFile, 0, len(certIDs)*supportFilesPerCertificate)
 	for _, certID := range certIDs {
 		certificate, err := repository.GetTLSCertificateByID(ctx, certID)

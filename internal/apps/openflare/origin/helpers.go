@@ -34,8 +34,8 @@ func validateOriginAddress(address string) error {
 	if len(address) > maxOriginHostnameLength {
 		return errors.New(errOriginAddressInvalid)
 	}
-	labels := strings.Split(address, ".")
-	for _, label := range labels {
+	labels := strings.SplitSeq(address, ".")
+	for label := range labels {
 		if len(label) == 0 || len(label) > 63 {
 			return errors.New(errOriginAddressInvalid)
 		}

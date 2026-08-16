@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"maps"
 	"net/http"
 	"strconv"
 	"strings"
@@ -180,8 +181,8 @@ func (c *SocketIOClient) pollLoop() {
 		}
 
 		slog.Debug("Received polling payload from Uptime Kuma", "length", len(bodyStr))
-		packets := strings.Split(bodyStr, "\x1e")
-		for _, pkt := range packets {
+		packets := strings.SplitSeq(bodyStr, "\x1e")
+		for pkt := range packets {
 			if len(pkt) == 0 {
 				continue
 			}
@@ -352,9 +353,7 @@ func (c *SocketIOClient) GetMonitorList() map[string]Monitor {
 	defer c.monitorListMutex.RUnlock()
 
 	m := make(map[string]Monitor, len(c.monitorList))
-	for k, v := range c.monitorList {
-		m[k] = v
-	}
+	maps.Copy(m, c.monitorList)
 	return m
 }
 
