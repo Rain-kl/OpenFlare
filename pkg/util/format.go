@@ -22,7 +22,7 @@ const (
 
 // Bytes2Size converts a byte count to a human-readable string with unit (B, KB, MB, GB).
 func Bytes2Size(num int64) string {
-	numStr := ""
+	var numStr string
 	unit := "B"
 	switch {
 	case num/int64(sizeGB) >= 1:

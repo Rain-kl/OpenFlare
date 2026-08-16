@@ -160,7 +160,7 @@ func (p *LarkPusher) Send(ctx context.Context, cfg Config, _ string, body map[st
 			title = t
 		}
 
-		content := ""
+		var content string
 		if c, ok := body["content"].(string); ok && c != "" {
 			content = c
 		} else {

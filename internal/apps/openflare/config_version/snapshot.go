@@ -200,9 +200,7 @@ func buildCurrentConfigBundle(ctx context.Context, requireRoutes bool) (*configB
 		return nil, err
 	}
 
-	mainConfig := ""
-	routeConfig := ""
-	checksum := ""
+	var mainConfig, routeConfig, checksum string
 	supportFiles := []SupportFile(nil)
 
 	rendered, renderErr := renderSnapshotConfig(string(snapshotJSON), certificateFiles)

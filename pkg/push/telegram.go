@@ -60,7 +60,7 @@ func (p *TelegramPusher) Send(ctx context.Context, cfg Config, target string, bo
 	if t, ok := body["title"].(string); ok && t != "" {
 		title = t
 	}
-	content := ""
+	var content string
 	if c, ok := body["content"].(string); ok && c != "" {
 		content = c
 	} else {
