@@ -20,6 +20,8 @@ import {
   type PagesGitHubReleaseSource,
   PagesService,
 } from '@/lib/services/openflare';
+import { NextIntlClientProvider } from 'next-intl';
+import zhCN from '@/messages/zh-CN.json';
 
 vi.mock('@/lib/services/openflare', async (importOriginal) => {
   const actual =
@@ -48,16 +50,18 @@ function renderWithQuery(ui: React.ReactNode) {
     },
   });
   const rendered = render(
-    <QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>,
+    <NextIntlClientProvider locale='zh-CN' messages={zhCN} timeZone='Asia/Shanghai'>
+      <QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>
+    </NextIntlClientProvider>,
   );
   return {
     ...rendered,
     queryClient,
     rerenderWithQuery: (nextUI: React.ReactNode) =>
       rendered.rerender(
-        <QueryClientProvider client={queryClient}>
-          {nextUI}
-        </QueryClientProvider>,
+        <NextIntlClientProvider locale='zh-CN' messages={zhCN} timeZone='Asia/Shanghai'>
+          <QueryClientProvider client={queryClient}>{nextUI}</QueryClientProvider>
+        </NextIntlClientProvider>,
       ),
   };
 }

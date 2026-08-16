@@ -22,4 +22,11 @@ else
   exit 1
 fi
 
+# 前端测试（vitest；2026-08-16 起全绿）
+echo "==> pnpm exec vitest run (frontend)"
+(cd frontend && pnpm exec vitest run --reporter=dot > /tmp/auto_vitest.log 2>&1) || {
+  tail -30 /tmp/auto_vitest.log
+  exit 1
+}
+
 echo "OK: checks passed"

@@ -1,9 +1,10 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen } from '@testing-library/react';
-import { createElement } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import CloudflarePage from '@/app/(main)/cloudflare/page';
+import { NextIntlClientProvider } from 'next-intl';
+import zhCN from '@/messages/zh-CN.json';
 import { AdminTaskService } from '@/lib/services/admin';
 import { CloudflareService, NodeService } from '@/lib/services/openflare';
 
@@ -42,11 +43,11 @@ function renderPage() {
     defaultOptions: { queries: { retry: false, gcTime: 0 } },
   });
   render(
-    createElement(
-      QueryClientProvider,
-      { client },
-      createElement(CloudflarePage),
-    ),
+    <NextIntlClientProvider locale='zh-CN' messages={zhCN} timeZone='Asia/Shanghai'>
+      <QueryClientProvider client={client}>
+        <CloudflarePage />
+      </QueryClientProvider>
+    </NextIntlClientProvider>,
   );
 }
 
