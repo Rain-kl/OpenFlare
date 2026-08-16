@@ -180,6 +180,7 @@ export function AuthSourceModal({
               </div>
             </div>
             <Switch
+              aria-label={t('enableAuthSource')}
               checked={form.is_active}
               onCheckedChange={(checked) =>
                 setForm((prev) => ({ ...prev, is_active: checked }))

@@ -8,7 +8,11 @@ import { LoginPage } from '@/components/auth/login-page';
 import { RegisterPage } from '@/components/auth/register-page';
 import { OTPForm } from '@/components/auth/otp-form';
 import { CapWidget } from '@/components/auth/cap-widget';
+import { OtherTab } from '@/components/common/settings/other-tab';
+import { SecurityTab } from '@/components/common/settings/security-tab';
+import type { UseQueryResult } from '@tanstack/react-query';
 import { UserProvider } from '@/contexts/user-context';
+import type { SystemConfig } from '@/lib/services/admin';
 import zhCN from '@/messages/zh-CN.json';
 
 vi.mock('next/navigation', () => ({
@@ -16,13 +20,17 @@ vi.mock('next/navigation', () => ({
   useSearchParams: () => new URLSearchParams(''),
 }));
 
-const { getUserInfoMock, getPublicConfigMock, getAuthSourcesMock } = vi.hoisted(
-  () => ({
-    getUserInfoMock: vi.fn(),
-    getPublicConfigMock: vi.fn(),
-    getAuthSourcesMock: vi.fn(),
-  }),
-);
+const {
+  getUserInfoMock,
+  getPublicConfigMock,
+  getAuthSourcesMock,
+  listAuthSourcesMock,
+} = vi.hoisted(() => ({
+  getUserInfoMock: vi.fn(),
+  getPublicConfigMock: vi.fn(),
+  getAuthSourcesMock: vi.fn(),
+  listAuthSourcesMock: vi.fn(),
+}));
 
 vi.mock('@/lib/services/auth', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/services/auth')>();
@@ -35,6 +43,14 @@ vi.mock('@/lib/services/auth', async (importOriginal) => {
     },
   };
 });
+vi.mock('@/lib/services', () => ({
+  default: {
+    adminAuthSource: { listAuthSources: listAuthSourcesMock },
+    adminSystemConfig: {
+      updateSystemConfig: vi.fn().mockResolvedValue(undefined),
+    },
+  },
+}));
 
 vi.mock('@/lib/cap-solver', () => ({
   getCapToken: vi.fn().mockResolvedValue('test-cap-token'),
@@ -92,6 +108,8 @@ describe('a11y（axe-core 结构性规则）', () => {
     });
     getAuthSourcesMock.mockReset();
     getAuthSourcesMock.mockResolvedValue([]);
+    listAuthSourcesMock.mockReset();
+    listAuthSourcesMock.mockResolvedValue([]);
   });
 
   it('登录页表单无 axe 违规', async () => {
@@ -152,4 +170,70 @@ describe('a11y（axe-core 结构性规则）', () => {
     await screen.findByText('人机验证通过');
     expect(await runAxe(document.body)).toEqual([]);
   });
+});
+
+it('设置-安全 Tab（人机验证配置表单）无 axe 违规', async () => {
+  const mk = (key: string, value: string): SystemConfig => ({
+    key,
+    value,
+    type: 'system',
+    visibility: 0,
+    description: '',
+    created_at: '',
+    updated_at: '',
+  });
+  const configs = {
+    cap_login_enabled: mk('cap_login_enabled', 'true'),
+    cap_challenge_count: mk('cap_challenge_count', '1'),
+    cap_challenge_difficulty: mk('cap_challenge_difficulty', '4'),
+    cap_challenge_size: mk('cap_challenge_size', '32'),
+    cap_challenge_ttl_seconds: mk('cap_challenge_ttl_seconds', '600'),
+    cap_token_ttl_seconds: mk('cap_token_ttl_seconds', '1200'),
+    cap_auto_solve: mk('cap_auto_solve', 'true'),
+    login_session_ttl_hours: mk('login_session_ttl_hours', '168'),
+  };
+
+  renderWithProviders(
+    <main>
+      <SecurityTab
+        configs={configs}
+        systemConfigsQuery={
+          { data: Object.values(configs) } as UseQueryResult<
+            SystemConfig[],
+            Error
+          >
+        }
+      />
+    </main>,
+  );
+
+  await screen.findByLabelText(/难题数量/);
+  expect(await runAxe(document.body)).toEqual([]);
+});
+
+it('设置-其他 Tab（菜单显示配置开关列表）无 axe 违规', async () => {
+  const mk = (key: string, value: string): SystemConfig => ({
+    key,
+    value,
+    type: 'system',
+    visibility: 0,
+    description: '',
+    created_at: '',
+    updated_at: '',
+  });
+  const configs = {
+    menu_display_config: mk(
+      'menu_display_config',
+      JSON.stringify({ '/nodes': true, '/websites': false }),
+    ),
+  };
+
+  renderWithProviders(
+    <main>
+      <OtherTab configs={configs} />
+    </main>,
+  );
+
+  await screen.findByRole('switch', { name: /节点/ });
+  expect(await runAxe(document.body)).toEqual([]);
 });

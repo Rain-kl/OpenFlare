@@ -314,6 +314,7 @@ export function OtherTab({ configs }: OtherTabProps) {
                     </div>
                     <div className='flex items-center'>
                       <Switch
+                        aria-label={tNav(item.labelKey)}
                         checked={checked}
                         disabled={
                           isReadOnly || updateMenuConfigMutation.isPending

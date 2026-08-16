@@ -320,6 +320,7 @@
       "confirmDelete": "Confirm delete",
       "deleting": "Deleting...",
       "noAuthSources": "No authentication sources configured. Click the button above to add one.",
+      "loginCaptchaEnabled": "Login CAPTCHA",
       "captchaConfig": "CAPTCHA configuration (Cap CAPTCHA)",
       "captchaConfigDesc": "Configure Proof-of-Work (PoW) based invisible CAPTCHA to protect login from brute-force and credential-stuffing attacks",
       "autoStartSolving": "Start solving automatically when page loads",

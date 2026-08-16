@@ -320,6 +320,7 @@
       "confirmDelete": "确认删除",
       "deleting": "删除中...",
       "noAuthSources": "暂无配置的认证源，点击上方按钮新增",
+      "loginCaptchaEnabled": "登录人机验证",
       "captchaConfig": "人机验证配置 (Cap CAPTCHA)",
       "captchaConfigDesc": "配置基于 Proof-of-Work (PoW) 的无感人机验证，保护系统登录免受暴力破解和撞库攻击",
       "autoStartSolving": "打开页面后自动开始计算",
