@@ -2655,13 +2655,13 @@
     "close": "Close"
   },
   "configVersions": {
-    "title": "Config versions",
+    "title": "Release versions",
     "description": "Browse historical snapshots, preview pending diffs, and reactivate an older version when needed.",
     "refresh": "Refresh",
-    "cleanupOld": "Clean old versions",
-    "viewDiff": "View diff",
+    "cleanupOld": "Clean",
+    "viewDiff": "Diff",
     "forcePublish": "Force publish",
-    "previewPublish": "Preview and publish",
+    "previewPublish": "Publish",
     "emptyTitle": "No history",
     "emptyDesc": "There are no published versions yet. Publish a config first.",
     "colVersion": "Version",
