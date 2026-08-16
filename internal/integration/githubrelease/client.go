@@ -338,7 +338,7 @@ func (client *Client) Resolve(ctx context.Context, request ResolveRequest) (Reso
 	return ResolveResult{}, safeError(
 		errAssetMissing,
 		response.StatusCode,
-		response.Header.Get("X-GitHub-Request-Id"),
+		response.Header.Get("X-Github-Request-Id"),
 		repository,
 		release.Tag,
 		request.AssetName,
@@ -379,7 +379,7 @@ func (client *Client) Download(ctx context.Context, request DownloadRequest) (*D
 
 	result, err := client.streamAsset(response.Body, request.MaxBytes, request.Asset.Digest)
 	if err != nil {
-		return nil, safeError(err, response.StatusCode, response.Header.Get("X-GitHub-Request-Id"), repository, "", request.Asset.Name, nil, retryAt)
+		return nil, safeError(err, response.StatusCode, response.Header.Get("X-Github-Request-Id"), repository, "", request.Asset.Name, nil, retryAt)
 	}
 	return result, nil
 }
@@ -682,7 +682,7 @@ func safeHTTPError(kind error, response *http.Response, repository string, tag s
 	return safeError(
 		kind,
 		response.StatusCode,
-		response.Header.Get("X-GitHub-Request-Id"),
+		response.Header.Get("X-Github-Request-Id"),
 		repository,
 		tag,
 		assetName,

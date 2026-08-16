@@ -403,7 +403,7 @@ func downloadIPGroupSubscription(ctx context.Context, rawURL string) ([]byte, er
 		return nil, err
 	}
 	client := http.Client{Timeout: 15 * time.Second}
-	req, err := http.NewRequestWithContext(ctx, "GET", rawURL, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("下载订阅失败: %w", err)
 	}
