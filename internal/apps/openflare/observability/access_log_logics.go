@@ -175,7 +175,7 @@ type AccessLogIPSummaryList struct {
 	TotalIP   int64                    `json:"total_ip"`
 	Hours     int                      `json:"hours"`
 	Since     time.Time                `json:"since"`
-	Until     time.Time                `json:"until,omitempty"`
+	Until     time.Time                `json:"until,omitzero"`
 	SortBy    string                   `json:"sort_by"`
 	SortOrder string                   `json:"sort_order"`
 }
