@@ -6,6 +6,8 @@ import axe from 'axe-core';
 
 import { LoginPage } from '@/components/auth/login-page';
 import { RegisterPage } from '@/components/auth/register-page';
+import { OTPForm } from '@/components/auth/otp-form';
+import { CapWidget } from '@/components/auth/cap-widget';
 import { UserProvider } from '@/contexts/user-context';
 import zhCN from '@/messages/zh-CN.json';
 
@@ -98,6 +100,32 @@ describe('a11y（axe-core 结构性规则）', () => {
     renderWithProviders(<RegisterPage />);
 
     await screen.findByRole('button', { name: /创建账号|submit/ });
+    expect(await runAxe(document.body)).toEqual([]);
+  });
+
+  it('登录 OTP 验证表单无 axe 违规', async () => {
+    renderWithProviders(
+      <main>
+        <OTPForm
+          code=''
+          setCode={() => {}}
+          loginCodeTip='验证码已发送至邮箱'
+          loginCooldown={0}
+          isPending={false}
+          onResend={() => {}}
+          onSubmit={() => {}}
+        />
+      </main>,
+    );
+
+    await screen.findByRole('button', { name: /重新发送/ });
+    expect(await runAxe(document.body)).toEqual([]);
+  });
+
+  it('人机验证小部件（手动模式）无 axe 违规', async () => {
+    renderWithProviders(<main><CapWidget autoStart={false} onToken={() => {}} /></main>);
+
+    await screen.findByRole('button');
     expect(await runAxe(document.body)).toEqual([]);
   });
 });
