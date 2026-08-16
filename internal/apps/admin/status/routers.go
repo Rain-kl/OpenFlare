@@ -14,6 +14,7 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
+	"strconv"
 	"time"
 
 	"github.com/Rain-kl/Wavelet/internal/infra/config"
@@ -309,7 +310,7 @@ func exportSQLite(c *gin.Context) {
 
 	c.Header("Content-Disposition", `attachment; filename="openflare.db"`)
 	c.Header("Content-Type", "application/octet-stream")
-	c.Header("Content-Length", fmt.Sprintf("%d", fi.Size()))
+	c.Header("Content-Length", strconv.FormatInt(fi.Size(), 10))
 	c.Status(http.StatusOK)
 	http.ServeContent(c.Writer, c.Request, "openflare.db", fi.ModTime(), f)
 }
@@ -328,7 +329,7 @@ func exportPostgres(c *gin.Context) {
 	args := []string{
 		"--no-password",
 		"-h", dbCfg.Host,
-		"-p", fmt.Sprintf("%d", dbCfg.Port),
+		"-p", strconv.Itoa(dbCfg.Port),
 		"-U", dbCfg.Username,
 		dbCfg.Database,
 	}

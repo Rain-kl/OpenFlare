@@ -108,7 +108,7 @@ func updateOptions(ctx context.Context, options []model.OpenFlareOption) error {
 	return nil
 }
 
-func getStatus(ctx context.Context, baseAPIPath string) (*statusView, error) {
+func getStatus(ctx context.Context, baseAPIPath string) *statusView {
 	authSources, err := publicAuthSources(ctx, baseAPIPath)
 	if err != nil {
 		authSources = []publicAuthSourceView{}
@@ -128,7 +128,7 @@ func getStatus(ctx context.Context, baseAPIPath string) (*statusView, error) {
 		PasswordRegisterEnabled: passwordRegisterEnabled,
 		CapLoginEnabled:         capLoginEnabled,
 		AuthSources:             authSources,
-	}, nil
+	}
 }
 
 func publicAuthSources(ctx context.Context, baseAPIPath string) ([]publicAuthSourceView, error) {

@@ -1,3 +1,6 @@
+// Copyright 2026 Arctel.net
+// SPDX-License-Identifier: Apache-2.0
+
 // Package heartbeat sends periodic relay node status to the control plane.
 package heartbeat
 

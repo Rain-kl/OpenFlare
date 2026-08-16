@@ -336,6 +336,7 @@ func newMockOIDCClient(issuer, clientID string, expectedState *string, sub, user
 }
 
 func setupTestDB(t *testing.T) *gorm.DB {
+	t.Helper()
 	repository.ResetSystemConfigRAMCacheForTest()
 	repository.ResetAuthSourceRAMCacheForTest()
 
@@ -380,6 +381,11 @@ func resetOIDCProviderCacheForTest() {
 }
 
 func setupTestRouter(dbConn *gorm.DB, mockRedis *mockRedisClient, mockClient *http.Client) *gin.Engine {
+	// 停止各层 Pub/Sub 监听 goroutine（可能在先前测试的 API 调用中随 sync.Once
+	// 启动），否则它们在 db.Redis 被替换时仍读取旧值，产生数据竞争。
+	StopOauthCacheListener()
+	repository.StopAuthSourceCacheListener()
+	repository.StopSystemConfigCacheListener()
 	resetOIDCProviderCacheForTest()
 
 	r := testhelper.NewTestGinEngine(gin.Recovery())

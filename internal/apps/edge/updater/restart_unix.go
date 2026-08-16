@@ -1,9 +1,13 @@
 //go:build !windows
 
+// Copyright 2026 Arctel.net
+// SPDX-License-Identifier: Apache-2.0
+
 // Package updater provides capabilities to check for, download, and apply updates.
 package updater
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -19,7 +23,7 @@ func replaceAndRestart(execPath string, tmpPath string) error {
 		renameErr := err
 		if err := os.Remove(tmpPath); err != nil && !os.IsNotExist(err) {
 			slog.Error("remove tmp binary failed", "path", tmpPath, "error", err)
-			return fmt.Errorf("backup current binary: %w; remove tmp binary: %v", renameErr, err)
+			return fmt.Errorf("backup current binary: %w; remove tmp binary: %w", renameErr, err)
 		}
 		return fmt.Errorf("backup current binary: %w", renameErr)
 	}
@@ -27,7 +31,7 @@ func replaceAndRestart(execPath string, tmpPath string) error {
 		replaceErr := err
 		if err := os.Rename(backupPath, execPath); err != nil {
 			slog.Error("restore backup binary failed", "path", backupPath, "error", err)
-			return fmt.Errorf("replace binary: %w; restore backup binary: %v", replaceErr, err)
+			return fmt.Errorf("replace binary: %w; restore backup binary: %w", replaceErr, err)
 		}
 		return fmt.Errorf("replace binary: %w", replaceErr)
 	}
@@ -37,7 +41,7 @@ func replaceAndRestart(execPath string, tmpPath string) error {
 	if err := syscall.Exec(execPath, os.Args, os.Environ()); err != nil { //nolint:gosec // execPath is the validated edge updater binary path
 		return fmt.Errorf("exec restart: %w", err)
 	}
-	return fmt.Errorf("unreachable after exec")
+	return errors.New("unreachable after exec")
 }
 
 func removeBackupBinary(path string) error {

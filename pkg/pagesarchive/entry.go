@@ -72,14 +72,14 @@ func copyLimited(dst io.Writer, src io.Reader, maxBytes int64) (int64, error) {
 		return written, err
 	}
 	if written > maxBytes {
-		return written, fmt.Errorf("pages file size out of bounds")
+		return written, errors.New("pages file size out of bounds")
 	}
 	return written, nil
 }
 
 func copyAndVerifySize(dst io.Writer, src io.Reader, declaredSize uint64, maxBytes int64) (int64, error) {
 	if declaredSize > uint64(math.MaxInt64) {
-		return 0, fmt.Errorf("pages file size out of bounds")
+		return 0, errors.New("pages file size out of bounds")
 	}
 	written, err := copyLimited(dst, src, maxBytes)
 	if err != nil {

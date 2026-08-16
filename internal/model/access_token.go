@@ -41,7 +41,7 @@ func GenerateTokenString() (string, error) {
 	if _, err := rand.Read(bytes); err != nil {
 		return "", err
 	}
-	return fmt.Sprintf("at_%s", hex.EncodeToString(bytes)), nil
+	return "at_" + hex.EncodeToString(bytes), nil
 }
 
 // HashToken 计算 Token 的 SHA-256 哈希值用于数据库存储与查询

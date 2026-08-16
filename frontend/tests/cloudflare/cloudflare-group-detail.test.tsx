@@ -10,6 +10,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { CloudflareGroupDetailPageClient } from '@/app/(main)/cloudflare/groups/[id]/page-client';
 import { CloudflareService, NodeService } from '@/lib/services/openflare';
+import { NextIntlClientProvider } from 'next-intl';
+import zhCN from '@/messages/zh-CN.json';
 
 vi.mock('next/navigation', () => ({
   useParams: () => ({ id: '7' }),
@@ -39,9 +41,11 @@ function renderPage() {
     defaultOptions: { queries: { retry: false, gcTime: 0 } },
   });
   render(
-    <QueryClientProvider client={client}>
-      <CloudflareGroupDetailPageClient />
-    </QueryClientProvider>,
+    <NextIntlClientProvider locale='zh-CN' messages={zhCN} timeZone='Asia/Shanghai'>
+      <QueryClientProvider client={client}>
+        <CloudflareGroupDetailPageClient />
+      </QueryClientProvider>
+    </NextIntlClientProvider>,
   );
 }
 

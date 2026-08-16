@@ -154,10 +154,8 @@ func (h *SourceActionHandler) Execute(ctx context.Context, payload []byte) (*tas
 	if source.SourceType != PagesSourceTypeRemoteURL && source.SourceType != PagesSourceTypeGitHubRelease {
 		return nil, task.PermanentError(errPagesSourceTypeUnsupported)
 	}
-	if source.SourceType == PagesSourceTypeRemoteURL && (input.TargetRevision != "" || input.ConfirmedRevision != "") {
-		return nil, task.PermanentError(errPagesSourceActionInvalid)
-	}
-	if input.Action == sourceActionCheck && (input.TargetRevision != "" || input.ConfirmedRevision != "") {
+	if (source.SourceType == PagesSourceTypeRemoteURL || input.Action == sourceActionCheck) &&
+		(input.TargetRevision != "" || input.ConfirmedRevision != "") {
 		return nil, task.PermanentError(errPagesSourceActionInvalid)
 	}
 
@@ -174,6 +172,8 @@ func (h *SourceActionHandler) Execute(ctx context.Context, payload []byte) (*tas
 	case sourceLeaseStale:
 		task.AppendLog(ctx, "[resolve] 来源配置或执行权已变化，本次任务跳过")
 		return &task.TaskResult{Message: errPagesSourceActionStale}, nil
+	case sourceLeaseAcquired:
+		// 已获取执行权，继续执行。
 	}
 
 	if input.Action == sourceActionCheck {

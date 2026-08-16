@@ -32,6 +32,7 @@ const (
 // SetupTestEnvironment initializes an in-memory SQLite DB, seeds default configurations,
 // starts miniredis, and overrides the global db/Redis clients. It returns a cleanup function.
 func SetupTestEnvironment(t *testing.T) (*gorm.DB, *miniredis.Miniredis, func()) {
+	t.Helper()
 	// Initialize GORM in-memory SQLite
 	sqliteDB, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{
 		DisableForeignKeyConstraintWhenMigrating: true,
@@ -332,6 +333,7 @@ func getSeedConfigsPart2() []model.SystemConfig {
 }
 
 func seedDefaultConfigs(t *testing.T, tx *gorm.DB) {
+	t.Helper()
 	defaultConfigs := append(getSeedConfigsPart1(), getSeedConfigsPart2()...)
 
 	if err := tx.Create(&defaultConfigs).Error; err != nil {

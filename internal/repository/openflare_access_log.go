@@ -418,14 +418,8 @@ func openFlareAccessLogPaginateBounds(total int, page int, pageSize int) (int, i
 	if pageSize <= 0 {
 		return 0, total
 	}
-	start := page * pageSize
-	if start > total {
-		start = total
-	}
-	end := start + pageSize
-	if end > total {
-		end = total
-	}
+	start := min(page*pageSize, total)
+	end := min(start+pageSize, total)
 	return start, end
 }
 

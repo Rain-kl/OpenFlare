@@ -117,7 +117,7 @@ func TestHeartbeatPayloadBindingAndFrpsObservationInsert(t *testing.T) {
 	snapshots, err := repository.ListOpenFlareMetricSnapshotsSince(ctx, node.NodeID, now.Add(-time.Minute), 10)
 	require.NoError(t, err)
 	require.Len(t, snapshots, 1)
-	assert.Equal(t, 12.5, snapshots[0].CPUUsagePercent)
+	assert.InDelta(t, 12.5, snapshots[0].CPUUsagePercent, 1e-9)
 
 	frpsObs, err := repository.ListOpenFlareNodeObservationFrps(ctx, node.NodeID, time.Time{}, 1)
 	require.NoError(t, err)

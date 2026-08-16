@@ -1,3 +1,6 @@
+// Copyright 2026 Arctel.net
+// SPDX-License-Identifier: Apache-2.0
+
 // Package geoipupdate schedules local MaxMind GeoIP database updates for the agent.
 package geoipupdate
 

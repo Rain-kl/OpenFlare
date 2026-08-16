@@ -1,7 +1,8 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { NextIntlClientProvider } from 'next-intl';
+import zhCN from '@/messages/zh-CN.json';
 import type { AxiosResponse } from 'axios';
-import { createElement } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import WafPage from '@/app/(main)/waf/page';
@@ -156,7 +157,11 @@ describe('WAF rule creation flow', () => {
       defaultOptions: { queries: { retry: false, gcTime: 0 } },
     });
     render(
-      createElement(QueryClientProvider, { client }, createElement(WafPage)),
+      <NextIntlClientProvider locale='zh-CN' messages={zhCN} timeZone='Asia/Shanghai'>
+        <QueryClientProvider client={client}>
+          <WafPage />
+        </QueryClientProvider>
+      </NextIntlClientProvider>,
     );
 
     fireEvent.click(await screen.findByRole('button', { name: '新建规则' }));

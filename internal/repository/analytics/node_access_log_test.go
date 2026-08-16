@@ -50,8 +50,8 @@ func TestBatchInsertNodeAccessLogs_UsesModelBatchSQL(t *testing.T) {
 	require.Len(t, mockBatch.rows, 1)
 	assert.Equal(t, "node-a", mockBatch.rows[0][1])
 	require.Len(t, mockBatch.rows[0], 14)
-	assert.Equal(t, "", mockBatch.rows[0][7])            // user_agent
-	assert.Equal(t, "", mockBatch.rows[0][8])            // cache_status
+	assert.Empty(t, mockBatch.rows[0][7])                // user_agent
+	assert.Empty(t, mockBatch.rows[0][8])                // cache_status
 	assert.Equal(t, uint64(2048), mockBatch.rows[0][10]) // bytes_sent
 	assert.Equal(t, uint64(0), mockBatch.rows[0][11])    // request_length
 	assert.Equal(t, uint32(0), mockBatch.rows[0][12])    // request_time_ms

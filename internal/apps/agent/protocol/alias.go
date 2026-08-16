@@ -1,3 +1,6 @@
+// Copyright 2026 Arctel.net
+// SPDX-License-Identifier: Apache-2.0
+
 // Package protocol defines type aliases and constants for the agent protocol.
 package protocol
 

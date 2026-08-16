@@ -1,3 +1,6 @@
+// Copyright 2026 Arctel.net
+// SPDX-License-Identifier: Apache-2.0
+
 package frps
 
 import (
@@ -7,7 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"sync/atomic"
+	"syscall"
 	"testing"
 	"time"
 
@@ -16,6 +19,7 @@ import (
 
 // Helper to write control file for the dummy script
 func writeControl(t *testing.T, dir string, exitCode int, delaySeconds int) {
+	t.Helper()
 	controlPath := filepath.Join(dir, "control.txt")
 	content := fmt.Sprintf("%d %d\n", exitCode, delaySeconds)
 	err := os.WriteFile(controlPath, []byte(content), 0644)
@@ -26,6 +30,7 @@ func writeControl(t *testing.T, dir string, exitCode int, delaySeconds int) {
 
 // Setup a dummy executable script that reads control.txt to decide exit code and sleep duration
 func setupDummyScript(t *testing.T) (string, string) {
+	t.Helper()
 	dir := t.TempDir()
 	scriptPath := filepath.Join(dir, "dummy_frps")
 
@@ -53,6 +58,7 @@ exit "${EXIT_CODE:-0}"
 
 // Helper to poll for status to eliminate timing flakiness in tests
 func assertStatusEventually(t *testing.T, m *Manager, expectedStatus string, timeout time.Duration) {
+	t.Helper()
 	if timeout < 6*time.Second {
 		timeout = 6 * time.Second
 	}
@@ -304,17 +310,17 @@ func TestSupervisorGenerationInterrupt(t *testing.T) {
 		t.Error("expected old process killed and new command started")
 	}
 
-	// Verify old process is actually killed
-	var cmd1Finished int32
-	go func() {
-		_ = cmd1.Wait()
-		atomic.StoreInt32(&cmd1Finished, 1)
-	}()
-
-	time.Sleep(200 * time.Millisecond)
-	if atomic.LoadInt32(&cmd1Finished) != 1 {
-		t.Error("expected first process to be killed")
+	// Verify old process is actually killed：不要对受管 Cmd 调用 Wait（旧 supervise
+	// goroutine 拥有 Wait 权，并发 Wait 会与 os/exec 内部状态竞争），改为探测
+	// 进程是否已被收割（Signal(0) 在 Wait 后即报错）。
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		if err := cmd1.Process.Signal(syscall.Signal(0)); err != nil {
+			return
+		}
+		time.Sleep(20 * time.Millisecond)
 	}
+	t.Error("expected first process to be killed")
 }
 
 func TestUpdateConfigKillsOrphanProcessBeforeRestart(t *testing.T) {

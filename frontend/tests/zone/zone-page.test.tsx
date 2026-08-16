@@ -8,6 +8,8 @@ import {
   TlsCertificateService,
   ZoneService,
 } from '@/lib/services/openflare';
+import { NextIntlClientProvider } from 'next-intl';
+import zhCN from '@/messages/zh-CN.json';
 
 class ResizeObserverMock {
   observe() {}
@@ -68,9 +70,11 @@ function renderPage(zoneId: number, paramZoneId = zoneId) {
     },
   });
   return render(
-    <QueryClientProvider client={client}>
-      <ZonePageClient />
-    </QueryClientProvider>,
+    <NextIntlClientProvider locale='zh-CN' messages={zhCN} timeZone='Asia/Shanghai'>
+      <QueryClientProvider client={client}>
+        <ZonePageClient />
+      </QueryClientProvider>
+    </NextIntlClientProvider>,
   );
 }
 
@@ -113,7 +117,7 @@ describe('ZonePageClient', () => {
     expect(
       await screen.findByRole('heading', { name: 'example.com' }),
     ).toBeVisible();
-    expect(await screen.findByText('唯一访问者')).toBeVisible();
+    expect(await screen.findByText('查询窗口独立访客')).toBeVisible();
     expect(screen.getByText('请求总数')).toBeVisible();
     expect(screen.getByText('已提供的数据总计')).toBeVisible();
     expect(screen.getByRole('tab', { name: '域名 (0)' })).toBeVisible();

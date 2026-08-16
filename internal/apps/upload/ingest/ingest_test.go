@@ -513,6 +513,7 @@ func loadTotalStats(ctx context.Context) (totalStatsSnapshot, error) {
 }
 
 func setupMockStorage(t *testing.T, putCount *int) (restore func(), disable func()) {
+	t.Helper()
 	return setupMockStorageWithDeleteCount(t, putCount, nil)
 }
 

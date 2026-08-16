@@ -266,6 +266,8 @@ func scanOneDueGitHubSource(
 	case sourceLeaseStale:
 		summary.StaleSources++
 		return
+	case sourceLeaseAcquired:
+		// 获取执行权成功，继续执行扫描。
 	}
 	if snapshot == nil || snapshot.SourceType != PagesSourceTypeGitHubRelease ||
 		snapshot.ReleaseSelector != githubReleaseSelectorLatest {

@@ -5,7 +5,6 @@ package tls
 
 import (
 	"context"
-	"strings"
 	"testing"
 	"time"
 
@@ -51,10 +50,19 @@ func TestApplyCertificateReturnsApplying(t *testing.T) {
 	})
 	require.NoError(t, err)
 
+	obtainDone := make(chan struct{})
 	restore := SetObtainCertificateFuncForTest(func(ctx context.Context, cert *model.TLSCertificate) error {
+		defer close(obtainDone)
 		return updateCertError(ctx, cert, "dns challenge failed")
 	})
-	defer restore()
+	defer func() {
+		select {
+		case <-obtainDone:
+		case <-time.After(2 * time.Second):
+			t.Fatal("async certificate obtain did not finish")
+		}
+		restore()
+	}()
 
 	cert, err := ApplyCertificate(ctx, ApplyInput{
 		Name:          "Test ACME Cert",
@@ -126,7 +134,7 @@ func TestConvertCertificateToACMEPreservesUploadOnFailure(t *testing.T) {
 	assert.Equal(t, "error", finalCert.ApplyStatus)
 	assert.Equal(t, originalStoredCertPEM, finalCert.CertPEM)
 	assert.Equal(t, originalStoredKeyPEM, finalCert.KeyPEM)
-	assert.True(t, strings.Contains(finalCert.ApplyMessage, "dns challenge failed"))
+	assert.Contains(t, finalCert.ApplyMessage, "dns challenge failed")
 }
 
 func TestConvertCertificateToACMERejectsInvalidStates(t *testing.T) {

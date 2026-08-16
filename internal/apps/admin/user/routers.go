@@ -7,6 +7,7 @@ package user
 import (
 	"errors"
 	"net/http"
+	"slices"
 	"strconv"
 	"time"
 
@@ -93,17 +94,13 @@ func abortUserLogicError(c *gin.Context, err error, notFoundMsg string, forbidde
 		return true
 	}
 	msg := err.Error()
-	for _, m := range badRequestMsgs {
-		if msg == m {
-			response.AbortBadRequest(c, msg)
-			return true
-		}
+	if slices.Contains(badRequestMsgs, msg) {
+		response.AbortBadRequest(c, msg)
+		return true
 	}
-	for _, m := range forbiddenMsgs {
-		if msg == m {
-			response.AbortForbidden(c, msg)
-			return true
-		}
+	if slices.Contains(forbiddenMsgs, msg) {
+		response.AbortForbidden(c, msg)
+		return true
 	}
 	logger.ErrorF(c.Request.Context(), "Admin user error: %v", err)
 	response.AbortInternal(c, "内部服务器错误")

@@ -17,6 +17,8 @@ import {
   type PagesRemoteURLSource,
   PagesService,
 } from '@/lib/services/openflare';
+import { NextIntlClientProvider } from 'next-intl';
+import zhCN from '@/messages/zh-CN.json';
 
 vi.mock('@/lib/services/openflare', async (importOriginal) => {
   const actual =
@@ -56,7 +58,9 @@ function renderWithQuery(ui: React.ReactNode) {
     },
   });
   return render(
-    <QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>,
+    <NextIntlClientProvider locale='zh-CN' messages={zhCN} timeZone='Asia/Shanghai'>
+      <QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>
+    </NextIntlClientProvider>,
   );
 }
 
@@ -390,7 +394,7 @@ describe('Pages source UI', () => {
     expect(screen.getByText('下次检查')).toBeVisible();
     expect(screen.getByText('自动更新')).toBeVisible();
     expect(screen.getByText('已关闭')).toBeVisible();
-    expect(screen.getByText('检查间隔')).toBeVisible();
+    expect(screen.getByText('检查间隔（分钟）')).toBeVisible();
     expect(screen.getByText('1440 分钟')).toBeVisible();
   });
 

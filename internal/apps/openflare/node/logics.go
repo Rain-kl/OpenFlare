@@ -361,7 +361,7 @@ func RequestForceSync(ctx context.Context, id uint) (*View, error) {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, fmt.Errorf("无法获取当前激活的配置版本：%s", errNoActiveConfigVersion)
 		}
-		return nil, fmt.Errorf("无法获取当前激活的配置版本：%v", err)
+		return nil, fmt.Errorf("无法获取当前激活的配置版本：%w", err)
 	}
 	if !ofws.SendForceSyncConfig(node.NodeID, forceSyncConfigPayload{
 		Version:  activeConfig.Version,
@@ -414,14 +414,14 @@ type forceSyncConfigPayload struct {
 func ValidateDiscoveryToken(ctx context.Context, token string) error {
 	token = strings.TrimSpace(token)
 	if token == "" {
-		return fmt.Errorf("缺少 Discovery Token")
+		return errors.New("缺少 Discovery Token")
 	}
 	discoveryToken, err := ensureGlobalDiscoveryToken(ctx)
 	if err != nil {
 		return err
 	}
 	if token != discoveryToken {
-		return fmt.Errorf("discovery Token 无效") // error 消息首字母小写
+		return errors.New("discovery Token 无效") // error 消息首字母小写
 	}
 	return nil
 }

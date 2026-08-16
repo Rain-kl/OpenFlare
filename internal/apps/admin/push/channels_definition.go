@@ -3,6 +3,8 @@
 
 package push
 
+import "slices"
+
 import "sync"
 
 const (
@@ -66,13 +68,7 @@ func ListDefinitions() []Definition {
 	}
 	// Add any others
 	for t, d := range definitions {
-		found := false
-		for _, o := range order {
-			if o == t {
-				found = true
-				break
-			}
-		}
+		found := slices.Contains(order, t)
 		if !found {
 			res = append(res, d)
 		}

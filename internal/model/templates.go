@@ -26,7 +26,7 @@ type Template struct {
 }
 
 // TableName 表名
-func (Template) TableName() string {
+func (*Template) TableName() string {
 	return "w_templates"
 }
 

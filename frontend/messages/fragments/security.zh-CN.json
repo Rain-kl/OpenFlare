@@ -499,7 +499,7 @@
       "switchFailed": "切换失败",
       "urlRequired": "请输入 Remote URL",
       "urlInvalid": "请输入有效的 HTTP(S) URL",
-      "githubUrlInvalid": "请输入 https://github.com/{owner}/{repo} 格式的公开仓库地址",
+      "githubUrlInvalid": "请输入 https://github.com/'{owner}'/'{repo}' 格式的公开仓库地址",
       "tagInvalid": "Release tag 须为有效 Git ref（1–255 字节，可使用 /、#、&、=）",
       "assetInvalid": "Asset 文件名须为 1–255 字节，且不能是路径或包含控制、换行、双向文本字符",
       "intervalInvalid": "检查间隔须为 5–1440 分钟的整数",

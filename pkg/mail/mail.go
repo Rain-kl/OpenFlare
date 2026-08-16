@@ -55,21 +55,21 @@ func SendMailHTML(ctx context.Context, cfg Config, to string, subject, body stri
 	header["MIME-Version"] = "1.0"
 	header["Content-Type"] = "text/html; charset=UTF-8"
 
-	message := ""
+	var message strings.Builder
 	for k, v := range header {
-		message += fmt.Sprintf("%s: %s\r\n", k, v)
+		fmt.Fprintf(&message, "%s: %s\r\n", k, v)
 	}
-	message += "\r\n" + body
+	message.WriteString("\r\n" + body)
 
 	auth := smtp.PlainAuth("", cfg.Username, cfg.Password, cfg.Host)
 
 	// If using SSL port 465, we connection via TLS dial
 	if cfg.Port == smtpSSLPort {
-		return sendMailViaSSL(ctx, addr, auth, cfg, to, message)
+		return sendMailViaSSL(ctx, addr, auth, cfg, to, message.String())
 	}
 
 	// For standard port (587 / 25), use smtp.SendMail directly (handles STARTTLS automatically if server supports it)
-	err := smtp.SendMail(addr, auth, cfg.Username, []string{to}, []byte(message))
+	err := smtp.SendMail(addr, auth, cfg.Username, []string{to}, []byte(message.String()))
 	if err != nil {
 		return fmt.Errorf(errSendMailFailed, err)
 	}
@@ -127,7 +127,7 @@ func sendMailViaSSL(ctx context.Context, addr string, auth smtp.Auth, cfg Config
 // SendMailWithLog sends a test email and records a detailed SMTP connection log
 func SendMailWithLog(ctx context.Context, cfg Config, to string, subject, body string) (string, error) {
 	var logBuf bytes.Buffer
-	logLine := func(dir string, format string, args ...interface{}) {
+	logLine := func(dir string, format string, args ...any) {
 		fmt.Fprintf(&logBuf, "[%s] %s\n", dir, fmt.Sprintf(format, args...))
 	}
 
@@ -227,14 +227,14 @@ func SendMailWithLog(ctx context.Context, cfg Config, to string, subject, body s
 	header["MIME-Version"] = "1.0"
 	header["Content-Type"] = "text/html; charset=UTF-8"
 
-	message := ""
+	var message strings.Builder
 	for k, v := range header {
-		message += fmt.Sprintf("%s: %s\r\n", k, v)
+		fmt.Fprintf(&message, "%s: %s\r\n", k, v)
 	}
-	message += "\r\n" + body
+	message.WriteString("\r\n" + body)
 
 	logLine("System", "Sending message body...")
-	if _, err = w.Write([]byte(message)); err != nil {
+	if _, err = w.Write([]byte(message.String())); err != nil {
 		_ = w.Close()
 		logLine("Error", "Writing message body failed: %v", err)
 		return logBuf.String(), err

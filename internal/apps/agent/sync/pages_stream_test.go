@@ -238,10 +238,7 @@ func TestPromoteSameHashReleaseFailureRestoresPreviousCurrent(t *testing.T) {
 	if err := switchPagesProjectCurrentDir(pagesDir, projectID, releaseDir); err != nil {
 		t.Fatalf("seed same-hash current error = %v", err)
 	}
-	stagingDir, err := os.MkdirTemp(filepath.Dir(releaseDir), ".same-hash-*.tmp")
-	if err != nil {
-		t.Fatalf("create same-hash staging error = %v", err)
-	}
+	stagingDir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(stagingDir, "index.html"), []byte("new"), pagesFilePerm); err != nil {
 		t.Fatalf("write repaired same-hash release error = %v", err)
 	}
@@ -249,7 +246,7 @@ func TestPromoteSameHashReleaseFailureRestoresPreviousCurrent(t *testing.T) {
 		t.Fatalf("write repaired same-hash marker error = %v", err)
 	}
 	copyErr := errors.New("injected same-hash copy failure")
-	err = promotePagesReleaseWithCopy(
+	err := promotePagesReleaseWithCopy(
 		stagingDir,
 		releaseDir,
 		project,
@@ -298,10 +295,7 @@ func TestPromotePagesReleaseRepairsDanglingCurrent(t *testing.T) {
 	}
 
 	requireTestMkdirAll(t, filepath.Dir(releaseDir))
-	stagingDir, err := os.MkdirTemp(filepath.Dir(releaseDir), ".dangling-*.tmp")
-	if err != nil {
-		t.Fatalf("create dangling repair staging error = %v", err)
-	}
+	stagingDir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(stagingDir, "index.html"), []byte("repaired"), pagesFilePerm); err != nil {
 		t.Fatalf("write dangling repair staging error = %v", err)
 	}

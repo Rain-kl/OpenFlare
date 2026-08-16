@@ -24,7 +24,7 @@ type PushEvent struct {
 }
 
 // TableName 指定 GORM 表名
-func (PushEvent) TableName() string {
+func (*PushEvent) TableName() string {
 	return "w_push_events"
 }
 

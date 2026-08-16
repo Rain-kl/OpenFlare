@@ -1,3 +1,6 @@
+// Copyright 2026 Arctel.net
+// SPDX-License-Identifier: Apache-2.0
+
 package sync
 
 import (
@@ -220,6 +223,9 @@ func updateSnapshotFromApplyOutcome(mode string, snapshot *state.Snapshot, confi
 		snapshot.OpenrestyStatus = protocol.OpenrestyStatusHealthy
 		snapshot.OpenrestyMessage = result.message
 		result.reportResult = ApplyResultWarning
+	case nginx.ApplyStatusFatal:
+		// 致命错误与普通失败同走失败路径：标记阻塞并上报 Unhealthy。
+		fallthrough
 	default:
 		if result.message == "" {
 			result.message = "openresty apply failed"

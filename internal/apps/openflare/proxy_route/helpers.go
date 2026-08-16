@@ -86,8 +86,8 @@ func validateOriginAddress(address string) error {
 	if len(address) > maxOriginHostnameLength {
 		return errors.New(errProxyRouteOriginInvalid)
 	}
-	labels := strings.Split(address, ".")
-	for _, label := range labels {
+	labels := strings.SplitSeq(address, ".")
+	for label := range labels {
 		if len(label) == 0 || len(label) > 63 {
 			return errors.New(errProxyRouteOriginInvalid)
 		}
@@ -167,8 +167,8 @@ func buildOriginURLFromParts(scheme, address, port, uri string) (string, error) 
 		Host:   formatOriginHost(normalizedAddress, normalizedPort),
 	}
 	if normalizedURI != "" {
-		if strings.HasPrefix(normalizedURI, "?") {
-			parsed.RawQuery = strings.TrimPrefix(normalizedURI, "?")
+		if after, ok := strings.CutPrefix(normalizedURI, "?"); ok {
+			parsed.RawQuery = after
 		} else {
 			pathQuery := strings.SplitN(normalizedURI, "?", originURIPathQueryParts)
 			parsed.Path = pathQuery[0]

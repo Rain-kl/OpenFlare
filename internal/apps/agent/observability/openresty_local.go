@@ -1,3 +1,6 @@
+// Copyright 2026 Arctel.net
+// SPDX-License-Identifier: Apache-2.0
+
 package observability
 
 import (
@@ -62,7 +65,7 @@ func CollectEdgeHealth(ctx context.Context, cfg *config.Config) *EdgeHealthSnaps
 }
 
 func fetchLocalJSON(ctx context.Context, client *http.Client, url string, target any) error {
-	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return err
 	}

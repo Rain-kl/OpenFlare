@@ -9,7 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"path"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -611,7 +611,7 @@ func lockSourceDeploymentUploadsTx(
 	if hasIngest && ingestResult.Upload.ID != 0 && ingestResult.Upload.ID != target.UploadID {
 		uploadIDs = append(uploadIDs, ingestResult.Upload.ID)
 	}
-	sort.Slice(uploadIDs, func(i, j int) bool { return uploadIDs[i] < uploadIDs[j] })
+	slices.Sort(uploadIDs)
 	var records []model.Upload
 	if err := tx.Clauses(clause.Locking{Strength: pagesRowLockStrength}).
 		Where("id IN ?", uploadIDs).

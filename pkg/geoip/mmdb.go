@@ -1,7 +1,11 @@
+// Copyright 2026 Arctel.net
+// SPDX-License-Identifier: Apache-2.0
+
 package geoip
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -96,10 +100,10 @@ func (s *MaxMindGeoIPService) GetGeoInfo(ip net.IP) (*GeoInfo, error) {
 	defer s.mu.RUnlock()
 
 	if s.maxMindDBReader == nil {
-		return nil, fmt.Errorf("MaxMind database is not initialized or failed to open")
+		return nil, errors.New("MaxMind database is not initialized or failed to open")
 	}
 	if ip == nil {
-		return nil, fmt.Errorf("IP address cannot be nil")
+		return nil, errors.New("IP address cannot be nil")
 	}
 
 	var record Record

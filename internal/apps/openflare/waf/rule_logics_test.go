@@ -7,7 +7,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -63,12 +62,14 @@ func TestRuleHandlersMapFailures(t *testing.T) {
 		{name: "invalid id", method: http.MethodGet, path: "/rules/nope", setup: setupWAFTestDB, want: http.StatusBadRequest},
 		{name: "malformed json", method: http.MethodPost, path: "/rules", body: `{`, setup: setupWAFTestDB, want: http.StatusBadRequest},
 		{name: "invalid graph", method: http.MethodPost, path: "/rules/1/graph", body: `{"revision":1,"graph":{"schema_version":1,"nodes":[],"edges":[]}}`, setup: func(t *testing.T) func() {
+			t.Helper()
 			cleanup := setupWAFTestDB(t)
 			_, err := CreateRule(context.Background(), CreateRuleInput{Name: "one"})
 			require.NoError(t, err)
 			return cleanup
 		}, want: http.StatusBadRequest},
 		{name: "manual IP group sync", method: http.MethodPost, path: "/ip-groups/1/sync", setup: func(t *testing.T) func() {
+			t.Helper()
 			cleanup := setupWAFTestDB(t)
 			_, err := CreateIPGroup(context.Background(), IPGroupInput{Name: "manual", Type: wafIPGroupTypeManual, Enabled: true})
 			require.NoError(t, err)
@@ -76,12 +77,13 @@ func TestRuleHandlersMapFailures(t *testing.T) {
 		}, want: http.StatusBadRequest},
 		{name: "missing", method: http.MethodGet, path: "/rules/999", setup: setupWAFTestDB, want: http.StatusNotFound},
 		{name: "conflict", method: http.MethodPost, path: "/rules/1/graph", body: mustGraphRequest(t, 0), setup: func(t *testing.T) func() {
+			t.Helper()
 			cleanup := setupWAFTestDB(t)
 			_, err := CreateRule(context.Background(), CreateRuleInput{Name: "one"})
 			require.NoError(t, err)
 			return cleanup
 		}, want: http.StatusConflict},
-		{name: "database failure", method: http.MethodGet, path: "/rules", setup: func(t *testing.T) func() { db.SetDB(nil); return func() {} }, want: http.StatusInternalServerError},
+		{name: "database failure", method: http.MethodGet, path: "/rules", setup: func(t *testing.T) func() { t.Helper(); db.SetDB(nil); return func() {} }, want: http.StatusInternalServerError},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -171,7 +173,7 @@ func TestReplaceSiteRuleGroupsPreservesOrderAndRejectsGlobal(t *testing.T) {
 	require.NoError(t, err)
 	_, err = ReplaceSiteRuleGroups(ctx, 7, []uint{global.ID, second.ID})
 	require.Error(t, err)
-	assert.False(t, errors.Is(err, model.ErrWAFRuleRevisionConflict))
+	require.NotErrorIs(t, err, model.ErrWAFRuleRevisionConflict)
 	assert.Equal(t, []uint{third.ID, first.ID, second.ID}, mustListSiteRuleGroupIDs(t, ctx, 7))
 }
 

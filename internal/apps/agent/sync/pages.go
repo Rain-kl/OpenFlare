@@ -15,6 +15,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/Rain-kl/Wavelet/internal/apps/agent/protocol"
@@ -198,7 +199,7 @@ func (s *Service) ensurePagesProject(ctx context.Context, snapshot *state.Snapsh
 	}
 
 	var lastErr error
-	for attempt := 0; attempt < pagesLatestPullAttempts; attempt++ {
+	for attempt := range pagesLatestPullAttempts {
 		latest, err := s.client.GetPagesProjectLatestHash(ctx, projectID)
 		if err != nil {
 			return fmt.Errorf("fetch Pages project %d latest hash: %w", projectID, err)
@@ -359,10 +360,7 @@ func validatePagesPackageMetadata(
 	if extractedBytes == 0 {
 		extractedBytes = 1
 	}
-	maxFileBytes := extractedBytes
-	if maxFileBytes > agentPagesMaxFileBytes {
-		maxFileBytes = agentPagesMaxFileBytes
-	}
+	maxFileBytes := min(extractedBytes, agentPagesMaxFileBytes)
 
 	return pagesPackageLimits{
 		PackageBytes: metadata.PackageSize,
@@ -395,7 +393,7 @@ func (s *Service) downloadPagesProjectPackage(
 	metadata *protocol.PagesProjectLatestHashResponse,
 	maxBytes int64,
 ) (packagePath string, hash string, err error) {
-	releasesRoot := filepath.Join(s.pagesDir, "projects", fmt.Sprintf("%d", projectID), "releases")
+	releasesRoot := filepath.Join(s.pagesDir, "projects", strconv.FormatUint(uint64(projectID), 10), "releases")
 	if err := os.MkdirAll(releasesRoot, pagesDirPerm); err != nil {
 		return "", "", err
 	}
@@ -444,7 +442,7 @@ func cleanupPagesProjectStaleReleases(baseDir string, projectID uint, keepHash s
 	if projectID == 0 || keepHash == "" {
 		return nil
 	}
-	releasesRoot := filepath.Join(baseDir, "projects", fmt.Sprintf("%d", projectID), "releases")
+	releasesRoot := filepath.Join(baseDir, "projects", strconv.FormatUint(uint64(projectID), 10), "releases")
 	entries, err := os.ReadDir(releasesRoot) //nolint:gosec // managed PagesDir
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -985,9 +983,9 @@ func writePagesMarker(dir string, project pagesProjectRef) error {
 }
 
 func pagesProjectCurrentDir(baseDir string, projectID uint) string {
-	return filepath.Join(baseDir, "projects", fmt.Sprintf("%d", projectID), "current")
+	return filepath.Join(baseDir, "projects", strconv.FormatUint(uint64(projectID), 10), "current")
 }
 
 func pagesProjectReleaseDir(baseDir string, projectID uint, checksum string) string {
-	return filepath.Join(baseDir, "projects", fmt.Sprintf("%d", projectID), "releases", checksum)
+	return filepath.Join(baseDir, "projects", strconv.FormatUint(uint64(projectID), 10), "releases", checksum)
 }

@@ -1,8 +1,12 @@
+// Copyright 2026 Arctel.net
+// SPDX-License-Identifier: Apache-2.0
+
 // Command agent runs the OpenFlare edge agent daemon.
 package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"log/slog"
 	"os"
@@ -132,7 +136,7 @@ func main() {
 	go geoIPUpdater.Run(ctx)
 	slog.Info("agent process started")
 
-	if err = runner.Run(ctx); err != nil && err != context.Canceled {
+	if err = runner.Run(ctx); err != nil && !errors.Is(err, context.Canceled) {
 		slog.Error("agent process exited with error", "error", err)
 		stop()
 		os.Exit(1)

@@ -5,6 +5,7 @@ package analytics
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
@@ -17,7 +18,7 @@ func BatchInsert(ctx context.Context, logs []analyticsmodel.UserAccessLog) error
 		return nil
 	}
 	if db.ChConn == nil {
-		return fmt.Errorf("clickhouse connection is not initialized")
+		return errors.New("clickhouse connection is not initialized")
 	}
 
 	batch, err := db.ChConn.PrepareBatch(ctx, analyticsmodel.UserAccessLog{}.BatchInsertSQL())

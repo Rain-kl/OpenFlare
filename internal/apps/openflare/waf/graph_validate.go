@@ -12,6 +12,7 @@ import (
 	"io"
 	"net/netip"
 	"regexp"
+	"slices"
 	"strings"
 )
 
@@ -67,7 +68,7 @@ func validateRuleGraphLimits(graph RuleGraph) error {
 	if raw, err := json.Marshal(graph); err != nil {
 		return fmt.Errorf("规则图无法序列化: %w", err)
 	} else if len(raw) > maxRuleGraphBytes {
-		return fmt.Errorf("规则图大小不能超过 256 KiB")
+		return errors.New("规则图大小不能超过 256 KiB")
 	}
 	return nil
 }
@@ -374,12 +375,7 @@ func decodeStrictConfig(raw json.RawMessage, dst any) error {
 }
 
 func validSourceHandle(t RuleNodeType, handle string) bool {
-	for _, expected := range requiredHandles(t) {
-		if handle == expected {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(requiredHandles(t), handle)
 }
 func requiredHandles(t RuleNodeType) []string {
 	switch t {
@@ -387,6 +383,8 @@ func requiredHandles(t RuleNodeType) []string {
 		return []string{"next"}
 	case RuleNodeIPMatch, RuleNodeGeoMatch, RuleNodeUACheck, RuleNodeSecurityCheck:
 		return []string{"true", "false"}
+	case RuleNodeAllow, RuleNodeBlock:
+		return nil
 	default:
 		return nil
 	}

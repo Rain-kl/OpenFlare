@@ -46,6 +46,7 @@ func registerInternalOnlyTaskMeta() {
 }
 
 func setupTaskTestEnvironment(t *testing.T) func() {
+	t.Helper()
 	_, mr, cleanup := testhelper.SetupTestEnvironment(t)
 	bootstrap.RegisterTasks()
 	task.AsynqClient = asynq.NewClient(asynq.RedisClientOpt{
@@ -490,7 +491,7 @@ func TestListTaskExecutions(t *testing.T) {
 		var data map[string]interface{}
 		json.Unmarshal(dataBytes, &data)
 
-		assert.Equal(t, float64(3), data["total"])
+		assert.InDelta(t, float64(3), data["total"], 1e-9)
 	})
 
 	t.Run("filter by status", func(t *testing.T) {
@@ -507,7 +508,7 @@ func TestListTaskExecutions(t *testing.T) {
 		var data map[string]interface{}
 		json.Unmarshal(dataBytes, &data)
 
-		assert.Equal(t, float64(1), data["total"])
+		assert.InDelta(t, float64(1), data["total"], 1e-9)
 	})
 
 	t.Run("filter by task_type (asynq task name)", func(t *testing.T) {
@@ -524,7 +525,7 @@ func TestListTaskExecutions(t *testing.T) {
 		var data map[string]interface{}
 		json.Unmarshal(dataBytes, &data)
 
-		assert.Equal(t, float64(3), data["total"])
+		assert.InDelta(t, float64(3), data["total"], 1e-9)
 	})
 
 	t.Run("filter by task_type (management task type)", func(t *testing.T) {
@@ -541,7 +542,7 @@ func TestListTaskExecutions(t *testing.T) {
 		var data map[string]interface{}
 		json.Unmarshal(dataBytes, &data)
 
-		assert.Equal(t, float64(3), data["total"])
+		assert.InDelta(t, float64(3), data["total"], 1e-9)
 	})
 
 	t.Run("pagination", func(t *testing.T) {
@@ -558,7 +559,7 @@ func TestListTaskExecutions(t *testing.T) {
 		var data map[string]interface{}
 		json.Unmarshal(dataBytes, &data)
 
-		assert.Equal(t, float64(3), data["total"])
+		assert.InDelta(t, float64(3), data["total"], 1e-9)
 	})
 }
 

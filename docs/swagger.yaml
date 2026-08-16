@@ -645,7 +645,7 @@ definitions:
         type: integer
       results:
         items:
-          additionalProperties: true
+          additionalProperties: {}
           type: object
         type: array
       type:
@@ -2514,6 +2514,12 @@ definitions:
       error_count:
         type: integer
       request_count:
+        type: integer
+      status_2xx_count:
+        type: integer
+      status_4xx_count:
+        type: integer
+      status_5xx_count:
         type: integer
       unique_visitor_count:
         type: integer

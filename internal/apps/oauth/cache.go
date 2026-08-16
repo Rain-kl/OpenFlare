@@ -5,6 +5,7 @@ package oauth
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 	"sync"
@@ -31,10 +32,12 @@ var (
 	tokenListenerOnce   sync.Once
 	tokenListenerCtx    context.Context
 	tokenListenerCancel context.CancelFunc
+	tokenListenerDone   chan struct{}
 
 	userListenerOnce   sync.Once
 	userListenerCtx    context.Context
 	userListenerCancel context.CancelFunc
+	userListenerDone   chan struct{}
 )
 
 func tokenCacheKey(tokenHash string) string {
@@ -54,15 +57,19 @@ func ensureTokenCacheListener() {
 
 func startTokenCacheInvalidationListener() {
 	tokenListenerCtx, tokenListenerCancel = context.WithCancel(context.Background())
+	tokenListenerDone = make(chan struct{})
 
 	go func() {
-		pubsub := db.Redis.Subscribe(tokenListenerCtx, oauthTokenInvalidationChannel)
+		listenerCtx := tokenListenerCtx
+		defer close(tokenListenerDone)
+
+		pubsub := db.Redis.Subscribe(listenerCtx, oauthTokenInvalidationChannel)
 		defer func() {
 			_ = pubsub.Close()
 		}()
 
 		go func() {
-			<-tokenListenerCtx.Done()
+			<-listenerCtx.Done()
 			_ = pubsub.Close()
 		}()
 
@@ -93,15 +100,19 @@ func ensureUserCacheListener() {
 
 func startUserCacheInvalidationListener() {
 	userListenerCtx, userListenerCancel = context.WithCancel(context.Background())
+	userListenerDone = make(chan struct{})
 
 	go func() {
-		pubsub := db.Redis.Subscribe(userListenerCtx, oauthUserInvalidationChannel)
+		listenerCtx := userListenerCtx
+		defer close(userListenerDone)
+
+		pubsub := db.Redis.Subscribe(listenerCtx, oauthUserInvalidationChannel)
 		defer func() {
 			_ = pubsub.Close()
 		}()
 
 		go func() {
-			<-userListenerCtx.Done()
+			<-listenerCtx.Done()
 			_ = pubsub.Close()
 		}()
 
@@ -140,7 +151,7 @@ func GetCachedToken(ctx context.Context, tokenHash string) (*model.AccessToken, 
 			return &token, nil
 		}
 	}
-	return nil, fmt.Errorf("cache miss")
+	return nil, errors.New("cache miss")
 }
 
 // SetCachedToken 设置 AccessToken 缓存
@@ -183,7 +194,7 @@ func GetCachedUser(ctx context.Context, userID uint64) (*model.User, error) {
 			return &u, nil
 		}
 	}
-	return nil, fmt.Errorf("cache miss")
+	return nil, errors.New("cache miss")
 }
 
 // SetCachedUser 设置 User 缓存
@@ -213,13 +224,21 @@ func InvalidateCachedUser(ctx context.Context, userID uint64) {
 func StopOauthCacheListener() {
 	if tokenListenerCancel != nil {
 		tokenListenerCancel()
+		if tokenListenerDone != nil {
+			<-tokenListenerDone
+		}
 		tokenListenerCancel = nil
+		tokenListenerDone = nil
 	}
 	tokenListenerOnce = sync.Once{}
 
 	if userListenerCancel != nil {
 		userListenerCancel()
+		if userListenerDone != nil {
+			<-userListenerDone
+		}
 		userListenerCancel = nil
+		userListenerDone = nil
 	}
 	userListenerOnce = sync.Once{}
 }

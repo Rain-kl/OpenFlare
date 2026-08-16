@@ -61,7 +61,7 @@ type User struct {
 }
 
 // TableName 表名
-func (User) TableName() string {
+func (*User) TableName() string {
 	return "w_users"
 }
 

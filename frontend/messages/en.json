@@ -3243,7 +3243,7 @@
       "switchFailed": "Switch failed",
       "urlRequired": "Enter a Remote URL",
       "urlInvalid": "Enter a valid HTTP(S) URL",
-      "githubUrlInvalid": "Enter a public repository URL in https://github.com/{owner}/{repo} format",
+      "githubUrlInvalid": "Enter a public repository URL in https://github.com/'{owner}'/'{repo}' format",
       "tagInvalid": "Release tag must be a valid Git ref (1–255 bytes; / # & = are allowed)",
       "assetInvalid": "Asset name must be 1–255 bytes and cannot be a path or contain control, newline, or bidi characters",
       "intervalInvalid": "Check interval must be an integer between 5 and 1440 minutes",

@@ -19,6 +19,7 @@ import (
 )
 
 func setupApplyLogTestDB(t *testing.T) func() {
+	t.Helper()
 	sqliteDB, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{
 		DisableForeignKeyConstraintWhenMigrating: true,
 	})

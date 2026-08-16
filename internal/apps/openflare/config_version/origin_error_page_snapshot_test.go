@@ -98,7 +98,7 @@ func TestDiffOpenRestyOptionDetailsOriginErrorPage(t *testing.T) {
 	assert.Equal(t, "false", keys["OriginErrorPageEnabled"].CurrentValue)
 	assert.Equal(t, `["500-599"]`, keys["OriginErrorPageStatusCodes"].PreviousValue)
 	assert.Equal(t, `["522"]`, keys["OriginErrorPageStatusCodes"].CurrentValue)
-	assert.Equal(t, "", keys["OriginErrorPageHTML"].PreviousValue)
+	assert.Empty(t, keys["OriginErrorPageHTML"].PreviousValue)
 	assert.Equal(t, "<p>x</p>", keys["OriginErrorPageHTML"].CurrentValue)
 }
 

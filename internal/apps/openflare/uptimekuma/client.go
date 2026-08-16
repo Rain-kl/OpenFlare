@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"maps"
 	"net/http"
 	"strconv"
 	"strings"
@@ -88,7 +89,7 @@ func NewSocketIOClient(baseURL string) *SocketIOClient {
 // Connect performs the Engine.IO handshake and starts the polling loop.
 func (c *SocketIOClient) Connect() error {
 	slog.Debug("Uptime Kuma client starting handshake", "baseURL", c.baseURL)
-	u := fmt.Sprintf("%s/socket.io/?EIO=4&transport=polling", c.baseURL)
+	u := c.baseURL + "/socket.io/?EIO=4&transport=polling"
 	reqHandshake, err := http.NewRequestWithContext(c.ctx, http.MethodGet, u, nil)
 	if err != nil {
 		return fmt.Errorf("create handshake request failed: %w", err)
@@ -180,8 +181,8 @@ func (c *SocketIOClient) pollLoop() {
 		}
 
 		slog.Debug("Received polling payload from Uptime Kuma", "length", len(bodyStr))
-		packets := strings.Split(bodyStr, "\x1e")
-		for _, pkt := range packets {
+		packets := strings.SplitSeq(bodyStr, "\x1e")
+		for pkt := range packets {
 			if len(pkt) == 0 {
 				continue
 			}
@@ -280,7 +281,8 @@ func (c *SocketIOClient) Emit(event string, args ...any) (string, error) {
 	c.ackChanMap[id] = ch
 	c.ackMutex.Unlock()
 
-	payloadArr := []any{event}
+	payloadArr := make([]any, 1, 1+len(args))
+	payloadArr[0] = event
 	payloadArr = append(payloadArr, args...)
 	bs, err := json.Marshal(payloadArr)
 	if err != nil {
@@ -352,9 +354,7 @@ func (c *SocketIOClient) GetMonitorList() map[string]Monitor {
 	defer c.monitorListMutex.RUnlock()
 
 	m := make(map[string]Monitor, len(c.monitorList))
-	for k, v := range c.monitorList {
-		m[k] = v
-	}
+	maps.Copy(m, c.monitorList)
 	return m
 }
 

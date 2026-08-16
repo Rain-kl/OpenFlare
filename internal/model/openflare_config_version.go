@@ -52,6 +52,6 @@ func (cv *ConfigVersion) AfterCreate(_ *gorm.DB) (err error) {
 }
 
 // TableName returns the GORM table name.
-func (ConfigVersion) TableName() string {
+func (*ConfigVersion) TableName() string {
 	return "of_config_versions"
 }

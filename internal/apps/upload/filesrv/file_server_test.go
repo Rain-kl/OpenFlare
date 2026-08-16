@@ -357,6 +357,7 @@ func TestNormalizeImageQuality(t *testing.T) {
 }
 
 func configureLocalStorageRoot(t *testing.T, dbConn *gorm.DB, tempDir string) {
+	t.Helper()
 	var sc model.SystemConfig
 	if err := dbConn.Where("key = ?", model.ConfigKeyStorageConfig).First(&sc).Error; err != nil {
 		t.Fatalf("failed to find storage config: %v", err)

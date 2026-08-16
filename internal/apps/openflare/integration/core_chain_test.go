@@ -171,7 +171,7 @@ func TestCoreChainMigrationFlow(t *testing.T) {
 		zoneDomains := data["zone_domains"].([]any)
 		assert.Len(t, zoneDomains, 1)
 		assert.Equal(t, "core-chain.example.com", zoneDomains[0].(map[string]any)["domain"])
-		assert.Equal(t, float64(originID), data["origin_id"])
+		assert.InDelta(t, float64(originID), data["origin_id"], 1e-9)
 		assert.Equal(t, "http://origin.core-chain.internal:8080", data["origin_url"])
 	})
 
@@ -257,7 +257,7 @@ func TestCoreChainMigrationFlow(t *testing.T) {
 
 		listResp := requireAPIOK(t, listRec)
 		listData := unmarshalAPIMap(t, listResp.Data)
-		assert.Equal(t, float64(1), listData["total"])
+		assert.InDelta(t, float64(1), listData["total"], 1e-9)
 
 		rows, ok := listData["rows"].([]any)
 		require.True(t, ok)
@@ -278,10 +278,10 @@ func TestCoreChainMigrationFlow(t *testing.T) {
 		require.Len(t, nodes, 1)
 		nodeView, ok := nodes[0].(map[string]any)
 		require.True(t, ok)
-		assert.Equal(t, float64(nodeID), nodeView["id"])
+		assert.InDelta(t, float64(nodeID), nodeView["id"], 1e-9)
 		assert.Equal(t, nodePublicID, nodeView["node_id"])
 		assert.Equal(t, "success", nodeView["latest_apply_result"])
 		assert.Equal(t, configChecksum, nodeView["latest_apply_checksum"])
-		assert.Equal(t, float64(2), nodeView["latest_support_file_count"])
+		assert.InDelta(t, float64(2), nodeView["latest_support_file_count"], 1e-9)
 	})
 }

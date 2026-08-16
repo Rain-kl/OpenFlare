@@ -178,7 +178,8 @@ func DownloadFile(c *gin.Context) {
 			response.AbortNotFound(c, "文件记录未找到")
 			return
 		}
-		if _, ok := err.(*strconv.NumError); ok {
+		var numErr *strconv.NumError
+		if errors.As(err, &numErr) {
 			response.AbortBadRequest(c, shared.ErrInvalidFileID)
 			return
 		}
@@ -204,7 +205,7 @@ func DownloadFile(c *gin.Context) {
 		}
 	}
 
-	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename*=UTF-8''%s", url.PathEscape(fileName)))
+	c.Header("Content-Disposition", "attachment; filename*=UTF-8''"+url.PathEscape(fileName))
 	filesrv.ServeUpload(c, upload)
 }
 

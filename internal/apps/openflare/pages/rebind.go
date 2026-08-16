@@ -6,6 +6,7 @@ package pages
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"path"
 	"strings"
@@ -89,11 +90,11 @@ func rebindPagesRouteMaps(ctx context.Context, routes []map[string]json.RawMessa
 		if route == nil {
 			continue
 		}
-		upstreamType, _ := rawJSONString(route["upstream_type"])
+		upstreamType := rawJSONString(route["upstream_type"])
 		if !strings.EqualFold(strings.TrimSpace(upstreamType), "pages") {
 			continue
 		}
-		siteName, _ := rawJSONString(route["site_name"])
+		siteName := rawJSONString(route["site_name"])
 		projectID, err := resolveProjectIDFromRouteMap(route)
 		if err != nil {
 			if siteName == "" {
@@ -151,7 +152,7 @@ func resolveProjectIDFromRouteMap(route map[string]json.RawMessage) (uint, error
 			return deployment.ProjectID, nil
 		}
 	}
-	return 0, fmt.Errorf("pages 配置无效: 缺少 pages_project_id")
+	return 0, errors.New("pages 配置无效: 缺少 pages_project_id")
 }
 
 func loadActivePagesProject(ctx context.Context, projectID uint, siteName string) (*model.PagesProject, *model.PagesDeployment, error) {
@@ -224,15 +225,15 @@ func buildLivePagesDeployment(
 	}, nil
 }
 
-func rawJSONString(raw json.RawMessage) (string, bool) {
+func rawJSONString(raw json.RawMessage) string {
 	if !isPresentJSON(raw) {
-		return "", false
+		return ""
 	}
 	var value string
 	if err := json.Unmarshal(raw, &value); err != nil {
-		return "", false
+		return ""
 	}
-	return value, true
+	return value
 }
 
 func putJSON(route map[string]json.RawMessage, key string, value any) error {
@@ -245,5 +246,5 @@ func putJSON(route map[string]json.RawMessage, key string, value any) error {
 }
 
 func errorsIsNotFound(err error) bool {
-	return err != nil && (err == gorm.ErrRecordNotFound || strings.Contains(strings.ToLower(err.Error()), "record not found"))
+	return err != nil && (errors.Is(err, gorm.ErrRecordNotFound) || strings.Contains(strings.ToLower(err.Error()), "record not found"))
 }

@@ -7,6 +7,7 @@ package config
 
 import (
 	"encoding/json"
+	"errors"
 	"flag"
 	"log"
 	"os"
@@ -31,10 +32,11 @@ func findConfigPath(configPath string) string {
 	if _, err := os.Stat(configPath); err == nil {
 		return configPath
 	}
-	dir := "."
-	for i := 0; i < 5; i++ {
-		dir += "/.."
-		path := dir + "/" + configPath
+	var dir strings.Builder
+	dir.WriteString(".")
+	for range 5 {
+		dir.WriteString("/..")
+		path := dir.String() + "/" + configPath
 		if _, err := os.Stat(path); err == nil {
 			return path
 		}
@@ -68,7 +70,8 @@ func init() {
 
 	// 读取配置文件（可选：找不到文件时使用空默认值 + 环境变量）
 	if err := viper.ReadInConfig(); err != nil {
-		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
+		var notFoundErr viper.ConfigFileNotFoundError
+		if !errors.As(err, &notFoundErr) {
 			// 文件存在但读取/解析失败
 			if _, statErr := os.Stat(configPath); statErr == nil { //nolint:gosec // configPath is loaded from CONFIG_PATH environment variable
 				log.Fatalf("[Config] read config failed: %v\n", err)

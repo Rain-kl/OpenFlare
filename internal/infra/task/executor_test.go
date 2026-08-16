@@ -59,6 +59,7 @@ func failHandler() *mockHandler {
 const testTaskType = "test:mock_task"
 
 func setupTest(t *testing.T) func() {
+	t.Helper()
 	_, mr, cleanup := testhelper.SetupTestEnvironment(t)
 	AsynqClient = asynq.NewClient(asynq.RedisClientOpt{
 		Addr: mr.Addr(),
@@ -94,7 +95,7 @@ func TestGetTaskIDFromContext(t *testing.T) {
 
 	// 空 context
 	taskID := GetTaskID(ctx)
-	assert.Equal(t, "", taskID)
+	assert.Empty(t, taskID)
 
 	// 注入 taskID
 	ctx = withTaskID(ctx, "test_task_123")
@@ -242,7 +243,7 @@ func TestProcessTaskFailure(t *testing.T) {
 
 	ctx = withTaskID(ctx, "process_fail_001")
 	_, err = handler.Execute(ctx, nil)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "模拟执行失败")
 
 	// 验证日志
@@ -403,7 +404,7 @@ func TestRetryTaskNotFailed(t *testing.T) {
 
 	// 尝试重试成功的任务
 	_, err = RetryTask(ctx, execution.ID)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "只有失败的任务才能重试")
 }
 
@@ -425,7 +426,7 @@ func TestRetryTaskNotRetryable(t *testing.T) {
 	require.NoError(t, err)
 
 	_, err = RetryTask(ctx, execution.ID)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "不支持重试")
 }
 
@@ -435,7 +436,7 @@ func TestRetryTaskNonExistent(t *testing.T) {
 	ctx := context.Background()
 
 	_, err := RetryTask(ctx, 99999999)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "不存在")
 }
 

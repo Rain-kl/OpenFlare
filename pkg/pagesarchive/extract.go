@@ -124,7 +124,7 @@ func extractEntries(entries []Entry, destDir string, opts ExtractOptions) error 
 		appendMeasuredFile(measured, normalizedPath, actual)
 	}
 	if measured.fileCount == 0 {
-		return fmt.Errorf("pages package is empty")
+		return errors.New("pages package is empty")
 	}
 	return nil
 }
@@ -139,7 +139,7 @@ func extractTarFamilyAt(ra io.ReaderAt, size int64, format Format, destDir strin
 		return err
 	}
 	if firstPass.fileCount == 0 {
-		return fmt.Errorf("pages package is empty")
+		return errors.New("pages package is empty")
 	}
 	commonPrefix := ""
 	if opts.StripCommonRoot {
@@ -162,7 +162,7 @@ func extractTarFamilyAt(ra io.ReaderAt, size int64, format Format, destDir strin
 		return extractErr
 	}
 	if secondPass.fileCount != firstPass.fileCount || secondPass.totalSize != firstPass.totalSize {
-		return fmt.Errorf("pages tar package changed between validation and extraction")
+		return errors.New("pages tar package changed between validation and extraction")
 	}
 	return nil
 }
@@ -177,7 +177,7 @@ func extractTarReader(
 	measured := &measuredArchive{files: make([]measuredFile, 0)}
 	for {
 		header, err := tarReader.Next()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break
 		}
 		if err != nil {

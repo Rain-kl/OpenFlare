@@ -4,6 +4,7 @@
 package pagesarchive
 
 import (
+	"errors"
 	"fmt"
 	"path"
 	"strings"
@@ -18,7 +19,7 @@ func NormalizeLogicalPath(raw string, allowEmpty bool) (string, error) {
 		if allowEmpty {
 			return "", nil
 		}
-		return "", fmt.Errorf("pages path is required")
+		return "", errors.New("pages path is required")
 	}
 	if err := validateLogicalPathText(raw); err != nil {
 		return "", err
@@ -29,7 +30,7 @@ func NormalizeLogicalPath(raw string, allowEmpty bool) (string, error) {
 		if allowEmpty {
 			return "", nil
 		}
-		return "", fmt.Errorf("pages path is required")
+		return "", errors.New("pages path is required")
 	}
 	if strings.HasPrefix(cleaned, "/") || cleaned == ".." || strings.HasPrefix(cleaned, "../") {
 		return "", fmt.Errorf("pages path escapes directory: %s", raw)
@@ -39,7 +40,7 @@ func NormalizeLogicalPath(raw string, allowEmpty bool) (string, error) {
 
 func validateLogicalPathText(raw string) error {
 	if !utf8.ValidString(raw) {
-		return fmt.Errorf("pages path is not valid UTF-8")
+		return errors.New("pages path is not valid UTF-8")
 	}
 	if strings.Contains(raw, "\\") {
 		return fmt.Errorf("pages path must use POSIX separators: %s", raw)
@@ -56,7 +57,7 @@ func validateLogicalPathText(raw string) error {
 func validateLogicalPathRunes(raw string) error {
 	for _, r := range raw {
 		if r == 0 || unicode.IsControl(r) {
-			return fmt.Errorf("pages path contains a control character")
+			return errors.New("pages path contains a control character")
 		}
 		if r == '\'' || r == '"' || r == ';' {
 			return fmt.Errorf("pages path contains an unsupported character: %s", raw)
@@ -66,7 +67,7 @@ func validateLogicalPathRunes(raw string) error {
 }
 
 func validateLogicalPathSegments(raw string) error {
-	for _, segment := range strings.Split(raw, "/") {
+	for segment := range strings.SplitSeq(raw, "/") {
 		if len(segment) >= 2 && segment[1] == ':' {
 			return fmt.Errorf("pages path contains a Windows drive: %s", raw)
 		}
