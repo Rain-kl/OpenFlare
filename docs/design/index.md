@@ -32,6 +32,7 @@ OpenFlare 适合需要统一管理多台 OpenResty 代理节点的团队，具�
 | **Pages 静态托管** | 支持上传或从 Remote URL、公开 GitHub Release 同步预构建产物；GitHub latest 可定时检查并可选自动发布。不可变部署由边缘节点拉取并由 OpenResty 本地服务，支持回滚、API 反代与 SPA Fallback | [Pages 静态托管设计](./pages-design.md) / [Pages 使用指南](../guide/pages-usage.md) |
 | **TLS 证书自动续期** | 将证书显式绑定到 Zone 域名，并通过 ACME 协议向 Let's Encrypt 申请/续期证书 | [Zone 与域名资源设计](./zone-design.md) |
 | **多节点监控与观测** | 访问日志为业务流量唯一真相；Agent 只上报明细与主机读数，Server 统一聚合；与 Zone/看板对账 | [观测数据传输模型](./observability-transport-model.md) / [边缘可观测与业务流量统计](./observability-design.md) / [上报协议与表结构](./observability-data-model.md) / [系统架构](./architecture.md) |
+| **日志存储** | 访问日志与可观测时序走可切换日志主库（随业务主库或 ClickHouse）；关闭 ClickHouse 后仍可写可查 | [日志存储解耦](./logstore.md) |
 
 ---
 
@@ -62,7 +63,7 @@ OpenFlare 适合需要统一管理多台 OpenResty 代理节点的团队，具�
 ### 5. 系统与版本边界
 * **全局单一激活版本**：所有节点拉取并消费同一份全局激活配置。不进行按节点分组的差异化配置发布。
 * **单租户架构**：OpenFlare 仅供单团队在受信任的内部网络部署使用。采用单租户设计，不支持细粒度的多用户角色或多租户资源隔离。
-* **外部基础设施依赖性**：Server 虽支持 SQLite 作为本地轻量关系数据库，但**系统必须强制依赖外部 Redis（或 Valkey）及 ClickHouse 实例**。Redis 用于处理分布式协调、后台异步队列（Asynq 框架）及系统级全局缓存；ClickHouse 用于接收海量节点访问日志与基础观测的异步 Flush。系统不支持完全脱离这两个组件运行。
+* **外部基础设施依赖性**：Server **必须依赖**外部 Redis（或 Valkey），用于分布式协调、Asynq 队列与系统缓存。关系库为 PostgreSQL，或关闭 `database.enabled` 时使用 SQLite。ClickHouse **可选**：不启用时，访问日志与可观测时序由当前日志主库（随业务主库）承接；启用后可通过「切换日志数据库」任务迁到 ClickHouse。系统不支持脱离 Redis 运行。详情见 [日志存储解耦](./logstore.md)。
 
 ---
 
@@ -98,7 +99,7 @@ OpenFlare 已收敛为**单 monorepo**（Go 模块 `github.com/Rain-kl/Wavelet`�
 | `internal/apps/openflare/{agent,relay,flared}/` | **Server 侧**边缘协议处理器（鉴权、心跳、WS） |
 | `internal/model/` | GORM 实体 / DTO / 无 IO 领域规则（`openflare_*.go` + 平台模型）；**不含** DB 访问 |
 | `internal/infra/persistence/migrator/goose/` | goose SQL 迁移（PostgreSQL / SQLite / ClickHouse） |
-| `internal/repository/` | 数据访问层（平台 + OpenFlare 业务 CRUD、缓存、ClickHouse 分析读写）；**唯一**持久化入口 |
+| `internal/repository/` | 数据访问层（平台 + OpenFlare 业务 CRUD、缓存、`logstore` 日志读写）；**唯一**持久化入口 |
 | `internal/infra/task/` | Asynq 异步任务（Worker + Scheduler） |
 | `internal/infra/config/` | Viper 配置加载 |
 | `internal/shared/` | 统一 API 响应封装（`response/`） |
@@ -191,6 +192,7 @@ OpenFlare 已收敛为**单 monorepo**（Go 模块 `github.com/Rain-kl/Wavelet`�
 ## 文档维护原则
 
 * 产品范围或系统边界变化：更新本文档（[产品边界](./index.md)）。
+* 日志存储、日志表判定或切换协议变化：更新 [日志存储解耦](./logstore.md)。
 * 系统结构、组件分工变化：更新 [系统架构](./architecture.md)。
 * 发布、同步、回滚与 Agent 模型变化：更新 [Agent 与发布模型](./agent-design.md)。
 * 部署方式变化：更新 [部署说明](../deployment/deployment.md) 与 README。

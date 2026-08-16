@@ -2,7 +2,7 @@
 
 你会学到：OpenFlare 的推荐部署方式、Server 与 Agent 的运行要求、源码启动方式、联调步骤、升级与卸载入口。
 
-生产环境建议使用 PostgreSQL 作为 Server 数据库，并通过 `config.yaml` 或环境变量配置 `APP_SESSION_SECRET` 等参数。完整 Docker Compose 部署还需 Redis 与 ClickHouse（见仓库根目录 `docker-compose.yaml`）。Agent 部署方式推荐为 Docker 部署（即直接使用内置 OpenResty 的 Agent 镜像）；亦支持通过安装脚本或手动本地运行。
+生产环境建议使用 PostgreSQL 作为 Server 数据库，并通过 `config.yaml` 或环境变量配置 `APP_SESSION_SECRET` 等参数。完整 Docker Compose 部署需要 Redis；ClickHouse 可选，用于海量访问日志与观测时序（见仓库根目录 `docker-compose.yaml`）。Agent 部署方式推荐为 Docker 部署（即直接使用内置 OpenResty 的 Agent 镜像）；亦支持通过安装脚本或手动本地运行。日志库判定与切换见 [日志存储解耦](../design/logstore.md)。
 
 ## 部署拓扑
 

@@ -72,6 +72,7 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 | `new-async-task` | Asynq 任务、定时任务、TaskHandler、任务元数据 |
 | `new-setting` | 系统/业务/公开设置、`/admin/system`、`/admin/settings` |
 | `database-migration` | 表结构、goose 迁移（PG/SQLite/ClickHouse）、seed |
+| `logstore` | 日志/分析用途表、`internal/repository/logstore`、切换日志主库、PG/SQLite 回落 |
 | `clickhouse-batchwriter` | CH 批量写入、batchwriter、分析表 flush/背压 |
 | `file-upload` | 上传/摄取、`upload.Ingest`、文件访问、`w_uploads` |
 | `cache-framework` | 业务缓存（RAM/Redis/DB）、失效、多节点同步 |
@@ -91,6 +92,7 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 - **分层**：`apps → repository → model`，`repository → infra/persistence`；禁止 `model → repository`。
   - `model`：实体、表名、配置 key、查询 DTO、无 IO 规则。禁止 `db.DB` / Redis / CH；禁止 `import repository`。GORM hook 仅可 mutate 自身字段，禁止在 hook 内再查 DB/缓存。
   - `repository`：唯一持久化入口。apps/logics 禁止为业务 CRUD 直调 `db.DB`（管理端 SQL 控制台、infra 内部等例外保留）。禁止新增 `model.Get/List/Create/...` 类数据访问 API。
+- 日志/分析表（节点访问日志、用户访问日志、可观测时序）走 `internal/repository/logstore`，禁止 apps 直连 `repository/analytics` 或 `db.ChConn`/`db.ChDB`。判定与接入步骤见 `logstore` skill。
 - 跨模块集成（任务 Handler、推送事件、域监听、完成钩子）禁止 `init()` 注册；经 `internal/platform/bootstrap` 在 `internal/cmd` 入口显式装配。
 - 核心业务（如 `oauth`、`user`）禁止直接 import push/custom_events；经 `internal/listener` 发域事件，push 在 bootstrap 订阅。
 - 依赖任务/推送注册的测试须显式 `bootstrap.RegisterTasks()` / `RegisterPushDomainEvents()` 等，不依赖 `init()`。

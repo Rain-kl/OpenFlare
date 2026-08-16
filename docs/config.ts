@@ -138,6 +138,7 @@ function sidebarDesign(): DefaultTheme.SidebarItem[] {
         { text: '边缘可观测与业务流量统计', link: 'observability-design' },
         { text: '观测数据传输模型', link: 'observability-transport-model' },
         { text: '观测上报协议与表结构', link: 'observability-data-model' },
+        { text: '日志存储解耦', link: 'logstore' },
         { text: 'Uptime Kuma 监控同步设计', link: 'kuma-design' },
         { text: '登录验证码设计', link: 'login-captcha' }
       ]

@@ -7,7 +7,7 @@ description: "Wavelet 项目专用：当新增或修改 ClickHouse 批量写入�
 
 开始前阅读根目录 `AGENTS.md`。ClickHouse 是辅助 OLAP 存储，**厌恶高频单条写入**（过多小 part）；写入路径必须优先批量或异步聚合。
 
-DDL 与表结构变更见 `database-migration` 技能；本技能只覆盖**运行时写入架构**。
+DDL 与表结构变更见 `database-migration` 技能。日志/分析用途表的判定、三库回落与切换见 `logstore` 技能。本技能只覆盖**运行时写入架构**。
 
 ## 分层职责
 
@@ -17,7 +17,7 @@ DDL 与表结构变更见 `database-migration` 技能；本技能只覆盖**运�
 | 批量框架 | `internal/infra/persistence/batchwriter/` | 泛型队列 + 按条数/时间 flush + 非阻塞入队 + 优雅停机；**各业务域独立实例** |
 | Model | `internal/model/analytics/` | 列定义、`TableName()`、`BatchInsertSQL()`（及可选 `InsertColumns()`） |
 | Repository | `internal/repository/analytics/` | `BatchInsert*` / `BatchInsertNodeAccessLogs` 等；`PrepareBatch` + 多行 `Append` + 一次 `Send` |
-| Apps | `internal/apps/<domain>/` | 采集、入队、背压；`FlushFunc` 只调 repository，不写 SQL、不 `PrepareBatch` |
+| Apps | `internal/apps/<domain>/` | 采集、入队、背压；`FlushFunc` 只调 logstore / repository，不写 SQL、不 `PrepareBatch` |
 | 装配 | `internal/platform/bootstrap/bootstrap.go` | 进程启动时调用 `Writer.Start`；初始化时需调用 `lifecycle.OnShutdown` 挂载停机钩子 |
 | 生命周期 | `internal/platform/lifecycle/lifecycle.go` | 统一协调全局并发优雅停机，业务包无需在 `bootstrap.go` 中硬编码 `Stop` 逻辑 |
 
@@ -37,6 +37,7 @@ writer.Stop(stopCtx)      // close 队列 + drain + 最终 flush
 
 - `QueueSize`: 10_000
 - `MaxBatchSize`: 1_000
+- `MinBatchSize`: 50（未达阈值则跳过按时间 flush，除非设了 `MaxFlushWait`）
 - `FlushInterval`: 1s
 
 各域可独立覆盖；可观测低频指标可用更小 `MaxBatchSize`（如 100）与更长 `FlushInterval`（如 2–5s），但**不要**退化为逐条 `Send`。
@@ -49,7 +50,8 @@ writer.Stop(stopCtx)      // close 队列 + drain + 最终 flush
 ### FlushFunc 规范
 
 - 签名：`func(ctx context.Context, items []T) error`
-- 内部调用 `internal/repository/analytics` 的 `BatchInsert*`（传入 `[]analyticsmodel.X`）
+- **日志/分析用途表**：`logstore.Active(ctx)` 再调对应 `BatchInsert*`。禁止 apps 直连 `analyticsrepo` 或 `db.ChConn`。
+- 仅 CH、无需主库回落的分析表：才直接调 `repository/analytics` 的 `BatchInsert*`。
 - 在 flush 边界记录一次错误日志，不要把 DB 驱动错误直接暴露给 HTTP 客户端
 - `Start` 使用 `context.WithoutCancel(parent)`，避免请求 ctx 取消中断后台 flush
 
@@ -57,11 +59,11 @@ writer.Stop(stopCtx)      // close 队列 + drain + 最终 flush
 
 每个业务域拥有自己的 `Writer`、配置与 `FlushFunc`：
 
-| 域 | 表 | 现状 | 目标形态 |
-| :--- | :--- | :--- | :--- |
-| 管理端审计 | `w_user_access_logs` | `risk_control` → `batchwriter` + `analyticsrepo.BatchInsert` | 已接入 |
-| 边缘访问日志 | `of_node_access_logs` | `openflare/chwriter` 异步 flush | 已接入 |
-| 可观测时序 | `of_node_metric_snapshots` 等 5 表 | `openflare/chwriter` 五表独立 writer + 进程内短 TTL 去重 | 已接入 |
+| 域 | 表 | 写入路径 |
+| :--- | :--- | :--- |
+| 管理端审计 | `w_user_access_logs` | `risk_control` → `batchwriter` → `logstore.Active` |
+| 边缘访问日志 | `of_node_access_logs` | `openflare/chwriter` → `logstore.Active` |
+| 可观测时序 | `of_node_metric_snapshots` 等 | `openflare/chwriter` 分表 writer + 进程内短 TTL 去重 → `logstore.Active` |
 
 **不要**把 audit、access log、observability 并入同一 channel。
 
@@ -73,8 +75,9 @@ writer.Stop(stopCtx)      // close 队列 + drain + 最终 flush
    - `len(items)==0` 直接返回
    - `db.ChConn == nil` 返回明确错误
    - 一次 `PrepareBatch` → 循环 `Append` → 一次 `Send`
-4. **Writer 胶水**（`internal/apps/<domain>/` 或 `internal/repository/analytics/<domain>_writer.go`）：
+4. **Writer 胶水**（`internal/apps/<domain>/`）：
     - `New` + `Start`，并在初始化逻辑内通过 `lifecycle.OnShutdown("your_writer_name", Stop)` 注册停机回调
+    - 日志表的 `FlushFunc` 调 `logstore.Active`（见 `logstore` skill）
     - 业务路径 `TryEnqueue`；HTTP 背压用 `IsFull()`
 5. **测试**：
    - repository：mock `ChConn` 验证 `BatchInsertSQL` 与 append 列数
@@ -123,14 +126,9 @@ var globalChan chan any
 
 ```go
 // internal/platform/bootstrap/bootstrap.go（示意）
-var userAccessLogWriter *batchwriter.Writer[*analytics.UserAccessLog]
-
 func RegisterAPI(ctx context.Context) {
-    // ...
-    if config.Config.ClickHouse.Enabled {
-        initUserAccessLogWriter(ctx) // Start writer
-        risk_control.BindWriter(userAccessLogWriter) // 或逐步替换 InitLogWriter
-    }
+    // 日志 writer 不依赖 clickhouse.enabled：flush 时由 logstore 选库
+    risk_control.InitLogWriter(ctx)
 }
 ```
 
@@ -149,7 +147,8 @@ make code-check
 - flush 按 `MaxBatchSize` 与 `FlushInterval` 触发
 - `Stop` 能 drain 队列内剩余项
 - repository 层无 goroutine、无 channel
-- `clickhouse.enabled: false` 时不 `Start` writer、不入队
+- 日志表：`clickhouse.enabled: false` 时 writer 仍 `Start`，flush 走主库 logstore
+- 仅 CH 的分析表：未启用 CH 时不要 `Start`、不要入队
 
 ## 相关文件速查
 
@@ -157,7 +156,8 @@ make code-check
 - 连接：`internal/infra/persistence/clickhouse.go`
 - 审计写入：`internal/apps/risk_control/logics.go`
 - OpenFlare 写入胶水：`internal/apps/openflare/chwriter/writer.go`
-- 节点访问日志 repository：`internal/repository/analytics/node_access_log_writer.go`
-- 可观测 repository：`internal/repository/analytics/node_observability_writer.go`
+- 日志抽象：`internal/repository/logstore`
+- 节点访问日志 CH 实现：`internal/repository/analytics/node_access_log_writer.go`
+- 可观测 CH 实现：`internal/repository/analytics/node_observability_writer.go`
 - 生命周期管理器：`internal/platform/lifecycle/lifecycle.go`
 - Bootstrap：`internal/platform/bootstrap/bootstrap.go`

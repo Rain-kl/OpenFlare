@@ -145,7 +145,7 @@ OpenResty access.log（业务事实）
         |
         | Agent tail 增量明细（不 sum/count/uniq）
         v
-Server 入库 ClickHouse
+Server 经 logstore 入库（当前日志主库：PostgreSQL / SQLite / ClickHouse）
         |
         +---> 全局聚合 --> 看板「已提供数据 / 请求 / UV」
         +---> host∈Zone --> Zone「已提供数据」等（同一套语义）
