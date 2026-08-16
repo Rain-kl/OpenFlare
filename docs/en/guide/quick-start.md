@@ -1,69 +1,94 @@
 # Quick Start
 
-You will learn: How to start OpenFlare Server using Docker Compose, complete your first login, connect your first Agent, and verify if a configuration has been published to the node.
+You will learn: how to start the OpenFlare Server with Docker Compose, complete the first login, connect your first Agent, and verify that a config has been published to a node.
 
-The minimum running unit of OpenFlare consists of:
+OpenFlare's minimal runtime consists of:
 
 | Component | Responsibility |
 | --- | --- |
-| Server | Admin UI, Admin API, Agent API, configuration rendering, version publishing, and state storage. |
-| Agent | Runs on the proxy node, pulls configurations, writes files for OpenResty, executes validations, and triggers reloads. |
-| OpenResty | Receives actual traffic and reverse proxies it to origin servers. |
+| Server | admin UI, admin API, Agent API, config rendering, version release, and state storage |
+| Agent | runs on proxy nodes; pulls config, writes OpenResty, executes validation and reload |
+| OpenResty | actually receives traffic and reverse proxies to origins |
 
-The Agent manages the runtime through the OpenResty binary. A local deployment requires the `openresty` executable to be already present on the node; a Docker deployment can directly run the Agent image containing built-in OpenResty.
+The Agent uniformly controls the runtime via the OpenResty binary. Local deployment requires an `openresty` executable on the node; Docker deployment can directly run the Agent image with a built-in OpenResty.
 
 ## Environment Requirements
 
 | Item | Requirement |
 | --- | --- |
-| Docker / Docker Compose | Used to start Server and PostgreSQL; also used to run the Agent if using the Docker Agent image |
-| OpenResty | Required to have the `openresty` executable when installing the Agent locally, or specify its path in the installation script |
-| Reachable Ports | The Server listens on port `3000` by default; the Agent node needs to be able to reach the Server address |
-| Browser | Used to access the management console |
+| Docker / Docker Compose | starts the Server and its PostgreSQL, Valkey dependencies; also runs the Agent if using the Docker Agent |
+| OpenResty | local Agent installs need an executable `openresty`, or specify the path in the install script |
+| Reachable port | Server listens on `3000` by default; Agent nodes must be able to reach the Server address |
 
-* **Docker**: `20.10.0+`
-* **Docker Compose**: `2.0.0+`
+---
 
 ## 1. Start the Server
 
-Create a `docker-compose.yml` file in an empty directory:
+Quick start recommends the standard **PostgreSQL + Valkey** deployment.
+
+Create a `docker-compose.yaml` in an empty directory:
 
 ```yaml
+version: '3.8'
+
 services:
+  openflare:
+    image: ghcr.io/rain-kl/openflare:latest
+    container_name: openflare-server
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - openflare_uploads:/app/uploads
+    environment:
+      TZ: Asia/Shanghai
+      APP_SESSION_SECRET: 'replace-with-a-long-random-string' # replace with a long random string in production
+      DB_ENABLED: "true"
+      DB_HOST: "postgres"
+      DB_PORT: "5432"
+      DB_USERNAME: "${DB_USERNAME:-openflare}"
+      DB_PASSWORD: "${DB_PASSWORD:-replace-with-strong-password}"
+      DB_NAME: "${DB_NAME:-openflare}"
+      REDIS_ENABLED: "true"
+      REDIS_ADDR: "redis:6379"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
   postgres:
     image: postgres:17-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_DB: openflare
-      POSTGRES_USER: openflare
-      POSTGRES_PASSWORD: replace-with-strong-password
+      POSTGRES_DB: ${DB_NAME:-openflare}
+      POSTGRES_USER: ${DB_USERNAME:-openflare}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-replace-with-strong-password}
     volumes:
-      - postgres-data:/var/lib/postgresql/data
+      - openflare_postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U openflare -d openflare"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-openflare} -d ${DB_NAME:-openflare}"]
       interval: 10s
       timeout: 5s
       retries: 5
 
-  openflare:
-    image: ghcr.io/rain-kl/openflare:latest
+  redis:
+    image: valkey/valkey:8.0-alpine
     restart: unless-stopped
-    depends_on:
-      postgres:
-        condition: service_healthy
-    ports:
-      - "3000:3000"
-    environment:
-      SESSION_SECRET: replace-with-a-long-random-string
-      DSN: postgres://openflare:replace-with-strong-password@postgres:5432/openflare?sslmode=disable
-      GIN_MODE: release
-      LOG_LEVEL: info
+    command: ["valkey-server", "--appendonly", "yes"]
     volumes:
-      - openflare-data:/data
+      - openflare_redis_data:/data
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
 
 volumes:
-  postgres-data:
-  openflare-data:
+    openflare_uploads:
+    openflare_postgres_data:
+    openflare_redis_data:
 ```
 
 Start the services:
@@ -72,46 +97,59 @@ Start the services:
 docker compose up -d
 ```
 
-Verify that the containers are running:
+Confirm the containers are running:
 
 ```bash
 docker compose ps
 docker compose logs -f openflare
 ```
 
-Once you see `server listening` in the logs and the `openflare` container status is running, access:
+After seeing `server listening` and the `openflare-server` container status running, open in a browser:
 
 ```text
 http://localhost:3000
 ```
 
-Default credentials:
+Default account:
 
 | Username | Password |
 | --- | --- |
-| `root` | `123456` |
+| `admin` | `12345678` |
 
-Please change the default password immediately after your first login.
+> [!WARNING]
+> For your system's security, change the default password immediately after the first login.
 
-## 2. Prepare Agent Token
+If you forget the password and no password-recovery channel is configured, reset it with:
 
-The Agent can be connected using one of two types of credentials:
+```bash
+go run main.go reset-passwd --user admin
+```
 
-| Credential | Applicable Scenario |
+Without `--password`, the command auto-generates a random password and prints it to the terminal; you can also explicitly specify a new password with `--password`.
+
+---
+
+## 2. Prepare an Agent Token
+
+Agents can connect with two credential types:
+
+| Credential | Use Case |
 | --- | --- |
-| `discovery_token` | Automatically registers a node for the first time, which the Server exchanges for a node-specific Token |
-| `agent_token` | Node has already been created/allocated in the management console, directly uses this node-specific Token |
+| `discovery_token` | first-time auto registration; the Server exchanges it for a node-specific Token |
+| `agent_token` | node already created or assigned in the admin panel; use the node-specific Token directly |
 
-After preparing one of these credentials in the management console, proceed to the next step.
+Prepare one of these credentials in the admin panel, then continue.
 
-* **`discovery_token`** path: "System Settings" -> "Auto Registration"
-* **`agent_token`** path: "Node Management" -> "Add Node"
+- **`discovery_token`** menu path:「System Settings」->「OpenFlare」tab ->「Discovery Token & Deployment」→ Discovery Token
+- **`agent_token`** menu path: after creating a node in「Node Management」, click into the node detail page to see its dedicated Token.
 
-## 3. Install/Run the Agent
+---
 
-The recommended Agent deployment method is using Docker (which runs the Agent image with built-in OpenResty); deploying the Agent locally on the host using the installation script is also supported.
+## 3. Install / Run the Agent
 
-### Option A: Run Agent in Docker (Recommended)
+Docker image deployment is recommended; you can also deploy to the local host via the install script.
+
+### Option A: Run the Agent with Docker (recommended)
 
 Run the Agent image directly on the proxy node:
 
@@ -119,18 +157,18 @@ Run the Agent image directly on the proxy node:
 docker pull ghcr.io/rain-kl/openflare-agent:latest
 docker rm -f openflare-agent 2>/dev/null || true
 docker run -d --name openflare-agent --restart unless-stopped \
-  -p 80:80 -p 443:443 \
-  -v openflare-agent-data:/data \
+  -p 80:80 -p 443:443/tcp -p 443:443/udp \
+  -v openflare-agent-pages:/data/var/lib/openflare/pages \
   -e OPENFLARE_SERVER_URL=http://your-server:3000 \
   -e OPENFLARE_AGENT_TOKEN=YOUR_AGENT_TOKEN \
   ghcr.io/rain-kl/openflare-agent:latest
 ```
 
-### Option B: Execute Installation Script (Local Host Deployment)
+### Option B: Run the install script (local deployment)
 
-Execute the installation script on the proxy node.
+Run the install script on the proxy node.
 
-Using the `discovery_token`:
+With `discovery_token`:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/Rain-kl/OpenFlare/main/scripts/install-agent.sh | bash -s -- \
@@ -138,7 +176,7 @@ curl -fsSL https://raw.githubusercontent.com/Rain-kl/OpenFlare/main/scripts/inst
   --discovery-token YOUR_DISCOVERY_TOKEN
 ```
 
-Using the node-specific `agent_token`:
+With the node-specific `agent_token`:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/Rain-kl/OpenFlare/main/scripts/install-agent.sh | bash -s -- \
@@ -146,74 +184,58 @@ curl -fsSL https://raw.githubusercontent.com/Rain-kl/OpenFlare/main/scripts/inst
   --agent-token YOUR_AGENT_TOKEN
 ```
 
-The script defaults to:
+The script defaults:
 
-| Item | Default Value |
+| Item | Default |
 | --- | --- |
-| Install Directory | `/opt/openflare-agent` |
-| Config File | `/opt/openflare-agent/agent.json` |
-| systemd Service | `openflare-agent.service` |
-| OpenResty Path | Automatically detects `openresty` if unspecified |
+| Install directory | `/opt/openflare-agent` |
+| Config file | `/opt/openflare-agent/agent.json` |
+| systemd service | `openflare-agent.service` |
+| OpenResty path | auto-finds `openresty` when unspecified |
 
-Verify the Agent service status:
+Confirm the Agent service state:
 
 ```bash
 systemctl status openflare-agent
 journalctl -u openflare-agent -f
 ```
 
-If systemd is not available on the OS, the script outputs manual startup commands instead.
+Without systemd, the script prints a manual start command.
 
-## 4. Publish Your First Configuration
+---
 
-Perform the following operations in the management console:
+## 4. Next Steps
 
-1. Add a website configuration, filling in the website name, domain, and origin address.
-2. Verify that the website configuration is enabled.
-3. Check the preview or change summary before publishing.
-4. Publish and activate the new version.
-5. Wait for the Agent to detect and apply the version in the next heartbeat.
+After starting the control panel and connecting an Agent node, you've successfully built the base runtime environment of the OpenFlare gateway. Continue with these two guides to deploy your first reverse proxy site:
 
-The version number format is `YYYYMMDD-NNN`. Historic versions are immutable; rollbacks are accomplished by re-activating an older version.
+1. **Publish your first website**:
+   * See [Publish First Configuration](./first-site.md). It guides you to publish your first proxy rule in the simplest way (plain HTTP) and verify the node applied it.
+2. **Full reverse proxy config (HTTPS & origin management)**:
+   * See [Create a Reverse Proxy Config](./proxy-config.md). It guides you from certificate import/application to domain HTTPS certificate binding, origin management, and preview release.
 
-## 5. Verify Success
+---
 
-Confirm in the management console:
+## When You Hit Problems
 
-| Position | Expected Result |
-| --- | --- |
-| Node List | Agent node status is online |
-| Node Details | Current version matches active version |
-| Apply Logs | Most recent application succeeded |
-| Version Page | The new version is currently active |
+Handle in this order:
 
-Confirm on the Agent node:
+1. Upgrade Server and Agent to the latest version; confirm whether the problem persists.
+2. Re-publish and activate a config version, wait for the node to apply.
+3. Run「Force Sync」on the target node in the node detail page to push an immediate config pull.
+4. Rebuild or reinstall the Agent (re-run the install script).
+5. If none of the above works, file a [GitHub Issue](https://github.com/Rain-kl/OpenFlare/issues) with the Server logs and node apply records.
 
-```bash
-journalctl -u openflare-agent -n 100 --no-pager
-```
-
-## Common Failures
-
-| Symptom | Troubleshooting Direction |
-| --- | --- |
-| Management console fails to load in browser | Verify that the Server is running in `docker compose ps` and port `3000` is not bound by other processes |
-| Data fails to save after logging in | Check the health of the PostgreSQL container, and verify the username, password, and database name in `DSN` |
-| Agent fails to register | Verify that the Agent node can reach `--server-url`, and verify if the Token is typed correctly or expired |
-| Agent is online but configuration is not applied | Verify that the website configuration is enabled and a version has been published and activated |
-| OpenResty application fails | Review node application logs and `journalctl -u openflare-agent`, checking domains, certificates, upstreams, and port conflicts |
-
-For more troubleshooting details, see [Troubleshooting](./troubleshooting.md).
+More troubleshooting: [Troubleshooting](./troubleshooting.md).
 
 ---
 
 ## Advanced Deployment Guides
 
-Once you complete the quick start and familiarize yourself with the basic operations of OpenFlare, you can read the following advanced deployment documents to put components into production:
+After completing the quick start and getting familiar with OpenFlare, read these advanced deployment docs to put components into production:
 
-* **Server Production Deployment**: Read [Launch Server](../deployment/server.md) to learn how to build the frontend from source, configure system environment variables, and run with Docker Compose.
-* **Agent Production Integration**: Read [Deploy Agent](../deployment/agent.md) to learn about systemd-based service management, detailed local configuration parameters, and troubleshooting.
-* **Tunnel Relay Deployment**: Read [Deploy Relay](../deployment/relay.md) to learn how to configure public relay nodes (frps) for penetration tunnels.
-* **Tunnel Client Deployment**: Read [Deploy OpenFlared](../deployment/openflared.md) to learn how to run the penetration daemon client (frpc) on the intranet server side.
-* **Production Deployment Topology**: Read [Deployment Guide](../deployment/deployment.md) to learn about high-availability production topologies and overall network planning.
-* **System Upgrades & Maintenance**: Read [Upgrade & Maintenance](../deployment/upgrade.md) to learn how to upgrade the Server and individual node Agents smoothly.
+* **Server production deployment**: read [Start the Server](../deployment/server.md) for building the frontend from source, system env vars, and Docker Compose.
+* **Agent production access**: read [Access Agent](../deployment/agent.md) for systemd service management, detailed local config file fields, and troubleshooting.
+* **Intranet relay deployment**: read [Deploy Relay](../deployment/relay.md) for configuring public relay nodes (frps) for tunnels.
+* **Intranet client deployment**: read [Deploy OpenFlared](../deployment/openflared.md) for running the tunnel daemon client (frpc) on the intranet server.
+* **Production topology reference**: read [Deployment Guide](../deployment/deployment.md) for production HA topology and overall network planning.
+* **Upgrades and maintenance**: read [Upgrade & Maintenance](../deployment/upgrade.md) for smooth upgrades of the Server and Agent nodes.

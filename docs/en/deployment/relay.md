@@ -1,48 +1,48 @@
 # Deploy Relay (Tunnel Relay)
 
-You will learn: The responsibilities of a TunnelRelay node, `openflare-relay` configuration parameters and environment variables, how to run the Relay via Docker, and how to build and deploy the Relay from source manually.
+You will learn: TunnelRelay node responsibilities, `openflare-relay` config items and env vars, running Relay with Docker, and building/deploying Relay manually from source.
 
-In the OpenFlare intranet penetration architecture, the **TunnelRelay node** plays a key role. Unlike standard Edge Nodes, in addition to running the traditional Agent (managing OpenResty for HTTPS/WAF processing), it co-locates the **Relay (frps tunnel manager)** service, responsible for listening to intranet client (OpenFlared) tunnel connections and relaying traffic.
+In OpenFlare's intranet penetration system, the **TunnelRelay node** plays a key role. Unlike regular edge nodes, besides running the traditional Agent (hosting OpenResty for HTTPS/WAF processing), it also runs the **Relay (frps tunnel manager)** service on the same machine, listening for tunnel connections from intranet clients (OpenFlared) and relaying traffic.
 
 ---
 
 ## Prerequisites
 
-Before deploying a TunnelRelay node, ensure:
+Before deploying a TunnelRelay node, make sure:
 
-1. **Registered as a TunnelRelay node**: Add a node of type `tunnel_relay` in the OpenFlare management console under "Node Management", and retrieve its node-specific `agent_token` or use the global `discovery_token`.
-2. **Network Ports**:
-   - Ensure `bindPort` (the port frpc clients connect to, default `7000`) is accessible from the public/intranet client networks.
-   - Ensure `vhostHTTPPort` (the HTTP Vhost port, default `8080`) is free and not bound by other processes, as the Agent routes traffic to frps on this port.
-3. **Software Dependencies** (Host deployment only):
-   - You must have an executable `frps` binary locally (recommended version `v0.61.0+` or the latest stable `v0.69.0`), or specify its path explicitly in the configuration.
+1. **Registered as a TunnelRelay-type node**: in OpenFlare admin「Node Management」, add a node of type `tunnel_relay` and get its dedicated `agent_token`, or use the global `discovery_token`.
+2. **Network ports**:
+   - `bindPort` (frpc connection port, default `7000`) must be reachable by public/intranet clients.
+   - `vhostHTTPPort` (HTTP Vhost port, default `8080`) must be free; the Agent exchanges traffic with frps on this port.
+3. **Software dependency** (host deployment only):
+   - an executable `frps` binary locally, or an explicitly specified path via parameter.
 
 ---
 
-## Configuration & Environment Variables
+## Config File and Env Vars
 
-`openflare-relay` reads `relay.json` in the working directory by default on startup. Overriding options via environment variables is fully supported.
+`openflare-relay` reads `relay.json` in the current directory by default at startup, fully overridable via env vars.
 
-### Configuration Fields Details
+### Config Field Details
 
-| JSON Field | Environment Variable | Description | Default Value |
+| JSON field | Env var | Description | Default |
 | --- | --- | --- | --- |
-| `server_url` | `OPENFLARE_SERVER_URL` | OpenFlare Server API base URL | **None (Required)** |
-| `agent_token` | `OPENFLARE_AGENT_TOKEN` | Node-specific Token | Mutually exclusive with below |
-| `discovery_token` | `OPENFLARE_DISCOVERY_TOKEN` | One-time auto-registration Token | Mutually exclusive with above |
-| `node_name` | `OPENFLARE_NODE_NAME` | Custom name for the node | Hostname by default |
-| `node_ip` | `OPENFLARE_NODE_IP` | Outbound/listening IP of the node | Automatically detects real outbound IP |
-| `frps_path` | `OPENFLARE_FRPS_PATH` | Path to the `frps` executable binary | `"frps"` |
-| `data_dir` | `OPENFLARE_DATA_DIR` | Directory to store local data and generated `frps.toml` | `"./data"` |
-| `state_path` | - | Path to store local state JSON file | `"{data_dir}/relay-state.json"` |
-| `heartbeat_interval`| - | Heartbeat interval (integer ms or Go Duration string) | `10000` (10s) |
-| `request_timeout` | - | HTTP request timeout duration | `10000` (10s) |
+| `server_url` | `OPENFLARE_SERVER_URL` | OpenFlare Server API service address | **none (required)** |
+| `agent_token` | `OPENFLARE_AGENT_TOKEN` | node-specific Token | one of these two |
+| `discovery_token` | `OPENFLARE_DISCOVERY_TOKEN` | auto-registration Token | one of these two |
+| `node_name` | `OPENFLARE_NODE_NAME` | node identifier name | local hostname by default |
+| `node_ip` | `OPENFLARE_NODE_IP` | node egress/listen IP | auto-detected real egress IP |
+| `frps_path` | `OPENFLARE_FRPS_PATH` | frps executable binary path | `"frps"` |
+| `data_dir` | `OPENFLARE_DATA_DIR` | local data and generated `frps.toml` directory | `"./data"` |
+| `state_path` | - | local state JSON record file path | `"{data_dir}/relay-state.json"` |
+| `heartbeat_interval`| - | heartbeat period (ms int or Go Duration string) | `10000` (10s) |
+| `request_timeout` | - | API request timeout | `10000` (10s) |
 
 ---
 
-## Docker Deployment (Recommended)
+## Running with Docker
 
-Docker is the most convenient way to deploy a TunnelRelay node. The official Docker image embeds the `openflare-relay` controller and `frps v0.69.0` out of the box.
+Docker is the most convenient deployment for a TunnelRelay node. The official image bundles the `openflare-relay` controller and the `frps` runtime — out of the box.
 
 ```bash
 docker pull ghcr.io/rain-kl/openflare-relay:latest
@@ -50,53 +50,24 @@ docker rm -f openflare-relay 2>/dev/null || true
 
 docker run -d --name openflare-relay --restart unless-stopped \
   -p 7000:7000 \
+  -p 17500:17500 \
   -e OPENFLARE_SERVER_URL=http://your-server:3000 \
   -e OPENFLARE_AGENT_TOKEN=YOUR_AGENT_TOKEN \
-  -v openflare-relay-data:/var/lib/openflare-relay \
+  -v openflare-relay-data:/app/data \
   ghcr.io/rain-kl/openflare-relay:latest
 ```
 
 > [!TIP]
-> The `-p 7000:7000` option maps the port `frpc` clients connect to. If a custom `relay_bind_port` is configured in the management console, change this port mapping on the host accordingly.
+> The `-p 7000:7000` mapping is the port frpc clients connect to for relaying. If the admin panel configures a custom `relay_bind_port`, adjust the host port mapping accordingly.
+
+> [!NOTE]
+> **Enable the embedded frps Web UI**:
+> If the Server control panel enables the relay traffic monitoring panel (i.e. `relay_frps_web_ui_enabled` set to `true` in DB/system settings), you need to map the Web port (default `17500`, controlled by `relay_frps_web_ui_port` in system settings) to the host via `-p 17500:17500`.
+> The Web UI username is fixed to `admin`, and the password is the relay node's `agent_token`.
 
 ---
 
-## Manual Host Deployment
-
-If you prefer to run the Relay directly on a physical host or VM:
-
-### 1. Compile the Binary
-
-```bash
-cd openflare-relay
-go build -o openflare-relay ./cmd/relay
-```
-
-### 2. Prepare `relay.json`
-
-Create a `relay.json` configuration file in the same directory as the executable:
-
-```json
-{
-  "server_url": "http://127.0.0.1:3000",
-  "agent_token": "your-relay-node-agent-token",
-  "frps_path": "/usr/local/bin/frps",
-  "data_dir": "./data",
-  "heartbeat_interval": "10s",
-  "request_timeout": "10s"
-}
-```
-
-### 3. Start the Service
-
-```bash
-export LOG_LEVEL='info'
-./openflare-relay -config ./relay.json
-```
-
----
-
-## Start & Validate
+## Startup and Verification
 
 ### 1. View Process Logs
 
@@ -105,22 +76,17 @@ export LOG_LEVEL='info'
 docker logs -f openflare-relay
 ```
 
-If managed via systemd on Linux, execute:
-```bash
-journalctl -u openflare-relay -f
-```
+### 2. Verify Runtime State
 
-### 2. Verify Runtime Status
+After starting successfully, the Relay will:
+- Send HTTP heartbeats to the control plane to register/go online.
+- Fetch the latest frps base config from the control plane (including `bindPort`, `vhostHTTPPort`, and the auto-generated tunnel auth credential `auth_token`).
+- Render the local `data/frps.toml` config file.
+- Spawn the child process `frps -c data/frps.toml`.
+- If the process exits unexpectedly, the Relay auto-restarts frps with exponential backoff (initial 1s, cap 60s).
 
-Upon starting successfully, the Relay operates as follows:
-- Sends HTTP heartbeats to register and go online with the control plane.
-- Retrieves the active frps baseline settings (including `bindPort`, `vhostHTTPPort`, and the auto-generated `auth_token`).
-- Automatically renders the `data/frps.toml` configuration locally.
-- Spawns the subprocess `frps -c data/frps.toml`.
-- If the `frps` process crashes, the Relay automatically restarts it after 2 seconds.
+### 3. Confirm in the Admin Panel
 
-### 3. Verify in the Management Console
-
-Log into the management console and navigate to **"Node Management"** to verify:
-- The TunnelRelay node status is marked as **"Online"**.
-- The Node Type is correctly displayed as **Relay Node** and the frps status displays as **Healthy**.
+Log in to the admin panel, navigate to **「Node Management」**, and confirm:
+- The TunnelRelay node status is marked **「Online」**.
+- The node type is correctly marked as **Relay node** and the frps runtime state is **Healthy**.

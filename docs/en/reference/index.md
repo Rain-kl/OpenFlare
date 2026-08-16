@@ -1,13 +1,11 @@
-# Reference Manuals
+# Reference
 
-You will learn: Which information belongs to stable reference manuals, and where to look up configurations, commands, APIs, and repository structures.
+You will learn: which information counts as stable reference material, and where to look up config, commands, API, and repository structure.
 
-This section collects stable information at the runtime, API, and repository layers, suitable for rapid lookup during deployment, integration, and troubleshooting.
+This section consolidates stable runtime, interface, and repository-level information for quick reference during deployment, integration, and troubleshooting.
 
 | Page | Content |
 | --- | --- |
-| [Configuration Options](./configuration.md) | Server environment variables, CLI arguments, runtime Options, and Agent configuration parameters |
-| [CLI Commands](./cli.md) | Common CLI commands for starting, building, testing, installing, and uninstalling |
-| [API Conventions](./api.md) | Response structures, authentication, and routing paths for Admin and Agent APIs |
-| [Repository Structure](../design/repository.md) | Scope of responsibilities and folder layering of the Server, Agent, Relay, and Client |
-| [Deployment & Upgrade](../deployment/) | Server and Agent deployment, configuration, and upgrade guides (dedicated section) |
+| [Configuration](./configuration.md) | Server env vars, CLI args, runtime Options, and Agent config fields |
+| [Commands & Scripts](./cli.md) | common start, build, test, install, and uninstall commands |
+| [Repository Structure](../design/index.md#repository-structure) | monorepo directory responsibilities and layering (`main.go`, `cmd/`, `internal/apps/`, `frontend/`, etc.) |

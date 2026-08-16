@@ -1,43 +1,50 @@
-# Guide Overview
+# Guide
 
-You will learn: How the OpenFlare documentation is organized, which pages to read when running it for the first time, and where to start for deployment, usage, troubleshooting, and development.
+You will learn: how the OpenFlare docs are organized, which pages to read on first run, and where to start for deployment, usage, and troubleshooting.
 
-OpenFlare is a self-hosted OpenResty control plane. It integrates reverse proxy website configurations, configuration version publishing, Agent node synchronization, TLS certificates, and basic observability into a single management console, making it ideal for a single team or organization managing multiple proxy nodes.
+OpenFlare is a self-hosted OpenResty control plane. It brings reverse proxy website configs, config version release, Agent node sync, TLS certificates, and basic observability into one admin panel — suitable for a single team or organization managing multiple proxy nodes.
 
 ## Recommended Reading Path
 
-If you are new to OpenFlare, read the documents in the following order:
+If you're new to OpenFlare, read in this order:
 
-1. [Quick Start](./quick-start.md): Start the Server using Docker Compose, log into the management console, and connect your first Agent.
-2. [Basic Usage](./usage.md): Learn common operations for website configs, origins, certificates, publishing, rollbacks, and observability.
-3. [Tunnel & Intranet Penetration](./tunnel-usage.md): Learn to deploy Relay and Client to achieve secure, public IP-free reverse penetration.
-4. [WAF Security Protection](./waf-usage.md): Master IP whitelisting/blacklisting, WAF auto IP group aggregation Expr rules, geographical restrictions, and PoW CC protection.
-5. [WAF Auto IP Group Expressions](./waf-ip-group-expr.md): Write auto IP group Expr rules and learn keyword definitions and presets.
-6. [Deployment Guide](../deployment/deployment.md): Deploy Server and Agent in closer-to-production environments.
-7. [Configurations Reference](../reference/configuration.md): Check Server environment variables, runtime Options, and Agent configurations.
-8. [Troubleshooting](./troubleshooting.md): Troubleshoot login, database, node sync, OpenResty application, and frontend build issues.
+1. [Quick Start](./quick-start.md): start the Server with Docker Compose, log in to the admin panel, and connect your first Agent.
+2. [Publish First Configuration](./first-site.md): quickly create a basic HTTP reverse proxy site rule and verify the node applied it.
+3. [Create a Reverse Proxy Config](./proxy-config.md): step by step, from certificate import and application to HTTPS, upstream origins, and edge cache.
+4. [Zone Domain Migration](./zone-domain-migration.md): upgrade from legacy managed domains / inline route domains to the Zone model (automatic goose import), with backup, acceptance, and rollback notes.
+5. [Pages Static Hosting Usage](./pages-usage.md): static project ZIP upload limits, SPA Fallback, and built-in API reverse proxy config.
+6. [Tunnel & Intranet Penetration](./tunnel-usage.md): deploy Relay and Client for secure reverse penetration without a public IP.
+7. [WAF Security Protection](./waf-usage.md): configure WAF rule groups; master IP allow/block lists, auto/subscription IP groups, geo restrictions, and PoW CC protection.
+8. [WAF Auto IP Group Expressions](./waf-ip-group-expr.md): write auto IP group Expr rules; understand keyword meanings and preset rules.
+9. [Uptime Kuma Monitoring Sync](./uptime-kuma.md): configure Uptime Kuma auto differential sync and monitor scope control.
+10. [SSO Login Configuration](./sso.md): configure OIDC for third-party single sign-on (SSO).
+11. [Troubleshooting](./troubleshooting.md): troubleshoot login, database, node sync, OpenResty, and edge cache hit issues by symptom.
+12. [Credits](./credits.md): the excellent open-source projects and community acknowledgments this system depends on.
 
-## Role-Based Entrypoints
+## Find by Role
 
-| What do you want to do? | Recommended Entrance |
+| What you want to do | Recommended Entry |
 | --- | --- |
-| Run the console in under 5 minutes | [Quick Start](./quick-start.md) |
-| Publish your first reverse proxy configuration | [Publish First Configuration](./first-site.md) |
+| Get the admin panel running in 5 minutes | [Quick Start](./quick-start.md) |
+| Publish your first reverse proxy config | [Publish First Configuration](./first-site.md) |
+| Configure domain certs, reverse proxy, and edge cache | [Create a Reverse Proxy Config](./proxy-config.md) (incl. cache notes) |
+| Static assets not hitting cache | [Troubleshooting · Edge Cache](./troubleshooting.md#edge-cache-hit-rate-anomalies) |
+| Host an SPA or static website | [Pages Static Hosting Usage](./pages-usage.md) |
 | Configure intranet penetration mapping | [Tunnel & Intranet Penetration](./tunnel-usage.md) |
-| Configure CC protection & IP group blocking | [WAF Security Protection](./waf-usage.md) |
-| Write auto IP group aggregation rules | [WAF Auto IP Group Expressions](./waf-ip-group-expr.md) |
+| Configure anti-CC and IP group blocking | [WAF Security Protection](./waf-usage.md) |
+| Write auto IP group rules | [WAF Auto IP Group Expressions](./waf-ip-group-expr.md) |
+| Auto-sync monitored site status | [Uptime Kuma Monitoring Sync](./uptime-kuma.md) |
 | Connect or reinstall a node Agent | [Access Agent](../deployment/agent.md) |
-| Start Server from source code | [Launch Server](../deployment/server.md) |
-| Configure GitHub or OIDC SSO | [SSO Login Configuration](./sso.md) |
+| Start the Server from source | [Start the Server](../deployment/server.md) |
+| Configure OIDC login | [SSO Login Configuration](./sso.md) |
 | Upgrade Server or Agent | [Upgrade & Maintenance](../deployment/upgrade.md) |
-| Participate in development or bug fixing | [Local Development](../design/development.md) and [Development Constraints](../../guideline/Constraints.md) |
-| Understand architecture and publishing | [System Architecture](../design/architecture.md) and [Agent & Publish Model](../design/agent-design.md) |
-| View open-source references and credits | [Credits](./credits.md) |
+| Understand the architecture and release model | [System Architecture](../design/architecture.md) and [Agent & Publish Model](../design/agent-design.md) |
+| See open-source references and acknowledgments | [Credits](./credits.md) |
 
-## Documentation Partitions
+## Doc Sections
 
-`guide/` is oriented toward users and deployers, providing actionable steps from installation to daily operations.
+`guide/` targets users and deployers with executable steps from install to daily operations.
 
-`reference/` collects stable facts such as configuration fields, commands, API response structures, and repository layout.
+`reference/` consolidates stable facts: config fields, commands, API response conventions, and repository structure.
 
-`design/` is oriented toward maintainers and contributors, describing product boundaries, system architecture, Agent & publishing models, and engineering constraints. Before adding capabilities or changing boundaries, update the corresponding design document first.
+`design/` targets maintainers and contributors, describing product boundaries, system architecture, the Agent & publish model, and engineering constraints. Before adding capabilities or changing boundaries, update the corresponding design doc first.

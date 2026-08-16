@@ -1,8 +1,8 @@
 # Deployment Guide
 
-You will learn: The recommended deployment strategies for OpenFlare, the system requirements for Server and Agent, how to run from source, integration steps, upgrades, and uninstallation entrypoints.
+You will learn: OpenFlare's recommended deployment approaches, Server and Agent runtime requirements, source startup, integration steps, and upgrade/uninstall entries.
 
-In production environments, we highly recommend using PostgreSQL as the Server database and explicitly configuring `SESSION_SECRET` for the Server. The recommended Agent deployment method is Docker (which runs the Agent image containing built-in OpenResty); host systemd service installation via script and manual local run are also supported.
+Production recommends PostgreSQL as the Server DB, with `APP_SESSION_SECRET` etc. configured via `config.yaml` or env vars. The full Docker Compose deployment requires Redis; ClickHouse is optional for massive access logs and observability time series (see the repo root `docker-compose.yaml`). The Agent supports both Docker deployment and a local install script; the Docker image bundles the OpenResty binary. Log-DB determination and switching: [Log Store Decoupling](../design/logstore.md).
 
 ## Deployment Topology
 
@@ -31,15 +31,15 @@ Origin service
 Browser
   |
   v
-OpenResty (Agent, WAF/HTTPS Termination)    <-- TunnelRelay Node
+OpenResty (Agent, WAF/HTTPS termination)      <-- TunnelRelay node
   |
   | proxy_pass (127.0.0.1:{vhost_port})
   v
-OpenFlareRelay (frps process)              <-- TunnelRelay Node
+OpenFlareRelay (frps process)                 <-- TunnelRelay node
   |
   | frp tunnel protocol
   v
-OpenFlared (frpc client)                   <-- Intranet Server
+OpenFlared (frpc client)                      <-- intranet server
   |
   v
 Internal Service (192.168.x.x)
@@ -47,150 +47,75 @@ Internal Service (192.168.x.x)
 
 ## Prerequisites
 
-Server:
+### Hardware Recommendations
 
-| Item | Requirement |
-| --- | --- |
-| Go | `1.25+`, required only when running from source |
-| Node.js | `18+`, required only when building the admin frontend from source |
-| Database | Writable SQLite parent directory, or a reachable PostgreSQL instance |
-| Port | Listens on port `3000` by default |
-
-Agent:
-
-| Item | Requirement |
-| --- | --- |
-| System | The installation script supports Linux and macOS; the systemd service is created only on Linux + systemd environments |
-| Architecture | `amd64` or `arm64` |
-| OpenResty | Required to have the `openresty` executable when deploying locally, or specify its path via `--openresty-path` |
-| Docker | Required only when deploying the Agent via Docker image |
-| Network | The Agent node must be able to reach the Server address |
-| GeoIP | WAF regional rules rely on the Agent's local MaxMind mmdb; the Agent initializes a built-in library on startup and updates it periodically |
-
-### Hardware Allocation Recommendations
-
-| Component | Minimum Allocation | Recommended Allocation | Note |
+| Component | Reference (entry) | Reference (production) | Notes |
 | --- | --- | --- | --- |
-| **Server Control Plane** | 1 Core CPU / 1 GB RAM / 10 GB Disk | 2 Cores CPU / 4 GB RAM / 50 GB+ Disk | Expand disk allocation according to log retention windows and concurrency. |
-| **Agent Data Plane** | 1 Core CPU / 512 MB RAM / 2 GB Disk | 2 Cores CPU / 2 GB RAM / 10 GB+ Disk | Expand according to concurrent reverse proxy connections and WAF workloads. |
-| **Relay Node** | 1 Core CPU / 1 GB RAM / 5 GB Disk | 2 Cores CPU / 2 GB RAM / 20 GB Disk | frps throughput is primarily bounded by CPU processing capacity and bandwidth. |
-| **OpenFlared Client** | 1 Core CPU / 256 MB RAM / 1 GB Disk | 1 Core CPU / 512 MB RAM / 5 GB Disk | Runs inside the intranet; utilizes minimal CPU/RAM, optimize for network throughput. |
+| **Server control plane** | 1 core / 2 GB RAM / 20 GB disk | 2 cores / 4 GB RAM / 50 GB+ disk | expand disk by access-log retention and concurrent traffic |
+| **Agent data plane** | 1 core / 512 MB RAM / 2 GB disk | 2 cores / 2 GB RAM / 10 GB+ disk | expand by OpenResty concurrent proxy connections and WAF interception |
+| **Relay node** | 1 core / 1 GB RAM / 5 GB disk | 2 cores / 2 GB RAM / 20 GB disk | frps relay throughput limited by bandwidth and CPU |
+| **OpenFlared client** | 1 core / 256 MB RAM / 1 GB disk | 1 core / 512 MB RAM / 5 GB disk | runs independently in the intranet, tiny footprint |
 
-## Docker Compose Deployment for Server
+## Docker Compose Server Deployment
 
-Create a `docker-compose.yml` file:
-
-```yaml
-services:
-  postgres:
-    image: postgres:17-alpine
-    restart: unless-stopped
-    environment:
-      POSTGRES_DB: openflare
-      POSTGRES_USER: openflare
-      POSTGRES_PASSWORD: replace-with-strong-password
-    volumes:
-      - postgres-data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U openflare -d openflare"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  openflare:
-    image: ghcr.io/rain-kl/openflare:latest
-    container_name: openflare
-    restart: unless-stopped
-    depends_on:
-      postgres:
-        condition: service_healthy
-    ports:
-      - "3000:3000"
-    environment:
-      SESSION_SECRET: replace-with-a-long-random-string
-      DSN: postgres://openflare:replace-with-strong-password@postgres:5432/openflare?sslmode=disable
-      GIN_MODE: release
-      LOG_LEVEL: info
-    volumes:
-      - openflare-data:/data
-
-volumes:
-  postgres-data:
-  openflare-data:
-```
-
-Start the Server:
+The repo root provides a full `docker-compose.yaml` (PostgreSQL, Redis, ClickHouse, Jaeger).
 
 ```bash
+curl -o .env.example https://raw.githubusercontent.com/Rain-kl/OpenFlare/refs/heads/main/.env.example
+cp .env.example .env
+# edit .env; at minimum change APP_SESSION_SECRET and the DB passwords
 docker compose up -d
 docker compose ps
 docker compose logs -f openflare
 ```
 
-Access `http://localhost:3000` for the first time, using the default credentials `root` / `123456`. Please change the default password immediately after logging in.
+First visit `http://localhost:3000`; default account `admin` / `12345678`. Change the default password immediately after login.
 
-## Start Server from Source
+## Source Startup
 
-First, build the admin frontend:
+First build the admin frontend:
 
 ```bash
-cd openflare-server/web
+cd frontend
 corepack enable
 pnpm install
-pnpm build
+pnpm build:embed
 ```
 
-Then, launch the Server:
+Then start the Server (repo root):
 
 ```bash
-cd openflare-server
-export SESSION_SECRET='replace-with-a-long-random-string'
-export SQLITE_PATH='./openflare.db'
-export LOG_LEVEL='info'
-# Optional: Prefer PostgreSQL by setting DSN
-# export DSN='postgres://openflare:secret@127.0.0.1:5432/openflare?sslmode=disable'
-go run .
+cp config.example.yaml config.yaml
+export APP_SESSION_SECRET='replace-with-a-long-random-string'
+# optional: use PostgreSQL
+# export DB_HOST=127.0.0.1 DB_USERNAME=postgres DB_PASSWORD=postgres DB_NAME=openflare
+go run main.go all
 ```
 
-By default, the Server listens on port `3000`. You can also specify it explicitly:
+Listens on `:3000` by default (controlled by `app.addr` in `config.yaml` or `APP_ADDR`).
 
-```bash
-go run . --port 3000 --log-dir ./logs
-```
+## Run the Agent with Docker (recommended)
 
-## Running Agent in Docker (Recommended)
-
-Docker is the recommended deployment method for the Agent. Running the Agent image directly launches the Agent controller alongside the built-in OpenResty binary. If `node_ip` is left blank, the Agent automatically resolves its outbound public IP via third-party APIs, avoiding registering the Docker bridge address as the node IP.
-
-Mounting the configuration file:
+Docker is the recommended Agent deployment. The Agent image is built on the OpenResty image, bundling the Agent controller and the OpenResty binary. Without an explicit `node_ip`, the Agent prefers fetching the real egress IP via a third-party API, avoiding registering the Docker bridge address as the node IP.
 
 ```bash
 docker pull ghcr.io/rain-kl/openflare-agent:latest
 docker rm -f openflare-agent 2>/dev/null || true
 docker run -d --name openflare-agent --restart unless-stopped \
-  -p 80:80 -p 443:443 \
-  -v openflare-agent-data:/data \
-  -v ./agent.json:/etc/openflare/agent.json:ro \
-  ghcr.io/rain-kl/openflare-agent:latest
-```
-
-Using environment variables:
-
-```bash
-docker pull ghcr.io/rain-kl/openflare-agent:latest
-docker rm -f openflare-agent 2>/dev/null || true
-docker run -d --name openflare-agent --restart unless-stopped \
-  -p 80:80 -p 443:443 \
+  -p 80:80 -p 443:443/tcp -p 443:443/udp \
+  -v openflare-agent-pages:/data/var/lib/openflare/pages \
   -e OPENFLARE_SERVER_URL=http://your-server:3000 \
   -e OPENFLARE_AGENT_TOKEN=YOUR_AGENT_TOKEN \
   ghcr.io/rain-kl/openflare-agent:latest
 ```
 
-## Agent Connection via Installation Script
+The named volume `openflare-agent-pages` persists the Pages deployment dir; rebuilding the container doesn't require re-pulling static site packages.
 
-Apart from Docker, you can deploy the Agent directly on a Linux/macOS host using the installation script.
+## Agent Access (script install)
 
-Auto-register using `discovery_token`:
+Besides Docker, the install script can deploy the Agent to the local host. The script registers the low-privilege `openflare` service account and runs the systemd service as that user, using Linux Capabilities to safely listen on privileged ports 80/443.
+
+Auto-register with `discovery_token`:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/Rain-kl/OpenFlare/main/scripts/install-agent.sh | bash -s -- \
@@ -198,7 +123,7 @@ curl -fsSL https://raw.githubusercontent.com/Rain-kl/OpenFlare/main/scripts/inst
   --discovery-token YOUR_DISCOVERY_TOKEN
 ```
 
-Connect using node-specific `agent_token`:
+With node-specific `agent_token`:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/Rain-kl/OpenFlare/main/scripts/install-agent.sh | bash -s -- \
@@ -206,82 +131,21 @@ curl -fsSL https://raw.githubusercontent.com/Rain-kl/OpenFlare/main/scripts/inst
   --agent-token YOUR_AGENT_TOKEN
 ```
 
-Installation script arguments:
+Install script parameters:
 
-| Argument | Description | Default Value |
-| --- | --- | --- |
-| `--server-url` | Server address (required) | |
-| `--discovery-token` | Auto-registration Token; mutually exclusive with `--agent-token` | |
-| `--agent-token` | Node-specific Token; mutually exclusive with `--discovery-token` | |
-| `--install-dir` | Target installation directory | `/opt/openflare-agent` |
-| `--openresty-path` | Path to the OpenResty binary; automatically detects `openresty` if unspecified | |
-| `--repo` | GitHub repository to download from | `Rain-kl/OpenFlare` |
-| `--no-service` | Do not register systemd service | |
+| Parameter | Description |
+| --- | --- |
+| `--server-url` | Server address, required |
+| `--discovery-token` | first-time auto-registration Token, one of two with `--agent-token` |
+| `--agent-token` | node-specific Token, one of two with `--discovery-token` |
+| `--install-dir` | install dir, default `/opt/openflare-agent` |
+| `--openresty-path` | OpenResty binary path; auto-finds `openresty` when omitted |
+| `--repo` | GitHub repo for downloading the Agent, default `Rain-kl/OpenFlare` |
+| `--no-service` | don't create the systemd service |
 
-Confirm service status:
+Confirm state:
 
 ```bash
 systemctl status openflare-agent
 journalctl -u openflare-agent -f
 ```
-
-## Running the Agent Manually
-
-Running from source:
-
-```bash
-cd openflare-agent
-export LOG_LEVEL='info'
-go run ./cmd/agent -config /path/to/agent.json
-```
-
-Running compiled binary:
-
-```bash
-cd openflare-agent
-go build -o openflare-agent ./cmd/agent
-export LOG_LEVEL='info'
-./openflare-agent -config /path/to/agent.json
-```
-
-Minimal `agent.json` example:
-
-```json
-{
-  "server_url": "http://127.0.0.1:3000",
-  "agent_token": "replace-with-node-auth-token",
-  "data_dir": "./data",
-  "openresty_path": "openresty",
-  "heartbeat_interval": 10000,
-  "request_timeout": 10000
-}
-```
-
-If `openresty_path` is left blank, the Agent calls `openresty` by default.
-
-By default, the Agent attempts to upgrade the HTTP heartbeat connection to WebSocket once successfully registered. Once upgraded, configuration activations on the Server notify the Agent instantly; if WebSocket disconnects or fails to establish, the Agent gracefully falls back to HTTP polling.
-
-WAF geographical filtering depends on the local `GeoLite2-Country.mmdb`. The Agent automatically writes the built-in database to `data_dir/etc/openflare/GeoLite2-Country.mmdb` on startup and checks for periodic updates. Muted warnings are logged if updates fail, having no impact on Nginx configuration sync or reloads.
-
-## Upgrades & Uninstallation
-
-Server:
-
-* Root users can check and trigger Server upgrades in the top header of the management console.
-* To deploy preview releases, manually check the GitHub Releases page.
-* You can also trigger upgrades by uploading the compiled Server binary in the console.
-
-Agent:
-
-* By default, the Agent automatically upgrades following stable releases.
-* Agent self-updates require the GitHub Release to contain the compiled binary and a matching `.sha256` checksum file; updates are blocked if the downloaded binary fails the SHA-256 validation.
-* You can re-execute the installation script to redeploy or force-update the Agent.
-* Upgrading to preview releases requires a manual trigger.
-
-Uninstalling the Agent:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/Rain-kl/OpenFlare/main/scripts/uninstall-agent.sh | bash
-```
-
-The uninstallation script stops the Agent process, removes the systemd service unit, and wipes the installation directory, without uninstalling OpenResty from the host.

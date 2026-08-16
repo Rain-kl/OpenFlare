@@ -1,24 +1,24 @@
-# Deployment & Upgrade
+# Deployment & Upgrades
 
-This section provides detailed deployment guides, configuration instructions, and upgrade maintenance procedures for the OpenFlare Server, Agent, Relay, and the OpenFlared client.
+This section provides detailed deployment guides, configuration notes, and upgrade/maintenance steps for the OpenFlare Server, Agent, Relay, and the OpenFlared intranet penetration client.
 
 ## Content Navigation
 
 ### Quick Start
-* **[Quick Start](../guide/quick-start.md)**: Start the Server and your first Agent in under 5 minutes using Docker Compose (recommended for new users).
+* **[Quick Start](../guide/quick-start.md)**: start the Server and your first Agent with Docker Compose in 5 minutes (recommended for new users)
 
 ### Server Deployment
-* **[Launch Server](./server.md)**: Learn how to build the frontend from source, start the Server, and choose between SQLite or PostgreSQL.
+* **[Start the Server](./server.md)**: build the frontend from source, start the Server, choose SQLite or PostgreSQL
 
 ### Agent Deployment
-* **[Deploy Agent](./agent.md)**: Explore Agent connection methods, Docker deployment, host script installation, config files, and troubleshooting.
+* **[Access Agent](./agent.md)**: Agent connection methods, Docker deployment, script install, config file, and troubleshooting
 
 ### Tunnel Intranet Penetration Deployment
-* **[Deploy Relay](./relay.md)**: View config descriptions, Docker deployment, and host runtime guides for TunnelRelay nodes.
-* **[Deploy OpenFlared](./openflared.md)**: Access config descriptions, Docker runtime, and auto-sync mechanisms for the intranet client.
+* **[Deploy Relay](./relay.md)**: TunnelRelay node config notes, Docker deployment, and host running guide
+* **[Deploy OpenFlared](./openflared.md)**: intranet penetration client config notes, Docker running, and self-sync mechanism
 
-### Upgrade & Maintenance
-* **[Upgrade & Maintenance](./upgrade.md)**: Discover upgrading procedures for Server/Agent, data retention rules, and validation commands.
+### Upgrades & Maintenance
+* **[Upgrade & Maintenance](./upgrade.md)**: Server and Agent upgrade steps, data cleanup policy, verification commands
 
-### Reference Manuals
-* **[Deployment Guide](./deployment.md)**: Browse deployment topologies, prerequisites, Docker Compose samples, and multiple deployment strategies.
+### Reference
+* **[Deployment Guide](./deployment.md)**: deployment topology, prerequisites, Docker Compose config examples, and an overview of multiple deployment approaches

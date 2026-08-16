@@ -1,100 +1,72 @@
-# Publishing Your First Site
+# Publish First Configuration
 
-You will learn: How to create your first website configuration, bind origins and certificates, publish the configuration version, and verify that the Agent applied it successfully.
+You will learn: how to create the first reverse proxy rule in the simplest way, publish a config version, and confirm the Agent has pulled and applied the config.
 
-The publishing pipeline of OpenFlare centers on a complete configuration version snapshot. After modifying website configurations in the management console, you need to publish and activate the new version to let the Agent pull and apply it in the next heartbeat.
+OpenFlare's release chain centers on "immutable config versions". After you modify rules in the admin panel, you must publish and activate a new version for online Agents to auto-sync and apply.
 
-## Pre-publish Checks
+---
 
-Verify that the following conditions are met:
+## Pre-Release Checks
 
-| Item | Expectation |
+Before starting, make sure the following conditions are met:
+
+| Check | Required State |
 | --- | --- |
-| Server | Management console is accessible and log-in succeeds |
-| Agent | At least one node is online |
-| Origin | The Agent node can reach the origin server address |
-| Domain | Domain is resolved to the OpenResty node, or prepared to verify via local `hosts` / `curl` Host header |
-| HTTPS | If HTTPS is required, the certificate is uploaded or hosted |
+| **Server** | control panel started normally and you can log in to the admin panel |
+| **Agent** | at least one Agent node online (confirmable in「Node Management」) |
+| **Origin** | your backend origin service is reachable from the Agent host |
+| **Domain/testing** | the domain's DNS resolves, or you're ready to test with local hosts / curl Host header on the client |
 
-## Create Website Configuration
+---
 
-A new website configuration requires at least:
+## Step 1: Create the First Website Config
 
-| Field | Description |
-| --- | --- |
-| Website Name | Business unique identifier; the primary domain is used if left blank |
-| Domain | At least one domain, where the first is treated as the primary domain |
-| Origin Address | A valid `http://` or `https://` upstream address |
-| Enabled Status | Only enabled website configurations will participate in publishing and rendering |
+For a quick verification, deploy a basic HTTP reverse proxy site first:
 
-Example:
+1. Log in to the control panel, go to **「Website Management」->「Domain List」** in the left navigation, click **「Add Zone」**.
+2. Fill in the domain config:
+   * **Domain**: enter the test domain (e.g. `first.example.com`).
+   * **Bind Certificate**: choose not to bind a certificate (for HTTP quick verification).
+   * Click save to complete domain registration.
+3. Go to **「Rule Management」**, click **「New Rule」**:
+   * **Rule Name**: enter a simple identifier (e.g. `first-app-route`).
+   * **Domain Match**: fill in your test domain (e.g. `first.example.com`).
+   * In the **「Reverse Proxy」** tab below, set the origin mode to「Direct Upstream」.
+   * **Upstream Address**: fill in the backend service address (e.g. the test-only `http://httpbin.org`).
+   * Click save to create the rule.
 
-| Field | Example |
-| --- | --- |
-| Website Name | `app` |
-| Domain | `app.example.com` |
-| Origin Address | `http://10.0.0.20:8080` |
+> [!TIP]
+> **About HTTPS and certificate preparation**
+> This section only guides the quick deployment of a basic HTTP rule. To import an existing SSL certificate or auto-issue one from Let's Encrypt via ACME and enable HTTPS proxying on port 443, go to [Create a Reverse Proxy Config](./proxy-config.md) for detailed steps.
 
-A single domain can belong to only one website configuration. Rate limiting, reverse proxy, and caching parameters are shared site-wide.
+---
 
-## Bind Certificate
+## Step 2: Preview and Publish a Config Version
 
-HTTPS certificates are bound by domain. Domains without a bound certificate will not be placed into `443 ssl` server blocks automatically.
+The new website config is still a draft in the Server database and needs a released version to be distributed to the data plane:
 
-If a website contains multiple domains, the rendering pipeline groups the HTTPS configurations by certificate while ensuring all domains belong to the same site snapshot.
+1. Click the **「Preview and Publish」** button in the top-right of the control panel; the system shows the physical config file diff for the newly added route.
+2. After confirming the rendered config is correct, click **「Confirm Publish」**.
+3. The control plane generates a unique config version number (format `YYYYMMDD-NNN`).
 
-## Publish & Activate
+---
 
-Standard Pipeline:
+## Step 3: Verify the Agent Applied It
 
-```text
-Modify rules -> Preview / Diff -> Publish -> Generate complete version -> Activate version -> Agent pulls -> Local application -> Report result
-```
+After publishing, the control plane immediately notifies online Agents via WebSocket (if the WebSocket is offline, the Agent detects it as a diff in its heartbeat):
 
-During publication, the Server reads all enabled website configurations, the main OpenResty config templates, performance and cache parameters, rendering the complete OpenResty configuration and calculating its `checksum`, saving to `config_versions`, and switching the active version.
-
-## Verify Results
-
-Verify in the management console after publishing:
-
-| Position | Expected Result |
-| --- | --- |
-| Node List | Node status is online |
-| Node Details | Current version matches active version |
-| Apply Logs | Most recent application succeeded |
-| Version Page | The new version is currently active |
-
-Verify Agent logs on the node:
-
-```bash
-journalctl -u openflare-agent -n 100 --no-pager
-```
-
-Access via domain:
-
-```bash
-curl -I http://app.example.com
-```
-
-If the domain has not been officially resolved, you can verify by specifying the Host header against the node IP:
-
-```bash
-curl -I -H 'Host: app.example.com' http://NODE_IP
-```
-
-HTTPS Validation:
-
-```bash
-curl -I https://app.example.com
-```
-
-## Rollback
-
-If a target version application fails and triggers a rollback, the Agent blocks repeated synchronization of the same failing `version + checksum` until the active version or checksum changes on the control plane.
-
-Roll back to an older version:
-
-1. Open the Configuration Versions page.
-2. Locate the last known good historic version.
-3. Re-activate that version.
-4. Check the node application logs to verify that the Agent successfully applied the rollback.
+1. **Admin-side verification**: go to「Node Management」-> click the node to open details; check that the**current version number** has changed to the just-published latest active version and the「Apply Records」show success.
+2. **Edge node verification**: check application via logs on the Agent host:
+   ```bash
+   # If the Agent is Docker-deployed
+   docker logs openflare-agent
+   
+   # If the Agent is deployed with local systemd
+   journalctl -u openflare-agent -n 50 --no-pager
+   ```
+3. **Connectivity test**:
+   On the client machine, use `curl` with a test Host header against the Agent node's IP for final verification:
+   ```bash
+   curl -I -H "Host: first.example.com" http://AGENT_NODE_IP
+   ```
+   If the returned status code matches the backend origin's response, your first reverse proxy rule has successfully landed on the edge node!

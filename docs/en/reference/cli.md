@@ -1,111 +1,129 @@
-# CLI Commands
+# Commands & Scripts
 
-You will learn: Common commands for starting, building, testing, installing, and uninstalling the OpenFlare Server, Admin Frontend, Agent, Swagger, and Documentation site.
+You will learn: common start, build, test, install, and uninstall commands for the OpenFlare Server, admin frontend, Agent, Relay, OpenFlared, Swagger, and the docs site.
+
+> All commands run at the **repo root** unless noted otherwise.
 
 ## Server
 
-Start from source:
+Source startup:
 
 ```bash
-cd openflare-server
-export SESSION_SECRET='replace-with-random-string'
-export SQLITE_PATH='./openflare.db'
-export LOG_LEVEL='info'
-go run .
+cp config.example.yaml config.yaml
+go run main.go all
 ```
 
-Specify listening port and logging directory:
+Split processes:
 
 ```bash
-go run . --port 3000 --log-dir ./logs
+go run main.go api          # HTTP API only
+go run main.go worker       # Asynq Worker only
+go run main.go scheduler    # scheduled tasks only
 ```
 
-Run tests:
+Build the binary:
 
 ```bash
-cd openflare-server
+make build-backend
+# output: bin/openflare-server
+```
+
+Tests:
+
+```bash
 GOCACHE=/tmp/openflare-go-cache go test ./...
 ```
 
-## Frontend
-
-Development:
+Quality gate:
 
 ```bash
-cd openflare-server/web
+make code-check
+```
+
+Auto-format backend Go source (organize imports) and frontend source:
+
+```bash
+make format
+```
+
+This command uses `goimports` to organize backend Go imports and the repo-pinned Prettier version to format `frontend/` source; build artifacts, dependencies, public static assets, and lock files are ignored.
+
+## Frontend
+
+Dev:
+
+```bash
+cd frontend
 pnpm install
 pnpm dev
 ```
 
-Build static assets:
+Build the embedded artifact (hosted by the Go Server):
 
 ```bash
-cd openflare-server/web
-pnpm build
+cd frontend
+pnpm build:embed
+# or at repo root: make build-embedded
 ```
 
-Linting and testing checks:
+Checks:
 
 ```bash
-cd openflare-server/web
+cd frontend
 pnpm lint
-pnpm typecheck
-pnpm test
+pnpm tsc --noEmit --jsx preserve
+pnpm check:i18n
 ```
 
 ## Agent
 
-Run from source:
+Source run:
 
 ```bash
-cd openflare-agent
 go run ./cmd/agent -config /path/to/agent.json
 ```
 
-Compile:
+Build:
 
 ```bash
-cd openflare-agent
-go build -o openflare-agent ./cmd/agent
+make build-agent
+# or: go build -o bin/openflare-agent ./cmd/agent
 ```
 
-Run tests:
+Tests:
 
 ```bash
-cd openflare-agent
-GOCACHE=/tmp/openflare-go-cache go test ./...
+GOCACHE=/tmp/openflare-go-cache go test ./internal/apps/agent/...
 ```
 
-## Relay (Server-side)
+## Relay
 
-Run from source:
+Source run:
 
 ```bash
-cd openflare-relay
-go run ./cmd -config /path/to/relay.json
+go run ./cmd/relay -config /path/to/relay.json
 ```
 
-Compile:
+Build:
 
 ```bash
-cd openflare-relay
-go build -o openflare-relay ./cmd
+make build-relay
+# or: go build -o bin/openflare-relay ./cmd/relay
 ```
 
-## OpenFlared (Client-side)
+## OpenFlared (Tunnel client)
 
-Run from source:
+Source run:
 
 ```bash
-cd openflared
-go run ./cmd -config /path/to/flared.json
+go run ./cmd/flared -config /path/to/flared.json
 ```
 
-Compile:
+Build:
 
 ```bash
-cd openflared
-go build -o openflared ./cmd
+make build-flared
+# or: go build -o bin/flared ./cmd/flared
 ```
 
 ## Install Agent
@@ -124,13 +142,13 @@ curl -fsSL https://raw.githubusercontent.com/Rain-kl/OpenFlare/main/scripts/unin
 
 ## Swagger
 
-Regenerate Swagger documentation:
+Regenerate the Swagger docs:
 
 ```bash
-go install github.com/swaggo/swag/cmd/swag@v1.16.4
-cd openflare-server
-swag init -g main.go -o docs
+make swagger
 ```
+
+Access: `http://localhost:3000/api/swagger/index.html` (default `api_prefix` `/api`; only mounted in non-production)
 
 ## Docs
 

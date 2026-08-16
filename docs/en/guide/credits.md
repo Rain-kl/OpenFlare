@@ -1,27 +1,29 @@
 # Credits
 
-OpenFlare is essentially a solution integration project. During its design and implementation phases, it drew inspiration from the exceptional concepts, architectural designs, and technical achievements of numerous open-source projects. Below are the key upstream open-source projects OpenFlare relies on for its core engine, security mechanisms, and backend/frontend system frameworks, along with our sincere thanks to these projects and their active communities.
+OpenFlare draws on the excellent ideas, architectures, and technical implementations of many open-source projects during design and development. Below are the key open-source projects referenced in OpenFlare's core underlying engines, security mechanisms, and frontend/backend frameworks. We thank these projects and their communities.
 
 ---
 
 ### 1. OpenResty
-* **Project Positioning**: A high-performance Web platform based on Nginx and Lua.
-* **Role in OpenFlare**: Acts as the edge gateway for the global Data Plane. All public web traffic is received by OpenResty first, where high-concurrency HTTPS handshakes, WAF security rule evaluations, and PoW CC verification are performed before executing reverse proxies.
-* **Project Link**: [OpenResty Official Website](https://openresty.org/)
+*   **Positioning**: a high-performance web platform based on Nginx and Lua.
+*   **Role in OpenFlare**: the edge gateway of the global data plane. All public web traffic is first received by OpenResty, where high-concurrency HTTPS handshakes, WAF security rule matching, anti-CC human verification, and finally reverse proxy forwarding are performed.
+*   **Link**: [OpenResty official site](https://openresty.org/)
 
 ### 2. FRP (Fast Reverse Proxy)
-* **Project Positioning**: A high-performance reverse proxy application focused on intranet penetration.
-* **Role in OpenFlare**: Serves as the underlying tunnel engine for the intranet penetration subsystem. The relay-side manager `openflare-relay` is responsible for running and scheduling the `frps` engine, while the intranet client `openflared` is responsible for generating TOML configurations locally and running the multiplexed `frpc` subprocesses.
-* **Project Link**: [fatedier/frp (GitHub)](https://github.com/fatedier/frp)
+*   **Positioning**: a high-performance reverse proxy application focused on intranet penetration.
+*   **Role in OpenFlare**: the underlying tunnel engine of the intranet penetration subsystem. The relay-side manager `openflare-relay` guards and schedules the `frps` engine, while the intranet client `openflared` auto-generates TOML config locally and guards multiplexed `frpc` child processes.
+*   **Link**: [fatedier/frp (GitHub)](https://github.com/fatedier/frp)
 
 ---
 
-### 3. Anubis (PoW Solution)
-* **Project Positioning**: A lightweight human-machine verification and protection solution based on Proof of Work (PoW).
-* **Role in OpenFlare**: Provides the core **seamless PoW CC challenge** capabilities for the gateway WAF.
+### 3. Anubis (PoW solution)
+*   **Positioning**: a lightweight human-verification protection solution based on Proof of Work.
+*   **Role in OpenFlare**: provides the core **invisible anti-CC human challenge** capability for the gateway WAF.
 
 ---
 
 ### 4. gin-template
-* **Project Positioning**: A modern full-stack development boilerplate based on Go Gin and frontend builds.
-* **Role in OpenFlare**: Provided the standard, unified backend/frontend system architecture baseline for the OpenFlare control plane (Server).
+*   **Positioning**: a modern full-stack development scaffold template based on Go Gin and frontend builds.
+*   **Role in OpenFlare**: provides a canonical, unified frontend/backend system architecture prototype for the OpenFlare control plane (Server).
+
+---

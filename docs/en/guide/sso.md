@@ -1,106 +1,85 @@
 # SSO Login Configuration
 
-You will learn: How to configure GitHub OAuth or standard OIDC login portals for OpenFlare, how to fill in callback URLs, and how third-party accounts bind to existing local users.
+You will learn: how to configure an OIDC third-party login entry for OpenFlare, fill in the callback URL, and how third-party accounts bind to local users.
 
-OpenFlare supports third-party logins configured via Authentication Sources. Currently, GitHub OAuth and standard OIDC Providers (e.g., Logto, authentik, Keycloak, Casdoor) are supported.
+OpenFlare connects third-party login through OIDC auth sources. Any service providing standard OIDC Discovery (Google, Keycloak, authentik, Logto, Casdoor, etc.) can be integrated.
 
-Once an Authentication Source is configured and enabled, it displays in the third-party login section of the login page. Users can log in using their third-party accounts or bind their third-party accounts to their current local account while logged in.
+After an auth source is configured and enabled, it appears in the third-party account login area on the login page. Users can log in with a third-party account, or bind a third-party account to the current local account while logged in.
 
 ## Prerequisites
 
-Before starting, prepare the following:
-
 | Item | Description |
 | --- | --- |
-| OpenFlare URL | The actual URL accessed by user browsers, e.g., `https://openflare.example.com` |
-| Auth Source Name | Unique internal identifier in OpenFlare, e.g., `github`, `company-oidc` |
-| Client ID | Provided after creating an application in the third-party platform |
-| Client Secret | Provided after creating an application in the third-party platform |
-| OIDC Discovery URL | Required for OIDC only, e.g., `https://idp.example.com/.well-known/openid-configuration` |
+| Server access URL | configured in admin「System Settings」->「System Settings」tab ->「General Settings」; must match the address users' browsers actually visit (protocol, domain, port) |
+| Auth source name | unique identifier inside OpenFlare, e.g. `company-oidc` |
+| Client ID | provided after creating the app on the third-party platform |
+| Client Secret | provided after creating the app on the third-party platform |
+| OIDC Discovery URL | e.g. `https://idp.example.com/.well-known/openid-configuration` |
 
-**Verify that "System Settings -> General Settings -> Server Address" accurately matches your domain name.**
-
-The Auth Source name can only contain letters, numbers, hyphens, or underscores, and must start with a letter or number. The Auth Source name will appear in the callback URL; if you modify the name after saving, you must simultaneously modify the callback URL on the third-party platform.
+The auth source name may only contain letters, digits, hyphens, or underscores, and must start with a letter or digit.
 
 ## Callback URL
 
-The Redirect URI / Callback URL in third-party platforms is formatted as:
+The Redirect URI / Callback URL on the third-party platform is fixed to:
 
 ```text
-<OpenFlare URL>/oauth/<Auth Source Name>
+<server access URL>/login
 ```
 
-Example:
+For example, with a server access URL of `https://openflare.example.com`:
 
 ```text
-https://openflare.example.com/oauth/github
-https://openflare.example.com/oauth/company-oidc
+https://openflare.example.com/login
 ```
 
-When creating or editing an authentication source in the management console, the form automatically generates the callback URL based on your current browser URL and the Auth Source name you entered.
-
-## Configure GitHub Login
-
-1. Create an OAuth App in GitHub.
-2. Fill `Homepage URL` with your OpenFlare URL.
-3. Fill `Authorization callback URL` with the callback URL generated in OpenFlare, e.g., `https://openflare.example.com/oauth/github`.
-4. Copy the Client ID and Client Secret provided by GitHub.
-5. Log into the OpenFlare management console, go to "Settings -> System Settings -> Configure Authentication Sources".
-6. Add an authentication source, choosing `GitHub` as the type.
-7. Fill in the Auth Source name, display name, Client ID, and Client Secret.
-8. The Scope defaults to `user:email`, which usually requires no modification.
-9. Save and enable the authentication source.
-
-Once enabled, the corresponding GitHub login button will display on the login page.
+The callback URL only relates to the「server access URL」and does not include the auth source name. After the third-party platform completes authorization, it redirects here, and the OpenFlare login page uses the authorization code to complete login or binding.
 
 ## Configure OIDC Login
 
-1. Create an application or client in your OIDC Provider.
-2. Select Web / Confidential Client as the application type.
-3. Fill `Redirect URI / Callback URL` with the callback URL generated in OpenFlare, e.g., `https://openflare.example.com/oauth/company-oidc`.
-4. Copy the Client ID and Client Secret.
-5. Retrieve the Provider's Discovery URL, which usually ends with `/.well-known/openid-configuration`.
-6. Log into the OpenFlare management console, go to "Settings -> System Settings -> Configure Authentication Sources".
-7. Add an authentication source, choosing `OIDC` as the type.
-8. Fill in the Auth Source name, display name, Client ID, Client Secret, and OIDC Discovery URL.
-9. Scope defaults to `openid profile email`. If the Provider restricts scopes, adjust to values permitted by the Provider.
-10. Save and enable the authentication source.
+1. Create an app or client on the OIDC Provider; choose Web / Confidential Client as the app type.
+2. Set the Redirect URI / Callback URL to `<server access URL>/login`.
+3. Copy the Client ID and Client Secret.
+4. Get the Provider's Discovery URL, usually ending in `/.well-known/openid-configuration`.
+5. Log in to the OpenFlare admin panel, go to **「System Settings」**, select the **「Security Settings」** tab, and add an auth source in the **「Auth Source Management」** section.
+6. Choose type `OIDC`; fill in the auth source name, display name, Client ID, Client Secret, and OIDC Discovery URL.
+7. Scope defaults to `openid profile email`. If the Provider restricts scopes, adjust according to the Provider's allowed values.
+8. Save and enable the auth source.
 
-Once enabled, the corresponding OIDC login button will display on the login page.
+Once enabled, the login page shows the corresponding third-party login button.
 
-## Login & Binding Behaviors
+## Login and Binding Behavior
 
-Once a third-party account returns to OpenFlare, it is processed according to the following rules:
+When a third-party account returns to OpenFlare, it is handled as follows:
 
 | Scenario | Behavior |
 | --- | --- |
-| Third-party account is already bound to a local user | Logs in directly |
-| User is already logged in and initiates third-party authorization | Binds to the current local user |
-| Third-party account is unbound, and registration is enabled | Automatically creates a standard user and binds |
-| Third-party account is unbound, and registration is disabled | Prompts to enter an existing local username and password to complete the binding |
+| Third-party account already bound to a local user | log in directly |
+| User already logged in and initiates third-party authorization | bind to the current local user |
+| Third-party account not bound, and registration allowed | auto-create a normal user and bind |
+| Third-party account not bound, and registration disabled | require entering an existing local account password to bind |
 
-If you want only existing users to use SSO, you can disable user registration. Unbound third-party accounts will then trigger the binding flow.
+To allow only existing users to use SSO, turn off user registration. Unbound third-party accounts then enter the bind-existing-account flow.
 
-## Modify Authentication Source
+## Modifying an Auth Source
 
-When editing an authentication source, leaving the Client Secret field blank retains the existing secret; entering a new value will overwrite the saved secret.
+When editing an auth source, leaving the Client Secret input empty keeps the existing secret; entering a new value overwrites and saves it.
 
-If you modify the Auth Source name, the callback URL changes accordingly. You must modify the Redirect URI / Callback URL on the third-party platform; otherwise, the third-party platform will deny the callback or return an error.
+Changing the auth source name does not affect the callback URL, so the third-party platform config doesn't need to change.
 
-## Common Problems
+## FAQ
 
 ### Returns `invalid_scope`
 
-This indicates that the third-party platform does not permit the configured Scope. OIDC defaults to `openid profile email`, and GitHub defaults to `user:email`. Adjust the Scope in the authentication source edit page or configure the third-party platform to permit the scope.
+The third-party platform doesn't allow the currently configured scope. The OIDC default scope is `openid profile email`. Adjust the scope on the auth source edit page, or allow the scope on the third-party platform.
 
-### Callback Address Mismatch
+### Callback URL mismatch
 
-Verify if the Redirect URI / Callback URL configured in the third-party platform matches the prompt in the OpenFlare form exactly. The protocol, domain, port, and path must match.
+Check that the Redirect URI / Callback URL on the third-party platform exactly matches `<server access URL>/login`. Protocol, domain, port, and path must all match.
 
-### Third-party Login Button Not Showing on Login Page
+### Login page doesn't show the third-party login button
 
-Verify if the authentication source is enabled and confirm that the Client ID and Client Secret are saved. OpenFlare validates these fields before enabling the source.
+Check that the auth source is enabled and that the Client ID and Client Secret are saved. OpenFlare validates these fields before enabling the auth source.
 
-### Client Secret Saved but Not Displayed in Clear Text
+### Client Secret saved, but the list doesn't show the plaintext
 
-This is expected behavior. OpenFlare does not echo the Client Secret back via API, displaying only whether the secret is configured.
+This is expected. OpenFlare never echoes the Client Secret through the API; it only shows whether a secret is configured.

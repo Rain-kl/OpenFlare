@@ -1,55 +1,53 @@
-# Agent Design Document
+# Agent Design
 
-You will learn: Agent design principles, core functional modules, interaction links with the Server, and how configuration applications are secured and made reliable through immutable version models and the three-stage disaster recovery rollback mechanism.
+You will learn: the Agent's design principles, core functional modules, interaction chain with the Server, and how the immutable version model and three-stage disaster recovery guarantee config-apply safety and reliability.
 
 ---
 
 ## Requirements Analysis
 
-In distributed reverse proxy and edge security gateway scenarios, the Agent plays a central role in connecting the control plane (Server) and the data plane (OpenResty). Since the Agent runs on the user's actual node server, its design must adhere to the following core security and high-availability requirements:
+In distributed reverse-proxy and edge-security gateway scenarios, the Agent is the core bridge between the control plane (Server) and the data plane (OpenResty). Since the Agent runs on the user's actual node server, its design must satisfy these core security and HA requirements:
 
-1. **Active Pull (Pull Model) instead of Push**: The Server does not hold the SSH keys of the nodes, nor does it actively initiate inbound connections to the nodes. All control directives and configuration updates are actively pulled by the Agent via heartbeats or long-lived connections (WebSockets). This eliminates inbound firewall security risks on the node side and prevents control channels from being hijacked.
-2. **Minimal Intrusiveness**: The Agent runs as an independent Go binary process. It only interacts with the local OpenResty process through file-based configuration rewriting and signal notifications, without interfering with other system services on the node.
-3. **Robust Disaster Recovery & Self-Healing**: Since network jitter, disk exhaustion, or erroneous configurations can easily lead to configuration sync failures, the Agent must possess zero-dependency local rollback and self-healing capabilities, strictly preventing a single configuration error from causing a complete node outage.
-4. **Pure Data and State Landing**: The Agent is only responsible for executing file generation and control intentions rendered by the Server. It does not carry complex control plane duties like business logic validation or multi-tenant authorization, ensuring the node side remains highly efficient and lightweight.
+1. **Active pull (Pull model), not passive receive**: the Server doesn't hold node SSH keys and never initiates inbound connections to nodes. All control instructions and config updates are pulled upward by the Agent via heartbeat or WebSocket. This removes inbound-firewall security risks on nodes and prevents control-channel hijacking.
+2. **Minimal invasiveness**: the Agent runs as a standalone Go binary, interacting with the local OpenResty process only via file-based config rewriting and signal notifications — no interference with other system services on the node.
+3. **Strong disaster recovery and self-healing**: since network jitter, full disks, or bad configs can easily break config sync, the Agent must have zero-dependency local rollback self-healing to prevent one bad config from taking down the whole machine.
+4. **Pure data and state landing**: the Agent only carries Server-rendered files and control intent to landing; it contains no complex business validation or multi-tenant auth — control-plane duties stay on the Server, keeping the node efficient and light.
 
 ---
 
-## Core Capabilities
+## Core Features
 
-The Agent is composed of the following core sub-modules, cooperating to manage its complete lifecycle:
+The Agent mainly consists of these submodules cooperating for its full lifecycle:
 
-| Module Name | Directory | Responsibilities |
+| Module | Directory | Responsibility |
 | :--- | :--- | :--- |
-| **Config Sync** | `sync/` | Pulls full configuration packages, writes files, triggers reloads, and records and reports sync statuses. |
-| **Heartbeat** | `heartbeat/` | Periodically reports node health and resource metrics to the Server and retrieves the latest active version summary. |
-| **WebSocket** | `wsclient/` | Maintains a persistent connection with the Server, providing sub-second real-time configuration pushes and commands. |
-| **OpenResty Control** | `nginx/` | Executes Nginx config validation (`openresty -t`), rewrites, graceful reloads (`reload`), and process auto-start. |
-| **Local State Store** | `state/` | Persistently records local applied versions, error logs, and buffers unsent observability metrics. |
-| **Self-Updater** | `updater/` | Listens to Server self-update commands, securely pulls new binary versions, and completes in-place upgrades. |
-| **Observability** | `observability/` | Collects host CPU/memory/disk and Nginx performance metrics, processes access logs, and uploads them. |
-| **GeoIP Maintenance** | `geoipdata/` `geoipupdate/` | Maintains and updates the local GeoIP database periodically to support WAF country-level filtering. |
+| **Config sync** | `sync/` | pull full config packages, write files, trigger reloads, record and report sync state. |
+| **Heartbeat** | `heartbeat/` | periodically report node health, resource metrics, and fetch the latest active version summary. |
+| **WebSocket** | `wsclient/` | keep a long connection to the Server for second-level real-time config push and control-plane instructions. |
+| **OpenResty control** | `nginx/` | run Nginx config validation (`openresty -t`), rewriting, smooth reload, and process auto-start. |
+| **Local state** | `state/` | persist local applied version, error logs, and buffered observability metrics not yet reported. |
+| **Self-update** | `updater/` | listen for Server self-update instructions, safely fetch new binaries, and hot-upgrade in place. |
+| **Observability** | `observability/` | collect host resource readings, OpenResty health/connections, and tail access-log details for reporting; **no** business pre-aggregation like UV/TopN/throughput. See [Edge Observability & Business Traffic Stats](./observability-design.md). |
+| **GeoIP maintenance** | `geoipdata/` `geoipupdate/` | maintain and periodically update the local GeoIP DB for WAF geo filtering. |
 
 ---
 
-## Interaction Flows with Server
+## Interaction Chain with the Server
 
-The Agent communicates with the control plane through **Token-based Auto-Registration** and a **Dual-channel Heartbeat/WebSocket** system during its lifecycle.
+The Agent communicates with the control plane via **Token-based auto-registration** and **heartbeat/WebSocket dual channels** over its lifecycle.
 
 ### 1. Auto-Registration Flow
+If `access_token` in the local `agent.json` is empty at startup but `discovery_token` is configured, auto-registration triggers:
+1. The Agent sends a registration request to `/api/v1/agent/nodes/register` with local hardware summary, IP, and hostname.
+2. The Server validates the `discovery_token`, generates a unique `NodeID` and dedicated `AccessToken` (i.e. `agent_token`), and returns them.
+3. The Agent writes the dedicated Token into the local config file, erases the one-time `discovery_token`, and all future communication authenticates with the dedicated `AccessToken`.
 
-If the Agent starts with an empty `access_token` in its local `agent.json`, but has a `discovery_token` configured, it triggers the auto-registration flow:
-1. The Agent sends a registration request to `/api/agent/register`, carrying a local hardware fingerprint, IP, and hostname.
-2. After validating the `discovery_token`, the Server generates a unique `NodeID` and a dedicated `AccessToken` (i.e., `agent_token`) in the database and returns them.
-3. The Agent writes the dedicated Token to its local configuration file, clears the one-time `discovery_token`, and uses the `AccessToken` for all subsequent authenticated communications.
-
-### 2. Dual-Channel Heartbeat & Sync Mechanism
-
-* **HTTP Polling (Fallback and Detection)**: The Agent sends POST heartbeat packets at configured `heartbeat_interval` intervals by default. It reports health metrics while retrieving the currently active configuration version summary (Version & Checksum).
-* **WebSocket Channel (Real-time Communication)**: Upon a successful HTTP heartbeat, the Agent automatically attempts to upgrade the connection to WebSocket (`/api/agent/ws`).
-  * Once the WS connection is established, heartbeats and metrics reporting shift entirely to the WS pipeline, reducing network overhead.
-  * When the Server publishes or activates a new version, it broadcasts a notification to the Agent via WS. The Agent triggers the synchronization flow **immediately** upon receiving the change event, achieving sub-second configuration deployment.
-  * If the WS connection drops due to network issues, the Agent automatically falls back to HTTP polling and uses an exponential backoff algorithm to attempt rebuilding the WS channel.
+### 2. Dual-Channel Heartbeat and Sync
+* **HTTP polling channel (fallback & probe)**: the Agent POSTs heartbeats at the configured `heartbeat_interval` by default, reporting metrics while fetching the current active version summary (Version & Checksum).
+* **WebSocket channel (real-time)**: after a successful HTTP heartbeat, the Agent auto-upgrades to WebSocket (`/api/v1/agent/ws`).
+  * Once established, heartbeat and metric reporting fully move to the WS pipe, reducing network overhead.
+  * When the Server releases/activates a new version, it broadcasts to Agents via WS. The Agent triggers sync **immediately** on the change event for second-level config effect.
+  * If the WS link drops due to network issues, the Agent degrades to HTTP polling and retries WS with exponential backoff.
 
 ### 3. Interaction Sequence Diagram
 
@@ -60,122 +58,120 @@ sequenceDiagram
     participant OR as Local OpenResty
     participant Server as OpenFlare Server
 
-    Note over Agent: First Startup (No AccessToken)
-    Agent->>Server: 1. Auto-registration request (carrying discovery_token)
-    Server-->>Agent: 2. Issue NodeID & dedicated AccessToken (agent_token)
-    Note over Agent: Store Token in local configuration file
+    Note over Agent: first startup (no AccessToken)
+    Agent->>Server: 1. auto-registration request (with discovery_token)
+    Server-->>Agent: 2. issue NodeID and dedicated AccessToken (agent_token)
+    Note over Agent: store Token in local config file
 
     rect rgb(240, 248, 255)
-        Note over Agent, Server: HTTP Fallback & WebSocket Upgrade
-        Agent->>Server: 3. Send HTTP Heartbeat (report system metrics & health)
-        Server-->>Agent: 4. Return ActiveConfig summary & AgentSettings
-        Agent->>Server: 5. Initiate WebSocket upgrade request (/api/agent/ws)
-        Server-->>Agent: 6. Upgrade successful (persistent bi-directional channel)
+        Note over Agent, Server: HTTP fallback and WebSocket upgrade
+        Agent->>Server: 3. send HTTP Heartbeat (report system state and health)
+        Server-->>Agent: 4. return ActiveConfig summary and AgentSettings
+        Agent->>Server: 5. request WebSocket upgrade (/api/v1/agent/ws)
+        Server-->>Agent: 6. upgrade success (bidirectional persistent real-time channel)
     end
 
     rect rgb(245, 245, 245)
-        Note over Agent, Server: Real-time Configuration Publication
-        Note over Server: Administrator clicks publish config in UI
-        Server->>Agent: 7. Broadcast active config summary via WS (WSMessageTypeActiveConfig)
-        Agent->>Server: 8. Request full configuration details (carrying target Version/Checksum)
-        Server-->>Agent: 9. Return complete configuration snapshot (Nginx configs, certs, WAF rules, etc.)
-        Note over Agent: Backup old files, write new config to local temp path
-        Agent->>OR: 10. Execute config syntax validation (openresty -t)
-        OR-->>Agent: 11. Return validation result (OK)
-        Agent->>OR: 12. Send graceful reload signal (openresty -s reload)
-        Agent->>Server: 13. Report application success status (Apply Log & ActiveVersion)
+        Note over Agent, Server: real-time config release/apply chain
+        Note over Server: admin clicks publish config in the UI
+        Server->>Agent: 7. broadcast new config summary via WS (WSMessageTypeActiveConfig)
+        Agent->>Server: 8. request full config details (with target Version/Checksum)
+        Server-->>Agent: 9. return full config snapshot (Nginx config, certs, WAF rules, etc.)
+        Note over Agent: back up old files, write new config to local temp path
+        Agent->>OR: 10. run config syntax validation (openresty -t)
+        OR-->>Agent: 11. return validation result (OK)
+        Agent->>OR: 12. smooth reload signal (openresty -s reload)
+        Agent->>Server: 13. report apply success (Apply Log & ActiveVersion)
     end
 ```
 
 ---
 
-## Control of OpenResty
+## OpenResty Control
 
-The Agent implements end-to-end closed-loop control of the data plane OpenResty, including configuration rendering, syntax validation, graceful reloading, and exception state capturing:
+The Agent's control over the data-plane OpenResty forms an end-to-end loop: config landing, syntax validation, smooth reload, and abnormal-state capture.
 
-### 1. Configuration Layout on Disk
+### 1. Config File Landing Organization
+After a successful sync, the Agent writes config under `data_dir` (default relative `etc/nginx/`, `etc/openflare/`, `var/lib/openflare/`; exact paths follow `main_config_path`, `route_config_path`, `cert_dir`, `lua_dir`, `runtime_config_dir`, `pages_dir` in `agent.json`):
+* `nginx.conf`: the main config (replaces relevant placeholders, configures performance params, Shared Dictionaries, and the global Server).
+* `conf.d/openflare_routes.conf`: the route config (generated by the Agent; contains all proxied sites' Server blocks, cert paths, cache, and rate-limit directives).
+* `certs/`: certificate dir (files named `{cert_id}.crt` and `{cert_id}.key`).
+* `lua/waf/` and `lua/pow/`: dedicated Lua runtime scripts for WAF and anti-CC challenges.
+* `etc/openflare/waf_config.json` and `waf_ip_groups.json`: structured rule configs for the WAF filtering engine.
+* `pages_dir`: the Pages static site deployment dir, default `data_dir/var/lib/openflare/pages`. When the active config references a Pages **project**, the Agent requests the control plane's「latest active package」(hash + package) by `project_id`, streams to a temp file with real response-size limits and SHA-256 validation, then safely extracts to `projects/{project_id}/releases/{hash}`. After extraction it rechecks file count and total bytes; absolute hard caps are 2 GiB package, 1,000 files, 8 GiB single-file/total. It then atomically switches `current` and **immediately deletes other historical releases of the same project** (only latest kept). Switching the active deployment within a project doesn't require republishing the main config; multi-project reconciliation isolates single-project failures.
 
-Upon successful sync, the Agent writes configuration files to `/etc/nginx/openflare-lua/` (or the configured `LuaDir`) according to a strict physical structure:
-* `nginx.conf`: Main configuration file (replaces absolute path placeholders, configures performance parameters, shared dictionaries, and global server blocks).
-* `routes.conf`: Route configuration file (generated by the Agent, containing all website server blocks, certificate paths, cache settings, and rate limit directives).
-* `certs/`: Certificate storage directory (files named as `{cert_id}.crt` and `{cert_id}.key`).
-* `waf/` and `pow/`: Dedicated Lua runtime scripts required for WAF and CC mitigation.
-* `waf_config.json` and `waf_ip_groups.json`: Structured rules and IP databases required by the WAF filtering engine.
-
-### 2. Refined Reload Operations
-
-1. **Backup Current Config**: Before writing new files, the Agent copies the existing configuration files to a `.backup` directory, keeping a complete rollback snapshot.
-2. **Write and Replace Placeholders**: Writes the pulled templates, automatically replacing absolute path placeholders (e.g., `__OPENFLARE_LUA_DIR__`) with actual local execution paths.
-3. **Syntax Validation**: Calls `openresty -t -c <temp_nginx.conf>` to run a strict syntax test.
-4. **Graceful Reload**: If validation passes, the Agent moves the files to the official paths and executes `openresty -s reload`. If OpenResty is not running, it launches the process.
-5. **Exception Capture**: If validation or reload fails, the Agent intercepts the standard error output (stderr) and extracts the first 2000 characters of the detailed error log.
+### 2. Fine-Grained Reload Actions
+1. **Back up current config**: before writing new files, copy existing config to a `.backup` temp dir, keeping a full scene snapshot.
+2. **Write and replace placeholders**: write the latest template, replacing absolute-path placeholders (e.g. `__OPENFLARE_LUA_DIR__`, `__OPENFLARE_PAGES_DIR__`) with local actual runtime paths.
+3. **Syntax validation**: run `openresty -t -c <temp_nginx.conf>` for strict syntax testing.
+4. **Smooth reload**: on validation pass, move the new config to the formal path and run `openresty -s reload`. If OpenResty isn't started, start the process with the current config.
+5. **Capture exceptions**: on validation/reload failure, the Agent captures command stdout/stderr as failure details for reporting.
 
 ---
 
-## Publishing & Config Application Model
+## Release and Config Apply Model
 
-OpenFlare discards the fragile mechanism of dynamically patching node configurations, instead using an **immutable configuration version publishing model**.
+OpenFlare uses an **immutable config version release model**, not online dynamic patching of node configs.
 
 ```text
-Edit rules -> Preview / View diff -> Publish -> Generate full configuration version -> Activate version -> Agent pulls -> Local application -> Report result
+modify rules -> preview / view diff -> release -> generate full config version -> activate version -> Agent pulls -> local apply -> report result
 ```
 
 ### 1. Core Design Principles
+* **Full release**: each release compiles all enabled routes, certs, Pages deployment references, and global/local WAF rules on the control plane in one pass, generating a full version with a unique `checksum`.
+* **Version format**: `YYYYMMDD-NNN` incrementing format for intuitive, monotonically increasing version history.
+* **Globally single active version**: only one globally active config version exists at a time. Rollback doesn't reverse-patch; just set a historical healthy version to `active`, and Agents re-pull and apply it.
 
-* **Complete Publication**: Every publication compiles all enabled proxy routes, certificates, and global/custom WAF rules at once, generating a complete version package with a unique `checksum`.
-* **Version Format**: Uses the `YYYYMMDD-NNN` incremental format, ensuring version histories are intuitive and strictly monotonic.
-* **Global Single Active Version**: The system supports only one globally `active` configuration version at any given time. Rollbacks do not require reverse patching; they simply transition an older healthy version to the `active` state, and the Agent pulls and applies it.
-
-### 2. Three-Stage Disaster Recovery & Rollback Mechanism
-
-If the Agent fails to apply a configuration (or reload fails), it automatically triggers the following three-stage self-healing pipeline:
+### 2. Three-Stage Disaster Recovery Rollback
+When the Agent detects a config apply (or smooth reload) failure, it auto-activates this three-stage anti-outage chain:
 
 ```mermaid
 graph TD
-    A[Config Application Failed] --> B[Stage 1: Attempt Local Backup Recovery]
-    B -- Backup Exists --> C[Write Local Backup Files]
-    C --> D[Run openresty -t Validation]
-    D -- Validation OK --> E[Reload Old Configuration]
-    D -- Validation Failed --> F[Proceed to Stage 2]
-    B -- No Backup --> F[Stage 2: Write Built-in Safe Fallback Config]
-    F --> G[Write fallback nginx.conf: Listen on Port 80 Only]
-    G --> H[Enable stub_status health checks]
-    G --> I[Return 503 for all other routes & block errors]
-    G --> J[Attempt to launch OpenResty to maintain basic survival]
-    J --> K[Proceed to Stage 3]
-    E --> L[Report Apply Warning]
-    K --> M[Block Local Repeated Application of Failed Version]
-    M --> N[Report Apply Error with detailed logs]
+    A[config apply failed] --> B[stage 1: try local backup restore]
+    B -- backup file exists --> C[write local backup files]
+    C --> D[run openresty -t validation]
+    D -- validation ok --> E[reload to restore old version]
+    D -- validation failed --> F[enter stage 2]
+    B -- no backup --> F[stage 2: write built-in safe fallback config]
+    F --> G[write fallback nginx.conf: listen on 80 only]
+    G --> H[enable stub_status health check]
+    G --> I[other routes return 503 uniformly and block bad configs]
+    G --> J[try starting OpenResty to keep basic liveness]
+    J --> K[enter stage 3]
+    E --> L[report Apply Warning]
+    K --> M[locally block re-applying the bad version]
+    M --> N[report Apply Error with detailed error]
 ```
 
-1. **Stage 1: Local Backup Rollback**
-   * The Agent attempts to restore the main configuration, routes, and certificates from the `.backup` directory.
-   * It runs `openresty -t` validation on the restored backup. If successful, it reloads and reports a `Warning` to the Server (Warning: failed to apply new version, automatically rolled back to the previous healthy version).
-2. **Stage 2: Built-in Safe Fallback Runtime**
-   * If no local backup exists (e.g., first deployment failed) or if the rollback validation fails, the Agent activates the ultimate self-healing mechanism: writing a **built-in safe fallback configuration**.
-   * **Fallback Configuration Specification**:
-     * Listens only on port `80`, containing no real user reverse proxy routes.
-     * The `/openflare/stub_status` endpoint returns a healthy response, while all other requests uniformly return a `503 Service Unavailable` status code with the fixed response body `OpenFlare: No Valid Configuration`.
-     * It attempts to launch OpenResty with this minimal configuration. This keeps the Nginx process alive, preserving underlying health probes and metric endpoints, preventing containers/pods from being repeatedly killed and restarted by orchestration systems, while keeping sensitive routes secure.
-3. **Stage 3: Local Configuration Blocking**
-   * The Agent records the failing configuration's `version + checksum` in its local state store blacklist.
-   * Until the control plane activates a new configuration (resulting in a changed `checksum`), the Agent's heartbeat blocks repeated synchronization pulls of this erroneous version, preventing nodes from entering an infinite loop of "heartbeat -> pull failing config -> crash rollback".
+1. **Stage 1: local backup fallback**
+   * The Agent tries restoring the main config, routes, and certs from the previously saved `.backup` dir.
+   * After writing backup files, re-run `openresty -t`. On success, reload back and report `Warning` to the Server (new version apply failed; auto-rolled back to the last healthy version).
+2. **Stage 2: built-in safe fallback runtime**
+   * If no local backup config exists (e.g. first deployment with a bad config), or the restored backup still fails validation, the Agent activates the final self-healing mechanism — writing the **built-in safe fallback config**.
+   * **Safe fallback spec**:
+     * listens only on port `80`, containing no user real reverse proxy routes.
+     * Everything except the `/openflare/stub_status` health-check route (which returns normally) returns `503 Service Unavailable` with a fixed body `OpenFlare: No Valid Configuration`.
+     * Tries starting OpenResty with this minimal config. This keeps the Nginx process itself alive, preserves the underlying health check/probe channel, prevents container/Pod restart loops from failed health checks, and protects sensitive routes.
+3. **Stage 3: local config blocking**
+   * The Agent records the crash-causing config `version + checksum` in a blocklist in the local state store.
+   * Until the control plane activates a new config (`checksum` changes), the Agent heartbeat blocks re-pulling that bad version — preventing the "heartbeat → pull crash config → crash rollback" infinite loop.
 
-### 3. WAF IP Group Asynchronous Runtime Synchronization
+### 3. WAF IP Group Runtime Async Sync
+To avoid high-frequency malicious-IP blocklist changes constantly triggering full main-config releases and reloads (smooth reload still has slight CPU and connection overhead on Nginx), IP group members use an **async differential sync** decoupled from release versions:
 
-To prevent highly volatile IP blacklists from triggering frequent full config publications and Nginx reloads (which still incur minor CPU and connection overhead), WAF IP groups are synchronized via an **asynchronous differential sync design**:
-
-* **Static Publication Snapshot**: The `waf_config.json` generated upon publication only contains the group ID reference mapping (i.e., `ip_whitelist_group_ids` / `ip_blacklist_group_ids`) and does not contain the actual list of IP addresses.
-* **Heartbeat Differential Check**: The Agent uploads its locally cached IP groups MD5 checksum map in its heartbeat.
-* **Differential Delivery**: The Server compares checksums and only delivers missing or modified IP groups, which are written directly to `waf_ip_groups.json` on the node without reload.
-* **WebSocket Real-time Push**: When an administrator updates an IP group, or a threat intelligence subscription successfully pulls, or a security rule triggers a temporary block, the Server immediately broadcasts the IP group update package via WebSocket. The Agent receives and applies it instantly **without Nginx reloads**.
+* **Static release snapshot**: the released `waf_config.json` only contains rule groups' references to IP groups (`ip_whitelist_group_ids` / `ip_blacklist_group_ids`), not the concrete IP member lists.
+* **Heartbeat differential comparison**: the Agent reports the MD5 Checksum map of locally cached IP groups in heartbeat packets.
+* **Differential dispatch**: the Server compares the hashes of IP groups referenced by the current active version and only dispatches missing or changed members, written to the local `waf_ip_groups.json` for fast differential sync.
+* **WebSocket real-time notification**: when the Server manually updates an IP group, a subscription source sync succeeds, or security rules auto-trigger temporary bans, the Server immediately broadcasts the affected IP group update via WebSocket; the Agent lands it instantly — **no Nginx reload** throughout.
 
 ---
 
 ## Design Constraints
 
-To protect the security boundary of the data and control plane, Agent development must strictly comply with the following engineering constraints:
+To guarantee the security boundary of data and control channels, Agent code and secondary development must strictly follow:
 
-1. **Zero-Privilege Command Execution**: The Server is strictly prohibited from sending any arbitrary shell commands or scripts to the Agent (such as exec/eval). All system control operations (such as start, stop, reload, update) must be hardcoded inside the Agent binary.
-2. **Strict Token Filtering and Prefix Validation**: Agent requests to the Server must be prefixed with `/api/agent/` and must carry the `X-Agent-Token` header for signature or token verification.
-3. **Node Autonomy**: The Agent must support complete offline capabilities. During disconnected periods, the local OpenResty must rely on local configuration copies to keep reverse proxy services running normally.
+1. **Zero privileged command channel**: the Server is absolutely forbidden from passing arbitrary shell commands or remote script execution (exec/eval, etc.) to the Agent. All system control primitives (start, stop, reload, update) must be hardcoded inside the Agent binary.
+2. **Strict Token filtering and prefix validation**: when the Agent requests resources from the Server, endpoints are fixed under the `/api/v1/agent/` prefix and must carry `X-Agent-Token` for signature/token verification.
+3. **Node autonomy**: the Agent must have complete offline capability. While disconnected from the Server, the local OpenResty must keep reverse-proxying normally based on locally landed config.
+4. **Observability reports facts only**: access logs are reported as details; host metrics report counters/instant readings. Computing conclusion metrics like business UV, Top domains, or 24h data provided inside the Agent is forbidden (the Server aggregates). See [Edge Observability & Business Traffic Stats](./observability-design.md).
+5. **Pages consumes only control-plane artifacts**: Remote URLs, GitHub Releases, the auto scanner, and future repo checkout/build executors are all Server responsibilities. The Agent receives no external URLs, access tokens, repo credentials, or clone/install/build commands — it only pulls already-activated deployment packages with integrity metadata.

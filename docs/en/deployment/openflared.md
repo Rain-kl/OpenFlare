@@ -1,42 +1,42 @@
-# Deploy OpenFlared Client
+# Deploy the OpenFlared Client
 
-You will learn: The responsibilities of the OpenFlared client, configuration parameters and environment variables, how to run the client via Docker, and how to deploy the client on an intranet server using the compiled host binary.
+You will learn: OpenFlared's responsibilities, config parameters and env vars, running the client with Docker, and deploying it standalone on an intranet server via binary.
 
-**OpenFlared** is a tunnel client deployed in the user's intranet environment (LANs, private VPCs, or other environments that cannot be directly accessed from the public internet). Its core responsibility is to establish communication with the control plane (OpenFlare Server) via the `X-Tunnel-Token` header, automatically spawning and managing one or more **frpc (Fast Reverse Proxy Client)** subprocesses locally to securely and stably tunnel HTTP traffic back to public relay nodes.
+**OpenFlared** is the tunnel client deployed in your intranet (LAN, private cloud, or any environment not directly reachable from the public internet). Its core responsibility is communicating with the control plane (OpenFlare Server) via `X-Tunnel-Token`, and locally spawning and managing one or more **frpc (fast reverse proxy client)** processes to securely and stably tunnel intranet HTTP traffic to public relay nodes.
 
 ---
 
 ## Prerequisites
 
-1. **Retrieve Tunnel Token**: Create a new tunnel instance on the "Intranet Penetration" or "Tunnel Management" page in the OpenFlare management console; the system will automatically generate a unique `tunnel_id` and a `tunnel_token` (e.g., `tun-<32hex>`).
-2. **Outbound Network Permissions**: The intranet server does not require any inbound public IPs or port mappings, but it must be able to reach the **OpenFlare Server URL** and the corresponding **TunnelRelay node control port (default 7000)** over the outbound network.
-3. **Software Dependencies** (Host deployment only):
-   - You must have an executable `frpc` binary locally (recommended version `v0.61.0+` or the latest stable `v0.69.0`), or specify its path explicitly in the configuration.
+1. **Get a Tunnel Token**: add a node of type **Tunnel** in admin「Node Management」, save it, then open the node detail page to view the dedicated access Token.
+2. **Outbound network access**: the intranet server needs no public inbound IP or port mapping, but must reach the public **OpenFlare Server address** and the corresponding **TunnelRelay node relay port (default 7000)** over the network.
+3. **Software dependency** (host deployment only):
+   - an executable `frpc` binary locally, or an explicitly specified path via parameter.
 
 ---
 
-## Configuration & Environment Variables
+## Config File and Env Vars
 
-`openflared` reads `flared.json` in the working directory by default on startup. Overriding options via environment variables is fully supported.
+`openflared` reads `flared.json` in the current directory by default at startup, fully overridable via env vars.
 
-### Configuration Fields Details
+### Config Field Details
 
-| JSON Field | Environment Variable | Description | Default Value |
+| JSON field | Env var | Description | Default |
 | --- | --- | --- | --- |
-| `server_url` | `OPENFLARE_SERVER_URL` | OpenFlare Server API base URL | **None (Required)** |
-| `tunnel_token` | `OPENFLARE_TUNNEL_TOKEN` | Tunnel client dedicated access Token | **None (Required)** |
-| `frpc_path` | `OPENFLARE_FRPC_PATH` | Path to the `frpc` executable binary | `"frpc"` |
-| `data_dir` | `OPENFLARE_DATA_DIR` | Directory to store local data and generated `frpc_{relayNodeID}.toml` configs | `"./data"` |
-| `state_path` | - | Path to store local state JSON file (saving the last applied version) | `"{data_dir}/flared-state.json"` |
-| `heartbeat_interval`| - | Heartbeat reporting interval (ms or Go Duration string) | `10000` (10s) |
-| `sync_interval` | - | Tunnel config polling interval (ms or Go Duration string) | `30000` (30s) |
-| `request_timeout` | - | HTTP request timeout duration | `10000` (10s) |
+| `server_url` | `OPENFLARE_SERVER_URL` | OpenFlare Server API service address | **none (required)** |
+| `tunnel_token` | `OPENFLARE_TUNNEL_TOKEN` | tunnel client's dedicated auth Token | **none (required)** |
+| `frpc_path` | `OPENFLARE_FRPC_PATH` | frpc executable binary path | `"frpc"` |
+| `data_dir` | `OPENFLARE_DATA_DIR` | local data and generated `frpc_{relayNodeID}.toml` directory | `"./data"` |
+| `state_path` | - | local state record file path (last applied config version) | `"{data_dir}/flared-state.json"` |
+| `heartbeat_interval`| - | state heartbeat report period (ms int or Go Duration string) | `10000` (10s) |
+| `sync_interval` | - | tunnel config pull/sync period (ms int or Go Duration string) | `30000` (30s) |
+| `request_timeout` | - | API network request timeout | `10000` (10s) |
 
 ---
 
-## Docker Deployment (Recommended)
+## Running with Docker
 
-Docker is the simplest and safest way to run the client inside the intranet. The official `openflared` image embeds the client controller and `frpc v0.69.0` out of the box, requiring no environment setup.
+Docker deployment is the simplest and safest way to run in the intranet. The official `openflared` image bundles the client controller and the `frpc v0.69.0` binary runtime — no extra environment needed.
 
 ```bash
 docker pull ghcr.io/rain-kl/openflared:latest
@@ -51,59 +51,24 @@ docker run -d --name openflared --restart unless-stopped \
 
 ---
 
-## Manual Host Deployment
+## Startup and Verification
 
-If you need to run the client directly on a Linux/macOS/Windows host inside the intranet:
+### 1. Auto-Sync Logic
 
-### 1. Compile the Binary
+After starting successfully, OpenFlared runs this workflow:
+- **Heartbeat & config fetch**: periodically syncs with the Server's `/api/v1/tunnel/heartbeat` and `/api/v1/tunnel/config/active` endpoints, validating the Token and detecting config versions.
+- **File rendering**: when a config version (or checksum) changes, it auto-pulls the tunnel's full route rules. If multiple Relay nodes are bound, it renders `frpc_{relayNodeID}.toml` per Relay under `data_dir`.
+- **Config-change restart**: when config or checksum changes, it re-spawns the corresponding `frpc` child processes to keep traffic mappings current.
+- **Abnormal self-recovery**: if a local `frpc` tunnel process exits abnormally, the supervisor restarts it with exponential backoff (initial 1s, cap 60s).
 
-```bash
-cd openflared
-go build -o flared ./cmd/flared
-```
-
-### 2. Prepare `flared.json`
-
-Create a `flared.json` configuration file in the same directory as the executable:
-
-```json
-{
-  "server_url": "http://your-server-ip:3000",
-  "tunnel_token": "your-tunnel-auth-token",
-  "frpc_path": "/usr/local/bin/frpc",
-  "data_dir": "./data",
-  "heartbeat_interval": "10s",
-  "sync_interval": "30s"
-}
-```
-
-### 3. Start the Service
-
-```bash
-export LOG_LEVEL='info'
-./flared -config ./flared.json
-```
-
----
-
-## Start & Validate
-
-### 1. Auto-Sync Workflow
-
-Once started successfully, OpenFlared operates the following workflow:
-- **Heartbeat & Config Fetching**: Periodically polls `/api/flared/heartbeat` and `/api/flared/config` endpoints to validate the Token and evaluate configuration versions.
-- **File Rendering**: When a new configuration version (or checksum mismatch) is detected, it pulls the complete tunnel routing rules. If multiple Relays are bound, it renders `frpc_{relayNodeID}.toml` configurations in `data_dir` for each Relay.
-- **Hot Reload or Restart**: Spawns the corresponding `frpc` subprocesses, or executes `frpc reload` / restart actions when configurations change, ensuring traffic mappings are kept up to date.
-- **Process Auto-Recovery**: If a local `frpc` tunnel process exits unexpectedly, the master program automatically restarts it after a 5-second backoff penalty.
-
-### 2. View Logs & Connection Status
+### 2. View Logs and Connection State
 
 ```bash
 # Docker container logs
 docker logs -f openflared
 ```
 
-If running correctly, the logs will show output similar to:
+If the process runs correctly, you'll see output like:
 ```text
 flared config loaded ...
 detected frpc version v0.69.0
@@ -112,8 +77,8 @@ applying new tunnel config {"version": "...", "checksum": "..."}
 frpc process missing, starting {"relay_id": "..."}
 ```
 
-### 3. Verify in the Management Console
+### 3. Confirm in the Admin Panel
 
-Open the **"Intranet Penetration"** page in the management console:
-- Check the online status of the corresponding tunnel; it should display green as **"Online"**.
-- You can inspect which relay nodes the tunnel is connected to, and view the detailed routing configurations of the intranet services.
+Open **「Node Management」** in the admin panel and enter the Tunnel node's detail page:
+- View the node online state and flared runtime state (WebSocket connected / running / offline).
+- View the current applied version and the latest apply record.

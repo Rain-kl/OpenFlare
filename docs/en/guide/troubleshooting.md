@@ -1,45 +1,46 @@
 # Troubleshooting
 
-You will learn: How to troubleshoot OpenFlare Server, database, login, Agent, OpenResty, configuration publishing, and frontend build issues by symptoms.
+You will learn: how to troubleshoot OpenFlare Server, database, login, Agent, OpenResty, and config release issues by symptom.
 
-During troubleshooting, first identify which layer the issue occurs in: browser, Server, database, Agent, OpenResty, origin server, or DNS. OpenFlare configurations are not written directly to nodes online; only after the active version changes will the Agent detect and apply it in heartbeats.
+First determine which layer the problem is in: browser, Server, database, Agent, OpenResty, origin, or DNS. OpenFlare configs are not written to all nodes online directly — only after the active version changes do Agents detect and apply it in their heartbeat.
 
-## Quick Diagnostic
+## Quick Locate
 
-| Symptom | Where to check first |
+| Symptom | Look Here First |
 | --- | --- |
-| Admin panel fails to open | Server container or process logs, port listening |
-| Login anomalies | Default credentials, Session Secret, browser request payloads, Server logs |
-| Data fails to save | Database connection, SQLite file permissions, PostgreSQL health |
-| Agent offline | Agent logs, Token, Server URL, network connectivity |
-| Node not updated after publishing | Active version, node heartbeat, application logs |
-| OpenResty application failed | Application logs, Agent logs, certificates, upstream addresses, port conflicts |
-| Observability analytics has no data | OpenResty container status, observability port, Agent retry logs |
+| Admin panel won't open | Server container/process logs, port listening |
+| Login abnormal | default account, Session Cookie, Server logs |
+| Data won't save | DB connection, SQLite file permissions, PostgreSQL health |
+| Agent offline | Agent logs, Token, Server address, network connectivity |
+| Node not updated after release | active version, node heartbeat, apply records |
+| OpenResty apply failure | apply records, Agent logs, certificates, upstream addresses, port usage |
+| Access analytics empty | OpenResty container state, observability port, Agent backfill logs |
+| Static assets never hit cache | global/site cache switch, policy extensions, whether config released, access log `cache_status`, origin Set-Cookie / Cache-Control |
 
-## Server Fails to Start
+## Server Won't Start
 
-1. View logs:
+1. Check the logs:
 
 ```bash
 docker compose logs -n 200 openflare
 ```
 
-For source-code execution, inspect terminal outputs.
+For source runs, check terminal output.
 
-2. Check port conflicts:
+2. Check port usage:
 
 ```bash
 lsof -i :3000
 ```
 
-3. If using PostgreSQL, verify that the database is healthy:
+3. If using PostgreSQL, confirm DB health:
 
 ```bash
 docker compose ps postgres
 docker compose logs -n 100 postgres
 ```
 
-4. If using SQLite, verify that the database directory is writable:
+4. If using SQLite, confirm the DB file directory is writable:
 
 ```bash
 ls -ld "$(dirname /path/to/openflare.db)"
@@ -47,203 +48,174 @@ ls -ld "$(dirname /path/to/openflare.db)"
 
 Common causes:
 
-| Log or Symptom | Action |
+| Log or Symptom | Handling |
 | --- | --- |
-| Database connection failed | Check `DSN` username, password, host, port, dbname, and `sslmode` |
-| SQLite fails to create files | Check if the parent directory of `SQLITE_PATH` exists and is writable |
-| Port is already in use | Change `PORT` or `--port`, or stop the process binding to the port |
+| DB connection failed | check `DB_HOST`, `DB_PORT`, `DB_USERNAME`, `DB_PASSWORD`, `DB_NAME`, `DB_SSL_MODE` consistency |
+| SQLite can't create file | check the `SQLITE_PATH` directory exists and is writable |
+| Port occupied | change `PORT` or `--port`, or stop the process holding the port |
 
-## Admin Console Fails to Load or Shows Blank Page
+## Admin Panel Won't Open or Is Blank
 
-1. Verify that the Server is listening:
+1. Confirm the Server is listening:
 
 ```bash
 curl -I http://127.0.0.1:3000
 ```
 
-2. If running from source, verify that the frontend static assets have been built:
+2. Check that the browser access address matches the reverse proxy config.
+
+## Default Account Can't Log In
+
+The default account is `admin` / `12345678`. If the password was changed after first login, use the changed one.
+
+Steps:
+
+1. Confirm you're connected to the intended database — avoid `SQLITE_PATH` or `DB_HOST` / `DB_NAME` pointing at another environment.
+2. Check whether the Server log uses `sqlite` or `postgres`.
+3. In browser dev tools, confirm admin API requests carry the Session Cookie correctly.
+4. Clear browser cache and cookies, then log in again.
+
+### Emergency Admin Password Reset
+
+If you forget the `admin` password, reset it with the `reset-passwd` command (supports SQLite and PostgreSQL):
 
 ```bash
-cd openflare-server/web
-pnpm build
+go run main.go reset-passwd --user admin --password your-new-password
 ```
 
-3. Verify if the browser URL matches your reverse proxy domain.
+With SQLite, stop the Server process first to avoid DB file lock conflicts. Without `--password`, the command generates a random password and prints it. After resetting, log in and change the password immediately.
 
-4. If accessing via the frontend dev server, verify the backend proxy configuration:
+## Agent Can't Register or Stays Offline
 
-```bash
-cd openflare-server/web
-NEXT_DEV_BACKEND_URL=http://127.0.0.1:3000 pnpm dev
-```
-
-## Default Credentials Fail to Log In
-
-The default credentials are `root` / `123456`. If you have modified the password after your first login, use your new password.
-
-Troubleshooting Steps:
-
-1. Confirm that you are connecting to the expected database, avoiding `SQLITE_PATH` or `DSN` pointing to a different environment.
-2. Check the Server log to see if it is running on `sqlite` or `postgres`.
-3. If deployed in multi-replicas or behind a reverse proxy, verify that `SESSION_SECRET` is static and uniform across all instances.
-4. Clear browser Cookies and try logging in again.
-
-### Emergency Reset of Admin Password
-
-If you forget the password for the `root` account, you can reset it back to `123456` by directly updating the password hash in the database (please change it immediately after logging in):
-
-#### 1. If using SQLite Database
-Stop the Server and open the database file using the `sqlite3` client:
-```bash
-sqlite3 /path/to/openflare.db
-```
-Execute the following SQL statement:
-```sql
-UPDATE users SET password_hash = '$2a$10$wN9aE3zTz83rO7R1uKlhuehJtA3c604pX4Z12B/9.5c0X337t1L4m' WHERE username = 'root';
-```
-Type `.exit` to exit and restart the Server.
-
-#### 2. If using PostgreSQL Database
-Connect to your PostgreSQL instance using a database tool (e.g., `psql`, `pgAdmin`, or `DBeaver`), select the corresponding `openflare` database, and execute the following SQL:
-```sql
-UPDATE users SET password_hash = '$2a$10$wN9aE3zTz83rO7R1uKlhuehJtA3c604pX4Z12B/9.5c0X337t1L4m' WHERE username = 'root';
-```
-Once executed successfully, you can log in using the default password `123456`.
-
-## Agent Fails to Register or Stays Offline
-
-Execute on the Agent node:
+On the Agent node:
 
 ```bash
 curl -I http://your-server:3000
 ```
 
-Inspect Agent logs:
+Check Agent logs:
 
 ```bash
 journalctl -u openflare-agent -n 200 --no-pager
 ```
 
-Verify configuration parameters:
+Check the config file:
 
 ```bash
 sed -n '1,160p' /opt/openflare-agent/agent.json
 ```
 
-Key Settings:
+Confirm:
 
-| Configuration | Description |
+| Config | Description |
 | --- | --- |
-| `server_url` | Must be the Server address reachable by the Agent node |
-| `agent_token` / `discovery_token` | At least one must be provided |
-| `heartbeat_interval` | Supports integer milliseconds or Go duration strings |
-| `request_timeout` | Can be increased for slower network links |
+| `server_url` | must be a Server address reachable by the Agent node |
+| `agent_token` / `discovery_token` | at least one filled in |
+| `heartbeat_interval` | supports millisecond integer or Go duration string |
+| `request_timeout` | increase for slow networks |
 
-If the log warns that the Token is invalid, retrieve a new Token in the management console, update `agent.json`, and restart the Agent:
+If logs say the Token is invalid, prepare a new Token in the admin panel, update `agent.json`, then restart:
 
 ```bash
 systemctl restart openflare-agent
 ```
 
-## Node Fails to Apply New Version after Publishing
+## Node Didn't Apply the New Version After Release
 
-Verify in sequence:
+Check in order:
 
-1. Confirm that the target version is activated on the Versions page.
-2. Verify if the node is online and if its last heartbeat time has updated.
-3. Check the Application Logs for successful, warned, or failed logs for the target version.
-4. Verify if the website configuration is enabled; disabled websites do not participate in rendering.
-5. Inspect Agent logs for pulls, validations, reloads, or rollback events.
+1. Is the target version activated in the version page?
+2. Is the node online, and did the last heartbeat time update?
+3. Do the apply records show success, warning, or failure for the target version?
+4. Is the website config enabled? Disabled sites don't participate in release rendering.
+5. Do Agent logs show pull, validation, reload, or rollback messages?
 
-Inspect Agent logs:
+View Agent logs:
 
 ```bash
 journalctl -u openflare-agent -f
 ```
 
-Note: If a target `version + checksum` fails to apply and triggers a rollback, the Agent blocks repeated synchronization of that failing target in its local state. You must fix the configuration issues and republish to generate a new checksum, or activate an older version to trigger a rollback.
+Note: once a target `version + checksum` fails to apply and rolls back, the Agent blocks retrying that target in local state. After fixing the config, republish to generate a new checksum, or activate an older version to roll back.
 
-If this is the Agent's first time applying configurations and no historic `nginx.conf` exists locally to roll back to, the failed version remains blocked but the Agent will attempt to enter the safe fallback runtime. At this point, the application logs and Agent logs will contain `fallback runtime started`. OpenResty will only listen to port `80`, returning a `503` with the body `OpenFlare: No Valid Configuration`, while retaining the local `/openflare/stub_status` health probe. After correcting the configurations and republishing, the Agent overrides the fallback config and restores normal reverse proxies.
+If this is the Agent's first config apply with no historical `nginx.conf` to roll back to, the failed target is still blocked, but the Agent enters a safe fallback runtime. The apply records and Agent logs will contain `fallback runtime started`; OpenResty only listens on port `80` and returns `503` with `OpenFlare: No Valid Configuration` for everything, while keeping the local `stub_status` health endpoint. After fixing the config and republishing a new version, the Agent overwrites the fallback config and resumes normal proxying.
 
-## OpenResty Application Fails
+## OpenResty Apply Failure
 
-Common Causes:
+Common causes:
 
-| Cause | Diagnostic |
+| Cause | Troubleshooting |
 | --- | --- |
-| Domain or server block conflict | Verify if the same domain is used by multiple website configurations |
-| Invalid upstream address | Confirm that all upstreams are valid `http://` or `https://` URLs |
-| Mismatched multi-upstream format | Multi-upstreams must be pure `scheme://host[:port]` |
-| Missing cert or invalid paths | Verify if domains are bound to certs and check if the Agent cert directory is writable |
-| Port already in use | Verify ports `80` and `443` on the host |
+| Domain or server block conflict | check whether the same domain is used by multiple site configs |
+| Invalid upstream address | confirm all upstreams are `http://` or `https://` |
+| Multi-upstream format violates constraints | multi-upstream must be plain `scheme://host[:port]` |
+| Certificate missing or wrong path | check whether the domain is bound to a cert and the Agent cert dir is writable |
+| Port occupied | check local `80`, `443` ports |
 
-OpenResty Configuration Validation:
+OpenResty config validation:
 
 ```bash
 openresty -t -c /path/to/openflare/data/etc/nginx/nginx.conf
 ```
 
-OpenResty Runtime Status:
+OpenResty running state:
 
 ```bash
 ps aux | grep openresty
 ```
 
-The Agent determines OpenResty survival periodically using the local endpoint `http://127.0.0.1:<openresty_observability_port>/openflare/stub_status`, completely bypassing repeated `openresty -t` calls. If a node is marked as unhealthy, confirm if this local observability port is listening. If failures only occur when applying configurations (e.g., `host not found in upstream`), the failure lies in config validation or reload, not the periodic health checks.
+The Agent's periodic health check probes the local `http://127.0.0.1:<openresty_observability_port>/openflare/stub_status` to judge OpenResty liveness — it does not repeatedly run `openresty -t`. If a node is marked unhealthy, first confirm that local observability port is listening; if `host not found in upstream` appears only during config apply, the failure comes from config validation or reload, not the periodic health probe.
 
-Actual binary paths and main configuration paths are governed by `openresty_path` and `main_config_path` in `agent.json`.
+Actual binary and main config paths follow `openresty_path` and `main_config_path` in `agent.json`.
 
-## HTTPS Fails to Work
+## HTTPS Not Taking Effect
 
-1. Verify that the certificate has been uploaded or hosted.
-2. Verify that the website configuration binds the certificate to the domain.
-3. Confirm that the configuration version has been published and activated.
-4. Check if the Application Logs indicate a success.
-5. Check the certificate chain and status code using `curl`:
+1. Confirm the certificate is uploaded or managed.
+2. Confirm the site config's domain is bound to a certificate.
+3. Confirm a new version was published and activated.
+4. Check whether the apply records succeeded.
+5. Inspect the certificate and status code with `curl`:
 
 ```bash
 curl -Iv https://your-domain
 ```
 
-Domains without a bound certificate will not be added to the HTTPS configuration automatically; this is expected behavior.
+Domains without a bound certificate are not auto-added to the HTTPS config — that's expected.
 
-## Traffic Analytics Has No Data
+## Access Analytics Empty
 
-1. Confirm that the node has successfully applied configurations carrying observability Lua scripts.
-2. Verify that OpenResty is running.
-3. Check Agent logs for observability extraction or upload errors.
-4. Check if `openresty_observability_port` (default is `18081`) is bound by other processes.
-5. Verify if the Server database has purged data inside the time window.
+1. Confirm the node successfully applied config including the observability Lua assets.
+2. Confirm OpenResty is running.
+3. Check Agent logs for observability collection or backfill failures.
+4. Check whether `openresty_observability_port` is occupied (default `18081`).
+5. Confirm the Server's DB cleanup policy hasn't deleted the relevant time window.
 
-## Frontend Build Fails
+## Edge Cache Hit-Rate Anomalies
 
-Execute:
+Access log cache three states: **hit** (HIT/STALE/REVALIDATED/UPDATING), **origin** (MISS/EXPIRED), **not cached** (BYPASS or empty — request didn't enter a cacheable path or response wasn't stored). Design: [Edge Cache Strategy Design](../design/edge-cache-design.md).
 
-```bash
-cd openflare-server/web
-corepack enable
-pnpm install
-pnpm lint
-pnpm typecheck
-pnpm test
-pnpm build
-```
+### Checklist
 
-Common causes:
+1. Global OpenResty cache enabled in **Performance Settings**.  
+2. Site **Cache** enabled and policy matches the path (「Standard static assets」covers only built-in extensions, **not HTML/JSON**; `.js.map`'s extension is `map`, in the default table).  
+3. Config version **published and activated**, node apply records succeeded (changing cache rules without publishing leaves nodes on old bypass logic).  
+4. Request method is **GET** (non-GET is never cached).  
+5. Origin doesn't return **`Set-Cookie`** for the target URL (if so, not written to the edge).  
+6. Origin doesn't declare **`Cache-Control: private` / `no-store`** (shared caches won't store).  
+7. Browser DevTools "Disable cache" only affects the browser; whether the edge HITs is judged by access log `cache_status`, not the Network panel.
 
-| Symptom | Action |
+### Common Misconceptions
+
+| Symptom | Explanation |
 | --- | --- |
-| pnpm version mismatch | Reinstall packages after executing `corepack enable` |
-| TypeScript errors | Locate detailed file bugs by running `pnpm typecheck` |
-| API type mismatch | Check responses structures in `lib/api/` and `types/` |
-| E2E test failures | Confirm that both the Server and frontend dev server are running |
+| Everything「not cached」after login, never republished | old config bypassed session cookies; after upgrade you must republish node configs |
+| `/api/foo` or `/index.html` not cached under `static` | expected (extension not in the default cacheable table) |
+| HTML cross-user leakage after switching to `all` | origin didn't forbid shared caching; switch back to `static` or add `private`/`no-store` to dynamic responses |
+| URLs with `?v=` have low hit rates | default cache key includes the full `$request_uri`; different query = different object |
+| First MISS, second still MISS | check whether the origin sets `Set-Cookie`/`private` every time, or node disk/cache `inactive` is too short |
 
-## Documentation Build Fails
+### Expected Behavior (aligned with Cloudflare defaults)
 
-```bash
-cd docs
-pnpm install
-pnpm build
-```
-
-If it fails on broken links, check if new pages are added to the `docs/config.ts` sidebar, or if relative markdown links point to existing markdown files.
+* A logged-in user accessing `/_app/**/*.js` static assets: **can HIT**.  
+* Response with `Set-Cookie` or `private`: **not stored**.  
+* Cacheable status codes without origin cache headers: use the default Edge TTL (e.g. ~120 min for 200).

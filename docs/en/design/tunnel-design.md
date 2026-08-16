@@ -1,130 +1,126 @@
-# Intranet Penetration Tunnel Design Document
+# Tunnel & Intranet Penetration Design
 
-You will learn: The architectural design of the OpenFlare intranet penetration tunnel, the internal principles of the dual-ended control components (Relay and Client), their interaction logics, and the communication flows for the data plane and control plane.
+You will learn: the architecture design of OpenFlare's intranet penetration tunnels, the internal principles of the dual-end control components (Relay and Client), interaction logic, and the data-plane / control-plane communication flows.
 
 ---
 
 ## Requirements Analysis
 
-In typical web application hosting scenarios, many origin servers (Origin Servers) are deployed in local intranet environments (such as local development machines, LAN servers, or firewalled private clusters). These servers typically suffer from:
-1. **No Public IP**: Cannot be directly accessed by public internet traffic.
-2. **Security Compliance Restrictions**: Creating port mappings (NAT) on border routers is strictly prohibited by security policies.
-3. **Dynamic IP Changes**: Traditional DDNS solutions exhibit high latency and are highly unstable.
+In typical web-hosting scenarios, many origins are deployed in intranet environments (local dev machines, LAN servers, or firewall-restricted intranet clusters). These servers usually:
+1. **Have no public IP**: cannot be directly reached by public traffic.
+2. **Compliance restrictions**: port mapping (NAT) on border routers is not freely allowed.
+3. **Dynamic IP changes**: traditional DDNS is high-latency and unstable.
 
-To allow internal origin servers to seamlessly integrate into the OpenFlare global data gateway, benefiting from premium features like WAF geographic protection and TLS certificate hosting, OpenFlare designed an end-to-end solution based on a **reverse relay penetration tunnel**. In this architecture, public edge nodes act as reverse proxy entrances and traffic relays, while the intranet side only needs to initiate secure outbound connections to achieve secure and stable reverse penetration of public traffic to internal origin servers.
-
----
-
-## Core Capabilities
-
-The intranet penetration tunnel subsystem includes the following core capabilities:
-
-* **Dynamic Relay Node Management**: The control plane dynamically dispatches relay services (frps), distributing service ports and authentication tokens dynamically.
-* **Multi-Tunnel Reverse Proxy Mapping**: Supports mapping multiple internal web ports on a single intranet client, binding multiple domain routes to corresponding relay nodes.
-* **Independent Process Lifecycle Control**: Both the relay and client are independent daemon processes written in Go, responsible for spawning, monitoring, self-healing, and hot-upgrading the underlying frp engine.
-* **Token-based Independent Authentication**: The relay uses `agent_token` for authorization, whereas the intranet client uses its dedicated `tunnel_token`, enforcing isolation of permissions and routing boundaries.
-* **Validation & Incremental Hot Reload**: Config files are rewritten and processes are gracefully reloaded only when tunnel bindings, certificates, or Relay topologies change, reducing runtime overhead.
+To let intranet origins seamlessly join the OpenFlare global data gateway and enjoy value-added services like WAF geo protection and TLS certificate management, OpenFlare designs a **reverse-relay tunnel penetration** solution. In this architecture, public edge nodes act as the reverse-proxy entry and traffic relay; the intranet side only needs outbound secure connections to safely and stably reverse-penetrate public traffic to intranet origins.
 
 ---
 
-## Intranet Penetration & Tunnel Architecture
+## Core Features
 
-The intranet penetration subsystem is integrated on top of the mature and high-performance `frp` tunnel protocol, divided into the **Control Plane** and the **Data Plane**.
+The intranet penetration subsystem includes:
+
+* **Dynamic Relay node management**: the control plane dynamically dispatches the relay service (frps), dynamically distributing service ports and auth tokens.
+* **Multi-tunnel reverse proxy mapping**: map multiple intranet web ports on a single intranet client, binding multi-domain routes to corresponding relay nodes.
+* **Independent process lifecycle management**: both relay and client are standalone Go binaries that spawn, monitor, self-heal, and hot-upgrade the underlying frp engines.
+* **Token-based auth isolation**: the relay uses `agent_token`; the intranet client uses its dedicated `tunnel_token` — permissions and route boundaries isolated.
+* **Config validation and incremental hot reload**: config files are rewritten and processes reloaded only when tunnel bindings, certificates, or Relay topology actually change, reducing runtime overhead.
+
+---
+
+## Tunnel Architecture
+
+The subsystem integrates the mature `frp` high-performance tunnel protocol, split into a **Control Plane** and a **Data Plane**.
 
 ```mermaid
 graph TD
-    %% Data Flow
-    Browser[1. Browser / Visitor] -->|HTTPS Request| Agent[2. OpenResty / Agent]
-    Agent -->|Local proxy_pass| RelayFrps[3. OpenFlare Relay / frps]
-    RelayFrps -->|Encrypted Tunnel Protocol| FlaredFrpc[4. OpenFlared / frpc]
-    FlaredFrpc -->|Forward Local Request| LocalOrigin[5. Intranet Origin 192.168.x.x]
+    %% data flow
+    Browser[1. Browser / Visitor] -->|HTTPS request| Agent[2. OpenResty / Agent]
+    Agent -->|local forward proxy_pass| RelayFrps[3. OpenFlare Relay / frps]
+    RelayFrps -->|encrypted tunnel protocol| FlaredFrpc[4. OpenFlared / frpc]
+    FlaredFrpc -->|forward local request| LocalOrigin[5. Intranet origin 192.168.x.x]
 
-    %% Control Flow & Heartbeats
-    Server[OpenFlare Server Control Plane] <-->|Relay API / Heartbeat| RelayManager[openflare-relay process]
+    %% control flow & heartbeat
+    Server[OpenFlare Server control plane] <-->|Relay API / Heartbeat| RelayManager[openflare-relay process]
     Server <-->|Client API / Heartbeat| ClientManager[openflared process]
 
-    RelayManager -.->|Control Process & Config| RelayFrps
-    ClientManager -.->|Control Multi-Relay Processes| FlaredFrpc
-
-    style Browser fill:#f9f,stroke:#333,stroke-width:2px
-    style LocalOrigin fill:#9f9,stroke:#333,stroke-width:2px
-    style Server fill:#f96,stroke:#333,stroke-width:2px
+    RelayManager -.->|manage process & config| RelayFrps
+    ClientManager -.->|manage multiple Relay processes| FlaredFrpc
 ```
 
-* **Control Plane**: The Server maintains the database state. The `openflare-relay` process on relay nodes and the `openflared` process on intranet servers synchronize tunnel configurations via HTTP heartbeats and long-lived WebSocket connections.
-* **Data Plane**: Public traffic enters the public edge Agent (OpenResty), where the TLS handshake, HTTPS termination, and WAF filtering are executed. It is then forwarded via `proxy_pass` to the co-located `openflare-relay (frps)` on the loopback address. `frps` encapsulates the HTTP requests into the encrypted TCP tunnel and sends them down to the intranet `openflared (frpc)`. Finally, `frpc` unpacks the requests and forwards them to the actual intranet origin service.
+* **Control Plane**: the Server maintains DB state; `openflare-relay` on relay nodes and `openflared` on intranet servers sync tunnel config via HTTP heartbeats and WebSocket long channels.
+* **Data Plane**: public traffic first enters the public-edge Agent (OpenResty), where HTTPS handshake, TLS termination, and WAF filtering happen; then `proxy_pass` forwards to the same-host `openflare-relay (frps)`. `frps` encapsulates the request and sends it through the persistent tunnel established with the intranet `openflared (frpc)`, which finally unpacks and dispatches to the actual intranet origin.
 
 ---
 
-## Relay (Server-side) Design
+## Relay Design
 
-`openflare-relay` is a relay manager deployed on the public edge, running on nodes of type `tunnel_relay`.
+`openflare-relay` is the relay manager deployed at the public edge, running on `tunnel_relay`-type nodes.
 
 ### 1. Core Architecture & Logic
-* **Process Daemon**: The Relay process embeds the `frps` binary, spawning the `frps -c frps.toml` subprocess via `exec.Command` and using goroutines to asynchronously listen to its exit status. If `frps` exits unexpectedly, it automatically restarts using an exponential backoff policy.
-* **Dynamic Configuration Rendering**: Periodically synchronizes status with the control plane via HTTP heartbeats to retrieve the active `RelayConfig`, including:
-  * `bindPort`: The public control port that frps listens to for incoming intranet frpc connections.
-  * `vhostHTTPPort`: The virtual host HTTP listening port where the Agent's proxy_pass points.
-  * `authToken`: The security credential used during the client connection handshake.
-  * `webServer`: Enables the frps dashboard API, which the Relay queries to collect active tunnel counts and traffic metrics.
-* **Status Reporting**: In each heartbeat cycle, the Relay reports the active connections, registered clients, individual proxy tunnel statuses, and Relay version back to the Server.
+* **Process guard**: the Relay process holds the `frps` binary, spawns `frps -c frps.toml` via `exec.Command`, and starts a goroutine asynchronously watching its exit state. If `frps` exits abnormally, it auto-restarts with backoff.
+* **Dynamic config rendering**: syncs state to the control plane via HTTP heartbeat and fetches the current `RelayConfig`, mainly:
+  * `bindPort`: frps's public control port listening for intranet frpc client connections.
+  * `vhostHTTPPort`: vhost HTTP traffic port; the Agent's proxy_pass points here.
+  * `authToken`: security credential for client handshake validation.
+  * `webServer`: enables the frps dashboard API; the Relay collects real-time active tunnel counts and traffic metrics from this or the admin control port.
+* **State reporting**: each heartbeat reports the underlying `frps` active connections, registered client count, per-proxy real-time state, and Relay version.
 
 ---
 
-## Openflared (Client-side) Design
+## Openflared (Client) Design
 
-`openflared` is the client manager running inside the user's intranet server, authenticated using a dedicated `tunnel_token`.
+`openflared` is the client manager on the user's intranet server, authenticated with its dedicated `tunnel_token`.
 
-### 1. Core Design Mechanisms
-* **Multi-Relay Support (Multiplexing)**:
-  To guarantee high availability and geographical proximity, the control plane may schedule the client to connect to multiple public Relays. `openflared` parses the list of Relays dispatched in the `TunnelConfig`, generating dedicated configurations (`frpc_<relay_node_id>.toml`) and allocating distinct cancelable contexts for each Relay process locally.
-* **Independent Subprocess Monitoring**:
-  `openflared` maintains a local `processes` map to manage the lifecycles of individual `frpc` subprocesses. When the control plane adds or removes Relays, the client incrementally spawns new processes or gracefully shuts down obsolete ones without affecting other functioning tunnels.
-* **Dynamic TOML Generation**:
-  When rendering TOML configs for each Relay, the client iterates over the Proxies list, writing each intranet service's `LocalAddr`, `LocalPort`, and bound `CustomDomains` into standard `[[proxies]]` blocks.
+### 1. Core Mechanisms
+* **Multiple Relay support (multiplexing)**:
+  for HA or nearest access, the control plane may schedule a client across multiple public Relays. `openflared` reads the Relays list in `TunnelConfig`, generates a dedicated config per Relay locally (named `frpc_<relay_node_id>.toml`), and assigns each Relay process an independent cancelable context.
+* **Independent child-process monitoring**:
+  `openflared` maintains a `processes` map for per-`frpc` lifecycle management. When the control plane adds or removes a Relay, the client incrementally spawns new processes or gracefully shuts down old ones without affecting other working tunnels.
+* **Dynamic TOML generation**:
+  when rendering the TOML for each Relay, the client iterates the Proxies list and writes each intranet service's `LocalAddr`, `LocalPort`, and bound `CustomDomains` into `[[proxies]]` blocks.
 
 ---
 
-## Interaction Logic & Traffic Model
+## Interaction Logic and Traffic Model
 
-The intranet penetration subsystem implements consistent version control and status feedback loops.
+The subsystem implements consistent versioning and state feedback.
 
-### 1. Control Plane Publishing & Sync Flow
+### 1. Control-Plane Release and Sync Flow
 
 ```text
-Admin modifies tunnel/intranet port mappings -> Click Publish -> Generate new Tunnel version & Checksum
-                                                                        |
-                                                                        v (Push or Heartbeat Pull)
-+-----------------------------------------------------------------------+-----------------------------------------------------------------------+
-|                                                                                                                                               |
-v (Relay Side)                                                                                                                                  v (Client Side)
-openflare-relay heartbeat detects frps port/Token change                                                                                        openflared heartbeat detects tunnel_version change
-Re-render local frps.toml                                                                                                                       Request full proxy configuration details
-Kill and restart the frps process                                                                                                               Re-render frpc_<relay_id>.toml configs
-Report health status as healthy                                                                                                                 Restart or hot-reload changed frpc processes
-                                                                                                                                                Report application results (Apply Success/Error)
+Admin modifies tunnel/intranet port mapping -> submit release -> generate new Tunnel version and Checksum
+                                            |
+                                            v (push or heartbeat pull)
++-------------------------------------------+-------------------------------------------+
+|                                                                                       |
+v (relay side)                                                                           v (intranet client)
+openflare-relay heartbeat detects frps port/Token changes                                openflared heartbeat detects tunnel_version change
+re-render local frps.toml                                                                 request latest proxy mapping package
+kill and restart the frps process                                                         re-render frpc_<relay_id>.toml
+report health state healthy                                                                 restart changed Relay processes with hot reload
+                                                                                         report apply result (Apply Success/Error)
 ```
 
-1. **Versioned Controls**: All intranet tunnel routes and mapping relationships are version-controlled, dispatching a unique `version` and `checksum` to ensure clients do not repeatedly write files or trigger redundant reloads.
-2. **Closed-Loop Application Feedback**: After applying new configurations, the client reports the application result in the next heartbeat. If the intranet port is unreachable or certificate bindings fail, the client intercepts the stdout/stderr of the subprocess to report `LastError` to the Server, providing administrators with transparent error details.
+1. **Versioned control**: tunnel routes and mappings are versioned like the main routing system, dispatching `version` and `checksum` so clients don't rewrite or reload processes redundantly.
+2. **Apply-result loop**: after applying new config, the client reports the result in its heartbeat. If frpc can't connect (intranet port unreachable or wrong cert config), the client captures process output and reports `LastError`, letting admins see penetration failure reasons directly in the Server.
 
-### 2. Data Plane Traffic Model
-1. **Public Entrance (Agent)**:
+### 2. Data-Plane Traffic Model
+1. **Public entry (Agent)**:
    ```nginx
    server {
        listen 443 ssl;
        server_name intranet.example.com;
-       # ... TLS certificates & WAF filtering ...
+       # ... TLS cert & WAF filtering logic ...
        location / {
-           proxy_pass http://127.0.0.1:18080; # Points to local frps vhost port
-           proxy_set_header Host $host; # Must preserve the original Host header, which frps relies on to route requests
+           proxy_pass http://127.0.0.1:8080; # points to the local frps vhost port
+           proxy_set_header Host $host; # must keep the original Host; frps routes by Host
            proxy_set_header X-Real-IP $remote_addr;
        }
    }
    ```
-2. **Relay Node (frps)**:
-   `frps` listens to the Vhost port `18080`. When an HTTP request arrives, it extracts `Host: intranet.example.com` from the request headers and searches its active registered tunnel registry to locate the matching encrypted TCP connection (initiated by the intranet frpc).
-3. **Encrypted Tunnel Transmission (TCP)**:
-   `frps` encapsulates the HTTP request into the custom TCP tunnel protocol and transmits it down to the intranet `frpc` client.
-4. **Intranet Client Distribution (frpc)**:
-   The `frpc` instance managed by `openflared` receives the payload, resolves it according to local settings (`localIP = "127.0.0.1"`, `localPort = 8080`), initiates a local TCP connection to forward the request to the intranet web service, and returns the response back through the tunnel to the public viewer.
+2. **Relay node (frps)**:
+   `frps` receives the HTTP request on the vhost port (default `8080`), reads the `Host: intranet.example.com` header, and looks up the registered active-tunnel table for the matching encrypted TCP connection (established by the intranet frpc).
+3. **Encrypted tunnel transport (TCP)**:
+   `frps` encapsulates the HTTP request into the internal TCP tunnel protocol and sends it to the intranet `frpc` client.
+4. **Intranet client dispatch (frpc)**:
+   the `frpc` managed by `openflared` receives the packet, opens a local TCP connection per local config (`localIP = "127.0.0.1"`, `localPort = 8080`), forwards to the intranet web service, and returns the response along the same path to the public user.

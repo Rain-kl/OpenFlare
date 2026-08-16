@@ -1,170 +1,300 @@
-# Launch Server
+# Start the Server
 
-You will learn: How to build the admin frontend from source, start the OpenFlare Server, choose between SQLite or PostgreSQL, and access Swagger.
+You will learn: how to deploy with Docker (quick start, production-recommended, advanced) and how to deploy the OpenFlare Server locally from source.
 
-OpenFlare Server is a Gin + GORM monolithic control plane, responsible for managing the Admin UI, Admin API, Agent API, configuration rendering, version publishing, data storage, and aggregated queries.
+The OpenFlare Server is a Gin + GORM monolithic control plane responsible for the admin UI, admin API, Agent API, config rendering, version release, data storage, and aggregation queries.
 
-## Prerequisites
+> [!IMPORTANT]
+> **About external dependencies**:
+> OpenFlare has built-in support for background async tasks (Asynq framework). Therefore, **regardless of deployment mode, Redis (or Valkey) is required**. The main difference between deployment options is the primary relational DB choice (SQLite vs PostgreSQL) and whether tracing (Jaeger) is enabled.
+> For high business traffic, ClickHouse is recommended for log storage.
 
-| Item | Requirement |
-| --- | --- |
-| Go | `1.25+` |
-| Node.js | `18+` |
-| pnpm | Recommended enabling via `corepack enable` |
-| Database | SQLite parent directory must be writable, or a reachable PostgreSQL instance |
+> [!TIP]
+> **ClickHouse server performance config (recommended mount)**
+> The control plane is typically a small host (e.g. 3c6g). The `performance.xml` provided in the repo tightens the background merge/mutation thread pools, avoiding high idle CPU or ClickHouse 25.x startup validation failures on small machines.
+> Mount the local `./config/clickhouse/performance.xml` as a single file at `/etc/clickhouse-server/config.d/performance.xml` to keep the official image's built-in Docker network listening config.
 
-In production environments, we highly recommend explicitly configuring `SESSION_SECRET` and prioritizing PostgreSQL.
-
-## Build the Admin Frontend
-
-The Go Server hosts static assets located in `openflare-server/web/build`. Before starting the Server from source, build the frontend:
+Pull the config locally before deploying:
 
 ```bash
-cd openflare-server/web
-corepack enable
-pnpm install
-pnpm build
+mkdir -p ./config/clickhouse
+curl -fsSL -o ./config/clickhouse/performance.xml \
+  https://raw.githubusercontent.com/Rain-kl/OpenFlare/refs/heads/main/config/clickhouse/performance.xml
 ```
 
-Common frontend quality checks:
+Add it to the ClickHouse service `volumes` (alongside the data volume):
 
-```bash
-pnpm lint
-pnpm typecheck
-pnpm test
+```yaml
+volumes:
+  - ./data/clickhouse_data:/var/lib/clickhouse   # or named volume
+  - ./config/clickhouse/performance.xml:/etc/clickhouse-server/config.d/performance.xml:ro
 ```
 
-## Start with SQLite
-
-```bash
-cd openflare-server
-export SESSION_SECRET='replace-with-a-long-random-string'
-export SQLITE_PATH='./openflare.db'
-export LOG_LEVEL='info'
-go run .
-```
-
-By default, the Server listens on port `3000`. Access it at:
-
-```text
-http://localhost:3000
-```
-
-## Start with PostgreSQL
-
-```bash
-cd openflare-server
-export SESSION_SECRET='replace-with-a-long-random-string'
-export DSN='postgres://openflare:secret@127.0.0.1:5432/openflare?sslmode=disable'
-export LOG_LEVEL='info'
-go run .
-```
-
-If `DSN` is set, it takes precedence over SQLite. When both `DSN` and the legacy `SQL_DSN` exist, `DSN` is prioritized.
-
-If the target PostgreSQL database is empty and a local SQLite database exists at `SQLITE_PATH`, the Server automatically migrates the SQLite data into PostgreSQL during startup, outputting the migration progress in the logs.
-
-## Start with Docker
-
-Deploying with Docker avoids the hassle of setting up local Go and Node.js environments. OpenFlare provides official Dockerfiles and Compose configurations to support independent container startups and multi-service orchestrations.
-
-### 1. Quick Start via Docker Run (SQLite Example)
-
-Ensure that a local directory for persisting databases and logs has been created. Run the following command to start the Server:
-
-```bash
-# Create local mount directory
-mkdir -p ./openflare-data
-
-# Start the container
-docker run -d \
-  --name openflare-server \
-  -p 3000:3000 \
-  -v $(pwd)/openflare-data:/data \
-  -e SESSION_SECRET='replace-with-a-long-random-string' \
-  -e SQLITE_PATH='/data/openflare.db' \
-  -e GIN_MODE='release' \
-  -e LOG_LEVEL='info' \
-  ghcr.io/rain-kl/openflare:latest
-```
-
-Startup parameters:
-* **`-p 3000:3000`**: Maps port `3000` on the host to port `3000` inside the container.
-* **`-v $(pwd)/openflare-data:/data`**: Mounts the local directory to `/data` in the container, ensuring that the SQLite database `openflare.db` is not lost when restarting or rebuilding the container.
-* **`SESSION_SECRET`**: The session signing hash key (required).
+After modifying `performance.xml`, run `docker compose restart clickhouse` for it to take effect.
 
 ---
 
-### 2. One-click Startup via Docker Compose (Integrated PostgreSQL)
+## Method 1: Docker Deployment (recommended)
 
-We recommend using Docker Compose in production environments to orchestrate an independent PostgreSQL database and establish high-availability relationships.
+Docker deployment avoids configuring Go and Node.js frontend build environments locally. Choose one of the three options based on your hardware and needs:
 
-Create a `docker-compose.yml` file:
+### 1. Quick Start (SQLite + Redis)
+
+> **Use case**: testing/experience, lightweight single-machine deployment.
+>
+> **Features**: primary relational DB is SQLite.
+
+Create a `docker-compose.yaml`:
+
+```yaml
+version: '3.8'
+
+services:
+  openflare:
+    image: ghcr.io/rain-kl/openflare:latest
+    container_name: openflare-server
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./openflare-data:/data
+      - ./uploads:/app/uploads
+    environment:
+      TZ: Asia/Shanghai
+      APP_SESSION_SECRET: 'replace-with-a-long-random-string' # replace with a long random string in production
+      DB_ENABLED: "false" # disables PostgreSQL, auto-enables the built-in SQLite fallback
+      SQLITE_PATH: "/data/openflare.db"
+      REDIS_ENABLED: "true"
+      REDIS_ADDR: "redis:6379"
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  redis:
+    image: valkey/valkey:8.0-alpine
+    restart: unless-stopped
+    command: ["valkey-server", "--appendonly", "yes"]
+    volumes:
+      - ./data/valkey:/data
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+```
+
+---
+
+### 2. Small-Traffic Business (PostgreSQL + Redis)
+
+> **Use case**: production, small-to-medium traffic; PostgreSQL won't be the log-write bottleneck.
+
+Create a `docker-compose.yaml`:
 
 ```yaml
 services:
+  openflare:
+    image: ghcr.io/rain-kl/openflare:latest
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      TZ: ${TZ:-Asia/Shanghai}
+    ports:
+      - "3000:3000"
+    volumes:
+      - openflare_uploads:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
   postgres:
     image: postgres:17-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_DB: openflare
-      POSTGRES_USER: openflare
-      POSTGRES_PASSWORD: replace-with-strong-password
+      POSTGRES_DB: ${DB_NAME:-openflare}
+      POSTGRES_USER: ${DB_USERNAME:-openflare}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-replace-with-strong-password}
     volumes:
-      - ./postgres-data:/var/lib/postgresql/data
+      - openflare_postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U openflare -d openflare"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-openflare} -d ${DB_NAME:-openflare}"]
       interval: 10s
       timeout: 5s
       retries: 5
 
-  openflare:
-    image: ghcr.io/rain-kl/openflare:latest
+  redis:
+    image: valkey/valkey:8.0-alpine
     restart: unless-stopped
-    depends_on:
-      postgres:
-        condition: service_healthy
-    ports:
-      - "3000:3000"
-    environment:
-      SESSION_SECRET: replace-with-random-string
-      SQLITE_PATH: /data/openflare.db
-      DSN: postgres://openflare:replace-with-strong-password@postgres:5432/openflare?sslmode=disable
-      GIN_MODE: release
-      LOG_LEVEL: info
+    command: ["valkey-server", "--appendonly", "yes"]
     volumes:
-      - ./openflare-data:/data
+      - openflare_redis_data:/data
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+volumes:
+    openflare_uploads:
+    openflare_postgres_data:
+    openflare_redis_data:
 ```
 
-Start the services:
+Create a matching `.env` file for system env vars (copy and modify the root `.env.example`):
 
 ```bash
+curl -o .env.example https://raw.githubusercontent.com/Rain-kl/OpenFlare/refs/heads/main/.env.example
+cp .env.example .env
+# edit .env: fill in DB, Redis, passwords, and APP_SESSION_SECRET
+
 docker compose up -d
 ```
 
-Compose configuration options:
-* **`depends_on` and `healthcheck`**: Uses PostgreSQL's health check (`pg_isready`) to ensure that the database is fully initialized and ready before launching the OpenFlare Server, preventing panics from failed database connection attempts on first launch.
-* **Separated Data Volume Mounts**: PostgreSQL data is mounted under `./postgres-data`, and OpenFlare data and backups are mounted under `./openflare-data`, making backups and maintenance simple.
+---
 
-## CLI Arguments
+### 3. Advanced (full orchestration with Jaeger tracing)
 
-```bash
-go run . --port 3000 --log-dir ./logs
+> **Use case**: high traffic; needs trace performance metrics.
+>
+> **Features**: on top of the "production-recommended" bundle, stores logs with ClickHouse and uses Jaeger as the OpenTelemetry (OTel) tracing backend.
+
+Create a `docker-compose.yaml`:
+
+```yaml
+version: '3.8'
+
+services:
+  openflare:
+    image: ghcr.io/rain-kl/openflare:latest
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      TZ: ${TZ:-Asia/Shanghai}
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://jaeger:4317"
+      OTEL_EXPORTER_OTLP_INSECURE: "true"
+      OTEL_SAMPLING_RATE: "1.0" # sampling rate; 1.0 samples all traces
+    ports:
+      - "3000:3000"
+    volumes:
+      - openflare_uploads:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      clickhouse:
+        condition: service_healthy
+      jaeger:
+        condition: service_started
+
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-openflare}
+      POSTGRES_USER: ${DB_USERNAME:-openflare}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-replace-with-strong-password}
+    volumes:
+      - openflare_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-openflare} -d ${DB_NAME:-openflare}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: valkey/valkey:8.0-alpine
+    restart: unless-stopped
+    command: ["valkey-server", "--appendonly", "yes"]
+    volumes:
+      - openflare_redis_data:/data
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+  jaeger:
+    image: jaegertracing/jaeger:2.19.0
+    restart: unless-stopped
+    environment:
+      TZ: ${TZ:-Asia/Shanghai}
+    ports:
+      - "16686:16686" # Web UI port
+      - "4317:4317"   # OTLP gRPC receive port
+      - "4318:4318"   # OTLP HTTP receive port
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:25.3-alpine
+    restart: unless-stopped
+    environment:
+      CLICKHOUSE_DB: ${CLICKHOUSE_NAME:-openflare}
+      CLICKHOUSE_USER: ${CLICKHOUSE_USERNAME:-default}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-replace-with-clickhouse-password}
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
+      TZ: ${TZ:-Asia/Shanghai}
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+    volumes:
+      - openflare_clickhouse_data:/var/lib/clickhouse
+      - ./config/clickhouse/performance.xml:/etc/clickhouse-server/config.d/performance.xml:ro
+    healthcheck:
+      test: ["CMD", "clickhouse-client", "--user", "${CLICKHOUSE_USERNAME:-default}", "--password", "${CLICKHOUSE_PASSWORD:-replace-with-clickhouse-password}", "--query", "SELECT 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+volumes:
+  openflare_uploads:
+  openflare_postgres_data:
+  openflare_redis_data:
+  openflare_clickhouse_data:
 ```
 
-| Argument | Description | Default Value |
-| --- | --- | --- |
-| `--port` | The port the Server listens to | `3000` |
-| `--log-dir` | The directory to write logs to | Empty, outputs to stdout |
-| `--version` | Outputs version and exits | `false` |
-| `--help` | Outputs help and exits | `false` |
+Start and verify:
+
+```bash
+mkdir -p ./config/clickhouse
+curl -fsSL -o ./config/clickhouse/performance.xml \
+  https://raw.githubusercontent.com/Rain-kl/OpenFlare/refs/heads/main/config/clickhouse/performance.xml
+curl -o .env.example https://raw.githubusercontent.com/Rain-kl/OpenFlare/refs/heads/main/.env.example
+cp .env.example .env
+# edit .env and make sure APP_SESSION_SECRET password is set
+
+docker compose up -d
+```
+After startup, open `http://localhost:16686` to view the Jaeger monitoring UI and system span traces.
+
+---
 
 ## First Login
 
-Default credentials:
+The Server listens on port `3000` by default; open `http://localhost:3000` in a browser after startup.
+
+Default admin account:
 
 | Username | Password |
 | --- | --- |
-| `root` | `123456` |
+| `admin` | `12345678` |
 
-Please change the default password immediately after your first login.
+> [!WARNING]
+> For your system's security, change the default password immediately in your profile settings after the first login.
+
+---
+
+## Distributed Deployment
+
+In large production deployments, split the Server into multiple processes by responsibility:
+
+```bash
+go run main.go api             # API service for admin panel and node communication only
+go run main.go worker          # background task Worker service only
+go run main.go scheduler       # scheduled task Scheduler service only
+```
