@@ -1,6 +1,6 @@
 # 故障排查
 
-你会学到：如何按症状排查 OpenFlare Server、数据库、登录、Agent、OpenResty、配置发布和前端构建问题。
+你会学到：如何按症状排查 OpenFlare Server、数据库、登录、Agent、OpenResty 和配置发布问题。
 
 排查时先确认问题发生在哪一层：浏览器、Server、数据库、Agent、OpenResty、源站或 DNS。OpenFlare 的配置不会直接在线写入所有节点，只有激活版本变化后，Agent 才会在 heartbeat 中发现并应用。
 
@@ -9,7 +9,7 @@
 | 现象 | 先看哪里 |
 | --- | --- |
 | 管理端打不开 | Server 容器或进程日志、端口监听 |
-| 登录异常 | 默认账号、OPENFLARE_TOKEN、浏览器请求、Server 日志 |
+| 登录异常 | 默认账号、Session Cookie、Server 日志 |
 | 数据无法保存 | 数据库连接、SQLite 文件权限、PostgreSQL 健康状态 |
 | Agent 离线 | Agent 日志、Token、Server 地址、网络连通性 |
 | 发布后节点未更新 | 激活版本、节点 heartbeat、应用记录 |
@@ -50,7 +50,7 @@ ls -ld "$(dirname /path/to/openflare.db)"
 
 | 日志或现象 | 处理 |
 | --- | --- |
-| 数据库连接失败 | 检查 `DSN` 中用户名、密码、主机、端口、库名和 `sslmode` |
+| 数据库连接失败 | 检查 `DB_HOST`、`DB_PORT`、`DB_USERNAME`、`DB_PASSWORD`、`DB_NAME`、`DB_SSL_MODE` 是否一致 |
 | SQLite 无法创建文件 | 检查 `SQLITE_PATH` 所在目录是否存在且可写 |
 | 端口被占用 | 修改 `PORT` 或 `--port`，或停止占用端口的进程 |
 
@@ -62,21 +62,7 @@ ls -ld "$(dirname /path/to/openflare.db)"
 curl -I http://127.0.0.1:3000
 ```
 
-2. 如果是源码运行，确认已经构建前端静态产物：
-
-```bash
-cd frontend
-pnpm build
-```
-
-3. 检查浏览器访问地址是否与反向代理配置一致。
-
-4. 如果通过前端开发服务器访问，确认后端代理地址：
-
-```bash
-cd frontend
-NEXT_DEV_BACKEND_URL=http://127.0.0.1:3000 pnpm dev
-```
+2. 检查浏览器访问地址是否与反向代理配置一致。
 
 ## 默认账号无法登录
 
@@ -84,32 +70,20 @@ NEXT_DEV_BACKEND_URL=http://127.0.0.1:3000 pnpm dev
 
 排查步骤：
 
-1. 确认连接的是预期数据库，避免 `SQLITE_PATH` 或 `DSN` 指向了另一个环境。
+1. 确认连接的是预期数据库，避免 `SQLITE_PATH` 或 `DB_HOST` / `DB_NAME` 指向了另一个环境。
 2. 查看 Server 日志中使用的是 `sqlite` 还是 `postgres`。
 3. 在浏览器开发者工具中确认管理端 API 请求已正确携带 Session Cookie。
 4. 清理浏览器缓存及 Cookie 后重新登录。
 
 ### 应急重置管理员密码
 
-如果忘记了 `admin` 账户的密码，可以通过直接更新数据库中的密码哈希值将其重置为 `12345678`（登录后请务必立即修改）：
+忘记 `admin` 账户密码时，使用 `reset-passwd` 命令重置（支持 SQLite 与 PostgreSQL）：
 
-#### 1. 若使用 SQLite 数据库
-停止 Server 运行，使用 sqlite3 客户端打开数据库文件：
 ```bash
-sqlite3 /path/to/openflare.db
+go run main.go reset-passwd --user admin --password your-new-password
 ```
-执行以下 SQL 语句：
-```sql
-UPDATE users SET password = '$2a$10$eXpE9i/6S3gPT94/G0mu0.B8ser66ARETFz5NWYSYcrQ4JmtSrMXu' WHERE username = 'admin';
-```
-输入 `.exit` 退出并重新启动 Server。
 
-#### 2. 若使用 PostgreSQL 数据库
-通过您的数据库连接工具（如 psql、pgAdmin 或 DBeaver）连接到 PostgreSQL 实例，选择对应的 `openflare` 数据库，执行以下 SQL 语句：
-```sql
-UPDATE users SET password = '$2a$10$eXpE9i/6S3gPT94/G0mu0.B8ser66ARETFz5NWYSYcrQ4JmtSrMXu' WHERE username = 'admin';
-```
-执行成功后即可使用默认密码 `12345678` 重新登录管理后台。
+若使用 SQLite，建议先停止 Server 进程再执行，避免数据库文件锁冲突。未指定 `--password` 时命令会生成随机密码并输出到终端。重置成功后请立即登录并修改密码。
 
 ## Agent 无法注册或一直离线
 
@@ -216,29 +190,6 @@ curl -Iv https://your-domain
 4. 检查 `openresty_observability_port` 是否被占用，默认是 `18081`。
 5. 确认 Server 侧没有因数据库清理策略删除对应时间窗口数据。
 
-## 前端构建失败
-
-执行：
-
-```bash
-cd frontend
-corepack enable
-pnpm install
-pnpm lint
-pnpm typecheck
-pnpm test
-pnpm build
-```
-
-常见原因：
-
-| 现象 | 处理 |
-| --- | --- |
-| pnpm 版本不一致 | 使用 `corepack enable` 后重新安装 |
-| 类型错误 | 先运行 `pnpm typecheck` 定位具体文件 |
-| API 类型不一致 | 检查 `lib/api/` 和 `types/` 中的响应结构 |
-| E2E 失败 | 确认 Server 和前端开发服务器都已启动 |
-
 ## 边缘缓存命中率异常
 
 访问日志中缓存三态：**命中**（HIT/STALE/REVALIDATED/UPDATING）、**回源**（MISS/EXPIRED）、**未缓存**（BYPASS 或空，请求时未进入可缓存路径或响应未入库）。设计说明见 [边缘缓存策略设计](../design/edge-cache-design.md)。
@@ -269,12 +220,3 @@ pnpm build
 * 响应带 `Set-Cookie` 或 `private`：**不入库**。  
 * 无源站缓存头的可缓存状态码：使用默认 Edge TTL（如 200 约 120 分钟）。
 
-## 文档站构建失败
-
-```bash
-cd docs
-pnpm install
-pnpm build
-```
-
-如果是链接错误，检查新增页面是否已经加入 `docs/config.ts` 侧边栏，或者相对链接是否指向存在的 Markdown 文件。

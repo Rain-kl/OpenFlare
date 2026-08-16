@@ -187,8 +187,7 @@ OpenFlare 库表为 Source of Truth。每个成员期望：
 | 可选域名 | `GET /domains/available` |
 
 * 成功 `response.OK`；失败 `response.Abort*`；**永不**在 JSON 中返回 Token。
-* Handler 与 `logics.go` 分离；CF 客户端可 mock 接口。
-* 变更后维护 Swagger（`make swagger`）。
+* Handler 与 `logics.go` 分离；CF 客户端以接口抽象便于替换。
 
 ## 前端
 
@@ -207,18 +206,9 @@ OpenFlare 库表为 Source of Truth。每个成员期望：
 * 典型：未配置 Token、Token 无效、节点无 IP、CF 无 Zone、同名多 A、限流。
 * Token 仅服务端解密使用；响应与日志禁止明文 Token。
 
-## 数据迁移与测试
+## 数据迁移
 
 * goose 双方言（PG/SQLite）新建三张表；默认值与 Go 零值一致。
-* 单测：Token 解析、reconcile 0/1/多条、橙云只初始化新成员、移出删远端（mock）、节点 IP 变更入队。
-* 禁止单测打真实 Cloudflare。
-
-## 文档与边界同步
-
-* 更新 [Zone 与域名资源设计](./zone-design.md)：Zone 仍不内建权威 DNS；可选本模块负责 CF A 指向。
-* 更新 [系统架构](./architecture.md) 核心对象与阅读建议。
-* 更新 [产品边界](./index.md) 能力表。
-* 实现完成后写入 `docs/changelog/index.md` 的 `[Unreleased]`（纯设计文档变更不写 changelog）。
 
 ## 关键决策摘要
 

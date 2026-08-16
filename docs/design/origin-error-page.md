@@ -15,7 +15,7 @@
 * **默认可视**：默认启用，默认状态码标签 `500-599`，默认 OpenFlare 极简错误页。
 * **可自定义**：管理员可在线编辑完整 HTML；空 HTML 表示使用内置默认模板。
 * **状态码透传**：HTTP 响应 `status` 保持原错误码（如 502、522）；页面正文通过 `{{status}}` 展示同一数值。
-* **全局统一**：侧栏「网站管理 → 错误页」单一配置，全站反代路由共用。
+* **全局统一**：侧栏「网站管理 → 响应页面」单一配置，全站反代路由共用。
 * **与发布一致**：配置经 Option 持久化，进入配置版本快照后随发布/回滚下发。
 
 ### 1.2 非目标
@@ -35,12 +35,13 @@
 | 条件 | 行为 |
 | --- | --- |
 | 开关开启，且响应状态码落在展开后的集合内 | 返回自定义/默认 HTML，**status 不变** |
+| 开关开启且启用 GET-only，非 GET 请求返回匹配状态码 | 透传源站原始响应，不替换 |
 | 开关关闭 | 不生成 `error_page` 相关指令，透传 |
 | 状态码不在集合内 | 不替换 |
 | Pages 上游路由 | 不应用本功能 |
 | 源站成功返回 2xx/3xx/4xx（未配置时） | 不替换 |
 
-实现上对反代 `location` 启用 `proxy_intercept_errors on`，因此**源站返回的**匹配 5xx 等也会被拦截，而不仅是网关本地生成的 502。
+全方法模式下对反代 `location` 启用 `proxy_intercept_errors on`，因此**源站返回的**匹配 5xx 等也会被拦截，而不仅是网关本地生成的 502；GET-only 模式改用 Lua header/body 过滤器仅替换 GET 响应正文。
 
 ### 2.2 状态码标签语法
 
@@ -81,6 +82,7 @@ Tags Input 每条标签：
 | `origin_error_page_enabled` | bool 字符串 | `true` | 总开关 |
 | `origin_error_page_status_codes` | JSON 字符串数组 | `["500-599"]` | 原始标签 |
 | `origin_error_page_html` | 文本 | `""` | 空 = 内置默认；最大 **256 KiB** |
+| `origin_error_page_get_only` | bool 字符串 | `false` | 仅对 GET 请求替换错误页，其它方法透传 |
 
 API 复用：
 
@@ -106,6 +108,7 @@ API 复用：
 OriginErrorPageEnabled     bool
 OriginErrorPageStatusCodes []string  // 原始标签
 OriginErrorPageHTML        string    // 空则渲染器用内置默认
+OriginErrorPageGetOnly     bool
 ```
 
 构建快照时从 Option 读取；Agent 只消费快照，不直读控制面 DB。
@@ -121,26 +124,27 @@ OriginErrorPageHTML        string    // 空则渲染器用内置默认
 
 ```nginx
 proxy_intercept_errors on;
-error_page <expanded codes...> = /__openflare_origin_error;
+error_page <expanded codes...> @__openflare_origin_error;
 
-location = /__openflare_origin_error {
-    internal;
+location @__openflare_origin_error {
     default_type text/html;
     charset utf-8;
-    # 保持 ngx.status 为原错误码
-    # 读取模板，替换 {{status}} / {{host}} 后输出 body
+    content_by_lua_block {
+        # 读取模板，替换 {{status}} / {{host}} 后输出 body
+        # ngx.status 保持原错误码
+    }
 }
 ```
 
 ### 4.2 运行时替换
 
-采用 **internal location 内轻量 Lua（或现有 resty 能力）** 读模板并 `string.gsub` 替换占位符，**不**把 status 固化进静态文件（请求间状态码不同）。
+采用 **命名 location 内 `content_by_lua_block`** 读模板并替换占位符，**不**把 status 固化进静态文件（请求间状态码不同）。GET-only 模式在反代 location 内用 `header_filter_by_lua_block` + `body_filter_by_lua_block` 仅替换 GET 响应正文，非 GET 请求透传。
 
 禁止将错误页统一改为 HTTP 200。
 
 ### 4.3 关闭时
 
-不输出 `proxy_intercept_errors`、`error_page`、内部 location 与对应 SupportFile（或文件可写但不被引用）。
+不输出 `proxy_intercept_errors`、`error_page`、内部 location 与对应 SupportFile（或文件可写但不被引用）。GET-only 模式同时不输出 Lua 过滤器。
 
 ### 4.4 与缓存 / stale
 
@@ -152,8 +156,7 @@ location = /__openflare_origin_error {
 
 ### 5.1 入口
 
-* 侧栏「网站管理」新增：**错误页** → `/error-pages`  
-* 更新 `openflareWebsiteNavGroup`、`openflareWebsiteSubNav`（若使用）、全局搜索关键词  
+* 侧栏「网站管理 → 响应页面」：错误页 Tab（`/responses`），编辑页 `/responses/error-page/edit`、预览页 `/responses/error-page/preview`。  
 
 ### 5.2 页面结构
 
@@ -165,14 +168,14 @@ location = /__openflare_origin_error {
 
 ### 5.3 组件依赖
 
-若仓库尚无 Tags Input，按项目 shadcn 流程添加；样式与现有 UI 一致。
+Tags Input 与 HTML 编辑器复用现有 shadcn/ui 组件，样式与现有 UI 一致。
 
 ---
 
 ## 6. 数据流
 
 ```text
-管理员 /error-pages
+管理员 /responses（错误页 Tab）
     → Option update-batch（校验标签与 HTML）
     → w_system_configs
 
@@ -183,50 +186,13 @@ location = /__openflare_origin_error {
 
 访客请求反代域名
     → 源站/网关产生匹配状态码
-    → error_page → internal location
+    → error_page → 命名 location
     → 替换占位符，status 保持原码，返回 HTML
 ```
 
 ---
 
-## 7. 测试与验收
-
-### 7.1 自动化
-
-* 状态码解析：单码、区间、去重、越界、反序、默认 `500-599`  
-* 渲染：enabled/disabled conf 片段；空 HTML 用默认；自定义进 SupportFile  
-* Option 校验：非法标签 / 超大 HTML → 4xx  
-
-### 7.2 手动
-
-1. 默认配置：源站不可达 → CF 风格页，真实 502/504，页内数字一致  
-2. 源站返回 503 → 替换页，status 503  
-3. 仅标签 `522` → 仅 522 替换  
-4. 关闭开关并发布 → 透传恢复  
-5. 自定义 HTML 占位符预览与线上一致  
-6. Pages 路由不受影响  
-
-### 7.3 文档
-
-* 本设计文档；`docs/design/index.md` 能力表；`docs/config.ts` 侧栏  
-* changelog `[Unreleased]` 用户可读改进条  
-
----
-
-## 8. 实现要点清单（供计划拆分）
-
-1. goose seed 三个 Option key + model 常量  
-2. 状态码解析/校验纯函数 + 单测  
-3. Option update 路径挂接校验  
-4. 快照填充 `ConfigSnapshot` 新字段  
-5. `pkg/render/openresty`：error_page 块、SupportFile、默认 HTML、单测  
-6. Agent 侧若需 Lua 辅助文件，随现有 nginx lua 目录同步  
-7. 前端 Tags Input + `/error-pages` 页 + 导航  
-8. changelog 与设计索引  
-
----
-
-## 9. 决策记录
+## 7. 决策记录
 
 | 决策 | 选择 | 原因 |
 | --- | --- | --- |
@@ -236,4 +202,3 @@ location = /__openflare_origin_error {
 | 响应 status | 保持原码 | 监控/SEO/客户端语义正确 |
 | 运行时替换 | internal + 轻量模板替换 | 每请求 status 不同 |
 | 自定义方式 | 在线 HTML | 灵活且无需文件上传链路 |
-`}

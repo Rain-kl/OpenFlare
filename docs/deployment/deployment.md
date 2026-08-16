@@ -2,7 +2,7 @@
 
 你会学到：OpenFlare 的推荐部署方式、Server 与 Agent 的运行要求、源码启动方式、联调步骤、升级与卸载入口。
 
-生产环境建议使用 PostgreSQL 作为 Server 数据库，并通过 `config.yaml` 或环境变量配置 `APP_SESSION_SECRET` 等参数。完整 Docker Compose 部署需要 Redis；ClickHouse 可选，用于海量访问日志与观测时序（见仓库根目录 `docker-compose.yaml`）。Agent 部署方式推荐为 Docker 部署（即直接使用内置 OpenResty 的 Agent 镜像）；亦支持通过安装脚本或手动本地运行。日志库判定与切换见 [日志存储解耦](../design/logstore.md)。
+生产环境建议使用 PostgreSQL 作为 Server 数据库，并通过 `config.yaml` 或环境变量配置 `APP_SESSION_SECRET` 等参数。完整 Docker Compose 部署需要 Redis；ClickHouse 可选，用于海量访问日志与观测时序（见仓库根目录 `docker-compose.yaml`）。Agent 支持 Docker 部署与本地安装脚本两种方式，Docker 镜像已内置 OpenResty 二进制。日志库判定与切换见 [日志存储解耦](../design/logstore.md)。
 
 ## 部署拓扑
 
@@ -49,7 +49,7 @@ Internal Service (192.168.x.x)
 
 ### 硬件配置推荐
 
-| 组件 | 最低硬件配额                        | 推荐硬件配额 | 说明 |
+| 组件 | 参考配置（入门）                    | 参考配置（生产） | 说明 |
 | --- |-------------------------------| --- | --- |
 | **Server 控制面** | 1 核 CPU / 2 GB 内存 / 20 GB 磁盘  | 2 核 CPU / 4 GB 内存 / 50 GB+ 磁盘 | 磁盘用量需根据访问日志留存时长与并发流量合理扩容 |
 | **Agent 数据面** | 1 核 CPU / 512 MB 内存 / 2 GB 磁盘 | 2 核 CPU / 2 GB 内存 / 10 GB+ 磁盘 | 根据 OpenResty 的并发代理连接量与 WAF 拦截处理扩容 |

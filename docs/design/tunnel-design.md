@@ -116,14 +116,14 @@ Kill 并重新拉起 frps 进程                                                
        server_name intranet.example.com;
        # ... TLS 证书与 WAF 过滤逻辑 ...
        location / {
-           proxy_pass http://127.0.0.1:18080; # 指向本地 frps 的虚拟主机端口
+           proxy_pass http://127.0.0.1:8080; # 指向本地 frps 的虚拟主机端口
            proxy_set_header Host $host; # 必须保留原 Host，因为 frps 依靠 Host 进行内部路由分发
            proxy_set_header X-Real-IP $remote_addr;
        }
    }
    ```
 2. **中继节点 (frps)**：
-   `frps` 监听到 `18080` 端口有 HTTP 请求进来，读取 HTTP 请求头中的 `Host: intranet.example.com`，在其已注册的活跃隧道表中检索该域名对应的加密 TCP 连接（由内网 frpc 建立）。
+   `frps` 在虚拟主机端口（默认 `8080`）收到 HTTP 请求，读取 HTTP 请求头中的 `Host: intranet.example.com`，在其已注册的活跃隧道表中检索该域名对应的加密 TCP 连接（由内网 frpc 建立）。
 3. **加密隧道传输 (TCP)**：
    `frps` 将 HTTP 请求封装进内部 TCP 隧道协议，发送给内网的 `frpc` 客户端。
 4. **内网客户端分发 (frpc)**：

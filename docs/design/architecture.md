@@ -206,19 +206,3 @@ OpenResty 健康与连接数 --> 边缘健康（瞬时，不作 24h 业务总量
 | Pages artifact 与仓库构建分离 | 现有来源只导入预构建产物；未来 checkout/build 由 Server 隔离 executor 完成并复用 artifact pipeline，Agent 不执行第三方构建 |
 
 ---
-
-## 贡献者阅读建议
-
-修改系统架构或开发新功能前，请按以下顺序阅读：
-
-1. **[产品边界](./index.md)**：了解 OpenFlare 核心定位与不允许逾越的设计边界。
-2. **[Agent 与发布模型](./agent-design.md)**：理解版本快照同步及失败回滚的安全兜底逻辑。
-3. **细分领域设计**：
-   * Zone 与域名相关开发：阅读 [Zone 与域名资源设计](./zone-design.md)。
-   * Cloudflare DNS 指向开发：阅读 [Cloudflare DNS 指向设计](./cloudflare-pointing.md)。
-   * 穿透相关开发：阅读 [内网穿透隧道设计](./tunnel-design.md)。
-   * WAF 相关开发：阅读 [WAF 设计](./waf-design.md) 与 [WAF 可编排规则设计](./waf-orchestration-design.md)。
-   * Pages 托管开发：阅读 [Pages 静态托管设计](./pages-design.md)。
-   * 监控同步开发：阅读 [Uptime Kuma 监控同步设计](./kuma-design.md)。
-   * 看板/访问日志/节点指标开发：阅读 [观测数据传输模型](./observability-transport-model.md) 与 [边缘可观测与业务流量统计](./observability-design.md)。
-4. **[仓库结构](./index.md#仓库结构)**：明确各个物理目录分层职责，避免堆砌和重复开发。

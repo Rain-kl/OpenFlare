@@ -264,7 +264,7 @@ Agent：tail access.log → 解析 JSON 行 → 原样字段上报（可截断 p
 #### 边界
 
 * Pages 静态 / 无 `proxy_cache` 的 location：多为空或 `-` → **未使用缓存**，不得标成「命中」。  
-* 第一期只做明细可见；命中率看板、hourly 维度可后续用同一列聚合。
+* 明细详情展示缓存状态；命中率看板与 hourly 维度可基于同一列扩展。
 
 **单次心跳条数建议：**
 
@@ -302,10 +302,10 @@ Agent：tail access.log → 解析 JSON 行 → 原样字段上报（可截断 p
 
 写入关系库健康事件表（现有模型即可），不进访问日志湖。
 
-### 3.8 Go 协议草图（目标）
+### 3.8 Go 协议结构
 
 ```go
-// pkg/protocol/agent.go（目标形态，实现时替换旧类型）
+// pkg/protocol/agent.go（当前实现）
 
 type NodePayload struct {
     SchemaVersion       int                    `json:"schema_version,omitempty"`
@@ -447,7 +447,7 @@ type BufferedFacts struct {
 
 ---
 
-## 5. 表结构（目标 DDL）
+## 5. 表结构（DDL）
 
 > 引擎与 TTL 与现网一致倾向：访问日志 90 天，指标 30 天。  
 > `id` 使用控制面 Snowflake/唯一 UInt64。
@@ -556,7 +556,6 @@ GROUP BY node_id, hour, host;
 2. 即便存每小时 UV，对多小时窗口 **相加会严重高估**（同一 IP 跨小时重复计）。  
 3. 产品「24h 独立访客」只认整窗 `uniqExact`；趋势图主序列是请求量/错误/字节，分时 UV 非主指标。
 
-可选未来：若需要分时 UV 曲线，再单独加 `AggregatingMergeTree` 状态表或查询时对明细做 `uniqExact` 按小时 group（成本更高，不阻塞当前看板）。
 ### 5.3 L3 事实表：`of_node_metric_snapshots`（保留，语义明确）
 
 ```sql
@@ -761,18 +760,7 @@ Agent 解析：
 
 ---
 
-## 10. 实现检查清单
-
-- [x] `pkg/protocol`：仅 v2 字段，无兼容别名  
-- [x] Agent：只组 `host_metrics` / `edge_health` / `access_logs` / `buffered`  
-- [x] Server：无 request_reports / openresty 吞吐；健康当前态 PG、时序 CH  
-- [x] CH migration：`request_length`、`request_time_ms`、`of_node_edge_health`、`of_access_log_hourly`、hourly 回填  
-- [x] 看板/Zone API 统一读 access log 聚合  
-- [x] UV：整窗 uniqExact；Zone 曲线标明分桶 UV；小时趋势不绘 UV  
-
----
-
-## 11. 修订记录
+## 10. 修订记录
 
 | 日期 | 说明 |
 | --- | --- |

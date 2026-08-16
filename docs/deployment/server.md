@@ -7,7 +7,7 @@ OpenFlare Server 是 Gin + GORM 单体控制面，负责管理端 UI、管理 AP
 > [!IMPORTANT]
 > **关于外部依赖**：
 > OpenFlare 系统内建了对后台异步任务（Asynq 框架）的支持。因此，**无论采用何种部署模式，系统都必须依赖 Redis（或 Valkey）**。各个部署方案的主要差异在于主关系型数据库的选择（SQLite vs PostgreSQL）以及是否启用链路追踪服务（Jaeger）。
-> 若业务流量过大, 建议使用 ClickHouse 存储日志。
+> 若业务流量过大，建议使用 ClickHouse 存储日志。
 
 > [!TIP]
 > **ClickHouse 服务端性能配置（推荐挂载）**  
@@ -34,11 +34,11 @@ volumes:
 
 ---
 
-## 方式一：Docker 部署 (推荐)
+## 方式一：Docker 部署（推荐）
 
 使用 Docker 部署可以免去本地配置 Go 与 Node.js 前端构建环境的麻烦。根据你的服务器硬件配置及业务需求，你可以选择以下三种方案之一：
 
-### 1. 快速启动 (SQLite + Redis)
+### 1. 快速启动（SQLite + Redis）
 
 > **适用场景**：测试体验、轻量化单机部署。
 >
@@ -66,8 +66,6 @@ services:
       SQLITE_PATH: "/data/openflare.db"
       REDIS_ENABLED: "true"
       REDIS_ADDR: "redis:6379"
-      CLICKHOUSE_ENABLED: "true"
-      CLICKHOUSE_HOST: "clickhouse:9000"
     depends_on:
       redis:
         condition: service_healthy
@@ -87,9 +85,9 @@ services:
 
 ---
 
-### 2. 小流量业务场景 (PostgreSQL + Redis)
+### 2. 小流量业务场景（PostgreSQL + Redis）
 
-> **适用场景**：生产环境、业务流量中小, PostgreSQL 不会成为日志记录的瓶颈。
+> **适用场景**：生产环境、业务流量中小，PostgreSQL 不会成为日志记录的瓶颈。
 
 创建 `docker-compose.yaml` 文件：
 
@@ -157,11 +155,11 @@ docker compose up -d
 
 ---
 
-### 3. 进阶版 (含 Jaeger 链路追踪的完整编排)
+### 3. 进阶版（含 Jaeger 链路追踪的完整编排）
 
-> **适用场景**：大流量场景, 需要进行链路性能指标追踪。
+> **适用场景**：大流量场景，需要进行链路性能指标追踪。
 >
-> **特点**：在“生产推荐”全家桶的基础上，使用 ClickHouse 存储日志, 联动 Jaeger 作为 OpenTelemetry (OTel) 链路追踪的后端。
+> **特点**：在“生产推荐”全家桶的基础上，使用 ClickHouse 存储日志，联动 Jaeger 作为 OpenTelemetry (OTel) 链路追踪的后端。
 
 创建 `docker-compose.yaml` 文件：
 
@@ -177,7 +175,7 @@ services:
       TZ: ${TZ:-Asia/Shanghai}
       OTEL_EXPORTER_OTLP_ENDPOINT: "http://jaeger:4317"
       OTEL_EXPORTER_OTLP_INSECURE: "true"
-      OTEL_SAMPLING_RATE: "1.0" # 本地调试建议设为 1.0 以采样所有 Trace
+      OTEL_SAMPLING_RATE: "1.0" # 采样率，1.0 表示采样全部 Trace
     ports:
       - "3000:3000"
     volumes:

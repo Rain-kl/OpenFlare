@@ -12,35 +12,35 @@
 2. 点击右上角的 **「导入证书」**。
 3. 填写配置信息：
    * **证书名称**：输入一个易于识别的别名（如 `my-domain-cert`）。
-   * **证书内容 (PEM)**：复制并粘贴 PEM 格式 of 证书公钥内容（通常以 `-----BEGIN CERTIFICATE-----` 开头）。
-   * **证书私钥 (KEY)**：复制并粘贴证书的私钥内容（通常以 `-----BEGIN PRIVATE KEY-----` 或 `-----BEGIN RSA PRIVATE KEY-----` 开头）。
+   * **证书内容（PEM）**：复制并粘贴 PEM 格式的证书公钥内容（通常以 `-----BEGIN CERTIFICATE-----` 开头）。
+   * **证书私钥（KEY）**：复制并粘贴证书的私钥内容（通常以 `-----BEGIN PRIVATE KEY-----` 或 `-----BEGIN RSA PRIVATE KEY-----` 开头）。
 4. 点击 **「保存」**。导入成功后，该证书即可在配置域名时直接绑定使用。
 
 ---
 
-## 方式二：自动申请与到期自动续签 (ACME)
+## 方式二：自动申请与到期自动续签（ACME）
 
-OpenFlare 内置了 ACME 客户端并对接了 **Asynq 异步任务队列**。通过配合云解析服务商的 DNS API，系统能自动完成 DNS-01 挑战（Challenge）校验，并向 CA（默认 Let's Encrypt）申请通配符/单域名证书，并在**到期前 30 天自动触发后台秒级续签**。
+OpenFlare 内置了 ACME 客户端并对接了 **Asynq 异步任务队列**。通过配合云解析服务商的 DNS API，系统能自动完成 DNS-01 挑战（Challenge）校验，并向 CA（默认 Let's Encrypt）申请通配符/单域名证书，并在**到期前 7 天自动触发续签**。
 
 ### 第一步：在 Cloudflare 申请 DNS API Token
 
 为了使 OpenFlare 能够自动在你的域名下添加 TXT 记录以完成 DNS 校验，你需要准备一个具有特定权限的 Cloudflare API Token。
 
 > [!IMPORTANT]
-> 安全起见，**强烈建议使用限定权限的 API Token**，而非全局 API Key (Global API Key)。
+> 安全起见，**强烈建议使用限定权限的 API Token**，而非全局 API Key（Global API Key）。
 
 1. 登录 [Cloudflare 控制台](https://dash.cloudflare.com/)。
-2. 点击右上角的用户头像，选择 **「我的个人资料 (My Profile)」**。
-3. 在左侧菜单中选择 **「API 令牌 (API Tokens)」**，然后点击 **「创建令牌 (Create Token)」**。
-4. 找到 **「编辑区域 DNS (Edit Zone DNS)」** 模板，点击 **「使用模板 (Use template)」**。
+2. 点击右上角的用户头像，选择 **「我的个人资料（My Profile）」**。
+3. 在左侧菜单中选择 **「API 令牌（API Tokens）」**，然后点击 **「创建令牌（Create Token）」**。
+4. 找到 **「编辑区域 DNS（Edit Zone DNS）」** 模板，点击 **「使用模板（Use template）」**。
 5. 配置令牌权限与范围（保持默认或根据实际情况限定）：
-   * **权限 (Permissions)**：
-     * `区域 (Zone)` - `DNS` - `编辑 (Edit)` (必须，ACME 写入 TXT 记录用)
-     * `区域 (Zone)` - `区域 (Zone)` - `读取 (Read)` (必须，用于列出和检索区域 ID)
-   * **区域资源 (Zone Resources)**：
-     * 选择 **「包括 (Include)」** -> **「所有区域 (All zones)」**，或者选择 **「特定区域 (Specific zone)」** 并指向你托管的特定域名。
-6. 点击 **「继续以转到摘要 (Continue to summary)」**，确认无误后点击 **「创建令牌 (Create Token)」**。
-7. 复制生成的 **API 令牌 (Token)** 字符串。*注意：该令牌仅展示一次，请妥善保存*。
+   * **权限（Permissions）**：
+     * `区域（Zone）` - `DNS` - `编辑（Edit）`（必须，ACME 写入 TXT 记录用）
+     * `区域（Zone）` - `区域（Zone）` - `读取（Read）`（必须，用于列出和检索区域 ID）
+   * **区域资源（Zone Resources）**：
+     * 选择 **「包括（Include）」** -> **「所有区域（All zones）」**，或者选择 **「特定区域（Specific zone）」** 并指向你托管的特定域名。
+6. 点击 **「继续以转到摘要（Continue to summary）」**，确认无误后点击 **「创建令牌（Create Token）」**。
+7. 复制生成的 **API 令牌（Token）** 字符串。该令牌仅展示一次，请妥善保存。
 
 ### 第二步：在控制端添加 DNS 账号
 
@@ -49,7 +49,7 @@ OpenFlare 内置了 ACME 客户端并对接了 **Asynq 异步任务队列**。�
 3. 填写配置信息：
    * **账号名称**：如 `cloudflare-main`。
    * **DNS 服务商**：选择 `Cloudflare`。
-   * **API Token**：填入刚刚在 Cloudflare 复制的 API 令牌（该值在入库时会自动加密存储，保障安全）。
+   * **API Token**：填入刚刚在 Cloudflare 复制的 API 令牌（该值在入库时会自动加密存储）。
 4. 点击 **「保存」**。
 
 ### 第三步：提交证书申请任务
@@ -65,4 +65,4 @@ OpenFlare 内置了 ACME 客户端并对接了 **Asynq 异步任务队列**。�
 ### 第四步：查看申请进度与续期状态
 
 - **查看实时进度**：保存后，系统会向 Asynq 队列投递单证书续期/申请任务（`of_ssl_single_renew`）。你可以进入管理后台的任务或节点日志页面，实时查看每一步（添加 TXT 记录、DNS 记录全球生效探测、ACME 验证、证书颁发落地等）的详细日志。
-- **自动续期**：所有通过 ACME 申请的证书都会被系统自动托管。后台的 Scheduler 每日会自动扫描证书有效期，在到期前 30 天自动通过异步任务触发续签，无需任何手动维护。
+- **自动续期**：所有通过 ACME 申请的证书都会被系统自动托管。后台的 Scheduler 每日会自动扫描证书有效期，在到期前 7 天自动通过异步任务触发续签，无需任何手动维护。

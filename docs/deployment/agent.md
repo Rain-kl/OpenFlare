@@ -20,7 +20,7 @@ OpenFlare Agent 运行在代理节点侧。它不会接收远程 shell 指令，
 
 ## 一键安装
 
-### 交互式安装 (推荐)
+### 交互式安装（推荐）
 
 如果在不传递任何参数的情况下运行安装脚本，脚本将进入交互模式。您将可以通过向导选择安装方式（本地运行 / Docker 容器运行），并配置 Server 地址与认证 Token（若选择 Docker 方式且本地没有 Docker，脚本还会询问并智能安装 Docker）：
 
@@ -28,7 +28,7 @@ OpenFlare Agent 运行在代理节点侧。它不会接收远程 shell 指令，
 curl -fsSL https://raw.githubusercontent.com/Rain-kl/OpenFlare/main/scripts/install-agent.sh | bash
 ```
 
-### 自动化 (非交互式) 安装
+### 自动化（非交互式）安装
 
 如果在执行脚本时附加了任何参数，脚本将进入自动化安装模式，不需要任何交互。
 
@@ -115,7 +115,7 @@ curl -fsSL https://raw.githubusercontent.com/Rain-kl/OpenFlare/main/scripts/inst
 }
 ```
 
-如果不配置 `openresty_path`，Agent 默认调用 `openresty`。完整字段见 [配置项参考](../reference/configuration.md#agent-配置字段)。
+如果不配置 `openresty_path`，Agent 默认调用 `openresty`。完整字段见 [配置项参考](../reference/configuration.md#agent-命令行参数与配置字段)。
 
 ## Docker 运行
 
@@ -138,7 +138,7 @@ docker run -d --name openflare-agent --restart unless-stopped \
 
 ## 卸载
 
-### 交互式卸载 (推荐)
+### 交互式卸载（推荐）
 
 如果在不传递任何参数的情况下运行卸载脚本，脚本将进入交互模式。您可以通过提示菜单选择卸载方式（本地卸载 / Docker 容器卸载）：
 
@@ -146,7 +146,7 @@ docker run -d --name openflare-agent --restart unless-stopped \
 curl -fsSL https://raw.githubusercontent.com/Rain-kl/OpenFlare/main/scripts/uninstall-agent.sh | bash
 ```
 
-### 卸载
+### Docker 容器卸载
 
 停止并删除 `openflare-agent` 容器即可
 
@@ -156,4 +156,4 @@ curl -fsSL https://raw.githubusercontent.com/Rain-kl/OpenFlare/main/scripts/unin
 | --- |---------------------------------------------------------------------------------------------------------|
 | `agent_token 和 discovery_token 不能同时为空` | 检查 `agent.json` 至少配置了一个 Token                                                                           |
 | 节点一直离线 | 在 Agent 节点执行 `curl -I http://your-server:3000`，确认 Server 地址可达                                           |
-| 发布后重复失败 | Agent 会阻断同一 `version + checksum` 的重复应用；在节点尝试强制同步,或者重新发布版本                                |
+| 发布后重复失败 | Agent 会阻断同一 `version + checksum` 的重复应用；在节点详情页点击「强制同步」，或重新发布新版本 |

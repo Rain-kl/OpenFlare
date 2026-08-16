@@ -19,16 +19,12 @@ Agent 统一通过 OpenResty 二进制控制运行时。本地部署需要节点
 | Docker / Docker Compose | 用于启动 Server 及其依赖的 PostgreSQL、Valkey；如采用 Docker Agent，也用于运行 Agent |
 | OpenResty | 本地安装 Agent 时需要可执行 `openresty`，或在安装脚本中指定路径                        |
 | 可访问端口 | Server 默认监听 `3000`，Agent 节点需要能访问 Server 地址                       |
-| 浏览器 | 用于访问管理端                                                          |
-
-- **Docker**：`20.10.0+`
-- **Docker Compose**：`2.0.0+`
 
 ---
 
 ## 1. 启动 Server
 
-快速开始推荐采用 **PostgreSQL + Redis ** 标准部署方案。
+快速开始推荐采用 **PostgreSQL + Valkey** 标准部署方案。
 
 在空目录中创建 `docker-compose.yaml`：
 
@@ -123,11 +119,13 @@ http://localhost:3000
 > [!WARNING]
 > 为了你的系统安全，首次登录后请立即修改默认密码。
 
-如果忘记密码并且没有配置找回密码渠道, 可以使用命令进行重置
+如果忘记密码并且没有配置找回密码渠道，可以使用命令重置：
 
 ```bash
-go run main.go reset-paswd     # 重置管理员密码
+go run main.go reset-passwd --user admin
 ```
+
+未指定 `--password` 时命令会自动生成随机密码并输出到终端；也可以使用 `--password` 显式指定新密码。
 
 ---
 
@@ -142,14 +140,14 @@ Agent 可以用两类凭证接入：
 
 在管理端准备其中一种凭证后，进入下一步。
 
-- **`discovery_token`** 获取菜单路径：「系统设置」 (Settings) -> 「OpenFlare」选项卡 -> 「自动注册」凭证
+- **`discovery_token`** 获取菜单路径：「系统设置」->「OpenFlare」选项卡 ->「Discovery Token 与部署」中的 Discovery Token
 - **`agent_token`** 获取菜单路径：在「节点管理」中创建节点后，点击进入节点详情页即可查看到对应的专属 Token。
 
 ---
 
 ## 3. 安装/运行 Agent
 
-Agent 部署方式推荐使用 Docker 部署（即直接运行内置 OpenResty 的 Agent 镜像）；亦支持通过安装脚本将 Agent 部署在本地宿主机上。
+推荐使用 Docker 镜像部署 Agent；也可以通过安装脚本部署到本地宿主机。
 
 ### 方式 A：Docker 运行 Agent（推荐）
 
@@ -217,17 +215,17 @@ journalctl -u openflare-agent -f
 
 ---
 
-## 常见失败原因
+## 遇到问题时
 
-| 现象 | 排查方向 |
-| --- | --- |
-| 浏览器打不开管理端 | 确认 `docker compose ps` 中 Server 正在运行，宿主机 `3000` 端口没有被占用 |
-| 登录后数据无法保存/提示报错 | 检查 PostgreSQL 容器健康状态，以及 `DB_PASSWORD` / 密码等连接参数是否一致 |
-| Agent 无法注册 | 确认 Agent 节点能访问 `--server-url`，并检查 Token 是否填错或已失效 |
-| Agent 在线但没有应用配置 | 确认网站配置已启用，并且已经发布并激活版本 |
-| OpenResty 应用失败 | 查看节点应用记录和 `journalctl -u openflare-agent`，重点检查域名、证书、上游地址和端口占用 |
+按以下顺序处理：
 
-更多排查路径见 [故障排查](./troubleshooting.md)。
+1. 将 Server 与 Agent 升级到最新版本，确认问题是否仍然存在。
+2. 重新发布并激活配置版本，等待节点应用。
+3. 在节点详情页对目标节点执行「强制同步」，推动节点立即拉取最新配置。
+4. 重建或重装 Agent（重新执行安装脚本）。
+5. 上述步骤均无效时，携带 Server 日志与节点应用记录提交 [GitHub Issue](https://github.com/Rain-kl/OpenFlare/issues)。
+
+更多排查思路见 [故障排查](./troubleshooting.md)。
 
 ---
 

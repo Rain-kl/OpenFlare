@@ -92,12 +92,12 @@ sequenceDiagram
 Agent 对数据面 OpenResty 的管控实现了端到端的闭环，包含配置落地、语法验证、平滑重载和异常状态捕获：
 
 ### 1. 配置文件的落地组织
-同步成功后，Agent 会将配置按照特定的物理结构写入到本地 `/etc/nginx/openflare-lua/` 目录下（或配置指定的 `LuaDir`）：
+同步成功后，Agent 将配置写入 `data_dir` 下（默认相对路径 `etc/nginx/`、`etc/openflare/`、`var/lib/openflare/`，具体以 `agent.json` 中 `main_config_path`、`route_config_path`、`cert_dir`、`lua_dir`、`runtime_config_dir`、`pages_dir` 等字段为准）：
 * `nginx.conf`：主配置文件（替换相关占位符，配置性能参数、Shared Dictionaries 及全局 Server）。
-* `routes.conf`：路由配置文件（由 Agent 生成，包含所有代理网站的 Server 块、证书路径、缓存及速率限制指令）。
+* `conf.d/openflare_routes.conf`：路由配置文件（由 Agent 生成，包含所有代理网站的 Server 块、证书路径、缓存及速率限制指令）。
 * `certs/`：证书存放目录（文件命名为 `{cert_id}.crt` 和 `{cert_id}.key`）。
-* `waf/` 与 `pow/`：WAF 及防 CC 挑战所需的专用 Lua 运行时脚本。
-* `waf_config.json` 与 `waf_ip_groups.json`：WAF 过滤引擎所需的结构化规则配置文件。
+* `lua/waf/` 与 `lua/pow/`：WAF 及防 CC 挑战所需的专用 Lua 运行时脚本。
+* `etc/openflare/waf_config.json` 与 `waf_ip_groups.json`：WAF 过滤引擎所需的结构化规则配置文件。
 * `pages_dir`：Pages 静态站点部署目录，默认位于 `data_dir/var/lib/openflare/pages`。当激活配置引用 Pages **项目**时，Agent 按 `project_id` 请求控制面「最新激活包」（hash + package），以流式方式写入临时文件并执行实际响应上限与 SHA-256 校验，再安全解压到 `projects/{project_id}/releases/{hash}`。解压后会复核文件数与总字节，绝对防御上限为 2 GiB 包、1,000 个文件、单文件及总量 8 GiB；随后原子切换 `current` 并**立即删除同项目其它历史 release**（仅保留最新）。项目内切换激活无需重发主配置；多项目对账时单项目失败不阻塞其它项目。
 
 ### 2. 精细化的重载动作
@@ -105,13 +105,13 @@ Agent 对数据面 OpenResty 的管控实现了端到端的闭环，包含配置
 2. **写入并替换占位符**：将最新拉取的模板写入，自动将模板中的绝对路径占位符（如 `__OPENFLARE_LUA_DIR__`、`__OPENFLARE_PAGES_DIR__`）替换为本地实际运行路径。
 3. **语法校验**：调用 `openresty -t -c <temp_nginx.conf>` 进行严格的语法测试。
 4. **平滑重载**：若校验通过，将新配置移至正式路径，执行 `openresty -s reload`。若 OpenResty 处于未启动状态，则使用当前配置拉起进程。
-5. **捕获异常**：校验或重载失败时，Agent 会截获标准错误输出（stderr），提取前 2000 个字符的详细报错信息。
+5. **捕获异常**：校验或重载失败时，Agent 截获命令标准输出（stderr/stdout）作为失败详情上报。
 
 ---
 
 ## 发布与配置应用模型
 
-OpenFlare 摒弃了动态 Patch 节点配置的落后方式，采用 **不可变配置版本发布模型**。
+OpenFlare 采用 **不可变配置版本发布模型**，而非对节点配置进行在线动态 Patch。
 
 ```text
 修改规则 -> 预览 / 查看 diff -> 发布 -> 生成完整配置版本 -> 激活版本 -> Agent 拉取 -> 本地应用 -> 上报结果

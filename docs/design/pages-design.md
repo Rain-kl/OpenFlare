@@ -27,15 +27,13 @@ Pages 静态托管子系统包含以下核心能力：
 * **安全包校验与解压缩**：内置路径逃逸防御、防软链接劫持、文件大小/数量上限与可配置上传包体积控制，保障节点物理安全。
 * **可配置限额**：管理员可在运维设置中调整「部署包大小上限」与「历史部署保留数」。
 
-### 部署源与未来构建边界
+### 部署源
 
 项目当前支持 manual、Remote URL、GitHub Release 三种来源视图。无 source 记录即 manual；切换或删除 source 不删除历史 deployment，也不改变当前 active deployment。Remote URL 只允许手动“同步并发布”；GitHub Release 支持 latest/tag 手动检查与同步，只有 latest 可选择定时检查和自动更新。
 
-source 是可变配置，deployment 是不可变事实。source 配置与运行态游标、状态、租约分别存储；deployment 只保存创建时的安全 provenance 快照。所有产物都复用“下载或接收产物 → 真实字节与入口校验 → `upload.Ingest` → deployment”的 artifact pipeline：manual 上传停在 candidate，等待管理员显式激活；持久来源 sync 才在同一业务事务中 create-or-load 并原子激活。Agent 只消费 active deployment，不感知来源类型。
+source 是可变配置，deployment 是不可变事实。source 配置与运行态游标、状态、租约分别存储；deployment 只保存创建时的安全 provenance 快照。所有产物都复用“下载或接收产物 → 真实字节与入口校验 → `upload.Ingest` → deployment”的 artifact pipeline：manual 上传停在 candidate，等待管理员显式激活；持久来源 sync 才在同一业务事务中 create-or-load 并原子激活。
 
-后续从 Git 仓库拉取源码并自动构建时，将新增独立 `git_repository` provider 与隔离的 build executor。它输出受限的预构建产物后继续复用上述导入管线；不得把 clone、依赖安装或任意构建命令下发给 Agent，也不得把 branch/build/env 字段塞入现有 `github_release` source。当前 V2 不增加这些未来字段或空任务，只稳定 provider 输出、source discriminated view 与 deployment provenance 三个扩展边界。
-
-管理端信息架构参考 Cloudflare Pages 当前把 [Git integration](https://developers.cloudflare.com/pages/configuration/git-integration/) 与 [Direct Upload](https://developers.cloudflare.com/pages/get-started/direct-upload/) 分离、并统一展示生产状态与历史部署的方式：OpenFlare 项目详情按“当前生产部署 → 部署源 → 部署历史”组织。OpenFlare 仍允许切换来源并保留历史部署，不采用 Cloudflare 项目创建后来源不可切换的限制。
+管理端项目详情按“当前生产部署 → 部署源 → 部署历史”组织。
 
 ---
 
@@ -67,7 +65,7 @@ graph TD
 ```
 
 * **控制面（Control Plane）**：Server 接收本地上传，或通过受限 Provider 获取 Remote/GitHub 预构建产物；action task 与内部 scanner 负责检查、同步和自动更新。所有产物经统一 inspect 与 `upload.Ingest` 写入平台存储后端；manual 上传创建新的 candidate，持久来源 sync 则 create-or-load deployment 并原子激活。配置发布时只编译稳定的项目锚点与静态服务元数据。
-* **数据面（Data Plane）**：Agent 在心跳/WS 对账中发现配置引用的 Pages 项目，通过专属 API 拉取该项目当前激活包并执行校验解压缩。OpenResty 在本地提供静态文件服务；Agent 不感知产物来自上传、Remote、GitHub 或未来 build executor。
+* **数据面（Data Plane）**：Agent 在心跳/WS 对账中发现配置引用的 Pages 项目，通过专属 API 拉取该项目当前激活包并执行校验解压缩。OpenResty 在本地提供静态文件服务；Agent 不感知产物来自上传、Remote 或 GitHub。
 
 ---
 

@@ -6,7 +6,7 @@
 
 ---
 
-## 0. 先记住三层（不要混）
+## 0. 先记住三层
 
 | 层 | 回答的问题 | 唯一数据来源 | 产品例子 |
 | --- | --- | --- | --- |
@@ -215,7 +215,7 @@ cache_status  ← $upstream_cache_status  【缓存状态；UI 可推导命中/�
 
 落库表：`of_node_access_logs`（可选 Server 侧 `of_access_log_hourly` 加速，**Agent 不写**）。
 
-### 4.4 频率再强调
+### 4.4 上报频率
 
 ```text
 请求发生 ──立即──► 写 access.log
@@ -229,9 +229,9 @@ Server ──立即/批量──► CH
 
 ## 5. L2 健康：edge_health 与 `/openflare/observability`
 
-### 5.1 本机监测口（合并后目标）
+### 5.1 本机监测口
 
-**只保留一个接口：**
+**数据采集接口：**
 
 ```http
 GET http://127.0.0.1:{openresty_observability_port}/openflare/observability
@@ -241,7 +241,7 @@ GET http://127.0.0.1:{openresty_observability_port}/openflare/observability
 
 **职责：** 回答「OpenResty 此刻怎样」，**不**回答业务已提供多少数据。
 
-#### 返回示例（目标 JSON）
+#### 返回示例
 
 ```json
 {
@@ -263,7 +263,7 @@ GET http://127.0.0.1:{openresty_observability_port}/openflare/observability
 | `connections.active` | **瞬时** | Nginx 连接状态（原 stub_status Active） | 当前活跃连接 |
 | `reading` / `writing` / `waiting` | **瞬时** | 同上细分 | 可选但建议带 |
 
-**不返回（已从目标模型删除）：**
+**不返回（已删除）：**
 
 | 旧字段 | 原因 |
 | --- | --- |
@@ -272,9 +272,9 @@ GET http://127.0.0.1:{openresty_observability_port}/openflare/observability
 | `source_countries` | 从未实现；国家走 Server GeoIP |
 | `server.accepts/handled/requests` | 进程累计 counter，易与业务请求混淆；主路径不收录 |
 
-**`/openflare/stub_status`：** 合并进上述 JSON 后 **删除**（过渡期可双挂，Agent 只打合并口）。
+**`/openflare/stub_status`：** 保留；`/openflare/observability` 内部读取该口组装连接数 JSON，Agent 健康检查也直接探测该口。
 
-### 5.2 采集机制（读快照，不是「调用才开始统计业务」）
+### 5.2 采集机制（读快照）
 
 ```text
 Nginx 在连接建立/释放时维护 Active connections 等
@@ -284,9 +284,8 @@ Agent GET /openflare/observability
 只读取「当前值」拼 JSON 返回
 ```
 
-- **不是** GET 一次才去扫 access.log。  
-- **不是** 60 秒业务均值。  
-- 是 **瞬时 gauge 快照**。
+- 不扫 access.log、不算 60 秒业务均值。  
+- 返回 **瞬时 gauge 快照**。
 
 ### 5.3 上报示例（装进 NodePayload）
 
@@ -361,7 +360,7 @@ Agent 读本机（如 `/proc`、磁盘统计等），**每次组包时读一次*
 
 ---
 
-## 7. 一次完整上报示例（拼起来）
+## 7. 一次完整上报示例
 
 ```json
 {
@@ -466,13 +465,13 @@ t=6s     下一轮…
 
 ---
 
-## 10. 旧模型对照（帮助消歧）
+## 10. 旧模型对照
 
 | 旧做法 | 新模型 |
 | --- | --- |
 | Lua dict 60s 窗 request_count + Agent 10s 拉 + Server sum | **删除**；请求数 = 日志 count |
 | openresty_tx 当「出站」 | **删除**；已提供数据 = `sum(bytes_sent)` |
-| 两个口 observability + stub_status | **合并为一个** observability，只返回连接/探活 |
+| 两个口 observability + stub_status | 数据采集统一走 observability；stub_status 保留为探活与内部读取口 |
 | TrafficReport 预聚合 | **删除**；协议与 API 均无此路径 |
 | 业务与网卡混称「流量」 | **分文案、分 API、分表** |
 | 健康 status/message | **PG 最新态权威**；CH 仅 status+连接时序 |

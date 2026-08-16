@@ -24,7 +24,7 @@ go run main.go scheduler    # 仅定时任务调度
 编译二进制：
 
 ```bash
-make build-server
+make build-backend
 # 产物：bin/openflare-server
 ```
 
@@ -40,13 +40,13 @@ GOCACHE=/tmp/openflare-go-cache go test ./...
 make code-check
 ```
 
-自动格式化后端 Go 与前端 TypeScript、JavaScript、CSS 等源码：
+自动格式化后端 Go 源码（整理导入）与前端源码：
 
 ```bash
-make prettier
+make format
 ```
 
-该命令使用 `gofmt` 格式化后端，并使用项目固定版本的 Prettier 格式化 `frontend/` 源码；构建产物、依赖、公开静态资源和锁文件会被忽略。
+该命令使用 `goimports` 整理后端 Go 源码导入，并使用项目固定版本的 Prettier 格式化 `frontend/` 源码；构建产物、依赖、公开静态资源和锁文件会被忽略。
 
 ## Frontend
 
@@ -71,7 +71,8 @@ pnpm build:embed
 ```bash
 cd frontend
 pnpm lint
-pnpm typecheck
+pnpm tsc --noEmit --jsx preserve
+pnpm check:i18n
 ```
 
 ## Agent
@@ -147,7 +148,7 @@ curl -fsSL https://raw.githubusercontent.com/Rain-kl/OpenFlare/main/scripts/unin
 make swagger
 ```
 
-访问：`http://localhost:3000/swagger/index.html`
+访问：`http://localhost:3000/api/swagger/index.html`（默认 `api_prefix` 为 `/api`，仅非生产环境挂载）
 
 ## Docs
 
@@ -162,5 +163,5 @@ pnpm dev
 
 ```bash
 cd docs
-pnpm build:embed
+pnpm build
 ```

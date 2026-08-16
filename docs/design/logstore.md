@@ -1,6 +1,6 @@
 # 日志存储解耦
 
-你会学到：哪些表属于日志用途、为什么不能绑死 ClickHouse，以及新增一张日志表时必须走哪条代码路径。逐步落地步骤见 `.agents/skills/logstore/SKILL.md`。
+你会学到：哪些表属于日志用途、为什么不能绑死 ClickHouse，以及新增一张日志表时必须走哪条代码路径。
 
 观测字段与上报协议仍以 [观测上报协议与表结构](./observability-data-model.md) 为准；本文只约定**存到哪、怎么切库**。
 
@@ -70,7 +70,7 @@ ClickHouse 上的小时级物化视图（如 `of_access_log_hourly`）只服务 
 
 ## 5. 新增一张日志表
 
-列名必须在 ClickHouse / PostgreSQL / SQLite 三套 goose 中一致。顺序与禁止项见 `logstore` skill。要点：
+列名必须在 ClickHouse / PostgreSQL / SQLite 三套 goose 迁移中一致。要点：
 
 * 高频表：CH 用 `MergeTree` + `toYYYYMM`；PG 用 `PARTITION BY RANGE(时间列)`，主键含分区键；SQLite 普通表 + 索引。
 * ID 用 snowflake `uint64`，迁移时原样保留。
@@ -83,7 +83,4 @@ ClickHouse 上的小时级物化视图（如 `of_access_log_hourly`）只服务 
 
 ## 6. 相关文档
 
-* 开发步骤：`.agents/skills/logstore/SKILL.md`
-* DDL：`.agents/skills/database-migration/SKILL.md`
-* 批量写入：`.agents/skills/clickhouse-batchwriter/SKILL.md`
-* 实现前设计稿（历史）：[日志数据库解耦设计](../superpowers/specs/2026-08-08-log-database-decoupling-design.md)
+* 观测字段与上报协议：[观测上报协议与表结构](./observability-data-model.md)

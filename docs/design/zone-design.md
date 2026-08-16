@@ -54,7 +54,7 @@ erDiagram
 * `GET/POST /api/v1/d/zones`
 * `GET/POST /api/v1/d/zones/:id/update`
 * `POST /api/v1/d/zones/:id/delete`
-* `GET/POST /api/v1/d/zones/:id/domains`
+* `POST /api/v1/d/zones/:id/domains`（列表经 overview 返回）
 * `POST /api/v1/d/zones/:id/domains/:domainID/update`
 * `POST /api/v1/d/zones/:id/domains/:domainID/delete`
 * `GET /api/v1/d/zones/:id/overview`
@@ -91,10 +91,3 @@ WAF、Pages、上游与发布版本仍属于 `proxy_routes`。Zone 概览只聚�
 * 持久化：域名与证书只存在于 `of_zone_domains`；`of_proxy_routes` 仅保存路由策略（上游、缓存、限流、WAF 绑定键等）。
 * 渲染：配置快照在内存中组装临时 `Domains` / `DomainCertIDs` 供 OpenResty 渲染，不写回数据库。
 * 结构迁移仅使用 `internal/infra/persistence/migrator/goose/{postgres,sqlite}/*.sql`；启动时自动导入历史域名，第二阶段后旧列不存在则为空操作。
-
-## 验证
-
-* 单元测试：Public Suffix List 分组、FQDN / 通配符拒绝、跨 Zone 路由、证书 SAN 覆盖、删除保护及迁移幂等性；清理后断言旧列/旧表不存在。
-* 集成测试：Zone、Zone 域名与路由 API 的成功与失败响应；现有路由迁移后生成相同 OpenResty 域名与证书配置。
-* 前端测试：Zone 列表、ID 路由、详情加载 / 错误 / 空状态、域名选择器与 API 负载。
-* 手动验证：迁移前后比较激活配置快照中的 `server_name` 和证书路径，发布后使用根域及各子域请求验证路由。

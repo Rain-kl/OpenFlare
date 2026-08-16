@@ -1,4 +1,4 @@
-# 部署 Relay (Tunnel 中继)
+# 部署 Relay（Tunnel 中继）
 
 你会学到：TunnelRelay 节点的职责、`openflare-relay` 的配置项与环境变量、使用 Docker 运行 Relay 的方法，以及如何通过源码手动构建并部署 Relay。
 
@@ -40,7 +40,7 @@
 
 ---
 
-## Docker 运行）
+## Docker 运行
 
 Docker 运行是 TunnelRelay 节点最便捷的部署方案。官方镜像内置了 `openflare-relay` 控制器与 `frps` 运行时，开箱即用。
 
@@ -84,7 +84,7 @@ docker logs -f openflare-relay
 - 从控制面获取最新的 frps 基础配置（包括 `bindPort`、`vhostHTTPPort` 与自动生成的隧道认证凭证 `auth_token`）。
 - 在本地自动渲染出 `data/frps.toml` 配置文件。
 - 自动拉起子进程 `frps -c data/frps.toml`。
-- 如果进程意外崩溃，Relay 将在 2 秒后自动拉起它。
+- 如果进程意外退出，Relay 会按指数退避（初始 1 秒，上限 60 秒）自动重启 frps。
 
 ### 3. 管理端确认
 

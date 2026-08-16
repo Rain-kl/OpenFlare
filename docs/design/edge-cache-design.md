@@ -204,7 +204,6 @@ access.log cache_status=$upstream_cache_status
 | 模型/默认 | 创建路由默认 `cache_policy=static`；读写时 `url`→`all` |
 | 快照 | `config_version` 快照规范化 |
 | UI | `proxy-routes/detail/components/cache-section.tsx` |
-| 测试 | `pkg/render/openresty/render_test.go` 等 |
 
 ---
 
@@ -235,21 +234,7 @@ access.log cache_status=$upstream_cache_status
 
 ---
 
-## 7. 验证要点
-
-* 渲染：无 Cookie/Auth/请求 Cache-Control 旁路；含 `proxy_cache_valid` 三行；`proxy_no_cache` 含 `$upstream_http_set_cookie`。  
-* 单测：内置表含 `css`/`js`/`map`/`mjs`，**不含** `html`/`json`。  
-* 手动：  
-  * 带 session Cookie 请求 `/a.js` → 第二次 `HIT`；  
-  * `/index.html` + `static` → 未缓存；  
-  * 源站对 eligible 路径返回 `Set-Cookie` → 不入库（持续 MISS/不 HIT）；  
-  * 源站 `Cache-Control: private` → 不入库。  
-* 观测：access log 三态与原始 `cache_status` 一致。  
-* 生效：配置版本发布并节点应用后验证。
-
----
-
-## 8. 决策矩阵（防漏判）
+## 7. 决策矩阵（防漏判）
 
 | 场景 | CF | OpenFlare（本设计） |
 | --- | --- | --- |
@@ -264,18 +249,7 @@ access.log cache_status=$upstream_cache_status
 
 ---
 
-## 9. 后续路线图
-
-1. Auth 完整 RFC/CF 条件缓存（Lua）  
-2. 强制 Edge TTL / `proxy_ignore_headers`（Cache Rules 级）  
-3. Purge API  
-4. Cache Rules（有序规则 + 动作）  
-5. 全局默认可缓存扩展名可配置；可选对齐 CF 更长扩展名表  
-6. HEAD→GET  
-
----
-
-## 10. 决策记录
+## 8. 决策记录
 
 | 决策 | 选择 | 原因 |
 | --- | --- | --- |

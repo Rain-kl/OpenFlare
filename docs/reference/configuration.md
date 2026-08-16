@@ -152,20 +152,22 @@ Server 的所有核心基础配置定义在 `config.yaml` 中，且均支持环�
 | `password_login_enabled` | `bool` | 是否允许管理员通过常规用户名密码方式登录后台 | `true` |
 | `registration_enabled` | `bool` | 是否允许自助注册新用户（默认禁止，需由 root 账户邀请或分发） | `false` |
 | `password_register_enabled` | `bool` | 是否允许通过邮箱/密码方式在前端直接注册 | `false` |
-| `oidc_login_enabled` | `bool` | 是否启用 OIDC (SSO) 第三方免密登录方案 | `false` |
+| `oidc_login_enabled` | `bool` | 是否启用 OIDC (SSO) 第三方免密登录方案 | `true` |
 | `max_api_keys_per_user` | `int` | 每个后台用户可生成的最大 API 密钥（API Token）数量 | `5` |
 | `login_session_ttl_hours` | `int` | 用户会话在浏览器 Cookie 中的有效期（小时）。0 为随浏览器关闭清除 | `0` |
-| `upload_allowed_extensions` | `string` | 允许用户上传的静态静态托管包文件扩展名（逗号分隔） | `zip,tar.gz,gz,tar,ssl,key,pem,txt,json` |
+| `upload_allowed_extensions` | `string` | 允许上传的文件扩展名（逗号分隔，空则不限） | `jpg,png,webp` |
 | `file_access_whitelist` | `json` | 允许免登录直接公开下载或访问的文件业务类型列表 (JSON 数组) | `["avatar"]` |
 | `disk_cache_max_size_mb` | `int` | 平台本地磁盘缓存的最大存储阈值（MB） | `100` |
 | `disk_cache_ttl_minutes` | `int` | 本地磁盘缓存对象的默认生存周期（分钟） | `60` |
 | `disk_cache_lru_enabled` | `bool` | 当本地磁盘缓存空间不足时是否启用 LRU 算法剔除最旧缓存 | `true` |
 | `update_upstream_repository` | `string` | 系统检测自更新的 GitHub 仓库地址 | `Rain-kl/OpenFlare` |
 | `storage_config` | `json` | 对象存储的结构化配置 (JSON)，支持本地磁盘与 AWS S3 兼容存储配置 | 本地存储模式 |
-| `relay_frps_web_ui_enabled` | `bool` | 是否允许在中继节点上默认开启内嵌的 frps 流量监视面板 Web UI | `true` |
-| `relay_frps_web_ui_port` | `int` | 中继节点 frps 监视面板所监听绑定的宿主机端口 | `7500` |
+| `relay_frps_web_ui_enabled` | `bool` | 是否在中继节点上开启内嵌的 frps 流量监视面板 Web UI | `false` |
+| `relay_frps_web_ui_port` | `int` | 中继节点 frps 监视面板所监听绑定的宿主机端口 | `17500` |
 | `search_engine_indexing_enabled` | `bool` | 是否允许搜索引擎爬取/检索该站点 | `false` |
 | `menu_display_config` | `string` | 目录显示的结构化配置 (JSON 字符串，格式为 `{url: enabled}`) | `{}` |
+| `pages_max_package_size_mb` | `int` | Pages 部署包上传大小上限（MiB，范围 1～2048） | `100` |
+| `pages_max_history_count` | `int` | Pages 每个项目最大历史部署保留数（0 表示不限制） | `20` |
 
 ### 2. 人机安全校验 (PoW Captcha)
 | 配置键 (Key) | 数据类型 | 作用说明 | 默认值 |
@@ -175,8 +177,8 @@ Server 的所有核心基础配置定义在 `config.yaml` 中，且均支持环�
 | `cap_challenge_count` | `int` | 人机验证所需的计算难题数。数量越大，计算要求时间越长（推荐 1～5） | `1` |
 | `cap_challenge_difficulty`| `int`| 每次计算所需的 PoW 哈希前缀匹配难度。推荐数值在 3-5 之间 | `4` |
 | `cap_challenge_size` | `int` | 人机验证盐值长度 | `32` |
-| `cap_challenge_ttl_seconds`| `int`| 难题下发后等待计算提交的最长有效时间（秒），超时自动作废 | `300` |
-| `cap_token_ttl_seconds` | `int` | 完成计算并置换到登录凭证后的有效期（秒），限制需在规定时间内登录 | `600` |
+| `cap_challenge_ttl_seconds`| `int`| 难题下发后等待计算提交的最长有效时间（秒），超时自动作废 | `600` |
+| `cap_token_ttl_seconds` | `int` | 完成计算并置换到登录凭证后的有效期（秒），限制需在规定时间内登录 | `1200` |
 
 ### 3. SMTP 邮件推送配置
 | 配置键 (Key) | 数据类型 | 作用说明 | 默认值 |
@@ -191,7 +193,7 @@ Server 的所有核心基础配置定义在 `config.yaml` 中，且均支持环�
 ### 4. 节点与 Agent 运维运行时参数
 | 配置键 (Key) | 数据类型 | 作用说明 | 默认值 |
 | --- | --- | --- | --- |
-| `agent_discovery_token` | `string` | 新节点首次一键接入并自动注册的全局通用验证发现 Token | 无（系统初始化生成） |
+| `agent_discovery_token` | `string` | 新节点首次一键接入并自动注册的全局通用验证发现 Token | 无（首次访问时自动生成） |
 | `agent_heartbeat_interval`| `int` | 控制并向所有接入 Agent 周期下发的标准心跳检测间隔（毫秒） | `3000` (3s) |
 | `agent_websocket_upgrade_enabled` | `bool` | 是否授权 Agent 在 HTTP 心跳握手成功后升级建立持久 WebSocket 实时连接 | `true` |
 | `node_offline_threshold` | `int` | 在管理后台中判定节点失去心跳并标注为离线状态的无响应阈值（毫秒） | `60000` (60s) |
@@ -227,7 +229,7 @@ Server 的所有核心基础配置定义在 `config.yaml` 中，且均支持环�
 | `openresty_client_header_timeout` | `int` | 接收客户端整个 Request Header 头信息的读取超时上限时长（秒） | `15` |
 | `openresty_client_body_timeout` | `int` | 接收客户端 Request Body 载荷体的数据读取超时上限时长（秒） | `15` |
 | `openresty_client_max_body_size` | `string` | 允许客户端请求上传的最大 Body 大小限制，通常需要单位如 `10m`/`50m` | `64m` |
-| `openresty_large_client_header_buffers` | `string` | 复杂请求超大请求头的专属缓冲区数目与大小大小（如 `4 16k`） | `4 16k` |
+| `openresty_large_client_header_buffers` | `string` | 复杂请求超大请求头的专属缓冲区数目与大小（如 `4 16k`） | `4 16k` |
 | `openresty_send_timeout` | `int` | 向客户端推送 Response 数据回执单次传输最大的间隔超时时长（秒）| `30` |
 | `openresty_resolvers` | `string` | 节点进行 DNS 域名动态解析所关联绑定的域名解析器地址与配置参数 | 空 |
 | `openresty_proxy_connect_timeout` | `int` | 向后台代理源站发起 TCP 三次握手建连的最长超时上限时长（秒） | `3` |
@@ -248,13 +250,14 @@ Server 的所有核心基础配置定义在 `config.yaml` 中，且均支持环�
 | `openresty_cache_levels` | `string` | 代理缓存的存储目录树层级分配设置 | `1:2` |
 | `openresty_cache_inactive` | `string` | 缓存文件多长时间无人访问后将自动从磁盘上失效抹除的时间时长 | `30m` (30分钟) |
 | `openresty_cache_max_size` | `string` | 代理缓存区域在节点上占用的最大可用物理磁盘额度 | `1g` (1GB) |
-| `openresty_cache_key_template` | `string` | 默认生成代理缓存键 the 识别模板 | `$scheme$host$request_uri` |
+| `openresty_cache_key_template` | `string` | 默认生成代理缓存键的识别模板 | `$scheme$host$request_uri` |
 | `openresty_cache_lock_enabled` | `bool` | 遭遇高并发请求击穿同一失效资源时是否对向源站发起建连排队加锁 | `true` |
 | `openresty_cache_lock_timeout` | `string` | 抢夺代理缓存锁排队建连时排队等待的最长等待耗时限制 | `5s` |
 | `openresty_cache_use_stale` | `string` | 当源站遇到特定报错（如500/502/504等）时是否直接向用户投递过期缓存 | `error timeout updating http_500 http_502 http_503 http_504` |
 | `openresty_default_limit_conn_per_server` | `int` | 站点未配置时的默认并发连接上限；`0` 表示默认关闭 | `0` |
 | `openresty_default_limit_conn_per_ip` | `int` | 站点未配置时的默认单 IP 并发上限；`0` 表示默认关闭 | `0` |
 | `openresty_default_limit_rate` | `string` | 站点未配置时的默认单请求带宽（如 `512k`）；空表示默认关闭 | 空 |
+| `openresty_default_limit_req_per_ip` | `string` | 站点未配置时的默认单 IP 请求频率限制（如 `10r/s`、`100r/m`）；空表示默认关闭 | 空 |
 | `openresty_main_config_template` | `string` | 允许用户完全重写整个 OpenResty nginx.conf 的底层结构大骨架模板 | 空 (内置缺省骨架) |
 
 ### 7. 源站错误页 (Origin Error Page)
@@ -289,9 +292,9 @@ Server 的所有核心基础配置定义在 `config.yaml` 中，且均支持环�
 
 | 环境变量 | 作用 | 默认值 |
 | --- | --- | --- |
-| `NEXT_PUBLIC_API_BASE_URL` | 前端请求 API 的基础路径 | `/api` |
+| `WAVELET_BACKEND_URL` | 服务端渲染与开发代理访问的后端地址 | `http://localhost:3000` |
+| `NEXT_PUBLIC_WAVELET_BACKEND_URL` | 浏览器端请求 API 的后端地址；为空时使用同源 | 空 |
 | `NEXT_PUBLIC_APP_VERSION` | 前端展示版本号 | `dev` |
-| `NEXT_DEV_BACKEND_URL` | 本地开发服务器代理的后端地址 | `http://127.0.0.1:3000` |
 
 ---
 
@@ -402,14 +405,3 @@ Server 的所有核心基础配置定义在 `config.yaml` 中，且均支持环�
 | `heartbeat_interval` | 心跳间隔 | 否 | `10000` 毫秒 |
 | `sync_interval` | 配置拉取同步间隔 | 否 | `30000` 毫秒 |
 | `request_timeout` | HTTP 请求超时 | 否 | `10000` 毫秒 |
-
----
-
-## 维护要求
-
-以下内容变化时，必须同步更新本文档：
-- Server 命令行参数。
-- Server 环境变量。
-- SystemConfig 数据库系统配置字段（新增、修改、废弃）。
-- Agent / Relay / Client 的命令行参数与配置字段。
-- 任何配置项的默认值、用途或配置示例。

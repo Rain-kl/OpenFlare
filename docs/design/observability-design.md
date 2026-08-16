@@ -1,6 +1,6 @@
 # 边缘可观测与业务流量统计重构设计
 
-你会学到：当前观测链路为何出现「看板 OpenResty 出站」与「Zone 已提供数据」不一致、字段与聚合为何冗余，以及目标架构如何让 **Agent 只上报事实、Server 只解释事实**，业务流量以访问日志为唯一真相源。
+你会学到：本次重构要解决的问题（「看板 OpenResty 出站」与「Zone 已提供数据」不一致、字段与聚合冗余），以及目标架构如何让 **Agent 只上报事实、Server 只解释事实**，业务流量以访问日志为唯一真相源。
 
 ---
 
@@ -38,7 +38,7 @@
 ### 2.1 产品约束（继承）
 
 * 单租户、全局单激活配置；观测不引入多租户计费隔离。
-* ClickHouse 为访问日志与时序观测的强制分析存储。
+* 访问日志与时序观测走可切换日志主库（默认 ClickHouse，可切换 PostgreSQL/SQLite），见 [日志存储解耦](./logstore.md)。
 * Agent 无入向控制、Pull 模型；离线期间本地 OpenResty 继续服务，观测可本地缓冲后补传。
 
 ### 2.2 工程约束
@@ -98,9 +98,9 @@ Server = 入库 + 聚合 + 归属 + 趋势 + 对账
 
 ---
 
-## 4. 现状问题（基线）
+## 4. 重构前的问题（基线）
 
-### 4.1 当前数据流（冗余）
+### 4.1 重构前数据流（冗余）
 
 ```text
 一次 HTTP 请求
@@ -307,11 +307,10 @@ Agent 职责：
 
 ### 7.4 OpenResty 本地观测
 
-**收敛后建议：**
+收敛后的状态：
 
 * 保留：健康检查、`stub_status` 当前连接。  
-* 删除主路径依赖：`log.lua` 中对 request/status/domain/rx/tx 的 shared dict 业务计数，以及 `/openflare/observability` 作为 TrafficReport 来源。  
-* 若短期内保留 endpoint 供调试，不得再写入 Server 权威分析表。
+* 主路径不再依赖 `log.lua` 的 shared dict 业务计数；`/openflare/observability` 只返回健康与连接快照，不作为业务报表来源。
 
 ### 7.5 与 Agent 设计文档的关系
 
@@ -479,7 +478,7 @@ bytes_sent (= $body_bytes_sent), request_length
 ### 11.4 健康状态权威
 
 * **当前态**：PG `openresty_status` / `openresty_message`。  
-* **时序**：CH `of_node_edge_health`（status + connections；无 message）。
+* **时序**：日志主库 `of_node_edge_health`（status + connections；无 message）。
 
 ### 11.5 UV
 
@@ -497,37 +496,7 @@ bytes_sent (= $body_bytes_sent), request_length
 
 ---
 
-## 13. 验证标准
-
-### 13.1 对账
-
-在仅有单一 Zone 产生流量的环境：
-
-```text
-看板「已提供数据」(24h) ≈ Zone「已提供的数据总计」(24h)
-误差仅来自时间窗对齐（整点截断）与未计入 Host
-```
-
-多 Zone 时：
-
-```text
-sum(各 Zone 已提供) + sum(未归属 Host) = 全局已提供
-```
-
-### 13.2 回归
-
-* Agent 单测：只解析与 offset，不出现业务 sum 断言为「上报契约」。  
-* Server：Zone stats 与 dashboard business traffic 共用聚合测例。  
-* 前端：文案快照/测试中不再出现业务含义的「OpenResty 出站」与「已提供数据」双卡片。
-
-### 13.3 性能
-
-* 24h 看板聚合 P95 可接受（必要时 hourly MV）。  
-* 心跳 payload 体积：明细批量有上限；超限拆缓冲，不在 Agent 做摘要替代。
-
----
-
-## 14. 风险与权衡
+## 13. 风险与权衡
 
 | 风险 | 缓解 |
 | --- | --- |
@@ -543,7 +512,7 @@ sum(各 Zone 已提供) + sum(未归属 Host) = 全局已提供
 
 ---
 
-## 15. 关键决策摘要
+## 14. 关键决策摘要
 
 | 决策 | 选择 | 否决方案 |
 | --- | --- | --- |
@@ -556,7 +525,7 @@ sum(各 Zone 已提供) + sum(未归属 Host) = 全局已提供
 
 ---
 
-## 16. 文档与代码映射（落地时）
+## 15. 文档与代码映射
 
 | 区域 | 主要路径 |
 | --- | --- |
@@ -568,8 +537,6 @@ sum(各 Zone 已提供) + sum(未归属 Host) = 全局已提供
 | 看板 | `internal/apps/openflare/dashboard/`、`internal/apps/openflare/observability/analytics.go` |
 | 前端 | `frontend/app/(main)/page.tsx`、`components/dashboard/*`、`websites/.../zone-overview.tsx` |
 
-实现计划见：`docs/plan/20260717-observability-redesign.md`。
-
 **推荐阅读顺序：**
 
 1. **[观测数据传输模型](./observability-transport-model.md)**（最新：传什么、从哪采、频率、示例 JSON）  
@@ -577,7 +544,7 @@ sum(各 Zone 已提供) + sum(未归属 Host) = 全局已提供
 
 ---
 
-## 17. 修订记录
+## 16. 修订记录
 
 | 日期 | 说明 |
 | --- | --- |
