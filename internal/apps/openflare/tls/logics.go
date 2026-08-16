@@ -197,12 +197,17 @@ func ApplyCertificate(ctx context.Context, input ApplyInput) (*model.TLSCertific
 		return nil, err
 	}
 
+	// 先取响应快照再启动异步续签：sanitize 会整体拷贝 cert，若与异步 goroutine
+	// 的字段写入并发会构成数据竞争（生产真实问题）。
+	returned := sanitizeCertificateForResponse(cert)
+
+	obtainFn := obtainTLSCertificate // 捕获当前实现，避免 goroutine 内读可变包变量（测试热替换）
 	go func(c *model.TLSCertificate) {
 		asyncCtx := context.WithoutCancel(ctx)
-		_ = obtainTLSCertificate(asyncCtx, c)
+		_ = obtainFn(asyncCtx, c)
 	}(cert)
 
-	return sanitizeCertificateForResponse(cert), nil
+	return returned, nil
 }
 
 // UpdateACMECertificate 更新 ACME 证书配置。
@@ -225,12 +230,15 @@ func UpdateACMECertificate(ctx context.Context, id uint, input ApplyInput) (*mod
 		return nil, err
 	}
 
+	returned := sanitizeCertificateForResponse(cert)
+
+	obtainFn := obtainTLSCertificate // 捕获当前实现，避免 goroutine 内读可变包变量（测试热替换）
 	go func(c *model.TLSCertificate) {
 		asyncCtx := context.WithoutCancel(ctx)
-		_ = obtainTLSCertificate(asyncCtx, c)
+		_ = obtainFn(asyncCtx, c)
 	}(cert)
 
-	return sanitizeCertificateForResponse(cert), nil
+	return returned, nil
 }
 
 // ConvertCertificateToACME 将上传证书转为 ACME 管理。
@@ -257,9 +265,10 @@ func ConvertCertificateToACME(ctx context.Context, id uint, input ApplyInput) (*
 		return nil, err
 	}
 
+	obtainFn := obtainTLSCertificate // 捕获当前实现，避免 goroutine 内读可变包变量（测试热替换）
 	go func(c *model.TLSCertificate) {
 		asyncCtx := context.WithoutCancel(ctx)
-		if err := obtainTLSCertificate(asyncCtx, c); err != nil {
+		if err := obtainFn(asyncCtx, c); err != nil {
 			return
 		}
 		latest, err := repository.GetTLSCertificateByID(asyncCtx, c.ID)

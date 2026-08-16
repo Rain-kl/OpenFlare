@@ -50,10 +50,19 @@ func TestApplyCertificateReturnsApplying(t *testing.T) {
 	})
 	require.NoError(t, err)
 
+	obtainDone := make(chan struct{})
 	restore := SetObtainCertificateFuncForTest(func(ctx context.Context, cert *model.TLSCertificate) error {
+		defer close(obtainDone)
 		return updateCertError(ctx, cert, "dns challenge failed")
 	})
-	defer restore()
+	defer func() {
+		select {
+		case <-obtainDone:
+		case <-time.After(2 * time.Second):
+			t.Fatal("async certificate obtain did not finish")
+		}
+		restore()
+	}()
 
 	cert, err := ApplyCertificate(ctx, ApplyInput{
 		Name:          "Test ACME Cert",

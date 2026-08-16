@@ -52,12 +52,13 @@ func ensureAccessCacheListener() {
 }
 
 func startAccessCacheInvalidationListener() {
-	if db.Redis == nil {
+	redis := db.Redis // 调用方 goroutine 上捕获，避免 goroutine 内读可变全局（测试会替换 db.Redis）
+	if redis == nil {
 		return
 	}
 
 	go func() {
-		pubsub := db.Redis.Subscribe(
+		pubsub := redis.Subscribe(
 			context.Background(),
 			objectstore.ConfigInvalidationChannel,
 			fileAccessInvalidationChannel,

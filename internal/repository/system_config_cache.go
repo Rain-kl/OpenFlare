@@ -90,6 +90,7 @@ var (
 	systemConfigListenerOnce   sync.Once
 	systemConfigListenerCtx    context.Context
 	systemConfigListenerCancel context.CancelFunc
+	systemConfigListenerDone   chan struct{}
 )
 
 func ensureSystemConfigCacheListener() {
@@ -102,15 +103,19 @@ func startSystemConfigCacheInvalidationListener() {
 	}
 
 	systemConfigListenerCtx, systemConfigListenerCancel = context.WithCancel(context.Background())
+	systemConfigListenerDone = make(chan struct{})
 
 	go func() {
-		pubsub := db.Redis.Subscribe(systemConfigListenerCtx, SystemConfigBroadcastChannel)
+		listenerCtx := systemConfigListenerCtx
+		defer close(systemConfigListenerDone)
+
+		pubsub := db.Redis.Subscribe(listenerCtx, SystemConfigBroadcastChannel)
 		defer func() {
 			_ = pubsub.Close()
 		}()
 
 		go func() {
-			<-systemConfigListenerCtx.Done()
+			<-listenerCtx.Done()
 			_ = pubsub.Close()
 		}()
 
@@ -135,7 +140,11 @@ func startSystemConfigCacheInvalidationListener() {
 func StopSystemConfigCacheListener() {
 	if systemConfigListenerCancel != nil {
 		systemConfigListenerCancel()
+		if systemConfigListenerDone != nil {
+			<-systemConfigListenerDone
+		}
 		systemConfigListenerCancel = nil
+		systemConfigListenerDone = nil
 	}
 	systemConfigListenerOnce = sync.Once{}
 }

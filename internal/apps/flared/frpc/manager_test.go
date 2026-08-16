@@ -61,8 +61,12 @@ func assertStatusEventually(t *testing.T, m *Manager, relayID string, expectedSt
 	for time.Now().Before(deadline) {
 		m.mu.RLock()
 		proc, ok := m.processes[relayID]
+		var status string
+		if ok {
+			status = proc.Status
+		}
 		m.mu.RUnlock()
-		if ok && proc.Status == expectedStatus {
+		if ok && status == expectedStatus {
 			return
 		}
 		time.Sleep(50 * time.Millisecond)

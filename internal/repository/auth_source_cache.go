@@ -48,6 +48,7 @@ var (
 	authSourceListenerOnce   sync.Once
 	authSourceListenerCtx    context.Context
 	authSourceListenerCancel context.CancelFunc
+	authSourceListenerDone   chan struct{}
 )
 
 func cloneAuthSources(sources []model.AuthSource) []model.AuthSource {
@@ -116,15 +117,19 @@ func ensureAuthSourceCacheListener() {
 
 func startAuthSourceCacheInvalidationListener() {
 	authSourceListenerCtx, authSourceListenerCancel = context.WithCancel(context.Background())
+	authSourceListenerDone = make(chan struct{})
 
 	go func() {
-		pubsub := db.Redis.Subscribe(authSourceListenerCtx, authSourceInvalidationChannel)
+		listenerCtx := authSourceListenerCtx
+		defer close(authSourceListenerDone)
+
+		pubsub := db.Redis.Subscribe(listenerCtx, authSourceInvalidationChannel)
 		defer func() {
 			_ = pubsub.Close()
 		}()
 
 		go func() {
-			<-authSourceListenerCtx.Done()
+			<-listenerCtx.Done()
 			_ = pubsub.Close()
 		}()
 
@@ -257,7 +262,11 @@ func InvalidateAuthSourceCache(ctx context.Context) error {
 func StopAuthSourceCacheListener() {
 	if authSourceListenerCancel != nil {
 		authSourceListenerCancel()
+		if authSourceListenerDone != nil {
+			<-authSourceListenerDone
+		}
 		authSourceListenerCancel = nil
+		authSourceListenerDone = nil
 	}
 	authSourceListenerOnce = sync.Once{}
 }
