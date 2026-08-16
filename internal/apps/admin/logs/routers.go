@@ -56,11 +56,11 @@ func GetLogs(c *gin.Context) {
 	limitStr := c.DefaultQuery("limit", "200")
 
 	var cursor, limit int
-	if _, err := parsePositiveInt(cursorStr, &cursor); err != nil {
+	if err := parsePositiveInt(cursorStr, &cursor); err != nil {
 		response.AbortWithError(c, http.StatusBadRequest, admin.InvalidCursorParam)
 		return
 	}
-	if _, err := parsePositiveInt(limitStr, &limit); err != nil || limit <= 0 {
+	if err := parsePositiveInt(limitStr, &limit); err != nil || limit <= 0 {
 		limit = defaultLimit
 	}
 	if limit > maxLimit {

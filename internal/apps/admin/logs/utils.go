@@ -49,15 +49,15 @@ func getUpgrader() *websocket.Upgrader {
 }
 
 // parsePositiveInt 解析非负整数字符串
-func parsePositiveInt(s string, result *int) (bool, error) {
+func parsePositiveInt(s string, result *int) error {
 	if s == "" {
 		*result = 0
-		return true, nil
+		return nil
 	}
 	n, err := strconv.Atoi(s)
 	if err != nil || n < 0 {
-		return false, err
+		return err
 	}
 	*result = n
-	return true, nil
+	return nil
 }

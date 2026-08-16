@@ -33,7 +33,7 @@ type kumaConfig struct {
 }
 
 // loadKumaConfig 从 SystemConfig 加载 UptimeKuma 配置
-func loadKumaConfig(ctx context.Context) (*kumaConfig, error) {
+func loadKumaConfig(ctx context.Context) *kumaConfig {
 	url, _ := repository.GetSystemConfigByKey(ctx, model.ConfigKeyUptimeKumaURL)
 	username, _ := repository.GetSystemConfigByKey(ctx, model.ConfigKeyUptimeKumaUsername)
 	password, _ := repository.GetSystemConfigByKey(ctx, model.ConfigKeyUptimeKumaPassword)
@@ -68,7 +68,7 @@ func loadKumaConfig(ctx context.Context) (*kumaConfig, error) {
 		Retry:         retry,
 		RetryInterval: retryInterval,
 		Timeout:       timeout,
-	}, nil
+	}
 }
 
 // SyncToUptimeKuma synchronizes enabled proxy routes to Uptime Kuma monitors.
@@ -85,10 +85,7 @@ func SyncToUptimeKuma(ctx context.Context) error {
 	defer isSyncing.Store(false)
 
 	// 加载配置
-	config, err := loadKumaConfig(ctx)
-	if err != nil {
-		return err
-	}
+	config := loadKumaConfig(ctx)
 
 	// 验证配置
 	if err := validateKumaConfig(config); err != nil {
@@ -106,10 +103,7 @@ func SyncToUptimeKuma(ctx context.Context) error {
 		return fmt.Errorf("failed to list local proxy routes: %w", err)
 	}
 
-	expectedRoutes, err := filterExpectedRoutes(allRoutes, config)
-	if err != nil {
-		return err
-	}
+	expectedRoutes := filterExpectedRoutes(allRoutes, config)
 
 	client, err := connectAndLoginUptimeKuma(config.URL, config.Username, config.Password)
 	if err != nil {
@@ -129,7 +123,7 @@ func SyncToUptimeKuma(ctx context.Context) error {
 	return nil
 }
 
-func filterExpectedRoutes(allRoutes []*model.ProxyRoute, config *kumaConfig) ([]*model.ProxyRoute, error) {
+func filterExpectedRoutes(allRoutes []*model.ProxyRoute, config *kumaConfig) []*model.ProxyRoute {
 	scope := config.MonitorScope
 	if scope == "selected" {
 		selectedList := strings.Split(config.SelectedSites, ",")
@@ -146,7 +140,7 @@ func filterExpectedRoutes(allRoutes []*model.ProxyRoute, config *kumaConfig) ([]
 				expectedRoutes = append(expectedRoutes, route)
 			}
 		}
-		return expectedRoutes, nil
+		return expectedRoutes
 	}
 
 	var expectedRoutes []*model.ProxyRoute
@@ -155,7 +149,7 @@ func filterExpectedRoutes(allRoutes []*model.ProxyRoute, config *kumaConfig) ([]
 			expectedRoutes = append(expectedRoutes, route)
 		}
 	}
-	return expectedRoutes, nil
+	return expectedRoutes
 }
 
 func ensureOpenFlareTag(client *SocketIOClient) (int, error) {

@@ -103,7 +103,7 @@ func formatBytes(bytes uint64) string {
 }
 
 // getSQLiteOverview 获取 SQLite 数据库概览信息
-func getSQLiteOverview(gormDB *gorm.DB) (DBOverviewResponse, error) {
+func getSQLiteOverview(gormDB *gorm.DB) DBOverviewResponse {
 	name := config.Config.Database.SQLitePath
 	if name == "" {
 		name = "./data/openflare.db"
@@ -144,11 +144,11 @@ func getSQLiteOverview(gormDB *gorm.DB) (DBOverviewResponse, error) {
 		Size:        sizeStr,
 		TableCount:  tableCount,
 		Connections: connCount,
-	}, nil
+	}
 }
 
 // getPostgresOverview 获取 PostgreSQL 数据库概览信息
-func getPostgresOverview(gormDB *gorm.DB) (DBOverviewResponse, error) {
+func getPostgresOverview(gormDB *gorm.DB) DBOverviewResponse {
 	name := config.Config.Database.Database
 
 	var version string
@@ -192,7 +192,7 @@ func getPostgresOverview(gormDB *gorm.DB) (DBOverviewResponse, error) {
 		Size:        sizeStr,
 		TableCount:  tableCount,
 		Connections: connCount,
-	}, nil
+	}
 }
 
 // GetDBOverview 获取数据库运行概览
@@ -214,17 +214,11 @@ func GetDBOverview(c *gin.Context) {
 	}
 
 	var overview DBOverviewResponse
-	var err error
 
 	if !config.Config.Database.Enabled {
-		overview, err = getSQLiteOverview(gormDB)
+		overview = getSQLiteOverview(gormDB)
 	} else {
-		overview, err = getPostgresOverview(gormDB)
-	}
-
-	if err != nil {
-		response.AbortInternal(c, err.Error())
-		return
+		overview = getPostgresOverview(gormDB)
 	}
 
 	c.JSON(http.StatusOK, response.OK(overview))

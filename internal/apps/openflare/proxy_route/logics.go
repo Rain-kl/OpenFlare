@@ -120,7 +120,7 @@ func GetProxyRoute(ctx context.Context, id uint) (*View, error) {
 
 // CreateProxyRoute 创建代理规则。
 func CreateProxyRoute(ctx context.Context, input Input) (*View, error) {
-	route, _, err := buildProxyRoute(ctx, nil, input)
+	route, err := buildProxyRoute(ctx, nil, input)
 	if err != nil {
 		return nil, err
 	}
@@ -148,7 +148,7 @@ func UpdateProxyRoute(ctx context.Context, id uint, input Input) (*View, error) 
 		return nil, err
 	}
 	previousPagesProjectID := pagesProjectIDForRoute(route)
-	route, _, err = buildProxyRoute(ctx, route, input)
+	route, err = buildProxyRoute(ctx, route, input)
 	if err != nil {
 		return nil, err
 	}
@@ -244,67 +244,67 @@ func DeleteProxyRoute(ctx context.Context, id uint) error {
 	return repository.DeleteProxyRouteAndUnbind(ctx, id)
 }
 
-func buildProxyRoute(ctx context.Context, route *model.ProxyRoute, input Input) (*model.ProxyRoute, []model.ZoneDomain, error) {
+func buildProxyRoute(ctx context.Context, route *model.ProxyRoute, input Input) (*model.ProxyRoute, error) {
 	domains, err := loadProxyRouteZoneDomains(ctx, input.ZoneDomainIDs)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	siteName := strings.TrimSpace(input.SiteName)
 
 	upstreamType := normalizeUpstreamType(input.UpstreamType)
 	_, originID, upstreams, err := resolveProxyRouteUpstreams(ctx, upstreamType, input)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	originHost := strings.TrimSpace(input.OriginHost)
 	cachePolicy := strings.TrimSpace(input.CachePolicy)
 	cacheRules, err := normalizeCacheRules(input.CacheEnabled, cachePolicy, input.CacheRules)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	customHeaders, err := normalizeCustomHeaders(input.CustomHeaders)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	limitConnPerServer, err := normalizeProxyRouteLimitConnValue(input.LimitConnPerServer, "limit_conn_per_server")
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	limitConnPerIP, err := normalizeProxyRouteLimitConnValue(input.LimitConnPerIP, "limit_conn_per_ip")
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	limitRate, err := normalizeProxyRouteLimitRate(input.LimitRate)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	limitReqPerIP, err := normalizeProxyRouteLimitReqPerIP(input.LimitReqPerIP)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	if err := validateProxyRouteZoneDomainCertificates(ctx, domains, input.EnableHTTPS); err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	jsonFields, err := marshalProxyRouteJSONFields(upstreams, cacheRules, customHeaders)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	if err := validateProxyRouteSiteName(siteName); err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	if err := validateProxyRouteSiteNameUniqueness(ctx, route, siteName); err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	if err := validateOriginHost(originHost); err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	if input.RedirectHTTP && !input.EnableHTTPS {
-		return nil, nil, errors.New(errProxyRouteRedirectHTTP)
+		return nil, errors.New(errProxyRouteRedirectHTTP)
 	}
 
 	if err := normalizeProxyRouteBasicAuth(&input); err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	if route == nil {
@@ -326,9 +326,9 @@ func buildProxyRoute(ctx context.Context, route *model.ProxyRoute, input Input) 
 		upstreamType,
 	)
 	if err := applyProxyRouteUpstreamType(ctx, route, upstreamType, input); err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-	return route, domains, nil
+	return route, nil
 }
 
 func buildProxyRouteViews(ctx context.Context, routes []*model.ProxyRoute) ([]*View, error) {

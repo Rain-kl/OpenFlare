@@ -104,7 +104,7 @@ func RenderRouteConfig(doc Document, certificateFiles []SupportFile) (string, er
 		displayName := resolveRouteSiteName(route)
 		cacheConfig := routeCacheConfig{Enabled: route.CacheEnabled, Policy: route.CachePolicy, Rules: route.CacheRules}
 		limitConfig := mergeRouteLimitConfig(route, doc.OpenRestyConfig)
-		powEnabled, _ := getPoWConfigForRoute(route.ID, doc.WAF)
+		powEnabled := getPoWConfigForRoute(route.ID, doc.WAF)
 		if normalizeRouteUpstreamType(route.UpstreamType) == routeUpstreamTypePages {
 			if err := renderPagesRoute(&builder, route, displayName, serverNames, certificates, limitConfig, powEnabled, doc.OpenRestyConfig); err != nil {
 				return "", err
@@ -827,7 +827,7 @@ func validateCertificateCoverage(certPEM string, domains []string) error {
 	return nil
 }
 
-func getPoWConfigForRoute(routeID uint, snapshot WAFDocument) (bool, *PoWConfig) {
+func getPoWConfigForRoute(routeID uint, snapshot WAFDocument) bool {
 	enabledGroups := make(map[uint]WAFRuleGroup, len(snapshot.RuleGroups))
 	globalGroupIDs := make([]uint, 0)
 	for _, group := range snapshot.RuleGroups {
@@ -857,10 +857,10 @@ func getPoWConfigForRoute(routeID uint, snapshot WAFDocument) (bool, *PoWConfig)
 	for _, groupID := range activeGroupIDs {
 		group := enabledGroups[groupID]
 		if graphContainsNodeType(group.Graph, "pow") {
-			return true, nil
+			return true
 		}
 	}
-	return false, nil
+	return false
 }
 
 func graphContainsNodeType(graph WAFRuleGraph, nodeType string) bool {
