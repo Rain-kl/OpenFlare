@@ -94,6 +94,97 @@ func TestUpgradePostgresFromGolden(t *testing.T) {
 	})
 }
 
+func TestUpgradePostgresFromExistingDump(t *testing.T) {
+	dsn := strings.TrimSpace(os.Getenv("TEST_PG_EXISTING_DSN"))
+	if dsn == "" {
+		t.Skip("TEST_PG_EXISTING_DSN is not set")
+	}
+
+	host, port, user, pass, dbName, sslMode := parsePostgresDSN(t, dsn)
+	spec := upgradeDB{
+		pgDSN:  dsn,
+		source: cordisPostgresSource(t, host, port, user, pass, dbName, sslMode),
+	}
+
+	inspect := openInspectDB(t, "", spec.pgDSN)
+	beforeCounts := countNamedTables(t, inspect, productionCountTables)
+	beforeTables := listPublicTables(t, inspect)
+	_ = inspect.Close()
+
+	assertUpgradeFromGolden(t, spec)
+
+	inspect = openInspectDB(t, "", spec.pgDSN)
+	defer func() { _ = inspect.Close() }()
+	afterCounts := countNamedTables(t, inspect, productionCountTables)
+	for _, name := range productionCountTables {
+		if afterCounts[name] < beforeCounts[name] {
+			t.Errorf("row count dropped for %s: before %d after %d", name, beforeCounts[name], afterCounts[name])
+		}
+	}
+	afterTables := listPublicTables(t, inspect)
+	for name := range beforeTables {
+		if !afterTables[name] {
+			t.Errorf("table %s dropped", name)
+		}
+	}
+	for _, name := range []string{"w_schema_versions", "w_message_channels", "w_message_bindings", "w_message_pairing_codes"} {
+		if !afterTables[name] {
+			t.Errorf("expected upgrade to create %s", name)
+		}
+	}
+	var n int
+	if err := inspect.QueryRow(`SELECT COUNT(*) FROM pg_inherits i JOIN pg_class c ON c.oid = i.inhparent WHERE c.relname IN ('of_node_access_logs', 'w_user_access_logs')`).Scan(&n); err != nil {
+		t.Fatalf("count partitions: %v", err)
+	}
+	if n < 8 {
+		t.Errorf("partition children = %d, want at least 8", n)
+	}
+}
+
+var productionCountTables = []string{
+	"of_zones", "of_zone_domains", "of_proxy_routes", "of_nodes", "of_origins",
+	"of_tls_certificates", "of_waf_rule_groups", "of_pages_projects",
+	"w_users", "w_schedules", "w_system_configs", "w_templates", "w_uploads",
+	"of_node_access_logs", "w_user_access_logs",
+}
+
+func countNamedTables(t *testing.T, db *sql.DB, tables []string) map[string]int {
+	t.Helper()
+	out := make(map[string]int, len(tables))
+	for _, name := range tables {
+		if !safePGIdent(name) {
+			t.Fatalf("unsafe table name %q", name)
+		}
+		var n int
+		if err := db.QueryRow("SELECT COUNT(*) FROM " + name).Scan(&n); err != nil {
+			t.Fatalf("count %s: %v", name, err)
+		}
+		out[name] = n
+	}
+	return out
+}
+
+func listPublicTables(t *testing.T, db *sql.DB) map[string]bool {
+	t.Helper()
+	rows, err := db.Query(`SELECT tablename FROM pg_tables WHERE schemaname = 'public'`)
+	if err != nil {
+		t.Fatalf("list public tables: %v", err)
+	}
+	defer func() { _ = rows.Close() }()
+	out := make(map[string]bool)
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			t.Fatalf("scan table name: %v", err)
+		}
+		out[name] = true
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatalf("list public tables: %v", err)
+	}
+	return out
+}
+
 type upgradeDB struct {
 	sqlitePath string
 	pgDSN      string

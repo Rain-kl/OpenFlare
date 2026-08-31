@@ -499,12 +499,9 @@ INSERT INTO w_schedules (id, name, task_type, cron, payload, is_active, created_
 VALUES
     (101, 'OpenFlare SSL 自动续期', 'of_ssl_renew', '0 0 * * *', '{}', TRUE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
     (103, 'OpenFlare WAF IP 组同步', 'of_waf_ip_group_sync', '*/5 * * * *', '{}', TRUE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-    (104, 'OpenFlare Uptime Kuma 同步', 'of_uptime_kuma_sync', '* * * * *', '{}', TRUE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+    (104, 'OpenFlare Uptime Kuma 同步', 'of_uptime_kuma_sync', '* * * * *', '{}', TRUE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    (105, 'OpenFlare Pages 部署源扫描', 'of_pages_source_scan', '0 0 * * *', '{}', TRUE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
 ON CONFLICT (id) DO NOTHING;
-
-INSERT INTO w_schedules (name, task_type, cron, payload, is_active, created_at, updated_at)
-SELECT 'OpenFlare Pages 部署源扫描', 'of_pages_source_scan', '0 0 * * *', '{}', TRUE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
-WHERE NOT EXISTS (SELECT 1 FROM w_schedules WHERE task_type = 'of_pages_source_scan');
 
 INSERT INTO w_system_configs (key, value, type, visibility, description, created_at, updated_at)
 VALUES

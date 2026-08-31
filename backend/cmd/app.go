@@ -36,6 +36,7 @@ import (
 
 	"github.com/pressly/goose/v3"
 	goosedb "github.com/pressly/goose/v3/database"
+	"gorm.io/gorm"
 
 	infradb "Wavelet/plugins/infra/database"
 )
@@ -279,7 +280,7 @@ func (e *gooseEngine) Migrate(ctx *core.Context, entries []core.MigrationEntry) 
 		return fmt.Errorf("migration: get underlying DB from GORM: %w", err)
 	}
 
-	dialect := gooseDialect(ctx)
+	dialect := gooseDialectFromGORM(gormDB, ctx)
 	dialectStr := string(dialect)
 	goCtx := context.Background()
 	if ctx != nil {
@@ -344,6 +345,18 @@ func (e *gooseEngine) Migrate(ctx *core.Context, entries []core.MigrationEntry) 
 	}
 
 	return nil
+}
+
+// gooseDialectFromGORM prefers the live driver; config is only a fallback when
+// GORM has no dialector yet (tests that inject a stub DBService).
+func gooseDialectFromGORM(gormDB *gorm.DB, ctx *core.Context) goose.Dialect {
+	if gormDB != nil && gormDB.Dialector != nil && gormDB.Dialector.Name() == "postgres" {
+		return goose.DialectPostgres
+	}
+	if gormDB != nil && gormDB.Dialector != nil && gormDB.Dialector.Name() == "sqlite" {
+		return goose.DialectSQLite3
+	}
+	return gooseDialect(ctx)
 }
 
 // gooseDialect returns the goose dialect based on the configured database engine.
