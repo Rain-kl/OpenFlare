@@ -13,8 +13,22 @@ import { CloudflareService, NodeService } from '@/lib/services/openflare';
 import { NextIntlClientProvider } from 'next-intl';
 import zhCN from '@/messages/zh-CN.json';
 
+let mockGroupId = '7';
+let mockParamId = '7';
+
+vi.mock('next/link', () => ({
+  default: ({
+    children,
+    href,
+  }: {
+    children: React.ReactNode;
+    href: string;
+  }) => <a href={href}>{children}</a>,
+}));
+
 vi.mock('next/navigation', () => ({
-  useParams: () => ({ id: '7' }),
+  useParams: () => ({ id: mockParamId }),
+  usePathname: () => `/cloudflare/groups/${mockGroupId}`,
 }));
 
 vi.mock('@/lib/services/openflare', async (importOriginal) => {
@@ -55,6 +69,8 @@ function renderPage() {
 
 describe('Cloudflare group detail refresh', () => {
   beforeEach(() => {
+    mockGroupId = '7';
+    mockParamId = '7';
     vi.mocked(CloudflareService.getGroup).mockReset();
     vi.mocked(CloudflareService.listAvailableDomains).mockReset();
     vi.mocked(NodeService.listNodes).mockReset();
@@ -92,6 +108,19 @@ describe('Cloudflare group detail refresh', () => {
     await waitFor(() => {
       expect(CloudflareService.getGroup).toHaveBeenCalledTimes(2);
     });
+  });
+
+  it('uses the browser pathname ID when serving a static-export fallback shell', async () => {
+    mockParamId = '1';
+    renderPage();
+
+    await waitFor(() => {
+      expect(CloudflareService.getGroup).toHaveBeenCalledWith(7);
+    });
+    expect(CloudflareService.getGroup).not.toHaveBeenCalledWith(1);
+    expect(
+      await screen.findByRole('heading', { name: '生产节点' }),
+    ).toBeVisible();
   });
 
   it('automatically refreshes detail data every five seconds', async () => {

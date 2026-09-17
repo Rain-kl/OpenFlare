@@ -12,8 +12,8 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
-import { useParams } from 'next/navigation';
-import { useState } from 'react';
+import { usePathname } from 'next/navigation';
+import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
 import { Badge } from '@/components/ui/badge';
@@ -46,10 +46,20 @@ import { getErrorMessage } from '../../../websites/components/website-utils';
 import { GroupDialog } from '../../components/group-dialog';
 import { MemberAddDialog } from '../../components/member-add-dialog';
 
+function getGroupIdFromPathname(pathname: string | null): number {
+  const match = pathname?.match(/^\/cloudflare\/groups\/([^/]+)$/);
+  return Number(match?.[1]);
+}
+
 export function CloudflareGroupDetailPageClient() {
   const t = useTranslations('cloudflare');
-  const params = useParams<{ id: string }>();
-  const groupID = Number(params.id);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const pathname = usePathname();
+  const groupID = useMemo(() => getGroupIdFromPathname(pathname), [pathname]);
   const queryClient = useQueryClient();
   const [editOpen, setEditOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
@@ -147,7 +157,7 @@ export function CloudflareGroupDetailPageClient() {
     onError: (error) => toast.error(getErrorMessage(error)),
   });
 
-  if (detailQuery.isLoading)
+  if (!mounted || detailQuery.isLoading)
     return (
       <div className='w-full py-6 px-1'>
         <LoadingStateWithBorder icon={Cloud} description={t('loadingDetail')} />

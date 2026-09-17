@@ -6,7 +6,7 @@ import { LoadingStateWithBorder } from '@/components/layout/loading';
 
 import { CloudflareGroupDetailPageClient } from './page-client';
 
-/** Placeholder for static export; real ids resolve client-side via useParams. */
+/** Placeholder for static export; real ids resolve client-side from the pathname. */
 export async function generateStaticParams() {
   return [{ id: '1' }];
 }

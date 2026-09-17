@@ -9,26 +9,48 @@ import (
 )
 
 //nolint:unused // Used by frontend.go in embed_frontend builds; default lint runs without that tag.
+var nextExportDynamicPrefixes = []string{"websites", "cloudflare/groups"}
+
+//nolint:unused // Used by frontend.go in embed_frontend builds; default lint runs without that tag.
 func resolveNextExportDynamicFallback(subFS fs.FS, cleanPath string) (string, bool) {
-	parts := strings.Split(cleanPath, "/")
-	if len(parts) < 2 || parts[0] != "websites" || parts[1] == "" {
+	templatePath, ok := nextExportDynamicTemplate(cleanPath)
+	if !ok {
 		return "", false
 	}
-
-	var templatePath string
-	switch {
-	case len(parts) == 2 && !strings.Contains(parts[1], "."):
-		templatePath = "websites/1.html"
-	case len(parts) == 2 && strings.HasSuffix(parts[1], ".txt"):
-		templatePath = "websites/1.txt"
-	case len(parts) == 3 && parts[2] != "" && strings.HasPrefix(parts[2], "__next.") && strings.HasSuffix(parts[2], ".txt"):
-		templatePath = "websites/1/" + parts[2]
-	default:
-		return "", false
-	}
-
 	if _, err := fs.Stat(subFS, templatePath); err != nil {
 		return "", false
 	}
 	return templatePath, true
+}
+
+//nolint:unused // Used by frontend.go in embed_frontend builds; default lint runs without that tag.
+func nextExportDynamicTemplate(cleanPath string) (string, bool) {
+	for _, prefix := range nextExportDynamicPrefixes {
+		if path, ok := nextExportIDTemplate(cleanPath, prefix); ok {
+			return path, true
+		}
+	}
+	return "", false
+}
+
+//nolint:unused // Used by frontend.go in embed_frontend builds; default lint runs without that tag.
+func nextExportIDTemplate(cleanPath, prefix string) (string, bool) {
+	if cleanPath == prefix || !strings.HasPrefix(cleanPath, prefix+"/") {
+		return "", false
+	}
+	rest := strings.TrimPrefix(cleanPath, prefix+"/")
+	if rest == "" {
+		return "", false
+	}
+	parts := strings.Split(rest, "/")
+	switch {
+	case len(parts) == 1 && !strings.Contains(parts[0], "."):
+		return prefix + "/1.html", true
+	case len(parts) == 1 && strings.HasSuffix(parts[0], ".txt"):
+		return prefix + "/1.txt", true
+	case len(parts) == 2 && parts[1] != "" && strings.HasPrefix(parts[1], "__next.") && strings.HasSuffix(parts[1], ".txt"):
+		return prefix + "/1/" + parts[1], true
+	default:
+		return "", false
+	}
 }

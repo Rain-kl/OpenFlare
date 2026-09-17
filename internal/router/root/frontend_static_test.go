@@ -14,6 +14,10 @@ func TestResolveNextExportDynamicFallbackUsesZoneTemplate(t *testing.T) {
 		"websites/1.html": &fstest.MapFile{Data: []byte("zone detail")},
 		"websites/1.txt":  &fstest.MapFile{Data: []byte("zone flight")},
 		"websites/1/__next.!KG1haW4p.websites.$d$zoneId.__PAGE__.txt": &fstest.MapFile{Data: []byte("zone segment")},
+		"cloudflare/groups.html":   &fstest.MapFile{Data: []byte("groups list redirect")},
+		"cloudflare/groups/1.html": &fstest.MapFile{Data: []byte("group detail")},
+		"cloudflare/groups/1.txt":  &fstest.MapFile{Data: []byte("group flight")},
+		"cloudflare/groups/1/__next.!KG1haW4p.cloudflare.groups.$d$id.__PAGE__.txt": &fstest.MapFile{Data: []byte("group segment")},
 	}
 
 	tests := []struct {
@@ -28,15 +32,22 @@ func TestResolveNextExportDynamicFallbackUsesZoneTemplate(t *testing.T) {
 			input: "websites/3/__next.!KG1haW4p.websites.$d$zoneId.__PAGE__.txt",
 			want:  "websites/1/__next.!KG1haW4p.websites.$d$zoneId.__PAGE__.txt",
 		},
+		{name: "cloudflare group html", input: "cloudflare/groups/2", want: "cloudflare/groups/1.html"},
+		{name: "cloudflare group route payload", input: "cloudflare/groups/2.txt", want: "cloudflare/groups/1.txt"},
+		{
+			name:  "cloudflare group segment payload",
+			input: "cloudflare/groups/3/__next.!KG1haW4p.cloudflare.groups.$d$id.__PAGE__.txt",
+			want:  "cloudflare/groups/1/__next.!KG1haW4p.cloudflare.groups.$d$id.__PAGE__.txt",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, ok := resolveNextExportDynamicFallback(subFS, tt.input)
 			if !ok {
-				t.Fatal("expected dynamic websites route fallback")
+				t.Fatalf("resolveNextExportDynamicFallback(%q) ok = false, want true", tt.input)
 			}
 			if got != tt.want {
-				t.Fatalf("expected %q fallback, got %q", tt.want, got)
+				t.Fatalf("resolveNextExportDynamicFallback(%q) = %q, want %q", tt.input, got, tt.want)
 			}
 		})
 	}
@@ -53,6 +64,13 @@ func TestResolveNextExportDynamicFallbackRejectsNestedOrAssetPath(t *testing.T) 
 		"websites/3.js",
 		"websites/3/",
 		"websites/3/missing.txt",
+		"cloudflare",
+		"cloudflare/groups",
+		"cloudflare/groups.html",
+		"cloudflare/groups/2/settings",
+		"cloudflare/groups/2.js",
+		"cloudflare/groups/2/",
+		"cloudflare/groups/2/missing.txt",
 	}
 	for _, tt := range tests {
 		t.Run(tt, func(t *testing.T) {
@@ -69,6 +87,9 @@ func TestResolveNextExportDynamicFallbackRequiresGeneratedTemplate(t *testing.T)
 	}
 
 	if got, ok := resolveNextExportDynamicFallback(subFS, "websites/3"); ok {
-		t.Fatalf("expected no fallback without generated template, got %q", got)
+		t.Fatalf("resolveNextExportDynamicFallback(%q) = %q, want no fallback", "websites/3", got)
+	}
+	if got, ok := resolveNextExportDynamicFallback(subFS, "cloudflare/groups/2"); ok {
+		t.Fatalf("resolveNextExportDynamicFallback(%q) = %q, want no fallback", "cloudflare/groups/2", got)
 	}
 }
