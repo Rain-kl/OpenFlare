@@ -69,6 +69,51 @@ func setupSystemConfigTest(t *testing.T) (*gorm.DB, func()) {
 	return sqliteDB, cleanup
 }
 
+func TestPublicSystemConfigsExposesVisibleKeys(t *testing.T) {
+	dbConn, cleanup := setupSystemConfigTest(t)
+	defer cleanup()
+	repository.ResetSystemConfigRAMCacheForTest()
+	ctx := context.Background()
+
+	hidden := model.SystemConfig{
+		Key:        "secret_key",
+		Value:      "nope",
+		Type:       "system",
+		Visibility: model.ConfigVisibilityHidden,
+	}
+	visible := model.SystemConfig{
+		Key:        model.ConfigKeyCapLoginEnabled,
+		Value:      "true",
+		Type:       "system",
+		Visibility: model.ConfigVisibilityVisible,
+	}
+	if err := dbConn.Create(&hidden).Error; err != nil {
+		t.Fatalf("Create(hidden) error = %v", err)
+	}
+	if err := dbConn.Create(&visible).Error; err != nil {
+		t.Fatalf("Create(visible) error = %v", err)
+	}
+
+	got, err := service.PublicSystemConfigs(ctx)
+	if err != nil {
+		t.Fatalf("PublicSystemConfigs() error = %v", err)
+	}
+	if got[model.ConfigKeyCapLoginEnabled] != "true" {
+		t.Fatalf("PublicSystemConfigs()[%s] = %q, want %q", model.ConfigKeyCapLoginEnabled, got[model.ConfigKeyCapLoginEnabled], "true")
+	}
+	if _, ok := got["secret_key"]; ok {
+		t.Fatalf("PublicSystemConfigs() leaked hidden key secret_key")
+	}
+
+	viaProvider, err := service.PublicConfigAdapter{}.PublicConfig(ctx)
+	if err != nil {
+		t.Fatalf("PublicConfigAdapter.PublicConfig() error = %v", err)
+	}
+	if viaProvider[model.ConfigKeyCapLoginEnabled] != "true" {
+		t.Fatalf("PublicConfigAdapter.PublicConfig()[%s] = %q, want %q", model.ConfigKeyCapLoginEnabled, viaProvider[model.ConfigKeyCapLoginEnabled], "true")
+	}
+}
+
 func TestListSystemConfigsByKeys_EmptyKeys(t *testing.T) {
 	result, err := repository.ListSystemConfigsByKeys(context.Background(), nil)
 	if err != nil {

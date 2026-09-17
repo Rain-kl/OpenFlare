@@ -14,10 +14,9 @@ description: "Wavelet 项目专用：当需要开发或接入新的系统通知�
 Wavelet 的消息推送机制采用了**元数据驱动 + 统一触发器 + 异步任务派发**的解耦设计，其分层及职责划分如下：
 
 | 目录/包名 | 职责定位 | 包含内容与设计细节 |
-| :--- | :--- | :--- |
-| **`pkg/push/`** | 推送基础设施层 | 静态定义、不依赖系统数据库和任何框架。定义了统一接口 `Pusher`、单例 `PusherPool` 和多实现（Lark, Webhook, Email 等），提供配置验证及发送功能。 |
-| **`internal/apps/admin/push/`** | 通知服务与后台任务层 | 包含以下核心文件：<br>1. [events.go](file:///Users/ryan/DEV/Go/Wavelet/internal/apps/admin/push/events.go)：定义通知事件的结构模型（`NotificationMessage`, `EventMetadata`）、内置事件的动态注册中心（`BuiltInEvents` 及 `RegisterBuiltInEvent` 函数）以及统一触发器类 `EventTrigger`（包括其底层的派发引擎逻辑）。<br>2. [tasks.go](file:///Users/ryan/DEV/Go/Wavelet/internal/apps/admin/push/tasks.go)：定义 Asynq 后台异步发送任务、处理器 `PushHandler` 及其校验逻辑，并记录推送历史审计。<br>3. [routers.go](file:///Users/ryan/DEV/Go/Wavelet/internal/apps/admin/push/routers.go)：管理端接口，负责获取事件配置列表和更新配置。 |
-| **`internal/apps/admin/push/custom_events/`** | 自定义通知事件包 | 事件元数据定义与 push 侧处理逻辑；**一个 Go 文件代表一个事件**。在 [register.go](file:///Users/ryan/DEV/Go/Wavelet/internal/apps/admin/push/custom_events/register.go) 统一装配，禁止 `init()` 副作用。 |
+| **`backend/plugins/domain/msg_gateway/push/`** | 推送基础设施层 | 静态定义、不依赖系统数据库和任何框架。定义了统一接口 `Pusher` 和多实现（Lark, Webhook, Email 等），提供配置验证及发送功能。 |
+| **`internal/apps/admin/push/`** | 通知服务与后台任务层 | 包含以下核心文件：<br>1. `events.go`：定义通知事件的结构模型（`NotificationMessage`, `EventMetadata`）、内置事件的动态注册中心（`BuiltInEvents` 及 `RegisterBuiltInEvent` 函数）以及统一触发器类 `EventTrigger`（包括其底层的派发引擎逻辑）。<br>2. `tasks.go`：定义 Asynq 后台异步发送任务、处理器 `PushHandler` 及其校验逻辑，并记录推送历史审计。<br>3. `routers.go`：管理端接口，负责获取事件配置列表和更新配置。 |
+| **`internal/apps/admin/push/custom_events/`** | 自定义通知事件包 | 事件元数据定义与 push 侧处理逻辑；**一个 Go 文件代表一个事件**。在 `register.go` 统一装配，禁止 `init()` 副作用。 |
 | **`internal/listener/`** | 域事件分发层 | 核心域发射事件（如 `EmitAdminLoggedIn`），push 在 bootstrap 阶段通过 `OnAdminLoggedIn` 订阅，避免 auth/user 直接依赖 push。 |
 | **`internal/platform/bootstrap/`** | 应用装配根 | `RegisterPushDomainEvents()` 调用 `custom_events.Register()`；`Init` 中执行 `SyncEvents` 将内置事件元数据同步到数据库。 |
 | **数据库审计表** | 状态与历史审计 | `w_push_events` 存放每个通知事件的启用状态、启用渠道、发送目标和自定义渲染模板。<br>`w_push_histories` 存放消息发送记录用于审计。 |

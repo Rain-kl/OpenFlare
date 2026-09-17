@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"Wavelet/openflare/plugins/server/kernel/model"
-	db "Wavelet/plugins/infra/database"
+	"Wavelet/openflare/plugins/server/kernel/repository"
 
 	"github.com/glebarez/sqlite"
 	"github.com/stretchr/testify/assert"
@@ -25,9 +25,9 @@ func setupOriginTestDB(t *testing.T) func() {
 	require.NoError(t, err)
 	require.NoError(t, sqliteDB.AutoMigrate(&model.Origin{}))
 
-	db.SetDB(sqliteDB)
+	repository.SetDBForTest(sqliteDB)
 	return func() {
-		db.SetDB(nil)
+		repository.SetDBForTest(nil)
 	}
 }
 

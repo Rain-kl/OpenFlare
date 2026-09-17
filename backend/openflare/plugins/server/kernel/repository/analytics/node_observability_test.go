@@ -9,7 +9,6 @@ import (
 	"time"
 
 	analyticsmodel "Wavelet/openflare/plugins/server/kernel/model/analytics"
-	db "Wavelet/plugins/infra/database"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -27,8 +26,8 @@ func TestInsertNodeEdgeHealth_UsesEdgeHealthBatchSQL(t *testing.T) {
 		batch:      mockBatch,
 		batchQuery: analyticsmodel.NodeEdgeHealth{}.BatchInsertSQL(),
 	}
-	db.SetChConnForTest(mockConn)
-	t.Cleanup(func() { db.SetChConnForTest(nil) })
+	SetChConnForTest(mockConn)
+	t.Cleanup(func() { SetChConnForTest(nil) })
 
 	capturedAt := time.Now().UTC()
 	err := InsertNodeEdgeHealth(ctx, analyticsmodel.NodeEdgeHealth{

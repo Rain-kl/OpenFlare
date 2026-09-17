@@ -25,8 +25,22 @@ func (s *inprocTaskService) Dispatch(ctx context.Context, taskType string, paylo
 	return DispatchTask(ctx, taskType, payload, triggeredBy)
 }
 
-func (s *inprocTaskService) Retry(_ context.Context, id uint64) (string, error) {
-	return fmt.Sprintf("inproc_retry_%d", id), nil
+func (s *inprocTaskService) Retry(ctx context.Context, id uint64) (string, error) {
+	db := getDB(ctx)
+	if db == nil {
+		return "", errors.New("driver_inproc_worker: db not initialized")
+	}
+	var exec taskExecution
+	if err := db.Where("id = ?", id).First(&exec).Error; err != nil {
+		return "", fmt.Errorf("driver_inproc_worker: task execution not found: %w", err)
+	}
+	if exec.Status != taskExecutionStatusFailed {
+		return "", fmt.Errorf("driver_inproc_worker: only failed tasks can be retried, current status: %s", exec.Status)
+	}
+	if !exec.Retryable {
+		return "", errors.New("driver_inproc_worker: task is not retryable")
+	}
+	return DispatchTask(ctx, exec.TaskType, []byte(exec.Payload), "retry")
 }
 
 func (s *inprocTaskService) ListTasks() []contracts.TaskMetaDTO {
@@ -64,10 +78,80 @@ func (s *inprocTaskService) ReloadScheduler() error {
 func (s *inprocTaskService) AppendLog(_ context.Context, _ string, _ ...any) {
 }
 
-func (s *inprocTaskService) ListExecutions(_ context.Context, _, _ string, _, _ int) ([]contracts.TaskExecutionDTO, int64, error) {
-	return []contracts.TaskExecutionDTO{}, 0, nil
+func (s *inprocTaskService) ListExecutions(ctx context.Context, taskType, status string, page, pageSize int) ([]contracts.TaskExecutionDTO, int64, error) {
+	db := getDB(ctx)
+	if db == nil {
+		return []contracts.TaskExecutionDTO{}, 0, nil
+	}
+	if page <= 0 {
+		page = 1
+	}
+	if pageSize <= 0 {
+		pageSize = 20
+	}
+	query := db.Model(&taskExecution{})
+	if taskType != "" {
+		query = query.Where("task_type = ?", taskType)
+	}
+	if status != "" {
+		query = query.Where("status = ?", status)
+	}
+	var total int64
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	var rows []taskExecution
+	offset := (page - 1) * pageSize
+	if err := query.Order("id DESC").Offset(offset).Limit(pageSize).Find(&rows).Error; err != nil {
+		return nil, 0, err
+	}
+	res := make([]contracts.TaskExecutionDTO, 0, len(rows))
+	for i := range rows {
+		res = append(res, toExecutionDTO(&rows[i]))
+	}
+	return res, total, nil
 }
 
-func (s *inprocTaskService) GetExecution(_ context.Context, _ uint64) (*contracts.TaskExecutionDTO, error) {
-	return nil, errors.New("driver_inproc_worker: task executions are not tracked")
+func findExecution(ctx context.Context, query any, args ...any) (*contracts.TaskExecutionDTO, error) {
+	db := getDB(ctx)
+	if db == nil {
+		return nil, errors.New("driver_inproc_worker: db not initialized")
+	}
+	var exec taskExecution
+	if err := db.Where(query, args...).First(&exec).Error; err != nil {
+		return nil, err
+	}
+	dto := toExecutionDTO(&exec)
+	return &dto, nil
+}
+
+func (s *inprocTaskService) GetExecution(ctx context.Context, id uint64) (*contracts.TaskExecutionDTO, error) {
+	return findExecution(ctx, "id = ?", id)
+}
+
+func (s *inprocTaskService) GetExecutionByTaskID(ctx context.Context, taskID string) (*contracts.TaskExecutionDTO, error) {
+	return findExecution(ctx, "task_id = ?", taskID)
+}
+
+func toExecutionDTO(exec *taskExecution) contracts.TaskExecutionDTO {
+	return contracts.TaskExecutionDTO{
+		ID:           exec.ID,
+		TaskID:       exec.TaskID,
+		TaskType:     exec.TaskType,
+		TaskName:     exec.TaskName,
+		Status:       string(exec.Status),
+		Retryable:    exec.Retryable,
+		MaxRetry:     exec.MaxRetry,
+		RetryCount:   exec.RetryCount,
+		Log:          exec.Log,
+		ErrorMessage: exec.ErrorMessage,
+		Result:       exec.Result,
+		StartedAt:    exec.StartedAt,
+		FinishedAt:   exec.FinishedAt,
+		Duration:     exec.Duration,
+		Payload:      exec.Payload,
+		TriggeredBy:  exec.TriggeredBy,
+		CreatedAt:    exec.CreatedAt,
+		UpdatedAt:    exec.UpdatedAt,
+	}
 }

@@ -149,6 +149,16 @@ export function safeRedirectTarget(
     ) {
       return fallback;
     }
+
+    if (
+      pathPart === '/login' ||
+      pathPart === '/register' ||
+      pathPart === '/callback' ||
+      pathPart.startsWith('/login/') ||
+      pathPart.startsWith('/register/')
+    ) {
+      return fallback;
+    }
   } catch {
     return fallback;
   }

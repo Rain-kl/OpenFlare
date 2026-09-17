@@ -13,7 +13,6 @@ import (
 	"Wavelet/openflare/plugins/server/kernel/runtimeconfig"
 	oftask "Wavelet/openflare/plugins/server/kernel/task"
 	"Wavelet/openflare/plugins/server/kernel/testhelper"
-	db "Wavelet/plugins/infra/database"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -23,7 +22,7 @@ func setupSSLRenewTestDB(t *testing.T) func() {
 	t.Helper()
 
 	_, _, cleanup := testhelper.SetupTestEnvironment(t)
-	require.NoError(t, db.DB(context.Background()).AutoMigrate(&model.TLSCertificate{}, &model.TaskExecution{}))
+	require.NoError(t, repository.DB(context.Background()).AutoMigrate(&model.TLSCertificate{}, &model.TaskExecution{}))
 	previous := runtimeconfig.Get()
 	runtimeconfig.SetSessionSecret("test_session_secret_for_ssl_renew")
 	oftask.SetService(&testhelper.NoopTaskService{})

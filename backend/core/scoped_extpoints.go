@@ -22,6 +22,19 @@ func newScopedRouterExtension(ctx *Context, underlying extpoints.RouterExtension
 }
 
 func (s *scopedRouterExtension) Use(middlewares ...any) {
+	if len(middlewares) == 0 {
+		return
+	}
+	if reg, ok := s.underlying.(*extpoints.RouterRegistry); ok {
+		ids := reg.UseWithID(middlewares...)
+		s.ctx.OnDispose(func() error {
+			for _, id := range ids {
+				reg.UnregisterMiddlewareByID(id)
+			}
+			return nil
+		})
+		return
+	}
 	s.underlying.Use(middlewares...)
 }
 
@@ -107,8 +120,22 @@ func (s *scopedRouterExtension) UnregisterByID(id uint64) bool {
 	return s.underlying.UnregisterByID(id)
 }
 
+func (s *scopedRouterExtension) UnregisterMiddlewareByID(id uint64) bool {
+	return s.underlying.UnregisterMiddlewareByID(id)
+}
+
 func (s *scopedRouterExtension) RegisterWhitelist(patterns ...string) {
 	s.underlying.RegisterWhitelist(patterns...)
+	if len(patterns) > 0 {
+		s.ctx.OnDispose(func() error {
+			s.underlying.UnregisterWhitelist(patterns...)
+			return nil
+		})
+	}
+}
+
+func (s *scopedRouterExtension) UnregisterWhitelist(patterns ...string) {
+	s.underlying.UnregisterWhitelist(patterns...)
 }
 
 func (s *scopedRouterExtension) Whitelist() []string {

@@ -139,6 +139,15 @@ func (p *Plugin) Apply(ctx *core.Context) error {
 	}
 
 	core.Provide[contracts.CacheService](ctx, svc)
+
+	var limiterSvc contracts.LimiterService
+	if redisClient != nil {
+		limiterSvc = newRedisLimiter(redisClient, p.keyPrefix)
+	} else {
+		limiterSvc = newMemoryLimiterFallback()
+	}
+	core.Provide[contracts.LimiterService](ctx, limiterSvc)
+
 	return nil
 }
 

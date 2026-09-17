@@ -12,10 +12,10 @@ import (
 	"mime/multipart"
 	"strings"
 
-	"Wavelet/openflare/plugins/server/kernel/repository"
-
 	"Wavelet/openflare/plugins/server/kernel/model"
+	"Wavelet/openflare/plugins/server/kernel/repository"
 	"Wavelet/openflare/plugins/server/kernel/task"
+	"Wavelet/pkg/util"
 )
 
 // CertificateInput TLS 证书创建/更新请求。
@@ -202,10 +202,10 @@ func ApplyCertificate(ctx context.Context, input ApplyInput) (*model.TLSCertific
 	returned := sanitizeCertificateForResponse(cert)
 
 	obtainFn := obtainTLSCertificate // 捕获当前实现，避免 goroutine 内读可变包变量（测试热替换）
-	go func(c *model.TLSCertificate) {
+	util.Go(func() {
 		asyncCtx := context.WithoutCancel(ctx)
-		_ = obtainFn(asyncCtx, c)
-	}(cert)
+		_ = obtainFn(asyncCtx, cert)
+	})
 
 	return returned, nil
 }
@@ -233,10 +233,10 @@ func UpdateACMECertificate(ctx context.Context, id uint, input ApplyInput) (*mod
 	returned := sanitizeCertificateForResponse(cert)
 
 	obtainFn := obtainTLSCertificate // 捕获当前实现，避免 goroutine 内读可变包变量（测试热替换）
-	go func(c *model.TLSCertificate) {
+	util.Go(func() {
 		asyncCtx := context.WithoutCancel(ctx)
-		_ = obtainFn(asyncCtx, c)
-	}(cert)
+		_ = obtainFn(asyncCtx, cert)
+	})
 
 	return returned, nil
 }
@@ -266,12 +266,12 @@ func ConvertCertificateToACME(ctx context.Context, id uint, input ApplyInput) (*
 	}
 
 	obtainFn := obtainTLSCertificate // 捕获当前实现，避免 goroutine 内读可变包变量（测试热替换）
-	go func(c *model.TLSCertificate) {
+	util.Go(func() {
 		asyncCtx := context.WithoutCancel(ctx)
-		if err := obtainFn(asyncCtx, c); err != nil {
+		if err := obtainFn(asyncCtx, cert); err != nil {
 			return
 		}
-		latest, err := repository.GetTLSCertificateByID(asyncCtx, c.ID)
+		latest, err := repository.GetTLSCertificateByID(asyncCtx, cert.ID)
 		if err != nil {
 			return
 		}
@@ -279,7 +279,7 @@ func ConvertCertificateToACME(ctx context.Context, id uint, input ApplyInput) (*
 		latest.ApplyStatus = tlsApplyStatusReady
 		latest.ApplyMessage = ""
 		_ = repository.SaveTLSCertificate(asyncCtx, latest)
-	}(cert)
+	})
 
 	return sanitizeCertificateForResponse(cert), nil
 }

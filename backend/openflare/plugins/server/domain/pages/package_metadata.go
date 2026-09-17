@@ -58,7 +58,7 @@ func GetProjectLatestPackageMetadata(ctx context.Context, projectID uint) (*Proj
 	return &ProjectLatestPackageMetadata{
 		DeploymentID: deployment.ID,
 		Hash:         hash,
-		PackageSize:  uploadRecord.FileSize,
+		PackageSize:  uploadRecord.Size,
 		FileCount:    deployment.FileCount,
 		TotalSize:    deployment.TotalSize,
 	}, nil

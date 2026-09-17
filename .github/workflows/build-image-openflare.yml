@@ -24,7 +24,7 @@ permissions:
 
 env:
   IMAGE_NAME: openflare
-  DOCKERFILE: docker/Dockerfile
+  DOCKERFILE: manifest/docker/Dockerfile
 
 jobs:
   # Resolve version / registries once. No checkout: triggers alone determine the tag.

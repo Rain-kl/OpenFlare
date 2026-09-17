@@ -82,14 +82,9 @@ export function RegisterForm() {
   );
   const capAutoSolve = configBool(publicConfigQuery.data?.cap_auto_solve, true);
 
-  const [capScope, setCapScope] = useState<'send_email_code' | 'register'>(
-    'send_email_code',
-  );
-
-  // 监听 emailRegisterEnabled 改变初始 scope
-  useEffect(() => {
-    setCapScope(emailRegisterEnabled ? 'send_email_code' : 'register');
-  }, [emailRegisterEnabled]);
+  const [capAfterEmailCode, setCapAfterEmailCode] = useState(false);
+  const capScope: 'send_email_code' | 'register' =
+    emailRegisterEnabled && !capAfterEmailCode ? 'send_email_code' : 'register';
 
   const capTokenRef = useRef<string | null>(null);
   const [capReady, setCapReady] = useState(false);
@@ -131,6 +126,9 @@ export function RegisterForm() {
     },
     onSuccess: (user) => {
       setUser(user);
+      if (typeof window !== 'undefined') {
+        sessionStorage.removeItem('redirect_after_login');
+      }
       router.replace(redirectTarget);
       toast.success(t('success'));
     },
@@ -162,7 +160,7 @@ export function RegisterForm() {
       setRegisterCooldown(60);
       toast.success(t('codeSent'));
       if (capEnabled) {
-        setCapScope('register');
+        setCapAfterEmailCode(true);
         capTokenRef.current = null;
         setCapReady(false);
         setCapResetKey((key) => key + 1);
@@ -365,7 +363,7 @@ export function RegisterForm() {
 
         {capEnabled && (
           <CapWidget
-            key={capResetKey}
+            key={`${capResetKey}-${capScope}`}
             scope={capScope}
             onToken={handleCapToken}
             onError={handleCapError}

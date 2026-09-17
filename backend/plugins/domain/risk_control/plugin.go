@@ -91,17 +91,12 @@ func (p *Plugin) Apply(ctx *core.Context) error {
 	var dbCfg rcDBConfig
 	_ = ctx.Config().Bind("database", &dbCfg)
 
-	SetAccessLogEnabled(chCfg.Enabled)
+	// Access logs persist on the active log database (SQLite / Postgres / ClickHouse).
+	// Collection is independent of ClickHouse being enabled.
+	SetAccessLogEnabled(true)
 	logstore.SetDefaultDatabases(dbCfg.Enabled, chCfg.Enabled)
 
-	// 0. Bind DBService
-	if db, err := core.Inject[contracts.DBService](ctx); err == nil && db != nil {
-		logstore.SetDBService(db)
-	} else {
-		core.When[contracts.DBService](ctx, func(db contracts.DBService) {
-			logstore.SetDBService(db)
-		})
-	}
+	core.Bind[contracts.DBService](ctx, logstore.SetDBService)
 	ctx.OnDispose(func() error {
 		logstore.SetDBService(nil)
 		return nil

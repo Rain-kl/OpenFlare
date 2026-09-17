@@ -4,7 +4,9 @@
 package model
 
 import (
-	adminmodel "Wavelet/plugins/domain/admin/model"
+	"time"
+
+	"Wavelet/core/contracts"
 )
 
 // 配置键常量 - 所有系统配置的 key 定义
@@ -136,10 +138,46 @@ const (
 
 const (
 	// ConfigVisibilityHidden 表示配置不通过公共配置接口暴露
-	ConfigVisibilityHidden = adminmodel.ConfigVisibilityHidden
+	ConfigVisibilityHidden = 0
 	// ConfigVisibilityVisible 表示配置通过公共配置接口暴露
-	ConfigVisibilityVisible = adminmodel.ConfigVisibilityVisible
+	ConfigVisibilityVisible = 1
 )
 
-// SystemConfig is the Wavelet w_system_configs entity.
-type SystemConfig = adminmodel.SystemConfig
+// SystemConfig is the system configuration model.
+type SystemConfig struct {
+	Key         string    `json:"key" gorm:"primaryKey"`
+	Value       string    `json:"value"`
+	Type        string    `json:"type"`
+	Visibility  int       `json:"visibility"`
+	Description string    `json:"description"`
+	UpdatedAt   time.Time `json:"updated_at"`
+	CreatedAt   time.Time `json:"created_at"`
+}
+
+func (SystemConfig) TableName() string {
+	return "w_system_configs"
+}
+
+func (c *SystemConfig) ToDTO() contracts.SystemConfigDTO {
+	return contracts.SystemConfigDTO{
+		Key:         c.Key,
+		Value:       c.Value,
+		Type:        c.Type,
+		Visibility:  c.Visibility,
+		Description: c.Description,
+		UpdatedAt:   c.UpdatedAt,
+		CreatedAt:   c.CreatedAt,
+	}
+}
+
+func FromSystemConfigDTO(d contracts.SystemConfigDTO) SystemConfig {
+	return SystemConfig{
+		Key:         d.Key,
+		Value:       d.Value,
+		Type:        d.Type,
+		Visibility:  d.Visibility,
+		Description: d.Description,
+		UpdatedAt:   d.UpdatedAt,
+		CreatedAt:   d.CreatedAt,
+	}
+}

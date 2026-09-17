@@ -42,10 +42,8 @@ func SetChDBForTest(db *gorm.DB) {
 }
 
 func getDB(ctx context.Context) *gorm.DB {
-	if c, ok := ctx.(*core.Context); ok && c != nil {
-		if s, err := core.Inject[contracts.DBService](c); err == nil && s != nil {
-			return s.DB(ctx)
-		}
+	if s, err := core.InjectFrom[contracts.DBService](ctx); err == nil && s != nil {
+		return s.DB(ctx)
 	}
 	dbMu.RLock()
 	s := dbSvc

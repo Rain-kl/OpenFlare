@@ -1,0 +1,112 @@
+# syntax=docker/dockerfile:1.7
+# Cross-platform build workflow — produces up to 6 static binaries under ./bin/
+# Each binary embeds the compiled frontend and is stamped with VERSION.
+#
+# Build args:
+#   VERSION     — version string injected at link time (default: dev)
+#   TARGET_OS   — restrict to one OS:   linux | darwin | windows  (default: all)
+#   TARGET_ARCH — restrict to one arch: amd64 | arm64             (default: all)
+#
+# Usage:
+#   docker build -f manifest/docker/Dockerfile.cross --output ./bin .
+#   docker build -f manifest/docker/Dockerfile.cross \
+#     --build-arg TARGET_OS=linux --build-arg TARGET_ARCH=amd64 --output ./bin .
+#   docker build -f manifest/docker/Dockerfile.cross \
+#     --build-arg TARGET_OS=windows --build-arg TARGET_ARCH=amd64 --output ./bin .
+#
+# Or via Makefile:
+#   make cross-build
+#   make cross-build VERSION=v1.2.3
+#   make cross-build GOOS=linux GOARCH=arm64
+
+ARG GO_VERSION=1.25
+ARG NODE_VERSION=22
+ARG ALPINE_VERSION=3.23
+
+# ── Stage 1: Build frontend (static export for embedding) ────────────────────
+FROM node:${NODE_VERSION}-alpine AS frontend-builder
+
+ARG VERSION=dev
+ARG BUILD_DATE=""
+
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+ENV NODE_ENV=production
+ENV NEXT_STANDALONE_EXPORT=true
+ENV NEXT_PUBLIC_APP_VERSION=${VERSION}
+ENV NEXT_PUBLIC_APP_BUILD_DATE=${BUILD_DATE}
+
+RUN corepack enable && corepack prepare pnpm@10.10.0 --activate
+
+WORKDIR /workspace/frontend
+
+# Cache dependency layer
+COPY frontend/package.json frontend/pnpm-lock.yaml frontend/pnpm-workspace.yaml ./
+RUN pnpm install --frozen-lockfile
+
+COPY frontend/ ./
+
+# Assert index.html so a silent export failure cannot ship API-only binaries.
+RUN pnpm build:embed && test -f out/index.html
+
+# ── Stage 2: Cross-compile Go backend ──────────────────────────────────────
+FROM golang:${GO_VERSION}-alpine${ALPINE_VERSION} AS builder
+
+ARG VERSION=dev
+ARG BUILD_DATE=""
+# Empty string means "build all"; set to a specific value to filter.
+ARG TARGET_OS=
+ARG TARGET_ARCH=
+
+# git  — needed by go mod download for VCS-stamped modules
+# ca-certificates — needed for HTTPS during module download
+RUN apk add --no-cache ca-certificates git
+
+WORKDIR /workspace
+
+# Cache dependency layer
+COPY backend/go.mod backend/go.sum ./backend/
+RUN cd backend && go mod download
+
+COPY . .
+
+# Drop any stale bundle carried in the context, then overlay the fresh export so
+# `//go:embed all:dist` in driver_http picks up exactly this frontend build.
+RUN rm -rf backend/plugins/drivers/driver_http/dist
+COPY --from=frontend-builder /workspace/frontend/out backend/plugins/drivers/driver_http/dist
+
+WORKDIR /workspace/backend
+
+# Build matrix: GOOS × GOARCH
+# CGO_ENABLED=0 — fully static, no libc dependency, required for cross-compilation.
+# -trimpath    — strip local filesystem paths from the binary.
+# -s -w        — omit symbol table and DWARF debug info (smaller output).
+# -X           — stamp version string at link time.
+# TARGET_OS / TARGET_ARCH — when non-empty, skip non-matching combinations.
+RUN set -e; \
+    test -f plugins/drivers/driver_http/dist/index.html; \
+    mkdir -p /out; \
+    FILTER_OS="${TARGET_OS}"; \
+    FILTER_ARCH="${TARGET_ARCH}"; \
+    for GOOS in linux darwin windows; do \
+      [ -n "$FILTER_OS" ] && [ "$GOOS" != "$FILTER_OS" ] && continue; \
+      for GOARCH in amd64 arm64; do \
+        [ -n "$FILTER_ARCH" ] && [ "$GOARCH" != "$FILTER_ARCH" ] && continue; \
+        EXT=""; \
+        [ "$GOOS" = "windows" ] && EXT=".exe"; \
+        OUTPUT="/out/openflare-server_${GOOS}_${GOARCH}${EXT}"; \
+        echo "==> Building ${OUTPUT} (version=${VERSION})..."; \
+        CGO_ENABLED=0 GOOS=${GOOS} GOARCH=${GOARCH} \
+          go build \
+            -tags embed_frontend \
+            -trimpath \
+            -ldflags="-s -w -X Wavelet/pkg/buildinfo.Version=${VERSION} -X Wavelet/pkg/buildinfo.BuildTime=${BUILD_DATE}" \
+            -o "${OUTPUT}" \
+            ./main.go; \
+      done; \
+    done
+
+# ── Export stage ─────────────────────────────────────────────────────────────
+# `docker build --output ./bin .` copies everything from /out to the host.
+FROM scratch AS export
+COPY --from=builder /out/ /

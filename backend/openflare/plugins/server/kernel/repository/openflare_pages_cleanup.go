@@ -8,7 +8,6 @@ import (
 	"errors"
 
 	"Wavelet/openflare/plugins/server/kernel/model"
-	db "Wavelet/plugins/infra/database"
 )
 
 // ListPagesOrphanUploadCandidates returns at most 100 unreferenced, isolated
@@ -21,17 +20,20 @@ func ListPagesOrphanUploadCandidates(
 	if input.SystemUserID == 0 || input.UploadType == "" || input.Marker == "" || input.CreatedBefore.IsZero() {
 		return nil, errors.New("invalid pages orphan upload candidate query")
 	}
-	markerPredicate, err := pagesOrphanMarkerPredicate(db.DB(ctx).Name())
+	markerPredicate, err := pagesOrphanMarkerPredicate(DB(ctx).Name())
 	if err != nil {
 		return nil, err
 	}
 
 	deploymentTable := (model.PagesDeployment{}).TableName()
-	uploadTable := (model.Upload{}).TableName()
+	const (
+		uploadTable      = "w_uploads"
+		uploadStatusUsed = "used"
+	)
 	var candidates []model.Upload
-	err = db.DB(ctx).
-		Model(&model.Upload{}).
-		Where(uploadTable+".status = ?", model.UploadStatusUsed).
+	err = DB(ctx).
+		Table(uploadTable).
+		Where(uploadTable+".status = ?", uploadStatusUsed).
 		Where(uploadTable+".user_id = ?", input.SystemUserID).
 		Where(uploadTable+".type = ?", input.UploadType).
 		Where(uploadTable+".created_at < ?", input.CreatedBefore).

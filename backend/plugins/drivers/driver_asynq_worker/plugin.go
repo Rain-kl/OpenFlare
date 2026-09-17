@@ -8,6 +8,7 @@ import (
 	"Wavelet/core"
 	"Wavelet/core/contracts"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"sync"
@@ -144,14 +145,7 @@ func (p *Plugin) Apply(ctx *core.Context) error {
 	ResetAsynqClient()
 	p.mu.Unlock()
 
-	// 0. Bind DBService
-	if db, err := core.Inject[contracts.DBService](ctx); err == nil && db != nil {
-		setDBService(db)
-	} else {
-		core.When[contracts.DBService](ctx, func(db contracts.DBService) {
-			setDBService(db)
-		})
-	}
+	core.Bind[contracts.DBService](ctx, setDBService)
 	ctx.OnDispose(func() error {
 		setDBService(nil)
 		return nil
@@ -191,12 +185,15 @@ func (p *Plugin) Start(_ context.Context) error {
 	mux := asynq.NewServeMux()
 
 	if p.coreCtx != nil && p.coreCtx.Tasks() != nil {
+		appCtx := p.coreCtx.Root()
 		for _, td := range p.coreCtx.Tasks().Tasks() {
-			handler, err := toAsynqHandler(td.Handler)
+			handler, err := toAsynqHandler(td.Pattern, td.Handler)
 			if err != nil {
 				return fmt.Errorf("driver_asynq_worker: invalid handler for task pattern %q: %w", td.Pattern, err)
 			}
-			mux.Handle(td.Pattern, handler)
+			mux.Handle(td.Pattern, asynq.HandlerFunc(func(c context.Context, t *asynq.Task) error {
+				return handler.ProcessTask(core.WithAppContext(c, appCtx), t)
+			}))
 		}
 	}
 
@@ -276,21 +273,90 @@ func (p *Plugin) Mux() *asynq.ServeMux {
 	return p.mux
 }
 
-func toAsynqHandler(h any) (asynq.Handler, error) {
+func toAsynqHandler(pattern string, h any) (asynq.Handler, error) {
 	if h == nil {
 		return nil, errors.New("nil handler")
 	}
 
+	if th, ok := h.(TaskHandler); ok {
+		RegisterHandler(pattern, th)
+		return asynq.HandlerFunc(ProcessTask), nil
+	}
+	if th, ok := h.(contracts.TaskHandler); ok {
+		RegisterHandler(pattern, contractTaskAdapter{inner: th})
+		return asynq.HandlerFunc(ProcessTask), nil
+	}
+	if fn, ok := h.(func(context.Context, []byte) (*contracts.TaskResultDTO, error)); ok {
+		RegisterHandler(pattern, contractFuncAdapter{fn: fn})
+		return asynq.HandlerFunc(ProcessTask), nil
+	}
+
+	inner, err := toRawAsynqHandler(h)
+	if err != nil {
+		return nil, err
+	}
+	RegisterHandler(pattern, &asynqHandlerAdapter{inner: inner})
+	return asynq.HandlerFunc(ProcessTask), nil
+}
+
+type contractTaskAdapter struct {
+	inner contracts.TaskHandler
+}
+
+func (a contractTaskAdapter) Execute(ctx context.Context, payload []byte) (*TaskResult, error) {
+	res, err := a.inner.Execute(ctx, payload)
+	if err != nil {
+		return nil, err
+	}
+	return dtoToTaskResult(res), nil
+}
+
+func (a contractTaskAdapter) ValidatePayload(payload []byte) ([]byte, error) {
+	if v, ok := a.inner.(PayloadValidator); ok {
+		return v.ValidatePayload(payload)
+	}
+	return payload, nil
+}
+
+type contractFuncAdapter struct {
+	fn func(context.Context, []byte) (*contracts.TaskResultDTO, error)
+}
+
+func (a contractFuncAdapter) Execute(ctx context.Context, payload []byte) (*TaskResult, error) {
+	res, err := a.fn(ctx, payload)
+	if err != nil {
+		return nil, err
+	}
+	return dtoToTaskResult(res), nil
+}
+
+func dtoToTaskResult(res *contracts.TaskResultDTO) *TaskResult {
+	if res == nil {
+		return &TaskResult{Message: "ok"}
+	}
+	out := &TaskResult{Message: res.Message}
+	if res.Detail == nil {
+		return out
+	}
+	if s, ok := res.Detail.(string); ok {
+		out.Detail = s
+		return out
+	}
+	b, err := json.Marshal(res.Detail)
+	if err != nil {
+		out.Detail = fmt.Sprint(res.Detail)
+		return out
+	}
+	out.Detail = string(b)
+	return out
+}
+
+func toRawAsynqHandler(h any) (asynq.Handler, error) {
 	switch fn := h.(type) {
 	case asynq.HandlerFunc:
 		return fn, nil
 	case asynq.Handler:
 		return fn, nil
-	case TaskHandler:
-		return asynq.HandlerFunc(func(c context.Context, t *asynq.Task) error {
-			RegisterHandler(t.Type(), fn)
-			return ProcessTask(c, t)
-		}), nil
 	case func(context.Context, *asynq.Task) error:
 		return asynq.HandlerFunc(fn), nil
 	case func(context.Context, []byte) error:
@@ -314,6 +380,23 @@ func toAsynqHandler(h any) (asynq.Handler, error) {
 	default:
 		return nil, fmt.Errorf("unsupported task handler type: %T", h)
 	}
+}
+
+type asynqTaskCtxKey struct{}
+
+type asynqHandlerAdapter struct {
+	inner asynq.Handler
+}
+
+func (a *asynqHandlerAdapter) Execute(ctx context.Context, payload []byte) (*TaskResult, error) {
+	t, _ := ctx.Value(asynqTaskCtxKey{}).(*asynq.Task)
+	if t == nil {
+		t = asynq.NewTask("", payload)
+	}
+	if err := a.inner.ProcessTask(ctx, t); err != nil {
+		return nil, err
+	}
+	return &TaskResult{Message: "ok"}, nil
 }
 
 type taskServiceImpl struct{}
@@ -465,6 +548,15 @@ func (s *taskServiceImpl) AppendLog(ctx context.Context, format string, args ...
 
 func (s *taskServiceImpl) GetExecution(ctx context.Context, id uint64) (*contracts.TaskExecutionDTO, error) {
 	exec, err := GetTaskExecutionByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	dto := toTaskExecutionDTO(exec)
+	return &dto, nil
+}
+
+func (s *taskServiceImpl) GetExecutionByTaskID(ctx context.Context, taskID string) (*contracts.TaskExecutionDTO, error) {
+	exec, err := GetTaskExecutionByTaskID(ctx, taskID)
 	if err != nil {
 		return nil, err
 	}

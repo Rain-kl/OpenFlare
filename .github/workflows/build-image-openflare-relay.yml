@@ -18,7 +18,7 @@ permissions:
 
 env:
   IMAGE_NAME: openflare-relay
-  DOCKERFILE: docker/Dockerfile.relay
+  DOCKERFILE: manifest/docker/Dockerfile.relay
 
 jobs:
   build:

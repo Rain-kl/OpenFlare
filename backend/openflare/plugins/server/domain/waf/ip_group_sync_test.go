@@ -15,7 +15,6 @@ import (
 	"Wavelet/openflare/plugins/server/kernel/testhelper"
 
 	"Wavelet/openflare/plugins/server/kernel/model"
-	db "Wavelet/plugins/infra/database"
 
 	"github.com/glebarez/sqlite"
 	"github.com/stretchr/testify/assert"
@@ -35,10 +34,10 @@ func setupIPGroupSyncTestDB(t *testing.T) func() {
 		&model.OpenFlareWAFIPGroup{},
 	))
 
-	db.SetDB(sqliteDB)
+	repository.SetDBForTest(sqliteDB)
 	testhelper.SetupLogStoresForTest(t)
 	return func() {
-		db.SetDB(nil)
+		repository.SetDBForTest(nil)
 	}
 }
 

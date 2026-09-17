@@ -5,6 +5,8 @@ package extpoints
 
 import (
 	"Wavelet/core/contracts"
+	"fmt"
+	"reflect"
 	"sync"
 	"time"
 )
@@ -230,9 +232,14 @@ func NewTaskRegistry() *TaskRegistry {
 }
 
 // Register registers a task pattern and its handler with optional configuration.
+// A nil handler panics. A non-empty Type that is already used by another pattern panics.
 func (t *TaskRegistry) Register(pattern string, handler any, opts ...TaskOption) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
+
+	if isNilTaskHandler(handler) {
+		panic(fmt.Sprintf("extpoints: nil handler for task pattern %q", pattern))
+	}
 
 	td := TaskDefinition{
 		Pattern:  pattern,
@@ -245,8 +252,23 @@ func (t *TaskRegistry) Register(pattern string, handler any, opts ...TaskOption)
 			opt(&td)
 		}
 	}
+	if td.Type == "" {
+		td.Type = pattern
+	}
 
-	if _, exists := t.lookup[pattern]; exists {
+	for _, item := range t.tasks {
+		if item.Pattern == pattern {
+			continue
+		}
+		if item.Type == td.Type {
+			panic(fmt.Sprintf("extpoints: duplicate task type %q (patterns %q and %q)", td.Type, item.Pattern, pattern))
+		}
+	}
+
+	if existing, exists := t.lookup[pattern]; exists {
+		if existing.Type != "" && existing.Type != pattern {
+			delete(t.lookup, existing.Type)
+		}
 		for i, item := range t.tasks {
 			if item.Pattern == pattern {
 				t.tasks[i] = td
@@ -258,13 +280,44 @@ func (t *TaskRegistry) Register(pattern string, handler any, opts ...TaskOption)
 	}
 
 	t.lookup[pattern] = td
+	if td.Type != pattern {
+		t.lookup[td.Type] = td
+	}
+}
+
+func isNilTaskHandler(handler any) bool {
+	if handler == nil {
+		return true
+	}
+	v := reflect.ValueOf(handler)
+	switch v.Kind() {
+	case reflect.Chan, reflect.Func, reflect.Map, reflect.Pointer, reflect.UnsafePointer, reflect.Interface, reflect.Slice:
+		return v.IsNil()
+	default:
+		return false
+	}
 }
 
 // Unregister removes a registered task definition by its pattern.
 func (t *TaskRegistry) Unregister(pattern string) bool {
-	return unregisterEntry(&t.mu, t.lookup, &t.tasks, pattern, func(item TaskDefinition) bool {
-		return item.Pattern == pattern
-	})
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	td, ok := t.lookup[pattern]
+	if !ok {
+		return false
+	}
+	delete(t.lookup, td.Pattern)
+	if td.Type != "" && td.Type != td.Pattern {
+		delete(t.lookup, td.Type)
+	}
+	filtered := t.tasks[:0]
+	for _, item := range t.tasks {
+		if item.Pattern != td.Pattern {
+			filtered = append(filtered, item)
+		}
+	}
+	t.tasks = filtered
+	return true
 }
 
 // Tasks returns a copy of all registered TaskDefinitions.
@@ -276,7 +329,7 @@ func (t *TaskRegistry) Tasks() []TaskDefinition {
 	return res
 }
 
-// Get retrieves a task definition by its pattern.
+// Get retrieves a task definition by its pattern or admin type identifier.
 func (t *TaskRegistry) Get(pattern string) (TaskDefinition, bool) {
 	t.mu.RLock()
 	defer t.mu.RUnlock()

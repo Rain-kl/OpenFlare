@@ -16,7 +16,6 @@ import (
 	"Wavelet/openflare/plugins/server/kernel/model"
 	openrestyrender "Wavelet/openflare/share/render/openresty"
 	"Wavelet/pkg/cache/ram"
-	db "Wavelet/plugins/infra/database"
 
 	"github.com/glebarez/sqlite"
 	"github.com/stretchr/testify/assert"
@@ -45,9 +44,9 @@ func setupConfigVersionTestDB(t *testing.T) func() {
 		&model.SystemConfig{},
 	))
 
-	db.SetDB(sqliteDB)
+	repository.SetDBForTest(sqliteDB)
 	return func() {
-		db.SetDB(nil)
+		repository.SetDBForTest(nil)
 		ram.ResetForTest()
 	}
 }
@@ -55,9 +54,9 @@ func setupConfigVersionTestDB(t *testing.T) func() {
 func createSnapshotZoneDomains(t *testing.T, ctx context.Context, route *model.ProxyRoute, domains ...string) {
 	t.Helper()
 	zone := &model.Zone{Domain: fmt.Sprintf("zone-%d.example", route.ID)}
-	require.NoError(t, db.DB(ctx).Create(zone).Error)
+	require.NoError(t, repository.DB(ctx).Create(zone).Error)
 	for _, domain := range domains {
-		require.NoError(t, db.DB(ctx).Create(&model.ZoneDomain{
+		require.NoError(t, repository.DB(ctx).Create(&model.ZoneDomain{
 			ZoneID:       zone.ID,
 			ProxyRouteID: &route.ID,
 			Domain:       domain,
@@ -69,7 +68,7 @@ func TestListConfigVersionsOrdersByCreatedAtDesc(t *testing.T) {
 	cleanup := setupConfigVersionTestDB(t)
 	defer cleanup()
 	ctx := context.Background()
-	conn := db.DB(ctx)
+	conn := repository.DB(ctx)
 	require.NotNil(t, conn)
 
 	newer := &model.ConfigVersion{
@@ -220,7 +219,7 @@ func TestBuildCurrentConfigBundleEnablesGlobalPoWWithoutExplicitBinding(t *testi
 	graphJSON, err := json.Marshal(snapshotPoWGraph())
 	require.NoError(t, err)
 	globalGroup.Graph = string(graphJSON)
-	require.NoError(t, db.DB(ctx).Model(globalGroup).Update("graph", globalGroup.Graph).Error)
+	require.NoError(t, repository.DB(ctx).Model(globalGroup).Update("graph", globalGroup.Graph).Error)
 
 	bundle, err := buildCurrentConfigBundle(ctx, true)
 	require.NoError(t, err)

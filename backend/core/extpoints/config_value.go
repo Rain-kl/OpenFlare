@@ -33,7 +33,7 @@ func convertValue(raw any, typ reflect.Type) (any, error) {
 		return convertSlice(raw, typ)
 	case reflect.Struct:
 		return convertStruct(raw, typ)
-	case reflect.Ptr:
+	case reflect.Pointer:
 		return convertPointer(raw, typ)
 	default:
 		return nil, fmt.Errorf("%w: %s is not a supported configuration type", ErrConfigType, typ)
@@ -44,7 +44,7 @@ func convertValue(raw any, typ reflect.Type) (any, error) {
 // Nested pointers are rejected so configuration tags stay one level deep.
 func convertPointer(raw any, typ reflect.Type) (any, error) {
 	elemType := typ.Elem()
-	if elemType.Kind() == reflect.Ptr {
+	if elemType.Kind() == reflect.Pointer {
 		return nil, fmt.Errorf("%w: %s is not a supported configuration type", ErrConfigType, typ)
 	}
 	elem, err := convertValue(raw, elemType)

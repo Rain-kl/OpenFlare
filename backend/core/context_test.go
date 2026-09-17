@@ -313,6 +313,46 @@ func TestContextReactiveWhen(t *testing.T) {
 	assert.True(t, immediateCalled)
 }
 
+func TestWhenObservesProvideFromForkedFiberContext(t *testing.T) {
+	root := core.NewContext(context.Background())
+	adminFiber := root.Fork()
+	lateFiber := root.Fork()
+
+	var got atomic.Bool
+	core.When[SampleService](adminFiber, func(s SampleService) {
+		if s != nil {
+			got.Store(true)
+		}
+	})
+	assert.False(t, got.Load())
+
+	core.Provide[SampleService](lateFiber, &sampleServiceImpl{})
+	assert.True(t, got.Load(), "When on a Fiber child must observe Provide on the root")
+}
+
+func TestBindIsWhen(t *testing.T) {
+	ctx := core.NewContext(context.Background())
+	var called atomic.Bool
+	core.Bind[SampleService](ctx, func(s SampleService) {
+		called.Store(true)
+	})
+	core.Provide[SampleService](ctx, &sampleServiceImpl{})
+	assert.True(t, called.Load())
+}
+
+func TestInjectFromAppContext(t *testing.T) {
+	app := core.NewContext(context.Background())
+	core.Provide[SampleService](app, &sampleServiceImpl{prefix: "Hi:"})
+
+	req := core.WithAppContext(context.Background(), app)
+	svc, err := core.InjectFrom[SampleService](req)
+	require.NoError(t, err)
+	assert.Equal(t, "Hi: Ada", svc.Greet("Ada"))
+
+	_, err = core.InjectFrom[SampleService](context.Background())
+	assert.ErrorIs(t, err, core.ErrNilContext)
+}
+
 func TestContextDisposerLifecycle(t *testing.T) {
 	parent := core.NewContext(context.Background())
 	child := parent.Fork()
@@ -531,9 +571,15 @@ func TestContext_ScopedExtpoints_RevertibleEffects(t *testing.T) {
 	root := core.NewContext(context.Background())
 	child := root.Fork()
 
-	// Register route, task, schedule, setting, event on child
+	// Register route, task, schedule, setting, event, middleware, whitelist on child
 	child.Router().GET("/test-route", func() {})
 	assert.Equal(t, 1, len(root.Router().Routes()))
+
+	child.Router().Use("scoped_middleware")
+	assert.Equal(t, 1, len(root.Router().Middlewares()))
+
+	child.Router().RegisterWhitelist("/api/v1/scoped/*")
+	assert.True(t, root.Router().IsWhitelisted("/api/v1/scoped/test"))
 
 	child.Tasks().Register("test:task", func() {})
 	assert.Equal(t, 1, len(root.Tasks().Tasks()))
@@ -553,8 +599,48 @@ func TestContext_ScopedExtpoints_RevertibleEffects(t *testing.T) {
 
 	// All child effects should be cleanly revoked in LIFO order
 	assert.Equal(t, 0, len(root.Router().Routes()))
+	assert.Equal(t, 0, len(root.Router().Middlewares()))
+	assert.False(t, root.Router().IsWhitelisted("/api/v1/scoped/test"))
 	assert.Equal(t, 0, len(root.Tasks().Tasks()))
 	assert.Equal(t, 0, len(root.Schedules().Schedules()))
 	assert.Equal(t, 0, len(root.Settings().Schemas()))
 	assert.Equal(t, 0, root.Events().Listeners("test:event"))
+}
+
+func TestContainer_InterfaceResolutionCache(t *testing.T) {
+	ctx := core.NewContext(context.Background())
+	svc := &sampleServiceImpl{prefix: "Cached:"}
+
+	core.Provide[SampleService](ctx, svc)
+
+	// 1. Initial resolution populates interfaceCache
+	res1, err := core.Inject[SampleService](ctx)
+	require.NoError(t, err)
+	assert.Equal(t, "Cached: Alice", res1.Greet("Alice"))
+
+	// 2. Subsequent resolutions hit interfaceCache
+	res2, err := core.Inject[SampleService](ctx)
+	require.NoError(t, err)
+	assert.Same(t, res1, res2)
+
+	// 3. Concurrent lookups
+	var wg sync.WaitGroup
+	for i := 0; i < 20; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			r, e := core.Inject[SampleService](ctx)
+			assert.NoError(t, e)
+			assert.Equal(t, "Cached: Bob", r.Greet("Bob"))
+		}()
+	}
+	wg.Wait()
+
+	// 4. Overriding/providing another service invalidates cache
+	svc2 := &sampleServiceImpl{prefix: "Updated:"}
+	core.Provide[SampleService](ctx, svc2)
+
+	res3, err := core.Inject[SampleService](ctx)
+	require.NoError(t, err)
+	assert.Equal(t, "Updated: Alice", res3.Greet("Alice"))
 }

@@ -8,7 +8,7 @@ import (
 	"database/sql"
 	"testing"
 
-	db "Wavelet/plugins/infra/database"
+	"Wavelet/openflare/plugins/server/kernel/repository"
 
 	"github.com/glebarez/sqlite"
 	"github.com/stretchr/testify/assert"
@@ -65,10 +65,10 @@ func setupLegacyImportDB(t *testing.T) (*sql.DB, func()) {
 		require.NoError(t, err)
 	}
 
-	previous := db.DB(context.Background())
-	db.SetDB(gormDB)
+	previous := repository.DB(context.Background())
+	repository.SetDBForTest(gormDB)
 	return sqlDB, func() {
-		db.SetDB(previous)
+		repository.SetDBForTest(previous)
 		_ = sqlDB.Close()
 	}
 }

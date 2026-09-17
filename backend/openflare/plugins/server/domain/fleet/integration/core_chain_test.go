@@ -11,8 +11,8 @@ import (
 
 	"Wavelet/openflare/plugins/server/domain/fleet/agent"
 	"Wavelet/openflare/plugins/server/kernel/model"
+	"Wavelet/openflare/plugins/server/kernel/repository"
 	"Wavelet/openflare/plugins/server/kernel/testhelper"
-	db "Wavelet/plugins/infra/database"
 
 	"github.com/gin-gonic/gin"
 	"github.com/glebarez/sqlite"
@@ -55,7 +55,7 @@ func setupCoreChainTest(t *testing.T) (*gin.Engine, adminSeed, func()) {
 		&model.ZoneDomain{},
 	))
 
-	db.SetDB(sqliteDB)
+	repository.SetDBForTest(sqliteDB)
 	agent.ResetAuthCacheForTest()
 
 	seed, err := seedAdminWithAccessToken(sqliteDB)
@@ -65,7 +65,7 @@ func setupCoreChainTest(t *testing.T) (*gin.Engine, adminSeed, func()) {
 	mountOpenFlareTestRoutes(engine)
 
 	cleanup := func() {
-		db.SetDB(nil)
+		repository.SetDBForTest(nil)
 		agent.ResetAuthCacheForTest()
 	}
 
@@ -144,12 +144,12 @@ func TestCoreChainMigrationFlow(t *testing.T) {
 	t.Run("create proxy route linked to origin", func(t *testing.T) {
 		// Create Zone and ZoneDomain directly in the DB
 		zone := model.Zone{Domain: "example.com"}
-		require.NoError(t, db.DB(context.Background()).Create(&zone).Error)
+		require.NoError(t, repository.DB(context.Background()).Create(&zone).Error)
 		zoneDomain := model.ZoneDomain{
 			ZoneID: zone.ID,
 			Domain: "core-chain.example.com",
 		}
-		require.NoError(t, db.DB(context.Background()).Create(&zoneDomain).Error)
+		require.NoError(t, repository.DB(context.Background()).Create(&zoneDomain).Error)
 
 		rec := performJSONRequest(t, engine, http.MethodPost, apiPath("/proxy-routes/"), map[string]any{
 			"site_name":       "core-chain-site",

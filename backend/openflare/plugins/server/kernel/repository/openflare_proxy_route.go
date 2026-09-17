@@ -11,7 +11,6 @@ import (
 	"gorm.io/gorm/clause"
 
 	"Wavelet/openflare/plugins/server/kernel/model"
-	db "Wavelet/plugins/infra/database"
 )
 
 // Zone domain binding sentinel errors (shared by proxy_route and zone binding helpers).
@@ -24,13 +23,13 @@ var (
 
 // WithProxyRouteTx runs fn inside a database transaction for proxy-route multi-step work.
 func WithProxyRouteTx(ctx context.Context, fn func(tx *gorm.DB) error) error {
-	return db.DB(ctx).Transaction(fn)
+	return DB(ctx).Transaction(fn)
 }
 
 // ListProxyRoutes 列出全部代理规则。
 func ListProxyRoutes(ctx context.Context) ([]*model.ProxyRoute, error) {
 	var routes []*model.ProxyRoute
-	if err := db.DB(ctx).Order("id desc").Find(&routes).Error; err != nil {
+	if err := DB(ctx).Order("id desc").Find(&routes).Error; err != nil {
 		return nil, err
 	}
 	return routes, nil
@@ -39,7 +38,7 @@ func ListProxyRoutes(ctx context.Context) ([]*model.ProxyRoute, error) {
 // GetProxyRouteByID 按 ID 查询代理规则。
 func GetProxyRouteByID(ctx context.Context, id uint) (*model.ProxyRoute, error) {
 	var route model.ProxyRoute
-	if err := db.DB(ctx).First(&route, id).Error; err != nil {
+	if err := DB(ctx).First(&route, id).Error; err != nil {
 		return nil, err
 	}
 	return &route, nil
@@ -47,7 +46,7 @@ func GetProxyRouteByID(ctx context.Context, id uint) (*model.ProxyRoute, error) 
 
 // CreateProxyRouteRecord 创建代理规则。
 func CreateProxyRouteRecord(ctx context.Context, route *model.ProxyRoute) error {
-	return CreateProxyRouteRecordTx(db.DB(ctx), route)
+	return CreateProxyRouteRecordTx(DB(ctx), route)
 }
 
 // CreateProxyRouteRecordTx creates a proxy route within an existing transaction.
@@ -57,7 +56,7 @@ func CreateProxyRouteRecordTx(tx *gorm.DB, route *model.ProxyRoute) error {
 
 // UpdateProxyRouteRecord 更新代理规则。
 func UpdateProxyRouteRecord(ctx context.Context, route *model.ProxyRoute) error {
-	return UpdateProxyRouteRecordTx(db.DB(ctx), route)
+	return UpdateProxyRouteRecordTx(DB(ctx), route)
 }
 
 // UpdateProxyRouteRecordTx updates a proxy route within an existing transaction.
@@ -96,7 +95,7 @@ func proxyRouteUpdateMap(route *model.ProxyRoute) map[string]any {
 
 // DeleteProxyRouteRecord 删除代理规则。
 func DeleteProxyRouteRecord(ctx context.Context, id uint) error {
-	return DeleteProxyRouteRecordTx(db.DB(ctx), id)
+	return DeleteProxyRouteRecordTx(DB(ctx), id)
 }
 
 // DeleteProxyRouteRecordTx deletes a proxy route within an existing transaction.

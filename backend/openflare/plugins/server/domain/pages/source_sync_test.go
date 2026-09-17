@@ -22,7 +22,6 @@ import (
 	"Wavelet/openflare/plugins/server/kernel/model"
 	"Wavelet/openflare/plugins/server/kernel/ofupload"
 	"Wavelet/openflare/share/pagesarchive"
-	db "Wavelet/plugins/infra/database"
 
 	"gorm.io/gorm"
 )
@@ -160,7 +159,7 @@ func TestSyncRemoteSourceAtomicallyActivatesAndReusesChecksum(t *testing.T) {
 		t.Errorf("deployment provenance = label:%q meta:%q, want no query secret", deployment.SourceLabel, deployment.SourceMeta)
 	}
 	var runtime model.PagesProjectSourceRuntime
-	if err := db.DB(ctx).Where("source_id = ?", source.ID).First(&runtime).Error; err != nil {
+	if err := repository.DB(ctx).Where("source_id = ?", source.ID).First(&runtime).Error; err != nil {
 		t.Fatalf("load source runtime error = %v, want nil", err)
 	}
 	if got, want := runtime.SyncStatus, pagesSourceStatusIdle; got != want {
@@ -173,7 +172,7 @@ func TestSyncRemoteSourceAtomicallyActivatesAndReusesChecksum(t *testing.T) {
 		t.Errorf("runtime lease = (%q, %v), want cleared", runtime.LeaseToken, runtime.LeaseExpiresAt)
 	}
 	var uploadRecord model.Upload
-	if err := db.DB(ctx).First(&uploadRecord, deployment.UploadID).Error; err != nil {
+	if err := repository.DB(ctx).First(&uploadRecord, deployment.UploadID).Error; err != nil {
 		t.Fatalf("load deployment upload %d error = %v, want nil", deployment.UploadID, err)
 	}
 	if got, want := uploadRecord.Status, model.UploadStatusUsed; got != want {
@@ -198,10 +197,10 @@ func TestSyncRemoteSourceAtomicallyActivatesAndReusesChecksum(t *testing.T) {
 		t.Errorf("reused deployment ID = %d, want %d", got, want)
 	}
 	var deploymentCount, uploadCount int64
-	if err := db.DB(ctx).Model(&model.PagesDeployment{}).Where("project_id = ?", project.ID).Count(&deploymentCount).Error; err != nil {
+	if err := repository.DB(ctx).Model(&model.PagesDeployment{}).Where("project_id = ?", project.ID).Count(&deploymentCount).Error; err != nil {
 		t.Fatalf("count source deployments error = %v, want nil", err)
 	}
-	if err := db.DB(ctx).Model(&model.Upload{}).Count(&uploadCount).Error; err != nil {
+	if err := repository.DB(ctx).Model(&model.Upload{}).Count(&uploadCount).Error; err != nil {
 		t.Fatalf("count source uploads error = %v, want nil", err)
 	}
 	if got, want := deploymentCount, int64(1); got != want {
@@ -267,7 +266,7 @@ func TestSyncRemoteSourceFinalFenceCompensatesIngest(t *testing.T) {
 	packageBytes := testPagesZip(t, map[string]string{"index.html": "never-activate"})
 	mutationResult := make(chan error, 1)
 	server := newPagesArchiveServer(t, http.StatusOK, packageBytes, func() error {
-		err := db.DB(context.Background()).Model(&model.PagesProject{}).
+		err := repository.DB(context.Background()).Model(&model.PagesProject{}).
 			Where("id = ?", project.ID).
 			Update("content_config_version", gorm.Expr("content_config_version + 1")).Error
 		mutationResult <- err
@@ -304,14 +303,14 @@ func TestSyncRemoteSourceFinalFenceCompensatesIngest(t *testing.T) {
 		t.Errorf("ActiveDeploymentID after final fence = %v, want %d", storedProject.ActiveDeploymentID, oldActive.ID)
 	}
 	var deployments []model.PagesDeployment
-	if err := db.DB(ctx).Where("project_id = ?", project.ID).Find(&deployments).Error; err != nil {
+	if err := repository.DB(ctx).Where("project_id = ?", project.ID).Find(&deployments).Error; err != nil {
 		t.Fatalf("list deployments after final fence error = %v, want nil", err)
 	}
 	if got, want := len(deployments), 1; got != want {
 		t.Errorf("deployment count after final fence = %d, want %d", got, want)
 	}
 	var uploads []model.Upload
-	if err := db.DB(ctx).Order("id asc").Find(&uploads).Error; err != nil {
+	if err := repository.DB(ctx).Order("id asc").Find(&uploads).Error; err != nil {
 		t.Fatalf("list uploads after final fence error = %v, want nil", err)
 	}
 	var compensated *model.Upload
@@ -328,7 +327,7 @@ func TestSyncRemoteSourceFinalFenceCompensatesIngest(t *testing.T) {
 		t.Errorf("compensated upload Status = %q, want %q", got, want)
 	}
 	var danglingCount int64
-	if err := db.DB(ctx).Model(&model.PagesDeployment{}).
+	if err := repository.DB(ctx).Model(&model.PagesDeployment{}).
 		Where("upload_id = ?", compensated.ID).
 		Count(&danglingCount).Error; err != nil {
 		t.Fatalf("count compensated upload references error = %v, want nil", err)
@@ -358,12 +357,12 @@ func TestCommitSourceDeploymentRechecksLeaseAfterUploadLocks(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetPagesDeploymentByID(%d) error = %v, want nil", first.Deployment.ID, err)
 	}
-	if err := db.DB(ctx).Model(&model.PagesProject{}).
+	if err := repository.DB(ctx).Model(&model.PagesProject{}).
 		Where("id = ?", project.ID).
 		Update("active_deployment_id", nil).Error; err != nil {
 		t.Fatalf("clear active deployment error = %v, want nil", err)
 	}
-	if err := db.DB(ctx).Model(&model.PagesDeployment{}).
+	if err := repository.DB(ctx).Model(&model.PagesDeployment{}).
 		Where("id = ?", deployment.ID).
 		Update("status", model.PagesDeploymentStatusUploaded).Error; err != nil {
 		t.Fatalf("reset deployment status error = %v, want nil", err)
@@ -371,7 +370,7 @@ func TestCommitSourceDeploymentRechecksLeaseAfterUploadLocks(t *testing.T) {
 
 	snapshot := mustAcquireRemoteSyncLease(t, ctx, source)
 	expiresAt := time.Now().Add(time.Hour)
-	if err := db.DB(ctx).Model(&model.PagesProjectSourceRuntime{}).
+	if err := repository.DB(ctx).Model(&model.PagesProjectSourceRuntime{}).
 		Where("source_id = ? AND lease_token = ?", source.ID, snapshot.LeaseToken).
 		Update("lease_expires_at", &expiresAt).Error; err != nil {
 		t.Fatalf("set deterministic lease expiry error = %v, want nil", err)
@@ -465,7 +464,7 @@ func TestCompensateSourceIngestSurvivesCanceledParentContext(t *testing.T) {
 	})
 
 	var uploadRecord model.Upload
-	if err := db.DB(ctx).Where("id = ?", result.Upload.ID).First(&uploadRecord).Error; err != nil {
+	if err := repository.DB(ctx).Where("id = ?", result.Upload.ID).First(&uploadRecord).Error; err != nil {
 		t.Fatalf("load compensated upload error = %v, want nil", err)
 	}
 	if got, want := uploadRecord.Status, model.UploadStatusDeleted; got != want {
@@ -490,7 +489,7 @@ func assertPagesSyncFailureState(
 		t.Errorf("project %d ActiveDeploymentID = %v, want %d", projectID, project.ActiveDeploymentID, oldActiveID)
 	}
 	var deploymentCount int64
-	if err := db.DB(ctx).Model(&model.PagesDeployment{}).
+	if err := repository.DB(ctx).Model(&model.PagesDeployment{}).
 		Where("project_id = ?", projectID).
 		Count(&deploymentCount).Error; err != nil {
 		t.Fatalf("count project %d deployments error = %v, want nil", projectID, err)
@@ -499,7 +498,7 @@ func assertPagesSyncFailureState(
 		t.Errorf("project %d deployment count = %d, want %d", projectID, got, want)
 	}
 	var runtime model.PagesProjectSourceRuntime
-	if err := db.DB(ctx).Where("source_id = ?", sourceID).First(&runtime).Error; err != nil {
+	if err := repository.DB(ctx).Where("source_id = ?", sourceID).First(&runtime).Error; err != nil {
 		t.Fatalf("load source %d runtime error = %v, want nil", sourceID, err)
 	}
 	if got, want := runtime.SyncStatus, pagesSourceStatusFailed; got != want {
@@ -529,19 +528,17 @@ func TestCommitSourceDeploymentRejectsDeletedTargetUpload(t *testing.T) {
 	identity := source.SourceIdentity
 	revision := strings.Repeat("d", 64)
 	uploadRecord := &model.Upload{
-		ID:         987654321,
-		UserID:     999,
-		FileName:   "deleted.zip",
-		FilePath:   "deleted.zip",
-		FileSize:   1,
-		MimeType:   "application/zip",
-		Extension:  "zip",
-		Hash:       revision,
-		Type:       ofupload.ReservedPagesDeploymentType,
-		Status:     model.UploadStatusDeleted,
-		AccessMode: 0,
+		ID:       987654321,
+		UserID:   999,
+		FileName: "deleted.zip",
+		FilePath: "deleted.zip",
+		Size:     1,
+		MimeType: "application/zip",
+		Hash:     revision,
+		Type:     ofupload.ReservedPagesDeploymentType,
+		Status:   model.UploadStatusDeleted,
 	}
-	if err := db.DB(ctx).Create(uploadRecord).Error; err != nil {
+	if err := repository.DB(ctx).Table("w_uploads").Create(uploadRecord).Error; err != nil {
 		t.Fatalf("create deleted upload error = %v, want nil", err)
 	}
 	deployment := &model.PagesDeployment{
@@ -560,10 +557,10 @@ func TestCommitSourceDeploymentRejectsDeletedTargetUpload(t *testing.T) {
 		SourceMeta:       `{"provider":"remote_url","display_name":"deleted.zip"}`,
 		TriggerType:      pagesSourceTriggerManualSync,
 	}
-	if err := db.DB(ctx).Create(deployment).Error; err != nil {
+	if err := repository.DB(ctx).Create(deployment).Error; err != nil {
 		t.Fatalf("create source deployment error = %v, want nil", err)
 	}
-	if err := db.DB(ctx).Create(&model.PagesDeploymentFile{
+	if err := repository.DB(ctx).Create(&model.PagesDeploymentFile{
 		DeploymentID: deployment.ID,
 		Path:         "index.html",
 		Size:         1,
@@ -600,7 +597,7 @@ func TestCommitSourceDeploymentRejectsDeletedTargetUpload(t *testing.T) {
 		t.Errorf("ActiveDeploymentID after deleted upload rejection = %v, want nil", storedProject.ActiveDeploymentID)
 	}
 	var activeCount int64
-	if err := db.DB(ctx).Model(&model.PagesDeployment{}).
+	if err := repository.DB(ctx).Model(&model.PagesDeployment{}).
 		Where("project_id = ? AND status = ?", project.ID, model.PagesDeploymentStatusActive).
 		Count(&activeCount).Error; err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		t.Fatalf("count active deployments error = %v, want nil", err)

@@ -17,7 +17,7 @@ const indexFile = "index.html"
 
 // serverOwnedPrefixes are backend-owned namespaces. A miss there must keep Gin's default
 // 404 instead of silently returning the frontend shell, which would mask broken API links.
-var serverOwnedPrefixes = []string{"/api/", "/f/"}
+var serverOwnedPrefixes = []string{"/api/", "/f/", "/swagger/"}
 
 // registerFrontend mounts assets as the NoRoute fallback so client-side routes resolve.
 // It is a no-op when assets is nil, i.e. the binary was built without the embed_frontend tag.

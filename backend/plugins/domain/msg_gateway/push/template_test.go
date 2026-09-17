@@ -1,0 +1,150 @@
+// Copyright 2026 Arctel.net
+// SPDX-License-Identifier: Apache-2.0
+
+package push
+
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+)
+
+func TestParseTemplate(t *testing.T) {
+	tests := []struct {
+		name     string
+		template string
+		body     map[string]any
+		expected string
+	}{
+		{
+			name:     "simple replacement",
+			template: "hello {{name}}",
+			body:     map[string]any{"name": "world"},
+			expected: "hello world",
+		},
+		{
+			name:     "multiple replacements",
+			template: "{{greeting}} {{name}}!",
+			body:     map[string]any{"greeting": "Hello", "name": "Alice"},
+			expected: "Hello Alice!",
+		},
+		{
+			name:     "missing key preserves placeholder",
+			template: "hello {{name}} and {{other}}",
+			body:     map[string]any{"name": "world"},
+			expected: "hello world and {{other}}",
+		},
+		{
+			name:     "unbalanced placeholders",
+			template: "hello {{name",
+			body:     map[string]any{"name": "world"},
+			expected: "hello {{name",
+		},
+		{
+			name:     "nil value",
+			template: "val: {{val}}",
+			body:     map[string]any{"val": nil},
+			expected: "val: ",
+		},
+		{
+			name:     "basic types",
+			template: "int: {{i}}, float: {{f}}, bool: {{b}}",
+			body:     map[string]any{"i": 123, "f": 45.67, "b": true},
+			expected: "int: 123, float: 45.67, bool: true",
+		},
+		{
+			name:     "complex type slice",
+			template: "items: {{items}}",
+			body:     map[string]any{"items": []string{"a", "b"}},
+			expected: `items: ["a","b"]`,
+		},
+		{
+			name:     "complex type map",
+			template: "obj: {{obj}}",
+			body:     map[string]any{"obj": map[string]any{"key": "value"}},
+			expected: `obj: {"key":"value"}`,
+		},
+		{
+			name:     "nested property from flat map",
+			template: "hello {{user.username}}",
+			body:     map[string]any{"user.username": "Alice"},
+			expected: "hello Alice",
+		},
+		{
+			name:     "nested property from nested map",
+			template: "hello {{user.username}}",
+			body:     map[string]any{"user": map[string]any{"username": "Bob"}},
+			expected: "hello Bob",
+		},
+		{
+			name:     "go template dot syntax",
+			template: "hello {{.user.username}}",
+			body:     map[string]any{"user": map[string]any{"username": "Charlie"}},
+			expected: "hello Charlie",
+		},
+		{
+			name:     "default value helper fallback",
+			template: "hello {{.nickname | default \"Guest\"}}",
+			body:     map[string]any{"nickname": ""},
+			expected: "hello Guest",
+		},
+		{
+			name:     "default value helper provided",
+			template: "hello {{.nickname | default \"Guest\"}}",
+			body:     map[string]any{"nickname": "David"},
+			expected: "hello David",
+		},
+		{
+			name:     "conditional if else true",
+			template: "{{if .is_admin}}Admin: {{.name}}{{else}}User: {{.name}}{{end}}",
+			body:     map[string]any{"is_admin": true, "name": "Eve"},
+			expected: "Admin: Eve",
+		},
+		{
+			name:     "conditional if else false",
+			template: "{{if .is_admin}}Admin: {{.name}}{{else}}User: {{.name}}{{end}}",
+			body:     map[string]any{"is_admin": false, "name": "Frank"},
+			expected: "User: Frank",
+		},
+		{
+			name:     "upper and lower helper",
+			template: "{{.title | upper}} - {{.level | lower}}",
+			body:     map[string]any{"title": "Warning", "level": "INFO"},
+			expected: "WARNING - info",
+		},
+		{
+			name:     "toJson helper",
+			template: "payload: {{toJson .data}}",
+			body:     map[string]any{"data": map[string]any{"status": "ok"}},
+			expected: `payload: {"status":"ok"}`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := ParseTemplate(tt.template, tt.body)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+// Synthesized content must render in a stable order, otherwise two identical
+// notifications produce different text on every send.
+func TestBodyContentFallbackIsDeterministic(t *testing.T) {
+	body := map[string]any{
+		"zebra":   1,
+		"alpha":   2,
+		"mike":    3,
+		"charlie": 4,
+		"yankee":  5,
+	}
+
+	first := bodyContent(body, "%s=%v", ",")
+	for i := 1; i <= 50; i++ {
+		if got := bodyContent(body, "%s=%v", ","); got != first {
+			t.Fatalf("bodyContent order changed on call %d: %q != %q", i, got, first)
+		}
+	}
+
+	assert.Equal(t, "alpha=2,charlie=4,mike=3,yankee=5,zebra=1", first)
+}

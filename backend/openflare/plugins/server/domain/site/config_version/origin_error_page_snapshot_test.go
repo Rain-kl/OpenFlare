@@ -9,13 +9,12 @@ import (
 	"testing"
 
 	"Wavelet/openflare/plugins/server/kernel/model"
+	"Wavelet/openflare/plugins/server/kernel/repository"
+	"Wavelet/openflare/plugins/server/kernel/testhelper"
 	"Wavelet/pkg/cache/ram"
-	db "Wavelet/plugins/infra/database"
 
-	"github.com/glebarez/sqlite"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gorm.io/gorm"
 )
 
 func setupOriginErrorPageSnapshotDB(t *testing.T) func() {
@@ -25,15 +24,10 @@ func setupOriginErrorPageSnapshotDB(t *testing.T) func() {
 	// 重置，否则 shuffle 下先跑的用例会污染后跑的用例。
 	ram.ResetForTest()
 
-	sqliteDB, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{
-		DisableForeignKeyConstraintWhenMigrating: true,
-	})
-	require.NoError(t, err)
-	require.NoError(t, sqliteDB.AutoMigrate(&model.SystemConfig{}))
-	db.SetDB(sqliteDB)
+	_, _, cleanup := testhelper.SetupTestEnvironment(t)
 
 	return func() {
-		db.SetDB(nil)
+		cleanup()
 		ram.ResetForTest()
 	}
 }
@@ -58,15 +52,9 @@ func TestBuildOpenRestyConfigSnapshotOriginErrorPageCustom(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	require.NoError(t, db.DB(ctx).Create(&model.SystemConfig{
-		Key: model.ConfigKeyOriginErrorPageEnabled, Value: "false", Type: "business",
-	}).Error)
-	require.NoError(t, db.DB(ctx).Create(&model.SystemConfig{
-		Key: model.ConfigKeyOriginErrorPageStatusCodes, Value: `["522","500-502"]`, Type: "business",
-	}).Error)
-	require.NoError(t, db.DB(ctx).Create(&model.SystemConfig{
-		Key: model.ConfigKeyOriginErrorPageHTML, Value: "<h1>{{status}}</h1>", Type: "business",
-	}).Error)
+	require.NoError(t, repository.SaveOrUpdateSystemConfig(ctx, model.ConfigKeyOriginErrorPageEnabled, "false"))
+	require.NoError(t, repository.SaveOrUpdateSystemConfig(ctx, model.ConfigKeyOriginErrorPageStatusCodes, `["522","500-502"]`))
+	require.NoError(t, repository.SaveOrUpdateSystemConfig(ctx, model.ConfigKeyOriginErrorPageHTML, "<h1>{{status}}</h1>"))
 
 	snapshot := buildOpenRestyConfigSnapshot(ctx)
 	assert.False(t, snapshot.OriginErrorPageEnabled)

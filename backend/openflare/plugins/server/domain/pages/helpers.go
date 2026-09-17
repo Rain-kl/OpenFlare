@@ -320,6 +320,7 @@ func removePagesUploadIfUnreferenced(ctx context.Context, projectID uint, upload
 	if uploadID == 0 {
 		return nil
 	}
+	shouldRemove := false
 	err := repository.WithPagesTx(ctx, func(tx *gorm.DB) error {
 		if projectID != 0 {
 			if _, projectErr := repository.LockPagesProjectByIDTx(tx, projectID); projectErr != nil &&
@@ -350,13 +351,13 @@ func removePagesUploadIfUnreferenced(ctx context.Context, projectID uint, upload
 		if references > 0 {
 			return nil
 		}
-		_, err := ofupload.RemoveLockedTx(tx, &uploadRecord)
-		return err
+		shouldRemove = true
+		return nil
 	})
-	// Always invalidate after transaction completion, including idempotent no-op,
-	// so a prior post-commit cache interruption can heal on retry.
-	ofupload.InvalidateUploadMetaCache(ctx, uploadID)
-	return err
+	if err != nil || !shouldRemove {
+		return err
+	}
+	return ofupload.Remove(ctx, uploadID)
 }
 
 func inspectPagesPackage(packagePath string, format pagesarchive.Format, rootDir string, entryFile string, limits pagesLimits) (*deploymentManifest, error) {

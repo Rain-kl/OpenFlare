@@ -23,11 +23,7 @@ func TestPublicConfigSeesSaveOrUpdateThroughAdminCache(t *testing.T) {
 	if err != nil {
 		t.Fatalf("PublicConfig() warm error = %v", err)
 	}
-	firstMap, ok := first.(map[string]string)
-	if !ok {
-		t.Fatalf("PublicConfig() = %T, want map[string]string", first)
-	}
-	if got := firstMap[model.ConfigKeySiteName]; got != "OpenFlare" {
+	if got := first[model.ConfigKeySiteName]; got != "OpenFlare" {
 		t.Fatalf("PublicConfig()[%q] = %q, want %q", model.ConfigKeySiteName, got, "OpenFlare")
 	}
 
@@ -47,14 +43,10 @@ func TestPublicConfigSeesSaveOrUpdateThroughAdminCache(t *testing.T) {
 	if err != nil {
 		t.Fatalf("PublicConfig() after save error = %v", err)
 	}
-	secondMap, ok := second.(map[string]string)
-	if !ok {
-		t.Fatalf("PublicConfig() after save = %T, want map[string]string", second)
-	}
-	if got := secondMap[model.ConfigKeySiteName]; got == "OpenFlare" {
+	if got := second[model.ConfigKeySiteName]; got == "OpenFlare" {
 		t.Fatalf("PublicConfig() after save [%q] stayed stale at %q", model.ConfigKeySiteName, got)
 	}
-	if got := secondMap[model.ConfigKeySiteName]; got != "Updated" {
+	if got := second[model.ConfigKeySiteName]; got != "Updated" {
 		t.Fatalf("PublicConfig() after save [%q] = %q, want %q", model.ConfigKeySiteName, got, "Updated")
 	}
 }

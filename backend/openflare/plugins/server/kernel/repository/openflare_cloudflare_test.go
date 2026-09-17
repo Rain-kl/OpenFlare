@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"Wavelet/openflare/plugins/server/kernel/model"
-	db "Wavelet/plugins/infra/database"
 
 	"github.com/glebarez/sqlite"
 	"gorm.io/gorm"
@@ -26,8 +25,8 @@ func setupCloudflareRepositoryDB(t *testing.T) *gorm.DB {
 	); err != nil {
 		t.Fatalf("AutoMigrate() error = %v", err)
 	}
-	db.SetDB(conn)
-	t.Cleanup(func() { db.SetDB(nil) })
+	SetDBForTest(conn)
+	t.Cleanup(func() { SetDBForTest(nil) })
 	return conn
 }
 

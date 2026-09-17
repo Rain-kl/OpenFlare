@@ -8,6 +8,9 @@ import (
 	"Wavelet/core"
 	"Wavelet/core/contracts"
 	"Wavelet/core/extpoints"
+	"Wavelet/plugins/domain/auth/controller"
+	"Wavelet/plugins/domain/auth/dao"
+	"Wavelet/plugins/domain/auth/service"
 	"context"
 	"embed"
 	"reflect"
@@ -83,46 +86,60 @@ func (p *Plugin) DeclareConfig() []core.ConfigBinding {
 // Apply registers the auth migrations, services, routes, and settings into the Context.
 func (p *Plugin) Apply(ctx *core.Context) error {
 	var cfg SessionConfig
-	if err := ctx.Config().Bind("app", &cfg); err == nil {
-		SetSessionConfig(cfg)
+	if err := ctx.Config().Bind("app", &cfg); err != nil {
+		cfg = SessionConfig{
+			SessionCookieName: "wavelet_session",
+			SessionAge:        86400,
+			SessionHTTPOnly:   true,
+		}
 	}
 
-	// 0. Bind DBService & CacheService from Context
-	if db, err := core.Inject[contracts.DBService](ctx); err == nil && db != nil {
-		setDBService(db)
-	} else {
-		core.When[contracts.DBService](ctx, func(db contracts.DBService) {
-			setDBService(db)
-		})
-	}
-	if cache, err := core.Inject[contracts.CacheService](ctx); err == nil && cache != nil {
-		setCacheService(cache)
-	} else {
-		core.When[contracts.CacheService](ctx, func(cache contracts.CacheService) {
-			setCacheService(cache)
-		})
-	}
+	d := dao.New(nil, nil, nil)
+	core.Bind[contracts.DBService](ctx, d.SetDBService)
+	core.Bind[contracts.CacheService](ctx, d.SetCacheService)
+	core.Bind[contracts.LimiterService](ctx, d.SetLimiterService)
 	ctx.OnDispose(func() error {
-		setDBService(nil)
-		setCacheService(nil)
+		d.SetDBService(nil)
+		d.SetCacheService(nil)
+		d.SetLimiterService(nil)
 		return nil
 	})
+
+	var capSecret []byte
+	if cfg.SessionSecret != "" {
+		capSecret = []byte(cfg.SessionSecret)
+	}
+	svc := service.New(d, cfg, capSecret)
+
+	if p.authSvc != nil {
+		// Custom injected auth service override
+		core.Provide[contracts.AuthService](ctx, p.authSvc)
+	} else {
+		core.Provide[contracts.AuthService](ctx, svc.AuthSvc)
+	}
+
+	if p.authRegistry != nil {
+		core.Provide[contracts.AuthRegistry](ctx, p.authRegistry)
+	} else {
+		core.Provide[contracts.AuthRegistry](ctx, svc.AuthRegistry)
+	}
+
+	ctrl := controller.New(svc)
+	setDefaultRuntime(d, svc, ctrl)
+
+	// Register CaptchaService
+	captchaSvc := service.NewCaptchaService(
+		svc.CapManager,
+		func(scope string) any { return ctrl.VerifyCaptcha(scope) },
+		ctrl.Captcha.Challenge,
+		ctrl.Captcha.Redeem,
+	)
+	core.Provide[contracts.CaptchaService](ctx, captchaSvc)
 
 	// 1. Register migrations
 	ctx.Migrations().Register("auth", authMigrations)
 
-	// 2. Initialize and provide AuthService & AuthRegistry
-	if p.authSvc == nil {
-		p.authSvc = newAuthService()
-	}
-	if p.authRegistry == nil {
-		p.authRegistry = newAuthRegistry()
-	}
-
-	core.Provide[contracts.AuthService](ctx, p.authSvc)
-	core.Provide[contracts.AuthRegistry](ctx, p.authRegistry)
-
-	// 2.1 Register Public / Auth Whitelist Endpoints
+	// 2. Register Public / Auth Whitelist Endpoints
 	publicEndpoints := []string{
 		"/api/v1/oauth/sources",
 		"/api/v1/oauth/login",
@@ -132,53 +149,66 @@ func (p *Plugin) Apply(ctx *core.Context) error {
 		"/api/v1/user/login",
 		"/api/v1/user/register",
 		"/api/v1/user/send-email-code",
+		"/api/v1/config/public",
 		"/api/v1/cap/challenge",
 		"/api/v1/cap/redeem",
 		"/api/healthz",
 		"/metrics",
 	}
-	RegisterWhitelist(publicEndpoints...)
+	ctrl.RegisterWhitelist(publicEndpoints...)
 	ctx.Router().RegisterWhitelist(publicEndpoints...)
 
 	// 3. Register HTTP Routes
-	oauthGroup := ctx.Router().Group("/api/v1/oauth")
-	{
-		oauthGroup.GET("/sources", GetLoginSources)
-		oauthGroup.GET("/login", GetLoginURL)
-		oauthGroup.GET("/:source/authorize", Authorize)
-		oauthGroup.GET("/logout", Logout)
-		oauthGroup.POST("/callback", Callback)
-		oauthGroup.GET("/user-info", LoginRequired(), UserInfo)
-		oauthGroup.GET("/external-accounts", LoginRequired(), ListExternalAccounts)
-		oauthGroup.POST("/external-accounts/:id/delete", LoginRequired(), DeleteExternalAccount)
-	}
-	ctx.Router().GET("/api/v1/user-info", LoginRequired(), UserInfo)
+	ctrl.RegisterRoutes(ctx.Router())
 
 	// 4. Register Settings Schemas
+	const (
+		settingTypeInteger      = "integer"
+		settingCategorySecurity = "security"
+	)
+
 	ctx.Settings().Register(extpoints.SettingSchema{
 		Key:         "auth.session_age",
 		Default:     86400 * 7,
 		Description: "Default session lifetime in seconds",
-		Type:        "integer",
-		Category:    "security",
+		Type:        settingTypeInteger,
+		Category:    settingCategorySecurity,
 	})
 	ctx.Settings().Register(extpoints.SettingSchema{
 		Key:         "auth.login_rate_limit_max_attempts",
 		Default:     5,
 		Description: "Max login failure attempts before temporary IP lock",
-		Type:        "integer",
-		Category:    "security",
+		Type:        settingTypeInteger,
+		Category:    settingCategorySecurity,
+	})
+	ctx.Settings().Register(extpoints.SettingSchema{
+		Key:         "cap.login_enabled",
+		Default:     false,
+		Description: "Whether to require CAPTCHA verification for user login",
+		Type:        "boolean",
+		Category:    settingCategorySecurity,
+	})
+	ctx.Settings().Register(extpoints.SettingSchema{
+		Key:         "cap.challenge_count",
+		Default:     1,
+		Description: "Number of PoW puzzle challenges to solve",
+		Type:        settingTypeInteger,
+		Category:    settingCategorySecurity,
 	})
 
 	// 5. Register Event Listeners for domain events
 	ctx.Events().On(contracts.EventTopicUserStatusChanged, func(c context.Context, e contracts.UserStatusChangedEvent) error {
-		InvalidateCachedUser(c, e.UserID)
+		svc.DAO.InvalidateCachedUser(c, e.UserID)
 		return nil
 	})
 
 	ctx.Events().On(contracts.EventTopicUserDeleted, func(c context.Context, e contracts.UserDeletedEvent) error {
-		InvalidateCachedUser(c, e.TargetUserID)
+		svc.DAO.InvalidateCachedUser(c, e.TargetUserID)
 		return nil
+	})
+
+	ctx.Events().On(contracts.EventTopicConfigChanged, func(_ any) {
+		svc.CapSettings.Invalidate()
 	})
 
 	return nil

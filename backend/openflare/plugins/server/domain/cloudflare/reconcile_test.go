@@ -11,7 +11,6 @@ import (
 	"Wavelet/openflare/plugins/server/kernel/credential"
 	"Wavelet/openflare/plugins/server/kernel/model"
 	"Wavelet/openflare/plugins/server/kernel/repository"
-	db "Wavelet/plugins/infra/database"
 
 	"github.com/glebarez/sqlite"
 	"gorm.io/gorm"
@@ -60,8 +59,8 @@ func setupCloudflareLogicDB(t *testing.T) (context.Context, uint) {
 	); err != nil {
 		t.Fatalf("AutoMigrate() error = %v", err)
 	}
-	db.SetDB(conn)
-	t.Cleanup(func() { db.SetDB(nil) })
+	repository.SetDBForTest(conn)
+	t.Cleanup(func() { repository.SetDBForTest(nil) })
 	ctx := context.Background()
 	sealed, err := credential.Seal(`{"api_token":"test-token"}`)
 	if err != nil {
@@ -143,11 +142,11 @@ func TestCreateMemberCopiesGroupDefaultProxied(t *testing.T) {
 		t.Fatalf("GetCFPointingGroup() error = %v", err)
 	}
 	zone := model.Zone{Domain: "example.net"}
-	if err := db.DB(ctx).Create(&zone).Error; err != nil {
+	if err := repository.DB(ctx).Create(&zone).Error; err != nil {
 		t.Fatalf("Create(zone) error = %v", err)
 	}
 	domain := model.ZoneDomain{ZoneID: zone.ID, Domain: "www.example.net"}
-	if err := db.DB(ctx).Create(&domain).Error; err != nil {
+	if err := repository.DB(ctx).Create(&domain).Error; err != nil {
 		t.Fatalf("Create(domain) error = %v", err)
 	}
 	restore := SetDispatchTaskForTest(func(context.Context, string, []byte, string) (string, error) { return "task-1", nil })

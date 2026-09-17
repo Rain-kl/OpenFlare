@@ -95,10 +95,10 @@ cd refreshing
 ### 2. 配置环境
 
 ```bash
-cp config.example.yaml config.yaml
+cp manifest/config/config.default.yaml manifest/config/config.yaml
 ```
 
-编辑 `config.yaml`，配置数据库和 Redis。OIDC 认证源统一在管理后台的系统设置页面运行时配置。
+编辑 `manifest/config/config.yaml`，配置数据库和 Redis。OIDC 认证源统一在管理后台的系统设置页面运行时配置。
 
 ### 3. 初始化数据库
 
@@ -156,7 +156,7 @@ pnpm dev
 
 ## ⚙️ 配置说明
 
-主要配置项（完整说明请参考 `config.example.yaml`）：
+主要配置项（完整说明请参考 `manifest/config/config.default.yaml`）：
 
 | 配置项 | 说明 | 示例 |
 |--------|------|------|
@@ -211,9 +211,8 @@ pnpm format
 ```
 wavelet/
 ├── main.go                  # 程序入口（委托给 internal/cmd）
-├── config.example.yaml      # 配置模板
 ├── Makefile                 # 常用命令（swagger、tidy、license、cross-build）
-├── docker/                  # Docker 镜像构建文件（集成/前端/后端）
+├── manifest/                # 项目清单与编排：docker 镜像构建、deploy (k8s)、config 配置（默认/覆盖）
 ├── docs/                    # Swagger 自动生成文档
 ├── frontend/                # Next.js 前端应用
 │   ├── app/                 # App Router 页面

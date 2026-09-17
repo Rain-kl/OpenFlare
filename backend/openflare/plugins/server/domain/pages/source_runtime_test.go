@@ -13,7 +13,6 @@ import (
 	"Wavelet/openflare/plugins/server/kernel/repository"
 
 	"Wavelet/openflare/plugins/server/kernel/model"
-	db "Wavelet/plugins/infra/database"
 )
 
 func TestSourceLeaseHeartbeatRenewsAndCancelsOnOwnershipLoss(t *testing.T) {
@@ -38,7 +37,7 @@ func TestSourceLeaseHeartbeatRenewsAndCancelsOnOwnershipLoss(t *testing.T) {
 	t.Cleanup(func() { _ = heartbeat.stop() })
 
 	var initial model.PagesProjectSourceRuntime
-	if err := db.DB(ctx).Where("source_id = ?", source.ID).First(&initial).Error; err != nil {
+	if err := repository.DB(ctx).Where("source_id = ?", source.ID).First(&initial).Error; err != nil {
 		t.Fatalf("load initial heartbeat runtime error = %v, want nil", err)
 	}
 	if initial.LeaseExpiresAt == nil {
@@ -47,7 +46,7 @@ func TestSourceLeaseHeartbeatRenewsAndCancelsOnOwnershipLoss(t *testing.T) {
 	deadline := time.Now().Add(2 * time.Second)
 	for {
 		var renewedRuntime model.PagesProjectSourceRuntime
-		if err := db.DB(ctx).Where("source_id = ?", source.ID).First(&renewedRuntime).Error; err != nil {
+		if err := repository.DB(ctx).Where("source_id = ?", source.ID).First(&renewedRuntime).Error; err != nil {
 			t.Fatalf("load renewed heartbeat runtime error = %v, want nil", err)
 		}
 		if renewedRuntime.LeaseExpiresAt != nil && renewedRuntime.LeaseExpiresAt.After(*initial.LeaseExpiresAt) {
@@ -59,7 +58,7 @@ func TestSourceLeaseHeartbeatRenewsAndCancelsOnOwnershipLoss(t *testing.T) {
 		time.Sleep(10 * time.Millisecond)
 	}
 
-	if err := db.DB(ctx).Model(&model.PagesProjectSourceRuntime{}).
+	if err := repository.DB(ctx).Model(&model.PagesProjectSourceRuntime{}).
 		Where("source_id = ?", source.ID).
 		Update("lease_token", "replacement-owner").Error; err != nil {
 		t.Fatalf("replace heartbeat lease owner error = %v, want nil", err)
@@ -166,7 +165,7 @@ func TestAcquireSourceLeaseMutualExclusionExpiryAndTerminalOwnership(t *testing.
 	}
 
 	past := time.Now().Add(-time.Second)
-	if err := db.DB(ctx).Model(&model.PagesProjectSourceRuntime{}).
+	if err := repository.DB(ctx).Model(&model.PagesProjectSourceRuntime{}).
 		Where("source_id = ?", source.ID).
 		Update("lease_expires_at", &past).Error; err != nil {
 		t.Fatalf("expire first lease error = %v, want nil", err)
@@ -196,7 +195,7 @@ func TestAcquireSourceLeaseMutualExclusionExpiryAndTerminalOwnership(t *testing.
 		t.Fatalf("failSourceLease(expired owner) error = %v, want nil", err)
 	}
 	var runtime model.PagesProjectSourceRuntime
-	if err := db.DB(ctx).Where("source_id = ?", source.ID).First(&runtime).Error; err != nil {
+	if err := repository.DB(ctx).Where("source_id = ?", source.ID).First(&runtime).Error; err != nil {
 		t.Fatalf("load runtime after takeover error = %v, want nil", err)
 	}
 	if got, want := runtime.LeaseToken, takeover.LeaseToken; got != want {
@@ -217,7 +216,7 @@ func TestAcquireSourceLeaseMutualExclusionExpiryAndTerminalOwnership(t *testing.
 		t.Fatalf("failSourceLease(current owner) error = %v, want nil", err)
 	}
 	var failedRuntime model.PagesProjectSourceRuntime
-	if err := db.DB(ctx).Where("source_id = ?", source.ID).First(&failedRuntime).Error; err != nil {
+	if err := repository.DB(ctx).Where("source_id = ?", source.ID).First(&failedRuntime).Error; err != nil {
 		t.Fatalf("load failed runtime error = %v, want nil", err)
 	}
 	if got, want := failedRuntime.SyncStatus, pagesSourceStatusFailed; got != want {
@@ -258,7 +257,7 @@ func TestSourceConfigAndProjectContentChangesFenceLease(t *testing.T) {
 		t.Error("renewSourceLease(after source update) = true, want false")
 	}
 	var updatedSource model.PagesProjectSource
-	if err := db.DB(ctx).Where("id = ?", source.ID).First(&updatedSource).Error; err != nil {
+	if err := repository.DB(ctx).Where("id = ?", source.ID).First(&updatedSource).Error; err != nil {
 		t.Fatalf("load updated source error = %v, want nil", err)
 	}
 	if got, want := updatedSource.ConfigVersion, source.ConfigVersion+1; got != want {
@@ -296,7 +295,7 @@ func TestSourceConfigAndProjectContentChangesFenceLease(t *testing.T) {
 		t.Errorf("ContentConfigVersion after RootDir update = %d, want %d", got, want)
 	}
 	var runtime model.PagesProjectSourceRuntime
-	if err := db.DB(ctx).Where("source_id = ?", source.ID).First(&runtime).Error; err != nil {
+	if err := repository.DB(ctx).Where("source_id = ?", source.ID).First(&runtime).Error; err != nil {
 		t.Fatalf("load fenced runtime error = %v, want nil", err)
 	}
 	if runtime.LeaseToken != "" || runtime.LeaseExpiresAt != nil {

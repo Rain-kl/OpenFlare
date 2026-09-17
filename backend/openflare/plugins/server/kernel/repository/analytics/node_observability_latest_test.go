@@ -10,8 +10,6 @@ import (
 	"testing"
 	"time"
 
-	db "Wavelet/plugins/infra/database"
-
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -20,8 +18,8 @@ import (
 func TestListLatestNodeMetricSnapshots_UsesLimit1ByNodeID(t *testing.T) {
 	ctx := context.Background()
 	mock := &mockConn{}
-	db.SetChConnForTest(mock)
-	t.Cleanup(func() { db.SetChConnForTest(nil) })
+	SetChConnForTest(mock)
+	t.Cleanup(func() { SetChConnForTest(nil) })
 
 	since := time.Date(2026, 7, 10, 0, 0, 0, 0, time.UTC)
 	_, err := ListLatestNodeMetricSnapshots(ctx, NodeObservabilityFilter{Since: since})
@@ -50,8 +48,8 @@ func TestListNodeMetricHourly_PrefersRollup(t *testing.T) {
 			return nil, errors.New("raw path should not be used when rollup covers the window")
 		},
 	}
-	db.SetChConnForTest(mock)
-	t.Cleanup(func() { db.SetChConnForTest(nil) })
+	SetChConnForTest(mock)
+	t.Cleanup(func() { SetChConnForTest(nil) })
 
 	rows, err := ListNodeMetricHourly(ctx, NodeObservabilityFilter{Since: since})
 	require.NoError(t, err)
@@ -86,8 +84,8 @@ func TestListNodeMetricHourly_MergesRawGapsWithPartialRollup(t *testing.T) {
 			return &mockRows{}, nil
 		},
 	}
-	db.SetChConnForTest(mock)
-	t.Cleanup(func() { db.SetChConnForTest(nil) })
+	SetChConnForTest(mock)
+	t.Cleanup(func() { SetChConnForTest(nil) })
 
 	rows, err := ListNodeMetricHourly(ctx, NodeObservabilityFilter{Since: since})
 	require.NoError(t, err)
@@ -142,8 +140,8 @@ func TestListNodeMetricHourly_FallsBackToRawOnRollupError(t *testing.T) {
 			return &mockRows{}, nil
 		},
 	}
-	db.SetChConnForTest(mock)
-	t.Cleanup(func() { db.SetChConnForTest(nil) })
+	SetChConnForTest(mock)
+	t.Cleanup(func() { SetChConnForTest(nil) })
 
 	rows, err := ListNodeMetricHourly(ctx, NodeObservabilityFilter{})
 	require.NoError(t, err)

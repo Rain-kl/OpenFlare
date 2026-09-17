@@ -11,11 +11,10 @@ import (
 	"gorm.io/gorm"
 
 	"Wavelet/openflare/plugins/server/kernel/model"
-	db "Wavelet/plugins/infra/database"
 )
 
 func wafDB(ctx context.Context) (*gorm.DB, error) {
-	conn := db.DB(ctx)
+	conn := DB(ctx)
 	if conn == nil {
 		return nil, errors.New(errDatabaseNotInitialized)
 	}

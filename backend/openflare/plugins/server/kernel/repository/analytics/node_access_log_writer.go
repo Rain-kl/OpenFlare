@@ -5,14 +5,12 @@ package analytics
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strings"
 	"time"
 
 	analyticsmodel "Wavelet/openflare/plugins/server/kernel/model/analytics"
 	"Wavelet/pkg/idgen"
-	db "Wavelet/plugins/infra/database"
 )
 
 // BatchInsertNodeAccessLogs writes node access logs to ClickHouse using the native batch API.
@@ -20,11 +18,12 @@ func BatchInsertNodeAccessLogs(ctx context.Context, logs []analyticsmodel.NodeAc
 	if len(logs) == 0 {
 		return nil
 	}
-	if db.ChConn == nil {
-		return errors.New("clickhouse connection is not initialized")
+	conn, err := ChConn(ctx)
+	if err != nil {
+		return err
 	}
 
-	batch, err := db.ChConn.PrepareBatch(ctx, analyticsmodel.NodeAccessLog{}.BatchInsertSQL())
+	batch, err := conn.PrepareBatch(ctx, analyticsmodel.NodeAccessLog{}.BatchInsertSQL())
 	if err != nil {
 		return fmt.Errorf("prepare clickhouse batch: %w", err)
 	}

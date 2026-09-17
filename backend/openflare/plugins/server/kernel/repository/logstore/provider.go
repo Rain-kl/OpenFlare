@@ -13,7 +13,8 @@ import (
 	"Wavelet/openflare/plugins/server/kernel/model"
 	"Wavelet/openflare/plugins/server/kernel/runtimeconfig"
 	"Wavelet/pkg/logger"
-	db "Wavelet/plugins/infra/database"
+
+	"gorm.io/gorm"
 )
 
 // logDatabaseKey / logMigrationKey 对应 model.ConfigKeyLogDatabase / ConfigKeyLogDBMigration。
@@ -39,6 +40,7 @@ const resolveCacheTTL = 1 * time.Second
 
 var (
 	configReader ConfigReader
+	dbResolver   func(ctx context.Context) *gorm.DB
 
 	storeMu         sync.RWMutex
 	active          *Store
@@ -49,6 +51,16 @@ var (
 
 // SetConfigReader 注入系统配置读取函数（bootstrap 调用，测试可注入内存实现）。
 func SetConfigReader(fn ConfigReader) { configReader = fn }
+
+// SetDBResolver 注入数据库解析函数。
+func SetDBResolver(fn func(ctx context.Context) *gorm.DB) { dbResolver = fn }
+
+func getGormDB(ctx context.Context) *gorm.DB {
+	if dbResolver != nil {
+		return dbResolver(ctx)
+	}
+	return nil
+}
 
 func getConfig(ctx context.Context, key string) (string, error) {
 	if configReader == nil {
@@ -114,7 +126,7 @@ func buildStore(ctx context.Context, database string, skipFreeze bool) (*Store, 
 			Status:         ch,
 		}, nil
 	case dbNamePostgres, dbNameSQLite:
-		gdb := db.DB(ctx)
+		gdb := getGormDB(ctx)
 		g := newGormStore(gdb)
 		g.skipFreeze = skipFreeze
 		ual := newUserAccessLogGormStore(gdb)

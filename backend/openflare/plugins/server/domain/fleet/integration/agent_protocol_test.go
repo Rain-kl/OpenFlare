@@ -14,7 +14,6 @@ import (
 	ofnode "Wavelet/openflare/plugins/server/domain/fleet/node"
 	"Wavelet/openflare/plugins/server/kernel/model"
 	"Wavelet/openflare/plugins/server/kernel/testhelper"
-	db "Wavelet/plugins/infra/database"
 
 	"github.com/gin-gonic/gin"
 	"github.com/glebarez/sqlite"
@@ -39,7 +38,7 @@ func setupProtocolTestEnv(t *testing.T) (*gin.Engine, func()) {
 		&model.ConfigVersion{},
 	))
 
-	db.SetDB(sqliteDB)
+	repository.SetDBForTest(sqliteDB)
 	agent.ResetAuthCacheForTest()
 	testhelper.SetupLogStoresForTest(t)
 
@@ -47,7 +46,7 @@ func setupProtocolTestEnv(t *testing.T) (*gin.Engine, func()) {
 	mountOpenFlareTestRoutes(engine)
 
 	cleanup := func() {
-		db.SetDB(nil)
+		repository.SetDBForTest(nil)
 		agent.ResetAuthCacheForTest()
 	}
 	return engine, cleanup

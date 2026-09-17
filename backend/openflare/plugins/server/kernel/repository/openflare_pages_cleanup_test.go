@@ -11,8 +11,6 @@ import (
 
 	"Wavelet/openflare/plugins/server/kernel/model"
 
-	db "Wavelet/plugins/infra/database"
-
 	"github.com/glebarez/sqlite"
 	"gorm.io/gorm"
 )
@@ -64,7 +62,7 @@ func TestListPagesOrphanUploadCandidatesFiltersAndLimits(t *testing.T) {
 		"pages_project_id":    "1",
 	}}
 
-	valid := make([]model.Upload, 0, model.PagesOrphanUploadCandidateLimit+1)
+	valid := make([]testUploadEntity, 0, model.PagesOrphanUploadCandidateLimit+1)
 	for index := 0; index < model.PagesOrphanUploadCandidateLimit+1; index++ {
 		valid = append(valid, pagesCleanupModelUpload(uint64(index+100), 999, "openflare_pages_deployment", model.UploadStatusUsed, old, marker))
 	}
@@ -81,7 +79,7 @@ func TestListPagesOrphanUploadCandidatesFiltersAndLimits(t *testing.T) {
 		"pages_ingest_marker": "pages_deployment_v1",
 		"pages_project_id":    "1",
 	}})
-	for _, upload := range []model.Upload{referenced, wrongOwner, wrongType, wrongStatus, fresh, wrongMarker} {
+	for _, upload := range []testUploadEntity{referenced, wrongOwner, wrongType, wrongStatus, fresh, wrongMarker} {
 		if err := gormDB.Create(&upload).Error; err != nil {
 			t.Fatalf("create filtered upload %d error = %v, want nil", upload.ID, err)
 		}
@@ -100,7 +98,7 @@ func TestListPagesOrphanUploadCandidatesFiltersAndLimits(t *testing.T) {
 	if err := gormDB.Create(&invalidJSON).Error; err != nil {
 		t.Fatalf("create invalid JSON upload error = %v, want nil", err)
 	}
-	if err := gormDB.Table((model.Upload{}).TableName()).Where("id = ?", invalidJSON.ID).
+	if err := gormDB.Table("w_uploads").Where("id = ?", invalidJSON.ID).
 		UpdateColumn("metadata", "{invalid").Error; err != nil {
 		t.Fatalf("corrupt upload metadata error = %v, want nil", err)
 	}
@@ -133,7 +131,7 @@ func TestListPagesOrphanUploadCandidatesSkipsInvalidSQLiteJSON(t *testing.T) {
 	if err := gormDB.Create(&upload).Error; err != nil {
 		t.Fatalf("create invalid JSON candidate error = %v, want nil", err)
 	}
-	if err := gormDB.Table((model.Upload{}).TableName()).Where("id = ?", upload.ID).
+	if err := gormDB.Table("w_uploads").Where("id = ?", upload.ID).
 		UpdateColumn("metadata", "{invalid").Error; err != nil {
 		t.Fatalf("corrupt upload metadata error = %v, want nil", err)
 	}
@@ -152,6 +150,25 @@ func TestListPagesOrphanUploadCandidatesSkipsInvalidSQLiteJSON(t *testing.T) {
 	}
 }
 
+type testUploadEntity struct {
+	ID        uint64 `gorm:"primaryKey"`
+	UserID    uint64 `gorm:"index"`
+	FileName  string `gorm:"size:255"`
+	FilePath  string `gorm:"size:500"`
+	Size      int64
+	MimeType  string               `gorm:"size:100"`
+	Hash      string               `gorm:"size:64"`
+	Type      string               `gorm:"size:50;index"`
+	Status    model.UploadStatus   `gorm:"type:varchar(20)"`
+	Metadata  model.UploadMetadata `gorm:"serializer:json;type:jsonb"`
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
+func (testUploadEntity) TableName() string {
+	return "w_uploads"
+}
+
 func setupPagesCleanupModelTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 
@@ -161,11 +178,11 @@ func setupPagesCleanupModelTestDB(t *testing.T) *gorm.DB {
 	if err != nil {
 		t.Fatalf("open Pages cleanup model test database error = %v, want nil", err)
 	}
-	if err := gormDB.AutoMigrate(&model.Upload{}, &model.PagesDeployment{}); err != nil {
+	if err := gormDB.AutoMigrate(&testUploadEntity{}, &model.PagesDeployment{}); err != nil {
 		t.Fatalf("migrate Pages cleanup model test database error = %v, want nil", err)
 	}
-	db.SetDB(gormDB)
-	t.Cleanup(func() { db.SetDB(nil) })
+	SetDBForTest(gormDB)
+	t.Cleanup(func() { SetDBForTest(nil) })
 	return gormDB
 }
 
@@ -176,21 +193,19 @@ func pagesCleanupModelUpload(
 	status model.UploadStatus,
 	createdAt time.Time,
 	metadata model.UploadMetadata,
-) model.Upload {
-	return model.Upload{
-		ID:         id,
-		UserID:     userID,
-		FileName:   "site.zip",
-		FilePath:   "pages/site.zip",
-		FileSize:   10,
-		MimeType:   "application/zip",
-		Extension:  "zip",
-		Hash:       "checksum",
-		Type:       uploadType,
-		Status:     status,
-		AccessMode: 0,
-		Metadata:   metadata,
-		CreatedAt:  createdAt,
-		UpdatedAt:  createdAt,
+) testUploadEntity {
+	return testUploadEntity{
+		ID:        id,
+		UserID:    userID,
+		FileName:  "site.zip",
+		FilePath:  "pages/site.zip",
+		Size:      10,
+		MimeType:  "application/zip",
+		Hash:      "checksum",
+		Type:      uploadType,
+		Status:    status,
+		Metadata:  metadata,
+		CreatedAt: createdAt,
+		UpdatedAt: createdAt,
 	}
 }

@@ -48,25 +48,11 @@ func (p *Plugin) Name() string {
 
 // Apply mounts the storage service into the Context.
 func (p *Plugin) Apply(ctx *core.Context) error {
-	// Bind DBService
-	if db, err := core.Inject[contracts.DBService](ctx); err == nil && db != nil {
+	core.Bind[contracts.DBService](ctx, func(db contracts.DBService) {
 		objectstore.SetDBService(db)
 		diskcache.SetDBService(db)
-	} else {
-		core.When[contracts.DBService](ctx, func(db contracts.DBService) {
-			objectstore.SetDBService(db)
-			diskcache.SetDBService(db)
-		})
-	}
-
-	// Bind CacheService
-	if cache, err := core.Inject[contracts.CacheService](ctx); err == nil && cache != nil {
-		objectstore.SetCacheService(cache)
-	} else {
-		core.When[contracts.CacheService](ctx, func(cache contracts.CacheService) {
-			objectstore.SetCacheService(cache)
-		})
-	}
+	})
+	core.Bind[contracts.CacheService](ctx, objectstore.SetCacheService)
 
 	ctx.OnDispose(func() error {
 		objectstore.SetDBService(nil)

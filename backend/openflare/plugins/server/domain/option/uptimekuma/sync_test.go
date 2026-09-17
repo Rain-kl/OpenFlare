@@ -17,7 +17,7 @@ import (
 
 	"Wavelet/openflare/plugins/server/kernel/model"
 	"Wavelet/openflare/plugins/server/kernel/repository"
-	db "Wavelet/plugins/infra/database"
+	"Wavelet/openflare/plugins/server/kernel/testhelper"
 
 	"github.com/glebarez/sqlite"
 	"github.com/stretchr/testify/assert"
@@ -125,17 +125,19 @@ func setupSyncTestDB(t *testing.T) func() {
 	require.NoError(t, err)
 	require.NoError(t, sqliteDB.AutoMigrate(&model.ProxyRoute{}, &model.Zone{}, &model.ZoneDomain{}, &model.SystemConfig{}))
 
-	db.SetDB(sqliteDB)
+	repository.SetDBForTest(sqliteDB)
+	repository.SetSystemConfigService(testhelper.NewMockSystemConfigService(sqliteDB))
 	return func() {
-		db.SetDB(nil)
+		repository.SetSystemConfigService(nil)
+		repository.SetDBForTest(nil)
 	}
 }
 
 func createRouteZoneDomain(t *testing.T, ctx context.Context, route *model.ProxyRoute, domain string) {
 	t.Helper()
 	zone := &model.Zone{Domain: fmt.Sprintf("zone-%d.example", route.ID)}
-	require.NoError(t, db.DB(ctx).Create(zone).Error)
-	require.NoError(t, db.DB(ctx).Create(&model.ZoneDomain{
+	require.NoError(t, repository.DB(ctx).Create(zone).Error)
+	require.NoError(t, repository.DB(ctx).Create(&model.ZoneDomain{
 		ZoneID:       zone.ID,
 		ProxyRouteID: &route.ID,
 		Domain:       domain,
@@ -166,7 +168,7 @@ func backupUptimeKumaConfig(ctx context.Context) func() {
 	return func() {
 		// 恢复所有配置
 		for key, value := range oldValues {
-			_ = db.DB(ctx).Model(&model.SystemConfig{}).Where("key = ?", key).Update("value", value).Error
+			_ = repository.DB(ctx).Model(&model.SystemConfig{}).Where("key = ?", key).Update("value", value).Error
 		}
 	}
 }
@@ -197,7 +199,7 @@ func TestSyncToUptimeKumaSuccess(t *testing.T) {
 	restore := backupUptimeKumaConfig(ctx)
 	defer restore()
 
-	require.NoError(t, db.DB(ctx).Where("1 = 1").Delete(&model.ProxyRoute{}).Error)
+	require.NoError(t, repository.DB(ctx).Where("1 = 1").Delete(&model.ProxyRoute{}).Error)
 
 	routeA := &model.ProxyRoute{
 		SiteName:    "site-a",
@@ -306,7 +308,7 @@ func TestSyncToUptimeKumaSelectedScope(t *testing.T) {
 	restore := backupUptimeKumaConfig(ctx)
 	defer restore()
 
-	require.NoError(t, db.DB(ctx).Where("1 = 1").Delete(&model.ProxyRoute{}).Error)
+	require.NoError(t, repository.DB(ctx).Where("1 = 1").Delete(&model.ProxyRoute{}).Error)
 
 	routeA := &model.ProxyRoute{
 		SiteName:    "site-a",

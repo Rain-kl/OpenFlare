@@ -23,8 +23,6 @@ import (
 	oftask "Wavelet/openflare/plugins/server/kernel/task"
 	"Wavelet/openflare/plugins/server/kernel/testhelper"
 	"Wavelet/pkg/idgen"
-	uploadshared "Wavelet/plugins/domain/upload/shared"
-	db "Wavelet/plugins/infra/database"
 
 	"github.com/glebarez/sqlite"
 	"github.com/stretchr/testify/assert"
@@ -39,6 +37,9 @@ func setupPagesTestDB(t *testing.T) func() {
 		DisableForeignKeyConstraintWhenMigrating: true,
 	})
 	require.NoError(t, err)
+	if sqlDB, err := sqliteDB.DB(); err == nil {
+		sqlDB.SetMaxOpenConns(1)
+	}
 	require.NoError(t, sqliteDB.AutoMigrate(
 		&model.User{},
 		&model.Upload{},
@@ -74,30 +75,33 @@ func setupPagesTestDB(t *testing.T) func() {
 		},
 	}).Error)
 
-	db.SetDB(sqliteDB)
+	repository.SetDBForTest(sqliteDB)
+	repository.SetSystemConfigService(testhelper.NewMockSystemConfigService(sqliteDB))
 	require.NoError(t, idgen.Init(1))
-	oftask.SetService(&testhelper.NoopTaskService{})
-	mockStorage := uploadshared.NewMockStorageService()
-	uploadshared.SetDBService(db.NewService(sqliteDB))
-	uploadshared.SetStorageService(mockStorage)
+	noopTask := &testhelper.NoopTaskService{}
+	oftask.SetService(noopTask)
+	repository.SetTaskService(noopTask)
+	mockStorage := testhelper.NewMockStorageService()
 	ofupload.SetStorage(mockStorage)
+	ofupload.SetUploadService(testhelper.NewMockUploadService(sqliteDB))
 	_ = repository.InvalidateSystemConfigCache(context.Background(), model.ConfigKeyPagesMaxPackageSizeMB)
 	_ = repository.InvalidateSystemConfigCache(context.Background(), model.ConfigKeyPagesMaxHistoryCount)
 	return func() {
 		ofupload.SetStorage(nil)
-		uploadshared.ResetServices()
-		db.SetDB(nil)
+		ofupload.SetUploadService(nil)
+		repository.SetTaskService(nil)
+		oftask.SetService(nil)
+		repository.SetSystemConfigService(nil)
+		repository.SetDBForTest(nil)
 	}
 }
 
 func setupPagesStorageMock(t *testing.T) (restore func(), disable func()) {
 	t.Helper()
-	mock := uploadshared.NewMockStorageService()
-	uploadshared.SetStorageService(mock)
+	mock := testhelper.NewMockStorageService()
 	ofupload.SetStorage(mock)
 	restore = func() {
 		ofupload.SetStorage(nil)
-		uploadshared.ResetServices()
 	}
 	disable = restore
 	return restore, disable
@@ -283,10 +287,10 @@ func TestUploadDeploymentStoresPackageInUploadFramework(t *testing.T) {
 	assert.Empty(t, storedDeployment.ArtifactPath)
 
 	var uploadCount int64
-	require.NoError(t, db.DB(ctx).Model(&model.Upload{}).Count(&uploadCount).Error)
+	require.NoError(t, repository.DB(ctx).Model(&model.Upload{}).Count(&uploadCount).Error)
 	assert.Equal(t, int64(1), uploadCount)
 	var uploadRecord model.Upload
-	require.NoError(t, db.DB(ctx).First(&uploadRecord, storedDeployment.UploadID).Error)
+	require.NoError(t, repository.DB(ctx).First(&uploadRecord, storedDeployment.UploadID).Error)
 	assert.Equal(t, ofupload.ReservedPagesDeploymentType, uploadRecord.Type)
 	assert.Equal(t, pagesIngestMarkerV2, uploadRecord.Metadata.Extra[pagesIngestMarkerKey])
 	assert.Equal(t, fmt.Sprint(project.ID), uploadRecord.Metadata.Extra[pagesProjectIDMetadataKey])
@@ -323,8 +327,8 @@ func TestOpenDeploymentPackageHydratesLegacyArtifactPath(t *testing.T) {
 		TotalSize:        10,
 		CreatedBy:        "test",
 	}
-	require.NoError(t, db.DB(ctx).Create(deployment).Error)
-	require.NoError(t, db.DB(ctx).Create(&model.PagesDeploymentFile{
+	require.NoError(t, repository.DB(ctx).Create(deployment).Error)
+	require.NoError(t, repository.DB(ctx).Create(&model.PagesDeploymentFile{
 		DeploymentID: deployment.ID,
 		Path:         "index.html",
 		Size:         6,
@@ -334,7 +338,7 @@ func TestOpenDeploymentPackageHydratesLegacyArtifactPath(t *testing.T) {
 	_, err = ActivateDeployment(ctx, project.ID, deployment.ID)
 	require.NoError(t, err)
 
-	require.NoError(t, db.DB(ctx).Create(&model.ConfigVersion{
+	require.NoError(t, repository.DB(ctx).Create(&model.ConfigVersion{
 		Version:          "v2026-legacy",
 		SnapshotJSON:     fmt.Sprintf(`{"routes":[{"upstream_type":"pages","pages_deployment":{"deployment_id":%d}}]}`, deployment.ID),
 		MainConfig:       "",
@@ -363,7 +367,7 @@ func TestOpenDeploymentPackageHydratesLegacyArtifactPath(t *testing.T) {
 	assert.Empty(t, storedDeployment.ArtifactPath)
 
 	var uploadCount int64
-	require.NoError(t, db.DB(ctx).Model(&model.Upload{}).Count(&uploadCount).Error)
+	require.NoError(t, repository.DB(ctx).Model(&model.Upload{}).Count(&uploadCount).Error)
 	assert.Equal(t, int64(1), uploadCount)
 
 	packageObj2, err := OpenDeploymentPackage(ctx, deployment.ID)
@@ -400,7 +404,7 @@ func TestOpenDeploymentPackageRequiresActiveConfigSnapshot(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "激活配置")
 
-	require.NoError(t, db.DB(ctx).Create(&model.ConfigVersion{
+	require.NoError(t, repository.DB(ctx).Create(&model.ConfigVersion{
 		Version:          "v2026-001",
 		SnapshotJSON:     fmt.Sprintf(`{"routes":[{"upstream_type":"pages","pages_deployment":{"deployment_id":%d}}]}`, deployment.ID),
 		MainConfig:       "",
@@ -454,7 +458,7 @@ func TestProjectLatestRejectsWhenNotOnActiveConfigOrNotActive(t *testing.T) {
 	_, _, err = GetProjectLatestPackageHash(ctx, project.ID)
 	require.Error(t, err)
 
-	require.NoError(t, db.DB(ctx).Create(&model.ConfigVersion{
+	require.NoError(t, repository.DB(ctx).Create(&model.ConfigVersion{
 		Version: "v-gate",
 		SnapshotJSON: fmt.Sprintf(
 			`{"routes":[{"upstream_type":"pages","pages_project_id":%d,"pages_deployment":{"project_id":%d,"deployment_id":%d}}]}`,
@@ -476,7 +480,7 @@ func TestProjectLatestRejectsWhenNotOnActiveConfigOrNotActive(t *testing.T) {
 	assert.NotEmpty(t, hash)
 
 	// Disabled project rejects.
-	require.NoError(t, db.DB(ctx).Model(&model.PagesProject{}).Where("id = ?", project.ID).Update("enabled", false).Error)
+	require.NoError(t, repository.DB(ctx).Model(&model.PagesProject{}).Where("id = ?", project.ID).Update("enabled", false).Error)
 	_, _, err = GetProjectLatestPackageHash(ctx, project.ID)
 	require.Error(t, err)
 }
@@ -572,7 +576,7 @@ func TestPruneProjectDeploymentHistory(t *testing.T) {
 	defer disableStorage()
 	ctx := context.Background()
 
-	require.NoError(t, db.DB(ctx).Model(&model.SystemConfig{}).
+	require.NoError(t, repository.DB(ctx).Model(&model.SystemConfig{}).
 		Where("key = ?", model.ConfigKeyPagesMaxHistoryCount).
 		Update("value", "2").Error)
 	require.NoError(t, repository.InvalidateSystemConfigCache(ctx, model.ConfigKeyPagesMaxHistoryCount))
@@ -634,7 +638,7 @@ func TestHistoryCountOnePreservesFreshCandidateUntilActivation(t *testing.T) {
 	defer disableStorage()
 	ctx := context.Background()
 
-	require.NoError(t, db.DB(ctx).Model(&model.SystemConfig{}).
+	require.NoError(t, repository.DB(ctx).Model(&model.SystemConfig{}).
 		Where("key = ?", model.ConfigKeyPagesMaxHistoryCount).
 		Update("value", "1").Error)
 	require.NoError(t, repository.InvalidateSystemConfigCache(ctx, model.ConfigKeyPagesMaxHistoryCount))
@@ -671,7 +675,7 @@ func TestHistoryCountOnePreservesFreshCandidateUntilActivation(t *testing.T) {
 	assert.True(t, kept[newCandidate.ID])
 	assert.False(t, kept[oldCandidate.ID])
 	var removedUpload model.Upload
-	require.NoError(t, db.DB(ctx).First(&removedUpload, oldCandidate.UploadID).Error)
+	require.NoError(t, repository.DB(ctx).First(&removedUpload, oldCandidate.UploadID).Error)
 	assert.Equal(t, model.UploadStatusDeleted, removedUpload.Status)
 
 	_, err = ActivateDeployment(ctx, project.ID, newCandidate.ID)
@@ -741,12 +745,12 @@ func TestDeleteDeploymentAndProjectSoftDeleteUnreferencedArtifacts(t *testing.T)
 
 	require.NoError(t, DeleteDeployment(ctx, project.ID, second.ID))
 	var secondUpload model.Upload
-	require.NoError(t, db.DB(ctx).First(&secondUpload, second.UploadID).Error)
+	require.NoError(t, repository.DB(ctx).First(&secondUpload, second.UploadID).Error)
 	assert.Equal(t, model.UploadStatusDeleted, secondUpload.Status)
 
 	require.NoError(t, DeleteProject(ctx, project.ID))
 	var firstUpload model.Upload
-	require.NoError(t, db.DB(ctx).First(&firstUpload, first.UploadID).Error)
+	require.NoError(t, repository.DB(ctx).First(&firstUpload, first.UploadID).Error)
 	assert.Equal(t, model.UploadStatusDeleted, firstUpload.Status)
 	_, err = repository.GetPagesProjectByID(ctx, project.ID)
 	assert.Error(t, err)

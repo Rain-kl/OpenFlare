@@ -6,17 +6,22 @@ package user
 import (
 	"Wavelet/core"
 	"Wavelet/core/contracts"
+	"Wavelet/pkg/idgen"
 	"Wavelet/pkg/util"
 	"context"
+	"errors"
 	"strings"
 	"sync"
+	"time"
 
 	"gorm.io/gorm"
 )
 
 var (
-	dbMu  sync.RWMutex
-	dbSvc contracts.DBService
+	dbMu       sync.RWMutex
+	dbSvc      contracts.DBService
+	limiterMu  sync.RWMutex
+	limiterSvc contracts.LimiterService
 )
 
 // SetDBService sets the active DBService contract for the user domain plugin.
@@ -26,11 +31,16 @@ func SetDBService(s contracts.DBService) {
 	dbSvc = s
 }
 
+// SetLimiterService sets the active LimiterService contract for the user domain plugin.
+func SetLimiterService(s contracts.LimiterService) {
+	limiterMu.Lock()
+	defer limiterMu.Unlock()
+	limiterSvc = s
+}
+
 func getDB(ctx context.Context) *gorm.DB {
-	if c, ok := ctx.(*core.Context); ok && c != nil {
-		if s, err := core.Inject[contracts.DBService](c); err == nil && s != nil {
-			return s.DB(ctx)
-		}
+	if s, err := core.InjectFrom[contracts.DBService](ctx); err == nil && s != nil {
+		return s.DB(ctx)
 	}
 
 	dbMu.RLock()
@@ -41,6 +51,17 @@ func getDB(ctx context.Context) *gorm.DB {
 	}
 
 	return nil
+}
+
+func getLimiter(ctx context.Context) contracts.LimiterService {
+	if s, err := core.InjectFrom[contracts.LimiterService](ctx); err == nil && s != nil {
+		return s
+	}
+
+	limiterMu.RLock()
+	s := limiterSvc
+	limiterMu.RUnlock()
+	return s
 }
 
 // GetUserByID 通过 ID 获取用户
@@ -82,35 +103,17 @@ func GetUserByEmail(ctx context.Context, email string) (*User, error) {
 	return &u, nil
 }
 
-// CreateUser 创建用户
+// CreateUser 创建用户。ID 为空时用雪花算法分配，避免 SQLite/GORM 把 0 当成自增主键。
 func CreateUser(ctx context.Context, u *User) error {
+	if u != nil && u.ID == 0 {
+		u.ID = idgen.NextUint64ID()
+	}
 	return getDB(ctx).Create(u).Error
 }
 
 // UpdateUser 更新用户
 func UpdateUser(ctx context.Context, u *User) error {
 	return getDB(ctx).Save(u).Error
-}
-
-// ListUsers 分页查询用户
-func ListUsers(ctx context.Context, page, pageSize int, keyword string) ([]*User, int64, error) {
-	db := getDB(ctx).Model(&User{})
-	if keyword != "" {
-		escaped := util.EscapeLike(keyword)
-		db = db.Where("username LIKE ? ESCAPE '\\' OR nickname LIKE ? ESCAPE '\\' OR email LIKE ? ESCAPE '\\'", "%"+escaped+"%", "%"+escaped+"%", "%"+escaped+"%")
-	}
-
-	var total int64
-	if err := db.Count(&total).Error; err != nil {
-		return nil, 0, err
-	}
-
-	var users []*User
-	offset := (page - 1) * pageSize
-	if err := db.Offset(offset).Limit(pageSize).Order("id DESC").Find(&users).Error; err != nil {
-		return nil, 0, err
-	}
-	return users, total, nil
 }
 
 // GetAccessTokenByHash 通过 Hash 查询访问令牌
@@ -178,6 +181,26 @@ func DeleteUserWithRelations(ctx context.Context, id uint64) error {
 		}
 		return tx.Where("id = ?", id).Delete(&User{}).Error
 	})
+}
+
+// ListInactiveNeverLoggedInUserIDs returns non-admin users created before cutoff
+// who have never logged in. Seeded admin/system accounts are excluded.
+func ListInactiveNeverLoggedInUserIDs(ctx context.Context, cutoff time.Time) ([]uint64, error) {
+	db := getDB(ctx)
+	if db == nil {
+		return nil, errors.New("database not available")
+	}
+	var ids []uint64
+	unixEpoch := time.Unix(0, 0).UTC()
+	err := db.Model(&User{}).
+		Where("is_admin = ? AND username NOT IN ?", false, []string{"admin", "system"}).
+		Where("created_at < ?", cutoff).
+		Where("last_login_at IS NULL OR last_login_at < ?", unixEpoch).
+		Pluck("id", &ids).Error
+	if err != nil {
+		return nil, err
+	}
+	return ids, nil
 }
 
 // GetFirstAdminUser 获取第一个管理员用户

@@ -18,7 +18,6 @@ import (
 	analyticsrepo "Wavelet/openflare/plugins/server/kernel/repository/analytics"
 	"Wavelet/openflare/plugins/server/kernel/repository/logstore"
 	"Wavelet/pkg/logger"
-	db "Wavelet/plugins/infra/database"
 )
 
 const (
@@ -247,7 +246,7 @@ func ListOpenFlareMetricHourlySince(ctx context.Context, nodeID string, since ti
 
 // ListOpenFlareActiveHealthEvents returns active health events across all nodes.
 func ListOpenFlareActiveHealthEvents(ctx context.Context) ([]*model.OpenFlareHealthEvent, error) {
-	conn := db.DB(ctx)
+	conn := DB(ctx)
 	if conn == nil {
 		return nil, errors.New(errDatabaseNotInitialized)
 	}
@@ -263,7 +262,7 @@ func ListOpenFlareActiveHealthEvents(ctx context.Context) ([]*model.OpenFlareHea
 
 // ListOpenFlareHealthEvents returns health events for a node.
 func ListOpenFlareHealthEvents(ctx context.Context, nodeID string, activeOnly bool, limit int) ([]*model.OpenFlareHealthEvent, error) {
-	conn := db.DB(ctx)
+	conn := DB(ctx)
 	if conn == nil {
 		return nil, errors.New(errDatabaseNotInitialized)
 	}
@@ -358,7 +357,7 @@ func DeleteAllOpenFlareNodeObservationFrpc(ctx context.Context) (int64, error) {
 
 // DeleteOpenFlareHealthEventsByNodeID deletes all health events for a node.
 func DeleteOpenFlareHealthEventsByNodeID(ctx context.Context, nodeID string) (int64, error) {
-	conn := db.DB(ctx)
+	conn := DB(ctx)
 	if conn == nil {
 		return 0, errors.New(errDatabaseNotInitialized)
 	}
@@ -374,7 +373,7 @@ func DeleteOpenFlareHealthEventsByNodeID(ctx context.Context, nodeID string) (in
 
 // GetOpenFlareNodeSystemProfile returns the system profile for a node.
 func GetOpenFlareNodeSystemProfile(ctx context.Context, nodeID string) (*model.OpenFlareNodeSystemProfile, error) {
-	conn := db.DB(ctx)
+	conn := DB(ctx)
 	if conn == nil {
 		return nil, errors.New(errDatabaseNotInitialized)
 	}
@@ -393,7 +392,7 @@ func UpsertOpenFlareNodeSystemProfile(ctx context.Context, record *model.OpenFla
 	if record == nil {
 		return nil
 	}
-	conn := db.DB(ctx)
+	conn := DB(ctx)
 	if conn == nil {
 		return errors.New(errDatabaseNotInitialized)
 	}
@@ -431,7 +430,7 @@ func ReconcileOpenFlareHealthEvents(
 	reportedAt time.Time,
 	managedEventTypes map[string]struct{},
 ) error {
-	conn := db.DB(ctx)
+	conn := DB(ctx)
 	if conn == nil {
 		return errors.New(errDatabaseNotInitialized)
 	}
@@ -455,7 +454,7 @@ func PersistOpenFlareNodePGObservability(
 	if profile == nil && !reconcileHealth {
 		return nil
 	}
-	conn := db.DB(ctx)
+	conn := DB(ctx)
 	if conn == nil {
 		return errors.New(errDatabaseNotInitialized)
 	}

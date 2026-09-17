@@ -15,7 +15,6 @@ import (
 	"Wavelet/openflare/plugins/server/kernel/repository"
 	"Wavelet/openflare/plugins/server/kernel/testhelper"
 	"Wavelet/pkg/response"
-	db "Wavelet/plugins/infra/database"
 
 	"github.com/gin-gonic/gin"
 	"github.com/glebarez/sqlite"
@@ -36,11 +35,11 @@ func setupAgentAuthTestDB(t *testing.T) func() {
 		&model.SystemConfig{},
 	))
 
-	db.SetDB(sqliteDB)
+	repository.SetDBForTest(sqliteDB)
 	tokenCache.reset()
 
 	return func() {
-		db.SetDB(nil)
+		repository.SetDBForTest(nil)
 		tokenCache.reset()
 	}
 }
@@ -51,7 +50,7 @@ func TestAuthenticateAccessToken(t *testing.T) {
 
 	ctx := context.Background()
 	now := time.Now()
-	require.NoError(t, db.DB(ctx).Create(&model.OpenFlareNode{
+	require.NoError(t, repository.DB(ctx).Create(&model.OpenFlareNode{
 		NodeID:      "node-auth-1",
 		Name:        "edge",
 		AccessToken: "valid-agent-token",
@@ -98,7 +97,7 @@ func TestAgentAuthMiddleware(t *testing.T) {
 
 	ctx := context.Background()
 	now := time.Now()
-	require.NoError(t, db.DB(ctx).Create(&model.OpenFlareNode{
+	require.NoError(t, repository.DB(ctx).Create(&model.OpenFlareNode{
 		NodeID:      "node-mw-1",
 		Name:        "edge",
 		AccessToken: "middleware-token",
@@ -145,7 +144,7 @@ func TestAgentRegisterAuthMiddleware(t *testing.T) {
 
 	ctx := context.Background()
 	now := time.Now()
-	require.NoError(t, db.DB(ctx).Create(&model.OpenFlareNode{
+	require.NoError(t, repository.DB(ctx).Create(&model.OpenFlareNode{
 		NodeID:      "node-register-1",
 		Name:        "edge",
 		AccessToken: "existing-node-token",

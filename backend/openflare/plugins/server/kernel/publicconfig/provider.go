@@ -22,7 +22,7 @@ func New(_ *core.Context) *Provider {
 }
 
 // PublicConfig returns visibility=1 keys as map[string]string.
-func (p *Provider) PublicConfig(ctx context.Context) (any, error) {
+func (p *Provider) PublicConfig(ctx context.Context) (map[string]string, error) {
 	configs, err := repository.ListVisibleSystemConfigs(ctx)
 	if err != nil {
 		return nil, err

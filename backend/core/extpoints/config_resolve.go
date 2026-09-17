@@ -181,7 +181,7 @@ func formatEntryValue(value any, secret bool) string {
 		return ""
 	}
 	rv := reflect.ValueOf(value)
-	if rv.Kind() == reflect.Ptr {
+	if rv.Kind() == reflect.Pointer {
 		if rv.IsNil() {
 			return ""
 		}

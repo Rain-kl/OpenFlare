@@ -17,8 +17,8 @@ import (
 )
 
 // ListTaskTypes returns every dispatchable task type declared in the task registry.
-func ListTaskTypes() []contracts.TaskMetaDTO {
-	taskSvc := GetTaskService()
+func ListTaskTypes(ctx context.Context) []contracts.TaskMetaDTO {
+	taskSvc := GetTaskService(ctx)
 	if taskSvc == nil {
 		return []contracts.TaskMetaDTO{}
 	}
@@ -27,7 +27,7 @@ func ListTaskTypes() []contracts.TaskMetaDTO {
 
 // DispatchTask validates and enqueues a manual task run, returning the new task id.
 func DispatchTask(ctx context.Context, req model.DispatchTaskRequest) (string, error) {
-	taskSvc, err := requireTaskService()
+	taskSvc, err := requireTaskService(ctx)
 	if err != nil {
 		return "", err
 	}
@@ -41,7 +41,7 @@ func DispatchTask(ctx context.Context, req model.DispatchTaskRequest) (string, e
 		return "", err
 	}
 
-	taskID, err := taskSvc.Dispatch(ctx, req.TaskType, validated, "manual")
+	taskID, err := taskSvc.Dispatch(ctx, req.TaskType, validated, contracts.TaskTriggerManual)
 	if err != nil {
 		return "", fmt.Errorf("%s: %w", errs.TaskDispatchFailed, err)
 	}
@@ -67,29 +67,90 @@ func ListTaskExecutions(
 	ctx context.Context,
 	req model.ListTaskExecutionsRequest,
 ) ([]model.TaskExecution, int64, error) {
-	if req.TaskType != "" {
-		if taskSvc := GetTaskService(); taskSvc != nil {
-			if meta, ok := taskSvc.GetTaskMeta(req.TaskType); ok {
-				req.TaskType = meta.Name
-			}
+	taskSvc, err := requireTaskService(ctx)
+	if err != nil {
+		return nil, 0, err
+	}
+	if req.Page <= 0 {
+		req.Page = 1
+	}
+	if req.PageSize <= 0 {
+		req.PageSize = 20
+	}
+
+	filterType := req.TaskType
+	if filterType != "" {
+		if meta, ok := taskSvc.GetTaskMeta(filterType); ok {
+			filterType = meta.AsynqTask
 		}
 	}
 
-	executions, total, err := repository.ListTaskExecutionRecords(ctx, req)
+	rows, total, err := taskSvc.ListExecutions(ctx, filterType, req.Status, req.Page, req.PageSize)
 	if err != nil {
 		return nil, 0, err
+	}
+	executions := make([]model.TaskExecution, 0, len(rows))
+	for i := range rows {
+		executions = append(executions, executionFromDTO(rows[i]))
 	}
 	return executions, total, nil
 }
 
 // TaskExecution loads a single execution record including its buffered log.
 func TaskExecution(ctx context.Context, id uint64) (*model.TaskExecution, error) {
-	return repository.GetTaskExecutionByID(ctx, id)
+	taskSvc, err := requireTaskService(ctx)
+	if err != nil {
+		return nil, err
+	}
+	dto, err := taskSvc.GetExecution(ctx, id)
+	if err != nil || dto == nil {
+		return nil, err
+	}
+	row := executionFromDTO(*dto)
+	return &row, nil
+}
+
+func normalizeTaskTrigger(v string) string {
+	switch v {
+	case contracts.TaskTriggerManual, contracts.TaskTriggerSystem, contracts.TaskTriggerRetry, contracts.TaskTriggerSchedule:
+		return v
+	case "inproc_cron", "cron":
+		return contracts.TaskTriggerSchedule
+	case "http":
+		return contracts.TaskTriggerSystem
+	case "":
+		return contracts.TaskTriggerSystem
+	default:
+		return v
+	}
+}
+
+func executionFromDTO(dto contracts.TaskExecutionDTO) model.TaskExecution {
+	return model.TaskExecution{
+		ID:           dto.ID,
+		TaskID:       dto.TaskID,
+		TaskType:     dto.TaskType,
+		TaskName:     dto.TaskName,
+		Status:       model.TaskExecutionStatus(dto.Status),
+		Retryable:    dto.Retryable,
+		MaxRetry:     dto.MaxRetry,
+		RetryCount:   dto.RetryCount,
+		Log:          dto.Log,
+		ErrorMessage: dto.ErrorMessage,
+		Result:       dto.Result,
+		StartedAt:    dto.StartedAt,
+		FinishedAt:   dto.FinishedAt,
+		Duration:     dto.Duration,
+		Payload:      dto.Payload,
+		TriggeredBy:  normalizeTaskTrigger(dto.TriggeredBy),
+		CreatedAt:    dto.CreatedAt,
+		UpdatedAt:    dto.UpdatedAt,
+	}
 }
 
 // RetryTask re-dispatches a failed execution as a new task run.
 func RetryTask(ctx context.Context, id uint64) (string, error) {
-	taskSvc, err := requireTaskService()
+	taskSvc, err := requireTaskService(ctx)
 	if err != nil {
 		return "", err
 	}
@@ -126,7 +187,7 @@ func CreateSchedule(ctx context.Context, req model.CreateScheduleRequest) (*mode
 		return nil, errs.ErrInvalidCronExpression
 	}
 
-	taskSvc, err := requireTaskService()
+	taskSvc, err := requireTaskService(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -168,7 +229,7 @@ func UpdateSchedule(ctx context.Context, id uint64, req model.UpdateScheduleRequ
 		return nil, errs.ErrInvalidCronExpression
 	}
 
-	taskSvc, err := requireTaskService()
+	taskSvc, err := requireTaskService(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -203,7 +264,7 @@ func DeleteSchedule(ctx context.Context, id uint64) error {
 		return fmt.Errorf("%s: %w", errs.ScheduleDeleteFailed, err)
 	}
 
-	if taskSvc := GetTaskService(); taskSvc != nil {
+	if taskSvc := GetTaskService(ctx); taskSvc != nil {
 		reloadScheduler(ctx, taskSvc)
 	}
 	return nil

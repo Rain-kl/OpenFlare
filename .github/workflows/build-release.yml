@@ -26,7 +26,7 @@ env:
     LICENSE
     README.md
     README_zh.md
-    config.example.yaml
+    manifest/config/config.default.yaml
     DEPLOYMENT_zh.md
 
 permissions:

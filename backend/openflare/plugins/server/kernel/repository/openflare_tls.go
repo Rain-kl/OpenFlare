@@ -8,17 +8,16 @@ import (
 	"errors"
 
 	"Wavelet/openflare/plugins/server/kernel/model"
-	db "Wavelet/plugins/infra/database"
 )
 
 // HasTLSProxyRoutesTable 判断代理规则表是否已迁移。
 func HasTLSProxyRoutesTable(ctx context.Context) bool {
-	return db.DB(ctx).Migrator().HasTable(&model.TLSProxyRouteRef{})
+	return DB(ctx).Migrator().HasTable(&model.TLSProxyRouteRef{})
 }
 
 // ListTLSCertificates 列出全部证书（不含 PEM 敏感字段的 JSON 暴露由 struct tag 控制）。
 func ListTLSCertificates(ctx context.Context) ([]model.TLSCertificate, error) {
-	conn := db.DB(ctx)
+	conn := DB(ctx)
 	if conn == nil {
 		return nil, errors.New(errDatabaseNotInitialized)
 	}
@@ -31,7 +30,7 @@ func ListTLSCertificates(ctx context.Context) ([]model.TLSCertificate, error) {
 
 // GetTLSCertificateByID 按 ID 查询证书。
 func GetTLSCertificateByID(ctx context.Context, id uint) (*model.TLSCertificate, error) {
-	conn := db.DB(ctx)
+	conn := DB(ctx)
 	if conn == nil {
 		return nil, errors.New(errDatabaseNotInitialized)
 	}
@@ -44,7 +43,7 @@ func GetTLSCertificateByID(ctx context.Context, id uint) (*model.TLSCertificate,
 
 // CreateTLSCertificateRecord 创建证书记录。
 func CreateTLSCertificateRecord(ctx context.Context, certificate *model.TLSCertificate) error {
-	conn := db.DB(ctx)
+	conn := DB(ctx)
 	if conn == nil {
 		return errors.New(errDatabaseNotInitialized)
 	}
@@ -53,7 +52,7 @@ func CreateTLSCertificateRecord(ctx context.Context, certificate *model.TLSCerti
 
 // SaveTLSCertificate 保存证书记录。
 func SaveTLSCertificate(ctx context.Context, certificate *model.TLSCertificate) error {
-	conn := db.DB(ctx)
+	conn := DB(ctx)
 	if conn == nil {
 		return errors.New(errDatabaseNotInitialized)
 	}
@@ -62,7 +61,7 @@ func SaveTLSCertificate(ctx context.Context, certificate *model.TLSCertificate) 
 
 // DeleteTLSCertificateRecord 删除证书记录。
 func DeleteTLSCertificateRecord(ctx context.Context, id uint) error {
-	conn := db.DB(ctx)
+	conn := DB(ctx)
 	if conn == nil {
 		return errors.New(errDatabaseNotInitialized)
 	}
@@ -71,7 +70,7 @@ func DeleteTLSCertificateRecord(ctx context.Context, id uint) error {
 
 // CountTLSCertificatesByDNSAccountID 统计引用指定 DNS 账号的证书数量。
 func CountTLSCertificatesByDNSAccountID(ctx context.Context, dnsAccountID uint) (int64, error) {
-	conn := db.DB(ctx)
+	conn := DB(ctx)
 	if conn == nil {
 		return 0, errors.New(errDatabaseNotInitialized)
 	}
@@ -88,7 +87,7 @@ func ListTLSProxyRouteRefs(ctx context.Context) ([]model.TLSProxyRouteRef, error
 		return nil, nil
 	}
 	var routes []model.TLSProxyRouteRef
-	if err := db.DB(ctx).Order("id asc").Find(&routes).Error; err != nil {
+	if err := DB(ctx).Order("id asc").Find(&routes).Error; err != nil {
 		return nil, err
 	}
 	return routes, nil

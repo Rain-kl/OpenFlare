@@ -10,8 +10,6 @@ import (
 
 	"Wavelet/openflare/plugins/server/kernel/model"
 
-	db "Wavelet/plugins/infra/database"
-
 	"github.com/glebarez/sqlite"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -27,9 +25,9 @@ func setupApplyLogModelTestDB(t *testing.T) func() {
 	require.NoError(t, err)
 	require.NoError(t, sqliteDB.AutoMigrate(&model.OpenFlareApplyLog{}))
 
-	db.SetDB(sqliteDB)
+	SetDBForTest(sqliteDB)
 	return func() {
-		db.SetDB(nil)
+		SetDBForTest(nil)
 	}
 }
 
@@ -53,14 +51,14 @@ func TestGetLatestOpenFlareApplyLogByNodeID(t *testing.T) {
 
 	ctx := context.Background()
 	now := time.Now().UTC()
-	require.NoError(t, db.DB(ctx).Create(&model.OpenFlareApplyLog{
+	require.NoError(t, DB(ctx).Create(&model.OpenFlareApplyLog{
 		NodeID:    "node-1",
 		Version:   "v1",
 		Result:    "success",
 		Checksum:  "checksum-1",
 		CreatedAt: now.Add(-time.Hour),
 	}).Error)
-	require.NoError(t, db.DB(ctx).Create(&model.OpenFlareApplyLog{
+	require.NoError(t, DB(ctx).Create(&model.OpenFlareApplyLog{
 		NodeID:    "node-1",
 		Version:   "v2",
 		Result:    "success",

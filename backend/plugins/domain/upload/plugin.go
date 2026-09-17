@@ -8,6 +8,7 @@ import (
 	"Wavelet/core"
 	"Wavelet/core/contracts"
 	"Wavelet/core/extpoints"
+	"Wavelet/pkg/ginutil"
 	"Wavelet/plugins/domain/upload/filesrv"
 	"Wavelet/plugins/domain/upload/handler"
 	"Wavelet/plugins/domain/upload/shared"
@@ -56,83 +57,57 @@ func (p *Plugin) Manifest() core.Manifest {
 
 // Apply registers upload routes, tasks, and settings into the Context.
 func (p *Plugin) Apply(ctx *core.Context) error {
-	// Bind DBService
-	if db, err := core.Inject[contracts.DBService](ctx); err == nil && db != nil {
-		shared.SetDBService(db)
-	} else {
-		core.When[contracts.DBService](ctx, func(db contracts.DBService) {
-			shared.SetDBService(db)
-		})
-	}
-
-	// Bind CacheService
-	if cache, err := core.Inject[contracts.CacheService](ctx); err == nil && cache != nil {
-		shared.SetCacheService(cache)
-	} else {
-		core.When[contracts.CacheService](ctx, func(cache contracts.CacheService) {
-			shared.SetCacheService(cache)
-		})
-	}
-
-	// Bind StorageService
-	if storage, err := core.Inject[contracts.StorageService](ctx); err == nil && storage != nil {
-		shared.SetStorageService(storage)
-	} else {
-		core.When[contracts.StorageService](ctx, func(storage contracts.StorageService) {
-			shared.SetStorageService(storage)
-		})
-	}
-
-	// Bind TaskService
-	if taskSvc, err := core.Inject[contracts.TaskService](ctx); err == nil && taskSvc != nil {
-		shared.SetTaskService(taskSvc)
-	} else {
-		core.When[contracts.TaskService](ctx, func(taskSvc contracts.TaskService) {
-			shared.SetTaskService(taskSvc)
-		})
-	}
-
-	// Bind AuthService
-	if authSvc, err := core.Inject[contracts.AuthService](ctx); err == nil && authSvc != nil {
-		shared.SetAuthService(authSvc)
-	} else {
-		core.When[contracts.AuthService](ctx, func(authSvc contracts.AuthService) {
-			shared.SetAuthService(authSvc)
-		})
-	}
+	core.Bind[contracts.DBService](ctx, shared.SetDBService)
+	core.Bind[contracts.CacheService](ctx, shared.SetCacheService)
+	core.Bind[contracts.StorageService](ctx, shared.SetStorageService)
+	core.Bind[contracts.TaskService](ctx, shared.SetTaskService)
+	core.Bind[contracts.AuthService](ctx, shared.SetAuthService)
+	core.Provide[contracts.UploadService](ctx, &uploadServiceImpl{})
 
 	ctx.OnDispose(func() error {
 		shared.ResetServices()
 		return nil
 	})
 
-	// 0. Resolve auth service for middleware
-	var authSvc contracts.AuthService
-	if err := core.Using[contracts.AuthService](ctx, func(svc contracts.AuthService) { authSvc = svc }); err != nil {
-		return err
+	denyAuth := ginutil.AuthUnavailable()
+	loginMW := func(c *gin.Context) {
+		if svc := shared.GetAuthService(c.Request.Context()); svc != nil {
+			if mw, ok := svc.RequireAuthMiddleware().(gin.HandlerFunc); ok && mw != nil {
+				mw(c)
+				return
+			}
+		}
+		denyAuth(c)
 	}
-	loginMW := authSvc.RequireAuthMiddleware().(gin.HandlerFunc)
+	adminMW := func(c *gin.Context) {
+		if svc := shared.GetAuthService(c.Request.Context()); svc != nil {
+			if mw, ok := svc.RequireAdminMiddleware().(gin.HandlerFunc); ok && mw != nil {
+				mw(c)
+				return
+			}
+		}
+		denyAuth(c)
+	}
 
 	// 0a. Register migrations
 	ctx.Migrations().Register("upload", uploadMigrations)
 
 	// 1. Register File Server Routes
-	ctx.Router().GET("/f/:id", filesrv.ServeFileByID)
+	// TIP: loginMW populates AuthUserObjKey so private files can be checked for ownership.
+	ctx.Router().GET("/f/:id", loginMW, filesrv.ServeFileByID)
 
 	// 2. Register User/Admin Upload HTTP Routes
 	uploadGroup := ctx.Router().Group("/api/v1/upload", loginMW)
 	{
 		uploadGroup.POST("", handler.UploadFile)
-		uploadGroup.GET("", handler.ListFiles)
-		uploadGroup.DELETE("/:id", handler.DeleteFile)
-		uploadGroup.POST("/batch-download", handler.BatchDownloadFiles)
+		uploadGroup.DELETE("/:id", handler.DeleteMyFile)
 		uploadGroup.GET("/my", handler.ListMyFiles)
 		uploadGroup.PUT("/:id", handler.UpdateMyFile)
 		uploadGroup.GET("/download/:id", handler.DownloadFile)
 		uploadGroup.POST("/download/batch", handler.BatchDownloadFiles)
 	}
 
-	adminUploadGroup := ctx.Router().Group("/api/v1/admin/uploads", loginMW)
+	adminUploadGroup := ctx.Router().Group("/api/v1/admin/uploads", loginMW, adminMW)
 	{
 		adminUploadGroup.GET("", handler.ListFiles)
 		adminUploadGroup.GET("/stats", handler.GetFileStats)
@@ -148,34 +123,16 @@ func (p *Plugin) Apply(ctx *core.Context) error {
 		defaultSingleRetry  = 1
 	)
 
-	// 3. Register tasks. Handlers take raw payload bytes rather than a driver
-	// specific task type so they run under both the asynq and in-process workers.
-	cleanupHandler := &task.SystemCleanupHandler{}
-	ctx.Task().Register(task.SystemCleanupTask, func(c context.Context, payload []byte) error {
-		_, err := cleanupHandler.Execute(c, payload)
-		return err
-	}, extpoints.WithTaskMeta(task.SystemCleanupMeta), extpoints.WithTaskRetry(defaultCleanupRetry))
+	ctx.Task().Register(task.SystemCleanupTask, &task.SystemCleanupHandler{}, extpoints.WithTaskMeta(task.SystemCleanupMeta), extpoints.WithTaskRetry(defaultCleanupRetry))
+	ctx.Task().Register(task.RebuildUploadStatsTask, &task.RebuildUploadStatsHandler{}, extpoints.WithTaskMeta(task.RebuildUploadStatsMeta), extpoints.WithTaskRetry(defaultStatsRetry))
+	ctx.Task().Register(task.StorageMigrationTask, &task.MigrationHandler{}, extpoints.WithTaskMeta(task.StorageMigrationMeta), extpoints.WithTaskRetry(defaultSingleRetry))
+	ctx.Task().Register(task.WarmImageCacheTask, &task.WarmImageCacheHandler{}, extpoints.WithTaskMeta(task.WarmImageCacheMeta), extpoints.WithTaskRetry(1))
 
-	rebuildStatsHandler := &task.RebuildUploadStatsHandler{}
-	ctx.Task().Register(task.RebuildUploadStatsTask, func(c context.Context, payload []byte) error {
-		_, err := rebuildStatsHandler.Execute(c, payload)
+	// 4. Register Event Listeners for domain events
+	ctx.Events().On(contracts.EventTopicSystemCleanup, func(c context.Context, _ contracts.SystemCleanupEvent) error {
+		_, _, err := task.CleanupOrphanUploads(c)
 		return err
-	}, extpoints.WithTaskMeta(task.RebuildUploadStatsMeta), extpoints.WithTaskRetry(defaultStatsRetry))
-
-	migrationHandler := &task.MigrationHandler{}
-	ctx.Task().Register(task.StorageMigrationTask, func(c context.Context, payload []byte) error {
-		_, err := migrationHandler.Execute(c, payload)
-		return err
-	}, extpoints.WithTaskMeta(task.StorageMigrationMeta), extpoints.WithTaskRetry(defaultSingleRetry))
-
-	warmHandler := &task.WarmImageCacheHandler{}
-	ctx.Task().Register(task.WarmImageCacheTask, func(c context.Context, payload []byte) error {
-		_, err := warmHandler.Execute(c, payload)
-		return err
-	}, extpoints.WithTaskMeta(task.WarmImageCacheMeta), extpoints.WithTaskRetry(1))
-
-	// 4. Register Cron Schedule
-	ctx.Schedule().RegisterCron("0 3 * * *", task.SystemCleanupTask, nil)
+	})
 
 	// 5. Register Settings Schemas
 	ctx.Settings().Register(extpoints.SettingSchema{

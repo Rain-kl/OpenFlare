@@ -7,6 +7,7 @@ package driver_http
 import (
 	"Wavelet/core"
 	"Wavelet/core/contracts"
+	_ "Wavelet/docs" // swagger documentation registration
 	"Wavelet/pkg/util"
 	"context"
 	"errors"
@@ -17,6 +18,8 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
 const (
@@ -118,27 +121,13 @@ func (p *Plugin) Apply(ctx *core.Context) error {
 	}
 	p.mu.Unlock()
 
-	// Bind DBService from Context
-	if db, err := core.Inject[contracts.DBService](ctx); err == nil && db != nil {
-		setDBService(db)
-	} else {
-		core.When[contracts.DBService](ctx, func(db contracts.DBService) {
-			setDBService(db)
-		})
-	}
+	core.Bind[contracts.DBService](ctx, setDBService)
 	ctx.OnDispose(func() error {
 		setDBService(nil)
 		return nil
 	})
 
-	// Bind CacheService from Context
-	if cache, err := core.Inject[contracts.CacheService](ctx); err == nil && cache != nil {
-		setCacheService(cache)
-	} else {
-		core.When[contracts.CacheService](ctx, func(cache contracts.CacheService) {
-			setCacheService(cache)
-		})
-	}
+	core.Bind[contracts.CacheService](ctx, setCacheService)
 	ctx.OnDispose(func() error {
 		setCacheService(nil)
 		return nil
@@ -181,29 +170,20 @@ func (p *Plugin) Start(ctx context.Context) error {
 		}
 	}
 
-	// Mount routes collected in Context RouterExtension
-	if p.coreCtx != nil && p.coreCtx.Router() != nil {
-		SetWhitelist(p.coreCtx.Router().Whitelist())
-		for _, rd := range p.coreCtx.Router().Routes() {
-			allHandlers := make([]gin.HandlerFunc, 0, len(rd.Middlewares)+len(rd.Handlers))
+	if err := p.mountContextRoutes(ctx); err != nil {
+		return err
+	}
 
-			for _, m := range rd.Middlewares {
-				gh, err := toGinHandler(m)
-				if err != nil {
-					return fmt.Errorf("driver_http: invalid middleware for route %s %s: %w", rd.Method, rd.Path, err)
-				}
-				allHandlers = append(allHandlers, gh)
+	// Mount Swagger in non-production environments
+	if p.coreCtx != nil {
+		var appCfg httpAppConfig
+		_ = p.coreCtx.Config().Bind("app", &appCfg)
+		if appCfg.Env != "production" && appCfg.Env != "prod" {
+			swaggerHandler := ginSwagger.WrapHandler(swaggerFiles.Handler)
+			p.engine.GET("/swagger/*any", swaggerHandler)
+			if appCfg.APIPrefix != "" {
+				p.engine.GET(appCfg.APIPrefix+"/swagger/*any", swaggerHandler)
 			}
-
-			for _, h := range rd.Handlers {
-				gh, err := toGinHandler(h)
-				if err != nil {
-					return fmt.Errorf("driver_http: invalid handler for route %s %s: %w", rd.Method, rd.Path, err)
-				}
-				allHandlers = append(allHandlers, gh)
-			}
-
-			p.engine.Handle(rd.Method, rd.Path, allHandlers...)
 		}
 	}
 
@@ -264,6 +244,56 @@ func (p *Plugin) Stop(ctx context.Context) error {
 	}
 
 	return err
+}
+
+func (p *Plugin) mountContextRoutes(ctx context.Context) error {
+	if p.coreCtx == nil || p.coreCtx.Router() == nil || p.engine == nil {
+		return nil
+	}
+	p.engine.Use(appContextMiddleware(ctx, p.coreCtx.Root()))
+	SetWhitelist(p.coreCtx.Router().Whitelist())
+
+	globalMW, err := toGinHandlers(p.coreCtx.Router().Middlewares())
+	if err != nil {
+		return fmt.Errorf("driver_http: invalid global middleware: %w", err)
+	}
+
+	for _, rd := range p.coreCtx.Router().Routes() {
+		routeMW, convErr := toGinHandlers(rd.Middlewares)
+		if convErr != nil {
+			return fmt.Errorf("driver_http: invalid middleware for route %s %s: %w", rd.Method, rd.Path, convErr)
+		}
+		handlers, convErr := toGinHandlers(rd.Handlers)
+		if convErr != nil {
+			return fmt.Errorf("driver_http: invalid handler for route %s %s: %w", rd.Method, rd.Path, convErr)
+		}
+		allHandlers := make([]gin.HandlerFunc, 0, len(globalMW)+len(routeMW)+len(handlers))
+		allHandlers = append(allHandlers, globalMW...)
+		allHandlers = append(allHandlers, routeMW...)
+		allHandlers = append(allHandlers, handlers...)
+		p.engine.Handle(rd.Method, rd.Path, allHandlers...)
+	}
+	return nil
+}
+
+func toGinHandlers(hs []any) ([]gin.HandlerFunc, error) {
+	out := make([]gin.HandlerFunc, 0, len(hs))
+	for _, h := range hs {
+		gh, err := toGinHandler(h)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, gh)
+	}
+	return out, nil
+}
+
+//nolint:contextcheck // middleware must wrap the gin request context, not Start's ctx
+func appContextMiddleware(_ context.Context, appCtx *core.Context) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.Request = c.Request.WithContext(core.WithAppContext(c.Request.Context(), appCtx))
+		c.Next()
+	}
 }
 
 // Addr returns the current listening address (or configured address if not yet started).

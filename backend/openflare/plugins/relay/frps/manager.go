@@ -21,6 +21,7 @@ import (
 	"time"
 
 	service "Wavelet/openflare/share/protocol"
+	"Wavelet/pkg/util"
 )
 
 const (
@@ -143,7 +144,7 @@ func (m *Manager) UpdateConfig(ctx context.Context, cfg *service.RelayConfig) {
 				m.lastError = err.Error()
 				return
 			}
-			go m.supervise(ctx, generation)
+			util.Go(func() { m.supervise(ctx, generation) })
 		}
 		return
 	}
@@ -167,7 +168,7 @@ func (m *Manager) UpdateConfig(ctx context.Context, cfg *service.RelayConfig) {
 		return
 	}
 
-	go m.supervise(ctx, generation)
+	util.Go(func() { m.supervise(ctx, generation) })
 }
 
 func (m *Manager) renderConfig(cfg *service.RelayConfig) error {

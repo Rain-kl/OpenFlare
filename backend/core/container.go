@@ -13,18 +13,20 @@ import (
 
 // Container manages service registration and resolution using Go reflection and generics.
 type Container struct {
-	mu        sync.RWMutex
-	parent    *Container
-	services  map[reflect.Type]any
-	listeners map[reflect.Type][]func(any)
+	mu             sync.RWMutex
+	parent         *Container
+	services       map[reflect.Type]any
+	interfaceCache map[reflect.Type]any
+	listeners      map[reflect.Type][]func(any)
 }
 
 // NewContainer creates a new IoC container instance with an optional parent container.
 func NewContainer(parent *Container) *Container {
 	return &Container{
-		parent:    parent,
-		services:  make(map[reflect.Type]any),
-		listeners: make(map[reflect.Type][]func(any)),
+		parent:         parent,
+		services:       make(map[reflect.Type]any),
+		interfaceCache: make(map[reflect.Type]any),
+		listeners:      make(map[reflect.Type][]func(any)),
 	}
 }
 
@@ -45,6 +47,7 @@ func (c *Container) remove(targetType reflect.Type) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	delete(c.services, targetType)
+	c.interfaceCache = make(map[reflect.Type]any)
 }
 
 // Provide registers a typed service implementation into the Context hierarchy's root IoC container.
@@ -88,6 +91,7 @@ func ProvideScoped[T any](ctx *Context, service T) {
 func (c *Container) provide(targetType reflect.Type, service any) {
 	c.mu.Lock()
 	c.services[targetType] = service
+	c.interfaceCache = make(map[reflect.Type]any)
 
 	// Collect any matching listeners to invoke outside the lock
 	var callbacks []func(any)
@@ -131,17 +135,14 @@ func (c *Container) resolve(targetType reflect.Type) (any, error) {
 		c.mu.RUnlock()
 		return val, nil
 	}
+	c.mu.RUnlock()
 
-	// 2. Interface assignment scan
+	// 2. Interface assignment scan & cache
 	if targetType.Kind() == reflect.Interface {
-		for _, val := range c.services {
-			if reflect.TypeOf(val).Implements(targetType) {
-				c.mu.RUnlock()
-				return val, nil
-			}
+		if val, found := c.resolveInterface(targetType); found {
+			return val, nil
 		}
 	}
-	c.mu.RUnlock()
 
 	// 3. Fallback to parent container
 	if c.parent != nil {
@@ -149,6 +150,35 @@ func (c *Container) resolve(targetType reflect.Type) (any, error) {
 	}
 
 	return nil, fmt.Errorf("%w: %v", ErrServiceNotFound, targetType)
+}
+
+func (c *Container) resolveInterface(targetType reflect.Type) (any, bool) {
+	c.mu.RLock()
+	if val, ok := c.interfaceCache[targetType]; ok {
+		c.mu.RUnlock()
+		return val, true
+	}
+
+	var matched any
+	for _, val := range c.services {
+		if reflect.TypeOf(val).Implements(targetType) {
+			matched = val
+			break
+		}
+	}
+	c.mu.RUnlock()
+
+	if matched == nil {
+		return nil, false
+	}
+
+	c.mu.Lock()
+	if c.interfaceCache == nil {
+		c.interfaceCache = make(map[reflect.Type]any)
+	}
+	c.interfaceCache[targetType] = matched
+	c.mu.Unlock()
+	return matched, true
 }
 
 // MustInject resolves a service of type T or panics if the service is not found.
@@ -201,13 +231,17 @@ func Using3[T1, T2, T3 any](ctx *Context, fn func(s1 T1, s2 T2, s3 T3)) error {
 
 // When registers a reactive hook that is called immediately if T is already provided,
 // or called as soon as T is provided in the future.
+//
+// Listeners are stored on the root container so they observe core.Provide, which
+// always writes to the root. Registering on a Fiber child container would miss
+// services provided by plugins that load later.
 func When[T any](ctx *Context, fn func(s T)) {
 	if ctx == nil {
 		panic("core: nil context provided to When")
 	}
 
 	targetType := reflect.TypeFor[T]()
-	c := ctx.Container()
+	c := ctx.Root().Container()
 
 	// If already ready, execute immediately
 	if s, err := Inject[T](ctx); err == nil {
@@ -222,4 +256,10 @@ func When[T any](ctx *Context, fn func(s T)) {
 			fn(typed)
 		}
 	})
+}
+
+// Bind is When with a name that matches plugin wiring: fill a dependency as
+// soon as the root container provides it.
+func Bind[T any](ctx *Context, fn func(s T)) {
+	When(ctx, fn)
 }

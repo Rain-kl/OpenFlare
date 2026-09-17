@@ -5,7 +5,6 @@ package logstore
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"math"
 	"time"
@@ -13,7 +12,6 @@ import (
 	"Wavelet/openflare/plugins/server/kernel/model"
 	analyticsmodel "Wavelet/openflare/plugins/server/kernel/model/analytics"
 	analyticsrepo "Wavelet/openflare/plugins/server/kernel/repository/analytics"
-	db "Wavelet/plugins/infra/database"
 
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
 )
@@ -37,11 +35,8 @@ var (
 	_ UserAccessLogStore = (*clickhouseUserAccessLogStore)(nil)
 )
 
-func chConnErr() error {
-	if db.ChConn == nil {
-		return errors.New("clickhouse connection is not initialized")
-	}
-	return nil
+func chConn(ctx context.Context) (driver.Conn, error) {
+	return analyticsrepo.ChConn(ctx)
 }
 
 // ensureWritable 迁移冻结期拒绝写入。
@@ -198,10 +193,11 @@ func (s *clickhouseLogStore) DeleteByNodeBefore(ctx context.Context, nodeID stri
 
 // ListForMigration 按 id 升序分页读取（迁移复制用）：直接查询 CH 原生表。
 func (s *clickhouseLogStore) ListForMigration(ctx context.Context, afterID uint64, limit int) ([]analyticsmodel.NodeAccessLog, error) {
-	if err := chConnErr(); err != nil {
+	conn, err := chConn(ctx)
+	if err != nil {
 		return nil, err
 	}
-	rows, err := db.ChConn.Query(ctx, `
+	rows, err := conn.Query(ctx, `
 SELECT `+analyticsmodel.NodeAccessLog{}.InsertColumns()+`
 FROM `+analyticsmodel.NodeAccessLog{}.TableName()+`
 WHERE id > ?
@@ -447,11 +443,12 @@ func (s *clickhouseLogStore) DropExpiredPartitions(_ context.Context, _ time.Tim
 
 // chMigrationRange 查询 CH 表时间列 MIN/MAX；空表（NULL）返回零值。
 func chMigrationRange(ctx context.Context, table, column string) (time.Time, time.Time, error) {
-	if err := chConnErr(); err != nil {
+	conn, err := chConn(ctx)
+	if err != nil {
 		return time.Time{}, time.Time{}, err
 	}
 	var minTime, maxTime *time.Time
-	if err := db.ChConn.QueryRow(ctx,
+	if err := conn.QueryRow(ctx,
 		"SELECT min("+column+"), max("+column+") FROM "+table,
 	).Scan(&minTime, &maxTime); err != nil {
 		return time.Time{}, time.Time{}, fmt.Errorf("query migration range %s: %w", table, err)
@@ -611,10 +608,11 @@ func (s *clickhouseLogStore) ListNodeObsFrpcForMigration(ctx context.Context, af
 
 // chListForMigration 执行按 id 升序分页的 CH 原生表查询，并交给 scanner 扫描。
 func chListForMigration[T any](ctx context.Context, afterID uint64, limit int, table, columns string, scanner func(driver.Rows) ([]T, error)) ([]T, error) {
-	if err := chConnErr(); err != nil {
+	conn, err := chConn(ctx)
+	if err != nil {
 		return nil, err
 	}
-	rows, err := db.ChConn.Query(ctx, `
+	rows, err := conn.Query(ctx, `
 SELECT `+columns+`
 FROM `+table+`
 WHERE id > ?

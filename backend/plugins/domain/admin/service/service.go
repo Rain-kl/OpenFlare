@@ -5,6 +5,7 @@
 package service
 
 import (
+	"Wavelet/core"
 	"Wavelet/core/contracts"
 	"Wavelet/plugins/domain/admin/errs"
 	"Wavelet/plugins/domain/admin/repository"
@@ -112,6 +113,9 @@ func ResetServices() {
 
 // GetDB returns the GORM DB instance bound to the context if available.
 func GetDB(ctx context.Context) *gorm.DB {
+	if s, err := core.InjectFrom[contracts.DBService](ctx); err == nil && s != nil {
+		return s.DB(ctx)
+	}
 	servicesMu.RLock()
 	defer servicesMu.RUnlock()
 	if dbService == nil {
@@ -121,42 +125,60 @@ func GetDB(ctx context.Context) *gorm.DB {
 }
 
 // GetCache returns the unified CacheService instance.
-func GetCache(_ context.Context) contracts.CacheService {
+func GetCache(ctx context.Context) contracts.CacheService {
+	if s, err := core.InjectFrom[contracts.CacheService](ctx); err == nil && s != nil {
+		return s
+	}
 	servicesMu.RLock()
 	defer servicesMu.RUnlock()
 	return cacheService
 }
 
 // GetUserService returns the UserService instance.
-func GetUserService(_ context.Context) contracts.UserService {
+func GetUserService(ctx context.Context) contracts.UserService {
+	if s, err := core.InjectFrom[contracts.UserService](ctx); err == nil && s != nil {
+		return s
+	}
 	servicesMu.RLock()
 	defer servicesMu.RUnlock()
 	return userService
 }
 
 // GetAuthService returns the AuthService instance.
-func GetAuthService(_ context.Context) contracts.AuthService {
+func GetAuthService(ctx context.Context) contracts.AuthService {
+	if s, err := core.InjectFrom[contracts.AuthService](ctx); err == nil && s != nil {
+		return s
+	}
 	servicesMu.RLock()
 	defer servicesMu.RUnlock()
 	return authService
 }
 
 // GetTaskService returns the TaskService instance.
-func GetTaskService() contracts.TaskService {
+func GetTaskService(ctx context.Context) contracts.TaskService {
+	if s, err := core.InjectFrom[contracts.TaskService](ctx); err == nil && s != nil {
+		return s
+	}
 	servicesMu.RLock()
 	defer servicesMu.RUnlock()
 	return taskService
 }
 
 // GetStorageService returns the StorageService instance.
-func GetStorageService() contracts.StorageService {
+func GetStorageService(ctx context.Context) contracts.StorageService {
+	if s, err := core.InjectFrom[contracts.StorageService](ctx); err == nil && s != nil {
+		return s
+	}
 	servicesMu.RLock()
 	defer servicesMu.RUnlock()
 	return storageSvc
 }
 
 // GetRiskControlService returns the RiskControlService instance.
-func GetRiskControlService() contracts.RiskControlService {
+func GetRiskControlService(ctx context.Context) contracts.RiskControlService {
+	if s, err := core.InjectFrom[contracts.RiskControlService](ctx); err == nil && s != nil {
+		return s
+	}
 	servicesMu.RLock()
 	defer servicesMu.RUnlock()
 	return riskControlService
@@ -195,8 +217,8 @@ func requireAuthService(ctx context.Context) (contracts.AuthService, error) {
 }
 
 // requireTaskService resolves the injected task contract service.
-func requireTaskService() (contracts.TaskService, error) {
-	taskSvc := GetTaskService()
+func requireTaskService(ctx context.Context) (contracts.TaskService, error) {
+	taskSvc := GetTaskService(ctx)
 	if taskSvc == nil {
 		return nil, errs.ErrTaskServiceUnavailable
 	}

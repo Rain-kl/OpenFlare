@@ -48,7 +48,7 @@ func abortTaskLogicError(c *gin.Context, err error) bool {
 // @Failure 403 {object} response.Any "无管理员权限"
 // @Router /api/v1/admin/tasks/types [get]
 func ListTaskTypes(c *gin.Context) {
-	c.JSON(http.StatusOK, response.OK(service.ListTaskTypes()))
+	c.JSON(http.StatusOK, response.OK(service.ListTaskTypes(c.Request.Context())))
 }
 
 // DispatchTask 下发任务

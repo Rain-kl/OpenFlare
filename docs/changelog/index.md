@@ -16,9 +16,11 @@ sidebar: false
 - Handler 把「记录不存在 → 404、其它错误 → 400」的分支改走上游 `response.AbortNotFoundIfMissing` / `AbortBadRequestOnError`，不再在 OpenFlare 里各写一份。
 - 控制面 `server` 插件按限界上下文重排目录：去掉 `openflare/` 与 `router/v1` 嵌套；业务在 `domain/`（site/fleet/pages 等），共享内核在 `kernel/`（model/repository 与适配器），HTTP 装配在 `httpapi`。接口路径与表结构不变。
 - `server` 插件把 stamp、of_* SQL 与 ClickHouse 迁入单一 `migrate/` 包，updater 提到 `server/updater/`；删除已停用的 76 条历史迁移。全新安装会写入 OpenFlare 定时任务与产品配置默认值，已 stamp 的升级库不重插。
+- 彻底治理跨组件调用与规约违例：严格遵循 Cordis 插件分层与单一表所有者原则，全面消除业务对上游内部实现的私有 import，统一面向 `backend/core/contracts` 编程；将契约 DTO 持久化解耦并增强通用标准库序列化支持回流 Wavelet 上游，全量架构规约检查与下游测试通过率达 100%。
 
 ### 💄 其他/体验
 
+- 对齐 Wavelet 架构配置与构建布局（提交 807343c8）：配置收敛至 `manifest/config/`（以 `config.default.yaml` 作为基础配置并支持 `config.yaml` 覆盖），Docker 镜像构建文件统一收敛至 `manifest/docker/` 并清理根目录冗余 `docker/` 目录，根目录 docker-compose 配置保持不变并切至新构建路径。
 - 内嵌前端拷贝目标改为 `backend/plugins/drivers/driver_http/dist`，与上游 `//go:embed all:dist` 对齐；发布工作流改为读取 `backend/go.mod`。仓库内 `.gitconfig` 提供 `merge.ours` 驱动，合并上游时保留 OpenFlare 自有路径；Wavelet 的 `build-image.yml` 与 `docker-compose.yml` 已隔离，避免 canary 发布成 wavelet 镜像。
 - 后端代码整体迁入 `backend/`，与上游 Wavelet 的仓库布局对齐（Cordis 插件化改造第一阶段），模块名保持 `Wavelet` 以保证上游包路径逐字一致。构建、测试、镜像与发布链路已同步调整，`make build-all` / `make dev` / `make swagger` 等本地命令用法不变；HTTP 接口与控制台行为均无变化。
 - 引入上游 Cordis 微内核与平台插件到 `backend/{core,pkg,plugins}`（与上游逐字一致，可用 `scripts/sync-upstream.sh` 重复同步），并新增 `backend/openflare/share/` 承载多插件共享资源（控制消息协议、GeoIP、边缘日志）。此阶段仅落位结构与共享层，尚未改变运行时行为。

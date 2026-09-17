@@ -17,7 +17,6 @@ import (
 
 	"Wavelet/openflare/plugins/server/kernel/model"
 	analyticsmodel "Wavelet/openflare/plugins/server/kernel/model/analytics"
-	db "Wavelet/plugins/infra/database"
 )
 
 // cleanupTestModels 清理涉及的 5 张日志/可观测表。
@@ -42,8 +41,10 @@ func newCleanupTestDB(t *testing.T) *gorm.DB {
 	if err := gdb.AutoMigrate(cleanupTestModels()...); err != nil {
 		t.Fatalf("automigrate: %v", err)
 	}
-	db.SetDB(gdb)
-	t.Cleanup(func() { db.SetDB(nil) })
+	SetDBResolver(func(ctx context.Context) *gorm.DB {
+		return gdb.WithContext(ctx)
+	})
+	t.Cleanup(func() { SetDBResolver(nil) })
 	return gdb
 }
 

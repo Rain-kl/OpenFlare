@@ -11,7 +11,6 @@ import (
 
 	"Wavelet/openflare/plugins/server/kernel/repository"
 	"Wavelet/pkg/response"
-	db "Wavelet/plugins/infra/database"
 
 	"github.com/gin-gonic/gin"
 )
@@ -58,7 +57,7 @@ func TestGetGroupWithOrphanedMemberHealsAndSucceeds(t *testing.T) {
 	}
 
 	// Simulate orphaned member by deleting the ZoneDomain directly
-	if err := db.DB(ctx).Exec("DELETE FROM of_zone_domains WHERE id = ?", member.ZoneDomainID).Error; err != nil {
+	if err := repository.DB(ctx).Exec("DELETE FROM of_zone_domains WHERE id = ?", member.ZoneDomainID).Error; err != nil {
 		t.Fatalf("DELETE FROM of_zone_domains error = %v", err)
 	}
 

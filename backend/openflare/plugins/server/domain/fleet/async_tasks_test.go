@@ -9,7 +9,6 @@ import (
 
 	"Wavelet/openflare/plugins/server/kernel/model"
 	"Wavelet/openflare/plugins/server/kernel/repository"
-	db "Wavelet/plugins/infra/database"
 
 	"github.com/glebarez/sqlite"
 	"github.com/stretchr/testify/assert"
@@ -23,8 +22,8 @@ func TestUptimeKumaSyncHandlerSkipsWhenDisabled(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.NoError(t, sqliteDB.AutoMigrate(&model.SystemConfig{}))
-	db.SetDB(sqliteDB)
-	t.Cleanup(func() { db.SetDB(nil) })
+	repository.SetDBForTest(sqliteDB)
+	t.Cleanup(func() { repository.SetDBForTest(nil) })
 
 	ctx := context.Background()
 	require.NoError(t, repository.SaveOrUpdateSystemConfig(ctx, model.ConfigKeyUptimeKumaEnabled, "false"))

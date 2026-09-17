@@ -10,12 +10,11 @@ import (
 	"gorm.io/gorm"
 
 	"Wavelet/openflare/plugins/server/kernel/model"
-	db "Wavelet/plugins/infra/database"
 )
 
 // GetAcmeAccountByID 按 ID 查询 ACME 账号。
 func GetAcmeAccountByID(ctx context.Context, id uint) (*model.AcmeAccount, error) {
-	conn := db.DB(ctx)
+	conn := DB(ctx)
 	if conn == nil {
 		return nil, errors.New(errDatabaseNotInitialized)
 	}
@@ -28,7 +27,7 @@ func GetAcmeAccountByID(ctx context.Context, id uint) (*model.AcmeAccount, error
 
 // CreateAcmeAccountRecord 创建 ACME 账号。
 func CreateAcmeAccountRecord(ctx context.Context, account *model.AcmeAccount) error {
-	conn := db.DB(ctx)
+	conn := DB(ctx)
 	if conn == nil {
 		return errors.New(errDatabaseNotInitialized)
 	}
@@ -37,7 +36,7 @@ func CreateAcmeAccountRecord(ctx context.Context, account *model.AcmeAccount) er
 
 // SaveAcmeAccount 保存 ACME 账号。
 func SaveAcmeAccount(ctx context.Context, account *model.AcmeAccount) error {
-	conn := db.DB(ctx)
+	conn := DB(ctx)
 	if conn == nil {
 		return errors.New(errDatabaseNotInitialized)
 	}
@@ -46,7 +45,7 @@ func SaveAcmeAccount(ctx context.Context, account *model.AcmeAccount) error {
 
 // GetDefaultAcmeAccount 获取默认 ACME 账号，不存在时创建占位记录。
 func GetDefaultAcmeAccount(ctx context.Context) (*model.AcmeAccount, error) {
-	conn := db.DB(ctx)
+	conn := DB(ctx)
 	if conn == nil {
 		return nil, errors.New(errDatabaseNotInitialized)
 	}

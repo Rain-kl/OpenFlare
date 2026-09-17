@@ -12,12 +12,11 @@ import (
 	"gorm.io/gorm"
 
 	"Wavelet/openflare/plugins/server/kernel/model"
-	db "Wavelet/plugins/infra/database"
 )
 
 // ListOpenFlareApplyLogs returns apply logs ordered by id desc with optional pagination.
 func ListOpenFlareApplyLogs(ctx context.Context, query model.OpenFlareApplyLogQuery) ([]*model.OpenFlareApplyLog, error) {
-	conn := db.DB(ctx)
+	conn := DB(ctx)
 	if conn == nil {
 		return nil, errors.New(errDatabaseNotInitialized)
 	}
@@ -43,7 +42,7 @@ func ListOpenFlareApplyLogs(ctx context.Context, query model.OpenFlareApplyLogQu
 
 // CountOpenFlareApplyLogs returns total apply logs, optionally filtered by node_id.
 func CountOpenFlareApplyLogs(ctx context.Context, nodeID string) (int64, error) {
-	conn := db.DB(ctx)
+	conn := DB(ctx)
 	if conn == nil {
 		return 0, errors.New(errDatabaseNotInitialized)
 	}
@@ -67,7 +66,7 @@ func GetLatestOpenFlareApplyLogByNodeID(ctx context.Context, nodeID string) (*mo
 		return nil, errors.New("node_id is required")
 	}
 
-	conn := db.DB(ctx)
+	conn := DB(ctx)
 	if conn == nil {
 		return nil, errors.New(errDatabaseNotInitialized)
 	}
@@ -90,7 +89,7 @@ func GetLatestOpenFlareApplyLogsByNodeIDs(ctx context.Context, nodeIDs []string)
 		return result, nil
 	}
 
-	conn := db.DB(ctx)
+	conn := DB(ctx)
 	if conn == nil {
 		return nil, errors.New(errDatabaseNotInitialized)
 	}
@@ -111,7 +110,7 @@ func GetLatestOpenFlareApplyLogsByNodeIDs(ctx context.Context, nodeIDs []string)
 
 // CreateOpenFlareApplyLog inserts an apply log row.
 func CreateOpenFlareApplyLog(ctx context.Context, log *model.OpenFlareApplyLog) error {
-	conn := db.DB(ctx)
+	conn := DB(ctx)
 	if conn == nil {
 		return errors.New(errDatabaseNotInitialized)
 	}
@@ -123,7 +122,7 @@ func CreateOpenFlareApplyLogAndUpdateNode(ctx context.Context, log *model.OpenFl
 	if log == nil {
 		return errors.New("apply log is required")
 	}
-	conn := db.DB(ctx)
+	conn := DB(ctx)
 	if conn == nil {
 		return errors.New(errDatabaseNotInitialized)
 	}
@@ -141,7 +140,7 @@ func CreateOpenFlareApplyLogAndUpdateNode(ctx context.Context, log *model.OpenFl
 
 // DeleteAllOpenFlareApplyLogs removes every apply log record.
 func DeleteAllOpenFlareApplyLogs(ctx context.Context) (int64, error) {
-	conn := db.DB(ctx)
+	conn := DB(ctx)
 	if conn == nil {
 		return 0, errors.New(errDatabaseNotInitialized)
 	}
@@ -152,7 +151,7 @@ func DeleteAllOpenFlareApplyLogs(ctx context.Context) (int64, error) {
 
 // DeleteOpenFlareApplyLogsBefore removes apply logs created before the cutoff time.
 func DeleteOpenFlareApplyLogsBefore(ctx context.Context, before time.Time) (int64, error) {
-	conn := db.DB(ctx)
+	conn := DB(ctx)
 	if conn == nil {
 		return 0, errors.New(errDatabaseNotInitialized)
 	}

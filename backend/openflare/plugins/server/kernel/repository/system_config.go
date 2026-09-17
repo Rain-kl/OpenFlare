@@ -6,112 +6,162 @@ package repository
 import (
 	"context"
 	"errors"
+	"sync"
 
+	"Wavelet/core/contracts"
 	"Wavelet/openflare/plugins/server/kernel/model"
-	adminrepo "Wavelet/plugins/domain/admin/repository"
-	db "Wavelet/plugins/infra/database"
 )
 
-const configTypeSystem = "system"
+var (
+	configMu  sync.RWMutex
+	configSvc contracts.SystemConfigService
+)
 
-// ensureAdminStore points OF config access at Wavelet's admin repository so
-// reads hit the same cache that SaveOrUpdateSystemConfig invalidates.
-func ensureAdminStore(ctx context.Context) error {
-	if conn := db.DB(ctx); conn != nil {
-		adminrepo.SetDBService(db.NewService(conn))
-	}
-	if adminrepo.GetDB(ctx) == nil {
-		return errors.New(errDatabaseNotInitialized)
-	}
-	return nil
+// SetSystemConfigService injects the platform SystemConfigService.
+func SetSystemConfigService(s contracts.SystemConfigService) {
+	configMu.Lock()
+	defer configMu.Unlock()
+	configSvc = s
 }
 
-// GetSystemConfigByKey loads a config row by key through the admin store cache.
+func currentConfigService() contracts.SystemConfigService {
+	configMu.RLock()
+	defer configMu.RUnlock()
+	return configSvc
+}
+
+func ensureConfigService() (contracts.SystemConfigService, error) {
+	svc := currentConfigService()
+	if svc == nil {
+		return nil, errors.New("system config service not initialized")
+	}
+	return svc, nil
+}
+
+// GetSystemConfigByKey loads a config row by key through the system config service.
 func GetSystemConfigByKey(ctx context.Context, key string) (model.SystemConfig, error) {
-	if err := ensureAdminStore(ctx); err != nil {
+	svc, err := ensureConfigService()
+	if err != nil {
 		return model.SystemConfig{}, err
 	}
-	return adminrepo.GetSystemConfigByKey(ctx, key)
+	dto, err := svc.GetByKey(ctx, key)
+	if err != nil {
+		return model.SystemConfig{}, err
+	}
+	return model.FromSystemConfigDTO(dto), nil
 }
 
-// ListSystemConfigsByKeys loads multiple config keys through the admin store cache.
+// ListSystemConfigsByKeys loads multiple config keys through the system config service.
 func ListSystemConfigsByKeys(ctx context.Context, keys []string) (map[string]model.SystemConfig, error) {
-	if err := ensureAdminStore(ctx); err != nil {
+	svc, err := ensureConfigService()
+	if err != nil {
 		return nil, err
 	}
-	return adminrepo.ListSystemConfigsByKeys(ctx, keys)
+	dtos, err := svc.ListByKeys(ctx, keys)
+	if err != nil {
+		return nil, err
+	}
+	res := make(map[string]model.SystemConfig, len(dtos))
+	for k, v := range dtos {
+		res[k] = model.FromSystemConfigDTO(v)
+	}
+	return res, nil
 }
 
-// ListVisibleSystemConfigs returns visibility=1 configs from the admin store cache.
+// ListVisibleSystemConfigs returns visibility=1 configs from the system config service.
 func ListVisibleSystemConfigs(ctx context.Context) ([]model.SystemConfig, error) {
-	if err := ensureAdminStore(ctx); err != nil {
+	svc, err := ensureConfigService()
+	if err != nil {
 		return nil, err
 	}
-	return adminrepo.ListVisibleSystemConfigs(ctx)
+	dtos, err := svc.ListVisible(ctx)
+	if err != nil {
+		return nil, err
+	}
+	res := make([]model.SystemConfig, len(dtos))
+	for i, v := range dtos {
+		res[i] = model.FromSystemConfigDTO(v)
+	}
+	return res, nil
 }
 
 // GetIntByKey queries config and converts to int.
 func GetIntByKey(ctx context.Context, key string) (int, error) {
-	if err := ensureAdminStore(ctx); err != nil {
+	svc, err := ensureConfigService()
+	if err != nil {
 		return 0, err
 	}
-	return adminrepo.GetIntByKey(ctx, key)
+	return svc.GetIntByKey(ctx, key)
 }
 
 // GetBoolByKey queries config and converts to bool.
 func GetBoolByKey(ctx context.Context, key string) (bool, error) {
-	if err := ensureAdminStore(ctx); err != nil {
+	svc, err := ensureConfigService()
+	if err != nil {
 		return false, err
 	}
-	return adminrepo.GetBoolByKey(ctx, key)
+	return svc.GetBoolByKey(ctx, key)
 }
 
 // CreateSystemConfig persists a new system config row.
 func CreateSystemConfig(ctx context.Context, config *model.SystemConfig) error {
-	if err := ensureAdminStore(ctx); err != nil {
+	svc, err := ensureConfigService()
+	if err != nil {
 		return err
 	}
-	return adminrepo.CreateSystemConfigRecord(ctx, config)
+	return svc.SaveOrUpdate(ctx, config.Key, config.Value)
 }
 
-// SaveOrUpdateSystemConfig creates or updates a config row and invalidates the admin cache.
+// SaveOrUpdateSystemConfig creates or updates a config row.
 func SaveOrUpdateSystemConfig(ctx context.Context, key, value string) error {
-	if err := ensureAdminStore(ctx); err != nil {
+	svc, err := ensureConfigService()
+	if err != nil {
 		return err
 	}
-	return adminrepo.SaveOrUpdateSystemConfig(ctx, key, value)
+	return svc.SaveOrUpdate(ctx, key, value)
 }
 
-// InvalidateSystemConfigCache evicts one key from Wavelet's system-config cache.
+// InvalidateSystemConfigCache evicts one key from the system-config cache.
 func InvalidateSystemConfigCache(ctx context.Context, key string) error {
-	if err := ensureAdminStore(ctx); err != nil {
+	svc, err := ensureConfigService()
+	if err != nil {
 		return err
 	}
-	return adminrepo.InvalidateSystemConfigCache(ctx, key)
+	return svc.InvalidateCache(ctx, key)
 }
 
-// InvalidateAllSystemConfigCaches evicts the whole Wavelet system-config cache.
+// InvalidateAllSystemConfigCaches evicts the whole system-config cache.
 func InvalidateAllSystemConfigCaches(ctx context.Context) error {
-	if err := ensureAdminStore(ctx); err != nil {
+	svc, err := ensureConfigService()
+	if err != nil {
 		return err
 	}
-	return adminrepo.InvalidateAllSystemConfigCaches(ctx)
+	return svc.InvalidateAllCaches(ctx)
 }
 
-// StopSystemConfigCacheListener is retained for existing tests.
-func StopSystemConfigCacheListener() {
-	adminrepo.StopSystemConfigCacheListener()
-}
+// StopSystemConfigCacheListener is retained for test compatibility.
+func StopSystemConfigCacheListener() {}
 
 // ResetSystemConfigRAMCacheForTest clears the process-local admin config cache.
 func ResetSystemConfigRAMCacheForTest() {
-	adminrepo.ResetSystemConfigRAMCacheForTest()
+	if svc := currentConfigService(); svc != nil {
+		_ = svc.InvalidateAllCaches(context.Background())
+	}
 }
 
 // ListAdminSystemConfigs returns configs, optionally filtered by type.
 func ListAdminSystemConfigs(ctx context.Context, configType string) ([]model.SystemConfig, error) {
-	if err := ensureAdminStore(ctx); err != nil {
+	svc, err := ensureConfigService()
+	if err != nil {
 		return nil, err
 	}
-	return adminrepo.ListAdminSystemConfigs(ctx, configType)
+	dtos, err := svc.ListByType(ctx, configType)
+	if err != nil {
+		return nil, err
+	}
+	res := make([]model.SystemConfig, len(dtos))
+	for i, v := range dtos {
+		res[i] = model.FromSystemConfigDTO(v)
+	}
+	return res, nil
 }

@@ -5,22 +5,17 @@ package analytics
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"slices"
 	"time"
 
 	analyticsmodel "Wavelet/openflare/plugins/server/kernel/model/analytics"
-	db "Wavelet/plugins/infra/database"
 
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
 )
 
 func observabilityConn() (driver.Conn, error) {
-	if db.ChConn == nil {
-		return nil, errors.New("clickhouse connection is not initialized")
-	}
-	return db.ChConn, nil
+	return ChConn(context.Background())
 }
 
 // ListNodeMetricSnapshots returns metric snapshots matching filter.

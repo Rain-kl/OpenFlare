@@ -399,3 +399,30 @@ func TestAuthWhitelistMiddleware(t *testing.T) {
 	engine.ServeHTTP(w2, req2)
 	assert.Equal(t, http.StatusUnauthorized, w2.Code)
 }
+
+func TestAdminRequiredReturnsForbiddenForLoggedInNonAdmin(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	db := setupTestDB(t)
+	require.NoError(t, db.Create(&testUser{ID: 42, Username: "member", IsActive: true, IsAdmin: false}).Error)
+
+	svc := newTestAuthService(t, db)
+	mw, ok := svc.RequireAdminMiddleware().(gin.HandlerFunc)
+	require.True(t, ok)
+
+	engine := newSessionEngine()
+	engine.Use(func(c *gin.Context) {
+		session := sessions.Default(c)
+		session.Set(auth.UserIDKey, uint64(42))
+		require.NoError(t, session.Save())
+		c.Next()
+	})
+	engine.Use(mw)
+	engine.GET("/admin-only", func(c *gin.Context) {
+		c.JSON(http.StatusOK, response.OK("ok"))
+	})
+
+	w := httptest.NewRecorder()
+	engine.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/admin-only", nil))
+	assert.Equal(t, http.StatusForbidden, w.Code)
+	assert.Contains(t, w.Body.String(), "权限不足")
+}

@@ -11,7 +11,6 @@ import (
 	"gorm.io/gorm"
 
 	"Wavelet/openflare/plugins/server/kernel/model"
-	db "Wavelet/plugins/infra/database"
 )
 
 const (
@@ -21,7 +20,7 @@ const (
 
 // ListOpenFlareNodes returns all nodes ordered by id desc.
 func ListOpenFlareNodes(ctx context.Context) ([]model.OpenFlareNode, error) {
-	conn := db.DB(ctx)
+	conn := DB(ctx)
 	if conn == nil {
 		return nil, errors.New(errDatabaseNotInitialized)
 	}
@@ -37,7 +36,7 @@ func ListOpenFlareNodesByNodeIDs(ctx context.Context, nodeIDs []string) ([]model
 	if len(nodeIDs) == 0 {
 		return []model.OpenFlareNode{}, nil
 	}
-	conn := db.DB(ctx)
+	conn := DB(ctx)
 	if conn == nil {
 		return nil, errors.New(errDatabaseNotInitialized)
 	}
@@ -50,7 +49,7 @@ func ListOpenFlareNodesByNodeIDs(ctx context.Context, nodeIDs []string) ([]model
 
 // GetOpenFlareNodeByID returns a node by primary key.
 func GetOpenFlareNodeByID(ctx context.Context, id uint) (*model.OpenFlareNode, error) {
-	conn := db.DB(ctx)
+	conn := DB(ctx)
 	if conn == nil {
 		return nil, errors.New(errDatabaseNotInitialized)
 	}
@@ -63,7 +62,7 @@ func GetOpenFlareNodeByID(ctx context.Context, id uint) (*model.OpenFlareNode, e
 
 // GetOpenFlareNodeByNodeID returns a node by node_id.
 func GetOpenFlareNodeByNodeID(ctx context.Context, nodeID string) (*model.OpenFlareNode, error) {
-	conn := db.DB(ctx)
+	conn := DB(ctx)
 	if conn == nil {
 		return nil, errors.New(errDatabaseNotInitialized)
 	}
@@ -76,7 +75,7 @@ func GetOpenFlareNodeByNodeID(ctx context.Context, nodeID string) (*model.OpenFl
 
 // GetOpenFlareNodeByAccessToken returns a node by access token.
 func GetOpenFlareNodeByAccessToken(ctx context.Context, token string) (*model.OpenFlareNode, error) {
-	conn := db.DB(ctx)
+	conn := DB(ctx)
 	if conn == nil {
 		return nil, errors.New(errDatabaseNotInitialized)
 	}
@@ -89,7 +88,7 @@ func GetOpenFlareNodeByAccessToken(ctx context.Context, token string) (*model.Op
 
 // CreateOpenFlareNode inserts a new node.
 func CreateOpenFlareNode(ctx context.Context, node *model.OpenFlareNode) error {
-	conn := db.DB(ctx)
+	conn := DB(ctx)
 	if conn == nil {
 		return errors.New(errDatabaseNotInitialized)
 	}
@@ -98,7 +97,7 @@ func CreateOpenFlareNode(ctx context.Context, node *model.OpenFlareNode) error {
 
 // SaveOpenFlareNode persists node changes.
 func SaveOpenFlareNode(ctx context.Context, node *model.OpenFlareNode) error {
-	conn := db.DB(ctx)
+	conn := DB(ctx)
 	if conn == nil {
 		return errors.New(errDatabaseNotInitialized)
 	}
@@ -107,7 +106,7 @@ func SaveOpenFlareNode(ctx context.Context, node *model.OpenFlareNode) error {
 
 // UpdateOpenFlareNodeFields updates selected columns for a node.
 func UpdateOpenFlareNodeFields(ctx context.Context, node *model.OpenFlareNode, fields ...string) error {
-	conn := db.DB(ctx)
+	conn := DB(ctx)
 	if conn == nil {
 		return errors.New(errDatabaseNotInitialized)
 	}
@@ -123,7 +122,7 @@ func UpdateOpenFlareNodeColumns(ctx context.Context, node *model.OpenFlareNode, 
 	if node == nil || len(changes) == 0 {
 		return nil
 	}
-	conn := db.DB(ctx)
+	conn := DB(ctx)
 	if conn == nil {
 		return errors.New(errDatabaseNotInitialized)
 	}
@@ -133,7 +132,7 @@ func UpdateOpenFlareNodeColumns(ctx context.Context, node *model.OpenFlareNode, 
 // UpdateOpenFlareNodeFromApplyResult updates node status, last_seen, version and last_error after an apply report.
 // When applyResult is "success", current_version is set and last_error is cleared; otherwise last_error is set to message.
 func UpdateOpenFlareNodeFromApplyResult(ctx context.Context, nodeID, applyResult, version, message string, now time.Time) error {
-	conn := db.DB(ctx)
+	conn := DB(ctx)
 	if conn == nil {
 		return errors.New(errDatabaseNotInitialized)
 	}
@@ -159,7 +158,7 @@ func updateOpenFlareNodeFromApplyResultTx(tx *gorm.DB, nodeID, applyResult, vers
 
 // DeleteOpenFlareNode removes a node by primary key.
 func DeleteOpenFlareNode(ctx context.Context, id uint) error {
-	conn := db.DB(ctx)
+	conn := DB(ctx)
 	if conn == nil {
 		return errors.New(errDatabaseNotInitialized)
 	}

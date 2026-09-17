@@ -7,18 +7,17 @@ import (
 	"context"
 
 	"Wavelet/openflare/plugins/server/kernel/model"
-	db "Wavelet/plugins/infra/database"
 )
 
 // HasPagesProjectsTable 判断 Pages 项目表是否已迁移。
 func HasPagesProjectsTable(ctx context.Context) bool {
-	return db.DB(ctx).Migrator().HasTable(&model.PagesProject{})
+	return DB(ctx).Migrator().HasTable(&model.PagesProject{})
 }
 
 // ListPagesProjects 列出全部 Pages 项目。
 func ListPagesProjects(ctx context.Context) ([]model.PagesProject, error) {
 	var projects []model.PagesProject
-	if err := db.DB(ctx).Order("id desc").Find(&projects).Error; err != nil {
+	if err := DB(ctx).Order("id desc").Find(&projects).Error; err != nil {
 		return nil, err
 	}
 	return projects, nil
@@ -27,7 +26,7 @@ func ListPagesProjects(ctx context.Context) ([]model.PagesProject, error) {
 // GetPagesProjectByID 按 ID 查询 Pages 项目。
 func GetPagesProjectByID(ctx context.Context, id uint) (*model.PagesProject, error) {
 	var project model.PagesProject
-	if err := db.DB(ctx).First(&project, id).Error; err != nil {
+	if err := DB(ctx).First(&project, id).Error; err != nil {
 		return nil, err
 	}
 	return &project, nil
@@ -36,7 +35,7 @@ func GetPagesProjectByID(ctx context.Context, id uint) (*model.PagesProject, err
 // GetPagesProjectBySlug 按 slug 查询 Pages 项目。
 func GetPagesProjectBySlug(ctx context.Context, slug string) (*model.PagesProject, error) {
 	var project model.PagesProject
-	if err := db.DB(ctx).Where("slug = ?", slug).First(&project).Error; err != nil {
+	if err := DB(ctx).Where("slug = ?", slug).First(&project).Error; err != nil {
 		return nil, err
 	}
 	return &project, nil
@@ -44,13 +43,13 @@ func GetPagesProjectBySlug(ctx context.Context, slug string) (*model.PagesProjec
 
 // CreatePagesProjectRecord 创建 Pages 项目。
 func CreatePagesProjectRecord(ctx context.Context, project *model.PagesProject) error {
-	return db.DB(ctx).Create(project).Error
+	return DB(ctx).Create(project).Error
 }
 
 // ListPagesDeployments 列出项目的全部部署。
 func ListPagesDeployments(ctx context.Context, projectID uint) ([]model.PagesDeployment, error) {
 	var deployments []model.PagesDeployment
-	if err := db.DB(ctx).Where("project_id = ?", projectID).Order("id desc").Find(&deployments).Error; err != nil {
+	if err := DB(ctx).Where("project_id = ?", projectID).Order("id desc").Find(&deployments).Error; err != nil {
 		return nil, err
 	}
 	return deployments, nil
@@ -59,7 +58,7 @@ func ListPagesDeployments(ctx context.Context, projectID uint) ([]model.PagesDep
 // GetPagesDeploymentByID 按 ID 查询 Pages 部署。
 func GetPagesDeploymentByID(ctx context.Context, id uint) (*model.PagesDeployment, error) {
 	var deployment model.PagesDeployment
-	if err := db.DB(ctx).First(&deployment, id).Error; err != nil {
+	if err := DB(ctx).First(&deployment, id).Error; err != nil {
 		return nil, err
 	}
 	return &deployment, nil
@@ -68,7 +67,7 @@ func GetPagesDeploymentByID(ctx context.Context, id uint) (*model.PagesDeploymen
 // ListPagesDeploymentFiles 列出部署文件清单。
 func ListPagesDeploymentFiles(ctx context.Context, deploymentID uint) ([]model.PagesDeploymentFile, error) {
 	var files []model.PagesDeploymentFile
-	if err := db.DB(ctx).Where("deployment_id = ?", deploymentID).Order("path asc").Find(&files).Error; err != nil {
+	if err := DB(ctx).Where("deployment_id = ?", deploymentID).Order("path asc").Find(&files).Error; err != nil {
 		return nil, err
 	}
 	return files, nil
@@ -77,7 +76,7 @@ func ListPagesDeploymentFiles(ctx context.Context, deploymentID uint) ([]model.P
 // CountPagesDeploymentsByProjectID 统计项目部署数量。
 func CountPagesDeploymentsByProjectID(ctx context.Context, projectID uint) (int64, error) {
 	var count int64
-	if err := db.DB(ctx).Model(&model.PagesDeployment{}).Where("project_id = ?", projectID).Count(&count).Error; err != nil {
+	if err := DB(ctx).Model(&model.PagesDeployment{}).Where("project_id = ?", projectID).Count(&count).Error; err != nil {
 		return 0, err
 	}
 	return count, nil
@@ -89,7 +88,7 @@ func CountProxyRoutesByPagesProjectID(ctx context.Context, projectID uint) (int6
 		return 0, nil
 	}
 	var count int64
-	if err := db.DB(ctx).Model(&model.ProxyRoute{}).Where("pages_project_id = ?", projectID).Count(&count).Error; err != nil {
+	if err := DB(ctx).Model(&model.ProxyRoute{}).Where("pages_project_id = ?", projectID).Count(&count).Error; err != nil {
 		return 0, err
 	}
 	return count, nil

@@ -94,6 +94,41 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 - 上游暂缺而确属通用能力时，可先在本仓库实现并登记到 `backend/openflare/upstream-patches.md`
   （merge 上游后请确认补丁仍在），回流 Wavelet 后删除登记并重新 merge。
 
+### Cordis 架构核心防线与分层规范
+- **微内核 (`backend/core/`)**：
+  - 上下文总线（`Context`）、泛型依赖注入（`Container`）、生命周期编排（`Lifecycle`）、扩展点定义（`extpoints/`）与领域事件总线（`EventBus`）。
+  - **严禁**包含任何具体业务逻辑，**严禁** import `gin`、`gorm`、`asynq` 等具体运行时依赖。
+- **服务契约 (`backend/core/contracts/`)**：
+  - 跨插件通信的统一公开 Go Interface（如 `AuthService`、`UserService`、`CacheService`、`DBService`、`StorageService`）与公共 DTO。
+  - **严禁**包含任何具体业务实现或 SQL 操作。
+- **自包含插件 (`backend/plugins/`)**：
+  - 所有业务功能与驱动实现均以插件形式存在（`backend/plugins/drivers/`、`backend/plugins/infra/`、`backend/plugins/domain/` 或下游 `backend/openflare/plugins/`）。
+  - 每个插件实现 `core.Plugin`（`Name() string` 与 `Apply(ctx *core.Context) error`）。
+  - **统一插件分层架构与标准模板**：
+    - **开发模板唯一基准**：所有插件统一以 `backend/downstream/plugins/custom_example` 为基准模板构建。
+    - **物理子包隔离规范**：统一采用物理子包结构（`plugin.go`, `consts/`, `controller/`, `service/`, `dao/`, `model/` [含 `entity/`, `do/`], `migrations/` [含 `postgres/`, `sqlite/`]）。**严禁在根包平铺 `handlers_*`、`service_*`、`dao_*` 等前缀文件**，子包内文件直接按业务实体命名（如 `hello.go`, `user.go`），严格约束 `controller -> service -> dao -> model` 单向依赖。
+- **插件通信与依赖隔离**：
+  - **严禁跨包 import internal/私有实现**：插件之间严禁直接 import 对方具体实现包代码。
+  - **单向服务契约调用**：调用方仅面向 `backend/core/contracts` 编程，在 `Apply` 中通过 `core.Provide[contracts.XxxService](ctx, svc)` 注册服务，通过 `core.Inject[contracts.XxxService](ctx)` 或 `ctx.Using(func(svc contracts.XxxService) { ... })` 声明式解析。
+  - **事件总线广播**：状态联动与解耦通信统一通过强类型事件 `ctx.Events().Emit()` 广播，由感兴趣的插件通过 `ctx.Events().On()` 订阅，消除双向依赖与循环引用。
+- **扩展点自包含注册**：
+  - **HTTP 路由与白名单机制**：
+    - 插件自包含在 `Apply` 中通过 `ctx.Router().Group(...)` 挂载路由与中间件，禁止跨插件散落注册。
+    - **白名单机制**：`driver_http` 与微内核扩展点提供路由白名单支持（`ctx.Router().RegisterWhitelist(patterns...)`），支持精确路径与通配符（如 `/api/v1/oauth/*`）。
+    - **所有权主动声明**：认证域（`auth` 插件）与各业务插件必须在 `Apply` 中主动注册其公开/免鉴权接口（如 `/api/v1/user/login`、`/api/v1/oauth/callback`、`/api/v1/cap/*` 等）。
+    - **鉴权中间件放行防线**：`auth` 提供的登录鉴权中间件（`LoginRequired`）必须先执行白名单匹配并自动放行，彻底杜绝免鉴权接口被全局或组级鉴权中间件误拦截（返回 401 Unauthorized）。
+  - **异步与定时任务**：插件自包含在 `Apply` 中通过 `ctx.Task().Register(...)` 与 `ctx.Schedule().RegisterCron(...)` 声明。
+  - **静态启动配置**：插件自包含在 `Apply` 中通过 `ctx.Config().Bind("<prefix>", &cfg)` 读取**自己声明**的配置，字段以 tag 表达来源：`config`（yaml 路径）、`env`（覆盖变量名）、`default`、`autoEnable`（该变量存在即置真）、`secret`（导出脱敏）。需要在 `Apply` 之前被门禁求值的键，必须在 `DeclareConfig()` 中提前声明并实现 `core.ConfigGatedPlugin`。新增基础设施 key 保持顶层命名（`redis.*`），插件私有配置归 `plugins.<name>.*`。**严禁**再造全局配置单例或在 `backend/pkg/` 读取配置。
+  - **动态设置**：插件自包含在 `Apply` 中通过 `ctx.Settings().Register(core.SettingSchema{...})` 声明可热更新的管理台设置模式（与上面的静态启动配置分属两层）。
+  - **数据迁移**：插件自包含在内部维护 `migrations/*.sql`，通过 `//go:embed` 打包并在 `Apply` 中通过 `ctx.Migrations().Register(pluginID, embedFS)` 注入。
+- **表单一所有者原则 (Single Owner Principle)**：
+  - 每张数据表有且仅由一个所有者插件声明与维护（表名使用插件前缀如 `w_order_*`）。
+  - 严禁插件 B 跨过所有者插件 A 直接 DDL/DML 旁路读写表 A，必须调用插件 A 暴露的 `contracts` 接口或订阅事件。
+- **平台服务复用**：
+  - 文件摄取统一使用 `upload.Ingest` / `contracts.StorageService`，禁止绕过存储域直接操作底层 Bucket 或直写文件表。
+  - 业务缓存统一使用 `ctx.Cache()`（`contracts.CacheService`）或标准缓存框架，禁止自研不带失效广播的本地 map。
+  - 数据库操作通过 `ctx.DB()`（`contracts.DBService`）获取受事务与 Trace 保护的连接。
+
 - 禁止删除 `frontend/node_modules`。
 - `backend/pkg/util/` 保持纯净：禁止导入 Gin、GORM、sessions 等 HTTP/Web/DB 框架（会话选项在 `backend/openflare/plugins/server/oauth/session.go`）。
 - 测试临时目录只用 `t.TempDir()`，禁止硬编码相对路径写源码树。

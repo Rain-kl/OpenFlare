@@ -13,16 +13,15 @@ import (
 	"Wavelet/openflare/plugins/server/kernel/repository"
 
 	"Wavelet/openflare/plugins/server/kernel/model"
-	db "Wavelet/plugins/infra/database"
 )
 
 func setupPagesSourceTest(t *testing.T) context.Context {
 	t.Helper()
 	cleanup := setupPagesTestDB(t)
 	t.Cleanup(cleanup)
-	sqlDB, err := db.DB(t.Context()).DB()
+	sqlDB, err := repository.DB(t.Context()).DB()
 	if err != nil {
-		t.Fatalf("db.DB().DB() error = %v, want nil", err)
+		t.Fatalf("repository.DB().DB() error = %v, want nil", err)
 	}
 	// SQLite :memory: is scoped to one connection. Keeping one connection also
 	// makes lease tests exercise the production CAS without creating empty
@@ -93,11 +92,11 @@ func mustConfigureRemoteSource(
 		t.Fatalf("UpdateSource(%d, %q) error = %v, want nil", projectID, remoteURL, err)
 	}
 	var source model.PagesProjectSource
-	if err := db.DB(ctx).Where("project_id = ?", projectID).First(&source).Error; err != nil {
+	if err := repository.DB(ctx).Where("project_id = ?", projectID).First(&source).Error; err != nil {
 		t.Fatalf("load source for project %d error = %v, want nil", projectID, err)
 	}
 	var runtime model.PagesProjectSourceRuntime
-	if err := db.DB(ctx).Where("source_id = ?", source.ID).First(&runtime).Error; err != nil {
+	if err := repository.DB(ctx).Where("source_id = ?", source.ID).First(&runtime).Error; err != nil {
 		t.Fatalf("load runtime for source %d error = %v, want nil", source.ID, err)
 	}
 	return &source, &runtime
@@ -187,7 +186,7 @@ func TestRemoteSourceCRUDPreservesSecretAndResetsRuntimeByIdentity(t *testing.T)
 		t.Fatalf("UpdateSource(%d, no-op) error = %v, want nil", project.ID, err)
 	}
 	var unchangedSource model.PagesProjectSource
-	if err := db.DB(ctx).Where("id = ?", source.ID).First(&unchangedSource).Error; err != nil {
+	if err := repository.DB(ctx).Where("id = ?", source.ID).First(&unchangedSource).Error; err != nil {
 		t.Fatalf("load no-op source error = %v, want nil", err)
 	}
 	if got, want := unchangedSource.ConfigVersion, source.ConfigVersion; got != want {
@@ -197,7 +196,7 @@ func TestRemoteSourceCRUDPreservesSecretAndResetsRuntimeByIdentity(t *testing.T)
 	seenRevision := strings.Repeat("a", 64)
 	appliedRevision := strings.Repeat("b", 64)
 	future := time.Now().Add(time.Hour)
-	if err := db.DB(ctx).Model(&model.PagesProjectSourceRuntime{}).
+	if err := repository.DB(ctx).Model(&model.PagesProjectSourceRuntime{}).
 		Where("source_id = ?", source.ID).
 		Updates(map[string]any{
 			"last_seen_revision":    seenRevision,
@@ -327,10 +326,10 @@ func TestDeleteSourceIsIdempotentAndKeepsDeploymentState(t *testing.T) {
 		SourceType:       "manual_upload",
 		TriggerType:      "manual_upload",
 	}
-	if err := db.DB(ctx).Create(deployment).Error; err != nil {
+	if err := repository.DB(ctx).Create(deployment).Error; err != nil {
 		t.Fatalf("create deployment error = %v, want nil", err)
 	}
-	if err := db.DB(ctx).Model(&model.PagesProject{}).
+	if err := repository.DB(ctx).Model(&model.PagesProject{}).
 		Where("id = ?", project.ID).
 		Update("active_deployment_id", deployment.ID).Error; err != nil {
 		t.Fatalf("set active deployment error = %v, want nil", err)
@@ -346,13 +345,13 @@ func TestDeleteSourceIsIdempotentAndKeepsDeploymentState(t *testing.T) {
 		}
 	}
 	var sourceCount, runtimeCount, deploymentCount int64
-	if err := db.DB(ctx).Model(&model.PagesProjectSource{}).Where("id = ?", source.ID).Count(&sourceCount).Error; err != nil {
+	if err := repository.DB(ctx).Model(&model.PagesProjectSource{}).Where("id = ?", source.ID).Count(&sourceCount).Error; err != nil {
 		t.Fatalf("count source error = %v, want nil", err)
 	}
-	if err := db.DB(ctx).Model(&model.PagesProjectSourceRuntime{}).Where("source_id = ?", source.ID).Count(&runtimeCount).Error; err != nil {
+	if err := repository.DB(ctx).Model(&model.PagesProjectSourceRuntime{}).Where("source_id = ?", source.ID).Count(&runtimeCount).Error; err != nil {
 		t.Fatalf("count runtime error = %v, want nil", err)
 	}
-	if err := db.DB(ctx).Model(&model.PagesDeployment{}).Where("id = ?", deployment.ID).Count(&deploymentCount).Error; err != nil {
+	if err := repository.DB(ctx).Model(&model.PagesDeployment{}).Where("id = ?", deployment.ID).Count(&deploymentCount).Error; err != nil {
 		t.Fatalf("count deployment error = %v, want nil", err)
 	}
 	if sourceCount != 0 || runtimeCount != 0 || deploymentCount != 1 {

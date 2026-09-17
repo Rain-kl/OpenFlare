@@ -16,6 +16,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"Wavelet/pkg/util"
 )
 
 const emitAckTimeout = 10 * time.Second
@@ -137,7 +139,7 @@ func (c *SocketIOClient) Connect() error {
 	_ = respConnect.Body.Close()
 	slog.Debug("Namespace connected successfully to Uptime Kuma", "sid", c.sid)
 
-	go c.pollLoop()
+	util.Go(c.pollLoop)
 
 	return nil
 }

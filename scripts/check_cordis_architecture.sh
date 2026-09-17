@@ -65,11 +65,11 @@ else
 fi
 
 # 1.2 core/ 禁止导入任何插件
-CORE_PLUGIN_IMPORTS=$(rg -n "\"${MODULE}/plugins/|\"${MODULE}/downstream/" \
+CORE_PLUGIN_IMPORTS=$(rg -n "\"${MODULE}/plugins/|\"${MODULE}/downstream/|\"${MODULE}/openflare/" \
     "${BACKEND_DIR}/core/" --glob '*.go' -g '!*_test.go' || true)
 
 if [ -n "${CORE_PLUGIN_IMPORTS}" ]; then
-    log_fail "backend/core/ 严禁直接依赖具体插件 (plugins/ 或 downstream/):"
+    log_fail "backend/core/ 严禁直接依赖具体插件 (plugins/, downstream/ 或 openflare/):"
     echo "${CORE_PLUGIN_IMPORTS}" >&2
 else
     log_pass "backend/core/ 零插件反向依赖"
@@ -80,7 +80,7 @@ fi
 # ==============================================================================
 log_check "2. 检查契约层 (backend/core/contracts/) 抽象纯洁度..."
 
-CONTRACTS_PLUGIN_IMPORTS=$(rg -n "\"${MODULE}/plugins/|\"${MODULE}/downstream/|\"github.com/gin-gonic/gin\"|\"github.com/hibiken/asynq\"" \
+CONTRACTS_PLUGIN_IMPORTS=$(rg -n "\"${MODULE}/plugins/|\"${MODULE}/downstream/|\"${MODULE}/openflare/|\"github.com/gin-gonic/gin\"|\"github.com/hibiken/asynq\"" \
     "${BACKEND_DIR}/core/contracts/" --glob '*.go' || true)
 
 if [ -n "${CONTRACTS_PLUGIN_IMPORTS}" ]; then
@@ -109,18 +109,29 @@ fi
 # ==============================================================================
 log_check "3. 检查基础库 (backend/pkg/) 纯洁度..."
 
-# 3.1 pkg/ 严禁导入 plugins/
-PKG_PLUGIN_IMPORTS=$(rg -n "\"${MODULE}/plugins/" \
+# 3.1 pkg/ 严禁导入 plugins/, downstream/, openflare/
+PKG_PLUGIN_IMPORTS=$(rg -n "\"${MODULE}/plugins/|\"${MODULE}/downstream/|\"${MODULE}/openflare/" \
     "${BACKEND_DIR}/pkg/" --glob '*.go' -g '!*testhelper*' -g '!*_test.go' || true)
 
 if [ -n "${PKG_PLUGIN_IMPORTS}" ]; then
-    log_fail "backend/pkg/ 严禁导入任何上层 plugins/:"
+    log_fail "backend/pkg/ 严禁导入任何上层 plugins/, downstream/ 或 openflare/:"
     echo "${PKG_PLUGIN_IMPORTS}" >&2
 else
     log_pass "backend/pkg/ 零插件依赖"
 fi
 
-# 3.2 pkg/util/ 严禁导入 Gin / ORM / Session 框架
+# 3.2 pkg/ 严禁导入 core/ (微内核与契约层)
+PKG_CORE_IMPORTS=$(rg -n "\"${MODULE}/core(/|\")" \
+    "${BACKEND_DIR}/pkg/" --glob '*.go' -g '!*testhelper*' -g '!*_test.go' || true)
+
+if [ -n "${PKG_CORE_IMPORTS}" ]; then
+    log_fail "backend/pkg/ 属于通用基础库，严禁依赖项目上层内核或契约 (${MODULE}/core/*):"
+    echo "${PKG_CORE_IMPORTS}" >&2
+else
+    log_pass "backend/pkg/ 零 core/ 依赖"
+fi
+
+# 3.3 pkg/util/ 严禁导入 Gin / ORM / Session 框架
 UTIL_FRAMEWORK_IMPORTS=$(rg -n '"gorm.io/gorm"|"github.com/gorilla/sessions"|"github.com/gin-gonic/gin"' \
     "${BACKEND_DIR}/pkg/util/" --glob '*.go' -g '!*_test.go' || true)
 
@@ -167,6 +178,30 @@ if [ -d "${BACKEND_DIR}/downstream/plugins" ]; then
             -g '*.go' -g '!*_test.go' 2>/dev/null || true)
         if [ -n "$downstream_cross" ]; then
             CROSS_PLUGIN_IMPORTS="${CROSS_PLUGIN_IMPORTS}\n[downstream/${downstream_name} 违规直接引用内部插件实现]:\n${downstream_cross}\n"
+        fi
+    done
+fi
+
+# 检查 openflare/plugins/ 下的下游插件间隔离性
+if [ -d "${BACKEND_DIR}/openflare/plugins" ]; then
+    for openflare_dir in "${BACKEND_DIR}"/openflare/plugins/*/; do
+        [ -d "$openflare_dir" ] || continue
+        openflare_name=$(basename "$openflare_dir")
+        openflare_self_prefix="${MODULE}/openflare/plugins/${openflare_name}"
+
+        # 检查 openflare 插件之间是否违规跨插件直接 import
+        openflare_cross=$(rg -n "\"${MODULE}/openflare/plugins/" "${openflare_dir}" \
+            -g '*.go' -g '!*_test.go' 2>/dev/null | rg -v "\"${openflare_self_prefix}(/|\")" || true)
+
+        if [ -n "$openflare_cross" ]; then
+            CROSS_PLUGIN_IMPORTS="${CROSS_PLUGIN_IMPORTS}\n[openflare/plugins/${openflare_name} 违规引用其他 openflare 插件]:\n${openflare_cross}\n"
+        fi
+
+        # 检查 openflare 插件是否违规直接引用上游内部插件实现 (Wavelet/plugins/)
+        openflare_upstream_cross=$(rg -n "\"${MODULE}/plugins/" "${openflare_dir}" \
+            -g '*.go' -g '!*_test.go' 2>/dev/null || true)
+        if [ -n "$openflare_upstream_cross" ]; then
+            CROSS_PLUGIN_IMPORTS="${CROSS_PLUGIN_IMPORTS}\n[openflare/plugins/${openflare_name} 违规直接引用上游插件实现]:\n${openflare_upstream_cross}\n"
         fi
     done
 fi

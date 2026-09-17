@@ -8,7 +8,6 @@ import (
 	"errors"
 
 	"Wavelet/openflare/plugins/server/kernel/model"
-	db "Wavelet/plugins/infra/database"
 
 	"gorm.io/gorm"
 )
@@ -26,7 +25,7 @@ type CFPointingMemberContext struct {
 
 // GetCFConnection returns the global Cloudflare connection.
 func GetCFConnection(ctx context.Context) (*model.CFConnection, error) {
-	conn := db.DB(ctx)
+	conn := DB(ctx)
 	if conn == nil {
 		return nil, errors.New(errDatabaseNotInitialized)
 	}
@@ -39,7 +38,7 @@ func GetCFConnection(ctx context.Context) (*model.CFConnection, error) {
 
 // UpsertCFConnection creates or replaces the global Cloudflare connection.
 func UpsertCFConnection(ctx context.Context, item *model.CFConnection) error {
-	conn := db.DB(ctx)
+	conn := DB(ctx)
 	if conn == nil {
 		return errors.New(errDatabaseNotInitialized)
 	}
@@ -49,7 +48,7 @@ func UpsertCFConnection(ctx context.Context, item *model.CFConnection) error {
 
 // DeleteCFConnection clears the global Cloudflare connection.
 func DeleteCFConnection(ctx context.Context) error {
-	conn := db.DB(ctx)
+	conn := DB(ctx)
 	if conn == nil {
 		return errors.New(errDatabaseNotInitialized)
 	}
@@ -59,7 +58,7 @@ func DeleteCFConnection(ctx context.Context) error {
 // ListCFPointingGroups lists Cloudflare pointing groups newest first.
 func ListCFPointingGroups(ctx context.Context) ([]model.CFPointingGroup, error) {
 	var items []model.CFPointingGroup
-	if err := db.DB(ctx).Order("id desc").Find(&items).Error; err != nil {
+	if err := DB(ctx).Order("id desc").Find(&items).Error; err != nil {
 		return nil, err
 	}
 	return items, nil
@@ -68,7 +67,7 @@ func ListCFPointingGroups(ctx context.Context) ([]model.CFPointingGroup, error) 
 // GetCFPointingGroup returns a group by ID.
 func GetCFPointingGroup(ctx context.Context, id uint) (*model.CFPointingGroup, error) {
 	var item model.CFPointingGroup
-	if err := db.DB(ctx).First(&item, id).Error; err != nil {
+	if err := DB(ctx).First(&item, id).Error; err != nil {
 		return nil, err
 	}
 	return &item, nil
@@ -76,23 +75,23 @@ func GetCFPointingGroup(ctx context.Context, id uint) (*model.CFPointingGroup, e
 
 // CreateCFPointingGroup creates a group.
 func CreateCFPointingGroup(ctx context.Context, item *model.CFPointingGroup) error {
-	return db.DB(ctx).Create(item).Error
+	return DB(ctx).Create(item).Error
 }
 
 // SaveCFPointingGroup persists a group.
 func SaveCFPointingGroup(ctx context.Context, item *model.CFPointingGroup) error {
-	return db.DB(ctx).Save(item).Error
+	return DB(ctx).Save(item).Error
 }
 
 // DeleteCFPointingGroup deletes an empty group.
 func DeleteCFPointingGroup(ctx context.Context, id uint) error {
-	return db.DB(ctx).Delete(&model.CFPointingGroup{}, id).Error
+	return DB(ctx).Delete(&model.CFPointingGroup{}, id).Error
 }
 
 // CountCFPointingMembersByGroupID counts members in a group.
 func CountCFPointingMembersByGroupID(ctx context.Context, groupID uint) (int64, error) {
 	var count int64
-	err := db.DB(ctx).Table("of_cf_pointing_members AS members").
+	err := DB(ctx).Table("of_cf_pointing_members AS members").
 		Joins("JOIN of_zone_domains AS domains ON domains.id = members.zone_domain_id").
 		Where("members.group_id = ?", groupID).Count(&count).Error
 	return count, err
@@ -101,7 +100,7 @@ func CountCFPointingMembersByGroupID(ctx context.Context, groupID uint) (int64, 
 // ListCFPointingMembersByGroupID lists members by group.
 func ListCFPointingMembersByGroupID(ctx context.Context, groupID uint) ([]model.CFPointingMember, error) {
 	var items []model.CFPointingMember
-	if err := db.DB(ctx).Where("group_id = ?", groupID).Order("id asc").Find(&items).Error; err != nil {
+	if err := DB(ctx).Where("group_id = ?", groupID).Order("id asc").Find(&items).Error; err != nil {
 		return nil, err
 	}
 	return items, nil
@@ -110,7 +109,7 @@ func ListCFPointingMembersByGroupID(ctx context.Context, groupID uint) ([]model.
 // ListCFPointingMembersByActiveNodeID lists members whose group currently targets a node.
 func ListCFPointingMembersByActiveNodeID(ctx context.Context, nodeID uint) ([]model.CFPointingMember, error) {
 	var items []model.CFPointingMember
-	err := db.DB(ctx).Table("of_cf_pointing_members AS members").
+	err := DB(ctx).Table("of_cf_pointing_members AS members").
 		Select("members.*").
 		Joins("JOIN of_cf_pointing_groups AS groups ON groups.id = members.group_id").
 		Where("groups.active_node_id = ? AND groups.enabled = ?", nodeID, true).
@@ -121,7 +120,7 @@ func ListCFPointingMembersByActiveNodeID(ctx context.Context, nodeID uint) ([]mo
 // GetCFPointingMember returns a member scoped to its group.
 func GetCFPointingMember(ctx context.Context, groupID, memberID uint) (*model.CFPointingMember, error) {
 	var item model.CFPointingMember
-	if err := db.DB(ctx).Where("id = ? AND group_id = ?", memberID, groupID).First(&item).Error; err != nil {
+	if err := DB(ctx).Where("id = ? AND group_id = ?", memberID, groupID).First(&item).Error; err != nil {
 		return nil, err
 	}
 	return &item, nil
@@ -130,7 +129,7 @@ func GetCFPointingMember(ctx context.Context, groupID, memberID uint) (*model.CF
 // GetCFPointingMemberByID returns a member by ID.
 func GetCFPointingMemberByID(ctx context.Context, id uint) (*model.CFPointingMember, error) {
 	var item model.CFPointingMember
-	if err := db.DB(ctx).First(&item, id).Error; err != nil {
+	if err := DB(ctx).First(&item, id).Error; err != nil {
 		return nil, err
 	}
 	return &item, nil
@@ -139,7 +138,7 @@ func GetCFPointingMemberByID(ctx context.Context, id uint) (*model.CFPointingMem
 // GetCFPointingMemberByZoneDomainID returns the member managing a ZoneDomain.
 func GetCFPointingMemberByZoneDomainID(ctx context.Context, zoneDomainID uint) (*model.CFPointingMember, error) {
 	var item model.CFPointingMember
-	if err := db.DB(ctx).Where("zone_domain_id = ?", zoneDomainID).First(&item).Error; err != nil {
+	if err := DB(ctx).Where("zone_domain_id = ?", zoneDomainID).First(&item).Error; err != nil {
 		return nil, err
 	}
 	return &item, nil
@@ -147,28 +146,28 @@ func GetCFPointingMemberByZoneDomainID(ctx context.Context, zoneDomainID uint) (
 
 // CreateCFPointingMember creates a member.
 func CreateCFPointingMember(ctx context.Context, item *model.CFPointingMember) error {
-	return db.DB(ctx).Create(item).Error
+	return DB(ctx).Create(item).Error
 }
 
 // SaveCFPointingMember persists a member.
 func SaveCFPointingMember(ctx context.Context, item *model.CFPointingMember) error {
-	return db.DB(ctx).Save(item).Error
+	return DB(ctx).Save(item).Error
 }
 
 // UpdateCFPointingMemberColumns updates selected member fields.
 func UpdateCFPointingMemberColumns(ctx context.Context, id uint, changes map[string]any) error {
-	return db.DB(ctx).Model(&model.CFPointingMember{}).Where("id = ?", id).Updates(changes).Error
+	return DB(ctx).Model(&model.CFPointingMember{}).Where("id = ?", id).Updates(changes).Error
 }
 
 // DeleteCFPointingMember deletes a member.
 func DeleteCFPointingMember(ctx context.Context, item *model.CFPointingMember) error {
-	return db.DB(ctx).Delete(item).Error
+	return DB(ctx).Delete(item).Error
 }
 
 // ListAvailableCFZoneDomains returns ZoneDomains not already managed by Cloudflare pointing.
 func ListAvailableCFZoneDomains(ctx context.Context) ([]model.ZoneDomain, error) {
 	var items []model.ZoneDomain
-	err := db.DB(ctx).Where(`NOT EXISTS (
+	err := DB(ctx).Where(`NOT EXISTS (
 		SELECT 1 FROM of_cf_pointing_members AS members
 		WHERE members.zone_domain_id = of_zone_domains.id
 	)`).Order("domain asc").Find(&items).Error
@@ -203,7 +202,7 @@ func GetCFPointingMemberContext(ctx context.Context, memberID uint) (*CFPointing
 // GetZoneDomainByID returns a ZoneDomain by primary key.
 func GetZoneDomainByID(ctx context.Context, id uint) (*model.ZoneDomain, error) {
 	var item model.ZoneDomain
-	if err := db.DB(ctx).First(&item, id).Error; err != nil {
+	if err := DB(ctx).First(&item, id).Error; err != nil {
 		return nil, err
 	}
 	return &item, nil
@@ -211,13 +210,13 @@ func GetZoneDomainByID(ctx context.Context, id uint) (*model.ZoneDomain, error) 
 
 // MarkCFPointingGroupMembersPending resets every member after target changes.
 func MarkCFPointingGroupMembersPending(ctx context.Context, groupID uint) error {
-	return db.DB(ctx).Model(&model.CFPointingMember{}).Where("group_id = ?", groupID).
+	return DB(ctx).Model(&model.CFPointingMember{}).Where("group_id = ?", groupID).
 		Updates(map[string]any{"sync_status": model.CFMemberSyncPending, "last_error": ""}).Error
 }
 
 // DeleteCFPointingGroupAndMembers removes a group after its remote records are deleted.
 func DeleteCFPointingGroupAndMembers(ctx context.Context, groupID uint) error {
-	return db.DB(ctx).Transaction(func(tx *gorm.DB) error {
+	return DB(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Where("group_id = ?", groupID).Delete(&model.CFPointingMember{}).Error; err != nil {
 			return err
 		}

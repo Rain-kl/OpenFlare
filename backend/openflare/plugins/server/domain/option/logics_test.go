@@ -9,7 +9,7 @@ import (
 
 	"Wavelet/openflare/plugins/server/kernel/model"
 	"Wavelet/openflare/plugins/server/kernel/repository"
-	db "Wavelet/plugins/infra/database"
+	"Wavelet/openflare/plugins/server/kernel/testhelper"
 
 	"github.com/glebarez/sqlite"
 	"github.com/stretchr/testify/assert"
@@ -26,7 +26,8 @@ func setupOptionTestDB(t *testing.T) func() {
 	require.NoError(t, err)
 	require.NoError(t, sqliteDB.AutoMigrate(&model.SystemConfig{}))
 
-	db.SetDB(sqliteDB)
+	repository.SetDBForTest(sqliteDB)
+	repository.SetSystemConfigService(testhelper.NewMockSystemConfigService(sqliteDB))
 
 	// 预填充一些业务配置用于测试
 	seedConfigs := []model.SystemConfig{
@@ -38,14 +39,15 @@ func setupOptionTestDB(t *testing.T) func() {
 	}
 
 	return func() {
-		db.SetDB(nil)
+		repository.SetSystemConfigService(nil)
+		repository.SetDBForTest(nil)
 	}
 }
 
 // setTestConfig 设置测试配置的辅助函数
 func setTestConfig(t *testing.T, ctx context.Context, key, value string) {
 	t.Helper()
-	require.NoError(t, db.DB(ctx).Model(&model.SystemConfig{}).Where("key = ?", key).Update("value", value).Error)
+	require.NoError(t, repository.DB(ctx).Model(&model.SystemConfig{}).Where("key = ?", key).Update("value", value).Error)
 }
 
 func TestListOptionsFiltersSecretKeys(t *testing.T) {
@@ -89,7 +91,7 @@ func TestUpdateOpenRestyOptionPersistsToSystemConfig(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	require.NoError(t, db.DB(ctx).Create(&model.SystemConfig{
+	require.NoError(t, repository.DB(ctx).Create(&model.SystemConfig{
 		Key:        model.ConfigKeyOpenRestyEventsUse,
 		Value:      "epoll",
 		Type:       "business",

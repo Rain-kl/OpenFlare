@@ -14,7 +14,6 @@ import (
 
 	"Wavelet/openflare/plugins/server/kernel/model"
 	"Wavelet/openflare/share/protocol"
-	db "Wavelet/plugins/infra/database"
 
 	"github.com/glebarez/sqlite"
 	"github.com/stretchr/testify/assert"
@@ -34,9 +33,9 @@ func setupWAFIPGroupTestDB(t *testing.T) func() {
 		&model.ConfigVersion{},
 	))
 
-	db.SetDB(sqliteDB)
+	repository.SetDBForTest(sqliteDB)
 	return func() {
-		db.SetDB(nil)
+		repository.SetDBForTest(nil)
 	}
 }
 
@@ -60,7 +59,7 @@ func seedActiveConfigWithWAFIPGroup(t *testing.T, ctx context.Context, ipGroupID
 	snapshotJSON, err := json.Marshal(snapshot)
 	require.NoError(t, err)
 
-	require.NoError(t, db.DB(ctx).Create(&model.ConfigVersion{
+	require.NoError(t, repository.DB(ctx).Create(&model.ConfigVersion{
 		Version:      "20260618-001",
 		SnapshotJSON: string(snapshotJSON),
 		Checksum:     "test-checksum",
@@ -108,7 +107,7 @@ func seedActiveConfigWithWAFGraphIPGroup(t *testing.T, ctx context.Context, ipGr
 	snapshotJSON, err := json.Marshal(snapshot)
 	require.NoError(t, err)
 
-	require.NoError(t, db.DB(ctx).Create(&model.ConfigVersion{
+	require.NoError(t, repository.DB(ctx).Create(&model.ConfigVersion{
 		Version:      "20260713-graph-001",
 		SnapshotJSON: string(snapshotJSON),
 		Checksum:     "graph-test-checksum",
@@ -142,7 +141,7 @@ func TestChangedWAFIPGroupsForAgentRejectsMalformedIPMatchConfig(t *testing.T) {
 	defer cleanup()
 
 	ctx := context.Background()
-	require.NoError(t, db.DB(ctx).Create(&model.ConfigVersion{
+	require.NoError(t, repository.DB(ctx).Create(&model.ConfigVersion{
 		Version: "20260713-malformed-001",
 		SnapshotJSON: `{"waf":{"rule_groups":[{"id":7,"graph":{"entry":"match","nodes":{` +
 			`"match":{"type":"ip_match","config":{"ip_group_ids":"not-an-array"}}}}}],"bindings":[]}}`,

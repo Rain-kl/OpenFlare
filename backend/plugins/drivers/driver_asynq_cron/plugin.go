@@ -120,23 +120,8 @@ func (p *Plugin) Apply(ctx *core.Context) error {
 	}
 	p.mu.Unlock()
 
-	// Bind DBService
-	if db, err := core.Inject[contracts.DBService](ctx); err == nil && db != nil {
-		setDBService(db)
-	} else {
-		core.When[contracts.DBService](ctx, func(db contracts.DBService) {
-			setDBService(db)
-		})
-	}
-
-	// Bind TaskService
-	if taskSvc, err := core.Inject[contracts.TaskService](ctx); err == nil && taskSvc != nil {
-		setTaskService(taskSvc)
-	} else {
-		core.When[contracts.TaskService](ctx, func(taskSvc contracts.TaskService) {
-			setTaskService(taskSvc)
-		})
-	}
+	core.Bind[contracts.DBService](ctx, setDBService)
+	core.Bind[contracts.TaskService](ctx, setTaskService)
 
 	ctx.OnDispose(func() error {
 		setDBService(nil)

@@ -19,7 +19,6 @@ import (
 	"Wavelet/openflare/plugins/server/kernel/model"
 	"Wavelet/openflare/plugins/server/kernel/repository"
 	"Wavelet/openflare/share/githubrelease"
-	db "Wavelet/plugins/infra/database"
 
 	"gorm.io/gorm"
 )
@@ -42,7 +41,7 @@ func TestGitHubLatestAutoConfigPreservesIdentityAndRuntimeCursor(t *testing.T) {
 	seenRevision := strings.Repeat("a", sourceRevisionHexLength)
 	appliedRevision := strings.Repeat("b", sourceRevisionHexLength)
 	future := time.Now().Add(time.Hour)
-	if err := db.DB(ctx).Model(&model.PagesProjectSourceRuntime{}).
+	if err := repository.DB(ctx).Model(&model.PagesProjectSourceRuntime{}).
 		Where("source_id = ?", source.ID).
 		Updates(map[string]any{
 			"etag":                  `"cursor-etag"`,
@@ -67,7 +66,7 @@ func TestGitHubLatestAutoConfigPreservesIdentityAndRuntimeCursor(t *testing.T) {
 	if err := validateGitHubSourceInput(input); err != nil {
 		t.Fatalf("validateGitHubSourceInput(auto latest) error = %v, want nil", err)
 	}
-	if err := db.DB(ctx).Transaction(func(tx *gorm.DB) error {
+	if err := repository.DB(ctx).Transaction(func(tx *gorm.DB) error {
 		changed, err := updateGitHubSourceTx(tx, project.ID, input)
 		if err == nil && !changed {
 			return errors.New("auto config update was treated as no-op")
@@ -132,7 +131,7 @@ func TestRecoverExpiredPagesSourceLeaseUsesExactCASAndStableJitter(t *testing.T)
 	now := time.Date(2026, 7, 19, 12, 0, 0, 0, time.UTC)
 	usePagesSourceScannerClock(t, now)
 	expiredAt := now.Add(-time.Minute)
-	if err := db.DB(ctx).Model(&model.PagesProjectSourceRuntime{}).
+	if err := repository.DB(ctx).Model(&model.PagesProjectSourceRuntime{}).
 		Where("source_id = ?", source.ID).
 		Updates(map[string]any{
 			"sync_status":      pagesSourceStatusChecking,
@@ -167,7 +166,7 @@ func TestRecoverExpiredPagesSourceLeaseUsesExactCASAndStableJitter(t *testing.T)
 	}
 
 	renewedExpiry := now.Add(time.Minute)
-	if err := db.DB(ctx).Model(&model.PagesProjectSourceRuntime{}).
+	if err := repository.DB(ctx).Model(&model.PagesProjectSourceRuntime{}).
 		Where("source_id = ?", source.ID).
 		Updates(map[string]any{
 			"sync_status":      pagesSourceStatusSyncing,
@@ -274,24 +273,24 @@ func TestPagesSourceScannerSerialBatchIsolation304AndActualBacklog(t *testing.T)
 	byRepository := make(map[string]int, 22)
 	for index := 1; index <= 22; index++ {
 		project := mustCreatePagesSourceProject(t, ctx, fmt.Sprintf("scanner-batch-%02d", index))
-		repository := fmt.Sprintf("scanner/source-%02d", index)
+		repoPath := fmt.Sprintf("scanner/source-%02d", index)
 		source, runtime := mustConfigureGitHubSourceWithoutDispatch(t, ctx, project.ID, SourceUpdateInput{
 			SourceType:           PagesSourceTypeGitHubRelease,
-			RepositoryURL:        "https://github.com/" + repository,
+			RepositoryURL:        "https://github.com/" + repoPath,
 			AutoUpdateEnabled:    index != 4,
 			CheckIntervalMinutes: 60,
 		})
-		if err := db.DB(ctx).Model(&model.PagesProjectSourceRuntime{}).
+		if err := repository.DB(ctx).Model(&model.PagesProjectSourceRuntime{}).
 			Where("source_id = ?", source.ID).
 			Update("next_check_at", &dueAt).Error; err != nil {
 			t.Fatalf("mark source %d due error = %v, want nil", source.ID, err)
 		}
-		fixtures = append(fixtures, fixture{source: source, runtime: runtime, repository: repository})
-		byRepository[repository] = index
+		fixtures = append(fixtures, fixture{source: source, runtime: runtime, repository: repoPath})
+		byRepository[repoPath] = index
 	}
 
 	busyUntil := now.Add(time.Hour)
-	if err := db.DB(ctx).Model(&model.PagesProjectSourceRuntime{}).
+	if err := repository.DB(ctx).Model(&model.PagesProjectSourceRuntime{}).
 		Where("source_id = ?", fixtures[0].source.ID).
 		Updates(map[string]any{
 			"sync_status":      pagesSourceStatusChecking,
@@ -302,7 +301,7 @@ func TestPagesSourceScannerSerialBatchIsolation304AndActualBacklog(t *testing.T)
 	}
 
 	stored304Revision := strings.Repeat("3", sourceRevisionHexLength)
-	if err := db.DB(ctx).Model(&model.PagesProjectSourceRuntime{}).
+	if err := repository.DB(ctx).Model(&model.PagesProjectSourceRuntime{}).
 		Where("source_id = ?", fixtures[2].source.ID).
 		Updates(map[string]any{
 			"etag":               `"stored-etag"`,
@@ -313,7 +312,7 @@ func TestPagesSourceScannerSerialBatchIsolation304AndActualBacklog(t *testing.T)
 		t.Fatalf("seed 304 cursor error = %v, want nil", err)
 	}
 
-	if err := db.DB(ctx).Model(&model.PagesProjectSourceRuntime{}).
+	if err := repository.DB(ctx).Model(&model.PagesProjectSourceRuntime{}).
 		Where("source_id = ?", fixtures[4].source.ID).
 		Updates(map[string]any{
 			"last_applied_revision": strings.Repeat("a", sourceRevisionHexLength),

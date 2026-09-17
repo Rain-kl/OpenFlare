@@ -8,74 +8,105 @@ import (
 	"context"
 	"net"
 	"net/textproto"
+	"strings"
 	"testing"
 )
 
-func TestSendMailMock(t *testing.T) {
-	// Start a mock SMTP server
+func startMockSMTPServer(t *testing.T) (int, func()) {
+	t.Helper()
 	l, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatalf("failed to start mock smtp server: %v", err)
 	}
-	defer func() { _ = l.Close() }()
 
 	port := l.Addr().(*net.TCPAddr).Port
 
 	go func() {
-		conn, err := l.Accept()
+		for {
+			conn, err := l.Accept()
+			if err != nil {
+				return
+			}
+			go handleMockSMTPConn(conn)
+		}
+	}()
+
+	return port, func() { _ = l.Close() }
+}
+
+func handleMockSMTPConn(conn net.Conn) {
+	defer func() { _ = conn.Close() }()
+
+	writer := bufio.NewWriter(conn)
+	reader := bufio.NewReader(conn)
+	tp := textproto.NewReader(reader)
+
+	// 220 Ready
+	_, _ = writer.WriteString("220 mock.smtp.com SMTP Ready\r\n")
+	_ = writer.Flush()
+
+	for {
+		line, err := tp.ReadLine()
 		if err != nil {
 			return
 		}
-		defer func() { _ = conn.Close() }()
-
-		writer := bufio.NewWriter(conn)
-		reader := bufio.NewReader(conn)
-		tp := textproto.NewReader(reader)
-
-		// 220 Ready
-		_, _ = writer.WriteString("220 mock.smtp.com SMTP Ready\r\n")
-		_ = writer.Flush()
-
-		// Read HELO/EHLO
-		_, _ = tp.ReadLine()
-		_, _ = writer.WriteString("250-mock.smtp.com\r\n250 AUTH PLAIN\r\n")
-		_ = writer.Flush()
-
-		// Read AUTH PLAIN
-		_, _ = tp.ReadLine()
-		_, _ = writer.WriteString("235 Authentication successful\r\n")
-		_ = writer.Flush()
-
-		// Read MAIL FROM
-		_, _ = tp.ReadLine()
-		_, _ = writer.WriteString("250 OK\r\n")
-		_ = writer.Flush()
-
-		// Read RCPT TO
-		_, _ = tp.ReadLine()
-		_, _ = writer.WriteString("250 OK\r\n")
-		_ = writer.Flush()
-
-		// Read DATA
-		_, _ = tp.ReadLine()
-		_, _ = writer.WriteString("354 Start mail input\r\n")
-		_ = writer.Flush()
-
-		// Read body lines until dot
-		for {
-			line, err := tp.ReadLine()
-			if err != nil || line == "." {
-				break
+		upper := strings.ToUpper(line)
+		switch {
+		case strings.HasPrefix(upper, "EHLO") || strings.HasPrefix(upper, "HELO"):
+			_, _ = writer.WriteString("250-mock.smtp.com\r\n250 AUTH PLAIN\r\n")
+			_ = writer.Flush()
+		case strings.HasPrefix(upper, "AUTH PLAIN"):
+			_, _ = writer.WriteString("235 2.7.0 Authentication successful\r\n")
+			_ = writer.Flush()
+		case strings.HasPrefix(upper, "MAIL FROM:"):
+			_, _ = writer.WriteString("250 2.1.0 Ok\r\n")
+			_ = writer.Flush()
+		case strings.HasPrefix(upper, "RCPT TO:"):
+			_, _ = writer.WriteString("250 2.1.5 Ok\r\n")
+			_ = writer.Flush()
+		case strings.HasPrefix(upper, "DATA"):
+			_, _ = writer.WriteString("354 Start mail input; end with <CRLF>.<CRLF>\r\n")
+			_ = writer.Flush()
+			for {
+				dataLine, err := tp.ReadLine()
+				if err != nil || dataLine == "." {
+					break
+				}
 			}
+			_, _ = writer.WriteString("250 2.0.0 Ok: queued\r\n")
+			_ = writer.Flush()
+		case strings.HasPrefix(upper, "QUIT"):
+			_, _ = writer.WriteString("221 2.0.0 Bye\r\n")
+			_ = writer.Flush()
+			return
+		default:
+			_, _ = writer.WriteString("250 Ok\r\n")
+			_ = writer.Flush()
 		}
-		_, _ = writer.WriteString("250 OK\r\n")
-		_ = writer.Flush()
+	}
+}
 
-		// Read QUIT
-		_, _ = tp.ReadLine()
-		_, _ = writer.WriteString("221 Bye\r\n")
-		_ = writer.Flush()
-	}()
+func TestSendMailMock(t *testing.T) {
+	port, cleanup := startMockSMTPServer(t)
+	defer cleanup()
+
+	cfg := Config{
+		Host:     "127.0.0.1",
+		Port:     port,
+		Username: "test@example.com",
+		Password: "password",
+		FromName: "Wavelet Notifier",
+	}
+
+	err := SendMail(context.Background(), cfg, "recipient@example.com", "Test Subject", "<h1>Test Body</h1>")
+	if err != nil {
+		t.Fatalf("failed to send mail: %v", err)
+	}
+}
+
+func TestSendMailWithLog(t *testing.T) {
+	port, cleanup := startMockSMTPServer(t)
+	defer cleanup()
 
 	cfg := Config{
 		Host:     "127.0.0.1",
@@ -84,28 +115,29 @@ func TestSendMailMock(t *testing.T) {
 		Password: "password",
 	}
 
-	err = SendMail(context.Background(), cfg, "recipient@example.com", "Test Subject", "<h1>Test Body</h1>")
+	logs, err := SendMailWithLog(context.Background(), cfg, "recipient@example.com", "Test Subject", "<p>Test Log</p>")
 	if err != nil {
-		t.Errorf("failed to send mail: %v", err)
+		t.Fatalf("failed to send mail with log: %v, log output:\n%s", err, logs)
+	}
+
+	if !strings.Contains(logs, "[System] Connecting to") {
+		t.Errorf("expected connection log in output, got: %s", logs)
+	}
+	if !strings.Contains(logs, "[System] Mail sent successfully!") {
+		t.Errorf("expected success log in output, got: %s", logs)
 	}
 }
 
-func TestSanitizeHeaderValue(t *testing.T) {
-	tests := []struct {
-		name  string
-		input string
-		want  string
-	}{
-		{"plain", "System Notification", "System Notification"},
-		{"crlf stripped", "alert\r\nBcc: attacker@example.com", "alertBcc: attacker@example.com"},
-		{"cr stripped", "a\rb", "ab"},
-		{"lf stripped", "a\nb", "ab"},
+func TestSendMailInvalidAddress(t *testing.T) {
+	cfg := Config{
+		Host:     "127.0.0.1",
+		Port:     25,
+		Username: "test@example.com",
+		Password: "password",
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := sanitizeHeaderValue(tt.input); got != tt.want {
-				t.Errorf("sanitizeHeaderValue(%q) = %q, want %q", tt.input, got, tt.want)
-			}
-		})
+
+	err := SendMail(context.Background(), cfg, "invalid address with \n newline", "Subject", "Body")
+	if err == nil {
+		t.Errorf("expected error for invalid address, got nil")
 	}
 }

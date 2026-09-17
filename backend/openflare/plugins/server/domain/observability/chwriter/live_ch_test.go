@@ -14,7 +14,6 @@ import (
 
 	"Wavelet/openflare/plugins/server/domain/observability/chwriter"
 	"Wavelet/openflare/plugins/server/kernel/model"
-	db "Wavelet/plugins/infra/database"
 )
 
 // Run with Docker ClickHouse + config.yaml:

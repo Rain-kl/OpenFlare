@@ -11,6 +11,7 @@ import (
 	"Wavelet/core/contracts"
 	"Wavelet/openflare/plugins/server/domain/observability/chwriter"
 	ofrouter "Wavelet/openflare/plugins/server/httpapi"
+	"Wavelet/openflare/plugins/server/kernel/credential"
 	ofgeoip "Wavelet/openflare/plugins/server/kernel/geoip"
 	"Wavelet/openflare/plugins/server/kernel/ofevents"
 	"Wavelet/openflare/plugins/server/kernel/ofupload"
@@ -21,18 +22,12 @@ import (
 	oftask "Wavelet/openflare/plugins/server/kernel/task"
 	"Wavelet/openflare/plugins/server/migrate"
 	"Wavelet/pkg/logger"
-	"Wavelet/plugins/infra/database"
 	"context"
 	"embed"
 	"reflect"
 
 	_ "Wavelet/docs"
-	"Wavelet/openflare/plugins/server/kernel/credential"
-	adminservice "Wavelet/plugins/domain/admin/service"
 
-	"net/http"
-
-	"github.com/gin-gonic/gin"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
 )
@@ -63,7 +58,7 @@ func (p *Plugin) Inject() []reflect.Type {
 
 // Apply 声明 OpenFlare 业务 HTTP 路由树、公共配置、推送事件与异步任务。
 func (p *Plugin) Apply(ctx *core.Context) error {
-	var chCfg database.ClickHouseConfig
+	var chCfg runtimeconfig.ClickHouseConfig
 	_ = ctx.Config().Bind("clickhouse", &chCfg)
 	runtimeconfig.Set(runtimeconfig.Snapshot{
 		SessionSecret:   ctx.Config().String("app.session_secret", ""),
@@ -77,21 +72,15 @@ func (p *Plugin) Apply(ctx *core.Context) error {
 		return err
 	}
 
-	if ts, err := core.Inject[contracts.TaskService](ctx); err == nil && ts != nil {
+	core.Bind[contracts.DBService](ctx, repository.SetDBService)
+	core.Bind[contracts.SystemConfigService](ctx, repository.SetSystemConfigService)
+	core.Bind[contracts.TaskService](ctx, func(ts contracts.TaskService) {
 		oftask.SetService(ts)
-	} else {
-		core.When[contracts.TaskService](ctx, oftask.SetService)
-	}
-	if user, err := core.Inject[contracts.UserService](ctx); err == nil && user != nil {
-		repository.SetUserService(user)
-	} else {
-		core.When[contracts.UserService](ctx, repository.SetUserService)
-	}
-	if storage, err := core.Inject[contracts.StorageService](ctx); err == nil && storage != nil {
-		ofupload.SetStorage(storage)
-	} else {
-		core.When[contracts.StorageService](ctx, ofupload.SetStorage)
-	}
+		repository.SetTaskService(ts)
+	})
+	core.Bind[contracts.UserService](ctx, repository.SetUserService)
+	core.Bind[contracts.StorageService](ctx, ofupload.SetStorage)
+	core.Bind[contracts.UploadService](ctx, ofupload.SetUploadService)
 
 	core.Provide[contracts.PublicConfigProvider](ctx, publicconfig.New(ctx))
 	if pr, err := core.Inject[contracts.PushRegistry](ctx); err == nil {
@@ -120,9 +109,6 @@ func (p *Plugin) Apply(ctx *core.Context) error {
 	ofrouter.RegisterV1Routes(ctx.Router().Group("/api/v1"), auth)
 	ofrouter.RegisterRoutes(ctx.Router().Group("/api/v1"), auth)
 
-	ctx.Router().GET("/robots.txt", func(c *gin.Context) {
-		c.Data(http.StatusOK, "text/plain; charset=utf-8", []byte(adminservice.RobotsTxtBody(c.Request.Context())))
-	})
 	env := ctx.Config().String("app.env", "production")
 	if env != "production" && env != "prod" {
 		ctx.Router().GET("/api/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))

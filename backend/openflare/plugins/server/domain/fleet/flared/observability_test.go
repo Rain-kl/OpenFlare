@@ -11,7 +11,6 @@ import (
 
 	"Wavelet/openflare/plugins/server/domain/fleet/agent"
 	"Wavelet/openflare/plugins/server/kernel/model"
-	db "Wavelet/plugins/infra/database"
 
 	"github.com/glebarez/sqlite"
 	"github.com/stretchr/testify/assert"
@@ -33,11 +32,11 @@ func setupFlaredObservabilityTestDB(t *testing.T) func() {
 		&model.ConfigVersion{},
 	))
 
-	db.SetDB(sqliteDB)
+	repository.SetDBForTest(sqliteDB)
 	agent.ResetAuthCacheForTest()
 
 	return func() {
-		db.SetDB(nil)
+		repository.SetDBForTest(nil)
 		agent.ResetAuthCacheForTest()
 	}
 }
@@ -54,7 +53,7 @@ func TestHeartbeatFlaredEmitsHealthEventOnUnhealthy(t *testing.T) {
 		Status:      "pending",
 		NodeType:    "tunnel_client",
 	}
-	require.NoError(t, db.DB(ctx).Create(node).Error)
+	require.NoError(t, repository.DB(ctx).Create(node).Error)
 
 	_, err := Heartbeat(ctx, node, HeartbeatPayload{
 		ClientVersion:   "v0.2.0",

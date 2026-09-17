@@ -151,3 +151,8 @@ type UserDeletedEvent struct {
 	CurrentUserID uint64 `json:"current_user_id,string"`
 	TargetUserID  uint64 `json:"target_user_id,string"`
 }
+
+// SystemCleanupEvent fires when a periodic system cleanup is triggered.
+type SystemCleanupEvent struct {
+	TriggeredAt string `json:"triggered_at"`
+}

@@ -24,7 +24,6 @@ import (
 	"Wavelet/openflare/plugins/server/kernel/model"
 	"Wavelet/openflare/plugins/server/kernel/runtimeconfig"
 	"Wavelet/pkg/idgen"
-	db "Wavelet/plugins/infra/database"
 
 	"github.com/glebarez/sqlite"
 	"github.com/stretchr/testify/assert"
@@ -51,7 +50,7 @@ func setupTLSTestDB(t *testing.T) func() {
 		&model.TaskExecution{}, // 异步任务执行记录也需要 migrate
 	))
 
-	db.SetDB(sqliteDB)
+	repository.SetDBForTest(sqliteDB)
 	require.NoError(t, idgen.Init(1))
 	previous := runtimeconfig.Get()
 	runtimeconfig.SetSessionSecret("test_session_secret_for_tls_encryption")
@@ -59,7 +58,7 @@ func setupTLSTestDB(t *testing.T) func() {
 	oftask.SetService(&testhelper.NoopTaskService{})
 
 	return func() {
-		db.SetDB(nil)
+		repository.SetDBForTest(nil)
 		runtimeconfig.Set(previous)
 		credential.SetSessionSecret(previous.SessionSecret)
 		tlsTestDBMu.Unlock()
@@ -75,8 +74,8 @@ func TestDeleteCertificateRejectsZoneDomainReference(t *testing.T) {
 	certificate, err := CreateCertificate(ctx, CertificateInput{Name: "api-cert", CertPEM: certPEM, KeyPEM: keyPEM})
 	require.NoError(t, err)
 	zone := &model.Zone{Domain: "example.com"}
-	require.NoError(t, db.DB(ctx).Create(zone).Error)
-	require.NoError(t, db.DB(ctx).Create(&model.ZoneDomain{ZoneID: zone.ID, Domain: "api.example.com", CertID: &certificate.ID}).Error)
+	require.NoError(t, repository.DB(ctx).Create(zone).Error)
+	require.NoError(t, repository.DB(ctx).Create(&model.ZoneDomain{ZoneID: zone.ID, Domain: "api.example.com", CertID: &certificate.ID}).Error)
 
 	err = DeleteCertificate(ctx, certificate.ID)
 	require.EqualError(t, err, errCertificateDeleteReferenced)

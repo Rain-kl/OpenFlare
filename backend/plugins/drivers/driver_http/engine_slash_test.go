@@ -4,9 +4,12 @@
 package driver_http
 
 import (
-	"testing"
-
+	"Wavelet/core"
 	"Wavelet/core/extpoints"
+	"context"
+	"net/http"
+	"net/http/httptest"
+	"testing"
 )
 
 func TestBuildEngineDefaultRedirectsTrailingSlash(t *testing.T) {
@@ -111,3 +114,29 @@ func bindAppConfig(t *testing.T, values map[string]any, env map[string]string) h
 }
 
 func boolPtr(v bool) *bool { return &v }
+
+func TestDriverHTTPSwaggerMount(t *testing.T) {
+	ctx := core.NewContext(t.Context())
+	ctx.Config().SetSource(core.NewMapSource(map[string]any{"app.env": "development"}))
+	if err := ctx.Config().Resolve(); err != nil {
+		t.Fatal(err)
+	}
+	p := New(WithAddr("127.0.0.1:0"))
+	if err := p.Apply(ctx); err != nil {
+		t.Fatal(err)
+	}
+	startCtx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	if err := p.Start(startCtx); err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = p.Stop(t.Context()) }()
+
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequestWithContext(t.Context(), http.MethodGet, "/swagger/index.html", nil)
+	req.RequestURI = "/swagger/index.html"
+	p.Engine().ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200 for /swagger/index.html, got %d (body: %s)", w.Code, w.Body.String())
+	}
+}

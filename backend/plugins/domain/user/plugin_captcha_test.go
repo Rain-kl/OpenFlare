@@ -5,6 +5,8 @@ package user_test
 
 import (
 	"context"
+	"net/http"
+	"net/http/httptest"
 	"reflect"
 	"testing"
 
@@ -71,4 +73,78 @@ func TestApplyWithCaptchaServiceWrapsLogin(t *testing.T) {
 		}
 	}
 	t.Fatal("missing POST /api/v1/user/login")
+}
+
+type denyCaptchaService struct{}
+
+func (denyCaptchaService) VerifyMiddleware(string) any {
+	return gin.HandlerFunc(func(c *gin.Context) {
+		c.AbortWithStatus(http.StatusUnauthorized)
+	})
+}
+
+func (denyCaptchaService) ChallengeHandler() any { return gin.HandlerFunc(func(c *gin.Context) {}) }
+
+func (denyCaptchaService) RedeemHandler() any { return gin.HandlerFunc(func(c *gin.Context) {}) }
+
+func TestLoginCaptchaGuardResolvesServiceAfterApply(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	ctx := core.NewContext(context.Background())
+	if err := user.New().Apply(ctx); err != nil {
+		t.Fatal(err)
+	}
+	core.Provide[contracts.CaptchaService](ctx, denyCaptchaService{})
+
+	handler := loginCaptchaGuard(t, ctx)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodPost, "/api/v1/user/login", nil)
+	handler(c)
+
+	if !c.IsAborted() {
+		t.Fatal("login captcha guard did not abort after late CaptchaService provide")
+	}
+	if w.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want %d", w.Code, http.StatusUnauthorized)
+	}
+}
+
+func TestLoginCaptchaGuardPassesWithoutCaptchaService(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	ctx := core.NewContext(context.Background())
+	if err := user.New().Apply(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	handler := loginCaptchaGuard(t, ctx)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodPost, "/api/v1/user/login", nil)
+	handler(c)
+
+	if c.IsAborted() {
+		t.Fatal("login captcha guard aborted without CaptchaService")
+	}
+}
+
+func loginCaptchaGuard(t *testing.T, ctx *core.Context) gin.HandlerFunc {
+	t.Helper()
+	for _, rd := range ctx.Router().Routes() {
+		if rd.Method != "POST" || rd.Path != "/api/v1/user/login" {
+			continue
+		}
+		if len(rd.Handlers) == 0 {
+			t.Fatal("POST /api/v1/user/login has no handlers")
+		}
+		switch h := rd.Handlers[0].(type) {
+		case gin.HandlerFunc:
+			return h
+		case func(*gin.Context):
+			return h
+		default:
+			t.Fatalf("unexpected handler type %T", rd.Handlers[0])
+		}
+	}
+	t.Fatal("missing POST /api/v1/user/login")
+	return nil
 }

@@ -11,7 +11,6 @@ import (
 	"Wavelet/openflare/plugins/server/kernel/repository"
 
 	"Wavelet/openflare/plugins/server/kernel/model"
-	db "Wavelet/plugins/infra/database"
 
 	"github.com/glebarez/sqlite"
 	"github.com/stretchr/testify/assert"
@@ -29,10 +28,10 @@ func setupApplyLogTestDB(t *testing.T) func() {
 	err = sqliteDB.AutoMigrate(&model.OpenFlareApplyLog{})
 	require.NoError(t, err)
 
-	db.SetDB(sqliteDB)
+	repository.SetDBForTest(sqliteDB)
 
 	return func() {
-		db.SetDB(nil)
+		repository.SetDBForTest(nil)
 	}
 }
 
@@ -49,7 +48,7 @@ func TestListPageAndCleanup(t *testing.T) {
 		{NodeID: "node-logs", Version: "v3", Result: "success", Message: "3", CreatedAt: now},
 	}
 	for i := range logs {
-		require.NoError(t, db.DB(ctx).Create(&logs[i]).Error)
+		require.NoError(t, repository.DB(ctx).Create(&logs[i]).Error)
 	}
 
 	pageResult, err := ListPage(ctx, ListQuery{

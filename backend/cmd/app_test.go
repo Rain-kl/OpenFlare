@@ -36,7 +36,7 @@ func TestNewOpenFlareAppRegistersServerAndWaveletUser(t *testing.T) {
 	for _, p := range app.Plugins() {
 		names[p.Name()] = true
 	}
-	for _, n := range []string{"user", "auth", "cap", "admin", "server"} {
+	for _, n := range []string{"user", "auth", "admin", "server"} {
 		if !names[n] {
 			t.Errorf("missing plugin %s", n)
 		}

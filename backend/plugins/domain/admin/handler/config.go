@@ -16,7 +16,7 @@ import (
 
 // GetPublicConfig 获取公共配置
 // @Summary 获取公共配置
-// @Description 返回系统配置表中 visibility 为 1 的配置键值集合
+// @Description 返回系统配置表中 visibility 为 1 的扁平键值集合（如 cap_login_enabled）
 // @Tags config
 // @Accept json
 // @Produce json

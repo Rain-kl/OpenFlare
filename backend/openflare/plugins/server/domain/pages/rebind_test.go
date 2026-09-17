@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"Wavelet/openflare/plugins/server/kernel/model"
-	db "Wavelet/plugins/infra/database"
+	"Wavelet/openflare/plugins/server/kernel/repository"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -36,7 +36,7 @@ func TestRebindSnapshotPagesToCurrentActive(t *testing.T) {
 		Status:           model.PagesDeploymentStatusUploaded,
 		FileCount:        1,
 	}
-	require.NoError(t, db.DB(ctx).Create(old).Error)
+	require.NoError(t, repository.DB(ctx).Create(old).Error)
 	active := &model.PagesDeployment{
 		ProjectID:        project.ID,
 		DeploymentNumber: 2,
@@ -44,8 +44,8 @@ func TestRebindSnapshotPagesToCurrentActive(t *testing.T) {
 		Status:           model.PagesDeploymentStatusActive,
 		FileCount:        1,
 	}
-	require.NoError(t, db.DB(ctx).Create(active).Error)
-	require.NoError(t, db.DB(ctx).Model(&model.PagesProject{}).
+	require.NoError(t, repository.DB(ctx).Create(active).Error)
+	require.NoError(t, repository.DB(ctx).Model(&model.PagesProject{}).
 		Where("id = ?", project.ID).
 		Update("active_deployment_id", active.ID).Error)
 

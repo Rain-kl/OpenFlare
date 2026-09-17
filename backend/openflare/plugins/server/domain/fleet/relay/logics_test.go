@@ -14,7 +14,6 @@ import (
 
 	"Wavelet/openflare/plugins/server/domain/fleet/agent"
 	"Wavelet/openflare/plugins/server/kernel/model"
-	db "Wavelet/plugins/infra/database"
 
 	"github.com/glebarez/sqlite"
 	"github.com/stretchr/testify/assert"
@@ -38,12 +37,12 @@ func setupRelayTestDB(t *testing.T) func() {
 		&model.OpenFlareNodeObservationFrps{},
 	))
 
-	db.SetDB(sqliteDB)
+	repository.SetDBForTest(sqliteDB)
 	agent.ResetAuthCacheForTest()
 	testhelper.SetupLogStoresForTest(t)
 
 	return func() {
-		db.SetDB(nil)
+		repository.SetDBForTest(nil)
 		agent.ResetAuthCacheForTest()
 	}
 }
@@ -63,7 +62,7 @@ func TestHeartbeatPayloadBindingAndFrpsObservationInsert(t *testing.T) {
 		NodeType:    "tunnel_relay",
 		RelayStatus: "unknown",
 	}
-	require.NoError(t, db.DB(ctx).Create(node).Error)
+	require.NoError(t, repository.DB(ctx).Create(node).Error)
 
 	proxies := []ProxyStat{
 		{
@@ -103,7 +102,7 @@ func TestHeartbeatPayloadBindingAndFrpsObservationInsert(t *testing.T) {
 	require.NoError(t, err)
 
 	var stored model.OpenFlareNode
-	require.NoError(t, db.DB(ctx).Where("node_id = ?", node.NodeID).First(&stored).Error)
+	require.NoError(t, repository.DB(ctx).Where("node_id = ?", node.NodeID).First(&stored).Error)
 	assert.Equal(t, "online", stored.Status)
 	assert.Equal(t, "healthy", stored.RelayStatus)
 	assert.Equal(t, "203.0.113.9", stored.IP)
@@ -147,7 +146,7 @@ func TestHeartbeatRelayReconcilesFrpsUnhealthyEvent(t *testing.T) {
 		NodeType:    "tunnel_relay",
 		RelayStatus: "healthy",
 	}
-	require.NoError(t, db.DB(ctx).Create(node).Error)
+	require.NoError(t, repository.DB(ctx).Create(node).Error)
 
 	_, err := Heartbeat(ctx, node, HeartbeatPayload{
 		Version:     "v0.1.0",

@@ -11,7 +11,7 @@ import (
 	"testing"
 
 	"Wavelet/openflare/plugins/server/kernel/model"
-	db "Wavelet/plugins/infra/database"
+	"Wavelet/openflare/plugins/server/kernel/repository"
 )
 
 func TestGetProjectLatestPackageMetadataPreservesZeroTotalSize(t *testing.T) {
@@ -46,7 +46,7 @@ func TestGetProjectLatestPackageMetadataPreservesZeroTotalSize(t *testing.T) {
 	if _, err := ActivateDeployment(ctx, project.ID, deployment.ID); err != nil {
 		t.Fatalf("ActivateDeployment() error = %v", err)
 	}
-	if err := db.DB(ctx).Create(&model.ConfigVersion{
+	if err := repository.DB(ctx).Create(&model.ConfigVersion{
 		Version: "v-package-metadata",
 		SnapshotJSON: fmt.Sprintf(
 			`{"routes":[{"upstream_type":"pages","pages_project_id":%d}]}`,

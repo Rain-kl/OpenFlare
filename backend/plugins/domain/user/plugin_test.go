@@ -166,6 +166,8 @@ func TestUserLoginHTTPHandler(t *testing.T) {
 		IsActive: true,
 	}
 	require.NoError(t, user.CreateUser(context.Background(), plainUser))
+	require.NotZero(t, plainUser.ID)
+	require.Greater(t, plainUser.ID, uint64(10000), "user id must be snowflake, not sqlite autoincrement")
 
 	reqBodyPlain := `{"username":"plain_admin","password":"12345678"}`
 	reqPlain, _ := http.NewRequest(http.MethodPost, "/api/v1/user/login", bytes.NewBufferString(reqBodyPlain))

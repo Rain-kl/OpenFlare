@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"Wavelet/openflare/plugins/server/kernel/model"
-	db "Wavelet/plugins/infra/database"
+	"Wavelet/openflare/plugins/server/kernel/repository"
 )
 
 func TestGitHubSourceIdentityLengthPrefixesFieldsAndResetsRuntime(t *testing.T) {
@@ -57,7 +57,7 @@ func TestGitHubSourceIdentityLengthPrefixesFieldsAndResetsRuntime(t *testing.T) 
 	syncedAt := time.Now().Add(-30 * time.Second)
 	nextCheckAt := time.Now().Add(time.Hour)
 	leaseExpiresAt := time.Now().Add(time.Minute)
-	if err := db.DB(ctx).Model(&model.PagesProjectSourceRuntime{}).
+	if err := repository.DB(ctx).Model(&model.PagesProjectSourceRuntime{}).
 		Where("source_id = ?", firstSource.ID).
 		Updates(map[string]any{
 			"etag":                  `"old-etag"`,

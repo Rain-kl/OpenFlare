@@ -18,7 +18,7 @@ permissions:
 
 env:
   IMAGE_NAME: openflare-agent
-  DOCKERFILE: docker/Dockerfile.agent
+  DOCKERFILE: manifest/docker/Dockerfile.agent
 
 jobs:
   build:

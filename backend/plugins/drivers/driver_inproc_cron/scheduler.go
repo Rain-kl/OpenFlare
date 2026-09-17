@@ -99,7 +99,7 @@ func (s *inprocScheduler) registerJob(ctx context.Context, def extpoints.Schedul
 
 	_, err := s.cronRunner.AddFunc(cronSpec, func() {
 		if s.taskSvc != nil {
-			if _, dispatchErr := s.taskSvc.Dispatch(ctx, taskType, payloadBytes, "inproc_cron"); dispatchErr != nil {
+			if _, dispatchErr := s.taskSvc.Dispatch(ctx, taskType, payloadBytes, contracts.TaskTriggerSchedule); dispatchErr != nil {
 				logger.ErrorF(ctx, "driver_inproc_cron: dispatch task %q failed: %v", taskType, dispatchErr)
 			}
 			return

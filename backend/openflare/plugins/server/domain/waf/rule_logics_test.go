@@ -16,7 +16,6 @@ import (
 
 	"Wavelet/openflare/plugins/server/kernel/model"
 	"Wavelet/pkg/response"
-	db "Wavelet/plugins/infra/database"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
@@ -84,7 +83,7 @@ func TestRuleHandlersMapFailures(t *testing.T) {
 			require.NoError(t, err)
 			return cleanup
 		}, want: http.StatusConflict},
-		{name: "database failure", method: http.MethodGet, path: "/rules", setup: func(t *testing.T) func() { t.Helper(); db.SetDB(nil); return func() {} }, want: http.StatusInternalServerError},
+		{name: "database failure", method: http.MethodGet, path: "/rules", setup: func(t *testing.T) func() { t.Helper(); repository.SetDBForTest(nil); return func() {} }, want: http.StatusInternalServerError},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -157,7 +156,7 @@ func TestReplaceSiteRuleGroupsPreservesOrderAndRejectsGlobal(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	require.NoError(t, db.DB(ctx).Create(&model.OriginProxyRoute{ID: 7, Domain: "example.com"}).Error)
+	require.NoError(t, repository.DB(ctx).Create(&model.OriginProxyRoute{ID: 7, Domain: "example.com"}).Error)
 	first, err := CreateRule(ctx, CreateRuleInput{Name: "first"})
 	require.NoError(t, err)
 	second, err := CreateRule(ctx, CreateRuleInput{Name: "second"})

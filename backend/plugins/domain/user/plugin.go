@@ -76,16 +76,15 @@ func (p *Plugin) Manifest() core.Manifest {
 
 // Apply registers user migrations, services, routes, tasks, schedules, and settings into the Context.
 func (p *Plugin) Apply(ctx *core.Context) error {
-	// 0. Bind DBService from Context
-	if db, err := core.Inject[contracts.DBService](ctx); err == nil && db != nil {
-		SetDBService(db)
-	} else {
-		core.When[contracts.DBService](ctx, func(db contracts.DBService) {
-			SetDBService(db)
-		})
-	}
+	core.Bind[contracts.DBService](ctx, SetDBService)
+	core.Bind[contracts.CacheService](ctx, SetCacheService)
+	core.Bind[contracts.TaskService](ctx, SetTaskService)
+	core.Bind[contracts.LimiterService](ctx, SetLimiterService)
 	ctx.OnDispose(func() error {
 		SetDBService(nil)
+		SetCacheService(nil)
+		SetTaskService(nil)
+		SetLimiterService(nil)
 		return nil
 	})
 
@@ -101,11 +100,8 @@ func (p *Plugin) Apply(ctx *core.Context) error {
 		if mw, ok := authSvc.DisallowTokenAuthMiddleware().(gin.HandlerFunc); ok {
 			noTokenMW = mw
 		}
-	} else {
-		core.When[contracts.AuthService](ctx, func(svc contracts.AuthService) {
-			SetAuthService(svc)
-		})
 	}
+	core.Bind[contracts.AuthService](ctx, SetAuthService)
 	ctx.OnDispose(func() error {
 		SetAuthService(nil)
 		return nil
@@ -120,19 +116,12 @@ func (p *Plugin) Apply(ctx *core.Context) error {
 	}
 	core.Provide[contracts.UserService](ctx, p.userSvc)
 
-	passThrough := gin.HandlerFunc(func(c *gin.Context) { c.Next() })
-	loginCap, registerCap, emailCap := passThrough, passThrough, passThrough
-	if capSvc, err := core.Inject[contracts.CaptchaService](ctx); err == nil && capSvc != nil {
-		if mw, ok := capSvc.VerifyMiddleware("login").(gin.HandlerFunc); ok {
-			loginCap = mw
-		}
-		if mw, ok := capSvc.VerifyMiddleware("register").(gin.HandlerFunc); ok {
-			registerCap = mw
-		}
-		if mw, ok := capSvc.VerifyMiddleware("send_email_code").(gin.HandlerFunc); ok {
-			emailCap = mw
-		}
-	}
+	// CAP middleware is resolved per request. user Apply runs before cap in
+	// the default plugin list; snapshotting CaptchaService here would leave
+	// login/register as a permanent pass-through.
+	loginCap := captchaGuard(ctx, "login")
+	registerCap := captchaGuard(ctx, "register")
+	emailCap := captchaGuard(ctx, "send_email_code")
 
 	// 3. Register HTTP Routes
 	userGroup := ctx.Router().Group("/api/v1/user")
@@ -155,90 +144,19 @@ func (p *Plugin) Apply(ctx *core.Context) error {
 		}
 	}
 
-	const (
-		defaultUserTaskRetry = 3
-		paramTypeString      = "string"
-		paramNameEmail       = "email"
-	)
+	ctx.Task().Register(TaskSendEmailCode, &SendEmailCodeHandler{},
+		extpoints.WithTaskMeta(SendEmailCodeMeta), extpoints.WithTaskRetry(defaultUserTaskRetry))
+	ctx.Task().Register(TaskSendMail, &SendMailHandler{},
+		extpoints.WithTaskMeta(SendMailMeta), extpoints.WithTaskRetry(defaultUserTaskRetry))
+	ctx.Task().Register(TaskCleanupInactive, &CleanupInactiveHandler{},
+		extpoints.WithTaskMeta(CleanupInactiveMeta))
 
-	// 4. Register background tasks
-	ctx.Task().Register("user:send_email_code", func(_ context.Context, _ []byte) error {
-		return nil
-	},
-		extpoints.WithTaskType("send_email_code"),
-		extpoints.WithTaskName("发送邮箱验证码"),
-		extpoints.WithTaskDescription("异步发送用户注册与验证邮箱验证码"),
-		extpoints.WithTaskCategory("user"),
-		extpoints.WithTaskRetry(defaultUserTaskRetry),
-		extpoints.WithTaskQueue("default"),
-		extpoints.WithTaskRetryable(true),
-		extpoints.WithTaskParams(
-			contracts.TaskParamDTO{
-				Name:        paramNameEmail,
-				Label:       "目标邮箱",
-				Type:        paramTypeString,
-				Required:    true,
-				Placeholder: "user@example.com",
-				Description: "接收验证码的目标邮箱",
-			},
-			contracts.TaskParamDTO{
-				Name:        "code",
-				Label:       "验证码",
-				Type:        paramTypeString,
-				Required:    true,
-				Placeholder: "123456",
-				Description: "6 位数字验证码",
-			},
-		),
-	)
-
-	ctx.Task().Register("mail:send", func(_ context.Context, _ []byte) error {
-		return nil
-	},
-		extpoints.WithTaskType("send_email"),
-		extpoints.WithTaskName("发送邮件"),
-		extpoints.WithTaskDescription("异步发送系统邮件"),
-		extpoints.WithTaskCategory("mail"),
-		extpoints.WithTaskRetry(defaultUserTaskRetry),
-		extpoints.WithTaskQueue("default"),
-		extpoints.WithTaskRetryable(true),
-		extpoints.WithTaskParams(
-			contracts.TaskParamDTO{
-				Name:        "to",
-				Label:       "接收邮箱 (To)",
-				Type:        paramTypeString,
-				Required:    true,
-				Placeholder: "receiver@example.com",
-				Description: "接收邮件的目标邮箱地址",
-			},
-			contracts.TaskParamDTO{
-				Name:        "subject",
-				Label:       "邮件主题 (Subject)",
-				Type:        paramTypeString,
-				Required:    true,
-				Placeholder: "请输入邮件主题",
-				Description: "发送邮件的主题标题",
-			},
-			contracts.TaskParamDTO{
-				Name:        "body",
-				Label:       "邮件内容 (Body)",
-				Type:        "text",
-				Required:    true,
-				Placeholder: "请输入邮件内容（支持 HTML格式）",
-				Description: "发送邮件的内容主体",
-			},
-		),
-	)
-
-	ctx.Task().Register("user:cleanup_inactive", func(_ context.Context, _ []byte) error {
-		return nil
-	},
-		extpoints.WithTaskType("cleanup_inactive_users"),
-		extpoints.WithTaskName("清理未激活用户"),
-		extpoints.WithTaskDescription("清理长期未激活的注册用户与临时凭据"),
-		extpoints.WithTaskCategory("user"),
-		extpoints.WithTaskQueue("default"),
-	)
+	// 4.1 Register Event Listeners for domain events
+	ctx.Events().On(contracts.EventTopicSystemCleanup, func(c context.Context, _ contracts.SystemCleanupEvent) error {
+		handler := &CleanupInactiveHandler{}
+		_, err := handler.Execute(c, nil)
+		return err
+	})
 
 	// 5. Register Settings Schemas
 	ctx.Settings().Register(extpoints.SettingSchema{
@@ -265,5 +183,33 @@ func (p *Plugin) Apply(ctx *core.Context) error {
 		Category:    "security",
 	})
 
+	return nil
+}
+
+func captchaGuard(appCtx *core.Context, scope string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		svc := resolveCaptchaService(c.Request.Context(), appCtx)
+		if svc == nil {
+			c.Next()
+			return
+		}
+		mw, ok := svc.VerifyMiddleware(scope).(gin.HandlerFunc)
+		if !ok || mw == nil {
+			c.Next()
+			return
+		}
+		mw(c)
+	}
+}
+
+func resolveCaptchaService(reqCtx context.Context, appCtx *core.Context) contracts.CaptchaService {
+	if s, err := core.InjectFrom[contracts.CaptchaService](reqCtx); err == nil && s != nil {
+		return s
+	}
+	if appCtx != nil {
+		if s, err := core.Inject[contracts.CaptchaService](appCtx); err == nil && s != nil {
+			return s
+		}
+	}
 	return nil
 }

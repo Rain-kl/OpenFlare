@@ -13,7 +13,6 @@ import (
 
 	"Wavelet/openflare/plugins/server/kernel/model"
 	"Wavelet/pkg/response"
-	db "Wavelet/plugins/infra/database"
 
 	"github.com/gin-gonic/gin"
 	"github.com/glebarez/sqlite"
@@ -30,10 +29,10 @@ func setupFlaredMiddlewareTestDB(t *testing.T) func() {
 	})
 	require.NoError(t, err)
 	require.NoError(t, sqliteDB.AutoMigrate(&model.OpenFlareNode{}))
-	db.SetDB(sqliteDB)
+	repository.SetDBForTest(sqliteDB)
 
 	return func() {
-		db.SetDB(nil)
+		repository.SetDBForTest(nil)
 	}
 }
 

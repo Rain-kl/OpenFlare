@@ -9,8 +9,8 @@ import (
 	"Wavelet/core/contracts"
 	"Wavelet/pkg/logger"
 	"Wavelet/pkg/response"
+	"context"
 	"net/http"
-	"reflect"
 
 	"github.com/gin-gonic/gin"
 )
@@ -28,13 +28,6 @@ func (p *Plugin) Name() string {
 	return "system"
 }
 
-// Inject declares required dependencies for the system domain plugin.
-func (p *Plugin) Inject() []reflect.Type {
-	return []reflect.Type{
-		reflect.TypeFor[contracts.DBService](),
-	}
-}
-
 // Manifest returns the plugin metadata.
 func (p *Plugin) Manifest() core.Manifest {
 	return core.Manifest{
@@ -47,42 +40,43 @@ func (p *Plugin) Manifest() core.Manifest {
 
 // Apply registers system routes.
 func (p *Plugin) Apply(ctx *core.Context) error {
-	appName := ctx.Config().String("app.app_name", "Wavelet")
-
 	// 1. Health check
 	ctx.Router().GET("/api/healthz", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
 	})
 	ctx.Router().RegisterWhitelist("/api/healthz")
 
-	// 2. Public config
+	// 2. Public config — owned data comes from PublicConfigProvider (admin).
 	ctx.Router().GET("/api/v1/config/public", func(c *gin.Context) {
-		if p, err := core.Inject[contracts.PublicConfigProvider](ctx); err == nil && p != nil {
-			data, err := p.PublicConfig(c.Request.Context())
-			if err != nil {
-				logger.ErrorF(c.Request.Context(), "[System] public config provider failed: %v", err)
-				response.AbortInternal(c, "public config unavailable")
-				return
-			}
-			c.JSON(http.StatusOK, response.OK(data))
+		provider := resolvePublicConfigProvider(c.Request.Context(), ctx)
+		if provider == nil {
+			c.JSON(http.StatusOK, response.OK(map[string]string{}))
 			return
 		}
-		configs, err := listPublicSystemConfigs(c.Request.Context(), ctx)
+		data, err := provider.PublicConfig(c.Request.Context())
 		if err != nil {
-			logger.ErrorF(c.Request.Context(), "[System] query public system configs failed: %v", err)
+			logger.ErrorF(c.Request.Context(), "[System] public config provider failed: %v", err)
+			response.AbortInternal(c, "public config unavailable")
+			return
 		}
-		c.JSON(http.StatusOK, response.OK(gin.H{
-			"configs": configs,
-			"app": gin.H{
-				"name": appName,
-			},
-		}))
+		if data == nil {
+			data = map[string]string{}
+		}
+		c.JSON(http.StatusOK, response.OK(data))
 	})
+	ctx.Router().RegisterWhitelist("/api/v1/config/public")
 
-	// 3. Custom injection
-	ctx.Router().GET("/custom", func(c *gin.Context) {
-		c.JSON(http.StatusOK, response.OK(gin.H{"custom": true}))
-	})
+	return nil
+}
 
+func resolvePublicConfigProvider(reqCtx context.Context, appCtx *core.Context) contracts.PublicConfigProvider {
+	if p, err := core.InjectFrom[contracts.PublicConfigProvider](reqCtx); err == nil && p != nil {
+		return p
+	}
+	if appCtx != nil {
+		if p, err := core.Inject[contracts.PublicConfigProvider](appCtx); err == nil && p != nil {
+			return p
+		}
+	}
 	return nil
 }

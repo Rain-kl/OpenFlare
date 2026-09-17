@@ -40,7 +40,7 @@ build-embedded:
 
 code-check:
 	@echo "==> Architecture guards..."
-	@command -v rg >/dev/null 2>&1 || { echo 'error: rg (ripgrep) is required for architecture guards' >&2; exit 1; }
+	scripts/check_cordis_architecture.sh
 	@if rg -n 'db\.DB\(|db\.Redis' backend/openflare/plugins/server/kernel/model --glob '*.go' -g '!*_test.go' ; then \
 		echo 'error: internal/model must not access db.DB or db.Redis (non-test code)' >&2; \
 		exit 1; \
@@ -108,7 +108,7 @@ cross-build:
 	(version=$(or $(VERSION),dev))..."
 	@mkdir -p bin
 	docker build \
-		--file docker/Dockerfile.cross \
+		--file manifest/docker/Dockerfile.cross \
 		--target export \
 		--build-arg VERSION=$(or $(VERSION),dev) \
 		--build-arg BUILD_DATE="$(shell date -u +'%Y-%m-%dT%H:%M:%SZ')" \

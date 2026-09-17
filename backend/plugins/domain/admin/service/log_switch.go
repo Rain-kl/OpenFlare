@@ -109,7 +109,7 @@ func (h *LogDBSwitchHandler) Execute(ctx context.Context, payload []byte) (*cont
 		return nil, err
 	}
 
-	taskSvc := GetTaskService()
+	taskSvc := GetTaskService(ctx)
 	if taskSvc != nil {
 		taskSvc.AppendLog(ctx, "开始切换日志数据库：%s -> %s", source, p.Target)
 	}
@@ -123,7 +123,7 @@ func (h *LogDBSwitchHandler) Execute(ctx context.Context, payload []byte) (*cont
 		}
 	}()
 
-	rc := GetRiskControlService()
+	rc := GetRiskControlService(ctx)
 	if rc != nil {
 		if err := rc.SwitchLogEngine(ctx, p.Target); err != nil {
 			return nil, err

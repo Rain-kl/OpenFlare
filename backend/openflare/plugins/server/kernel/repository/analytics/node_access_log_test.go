@@ -10,7 +10,6 @@ import (
 
 	analyticsmodel "Wavelet/openflare/plugins/server/kernel/model/analytics"
 	"Wavelet/pkg/idgen"
-	db "Wavelet/plugins/infra/database"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -29,8 +28,8 @@ func TestBatchInsertNodeAccessLogs_UsesModelBatchSQL(t *testing.T) {
 		batch:      mockBatch,
 		batchQuery: analyticsmodel.NodeAccessLog{}.BatchInsertSQL(),
 	}
-	db.SetChConnForTest(mockConn)
-	t.Cleanup(func() { db.SetChConnForTest(nil) })
+	SetChConnForTest(mockConn)
+	t.Cleanup(func() { SetChConnForTest(nil) })
 
 	loggedAt := time.Now().UTC()
 	err := BatchInsertNodeAccessLogs(ctx, []analyticsmodel.NodeAccessLog{

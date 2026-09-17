@@ -6,15 +6,27 @@ package runtimeconfig
 
 import (
 	"sync"
-
-	"Wavelet/plugins/infra/database"
 )
+
+// ClickHouseConfig represents ClickHouse connection parameters.
+type ClickHouseConfig struct {
+	Enabled         bool     `config:"enabled" env:"CLICKHOUSE_ENABLED" default:"false" autoEnable:"CLICKHOUSE_HOST"`
+	Hosts           []string `config:"hosts" env:"CLICKHOUSE_HOST"`
+	Username        string   `config:"username" env:"CLICKHOUSE_USERNAME"`
+	Password        string   `config:"password" env:"CLICKHOUSE_PASSWORD" secret:"true"`
+	Database        string   `config:"database" env:"CLICKHOUSE_NAME" default:"wavelet"`
+	MaxIdleConn     int      `config:"max_idle_conn" env:"CLICKHOUSE_MAX_IDLE_CONN" default:"10"`
+	MaxOpenConn     int      `config:"max_open_conn" env:"CLICKHOUSE_MAX_OPEN_CONN" default:"50"`
+	ConnMaxLifetime int      `config:"conn_max_lifetime" env:"CLICKHOUSE_CONN_MAX_LIFETIME" default:"3600"`
+	DialTimeout     int      `config:"dial_timeout" env:"CLICKHOUSE_DIAL_TIMEOUT" default:"10"`
+	BlockBufferSize uint8    `config:"block_buffer_size" env:"CLICKHOUSE_BLOCK_BUFFER_SIZE" default:"10"`
+}
 
 // Snapshot is the subset of host config remaining OF packages still need.
 type Snapshot struct {
 	SessionSecret   string
 	DatabaseEnabled bool
-	ClickHouse      database.ClickHouseConfig
+	ClickHouse      ClickHouseConfig
 }
 
 var (

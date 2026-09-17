@@ -11,6 +11,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -366,6 +367,25 @@ func TestEventBusParallel(t *testing.T) {
 	err := bus.Parallel(context.Background(), "test:parallel", 10)
 	assert.ErrorIs(t, err, err1)
 	assert.Equal(t, int64(20), counter.Load())
+}
+
+func TestEventBusParallelContextTimeout(t *testing.T) {
+	bus := core.NewEventBus()
+
+	bus.On("test:timeout", func(ctx context.Context) error {
+		select {
+		case <-time.After(200 * time.Millisecond):
+			return nil
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	})
+
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+	defer cancel()
+
+	err := bus.Parallel(ctx, "test:timeout", nil)
+	assert.ErrorIs(t, err, context.DeadlineExceeded)
 }
 
 func TestEventBusSerial(t *testing.T) {

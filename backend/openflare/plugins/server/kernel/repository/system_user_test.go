@@ -5,15 +5,10 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"Wavelet/core/contracts"
-	"Wavelet/pkg/idgen"
-	adminmodel "Wavelet/plugins/domain/admin/model"
-	"Wavelet/plugins/infra/database"
-
-	"github.com/glebarez/sqlite"
-	"gorm.io/gorm"
 )
 
 type stubUserService struct {
@@ -32,24 +27,6 @@ type stubAuthService struct {
 
 func (s stubAuthService) ListAuthSources(context.Context) ([]contracts.AuthSourceViewDTO, error) {
 	return s.sources, nil
-}
-
-func setupRepoTestDB(t *testing.T) (*gorm.DB, func()) {
-	t.Helper()
-	sqliteDB, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{
-		DisableForeignKeyConstraintWhenMigrating: true,
-	})
-	if err != nil {
-		t.Fatalf("gorm.Open() error = %v", err)
-	}
-	if err := sqliteDB.AutoMigrate(&adminmodel.TaskExecution{}); err != nil {
-		t.Fatalf("AutoMigrate(TaskExecution) error = %v", err)
-	}
-	if err := idgen.Init(1); err != nil {
-		t.Fatalf("idgen.Init() error = %v", err)
-	}
-	database.SetDB(sqliteDB)
-	return sqliteDB, func() { database.SetDB(nil) }
 }
 
 func TestGetActiveAuthSourcesUsesAuthService(t *testing.T) {
@@ -96,21 +73,27 @@ func TestGetSystemUserUsesUserService(t *testing.T) {
 	}
 }
 
-func TestGetTaskExecutionByTaskIDUsesAdminStore(t *testing.T) {
-	_, cleanup := setupRepoTestDB(t)
-	t.Cleanup(cleanup)
+type mockTaskSvc struct {
+	contracts.TaskService
+	execution contracts.TaskExecutionDTO
+}
 
-	ctx := context.Background()
-	row := &adminmodel.TaskExecution{
+func (m *mockTaskSvc) GetExecutionByTaskID(ctx context.Context, taskID string) (*contracts.TaskExecutionDTO, error) {
+	if taskID == m.execution.TaskID {
+		return &m.execution, nil
+	}
+	return nil, errors.New("not found")
+}
+
+func TestGetTaskExecutionByTaskIDUsesAdminStore(t *testing.T) {
+	SetTaskService(&mockTaskSvc{execution: contracts.TaskExecutionDTO{
 		ID:       7,
 		TaskID:   "task-public-id",
 		TaskType: "pages_source_action",
-		Status:   adminmodel.TaskExecutionStatusPending,
-	}
-	if err := database.DB(ctx).Create(row).Error; err != nil {
-		t.Fatalf("Create(TaskExecution) error = %v", err)
-	}
+	}})
+	t.Cleanup(func() { SetTaskService(nil) })
 
+	ctx := context.Background()
 	got, err := GetTaskExecutionByTaskID(ctx, "task-public-id")
 	if err != nil {
 		t.Fatalf("GetTaskExecutionByTaskID(%q) error = %v", "task-public-id", err)

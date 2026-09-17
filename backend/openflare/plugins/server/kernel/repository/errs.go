@@ -22,6 +22,4 @@ const (
 	errExternalAccountBindingIDRequired     = "绑定记录 ID 不能为空"
 )
 
-const colName = "name"
-
 const colEnabled = "enabled"

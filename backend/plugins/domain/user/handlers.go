@@ -5,15 +5,19 @@ package user
 
 import (
 	"Wavelet/core/contracts"
+	"Wavelet/pkg/idgen"
 	"Wavelet/pkg/logger"
 	"Wavelet/pkg/response"
+	"Wavelet/pkg/util"
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"net/http"
 	"strconv"
 	"sync"
+	"time"
 
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
@@ -77,15 +81,16 @@ func invalidateTokenCache(ctx context.Context, tokenHash string) {
 	}
 }
 
-// Login 用户密码登录
-// @Summary 用户密码登录
-// @Description 使用用户名和密码登录，登录成功后建立 Session。若管理员已关闭密码登录功能则返回错误。
+// Login 用户登录
+// @Summary 用户登录
+// @Description 使用用户名和密码登录系统，验证通过后建立 Session 并返回用户信息。
 // @Tags user
 // @Accept json
 // @Produce json
 // @Param request body user.loginRequest true "登录请求参数"
 // @Success 200 {object} response.Any "登录成功，返回用户信息"
 // @Failure 400 {object} response.Any "用户名或密码错误"
+// @Failure 429 {object} response.Any "登录尝试过于频繁"
 // @Failure 500 {object} response.Any "服务内部错误"
 // @Router /api/v1/user/login [post]
 func Login(c *gin.Context) {
@@ -95,8 +100,28 @@ func Login(c *gin.Context) {
 		return
 	}
 
-	user, err := GetUserByUsername(c.Request.Context(), req.Username)
+	ctx := c.Request.Context()
+	clientIP := c.ClientIP()
+	rateKey := "auth:login:ip:" + clientIP
+	if clientIP == "" {
+		rateKey = "auth:login:user:" + req.Username
+	}
+
+	limiter := getLimiter(ctx)
+	if limiter != nil {
+		res, err := limiter.Allow(ctx, rateKey, contracts.Rate{
+			Limit:  5,
+			Period: 1 * time.Minute,
+		})
+		if err == nil && !res.Allowed {
+			response.AbortTooManyRequests(c, errTooManyLoginAttempts)
+			return
+		}
+	}
+
+	user, err := GetUserByUsername(ctx, req.Username)
 	if err != nil {
+		util.DummyCheckPassword(req.Password)
 		response.AbortUnauthorized(c, errPasswordMismatch)
 		return
 	}
@@ -106,14 +131,25 @@ func Login(c *gin.Context) {
 		return
 	}
 
+	if limiter != nil {
+		_ = limiter.Reset(ctx, rateKey)
+	}
+
+	if user.ID == 0 {
+		newID := idgen.NextUint64ID()
+		if err := getDB(ctx).Model(&User{}).Where("username = ?", user.Username).Update("id", newID).Error; err == nil {
+			user.ID = newID
+		}
+	}
+
 	sess := sessions.Default(c)
-	sess.Set(contracts.AuthUserIDKey, user.ID)
+	sess.Set(contracts.AuthUserIDKey, strconv.FormatUint(user.ID, 10))
 	sess.Set(contracts.AuthUserNameKey, user.Username)
 	needChange := user.NeedChangePassword || user.IsPlaintextPassword()
 	user.NeedChangePassword = needChange
 	sess.Set("need_change_password", needChange)
 	if err := sess.Save(); err != nil {
-		logger.ErrorF(c.Request.Context(), "save session failed on login: %v", err)
+		logger.ErrorF(ctx, "save session failed on login: %v", err)
 	}
 
 	c.JSON(http.StatusOK, response.OK(user))
@@ -128,6 +164,7 @@ func Login(c *gin.Context) {
 // @Param request body user.registerRequest true "注册请求参数"
 // @Success 200 {object} response.Any "注册并登录成功，返回用户信息"
 // @Failure 400 {object} response.Any "参数错误、用户名已存在或注册已关闭"
+// @Failure 429 {object} response.Any "注册尝试过于频繁"
 // @Failure 500 {object} response.Any "服务内部错误"
 // @Router /api/v1/user/register [post]
 func Register(c *gin.Context) {
@@ -135,6 +172,19 @@ func Register(c *gin.Context) {
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.AbortBadRequest(c, errInvalidParams)
 		return
+	}
+
+	ctx := c.Request.Context()
+	clientIP := c.ClientIP()
+	if limiter := getLimiter(ctx); limiter != nil && clientIP != "" {
+		res, err := limiter.Allow(ctx, "auth:register:ip:"+clientIP, contracts.Rate{
+			Limit:  10,
+			Period: 1 * time.Minute,
+		})
+		if err == nil && !res.Allowed {
+			response.AbortTooManyRequests(c, errTooManyLoginAttempts)
+			return
+		}
 	}
 
 	newUser := &User{
@@ -153,7 +203,7 @@ func Register(c *gin.Context) {
 	}
 
 	sess := sessions.Default(c)
-	sess.Set(contracts.AuthUserIDKey, newUser.ID)
+	sess.Set(contracts.AuthUserIDKey, strconv.FormatUint(newUser.ID, 10))
 	sess.Set(contracts.AuthUserNameKey, newUser.Username)
 	if err := sess.Save(); err != nil {
 		logger.ErrorF(c.Request.Context(), "save session failed on register: %v", err)
@@ -190,10 +240,36 @@ func Logout(c *gin.Context) {
 // @Tags user
 // @Accept json
 // @Produce json
+// @Param request body user.sendEmailCodeRequest true "目标邮箱"
 // @Success 200 {object} response.Any "发送成功"
 // @Failure 400 {object} response.Any "参数错误"
+// @Failure 500 {object} response.Any "发送失败"
 // @Router /api/v1/user/send-email-code [post]
 func SendEmailCode(c *gin.Context) {
+	var req sendEmailCodeRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.AbortBadRequest(c, errInvalidParams)
+		return
+	}
+	payload, err := json.Marshal(sendEmailCodePayload{Email: req.Email})
+	if err != nil {
+		response.AbortInternal(c, errSendEmailFailed)
+		return
+	}
+	ctx := c.Request.Context()
+	if taskSvc := getTaskService(ctx); taskSvc != nil {
+		if _, err := taskSvc.Dispatch(ctx, TaskTypeSendEmailCode, payload, contracts.TaskTriggerSystem); err != nil {
+			logger.ErrorF(ctx, "dispatch send_email_code failed: %v", err)
+			response.AbortInternal(c, errSendEmailFailed)
+			return
+		}
+		c.JSON(http.StatusOK, response.OK(gin.H{"sent": true}))
+		return
+	}
+	if _, err := (&SendEmailCodeHandler{}).Execute(ctx, payload); err != nil {
+		response.AbortBadRequest(c, err.Error())
+		return
+	}
 	c.JSON(http.StatusOK, response.OK(gin.H{"sent": true}))
 }
 

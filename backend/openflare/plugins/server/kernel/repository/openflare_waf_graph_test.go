@@ -9,8 +9,6 @@ import (
 
 	"Wavelet/openflare/plugins/server/kernel/model"
 
-	db "Wavelet/plugins/infra/database"
-
 	"github.com/glebarez/sqlite"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -23,8 +21,8 @@ func TestOpenFlareWAFGraphOptimisticUpdate(t *testing.T) {
 	conn, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
 	require.NoError(t, err)
 	require.NoError(t, conn.AutoMigrate(&model.OpenFlareWAFRuleGroup{}))
-	db.SetDB(conn)
-	t.Cleanup(func() { db.SetDB(nil) })
+	SetDBForTest(conn)
+	t.Cleanup(func() { SetDBForTest(nil) })
 
 	group := model.OpenFlareWAFRuleGroup{Name: "rule", Graph: defaultWAFRuleGraph, Revision: 1}
 	require.NoError(t, conn.Create(&group).Error)

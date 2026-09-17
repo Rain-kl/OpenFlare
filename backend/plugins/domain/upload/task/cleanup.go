@@ -33,9 +33,9 @@ const (
 var SystemCleanupMeta = contracts.TaskMetaDTO{
 	Type:         TaskTypeSystemCleanup,
 	AsynqTask:    SystemCleanupTask,
-	Name:         "系统垃圾清理",
-	DisplayName:  "系统垃圾清理",
-	Description:  "定期清理未使用上传文件、历史推送记录和过期任务执行日志",
+	Name:         "清理未确认上传文件",
+	DisplayName:  "清理未确认上传文件",
+	Description:  "定期清理超过1小时未使用的上传临时文件与底层存储资源",
 	Category:     "maintenance",
 	SupportsTime: false,
 	MaxRetry:     3,
@@ -43,13 +43,29 @@ var SystemCleanupMeta = contracts.TaskMetaDTO{
 	Retryable:    true,
 }
 
-// SystemCleanupHandler 系统定期垃圾清理异步任务处理器
+// SystemCleanupHandler 未确认上传文件清理异步任务处理器
 type SystemCleanupHandler struct{}
 
-// Execute 执行系统清理（包含文件清理、历史推送日志和任务执行日志清理）
+// Execute 执行系统清理（清理未使用上传文件）
 func (h *SystemCleanupHandler) Execute(ctx context.Context, _ []byte) (*contracts.TaskResultDTO, error) {
+	totalProcessed, totalDeleted, err := CleanupOrphanUploads(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	msg := fmt.Sprintf(
+		"系统垃圾清理完成，处理未确认文件: %d 个，物理删除: %d 个",
+		totalProcessed,
+		totalDeleted,
+	)
+	logger.InfoF(ctx, "%s", msg)
+	return &contracts.TaskResultDTO{Message: msg}, nil
+}
+
+// CleanupOrphanUploads 扫描并清理超过1小时未确认的 pending 状态上传文件及物理存储
+func CleanupOrphanUploads(ctx context.Context) (int, int, error) {
 	if uploadstorage.ReadOnly(ctx) {
-		return nil, errors.New(shared.ErrStorageReadOnly)
+		return 0, 0, errors.New(shared.ErrStorageReadOnly)
 	}
 	const batchSize = 100
 	var lastID uint64
@@ -62,14 +78,14 @@ func (h *SystemCleanupHandler) Execute(ctx context.Context, _ []byte) (*contract
 
 	db := shared.GetDB(ctx)
 	if db == nil {
-		return nil, errors.New("database service not available")
+		return 0, 0, errors.New("database service not available")
 	}
 
 	storageSvc := shared.GetStorage(ctx)
 
 	for {
 		if err := ctx.Err(); err != nil {
-			return nil, fmt.Errorf("system cleanup canceled: %w", err)
+			return totalProcessed, totalDeleted, fmt.Errorf("system cleanup canceled: %w", err)
 		}
 
 		var pendingUploads []models.Upload
@@ -79,7 +95,7 @@ func (h *SystemCleanupHandler) Execute(ctx context.Context, _ []byte) (*contract
 			Limit(batchSize).
 			Find(&pendingUploads).Error; err != nil {
 			logger.ErrorF(ctx, "查询过期待使用上传文件失败: %v", err)
-			return nil, fmt.Errorf("failed to query pending uploads: %w", err)
+			return totalProcessed, totalDeleted, fmt.Errorf("failed to query pending uploads: %w", err)
 		}
 
 		if len(pendingUploads) == 0 {
@@ -88,7 +104,7 @@ func (h *SystemCleanupHandler) Execute(ctx context.Context, _ []byte) (*contract
 
 		for i := range pendingUploads {
 			if err := ctx.Err(); err != nil {
-				return nil, fmt.Errorf("system cleanup canceled: %w", err)
+				return totalProcessed, totalDeleted, fmt.Errorf("system cleanup canceled: %w", err)
 			}
 
 			upload := &pendingUploads[i]
@@ -117,39 +133,5 @@ func (h *SystemCleanupHandler) Execute(ctx context.Context, _ []byte) (*contract
 		}
 	}
 
-	// 清理过期任务执行记录
-	var deletedExecutions int64
-	sevenDaysAgo := time.Now().Add(-7 * 24 * time.Hour)
-	if err := db.
-		Table("w_task_executions").
-		Where("created_at < ?", sevenDaysAgo).
-		Delete(&struct{}{}).Error; err != nil {
-		logger.WarnF(ctx, "清理过期任务执行日志失败: %v", err)
-	} else {
-		deletedExecutions = db.RowsAffected
-		logger.InfoF(ctx, "已清理 7 天前任务执行日志，共 %d 条", deletedExecutions)
-	}
-
-	// 清理已过期推送日志
-	var deletedPushLogs int64
-	thirtyDaysAgo := time.Now().Add(-30 * 24 * time.Hour)
-	if err := db.
-		Table("w_push_logs").
-		Where("created_at < ?", thirtyDaysAgo).
-		Delete(&struct{}{}).Error; err != nil {
-		logger.WarnF(ctx, "清理历史推送日志失败: %v", err)
-	} else {
-		deletedPushLogs = db.RowsAffected
-		logger.InfoF(ctx, "已清理 30 天前推送日志，共 %d 条", deletedPushLogs)
-	}
-
-	msg := fmt.Sprintf(
-		"系统垃圾清理完成，处理未确认文件: %d 个，物理删除: %d 个，清理过期任务日志: %d 条，清理历史推送日志: %d 条",
-		totalProcessed,
-		totalDeleted,
-		deletedExecutions,
-		deletedPushLogs,
-	)
-	logger.InfoF(ctx, "%s", msg)
-	return &contracts.TaskResultDTO{Message: msg}, nil
+	return totalProcessed, totalDeleted, nil
 }

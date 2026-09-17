@@ -10,12 +10,11 @@ import (
 	"gorm.io/gorm"
 
 	"Wavelet/openflare/plugins/server/kernel/model"
-	db "Wavelet/plugins/infra/database"
 )
 
 // ListConfigVersionSummaries returns config version summaries ordered by created_at desc.
 func ListConfigVersionSummaries(ctx context.Context) ([]*model.ConfigVersionSummary, error) {
-	conn := db.DB(ctx)
+	conn := DB(ctx)
 	if conn == nil {
 		return nil, errors.New(errDatabaseNotInitialized)
 	}
@@ -29,7 +28,7 @@ func ListConfigVersionSummaries(ctx context.Context) ([]*model.ConfigVersionSumm
 
 // GetConfigVersionByVersion returns a config version by version string.
 func GetConfigVersionByVersion(ctx context.Context, version string) (*model.ConfigVersion, error) {
-	conn := db.DB(ctx)
+	conn := DB(ctx)
 	if conn == nil {
 		return nil, errors.New(errDatabaseNotInitialized)
 	}
@@ -42,7 +41,7 @@ func GetConfigVersionByVersion(ctx context.Context, version string) (*model.Conf
 
 // GetActiveConfigVersion returns the currently active config version.
 func GetActiveConfigVersion(ctx context.Context) (*model.ConfigVersion, error) {
-	conn := db.DB(ctx)
+	conn := DB(ctx)
 	if conn == nil {
 		return nil, errors.New(errDatabaseNotInitialized)
 	}
@@ -55,7 +54,7 @@ func GetActiveConfigVersion(ctx context.Context) (*model.ConfigVersion, error) {
 
 // GetLatestConfigVersionByPrefix returns the latest version string matching a date prefix.
 func GetLatestConfigVersionByPrefix(ctx context.Context, prefix string) (string, error) {
-	conn := db.DB(ctx)
+	conn := DB(ctx)
 	if conn == nil {
 		return "", errors.New(errDatabaseNotInitialized)
 	}
@@ -73,7 +72,7 @@ func GetLatestConfigVersionByPrefix(ctx context.Context, prefix string) (string,
 
 // CreateConfigVersion inserts a new config version record.
 func CreateConfigVersion(ctx context.Context, version *model.ConfigVersion) error {
-	conn := db.DB(ctx)
+	conn := DB(ctx)
 	if conn == nil {
 		return errors.New(errDatabaseNotInitialized)
 	}
@@ -82,7 +81,7 @@ func CreateConfigVersion(ctx context.Context, version *model.ConfigVersion) erro
 
 // PublishConfigVersionTx deactivates all versions and creates a new active version.
 func PublishConfigVersionTx(ctx context.Context, version *model.ConfigVersion) error {
-	conn := db.DB(ctx)
+	conn := DB(ctx)
 	if conn == nil {
 		return errors.New(errDatabaseNotInitialized)
 	}
@@ -96,7 +95,7 @@ func PublishConfigVersionTx(ctx context.Context, version *model.ConfigVersion) e
 
 // ActivateConfigVersionTx marks the given version active and deactivates others.
 func ActivateConfigVersionTx(ctx context.Context, version string) error {
-	conn := db.DB(ctx)
+	conn := DB(ctx)
 	if conn == nil {
 		return errors.New(errDatabaseNotInitialized)
 	}
@@ -113,7 +112,7 @@ func DeleteConfigVersionsByVersions(ctx context.Context, versions []string) (int
 	if len(versions) == 0 {
 		return 0, nil
 	}
-	conn := db.DB(ctx)
+	conn := DB(ctx)
 	if conn == nil {
 		return 0, errors.New(errDatabaseNotInitialized)
 	}
@@ -123,7 +122,7 @@ func DeleteConfigVersionsByVersions(ctx context.Context, versions []string) (int
 
 // ListEnabledProxyRoutes returns enabled proxy routes ordered by id asc.
 func ListEnabledProxyRoutes(ctx context.Context) ([]*model.ProxyRoute, error) {
-	conn := db.DB(ctx)
+	conn := DB(ctx)
 	if conn == nil {
 		return nil, errors.New(errDatabaseNotInitialized)
 	}

@@ -83,7 +83,11 @@ func (p *Plugin) Start(ctx context.Context) error {
 		p.scheduler = newInprocScheduler(p.coreCtx.Schedules(), p.coreCtx.Tasks(), taskSvc)
 	}
 
-	return p.scheduler.Start(ctx)
+	runCtx := ctx
+	if p.coreCtx != nil {
+		runCtx = core.WithAppContext(ctx, p.coreCtx.Root())
+	}
+	return p.scheduler.Start(runCtx)
 }
 
 // Stop terminates the in-process cron scheduler.

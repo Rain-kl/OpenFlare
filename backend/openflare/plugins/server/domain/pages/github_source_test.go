@@ -20,7 +20,6 @@ import (
 	"Wavelet/openflare/plugins/server/kernel/repository"
 	"Wavelet/openflare/plugins/server/kernel/task"
 	"Wavelet/openflare/share/githubrelease"
-	db "Wavelet/plugins/infra/database"
 
 	"github.com/hibiken/asynq"
 	"gorm.io/gorm"
@@ -62,7 +61,7 @@ func mustConfigureGitHubSourceWithoutDispatch(
 	if err := validateGitHubSourceInput(input); err != nil {
 		t.Fatalf("validateGitHubSourceInput(%+v) error = %v, want nil", input, err)
 	}
-	if err := db.DB(ctx).Transaction(func(tx *gorm.DB) error {
+	if err := repository.DB(ctx).Transaction(func(tx *gorm.DB) error {
 		_, err := updateGitHubSourceTx(tx, projectID, input)
 		return err
 	}); err != nil {
@@ -78,11 +77,11 @@ func mustLoadPagesSource(
 ) (*model.PagesProjectSource, *model.PagesProjectSourceRuntime) {
 	t.Helper()
 	var source model.PagesProjectSource
-	if err := db.DB(ctx).Where("project_id = ?", projectID).First(&source).Error; err != nil {
+	if err := repository.DB(ctx).Where("project_id = ?", projectID).First(&source).Error; err != nil {
 		t.Fatalf("load source for project %d error = %v, want nil", projectID, err)
 	}
 	var runtime model.PagesProjectSourceRuntime
-	if err := db.DB(ctx).Where("source_id = ?", source.ID).First(&runtime).Error; err != nil {
+	if err := repository.DB(ctx).Where("source_id = ?", source.ID).First(&runtime).Error; err != nil {
 		t.Fatalf("load runtime for source %d error = %v, want nil", source.ID, err)
 	}
 	return &source, &runtime
@@ -136,14 +135,14 @@ func TestGitHubSourceValidationNormalizationAndProviderSwitch(t *testing.T) {
 	}
 
 	var taskCount int64
-	if err := db.DB(ctx).Model(&model.TaskExecution{}).Count(&taskCount).Error; err != nil {
+	if err := repository.DB(ctx).Model(&model.TaskExecution{}).Count(&taskCount).Error; err != nil {
 		t.Fatalf("count initial checks error = %v, want nil", err)
 	}
 	if _, err := UpdateSourceAs(ctx, project.ID, input, "user:42"); err != nil {
 		t.Fatalf("UpdateSourceAs(GitHub no-op) error = %v, want nil", err)
 	}
 	var noOpTaskCount int64
-	if err := db.DB(ctx).Model(&model.TaskExecution{}).Count(&noOpTaskCount).Error; err != nil {
+	if err := repository.DB(ctx).Model(&model.TaskExecution{}).Count(&noOpTaskCount).Error; err != nil {
 		t.Fatalf("count no-op checks error = %v, want nil", err)
 	}
 	if noOpTaskCount != taskCount {
@@ -275,7 +274,7 @@ func TestInitialCheckFailureUsesExactConfigFence(t *testing.T) {
 		RepositoryURL: "https://github.com/a/b",
 	})
 	staleVersion := source.ConfigVersion
-	if err := db.DB(ctx).Model(source).Update("config_version", staleVersion+1).Error; err != nil {
+	if err := repository.DB(ctx).Model(source).Update("config_version", staleVersion+1).Error; err != nil {
 		t.Fatalf("increment source config version error = %v, want nil", err)
 	}
 	markInitialCheckDispatchFailed(ctx, source.ID, staleVersion)
@@ -294,7 +293,7 @@ func TestGitHubCheckUsesETagAndDetectsSameReleaseReplacement(t *testing.T) {
 	})
 	appliedRevision := strings.Repeat("a", 64)
 	appliedDetail := `{"provider":"github","release_id":"100","asset_id":"1","tag":"release/v1","asset_name":"dist.zip"}`
-	if err := db.DB(ctx).Model(&model.PagesProjectSourceRuntime{}).Where("source_id = ?", source.ID).Updates(map[string]any{
+	if err := repository.DB(ctx).Model(&model.PagesProjectSourceRuntime{}).Where("source_id = ?", source.ID).Updates(map[string]any{
 		"etag":                  `"old-etag"`,
 		"last_applied_revision": appliedRevision,
 		"last_applied_detail":   appliedDetail,
@@ -375,7 +374,7 @@ func TestGitHubCheckNotModifiedRefreshesRuntimeWithoutDeployment(t *testing.T) {
 		t.Errorf("304 runtime = %+v, want refreshed timestamps/etag and released lease", runtime)
 	}
 	var deployments int64
-	if err := db.DB(ctx).Model(&model.PagesDeployment{}).Where("project_id = ?", project.ID).Count(&deployments).Error; err != nil {
+	if err := repository.DB(ctx).Model(&model.PagesDeployment{}).Where("project_id = ?", project.ID).Count(&deployments).Error; err != nil {
 		t.Fatalf("count deployments error = %v, want nil", err)
 	}
 	if deployments != 0 {
@@ -391,7 +390,7 @@ func TestGitHubTargetMismatchPreservesAttentionAndExpeditesRecheck(t *testing.T)
 		RepositoryURL: "https://github.com/a/b",
 	})
 	appliedRevision := strings.Repeat("a", 64)
-	if err := db.DB(ctx).Model(&model.PagesProjectSourceRuntime{}).Where("source_id = ?", source.ID).Updates(map[string]any{
+	if err := repository.DB(ctx).Model(&model.PagesProjectSourceRuntime{}).Where("source_id = ?", source.ID).Updates(map[string]any{
 		"last_applied_revision": appliedRevision,
 		"last_applied_detail":   `{"provider":"github","release_id":"100","asset_id":"1","tag":"v1","asset_name":"dist.zip"}`,
 	}).Error; err != nil {
@@ -430,7 +429,7 @@ func TestGitHubTargetMismatchPreservesAttentionAndExpeditesRecheck(t *testing.T)
 		t.Errorf("target mismatch NextCheckAt = %v, want server deadline >= %v", runtime.NextCheckAt, retryAt)
 	}
 	var deployments int64
-	if err := db.DB(ctx).Model(&model.PagesDeployment{}).Where("project_id = ?", project.ID).Count(&deployments).Error; err != nil {
+	if err := repository.DB(ctx).Model(&model.PagesDeployment{}).Where("project_id = ?", project.ID).Count(&deployments).Error; err != nil {
 		t.Fatalf("count mismatch deployments error = %v, want nil", err)
 	}
 	if deployments != 0 {
@@ -454,7 +453,7 @@ func TestGitHubCheckLostLeaseReturnsStaleWithoutOverwritingRuntime(t *testing.T)
 		},
 	})
 	snapshot, _, _ := acquireSourceLease(ctx, source.ID, source.ConfigVersion, sourceActionCheck)
-	if err := db.DB(ctx).Model(&model.PagesProjectSourceRuntime{}).Where("source_id = ?", source.ID).Updates(map[string]any{
+	if err := repository.DB(ctx).Model(&model.PagesProjectSourceRuntime{}).Where("source_id = ?", source.ID).Updates(map[string]any{
 		"lease_token":      "new-owner",
 		"lease_expires_at": time.Now().Add(time.Minute),
 		"sync_status":      pagesSourceStatusSyncing,
@@ -741,7 +740,7 @@ func TestGitHubSyncActivatesExactConfirmedReplacement(t *testing.T) {
 	if err != nil {
 		t.Fatalf("buildGitHubSourceTarget() error = %v, want nil", err)
 	}
-	if err := db.DB(ctx).Model(&model.PagesProjectSourceRuntime{}).Where("source_id = ?", source.ID).Updates(map[string]any{
+	if err := repository.DB(ctx).Model(&model.PagesProjectSourceRuntime{}).Where("source_id = ?", source.ID).Updates(map[string]any{
 		"last_seen_revision":    target.Revision,
 		"last_seen_detail":      target.DetailJSON,
 		"last_applied_revision": strings.Repeat("a", 64),

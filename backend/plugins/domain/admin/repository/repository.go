@@ -5,6 +5,7 @@
 package repository
 
 import (
+	"Wavelet/core"
 	"Wavelet/core/contracts"
 	"Wavelet/pkg/cache/ram"
 	"Wavelet/pkg/logger"
@@ -56,6 +57,9 @@ func ResetServices() {
 
 // GetDB returns the GORM DB instance bound to the context if available.
 func GetDB(ctx context.Context) *gorm.DB {
+	if s, err := core.InjectFrom[contracts.DBService](ctx); err == nil && s != nil {
+		return s.DB(ctx)
+	}
 	repoMu.RLock()
 	defer repoMu.RUnlock()
 	if dbService == nil {
@@ -65,7 +69,10 @@ func GetDB(ctx context.Context) *gorm.DB {
 }
 
 // GetCache returns the unified CacheService instance.
-func GetCache(_ context.Context) contracts.CacheService {
+func GetCache(ctx context.Context) contracts.CacheService {
+	if s, err := core.InjectFrom[contracts.CacheService](ctx); err == nil && s != nil {
+		return s
+	}
 	repoMu.RLock()
 	defer repoMu.RUnlock()
 	return cacheService

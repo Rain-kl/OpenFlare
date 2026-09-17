@@ -6,12 +6,34 @@ package repository
 import (
 	"context"
 	"errors"
+	"sync"
 
+	"Wavelet/core/contracts"
 	"Wavelet/openflare/plugins/server/kernel/model"
-	adminrepo "Wavelet/plugins/domain/admin/repository"
 )
 
-const fallbackSystemUserID uint64 = 999
+const (
+	fallbackSystemUserID uint64 = 999
+	configTypeSystem            = "system"
+)
+
+var (
+	taskMu  sync.RWMutex
+	taskSvc contracts.TaskService
+)
+
+// SetTaskService injects the platform TaskService.
+func SetTaskService(s contracts.TaskService) {
+	taskMu.Lock()
+	defer taskMu.Unlock()
+	taskSvc = s
+}
+
+func currentTaskService() contracts.TaskService {
+	taskMu.RLock()
+	defer taskMu.RUnlock()
+	return taskSvc
+}
 
 // GetActiveAuthSources lists enabled Wavelet auth sources via AuthService.
 func GetActiveAuthSources(ctx context.Context) ([]model.AuthSource, error) {
@@ -41,11 +63,12 @@ func GetActiveAuthSources(ctx context.Context) ([]model.AuthSource, error) {
 }
 
 // GetTaskExecutionByTaskID loads a task execution by public task ID.
-func GetTaskExecutionByTaskID(ctx context.Context, taskID string) (*model.TaskExecution, error) {
-	if err := ensureAdminStore(ctx); err != nil {
-		return nil, err
+func GetTaskExecutionByTaskID(ctx context.Context, taskID string) (*contracts.TaskExecutionDTO, error) {
+	svc := currentTaskService()
+	if svc == nil {
+		return nil, errors.New("task service not initialized")
 	}
-	return adminrepo.GetTaskExecutionByTaskID(ctx, taskID)
+	return svc.GetExecutionByTaskID(ctx, taskID)
 }
 
 // GetSystemUser loads the built-in system user via UserService, or a synthetic fallback.

@@ -12,7 +12,7 @@ import (
 
 	"Wavelet/openflare/plugins/server/kernel/model"
 	"Wavelet/openflare/plugins/server/kernel/ofupload"
-	db "Wavelet/plugins/infra/database"
+	"Wavelet/openflare/plugins/server/kernel/repository"
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -164,7 +164,7 @@ func TestReconcilePagesOrphanUploadsSkipsBusyLeaseAndSourceMismatch(t *testing.T
 		project := createPagesOrphanProject(t, ctx, "busy-orphan")
 		source := createPagesOrphanSource(t, ctx, project.ID)
 		future := realNow.Add(time.Hour)
-		if err := db.DB(ctx).Create(&model.PagesProjectSourceRuntime{
+		if err := repository.DB(ctx).Create(&model.PagesProjectSourceRuntime{
 			SourceID:       source.ID,
 			LeaseToken:     "busy-worker",
 			LeaseExpiresAt: &future,
@@ -213,7 +213,7 @@ func TestReconcilePagesOrphanUploadsRejectsMalformedMarker(t *testing.T) {
 	metadata := candidate.Metadata
 	metadata.Extra[pagesProjectIDMetadataKey] = "01"
 	candidate.Metadata = metadata
-	if err := db.DB(ctx).Save(candidate).Error; err != nil {
+	if err := repository.DB(ctx).Save(candidate).Error; err != nil {
 		t.Fatalf("seed malformed candidate marker error = %v, want nil", err)
 	}
 
@@ -239,7 +239,7 @@ func TestPagesOrphanCleanupAndDeploymentCommitInterleavings(t *testing.T) {
 		if err != nil {
 			t.Fatalf("parsePagesOrphanMarker() error = %v, want nil", err)
 		}
-		if err := db.DB(ctx).Create(&model.PagesDeployment{
+		if err := repository.DB(ctx).Create(&model.PagesDeployment{
 			ProjectID:        project.ID,
 			DeploymentNumber: 1,
 			Checksum:         "deployment-first",
@@ -276,7 +276,7 @@ func TestPagesOrphanCleanupAndDeploymentCommitInterleavings(t *testing.T) {
 		}
 
 		target := &model.PagesDeployment{ProjectID: project.ID, UploadID: candidate.ID}
-		err = db.DB(ctx).Transaction(func(tx *gorm.DB) error {
+		err = repository.DB(ctx).Transaction(func(tx *gorm.DB) error {
 			var lockedProject model.PagesProject
 			if err := tx.Clauses(clause.Locking{Strength: pagesRowLockStrength}).First(&lockedProject, project.ID).Error; err != nil {
 				return err
@@ -287,7 +287,7 @@ func TestPagesOrphanCleanupAndDeploymentCommitInterleavings(t *testing.T) {
 			t.Errorf("final deployment upload lock after cleanup error = %v, want %v", err, errSourceFinalFence)
 		}
 		var references int64
-		if err := db.DB(ctx).Model(&model.PagesDeployment{}).Where("upload_id = ?", candidate.ID).Count(&references).Error; err != nil {
+		if err := repository.DB(ctx).Model(&model.PagesDeployment{}).Where("upload_id = ?", candidate.ID).Count(&references).Error; err != nil {
 			t.Fatalf("count deployment references error = %v, want nil", err)
 		}
 		if references != 0 {
@@ -303,7 +303,7 @@ func cleanupOutcomeTotal(summary PagesOrphanCleanupSummary) int {
 func createPagesOrphanProject(t *testing.T, ctx context.Context, slug string) *model.PagesProject {
 	t.Helper()
 	project := &model.PagesProject{Name: slug, Slug: slug, Enabled: true}
-	if err := db.DB(ctx).Create(project).Error; err != nil {
+	if err := repository.DB(ctx).Create(project).Error; err != nil {
 		t.Fatalf("create Pages orphan project %q error = %v, want nil", slug, err)
 	}
 	return project
@@ -317,7 +317,7 @@ func createPagesOrphanSource(t *testing.T, ctx context.Context, projectID uint) 
 		ConfigVersion:  1,
 		SourceIdentity: "orphan-source-identity",
 	}
-	if err := db.DB(ctx).Create(source).Error; err != nil {
+	if err := repository.DB(ctx).Create(source).Error; err != nil {
 		t.Fatalf("create Pages orphan source for project %d error = %v, want nil", projectID, err)
 	}
 	return source
@@ -339,21 +339,19 @@ func createPagesOrphanUpload(
 		extra[pagesSourceIDMetadataKey] = strconv.FormatUint(uint64(*sourceID), 10)
 	}
 	candidate := &model.Upload{
-		UserID:     999,
-		FileName:   "site.zip",
-		FilePath:   "pages/orphan-site.zip",
-		FileSize:   64,
-		MimeType:   "application/zip",
-		Extension:  "zip",
-		Hash:       "orphan-checksum",
-		Type:       ofupload.ReservedPagesDeploymentType,
-		Status:     model.UploadStatusUsed,
-		AccessMode: 0,
-		Metadata:   model.UploadMetadata{Extra: extra},
-		CreatedAt:  createdAt,
-		UpdatedAt:  createdAt,
+		UserID:    999,
+		FileName:  "site.zip",
+		FilePath:  "pages/orphan-site.zip",
+		Size:      64,
+		MimeType:  "application/zip",
+		Hash:      "orphan-checksum",
+		Type:      ofupload.ReservedPagesDeploymentType,
+		Status:    model.UploadStatusUsed,
+		Metadata:  model.UploadMetadata{Extra: extra},
+		CreatedAt: createdAt,
+		UpdatedAt: createdAt,
 	}
-	if err := db.DB(ctx).Create(candidate).Error; err != nil {
+	if err := repository.DB(ctx).Table("w_uploads").Create(candidate).Error; err != nil {
 		t.Fatalf("create Pages orphan upload error = %v, want nil", err)
 	}
 	return candidate
@@ -362,7 +360,7 @@ func createPagesOrphanUpload(
 func assertPagesCleanupUploadStatus(t *testing.T, ctx context.Context, uploadID uint64, want model.UploadStatus) {
 	t.Helper()
 	var got model.Upload
-	if err := db.DB(ctx).First(&got, uploadID).Error; err != nil {
+	if err := repository.DB(ctx).Table("w_uploads").First(&got, uploadID).Error; err != nil {
 		t.Fatalf("load upload %d error = %v, want nil", uploadID, err)
 	}
 	if got.Status != want {
@@ -373,10 +371,10 @@ func assertPagesCleanupUploadStatus(t *testing.T, ctx context.Context, uploadID 
 func assertPagesCleanupTotalStat(t *testing.T, ctx context.Context, want int64) {
 	t.Helper()
 	var stat model.UploadStat
-	if err := db.DB(ctx).Where("dimension = ? AND stat_key = ?", model.UploadStatDimensionTotal, "").First(&stat).Error; err != nil {
+	if err := repository.DB(ctx).Where("dimension = ?", model.UploadStatDimensionTotal).First(&stat).Error; err != nil {
 		t.Fatalf("load total upload stat error = %v, want nil", err)
 	}
-	if stat.FileCount != want {
+	if int64(stat.FileCount) != want {
 		t.Errorf("total upload stat FileCount = %d, want %d", stat.FileCount, want)
 	}
 }

@@ -109,6 +109,10 @@ type registerRequest struct {
 	Email    string `json:"email"`
 }
 
+type sendEmailCodeRequest struct {
+	Email string `json:"email" binding:"required"`
+}
+
 // changePasswordRequest 修改密码请求参数
 type changePasswordRequest struct {
 	OldPassword string `json:"old_password" binding:"required"`

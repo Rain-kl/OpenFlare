@@ -78,4 +78,14 @@ func TestCacheMemoryPlugin(t *testing.T) {
 	var tempVal string
 	err = cacheSvc.Get(reqCtx, "temp_key", &tempVal)
 	assert.ErrorIs(t, err, contracts.ErrCacheMiss)
+
+	// 6. LimiterService
+	limiterSvc, err := core.Inject[contracts.LimiterService](ctx)
+	require.NoError(t, err)
+	require.NotNil(t, limiterSvc)
+
+	rateRes, err := limiterSvc.Allow(reqCtx, "key_a", contracts.Rate{Limit: 2, Period: time.Minute})
+	require.NoError(t, err)
+	assert.True(t, rateRes.Allowed)
+	assert.Equal(t, 1, rateRes.Remaining)
 }

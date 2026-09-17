@@ -5,14 +5,12 @@ package analytics
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strings"
 	"time"
 
 	analyticsmodel "Wavelet/openflare/plugins/server/kernel/model/analytics"
 	"Wavelet/pkg/idgen"
-	db "Wavelet/plugins/infra/database"
 )
 
 const edgeHealthStatusUnknown = "unknown"
@@ -30,11 +28,12 @@ func BatchInsertNodeMetricSnapshots(ctx context.Context, snapshots []analyticsmo
 	if len(snapshots) == 0 {
 		return nil
 	}
-	if db.ChConn == nil {
-		return errors.New("clickhouse connection is not initialized")
+	conn, err := ChConn(ctx)
+	if err != nil {
+		return err
 	}
 
-	batch, err := db.ChConn.PrepareBatch(ctx, analyticsmodel.NodeMetricSnapshot{}.BatchInsertSQL())
+	batch, err := conn.PrepareBatch(ctx, analyticsmodel.NodeMetricSnapshot{}.BatchInsertSQL())
 	if err != nil {
 		return fmt.Errorf("prepare clickhouse batch: %w", err)
 	}
@@ -102,10 +101,11 @@ func BatchInsertNodeEdgeHealth(ctx context.Context, rows []analyticsmodel.NodeEd
 	if len(rows) == 0 {
 		return nil
 	}
-	if db.ChConn == nil {
-		return errors.New("clickhouse connection is not initialized")
+	conn, err := ChConn(ctx)
+	if err != nil {
+		return err
 	}
-	batch, err := db.ChConn.PrepareBatch(ctx, analyticsmodel.NodeEdgeHealth{}.BatchInsertSQL())
+	batch, err := conn.PrepareBatch(ctx, analyticsmodel.NodeEdgeHealth{}.BatchInsertSQL())
 	if err != nil {
 		return fmt.Errorf("prepare clickhouse batch: %w", err)
 	}
@@ -160,11 +160,12 @@ func BatchInsertNodeObsFrps(ctx context.Context, observations []analyticsmodel.N
 	if len(observations) == 0 {
 		return nil
 	}
-	if db.ChConn == nil {
-		return errors.New("clickhouse connection is not initialized")
+	conn, err := ChConn(ctx)
+	if err != nil {
+		return err
 	}
 
-	batch, err := db.ChConn.PrepareBatch(ctx, analyticsmodel.NodeObsFrps{}.BatchInsertSQL())
+	batch, err := conn.PrepareBatch(ctx, analyticsmodel.NodeObsFrps{}.BatchInsertSQL())
 	if err != nil {
 		return fmt.Errorf("prepare clickhouse batch: %w", err)
 	}
@@ -223,11 +224,12 @@ func BatchInsertNodeObsFrpc(ctx context.Context, observations []analyticsmodel.N
 	if len(observations) == 0 {
 		return nil
 	}
-	if db.ChConn == nil {
-		return errors.New("clickhouse connection is not initialized")
+	conn, err := ChConn(ctx)
+	if err != nil {
+		return err
 	}
 
-	batch, err := db.ChConn.PrepareBatch(ctx, analyticsmodel.NodeObsFrpc{}.BatchInsertSQL())
+	batch, err := conn.PrepareBatch(ctx, analyticsmodel.NodeObsFrpc{}.BatchInsertSQL())
 	if err != nil {
 		return fmt.Errorf("prepare clickhouse batch: %w", err)
 	}

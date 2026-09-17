@@ -44,7 +44,7 @@ func Legacy(ctx *core.Context) error {
 	if ctx != nil && ctx.GoContext() != nil {
 		goCtx = ctx.GoContext()
 	}
-	postgres := gormDB.Dialector != nil && gormDB.Dialector.Name() == "postgres"
+	postgres := gormDB.Dialector != nil && gormDB.Name() == "postgres"
 
 	exists, err := gooseTableExists(goCtx, sqlDB, postgres)
 	if err != nil {

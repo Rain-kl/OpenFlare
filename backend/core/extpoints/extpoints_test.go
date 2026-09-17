@@ -80,17 +80,32 @@ func TestRouterExtension(t *testing.T) {
 	for _, route := range routes {
 		if route.Method == "GET" && route.Path == "/api/v1/orders" {
 			foundOrderGet = true
-			assert.Equal(t, []any{mGlobal, mAPI, "api_extra_middleware"}, route.Middlewares)
+			assert.Equal(t, []any{mAPI, "api_extra_middleware"}, route.Middlewares)
 			assert.Equal(t, []any{hList}, route.Handlers)
 		}
 		if route.Method == "PUT" && route.Path == "/api/v1/admin/users/:id" {
 			foundUserPut = true
-			assert.Equal(t, []any{mGlobal, mAPI, "api_extra_middleware", mAdmin}, route.Middlewares)
+			assert.Equal(t, []any{mAPI, "api_extra_middleware", mAdmin}, route.Middlewares)
 			assert.Equal(t, []any{hUserPut}, route.Handlers)
 		}
 	}
 	assert.True(t, foundOrderGet)
 	assert.True(t, foundUserPut)
+}
+
+func TestRouterGlobalMiddlewareIsNotSnapshottedOntoRoutes(t *testing.T) {
+	r := extpoints.NewRouterRegistry()
+	r.GET("/before", "handler")
+	r.Use("late_global")
+	r.GET("/after", "handler")
+
+	for _, route := range r.Routes() {
+		if len(route.Middlewares) != 0 {
+			t.Errorf("route %s %s Middlewares = %v, want none (globals live on Router.Middlewares)",
+				route.Method, route.Path, route.Middlewares)
+		}
+	}
+	assert.Equal(t, []any{"late_global"}, r.Middlewares())
 }
 
 func TestRouterWhitelist(t *testing.T) {
@@ -221,8 +236,28 @@ func TestTaskExtension(t *testing.T) {
 	assert.True(t, ok)
 	assert.Equal(t, "order:cancel_timeout", task.Pattern)
 
+	byType, ok := tr.Get("cancel_timeout")
+	assert.True(t, ok, "Get should resolve admin type identifier")
+	assert.Equal(t, "order:cancel_timeout", byType.Pattern)
+
 	_, ok = tr.Get("unknown")
 	assert.False(t, ok)
+}
+
+func TestTaskRegisterRejectsNilHandler(t *testing.T) {
+	tr := extpoints.NewTaskRegistry()
+	assert.Panics(t, func() {
+		tr.Register("broken:task", nil)
+	})
+}
+
+func TestTaskRegisterRejectsDuplicateType(t *testing.T) {
+	tr := extpoints.NewTaskRegistry()
+	handler := func(ctx context.Context, payload []byte) error { return nil }
+	tr.Register("system:cleanup", handler, extpoints.WithTaskType("system_cleanup"))
+	assert.Panics(t, func() {
+		tr.Register("admin:system_cleanup", handler, extpoints.WithTaskType("system_cleanup"))
+	})
 }
 
 func TestScheduleExtension(t *testing.T) {
@@ -344,7 +379,7 @@ func TestContextExtensionPointsIntegration(t *testing.T) {
 func TestExtensionPointsUnregister(t *testing.T) {
 	ctx := core.NewContext(context.Background())
 
-	// 1. Router unregister
+	// 1. Router unregister (routes, middlewares, whitelist)
 	rd := ctx.Router().GET("/temp", "temp_handler")
 	assert.Greater(t, rd.ID, uint64(0))
 	assert.Len(t, ctx.Router().Routes(), 1)
@@ -355,6 +390,20 @@ func TestExtensionPointsUnregister(t *testing.T) {
 	assert.Len(t, ctx.Router().Routes(), 1)
 	assert.True(t, ctx.Router().UnregisterByID(rd2.ID))
 	assert.Len(t, ctx.Router().Routes(), 0)
+
+	ctx.Router().Use("mw1")
+	assert.Len(t, ctx.Router().Middlewares(), 1)
+	if reg, ok := ctx.Router().(*extpoints.RouterRegistry); ok {
+		ids := reg.UseWithID("mw2")
+		assert.Len(t, ctx.Router().Middlewares(), 2)
+		assert.True(t, ctx.Router().UnregisterMiddlewareByID(ids[0]))
+		assert.Len(t, ctx.Router().Middlewares(), 1)
+	}
+
+	ctx.Router().RegisterWhitelist("/api/v1/temp/*")
+	assert.True(t, ctx.Router().IsWhitelisted("/api/v1/temp/item"))
+	ctx.Router().UnregisterWhitelist("/api/v1/temp/*")
+	assert.False(t, ctx.Router().IsWhitelisted("/api/v1/temp/item"))
 
 	// 2. Task unregister
 	ctx.Task().Register("temp:task", "handler")

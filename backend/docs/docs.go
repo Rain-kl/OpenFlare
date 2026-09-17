@@ -1023,7 +1023,7 @@ const docTemplate = `{
                                         "data": {
                                             "type": "array",
                                             "items": {
-                                                "$ref": "#/definitions/model.ChannelDTO"
+                                                "$ref": "#/definitions/do.ChannelDTO"
                                             }
                                         }
                                     }
@@ -1057,7 +1057,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/model.CreateChannelRequest"
+                            "$ref": "#/definitions/do.CreateChannelRequest"
                         }
                     }
                 ],
@@ -1073,7 +1073,7 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/model.ChannelDTO"
+                                            "$ref": "#/definitions/do.ChannelDTO"
                                         }
                                     }
                                 }
@@ -1118,7 +1118,7 @@ const docTemplate = `{
                                         "data": {
                                             "type": "array",
                                             "items": {
-                                                "$ref": "#/definitions/model.Definition"
+                                                "$ref": "#/definitions/do.Definition"
                                             }
                                         }
                                     }
@@ -1199,7 +1199,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/model.UpdateChannelRequest"
+                            "$ref": "#/definitions/do.UpdateChannelRequest"
                         }
                     }
                 ],
@@ -1215,7 +1215,7 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/model.ChannelDTO"
+                                            "$ref": "#/definitions/do.ChannelDTO"
                                         }
                                     }
                                 }
@@ -1312,7 +1312,7 @@ const docTemplate = `{
                                         "data": {
                                             "type": "array",
                                             "items": {
-                                                "$ref": "#/definitions/model.PushChannel"
+                                                "$ref": "#/definitions/entity.PushChannel"
                                             }
                                         }
                                     }
@@ -1346,7 +1346,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/model.CreatePushChannelRequest"
+                            "$ref": "#/definitions/do.CreatePushChannelRequest"
                         }
                     }
                 ],
@@ -1362,7 +1362,7 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/model.PushChannel"
+                                            "$ref": "#/definitions/entity.PushChannel"
                                         }
                                     }
                                 }
@@ -1422,7 +1422,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/model.TestPushChannelRequest"
+                            "$ref": "#/definitions/do.TestPushChannelRequest"
                         }
                     }
                 ],
@@ -1469,7 +1469,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/model.UpdatePushChannelRequest"
+                            "$ref": "#/definitions/do.UpdatePushChannelRequest"
                         }
                     }
                 ],
@@ -1485,7 +1485,7 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/model.PushChannel"
+                                            "$ref": "#/definitions/entity.PushChannel"
                                         }
                                     }
                                 }
@@ -1557,7 +1557,7 @@ const docTemplate = `{
                                         "data": {
                                             "type": "array",
                                             "items": {
-                                                "$ref": "#/definitions/model.PushEvent"
+                                                "$ref": "#/definitions/entity.PushEvent"
                                             }
                                         }
                                     }
@@ -1591,7 +1591,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/model.CreatePushEventRequest"
+                            "$ref": "#/definitions/do.CreatePushEventRequest"
                         }
                     }
                 ],
@@ -1607,7 +1607,7 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/model.PushEvent"
+                                            "$ref": "#/definitions/entity.PushEvent"
                                         }
                                     }
                                 }
@@ -1674,7 +1674,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/model.UpdatePushEventRequest"
+                            "$ref": "#/definitions/do.UpdatePushEventRequest"
                         }
                     }
                 ],
@@ -1866,7 +1866,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/model.TestPushRequest"
+                            "$ref": "#/definitions/do.TestPushRequest"
                         }
                     }
                 ],
@@ -2675,7 +2675,7 @@ const docTemplate = `{
                                         "data": {
                                             "type": "array",
                                             "items": {
-                                                "$ref": "#/definitions/Wavelet_plugins_domain_admin_model.Schedule"
+                                                "$ref": "#/definitions/model.Schedule"
                                             }
                                         }
                                     }
@@ -2737,7 +2737,7 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/Wavelet_plugins_domain_admin_model.Schedule"
+                                            "$ref": "#/definitions/model.Schedule"
                                         }
                                     }
                                 }
@@ -2819,7 +2819,7 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/Wavelet_plugins_domain_admin_model.Schedule"
+                                            "$ref": "#/definitions/model.Schedule"
                                         }
                                     }
                                 }
@@ -3008,7 +3008,7 @@ const docTemplate = `{
                                         "data": {
                                             "type": "array",
                                             "items": {
-                                                "$ref": "#/definitions/Wavelet_plugins_domain_admin_model.Template"
+                                                "$ref": "#/definitions/model.Template"
                                             }
                                         }
                                     }
@@ -3146,7 +3146,7 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/Wavelet_plugins_domain_admin_model.Template"
+                                            "$ref": "#/definitions/model.Template"
                                         }
                                     }
                                 }
@@ -3226,7 +3226,7 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/Wavelet_plugins_domain_admin_model.Template"
+                                            "$ref": "#/definitions/model.Template"
                                         }
                                     }
                                 }
@@ -4928,7 +4928,7 @@ const docTemplate = `{
                         "name": "request",
                         "in": "body",
                         "schema": {
-                            "$ref": "#/definitions/cap.challengeRequest"
+                            "$ref": "#/definitions/dto.ChallengeRequest"
                         }
                     }
                 ],
@@ -4944,7 +4944,7 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/cap.ChallengeResponse"
+                                            "$ref": "#/definitions/dto.ChallengeResponse"
                                         }
                                     }
                                 }
@@ -4977,7 +4977,7 @@ const docTemplate = `{
                         "name": "request",
                         "in": "body",
                         "schema": {
-                            "$ref": "#/definitions/cap.challengeRequest"
+                            "$ref": "#/definitions/dto.ChallengeRequest"
                         }
                     }
                 ],
@@ -4993,7 +4993,7 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/cap.ChallengeResponse"
+                                            "$ref": "#/definitions/dto.ChallengeResponse"
                                         }
                                     }
                                 }
@@ -5029,7 +5029,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/cap.redeemRequest"
+                            "$ref": "#/definitions/dto.RedeemRequest"
                         }
                     }
                 ],
@@ -5045,7 +5045,7 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/cap.RedeemResponse"
+                                            "$ref": "#/definitions/dto.RedeemResponse"
                                         }
                                     }
                                 }
@@ -5069,7 +5069,7 @@ const docTemplate = `{
         },
         "/api/v1/config/public": {
             "get": {
-                "description": "返回系统配置表中 visibility 为 1 的配置键值集合",
+                "description": "返回系统配置表中 visibility 为 1 的扁平键值集合（如 cap_login_enabled）",
                 "consumes": [
                     "application/json"
                 ],
@@ -13222,7 +13222,7 @@ const docTemplate = `{
                                         "data": {
                                             "type": "array",
                                             "items": {
-                                                "$ref": "#/definitions/model.BindingDTO"
+                                                "$ref": "#/definitions/do.BindingDTO"
                                             }
                                         }
                                     }
@@ -13262,7 +13262,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/model.BindRequest"
+                            "$ref": "#/definitions/do.BindRequest"
                         }
                     }
                 ],
@@ -13278,7 +13278,7 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/model.BindingDTO"
+                                            "$ref": "#/definitions/do.BindingDTO"
                                         }
                                     }
                                 }
@@ -13375,7 +13375,7 @@ const docTemplate = `{
                                         "data": {
                                             "type": "array",
                                             "items": {
-                                                "$ref": "#/definitions/model.PublicChannelDTO"
+                                                "$ref": "#/definitions/do.PublicChannelDTO"
                                             }
                                         }
                                     }
@@ -13412,7 +13412,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/auth.CallbackRequest"
+                            "$ref": "#/definitions/dto.CallbackRequest"
                         }
                     }
                 ],
@@ -13428,7 +13428,7 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/auth.OAuthCallbackResult"
+                                            "$ref": "#/definitions/dto.OAuthCallbackResult"
                                         }
                                     }
                                 }
@@ -13582,7 +13582,7 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/auth.OAuthAuthorizeResponse"
+                                            "$ref": "#/definitions/dto.OAuthAuthorizeResponse"
                                         }
                                     }
                                 }
@@ -13671,7 +13671,7 @@ const docTemplate = `{
                                         "data": {
                                             "type": "array",
                                             "items": {
-                                                "$ref": "#/definitions/auth.AuthSourceView"
+                                                "$ref": "#/definitions/dto.AuthSourceView"
                                             }
                                         }
                                     }
@@ -13709,7 +13709,7 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/auth.BasicUserInfo"
+                                            "$ref": "#/definitions/dto.BasicUserInfo"
                                         }
                                     }
                                 }
@@ -13762,7 +13762,7 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/auth.OAuthAuthorizeResponse"
+                                            "$ref": "#/definitions/dto.OAuthAuthorizeResponse"
                                         }
                                     }
                                 }
@@ -14397,7 +14397,7 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/auth.BasicUserInfo"
+                                            "$ref": "#/definitions/dto.BasicUserInfo"
                                         }
                                     }
                                 }
@@ -14654,7 +14654,7 @@ const docTemplate = `{
         },
         "/api/v1/user/login": {
             "post": {
-                "description": "使用用户名和密码登录，登录成功后建立 Session。若管理员已关闭密码登录功能则返回错误。",
+                "description": "使用用户名和密码登录系统，验证通过后建立 Session 并返回用户信息。",
                 "consumes": [
                     "application/json"
                 ],
@@ -14664,7 +14664,7 @@ const docTemplate = `{
                 "tags": [
                     "user"
                 ],
-                "summary": "用户密码登录",
+                "summary": "用户登录",
                 "parameters": [
                     {
                         "description": "登录请求参数",
@@ -14685,6 +14685,12 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "用户名或密码错误",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    },
+                    "429": {
+                        "description": "登录尝试过于频繁",
                         "schema": {
                             "$ref": "#/definitions/response.Any"
                         }
@@ -14824,6 +14830,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/response.Any"
                         }
                     },
+                    "429": {
+                        "description": "注册尝试过于频繁",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    },
                     "500": {
                         "description": "服务内部错误",
                         "schema": {
@@ -14877,6 +14889,17 @@ const docTemplate = `{
                     "user"
                 ],
                 "summary": "发送邮箱验证码",
+                "parameters": [
+                    {
+                        "description": "目标邮箱",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/user.sendEmailCodeRequest"
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "发送成功",
@@ -14886,6 +14909,12 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    },
+                    "500": {
+                        "description": "发送失败",
                         "schema": {
                             "$ref": "#/definitions/response.Any"
                         }
@@ -15211,36 +15240,6 @@ const docTemplate = `{
                 }
             }
         },
-        "Wavelet_plugins_domain_admin_model.Schedule": {
-            "type": "object",
-            "properties": {
-                "created_at": {
-                    "type": "string"
-                },
-                "cron": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string",
-                    "example": "0"
-                },
-                "is_active": {
-                    "type": "boolean"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "payload": {
-                    "type": "string"
-                },
-                "task_type": {
-                    "type": "string"
-                },
-                "updated_at": {
-                    "type": "string"
-                }
-            }
-        },
         "Wavelet_plugins_domain_admin_model.SystemConfig": {
             "type": "object",
             "properties": {
@@ -15320,41 +15319,6 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "triggered_by": {
-                    "type": "string"
-                },
-                "updated_at": {
-                    "type": "string"
-                }
-            }
-        },
-        "Wavelet_plugins_domain_admin_model.Template": {
-            "type": "object",
-            "properties": {
-                "content": {
-                    "type": "string"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "description": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "is_system": {
-                    "type": "boolean"
-                },
-                "key": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "subject": {
-                    "type": "string"
-                },
-                "type": {
                     "type": "string"
                 },
                 "updated_at": {
@@ -15666,179 +15630,6 @@ const docTemplate = `{
                 },
                 "totalPage": {
                     "type": "integer"
-                }
-            }
-        },
-        "auth.AuthSourceView": {
-            "type": "object",
-            "properties": {
-                "client_secret_configured": {
-                    "type": "boolean"
-                },
-                "display_name": {
-                    "type": "string"
-                },
-                "icon_url": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "is_active": {
-                    "type": "boolean"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "type": {
-                    "type": "string"
-                }
-            }
-        },
-        "auth.BasicUserInfo": {
-            "type": "object",
-            "properties": {
-                "avatar_url": {
-                    "type": "string"
-                },
-                "bio": {
-                    "type": "string"
-                },
-                "email": {
-                    "type": "string"
-                },
-                "gender": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "is_admin": {
-                    "type": "boolean"
-                },
-                "location": {
-                    "type": "string"
-                },
-                "need_change_password": {
-                    "type": "boolean"
-                },
-                "nickname": {
-                    "type": "string"
-                },
-                "phone": {
-                    "type": "string"
-                },
-                "username": {
-                    "type": "string"
-                },
-                "website": {
-                    "type": "string"
-                }
-            }
-        },
-        "auth.CallbackRequest": {
-            "type": "object",
-            "required": [
-                "code",
-                "state"
-            ],
-            "properties": {
-                "code": {
-                    "type": "string"
-                },
-                "state": {
-                    "type": "string"
-                }
-            }
-        },
-        "auth.OAuthAuthorizeResponse": {
-            "type": "object",
-            "properties": {
-                "authorize_url": {
-                    "type": "string"
-                }
-            }
-        },
-        "auth.OAuthCallbackResult": {
-            "type": "object",
-            "properties": {
-                "status": {
-                    "type": "string"
-                },
-                "user": {
-                    "$ref": "#/definitions/auth.BasicUserInfo"
-                }
-            }
-        },
-        "cap.ChallengeResponse": {
-            "type": "object",
-            "properties": {
-                "challenge": {
-                    "type": "object",
-                    "properties": {
-                        "c": {
-                            "type": "integer"
-                        },
-                        "d": {
-                            "type": "integer"
-                        },
-                        "s": {
-                            "type": "integer"
-                        }
-                    }
-                },
-                "expires": {
-                    "description": "ms timestamp",
-                    "type": "integer"
-                },
-                "token": {
-                    "type": "string"
-                }
-            }
-        },
-        "cap.RedeemResponse": {
-            "type": "object",
-            "properties": {
-                "error": {
-                    "type": "string"
-                },
-                "expires": {
-                    "type": "integer"
-                },
-                "success": {
-                    "type": "boolean"
-                },
-                "token": {
-                    "type": "string"
-                }
-            }
-        },
-        "cap.challengeRequest": {
-            "type": "object",
-            "properties": {
-                "scope": {
-                    "type": "string"
-                }
-            }
-        },
-        "cap.redeemRequest": {
-            "type": "object",
-            "required": [
-                "solutions",
-                "token"
-            ],
-            "properties": {
-                "scope": {
-                    "type": "string"
-                },
-                "solutions": {
-                    "type": "array",
-                    "items": {
-                        "type": "integer"
-                    }
-                },
-                "token": {
-                    "type": "string"
                 }
             }
         },
@@ -16491,6 +16282,573 @@ const docTemplate = `{
                 }
             }
         },
+        "do.BindRequest": {
+            "type": "object",
+            "properties": {
+                "channel_id": {
+                    "type": "string"
+                },
+                "code": {
+                    "type": "string"
+                }
+            }
+        },
+        "do.BindingDTO": {
+            "type": "object",
+            "properties": {
+                "channel_id": {
+                    "type": "string",
+                    "example": "0"
+                },
+                "channel_name": {
+                    "type": "string"
+                },
+                "channel_type": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string",
+                    "example": "0"
+                },
+                "platform_user_id": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "string",
+                    "example": "0"
+                }
+            }
+        },
+        "do.ChannelDTO": {
+            "type": "object",
+            "properties": {
+                "credentials": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "extra": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "id": {
+                    "type": "string",
+                    "example": "0"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "owner_id": {
+                    "type": "string",
+                    "example": "0"
+                },
+                "owner_scope": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
+        "do.CreateChannelRequest": {
+            "type": "object",
+            "properties": {
+                "credentials": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "extra": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "name": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
+        "do.CreatePushChannelRequest": {
+            "type": "object",
+            "required": [
+                "name",
+                "type"
+            ],
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "other": {
+                    "type": "string"
+                },
+                "token": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "url": {
+                    "type": "string"
+                }
+            }
+        },
+        "do.CreatePushEventRequest": {
+            "type": "object",
+            "properties": {
+                "channels": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "event_key": {
+                    "type": "string"
+                },
+                "targets": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "task_type": {
+                    "type": "string"
+                },
+                "template": {
+                    "type": "string"
+                }
+            }
+        },
+        "do.Definition": {
+            "type": "object",
+            "properties": {
+                "fields": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/do.Field"
+                    }
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
+        "do.Field": {
+            "type": "object",
+            "properties": {
+                "key": {
+                    "type": "string"
+                },
+                "required": {
+                    "type": "boolean"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
+        "do.PublicChannelDTO": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string",
+                    "example": "0"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
+        "do.TestPushChannelRequest": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "other": {
+                    "type": "string"
+                },
+                "target": {
+                    "type": "string"
+                },
+                "token": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "url": {
+                    "type": "string"
+                }
+            }
+        },
+        "do.TestPushRequest": {
+            "type": "object",
+            "required": [
+                "config"
+            ],
+            "properties": {
+                "config": {
+                    "$ref": "#/definitions/push.Config"
+                },
+                "target": {
+                    "type": "string"
+                }
+            }
+        },
+        "do.UpdateChannelRequest": {
+            "type": "object",
+            "properties": {
+                "credentials": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "extra": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "do.UpdatePushChannelRequest": {
+            "type": "object",
+            "required": [
+                "type"
+            ],
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "other": {
+                    "type": "string"
+                },
+                "token": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "url": {
+                    "type": "string"
+                }
+            }
+        },
+        "do.UpdatePushEventRequest": {
+            "type": "object",
+            "required": [
+                "template"
+            ],
+            "properties": {
+                "channels": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "targets": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "template": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.AuthSourceView": {
+            "type": "object",
+            "properties": {
+                "client_secret_configured": {
+                    "type": "boolean"
+                },
+                "display_name": {
+                    "type": "string"
+                },
+                "icon_url": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.BasicUserInfo": {
+            "type": "object",
+            "properties": {
+                "avatar_url": {
+                    "type": "string"
+                },
+                "bio": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "gender": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string",
+                    "example": "0"
+                },
+                "is_admin": {
+                    "type": "boolean"
+                },
+                "location": {
+                    "type": "string"
+                },
+                "need_change_password": {
+                    "type": "boolean"
+                },
+                "nickname": {
+                    "type": "string"
+                },
+                "phone": {
+                    "type": "string"
+                },
+                "username": {
+                    "type": "string"
+                },
+                "website": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.CallbackRequest": {
+            "type": "object",
+            "required": [
+                "code",
+                "state"
+            ],
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "state": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.ChallengeRequest": {
+            "type": "object",
+            "properties": {
+                "scope": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.ChallengeResponse": {
+            "type": "object",
+            "properties": {
+                "challenge": {
+                    "type": "object",
+                    "properties": {
+                        "c": {
+                            "type": "integer"
+                        },
+                        "d": {
+                            "type": "integer"
+                        },
+                        "s": {
+                            "type": "integer"
+                        }
+                    }
+                },
+                "expires": {
+                    "description": "ms timestamp",
+                    "type": "integer"
+                },
+                "token": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.OAuthAuthorizeResponse": {
+            "type": "object",
+            "properties": {
+                "authorize_url": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.OAuthCallbackResult": {
+            "type": "object",
+            "properties": {
+                "status": {
+                    "type": "string"
+                },
+                "user": {
+                    "$ref": "#/definitions/dto.BasicUserInfo"
+                }
+            }
+        },
+        "dto.RedeemRequest": {
+            "type": "object",
+            "required": [
+                "solutions",
+                "token"
+            ],
+            "properties": {
+                "scope": {
+                    "type": "string"
+                },
+                "solutions": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "token": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.RedeemResponse": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string"
+                },
+                "expires": {
+                    "type": "integer"
+                },
+                "success": {
+                    "type": "boolean"
+                },
+                "token": {
+                    "type": "string"
+                }
+            }
+        },
+        "entity.PushChannel": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "other": {
+                    "type": "string"
+                },
+                "token": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "url": {
+                    "type": "string"
+                }
+            }
+        },
+        "entity.PushEvent": {
+            "type": "object",
+            "properties": {
+                "channels": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "event_key": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "targets": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "task_type": {
+                    "type": "string"
+                },
+                "template": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
         "flared.ApplyLogPayload": {
             "type": "object",
             "properties": {
@@ -16804,46 +17162,6 @@ const docTemplate = `{
                 }
             }
         },
-        "model.BindRequest": {
-            "type": "object",
-            "properties": {
-                "channel_id": {
-                    "type": "string"
-                },
-                "code": {
-                    "type": "string"
-                }
-            }
-        },
-        "model.BindingDTO": {
-            "type": "object",
-            "properties": {
-                "channel_id": {
-                    "type": "string",
-                    "example": "0"
-                },
-                "channel_name": {
-                    "type": "string"
-                },
-                "channel_type": {
-                    "type": "string"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string",
-                    "example": "0"
-                },
-                "platform_user_id": {
-                    "type": "string"
-                },
-                "user_id": {
-                    "type": "string",
-                    "example": "0"
-                }
-            }
-        },
         "model.BrowserItem": {
             "type": "object",
             "properties": {
@@ -16852,43 +17170,6 @@ const docTemplate = `{
                 },
                 "count": {
                     "type": "integer"
-                }
-            }
-        },
-        "model.ChannelDTO": {
-            "type": "object",
-            "properties": {
-                "credentials": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "string"
-                    }
-                },
-                "enabled": {
-                    "type": "boolean"
-                },
-                "extra": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "string"
-                    }
-                },
-                "id": {
-                    "type": "string",
-                    "example": "0"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "owner_id": {
-                    "type": "string",
-                    "example": "0"
-                },
-                "owner_scope": {
-                    "type": "string"
-                },
-                "type": {
-                    "type": "string"
                 }
             }
         },
@@ -16946,91 +17227,6 @@ const docTemplate = `{
                     "type": "boolean"
                 },
                 "version": {
-                    "type": "string"
-                }
-            }
-        },
-        "model.CreateChannelRequest": {
-            "type": "object",
-            "properties": {
-                "credentials": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "string"
-                    }
-                },
-                "enabled": {
-                    "type": "boolean"
-                },
-                "extra": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "string"
-                    }
-                },
-                "name": {
-                    "type": "string"
-                },
-                "type": {
-                    "type": "string"
-                }
-            }
-        },
-        "model.CreatePushChannelRequest": {
-            "type": "object",
-            "required": [
-                "name",
-                "type"
-            ],
-            "properties": {
-                "description": {
-                    "type": "string"
-                },
-                "enabled": {
-                    "type": "boolean"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "other": {
-                    "type": "string"
-                },
-                "token": {
-                    "type": "string"
-                },
-                "type": {
-                    "type": "string"
-                },
-                "url": {
-                    "type": "string"
-                }
-            }
-        },
-        "model.CreatePushEventRequest": {
-            "type": "object",
-            "properties": {
-                "channels": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "enabled": {
-                    "type": "boolean"
-                },
-                "event_key": {
-                    "type": "string"
-                },
-                "targets": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "task_type": {
-                    "type": "string"
-                },
-                "template": {
                     "type": "string"
                 }
             }
@@ -17221,20 +17417,6 @@ const docTemplate = `{
                 }
             }
         },
-        "model.Definition": {
-            "type": "object",
-            "properties": {
-                "fields": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/model.Field"
-                    }
-                },
-                "type": {
-                    "type": "string"
-                }
-            }
-        },
         "model.DispatchTaskRequest": {
             "type": "object",
             "required": [
@@ -17293,20 +17475,6 @@ const docTemplate = `{
                 },
                 "type": {
                     "description": "\"select\" 或 \"exec\"",
-                    "type": "string"
-                }
-            }
-        },
-        "model.Field": {
-            "type": "object",
-            "properties": {
-                "key": {
-                    "type": "string"
-                },
-                "required": {
-                    "type": "boolean"
-                },
-                "type": {
                     "type": "string"
                 }
             }
@@ -17633,90 +17801,29 @@ const docTemplate = `{
                 }
             }
         },
-        "model.PublicChannelDTO": {
+        "model.Schedule": {
             "type": "object",
             "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "cron": {
+                    "type": "string"
+                },
                 "id": {
                     "type": "string",
                     "example": "0"
                 },
-                "name": {
-                    "type": "string"
-                },
-                "type": {
-                    "type": "string"
-                }
-            }
-        },
-        "model.PushChannel": {
-            "type": "object",
-            "properties": {
-                "created_at": {
-                    "type": "string"
-                },
-                "description": {
-                    "type": "string"
-                },
-                "enabled": {
+                "is_active": {
                     "type": "boolean"
                 },
-                "id": {
-                    "type": "integer"
-                },
                 "name": {
                     "type": "string"
                 },
-                "other": {
+                "payload": {
                     "type": "string"
-                },
-                "token": {
-                    "type": "string"
-                },
-                "type": {
-                    "type": "string"
-                },
-                "updated_at": {
-                    "type": "string"
-                },
-                "url": {
-                    "type": "string"
-                }
-            }
-        },
-        "model.PushEvent": {
-            "type": "object",
-            "properties": {
-                "channels": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "enabled": {
-                    "type": "boolean"
-                },
-                "event_key": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "targets": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
                 },
                 "task_type": {
-                    "type": "string"
-                },
-                "template": {
                     "type": "string"
                 },
                 "updated_at": {
@@ -17893,39 +18000,37 @@ const docTemplate = `{
                 "TaskExecutionStatusFailed"
             ]
         },
-        "model.TestPushChannelRequest": {
+        "model.Template": {
             "type": "object",
             "properties": {
+                "content": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "is_system": {
+                    "type": "boolean"
+                },
+                "key": {
+                    "type": "string"
+                },
                 "name": {
                     "type": "string"
                 },
-                "other": {
-                    "type": "string"
-                },
-                "target": {
-                    "type": "string"
-                },
-                "token": {
+                "subject": {
                     "type": "string"
                 },
                 "type": {
                     "type": "string"
                 },
-                "url": {
-                    "type": "string"
-                }
-            }
-        },
-        "model.TestPushRequest": {
-            "type": "object",
-            "required": [
-                "config"
-            ],
-            "properties": {
-                "config": {
-                    "$ref": "#/definitions/push.Config"
-                },
-                "target": {
+                "updated_at": {
                     "type": "string"
                 }
             }
@@ -18020,81 +18125,6 @@ const docTemplate = `{
                 "ttl_minutes": {
                     "type": "integer",
                     "minimum": 0
-                }
-            }
-        },
-        "model.UpdateChannelRequest": {
-            "type": "object",
-            "properties": {
-                "credentials": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "string"
-                    }
-                },
-                "enabled": {
-                    "type": "boolean"
-                },
-                "extra": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "string"
-                    }
-                },
-                "name": {
-                    "type": "string"
-                }
-            }
-        },
-        "model.UpdatePushChannelRequest": {
-            "type": "object",
-            "required": [
-                "type"
-            ],
-            "properties": {
-                "description": {
-                    "type": "string"
-                },
-                "enabled": {
-                    "type": "boolean"
-                },
-                "other": {
-                    "type": "string"
-                },
-                "token": {
-                    "type": "string"
-                },
-                "type": {
-                    "type": "string"
-                },
-                "url": {
-                    "type": "string"
-                }
-            }
-        },
-        "model.UpdatePushEventRequest": {
-            "type": "object",
-            "required": [
-                "template"
-            ],
-            "properties": {
-                "channels": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "enabled": {
-                    "type": "boolean"
-                },
-                "targets": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "template": {
-                    "type": "string"
                 }
             }
         },
@@ -20524,6 +20554,10 @@ const docTemplate = `{
                     "description": "AppID 或 SMTP 用户名",
                     "type": "string"
                 },
+                "other": {
+                    "description": "附加配置 (如 ChatID / UserKey / 扩展 JSON)",
+                    "type": "string"
+                },
                 "secret": {
                     "description": "签名密钥或 SMTP 密码/Token",
                     "type": "string"
@@ -20888,6 +20922,17 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "username": {
+                    "type": "string"
+                }
+            }
+        },
+        "user.sendEmailCodeRequest": {
+            "type": "object",
+            "required": [
+                "email"
+            ],
+            "properties": {
+                "email": {
                     "type": "string"
                 }
             }

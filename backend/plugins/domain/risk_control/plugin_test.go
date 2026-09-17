@@ -35,6 +35,8 @@ func TestRiskControlPluginUnit(t *testing.T) {
 	setting, ok := ctx.Settings().Get("risk_control.enable_access_log")
 	require.True(t, ok)
 	assert.Equal(t, true, setting.Default)
+	assert.True(t, risk_control.IsAccessLogEnabled(),
+		"access log collection must be on even when ClickHouse is disabled")
 
 	require.NoError(t, ctx.Dispose())
 	assert.False(t, customMWCalled) // not dispatched via gin engine here

@@ -1,11 +1,10 @@
 'use client';
 
-import type { ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
+import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 
-import { ErrorPage } from '@/components/layout/error';
 import { useUser } from '@/contexts/user-context';
-import { useTranslations } from 'next-intl';
 
 type RequireAuthProps = {
   children: ReactNode;
@@ -50,7 +49,13 @@ type RequireAdminAuthProps = {
 /** Guards admin routes after the shared shell has rendered. */
 export function RequireAdminAuth({ children }: RequireAdminAuthProps) {
   const { user, loading } = useUser();
-  const t = useTranslations('auth.requireAuth');
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!loading && user && !user.is_admin) {
+      router.replace('/403');
+    }
+  }, [loading, user, router]);
 
   if (loading) {
     return (
@@ -61,7 +66,7 @@ export function RequireAdminAuth({ children }: RequireAdminAuthProps) {
   }
 
   if (!user?.is_admin) {
-    return <ErrorPage title={t('accessDenied')} message={t('noPermission')} />;
+    return null;
   }
 
   return <>{children}</>;

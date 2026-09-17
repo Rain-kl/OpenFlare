@@ -255,10 +255,16 @@ export function AppLogs() {
 
   // ---- Initialize ------------------------------------------------------
   useEffect(() => {
-    loadHistory(0).then(() => connectWs());
+    let cancelled = false;
+    loadHistory(0).then(() => {
+      if (cancelled) return;
+      connectWs();
+    });
     return () => {
-      wsRef.current?.close();
+      cancelled = true;
+      const ws = wsRef.current;
       wsRef.current = null;
+      ws?.close();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

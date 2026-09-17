@@ -131,7 +131,6 @@ func reconcilePagesOrphanUploadCandidate(
 	}
 
 	outcome := pagesOrphanCleanupSkipped
-	uploadLocked := false
 	err := repository.WithPagesTx(ctx, func(tx *gorm.DB) error {
 		scopeOutcome, proceed, err := lockPagesOrphanCleanupScope(ctx, tx, candidate.ID, marker)
 		if err != nil {
@@ -141,7 +140,7 @@ func reconcilePagesOrphanUploadCandidate(
 			outcome = scopeOutcome
 			return nil
 		}
-		lockedOutcome, locked, err := reconcileLockedPagesOrphanUpload(
+		lockedOutcome, _, err := reconcileLockedPagesOrphanUpload(
 			ctx,
 			tx,
 			candidate.ID,
@@ -153,16 +152,15 @@ func reconcilePagesOrphanUploadCandidate(
 			return err
 		}
 		outcome = lockedOutcome
-		uploadLocked = locked
 		return nil
 	})
 	if err != nil {
 		return pagesOrphanCleanupSkipped, err
 	}
-	if uploadLocked {
-		// Also heal a prior post-commit cache invalidation interruption when the
-		// status transition was an idempotent no-op.
-		ofupload.InvalidateUploadMetaCache(ctx, candidate.ID)
+	if outcome == pagesOrphanCleanupReconciled {
+		if err := ofupload.Remove(ctx, candidate.ID); err != nil {
+			return pagesOrphanCleanupSkipped, err
+		}
 	}
 	return outcome, nil
 }
@@ -252,14 +250,7 @@ func reconcileLockedPagesOrphanUpload(
 		return pagesOrphanCleanupReferenced, true, nil
 	}
 
-	transitioned, err := ofupload.RemoveLockedTx(tx, &lockedUpload)
-	if err != nil {
-		return pagesOrphanCleanupSkipped, true, err
-	}
-	if transitioned {
-		return pagesOrphanCleanupReconciled, true, nil
-	}
-	return pagesOrphanCleanupSkipped, true, nil
+	return pagesOrphanCleanupReconciled, true, nil
 }
 
 func lockOptionalPagesCleanupRecord(

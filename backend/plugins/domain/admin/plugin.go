@@ -12,7 +12,6 @@ import (
 	"Wavelet/plugins/domain/admin/handler"
 	"Wavelet/plugins/domain/admin/model"
 	"Wavelet/plugins/domain/admin/service"
-	"context"
 	"embed"
 	"reflect"
 
@@ -21,6 +20,12 @@ import (
 
 // SystemConfig aliases model.SystemConfig for external compatibility.
 type SystemConfig = model.SystemConfig
+
+// TaskExecution aliases model.TaskExecution for external compatibility.
+type TaskExecution = model.TaskExecution
+
+// Schedule aliases model.Schedule for external compatibility.
+type Schedule = model.Schedule
 
 //go:embed migrations/*/*.sql
 var adminMigrations embed.FS
@@ -85,57 +90,16 @@ func (p *Plugin) Apply(ctx *core.Context) error {
 	_ = ctx.Config().Bind("clickhouse", &chCfg)
 	service.SetClickHouseConfig(chCfg)
 
-	// 0. Bind Services reactively
-	if db, err := core.Inject[contracts.DBService](ctx); err == nil && db != nil {
-		service.SetDBService(db)
-	} else {
-		core.When[contracts.DBService](ctx, func(db contracts.DBService) {
-			service.SetDBService(db)
-		})
-	}
-	if cache, err := core.Inject[contracts.CacheService](ctx); err == nil && cache != nil {
-		service.SetCacheService(cache)
-	} else {
-		core.When[contracts.CacheService](ctx, func(cache contracts.CacheService) {
-			service.SetCacheService(cache)
-		})
-	}
-	if user, err := core.Inject[contracts.UserService](ctx); err == nil && user != nil {
-		service.SetUserService(user)
-	} else {
-		core.When[contracts.UserService](ctx, func(user contracts.UserService) {
-			service.SetUserService(user)
-		})
-	}
-	if auth, err := core.Inject[contracts.AuthService](ctx); err == nil && auth != nil {
-		service.SetAuthService(auth)
-	} else {
-		core.When[contracts.AuthService](ctx, func(auth contracts.AuthService) {
-			service.SetAuthService(auth)
-		})
-	}
-	if task, err := core.Inject[contracts.TaskService](ctx); err == nil && task != nil {
-		service.SetTaskService(task)
-	} else {
-		core.When[contracts.TaskService](ctx, func(task contracts.TaskService) {
-			service.SetTaskService(task)
-		})
-	}
-	if storage, err := core.Inject[contracts.StorageService](ctx); err == nil && storage != nil {
-		service.SetStorageService(storage)
-	} else {
-		core.When[contracts.StorageService](ctx, func(storage contracts.StorageService) {
-			service.SetStorageService(storage)
-		})
-	}
-	if rc, err := core.Inject[contracts.RiskControlService](ctx); err == nil && rc != nil {
-		service.SetRiskControlService(rc)
-	} else {
-		core.When[contracts.RiskControlService](ctx, func(rc contracts.RiskControlService) {
-			service.SetRiskControlService(rc)
-		})
-	}
+	core.Bind[contracts.DBService](ctx, service.SetDBService)
+	core.Bind[contracts.CacheService](ctx, service.SetCacheService)
+	core.Bind[contracts.UserService](ctx, service.SetUserService)
+	core.Bind[contracts.AuthService](ctx, service.SetAuthService)
+	core.Bind[contracts.TaskService](ctx, service.SetTaskService)
+	core.Bind[contracts.StorageService](ctx, service.SetStorageService)
+	core.Bind[contracts.RiskControlService](ctx, service.SetRiskControlService)
 	service.SetEventEmitter(ctx.Events().Emit)
+	core.Provide[contracts.PublicConfigProvider](ctx, service.PublicConfigAdapter{})
+	core.Provide[contracts.SystemConfigService](ctx, service.SystemConfigServiceImpl{})
 
 	ctx.OnDispose(func() error {
 		service.ResetServices()
@@ -170,32 +134,22 @@ func (p *Plugin) Apply(ctx *core.Context) error {
 	adminRouter := ctx.Router().Group("/api/v1/admin", loginMW, adminMW)
 	handler.RegisterRoutes(adminRouter)
 
+	// Register robots.txt public route
+	ctx.Router().GET("/robots.txt", handler.GetRobotsTXT)
+	ctx.Router().RegisterWhitelist("/robots.txt")
+
 	// 2. Register Background Tasks
-	logSwitchHandler := &service.LogDBSwitchHandler{}
-	ctx.Task().Register(service.LogDBSwitchTask, func(c context.Context, payload []byte) error {
-		_, err := logSwitchHandler.Execute(c, payload)
-		return err
-	}, extpoints.WithTaskMeta(service.LogDBSwitchMeta))
+	const defaultCleanupRetry = 3
+	ctx.Task().Register(service.LogDBSwitchTask, &service.LogDBSwitchHandler{}, extpoints.WithTaskMeta(service.LogDBSwitchMeta))
+	ctx.Task().Register(service.SystemCleanupTask, &service.SystemCleanupHandler{}, extpoints.WithTaskMeta(service.SystemCleanupMeta), extpoints.WithTaskRetry(defaultCleanupRetry))
 
-	ctx.Task().Register("admin:system_cleanup", func(_ context.Context, _ []byte) error {
-		return nil
-	},
-		extpoints.WithTaskType("system_cleanup"),
-		extpoints.WithTaskName("系统垃圾清理"),
-		extpoints.WithTaskDescription("定期清理未使用上传文件、历史推送记录和过期任务执行日志"),
-		extpoints.WithTaskCategory("maintenance"),
-		extpoints.WithTaskRetry(1),
-		extpoints.WithTaskQueue("default"),
-		extpoints.WithTaskRetryable(true),
-	)
+	// 2.1 Register Cron Schedule
+	ctx.Schedule().RegisterCron("0 3 * * *", service.SystemCleanupTask, nil)
 
-	// 3. Register Cron Schedules
-	ctx.Schedule().RegisterCron("0 4 * * *", "admin:system_cleanup", map[string]string{"type": "daily"})
-
-	// 4. Register Settings Schemas
+	// 3. Register Settings Schemas
 	ctx.Settings().Register(extpoints.SettingSchema{
 		Key:         "admin.system_cleanup_cron",
-		Default:     "0 4 * * *",
+		Default:     "0 3 * * *",
 		Description: "Cron expression for nightly system logs and expired tokens cleanup",
 		Type:        "string",
 		Category:    "maintenance",

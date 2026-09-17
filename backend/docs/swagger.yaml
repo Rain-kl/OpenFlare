@@ -156,26 +156,6 @@ definitions:
       type:
         type: string
     type: object
-  Wavelet_plugins_domain_admin_model.Schedule:
-    properties:
-      created_at:
-        type: string
-      cron:
-        type: string
-      id:
-        example: "0"
-        type: string
-      is_active:
-        type: boolean
-      name:
-        type: string
-      payload:
-        type: string
-      task_type:
-        type: string
-      updated_at:
-        type: string
-    type: object
   Wavelet_plugins_domain_admin_model.SystemConfig:
     properties:
       created_at:
@@ -229,29 +209,6 @@ definitions:
       task_type:
         type: string
       triggered_by:
-        type: string
-      updated_at:
-        type: string
-    type: object
-  Wavelet_plugins_domain_admin_model.Template:
-    properties:
-      content:
-        type: string
-      created_at:
-        type: string
-      description:
-        type: string
-      id:
-        type: integer
-      is_system:
-        type: boolean
-      key:
-        type: string
-      name:
-        type: string
-      subject:
-        type: string
-      type:
         type: string
       updated_at:
         type: string
@@ -455,119 +412,6 @@ definitions:
         type: integer
       totalPage:
         type: integer
-    type: object
-  auth.AuthSourceView:
-    properties:
-      client_secret_configured:
-        type: boolean
-      display_name:
-        type: string
-      icon_url:
-        type: string
-      id:
-        type: integer
-      is_active:
-        type: boolean
-      name:
-        type: string
-      type:
-        type: string
-    type: object
-  auth.BasicUserInfo:
-    properties:
-      avatar_url:
-        type: string
-      bio:
-        type: string
-      email:
-        type: string
-      gender:
-        type: string
-      id:
-        type: integer
-      is_admin:
-        type: boolean
-      location:
-        type: string
-      need_change_password:
-        type: boolean
-      nickname:
-        type: string
-      phone:
-        type: string
-      username:
-        type: string
-      website:
-        type: string
-    type: object
-  auth.CallbackRequest:
-    properties:
-      code:
-        type: string
-      state:
-        type: string
-    required:
-    - code
-    - state
-    type: object
-  auth.OAuthAuthorizeResponse:
-    properties:
-      authorize_url:
-        type: string
-    type: object
-  auth.OAuthCallbackResult:
-    properties:
-      status:
-        type: string
-      user:
-        $ref: '#/definitions/auth.BasicUserInfo'
-    type: object
-  cap.ChallengeResponse:
-    properties:
-      challenge:
-        properties:
-          c:
-            type: integer
-          d:
-            type: integer
-          s:
-            type: integer
-        type: object
-      expires:
-        description: ms timestamp
-        type: integer
-      token:
-        type: string
-    type: object
-  cap.RedeemResponse:
-    properties:
-      error:
-        type: string
-      expires:
-        type: integer
-      success:
-        type: boolean
-      token:
-        type: string
-    type: object
-  cap.challengeRequest:
-    properties:
-      scope:
-        type: string
-    type: object
-  cap.redeemRequest:
-    properties:
-      scope:
-        type: string
-      solutions:
-        items:
-          type: integer
-        type: array
-      token:
-        type: string
-    required:
-    - solutions
-    - token
     type: object
   cloudflare.AvailableDomain:
     properties:
@@ -996,6 +840,379 @@ definitions:
       ttl_minutes:
         type: integer
     type: object
+  do.BindRequest:
+    properties:
+      channel_id:
+        type: string
+      code:
+        type: string
+    type: object
+  do.BindingDTO:
+    properties:
+      channel_id:
+        example: "0"
+        type: string
+      channel_name:
+        type: string
+      channel_type:
+        type: string
+      created_at:
+        type: string
+      id:
+        example: "0"
+        type: string
+      platform_user_id:
+        type: string
+      user_id:
+        example: "0"
+        type: string
+    type: object
+  do.ChannelDTO:
+    properties:
+      credentials:
+        additionalProperties:
+          type: string
+        type: object
+      enabled:
+        type: boolean
+      extra:
+        additionalProperties:
+          type: string
+        type: object
+      id:
+        example: "0"
+        type: string
+      name:
+        type: string
+      owner_id:
+        example: "0"
+        type: string
+      owner_scope:
+        type: string
+      type:
+        type: string
+    type: object
+  do.CreateChannelRequest:
+    properties:
+      credentials:
+        additionalProperties:
+          type: string
+        type: object
+      enabled:
+        type: boolean
+      extra:
+        additionalProperties:
+          type: string
+        type: object
+      name:
+        type: string
+      type:
+        type: string
+    type: object
+  do.CreatePushChannelRequest:
+    properties:
+      description:
+        type: string
+      enabled:
+        type: boolean
+      name:
+        type: string
+      other:
+        type: string
+      token:
+        type: string
+      type:
+        type: string
+      url:
+        type: string
+    required:
+    - name
+    - type
+    type: object
+  do.CreatePushEventRequest:
+    properties:
+      channels:
+        items:
+          type: string
+        type: array
+      enabled:
+        type: boolean
+      event_key:
+        type: string
+      targets:
+        items:
+          type: string
+        type: array
+      task_type:
+        type: string
+      template:
+        type: string
+    type: object
+  do.Definition:
+    properties:
+      fields:
+        items:
+          $ref: '#/definitions/do.Field'
+        type: array
+      type:
+        type: string
+    type: object
+  do.Field:
+    properties:
+      key:
+        type: string
+      required:
+        type: boolean
+      type:
+        type: string
+    type: object
+  do.PublicChannelDTO:
+    properties:
+      id:
+        example: "0"
+        type: string
+      name:
+        type: string
+      type:
+        type: string
+    type: object
+  do.TestPushChannelRequest:
+    properties:
+      name:
+        type: string
+      other:
+        type: string
+      target:
+        type: string
+      token:
+        type: string
+      type:
+        type: string
+      url:
+        type: string
+    type: object
+  do.TestPushRequest:
+    properties:
+      config:
+        $ref: '#/definitions/push.Config'
+      target:
+        type: string
+    required:
+    - config
+    type: object
+  do.UpdateChannelRequest:
+    properties:
+      credentials:
+        additionalProperties:
+          type: string
+        type: object
+      enabled:
+        type: boolean
+      extra:
+        additionalProperties:
+          type: string
+        type: object
+      name:
+        type: string
+    type: object
+  do.UpdatePushChannelRequest:
+    properties:
+      description:
+        type: string
+      enabled:
+        type: boolean
+      other:
+        type: string
+      token:
+        type: string
+      type:
+        type: string
+      url:
+        type: string
+    required:
+    - type
+    type: object
+  do.UpdatePushEventRequest:
+    properties:
+      channels:
+        items:
+          type: string
+        type: array
+      enabled:
+        type: boolean
+      targets:
+        items:
+          type: string
+        type: array
+      template:
+        type: string
+    required:
+    - template
+    type: object
+  dto.AuthSourceView:
+    properties:
+      client_secret_configured:
+        type: boolean
+      display_name:
+        type: string
+      icon_url:
+        type: string
+      id:
+        type: integer
+      is_active:
+        type: boolean
+      name:
+        type: string
+      type:
+        type: string
+    type: object
+  dto.BasicUserInfo:
+    properties:
+      avatar_url:
+        type: string
+      bio:
+        type: string
+      email:
+        type: string
+      gender:
+        type: string
+      id:
+        example: "0"
+        type: string
+      is_admin:
+        type: boolean
+      location:
+        type: string
+      need_change_password:
+        type: boolean
+      nickname:
+        type: string
+      phone:
+        type: string
+      username:
+        type: string
+      website:
+        type: string
+    type: object
+  dto.CallbackRequest:
+    properties:
+      code:
+        type: string
+      state:
+        type: string
+    required:
+    - code
+    - state
+    type: object
+  dto.ChallengeRequest:
+    properties:
+      scope:
+        type: string
+    type: object
+  dto.ChallengeResponse:
+    properties:
+      challenge:
+        properties:
+          c:
+            type: integer
+          d:
+            type: integer
+          s:
+            type: integer
+        type: object
+      expires:
+        description: ms timestamp
+        type: integer
+      token:
+        type: string
+    type: object
+  dto.OAuthAuthorizeResponse:
+    properties:
+      authorize_url:
+        type: string
+    type: object
+  dto.OAuthCallbackResult:
+    properties:
+      status:
+        type: string
+      user:
+        $ref: '#/definitions/dto.BasicUserInfo'
+    type: object
+  dto.RedeemRequest:
+    properties:
+      scope:
+        type: string
+      solutions:
+        items:
+          type: integer
+        type: array
+      token:
+        type: string
+    required:
+    - solutions
+    - token
+    type: object
+  dto.RedeemResponse:
+    properties:
+      error:
+        type: string
+      expires:
+        type: integer
+      success:
+        type: boolean
+      token:
+        type: string
+    type: object
+  entity.PushChannel:
+    properties:
+      created_at:
+        type: string
+      description:
+        type: string
+      enabled:
+        type: boolean
+      id:
+        type: integer
+      name:
+        type: string
+      other:
+        type: string
+      token:
+        type: string
+      type:
+        type: string
+      updated_at:
+        type: string
+      url:
+        type: string
+    type: object
+  entity.PushEvent:
+    properties:
+      channels:
+        items:
+          type: string
+        type: array
+      created_at:
+        type: string
+      enabled:
+        type: boolean
+      event_key:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      targets:
+        items:
+          type: string
+        type: array
+      task_type:
+        type: string
+      template:
+        type: string
+      updated_at:
+        type: string
+    type: object
   flared.ApplyLogPayload:
     properties:
       checksum:
@@ -1202,64 +1419,12 @@ definitions:
       url:
         type: string
     type: object
-  model.BindRequest:
-    properties:
-      channel_id:
-        type: string
-      code:
-        type: string
-    type: object
-  model.BindingDTO:
-    properties:
-      channel_id:
-        example: "0"
-        type: string
-      channel_name:
-        type: string
-      channel_type:
-        type: string
-      created_at:
-        type: string
-      id:
-        example: "0"
-        type: string
-      platform_user_id:
-        type: string
-      user_id:
-        example: "0"
-        type: string
-    type: object
   model.BrowserItem:
     properties:
       browser:
         type: string
       count:
         type: integer
-    type: object
-  model.ChannelDTO:
-    properties:
-      credentials:
-        additionalProperties:
-          type: string
-        type: object
-      enabled:
-        type: boolean
-      extra:
-        additionalProperties:
-          type: string
-        type: object
-      id:
-        example: "0"
-        type: string
-      name:
-        type: string
-      owner_id:
-        example: "0"
-        type: string
-      owner_scope:
-        type: string
-      type:
-        type: string
     type: object
   model.ConfigVersion:
     properties:
@@ -1297,62 +1462,6 @@ definitions:
       is_active:
         type: boolean
       version:
-        type: string
-    type: object
-  model.CreateChannelRequest:
-    properties:
-      credentials:
-        additionalProperties:
-          type: string
-        type: object
-      enabled:
-        type: boolean
-      extra:
-        additionalProperties:
-          type: string
-        type: object
-      name:
-        type: string
-      type:
-        type: string
-    type: object
-  model.CreatePushChannelRequest:
-    properties:
-      description:
-        type: string
-      enabled:
-        type: boolean
-      name:
-        type: string
-      other:
-        type: string
-      token:
-        type: string
-      type:
-        type: string
-      url:
-        type: string
-    required:
-    - name
-    - type
-    type: object
-  model.CreatePushEventRequest:
-    properties:
-      channels:
-        items:
-          type: string
-        type: array
-      enabled:
-        type: boolean
-      event_key:
-        type: string
-      targets:
-        items:
-          type: string
-        type: array
-      task_type:
-        type: string
-      template:
         type: string
     type: object
   model.CreateScheduleRequest:
@@ -1485,15 +1594,6 @@ definitions:
       version:
         type: string
     type: object
-  model.Definition:
-    properties:
-      fields:
-        items:
-          $ref: '#/definitions/model.Field'
-        type: array
-      type:
-        type: string
-    type: object
   model.DispatchTaskRequest:
     properties:
       end_time:
@@ -1533,15 +1633,6 @@ definitions:
         type: array
       type:
         description: '"select" 或 "exec"'
-        type: string
-    type: object
-  model.Field:
-    properties:
-      key:
-        type: string
-      required:
-        type: boolean
-      type:
         type: string
     type: object
   model.ListUsersResponse:
@@ -1756,62 +1847,22 @@ definitions:
       value:
         type: string
     type: object
-  model.PublicChannelDTO:
+  model.Schedule:
     properties:
+      created_at:
+        type: string
+      cron:
+        type: string
       id:
         example: "0"
         type: string
-      name:
-        type: string
-      type:
-        type: string
-    type: object
-  model.PushChannel:
-    properties:
-      created_at:
-        type: string
-      description:
-        type: string
-      enabled:
+      is_active:
         type: boolean
-      id:
-        type: integer
       name:
         type: string
-      other:
+      payload:
         type: string
-      token:
-        type: string
-      type:
-        type: string
-      updated_at:
-        type: string
-      url:
-        type: string
-    type: object
-  model.PushEvent:
-    properties:
-      channels:
-        items:
-          type: string
-        type: array
-      created_at:
-        type: string
-      enabled:
-        type: boolean
-      event_key:
-        type: string
-      id:
-        type: integer
-      name:
-        type: string
-      targets:
-        items:
-          type: string
-        type: array
       task_type:
-        type: string
-      template:
         type: string
       updated_at:
         type: string
@@ -1930,29 +1981,28 @@ definitions:
     - TaskExecutionStatusRunning
     - TaskExecutionStatusSucceeded
     - TaskExecutionStatusFailed
-  model.TestPushChannelRequest:
+  model.Template:
     properties:
+      content:
+        type: string
+      created_at:
+        type: string
+      description:
+        type: string
+      id:
+        type: integer
+      is_system:
+        type: boolean
+      key:
+        type: string
       name:
         type: string
-      other:
-        type: string
-      target:
-        type: string
-      token:
+      subject:
         type: string
       type:
         type: string
-      url:
+      updated_at:
         type: string
-    type: object
-  model.TestPushRequest:
-    properties:
-      config:
-        $ref: '#/definitions/push.Config'
-      target:
-        type: string
-    required:
-    - config
     type: object
   model.TestSMTPRequest:
     properties:
@@ -2017,55 +2067,6 @@ definitions:
     required:
     - max_size_mb
     - ttl_minutes
-    type: object
-  model.UpdateChannelRequest:
-    properties:
-      credentials:
-        additionalProperties:
-          type: string
-        type: object
-      enabled:
-        type: boolean
-      extra:
-        additionalProperties:
-          type: string
-        type: object
-      name:
-        type: string
-    type: object
-  model.UpdatePushChannelRequest:
-    properties:
-      description:
-        type: string
-      enabled:
-        type: boolean
-      other:
-        type: string
-      token:
-        type: string
-      type:
-        type: string
-      url:
-        type: string
-    required:
-    - type
-    type: object
-  model.UpdatePushEventRequest:
-    properties:
-      channels:
-        items:
-          type: string
-        type: array
-      enabled:
-        type: boolean
-      targets:
-        items:
-          type: string
-        type: array
-      template:
-        type: string
-    required:
-    - template
     type: object
   model.UpdateScheduleRequest:
     properties:
@@ -3669,6 +3670,9 @@ definitions:
       key:
         description: AppID 或 SMTP 用户名
         type: string
+      other:
+        description: 附加配置 (如 ChatID / UserKey / 扩展 JSON)
+        type: string
       secret:
         description: 签名密钥或 SMTP 密码/Token
         type: string
@@ -3916,6 +3920,13 @@ definitions:
     required:
     - password
     - username
+    type: object
+  user.sendEmailCodeRequest:
+    properties:
+      email:
+        type: string
+    required:
+    - email
     type: object
   user.updateProfileRequest:
     properties:
@@ -4884,7 +4895,7 @@ paths:
             - properties:
                 data:
                   items:
-                    $ref: '#/definitions/model.ChannelDTO'
+                    $ref: '#/definitions/do.ChannelDTO'
                   type: array
               type: object
       security:
@@ -4902,7 +4913,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/model.CreateChannelRequest'
+          $ref: '#/definitions/do.CreateChannelRequest'
       produces:
       - application/json
       responses:
@@ -4913,7 +4924,7 @@ paths:
             - $ref: '#/definitions/response.Any'
             - properties:
                 data:
-                  $ref: '#/definitions/model.ChannelDTO'
+                  $ref: '#/definitions/do.ChannelDTO'
               type: object
         "400":
           description: Bad Request
@@ -4964,7 +4975,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/model.UpdateChannelRequest'
+          $ref: '#/definitions/do.UpdateChannelRequest'
       produces:
       - application/json
       responses:
@@ -4975,7 +4986,7 @@ paths:
             - $ref: '#/definitions/response.Any'
             - properties:
                 data:
-                  $ref: '#/definitions/model.ChannelDTO'
+                  $ref: '#/definitions/do.ChannelDTO'
               type: object
         "400":
           description: Bad Request
@@ -5033,7 +5044,7 @@ paths:
             - properties:
                 data:
                   items:
-                    $ref: '#/definitions/model.Definition'
+                    $ref: '#/definitions/do.Definition'
                   type: array
               type: object
       security:
@@ -5055,7 +5066,7 @@ paths:
             - properties:
                 data:
                   items:
-                    $ref: '#/definitions/model.PushChannel'
+                    $ref: '#/definitions/entity.PushChannel'
                   type: array
               type: object
       security:
@@ -5073,7 +5084,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/model.CreatePushChannelRequest'
+          $ref: '#/definitions/do.CreatePushChannelRequest'
       produces:
       - application/json
       responses:
@@ -5084,7 +5095,7 @@ paths:
             - $ref: '#/definitions/response.Any'
             - properties:
                 data:
-                  $ref: '#/definitions/model.PushChannel'
+                  $ref: '#/definitions/entity.PushChannel'
               type: object
       security:
       - SessionCookie: []
@@ -5129,7 +5140,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/model.UpdatePushChannelRequest'
+          $ref: '#/definitions/do.UpdatePushChannelRequest'
       produces:
       - application/json
       responses:
@@ -5140,7 +5151,7 @@ paths:
             - $ref: '#/definitions/response.Any'
             - properties:
                 data:
-                  $ref: '#/definitions/model.PushChannel'
+                  $ref: '#/definitions/entity.PushChannel'
               type: object
       security:
       - SessionCookie: []
@@ -5173,7 +5184,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/model.TestPushChannelRequest'
+          $ref: '#/definitions/do.TestPushChannelRequest'
       produces:
       - application/json
       responses:
@@ -5200,7 +5211,7 @@ paths:
             - properties:
                 data:
                   items:
-                    $ref: '#/definitions/model.PushEvent'
+                    $ref: '#/definitions/entity.PushEvent'
                   type: array
               type: object
       security:
@@ -5218,7 +5229,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/model.CreatePushEventRequest'
+          $ref: '#/definitions/do.CreatePushEventRequest'
       produces:
       - application/json
       responses:
@@ -5229,7 +5240,7 @@ paths:
             - $ref: '#/definitions/response.Any'
             - properties:
                 data:
-                  $ref: '#/definitions/model.PushEvent'
+                  $ref: '#/definitions/entity.PushEvent'
               type: object
       security:
       - SessionCookie: []
@@ -5277,7 +5288,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/model.UpdatePushEventRequest'
+          $ref: '#/definitions/do.UpdatePushEventRequest'
       produces:
       - application/json
       responses:
@@ -5379,7 +5390,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/model.TestPushRequest'
+          $ref: '#/definitions/do.TestPushRequest'
       produces:
       - application/json
       responses:
@@ -5862,7 +5873,7 @@ paths:
             - properties:
                 data:
                   items:
-                    $ref: '#/definitions/Wavelet_plugins_domain_admin_model.Schedule'
+                    $ref: '#/definitions/model.Schedule'
                   type: array
               type: object
         "401":
@@ -5899,7 +5910,7 @@ paths:
             - $ref: '#/definitions/response.Any'
             - properties:
                 data:
-                  $ref: '#/definitions/Wavelet_plugins_domain_admin_model.Schedule'
+                  $ref: '#/definitions/model.Schedule'
               type: object
         "400":
           description: Cron 表达式无效、异步任务类型不存在或参数错误
@@ -5990,7 +6001,7 @@ paths:
             - $ref: '#/definitions/response.Any'
             - properties:
                 data:
-                  $ref: '#/definitions/Wavelet_plugins_domain_admin_model.Schedule'
+                  $ref: '#/definitions/model.Schedule'
               type: object
         "400":
           description: Cron 表达式无效、参数错误
@@ -6061,7 +6072,7 @@ paths:
             - properties:
                 data:
                   items:
-                    $ref: '#/definitions/Wavelet_plugins_domain_admin_model.Template'
+                    $ref: '#/definitions/model.Template'
                   type: array
               type: object
         "401":
@@ -6189,7 +6200,7 @@ paths:
             - $ref: '#/definitions/response.Any'
             - properties:
                 data:
-                  $ref: '#/definitions/Wavelet_plugins_domain_admin_model.Template'
+                  $ref: '#/definitions/model.Template'
               type: object
         "401":
           description: 未登录
@@ -6238,7 +6249,7 @@ paths:
             - $ref: '#/definitions/response.Any'
             - properties:
                 data:
-                  $ref: '#/definitions/Wavelet_plugins_domain_admin_model.Template'
+                  $ref: '#/definitions/model.Template'
               type: object
         "400":
           description: 参数错误
@@ -7221,7 +7232,7 @@ paths:
         in: body
         name: request
         schema:
-          $ref: '#/definitions/cap.challengeRequest'
+          $ref: '#/definitions/dto.ChallengeRequest'
       produces:
       - application/json
       responses:
@@ -7232,7 +7243,7 @@ paths:
             - $ref: '#/definitions/response.Any'
             - properties:
                 data:
-                  $ref: '#/definitions/cap.ChallengeResponse'
+                  $ref: '#/definitions/dto.ChallengeResponse'
               type: object
         "500":
           description: 内部服务错误
@@ -7250,7 +7261,7 @@ paths:
         in: body
         name: request
         schema:
-          $ref: '#/definitions/cap.challengeRequest'
+          $ref: '#/definitions/dto.ChallengeRequest'
       produces:
       - application/json
       responses:
@@ -7261,7 +7272,7 @@ paths:
             - $ref: '#/definitions/response.Any'
             - properties:
                 data:
-                  $ref: '#/definitions/cap.ChallengeResponse'
+                  $ref: '#/definitions/dto.ChallengeResponse'
               type: object
         "500":
           description: 内部服务错误
@@ -7281,7 +7292,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/cap.redeemRequest'
+          $ref: '#/definitions/dto.RedeemRequest'
       produces:
       - application/json
       responses:
@@ -7292,7 +7303,7 @@ paths:
             - $ref: '#/definitions/response.Any'
             - properties:
                 data:
-                  $ref: '#/definitions/cap.RedeemResponse'
+                  $ref: '#/definitions/dto.RedeemResponse'
               type: object
         "400":
           description: 参数错误或核销失败
@@ -7309,7 +7320,7 @@ paths:
     get:
       consumes:
       - application/json
-      description: 返回系统配置表中 visibility 为 1 的配置键值集合
+      description: 返回系统配置表中 visibility 为 1 的扁平键值集合（如 cap_login_enabled）
       produces:
       - application/json
       responses:
@@ -12204,7 +12215,7 @@ paths:
             - properties:
                 data:
                   items:
-                    $ref: '#/definitions/model.BindingDTO'
+                    $ref: '#/definitions/do.BindingDTO'
                   type: array
               type: object
         "401":
@@ -12227,7 +12238,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/model.BindRequest'
+          $ref: '#/definitions/do.BindRequest'
       produces:
       - application/json
       responses:
@@ -12238,7 +12249,7 @@ paths:
             - $ref: '#/definitions/response.Any'
             - properties:
                 data:
-                  $ref: '#/definitions/model.BindingDTO'
+                  $ref: '#/definitions/do.BindingDTO'
               type: object
         "400":
           description: Bad Request
@@ -12296,7 +12307,7 @@ paths:
             - properties:
                 data:
                   items:
-                    $ref: '#/definitions/model.PublicChannelDTO'
+                    $ref: '#/definitions/do.PublicChannelDTO'
                   type: array
               type: object
         "401":
@@ -12331,7 +12342,7 @@ paths:
             - $ref: '#/definitions/response.Any'
             - properties:
                 data:
-                  $ref: '#/definitions/auth.OAuthAuthorizeResponse'
+                  $ref: '#/definitions/dto.OAuthAuthorizeResponse'
               type: object
         "400":
           description: 认证源不存在或未启用
@@ -12355,7 +12366,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/auth.CallbackRequest'
+          $ref: '#/definitions/dto.CallbackRequest'
       produces:
       - application/json
       responses:
@@ -12366,7 +12377,7 @@ paths:
             - $ref: '#/definitions/response.Any'
             - properties:
                 data:
-                  $ref: '#/definitions/auth.OAuthCallbackResult'
+                  $ref: '#/definitions/dto.OAuthCallbackResult'
               type: object
         "400":
           description: state 无效、参数错误或认证源错误
@@ -12459,7 +12470,7 @@ paths:
             - $ref: '#/definitions/response.Any'
             - properties:
                 data:
-                  $ref: '#/definitions/auth.OAuthAuthorizeResponse'
+                  $ref: '#/definitions/dto.OAuthAuthorizeResponse'
               type: object
         "400":
           description: 认证源不存在或未配置
@@ -12510,7 +12521,7 @@ paths:
             - properties:
                 data:
                   items:
-                    $ref: '#/definitions/auth.AuthSourceView'
+                    $ref: '#/definitions/dto.AuthSourceView'
                   type: array
               type: object
       summary: 获取可用登录源
@@ -12529,7 +12540,7 @@ paths:
             - $ref: '#/definitions/response.Any'
             - properties:
                 data:
-                  $ref: '#/definitions/auth.BasicUserInfo'
+                  $ref: '#/definitions/dto.BasicUserInfo'
               type: object
         "401":
           description: 未登录
@@ -12905,7 +12916,7 @@ paths:
             - $ref: '#/definitions/response.Any'
             - properties:
                 data:
-                  $ref: '#/definitions/auth.BasicUserInfo'
+                  $ref: '#/definitions/dto.BasicUserInfo'
               type: object
         "401":
           description: 未登录
@@ -13063,7 +13074,7 @@ paths:
     post:
       consumes:
       - application/json
-      description: 使用用户名和密码登录，登录成功后建立 Session。若管理员已关闭密码登录功能则返回错误。
+      description: 使用用户名和密码登录系统，验证通过后建立 Session 并返回用户信息。
       parameters:
       - description: 登录请求参数
         in: body
@@ -13082,11 +13093,15 @@ paths:
           description: 用户名或密码错误
           schema:
             $ref: '#/definitions/response.Any'
+        "429":
+          description: 登录尝试过于频繁
+          schema:
+            $ref: '#/definitions/response.Any'
         "500":
           description: 服务内部错误
           schema:
             $ref: '#/definitions/response.Any'
-      summary: 用户密码登录
+      summary: 用户登录
       tags:
       - user
   /api/v1/user/logout:
@@ -13166,6 +13181,10 @@ paths:
           description: 参数错误、用户名已存在或注册已关闭
           schema:
             $ref: '#/definitions/response.Any'
+        "429":
+          description: 注册尝试过于频繁
+          schema:
+            $ref: '#/definitions/response.Any'
         "500":
           description: 服务内部错误
           schema:
@@ -13197,6 +13216,13 @@ paths:
       consumes:
       - application/json
       description: 向指定邮箱发送验证码（用于注册场景）
+      parameters:
+      - description: 目标邮箱
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/user.sendEmailCodeRequest'
       produces:
       - application/json
       responses:
@@ -13206,6 +13232,10 @@ paths:
             $ref: '#/definitions/response.Any'
         "400":
           description: 参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "500":
+          description: 发送失败
           schema:
             $ref: '#/definitions/response.Any'
       summary: 发送邮箱验证码

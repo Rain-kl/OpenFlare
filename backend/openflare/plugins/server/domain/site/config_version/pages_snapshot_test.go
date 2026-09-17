@@ -12,7 +12,6 @@ import (
 
 	"Wavelet/openflare/plugins/server/kernel/model"
 	openrestyrender "Wavelet/openflare/share/render/openresty"
-	db "Wavelet/plugins/infra/database"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -95,7 +94,7 @@ func TestBuildSnapshotPagesDeploymentRejectsUnsafeStoredPaths(t *testing.T) {
 
 func requireDB(t *testing.T, ctx context.Context) *gorm.DB {
 	t.Helper()
-	conn := db.DB(ctx)
+	conn := repository.DB(ctx)
 	require.NotNil(t, conn)
 	require.NoError(t, conn.AutoMigrate(
 		&model.PagesProject{},

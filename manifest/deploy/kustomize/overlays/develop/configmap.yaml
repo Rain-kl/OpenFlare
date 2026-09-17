@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: wavelet-configmap
+data:
+  config.yaml: |
+    app:
+      env: "development"
+      addr: ":8000"
+      node_id: 1
+    database:
+      enabled: false
+      sqlite_path: "data/wavelet.db"
+    redis:
+      enabled: false

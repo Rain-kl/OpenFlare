@@ -5,6 +5,7 @@ package admin_test
 
 import (
 	"Wavelet/core"
+	"Wavelet/core/contracts"
 	"Wavelet/plugins/domain/admin"
 	"context"
 	"testing"
@@ -23,20 +24,29 @@ func TestAdminPluginUnit(t *testing.T) {
 	// Verify routes
 	routes := ctx.Router().Routes()
 	assert.NotEmpty(t, routes)
+	var hasRobots bool
+	for _, r := range routes {
+		if r.Path == "/robots.txt" && r.Method == "GET" {
+			hasRobots = true
+			break
+		}
+	}
+	assert.True(t, hasRobots, "admin plugin must register /robots.txt")
 
 	// Verify tasks
-	_, ok := ctx.Tasks().Get("admin:system_cleanup")
+	_, ok := ctx.Tasks().Get("logs:db_switch")
 	require.True(t, ok)
-
-	// Verify schedules
-	sched, ok := ctx.Schedules().Get("admin:system_cleanup")
+	_, ok = ctx.Tasks().Get("system:cleanup")
 	require.True(t, ok)
-	assert.Equal(t, "0 4 * * *", sched.Spec)
 
 	// Verify settings
 	setting, ok := ctx.Settings().Get("admin.system_cleanup_cron")
 	require.True(t, ok)
-	assert.Equal(t, "0 4 * * *", setting.Default)
+	assert.Equal(t, "0 3 * * *", setting.Default)
+
+	provider, err := core.Inject[contracts.PublicConfigProvider](ctx)
+	require.NoError(t, err)
+	require.NotNil(t, provider)
 }
 
 func TestAdminMigrationsIncludeTaskExecutionsAndSchedules(t *testing.T) {

@@ -20,7 +20,6 @@ import (
 	oftls "Wavelet/openflare/plugins/server/domain/tls"
 	"Wavelet/openflare/plugins/server/kernel/model"
 	"Wavelet/openflare/plugins/server/kernel/runtimeconfig"
-	db "Wavelet/plugins/infra/database"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -29,7 +28,7 @@ import (
 func TestBuildCertificateSupportFilesDecryptsSealedPrivateKey(t *testing.T) {
 	cleanup := setupConfigVersionTestDB(t)
 	defer cleanup()
-	require.NoError(t, db.DB(context.Background()).AutoMigrate(&model.TLSCertificate{}))
+	require.NoError(t, repository.DB(context.Background()).AutoMigrate(&model.TLSCertificate{}))
 
 	previous := runtimeconfig.Get()
 	runtimeconfig.SetSessionSecret("test-session-secret-for-tls-seal")
@@ -65,7 +64,7 @@ func TestBuildSnapshotReadsZoneDomainCertificates(t *testing.T) {
 	cleanup := setupConfigVersionTestDB(t)
 	defer cleanup()
 	ctx := context.Background()
-	require.NoError(t, db.DB(ctx).AutoMigrate(&model.TLSCertificate{}))
+	require.NoError(t, repository.DB(ctx).AutoMigrate(&model.TLSCertificate{}))
 
 	previous := runtimeconfig.Get()
 	runtimeconfig.SetSessionSecret("test-session-secret-for-zone-domain-snapshots")
@@ -81,9 +80,9 @@ func TestBuildSnapshotReadsZoneDomainCertificates(t *testing.T) {
 	route := &model.ProxyRoute{SiteName: "tls-site", OriginURL: "http://origin:8080", Upstreams: `["http://origin:8080"]`, Enabled: true, EnableHTTPS: true}
 	require.NoError(t, repository.CreateProxyRouteRecord(ctx, route))
 	zone := &model.Zone{Domain: "example.com"}
-	require.NoError(t, db.DB(ctx).Create(zone).Error)
-	require.NoError(t, db.DB(ctx).Create(&model.ZoneDomain{ZoneID: zone.ID, ProxyRouteID: &route.ID, Domain: "one.example.com", CertID: &first.ID}).Error)
-	require.NoError(t, db.DB(ctx).Create(&model.ZoneDomain{ZoneID: zone.ID, ProxyRouteID: &route.ID, Domain: "two.example.com", CertID: &second.ID}).Error)
+	require.NoError(t, repository.DB(ctx).Create(zone).Error)
+	require.NoError(t, repository.DB(ctx).Create(&model.ZoneDomain{ZoneID: zone.ID, ProxyRouteID: &route.ID, Domain: "one.example.com", CertID: &first.ID}).Error)
+	require.NoError(t, repository.DB(ctx).Create(&model.ZoneDomain{ZoneID: zone.ID, ProxyRouteID: &route.ID, Domain: "two.example.com", CertID: &second.ID}).Error)
 
 	bundle, err := buildCurrentConfigBundle(ctx, true)
 	require.NoError(t, err)

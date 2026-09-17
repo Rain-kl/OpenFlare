@@ -83,7 +83,7 @@ OpenFlare 已收敛为**单 monorepo**（Go 模块 `OpenFlare`）。控制面 Se
 | `pkg/` | 跨组件共享库（协议、渲染、GeoIP 等） |
 | `scripts/` | Swagger 生成、安装脚本等 |
 | `docs/` | VitePress 文档站与设计基线 |
-| `docker/` | 各组件 Dockerfile |
+| `manifest/docker/` | 各组件 Dockerfile |
 | `uploads/`、`data/` | 运行时上传目录与静态数据（`.gitignore` 忽略） |
 
 ### 1. Server 分层（`main.go` + `internal/`）

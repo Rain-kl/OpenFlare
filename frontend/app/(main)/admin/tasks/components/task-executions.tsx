@@ -85,6 +85,16 @@ function statusVariant(status: TaskExecutionStatus) {
   return 'outline';
 }
 
+function mappedLabel(
+  t: (key: string) => string,
+  keys: Record<string, string>,
+  value: string,
+): string {
+  const key = keys[value];
+  if (!key) return value || '-';
+  return t(key);
+}
+
 export function TaskExecutionsManager() {
   const t = useTranslations('admin.tasks');
   const queryClient = useQueryClient();
@@ -281,14 +291,16 @@ export function TaskExecutionsManager() {
                   </TableCell>
                   <TableCell>
                     <Badge variant={statusVariant(execution.status)}>
-                      {t(STATUS_LABELS_KEYS[execution.status]) ||
-                        execution.status}
+                      {mappedLabel(t, STATUS_LABELS_KEYS, execution.status)}
                     </Badge>
                   </TableCell>
                   <TableCell>
                     <Badge variant='outline'>
-                      {t(TRIGGER_LABELS_KEYS[execution.triggered_by]) ||
-                        execution.triggered_by}
+                      {mappedLabel(
+                        t,
+                        TRIGGER_LABELS_KEYS,
+                        execution.triggered_by,
+                      )}
                     </Badge>
                   </TableCell>
                   <TableCell className='font-mono text-xs text-muted-foreground'>
@@ -368,8 +380,11 @@ export function TaskExecutionsManager() {
                     </div>
                     <div className='mt-2'>
                       <Badge variant={statusVariant(selectedExecution.status)}>
-                        {t(STATUS_LABELS_KEYS[selectedExecution.status]) ||
-                          selectedExecution.status}
+                        {mappedLabel(
+                          t,
+                          STATUS_LABELS_KEYS,
+                          selectedExecution.status,
+                        )}
                       </Badge>
                     </div>
                   </div>
@@ -378,8 +393,11 @@ export function TaskExecutionsManager() {
                       {t('detailTrigger')}
                     </div>
                     <div className='mt-2 text-sm font-medium'>
-                      {t(TRIGGER_LABELS_KEYS[selectedExecution.triggered_by]) ||
-                        selectedExecution.triggered_by}
+                      {mappedLabel(
+                        t,
+                        TRIGGER_LABELS_KEYS,
+                        selectedExecution.triggered_by,
+                      )}
                     </div>
                   </div>
                   <div className='rounded-lg border p-3'>

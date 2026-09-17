@@ -106,12 +106,26 @@ apiClient.interceptors.request.use(
   (error: unknown) => Promise.reject(error),
 );
 
-/**
- * 直接启动登录流程
- * @param currentPath - 当前路径，用于登录成功后重定向回来
- */
+function isPublicAuthRequest(url?: string): boolean {
+  if (!url) return false;
+  return (
+    url.includes('/user/login') ||
+    url.includes('/user/register') ||
+    url.includes('/user/send-email-code') ||
+    url.includes('/cap/') ||
+    url.includes('/oauth/login') ||
+    url.includes('/oauth/callback') ||
+    url.includes('/oauth/sources')
+  );
+}
+
 function initiateLogin(currentPath: string): Promise<never> {
-  if (currentPath.startsWith('/login') || currentPath.startsWith('/callback')) {
+  if (
+    currentPath.startsWith('/login') ||
+    currentPath.startsWith('/register') ||
+    currentPath.startsWith('/callback') ||
+    currentPath.startsWith('/403')
+  ) {
     return Promise.reject(new UnauthorizedError());
   }
 
@@ -158,16 +172,27 @@ apiClient.interceptors.response.use(
       return Promise.reject(cancelError);
     }
 
-    /* 401 未授权错误 */
+    /* 401：未登录 → 登录页。登录/注册/人机校验接口把错误交给表单。 */
     if (error.response?.status === 401) {
+      const message = error.response.data?.error_msg || '未登录';
+      if (isPublicAuthRequest(error.config?.url)) {
+        return Promise.reject(new UnauthorizedError(message));
+      }
       return initiateLogin(window.location.pathname + window.location.search);
     }
 
-    /* 403 权限不足错误 */
+    /* 403：已登录但权限不足，进入独立 403 页，不清 cookie。 */
     if (error.response?.status === 403) {
+      const message = error.response.data?.error_msg || '权限不足';
+      if (
+        typeof window !== 'undefined' &&
+        window.location.pathname !== '/403'
+      ) {
+        window.location.replace('/403');
+      }
       return Promise.reject(
         new ForbiddenError(
-          error.response.data?.error_msg || '权限不足，请过盾后重试',
+          message,
           error.response.data?.error_code,
           error.response.data?.details,
         ),

@@ -14,6 +14,7 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
@@ -179,9 +180,29 @@ func GetLogsAnalytics(c *gin.Context) {
 func getUpgrader() *websocket.Upgrader {
 	return &websocket.Upgrader{
 		CheckOrigin: func(r *http.Request) bool {
-			return service.IsAllowedLogOrigin(r.Context(), r.Header.Get("Origin"), r.Host)
+			return service.IsAllowedLogOrigin(
+				r.Context(),
+				r.Header.Get("Origin"),
+				r.Host,
+				forwardedHosts(r)...,
+			)
 		},
 	}
+}
+
+func forwardedHosts(r *http.Request) []string {
+	raw := r.Header.Get("X-Forwarded-Host")
+	if raw == "" {
+		return nil
+	}
+	parts := strings.Split(raw, ",")
+	hosts := make([]string, 0, len(parts))
+	for _, part := range parts {
+		if h := strings.TrimSpace(part); h != "" {
+			hosts = append(hosts, h)
+		}
+	}
+	return hosts
 }
 
 // errNegativeParam 表示查询参数解析出了负数。

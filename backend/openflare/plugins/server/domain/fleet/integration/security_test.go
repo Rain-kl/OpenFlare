@@ -17,9 +17,9 @@ import (
 	"time"
 
 	"Wavelet/openflare/plugins/server/kernel/model"
+	"Wavelet/openflare/plugins/server/kernel/repository"
 	"Wavelet/openflare/plugins/server/kernel/runtimeconfig"
 	"Wavelet/openflare/plugins/server/kernel/testhelper"
-	db "Wavelet/plugins/infra/database"
 
 	"github.com/gin-gonic/gin"
 	"github.com/glebarez/sqlite"
@@ -51,7 +51,7 @@ func setupSecurityTest(t *testing.T) (*gin.Engine, adminSeed, func()) {
 		&model.SystemConfig{},
 	))
 
-	db.SetDB(sqliteDB)
+	repository.SetDBForTest(sqliteDB)
 
 	seed, err := seedAdminWithAccessToken(sqliteDB)
 	require.NoError(t, err)
@@ -64,7 +64,7 @@ func setupSecurityTest(t *testing.T) (*gin.Engine, adminSeed, func()) {
 
 	cleanup := func() {
 		runtimeconfig.Set(previous)
-		db.SetDB(nil)
+		repository.SetDBForTest(nil)
 	}
 
 	return engine, seed, cleanup
@@ -205,12 +205,12 @@ func TestSecurityWAFTLSMigrationFlow(t *testing.T) {
 	t.Run("create proxy route for WAF binding", func(t *testing.T) {
 		// Create Zone and ZoneDomain directly in the DB
 		routeZone := model.Zone{Domain: "example-route.com"}
-		require.NoError(t, db.DB(context.Background()).Create(&routeZone).Error)
+		require.NoError(t, repository.DB(context.Background()).Create(&routeZone).Error)
 		routeZoneDomain := model.ZoneDomain{
 			ZoneID: routeZone.ID,
 			Domain: "route.example-route.com",
 		}
-		require.NoError(t, db.DB(context.Background()).Create(&routeZoneDomain).Error)
+		require.NoError(t, repository.DB(context.Background()).Create(&routeZoneDomain).Error)
 
 		rec := performJSONRequest(t, engine, http.MethodPost, apiPath("/proxy-routes/"), map[string]any{
 			"site_name":       "security-site",

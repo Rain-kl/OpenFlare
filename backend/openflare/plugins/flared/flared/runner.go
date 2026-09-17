@@ -15,6 +15,7 @@ import (
 	"Wavelet/openflare/plugins/flared/sync"
 	"Wavelet/openflare/plugins/flared/wsclient"
 	edgerunner "Wavelet/openflare/share/edge/runner"
+	"Wavelet/pkg/util"
 )
 
 // Runner is the top-level orchestrator for the flared agent. It wires together
@@ -31,8 +32,8 @@ type Runner struct {
 // Run starts all background services and enters the WebSocket reconnect loop.
 // It blocks until ctx is cancelled or an unrecoverable error occurs.
 func (r *Runner) Run(ctx context.Context) error {
-	go r.HeartbeatService.Run(ctx)
-	go r.SyncService.Run(ctx)
+	util.Go(func() { r.HeartbeatService.Run(ctx) })
+	util.Go(func() { r.SyncService.Run(ctx) })
 
 	return edgerunner.RunWSReconnectLoop(ctx, edgerunner.WSReconnectConfig{
 		ComponentName: "flared",

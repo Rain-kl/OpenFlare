@@ -112,3 +112,6 @@ type RebuildUploadStatsHandler = uploadtask.RebuildUploadStatsHandler
 
 // WarmImageCachePayload is the payload for image cache warmup tasks.
 type WarmImageCachePayload = uploadtask.WarmImageCachePayload
+
+// CleanupOrphanUploads removes unconfirmed upload files.
+var CleanupOrphanUploads = uploadtask.CleanupOrphanUploads

@@ -23,8 +23,8 @@
 
 ## 二、 部署配置准备
 
-系统在启动前会从当前目录加载 `config.yaml` 配置文件。
-生产环境部署前，请复制 `config.example.yaml` 为 `config.yaml`，并至少确认以下关键参数的配置：
+系统在启动前会默认加载 `manifest/config/config.default.yaml`，并自动读取 `manifest/config/config.yaml`（或 `CONFIG_PATH` 环境变量指定的文件）进行覆盖。
+生产环境部署前，可在 `manifest/config/config.yaml` 中按需覆盖以下关键参数：
 
 ```yaml
 app:

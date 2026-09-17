@@ -79,5 +79,6 @@ func (p *Plugin) Apply(ctx *core.Context) error {
 	}
 
 	core.Provide[contracts.CacheService](ctx, svc)
+	core.Provide[contracts.LimiterService](ctx, newMemoryLimiterService())
 	return nil
 }

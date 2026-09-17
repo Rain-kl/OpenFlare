@@ -8,12 +8,11 @@ import (
 	"errors"
 
 	"Wavelet/openflare/plugins/server/kernel/model"
-	db "Wavelet/plugins/infra/database"
 )
 
 // ListDNSAccounts 列出全部 DNS 账号（授权信息不通过 JSON 暴露）。
 func ListDNSAccounts(ctx context.Context) ([]model.DNSAccount, error) {
-	conn := db.DB(ctx)
+	conn := DB(ctx)
 	if conn == nil {
 		return nil, errors.New(errDatabaseNotInitialized)
 	}
@@ -26,7 +25,7 @@ func ListDNSAccounts(ctx context.Context) ([]model.DNSAccount, error) {
 
 // GetDNSAccountByID 按 ID 查询 DNS 账号。
 func GetDNSAccountByID(ctx context.Context, id uint) (*model.DNSAccount, error) {
-	conn := db.DB(ctx)
+	conn := DB(ctx)
 	if conn == nil {
 		return nil, errors.New(errDatabaseNotInitialized)
 	}
@@ -39,7 +38,7 @@ func GetDNSAccountByID(ctx context.Context, id uint) (*model.DNSAccount, error) 
 
 // CreateDNSAccountRecord 创建 DNS 账号。
 func CreateDNSAccountRecord(ctx context.Context, account *model.DNSAccount) error {
-	conn := db.DB(ctx)
+	conn := DB(ctx)
 	if conn == nil {
 		return errors.New(errDatabaseNotInitialized)
 	}
@@ -48,7 +47,7 @@ func CreateDNSAccountRecord(ctx context.Context, account *model.DNSAccount) erro
 
 // SaveDNSAccount 保存 DNS 账号。
 func SaveDNSAccount(ctx context.Context, account *model.DNSAccount) error {
-	conn := db.DB(ctx)
+	conn := DB(ctx)
 	if conn == nil {
 		return errors.New(errDatabaseNotInitialized)
 	}
@@ -57,7 +56,7 @@ func SaveDNSAccount(ctx context.Context, account *model.DNSAccount) error {
 
 // DeleteDNSAccountRecord 删除 DNS 账号。
 func DeleteDNSAccountRecord(ctx context.Context, id uint) error {
-	conn := db.DB(ctx)
+	conn := DB(ctx)
 	if conn == nil {
 		return errors.New(errDatabaseNotInitialized)
 	}

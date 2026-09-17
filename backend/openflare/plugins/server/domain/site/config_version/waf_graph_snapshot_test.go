@@ -13,7 +13,6 @@ import (
 
 	"Wavelet/openflare/plugins/server/domain/waf"
 	"Wavelet/openflare/plugins/server/kernel/model"
-	db "Wavelet/plugins/infra/database"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -38,7 +37,7 @@ func TestBuildSnapshotRejectsOversizedAggregateWAFIPGroups(t *testing.T) {
 			Enabled: true,
 			IPList:  string(ipList),
 		}
-		require.NoError(t, db.DB(ctx).Create(group).Error)
+		require.NoError(t, repository.DB(ctx).Create(group).Error)
 		groupIDs = append(groupIDs, group.ID)
 	}
 	createSnapshotRule(t, ctx, "oversized-aggregate", snapshotIPMatchGraphForGroups(groupIDs))
@@ -59,8 +58,8 @@ func TestWAFGraphSnapshotPreservesOrderAndGraphReferences(t *testing.T) {
 
 	referenced := &model.OpenFlareWAFIPGroup{Name: "referenced", Type: "manual", Enabled: true, IPList: `["192.0.2.1"]`}
 	unused := &model.OpenFlareWAFIPGroup{Name: "unused", Type: "manual", Enabled: true, IPList: `["198.51.100.1"]`}
-	require.NoError(t, db.DB(ctx).Create(referenced).Error)
-	require.NoError(t, db.DB(ctx).Create(unused).Error)
+	require.NoError(t, repository.DB(ctx).Create(referenced).Error)
+	require.NoError(t, repository.DB(ctx).Create(unused).Error)
 
 	customA := createSnapshotRule(t, ctx, "custom-a", waf.DefaultRuleGraph())
 	customB := createSnapshotRule(t, ctx, "custom-b", snapshotIPMatchGraph(referenced.ID))
@@ -114,7 +113,7 @@ func TestBuildSnapshotRejectsInvalidWAFGraph(t *testing.T) {
 	ctx := context.Background()
 
 	invalid := &model.OpenFlareWAFRuleGroup{Name: "invalid", Enabled: true, Graph: `{"schema_version":1,"nodes":[],"edges":[]}`, Revision: 1}
-	require.NoError(t, db.DB(ctx).Create(invalid).Error)
+	require.NoError(t, repository.DB(ctx).Create(invalid).Error)
 	_, err := buildSnapshotWAFDocument(ctx, nil)
 	require.ErrorContains(t, err, "invalid")
 }
@@ -124,7 +123,7 @@ func createSnapshotRule(t *testing.T, ctx context.Context, name string, graph wa
 	raw, err := json.Marshal(graph)
 	require.NoError(t, err)
 	rule := &model.OpenFlareWAFRuleGroup{Name: name, Enabled: true, Graph: string(raw), Revision: 1}
-	require.NoError(t, db.DB(ctx).Create(rule).Error)
+	require.NoError(t, repository.DB(ctx).Create(rule).Error)
 	return rule
 }
 

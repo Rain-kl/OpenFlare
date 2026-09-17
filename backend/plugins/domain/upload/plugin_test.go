@@ -23,6 +23,10 @@ func (stubAuthService) RequireAuthMiddleware() any {
 	return gin.HandlerFunc(func(c *gin.Context) { c.Next() })
 }
 
+func (stubAuthService) RequireAdminMiddleware() any {
+	return gin.HandlerFunc(func(c *gin.Context) { c.Next() })
+}
+
 func TestUserUploadRoutes(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	ctx := core.NewContext(context.Background())
@@ -34,12 +38,18 @@ func TestUserUploadRoutes(t *testing.T) {
 	}
 
 	want := []string{
+		"POST /api/v1/upload",
+		"DELETE /api/v1/upload/:id",
 		"GET /api/v1/upload/my",
 		"PUT /api/v1/upload/:id",
 		"GET /api/v1/upload/download/:id",
 		"POST /api/v1/upload/download/batch",
-		"GET /api/v1/upload",
-		"POST /api/v1/upload/batch-download",
+		"GET /api/v1/admin/uploads",
+		"GET /api/v1/admin/uploads/stats",
+		"DELETE /api/v1/admin/uploads/:id",
+		"GET /api/v1/admin/uploads/download/:id",
+		"POST /api/v1/admin/uploads/download/batch",
+		"GET /api/v1/admin/uploads/types",
 	}
 	found := make(map[string]bool, len(want))
 	for _, rd := range ctx.Router().Routes() {

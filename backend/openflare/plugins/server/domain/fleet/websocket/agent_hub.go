@@ -12,6 +12,8 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+
+	"Wavelet/pkg/util"
 )
 
 const (
@@ -64,7 +66,7 @@ func ServeAgent(c *gin.Context, nodeID string, onStatus AgentStatusHandler) {
 
 	slog.Debug("agent ws connected", "node_id", nodeID, "remote", client.remoteAddr)
 
-	go client.writePump()
+	util.Go(client.writePump)
 	client.readPump()
 }
 

@@ -12,7 +12,6 @@ import (
 	"Wavelet/openflare/plugins/server/kernel/testhelper"
 
 	"Wavelet/openflare/plugins/server/kernel/model"
-	db "Wavelet/plugins/infra/database"
 
 	"github.com/glebarez/sqlite"
 	"github.com/stretchr/testify/require"
@@ -24,8 +23,8 @@ func setupZoneDB(t *testing.T) context.Context {
 	conn, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{DisableForeignKeyConstraintWhenMigrating: true})
 	require.NoError(t, err)
 	require.NoError(t, conn.AutoMigrate(&model.Zone{}, &model.ZoneDomain{}, &model.TLSCertificate{}, &model.CFPointingGroup{}, &model.CFPointingMember{}))
-	db.SetDB(conn)
-	t.Cleanup(func() { db.SetDB(nil) })
+	repository.SetDBForTest(conn)
+	t.Cleanup(func() { repository.SetDBForTest(nil) })
 	return context.Background()
 }
 

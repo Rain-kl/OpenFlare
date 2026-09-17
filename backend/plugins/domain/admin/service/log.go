@@ -11,6 +11,7 @@ import (
 	"Wavelet/plugins/domain/admin/repository"
 	"context"
 	"fmt"
+	"net"
 	"net/url"
 	"strings"
 	"time"
@@ -47,18 +48,20 @@ func RobotsTxtBody(ctx context.Context) string {
 }
 
 // IsAllowedLogOrigin reports whether a WebSocket handshake origin may subscribe to logs.
-func IsAllowedLogOrigin(ctx context.Context, origin, host string) bool {
+// extraHosts are reverse-proxy hosts such as X-Forwarded-Host (the browser origin
+// when Next.js rewrites /api to the backend).
+func IsAllowedLogOrigin(ctx context.Context, origin, host string, extraHosts ...string) bool {
 	if origin == "" {
 		return true
 	}
 
-	// 1. 同源检查 (Same-origin check)
 	u, err := url.Parse(origin)
-	if err == nil && strings.EqualFold(u.Host, host) {
-		return true
+	if err == nil {
+		if originMatchesHost(u.Host, host, extraHosts...) {
+			return true
+		}
 	}
 
-	// 2. 检查配置的允许跨域 Origin (Check allowed origins in system config)
 	sc, cfgErr := repository.GetSystemConfigByKey(ctx, model.ConfigKeyServerAddress)
 	if cfgErr != nil || sc.Value == "" {
 		return false
@@ -73,9 +76,44 @@ func IsAllowedLogOrigin(ctx context.Context, origin, host string) bool {
 	return false
 }
 
+func originMatchesHost(originHost, host string, extraHosts ...string) bool {
+	if originHost == "" {
+		return false
+	}
+	if hostMatches(originHost, host) {
+		return true
+	}
+	for _, extra := range extraHosts {
+		if hostMatches(originHost, extra) {
+			return true
+		}
+	}
+	return false
+}
+
+func hostMatches(originHost, candidate string) bool {
+	candidate = strings.TrimSpace(candidate)
+	if candidate == "" {
+		return false
+	}
+	if strings.EqualFold(originHost, candidate) {
+		return true
+	}
+	// Reverse-proxy / local Next rewrite: Origin is :3000, backend Host is :8000.
+	return strings.EqualFold(hostName(originHost), hostName(candidate))
+}
+
+func hostName(hostport string) string {
+	h, _, err := net.SplitHostPort(hostport)
+	if err != nil {
+		return hostport
+	}
+	return h
+}
+
 // AccessLogs queries the analytical access log store and decorates rows with user names.
 func AccessLogs(ctx context.Context, q model.AccessLogQuery) (model.AccessLogsResponse, error) {
-	rc := GetRiskControlService()
+	rc := GetRiskControlService(ctx)
 	if rc == nil {
 		return model.AccessLogsResponse{}, errs.ErrLogStoreUnavailable
 	}
@@ -117,7 +155,7 @@ func AccessLogs(ctx context.Context, q model.AccessLogQuery) (model.AccessLogsRe
 
 // AccessLogAnalytics aggregates the daily trend of the access log store.
 func AccessLogAnalytics(ctx context.Context) (model.LogsAnalyticsResponse, error) {
-	rc := GetRiskControlService()
+	rc := GetRiskControlService(ctx)
 	if rc == nil {
 		return model.LogsAnalyticsResponse{}, errs.ErrLogStoreUnavailable
 	}

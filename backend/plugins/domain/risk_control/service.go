@@ -13,8 +13,12 @@ import (
 	"time"
 )
 
-// fallbackLogEngine 是日志库状态不可得时对外暴露的引擎标识。
-const fallbackLogEngine = "sqlite"
+const (
+	// fallbackLogEngine 是日志库状态不可得时对外暴露的引擎标识。
+	fallbackLogEngine = "sqlite"
+	// accessLogMaxFlushWait 强制把不足 MinBatchSize 的访问日志刷盘，避免管理台低频访问永远看不到记录。
+	accessLogMaxFlushWait = 2 * time.Second
+)
 
 var (
 	logWriterMu sync.RWMutex
@@ -30,6 +34,7 @@ func InitLogWriter(ctx context.Context) {
 	}
 
 	cfg := batchwriter.DefaultConfig()
+	cfg.MaxFlushWait = accessLogMaxFlushWait
 	writer, err := batchwriter.New[*logstore.UserAccessLog](cfg, writeAccessLogBatch,
 		batchwriter.WithDropHandler[*logstore.UserAccessLog](func(item *logstore.UserAccessLog) {
 			path := ""

@@ -18,7 +18,7 @@ permissions:
 
 env:
   IMAGE_NAME: openflared
-  DOCKERFILE: docker/Dockerfile.flared
+  DOCKERFILE: manifest/docker/Dockerfile.flared
 
 jobs:
   build:

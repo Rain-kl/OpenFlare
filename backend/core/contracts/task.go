@@ -43,6 +43,12 @@ type TaskResultDTO struct {
 	Detail  any    `json:"detail,omitempty"`
 }
 
+// TaskHandler is the preferred background task handler. Drivers invoke Execute
+// and persist Message/Detail onto the execution record.
+type TaskHandler interface {
+	Execute(ctx context.Context, payload []byte) (*TaskResultDTO, error)
+}
+
 // TaskExecutionDTO represents a single task execution record.
 type TaskExecutionDTO struct {
 	ID           uint64     `json:"id,string"`
@@ -65,6 +71,14 @@ type TaskExecutionDTO struct {
 	UpdatedAt    time.Time  `json:"updated_at"`
 }
 
+// Canonical triggered_by values persisted on task executions and shown in admin UI.
+const (
+	TaskTriggerSystem   = "system"
+	TaskTriggerManual   = "manual"
+	TaskTriggerRetry    = "retry"
+	TaskTriggerSchedule = "schedule"
+)
+
 // TaskService defines the unified contract for dispatching and tracking background tasks.
 type TaskService interface {
 	Dispatch(ctx context.Context, taskType string, payload []byte, triggeredBy string) (string, error)
@@ -76,4 +90,5 @@ type TaskService interface {
 	AppendLog(ctx context.Context, format string, args ...any)
 	ListExecutions(ctx context.Context, taskType, status string, page, pageSize int) ([]TaskExecutionDTO, int64, error)
 	GetExecution(ctx context.Context, id uint64) (*TaskExecutionDTO, error)
+	GetExecutionByTaskID(ctx context.Context, taskID string) (*TaskExecutionDTO, error)
 }

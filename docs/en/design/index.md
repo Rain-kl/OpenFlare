@@ -83,7 +83,7 @@ When contributing code, strictly follow this physical layering and directory div
 | `pkg/` | cross-component shared libs (protocol, rendering, GeoIP, etc.) |
 | `scripts/` | Swagger generation, install scripts, etc. |
 | `docs/` | VitePress docs site and design baseline |
-| `docker/` | per-component Dockerfiles |
+| `manifest/docker/` | per-component Dockerfiles |
 | `uploads/`, `data/` | runtime upload dir and static data (`.gitignore`d) |
 
 ### 1. Server Layering (`main.go` + `internal/`)

@@ -283,7 +283,8 @@ func (b *EventBus) Waterfall(ctx context.Context, topic string, initialPayload a
 }
 
 // Parallel executes all subscribers of the topic concurrently in separate goroutines.
-// It waits for all handlers to complete and collects any errors via errors.Join.
+// It waits for all handlers to complete or returns immediately if ctx is cancelled/timed out,
+// collecting any handler errors via errors.Join.
 //
 //nolint:contextcheck
 func (b *EventBus) Parallel(ctx context.Context, topic string, payload any) error {
@@ -325,17 +326,25 @@ func (b *EventBus) Parallel(ctx context.Context, topic string, payload any) erro
 		}(l)
 	}
 
-	wg.Wait()
-	close(errCh)
+	done := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
 
-	var errs []error
-	for err := range errCh {
-		if err != nil {
-			errs = append(errs, err)
+	select {
+	case <-done:
+		close(errCh)
+		var errs []error
+		for err := range errCh {
+			if err != nil {
+				errs = append(errs, err)
+			}
 		}
+		return errors.Join(errs...)
+	case <-ctx.Done():
+		return ctx.Err()
 	}
-
-	return errors.Join(errs...)
 }
 
 // Serial executes subscribers strictly in sequence.

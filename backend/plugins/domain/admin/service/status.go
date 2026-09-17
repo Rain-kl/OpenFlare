@@ -117,7 +117,7 @@ func formatDuration(d time.Duration) string {
 func LogDatabaseStatus(ctx context.Context) model.LogDatabaseStatus {
 	activeDB := logDBNameSQLite
 	migration := logMigrationIdle
-	if rc := GetRiskControlService(); rc != nil {
+	if rc := GetRiskControlService(ctx); rc != nil {
 		activeDB = rc.ActiveLogEngine(ctx)
 		if rc.IsLogEngineMigrating(ctx) {
 			migration = logMigrationInProgress

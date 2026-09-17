@@ -10,7 +10,6 @@ import (
 	"Wavelet/openflare/plugins/server/kernel/repository"
 
 	"Wavelet/openflare/plugins/server/kernel/model"
-	db "Wavelet/plugins/infra/database"
 
 	"github.com/glebarez/sqlite"
 	"github.com/stretchr/testify/assert"
@@ -32,9 +31,9 @@ func setupWAFTestDB(t *testing.T) func() {
 		&model.OriginProxyRoute{},
 	))
 
-	db.SetDB(sqliteDB)
+	repository.SetDBForTest(sqliteDB)
 	return func() {
-		db.SetDB(nil)
+		repository.SetDBForTest(nil)
 	}
 }
 

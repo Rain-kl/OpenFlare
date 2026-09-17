@@ -15,8 +15,8 @@ import (
 
 	"Wavelet/core/contracts"
 	"Wavelet/openflare/plugins/server/kernel/model"
+	"Wavelet/openflare/plugins/server/kernel/repository"
 	"Wavelet/openflare/plugins/server/kernel/testhelper"
-	db "Wavelet/plugins/infra/database"
 
 	"github.com/gin-gonic/gin"
 )
@@ -117,7 +117,7 @@ func TestPagesSourceHandlersReturnStableActionErrors(t *testing.T) {
 		false,
 	)
 	future := time.Now().Add(time.Minute)
-	if err := db.DB(ctx).Model(&model.PagesProjectSourceRuntime{}).
+	if err := repository.DB(ctx).Model(&model.PagesProjectSourceRuntime{}).
 		Where("source_id = ?", busySource.ID).
 		Updates(map[string]any{
 			"sync_status":      pagesSourceStatusSyncing,
@@ -181,7 +181,7 @@ func TestSyncSourceHandlerAcceptsEmptyBodyAndEmptyObject(t *testing.T) {
 	}
 
 	var executions []model.TaskExecution
-	if err := db.DB(ctx).Where("task_type = ?", TaskTypePagesSourceAction).Order("id asc").Find(&executions).Error; err != nil {
+	if err := repository.DB(ctx).Where("task_type = ?", TaskTypePagesSourceAction).Order("id asc").Find(&executions).Error; err != nil {
 		t.Fatalf("list Pages source task executions error = %v, want nil", err)
 	}
 	if got, want := len(executions), 2; got != want {

@@ -9,8 +9,6 @@ import (
 
 	"Wavelet/openflare/plugins/server/kernel/model"
 
-	db "Wavelet/plugins/infra/database"
-
 	"github.com/glebarez/sqlite"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
@@ -24,8 +22,8 @@ func setupZoneTestDB(t *testing.T) *gorm.DB {
 	})
 	require.NoError(t, err)
 	require.NoError(t, sqliteDB.AutoMigrate(&model.Zone{}, &model.ZoneDomain{}))
-	db.SetDB(sqliteDB)
-	t.Cleanup(func() { db.SetDB(nil) })
+	SetDBForTest(sqliteDB)
+	t.Cleanup(func() { SetDBForTest(nil) })
 	return sqliteDB
 }
 

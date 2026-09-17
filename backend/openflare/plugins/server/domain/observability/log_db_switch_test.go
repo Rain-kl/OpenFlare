@@ -23,7 +23,6 @@ import (
 	"Wavelet/openflare/plugins/server/kernel/repository"
 	"Wavelet/openflare/plugins/server/kernel/repository/logstore"
 	"Wavelet/openflare/plugins/server/kernel/runtimeconfig"
-	db "Wavelet/plugins/infra/database"
 )
 
 var logDBSwitchDBSeq int64
@@ -57,13 +56,13 @@ func TestCopyAccessLogsPreservesIDs(t *testing.T) {
 	srcDB := newLogDBSwitchDB(t)
 	dstDB := newLogDBSwitchDB(t)
 
-	db.SetDB(srcDB)
+	repository.SetDBForTest(srcDB)
 	src, err := logstore.Active(ctx) // 无 reader 时按 seed 规则解析为 sqlite
 	require.NoError(t, err)
-	db.SetDB(dstDB)
+	repository.SetDBForTest(dstDB)
 	dst, err := logstore.BuildForMigration(ctx, "sqlite")
 	require.NoError(t, err)
-	t.Cleanup(func() { db.SetDB(nil) })
+	t.Cleanup(func() { repository.SetDBForTest(nil) })
 
 	now := time.Now().UTC()
 	rows := []analyticsmodel.NodeAccessLog{
@@ -103,13 +102,13 @@ func TestCopyUserAccessLogsPreservesIDs(t *testing.T) {
 	srcDB := newLogDBSwitchDB(t)
 	dstDB := newLogDBSwitchDB(t)
 
-	db.SetDB(srcDB)
+	repository.SetDBForTest(srcDB)
 	src, err := logstore.Active(ctx)
 	require.NoError(t, err)
-	db.SetDB(dstDB)
+	repository.SetDBForTest(dstDB)
 	dst, err := logstore.BuildForMigration(ctx, "sqlite")
 	require.NoError(t, err)
-	t.Cleanup(func() { db.SetDB(nil) })
+	t.Cleanup(func() { repository.SetDBForTest(nil) })
 
 	now := time.Now().UTC()
 	rows := []analyticsmodel.UserAccessLog{
@@ -142,8 +141,8 @@ func TestClearTargetLogTablesClearsUserAccessLogs(t *testing.T) {
 
 	ctx := context.Background()
 	dstDB := newLogDBSwitchDB(t)
-	db.SetDB(dstDB)
-	t.Cleanup(func() { db.SetDB(nil) })
+	repository.SetDBForTest(dstDB)
+	t.Cleanup(func() { repository.SetDBForTest(nil) })
 	dst, err := logstore.BuildForMigration(ctx, "sqlite")
 	require.NoError(t, err)
 
@@ -168,8 +167,8 @@ func TestClearTargetLogTablesDuringMigration(t *testing.T) {
 	defer logstore.ResetForTest()
 
 	gdb := newLogDBSwitchDB(t)
-	db.SetDB(gdb)
-	t.Cleanup(func() { db.SetDB(nil) })
+	repository.SetDBForTest(gdb)
+	t.Cleanup(func() { repository.SetDBForTest(nil) })
 	ctx := context.Background()
 
 	logstore.SetConfigReader(func(ctx context.Context, key string) (string, error) {
@@ -205,8 +204,8 @@ func TestValidateSwitch(t *testing.T) {
 	})
 
 	gdb := newLogDBSwitchDB(t)
-	db.SetDB(gdb)
-	t.Cleanup(func() { db.SetDB(nil) })
+	repository.SetDBForTest(gdb)
+	t.Cleanup(func() { repository.SetDBForTest(nil) })
 	ctx := context.Background()
 	setLogDB := func(v string) {
 		require.NoError(t, repository.SaveOrUpdateSystemConfig(ctx, model.ConfigKeyLogDatabase, v))
@@ -288,8 +287,8 @@ func TestExecuteFailureClearsMigrationFlag(t *testing.T) {
 	defer logstore.ResetForTest()
 
 	gdb := newLogDBSwitchDB(t)
-	db.SetDB(gdb)
-	t.Cleanup(func() { db.SetDB(nil) })
+	repository.SetDBForTest(gdb)
+	t.Cleanup(func() { repository.SetDBForTest(nil) })
 	ctx := context.Background()
 
 	// FRESH DB：log_db_migration 行不存在（不预置），log_database 预置为 sqlite。
@@ -323,8 +322,8 @@ func TestSetMigrationFlagObservableThroughCache(t *testing.T) {
 	defer logstore.ResetForTest()
 
 	gdb := newLogDBSwitchDB(t)
-	db.SetDB(gdb)
-	t.Cleanup(func() { db.SetDB(nil) })
+	repository.SetDBForTest(gdb)
+	t.Cleanup(func() { repository.SetDBForTest(nil) })
 	ctx := context.Background()
 
 	// 按 bootstrap 同款注入 repository 读取，走 RAM 缓存路径。
@@ -353,8 +352,8 @@ func TestFlipLogDatabaseRefreshesCachedConfig(t *testing.T) {
 	defer logstore.ResetForTest()
 
 	gdb := newLogDBSwitchDB(t)
-	db.SetDB(gdb)
-	t.Cleanup(func() { db.SetDB(nil) })
+	repository.SetDBForTest(gdb)
+	t.Cleanup(func() { repository.SetDBForTest(nil) })
 	ctx := context.Background()
 
 	logstore.SetConfigReader(func(ctx context.Context, key string) (string, error) {

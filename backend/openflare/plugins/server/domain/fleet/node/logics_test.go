@@ -15,7 +15,6 @@ import (
 	"Wavelet/openflare/plugins/server/kernel/model"
 	"Wavelet/openflare/plugins/server/kernel/repository"
 	"Wavelet/openflare/plugins/server/kernel/testhelper"
-	db "Wavelet/plugins/infra/database"
 
 	"github.com/glebarez/sqlite"
 	"github.com/stretchr/testify/assert"
@@ -40,13 +39,15 @@ func setupNodeTestDB(t *testing.T) func() {
 		&model.OpenFlareNode{},
 		&model.SystemConfig{},
 		&model.OpenFlareApplyLog{},
+		&model.OpenFlareNodeSystemProfile{},
+		&model.OpenFlareHealthEvent{},
 	))
 
-	db.SetDB(sqliteDB)
+	repository.SetDBForTest(sqliteDB)
 	testhelper.SetupLogStoresForTest(t)
 
 	return func() {
-		db.SetDB(nil)
+		repository.SetDBForTest(nil)
 	}
 }
 
@@ -174,7 +175,7 @@ func TestListNodesWithApplyLogMetadata(t *testing.T) {
 	require.NoError(t, err)
 
 	applyAt := time.Now().UTC().Truncate(time.Second)
-	require.NoError(t, db.DB(ctx).Create(&model.OpenFlareApplyLog{
+	require.NoError(t, repository.DB(ctx).Create(&model.OpenFlareApplyLog{
 		NodeID:              created.NodeID,
 		Version:             "20260618-001",
 		Result:              "success",
@@ -280,7 +281,7 @@ func TestRequestOpenrestyRestart(t *testing.T) {
 
 func seedActiveConfigVersion(t *testing.T, ctx context.Context) {
 	t.Helper()
-	conn := db.DB(ctx)
+	conn := repository.DB(ctx)
 	require.NotNil(t, conn)
 	require.NoError(t, conn.AutoMigrate(&model.ConfigVersion{}))
 	require.NoError(t, conn.Create(&model.ConfigVersion{
@@ -311,7 +312,7 @@ func TestRequestForceSyncRequiresActiveConfig(t *testing.T) {
 	cleanup := setupNodeTestDB(t)
 	defer cleanup()
 	ctx := context.Background()
-	conn := db.DB(ctx)
+	conn := repository.DB(ctx)
 	require.NotNil(t, conn)
 	require.NoError(t, conn.AutoMigrate(&model.ConfigVersion{}))
 

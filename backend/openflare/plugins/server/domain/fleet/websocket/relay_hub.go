@@ -8,6 +8,8 @@ import (
 	"sync"
 
 	"github.com/gin-gonic/gin"
+
+	"Wavelet/pkg/util"
 )
 
 // RelayWSConnectedLastSeenValue is the sentinel last_seen_at value when relay WS is connected.
@@ -45,7 +47,7 @@ func ServeRelay(c *gin.Context, nodeID string) {
 
 	slog.Debug("relay ws connected", "node_id", nodeID, "remote", c.Request.RemoteAddr)
 
-	go client.writePump()
+	util.Go(client.writePump)
 	client.readPump()
 }
 

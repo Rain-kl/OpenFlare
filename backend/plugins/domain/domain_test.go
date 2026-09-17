@@ -9,18 +9,25 @@ import (
 	"Wavelet/pkg/idgen"
 	"Wavelet/plugins/domain/admin"
 	"Wavelet/plugins/domain/auth"
-	"Wavelet/plugins/domain/message_gateway"
+	"Wavelet/plugins/domain/msg_gateway"
 	"Wavelet/plugins/domain/risk_control"
+	"Wavelet/plugins/domain/system"
+	"Wavelet/plugins/domain/upload"
 	"Wavelet/plugins/domain/user"
 	"Wavelet/plugins/infra/cache"
 	"Wavelet/plugins/infra/logger"
 	"Wavelet/plugins/infra/storage"
 	"context"
+	"encoding/json"
 	"io/fs"
+	"net/http"
+	"net/http/httptest"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/alicebob/miniredis/v2"
+	"github.com/gin-gonic/gin"
 	"github.com/glebarez/sqlite"
 	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
@@ -42,13 +49,16 @@ func setupTestDB(t *testing.T) *gorm.DB {
 		&user.AccessToken{},
 		&auth.AuthSource{},
 		&auth.ExternalAccount{},
-		&message_gateway.MessageChannel{},
-		&message_gateway.MessageBinding{},
-		&message_gateway.MessagePairingCode{},
+		&msg_gateway.MessageChannel{},
+		&msg_gateway.MessageBinding{},
+		&msg_gateway.MessagePairingCode{},
 		&admin.SystemConfig{},
-		&message_gateway.PushChannel{},
-		&message_gateway.PushEvent{},
-		&message_gateway.PushHistory{},
+		&admin.TaskExecution{},
+		&msg_gateway.PushChannel{},
+		&msg_gateway.PushEvent{},
+		&msg_gateway.PushHistory{},
+		&upload.Upload{},
+		&upload.UploadStat{},
 	))
 
 	db.SetDB(testDB)
@@ -236,7 +246,7 @@ func TestUserPlugin(t *testing.T) {
 	assert.Len(t, list, 1)
 	assert.Equal(t, "bob", list[0].Username)
 
-	// 9. Tasks & Schedules
+	// 9. Tasks
 	taskDef, ok := ctx.Tasks().Get("user:send_email_code")
 	require.True(t, ok)
 	assert.Equal(t, 3, taskDef.Retry)
@@ -257,15 +267,15 @@ func TestMessageGatewayPlugin(t *testing.T) {
 	require.NoError(t, cache.New().Apply(ctx))
 	require.NoError(t, logger.New().Apply(ctx))
 
-	p := message_gateway.New()
-	assert.Equal(t, "message_gateway", p.Name())
-	assert.Equal(t, "message_gateway", p.Manifest().Name)
+	p := msg_gateway.New()
+	assert.Equal(t, "msg_gateway", p.Name())
+	assert.Equal(t, "msg_gateway", p.Manifest().Name)
 	require.NoError(t, p.Apply(ctx))
 
 	// 1. Migrations
-	entry, ok := ctx.Migrations().Get("message_gateway")
+	entry, ok := ctx.Migrations().Get("msg_gateway")
 	require.True(t, ok)
-	assert.Equal(t, "message_gateway", entry.PluginID)
+	assert.Equal(t, "msg_gateway", entry.PluginID)
 
 	// 2. Routes
 	routes := ctx.Router().Routes()
@@ -282,24 +292,24 @@ func TestMessageGatewayPlugin(t *testing.T) {
 	assert.True(t, hasBindings)
 
 	// 3. Tasks & Schedules
-	taskDef, ok := ctx.Tasks().Get("message_gateway:push_notification")
+	taskDef, ok := ctx.Tasks().Get("msg_gateway:push_notification")
 	require.True(t, ok)
 	assert.Equal(t, 3, taskDef.Retry)
 
-	schedDef, ok := ctx.Schedules().Get("message_gateway:cleanup_pairing_codes")
+	schedDef, ok := ctx.Schedules().Get("msg_gateway:cleanup_pairing_codes")
 	require.True(t, ok)
 	assert.Equal(t, "*/10 * * * *", schedDef.Spec)
 
 	// 4. EventBus Trigger
-	var receivedEvent message_gateway.PushNotificationEvent
+	var receivedEvent msg_gateway.PushNotificationEvent
 	var eventFired bool
-	ctx.Events().On("notification:push", func(c context.Context, e message_gateway.PushNotificationEvent) error {
+	ctx.Events().On("notification:push", func(c context.Context, e msg_gateway.PushNotificationEvent) error {
 		eventFired = true
 		receivedEvent = e
 		return nil
 	})
 
-	err := ctx.Events().Emit(context.Background(), "notification:push", message_gateway.PushNotificationEvent{
+	err := ctx.Events().Emit(context.Background(), "notification:push", msg_gateway.PushNotificationEvent{
 		UserID:  99,
 		Channel: "telegram",
 		Title:   "System Alert",
@@ -312,7 +322,7 @@ func TestMessageGatewayPlugin(t *testing.T) {
 	assert.Equal(t, "System Alert", receivedEvent.Title)
 
 	// 5. Settings
-	schema, ok := ctx.Settings().Get("message_gateway.pairing_code_expiry_minutes")
+	schema, ok := ctx.Settings().Get("msg_gateway.pairing_code_expiry_minutes")
 	require.True(t, ok)
 	assert.Equal(t, 15, schema.Default)
 }
@@ -380,17 +390,72 @@ func TestAdminPlugin(t *testing.T) {
 	assert.True(t, hasTasks)
 	assert.True(t, hasConfigs)
 
-	// 2. Task & Schedule
-	_, ok := ctx.Tasks().Get("admin:system_cleanup")
+	// 2. Task
+	_, ok := ctx.Tasks().Get("logs:db_switch")
 	require.True(t, ok)
-	sched, ok := ctx.Schedules().Get("admin:system_cleanup")
-	require.True(t, ok)
-	assert.Equal(t, "0 4 * * *", sched.Spec)
 
 	// 3. Settings
 	schema, ok := ctx.Settings().Get("admin.system_cleanup_cron")
 	require.True(t, ok)
-	assert.Equal(t, "0 4 * * *", schema.Default)
+	assert.Equal(t, "0 3 * * *", schema.Default)
+
+	provider, err := core.Inject[contracts.PublicConfigProvider](ctx)
+	require.NoError(t, err)
+	require.NotNil(t, provider)
+}
+
+func TestPublicConfigExposesVisibleAdminRows(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	ctx := core.NewContext(context.Background())
+	ctx.Config().SetSource(core.NewMapSource(nil))
+	require.NoError(t, ctx.Config().Resolve())
+	testDB := setupTestDB(t)
+
+	require.NoError(t, db.New(db.WithDB(testDB)).Apply(ctx))
+	require.NoError(t, cache.New().Apply(ctx))
+	require.NoError(t, logger.New().Apply(ctx))
+
+	require.NoError(t, testDB.Create(&admin.SystemConfig{
+		Key:        "cap_login_enabled",
+		Value:      "true",
+		Type:       "system",
+		Visibility: 1,
+	}).Error)
+
+	require.NoError(t, admin.New().Apply(ctx))
+	require.NoError(t, system.New().Apply(ctx))
+
+	var handler gin.HandlerFunc
+	for _, rd := range ctx.Router().Routes() {
+		if rd.Method != "GET" || rd.Path != "/api/v1/config/public" {
+			continue
+		}
+		require.NotEmpty(t, rd.Handlers)
+		switch h := rd.Handlers[0].(type) {
+		case gin.HandlerFunc:
+			handler = h
+		case func(*gin.Context):
+			handler = h
+		default:
+			t.Fatalf("unexpected handler type %T", rd.Handlers[0])
+		}
+		break
+	}
+	require.NotNil(t, handler)
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodGet, "/api/v1/config/public", nil)
+	c.Request = c.Request.WithContext(core.WithAppContext(c.Request.Context(), ctx))
+	handler(c)
+
+	var body struct {
+		Data map[string]string `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &body), "body = %s", w.Body.String())
+	assert.Equal(t, "true", body.Data["cap_login_enabled"])
+	_, wrapped := body.Data["configs"]
+	assert.False(t, wrapped, "payload must be a flat map, got %v", body.Data)
 }
 
 func TestAllDomainPluginsCombined(t *testing.T) {
@@ -420,7 +485,7 @@ func TestAllDomainPluginsCombined(t *testing.T) {
 	// Apply Domain plugins
 	require.NoError(t, auth.New().Apply(ctx))
 	require.NoError(t, user.New().Apply(ctx))
-	require.NoError(t, message_gateway.New().Apply(ctx))
+	require.NoError(t, msg_gateway.New().Apply(ctx))
 	require.NoError(t, risk_control.New().Apply(ctx))
 	require.NoError(t, admin.New().Apply(ctx))
 
@@ -455,7 +520,7 @@ func TestAllDomainPluginsCombined(t *testing.T) {
 
 	// Verify total schedules registered
 	allSchedules := ctx.Schedules().Schedules()
-	assert.GreaterOrEqual(t, len(allSchedules), 2)
+	assert.GreaterOrEqual(t, len(allSchedules), 1)
 
 	// 每个调度指向的任务类型都必须已注册 Handler，否则触发时会投递到无人处理的
 	// 任务类型，预期的清理逻辑静默失效。
@@ -470,5 +535,127 @@ func TestAllDomainPluginsCombined(t *testing.T) {
 	assert.GreaterOrEqual(t, len(allSettings), 7)
 
 	// Clean shutdown
+	require.NoError(t, ctx.Dispose())
+}
+
+func TestSystemCleanupEventDrivenCoordination(t *testing.T) {
+	ctx := core.NewContext(context.Background())
+	ctx.Config().SetSource(core.NewMapSource(nil))
+	require.NoError(t, ctx.Config().Resolve())
+	testDB := setupTestDB(t)
+
+	// Apply Infra & Domain plugins
+	require.NoError(t, db.New(db.WithDB(testDB)).Apply(ctx))
+	require.NoError(t, cache.New().Apply(ctx))
+	require.NoError(t, logger.New().Apply(ctx))
+	require.NoError(t, storage.New().Apply(ctx))
+
+	require.NoError(t, user.New().Apply(ctx))
+	require.NoError(t, msg_gateway.New().Apply(ctx))
+	require.NoError(t, upload.New().Apply(ctx))
+	require.NoError(t, admin.New().Apply(ctx))
+
+	// 1. Seed old and recent task executions (admin domain)
+	now := time.Now()
+	oldTime := now.Add(-10 * 24 * time.Hour)
+	recentTime := now.Add(-1 * time.Hour)
+
+	oldExec := admin.TaskExecution{
+		ID:        101,
+		TaskID:    "task-old-exec",
+		TaskType:  "test_task",
+		Status:    "success",
+		CreatedAt: oldTime,
+	}
+	recentExec := admin.TaskExecution{
+		ID:        102,
+		TaskID:    "task-recent-exec",
+		TaskType:  "test_task",
+		Status:    "success",
+		CreatedAt: recentTime,
+	}
+	require.NoError(t, testDB.Create(&oldExec).Error)
+	require.NoError(t, testDB.Model(&oldExec).UpdateColumn("created_at", oldTime).Error)
+	require.NoError(t, testDB.Create(&recentExec).Error)
+
+	// 2. Seed old and recent push histories (msg_gateway domain, 30 days retention)
+	oldHistoryTime := now.Add(-40 * 24 * time.Hour)
+	oldHistory := msg_gateway.PushHistory{
+		EventKey:  "login",
+		Channel:   "telegram",
+		Target:    "123",
+		Title:     "Old login",
+		Content:   "Old content",
+		Level:     "info",
+		Status:    "success",
+		CreatedAt: oldHistoryTime,
+	}
+	recentHistory := msg_gateway.PushHistory{
+		EventKey:  "login",
+		Channel:   "telegram",
+		Target:    "123",
+		Title:     "Recent login",
+		Content:   "Recent content",
+		Level:     "info",
+		Status:    "success",
+		CreatedAt: recentTime,
+	}
+	require.NoError(t, testDB.Create(&oldHistory).Error)
+	require.NoError(t, testDB.Model(&oldHistory).UpdateColumn("created_at", oldHistoryTime).Error)
+	require.NoError(t, testDB.Create(&recentHistory).Error)
+
+	// 3. Seed old pending upload and recent pending upload (upload domain)
+	oldUpload := upload.Upload{
+		ID:        901,
+		UserID:    1,
+		FileName:  "old.png",
+		FilePath:  "uploads/old.png",
+		FileSize:  100,
+		Status:    upload.UploadStatusPending,
+		CreatedAt: now.Add(-2 * time.Hour),
+	}
+	recentUpload := upload.Upload{
+		ID:        902,
+		UserID:    1,
+		FileName:  "recent.png",
+		FilePath:  "uploads/recent.png",
+		FileSize:  100,
+		Status:    upload.UploadStatusPending,
+		CreatedAt: now.Add(-10 * time.Minute),
+	}
+	require.NoError(t, testDB.Create(&oldUpload).Error)
+	require.NoError(t, testDB.Model(&oldUpload).UpdateColumn("created_at", now.Add(-2*time.Hour)).Error)
+	require.NoError(t, testDB.Create(&recentUpload).Error)
+
+	// Dispatch admin system cleanup task handler
+	taskDef, ok := ctx.Tasks().Get("system:cleanup")
+	require.True(t, ok, "system:cleanup task must be registered in admin")
+	require.NotNil(t, taskDef.Handler)
+
+	type resultExecutor interface {
+		Execute(ctx context.Context, payload []byte) (*contracts.TaskResultDTO, error)
+	}
+	handler, ok := taskDef.Handler.(resultExecutor)
+	require.True(t, ok)
+
+	res, err := handler.Execute(context.Background(), nil)
+	require.NoError(t, err)
+	require.NotNil(t, res)
+
+	// Verify Admin cleanup: old task execution deleted, recent remains
+	var execCount int64
+	testDB.Model(&admin.TaskExecution{}).Count(&execCount)
+	assert.Equal(t, int64(1), execCount)
+
+	// Verify MsgGateway cleanup: old push history deleted, recent remains
+	var historyCount int64
+	testDB.Model(&msg_gateway.PushHistory{}).Count(&historyCount)
+	assert.Equal(t, int64(1), historyCount)
+
+	// Verify Upload cleanup: old pending upload deleted, recent remains
+	var uploadCount int64
+	testDB.Model(&upload.Upload{}).Count(&uploadCount)
+	assert.Equal(t, int64(1), uploadCount)
+
 	require.NoError(t, ctx.Dispose())
 }

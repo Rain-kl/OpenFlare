@@ -12,7 +12,6 @@ import (
 	"Wavelet/openflare/plugins/server/kernel/testhelper"
 
 	"Wavelet/openflare/plugins/server/kernel/model"
-	db "Wavelet/plugins/infra/database"
 
 	"github.com/glebarez/sqlite"
 	"github.com/stretchr/testify/assert"
@@ -28,10 +27,10 @@ func setupDashboardTestDB(t *testing.T) func() {
 	require.NoError(t, err)
 	require.NoError(t, sqliteDB.AutoMigrate(&model.OpenFlareNode{}))
 
-	db.SetDB(sqliteDB)
+	repository.SetDBForTest(sqliteDB)
 	testhelper.SetupLogStoresForTest(t)
 	return func() {
-		db.SetDB(nil)
+		repository.SetDBForTest(nil)
 	}
 }
 
@@ -43,7 +42,7 @@ func TestGetOverviewStructure(t *testing.T) {
 	now := time.Now().UTC()
 	lastSeen := now.Add(-15 * time.Second) // within default 60s offline threshold
 
-	require.NoError(t, db.DB(ctx).Create(&model.OpenFlareNode{
+	require.NoError(t, repository.DB(ctx).Create(&model.OpenFlareNode{
 		NodeID:          "node-dashboard-1",
 		Name:            "Edge 1",
 		IP:              "10.0.0.1",
@@ -52,7 +51,7 @@ func TestGetOverviewStructure(t *testing.T) {
 		CurrentVersion:  "v1.0.0",
 		LastSeenAt:      &lastSeen,
 	}).Error)
-	require.NoError(t, db.DB(ctx).Create(&model.OpenFlareNode{
+	require.NoError(t, repository.DB(ctx).Create(&model.OpenFlareNode{
 		NodeID:          "node-dashboard-2",
 		Name:            "Edge 2",
 		IP:              "10.0.0.2",

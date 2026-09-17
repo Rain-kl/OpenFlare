@@ -60,13 +60,13 @@ export function CapWidget({
     }
   };
 
-  // Auto-start on mount (only when autoStart is enabled)
   useEffect(() => {
+    solving.current = false;
     if (autoStart) {
       void solve();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [autoStart, scope]);
 
   return (
     <div className='flex items-center gap-2 rounded-lg border border-border/60 bg-muted/30 px-3 py-2 text-sm'>

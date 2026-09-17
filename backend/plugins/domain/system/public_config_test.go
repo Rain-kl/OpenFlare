@@ -18,13 +18,17 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-type stubPublic struct{ payload any }
+type stubPublic struct{ payload map[string]string }
 
-func (s stubPublic) PublicConfig(context.Context) (any, error) { return s.payload, nil }
+func (s stubPublic) PublicConfig(context.Context) (map[string]string, error) {
+	return s.payload, nil
+}
 
 type errPublic struct{ err error }
 
-func (s errPublic) PublicConfig(context.Context) (any, error) { return nil, s.err }
+func (s errPublic) PublicConfig(context.Context) (map[string]string, error) {
+	return nil, s.err
+}
 
 func TestPublicConfigUsesProviderWhenPresent(t *testing.T) {
 	gin.SetMode(gin.TestMode)
@@ -54,16 +58,22 @@ func TestPublicConfigDefaultWithoutProvider(t *testing.T) {
 	if err := New().Apply(ctx); err != nil {
 		t.Fatal(err)
 	}
+	if !ctx.Router().IsWhitelisted("/api/v1/config/public") {
+		t.Fatal("GET /api/v1/config/public not whitelisted")
+	}
 	raw := invokePublicConfig(t, publicConfigHandler(t, ctx))
 	var data map[string]any
 	if err := json.Unmarshal(raw, &data); err != nil {
 		t.Fatal(err)
 	}
-	if _, ok := data["configs"]; !ok {
-		t.Fatalf("data = %s, want key configs", raw)
+	if len(data) != 0 {
+		t.Fatalf("data = %s, want empty flat map", raw)
 	}
-	if _, ok := data["app"]; !ok {
-		t.Fatalf("data = %s, want key app", raw)
+	if _, ok := data["configs"]; ok {
+		t.Fatalf("data = %s, default payload must not wrap configs", raw)
+	}
+	if _, ok := data["app"]; ok {
+		t.Fatalf("data = %s, default payload must not wrap app", raw)
 	}
 }
 

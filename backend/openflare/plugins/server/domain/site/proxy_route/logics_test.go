@@ -9,7 +9,6 @@ import (
 
 	"Wavelet/openflare/plugins/server/kernel/model"
 	"Wavelet/openflare/plugins/server/kernel/repository"
-	db "Wavelet/plugins/infra/database"
 
 	"github.com/glebarez/sqlite"
 	"github.com/stretchr/testify/assert"
@@ -29,21 +28,21 @@ func setupProxyRouteTestDB(t *testing.T) func() {
 		&model.TLSCertificate{},
 		&model.PagesProject{},
 	))
-	db.SetDB(sqliteDB)
-	return func() { db.SetDB(nil) }
+	repository.SetDBForTest(sqliteDB)
+	return func() { repository.SetDBForTest(nil) }
 }
 
 func createZoneDomain(t *testing.T, ctx context.Context, domain string, certID *uint) *model.ZoneDomain {
 	t.Helper()
 	zone := &model.Zone{Domain: "example.com"}
 	var existing model.Zone
-	if err := db.DB(ctx).Where("domain = ?", zone.Domain).First(&existing).Error; err == nil {
+	if err := repository.DB(ctx).Where("domain = ?", zone.Domain).First(&existing).Error; err == nil {
 		zone = &existing
 	} else {
-		require.NoError(t, db.DB(ctx).Create(zone).Error)
+		require.NoError(t, repository.DB(ctx).Create(zone).Error)
 	}
 	item := &model.ZoneDomain{ZoneID: zone.ID, Domain: domain, CertID: certID}
-	require.NoError(t, db.DB(ctx).Create(item).Error)
+	require.NoError(t, repository.DB(ctx).Create(item).Error)
 	return item
 }
 
@@ -102,7 +101,7 @@ func TestPagesRouteLocksAndRevalidatesTargetProject(t *testing.T) {
 		Enabled:            true,
 		ActiveDeploymentID: &activeDeploymentID,
 	}
-	require.NoError(t, db.DB(ctx).Create(project).Error)
+	require.NoError(t, repository.DB(ctx).Create(project).Error)
 
 	view, err := CreateProxyRoute(ctx, Input{
 		SiteName:       "pages",
@@ -115,7 +114,7 @@ func TestPagesRouteLocksAndRevalidatesTargetProject(t *testing.T) {
 	require.NotNil(t, view.PagesProjectID)
 	assert.Equal(t, project.ID, *view.PagesProjectID)
 
-	require.NoError(t, db.DB(ctx).Delete(&model.PagesProject{}, project.ID).Error)
+	require.NoError(t, repository.DB(ctx).Delete(&model.PagesProject{}, project.ID).Error)
 	route := &model.ProxyRoute{UpstreamType: proxyRouteUpstreamTypePages, PagesProjectID: &project.ID}
 	err = repository.WithProxyRouteTx(ctx, func(tx *gorm.DB) error {
 		return lockPagesProjectsForRouteMutation(tx, 0, route)

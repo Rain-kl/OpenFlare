@@ -13,102 +13,38 @@ description: "Wavelet 项目专用：当新增或修改自定义业务 API、新
 
 Wavelet 后端路由采用了**严格的框架层与业务层隔离机制**。请牢记以下开发原则：
 
-1. **禁止修改框架级路由文件**：
-   - 以下文件属于系统框架/平台级接口，**禁止为了添加自定义业务接口而进行任何修改**：
-     - `internal/router/router.go`（核心入口委派）
-     - `internal/router/root/default.go`（公开文件服务、robots.txt、Swagger 及 /api/health 路由）
-     - `internal/router/root/frontend.go`（前端静态服务）
-     - `internal/router/v1/v1.go`（V1 分发层协调器）
-     - `internal/router/v1/admin.go`（框架管理员端管理接口）
-     - `internal/router/v1/user.go`（框架普通用户端基础接口、OAuth及公开接口）
-2. **仅允许在 `custom.go` 中注册业务接口**：
-   - 所有的自定义/业务相关接口注册，有且仅有以下两个合法的承载点：
-     - [internal/router/root/custom.go](file:///Users/ryan/DEV/Go/Wavelet/internal/router/root/custom.go)（用于挂载到根路径的特殊业务接口）
-     - [internal/router/v1/custom.go](file:///Users/ryan/DEV/Go/Wavelet/internal/router/v1/custom.go)（用于挂载在 API V1 下的标准自定义业务接口）
+### 插件目录标准结构 (`backend/openflare/plugins/<name>/` 或 `backend/plugins/domain/<name>/`)
 
----
-
-## 路由归属判定表 (Where should I register my new API?)
-
-根据接口的**访问路径特征**和**访问身份/限制条件**，决定将新开发的 API 挂载至何处：
-
-| 目标 API 路径特征 | 访问身份/条件限制 | 对应的路由注册入口 | 是否允许修改 |
-| :--- | :--- | :--- | :--- |
-| **`/my-custom-path`** (挂载在根路径下的特殊业务接口) | 自定义控制 | `root/custom.go` 中的 `RegisterCustomRootRoutes` | **允许修改 (业务自定义入口)** |
-| **`/api/v1/custom/...`** (API v1 下的定制业务接口) | 自定义控制 | `v1/custom.go` 中的 `RegisterCustomRoutes` | **允许修改 (业务自定义入口)** |
-| **`/api/v1/admin/...`** (系统管理员管理端接口) | 需要管理员登录 (`admin.LoginAdminRequired()`) | `v1/admin.go` | **禁止修改 (仅限系统框架路由)** |
-| **`/api/v1/user/...`** (框架普通用户基础接口) | 需要普通用户登录 (`oauth.LoginRequired()`) | `v1/user.go` | **禁止修改 (仅限系统框架路由)** |
-| **`/api/v1/public/...`** (Captcha、Config 等系统公开接口) | 所有人 (无条件 / 公开) | `v1/user.go` | **禁止修改 (仅限系统框架路由)** |
-| **`GET /f/:id`**, **`GET /robots.txt`**, **`GET /api/health`** (系统级默认及公开接口) | 所有人 (无条件 / 公开) | `root/default.go` | **禁止修改 (仅限系统框架路由)** |
-
----
-
-## 两个自定义路由包的用法与区别 (Root Custom vs V1 Custom)
-
-### 1. 根路径自定义包：`root/custom.go`
-
-* **适用场景**：适用于需要**直接挂载在主域名根路径下**的特殊自定义业务接口（如第三方 Webhook 回调、特定的短链接重定向、外部数据接口等，不需要 `/api/v1` 前缀）。
-* **用法示例**：
-  在 [root/custom.go](file:///Users/ryan/DEV/Go/Wavelet/internal/router/root/custom.go) 中实现：
-  ```go
-  package root
-
-  import (
-  	"OpenFlare/internal/apps/custom"
-  	"github.com/gin-gonic/gin"
-  )
-
-  // RegisterCustomRootRoutes registers custom business routes that belong to the root path.
-  func RegisterCustomRootRoutes(r *gin.Engine) {
-  	// 挂载到根路径下，如 GET /my-custom-webhook
-  	r.GET("/my-custom-webhook", custom.HandleRootWebhook)
-  }
-  ```
-  *(注：该函数已由 `root.go` 自动加载，你无需修改任何其他核心文件。)*
-
-### 2. V1 API 自定义包：`v1/custom.go`
-
-* **适用场景**：适用于普通的**自定义业务 API**，需要规范挂载在标准 API V1 路径下（即自动带有 `/api/v1/custom/...` 前缀，可选择性配置用户/管理员登录中间件）。
-* **用法示例**：
-  在 [v1/custom.go](file:///Users/ryan/DEV/Go/Wavelet/internal/router/v1/custom.go) 中实现：
-  ```go
-  package v1
-
-  import (
-  	"OpenFlare/internal/apps/custom"
-  	"github.com/gin-gonic/gin"
-  )
-
-  // RegisterCustomRoutes registers standard custom API routes under /api/v1.
-  func RegisterCustomRoutes(apiV1Router *gin.RouterGroup) {
-  	customRouter := apiV1Router.Group("/custom")
-  	{
-  		// 挂载到 /api/v1/custom 下，例如：POST /api/v1/custom/action
-  		customRouter.POST("/action", custom.DoActionHandler)
-  	}
-  }
-  ```
-  *(注：该函数已由 `v1/v1.go` 自动加载，你无需修改任何其他核心文件。)*
-
----
-
-## 建议创建/修改的文件结构 (Recommended Directory Structure)
-
-当新增一套定制的业务接口（例如名为 `custom` 的业务模块）时，建议采用以下标准文件结构：
+所有标准插件与下游定制插件，**统一以 `backend/downstream/plugins/custom_example` 为基准模板**，严格采用物理子包隔离的分层架构：
 
 ```text
-internal/
-├── router/
-│   ├── root/
-│   │   └── custom.go           # [修改] 若为根路径 API，在此处注册，将路由委派给 apps/custom
-│   └── v1/
-│       └── custom.go           # [修改] 若为 v1 API，在此处注册，将路由委派给 apps/custom
-└── apps/
-    └── custom/
-        ├── routers.go          # [新建] HTTP Handlers (Gin)，负责参数绑定、校验与响应
-        ├── logics.go           # [新建] 业务逻辑层：承载模块内闭环的纯 Go 业务逻辑，不依赖 gin.Context
-        └── errs.go             # [新建] 存放模块特有的业务错误常量定义（可选）
+backend/openflare/plugins/<name>/ (或 backend/plugins/domain/<name>/)
+├── plugin.go           # 插件根入口：实现 core.Plugin，装配各子包并向 Cordis 注册
+│
+├── consts/             # package consts：常量、配置键名与错误码定义
+│   └── consts.go
+│
+├── controller/         # package controller：HTTP 控制器与路由声明 (参数绑定、会话获取、信封响应)
+│   └── hello/          # 业务分组/实体子包
+│       └── hello.go    # 接口处理 Handler（直接以业务命名，禁止 controller_hello.go）
+│
+├── service/            # package service：业务逻辑层（用例编排、事务控制、事件发布）
+│   └── order.go        # 订单业务用例实现（纯 Go 逻辑，禁止依赖 *gin.Context）
+│
+├── dao/                # package dao：数据访问持久化层 DAL (GORM CRUD、SQL 转义防注入)
+│   └── order.go        # 订单数据访问实现（直接以业务命名，禁止 dao_order.go）
+│
+├── model/              # package model：纯数据实体与 DTO（无外部依赖）
+│   ├── entity/         # 数据库映射实体 (TableName() 带插件专属前缀)
+│   │   └── order.go
+│   └── do/             # 请求 Request DTO 与响应 Response DTO、领域对象
+│       └── order.go
+│
+└── migrations/         # 专属嵌入式 Goose SQL 双方言迁移脚本 (//go:embed)
+    ├── postgres/       # PostgreSQL 迁移脚本
+    └── sqlite/         # SQLite 迁移脚本
 ```
+> ⚠️ **严禁**：严禁在根目录平铺 `handlers_*.go`、`service_*.go`、`dao_*.go` 等前缀文件，子包内文件直接按业务实体命名。严格约束 `controller -> service -> dao -> model` 单向依赖。
 
 ---
 

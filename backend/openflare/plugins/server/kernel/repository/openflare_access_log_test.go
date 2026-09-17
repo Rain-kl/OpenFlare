@@ -18,7 +18,6 @@ import (
 	analyticsmodel "Wavelet/openflare/plugins/server/kernel/model/analytics"
 	"Wavelet/openflare/plugins/server/kernel/repository/logstore"
 	"Wavelet/pkg/idgen"
-	db "Wavelet/plugins/infra/database"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -36,7 +35,7 @@ func setupOpenFlareAccessLogTestEnvironment(t *testing.T) (context.Context, func
 	})
 	require.NoError(t, err)
 	require.NoError(t, gdb.AutoMigrate(&analyticsmodel.NodeAccessLog{}))
-	db.SetDB(gdb)
+	SetDBForTest(gdb)
 	require.NoError(t, idgen.Init(1))
 
 	logstore.ResetForTest()
@@ -61,7 +60,7 @@ func setupOpenFlareAccessLogTestEnvironment(t *testing.T) (context.Context, func
 	return ctx, func() {
 		logstore.SetAccessLogHooks(logstore.AccessLogHooks{})
 		logstore.ResetForTest()
-		db.SetDB(nil)
+		SetDBForTest(nil)
 	}
 }
 

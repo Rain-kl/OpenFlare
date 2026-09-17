@@ -19,7 +19,7 @@ import (
 	"Wavelet/core/contracts"
 	"Wavelet/core/extpoints"
 	"Wavelet/plugins/domain/admin"
-	"Wavelet/plugins/domain/message_gateway"
+	"Wavelet/plugins/domain/msg_gateway"
 	"Wavelet/plugins/domain/user"
 )
 
@@ -122,7 +122,7 @@ func TestRoutesMountedBeforeAuthServiceAreGuarded(t *testing.T) {
 		core.WithPlugins(
 			dbProvider(),
 			user.New(),
-			message_gateway.New(),
+			msg_gateway.New(),
 			authProvider(),
 		),
 	)
@@ -147,7 +147,7 @@ func TestAuthConsumersDeclareAuthDependency(t *testing.T) {
 		deps []reflect.Type
 	}{
 		{"user", user.New().Inject()},
-		{"message_gateway", message_gateway.New().Inject()},
+		{"msg_gateway", msg_gateway.New().Inject()},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			assert.Contains(t, tc.deps, want,
@@ -194,7 +194,7 @@ func TestAuthGuardFailsClosed(t *testing.T) {
 		prefix string
 	}{
 		{"user", user.New().Apply, http.MethodPost, "/api/v1/user/change-password"},
-		{"message_gateway", message_gateway.New().Apply, http.MethodGet, "/api/v1/message-gateway"},
+		{"msg_gateway", msg_gateway.New().Apply, http.MethodGet, "/api/v1/message-gateway"},
 		{"admin", admin.New().Apply, http.MethodGet, "/api/v1/admin"},
 	}
 

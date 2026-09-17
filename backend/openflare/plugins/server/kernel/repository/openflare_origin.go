@@ -9,23 +9,22 @@ import (
 	"gorm.io/gorm"
 
 	"Wavelet/openflare/plugins/server/kernel/model"
-	db "Wavelet/plugins/infra/database"
 )
 
 // WithOriginTx runs fn inside a database transaction for origin multi-step work.
 func WithOriginTx(ctx context.Context, fn func(tx *gorm.DB) error) error {
-	return db.DB(ctx).Transaction(fn)
+	return DB(ctx).Transaction(fn)
 }
 
 // HasProxyRoutesTable 判断代理规则表是否已迁移。
 func HasProxyRoutesTable(ctx context.Context) bool {
-	return db.DB(ctx).Migrator().HasTable(&model.OriginProxyRoute{})
+	return DB(ctx).Migrator().HasTable(&model.OriginProxyRoute{})
 }
 
 // ListOrigins 列出全部源站。
 func ListOrigins(ctx context.Context) ([]model.Origin, error) {
 	var origins []model.Origin
-	if err := db.DB(ctx).Order("id desc").Find(&origins).Error; err != nil {
+	if err := DB(ctx).Order("id desc").Find(&origins).Error; err != nil {
 		return nil, err
 	}
 	return origins, nil
@@ -34,7 +33,7 @@ func ListOrigins(ctx context.Context) ([]model.Origin, error) {
 // GetOriginByID 按 ID 查询源站。
 func GetOriginByID(ctx context.Context, id uint) (*model.Origin, error) {
 	var origin model.Origin
-	if err := db.DB(ctx).First(&origin, id).Error; err != nil {
+	if err := DB(ctx).First(&origin, id).Error; err != nil {
 		return nil, err
 	}
 	return &origin, nil
@@ -43,7 +42,7 @@ func GetOriginByID(ctx context.Context, id uint) (*model.Origin, error) {
 // GetOriginByAddress 按地址查询源站。
 func GetOriginByAddress(ctx context.Context, address string) (*model.Origin, error) {
 	var origin model.Origin
-	if err := db.DB(ctx).Where("address = ?", address).First(&origin).Error; err != nil {
+	if err := DB(ctx).Where("address = ?", address).First(&origin).Error; err != nil {
 		return nil, err
 	}
 	return &origin, nil
@@ -51,12 +50,12 @@ func GetOriginByAddress(ctx context.Context, address string) (*model.Origin, err
 
 // CreateOriginRecord 创建源站。
 func CreateOriginRecord(ctx context.Context, origin *model.Origin) error {
-	return db.DB(ctx).Create(origin).Error
+	return DB(ctx).Create(origin).Error
 }
 
 // SaveOrigin 保存源站。
 func SaveOrigin(ctx context.Context, origin *model.Origin) error {
-	return SaveOriginTx(db.DB(ctx), origin)
+	return SaveOriginTx(DB(ctx), origin)
 }
 
 // SaveOriginTx saves an origin within an existing transaction.
@@ -66,7 +65,7 @@ func SaveOriginTx(tx *gorm.DB, origin *model.Origin) error {
 
 // DeleteOriginRecord 删除源站。
 func DeleteOriginRecord(ctx context.Context, id uint) error {
-	return db.DB(ctx).Delete(&model.Origin{}, id).Error
+	return DB(ctx).Delete(&model.Origin{}, id).Error
 }
 
 // ListOriginRouteCounts 统计各源站关联的代理规则数量。
@@ -75,7 +74,7 @@ func ListOriginRouteCounts(ctx context.Context) ([]model.OriginRouteCount, error
 		return nil, nil
 	}
 	result := make([]model.OriginRouteCount, 0)
-	err := db.DB(ctx).Model(&model.OriginProxyRoute{}).
+	err := DB(ctx).Model(&model.OriginProxyRoute{}).
 		Select("origin_id, COUNT(*) AS route_count").
 		Where("origin_id IS NOT NULL").
 		Group("origin_id").
@@ -89,7 +88,7 @@ func ListProxyRoutesByOriginID(ctx context.Context, originID uint) ([]model.Orig
 		return nil, nil
 	}
 	var routes []model.OriginProxyRoute
-	if err := db.DB(ctx).Where("origin_id = ?", originID).Order("id desc").Find(&routes).Error; err != nil {
+	if err := DB(ctx).Where("origin_id = ?", originID).Order("id desc").Find(&routes).Error; err != nil {
 		return nil, err
 	}
 	return routes, nil
@@ -120,7 +119,7 @@ func CountProxyRoutesByOriginID(ctx context.Context, originID uint) (int64, erro
 		return 0, nil
 	}
 	var count int64
-	if err := db.DB(ctx).Model(&model.OriginProxyRoute{}).Where("origin_id = ?", originID).Count(&count).Error; err != nil {
+	if err := DB(ctx).Model(&model.OriginProxyRoute{}).Where("origin_id = ?", originID).Count(&count).Error; err != nil {
 		return 0, err
 	}
 	return count, nil

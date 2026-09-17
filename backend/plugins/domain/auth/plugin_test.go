@@ -40,6 +40,7 @@ type testUser struct {
 	ID          uint64 `gorm:"primaryKey"`
 	Username    string
 	IsActive    bool
+	IsAdmin     bool
 	LastLoginAt time.Time
 }
 
@@ -61,6 +62,13 @@ func hashToken(token string) string {
 	return hex.EncodeToString(h.Sum(nil))
 }
 
+type testSystemConfig struct {
+	Key   string `gorm:"primaryKey"`
+	Value string
+}
+
+func (testSystemConfig) TableName() string { return "w_system_configs" }
+
 func setupTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	dbPath := filepath.Join(t.TempDir(), "auth_test.db")
@@ -72,6 +80,7 @@ func setupTestDB(t *testing.T) *gorm.DB {
 		&testAccessToken{},
 		&auth.AuthSource{},
 		&auth.ExternalAccount{},
+		&testSystemConfig{},
 	))
 
 	return testDB
@@ -152,4 +161,25 @@ func TestAuthPluginUnit(t *testing.T) {
 	current, err := authSvc.GetCurrentUser(userCtx)
 	require.NoError(t, err)
 	assert.Equal(t, user.ID, current.ID)
+
+	// Test CaptchaService injection
+	capSvc, err := core.Inject[contracts.CaptchaService](ctx)
+	require.NoError(t, err)
+	assert.NotNil(t, capSvc)
+	assert.NotNil(t, capSvc.ChallengeHandler())
+	assert.NotNil(t, capSvc.RedeemHandler())
+	assert.NotNil(t, capSvc.VerifyMiddleware("login"))
+
+	// Verify CAPTCHA routes registered
+	var foundChallenge, foundRedeem bool
+	for _, rd := range ctx.Router().Routes() {
+		if rd.Path == "/api/v1/cap/challenge" {
+			foundChallenge = true
+		}
+		if rd.Path == "/api/v1/cap/redeem" {
+			foundRedeem = true
+		}
+	}
+	assert.True(t, foundChallenge, "expected /api/v1/cap/challenge route")
+	assert.True(t, foundRedeem, "expected /api/v1/cap/redeem route")
 }

@@ -712,8 +712,8 @@ export function EventsTab() {
                 </Label>
                 <span className='text-[10px] text-muted-foreground font-mono flex items-center'>
                   {newEventType === 'task'
-                    ? t('taskTemplateVars')
-                    : t('eventTemplateVars')}
+                    ? t.raw('taskTemplateVars')
+                    : t.raw('eventTemplateVars')}
                 </span>
               </div>
               <Textarea
@@ -892,8 +892,8 @@ export function EventsTab() {
                   </Label>
                   <span className='text-[10px] text-muted-foreground font-mono flex items-center'>
                     {selectedEvent.task_type
-                      ? t('taskTemplateVars')
-                      : t('eventTemplateVars')}
+                      ? t.raw('taskTemplateVars')
+                      : t.raw('eventTemplateVars')}
                   </span>
                 </div>
                 <Textarea

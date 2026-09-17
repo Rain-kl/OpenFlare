@@ -6,6 +6,7 @@ package contracts
 
 import "context"
 
+// PushNotificationTemplate defines notification message template payload.
 type PushNotificationTemplate struct {
 	Title   string
 	Content string
@@ -13,6 +14,7 @@ type PushNotificationTemplate struct {
 	Ext     map[string]any
 }
 
+// PushEventMeta defines metadata for a system push event.
 type PushEventMeta struct {
 	Key             string
 	Name            string
@@ -20,6 +22,7 @@ type PushEventMeta struct {
 	DefaultTemplate PushNotificationTemplate
 }
 
+// PushRegistry defines the interface for registering built-in events.
 type PushRegistry interface {
 	RegisterBuiltInEvent(meta PushEventMeta)
 	SyncEvents(ctx context.Context) error

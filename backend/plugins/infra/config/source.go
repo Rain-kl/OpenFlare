@@ -16,8 +16,14 @@ import (
 	"github.com/spf13/viper"
 )
 
-// DefaultFileName is the configuration file looked up when CONFIG_PATH is unset.
-const DefaultFileName = "config.yaml"
+// DefaultBaseFileName is the default base configuration file path looked up relative to the workspace.
+const DefaultBaseFileName = "manifest/config/config.default.yaml"
+
+// DefaultOverrideFileName is the default user override configuration file path looked up relative to the workspace.
+const DefaultOverrideFileName = "manifest/config/config.yaml"
+
+// DefaultFileName is kept for backwards compatibility.
+const DefaultFileName = DefaultOverrideFileName
 
 // EnvOnlyOrigin is reported by Describe when no configuration file was loaded.
 const EnvOnlyOrigin = "<env only>"
@@ -33,47 +39,94 @@ type Option func(*Source)
 func WithPath(path string) Option {
 	return func(s *Source) {
 		s.path = path
+		s.pinned = true
+	}
+}
+
+// WithDefaultPath pins the default base configuration file path.
+func WithDefaultPath(path string) Option {
+	return func(s *Source) {
+		s.defaultPath = path
 	}
 }
 
 // Source implements core.ConfigSource over a configuration file plus the process environment.
 type Source struct {
-	v     *viper.Viper
-	path  string
-	found bool
+	v             *viper.Viper
+	path          string
+	defaultPath   string
+	pinned        bool
+	defaultFound  bool
+	overrideFound bool
+	found         bool
 }
 
-// NewSource loads the configuration file. A missing file is not an error: the source
-// then serves environment values only, matching the behaviour the previous pkg/config
-// loader had for deployments that configure everything through the environment.
+// NewSource loads configuration files. By default, it loads manifest/config/config.default.yaml
+func (s *Source) resolvePaths() {
+	if s.pinned {
+		return
+	}
+	if s.defaultPath == "" {
+		s.defaultPath, _ = findExistingUpward(DefaultBaseFileName)
+	}
+	if s.path == "" {
+		s.path = os.Getenv("CONFIG_PATH")
+	}
+	if s.path == "" {
+		s.path, _ = findExistingUpward(DefaultOverrideFileName)
+	}
+}
+
+func readConfigFile(v *viper.Viper, path string, merge bool) (bool, error) {
+	if path == "" {
+		return false, nil
+	}
+
+	v.SetConfigFile(path)
+	var err error
+	if merge {
+		err = v.MergeInConfig()
+	} else {
+		err = v.ReadInConfig()
+	}
+
+	switch {
+	case err == nil:
+		return true, nil
+	case isNotFound(err):
+		return false, nil
+	default:
+		if _, statErr := os.Stat(path); statErr == nil { //nolint:gosec // path is vetted by bounded upward search or config options
+			return false, fmt.Errorf("infra/config: read %s: %w", path, err)
+		}
+		return false, nil
+	}
+}
+
+// NewSource loads configuration files. By default, it loads manifest/config/config.default.yaml
+// and merges manifest/config/config.yaml (or CONFIG_PATH) on top if present. A missing file is
+// not an error: the source then serves environment values only.
 func NewSource(opts ...Option) (*Source, error) {
 	s := &Source{}
 	for _, opt := range opts {
 		opt(s)
 	}
-
-	if s.path == "" {
-		s.path = os.Getenv("CONFIG_PATH")
-	}
-	if s.path == "" {
-		s.path = findConfigPath(DefaultFileName)
-	}
+	s.resolvePaths()
 
 	v := viper.New()
-	v.SetConfigFile(s.path)
 
-	err := v.ReadInConfig()
-	switch {
-	case err == nil:
-		s.found = true
-	case isNotFound(err):
-		// No file: fall through to environment-only lookups.
-	default:
-		if _, statErr := os.Stat(s.path); statErr == nil { //nolint:gosec // s.path comes from CONFIG_PATH or a bounded upward search
-			return nil, fmt.Errorf("infra/config: read %s: %w", s.path, err)
-		}
+	var err error
+	s.defaultFound, err = readConfigFile(v, s.defaultPath, false)
+	if err != nil {
+		return nil, err
 	}
 
+	s.overrideFound, err = readConfigFile(v, s.path, s.defaultFound)
+	if err != nil {
+		return nil, err
+	}
+
+	s.found = s.defaultFound || s.overrideFound
 	s.v = v
 	return s, nil
 }
@@ -104,23 +157,25 @@ func (s *Source) Describe() string {
 	if !s.found {
 		return EnvOnlyOrigin
 	}
-	return s.path
+	if s.overrideFound {
+		return s.path
+	}
+	return s.defaultPath
 }
 
-// findConfigPath searches upward from the working directory so tests and binaries run
-// from backend/ still find the repository-root configuration file.
-func findConfigPath(configPath string) string {
-	if _, err := os.Stat(configPath); err == nil {
-		return configPath
+// findExistingUpward searches upward from the working directory for a relative file path.
+func findExistingUpward(relativeFilePath string) (string, bool) {
+	if _, err := os.Stat(relativeFilePath); err == nil {
+		return relativeFilePath, true
 	}
 
 	dir := "."
 	for range maxSearchDepth {
 		dir += "/.."
-		path := dir + "/" + configPath
+		path := dir + "/" + relativeFilePath
 		if _, err := os.Stat(path); err == nil {
-			return path
+			return path, true
 		}
 	}
-	return configPath
+	return "", false
 }

@@ -8,8 +8,8 @@ import (
 	"testing"
 
 	"Wavelet/openflare/plugins/server/kernel/model"
+	"Wavelet/openflare/plugins/server/kernel/repository"
 	pkggeoip "Wavelet/openflare/share/geoip"
-	db "Wavelet/plugins/infra/database"
 
 	"github.com/glebarez/sqlite"
 	"gorm.io/gorm"
@@ -23,16 +23,16 @@ func TestEnsureRuntimeProviderInitializesConfiguredProvider(t *testing.T) {
 	if err := sqliteDB.AutoMigrate(&model.SystemConfig{}); err != nil {
 		t.Fatalf("migrate: %v", err)
 	}
-	db.SetDB(sqliteDB)
+	repository.SetDBForTest(sqliteDB)
 	t.Cleanup(func() {
-		db.SetDB(nil)
+		repository.SetDBForTest(nil)
 		ResetRuntimeForTest()
 	})
 
 	ctx := context.Background()
 	ResetRuntimeForTest()
 	// 通过 SystemConfig 设置 GeoIPProvider 配置
-	if err := db.DB(ctx).Create(&model.SystemConfig{
+	if err := repository.DB(ctx).Create(&model.SystemConfig{
 		Key:        model.ConfigKeyGeoIPProvider,
 		Value:      pkggeoip.ProviderIPInfo,
 		Type:       "business",

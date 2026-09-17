@@ -9,8 +9,6 @@ import (
 
 	"Wavelet/openflare/plugins/server/kernel/model"
 
-	db "Wavelet/plugins/infra/database"
-
 	"github.com/glebarez/sqlite"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -26,9 +24,9 @@ func setupWAFBindingsTestDB(t *testing.T) func() {
 	require.NoError(t, err)
 	require.NoError(t, sqliteDB.AutoMigrate(&model.OpenFlareWAFRuleGroupBinding{}))
 
-	db.SetDB(sqliteDB)
+	SetDBForTest(sqliteDB)
 	return func() {
-		db.SetDB(nil)
+		SetDBForTest(nil)
 	}
 }
 
@@ -37,7 +35,7 @@ func TestReplaceOpenFlareWAFRuleGroupBindingsAfterExplicitHighID(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	conn := db.DB(ctx)
+	conn := DB(ctx)
 	require.NotNil(t, conn)
 	require.NoError(t, conn.Create(&model.OpenFlareWAFRuleGroupBinding{
 		ID:           50,

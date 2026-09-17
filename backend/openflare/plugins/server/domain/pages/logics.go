@@ -1020,7 +1020,8 @@ func hydrateLegacyDeploymentUpload(
 	if deployment.UploadID > 0 {
 		uploadRecord, err := ofupload.GetActiveUpload(ctx, deployment.UploadID)
 		if err == nil {
-			return &uploadRecord, nil
+			record := model.FromUploadDTO(uploadRecord)
+			return &record, nil
 		}
 	}
 
@@ -1066,7 +1067,8 @@ func hydrateLegacyDeploymentUpload(
 	}
 	deployment.UploadID = winnerUploadID
 	deployment.ArtifactPath = ""
-	return &winner, nil
+	winnerRecord := model.FromUploadDTO(winner)
+	return &winnerRecord, nil
 }
 
 func attachLegacyDeploymentUpload(

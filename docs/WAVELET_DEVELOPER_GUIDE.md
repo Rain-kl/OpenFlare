@@ -33,10 +33,9 @@
 - [第二部分：整个项目的目录结构划分与包职责定义](#第二部分整个项目的目录结构划分与包职责定义)
 - [第三部分：框架核心提供给插件调用的公用能力矩阵 (Context Capability Matrix)](#第三部分框架核心提供给插件调用的公用能力矩阵-context-capability-matrix)
 - [第四部分：Cordis 插件分层开发规范与代码模板 (Plugin Layered Architecture & Code Templates)](#第四部分cordis-插件分层开发规范与代码模板-plugin-layered-architecture--code-templates)
-  - [1. 分型与选型策略 (模式 1 vs 模式 2)](#1-分型与选型策略-模式-1-vs-模式-2)
-  - [2. 模式 1：扁平自包含分层规范与完整代码模板](#2-模式-1扁平自包含分层规范与完整代码模板)
-  - [3. 模式 2：严格子包物理分层规范与完整代码模板](#3-模式-2严格子包物理分层规范与完整代码模板)
-  - [4. 各层核心职责边界与严格禁止防线 (Guardrails)](#4-各层核心职责边界与严格禁止防线-guardrails)
+  - [1. 统一标准分层架构与目录规范 (以 custom_example 为基准)](#1-统一标准分层架构与目录规范-以-custom_example-为基准)
+  - [2. 核心分层代码模板与实现范例](#2-核心分层代码模板与实现范例)
+  - [3. 各层核心职责边界与严格禁止防线 (Guardrails)](#3-各层核心职责边界与严格禁止防线-guardrails)
 
 ---
 
@@ -603,9 +602,9 @@ Wavelet/
 │       └── admin/                # 系统管理台与监控面板插件
 │
 └── downstream/                   # 【下游二开项目模板与脚手架】
-    ├── custom_plugins/           # 下游自定义业务插件
-    ├── config.yaml               # 声明启用的插件与配置文件
-    └── main.go                   # 下游项目组合启动入口
+    ├── README.md                 # 下游插件开发指南
+    └── plugins/                  # 下游自定义业务插件目录
+        └── custom_example/       # 官方标准插件开发基准模板（含完整分层结构）
 ```
 
 ### 各层职责与禁止规则 (Guardrails)：
@@ -615,11 +614,12 @@ Wavelet/
 2. **`core/contracts/`**：
    - **职责**：仅定义公开的 Go Interface 和公共 DTO。
    - **严禁**：严禁包含任何具体实现逻辑或 SQL 操作。
-3. **`plugins/`**：
-   - **职责**：所有业务逻辑和驱动实现的归宿。遵循标准分层架构（Layered Architecture / MVC 变体）。
-   - **分层模式选型**：
-     - **模式 1（极简单文件分层，极简微型插件专用）**：单 package 内部仅各保留 1 个对应文件（`plugin.go`, `handlers.go`, `service.go`, `repository.go`, `models.go`, `errs.go`, `migrations/`）。仅适用于单一实体、极小代码量 (<500行) 的微型插件。
-     - **模式 2（标准独立子包分层架构，官方推荐标准）**：按职责严格物理分包（`plugin.go`, `handler/`, `service/`, `repository/`, `model/`, `errs/`, `migrations/`）。**子包内文件以纯业务实体命名（如 `user.go`、`config.go`），严禁在根包平铺 `handlers_*`、`service_*`、`repository_*` 等前缀文件**。编译器级强约束 `handler -> service -> repository -> model` 单向依赖。
+3. **`plugins/` 与 `downstream/`**：
+   - **职责**：所有业务逻辑和驱动实现的归宿。遵循统一标准分层架构（Layered Architecture / MVC 变体）。
+   - **统一分层架构与标准开发模板**：
+     - **唯一基准模板**：以 [`backend/downstream/plugins/custom_example`](file:///Users/ryan/Code/Go/Wavelet/backend/downstream/plugins/custom_example) 为全项目统一基准模板。
+     - **物理子包隔离结构**：包含 `plugin.go`, `consts/`, `controller/`, `service/`, `dao/`, `model/` [含 `entity/`, `do/`], `migrations/` [含 `postgres/`, `sqlite/`]。
+     - **命名与依赖禁令**：**严禁在根包平铺 `handlers_*`、`service_*`、`dao_*` 等前缀文件**，子包内文件直接以纯业务实体命名（如 `hello.go`、`user.go`）。严格约束 `controller -> service -> dao -> model` 单向依赖。
    - **严禁**：插件之间严禁跨包 import 内部私有代码，跨插件调用一律走 `contracts` 接口或 `EventBus`。
 
 ---
@@ -652,116 +652,105 @@ Wavelet/
 
 # 第四部分：Cordis 插件分层开发规范与代码模板 (Plugin Layered Architecture & Code Templates)
 
-为了统一规范 Wavelet 所有官方插件与下游业务二开插件的研发质量，每个插件在内部遵循 **标准分层架构（Layered Architecture / MVC 变体）**。
+为了统一规范 Wavelet 所有官方插件与下游业务二开插件的研发质量，全项目插件**统一以 [`backend/downstream/plugins/custom_example`](file:///Users/ryan/Code/Go/Wavelet/backend/downstream/plugins/custom_example) 为基准开发模板**，遵循物理子包隔离的标准分层架构（`controller -> service -> dao -> model`）。
 
-## 1. 分型与选型策略 (模式 1 vs 模式 2)
+## 1. 统一标准分层架构与目录规范 (以 `custom_example` 为基准)
 
-根据业务复杂度和规模采用不同的物理包组织方式：
-
+```text
+backend/downstream/plugins/custom_example/ (或 backend/plugins/domain/<plugin_name>/)
+├── plugin.go              # [插件根入口] 实现 core.Plugin，负责装配依赖、路由与扩展点注册
+│
+├── consts/                # package consts：常量定义、配置键名与模块错误标识
+│   └── consts.go
+│
+├── controller/            # package controller：HTTP API 接入层 (参数绑定、会话提取、信封响应)
+│   └── hello/             # 业务分组子包
+│       └── hello.go       # 业务接口 Handler 实现（直接以业务命名，禁止 controller_hello.go）
+│
+├── service/               # package service：核心业务逻辑层 (业务用例、事务编排、事件发布)
+│   └── hello.go           # 业务用例实现（纯 Go 逻辑，禁止依赖 *gin.Context）
+│
+├── dao/                   # package dao：数据持久化访问层 DAL (GORM CRUD、SQL 转义防注入)
+│   └── hello.go           # 数据库访问实现（直接以业务命名，禁止 dao_hello.go）
+│
+├── model/                 # package model：纯数据实体与传输对象 (零 Web/数据库框架依赖)
+│   ├── entity/            # 数据库映射实体 (TableName() 必须带专属表前缀)
+│   │   └── hello.go
+│   └── do/                # 领域对象、请求 Request DTO 与响应 Response DTO
+│       └── hello.go
+│
+└── migrations/            # Goose SQL 独立迁移嵌入目录 (//go:embed)
+    ├── postgres/          # PostgreSQL 专属迁移 SQL
+    │   └── 20260901000001_init_hello.sql
+    └── sqlite/            # SQLite 专属迁移 SQL
+        └── 20260901000001_init_hello.sql
 ```
-                    ┌────────────────────────┐
-                    │ 插件分层模式选型策略   │
-                    └───────────┬────────────┘
-                                │
-        ┌───────────────────────┴───────────────────────┐
-        ▼                                               ▼
-【模式 1：极简单文件分层】                       【模式 2：标准独立子包分层】
-适合：极简微型/Demo插件 (<500行)               适合：标准/中大型业务插件 (推荐标准)
-结构：单 Package，每层仅对应 1 个同名文件       结构：严格分包 handler/, service/, repository/, model/
-禁令：严禁根目录平铺 handlers_* 等前缀文件       规范：子包内以业务实体命名 (如 user.go, order.go)
-```
 
-| 维度 | 模式 1：极简单文件分层 (Single-File Flat) | 模式 2：标准独立子包分层 (Standard Sub-packages) |
-| :--- | :--- | :--- |
-| **适用场景** | 极简微型插件、单一实体（仅用于小型工具/示例） | 标准业务插件、包含多实体/多接口（**官方推荐标准**） |
-| **代码量规模** | 通常 < 500 行 | 通常 ≥ 500 行（如 `upload`, `auth`, `admin`, `order`） |
-| **Go 包形态** | 单一 Go Package，各层级仅各 1 个同名文件 | 按职责严格物理子目录分包，编译级强约束单向依赖 |
-| **命名禁令** | **严禁在根目录平铺 `handlers_*`、`service_*` 文件** | **子包内文件直接以业务命名（如 `user.go`），禁止带 `handler_*` 前缀** |
+> ⚠️ **严禁规则**：
+> - **严禁在根目录平铺文件**：严禁在插件根目录下创建 `handlers_*.go`、`service_*.go`、`dao_*.go` 等前缀文件。
+> - **严禁跨层违规调用**：严格约束 `controller -> service -> dao -> model` 单向依赖。
+> - **严禁跨插件私有导入**：跨插件调用一律走 `contracts` 接口或 `EventBus`。
 
 ---
 
-## 2. 模式 1：极简单文件分层规范与完整代码模板
+## 2. 核心分层代码模板与实现范例
 
-### 2.1 目录结构
-```text
-backend/plugins/domain/<plugin_name>/
-├── plugin.go           # [Cordis 接入层] 实现 core.Plugin，负责 Apply 组装与扩展点注册
-├── handlers.go         # [Handler 层] 单一文件：Gin API Handler
-├── service.go          # [Service 层] 单一文件：核心业务用例
-├── repository.go       # [Repository 层] 单一文件：GORM / DB 操作
-├── models.go           # [Model 层] 单一文件：实体与 DTO
-├── errs.go             # [Error 层] 单一文件：错误常量
-├── plugin_test.go      # 插件级单元与集成测试
-└── migrations/         # Goose SQL 嵌入文件 (//go:embed)
-    └── 20260828000001_init_<plugin_name>.sql
-```
-
-> ⚠️ **严禁规则**：当单一文件膨胀或需要拆分多个业务实体时，**严禁在根目录创建 `handlers_user.go`, `handlers_admin.go`, `service_user.go` 等前缀文件**，必须立即重构并迁移为 **模式 2（标准独立子包分层架构）**！
-
-### 2.2 核心代码模板 (模式 1)
-
-#### (1) `plugin.go` (插件入口与装配)
+#### (1) `plugin.go` (插件装配入口)
 ```go
-package order
+package hello
 
 import (
 	"embed"
-	"reflect"
 
 	"github.com/Rain-kl/Wavelet/core"
 	"github.com/Rain-kl/Wavelet/core/contracts"
 	"github.com/gin-gonic/gin"
 )
 
-//go:embed migrations/*.sql
-var orderMigrations embed.FS
+//go:embed migrations/postgres/*.sql
+var pgMigrations embed.FS
 
-const PluginName = "domain.order"
+//go:embed migrations/sqlite/*.sql
+var sqliteMigrations embed.FS
 
-type Plugin struct {
-	svc *OrderService
-}
+type Plugin struct{}
 
 func New() *Plugin {
 	return &Plugin{}
 }
 
 func (p *Plugin) Name() string {
-	return PluginName
-}
-
-func (p *Plugin) Inject() []reflect.Type {
-	return []reflect.Type{
-		reflect.TypeFor[contracts.DBService](),
-	}
+	return "custom_example"
 }
 
 func (p *Plugin) Apply(ctx *core.Context) error {
 	// 1. 注册专属数据库迁移
-	ctx.Migrations().Register("order", orderMigrations)
+	ctx.Migrations().Register("custom_example", pgMigrations)
 
-	// 2. 初始化持久层与服务层
-	repo := newOrderRepository(ctx)
-	p.svc = newOrderService(ctx, repo)
+	// 2. 解析依赖并装配各层
+	var authSvc contracts.AuthService
+	if err := core.Using[contracts.AuthService](ctx, func(svc contracts.AuthService) { authSvc = svc }); err != nil {
+		return err
+	}
 
-	// 3. 注册 HTTP 路由组
-	authSvc, _ := core.Inject[contracts.AuthService](ctx)
-	group := ctx.Router().Group("/api/v1/orders")
-	if authSvc != nil {
-		group.Use(authSvc.RequireAuthMiddleware())
-	}
-	{
-		group.POST("", p.handleCreateOrder)
-		group.GET("/:id", p.handleGetOrderDetail)
-	}
+	// 3. 注册 HTTP 路由组与中间件
+	g := ctx.Router().Group("/api/v1/custom", authSvc.RequireAuthMiddleware().(gin.HandlerFunc))
+	g.GET("/hello", func(c *gin.Context) {
+		user, err := authSvc.GetCurrentUser(c.Request.Context())
+		if err != nil {
+			c.JSON(401, gin.H{"error": "unauthorized"})
+			return
+		}
+		c.JSON(200, gin.H{"message": "Hello " + user.Username})
+	})
 
 	return nil
 }
 ```
 
-#### (2) `handlers.go` (Controller 层)
+#### (2) `controller/hello/hello.go` (HTTP 控制器层)
 ```go
-package order
+package hello
 
 import (
 	"net/http"
@@ -771,41 +760,39 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// @Summary 创建订单
-// @Description 创建新的用户订单
-// @Tags Order
-// @Accept json
-// @Produce json
-// @Param request body CreateOrderRequest true "创建参数"
-// @Success 200 {object} response.Envelope{data=OrderDTO} "成功"
-// @Failure 400 {object} response.Envelope "参数错误"
-// @Router /api/v1/orders [post]
-func (p *Plugin) handleCreateOrder(c *gin.Context) {
-	var req CreateOrderRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		response.AbortBadRequest(c, errBindParamsFailed)
-		return
-	}
+type Controller struct {
+	svc HelloService
+}
 
+func NewController(svc HelloService) *Controller {
+	return &Controller{svc: svc}
+}
+
+// @Summary 获取欢迎信息
+// @Tags Hello
+// @Produce json
+// @Success 200 {object} response.Envelope{data=do.HelloResponse} "成功"
+// @Router /api/v1/custom/hello [get]
+func (ctrl *Controller) GetHello(c *gin.Context) {
 	user, ok := oauth.GetCurrentUser(c)
 	if !ok {
-		response.AbortUnauthorized(c, errUnauthorized)
+		response.AbortUnauthorized(c, "errUnauthorized")
 		return
 	}
 
-	order, err := p.svc.CreateOrder(c.Request.Context(), user.ID, req)
+	res, err := ctrl.svc.SayHello(c.Request.Context(), user.ID)
 	if err != nil {
-		response.AbortInternal(c, errCreateOrderFailed)
+		response.AbortInternal(c, "errInternalServer")
 		return
 	}
 
-	c.JSON(http.StatusOK, response.OK(order))
+	c.JSON(http.StatusOK, response.OK(res))
 }
 ```
 
-#### (3) `service.go` (Service 业务逻辑层)
+#### (3) `service/hello.go` (业务逻辑层)
 ```go
-package order
+package service
 
 import (
 	"context"
@@ -813,44 +800,31 @@ import (
 	"github.com/Rain-kl/Wavelet/core"
 )
 
-type OrderService struct {
-	ctx  *core.Context
-	repo *orderRepository
+type HelloService struct {
+	ctx *core.Context
+	dao HelloDAO
 }
 
-func newOrderService(ctx *core.Context, repo *orderRepository) *OrderService {
-	return &OrderService{ctx: ctx, repo: repo}
+func NewHelloService(ctx *core.Context, dao HelloDAO) *HelloService {
+	return &HelloService{ctx: ctx, dao: dao}
 }
 
-func (s *OrderService) CreateOrder(ctx context.Context, userID string, req CreateOrderRequest) (*OrderDTO, error) {
-	order := &OrderModel{
-		UserID: userID,
-		Amount: req.Amount,
-		Status: "pending",
-	}
-
-	if err := s.repo.Create(ctx, order); err != nil {
+func (s *HelloService) SayHello(ctx context.Context, userID string) (*do.HelloResponse, error) {
+	record, err := s.dao.GetByUserID(ctx, userID)
+	if err != nil {
 		return nil, err
 	}
 
 	// 发射领域事件
-	s.ctx.Events().Emit(ctx, "order:created", OrderCreatedEvent{
-		OrderID: order.ID,
-		UserID:  order.UserID,
-		Amount:  order.Amount,
-	})
+	s.ctx.Events().Emit(ctx, "custom:hello_visited", map[string]any{"user_id": userID})
 
-	return &OrderDTO{
-		ID:     order.ID,
-		Amount: order.Amount,
-		Status: order.Status,
-	}, nil
+	return &do.HelloResponse{Message: "Hello " + record.Name}, nil
 }
 ```
 
-#### (4) `repository.go` (Repository 数据访问层)
+#### (4) `dao/hello.go` (数据访问持久化层 DAL)
 ```go
-package order
+package dao
 
 import (
 	"context"
@@ -861,178 +835,104 @@ import (
 	"gorm.io/gorm"
 )
 
-type orderRepository struct {
+type HelloDAO struct {
 	ctx *core.Context
 }
 
-func newOrderRepository(ctx *core.Context) *orderRepository {
-	return &orderRepository{ctx: ctx}
+func NewHelloDAO(ctx *core.Context) *HelloDAO {
+	return &HelloDAO{ctx: ctx}
 }
 
-func (r *orderRepository) getDB(ctx context.Context) *gorm.DB {
-	if dbSvc, err := core.Inject[contracts.DBService](r.ctx); err == nil && dbSvc != nil {
+func (d *HelloDAO) getDB(ctx context.Context) *gorm.DB {
+	if dbSvc, err := core.Inject[contracts.DBService](d.ctx); err == nil && dbSvc != nil {
 		return dbSvc.GetDB().WithContext(ctx)
 	}
 	return nil
 }
 
-func (r *orderRepository) Create(ctx context.Context, order *OrderModel) error {
-	return r.getDB(ctx).Create(order).Error
+func (d *HelloDAO) GetByUserID(ctx context.Context, userID string) (*entity.HelloEntity, error) {
+	var item entity.HelloEntity
+	err := d.getDB(ctx).Where("user_id = ?", userID).First(&item).Error
+	return &item, err
 }
 
-func (r *orderRepository) SearchByKeyword(ctx context.Context, keyword string) ([]OrderModel, error) {
-	var list []OrderModel
+func (d *HelloDAO) SearchByKeyword(ctx context.Context, keyword string) ([]entity.HelloEntity, error) {
+	var list []entity.HelloEntity
 	// SQL LIKE 防注入与通配符转义规范
 	safeKeyword := util.EscapeLike(keyword) + "%"
-	err := r.getDB(ctx).Where("status LIKE ? ESCAPE '\\'", safeKeyword).Find(&list).Error
+	err := d.getDB(ctx).Where("name LIKE ? ESCAPE '\\'", safeKeyword).Find(&list).Error
 	return list, err
 }
 ```
 
-#### (5) `models.go` 与 `errs.go`
+#### (5) `model/entity/` 与 `model/do/`
 ```go
-// models.go
-package order
+// model/entity/hello.go
+package entity
 
 import "time"
 
-type OrderModel struct {
+type HelloEntity struct {
 	ID        string    `gorm:"column:id;primaryKey;size:64" json:"id"`
 	UserID    string    `gorm:"column:user_id;index;size:64;not null" json:"user_id"`
-	Amount    int64     `gorm:"column:amount;not null" json:"amount"`
-	Status    string    `gorm:"column:status;size:32;index;not null;default:'pending'" json:"status"`
+	Name      string    `gorm:"column:name;size:128;not null" json:"name"`
 	CreatedAt time.Time `gorm:"column:created_at;autoCreateTime" json:"created_at"`
 	UpdatedAt time.Time `gorm:"column:updated_at;autoUpdateTime" json:"updated_at"`
 }
 
-func (OrderModel) TableName() string {
-	return "w_orders"
-}
-
-type CreateOrderRequest struct {
-	Amount int64 `json:"amount" binding:"required,gt=0"`
-}
-
-type OrderDTO struct {
-	ID     string `json:"id"`
-	Amount int64  `json:"amount"`
-	Status string `json:"status"`
-}
-
-type OrderCreatedEvent struct {
-	OrderID string `json:"order_id"`
-	UserID  string `json:"user_id"`
-	Amount  int64  `json:"amount"`
+func (HelloEntity) TableName() string {
+	return "w_custom_hello"
 }
 ```
 
 ```go
-// errs.go
-package order
+// model/do/hello.go
+package do
+
+type HelloResponse struct {
+	Message string `json:"message"`
+}
+
+type CreateHelloRequest struct {
+	Name string `json:"name" binding:"required,max=128"`
+}
+```
+
+#### (6) `consts/consts.go` (常量与错误定义)
+```go
+package consts
 
 const (
-	errBindParamsFailed  = "errBindParamsFailed"
-	errUnauthorized      = "errUnauthorized"
-	errCreateOrderFailed = "errCreateOrderFailed"
+	PluginName = "custom_example"
+
+	// 模块内部错误码标识 (camelCase)
+	ErrUserNotFound   = "errUserNotFound"
+	ErrInvalidParams  = "errInvalidParams"
+	ErrOperationFail  = "errOperationFail"
 )
 ```
 
 ---
 
-## 3. 模式 2：标准独立子包物理分层规范与完整代码模板 (推荐标准)
-
-用于标准与中大型业务插件，各层使用独立的 Go package 物理隔离。
-
-### 3.1 目录结构与文件命名规约
-```text
-backend/plugins/domain/order/
-├── plugin.go              # [插件根入口] 实现 core.Plugin，装配各子包并向 Cordis 注册
-│
-├── handler/               # package handler：HTTP API 接入层（或 controller/）
-│   ├── router.go          # 路由组挂载与中间件绑定
-│   └── order.go           # 订单相关 Handler（以业务直接命名，禁止 handlers_order.go）
-│
-├── service/               # package service：核心业务逻辑层
-│   ├── service.go         # 业务用例接口定义 (Service Interface)
-│   └── order.go           # 订单业务用例实现（以业务直接命名，禁止 service_order.go）
-│
-├── repository/            # package repository：数据访问持久化层 (DAL)
-│   ├── repository.go      # 仓储通用方法与工厂
-│   └── order.go           # 订单仓储持久化实现（以业务直接命名，禁止 repository_order.go）
-│
-├── model/                 # package model (或 models/)：纯领域实体与传输对象（零外部框架依赖）
-│   ├── entity.go          # 数据库映射实体 (TableName() 必须带 w_<plugin>_ 前缀)
-│   ├── dto.go             # 请求与响应 DTO
-│   └── events.go          # 领域事件结构体
-│
-├── errs/                  # package errs：错误常量与错误码定义 (或根目录 errs.go)
-│   └── errs.go
-│
-└── migrations/            # Goose SQL 独立迁移嵌入文件 (//go:embed)
-    └── 20260828000001_init_order.sql
-```
-
-### 3.2 模式 2 核心装配代码范例 (`plugin.go`)
-```go
-package order
-
-import (
-	"embed"
-
-	"github.com/Rain-kl/Wavelet/core"
-	"github.com/Rain-kl/Wavelet/core/contracts"
-	"github.com/Rain-kl/Wavelet/plugins/domain/order/handler"
-	"github.com/Rain-kl/Wavelet/plugins/domain/order/repository"
-	"github.com/Rain-kl/Wavelet/plugins/domain/order/service"
-)
-
-//go:embed migrations/*.sql
-var orderMigrations embed.FS
-
-type Plugin struct{}
-
-func (p *Plugin) Name() string {
-	return "domain.order"
-}
-
-func (p *Plugin) Apply(ctx *core.Context) error {
-	// 1. 注册迁移
-	ctx.Migrations().Register("order", orderMigrations)
-
-	// 2. 构造数据层与服务层
-	repo := repository.NewOrderRepository(ctx)
-	svc := service.NewOrderService(ctx, repo)
-
-	// 3. 构造 Handler 并挂载路由
-	h := handler.NewOrderHandler(svc)
-	authSvc, _ := core.Inject[contracts.AuthService](ctx)
-	handler.RegisterRoutes(ctx.Router(), h, authSvc)
-
-	return nil
-}
-```
-
----
-
-## 4. 各层核心职责边界与严格禁止防线 (Guardrails)
+## 3. 各层核心职责边界与严格禁止防线 (Guardrails)
 
 ```text
 ┌──────────────────────────────────────────────────────────────────┐
-│                   Controller / Handler 层 (HTTP 接入)            │
+│                   Controller 层 (HTTP API 接入)                  │
 │   • 参数绑定 ShouldBindJSON        • 用户会话 oauth.GetCurrentUser │
 │   • 统一信封 response.OK/Abort*    • 严禁 SQL 操作 / 严禁重度业务   │
 └─────────────────────────────────┬────────────────────────────────┘
-                                  │ 调用 Service (入参 context.Context)
+                                  │ 调用 Service (入参首位 context.Context)
                                   ▼
 ┌──────────────────────────────────────────────────────────────────┐
 │                     Service 层 (业务用例 & 领域逻辑)             │
 │   • 纯 Go 逻辑 (零 Web 依赖)      • 事务编排 ctx.DB().Transaction │
 │   • 领域事件 ctx.Events().Emit     • 严禁 import gin / c.JSON     │
 └─────────────────────────────────┬────────────────────────────────┘
-                                  │ 调用 Repository 接口
+                                  │ 调用 DAO 接口
                                   ▼
 ┌──────────────────────────────────────────────────────────────────┐
-│                    Repository 层 (数据持久化 DAL)                │
+│                      DAO 层 (数据持久化 DAL)                     │
 │   • GORM CRUD 与查询              • EscapeLike 通配符安全转义     │
 │   • 严禁反向依赖 Service/Controller • 严禁越权读写其他插件数据表  │
 └─────────────────────────────────┬────────────────────────────────┘
@@ -1040,12 +940,12 @@ func (p *Plugin) Apply(ctx *core.Context) error {
                                   ▼
 ┌──────────────────────────────────────────────────────────────────┐
 │                     Model 层 (纯实体 & DTO)                      │
-│   • TableName() 带专属表前缀        • 请求/响应结构体              │
+│   • TableName() 带专属表前缀        • entity/ 与 do/ 明确拆分      │
 │   • 零值与 DB 默认值匹配           • 无任何上层包依赖             │
 └──────────────────────────────────────────────────────────────────┘
 ```
 
-1. **表单一所有者原则 (Single Owner Principle)**：数据表有且仅由所属插件操作（表名统一前缀 `w_<plugin>_*`），跨插件一律通过公开契约 Interface 或 EventBus 协同。
+1. **表单一所有者原则 (Single Owner Principle)**：数据表有且仅由所属插件声明与维护（表名统一前缀 `w_<plugin>_*`），跨插件一律通过公开契约 Interface 或 EventBus 协同。
 2. **LIKE 查询安全防注入**：所有涉及用户输入的模糊查询，必须经过 `util.EscapeLike` 转义通配符并显式声明 `ESCAPE '\\'` 语法。
 3. **Goroutine 安全**：并发任务统一使用 `util.Go`，杜绝直接使用裸 `go func()`。
 

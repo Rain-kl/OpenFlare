@@ -11,20 +11,19 @@ import (
 	"gorm.io/gorm/clause"
 
 	"Wavelet/openflare/plugins/server/kernel/model"
-	db "Wavelet/plugins/infra/database"
 )
 
 const pagesRowLockStrength = "UPDATE"
 
 // WithPagesTx runs fn inside a database transaction for Pages multi-step work.
 func WithPagesTx(ctx context.Context, fn func(tx *gorm.DB) error) error {
-	return db.DB(ctx).Transaction(fn)
+	return DB(ctx).Transaction(fn)
 }
 
 // GetPagesProjectSourceByID loads a project source by primary key.
 func GetPagesProjectSourceByID(ctx context.Context, id uint) (*model.PagesProjectSource, error) {
 	var source model.PagesProjectSource
-	if err := db.DB(ctx).Where("id = ?", id).First(&source).Error; err != nil {
+	if err := DB(ctx).Where("id = ?", id).First(&source).Error; err != nil {
 		return nil, err
 	}
 	return &source, nil
@@ -33,7 +32,7 @@ func GetPagesProjectSourceByID(ctx context.Context, id uint) (*model.PagesProjec
 // GetPagesProjectSourceByProjectID loads the unique source for a project.
 func GetPagesProjectSourceByProjectID(ctx context.Context, projectID uint) (*model.PagesProjectSource, error) {
 	var source model.PagesProjectSource
-	if err := db.DB(ctx).Where("project_id = ?", projectID).First(&source).Error; err != nil {
+	if err := DB(ctx).Where("project_id = ?", projectID).First(&source).Error; err != nil {
 		return nil, err
 	}
 	return &source, nil
@@ -46,7 +45,7 @@ func GetPagesProjectSourceByIDAndConfigVersion(
 	configVersion int,
 ) (*model.PagesProjectSource, error) {
 	var source model.PagesProjectSource
-	if err := db.DB(ctx).Where("id = ? AND config_version = ?", id, configVersion).First(&source).Error; err != nil {
+	if err := DB(ctx).Where("id = ? AND config_version = ?", id, configVersion).First(&source).Error; err != nil {
 		return nil, err
 	}
 	return &source, nil
@@ -58,7 +57,7 @@ func GetPagesProjectSourceRuntimeBySourceID(
 	sourceID uint,
 ) (*model.PagesProjectSourceRuntime, error) {
 	var runtime model.PagesProjectSourceRuntime
-	if err := db.DB(ctx).Where("source_id = ?", sourceID).First(&runtime).Error; err != nil {
+	if err := DB(ctx).Where("source_id = ?", sourceID).First(&runtime).Error; err != nil {
 		return nil, err
 	}
 	return &runtime, nil
@@ -207,7 +206,7 @@ func TryAcquirePagesSourceRuntimeLease(
 	now time.Time,
 	updates map[string]any,
 ) (int64, error) {
-	result := db.DB(ctx).Model(&model.PagesProjectSourceRuntime{}).
+	result := DB(ctx).Model(&model.PagesProjectSourceRuntime{}).
 		Where("source_id = ?", sourceID).
 		Where("lease_expires_at IS NULL OR lease_expires_at <= ?", now).
 		Where(
@@ -227,7 +226,7 @@ func RenewPagesSourceRuntimeLease(
 	now time.Time,
 	expiresAt time.Time,
 ) (int64, error) {
-	result := db.DB(ctx).Model(&model.PagesProjectSourceRuntime{}).
+	result := DB(ctx).Model(&model.PagesProjectSourceRuntime{}).
 		Where("source_id = ? AND lease_token = ? AND lease_expires_at > ?", sourceID, token, now).
 		Updates(map[string]any{"lease_expires_at": expiresAt})
 	return result.RowsAffected, result.Error
@@ -241,7 +240,7 @@ func UpdatePagesSourceRuntimeByActiveLease(
 	now time.Time,
 	updates map[string]any,
 ) (int64, error) {
-	return UpdatePagesSourceRuntimeByActiveLeaseTx(db.DB(ctx), sourceID, token, now, updates)
+	return UpdatePagesSourceRuntimeByActiveLeaseTx(DB(ctx), sourceID, token, now, updates)
 }
 
 // UpdatePagesSourceRuntimeByActiveLeaseTx updates runtime under an active lease inside a transaction.
@@ -268,7 +267,7 @@ func RecoverExpiredPagesSourceRuntimeLease(
 	now time.Time,
 	updates map[string]any,
 ) (int64, error) {
-	result := db.DB(ctx).Model(&model.PagesProjectSourceRuntime{}).
+	result := DB(ctx).Model(&model.PagesProjectSourceRuntime{}).
 		Where("source_id = ?", sourceID).
 		Where("lease_token = ?", token).
 		Where("lease_expires_at = ? AND lease_expires_at <= ?", expiresAt, now).
@@ -285,7 +284,7 @@ func MarkPagesSourceInitialCheckDispatchFailed(
 	now time.Time,
 	updates map[string]any,
 ) (int64, error) {
-	result := db.DB(ctx).Model(&model.PagesProjectSourceRuntime{}).
+	result := DB(ctx).Model(&model.PagesProjectSourceRuntime{}).
 		Where("source_id = ?", sourceID).
 		Where("lease_expires_at IS NULL OR lease_expires_at <= ?", now).
 		Where(
@@ -309,7 +308,7 @@ func RecordPagesSourceAutoDispatchFailure(
 	now time.Time,
 	updates map[string]any,
 ) (int64, error) {
-	result := db.DB(ctx).Model(&model.PagesProjectSourceRuntime{}).
+	result := DB(ctx).Model(&model.PagesProjectSourceRuntime{}).
 		Where("source_id = ?", sourceID).
 		Where("sync_status = ? AND last_seen_revision = ?", updateAvailableStatus, revision).
 		Where("lease_expires_at IS NULL OR lease_expires_at <= ?", now).
@@ -336,7 +335,7 @@ func ListExpiredPagesSourceLeaseCandidates(
 	syncStatuses []string,
 ) ([]model.PagesExpiredSourceLeaseCandidate, error) {
 	var candidates []model.PagesExpiredSourceLeaseCandidate
-	err := db.DB(ctx).
+	err := DB(ctx).
 		Table("of_pages_project_source_runtime AS runtime").
 		Select(`runtime.source_id, runtime.lease_token, runtime.lease_expires_at,
 			runtime.sync_status, source.source_type, source.release_selector`).
@@ -391,7 +390,7 @@ func dueGitHubPagesSourceQuery(
 	sourceType string,
 	releaseSelector string,
 ) *gorm.DB {
-	return db.DB(ctx).
+	return DB(ctx).
 		Table("of_pages_project_source_runtime AS runtime").
 		Joins("JOIN of_pages_project_sources AS source ON source.id = runtime.source_id").
 		Where("source.source_type = ?", sourceType).
@@ -407,7 +406,7 @@ func GetPagesDeploymentBySourceRevision(
 	revision string,
 ) (*model.PagesDeployment, error) {
 	var deployment model.PagesDeployment
-	err := db.DB(ctx).
+	err := DB(ctx).
 		Where("project_id = ? AND source_identity = ? AND source_revision = ?", projectID, sourceIdentity, revision).
 		First(&deployment).Error
 	if err != nil {

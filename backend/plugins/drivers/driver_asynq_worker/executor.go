@@ -4,6 +4,7 @@
 package driver_asynq_worker
 
 import (
+	"Wavelet/core/contracts"
 	"Wavelet/pkg/idgen"
 	"Wavelet/pkg/logger"
 	"Wavelet/pkg/util"
@@ -208,7 +209,7 @@ func RetryTask(ctx context.Context, id uint64) (string, error) {
 		MaxRetry:    execution.MaxRetry,
 		RetryCount:  execution.RetryCount + 1,
 		Payload:     execution.Payload,
-		TriggeredBy: "retry",
+		TriggeredBy: contracts.TaskTriggerRetry,
 	}
 
 	if err := createTaskExecution(ctx, newExecution); err != nil {
@@ -265,8 +266,9 @@ func ProcessTask(ctx context.Context, t *asynq.Task) error {
 
 	taskID := t.ResultWriter().TaskID()
 
-	// 注入 taskID 到 context
+	// 注入 taskID 到 context，并把原始 asynq.Task 交给适配器 Handler。
 	ctx = withTaskID(ctx, taskID)
+	ctx = context.WithValue(ctx, asynqTaskCtxKey{}, t)
 
 	// 查找处理器
 	handler, ok := getHandler(t.Type())
@@ -277,18 +279,20 @@ func ProcessTask(ctx context.Context, t *asynq.Task) error {
 		return err
 	}
 
-	// 加载或动态创建执行记录
+	// 加载或动态创建执行记录。无 DB 时仍执行业务 Handler，避免测试/精简拓扑 panic。
+	var execution *TaskExecution
 	now := time.Now()
-	execution, err := getOrCreateTaskExecution(ctx, taskID, t, taskPayload, now)
-	if err == nil {
-		updateExecutionOnStart(ctx, execution, now)
+	if getDB(ctx) != nil {
+		var err error
+		execution, err = getOrCreateTaskExecution(ctx, taskID, t, taskPayload, now)
+		if err == nil {
+			updateExecutionOnStart(ctx, execution, now)
+		}
 	}
 
 	if execution != nil {
 		AppendLog(ctx, "[系统] 开始执行异步任务 [名称: %s, 类型: %s]，重试次数: %d/%d",
 			execution.TaskName, t.Type(), execution.RetryCount, execution.MaxRetry)
-	} else {
-		AppendLog(ctx, "[系统] 开始执行异步任务 [类型: %s]", t.Type())
 	}
 
 	// 开始计时
@@ -390,7 +394,7 @@ func getOrCreateTaskExecution(ctx context.Context, taskID string, t *asynq.Task,
 		MaxRetry:    meta.MaxRetry,
 		RetryCount:  0,
 		Payload:     string(payload),
-		TriggeredBy: "schedule",
+		TriggeredBy: contracts.TaskTriggerSchedule,
 		StartedAt:   &now,
 	}
 

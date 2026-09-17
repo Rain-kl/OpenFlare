@@ -17,6 +17,7 @@ import (
 	"Wavelet/openflare/plugins/relay/wsclient"
 	edgerunner "Wavelet/openflare/share/edge/runner"
 	service "Wavelet/openflare/share/protocol"
+	"Wavelet/pkg/util"
 )
 
 // Runner manages the relay process.
@@ -31,7 +32,7 @@ type Runner struct {
 
 // Run starts the relay process by initiating the heartbeat and WS reconnection loop.
 func (r *Runner) Run(ctx context.Context) error {
-	go r.HeartbeatService.Run(ctx)
+	util.Go(func() { r.HeartbeatService.Run(ctx) })
 
 	return edgerunner.RunWSReconnectLoop(ctx, edgerunner.WSReconnectConfig{
 		ComponentName: "relay",
