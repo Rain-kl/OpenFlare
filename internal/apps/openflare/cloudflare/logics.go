@@ -255,11 +255,11 @@ func validEdgeNode(ctx context.Context, id uint, requireIPv4 bool) (*model.OpenF
 }
 
 func buildGroupItem(ctx context.Context, group *model.CFPointingGroup) (*GroupItem, error) {
-	primary, err := repository.GetOpenFlareNodeByID(ctx, group.PrimaryNodeID)
+	primary, err := lookupGroupNode(ctx, group.ID, group.PrimaryNodeID)
 	if err != nil {
 		return nil, err
 	}
-	active, err := repository.GetOpenFlareNodeByID(ctx, group.ActiveNodeID)
+	active, err := lookupGroupNode(ctx, group.ID, group.ActiveNodeID)
 	if err != nil {
 		return nil, err
 	}
@@ -267,16 +267,32 @@ func buildGroupItem(ctx context.Context, group *model.CFPointingGroup) (*GroupIt
 	if err != nil {
 		return nil, err
 	}
-	item := &GroupItem{ID: group.ID, Name: group.Name, PrimaryNode: nodeOption(primary), ActiveNode: nodeOption(active), DefaultProxied: group.DefaultProxied, Enabled: group.Enabled, MemberCount: count, CreatedAt: group.CreatedAt, UpdatedAt: group.UpdatedAt}
+	item := &GroupItem{ID: group.ID, Name: group.Name, PrimaryNode: nodeOptionForID(group.PrimaryNodeID, primary), ActiveNode: nodeOptionForID(group.ActiveNodeID, active), DefaultProxied: group.DefaultProxied, Enabled: group.Enabled, MemberCount: count, CreatedAt: group.CreatedAt, UpdatedAt: group.UpdatedAt}
 	if group.BackupNodeID != nil {
-		backup, backupErr := repository.GetOpenFlareNodeByID(ctx, *group.BackupNodeID)
+		backup, backupErr := lookupGroupNode(ctx, group.ID, *group.BackupNodeID)
 		if backupErr != nil {
 			return nil, backupErr
 		}
-		option := nodeOption(backup)
+		option := nodeOptionForID(*group.BackupNodeID, backup)
 		item.BackupNode = &option
 	}
 	return item, nil
+}
+
+func lookupGroupNode(ctx context.Context, groupID, nodeID uint) (*model.OpenFlareNode, error) {
+	node, err := repository.GetOpenFlareNodeByID(ctx, nodeID)
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		logger.WarnF(ctx, "[Cloudflare] pointing group references missing node: group_id=%d node_id=%d", groupID, nodeID)
+		return nil, nil
+	}
+	return node, err
+}
+
+func nodeOptionForID(id uint, node *model.OpenFlareNode) NodeOption {
+	if node == nil {
+		return NodeOption{ID: id}
+	}
+	return nodeOption(node)
 }
 
 func nodeOption(node *model.OpenFlareNode) NodeOption {

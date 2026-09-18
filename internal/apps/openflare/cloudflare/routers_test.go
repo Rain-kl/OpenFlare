@@ -4,12 +4,14 @@
 package cloudflare
 
 import (
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
 	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
+	"github.com/Rain-kl/Wavelet/internal/model"
 	"github.com/Rain-kl/Wavelet/internal/repository"
 	"github.com/Rain-kl/Wavelet/internal/shared/response"
 	"github.com/gin-gonic/gin"
@@ -73,5 +75,58 @@ func TestGetGroupWithOrphanedMemberHealsAndSucceeds(t *testing.T) {
 	_, err = repository.GetCFPointingMemberByID(ctx, memberID)
 	if err == nil {
 		t.Errorf("GetCFPointingMemberByID() should return not found after healing")
+	}
+}
+
+func TestListGroupsHandlerWithMissingNodeStillSucceeds(t *testing.T) {
+	ctx, _ := setupCloudflareLogicDB(t)
+	if err := db.DB(ctx).Create(&model.CFPointingGroup{
+		Name:          "KR",
+		PrimaryNodeID: 12,
+		ActiveNodeID:  12,
+		Enabled:       true,
+	}).Error; err != nil {
+		t.Fatalf("Create(missing-node group) error = %v", err)
+	}
+
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	router.Use(response.ErrorHandlerMiddleware())
+	router.GET("/groups", ListGroupsHandler)
+
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/groups", nil))
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("ListGroupsHandler status = %d, body = %s, want %d", recorder.Code, recorder.Body.String(), http.StatusOK)
+	}
+	body := recorder.Body.String()
+	if !strings.Contains(body, `"name":"KR"`) {
+		t.Fatalf("ListGroupsHandler body = %s, want group KR", body)
+	}
+	if !strings.Contains(body, `"name":"primary"`) {
+		t.Fatalf("ListGroupsHandler body = %s, want intact group primary", body)
+	}
+}
+
+func TestGetGroupHandlerWithMissingNodeStillSucceeds(t *testing.T) {
+	ctx, _ := setupCloudflareLogicDB(t)
+	group := model.CFPointingGroup{Name: "KR", PrimaryNodeID: 12, ActiveNodeID: 12, Enabled: true}
+	if err := db.DB(ctx).Create(&group).Error; err != nil {
+		t.Fatalf("Create(missing-node group) error = %v", err)
+	}
+
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	router.Use(response.ErrorHandlerMiddleware())
+	router.GET("/groups/:id", GetGroupHandler)
+
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/groups/%d", group.ID), nil)
+	router.ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("GetGroupHandler status = %d, body = %s, want %d", recorder.Code, recorder.Body.String(), http.StatusOK)
+	}
+	if !strings.Contains(recorder.Body.String(), `"name":"KR"`) {
+		t.Fatalf("GetGroupHandler body = %s, want group KR", recorder.Body.String())
 	}
 }
