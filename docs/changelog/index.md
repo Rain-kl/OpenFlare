@@ -10,6 +10,9 @@ sidebar: false
 
 ## [Unreleased]
 
+### ⚡ 优化
+- 优化 openflare-agent Docker 镜像体积：基础镜像切换为 `openresty/openresty:alpine-slim`，使用 BuildKit 原生 `--chown`/`--chmod` 消除 GeoIP MMDB 冗余层并在构建中清理 Perl 依赖，镜像总体积从 ~500MB+ 缩减至约 150MB。
+
 ## [v3.5.5] - 2026-09-19
 
 ### 🛠 修复
