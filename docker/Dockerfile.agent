@@ -28,9 +28,12 @@ RUN apk add --no-cache bash curl \
 
 FROM openresty/openresty:alpine
 
-RUN apk add --no-cache ca-certificates tzdata perl libmaxminddb su-exec libcap \
+RUN apk add --no-cache ca-certificates tzdata libmaxminddb su-exec libcap \
     && ln -sf /usr/lib/libmaxminddb.so.0 /usr/lib/libmaxminddb.so \
+    && apk add --no-cache --virtual .build-deps perl curl \
     && opm get anjia0532/lua-resty-maxminddb \
+    && apk del .build-deps \
+    && rm -rf /root/.opm \
     && addgroup -S openflare \
     && adduser -S -G openflare -H -h /data -s /sbin/nologin openflare \
     && mkdir -p /etc/openflare /data/etc/openflare \
@@ -42,13 +45,10 @@ ENV OPENFLARE_OPENRESTY_PATH=openresty \
 
 COPY --from=builder /build/bin/openflare-agent /usr/local/bin/openflare-agent
 # Default agent paths: data_dir/etc/openflare/GeoLite2-*.mmdb
-COPY --from=builder /build/dist/geoip/GeoLite2-Country.mmdb /data/etc/openflare/GeoLite2-Country.mmdb
-COPY --from=builder /build/dist/geoip/GeoLite2-City.mmdb /data/etc/openflare/GeoLite2-City.mmdb
-RUN chown openflare:openflare /data/etc/openflare/GeoLite2-Country.mmdb /data/etc/openflare/GeoLite2-City.mmdb \
-    && chmod 644 /data/etc/openflare/GeoLite2-Country.mmdb /data/etc/openflare/GeoLite2-City.mmdb
+COPY --chown=openflare:openflare --chmod=644 --from=builder /build/dist/geoip/GeoLite2-Country.mmdb /data/etc/openflare/GeoLite2-Country.mmdb
+COPY --chown=openflare:openflare --chmod=644 --from=builder /build/dist/geoip/GeoLite2-City.mmdb /data/etc/openflare/GeoLite2-City.mmdb
 
-COPY scripts/agent-entrypoint.sh /usr/local/bin/openflare-agent-entrypoint.sh
-RUN chmod +x /usr/local/bin/openflare-agent-entrypoint.sh
+COPY --chmod=755 scripts/agent-entrypoint.sh /usr/local/bin/openflare-agent-entrypoint.sh
 
 EXPOSE 80 443 18081
 ENTRYPOINT ["/usr/local/bin/openflare-agent-entrypoint.sh"]
