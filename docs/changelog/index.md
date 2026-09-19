@@ -10,14 +10,14 @@ sidebar: false
 
 ## [Unreleased]
 
-### ⚡ 优化
-- 优化 openflare-agent Docker 镜像体积：基础镜像切换为 `openresty/openresty:alpine-slim`，使用 BuildKit 原生 `--chown`/`--chmod` 消除 GeoIP MMDB 冗余层并在构建中清理 Perl 依赖，镜像总体积从 ~500MB+ 缩减至约 150MB。
-
 ## [v3.5.5] - 2026-09-19
 
 ### 🛠 修复
 - 修复 Cloudflare 指向分组引用的节点已被删除时，分组列表/详情接口整体返回「Cloudflare 资源不存在」的问题；现会跳过缺失节点并继续返回其余分组。
 - 修复静态导出部署下访问 Cloudflare 指向分组详情（`/cloudflare/groups/{id}`，id 不为 1）会跳回首页并触发 React hydration 报错的问题。
+
+### ⚡️ 优化与改进
+- 优化 openflare-agent Docker 镜像体积：精简运行时依赖并消除离线 IP 库冗余层，镜像总体积从 500MB+ 缩减至约 150MB。
 
 ## [v3.5.4] - 2026-08-29
 
