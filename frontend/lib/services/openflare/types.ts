@@ -1369,6 +1369,9 @@ export interface CloudflareNodeOption {
 export interface CloudflareGroup {
   id: number;
   name: string;
+  target_mode: 'node' | 'custom';
+  record_type: 'CNAME' | 'A' | 'AAAA';
+  record_content: string;
   primary_node: CloudflareNodeOption;
   backup_node: CloudflareNodeOption | null;
   active_node: CloudflareNodeOption;
@@ -1381,6 +1384,9 @@ export interface CloudflareGroup {
 
 export interface CloudflareGroupPayload {
   name: string;
+  target_mode: 'node' | 'custom';
+  record_type: 'CNAME' | 'A' | 'AAAA';
+  record_content: string;
   primary_node_id: number;
   backup_node_id: number | null;
   default_proxied: boolean;

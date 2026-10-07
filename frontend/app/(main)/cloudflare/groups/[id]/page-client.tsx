@@ -5,6 +5,7 @@ import {
   ArrowLeft,
   ArrowRightLeft,
   Cloud,
+  CloudCog,
   Loader2,
   Plus,
   RefreshCw,
@@ -239,6 +240,16 @@ export function CloudflareGroupDetailPageClient() {
     },
     onError: (error) => toast.error(getErrorMessage(error)),
   });
+  const batchEnableProxyMutation = useMutation({
+    mutationFn: (memberIds: number[]) =>
+      CloudflareService.batchEnableProxy(groupID, memberIds),
+    onSuccess: async (_, memberIds) => {
+      toast.success(t('batchProxyEnabled', { count: memberIds.length }));
+      setSelectedMemberIDs(new Set());
+      await invalidate();
+    },
+    onError: (error) => toast.error(getErrorMessage(error)),
+  });
 
   const handleSingleMove = (member: CloudflareMember) => {
     setMovingMembers([member]);
@@ -324,23 +335,39 @@ export function CloudflareGroupDetailPageClient() {
         <CardHeader>
           <CardTitle className='text-base'>{t('currentPoint')}</CardTitle>
           <CardDescription>
-            {t('activeNode', {
-              name: group.active_node.name,
-              ip: group.active_node.ip,
-            })}
+            {group.target_mode === 'custom'
+              ? t('customTargetSummary', {
+                  type: group.record_type,
+                  content: group.record_content,
+                })
+              : t('activeNode', {
+                  name: group.active_node.name,
+                  ip: group.active_node.ip,
+                })}
           </CardDescription>
         </CardHeader>
         <CardContent className='flex flex-wrap gap-2'>
           <Badge variant={group.enabled ? 'default' : 'secondary'}>
             {group.enabled ? t('syncEnabled') : t('syncDisabled')}
           </Badge>
+          {group.target_mode === 'node' ? (
+            <>
+              <Badge variant='outline'>
+                {t('primaryNode', { name: group.primary_node.name })}
+              </Badge>
+              <Badge variant='outline'>
+                {t('backupNode', {
+                  name: group.backup_node?.name ?? t('backupUnset'),
+                })}
+              </Badge>
+            </>
+          ) : null}
           <Badge variant='outline'>
-            {t('primaryNode', { name: group.primary_node.name })}
-          </Badge>
-          <Badge variant='outline'>
-            {t('backupNode', {
-              name: group.backup_node?.name ?? t('backupUnset'),
-            })}
+            {t(
+              group.target_mode === 'custom'
+                ? 'customTargetMode'
+                : 'nodeTargetMode',
+            )}
           </Badge>
         </CardContent>
       </Card>
@@ -356,6 +383,19 @@ export function CloudflareGroupDetailPageClient() {
               <Badge variant='secondary' className='text-xs'>
                 {t('selectedCount', { count: selectedMembers.length })}
               </Badge>
+              <Button
+                variant='outline'
+                size='sm'
+                onClick={() =>
+                  batchEnableProxyMutation.mutate(
+                    selectedMembers.map((member) => member.id),
+                  )
+                }
+                disabled={batchEnableProxyMutation.isPending}
+              >
+                <CloudCog data-icon='inline-start' />
+                {t('batchEnableProxy')}
+              </Button>
               <Button
                 variant='outline'
                 size='sm'
@@ -485,27 +525,30 @@ export function CloudflareGroupDetailPageClient() {
                       <div className='flex justify-end gap-2'>
                         <Button
                           variant='outline'
-                          size='sm'
+                          size='icon'
+                          title={t('move')}
+                          aria-label={t('move')}
                           onClick={() => handleSingleMove(member)}
                         >
-                          <ArrowRightLeft data-icon='inline-start' />
-                          {t('move')}
+                          <ArrowRightLeft />
                         </Button>
                         <Button
                           variant='outline'
-                          size='sm'
+                          size='icon'
+                          title={t('sync')}
+                          aria-label={t('sync')}
                           onClick={() => syncMutation.mutate(member.id)}
                         >
-                          <RefreshCw data-icon='inline-start' />
-                          {t('sync')}
+                          <RefreshCw />
                         </Button>
                         <Button
                           variant='destructive'
-                          size='sm'
+                          size='icon'
+                          title={t('remove')}
+                          aria-label={t('remove')}
                           onClick={() => removeMutation.mutate(member.id)}
                         >
-                          <Trash2 data-icon='inline-start' />
-                          {t('remove')}
+                          <Trash2 />
                         </Button>
                       </div>
                     </TableCell>

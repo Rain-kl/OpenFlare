@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net"
+	"regexp"
 	"strings"
 	"time"
 
@@ -219,28 +220,108 @@ func groupFromInput(ctx context.Context, existing *model.CFPointingGroup, input 
 	if name == "" {
 		return nil, errors.New(errGroupNameRequired)
 	}
-	if input.BackupNodeID != nil && *input.BackupNodeID == input.PrimaryNodeID {
-		return nil, errors.New(errGroupNodeSame)
+	targetMode := strings.TrimSpace(input.TargetMode)
+	if targetMode == "" {
+		targetMode = model.CFPointingTargetModeNode
 	}
-	primary, err := validEdgeNode(ctx, input.PrimaryNodeID, true)
-	if err != nil {
-		return nil, err
+	if targetMode != model.CFPointingTargetModeNode && targetMode != model.CFPointingTargetModeCustom {
+		return nil, errors.New(errGroupTargetModeInvalid)
 	}
-	if input.BackupNodeID != nil {
-		if _, err = validEdgeNode(ctx, *input.BackupNodeID, false); err != nil {
+	primaryNodeID := uint(0)
+	var backupNodeID *uint
+	recordType := strings.ToUpper(strings.TrimSpace(input.RecordType))
+	if recordType == "" {
+		recordType = "A"
+	}
+	recordContent := strings.TrimSpace(input.RecordContent)
+	if targetMode == model.CFPointingTargetModeCustom && !validCustomRecordType(recordType) {
+		return nil, errors.New(errRecordTypeInvalid)
+	}
+	if targetMode == model.CFPointingTargetModeCustom && !validCustomRecordContent(recordType, recordContent) {
+		return nil, errors.New(errRecordContentInvalid)
+	}
+	if targetMode == model.CFPointingTargetModeNode {
+		resolvedPrimary, resolvedBackup, err := resolveGroupNodes(ctx, input)
+		if err != nil {
 			return nil, err
 		}
+		primaryNodeID = resolvedPrimary
+		backupNodeID = resolvedBackup
+	}
+	activeNodeID := primaryNodeID
+	if existing != nil && targetMode == model.CFPointingTargetModeNode && existing.TargetMode == targetMode && existing.PrimaryNodeID == primaryNodeID && equalOptionalUint(existing.BackupNodeID, backupNodeID) {
+		activeNodeID = existing.ActiveNodeID
 	}
 	if existing == nil {
 		existing = &model.CFPointingGroup{}
 	}
 	existing.Name = name
-	existing.PrimaryNodeID = primary.ID
-	existing.ActiveNodeID = primary.ID
-	existing.BackupNodeID = input.BackupNodeID
+	existing.TargetMode = targetMode
+	existing.RecordType = recordType
+	existing.RecordContent = recordContent
+	existing.PrimaryNodeID = primaryNodeID
+	existing.ActiveNodeID = activeNodeID
+	existing.BackupNodeID = backupNodeID
 	existing.DefaultProxied = input.DefaultProxied
 	existing.Enabled = input.Enabled
 	return existing, nil
+}
+
+func equalOptionalUint(left, right *uint) bool {
+	if left == nil || right == nil {
+		return left == right
+	}
+	return *left == *right
+}
+
+func resolveGroupNodes(ctx context.Context, input GroupInput) (uint, *uint, error) {
+	if input.BackupNodeID != nil && *input.BackupNodeID == input.PrimaryNodeID {
+		return 0, nil, errors.New(errGroupNodeSame)
+	}
+	primary, err := validEdgeNode(ctx, input.PrimaryNodeID, true)
+	if err != nil {
+		return 0, nil, err
+	}
+	if input.BackupNodeID != nil {
+		if _, err = validEdgeNode(ctx, *input.BackupNodeID, false); err != nil {
+			return 0, nil, err
+		}
+	}
+	return primary.ID, input.BackupNodeID, nil
+}
+
+func validCustomRecordType(recordType string) bool {
+	return recordType == "CNAME" || recordType == "A" || recordType == "AAAA"
+}
+
+func validCustomRecordContent(recordType, content string) bool {
+	switch recordType {
+	case "A":
+		return isIPv4(content)
+	case "AAAA":
+		return isIPv6(content)
+	case "CNAME":
+		return validCNAMEContent(content)
+	default:
+		return false
+	}
+}
+
+var cnameHostPattern = regexp.MustCompile(`^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)(?:\.(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?))*$`)
+
+func isIPv4(content string) bool {
+	ip := net.ParseIP(content)
+	return ip != nil && ip.To4() != nil
+}
+
+func isIPv6(content string) bool {
+	ip := net.ParseIP(content)
+	return ip != nil && ip.To4() == nil
+}
+
+func validCNAMEContent(content string) bool {
+	host := strings.TrimSuffix(strings.ToLower(strings.TrimSpace(content)), ".")
+	return len(host) > 0 && len(host) <= 253 && net.ParseIP(host) == nil && cnameHostPattern.MatchString(host)
 }
 
 func validEdgeNode(ctx context.Context, id uint, requireIPv4 bool) (*model.OpenFlareNode, error) {
@@ -254,20 +335,90 @@ func validEdgeNode(ctx context.Context, id uint, requireIPv4 bool) (*model.OpenF
 	return node, nil
 }
 
-func buildGroupItem(ctx context.Context, group *model.CFPointingGroup) (*GroupItem, error) {
-	primary, err := lookupGroupNode(ctx, group.ID, group.PrimaryNodeID)
+// CheckNodeFailover switches enabled node groups to healthy backup nodes and fails back after primary recovery.
+func CheckNodeFailover(ctx context.Context) (int, error) {
+	groups, err := repository.ListCFPointingGroups(ctx)
 	if err != nil {
-		return nil, err
+		return 0, err
 	}
-	active, err := lookupGroupNode(ctx, group.ID, group.ActiveNodeID)
-	if err != nil {
-		return nil, err
+	now := time.Now()
+	changed := 0
+	var dispatchErrors []error
+	for i := range groups {
+		group := &groups[i]
+		if !group.Enabled || group.TargetMode == model.CFPointingTargetModeCustom || group.BackupNodeID == nil {
+			continue
+		}
+		primary, primaryErr := repository.GetOpenFlareNodeByID(ctx, group.PrimaryNodeID)
+		if primaryErr != nil && !errors.Is(primaryErr, gorm.ErrRecordNotFound) {
+			return changed, primaryErr
+		}
+		primaryHealthy := primaryErr == nil && isNodeHealthyForFailover(primary, now)
+		targetNodeID := group.ActiveNodeID
+		if primaryHealthy {
+			targetNodeID = group.PrimaryNodeID
+		} else {
+			backup, backupErr := repository.GetOpenFlareNodeByID(ctx, *group.BackupNodeID)
+			if backupErr != nil && !errors.Is(backupErr, gorm.ErrRecordNotFound) {
+				return changed, backupErr
+			}
+			if backupErr == nil && isNodeHealthyForFailover(backup, now) {
+				targetNodeID = *group.BackupNodeID
+			}
+		}
+		if targetNodeID != group.ActiveNodeID {
+			if err = repository.UpdateCFPointingGroupTarget(ctx, group.ID, map[string]any{"active_node_id": targetNodeID}); err != nil {
+				return changed, err
+			}
+			if err = repository.MarkCFPointingGroupMembersPending(ctx, group.ID); err != nil {
+				return changed, err
+			}
+			changed++
+		}
+		pending, pendingErr := repository.HasPendingCFPointingGroupMembers(ctx, group.ID)
+		if pendingErr != nil {
+			return changed, pendingErr
+		}
+		if pending {
+			if _, err = DispatchGroupSync(ctx, group.ID, "cloudflare_node_failover"); err != nil {
+				logger.WarnF(ctx, "[Cloudflare] dispatch failover sync failed: group_id=%d error=%v", group.ID, err)
+				dispatchErrors = append(dispatchErrors, err)
+			}
+		}
+	}
+	return changed, errors.Join(dispatchErrors...)
+}
+
+func isNodeHealthyForFailover(node *model.OpenFlareNode, now time.Time) bool {
+	if node == nil || node.Status == "offline" || node.OpenrestyStatus == "unhealthy" || strings.TrimSpace(node.LastError) != "" {
+		return false
+	}
+	return node.LastSeenAt != nil && now.Sub(*node.LastSeenAt) <= 60*time.Second
+}
+
+func buildGroupItem(ctx context.Context, group *model.CFPointingGroup) (*GroupItem, error) {
+	targetMode := group.TargetMode
+	if targetMode == "" {
+		targetMode = model.CFPointingTargetModeNode
+	}
+	primary := (*model.OpenFlareNode)(nil)
+	active := (*model.OpenFlareNode)(nil)
+	var err error
+	if targetMode == model.CFPointingTargetModeNode {
+		primary, err = lookupGroupNode(ctx, group.ID, group.PrimaryNodeID)
+		if err != nil {
+			return nil, err
+		}
+		active, err = lookupGroupNode(ctx, group.ID, group.ActiveNodeID)
+		if err != nil {
+			return nil, err
+		}
 	}
 	count, err := repository.CountCFPointingMembersByGroupID(ctx, group.ID)
 	if err != nil {
 		return nil, err
 	}
-	item := &GroupItem{ID: group.ID, Name: group.Name, PrimaryNode: nodeOptionForID(group.PrimaryNodeID, primary), ActiveNode: nodeOptionForID(group.ActiveNodeID, active), DefaultProxied: group.DefaultProxied, Enabled: group.Enabled, MemberCount: count, CreatedAt: group.CreatedAt, UpdatedAt: group.UpdatedAt}
+	item := &GroupItem{ID: group.ID, Name: group.Name, TargetMode: targetMode, RecordType: group.RecordType, RecordContent: group.RecordContent, PrimaryNode: nodeOptionForID(group.PrimaryNodeID, primary), ActiveNode: nodeOptionForID(group.ActiveNodeID, active), DefaultProxied: group.DefaultProxied, Enabled: group.Enabled, MemberCount: count, CreatedAt: group.CreatedAt, UpdatedAt: group.UpdatedAt}
 	if group.BackupNodeID != nil {
 		backup, backupErr := lookupGroupNode(ctx, group.ID, *group.BackupNodeID)
 		if backupErr != nil {
@@ -375,7 +526,7 @@ func UpdateMember(ctx context.Context, groupID, memberID uint, input MemberUpdat
 	return memberItem(member, domain), nil
 }
 
-// RemoveMember deletes the managed remote A record before removing local state.
+// RemoveMember deletes the managed remote DNS record before removing local state.
 func RemoveMember(ctx context.Context, groupID, memberID uint) error {
 	member, err := repository.GetCFPointingMember(ctx, groupID, memberID)
 	if err != nil {
@@ -457,7 +608,7 @@ func BatchMoveMembers(ctx context.Context, sourceGroupID uint, input MemberBatch
 	return nil
 }
 
-// BatchRemoveMembers deletes multiple members and their remote A records.
+// BatchRemoveMembers deletes multiple members and their remote DNS records.
 func BatchRemoveMembers(ctx context.Context, sourceGroupID uint, input MemberBatchRemoveInput) error {
 	if len(input.MemberIDs) == 0 {
 		return errors.New(errNoMembersSelected)
@@ -475,6 +626,46 @@ func BatchRemoveMembers(ctx context.Context, sourceGroupID uint, input MemberBat
 		}
 	}
 	return nil
+}
+
+// BatchEnableProxy enables orange-cloud proxy for selected members.
+func BatchEnableProxy(ctx context.Context, groupID uint, input MemberBatchProxyInput) error {
+	if len(input.MemberIDs) == 0 {
+		return errors.New(errNoMembersSelected)
+	}
+	group, err := repository.GetCFPointingGroup(ctx, groupID)
+	if err != nil {
+		return err
+	}
+	var firstErr error
+	for _, memberID := range uniqueIDs(input.MemberIDs) {
+		member, getErr := repository.GetCFPointingMember(ctx, groupID, memberID)
+		if getErr != nil {
+			if firstErr == nil {
+				firstErr = getErr
+			}
+			continue
+		}
+		member.Proxied = true
+		member.SyncStatus = model.CFMemberSyncPending
+		member.LastError = ""
+		if saveErr := repository.SaveCFPointingMember(ctx, member); saveErr != nil {
+			logger.ErrorF(ctx, "[Cloudflare] batch enable proxy save member failed: member_id=%d error=%v", memberID, saveErr)
+			if firstErr == nil {
+				firstErr = saveErr
+			}
+			continue
+		}
+		if group.Enabled {
+			if _, syncErr := DispatchMemberSync(ctx, member.ID, "cloudflare_member_batch_proxy"); syncErr != nil {
+				logger.WarnF(ctx, "[Cloudflare] dispatch batch enable proxy sync failed: member_id=%d error=%v", member.ID, syncErr)
+				if firstErr == nil {
+					firstErr = syncErr
+				}
+			}
+		}
+	}
+	return firstErr
 }
 
 func uniqueIDs(ids []uint) []uint {
@@ -495,7 +686,7 @@ func uniqueIDs(ids []uint) []uint {
 	return result
 }
 
-// DeleteGroup removes every managed remote A record and then local state.
+// DeleteGroup removes every managed remote DNS record and then local state.
 func DeleteGroup(ctx context.Context, groupID uint) error {
 	if _, err := repository.GetCFPointingGroup(ctx, groupID); err != nil {
 		return err

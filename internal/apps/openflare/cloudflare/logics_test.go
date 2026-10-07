@@ -5,12 +5,152 @@ package cloudflare
 
 import (
 	"context"
+	"errors"
 	"testing"
+	"time"
 
 	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"github.com/Rain-kl/Wavelet/internal/repository"
 )
+
+func TestCheckNodeFailoverContinuesAfterDispatchError(t *testing.T) {
+	ctx, memberID := setupCloudflareLogicDB(t)
+	member, err := repository.GetCFPointingMemberByID(ctx, memberID)
+	if err != nil {
+		t.Fatalf("GetCFPointingMemberByID() error = %v", err)
+	}
+	group, err := repository.GetCFPointingGroup(ctx, member.GroupID)
+	if err != nil {
+		t.Fatalf("GetCFPointingGroup() error = %v", err)
+	}
+
+	lastSeen := time.Now()
+	backup := model.OpenFlareNode{Name: "backup", NodeID: "node-backup", NodeType: "edge_node", IP: "203.0.113.11", Status: "online", OpenrestyStatus: "healthy", LastSeenAt: &lastSeen}
+	if err := db.DB(ctx).Create(&backup).Error; err != nil {
+		t.Fatalf("Create(backup) error = %v", err)
+	}
+	if err := db.DB(ctx).Model(group).Update("backup_node_id", backup.ID).Error; err != nil {
+		t.Fatalf("Update(group backup) error = %v", err)
+	}
+
+	zoneDomain := model.ZoneDomain{ZoneID: 1, Domain: "second.example.com"}
+	if err := db.DB(ctx).Create(&zoneDomain).Error; err != nil {
+		t.Fatalf("Create(zoneDomain) error = %v", err)
+	}
+	secondGroup := model.CFPointingGroup{Name: "secondary", PrimaryNodeID: group.PrimaryNodeID, BackupNodeID: &backup.ID, ActiveNodeID: group.PrimaryNodeID, Enabled: true}
+	if err := db.DB(ctx).Create(&secondGroup).Error; err != nil {
+		t.Fatalf("Create(secondGroup) error = %v", err)
+	}
+	secondMember := model.CFPointingMember{GroupID: secondGroup.ID, ZoneDomainID: zoneDomain.ID, SyncStatus: model.CFMemberSyncPending}
+	if err := db.DB(ctx).Create(&secondMember).Error; err != nil {
+		t.Fatalf("Create(secondMember) error = %v", err)
+	}
+
+	dispatchErr := errors.New("dispatch unavailable")
+	dispatchCalls := 0
+	restoreDispatch := SetDispatchTaskForTest(func(context.Context, string, []byte, string) (string, error) {
+		dispatchCalls++
+		if dispatchCalls == 1 {
+			return "", dispatchErr
+		}
+		return "task-id", nil
+	})
+	t.Cleanup(restoreDispatch)
+
+	changed, err := CheckNodeFailover(ctx)
+	if !errors.Is(err, dispatchErr) {
+		t.Fatalf("CheckNodeFailover() error = %v, want dispatch error", err)
+	}
+	if changed != 2 {
+		t.Errorf("CheckNodeFailover() changed = %d, want 2", changed)
+	}
+	if dispatchCalls != 2 {
+		t.Errorf("CheckNodeFailover() dispatch calls = %d, want 2", dispatchCalls)
+	}
+	for _, groupID := range []uint{group.ID, secondGroup.ID} {
+		updated, err := repository.GetCFPointingGroup(ctx, groupID)
+		if err != nil {
+			t.Fatalf("GetCFPointingGroup(%d) error = %v", groupID, err)
+		}
+		if updated.ActiveNodeID != backup.ID {
+			t.Errorf("group %d active node = %d, want %d", groupID, updated.ActiveNodeID, backup.ID)
+		}
+	}
+}
+
+func TestBatchEnableProxyContinuesAfterDispatchError(t *testing.T) {
+	ctx, firstMemberID := setupCloudflareLogicDB(t)
+	firstMember, err := repository.GetCFPointingMemberByID(ctx, firstMemberID)
+	if err != nil {
+		t.Fatalf("GetCFPointingMemberByID() error = %v", err)
+	}
+	zoneDomain := model.ZoneDomain{ZoneID: 1, Domain: "second.example.com"}
+	if err := db.DB(ctx).Create(&zoneDomain).Error; err != nil {
+		t.Fatalf("Create(zoneDomain) error = %v", err)
+	}
+	secondMember := model.CFPointingMember{GroupID: firstMember.GroupID, ZoneDomainID: zoneDomain.ID}
+	if err := db.DB(ctx).Create(&secondMember).Error; err != nil {
+		t.Fatalf("Create(secondMember) error = %v", err)
+	}
+
+	dispatchErr := errors.New("dispatch unavailable")
+	dispatchCalls := 0
+	restoreDispatch := SetDispatchTaskForTest(func(context.Context, string, []byte, string) (string, error) {
+		dispatchCalls++
+		if dispatchCalls == 1 {
+			return "", dispatchErr
+		}
+		return "task-id", nil
+	})
+	t.Cleanup(restoreDispatch)
+
+	err = BatchEnableProxy(ctx, firstMember.GroupID, MemberBatchProxyInput{MemberIDs: []uint{firstMember.ID, secondMember.ID}})
+	if !errors.Is(err, dispatchErr) {
+		t.Fatalf("BatchEnableProxy() error = %v, want dispatch error", err)
+	}
+	if dispatchCalls != 2 {
+		t.Errorf("BatchEnableProxy() dispatch calls = %d, want 2", dispatchCalls)
+	}
+	for _, memberID := range []uint{firstMember.ID, secondMember.ID} {
+		updated, err := repository.GetCFPointingMemberByID(ctx, memberID)
+		if err != nil {
+			t.Fatalf("GetCFPointingMemberByID(%d) error = %v", memberID, err)
+		}
+		if !updated.Proxied {
+			t.Errorf("member %d proxied = false, want true", memberID)
+		}
+	}
+}
+
+func TestBatchEnableProxyContinuesAfterMemberLookupError(t *testing.T) {
+	ctx, memberID := setupCloudflareLogicDB(t)
+	member, err := repository.GetCFPointingMemberByID(ctx, memberID)
+	if err != nil {
+		t.Fatalf("GetCFPointingMemberByID() error = %v", err)
+	}
+	dispatchCalls := 0
+	restoreDispatch := SetDispatchTaskForTest(func(context.Context, string, []byte, string) (string, error) {
+		dispatchCalls++
+		return "task-id", nil
+	})
+	t.Cleanup(restoreDispatch)
+
+	err = BatchEnableProxy(ctx, member.GroupID, MemberBatchProxyInput{MemberIDs: []uint{99999, member.ID}})
+	if err == nil {
+		t.Fatal("BatchEnableProxy() error = nil, want member lookup error")
+	}
+	if dispatchCalls != 1 {
+		t.Errorf("BatchEnableProxy() dispatch calls = %d, want 1", dispatchCalls)
+	}
+	updated, err := repository.GetCFPointingMemberByID(ctx, member.ID)
+	if err != nil {
+		t.Fatalf("GetCFPointingMemberByID() error = %v", err)
+	}
+	if !updated.Proxied {
+		t.Errorf("member %d proxied = false, want true", member.ID)
+	}
+}
 
 func TestMoveMemberAndBatchOperations(t *testing.T) {
 	ctx, member1ID := setupCloudflareLogicDB(t)

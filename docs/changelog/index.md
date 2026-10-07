@@ -14,6 +14,9 @@ sidebar: false
 - OpenResty 默认压缩 CSS、JavaScript、JSON、XML、RSS、Atom 和 SVG 等文本响应，并发送 `Vary: Accept-Encoding`；普通代理请求默认先缓冲请求体再转发，升级时旧值 `false` 会改为 `true`，流式上传场景可手动关闭。
 
 ### ✨ 新功能
+
+- Cloudflare 节点分组会根据节点在线和应用状态自动切换到备用节点，并在主节点恢复后自动切回；分组详情支持批量开启橙云，成员操作按钮改为仅显示图标。
+- Cloudflare 指向分组新增自定义目标模式，可按分组将域名同步为 CNAME、A 或 AAAA 记录；原有节点绑定模式保持默认。
 - 代理路由详情支持单独关闭 HTTP/2，默认仍启用；关闭后该路由生成的 HTTPS 配置不再启用 HTTP/2。
 
 ### 🛠 修复

@@ -24,6 +24,11 @@ const (
 	CFMemberSyncOK = "ok"
 	// CFMemberSyncError indicates the latest reconciliation failed.
 	CFMemberSyncError = "error"
+
+	// CFPointingTargetModeNode binds group members to a managed edge node.
+	CFPointingTargetModeNode = "node"
+	// CFPointingTargetModeCustom binds group members to a custom DNS target.
+	CFPointingTargetModeCustom = "custom"
 )
 
 // CFConnection stores the single Cloudflare API credential source.
@@ -45,6 +50,9 @@ func (CFConnection) TableName() string { return "of_cf_connections" }
 type CFPointingGroup struct {
 	ID             uint      `json:"id" gorm:"primaryKey;autoIncrement"`
 	Name           string    `json:"name" gorm:"size:128;not null"`
+	TargetMode     string    `json:"target_mode" gorm:"size:16;not null;default:'node'"`
+	RecordType     string    `json:"record_type" gorm:"size:8;not null;default:'A'"`
+	RecordContent  string    `json:"record_content" gorm:"size:255;not null;default:''"`
 	PrimaryNodeID  uint      `json:"primary_node_id" gorm:"not null;index:idx_of_cf_pointing_groups_primary_node_id"`
 	BackupNodeID   *uint     `json:"backup_node_id" gorm:"index:idx_of_cf_pointing_groups_backup_node_id"`
 	ActiveNodeID   uint      `json:"active_node_id" gorm:"not null;index:idx_of_cf_pointing_groups_active_node_id"`

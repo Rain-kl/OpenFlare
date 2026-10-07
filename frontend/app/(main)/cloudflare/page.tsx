@@ -182,7 +182,12 @@ export default function CloudflarePage() {
                     <div>
                       <CardTitle className='text-base'>{group.name}</CardTitle>
                       <CardDescription>
-                        {group.active_node.name} · {group.active_node.ip}
+                        {group.target_mode === 'custom'
+                          ? t('customTargetSummary', {
+                              type: group.record_type,
+                              content: group.record_content,
+                            })
+                          : `${group.active_node.name} · ${group.active_node.ip}`}
                       </CardDescription>
                     </div>
                     <Badge variant={group.enabled ? 'default' : 'secondary'}>

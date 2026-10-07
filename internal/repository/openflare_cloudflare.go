@@ -64,6 +64,11 @@ func ListCFPointingGroups(ctx context.Context) ([]model.CFPointingGroup, error) 
 	return items, nil
 }
 
+// UpdateCFPointingGroupTarget updates the active node or custom-record target.
+func UpdateCFPointingGroupTarget(ctx context.Context, groupID uint, changes map[string]any) error {
+	return db.DB(ctx).Model(&model.CFPointingGroup{}).Where("id = ?", groupID).Updates(changes).Error
+}
+
 // GetCFPointingGroup returns a group by ID.
 func GetCFPointingGroup(ctx context.Context, id uint) (*model.CFPointingGroup, error) {
 	var item model.CFPointingGroup
@@ -192,9 +197,12 @@ func GetCFPointingMemberContext(ctx context.Context, memberID uint) (*CFPointing
 	if err != nil {
 		return nil, err
 	}
-	node, err := GetOpenFlareNodeByID(ctx, group.ActiveNodeID)
-	if err != nil {
-		return nil, err
+	node := &model.OpenFlareNode{}
+	if group.TargetMode != model.CFPointingTargetModeCustom {
+		node, err = GetOpenFlareNodeByID(ctx, group.ActiveNodeID)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return &CFPointingMemberContext{Member: *member, Group: *group, Domain: *domain, Zone: *zone, Node: *node}, nil
 }
@@ -212,6 +220,15 @@ func GetZoneDomainByID(ctx context.Context, id uint) (*model.ZoneDomain, error) 
 func MarkCFPointingGroupMembersPending(ctx context.Context, groupID uint) error {
 	return db.DB(ctx).Model(&model.CFPointingMember{}).Where("group_id = ?", groupID).
 		Updates(map[string]any{"sync_status": model.CFMemberSyncPending, "last_error": ""}).Error
+}
+
+// HasPendingCFPointingGroupMembers reports whether a group has members awaiting reconciliation.
+func HasPendingCFPointingGroupMembers(ctx context.Context, groupID uint) (bool, error) {
+	var count int64
+	err := db.DB(ctx).Model(&model.CFPointingMember{}).
+		Where("group_id = ? AND sync_status = ?", groupID, model.CFMemberSyncPending).
+		Count(&count).Error
+	return count > 0, err
 }
 
 // DeleteCFPointingGroupAndMembers removes a group after its remote records are deleted.

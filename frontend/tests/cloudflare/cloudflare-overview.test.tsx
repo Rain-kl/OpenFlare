@@ -109,6 +109,9 @@ describe('Cloudflare overview', () => {
       {
         id: 7,
         name: '生产节点',
+        target_mode: 'node',
+        record_type: 'A',
+        record_content: '',
         primary_node: { id: 1, name: '主节点', ip: '192.0.2.1' },
         backup_node: null,
         active_node: { id: 1, name: '主节点', ip: '192.0.2.1' },
