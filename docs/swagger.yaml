@@ -330,6 +330,12 @@ definitions:
         type: string
       primary_node_id:
         type: integer
+      record_content:
+        type: string
+      record_type:
+        type: string
+      target_mode:
+        type: string
     type: object
   cloudflare.GroupItem:
     properties:
@@ -351,6 +357,12 @@ definitions:
         type: string
       primary_node:
         $ref: '#/definitions/cloudflare.NodeOption'
+      record_content:
+        type: string
+      record_type:
+        type: string
+      target_mode:
+        type: string
       updated_at:
         type: string
     type: object
@@ -362,6 +374,13 @@ definitions:
         type: array
       target_group_id:
         type: integer
+    type: object
+  cloudflare.MemberBatchProxyInput:
+    properties:
+      member_ids:
+        items:
+          type: integer
+        type: array
     type: object
   cloudflare.MemberBatchRemoveInput:
     properties:
@@ -8333,6 +8352,42 @@ paths:
       security:
       - SessionCookie: []
       summary: 批量移动 Cloudflare 指向成员
+      tags:
+      - openflare-cloudflare
+  /api/v1/d/cloudflare/groups/{id}/members/batch-proxy:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 分组 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 批量开启橙云参数
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/cloudflare.MemberBatchProxyInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Any'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Any'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 批量开启 Cloudflare 橙云
       tags:
       - openflare-cloudflare
   /api/v1/d/cloudflare/groups/{id}/members/batch-remove:

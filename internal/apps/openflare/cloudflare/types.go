@@ -32,6 +32,9 @@ type NodeOption struct {
 // GroupInput creates or updates a pointing group.
 type GroupInput struct {
 	Name           string `json:"name"`
+	TargetMode     string `json:"target_mode"`
+	RecordType     string `json:"record_type"`
+	RecordContent  string `json:"record_content"`
 	PrimaryNodeID  uint   `json:"primary_node_id"`
 	BackupNodeID   *uint  `json:"backup_node_id"`
 	DefaultProxied bool   `json:"default_proxied"`
@@ -42,6 +45,9 @@ type GroupInput struct {
 type GroupItem struct {
 	ID             uint        `json:"id"`
 	Name           string      `json:"name"`
+	TargetMode     string      `json:"target_mode"`
+	RecordType     string      `json:"record_type"`
+	RecordContent  string      `json:"record_content"`
 	PrimaryNode    NodeOption  `json:"primary_node"`
 	BackupNode     *NodeOption `json:"backup_node"`
 	ActiveNode     NodeOption  `json:"active_node"`
@@ -76,6 +82,11 @@ type MemberBatchMoveInput struct {
 
 // MemberBatchRemoveInput contains the member IDs for batch deletion.
 type MemberBatchRemoveInput struct {
+	MemberIDs []uint `json:"member_ids"`
+}
+
+// MemberBatchProxyInput contains the members to enable orange-cloud proxy for.
+type MemberBatchProxyInput struct {
 	MemberIDs []uint `json:"member_ids"`
 }
 

@@ -133,4 +133,10 @@ export class CloudflareService extends OpenFlareBaseService {
       member_ids: memberIds,
     });
   }
+
+  static batchEnableProxy(groupId: number, memberIds: number[]): Promise<void> {
+    return this.post<void>(`/groups/${groupId}/members/batch-proxy`, {
+      member_ids: memberIds,
+    });
+  }
 }

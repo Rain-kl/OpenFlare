@@ -57,6 +57,9 @@ vi.mock('@/lib/services/openflare', async (importOriginal) => {
 const mockGroup = {
   id: 7,
   name: '生产节点',
+  target_mode: 'node' as const,
+  record_type: 'A' as const,
+  record_content: '',
   primary_node: { id: 1, name: '主节点', ip: '192.0.2.1' },
   backup_node: null,
   active_node: { id: 1, name: '主节点', ip: '192.0.2.1' },
@@ -70,6 +73,9 @@ const mockGroup = {
 const mockTargetGroup = {
   id: 8,
   name: '备用分组',
+  target_mode: 'node' as const,
+  record_type: 'A' as const,
+  record_content: '',
   primary_node: { id: 2, name: '备用节点', ip: '192.0.2.2' },
   backup_node: null,
   active_node: { id: 2, name: '备用节点', ip: '192.0.2.2' },

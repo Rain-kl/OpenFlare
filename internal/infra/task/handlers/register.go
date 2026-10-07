@@ -60,6 +60,8 @@ func Register() {
 	task.RegisterTaskMeta(cf.SyncGroupMeta)
 	task.RegisterHandler(cf.SyncByNodeTask, &cf.SyncByNodeTaskHandler{})
 	task.RegisterTaskMeta(cf.SyncByNodeMeta)
+	task.RegisterHandler(cf.FailoverCheckTask, &cf.FailoverCheckTaskHandler{})
+	task.RegisterTaskMeta(cf.FailoverCheckMeta)
 
 	// pages source actions are only dispatched by the Pages domain API/scanner.
 	task.RegisterHandler(pages.PagesSourceScanTask, &pages.SourceScanHandler{})

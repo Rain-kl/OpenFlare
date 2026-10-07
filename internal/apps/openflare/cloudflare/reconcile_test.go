@@ -31,16 +31,22 @@ func (client *fakeClient) FindZone(context.Context, string) (*Zone, error) {
 func (client *fakeClient) GetRecord(context.Context, string, string) (*DNSRecord, error) {
 	return nil, errors.New("not found")
 }
-func (client *fakeClient) ListARecords(context.Context, string, string) ([]DNSRecord, error) {
-	return client.records, nil
+func (client *fakeClient) ListRecords(_ context.Context, _, _ string, recordType string) ([]DNSRecord, error) {
+	items := make([]DNSRecord, 0, len(client.records))
+	for _, record := range client.records {
+		if record.Type == "" || record.Type == recordType {
+			items = append(items, record)
+		}
+	}
+	return items, nil
 }
-func (client *fakeClient) CreateARecord(_ context.Context, _ string, input RecordInput) (*DNSRecord, error) {
+func (client *fakeClient) CreateRecord(_ context.Context, _ string, input RecordInput) (*DNSRecord, error) {
 	client.created = &input
-	return &DNSRecord{ID: "record-created", Name: input.Name, Content: input.Content, Proxied: input.Proxied}, nil
+	return &DNSRecord{ID: "record-created", Type: input.Type, Name: input.Name, Content: input.Content, Proxied: input.Proxied}, nil
 }
-func (client *fakeClient) UpdateARecord(_ context.Context, _, id string, input RecordInput) (*DNSRecord, error) {
+func (client *fakeClient) UpdateRecord(_ context.Context, _, id string, input RecordInput) (*DNSRecord, error) {
 	client.updated = &input
-	return &DNSRecord{ID: id, Name: input.Name, Content: input.Content, Proxied: input.Proxied}, nil
+	return &DNSRecord{ID: id, Type: input.Type, Name: input.Name, Content: input.Content, Proxied: input.Proxied}, nil
 }
 func (client *fakeClient) DeleteRecord(_ context.Context, _, recordID string) error {
 	client.deleted = append(client.deleted, recordID)

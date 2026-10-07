@@ -59,9 +59,9 @@ type Client interface {
 	VerifyToken(context.Context) error
 	FindZone(context.Context, string) (*Zone, error)
 	GetRecord(context.Context, string, string) (*DNSRecord, error)
-	ListARecords(context.Context, string, string) ([]DNSRecord, error)
-	CreateARecord(context.Context, string, RecordInput) (*DNSRecord, error)
-	UpdateARecord(context.Context, string, string, RecordInput) (*DNSRecord, error)
+	ListRecords(context.Context, string, string, string) ([]DNSRecord, error)
+	CreateRecord(context.Context, string, RecordInput) (*DNSRecord, error)
+	UpdateRecord(context.Context, string, string, RecordInput) (*DNSRecord, error)
 	DeleteRecord(context.Context, string, string) error
 }
 
@@ -146,9 +146,9 @@ func (client *HTTPClient) GetRecord(ctx context.Context, zoneID, recordID string
 	return &record, nil
 }
 
-// ListARecords lists exact-name A records.
-func (client *HTTPClient) ListARecords(ctx context.Context, zoneID, name string) ([]DNSRecord, error) {
-	query := url.Values{"type": {"A"}, "name": {strings.TrimSpace(name)}, "per_page": {"100"}}
+// ListRecords lists exact-name DNS records of a type.
+func (client *HTTPClient) ListRecords(ctx context.Context, zoneID, name, recordType string) ([]DNSRecord, error) {
+	query := url.Values{"type": {strings.TrimSpace(recordType)}, "name": {strings.TrimSpace(name)}, "per_page": {"100"}}
 	var records []DNSRecord
 	path := "/zones/" + url.PathEscape(zoneID) + "/dns_records"
 	if err := client.do(ctx, http.MethodGet, path, query, nil, &records); err != nil {
@@ -157,8 +157,8 @@ func (client *HTTPClient) ListARecords(ctx context.Context, zoneID, name string)
 	return records, nil
 }
 
-// CreateARecord creates an A record.
-func (client *HTTPClient) CreateARecord(ctx context.Context, zoneID string, input RecordInput) (*DNSRecord, error) {
+// CreateRecord creates a DNS record.
+func (client *HTTPClient) CreateRecord(ctx context.Context, zoneID string, input RecordInput) (*DNSRecord, error) {
 	var record DNSRecord
 	path := "/zones/" + url.PathEscape(zoneID) + "/dns_records"
 	if err := client.do(ctx, http.MethodPost, path, nil, input, &record); err != nil {
@@ -167,14 +167,29 @@ func (client *HTTPClient) CreateARecord(ctx context.Context, zoneID string, inpu
 	return &record, nil
 }
 
-// UpdateARecord replaces an A record.
-func (client *HTTPClient) UpdateARecord(ctx context.Context, zoneID, recordID string, input RecordInput) (*DNSRecord, error) {
+// UpdateRecord replaces a DNS record.
+func (client *HTTPClient) UpdateRecord(ctx context.Context, zoneID, recordID string, input RecordInput) (*DNSRecord, error) {
 	var record DNSRecord
 	path := "/zones/" + url.PathEscape(zoneID) + "/dns_records/" + url.PathEscape(recordID)
 	if err := client.do(ctx, http.MethodPut, path, nil, input, &record); err != nil {
 		return nil, err
 	}
 	return &record, nil
+}
+
+// ListARecords lists exact-name A records.
+func (client *HTTPClient) ListARecords(ctx context.Context, zoneID, name string) ([]DNSRecord, error) {
+	return client.ListRecords(ctx, zoneID, name, "A")
+}
+
+// CreateARecord creates an A record.
+func (client *HTTPClient) CreateARecord(ctx context.Context, zoneID string, input RecordInput) (*DNSRecord, error) {
+	return client.CreateRecord(ctx, zoneID, input)
+}
+
+// UpdateARecord replaces an A record.
+func (client *HTTPClient) UpdateARecord(ctx context.Context, zoneID, recordID string, input RecordInput) (*DNSRecord, error) {
+	return client.UpdateRecord(ctx, zoneID, recordID, input)
 }
 
 // DeleteRecord deletes a DNS record.

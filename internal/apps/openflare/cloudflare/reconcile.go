@@ -23,9 +23,11 @@ const (
 	memberSyncStatusColumn = "sync_status"
 )
 
+var errCachedRecordUnavailable = errors.New("cached Cloudflare record unavailable")
+
 var memberLocks [memberLockStripeCount]sync.Mutex
 
-// ReconcileMember makes one Cloudflare A record match the local desired state.
+// ReconcileMember makes one Cloudflare DNS record match the local desired state.
 func ReconcileMember(ctx context.Context, memberID uint) error {
 	lock := &memberLocks[memberID%memberLockStripeCount]
 	lock.Lock()
@@ -51,9 +53,9 @@ func reconcileMember(ctx context.Context, memberID uint) error {
 	if !state.Group.Enabled {
 		return errors.New(errGroupDisabled)
 	}
-	ip := strings.TrimSpace(state.Node.IP)
-	if net.ParseIP(ip).To4() == nil {
-		return errors.New(errNodeIPv4Required)
+	input, err := desiredRecordInput(state)
+	if err != nil {
+		return err
 	}
 	connection, err := repository.GetCFConnection(ctx)
 	if err != nil || connection.Status != model.CFConnectionStatusReady {
@@ -72,37 +74,79 @@ func reconcileMember(ctx context.Context, memberID uint) error {
 		}
 		zoneID = zone.ID
 	}
-	input := RecordInput{Type: "A", Name: state.Domain.Domain, Content: ip, Proxied: state.Member.Proxied, TTL: 300}
+	input.Name = state.Domain.Domain
+	input.Proxied = state.Member.Proxied
+	input.TTL = 300
 	if input.Proxied {
 		input.TTL = 1
 	}
 	recordID := state.Member.CFRecordID
 	if recordID != "" {
-		if _, getErr := client.GetRecord(ctx, zoneID, recordID); getErr == nil {
-			record, updateErr := client.UpdateARecord(ctx, zoneID, recordID, input)
-			if updateErr != nil {
-				return updateErr
-			}
-			return markMemberSynced(ctx, memberID, zoneID, record.ID, ip)
+		completed, cachedErr := reconcileCachedRecord(ctx, client, memberID, zoneID, recordID, input)
+		if errors.Is(cachedErr, errCachedRecordUnavailable) {
+			cachedErr = nil
+		}
+		if cachedErr != nil {
+			return cachedErr
+		}
+		if completed {
+			return nil
 		}
 	}
-	records, err := client.ListARecords(ctx, zoneID, state.Domain.Domain)
+	records, err := client.ListRecords(ctx, zoneID, state.Domain.Domain, input.Type)
 	if err != nil {
 		return err
 	}
 	var record *DNSRecord
 	switch len(records) {
 	case 0:
-		record, err = client.CreateARecord(ctx, zoneID, input)
+		record, err = client.CreateRecord(ctx, zoneID, input)
 	case 1:
-		record, err = client.UpdateARecord(ctx, zoneID, records[0].ID, input)
+		record, err = client.UpdateRecord(ctx, zoneID, records[0].ID, input)
 	default:
-		return errors.New(errMultipleARecords)
+		return errors.New(errMultipleDNSRecords)
 	}
 	if err != nil {
 		return err
 	}
-	return markMemberSynced(ctx, memberID, zoneID, record.ID, ip)
+	return markMemberSynced(ctx, memberID, zoneID, record.ID, input.Content)
+}
+
+func reconcileCachedRecord(
+	ctx context.Context,
+	client Client,
+	memberID uint,
+	zoneID, recordID string,
+	input RecordInput,
+) (bool, error) {
+	current, err := client.GetRecord(ctx, zoneID, recordID)
+	if err != nil {
+		return false, errors.Join(errCachedRecordUnavailable, err)
+	}
+	if current.Type != input.Type {
+		return false, client.DeleteRecord(ctx, zoneID, recordID)
+	}
+	record, err := client.UpdateRecord(ctx, zoneID, recordID, input)
+	if err != nil {
+		return false, err
+	}
+	return true, markMemberSynced(ctx, memberID, zoneID, record.ID, input.Content)
+}
+
+func desiredRecordInput(state *repository.CFPointingMemberContext) (RecordInput, error) {
+	if state.Group.TargetMode == model.CFPointingTargetModeCustom {
+		recordType := strings.ToUpper(strings.TrimSpace(state.Group.RecordType))
+		content := strings.TrimSpace(state.Group.RecordContent)
+		if !validCustomRecordType(recordType) || !validCustomRecordContent(recordType, content) {
+			return RecordInput{}, errors.New(errRecordContentInvalid)
+		}
+		return RecordInput{Type: recordType, Content: content}, nil
+	}
+	ip := strings.TrimSpace(state.Node.IP)
+	if net.ParseIP(ip).To4() == nil {
+		return RecordInput{}, errors.New(errNodeIPv4Required)
+	}
+	return RecordInput{Type: "A", Content: ip}, nil
 }
 
 func markMemberSynced(ctx context.Context, memberID uint, zoneID, recordID, ip string) error {
@@ -113,7 +157,7 @@ func markMemberSynced(ctx context.Context, memberID uint, zoneID, recordID, ip s
 	})
 }
 
-// DeleteManagedRecord deletes the cached or uniquely discoverable A record.
+// DeleteManagedRecord deletes the cached or uniquely discoverable managed record.
 func DeleteManagedRecord(ctx context.Context, memberID uint) error {
 	state, err := repository.GetCFPointingMemberContext(ctx, memberID)
 	if err != nil {
@@ -144,7 +188,14 @@ func DeleteManagedRecord(ctx context.Context, memberID uint) error {
 			return nil
 		}
 	}
-	records, err := client.ListARecords(ctx, zoneID, state.Domain.Domain)
+	recordType := "A"
+	if state.Group.TargetMode == model.CFPointingTargetModeCustom {
+		recordType = state.Group.RecordType
+		if recordType == "" {
+			recordType = "A"
+		}
+	}
+	records, err := client.ListRecords(ctx, zoneID, state.Domain.Domain, recordType)
 	if err != nil {
 		return err
 	}
@@ -152,7 +203,7 @@ func DeleteManagedRecord(ctx context.Context, memberID uint) error {
 		return nil
 	}
 	if len(records) > 1 {
-		return errors.New(errMultipleARecords)
+		return errors.New(errMultipleDNSRecords)
 	}
 	return client.DeleteRecord(ctx, zoneID, records[0].ID)
 }

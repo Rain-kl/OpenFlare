@@ -198,7 +198,7 @@ func UpdateGroupHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, response.OK(item))
 }
 
-// DeleteGroupHandler deletes a pointing group and its managed remote A records.
+// DeleteGroupHandler deletes a pointing group and its managed remote DNS records.
 // @Summary 删除 Cloudflare 指向分组
 // @Tags openflare-cloudflare
 // @Produce json
@@ -316,7 +316,7 @@ func UpdateMemberHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, response.OK(item))
 }
 
-// RemoveMemberHandler removes a member and its managed remote A record.
+// RemoveMemberHandler removes a member and its managed remote DNS record.
 // @Summary 移出 Cloudflare 指向成员
 // @Tags openflare-cloudflare
 // @Produce json
@@ -435,6 +435,33 @@ func BatchRemoveMembersHandler(c *gin.Context) {
 		return
 	}
 	if abortLogic(c, BatchRemoveMembers(c.Request.Context(), id, input)) {
+		return
+	}
+	c.JSON(http.StatusOK, response.OKNil())
+}
+
+// BatchEnableProxyHandler enables orange-cloud proxy for multiple members.
+// @Summary 批量开启 Cloudflare 橙云
+// @Tags openflare-cloudflare
+// @Accept json
+// @Produce json
+// @Security SessionCookie
+// @Param id path int true "分组 ID"
+// @Param body body cloudflare.MemberBatchProxyInput true "批量开启橙云参数"
+// @Success 200 {object} response.Any
+// @Failure 400 {object} response.Any
+// @Failure 404 {object} response.Any
+// @Router /api/v1/d/cloudflare/groups/{id}/members/batch-proxy [post]
+func BatchEnableProxyHandler(c *gin.Context) {
+	id, ok := apiutil.IDParam(c)
+	if !ok {
+		return
+	}
+	var input MemberBatchProxyInput
+	if !apiutil.BindJSON(c, &input) {
+		return
+	}
+	if abortLogic(c, BatchEnableProxy(c.Request.Context(), id, input)) {
 		return
 	}
 	c.JSON(http.StatusOK, response.OKNil())

@@ -33,4 +33,5 @@ func registerCloudflareRoutes(apiGroup *gin.RouterGroup) {
 	route.POST("/groups/:id/members/:memberId/sync", cf.SyncMemberHandler)
 	route.POST("/groups/:id/members/batch-move", cf.BatchMoveMembersHandler)
 	route.POST("/groups/:id/members/batch-remove", cf.BatchRemoveMembersHandler)
+	route.POST("/groups/:id/members/batch-proxy", cf.BatchEnableProxyHandler)
 }
