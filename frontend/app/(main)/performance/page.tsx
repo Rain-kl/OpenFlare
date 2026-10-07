@@ -345,6 +345,13 @@ export default function PerformancePage() {
               updateField('openresty_proxy_buffering_enabled', v)
             }
           />
+          <ToggleRow
+            label={t('proxyRequestBuffering')}
+            checked={fields.openresty_proxy_request_buffering_enabled}
+            onChange={(v) =>
+              updateField('openresty_proxy_request_buffering_enabled', v)
+            }
+          />
           <FieldInput
             label='proxy_buffers'
             value={fields.openresty_proxy_buffers}
@@ -499,7 +506,7 @@ function ToggleRow({
   return (
     <div className='flex items-center justify-between rounded-lg border border-dashed px-3 py-2'>
       <Label className='text-xs'>{label}</Label>
-      <Switch checked={checked} onCheckedChange={onChange} />
+      <Switch checked={checked} onCheckedChange={onChange} aria-label={label} />
     </div>
   );
 }

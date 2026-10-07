@@ -56,7 +56,7 @@ export const defaultPerformanceFields: PerformanceFields = {
   openresty_proxy_read_timeout: '60',
   openresty_websocket_enabled: true,
   openresty_http3_enabled: true,
-  openresty_proxy_request_buffering_enabled: false,
+  openresty_proxy_request_buffering_enabled: true,
   openresty_proxy_buffering_enabled: true,
   openresty_proxy_buffers: '16 16k',
   openresty_proxy_buffer_size: '8k',
@@ -133,7 +133,7 @@ export function mapOptionsToFields(
     ),
     openresty_proxy_request_buffering_enabled: toBoolean(
       optionMap.openresty_proxy_request_buffering_enabled,
-      false,
+      true,
     ),
     openresty_proxy_buffering_enabled: toBoolean(
       optionMap.openresty_proxy_buffering_enabled,
