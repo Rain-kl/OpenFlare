@@ -343,6 +343,7 @@ func CheckNodeFailover(ctx context.Context) (int, error) {
 	}
 	now := time.Now()
 	changed := 0
+	var dispatchErrors []error
 	for i := range groups {
 		group := &groups[i]
 		if !group.Enabled || group.TargetMode == model.CFPointingTargetModeCustom || group.BackupNodeID == nil {
@@ -381,11 +382,11 @@ func CheckNodeFailover(ctx context.Context) (int, error) {
 		if pending {
 			if _, err = DispatchGroupSync(ctx, group.ID, "cloudflare_node_failover"); err != nil {
 				logger.WarnF(ctx, "[Cloudflare] dispatch failover sync failed: group_id=%d error=%v", group.ID, err)
-				return changed, err
+				dispatchErrors = append(dispatchErrors, err)
 			}
 		}
 	}
-	return changed, nil
+	return changed, errors.Join(dispatchErrors...)
 }
 
 func isNodeHealthyForFailover(node *model.OpenFlareNode, now time.Time) bool {
@@ -636,9 +637,13 @@ func BatchEnableProxy(ctx context.Context, groupID uint, input MemberBatchProxyI
 	if err != nil {
 		return err
 	}
+	var firstErr error
 	for _, memberID := range uniqueIDs(input.MemberIDs) {
 		member, getErr := repository.GetCFPointingMember(ctx, groupID, memberID)
 		if getErr != nil {
+			if firstErr == nil {
+				firstErr = getErr
+			}
 			continue
 		}
 		member.Proxied = true
@@ -646,15 +651,21 @@ func BatchEnableProxy(ctx context.Context, groupID uint, input MemberBatchProxyI
 		member.LastError = ""
 		if saveErr := repository.SaveCFPointingMember(ctx, member); saveErr != nil {
 			logger.ErrorF(ctx, "[Cloudflare] batch enable proxy save member failed: member_id=%d error=%v", memberID, saveErr)
+			if firstErr == nil {
+				firstErr = saveErr
+			}
 			continue
 		}
 		if group.Enabled {
 			if _, syncErr := DispatchMemberSync(ctx, member.ID, "cloudflare_member_batch_proxy"); syncErr != nil {
 				logger.WarnF(ctx, "[Cloudflare] dispatch batch enable proxy sync failed: member_id=%d error=%v", member.ID, syncErr)
+				if firstErr == nil {
+					firstErr = syncErr
+				}
 			}
 		}
 	}
-	return nil
+	return firstErr
 }
 
 func uniqueIDs(ids []uint) []uint {
