@@ -10,6 +10,10 @@ sidebar: false
 
 ## [Unreleased]
 
+### 🛠 修复
+
+- 默认信任 Cloudflare 官方 IPv4/IPv6 网段，并允许管理员追加或覆盖可信代理 CIDR；显式 `[]` 可关闭信任。客户端地址恢复后统一用于访问日志、WAF、`X-Real-IP` 和 `X-Forwarded-For` 追加项，旧版自定义 OpenResty 主模板也会自动补入相关指令。
+
 ## [v3.5.7] - 2026-10-07
 
 ### ✨ 新功能

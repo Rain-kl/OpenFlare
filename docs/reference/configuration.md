@@ -259,6 +259,9 @@ Server 的所有核心基础配置定义在 `config.yaml` 中，且均支持环�
 | `openresty_default_limit_rate` | `string` | 站点未配置时的默认单请求带宽（如 `512k`）；空表示默认关闭 | 空 |
 | `openresty_default_limit_req_per_ip` | `string` | 站点未配置时的默认单 IP 请求频率限制（如 `10r/s`、`100r/m`）；空表示默认关闭 | 空 |
 | `openresty_main_config_template` | `string` | 允许用户完全重写整个 OpenResty nginx.conf 的底层结构大骨架模板 | 空 (内置缺省骨架) |
+| `openresty_trusted_proxy_cidrs` | `string` (JSON 数组) | 可读取 `CF-Connecting-IP` 的可信代理 IPv4/IPv6 CIDR 列表；默认包含 Cloudflare 官方 22 个 IPv4/IPv6 网段；显式 `[]` 会关闭自动生成的可信代理配置 | Cloudflare 官方网段 |
+
+在管理端「系统管理 → 系统配置 → 业务配置」中编辑 `openresty_trusted_proxy_cidrs`。默认值为 Cloudflare 官方完整 22 个 IPv4/IPv6 网段，可从 [Cloudflare IPv4 网段](https://www.cloudflare.com/ips-v4) 和 [IPv6 网段](https://www.cloudflare.com/ips-v6) 核对并按官方更新维护。若要信任额外内网代理，应将其 CIDR 追加到现有数组；例如 `10.2.0.227` 只有在确认它是可信代理、且它发送的 `CF-Connecting-IP` 真实可靠后，才追加 `10.2.0.227/32`。该地址不属于默认信任范围。显式设置为 `[]` 会关闭由此配置生成的转发头信任；已有显式空值不会在升级时自动改为默认。自定义主模板中手工写入的 Real-IP 指令仍按模板生效。源站请求必须带有真实的 `CF-Connecting-IP`。保存后需重新生成并发布节点配置版本。Nginx Real-IP 会按 `CF-Connecting-IP` 更新 `$remote_addr`，访问日志、WAF 和上游 `X-Real-IP` 使用这个单一客户端地址；`X-Forwarded-For` 保留原代理链并追加恢复后的客户端地址。旧版自定义主模板即使没有新占位符，也会在 `http {}` 中自动插入 Real-IP 指令；若模板已有 `real_ip_header`，该模板控制使用的头，设置仅追加可信来源 CIDR。数据库中缺少该配置项时使用 Cloudflare 默认网段；非法 JSON 或读取配置失败时按空列表关闭信任。
 
 ### 7. 源站错误页 (Origin Error Page)
 

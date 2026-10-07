@@ -6,6 +6,7 @@ package option
 import (
 	"encoding/json"
 	"fmt"
+	"net/netip"
 	"regexp"
 	"strconv"
 	"strings"
@@ -17,6 +18,7 @@ import (
 const (
 	maxOriginErrorPageHTMLBytes = 256 << 10 // 256 KiB
 	maxSWOfflineDomains         = 1000
+	maxTrustedProxyCIDRs        = 256
 )
 
 var openRestyOptionValidators = map[string]func(key, value string) error{
@@ -57,6 +59,7 @@ var openRestyOptionValidators = map[string]func(key, value string) error{
 	model.ConfigKeyOpenRestyCacheKeyTemplate:             validateOpenRestyCacheKeyTemplate,
 	model.ConfigKeyOpenRestyCacheUseStale:                validateOpenRestyCacheUseStale,
 	model.ConfigKeyOpenRestyMainConfigTemplate:           validateOpenRestyMainConfigTemplate,
+	model.ConfigKeyOpenRestyTrustedProxyCIDRs:            validateOpenRestyTrustedProxyCIDRs,
 	model.ConfigKeyOpenRestyDefaultLimitConnPerServer:    validateNonNegativeIntegerOption,
 	model.ConfigKeyOpenRestyDefaultLimitConnPerIP:        validateNonNegativeIntegerOption,
 	model.ConfigKeyOpenRestyDefaultLimitRate:             validateOpenRestyDefaultLimitRate,
@@ -200,6 +203,23 @@ func validateOpenRestyCacheUseStale(key, trimmed string) error {
 func validateOpenRestyMainConfigTemplate(key, value string) error {
 	if strings.TrimSpace(value) == "" {
 		return fmt.Errorf("%s 不能为空", key)
+	}
+	return nil
+}
+
+func validateOpenRestyTrustedProxyCIDRs(key, value string) error {
+	var cidrs []string
+	if err := json.Unmarshal([]byte(value), &cidrs); err != nil || cidrs == nil {
+		return fmt.Errorf("%s 必须为 JSON 字符串数组", key)
+	}
+	if len(cidrs) > maxTrustedProxyCIDRs {
+		return fmt.Errorf("%s 最多允许 %d 个网段", key, maxTrustedProxyCIDRs)
+	}
+	for _, cidr := range cidrs {
+		prefix, err := netip.ParsePrefix(strings.TrimSpace(cidr))
+		if err != nil || prefix != prefix.Masked() {
+			return fmt.Errorf("%s 包含无效网段 %q", key, cidr)
+		}
 	}
 	return nil
 }

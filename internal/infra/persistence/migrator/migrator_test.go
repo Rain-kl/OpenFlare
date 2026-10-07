@@ -5,7 +5,9 @@ package migrator
 
 import (
 	"context"
+	"encoding/json"
 	"io/fs"
+	"slices"
 	"strings"
 	"testing"
 
@@ -13,6 +15,7 @@ import (
 	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"github.com/Rain-kl/Wavelet/internal/repository"
+	openrestyrender "github.com/Rain-kl/Wavelet/pkg/render/openresty"
 	"github.com/alicebob/miniredis/v2"
 	"github.com/glebarez/sqlite"
 	"github.com/redis/go-redis/v9"
@@ -24,7 +27,38 @@ import (
 // （初始系统配置 + 各期配置迁移/新增 seed：of_options 迁移、文件白名单、磁盘缓存、
 // 登录会话 TTL、升级源、存储、FRPS Web UI、Pages、OpenResty 限流、单 IP 限频、
 // 错误页、SW 离线、日志保留期、指标保留期等）；新增配置 seed 迁移时需同步更新本常量。
-const expectedMigratedSystemConfigCount = 96
+const expectedMigratedSystemConfigCount = 97
+
+func TestTrustedProxyCIDRMigrationDefaultsMatchRenderer(t *testing.T) {
+	want := openrestyrender.DefaultTrustedProxyCIDRs()
+	if len(want) != 22 {
+		t.Fatalf("renderer default contains %d proxy ranges, want 22", len(want))
+	}
+	for _, migrationPath := range []string{
+		"goose/postgres/202610070005_add_openresty_trusted_proxy_cidrs.sql",
+		"goose/sqlite/202610070005_add_openresty_trusted_proxy_cidrs.sql",
+	} {
+		migration, err := fs.ReadFile(migrationFS, migrationPath)
+		if err != nil {
+			t.Fatal(err)
+		}
+		seed, ok := strings.CutPrefix(string(migration), "-- +goose Up\nINSERT INTO w_system_configs (key, value, type, visibility, description, created_at, updated_at)\nVALUES ('openresty_trusted_proxy_cidrs', '")
+		if !ok {
+			t.Fatalf("%s does not contain the expected CIDR seed", migrationPath)
+		}
+		seed, _, ok = strings.Cut(seed, "', 'business'")
+		if !ok {
+			t.Fatalf("%s CIDR seed value is malformed", migrationPath)
+		}
+		var got []string
+		if err := json.Unmarshal([]byte(seed), &got); err != nil {
+			t.Fatalf("decode %s CIDR seed: %v", migrationPath, err)
+		}
+		if !slices.Equal(got, want) {
+			t.Errorf("%s CIDR seed differs from renderer default", migrationPath)
+		}
+	}
+}
 
 func TestGooseMigrationVersionsAreUniquePerDialect(t *testing.T) {
 	for _, dir := range []string{"goose/postgres", "goose/sqlite"} {
@@ -87,6 +121,17 @@ func TestMigrateInitializesSQLiteDatabase(t *testing.T) {
 	}
 	if systemConfigCount != expectedMigratedSystemConfigCount {
 		t.Errorf("Migrate() w_system_configs count = %d, want %d", systemConfigCount, expectedMigratedSystemConfigCount)
+	}
+	var trustedProxyConfig model.SystemConfig
+	if err := sqliteDB.Where("key = ?", model.ConfigKeyOpenRestyTrustedProxyCIDRs).First(&trustedProxyConfig).Error; err != nil {
+		t.Fatalf("Migrate() trusted proxy CIDR config error = %v", err)
+	}
+	var trustedProxyCIDRs []string
+	if err := json.Unmarshal([]byte(trustedProxyConfig.Value), &trustedProxyCIDRs); err != nil {
+		t.Fatalf("decode trusted proxy CIDR config: %v", err)
+	}
+	if !slices.Equal(trustedProxyCIDRs, openrestyrender.DefaultTrustedProxyCIDRs()) {
+		t.Errorf("Migrate() trusted proxy CIDRs = %#v, want default Cloudflare ranges", trustedProxyCIDRs)
 	}
 
 	var logMigrationConfig model.SystemConfig

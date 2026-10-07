@@ -13,6 +13,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"net/netip"
 	"net/url"
 	"path"
 	"regexp"
@@ -170,7 +171,18 @@ func DedupeSupportFiles(files []SupportFile) []SupportFile {
 }
 
 func renderMainConfigTemplate(templateText string, cfg ConfigSnapshot, limitReqRates []string) string {
+	trustedProxyCIDRs := cfg.TrustedProxyCIDRs
+	if trustedProxyCIDRs == nil {
+		trustedProxyCIDRs = DefaultTrustedProxyCIDRs()
+	}
+	trustedProxyDirectives := renderTrustedProxyDirectives(trustedProxyCIDRs, !hasNginxDirective(templateText, "real_ip_header"))
+	if !strings.Contains(templateText, RealIPDirectivesPlaceholder) && trustedProxyDirectives != "" {
+		// This required token expands to a complete map block in the http context.
+		// Injecting before it avoids depending on formatting or splitting directives.
+		templateText = strings.Replace(templateText, "{{OpenRestyConnectionUpgradeMap}}", trustedProxyDirectives+"{{OpenRestyConnectionUpgradeMap}}", 1)
+	}
 	replacer := strings.NewReplacer(
+		RealIPDirectivesPlaceholder, trustedProxyDirectives,
 		"{{OpenRestyWorkerProcesses}}", cfg.WorkerProcesses,
 		"{{OpenRestyWorkerConnections}}", strconv.Itoa(cfg.WorkerConnections),
 		"{{OpenRestyWorkerRlimitNofile}}", strconv.Itoa(cfg.WorkerRlimitNofile),
@@ -203,6 +215,37 @@ func renderMainConfigTemplate(templateText string, cfg ConfigSnapshot, limitReqR
 		"{{OpenRestyRouteConfigInclude}}", RouteConfigPlaceholder,
 	)
 	return replacer.Replace(templateText)
+}
+
+func hasNginxDirective(templateText string, directive string) bool {
+	for _, line := range strings.Split(templateText, "\n") {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "#") {
+			continue
+		}
+		if fields := strings.Fields(line); len(fields) > 0 && fields[0] == directive {
+			return true
+		}
+	}
+	return false
+}
+
+func renderTrustedProxyDirectives(cidrs []string, includeHeader bool) string {
+	if len(cidrs) == 0 {
+		return ""
+	}
+	var builder strings.Builder
+	if includeHeader {
+		builder.WriteString("    real_ip_header CF-Connecting-IP;\n    real_ip_recursive on;\n")
+	}
+	for _, cidr := range cidrs {
+		prefix, err := netip.ParsePrefix(strings.TrimSpace(cidr))
+		if err != nil {
+			continue
+		}
+		fmt.Fprintf(&builder, "    set_real_ip_from %s;\n", prefix.Masked())
+	}
+	return builder.String()
 }
 
 func renderTemplateDirective(enabled bool, statement string) string {

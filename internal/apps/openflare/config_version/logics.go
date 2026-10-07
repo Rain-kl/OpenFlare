@@ -531,6 +531,7 @@ func diffOpenRestyOptionDetails(left openRestyConfigSnapshot, right openRestyCon
 	appendIfChanged("OpenRestyCacheLockEnabled", strconv.FormatBool(left.CacheLockEnabled), strconv.FormatBool(right.CacheLockEnabled))
 	appendIfChanged("OpenRestyCacheLockTimeout", left.CacheLockTimeout, right.CacheLockTimeout)
 	appendIfChanged("OpenRestyCacheUseStale", left.CacheUseStale, right.CacheUseStale)
+	appendIfChanged("OpenRestyTrustedProxyCIDRs", strings.Join(effectiveTrustedProxyCIDRs(left.TrustedProxyCIDRs), ","), strings.Join(effectiveTrustedProxyCIDRs(right.TrustedProxyCIDRs), ","))
 	appendIfChanged("OpenRestyDefaultLimitConnPerServer", strconv.Itoa(left.DefaultLimitConnPerServer), strconv.Itoa(right.DefaultLimitConnPerServer))
 	appendIfChanged("OpenRestyDefaultLimitConnPerIP", strconv.Itoa(left.DefaultLimitConnPerIP), strconv.Itoa(right.DefaultLimitConnPerIP))
 	appendIfChanged("OpenRestyDefaultLimitRate", left.DefaultLimitRate, right.DefaultLimitRate)
@@ -612,6 +613,7 @@ func openRestyOptionKeys() []string {
 		"OpenRestyCacheLockEnabled",
 		"OpenRestyCacheLockTimeout",
 		"OpenRestyCacheUseStale",
+		"OpenRestyTrustedProxyCIDRs",
 		"OpenRestyDefaultLimitConnPerServer",
 		"OpenRestyDefaultLimitConnPerIP",
 		"OpenRestyDefaultLimitRate",
@@ -624,4 +626,11 @@ func openRestyOptionKeys() []string {
 		"SWOfflineHTML",
 		"SWOfflineDomains",
 	}
+}
+
+func effectiveTrustedProxyCIDRs(cidrs []string) []string {
+	if cidrs == nil {
+		return openrestyrender.DefaultTrustedProxyCIDRs()
+	}
+	return cidrs
 }
