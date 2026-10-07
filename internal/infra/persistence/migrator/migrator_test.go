@@ -5,6 +5,7 @@ package migrator
 
 import (
 	"context"
+	"io/fs"
 	"strings"
 	"testing"
 
@@ -24,6 +25,30 @@ import (
 // 登录会话 TTL、升级源、存储、FRPS Web UI、Pages、OpenResty 限流、单 IP 限频、
 // 错误页、SW 离线、日志保留期、指标保留期等）；新增配置 seed 迁移时需同步更新本常量。
 const expectedMigratedSystemConfigCount = 95
+
+func TestGooseMigrationVersionsAreUniquePerDialect(t *testing.T) {
+	for _, dir := range []string{"goose/postgres", "goose/sqlite"} {
+		files, err := fs.Glob(migrationFS, dir+"/*.sql")
+		if err != nil {
+			t.Fatalf("glob %s migrations: %v", dir, err)
+		}
+
+		versions := make(map[string]string, len(files))
+		for _, file := range files {
+			name := strings.TrimPrefix(file, dir+"/")
+			version, _, ok := strings.Cut(name, "_")
+			if !ok {
+				t.Errorf("migration %q does not include a version prefix", file)
+				continue
+			}
+			if previous, exists := versions[version]; exists {
+				t.Errorf("%s has duplicate migration version %s in %q and %q", dir, version, previous, name)
+				continue
+			}
+			versions[version] = name
+		}
+	}
+}
 
 func TestMigrateInitializesSQLiteDatabase(t *testing.T) {
 	sqliteDB, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{
