@@ -201,9 +201,8 @@ func UpdateUser(ctx context.Context, user *model.User) error {
 // CreateUserFromOAuth creates a user from OAuth profile data and fills userOut.
 func CreateUserFromOAuth(ctx context.Context, userOut *model.User, oauthInfo *model.OAuthUserInfo) error {
 	now := time.Now()
-	userID := oauthInfo.GetID()
 	newUser := model.User{
-		ID:          userID,
+		ID:          idgen.NextUint64ID(),
 		Username:    oauthInfo.Username,
 		Nickname:    oauthInfo.Name,
 		Email:       oauthInfo.Email,
@@ -211,9 +210,6 @@ func CreateUserFromOAuth(ctx context.Context, userOut *model.User, oauthInfo *mo
 		IsActive:    oauthInfo.Active,
 		LastLoginAt: now,
 		IsAdmin:     false,
-	}
-	if newUser.ID == 0 {
-		newUser.ID = idgen.NextUint64ID()
 	}
 	if err := db.DB(ctx).Create(&newUser).Error; err != nil {
 		return err

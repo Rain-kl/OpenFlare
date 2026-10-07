@@ -262,7 +262,7 @@ func oidcDiscoveryResponse() *http.Response {
 }
 
 type mockClaims struct {
-	ID       uint64 `json:"id"`
+	ID       any    `json:"id"`
 	Issuer   string `json:"iss"`
 	Subject  string `json:"sub"`
 	Audience string `json:"aud"`
@@ -280,7 +280,10 @@ func generateMockIDToken(issuer, sub, aud, nonce, username, email, name string) 
 	if err != nil {
 		panic(err)
 	}
-	id, _ := strconv.ParseUint(sub, 10, 64)
+	var id any = sub
+	if numericID, parseErr := strconv.ParseUint(sub, 10, 64); parseErr == nil {
+		id = numericID
+	}
 	claims := mockClaims{
 		ID:       id,
 		Issuer:   issuer,
@@ -719,7 +722,8 @@ func TestCallbackLoginAndUserInfo(t *testing.T) {
 	var state string
 
 	// 1. Mock the outgoing HTTP client for token exchange and user info fetching
-	httpMock := newMockOIDCClient(testIssuerURL, testClientID, &state, "88888", "test_oauth_user", "oauth@linux.do", "Oauth Test User")
+	const externalSubject = "a27dfc56-07ae-4c9d-9e5c-99103bd8805f"
+	httpMock := newMockOIDCClient(testIssuerURL, testClientID, &state, externalSubject, "test_oauth_user", "oauth@linux.do", "Oauth Test User")
 	router := setupTestRouter(dbConn, mockRedis, httpMock)
 
 	// Get Login URL first to initialize the session and generate the state
@@ -766,14 +770,24 @@ func TestCallbackLoginAndUserInfo(t *testing.T) {
 		t.Errorf("expected logged_in status, got %s", callbackResp.Data.Status)
 	}
 
-	if callbackResp.Data.User.Username != "test_oauth_user" || callbackResp.Data.User.ID != 88888 {
+	if callbackResp.Data.User == nil {
+		t.Fatal("Callback(Casdoor string ID) returned no user, want logged-in user")
+	}
+	if callbackResp.Data.User.Username != "test_oauth_user" || callbackResp.Data.User.ID == 0 {
 		t.Errorf("unexpected user returned: %+v", callbackResp.Data.User)
 	}
 
 	// Verify user is created in database
 	var user model.User
-	if err := dbConn.First(&user, "id = ?", 88888).Error; err != nil {
+	if err := dbConn.First(&user, "id = ?", callbackResp.Data.User.ID).Error; err != nil {
 		t.Fatalf("user was not created in DB: %v", err)
+	}
+	account, err := repository.FindExternalAccount(context.Background(), 100, externalSubject)
+	if err != nil {
+		t.Fatalf("FindExternalAccount(%q) error = %v, want nil", externalSubject, err)
+	}
+	if account.UserID != user.ID {
+		t.Errorf("FindExternalAccount(%q).UserID = %d, want %d", externalSubject, account.UserID, user.ID)
 	}
 
 	// Extract session cookie
@@ -795,8 +809,40 @@ func TestCallbackLoginAndUserInfo(t *testing.T) {
 		t.Fatalf("failed to fetch user info, status %d", w2.Code)
 	}
 
+	// The same external subject must reuse its binding on subsequent logins.
+	wRepeatLogin := performRequest(router, http.MethodGet, "/api/v1/oauth/login?source="+testSourceName, nil, nil, []*http.Cookie{sessionCookie})
+	if wRepeatLogin.Code != http.StatusOK {
+		t.Fatalf("GetLoginURL(existing user) status = %d, want 200", wRepeatLogin.Code)
+	}
+	if err := json.Unmarshal(wRepeatLogin.Body.Bytes(), &loginUrlResp); err != nil {
+		t.Fatal(err)
+	}
+	parsedURL, err = url.Parse(loginUrlResp.Data.AuthorizeURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	state = parsedURL.Query().Get("state")
+	wRepeat := performRequest(router, http.MethodPost, "/api/v1/oauth/callback", []byte(fmt.Sprintf(`{"state":"%s","code":"repeat_auth_code"}`, state)), map[string]string{
+		"Content-Type": "application/json",
+	}, wRepeatLogin.Result().Cookies())
+	if wRepeat.Code != http.StatusOK {
+		t.Fatalf("Callback(existing Casdoor user) status = %d, want 200; body: %s", wRepeat.Code, wRepeat.Body.String())
+	}
+	var repeatResp struct {
+		Data OAuthCallbackResult `json:"data"`
+	}
+	if err := json.Unmarshal(wRepeat.Body.Bytes(), &repeatResp); err != nil {
+		t.Fatal(err)
+	}
+	if repeatResp.Data.User == nil || repeatResp.Data.User.ID != user.ID {
+		t.Errorf("Callback(existing Casdoor user) user = %+v, want ID %d", repeatResp.Data.User, user.ID)
+	}
+
 	// 5. Test Callback (Login flow - existing user, username collision check)
 	var state2 string
+	if err := dbConn.Create(&model.User{ID: 99999, Username: "local_user", IsActive: true}).Error; err != nil {
+		t.Fatalf("failed to create local user with overlapping external ID: %v", err)
+	}
 	// Callback with same username but different external ID (99999)
 	httpMock2 := newMockOIDCClient(testIssuerURL, testClientID, &state2, "99999", "test_oauth_user", "another@linux.do", "Another User")
 
@@ -833,6 +879,9 @@ func TestCallbackLoginAndUserInfo(t *testing.T) {
 		Data OAuthCallbackResult `json:"data"`
 	}
 	_ = json.Unmarshal(w3.Body.Bytes(), &collisionResp)
+	if collisionResp.Data.User == nil || collisionResp.Data.User.ID == 0 || collisionResp.Data.User.ID == 99999 {
+		t.Fatalf("Callback(numeric provider ID) user = %+v, want independent local ID", collisionResp.Data.User)
+	}
 
 	if collisionResp.Data.User.Username != "test_oauth_user-1" {
 		t.Errorf("expected collision renamed username, got %s", collisionResp.Data.User.Username)
