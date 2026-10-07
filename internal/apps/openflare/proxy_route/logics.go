@@ -35,6 +35,7 @@ type Input struct {
 	Upstreams            []string            `json:"upstreams"`
 	Enabled              bool                `json:"enabled"`
 	EnableHTTPS          bool                `json:"enable_https"`
+	EnableHTTP2          *bool               `json:"enable_http2"`
 	RedirectHTTP         bool                `json:"redirect_http"`
 	LimitConnPerServer   int                 `json:"limit_conn_per_server"`
 	LimitConnPerIP       int                 `json:"limit_conn_per_ip"`
@@ -68,6 +69,7 @@ type View struct {
 	UpstreamList         []string            `json:"upstream_list"`
 	Enabled              bool                `json:"enabled"`
 	EnableHTTPS          bool                `json:"enable_https"`
+	EnableHTTP2          bool                `json:"enable_http2"`
 	RedirectHTTP         bool                `json:"redirect_http"`
 	LimitConnPerServer   int                 `json:"limit_conn_per_server"`
 	LimitConnPerIP       int                 `json:"limit_conn_per_ip"`
@@ -310,6 +312,7 @@ func buildProxyRoute(ctx context.Context, route *model.ProxyRoute, input Input) 
 	if route == nil {
 		route = &model.ProxyRoute{}
 	}
+	applyProxyRouteHTTP2(route, input)
 	populateProxyRouteFields(
 		route,
 		input,
@@ -381,6 +384,7 @@ func buildProxyRouteView(ctx context.Context, route *model.ProxyRoute) (*View, e
 		UpstreamList:         upstreams,
 		Enabled:              route.Enabled,
 		EnableHTTPS:          route.EnableHTTPS,
+		EnableHTTP2:          route.EnableHTTP2,
 		RedirectHTTP:         route.RedirectHTTP,
 		LimitConnPerServer:   route.LimitConnPerServer,
 		LimitConnPerIP:       route.LimitConnPerIP,

@@ -18,6 +18,7 @@ type ProxyRoute struct {
 	Upstreams            string       `json:"upstreams" gorm:"type:text;not null;default:'[]'"`
 	Enabled              bool         `json:"enabled" gorm:"not null;default:true"`
 	EnableHTTPS          bool         `json:"enable_https" gorm:"column:enable_https;not null;default:false"`
+	EnableHTTP2          bool         `json:"enable_http2" gorm:"not null;default:true"`
 	RedirectHTTP         bool         `json:"redirect_http" gorm:"not null;default:false"`
 	LimitConnPerServer   int          `json:"limit_conn_per_server" gorm:"not null;default:0"`
 	LimitConnPerIP       int          `json:"limit_conn_per_ip" gorm:"not null;default:0"`

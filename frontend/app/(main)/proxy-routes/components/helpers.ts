@@ -380,6 +380,7 @@ export function buildPayloadFromRoute(
     upstreams: (route.upstream_list ?? []).slice(1),
     enabled: route.enabled,
     enable_https: route.enable_https,
+    enable_http2: route.enable_http2,
     redirect_http: route.redirect_http,
     limit_conn_per_server: route.limit_conn_per_server,
     limit_conn_per_ip: route.limit_conn_per_ip,

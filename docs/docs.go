@@ -19426,6 +19426,9 @@ const docTemplate = `{
                         "$ref": "#/definitions/proxy_route.CustomHeaderInput"
                     }
                 },
+                "enable_http2": {
+                    "type": "boolean"
+                },
                 "enable_https": {
                     "type": "boolean"
                 },
@@ -19541,6 +19544,9 @@ const docTemplate = `{
                 },
                 "custom_headers": {
                     "type": "string"
+                },
+                "enable_http2": {
+                    "type": "boolean"
                 },
                 "enable_https": {
                     "type": "boolean"

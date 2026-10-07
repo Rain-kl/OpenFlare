@@ -444,6 +444,7 @@ func snapshotPagesDeploymentEqual(left, right *openrestyrender.PagesDeployment) 
 
 func snapshotRoutePolicyEqual(left, right snapshotRoute) bool {
 	return left.EnableHTTPS == right.EnableHTTPS &&
+		left.EnableHTTP2 == right.EnableHTTP2 &&
 		left.RedirectHTTP == right.RedirectHTTP &&
 		left.LimitConnPerServer == right.LimitConnPerServer &&
 		left.LimitConnPerIP == right.LimitConnPerIP &&

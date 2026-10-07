@@ -113,6 +113,14 @@ func populateProxyRouteFields(
 	route.UpstreamType = upstreamType
 }
 
+func applyProxyRouteHTTP2(route *model.ProxyRoute, input Input) {
+	if input.EnableHTTP2 != nil {
+		route.EnableHTTP2 = *input.EnableHTTP2
+	} else if route.ID == 0 {
+		route.EnableHTTP2 = true
+	}
+}
+
 func applyProxyRouteUpstreamType(ctx context.Context, route *model.ProxyRoute, upstreamType string, input Input) error {
 	switch upstreamType {
 	case proxyRouteUpstreamTypeTunnel:

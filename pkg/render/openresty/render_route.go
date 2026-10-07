@@ -70,7 +70,7 @@ func renderPagesRouteHTTPS(
 	}
 	for _, certID := range certIDs {
 		if assignedDomains := partition.domainsByCertID[certID]; len(assignedDomains) > 0 {
-			builder.WriteString(renderHTTPSPagesServer(renderServerNames(assignedDomains), displayName, certID, route.PagesDeployment, limitConfig, powEnabled, route.BasicAuthEnabled, route.BasicAuthUsername, route.BasicAuthPassword, routeSWEnabled(assignedDomains, cfg), cfg))
+			builder.WriteString(renderHTTPSPagesServer(renderServerNames(assignedDomains), displayName, certID, route.PagesDeployment, limitConfig, powEnabled, route.EnableHTTP2, route.BasicAuthEnabled, route.BasicAuthUsername, route.BasicAuthPassword, routeSWEnabled(assignedDomains, cfg), cfg))
 		}
 	}
 }
@@ -101,7 +101,7 @@ func renderProxyRouteHTTPS(
 	}
 	for _, certID := range certIDs {
 		if assignedDomains := partition.domainsByCertID[certID]; len(assignedDomains) > 0 {
-			builder.WriteString(renderHTTPSServer(renderServerNames(assignedDomains), displayName, route.OriginURL, route.OriginHost, certID, route.CustomHeaders, cacheConfig, limitConfig, upstreamConfig, powEnabled, route.BasicAuthEnabled, route.BasicAuthUsername, route.BasicAuthPassword, routeSWEnabled(assignedDomains, cfg), cfg))
+			builder.WriteString(renderHTTPSServer(renderServerNames(assignedDomains), displayName, route.OriginURL, route.OriginHost, certID, route.CustomHeaders, cacheConfig, limitConfig, upstreamConfig, powEnabled, route.EnableHTTP2, route.BasicAuthEnabled, route.BasicAuthUsername, route.BasicAuthPassword, routeSWEnabled(assignedDomains, cfg), cfg))
 		}
 	}
 }

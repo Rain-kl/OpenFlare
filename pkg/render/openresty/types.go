@@ -165,6 +165,7 @@ type Route struct {
 	Upstreams          []string         `json:"upstreams,omitempty"`
 	Enabled            bool             `json:"enabled"`
 	EnableHTTPS        bool             `json:"enable_https"`
+	EnableHTTP2        bool             `json:"enable_http2"`
 	DomainCertIDs      []uint           `json:"domain_cert_ids,omitempty"`
 	RedirectHTTP       bool             `json:"redirect_http"`
 	LimitConnPerServer int              `json:"limit_conn_per_server,omitempty"`

@@ -380,6 +380,8 @@
     "redirectHttpNeedsCert": "At least one selected domain must have a bound certificate before this can be enabled.",
     "reverseProxy": "Reverse proxy",
     "reverseProxyDesc": "Configure the origin strategy and upstream addresses.",
+    "enableHttp2": "Enable HTTP/2",
+    "enableHttp2Desc": "Enabled by default. When disabled, HTTPS traffic will not use HTTP/2.",
     "proxySaved": "Reverse proxy settings saved",
     "originHostHint": "If left empty, the request hostname $host is passed through by default.",
     "customHeaders": "Custom request headers",

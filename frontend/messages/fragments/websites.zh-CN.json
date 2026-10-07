@@ -380,6 +380,8 @@
     "redirectHttpNeedsCert": "所选域名至少绑定一张证书后才能启用。",
     "reverseProxy": "反向代理",
     "reverseProxyDesc": "配置请求回源上游的策略与地址。",
+    "enableHttp2": "启用 HTTP/2",
+    "enableHttp2Desc": "默认开启。关闭后，HTTPS 访问将不再使用 HTTP/2。",
     "proxySaved": "反向代理设置已保存",
     "originHostHint": "留空时默认透传访问域名 $host。",
     "customHeaders": "自定义请求头",

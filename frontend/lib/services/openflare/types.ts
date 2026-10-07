@@ -234,6 +234,7 @@ export interface ProxyRouteItem {
   upstream_list: string[];
   enabled: boolean;
   enable_https: boolean;
+  enable_http2: boolean;
   redirect_http: boolean;
   limit_conn_per_server: number;
   limit_conn_per_ip: number;
@@ -271,6 +272,7 @@ export interface ProxyRouteMutationPayload {
   upstreams: string[];
   enabled: boolean;
   enable_https: boolean;
+  enable_http2?: boolean;
   redirect_http: boolean;
   limit_conn_per_server?: number;
   limit_conn_per_ip?: number;

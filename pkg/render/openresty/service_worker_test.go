@@ -130,8 +130,8 @@ func TestRenderServiceWorkerChallengerHTTPExclusion(t *testing.T) {
 	for name, rendered := range map[string]string{
 		"proxy":  renderHTTPProxyServer("example.com", "example.com", "http://127.0.0.1:8080", "", nil, routeCacheConfig{}, routeLimitConfig{}, routeUpstreamConfig{}, false, false, "", "", false, cfg),
 		"pages":  renderHTTPPagesServer("example.com", "example.com", nil, routeLimitConfig{}, false, false, "", "", false, cfg),
-		"https":  renderHTTPSServer("example.com", "example.com", "http://127.0.0.1:8080", "", 1, nil, routeCacheConfig{}, routeLimitConfig{}, routeUpstreamConfig{}, false, false, "", "", true, cfg),
-		"hpages": renderHTTPSPagesServer("example.com", "example.com", 1, nil, routeLimitConfig{}, false, false, "", "", true, cfg),
+		"https":  renderHTTPSServer("example.com", "example.com", "http://127.0.0.1:8080", "", 1, nil, routeCacheConfig{}, routeLimitConfig{}, routeUpstreamConfig{}, false, true, false, "", "", true, cfg),
+		"hpages": renderHTTPSPagesServer("example.com", "example.com", 1, nil, routeLimitConfig{}, false, true, false, "", "", true, cfg),
 	} {
 		if strings.Contains(rendered, "access_by_lua_block") && strings.Count(rendered, "access_by_lua_block") != 1 {
 			t.Fatalf("%s: expected at most one access block, got:\n%s", name, rendered)
@@ -145,13 +145,13 @@ func TestRenderServiceWorkerChallengerHTTPExclusion(t *testing.T) {
 	if strings.Contains(httpPages, "sw.runtime") || strings.Contains(httpPages, "openflare_sw_challenge") || strings.Contains(httpPages, "location = /sw.js") {
 		t.Fatalf("HTTP pages server must not carry SW intercept, got:\n%s", httpPages)
 	}
-	httpsProxy := renderHTTPSServer("example.com", "example.com", "http://127.0.0.1:8080", "", 1, nil, routeCacheConfig{}, routeLimitConfig{}, routeUpstreamConfig{}, false, false, "", "", true, cfg)
+	httpsProxy := renderHTTPSServer("example.com", "example.com", "http://127.0.0.1:8080", "", 1, nil, routeCacheConfig{}, routeLimitConfig{}, routeUpstreamConfig{}, false, true, false, "", "", true, cfg)
 	for _, want := range []string{"sw.runtime", "location = /sw.js", "location = /offline.html", "__openflare_sw_challenge"} {
 		if !strings.Contains(httpsProxy, want) {
 			t.Fatalf("HTTPS proxy server missing %q, got:\n%s", want, httpsProxy)
 		}
 	}
-	httpsPages := renderHTTPSPagesServer("example.com", "example.com", 1, nil, routeLimitConfig{}, false, false, "", "", true, cfg)
+	httpsPages := renderHTTPSPagesServer("example.com", "example.com", 1, nil, routeLimitConfig{}, false, true, false, "", "", true, cfg)
 	for _, want := range []string{"sw.runtime", "location = /sw.js", "location = /offline.html", "__openflare_sw_challenge"} {
 		if !strings.Contains(httpsPages, want) {
 			t.Fatalf("HTTPS pages server missing %q, got:\n%s", want, httpsPages)
@@ -179,7 +179,7 @@ func TestRouteSWEnabled(t *testing.T) {
 
 func TestRenderHTTPSServerSWScope(t *testing.T) {
 	render := func(swEnabled bool) string {
-		return renderHTTPSServer("example.com", "example.com", "http://127.0.0.1:8080", "", 1, nil, routeCacheConfig{}, routeLimitConfig{}, routeUpstreamConfig{}, false, false, "", "", swEnabled, ConfigSnapshot{SWOfflineEnabled: true})
+		return renderHTTPSServer("example.com", "example.com", "http://127.0.0.1:8080", "", 1, nil, routeCacheConfig{}, routeLimitConfig{}, routeUpstreamConfig{}, false, true, false, "", "", swEnabled, ConfigSnapshot{SWOfflineEnabled: true})
 	}
 	hit := render(routeSWEnabled([]string{"example.com"}, ConfigSnapshot{SWOfflineEnabled: true, SWOfflineDomains: []string{"example.com"}}))
 	for _, want := range []string{`require("sw.runtime").check()`, "location = /sw.js", "location = /offline.html", "__openflare_sw_challenge"} {
@@ -193,7 +193,7 @@ func TestRenderHTTPSServerSWScope(t *testing.T) {
 			t.Fatalf("out-of-scope HTTPS server must not carry %q, got:\n%s", notWant, miss)
 		}
 	}
-	if miss != renderHTTPSServer("example.com", "example.com", "http://127.0.0.1:8080", "", 1, nil, routeCacheConfig{}, routeLimitConfig{}, routeUpstreamConfig{}, false, false, "", "", false, ConfigSnapshot{}) {
+	if miss != renderHTTPSServer("example.com", "example.com", "http://127.0.0.1:8080", "", 1, nil, routeCacheConfig{}, routeLimitConfig{}, routeUpstreamConfig{}, false, true, false, "", "", false, ConfigSnapshot{}) {
 		t.Fatalf("out-of-scope HTTPS server must match pre-feature bytes, got:\n%s", miss)
 	}
 }

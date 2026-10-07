@@ -24,6 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import type { ProxyRouteItem } from '@/lib/services/openflare';
 import { NodeService, PagesService } from '@/lib/services/openflare';
@@ -50,6 +51,7 @@ type ReverseProxyValues = {
   tunnel_target_protocol?: 'http' | 'https';
   pages_project_id?: string;
   custom_headers_text: string;
+  enable_http2: boolean;
 };
 
 interface ProxySectionProps {
@@ -74,6 +76,7 @@ export function ProxySection({
       tunnel_target_protocol: z.enum(['http', 'https']).optional(),
       pages_project_id: z.string().optional(),
       custom_headers_text: z.string(),
+      enable_http2: z.boolean(),
     })
     .superRefine((value, context) => {
       if (value.upstream_type === 'direct') {
@@ -174,6 +177,7 @@ export function ProxySection({
         ? String(route.pages_project_id)
         : '',
       custom_headers_text: customHeadersToText(route.custom_header_list),
+      enable_http2: route.enable_http2 ?? true,
     },
   });
 
@@ -190,6 +194,7 @@ export function ProxySection({
         ? String(route.pages_project_id)
         : '',
       custom_headers_text: customHeadersToText(route.custom_header_list),
+      enable_http2: route.enable_http2 ?? true,
     });
   }, [form, route]);
 
@@ -267,6 +272,7 @@ export function ProxySection({
                   values.upstream_type === 'pages' && values.pages_project_id
                     ? Number(values.pages_project_id)
                     : null,
+                enable_http2: values.enable_http2,
               },
               t('proxySaved'),
             );
@@ -302,6 +308,25 @@ export function ProxySection({
                   ))}
                 </div>
                 <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name='enable_http2'
+            render={({ field }) => (
+              <FormItem className='flex items-center justify-between rounded-lg border p-3'>
+                <div className='space-y-1'>
+                  <FormLabel>{t('enableHttp2')}</FormLabel>
+                  <FormDescription>{t('enableHttp2Desc')}</FormDescription>
+                </div>
+                <FormControl>
+                  <Switch
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                  />
+                </FormControl>
               </FormItem>
             )}
           />
