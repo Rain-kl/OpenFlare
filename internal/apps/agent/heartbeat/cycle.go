@@ -43,6 +43,7 @@ type Cycle struct {
 	Sync                SyncService
 	Updater             *updater.Service
 	RecordSyncError     func(err error)
+	ConfigSyncResult    func(target *protocol.ActiveConfigMeta, err error)
 }
 
 // Perform executes one complete heartbeat cycle: sends the heartbeat, syncs config, and applies settings.
@@ -69,20 +70,32 @@ func (c *Cycle) Perform(ctx context.Context, nodeID string, startup bool, settin
 	c.ApplyWAFIPGroups(ctx, heartbeatResult.WAFIPGroups)
 	if startup {
 		if err = c.Sync.SyncOnStartup(ctx, heartbeatResult.ActiveConfig); err != nil {
-			c.recordSyncError(err)
 			slog.Error("agent startup sync failed", "error", err)
 		} else {
 			slog.Debug("agent startup sync completed")
 		}
+		c.reportConfigSyncResult(heartbeatResult.ActiveConfig, err)
 	} else if err = c.Sync.SyncOnce(ctx, heartbeatResult.ActiveConfig); err != nil {
-		c.recordSyncError(err)
 		slog.Error("agent sync failed", "error", err)
+		c.reportConfigSyncResult(heartbeatResult.ActiveConfig, err)
+	} else {
+		c.reportConfigSyncResult(heartbeatResult.ActiveConfig, nil)
 	}
 	if settings != nil {
 		settings.RestartOpenrestyIfNeeded(ctx)
 	}
 	edgeheartbeat.TryAutoUpdate(ctx, c.Updater, agentSettingsToAutoUpdate(heartbeatResult.AgentSettings), "agent")
 	return changed, nil
+}
+
+func (c *Cycle) reportConfigSyncResult(target *protocol.ActiveConfigMeta, err error) {
+	if c.ConfigSyncResult != nil {
+		c.ConfigSyncResult(target, err)
+		return
+	}
+	if err != nil {
+		c.recordSyncError(err)
+	}
 }
 
 // NodePayload builds and returns the full NodePayload to be sent in a heartbeat request.

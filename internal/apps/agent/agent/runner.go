@@ -62,14 +62,28 @@ type Runner struct {
 	RuntimeManager   RuntimeManager
 	WebSocketService WebSocketService
 
+	configSyncRetry         *configSyncRetry
 	restartOpenrestyNow     bool
 	websocketUpgradeEnabled bool
 }
 
 // Run starts the agent's main loop, performing heartbeats and upgrading to WebSocket when available.
 func (r *Runner) Run(ctx context.Context) error {
+	if r.SyncService != nil {
+		r.configSyncRetry = newConfigSyncRetry(r.SyncService, r.recordSyncError)
+		go r.configSyncRetry.run(ctx)
+		if snapshot, loadErr := r.StateStore.Load(); loadErr != nil {
+			slog.Error("load state before scheduling config sync retry failed", "error", loadErr)
+		} else if strings.TrimSpace(snapshot.BlockedVersion) != "" || strings.TrimSpace(snapshot.BlockedChecksum) != "" {
+			r.configSyncRetry.schedule(&protocol.ActiveConfigMeta{
+				Version:  snapshot.BlockedVersion,
+				Checksum: snapshot.BlockedChecksum,
+			})
+		}
+	}
 	if r.HeartbeatCycle != nil {
 		r.HeartbeatCycle.RecordSyncError = r.recordSyncError
+		r.HeartbeatCycle.ConfigSyncResult = r.handleConfigSyncResult
 	}
 	nodeID, err := r.StateStore.EnsureNodeID()
 	if err != nil {
@@ -313,10 +327,11 @@ func (r *Runner) handleWebSocketMessage(ctx context.Context, message protocol.WS
 			return false, nil
 		}
 		slog.Debug("agent ws active config received", "version", target.Version, "checksum", target.Checksum, "trigger_sync", true)
-		if err := r.SyncService.SyncOnce(ctx, &target); err != nil {
-			r.recordSyncError(err)
+		err := r.SyncService.SyncOnce(ctx, &target)
+		if err != nil {
 			slog.Error("agent ws triggered sync failed", "version", target.Version, "error", err)
 		}
+		r.handleConfigSyncResult(&target, err)
 		return false, nil
 	case protocol.WSMessageTypeForceSyncConfig:
 		var target protocol.ActiveConfigMeta
@@ -325,10 +340,11 @@ func (r *Runner) handleWebSocketMessage(ctx context.Context, message protocol.WS
 			return false, nil
 		}
 		slog.Debug("agent ws force sync config received", "version", target.Version, "checksum", target.Checksum, "trigger_sync", true)
-		if err := r.SyncService.ForceSyncOnce(ctx, &target); err != nil {
-			r.recordSyncError(err)
+		err := r.SyncService.ForceSyncOnce(ctx, &target)
+		if err != nil {
 			slog.Error("agent ws triggered force sync failed", "version", target.Version, "error", err)
 		}
+		r.handleConfigSyncResult(&target, err)
 		return false, nil
 	case protocol.WSMessageTypeWAFIPGroups:
 		var groups []protocol.WAFIPGroup
@@ -347,6 +363,27 @@ func (r *Runner) handleWebSocketMessage(ctx context.Context, message protocol.WS
 	default:
 		slog.Debug("agent ws unsupported message type", "type", message.Type)
 		return false, nil
+	}
+}
+
+func (r *Runner) handleConfigSyncResult(target *protocol.ActiveConfigMeta, err error) {
+	if err != nil {
+		r.recordSyncError(err)
+		if r.configSyncRetry != nil {
+			r.configSyncRetry.schedule(target)
+		}
+		return
+	}
+	if r.configSyncRetry == nil || r.StateStore == nil {
+		return
+	}
+	snapshot, loadErr := r.StateStore.Load()
+	if loadErr != nil {
+		slog.Error("load state after config sync failed", "error", loadErr)
+		return
+	}
+	if strings.TrimSpace(snapshot.BlockedVersion) == "" && strings.TrimSpace(snapshot.BlockedChecksum) == "" {
+		r.configSyncRetry.resolve()
 	}
 }
 
