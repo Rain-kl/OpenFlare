@@ -10,6 +10,9 @@ sidebar: false
 
 ## [Unreleased]
 
+### ⚡️ 优化与改进
+- OpenResty 默认压缩 CSS、JavaScript、JSON、XML、RSS、Atom 和 SVG 等文本响应，并发送 `Vary: Accept-Encoding`；普通代理请求默认先缓冲请求体再转发，升级时旧值 `false` 会改为 `true`，流式上传场景可手动关闭。
+
 ### ✨ 新功能
 - 代理路由详情支持单独关闭 HTTP/2，默认仍启用；关闭后该路由生成的 HTTPS 配置不再启用 HTTP/2。
 

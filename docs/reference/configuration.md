@@ -237,7 +237,7 @@ Server 的所有核心基础配置定义在 `config.yaml` 中，且均支持环�
 | `openresty_proxy_read_timeout` | `int` | 源站收到请求后返回数据，Agent 最大的等待数据返回间隔时长（秒） | `60` |
 | `openresty_websocket_enabled` | `bool` | 是否在 HTTP 段中自动载入渲染支持 WebSocket 协议的全局变量及头信息 | `true` |
 | `openresty_http3_enabled` | `bool` | 是否在生成 nginx 监听描述中渲染支持 HTTP/3 QUIC 双栈监听能力 | `true` |
-| `openresty_proxy_request_buffering_enabled`| `bool` | 是否将客户端 Request Body 先在网关做完全部读取缓存再向源站递交 | `false` |
+| `openresty_proxy_request_buffering_enabled`| `bool` | 是否将客户端 Request Body 先在网关做完全部读取缓存再向源站递交；普通代理建议开启，流式上传或实时转发场景可关闭 | `true` |
 | `openresty_proxy_buffering_enabled` | `bool` | 是否允许网关暂存源站的大量 Response 数据待全部解析后再转发给用户 | `true` |
 | `openresty_proxy_buffers` | `string` | nginx 反代响应缓冲区的分配数量与单缓存大大小（如 `16 16k`） | `16 16k` |
 | `openresty_proxy_buffer_size` | `string` | 存放源站返回 Response Header 头部信息的专属缓冲区限制 | `8k` |

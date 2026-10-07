@@ -549,7 +549,7 @@ func buildOpenRestyConfigSnapshot(ctx context.Context) openRestyConfigSnapshot {
 		ProxyReadTimeout:           getIntConfig(model.ConfigKeyOpenRestyProxyReadTimeout, defaultOpenRestyProxyTimeout),
 		WebsocketEnabled:           getBoolConfig(model.ConfigKeyOpenRestyWebsocketEnabled, true),
 		HTTP3Enabled:               getBoolConfig(model.ConfigKeyOpenRestyHTTP3Enabled, true),
-		ProxyRequestBuffering:      getBoolConfig(model.ConfigKeyOpenRestyProxyRequestBufferingEnabled, false),
+		ProxyRequestBuffering:      getBoolConfig(model.ConfigKeyOpenRestyProxyRequestBufferingEnabled, true),
 		ProxyBufferingEnabled:      getBoolConfig(model.ConfigKeyOpenRestyProxyBufferingEnabled, true),
 		ProxyBuffers:               getStringConfig(model.ConfigKeyOpenRestyProxyBuffers, "16 16k"),
 		ProxyBufferSize:            getStringConfig(model.ConfigKeyOpenRestyProxyBufferSize, "8k"),

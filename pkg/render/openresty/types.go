@@ -102,6 +102,8 @@ http {
     gzip {{OpenRestyGzip}};
     gzip_min_length {{OpenRestyGzipMinLength}};
     gzip_comp_level {{OpenRestyGzipCompLevel}};
+    gzip_vary on;
+    gzip_types text/plain text/css text/xml application/javascript application/json application/xml application/rss+xml application/atom+xml image/svg+xml;
 {{OpenRestyResolverDirective}}{{OpenRestyCacheBlock}}    include {{OpenRestyRouteConfigInclude}};
 }
 `
