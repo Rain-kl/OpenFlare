@@ -199,6 +199,7 @@ func UpdateUser(ctx context.Context, user *model.User) error {
 }
 
 // CreateUserFromOAuth creates a user from OAuth profile data and fills userOut.
+// The local ID is generated independently of the provider's identity claims.
 func CreateUserFromOAuth(ctx context.Context, userOut *model.User, oauthInfo *model.OAuthUserInfo) error {
 	now := time.Now()
 	newUser := model.User{

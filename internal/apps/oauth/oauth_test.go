@@ -275,6 +275,7 @@ type mockClaims struct {
 	Active   bool   `json:"active"`
 }
 
+// generateMockIDToken signs test claims with numeric IDs or Casdoor-style string IDs.
 func generateMockIDToken(issuer, sub, aud, nonce, username, email, name string) string {
 	signer, err := jose.NewSigner(jose.SigningKey{Algorithm: jose.RS256, Key: testRSAPrivateKey}, (&jose.SignerOptions{}).WithType("JWT"))
 	if err != nil {
@@ -708,6 +709,7 @@ func TestLogout(t *testing.T) {
 	}
 }
 
+// TestCallbackLoginAndUserInfo covers string provider IDs, repeat logins, and local ID collisions.
 func TestCallbackLoginAndUserInfo(t *testing.T) {
 	initializeTestConfig()
 	dbConn := setupTestDB(t)
@@ -938,6 +940,80 @@ func TestCallbackLoginAndUserInfo(t *testing.T) {
 			t.Errorf("expected User to be nil, got %+v", needBindResp.Data.User)
 		}
 	})
+}
+
+// TestCallbackIdentityIsScopedToAuthSource verifies legacy IDs survive login and
+// identical subjects from different authentication sources remain separate users.
+func TestCallbackIdentityIsScopedToAuthSource(t *testing.T) {
+	initializeTestConfig()
+	dbConn := setupTestDB(t)
+	mockRedis := newMockRedisClient()
+	seedTestAuthSource(t, dbConn)
+	require.NoError(t, dbConn.Create(&model.SystemConfig{
+		Key: model.ConfigKeyRegistrationEnabled, Value: "true", Type: "system",
+	}).Error)
+	require.NoError(t, dbConn.Create(&model.User{
+		ID: 88888, Username: "legacy_user", IsActive: true,
+	}).Error)
+	require.NoError(t, dbConn.Create(&model.ExternalAccount{
+		ID: 1, AuthSourceID: 100, UserID: 88888, ExternalID: "88888",
+	}).Error)
+	require.NoError(t, dbConn.Create(&model.AuthSource{
+		ID: 101, Name: "second-source", Type: model.AuthSourceTypeOIDC,
+		IsActive: true, ClientID: testClientID, ClientSecret: testClientSecret,
+		OpenIDDiscoveryURL: testIssuerURL,
+	}).Error)
+
+	for _, tc := range []struct {
+		name     string
+		sourceID uint64
+		legacy   bool
+	}{
+		{name: testSourceName, sourceID: 100, legacy: true},
+		{name: "second-source", sourceID: 101},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var state string
+			httpMock := newMockOIDCClient(testIssuerURL, testClientID, &state, "88888", "provider_user", "provider@example.com", "Provider User")
+			router := setupTestRouter(dbConn, mockRedis, httpMock)
+			login := performRequest(router, http.MethodGet, "/api/v1/oauth/login?source="+tc.name, nil, nil, nil)
+			require.Equal(t, http.StatusOK, login.Code, login.Body.String())
+			var loginResp struct {
+				Data OAuthAuthorizeResponse `json:"data"`
+			}
+			require.NoError(t, json.Unmarshal(login.Body.Bytes(), &loginResp))
+			authorizeURL, err := url.Parse(loginResp.Data.AuthorizeURL)
+			require.NoError(t, err)
+			state = authorizeURL.Query().Get("state")
+			require.NotEmpty(t, state)
+
+			callback := performRequest(router, http.MethodPost, "/api/v1/oauth/callback",
+				[]byte(fmt.Sprintf(`{"state":"%s","code":"test_code"}`, state)),
+				map[string]string{"Content-Type": "application/json"}, login.Result().Cookies())
+			require.Equal(t, http.StatusOK, callback.Code, callback.Body.String())
+			var callbackResp struct {
+				Data OAuthCallbackResult `json:"data"`
+			}
+			require.NoError(t, json.Unmarshal(callback.Body.Bytes(), &callbackResp))
+			require.Equal(t, "logged_in", callbackResp.Data.Status)
+			require.NotNil(t, callbackResp.Data.User)
+			if tc.legacy {
+				assert.Equal(t, uint64(88888), callbackResp.Data.User.ID)
+				assert.Equal(t, "legacy_user", callbackResp.Data.User.Username)
+			} else {
+				assert.NotZero(t, callbackResp.Data.User.ID)
+				assert.NotEqual(t, uint64(88888), callbackResp.Data.User.ID)
+			}
+			account, err := repository.FindExternalAccount(context.Background(), tc.sourceID, "88888")
+			require.NoError(t, err)
+			assert.Equal(t, callbackResp.Data.User.ID, account.UserID)
+		})
+	}
+	var users, accounts int64
+	require.NoError(t, dbConn.Model(&model.User{}).Count(&users).Error)
+	require.NoError(t, dbConn.Model(&model.ExternalAccount{}).Count(&accounts).Error)
+	assert.Equal(t, int64(2), users)
+	assert.Equal(t, int64(2), accounts)
 }
 
 func TestCallbackBind(t *testing.T) {

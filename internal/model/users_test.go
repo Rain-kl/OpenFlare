@@ -8,6 +8,7 @@ import (
 	"testing"
 )
 
+// TestOAuthUserInfoIgnoresProviderID verifies nonstandard IDs cannot affect OIDC identity parsing.
 func TestOAuthUserInfoIgnoresProviderID(t *testing.T) {
 	for _, providerID := range []string{`"a27dfc56-07ae-4c9d-9e5c-99103bd8805f"`, `"88888"`, `88888`, `null`} {
 		t.Run(providerID, func(t *testing.T) {
