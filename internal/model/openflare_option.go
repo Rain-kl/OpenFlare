@@ -48,6 +48,7 @@ http {
     client_header_timeout {{OpenRestyClientHeaderTimeout}};
     client_body_timeout {{OpenRestyClientBodyTimeout}};
     client_max_body_size {{OpenRestyClientMaxBodySize}};
+{{OpenRestyRealIPDirectives}}
     large_client_header_buffers {{OpenRestyLargeClientHeaderBuffers}};
     send_timeout {{OpenRestySendTimeout}};
     proxy_connect_timeout {{OpenRestyProxyConnectTimeout}};

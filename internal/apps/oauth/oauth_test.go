@@ -262,7 +262,7 @@ func oidcDiscoveryResponse() *http.Response {
 }
 
 type mockClaims struct {
-	ID       uint64 `json:"id"`
+	ID       any    `json:"id"`
 	Issuer   string `json:"iss"`
 	Subject  string `json:"sub"`
 	Audience string `json:"aud"`
@@ -275,12 +275,16 @@ type mockClaims struct {
 	Active   bool   `json:"active"`
 }
 
+// generateMockIDToken signs test claims with numeric IDs or Casdoor-style string IDs.
 func generateMockIDToken(issuer, sub, aud, nonce, username, email, name string) string {
 	signer, err := jose.NewSigner(jose.SigningKey{Algorithm: jose.RS256, Key: testRSAPrivateKey}, (&jose.SignerOptions{}).WithType("JWT"))
 	if err != nil {
 		panic(err)
 	}
-	id, _ := strconv.ParseUint(sub, 10, 64)
+	var id any = sub
+	if numericID, parseErr := strconv.ParseUint(sub, 10, 64); parseErr == nil {
+		id = numericID
+	}
 	claims := mockClaims{
 		ID:       id,
 		Issuer:   issuer,
@@ -705,6 +709,7 @@ func TestLogout(t *testing.T) {
 	}
 }
 
+// TestCallbackLoginAndUserInfo covers string provider IDs, repeat logins, and local ID collisions.
 func TestCallbackLoginAndUserInfo(t *testing.T) {
 	initializeTestConfig()
 	dbConn := setupTestDB(t)
@@ -719,7 +724,8 @@ func TestCallbackLoginAndUserInfo(t *testing.T) {
 	var state string
 
 	// 1. Mock the outgoing HTTP client for token exchange and user info fetching
-	httpMock := newMockOIDCClient(testIssuerURL, testClientID, &state, "88888", "test_oauth_user", "oauth@linux.do", "Oauth Test User")
+	const externalSubject = "a27dfc56-07ae-4c9d-9e5c-99103bd8805f"
+	httpMock := newMockOIDCClient(testIssuerURL, testClientID, &state, externalSubject, "test_oauth_user", "oauth@linux.do", "Oauth Test User")
 	router := setupTestRouter(dbConn, mockRedis, httpMock)
 
 	// Get Login URL first to initialize the session and generate the state
@@ -766,14 +772,24 @@ func TestCallbackLoginAndUserInfo(t *testing.T) {
 		t.Errorf("expected logged_in status, got %s", callbackResp.Data.Status)
 	}
 
-	if callbackResp.Data.User.Username != "test_oauth_user" || callbackResp.Data.User.ID != 88888 {
+	if callbackResp.Data.User == nil {
+		t.Fatal("Callback(Casdoor string ID) returned no user, want logged-in user")
+	}
+	if callbackResp.Data.User.Username != "test_oauth_user" || callbackResp.Data.User.ID == 0 {
 		t.Errorf("unexpected user returned: %+v", callbackResp.Data.User)
 	}
 
 	// Verify user is created in database
 	var user model.User
-	if err := dbConn.First(&user, "id = ?", 88888).Error; err != nil {
+	if err := dbConn.First(&user, "id = ?", callbackResp.Data.User.ID).Error; err != nil {
 		t.Fatalf("user was not created in DB: %v", err)
+	}
+	account, err := repository.FindExternalAccount(context.Background(), 100, externalSubject)
+	if err != nil {
+		t.Fatalf("FindExternalAccount(%q) error = %v, want nil", externalSubject, err)
+	}
+	if account.UserID != user.ID {
+		t.Errorf("FindExternalAccount(%q).UserID = %d, want %d", externalSubject, account.UserID, user.ID)
 	}
 
 	// Extract session cookie
@@ -795,8 +811,40 @@ func TestCallbackLoginAndUserInfo(t *testing.T) {
 		t.Fatalf("failed to fetch user info, status %d", w2.Code)
 	}
 
+	// The same external subject must reuse its binding on subsequent logins.
+	wRepeatLogin := performRequest(router, http.MethodGet, "/api/v1/oauth/login?source="+testSourceName, nil, nil, []*http.Cookie{sessionCookie})
+	if wRepeatLogin.Code != http.StatusOK {
+		t.Fatalf("GetLoginURL(existing user) status = %d, want 200", wRepeatLogin.Code)
+	}
+	if err := json.Unmarshal(wRepeatLogin.Body.Bytes(), &loginUrlResp); err != nil {
+		t.Fatal(err)
+	}
+	parsedURL, err = url.Parse(loginUrlResp.Data.AuthorizeURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	state = parsedURL.Query().Get("state")
+	wRepeat := performRequest(router, http.MethodPost, "/api/v1/oauth/callback", []byte(fmt.Sprintf(`{"state":"%s","code":"repeat_auth_code"}`, state)), map[string]string{
+		"Content-Type": "application/json",
+	}, wRepeatLogin.Result().Cookies())
+	if wRepeat.Code != http.StatusOK {
+		t.Fatalf("Callback(existing Casdoor user) status = %d, want 200; body: %s", wRepeat.Code, wRepeat.Body.String())
+	}
+	var repeatResp struct {
+		Data OAuthCallbackResult `json:"data"`
+	}
+	if err := json.Unmarshal(wRepeat.Body.Bytes(), &repeatResp); err != nil {
+		t.Fatal(err)
+	}
+	if repeatResp.Data.User == nil || repeatResp.Data.User.ID != user.ID {
+		t.Errorf("Callback(existing Casdoor user) user = %+v, want ID %d", repeatResp.Data.User, user.ID)
+	}
+
 	// 5. Test Callback (Login flow - existing user, username collision check)
 	var state2 string
+	if err := dbConn.Create(&model.User{ID: 99999, Username: "local_user", IsActive: true}).Error; err != nil {
+		t.Fatalf("failed to create local user with overlapping external ID: %v", err)
+	}
 	// Callback with same username but different external ID (99999)
 	httpMock2 := newMockOIDCClient(testIssuerURL, testClientID, &state2, "99999", "test_oauth_user", "another@linux.do", "Another User")
 
@@ -833,6 +881,9 @@ func TestCallbackLoginAndUserInfo(t *testing.T) {
 		Data OAuthCallbackResult `json:"data"`
 	}
 	_ = json.Unmarshal(w3.Body.Bytes(), &collisionResp)
+	if collisionResp.Data.User == nil || collisionResp.Data.User.ID == 0 || collisionResp.Data.User.ID == 99999 {
+		t.Fatalf("Callback(numeric provider ID) user = %+v, want independent local ID", collisionResp.Data.User)
+	}
 
 	if collisionResp.Data.User.Username != "test_oauth_user-1" {
 		t.Errorf("expected collision renamed username, got %s", collisionResp.Data.User.Username)
@@ -889,6 +940,80 @@ func TestCallbackLoginAndUserInfo(t *testing.T) {
 			t.Errorf("expected User to be nil, got %+v", needBindResp.Data.User)
 		}
 	})
+}
+
+// TestCallbackIdentityIsScopedToAuthSource verifies legacy IDs survive login and
+// identical subjects from different authentication sources remain separate users.
+func TestCallbackIdentityIsScopedToAuthSource(t *testing.T) {
+	initializeTestConfig()
+	dbConn := setupTestDB(t)
+	mockRedis := newMockRedisClient()
+	seedTestAuthSource(t, dbConn)
+	require.NoError(t, dbConn.Create(&model.SystemConfig{
+		Key: model.ConfigKeyRegistrationEnabled, Value: "true", Type: "system",
+	}).Error)
+	require.NoError(t, dbConn.Create(&model.User{
+		ID: 88888, Username: "legacy_user", IsActive: true,
+	}).Error)
+	require.NoError(t, dbConn.Create(&model.ExternalAccount{
+		ID: 1, AuthSourceID: 100, UserID: 88888, ExternalID: "88888",
+	}).Error)
+	require.NoError(t, dbConn.Create(&model.AuthSource{
+		ID: 101, Name: "second-source", Type: model.AuthSourceTypeOIDC,
+		IsActive: true, ClientID: testClientID, ClientSecret: testClientSecret,
+		OpenIDDiscoveryURL: testIssuerURL,
+	}).Error)
+
+	for _, tc := range []struct {
+		name     string
+		sourceID uint64
+		legacy   bool
+	}{
+		{name: testSourceName, sourceID: 100, legacy: true},
+		{name: "second-source", sourceID: 101},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var state string
+			httpMock := newMockOIDCClient(testIssuerURL, testClientID, &state, "88888", "provider_user", "provider@example.com", "Provider User")
+			router := setupTestRouter(dbConn, mockRedis, httpMock)
+			login := performRequest(router, http.MethodGet, "/api/v1/oauth/login?source="+tc.name, nil, nil, nil)
+			require.Equal(t, http.StatusOK, login.Code, login.Body.String())
+			var loginResp struct {
+				Data OAuthAuthorizeResponse `json:"data"`
+			}
+			require.NoError(t, json.Unmarshal(login.Body.Bytes(), &loginResp))
+			authorizeURL, err := url.Parse(loginResp.Data.AuthorizeURL)
+			require.NoError(t, err)
+			state = authorizeURL.Query().Get("state")
+			require.NotEmpty(t, state)
+
+			callback := performRequest(router, http.MethodPost, "/api/v1/oauth/callback",
+				[]byte(fmt.Sprintf(`{"state":"%s","code":"test_code"}`, state)),
+				map[string]string{"Content-Type": "application/json"}, login.Result().Cookies())
+			require.Equal(t, http.StatusOK, callback.Code, callback.Body.String())
+			var callbackResp struct {
+				Data OAuthCallbackResult `json:"data"`
+			}
+			require.NoError(t, json.Unmarshal(callback.Body.Bytes(), &callbackResp))
+			require.Equal(t, "logged_in", callbackResp.Data.Status)
+			require.NotNil(t, callbackResp.Data.User)
+			if tc.legacy {
+				assert.Equal(t, uint64(88888), callbackResp.Data.User.ID)
+				assert.Equal(t, "legacy_user", callbackResp.Data.User.Username)
+			} else {
+				assert.NotZero(t, callbackResp.Data.User.ID)
+				assert.NotEqual(t, uint64(88888), callbackResp.Data.User.ID)
+			}
+			account, err := repository.FindExternalAccount(context.Background(), tc.sourceID, "88888")
+			require.NoError(t, err)
+			assert.Equal(t, callbackResp.Data.User.ID, account.UserID)
+		})
+	}
+	var users, accounts int64
+	require.NoError(t, dbConn.Model(&model.User{}).Count(&users).Error)
+	require.NoError(t, dbConn.Model(&model.ExternalAccount{}).Count(&accounts).Error)
+	assert.Equal(t, int64(2), users)
+	assert.Equal(t, int64(2), accounts)
 }
 
 func TestCallbackBind(t *testing.T) {

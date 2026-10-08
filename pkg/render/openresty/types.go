@@ -24,6 +24,7 @@ const (
 	PowStaticDirPlaceholder        = "__OPENFLARE_POW_STATIC_DIR__"
 	PagesDirPlaceholder            = "__OPENFLARE_PAGES_DIR__"
 	ErrorPageTmplPlaceholder       = "__OPENFLARE_ERROR_PAGE_TMPL__"
+	RealIPDirectivesPlaceholder    = "{{OpenRestyRealIPDirectives}}"
 	SWDirPlaceholder               = "__OPENFLARE_SW_DIR__"
 
 	SourceConfigFileName = "openresty_config.json"
@@ -102,6 +103,7 @@ http {
     gzip {{OpenRestyGzip}};
     gzip_min_length {{OpenRestyGzipMinLength}};
     gzip_comp_level {{OpenRestyGzipCompLevel}};
+{{OpenRestyRealIPDirectives}}
     gzip_vary on;
     gzip_types text/plain text/css text/xml application/javascript application/json application/xml application/rss+xml application/atom+xml image/svg+xml;
 {{OpenRestyResolverDirective}}{{OpenRestyCacheBlock}}    include {{OpenRestyRouteConfigInclude}};
@@ -281,6 +283,7 @@ type WAFDocument struct {
 // ConfigSnapshot holds the full set of OpenResty tuning parameters that are
 // rendered into the nginx main configuration template.
 type ConfigSnapshot struct {
+	TrustedProxyCIDRs          []string `json:"trusted_proxy_cidrs"`
 	DefaultServerReturnStatus  int      `json:"default_server_return_status"`
 	WorkerProcesses            string   `json:"worker_processes"`
 	WorkerConnections          int      `json:"worker_connections"`
@@ -333,6 +336,20 @@ type ConfigSnapshot struct {
 	SWOfflineHTML string `json:"sw_offline_html,omitempty"`
 	// SWOfflineDomains restricts the offline fallback to matching HTTPS routes.
 	SWOfflineDomains []string `json:"sw_offline_domains,omitempty"`
+}
+
+// DefaultTrustedProxyCIDRs returns Cloudflare's published IPv4 and IPv6
+// networks. Callers can override the list, including with an explicit empty
+// slice to disable trusted-proxy processing.
+func DefaultTrustedProxyCIDRs() []string {
+	return []string{
+		"173.245.48.0/20", "103.21.244.0/22", "103.22.200.0/22", "103.31.4.0/22",
+		"141.101.64.0/18", "108.162.192.0/18", "190.93.240.0/20", "188.114.96.0/20",
+		"197.234.240.0/22", "198.41.128.0/17", "162.158.0.0/15", "104.16.0.0/13",
+		"104.24.0.0/14", "172.64.0.0/13", "131.0.72.0/22",
+		"2400:cb00::/32", "2606:4700::/32", "2803:f800::/32", "2405:b500::/32",
+		"2405:8100::/32", "2a06:98c0::/29", "2c0f:f248::/32",
+	}
 }
 
 // Document is the top-level input structure for the OpenResty renderer,

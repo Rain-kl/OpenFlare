@@ -70,6 +70,14 @@ func TestValidateOriginErrorPageStatusCodes(t *testing.T) {
 	}
 }
 
+func TestValidateOpenRestyTrustedProxyCIDRs(t *testing.T) {
+	require.NoError(t, validateOpenRestyOption(model.ConfigKeyOpenRestyTrustedProxyCIDRs, `[]`))
+	require.NoError(t, validateOpenRestyOption(model.ConfigKeyOpenRestyTrustedProxyCIDRs, `["173.245.48.0/20","10.2.0.0/24"]`))
+	for _, value := range []string{`null`, `10.2.0.0/24`, `["10.2.0.0/24;return 200"]`, `["]`} {
+		require.Error(t, validateOpenRestyOption(model.ConfigKeyOpenRestyTrustedProxyCIDRs, value), "value %q must be rejected", value)
+	}
+}
+
 func TestValidateOriginErrorPageHTML(t *testing.T) {
 	t.Parallel()
 

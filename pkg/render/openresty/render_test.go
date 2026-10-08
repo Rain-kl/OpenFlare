@@ -9,6 +9,56 @@ import (
 	"testing"
 )
 
+func TestRenderMainConfigTrustedProxyCIDRs(t *testing.T) {
+	base := ConfigSnapshot{MainConfigTemplate: defaultMainConfigTemplate}
+	withDefaultTrust := RenderMainConfig(Document{OpenRestyConfig: base})
+	if count := strings.Count(withDefaultTrust, "set_real_ip_from "); count != 22 {
+		t.Fatalf("default config trusts %d proxy ranges, want all 22 Cloudflare ranges", count)
+	}
+	if !strings.Contains(withDefaultTrust, "set_real_ip_from 173.245.48.0/20;") || !strings.Contains(withDefaultTrust, "set_real_ip_from 2c0f:f248::/32;") {
+		t.Fatal("default config is missing Cloudflare IPv4 or IPv6 ranges")
+	}
+
+	base.TrustedProxyCIDRs = []string{}
+	withoutTrust := RenderMainConfig(Document{OpenRestyConfig: base})
+	if strings.Contains(withoutTrust, "real_ip_header") || strings.Contains(withoutTrust, "set_real_ip_from") {
+		t.Fatal("explicit empty trusted-proxy list must disable forwarded-header trust")
+	}
+
+	base.TrustedProxyCIDRs = []string{"173.245.48.0/20", "10.2.0.0/24", "2001:db8:1234::/48", "192.0.2.7/32"}
+	got := RenderMainConfig(Document{OpenRestyConfig: base})
+	for _, expected := range []string{"real_ip_header CF-Connecting-IP;", "set_real_ip_from 173.245.48.0/20;", "set_real_ip_from 10.2.0.0/24;", "set_real_ip_from 2001:db8:1234::/48;", "set_real_ip_from 192.0.2.7/32;"} {
+		if !strings.Contains(got, expected) {
+			t.Errorf("rendered config missing %q", expected)
+		}
+	}
+}
+
+func TestRenderMainConfigInjectsTrustedProxyForLegacyTemplate(t *testing.T) {
+	legacy := strings.ReplaceAll(defaultMainConfigTemplate, RealIPDirectivesPlaceholder+"\n", "")
+	got := RenderMainConfig(Document{OpenRestyConfig: ConfigSnapshot{MainConfigTemplate: legacy, TrustedProxyCIDRs: []string{"10.2.0.0/24"}}})
+	if !strings.Contains(got, "real_ip_header CF-Connecting-IP;\n    real_ip_recursive on;\n    set_real_ip_from 10.2.0.0/24;") || !strings.Contains(got, "map $http_upgrade $connection_upgrade {") {
+		t.Fatalf("trusted proxy directives were not injected into legacy template:\n%s", got)
+	}
+	if strings.Contains(got, "access_log real_ip_header") {
+		t.Fatalf("trusted proxy directives corrupted access_log directive:\n%s", got)
+	}
+}
+
+func TestRenderMainConfigPreservesExplicitRealIPHeader(t *testing.T) {
+	templateText := strings.Replace(defaultMainConfigTemplate, "{{OpenRestyConnectionUpgradeMap}}", "# real_ip_header in comment\nreal_ip_header X-Forwarded-For;\n{{OpenRestyConnectionUpgradeMap}}", 1)
+	got := RenderMainConfig(Document{OpenRestyConfig: ConfigSnapshot{
+		MainConfigTemplate: templateText,
+		TrustedProxyCIDRs:  []string{"192.0.2.7/32"},
+	}})
+	if !strings.Contains(got, "real_ip_header X-Forwarded-For;") || strings.Contains(got, "real_ip_header CF-Connecting-IP;") {
+		t.Fatalf("explicit template header selection was not preserved:\n%s", got)
+	}
+	if !strings.Contains(got, "set_real_ip_from 192.0.2.7/32;") {
+		t.Fatalf("trusted CIDR was not added to explicit template header:\n%s", got)
+	}
+}
+
 func TestRenderOpenRestyUsesDedicatedWAFIPGroupSharedDict(t *testing.T) {
 	block := renderOpenRestyObservabilityTemplateBlock()
 	if !strings.Contains(block, "lua_shared_dict openflare_waf_config 1m;") {
