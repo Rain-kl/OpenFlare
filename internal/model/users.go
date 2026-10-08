@@ -6,7 +6,6 @@ package model
 
 import (
 	"errors"
-	"strconv"
 	"strings"
 	"time"
 
@@ -15,8 +14,8 @@ import (
 )
 
 // OAuthUserInfo 用户信息结构（同时支持 OIDC ID Token claims 和 UserEndpoint 响应）
+// 第三方身份使用 Sub；忽略非标准 id 字段，本地用户 ID 独立生成。
 type OAuthUserInfo struct {
-	ID                uint64 `json:"id"`
 	Sub               string `json:"sub"`
 	Username          string `json:"username"`
 	PreferredUsername string `json:"preferred_username"`
@@ -24,20 +23,6 @@ type OAuthUserInfo struct {
 	Name              string `json:"name"`
 	Active            bool   `json:"active"`
 	AvatarURL         string `json:"avatar_url"`
-}
-
-// GetID 获取用户 ID
-func (u *OAuthUserInfo) GetID() uint64 {
-	if u.ID != 0 {
-		return u.ID
-	}
-	// 从 sub 解析（OIDC 格式）
-	if u.Sub != "" {
-		if id, err := strconv.ParseUint(u.Sub, 10, 64); err == nil {
-			return id
-		}
-	}
-	return 0
 }
 
 // User 用户表实体
