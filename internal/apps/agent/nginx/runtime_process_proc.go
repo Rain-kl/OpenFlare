@@ -12,6 +12,9 @@ import (
 )
 
 //nolint:unused // Used by the Linux process inspector.
+const procParentPIDIndex = 1
+
+//nolint:unused // Used by the Linux process inspector.
 const procStartTimeIndex = 19 // Field 22, counting from state after the process name.
 
 //nolint:unused // Used by the Linux executor; portable for process fixture tests.
@@ -63,8 +66,10 @@ func inspectProcProcess(dir string, pid int, executable os.FileInfo, binary, con
 		if !os.IsPermission(err) {
 			return runtimeProcess{}, false, err
 		}
-		// The capability-enabled non-root master may be non-dumpable, so
-		// /proc/PID/exe is inaccessible. Verify its invocation and UID instead.
+		// Non-master candidates are only retained by runtimeDescendants when
+		// their parent belongs to this instance. A capability-enabled non-root
+		// master may be non-dumpable, making /proc/PID/exe inaccessible; verify
+		// its invocation and UID instead.
 		fields := strings.Fields(title)
 		if master && (len(fields) < 4 || fields[3] != binary) {
 			return runtimeProcess{}, false, fmt.Errorf("cannot verify executable of openresty master %d", pid)
@@ -91,7 +96,11 @@ func inspectProcProcess(dir string, pid int, executable os.FileInfo, binary, con
 	if fields[0] == "Z" {
 		return runtimeProcess{}, false, nil
 	}
-	return runtimeProcess{PID: pid, Master: master, StartTime: fields[procStartTimeIndex]}, true, nil
+	parentPID, err := strconv.Atoi(fields[procParentPIDIndex])
+	if err != nil {
+		return runtimeProcess{}, false, fmt.Errorf("invalid parent pid for process %d: %w", pid, err)
+	}
+	return runtimeProcess{PID: pid, ParentPID: parentPID, Master: master, StartTime: fields[procStartTimeIndex]}, true, nil
 }
 
 //nolint:unused // Used by the Linux process inspector.

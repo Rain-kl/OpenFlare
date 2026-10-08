@@ -25,10 +25,13 @@ const (
 // to reject a PID that has since been reused.
 type runtimeProcess struct {
 	PID       int
+	ParentPID int
 	Master    bool
 	StartTime string
 }
 
+// runtimeProcesses returns candidates; only verified masters and their tracked
+// descendants establish membership of this instance.
 func (e *PathExecutor) runtimeProcesses(ctx context.Context) ([]runtimeProcess, error) {
 	if e.inspectProcesses != nil {
 		return e.inspectProcesses()
@@ -54,10 +57,46 @@ func findRuntimeMaster(processes []runtimeProcess) (runtimeProcess, error) {
 		}
 		master = process
 	}
-	if master.PID == 0 && len(processes) != 0 {
-		return runtimeProcess{}, errors.New("openresty processes remain without a matching master; refusing to start another instance")
-	}
 	return master, nil
+}
+
+// runtimeMasterIdentities seeds instance membership from verified masters.
+func runtimeMasterIdentities(processes []runtimeProcess) map[int]string {
+	identities := make(map[int]string)
+	for _, process := range processes {
+		if process.Master {
+			identities[process.PID] = process.StartTime
+		}
+	}
+	return identities
+}
+
+// runtimeDescendants selects known identities and their children. Keeping the
+// identities between shutdown polls also recognizes workers reparented to init.
+func runtimeDescendants(processes []runtimeProcess, identities map[int]string) []runtimeProcess {
+	selected := make(map[int]bool)
+	for _, process := range processes {
+		if start, ok := identities[process.PID]; ok && start == process.StartTime {
+			selected[process.PID] = true
+		}
+	}
+	for changed := true; changed; {
+		changed = false
+		for _, process := range processes {
+			if !selected[process.PID] && selected[process.ParentPID] {
+				selected[process.PID] = true
+				changed = true
+			}
+		}
+	}
+	var result []runtimeProcess
+	for _, process := range processes {
+		if selected[process.PID] {
+			identities[process.PID] = process.StartTime
+			result = append(result, process)
+		}
+	}
+	return result
 }
 
 func (e *PathExecutor) recoverRuntime(ctx context.Context) error {
@@ -137,6 +176,8 @@ func (e *PathExecutor) restartRuntime(ctx context.Context) error {
 	if master.PID == 0 {
 		return e.startRuntime(ctx)
 	}
+	identities := runtimeMasterIdentities(processes)
+	runtimeDescendants(processes, identities)
 	if err := e.signalRuntime(ctx, master, true); err != nil {
 		return fmt.Errorf("stop openresty master: %w", err)
 	}
@@ -151,7 +192,7 @@ func (e *PathExecutor) restartRuntime(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		if len(remaining) == 0 {
+		if len(runtimeDescendants(remaining, identities)) == 0 {
 			break
 		}
 		select {
