@@ -112,9 +112,11 @@ func (r *OSCommandRunner) Run(ctx context.Context, name string, args ...string) 
 
 // PathExecutor runs OpenResty using a configured binary and config path.
 type PathExecutor struct {
-	Path       string
-	ConfigPath string
-	Runner     CommandRunner
+	Path             string
+	ConfigPath       string
+	Runner           CommandRunner
+	inspectProcesses func() ([]runtimeProcess, error)
+	signalProcess    func(runtimeProcess, bool) error
 }
 
 // Test validates the current OpenResty configuration.
@@ -130,21 +132,7 @@ func (e *PathExecutor) Test(ctx context.Context) error {
 
 // Reload reloads OpenResty or starts it when no runtime process is running.
 func (e *PathExecutor) Reload(ctx context.Context) error {
-	slog.Debug("running openresty reload with binary", "path", e.Path, "config", e.ConfigPath)
-	output, err := e.Runner.Run(ctx, e.Path, "-s", "reload", "-c", e.ConfigPath)
-	if err != nil {
-		if isOpenrestyNotRunningError(string(output)) {
-			slog.Warn("openresty reload reported runtime is not running, starting binary", "path", e.Path)
-			startOutput, startErr := e.Runner.Run(ctx, e.Path, "-c", e.ConfigPath)
-			if startErr != nil {
-				return fmt.Errorf("openresty reload failed: %w: %s; start failed: %w: %s", err, string(output), startErr, string(startOutput))
-			}
-			return nil
-		}
-		return fmt.Errorf("openresty reload failed: %w: %s", err, string(output))
-	}
-	slog.Debug("openresty reload succeeded with binary", "path", e.Path)
-	return nil
+	return e.recoverRuntime(ctx)
 }
 
 // EnsureRuntime validates configuration and reloads the OpenResty runtime.
@@ -162,20 +150,7 @@ func (e *PathExecutor) CheckHealth(ctx context.Context) error {
 
 // Restart stops and starts the OpenResty runtime process.
 func (e *PathExecutor) Restart(ctx context.Context) error {
-	slog.Info("restarting openresty with binary", "path", e.Path, "config", e.ConfigPath)
-	output, err := e.Runner.Run(ctx, e.Path, "-s", "quit", "-c", e.ConfigPath)
-	if err != nil {
-		text := string(output)
-		if !isIgnorableOpenrestyStopError(text) {
-			return fmt.Errorf("openresty stop failed: %w: %s", err, text)
-		}
-	}
-	output, err = e.Runner.Run(ctx, e.Path, "-c", e.ConfigPath)
-	if err != nil {
-		return fmt.Errorf("openresty start failed: %w: %s", err, string(output))
-	}
-	slog.Info("openresty restart succeeded with binary", "path", e.Path)
-	return nil
+	return e.restartRuntime(ctx)
 }
 
 // Manager applies OpenResty configuration and manages runtime assets.
@@ -197,6 +172,7 @@ type Manager struct {
 	Executor                     Executor
 	atomicFileWriter             func(path string, data []byte, perm os.FileMode) error
 	wafIPGroupsMu                sync.Mutex
+	runtimeMu                    sync.Mutex
 }
 
 // ApplyStatus reports the outcome of an OpenResty configuration apply.
@@ -261,6 +237,8 @@ type wafIPGroupsRuntimeConfig struct {
 
 // Apply writes, validates, and activates new OpenResty configuration files.
 func (m *Manager) Apply(ctx context.Context, mainConfig string, routeConfig string, supportFiles []protocol.SupportFile) ApplyOutcome {
+	m.runtimeMu.Lock()
+	defer m.runtimeMu.Unlock()
 	slog.Info("openresty apply started", "main_config", m.MainConfigPath, "route_config", m.RouteConfigPath, "cert_files", len(supportFiles))
 	backup, err := m.backup()
 	if err != nil {
@@ -364,7 +342,7 @@ func (m *Manager) rollbackAfterFailedApply(ctx context.Context, backup *backupSt
 		if backup != nil && backup.MainExisted {
 			return fatalApplyOutcome(fmt.Errorf("apply failed: %w; rollback recovery failed: %w", applyErr, err))
 		}
-		if fallbackErr := m.EnsureSafeFallbackRuntime(ctx, fmt.Sprintf("apply failed: %v; rollback recovery failed: %v", applyErr, err)); fallbackErr != nil {
+		if fallbackErr := m.ensureSafeFallbackRuntime(ctx, fmt.Sprintf("apply failed: %v; rollback recovery failed: %v", applyErr, err)); fallbackErr != nil {
 			return fatalApplyOutcome(fmt.Errorf("apply failed: %w; rollback recovery failed: %w; fallback recovery failed: %w", applyErr, err, fallbackErr))
 		}
 		message := fmt.Sprintf("apply failed, but fallback runtime started: %v; rollback recovery failed: %v", applyErr, err)
@@ -426,6 +404,8 @@ func (m *Manager) EnsureLuaAssets() error {
 
 // EnsureRuntime validates and reloads the current OpenResty runtime configuration.
 func (m *Manager) EnsureRuntime(ctx context.Context, recreate bool) error {
+	m.runtimeMu.Lock()
+	defer m.runtimeMu.Unlock()
 	if m.Executor == nil {
 		return errors.New("executor 未配置")
 	}
@@ -435,6 +415,12 @@ func (m *Manager) EnsureRuntime(ctx context.Context, recreate bool) error {
 
 // EnsureSafeFallbackRuntime starts a minimal safe default OpenResty runtime.
 func (m *Manager) EnsureSafeFallbackRuntime(ctx context.Context, reason string) error {
+	m.runtimeMu.Lock()
+	defer m.runtimeMu.Unlock()
+	return m.ensureSafeFallbackRuntime(ctx, reason)
+}
+
+func (m *Manager) ensureSafeFallbackRuntime(ctx context.Context, reason string) error {
 	if m.Executor == nil {
 		return errors.New("executor 未配置")
 	}
@@ -455,6 +441,8 @@ func (m *Manager) EnsureSafeFallbackRuntime(ctx context.Context, reason string) 
 
 // CheckHealth verifies that OpenResty configuration and health endpoints are available.
 func (m *Manager) CheckHealth(ctx context.Context) error {
+	m.runtimeMu.Lock()
+	defer m.runtimeMu.Unlock()
 	if m.Executor == nil {
 		return errors.New("executor 未配置")
 	}
@@ -471,6 +459,8 @@ func (m *Manager) CheckHealth(ctx context.Context) error {
 
 // Restart restarts the OpenResty runtime process.
 func (m *Manager) Restart(ctx context.Context) error {
+	m.runtimeMu.Lock()
+	defer m.runtimeMu.Unlock()
 	if m.Executor == nil {
 		return errors.New("executor 未配置")
 	}
@@ -480,6 +470,8 @@ func (m *Manager) Restart(ctx context.Context) error {
 
 // CurrentChecksum returns a stable checksum for the active OpenResty configuration bundle.
 func (m *Manager) CurrentChecksum() (string, error) {
+	m.runtimeMu.Lock()
+	defer m.runtimeMu.Unlock()
 	if m.RouteConfigPath == "" {
 		return "", errors.New("route config path 不能为空")
 	}
@@ -710,7 +702,7 @@ func writeAtomicFile(path string, data []byte, perm os.FileMode) (resultErr erro
 				resultErr = closeErr
 			}
 		}
-		_ = os.Remove(tempPath)
+		_ = os.Remove(tempPath) //nolint:gosec // Temp path is created by os.CreateTemp in the managed destination directory.
 	}()
 	if err = tempFile.Chmod(perm); err != nil {
 		return err
@@ -725,7 +717,7 @@ func writeAtomicFile(path string, data []byte, perm os.FileMode) (resultErr erro
 		return err
 	}
 	closed = true
-	if err = os.Rename(tempPath, path); err != nil {
+	if err = os.Rename(tempPath, path); err != nil { //nolint:gosec // Destination is an Agent-managed runtime file (including the validated pid directive).
 		return err
 	}
 	return nil
@@ -816,24 +808,6 @@ func parseExtVersion(output string) string {
 }
 
 var nginxVersionPattern = regexp.MustCompile(`(?im)(?:nginx|openresty) version:\s*(?:nginx|openresty)/(\S+)`)
-
-func isIgnorableOpenrestyStopError(output string) bool {
-	text := strings.ToLower(strings.TrimSpace(output))
-	if text == "" {
-		return false
-	}
-	return strings.Contains(text, "invalid pid") || strings.Contains(text, "no such process")
-}
-
-func isOpenrestyNotRunningError(output string) bool {
-	text := strings.ToLower(strings.TrimSpace(output))
-	if text == "" {
-		return false
-	}
-	return strings.Contains(text, "invalid pid") ||
-		strings.Contains(text, "no such process") ||
-		strings.Contains(text, "open()") && strings.Contains(text, "nginx.pid") && strings.Contains(text, "failed")
-}
 
 type backupState struct {
 	MainExisted  bool

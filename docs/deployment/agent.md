@@ -156,4 +156,6 @@ curl -fsSL https://raw.githubusercontent.com/Rain-kl/OpenFlare/main/scripts/unin
 | --- |---------------------------------------------------------------------------------------------------------|
 | `agent_token 和 discovery_token 不能同时为空` | 检查 `agent.json` 至少配置了一个 Token                                                                           |
 | 节点一直离线 | 在 Agent 节点执行 `curl -I http://your-server:3000`，确认 Server 地址可达                                           |
-| 发布后重复失败 | Agent 会阻断同一 `version + checksum` 的重复应用；在节点详情页点击「强制同步」，或重新发布新版本 |
+| 发布后重复失败 | Agent 会按指数退避自动强制同步，初始间隔 10 秒，最长间隔 5 分钟，直到目标版本应用成功；回滚至旧配置也会继续重试。可在节点详情页点击「强制同步」立即触发 |
+| PID 文件为空或失效，但端口仍被占用 | Agent 会核对 OpenResty master 的进程身份，恢复 PID 文件并重载现有进程；按配置路径和进程父子关系识别本实例，其他 nginx 实例不会阻塞启动。若出现多个匹配的 master，会报告错误并拒绝重复启动 |
+| OpenResty 重启等待超时 | 重启会先发送优雅退出信号，最多等待 10 秒让本实例旧 master 和 worker 退出（持续跟踪已识别的 worker，即使其被重新托管）；超时会保留错误，不会启动第二个实例。检查仍未结束的连接及进程后再重试 |

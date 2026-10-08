@@ -193,7 +193,7 @@ func (s *Service) applyRenderedConfig(ctx context.Context, mode string, snapshot
 	}
 	if !shouldReportApplyLog(alreadySynced, applyResult.reportResult) {
 		slog.Debug("skipping duplicate apply log report", "version", config.Version, "checksum", config.Checksum, "result", applyResult.reportResult)
-		if applyResult.reportResult == ApplyResultFailed {
+		if applyResult.reportResult != ApplyResultSuccess {
 			return outcomeError(config.Version, applyResult.message)
 		}
 		if err := s.syncReferencedWAFIPGroups(ctx, rendered.supportFiles); err != nil {
@@ -215,7 +215,7 @@ func (s *Service) applyRenderedConfig(ctx context.Context, mode string, snapshot
 		slog.Error("report apply log failed", "version", config.Version, "result", applyResult.reportResult, "error", err)
 		return err
 	}
-	if applyResult.reportResult == ApplyResultFailed {
+	if applyResult.reportResult != ApplyResultSuccess {
 		slog.Warn("failed apply log reported", "version", config.Version)
 		return outcomeError(config.Version, applyResult.message)
 	}

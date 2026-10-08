@@ -732,8 +732,8 @@ func TestSyncOnceReportsWarningWhenRollbackKeepsOpenrestyHealthy(t *testing.T) {
 	if err = service.SyncOnce(context.Background(), &protocol.ActiveConfigMeta{
 		Version:  client.config.Version,
 		Checksum: client.config.Checksum,
-	}); err != nil {
-		t.Fatalf("expected warning outcome to keep sync successful, got %v", err)
+	}); err == nil {
+		t.Fatal("SyncOnce(rolled-back target) returned nil, want an error so automatic retry continues")
 	}
 
 	snapshot, err := stateStore.Load()
