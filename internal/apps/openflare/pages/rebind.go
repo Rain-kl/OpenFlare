@@ -100,7 +100,7 @@ func rebindPagesRouteMaps(ctx context.Context, routes []map[string]json.RawMessa
 			if siteName == "" {
 				siteName = "pages"
 			}
-			return false, fmt.Errorf("路由 %s %w", siteName, err)
+			return false, fmt.Errorf("route %s %w", siteName, err)
 		}
 		project, activeDeployment, err := loadActivePagesProject(ctx, projectID, siteName)
 		if err != nil {
@@ -152,7 +152,7 @@ func resolveProjectIDFromRouteMap(route map[string]json.RawMessage) (uint, error
 			return deployment.ProjectID, nil
 		}
 	}
-	return 0, errors.New("pages 配置无效: 缺少 pages_project_id")
+	return 0, errors.New("invalid Pages configuration: missing pages_project_id")
 }
 
 func loadActivePagesProject(ctx context.Context, projectID uint, siteName string) (*model.PagesProject, *model.PagesDeployment, error) {
@@ -162,28 +162,28 @@ func loadActivePagesProject(ctx context.Context, projectID uint, siteName string
 	project, err := repository.GetPagesProjectByID(ctx, projectID)
 	if err != nil {
 		if errorsIsNotFound(err) {
-			return nil, nil, fmt.Errorf("路由 %s Pages 配置无效: pages 项目不存在", siteName)
+			return nil, nil, fmt.Errorf("invalid Pages configuration for route %s: Pages project was not found", siteName)
 		}
 		return nil, nil, err
 	}
 	if !project.Enabled {
-		return nil, nil, fmt.Errorf("路由 %s Pages 配置无效: pages 项目未启用", siteName)
+		return nil, nil, fmt.Errorf("invalid Pages configuration for route %s: Pages project is disabled", siteName)
 	}
 	if project.ActiveDeploymentID == nil || *project.ActiveDeploymentID == 0 {
-		return nil, nil, fmt.Errorf("路由 %s Pages 配置无效: pages 项目没有激活部署", siteName)
+		return nil, nil, fmt.Errorf("invalid Pages configuration for route %s: Pages project has no active deployment", siteName)
 	}
 	activeDeployment, err := repository.GetPagesDeploymentByID(ctx, *project.ActiveDeploymentID)
 	if err != nil {
 		if errorsIsNotFound(err) {
-			return nil, nil, fmt.Errorf("路由 %s Pages 配置无效: pages 激活部署不存在", siteName)
+			return nil, nil, fmt.Errorf("invalid Pages configuration for route %s: active Pages deployment was not found", siteName)
 		}
 		return nil, nil, err
 	}
 	if activeDeployment.ProjectID != project.ID {
-		return nil, nil, fmt.Errorf("路由 %s Pages 配置无效: pages 激活部署不匹配", siteName)
+		return nil, nil, fmt.Errorf("invalid Pages configuration for route %s: active Pages deployment does not match", siteName)
 	}
 	if strings.TrimSpace(activeDeployment.Checksum) == "" {
-		return nil, nil, fmt.Errorf("路由 %s Pages 配置无效: pages 部署校验和缺失", siteName)
+		return nil, nil, fmt.Errorf("invalid Pages configuration for route %s: Pages deployment checksum is missing", siteName)
 	}
 	return project, activeDeployment, nil
 }

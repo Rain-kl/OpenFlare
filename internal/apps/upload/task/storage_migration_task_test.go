@@ -270,7 +270,7 @@ func TestMigrationHandlerExecuteWithRedisLock(t *testing.T) {
 	if err == nil {
 		t.Fatal("Execute() succeeded when lock was held, want error")
 	}
-	if !strings.Contains(err.Error(), "另一个存储迁移任务正在运行中") {
+	if !strings.Contains(err.Error(), "another storage migration task is already running") {
 		t.Errorf("expected lock warning, got: %v", err)
 	}
 

@@ -1,0 +1,11 @@
+{
+  "languageNames": {
+    "en": "English",
+    "zh-CN": "Chinese",
+    "ru": "Russian"
+  },
+  "languageLoading": {
+    "failed": "The interface could not finish loading. Check your connection and reload the page.",
+    "reload": "Reload page"
+  }
+}

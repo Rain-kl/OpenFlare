@@ -224,7 +224,7 @@ func EnsureDefaultRuleGroup(ctx context.Context) error {
 		return marshalErr
 	}
 	group := &model.OpenFlareWAFRuleGroup{
-		Name: "全局规则组", Enabled: true, IsGlobal: true, Graph: string(graph), Revision: 1,
+		Name: "Global rule group", Enabled: true, IsGlobal: true, Graph: string(graph), Revision: 1,
 	}
 	return repository.CreateOpenFlareWAFRuleGroup(ctx, group)
 }
@@ -308,7 +308,7 @@ func DeleteIPGroup(ctx context.Context, id uint) error {
 		return err
 	}
 	if counts[group.ID] > 0 {
-		return &RuleValidationError{Err: errors.New("IP 组已被 WAF 规则引用，请先移除引用")}
+		return &RuleValidationError{Err: errors.New("IP group is referenced by WAF rules; remove the references first")}
 	}
 	return repository.DeleteOpenFlareWAFIPGroup(ctx, group.ID)
 }
@@ -412,13 +412,13 @@ func normalizeIPList(items []string) ([]string, error) {
 		if strings.Contains(item, "/") {
 			prefix, err := netip.ParsePrefix(item)
 			if err != nil {
-				return nil, fmt.Errorf("%s 不是合法 IP 段", item)
+				return nil, fmt.Errorf("%s is not a valid IP range", item)
 			}
 			item = prefix.Masked().String()
 		} else {
 			addr, err := netip.ParseAddr(item)
 			if err != nil {
-				return nil, fmt.Errorf("%s 不是合法 IP", item)
+				return nil, fmt.Errorf("%s is not a valid IP address", item)
 			}
 			item = addr.String()
 		}
@@ -446,10 +446,10 @@ func normalizeRuleGroupIDs(ctx context.Context, groupIDs []uint) ([]uint, error)
 	for _, groupID := range normalized {
 		group, err := repository.GetOpenFlareWAFRuleGroupByID(ctx, groupID)
 		if err != nil {
-			return nil, fmt.Errorf("WAF 规则组 %d 不存在", groupID)
+			return nil, fmt.Errorf("WAF rule group %d was not found", groupID)
 		}
 		if group.IsGlobal {
-			return nil, errors.New("全局 WAF 规则组不需要手动绑定")
+			return nil, errors.New("global WAF rule groups do not require manual binding")
 		}
 	}
 	return normalized, nil
@@ -504,11 +504,11 @@ func parseIPGroupAutoConfig(raw json.RawMessage) (ipGroupAutoConfig, error) {
 	}
 	var object map[string]any
 	if err := json.Unmarshal([]byte(text), &object); err != nil || object == nil {
-		return ipGroupAutoConfig{}, errors.New("自动 IP 组配置必须是 JSON 对象")
+		return ipGroupAutoConfig{}, errors.New("automatic IP group configuration must be a JSON object")
 	}
 	var config ipGroupAutoConfig
 	if err := json.Unmarshal([]byte(text), &config); err != nil {
-		return ipGroupAutoConfig{}, errors.New("自动 IP 组配置必须是 JSON 对象")
+		return ipGroupAutoConfig{}, errors.New("automatic IP group configuration must be a JSON object")
 	}
 	lookbackDur, lookbackText, err := resolveIPGroupAutoLookback(object)
 	if err != nil {
@@ -526,10 +526,10 @@ func parseIPGroupAutoConfig(raw json.RawMessage) (ipGroupAutoConfig, error) {
 		rule.Name = strings.TrimSpace(rule.Name)
 		rule.Expr = strings.TrimSpace(rule.Expr)
 		if rule.Expr == "" {
-			return ipGroupAutoConfig{}, fmt.Errorf("自动规则 %d 的 Expr 表达式不能为空", i+1)
+			return ipGroupAutoConfig{}, fmt.Errorf("expression in automatic rule %d must not be empty", i+1)
 		}
 		if _, err := exprlang.Compile(rule.Expr, exprlang.Env(ipGroupAutoRuleEnv{}), exprlang.AsBool()); err != nil {
-			return ipGroupAutoConfig{}, fmt.Errorf("自动规则 %s Expr 无效: %w", displayIPGroupAutoRuleName(rule, i), err)
+			return ipGroupAutoConfig{}, fmt.Errorf("invalid expression in automatic rule %s: %w", displayIPGroupAutoRuleName(rule, i), err)
 		}
 		config.Rules[i] = rule
 	}
@@ -549,14 +549,14 @@ func resolveIPGroupAutoLookback(object map[string]any) (time.Duration, string, e
 		// legacy: minutes as number or numeric string
 		minutes, err := parsePositiveNumber(raw)
 		if err != nil {
-			return 0, "", fmt.Errorf("lookback_minutes 无效: %w", err)
+			return 0, "", fmt.Errorf("invalid lookback_minutes: %w", err)
 		}
 		if minutes <= 0 {
 			return defaultWAFIPGroupAutoLookbackDur, defaultWAFIPGroupAutoLookback, nil
 		}
 		dur := time.Duration(minutes) * time.Minute
 		if dur > maxWAFIPGroupAutoLookback {
-			return 0, "", fmt.Errorf("回看窗口不能超过 %s", formatLookbackDuration(maxWAFIPGroupAutoLookback))
+			return 0, "", fmt.Errorf("lookback window must not exceed %s", formatLookbackDuration(maxWAFIPGroupAutoLookback))
 		}
 		return dur, formatLookbackDuration(dur), nil
 	}
@@ -574,20 +574,20 @@ func parseIPGroupLookbackValue(raw any) (time.Duration, string, error) {
 		if isAllDigits(trimmed) {
 			minutes, err := parsePositiveNumber(trimmed)
 			if err != nil || minutes <= 0 {
-				return 0, "", errors.New("lookback 格式不合法，请使用 60m、1h 等时长")
+				return 0, "", errors.New("invalid lookback format; use a duration such as 60m or 1h")
 			}
 			dur := time.Duration(minutes) * time.Minute
 			if dur > maxWAFIPGroupAutoLookback {
-				return 0, "", fmt.Errorf("回看窗口不能超过 %s", formatLookbackDuration(maxWAFIPGroupAutoLookback))
+				return 0, "", fmt.Errorf("lookback window must not exceed %s", formatLookbackDuration(maxWAFIPGroupAutoLookback))
 			}
 			return dur, formatLookbackDuration(dur), nil
 		}
 		dur, err := time.ParseDuration(strings.ToLower(trimmed))
 		if err != nil || dur <= 0 {
-			return 0, "", errors.New("lookback 格式不合法，请使用 60m、1h 等时长")
+			return 0, "", errors.New("invalid lookback format; use a duration such as 60m or 1h")
 		}
 		if dur > maxWAFIPGroupAutoLookback {
-			return 0, "", fmt.Errorf("回看窗口不能超过 %s", formatLookbackDuration(maxWAFIPGroupAutoLookback))
+			return 0, "", fmt.Errorf("lookback window must not exceed %s", formatLookbackDuration(maxWAFIPGroupAutoLookback))
 		}
 		return dur, formatLookbackDuration(dur), nil
 	case float64:
@@ -595,17 +595,17 @@ func parseIPGroupLookbackValue(raw any) (time.Duration, string, error) {
 			return defaultWAFIPGroupAutoLookbackDur, defaultWAFIPGroupAutoLookback, nil
 		}
 		if v != float64(int64(v)) {
-			return 0, "", errors.New("lookback 数值必须为整数分钟")
+			return 0, "", errors.New("lookback must be a whole number of minutes")
 		}
 		dur := time.Duration(int64(v)) * time.Minute
 		if dur > maxWAFIPGroupAutoLookback {
-			return 0, "", fmt.Errorf("回看窗口不能超过 %s", formatLookbackDuration(maxWAFIPGroupAutoLookback))
+			return 0, "", fmt.Errorf("lookback window must not exceed %s", formatLookbackDuration(maxWAFIPGroupAutoLookback))
 		}
 		return dur, formatLookbackDuration(dur), nil
 	case json.Number:
 		return parseIPGroupLookbackValue(string(v))
 	default:
-		return 0, "", errors.New("lookback 格式不合法，请使用 60m、1h 等时长")
+		return 0, "", errors.New("invalid lookback format; use a duration such as 60m or 1h")
 	}
 }
 
@@ -613,7 +613,7 @@ func parsePositiveNumber(raw any) (int, error) {
 	switch v := raw.(type) {
 	case float64:
 		if v != float64(int(v)) {
-			return 0, errors.New("必须为整数")
+			return 0, errors.New("must be an integer")
 		}
 		return int(v), nil
 	case int:
@@ -629,7 +629,7 @@ func parsePositiveNumber(raw any) (int, error) {
 	case string:
 		trimmed := strings.TrimSpace(v)
 		if trimmed == "" || !isAllDigits(trimmed) {
-			return 0, errors.New("必须为整数")
+			return 0, errors.New("must be an integer")
 		}
 		n := 0
 		for _, ch := range trimmed {
@@ -637,7 +637,7 @@ func parsePositiveNumber(raw any) (int, error) {
 		}
 		return n, nil
 	default:
-		return 0, errors.New("必须为整数")
+		return 0, errors.New("must be an integer")
 	}
 }
 
@@ -673,10 +673,10 @@ func formatLookbackDuration(d time.Duration) string {
 func validateSubscriptionURL(rawURL string) error {
 	parsed, err := url.Parse(strings.TrimSpace(rawURL))
 	if err != nil || parsed.Host == "" {
-		return errors.New("订阅 URL 无效")
+		return errors.New("invalid subscription URL")
 	}
 	if parsed.Scheme != "http" && parsed.Scheme != "https" {
-		return errors.New("订阅 URL 仅支持 http 或 https")
+		return errors.New("subscription URL must use HTTP or HTTPS")
 	}
 	return nil
 }
@@ -729,11 +729,11 @@ func nextIPGroupSyncAt(groupType string, enabled bool, interval int, current *ti
 func buildIPGroup(group *model.OpenFlareWAFIPGroup, input IPGroupInput) (*model.OpenFlareWAFIPGroup, error) {
 	name := strings.TrimSpace(input.Name)
 	if name == "" {
-		return nil, errors.New("IP 组名称不能为空")
+		return nil, errors.New("IP group name must not be empty")
 	}
 	groupType := normalizeIPGroupType(input.Type)
 	if groupType == "" {
-		return nil, errors.New("IP 组类型无效")
+		return nil, errors.New("invalid IP group type")
 	}
 	ipList := input.IPList
 	subscriptionURL := ""

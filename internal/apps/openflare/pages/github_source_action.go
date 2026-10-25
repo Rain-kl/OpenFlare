@@ -80,7 +80,7 @@ func checkGitHubSource(
 	if snapshot == nil || snapshot.SourceType != PagesSourceTypeGitHubRelease {
 		return nil, errors.New(errPagesSourceTypeUnsupported)
 	}
-	task.AppendLog(ctx, "[check] 正在检查 GitHub Release：repo=%s asset=%s", snapshot.GitHubRepository, snapshot.AssetName)
+	task.AppendLog(ctx, "[check] Checking GitHub Release: repo=%s asset=%s", snapshot.GitHubRepository, snapshot.AssetName)
 	client := newGitHubReleaseClient()
 	result, err := client.Resolve(ctx, githubrelease.ResolveRequest{
 		Repository: snapshot.GitHubRepository,
@@ -111,7 +111,7 @@ func checkGitHubSource(
 		}
 		detail, _ := json.Marshal(map[string]string{"revision": revision, pagesDeploymentColumnStatus: status})
 		return &githubCheckTaskResult{
-			Message:  "GitHub Release 检查完成，内容未变化",
+			Message:  "GitHub Release check completed; content is unchanged",
 			Detail:   string(detail),
 			Revision: revision,
 			Status:   status,
@@ -140,12 +140,12 @@ func checkGitHubSource(
 		return nil, err
 	}
 	detail, _ := json.Marshal(map[string]string{"revision": target.Revision, pagesDeploymentColumnStatus: status})
-	message := "GitHub Release 检查完成"
+	message := "GitHub Release check completed"
 	switch status {
 	case pagesSourceStatusUpdateAvailable:
-		message = "发现新的 GitHub Release 部署包"
+		message = "A new GitHub Release deployment archive is available"
 	case pagesSourceStatusAttention:
-		message = "检测到同一 Release 的资源被替换，需要确认"
+		message = "An asset in the same release was replaced; confirmation is required"
 	}
 	return &githubCheckTaskResult{
 		Message: message, Detail: string(detail), Revision: target.Revision,
@@ -454,7 +454,7 @@ func activatePreparedGitHubSource(
 	triggerType string,
 	prepared *preparedGitHubSource,
 ) (*sourceSyncOutcome, error) {
-	task.AppendLog(ctx, "[activate] 正在原子切换 GitHub Release 部署")
+	task.AppendLog(ctx, "[activate] Atomically switching GitHub Release deployment")
 	deployment, reused, referenced, err := commitSourceDeploymentWithTrigger(
 		ctx, snapshot, prepared.target.Revision, prepared.download.SHA256,
 		prepared.target.Detail, prepared.target.DetailJSON, actor, triggerType, prepared.manifest,
@@ -482,7 +482,7 @@ func resolveAndGuardGitHubSync(
 	targetRevision string,
 	confirmedRevision string,
 ) (*githubSourceTarget, *sourceSyncOutcome, error) {
-	task.AppendLog(ctx, "[resolve] 正在解析 GitHub Release：repo=%s asset=%s", snapshot.GitHubRepository, snapshot.AssetName)
+	task.AppendLog(ctx, "[resolve] Resolving GitHub Release: repo=%s asset=%s", snapshot.GitHubRepository, snapshot.AssetName)
 	resolved, err := client.Resolve(ctx, githubrelease.ResolveRequest{
 		Repository: snapshot.GitHubRepository,
 		Selector:   githubrelease.Selector(snapshot.ReleaseSelector),
@@ -557,7 +557,7 @@ func prepareGitHubSyncPackage(
 	target *githubSourceTarget,
 ) (*preparedGitHubSource, error) {
 	limits := resolvePagesLimits(ctx)
-	task.AppendLog(ctx, "[download] 正在下载 GitHub Release asset：repo=%s asset=%s", snapshot.GitHubRepository, snapshot.AssetName)
+	task.AppendLog(ctx, "[download] Downloading GitHub Release asset: repo=%s asset=%s", snapshot.GitHubRepository, snapshot.AssetName)
 	download, err := client.Download(ctx, githubrelease.DownloadRequest{
 		Repository: snapshot.GitHubRepository,
 		Asset:      target.Asset,
@@ -606,7 +606,7 @@ func inspectAndIngestGitHubPackage(
 	if err != nil {
 		return nil, err
 	}
-	task.AppendLog(ctx, "[verify] 正在校验 GitHub Release 归档与入口")
+	task.AppendLog(ctx, "[verify] Verifying GitHub Release archive and entry file")
 	manifest, err := inspectPagesPackage(download.Path, format, rootDir, entryFile, limits)
 	if err != nil {
 		return nil, err
@@ -633,7 +633,7 @@ func resolveGitHubSourceIngest(
 	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, err
 	}
-	task.AppendLog(ctx, "[ingest] 正在保存 GitHub Release 部署包")
+	task.AppendLog(ctx, "[ingest] Saving GitHub Release deployment archive")
 	result, err := ingestPagesDeploymentPackageWithSource(
 		ctx, download.Path, download.SHA256, snapshot.ProjectID, snapshot.SourceID, target.Asset.Name, format,
 	)

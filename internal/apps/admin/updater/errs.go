@@ -5,13 +5,13 @@
 package updater
 
 const (
-	errInvalidRepository       = "上游仓库地址无效"
-	errReleaseRequestFailed    = "获取上游版本失败"
-	errReleaseResponseInvalid  = "上游版本响应无效"
-	errNoCompatibleRelease     = "未找到兼容的 Release"
-	errNoCompatibleAsset       = "未找到当前系统对应的 Release 资产"
-	errDevelopmentBuild        = "开发版本无法执行自动升级"
-	errAlreadyUpToDate         = "当前已是最新版本"
-	errUpgradeAlreadyRunning   = "已有升级任务正在执行"
-	errAutomaticUpgradeBlocked = "当前平台暂不支持自动替换二进制"
+	errInvalidRepository       = "invalid upstream repository URL"
+	errReleaseRequestFailed    = "Failed to fetch upstream version"
+	errReleaseResponseInvalid  = "Invalid upstream version response"
+	errNoCompatibleRelease     = "no compatible release was found"
+	errNoCompatibleAsset       = "no release asset was found for the current platform"
+	errDevelopmentBuild        = "development builds do not support automatic updates"
+	errAlreadyUpToDate         = "already running the latest version"
+	errUpgradeAlreadyRunning   = "an update is already in progress"
+	errAutomaticUpgradeBlocked = "automatic binary replacement is not supported on this platform"
 )

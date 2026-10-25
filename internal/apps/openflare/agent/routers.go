@@ -269,12 +269,12 @@ func DownloadPagesProjectLatestPackageHandler(c *gin.Context) {
 func pagesUintParam(c *gin.Context, name string) (uint, bool) {
 	raw := c.Param(name)
 	if raw == "" {
-		response.AbortBadRequest(c, "无效的 ID")
+		response.AbortBadRequest(c, "Invalid ID")
 		return 0, false
 	}
 	id64, err := strconv.ParseUint(raw, 10, 64)
 	if err != nil || id64 == 0 {
-		response.AbortBadRequest(c, "无效的 ID")
+		response.AbortBadRequest(c, "Invalid ID")
 		return 0, false
 	}
 	return uint(id64), true

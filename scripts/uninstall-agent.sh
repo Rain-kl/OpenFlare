@@ -56,13 +56,12 @@ done
 
 if [[ "$HAS_ARGS" == "false" ]]; then
   echo "=================================================="
-  echo "欢迎使用 OpenFlare Agent 卸载脚本"
   echo "Welcome to the OpenFlare Agent Uninstaller"
   echo "=================================================="
-  echo "请选择卸载方式 / Please choose uninstall method:"
-  echo "  1) Local  (本地卸载: 停止服务并删除二进制及配置)"
-  echo "  2) Docker (容器卸载: 停止并删除 Docker 容器)"
-  read -p "请输入序号 [1-2] (默认 1): " method_choice
+  echo "Please choose an uninstall method:"
+  echo "  1) Local  (stop the service and remove the binary and configuration)"
+  echo "  2) Docker (stop and remove the Docker container)"
+  read -p "Enter an option [1-2] (default: 1): " method_choice
   method_choice=${method_choice:-1}
   case "$method_choice" in
     2) INSTALL_METHOD="docker" ;;
@@ -75,39 +74,39 @@ else
 fi
 
 if [[ "$INSTALL_METHOD" == "docker" ]]; then
-  echo "正在卸载 OpenFlare Agent (Docker)..."
+  echo "Uninstalling OpenFlare Agent (Docker)..."
 
   # Check if container exists
   if command -v docker >/dev/null 2>&1; then
     if docker ps -a --format '{{.Names}}' | grep -Eq "^openflare-agent$"; then
-      echo "停止并移除 openflare-agent 容器..."
+      echo "Stopping and removing the openflare-agent container..."
       docker stop openflare-agent || true
       docker rm -f openflare-agent || true
-      echo "已成功移除 openflare-agent 容器。"
+      echo "The openflare-agent container was removed successfully."
     else
-      echo "未检测到 openflare-agent 容器。"
+      echo "No openflare-agent container was found."
     fi
 
     # In interactive mode, ask if user wants to remove docker image
     if [[ "$HAS_ARGS" == "false" ]]; then
-      read -p "是否删除 OpenFlare Agent 镜像 (ghcr.io/rain-kl/openflare-agent:latest)? (y/n) [n]: " remove_image_choice
+      read -p "Remove the OpenFlare Agent image (ghcr.io/rain-kl/openflare-agent:latest)? (y/n) [n]: " remove_image_choice
       remove_image_choice=${remove_image_choice:-n}
       case "$remove_image_choice" in
         [yY])
-          echo "正在删除 Docker 镜像..."
+          echo "Removing the Docker image..."
           docker rmi ghcr.io/rain-kl/openflare-agent:latest || true
           ;;
         *)
-          echo "保留 Docker 镜像。"
+          echo "Keeping the Docker image."
           ;;
       esac
     fi
   else
-    echo "Error: 未检测到 Docker 运行环境，无法进行 Docker 方式的卸载。"
+    echo "Error: Docker was not found; cannot uninstall a Docker deployment."
     exit 1
   fi
 
-  echo "OpenFlare Agent (Docker) 卸载完成。"
+  echo "OpenFlare Agent (Docker) uninstalled."
   exit 0
 fi
 

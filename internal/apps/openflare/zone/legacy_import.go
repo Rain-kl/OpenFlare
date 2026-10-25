@@ -25,7 +25,7 @@ type ImportReport struct {
 // LogAndReturn decorates the import failure with its conflict count.
 func (r ImportReport) LogAndReturn(err error) error {
 	if err != nil {
-		return fmt.Errorf("迁移 Zone 失败（%d 个冲突）: %w", len(r.Conflicts), err)
+		return fmt.Errorf("failed to migrate zone (%d conflicts): %w", len(r.Conflicts), err)
 	}
 	return nil
 }

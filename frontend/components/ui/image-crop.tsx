@@ -1,5 +1,7 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
+
 import { CropIcon, RotateCcwIcon } from 'lucide-react';
 import { Slot } from '@radix-ui/react-slot';
 import {
@@ -235,6 +237,8 @@ export const ImageCropContent = ({
   style,
   className,
 }: ImageCropContentProps) => {
+  const uiText = useTranslations('runtime');
+
   const {
     imgSrc,
     crop,
@@ -262,7 +266,7 @@ export const ImageCropContent = ({
       {imgSrc && (
         // eslint-disable-next-line @next/next/no-img-element
         <img
-          alt='crop'
+          alt={uiText('ui_imageCrop')}
           className='size-full'
           height={400}
           onLoad={onImageLoad}

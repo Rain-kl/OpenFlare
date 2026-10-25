@@ -35,12 +35,12 @@ func TestSeconds2Time(t *testing.T) {
 		input    int
 		expected string
 	}{
-		{0, "0 秒"},
-		{30, "30 秒"},
-		{60, "1 分钟 0 秒"},
-		{125, "2 分钟 5 秒"},
-		{3600, "1 小时 0 秒"},
-		{86400, "1 天 0 秒"},
+		{0, "0 seconds"},
+		{30, "30 seconds"},
+		{60, "1 minute 0 seconds"},
+		{125, "2 minutes 5 seconds"},
+		{3600, "1 hour 0 seconds"},
+		{86400, "1 day 0 seconds"},
 	}
 
 	for _, tt := range tests {

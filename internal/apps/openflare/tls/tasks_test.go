@@ -27,19 +27,19 @@ func TestSSLSingleRenewHandler_ValidatePayload(t *testing.T) {
 			name:    "empty payload",
 			payload: nil,
 			wantErr: true,
-			errMsg:  "任务参数不能为空",
+			errMsg:  "task parameters must not be empty",
 		},
 		{
 			name:    "invalid JSON",
 			payload: []byte(`{`),
 			wantErr: true,
-			errMsg:  "无效的 JSON 格式",
+			errMsg:  "invalid JSON format",
 		},
 		{
 			name:    "zero ID",
 			payload: []byte(`{"id":0}`),
 			wantErr: true,
-			errMsg:  "证书 ID 不能为空或零",
+			errMsg:  "certificate ID must be nonzero",
 		},
 		{
 			name:    "valid ID",
@@ -84,7 +84,7 @@ func TestSSLSingleRenewHandler_Execute(t *testing.T) {
 		require.NoError(t, err)
 		_, err = handler.Execute(ctx, payload)
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "获取证书记录失败")
+		assert.Contains(t, err.Error(), "failed to get certificate record")
 	})
 
 	t.Run("certificate provider is not ACME", func(t *testing.T) {
@@ -101,7 +101,7 @@ func TestSSLSingleRenewHandler_Execute(t *testing.T) {
 
 		_, err = handler.Execute(ctx, payload)
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "不是 ACME 托管证书")
+		assert.Contains(t, err.Error(), "is not ACME-managed")
 	})
 
 	t.Run("successful renewal", func(t *testing.T) {
@@ -125,7 +125,7 @@ func TestSSLSingleRenewHandler_Execute(t *testing.T) {
 
 		res, err := handler.Execute(ctx, payload)
 		require.NoError(t, err)
-		assert.Contains(t, res.Message, "续签成功")
+		assert.Contains(t, res.Message, "renewed successfully")
 
 		updated, err := repository.GetTLSCertificateByID(ctx, cert.ID)
 		require.NoError(t, err)

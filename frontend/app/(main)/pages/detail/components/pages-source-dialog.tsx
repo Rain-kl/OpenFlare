@@ -94,6 +94,8 @@ export function PagesSourceDialog({
   initialMode,
   onActionDispatched,
 }: PagesSourceDialogProps) {
+  const uiText = useTranslations('runtime');
+
   const t = useTranslations('pages.source');
   const tCommon = useTranslations('common');
   const queryClient = useQueryClient();
@@ -361,10 +363,10 @@ export function PagesSourceDialog({
                   {t('manual')}
                 </ToggleGroupItem>
                 <ToggleGroupItem value='remote_url' className='w-full'>
-                  Remote URL
+                  {uiText('ui_remoteUrl')}
                 </ToggleGroupItem>
                 <ToggleGroupItem value='github_release' className='w-full'>
-                  GitHub Release
+                  {uiText('ui_githubRelease')}
                 </ToggleGroupItem>
               </ToggleGroup>
             </Field>
@@ -379,7 +381,9 @@ export function PagesSourceDialog({
             ) : mode === 'remote_url' ? (
               <>
                 <Field data-invalid={Boolean(urlError)}>
-                  <FieldLabel htmlFor='pages-remote-url'>Remote URL</FieldLabel>
+                  <FieldLabel htmlFor='pages-remote-url'>
+                    {uiText('ui_remoteUrl')}
+                  </FieldLabel>
                   <Input
                     id='pages-remote-url'
                     type='url'

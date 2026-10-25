@@ -43,7 +43,7 @@ func createSystemConfig(ctx context.Context, req CreateSystemConfigRequest) erro
 
 	invalidateSystemConfigCaches(ctx, req.Key)
 	if err := repository.InvalidateVisibleSystemConfigsCache(ctx); err != nil {
-		logger.WarnF(ctx, "清理公共配置列表缓存失败: %v", err)
+		logger.WarnF(ctx, "Failed to clear public configuration list cache: %v", err)
 	}
 	return nil
 }
@@ -71,7 +71,7 @@ func updateSystemConfig(ctx context.Context, key string, req UpdateSystemConfigR
 
 		validatedVal, err := validateAndMergeStorageConfig(ctx, req.Value, config.Value)
 		if err != nil {
-			return err
+			return &storageConfigValidationError{err}
 		}
 		req.Value = validatedVal
 	}
@@ -123,9 +123,9 @@ func resolveStorageMigrationTasksOnDirectDriverUpdate(
 	if err := repository.MarkFailedTaskExecutionsSucceededTx(
 		tx,
 		"storage:migrate",
-		"存储配置直接更新，故障迁移任务自动标记为已解决",
+		"Storage configuration updated directly; failed migration task marked as resolved",
 		time.Now(),
 	); err != nil {
-		logger.ErrorF(ctx, "自动更新迁移任务状态失败: %v", err)
+		logger.ErrorF(ctx, "Failed to automatically update migration task status: %v", err)
 	}
 }

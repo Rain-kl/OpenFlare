@@ -1,29 +1,38 @@
 import { describe, expect, it } from 'vitest';
+import { getRuntimeTranslator } from '@/i18n/runtime';
 
 import {
   createRuleNode,
   displayNodeTitle,
-  NODE_TYPE_LABELS,
   parseAddableNodeType,
 } from './node-factory';
 
 describe('displayNodeTitle', () => {
   it('uses trimmed label when present', () => {
     expect(
-      displayNodeTitle({
-        type: 'ip_match',
-        label: '  办公室  ',
-      }),
+      displayNodeTitle(
+        {
+          type: 'ip_match',
+          label: '  办公室  ',
+        },
+        getRuntimeTranslator('en'),
+      ),
     ).toBe('办公室');
   });
 
   it('falls back to type default when label empty', () => {
     expect(
-      displayNodeTitle({
-        type: 'block',
-        label: '  ',
-      }),
-    ).toBe(NODE_TYPE_LABELS.block);
+      displayNodeTitle(
+        {
+          type: 'block',
+          label: '  ',
+        },
+        getRuntimeTranslator('en'),
+      ),
+    ).toBe('Block');
+    expect(
+      displayNodeTitle({ type: 'block' }, getRuntimeTranslator('zh-CN')),
+    ).toBe('阻止');
   });
 });
 

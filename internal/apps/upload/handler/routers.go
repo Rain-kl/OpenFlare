@@ -175,7 +175,7 @@ func DownloadFile(c *gin.Context) {
 	upload, err := filesrv.GetUploadRecordByID(c)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			response.AbortNotFound(c, "文件记录未找到")
+			response.AbortNotFound(c, "File record was not found")
 			return
 		}
 		var numErr *strconv.NumError
@@ -281,13 +281,13 @@ func BatchDownloadFiles(c *gin.Context) {
 
 		zipFileEntry, err := zipWriter.Create(fileName)
 		if err != nil {
-			logger.ErrorF(ctx, "ZIP 添加条目失败 [%s]: %v", fileName, err)
+			logger.ErrorF(ctx, "Failed to add ZIP entry [%s]: %v", fileName, err)
 			continue
 		}
 
 		obj, err := uploadstorage.OpenStoredObject(ctx, &upload)
 		if err != nil {
-			logger.ErrorF(ctx, "打包时读取文件失败: %v", err)
+			logger.ErrorF(ctx, "Failed to read file while creating archive: %v", err)
 			continue
 		}
 		rc := obj.Body
@@ -295,7 +295,7 @@ func BatchDownloadFiles(c *gin.Context) {
 		_, err = io.Copy(zipFileEntry, rc)
 		_ = rc.Close()
 		if err != nil {
-			logger.ErrorF(ctx, "写入 ZIP 流失败: %v", err)
+			logger.ErrorF(ctx, "Failed to write ZIP stream: %v", err)
 		}
 	}
 }
@@ -311,7 +311,7 @@ func resolveUploadAccessMode(c *gin.Context, uploadType string) (int, string) {
 
 	accessMode, err := strconv.Atoi(accessModeStr)
 	if err != nil || (accessMode != 0 && accessMode != 1) {
-		return 0, "无效的 access_mode 参数"
+		return 0, "Invalid access_mode parameter"
 	}
 	return accessMode, ""
 }

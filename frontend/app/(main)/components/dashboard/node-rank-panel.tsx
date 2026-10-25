@@ -1,5 +1,6 @@
 'use client';
 
+import { getFormattingLocale } from '@/i18n/format';
 import { useTranslations } from 'next-intl';
 
 import { RankChart } from '@/components/data/rank-chart';
@@ -16,7 +17,7 @@ function buildNodeRankItems(
       const leftValue = selector(left);
       const rightValue = selector(right);
       if (leftValue === rightValue) {
-        return left.name.localeCompare(right.name, 'zh-CN');
+        return left.name.localeCompare(right.name, getFormattingLocale());
       }
       return rightValue - leftValue;
     })

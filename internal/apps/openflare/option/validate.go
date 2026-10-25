@@ -28,7 +28,7 @@ var (
 const optionValueTrue = "true"
 
 // protectedConfigKeyMessage 命中受保护 key 时返回给管理员的业务错误文案。
-const protectedConfigKeyMessage = "该配置项由系统任务管理，禁止手动修改"
+const protectedConfigKeyMessage = "this configuration is managed by system tasks and cannot be changed manually"
 
 // protectedConfigKeys 仅允许内部（迁移任务/bootstrap）写入的 key。
 var protectedConfigKeys = map[string]bool{
@@ -79,7 +79,7 @@ func validateOptionWithState(ctx context.Context, option model.OpenFlareOption, 
 func validatePositiveIntegerOption(key, value string) error {
 	intValue, err := strconv.Atoi(value)
 	if err != nil || intValue <= 0 {
-		return fmt.Errorf("%s 必须为大于 0 的整数", key)
+		return fmt.Errorf("%s must be an integer greater than 0", key)
 	}
 	return nil
 }
@@ -87,7 +87,7 @@ func validatePositiveIntegerOption(key, value string) error {
 func validateNonNegativeIntegerOption(key, value string) error {
 	intValue, err := strconv.Atoi(value)
 	if err != nil || intValue < 0 {
-		return fmt.Errorf("%s 必须为大于等于 0 的整数", key)
+		return fmt.Errorf("%s must be a nonnegative integer", key)
 	}
 	return nil
 }
@@ -97,7 +97,7 @@ func validateBooleanOption(key, value string) error {
 	case optionValueTrue, "false":
 		return nil
 	default:
-		return fmt.Errorf("%s 必须为 true 或 false", key)
+		return fmt.Errorf("%s must be true or false", key)
 	}
 }
 
@@ -108,7 +108,7 @@ func validateGeoIPOption(key, value string) error {
 	if geoip.IsValidProvider(value) {
 		return nil
 	}
-	return fmt.Errorf("%s 仅支持 disabled、mmdb、ip-api、geojs、ipinfo", key)
+	return fmt.Errorf("%s must be disabled, mmdb, ip-api, geojs or ipinfo", key)
 }
 
 func validateLogRetentionOption(key, value string) error {
@@ -116,7 +116,7 @@ func validateLogRetentionOption(key, value string) error {
 	case model.ConfigKeyLogRetentionDaysPostgres, model.ConfigKeyLogRetentionDaysSQLite, model.ConfigKeyLogRetentionDaysClickHouse:
 		intValue, err := strconv.Atoi(value)
 		if err != nil || intValue < 1 {
-			return fmt.Errorf("%s 必须为大于等于 1 的整数天", key)
+			return fmt.Errorf("%s must be a whole number of days greater than or equal to 1", key)
 		}
 	}
 	return nil
@@ -135,12 +135,12 @@ func validatePagesOption(key, value string) error {
 	case model.ConfigKeyPagesMaxPackageSizeMB:
 		intValue, err := strconv.Atoi(trimmed)
 		if err != nil || intValue < 1 || intValue > 2048 {
-			return fmt.Errorf("%s 必须为 1～2048 的整数（MiB）", key)
+			return fmt.Errorf("%s must be an integer between 1 and 2048 (MiB)", key)
 		}
 	case model.ConfigKeyPagesMaxHistoryCount:
 		intValue, err := strconv.Atoi(trimmed)
 		if err != nil || intValue < 0 {
-			return fmt.Errorf("%s 必须为大于等于 0 的整数（0 表示不限制）", key)
+			return fmt.Errorf("%s must be a nonnegative integer (0 means unlimited)", key)
 		}
 	}
 	return nil
@@ -176,16 +176,16 @@ func validateUptimeKumaEnabled(ctx context.Context, key, trimmed string, state m
 	username := strings.TrimSpace(state[model.ConfigKeyUptimeKumaUsername])
 	password := strings.TrimSpace(state[model.ConfigKeyUptimeKumaPassword])
 	if url == "" {
-		return errors.New("启用 Uptime Kuma 时地址不能为空")
+		return errors.New("uptime Kuma address is required when the integration is enabled")
 	}
 	if username == "" {
-		return errors.New("启用 Uptime Kuma 时用户名不能为空")
+		return errors.New("uptime Kuma username is required when the integration is enabled")
 	}
 	// 如果待验证的密码为空，且当前配置中也没有密码，则报错
 	if password == "" {
 		existingPwd, _ := repository.GetSystemConfigByKey(ctx, model.ConfigKeyUptimeKumaPassword)
 		if strings.TrimSpace(existingPwd.Value) == "" {
-			return errors.New("启用 Uptime Kuma 时密码不能为空")
+			return errors.New("uptime Kuma password is required when the integration is enabled")
 		}
 	}
 	return nil
@@ -193,21 +193,21 @@ func validateUptimeKumaEnabled(ctx context.Context, key, trimmed string, state m
 
 func validateUptimeKumaUsername(trimmed string, state map[string]string) error {
 	if trimmed == "" && state[model.ConfigKeyUptimeKumaEnabled] == optionValueTrue {
-		return errors.New("启用 Uptime Kuma 时用户名不能为空")
+		return errors.New("uptime Kuma username is required when the integration is enabled")
 	}
 	return nil
 }
 
 func validateUptimeKumaURL(trimmed string) error {
 	if trimmed != "" && !strings.HasPrefix(trimmed, "http://") && !strings.HasPrefix(trimmed, "https://") {
-		return errors.New("uptime Kuma 地址必须以 http:// 或 https:// 开头")
+		return errors.New("uptime Kuma address must start with http:// or https://")
 	}
 	return nil
 }
 
 func validateUptimeKumaMonitorScope(trimmed string) error {
 	if trimmed != "all" && trimmed != "selected" {
-		return errors.New("监控范围必须为全部站点 (all) 或选择站点 (selected)")
+		return errors.New("monitor scope must be all or selected sites")
 	}
 	return nil
 }
@@ -215,7 +215,7 @@ func validateUptimeKumaMonitorScope(trimmed string) error {
 func validateUptimeKumaRetry(key, trimmed string) error {
 	intValue, err := strconv.Atoi(trimmed)
 	if err != nil || intValue < 0 {
-		return fmt.Errorf("%s 必须为大于等于 0 的整数", key)
+		return fmt.Errorf("%s must be a nonnegative integer", key)
 	}
 	return nil
 }

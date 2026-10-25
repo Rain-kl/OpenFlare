@@ -43,8 +43,8 @@ func TestBuildSnapshotRejectsOversizedAggregateWAFIPGroups(t *testing.T) {
 	createSnapshotRule(t, ctx, "oversized-aggregate", snapshotIPMatchGraphForGroups(groupIDs))
 
 	_, err = buildSnapshotWAFDocument(ctx, nil)
-	require.ErrorContains(t, err, "WAF IP 组快照大小")
-	require.ErrorContains(t, err, "超过上限")
+	require.ErrorContains(t, err, "WAF IP group snapshot size")
+	require.ErrorContains(t, err, "exceeds the limit")
 }
 
 func TestWAFGraphSnapshotPreservesOrderAndGraphReferences(t *testing.T) {

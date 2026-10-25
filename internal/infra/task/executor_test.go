@@ -286,7 +286,7 @@ func TestCompleteTaskExecutionFlushesLog(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, model.TaskExecutionStatusSucceeded, found.Status)
 	assert.Contains(t, found.Log, "任务执行中的日志")
-	assert.Contains(t, found.Log, "任务执行成功")
+	assert.Contains(t, found.Log, "Task succeeded")
 }
 
 func TestCompleteTaskExecutionFlushesPermanentFailureLog(t *testing.T) {
@@ -327,7 +327,7 @@ func TestCompleteTaskExecutionFlushesPermanentFailureLog(t *testing.T) {
 	assert.Equal(t, model.TaskExecutionStatusFailed, found.Status)
 	assert.Equal(t, "来源配置无效", found.ErrorMessage)
 	assert.Contains(t, found.Log, "永久失败前的日志")
-	assert.Contains(t, found.Log, "任务执行失败")
+	assert.Contains(t, found.Log, "Task failed")
 	keys, err := db.Redis.Keys(ctx, "*"+execution.TaskID+"*").Result()
 	require.NoError(t, err)
 	assert.Empty(t, keys)
@@ -405,7 +405,7 @@ func TestRetryTaskNotFailed(t *testing.T) {
 	// 尝试重试成功的任务
 	_, err = RetryTask(ctx, execution.ID)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "只有失败的任务才能重试")
+	assert.Contains(t, err.Error(), "only failed tasks can be retried")
 }
 
 func TestRetryTaskNotRetryable(t *testing.T) {
@@ -427,7 +427,7 @@ func TestRetryTaskNotRetryable(t *testing.T) {
 
 	_, err = RetryTask(ctx, execution.ID)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "不支持重试")
+	assert.Contains(t, err.Error(), "cannot be retried")
 }
 
 func TestRetryTaskNonExistent(t *testing.T) {
@@ -437,7 +437,7 @@ func TestRetryTaskNonExistent(t *testing.T) {
 
 	_, err := RetryTask(ctx, 99999999)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "不存在")
+	assert.Contains(t, err.Error(), "not found")
 }
 
 func TestGenerateTaskID(t *testing.T) {

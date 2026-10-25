@@ -116,11 +116,11 @@ func normalizePagesSlug(raw string) string {
 func validateAndNormalizePagesRootDir(raw string) (string, error) {
 	value := strings.TrimSpace(raw)
 	if len(value) > pagesMaxPathLength {
-		return "", errors.New("pages 根目录长度不能超过 512")
+		return "", errors.New("pages root directory must not exceed 512 characters")
 	}
 	normalized, err := pagesarchive.NormalizeLogicalPath(value, true)
 	if err != nil {
-		return "", fmt.Errorf("pages 根目录不合法: %w", err)
+		return "", fmt.Errorf("invalid Pages root directory: %w", err)
 	}
 	return normalized, nil
 }
@@ -131,33 +131,33 @@ func normalizePagesFallbackPath(raw string) (string, error) {
 		value = defaultPagesFallbackPath
 	}
 	if len(value) > pagesMaxPathLength {
-		return "", errors.New("spa fallback 回退路径长度不能超过 512")
+		return "", errors.New("SPA fallback path must not exceed 512 characters")
 	}
 	if !strings.HasPrefix(value, "/") {
-		return "", errors.New("spa fallback 回退路径必须以 / 开头")
+		return "", errors.New("SPA fallback path must start with /")
 	}
 	if value == "/" || strings.HasSuffix(value, "/") {
-		return "", errors.New("spa fallback 回退路径必须指向具体文件")
+		return "", errors.New("SPA fallback path must point to a specific file")
 	}
 	if strings.Contains(value, "\\") || strings.ContainsAny(value, "\"';") {
-		return "", errors.New("spa fallback 回退路径包含不支持的字符")
+		return "", errors.New("SPA fallback path contains unsupported characters")
 	}
 	for _, r := range value {
 		if r <= 0x20 || r == 0x7f {
-			return "", errors.New("spa fallback 回退路径不能包含空白或控制字符")
+			return "", errors.New("SPA fallback path must not contain whitespace or control characters")
 		}
 	}
 	for segment := range strings.SplitSeq(value, "/") {
 		if segment == "." || segment == ".." {
-			return "", errors.New("spa fallback 回退路径不能包含 . 或 .. 路径段")
+			return "", errors.New("SPA fallback path must not contain . or .. segments")
 		}
 	}
 	cleaned := path.Clean(value)
 	if cleaned == "." || !strings.HasPrefix(cleaned, "/") {
-		return "", errors.New("spa fallback 回退路径不合法")
+		return "", errors.New("invalid SPA fallback path")
 	}
 	if cleaned == "/" || strings.HasSuffix(cleaned, "/") {
-		return "", errors.New("spa fallback 回退路径必须指向具体文件")
+		return "", errors.New("SPA fallback path must point to a specific file")
 	}
 	return cleaned, nil
 }
@@ -176,11 +176,11 @@ func validateAndNormalizePagesEntryFile(raw string) (string, error) {
 		value = defaultPagesEntryFile
 	}
 	if len(value) > pagesMaxPathLength {
-		return "", errors.New("pages 入口文件长度不能超过 512")
+		return "", errors.New("pages entry file must not exceed 512 characters")
 	}
 	normalized, err := pagesarchive.NormalizeLogicalPath(value, false)
 	if err != nil {
-		return "", fmt.Errorf("pages 入口文件不合法: %w", err)
+		return "", fmt.Errorf("invalid Pages entry file: %w", err)
 	}
 	return normalized, nil
 }
@@ -209,7 +209,7 @@ func persistPagesUploadTemp(fileHeader *multipart.FileHeader, maxPackageBytes in
 	}
 	if written > maxPackageBytes {
 		_ = os.Remove(temp.Name())
-		return "", "", 0, "", fmt.Errorf("pages 部署包不能超过 %d MiB", maxPackageBytes/bytesPerMiB)
+		return "", "", 0, "", fmt.Errorf("pages deployment archive must not exceed %d MiB", maxPackageBytes/bytesPerMiB)
 	}
 	return temp.Name(), hex.EncodeToString(hash.Sum(nil)), written, format, nil
 }
@@ -337,7 +337,7 @@ func removePagesUploadIfUnreferenced(ctx context.Context, projectID uint, upload
 			return err
 		}
 		if uploadRecord.Type != upload.ReservedPagesDeploymentType {
-			return fmt.Errorf("pages 部署包上传类型不匹配: %s", uploadRecord.Type)
+			return fmt.Errorf("pages deployment archive upload type mismatch: %s", uploadRecord.Type)
 		}
 
 		var references int64
@@ -406,7 +406,7 @@ func mapPagesArchiveError(err error) error {
 	case strings.Contains(message, "missing entry file"):
 		return err
 	case strings.Contains(message, "file count exceeds"):
-		return fmt.Errorf("pages 部署文件数不能超过 %d", pagesMaxDeploymentFiles)
+		return fmt.Errorf("pages deployment must not contain more than %d files", pagesMaxDeploymentFiles)
 	case strings.Contains(message, "extracted size exceeds"):
 		return errors.New(errPagesPackageExtractedTooLarge)
 	case strings.Contains(message, "file too large"), strings.Contains(message, "size out of bounds"):

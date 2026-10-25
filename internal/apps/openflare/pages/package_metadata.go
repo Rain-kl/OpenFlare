@@ -45,7 +45,7 @@ func GetProjectLatestPackageMetadata(ctx context.Context, projectID uint) (*Proj
 
 	uploadRecord, err := upload.GetActiveUpload(ctx, deployment.UploadID)
 	if err != nil {
-		return nil, fmt.Errorf("pages 部署包不存在: %w", err)
+		return nil, fmt.Errorf("pages deployment archive was not found: %w", err)
 	}
 	hash := strings.TrimSpace(uploadRecord.Hash)
 	if hash == "" {

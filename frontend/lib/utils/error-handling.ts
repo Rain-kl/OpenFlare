@@ -1,3 +1,4 @@
+import { runtimeText } from '@/i18n/runtime';
 import { isCancelError } from '@/lib/services/core';
 import { toast } from 'sonner';
 
@@ -9,6 +10,7 @@ interface HandleContextErrorOptions {
   showToast?: boolean;
   /** 是否在控制台记录错误 */
   logError?: boolean;
+  logMessage?: string;
 }
 
 /**
@@ -37,11 +39,15 @@ export function handleContextError(
   defaultMessage: string,
   options: HandleContextErrorOptions = {},
 ): Error {
-  const { showToast = false, logError = true } = options;
+  const {
+    showToast = false,
+    logError = true,
+    logMessage = 'Context operation failed',
+  } = options;
 
   // 取消的请求不算错误
   if (isCancelError(error)) {
-    return new Error('请求已取消');
+    return new Error(runtimeText('request_canceled_282c4cfb'));
   }
 
   const errorMessage = error instanceof Error ? error.message : defaultMessage;
@@ -49,7 +55,7 @@ export function handleContextError(
     error instanceof Error ? error : new Error(defaultMessage);
 
   if (logError) {
-    console.error(defaultMessage, error);
+    console.error(logMessage, error);
   }
 
   if (showToast) {

@@ -1,3 +1,6 @@
+'use client';
+
+import { useTranslations } from 'next-intl';
 import * as React from 'react';
 import { Slot } from '@radix-ui/react-slot';
 import { ChevronRight, MoreHorizontal } from 'lucide-react';
@@ -5,7 +8,15 @@ import { ChevronRight, MoreHorizontal } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 function Breadcrumb({ ...props }: React.ComponentProps<'nav'>) {
-  return <nav aria-label='breadcrumb' data-slot='breadcrumb' {...props} />;
+  const uiText = useTranslations('runtime');
+
+  return (
+    <nav
+      aria-label={uiText('ui_breadcrumb')}
+      data-slot='breadcrumb'
+      {...props}
+    />
+  );
 }
 
 function BreadcrumbList({ className, ...props }: React.ComponentProps<'ol'>) {
@@ -84,6 +95,8 @@ function BreadcrumbEllipsis({
   className,
   ...props
 }: React.ComponentProps<'span'>) {
+  const uiText = useTranslations('runtime');
+
   return (
     <span
       data-slot='breadcrumb-ellipsis'
@@ -93,7 +106,7 @@ function BreadcrumbEllipsis({
       {...props}
     >
       <MoreHorizontal className='size-4' />
-      <span className='sr-only'>More</span>
+      <span className='sr-only'>{uiText('ui_more')}</span>
     </span>
   );
 }

@@ -36,8 +36,8 @@ var errUnexpectedJSONTrailingValue = errors.New("unexpected trailing JSON value"
 var PagesSourceActionMeta = task.TaskMeta{
 	Type:         TaskTypePagesSourceAction,
 	AsynqTask:    PagesSourceActionTask,
-	Name:         "OpenFlare Pages 部署源操作",
-	Description:  "检查或同步 Pages 项目部署源",
+	Name:         "OpenFlare Pages deployment source operation",
+	Description:  "Check or synchronize a Pages project deployment source",
 	SupportsTime: false,
 	MaxRetry:     2,
 	Queue:        task.QueueDefault,
@@ -138,14 +138,14 @@ func (h *SourceActionHandler) Execute(ctx context.Context, payload []byte) (*tas
 	source, err := repository.GetPagesProjectSourceByID(ctx, input.SourceID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			task.AppendLog(ctx, "[resolve] 来源已不存在，本次任务跳过")
+			task.AppendLog(ctx, "[resolve] Source no longer exists; skipping task")
 			return &task.TaskResult{Message: errPagesSourceActionStale}, nil
 		}
 		logger.ErrorF(ctx, "[PagesSource] load source failed: source_id=%d error=%v", input.SourceID, err)
 		return nil, errors.New(errPagesSourceSyncFailed)
 	}
 	if source.ConfigVersion != input.ConfigVersion {
-		task.AppendLog(ctx, "[resolve] 来源配置已变化，本次任务跳过")
+		task.AppendLog(ctx, "[resolve] Source configuration changed; skipping task")
 		return &task.TaskResult{Message: errPagesSourceActionStale}, nil
 	}
 	if input.Action == sourceActionCheck && source.SourceType == PagesSourceTypeRemoteURL {
@@ -159,7 +159,7 @@ func (h *SourceActionHandler) Execute(ctx context.Context, payload []byte) (*tas
 		return nil, task.PermanentError(errPagesSourceActionInvalid)
 	}
 
-	task.AppendLog(ctx, "[resolve] 正在获取来源执行权")
+	task.AppendLog(ctx, "[resolve] Acquiring source task ownership")
 	snapshot, outcome, err := acquireSourceLease(ctx, input.SourceID, input.ConfigVersion, input.Action)
 	if err != nil {
 		logger.ErrorF(ctx, "[PagesSource] acquire lease failed: source_id=%d error=%v", input.SourceID, err)
@@ -167,10 +167,10 @@ func (h *SourceActionHandler) Execute(ctx context.Context, payload []byte) (*tas
 	}
 	switch outcome {
 	case sourceLeaseBusy:
-		task.AppendLog(ctx, "[resolve] 已有来源任务正在执行，本次任务跳过")
+		task.AppendLog(ctx, "[resolve] Another source task is running; skipping task")
 		return &task.TaskResult{Message: errPagesSourceActionBusy}, nil
 	case sourceLeaseStale:
-		task.AppendLog(ctx, "[resolve] 来源配置或执行权已变化，本次任务跳过")
+		task.AppendLog(ctx, "[resolve] Source configuration or ownership changed; skipping task")
 		return &task.TaskResult{Message: errPagesSourceActionStale}, nil
 	case sourceLeaseAcquired:
 		// 已获取执行权，继续执行。
@@ -220,12 +220,12 @@ func executeSourceSyncAction(
 		return nil, errors.New(errPagesSourceSyncFailed)
 	}
 	if result == nil || result.Stale {
-		task.AppendLog(ctx, "[activate] 来源配置或执行权已变化，本次任务未切换部署")
+		task.AppendLog(ctx, "[activate] Source configuration or ownership changed; deployment was not switched")
 		return &task.TaskResult{Message: errPagesSourceActionStale}, nil
 	}
-	message := "Pages 部署源同步并发布成功"
+	message := "Pages deployment source synchronized and published successfully"
 	if result.Reused {
-		message = "Pages 部署源内容未变化，已重新激活现有部署"
+		message = "Pages source content is unchanged; existing deployment reactivated"
 	}
 	return &task.TaskResult{Message: message, Detail: sourceSyncResultDetail(result)}, nil
 }

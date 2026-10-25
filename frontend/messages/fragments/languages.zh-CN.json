@@ -1,0 +1,11 @@
+{
+  "languageNames": {
+    "en": "英语",
+    "zh-CN": "中文",
+    "ru": "俄语"
+  },
+  "languageLoading": {
+    "failed": "界面未能完成加载。请检查网络连接并重新加载页面。",
+    "reload": "重新加载页面"
+  }
+}

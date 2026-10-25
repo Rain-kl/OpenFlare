@@ -1,20 +1,15 @@
-export const locales = ['zh-CN', 'en'] as const;
+export const locales = ['en', 'zh-CN', 'ru'] as const;
 
 export type AppLocale = (typeof locales)[number];
 
-export const defaultLocale: AppLocale = 'zh-CN';
+export const defaultLocale: AppLocale = 'en';
 
 export const localeCookieName = 'NEXT_LOCALE';
-
-export const localeLabels: Record<AppLocale, string> = {
-  'zh-CN': '中文',
-  en: 'English',
-};
 
 export function isAppLocale(
   value: string | undefined | null,
 ): value is AppLocale {
-  return value === 'zh-CN' || value === 'en';
+  return value === 'zh-CN' || value === 'en' || value === 'ru';
 }
 
 /** Normalize BCP 47 / browser tags into a supported app locale. */
@@ -34,6 +29,9 @@ export function normalizeLocale(input?: string | null): AppLocale {
   if (lower === 'en' || lower.startsWith('en-')) {
     return 'en';
   }
+  if (lower === 'ru' || lower.startsWith('ru-')) {
+    return 'ru';
+  }
   return defaultLocale;
 }
 
@@ -51,14 +49,19 @@ export function pickLocaleFromAcceptLanguage(
       const q = qParam ? Number.parseFloat(qParam.split('=')[1] ?? '1') : 1;
       return { tag: tag?.trim() ?? '', q: Number.isFinite(q) ? q : 0 };
     })
-    .filter((c) => c.tag)
+    .filter((c) => c.tag && c.q > 0)
     .sort((a, b) => b.q - a.q);
 
   for (const candidate of candidates) {
     const normalized = normalizeLocale(candidate.tag);
     // Only accept if the raw tag roughly matches a supported family
     const lower = candidate.tag.toLowerCase();
-    if (lower.startsWith('zh') || lower.startsWith('en')) {
+    if (
+      lower.startsWith('zh') ||
+      lower.startsWith('en') ||
+      lower === 'ru' ||
+      lower.startsWith('ru-')
+    ) {
       return normalized;
     }
   }

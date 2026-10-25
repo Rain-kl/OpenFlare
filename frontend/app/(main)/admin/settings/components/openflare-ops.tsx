@@ -64,6 +64,8 @@ async function copyText(value: string) {
 }
 
 export function OpenFlareOpsSettings() {
+  const uiText = useTranslations('runtime');
+
   const t = useTranslations('openflareOps');
   const queryClient = useQueryClient();
   const [fields, setFields] = useState<OpenFlareOpsFields>(
@@ -346,7 +348,7 @@ export function OpenFlareOpsSettings() {
                   value={geoIPMutation.data.name || '—'}
                 />
                 <InfoCell
-                  label='ISO Code'
+                  label={uiText('ui_isoCode')}
                   value={geoIPMutation.data.iso_code || '—'}
                 />
               </div>
@@ -427,7 +429,7 @@ export function OpenFlareOpsSettings() {
         </CardHeader>
         <CardContent className='space-y-4'>
           <FieldInput
-            label='Server URL'
+            label={uiText('ui_serverUrl')}
             value={fields.server_address}
             onChange={(value) => updateField('server_address', value)}
             placeholder='https://yourdomain.com'

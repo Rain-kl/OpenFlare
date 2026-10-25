@@ -209,7 +209,7 @@ func getPostgresOverview(gormDB *gorm.DB) DBOverviewResponse {
 func GetDBOverview(c *gin.Context) {
 	gormDB := db.DB(c.Request.Context())
 	if gormDB == nil {
-		response.AbortInternal(c, "数据库未初始化")
+		response.AbortInternal(c, "Database is not initialized")
 		return
 	}
 
@@ -238,7 +238,7 @@ func GetDBOverview(c *gin.Context) {
 func ListDBTables(c *gin.Context) {
 	gormDB := db.DB(c.Request.Context())
 	if gormDB == nil {
-		response.AbortInternal(c, "数据库未初始化")
+		response.AbortInternal(c, "Database is not initialized")
 		return
 	}
 
@@ -269,7 +269,7 @@ func GetDBTableData(c *gin.Context) {
 
 	gormDB := db.DB(c.Request.Context())
 	if gormDB == nil {
-		response.AbortInternal(c, "数据库未初始化")
+		response.AbortInternal(c, "Database is not initialized")
 		return
 	}
 
@@ -442,13 +442,13 @@ func ExecuteSQL(c *gin.Context) {
 
 	gormDB := db.DB(c.Request.Context())
 	if gormDB == nil {
-		response.AbortInternal(c, "数据库未初始化")
+		response.AbortInternal(c, "Database is not initialized")
 		return
 	}
 
 	trimmedSQL := strings.TrimSpace(req.SQL)
 	if trimmedSQL == "" {
-		response.AbortBadRequest(c, "SQL 语句不能为空")
+		response.AbortBadRequest(c, "SQL statement must not be empty")
 		return
 	}
 

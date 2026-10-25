@@ -15,7 +15,7 @@ import (
 func ReadOnly(ctx context.Context) bool {
 	state := LoadMigrationAccessState(ctx)
 	if state.LoadErr != nil {
-		logger.ErrorF(ctx, "读取存储维护状态失败: %v", state.LoadErr)
+		logger.ErrorF(ctx, "Failed to read storage maintenance state: %v", state.LoadErr)
 		return true
 	}
 	return state.ReadOnly

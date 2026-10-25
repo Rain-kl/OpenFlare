@@ -1,7 +1,7 @@
+'use client';
+
 // Copyright 2026 Arctel.net
 // SPDX-License-Identifier: Apache-2.0
-
-'use client';
 
 import * as React from 'react';
 import { useTranslations } from 'next-intl';
@@ -81,6 +81,8 @@ import type {
 import { PushService } from '@/lib/services/push';
 
 export function EventsTab() {
+  const rt = useTranslations('runtime');
+
   const t = useTranslations('admin.push.events');
   const queryClient = useQueryClient();
   const [deleteTarget, setDeleteTarget] = React.useState<PushEvent | null>(
@@ -706,11 +708,11 @@ export function EventsTab() {
             </div>
 
             <div className='space-y-1.5'>
-              <div className='flex justify-between items-center'>
+              <div className='flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between'>
                 <Label className='text-xs font-semibold'>
                   {t('contentTemplate')}
                 </Label>
-                <span className='text-[10px] text-muted-foreground font-mono flex items-center'>
+                <span className='text-[10px] text-muted-foreground font-mono'>
                   {newEventType === 'task'
                     ? t('taskTemplateVars')
                     : t('eventTemplateVars')}
@@ -721,7 +723,11 @@ export function EventsTab() {
                 onChange={(e) => setNewEventTemplate(e.target.value)}
                 rows={6}
                 className='text-xs font-mono'
-                placeholder='{"title": "管理员登录提醒", "content": "管理员 {{user.username}} ...", "level": "INFO"}'
+                placeholder={rt.raw(
+                  newEventType === 'task'
+                    ? 'task_notification_template_example'
+                    : 'title_administrator_login_alert_content_administrator_user_6f32cf7c',
+                )}
               />
             </div>
 
@@ -886,11 +892,11 @@ export function EventsTab() {
               </div>
 
               <div className='space-y-1.5'>
-                <div className='flex justify-between items-center'>
+                <div className='flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between'>
                   <Label className='text-xs font-semibold'>
                     {t('contentTemplate')}
                   </Label>
-                  <span className='text-[10px] text-muted-foreground font-mono flex items-center'>
+                  <span className='text-[10px] text-muted-foreground font-mono'>
                     {selectedEvent.task_type
                       ? t('taskTemplateVars')
                       : t('eventTemplateVars')}
@@ -901,7 +907,11 @@ export function EventsTab() {
                   onChange={(e) => setEventTemplate(e.target.value)}
                   rows={6}
                   className='text-xs font-mono'
-                  placeholder='{"title": "管理员登录提醒", "content": "管理员 {{user.username}} ...", "level": "INFO"}'
+                  placeholder={rt.raw(
+                    selectedEvent.task_type
+                      ? 'task_notification_template_example'
+                      : 'title_administrator_login_alert_content_administrator_user_6f32cf7c',
+                  )}
                 />
               </div>
             </div>

@@ -1,3 +1,6 @@
+'use client';
+
+import { useTranslations } from 'next-intl';
 import {
   Card,
   CardContent,
@@ -28,6 +31,7 @@ export function RankCard({
   color = '#3b82f6',
   valueFormatter,
 }: RankCardProps) {
+  const t = useTranslations('dataComponents');
   return (
     <Card className='border-dashed shadow-none'>
       <CardHeader className='pb-3'>
@@ -43,7 +47,7 @@ export function RankCard({
           items={items}
           color={color}
           valueFormatter={valueFormatter}
-          emptyMessage={`暂无 ${title} 数据`}
+          emptyMessage={t('noDataForTitle', { title })}
         />
       </CardContent>
     </Card>

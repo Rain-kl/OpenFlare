@@ -1,5 +1,6 @@
 'use client';
 
+import { getFormattingLocale } from '@/i18n/format';
 import { Gauge } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
@@ -31,9 +32,11 @@ function toAvgRpsItems(items: DistributionItem[] | undefined, hours: number) {
 function formatRps(value: number) {
   if (!Number.isFinite(value)) return '—';
   if (value >= 100) {
-    return value.toLocaleString('zh-CN', { maximumFractionDigits: 1 });
+    return value.toLocaleString(getFormattingLocale(), {
+      maximumFractionDigits: 1,
+    });
   }
-  return value.toLocaleString('zh-CN', {
+  return value.toLocaleString(getFormattingLocale(), {
     maximumFractionDigits: 3,
     minimumFractionDigits: 0,
   });

@@ -60,6 +60,8 @@ export function OperationTab({
   configs,
   systemConfigsQuery,
 }: OperationTabProps) {
+  const rt = useTranslations('runtime');
+
   const queryClient = useQueryClient();
   const t = useTranslations('settings.operation');
 
@@ -108,7 +110,9 @@ export function OperationTab({
         }
         const config = businessConfigs[field.key];
         if (!config) {
-          throw new Error(`缺少配置项: ${field.key}`);
+          throw new Error(
+            rt('missing_configuration_value0_31b43fa6', { value0: field.key }),
+          );
         }
         await services.adminSystemConfig.updateSystemConfig(field.key, {
           value: String(num),
@@ -131,7 +135,9 @@ export function OperationTab({
     mutationFn: async (newValue: string) => {
       const config = configs['file_access_whitelist'];
       if (!config) {
-        throw new Error('缺少配置项: file_access_whitelist');
+        throw new Error(
+          rt('missing_configuration_file_access_whitelist_6dd80936'),
+        );
       }
       await services.adminSystemConfig.updateSystemConfig(
         'file_access_whitelist',

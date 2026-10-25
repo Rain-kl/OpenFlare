@@ -4,6 +4,18 @@
 
 @custom-variant dark (&:is(.dark *));
 
+html[data-locale-pending] {
+  overflow: hidden;
+}
+
+html[data-locale-pending] body {
+  visibility: hidden;
+}
+
+#locale-load-fallback[hidden] {
+  display: none;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);

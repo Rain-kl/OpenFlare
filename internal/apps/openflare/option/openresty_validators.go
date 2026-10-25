@@ -93,7 +93,7 @@ func validateOpenRestyDefaultServerReturnStatus(key, trimmed string) error {
 	}
 	statusCode, _ := strconv.Atoi(trimmed)
 	if statusCode < 100 || statusCode > 999 {
-		return fmt.Errorf("%s 必须在 100 到 999 之间", key)
+		return fmt.Errorf("%s must be between 100 and 999", key)
 	}
 	return nil
 }
@@ -111,7 +111,7 @@ func validateOpenRestyGzipCompLevel(key, trimmed string) error {
 	}
 	level, _ := strconv.Atoi(trimmed)
 	if level > maxOpenRestyGzipCompLevel {
-		return fmt.Errorf("%s 不能大于 %d", key, maxOpenRestyGzipCompLevel)
+		return fmt.Errorf("%s must not exceed %d", key, maxOpenRestyGzipCompLevel)
 	}
 	return nil
 }
@@ -124,7 +124,7 @@ func validateOpenRestyEventsUse(key, trimmed string) error {
 	case "epoll", "kqueue", "poll", "select", "rtsig", "/dev/poll", "eventport":
 		return nil
 	default:
-		return fmt.Errorf("%s 仅支持 epoll、kqueue、poll、select、rtsig、/dev/poll、eventport 或留空", key)
+		return fmt.Errorf("%s must be epoll, kqueue, poll, select, rtsig, /dev/poll, eventport or empty", key)
 	}
 }
 
@@ -133,7 +133,7 @@ func validateOpenRestyResolvers(key, trimmed string) error {
 		return nil
 	}
 	if !regexp.MustCompile(`^[a-zA-Z0-9.:\-\s]+$`).MatchString(trimmed) {
-		return fmt.Errorf("%s 包含非法字符，请填入有效的 IP 地址或域名，以空格分隔", key)
+		return fmt.Errorf("%s contains invalid characters; enter valid IP addresses or domain names separated by spaces", key)
 	}
 	return nil
 }
@@ -142,19 +142,19 @@ func validateOpenRestyProxyBuffers(key, trimmed string) error {
 	if openRestyProxyBuffersPattern.MatchString(trimmed) {
 		return nil
 	}
-	return fmt.Errorf("%s 格式必须类似 \"16 16k\"", key)
+	return fmt.Errorf("%s must use a format such as \\\"16 16k\\\"", key)
 }
 
 func validateOpenRestySizeValue(key, trimmed string) error {
 	if openRestySizePattern.MatchString(trimmed) {
 		return nil
 	}
-	return fmt.Errorf("%s 格式必须为整数或带 k/m/g 单位的大小值", key)
+	return fmt.Errorf("%s must be an integer or a size with a k/m/g suffix", key)
 }
 
 func validateOpenRestyCachePath(key, trimmed string) error {
 	if strings.ContainsAny(trimmed, "\r\n\t") {
-		return fmt.Errorf("%s 不能包含换行或制表符", key)
+		return fmt.Errorf("%s must not contain newlines or tabs", key)
 	}
 	return nil
 }
@@ -163,29 +163,29 @@ func validateOpenRestyCacheLevels(key, trimmed string) error {
 	if openRestyCacheLevelsPattern.MatchString(trimmed) {
 		return nil
 	}
-	return fmt.Errorf("%s 格式必须类似 \"1:2\" 或 \"1:2:2\"", key)
+	return fmt.Errorf("%s must use a format such as \\\"1:2\\\" or \\\"1:2:2\\\"", key)
 }
 
 func validateOpenRestyDurationToken(key, trimmed string) error {
 	if openRestyDurationTokenPattern.MatchString(trimmed) {
 		return nil
 	}
-	return fmt.Errorf("%s 格式必须为带单位的时长，例如 30m 或 5s", key)
+	return fmt.Errorf("%s must be a duration with a unit, such as 30m or 5s", key)
 }
 
 func validateOpenRestyCacheKeyTemplate(key, trimmed string) error {
 	if trimmed == "" {
-		return fmt.Errorf("%s 不能为空", key)
+		return fmt.Errorf("%s must not be empty", key)
 	}
 	if strings.ContainsAny(trimmed, "\r\n") {
-		return fmt.Errorf("%s 不能包含换行", key)
+		return fmt.Errorf("%s must not contain newlines", key)
 	}
 	return nil
 }
 
 func validateOpenRestyCacheUseStale(key, trimmed string) error {
 	if trimmed == "" {
-		return fmt.Errorf("%s 不能为空", key)
+		return fmt.Errorf("%s must not be empty", key)
 	}
 	allowedTokens := map[string]struct{}{
 		"error": {}, "timeout": {}, "invalid_header": {}, "updating": {},
@@ -194,7 +194,7 @@ func validateOpenRestyCacheUseStale(key, trimmed string) error {
 	}
 	for token := range strings.FieldsSeq(trimmed) {
 		if _, ok := allowedTokens[token]; !ok {
-			return fmt.Errorf("%s 包含不支持的值 %q", key, token)
+			return fmt.Errorf("%s contains unsupported value %q", key, token)
 		}
 	}
 	return nil
@@ -202,7 +202,7 @@ func validateOpenRestyCacheUseStale(key, trimmed string) error {
 
 func validateOpenRestyMainConfigTemplate(key, value string) error {
 	if strings.TrimSpace(value) == "" {
-		return fmt.Errorf("%s 不能为空", key)
+		return fmt.Errorf("%s must not be empty", key)
 	}
 	return nil
 }
@@ -210,15 +210,15 @@ func validateOpenRestyMainConfigTemplate(key, value string) error {
 func validateOpenRestyTrustedProxyCIDRs(key, value string) error {
 	var cidrs []string
 	if err := json.Unmarshal([]byte(value), &cidrs); err != nil || cidrs == nil {
-		return fmt.Errorf("%s 必须为 JSON 字符串数组", key)
+		return fmt.Errorf("%s must be a JSON array of strings", key)
 	}
 	if len(cidrs) > maxTrustedProxyCIDRs {
-		return fmt.Errorf("%s 最多允许 %d 个网段", key, maxTrustedProxyCIDRs)
+		return fmt.Errorf("%s must contain at most %d network ranges", key, maxTrustedProxyCIDRs)
 	}
 	for _, cidr := range cidrs {
 		prefix, err := netip.ParsePrefix(strings.TrimSpace(cidr))
 		if err != nil || prefix != prefix.Masked() {
-			return fmt.Errorf("%s 包含无效网段 %q", key, cidr)
+			return fmt.Errorf("%s contains invalid network range %q", key, cidr)
 		}
 	}
 	return nil
@@ -229,7 +229,7 @@ func validateOpenRestyDefaultLimitRate(key, trimmed string) error {
 		return nil
 	}
 	if !openRestyDefaultLimitRatePattern.MatchString(strings.ToLower(trimmed)) {
-		return fmt.Errorf("%s 格式不合法，请使用 512k、1m 或纯数字，空表示关闭", key)
+		return fmt.Errorf("invalid %s format; use 512k, 1m or a number, or leave empty to disable", key)
 	}
 	return nil
 }
@@ -241,35 +241,35 @@ func validateOpenRestyDefaultLimitReqPerIP(key, trimmed string) error {
 		return nil
 	}
 	if !openRestyDefaultLimitReqPerIPPattern.MatchString(strings.ToLower(trimmed)) {
-		return fmt.Errorf("%s 格式不合法，请输入类似 10r/s、100r/m，或留空关闭", key)
+		return fmt.Errorf("invalid %s format; use a rate such as 10r/s or 100r/m, or leave empty to disable", key)
 	}
 	return nil
 }
 
 func validateOriginErrorPageStatusCodes(key, trimmed string) error {
 	if trimmed == "" {
-		return fmt.Errorf("%s 不能为空", key)
+		return fmt.Errorf("%s must not be empty", key)
 	}
 	var tags []string
 	if err := json.Unmarshal([]byte(trimmed), &tags); err != nil {
-		return fmt.Errorf("%s 必须为 JSON 字符串数组", key)
+		return fmt.Errorf("%s must be a JSON array of strings", key)
 	}
 	if len(tags) == 0 {
-		return fmt.Errorf("%s 至少包含一个状态码标签", key)
+		return fmt.Errorf("%s must contain at least one status code tag", key)
 	}
 	codes, err := openrestyrender.ExpandStatusCodeTags(tags)
 	if err != nil {
 		return fmt.Errorf("%s: %w", key, err)
 	}
 	if len(codes) == 0 {
-		return fmt.Errorf("%s 展开后不能为空", key)
+		return fmt.Errorf("%s must not be empty after expansion", key)
 	}
 	return nil
 }
 
 func validateOriginErrorPageHTML(key, value string) error {
 	if len(value) > maxOriginErrorPageHTMLBytes {
-		return fmt.Errorf("%s 长度不能超过 %d 字节（256 KiB）", key, maxOriginErrorPageHTMLBytes)
+		return fmt.Errorf("%s must not exceed %d bytes (256 KiB)", key, maxOriginErrorPageHTMLBytes)
 	}
 	return nil
 }
@@ -281,22 +281,22 @@ func validateSWOfflineHTML(key, value string) error {
 func validateSWOfflineDomains(key, value string) error {
 	var domains []string
 	if err := json.Unmarshal([]byte(value), &domains); err != nil || domains == nil {
-		return fmt.Errorf("%s 必须为 JSON 字符串数组", key)
+		return fmt.Errorf("%s must be a JSON array of strings", key)
 	}
 	if len(domains) > maxSWOfflineDomains {
-		return fmt.Errorf("%s 最多支持 %d 个域名", key, maxSWOfflineDomains)
+		return fmt.Errorf("%s supports at most %d domain names", key, maxSWOfflineDomains)
 	}
 	seen := make(map[string]struct{}, len(domains))
 	for _, raw := range domains {
 		domain := strings.ToLower(strings.TrimSpace(raw))
 		if domain == "" {
-			return fmt.Errorf("%s 包含空域名", key)
+			return fmt.Errorf("%s contains an empty domain name", key)
 		}
 		if raw != domain {
-			return fmt.Errorf("%s 域名必须为小写且不含首尾空格：%s", key, raw)
+			return fmt.Errorf("%s domain name must be lowercase without surrounding whitespace: %s", key, raw)
 		}
 		if _, ok := seen[domain]; ok {
-			return fmt.Errorf("%s 包含重复域名 %s", key, domain)
+			return fmt.Errorf("%s contains duplicate domain name %s", key, domain)
 		}
 		seen[domain] = struct{}{}
 	}

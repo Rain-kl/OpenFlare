@@ -1,17 +1,21 @@
+'use client';
+
+import { useTranslations } from 'next-intl';
 import { LegalPageLayout } from '@/components/common/docs/legal-page-layout';
-import { howToUseSections } from '@/components/common/docs/how-to-use';
+import { createHowToUseSections } from '@/components/common/docs/how-to-use';
 import { DOCS_LAST_UPDATED } from '@/components/common/docs/api';
 
 export default function HowToUsePage() {
+  const rt = useTranslations('runtime');
+
   return (
     <LegalPageLayout
-      title='平台使用指南'
+      title={rt('platform_user_guide_d0ead991')}
       lastUpdated={DOCS_LAST_UPDATED}
-      sections={howToUseSections}
+      sections={createHowToUseSections(rt)}
       description={
         <p className='text-muted-foreground text-sm leading-relaxed'>
-          欢迎使用 OpenFlare
-          管理平台。本文档将引导您快速了解平台的核心组件、角色权限设计及二次开发流程，帮助您快速上手开发。
+          {rt('welcome_to_the_openflare_management_platform_this_e8ecbe4d')}
         </p>
       }
     />

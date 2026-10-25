@@ -329,7 +329,7 @@ func CreateDNSAccount(ctx context.Context, input DNSAccountInput) (*model.DNSAcc
 		Authorization: authorization,
 	}
 	if account.Name == "" || account.Type == "" || authorization == "" {
-		return nil, errors.New("DNS 账号参数不完整")
+		return nil, errors.New("DNS account parameters are incomplete")
 	}
 	if err := repository.CreateDNSAccountRecord(ctx, account); err != nil {
 		return nil, err
@@ -351,7 +351,7 @@ func UpdateDNSAccount(ctx context.Context, id uint, input DNSAccountInput) (*mod
 	account.Type = strings.TrimSpace(input.Type)
 	account.Authorization = authorization
 	if account.Name == "" || account.Type == "" || authorization == "" {
-		return nil, errors.New("DNS 账号参数不完整")
+		return nil, errors.New("DNS account parameters are incomplete")
 	}
 	if err := repository.SaveDNSAccount(ctx, account); err != nil {
 		return nil, err

@@ -51,8 +51,8 @@ func TestInitSyncsPushEventsOnce(t *testing.T) {
 	if err := dbConn.Where("event_key = ?", "admin_login").First(&adminLogin).Error; err != nil {
 		t.Fatalf("admin_login event not found after Init: %v", err)
 	}
-	if adminLogin.Name != "管理员登录" {
-		t.Fatalf("admin_login name = %q, want %q", adminLogin.Name, "管理员登录")
+	if adminLogin.Name != "Administrator login" {
+		t.Fatalf("admin_login name = %q, want %q", adminLogin.Name, "Administrator login")
 	}
 }
 
@@ -170,10 +170,10 @@ func TestValidateAndSeedLogDatabaseRejectsInconsistentConfig(t *testing.T) {
 		chEnabled bool
 		wantErr   string
 	}{
-		{name: "clickhouse marker but disabled", marker: "clickhouse", dbEnabled: true, chEnabled: false, wantErr: "ClickHouse 未启用"},
-		{name: "postgres marker but disabled", marker: "postgres", dbEnabled: false, chEnabled: false, wantErr: "PostgreSQL 未启用"},
+		{name: "clickhouse marker but disabled", marker: "clickhouse", dbEnabled: true, chEnabled: false, wantErr: "ClickHouse is disabled"},
+		{name: "postgres marker but disabled", marker: "postgres", dbEnabled: false, chEnabled: false, wantErr: "PostgreSQL is disabled"},
 		{name: "sqlite marker but postgres primary", marker: "sqlite", dbEnabled: true, chEnabled: false, wantErr: "SQLite"},
-		{name: "unknown marker", marker: "mysql", dbEnabled: false, chEnabled: false, wantErr: "未知的日志主库配置"},
+		{name: "unknown marker", marker: "mysql", dbEnabled: false, chEnabled: false, wantErr: "unknown log database configuration"},
 		{name: "consistent sqlite", marker: "sqlite", dbEnabled: false, chEnabled: false, wantErr: ""},
 	}
 	for _, tt := range tests {

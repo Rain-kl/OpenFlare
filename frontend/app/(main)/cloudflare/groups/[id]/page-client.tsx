@@ -67,6 +67,8 @@ function getGroupIdFromPathname(pathname: string | null): number {
 }
 
 export function CloudflareGroupDetailPageClient() {
+  const uiText = useTranslations('runtime');
+
   const t = useTranslations('cloudflare');
   const tCommon = useTranslations('common');
   const [mounted, setMounted] = useState(false);
@@ -449,7 +451,7 @@ export function CloudflareGroupDetailPageClient() {
                           setSelectedMemberIDs(new Set());
                         }
                       }}
-                      aria-label='Select all'
+                      aria-label={uiText('ui_selectAll')}
                     />
                   </TableHead>
                   <TableHead>{t('columns.domain')}</TableHead>

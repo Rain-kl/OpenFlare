@@ -1146,7 +1146,8 @@
         "unknownExecError": "未知执行错误",
         "clearEditor": "清空编辑器",
         "dragResize": "拖动调整大小",
-        "execErrorTitle": "SQL 执行报错 (Error):"
+        "execErrorTitle": "SQL 执行报错 (Error):",
+        "connected": "已连接 {database}"
       },
       "tableBrowser": {
         "tableBrowser": "数据表浏览器",

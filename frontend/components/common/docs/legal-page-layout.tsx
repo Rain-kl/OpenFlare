@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import * as React from 'react';
 import Link from 'next/link';
 import { ArrowLeft, Calendar, Check, Copy, FileText } from 'lucide-react';
@@ -21,6 +22,8 @@ export function LegalPageLayout({
   sections,
   description,
 }: LegalPageLayoutProps) {
+  const rt = useTranslations('runtime');
+
   const [activeSection, setActiveSection] = React.useState<string>(
     sections[0]?.value || '',
   );
@@ -192,7 +195,7 @@ export function LegalPageLayout({
     const lines: string[] = [];
     lines.push(`# ${title}`);
     lines.push('');
-    lines.push(`最后更新：${lastUpdated}`);
+    lines.push(rt('last_updated_value0_87a896df', { value0: lastUpdated }));
     if (description) {
       const descriptionElement = contentRoot.querySelector(
         '[data-docs-description]',
@@ -303,7 +306,7 @@ export function LegalPageLayout({
               className='gap-2 pl-0 text-muted-foreground hover:text-foreground hover:bg-transparent -ml-2'
             >
               <ArrowLeft className='w-4 h-4' />
-              返回首页
+              {rt('back_to_home_d66f4359')}
             </Button>
           </Link>
 
@@ -318,11 +321,12 @@ export function LegalPageLayout({
             <div className='flex flex-wrap items-center gap-4 text-xs text-muted-foreground mb-8'>
               <span className='flex items-center gap-1.5 bg-muted/50 px-3 py-1 rounded-full border border-border/50'>
                 <FileText className='w-3.5 h-3.5' />
-                {sections.length} 个内容
+                {sections.length} {rt('sections_fcb2696e')}
               </span>
               <span className='flex items-center gap-1.5 bg-muted/50 px-3 py-1 rounded-full border border-border/50'>
                 <Calendar className='w-3.5 h-3.5' />
-                最后更新：{lastUpdated}
+                {rt('last_updated_a83cd480')}
+                {lastUpdated}
               </span>
               <Button
                 type='button'
@@ -336,7 +340,9 @@ export function LegalPageLayout({
                 ) : (
                   <Copy className='w-3.5 h-3.5' />
                 )}
-                {hasCopied ? '已复制' : '复制 Markdown'}
+                {hasCopied
+                  ? rt('copied_8f6f8d97')
+                  : rt('copy_markdown_f9c71ee4')}
               </Button>
             </div>
             {description && (
@@ -357,7 +363,7 @@ export function LegalPageLayout({
             <div className='sticky top-24'>
               <div className='space-y-2 max-h-[calc(100vh-8rem)] overflow-y-auto pr-4 scrollbar-thin'>
                 <div className='text-sm font-semibold text-foreground mb-4 pl-3'>
-                  目录
+                  {rt('table_of_contents_52daa71e')}
                 </div>
                 <nav className='space-y-1'>
                   {sections.map((section) => (
@@ -445,7 +451,7 @@ export function LegalPageLayout({
             <div className='pt-16 border-t border-border mt-20'>
               <div className='bg-muted/30 rounded-2xl p-8 text-center'>
                 <p className='text-muted-foreground text-sm mb-4'>
-                  对这些内容有疑问？
+                  {rt('questions_about_this_content_feb7d44a')}
                 </p>
                 <div className='flex justify-center gap-4'>
                   <Link
@@ -453,7 +459,7 @@ export function LegalPageLayout({
                     target='_blank'
                   >
                     <Button variant='outline' className='h-9 text-xs'>
-                      联系支持
+                      {rt('contact_support_4cac90c8')}
                     </Button>
                   </Link>
                 </div>

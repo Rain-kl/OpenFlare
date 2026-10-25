@@ -352,25 +352,25 @@ func joinManagedPath(base string, relative string) string {
 
 func validate(cfg *Config) error {
 	if cfg.ServerURL == "" {
-		return errors.New("server_url 不能为空")
+		return errors.New("server_url must not be empty")
 	}
 	if strings.TrimSpace(cfg.AccessToken) == "" && strings.TrimSpace(cfg.DiscoveryToken) == "" {
-		return errors.New("agent_token 和 discovery_token 不能同时为空")
+		return errors.New("agent_token and discovery_token must not both be empty")
 	}
 	if cfg.NodeName == "" {
-		return errors.New("node_name 不能为空")
+		return errors.New("node_name must not be empty")
 	}
 	if cfg.NodeIP == "" {
-		return errors.New("node_ip 不能为空")
+		return errors.New("node_ip must not be empty")
 	}
 	if cfg.OpenrestyObservabilityPort <= 0 || cfg.OpenrestyObservabilityPort > 65535 {
-		return errors.New("openresty_observability_port 必须在 1-65535 之间")
+		return errors.New("openresty_observability_port must be between 1 and 65535")
 	}
 	if cfg.ObservabilityReplayMinutes <= 0 {
-		return errors.New("observability_replay_minutes 必须大于 0")
+		return errors.New("observability_replay_minutes must be greater than 0")
 	}
 	if cfg.MMDBUpdateInterval <= 0 {
-		return errors.New("mmdb_update_interval 必须大于 0")
+		return errors.New("mmdb_update_interval must be greater than 0")
 	}
 	return nil
 }
@@ -397,10 +397,10 @@ func (cfg *Config) toConfigFile() configFile {
 // Save persists the current configuration back to its original file path.
 func (cfg *Config) Save() error {
 	if cfg == nil {
-		return errors.New("config 不能为空")
+		return errors.New("config must not be empty")
 	}
 	if cfg.configPath == "" {
-		return errors.New("config path 未初始化")
+		return errors.New("configuration path is not initialized")
 	}
 	data, err := json.MarshalIndent(cfg.toConfigFile(), "", "  ") //nolint:gosec // agent token must be persisted in local config file
 	if err != nil {

@@ -1,0 +1,36 @@
+{
+  "layout": {
+    "search": {
+      "keywords": {
+        "home": "home|主页|首页|dashboard|总览",
+        "docs-how-to-use": "docs|文档|使用|how to|tutorial|教程|help",
+        "console-nodes": "node|节点|边缘节点|中继|内网穿透|tunnel|服务器",
+        "console-proxy-routes": "route|规则|路由|代理|反向代理|proxy",
+        "console-websites": "website|domain|网站|域名|站点",
+        "console-certificates": "certificate|ssl|tls|证书|https|加密",
+        "console-dns-accounts": "dns|dns account|账号|域名解析|cloudflare|aliyun|tencent",
+        "console-origins": "origin|源站|后端|backend|服务器|负载均衡",
+        "console-responses": "响应页面|错误页|联系页|源站|502|503|5xx|Service Worker|离线兜底|error page",
+        "console-waf": "waf|防火墙|安全|security|拦截|规则",
+        "console-ip-groups": "ip|ip group|ip组|黑名单|白名单|访问控制",
+        "console-rate-limits": "限流|rate limit|limit_conn|limit_rate|并发|带宽",
+        "console-pages": "pages|静态托管|cdn|网站|部署|static",
+        "console-config-versions": "version|config|版本|发布|回滚|对比|部署",
+        "console-access-logs": "log|logs|访问日志|分析|流量|请求",
+        "console-apply-logs": "apply|log|logs|应用记录|配置下发|同步|部署历史",
+        "console-performance": "performance|性能|调优|优化|参数|连接|超时",
+        "settings": "settings|设置|偏好|preferences",
+        "settings-profile": "profile|资料|个人|我的|信息|avatar",
+        "settings-appearance": "appearance|外观|主题|theme|dark|light",
+        "admin-settings": "admin|管理员|系统设置|安全|security|oidc|login",
+        "admin-system": "admin|管理员|系统|配置|system|configurations",
+        "admin-users": "admin|管理员|用户|管理|users|status",
+        "admin-tasks": "admin|管理员|任务|异步|tasks|scheduler|worker",
+        "admin-files": "admin|管理员|存储|文件|files|upload|s3",
+        "admin-database": "admin|管理员|数据库|database|sql|query|gorm",
+        "admin-push": "admin|管理员|推送|通知|push|mail|telegram|lark",
+        "admin-logs": "admin|管理员|日志|logs|system log|terminal"
+      }
+    }
+  }
+}

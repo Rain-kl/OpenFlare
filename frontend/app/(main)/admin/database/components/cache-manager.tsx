@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { useCallback, useEffect, useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useFormatter, useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { HardDrive, RefreshCw, Trash2 } from 'lucide-react';
 
@@ -28,25 +28,7 @@ import {
 } from '@/components/ui/dialog';
 import type { CacheStatus } from '@/lib/services/admin';
 import services from '@/lib/services';
-
-/**
- * 格式化字节大小
- */
-const formatBytes = (bytes: number) => {
-  if (bytes === 0) return '0 Bytes';
-  const k = 1024;
-  const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-};
-
-/**
- * 格式化数字，每3位加逗号
- */
-const formatNumber = (num: number | string) => {
-  if (num === undefined || num === null) return '0';
-  return num.toString().replace(/\B(?=(\d{3})+(?!\B))/g, ',');
-};
+import { formatBytes } from '@/lib/utils/metrics';
 
 interface CacheManagerProps {
   refreshTrigger: number;
@@ -54,6 +36,7 @@ interface CacheManagerProps {
 
 export function CacheManager({ refreshTrigger }: CacheManagerProps) {
   const t = useTranslations('admin.database.cache');
+  const format = useFormatter();
   const [cacheStatus, setCacheStatus] = useState<CacheStatus | null>(null);
   const [loadingCache, setLoadingCache] = useState<boolean>(true);
   const [savingConfig, setSavingConfig] = useState<boolean>(false);
@@ -208,7 +191,7 @@ export function CacheManager({ refreshTrigger }: CacheManagerProps) {
                     {t('cacheKeysCount')}
                   </p>
                   <p className='text-xl font-bold tracking-tight text-foreground'>
-                    {formatNumber(cacheStatus.keys_count)}{' '}
+                    {format.number(cacheStatus.keys_count)}{' '}
                     <span className='text-xs text-muted-foreground font-normal'>
                       {t('files')}
                     </span>

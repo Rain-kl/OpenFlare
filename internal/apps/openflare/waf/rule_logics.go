@@ -96,7 +96,7 @@ func GetRule(ctx context.Context, id uint) (*RuleView, error) {
 func CreateRule(ctx context.Context, input CreateRuleInput) (*RuleView, error) {
 	name := strings.TrimSpace(input.Name)
 	if name == "" {
-		return nil, &RuleValidationError{Err: errors.New("WAF 规则名称不能为空")}
+		return nil, &RuleValidationError{Err: errors.New("WAF rule name must not be empty")}
 	}
 	raw, err := json.Marshal(DefaultRuleGraph())
 	if err != nil {
@@ -123,7 +123,7 @@ func UpdateRuleMeta(ctx context.Context, id uint, input UpdateRuleMetaInput) (*R
 	}
 	name := strings.TrimSpace(input.Name)
 	if name == "" {
-		return nil, &RuleValidationError{Err: errors.New("WAF 规则名称不能为空")}
+		return nil, &RuleValidationError{Err: errors.New("WAF rule name must not be empty")}
 	}
 	group.Name, group.Enabled = name, input.Enabled
 	if err = repository.UpdateOpenFlareWAFRuleGroup(ctx, group); err != nil {
@@ -139,7 +139,7 @@ func DeleteRuleGroup(ctx context.Context, id uint) error {
 		return err
 	}
 	if group.IsGlobal {
-		return &RuleValidationError{Err: errors.New("全局 WAF 规则不能删除")}
+		return &RuleValidationError{Err: errors.New("global WAF rule cannot be deleted")}
 	}
 	return repository.DeleteOpenFlareWAFRuleGroupWithBindings(ctx, id)
 }
@@ -150,7 +150,7 @@ func SaveRuleGraph(ctx context.Context, id uint, input SaveRuleGraphInput) (*Rul
 		return nil, err
 	}
 	if err := ValidateRuleGraph(ctx, input.Graph, ruleIPGroupExists); err != nil {
-		return nil, &RuleValidationError{Err: fmt.Errorf("规则图无效: %w", err)}
+		return nil, &RuleValidationError{Err: fmt.Errorf("invalid rule graph: %w", err)}
 	}
 	raw, err := json.Marshal(input.Graph)
 	if err != nil {

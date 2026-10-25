@@ -19,9 +19,9 @@ var workerCmd = &cobra.Command{
 	Run: func(_ *cobra.Command, _ []string) {
 		runBootstrap(bootstrap.Options{})
 		printStartupBanner(startupState{mode: "Worker", relationalDB: latestMigrationState.relationalDB, clickHouseDB: latestMigrationState.clickHouseDB})
-		log.Println("[Worker] 启动任务处理服务")
+		log.Println("[Worker] Starting task processing service")
 		if err := worker.StartWorker(); err != nil {
-			log.Fatalf("[工作器] 启动失败: %v", err)
+			log.Fatalf("[Worker] Failed to start: %v", err)
 		}
 	},
 }

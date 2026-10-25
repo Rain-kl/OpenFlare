@@ -34,7 +34,7 @@ type TaskExecution struct {
 	Result       string              `json:"result" gorm:"type:text"`
 	StartedAt    *time.Time          `json:"started_at" gorm:"index"`
 	FinishedAt   *time.Time          `json:"finished_at"`
-	Duration     int64               `json:"duration" gorm:"comment:耗时毫秒"`
+	Duration     int64               `json:"duration" gorm:"comment:Duration in milliseconds"`
 	Payload      string              `json:"payload" gorm:"type:text"`
 	TriggeredBy  string              `json:"triggered_by" gorm:"size:32;not null;default:system"`
 	CreatedAt    time.Time           `json:"created_at" gorm:"autoCreateTime;index"`

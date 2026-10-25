@@ -467,7 +467,7 @@ func (r *Runner) tryRestartOpenresty(ctx context.Context) {
 
 func (r *Runner) tryRegister(ctx context.Context, nodeID *string) error {
 	if strings.TrimSpace(r.Config.DiscoveryToken) == "" {
-		return errors.New("agent_token 为空且未配置 discovery_token")
+		return errors.New("agent_token is empty and discovery_token is not configured")
 	}
 	slog.Info("agent discovery registration started")
 	response, err := r.HeartbeatService.Register(ctx, r.HeartbeatCycle.NodePayload(ctx, *nodeID))
@@ -475,7 +475,7 @@ func (r *Runner) tryRegister(ctx context.Context, nodeID *string) error {
 		return err
 	}
 	if response == nil || strings.TrimSpace(response.AccessToken) == "" || strings.TrimSpace(response.NodeID) == "" {
-		return errors.New("discovery register response 缺少 node_id 或 agent_token")
+		return errors.New("discovery registration response is missing node_id or agent_token")
 	}
 	snapshot, err := r.StateStore.Load()
 	if err != nil {

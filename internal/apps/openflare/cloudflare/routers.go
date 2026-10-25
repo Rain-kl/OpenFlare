@@ -19,7 +19,7 @@ func abortLogic(c *gin.Context, err error) bool {
 	}
 	switch {
 	case errors.Is(err, gorm.ErrRecordNotFound):
-		response.AbortNotFound(c, "Cloudflare 资源不存在")
+		response.AbortNotFound(c, "Cloudflare resource was not found")
 	case err.Error() == errMemberExists:
 		response.AbortConflict(c, err.Error())
 	case err.Error() == errTaskDispatchFailed:

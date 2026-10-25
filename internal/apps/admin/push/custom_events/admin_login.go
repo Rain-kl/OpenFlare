@@ -15,13 +15,13 @@ import (
 // AdminLogin is the metadata definition for the admin login event.
 var AdminLogin = push.EventMetadata{
 	Key:  "admin_login",
-	Name: "管理员登录",
+	Name: "Administrator login",
 	DefaultTemplate: push.NotificationMessage{
-		Title:   "管理员登录提醒",
-		Content: "管理员 {{user.username}} 于 {{time}} 从 IP {{ip}} 登录系统。",
+		Title:   "Administrator login notification",
+		Content: "Administrator {{user.username}} signed in at {{time}} from IP {{ip}}.",
 		Level:   "INFO",
 	},
-	Description: "当管理员成功登录系统时触发此通知",
+	Description: "Triggered when an administrator signs in successfully",
 }
 
 func handleAdminLogin(ctx context.Context, event listener.AdminLoggedIn) {

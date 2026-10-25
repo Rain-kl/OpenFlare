@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { messageContractTokens } from './message-contract.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -17,20 +18,34 @@ function flatten(obj, prefix = '') {
   return keys;
 }
 
-const zh = JSON.parse(
-  readFileSync(resolve(root, 'messages/zh-CN.json'), 'utf8'),
-);
 const en = JSON.parse(readFileSync(resolve(root, 'messages/en.json'), 'utf8'));
-const zhKeys = flatten(zh);
 const enKeys = flatten(en);
-const onlyZh = [...zhKeys].filter((k) => !enKeys.has(k)).sort();
-const onlyEnFixed = [...enKeys].filter((k) => !zhKeys.has(k)).sort();
-
-if (onlyZh.length || onlyEnFixed.length) {
-  console.error('i18n key mismatch');
-  if (onlyZh.length) console.error('only in zh-CN:', onlyZh);
-  if (onlyEnFixed.length) console.error('only in en:', onlyEnFixed);
-  process.exit(1);
+for (const locale of ['zh-CN', 'ru']) {
+  const messages = JSON.parse(
+    readFileSync(resolve(root, `messages/${locale}.json`), 'utf8'),
+  );
+  const keys = flatten(messages);
+  const extra = [...keys].filter((key) => !enKeys.has(key)).sort();
+  const missing = [...enKeys].filter((key) => !keys.has(key)).sort();
+  if (extra.length || missing.length) {
+    console.error(`i18n key mismatch: ${locale}`, { extra, missing });
+    process.exitCode = 1;
+  }
+  for (const key of enKeys) {
+    const get = (source) =>
+      key.split('.').reduce((value, part) => value?.[part], source);
+    const source = get(en);
+    const translated = get(messages);
+    if (
+      typeof source === 'string' &&
+      typeof translated === 'string' &&
+      JSON.stringify(messageContractTokens(source)) !==
+        JSON.stringify(messageContractTokens(translated))
+    ) {
+      console.error(`${locale} changes template variables or tags in ${key}`);
+      process.exitCode = 1;
+    }
+  }
 }
-
-console.log(`i18n keys OK (${zhKeys.size} keys)`);
+if (!process.exitCode)
+  console.log(`i18n keys OK (${enKeys.size} keys, 3 locales)`);

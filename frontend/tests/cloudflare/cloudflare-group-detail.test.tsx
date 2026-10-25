@@ -264,7 +264,7 @@ describe('Cloudflare group detail move and batch operations', () => {
 
     // Select all via header checkbox
     const selectAllCheckbox = screen.getByRole('checkbox', {
-      name: 'Select all',
+      name: zhCN.runtime.ui_selectAll,
     });
     fireEvent.click(selectAllCheckbox);
 
@@ -318,7 +318,9 @@ describe('Cloudflare group detail move and batch operations', () => {
     expect(await screen.findByText('a.example.com')).toBeVisible();
 
     // Select all members
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Select all' }));
+    fireEvent.click(
+      screen.getByRole('checkbox', { name: zhCN.runtime.ui_selectAll }),
+    );
     expect(await screen.findByText('已选择 2 项')).toBeVisible();
 
     // Click batch move button

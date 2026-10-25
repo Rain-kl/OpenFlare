@@ -50,6 +50,12 @@ const categoryMap: Record<string, string> = {
   其他: 'others',
 };
 
+// The API retains persisted category keys; labels always follow the UI locale.
+function categoryTranslationKey(name: string) {
+  const key = categoryMap[name] || 'others';
+  return `stats.cat${key.charAt(0).toUpperCase()}${key.slice(1)}`;
+}
+
 function useStatsChartConfig() {
   const t = useTranslations('admin.files');
   return {
@@ -158,11 +164,11 @@ export function FileStats() {
     stats.categories.forEach((cat) => {
       if (cat.count > maxCount) {
         maxCount = cat.count;
-        maxCountName = cat.name;
+        maxCountName = t(categoryTranslationKey(cat.name));
       }
       if (cat.size > maxSize) {
         maxSize = cat.size;
-        maxSizeName = cat.name;
+        maxSizeName = t(categoryTranslationKey(cat.name));
       }
     });
 
@@ -217,7 +223,7 @@ export function FileStats() {
             <div className='text-2xl font-bold font-mono text-sky-500'>
               {stats.total_count.toLocaleString()}{' '}
               <span className='text-xs font-normal text-muted-foreground'>
-                {t('stats.countUnit')}
+                {t.raw('stats.countUnit')}
               </span>
             </div>
             <p className='text-[10px] text-muted-foreground mt-1'>
@@ -254,7 +260,7 @@ export function FileStats() {
             <div className='text-2xl font-bold font-mono text-indigo-500'>
               +{trendSummary.count.toLocaleString()}{' '}
               <span className='text-xs font-normal text-muted-foreground'>
-                {t('stats.countUnit')}
+                {t.raw('stats.countUnit')}
               </span>
             </div>
             <p className='text-[10px] text-muted-foreground mt-1'>
@@ -378,7 +384,7 @@ export function FileStats() {
                         const formattedValue =
                           trendMetric === 'size'
                             ? formatFileSize(Number(value))
-                            : `${value} ${t('stats.countUnit')}`;
+                            : `${value} ${t.raw('stats.countUnit')}`;
                         return (
                           <>
                             <div className='flex items-center gap-1.5'>
@@ -488,7 +494,7 @@ export function FileStats() {
                                   </span>
                                 </div>
                                 <span className='text-foreground font-mono font-medium tabular-nums ml-auto'>
-                                  {value} {t('stats.countUnit')}
+                                  {value} {t.raw('stats.countUnit')}
                                 </span>
                               </>
                             );

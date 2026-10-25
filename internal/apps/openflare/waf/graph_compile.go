@@ -32,32 +32,32 @@ func CompileRuleGraph(graph RuleGraph) (RuntimeRuleGraph, error) {
 	for _, node := range graph.Nodes {
 		config, err := compileRuleNodeConfig(node)
 		if err != nil {
-			return RuntimeRuleGraph{}, fmt.Errorf("节点 %s 的配置无法编译: %w", node.ID, err)
+			return RuntimeRuleGraph{}, fmt.Errorf("unable to compile configuration for node %s: %w", node.ID, err)
 		}
 		if node.Type == RuleNodeStart {
 			if runtime.Entry != "" {
-				return RuntimeRuleGraph{}, errors.New("规则图包含多个开始节点")
+				return RuntimeRuleGraph{}, errors.New("rule graph contains multiple start nodes")
 			}
 			runtime.Entry = node.ID
 		}
 		runtime.Nodes[node.ID] = RuntimeRuleNode{Type: node.Type, Config: config}
 	}
 	if runtime.Entry == "" {
-		return RuntimeRuleGraph{}, errors.New("规则图缺少开始节点")
+		return RuntimeRuleGraph{}, errors.New("rule graph is missing a start node")
 	}
 	for _, edge := range graph.Edges {
 		node, ok := runtime.Nodes[edge.Source]
 		if !ok {
-			return RuntimeRuleGraph{}, fmt.Errorf("边 %s 的源节点 %s 不存在", edge.ID, edge.Source)
+			return RuntimeRuleGraph{}, fmt.Errorf("edge %s references missing source node %s", edge.ID, edge.Source)
 		}
 		if _, ok := runtime.Nodes[edge.Target]; !ok {
-			return RuntimeRuleGraph{}, fmt.Errorf("边 %s 的目标节点 %s 不存在", edge.ID, edge.Target)
+			return RuntimeRuleGraph{}, fmt.Errorf("edge %s references missing target node %s", edge.ID, edge.Target)
 		}
 		if node.Next == nil {
 			node.Next = make(map[string]string)
 		}
 		if _, exists := node.Next[edge.SourceHandle]; exists {
-			return RuntimeRuleGraph{}, fmt.Errorf("节点 %s 的 %s 出口连接了多个目标", edge.Source, edge.SourceHandle)
+			return RuntimeRuleGraph{}, fmt.Errorf("node %s output %s is connected to multiple targets", edge.Source, edge.SourceHandle)
 		}
 		node.Next[edge.SourceHandle] = edge.Target
 		runtime.Nodes[edge.Source] = node
@@ -109,7 +109,7 @@ func compileRuleNodeConfig(node RuleNode) (any, error) {
 		var config BlockNodeConfig
 		return config, decodeStrictConfig(node.Config, &config)
 	default:
-		return nil, fmt.Errorf("未知节点类型 %s", node.Type)
+		return nil, fmt.Errorf("unknown node type %s", node.Type)
 	}
 }
 

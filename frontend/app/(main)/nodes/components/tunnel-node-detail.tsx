@@ -65,6 +65,7 @@ const nodesQueryKey = ['openflare', 'nodes'];
 
 export function TunnelNodeDetail({ node }: { node: NodeItem }) {
   const t = useTranslations('nodes');
+  const rt = useTranslations('runtime');
   const tc = useTranslations('common');
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -313,7 +314,7 @@ export function TunnelNodeDetail({ node }: { node: NodeItem }) {
     <>
       <NodeDetailShell
         title={node.name}
-        typeLabel='Tunnel'
+        typeLabel={rt('node_type_tunnel')}
         typeTone='info'
         statusBadges={[
           {

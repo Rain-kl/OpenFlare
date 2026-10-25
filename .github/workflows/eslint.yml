@@ -33,3 +33,7 @@ jobs:
       - name: Run ESLint
         working-directory: frontend
         run: npx eslint . --max-warnings 0
+
+      - name: Check translation catalogs and runtime language
+        working-directory: frontend
+        run: node scripts/merge-i18n-fragments.mjs && pnpm check:i18n

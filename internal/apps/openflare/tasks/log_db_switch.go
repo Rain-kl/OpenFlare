@@ -40,11 +40,11 @@ type LogDBSwitchHandler struct{}
 func (h *LogDBSwitchHandler) ValidatePayload(payload []byte) ([]byte, error) {
 	var p logDBSwitchPayload
 	if err := json.Unmarshal(payload, &p); err != nil {
-		return nil, fmt.Errorf("参数解析失败: %w", err)
+		return nil, fmt.Errorf("failed to parse parameters: %w", err)
 	}
 	p.Target = normalizeTarget(p.Target)
 	if !validTarget(p.Target) {
-		return nil, fmt.Errorf("目标日志库不合法: %s", p.Target)
+		return nil, fmt.Errorf("invalid target log database: %s", p.Target)
 	}
 	out, err := json.Marshal(p)
 	if err != nil {
@@ -73,7 +73,7 @@ func validTarget(v string) bool {
 func (h *LogDBSwitchHandler) Execute(ctx context.Context, payload []byte) (*task.TaskResult, error) {
 	var p logDBSwitchPayload
 	if err := json.Unmarshal(payload, &p); err != nil {
-		return nil, fmt.Errorf("参数解析失败: %w", err)
+		return nil, fmt.Errorf("failed to parse parameters: %w", err)
 	}
 	p.Target = normalizeTarget(p.Target)
 	if err := validateSwitch(ctx, p.Target); err != nil {
@@ -82,10 +82,10 @@ func (h *LogDBSwitchHandler) Execute(ctx context.Context, payload []byte) (*task
 
 	source, err := currentLogDatabase(ctx)
 	if err != nil {
-		task.AppendLog(ctx, "读取日志主库失败: %v", err)
+		task.AppendLog(ctx, "Failed to read log database: %v", err)
 		return nil, err
 	}
-	task.AppendLog(ctx, "开始切换日志数据库：%s -> %s", source, p.Target)
+	task.AppendLog(ctx, "Starting log database migration: %s -> %s", source, p.Target)
 
 	// 设置迁移冻结标记（置位后由 ensureWritable 拒绝新写入）。
 	if err := setMigrationFlag(ctx, "migrating"); err != nil {
@@ -94,14 +94,14 @@ func (h *LogDBSwitchHandler) Execute(ctx context.Context, payload []byte) (*task
 	// 失败也清除（SaveOrUpdateSystemConfig 会失效 RAM 缓存并广播），保持源库可写。
 	defer func() {
 		if err := setMigrationFlag(ctx, ""); err != nil {
-			logger.ErrorF(ctx, "清除日志迁移冻结标记失败: %v", err)
+			logger.ErrorF(ctx, "Failed to clear log migration freeze marker: %v", err)
 		}
 	}()
 
 	// 冻结标记置位后再排空在途批次（chwriter + 用户访问日志 writer），
 	// 保证排空完成后不再有新批次进入源库。
 	if err := drainLogWriters(ctx); err != nil {
-		return nil, fmt.Errorf("排空日志写入队列失败: %w", err)
+		return nil, fmt.Errorf("failed to drain log write queue: %w", err)
 	}
 
 	src, err := logstore.Active(ctx)
@@ -138,8 +138,8 @@ func (h *LogDBSwitchHandler) Execute(ctx context.Context, payload []byte) (*task
 	if err := flipLogDatabase(ctx, p.Target); err != nil {
 		return nil, err
 	}
-	task.AppendLog(ctx, "日志数据库已切换为 %s，写入恢复", p.Target)
-	return &task.TaskResult{Message: fmt.Sprintf("日志数据库已从 %s 切换为 %s", source, p.Target)}, nil
+	task.AppendLog(ctx, "Log database switched to %s; writes resumed", p.Target)
+	return &task.TaskResult{Message: fmt.Sprintf("Log database switched from %s to %s", source, p.Target)}, nil
 }
 
 func validateSwitch(ctx context.Context, target string) error {
@@ -148,20 +148,20 @@ func validateSwitch(ctx context.Context, target string) error {
 		return err
 	}
 	if source == target {
-		return errors.New("目标日志库与当前日志库相同，无需迁移")
+		return errors.New("target log database is already active; no migration is required")
 	}
 	switch target {
 	case "clickhouse":
 		if !config.Config.ClickHouse.Enabled {
-			return errors.New("ClickHouse 未启用，无法迁移到 ClickHouse")
+			return errors.New("ClickHouse is disabled; migration to ClickHouse is unavailable")
 		}
 	case "postgres":
 		if !config.Config.Database.Enabled {
-			return errors.New("PostgreSQL 未启用（当前主库为 SQLite），无法迁移到 PostgreSQL")
+			return errors.New("PostgreSQL is disabled and SQLite is the primary database; migration to PostgreSQL is unavailable")
 		}
 	case "sqlite":
 		if config.Config.Database.Enabled {
-			return errors.New("当前主库为 PostgreSQL，日志库不能设置为 SQLite")
+			return errors.New("PostgreSQL is the primary database; SQLite cannot be selected for log storage")
 		}
 	}
 	return nil
@@ -170,10 +170,10 @@ func validateSwitch(ctx context.Context, target string) error {
 func currentLogDatabase(ctx context.Context) (string, error) {
 	cfg, err := repository.GetSystemConfigByKey(ctx, model.ConfigKeyLogDatabase)
 	if err != nil {
-		return "", fmt.Errorf("读取日志主库失败: %w", err)
+		return "", fmt.Errorf("failed to read log database: %w", err)
 	}
 	if cfg.Value == "" {
-		return "", errors.New("日志主库配置为空")
+		return "", errors.New("log database configuration is empty")
 	}
 	return cfg.Value, nil
 }
@@ -205,10 +205,10 @@ func clearTargetLogTables(ctx context.Context, dst *logstore.Store) error {
 	// 依次清空 6 张表：AccessLogs.DeleteAll、UserAccessLogs.DeleteAll、Observability.DeleteAll*
 	// （SQLite/PG 用 DeleteAll；CH 用 TRUNCATE 语义）。
 	if _, err := dst.AccessLogs.DeleteAll(ctx); err != nil {
-		return fmt.Errorf("清空目标访问日志失败: %w", err)
+		return fmt.Errorf("failed to clear target access logs: %w", err)
 	}
 	if _, err := dst.UserAccessLogs.DeleteAll(ctx); err != nil {
-		return fmt.Errorf("清空目标用户访问日志失败: %w", err)
+		return fmt.Errorf("failed to clear target user access logs: %w", err)
 	}
 	for _, fn := range []func(context.Context) (int64, error){
 		dst.Observability.DeleteAllMetricSnapshots,
@@ -234,13 +234,13 @@ func ensureTargetPartitions(ctx context.Context, src, dst *logstore.Store, targe
 		return err
 	}
 	if from.IsZero() || to.IsZero() {
-		task.AppendLog(ctx, "源库无日志数据，跳过分区预建")
+		task.AppendLog(ctx, "Source database contains no logs; skipping partition precreation")
 		return nil
 	}
 	if err := dst.AccessLogs.EnsurePartitions(ctx, from, to.AddDate(0, 1, 0)); err != nil {
-		return fmt.Errorf("预建目标 PG 分区失败: %w", err)
+		return fmt.Errorf("failed to precreate target PostgreSQL partitions: %w", err)
 	}
-	task.AppendLog(ctx, "已为目标 PG 预建分区 %s ~ %s", from.Format("2006-01"), to.Format("2006-01"))
+	task.AppendLog(ctx, "Precreated target PostgreSQL partitions from %s to %s", from.Format("2006-01"), to.Format("2006-01"))
 	return nil
 }
 
@@ -249,11 +249,11 @@ func ensureTargetPartitions(ctx context.Context, src, dst *logstore.Store, targe
 func migrationRange(ctx context.Context, src *logstore.Store) (time.Time, time.Time, error) {
 	fromAccess, toAccess, err := src.AccessLogs.MigrationRange(ctx)
 	if err != nil {
-		return time.Time{}, time.Time{}, fmt.Errorf("读取源访问日志时间范围失败: %w", err)
+		return time.Time{}, time.Time{}, fmt.Errorf("failed to read source access log time range: %w", err)
 	}
 	fromUser, toUser, err := src.UserAccessLogs.MigrationRange(ctx)
 	if err != nil {
-		return time.Time{}, time.Time{}, fmt.Errorf("读取源用户访问日志时间范围失败: %w", err)
+		return time.Time{}, time.Time{}, fmt.Errorf("failed to read source user access log time range: %w", err)
 	}
 	return minTime(fromAccess, fromUser), maxTime(toAccess, toUser), nil
 }
@@ -297,9 +297,9 @@ func copyAccessLogs(ctx context.Context, src, dst *logstore.Store) error {
 			break
 		}
 		if err := dst.AccessLogs.BatchInsertNodeAccessLogs(ctx, rows); err != nil {
-			return fmt.Errorf("写入目标访问日志失败(批 %d): %w", lastID, err)
+			return fmt.Errorf("failed to write target access logs (batch %d): %w", lastID, err)
 		}
-		task.AppendLog(ctx, "已复制访问日志 %d 条（截至 id=%d）", len(rows), rows[len(rows)-1].ID)
+		task.AppendLog(ctx, "Copied %d access logs (through id=%d)", len(rows), rows[len(rows)-1].ID)
 		lastID = rows[len(rows)-1].ID
 		if len(rows) < copyBatchSize {
 			break
@@ -324,10 +324,10 @@ func copyUserAccessLogs(ctx context.Context, src, dst *logstore.Store) error {
 			return nil
 		}
 		if err := dst.UserAccessLogs.BatchInsert(ctx, rows); err != nil {
-			return fmt.Errorf("写入目标用户访问日志失败(批 %d): %w", lastID, err)
+			return fmt.Errorf("failed to write target user access logs (batch %d): %w", lastID, err)
 		}
 		lastID = rows[len(rows)-1].ID
-		task.AppendLog(ctx, "已复制用户访问日志 %d 条（截至 id=%d）", len(rows), lastID)
+		task.AppendLog(ctx, "Copied %d user access logs (through id=%d)", len(rows), lastID)
 		if len(rows) < copyBatchSize {
 			return nil
 		}
@@ -374,16 +374,16 @@ func copyObsTable[T any](ctx context.Context, name string,
 	for {
 		rows, err := list(ctx, lastID, copyBatchSize)
 		if err != nil {
-			return fmt.Errorf("复制 %s 失败: %w", name, err)
+			return fmt.Errorf("failed to copy %s: %w", name, err)
 		}
 		if len(rows) == 0 {
 			return nil
 		}
 		if err := insert(ctx, rows); err != nil {
-			return fmt.Errorf("复制 %s 失败: %w", name, err)
+			return fmt.Errorf("failed to copy %s: %w", name, err)
 		}
 		lastID = idOf(rows)
-		task.AppendLog(ctx, "已复制 %s %d 条（截至 id=%d）", name, len(rows), lastID)
+		task.AppendLog(ctx, "Copied %s: %d records (through id=%d)", name, len(rows), lastID)
 		if len(rows) < copyBatchSize {
 			return nil
 		}

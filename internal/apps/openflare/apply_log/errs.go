@@ -6,5 +6,5 @@
 package apply_log
 
 const (
-	errRetentionDaysOutOfRange = "retention_days 必须在 1 到 3650 之间"
+	errRetentionDaysOutOfRange = "retention_days must be between 1 and 3650"
 )

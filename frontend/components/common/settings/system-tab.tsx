@@ -39,6 +39,8 @@ interface SystemTabProps {
 }
 
 export function SystemTab({ configs, systemConfigsQuery }: SystemTabProps) {
+  const rt = useTranslations('runtime');
+
   const queryClient = useQueryClient();
   const t = useTranslations('settings.system');
   const [serverAddress, setServerAddress] = useState('');
@@ -75,7 +77,9 @@ export function SystemTab({ configs, systemConfigsQuery }: SystemTabProps) {
     mutationFn: async ({ key, value }: { key: string; value: boolean }) => {
       const config = configs[key];
       if (!config) {
-        throw new Error(`缺少配置项: ${key}`);
+        throw new Error(
+          rt('missing_configuration_value0_31b43fa6', { value0: key }),
+        );
       }
       await services.adminSystemConfig.updateSystemConfig(key, {
         value: value ? 'true' : 'false',
@@ -101,11 +105,13 @@ export function SystemTab({ configs, systemConfigsQuery }: SystemTabProps) {
       await Promise.all([
         services.adminSystemConfig.updateSystemConfig('server_address', {
           value: serverAddress,
-          description: currentAddrCfg?.description || '服务器地址',
+          description:
+            currentAddrCfg?.description || rt('server_address_d3716cc5'),
         }),
         services.adminSystemConfig.updateSystemConfig('site_name', {
           value: siteName,
-          description: currentSiteCfg?.description || '系统平台的展示名称',
+          description:
+            currentSiteCfg?.description || rt('platform_display_name_4b656edf'),
         }),
       ]);
     },
@@ -249,7 +255,7 @@ export function SystemTab({ configs, systemConfigsQuery }: SystemTabProps) {
                   type='text'
                   value={siteName}
                   onChange={(e) => setSiteName(e.target.value)}
-                  placeholder='例如: OpenFlare'
+                  placeholder={rt('for_example_openflare_28e07341')}
                   className='border-dashed bg-card text-xs'
                 />
                 <p className='text-[11px] leading-relaxed text-muted-foreground'>
@@ -281,7 +287,7 @@ export function SystemTab({ configs, systemConfigsQuery }: SystemTabProps) {
                   type='url'
                   value={serverAddress}
                   onChange={(e) => setServerAddress(e.target.value)}
-                  placeholder='例如: https://example.com'
+                  placeholder={rt('for_example_https_example_com_9cf31711')}
                   className='border-dashed bg-card text-xs'
                 />
                 <p className='text-[11px] leading-relaxed text-muted-foreground'>
@@ -313,7 +319,9 @@ export function SystemTab({ configs, systemConfigsQuery }: SystemTabProps) {
               </div>
 
               <Switch
-                aria-label='允许搜索引擎抓取与收录'
+                aria-label={rt(
+                  'allow_search_engines_to_crawl_and_index_59eff8b5',
+                )}
                 checked={indexingEnabled}
                 disabled={
                   updateConfigMutation.isPending || systemConfigsQuery.isPending
@@ -383,7 +391,7 @@ export function SystemTab({ configs, systemConfigsQuery }: SystemTabProps) {
                   type='text'
                   value={smtpHost}
                   onChange={(e) => setSmtpHost(e.target.value)}
-                  placeholder='例如: smtp.example.com'
+                  placeholder={rt('for_example_smtp_example_com_834569b4')}
                   className='bg-card border-dashed text-xs'
                 />
               </div>
@@ -397,7 +405,7 @@ export function SystemTab({ configs, systemConfigsQuery }: SystemTabProps) {
                   type='number'
                   value={smtpPort}
                   onChange={(e) => setSmtpPort(e.target.value)}
-                  placeholder='例如: 587 或 465'
+                  placeholder={rt('for_example_587_or_465_1bd015a5')}
                   className='bg-card border-dashed text-xs'
                 />
               </div>
@@ -414,7 +422,7 @@ export function SystemTab({ configs, systemConfigsQuery }: SystemTabProps) {
                   type='text'
                   value={smtpUsername}
                   onChange={(e) => setSmtpUsername(e.target.value)}
-                  placeholder='例如: sender@example.com'
+                  placeholder={rt('for_example_sender_example_com_1795f7c6')}
                   className='bg-card border-dashed text-xs'
                 />
               </div>
@@ -498,7 +506,7 @@ export function SystemTab({ configs, systemConfigsQuery }: SystemTabProps) {
                 required
                 value={smtpTestTo}
                 onChange={(e) => setSmtpTestTo(e.target.value)}
-                placeholder='例如: receiver@example.com'
+                placeholder={rt('for_example_receiver_example_com_ade0ff8b')}
                 className='bg-card border-dashed text-xs'
                 disabled={testSmtpMutation.isPending}
               />

@@ -1,6 +1,6 @@
 import { CircleHelp, Settings2 } from 'lucide-react';
-import { useTranslations } from 'next-intl';
-import { useState } from 'react';
+import { useLocale, useTranslations } from 'next-intl';
+import { useMemo, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -35,8 +35,8 @@ import {
 } from '@/components/ui/tooltip';
 import type { WAFIPGroup, WAFRuleNode } from '@/lib/services/openflare';
 
-import { countryOptions, regionOptions, type GeoOption } from './geo-options';
-import { NODE_TYPE_LABELS } from './node-factory';
+import { createGeoOptions, type GeoOption } from './geo-options';
+import { NODE_TYPE_LABEL_KEYS } from './node-factory';
 import { UA_BROWSER_OPTIONS, UA_OS_OPTIONS } from './ua-options';
 
 export function NodeProperties({
@@ -78,6 +78,14 @@ function PropertyFields({
   onChange: (node: WAFRuleNode) => void;
 }) {
   const t = useTranslations('waf.editor');
+  const locale = useLocale();
+  const { countryOptions, regionOptions } = useMemo(
+    () =>
+      node.type === 'geo_match'
+        ? createGeoOptions(locale)
+        : { countryOptions: [], regionOptions: [] },
+    [locale, node.type],
+  );
   if (node.type === 'start' || node.type === 'allow')
     return (
       <p className='text-sm text-muted-foreground'>{t('systemNodeNoConfig')}</p>
@@ -518,13 +526,14 @@ function DisplayNameField({
   onChange: (node: WAFRuleNode) => void;
 }) {
   const t = useTranslations('waf.editor');
+  const rt = useTranslations('runtime');
   return (
     <Field>
       <FieldLabel htmlFor={`${node.id}-label`}>{t('displayName')}</FieldLabel>
       <Input
         id={`${node.id}-label`}
         value={node.label ?? ''}
-        placeholder={NODE_TYPE_LABELS[node.type]}
+        placeholder={rt(NODE_TYPE_LABEL_KEYS[node.type])}
         onChange={(event) => onChange({ ...node, label: event.target.value })}
       />
     </Field>

@@ -19,9 +19,9 @@ var schedulerCmd = &cobra.Command{
 	Run: func(_ *cobra.Command, _ []string) {
 		runBootstrap(bootstrap.Options{})
 		printStartupBanner(startupState{mode: "Scheduler", relationalDB: latestMigrationState.relationalDB, clickHouseDB: latestMigrationState.clickHouseDB})
-		log.Println("[Scheduler] 启动定时任务调度服务")
+		log.Println("[Scheduler] Starting scheduled task service")
 		if err := scheduler.StartScheduler(); err != nil {
-			log.Fatalf("[调度器] 启动失败: %v", err)
+			log.Fatalf("[Scheduler] Failed to start: %v", err)
 		}
 	},
 }

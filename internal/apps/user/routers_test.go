@@ -418,7 +418,7 @@ func TestLoginEmailVerificationFallbackForEmptyEmail(t *testing.T) {
 	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
 		t.Fatalf("unmarshal response failed: %v", err)
 	}
-	expectedError := errSMTPInvalidUseTempCodePrefix + "该账号未绑定邮箱，使用临时码登录"
+	expectedError := errSMTPInvalidUseTempCodePrefix + "This account has no email address; use a temporary code to sign in"
 	if resp.ErrorMsg != expectedError {
 		t.Errorf("expected error %q, got %q", expectedError, resp.ErrorMsg)
 	}

@@ -92,7 +92,7 @@ function sourceLabel(
 ) {
   const key = SOURCE_LABEL_KEYS[type];
   if (key) return t(key);
-  return type === 'remote_url' ? 'Remote URL' : 'GitHub';
+  return type === 'remote_url' ? t('history.source.remote_url') : 'GitHub';
 }
 
 function deploymentSnapshot(
@@ -230,6 +230,8 @@ export function DeploymentHistory({
   rootDir = '',
   entryFile = 'index.html',
 }: DeploymentHistoryProps) {
+  const uiText = useTranslations('runtime');
+
   const t = useTranslations('pages');
   const tCommon = useTranslations('common');
   const queryClient = useQueryClient();
@@ -401,7 +403,7 @@ export function DeploymentHistory({
     <div className='flex flex-col gap-6'>
       <Card className='border-dashed shadow-none'>
         <CardHeader className='pb-3'>
-          <CardTitle className='text-base'>Production</CardTitle>
+          <CardTitle className='text-base'>{uiText('ui_production')}</CardTitle>
           <CardDescription>{t('history.productionHint')}</CardDescription>
           <CardAction>
             <Button
@@ -440,7 +442,9 @@ export function DeploymentHistory({
 
       <Card className='border-dashed shadow-none'>
         <CardHeader className='pb-3'>
-          <CardTitle className='text-base'>All deployments</CardTitle>
+          <CardTitle className='text-base'>
+            {uiText('ui_allDeployments')}
+          </CardTitle>
           <CardDescription>{t('history.historyHint')}</CardDescription>
         </CardHeader>
         <CardContent className='space-y-3'>

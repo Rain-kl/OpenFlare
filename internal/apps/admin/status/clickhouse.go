@@ -55,16 +55,16 @@ func GetLogDatabaseStatus(c *gin.Context) {
 	ctx := c.Request.Context()
 	store, err := logstore.Active(ctx)
 	if err != nil {
-		logger.ErrorF(ctx, "获取日志存储实例失败: %v", err)
-		response.AbortInternal(c, "日志存储初始化失败")
+		logger.ErrorF(ctx, "Failed to get log storage instance: %v", err)
+		response.AbortInternal(c, "Failed to initialize log storage")
 		return
 	}
 
 	// 分支判定复用同一 store 实例的 ActiveDatabase，避免与 Active 解析之间出现 TOCTOU。
 	activeDB, err := store.Status.ActiveDatabase(ctx)
 	if err != nil {
-		logger.ErrorF(ctx, "获取日志库状态失败: %v", err)
-		response.AbortInternal(c, "获取日志库状态失败")
+		logger.ErrorF(ctx, "Failed to get log database status: %v", err)
+		response.AbortInternal(c, "Failed to get log database status")
 		return
 	}
 	migration := "idle"
@@ -86,7 +86,7 @@ func GetLogDatabaseStatus(c *gin.Context) {
 	if activeDB == logDBNameClickHouse {
 		stats, err := store.Status.ClickHouseOperationalStats(ctx)
 		if err != nil {
-			logger.ErrorF(ctx, "获取 ClickHouse 运行指标失败: %v", err)
+			logger.ErrorF(ctx, "Failed to get ClickHouse runtime metrics: %v", err)
 		} else {
 			stats.BatchWriters = collectBatchWriterStats()
 			out.ClickHouse = stats
@@ -101,7 +101,7 @@ func retentionOr(ctx context.Context, key string) int {
 	v, err := repository.GetIntByKey(ctx, key)
 	if err != nil {
 		if !errors.Is(err, gorm.ErrRecordNotFound) {
-			logger.ErrorF(ctx, "读取日志保留天数配置失败 key=%s: %v", key, err)
+			logger.ErrorF(ctx, "Failed to read log retention configuration key=%s: %v", key, err)
 		}
 		return defaultLogRetentionDays
 	}

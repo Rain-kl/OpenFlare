@@ -65,6 +65,8 @@ export function QuickCreateZoneDomainDialog({
   zones?: ZoneItem[];
   onCreated(domain: ZoneDomainItem): void | Promise<void>;
 }) {
+  const uiText = useTranslations('runtime');
+
   const t = useTranslations('websites');
   const tc = useTranslations('common');
   const queryClient = useQueryClient();
@@ -214,7 +216,7 @@ export function QuickCreateZoneDomainDialog({
         >
           {!fixedZoneId ? (
             <div className='space-y-1.5'>
-              <Label>Zone</Label>
+              <Label>{uiText('ui_zone')}</Label>
               <Select
                 value={form.watch('zone_id') || undefined}
                 onValueChange={(value) => form.setValue('zone_id', value)}

@@ -42,7 +42,7 @@ func GetSystemUser(ctx context.Context) model.User {
 	return model.User{
 		ID:       999,
 		Username: configTypeSystem,
-		Nickname: "系统",
+		Nickname: "System",
 	}
 }
 
@@ -274,7 +274,7 @@ func RegisterUserWithChecks(ctx context.Context, user *model.User) error {
 		return err
 	}
 	if count > 0 {
-		return errors.New("用户名已存在")
+		return errors.New("username already exists")
 	}
 	if user.Email != "" {
 		var emailCount int64
@@ -282,7 +282,7 @@ func RegisterUserWithChecks(ctx context.Context, user *model.User) error {
 			return err
 		}
 		if emailCount > 0 {
-			return errors.New("该邮箱已被其他账号绑定")
+			return errors.New("this email address is bound to another account")
 		}
 	}
 	if user.ID == 0 {

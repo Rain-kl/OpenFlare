@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { useTranslations } from 'next-intl';
 import { Command as CommandPrimitive } from 'cmdk';
 import { SearchIcon } from 'lucide-react';
 import { motion } from 'motion/react';
@@ -31,8 +32,8 @@ function Command({
 }
 
 function CommandDialog({
-  title = 'Command Palette',
-  description = 'Search for a command to run...',
+  title,
+  description,
   children,
   className,
   showCloseButton = false,
@@ -45,11 +46,14 @@ function CommandDialog({
   showCloseButton?: boolean;
   shouldFilter?: boolean;
 }) {
+  const t = useTranslations('runtime');
   return (
     <Dialog {...props}>
       <DialogHeader className='sr-only'>
-        <DialogTitle>{title}</DialogTitle>
-        <DialogDescription>{description}</DialogDescription>
+        <DialogTitle>{title ?? t('ui_commandPalette')}</DialogTitle>
+        <DialogDescription>
+          {description ?? t('ui_commandSearch')}
+        </DialogDescription>
       </DialogHeader>
       <DialogContent
         className={cn('overflow-hidden p-0 shadow-2xl', className)}

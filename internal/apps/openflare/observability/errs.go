@@ -5,5 +5,5 @@
 package observability
 
 const (
-	errInvalidStatusCode = "status_code 必须为 100-599 之间的整数"
+	errInvalidStatusCode = "status_code must be an integer between 100 and 599"
 )

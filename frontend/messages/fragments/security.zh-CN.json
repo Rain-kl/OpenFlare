@@ -425,7 +425,8 @@
     "history": {
       "source": {
         "manual_upload": "本地上传",
-        "manual_url": "URL 导入"
+        "manual_url": "URL 导入",
+        "remote_url": "远程 URL"
       },
       "trigger": {
         "manual_upload": "手动上传",

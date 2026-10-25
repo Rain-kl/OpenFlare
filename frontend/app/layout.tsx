@@ -12,10 +12,12 @@ import { AppIntlProvider } from '@/components/providers/intl-provider';
 import { SiteTitleUpdater } from '@/components/providers/title-updater';
 import { RobotsMeta } from '@/components/layout/robots-meta';
 import type { AppLocale } from '@/i18n/config';
+import { createLocaleBootstrapScript } from '@/i18n/bootstrap';
+import { Button } from '@/components/ui/button';
 import './globals.css';
 
 const inter = Inter({
-  subsets: ['latin'],
+  subsets: ['latin', 'cyrillic'],
   variable: '--font-inter',
   display: 'swap',
 });
@@ -35,6 +37,7 @@ export default async function RootLayout({
 }>) {
   const locale = (await getLocale()) as AppLocale;
   const messages = await getMessages();
+  const loading = await getTranslations('languageLoading');
 
   return (
     <html
@@ -42,10 +45,30 @@ export default async function RootLayout({
       className={`hide-scrollbar font-sans ${inter.variable}`}
       suppressHydrationWarning
     >
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: createLocaleBootstrapScript(locale),
+          }}
+        />
+      </head>
       <body
         className='hide-scrollbar font-sans antialiased'
         suppressHydrationWarning
       >
+        <div
+          id='locale-load-fallback'
+          role='alert'
+          hidden
+          className='visible flex min-h-svh flex-col items-center justify-center gap-4 p-6 text-center'
+        >
+          <p data-locale-error-message suppressHydrationWarning>
+            {loading('failed')}
+          </p>
+          <Button type='button' suppressHydrationWarning>
+            {loading('reload')}
+          </Button>
+        </div>
         <ThemeProvider
           attribute='class'
           defaultTheme='system'

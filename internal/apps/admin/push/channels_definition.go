@@ -81,24 +81,24 @@ func init() {
 	// Register custom webhook channel
 	RegisterChannelDefinition(Definition{
 		Type:        channelCustom,
-		Name:        "自定义消息通道",
-		Description: "使用自定义 HTTP POST 请求向外部 Webhook 发送数据。",
+		Name:        "Custom notification channel",
+		Description: "Send data to an external webhook using a custom HTTP POST request.",
 		Fields: []Field{
 			{
 				Key:         KeyURL,
-				Label:       "请求地址",
+				Label:       "Request URL",
 				Type:        TypeText,
 				Required:    true,
-				Placeholder: "在此填写完整的请求地址，必须使用 HTTPS 协议",
-				Description: "接口请求的完整 HTTPS URL，例如 https://api.example.com/webhook",
+				Placeholder: "Enter the complete request URL using HTTPS",
+				Description: "Complete HTTPS endpoint URL, for example https://api.example.com/webhook",
 			},
 			{
 				Key:         KeyOther,
-				Label:       "请求体 (JSON)",
+				Label:       "Request body (JSON)",
 				Type:        TypeTextarea,
 				Required:    true,
-				Placeholder: "在此输入请求体，支持模板变量，必须为合法的 JSON 格式",
-				Description: "可使用的变量：$title, $description, $content, $url, $to。例如 {\"text\": \"$content\"}",
+				Placeholder: "Enter a valid JSON request body; template variables are supported",
+				Description: `Available variables: $title, $description, $content, $url, $to. Example: {"text": "$content"}`,
 			},
 		},
 	})
@@ -106,33 +106,33 @@ func init() {
 	// Register Lark robot channel
 	RegisterChannelDefinition(Definition{
 		Type:        channelLark,
-		Name:        "飞书群机器人",
-		Description: "配置飞书群自定义机器人的 Webhook 接口投递。",
+		Name:        "Feishu group bot",
+		Description: "Deliver notifications through a Feishu group bot webhook.",
 		Fields: []Field{
 			{
 				Key:         KeyURL,
-				Label:       "Webhook 地址",
+				Label:       "Webhook URL",
 				Type:        TypeText,
 				Required:    true,
 				Placeholder: "https://open.feishu.cn/open-apis/bot/v2/hook/YOUR_TOKEN",
-				Description: "从飞书群机器人设置中复制 of Webhook URL",
+				Description: "Copy the webhook URL from the Feishu group bot settings",
 				// Note: using 'of' was in feishu.go, let's keep original wording or fix it
 			},
 			{
 				Key:         KeyToken,
-				Label:       "签名校验密钥 (Secret) (可选)",
+				Label:       "Signing secret (optional)",
 				Type:        TypeText,
 				Required:    false,
-				Placeholder: "可选，若机器人启用了安全设置中的签名校验，请在此输入",
-				Description: "飞书群机器人安全设置中的签名校验 Key",
+				Placeholder: "Enter the secret if signature verification is enabled for the bot",
+				Description: "Signature verification key from the Feishu group bot security settings",
 			},
 			{
 				Key:         KeyOther,
-				Label:       "自定义卡片 JSON 模版 (可选)",
+				Label:       "Custom card JSON template (optional)",
 				Type:        TypeTextarea,
 				Required:    false,
-				Placeholder: "可选，留空则默认使用系统内置的精美互动卡片",
-				Description: "若填写，必须是合法的飞书卡片 JSON 格式",
+				Placeholder: "Leave empty to use the built-in interactive card",
+				Description: "If specified, this must be valid Feishu card JSON",
 			},
 		},
 	})
@@ -140,32 +140,32 @@ func init() {
 	// Register Telegram channel
 	RegisterChannelDefinition(Definition{
 		Type:        channelTelegram,
-		Name:        "Telegram 机器人",
-		Description: "配置 Telegram 机器人推送消息。",
+		Name:        "Telegram bot",
+		Description: "Configure Telegram bot notifications.",
 		Fields: []Field{
 			{
 				Key:         KeyURL,
-				Label:       "API 基础地址 (可选)",
+				Label:       "API base URL (optional)",
 				Type:        TypeText,
 				Required:    false,
 				Placeholder: "https://api.telegram.org",
-				Description: "接口请求的 HTTPS 基础地址，留空默认为 https://api.telegram.org",
+				Description: "HTTPS API base URL; defaults to https://api.telegram.org",
 			},
 			{
 				Key:         KeyToken,
-				Label:       "机器人 Token (Bot Token)",
+				Label:       "Bot token",
 				Type:        TypePassword,
 				Required:    true,
-				Placeholder: "在此输入 Telegram 机器人的 Bot Token",
-				Description: "通过 BotFather 申请到的机器人 Access Token",
+				Placeholder: "Enter the Telegram bot token",
+				Description: "Bot access token issued by BotFather",
 			},
 			{
 				Key:         KeyOther,
-				Label:       "默认会话 ID (Chat ID) (可选)",
+				Label:       "Default chat ID (optional)",
 				Type:        TypeText,
 				Required:    false,
-				Placeholder: "例如 -100123456789 或 @channel_name",
-				Description: "默认的消息接收 Chat ID。如果通知事件中未配置 targets，将推送到此 ID",
+				Placeholder: "For example -100123456789 or @channel_name",
+				Description: "Default recipient chat ID, used when the notification event has no targets",
 			},
 		},
 	})
@@ -173,8 +173,8 @@ func init() {
 	// Register Email channel
 	RegisterChannelDefinition(Definition{
 		Type:        channelEmail,
-		Name:        "邮件推送通道",
-		Description: "邮件推送通道直接使用系统全局 SMTP 设置进行发送，无需在此填写服务器配置。",
+		Name:        "Email notification channel",
+		Description: "Email notifications use the global SMTP settings; no server configuration is required here.",
 		Fields:      []Field{},
 	})
 }

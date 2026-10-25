@@ -133,7 +133,7 @@ func TestErrorHandlerMiddleware_FallbackForNonAPIError(t *testing.T) {
 
 	var body Response[any]
 	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &body))
-	assert.Equal(t, "内部系统错误", body.ErrorMsg)
+	assert.Equal(t, "Internal system error", body.ErrorMsg)
 	assert.Nil(t, body.Data)
 }
 
@@ -150,19 +150,23 @@ func TestErrorHandlerMiddleware_RecordsSpanOnAPIError(t *testing.T) {
 	r.Use(ErrorHandlerMiddleware())
 	r.GET("/err", func(c *gin.Context) {
 		c.Request = c.Request.WithContext(ctx)
-		AbortBadRequest(c, "bad request")
+		AbortBadRequest(c, "invalid target log database: custom-中文")
 	})
 
 	req := httptest.NewRequest(http.MethodGet, "/err", nil)
+	req.AddCookie(&http.Cookie{Name: "NEXT_LOCALE", Value: "zh-CN"})
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 	span.End()
 
 	require.Equal(t, http.StatusBadRequest, w.Code)
+	var body Any
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &body))
+	assert.Equal(t, "目标日志库不合法: custom-中文", body.ErrorMsg)
 
 	spans := sr.Ended()
 	require.Len(t, spans, 1)
 	assert.Equal(t, codes.Error, spans[0].Status().Code)
-	assert.Equal(t, "bad request", spans[0].Status().Description)
+	assert.Equal(t, "invalid target log database: custom-中文", spans[0].Status().Description)
 	require.NotEmpty(t, spans[0].Events())
 }

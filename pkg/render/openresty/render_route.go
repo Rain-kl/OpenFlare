@@ -117,7 +117,7 @@ func renderPagesRoute(builder *strings.Builder, route Route, displayName, server
 	certIDs := certificateIDsFromDomainCertIDs(route.DomainCertIDs)
 	domainCertIDs := route.DomainCertIDs
 	if len(certIDs) == 0 {
-		return fmt.Errorf("路由 %s 未配置证书", route.SiteName)
+		return fmt.Errorf("no certificate is configured for route %s", route.SiteName)
 	}
 	partition := partitionRouteDomainsByCert(normalizedRouteDomains(route), certIDs, domainCertIDs)
 	if err := validateRouteCertificates(route, displayName, certIDs, partition, certificates); err != nil {
@@ -143,7 +143,7 @@ func renderProxyRoute(builder *strings.Builder, route Route, displayName, server
 	certIDs := certificateIDsFromDomainCertIDs(route.DomainCertIDs)
 	domainCertIDs := route.DomainCertIDs
 	if len(certIDs) == 0 {
-		return fmt.Errorf("路由 %s 未配置证书", route.SiteName)
+		return fmt.Errorf("no certificate is configured for route %s", route.SiteName)
 	}
 	partition := partitionRouteDomainsByCert(normalizedRouteDomains(route), certIDs, domainCertIDs)
 	if err := validateRouteCertificates(route, displayName, certIDs, partition, certificates); err != nil {

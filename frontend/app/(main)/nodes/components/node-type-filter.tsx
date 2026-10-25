@@ -64,13 +64,14 @@ export function getFilterDescription(
 
 export function NodeTypeFilter() {
   const t = useTranslations('nodes');
+  const rt = useTranslations('runtime');
   const searchParams = useSearchParams();
   const activeFilter = getNodeFilter(searchParams);
   const filterLabels: Record<NodeFilter, string> = {
     all: t('filter.all'),
-    edge: 'Edge',
-    relay: 'Relay',
-    tunnel: 'Tunnel',
+    edge: rt('node_type_edge'),
+    relay: rt('node_type_relay'),
+    tunnel: rt('node_type_tunnel'),
   };
 
   return (

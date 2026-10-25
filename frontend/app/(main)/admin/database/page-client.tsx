@@ -3,7 +3,7 @@
 import dynamic from 'next/dynamic';
 import * as React from 'react';
 import { useCallback, useEffect, useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useFormatter, useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import {
   Activity,
@@ -49,16 +49,9 @@ const SQLConsole = dynamic(
   { ssr: false },
 );
 
-/**
- * 格式化数字，每3位加逗号
- */
-const formatNumber = (num: number | string) => {
-  if (num === undefined || num === null) return '0';
-  return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-};
-
 export function DatabasePageClient() {
   const t = useTranslations('admin.database');
+  const format = useFormatter();
   // 核心状态
   const [overview, setOverview] = useState<DBOverview | null>(null);
   const [tables, setTables] = useState<string[]>([]);
@@ -275,7 +268,7 @@ export function DatabasePageClient() {
                 </CardHeader>
                 <CardContent>
                   <div className='text-sm font-bold'>
-                    {formatNumber(overview.table_count)}
+                    {format.number(overview.table_count)}
                   </div>
                 </CardContent>
               </Card>
@@ -290,7 +283,7 @@ export function DatabasePageClient() {
                 </CardHeader>
                 <CardContent>
                   <div className='text-sm font-bold'>
-                    {formatNumber(overview.connections)}
+                    {format.number(overview.connections)}
                   </div>
                 </CardContent>
               </Card>

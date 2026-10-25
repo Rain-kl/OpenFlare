@@ -169,13 +169,13 @@ func ReportApplyLog(ctx context.Context, payload ApplyLogPayload) (*model.OpenFl
 	now := time.Now().UTC()
 	payload = normalizeApplyLogPayload(payload)
 	if payload.NodeID == "" {
-		return nil, errors.New("node_id 不能为空")
+		return nil, errors.New("node_id must not be empty")
 	}
 	if payload.Version == "" {
-		return nil, errors.New("version 不能为空")
+		return nil, errors.New("version must not be empty")
 	}
 	if payload.Result != applyResultOK && payload.Result != applyResultWarn && payload.Result != applyResultFail {
-		return nil, errors.New("result 仅支持 success、warning 或 failed")
+		return nil, errors.New("result must be success, warning or failed")
 	}
 
 	latest, err := repository.GetLatestOpenFlareApplyLogByNodeID(ctx, payload.NodeID)

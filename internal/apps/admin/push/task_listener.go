@@ -67,7 +67,7 @@ func handleTaskCompleted(ctx context.Context, execution *model.TaskExecution, re
 		meta := EventMetadata{
 			Key:         event.EventKey,
 			Name:        event.Name,
-			Description: "异步任务执行完毕触发的自动通知",
+			Description: "Automatic notification triggered when an asynchronous task finishes",
 		}
 		DefaultTrigger.Trigger(ctx, meta, body)
 	}

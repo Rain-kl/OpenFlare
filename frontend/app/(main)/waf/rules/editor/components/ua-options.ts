@@ -1,3 +1,4 @@
+import { runtimeText } from '@/i18n/runtime';
 export const UA_BROWSER_OPTIONS = [
   { value: 'Chrome', label: 'Chrome' },
   { value: 'Safari', label: 'Safari' },
@@ -5,12 +6,32 @@ export const UA_BROWSER_OPTIONS = [
   { value: 'Edge', label: 'Edge' },
   { value: 'Opera', label: 'Opera' },
   { value: 'Chromium', label: 'Chromium' },
-  { value: 'WeChat', label: '微信' },
+  {
+    value: 'WeChat',
+    get label() {
+      return runtimeText('wechat_81b430b6');
+    },
+  },
   { value: 'Postman', label: 'Postman' },
   { value: 'CLI', label: 'CLI' },
-  { value: 'Bot', label: 'Bot' },
-  { value: 'Unknown', label: 'Unknown' },
-  { value: 'Other', label: 'Other' },
+  {
+    value: 'Bot',
+    get label() {
+      return runtimeText('ui_botLabel');
+    },
+  },
+  {
+    value: 'Unknown',
+    get label() {
+      return runtimeText('ui_unknownLabel');
+    },
+  },
+  {
+    value: 'Other',
+    get label() {
+      return runtimeText('ui_otherLabel');
+    },
+  },
 ] as const;
 
 export const UA_OS_OPTIONS = [
@@ -20,9 +41,24 @@ export const UA_OS_OPTIONS = [
   { value: 'macOS', label: 'macOS' },
   { value: 'Chrome OS', label: 'Chrome OS' },
   { value: 'Linux', label: 'Linux' },
-  { value: 'Bot', label: 'Bot' },
-  { value: 'Unknown', label: 'Unknown' },
-  { value: 'Other', label: 'Other' },
+  {
+    value: 'Bot',
+    get label() {
+      return runtimeText('ui_botLabel');
+    },
+  },
+  {
+    value: 'Unknown',
+    get label() {
+      return runtimeText('ui_unknownLabel');
+    },
+  },
+  {
+    value: 'Other',
+    get label() {
+      return runtimeText('ui_otherLabel');
+    },
+  },
 ] as const;
 
 export const UA_BROWSER_LABELS = new Set<string>(

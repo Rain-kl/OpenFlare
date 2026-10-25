@@ -1,7 +1,7 @@
+'use client';
+
 // Copyright 2026 Arctel.net
 // SPDX-License-Identifier: Apache-2.0
-
-'use client';
 
 import * as React from 'react';
 import { useTranslations } from 'next-intl';
@@ -10,6 +10,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 
 export function DashboardTab() {
+  const rt = useTranslations('runtime');
+
   const t = useTranslations('admin.demo.dashboard');
   return (
     <div className='space-y-6'>
@@ -129,17 +131,9 @@ export function DashboardTab() {
             </li>
           </ul>
           <pre className='text-[11px] font-mono text-muted-foreground overflow-x-auto p-3 bg-background rounded border border-border/40 leading-relaxed'>
-            {`<Card className="border-dashed shadow-none">
-  <CardHeader className="flex flex-row items-center justify-between pb-2">
-    <span className="text-xs font-medium text-muted-foreground">指标标题</span>
-    <Cpu className="size-4 text-primary" />
-  </CardHeader>
-  <CardContent className="space-y-2">
-    <div className="text-2xl font-semibold tracking-tight">42.8 %</div>
-    <Progress value={42.8} className="h-1.5" />
-    <p className="text-[10px] text-muted-foreground">状态说明小字</p>
-  </CardContent>
-</Card>`}
+            {rt.raw(
+              'card_classname_border_dashed_shadow_none_cardheader_35727acf',
+            )}
           </pre>
         </CardContent>
       </Card>

@@ -1,3 +1,4 @@
+import { runtimeText } from '@/i18n/runtime';
 /** Matches pkg/render/openresty StatusCodeMin / StatusCodeMax. */
 export const STATUS_CODE_MIN = 400;
 export const STATUS_CODE_MAX = 599;
@@ -14,7 +15,7 @@ export function parseStatusCodeTag(tag: string): {
 } {
   const trimmed = tag.trim();
   if (!trimmed) {
-    throw new Error('状态码标签不能为空');
+    throw new Error(runtimeText('status_code_tag_must_not_be_empty_21235ebf'));
   }
 
   let lo: number;
@@ -25,22 +26,36 @@ export function parseStatusCodeTag(tag: string): {
     lo = Number.parseInt(trimmed.slice(0, dash), 10);
     hi = Number.parseInt(trimmed.slice(dash + 1), 10);
     if (Number.isNaN(lo) || Number.isNaN(hi)) {
-      throw new Error(`无效状态码区间: ${trimmed}`);
+      throw new Error(
+        runtimeText('invalid_status_code_range_value0_8983e96e', {
+          value0: trimmed,
+        }),
+      );
     }
   } else {
     lo = Number.parseInt(trimmed, 10);
     if (Number.isNaN(lo)) {
-      throw new Error(`无效状态码: ${trimmed}`);
+      throw new Error(
+        runtimeText('invalid_status_code_value0_0f206e48', { value0: trimmed }),
+      );
     }
     hi = lo;
   }
 
   if (lo > hi) {
-    throw new Error(`状态码区间左右端点反序: ${trimmed}`);
+    throw new Error(
+      runtimeText('status_code_range_endpoints_are_reversed_value0_d92c2784', {
+        value0: trimmed,
+      }),
+    );
   }
   if (lo < STATUS_CODE_MIN || hi > STATUS_CODE_MAX) {
     throw new Error(
-      `状态码须在 ${STATUS_CODE_MIN}–${STATUS_CODE_MAX}: ${trimmed}`,
+      runtimeText('status_code_must_be_between_value0_value1_c5b04822', {
+        value0: STATUS_CODE_MIN,
+        value1: STATUS_CODE_MAX,
+        value2: trimmed,
+      }),
     );
   }
 
@@ -65,18 +80,22 @@ export function validateStatusCodeTagMessage(tag: string): string | null {
     parseStatusCodeTag(tag);
     return null;
   } catch (error) {
-    return error instanceof Error ? error.message : '无效状态码标签';
+    return error instanceof Error
+      ? error.message
+      : runtimeText('invalid_status_code_tag_d16e85d7');
   }
 }
 
 /** Validate a full tag list before save (must be non-empty and expand cleanly). */
 export function validateStatusCodeTags(tags: string[]): void {
   if (tags.length === 0) {
-    throw new Error('请至少添加一个状态码标签');
+    throw new Error(runtimeText('add_at_least_one_status_code_tag_b81b2696'));
   }
   const codes = expandStatusCodeTags(tags);
   if (codes.length === 0) {
-    throw new Error('状态码展开结果为空');
+    throw new Error(
+      runtimeText('the_expanded_status_code_list_is_empty_47245f34'),
+    );
   }
 }
 

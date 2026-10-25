@@ -116,6 +116,8 @@ function SortableRule({ id, name, index, total, onMove }: SortableRuleProps) {
 }
 
 export function WafSection({ route, onSavingChange }: WafSectionProps) {
+  const uiText = useTranslations('runtime');
+
   const t = useTranslations('proxyRoutes');
   const queryClient = useQueryClient();
   const [selectedIDs, setSelectedIDs] = useState<number[]>([]);
@@ -220,7 +222,7 @@ export function WafSection({ route, onSavingChange }: WafSectionProps) {
               <div className='flex items-center justify-between gap-3'>
                 <div>
                   <p className='text-[10px] font-semibold uppercase tracking-wider text-muted-foreground'>
-                    Global Rule Group
+                    {uiText('ui_globalRuleGroup')}
                   </p>
                   <p className='mt-1 text-sm font-semibold'>
                     {wafQuery.data.global_rule_group.name}

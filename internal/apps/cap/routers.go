@@ -70,7 +70,7 @@ func Challenge(c *gin.Context) {
 func Redeem(c *gin.Context) {
 	var req redeemRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.AbortBadRequest(c, "无效的参数")
+		response.AbortBadRequest(c, "invalid parameters")
 		return
 	}
 

@@ -201,7 +201,7 @@ func RequestAgentUpdateHandler(c *gin.Context) {
 	var request AgentUpdateInput
 	if c.Request.ContentLength > 0 {
 		if err := bindOptionalJSON(c.Request.Body, &request); err != nil {
-			response.AbortBadRequest(c, "参数错误")
+			response.AbortBadRequest(c, "invalid parameters")
 			return
 		}
 	}
@@ -281,7 +281,7 @@ func GetObservabilityHandler(c *gin.Context) {
 	}
 	var query ObservabilityQuery
 	if err := c.ShouldBindQuery(&query); err != nil {
-		response.AbortBadRequest(c, "参数错误")
+		response.AbortBadRequest(c, "invalid parameters")
 		return
 	}
 	view, err := GetObservability(c.Request.Context(), id, query)

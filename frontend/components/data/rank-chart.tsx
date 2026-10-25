@@ -1,6 +1,8 @@
 'use client';
 
+import { getFormattingLocale } from '@/i18n/format';
 import { useMemo } from 'react';
+import { useTranslations } from 'next-intl';
 
 import { cn } from '@/lib/utils';
 
@@ -24,16 +26,17 @@ const defaultFormatter = (value: number) => {
   if (value >= 1000) {
     return `${Number((value / 1000).toFixed(2))}k`;
   }
-  return value.toLocaleString('zh-CN');
+  return value.toLocaleString(getFormattingLocale());
 };
 
 export function RankChart({
   items,
   color,
   valueFormatter = defaultFormatter,
-  emptyMessage = '暂无分布数据',
+  emptyMessage,
   className,
 }: RankChartProps) {
+  const t = useTranslations('dataComponents');
   const maxValue = useMemo(
     () => Math.max(0, ...items.map((item) => item.value)),
     [items],
@@ -47,7 +50,7 @@ export function RankChart({
           className,
         )}
       >
-        {emptyMessage}
+        {emptyMessage ?? t('noDistribution')}
       </div>
     );
   }

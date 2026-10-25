@@ -65,15 +65,15 @@ func ServeFileByID(c *gin.Context) {
 	upload, err := GetUploadRecordByID(c)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			response.AbortNotFound(c, "文件记录未找到")
+			response.AbortNotFound(c, "File record was not found")
 			return
 		}
 		var numErr *strconv.NumError
 		if errors.As(err, &numErr) {
-			response.AbortBadRequest(c, "无效的上传ID")
+			response.AbortBadRequest(c, "Invalid upload ID")
 			return
 		}
-		response.AbortInternal(c, "服务器内部错误")
+		response.AbortInternal(c, "Internal server error")
 		return
 	}
 
@@ -266,7 +266,7 @@ func ImageCompressionCacheKey(upload *model.Upload, quality string) string {
 func serveOriginal(c *gin.Context, upload *model.Upload) {
 	obj, err := uploadstorage.OpenStoredObject(c.Request.Context(), upload)
 	if err != nil {
-		response.AbortNotFound(c, "文件未找到")
+		response.AbortNotFound(c, "File was not found")
 		return
 	}
 	defer func() { _ = obj.Body.Close() }()

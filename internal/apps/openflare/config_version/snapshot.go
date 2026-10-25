@@ -252,13 +252,13 @@ func buildSnapshotRoutes(ctx context.Context, routes []*model.ProxyRoute) ([]sna
 		}
 		customHeaders, err := decodeStoredCustomHeaders(route.CustomHeaders)
 		if err != nil {
-			return nil, fmt.Errorf("路由 %s 自定义请求头无效", route.SiteName)
+			return nil, fmt.Errorf("invalid custom request headers for route %s", route.SiteName)
 		}
 		upstreamType := normalizeUpstreamType(route.UpstreamType)
 		originURL := route.OriginURL
 		upstreams, err := decodeStoredUpstreams(route.Upstreams, route.OriginURL)
 		if err != nil {
-			return nil, fmt.Errorf("路由 %s 上游配置无效", route.SiteName)
+			return nil, fmt.Errorf("invalid upstream configuration for route %s", route.SiteName)
 		}
 		var tunnelNodeID *uint
 		var tunnelTargetAddr string
@@ -280,7 +280,7 @@ func buildSnapshotRoutes(ctx context.Context, routes []*model.ProxyRoute) ([]sna
 		}
 		cacheRules, err := decodeStoredCacheRules(route.CacheRules)
 		if err != nil {
-			return nil, fmt.Errorf("路由 %s 缓存规则无效", route.SiteName)
+			return nil, fmt.Errorf("invalid cache rules for route %s", route.SiteName)
 		}
 		items = append(items, snapshotRoute{
 			ID:                 route.ID,
@@ -333,14 +333,14 @@ func buildSnapshotWAFDocument(ctx context.Context, routes []*model.ProxyRoute) (
 		}
 		var editorGraph waf.RuleGraph
 		if err = json.Unmarshal([]byte(group.Graph), &editorGraph); err != nil {
-			return snapshotWAFDocument{}, fmt.Errorf("WAF 规则 %s 的图数据无效: %w", group.Name, err)
+			return snapshotWAFDocument{}, fmt.Errorf("invalid graph data for WAF rule %s: %w", group.Name, err)
 		}
 		if err = waf.ValidateRuleGraph(ctx, editorGraph, snapshotWAFIPGroupExists); err != nil {
-			return snapshotWAFDocument{}, fmt.Errorf("WAF 规则 %s 的图无效: %w", group.Name, err)
+			return snapshotWAFDocument{}, fmt.Errorf("invalid graph for WAF rule %s: %w", group.Name, err)
 		}
 		runtimeGraph, compileErr := waf.CompileRuleGraph(editorGraph)
 		if compileErr != nil {
-			return snapshotWAFDocument{}, fmt.Errorf("WAF 规则 %s 编译失败: %w", group.Name, compileErr)
+			return snapshotWAFDocument{}, fmt.Errorf("failed to compile WAF rule %s: %w", group.Name, compileErr)
 		}
 		ruleGroups = append(ruleGroups, snapshotWAFRuleGroup{
 			ID: group.ID, Name: group.Name, Enabled: group.Enabled, IsGlobal: group.IsGlobal, Graph: runtimeGraph,
@@ -445,7 +445,7 @@ func buildSnapshotWAFIPGroups(ctx context.Context, idSet map[uint]struct{}) ([]s
 	for _, id := range ids {
 		group := groupByID[id]
 		if group == nil {
-			return nil, fmt.Errorf("IP 组 %d 不存在", id)
+			return nil, fmt.Errorf("IP group %d was not found", id)
 		}
 		ipList, decodeErr := decodeIPList(group.IPList)
 		if decodeErr != nil {

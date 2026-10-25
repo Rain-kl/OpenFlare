@@ -15,7 +15,7 @@ const (
 	errCertificateAlreadyApplying   = "certificate is already applying"
 	errCertificateOnlyACMERenew     = "only acme certificates can be renewed"
 	errCertificateFilesRequired     = "certificate file and key file cannot be empty"
-	errCertificatePEMInvalid        = "证书 PEM 内容不合法"
+	errCertificatePEMInvalid        = "invalid certificate PEM content"
 
-	errDNSAccountInUse = "该 DNS 账号已被证书使用，无法删除"
+	errDNSAccountInUse = "this DNS account is used by certificates and cannot be deleted"
 )

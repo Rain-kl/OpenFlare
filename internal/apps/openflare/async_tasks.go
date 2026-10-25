@@ -49,8 +49,8 @@ var (
 var SSLRenewMeta = task.TaskMeta{
 	Type:         TaskTypeSSLRenew,
 	AsynqTask:    SSLRenewTask,
-	Name:         "OpenFlare SSL 自动续期",
-	Description:  "扫描即将到期的 ACME 证书并触发自动续期",
+	Name:         "OpenFlare automatic SSL renewal",
+	Description:  "Scan ACME certificates nearing expiration and renew them automatically",
 	SupportsTime: false,
 	MaxRetry:     task.DefaultMaxRetry,
 	Queue:        task.QueueDefault,
@@ -61,8 +61,8 @@ var SSLRenewMeta = task.TaskMeta{
 var WAFIPGroupSyncMeta = task.TaskMeta{
 	Type:         TaskTypeWAFIPGroupSync,
 	AsynqTask:    WAFIPGroupSyncTask,
-	Name:         "OpenFlare WAF IP 组同步",
-	Description:  "同步到期的自动规则与订阅类型 WAF IP 组",
+	Name:         "OpenFlare WAF IP group synchronization",
+	Description:  "Synchronize automatic and subscription WAF IP groups that are due for an update",
 	SupportsTime: false,
 	MaxRetry:     task.DefaultMaxRetry,
 	Queue:        task.QueueDefault,
@@ -73,8 +73,8 @@ var WAFIPGroupSyncMeta = task.TaskMeta{
 var UptimeKumaSyncMeta = task.TaskMeta{
 	Type:         TaskTypeUptimeKumaSync,
 	AsynqTask:    UptimeKumaSyncTask,
-	Name:         "OpenFlare Uptime Kuma 同步",
-	Description:  "将启用的代理规则同步到 Uptime Kuma 监控",
+	Name:         "OpenFlare Uptime Kuma synchronization",
+	Description:  "Synchronize enabled proxy routes with Uptime Kuma monitors",
 	SupportsTime: false,
 	MaxRetry:     task.DefaultMaxRetry,
 	Queue:        task.QueueDefault,
@@ -85,15 +85,15 @@ var UptimeKumaSyncMeta = task.TaskMeta{
 var LogDBSwitchMeta = task.TaskMeta{
 	Type:         TaskTypeLogDBSwitch,
 	AsynqTask:    LogDBSwitchTask,
-	Name:         "切换日志数据库",
-	Description:  "复制迁移日志数据并在成功后切换日志主库（期间禁止日志写入）",
+	Name:         "Switch log database",
+	Description:  "Copy log data and switch the log database on success; log writes are paused during migration",
 	SupportsTime: false,
 	MaxRetry:     task.DefaultMaxRetry,
 	Queue:        task.QueueDefault,
 	Retryable:    true,
 	Params: []task.TaskParam{
-		{Name: "target", Label: "目标日志库", Type: "string", Required: true,
-			Placeholder: "postgres|sqlite|clickhouse", Description: "迁移目标：postgres（主库为 PG 时）、sqlite（主库为 SQLite 时）或 clickhouse"},
+		{Name: "target", Label: "Target log database", Type: "string", Required: true,
+			Placeholder: "postgres|sqlite|clickhouse", Description: "Migration target: postgres for a PostgreSQL primary, sqlite for a SQLite primary, or clickhouse"},
 	},
 }
 
@@ -102,12 +102,12 @@ type SSLRenewHandler struct{}
 
 // Execute runs SSL certificate renewal for all due certificates.
 func (h *SSLRenewHandler) Execute(ctx context.Context, _ []byte) (*task.TaskResult, error) {
-	task.AppendLog(ctx, "开始扫描待续期证书")
+	task.AppendLog(ctx, "Scanning certificates due for renewal")
 	if err := tasks.RunSSLRenewJob(ctx); err != nil {
-		task.AppendLog(ctx, "SSL 自动续期失败: %v", err)
+		task.AppendLog(ctx, "Automatic SSL renewal failed: %v", err)
 		return nil, err
 	}
-	msg := "SSL 自动续期任务完成"
+	msg := "Automatic SSL renewal task completed"
 	task.AppendLog(ctx, "%s", msg)
 	return &task.TaskResult{Message: msg}, nil
 }
@@ -117,12 +117,12 @@ type WAFIPGroupSyncHandler struct{}
 
 // Execute syncs all due automatic/subscription WAF IP groups.
 func (h *WAFIPGroupSyncHandler) Execute(ctx context.Context, _ []byte) (*task.TaskResult, error) {
-	task.AppendLog(ctx, "开始同步到期的 WAF IP 组")
+	task.AppendLog(ctx, "Synchronizing WAF IP groups due for an update")
 	if err := waf.SyncDueWAFIPGroups(ctx); err != nil {
-		task.AppendLog(ctx, "WAF IP 组同步失败: %v", err)
+		task.AppendLog(ctx, "WAF IP group synchronization failed: %v", err)
 		return nil, err
 	}
-	msg := "WAF IP 组同步完成"
+	msg := "WAF IP group synchronization completed"
 	task.AppendLog(ctx, "%s", msg)
 	return &task.TaskResult{Message: msg}, nil
 }
@@ -135,7 +135,7 @@ func (h *UptimeKumaSyncHandler) Execute(ctx context.Context, _ []byte) (*task.Ta
 	// 从 SystemConfig 读取 UptimeKuma 配置
 	enabled, _ := repository.GetBoolByKey(ctx, model.ConfigKeyUptimeKumaEnabled)
 	if !enabled {
-		msg := "Uptime Kuma 集成未启用，跳过执行"
+		msg := "Uptime Kuma integration is disabled; skipping execution"
 		task.AppendLog(ctx, "%s", msg)
 		return &task.TaskResult{Message: msg}, nil
 	}
@@ -145,26 +145,26 @@ func (h *UptimeKumaSyncHandler) Execute(ctx context.Context, _ []byte) (*task.Ta
 		interval = 5
 	}
 	if time.Since(lastUptimeKumaSyncTime) < time.Duration(interval)*time.Minute {
-		msg := fmt.Sprintf("距上次同步不足 %d 分钟，跳过执行", interval)
+		msg := fmt.Sprintf("Less than %d minutes since the last synchronization; skipping execution", interval)
 		task.AppendLog(ctx, "%s", msg)
 		return &task.TaskResult{Message: msg}, nil
 	}
 
 	if !uptimeKumaSyncMutex.TryLock() {
-		msg := "Uptime Kuma 同步任务正在执行，跳过本次调度"
+		msg := "Uptime Kuma synchronization is already running; skipping this schedule"
 		task.AppendLog(ctx, "%s", msg)
 		return &task.TaskResult{Message: msg}, nil
 	}
 	defer uptimeKumaSyncMutex.Unlock()
 
-	task.AppendLog(ctx, "开始同步代理规则到 Uptime Kuma")
+	task.AppendLog(ctx, "Synchronizing proxy routes with Uptime Kuma")
 	if err := uptimekuma.SyncToUptimeKuma(ctx); err != nil {
-		task.AppendLog(ctx, "Uptime Kuma 同步失败: %v", err)
+		task.AppendLog(ctx, "Uptime Kuma synchronization failed: %v", err)
 		return nil, err
 	}
 
 	lastUptimeKumaSyncTime = time.Now()
-	msg := "Uptime Kuma 同步完成"
+	msg := "Uptime Kuma synchronization completed"
 	task.AppendLog(ctx, "%s", msg)
 	return &task.TaskResult{Message: msg}, nil
 }

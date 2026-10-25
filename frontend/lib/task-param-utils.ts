@@ -1,3 +1,4 @@
+import { runtimeText } from '@/i18n/runtime';
 /**
  * task-param-utils.ts
  *
@@ -46,7 +47,12 @@ function coerceParamValue(
       }
       const num = Number(trimmed);
       if (Number.isNaN(num)) {
-        return { error: `「${param.label}」必须是有效的数字`, ok: false };
+        return {
+          error: runtimeText('value0_must_be_a_valid_number_1d79f887', {
+            value0: param.label,
+          }),
+          ok: false,
+        };
       }
       return { value: num, ok: true };
     }
@@ -61,7 +67,12 @@ function coerceParamValue(
       } else if (val === 'false') {
         return { value: false, ok: true };
       }
-      return { error: `「${param.label}」必须是 true 或 false`, ok: false };
+      return {
+        error: runtimeText('value0_must_be_true_or_false_23cce68e', {
+          value0: param.label,
+        }),
+        ok: false,
+      };
     }
     case 'string':
     case 'text':
@@ -96,7 +107,12 @@ export function buildTaskPayload(
 
     // 必填项空值检查
     if (param.required && raw.trim() === '') {
-      return { payload: null, error: `「${param.label}」不能为空` };
+      return {
+        payload: null,
+        error: runtimeText('value0_must_not_be_empty_8bf3a929', {
+          value0: param.label,
+        }),
+      };
     }
 
     const result = coerceParamValue(param, raw);

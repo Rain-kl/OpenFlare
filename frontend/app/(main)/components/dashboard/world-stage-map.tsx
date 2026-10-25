@@ -1,5 +1,6 @@
 'use client';
 
+import { getFormattingLocale } from '@/i18n/format';
 import ReactEChartsCore from 'echarts-for-react/lib/core';
 import type { EChartsCoreOption } from 'echarts/core';
 import * as echarts from 'echarts/core';
@@ -506,7 +507,7 @@ export function WorldStageMap({
           ) {
             return [
               `<div style="font-weight:600;margin-bottom:6px;">${payload.name ?? data.name}</div>`,
-              `<div>${t('sourceRequests', { count: data.value.toLocaleString('zh-CN') })}</div>`,
+              `<div>${t('sourceRequests', { count: data.value.toLocaleString(getFormattingLocale()) })}</div>`,
             ].join('');
           }
 
@@ -522,8 +523,8 @@ export function WorldStageMap({
             `<div style="font-weight:600;margin-bottom:6px;">${data.name}</div>`,
             `<div>${locationLine}</div>`,
             `<div>${t('requestsErrors', {
-              requests: data.requestCount.toLocaleString('zh-CN'),
-              errors: data.errorCount.toLocaleString('zh-CN'),
+              requests: data.requestCount.toLocaleString(getFormattingLocale()),
+              errors: data.errorCount.toLocaleString(getFormattingLocale()),
             })}</div>`,
             `<div>${t('eventsStatus', {
               events: data.activeEventCount,

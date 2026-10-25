@@ -1,3 +1,6 @@
+'use client';
+
+import { useTranslations } from 'next-intl';
 import * as React from 'react';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
@@ -29,6 +32,8 @@ export interface FooterSectionProps {
 export const FooterSection = React.memo(function FooterSection({
   className,
 }: FooterSectionProps) {
+  const rt = useTranslations('runtime');
+
   return (
     <footer
       className={cn(
@@ -48,8 +53,7 @@ export const FooterSection = React.memo(function FooterSection({
               </span>
             </Link>
             <p className='text-muted-foreground text-base leading-relaxed max-w-sm'>
-              开源边缘节点与反向代理管理平台。基于 Go + React 构建，统一管理
-              OpenResty 节点、网站规则与 WAF 配置。
+              {rt('an_open_source_platform_for_managing_edge_317d8f34')}
             </p>
             <div className='flex gap-4 pt-2'>
               <SocialLink
@@ -60,35 +64,43 @@ export const FooterSection = React.memo(function FooterSection({
           </div>
 
           <div className='lg:col-span-1'>
-            <h3 className='font-semibold text-foreground mb-6'>产品</h3>
+            <h3 className='font-semibold text-foreground mb-6'>
+              {rt('product_aea82737')}
+            </h3>
             <ul className='space-y-4 text-sm text-muted-foreground'>
               <li>
-                <FooterLink href='/'>仪表盘</FooterLink>
+                <FooterLink href='/'>{rt('dashboard_0853bf3c')}</FooterLink>
               </li>
               <li>
-                <FooterLink href='/settings'>个人设置</FooterLink>
+                <FooterLink href='/settings'>
+                  {rt('personal_c2952a5f')}
+                </FooterLink>
               </li>
             </ul>
           </div>
 
           <div className='lg:col-span-1'>
-            <h3 className='font-semibold text-foreground mb-6'>开发</h3>
+            <h3 className='font-semibold text-foreground mb-6'>
+              {rt('development_9ec42862')}
+            </h3>
             <ul className='space-y-4 text-sm text-muted-foreground'>
               <li>
                 <FooterLink href='https://openflare.fyrn.link/'>
-                  使用文档
+                  {rt('user_guide_c83b6b0a')}
                 </FooterLink>
               </li>
               <li>
                 <FooterLink href='https://github.com/Rain-kl/OpenFlare'>
-                  源代码
+                  {rt('source_code_606a4e58')}
                 </FooterLink>
               </li>
             </ul>
           </div>
 
           <div className='lg:col-span-1'>
-            <h3 className='font-semibold text-foreground mb-6'>社区</h3>
+            <h3 className='font-semibold text-foreground mb-6'>
+              {rt('community_5bcd0ddc')}
+            </h3>
             <ul className='space-y-4 text-sm text-muted-foreground'>
               <li>
                 <FooterLink href='https://github.com/Rain-kl/OpenFlare/issues'>
@@ -97,7 +109,7 @@ export const FooterSection = React.memo(function FooterSection({
               </li>
               <li>
                 <FooterLink href='https://github.com/Rain-kl/OpenFlare/discussions'>
-                  讨论
+                  {rt('discussions_3cef912c')}
                 </FooterLink>
               </li>
             </ul>
@@ -105,19 +117,19 @@ export const FooterSection = React.memo(function FooterSection({
         </div>
 
         <div className='pt-8 border-t border-border flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-muted-foreground'>
-          <p>© 2026 Modern Platform. All rights reserved.</p>
+          <p>{rt('ui_copyright')}</p>
           <div className='flex gap-8'>
             <Link
               href='/docs/privacy-policy'
               className='hover:text-foreground transition-colors'
             >
-              隐私政策
+              {rt('privacy_policy_e464b41f')}
             </Link>
             <Link
               href='/docs/terms-of-service'
               className='hover:text-foreground transition-colors'
             >
-              服务条款
+              {rt('terms_of_service_9303687a')}
             </Link>
           </div>
         </div>

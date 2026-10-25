@@ -17,7 +17,11 @@ function readCookie(name: string): string | null {
     .map((part) => part.trim())
     .find((part) => part.startsWith(`${name}=`));
   if (!match) return null;
-  return decodeURIComponent(match.slice(name.length + 1));
+  try {
+    return decodeURIComponent(match.slice(name.length + 1));
+  } catch {
+    return null;
+  }
 }
 
 export function getClientLocalePreference(): AppLocale | null {
@@ -35,7 +39,12 @@ export function detectBrowserLocale(): AppLocale {
       : [navigator.language];
   for (const lang of languages) {
     const lower = (lang ?? '').toLowerCase();
-    if (lower.startsWith('zh') || lower.startsWith('en')) {
+    if (
+      lower.startsWith('zh') ||
+      lower.startsWith('en') ||
+      lower === 'ru' ||
+      lower.startsWith('ru-')
+    ) {
       return normalizeLocale(lang);
     }
   }

@@ -1,0 +1,27 @@
+{
+  "cloudflare": {
+    "move": "Переместить",
+    "batchMove": "Пакетное перемещение",
+    "batchRemove": "Пакетное удаление",
+    "selectedCount": "Выбрано: {count}",
+    "clearSelection": "Очистить выбор",
+    "moveDialog": {
+      "titleSingle": "Переместить домен «{domain}»",
+      "titleBatch": "Переместить домены ({count})",
+      "targetGroupLabel": "Целевая группа наведения",
+      "targetGroupPlaceholder": "Выберите целевую группу",
+      "noOtherGroups": "Других групп указания нет. Пожалуйста, сначала создайте его.",
+      "submit": "Подтвердить перемещение",
+      "moving": "Переезд..."
+    },
+    "batchRemoveDialog": {
+      "title": "Подтвердить пакетное удаление домена",
+      "desc": "Удалить выбранные домены ({count}) из текущей группы? Их записи DNS в Cloudflare также будут удалены.",
+      "confirm": "Подтвердить удаление",
+      "removing": "Удаление..."
+    },
+    "memberMoved": "Домен успешно перемещен",
+    "batchMoved": "Перемещено доменов: {count}",
+    "batchRemoved": "Удалено доменов: {count}"
+  }
+}

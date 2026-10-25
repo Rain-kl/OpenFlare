@@ -86,13 +86,13 @@ func storeObject(ctx context.Context, objectKey string, reader io.Reader, size i
 
 	driver, backend, err := objectstore.Active(ctx)
 	if err != nil {
-		logger.ErrorF(ctx, "初始化活动存储失败: %v", err)
+		logger.ErrorF(ctx, "Failed to initialize active storage: %v", err)
 		return "", errors.New(shared.ErrSaveFileFailed)
 	}
 
 	result, err := backend.Put(ctx, objectKey, reader, size, mimeType)
 	if err != nil {
-		logger.ErrorF(ctx, "写入 %s 存储失败: %v", driver, err)
+		logger.ErrorF(ctx, "Failed to write to %s storage: %v", driver, err)
 		return "", errors.New(shared.ErrSaveFileFailed)
 	}
 
@@ -117,7 +117,7 @@ func cleanupUnpersistedObject(ctx context.Context, objectKey string) {
 		return
 	}
 	if err := backend.Delete(ctx, objectKey); err != nil {
-		logger.WarnF(ctx, "清理未写入数据库的上传对象失败: %v", err)
+		logger.WarnF(ctx, "Failed to clean up upload object without a database record: %v", err)
 	}
 }
 
@@ -152,7 +152,7 @@ func createDedupRecord(ctx context.Context, existing model.Upload, req Request) 
 	if err := persistUploadRecord(ctx, &newUpload, existing.FilePath, false); err != nil {
 		return Result{}, err
 	}
-	logger.InfoF(ctx, "文件触发秒传成功! ID: %d, Path: %s", newUpload.ID, existing.FilePath)
+	logger.InfoF(ctx, "Upload deduplication succeeded ID: %d, Path: %s", newUpload.ID, existing.FilePath)
 	return Result{
 		Upload:  newUpload,
 		Created: true,

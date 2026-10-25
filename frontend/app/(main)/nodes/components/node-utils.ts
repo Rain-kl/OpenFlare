@@ -1,3 +1,5 @@
+import { getFormattingLocale } from '@/i18n/format';
+import { runtimeText } from '@/i18n/runtime';
 import type {
   ApplyResult,
   NodeItem,
@@ -111,9 +113,9 @@ export function getRelayStatusLabel(
 }
 
 export function getNodeTypeLabel(nodeType: NodeItem['node_type']) {
-  if (nodeType === 'tunnel_relay') return 'Relay';
-  if (nodeType === 'tunnel_client') return 'Tunnel';
-  return 'Edge';
+  if (nodeType === 'tunnel_relay') return runtimeText('node_type_relay');
+  if (nodeType === 'tunnel_client') return runtimeText('node_type_tunnel');
+  return runtimeText('node_type_edge');
 }
 
 export function getErrorMessage(error: unknown, fallback: string) {
@@ -255,7 +257,7 @@ export function formatMetricCount(value?: number | null) {
   if (value === undefined || value === null || !Number.isFinite(value)) {
     return '—';
   }
-  return value.toLocaleString('zh-CN');
+  return value.toLocaleString(getFormattingLocale());
 }
 
 export function formatBytesPerSecond(value?: number | null, windowSeconds = 1) {

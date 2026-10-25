@@ -46,7 +46,7 @@ func generateRandomPassword(length int) (string, error) {
 
 var resetPasswdCmd = &cobra.Command{
 	Use:   "reset-passwd",
-	Short: "重置指定账号密码",
+	Short: "Reset the password for a specified account",
 	PreRun: func(_ *cobra.Command, _ []string) {
 		migrator.Migrate()
 	},
@@ -58,24 +58,24 @@ var resetPasswdCmd = &cobra.Command{
 		if usernameFlag != "" {
 			username = usernameFlag
 		} else {
-			fmt.Print("请输入用户名: ")
+			fmt.Print("Enter username: ")
 			reader := bufio.NewReader(os.Stdin)
 			input, err := reader.ReadString('\n')
 			if err != nil {
-				log.Fatalf("读取用户名失败: %v\n", err)
+				log.Fatalf("Failed to read username: %v\n", err)
 			}
 			username = strings.TrimSpace(input)
 			if username == "" {
-				log.Fatal("用户名不能为空\n")
+				log.Fatal("Username must not be empty\n")
 			}
 		}
 
 		user, err := repository.GetUserByUsername(ctx, username)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
-				log.Fatalf("错误: 用户 '%s' 不存在\n", username)
+				log.Fatalf("Error: user '%s' was not found\n", username)
 			}
-			log.Fatalf("查询用户失败: %v\n", err)
+			log.Fatalf("Failed to query user: %v\n", err)
 		}
 
 		var password string
@@ -84,12 +84,12 @@ var resetPasswdCmd = &cobra.Command{
 		} else {
 			password, err = generateRandomPassword(defaultPasswordLength)
 			if err != nil {
-				log.Fatalf("生成随机密码失败: %v\n", err)
+				log.Fatalf("Failed to generate random password: %v\n", err)
 			}
 		}
 
 		if err := user.SetEncryptedPassword(password); err != nil {
-			log.Fatalf("加密密码失败: %v\n", err)
+			log.Fatalf("Failed to encrypt password: %v\n", err)
 		}
 
 		err = db.DB(ctx).Transaction(func(tx *gorm.DB) error {
@@ -108,19 +108,19 @@ var resetPasswdCmd = &cobra.Command{
 			return tx.Where("user_id = ?", user.ID).Delete(&model.AccessToken{}).Error
 		})
 		if err != nil {
-			log.Fatalf("重置密码失败: %v\n", err)
+			log.Fatalf("Failed to reset password: %v\n", err)
 		}
 
 		oauth.InvalidateCachedUser(ctx, user.ID)
 
-		fmt.Println("成功重置密码！")
-		fmt.Printf("用户名: %s\n", user.Username)
-		fmt.Printf("新密码: %s\n", password)
+		fmt.Println("Password reset successfully")
+		fmt.Printf("Username: %s\n", user.Username)
+		fmt.Printf("New password: %s\n", password)
 	},
 }
 
 func init() {
-	resetPasswdCmd.Flags().StringVar(&usernameFlag, "user", "", "重置密码的目标用户名")
-	resetPasswdCmd.Flags().StringVar(&passwordFlag, "password", "", "新密码（若不指定，则自动生成随机密码）")
+	resetPasswdCmd.Flags().StringVar(&usernameFlag, "user", "", "Username of the account whose password will be reset")
+	resetPasswdCmd.Flags().StringVar(&passwordFlag, "password", "", "New password; generated randomly if omitted")
 	rootCmd.AddCommand(resetPasswdCmd)
 }

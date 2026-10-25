@@ -1,3 +1,5 @@
+import { runtimeText } from '@/i18n/runtime';
+import { resolveClientLocale } from '@/i18n/client';
 import axios, {
   AxiosError,
   AxiosResponse,
@@ -95,6 +97,7 @@ apiClient.interceptors.request.use(
       config.baseURL = getApiBaseUrl();
     }
     config.url = normalizeApiPath(config.url);
+    config.headers['Accept-Language'] ??= resolveClientLocale();
 
     const requestKey = getRequestKey(config);
     const source = axios.CancelToken.source();
@@ -152,7 +155,7 @@ apiClient.interceptors.response.use(
     /* 请求被取消时静默处理 */
     if (axios.isCancel(error)) {
       const cancelError = new Error(
-        error.message || '请求已被取消',
+        error.message || runtimeText('request_canceled_5892f9b1'),
       ) as Error & { __CANCEL__?: boolean };
       cancelError.__CANCEL__ = true;
       return Promise.reject(cancelError);
@@ -167,7 +170,10 @@ apiClient.interceptors.response.use(
     if (error.response?.status === 403) {
       return Promise.reject(
         new ForbiddenError(
-          error.response.data?.error_msg || '权限不足，请过盾后重试',
+          error.response.data?.error_msg ||
+            runtimeText(
+              'insufficient_permissions_complete_verification_and_try_again_73719073',
+            ),
           error.response.data?.error_code,
           error.response.data?.details,
         ),
@@ -177,7 +183,10 @@ apiClient.interceptors.response.use(
     /* 404 资源未找到错误 */
     if (error.response?.status === 404) {
       return Promise.reject(
-        new NotFoundError(error.response.data?.error_msg || '请求的资源不存在'),
+        new NotFoundError(
+          error.response.data?.error_msg ||
+            runtimeText('the_requested_resource_was_not_found_aecc0681'),
+        ),
       );
     }
 
@@ -185,7 +194,8 @@ apiClient.interceptors.response.use(
     if (error.response?.status === 400) {
       return Promise.reject(
         new ValidationError(
-          error.response.data?.error_msg || '请求参数验证失败',
+          error.response.data?.error_msg ||
+            runtimeText('request_parameter_validation_failed_60ef7c51'),
           error.response.data?.details,
         ),
       );
@@ -196,9 +206,13 @@ apiClient.interceptors.response.use(
       const retryAfter = error.response.headers?.['retry-after'];
       const message =
         error.response.data?.error_msg ||
-        `请求过于频繁，请 ${retryAfter || '稍后'} 秒后重试`;
+        (retryAfter
+          ? runtimeText('too_many_requests_retry_in_value0_seconds_ab5e78f1', {
+              value0: retryAfter,
+            })
+          : runtimeText('rate_limit_retry_later'));
 
-      toast.error('请求频率限制', {
+      toast.error(runtimeText('request_rate_limit_ad4f0f8b'), {
         description: message,
         id: 'rate-limit-error',
       });
@@ -210,7 +224,8 @@ apiClient.interceptors.response.use(
     if (error.response && error.response.status >= 500) {
       return Promise.reject(
         new ServerError(
-          error.response.data?.error_msg || '服务器内部错误，请稍后重试',
+          error.response.data?.error_msg ||
+            runtimeText('internal_server_error_try_again_later_4f0dd7e9'),
           error.response.status,
         ),
       );
@@ -230,7 +245,9 @@ apiClient.interceptors.response.use(
       error.message?.includes('Failed to fetch')
     ) {
       return Promise.reject(
-        new NetworkError('无法连接到服务器，请确认后端服务已启动'),
+        new NetworkError(
+          runtimeText('cannot_connect_to_the_server_check_that_5551f4fc'),
+        ),
       );
     }
 
@@ -247,7 +264,11 @@ apiClient.interceptors.response.use(
     }
 
     /* 兜底错误 */
-    return Promise.reject(new ApiErrorBase(error.message || '网络请求失败'));
+    return Promise.reject(
+      new ApiErrorBase(
+        error.message || runtimeText('network_request_failed_8407ceab'),
+      ),
+    );
   },
 );
 
@@ -260,7 +281,7 @@ export function cancelRequest(method: string, url: string): void {
   const requestKey = `${method.toUpperCase()}_${url}`;
   const source = cancelTokens.get(requestKey);
   if (source) {
-    source.cancel('请求已被手动取消');
+    source.cancel(runtimeText('request_canceled_manually_7ba622e6'));
     cancelTokens.delete(requestKey);
   }
 }
@@ -270,7 +291,7 @@ export function cancelRequest(method: string, url: string): void {
  */
 export function cancelAllRequests(): void {
   cancelTokens.forEach((source) => {
-    source.cancel('所有请求已被取消');
+    source.cancel(runtimeText('all_requests_canceled_72f8fa9a'));
   });
   cancelTokens.clear();
 }

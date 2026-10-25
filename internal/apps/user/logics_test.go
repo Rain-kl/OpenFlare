@@ -114,7 +114,7 @@ func TestProcessLoginEmailVerificationEmptyEmailFallback(t *testing.T) {
 	if err != nil {
 		t.Fatalf("processLoginEmailVerification() error = %v, want nil", err)
 	}
-	expected := errSMTPInvalidUseTempCodePrefix + "该账号未绑定邮箱，使用临时码登录"
+	expected := errSMTPInvalidUseTempCodePrefix + "This account has no email address; use a temporary code to sign in"
 	if result.Status != LoginEmailVerificationRejected || result.Message != expected {
 		t.Fatalf("processLoginEmailVerification() = %+v, want rejected with %q", result, expected)
 	}

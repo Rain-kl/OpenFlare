@@ -44,7 +44,7 @@ func ValidateRuleGraph(ctx context.Context, graph RuleGraph, ipGroupExists func(
 		return err
 	}
 	if hasRuleGraphCycle(nodes, outgoing, incoming) {
-		return errors.New("规则图不能包含循环")
+		return errors.New("rule graph must not contain cycles")
 	}
 	if err := validateRequiredHandles(graph.Nodes, handleTargets); err != nil {
 		return err
@@ -57,18 +57,18 @@ func ValidateRuleGraph(ctx context.Context, graph RuleGraph, ipGroupExists func(
 
 func validateRuleGraphLimits(graph RuleGraph) error {
 	if graph.SchemaVersion != RuleGraphSchemaVersion {
-		return fmt.Errorf("规则图 schema_version 必须为 %d", RuleGraphSchemaVersion)
+		return fmt.Errorf("rule graph schema_version must be %d", RuleGraphSchemaVersion)
 	}
 	if len(graph.Nodes) > maxRuleGraphNodes {
-		return fmt.Errorf("规则图节点数不能超过 %d", maxRuleGraphNodes)
+		return fmt.Errorf("rule graph must not contain more than %d nodes", maxRuleGraphNodes)
 	}
 	if len(graph.Edges) > maxRuleGraphEdges {
-		return fmt.Errorf("规则图边数不能超过 %d", maxRuleGraphEdges)
+		return fmt.Errorf("rule graph must not contain more than %d edges", maxRuleGraphEdges)
 	}
 	if raw, err := json.Marshal(graph); err != nil {
-		return fmt.Errorf("规则图无法序列化: %w", err)
+		return fmt.Errorf("unable to serialize rule graph: %w", err)
 	} else if len(raw) > maxRuleGraphBytes {
-		return errors.New("规则图大小不能超过 256 KiB")
+		return errors.New("rule graph must not exceed 256 KiB")
 	}
 	return nil
 }
@@ -78,10 +78,10 @@ func validateRuleGraphNodes(ctx context.Context, graphNodes []RuleNode, ipGroupE
 	startCount, allowCount, startID := 0, 0, ""
 	for _, node := range graphNodes {
 		if strings.TrimSpace(node.ID) == "" {
-			return nil, "", errors.New("节点 ID 不能为空")
+			return nil, "", errors.New("node ID must not be empty")
 		}
 		if _, exists := nodes[node.ID]; exists {
-			return nil, "", fmt.Errorf("节点 ID %s 重复", node.ID)
+			return nil, "", fmt.Errorf("duplicate node ID %s", node.ID)
 		}
 		nodes[node.ID] = node
 		switch node.Type {
@@ -92,17 +92,17 @@ func validateRuleGraphNodes(ctx context.Context, graphNodes []RuleNode, ipGroupE
 			allowCount++
 		case RuleNodeBlock, RuleNodeIPMatch, RuleNodeGeoMatch, RuleNodePoW, RuleNodeUACheck, RuleNodeSecurityCheck:
 		default:
-			return nil, "", fmt.Errorf("节点 %s 的类型 %s 未知", node.ID, node.Type)
+			return nil, "", fmt.Errorf("node %s has unknown type %s", node.ID, node.Type)
 		}
 		if err := validateRuleNodeConfig(ctx, node, ipGroupExists); err != nil {
 			return nil, "", err
 		}
 	}
 	if startCount != 1 {
-		return nil, "", errors.New("规则图必须恰好包含一个开始节点")
+		return nil, "", errors.New("rule graph must contain exactly one start node")
 	}
 	if allowCount != 1 {
-		return nil, "", errors.New("规则图必须恰好包含一个通过节点")
+		return nil, "", errors.New("rule graph must contain exactly one allow node")
 	}
 	return nodes, startID, nil
 }
@@ -114,26 +114,26 @@ func validateRuleGraphEdges(nodes map[string]RuleNode, graphEdges []RuleEdge) (m
 	handleTargets := make(map[string]int)
 	for _, edge := range graphEdges {
 		if strings.TrimSpace(edge.ID) == "" {
-			return nil, nil, nil, errors.New("边 ID 不能为空")
+			return nil, nil, nil, errors.New("edge ID must not be empty")
 		}
 		if _, exists := edgeIDs[edge.ID]; exists {
-			return nil, nil, nil, fmt.Errorf("边 ID %s 重复", edge.ID)
+			return nil, nil, nil, fmt.Errorf("duplicate edge ID %s", edge.ID)
 		}
 		edgeIDs[edge.ID] = struct{}{}
 		source, ok := nodes[edge.Source]
 		if !ok {
-			return nil, nil, nil, fmt.Errorf("边 %s 的源节点 %s 不存在", edge.ID, edge.Source)
+			return nil, nil, nil, fmt.Errorf("edge %s references missing source node %s", edge.ID, edge.Source)
 		}
 		if _, ok := nodes[edge.Target]; !ok {
-			return nil, nil, nil, fmt.Errorf("边 %s 的目标节点 %s 不存在", edge.ID, edge.Target)
+			return nil, nil, nil, fmt.Errorf("edge %s references missing target node %s", edge.ID, edge.Target)
 		}
 		if !validSourceHandle(source.Type, edge.SourceHandle) {
-			return nil, nil, nil, fmt.Errorf("边 %s 的源端口 %s 不适用于节点 %s", edge.ID, edge.SourceHandle, edge.Source)
+			return nil, nil, nil, fmt.Errorf("edge %s source port %s is not valid for node %s", edge.ID, edge.SourceHandle, edge.Source)
 		}
 		key := edge.Source + "\x00" + edge.SourceHandle
 		handleTargets[key]++
 		if handleTargets[key] > 1 {
-			return nil, nil, nil, fmt.Errorf("节点 %s 的 %s 出口连接了多个目标", edge.Source, edge.SourceHandle)
+			return nil, nil, nil, fmt.Errorf("node %s output %s is connected to multiple targets", edge.Source, edge.SourceHandle)
 		}
 		outgoing[edge.Source] = append(outgoing[edge.Source], edge)
 		incoming[edge.Target]++
@@ -145,7 +145,7 @@ func validateRequiredHandles(nodes []RuleNode, handleTargets map[string]int) err
 	for _, node := range nodes {
 		for _, handle := range requiredHandles(node.Type) {
 			if handleTargets[node.ID+"\x00"+handle] == 0 {
-				return fmt.Errorf("节点 %s 的 %s 出口未连接", node.ID, handle)
+				return fmt.Errorf("node %s output %s is not connected", node.ID, handle)
 			}
 		}
 	}
@@ -156,18 +156,18 @@ func validateRuleGraphConnectivity(nodes []RuleNode, startID string, outgoing ma
 	reachable := walkRuleGraph(startID, outgoing)
 	for _, node := range nodes {
 		if !reachable[node.ID] {
-			return fmt.Errorf("节点 %s 无法从开始节点到达", node.ID)
+			return fmt.Errorf("node %s is not reachable from the start node", node.ID)
 		}
 	}
 	for _, node := range nodes {
 		if node.Type == RuleNodeStart && incoming[node.ID] != 0 {
-			return fmt.Errorf("开始节点 %s 不能有入边", node.ID)
+			return fmt.Errorf("start node %s must not have incoming edges", node.ID)
 		}
 		if node.Type != RuleNodeStart && incoming[node.ID] == 0 {
-			return fmt.Errorf("节点 %s 必须至少有一条入边", node.ID)
+			return fmt.Errorf("node %s must have at least one incoming edge", node.ID)
 		}
 		if (node.Type == RuleNodeAllow || node.Type == RuleNodeBlock) && len(outgoing[node.ID]) != 0 {
-			return fmt.Errorf("终止节点 %s 不能有出口", node.ID)
+			return fmt.Errorf("terminal node %s must not have outgoing edges", node.ID)
 		}
 	}
 	return nil
@@ -205,12 +205,12 @@ func validateIPMatchNodeConfig(ctx context.Context, node RuleNode, exists func(c
 	}
 	for _, raw := range cfg.IPs {
 		if _, err := netip.ParseAddr(raw); err != nil {
-			return fmt.Errorf("节点 %s 的 IP %s 无效", node.ID, raw)
+			return fmt.Errorf("node %s contains invalid IP %s", node.ID, raw)
 		}
 	}
 	for _, raw := range cfg.CIDRs {
 		if _, err := netip.ParsePrefix(raw); err != nil {
-			return fmt.Errorf("节点 %s 的 CIDR %s 无效", node.ID, raw)
+			return fmt.Errorf("node %s contains invalid CIDR %s", node.ID, raw)
 		}
 	}
 	for _, id := range cfg.IPGroupIDs {
@@ -223,17 +223,17 @@ func validateIPMatchNodeConfig(ctx context.Context, node RuleNode, exists func(c
 
 func validateIPGroupReference(ctx context.Context, nodeID string, id uint, exists func(context.Context, uint) (bool, error)) error {
 	if id == 0 {
-		return fmt.Errorf("节点 %s 引用的 IP 组 ID 无效", nodeID)
+		return fmt.Errorf("node %s references an invalid IP group ID", nodeID)
 	}
 	if exists == nil {
-		return fmt.Errorf("节点 %s 无法校验 IP 组 %d", nodeID, id)
+		return fmt.Errorf("node %s cannot validate IP group %d", nodeID, id)
 	}
 	ok, err := exists(ctx, id)
 	if err != nil {
-		return fmt.Errorf("节点 %s 校验 IP 组 %d 失败: %w", nodeID, id, err)
+		return fmt.Errorf("node %s failed to validate IP group %d: %w", nodeID, id, err)
 	}
 	if !ok {
-		return fmt.Errorf("节点 %s 引用的 IP 组 %d 不存在", nodeID, id)
+		return fmt.Errorf("node %s references missing IP group %d", nodeID, id)
 	}
 	return nil
 }
@@ -245,12 +245,12 @@ func validateGeoMatchNodeConfig(node RuleNode) error {
 	}
 	for _, code := range cfg.Countries {
 		if !countryCodePattern.MatchString(code) {
-			return fmt.Errorf("节点 %s 的国家代码 %s 无效", node.ID, code)
+			return fmt.Errorf("node %s contains invalid country code %s", node.ID, code)
 		}
 	}
 	for _, code := range cfg.Regions {
 		if !regionCodePattern.MatchString(code) {
-			return fmt.Errorf("节点 %s 的地区代码 %s 无效", node.ID, code)
+			return fmt.Errorf("node %s contains invalid region code %s", node.ID, code)
 		}
 	}
 	return nil
@@ -262,16 +262,16 @@ func validatePoWNodeConfig(node RuleNode) error {
 		return err
 	}
 	if cfg.Difficulty < 1 || cfg.Difficulty > 16 {
-		return fmt.Errorf("节点 %s 的 PoW 难度必须在 1-16 之间", node.ID)
+		return fmt.Errorf("PoW difficulty for node %s must be between 1 and 16", node.ID)
 	}
 	if cfg.Algorithm != powAlgorithmFast && cfg.Algorithm != powAlgorithmSlow {
-		return fmt.Errorf("节点 %s 的 PoW 算法必须为 fast 或 slow", node.ID)
+		return fmt.Errorf("PoW algorithm for node %s must be fast or slow", node.ID)
 	}
 	if cfg.SessionTTL < minPoWSessionTTLSeconds {
-		return fmt.Errorf("节点 %s 的 PoW 会话 TTL 不能小于 60 秒", node.ID)
+		return fmt.Errorf("PoW session TTL for node %s must be at least 60 seconds", node.ID)
 	}
 	if cfg.ChallengeTTL < minPoWChallengeTTLSeconds {
-		return fmt.Errorf("节点 %s 的 PoW 挑战 TTL 不能小于 30 秒", node.ID)
+		return fmt.Errorf("PoW challenge TTL for node %s must be at least 30 seconds", node.ID)
 	}
 	return nil
 }
@@ -282,10 +282,10 @@ func validateBlockNodeConfig(node RuleNode) error {
 		return err
 	}
 	if cfg.StatusCode < 400 || cfg.StatusCode > 599 {
-		return fmt.Errorf("节点 %s 的阻止状态码必须在 400-599 之间", node.ID)
+		return fmt.Errorf("block status code for node %s must be between 400 and 599", node.ID)
 	}
 	if len([]byte(cfg.ResponseBody)) > maxWAFBlockBodyBytes {
-		return fmt.Errorf("节点 %s 的阻止响应体不能超过 %d 字节", node.ID, maxWAFBlockBodyBytes)
+		return fmt.Errorf("block response body for node %s must not exceed %d bytes", node.ID, maxWAFBlockBodyBytes)
 	}
 	return nil
 }
@@ -300,34 +300,34 @@ func validateUACheckNodeConfig(node RuleNode) error {
 		mode = UACheckMatchModeOr
 	}
 	if mode != UACheckMatchModeAnd && mode != UACheckMatchModeOr {
-		return fmt.Errorf("节点 %s 的匹配模式必须为 and 或 or", node.ID)
+		return fmt.Errorf("match mode for node %s must be and or or", node.ID)
 	}
 	for _, label := range cfg.Browsers {
 		if !uaBrowserLabels[label] {
-			return fmt.Errorf("节点 %s 的浏览器标签 %s 无效", node.ID, label)
+			return fmt.Errorf("node %s contains invalid browser tag %s", node.ID, label)
 		}
 	}
 	for _, label := range cfg.OperatingSystems {
 		if !uaOSLabels[label] {
-			return fmt.Errorf("节点 %s 的操作系统标签 %s 无效", node.ID, label)
+			return fmt.Errorf("node %s contains invalid operating system tag %s", node.ID, label)
 		}
 	}
 	if len(cfg.CustomUAPatterns) > maxUACustomPatterns {
-		return fmt.Errorf("节点 %s 的自定义 UA 正则不能超过 %d 条", node.ID, maxUACustomPatterns)
+		return fmt.Errorf("node %s must not contain more than %d custom User-Agent patterns", node.ID, maxUACustomPatterns)
 	}
 	for _, pattern := range cfg.CustomUAPatterns {
 		if strings.TrimSpace(pattern) == "" {
-			return fmt.Errorf("节点 %s 的自定义 UA 正则不能为空", node.ID)
+			return fmt.Errorf("custom User-Agent pattern in node %s must not be empty", node.ID)
 		}
 		if len(pattern) > maxUACustomPatternBytes {
-			return fmt.Errorf("节点 %s 的自定义 UA 正则不能超过 %d 字节", node.ID, maxUACustomPatternBytes)
+			return fmt.Errorf("custom User-Agent pattern in node %s must not exceed %d bytes", node.ID, maxUACustomPatternBytes)
 		}
 		if _, err := regexp.Compile(pattern); err != nil {
-			return fmt.Errorf("节点 %s 的自定义 UA 正则无效: %s", node.ID, pattern)
+			return fmt.Errorf("invalid custom User-Agent pattern in node %s: %s", node.ID, pattern)
 		}
 	}
 	if cfg.BlockCustomUA && len(cfg.CustomUAPatterns) == 0 {
-		return fmt.Errorf("节点 %s 开启屏蔽自定义 UA 时至少需要一条正则", node.ID)
+		return fmt.Errorf("node %s requires at least one pattern when custom User-Agent blocking is enabled", node.ID)
 	}
 	return nil
 }
@@ -350,7 +350,7 @@ var uaOSLabels = map[string]bool{
 
 func decodeNodeConfig(node RuleNode, dst any) error {
 	if err := decodeStrictConfig(node.Config, dst); err != nil {
-		return fmt.Errorf("节点 %s 的配置无效: %w", node.ID, err)
+		return fmt.Errorf("invalid configuration for node %s: %w", node.ID, err)
 	}
 	return nil
 }
@@ -358,7 +358,7 @@ func decodeNodeConfig(node RuleNode, dst any) error {
 func decodeStrictConfig(raw json.RawMessage, dst any) error {
 	trimmed := bytes.TrimSpace(raw)
 	if bytes.Equal(trimmed, []byte("null")) {
-		return errors.New("配置不能为 null")
+		return errors.New("configuration must not be null")
 	}
 	if len(trimmed) == 0 {
 		raw = json.RawMessage(`{}`)
@@ -369,7 +369,7 @@ func decodeStrictConfig(raw json.RawMessage, dst any) error {
 		return err
 	}
 	if err := decoder.Decode(&struct{}{}); !errors.Is(err, io.EOF) {
-		return errors.New("配置包含额外 JSON 值")
+		return errors.New("configuration contains an additional JSON value")
 	}
 	return nil
 }
@@ -451,7 +451,7 @@ func validateTerminalPaths(nodes []RuleNode, outgoing map[string][]RuleEdge) err
 	}
 	for _, node := range nodes {
 		if !terminating[node.ID] {
-			return fmt.Errorf("节点 %s 不存在通往终止节点的路径", node.ID)
+			return fmt.Errorf("node %s has no path to a terminal node", node.ID)
 		}
 	}
 	return nil

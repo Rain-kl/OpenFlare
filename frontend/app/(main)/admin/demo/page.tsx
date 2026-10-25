@@ -1,7 +1,7 @@
+'use client';
+
 // Copyright 2026 Arctel.net
 // SPDX-License-Identifier: Apache-2.0
-
-'use client';
 
 import * as React from 'react';
 import { useTranslations } from 'next-intl';
@@ -22,6 +22,8 @@ import { TableTab } from './tabs/table-tab';
 import { ControlsTab } from './tabs/controls-tab';
 
 export default function HeaderDemoPage() {
+  const rt = useTranslations('runtime');
+
   const t = useTranslations('admin.demo');
   const [activeTab, setActiveTab] = React.useState('dashboard');
 
@@ -59,7 +61,8 @@ export default function HeaderDemoPage() {
                 {t('rules.structureFocus.description')}
               </li>
               <li>
-                <strong>{t('rules.containerAlignment.title')}</strong>：使用{' '}
+                <strong>{t('rules.containerAlignment.title')}</strong>
+                {rt('use_1b3d699e')}{' '}
                 <code className='bg-muted px-1 py-0.5 rounded font-mono'>
                   flex items-center gap-2
                 </code>{' '}
@@ -67,22 +70,23 @@ export default function HeaderDemoPage() {
                 <code className='bg-muted px-1 py-0.5 rounded font-mono'>
                   py-6 px-1
                 </code>{' '}
-                (或{' '}
+                {rt('or_07d4e3c0')}{' '}
                 <code className='bg-muted px-1 py-0.5 rounded font-mono'>
                   py-6
                 </code>
                 ) {t('rules.containerAlignment.description2')}
               </li>
               <li>
-                <strong>{t('rules.iconPresentation.title')}</strong>：直接将
-                Lucide 图标组件嵌套于标题容器中，应用{' '}
+                <strong>{t('rules.iconPresentation.title')}</strong>
+                {rt('place_the_lucide_icon_directly_inside_the_104f794c')}{' '}
                 <code className='bg-muted px-1 py-0.5 rounded font-mono'>
                   size-5 text-primary
                 </code>{' '}
                 {t('rules.iconPresentation.description')}
               </li>
               <li>
-                <strong>{t('rules.textStyle.title')}</strong>：文本使用且仅使用{' '}
+                <strong>{t('rules.textStyle.title')}</strong>
+                {rt('use_only_5e12eecb')}{' '}
                 <code className='bg-muted px-1 py-0.5 rounded font-mono'>
                   {'h1 className="text-2xl font-semibold tracking-tight"'}
                 </code>
@@ -93,10 +97,8 @@ export default function HeaderDemoPage() {
                 {t('rules.textStyle.description2')}
               </li>
               <li>
-                <strong>{t('rules.tabsModular.title')}</strong>：凡是带有多个
-                Tab 页切换的页面，**禁止**将所有 Tab
-                的渲染代码堆积在同一个物理页面主文件内。每个 Tab 页对应的
-                Content 必须单独拆分为独立组件文件（如{' '}
+                <strong>{t('rules.tabsModular.title')}</strong>
+                {rt('for_pages_with_multiple_tabs_keep_each_5f721959')}{' '}
                 <code className='bg-muted px-1 py-0.5 rounded font-mono'>
                   tabs/events-tab.tsx
                 </code>{' '}
@@ -107,8 +109,8 @@ export default function HeaderDemoPage() {
                 {t('rules.tabsModular.description2')}
               </li>
               <li>
-                <strong>{t('rules.complexityDriven.title')}</strong>：不仅是
-                Tabs 切换，当一个页面代码行数超过 600
+                <strong>{t('rules.complexityDriven.title')}</strong>
+                {rt('beyond_tabs_when_a_page_exceeds_600_d152cfdc')}
                 {t('rules.complexityDriven.description')}{' '}
                 <code className='bg-muted px-1 py-0.5 rounded font-mono'>
                   app/(main)/admin/database/components/
@@ -121,19 +123,19 @@ export default function HeaderDemoPage() {
                 <code className='bg-muted px-1 py-0.5 rounded font-mono'>
                   /admin/database
                 </code>
-                ) 的{' '}
+                {rt('message_18ab4763')}{' '}
                 <code className='bg-muted px-1 py-0.5 rounded font-mono'>
                   table-browser.tsx
                 </code>
-                、
+                {rt('list_separator')}
                 <code className='bg-muted px-1 py-0.5 rounded font-mono'>
                   cache-manager.tsx
                 </code>{' '}
-                与{' '}
+                {rt('and_de1d5dd0')}{' '}
                 <code className='bg-muted px-1 py-0.5 rounded font-mono'>
                   sql-console.tsx
                 </code>
-                。
+                {rt('sentence_end')}
               </li>
             </ul>
           </div>

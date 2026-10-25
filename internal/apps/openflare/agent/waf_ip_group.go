@@ -124,7 +124,7 @@ func buildAgentWAFIPGroups(ctx context.Context, ids []uint) ([]WAFIPGroup, error
 
 func buildAgentWAFIPGroup(group *model.OpenFlareWAFIPGroup) (WAFIPGroup, error) {
 	if group == nil {
-		return WAFIPGroup{}, errors.New("IP 组不存在")
+		return WAFIPGroup{}, errors.New("IP group was not found")
 	}
 	ips, err := decodeWAFIPGroupStringList(group.IPList)
 	if err != nil {
@@ -192,7 +192,7 @@ func activeConfigWAFIPGroupIDs(ctx context.Context) ([]uint, error) {
 			}
 			ids, err := runtimeIPMatchGroupIDs(node.Config)
 			if err != nil {
-				return nil, fmt.Errorf("活动配置 WAF 规则 %d 节点 %s 的 IP 匹配配置无效: %w", group.ID, nodeID, err)
+				return nil, fmt.Errorf("invalid IP match configuration in active WAF rule %d, node %s: %w", group.ID, nodeID, err)
 			}
 			for _, id := range ids {
 				if id > 0 {

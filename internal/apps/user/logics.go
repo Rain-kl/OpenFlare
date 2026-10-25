@@ -174,7 +174,7 @@ func sendEmailVerificationCode(ctx context.Context, email, scene, templateName s
 
 	tmpl, err := repository.GetTemplateByKey(ctx, templateName)
 	if err != nil {
-		return fmt.Errorf("模板 %s 不存在或不可用: %w", templateName, err)
+		return fmt.Errorf("template %s was not found or is unavailable: %w", templateName, err)
 	}
 	emailSubject, emailBody, err := tmpl.Render(map[string]any{"Code": code})
 	if err != nil {
@@ -235,7 +235,7 @@ func processLoginEmailVerification(ctx context.Context, code string, user *model
 		if !isSMTPConfigured(ctx) {
 			msg = errSMTPInvalidUseTempCodePrefix + errSMTPInvalidUseTempCode
 		} else {
-			msg = errSMTPInvalidUseTempCodePrefix + "该账号未绑定邮箱，使用临时码登录"
+			msg = errSMTPInvalidUseTempCodePrefix + "This account has no email address; use a temporary code to sign in"
 		}
 		return LoginEmailVerificationResult{
 			Status:  LoginEmailVerificationRejected,
@@ -348,9 +348,9 @@ func updateLastLogin(ctx context.Context, user *model.User) error {
 func registerUserLogic(ctx context.Context, u *model.User) error {
 	if err := repository.RegisterUserWithChecks(ctx, u); err != nil {
 		if strings.Contains(err.Error(), "duplicate key") || strings.Contains(err.Error(), "UNIQUE") {
-			return errors.New("用户名或邮箱已被占用")
+			return errors.New("username or email address is already in use")
 		}
-		return errors.New("注册失败，请稍后再试")
+		return errors.New("registration failed; please try again later")
 	}
 	return nil
 }
@@ -370,7 +370,7 @@ func changePasswordLogic(ctx context.Context, userID uint64, oldPass, newPass st
 	}
 
 	if err := repository.UpdateUserPassword(ctx, dbUser.ID, dbUser.Password); err != nil {
-		return errors.New("更新密码失败，请稍后再试")
+		return errors.New("failed to update password; please try again later")
 	}
 
 	// 吊销该用户所有的 Access Token
@@ -380,7 +380,7 @@ func changePasswordLogic(ctx context.Context, userID uint64, oldPass, newPass st
 		}
 	}
 	if err := repository.DeleteAccessTokensByUserID(ctx, dbUser.ID); err != nil {
-		return errors.New("吊销 Access Token 失败，请稍后再试")
+		return errors.New("failed to revoke access token; please try again later")
 	}
 
 	oauth.InvalidateCachedUser(ctx, dbUser.ID)
@@ -390,7 +390,7 @@ func changePasswordLogic(ctx context.Context, userID uint64, oldPass, newPass st
 func listAccessTokensLogic(ctx context.Context, userID uint64) ([]model.AccessToken, error) {
 	tokens, err := repository.ListAccessTokensByUserID(ctx, userID)
 	if err != nil {
-		return nil, errors.New("获取令牌列表失败，请稍后再试")
+		return nil, errors.New("failed to get token list; please try again later")
 	}
 	return tokens, nil
 }
@@ -398,14 +398,14 @@ func listAccessTokensLogic(ctx context.Context, userID uint64) ([]model.AccessTo
 func countAccessTokensLogic(ctx context.Context, userID uint64) (int64, error) {
 	count, err := repository.CountAccessTokensByUserID(ctx, userID)
 	if err != nil {
-		return 0, errors.New("查询令牌数量失败，请稍后再试")
+		return 0, errors.New("failed to count tokens; please try again later")
 	}
 	return count, nil
 }
 
 func createAccessTokenLogic(ctx context.Context, record *model.AccessToken) error {
 	if err := repository.CreateAccessToken(ctx, record); err != nil {
-		return errors.New("创建令牌失败，请稍后再试")
+		return errors.New("failed to create token; please try again later")
 	}
 	oauth.SetCachedToken(ctx, record.TokenHash, record)
 	return nil
@@ -420,7 +420,7 @@ func deleteAccessTokenLogic(ctx context.Context, id, userID uint64) error {
 
 	rows, err := repository.DeleteAccessTokenForUser(ctx, id, userID)
 	if err != nil {
-		return errors.New("删除令牌失败，请稍后再试")
+		return errors.New("failed to delete token; please try again later")
 	}
 	if rows == 0 {
 		return errors.New(errTokenNotFoundOrForbidden)
@@ -448,7 +448,7 @@ func rotateAccessTokenLogic(ctx context.Context, id, userID uint64) (string, *mo
 	tokenRecord.MaskedToken = newMaskedToken
 
 	if err := repository.SaveAccessToken(ctx, &tokenRecord); err != nil {
-		return "", nil, errors.New("轮换令牌失败，请稍后再试")
+		return "", nil, errors.New("failed to rotate token; please try again later")
 	}
 
 	oauth.SetCachedToken(ctx, tokenRecord.TokenHash, &tokenRecord)

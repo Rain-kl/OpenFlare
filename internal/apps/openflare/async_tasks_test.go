@@ -31,5 +31,5 @@ func TestUptimeKumaSyncHandlerSkipsWhenDisabled(t *testing.T) {
 	result, err := (&UptimeKumaSyncHandler{}).Execute(ctx, nil)
 	require.NoError(t, err)
 	require.NotNil(t, result)
-	assert.Contains(t, result.Message, "未启用")
+	assert.Contains(t, result.Message, "disabled")
 }

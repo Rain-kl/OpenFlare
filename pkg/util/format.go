@@ -43,28 +43,35 @@ func Bytes2Size(num int64) string {
 	return numStr + " " + unit
 }
 
-// Seconds2Time converts a number of seconds to a human-readable Chinese duration string.
+// Seconds2Time converts a number of seconds to a human-readable English duration string.
 func Seconds2Time(num int) (time string) {
 	if num/secondsPerYear > 0 {
-		time += strconv.Itoa(num/secondsPerYear) + " 年 "
+		time += durationPart(num/secondsPerYear, "year") + " "
 		num %= secondsPerYear
 	}
 	if num/secondsPerMonth > 0 {
-		time += strconv.Itoa(num/secondsPerMonth) + " 个月 "
+		time += durationPart(num/secondsPerMonth, "month") + " "
 		num %= secondsPerMonth
 	}
 	if num/secondsPerDay > 0 {
-		time += strconv.Itoa(num/secondsPerDay) + " 天 "
+		time += durationPart(num/secondsPerDay, "day") + " "
 		num %= secondsPerDay
 	}
 	if num/secondsPerHour > 0 {
-		time += strconv.Itoa(num/secondsPerHour) + " 小时 "
+		time += durationPart(num/secondsPerHour, "hour") + " "
 		num %= secondsPerHour
 	}
 	if num/secondsPerMinute > 0 {
-		time += strconv.Itoa(num/secondsPerMinute) + " 分钟 "
+		time += durationPart(num/secondsPerMinute, "minute") + " "
 		num %= secondsPerMinute
 	}
-	time += strconv.Itoa(num) + " 秒"
+	time += durationPart(num, "second")
 	return
+}
+
+func durationPart(value int, unit string) string {
+	if value != 1 {
+		unit += "s"
+	}
+	return strconv.Itoa(value) + " " + unit
 }

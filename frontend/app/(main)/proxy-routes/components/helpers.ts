@@ -1,3 +1,4 @@
+import { runtimeText } from '@/i18n/runtime';
 import type {
   ProxyRouteConfigSection,
   ProxyRouteCustomHeader,
@@ -154,7 +155,8 @@ const limitRatePattern = /^\d+(?:[kKmM])?$/;
 export function getErrorMessage(error: unknown, fallback?: string) {
   return error instanceof Error
     ? error.message
-    : (fallback ?? '请求失败，请稍后重试。');
+    : (fallback ??
+        runtimeText('request_failed_please_try_again_later_8977b79a'));
 }
 
 export function linesFromTextarea(value: string) {

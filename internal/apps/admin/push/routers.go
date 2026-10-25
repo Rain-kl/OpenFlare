@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"slices"
 	"strconv"
 
 	"github.com/Rain-kl/Wavelet/internal/model"
@@ -54,6 +55,9 @@ func ListEvents(c *gin.Context) {
 		response.AbortInternal(c, err.Error())
 		return
 	}
+	for index := range events {
+		events[index] = localizePushEvent(response.Locale(c), events[index])
+	}
 	c.JSON(http.StatusOK, response.OK(events))
 }
 
@@ -85,7 +89,11 @@ func findBuiltInEvent(key string) (EventMetadata, bool) {
 // @Success 200 {object} response.Any{data=[]EventMetadata} "内置通知事件列表"
 // @Router /api/v1/admin/push/events/builtin [get]
 func ListBuiltInEvents(c *gin.Context) {
-	c.JSON(http.StatusOK, response.OK(BuiltInEvents))
+	metas := slices.Clone(BuiltInEvents)
+	for index := range metas {
+		metas[index] = localizeEventMetadata(response.Locale(c), metas[index])
+	}
+	c.JSON(http.StatusOK, response.OK(metas))
 }
 
 // CreateEvent 创建通知事件
@@ -110,7 +118,7 @@ func CreateEvent(c *gin.Context) {
 		response.AbortBadRequest(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, response.OK(event))
+	c.JSON(http.StatusOK, response.OK(localizePushEvent(response.Locale(c), event)))
 }
 
 // DeleteEvent 删除通知事件配置
@@ -280,8 +288,8 @@ func TestPush(c *gin.Context) {
 	applySMTPFallbackToPushConfig(c.Request.Context(), &req.Config)
 
 	testBody := map[string]any{
-		keyTitle:   "测试通道推送",
-		keyContent: "当您收到这条消息，说明当前渠道连通性测试通过。",
+		keyTitle:   "Notification channel test",
+		keyContent: "Receiving this message confirms that the notification channel connectivity test succeeded.",
 		keyLevel:   defaultLevelInfo,
 	}
 	if _, err := pusher.Send(c.Request.Context(), req.Config, req.Target, testBody, "", nil); err != nil {

@@ -33,8 +33,8 @@ const (
 var SystemCleanupMeta = task.TaskMeta{
 	Type:         TaskTypeSystemCleanup,
 	AsynqTask:    SystemCleanupTask,
-	Name:         "系统垃圾清理",
-	Description:  "定期清理未使用上传文件、历史推送记录和过期任务执行日志",
+	Name:         "System cleanup",
+	Description:  "Periodically remove unused uploads, historical notifications and expired task execution logs",
 	SupportsTime: false,
 	MaxRetry:     task.DefaultMaxRetry,
 	Queue:        task.QueueDefault,
@@ -56,12 +56,12 @@ func (h *SystemCleanupHandler) Execute(ctx context.Context, _ []byte) (*task.Tas
 
 	oneHourAgo := time.Now().Add(-1 * time.Hour)
 
-	task.AppendLog(ctx, "开始扫描未使用上传文件，阈值: %s", oneHourAgo.Format(time.RFC3339))
+	task.AppendLog(ctx, "Scanning unused uploads, cutoff: %s", oneHourAgo.Format(time.RFC3339))
 
 	for {
 		unusedUploads, err := repository.ListPendingUploadsOlderThan(ctx, lastID, oneHourAgo, batchSize)
 		if err != nil {
-			task.AppendLog(ctx, "查询未使用的上传文件失败: %v", err)
+			task.AppendLog(ctx, "Failed to query unused uploads: %v", err)
 			return nil, fmt.Errorf(shared.ErrQueryUnusedUploadsFailed, err)
 		}
 
@@ -69,7 +69,7 @@ func (h *SystemCleanupHandler) Execute(ctx context.Context, _ []byte) (*task.Tas
 			break
 		}
 
-		task.AppendLog(ctx, "本批次找到 %d 个需要清理的上传文件", len(unusedUploads))
+		task.AppendLog(ctx, "Found %d uploads to clean up in this batch", len(unusedUploads))
 
 		for _, u := range unusedUploads {
 			totalProcessed++
@@ -88,7 +88,7 @@ func (h *SystemCleanupHandler) Execute(ctx context.Context, _ []byte) (*task.Tas
 				transitioned, removeErr = ingest.RemoveLockedTx(tx, &locked)
 				return removeErr
 			}); err != nil {
-				task.AppendLog(ctx, "清理上传文件失败 [ID:%d]: %v", u.ID, err)
+				task.AppendLog(ctx, "Failed to clean up upload [ID:%d]: %v", u.ID, err)
 				lastID = u.ID
 				continue
 			}
@@ -101,48 +101,48 @@ func (h *SystemCleanupHandler) Execute(ctx context.Context, _ []byte) (*task.Tas
 		}
 	}
 
-	task.AppendLog(ctx, "开始清理历史推送审计日志，只保留最近7天数据...")
+	task.AppendLog(ctx, "Cleaning up notification audit history; retaining the last 7 days...")
 	cutoff := time.Now().AddDate(0, 0, -7)
 	pushHistoryCount, err := repository.CountPushHistoriesCreatedBefore(ctx, cutoff)
 	switch {
 	case err != nil:
-		task.AppendLog(ctx, "统计待清理的历史推送记录失败: %v", err)
+		task.AppendLog(ctx, "Failed to count notification history for cleanup: %v", err)
 	case pushHistoryCount == 0:
-		task.AppendLog(ctx, "没有需要清理的历史推送记录 (截止时间: %s)", cutoff.Format("2006-01-02 15:04:05"))
+		task.AppendLog(ctx, "No notification history requires cleanup (cutoff: %s)", cutoff.Format("2006-01-02 15:04:05"))
 	default:
 		if _, delErr := repository.DeletePushHistoriesCreatedBefore(ctx, cutoff); delErr != nil {
-			task.AppendLog(ctx, "删除历史推送记录失败: %v", delErr)
+			task.AppendLog(ctx, "Failed to delete notification history: %v", delErr)
 		} else {
-			task.AppendLog(ctx, "成功删除 %d 条历史推送记录 (截止时间: %s)", pushHistoryCount, cutoff.Format("2006-01-02 15:04:05"))
+			task.AppendLog(ctx, "Deleted %d notification history records (cutoff: %s)", pushHistoryCount, cutoff.Format("2006-01-02 15:04:05"))
 		}
 	}
 
-	task.AppendLog(ctx, "开始清理任务执行日志：高频任务保留最近3天，低频任务保留最近30天...")
+	task.AppendLog(ctx, "Cleaning up task execution logs: retaining 3 days for high-frequency tasks and 30 days for low-frequency tasks...")
 	taskLogStats, err := repository.CleanupTaskExecutionLogs(ctx, time.Now())
 	if err != nil {
-		task.AppendLog(ctx, "清理任务执行日志失败: %v", err)
-		logger.ErrorF(ctx, "清理任务执行日志失败: %v", err)
+		task.AppendLog(ctx, "Failed to clean up task execution logs: %v", err)
+		logger.ErrorF(ctx, "Failed to clean up task execution logs: %v", err)
 	} else {
-		task.AppendLog(ctx, "成功清理任务执行日志 %d 条（高频 %d 条，低频 %d 条）",
+		task.AppendLog(ctx, "Cleaned up %d task execution logs (%d high-frequency, %d low-frequency)",
 			taskLogStats.HighFrequencyDeleted+taskLogStats.LowFrequencyDeleted,
 			taskLogStats.HighFrequencyDeleted,
 			taskLogStats.LowFrequencyDeleted,
 		)
 	}
 
-	task.AppendLog(ctx, "开始清理过期日志（访问日志按当前日志库保留天数，性能指标按独立短留存）...")
+	task.AppendLog(ctx, "Cleaning up expired logs using log database retention and separate short metric retention...")
 	summary, err := logstore.CleanupExpired(ctx)
 	switch {
 	case err != nil:
-		logger.ErrorF(ctx, "清理过期日志失败: %v", err)
-		task.AppendLog(ctx, "清理过期日志失败: %v", err)
+		logger.ErrorF(ctx, "Failed to clean up expired logs: %v", err)
+		task.AppendLog(ctx, "Failed to clean up expired logs: %v", err)
 	case summary.Deleted == 0:
-		task.AppendLog(ctx, "没有需要清理的过期日志 (访问日志保留 %d 天，性能指标保留 %d 天)", summary.RetentionDays, summary.MetricRetentionDays)
+		task.AppendLog(ctx, "No expired logs require cleanup (access log retention: %d days; metric retention: %d days)", summary.RetentionDays, summary.MetricRetentionDays)
 	default:
-		task.AppendLog(ctx, "日志清理完成：访问日志保留 %d 天，性能指标保留 %d 天，删除 %d 条", summary.RetentionDays, summary.MetricRetentionDays, summary.Deleted)
+		task.AppendLog(ctx, "Log cleanup completed: access log retention %d days, metric retention %d days, deleted %d records", summary.RetentionDays, summary.MetricRetentionDays, summary.Deleted)
 	}
 
-	msg := fmt.Sprintf("系统清理完成。成功清理未使用的上传文件 %d/%d 个；清理历史推送审计日志 %d 条；清理任务执行日志 %d 条。",
+	msg := fmt.Sprintf("System cleanup completed. Removed %d/%d unused uploads, %d notification audit records and %d task execution logs.",
 		totalDeleted,
 		totalProcessed,
 		pushHistoryCount,

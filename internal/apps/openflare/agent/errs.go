@@ -4,17 +4,17 @@
 package agent
 
 const (
-	errMissingAgentToken      = "缺少 Agent Token"         //nolint:gosec // false positive: this is an error message, not hardcoded credentials
-	errInvalidAgentToken      = "无权进行此操作，Agent Token 无效" //nolint:gosec // false positive: this is an error message, not hardcoded credentials
-	errInvalidDiscoveryToken  = "无权进行此操作，注册 Token 无效"    //nolint:gosec // false positive: this is an error message, not hardcoded credentials
+	errMissingAgentToken      = "missing agent token"                                  //nolint:gosec // false positive: this is an error message, not hardcoded credentials
+	errInvalidAgentToken      = "Operation not authorized: invalid agent token"        //nolint:gosec // false positive: this is an error message, not hardcoded credentials
+	errInvalidDiscoveryToken  = "Operation not authorized: invalid registration token" //nolint:gosec // false positive: this is an error message, not hardcoded credentials
 	errNodeMissingFromContext = "Node object missing from context"
-	errNoActiveConfig         = "当前没有激活版本"
-	errNodeNotFound           = "节点不存在"
-	errNodeIDRequired         = "node_id 不能为空"
-	errVersionRequired        = "version 不能为空"
-	errInvalidApplyResult     = "result 仅支持 success、warning 或 failed"
-	errIPRequired             = "ip 不能为空"
-	errIPInvalid              = "ip 格式无效"
-	errAgentVersionRequired   = "version 不能为空"
-	errNodeIDConflict         = "节点标识生成冲突，请重试"
+	errNoActiveConfig         = "no active configuration version"
+	errNodeNotFound           = "node was not found"
+	errNodeIDRequired         = "node_id must not be empty"
+	errVersionRequired        = "version must not be empty"
+	errInvalidApplyResult     = "result must be success, warning or failed"
+	errIPRequired             = "ip must not be empty"
+	errIPInvalid              = "invalid IP address format"
+	errAgentVersionRequired   = "version must not be empty"
+	errNodeIDConflict         = "node identifier conflict; please try again"
 )

@@ -9,6 +9,7 @@ import {
   TriangleAlertIcon,
 } from 'lucide-react';
 import { useTheme } from 'next-themes';
+import { useTranslations } from 'next-intl';
 import { Toaster as Sonner, type ToasterProps, useSonner } from 'sonner';
 import { useBellRing } from '@/contexts/bell-ring-context';
 
@@ -34,6 +35,7 @@ function ToastObserver() {
 
 const Toaster = ({ ...props }: ToasterProps) => {
   const { theme = 'system' } = useTheme();
+  const t = useTranslations('runtime');
 
   return (
     <>
@@ -41,6 +43,8 @@ const Toaster = ({ ...props }: ToasterProps) => {
       <Sonner
         theme={theme as ToasterProps['theme']}
         className='toaster group'
+        containerAriaLabel={t('ui_toastRegion')}
+        toastOptions={{ closeButtonAriaLabel: t('ui_closeToast') }}
         icons={{
           success: <CircleCheckIcon className='size-4' />,
           info: <InfoIcon className='size-4' />,

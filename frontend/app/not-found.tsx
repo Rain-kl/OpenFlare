@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { motion } from 'motion/react';
@@ -11,6 +12,8 @@ import { Button } from '@/components/ui/button';
  * 当用户访问不存在的页面时显示
  */
 export default function NotFound() {
+  const rt = useTranslations('runtime');
+
   const router = useRouter();
 
   return (
@@ -31,7 +34,7 @@ export default function NotFound() {
           </h1>
           <div className='absolute inset-0 flex items-center justify-center'>
             <span className='text-2xl font-medium tracking-[0.2em] text-foreground/80 uppercase'>
-              Page Not Found
+              {rt('ui_pageNotFound')}
             </span>
           </div>
         </motion.div>
@@ -43,9 +46,9 @@ export default function NotFound() {
           className='space-y-8'
         >
           <p className='text-muted-foreground max-w-[400px] mx-auto text-sm leading-relaxed'>
-            抱歉，您访问的页面似已迷失在数字星云中。
+            {rt('sorry_the_page_you_requested_seems_to_ba66cd83')}
             <br />
-            请检查路径或返回安全地带。
+            {rt('check_the_path_or_return_to_safety_b1f31888')}
           </p>
 
           <div className='flex justify-center gap-4'>
@@ -56,7 +59,7 @@ export default function NotFound() {
               className='rounded-full w-24 text-xs border-foreground/10 hover:bg-foreground/10 transition-all duration-300'
             >
               <ArrowLeft className='size-3 opacity-70' />
-              上一页
+              {rt('previous_c9b9ae7a')}
             </Button>
 
             <Link href='/'>
@@ -66,7 +69,7 @@ export default function NotFound() {
                 className='rounded-full w-24 text-xs hover:bg-primary/80 transition-all duration-300'
               >
                 <Home className='size-3' />
-                首页
+                {rt('home_203c08e0')}
               </Button>
             </Link>
           </div>
