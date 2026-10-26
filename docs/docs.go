@@ -7953,6 +7953,169 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/d/nodes/page": {
+            "get": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "description": "返回分页节点和筛选后的总数；旧版 /nodes 列表接口保持兼容，需要管理员权限",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "openflare-node"
+                ],
+                "summary": "获取分页节点列表",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "页码（默认 1）",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "每页数量（默认 20，最大 100）",
+                        "name": "page_size",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "名称、节点标识或 IP 的字面子串（最多 256 字节）",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "pending、online 或 offline",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "edge_node、tunnel_relay 或 tunnel_client",
+                        "name": "node_type",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "节点分页",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/node.ListResult"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    },
+                    "401": {
+                        "description": "未登录",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    },
+                    "404": {
+                        "description": "无权限",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    },
+                    "500": {
+                        "description": "查询失败",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/d/nodes/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "description": "返回指定节点及最新配置下发记录，需要管理员权限",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "openflare-node"
+                ],
+                "summary": "获取节点详情",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "节点 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "节点详情",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/node.View"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    },
+                    "401": {
+                        "description": "未登录",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    },
+                    "404": {
+                        "description": "无权限或不存在",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    },
+                    "500": {
+                        "description": "查询失败",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/d/nodes/{id}/agent-release": {
             "get": {
                 "security": [
@@ -17678,6 +17841,26 @@ const docTemplate = `{
                 },
                 "relay_web_server_enabled": {
                     "type": "boolean"
+                }
+            }
+        },
+        "node.ListResult": {
+            "type": "object",
+            "properties": {
+                "page": {
+                    "type": "integer"
+                },
+                "page_size": {
+                    "type": "integer"
+                },
+                "results": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/node.View"
+                    }
+                },
+                "total": {
+                    "type": "integer"
                 }
             }
         },

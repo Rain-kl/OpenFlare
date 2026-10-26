@@ -5,6 +5,8 @@
 package node
 
 const (
+	errInvalidNodeListQuery      = "invalid node list parameters"
+	errListNodesFailed           = "Failed to load nodes"
 	errNodeNameRequired          = "节点名不能为空"
 	errNodeIPTooLong             = "节点 IP 不能超过 64 个字符"
 	errNodeIPInvalid             = "节点 IP 格式无效"

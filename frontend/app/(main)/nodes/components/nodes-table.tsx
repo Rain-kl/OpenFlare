@@ -37,15 +37,20 @@ export function NodesTable({
   deletingId,
   onEdit,
   onDelete,
+  actionsDisabled = false,
 }: {
   nodes: NodeItem[];
   deletingId: number | null;
+  actionsDisabled?: boolean;
   onEdit: (node: NodeItem) => void;
   onDelete: (node: NodeItem) => void;
 }) {
   const t = useTranslations('nodes');
   return (
-    <div className='border border-dashed rounded-lg overflow-hidden'>
+    <div
+      className='border border-dashed rounded-lg overflow-hidden'
+      aria-busy={actionsDisabled}
+    >
       <Table>
         <TableHeader>
           <TableRow className='border-dashed hover:bg-transparent'>
@@ -144,16 +149,22 @@ export function NodesTable({
                     variant='outline'
                     size='sm'
                     className='h-7 text-xs'
-                    asChild
+                    asChild={!actionsDisabled}
+                    disabled={actionsDisabled}
                   >
-                    <Link href={`/nodes/detail?id=${node.id}`}>
-                      {t('detail')}
-                    </Link>
+                    {actionsDisabled ? (
+                      t('detail')
+                    ) : (
+                      <Link href={`/nodes/detail?id=${node.id}`}>
+                        {t('detail')}
+                      </Link>
+                    )}
                   </Button>
                   <Button
                     variant='outline'
                     size='sm'
                     className='h-7 text-xs'
+                    disabled={actionsDisabled}
                     onClick={() => onEdit(node)}
                   >
                     <Pencil className='size-3 mr-1' />
@@ -163,7 +174,7 @@ export function NodesTable({
                     variant='outline'
                     size='sm'
                     className='h-7 text-xs text-destructive hover:text-destructive'
-                    disabled={deletingId === node.id}
+                    disabled={actionsDisabled || deletingId === node.id}
                     onClick={() => onDelete(node)}
                   >
                     <Trash2 className='size-3 mr-1' />

@@ -1882,6 +1882,19 @@ definitions:
       relay_web_server_enabled:
         type: boolean
     type: object
+  node.ListResult:
+    properties:
+      page:
+        type: integer
+      page_size:
+        type: integer
+      results:
+        items:
+          $ref: '#/definitions/node.View'
+        type: array
+      total:
+        type: integer
+    type: object
   node.ObservabilityView:
     properties:
       analytics:
@@ -9070,6 +9083,48 @@ paths:
       summary: 创建节点
       tags:
       - openflare-node
+  /api/v1/d/nodes/{id}:
+    get:
+      description: 返回指定节点及最新配置下发记录，需要管理员权限
+      parameters:
+      - description: 节点 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 节点详情
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/node.View'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "404":
+          description: 无权限或不存在
+          schema:
+            $ref: '#/definitions/response.Any'
+        "500":
+          description: 查询失败
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 获取节点详情
+      tags:
+      - openflare-node
   /api/v1/d/nodes/{id}/agent-release:
     get:
       description: 返回指定节点可用的最新 Agent 版本信息，需要管理员权限
@@ -9455,6 +9510,63 @@ paths:
       security:
       - SessionCookie: []
       summary: 轮换引导令牌
+      tags:
+      - openflare-node
+  /api/v1/d/nodes/page:
+    get:
+      description: 返回分页节点和筛选后的总数；旧版 /nodes 列表接口保持兼容，需要管理员权限
+      parameters:
+      - description: 页码（默认 1）
+        in: query
+        name: page
+        type: integer
+      - description: 每页数量（默认 20，最大 100）
+        in: query
+        name: page_size
+        type: integer
+      - description: 名称、节点标识或 IP 的字面子串（最多 256 字节）
+        in: query
+        name: search
+        type: string
+      - description: pending、online 或 offline
+        in: query
+        name: status
+        type: string
+      - description: edge_node、tunnel_relay 或 tunnel_client
+        in: query
+        name: node_type
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 节点分页
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/node.ListResult'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "404":
+          description: 无权限
+          schema:
+            $ref: '#/definitions/response.Any'
+        "500":
+          description: 查询失败
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 获取分页节点列表
       tags:
       - openflare-node
   /api/v1/d/option:

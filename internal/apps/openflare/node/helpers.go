@@ -197,6 +197,10 @@ func validateNodeGeoCoordinates(geoLatitude, geoLongitude *float64) error {
 }
 
 func computeNodeStatus(node *model.OpenFlareNode) string {
+	return computeNodeStatusAt(node, time.Now())
+}
+
+func computeNodeStatusAt(node *model.OpenFlareNode, now time.Time) string {
 	if node == nil {
 		return nodeStatusOffline
 	}
@@ -206,7 +210,7 @@ func computeNodeStatus(node *model.OpenFlareNode) string {
 	// 默认离线阈值 60 秒（与 node_offline_threshold 默认一致），避免在这里读取配置
 	// 实际阈值会在需要精确判断的地方通过 getNodeOfflineThreshold 读取
 	threshold := 60 * time.Second
-	if time.Since(*node.LastSeenAt) > threshold {
+	if now.Sub(*node.LastSeenAt) > threshold {
 		return nodeStatusOffline
 	}
 	return nodeStatusOnline

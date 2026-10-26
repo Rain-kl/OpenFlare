@@ -56,6 +56,21 @@ export interface NodeItem {
   updated_at: string;
 }
 
+export interface NodeListQuery {
+  page?: number;
+  page_size?: number;
+  search?: string;
+  status?: NodeStatus | '';
+  node_type?: NodeType | '';
+}
+
+export interface NodeListResult {
+  total: number;
+  results: NodeItem[];
+  page: number;
+  page_size: number;
+}
+
 export interface NodeBootstrapToken {
   discovery_token: string;
 }
