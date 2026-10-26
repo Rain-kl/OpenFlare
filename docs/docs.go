@@ -4443,12 +4443,12 @@ const docTemplate = `{
                 "summary": "注册或发现 Agent 节点",
                 "parameters": [
                     {
-                        "description": "节点上报数据",
+                        "description": "节点上报数据；registration_key 为首次注册重试凭证",
                         "name": "body",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/agent.NodePayload"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_pkg_protocol.RegisterNodeRequest"
                         }
                     }
                 ],
@@ -4464,7 +4464,7 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/agent.RegistrationResponse"
+                                            "$ref": "#/definitions/agent.RegistrationResponseDocs"
                                         }
                                     }
                                 }
@@ -14989,10 +14989,13 @@ const docTemplate = `{
                 }
             }
         },
-        "agent.RegistrationResponse": {
+        "agent.RegistrationResponseDocs": {
             "type": "object",
             "properties": {
                 "access_token": {
+                    "type": "string"
+                },
+                "agent_token": {
                     "type": "string"
                 },
                 "name": {
@@ -16290,6 +16293,77 @@ const docTemplate = `{
                 },
                 "total_size": {
                     "type": "integer"
+                }
+            }
+        },
+        "github_com_Rain-kl_Wavelet_pkg_protocol.RegisterNodeRequest": {
+            "type": "object",
+            "properties": {
+                "access_logs": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_Rain-kl_Wavelet_pkg_protocol.NodeAccessLog"
+                    }
+                },
+                "buffered": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_Rain-kl_Wavelet_pkg_protocol.BufferedObservabilityRecord"
+                    }
+                },
+                "current_version": {
+                    "type": "string"
+                },
+                "edge_health": {
+                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_pkg_protocol.NodeEdgeHealth"
+                },
+                "ext_version": {
+                    "type": "string"
+                },
+                "health_events": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_Rain-kl_Wavelet_pkg_protocol.NodeHealthEvent"
+                    }
+                },
+                "host_metrics": {
+                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_pkg_protocol.NodeMetricSnapshot"
+                },
+                "ip": {
+                    "type": "string"
+                },
+                "last_error": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "node_id": {
+                    "type": "string"
+                },
+                "openresty_message": {
+                    "type": "string"
+                },
+                "openresty_status": {
+                    "type": "string"
+                },
+                "profile": {
+                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_pkg_protocol.NodeSystemProfile"
+                },
+                "registration_key": {
+                    "type": "string"
+                },
+                "schema_version": {
+                    "type": "integer"
+                },
+                "version": {
+                    "type": "string"
+                },
+                "waf_ip_group_checksums": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
                 }
             }
         },

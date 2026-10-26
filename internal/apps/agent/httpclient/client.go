@@ -32,7 +32,7 @@ func New(baseURL string, token string, timeout time.Duration) *Client {
 }
 
 // RegisterNode registers the agent node with the control plane server.
-func (c *Client) RegisterNode(ctx context.Context, payload protocol.NodePayload) (*protocol.RegisterNodeResponse, error) {
+func (c *Client) RegisterNode(ctx context.Context, payload protocol.RegisterNodeRequest) (*protocol.RegisterNodeResponse, error) {
 	resp := protocol.APIResponse[protocol.RegisterNodeResponse]{}
 	if err := c.base.PostJSON(ctx, "/api/v1/agent/nodes/register", payload, &resp); err != nil {
 		return nil, err

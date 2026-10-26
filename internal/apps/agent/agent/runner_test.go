@@ -42,13 +42,17 @@ type fakeHeartbeatService struct {
 	heartbeatResults  []*protocol.HeartbeatResult
 	heartbeatPayloads []protocol.NodePayload
 	onHeartbeat       func(int)
+	onRegister        func()
 	lastToken         string
 }
 
-func (f *fakeHeartbeatService) Register(ctx context.Context, payload protocol.NodePayload) (*protocol.RegisterNodeResponse, error) {
+func (f *fakeHeartbeatService) Register(ctx context.Context, payload protocol.RegisterNodeRequest) (*protocol.RegisterNodeResponse, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.registerCalls++
+	if f.onRegister != nil {
+		f.onRegister()
+	}
 	return f.registerResp, f.registerErr
 }
 

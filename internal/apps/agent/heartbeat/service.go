@@ -11,14 +11,14 @@ import (
 
 // RemoteClient is the interface that abstracts the remote API calls performed by Service.
 type RemoteClient interface {
-	RegisterNode(ctx context.Context, payload protocol.NodePayload) (*protocol.RegisterNodeResponse, error)
+	RegisterNode(ctx context.Context, payload protocol.RegisterNodeRequest) (*protocol.RegisterNodeResponse, error)
 	Heartbeat(ctx context.Context, payload protocol.NodePayload) (*protocol.HeartbeatResult, error)
 	SetToken(token string)
 }
 
 // API abstracts registration and heartbeat operations used by Cycle.
 type API interface {
-	Register(ctx context.Context, payload protocol.NodePayload) (*protocol.RegisterNodeResponse, error)
+	Register(ctx context.Context, payload protocol.RegisterNodeRequest) (*protocol.RegisterNodeResponse, error)
 	Heartbeat(ctx context.Context, payload protocol.NodePayload) (*protocol.HeartbeatResult, error)
 	SetToken(token string)
 }
@@ -34,7 +34,7 @@ func New(client RemoteClient) *Service {
 }
 
 // Register sends a node registration request to the server.
-func (s *Service) Register(ctx context.Context, payload protocol.NodePayload) (*protocol.RegisterNodeResponse, error) {
+func (s *Service) Register(ctx context.Context, payload protocol.RegisterNodeRequest) (*protocol.RegisterNodeResponse, error) {
 	return s.client.RegisterNode(ctx, payload)
 }
 

@@ -99,9 +99,11 @@ definitions:
           type: string
         type: object
     type: object
-  agent.RegistrationResponse:
+  agent.RegistrationResponseDocs:
     properties:
       access_token:
+        type: string
+      agent_token:
         type: string
       name:
         type: string
@@ -954,6 +956,53 @@ definitions:
         type: integer
       total_size:
         type: integer
+    type: object
+  github_com_Rain-kl_Wavelet_pkg_protocol.RegisterNodeRequest:
+    properties:
+      access_logs:
+        items:
+          $ref: '#/definitions/github_com_Rain-kl_Wavelet_pkg_protocol.NodeAccessLog'
+        type: array
+      buffered:
+        items:
+          $ref: '#/definitions/github_com_Rain-kl_Wavelet_pkg_protocol.BufferedObservabilityRecord'
+        type: array
+      current_version:
+        type: string
+      edge_health:
+        $ref: '#/definitions/github_com_Rain-kl_Wavelet_pkg_protocol.NodeEdgeHealth'
+      ext_version:
+        type: string
+      health_events:
+        items:
+          $ref: '#/definitions/github_com_Rain-kl_Wavelet_pkg_protocol.NodeHealthEvent'
+        type: array
+      host_metrics:
+        $ref: '#/definitions/github_com_Rain-kl_Wavelet_pkg_protocol.NodeMetricSnapshot'
+      ip:
+        type: string
+      last_error:
+        type: string
+      name:
+        type: string
+      node_id:
+        type: string
+      openresty_message:
+        type: string
+      openresty_status:
+        type: string
+      profile:
+        $ref: '#/definitions/github_com_Rain-kl_Wavelet_pkg_protocol.NodeSystemProfile'
+      registration_key:
+        type: string
+      schema_version:
+        type: integer
+      version:
+        type: string
+      waf_ip_group_checksums:
+        additionalProperties:
+          type: string
+        type: object
     type: object
   github_com_Rain-kl_Wavelet_pkg_protocol.WAFIPGroup:
     properties:
@@ -7020,12 +7069,12 @@ paths:
       - application/json
       description: 使用节点 access token 重新注册，或使用全局 discovery token 发现新节点；请求头需携带 X-Agent-Token
       parameters:
-      - description: 节点上报数据
+      - description: 节点上报数据；registration_key 为首次注册重试凭证
         in: body
         name: body
         required: true
         schema:
-          $ref: '#/definitions/agent.NodePayload'
+          $ref: '#/definitions/github_com_Rain-kl_Wavelet_pkg_protocol.RegisterNodeRequest'
       produces:
       - application/json
       responses:
@@ -7036,7 +7085,7 @@ paths:
             - $ref: '#/definitions/response.Any'
             - properties:
                 data:
-                  $ref: '#/definitions/agent.RegistrationResponse'
+                  $ref: '#/definitions/agent.RegistrationResponseDocs'
               type: object
         "400":
           description: 参数错误

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/Rain-kl/Wavelet/internal/model"
+	"github.com/Rain-kl/Wavelet/pkg/protocol"
 )
 
 const (
@@ -17,9 +18,13 @@ const (
 )
 
 // RegistrationResponse is returned after agent registration.
-// Server uses access_token; the agent client expects agent_token via RegisterNodeResponse.
-type RegistrationResponse struct {
+type RegistrationResponse = protocol.RegisterNodeResponse
+
+// RegistrationResponseDocs describes both token aliases emitted by the custom JSON marshaler.
+// It is used only by Swagger; the runtime contract remains protocol.RegisterNodeResponse.
+type RegistrationResponseDocs struct {
 	NodeID      string `json:"node_id"`
+	AgentToken  string `json:"agent_token"`
 	AccessToken string `json:"access_token"`
 	Name        string `json:"name"`
 }
