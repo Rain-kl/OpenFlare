@@ -35,12 +35,16 @@ func TryAutoUpdate(ctx context.Context, updater *edgeupdater.Service, settings *
 	if force && strings.TrimSpace(settings.UpdateChannel) != "" {
 		channel = settings.UpdateChannel
 	}
-	slog.Info("checking for "+logLabel+" updates", "repo", settings.UpdateRepo, "channel", channel, "force", force)
-	err := updater.CheckAndUpdate(ctx, settings.UpdateRepo, edgeupdater.UpdateOptions{
+	opts := edgeupdater.UpdateOptions{
 		Channel: channel,
 		TagName: settings.UpdateTag,
 		Force:   force,
-	})
+	}
+	if !updater.CanCheck(opts) {
+		return
+	}
+	slog.Info("checking for "+logLabel+" updates", "repo", settings.UpdateRepo, "channel", channel, "force", force)
+	err := updater.CheckAndUpdate(ctx, settings.UpdateRepo, opts)
 	if err != nil {
 		slog.Error(logLabel+" update check failed", "error", err)
 	}
