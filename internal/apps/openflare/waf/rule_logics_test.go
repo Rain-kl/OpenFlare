@@ -46,7 +46,7 @@ func TestDeleteIPGroupRejectsGraphReference(t *testing.T) {
 	view, err := GetIPGroup(ctx, group.ID)
 	require.NoError(t, err)
 	assert.Equal(t, 1, view.ReferencedByRuleCount)
-	require.ErrorContains(t, DeleteIPGroup(ctx, group.ID), "已被 WAF 规则引用")
+	require.ErrorContains(t, DeleteIPGroup(ctx, group.ID), "referenced by WAF rules")
 }
 
 func TestRuleHandlersMapFailures(t *testing.T) {
@@ -129,7 +129,7 @@ func TestCreateRuleRejectsEmptyName(t *testing.T) {
 	defer cleanup()
 
 	_, err := CreateRule(context.Background(), CreateRuleInput{Name: "  "})
-	require.ErrorContains(t, err, "名称不能为空")
+	require.ErrorContains(t, err, "name must not be empty")
 }
 
 func TestSaveRuleGraphValidationAndRevisionConflict(t *testing.T) {

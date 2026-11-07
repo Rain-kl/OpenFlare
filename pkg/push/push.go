@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	defaultTitle             = "系统通知"
+	defaultTitle             = "System notification"
 	levelInfo                = "INFO"
 	defaultHTTPClientTimeout = 10 * time.Second
 )

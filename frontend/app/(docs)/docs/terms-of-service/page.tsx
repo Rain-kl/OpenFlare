@@ -1,16 +1,25 @@
+'use client';
+
+import { useTranslations } from 'next-intl';
 import { LegalPageLayout } from '@/components/common/docs/legal-page-layout';
 import {
   TERMS_LAST_UPDATED,
-  termsSections,
+  createTermsSections,
 } from '@/components/common/docs/terms';
 
 export default function TermsOfServicePage() {
+  const rt = useTranslations('runtime');
+
   return (
     <LegalPageLayout
-      title='服务协议 (Terms)'
+      title={rt('terms_of_service_4e80a140')}
       lastUpdated={TERMS_LAST_UPDATED}
-      sections={termsSections}
-      description={<span>为了保障您的合法权益，请您仔细阅读以下条款。</span>}
+      sections={createTermsSections(rt)}
+      description={
+        <span>
+          {rt('please_read_the_following_terms_carefully_to_c46a6a61')}
+        </span>
+      }
     />
   );
 }

@@ -35,25 +35,25 @@ func SetObtainCertificateFuncForTest(fn func(context.Context, *model.TLSCertific
 }
 
 func obtainCertificate(ctx context.Context, cert *model.TLSCertificate) error {
-	task.AppendLog(ctx, "【续签任务】开始续签，设置申请状态为 applying...")
+	task.AppendLog(ctx, "[Renewal] Starting renewal; setting application status to applying...")
 	cert.ApplyStatus = tlsApplyStatusApplying
 	if err := repository.SaveTLSCertificate(ctx, cert); err != nil {
 		return err
 	}
 
-	task.AppendLog(ctx, "【续签任务】正在解析 ACME 账户...")
+	task.AppendLog(ctx, "[Renewal] Resolving ACME account...")
 	acmeAccount, err := resolveAcmeAccount(ctx, cert)
 	if err != nil {
 		return updateCertError(ctx, cert, fmt.Sprintf("Failed to get ACME account: %v", err))
 	}
 
-	task.AppendLog(ctx, "【续签任务】正在解析 DNS 账户信息 (ID=%d)...", cert.DNSAccountID)
+	task.AppendLog(ctx, "[Renewal] Resolving DNS account information (ID=%d)...", cert.DNSAccountID)
 	dnsAccount, err := repository.GetDNSAccountByID(ctx, cert.DNSAccountID)
 	if err != nil {
 		return updateCertError(ctx, cert, fmt.Sprintf("Failed to get DNS account: %v", err))
 	}
 
-	task.AppendLog(ctx, "【续签任务】正在解密 DNS 账号凭据及 ACME 账户私钥...")
+	task.AppendLog(ctx, "[Renewal] Decrypting DNS account credentials and ACME account private key...")
 	dnsAuth, err := openSensitive(dnsAccount.Authorization)
 	if err != nil {
 		return updateCertError(ctx, cert, fmt.Sprintf("Failed to decrypt DNS credentials: %v", err))
@@ -65,9 +65,9 @@ func obtainCertificate(ctx context.Context, cert *model.TLSCertificate) error {
 	}
 
 	domains := splitAcmeDomains(cert.PrimaryDomain, cert.OtherDomains)
-	task.AppendLog(ctx, "【续签任务】待申请的域名列表: %v", domains)
+	task.AppendLog(ctx, "[Renewal] Requested domains: %v", domains)
 
-	task.AppendLog(ctx, "【续签任务】正在调用 ACME 客户端（通过 DNS-01 挑战）发起 SSL 证书签发请求，请稍候...")
+	task.AppendLog(ctx, "[Renewal] Requesting SSL certificate issuance through the ACME DNS-01 challenge; please wait...")
 	newAccountURL, newPrivateKeyPEM, result, err := acme.ObtainSSL(
 		acmeAccount.Email,
 		acmePrivateKey,
@@ -82,7 +82,7 @@ func obtainCertificate(ctx context.Context, cert *model.TLSCertificate) error {
 		domains,
 	)
 
-	task.AppendLog(ctx, "【续签任务】正在保存 ACME 账户可能的变更...")
+	task.AppendLog(ctx, "[Renewal] Saving ACME account changes...")
 	if err := persistAcmeAccountUpdates(ctx, cert, acmeAccount, newAccountURL, newPrivateKeyPEM, acmePrivateKey); err != nil {
 		return updateCertError(ctx, cert, err.Error())
 	}
@@ -91,11 +91,11 @@ func obtainCertificate(ctx context.Context, cert *model.TLSCertificate) error {
 		return updateCertError(ctx, cert, err.Error())
 	}
 
-	task.AppendLog(ctx, "【续签任务】证书签发成功，正在将证书内容与私钥安全写入数据库...")
+	task.AppendLog(ctx, "[Renewal] Certificate issued; securely storing certificate and private key in the database...")
 	if err := saveObtainedCertificate(ctx, cert, result); err != nil {
 		return updateCertError(ctx, cert, err.Error())
 	}
-	task.AppendLog(ctx, "【续签任务】证书数据存储完成！")
+	task.AppendLog(ctx, "[Renewal] Certificate data saved")
 	return nil
 }
 

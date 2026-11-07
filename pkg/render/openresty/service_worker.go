@@ -20,11 +20,11 @@ const (
 
 // DefaultSWOfflineHTML is the built-in contact page shown when the domain is blocked.
 const DefaultSWOfflineHTML = `<!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>网站暂时无法访问 | 联系站长</title>
+<title>Website unavailable | Contact the administrator</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: #ffffff; color: #333333; height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 48px 24px; }
@@ -33,8 +33,8 @@ const DefaultSWOfflineHTML = `<!DOCTYPE html>
 </style>
 </head>
 <body>
-<h1>网站暂时无法访问</h1>
-<p>当前域名暂时无法从网络访问。请通过其他方式联系网站管理员获取最新访问入口。</p>
+<h1>Website temporarily unavailable</h1>
+<p>This domain is temporarily unreachable. Contact the website administrator through another channel for the latest access address.</p>
 </body>
 </html>
 `

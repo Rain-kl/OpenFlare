@@ -19,7 +19,7 @@ import (
 func TestParseAndValidatePagesDownloadURL(t *testing.T) {
 	_, err := parseAndValidatePagesDownloadURL("")
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "填写")
+	assert.Contains(t, err.Error(), "enter")
 
 	_, err = parseAndValidatePagesDownloadURL("ftp://example.com/a.zip")
 	require.Error(t, err)

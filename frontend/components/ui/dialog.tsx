@@ -1,5 +1,7 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
+
 import * as React from 'react';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { XIcon } from 'lucide-react';
@@ -54,6 +56,8 @@ function DialogContent({
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean;
 }) {
+  const uiText = useTranslations('runtime');
+
   // 统一小屏样式：全宽留白、适度圆角、滚动保护
   const mobileBase = 'w-full max-w-[calc(100%-1.5rem)]';
   const desktopBase = 'sm:max-w-lg md:max-w-xl';
@@ -75,7 +79,7 @@ function DialogContent({
             className="ring-offset-background focus:ring-ring data-[state=open]:bg-accent data-[state=open]:text-muted-foreground absolute top-4 right-4 rounded-xs opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4"
           >
             <XIcon />
-            <span className='sr-only'>Close</span>
+            <span className='sr-only'>{uiText('ui_closeLabel')}</span>
           </DialogPrimitive.Close>
         )}
       </DialogPrimitive.Content>

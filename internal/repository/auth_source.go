@@ -179,7 +179,7 @@ func ListExternalAccountsByUserID(ctx context.Context, userID uint64) ([]model.E
 		if account.AuthSourceID == 0 {
 			name = "default"
 			sourceType = "oidc"
-			label = "历史认证源"
+			label = "Historical authentication source"
 		} else {
 			source, err := GetAuthSourceByID(ctx, account.AuthSourceID)
 			if err != nil {

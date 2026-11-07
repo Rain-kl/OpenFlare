@@ -361,7 +361,7 @@ func normalizeProxyRouteLimitReqPerIP(raw string) (string, error) {
 		return "-1", nil
 	}
 	if !proxyRouteLimitReqPattern.MatchString(normalized) {
-		return "", errors.New("请求频率格式不合法，请使用类似 10r/s、100r/m，或 -1 禁用")
+		return "", errors.New("invalid request rate; use a rate such as 10r/s or 100r/m, or -1 to disable")
 	}
 	return normalized, nil
 }

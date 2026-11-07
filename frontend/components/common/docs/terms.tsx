@@ -1,3 +1,4 @@
+import type { RuntimeTranslator } from '@/i18n/runtime';
 import { type PolicySection } from './types';
 
 export const TERMS_LAST_UPDATED = '2026-06-07';
@@ -7,153 +8,176 @@ export const TERMS_LAST_UPDATED = '2026-06-07';
  * 服务条款 (TERMS OF SERVICE)
  * ------------------------------------------------------------------
  */
-export const termsSections: PolicySection[] = [
-  {
-    value: 'contract-establishment',
-    title: '1. 缔约申明与服务综述',
-    content: (
-      <div className='space-y-4 text-sm leading-relaxed'>
-        <p>
-          <strong>1.1 缔约主体：</strong>
-          本《服务协议》（以下简称“本协议”）是您（以下称“用户”或“开发者”）与本通用开发脚手架平台（以下简称“本系统”或“平台”）运营维护方之间关于使用本系统所订立的契约。
-        </p>
-        <p>
-          <strong>1.2 审慎阅读：</strong>
-          本系统作为一个通用的、面向二次开发的全栈软件底座，旨在为用户提供基础的注册、会话、OIDC
-          接入、API Key
-          令牌鉴权及后台管理服务。若您使用本系统，请务必仔细阅读本协议各条款。
-        </p>
-        <p>
-          <strong>1.3 协议构成：</strong>
-          本协议内容包括协议正文及所有我们已经发布或将来可能发布的各类规则、声明、说明。所有规则为本协议不可分割的组成部分，与协议正文具有同等法律效力。
-        </p>
-      </div>
-    ),
-  },
-  {
-    value: 'service-definition',
-    title: '2. 服务定义与性质界定',
-    content: (
-      <div className='space-y-4 text-sm leading-relaxed'>
-        <ul className='list-disc pl-4 md:pl-5 space-y-2'>
-          <li>
-            <strong>责任自担：</strong>
-            关于用户对本系统进行二次开发并应用于其他生产环境产生的任何业务行为，由二开部署运营主体承担全部合规责任。
-          </li>
-        </ul>
-      </div>
-    ),
-  },
-  {
-    value: 'account-specifications',
-    title: '3. 账号注册与使用规范',
-    content: (
-      <div className='space-y-4 text-sm leading-relaxed'>
-        <p>
-          <strong>3.1 账号体系：</strong>
-          用户可通过本系统的前端注册表单自助创建账户，或通过系统管理员配置并启用的自定义第三方
-          OIDC 认证源进行登录关联。
-        </p>
-        <p>
-          <strong>3.2 密码及令牌安全责任：</strong>
-        </p>
-        <ul className='list-disc pl-4 md:pl-5 space-y-2'>
-          <li>
-            <strong>密码安全：</strong>您应妥善保管您账户的登录密码。
-          </li>
-          <li>
-            <strong>API Token 安全：</strong>个人生成的 AccessToken (API Key)
-            代表您账户的完整调用权限。
-            <strong>
-              因您保管不善导致 Token
-              泄漏而造成的一切数据丢失或系统损失，均由您自行承担。
-            </strong>
-          </li>
-        </ul>
-      </div>
-    ),
-  },
-  {
-    value: 'user-conduct',
-    title: '4. 用户行为准则（负面清单）',
-    content: (
-      <div className='space-y-4 text-sm leading-relaxed'>
-        <p>
-          您在使用本系统时，必须严格遵守《中华人民共和国网络安全法》、《计算机信息网络国际联网安全保护管理办法》等法律法规。
-          <strong>严禁利用本平台从事以下活动（“红线条款”）：</strong>
-        </p>
-        <div className='bg-red-500/5 border border-red-500/20 rounded-lg p-3 md:p-4 space-y-3'>
-          <ul className='list-disc pl-4 md:pl-5 space-y-2 text-red-600 dark:text-red-400 font-medium'>
+export function createTermsSections(rt: RuntimeTranslator): PolicySection[] {
+  return [
+    {
+      value: 'contract-establishment',
+      title: rt('1_agreement_and_service_overview_511c6782'),
+      content: (
+        <div className='space-y-4 text-sm leading-relaxed'>
+          <p>
+            <strong>{rt('1_1_parties_d2bf79cd')}</strong>{' '}
+            {rt('these_terms_of_service_the_agreement_govern_1e6754fc')}
+          </p>
+          <p>
+            <strong>{rt('1_2_read_carefully_dfde346e')}</strong>{' '}
+            {rt('this_system_is_a_general_purpose_full_f1d395fe')}
+          </p>
+          <p>
+            <strong>{rt('1_3_agreement_contents_f05cebc0')}</strong>{' '}
+            {rt('the_agreement_includes_these_terms_and_any_43e244b6')}
+          </p>
+        </div>
+      ),
+    },
+    {
+      value: 'service-definition',
+      title: rt('2_service_definition_and_nature_61db87f8'),
+      content: (
+        <div className='space-y-4 text-sm leading-relaxed'>
+          <ul className='list-disc pl-4 md:pl-5 space-y-2'>
             <li>
-              <strong>危害国家安全：</strong>
-              反对宪法所确定的基本原则、危害国家安全、泄露国家秘密、颠覆国家政权、破坏国家统一的；
-            </li>
-            <li>
-              <strong>非法信息服务：</strong>黑客攻击工具、DDoS
-              攻击服务、服务器爆破等其他非法信息服务平台；
-            </li>
-            <li>
-              <strong>黄赌毒关联：</strong>
-              制作、复制、发布、传播淫秽、色情、赌博、暴力、凶杀、恐怖或者教唆犯罪的；
-            </li>
-            <li>
-              <strong>侵犯知识产权：</strong>
-              销售盗版软件、盗版影视资源、非法游戏外挂、私服、黑号、社工库数据等；
-            </li>
-            <li>
-              <strong>其他违法信息：</strong>
-              涉及散布谣言、宣扬邪教/封建迷信、侮辱/诽谤他人、侵害他人合法权益的。
+              <strong>{rt('your_responsibility_527cbdbf')}</strong>{' '}
+              {rt('the_entity_deploying_and_operating_a_customized_047c6a8f')}
             </li>
           </ul>
         </div>
-        <p>
-          <strong>处理规则：</strong>
-          一旦发现您违反上述规定，平台运维主体有权不经通知
-          <strong>
-            立即永久封禁您的账号、拦截所有 AccessToken
-            请求，并依法向公安机关、网安部门移交相关线索。
-          </strong>
-        </p>
-      </div>
-    ),
-  },
-  {
-    value: 'liability-limitation',
-    title: '5. 免责声明与不可抗力',
-    content: (
-      <div className='space-y-4 text-sm leading-relaxed'>
-        <p>
-          <strong>5.1 基础免责：</strong>
-          本开发底座按“现状”（As-Is）及“现有”（As-Available）状态提供。我们不保证服务一定能满足您的特定开发需求，对服务的及时性、安全性、准确性都不作额外担保。
-        </p>
-        <p>
-          <strong>5.2 技术服务中断：</strong>
-          对于因以下不可抗力原因导致的服务中断、数据丢失或账号损坏，平台不承担赔偿责任：
-        </p>
-        <ul className='list-disc pl-4 md:pl-5 space-y-1 text-muted-foreground'>
-          <li>自然灾害（台风、地震、海啸、洪水等）；</li>
-          <li>政府行为、网络安全法律法规调整或行政命令；</li>
-          <li>电信部门线路技术故障、机房海底光缆损毁；</li>
-          <li>黑客入侵、勒索病毒感染导致的数据损毁或宕机。</li>
-        </ul>
-      </div>
-    ),
-  },
-  {
-    value: 'governing-law',
-    title: '6. 法律适用与争议解决',
-    content: (
-      <div className='space-y-4 text-sm leading-relaxed'>
-        <p>
-          <strong>6.1 法律适用：</strong>
-          本协议的订立、执行、解释及争议的解决均适用
-          <strong>中华人民共和国法律</strong>（不包括港澳台地区冲突法）。
-        </p>
-        <p>
-          <strong>6.2 争议解决：</strong>
-          若发生任何争议或纠纷，首先应友好协商解决；协商不成的，应提交至本系统部署或运营方所在地有管辖权的人民法院管辖。
-        </p>
-      </div>
-    ),
-  },
-];
+      ),
+    },
+    {
+      value: 'account-specifications',
+      title: rt('3_registration_and_account_use_cfab1555'),
+      content: (
+        <div className='space-y-4 text-sm leading-relaxed'>
+          <p>
+            <strong>{rt('3_1_accounts_2631c114')}</strong>{' '}
+            {rt('users_may_register_through_the_frontend_or_e527ef52')}
+          </p>
+          <p>
+            <strong>{rt('3_2_password_and_token_security_80dd80d9')}</strong>
+          </p>
+          <ul className='list-disc pl-4 md:pl-5 space-y-2'>
+            <li>
+              <strong>{rt('password_security_7a29e44e')}</strong>{' '}
+              {rt('keep_your_account_password_secure_eb9adf10')}
+            </li>
+            <li>
+              <strong>{rt('api_token_security_34af066f')}</strong>{' '}
+              {rt('a_personal_access_token_api_key_represents_6215b3b0')}{' '}
+              <strong>
+                {rt('you_are_responsible_for_data_loss_or_0c9acc88')}
+              </strong>
+            </li>
+          </ul>
+        </div>
+      ),
+    },
+    {
+      value: 'user-conduct',
+      title: rt('4_prohibited_user_conduct_bd5628b6'),
+      content: (
+        <div className='space-y-4 text-sm leading-relaxed'>
+          <p>
+            {rt('when_using_this_system_you_must_comply_1e54356c')}{' '}
+            <strong>
+              {rt('the_following_activities_are_strictly_prohibited_5b57de7f')}
+            </strong>
+          </p>
+          <div className='bg-red-500/5 border border-red-500/20 rounded-lg p-3 md:p-4 space-y-3'>
+            <ul className='list-disc pl-4 md:pl-5 space-y-2 text-red-600 dark:text-red-400 font-medium'>
+              <li>
+                <strong>{rt('endangering_national_security_4a160c4e')}</strong>{' '}
+                {rt(
+                  'opposing_constitutional_principles_endangering_national_security_disclosing_bdfb8814',
+                )}
+              </li>
+              <li>
+                <strong>{rt('illegal_information_services_c97748bb')}</strong>{' '}
+                {rt('hacking_tools_ddos_attack_services_server_brute_686746c4')}
+              </li>
+              <li>
+                <strong>{rt('pornography_gambling_and_drugs_fdb44a54')}</strong>{' '}
+                {rt(
+                  'creating_copying_publishing_or_distributing_obscene_pornographic_ec8c0fdb',
+                )}
+              </li>
+              <li>
+                <strong>
+                  {rt('intellectual_property_infringement_cc10b950')}
+                </strong>{' '}
+                {rt('selling_pirated_software_or_media_illegal_game_3f0f4159')}
+              </li>
+              <li>
+                <strong>{rt('other_unlawful_information_4085c17c')}</strong>{' '}
+                {rt(
+                  'spreading_rumors_promoting_cults_or_superstition_insulting_a062981a',
+                )}
+              </li>
+            </ul>
+          </div>
+          <p>
+            <strong>{rt('enforcement_9c7cfd68')}</strong>{' '}
+            {rt('if_these_rules_are_violated_the_platform_86df3b18')}
+            <strong>
+              {rt('permanently_suspend_your_account_block_all_access_b9f04a42')}
+            </strong>
+          </p>
+        </div>
+      ),
+    },
+    {
+      value: 'liability-limitation',
+      title: rt('5_disclaimer_and_force_majeure_be649f43'),
+      content: (
+        <div className='space-y-4 text-sm leading-relaxed'>
+          <p>
+            <strong>{rt('5_1_general_disclaimer_30d01f0d')}</strong>{' '}
+            {rt('this_development_platform_is_provided_as_is_23bc2b55')}
+          </p>
+          <p>
+            <strong>{rt('5_2_service_interruptions_16558fa8')}</strong>{' '}
+            {rt('the_platform_is_not_liable_for_interruptions_405b1c95')}
+          </p>
+          <ul className='list-disc pl-4 md:pl-5 space-y-1 text-muted-foreground'>
+            <li>
+              {rt(
+                'natural_disasters_including_typhoons_earthquakes_tsunamis_and_1bbbfb21',
+              )}
+            </li>
+            <li>
+              {rt(
+                'government_actions_cybersecurity_law_changes_or_administrative_2b7322f5',
+              )}
+            </li>
+            <li>
+              {rt('telecommunication_faults_or_damage_to_data_center_259a542f')}
+            </li>
+            <li>
+              {rt('data_corruption_or_downtime_caused_by_hacking_68f2e04f')}
+            </li>
+          </ul>
+        </div>
+      ),
+    },
+    {
+      value: 'governing-law',
+      title: rt('6_governing_law_and_disputes_b9663c86'),
+      content: (
+        <div className='space-y-4 text-sm leading-relaxed'>
+          <p>
+            <strong>{rt('6_1_governing_law_ff2afc5e')}</strong>{' '}
+            {rt(
+              'the_formation_performance_interpretation_and_resolution_of_c1510775',
+            )}
+            <strong>{rt('the_laws_of_the_people_s_republic_5d5c80d6')}</strong>{' '}
+            {rt('excluding_the_conflict_of_laws_rules_of_b235c4e3')}
+          </p>
+          <p>
+            <strong>{rt('6_2_dispute_resolution_44e871de')}</strong>{' '}
+            {rt('disputes_should_first_be_resolved_through_friendly_1ccf4610')}
+          </p>
+        </div>
+      ),
+    },
+  ];
+}

@@ -1,3 +1,4 @@
+import { runtimeText } from '@/i18n/runtime';
 import type { WAFRuleGraph, WAFRuleNode } from '@/lib/services/openflare';
 
 import { UA_BROWSER_LABELS, UA_OS_LABELS } from './ua-options';
@@ -39,25 +40,33 @@ export function validateGraph(graph: WAFRuleGraph): GraphIssue[] {
   const issues: GraphIssue[] = [];
   const nodeMap = new Map(graph.nodes.map((node) => [node.id, node]));
   if (graph.schema_version !== 1)
-    issues.push({ code: 'schema', message: '规则图 schema_version 必须为 1' });
+    issues.push({
+      code: 'schema',
+      message: runtimeText('rule_graph_schema_version_must_be_1_ea9a1161'),
+    });
   if (
     graph.nodes.length > 128 ||
     graph.edges.length > 256 ||
     new TextEncoder().encode(JSON.stringify(graph)).length > 256 * 1024
   )
-    issues.push({ code: 'size_limit', message: '规则图超过大小限制' });
+    issues.push({
+      code: 'size_limit',
+      message: runtimeText('rule_graph_exceeds_the_size_limit_337651b9'),
+    });
   const nodeIds = new Set<string>();
   for (const node of graph.nodes) {
     if (!node.id.trim())
       issues.push({
         code: 'empty_id',
-        message: '节点 ID 不能为空',
+        message: runtimeText('node_id_must_not_be_empty_51a5de58'),
         nodeId: node.id,
       });
     if (nodeIds.has(node.id))
       issues.push({
         code: 'duplicate_node_id',
-        message: `节点 ID ${node.id} 重复`,
+        message: runtimeText('duplicate_node_id_value0_621230af', {
+          value0: node.id,
+        }),
         nodeId: node.id,
       });
     nodeIds.add(node.id);
@@ -74,20 +83,22 @@ export function validateGraph(graph: WAFRuleGraph): GraphIssue[] {
     if (!edge.id.trim())
       issues.push({
         code: 'empty_id',
-        message: '连线 ID 不能为空',
+        message: runtimeText('edge_id_must_not_be_empty_bc8f69cb'),
         edgeId: edge.id,
       });
     if (edgeIds.has(edge.id))
       issues.push({
         code: 'duplicate_edge_id',
-        message: `连线 ID ${edge.id} 重复`,
+        message: runtimeText('duplicate_edge_id_value0_0a9d1c7c', {
+          value0: edge.id,
+        }),
         edgeId: edge.id,
       });
     edgeIds.add(edge.id);
     if (nodeMap.get(edge.target)?.type === 'start')
       issues.push({
         code: 'start_incoming',
-        message: '开始节点不能有入边',
+        message: runtimeText('the_start_node_must_not_have_incoming_50a07b17'),
         edgeId: edge.id,
         nodeId: edge.target,
       });
@@ -95,12 +106,12 @@ export function validateGraph(graph: WAFRuleGraph): GraphIssue[] {
   if (graph.nodes.filter((node) => node.type === 'start').length !== 1)
     issues.push({
       code: 'start_count',
-      message: '规则图必须恰好有一个开始节点',
+      message: runtimeText('the_rule_graph_must_contain_exactly_one_7dfbc027'),
     });
   if (graph.nodes.filter((node) => node.type === 'allow').length !== 1)
     issues.push({
       code: 'allow_count',
-      message: '规则图必须恰好有一个通过节点',
+      message: runtimeText('the_rule_graph_must_contain_exactly_one_0036eb82'),
     });
 
   for (const edge of graph.edges) {
@@ -112,7 +123,10 @@ export function validateGraph(graph: WAFRuleGraph): GraphIssue[] {
     ) {
       issues.push({
         code: 'invalid_edge',
-        message: `连线 ${edge.id} 的端点或出口无效`,
+        message: runtimeText(
+          'edge_value0_has_an_invalid_endpoint_or_9d84eb7e',
+          { value0: edge.id },
+        ),
         edgeId: edge.id,
       });
     }
@@ -125,13 +139,19 @@ export function validateGraph(graph: WAFRuleGraph): GraphIssue[] {
       if (outgoing.length === 0)
         issues.push({
           code: 'missing_handle',
-          message: `节点 ${node.id} 的 ${handle} 出口未连接`,
+          message: runtimeText(
+            'node_value0_output_value1_is_not_connected_c3038e81',
+            { value0: node.id, value1: handle },
+          ),
           nodeId: node.id,
         });
       if (outgoing.length > 1)
         issues.push({
           code: 'duplicate_handle',
-          message: `节点 ${node.id} 的 ${handle} 出口只能连接一次`,
+          message: runtimeText(
+            'node_value0_output_value1_can_only_be_903e54ce',
+            { value0: node.id, value1: handle },
+          ),
           nodeId: node.id,
         });
     }
@@ -151,7 +171,10 @@ export function validateGraph(graph: WAFRuleGraph): GraphIssue[] {
     if (!reachable.has(node.id))
       issues.push({
         code: 'unreachable',
-        message: `节点 ${node.id} 无法从开始节点到达`,
+        message: runtimeText(
+          'node_value0_is_unreachable_from_the_start_086531dc',
+          { value0: node.id },
+        ),
         nodeId: node.id,
       });
   const terminals = graph.nodes
@@ -162,18 +185,27 @@ export function validateGraph(graph: WAFRuleGraph): GraphIssue[] {
     if (!canTerminate.has(node.id))
       issues.push({
         code: 'non_terminating',
-        message: `节点 ${node.id} 无法抵达终止节点`,
+        message: runtimeText(
+          'node_value0_cannot_reach_a_terminal_node_8de2ff6e',
+          { value0: node.id },
+        ),
         nodeId: node.id,
       });
   if (hasCycle(graph))
-    issues.push({ code: 'cycle', message: '规则图不能包含循环' });
+    issues.push({
+      code: 'cycle',
+      message: runtimeText('the_rule_graph_must_not_contain_cycles_fd6fe797'),
+    });
   return issues;
 }
 
 function validateNodeConfig(node: WAFRuleNode): string | undefined {
   if (node.type === 'ip_match') {
     if (node.config.ips.some((value) => !isIP(value)))
-      return `节点 ${node.id} 包含无效 IP`;
+      return runtimeText(
+        'node_value0_contains_an_invalid_ip_address_1873ab94',
+        { value0: node.id },
+      );
     if (
       node.config.cidrs.some((value) => {
         const parts = value.split('/');
@@ -186,9 +218,13 @@ function validateNodeConfig(node: WAFRuleNode): string | undefined {
         );
       })
     )
-      return `节点 ${node.id} 包含无效 CIDR`;
+      return runtimeText('node_value0_contains_an_invalid_cidr_00c880d9', {
+        value0: node.id,
+      });
     if (node.config.ip_group_ids.some((id) => !Number.isInteger(id) || id <= 0))
-      return `节点 ${node.id} 包含无效 IP 组`;
+      return runtimeText('node_value0_contains_an_invalid_ip_group_589219a5', {
+        value0: node.id,
+      });
   }
   if (
     node.type === 'geo_match' &&
@@ -197,7 +233,10 @@ function validateNodeConfig(node: WAFRuleNode): string | undefined {
         (code) => !/^[A-Z]{2}-[A-Z0-9]{1,3}$/.test(code),
       ))
   )
-    return `节点 ${node.id} 包含无效地域代码`;
+    return runtimeText(
+      'node_value0_contains_an_invalid_geography_code_1a9f469b',
+      { value0: node.id },
+    );
   if (
     node.type === 'pow' &&
     (!['fast', 'slow'].includes(node.config.algorithm) ||
@@ -205,37 +244,61 @@ function validateNodeConfig(node: WAFRuleNode): string | undefined {
       !isIntegerInRange(node.config.session_ttl, 60) ||
       !isIntegerInRange(node.config.challenge_ttl, 30))
   )
-    return `节点 ${node.id} 的 PoW 配置超出范围`;
+    return runtimeText('node_value0_has_pow_settings_outside_the_9fd2a4cb', {
+      value0: node.id,
+    });
   if (
     node.type === 'block' &&
     (!isIntegerInRange(node.config.status_code, 400, 599) ||
       new TextEncoder().encode(node.config.response_body).length > 16 * 1024)
   )
-    return `节点 ${node.id} 的阻止响应配置无效`;
+    return runtimeText(
+      'node_value0_has_invalid_block_response_settings_ae4c35ca',
+      { value0: node.id },
+    );
   if (node.type === 'ua_check') {
     if (!['and', 'or'].includes(node.config.match_mode))
-      return `节点 ${node.id} 的匹配模式必须为 and 或 or`;
+      return runtimeText('node_value0_match_mode_must_be_and_242c1ae7', {
+        value0: node.id,
+      });
     if (node.config.browsers.some((label) => !UA_BROWSER_LABELS.has(label)))
-      return `节点 ${node.id} 包含无效浏览器标签`;
+      return runtimeText(
+        'node_value0_contains_an_invalid_browser_tag_4d0e6740',
+        { value0: node.id },
+      );
     if (node.config.operating_systems.some((label) => !UA_OS_LABELS.has(label)))
-      return `节点 ${node.id} 包含无效操作系统标签`;
+      return runtimeText(
+        'node_value0_contains_an_invalid_operating_system_45bea1fb',
+        { value0: node.id },
+      );
     if (node.config.custom_ua_patterns.length > 32)
-      return `节点 ${node.id} 的自定义 UA 正则不能超过 32 条`;
+      return runtimeText('node_value0_allows_at_most_32_custom_497938c6', {
+        value0: node.id,
+      });
     for (const pattern of node.config.custom_ua_patterns) {
-      if (!pattern.trim()) return `节点 ${node.id} 的自定义 UA 正则不能为空`;
+      if (!pattern.trim())
+        return runtimeText('node_value0_custom_ua_pattern_must_not_a72718be', {
+          value0: node.id,
+        });
       if (new TextEncoder().encode(pattern).length > 256)
-        return `节点 ${node.id} 的自定义 UA 正则过长`;
+        return runtimeText('node_value0_custom_ua_pattern_is_too_c2c83c0e', {
+          value0: node.id,
+        });
       try {
         void new RegExp(pattern);
       } catch {
-        return `节点 ${node.id} 的自定义 UA 正则无效`;
+        return runtimeText('node_value0_has_an_invalid_custom_ua_c47ffd0d', {
+          value0: node.id,
+        });
       }
     }
     if (
       node.config.block_custom_ua &&
       node.config.custom_ua_patterns.length === 0
     )
-      return `节点 ${node.id} 开启屏蔽自定义 UA 时至少需要一条正则`;
+      return runtimeText('node_value0_requires_at_least_one_pattern_6114bb93', {
+        value0: node.id,
+      });
   }
   return undefined;
 }

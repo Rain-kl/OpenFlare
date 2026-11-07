@@ -1,0 +1,36 @@
+{
+  "layout": {
+    "search": {
+      "keywords": {
+        "home": "home|dashboard",
+        "docs-how-to-use": "docs|how to|tutorial|help",
+        "console-nodes": "node|tunnel",
+        "console-proxy-routes": "route|proxy",
+        "console-websites": "website|domain",
+        "console-certificates": "certificate|ssl|tls|https",
+        "console-dns-accounts": "dns|dns account|cloudflare|aliyun|tencent",
+        "console-origins": "origin|backend",
+        "console-responses": "502|503|5xx|Service Worker|error page",
+        "console-waf": "waf|security",
+        "console-ip-groups": "ip|ip group",
+        "console-rate-limits": "rate limit|limit_conn|limit_rate",
+        "console-pages": "pages|cdn|static",
+        "console-config-versions": "version|config",
+        "console-access-logs": "log|logs",
+        "console-apply-logs": "apply|log|logs",
+        "console-performance": "performance",
+        "settings": "settings|preferences",
+        "settings-profile": "profile|avatar",
+        "settings-appearance": "appearance|theme|dark|light",
+        "admin-settings": "admin|security|oidc|login",
+        "admin-system": "admin|system|configurations",
+        "admin-users": "admin|users|status",
+        "admin-tasks": "admin|tasks|scheduler|worker",
+        "admin-files": "admin|files|upload|s3",
+        "admin-database": "admin|database|sql|query|gorm",
+        "admin-push": "admin|push|mail|telegram|lark",
+        "admin-logs": "admin|logs|system log|terminal"
+      }
+    }
+  }
+}

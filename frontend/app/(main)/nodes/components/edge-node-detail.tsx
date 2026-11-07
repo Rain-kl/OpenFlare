@@ -64,6 +64,7 @@ const nodesQueryKey = ['openflare', 'nodes'];
 
 export function EdgeNodeDetail({ node }: { node: NodeItem }) {
   const t = useTranslations('nodes');
+  const rt = useTranslations('runtime');
   const tc = useTranslations('common');
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -320,7 +321,7 @@ export function EdgeNodeDetail({ node }: { node: NodeItem }) {
     <>
       <NodeDetailShell
         title={node.name}
-        typeLabel='Edge'
+        typeLabel={rt('node_type_edge')}
         typeTone='info'
         statusBadges={[
           {

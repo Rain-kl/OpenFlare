@@ -17,6 +17,7 @@ limitations under the License.
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { isLogStorageDisabledMessage } from './log-storage-error';
 import {
   BarChart3,
   Globe,
@@ -117,7 +118,7 @@ export function AccessAnalytics() {
       const errorInstance =
         err instanceof Error ? err : new Error(t('fetchFailed'));
       const errMsg = errorInstance.message || '';
-      if (errMsg.includes('ClickHouse') || errMsg.includes('未启用')) {
+      if (isLogStorageDisabledMessage(errMsg)) {
         setClickhouseDisabled(true);
       } else {
         setError(errorInstance);

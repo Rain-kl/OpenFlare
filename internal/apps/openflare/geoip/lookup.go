@@ -23,10 +23,10 @@ type LookupView struct {
 }
 
 const (
-	errProviderInvalid = "归属方式仅支持 disabled、mmdb、ip-api、geojs、ipinfo"
-	errIPEmpty         = "IP 不能为空"
-	errIPInvalid       = "IP 格式无效"
-	errLookupEmpty     = "未获取到 IP 归属结果"
+	errProviderInvalid = "geolocation provider must be disabled, mmdb, ip-api, geojs or ipinfo"
+	errIPEmpty         = "IP address must not be empty"
+	errIPInvalid       = "invalid IP address format"
+	errLookupEmpty     = "no IP geolocation result was returned"
 )
 
 // IsValidProvider reports whether provider is a supported GeoIP backend.

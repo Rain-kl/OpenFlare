@@ -1,3 +1,6 @@
+'use client';
+
+import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -78,11 +81,15 @@ export function ManagePage<T>({
   columns,
   renderDetail,
   emptyIcon = Layers,
-  emptyDescription = '暂无数据',
-  loadingDescription = '加载中',
+  emptyDescription = undefined,
+  loadingDescription = undefined,
   getId,
   headerExtra,
 }: ManagePageProps<T>) {
+  const rt = useTranslations('runtime');
+  emptyDescription ??= rt('no_data_497c8569');
+  loadingDescription ??= rt('loading_d04fcbda');
+
   /** 悬停状态 */
   const [hoveredItem, setHoveredItem] = useState<T | null>(null);
   const [selectedItem, setSelectedItem] = useState<T | null>(null);
@@ -125,10 +132,11 @@ export function ManagePage<T>({
     try {
       setSaving(true);
       await onSave(selectedItem, editData);
-      toast.success('保存成功');
+      toast.success(rt('saved_e05ddf99'));
     } catch (error) {
-      toast.error('保存失败', {
-        description: error instanceof Error ? error.message : '未知错误',
+      toast.error(rt('save_failed_6309a3bb'), {
+        description:
+          error instanceof Error ? error.message : rt('unknown_error_13a46616'),
       });
     } finally {
       setSaving(false);
@@ -144,7 +152,7 @@ export function ManagePage<T>({
     if (!deletingItem || !onDelete) return;
     try {
       await onDelete(deletingItem);
-      toast.success('删除成功');
+      toast.success(rt('deleted_5223f91b'));
       setDeletingItem(null);
       // 如果删除的是当前选中的项，清除选中状态
       if (selectedItem && getId(selectedItem) === getId(deletingItem)) {
@@ -152,8 +160,9 @@ export function ManagePage<T>({
         setEditData({});
       }
     } catch (error) {
-      toast.error('删除失败', {
-        description: error instanceof Error ? error.message : '未知错误',
+      toast.error(rt('delete_failed_c228558c'), {
+        description:
+          error instanceof Error ? error.message : rt('unknown_error_13a46616'),
       });
     }
   };
@@ -216,7 +225,9 @@ export function ManagePage<T>({
       <div className='space-y-6'>
         <div>
           <div className='mb-4'>
-            <div className='font-semibold'>配置列表</div>
+            <div className='font-semibold'>
+              {rt('configuration_list_53052147')}
+            </div>
           </div>
           {renderContent()}
         </div>
@@ -239,18 +250,18 @@ export function ManagePage<T>({
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>确认删除?</AlertDialogTitle>
+            <AlertDialogTitle>{rt('confirm_delete_2d61cf17')}</AlertDialogTitle>
             <AlertDialogDescription>
-              此操作无法撤销。这将永久删除该配置。
+              {rt('this_cannot_be_undone_this_will_permanently_8c896756')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogCancel>{rt('cancel_2cd0f3be')}</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleConfirmDelete}
               className='bg-red-600 hover:bg-red-700'
             >
-              确认删除
+              {rt('confirm_delete_a3ea3c17')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -271,13 +282,17 @@ interface ManageDetailPanelProps {
 
 /** 详情面板 */
 export function ManageDetailPanel({
-  title = '配置信息',
+  title = undefined,
   isEmpty,
-  emptyDescription = '请选择配置查看详情',
+  emptyDescription = undefined,
   onSave,
   saving = false,
   children,
 }: ManageDetailPanelProps) {
+  const rt = useTranslations('runtime');
+  title ??= rt('configuration_info_7f69a860');
+  emptyDescription ??= rt('select_a_configuration_to_view_details_ec4949ab');
+
   if (isEmpty) {
     return (
       <div className='space-y-4'>
@@ -301,10 +316,10 @@ export function ManageDetailPanel({
             >
               {saving ? (
                 <>
-                  <Spinner /> 更新中
+                  <Spinner /> {rt('updating_e1d9dd03')}
                 </>
               ) : (
-                '更新'
+                rt('update_3055a035')
               )}
             </Button>
           )}
@@ -341,6 +356,8 @@ export function ManageTable<T>({
   onDelete?: (item: T) => void;
   getId: (item: T) => string | number;
 }) {
+  const rt = useTranslations('runtime');
+
   return (
     <div className='border border-dashed shadow-none rounded-lg overflow-hidden'>
       <ScrollArea className='w-full'>
@@ -358,7 +375,7 @@ export function ManageTable<T>({
                 ))}
                 {onDelete && (
                   <TableHead className='whitespace-nowrap text-center w-[120px]'>
-                    操作
+                    {rt('actions_ed31fbb4')}
                   </TableHead>
                 )}
               </TableRow>

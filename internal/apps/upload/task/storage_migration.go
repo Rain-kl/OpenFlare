@@ -38,8 +38,8 @@ const (
 var StorageMigrationMeta = task.TaskMeta{
 	Type:         TaskTypeStorageMigration,
 	AsynqTask:    StorageMigrationTask,
-	Name:         "迁移文件存储",
-	Description:  "将活动存储中的文件迁移到待切换的目标存储，迁移期间文件系统保持只读",
+	Name:         "Migrate file storage",
+	Description:  "Migrate files from active storage to the target backend; files remain read-only during migration",
 	SupportsTime: false,
 	MaxRetry:     task.DefaultMaxRetry,
 	Queue:        task.QueueDefault,
@@ -47,11 +47,11 @@ var StorageMigrationMeta = task.TaskMeta{
 	Params: []task.TaskParam{
 		{
 			Name:        "target",
-			Label:       "目标存储配置 (JSON)",
+			Label:       "Target storage configuration (JSON)",
 			Type:        "text",
 			Required:    true,
 			Placeholder: `{"driver": "s3", "local": {"root": "."}, "s3": {"bucket": "my-bucket", ...}}`,
-			Description: "待迁移到的目标存储引擎完整配置 JSON 字符串",
+			Description: "Complete JSON configuration of the target storage backend",
 		},
 	},
 }
@@ -89,7 +89,7 @@ func (h *MigrationHandler) Execute(ctx context.Context, payload []byte) (*task.T
 			return nil, fmt.Errorf("acquire migration lock: %w", err)
 		}
 		if !ok {
-			return nil, errors.New("另一个存储迁移任务正在运行中")
+			return nil, errors.New("another storage migration task is already running")
 		}
 
 		stopRenewal := make(chan struct{})
@@ -132,7 +132,7 @@ func (h *MigrationHandler) Execute(ctx context.Context, payload []byte) (*task.T
 		if err := objectstore.SaveActiveConfig(ctx, target); err != nil {
 			return nil, fmt.Errorf("activate same-driver storage config: %w", err)
 		}
-		message := fmt.Sprintf("存储配置已更新，活动存储保持为 %s", target.Driver)
+		message := fmt.Sprintf("Storage configuration updated; active storage remains %s", target.Driver)
 		task.AppendLog(ctx, "%s", message)
 		return &task.TaskResult{Message: message}, nil
 	}
@@ -145,7 +145,7 @@ func (h *MigrationHandler) Execute(ctx context.Context, payload []byte) (*task.T
 		if err := objectstore.SaveActiveConfig(ctx, target); err != nil {
 			return nil, fmt.Errorf("activate empty storage config: %w", err)
 		}
-		message := fmt.Sprintf("当前存储没有需要迁移的对象，活动存储已切换为 %s", target.Driver)
+		message := fmt.Sprintf("Current storage has no objects to migrate; active storage switched to %s", target.Driver)
 		task.AppendLog(ctx, "%s", message)
 		return &task.TaskResult{Message: message}, nil
 	}
@@ -159,7 +159,7 @@ func (h *MigrationHandler) Execute(ctx context.Context, payload []byte) (*task.T
 		return nil, fmt.Errorf("create target storage: %w", err)
 	}
 
-	task.AppendLog(ctx, "开始存储迁移: %s -> %s，总对象数: %d", active.Driver, target.Driver, total)
+	task.AppendLog(ctx, "Starting storage migration: %s -> %s, total objects: %d", active.Driver, target.Driver, total)
 	migrated, err := migrateObjects(ctx, sourceBackend, targetBackend, total)
 	if err != nil {
 		return nil, err
@@ -168,7 +168,7 @@ func (h *MigrationHandler) Execute(ctx context.Context, payload []byte) (*task.T
 	if err := objectstore.SaveActiveConfig(ctx, target); err != nil {
 		return nil, fmt.Errorf("activate target storage: %w", err)
 	}
-	message := fmt.Sprintf("存储迁移完成，共迁移 %d 个对象，活动存储已切换为 %s", migrated, target.Driver)
+	message := fmt.Sprintf("Storage migration completed; migrated %d objects, active storage switched to %s", migrated, target.Driver)
 	task.AppendLog(ctx, "%s", message)
 	return &task.TaskResult{Message: message}, nil
 }
@@ -201,19 +201,19 @@ func migrateObjects(
 			return migrated.Load(), fmt.Errorf("storage migration canceled: %w", err)
 		}
 
-		task.AppendLog(ctx, "正在查询待迁移对象批次，当前已完成迁移: %d/%d", migrated.Load(), total)
+		task.AppendLog(ctx, "Querying next migration batch; migrated: %d/%d", migrated.Load(), total)
 
 		objects, err := repository.ListDistinctActiveStorageObjects(ctx, lastFilePath, batchSize)
 		if err != nil {
 			return migrated.Load(), fmt.Errorf("query source objects: %w", err)
 		}
 		if len(objects) == 0 {
-			task.AppendLog(ctx, "所有对象迁移完毕")
+			task.AppendLog(ctx, "All objects have been migrated")
 			break
 		}
 
 		lastFilePath = objects[len(objects)-1].FilePath
-		task.AppendLog(ctx, "获取当前批次迁移对象，批次大小: %d，实际获取对象数: %d", batchSize, len(objects))
+		task.AppendLog(ctx, "Fetched migration batch; requested size: %d, actual objects: %d", batchSize, len(objects))
 
 		var g errgroup.Group
 		g.SetLimit(migrationConcurrency)
@@ -233,7 +233,7 @@ func migrateObjects(
 			return migrated.Load(), err
 		}
 
-		task.AppendLog(ctx, "当前批次迁移完成。迁移进度: %d/%d", migrated.Load(), total)
+		task.AppendLog(ctx, "Current migration batch completed. Progress: %d/%d", migrated.Load(), total)
 	}
 	return migrated.Load(), nil
 }
@@ -246,11 +246,11 @@ func migrateSingleObject(
 	sha256HexLength int,
 ) error {
 	if shouldSkipMigration(ctx, targetBackend, obj) {
-		task.AppendLog(ctx, "[跳过迁移] 目标存储已存在相同文件: %s", obj.FilePath)
+		task.AppendLog(ctx, "[Migration skipped] Identical file already exists in target storage: %s", obj.FilePath)
 		return nil
 	}
 
-	task.AppendLog(ctx, "[迁移开始] 正在从源存储读取文件: %s", obj.FilePath)
+	task.AppendLog(ctx, "[Migration started] Reading file from source storage: %s", obj.FilePath)
 	source, err := sourceBackend.Get(ctx, obj.FilePath)
 	if err != nil {
 		if isNotFoundError(err) {
@@ -258,7 +258,7 @@ func migrateSingleObject(
 		}
 		return fmt.Errorf("open source object %q: %w", obj.FilePath, err)
 	}
-	task.AppendLog(ctx, "[传输中] 正在向目标存储上传文件: %s (大小: %d 字节, 类型: %s)", obj.FilePath, obj.FileSize, obj.MimeType)
+	task.AppendLog(ctx, "[Transfer] Uploading file to target storage: %s (size: %d bytes, type: %s)", obj.FilePath, obj.FileSize, obj.MimeType)
 	targetResult, putErr := targetBackend.Put(ctx, obj.FilePath, source.Body, obj.FileSize, obj.MimeType)
 	closeErr := source.Body.Close()
 	if putErr != nil {
@@ -269,7 +269,7 @@ func migrateSingleObject(
 	}
 
 	if len(obj.Hash) == sha256HexLength {
-		task.AppendLog(ctx, "[校验中] 正在对目标文件进行数据一致性校验 (SHA-256): %s", targetResult.Key)
+		task.AppendLog(ctx, "[Verification] Checking target file consistency (SHA-256): %s", targetResult.Key)
 		targetObj, getErr := targetBackend.Get(ctx, targetResult.Key)
 		if getErr != nil {
 			return fmt.Errorf("retrieve target object for verification %q: %w", obj.FilePath, getErr)
@@ -287,16 +287,16 @@ func migrateSingleObject(
 		if computedHash != obj.Hash {
 			return fmt.Errorf("integrity check failed for %q: got hash %s, want %s", obj.FilePath, computedHash, obj.Hash)
 		}
-		task.AppendLog(ctx, "[校验通过] 文件一致性校验成功: %s", targetResult.Key)
+		task.AppendLog(ctx, "[Verified] File consistency check succeeded: %s", targetResult.Key)
 	}
 
 	if targetResult.Key != obj.FilePath {
-		task.AppendLog(ctx, "[更新数据库] 正在更新文件路径: %s -> %s", obj.FilePath, targetResult.Key)
+		task.AppendLog(ctx, "[Database update] Updating file path: %s -> %s", obj.FilePath, targetResult.Key)
 		if err := repository.UpdateActiveUploadsFilePath(ctx, obj.FilePath, targetResult.Key); err != nil {
 			return fmt.Errorf("update migrated object %q: %w", obj.FilePath, err)
 		}
 	}
-	task.AppendLog(ctx, "[迁移成功] 文件已完成迁移: %s", targetResult.Key)
+	task.AppendLog(ctx, "[Migration succeeded] File migration completed: %s", targetResult.Key)
 	return nil
 }
 
@@ -321,7 +321,7 @@ func markMissingMigrationObjectDeleted(
 	filePath string,
 	sourceErr error,
 ) error {
-	task.AppendLog(ctx, "警告: 源存储中物理文件不存在，标记为已删除并跳过: %s (错误: %v)", filePath, sourceErr)
+	task.AppendLog(ctx, "Warning: source file is missing; marking it deleted and skipping: %s (error: %v)", filePath, sourceErr)
 
 	affectedUploads, err := repository.MarkActiveUploadsDeletedByFilePath(ctx, filePath)
 	if err != nil {

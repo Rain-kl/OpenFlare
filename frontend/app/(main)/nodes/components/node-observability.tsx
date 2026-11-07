@@ -1,5 +1,6 @@
 'use client';
 
+import { getFormattingLocale } from '@/i18n/format';
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Loader2, Trash2 } from 'lucide-react';
@@ -652,7 +653,9 @@ export function NodeObservability({
           hint={
             topSourceCountry
               ? t('obs.requestTimes', {
-                  count: topSourceCountry.value.toLocaleString('zh-CN'),
+                  count: topSourceCountry.value.toLocaleString(
+                    getFormattingLocale(),
+                  ),
                 })
               : t('obs.noSourceDist')
           }

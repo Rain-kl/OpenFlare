@@ -1,3 +1,4 @@
+import { runtimeText } from '@/i18n/runtime';
 /**
  * Cap PoW (Proof-of-Work) 人机验证前端实现
  * 与后端 pkg/cap 算法完全对应
@@ -78,7 +79,7 @@ async function solvePuzzle(token, index, size, difficulty) {
   for (let nonce = 0; nonce < 10_000_000; nonce++) {
     if ((await sha256Hex(salt + nonce)).startsWith(target)) return nonce;
   }
-  throw new Error('无法在合理范围内求解第 ' + (index + 1) + ' 个难题');
+  throw new Error('Could not solve puzzle ' + (index + 1) + ' within the allowed search range');
 }
 
 // Entry point — receive task from main thread
@@ -124,7 +125,11 @@ function solveInWorker(
     worker.onerror = (err) => {
       URL.revokeObjectURL(url);
       worker.terminate();
-      reject(new Error(err.message || 'Worker 执行失败'));
+      reject(
+        new Error(
+          err.message || runtimeText('worker_execution_failed_1877e35b'),
+        ),
+      );
     };
 
     worker.postMessage({ token, count, size, difficulty });
@@ -142,14 +147,14 @@ export async function getCapToken(scope = 'login'): Promise<string> {
   });
   const challenge = await readApiData<ChallengeResponse>(
     challengeRes,
-    '获取人机验证难题失败',
+    runtimeText('failed_to_fetch_the_verification_challenge_95553133'),
   );
   const { c: count, s: size, d: difficulty } = challenge.challenge;
 
-  console.groupCollapsed('[Cap] 人机验证 PoW 求解开始');
-  console.log(`  难题数量 (count)    : ${count}`);
-  console.log(`  验证难度 (difficulty): ${difficulty}`);
-  console.log(`  盐值长度 (size)     : ${size}`);
+  console.groupCollapsed('[Cap] Starting verification PoW solver');
+  console.log(`  Challenge count: ${count}`);
+  console.log(`  Difficulty: ${difficulty}`);
+  console.log(`  Salt size: ${size}`);
   console.groupEnd();
 
   // 2. 在 Worker 中求解（不阻塞主线程）
@@ -162,11 +167,11 @@ export async function getCapToken(scope = 'login'): Promise<string> {
   );
   const wallTime = ((performance.now() - t0) / 1000).toFixed(3);
 
-  console.groupCollapsed('[Cap] 人机验证 PoW 求解完成');
-  console.log(`  难题数量 (count)    : ${count}`);
-  console.log(`  验证难度 (difficulty): ${difficulty}`);
-  console.log(`  Worker 耗时         : ${elapsed}s`);
-  console.log(`  总耗时（含通信）     : ${wallTime}s`);
+  console.groupCollapsed('[Cap] Verification PoW solver completed');
+  console.log(`  Challenge count: ${count}`);
+  console.log(`  Difficulty: ${difficulty}`);
+  console.log(`  Worker duration: ${elapsed}s`);
+  console.log(`  Total duration (including communication): ${wallTime}s`);
   console.log(`  Solutions           :`, solutions);
   console.groupEnd();
 
@@ -178,10 +183,12 @@ export async function getCapToken(scope = 'login'): Promise<string> {
   });
   const redeemData = await readApiData<RedeemResponse>(
     redeemRes,
-    '人机验证失败',
+    runtimeText('verification_failed_d3925ab2'),
   );
   if (!redeemData.success || !redeemData.token) {
-    throw new Error(redeemData.error || '人机验证失败');
+    throw new Error(
+      redeemData.error || runtimeText('verification_failed_d3925ab2'),
+    );
   }
 
   return redeemData.token;

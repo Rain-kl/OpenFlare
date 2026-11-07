@@ -25,7 +25,7 @@ jobs:
 
             // if any unchecked, fail the workflow
             if (unchecked.length > 0) {
-              core.setFailed(`PR checklist 未全部勾选，请确保所有 checklist 项都已勾选。未勾选项如下：\n${unchecked.join('\n')}`);
+              core.setFailed(`Complete all PR checklist items. Unchecked items:\n${unchecked.join('\n')}`);
             } else {
               console.log('all checklist items are checked.');
             }

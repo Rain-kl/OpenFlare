@@ -410,7 +410,7 @@ func TestDispatchTask(t *testing.T) {
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 		var resp response.Any
 		json.Unmarshal(w.Body.Bytes(), &resp)
-		assert.Contains(t, resp.ErrorMsg, "无效的 JSON 格式")
+		assert.Contains(t, resp.ErrorMsg, "invalid JSON format")
 	})
 
 	t.Run("dispatch send_email task failure with missing fields", func(t *testing.T) {
@@ -427,7 +427,7 @@ func TestDispatchTask(t *testing.T) {
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 		var resp response.Any
 		json.Unmarshal(w.Body.Bytes(), &resp)
-		assert.Contains(t, resp.ErrorMsg, "不能为空")
+		assert.Contains(t, resp.ErrorMsg, "must not be empty")
 	})
 
 	t.Run("dispatch invalid task type failure", func(t *testing.T) {

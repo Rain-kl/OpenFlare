@@ -3,15 +3,24 @@
 
 package task
 
+// RetryError identifies a rejected retry without depending on the message language.
+type RetryError struct {
+	Err      error
+	NotFound bool
+}
+
+func (e *RetryError) Error() string { return e.Err.Error() }
+func (e *RetryError) Unwrap() error { return e.Err }
+
 const (
-	errUnknownTaskType            = "未知的任务类型: %s"
-	errCreateTaskExecutionFailed  = "创建任务执行记录失败: %w"
-	errTaskEnqueueFailed          = "任务入队失败: %w"
-	errTaskExecutionNotFound      = "任务执行记录不存在: %w"
-	errRetryOnlyFailedTask        = "只有失败的任务才能重试，当前状态: %s"
-	errTaskNotRetryable           = "该任务不支持重试"
-	errTaskMaxRetryExceeded       = "已达到最大重试次数 %d"
-	errCreateRetryExecutionFailed = "创建重试任务执行记录失败: %w"
-	errRetryTaskEnqueueFailed     = "重试任务入队失败: %w"
-	errUnregisteredTaskHandler    = "未注册的任务处理器: %s"
+	errUnknownTaskType            = "unknown task type: %s"
+	errCreateTaskExecutionFailed  = "failed to create task execution record: %w"
+	errTaskEnqueueFailed          = "failed to enqueue task: %w"
+	errTaskExecutionNotFound      = "task execution was not found: %w"
+	errRetryOnlyFailedTask        = "only failed tasks can be retried; current status: %s"
+	errTaskNotRetryable           = "this task cannot be retried"
+	errTaskMaxRetryExceeded       = "Maximum retry count %d reached"
+	errCreateRetryExecutionFailed = "failed to create retry execution record: %w"
+	errRetryTaskEnqueueFailed     = "failed to enqueue retry task: %w"
+	errUnregisteredTaskHandler    = "unregistered task handler: %s"
 )

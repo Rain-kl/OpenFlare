@@ -53,13 +53,13 @@ func retentionDaysForDatabase(ctx context.Context, dbName string) int {
 	v, err := getConfig(ctx, key)
 	if err != nil {
 		if !errors.Is(err, errConfigReaderNotWired) {
-			logger.ErrorF(ctx, "读取日志保留天数配置失败(key=%s)，回退默认 %d 天: %v", key, defaultLogRetentionDays, err)
+			logger.ErrorF(ctx, "Failed to read log retention configuration (key=%s); using default of %d days: %v", key, defaultLogRetentionDays, err)
 		}
 		return defaultLogRetentionDays
 	}
 	days, perr := strconv.Atoi(v)
 	if perr != nil || days <= 0 {
-		logger.ErrorF(ctx, "日志保留天数配置非法(key=%s, value=%q)，回退默认 %d 天", key, v, defaultLogRetentionDays)
+		logger.ErrorF(ctx, "Invalid log retention configuration (key=%s, value=%q); using default of %d days", key, v, defaultLogRetentionDays)
 		return defaultLogRetentionDays
 	}
 	return days
@@ -70,13 +70,13 @@ func metricRetentionDays(ctx context.Context) int {
 	v, err := getConfig(ctx, model.ConfigKeyMetricRetentionDays)
 	if err != nil {
 		if !errors.Is(err, errConfigReaderNotWired) {
-			logger.ErrorF(ctx, "读取性能指标保留天数配置失败(key=%s)，回退默认 %d 天: %v", model.ConfigKeyMetricRetentionDays, defaultMetricRetentionDays, err)
+			logger.ErrorF(ctx, "Failed to read metric retention configuration (key=%s); using default of %d days: %v", model.ConfigKeyMetricRetentionDays, defaultMetricRetentionDays, err)
 		}
 		return defaultMetricRetentionDays
 	}
 	days, perr := strconv.Atoi(v)
 	if perr != nil || days <= 0 {
-		logger.ErrorF(ctx, "性能指标保留天数配置非法(key=%s, value=%q)，回退默认 %d 天", model.ConfigKeyMetricRetentionDays, v, defaultMetricRetentionDays)
+		logger.ErrorF(ctx, "Invalid metric retention configuration (key=%s, value=%q); using default of %d days", model.ConfigKeyMetricRetentionDays, v, defaultMetricRetentionDays)
 		return defaultMetricRetentionDays
 	}
 	return days

@@ -26,45 +26,45 @@ func buildPagesRouteSnapshot(
 	route *model.ProxyRoute,
 ) (originURL string, upstreams []string, pagesProjectID *uint, deployment *openrestyrender.PagesDeployment, err error) {
 	if route == nil {
-		return "", nil, nil, nil, errors.New("pages 路由配置无效")
+		return "", nil, nil, nil, errors.New("invalid Pages route configuration")
 	}
 	if !repository.HasPagesProjectsTable(ctx) {
-		return "", nil, nil, nil, fmt.Errorf("路由 %s Pages 配置无效: pages 模块不可用", route.SiteName)
+		return "", nil, nil, nil, fmt.Errorf("invalid Pages configuration for route %s: Pages module is unavailable", route.SiteName)
 	}
 	if route.PagesProjectID == nil || *route.PagesProjectID == 0 {
-		return "", nil, nil, nil, fmt.Errorf("路由 %s Pages 配置无效: 未绑定 Pages 项目", route.SiteName)
+		return "", nil, nil, nil, fmt.Errorf("invalid Pages configuration for route %s: no Pages project is bound", route.SiteName)
 	}
 	project, err := repository.GetPagesProjectByID(ctx, *route.PagesProjectID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return "", nil, nil, nil, fmt.Errorf("路由 %s Pages 配置无效: pages 项目不存在", route.SiteName)
+			return "", nil, nil, nil, fmt.Errorf("invalid Pages configuration for route %s: Pages project was not found", route.SiteName)
 		}
 		return "", nil, nil, nil, err
 	}
 	if !project.Enabled {
-		return "", nil, nil, nil, fmt.Errorf("路由 %s Pages 配置无效: pages 项目未启用", route.SiteName)
+		return "", nil, nil, nil, fmt.Errorf("invalid Pages configuration for route %s: Pages project is disabled", route.SiteName)
 	}
 	if project.ActiveDeploymentID == nil || *project.ActiveDeploymentID == 0 {
-		return "", nil, nil, nil, fmt.Errorf("路由 %s Pages 配置无效: pages 项目没有激活部署", route.SiteName)
+		return "", nil, nil, nil, fmt.Errorf("invalid Pages configuration for route %s: Pages project has no active deployment", route.SiteName)
 	}
 	activeDeployment, err := repository.GetPagesDeploymentByID(ctx, *project.ActiveDeploymentID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return "", nil, nil, nil, fmt.Errorf("路由 %s Pages 配置无效: pages 激活部署不存在", route.SiteName)
+			return "", nil, nil, nil, fmt.Errorf("invalid Pages configuration for route %s: active Pages deployment was not found", route.SiteName)
 		}
 		return "", nil, nil, nil, err
 	}
 	if activeDeployment.ProjectID != project.ID {
-		return "", nil, nil, nil, fmt.Errorf("路由 %s Pages 配置无效: pages 激活部署不匹配", route.SiteName)
+		return "", nil, nil, nil, fmt.Errorf("invalid Pages configuration for route %s: active Pages deployment does not match", route.SiteName)
 	}
 	if strings.TrimSpace(activeDeployment.Checksum) == "" {
-		return "", nil, nil, nil, fmt.Errorf("路由 %s Pages 配置无效: pages 部署校验和缺失", route.SiteName)
+		return "", nil, nil, nil, fmt.Errorf("invalid Pages configuration for route %s: Pages deployment checksum is missing", route.SiteName)
 	}
 
 	pagesProjectID = route.PagesProjectID
 	deployment, err = buildSnapshotPagesDeployment(project, activeDeployment)
 	if err != nil {
-		return "", nil, nil, nil, fmt.Errorf("路由 %s Pages 配置无效: %w", route.SiteName, err)
+		return "", nil, nil, nil, fmt.Errorf("invalid Pages configuration for route %s: %w", route.SiteName, err)
 	}
 	originURL = fmt.Sprintf("openflare-pages://project/%d", project.ID)
 	return originURL, []string{originURL}, pagesProjectID, deployment, nil
@@ -75,11 +75,11 @@ func buildSnapshotPagesDeployment(
 	activeDeployment *model.PagesDeployment,
 ) (*openrestyrender.PagesDeployment, error) {
 	if project == nil || activeDeployment == nil {
-		return nil, errors.New("pages 项目或部署为空")
+		return nil, errors.New("pages project or deployment is empty")
 	}
 	rootDir, err := pagesarchive.NormalizeLogicalPath(strings.TrimSpace(project.RootDir), true)
 	if err != nil {
-		return nil, fmt.Errorf("pages 根目录不合法: %w", err)
+		return nil, fmt.Errorf("invalid Pages root directory: %w", err)
 	}
 	entryFile := strings.TrimSpace(project.EntryFile)
 	if entryFile == "" {
@@ -87,7 +87,7 @@ func buildSnapshotPagesDeployment(
 	}
 	entryFile, err = pagesarchive.NormalizeLogicalPath(entryFile, false)
 	if err != nil {
-		return nil, fmt.Errorf("pages 入口文件不合法: %w", err)
+		return nil, fmt.Errorf("invalid Pages entry file: %w", err)
 	}
 	fallbackPath := strings.TrimSpace(project.SPAFallbackPath)
 	if fallbackPath == "" {

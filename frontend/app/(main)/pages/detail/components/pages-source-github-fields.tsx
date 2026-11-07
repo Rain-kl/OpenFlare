@@ -1,3 +1,5 @@
+'use client';
+
 import { useTranslations } from 'next-intl';
 
 import {
@@ -44,6 +46,8 @@ export function PagesSourceGitHubFields({
   onChange,
   onErrorsChange,
 }: PagesSourceGitHubFieldsProps) {
+  const uiText = useTranslations('runtime');
+
   const t = useTranslations('pages.source');
   return (
     <>
@@ -107,7 +111,9 @@ export function PagesSourceGitHubFields({
 
       {value.releaseSelector === 'tag' ? (
         <Field data-invalid={Boolean(errors.releaseTag)}>
-          <FieldLabel htmlFor='pages-github-tag'>Release tag</FieldLabel>
+          <FieldLabel htmlFor='pages-github-tag'>
+            {uiText('ui_releaseTag')}
+          </FieldLabel>
           <Input
             id='pages-github-tag'
             placeholder='v1.2.3'

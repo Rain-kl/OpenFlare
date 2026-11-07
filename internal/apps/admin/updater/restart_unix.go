@@ -23,22 +23,22 @@ func replaceAndRestart(executable, stagedBinary string) error {
 	backup := executable + ".old"
 
 	if err := os.Remove(backup); err != nil && !os.IsNotExist(err) {
-		return fmt.Errorf("删除旧备份失败: %w", err)
+		return fmt.Errorf("failed to remove previous backup: %w", err)
 	}
 
 	if err := os.Rename(executable, backup); err != nil {
-		return fmt.Errorf("备份当前程序失败: %w", err)
+		return fmt.Errorf("failed to back up current executable: %w", err)
 	}
 
 	if err := os.Rename(stagedBinary, executable); err != nil {
 		_ = os.Rename(backup, executable)
-		return fmt.Errorf("替换当前程序失败: %w", err)
+		return fmt.Errorf("failed to replace current executable: %w", err)
 	}
 
 	if err := os.Chmod(executable, installedBinaryMode); err != nil { //nolint:gosec // the installed application binary must be executable.
 		_ = os.Remove(executable)
 		_ = os.Rename(backup, executable)
-		return fmt.Errorf("设置程序执行权限失败: %w", err)
+		return fmt.Errorf("failed to set executable permissions: %w", err)
 	}
 
 	stagingDir := filepath.Dir(stagedBinary)

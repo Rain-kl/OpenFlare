@@ -115,10 +115,10 @@ func applyDefaults(cfg *Config, baseDir string) {
 
 func validate(cfg *Config) error {
 	if cfg.ServerURL == "" {
-		return errors.New("server_url 不能为空")
+		return errors.New("server_url must not be empty")
 	}
 	if strings.TrimSpace(cfg.TunnelToken) == "" {
-		return errors.New("tunnel_token 不能为空")
+		return errors.New("tunnel_token must not be empty")
 	}
 	return nil
 }
@@ -134,10 +134,10 @@ func (cfg *Config) InitialAuthToken() string {
 // Save writes the current configuration back to the loaded config path.
 func (cfg *Config) Save() error {
 	if cfg == nil {
-		return errors.New("config 不能为空")
+		return errors.New("config must not be empty")
 	}
 	if cfg.configPath == "" {
-		return errors.New("config path 未初始化")
+		return errors.New("configuration path is not initialized")
 	}
 	data, err := json.MarshalIndent(cfg, "", "  ")
 	if err != nil {

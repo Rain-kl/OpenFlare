@@ -1,3 +1,4 @@
+import { useTranslations } from 'next-intl';
 import * as React from 'react';
 import { motion } from 'motion/react';
 import { cn } from '@/lib/utils';
@@ -87,12 +88,16 @@ interface LoadingStateProps extends React.ComponentProps<'div'> {
  * 用于统一显示加载中的状态
  */
 export function LoadingState({
-  title = '加载中',
-  description = '正在获取活动数据...',
+  title = undefined,
+  description = undefined,
   icon: Icon = FileTextIcon,
   className,
   iconSize = 'md',
 }: LoadingStateProps) {
+  const rt = useTranslations('runtime');
+  title ??= rt('loading_d04fcbda');
+  description ??= rt('fetching_data_9ac5e428');
+
   const iconSizes = { sm: 'size-8', md: 'size-10', lg: 'size-14' };
   const iconInnerSizes = { sm: 'size-4', md: 'size-5', lg: 'size-7' };
 

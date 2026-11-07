@@ -33,7 +33,7 @@ func ValidateWAFIPGroupSnapshotSize(groups map[string]WAFIPGroup) error {
 		return err
 	}
 	if len(data) > MaxWAFIPGroupSnapshotBytes {
-		return fmt.Errorf("WAF IP 组快照大小 %d 字节超过上限 %d 字节", len(data), MaxWAFIPGroupSnapshotBytes)
+		return fmt.Errorf("WAF IP group snapshot size %d bytes exceeds the limit of %d bytes", len(data), MaxWAFIPGroupSnapshotBytes)
 	}
 	return nil
 }

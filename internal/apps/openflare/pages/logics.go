@@ -958,7 +958,7 @@ func deploymentPackageHash(ctx context.Context, deployment *model.PagesDeploymen
 	}
 	uploadRecord, err := upload.GetActiveUpload(ctx, deployment.UploadID)
 	if err != nil {
-		return "", fmt.Errorf("pages 部署包不存在: %w", err)
+		return "", fmt.Errorf("pages deployment archive was not found: %w", err)
 	}
 	hash := strings.TrimSpace(uploadRecord.Hash)
 	if hash == "" {
@@ -973,7 +973,7 @@ func deploymentPackageHash(ctx context.Context, deployment *model.PagesDeploymen
 func openDeploymentPackageFromUpload(ctx context.Context, uploadID uint64, deploymentID uint) (DeploymentPackage, error) {
 	opened, err := upload.OpenStoredUpload(ctx, uploadID)
 	if err != nil {
-		return DeploymentPackage{}, fmt.Errorf("pages 部署包不存在: %w", err)
+		return DeploymentPackage{}, fmt.Errorf("pages deployment archive was not found: %w", err)
 	}
 	contentType := opened.ContentType
 	if contentType == "" {
@@ -1028,7 +1028,7 @@ func hydrateLegacyDeploymentUpload(
 		RelativePaths: pagesLegacyRelativeCandidates(project, deployment),
 	})
 	if err != nil {
-		return nil, fmt.Errorf("pages 部署包不存在: %w", err)
+		return nil, fmt.Errorf("pages deployment archive was not found: %w", err)
 	}
 
 	ingestResult, err := ingestPagesDeploymentPackage(

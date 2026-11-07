@@ -6,18 +6,18 @@
 package user
 
 const (
-	userNotFound          = "用户不存在"
-	cannotDisable         = "不能禁用管理员用户"
-	cannotDelete          = "不能删除管理员用户"
-	cannotDeleteSelf      = "不能删除当前登录用户"
-	updateUserFailed      = "更新用户状态失败"
-	deleteUserFailed      = "删除用户失败"
-	usernameExists        = "用户名已存在"
-	usernameRequired      = "用户名不能为空"
-	passwordTooShort      = "密码长度不能少于 8 位" //nolint:gosec // false positive: this is an error message, not hardcoded credentials
-	createUserFailed      = "创建用户失败"
-	emailRequired         = "邮箱不能为空"
-	emailExists           = "邮箱已被注册"
-	cannotRevokeSelfAdmin = "不能撤销当前登录用户的管理员权限"
-	updateUserInfoFailed  = "更新用户信息失败"
+	userNotFound          = "user was not found"
+	cannotDisable         = "administrator accounts cannot be disabled"
+	cannotDelete          = "administrator accounts cannot be deleted"
+	cannotDeleteSelf      = "the currently signed-in user cannot be deleted"
+	updateUserFailed      = "Failed to update user status"
+	deleteUserFailed      = "Failed to delete user"
+	usernameExists        = "username already exists"
+	usernameRequired      = "username must not be empty"
+	passwordTooShort      = "password must contain at least 8 characters" //nolint:gosec // false positive: this is an error message, not hardcoded credentials
+	createUserFailed      = "Failed to create user"
+	emailRequired         = "email address must not be empty"
+	emailExists           = "email address is already registered"
+	cannotRevokeSelfAdmin = "administrator privileges cannot be revoked from the currently signed-in user"
+	updateUserInfoFailed  = "Failed to update user information"
 )

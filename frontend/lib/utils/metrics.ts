@@ -1,6 +1,15 @@
-const compactNumberFormatter = new Intl.NumberFormat('zh-CN', {
-  maximumFractionDigits: 1,
-});
+import { getFormattingLocale } from '@/i18n/format';
+const compactNumberFormatters = new Map<string, Intl.NumberFormat>();
+
+function compactNumberFormatter() {
+  const locale = getFormattingLocale();
+  let formatter = compactNumberFormatters.get(locale);
+  if (!formatter) {
+    formatter = new Intl.NumberFormat(locale, { maximumFractionDigits: 1 });
+    compactNumberFormatters.set(locale, formatter);
+  }
+  return formatter;
+}
 
 type FormatBytesOptions = {
   emptyText?: string;
@@ -11,7 +20,7 @@ export function formatCompactNumber(value?: number | null) {
   if (value === undefined || value === null || Number.isNaN(value)) {
     return '—';
   }
-  return compactNumberFormatter.format(value);
+  return compactNumberFormatter().format(value);
 }
 
 export function formatPercent(value?: number | null) {
@@ -43,7 +52,7 @@ export function formatBytes(
   }
 
   const digits = current >= 100 || index === 0 ? 0 : 1;
-  return `${new Intl.NumberFormat('zh-CN', {
+  return `${new Intl.NumberFormat(getFormattingLocale(), {
     maximumFractionDigits: digits,
     minimumFractionDigits: 0,
   }).format(current)} ${units[index]}`;

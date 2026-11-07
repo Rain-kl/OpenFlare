@@ -120,7 +120,7 @@ func ReloadScheduler() error {
 			asynq.Queue(meta.Queue),
 		); err != nil {
 			// 定时任务配置可能有误（如 Cron 格式不被 Asynq 识别），记录日志并跳过
-			logger.ErrorF(context.Background(), "[Scheduler] 注册定时任务失败 id=%d name=%s: %v", s.ID, s.Name, err)
+			logger.ErrorF(context.Background(), "[Scheduler] Failed to register scheduled task id=%d name=%s: %v", s.ID, s.Name, err)
 			continue
 		}
 	}
@@ -131,7 +131,7 @@ func ReloadScheduler() error {
 	}
 	activeScheduler = newScheduler
 
-	logger.InfoF(context.Background(), "[Scheduler] 成功重新加载定时任务，共注册 %d 个活动任务", len(schedules))
+	logger.InfoF(context.Background(), "[Scheduler] Reloaded schedules and registered %d active tasks", len(schedules))
 	return nil
 }
 

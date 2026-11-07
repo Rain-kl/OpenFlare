@@ -165,7 +165,7 @@ func buildAccessLogFilter(ctx context.Context, c *gin.Context) (analyticsmodel.A
 	if username != "" {
 		userIDs, err := repository.ListUserIDsByUsernameContains(ctx, username)
 		if err != nil {
-			return filter, fmt.Errorf("查询用户信息失败: %w", err)
+			return filter, fmt.Errorf("failed to query user information: %w", err)
 		}
 		filter.UserIDs = userIDs
 	}
@@ -246,8 +246,8 @@ func GetAccessLogs(c *gin.Context) {
 	ctx := c.Request.Context()
 	store, err := logstore.Active(ctx)
 	if err != nil {
-		logger.ErrorF(ctx, "获取日志存储实例失败: %v", err)
-		response.AbortWithError(c, http.StatusBadRequest, "日志存储未启用，无法检索访问日志")
+		logger.ErrorF(ctx, "Failed to get log storage instance: %v", err)
+		response.AbortWithError(c, http.StatusBadRequest, "Log storage is disabled; access logs cannot be retrieved")
 		return
 	}
 
@@ -348,8 +348,8 @@ func GetLogsAnalytics(c *gin.Context) {
 	ctx := c.Request.Context()
 	store, err := logstore.Active(ctx)
 	if err != nil {
-		logger.ErrorF(ctx, "获取日志存储实例失败: %v", err)
-		response.AbortWithError(c, http.StatusBadRequest, "日志存储未启用，无法获取分析数据")
+		logger.ErrorF(ctx, "Failed to get log storage instance: %v", err)
+		response.AbortWithError(c, http.StatusBadRequest, "Log storage is disabled; analytics are unavailable")
 		return
 	}
 
@@ -357,7 +357,7 @@ func GetLogsAnalytics(c *gin.Context) {
 
 	trendPoints, err := store.UserAccessLogs.GetDailyTrend(ctx, analyticsDays)
 	if err != nil {
-		response.AbortWithError(c, http.StatusInternalServerError, "查询访问趋势失败: "+err.Error())
+		response.AbortWithError(c, http.StatusInternalServerError, "Failed to query access trends: "+err.Error())
 		return
 	}
 	trendList := make([]trendItem, len(trendPoints))
@@ -370,7 +370,7 @@ func GetLogsAnalytics(c *gin.Context) {
 
 	browserPoints, err := store.UserAccessLogs.GetBrowserDistribution(ctx, startTime)
 	if err != nil {
-		response.AbortWithError(c, http.StatusInternalServerError, "查询浏览器分布失败: "+err.Error())
+		response.AbortWithError(c, http.StatusInternalServerError, "Failed to query browser distribution: "+err.Error())
 		return
 	}
 	browserList := make([]browserItem, len(browserPoints))
@@ -383,7 +383,7 @@ func GetLogsAnalytics(c *gin.Context) {
 
 	topUserPoints, err := store.UserAccessLogs.GetTopActiveUsers(ctx, startTime, topActiveLimit)
 	if err != nil {
-		response.AbortWithError(c, http.StatusInternalServerError, "查询活跃用户失败: "+err.Error())
+		response.AbortWithError(c, http.StatusInternalServerError, "Failed to query active users: "+err.Error())
 		return
 	}
 

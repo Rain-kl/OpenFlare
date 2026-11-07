@@ -231,21 +231,21 @@ func TestValidateSwitch(t *testing.T) {
 		config.Config.Database.Enabled, config.Config.ClickHouse.Enabled = false, false
 		err := validateSwitch(ctx, "sqlite")
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "相同")
+		assert.Contains(t, err.Error(), "already active")
 	})
 	t.Run("clickhouse disabled rejected", func(t *testing.T) {
 		setLogDB("sqlite")
 		config.Config.Database.Enabled, config.Config.ClickHouse.Enabled = false, false
 		err := validateSwitch(ctx, "clickhouse")
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "ClickHouse 未启用")
+		assert.Contains(t, err.Error(), "ClickHouse is disabled")
 	})
 	t.Run("postgres requires main db enabled", func(t *testing.T) {
 		setLogDB("sqlite")
 		config.Config.Database.Enabled, config.Config.ClickHouse.Enabled = false, false
 		err := validateSwitch(ctx, "postgres")
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "PostgreSQL 未启用")
+		assert.Contains(t, err.Error(), "PostgreSQL is disabled")
 	})
 	t.Run("sqlite rejected when main db is postgres", func(t *testing.T) {
 		setLogDB("postgres")

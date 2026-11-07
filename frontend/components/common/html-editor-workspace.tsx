@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { useRef, useState } from 'react';
 import { useTheme } from 'next-themes';
 import CodeMirror from '@uiw/react-codemirror';
@@ -39,8 +40,11 @@ export function HtmlEditorWorkspace({
     </>
   ),
   showPreviewLink = true,
-  previewTitle = '源站错误页实时预览',
+  previewTitle = undefined,
 }: HtmlEditorWorkspaceProps) {
+  const rt = useTranslations('runtime');
+  previewTitle ??= rt('live_origin_error_page_preview_a2a12823');
+
   const containerRef = useRef<HTMLDivElement>(null);
   const [editorWidthPercent, setEditorWidthPercent] = useState(48);
   const { resolvedTheme } = useTheme();
@@ -79,10 +83,14 @@ export function HtmlEditorWorkspace({
       <div className='flex items-center justify-between px-4 py-2 border-b bg-muted/40 shrink-0 gap-4 flex-wrap'>
         <div className='flex items-center gap-2 min-w-0'>
           <Terminal className='size-4 text-primary shrink-0' />
-          <span className='text-xs font-semibold'>HTML 编辑器</span>
+          <span className='text-xs font-semibold'>
+            {rt('html_editor_19f0d7b7')}
+          </span>
           <span className='text-[11px] text-muted-foreground font-mono truncate'>
-            {htmlBytes} / {maxBytes} 字节
-            {value.trim() === '' ? ' · 空则使用内置默认' : ''}
+            {htmlBytes} / {maxBytes} {rt('bytes_f5d87a8b')}
+            {value.trim() === ''
+              ? rt('leave_empty_for_the_built_in_default_29ffce9f')
+              : ''}
           </span>
         </div>
         <div className='flex items-center gap-1.5 flex-wrap'>
@@ -109,21 +117,21 @@ export function HtmlEditorWorkspace({
               allowMultipleSelections: false,
               indentOnInput: true,
             }}
-            placeholder='留空使用内置默认模板…'
+            placeholder={rt('leave_empty_to_use_the_built_in_e57252bd')}
           />
         </div>
 
         <div
           onMouseDown={handleMouseDown}
           className='w-1.5 bg-border/60 hover:bg-primary/50 cursor-col-resize transition-colors flex items-center justify-center shrink-0 select-none z-10'
-          title='拖动调整宽度'
+          title={rt('drag_to_resize_b5154511')}
         >
           <div className='h-8 w-1 rounded bg-muted-foreground/30' />
         </div>
 
         <div className='flex-1 min-w-[200px] flex flex-col overflow-hidden bg-muted/10'>
           <div className='flex items-center justify-between px-4 py-1.5 border-b bg-muted/20 shrink-0 text-[11px] text-muted-foreground font-mono gap-2'>
-            <span className='font-semibold'>实时预览</span>
+            <span className='font-semibold'>{rt('live_preview_a76fdaad')}</span>
             <div className='flex items-center gap-2'>
               <span
                 className={footerHint === null ? 'hidden' : 'hidden sm:inline'}
@@ -139,7 +147,7 @@ export function HtmlEditorWorkspace({
                 >
                   <Link href='/error-pages/preview'>
                     <Expand className='size-3' />
-                    预览
+                    {rt('preview_13d61fea')}
                   </Link>
                 </Button>
               ) : null}

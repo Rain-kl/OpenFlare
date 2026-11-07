@@ -18,9 +18,9 @@ import (
 
 var allCmd = &cobra.Command{
 	Use:   "all",
-	Short: "以融合模式同时启动 API、Worker 和 Scheduler",
+	Short: "Start API, Worker and Scheduler together",
 	Run: func(_ *cobra.Command, _ []string) {
-		log.Println("[All] 融合模式启动")
+		log.Println("[All] Starting API, Worker and Scheduler")
 		bootstrap.RegisterAll()
 		runBootstrap(bootstrap.Options{API: true})
 
@@ -28,7 +28,7 @@ var allCmd = &cobra.Command{
 
 		// 启动 API HTTP 服务
 		wg.Go(func() {
-			log.Println("[All] 启动 API 服务")
+			log.Println("[All] Starting API service")
 			router.Serve(func() {
 				printStartupBanner(startupState{mode: "API + Worker + Scheduler", relationalDB: latestMigrationState.relationalDB, clickHouseDB: latestMigrationState.clickHouseDB, listensForHTTP: true})
 			})
@@ -36,17 +36,17 @@ var allCmd = &cobra.Command{
 
 		// 启动 Asynq Worker 任务处理服务
 		wg.Go(func() {
-			log.Println("[All] 启动 Worker 服务")
+			log.Println("[All] Starting Worker service")
 			if err := worker.StartWorker(); err != nil {
-				log.Printf("[All] Worker 启动失败: %v\n", err)
+				log.Printf("[All] Failed to start Worker: %v\n", err)
 			}
 		})
 
 		// 启动 Asynq 定时任务调度器
 		wg.Go(func() {
-			log.Println("[All] 启动 Scheduler 服务")
+			log.Println("[All] Starting Scheduler service")
 			if err := scheduler.StartScheduler(); err != nil {
-				log.Printf("[All] Scheduler 启动失败: %v\n", err)
+				log.Printf("[All] Failed to start Scheduler: %v\n", err)
 			}
 		})
 

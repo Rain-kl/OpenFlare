@@ -40,6 +40,8 @@ export function AuthSourceModal({
   onClose: () => void;
   onChanged: () => Promise<void>;
 }) {
+  const rt = useTranslations('runtime');
+
   const t = useTranslations('settings.authSourceModal');
   const [form, setForm] = useState<AuthSourceRequest>(emptyForm);
   const [saving, setSaving] = useState(false);
@@ -108,7 +110,7 @@ export function AuthSourceModal({
               onChange={(e) =>
                 setForm((prev) => ({ ...prev, name: e.target.value }))
               }
-              placeholder='例如: github'
+              placeholder={rt('for_example_github_1061e2e4')}
             />
           </div>
           <div className='space-y-2'>
@@ -118,11 +120,11 @@ export function AuthSourceModal({
               onChange={(e) =>
                 setForm((prev) => ({ ...prev, display_name: e.target.value }))
               }
-              placeholder='例如: GitHub 登录'
+              placeholder={rt('for_example_github_login_1e0c113c')}
             />
           </div>
           <div className='space-y-2'>
-            <Label>Client ID</Label>
+            <Label>{rt('ui_clientId')}</Label>
             <Input
               value={form.client_id}
               onChange={(e) =>
@@ -131,7 +133,7 @@ export function AuthSourceModal({
             />
           </div>
           <div className='space-y-2'>
-            <Label>Client Secret</Label>
+            <Label>{rt('ui_clientSecret')}</Label>
             <Input
               value={form.client_secret}
               onChange={(e) =>
@@ -154,7 +156,7 @@ export function AuthSourceModal({
             />
           </div>
           <div className='space-y-2'>
-            <Label>Scopes</Label>
+            <Label>{rt('ui_scopes')}</Label>
             <Input
               value={form.scopes}
               onChange={(e) =>
@@ -169,7 +171,7 @@ export function AuthSourceModal({
               onChange={(e) =>
                 setForm((prev) => ({ ...prev, icon_url: e.target.value }))
               }
-              placeholder='https://... 或留空'
+              placeholder={rt('https_or_leave_empty_a0d86d9b')}
             />
           </div>
           <div className='flex items-center justify-between rounded-xl border border-dashed p-3 md:col-span-2 bg-muted/10'>

@@ -1,3 +1,6 @@
+'use client';
+
+import { useTranslations } from 'next-intl';
 import * as React from 'react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
@@ -15,16 +18,11 @@ export interface DeveloperSectionProps {
 export const DeveloperSection = React.memo(function DeveloperSection({
   className,
 }: DeveloperSectionProps) {
+  const rt = useTranslations('runtime');
+
   const [copied, setCopied] = React.useState(false);
 
-  const codeContent = `# 注册用户
-curl -X POST https://api.example.com/api/v1/auth/register \\
-  -H "Content-Type: application/json" \\
-  -d '{
-    "username": "developer",
-    "email": "dev@example.com",
-    "password": "secure_password"
-  }'`;
+  const codeContent = rt.raw('register_a_user_curl_x_post_https_4ae682b0');
 
   const onCopy = async () => {
     try {
@@ -97,7 +95,9 @@ curl -X POST https://api.example.com/api/v1/auth/register \\
               </div>
               <pre className='text-xs sm:text-sm font-mono text-neutral-300 leading-relaxed whitespace-pre-wrap break-all sm:whitespace-pre sm:break-normal overflow-x-auto'>
                 <code className='block'>
-                  <span className='text-green-400'># 快速开始</span>
+                  <span className='text-green-400'>
+                    {rt('quick_start_42fbb067')}
+                  </span>
                   {'\n'}
                   <span className='text-purple-400'>curl</span> -X{' '}
                   <span className='text-yellow-400'>POST</span>{' '}
@@ -130,22 +130,22 @@ curl -X POST https://api.example.com/api/v1/auth/register \\
             transition={{ duration: 0.8 }}
           >
             <h2 className='text-3xl md:text-5xl font-bold tracking-tight text-foreground leading-[1.1] mb-6'>
-              开发者友好，
+              {rt('developer_friendly_40c2a4ce')}
               <br />
-              极速集成上手
+              {rt('quick_to_integrate_18cbee8a')}
             </h2>
             <p className='text-muted-foreground text-lg leading-relaxed mb-8'>
-              标准化的 RESTful API 接口，完整的 TypeScript
-              类型定义，详细的文档和 Swagger
-              UI。无论使用什么编程语言，只需几行代码，即可快速集成。
+              {rt(
+                'standard_restful_apis_complete_typescript_types_detailed_6369a0e2',
+              )}
             </p>
 
             <ul className='space-y-4 mb-8'>
               {[
-                'RESTful API，语义清晰，易于理解',
-                'OpenAPI / Swagger 接口文档',
-                'TypeScript 类型定义，开发友好',
-                '丰富的代码示例和集成指南',
+                rt('restful_api_with_clear_understandable_semantics_1fa9d6f5'),
+                rt('openapi_swagger_documentation_ccbcbc84'),
+                rt('developer_friendly_typescript_type_definitions_910a7909'),
+                rt('code_samples_and_integration_guides_9e998a5a'),
               ].map((item, i) => (
                 <li
                   key={i}
@@ -170,7 +170,7 @@ curl -X POST https://api.example.com/api/v1/auth/register \\
                   className='rounded-full text-xs hover:bg-muted-foreground/10'
                 >
                   <Book className='w-3 h-3' />
-                  使用文档
+                  {rt('user_guide_c83b6b0a')}
                 </Button>
               </Link>
             </div>

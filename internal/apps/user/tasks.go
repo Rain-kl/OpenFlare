@@ -29,8 +29,8 @@ const (
 var SendEmailMeta = task.TaskMeta{
 	Type:         TaskTypeSendEmail,
 	AsynqTask:    SendEmailTask,
-	Name:         "发送邮件",
-	Description:  "异步发送系统邮件",
+	Name:         "Send email",
+	Description:  "Send system email asynchronously",
 	SupportsTime: false,
 	MaxRetry:     task.DefaultMaxRetry,
 	Queue:        task.QueueDefault,
@@ -38,27 +38,27 @@ var SendEmailMeta = task.TaskMeta{
 	Params: []task.TaskParam{
 		{
 			Name:        "to",
-			Label:       "接收邮箱 (To)",
+			Label:       "Recipient email (To)",
 			Type:        "string",
 			Required:    true,
 			Placeholder: "receiver@example.com",
-			Description: "接收邮件的目标邮箱地址",
+			Description: "Destination email address",
 		},
 		{
 			Name:        "subject",
-			Label:       "邮件主题 (Subject)",
+			Label:       "Email subject",
 			Type:        "string",
 			Required:    true,
-			Placeholder: "请输入邮件主题",
-			Description: "发送邮件的主题标题",
+			Placeholder: "Enter the email subject",
+			Description: "Subject line of the email to send",
 		},
 		{
 			Name:        "body",
-			Label:       "邮件内容 (Body)",
+			Label:       "Email body",
 			Type:        "text",
 			Required:    true,
-			Placeholder: "请输入邮件内容（支持 HTML 格式）",
-			Description: "发送邮件的内容主体",
+			Placeholder: "Enter the email body (HTML is supported)",
+			Description: "Content of the email to send",
 		},
 	},
 }
@@ -100,11 +100,11 @@ func (h *SendEmailHandler) ValidatePayload(payload []byte) ([]byte, error) {
 func (h *SendEmailHandler) Execute(ctx context.Context, payload []byte) (*task.TaskResult, error) {
 	var req SendEmailPayload
 	if err := json.Unmarshal(payload, &req); err != nil {
-		task.AppendLog(ctx, "解析邮件发送参数失败: %v", err)
+		task.AppendLog(ctx, "Failed to parse email parameters: %v", err)
 		return nil, fmt.Errorf(errParseEmailPayloadFailed, err)
 	}
 
-	task.AppendLog(ctx, "开始准备发送邮件到: %s, 主题: %s", req.To, req.Subject)
+	task.AppendLog(ctx, "Preparing to send email to: %s, subject: %s", req.To, req.Subject)
 
 	// 从数据库读取最新的 SMTP 系统配置
 	var smtpHost string
@@ -127,7 +127,7 @@ func (h *SendEmailHandler) Execute(ctx context.Context, payload []byte) (*task.T
 
 	if smtpHost == "" || smtpPortVal == "" || smtpUsername == "" {
 		err := errors.New(errSMTPConfigIncomplete)
-		task.AppendLog(ctx, "发送失败: %v", err)
+		task.AppendLog(ctx, "Send failed: %v", err)
 		return nil, err
 	}
 
@@ -143,16 +143,16 @@ func (h *SendEmailHandler) Execute(ctx context.Context, payload []byte) (*task.T
 		Password: smtpPassword,
 	}
 
-	task.AppendLog(ctx, "连接 SMTP 服务器: %s:%d, 用户名: %s", smtpHost, smtpPort, smtpUsername)
+	task.AppendLog(ctx, "Connecting to SMTP server: %s:%d, username: %s", smtpHost, smtpPort, smtpUsername)
 
 	// 调用 SendMailHTML 执行邮件发送，这里会有 5s 拨号超时和 10s 读写限制
 	err = mail.SendMailHTML(ctx, cfg, req.To, req.Subject, req.Body)
 	if err != nil {
-		task.AppendLog(ctx, "邮件发送失败: %v", err)
+		task.AppendLog(ctx, "Failed to send email: %v", err)
 		return nil, fmt.Errorf(errSendMailFailed, err)
 	}
 
-	msg := "邮件成功发送至: " + req.To
+	msg := "Email sent successfully to: " + req.To
 	task.AppendLog(ctx, "%s", msg)
 
 	return &task.TaskResult{

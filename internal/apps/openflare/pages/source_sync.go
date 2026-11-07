@@ -224,7 +224,7 @@ func syncRemoteSourceWithTrigger(
 		return &sourceSyncOutcome{Stale: true}, nil
 	}
 
-	task.AppendLog(ctx, "[activate] 正在原子切换生产部署")
+	task.AppendLog(ctx, "[activate] Atomically switching production deployment")
 	deployment, reused, referenced, err := commitSourceDeploymentWithTrigger(
 		ctx,
 		snapshot,
@@ -266,7 +266,7 @@ func prepareRemoteSource(
 	snapshot *sourceExecutionSnapshot,
 	limits pagesLimits,
 ) (*preparedRemoteSource, error) {
-	task.AppendLog(ctx, "[download] 正在获取远程部署包")
+	task.AppendLog(ctx, "[download] Fetching remote deployment archive")
 	candidate, err := FetchRemoteSource(ctx, RemoteSourceRequest{
 		URL:             snapshot.RemoteURL,
 		AllowInsecure:   snapshot.AllowInsecure,
@@ -288,7 +288,7 @@ func prepareRemoteSource(
 		cleanupFailedRemoteCandidate(ctx, snapshot, candidate)
 		return nil, err
 	}
-	task.AppendLog(ctx, "[verify] 正在校验归档结构与入口文件")
+	task.AppendLog(ctx, "[verify] Verifying archive structure and entry file")
 	manifest, err := inspectPagesPackage(candidate.TempPath, candidate.Format, rootDir, entryFile, limits)
 	if err != nil {
 		cleanupFailedRemoteCandidate(ctx, snapshot, candidate)
@@ -335,7 +335,7 @@ func resolveSourceIngest(
 	if !errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, err
 	}
-	task.AppendLog(ctx, "[ingest] 正在保存受管部署包")
+	task.AppendLog(ctx, "[ingest] Saving managed deployment archive")
 	result, err := ingestPagesDeploymentPackageWithSource(
 		ctx,
 		prepared.Candidate.TempPath,
@@ -361,7 +361,7 @@ func compensateSourceIngest(
 	}
 	cleanupCtx, cancel := sourceCleanupContext(ctx)
 	defer cancel()
-	task.AppendLog(cleanupCtx, "[cleanup] 正在补偿未引用的部署包记录")
+	task.AppendLog(cleanupCtx, "[cleanup] Compensating unreferenced deployment archive records")
 	if err := removePagesUploadIfUnreferenced(cleanupCtx, snapshot.ProjectID, state.Result.Upload.ID); err != nil {
 		logger.ErrorF(cleanupCtx,
 			"[PagesSource] compensate upload failed: project_id=%d source_id=%d upload_id=%d error=%v",

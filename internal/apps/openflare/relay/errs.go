@@ -6,6 +6,6 @@ package relay
 
 const (
 	//nolint:gosec // error message text, not a credential
-	errAgentTokenInvalid     = "无权进行此操作，Agent Token 无效"
-	errRelayNodeTypeMismatch = "此节点不是 TunnelRelay 类型"
+	errAgentTokenInvalid     = "Operation not authorized: invalid agent token"
+	errRelayNodeTypeMismatch = "This node is not a TunnelRelay"
 )

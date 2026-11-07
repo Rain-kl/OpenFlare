@@ -15,13 +15,13 @@ func handleLogicError(c *gin.Context, err error) bool {
 	if err == nil {
 		return false
 	}
-	return apiutil.AbortNotFoundIfMissing(c, err, "记录不存在")
+	return apiutil.AbortNotFoundIfMissing(c, err, "Record was not found")
 }
 
 func versionParam(c *gin.Context) (string, bool) {
 	version := c.Param("id")
 	if version == "" {
-		response.AbortBadRequest(c, "无效的版本号")
+		response.AbortBadRequest(c, "Invalid version identifier")
 		return "", false
 	}
 	return version, true

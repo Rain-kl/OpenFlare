@@ -150,8 +150,8 @@ func TestChangedWAFIPGroupsForAgentRejectsMalformedIPMatchConfig(t *testing.T) {
 	}).Error)
 
 	_, err := ChangedWAFIPGroupsForAgent(ctx, nil, nil)
-	require.ErrorContains(t, err, "规则 7 节点 match")
-	require.ErrorContains(t, err, "IP 匹配配置无效")
+	require.ErrorContains(t, err, "rule 7, node match")
+	require.ErrorContains(t, err, "invalid IP match configuration")
 }
 
 func TestChangedWAFIPGroupsForAgentRejectsOversizedSnapshotBeforeChecksumDelta(t *testing.T) {
@@ -172,8 +172,8 @@ func TestChangedWAFIPGroupsForAgentRejectsOversizedSnapshotBeforeChecksumDelta(t
 	_, err = ChangedWAFIPGroupsForAgent(ctx, []uint{ipGroup.ID}, map[string]string{
 		strconv.FormatUint(uint64(ipGroup.ID), 10): agentGroup.Checksum,
 	})
-	require.ErrorContains(t, err, "WAF IP 组快照大小")
-	require.ErrorContains(t, err, "超过上限")
+	require.ErrorContains(t, err, "WAF IP group snapshot size")
+	require.ErrorContains(t, err, "exceeds the limit")
 }
 
 func TestChangedWAFIPGroupsForAgentReturnsChecksumDelta(t *testing.T) {

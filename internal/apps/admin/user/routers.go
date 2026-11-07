@@ -103,7 +103,7 @@ func abortUserLogicError(c *gin.Context, err error, notFoundMsg string, forbidde
 		return true
 	}
 	logger.ErrorF(c.Request.Context(), "Admin user error: %v", err)
-	response.AbortInternal(c, "内部服务器错误")
+	response.AbortInternal(c, "Internal server error")
 	return true
 }
 
@@ -130,7 +130,7 @@ func ListUsers(c *gin.Context) {
 	total, modelUsers, err := listUsers(c.Request.Context(), req)
 	if err != nil {
 		logger.ErrorF(c.Request.Context(), "List admin users failed: %v", err)
-		response.AbortInternal(c, "获取用户列表失败")
+		response.AbortInternal(c, "Failed to get user list")
 		return
 	}
 

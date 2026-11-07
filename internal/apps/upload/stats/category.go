@@ -11,6 +11,8 @@ import (
 )
 
 const (
+	// These are persisted counter keys, not display labels. Keep existing keys
+	// stable; the frontend translates their presentation independently.
 	catImage    = "图片"
 	catVideo    = "视频"
 	catAudio    = "音频"
@@ -18,6 +20,11 @@ const (
 	catArchive  = "压缩包"
 	catOther    = "其他"
 )
+
+// Categories returns the legacy persistent category keys in display order.
+func Categories() []string {
+	return []string{catImage, catVideo, catAudio, catDocument, catArchive, catOther}
+}
 
 // GetFileCategory classifies a file by mime type and extension.
 func GetFileCategory(mimeType, ext string) string {

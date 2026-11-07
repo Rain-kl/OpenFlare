@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import * as React from 'react';
 import { ImageOff } from 'lucide-react';
 
@@ -23,6 +24,8 @@ export function FileImagePreview({
   fallbackClassName,
   variant = 'default',
 }: FileImagePreviewProps) {
+  const rt = useTranslations('runtime');
+
   const [failed, setFailed] = React.useState(false);
   const src = getFileUrl(fileId, quality);
 
@@ -34,7 +37,7 @@ export function FileImagePreview({
     return (
       <div
         role='img'
-        aria-label={`${alt} 加载失败`}
+        aria-label={rt('failed_to_load_value0_7f5a06a3', { value0: alt })}
         className={cn(
           'flex size-full flex-col items-center justify-center gap-1 bg-muted/50 text-muted-foreground',
           fallbackClassName,
@@ -47,7 +50,9 @@ export function FileImagePreview({
           )}
         />
         {variant === 'default' && (
-          <span className='text-[10px] leading-none'>加载失败</span>
+          <span className='text-[10px] leading-none'>
+            {rt('load_failed_d1d04482')}
+          </span>
         )}
       </div>
     );

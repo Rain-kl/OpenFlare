@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import * as React from 'react';
 import { useState } from 'react';
 import {
@@ -36,9 +37,13 @@ export function PasswordDialog({
   onOpenChange,
   onConfirm,
   loading = false,
-  title = '请输入密码',
-  description = '为了您的账户安全，请输入6位认证密码进行验证',
+  title = undefined,
+  description = undefined,
 }: PasswordDialogProps) {
+  const rt = useTranslations('runtime');
+  title ??= rt('enter_password_728a7b60');
+  description ??= rt('for_your_account_security_please_enter_the_28fc0bbd');
+
   const [password, setPassword] = useState('');
 
   const handleConfirm = () => {
@@ -92,7 +97,7 @@ export function PasswordDialog({
             disabled={loading}
             className='h-8 text-xs'
           >
-            取消
+            {rt('cancel_2cd0f3be')}
           </Button>
           <Button
             type='button'
@@ -103,10 +108,10 @@ export function PasswordDialog({
             {loading ? (
               <>
                 <Spinner className='mr-2 h-4 w-4' />
-                验证中...
+                {rt('verifying_6c128e0a')}
               </>
             ) : (
-              '确认'
+              rt('confirm_36f33ada')
             )}
           </Button>
         </div>

@@ -141,7 +141,7 @@ func TestSystemCleanupHandler_Execute(t *testing.T) {
 	// 验证结果
 	require.NoError(t, err)
 	require.NotNil(t, result)
-	assert.Contains(t, result.Message, "系统清理完成。成功清理未使用的上传文件 2/2 个；清理历史推送审计日志 1 条；清理任务执行日志 1 条。")
+	assert.Contains(t, result.Message, "System cleanup completed. Removed 2/2 unused uploads, 1 notification audit records and 1 task execution logs.")
 
 	// 验证数据库状态：pending 且超过1小时的应被标记为 deleted
 	var pendingCount int64
@@ -216,7 +216,7 @@ func TestSystemCleanupHandler_ExecuteNoFiles(t *testing.T) {
 
 	require.NoError(t, err)
 	require.NotNil(t, result)
-	assert.Contains(t, result.Message, "系统清理完成。成功清理未使用的上传文件 0/0 个；清理历史推送审计日志 0 条；清理任务执行日志 0 条。")
+	assert.Contains(t, result.Message, "System cleanup completed. Removed 0/0 unused uploads, 0 notification audit records and 0 task execution logs.")
 }
 
 func TestSystemCleanupHandler_ImplementsTaskHandler(t *testing.T) {
@@ -363,7 +363,7 @@ func TestWarmImageCacheHandlerExecute(t *testing.T) {
 	if result == nil {
 		t.Fatal("Execute() result = nil, want non-nil")
 	}
-	if result.Message != "图片缓存预热完成，共处理 2 张，生成 2 张，命中 0 张，失败 0 张" {
+	if result.Message != "Image cache warmup completed; processed 2, generated 2, hits 0, failed 0" {
 		t.Errorf("Execute() message = %q, want generated summary", result.Message)
 	}
 
@@ -383,7 +383,7 @@ func TestWarmImageCacheHandlerExecute(t *testing.T) {
 	if err != nil {
 		t.Fatalf("second Execute(%s) returned error: %v", payload, err)
 	}
-	if secondResult.Message != "图片缓存预热完成，共处理 2 张，生成 0 张，命中 2 张，失败 0 张" {
+	if secondResult.Message != "Image cache warmup completed; processed 2, generated 0, hits 2, failed 0" {
 		t.Errorf("second Execute() message = %q, want cache-hit summary", secondResult.Message)
 	}
 }

@@ -150,7 +150,7 @@ func SyncDueWAFIPGroups(ctx context.Context) error {
 
 func syncOpenFlareWAFIPGroup(ctx context.Context, group *model.OpenFlareWAFIPGroup, now time.Time) (*IPGroupSyncResult, error) {
 	if group == nil {
-		return nil, errors.New("IP 组不存在")
+		return nil, errors.New("IP group was not found")
 	}
 	switch group.Type {
 	case wafIPGroupTypeSubscription:
@@ -158,7 +158,7 @@ func syncOpenFlareWAFIPGroup(ctx context.Context, group *model.OpenFlareWAFIPGro
 	case wafIPGroupTypeAutomatic:
 		return syncIPGroupAutomatic(ctx, group, now)
 	default:
-		return nil, &RuleValidationError{Err: errors.New("只有自动和订阅类型 IP 组支持同步")}
+		return nil, &RuleValidationError{Err: errors.New("only automatic and subscription IP groups support synchronization")}
 	}
 }
 
@@ -179,7 +179,7 @@ func syncIPGroupSubscription(ctx context.Context, group *model.OpenFlareWAFIPGro
 	group.LastSyncedAt = &now
 	group.NextSyncAt = &nextSyncAt
 	group.LastSyncStatus = "success"
-	group.LastSyncMessage = fmt.Sprintf("同步成功，共 %d 条 IP/IP 段", len(ips))
+	group.LastSyncMessage = fmt.Sprintf("Synchronization completed; %d IP addresses or ranges", len(ips))
 	if err := repository.UpdateOpenFlareWAFIPGroupSyncResult(ctx, group); err != nil {
 		return nil, err
 	}
@@ -265,7 +265,7 @@ func syncIPGroupAutomatic(ctx context.Context, group *model.OpenFlareWAFIPGroup,
 	group.LastSyncedAt = &now
 	group.NextSyncAt = &nextSyncAt
 	group.LastSyncStatus = "success"
-	group.LastSyncMessage = fmt.Sprintf("自动规则执行成功，共命中 %d 个 IP，当前生效 %d 个 IP", len(ips), len(finalIPs))
+	group.LastSyncMessage = fmt.Sprintf("Automatic rules completed; matched %d IPs, currently active %d IPs", len(ips), len(finalIPs))
 	if err := repository.UpdateOpenFlareWAFIPGroupSyncResult(ctx, group); err != nil {
 		return nil, err
 	}
@@ -301,7 +301,7 @@ func evaluateParsedIPGroupAutoConfig(ctx context.Context, config ipGroupAutoConf
 	for i, rule := range config.Rules {
 		program, err := exprlang.Compile(rule.Expr, exprlang.Env(ipGroupAutoRuleEnv{}), exprlang.AsBool())
 		if err != nil {
-			return nil, fmt.Errorf("自动规则 %s Expr 无效: %w", displayIPGroupAutoRuleName(rule, i), err)
+			return nil, fmt.Errorf("invalid expression in automatic rule %s: %w", displayIPGroupAutoRuleName(rule, i), err)
 		}
 		programs = append(programs, program)
 	}
@@ -348,7 +348,7 @@ func evaluateParsedIPGroupAutoConfig(ctx context.Context, config ipGroupAutoConf
 		for _, program := range programs {
 			output, err := exprlang.Run(program, env)
 			if err != nil {
-				return nil, fmt.Errorf("执行自动规则失败: %w", err)
+				return nil, fmt.Errorf("failed to execute automatic rule: %w", err)
 			}
 			if matchedRule, ok := output.(bool); ok && matchedRule {
 				matched = append(matched, acc.ip)
@@ -409,23 +409,23 @@ func downloadIPGroupSubscription(ctx context.Context, rawURL string) ([]byte, er
 	client := http.Client{Timeout: 15 * time.Second}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
 	if err != nil {
-		return nil, fmt.Errorf("下载订阅失败: %w", err)
+		return nil, fmt.Errorf("failed to download subscription: %w", err)
 	}
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("下载订阅失败: %w", err)
+		return nil, fmt.Errorf("failed to download subscription: %w", err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return nil, fmt.Errorf("订阅返回状态码 %d", resp.StatusCode)
+		return nil, fmt.Errorf("subscription returned status code %d", resp.StatusCode)
 	}
 	var buffer bytes.Buffer
 	reader := io.LimitReader(resp.Body, maxWAFIPGroupSubscriptionBytes+1)
 	if _, err := buffer.ReadFrom(reader); err != nil {
-		return nil, fmt.Errorf("读取订阅内容失败: %w", err)
+		return nil, fmt.Errorf("failed to read subscription content: %w", err)
 	}
 	if buffer.Len() > maxWAFIPGroupSubscriptionBytes {
-		return nil, fmt.Errorf("订阅内容不能超过 %d 字节", maxWAFIPGroupSubscriptionBytes)
+		return nil, fmt.Errorf("subscription content must not exceed %d bytes", maxWAFIPGroupSubscriptionBytes)
 	}
 	return buffer.Bytes(), nil
 }
@@ -459,7 +459,7 @@ func parseIPGroupTextSubscription(text string) []string {
 func parseIPGroupJSONSubscription(content []byte, mappingRule string) ([]string, error) {
 	var payload any
 	if err := json.Unmarshal(content, &payload); err != nil {
-		return nil, fmt.Errorf("JSON 订阅解析失败: %w", err)
+		return nil, fmt.Errorf("failed to parse JSON subscription: %w", err)
 	}
 	nodes, err := selectJSONMappingNodes(payload, mappingRule)
 	if err != nil {
@@ -470,7 +470,7 @@ func parseIPGroupJSONSubscription(content []byte, mappingRule string) ([]string,
 		collectJSONStrings(node, &items)
 	}
 	if len(items) == 0 {
-		return nil, errors.New("JSON 订阅没有解析到 IP/IP 段")
+		return nil, errors.New("no IP addresses or ranges were parsed from the JSON subscription")
 	}
 	return items, nil
 }
@@ -512,7 +512,7 @@ func selectJSONMappingNodes(payload any, mappingRule string) ([]any, error) {
 		nodes = next
 	}
 	if len(nodes) == 0 {
-		return nil, fmt.Errorf("JSON 映射规则 %q 未匹配到内容", mappingRule)
+		return nil, fmt.Errorf("JSON mapping rule %q did not match any content", mappingRule)
 	}
 	return nodes, nil
 }

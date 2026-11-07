@@ -1,3 +1,4 @@
+import { useTranslations } from 'next-intl';
 import {
   Ban,
   Fingerprint,
@@ -10,7 +11,7 @@ import {
 import { Button } from '@/components/ui/button';
 
 import {
-  NODE_TYPE_LABELS,
+  NODE_TYPE_LABEL_KEYS,
   WAF_NODE_DRAG_MIME,
   type AddableNodeType,
 } from './node-factory';
@@ -25,6 +26,7 @@ const items = [
 ] satisfies { type: AddableNodeType; icon: typeof Fingerprint }[];
 
 export function NodeLibrary() {
+  const rt = useTranslations('runtime');
   return (
     <div className='flex items-center gap-2'>
       {items.map(({ type, icon: Icon }) => (
@@ -42,7 +44,7 @@ export function NodeLibrary() {
           }}
         >
           <Icon data-icon='inline-start' />
-          {NODE_TYPE_LABELS[type]}
+          {rt(NODE_TYPE_LABEL_KEYS[type])}
         </Button>
       ))}
     </div>

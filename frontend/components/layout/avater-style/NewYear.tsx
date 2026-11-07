@@ -1,3 +1,4 @@
+import { runtimeText } from '@/i18n/runtime';
 /**
  * 元旦/新年主题装饰组件归档
  * 包含灯笼、福字以及烟花效果的集成组件
@@ -95,7 +96,7 @@ export const Lantern = ({ className }: { className?: string }) => (
       fontWeight='bold'
       fontFamily='serif'
     >
-      福
+      {runtimeText('good_fortune_b3541887')}
     </text>
 
     <path d='M512 660V720' stroke='#FFD700' strokeWidth='20' />
@@ -186,7 +187,7 @@ export const FuCharacter = ({
         style={{ letterSpacing: '0px' }}
         transform='rotate(130 50 50)'
       >
-        福
+        {runtimeText('good_fortune_b3541887')}
       </text>
     </g>
 

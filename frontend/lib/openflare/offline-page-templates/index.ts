@@ -1,3 +1,4 @@
+import { runtimeText } from '@/i18n/runtime';
 /**
  * 内置离线页 HTML 模板目录。
  */
@@ -17,29 +18,40 @@ export type OfflinePageTemplate = {
 export const OFFLINE_PAGE_TEMPLATES: OfflinePageTemplate[] = [
   {
     id: 'minimalist',
-    name: '极简白底',
-    html: minimalistHtml,
+    get name() {
+      return runtimeText('minimal_white_5636e8a9');
+    },
+    get html() {
+      return minimalistHtml();
+    },
   },
   {
     id: 'line-style',
-    name: '线框拓扑',
-    html: lineStyleHtml,
+    get name() {
+      return runtimeText('line_topology_22ad450c');
+    },
+    get html() {
+      return lineStyleHtml();
+    },
   },
   {
     id: 'baohaus',
-    name: '包豪斯',
-    html: baohausHtml,
+    get name() {
+      return runtimeText('bauhaus_5cc69781');
+    },
+    get html() {
+      return baohausHtml();
+    },
   },
 ];
 
 /** 默认预制模板 */
 export const DEFAULT_OFFLINE_PAGE_TEMPLATE_ID = 'minimalist';
 
-export const DEFAULT_OFFLINE_PAGE_HTML =
-  getOfflinePageTemplate(DEFAULT_OFFLINE_PAGE_TEMPLATE_ID)?.html ?? '';
-
 export function effectiveOfflinePageHTML(html: string): string {
-  return html.trim() === '' ? DEFAULT_OFFLINE_PAGE_HTML : html;
+  return html.trim() === ''
+    ? (getOfflinePageTemplate(DEFAULT_OFFLINE_PAGE_TEMPLATE_ID)?.html ?? '')
+    : html;
 }
 
 export function getOfflinePageTemplate(

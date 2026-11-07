@@ -14,6 +14,12 @@ import (
 //go:embed pow_static
 var powStaticFS embed.FS
 
+//go:embed pow_static/locales/challenge.en.json
+var powChallengeEnglish string
+
+//go:embed pow_static/locales/challenge.zh-CN.json
+var powChallengeChinese string
+
 const openRestyPowRuntimeLua = `local _M = {}
 
 local source = debug.getinfo(1, "S").source or ""
@@ -290,7 +296,7 @@ end
 return require("pow.runtime").check()
 `
 
-const openRestyPowChallengeLua = `local cjson = require "cjson.safe"
+var openRestyPowChallengeLua = `local cjson = require "cjson.safe"
 
 local pow_challenges = ngx.shared.openflare_pow_challenges
 local pow_config_dict = ngx.shared.openflare_pow_config
@@ -353,21 +359,17 @@ if string.find(accept_lang, "zh") then
     lang = "zh-CN"
 end
 
-local t_title = "Making sure you're not a bot!"
-local t_status = "Loading..."
-local t_protected = "This site is protected by a Proof-of-Work challenge. Your browser will solve a small puzzle before the upstream response is shown."
-local t_why = "Why am I seeing this?"
-local t_why_desc = "OpenFlare is asking your browser to complete a lightweight computation to distinguish normal browser traffic from automated abuse. This should finish automatically."
-local t_noscript = "JavaScript is required to pass this verification. Please enable JavaScript and reload."
-
-if lang == "zh-CN" then
-    t_title = "正在确认你是不是机器人！"
-    t_status = "加载中..."
-    t_protected = "本网站受工作量证明（Proof-of-Work）挑战保护。在显示源站响应之前，您的浏览器将解决一个微型谜题。"
-    t_why = "为什么我会看到这个？"
-    t_why_desc = "OpenFlare 正在要求您的浏览器完成一项轻量级计算，以区分正常的浏览器流量和自动化的恶意请求。这应该会自动完成。"
-    t_noscript = "很遗憾，您必须启用 JavaScript 才能通过这项验证。请开启 JavaScript 并刷新页面。"
-end
+local translations = {
+    en = cjson.decode([==[` + powChallengeEnglish + `]==]),
+    ["zh-CN"] = cjson.decode([==[` + powChallengeChinese + `]==])
+}
+local text = translations[lang] or translations.en
+local t_title = text.title
+local t_status = text.status
+local t_protected = text.protected
+local t_why = text.why
+local t_why_desc = text.why_description
+local t_noscript = text.noscript
 
 ngx.header.content_type = "text/html; charset=utf-8"
 ngx.say([[<!DOCTYPE html>

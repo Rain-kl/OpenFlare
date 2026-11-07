@@ -1,3 +1,4 @@
+import { getFormattingLocale } from '@/i18n/format';
 export type AccessLogTab = 'overview' | 'ips' | 'list';
 
 export type SearchDraft = {
@@ -66,7 +67,7 @@ export function parseSortValue(value: string) {
 }
 
 export function formatCompactNumber(value: number) {
-  return new Intl.NumberFormat('zh-CN', {
+  return new Intl.NumberFormat(getFormattingLocale(), {
     notation: value >= 10000 ? 'compact' : 'standard',
     maximumFractionDigits: 1,
   }).format(value);

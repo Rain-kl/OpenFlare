@@ -21,33 +21,33 @@ CURRENT_DIR="$(pwd)"
 LOG_FILE="${CURRENT_DIR}/install.log"
 
 # Translation text variables
-TXT_DOCKER_RESTARTED="Docker 已启动/重启并运行中"
-TXT_LOW_DOCKER_VERSION="Docker 版本较低，建议升级到 20.10 及以上版本"
-TXT_INSTALL_DOCKER_CONFIRM="未检测到 Docker，是否现在安装？(y/n) [y]: "
-TXT_DOCKER_INSTALL_ONLINE="开始在线安装 Docker..."
-TXT_INSTALL_DOCKER_ONLINE="使用 opkg 在线安装 Docker..."
-TXT_CHOOSE_LOWEST_LATENCY_SOURCE="选择延迟最低的镜像源:"
-TXT_CHOOSE_LOWEST_LATENCY_DELAY="延迟为:"
-TXT_TRY_NEXT_LINK="尝试使用链接:"
-TXT_DOWNLOAD_DOCKER_SCRIPT="下载 Docker 安装脚本..."
-TXT_DOWNLOAD_DOCKER_SCRIPT_SUCCESS="下载成功:"
-TXT_SUCCESSFULLY_MESSAGE="开始执行安装..."
-TXT_DOWNLOAD_FAIELD="下载失败:"
-TXT_ALL_DOWNLOAD_ATTEMPTS_FAILED="所有 Docker 下载尝试均失败，请手动安装 Docker"
-TXT_DOCKER_INSTALL_FAIL="Docker 安装失败"
-TXT_DOCKER_INSTALL_SUCCESS="Docker 安装成功"
-TXT_CANNOT_SELECT_SOURCE="无法选择合适的镜像源"
-TXT_REGIONS_OTHER_THAN_CHINA="检测到非中国大陆地区，使用官方源安装 Docker..."
-TXT_DOCKER_START_NOTICE="正在启动 Docker 服务..."
-TXT_CANCEL_INSTALL_DOCKER="已取消 Docker 安装"
-TXT_INVALID_YN_INPUT="无效的输入，请输入 y 或 n"
+TXT_DOCKER_RESTARTED="Docker is running after startup/restart"
+TXT_LOW_DOCKER_VERSION="Docker is outdated; version 20.10 or later is recommended"
+TXT_INSTALL_DOCKER_CONFIRM="Docker was not found. Install it now? (y/n) [y]: "
+TXT_DOCKER_INSTALL_ONLINE="Starting Docker installation..."
+TXT_INSTALL_DOCKER_ONLINE="Installing Docker with opkg..."
+TXT_CHOOSE_LOWEST_LATENCY_SOURCE="Selecting the mirror with the lowest latency:"
+TXT_CHOOSE_LOWEST_LATENCY_DELAY="Latency:"
+TXT_TRY_NEXT_LINK="Trying URL:"
+TXT_DOWNLOAD_DOCKER_SCRIPT="Downloading the Docker installation script..."
+TXT_DOWNLOAD_DOCKER_SCRIPT_SUCCESS="Download succeeded:"
+TXT_SUCCESSFULLY_MESSAGE="Starting installation..."
+TXT_DOWNLOAD_FAIELD="Download failed:"
+TXT_ALL_DOWNLOAD_ATTEMPTS_FAILED="All Docker download attempts failed; install Docker manually"
+TXT_DOCKER_INSTALL_FAIL="Docker installation failed"
+TXT_DOCKER_INSTALL_SUCCESS="Docker installed successfully"
+TXT_CANNOT_SELECT_SOURCE="Could not select a suitable mirror"
+TXT_REGIONS_OTHER_THAN_CHINA="Outside mainland China; installing Docker from the official source..."
+TXT_DOCKER_START_NOTICE="Starting the Docker service..."
+TXT_CANCEL_INSTALL_DOCKER="Docker installation canceled"
+TXT_INVALID_YN_INPUT="Invalid input; enter y or n"
 
 log() {
     echo -e "[$(date +'%Y-%m-%d %H:%M:%S')] $1" | tee -a "$LOG_FILE"
 }
 
 configure_accelerator() {
-    log "配置 Docker 国内镜像加速源..."
+    log "Configuring Docker mirrors for mainland China..."
     local docker_config_folder="/etc/docker"
     if [[ ! -d "$docker_config_folder" ]]; then
         mkdir -p "$docker_config_folder"
@@ -317,13 +317,12 @@ done
 
 if [[ "$HAS_ARGS" == "false" ]]; then
   echo "=================================================="
-  echo "欢迎使用 OpenFlare Agent 安装脚本"
   echo "Welcome to the OpenFlare Agent Installer"
   echo "=================================================="
-  echo "请选择安装方式 / Please choose installation method:"
-  echo "  1) Local  (本地安装: 下载二进制运行，需要本地有 OpenResty)"
-  echo "  2) Docker (容器安装: 运行内置 OpenResty 的 Agent 容器)"
-  read -p "请输入序号 [1-2] (默认 1): " method_choice
+  echo "Please choose an installation method:"
+  echo "  1) Local  (download and run the binary; requires a local OpenResty installation)"
+  echo "  2) Docker (run the Agent container with OpenResty included)"
+  read -p "Enter an option [1-2] (default: 1): " method_choice
   method_choice=${method_choice:-1}
   case "$method_choice" in
     2) INSTALL_METHOD="docker" ;;
@@ -336,20 +335,20 @@ if [[ "$HAS_ARGS" == "false" ]]; then
 
   # Prompt for Server URL
   while [[ -z "$SERVER_URL" ]]; do
-    read -p "请输入 OpenFlare Server 地址 (例如 http://127.0.0.1:3000): " SERVER_URL
+    read -p "Enter the OpenFlare Server URL (for example, http://127.0.0.1:3000): " SERVER_URL
   done
 
   # Prompt for Token
   while [[ -z "$DISCOVERY_TOKEN" && -z "$AGENT_TOKEN" ]]; do
-    echo "请选择认证 Token 类型 / Please choose token type:"
-    echo "  1) Discovery Token (自动注册凭证 - 适合新节点上线)"
-    echo "  2) Agent Token     (专属接入凭证 - 适合预创建节点)"
-    read -p "请输入序号 [1-2] (默认 1): " token_type_choice
+    echo "Please choose a token type:"
+    echo "  1) Discovery Token (automatic registration credentials for new nodes)"
+    echo "  2) Agent Token     (dedicated credentials for pre-created nodes)"
+    read -p "Enter an option [1-2] (default: 1): " token_type_choice
     token_type_choice=${token_type_choice:-1}
     if [[ "$token_type_choice" == "2" ]]; then
-      read -p "请输入 Agent Token: " AGENT_TOKEN
+      read -p "Enter the Agent Token: " AGENT_TOKEN
     else
-      read -p "请输入 Discovery Token: " DISCOVERY_TOKEN
+      read -p "Enter the Discovery Token: " DISCOVERY_TOKEN
     fi
   done
 else
@@ -371,13 +370,13 @@ fi
 
 # Run Docker container installation if Docker method selected
 if [[ "$INSTALL_METHOD" == "docker" ]]; then
-  echo "拉取最新的 OpenFlare Agent 镜像..."
+  echo "Pulling the latest OpenFlare Agent image..."
   docker pull ghcr.io/rain-kl/openflare-agent:latest
 
-  echo "停止并移除旧的 openflare-agent 容器 (如果存在)..."
+  echo "Stopping and removing the existing openflare-agent container, if any..."
   docker rm -f openflare-agent 2>/dev/null || true
 
-  echo "启动 openflare-agent 容器..."
+  echo "Starting the openflare-agent container..."
   if [[ -n "$AGENT_TOKEN" ]]; then
     docker run -d --name openflare-agent --restart unless-stopped \
       -p 80:80 -p 443:443/tcp -p 443:443/udp \
@@ -395,8 +394,8 @@ if [[ "$INSTALL_METHOD" == "docker" ]]; then
   fi
 
   echo ""
-  echo "OpenFlare Agent (Docker) 安装成功!"
-  echo "您可以执行以下命令查看运行日志:"
+  echo "OpenFlare Agent (Docker) installed successfully!"
+  echo "Run the following command to view runtime logs:"
   echo "  docker logs -f openflare-agent"
   exit 0
 fi
@@ -406,7 +405,7 @@ if [[ -z "$OPENRESTY_PATH" ]]; then
   if command -v openresty >/dev/null 2>&1; then
     OPENRESTY_PATH="$(command -v openresty)"
   elif [[ "$HAS_ARGS" == "false" ]]; then
-    read -p "未在 PATH 中检测到 openresty，请输入 OpenResty 二进制路径: " OPENRESTY_PATH
+    read -p "OpenResty was not found in PATH. Enter the path to its binary: " OPENRESTY_PATH
     if [[ -z "$OPENRESTY_PATH" ]]; then
       echo "Error: OpenResty binary path is required for local installation."
       exit 1

@@ -1,3 +1,4 @@
+import { useTranslations } from 'next-intl';
 import * as React from 'react';
 import { AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -48,16 +49,23 @@ export interface ErrorDisplayProps {
  * @returns {React.ReactNode} 错误展示组件
  */
 export function ErrorDisplay({
-  title = '加载失败',
+  title = undefined,
   message,
   error,
   onRetry,
-  retryText = '重试',
+  retryText = undefined,
   icon: Icon = AlertCircle,
   className,
   showStack = false,
 }: ErrorDisplayProps) {
-  const errorMessage = message || error?.message || '发生未知错误，请稍后重试';
+  const rt = useTranslations('runtime');
+  title ??= rt('load_failed_d1d04482');
+  retryText ??= rt('retry_b8784c8d');
+
+  const errorMessage =
+    message ||
+    error?.message ||
+    rt('an_unknown_error_occurred_please_try_again_79a9f98a');
 
   return (
     <div
@@ -85,7 +93,7 @@ export function ErrorDisplay({
       {showStack && error?.stack && process.env.NODE_ENV === 'development' && (
         <details className='mt-6 text-left max-w-2xl w-full'>
           <summary className='cursor-pointer text-xs text-muted-foreground hover:text-foreground'>
-            查看详细错误信息
+            {rt('view_error_details_9e7e4e37')}
           </summary>
           <pre className='mt-2 p-4 bg-muted rounded-lg text-xs overflow-auto'>
             {error.stack}
@@ -115,7 +123,10 @@ export function ErrorInline({
   onRetry,
   className,
 }: Omit<ErrorDisplayProps, 'title' | 'icon' | 'showStack'>) {
-  const errorMessage = message || error?.message || '发生未知错误';
+  const rt = useTranslations('runtime');
+
+  const errorMessage =
+    message || error?.message || rt('unknown_error_e83a8ca8');
 
   return (
     <div
@@ -133,7 +144,7 @@ export function ErrorInline({
           size='sm'
           className='h-6 px-4 text-xs'
         >
-          重试
+          {rt('retry_b8784c8d')}
         </Button>
       )}
     </div>

@@ -1,5 +1,7 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
+
 import * as React from 'react';
 import useEmblaCarousel, {
   type UseEmblaCarouselType,
@@ -177,6 +179,8 @@ function CarouselPrevious({
   size = 'icon',
   ...props
 }: React.ComponentProps<typeof Button>) {
+  const uiText = useTranslations('runtime');
+
   const { orientation, scrollPrev, canScrollPrev } = useCarousel();
 
   return (
@@ -196,7 +200,7 @@ function CarouselPrevious({
       {...props}
     >
       <ArrowLeft />
-      <span className='sr-only'>Previous slide</span>
+      <span className='sr-only'>{uiText('ui_previousSlide')}</span>
     </Button>
   );
 }
@@ -207,6 +211,8 @@ function CarouselNext({
   size = 'icon',
   ...props
 }: React.ComponentProps<typeof Button>) {
+  const uiText = useTranslations('runtime');
+
   const { orientation, scrollNext, canScrollNext } = useCarousel();
 
   return (
@@ -226,7 +232,7 @@ function CarouselNext({
       {...props}
     >
       <ArrowRight />
-      <span className='sr-only'>Next slide</span>
+      <span className='sr-only'>{uiText('ui_nextSlide')}</span>
     </Button>
   );
 }

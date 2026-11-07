@@ -24,12 +24,12 @@ func handleRuleError(c *gin.Context, err error) bool {
 	case errors.As(err, &validation):
 		response.AbortBadRequest(c, validation.Error())
 	case errors.Is(err, model.ErrWAFRuleRevisionConflict):
-		response.AbortConflict(c, "规则已被其他操作更新，请重新加载")
+		response.AbortConflict(c, "Rule was updated by another operation; reload it")
 	case errors.Is(err, gorm.ErrRecordNotFound):
-		response.AbortNotFound(c, "WAF 规则不存在")
+		response.AbortNotFound(c, "WAF rule was not found")
 	default:
 		logger.ErrorF(c.Request.Context(), "[OpenFlareWAF] rule API failed: %v", err)
-		response.AbortInternal(c, "WAF 规则操作失败")
+		response.AbortInternal(c, "WAF rule operation failed")
 	}
 	return true
 }

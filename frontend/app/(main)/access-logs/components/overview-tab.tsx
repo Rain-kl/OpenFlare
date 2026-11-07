@@ -318,6 +318,8 @@ function OverviewContent({
   data: AccessLogOverview;
   hours: number;
 }) {
+  const uiText = useTranslations('runtime');
+
   const t = useTranslations('accessLogs');
   const requestLabels = data.trends.requests.map((point) =>
     formatOverviewTrendLabel(point.bucket_started_at, hours),
@@ -331,7 +333,7 @@ function OverviewContent({
     <>
       <div className='grid gap-4 lg:grid-cols-3'>
         <SparklineMetricCard
-          title='Total Requests'
+          title={uiText('ui_totalRequests')}
           value={formatCompactNumber(data.summary.total_requests)}
           hint={hint}
           color='#f59e0b'
@@ -340,7 +342,7 @@ function OverviewContent({
           values={requestValues}
         />
         <SparklineMetricCard
-          title='Total Visits'
+          title={uiText('ui_totalVisits')}
           value={formatCompactNumber(data.summary.total_visits)}
           hint={t('overview.uniqueVisitors', { hint })}
           color='#38bdf8'
@@ -349,7 +351,7 @@ function OverviewContent({
           values={visitValues}
         />
         <SparklineMetricCard
-          title='Bandwidth Served'
+          title={uiText('ui_bandwidthServed')}
           value={formatBytes(data.summary.bandwidth_served)}
           hint={t('overview.served', { hint })}
           color='#34d399'
@@ -363,7 +365,7 @@ function OverviewContent({
       <Card className='border-dashed shadow-none'>
         <CardHeader>
           <CardTitle className='text-sm font-semibold'>
-            Requests over time
+            {uiText('ui_requestsOverTime')}
           </CardTitle>
           <CardDescription className='text-xs'>
             {t('overview.requestsHint')}
@@ -389,13 +391,13 @@ function OverviewContent({
 
       <div className='grid gap-6 xl:grid-cols-2'>
         <PieDistributionCard
-          title='Requests by device type'
+          title={uiText('ui_requestsByDevice')}
           description={t('overview.deviceDesc')}
           items={data.device_types ?? []}
           emptyMessage={t('overview.deviceEmpty')}
         />
         <PieDistributionCard
-          title='Status code'
+          title={uiText('ui_statusCodes')}
           description={t('overview.statusDesc')}
           items={data.status_codes ?? []}
           emptyMessage={t('overview.statusEmpty')}
@@ -404,17 +406,17 @@ function OverviewContent({
 
       <div className='grid gap-6 xl:grid-cols-3'>
         <RankCard
-          title='Top Paths'
+          title={uiText('ui_topPaths')}
           description={t('overview.topPathsDesc')}
           items={toRankItems(data.top_paths)}
         />
         <RankCard
-          title='Top Hosts'
+          title={uiText('ui_topHosts')}
           description={t('overview.topHostsDesc')}
           items={toRankItems(data.top_hosts)}
         />
         <RankCard
-          title='Top IPs'
+          title={uiText('ui_topIps')}
           description={t('overview.topIpsDesc')}
           items={toRankItems(data.top_ips)}
         />
@@ -422,17 +424,17 @@ function OverviewContent({
 
       <div className='grid gap-6 xl:grid-cols-3'>
         <RankCard
-          title='Top browsers'
+          title={uiText('ui_topBrowsers')}
           description={t('overview.browsersDesc')}
           items={toRankItems(data.top_browsers)}
         />
         <RankCard
-          title='Top Operating System'
+          title={uiText('ui_topOperatingSystems')}
           description={t('overview.osDesc')}
           items={toRankItems(data.top_operating_systems)}
         />
         <RankCard
-          title='Top User-Agent'
+          title={uiText('ui_topUserAgents')}
           description={t('overview.uaDesc')}
           items={toRankItems(data.top_user_agents)}
         />

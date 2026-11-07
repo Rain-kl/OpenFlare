@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { useTranslations } from 'next-intl';
 import {
   createContext,
   useCallback,
@@ -44,6 +45,7 @@ const AdminContext = createContext<AdminContextState | null>(null);
  * @param {React.ReactNode} children - Admin Provider 的子元素
  */
 export function AdminProvider({ children }: { children: React.ReactNode }) {
+  const t = useTranslations('contexts.admin');
   const queryClient = useQueryClient();
   const [systemConfigs, setSystemConfigs] = useState<SystemConfig[]>([]);
   const [systemConfigsLoading, setSystemConfigsLoading] = useState(false);
@@ -78,14 +80,15 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
           return;
         }
 
-        const errorObject = handleContextError(error, '加载系统配置失败', {
+        const errorObject = handleContextError(error, t('loadConfigFailed'), {
           logError: true,
+          logMessage: 'Failed to load system configuration',
         });
         setSystemConfigsError(errorObject);
         setSystemConfigsLoading(false);
       }
     },
-    [],
+    [t],
   );
 
   /** 更新系统配置 */
@@ -96,11 +99,13 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
         await queryClient.invalidateQueries({ queryKey: ['public-config'] });
         await refetchSystemConfigs(lastConfigTypeRef.current);
       } catch (error) {
-        handleContextError(error, '更新系统配置失败');
+        handleContextError(error, t('updateConfigFailed'), {
+          logMessage: 'Failed to update system configuration',
+        });
         throw error;
       }
     },
-    [queryClient, refetchSystemConfigs],
+    [queryClient, refetchSystemConfigs, t],
   );
 
   const value: AdminContextState = {
@@ -129,7 +134,7 @@ export function useAdmin() {
   const context = useContext(AdminContext);
 
   if (!context) {
-    throw new Error('useAdmin 必须在 AdminProvider 内部使用');
+    throw new Error('useAdmin must be used inside AdminProvider');
   }
 
   return context;

@@ -1,3 +1,5 @@
+'use client';
+
 /*
 Copyright 2026 Arctel.net
 
@@ -14,9 +16,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-'use client';
-
 import { useMemo, useState } from 'react';
+import { isLogStorageDisabledMessage } from './log-storage-error';
 import { useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -94,10 +95,12 @@ function statusVariant(status: number) {
 
 function isClickhouseDisabledError(error: Error) {
   const errMsg = error.message || '';
-  return errMsg.includes('ClickHouse') || errMsg.includes('未启用');
+  return isLogStorageDisabledMessage(errMsg);
 }
 
 export function AccessLogs() {
+  const uiText = useTranslations('runtime');
+
   const t = useTranslations('admin.logs.accessLogs');
   const [page, setPage] = useState(1);
 
@@ -519,7 +522,7 @@ export function AccessLogs() {
               <div className='grid gap-2 flex-1'>
                 <div className='flex items-center justify-between'>
                   <Label className='text-xs font-bold text-muted-foreground'>
-                    Request Headers
+                    {uiText('ui_requestHeaders')}
                   </Label>
                   <Button
                     variant='ghost'

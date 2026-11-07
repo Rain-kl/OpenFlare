@@ -1,7 +1,7 @@
+'use client';
+
 // Copyright 2026 Arctel.net
 // SPDX-License-Identifier: Apache-2.0
-
-'use client';
 
 import * as React from 'react';
 import { useTranslations } from 'next-intl';
@@ -62,6 +62,8 @@ import type {
 import { PushService } from '@/lib/services/push';
 
 export function SettingsTab() {
+  const rt = useTranslations('runtime');
+
   const t = useTranslations('admin.push.settings');
   const queryClient = useQueryClient();
   const [deleteTarget, setDeleteTarget] = React.useState<PushChannel | null>(
@@ -606,7 +608,7 @@ export function SettingsTab() {
                           toast.success(t('loadedFeishuTemplate'));
                         }}
                       >
-                        飞书 Webhook
+                        {rt('lark_webhook_c2e0b312')}
                       </Button>
                       <Button
                         variant='outline'
@@ -623,7 +625,9 @@ export function SettingsTab() {
                                 msgtype: 'markdown',
                                 markdown: {
                                   title: '$title',
-                                  text: '### $title\n$content\n\n[查看详情]($url)',
+                                  text: rt(
+                                    'title_content_view_details_url_7af4b7d5',
+                                  ),
                                 },
                               },
                               null,
@@ -633,7 +637,7 @@ export function SettingsTab() {
                           toast.success(t('loadedDingTalkTemplate'));
                         }}
                       >
-                        钉钉群机器人
+                        {rt('dingtalk_group_bot_5d8efec9')}
                       </Button>
                       <Button
                         variant='outline'
@@ -649,8 +653,9 @@ export function SettingsTab() {
                               {
                                 msgtype: 'markdown',
                                 markdown: {
-                                  content:
-                                    '### $title\n$content\n\n[查看详情]($url)',
+                                  content: rt(
+                                    'title_content_view_details_url_7af4b7d5',
+                                  ),
                                 },
                               },
                               null,
@@ -660,7 +665,7 @@ export function SettingsTab() {
                           toast.success(t('loadedWeChatTemplate'));
                         }}
                       >
-                        企业微信群机器人
+                        {rt('wecom_group_bot_138ea7a8')}
                       </Button>
                       <Button
                         variant='outline'
@@ -684,7 +689,7 @@ export function SettingsTab() {
                           toast.success(t('loadedBarkTemplate'));
                         }}
                       >
-                        Bark App
+                        {rt('ui_barkApp')}
                       </Button>
                     </div>
                   </div>

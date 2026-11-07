@@ -1,7 +1,8 @@
 'use client';
 
 import * as React from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
+import { localizeConfigDescription } from '@/i18n/builtin-metadata';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import {
@@ -52,6 +53,7 @@ function SystemConfigDetailPanel({
   saving: boolean;
 }) {
   const t = useTranslations('admin.system');
+  const locale = useLocale();
   return (
     <ManageDetailPanel isEmpty={!config} onSave={onSave} saving={saving}>
       <div className='grid grid-cols-1 gap-0'>
@@ -138,8 +140,16 @@ function SystemConfigDetailPanel({
                 type='text'
                 value={
                   editData.description !== undefined
-                    ? editData.description
-                    : config?.description || ''
+                    ? localizeConfigDescription(
+                        config?.key ?? '',
+                        editData.description,
+                        locale,
+                      )
+                    : localizeConfigDescription(
+                        config?.key ?? '',
+                        config?.description || '',
+                        locale,
+                      )
                 }
                 placeholder={t('optionalDescription')}
                 onChange={(e) => {
@@ -205,6 +215,7 @@ function SystemConfigDetailPanel({
  */
 export function SystemConfigs() {
   const t = useTranslations('admin.system');
+  const locale = useLocale();
   const {
     systemConfigs: configs,
     systemConfigsLoading: loading,
@@ -309,9 +320,13 @@ export function SystemConfigs() {
           cell: (item) => (
             <span
               className='truncate max-w-[200px] inline-block text-muted-foreground'
-              title={item.description}
+              title={localizeConfigDescription(
+                item.key,
+                item.description,
+                locale,
+              )}
             >
-              {item.description}
+              {localizeConfigDescription(item.key, item.description, locale)}
             </span>
           ),
           width: '200px',

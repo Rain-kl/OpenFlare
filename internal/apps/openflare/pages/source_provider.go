@@ -46,13 +46,13 @@ func (providerError remoteProviderError) Error() string {
 }
 
 const (
-	errRemoteProviderInvalidLimit   remoteProviderError = "远程来源部署包大小限制无效"
-	errRemoteProviderRedirectLimit  remoteProviderError = "远程来源重定向次数超过限制"
+	errRemoteProviderInvalidLimit   remoteProviderError = "Invalid remote source archive size limit"
+	errRemoteProviderRedirectLimit  remoteProviderError = "Remote source redirect limit exceeded"
 	errRemoteProviderDownloadFailed remoteProviderError = errPagesPackageURLDownloadFailed
 	errRemoteProviderTooLarge       remoteProviderError = errPagesPackageURLTooLarge
 	errRemoteProviderEmpty          remoteProviderError = errPagesPackageEmpty
 	errRemoteProviderUnsupported    remoteProviderError = errPagesPackageUnsupported
-	errRemoteProviderCleanupFailed  remoteProviderError = "清理远程来源临时文件失败"
+	errRemoteProviderCleanupFailed  remoteProviderError = "Failed to clean up remote source temporary file"
 )
 
 // RemoteSourceRequest describes one immutable Remote URL package fetch.

@@ -178,7 +178,7 @@ func validateObjectConfig(cfg ObjectConfig, endpointRequired bool) error {
 
 // SaveActiveConfig persists the active storage configuration.
 func SaveActiveConfig(ctx context.Context, cfg Config) error {
-	return saveSystemConfig(ctx, model.ConfigKeyStorageConfig, cfg, "文件存储驱动及连接配置（JSON）")
+	return saveSystemConfig(ctx, model.ConfigKeyStorageConfig, cfg, "File storage backend and connection configuration (JSON)")
 }
 
 func saveSystemConfig(ctx context.Context, key string, value any, description string) error {

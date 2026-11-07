@@ -36,9 +36,13 @@ import {
 import services from '@/lib/services';
 import type { Template } from '@/lib/services/admin/types';
 import { toast } from 'sonner';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
+import { localizeTemplateMetadata } from '@/i18n/builtin-metadata';
 
 export function TemplatesManager() {
+  const rt = useTranslations('runtime');
+  const locale = useLocale();
+
   const queryClient = useQueryClient();
   const t = useTranslations('settings.templates');
   const [modalOpen, setModalOpen] = useState(false);
@@ -191,7 +195,13 @@ export function TemplatesManager() {
                   <div className='space-y-1.5'>
                     <div className='flex items-center gap-2 flex-wrap'>
                       <span className='font-semibold text-sm text-foreground'>
-                        {tmpl.name}
+                        {localizeTemplateMetadata(
+                          tmpl.key,
+                          tmpl.is_system,
+                          'name',
+                          tmpl.name,
+                          locale,
+                        )}
                       </span>
                       <span
                         className={`text-[10px] px-2 py-0.5 rounded-full border font-medium ${
@@ -215,7 +225,13 @@ export function TemplatesManager() {
                     </div>
                     {tmpl.description && (
                       <p className='text-xs text-muted-foreground/80 leading-relaxed max-w-xl'>
-                        {tmpl.description}
+                        {localizeTemplateMetadata(
+                          tmpl.key,
+                          tmpl.is_system,
+                          'description',
+                          tmpl.description,
+                          locale,
+                        )}
                       </p>
                     )}
                   </div>
@@ -226,6 +242,7 @@ export function TemplatesManager() {
                       size='icon'
                       className='size-8 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-lg transition-colors'
                       onClick={() => handleOpenEdit(tmpl)}
+                      aria-label={t('editTemplate')}
                     >
                       <Pencil className='size-4' />
                     </Button>
@@ -238,6 +255,7 @@ export function TemplatesManager() {
                         tmpl.is_system || deleteTemplateMutation.isPending
                       }
                       onClick={() => setDeleteTarget(tmpl)}
+                      aria-label={t('deleteTemplateTitle')}
                     >
                       <Trash2 className='size-4' />
                     </Button>
@@ -286,7 +304,7 @@ export function TemplatesManager() {
                   required
                   value={key}
                   onChange={(e) => setKey(e.target.value)}
-                  placeholder='例如: login_email'
+                  placeholder={rt('for_example_login_email_c7212e1f')}
                   className='bg-card border-dashed text-xs'
                   disabled={!!selectedTemplate}
                 />
@@ -303,9 +321,17 @@ export function TemplatesManager() {
                   id='tmpl_name'
                   type='text'
                   required
-                  value={name}
+                  value={localizeTemplateMetadata(
+                    key,
+                    !!selectedTemplate?.is_system,
+                    'name',
+                    name,
+                    locale,
+                  )}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder='例如: 登录验证码邮件'
+                  placeholder={rt(
+                    'for_example_login_verification_email_9d28f166',
+                  )}
                   className='bg-card border-dashed text-xs'
                 />
                 <p className='text-[10px] text-muted-foreground leading-normal'>
@@ -340,7 +366,9 @@ export function TemplatesManager() {
                   type='text'
                   value={subject}
                   onChange={(e) => setSubject(e.target.value)}
-                  placeholder='例如: OpenFlare 登录验证码'
+                  placeholder={rt(
+                    'for_example_openflare_login_verification_code_0925e8d4',
+                  )}
                   className='bg-card border-dashed text-xs'
                 />
                 <p className='text-[10px] text-muted-foreground leading-normal'>
@@ -359,9 +387,17 @@ export function TemplatesManager() {
               <Input
                 id='tmpl_description'
                 type='text'
-                value={description}
+                value={localizeTemplateMetadata(
+                  key,
+                  !!selectedTemplate?.is_system,
+                  'description',
+                  description,
+                  locale,
+                )}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder='例如: 包含变量：{{.Code}}，5分钟内有效'
+                placeholder={rt.raw(
+                  'for_example_your_code_is_code_valid_44cf273f',
+                )}
                 className='bg-card border-dashed text-xs'
               />
             </div>
@@ -375,7 +411,9 @@ export function TemplatesManager() {
                 required
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
-                placeholder='<h3>正文标题</h3><p>内容段落，可用变量 {{.Code}}</p>'
+                placeholder={rt.raw(
+                  'h3_message_title_h3_p_message_content_20c91d04',
+                )}
                 rows={8}
                 className='bg-card border-dashed text-xs font-mono'
               />

@@ -113,7 +113,7 @@ func AppendLog(ctx context.Context, format string, args ...any) {
 
 	logLine := fmt.Sprintf(format, args...)
 	if err := repository.AppendTaskExecutionLog(ctx, taskID, logLine); err != nil {
-		logger.ErrorF(ctx, "[TaskExecutor] 追加任务日志失败 taskID=%s: %v", taskID, err)
+		logger.ErrorF(ctx, "[TaskExecutor] Failed to append task log taskID=%s: %v", taskID, err)
 	}
 }
 
@@ -154,7 +154,7 @@ func DispatchTask(ctx context.Context, taskType string, payload []byte, triggere
 	); err != nil {
 		// 入队失败，更新执行记录状态
 		execution.Status = model.TaskExecutionStatusFailed
-		execution.ErrorMessage = fmt.Sprintf("入队失败: %v", err)
+		execution.ErrorMessage = fmt.Sprintf("Failed to enqueue task: %v", err)
 		now := time.Now()
 		execution.StartedAt = &now
 		execution.FinishedAt = &now
@@ -162,8 +162,8 @@ func DispatchTask(ctx context.Context, taskType string, payload []byte, triggere
 		return "", fmt.Errorf(errTaskEnqueueFailed, err)
 	}
 
-	if err := repository.AppendTaskExecutionLog(ctx, taskID, fmt.Sprintf("[系统] 任务已成功入队，等待调度执行 (队列: %s, 最大重试次数: %d)", meta.Queue, meta.MaxRetry)); err != nil {
-		logger.ErrorF(ctx, "[TaskExecutor] 追加入队日志失败 taskID=%s: %v", taskID, err)
+	if err := repository.AppendTaskExecutionLog(ctx, taskID, fmt.Sprintf("[System] Task enqueued; waiting for execution (queue: %s, maximum retries: %d)", meta.Queue, meta.MaxRetry)); err != nil {
+		logger.ErrorF(ctx, "[TaskExecutor] Failed to append enqueue log taskID=%s: %v", taskID, err)
 	}
 
 	return taskID, nil
@@ -173,15 +173,15 @@ func DispatchTask(ctx context.Context, taskType string, payload []byte, triggere
 func RetryTask(ctx context.Context, id uint64) (string, error) {
 	execution, err := repository.GetTaskExecutionByID(ctx, id)
 	if err != nil {
-		return "", fmt.Errorf(errTaskExecutionNotFound, err)
+		return "", &RetryError{Err: fmt.Errorf(errTaskExecutionNotFound, err), NotFound: true}
 	}
 
 	if execution.Status != model.TaskExecutionStatusFailed {
-		return "", fmt.Errorf(errRetryOnlyFailedTask, execution.Status)
+		return "", &RetryError{Err: fmt.Errorf(errRetryOnlyFailedTask, execution.Status)}
 	}
 
 	if !execution.Retryable {
-		return "", errors.New(errTaskNotRetryable)
+		return "", &RetryError{Err: errors.New(errTaskNotRetryable)}
 	}
 
 	// 生成新的 TaskID
@@ -219,7 +219,7 @@ func RetryTask(ctx context.Context, id uint64) (string, error) {
 		asynq.Queue(queueName),
 	); err != nil {
 		newExecution.Status = model.TaskExecutionStatusFailed
-		newExecution.ErrorMessage = fmt.Sprintf("重试入队失败: %v", err)
+		newExecution.ErrorMessage = fmt.Sprintf("Failed to enqueue retry: %v", err)
 		now := time.Now()
 		newExecution.StartedAt = &now
 		newExecution.FinishedAt = &now
@@ -227,8 +227,8 @@ func RetryTask(ctx context.Context, id uint64) (string, error) {
 		return "", fmt.Errorf(errRetryTaskEnqueueFailed, err)
 	}
 
-	if err := repository.AppendTaskExecutionLog(ctx, newTaskID, fmt.Sprintf("[系统] 手动触发重试，已重新创建任务并入队 (原任务ID: %s, 重试次数: %d/%d)", execution.TaskID, execution.RetryCount+1, execution.MaxRetry)); err != nil {
-		logger.ErrorF(ctx, "[TaskExecutor] 追加重试日志失败 taskID=%s: %v", newTaskID, err)
+	if err := repository.AppendTaskExecutionLog(ctx, newTaskID, fmt.Sprintf("[System] Manual retry created and enqueued (original task ID: %s, retry: %d/%d)", execution.TaskID, execution.RetryCount+1, execution.MaxRetry)); err != nil {
+		logger.ErrorF(ctx, "[TaskExecutor] Failed to append retry log taskID=%s: %v", newTaskID, err)
 	}
 
 	return newTaskID, nil
@@ -274,10 +274,10 @@ func ProcessTask(ctx context.Context, t *asynq.Task) error {
 	}
 
 	if execution != nil {
-		AppendLog(ctx, "[系统] 开始执行异步任务 [名称: %s, 类型: %s]，重试次数: %d/%d",
+		AppendLog(ctx, "[System] Starting asynchronous task [name: %s, type: %s], retry: %d/%d",
 			execution.TaskName, t.Type(), execution.RetryCount, execution.MaxRetry)
 	} else {
-		AppendLog(ctx, "[系统] 开始执行异步任务 [类型: %s]", t.Type())
+		AppendLog(ctx, "[System] Starting asynchronous task [type: %s]", t.Type())
 	}
 
 	// 开始计时
@@ -315,7 +315,7 @@ func injectTaskTraceContext(ctx context.Context, payload []byte) []byte {
 	}
 	data, err := json.Marshal(envelope)
 	if err != nil {
-		logger.ErrorF(ctx, "[TaskExecutor] 序列化任务 Trace 上下文失败: %v", err)
+		logger.ErrorF(ctx, "[TaskExecutor] Failed to serialize task trace context: %v", err)
 		return payload
 	}
 	return data
@@ -353,7 +353,7 @@ func updateExecutionOnStart(ctx context.Context, execution *model.TaskExecution,
 	}
 	if dirty {
 		if updateErr := repository.UpdateTaskExecution(ctx, execution); updateErr != nil {
-			logger.ErrorF(ctx, "[TaskExecutor] 更新执行状态失败 taskID=%s: %v", execution.TaskID, updateErr)
+			logger.ErrorF(ctx, "[TaskExecutor] Failed to update execution status taskID=%s: %v", execution.TaskID, updateErr)
 		}
 	}
 }
@@ -384,7 +384,7 @@ func getOrCreateTaskExecution(ctx context.Context, taskID string, t *asynq.Task,
 	}
 
 	if createErr := repository.CreateTaskExecution(ctx, execution); createErr != nil {
-		logger.ErrorF(ctx, "[TaskExecutor] 动态创建执行记录失败 taskID=%s: %v", taskID, createErr)
+		logger.ErrorF(ctx, "[TaskExecutor] Failed to create execution record taskID=%s: %v", taskID, createErr)
 		return nil, createErr
 	}
 
@@ -407,11 +407,11 @@ func completeTaskExecution(ctx context.Context, execution *model.TaskExecution, 
 	}
 
 	if err := repository.UpdateTaskExecution(ctx, execution); err != nil {
-		logger.ErrorF(ctx, "[TaskExecutor] 更新执行记录失败 taskID=%s: %v", execution.TaskID, err)
+		logger.ErrorF(ctx, "[TaskExecutor] Failed to update execution record taskID=%s: %v", execution.TaskID, err)
 	}
 	if shouldFlushTaskExecutionLog(ctx, execErr) {
 		if err := repository.FlushTaskExecutionLog(ctx, execution.TaskID); err != nil {
-			logger.ErrorF(ctx, "[TaskExecutor] 持久化任务日志失败 taskID=%s: %v", execution.TaskID, err)
+			logger.ErrorF(ctx, "[TaskExecutor] Failed to persist task log taskID=%s: %v", execution.TaskID, err)
 		}
 	}
 
@@ -449,11 +449,11 @@ func isTerminalTaskExecutionError(execErr error) bool {
 func handleFailedTask(ctx context.Context, execution *model.TaskExecution, t *asynq.Task, duration time.Duration, execErr error, span trace.Span) {
 	execution.Status = model.TaskExecutionStatusFailed
 	execution.ErrorMessage = execErr.Error()
-	logger.ErrorF(ctx, "[TaskExecutor] 任务处理失败 Type: %s TaskID: %s Duration: %d ms Error: %v", t.Type(), execution.TaskID, duration.Milliseconds(), execErr)
+	logger.ErrorF(ctx, "[TaskExecutor] Task processing failed Type: %s TaskID: %s Duration: %d ms Error: %v", t.Type(), execution.TaskID, duration.Milliseconds(), execErr)
 	span.SetStatus(codes.Error, execErr.Error())
 	span.RecordError(execErr)
 
-	AppendLog(ctx, "[系统] 任务执行失败，耗时: %d ms，错误原因: %v", duration.Milliseconds(), execErr)
+	AppendLog(ctx, "[System] Task failed; duration: %d ms, error: %v", duration.Milliseconds(), execErr)
 }
 
 func handleSuccessfulTask(ctx context.Context, execution *model.TaskExecution, t *asynq.Task, duration time.Duration, result *TaskResult) {
@@ -465,13 +465,13 @@ func handleSuccessfulTask(ctx context.Context, execution *model.TaskExecution, t
 			execution.Result = fmt.Sprintf("%s\n%s", result.Message, result.Detail)
 		}
 	}
-	logger.InfoF(ctx, "[TaskExecutor] 任务处理完成 Type: %s TaskID: %s Duration: %d ms", t.Type(), execution.TaskID, duration.Milliseconds())
+	logger.InfoF(ctx, "[TaskExecutor] Task processing completed Type: %s TaskID: %s Duration: %d ms", t.Type(), execution.TaskID, duration.Milliseconds())
 
-	resultMsg := "成功"
+	resultMsg := "Succeeded"
 	if result != nil {
 		resultMsg = result.Message
 	}
-	AppendLog(ctx, "[系统] 任务执行成功，耗时: %d ms，执行结果: %s", duration.Milliseconds(), resultMsg)
+	AppendLog(ctx, "[System] Task succeeded; duration: %d ms, result: %s", duration.Milliseconds(), resultMsg)
 }
 
 // generateTaskID 生成任务 ID

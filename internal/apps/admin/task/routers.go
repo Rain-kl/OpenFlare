@@ -5,6 +5,7 @@
 package task
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -35,7 +36,11 @@ import (
 // @Failure 403 {object} response.Any "无管理员权限"
 // @Router /api/v1/admin/tasks/types [get]
 func ListTaskTypes(c *gin.Context) {
-	c.JSON(http.StatusOK, response.OK(task.GetDispatchableTasks()))
+	metas := task.GetDispatchableTasks()
+	for index := range metas {
+		metas[index] = localizeTaskMeta(response.Locale(c), metas[index])
+	}
+	c.JSON(http.StatusOK, response.OK(metas))
 }
 
 // DispatchTaskRequest 下发任务请求
@@ -130,7 +135,7 @@ func ListTaskExecutions(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, response.OK(gin.H{
-		"items":     executions,
+		"items":     localizeTaskExecutions(response.Locale(c), executions),
 		"total":     total,
 		"page":      req.Page,
 		"page_size": req.PageSize,
@@ -163,7 +168,8 @@ func GetTaskExecution(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, response.OK(execution))
+	localized := localizeTaskExecution(response.Locale(c), *execution)
+	c.JSON(http.StatusOK, response.OK(localized))
 }
 
 // RetryTask 重试失败的任务
@@ -190,10 +196,11 @@ func RetryTask(c *gin.Context) {
 	newTaskID, err := task.RetryTask(c.Request.Context(), id)
 	if err != nil {
 		errMsg := err.Error()
+		var retryErr *task.RetryError
 		switch {
-		case strings.Contains(errMsg, "不存在"):
+		case errors.As(err, &retryErr) && retryErr.NotFound:
 			response.AbortNotFound(c, errMsg)
-		case strings.Contains(errMsg, "只有失败的任务") || strings.Contains(errMsg, "不支持重试") || strings.Contains(errMsg, "已达到最大重试"):
+		case retryErr != nil:
 			response.AbortBadRequest(c, errMsg)
 		default:
 			response.AbortInternal(c, fmt.Sprintf("%s: %v", TaskRetryFailed, err))
@@ -226,6 +233,7 @@ func ListSchedules(c *gin.Context) {
 		if meta != nil && meta.InternalOnly {
 			continue
 		}
+		schedule.Name = localizeScheduleName(response.Locale(c), schedule.Name, meta)
 		visible = append(visible, schedule)
 	}
 	c.JSON(http.StatusOK, response.OK(visible))
@@ -300,7 +308,7 @@ func CreateSchedule(c *gin.Context) {
 
 	// 触发调度服务重载
 	if err := scheduler.ReloadScheduler(); err != nil {
-		logger.ErrorF(c.Request.Context(), "[TaskAdmin] 重载调度器失败: %v", err)
+		logger.ErrorF(c.Request.Context(), "[TaskAdmin] Failed to reload scheduler: %v", err)
 	}
 
 	c.JSON(http.StatusOK, response.OK(schedule))
@@ -334,7 +342,7 @@ type UpdateScheduleRequest struct {
 func UpdateSchedule(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		response.AbortBadRequest(c, "无效的定时任务ID")
+		response.AbortBadRequest(c, "Invalid schedule ID")
 		return
 	}
 
@@ -392,7 +400,7 @@ func UpdateSchedule(c *gin.Context) {
 
 	// 触发调度服务重载
 	if err := scheduler.ReloadScheduler(); err != nil {
-		logger.ErrorF(c.Request.Context(), "[TaskAdmin] 重载调度器失败: %v", err)
+		logger.ErrorF(c.Request.Context(), "[TaskAdmin] Failed to reload scheduler: %v", err)
 	}
 
 	c.JSON(http.StatusOK, response.OK(schedule))
@@ -423,7 +431,7 @@ func getAdminTaskMeta(taskType string) *task.TaskMeta {
 func DeleteSchedule(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		response.AbortBadRequest(c, "无效的定时任务ID")
+		response.AbortBadRequest(c, "Invalid schedule ID")
 		return
 	}
 	schedule, err := repository.GetScheduleByID(c.Request.Context(), id)
@@ -443,7 +451,7 @@ func DeleteSchedule(c *gin.Context) {
 
 	// 触发调度服务重载
 	if err := scheduler.ReloadScheduler(); err != nil {
-		logger.ErrorF(c.Request.Context(), "[TaskAdmin] 重载调度器失败: %v", err)
+		logger.ErrorF(c.Request.Context(), "[TaskAdmin] Failed to reload scheduler: %v", err)
 	}
 
 	c.JSON(http.StatusOK, response.OKNil())

@@ -30,9 +30,9 @@ const (
 )
 
 var (
-	errBlockedTarget = errors.New("GitHub Release 请求目标不是公网地址")
-	errResolveTarget = errors.New("GitHub Release 请求目标解析失败")
-	errRedirectLimit = errors.New("GitHub Release asset 重定向次数过多")
+	errBlockedTarget = errors.New("GitHub Release request target is not a public address")
+	errResolveTarget = errors.New("failed to resolve GitHub Release request target")
+	errRedirectLimit = errors.New("GitHub Release asset redirect limit exceeded")
 
 	publicIPv6Prefix  = netip.MustParsePrefix("2000::/3")
 	nonPublicPrefixes = []netip.Prefix{

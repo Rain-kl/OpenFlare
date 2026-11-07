@@ -30,8 +30,8 @@ const (
 var PagesSourceScanMeta = task.TaskMeta{
 	Type:         TaskTypePagesSourceScan,
 	AsynqTask:    PagesSourceScanTask,
-	Name:         "OpenFlare Pages 部署源扫描",
-	Description:  "补偿孤儿部署包、恢复过期执行权并串行检查到期的 GitHub latest 部署源",
+	Name:         "OpenFlare Pages deployment source scan",
+	Description:  "Clean up orphaned archives, recover expired source leases, and check GitHub sources tracking the latest release for updates",
 	SupportsTime: false,
 	MaxRetry:     0,
 	Queue:        task.QueueDefault,
@@ -125,7 +125,7 @@ func (handler *SourceScanHandler) Execute(ctx context.Context, payload []byte) (
 	summary.OrphanCleanup = orphanSummary
 	task.AppendLog(
 		ctx,
-		"[cleanup] orphan 候选=%d，已补偿=%d，仍被引用=%d，lease busy=%d，非法 marker=%d，跳过=%d，失败=%d",
+		"[cleanup] orphan candidates=%d, compensated=%d, referenced=%d, lease busy=%d, invalid markers=%d, skipped=%d, failed=%d",
 		orphanSummary.Candidates,
 		orphanSummary.Reconciled,
 		orphanSummary.Referenced,
@@ -143,7 +143,7 @@ func (handler *SourceScanHandler) Execute(ctx context.Context, payload []byte) (
 		return nil, err
 	}
 	message := fmt.Sprintf(
-		"Pages 部署源扫描完成：恢复 %d 个租约，补偿 %d 个孤儿记录，检查 %d 个来源，投递 %d 个自动更新，积压 %d 个",
+		"Pages source scan completed: recovered %d leases, compensated %d orphan records, checked %d sources, dispatched %d automatic updates, backlog %d",
 		summary.RecoveredLeases,
 		summary.OrphanCleanup.Reconciled,
 		summary.CheckedSources,
@@ -195,7 +195,7 @@ func recoverExpiredPagesSourceLeases(
 		}
 		if recovered {
 			summary.RecoveredLeases++
-			task.AppendLog(ctx, "[recover] 已恢复过期来源租约：source_id=%d", candidate.SourceID)
+			task.AppendLog(ctx, "[recover] Recovered expired source lease: source_id=%d", candidate.SourceID)
 		}
 	}
 	return nil
@@ -223,7 +223,7 @@ func scanDueGitHubSources(
 	summary.SelectedSources = len(candidates)
 	task.AppendLog(
 		ctx,
-		"[scan] 到期来源=%d，本批=%d",
+		"[scan] Due sources=%d, batch=%d",
 		summary.DueSources,
 		summary.SelectedSources,
 	)
@@ -238,7 +238,7 @@ func scanDueGitHubSources(
 		return err
 	}
 	summary.Backlog = int(remainingDue)
-	task.AppendLog(ctx, "[scan] 本批处理后仍到期来源=%d", summary.Backlog)
+	task.AppendLog(ctx, "[scan] Sources still due after this batch=%d", summary.Backlog)
 	return nil
 }
 
@@ -261,7 +261,7 @@ func scanOneDueGitHubSource(
 	switch outcome {
 	case sourceLeaseBusy:
 		summary.BusySources++
-		task.AppendLog(ctx, "[check] 来源正在执行其它任务，跳过：source_id=%d", candidate.SourceID)
+		task.AppendLog(ctx, "[check] Source is running another task; skipping: source_id=%d", candidate.SourceID)
 		return
 	case sourceLeaseStale:
 		summary.StaleSources++
@@ -333,7 +333,7 @@ func recordPagesSourceProviderBackoff(
 	})
 	task.AppendLog(
 		ctx,
-		"[check] GitHub provider 退避：source_id=%d status=%d retry_at=%s",
+		"[check] GitHub provider backoff: source_id=%d status=%d retry_at=%s",
 		sourceID,
 		domainError.statusCode,
 		retryAtText,
@@ -369,7 +369,7 @@ func handleCheckedGitHubSource(
 		if receipt != nil {
 			task.AppendLog(
 				ctx,
-				"[dispatch] 已投递自动更新：source_id=%d execution_id=%s revision=%s",
+				"[dispatch] Automatic update dispatched: source_id=%d execution_id=%s revision=%s",
 				snapshot.SourceID,
 				receipt.ExecutionID,
 				checkResult.Revision,

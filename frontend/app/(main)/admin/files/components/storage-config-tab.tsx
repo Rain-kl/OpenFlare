@@ -501,13 +501,15 @@ function ObjectFields({
   value: ObjectStorageConfig;
   onChange: (patch: Partial<ObjectStorageConfig>) => void;
 }) {
+  const uiText = useTranslations('runtime');
+
   const t = useTranslations('admin.files');
   return (
     <>
       {driver === 'r2' && (
         <div className='md:col-span-2'>
           <TextField
-            label='Account ID'
+            label={uiText('ui_accountId')}
             value={value.account_id || ''}
             onChange={(account_id) => onChange({ account_id })}
           />
@@ -516,7 +518,7 @@ function ObjectFields({
       {driver !== 's3' && (
         <div className='md:col-span-2'>
           <TextField
-            label='Endpoint'
+            label={uiText('ui_endpointLabel')}
             value={value.endpoint}
             placeholder='https://...'
             onChange={(endpoint) => onChange({ endpoint })}
@@ -524,22 +526,22 @@ function ObjectFields({
         </div>
       )}
       <TextField
-        label='Region'
+        label={uiText('ui_regionLabel')}
         value={value.region}
         onChange={(region) => onChange({ region })}
       />
       <TextField
-        label='Bucket'
+        label={uiText('ui_bucketLabel')}
         value={value.bucket}
         onChange={(bucket) => onChange({ bucket })}
       />
       <TextField
-        label='Access Key ID'
+        label={uiText('ui_accessKeyId')}
         value={value.access_key_id}
         onChange={(access_key_id) => onChange({ access_key_id })}
       />
       <TextField
-        label='Secret Access Key'
+        label={uiText('ui_secretAccessKey')}
         type='password'
         value={value.secret_access_key}
         onChange={(secret_access_key) => onChange({ secret_access_key })}
@@ -564,7 +566,7 @@ function ObjectFields({
           >
             <div className='flex flex-col gap-0.5'>
               <FieldLabel className='text-xs font-semibold cursor-pointer'>
-                Path Style
+                {uiText('ui_pathStyle')}
               </FieldLabel>
               <FieldDescription className='text-[11px] leading-relaxed text-muted-foreground'>
                 {t('storage.pathStyleDesc')}

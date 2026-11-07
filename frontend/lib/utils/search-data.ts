@@ -35,11 +35,12 @@ export interface SearchItemSource {
   descriptionKey: string;
   url: string;
   category: 'page' | 'feature' | 'setting' | 'admin';
-  keywords: string[];
+  keywordKey: string;
   icon?: string;
 }
 
-export interface SearchItem extends SearchItemSource {
+export interface SearchItem extends Omit<SearchItemSource, 'keywordKey'> {
+  keywords: string[];
   title: string;
   description: string;
   matchRange?: [number, number];
@@ -57,7 +58,7 @@ export const searchData: SearchItemSource[] = [
     descriptionKey: 'search.items.homeDesc',
     url: '/',
     category: 'page',
-    keywords: ['home', '主页', '首页', 'dashboard', '总览'],
+    keywordKey: 'search.keywords.home',
   },
 
   // ==================== 文档库 ====================
@@ -67,7 +68,7 @@ export const searchData: SearchItemSource[] = [
     descriptionKey: 'search.items.usageDocsDesc',
     url: 'https://openflare.fyrn.link/',
     category: 'page',
-    keywords: ['docs', '文档', '使用', 'how to', 'tutorial', '教程', 'help'],
+    keywordKey: 'search.keywords.docs-how-to-use',
   },
 
   // ==================== 业务控制台 ====================
@@ -77,15 +78,7 @@ export const searchData: SearchItemSource[] = [
     descriptionKey: 'search.items.nodesDesc',
     url: '/nodes',
     category: 'page',
-    keywords: [
-      'node',
-      '节点',
-      '边缘节点',
-      '中继',
-      '内网穿透',
-      'tunnel',
-      '服务器',
-    ],
+    keywordKey: 'search.keywords.console-nodes',
   },
   {
     id: 'console-proxy-routes',
@@ -93,7 +86,7 @@ export const searchData: SearchItemSource[] = [
     descriptionKey: 'search.items.proxyRoutesDesc',
     url: '/proxy-routes',
     category: 'page',
-    keywords: ['route', '规则', '路由', '代理', '反向代理', 'proxy'],
+    keywordKey: 'search.keywords.console-proxy-routes',
   },
   {
     id: 'console-websites',
@@ -101,7 +94,7 @@ export const searchData: SearchItemSource[] = [
     descriptionKey: 'search.items.websitesDesc',
     url: '/websites',
     category: 'page',
-    keywords: ['website', 'domain', '网站', '域名', '站点'],
+    keywordKey: 'search.keywords.console-websites',
   },
   {
     id: 'console-certificates',
@@ -109,7 +102,7 @@ export const searchData: SearchItemSource[] = [
     descriptionKey: 'search.items.certificatesDesc',
     url: '/certificates',
     category: 'page',
-    keywords: ['certificate', 'ssl', 'tls', '证书', 'https', '加密'],
+    keywordKey: 'search.keywords.console-certificates',
   },
   {
     id: 'console-dns-accounts',
@@ -117,15 +110,7 @@ export const searchData: SearchItemSource[] = [
     descriptionKey: 'search.items.dnsAccountsDesc',
     url: '/dns-accounts',
     category: 'page',
-    keywords: [
-      'dns',
-      'dns account',
-      '账号',
-      '域名解析',
-      'cloudflare',
-      'aliyun',
-      'tencent',
-    ],
+    keywordKey: 'search.keywords.console-dns-accounts',
   },
   {
     id: 'console-origins',
@@ -133,7 +118,7 @@ export const searchData: SearchItemSource[] = [
     descriptionKey: 'search.items.originsDesc',
     url: '/origins',
     category: 'page',
-    keywords: ['origin', '源站', '后端', 'backend', '服务器', '负载均衡'],
+    keywordKey: 'search.keywords.console-origins',
   },
   {
     id: 'console-responses',
@@ -141,18 +126,7 @@ export const searchData: SearchItemSource[] = [
     descriptionKey: 'search.items.responsesDesc',
     url: '/responses',
     category: 'page',
-    keywords: [
-      '响应页面',
-      '错误页',
-      '联系页',
-      '源站',
-      '502',
-      '503',
-      '5xx',
-      'Service Worker',
-      '离线兜底',
-      'error page',
-    ],
+    keywordKey: 'search.keywords.console-responses',
   },
   {
     id: 'console-waf',
@@ -160,7 +134,7 @@ export const searchData: SearchItemSource[] = [
     descriptionKey: 'search.items.wafDesc',
     url: '/waf',
     category: 'page',
-    keywords: ['waf', '防火墙', '安全', 'security', '拦截', '规则'],
+    keywordKey: 'search.keywords.console-waf',
   },
   {
     id: 'console-ip-groups',
@@ -168,7 +142,7 @@ export const searchData: SearchItemSource[] = [
     descriptionKey: 'search.items.ipGroupsDesc',
     url: '/ip-groups',
     category: 'page',
-    keywords: ['ip', 'ip group', 'ip组', '黑名单', '白名单', '访问控制'],
+    keywordKey: 'search.keywords.console-ip-groups',
   },
   {
     id: 'console-rate-limits',
@@ -176,14 +150,7 @@ export const searchData: SearchItemSource[] = [
     descriptionKey: 'search.items.rateLimitsDesc',
     url: '/rate-limits',
     category: 'page',
-    keywords: [
-      '限流',
-      'rate limit',
-      'limit_conn',
-      'limit_rate',
-      '并发',
-      '带宽',
-    ],
+    keywordKey: 'search.keywords.console-rate-limits',
   },
   {
     id: 'console-pages',
@@ -191,7 +158,7 @@ export const searchData: SearchItemSource[] = [
     descriptionKey: 'search.items.pagesDesc',
     url: '/pages',
     category: 'page',
-    keywords: ['pages', '静态托管', 'cdn', '网站', '部署', 'static'],
+    keywordKey: 'search.keywords.console-pages',
   },
   {
     id: 'console-config-versions',
@@ -199,7 +166,7 @@ export const searchData: SearchItemSource[] = [
     descriptionKey: 'search.items.configVersionsDesc',
     url: '/config-versions',
     category: 'page',
-    keywords: ['version', 'config', '版本', '发布', '回滚', '对比', '部署'],
+    keywordKey: 'search.keywords.console-config-versions',
   },
   {
     id: 'console-access-logs',
@@ -207,7 +174,7 @@ export const searchData: SearchItemSource[] = [
     descriptionKey: 'search.items.accessLogsDesc',
     url: '/access-logs',
     category: 'page',
-    keywords: ['log', 'logs', '访问日志', '分析', '流量', '请求'],
+    keywordKey: 'search.keywords.console-access-logs',
   },
   {
     id: 'console-apply-logs',
@@ -215,15 +182,7 @@ export const searchData: SearchItemSource[] = [
     descriptionKey: 'search.items.applyLogsDesc',
     url: '/apply-logs',
     category: 'page',
-    keywords: [
-      'apply',
-      'log',
-      'logs',
-      '应用记录',
-      '配置下发',
-      '同步',
-      '部署历史',
-    ],
+    keywordKey: 'search.keywords.console-apply-logs',
   },
   {
     id: 'console-performance',
@@ -231,7 +190,7 @@ export const searchData: SearchItemSource[] = [
     descriptionKey: 'search.items.performanceDesc',
     url: '/performance',
     category: 'page',
-    keywords: ['performance', '性能', '调优', '优化', '参数', '连接', '超时'],
+    keywordKey: 'search.keywords.console-performance',
   },
 
   // ==================== 个人设置 ====================
@@ -241,7 +200,7 @@ export const searchData: SearchItemSource[] = [
     descriptionKey: 'search.items.settingsDesc',
     url: '/settings',
     category: 'setting',
-    keywords: ['settings', '设置', '偏好', 'preferences'],
+    keywordKey: 'search.keywords.settings',
   },
   {
     id: 'settings-profile',
@@ -249,7 +208,7 @@ export const searchData: SearchItemSource[] = [
     descriptionKey: 'search.items.profileDesc',
     url: '/settings/profile',
     category: 'setting',
-    keywords: ['profile', '资料', '个人', '我的', '信息', 'avatar'],
+    keywordKey: 'search.keywords.settings-profile',
   },
   {
     id: 'settings-appearance',
@@ -257,7 +216,7 @@ export const searchData: SearchItemSource[] = [
     descriptionKey: 'search.items.appearanceDesc',
     url: '/settings/appearance',
     category: 'setting',
-    keywords: ['appearance', '外观', '主题', 'theme', 'dark', 'light'],
+    keywordKey: 'search.keywords.settings-appearance',
   },
   {
     id: 'admin-settings',
@@ -265,15 +224,7 @@ export const searchData: SearchItemSource[] = [
     descriptionKey: 'search.items.adminSettingsDesc',
     url: '/admin/settings',
     category: 'admin',
-    keywords: [
-      'admin',
-      '管理员',
-      '系统设置',
-      '安全',
-      'security',
-      'oidc',
-      'login',
-    ],
+    keywordKey: 'search.keywords.admin-settings',
   },
   {
     id: 'admin-system',
@@ -281,7 +232,7 @@ export const searchData: SearchItemSource[] = [
     descriptionKey: 'search.items.systemDesc',
     url: '/admin/system',
     category: 'admin',
-    keywords: ['admin', '管理员', '系统', '配置', 'system', 'configurations'],
+    keywordKey: 'search.keywords.admin-system',
   },
   {
     id: 'admin-users',
@@ -289,7 +240,7 @@ export const searchData: SearchItemSource[] = [
     descriptionKey: 'search.items.usersDesc',
     url: '/admin/users',
     category: 'admin',
-    keywords: ['admin', '管理员', '用户', '管理', 'users', 'status'],
+    keywordKey: 'search.keywords.admin-users',
   },
   {
     id: 'admin-tasks',
@@ -297,15 +248,7 @@ export const searchData: SearchItemSource[] = [
     descriptionKey: 'search.items.tasksDesc',
     url: '/admin/tasks',
     category: 'admin',
-    keywords: [
-      'admin',
-      '管理员',
-      '任务',
-      '异步',
-      'tasks',
-      'scheduler',
-      'worker',
-    ],
+    keywordKey: 'search.keywords.admin-tasks',
   },
   {
     id: 'admin-files',
@@ -313,7 +256,7 @@ export const searchData: SearchItemSource[] = [
     descriptionKey: 'search.items.storageDesc',
     url: '/admin/files',
     category: 'admin',
-    keywords: ['admin', '管理员', '存储', '文件', 'files', 'upload', 's3'],
+    keywordKey: 'search.keywords.admin-files',
   },
   {
     id: 'admin-database',
@@ -321,7 +264,7 @@ export const searchData: SearchItemSource[] = [
     descriptionKey: 'search.items.databaseDesc',
     url: '/admin/database',
     category: 'admin',
-    keywords: ['admin', '管理员', '数据库', 'database', 'sql', 'query', 'gorm'],
+    keywordKey: 'search.keywords.admin-database',
   },
   {
     id: 'admin-push',
@@ -329,16 +272,7 @@ export const searchData: SearchItemSource[] = [
     descriptionKey: 'search.items.pushDesc',
     url: '/admin/push',
     category: 'admin',
-    keywords: [
-      'admin',
-      '管理员',
-      '推送',
-      '通知',
-      'push',
-      'mail',
-      'telegram',
-      'lark',
-    ],
+    keywordKey: 'search.keywords.admin-push',
   },
   {
     id: 'admin-logs',
@@ -346,7 +280,7 @@ export const searchData: SearchItemSource[] = [
     descriptionKey: 'search.items.logsDesc',
     url: '/admin/logs',
     category: 'admin',
-    keywords: ['admin', '管理员', '日志', 'logs', 'system log', 'terminal'],
+    keywordKey: 'search.keywords.admin-logs',
   },
 ];
 
@@ -369,10 +303,11 @@ export function searchItems(
     ? searchData
     : searchData.filter((item) => item.category !== 'admin');
 
-  const resolved = filteredData.map((item) => ({
+  const resolved: SearchItem[] = filteredData.map((item) => ({
     ...item,
     title: t(item.titleKey),
     description: t(item.descriptionKey),
+    keywords: t(item.keywordKey).split('|'),
   }));
 
   if (!trimmedQuery) {

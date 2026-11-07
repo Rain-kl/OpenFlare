@@ -24,7 +24,7 @@ import (
 )
 
 const (
-	cleanupSuccessMessage     = "清理成功"
+	cleanupSuccessMessage     = "Cleanup completed"
 	minConfigVersionKeepCount = 3
 )
 

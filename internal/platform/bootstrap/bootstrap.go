@@ -136,8 +136,8 @@ func RegisterAll() {
 func Init(ctx context.Context, opts Options) {
 	initRuntimeOnce.Do(func() {
 		if err := validateAndSeedLogDatabase(ctx); err != nil {
-			logger.ErrorF(ctx, "[Bootstrap] 日志主库配置校验失败: %v", err)
-			log.Fatalf("[Bootstrap] 日志主库配置校验失败: %v", err)
+			logger.ErrorF(ctx, "[Bootstrap] Log database configuration validation failed: %v", err)
+			log.Fatalf("[Bootstrap] Log database configuration validation failed: %v", err)
 		}
 
 		// 注入 logstore 配置读取（避免 logstore ↔ repository 循环依赖），并预热激活 store。
@@ -176,7 +176,7 @@ func Init(ctx context.Context, opts Options) {
 func validateAndSeedLogDatabase(ctx context.Context) error {
 	cfg, err := repository.GetSystemConfigByKey(ctx, model.ConfigKeyLogDatabase)
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-		return fmt.Errorf("读取日志主库配置失败: %w", err)
+		return fmt.Errorf("failed to read log database configuration: %w", err)
 	}
 	current := cfg.Value
 	if current == "" {
@@ -190,25 +190,25 @@ func validateAndSeedLogDatabase(ctx context.Context) error {
 		}
 		// 行缺失时 UpdateSystemConfigFields 仅为 UPDATE 无法插入，改用可创建可更新的 SaveOrUpdateSystemConfig。
 		if err := repository.SaveOrUpdateSystemConfig(ctx, model.ConfigKeyLogDatabase, current); err != nil {
-			return fmt.Errorf("初始化日志主库配置失败: %w", err)
+			return fmt.Errorf("failed to initialize log database configuration: %w", err)
 		}
 		return nil
 	}
 	switch current {
 	case "clickhouse":
 		if !config.Config.ClickHouse.Enabled {
-			return errors.New("当前日志主库为 ClickHouse 但 ClickHouse 未启用。请先重新启用 ClickHouse 配置并启动，在任务管理运行『切换日志数据库』迁移到 PostgreSQL/SQLite 后再禁用 ClickHouse")
+			return errors.New("the log database is ClickHouse, but ClickHouse is disabled. Re-enable ClickHouse and start the server, then run the Switch log database task to migrate to PostgreSQL/SQLite before disabling ClickHouse")
 		}
 	case "postgres":
 		if !config.Config.Database.Enabled {
-			return errors.New("当前日志主库为 PostgreSQL 但 PostgreSQL 未启用（当前为 SQLite 主库）。请运行『切换日志数据库』迁回 SQLite 或启用 PostgreSQL")
+			return errors.New("the log database is PostgreSQL, but PostgreSQL is disabled and SQLite is the primary database. Run the Switch log database task to migrate to SQLite, or enable PostgreSQL")
 		}
 	case "sqlite":
 		if config.Config.Database.Enabled {
-			return errors.New("当前日志主库为 SQLite 但当前主库为 PostgreSQL。请运行『切换日志数据库』迁移到 PostgreSQL")
+			return errors.New("the log database is SQLite, but PostgreSQL is the primary database. Run the Switch log database task to migrate to PostgreSQL")
 		}
 	default:
-		return fmt.Errorf("未知的日志主库配置: %s", current)
+		return fmt.Errorf("unknown log database configuration: %s", current)
 	}
 	return nil
 }

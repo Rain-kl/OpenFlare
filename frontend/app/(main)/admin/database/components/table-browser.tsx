@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { useCallback, useEffect, useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useFormatter, useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { Layers, RefreshCw } from 'lucide-react';
 
@@ -34,14 +34,6 @@ import type { TableDataResponse } from '@/lib/services/db-manage';
 import { DbManageService } from '@/lib/services/db-manage';
 
 /**
- * 格式化数字，每3位加逗号
- */
-const formatNumber = (num: number | string) => {
-  if (num === undefined || num === null) return '0';
-  return num.toString().replace(/\B(?=(\d{3})+(?!\B))/g, ',');
-};
-
-/**
  * 格式化表格单元格内容
  */
 const formatCellValue = (val: unknown): string => {
@@ -69,6 +61,7 @@ export function TableBrowser({
   refreshTrigger,
 }: TableBrowserProps) {
   const t = useTranslations('admin.database.tableBrowser');
+  const format = useFormatter();
   const [selectedTable, setSelectedTable] = useState<string>('');
   const [tableData, setTableData] = useState<TableDataResponse | null>(null);
   const [page, setPage] = useState<number>(1);
@@ -222,7 +215,7 @@ export function TableBrowser({
               <div>
                 {t('totalRows')}:{' '}
                 <span className='font-mono text-foreground font-semibold'>
-                  {formatNumber(tableData.total)}
+                  {format.number(tableData.total)}
                 </span>{' '}
                 {t('records')}
               </div>

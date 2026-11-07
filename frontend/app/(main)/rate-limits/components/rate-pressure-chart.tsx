@@ -1,5 +1,6 @@
 'use client';
 
+import { getFormattingLocale } from '@/i18n/format';
 import { useCallback, useMemo, useRef } from 'react';
 import type { EChartsOption } from 'echarts';
 import type { EChartsType } from 'echarts/core';
@@ -48,7 +49,7 @@ function formatAxisTime(value: string, hours: number) {
 function formatRps(value: number) {
   if (!Number.isFinite(value)) return '—';
   if (value >= 100) return formatCompactNumber(value);
-  return value.toLocaleString('zh-CN', {
+  return value.toLocaleString(getFormattingLocale(), {
     maximumFractionDigits: 2,
     minimumFractionDigits: 0,
   });

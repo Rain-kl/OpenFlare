@@ -1,7 +1,10 @@
+import { runtimeText } from '@/i18n/runtime';
 import type { WAFIPGroup, WAFIPGroupPayload } from '@/lib/services/openflare';
 
 export function getErrorMessage(error: unknown, fallback?: string) {
-  return error instanceof Error ? error.message : (fallback ?? '操作失败');
+  return error instanceof Error
+    ? error.message
+    : (fallback ?? runtimeText('operation_failed_0c3b4cf7'));
 }
 
 export function listToText(items: string[] | undefined) {
@@ -17,7 +20,9 @@ export function parseTextareaList(text: string) {
 
 export function parseAutomaticConfig(
   text: string,
-  invalidMessage = '自动配置必须是 JSON 对象。',
+  invalidMessage = runtimeText(
+    'automatic_configuration_must_be_a_json_object_90ba17a4',
+  ),
 ): Record<string, unknown> {
   const parsed = JSON.parse(text || '{}') as unknown;
   if (!parsed || Array.isArray(parsed) || typeof parsed !== 'object') {
@@ -28,12 +33,16 @@ export function parseAutomaticConfig(
 
 export const automaticPresetRules = [
   {
-    name: '单 IP 404 高频扫描',
+    get name() {
+      return runtimeText('high_frequency_404_scan_from_one_ip_f7d27ffb');
+    },
     labelKey: 'presets.scan404' as const,
     expr: 'request_count > 100 && StatusRatio(404) >= 0.8',
   },
   {
-    name: '单 IP 直连访问异常',
+    get name() {
+      return runtimeText('abnormal_direct_access_from_one_ip_732dbeee');
+    },
     labelKey: 'presets.directAccess' as const,
     expr: 'ip_host_count > 50 && ip_host_ratio > 0.5',
   },
@@ -75,7 +84,7 @@ export function formatIPGroupBanRemaining(
 ): string {
   const reference = now ?? new Date();
   if (ttlSeconds <= 0) {
-    return t ? t('ban.permanent') : '永久';
+    return t ? t('ban.permanent') : runtimeText('permanent_3e71ccc8');
   }
   const capturedDate = new Date(capturedAt);
   if (Number.isNaN(capturedDate.getTime())) {
@@ -83,7 +92,7 @@ export function formatIPGroupBanRemaining(
   }
   const expireDate = new Date(capturedDate.getTime() + ttlSeconds * 1000);
   if (expireDate.getTime() <= reference.getTime()) {
-    return t ? t('ban.expired') : '已过期';
+    return t ? t('ban.expired') : runtimeText('expired_2fe0e333');
   }
   const diffMins = Math.round(
     (expireDate.getTime() - reference.getTime()) / (60 * 1000),
@@ -91,10 +100,12 @@ export function formatIPGroupBanRemaining(
   if (diffMins < 60) {
     return t
       ? t('ban.minutesLater', { count: diffMins })
-      : `${diffMins} 分钟后`;
+      : runtimeText('in_value0_minutes_fd2a5b53', { value0: diffMins });
   }
   const hours = Math.round(diffMins / 60);
-  return t ? t('ban.hoursLater', { count: hours }) : `${hours} 小时后`;
+  return t
+    ? t('ban.hoursLater', { count: hours })
+    : runtimeText('in_value0_hours_5ca37144', { value0: hours });
 }
 
 export function getIPGroupViewEntries(

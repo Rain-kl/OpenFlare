@@ -138,7 +138,7 @@ func TestAdminLoginPushIntegration(t *testing.T) {
 
 		assert.Equal(t, AdminLogin.Key, payload.EventKey)
 		assert.Equal(t, "ops_team", payload.Target)
-		assert.Equal(t, "管理员登录提醒", payload.Body.Title)
+		assert.Equal(t, "Administrator login notification", payload.Body.Title)
 		assert.Contains(t, payload.Body.Content, "super_admin")
 		assert.Contains(t, payload.Body.Content, "203.0.113.42")
 	})

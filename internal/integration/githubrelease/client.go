@@ -50,14 +50,14 @@ const (
 )
 
 var (
-	errInvalidRequest = errors.New("GitHub Release 请求参数无效")
-	errMetadata       = errors.New("GitHub Release 元数据响应无效")
-	errAssetMissing   = errors.New("GitHub Release 中未找到指定的已上传 asset")
-	errDownload       = errors.New("GitHub Release asset 下载失败")
-	errTooLarge       = errors.New("GitHub Release asset 超过大小限制")
-	errEmptyAsset     = errors.New("GitHub Release asset 内容为空")
-	errDigest         = errors.New("GitHub Release asset digest 无效或校验失败")
-	errCleanup        = errors.New("GitHub Release 临时文件清理失败")
+	errInvalidRequest = errors.New("invalid GitHub Release request parameters")
+	errMetadata       = errors.New("invalid GitHub Release metadata response")
+	errAssetMissing   = errors.New("the specified uploaded asset was not found in the GitHub Release")
+	errDownload       = errors.New("failed to download GitHub Release asset")
+	errTooLarge       = errors.New("GitHub Release asset exceeds the size limit")
+	errEmptyAsset     = errors.New("GitHub Release asset is empty")
+	errDigest         = errors.New("GitHub Release asset digest is invalid or verification failed")
+	errCleanup        = errors.New("failed to clean up GitHub Release temporary file")
 
 	ownerPattern = regexp.MustCompile(`^[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?$`)
 	repoPattern  = regexp.MustCompile(`^[A-Za-z0-9._-]+$`)
@@ -167,9 +167,9 @@ type Error struct {
 
 func (providerError *Error) Error() string {
 	if providerError == nil {
-		return "GitHub Release 请求失败"
+		return "GitHub Release request failed"
 	}
-	message := "GitHub Release 请求失败"
+	message := "GitHub Release request failed"
 	if providerError.Kind != nil {
 		message = providerError.Kind.Error()
 	}

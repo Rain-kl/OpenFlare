@@ -1,3 +1,4 @@
+import { useTranslations } from 'next-intl';
 import * as React from 'react';
 import { FileTextIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -128,10 +129,13 @@ export function EmptyStateWithBorder(props: EmptyStateProps) {
  * @returns {React.ReactNode} 简化版空状态组件
  */
 export function EmptyInline({
-  message = '暂无数据',
+  message = undefined,
   icon: Icon = FileTextIcon,
   className,
 }: Pick<EmptyStateProps, 'icon' | 'className'> & { message?: string }) {
+  const rt = useTranslations('runtime');
+  message ??= rt('no_data_497c8569');
+
   return (
     <div
       className={cn(

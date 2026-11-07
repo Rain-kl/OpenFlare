@@ -1,5 +1,7 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
+
 import { useMemo } from 'react';
 import type { EChartsOption } from 'echarts';
 import ReactECharts from 'echarts-for-react';
@@ -59,6 +61,7 @@ export function TrendChart({
   summaryScope = 'last-point',
   summaryHint,
 }: TrendChartProps) {
+  const t = useTranslations('dataComponents');
   const option = useMemo<EChartsOption>(() => {
     const axisFormatter = yAxisValueFormatter ?? defaultFormatter;
     const maxValue = calculateNiceAxisMax(
@@ -184,7 +187,7 @@ export function TrendChart({
   if (labels.length === 0 || series.length === 0) {
     return (
       <div className='flex h-[220px] items-center justify-center rounded-3xl border border-dashed bg-muted/30 text-sm text-muted-foreground'>
-        暂无趋势数据
+        {t('noTrend')}
       </div>
     );
   }

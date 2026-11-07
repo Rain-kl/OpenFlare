@@ -79,6 +79,8 @@ function systemConfigMap(configs: SystemConfig[]) {
 }
 
 export function RelayNodeDetail({ node }: { node: NodeItem }) {
+  const rt = useTranslations('runtime');
+
   const t = useTranslations('nodes');
   const tc = useTranslations('common');
   const router = useRouter();
@@ -116,7 +118,9 @@ export function RelayNodeDetail({ node }: { node: NodeItem }) {
         'relay_frps_web_ui_port',
         {
           value: String(portNum),
-          description: portCfg?.description || 'FRPS 内置 Web 管理界面端口',
+          description:
+            portCfg?.description ||
+            rt('port_for_the_built_in_frps_web_cfab540f'),
         },
       );
     },
@@ -485,7 +489,7 @@ export function RelayNodeDetail({ node }: { node: NodeItem }) {
     <>
       <NodeDetailShell
         title={node.name}
-        typeLabel='Relay'
+        typeLabel={rt('node_type_relay')}
         typeTone='warning'
         statusBadges={[
           {

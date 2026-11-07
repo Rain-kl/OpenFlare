@@ -1,3 +1,4 @@
+import { runtimeText } from '@/i18n/runtime';
 import type {
   TlsCertificateFileImportPayload,
   TlsCertificateItem,
@@ -17,7 +18,8 @@ export type TranslateFn = (
 export function getErrorMessage(error: unknown, fallback?: string) {
   return error instanceof Error
     ? error.message
-    : (fallback ?? '请求失败，请稍后重试。');
+    : (fallback ??
+        runtimeText('request_failed_please_try_again_later_8977b79a'));
 }
 
 export function getMatchTypeMeta(domain: string): {
@@ -25,8 +27,8 @@ export function getMatchTypeMeta(domain: string): {
   tone: StatusTone;
 } {
   return domain.startsWith('*.')
-    ? { label: '通配符', tone: 'warning' }
-    : { label: '精确匹配', tone: 'info' };
+    ? { label: runtimeText('wildcard_c6b0739e'), tone: 'warning' }
+    : { label: runtimeText('exact_match_391fe725'), tone: 'info' };
 }
 
 export function getCertificateStatus(
@@ -57,7 +59,10 @@ export function getCertificateStatus(
 
 export function buildCertificateLabel(certificate: TlsCertificateItem) {
   return certificate.not_after
-    ? `${certificate.name}（到期：${formatDateTime(certificate.not_after)}）`
+    ? runtimeText('value0_expires_value1_7d8600f8', {
+        value0: certificate.name,
+        value1: formatDateTime(certificate.not_after),
+      })
     : certificate.name;
 }
 

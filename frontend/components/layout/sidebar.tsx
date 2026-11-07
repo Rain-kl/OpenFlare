@@ -125,6 +125,8 @@ function parseMenuDisplayConfig(
  * @returns {React.ReactNode} 应用侧边栏组件
  */
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+  const uiText = useTranslations('runtime');
+
   const { toggleSidebar, state, isMobile, setOpenMobile } = useSidebar();
   const { user, logout, loading: userLoading } = useUser();
   const { config } = usePublicConfig();
@@ -440,8 +442,14 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </SidebarContent>
         <SidebarFooter className='mt-auto px-3 py-3 group-data-[collapsible=icon]:hidden'>
           <div className='border-t border-border/60 pt-3 text-[11px] leading-5 text-muted-foreground'>
-            <div>Version {APP_VERSION}</div>
-            {APP_BUILD_DATE && <div>Build At {APP_BUILD_DATE}</div>}
+            <div>
+              {uiText('ui_versionLabel')} {APP_VERSION}
+            </div>
+            {APP_BUILD_DATE && (
+              <div>
+                {uiText('ui_builtAt')} {APP_BUILD_DATE}
+              </div>
+            )}
           </div>
         </SidebarFooter>
       </Sidebar>

@@ -10,16 +10,16 @@ package repository
 // but do not import or re-export model unexported consts (would require exporting).
 const (
 	errDatabaseNotInitialized               = "database not initialized"
-	errConfigIntParseFailed                 = "配置 %s 的值 '%s' 无法转换为整数: %w"
-	errConfigDecimalParseFailed             = "配置 %s 的值 '%s' 无法转换为decimal: %w"
-	errConfigBoolParseFailed                = "配置 %s 的值 '%s' 无法转换为布尔值: %w"
-	errParseMenuDisplayConfigFailed         = "解析目录显示配置失败: %w"
-	errAuthSourceNameRequired               = "认证源名称不能为空"
-	errAuthSourceIDRequired                 = "认证源 ID 不能为空"
-	errExternalAccountBindingIncomplete     = "外部账号绑定信息不完整"
-	errExternalAccountAlreadyBoundToAnother = "该外部账号已绑定到其他用户"
-	errUserIDRequired                       = "用户 ID 不能为空"
-	errExternalAccountBindingIDRequired     = "绑定记录 ID 不能为空"
+	errConfigIntParseFailed                 = "cannot convert configuration %s value '%s' to an integer: %w"
+	errConfigDecimalParseFailed             = "cannot convert configuration %s value '%s' to a decimal: %w"
+	errConfigBoolParseFailed                = "cannot convert configuration %s value '%s' to a boolean: %w"
+	errParseMenuDisplayConfigFailed         = "failed to parse directory display configuration: %w"
+	errAuthSourceNameRequired               = "authentication source name must not be empty"
+	errAuthSourceIDRequired                 = "authentication source ID must not be empty"
+	errExternalAccountBindingIncomplete     = "external account binding information is incomplete"
+	errExternalAccountAlreadyBoundToAnother = "this external account is bound to another user"
+	errUserIDRequired                       = "user ID must not be empty"
+	errExternalAccountBindingIDRequired     = "account binding ID must not be empty"
 )
 
 const colName = "name"

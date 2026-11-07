@@ -123,7 +123,7 @@ func Login(c *gin.Context) {
 
 	user.LastLoginAt = time.Now()
 	if err := updateLastLogin(ctx, user); err != nil {
-		response.AbortBadRequest(c, "更新登录时间失败，请稍后再试")
+		response.AbortBadRequest(c, "Failed to update last login time; please try again later")
 		return
 	}
 	extras := map[string]any{}
@@ -313,7 +313,7 @@ func ChangePassword(c *gin.Context) {
 	session.Clear()
 	_ = session.Save()
 
-	c.JSON(http.StatusOK, response.OK("密码修改成功"))
+	c.JSON(http.StatusOK, response.OK("Password changed successfully"))
 }
 
 // SendEmailCode 发送邮箱验证码

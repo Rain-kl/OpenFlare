@@ -9,7 +9,7 @@ import (
 	"github.com/hibiken/asynq"
 )
 
-const defaultPermanentErrorMessage = "任务无法继续执行"
+const defaultPermanentErrorMessage = "Task cannot continue"
 
 type permanentTaskError struct {
 	message string

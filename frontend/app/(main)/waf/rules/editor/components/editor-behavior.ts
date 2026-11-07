@@ -1,7 +1,9 @@
+import { locales } from '@/i18n/config';
 import type { EdgeChange, Node, NodeChange } from '@xyflow/react';
 import type { WAFRuleGraph, WAFRuleNode } from '@/lib/services/openflare';
 
 import { wouldCreateCycle } from './graph-validation';
+import { getRuntimeTranslator } from '@/i18n/runtime';
 
 export type GraphErrorTarget = { kind: 'node' | 'edge'; id: string };
 
@@ -109,9 +111,9 @@ export function findGraphErrorTarget(
   }
   const messages = collectMessages(payload);
   for (const message of messages) {
-    const nodeId = findMessageId(message, '节点', nodeIds);
+    const nodeId = findMessageId(message, 'node', nodeIds);
     if (nodeId) return { kind: 'node', id: nodeId };
-    const edgeId = findMessageId(message, '边', edgeIds);
+    const edgeId = findMessageId(message, 'edge', edgeIds);
     if (edgeId) return { kind: 'edge', id: edgeId };
   }
   return undefined;
@@ -132,16 +134,22 @@ function collectMessages(value: unknown): string[] {
 
 function findMessageId(
   message: string,
-  prefix: '节点' | '边',
+  prefix: 'node' | 'edge',
   ids: string[],
 ): string | undefined {
-  const token = prefix === '边' ? '边(?:\\s+ID)?' : '节点';
+  const tokenKey = prefix === 'edge' ? 'edge_099db313' : 'node_2410d860';
   return [...ids]
     .sort((a, b) => b.length - a.length)
     .find((id) =>
-      new RegExp(`${token}\\s+${escapeRegExp(id)}(?=$|[\\s，。,:：的])`).test(
-        message,
-      ),
+      locales.some((locale) => {
+        const t = getRuntimeTranslator(locale);
+        const token = `${escapeRegExp(t(tokenKey))}(?:\\s+ID)?`;
+        const pattern = t
+          .raw('value0_s_value1_s_40960c98')
+          .replace('{value0}', token)
+          .replace('{value1}', escapeRegExp(id));
+        return new RegExp(pattern, 'i').test(message);
+      }),
     );
 }
 

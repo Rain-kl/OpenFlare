@@ -61,6 +61,8 @@ export function LogDetailSheet({
   open,
   onOpenChange,
 }: LogDetailSheetProps) {
+  const uiText = useTranslations('runtime');
+
   const t = useTranslations('applyLogs');
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -75,7 +77,7 @@ export function LogDetailSheet({
             <div className='flex flex-wrap gap-2'>
               <ResultBadge result={log.result} />
               <Badge variant='outline' className='text-[10px] rounded-full'>
-                Node: {log.node_id}
+                {uiText('ui_nodeLabel')} {log.node_id}
               </Badge>
               <Badge variant='outline' className='text-[10px] rounded-full'>
                 {t('versionBadge', { version: log.version })}

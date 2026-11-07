@@ -1,6 +1,7 @@
+import { runtimeText } from '@/i18n/runtime';
 /**
  * 内置源站错误页 HTML 模板目录。
- * 每个模板对应本目录下一个独立 `.ts` 模块（export default 完整 HTML 字符串）。
+ * 每个模板对应本目录下一个独立 `.ts` 模块（export default 返回完整 HTML 的函数）。
  * 新增模板：新增 `*.ts` 并在下方数组注册。
  *
  * 模板须使用占位符 {{status}} / {{host}}，禁止写死状态码。
@@ -21,18 +22,30 @@ export type OriginErrorPageTemplate = {
 export const ORIGIN_ERROR_PAGE_TEMPLATES: OriginErrorPageTemplate[] = [
   {
     id: 'minimalist',
-    name: '极简白底',
-    html: minimalistHtml,
+    get name() {
+      return runtimeText('minimal_white_5636e8a9');
+    },
+    get html() {
+      return minimalistHtml();
+    },
   },
   {
     id: 'line-style',
-    name: '线框拓扑',
-    html: lineStyleHtml,
+    get name() {
+      return runtimeText('line_topology_22ad450c');
+    },
+    get html() {
+      return lineStyleHtml();
+    },
   },
   {
     id: 'baohaus',
-    name: '包豪斯',
-    html: baohausHtml,
+    get name() {
+      return runtimeText('bauhaus_5cc69781');
+    },
+    get html() {
+      return baohausHtml();
+    },
   },
 ];
 

@@ -130,6 +130,8 @@ function statusVariant(status: TaskExecutionStatus) {
 }
 
 export function SyncTasksPanel() {
+  const uiText = useTranslations('runtime');
+
   const t = useTranslations('cloudflare.tasks');
   const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
@@ -469,7 +471,9 @@ export function SyncTasksPanel() {
                 ) : null}
 
                 <div className='space-y-1'>
-                  <div className='text-xs text-muted-foreground'>Payload</div>
+                  <div className='text-xs text-muted-foreground'>
+                    {uiText('ui_payload')}
+                  </div>
                   <pre className='max-h-36 overflow-auto rounded-md border bg-muted/40 p-3 text-xs leading-relaxed'>
                     {selected.payload || '{}'}
                   </pre>

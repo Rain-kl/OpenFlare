@@ -479,7 +479,7 @@ func (r *Runner) tryRegister(ctx context.Context, nodeID *string) (resultErr err
 		}
 	}()
 	if strings.TrimSpace(r.Config.DiscoveryToken) == "" {
-		return errors.New("agent token is empty and no discovery token is configured")
+		return errors.New("agent_token is empty and discovery_token is not configured")
 	}
 	registrationKey, err := r.StateStore.EnsureRegistrationKey()
 	if err != nil {

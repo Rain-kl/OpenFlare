@@ -156,7 +156,7 @@ func DeleteAccessToken(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, response.OK("删除成功"))
+	c.JSON(http.StatusOK, response.OK("Deleted successfully"))
 }
 
 // RotateAccessToken 轮换一个 AccessToken

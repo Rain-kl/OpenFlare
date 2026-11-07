@@ -142,7 +142,9 @@ export function SQLConsole({ dbType, onClose }: SQLConsoleProps) {
           </div>
         </div>
         <div className='text-xs text-muted-foreground font-mono'>
-          {dbType === 'postgres' ? 'PostgreSQL Connected' : 'SQLite Connected'}
+          {t('connected', {
+            database: dbType === 'postgres' ? 'PostgreSQL' : 'SQLite',
+          })}
         </div>
       </div>
 

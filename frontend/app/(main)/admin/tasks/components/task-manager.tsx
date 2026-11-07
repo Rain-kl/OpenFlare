@@ -47,7 +47,6 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 
 import { format } from 'date-fns';
-import { zhCN } from 'date-fns/locale';
 import { Calendar } from '@/components/ui/calendar';
 import {
   Popover,
@@ -177,7 +176,6 @@ function DatePickerWithTime({
               mode='single'
               selected={date}
               onSelect={handleDateSelect}
-              locale={zhCN}
             />
           </PopoverContent>
         </Popover>

@@ -6,11 +6,11 @@ package template
 
 // 模板管理相关错误消息
 const (
-	TemplateNotFound              = "模板不存在"
-	TemplateKeyRequired           = "模板标识符不能为空"
-	TemplateNameRequired          = "模板名称不能为空"
-	TemplateContentRequired       = "模板内容不能为空"
-	TemplateKeyExists             = "模板标识符已存在"
-	SystemTemplateCannotDelete    = "系统预置模板不可删除"
-	SystemTemplateCannotModifyKey = "系统预置模板不可修改标识符"
+	TemplateNotFound              = "Template was not found"
+	TemplateKeyRequired           = "Template identifier must not be empty"
+	TemplateNameRequired          = "Template name must not be empty"
+	TemplateContentRequired       = "Template content must not be empty"
+	TemplateKeyExists             = "template identifier already exists"
+	SystemTemplateCannotDelete    = "built-in templates cannot be deleted"
+	SystemTemplateCannotModifyKey = "Built-in template identifiers cannot be changed"
 )

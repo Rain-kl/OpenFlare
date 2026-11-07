@@ -203,7 +203,7 @@
     "certStatus": {
       "unknownExpiry": "Expiry unknown",
       "expired": "Expired",
-      "expiresInDays": "Expires within {days} days",
+      "expiresInDays": "Expires within {days, plural, one {# day} other {# days}}",
       "valid": "Valid"
     },
     "validation": {

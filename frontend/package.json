@@ -10,7 +10,7 @@
     "lint": "eslint",
     "format": "biome format --write .",
     "format:check": "biome format .",
-    "check:i18n": "node scripts/check-i18n-keys.mjs"
+    "check:i18n": "node scripts/check-i18n-keys.mjs && node scripts/check-runtime-language.mjs"
   },
   "dependencies": {
     "@codemirror/lang-html": "^6.4.12",

@@ -247,7 +247,7 @@
       "title": "Automatic rule test result",
       "description": "Replay request logs against the current automatic configuration JSON.",
       "testing": "Testing...",
-      "summary": "Lookback {lookback} · {rules} rules · {matched} IPs matched",
+      "summary": "Lookback {lookback} · {rules, plural, one {# rule} other {# rules}} · {matched, plural, one {# IP matched} other {# IPs matched}}",
       "testedAt": "Tested at: {time}",
       "noMatch": "No IPs matched.",
       "empty": "No test result yet.",
@@ -425,7 +425,8 @@
     "history": {
       "source": {
         "manual_upload": "Local upload",
-        "manual_url": "URL import"
+        "manual_url": "URL import",
+        "remote_url": "Remote URL"
       },
       "trigger": {
         "manual_upload": "Manual upload",
@@ -623,7 +624,7 @@
       "title": "Clean up access logs",
       "description": "Delete access logs older than the retention period. This cannot be undone.",
       "policy": "Retention policy",
-      "keepDays": "Keep last {days} days",
+      "keepDays": "Keep the last {days, plural, one {# day} other {# days}}",
       "custom": "Custom days",
       "customDays": "Custom retention days",
       "cleaning": "Cleaning...",

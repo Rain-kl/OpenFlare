@@ -221,9 +221,9 @@ func TestChannel(c *gin.Context) {
 	default:
 		config = pkgpush.Config{Channel: channelCustom, URL: url}
 		customPushReq := CustomPushRequest{
-			Title:       "通道测试通知",
-			Content:     "这是一条来自系统的消息通道连通性测试消息。",
-			Description: "系统通道测试",
+			Title:       "Channel test notification",
+			Content:     "This is a system notification channel connectivity test.",
+			Description: "System channel test",
 			URL:         "https://example.com",
 			To:          req.Target,
 		}
@@ -235,8 +235,8 @@ func TestChannel(c *gin.Context) {
 		Config:   config,
 		Target:   req.Target,
 		Body: NotificationMessage{
-			Title:   "通道测试通知",
-			Content: "这是一条来自系统的消息通道连通性测试消息。",
+			Title:   "Channel test notification",
+			Content: "This is a system notification channel connectivity test.",
 			Level:   defaultLevelInfo,
 		},
 		Template: renderedJSON,

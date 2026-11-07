@@ -69,7 +69,7 @@ func TestResetPasswdCmd_WithUserAndPassword(t *testing.T) {
 	_, _ = io.Copy(&buf, r)
 	output := buf.String()
 
-	if !bytes.Contains([]byte(output), []byte("成功重置密码！")) {
+	if !bytes.Contains([]byte(output), []byte("Password reset successfully")) {
 		t.Errorf("expected output to contain success message, got: %s", output)
 	}
 
@@ -137,7 +137,7 @@ func TestResetPasswdCmd_WithUserAndRandomPassword(t *testing.T) {
 	_, _ = io.Copy(&buf, r)
 	output := buf.String()
 
-	if !bytes.Contains([]byte(output), []byte("成功重置密码！")) {
+	if !bytes.Contains([]byte(output), []byte("Password reset successfully")) {
 		t.Errorf("expected output to contain success message, got: %s", output)
 	}
 
@@ -212,7 +212,7 @@ func TestResetPasswdCmd_InteractiveMode(t *testing.T) {
 	_, _ = io.Copy(&buf, r)
 	output := buf.String()
 
-	if !bytes.Contains([]byte(output), []byte("成功重置密码！")) {
+	if !bytes.Contains([]byte(output), []byte("Password reset successfully")) {
 		t.Errorf("expected output to contain success message, got: %s", output)
 	}
 

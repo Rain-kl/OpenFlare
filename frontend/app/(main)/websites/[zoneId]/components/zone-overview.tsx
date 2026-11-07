@@ -1,5 +1,6 @@
 'use client';
 
+import { getFormattingLocale } from '@/i18n/format';
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Activity, HardDrive, Users } from 'lucide-react';
@@ -31,13 +32,13 @@ function formatAxisLabel(iso: string, range: ZoneStatsRange) {
     return '';
   }
   if (range === '24h') {
-    return date.toLocaleTimeString('en-US', {
+    return date.toLocaleTimeString(getFormattingLocale(), {
       hour: 'numeric',
       minute: undefined,
       hour12: true,
     });
   }
-  return date.toLocaleDateString('en-GB', {
+  return date.toLocaleDateString(getFormattingLocale(), {
     day: 'numeric',
     month: 'short',
   });
@@ -54,7 +55,10 @@ function formatWindowLabel(startedAt?: string, endedAt?: string) {
   }
   const fmt = (value: Date) =>
     value
-      .toLocaleDateString('en-GB', { day: 'numeric', month: 'long' })
+      .toLocaleDateString(getFormattingLocale(), {
+        day: 'numeric',
+        month: 'long',
+      })
       .toUpperCase();
   return `${fmt(start)} — ${fmt(end)}`;
 }

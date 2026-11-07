@@ -101,6 +101,8 @@ interface SecurityTabProps {
 }
 
 export function SecurityTab({ configs, systemConfigsQuery }: SecurityTabProps) {
+  const rt = useTranslations('runtime');
+
   const queryClient = useQueryClient();
   const t = useTranslations('settings.security');
   const tCommon = useTranslations('common');
@@ -154,7 +156,9 @@ export function SecurityTab({ configs, systemConfigsQuery }: SecurityTabProps) {
     mutationFn: async (value: string) => {
       const config = configs['login_session_ttl_hours'];
       if (!config) {
-        throw new Error('缺少配置项: login_session_ttl_hours');
+        throw new Error(
+          rt('missing_configuration_login_session_ttl_hours_d6f433c2'),
+        );
       }
       await services.adminSystemConfig.updateSystemConfig(
         'login_session_ttl_hours',
@@ -203,7 +207,9 @@ export function SecurityTab({ configs, systemConfigsQuery }: SecurityTabProps) {
     mutationFn: async ({ key, value }: { key: string; value: boolean }) => {
       const config = configs[key];
       if (!config) {
-        throw new Error(`缺少配置项: ${key}`);
+        throw new Error(
+          rt('missing_configuration_value0_31b43fa6', { value0: key }),
+        );
       }
       await services.adminSystemConfig.updateSystemConfig(key, {
         value: value ? 'true' : 'false',

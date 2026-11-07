@@ -10,7 +10,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"strings"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -28,7 +27,7 @@ import (
 const maskedConfigValue = "******"
 
 // protectedConfigKeyMessage 命中受保护 key 时返回给管理员的业务错误文案。
-const protectedConfigKeyMessage = "该配置项由系统任务管理，禁止手动修改"
+const protectedConfigKeyMessage = "this configuration is managed by system tasks and cannot be changed manually"
 
 // protectedConfigKeys 仅允许内部（迁移任务/bootstrap）写入的 key。
 var protectedConfigKeys = map[string]bool{
@@ -198,7 +197,7 @@ func UpdateSystemConfig(c *gin.Context) {
 
 func invalidateSystemConfigCaches(ctx context.Context, key string) {
 	if err := repository.InvalidateSystemConfigCache(ctx, key); err != nil {
-		logger.WarnF(ctx, "清理系统配置缓存失败: %v", err)
+		logger.WarnF(ctx, "Failed to clear system configuration cache: %v", err)
 	}
 	if cap.IsRuntimeConfigKey(key) {
 		cap.InvalidateRuntimeSettings()
@@ -220,7 +219,7 @@ func invalidateCachesAfterConfigUpdate(ctx context.Context, key string) {
 	}
 
 	if err := repository.InvalidateVisibleSystemConfigsCache(ctx); err != nil {
-		logger.WarnF(ctx, "清理公共配置列表缓存失败: %v", err)
+		logger.WarnF(ctx, "Failed to clear public configuration list cache: %v", err)
 	}
 }
 
@@ -289,15 +288,13 @@ func TestSMTP(c *gin.Context) {
 	c.JSON(http.StatusOK, response.OK(resp))
 }
 
+type storageConfigValidationError struct{ error }
+
+func (e *storageConfigValidationError) Unwrap() error { return e.error }
+
 func isStorageConfigValidationError(err error) bool {
-	msg := err.Error()
-	return msg == StorageDriverSwitchRequiresMigration ||
-		strings.HasPrefix(msg, "解析") ||
-		strings.HasPrefix(msg, "验证") ||
-		strings.HasPrefix(msg, "初始化测试") ||
-		strings.HasPrefix(msg, "存储连通性") ||
-		strings.HasPrefix(msg, "序列化") ||
-		strings.HasPrefix(msg, "检查存量文件")
+	var validationErr *storageConfigValidationError
+	return errors.As(err, &validationErr)
 }
 
 func maskSensitiveConfig(key, value string) string {
@@ -324,12 +321,12 @@ func maskSensitiveConfig(key, value string) string {
 func validateAndMergeStorageConfig(ctx context.Context, value string, currentConfig string) (string, error) {
 	var currentCfg objectstore.Config
 	if err := json.Unmarshal([]byte(currentConfig), &currentCfg); err != nil {
-		return "", fmt.Errorf("解析当前存储配置失败: %w", err)
+		return "", fmt.Errorf("failed to parse current storage configuration: %w", err)
 	}
 
 	var newCfg objectstore.Config
 	if err := json.Unmarshal([]byte(value), &newCfg); err != nil {
-		return "", fmt.Errorf("解析目标存储配置失败: %w", err)
+		return "", fmt.Errorf("failed to parse target storage configuration: %w", err)
 	}
 
 	// 合并被掩码屏蔽的敏感信息，获取完整的真实配置
@@ -341,7 +338,7 @@ func validateAndMergeStorageConfig(ctx context.Context, value string, currentCon
 	// 序列化为最终保存的真实明文配置，防止保存屏蔽的 ****** 字符
 	unmaskedVal, err := json.Marshal(targetCfg)
 	if err != nil {
-		return "", fmt.Errorf("序列化存储配置失败: %w", err)
+		return "", fmt.Errorf("failed to serialize storage configuration: %w", err)
 	}
 
 	return string(unmaskedVal), nil
@@ -351,13 +348,13 @@ func validateMergedStorageConfig(ctx context.Context, currentCfg, newCfg, target
 	if newCfg.Driver != "" && newCfg.Driver != currentCfg.Driver {
 		uploadCount, err := repository.CountActiveUploads(ctx)
 		if err != nil {
-			return fmt.Errorf("检查存量文件失败: %w", err)
+			return fmt.Errorf("failed to check existing files: %w", err)
 		}
 		if uploadCount > 0 {
 			return errors.New(StorageDriverSwitchRequiresMigration)
 		}
 		if err := validateDriverConfig(targetCfg, newCfg.Driver); err != nil {
-			return fmt.Errorf("验证目标存储配置参数失败: %w", err)
+			return fmt.Errorf("failed to validate target storage parameters: %w", err)
 		}
 		pendingCfg := targetCfg
 		pendingCfg.Driver = newCfg.Driver
@@ -365,7 +362,7 @@ func validateMergedStorageConfig(ctx context.Context, currentCfg, newCfg, target
 	}
 
 	if err := objectstore.ValidateConfig(targetCfg); err != nil {
-		return fmt.Errorf("验证存储配置参数失败: %w", err)
+		return fmt.Errorf("failed to validate storage parameters: %w", err)
 	}
 	return testStorageBackend(ctx, targetCfg, targetCfg.Driver)
 }
@@ -378,10 +375,10 @@ func validateDriverConfig(cfg objectstore.Config, driver objectstore.Driver) err
 func testStorageBackend(ctx context.Context, cfg objectstore.Config, driver objectstore.Driver) error {
 	testBackend, err := objectstore.NewBackend(ctx, cfg, driver)
 	if err != nil {
-		return fmt.Errorf("初始化测试存储实例失败: %w", err)
+		return fmt.Errorf("failed to initialize test storage instance: %w", err)
 	}
 	if err := testBackend.Test(ctx); err != nil {
-		return fmt.Errorf("存储连通性测试失败: %w", err)
+		return fmt.Errorf("storage connectivity test failed: %w", err)
 	}
 	return nil
 }

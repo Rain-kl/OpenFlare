@@ -39,4 +39,5 @@ function mergeLocale(locale) {
 
 mergeLocale('zh-CN');
 mergeLocale('en');
+mergeLocale('ru');
 console.log('fragments merged');

@@ -1,7 +1,7 @@
+'use client';
+
 // Copyright 2026 Arctel.net
 // SPDX-License-Identifier: Apache-2.0
-
-'use client';
 
 import * as React from 'react';
 import { useTranslations } from 'next-intl';
@@ -20,6 +20,8 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 export function TableTab() {
+  const rt = useTranslations('runtime');
+
   const t = useTranslations('admin.demo.table');
   const mockTableData = [
     {
@@ -193,7 +195,7 @@ export function TableTab() {
                 border border-dashed shadow-none rounded-lg overflow-hidden
                 bg-background
               </code>
-              。
+              {rt('sentence_end')}
             </li>
             <li>
               {t('spec.headerBg')}
@@ -204,7 +206,7 @@ export function TableTab() {
               <code className='bg-muted px-1 py-0.5 rounded font-mono'>
                 text-xs font-semibold
               </code>
-              。
+              {rt('sentence_end')}
             </li>
             <li>
               {t('spec.cellDivider')}
@@ -215,14 +217,14 @@ export function TableTab() {
               <code className='bg-muted px-1 py-0.5 rounded font-mono'>
                 hover:bg-muted/10 transition-colors
               </code>
-              。
+              {rt('sentence_end')}
             </li>
             <li>
               {t('spec.monoFont')}
               <code className='bg-muted px-1 py-0.5 rounded font-mono'>
                 font-mono text-xs
               </code>
-              。
+              {rt('sentence_end')}
             </li>
             <li>
               {t('spec.badgeStyle')}
@@ -233,27 +235,7 @@ export function TableTab() {
             </li>
           </ul>
           <pre className='text-[11px] font-mono text-muted-foreground overflow-x-auto p-3 bg-background rounded border border-border/40 leading-relaxed'>
-            {`<div className="border border-dashed shadow-none rounded-lg overflow-hidden bg-background">
-  <Table>
-    <TableHeader className="bg-muted/40">
-      <TableRow className="border-dashed hover:bg-transparent">
-        <TableHead className="text-xs font-semibold">编号</TableHead>
-        <TableHead className="text-xs font-semibold">状态</TableHead>
-      </TableRow>
-    </TableHeader>
-    <TableBody>
-      <TableRow className="border-dashed hover:bg-muted/10 transition-colors">
-        <TableCell className="font-mono text-xs">ID-1001</TableCell>
-        <TableCell>
-          <Badge variant="outline" className="text-[10px] bg-emerald-500/10 border-emerald-500/20 text-emerald-600 rounded-full py-0 px-2">
-            <span className="size-1 bg-emerald-500 rounded-full mr-1.5 shrink-0" />
-            成功
-          </Badge>
-        </TableCell>
-      </TableRow>
-    </TableBody>
-  </Table>
-</div>`}
+            {rt.raw('div_classname_border_border_dashed_shadow_none_b430b520')}
           </pre>
         </CardContent>
       </Card>

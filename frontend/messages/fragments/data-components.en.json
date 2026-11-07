@@ -1,0 +1,7 @@
+{
+  "dataComponents": {
+    "noDataForTitle": "No {title} data",
+    "noDistribution": "No distribution data",
+    "noTrend": "No trend data"
+  }
+}

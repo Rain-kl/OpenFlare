@@ -1,0 +1,8 @@
+{
+  "title": "Making sure you're not a bot!",
+  "status": "Loading...",
+  "protected": "This site is protected by a Proof-of-Work challenge. Your browser will solve a small puzzle before the upstream response is shown.",
+  "why": "Why am I seeing this?",
+  "why_description": "OpenFlare is asking your browser to complete a lightweight computation to distinguish normal browser traffic from automated abuse. This should finish automatically.",
+  "noscript": "JavaScript is required to pass this verification. Please enable JavaScript and reload."
+}

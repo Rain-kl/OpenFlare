@@ -118,7 +118,7 @@ func (client *HTTPClient) VerifyToken(ctx context.Context) error {
 		return err
 	}
 	if result.Status != "active" {
-		return errors.New("cloudflare API Token 未激活")
+		return errors.New("cloudflare API token is inactive")
 	}
 	return nil
 }
@@ -131,7 +131,7 @@ func (client *HTTPClient) FindZone(ctx context.Context, name string) (*Zone, err
 		return nil, err
 	}
 	if len(zones) != 1 {
-		return nil, fmt.Errorf("cloudflare 中未找到唯一 Zone %s", name)
+		return nil, fmt.Errorf("no unique Cloudflare zone found for %s", name)
 	}
 	return &zones[0], nil
 }
@@ -220,7 +220,7 @@ func (client *HTTPClient) do(ctx context.Context, method, path string, query url
 		}
 		return decodeAPIResponse(statusCode, responseBody, result)
 	}
-	return errors.New("cloudflare API 请求超过重试次数")
+	return errors.New("cloudflare API retry limit exceeded")
 }
 
 func encodeRequestBody(body any) ([]byte, error) {
@@ -251,7 +251,7 @@ func (client *HTTPClient) send(ctx context.Context, method, requestURL string, b
 	request.Header.Set("Content-Type", "application/json")
 	response, err := client.httpClient.Do(request)
 	if err != nil {
-		return 0, "", nil, fmt.Errorf("cloudflare API 请求失败: %w", err)
+		return 0, "", nil, fmt.Errorf("cloudflare API request failed: %w", err)
 	}
 	responseBody, readErr := io.ReadAll(io.LimitReader(response.Body, maxResponseBodyBytes))
 	closeErr := response.Body.Close()
@@ -281,7 +281,7 @@ func decodeAPIResponse(statusCode int, responseBody []byte, result any) error {
 		return fmt.Errorf("decode Cloudflare response: %w", err)
 	}
 	if statusCode < http.StatusOK || statusCode >= http.StatusMultipleChoices || !envelope.Success {
-		message := "cloudflare API 请求失败"
+		message := "Cloudflare API request failed"
 		if len(envelope.Errors) > 0 && strings.TrimSpace(envelope.Errors[0].Message) != "" {
 			message = envelope.Errors[0].Message
 		}

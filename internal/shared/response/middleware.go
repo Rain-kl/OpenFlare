@@ -7,6 +7,8 @@ import (
 	"errors"
 	"net/http"
 
+	"github.com/Rain-kl/Wavelet/pkg/i18n"
+
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
@@ -31,10 +33,16 @@ func ErrorHandlerMiddleware() gin.HandlerFunc {
 
 		var apiErr *APIError
 		if errors.As(err, &apiErr) {
-			c.JSON(apiErr.Code, Err(apiErr.Msg))
+			c.JSON(apiErr.Code, Err(i18n.Translate(Locale(c), apiErr.Msg)))
 			return
 		}
 
-		c.JSON(http.StatusInternalServerError, Err("内部系统错误"))
+		c.JSON(http.StatusInternalServerError, Err(i18n.Translate(Locale(c), "Internal system error")))
 	}
+}
+
+// Locale uses the same cookie as the frontend, with Accept-Language for API clients.
+func Locale(c *gin.Context) string {
+	cookie, _ := c.Cookie("NEXT_LOCALE")
+	return i18n.ResolveLocale(cookie, c.GetHeader("Accept-Language"))
 }

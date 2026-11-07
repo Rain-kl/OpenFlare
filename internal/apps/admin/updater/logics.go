@@ -265,42 +265,42 @@ func (m *manager) status(ctx context.Context) (Status, releaseAsset, error) {
 
 func downloadArchive(ctx context.Context, client releaseClient, asset releaseAsset, destination string) error {
 	if asset.Size <= 0 || asset.Size > maxArchiveSize {
-		return fmt.Errorf("release 资产大小无效: %d", asset.Size)
+		return fmt.Errorf("invalid release asset size: %d", asset.Size)
 	}
 	logger.InfoF(ctx, "[Updater] Downloading release asset: %s", asset.Name)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, asset.BrowserDownloadURL, nil)
 	if err != nil {
-		return fmt.Errorf("创建升级下载请求失败: %w", err)
+		return fmt.Errorf("failed to create update download request: %w", err)
 	}
 	req.Header.Set("User-Agent", "OpenFlare-Updater")
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return fmt.Errorf("下载升级资产失败: %w", err)
+		return fmt.Errorf("failed to download update asset: %w", err)
 	}
 	defer func() {
 		// The downloaded body has already been validated by size before use.
 		_ = resp.Body.Close()
 	}()
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("下载升级资产失败: HTTP %d", resp.StatusCode)
+		return fmt.Errorf("failed to download update asset: HTTP %d", resp.StatusCode)
 	}
 
 	file, err := os.OpenFile(destination, os.O_CREATE|os.O_EXCL|os.O_WRONLY, archiveFileMode) //nolint:gosec // destination is created inside the verified executable directory.
 	if err != nil {
-		return fmt.Errorf("创建升级归档失败: %w", err)
+		return fmt.Errorf("failed to create update archive: %w", err)
 	}
 
 	written, err := io.Copy(file, io.LimitReader(resp.Body, maxArchiveSize+1))
 	if err != nil {
 		_ = file.Close()
-		return fmt.Errorf("写入升级归档失败: %w", err)
+		return fmt.Errorf("failed to write update archive: %w", err)
 	}
 	if err := file.Close(); err != nil {
-		return fmt.Errorf("关闭升级归档失败: %w", err)
+		return fmt.Errorf("failed to close update archive: %w", err)
 	}
 	if written > maxArchiveSize || written != asset.Size {
-		return fmt.Errorf("升级归档大小不匹配: got %d, want %d", written, asset.Size)
+		return fmt.Errorf("update archive size mismatch: got %d, want %d", written, asset.Size)
 	}
 	logger.InfoF(ctx, "[Updater] Successfully downloaded release asset to %s", destination)
 	return nil
@@ -309,12 +309,12 @@ func downloadArchive(ctx context.Context, client releaseClient, asset releaseAss
 func safeArchivePath(destination, name string) (string, error) {
 	cleanName := filepath.Clean(name)
 	if filepath.IsAbs(cleanName) || cleanName == "." || strings.HasPrefix(cleanName, ".."+string(filepath.Separator)) {
-		return "", fmt.Errorf("归档包含非法路径: %s", name)
+		return "", fmt.Errorf("archive contains an invalid path: %s", name)
 	}
 	target := filepath.Join(destination, cleanName)
 	relative, err := filepath.Rel(destination, target)
 	if err != nil || relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
-		return "", fmt.Errorf("归档路径越界: %s", name)
+		return "", fmt.Errorf("archive path escapes the destination: %s", name)
 	}
 	return target, nil
 }
@@ -510,7 +510,7 @@ func extractTarGz(ctx context.Context, archivePath, destination, targetName stri
 			return "", closeErr
 		}
 		if written > maxArchiveSize {
-			return "", errors.New("解压后的程序文件超过大小限制")
+			return "", errors.New("extracted executable exceeds the size limit")
 		}
 		logger.InfoF(ctx, "[Updater] Successfully extracted binary to %s", target)
 		return target, nil
@@ -563,7 +563,7 @@ func extractZip(ctx context.Context, archivePath, destination, targetName string
 			return "", outputCloseErr
 		}
 		if written > maxArchiveSize {
-			return "", errors.New("解压后的程序文件超过大小限制")
+			return "", errors.New("extracted executable exceeds the size limit")
 		}
 		logger.InfoF(ctx, "[Updater] Successfully extracted binary to %s", target)
 		return target, nil
@@ -597,16 +597,16 @@ func (m *manager) prepareUpgrade(ctx context.Context) (string, string, error) {
 
 	executable, err := os.Executable()
 	if err != nil {
-		return "", "", fmt.Errorf("定位当前程序失败: %w", err)
+		return "", "", fmt.Errorf("failed to locate current executable: %w", err)
 	}
 	executable, err = filepath.EvalSymlinks(executable)
 	if err != nil {
-		return "", "", fmt.Errorf("解析当前程序路径失败: %w", err)
+		return "", "", fmt.Errorf("failed to resolve current executable path: %w", err)
 	}
 
 	tempDir, err := os.MkdirTemp(filepath.Dir(executable), ".wavelet-update-*")
 	if err != nil {
-		return "", "", fmt.Errorf("创建升级目录失败: %w", err)
+		return "", "", fmt.Errorf("failed to create update directory: %w", err)
 	}
 
 	archivePath := filepath.Join(tempDir, asset.Name)
@@ -628,7 +628,7 @@ func (m *manager) prepareUpgrade(ctx context.Context) (string, string, error) {
 	if err != nil {
 		// Cleanup is best effort because the extraction error is the actionable failure.
 		_ = os.RemoveAll(tempDir)
-		return "", "", fmt.Errorf("解压升级资产失败: %w", err)
+		return "", "", fmt.Errorf("failed to extract update asset: %w", err)
 	}
 	logger.InfoF(ctx, "[Updater] Staged binary successfully prepared: %s", stagedBinary)
 	m.upgrading = true

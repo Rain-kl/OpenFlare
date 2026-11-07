@@ -7,22 +7,25 @@ export type AddableNodeType = Extract<
   'ip_match' | 'geo_match' | 'ua_check' | 'security_check' | 'pow' | 'block'
 >;
 
-export const NODE_TYPE_LABELS: Record<WAFRuleNode['type'], string> = {
-  start: '开始',
-  ip_match: 'IP 匹配',
-  geo_match: '地域匹配',
-  ua_check: 'UA 检查',
-  security_check: '安全防护',
-  pow: 'PoW 挑战',
-  allow: '通过',
-  block: '阻止',
-};
+export const NODE_TYPE_LABEL_KEYS = {
+  start: 'start_d2bb025a',
+  ip_match: 'ip_match_43f4b6d4',
+  geo_match: 'geography_match_9acb08c4',
+  ua_check: 'ua_check_b56dac23',
+  security_check: 'security_checks_e09822e6',
+  pow: 'pow_challenge_3c043088',
+  allow: 'allow_1e9f2561',
+  block: 'block_2a366d09',
+} as const satisfies Record<WAFRuleNode['type'], string>;
 
 export function displayNodeTitle(
   node: Pick<WAFRuleNode, 'type' | 'label'>,
+  translate: (
+    key: (typeof NODE_TYPE_LABEL_KEYS)[WAFRuleNode['type']],
+  ) => string,
 ): string {
   const custom = node.label?.trim();
-  return custom || NODE_TYPE_LABELS[node.type];
+  return custom || translate(NODE_TYPE_LABEL_KEYS[node.type]);
 }
 
 export function createRuleNode(

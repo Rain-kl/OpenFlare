@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/Rain-kl/Wavelet/internal/apps/upload/shared"
+	uploadstats "github.com/Rain-kl/Wavelet/internal/apps/upload/stats"
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"github.com/Rain-kl/Wavelet/internal/shared/response"
 	"github.com/gin-gonic/gin"
@@ -71,7 +72,7 @@ func GetFileStats(c *gin.Context) {
 		categories []distributionItem
 	)
 
-	categoriesList := []string{"图片", "视频", "音频", "文档", "压缩包", "其他"}
+	categoriesList := uploadstats.Categories()
 	categoryMap := make(map[string]distributionItem, len(categoriesList))
 	for _, cat := range categoriesList {
 		categoryMap[cat] = distributionItem{Name: cat}

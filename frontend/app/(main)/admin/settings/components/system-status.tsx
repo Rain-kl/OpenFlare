@@ -1,7 +1,9 @@
 'use client';
 
 import * as React from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
+import { normalizeLocale } from '@/i18n/config';
+import { formatSystemMetric } from '@/lib/utils/system-metrics';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import {
@@ -35,18 +37,11 @@ import type { SystemStatus } from '@/lib/services/admin';
 import services from '@/lib/services';
 
 /**
- * 格式化数字，每3位加逗号
- */
-const formatNumber = (num: number | string) => {
-  if (num === undefined || num === null) return '0';
-  return num.toString().replace(/\B(?=(\d{3})+(?!\B))/g, ',');
-};
-
-/**
  * 运行时系统状态展示与管理组件
  */
 export function SystemStatusManager() {
   const t = useTranslations('openflareOps.status');
+  const locale = normalizeLocale(useLocale());
   const [status, setStatus] = useState<SystemStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [wavelet, setWavelet] = useState(false);
@@ -164,7 +159,7 @@ export function SystemStatusManager() {
       <span
         className={`text-xs font-mono font-medium ${field ? getPulseClass(field) : ''}`}
       >
-        {typeof value === 'number' ? formatNumber(value) : value}
+        {formatSystemMetric(value, locale)}
       </span>
     </div>
   );

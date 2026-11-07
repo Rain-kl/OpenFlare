@@ -1,3 +1,5 @@
+import { getFormattingLocale } from '@/i18n/format';
+import { runtimeText } from '@/i18n/runtime';
 import { type ClassValue, clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -8,7 +10,7 @@ export function cn(...inputs: ClassValue[]) {
 export function formatDateTime(dateStr: string | Date) {
   try {
     const date = typeof dateStr === 'string' ? new Date(dateStr) : dateStr;
-    return new Intl.DateTimeFormat('zh-CN', {
+    return new Intl.DateTimeFormat(getFormattingLocale(), {
       timeZone: 'Asia/Shanghai',
       year: 'numeric',
       month: '2-digit',
@@ -61,7 +63,9 @@ export function encodeBase64(value: string): string {
     return bufferConstructor.from(value, 'utf-8').toString('base64');
   }
 
-  throw new Error('当前环境不支持 Base64 编码');
+  throw new Error(
+    runtimeText('base64_encoding_is_not_supported_in_this_7642d848'),
+  );
 }
 
 /**

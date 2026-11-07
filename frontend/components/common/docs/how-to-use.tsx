@@ -1,3 +1,4 @@
+import type { RuntimeTranslator } from '@/i18n/runtime';
 import { type PolicySection } from './types';
 import { CodeBlock } from '@/components/ui/code-block';
 
@@ -6,249 +7,273 @@ import { CodeBlock } from '@/components/ui/code-block';
  * 使用指南 (How To Use)
  * ------------------------------------------------------------------
  */
-export const howToUseSections: PolicySection[] = [
-  {
-    value: 'quick-start',
-    title: '1. 快速开始',
-    content: (
-      <div className='space-y-4 text-sm leading-relaxed'>
-        <div className='bg-muted/50 border border-border/50 rounded-lg px-3 py-2 mb-6'>
-          <p className='text-muted-foreground m-0'>
-            为开发者提供通用全栈开发脚手架 (Boilerplate) 平台使用说明
-          </p>
+export function createHowToUseSections(rt: RuntimeTranslator): PolicySection[] {
+  return [
+    {
+      value: 'quick-start',
+      title: rt('1_quick_start_ef8fbb58'),
+      content: (
+        <div className='space-y-4 text-sm leading-relaxed'>
+          <div className='bg-muted/50 border border-border/50 rounded-lg px-3 py-2 mb-6'>
+            <p className='text-muted-foreground m-0'>
+              {rt('a_guide_to_the_general_purpose_full_9cd8c987')}
+            </p>
+          </div>
+          <ul className='list-disc pl-5 space-y-2'>
+            <li>
+              <strong>{rt('architecture_e992b65c')}</strong>{' '}
+              {rt('go_gin_gorm_redis_asynq_backend_react_d5fe02d3')}
+            </li>
+            <li>
+              <strong>{rt('authentication_d36b345b')}</strong>{' '}
+              {rt(
+                'local_username_password_registration_and_login_plus_583ab638',
+              )}
+            </li>
+            <li>
+              <strong>{rt('access_tokens_b7b856d3')}</strong>{' '}
+              {rt('personal_developer_access_tokens_api_keys_for_4b407149')}
+            </li>
+            <li>
+              <strong>{rt('observability_ea0cc1bf')}</strong>{' '}
+              {rt(
+                'zap_structured_logging_and_opentelemetry_distributed_tracing_9fd6da9f',
+              )}
+            </li>
+          </ul>
         </div>
-        <ul className='list-disc pl-5 space-y-2'>
-          <li>
-            <strong>架构底座：</strong>Go (Gin + GORM + Redis + Asynq) 后端 +
-            React (Next.js 16 + Tailwind CSS 4 + Shadcn UI) 前端
-          </li>
-          <li>
-            <strong>认证体系：</strong>支持本地常规账号密码注册登录 +
-            第三方自定义 OIDC (OAuth2) 认证源绑定
-          </li>
-          <li>
-            <strong>访问令牌：</strong>提供开发者个人 AccessToken (API
-            Key)，用于通过 Http Header 鉴权直接调用系统 API
-          </li>
-          <li>
-            <strong>可观测性：</strong>集成 Zap 结构化日志与 OpenTelemetry
-            全链路 Tracing 追踪
-          </li>
-        </ul>
-      </div>
-    ),
-  },
-  {
-    value: 'auth-security',
-    title: '2. 身份认证与安全设置',
-    content: (
-      <div className='space-y-4 text-sm leading-relaxed'>
-        <p>平台采用混合式身份认证，满足不同的部署和业务场景需求：</p>
-        <h3
-          id='2-1-login'
-          className='text-base md:text-lg font-semibold text-foreground mt-4 mb-2'
-        >
-          2.1 常规账号密码认证
-        </h3>
-        <ul className='list-disc pl-4 md:pl-5 space-y-2'>
-          <li>
-            <strong>自主注册与密码登录：</strong>
-            支持普通用户通过用户名及密码直接进行注册与会话建立，密码在后端采用{' '}
-            <code className='bg-muted px-1.5 py-0.5 rounded text-xs font-mono'>
-              bcrypt
-            </code>{' '}
-            高强度加盐哈希存储。
-          </li>
-          <li>
-            <strong>系统开关控制：</strong>
-            管理员可在后台配置动态开关，随时禁用自主密码注册或密码登录，以转为纯第三方认证模式。
-          </li>
-        </ul>
-
-        <h3
-          id='2-2-oidc'
-          className='text-base md:text-lg font-semibold text-foreground mt-4 mb-2'
-        >
-          2.2 第三方 OIDC 认证源
-        </h3>
-        <p>用户可以在个人资料页面关联绑定外部授权账户：</p>
-        <ol className='list-decimal pl-4 md:pl-5 space-y-1'>
-          <li>
-            进入 <strong>设置 / 个人资料</strong> 页面。
-          </li>
-          <li>
-            在“第三方账号绑定”栏目下查看当前绑定的账号，或点击未绑定的可用 OIDC
-            认证源直接触发 OAuth2 绑定流。
-          </li>
-          <li>
-            绑定成功后，用户在登录界面可直接点击 OIDC 登录按钮实现快捷跳转。
-          </li>
-        </ol>
-      </div>
-    ),
-    children: [
-      { value: '2-1-login', title: '2.1 常规账号密码认证' },
-      { value: '2-2-oidc', title: '2.2 第三方 OIDC 认证源' },
-    ],
-  },
-  {
-    value: 'access-token',
-    title: '3. 个人访问令牌 (AccessToken) 接口对接',
-    content: (
-      <div className='space-y-4 text-sm leading-relaxed'>
-        <p>
-          为便于开发者或第三方工具直接调用系统
-          API，平台提供个人访问令牌管理功能。
-        </p>
-        <h3
-          id='3-1-generation'
-          className='text-base md:text-lg font-semibold text-foreground mt-4 mb-2'
-        >
-          3.1 令牌生成与存储规范
-        </h3>
-        <ul className='list-disc pl-4 md:pl-5 space-y-2'>
-          <li>
-            <strong>一次性明文展示：</strong>创建令牌时生成的随机明文 Token 值
-            (形如{' '}
-            <code className='bg-muted px-1.5 py-0.5 rounded text-xs font-mono'>
-              at_xxx
-            </code>
-            )
-            仅会在弹窗中展示一次。请立即复制保存，关闭弹窗后系统将无法重新获取。
-          </li>
-          <li>
-            <strong>安全哈希存储：</strong>数据库仅存储 Token 的 SHA-256
-            哈希指纹，即使数据库泄漏，攻击者也无法通过摘要逆向恢复令牌原文。
-          </li>
-        </ul>
-
-        <h3
-          id='3-2-usage'
-          className='text-base md:text-lg font-semibold text-foreground mt-4 mb-2'
-        >
-          3.2 携带 Header 进行 API 调用
-        </h3>
-        <p>
-          您可以凭借保存的明文 Token 随时调用系统开放接口，系统认证支持以下两种
-          Http 请求头携带方式之一：
-        </p>
-        <div className='space-y-2'>
-          <p className='font-semibold text-xs text-muted-foreground'>
-            方式一：Authorization Bearer 头
+      ),
+    },
+    {
+      value: 'auth-security',
+      title: rt('2_authentication_and_security_settings_76967059'),
+      content: (
+        <div className='space-y-4 text-sm leading-relaxed'>
+          <p>
+            {rt(
+              'the_platform_combines_authentication_methods_to_support_bc9f1772',
+            )}
           </p>
-          <CodeBlock
-            code={`GET /api/v1/user/self HTTP/1.1
+          <h3
+            id='2-1-login'
+            className='text-base md:text-lg font-semibold text-foreground mt-4 mb-2'
+          >
+            {rt('2_1_username_and_password_authentication_97184f8f')}
+          </h3>
+          <ul className='list-disc pl-4 md:pl-5 space-y-2'>
+            <li>
+              <strong>{rt('registration_and_password_login_c5bd6cb4')}</strong>{' '}
+              {rt('users_can_register_and_create_sessions_with_21883e04')}{' '}
+              <code className='bg-muted px-1.5 py-0.5 rounded text-xs font-mono'>
+                bcrypt
+              </code>{' '}
+              {rt('salted_hashing_dc2a9b63')}
+            </li>
+            <li>
+              <strong>{rt('system_switches_53741557')}</strong>{' '}
+              {rt(
+                'administrators_can_disable_password_registration_or_login_a2648e62',
+              )}
+            </li>
+          </ul>
+
+          <h3
+            id='2-2-oidc'
+            className='text-base md:text-lg font-semibold text-foreground mt-4 mb-2'
+          >
+            {rt('2_2_third_party_oidc_providers_f14083c8')}
+          </h3>
+          <p>{rt('users_can_link_external_accounts_from_their_c08d3f5a')}</p>
+          <ol className='list-decimal pl-4 md:pl-5 space-y-1'>
+            <li>
+              {rt('open_4540d74d')}
+              <strong>{rt('settings_profile_32835b0d')}</strong>{' '}
+              {rt('message_a173cce8')}
+            </li>
+            <li>
+              {rt(
+                'under_linked_accounts_view_existing_connections_or_5151eb9b',
+              )}
+            </li>
+            <li>{rt('after_linking_use_the_oidc_login_button_6095b15d')}</li>
+          </ol>
+        </div>
+      ),
+      children: [
+        {
+          value: '2-1-login',
+          title: rt('2_1_username_and_password_authentication_97184f8f'),
+        },
+        {
+          value: '2-2-oidc',
+          title: rt('2_2_third_party_oidc_providers_f14083c8'),
+        },
+      ],
+    },
+    {
+      value: 'access-token',
+      title: rt('3_integrating_personal_access_tokens_af2647b5'),
+      content: (
+        <div className='space-y-4 text-sm leading-relaxed'>
+          <p>
+            {rt('personal_access_tokens_allow_developers_and_third_9a242a0e')}
+          </p>
+          <h3
+            id='3-1-generation'
+            className='text-base md:text-lg font-semibold text-foreground mt-4 mb-2'
+          >
+            {rt('3_1_token_generation_and_storage_2b78c681')}
+          </h3>
+          <ul className='list-disc pl-4 md:pl-5 space-y-2'>
+            <li>
+              <strong>{rt('one_time_plaintext_display_fd13912a')}</strong>{' '}
+              {rt('a_newly_generated_plaintext_token_such_as_57eb11a1')}{' '}
+              <code className='bg-muted px-1.5 py-0.5 rounded text-xs font-mono'>
+                at_xxx
+              </code>
+              {rt('is_displayed_only_once_copy_and_save_8d378c8a')}
+            </li>
+            <li>
+              <strong>{rt('secure_hash_storage_1ce392ff')}</strong>{' '}
+              {rt('only_a_sha_256_hash_of_the_dbf434b1')}
+            </li>
+          </ul>
+
+          <h3
+            id='3-2-usage'
+            className='text-base md:text-lg font-semibold text-foreground mt-4 mb-2'
+          >
+            {rt('3_2_calling_apis_with_headers_fccd7b0d')}
+          </h3>
+          <p>{rt('use_your_saved_plaintext_token_with_either_3af53a05')}</p>
+          <div className='space-y-2'>
+            <p className='font-semibold text-xs text-muted-foreground'>
+              {rt('method_1_authorization_bearer_header_2a9c2a6c')}
+            </p>
+            <CodeBlock
+              code={`GET /api/v1/user/self HTTP/1.1
 Host: localhost:3000
 Authorization: Bearer at_628d022b7a95e26b...`}
-            language='http'
-          />
-        </div>
-        <div className='space-y-2'>
-          <p className='font-semibold text-xs text-muted-foreground'>
-            方式二：X-Access-Token 自定义头
-          </p>
-          <CodeBlock
-            code={`GET /api/v1/user/self HTTP/1.1
+              language='http'
+            />
+          </div>
+          <div className='space-y-2'>
+            <p className='font-semibold text-xs text-muted-foreground'>
+              {rt('method_2_custom_x_access_token_header_4548169f')}
+            </p>
+            <CodeBlock
+              code={`GET /api/v1/user/self HTTP/1.1
 Host: localhost:3000
 X-Access-Token: at_628d022b7a95e26b...`}
-            language='http'
-          />
+              language='http'
+            />
+          </div>
         </div>
-      </div>
-    ),
-    children: [
-      { value: '3-1-generation', title: '3.1 令牌生成与存储规范' },
-      { value: '3-2-usage', title: '3.2 携带 Header 进行 API 调用' },
-    ],
-  },
-  {
-    value: 'config-system',
-    title: '4. 动态系统配置项',
-    content: (
-      <div className='space-y-4 text-sm leading-relaxed'>
-        <p>
-          平台内置了完备的 KV 配置管理模块，允许管理员动态调整系统运行状态：
-        </p>
-        <ul className='list-disc pl-4 md:pl-5 space-y-2'>
-          <li>
-            <strong>缓存读取加速：</strong>配置加载基于 GORM 读取数据库，并辅以
-            Redis Hash 结构进行多层缓存加速，大幅降低配置查询耗时。
-          </li>
-          <li>
-            <strong>核心系统配置项说明：</strong>
-            <ul className='list-[circle] pl-5 mt-1 space-y-1 text-muted-foreground'>
-              <li>
-                <code className='bg-muted px-1 rounded text-xs font-mono'>
-                  site_name
-                </code>
-                ：平台展示名称
-              </li>
-              <li>
-                <code className='bg-muted px-1 rounded text-xs font-mono'>
-                  password_login_enabled
-                </code>
-                ：密码登录开关
-              </li>
-              <li>
-                <code className='bg-muted px-1 rounded text-xs font-mono'>
-                  registration_enabled
-                </code>
-                ：用户自主注册开关
-              </li>
-              <li>
-                <code className='bg-muted px-1 rounded text-xs font-mono'>
-                  max_api_keys_per_user
-                </code>
-                ：普通用户创建令牌的最大数限制 (默认5)
-              </li>
-            </ul>
-          </li>
-        </ul>
-      </div>
-    ),
-  },
-  {
-    value: 'worker-scheduler',
-    title: '5. 异步任务与定时调度',
-    content: (
-      <div className='space-y-4 text-sm leading-relaxed'>
-        <p>
-          项目借助 Cobra 实现多命令入口分发，通过独立部署 Worker
-          服务解耦复杂计算或高延迟IO：
-        </p>
-        <ul className='list-disc pl-4 md:pl-5 space-y-2'>
-          <li>
-            <strong>定时任务派发 (CMD scheduler)：</strong>负责按 Cron
-            表达式配置，定时将待执行任务推送到 Redis 队列中。
-          </li>
-          <li>
-            <strong>多优先级 Worker (CMD worker)：</strong>基于 Asynq
-            驱动，按优先级拉取任务并并发调度执行（如定时清理临时上传目录、同步外部系统日志等）。
-          </li>
-        </ul>
-      </div>
-    ),
-  },
-  {
-    value: 'tracing-metrics',
-    title: '6. 链路追踪与结构化日志',
-    content: (
-      <div className='space-y-4 text-sm leading-relaxed'>
-        <p>为了保障分布式微服务架构下的可观测性，平台接入了高级监控组件：</p>
-        <ul className='list-disc pl-4 md:pl-5 space-y-2'>
-          <li>
-            <strong>OpenTelemetry Tracing：</strong>自动传递 Tracing
-            上下文，所有经由 Gin 中间件、外部请求或 GORM
-            数据库的事务操作都将带有全局唯一的
-            Span，用于排查链路耗时或调用异常。
-          </li>
-          <li>
-            <strong>Zap 结构化日志：</strong>
-            将后端控制台或日志输出格式统一规范化为 JSON，方便与 ELK、Loki
-            等日志收集分析工具无缝对接。
-          </li>
-        </ul>
-      </div>
-    ),
-  },
-];
+      ),
+      children: [
+        {
+          value: '3-1-generation',
+          title: rt('3_1_token_generation_and_storage_2b78c681'),
+        },
+        {
+          value: '3-2-usage',
+          title: rt('3_2_calling_apis_with_headers_fccd7b0d'),
+        },
+      ],
+    },
+    {
+      value: 'config-system',
+      title: rt('4_dynamic_system_configuration_b3bf8c49'),
+      content: (
+        <div className='space-y-4 text-sm leading-relaxed'>
+          <p>{rt('the_built_in_key_value_configuration_module_713f6d05')}</p>
+          <ul className='list-disc pl-4 md:pl-5 space-y-2'>
+            <li>
+              <strong>{rt('cached_reads_35828322')}</strong>{' '}
+              {rt('configuration_is_read_from_the_database_through_3e9f6a34')}
+            </li>
+            <li>
+              <strong>{rt('core_system_configuration_keys_6dc02be8')}</strong>
+              <ul className='list-[circle] pl-5 mt-1 space-y-1 text-muted-foreground'>
+                <li>
+                  <code className='bg-muted px-1 rounded text-xs font-mono'>
+                    site_name
+                  </code>
+                  {rt('platform_display_name_116219b1')}
+                </li>
+                <li>
+                  <code className='bg-muted px-1 rounded text-xs font-mono'>
+                    password_login_enabled
+                  </code>
+                  {rt('password_login_switch_153eaa45')}
+                </li>
+                <li>
+                  <code className='bg-muted px-1 rounded text-xs font-mono'>
+                    registration_enabled
+                  </code>
+                  {rt('user_registration_switch_827b5b21')}
+                </li>
+                <li>
+                  <code className='bg-muted px-1 rounded text-xs font-mono'>
+                    max_api_keys_per_user
+                  </code>
+                  {rt('maximum_tokens_per_regular_user_default_5_5dd6d9e7')}
+                </li>
+              </ul>
+            </li>
+          </ul>
+        </div>
+      ),
+    },
+    {
+      value: 'worker-scheduler',
+      title: rt('5_background_tasks_and_scheduling_7142ce96'),
+      content: (
+        <div className='space-y-4 text-sm leading-relaxed'>
+          <p>
+            {rt('cobra_provides_separate_commands_so_worker_services_1bbae2df')}
+          </p>
+          <ul className='list-disc pl-4 md:pl-5 space-y-2'>
+            <li>
+              <strong>
+                {rt('scheduled_dispatch_scheduler_command_e79062ad')}
+              </strong>{' '}
+              {rt('enqueues_tasks_in_redis_according_to_their_694e5985')}
+            </li>
+            <li>
+              <strong>
+                {rt('workers_with_queue_priorities_worker_command_faa970b1')}
+              </strong>{' '}
+              {rt('asynq_consumes_tasks_by_priority_and_executes_69d82251')}
+            </li>
+          </ul>
+        </div>
+      ),
+    },
+    {
+      value: 'tracing-metrics',
+      title: rt('6_distributed_tracing_and_structured_logs_e8971cad'),
+      content: (
+        <div className='space-y-4 text-sm leading-relaxed'>
+          <p>
+            {rt(
+              'the_platform_integrates_monitoring_components_for_observability_2b1da50f',
+            )}
+          </p>
+          <ul className='list-disc pl-4 md:pl-5 space-y-2'>
+            <li>
+              <strong>{rt('ui_openTelemetryTracing')}</strong>{' '}
+              {rt(
+                'tracing_context_is_propagated_automatically_gin_requests_0f549cce',
+              )}
+            </li>
+            <li>
+              <strong>{rt('zap_structured_logs_1c9725e8')}</strong>{' '}
+              {rt('standardizes_backend_console_and_log_output_as_16970757')}
+            </li>
+          </ul>
+        </div>
+      ),
+    },
+  ];
+}

@@ -1,0 +1,36 @@
+{
+  "layout": {
+    "search": {
+      "keywords": {
+        "home": "главная страница|панель управления",
+        "docs-how-to-use": "документы|как|руководство|помощь",
+        "console-nodes": "узел|туннель|node|nodes|edge|relay|tunnel",
+        "console-proxy-routes": "маршрут|прокси|proxy|routes",
+        "console-websites": "сайт|домен",
+        "console-certificates": "сертификат|ssl|tls|https",
+        "console-dns-accounts": "DNS|учетная запись DNS|cloudflare|aliyun|tencent",
+        "console-origins": "источник|сервер-источник|бэкенд|origin",
+        "console-responses": "502|503|5xx|Service Worker|страница ошибки",
+        "console-waf": "waf|безопасность",
+        "console-ip-groups": "ip|ip группа",
+        "console-rate-limits": "лимиты|скорость|ограничение|limit_conn|limit_rate",
+        "console-pages": "страницы|cdn|статические|pages|static",
+        "console-config-versions": "версия|конфигурация|config|versions",
+        "console-access-logs": "журнал|журналы",
+        "console-apply-logs": "применить|журнал|журналы",
+        "console-performance": "производительность",
+        "settings": "настройки|предпочтения",
+        "settings-profile": "профиль|аватар",
+        "settings-appearance": "внешний вид|тема|темный|светлый",
+        "admin-settings": "администратор|безопасность|oidc|логин",
+        "admin-system": "администратор|система|конфигурации",
+        "admin-users": "администратор|пользователи|статус",
+        "admin-tasks": "администратор|задачи|расписание|планировщик|worker",
+        "admin-files": "администратор|файлы|загрузить|s3",
+        "admin-database": "администратор|база данных|sql|запрос|gorm",
+        "admin-push": "администратор|уведомления|почта|push|mail|telegram|lark",
+        "admin-logs": "администратор|журналы|системный журнал|терминал"
+      }
+    }
+  }
+}

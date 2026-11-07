@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import * as React from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { useUser } from '@/contexts/user-context';
@@ -18,13 +19,17 @@ import {
 import Link from 'next/link';
 
 export function HomeMain() {
+  const rt = useTranslations('runtime');
+
   const { user } = useUser();
   const [isBannerVisible, setIsBannerVisible] = React.useState(true);
 
   const quickLinks = [
     {
-      title: '个人资料',
-      description: '管理您的个人账户信息及个性化配置',
+      title: rt('profile_b94d13a4'),
+      description: rt(
+        'manage_your_account_information_and_preferences_cced83b4',
+      ),
       icon: User,
       url: '/settings/profile',
       color: 'text-blue-500',
@@ -32,8 +37,8 @@ export function HomeMain() {
       borderColor: 'hover:border-blue-500/30',
     },
     {
-      title: '使用文档',
-      description: '学习如何集成 API 及日常操作帮助指南',
+      title: rt('user_guide_c83b6b0a'),
+      description: rt('api_integration_and_everyday_operation_guides_281269a1'),
       icon: HelpCircle,
       url: 'https://openflare.fyrn.link/',
       color: 'text-purple-500',
@@ -45,8 +50,10 @@ export function HomeMain() {
 
   const adminLinks = [
     {
-      title: '系统设置',
-      description: '管理登录注册开关与认证源安全策略',
+      title: rt('system_settings_68ea5dd4'),
+      description: rt(
+        'manage_registration_login_and_authentication_provider_security_f378ed37',
+      ),
       icon: Shield,
       url: '/admin/settings',
       color: 'text-amber-500',
@@ -54,8 +61,8 @@ export function HomeMain() {
       borderColor: 'hover:border-amber-500/30',
     },
     {
-      title: '全局系统配置',
-      description: '动态管理平台运行时核心配置参数',
+      title: rt('global_system_configuration_1eb8931e'),
+      description: rt('manage_core_platform_runtime_settings_341e4182'),
       icon: ShieldCheck,
       url: '/admin/system',
       color: 'text-indigo-500',
@@ -63,8 +70,8 @@ export function HomeMain() {
       borderColor: 'hover:border-indigo-500/30',
     },
     {
-      title: '用户权限管理',
-      description: '集中查询并管理系统注册用户的启用状态',
+      title: rt('user_permissions_8e8b1d33'),
+      description: rt('view_and_manage_registered_users_and_their_db533b7c'),
       icon: User,
       url: '/admin/users',
       color: 'text-rose-500',
@@ -72,8 +79,10 @@ export function HomeMain() {
       borderColor: 'hover:border-rose-500/30',
     },
     {
-      title: '后台任务调度',
-      description: '分发与观测系统异步定时任务的执行情况',
+      title: rt('background_task_scheduling_408172d1'),
+      description: rt(
+        'dispatch_and_monitor_background_and_scheduled_tasks_83967fc9',
+      ),
       icon: Layers,
       url: '/admin/tasks',
       color: 'text-teal-500',
@@ -81,8 +90,8 @@ export function HomeMain() {
       borderColor: 'hover:border-teal-500/30',
     },
     {
-      title: '系统日志',
-      description: '查看异步任务执行日志与系统运行状态详情',
+      title: rt('system_logs_366ada1d'),
+      description: rt('view_background_task_logs_and_system_status_24fd6a7d'),
       icon: Terminal,
       url: '/admin/logs',
       color: 'text-cyan-500',
@@ -109,8 +118,9 @@ export function HomeMain() {
                   Modern Platform
                 </h3>
                 <p className='text-xs text-muted-foreground leading-relaxed'>
-                  通用的、现代化的后台管理系统脚手架,
-                  开箱即用、完整基建、极易扩展，助您快速构建企业级应用。
+                  {rt(
+                    'a_modern_extensible_administration_platform_with_ready_0d95c0c1',
+                  )}
                 </p>
                 <div className='flex gap-2.5'>
                   <Button
@@ -118,7 +128,7 @@ export function HomeMain() {
                     className='bg-indigo-600 hover:bg-indigo-700 text-xs font-semibold px-4 shadow-sm h-7'
                     asChild
                   >
-                    <Link href='/'>开始使用</Link>
+                    <Link href='/'>{rt('get_started_715ee9dc')}</Link>
                   </Button>
                   <Button
                     size='sm'
@@ -126,7 +136,7 @@ export function HomeMain() {
                     className='text-xs font-medium hover:bg-black/5 dark:hover:bg-white/5 h-7'
                     onClick={() => setIsBannerVisible(false)}
                   >
-                    隐藏提示
+                    {rt('hide_tip_738f4b27')}
                   </Button>
                 </div>
               </div>
@@ -137,7 +147,9 @@ export function HomeMain() {
 
       {/* 快捷导航 */}
       <div className='space-y-4'>
-        <h2 className='text-lg font-semibold tracking-tight'>常用功能导航</h2>
+        <h2 className='text-lg font-semibold tracking-tight'>
+          {rt('quick_navigation_05deefcb')}
+        </h2>
         <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4'>
           {quickLinks.map((link, idx) => (
             <motion.div
@@ -179,7 +191,8 @@ export function HomeMain() {
                         target='_blank'
                         rel='noopener noreferrer'
                       >
-                        立即跳转 <ArrowRight className='size-3 ml-1' />
+                        {rt('open_fee3b5a5')}
+                        <ArrowRight className='size-3 ml-1' />
                       </Link>
                     </Button>
                   ) : (
@@ -189,7 +202,8 @@ export function HomeMain() {
                       asChild
                     >
                       <Link href={link.url}>
-                        立即进入 <ArrowRight className='size-3 ml-1' />
+                        {rt('open_df42ebc3')}
+                        <ArrowRight className='size-3 ml-1' />
                       </Link>
                     </Button>
                   )}
@@ -205,7 +219,7 @@ export function HomeMain() {
         <div className='space-y-4 pt-2'>
           <h2 className='text-lg font-semibold tracking-tight text-rose-500 flex items-center gap-1.5'>
             <Shield className='size-5' />
-            后台管理控制台
+            {rt('administration_console_ceb0c289')}
           </h2>
           <div className='grid grid-cols-1 md:grid-cols-3 gap-4'>
             {adminLinks.map((link, idx) => (
@@ -240,7 +254,8 @@ export function HomeMain() {
                       asChild
                     >
                       <Link href={link.url}>
-                        立即进入 <ArrowRight className='size-3 ml-1' />
+                        {rt('open_df42ebc3')}
+                        <ArrowRight className='size-3 ml-1' />
                       </Link>
                     </Button>
                   </div>

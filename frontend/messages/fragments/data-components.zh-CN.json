@@ -1,0 +1,7 @@
+{
+  "dataComponents": {
+    "noDataForTitle": "暂无 {title} 数据",
+    "noDistribution": "暂无分布数据",
+    "noTrend": "暂无趋势数据"
+  }
+}

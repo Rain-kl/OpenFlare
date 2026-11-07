@@ -34,6 +34,8 @@ export function UserDetailSheet({
   detailLoading,
   onStatusToggle,
 }: UserDetailSheetProps) {
+  const uiText = useTranslations('runtime');
+
   const t = useTranslations('admin.users');
   const displayValue = (value?: string) =>
     value && value.trim() ? value : '-';
@@ -72,7 +74,7 @@ export function UserDetailSheet({
                         </Badge>
                         {selectedUser.is_admin && (
                           <Badge className='h-4.5 px-1.5 text-[9px] uppercase font-medium'>
-                            Admin
+                            {uiText('ui_administrator')}
                           </Badge>
                         )}
                       </div>

@@ -1,5 +1,11 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
+import {
+  localeCookieName,
+  normalizeLocale,
+  pickLocaleFromAcceptLanguage,
+} from '@/i18n/config';
+import { getRuntimeTranslator } from '@/i18n/runtime-translators';
 
 /**
  * Next.js 16 代理层
@@ -94,10 +100,20 @@ export function proxy(request: NextRequest) {
 
       const [allowed, waitTime] = checkRateLimit(identifier, pathname);
       if (!allowed) {
+        const cookieLocale = request.cookies.get(localeCookieName)?.value;
+        const locale = cookieLocale
+          ? normalizeLocale(cookieLocale)
+          : pickLocaleFromAcceptLanguage(
+              request.headers.get('accept-language'),
+            );
+        const translate = getRuntimeTranslator(locale);
         return NextResponse.json(
           {
             error_code: 'RATE_LIMITED',
-            error_msg: `请求过于频繁，请 ${waitTime} 秒后重试`,
+            error_msg: translate(
+              'too_many_requests_retry_in_value0_seconds_ab5e78f1',
+              { value0: waitTime },
+            ),
           },
           { status: 429, headers: { 'Retry-After': String(waitTime) } },
         );

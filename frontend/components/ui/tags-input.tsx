@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import * as React from 'react';
 import { X } from 'lucide-react';
 
@@ -25,13 +26,16 @@ function normalizeTag(raw: string) {
 function TagsInput({
   value,
   onChange,
-  placeholder = '输入后按 Enter 添加',
+  placeholder = undefined,
   disabled = false,
   className,
   id,
   validateTag,
   'aria-invalid': ariaInvalid,
 }: TagsInputProps) {
+  const rt = useTranslations('runtime');
+  placeholder ??= rt('type_and_press_enter_to_add_e30b7b5f');
+
   const [draft, setDraft] = React.useState('');
   const inputRef = React.useRef<HTMLInputElement>(null);
 
@@ -128,7 +132,7 @@ function TagsInput({
           <button
             type='button'
             className='hover:bg-muted rounded-sm p-0.5 outline-none focus-visible:ring-1 focus-visible:ring-ring'
-            aria-label={`移除 ${tag}`}
+            aria-label={rt('remove_value0_30c2158a', { value0: tag })}
             disabled={disabled}
             onClick={(event) => {
               event.stopPropagation();

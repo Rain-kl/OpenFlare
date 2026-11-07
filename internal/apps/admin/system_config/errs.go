@@ -7,9 +7,9 @@ package system_config
 
 // 系统配置错误消息常量
 const (
-	SystemConfigNotFound                 = "系统配置不存在"
-	ConfigKeyRequired                    = "配置键不能为空"
-	ConfigValueRequired                  = "配置值不能为空"
-	ConfigKeyExists                      = "配置键已存在"
-	StorageDriverSwitchRequiresMigration = "存在存量文件，请通过存储迁移任务切换存储引擎"
+	SystemConfigNotFound                 = "System configuration was not found"
+	ConfigKeyRequired                    = "Configuration key must not be empty"
+	ConfigValueRequired                  = "Configuration value must not be empty"
+	ConfigKeyExists                      = "configuration key already exists"
+	StorageDriverSwitchRequiresMigration = "existing files were found; use the storage migration task to switch storage backends"
 )

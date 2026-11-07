@@ -1,7 +1,7 @@
+'use client';
+
 // Copyright 2026 Arctel.net
 // SPDX-License-Identifier: Apache-2.0
-
-'use client';
 
 import * as React from 'react';
 import { useTranslations } from 'next-intl';
@@ -26,6 +26,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
 
 export function ControlsTab() {
+  const rt = useTranslations('runtime');
+
   const t = useTranslations('admin.demo.controls');
   const [formData, setFormData] = React.useState({
     name: '',
@@ -166,78 +168,71 @@ export function ControlsTab() {
               {t('spec.unifiedHeight')}
             </p>
             <p>
-              输入框 (
+              {rt('inputs_fabee312')}
               <code className='bg-muted px-1 py-0.5 rounded font-mono'>
                 Input
               </code>
-              ) 与下拉选择器 (
+              {rt('and_selectors_e4875cdf')}
               <code className='bg-muted px-1 py-0.5 rounded font-mono'>
                 SelectTrigger
               </code>
-              ) 的高度应统一限制为小号高度{' '}
+              {rt('should_share_the_compact_height_f1fe2218')}{' '}
               <code className='bg-muted px-1 py-0.5 rounded font-mono'>
                 h-8
               </code>
-              ，字体大小使用{' '}
+              {rt('with_font_size_e7c29991')}{' '}
               <code className='bg-muted px-1 py-0.5 rounded font-mono'>
                 text-xs
               </code>
-              ，并使用{' '}
+              {rt('and_use_ca398a12')}{' '}
               <code className='bg-muted px-1 py-0.5 rounded font-mono'>
                 shadow-none
               </code>{' '}
-              去除原生的重叠阴影。
+              {rt('to_remove_overlapping_native_shadows_dd65b475')}
             </p>
 
             <p className='font-semibold text-foreground text-[11px] pt-1'>
               {t('spec.checkboxAlignment')}
             </p>
             <p>
-              Checkbox 应在左侧垂直偏上对齐，使用容器{' '}
+              {rt('align_checkboxes_toward_the_top_left_using_092dcef0')}{' '}
               <code className='bg-muted px-1 py-0.5 rounded font-mono'>
                 flex items-start gap-2.5
               </code>{' '}
-              排列。Checkbox 组件本身添加{' '}
+              {rt('add_bf15da3a')}{' '}
               <code className='bg-muted px-1 py-0.5 rounded font-mono'>
                 mt-0.5
               </code>
-              ，从而在多行描述文本的情况下依然保持良好的顶对齐，避免出现居中对齐导致的凌乱感。
+              {rt('to_the_checkbox_so_multiline_descriptions_stay_1bb85c4b')}
             </p>
 
             <p className='font-semibold text-foreground text-[11px] pt-1'>
               {t('spec.buttonStrategy')}
             </p>
             <p>
-              普通主表单及新增/保存按钮，一律使用默认 Primary 按钮或次要{' '}
+              {rt('use_the_default_primary_or_secondary_db7513e5')}{' '}
               <code className='bg-muted px-1 py-0.5 rounded font-mono'>
                 {'variant="secondary"'}
               </code>{' '}
-              按钮，小号高度统一采用{' '}
+              {rt('button_for_forms_and_create_save_actions_a657dba8')}{' '}
               <code className='bg-muted px-1 py-0.5 rounded font-mono'>
                 h-8 text-xs
               </code>
-              。线框按钮必须带有{' '}
+              {rt('outline_buttons_must_include_the_66ace005')}{' '}
               <code className='bg-muted px-1 py-0.5 rounded font-mono'>
                 border-dashed shadow-none
               </code>{' '}
-              类。
+              {rt('class_43eff5ff')}
             </p>
           </div>
 
           <div className='bg-background/80 p-3 rounded border border-border/40 font-mono text-[10px] space-y-2 overflow-x-auto'>
-            <div>{`// 1. Label 与 Input 对齐`}</div>
-            <div>{`<div className="space-y-1.5">
-  <Label htmlFor="id" className="text-xs font-medium text-foreground">标题</Label>
-  <Input id="id" className="h-8 text-xs shadow-none" />
-</div>`}</div>
-            <div className='pt-2'>{`// 2. Checkbox 顶对齐`}</div>
-            <div>{`<div className="flex items-start gap-2.5">
-  <Checkbox id="c" className="mt-0.5" />
-  <div className="grid gap-1">
-    <label htmlFor="c" className="text-xs font-medium leading-none">标题</label>
-    <p className="text-[10px] text-muted-foreground">多行说明内容</p>
-  </div>
-</div>`}</div>
+            <div>{rt('1_align_label_and_input_32d4558d')}</div>
+            <div>{rt.raw('div_classname_space_y_1_5_label_32230ad7')}</div>
+            <div className='pt-2'>
+              {rt('2_align_checkbox_to_the_top_bdf68ad8')}
+            </div>
+            <div>{rt.raw('div_classname_flex_items_start_gap_2_ccf0d526')}</div>
           </div>
         </CardContent>
       </Card>

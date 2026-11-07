@@ -368,6 +368,8 @@ export function IpAnalysisPanel({
    */
   initialHours?: number;
 }) {
+  const uiText = useTranslations('runtime');
+
   const t = useTranslations('accessLogs');
   const trendChartConfig = useTrendChartConfig();
   const [ipGroupOpen, setIpGroupOpen] = useState(false);
@@ -576,32 +578,32 @@ export function IpAnalysisPanel({
             {analysis ? (
               <div className='grid gap-3 md:grid-cols-2'>
                 <MiniRankCard
-                  title='Top Paths'
+                  title={uiText('ui_topPaths')}
                   color='#a78bfa'
                   items={toRankItems(analysis.top_paths)}
                 />
                 <MiniRankCard
-                  title='Top Hosts'
+                  title={uiText('ui_topHosts')}
                   color='#34d399'
                   items={toRankItems(analysis.top_hosts)}
                 />
                 <MiniRankCard
-                  title='Status Codes'
+                  title={uiText('ui_statusCodes')}
                   color='#f59e0b'
                   items={toRankItems(analysis.status_codes)}
                 />
                 <MiniRankCard
-                  title='Top User-Agents'
+                  title={uiText('ui_topUserAgents')}
                   color='#818cf8'
                   items={toRankItems(analysis.top_user_agents)}
                 />
                 <MiniRankCard
-                  title='Device Types'
+                  title={uiText('ui_deviceTypes')}
                   color='#38bdf8'
                   items={toRankItems(analysis.device_types)}
                 />
                 <MiniRankCard
-                  title='Top Browsers'
+                  title={uiText('ui_topBrowsers')}
                   color='#22c55e'
                   items={toRankItems(analysis.top_browsers)}
                 />

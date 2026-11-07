@@ -139,5 +139,5 @@ func SyncUptimeKumaHandler(c *gin.Context) {
 	if apiutil.AbortBadRequestOnError(c, syncUptimeKuma(c.Request.Context())) {
 		return
 	}
-	c.JSON(http.StatusOK, response.OK("同步成功"))
+	c.JSON(http.StatusOK, response.OK("Synchronization succeeded"))
 }

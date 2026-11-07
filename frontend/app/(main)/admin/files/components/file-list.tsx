@@ -1,5 +1,6 @@
 'use client';
 
+import { getFormattingLocale } from '@/i18n/format';
 import * as React from 'react';
 import { useTranslations } from 'next-intl';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -72,7 +73,7 @@ function getFileIcon(mimeType: string, className = 'size-8') {
 }
 
 function formatDate(dateStr: string) {
-  return new Date(dateStr).toLocaleString('zh-CN', {
+  return new Date(dateStr).toLocaleString(getFormattingLocale(), {
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
@@ -82,6 +83,8 @@ function formatDate(dateStr: string) {
 }
 
 export function FileList() {
+  const uiText = useTranslations('runtime');
+
   const t = useTranslations('admin.files');
   const queryClient = useQueryClient();
   const [keyword, setKeyword] = React.useState('');
@@ -564,7 +567,7 @@ export function FileList() {
 
                 <div className='grid grid-cols-3 gap-2 border-b border-dashed pb-2'>
                   <span className='text-muted-foreground font-medium'>
-                    Hash (SHA-256)
+                    {uiText('ui_fileHash')}
                   </span>
                   <span className='col-span-2 font-mono break-all select-all text-foreground/90'>
                     {detailTarget.hash}

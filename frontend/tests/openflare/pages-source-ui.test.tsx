@@ -172,7 +172,9 @@ describe('Pages source UI', () => {
 
     await user.click(screen.getByRole('button', { name: '配置' }));
     expect(screen.getByRole('radio', { name: '手动部署' })).toBeVisible();
-    expect(screen.getByRole('radio', { name: 'Remote URL' })).toBeVisible();
+    expect(
+      screen.getByRole('radio', { name: zhCN.runtime.ui_remoteUrl }),
+    ).toBeVisible();
     expect(screen.getByRole('radio', { name: 'GitHub Release' })).toBeVisible();
     expect(screen.getByRole('radio', { name: '手动部署' })).toBeChecked();
     expect(screen.queryByText('构建命令')).not.toBeInTheDocument();
@@ -281,7 +283,7 @@ describe('Pages source UI', () => {
     ).not.toBeInTheDocument();
     expect(screen.queryByLabelText('检查间隔（分钟）')).not.toBeInTheDocument();
     await user.type(
-      screen.getByLabelText('Release tag'),
+      screen.getByLabelText(zhCN.runtime.ui_releaseTag),
       'release/candidate#1&channel=stable',
     );
     await user.clear(screen.getByLabelText('Release Asset 文件名'));
@@ -319,7 +321,10 @@ describe('Pages source UI', () => {
       'https://github.com/openflare/site',
     );
     await user.click(screen.getByRole('radio', { name: '固定 Tag' }));
-    await user.type(screen.getByLabelText('Release tag'), 'release//candidate');
+    await user.type(
+      screen.getByLabelText(zhCN.runtime.ui_releaseTag),
+      'release//candidate',
+    );
     await user.clear(screen.getByLabelText('Release Asset 文件名'));
     await user.type(
       screen.getByLabelText('Release Asset 文件名'),
@@ -514,7 +519,7 @@ describe('Pages source UI', () => {
     ).toBeVisible();
 
     await user.click(screen.getByRole('button', { name: '配置' }));
-    const input = screen.getByLabelText('Remote URL');
+    const input = screen.getByLabelText(zhCN.runtime.ui_remoteUrl);
     expect(input).toHaveAttribute('type', 'url');
     expect(input).toHaveValue(
       'https://artifacts.example.com/site.zip?token=secret',
@@ -641,7 +646,7 @@ describe('Pages source UI', () => {
     expect(
       await screen.findAllByText('GitHub · v1.2.3 · 手动同步'),
     ).toHaveLength(2);
-    expect(screen.getByText('Production')).toBeVisible();
-    expect(screen.getByText('All deployments')).toBeVisible();
+    expect(screen.getByText(zhCN.runtime.ui_production)).toBeVisible();
+    expect(screen.getByText(zhCN.runtime.ui_allDeployments)).toBeVisible();
   });
 });

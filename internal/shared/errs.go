@@ -6,6 +6,6 @@ package shared
 
 // 通用业务错误消息常量
 const (
-	BannedAccount = "账号已被封禁"
-	UnAuthorized  = "未登录"
+	BannedAccount = "account is disabled"
+	UnAuthorized  = "Not signed in"
 )

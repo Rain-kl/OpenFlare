@@ -325,7 +325,7 @@ func (m *Manager) ensureOpenRestyWorkerReadAccess() error {
 
 func (m *Manager) activateConfig(ctx context.Context) error {
 	if m.Executor == nil {
-		return errors.New("executor 未配置")
+		return errors.New("Executor is not configured")
 	}
 	if err := m.Executor.Test(ctx); err != nil {
 		return err
@@ -407,7 +407,7 @@ func (m *Manager) EnsureRuntime(ctx context.Context, recreate bool) error {
 	m.runtimeMu.Lock()
 	defer m.runtimeMu.Unlock()
 	if m.Executor == nil {
-		return errors.New("executor 未配置")
+		return errors.New("Executor is not configured")
 	}
 	slog.Info("openresty ensure runtime requested", "recreate", recreate)
 	return m.Executor.EnsureRuntime(ctx, recreate)
@@ -422,7 +422,7 @@ func (m *Manager) EnsureSafeFallbackRuntime(ctx context.Context, reason string) 
 
 func (m *Manager) ensureSafeFallbackRuntime(ctx context.Context, reason string) error {
 	if m.Executor == nil {
-		return errors.New("executor 未配置")
+		return errors.New("Executor is not configured")
 	}
 	trimmedReason := strings.TrimSpace(reason)
 	if trimmedReason == "" {
@@ -444,7 +444,7 @@ func (m *Manager) CheckHealth(ctx context.Context) error {
 	m.runtimeMu.Lock()
 	defer m.runtimeMu.Unlock()
 	if m.Executor == nil {
-		return errors.New("executor 未配置")
+		return errors.New("Executor is not configured")
 	}
 	if m.MainConfigPath != "" {
 		if _, err := os.Stat(m.MainConfigPath); os.IsNotExist(err) {
@@ -462,7 +462,7 @@ func (m *Manager) Restart(ctx context.Context) error {
 	m.runtimeMu.Lock()
 	defer m.runtimeMu.Unlock()
 	if m.Executor == nil {
-		return errors.New("executor 未配置")
+		return errors.New("Executor is not configured")
 	}
 	slog.Info("openresty restart requested")
 	return m.Executor.Restart(ctx)
@@ -473,10 +473,10 @@ func (m *Manager) CurrentChecksum() (string, error) {
 	m.runtimeMu.Lock()
 	defer m.runtimeMu.Unlock()
 	if m.RouteConfigPath == "" {
-		return "", errors.New("route config path 不能为空")
+		return "", errors.New("route configuration path must not be empty")
 	}
 	if m.MainConfigPath == "" {
-		return "", errors.New("main config path 不能为空")
+		return "", errors.New("main configuration path must not be empty")
 	}
 	mainData, err := os.ReadFile(m.MainConfigPath)
 	if err != nil {
@@ -828,10 +828,10 @@ type managedFile struct {
 
 func (m *Manager) backup() (*backupState, error) {
 	if m.MainConfigPath == "" {
-		return nil, errors.New("main config path 不能为空")
+		return nil, errors.New("main configuration path must not be empty")
 	}
 	if m.RouteConfigPath == "" {
-		return nil, errors.New("route config path 不能为空")
+		return nil, errors.New("route configuration path must not be empty")
 	}
 	if err := os.MkdirAll(filepath.Dir(m.MainConfigPath), nginxDirPerm); err != nil {
 		return nil, err
@@ -1143,10 +1143,10 @@ func (m *Manager) restoreRuntimeConfig(file *protocol.SupportFile, name string) 
 
 func (m *Manager) writeSafeDefaultFallbackFiles() error {
 	if strings.TrimSpace(m.MainConfigPath) == "" {
-		return errors.New("main config path 不能为空")
+		return errors.New("main configuration path must not be empty")
 	}
 	if strings.TrimSpace(m.RouteConfigPath) == "" {
-		return errors.New("route config path 不能为空")
+		return errors.New("route configuration path must not be empty")
 	}
 	if err := os.MkdirAll(filepath.Dir(m.MainConfigPath), nginxDirPerm); err != nil {
 		return err
@@ -1203,7 +1203,7 @@ func removeLegacyPowConfig(path string) error {
 
 func (m *Manager) certFileTargetPath(relativePath string) (string, error) {
 	if strings.TrimSpace(m.CertDir) == "" {
-		return "", errors.New("cert dir 不能为空")
+		return "", errors.New("certificate directory must not be empty")
 	}
 	candidate := strings.TrimSpace(relativePath)
 	if strings.Contains(candidate, `\`) {
@@ -1211,7 +1211,7 @@ func (m *Manager) certFileTargetPath(relativePath string) (string, error) {
 	}
 	normalizedPath := filepath.Clean(filepath.FromSlash(candidate))
 	if normalizedPath == "." || normalizedPath == "" {
-		return "", errors.New("cert file path 不能为空")
+		return "", errors.New("certificate file path must not be empty")
 	}
 	if filepath.IsAbs(normalizedPath) || filepath.VolumeName(normalizedPath) != "" {
 		return "", fmt.Errorf("cert file path %q must be relative", relativePath)
@@ -1240,7 +1240,7 @@ func certFileMode(relativePath string) fs.FileMode {
 
 func luaFileTargetPath(baseDir string, relativePath string) (string, error) {
 	if strings.TrimSpace(baseDir) == "" {
-		return "", errors.New("lua dir 不能为空")
+		return "", errors.New("lua directory must not be empty")
 	}
 	candidate := strings.TrimSpace(relativePath)
 	if strings.Contains(candidate, `\`) {
@@ -1248,7 +1248,7 @@ func luaFileTargetPath(baseDir string, relativePath string) (string, error) {
 	}
 	normalizedPath := filepath.Clean(filepath.FromSlash(candidate))
 	if normalizedPath == "." || normalizedPath == "" {
-		return "", errors.New("lua file path 不能为空")
+		return "", errors.New("lua file path must not be empty")
 	}
 	if filepath.IsAbs(normalizedPath) || filepath.VolumeName(normalizedPath) != "" {
 		return "", fmt.Errorf("lua file path %q must be relative", relativePath)

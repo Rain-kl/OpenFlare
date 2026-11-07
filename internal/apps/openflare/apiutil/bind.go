@@ -11,8 +11,8 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-const errInvalidParams = "参数错误"
-const errInvalidID = "无效的 ID"
+const errInvalidParams = "invalid parameters"
+const errInvalidID = "Invalid ID"
 
 // BindJSON binds JSON body; returns false after aborting with 400.
 func BindJSON(c *gin.Context, dst any) bool {

@@ -24,6 +24,10 @@ type smtpConfig struct {
 	Password string
 }
 
+// This persisted recipient alias predates localization. Display translations
+// must never expand the set of reserved routing identifiers.
+const legacySystemTarget = "\u7cfb\u7edf"
+
 func loadSMTPConfig(ctx context.Context) smtpConfig {
 	host, _ := repository.GetSystemConfigByKey(ctx, model.ConfigKeySMTPHost)
 	port, _ := repository.GetSystemConfigByKey(ctx, model.ConfigKeySMTPPort)
@@ -278,7 +282,7 @@ func recordPushHistory(ctx context.Context, req SendPayload, status, errMsg stri
 	content := req.Body.Content
 	level := req.Body.Level
 	if title == "" {
-		title = "系统通知"
+		title = "System notification"
 	}
 	if level == "" {
 		level = defaultLevelInfo
@@ -331,7 +335,7 @@ func resolveTargetUser(ctx context.Context, resolved string, _ string) (model.Us
 }
 
 func resolveSystemTarget(ctx context.Context, resolved string, channel string) (string, bool) {
-	if resolved != "系统" && resolved != "system" && resolved != "0" {
+	if resolved != legacySystemTarget && resolved != "system" && resolved != "0" {
 		return "", false
 	}
 	adminUser, err := repository.GetFirstAdminUser(ctx)
@@ -383,10 +387,10 @@ func getEventInfo(req CreateEventRequest) (string, string, []byte, error) {
 			return "", "", nil, errors.New("unsupported task type")
 		}
 		eventKey := "task_completed:" + req.TaskType
-		eventName := "任务完成: " + meta.Name
+		eventName := "Task completed: " + meta.Name
 		defaultTemplate := NotificationMessage{
-			Title:   "任务完成: " + meta.Name,
-			Content: "异步任务 {{task_name}} (ID: {{task_id}}) 已完成。状态: {{task_status}}，耗时: {{task_duration}} ms。",
+			Title:   "Task completed: " + meta.Name,
+			Content: "Asynchronous task {{task_name}} (ID: {{task_id}}) completed. Status: {{task_status}}; duration: {{task_duration}} ms.",
 			Level:   defaultLevelInfo,
 		}
 		defaultTemplateBytes, err := json.Marshal(defaultTemplate)

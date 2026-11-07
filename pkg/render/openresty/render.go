@@ -83,11 +83,11 @@ func RenderMainConfig(doc Document) string {
 func ValidateMainConfigTemplate(templateText string) error {
 	trimmed := strings.TrimSpace(templateText)
 	if trimmed == "" {
-		return errors.New("OpenRestyMainConfigTemplate 不能为空")
+		return errors.New("OpenRestyMainConfigTemplate must not be empty")
 	}
 	for _, placeholder := range requiredMainConfigTemplatePlaceholders {
 		if !strings.Contains(trimmed, placeholder) {
-			return fmt.Errorf("OpenRestyMainConfigTemplate 必须保留占位符 %s", placeholder)
+			return fmt.Errorf("OpenRestyMainConfigTemplate must retain placeholder %s", placeholder)
 		}
 	}
 	return nil

@@ -42,8 +42,8 @@ const (
 var FailoverCheckMeta = task.TaskMeta{
 	Type:         TaskTypeFailoverCheck,
 	AsynqTask:    FailoverCheckTask,
-	Name:         "Cloudflare 节点故障回退检查",
-	Description:  "根据节点在线和应用状态切换分组主备节点",
+	Name:         "Cloudflare node failover check",
+	Description:  "Switch group primary and standby nodes based on node availability and configuration status",
 	SupportsTime: false,
 	MaxRetry:     2,
 	Queue:        task.QueueDefault,
@@ -55,8 +55,8 @@ var FailoverCheckMeta = task.TaskMeta{
 var SyncMemberMeta = task.TaskMeta{
 	Type:         TaskTypeSyncMember,
 	AsynqTask:    SyncMemberTask,
-	Name:         "Cloudflare 域名同步",
-	Description:  "同步单个域名的 Cloudflare DNS 记录",
+	Name:         "Cloudflare domain synchronization",
+	Description:  "Synchronize Cloudflare DNS records for a single domain",
 	SupportsTime: false,
 	MaxRetry:     3,
 	Queue:        task.QueueDefault,
@@ -64,11 +64,11 @@ var SyncMemberMeta = task.TaskMeta{
 	Params: []task.TaskParam{
 		{
 			Name:        "member_id",
-			Label:       "成员 ID",
+			Label:       "Member ID",
 			Type:        "number",
 			Required:    true,
-			Placeholder: "请输入 Cloudflare 指向成员 ID",
-			Description: "of_cf_pointing_members 表中的成员主键 ID",
+			Placeholder: "Enter the Cloudflare target member ID",
+			Description: "Member primary key in the of_cf_pointing_members table",
 		},
 	},
 }
@@ -77,8 +77,8 @@ var SyncMemberMeta = task.TaskMeta{
 var SyncGroupMeta = task.TaskMeta{
 	Type:         TaskTypeSyncGroup,
 	AsynqTask:    SyncGroupTask,
-	Name:         "Cloudflare 分组同步",
-	Description:  "同步指向分组内全部域名",
+	Name:         "Cloudflare group synchronization",
+	Description:  "Synchronize all domains in a target group",
 	SupportsTime: false,
 	MaxRetry:     2,
 	Queue:        task.QueueDefault,
@@ -86,11 +86,11 @@ var SyncGroupMeta = task.TaskMeta{
 	Params: []task.TaskParam{
 		{
 			Name:        "group_id",
-			Label:       "分组 ID",
+			Label:       "Group ID",
 			Type:        "number",
 			Required:    true,
-			Placeholder: "请输入 Cloudflare 指向分组 ID",
-			Description: "of_cf_pointing_groups 表中的分组主键 ID",
+			Placeholder: "Enter the Cloudflare target group ID",
+			Description: "Group primary key in the of_cf_pointing_groups table",
 		},
 	},
 }
@@ -99,8 +99,8 @@ var SyncGroupMeta = task.TaskMeta{
 var SyncByNodeMeta = task.TaskMeta{
 	Type:         TaskTypeSyncByNode,
 	AsynqTask:    SyncByNodeTask,
-	Name:         "Cloudflare 节点同步",
-	Description:  "同步当前指向指定节点的全部域名",
+	Name:         "Cloudflare node synchronization",
+	Description:  "Synchronize all domains currently targeting the specified node",
 	SupportsTime: false,
 	MaxRetry:     2,
 	Queue:        task.QueueDefault,
@@ -161,14 +161,14 @@ type SyncMemberTaskHandler struct{}
 // ValidatePayload validates a one-member task payload.
 func (handler *SyncMemberTaskHandler) ValidatePayload(payload []byte) ([]byte, error) {
 	if len(payload) == 0 {
-		return nil, errors.New("任务参数不能为空")
+		return nil, errors.New("task parameters must not be empty")
 	}
 	var input SyncMemberPayload
 	if err := decodePayload(payload, &input); err != nil {
-		return nil, fmt.Errorf("无效的 Cloudflare 成员同步参数: %w", err)
+		return nil, fmt.Errorf("invalid Cloudflare member synchronization parameters: %w", err)
 	}
 	if input.MemberID == 0 {
-		return nil, errors.New("成员 ID 不能为空或零")
+		return nil, errors.New("member ID must be nonzero")
 	}
 	return json.Marshal(input)
 }
@@ -184,14 +184,14 @@ func (handler *SyncMemberTaskHandler) Execute(ctx context.Context, payload []byt
 
 	state, loadErr := repository.GetCFPointingMemberContext(ctx, input.MemberID)
 	if loadErr != nil {
-		task.AppendLog(ctx, "加载成员上下文失败: member_id=%d error=%v", input.MemberID, loadErr)
+		task.AppendLog(ctx, "Failed to load member context: member_id=%d error=%v", input.MemberID, loadErr)
 	} else {
 		target := fmt.Sprintf("%s(%s)", state.Node.Name, strings.TrimSpace(state.Node.IP))
 		if state.Group.TargetMode == model.CFPointingTargetModeCustom {
 			target = fmt.Sprintf("%s %s", state.Group.RecordType, state.Group.RecordContent)
 		}
 		task.AppendLog(ctx,
-			"开始域名同步: domain=%s zone=%s group=%s(#%d) target=%s proxied=%v member_id=%d",
+			"Starting domain synchronization: domain=%s zone=%s group=%s(#%d) target=%s proxied=%v member_id=%d",
 			state.Domain.Domain,
 			state.Zone.Domain,
 			state.Group.Name,
@@ -204,28 +204,28 @@ func (handler *SyncMemberTaskHandler) Execute(ctx context.Context, payload []byt
 
 	if err = ReconcileMember(ctx, input.MemberID); err != nil {
 		if state != nil {
-			task.AppendLog(ctx, "域名同步失败: domain=%s member_id=%d error=%v",
+			task.AppendLog(ctx, "Domain synchronization failed: domain=%s member_id=%d error=%v",
 				state.Domain.Domain, input.MemberID, err)
 		} else {
-			task.AppendLog(ctx, "域名同步失败: member_id=%d error=%v", input.MemberID, err)
+			task.AppendLog(ctx, "Domain synchronization failed: member_id=%d error=%v", input.MemberID, err)
 		}
 		return nil, fmt.Errorf("%s: %w", errSyncFailed, err)
 	}
 
-	message := "Cloudflare 域名同步成功"
+	message := "Cloudflare domain synchronization succeeded"
 	if state != nil {
 		target := strings.TrimSpace(state.Node.IP)
 		if state.Group.TargetMode == model.CFPointingTargetModeCustom {
 			target = fmt.Sprintf("%s %s", state.Group.RecordType, state.Group.RecordContent)
 		}
-		message = fmt.Sprintf("Cloudflare 域名同步成功: %s → %s (proxied=%v)",
+		message = fmt.Sprintf("Cloudflare domain synchronization succeeded: %s -> %s (proxied=%v)",
 			state.Domain.Domain, target, state.Member.Proxied)
 		task.AppendLog(ctx,
-			"域名同步成功: domain=%s desired_target=%s proxied=%v group=%s target_mode=%s",
+			"Domain synchronization succeeded: domain=%s desired_target=%s proxied=%v group=%s target_mode=%s",
 			state.Domain.Domain, target, state.Member.Proxied, state.Group.Name, state.Group.TargetMode,
 		)
 	} else {
-		task.AppendLog(ctx, "域名同步成功: member_id=%d", input.MemberID)
+		task.AppendLog(ctx, "Domain synchronization succeeded: member_id=%d", input.MemberID)
 	}
 	return &task.TaskResult{Message: message}, nil
 }
@@ -236,14 +236,14 @@ type SyncGroupTaskHandler struct{}
 // ValidatePayload validates a group task payload.
 func (handler *SyncGroupTaskHandler) ValidatePayload(payload []byte) ([]byte, error) {
 	if len(payload) == 0 {
-		return nil, errors.New("任务参数不能为空")
+		return nil, errors.New("task parameters must not be empty")
 	}
 	var input SyncGroupPayload
 	if err := decodePayload(payload, &input); err != nil {
-		return nil, fmt.Errorf("无效的 Cloudflare 分组同步参数: %w", err)
+		return nil, fmt.Errorf("invalid Cloudflare group synchronization parameters: %w", err)
 	}
 	if input.GroupID == 0 {
-		return nil, errors.New("分组 ID 不能为空或零")
+		return nil, errors.New("group ID must be nonzero")
 	}
 	return json.Marshal(input)
 }
@@ -262,18 +262,18 @@ func (handler *SyncGroupTaskHandler) Execute(ctx context.Context, payload []byte
 	scopeName := fmt.Sprintf("#%d", input.GroupID)
 	activeNode := ""
 	if group, groupErr := repository.GetCFPointingGroup(ctx, input.GroupID); groupErr != nil {
-		task.AppendLog(ctx, "加载分组失败: group_id=%d error=%v", input.GroupID, groupErr)
+		task.AppendLog(ctx, "Failed to load group: group_id=%d error=%v", input.GroupID, groupErr)
 	} else {
 		scopeName = group.Name
 		activeNode = groupSyncTarget(ctx, group)
 		task.AppendLog(ctx,
-			"准备分组同步: group=%s id=%d enabled=%v target=%s default_proxied=%v",
+			"Preparing group synchronization: group=%s id=%d enabled=%v target=%s default_proxied=%v",
 			group.Name, group.ID, group.Enabled, activeNode, group.DefaultProxied,
 		)
 	}
 
 	members, err := repository.ListCFPointingMembersByGroupID(ctx, input.GroupID)
-	return executeBatchSync(ctx, members, err, "分组", scopeName, input.GroupID, activeNode)
+	return executeBatchSync(ctx, members, err, "group", scopeName, input.GroupID, activeNode)
 }
 
 func groupSyncTarget(ctx context.Context, group *model.CFPointingGroup) string {
@@ -282,7 +282,7 @@ func groupSyncTarget(ctx context.Context, group *model.CFPointingGroup) string {
 	}
 	node, err := repository.GetOpenFlareNodeByID(ctx, group.ActiveNodeID)
 	if err != nil {
-		task.AppendLog(ctx, "加载生效节点失败: group=%s active_node_id=%d error=%v",
+		task.AppendLog(ctx, "Failed to load active node: group=%s active_node_id=%d error=%v",
 			group.Name, group.ActiveNodeID, err)
 		return ""
 	}
@@ -296,7 +296,7 @@ type SyncByNodeTaskHandler struct{}
 func (handler *SyncByNodeTaskHandler) ValidatePayload(payload []byte) ([]byte, error) {
 	var input SyncByNodePayload
 	if err := decodePayload(payload, &input); err != nil || input.NodeID == 0 {
-		return nil, errors.New("无效的 Cloudflare 节点同步参数")
+		return nil, errors.New("invalid Cloudflare node synchronization parameters")
 	}
 	return json.Marshal(input)
 }
@@ -315,16 +315,16 @@ func (handler *SyncByNodeTaskHandler) Execute(ctx context.Context, payload []byt
 	scopeName := fmt.Sprintf("#%d", input.NodeID)
 	activeNode := ""
 	if node, nodeErr := repository.GetOpenFlareNodeByID(ctx, input.NodeID); nodeErr != nil {
-		task.AppendLog(ctx, "加载节点失败: node_id=%d error=%v", input.NodeID, nodeErr)
+		task.AppendLog(ctx, "Failed to load node: node_id=%d error=%v", input.NodeID, nodeErr)
 	} else {
 		scopeName = node.Name
 		activeNode = fmt.Sprintf("%s(%s)", node.Name, strings.TrimSpace(node.IP))
-		task.AppendLog(ctx, "准备节点同步: node=%s id=%d ip=%s",
+		task.AppendLog(ctx, "Preparing node synchronization: node=%s id=%d ip=%s",
 			node.Name, node.ID, strings.TrimSpace(node.IP))
 	}
 
 	members, err := repository.ListCFPointingMembersByActiveNodeID(ctx, input.NodeID)
-	return executeBatchSync(ctx, members, err, "节点", scopeName, input.NodeID, activeNode)
+	return executeBatchSync(ctx, members, err, "node", scopeName, input.NodeID, activeNode)
 }
 
 func executeBatchSync(
@@ -336,15 +336,15 @@ func executeBatchSync(
 	activeNode string,
 ) (*task.TaskResult, error) {
 	if listErr != nil {
-		task.AppendLog(ctx, "列出%s成员失败: name=%s id=%d error=%v",
+		task.AppendLog(ctx, "Failed to list %s members: name=%s id=%d error=%v",
 			scope, scopeName, scopeID, listErr)
 		return nil, listErr
 	}
 
-	task.AppendLog(ctx, "开始%s同步: name=%s id=%d target=%s 域名数=%d",
+	task.AppendLog(ctx, "Starting %s synchronization: name=%s id=%d target=%s domains=%d",
 		scope, scopeName, scopeID, activeNode, len(members))
 	if len(members) == 0 {
-		message := fmt.Sprintf("Cloudflare %s同步完成: %s 无域名成员", scope, scopeName)
+		message := fmt.Sprintf("Cloudflare %s synchronization completed: %s has no domain members", scope, scopeName)
 		task.AppendLog(ctx, "%s", message)
 		return &task.TaskResult{Message: message}, nil
 	}
@@ -355,28 +355,28 @@ func executeBatchSync(
 		if domain, domainErr := repository.GetZoneDomainByID(ctx, member.ZoneDomainID); domainErr == nil {
 			domainName = domain.Domain
 		} else if errors.Is(domainErr, gorm.ErrRecordNotFound) {
-			task.AppendLog(ctx, "[%d/%d] 域名记录已不存在，清理孤立成员: member_id=%d zone_domain_id=%d",
+			task.AppendLog(ctx, "[%d/%d] Domain record no longer exists; removing orphaned member: member_id=%d zone_domain_id=%d",
 				index+1, len(members), member.ID, member.ZoneDomainID)
 			if delErr := repository.DeleteCFPointingMember(ctx, &member); delErr != nil {
-				task.AppendLog(ctx, "[%d/%d] 清理孤立成员失败: member_id=%d error=%v",
+				task.AppendLog(ctx, "[%d/%d] Failed to remove orphaned member: member_id=%d error=%v",
 					index+1, len(members), member.ID, delErr)
 			}
 			continue
 		}
-		task.AppendLog(ctx, "[%d/%d] 同步域名 %s (member_id=%d proxied=%v)",
+		task.AppendLog(ctx, "[%d/%d] Synchronizing domain %s (member_id=%d proxied=%v)",
 			index+1, len(members), domainName, member.ID, member.Proxied)
 		if err := ReconcileMember(ctx, member.ID); err != nil {
-			task.AppendLog(ctx, "[%d/%d] 失败: domain=%s member_id=%d error=%v",
+			task.AppendLog(ctx, "[%d/%d] Failed: domain=%s member_id=%d error=%v",
 				index+1, len(members), domainName, member.ID, err)
 			return nil, err
 		}
 		syncedCount++
-		task.AppendLog(ctx, "[%d/%d] 成功: domain=%s", index+1, len(members), domainName)
+		task.AppendLog(ctx, "[%d/%d] Succeeded: domain=%s", index+1, len(members), domainName)
 	}
 
-	message := fmt.Sprintf("Cloudflare %s同步完成: %s 共 %d 个域名", scope, scopeName, syncedCount)
+	message := fmt.Sprintf("Cloudflare %s synchronization completed: %s, %d domains", scope, scopeName, syncedCount)
 	if activeNode != "" {
-		message = fmt.Sprintf("Cloudflare %s同步完成: %s → %s，共 %d 个域名",
+		message = fmt.Sprintf("Cloudflare %s synchronization completed: %s -> %s, %d domains",
 			scope, scopeName, activeNode, syncedCount)
 	}
 	task.AppendLog(ctx, "%s", message)
@@ -403,7 +403,7 @@ type FailoverCheckTaskHandler struct{}
 func (handler *FailoverCheckTaskHandler) ValidatePayload(payload []byte) ([]byte, error) {
 	var input struct{}
 	if err := decodePayload(payload, &input); err != nil {
-		return nil, fmt.Errorf("无效的 Cloudflare 故障回退检查参数: %w", err)
+		return nil, fmt.Errorf("invalid Cloudflare failover check parameters: %w", err)
 	}
 	return json.Marshal(input)
 }
@@ -413,13 +413,13 @@ func (handler *FailoverCheckTaskHandler) Execute(ctx context.Context, payload []
 	if _, err := handler.ValidatePayload(payload); err != nil {
 		return nil, task.PermanentError(err.Error())
 	}
-	task.AppendLog(ctx, "开始检查 Cloudflare 节点分组主备状态")
+	task.AppendLog(ctx, "Checking Cloudflare group primary and standby node status")
 	changed, err := CheckNodeFailover(ctx)
 	if err != nil {
-		task.AppendLog(ctx, "Cloudflare 节点故障回退检查失败: error=%v", err)
+		task.AppendLog(ctx, "Cloudflare node failover check failed: error=%v", err)
 		return nil, err
 	}
-	message := fmt.Sprintf("Cloudflare 节点故障回退检查完成，切换分组 %d 个", changed)
+	message := fmt.Sprintf("Cloudflare node failover check completed; switched %d groups", changed)
 	task.AppendLog(ctx, "%s", message)
 	return &task.TaskResult{Message: message}, nil
 }

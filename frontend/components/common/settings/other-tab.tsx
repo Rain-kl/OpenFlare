@@ -207,6 +207,8 @@ interface OtherTabProps {
 }
 
 export function OtherTab({ configs }: OtherTabProps) {
+  const rt = useTranslations('runtime');
+
   const queryClient = useQueryClient();
   const t = useTranslations('settings.other');
   const tNav = useTranslations('layout.nav');
@@ -237,7 +239,9 @@ export function OtherTab({ configs }: OtherTabProps) {
           value: JSON.stringify(newConfig),
           description:
             currentCfg?.description ||
-            '目录显示配置（JSON 字符串，格式为 {url: enabled}）',
+            rt.raw(
+              'directory_visibility_configuration_json_string_format_url_8e3c0671',
+            ),
         },
       );
     },
@@ -336,7 +340,7 @@ export function OtherTab({ configs }: OtherTabProps) {
           <div className='text-xs text-muted-foreground leading-relaxed'>
             <span className='font-semibold text-foreground'>
               {t('securityTipTitle')}
-            </span>
+            </span>{' '}
             {t('securityTipDesc')}
           </div>
         </div>

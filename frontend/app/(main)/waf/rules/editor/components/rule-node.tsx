@@ -1,4 +1,5 @@
 import { Handle, Position, type NodeProps } from '@xyflow/react';
+import { useTranslations } from 'next-intl';
 import {
   Ban,
   Fingerprint,
@@ -42,10 +43,11 @@ const outputHandles: Partial<Record<WAFRuleNode['type'], string[]>> = {
 };
 
 export function RuleNode({ data, selected }: NodeProps) {
+  const rt = useTranslations('runtime');
   const value = data as RuleFlowNodeData;
   const { rule, issues } = value;
   const { icon: Icon } = meta[rule.type];
-  const title = displayNodeTitle(rule);
+  const title = displayNodeTitle(rule, rt);
   return (
     <div
       className={cn(

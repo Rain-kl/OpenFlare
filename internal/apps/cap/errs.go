@@ -5,6 +5,6 @@
 package cap
 
 const (
-	errCapTokenMissing          = "验证码验证失败，缺少验证码凭证" //nolint:gosec // false positive: this is an error message, not hardcoded credentials
-	errCapTokenInvalidOrExpired = "验证码校验失败或已过期，请重试" //nolint:gosec // false positive: this is an error message, not hardcoded credentials
+	errCapTokenMissing          = "CAPTCHA verification failed: missing verification credential" //nolint:gosec // false positive: this is an error message, not hardcoded credentials
+	errCapTokenInvalidOrExpired = "CAPTCHA verification failed or expired; please try again"     //nolint:gosec // false positive: this is an error message, not hardcoded credentials
 )

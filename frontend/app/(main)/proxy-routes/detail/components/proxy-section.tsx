@@ -65,6 +65,8 @@ export function ProxySection({
   onRouteUpdate,
   onSavingChange,
 }: ProxySectionProps) {
+  const uiText = useTranslations('runtime');
+
   const t = useTranslations('proxyRoutes');
   const reverseProxySchema = z
     .object({
@@ -479,7 +481,7 @@ export function ProxySection({
             name='origin_host'
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Origin Host Header</FormLabel>
+                <FormLabel>{uiText('ui_originHostHeader')}</FormLabel>
                 <FormControl>
                   <Input placeholder='origin.example.internal' {...field} />
                 </FormControl>

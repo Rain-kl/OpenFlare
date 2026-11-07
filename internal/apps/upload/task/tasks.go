@@ -31,8 +31,8 @@ var warmImageCacheMu sync.Mutex
 var WarmImageCacheMeta = task.TaskMeta{
 	Type:         TaskTypeWarmImageCache,
 	AsynqTask:    WarmImageCacheTask,
-	Name:         "预热图片压缩缓存",
-	Description:  "串行将文件管理中的图片转换为指定质量的 WebP 并写入永久缓存",
+	Name:         "Warm up compressed image cache",
+	Description:  "Sequentially convert managed images to WebP at the specified quality and store them in permanent cache",
 	SupportsTime: false,
 	MaxRetry:     task.DefaultMaxRetry,
 	Queue:        task.QueueDefault,
@@ -40,11 +40,11 @@ var WarmImageCacheMeta = task.TaskMeta{
 	Params: []task.TaskParam{
 		{
 			Name:        "quality",
-			Label:       "图片质量",
+			Label:       "Image quality",
 			Type:        "string",
 			Required:    true,
 			Placeholder: "low / medium / high",
-			Description: "WebP 压缩质量，仅支持 low、medium、high",
+			Description: "WebP compression quality; must be low, medium or high",
 		},
 	},
 }
@@ -82,7 +82,7 @@ func (h *WarmImageCacheHandler) ValidatePayload(payload []byte) ([]byte, error) 
 func (h *WarmImageCacheHandler) Execute(ctx context.Context, payload []byte) (*task.TaskResult, error) {
 	normalizedPayload, err := h.ValidatePayload(payload)
 	if err != nil {
-		task.AppendLog(ctx, "图片缓存预热参数无效: %v", err)
+		task.AppendLog(ctx, "Invalid image cache warmup parameters: %v", err)
 		return nil, err
 	}
 
@@ -91,7 +91,7 @@ func (h *WarmImageCacheHandler) Execute(ctx context.Context, payload []byte) (*t
 		return nil, fmt.Errorf(shared.ErrParseImageCacheWarmupPayload, err)
 	}
 
-	task.AppendLog(ctx, "等待获取图片缓存预热执行锁，质量: %s", req.Quality)
+	task.AppendLog(ctx, "Waiting for image cache warmup lock, quality: %s", req.Quality)
 	warmImageCacheMu.Lock()
 	defer warmImageCacheMu.Unlock()
 
@@ -105,7 +105,7 @@ func (h *WarmImageCacheHandler) Execute(ctx context.Context, payload []byte) (*t
 	var totalGenerated int
 	var totalFailed int
 
-	task.AppendLog(ctx, "开始串行预热图片压缩缓存，质量: %s，每批: %d", req.Quality, batchSize)
+	task.AppendLog(ctx, "Starting sequential compressed image cache warmup, quality: %s, batch size: %d", req.Quality, batchSize)
 
 	for {
 		if err := ctx.Err(); err != nil {
@@ -114,7 +114,7 @@ func (h *WarmImageCacheHandler) Execute(ctx context.Context, payload []byte) (*t
 
 		uploads, err := repository.ListActiveImageUploadsAfterID(ctx, lastID, batchSize)
 		if err != nil {
-			task.AppendLog(ctx, "查询图片上传记录失败: %v", err)
+			task.AppendLog(ctx, "Failed to query image upload records: %v", err)
 			return nil, fmt.Errorf(shared.ErrQueryImagesForCacheWarmup, err)
 		}
 
@@ -139,7 +139,7 @@ func (h *WarmImageCacheHandler) Execute(ctx context.Context, payload []byte) (*t
 				totalFailed++
 				batchFailed++
 				if totalFailed <= maxFailureLogs {
-					task.AppendLog(ctx, "图片处理失败 [ID:%d]: %v", upload.ID, err)
+					task.AppendLog(ctx, "Failed to process image [ID:%d]: %v", upload.ID, err)
 				}
 				continue
 			}
@@ -154,7 +154,7 @@ func (h *WarmImageCacheHandler) Execute(ctx context.Context, payload []byte) (*t
 
 		task.AppendLog(
 			ctx,
-			"批次完成，末尾 ID: %d，生成: %d，命中: %d，失败: %d",
+			"Batch completed, last ID: %d, generated: %d, hits: %d, failed: %d",
 			lastID,
 			batchGenerated,
 			batchCached,
@@ -163,7 +163,7 @@ func (h *WarmImageCacheHandler) Execute(ctx context.Context, payload []byte) (*t
 	}
 
 	msg := fmt.Sprintf(
-		"图片缓存预热完成，共处理 %d 张，生成 %d 张，命中 %d 张，失败 %d 张",
+		"Image cache warmup completed; processed %d, generated %d, hits %d, failed %d",
 		totalProcessed,
 		totalGenerated,
 		totalCached,

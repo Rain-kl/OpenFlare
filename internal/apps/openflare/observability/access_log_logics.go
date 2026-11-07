@@ -860,7 +860,7 @@ func limitDistributionItems(items []DistributionItem, limit int) []DistributionI
 func normalizeAccessLogIPAnalysisQuery(input AccessLogIPAnalysisQuery) (AccessLogIPAnalysisQuery, error) {
 	remoteAddr := strings.TrimSpace(input.RemoteAddr)
 	if remoteAddr == "" {
-		return AccessLogIPAnalysisQuery{}, errors.New("remote_addr 不能为空")
+		return AccessLogIPAnalysisQuery{}, errors.New("remote_addr must not be empty")
 	}
 	hours := input.Hours
 	if hours <= 0 {
@@ -880,7 +880,7 @@ func normalizeAccessLogIPAnalysisQuery(input AccessLogIPAnalysisQuery) (AccessLo
 // CleanupAccessLogs removes access logs older than retention days.
 func CleanupAccessLogs(ctx context.Context, input AccessLogCleanupInput) (*AccessLogCleanupResult, error) {
 	if input.RetentionDays <= 0 || input.RetentionDays > nodeAccessLogRetentionDays {
-		return nil, errors.New("retention_days 必须在 1 到 90 之间")
+		return nil, errors.New("retention_days must be between 1 and 90")
 	}
 	cutoff := time.Now().UTC().Add(-time.Duration(input.RetentionDays) * 24 * time.Hour)
 	deleted, err := repository.DeleteOpenFlareAccessLogsBefore(ctx, cutoff)
@@ -923,18 +923,18 @@ func buildModelAccessLogQuery(input AccessLogQuery) (model.OpenFlareAccessLogQue
 // 且 until 需晚于 since。
 func resolveAccessLogWindow(sinceRaw, untilRaw string) (time.Time, time.Time, error) {
 	if sinceRaw == "" || untilRaw == "" {
-		return time.Time{}, time.Time{}, errors.New("since 与 until 需同时提供")
+		return time.Time{}, time.Time{}, errors.New("since and until must be provided together")
 	}
 	parsedSince, err := time.Parse(time.RFC3339, sinceRaw)
 	if err != nil {
-		return time.Time{}, time.Time{}, errors.New("since 时间格式无效，需为 RFC3339")
+		return time.Time{}, time.Time{}, errors.New("invalid since timestamp; RFC3339 is required")
 	}
 	parsedUntil, err := time.Parse(time.RFC3339, untilRaw)
 	if err != nil {
-		return time.Time{}, time.Time{}, errors.New("until 时间格式无效，需为 RFC3339")
+		return time.Time{}, time.Time{}, errors.New("invalid until timestamp; RFC3339 is required")
 	}
 	if !parsedUntil.After(parsedSince) {
-		return time.Time{}, time.Time{}, errors.New("until 必须晚于 since")
+		return time.Time{}, time.Time{}, errors.New("until must be later than since")
 	}
 	return parsedSince, parsedUntil, nil
 }
@@ -1021,23 +1021,23 @@ func resolveAccessLogIPSummaryWindow(sinceRaw, untilRaw string, hours int) (time
 		return until.Add(-time.Duration(hours) * time.Hour), until, hours, nil
 	}
 	if sinceRaw == "" || untilRaw == "" {
-		return time.Time{}, time.Time{}, 0, errors.New("since 与 until 需同时提供")
+		return time.Time{}, time.Time{}, 0, errors.New("since and until must be provided together")
 	}
 	parsedSince, err := time.Parse(time.RFC3339, sinceRaw)
 	if err != nil {
-		return time.Time{}, time.Time{}, 0, errors.New("since 必须为 RFC3339 时间")
+		return time.Time{}, time.Time{}, 0, errors.New("since must be an RFC3339 timestamp")
 	}
 	parsedUntil, err := time.Parse(time.RFC3339, untilRaw)
 	if err != nil {
-		return time.Time{}, time.Time{}, 0, errors.New("until 必须为 RFC3339 时间")
+		return time.Time{}, time.Time{}, 0, errors.New("until must be an RFC3339 timestamp")
 	}
 	since := parsedSince.UTC()
 	until := parsedUntil.UTC()
 	if !until.After(since) {
-		return time.Time{}, time.Time{}, 0, errors.New("until 必须晚于 since")
+		return time.Time{}, time.Time{}, 0, errors.New("until must be later than since")
 	}
 	if until.Sub(since) > time.Duration(maxAccessLogOverviewHours)*time.Hour {
-		return time.Time{}, time.Time{}, 0, errors.New("时间范围不能超过 30 天")
+		return time.Time{}, time.Time{}, 0, errors.New("time range must not exceed 30 days")
 	}
 	hours = int(until.Sub(since).Hours())
 	if hours <= 0 {
@@ -1053,7 +1053,7 @@ func normalizeFoldedAccessLogIPQuery(input FoldedAccessLogIPQuery) (FoldedAccess
 	}
 	bucketStartedAt, err := time.Parse(time.RFC3339, strings.TrimSpace(input.BucketStartedAt))
 	if err != nil {
-		return FoldedAccessLogIPQuery{}, time.Time{}, errors.New("bucket_started_at 必须为 RFC3339 时间")
+		return FoldedAccessLogIPQuery{}, time.Time{}, errors.New("bucket_started_at must be an RFC3339 timestamp")
 	}
 	normalizedSortBy := strings.TrimSpace(input.SortBy)
 	switch normalizedSortBy {
@@ -1078,7 +1078,7 @@ func normalizeFoldedAccessLogIPQuery(input FoldedAccessLogIPQuery) (FoldedAccess
 func normalizeAccessLogIPTrendQuery(input AccessLogIPTrendQuery) (AccessLogIPTrendQuery, error) {
 	remoteAddr := strings.TrimSpace(input.RemoteAddr)
 	if remoteAddr == "" {
-		return AccessLogIPTrendQuery{}, errors.New("remote_addr 不能为空")
+		return AccessLogIPTrendQuery{}, errors.New("remote_addr must not be empty")
 	}
 	hours := input.Hours
 	if hours <= 0 {
@@ -1094,7 +1094,7 @@ func normalizeAccessLogIPTrendQuery(input AccessLogIPTrendQuery) (AccessLogIPTre
 	switch bucketMinutes {
 	case 5, 10, 15, 30, 60:
 	default:
-		return AccessLogIPTrendQuery{}, errors.New("bucket_minutes 仅支持 5、10、15、30、60")
+		return AccessLogIPTrendQuery{}, errors.New("bucket_minutes must be 5, 10, 15, 30 or 60")
 	}
 	return AccessLogIPTrendQuery{
 		NodeID:        strings.TrimSpace(input.NodeID),
@@ -1166,7 +1166,7 @@ func normalizeFoldMinutes(value int) (int, error) {
 	case 3, 5:
 		return value, nil
 	default:
-		return 0, errors.New("fold_minutes 仅支持 3 或 5")
+		return 0, errors.New("fold_minutes must be 3 or 5")
 	}
 }
 
