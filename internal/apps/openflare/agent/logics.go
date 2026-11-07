@@ -5,6 +5,7 @@ package agent
 
 import (
 	"context"
+	"crypto/subtle"
 	"errors"
 	"strings"
 	"time"
@@ -41,18 +42,14 @@ func RegisterWithAccessToken(ctx context.Context, authNode *model.OpenFlareNode,
 }
 
 // RegisterWithDiscovery registers a new node using the global discovery token.
-func RegisterWithDiscovery(ctx context.Context, payload NodePayload) (*RegistrationResponse, error) {
+func RegisterWithDiscovery(ctx context.Context, payload NodePayload, registrationKey string) (*RegistrationResponse, error) {
 	_ = ofgeoip.EnsureRuntimeProvider(ctx)
 	payload = normalizeNodePayload(payload)
 	if err := validateNodePayload(payload); err != nil {
 		return nil, err
 	}
 
-	nodeID, err := newServerNodeID()
-	if err != nil {
-		return nil, err
-	}
-	accessToken, err := newRandomToken()
+	nodeID, accessToken, err := newDiscoveryIdentity(registrationKey)
 	if err != nil {
 		return nil, err
 	}
@@ -73,7 +70,15 @@ func RegisterWithDiscovery(ctx context.Context, payload NodePayload) (*Registrat
 	}
 	applyNodeRuntime(ctx, record, payload, false)
 
-	if err = repository.CreateOpenFlareNode(ctx, record); err != nil {
+	if registrationKey != "" {
+		record, err = repository.CreateOrGetOpenFlareDiscoveryNode(ctx, record)
+		if err == nil && (record.NodeType != "edge_node" || subtle.ConstantTimeCompare([]byte(record.AccessToken), []byte(accessToken)) != 1) {
+			return nil, errors.New(errRegistrationCredentialChanged)
+		}
+	} else {
+		err = repository.CreateOpenFlareNode(ctx, record)
+	}
+	if err != nil {
 		if isUniqueConstraintError(err) {
 			return nil, errors.New(errNodeIDConflict)
 		}
@@ -85,6 +90,18 @@ func RegisterWithDiscovery(ctx context.Context, payload NodePayload) (*Registrat
 		AccessToken: record.AccessToken,
 		Name:        record.Name,
 	}, nil
+}
+
+func newDiscoveryIdentity(registrationKey string) (string, string, error) {
+	if registrationKey != "" {
+		return discoveryIdentity(registrationKey)
+	}
+	nodeID, err := newServerNodeID()
+	if err != nil {
+		return "", "", err
+	}
+	token, err := newRandomToken()
+	return nodeID, token, err
 }
 
 // HeartbeatNode updates runtime state and returns agent settings.

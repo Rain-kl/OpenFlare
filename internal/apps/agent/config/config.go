@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Rain-kl/Wavelet/internal/apps/agent/localfile"
 	"github.com/Rain-kl/Wavelet/internal/apps/edge/nodeip"
 	"github.com/Rain-kl/Wavelet/pkg/util"
 )
@@ -406,7 +407,7 @@ func (cfg *Config) Save() error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(cfg.configPath, data, configFilePerm)
+	return localfile.WriteAtomic(cfg.configPath, data, configFilePerm)
 }
 
 func detectHostname() string {

@@ -51,6 +51,9 @@ type NodeHealthEvent = pkgprotocol.NodeHealthEvent
 // RegisterNodeResponse is an alias for pkgprotocol.RegisterNodeResponse.
 type RegisterNodeResponse = pkgprotocol.RegisterNodeResponse
 
+// RegisterNodeRequest is an enrollment-only request, including its retry credential.
+type RegisterNodeRequest = pkgprotocol.RegisterNodeRequest
+
 // ApplyLogPayload is an alias for pkgprotocol.ApplyLogPayload.
 type ApplyLogPayload = pkgprotocol.ApplyLogPayload
 

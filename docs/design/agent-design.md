@@ -37,10 +37,13 @@ Agent 主要由以下核心子模块组成，共同配合完成其完整的生�
 Agent 在生命周期中主要通过 **基于 Token 的自动注册** 和 **心跳/WebSocket 双通道** 与控制面通信。
 
 ### 1. 自动注册流程
-若 Agent 启动时本地 `agent.json` 的 `access_token` 为空，但配置了 `discovery_token`，将触发自动注册流程：
-1. Agent 向控制面 `/api/v1/agent/nodes/register` 发送注册请求，携带本地硬件摘要、IP 及主机名。
-2. Server 校验 `discovery_token` 有效后，在数据库生成唯一的 `NodeID` 与专属 `AccessToken`（即 `agent_token`）并返回。
-3. Agent 将获取的专用 Token 写入本地配置文件，擦除一次性 `discovery_token`，后续所有的通信均基于专属 `AccessToken` 进行鉴权认证。
+若 Agent 启动时本地 `agent.json` 的 `agent_token` 为空，但配置了 `discovery_token`，将触发自动注册流程：
+1. Agent 在本地状态文件原子保存随机 256 位 `registration_key`，再向控制面 `/api/v1/agent/nodes/register` 发送注册请求，携带该重试凭证、本地硬件摘要、IP 及主机名。支持目录刷盘的平台会在文件刷盘及重命名后刷新所在目录；目录刷盘失败会返回错误，已有凭证也必须在重试时确认目录刷盘成功后才能发送。Windows 保留文件刷盘与替换，但目录持久化仅为尽力而为；上述行为针对所在目录已存在的文件更新，不保证所有文件系统或突然断电场景下的完整持久性。该凭证仅用于注册，不进入心跳、WebSocket 或观测数据，必须与节点 Token 一样保密。
+2. Server 校验当前 `discovery_token` 有效后，从重试凭证使用不同的哈希域分别生成 `NodeID` 与专属 Token。相同凭证的重复或并发请求只保留一个节点，不按 IP、主机名或公开 `node_id` 合并，也不会覆盖管理员修改的名称、升级标志等数据。响应以 `agent_token` 为准，同时保留旧的 `access_token` 字段；新版 Agent 能识别两种字段，值冲突时拒绝响应。
+3. Agent 原子保存服务端分配的节点 ID 和配置 Token，全部写入成功后才切换运行时鉴权并清空配置中的 `discovery_token`，后续通信均使用节点专属 Token。响应丢失或配置写入失败时，重启仍沿用原重试凭证；状态文件中的重试凭证与节点 ID 不会被旧的后台任务快照覆盖。
+4. 注册失败按 3、6、12、24、48、60 秒退避，之后每次至少间隔 60 秒重试（实际请求在下一个心跳定时器周期触发），不再随每次心跳立即注册。成功后重置退避。
+
+若节点 Token 已被清空或更换，旧重试凭证不能取回新 Token 或恢复旧 Token，必须使用管理员分配的节点凭证。物理删除节点不构成永久封禁：持有当前有效 discovery Token 的客户端仍能重新注册。旧版 Agent 不携带 `registration_key`，修复后的响应可使其正常完成注册，但其响应丢失后的重试仍不具备幂等保证。请保留每个实例独立的持久化状态与配置，不要把已初始化的状态目录复制给其他实例。
 
 ### 2. 双通道心跳与同步机制
 * **HTTP 轮询通道（兜底与探测）**：Agent 默认按设定的 `heartbeat_interval` 间隔发送 POST 心跳包。上报指标的同时获取当前激活版本的摘要信息（Version & Checksum）。

@@ -23,7 +23,7 @@ import (
 
 // HeartbeatService handles node registration and periodic heartbeat reporting.
 type HeartbeatService interface {
-	Register(ctx context.Context, payload protocol.NodePayload) (*protocol.RegisterNodeResponse, error)
+	Register(ctx context.Context, payload protocol.RegisterNodeRequest) (*protocol.RegisterNodeResponse, error)
 	Heartbeat(ctx context.Context, payload protocol.NodePayload) (*protocol.HeartbeatResult, error)
 	SetToken(token string)
 }
@@ -65,6 +65,7 @@ type Runner struct {
 	configSyncRetry         *configSyncRetry
 	restartOpenrestyNow     bool
 	websocketUpgradeEnabled bool
+	discoveryRetry          discoveryRetry
 }
 
 // Run starts the agent's main loop, performing heartbeats and upgrading to WebSocket when available.
@@ -120,6 +121,9 @@ func (r *Runner) Run(ctx context.Context) error {
 	tryStartWebSocket()
 
 	for {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		select {
 		case <-ctx.Done():
 			slog.Info("agent runner shutting down", "error", ctx.Err())
@@ -162,6 +166,9 @@ func (r *Runner) handleWSDisconnect(ctx context.Context, nodeID string) {
 
 func (r *Runner) handleHeartbeatTick(ctx context.Context, nodeID *string, heartbeatTicker *time.Ticker, tryStartWebSocket func()) {
 	if !r.hasAccessToken() {
+		if !r.discoveryRetry.ready(time.Now()) {
+			return
+		}
 		if err := r.tryRegister(ctx, nodeID); err != nil {
 			slog.Error("agent discovery register failed", "error", err)
 		}
@@ -465,36 +472,46 @@ func (r *Runner) tryRestartOpenresty(ctx context.Context) {
 	r.recordOpenrestyHealthy()
 }
 
-func (r *Runner) tryRegister(ctx context.Context, nodeID *string) error {
+func (r *Runner) tryRegister(ctx context.Context, nodeID *string) (resultErr error) {
+	defer func() {
+		if resultErr != nil {
+			r.discoveryRetry.failed(time.Now())
+		}
+	}()
 	if strings.TrimSpace(r.Config.DiscoveryToken) == "" {
-		return errors.New("agent_token 为空且未配置 discovery_token")
+		return errors.New("agent token is empty and no discovery token is configured")
+	}
+	registrationKey, err := r.StateStore.EnsureRegistrationKey()
+	if err != nil {
+		return err
 	}
 	slog.Info("agent discovery registration started")
-	response, err := r.HeartbeatService.Register(ctx, r.HeartbeatCycle.NodePayload(ctx, *nodeID))
+	response, err := r.HeartbeatService.Register(ctx, protocol.RegisterNodeRequest{
+		NodePayload:     r.HeartbeatCycle.NodePayload(ctx, *nodeID),
+		RegistrationKey: registrationKey,
+	})
 	if err != nil {
 		return err
 	}
 	if response == nil || strings.TrimSpace(response.AccessToken) == "" || strings.TrimSpace(response.NodeID) == "" {
-		return errors.New("discovery register response 缺少 node_id 或 agent_token")
+		return errors.New("discovery registration response is missing node_id or agent_token")
 	}
-	snapshot, err := r.StateStore.Load()
-	if err != nil {
+	if err = r.StateStore.SetRegisteredNodeID(response.NodeID); err != nil {
 		return err
 	}
-	snapshot.NodeID = response.NodeID
-	if err = r.StateStore.Save(snapshot); err != nil {
+	updatedConfig := *r.Config
+	updatedConfig.AccessToken = response.AccessToken
+	updatedConfig.DiscoveryToken = ""
+	if err = updatedConfig.Save(); err != nil {
 		return err
 	}
-	r.Config.AccessToken = response.AccessToken
-	r.Config.DiscoveryToken = ""
-	if err = r.Config.Save(); err != nil {
-		return err
-	}
+	*r.Config = updatedConfig
 	r.HeartbeatService.SetToken(response.AccessToken)
 	if r.WebSocketService != nil {
 		r.WebSocketService.SetToken(response.AccessToken)
 	}
 	*nodeID = response.NodeID
+	r.discoveryRetry = discoveryRetry{}
 	slog.Info("agent discovery registration succeeded", "node_id", response.NodeID)
 	r.refreshOpenrestyHealth(ctx)
 	if _, err = r.HeartbeatCycle.Perform(ctx, *nodeID, true, r); err != nil {

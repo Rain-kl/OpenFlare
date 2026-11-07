@@ -4,7 +4,11 @@
 // Package protocol defines the communication protocol between OpenFlare server, agent, and relay components.
 package protocol
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"errors"
+	"strings"
+)
 
 // APIResponse is a generic API response wrapper.
 type APIResponse[T any] struct {
@@ -166,11 +170,49 @@ type NodeHealthEvent struct {
 	Metadata        map[string]string `json:"metadata,omitempty"`
 }
 
+// RegisterNodeRequest carries enrollment data separately from heartbeat telemetry.
+type RegisterNodeRequest struct {
+	NodePayload
+	RegistrationKey string `json:"registration_key,omitempty"`
+}
+
 // RegisterNodeResponse is the node registration response.
 type RegisterNodeResponse struct {
 	NodeID      string `json:"node_id"`
 	AccessToken string `json:"agent_token"`
 	Name        string `json:"name"`
+}
+
+// MarshalJSON retains access_token for consumers of older server responses.
+func (r RegisterNodeResponse) MarshalJSON() ([]byte, error) {
+	type response RegisterNodeResponse
+	return json.Marshal(struct {
+		response
+		LegacyAccessToken string `json:"access_token"`
+	}{response(r), r.AccessToken})
+}
+
+// UnmarshalJSON accepts either spelling used by released servers.
+func (r *RegisterNodeResponse) UnmarshalJSON(data []byte) error {
+	type response RegisterNodeResponse
+	var decoded struct {
+		response
+		LegacyAccessToken string `json:"access_token"`
+	}
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		return err
+	}
+	canonical := strings.TrimSpace(decoded.AccessToken)
+	legacy := strings.TrimSpace(decoded.LegacyAccessToken)
+	if canonical != "" && legacy != "" && canonical != legacy {
+		return errors.New("registration response contains conflicting agent tokens")
+	}
+	*r = RegisterNodeResponse(decoded.response)
+	r.AccessToken = canonical
+	if canonical == "" {
+		r.AccessToken = legacy
+	}
+	return nil
 }
 
 // ActiveConfigResponse is the active configuration response.
