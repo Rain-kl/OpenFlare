@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Loader2, Plus, RefreshCw, Server } from 'lucide-react';
 import { useTranslations } from 'next-intl';
@@ -29,46 +29,112 @@ import {
 import { EmptyStateWithBorder } from '@/components/layout/empty';
 import { ErrorInline } from '@/components/layout/error';
 import { LoadingStateWithBorder } from '@/components/layout/loading';
-import type { NodeItem, NodeMutationPayload } from '@/lib/services/openflare';
+import type {
+  NodeItem,
+  NodeListQuery,
+  NodeMutationPayload,
+  NodeStatus,
+  NodeType,
+} from '@/lib/services/openflare';
 import { NodeService } from '@/lib/services/openflare';
 
 import { NodeEditorDialog } from './components/node-editor-dialog';
 import {
-  filterNodesByType,
   getFilterDescription,
   getNodeFilter,
   NodeTypeFilter,
+  type NodeFilter,
 } from './components/node-type-filter';
 import { NodesTable } from './components/nodes-table';
+import { NodeListControls } from './components/node-list-controls';
 import { getErrorMessage } from './components/node-utils';
 
 const nodesQueryKey = ['openflare', 'nodes'];
 
 export function NodesPageClient() {
+  const searchParams = useSearchParams();
+  const nodeFilter = getNodeFilter(
+    new URLSearchParams(searchParams.toString()),
+  );
+  return <NodesPage key={nodeFilter} nodeFilter={nodeFilter} />;
+}
+
+function NodesPage({ nodeFilter }: { nodeFilter: NodeFilter }) {
   const t = useTranslations('nodes');
   const tc = useTranslations('common');
-  const searchParams = useSearchParams();
   const queryClient = useQueryClient();
   const [editingNode, setEditingNode] = useState<NodeItem | null>(null);
   const [editorOpen, setEditorOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<NodeItem | null>(null);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+  const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [status, setStatus] = useState<NodeStatus | ''>('');
+  const searchTooLong = new TextEncoder().encode(search.trim()).length > 256;
 
-  const nodeFilter = useMemo(
-    () => getNodeFilter(new URLSearchParams(searchParams.toString())),
-    [searchParams],
-  );
+  const resetNodeActions = useCallback(() => {
+    setEditingNode(null);
+    setEditorOpen(false);
+    setDeleteTarget(null);
+  }, []);
 
+  useEffect(() => {
+    if (searchTooLong || search.trim() === debouncedSearch) return;
+    const timeout = setTimeout(() => {
+      setDebouncedSearch(search.trim());
+      setPage(1);
+      resetNodeActions();
+    }, 300);
+    return () => clearTimeout(timeout);
+  }, [search, searchTooLong, debouncedSearch, resetNodeActions]);
+
+  const nodeTypes: Record<NodeFilter, NodeType | ''> = {
+    all: '',
+    edge: 'edge_node',
+    relay: 'tunnel_relay',
+    tunnel: 'tunnel_client',
+  };
+  const query = {
+    page,
+    page_size: pageSize,
+    search: debouncedSearch,
+    status,
+    node_type: nodeTypes[nodeFilter],
+  };
   const nodesQuery = useQuery({
-    queryKey: nodesQueryKey,
-    queryFn: () => NodeService.listNodes(),
-    refetchInterval: 5000,
+    queryKey: [...nodesQueryKey, 'page', query],
+    queryFn: () => NodeService.listNodePage(query),
+    placeholderData: (previousData, previousQuery) => {
+      const previousParams = previousQuery?.queryKey[3] as
+        | NodeListQuery
+        | undefined;
+      return previousParams?.search === query.search &&
+        previousParams?.status === query.status &&
+        previousParams?.node_type === query.node_type &&
+        previousParams?.page_size === query.page_size
+        ? previousData
+        : undefined;
+    },
+    refetchInterval: (query) =>
+      query.state.status === 'error' ? false : 15000,
+    refetchIntervalInBackground: false,
   });
 
-  const nodes = useMemo(() => nodesQuery.data ?? [], [nodesQuery.data]);
-  const filteredNodes = useMemo(
-    () => filterNodesByType(nodes, nodeFilter),
-    [nodeFilter, nodes],
+  const nodes = useMemo(
+    () => nodesQuery.data?.results ?? [],
+    [nodesQuery.data],
   );
+  const total = nodesQuery.data?.total ?? 0;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  if (
+    !nodesQuery.isPlaceholderData &&
+    nodesQuery.data?.page === page &&
+    page > totalPages
+  ) {
+    setPage(totalPages);
+    resetNodeActions();
+  }
 
   const saveMutation = useMutation({
     mutationFn: async (payload: NodeMutationPayload) => {
@@ -106,6 +172,7 @@ export function NodesPageClient() {
   };
 
   const handleEdit = (node: NodeItem) => {
+    if (nodesQuery.isPlaceholderData) return;
     setEditingNode(node);
     setEditorOpen(true);
   };
@@ -115,7 +182,7 @@ export function NodesPageClient() {
   };
 
   return (
-    <div className='py-6 px-1 space-y-6'>
+    <div className='flex w-full flex-col gap-6 py-6 px-1'>
       <div className='flex items-center justify-between gap-3'>
         <div className='flex items-center gap-2'>
           <Server className='size-5 text-primary' />
@@ -166,8 +233,34 @@ export function NodesPageClient() {
             </Button>
           </div>
         </CardHeader>
-        <CardContent className='space-y-4'>
+        <CardContent className='flex flex-col gap-4'>
           <NodeTypeFilter />
+          <NodeListControls
+            search={search}
+            searchTooLong={searchTooLong}
+            onSearchChange={setSearch}
+            status={status}
+            onStatusChange={(value) => {
+              setStatus(value);
+              setPage(1);
+              resetNodeActions();
+            }}
+            page={nodesQuery.data?.page ?? page}
+            pageSize={pageSize}
+            onPageSizeChange={(value) => {
+              setPageSize(value);
+              setPage(1);
+              resetNodeActions();
+            }}
+            total={total}
+            totalPages={totalPages}
+            loading={nodesQuery.isFetching || nodesQuery.isPlaceholderData}
+            hasData={Boolean(nodesQuery.data)}
+            onPageChange={(value) => {
+              setPage(value);
+              resetNodeActions();
+            }}
+          />
 
           {nodesQuery.isLoading ? (
             <LoadingStateWithBorder
@@ -182,21 +275,26 @@ export function NodesPageClient() {
                 className='justify-center'
               />
             </div>
-          ) : filteredNodes.length === 0 ? (
+          ) : nodes.length === 0 ? (
             <EmptyStateWithBorder
               icon={Server}
               description={
-                nodes.length === 0 ? t('emptyAll') : t('emptyFilter')
+                debouncedSearch || status || nodeFilter !== 'all'
+                  ? t('emptyFilter')
+                  : t('emptyAll')
               }
             />
           ) : (
             <NodesTable
-              nodes={filteredNodes}
+              nodes={nodes}
               deletingId={
                 deleteMutation.isPending ? (deleteTarget?.id ?? null) : null
               }
               onEdit={handleEdit}
-              onDelete={setDeleteTarget}
+              onDelete={(node) => {
+                if (!nodesQuery.isPlaceholderData) setDeleteTarget(node);
+              }}
+              actionsDisabled={nodesQuery.isPlaceholderData}
             />
           )}
         </CardContent>
@@ -205,13 +303,17 @@ export function NodesPageClient() {
       <NodeEditorDialog
         open={editorOpen}
         node={editingNode}
-        submitting={saveMutation.isPending}
+        submitting={
+          saveMutation.isPending ||
+          (Boolean(editingNode) && nodesQuery.isPlaceholderData)
+        }
         onClose={() => {
           setEditorOpen(false);
           setEditingNode(null);
         }}
         onSubmit={async (payload) => {
-          await saveMutation.mutateAsync(payload);
+          if (!editingNode || !nodesQuery.isPlaceholderData)
+            await saveMutation.mutateAsync(payload);
         }}
       />
 
@@ -227,14 +329,22 @@ export function NodesPageClient() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleteMutation.isPending}>
+            <AlertDialogCancel
+              disabled={
+                deleteMutation.isPending || nodesQuery.isPlaceholderData
+              }
+            >
               {tc('cancel')}
             </AlertDialogCancel>
             <AlertDialogAction
               className='bg-destructive text-white hover:bg-destructive/90'
-              disabled={deleteMutation.isPending}
+              disabled={
+                deleteMutation.isPending || nodesQuery.isPlaceholderData
+              }
               onClick={() =>
-                deleteTarget && deleteMutation.mutate(deleteTarget.id)
+                deleteTarget &&
+                !nodesQuery.isPlaceholderData &&
+                deleteMutation.mutate(deleteTarget.id)
               }
             >
               {deleteMutation.isPending ? t('deleting') : t('confirmDelete')}

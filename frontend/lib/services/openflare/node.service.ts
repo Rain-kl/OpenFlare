@@ -4,6 +4,8 @@ import type {
   NodeAgentUpdatePayload,
   NodeBootstrapToken,
   NodeItem,
+  NodeListQuery,
+  NodeListResult,
   NodeMutationPayload,
   NodeObservability,
   ReleaseChannel,
@@ -14,6 +16,16 @@ export class NodeService extends OpenFlareBaseService {
 
   static async listNodes(): Promise<NodeItem[]> {
     return this.get<NodeItem[]>('/');
+  }
+
+  static async listNodePage(
+    query: NodeListQuery = {},
+  ): Promise<NodeListResult> {
+    return this.get<NodeListResult>('/page', { ...query });
+  }
+
+  static async getNode(id: number): Promise<NodeItem> {
+    return this.get<NodeItem>(`/${id}`);
   }
 
   static async createNode(payload: NodeMutationPayload): Promise<NodeItem> {

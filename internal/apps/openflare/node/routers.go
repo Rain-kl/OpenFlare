@@ -11,7 +11,9 @@ import (
 
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/apiutil"
 	"github.com/Rain-kl/Wavelet/internal/shared/response"
+	"github.com/Rain-kl/Wavelet/pkg/logger"
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 func handleLogicError(c *gin.Context, err error) bool {
@@ -320,4 +322,72 @@ func bindOptionalJSON(body io.Reader, target any) error {
 		return err
 	}
 	return nil
+}
+
+// ListNodePageHandler lists a bounded page of nodes.
+// @Summary 获取分页节点列表
+// @Description 返回分页节点和筛选后的总数；旧版 /nodes 列表接口保持兼容，需要管理员权限
+// @Tags openflare-node
+// @Produce json
+// @Security SessionCookie
+// @Param page query int false "页码（默认 1）"
+// @Param page_size query int false "每页数量（默认 20，最大 100）"
+// @Param search query string false "名称、节点标识或 IP 的字面子串（最多 256 字节）"
+// @Param status query string false "pending、online 或 offline"
+// @Param node_type query string false "edge_node、tunnel_relay 或 tunnel_client"
+// @Success 200 {object} response.Any{data=node.ListResult} "节点分页"
+// @Failure 400 {object} response.Any "参数错误"
+// @Failure 401 {object} response.Any "未登录"
+// @Failure 404 {object} response.Any "无权限"
+// @Failure 500 {object} response.Any "查询失败"
+// @Router /api/v1/d/nodes/page [get]
+func ListNodePageHandler(c *gin.Context) {
+	var query ListQuery
+	if err := c.ShouldBindQuery(&query); err != nil {
+		response.AbortBadRequest(c, errInvalidNodeListQuery)
+		return
+	}
+	normalized, err := normalizeListQuery(query)
+	if err != nil {
+		response.AbortBadRequest(c, errInvalidNodeListQuery)
+		return
+	}
+	result, err := ListPage(c.Request.Context(), normalized)
+	if err != nil {
+		logger.ErrorF(c.Request.Context(), "Failed to list node page: %v", err)
+		response.AbortInternal(c, errListNodesFailed)
+		return
+	}
+	c.JSON(http.StatusOK, response.OK(result))
+}
+
+// GetNodeHandler returns a single node.
+// @Summary 获取节点详情
+// @Description 返回指定节点及最新配置下发记录，需要管理员权限
+// @Tags openflare-node
+// @Produce json
+// @Security SessionCookie
+// @Param id path int true "节点 ID"
+// @Success 200 {object} response.Any{data=node.View} "节点详情"
+// @Failure 400 {object} response.Any "参数错误"
+// @Failure 401 {object} response.Any "未登录"
+// @Failure 404 {object} response.Any "无权限或不存在"
+// @Failure 500 {object} response.Any "查询失败"
+// @Router /api/v1/d/nodes/{id} [get]
+func GetNodeHandler(c *gin.Context) {
+	id, ok := apiutil.IDParam(c)
+	if !ok {
+		return
+	}
+	view, err := GetNode(c.Request.Context(), id)
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		response.AbortNotFound(c, errNodeNotFound)
+		return
+	}
+	if err != nil {
+		logger.ErrorF(c.Request.Context(), "Failed to get node: %v", err)
+		response.AbortInternal(c, errListNodesFailed)
+		return
+	}
+	c.JSON(http.StatusOK, response.OK(view))
 }

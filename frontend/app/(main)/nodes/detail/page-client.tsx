@@ -1,7 +1,6 @@
 'use client';
 
 import Link from 'next/link';
-import { useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft, Server } from 'lucide-react';
@@ -25,20 +24,20 @@ export function NodeDetailPageClient() {
   const searchParams = useSearchParams();
   const nodeId = searchParams.get('id')?.trim() ?? '';
 
+  const validNodeId =
+    Number.isSafeInteger(Number(nodeId)) && Number(nodeId) > 0;
   const nodesQuery = useQuery({
-    queryKey: nodesQueryKey,
-    queryFn: () => NodeService.listNodes(),
-    refetchInterval: 5000,
+    queryKey: [...nodesQueryKey, 'detail', nodeId],
+    queryFn: () => NodeService.getNode(Number(nodeId)),
+    enabled: validNodeId,
+    refetchInterval: (query) =>
+      query.state.status === 'error' ? false : 15000,
+    refetchIntervalInBackground: false,
   });
 
-  const node = useMemo(() => {
-    if (!nodeId) return null;
-    return (
-      (nodesQuery.data ?? []).find((item) => String(item.id) === nodeId) ?? null
-    );
-  }, [nodeId, nodesQuery.data]);
+  const node = nodesQuery.data;
 
-  if (!nodeId) {
+  if (!validNodeId) {
     return (
       <div className='py-6 px-1'>
         <EmptyStateWithBorder icon={Server} description={t('missingId')} />

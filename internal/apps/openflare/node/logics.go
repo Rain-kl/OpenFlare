@@ -140,6 +140,10 @@ func ListNodes(ctx context.Context) ([]*View, error) {
 	if err != nil {
 		return nil, err
 	}
+	return buildNodeViews(ctx, nodes, time.Now())
+}
+
+func buildNodeViews(ctx context.Context, nodes []model.OpenFlareNode, now time.Time) ([]*View, error) {
 	nodeIDs := make([]string, 0, len(nodes))
 	for _, node := range nodes {
 		nodeIDs = append(nodeIDs, node.NodeID)
@@ -151,7 +155,7 @@ func ListNodes(ctx context.Context) ([]*View, error) {
 	views := make([]*View, 0, len(nodes))
 	for _, node := range nodes {
 		view := buildNodeView(&node)
-		view.Status = computeNodeStatus(&node)
+		view.Status = computeNodeStatusAt(&node, now)
 		if log, ok := latestLogs[node.NodeID]; ok {
 			view.LatestApplyResult = log.Result
 			view.LatestApplyMessage = log.Message
