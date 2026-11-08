@@ -15512,6 +15512,11 @@
                 },
                 "target_mode": {
                     "type": "string"
+                },
+                "ttl": {
+                    "description": "TTL 为 1 时自动，否则为 60～86400 秒的整数；省略时创建默认自动，更新保留原值。",
+                    "type": "integer",
+                    "example": 1
                 }
             }
         },
@@ -15553,6 +15558,11 @@
                 },
                 "target_mode": {
                     "type": "string"
+                },
+                "ttl": {
+                    "description": "TTL 为 1 时自动，否则为 DNS-only 成员使用的秒数。",
+                    "type": "integer",
+                    "example": 1
                 },
                 "updated_at": {
                     "type": "string"

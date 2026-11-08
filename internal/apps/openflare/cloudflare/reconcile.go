@@ -76,9 +76,9 @@ func reconcileMember(ctx context.Context, memberID uint) error {
 	}
 	input.Name = state.Domain.Domain
 	input.Proxied = state.Member.Proxied
-	input.TTL = 300
+	input.TTL = groupTTL(&state.Group)
 	if input.Proxied {
-		input.TTL = 1
+		input.TTL = automaticTTL
 	}
 	recordID := state.Member.CFRecordID
 	if recordID != "" {

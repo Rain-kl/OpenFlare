@@ -115,6 +115,7 @@ describe('Cloudflare overview', () => {
         primary_node: { id: 1, name: '主节点', ip: '192.0.2.1' },
         backup_node: null,
         active_node: { id: 1, name: '主节点', ip: '192.0.2.1' },
+        ttl: 300,
         default_proxied: true,
         enabled: true,
         member_count: 2,
