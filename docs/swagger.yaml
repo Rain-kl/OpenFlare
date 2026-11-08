@@ -338,6 +338,10 @@ definitions:
         type: string
       target_mode:
         type: string
+      ttl:
+        description: TTL 为 1 时自动，否则为 60～86400 秒的整数；省略时创建默认自动，更新保留原值。
+        example: 1
+        type: integer
     type: object
   cloudflare.GroupItem:
     properties:
@@ -365,6 +369,10 @@ definitions:
         type: string
       target_mode:
         type: string
+      ttl:
+        description: TTL 为 1 时自动，否则为 DNS-only 成员使用的秒数。
+        example: 1
+        type: integer
       updated_at:
         type: string
     type: object

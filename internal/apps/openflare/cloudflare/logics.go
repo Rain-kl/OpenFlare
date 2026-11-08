@@ -19,6 +19,13 @@ import (
 	"gorm.io/gorm"
 )
 
+const (
+	automaticTTL     = 1
+	legacyDefaultTTL = 300
+	minManualTTL     = 60
+	maxManualTTL     = 86400
+)
+
 var clientFactory = func(token string) Client { return NewHTTPClient(token) }
 
 // SetClientFactoryForTest replaces Cloudflare client construction for tests.
@@ -227,6 +234,16 @@ func groupFromInput(ctx context.Context, existing *model.CFPointingGroup, input 
 	if targetMode != model.CFPointingTargetModeNode && targetMode != model.CFPointingTargetModeCustom {
 		return nil, errors.New(errGroupTargetModeInvalid)
 	}
+	ttl := automaticTTL
+	if existing != nil {
+		ttl = groupTTL(existing)
+	}
+	if input.TTL != nil {
+		ttl = *input.TTL
+	}
+	if ttl != automaticTTL && (ttl < minManualTTL || ttl > maxManualTTL) {
+		return nil, errors.New(errGroupTTLInvalid)
+	}
 	primaryNodeID := uint(0)
 	var backupNodeID *uint
 	recordType := strings.ToUpper(strings.TrimSpace(input.RecordType))
@@ -259,12 +276,21 @@ func groupFromInput(ctx context.Context, existing *model.CFPointingGroup, input 
 	existing.TargetMode = targetMode
 	existing.RecordType = recordType
 	existing.RecordContent = recordContent
+	existing.TTL = ttl
 	existing.PrimaryNodeID = primaryNodeID
 	existing.ActiveNodeID = activeNodeID
 	existing.BackupNodeID = backupNodeID
 	existing.DefaultProxied = input.DefaultProxied
 	existing.Enabled = input.Enabled
 	return existing, nil
+}
+
+// groupTTL 保留升级前分组的 300 秒行为；数据库零值不直接发送给 Cloudflare。
+func groupTTL(group *model.CFPointingGroup) int {
+	if group.TTL == 0 {
+		return legacyDefaultTTL
+	}
+	return group.TTL
 }
 
 func equalOptionalUint(left, right *uint) bool {
@@ -419,6 +445,7 @@ func buildGroupItem(ctx context.Context, group *model.CFPointingGroup) (*GroupIt
 		return nil, err
 	}
 	item := &GroupItem{ID: group.ID, Name: group.Name, TargetMode: targetMode, RecordType: group.RecordType, RecordContent: group.RecordContent, PrimaryNode: nodeOptionForID(group.PrimaryNodeID, primary), ActiveNode: nodeOptionForID(group.ActiveNodeID, active), DefaultProxied: group.DefaultProxied, Enabled: group.Enabled, MemberCount: count, CreatedAt: group.CreatedAt, UpdatedAt: group.UpdatedAt}
+	item.TTL = groupTTL(group)
 	if group.BackupNodeID != nil {
 		backup, backupErr := lookupGroupNode(ctx, group.ID, *group.BackupNodeID)
 		if backupErr != nil {

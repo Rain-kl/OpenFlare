@@ -60,6 +60,8 @@ type CFPointingGroup struct {
 	Enabled        bool      `json:"enabled" gorm:"not null;default:false"`
 	CreatedAt      time.Time `json:"created_at" gorm:"autoCreateTime"`
 	UpdatedAt      time.Time `json:"updated_at" gorm:"autoUpdateTime"`
+	// TTL 为 1 时表示自动；零值兼容旧分组的 300 秒 TTL。
+	TTL int `json:"ttl" gorm:"not null;default:0"`
 }
 
 // TableName returns the Cloudflare pointing group table name.

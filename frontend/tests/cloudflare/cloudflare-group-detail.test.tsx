@@ -63,6 +63,7 @@ const mockGroup = {
   primary_node: { id: 1, name: '主节点', ip: '192.0.2.1' },
   backup_node: null,
   active_node: { id: 1, name: '主节点', ip: '192.0.2.1' },
+  ttl: 300,
   default_proxied: true,
   enabled: true,
   member_count: 2,
@@ -79,6 +80,7 @@ const mockTargetGroup = {
   primary_node: { id: 2, name: '备用节点', ip: '192.0.2.2' },
   backup_node: null,
   active_node: { id: 2, name: '备用节点', ip: '192.0.2.2' },
+  ttl: 1,
   default_proxied: false,
   enabled: true,
   member_count: 0,
@@ -170,6 +172,21 @@ describe('Cloudflare group detail refresh', () => {
   afterEach(() => {
     vi.useRealTimers();
   });
+
+  it.each([
+    { ttl: 1, label: '灰云 TTL：自动（约 300 秒）' },
+    { ttl: 600, label: '灰云 TTL：600 秒' },
+  ])(
+    'shows the group TTL $ttl in the detail summary',
+    async ({ ttl, label }) => {
+      vi.mocked(CloudflareService.getGroup).mockResolvedValue({
+        group: { ...mockGroup, ttl },
+        members: [],
+      });
+      renderPage();
+      expect(await screen.findByText(label)).toBeVisible();
+    },
+  );
 
   it('refreshes detail data when the refresh button is clicked', async () => {
     renderPage();
