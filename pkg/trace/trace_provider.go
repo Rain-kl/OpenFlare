@@ -6,10 +6,13 @@ package trace
 
 import (
 	"context"
+	"fmt"
 	"os"
+	"strings"
 
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 )
@@ -37,7 +40,7 @@ func newTracerProvider(cfg Config) (*sdktrace.TracerProvider, error) {
 	}
 
 	// 初始化 Exporter
-	traceExporter, err := otlptracegrpc.New(context.Background())
+	traceExporter, err := newTraceExporter(context.Background())
 	if err != nil {
 		return nil, err
 	}
@@ -49,4 +52,21 @@ func newTracerProvider(cfg Config) (*sdktrace.TracerProvider, error) {
 		sdktrace.WithSampler(ParentBasedRatioSampler(cfg.SamplingRate)),
 	)
 	return tracerProvider, nil
+}
+
+// newTraceExporter selects the OTLP wire transport without changing existing gRPC defaults.
+// The SDK exporters read standard OTEL_EXPORTER_OTLP_* endpoint and header settings.
+func newTraceExporter(ctx context.Context) (sdktrace.SpanExporter, error) {
+	protocol := strings.ToLower(strings.TrimSpace(os.Getenv("OTEL_EXPORTER_OTLP_TRACES_PROTOCOL")))
+	if protocol == "" {
+		protocol = strings.ToLower(strings.TrimSpace(os.Getenv("OTEL_EXPORTER_OTLP_PROTOCOL")))
+	}
+	switch protocol {
+	case "", "grpc":
+		return otlptracegrpc.New(ctx)
+	case "http/protobuf":
+		return otlptracehttp.New(ctx)
+	default:
+		return nil, fmt.Errorf("unsupported OTLP trace protocol %q", protocol)
+	}
 }
