@@ -25,7 +25,7 @@ func (Zone) TableName() string {
 	return tableOfZones
 }
 
-// ZoneDomain OpenFlare Zone 下的明确域名实体。
+// ZoneDomain OpenFlare Zone 下的具体或通配符域名实体。
 type ZoneDomain struct {
 	ID           uint      `json:"id" gorm:"primaryKey;autoIncrement"`
 	ZoneID       uint      `json:"zone_id" gorm:"not null;index:idx_of_zone_domains_zone_id"`
@@ -41,7 +41,7 @@ func (ZoneDomain) TableName() string {
 	return tableOfZoneDomains
 }
 
-// ZoneDomainCount is the per-zone explicit domain count for list queries.
+// ZoneDomainCount 是每个 Zone 的登记域名记录数，通配符按一条记录计数。
 type ZoneDomainCount struct {
 	ZoneID uint  `json:"zone_id" gorm:"column:zone_id"`
 	Count  int64 `json:"count" gorm:"column:count"`

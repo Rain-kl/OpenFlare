@@ -305,9 +305,21 @@ func TestSecurityWAFTLSMigrationFlow(t *testing.T) {
 		rec := performJSONRequest(t, engine, http.MethodPost, fmt.Sprintf("%s/zones/%d/domains", apiPath(""), zoneID), map[string]any{
 			"domain": "*.example.com",
 		}, adminAuthHeaders(seed.Token))
-		require.Equal(t, http.StatusBadRequest, rec.Code)
-		errResp := decodeAPIResponse(t, rec)
-		assert.NotEmpty(t, errResp.ErrorMsg)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("create wildcard domain status = %d, want %d: %s", rec.Code, http.StatusOK, rec.Body.String())
+		}
+		wildcardData := unmarshalAPIMap(t, requireAPIOK(t, rec).Data)
+		if wildcardData["domain"] != "*.example.com" {
+			t.Errorf("created domain = %v, want *.example.com", wildcardData["domain"])
+		}
+		for _, invalid := range []string{"a.*.example.com", "*.other.com", "*.example.com;"} {
+			rejected := performJSONRequest(t, engine, http.MethodPost, fmt.Sprintf("%s/zones/%d/domains", apiPath(""), zoneID), map[string]any{
+				"domain": invalid,
+			}, adminAuthHeaders(seed.Token))
+			if rejected.Code != http.StatusBadRequest || decodeAPIResponse(t, rejected).ErrorMsg == "" {
+				t.Errorf("create domain %q status = %d, body = %s, want 400 with error message", invalid, rejected.Code, rejected.Body.String())
+			}
+		}
 
 		rec = performJSONRequest(t, engine, http.MethodPost, fmt.Sprintf("%s/zones/%d/domains", apiPath(""), zoneID), map[string]any{
 			"domain": "security.example.com", "cert_id": certID,

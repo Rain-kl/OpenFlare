@@ -161,8 +161,9 @@ func DeleteHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, response.OKNil())
 }
 
-// CreateDomainHandler creates an explicit FQDN under a Zone.
+// CreateDomainHandler creates an exact or wildcard FQDN under a Zone.
 // @Summary 创建 Zone 域名
+// @Description 支持具体域名或最左侧完整标签为 * 的通配符域名，例如 *.s3.example.com；域名必须属于当前 Zone。
 // @Tags openflare-zone
 // @Accept json
 // @Produce json
@@ -192,6 +193,7 @@ func CreateDomainHandler(c *gin.Context) {
 
 // UpdateDomainHandler updates a Zone domain.
 // @Summary 更新 Zone 域名
+// @Description 支持具体域名与通配符域名互相修改；通配符仅允许出现在最左侧完整标签，且域名必须属于当前 Zone。
 // @Tags openflare-zone
 // @Accept json
 // @Produce json

@@ -110,4 +110,28 @@ describe('ZoneDomainSelector', () => {
     expect(screen.getByText('bound.example.com')).toBeVisible();
     expect(screen.getByText('api.example.com')).toBeVisible();
   });
+
+  it('searches and selects wildcard domains by ID without generating wildcard URLs', async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    renderSelector(
+      <ZoneDomainSelector
+        value={[]}
+        onChange={onChange}
+        domains={[
+          ...domains,
+          { ...domains[0], id: 9, domain: '*.s3.example.com' },
+        ]}
+        zones={zones}
+      />,
+    );
+
+    await user.type(screen.getByRole('textbox'), '*.s3');
+    expect(screen.queryByText('api.example.com')).not.toBeInTheDocument();
+    await user.click(screen.getByText('*.s3.example.com'));
+    expect(onChange).toHaveBeenCalledWith([9]);
+    for (const link of screen.getAllByRole('link')) {
+      expect(link.getAttribute('href')).not.toContain('*');
+    }
+  });
 });

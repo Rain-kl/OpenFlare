@@ -17,6 +17,11 @@ sidebar: false
 
 ## [Unreleased]
 
+### ✨ 新功能
+
+- 域名列表与快捷新增支持 `*.example.com`、`*.s3.example.com` 等通配符域名，可绑定站点规则并随配置版本下发至 CDN Agent；Cloudflare 分组可为其同步 A、AAAA 或 CNAME 记录。
+- Zone 流量统计支持聚合通配符匹配的实际子域名，重叠域名不会重复计数；Uptime Kuma 优先使用具体域名，只有通配符时跳过监控创建或更新并记录原因。
+
 ## [v3.5.9] - 2026-11-07
 
 ### ✨ 新功能
