@@ -1,5 +1,15 @@
 {
   "cloudflare": {
+    "ttlAutoSummary": "DNS-only TTL: Auto (about 300 seconds)",
+    "ttlSecondsSummary": "DNS-only TTL: {seconds} seconds",
+    "groupDialog": {
+      "ttl": "Group TTL",
+      "ttlAuto": "Auto",
+      "ttlManual": "Manual",
+      "ttlSeconds": "TTL (seconds)",
+      "ttlHint": "Changes apply to all DNS-only (gray-cloud) members in this group; proxied (orange-cloud) members always use Auto. Auto is currently about 300 seconds.",
+      "ttlError": "Enter a whole number of seconds between 60 and 86400."
+    },
     "move": "Move",
     "batchMove": "Batch Move",
     "batchRemove": "Batch Delete",

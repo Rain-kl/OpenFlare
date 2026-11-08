@@ -104,6 +104,7 @@ erDiagram
 | `backup_node_id` | 备用（可空；一期仅存储） |
 | `active_node_id` | 当前生效节点；一期等于 primary；二期 failover 改写 |
 | `default_proxied` | 分组默认橙云；**仅影响新加入成员** |
+| `ttl` | 分组级 TTL：`1` 为自动，手动填写 `60～86400` 的整数秒；仅对 DNS-only 成员生效，无成员级覆盖 |
 | `enabled` | 是否参与同步 |
 
 约束：主备不得为同一节点；选作生效目标的节点须有合法 IPv4。
@@ -140,9 +141,19 @@ OpenFlare 库表为 Source of Truth。每个成员期望：
 | name | ZoneDomain 的 FQDN |
 | content | 分组 `active_node` 的 IPv4 |
 | proxied | 成员 `proxied` |
-| ttl | 橙云开启时由 CF 强制 Auto；关闭时使用统一默认（如 300） |
+| ttl | 橙云成员始终传 `1`（自动）；DNS-only 成员使用分组 `ttl`，升级前分组继续使用 300 秒 |
 
 一期不写 AAAA。节点 IP 非合法 IPv4 → 该成员 `error`。
+
+### 分组 TTL
+
+节点绑定和自定义 A / AAAA / CNAME 共用分组 TTL。在分组创建或编辑弹窗选择“自动”或“手动”；手动模式填写 `60～86400` 的整数秒，不接受空值、小数或越界值。本模块采用所有 Cloudflare 套餐通用的范围，暂不开放仅 Enterprise 支持的 30～59 秒。
+
+* 自动通过 Cloudflare API 的 `ttl: 1` 表示，不是 1 秒；Cloudflare 当前的 Auto 为 300 秒，因此切换到自动并不会缩短缓存时间。
+* 成员实际 `proxied=true` 时始终使用自动；分组 TTL 只控制灰云成员，分组默认橙云不影响 TTL 是否可编辑。
+* 修改 TTL 后，已有成员标记为待同步；启用的分组沿用现有整组任务自动同步，停用的分组暂不下发。成员移入另一分组后使用目标分组的 TTL。
+* 新建分组省略 `ttl` 时默认自动；更新省略 `ttl` 时保留原值。分组查询始终返回可直接回填的 `ttl`（自动或手动秒数）。
+* PostgreSQL / SQLite 为分组表新增 `ttl`，默认零值仅用于兼容旧数据，业务层将其解释为 300 秒，不向 Cloudflare 发送 `0`；不新增成员 TTL 字段，也不批量改写已有成员。回滚迁移会删除该字段及已保存的 TTL 配置。
 
 ### 触发
 

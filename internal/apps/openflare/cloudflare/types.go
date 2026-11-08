@@ -39,6 +39,8 @@ type GroupInput struct {
 	BackupNodeID   *uint  `json:"backup_node_id"`
 	DefaultProxied bool   `json:"default_proxied"`
 	Enabled        bool   `json:"enabled"`
+	// TTL 为 1 时自动，否则为 60～86400 秒的整数；省略时创建默认自动，更新保留原值。
+	TTL *int `json:"ttl" example:"1"`
 }
 
 // GroupItem is the admin-facing pointing group summary.
@@ -56,6 +58,8 @@ type GroupItem struct {
 	MemberCount    int64       `json:"member_count"`
 	CreatedAt      time.Time   `json:"created_at"`
 	UpdatedAt      time.Time   `json:"updated_at"`
+	// TTL 为 1 时自动，否则为 DNS-only 成员使用的秒数。
+	TTL int `json:"ttl" example:"1"`
 }
 
 // MemberCreateInput adds a ZoneDomain to a group. Nil Proxied copies the group default.

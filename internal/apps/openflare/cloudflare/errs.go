@@ -14,6 +14,7 @@ const (
 	errGroupTargetModeInvalid  = "select a valid target mode"
 	errRecordTypeInvalid       = "select a CNAME, A or AAAA record type"
 	errRecordContentInvalid    = "invalid DNS record value; check the domain name or IP address"
+	errGroupTTLInvalid         = "TTL must be 1 (automatic) or an integer between 60 and 86400 seconds"
 	errNodeInvalid             = "select a valid edge node"
 	errNodeIPv4Required        = "the active node requires a valid IPv4 address"
 	errGroupDisabled           = "target group is disabled"

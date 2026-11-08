@@ -1390,6 +1390,8 @@ export interface CloudflareGroup {
   primary_node: CloudflareNodeOption;
   backup_node: CloudflareNodeOption | null;
   active_node: CloudflareNodeOption;
+  /** 1 表示自动，手动 TTL 为 60..86400 秒。 */
+  ttl: number;
   default_proxied: boolean;
   enabled: boolean;
   member_count: number;
@@ -1404,6 +1406,8 @@ export interface CloudflareGroupPayload {
   record_content: string;
   primary_node_id: number;
   backup_node_id: number | null;
+  /** 省略时保留旧调用方行为；1 表示自动，手动为 60..86400 秒。 */
+  ttl?: number;
   default_proxied: boolean;
   enabled: boolean;
 }

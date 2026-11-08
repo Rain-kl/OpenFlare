@@ -371,6 +371,11 @@ export function CloudflareGroupDetailPageClient() {
                 : 'nodeTargetMode',
             )}
           </Badge>
+          <Badge variant='outline'>
+            {group.ttl === 1
+              ? t('ttlAutoSummary')
+              : t('ttlSecondsSummary', { seconds: group.ttl ?? 300 })}
+          </Badge>
         </CardContent>
       </Card>
 
