@@ -62,6 +62,8 @@ func TestGetStatsWildcardHosts(t *testing.T) {
 			}
 			base := time.Now().UTC().Truncate(time.Hour).Add(-3 * time.Hour)
 			rows := []*model.OpenFlareAccessLog{
+				{Host: "a..example.com", LoggedAt: base.Add(time.Minute), RemoteAddr: "5.5.5.5", BytesSent: 1000},
+				{Host: ".a.example.com", LoggedAt: base.Add(time.Minute), RemoteAddr: "5.5.5.5", BytesSent: 1000},
 				{Host: "api.example.com", LoggedAt: base.Add(time.Minute), RemoteAddr: "1.1.1.1", BytesSent: 10},
 				{Host: " Deep.API.Example.COM ", LoggedAt: base.Add(2 * time.Minute), RemoteAddr: "1.1.1.1", BytesSent: 20},
 				{Host: "bucket.s3.example.com", LoggedAt: base.Add(time.Hour + time.Minute), RemoteAddr: "2.2.2.2", BytesSent: 30},

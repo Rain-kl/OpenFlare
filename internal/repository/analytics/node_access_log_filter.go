@@ -48,7 +48,7 @@ func buildNodeAccessLogFilterClause(filter NodeAccessLogFilter) (string, []any) 
 		for _, host := range hosts {
 			if suffix, wildcard := strings.CutPrefix(host, "*."); wildcard && suffix != "" {
 				// _% 要求非空子域名，并保留 Nginx 通配符可匹配多层子域名的语义。
-				hostParts = append(hostParts, "lowerUTF8(trim(host)) LIKE ?")
+				hostParts = append(hostParts, "(lowerUTF8(trim(host)) LIKE ? AND trim(host) NOT LIKE '%..%' AND trim(host) NOT LIKE '.%')")
 				args = append(args, "_%."+util.EscapeLike(suffix))
 				continue
 			}

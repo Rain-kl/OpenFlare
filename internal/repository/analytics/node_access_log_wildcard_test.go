@@ -33,13 +33,13 @@ func TestNodeAccessLogHostsWildcardSQL(t *testing.T) {
 		{
 			name:   "wildcard_requires_nonempty_prefix",
 			filter: NodeAccessLogFilter{Hosts: []string{" *.Example.com ", "*.example.com"}},
-			clause: "lowerUTF8(trim(host)) LIKE ?",
+			clause: "(lowerUTF8(trim(host)) LIKE ? AND trim(host) NOT LIKE '%..%' AND trim(host) NOT LIKE '.%')",
 			args:   []any{"_%.example.com"},
 		},
 		{
 			name:   "nested_wildcard",
 			filter: NodeAccessLogFilter{Hosts: []string{"*.s3.example.com"}},
-			clause: "lowerUTF8(trim(host)) LIKE ?",
+			clause: "(lowerUTF8(trim(host)) LIKE ? AND trim(host) NOT LIKE '%..%' AND trim(host) NOT LIKE '.%')",
 			args:   []any{"_%.s3.example.com"},
 		},
 		{
@@ -48,13 +48,13 @@ func TestNodeAccessLogHostsWildcardSQL(t *testing.T) {
 				NodeID: " n1 ", Host: "ignored", Hosts: []string{"api.example.com", "*.example.com", "*.s3.example.com"},
 				StatusCode: 200, Since: since, Until: until,
 			},
-			clause: "node_id = ? AND (lowerUTF8(trim(host)) LIKE ? OR lowerUTF8(trim(host)) LIKE ? OR lowerUTF8(trim(host)) IN (?)) AND status_code = ? AND logged_at >= ? AND logged_at < ?",
+			clause: "node_id = ? AND ((lowerUTF8(trim(host)) LIKE ? AND trim(host) NOT LIKE '%..%' AND trim(host) NOT LIKE '.%') OR (lowerUTF8(trim(host)) LIKE ? AND trim(host) NOT LIKE '%..%' AND trim(host) NOT LIKE '.%') OR lowerUTF8(trim(host)) IN (?)) AND status_code = ? AND logged_at >= ? AND logged_at < ?",
 			args:   []any{"n1", "_%.example.com", "_%.s3.example.com", "api.example.com", 200, since, until},
 		},
 		{
 			name:   "wildcard_suffix_like_metacharacters_are_literal",
 			filter: NodeAccessLogFilter{Hosts: []string{`*.a%_\'?.example.com`}},
-			clause: "lowerUTF8(trim(host)) LIKE ?",
+			clause: "(lowerUTF8(trim(host)) LIKE ? AND trim(host) NOT LIKE '%..%' AND trim(host) NOT LIKE '.%')",
 			args:   []any{`_%.a\%\_\\'?.example.com`},
 		},
 		{
@@ -122,7 +122,7 @@ func TestWildcardQueryEntryPoints(t *testing.T) {
 		t.Fatalf("count/bucket query calls = %d, want 3", len(conn.queries))
 	}
 	for i, query := range conn.queries {
-		if !strings.Contains(query, "WHERE (lowerUTF8(trim(host)) LIKE ? OR lowerUTF8(trim(host)) IN (?))") {
+		if !strings.Contains(query, "WHERE ((lowerUTF8(trim(host)) LIKE ? AND trim(host) NOT LIKE '%..%' AND trim(host) NOT LIKE '.%') OR lowerUTF8(trim(host)) IN (?))") {
 			t.Errorf("count/bucket SQL = %q, want grouped wildcard and exact host predicates", query)
 		}
 		if diff := cmp.Diff([]any{"_%.example.com", "api.example.com"}, conn.queryArgs[i]); diff != "" {

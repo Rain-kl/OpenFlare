@@ -24,7 +24,7 @@ func TestGormNodeAccessLogWildcardHosts(t *testing.T) {
 	hosts := []string{
 		"api.example.com", " A.B.Example.COM ", "bucket.s3.example.com", "deep.bucket.s3.example.com",
 		"example.com", "s3.example.com", "evil-example.com", "api.example.com.evil", ".example.com",
-		`x.a%_\'?.example.net`, `x.abc\'?.example.net`, ".s3.other.com", "s3.other.com",
+		`x.a%_\'?.example.net`, `x.abc\'?.example.net`, ".s3.other.com", "s3.other.com", "a..example.com", ".a.example.com", "a..s3.example.com",
 	}
 	rows := make([]analyticsmodel.NodeAccessLog, 0, len(hosts)+3)
 	for i, host := range hosts {

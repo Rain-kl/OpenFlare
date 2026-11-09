@@ -94,7 +94,7 @@ WAF、Pages、上游与发布版本仍属于 `proxy_routes`。Zone 概览只聚�
 3. **代码切换**：控制面 API、配置快照、渲染、前端均以 Zone 域名为唯一来源；路由写入仅使用 `zone_domain_ids`。
 4. **第二阶段清理**：Goose SQL `202607130001_drop_legacy_route_domain_columns` 删除 `of_managed_domains` 与 `of_proxy_routes` 冗余列。Down 仅恢复开发库空结构，不回填历史数据。
 
-历史数据升级导入时，Unicode 域名通过 IDNA 转换后的 ASCII 形式校验，保存时保留原域名及其证书、站点绑定；新增域名仍须符合 ASCII DNS 标签规则。
+历史数据升级导入时，Unicode 域名经 IDNA 转换并保存为 ASCII（Punycode）形式，以统一根域归属、全局唯一性、HTTP 路由匹配及 HTTPS 证书校验；原记录的证书和站点绑定保持不变。新增域名仍须符合 ASCII DNS 标签规则。
 
 ### 运行时模型边界
 

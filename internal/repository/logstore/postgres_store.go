@@ -834,7 +834,7 @@ func buildNodeAccessLogFilterParts(f analyticsmodel.NodeAccessLogFilter) (string
 		for _, host := range hosts {
 			if suffix, wildcard := strings.CutPrefix(host, "*."); wildcard && suffix != "" {
 				// 与 CH 一致：非空子域名，可跨多层，但不匹配 suffix 根自身。
-				hostParts = append(hostParts, `lower(trim(host)) LIKE ? ESCAPE '\'`)
+				hostParts = append(hostParts, `(lower(trim(host)) LIKE ? ESCAPE '\' AND trim(host) NOT LIKE '%..%' AND trim(host) NOT LIKE '.%')`)
 				args = append(args, "_%."+util.EscapeLike(suffix))
 				continue
 			}

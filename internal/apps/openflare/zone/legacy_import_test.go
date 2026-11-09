@@ -149,7 +149,7 @@ func TestImportLegacyTxNoOpWithoutLegacyColumns(t *testing.T) {
 	assert.Equal(t, 0, report.Domains)
 }
 
-// TestImportLegacyTxUnicodeDomains preserves historical names and bindings on upgrade.
+// TestImportLegacyTxUnicodeDomains canonicalizes historical names and preserves bindings on upgrade.
 func TestImportLegacyTxUnicodeDomains(t *testing.T) {
 	for _, source := range []string{"route", "managed"} {
 		t.Run(source, func(t *testing.T) {
@@ -192,15 +192,59 @@ func TestImportLegacyTxUnicodeDomains(t *testing.T) {
 			if err := sqlDB.QueryRow(`SELECT z.domain, zd.domain, zd.cert_id, zd.proxy_route_id FROM of_zone_domains zd JOIN of_zones z ON z.id = zd.zone_id`).Scan(&root, &domain, &certID, &routeID); err != nil {
 				t.Fatal(err)
 			}
-			if root != "bücher.de" || domain != "api.bücher.de" || certID != 7 {
-				t.Errorf("imported %s = (%q, %q, cert=%d), want (bücher.de, api.bücher.de, cert=7)", source, root, domain, certID)
+			if root != "xn--bcher-kva.de" || domain != "api.xn--bcher-kva.de" || certID != 7 {
+				t.Errorf("imported %s = (%q, %q, cert=%d), want (xn--bcher-kva.de, api.xn--bcher-kva.de, cert=7)", source, root, domain, certID)
 			}
 			if (source == "route" && (!routeID.Valid || routeID.Int64 != 3)) || (source == "managed" && routeID.Valid) {
 				t.Errorf("imported %s route binding = %v", source, routeID)
+			}
+
+			var zoneID uint
+			if err := sqlDB.QueryRow(`SELECT id FROM of_zones`).Scan(&zoneID); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := Create(ctx, Input{Domain: "xn--bcher-kva.de"}); err == nil {
+				t.Error("Create accepted an equivalent imported IDN zone")
+			}
+			if _, err := CreateDomain(ctx, zoneID, DomainInput{Domain: "api.xn--bcher-kva.de"}); err == nil {
+				t.Error("CreateDomain accepted an equivalent imported IDN host")
+			}
+			if _, err := CreateDomain(ctx, zoneID, DomainInput{Domain: "www.xn--bcher-kva.de"}); err != nil {
+				t.Errorf("CreateDomain in imported IDN zone: %v", err)
 			}
 			if _, err := normalizeDomain("api.bücher.de"); err == nil {
 				t.Error("normalizeDomain(api.bücher.de) accepted a new Unicode domain")
 			}
 		})
+	}
+}
+
+// TestImportLegacyTxIDNBindingConflict rejects equivalent names bound to different routes.
+func TestImportLegacyTxIDNBindingConflict(t *testing.T) {
+	sqlDB, cleanup := setupLegacyImportDB(t)
+	t.Cleanup(cleanup)
+	if _, err := sqlDB.Exec(`INSERT INTO of_proxy_routes (id, domain, domains) VALUES (3, 'api.bücher.de', '["api.bücher.de"]'), (4, 'api.xn--bcher-kva.de', '["api.xn--bcher-kva.de"]')`); err != nil {
+		t.Fatal(err)
+	}
+	tx, err := sqlDB.Begin()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = tx.Rollback() })
+	report, err := ImportLegacyTx(context.Background(), tx, false)
+	if err == nil || len(report.Conflicts) != 1 {
+		t.Errorf("ImportLegacyTx(equivalent IDN with different bindings) = %+v, %v; want one conflict", report, err)
+	}
+}
+
+// TestNormalizeLegacyIDNRoot resolves Unicode public suffixes through their ASCII identity.
+func TestNormalizeLegacyIDNRoot(t *testing.T) {
+	domain, err := normalizeLegacyDomain("api.example.公司.cn")
+	if err != nil {
+		t.Fatal(err)
+	}
+	root, err := zoneRoot(domain)
+	if err != nil || root != "example.xn--55qx5d.cn" {
+		t.Errorf("zoneRoot(%q) = %q, %v; want example.xn--55qx5d.cn", domain, root, err)
 	}
 }

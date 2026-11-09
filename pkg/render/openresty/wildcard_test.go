@@ -83,3 +83,19 @@ func TestRenderWildcardAndExactRoutes(t *testing.T) {
 		})
 	}
 }
+
+// TestImportedIDNRouteRendering covers the canonical names produced by legacy import.
+func TestImportedIDNRouteRendering(t *testing.T) {
+	domain := "api.xn--bcher-kva.de"
+	for _, https := range []bool{false, true} {
+		doc := Document{Routes: []Route{{ID: 1, SiteName: "idn", Domains: []string{domain}, OriginURL: "http://origin:8080", EnableHTTPS: https, DomainCertIDs: []uint{1}}}}
+		files := []SupportFile{{Path: "1.crt", Content: testCertificatePEMForDomain(t, domain)}}
+		got, err := RenderRouteConfig(doc, files)
+		if err != nil {
+			t.Fatalf("RenderRouteConfig(imported IDN, HTTPS=%t): %v", https, err)
+		}
+		if !strings.Contains(got, "server_name "+domain+";") {
+			t.Errorf("RenderRouteConfig(imported IDN, HTTPS=%t) missing canonical server name", https)
+		}
+	}
+}
