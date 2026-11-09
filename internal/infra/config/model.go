@@ -138,6 +138,7 @@ type QueueConfig struct {
 
 // otelConfig OpenTelemetry 配置
 type otelConfig struct {
-	SamplingRate float64 `mapstructure:"sampling_rate"`
-	TracerName   string  `mapstructure:"tracer_name"`
+	ExportProtocol string  `mapstructure:"export_protocol"`
+	SamplingRate   float64 `mapstructure:"sampling_rate"`
+	TracerName     string  `mapstructure:"tracer_name"`
 }

@@ -27,9 +27,10 @@ func init() {
 
 // Config 链路追踪配置
 type Config struct {
-	AppName      string
-	SamplingRate float64
-	TracerName   string
+	AppName        string
+	SamplingRate   float64
+	TracerName     string
+	ExportProtocol string
 }
 
 // Init 初始化 Tracer Provider 并关联全局 Tracer 实例

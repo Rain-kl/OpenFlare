@@ -17,6 +17,7 @@ import (
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 )
 
+// newTracerProvider combines SDK and application resources with a batched exporter.
 func newTracerProvider(cfg Config) (*sdktrace.TracerProvider, error) {
 	// 获取主机名和容器信息
 	hostname, err := os.Hostname()
@@ -40,7 +41,7 @@ func newTracerProvider(cfg Config) (*sdktrace.TracerProvider, error) {
 	}
 
 	// 初始化 Exporter
-	traceExporter, err := newTraceExporter(context.Background())
+	traceExporter, err := newTraceExporter(context.Background(), cfg.ExportProtocol)
 	if err != nil {
 		return nil, err
 	}
@@ -56,11 +57,8 @@ func newTracerProvider(cfg Config) (*sdktrace.TracerProvider, error) {
 
 // newTraceExporter selects the OTLP wire transport without changing existing gRPC defaults.
 // The SDK exporters read standard OTEL_EXPORTER_OTLP_* endpoint and header settings.
-func newTraceExporter(ctx context.Context) (sdktrace.SpanExporter, error) {
-	protocol := strings.ToLower(strings.TrimSpace(os.Getenv("OTEL_EXPORTER_OTLP_TRACES_PROTOCOL")))
-	if protocol == "" {
-		protocol = strings.ToLower(strings.TrimSpace(os.Getenv("OTEL_EXPORTER_OTLP_PROTOCOL")))
-	}
+func newTraceExporter(ctx context.Context, protocol string) (sdktrace.SpanExporter, error) {
+	protocol = strings.ToLower(strings.TrimSpace(protocol))
 	switch protocol {
 	case "", "grpc":
 		return otlptracegrpc.New(ctx)

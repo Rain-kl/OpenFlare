@@ -15,6 +15,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+// TestOTLPHTTPTraceExportHeadersAndResources verifies wire payloads against a local collector.
 func TestOTLPHTTPTraceExportHeadersAndResources(t *testing.T) {
 	type received struct {
 		headers http.Header
@@ -37,10 +38,8 @@ func TestOTLPHTTPTraceExportHeadersAndResources(t *testing.T) {
 		_, _ = w.Write(responseBody)
 	}))
 	defer server.Close()
-	t.Setenv("OTEL_EXPORTER_OTLP_TRACES_PROTOCOL", "")
 	t.Setenv("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", "")
 	t.Setenv("OTEL_EXPORTER_OTLP_TRACES_HEADERS", "")
-	t.Setenv("OTEL_EXPORTER_OTLP_PROTOCOL", "http/protobuf")
 	t.Setenv("OTEL_EXPORTER_OTLP_ENDPOINT", server.URL)
 	t.Setenv("OTEL_EXPORTER_OTLP_HEADERS", "X-API-Key=test-key,X-Client-Name=test%20client")
 	t.Setenv("OTEL_RESOURCE_ATTRIBUTES", "service.namespace=example,deployment.environment.name=test")
@@ -65,8 +64,6 @@ func TestOTLPHTTPTraceExportHeadersAndResources(t *testing.T) {
 		{
 			name: "trace_specific_overrides",
 			env: map[string]string{
-				"OTEL_EXPORTER_OTLP_PROTOCOL":        "grpc",
-				"OTEL_EXPORTER_OTLP_TRACES_PROTOCOL": "http/protobuf",
 				"OTEL_EXPORTER_OTLP_TRACES_ENDPOINT": server.URL + "/custom/ingest",
 				"OTEL_EXPORTER_OTLP_TRACES_HEADERS":  "X-API-Key=trace-key,X-Client-Name=trace%20client",
 			},
@@ -79,7 +76,7 @@ func TestOTLPHTTPTraceExportHeadersAndResources(t *testing.T) {
 			for key, value := range tt.env {
 				t.Setenv(key, value)
 			}
-			provider, err := newTracerProvider(Config{AppName: "openflare-control-plane", SamplingRate: 1})
+			provider, err := newTracerProvider(Config{AppName: "openflare-control-plane", SamplingRate: 1, ExportProtocol: "http/protobuf"})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -122,6 +119,7 @@ func TestOTLPHTTPTraceExportHeadersAndResources(t *testing.T) {
 	}
 }
 
+// protoBytes encodes a collector response for the HTTP test server.
 func protoBytes(t *testing.T, v proto.Message) []byte {
 	t.Helper()
 	data, err := proto.Marshal(v)
@@ -131,11 +129,23 @@ func protoBytes(t *testing.T, v proto.Message) []byte {
 	return data
 }
 
+// TestUnknownOTLPProtocolFails rejects unsupported wire formats during initialization.
 func TestUnknownOTLPProtocolFails(t *testing.T) {
-	t.Setenv("OTEL_EXPORTER_OTLP_PROTOCOL", "http/json")
-	t.Setenv("OTEL_EXPORTER_OTLP_TRACES_PROTOCOL", "")
-	_, err := newTraceExporter(context.Background())
+	_, err := newTraceExporter(context.Background(), "http/json")
 	if err == nil || !strings.Contains(err.Error(), "unsupported OTLP") {
 		t.Fatalf("expected protocol error, got %v", err)
+	}
+}
+
+// TestDefaultOTLPProtocolGRPC keeps empty and explicit gRPC configuration working.
+func TestDefaultOTLPProtocolGRPC(t *testing.T) {
+	for _, protocol := range []string{"", "grpc"} {
+		exporter, err := newTraceExporter(context.Background(), protocol)
+		if err != nil {
+			t.Fatalf("newTraceExporter(%q): %v", protocol, err)
+		}
+		if err := exporter.Shutdown(context.Background()); err != nil {
+			t.Errorf("exporter.Shutdown(%q): %v", protocol, err)
+		}
 	}
 }
