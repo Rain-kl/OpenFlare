@@ -64,6 +64,11 @@ func TestWildcardMemberDNSRecords(t *testing.T) {
 					}
 					writeCFTestResponse(t, w, []Zone{{ID: "zone-1", Name: "example.com"}})
 				case "/zones/zone-1/dns_records", "/zones/zone-1/dns_records/wildcard-record":
+					if (r.Method == http.MethodPut || r.Method == http.MethodDelete) && r.URL.Path != "/zones/zone-1/dns_records/wildcard-record" {
+						t.Errorf("DNS %s path = %q, want record ID path", r.Method, r.URL.Path)
+						w.WriteHeader(http.StatusMethodNotAllowed)
+						return
+					}
 					switch r.Method {
 					case http.MethodGet:
 						if r.URL.Path == "/zones/zone-1/dns_records/wildcard-record" {

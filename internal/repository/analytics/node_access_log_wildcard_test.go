@@ -4,8 +4,13 @@
 package analytics
 
 import (
+	"context"
+	"strings"
 	"testing"
 	"time"
+
+	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
+	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 
 	"github.com/google/go-cmp/cmp"
 )
@@ -75,5 +80,53 @@ func TestNodeAccessLogHostsWildcardSQL(t *testing.T) {
 				t.Errorf("buildNodeAccessLogFilterClause(%+v) args mismatch (-want +got):\n%s", tt.filter, diff)
 			}
 		})
+	}
+}
+
+// wildcardQueryConn captures both single-row and multi-row query entry points.
+type wildcardQueryConn struct{ mockConn }
+
+func (m *wildcardQueryConn) QueryRow(_ context.Context, query string, args ...any) driver.Row {
+	m.queries = append(m.queries, query)
+	m.queryArgs = append(m.queryArgs, args)
+	return wildcardCountRow{}
+}
+
+type wildcardCountRow struct{ driver.Row }
+
+func (wildcardCountRow) Scan(dest ...any) error {
+	for _, value := range dest {
+		*value.(*uint64) = 0
+	}
+	return nil
+}
+
+// TestWildcardQueryEntryPoints protects host filtering in count and bucket queries.
+func TestWildcardQueryEntryPoints(t *testing.T) {
+	conn := &wildcardQueryConn{}
+	previous := db.ChConn
+	db.SetChConnForTest(conn)
+	t.Cleanup(func() { db.SetChConnForTest(previous) })
+	ctx := context.Background()
+	filter := NodeAccessLogFilter{Hosts: []string{"*.Example.com", "api.example.com"}}
+	if _, _, _, err := CountNodeAccessLogs(ctx, filter); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := BucketAggregatesNodeAccessLogs(ctx, filter, 300); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := CountBucketAggregatesNodeAccessLogs(ctx, filter, 300); err != nil {
+		t.Fatal(err)
+	}
+	if len(conn.queries) != 3 {
+		t.Fatalf("count/bucket query calls = %d, want 3", len(conn.queries))
+	}
+	for i, query := range conn.queries {
+		if !strings.Contains(query, "WHERE (lowerUTF8(trim(host)) LIKE ? OR lowerUTF8(trim(host)) IN (?))") {
+			t.Errorf("count/bucket SQL = %q, want grouped wildcard and exact host predicates", query)
+		}
+		if diff := cmp.Diff([]any{"_%.example.com", "api.example.com"}, conn.queryArgs[i]); diff != "" {
+			t.Errorf("count/bucket args mismatch (-want +got):\n%s", diff)
+		}
 	}
 }

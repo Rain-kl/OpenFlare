@@ -148,3 +148,59 @@ func TestImportLegacyTxNoOpWithoutLegacyColumns(t *testing.T) {
 	assert.Equal(t, 0, report.Zones)
 	assert.Equal(t, 0, report.Domains)
 }
+
+// TestImportLegacyTxUnicodeDomains preserves historical names and bindings on upgrade.
+func TestImportLegacyTxUnicodeDomains(t *testing.T) {
+	for _, source := range []string{"route", "managed"} {
+		t.Run(source, func(t *testing.T) {
+			sqlDB, cleanup := setupLegacyImportDB(t)
+			t.Cleanup(cleanup)
+			ctx := context.Background()
+			if _, err := sqlDB.Exec(`INSERT INTO of_tls_certificates (id, name) VALUES (7, 'cert')`); err != nil {
+				t.Fatal(err)
+			}
+			var err error
+			if source == "route" {
+				_, err = sqlDB.Exec(`INSERT INTO of_proxy_routes (id, domain, domains, domain_cert_ids) VALUES (3, 'api.bücher.de', '["api.bücher.de"]', '[7]')`)
+			} else {
+				_, err = sqlDB.Exec(`INSERT INTO of_managed_domains (domain, cert_id) VALUES ('api.bücher.de', 7)`)
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			for attempt := range 2 {
+				tx, err := sqlDB.Begin()
+				if err != nil {
+					t.Fatal(err)
+				}
+				t.Cleanup(func() { _ = tx.Rollback() })
+				report, err := ImportLegacyTx(ctx, tx, false)
+				if err != nil {
+					t.Fatalf("ImportLegacyTx(%s, attempt=%d) = %+v, %v, want no conflicts", source, attempt, report, err)
+				}
+				if err := tx.Commit(); err != nil {
+					t.Fatal(err)
+				}
+				want := 1 - attempt
+				if report.Zones != want || report.Domains != want {
+					t.Errorf("ImportLegacyTx(%s, attempt=%d) = %+v, want %d zones/domains", source, attempt, report, want)
+				}
+			}
+			var root, domain string
+			var certID uint
+			var routeID sql.NullInt64
+			if err := sqlDB.QueryRow(`SELECT z.domain, zd.domain, zd.cert_id, zd.proxy_route_id FROM of_zone_domains zd JOIN of_zones z ON z.id = zd.zone_id`).Scan(&root, &domain, &certID, &routeID); err != nil {
+				t.Fatal(err)
+			}
+			if root != "bücher.de" || domain != "api.bücher.de" || certID != 7 {
+				t.Errorf("imported %s = (%q, %q, cert=%d), want (bücher.de, api.bücher.de, cert=7)", source, root, domain, certID)
+			}
+			if (source == "route" && (!routeID.Valid || routeID.Int64 != 3)) || (source == "managed" && routeID.Valid) {
+				t.Errorf("imported %s route binding = %v", source, routeID)
+			}
+			if _, err := normalizeDomain("api.bücher.de"); err == nil {
+				t.Error("normalizeDomain(api.bücher.de) accepted a new Unicode domain")
+			}
+		})
+	}
+}

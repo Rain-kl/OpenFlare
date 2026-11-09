@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/routeidentity"
+	"golang.org/x/net/idna"
 )
 
 // ImportReport describes the idempotent legacy migration result.
@@ -82,7 +83,7 @@ func ImportLegacyTx(ctx context.Context, tx *sql.Tx, postgres bool) (report Impo
 	}
 
 	for _, item := range items {
-		domain, normErr := normalizeDomain(item.Domain)
+		domain, normErr := normalizeLegacyDomain(item.Domain)
 		if normErr != nil {
 			report.Conflicts = append(report.Conflicts, fmt.Sprintf("%s: %v", item.Domain, normErr))
 			continue
@@ -150,6 +151,20 @@ func ImportLegacyTx(ctx context.Context, tx *sql.Tx, postgres bool) (report Impo
 		return report, errors.New("legacy data has conflicts")
 	}
 	return report, nil
+}
+
+// normalizeLegacyDomain validates historical IDNs through ASCII without changing
+// stored hostnames, certificate associations, or route bindings.
+func normalizeLegacyDomain(raw string) (string, error) {
+	domain := strings.ToLower(strings.TrimSpace(raw))
+	ascii, err := idna.ToASCII(domain)
+	if err != nil {
+		return "", errors.New(errDomainInvalid)
+	}
+	if _, err := normalizeDomain(ascii); err != nil {
+		return "", err
+	}
+	return domain, nil
 }
 
 func ensureZone(

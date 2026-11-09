@@ -18,6 +18,8 @@ import (
 	"gorm.io/gorm"
 )
 
+const maxDomainLength = 253
+
 // Input is the mutable Zone payload.
 type Input struct {
 	Domain string `json:"domain"`
@@ -56,7 +58,7 @@ func normalizeDomain(raw string) (string, error) {
 	}
 	// 只允许最左侧完整标签为通配符；其余字符必须是 DNS 标签，不能进入配置语法。
 	host := strings.TrimPrefix(domain, "*.")
-	if len(domain) > 253 {
+	if len(domain) > maxDomainLength {
 		return "", errors.New(errDomainInvalid)
 	}
 	for _, label := range strings.Split(host, ".") {

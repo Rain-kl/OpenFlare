@@ -17,6 +17,10 @@ sidebar: false
 
 ## [Unreleased]
 
+### 🛠 修复
+
+- 修复升级导入历史 Unicode 域名时被新域名校验拒绝、导致服务无法启动的问题，保留原有域名及证书和站点绑定。
+
 ### ✨ 新功能
 
 - 域名列表与快捷新增支持 `*.example.com`、`*.s3.example.com` 等通配符域名，可绑定站点规则并随配置版本下发至 CDN Agent；Cloudflare 分组可为其同步 A、AAAA 或 CNAME 记录。
