@@ -229,11 +229,17 @@ func routeMonitorURL(ctx context.Context, route *model.ProxyRoute) (string, erro
 	if len(domains) == 0 {
 		return "", fmt.Errorf("route %s has no zone domains", route.SiteName)
 	}
-	domain := domains[0].Domain
-	if route.EnableHTTPS {
-		return "https://" + domain, nil
+	// 通配符是匹配规则而非可探测地址；混合绑定时选择具体域名。
+	for _, domain := range domains {
+		if strings.Contains(domain.Domain, "*") {
+			continue
+		}
+		if route.EnableHTTPS {
+			return "https://" + domain.Domain, nil
+		}
+		return "http://" + domain.Domain, nil
 	}
-	return "http://" + domain, nil
+	return "", fmt.Errorf("route %s only has wildcard domains; bind a concrete hostname for monitoring", route.SiteName)
 }
 
 func monitorPayload(id int, name, targetURL string, config *kumaConfig) map[string]any {

@@ -10,7 +10,7 @@
 
 * Zone 根域使用 Public Suffix List 解析，例如 `api.example.co.uk` 归属 `example.co.uk`。
 * URL 使用 ID：列表为 `/websites`，详情为 `/websites/:zoneId`；不使用域名作为 URL 参数。
-* Zone 域名必须是明确的 FQDN，禁止录入 `*.example.com`。TLS 证书可仍含通配符 SAN，并用于覆盖明确的 Zone 域名。
+* Zone 根域不允许通配符；Zone 域名支持具体 FQDN 或最左侧完整标签为 `*` 的通配符 FQDN，例如 `*.example.com`、`*.s3.example.com`。后端去掉 `*.` 后校验注册根域归属，并拒绝非法 DNS 标签、空白与配置分隔符。
 * 一个 Zone 域名至多关联一条反代路由；一条反代路由可关联多个 Zone 域名，因而可跨 Zone 共享同一套上游、缓存、限流、WAF 与 Pages 配置。
 * Zone 模型本身不新增 DNS 记录、边缘函数、预览子域或租户隔离能力。对外 DNS A 记录的创建/更新由独立的 Cloudflare 指向模块负责，且不改变 Zone / ZoneDomain 表职责。
 
@@ -43,7 +43,7 @@ erDiagram
 
 ### `of_zone_domains`
 
-保存 `zone_id`、明确 `domain`、可空的 `proxy_route_id`、可空的 `cert_id` 及时间戳。`domain` 全局唯一；所有关系字段建立索引但不建立物理外键。`proxy_route_id` 允许为空，以承接已准备证书但尚未配置反代的历史域名。
+保存 `zone_id`、具体或通配符 `domain`、可空的 `proxy_route_id`、可空的 `cert_id` 及时间戳。`domain` 全局唯一；所有关系字段建立索引但不建立物理外键。`proxy_route_id` 允许为空，以承接已准备证书但尚未配置反代的历史域名。通配符作为一条普通域名记录存储，不展开为子域名列表，不需要额外列或迁移。
 
 `of_proxy_routes` 逐步移除 `domain`、`domains`、`cert_id`、`cert_ids` 与 `domain_cert_ids` 等域名/证书冗余列。路由不得再指定任何 TLS 证书；路由名称 `site_name` 成为稳定的人类可读标识，编译器从关联的 Zone 域名读取 `server_name` 与其 `cert_id`。这使每个明确域名的证书只有一个来源。
 
@@ -70,12 +70,20 @@ WAF、Pages、上游与发布版本仍属于 `proxy_routes`。Zone 概览只聚�
 详情页包含：
 
 * 概览：域名、路由和有效证书统计；域名—路由—证书摘要；路由级 WAF 与 Pages 摘要。
-* 域名：明确 FQDN 的列表、证书选择和关联路由；不显示或接受通配符域名。
+* 域名：具体或通配符 FQDN 的列表、证书选择和关联路由；快捷新增支持 `*` 展开为 `*.当前根域`，多级泛域名须输入完整名称。
 * 路由：筛选到当前 Zone 的路由并链接到既有路由详情。
 * 证书：当前 Zone 域名实际引用的证书。
 * 设置：Zone 备注和受保护的删除操作。
 
 新增路由时从 Zone 域名中选择；用户也可以先在 Zone 中登记域名，再绑定路由。全局反代路由入口保留，但改用同一套 Zone 域名选择器。
+
+### 通配符运行语义
+
+* 配置快照保留 `*.suffix` 原文；绑定路由并发布激活版本后，Agent 使用共享渲染器生成 `server_name *.suffix;`。仅登记域名而未绑定路由不会生成代理规则。
+* 路由匹配沿用 OpenResty/Nginx 的规则：具体域名优先于通配符，多个通配符中更长的匹配后缀优先；`*.example.com` 不包含 `example.com` 本身，但可匹配多层子域名。
+* TLS 覆盖范围与 HTTP 路由匹配不同：`*.s3.example.com` 站点必须绑定含相应通配符 SAN 的证书；它不能用仅覆盖某个具体子域名的证书替代。单层通配符证书不覆盖根自身或更深层子域名，发布时保留证书覆盖校验。
+* Zone 流量统计按实际请求 Host 匹配具体域名或非空通配符后缀。ClickHouse、PostgreSQL 与 SQLite 使用相同的匹配约定，重叠的具体域名/通配符条件不会重复计数；域名数量仍表示登记记录数。
+* 通配符不可直接作为访问或探测 URL。Uptime Kuma 同步优先选择路由绑定的具体域名；只有通配符时跳过创建/更新并记录原因，保留已有监控。
 
 ## 数据迁移
 
@@ -85,6 +93,8 @@ WAF、Pages、上游与发布版本仍属于 `proxy_routes`。Zone 概览只聚�
 2. **数据导入（自动）**：Server 启动时 `migrator.Migrate()` 先应用 goose SQL 至 `202607120002`，再自动导入旧路由域名 / `managed_domains`（`publicsuffix` 解析注册根域，写入 `cert_id` 与 `proxy_route_id`），最后继续后续 SQL。冲突时启动失败；修复后重启可幂等重试。无需手动命令。
 3. **代码切换**：控制面 API、配置快照、渲染、前端均以 Zone 域名为唯一来源；路由写入仅使用 `zone_domain_ids`。
 4. **第二阶段清理**：Goose SQL `202607130001_drop_legacy_route_domain_columns` 删除 `of_managed_domains` 与 `of_proxy_routes` 冗余列。Down 仅恢复开发库空结构，不回填历史数据。
+
+历史数据升级导入时，Unicode 域名经 IDNA 转换并保存为 ASCII（Punycode）形式，以统一根域归属、全局唯一性、HTTP 路由匹配及 HTTPS 证书校验；原记录的证书和站点绑定保持不变。新增域名仍须符合 ASCII DNS 标签规则。
 
 ### 运行时模型边界
 

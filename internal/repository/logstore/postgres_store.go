@@ -814,7 +814,7 @@ func toNodeAccessLogFilter(query model.OpenFlareAccessLogQuery) analyticsmodel.N
 }
 
 // buildNodeAccessLogFilterParts 拼装节点访问日志过滤条件（node_id 等值、remote_addr/host/path
-// 前缀 LIKE、hosts 走 lower(trim(host)) IN、since/until 时间窗，顺序与 applyNodeAccessLogFilter
+// 前缀 LIKE、hosts 精确域名或通配符后缀、since/until 时间窗，顺序与 applyNodeAccessLogFilter
 // 完全一致），返回 WHERE 片段与参数；无任何条件时返回空串与 nil。
 func buildNodeAccessLogFilterParts(f analyticsmodel.NodeAccessLogFilter) (string, []any) {
 	var parts []string
@@ -829,8 +829,26 @@ func buildNodeAccessLogFilterParts(f analyticsmodel.NodeAccessLogFilter) (string
 	}
 	hosts := normalizeNodeAccessLogHosts(f.Hosts)
 	if len(hosts) > 0 {
-		parts = append(parts, "lower(trim(host)) IN ?")
-		args = append(args, hosts)
+		var hostParts []string
+		var exactHosts []string
+		for _, host := range hosts {
+			if suffix, wildcard := strings.CutPrefix(host, "*."); wildcard && suffix != "" {
+				// 与 CH 一致：非空子域名，可跨多层，但不匹配 suffix 根自身。
+				hostParts = append(hostParts, `(lower(trim(host)) LIKE ? ESCAPE '\' AND trim(host) NOT LIKE '%..%' AND trim(host) NOT LIKE '.%')`)
+				args = append(args, "_%."+util.EscapeLike(suffix))
+				continue
+			}
+			exactHosts = append(exactHosts, host)
+		}
+		if len(exactHosts) > 0 {
+			hostParts = append(hostParts, "lower(trim(host)) IN ?")
+			args = append(args, exactHosts)
+		}
+		hostClause := strings.Join(hostParts, " OR ")
+		if len(hostParts) > 1 {
+			hostClause = "(" + hostClause + ")"
+		}
+		parts = append(parts, hostClause)
 	} else if host := strings.TrimSpace(f.Host); host != "" {
 		parts = append(parts, `host LIKE ? ESCAPE '\'`)
 		args = append(args, util.EscapeLike(host)+"%")
@@ -858,7 +876,7 @@ func buildNodeAccessLogFilterParts(f analyticsmodel.NodeAccessLogFilter) (string
 }
 
 // applyNodeAccessLogFilter 对齐 CH 过滤语义（node_access_log_filter.go）：
-// node_id trim 后等值；remote_addr/host/path 前缀 LIKE；hosts 走 lower(trim(host)) IN（参数已归一化）；
+// node_id trim 后等值；remote_addr/host/path 前缀 LIKE；hosts 精确域名或通配符后缀（参数已归一化）；
 // since 闭区间 >=；until 开区间 <。
 func applyNodeAccessLogFilter(q *gorm.DB, f analyticsmodel.NodeAccessLogFilter) *gorm.DB {
 	cond, args := buildNodeAccessLogFilterParts(f)

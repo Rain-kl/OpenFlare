@@ -114,7 +114,7 @@ export function QuickCreateZoneDomainDialog({
 
   const schema = z.object({
     zone_id: z.string().min(1, t('selectZone')),
-    domain_input: z.string().trim().min(1, t('enterDomain')),
+    domain_input: z.string().min(1, t('enterDomain')),
     cert_id: z.string(),
   });
   const form = useForm<Values>({

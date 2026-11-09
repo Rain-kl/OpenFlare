@@ -5,6 +5,7 @@ package zone
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -28,12 +29,97 @@ func setupZoneDB(t *testing.T) context.Context {
 	return context.Background()
 }
 
-func TestCreateZoneDomainRejectsWildcard(t *testing.T) {
+func TestNormalizeDomainWildcard(t *testing.T) {
+	tests := []struct {
+		input string
+		want  string
+	}{
+		{input: " *.Example.COM ", want: "*.example.com"},
+		{input: "*.s3.example.com", want: "*.s3.example.com"},
+		{input: "*.example.co.uk", want: "*.example.co.uk"},
+		{input: "API.Example.com", want: "api.example.com"},
+		{input: "example.com", want: "example.com"},
+		{input: "*"}, {input: "*.com"}, {input: "*.co.uk"},
+		{input: "foo*.example.com"}, {input: "a.*.example.com"},
+		{input: "*.*.example.com"}, {input: "**.example.com"},
+		{input: "*.example.com."}, {input: "*..example.com"},
+		{input: "*.-s3.example.com"}, {input: "*.s3-.example.com"},
+		{input: "*.s_3.example.com"}, {input: "*.example.com:443"},
+		{input: "*.example.com;"}, {input: "*.a b.example.com"},
+		{input: "*.a\nb.example.com"}, {input: "https://*.example.com"},
+		{input: "*.example.com/path"}, {input: "*.example.com?query"},
+		{input: "*.example.com#fragment"}, {input: "*@example.com"},
+		{input: "*." + strings.Repeat("a", 64) + ".example.com"},
+		{input: "*." + strings.Repeat(strings.Repeat("a", 63)+".", 4) + "com"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			got, err := normalizeDomain(tt.input)
+			if got != tt.want || (err != nil) != (tt.want == "") {
+				t.Errorf("normalizeDomain(%q) = (%q, %v), want %q with error=%t", tt.input, got, err, tt.want, tt.want == "")
+			}
+		})
+	}
+}
+
+func TestCreateAndUpdateWildcardDomain(t *testing.T) {
 	ctx := setupZoneDB(t)
 	zone, err := Create(ctx, Input{Domain: "example.com"})
-	require.NoError(t, err)
-	_, err = CreateDomain(ctx, zone.ID, DomainInput{Domain: "*.example.com"})
-	require.EqualError(t, err, errDomainWildcardUnsupported)
+	if err != nil {
+		t.Fatal(err)
+	}
+	item, err := CreateDomain(ctx, zone.ID, DomainInput{Domain: " *.Example.COM "})
+	if err != nil {
+		t.Fatalf("CreateDomain(wildcard) error = %v", err)
+	}
+	if item.Domain != "*.example.com" {
+		t.Errorf("CreateDomain(wildcard).Domain = %q, want *.example.com", item.Domain)
+	}
+	if _, err := CreateDomain(ctx, zone.ID, DomainInput{Domain: "*.example.com"}); err == nil {
+		t.Error("CreateDomain(duplicate wildcard) error = nil, want duplicate error")
+	}
+	// 精确域名可以和通配符共存，路由匹配优先级交给 OpenResty。
+	if _, err := CreateDomain(ctx, zone.ID, DomainInput{Domain: "api.example.com"}); err != nil {
+		t.Fatalf("CreateDomain(exact alongside wildcard) error = %v", err)
+	}
+	for _, domain := range []string{"*.s3.example.com", "www.example.com", "*.example.com"} {
+		updated, err := UpdateDomain(ctx, zone.ID, item.ID, DomainInput{Domain: domain})
+		if err != nil {
+			t.Fatalf("UpdateDomain(%q) error = %v", domain, err)
+		}
+		if updated.Domain != domain {
+			t.Errorf("UpdateDomain(%q).Domain = %q", domain, updated.Domain)
+		}
+	}
+	for _, domain := range []string{"*.other.com", "*.example.com.evil.net", "a.*.example.com"} {
+		if _, err := CreateDomain(ctx, zone.ID, DomainInput{Domain: domain}); err == nil {
+			t.Errorf("CreateDomain(%q) error = nil, want invalid/outside-zone error", domain)
+		}
+		if _, err := UpdateDomain(ctx, zone.ID, item.ID, DomainInput{Domain: domain}); err == nil {
+			t.Errorf("UpdateDomain(%q) error = nil, want invalid/outside-zone error", domain)
+		}
+	}
+	stored, err := repository.GetZoneDomainByZoneAndID(ctx, zone.ID, item.ID)
+	if err != nil || stored.Domain != "*.example.com" {
+		t.Fatalf("stored domain after rejected updates = %+v, error=%v, want *.example.com", stored, err)
+	}
+}
+
+func TestZoneRootRejectsWildcard(t *testing.T) {
+	ctx := setupZoneDB(t)
+	if _, err := Create(ctx, Input{Domain: "*.example.com"}); err == nil {
+		t.Error("Create(wildcard zone) error = nil, want invalid root error")
+	}
+	zone, err := Create(ctx, Input{Domain: "example.co.uk"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Update(ctx, zone.ID, Input{Domain: "*.example.co.uk"}); err == nil {
+		t.Error("Update(wildcard zone) error = nil, want invalid root error")
+	}
+	if _, err := CreateDomain(ctx, zone.ID, DomainInput{Domain: "*.s3.example.co.uk"}); err != nil {
+		t.Errorf("CreateDomain(wildcard under multi-label public suffix) error = %v", err)
+	}
 }
 
 func TestDeleteDomainRejectsBoundRoute(t *testing.T) {

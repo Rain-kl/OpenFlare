@@ -160,7 +160,9 @@ type OpenFlareAccessLogQuery struct {
 	NodeID     string
 	RemoteAddr string
 	Host       string
-	// Hosts exact-matches any host (case-insensitive). Prefer over Host for multi-domain scopes.
+	// Hosts matches case-insensitively and takes precedence over Host.
+	// Exact names match only that host; *.example.com matches one or more
+	// nonempty subdomain levels, excluding example.com itself.
 	Hosts []string
 	Path  string
 	// StatusCode filters by exact HTTP status code when > 0.
@@ -175,9 +177,10 @@ type OpenFlareAccessLogQuery struct {
 
 // OpenFlareAccessLogBucketQuery filters folded access log queries (v1 stub).
 type OpenFlareAccessLogBucketQuery struct {
-	NodeID      string
-	RemoteAddr  string
-	Host        string
+	NodeID     string
+	RemoteAddr string
+	Host       string
+	// Hosts follows OpenFlareAccessLogQuery.Hosts exact and wildcard matching.
 	Hosts       []string
 	Path        string
 	Since       time.Time

@@ -3,6 +3,7 @@
  *
  * - `@` → apex (zone root itself), e.g. `example.com`
  * - single label `name` → `name.example.com`
+ * - `*` → `*.example.com`; other wildcards require a full FQDN
  * - full FQDN must equal the root or end with `.root`
  */
 export type ZoneDomainInputError =
@@ -12,6 +13,15 @@ export type ZoneDomainInputError =
   | 'invalidFormat'
   | 'invalidSubdomain'
   | 'mustBelongToZone';
+
+const dnsLabelPattern = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/;
+
+function isDnsName(value: string): boolean {
+  return (
+    value.length <= 253 &&
+    value.split('.').every((label) => dnsLabelPattern.test(label))
+  );
+}
 
 export function resolveZoneDomainInput(
   rawInput: string,
@@ -26,15 +36,7 @@ export function resolveZoneDomainInput(
   if (!input) {
     return { domain: '', error: 'enterDomain' };
   }
-  if (input.includes('*')) {
-    return { domain: '', error: 'noWildcard' };
-  }
-  if (
-    input.includes('://') ||
-    input.includes('/') ||
-    input.includes('?') ||
-    input.includes('#')
-  ) {
+  if (/\s/.test(input) || !isDnsName(root)) {
     return { domain: '', error: 'invalidFormat' };
   }
 
@@ -42,17 +44,28 @@ export function resolveZoneDomainInput(
     return { domain: root };
   }
 
-  // Short label: no dots → prefix under zone root
-  if (!input.includes('.')) {
-    if (!/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/i.test(input)) {
-      return { domain: '', error: 'invalidSubdomain' };
-    }
-    return { domain: `${input}.${root}` };
+  // 星号只能作为最左侧完整标签；*.s3 不推断为 Zone 内的相对名称。
+  const wildcard = input === '*' || input.startsWith('*.');
+  if (input.includes('*') && (!wildcard || input.slice(1).includes('*'))) {
+    return { domain: '', error: 'noWildcard' };
   }
 
-  // Full FQDN
-  if (input === root || input.endsWith(`.${root}`)) {
-    return { domain: input };
+  let domain = input;
+  if (input === '*') {
+    domain = `*.${root}`;
+  } else if (!input.includes('.')) {
+    if (!dnsLabelPattern.test(input)) {
+      return { domain: '', error: 'invalidSubdomain' };
+    }
+    domain = `${input}.${root}`;
+  }
+
+  const hostname = wildcard ? domain.slice(2) : domain;
+  if (domain.length > 253 || !isDnsName(hostname)) {
+    return { domain: '', error: 'invalidFormat' };
+  }
+  if (hostname === root || hostname.endsWith(`.${root}`)) {
+    return { domain };
   }
 
   return { domain: '', error: 'mustBelongToZone' };

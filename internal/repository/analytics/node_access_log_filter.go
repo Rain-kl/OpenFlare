@@ -42,12 +42,28 @@ func buildNodeAccessLogFilterClause(filter NodeAccessLogFilter) (string, []any) 
 	}
 	hosts := normalizeNodeAccessLogHosts(filter.Hosts)
 	if len(hosts) > 0 {
+		hostParts := make([]string, 0, len(hosts))
 		placeholders := make([]string, 0, len(hosts))
+		var exactHosts []any
 		for _, host := range hosts {
+			if suffix, wildcard := strings.CutPrefix(host, "*."); wildcard && suffix != "" {
+				// _% 要求非空子域名，并保留 Nginx 通配符可匹配多层子域名的语义。
+				hostParts = append(hostParts, "(lowerUTF8(trim(host)) LIKE ? AND trim(host) NOT LIKE '%..%' AND trim(host) NOT LIKE '.%')")
+				args = append(args, "_%."+util.EscapeLike(suffix))
+				continue
+			}
 			placeholders = append(placeholders, "?")
-			args = append(args, host)
+			exactHosts = append(exactHosts, host)
 		}
-		parts = append(parts, "lowerUTF8(trim(host)) IN ("+strings.Join(placeholders, ", ")+")")
+		if len(exactHosts) > 0 {
+			hostParts = append(hostParts, "lowerUTF8(trim(host)) IN ("+strings.Join(placeholders, ", ")+")")
+			args = append(args, exactHosts...)
+		}
+		hostClause := strings.Join(hostParts, " OR ")
+		if len(hostParts) > 1 {
+			hostClause = "(" + hostClause + ")"
+		}
+		parts = append(parts, hostClause)
 	} else if trimmed := strings.TrimSpace(filter.Host); trimmed != "" {
 		parts = append(parts, "host LIKE ?")
 		args = append(args, util.EscapeLike(trimmed)+"%")

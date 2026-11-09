@@ -150,4 +150,38 @@ describe('MemberAddDialog advanced domain picker', () => {
     fireEvent.click(screen.getByRole('button', { name: '添加并同步' }));
     expect(onSubmit).toHaveBeenCalledWith([2], false);
   });
+
+  it('searches and selects a wildcard domain without treating it as a URL', () => {
+    const onSubmit = vi.fn();
+    render(
+      <NextIntlClientProvider
+        locale='zh-CN'
+        messages={zhCN}
+        timeZone='Asia/Shanghai'
+      >
+        <MemberAddDialog
+          open
+          onOpenChange={vi.fn()}
+          domains={[
+            ...domains,
+            { ...domains[0], id: 5, domain: '*.s3.example.com' },
+          ]}
+          defaultProxied={false}
+          pending={false}
+          onSubmit={onSubmit}
+        />
+      </NextIntlClientProvider>,
+    );
+
+    fireEvent.change(screen.getByPlaceholderText('搜索域名或顶级域…'), {
+      target: { value: '*.s3' },
+    });
+    expect(screen.queryByText('www.example.com')).not.toBeInTheDocument();
+    const label = screen.getByText('*.s3.example.com').closest('label');
+    expect(label).toBeTruthy();
+    fireEvent.click(within(label as HTMLElement).getByRole('checkbox'));
+    fireEvent.click(screen.getByRole('button', { name: '添加并同步' }));
+    expect(onSubmit).toHaveBeenCalledWith([5], false);
+    expect(screen.queryByRole('link')).not.toBeInTheDocument();
+  });
 });

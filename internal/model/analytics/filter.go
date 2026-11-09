@@ -24,7 +24,7 @@ type NodeAccessLogFilter struct {
 	NodeID     string
 	RemoteAddr string
 	Host       string
-	// Hosts exact-matches any host (case-insensitive). Prefer over Host for multi-domain scopes.
+	// Hosts 优先于 Host：具体域名精确匹配（忽略大小写），*.suffix 匹配非空、多层子域名但不含 suffix 本身。
 	Hosts []string
 	Path  string
 	// StatusCode filters by exact HTTP status code when > 0.
