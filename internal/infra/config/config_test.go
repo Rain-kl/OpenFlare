@@ -47,3 +47,24 @@ func TestApplyClickHouseDefaultsEnablesWhenConfigured(t *testing.T) {
 		t.Fatalf("hosts default not applied: %v", cfg.ClickHouse.Hosts)
 	}
 }
+
+// TestOTLPProtocolPrecedence covers signal-specific, general, YAML and default settings.
+func TestOTLPProtocolPrecedence(t *testing.T) {
+	for _, tt := range []struct{ name, signal, general, configured, want string }{
+		{name: "default"},
+		{name: "yaml", configured: "http/protobuf", want: "http/protobuf"},
+		{name: "general", general: "http/protobuf", configured: "grpc", want: "http/protobuf"},
+		{name: "signal", signal: " HTTP/PROTOBUF ", general: "grpc", want: "http/protobuf"},
+		{name: "empty_signal", signal: " ", general: "grpc", configured: "http/protobuf", want: "grpc"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv("OTEL_EXPORTER_OTLP_TRACES_PROTOCOL", tt.signal)
+			t.Setenv("OTEL_EXPORTER_OTLP_PROTOCOL", tt.general)
+			cfg := &configModel{Otel: otelConfig{ExportProtocol: tt.configured}}
+			applyEnvOverrides(cfg)
+			if cfg.Otel.ExportProtocol != tt.want {
+				t.Errorf("OTLP protocol = %q, want %q", cfg.Otel.ExportProtocol, tt.want)
+			}
+		})
+	}
+}

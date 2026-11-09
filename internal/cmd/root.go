@@ -33,9 +33,10 @@ var rootCmd = &cobra.Command{
 			Compress:   config.Config.Log.Compress,
 		})
 		trace.Init(trace.Config{
-			AppName:      config.Config.App.AppName,
-			SamplingRate: config.Config.Otel.SamplingRate,
-			TracerName:   config.Config.Otel.TracerName,
+			AppName:        config.Config.App.AppName,
+			SamplingRate:   config.Config.Otel.SamplingRate,
+			TracerName:     config.Config.Otel.TracerName,
+			ExportProtocol: config.Config.Otel.ExportProtocol,
 		})
 	},
 	PreRun: func(_ *cobra.Command, _ []string) {

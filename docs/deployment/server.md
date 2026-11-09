@@ -272,6 +272,22 @@ docker compose up -d
 ```
 启动后可以通过访问 `http://localhost:16686` 打开 Jaeger 监控端查看系统 Span 链路。
 
+### 自定义 OpenTelemetry 接收端
+
+链路追踪默认使用 OTLP/gRPC。对于支持 OTLP/HTTP protobuf 的接收端，可在 Server 容器的环境变量中配置：
+
+```yaml
+OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
+OTEL_EXPORTER_OTLP_ENDPOINT: https://collector.example.com
+OTEL_SAMPLING_RATE: "0.1"
+```
+
+标准 SDK 会在通用 `OTEL_EXPORTER_OTLP_ENDPOINT` 的路径后追加 `/v1/traces`；例如上述配置发送到 `https://collector.example.com/v1/traces`。如果接收端使用自定义路径，请设置完整的 `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT`，SDK 将直接使用该 URL，不再追加路径。链路专用的 `OTEL_EXPORTER_OTLP_TRACES_PROTOCOL` 优先于通用协议配置；两者均未配置时使用 `otel.export_protocol`，缺省为 `grpc`。协议在启动配置层统一解析，再传入追踪组件。
+
+需要鉴权或其他请求头时，使用可选的 `OTEL_EXPORTER_OTLP_HEADERS`，格式为 `key=value,key2=value2`，值按标准进行百分号编码，例如 `X-API-Key=example-key,X-Client-Name=example%20client`。链路专用的 `OTEL_EXPORTER_OTLP_TRACES_HEADERS` 优先于通用请求头配置。应用不预设鉴权方案；实际请求头与凭据由部署环境提供，不要将真实凭据写入仓库。
+
+协议、地址和请求头由 OpenTelemetry SDK 按[标准 OTLP 配置](https://opentelemetry.io/docs/specs/otel/protocol/exporter/)处理，不依赖特定部署平台或观测后端。
+
 ---
 
 ## 首次登录
