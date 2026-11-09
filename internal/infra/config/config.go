@@ -273,6 +273,14 @@ func applyEnvOverrides(c *configModel) {
 	c.Log.Output = envStr("LOG_OUTPUT", c.Log.Output)
 
 	// ─── OTel ───
+	protocol := strings.TrimSpace(envStr("OTEL_EXPORTER_OTLP_TRACES_PROTOCOL", ""))
+	if protocol == "" {
+		protocol = strings.TrimSpace(envStr("OTEL_EXPORTER_OTLP_PROTOCOL", ""))
+	}
+	if protocol == "" {
+		protocol = c.Otel.ExportProtocol
+	}
+	c.Otel.ExportProtocol = strings.ToLower(strings.TrimSpace(protocol))
 	c.Otel.SamplingRate = envFloat64("OTEL_SAMPLING_RATE", c.Otel.SamplingRate)
 	c.Otel.TracerName = envStr("OTEL_TRACER_NAME", c.Otel.TracerName)
 

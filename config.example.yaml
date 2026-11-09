@@ -95,6 +95,7 @@ worker:
 
 # ─── OpenTelemetry Tracing ──────────────────────────────────────────────────────
 otel:
+  export_protocol: "grpc"       # grpc 或 http/protobuf；OTEL_EXPORTER_OTLP_TRACES_PROTOCOL 优先于通用 OTLP 协议变量
   sampling_rate: 0.0           # Trace sampling rate (0.0 – 1.0)
   tracer_name: "github.com/Rain-kl/OpenFlare" # Global tracer instrumentation name
 
