@@ -163,9 +163,13 @@ func ImportLegacyTx(ctx context.Context, tx *sql.Tx, postgres bool) (report Impo
 // Certificate associations and route bindings remain attached to the imported row.
 func normalizeLegacyDomain(raw string) (string, error) {
 	domain := strings.ToLower(strings.TrimSpace(raw))
-	ascii, err := idna.ToASCII(domain)
+	host := strings.TrimPrefix(domain, "*.")
+	ascii, err := idna.Lookup.ToASCII(host)
 	if err != nil {
 		return "", errors.New(errDomainInvalid)
+	}
+	if host != domain {
+		ascii = "*." + ascii
 	}
 	return normalizeDomain(ascii)
 }

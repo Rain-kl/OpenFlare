@@ -248,3 +248,17 @@ func TestNormalizeLegacyIDNRoot(t *testing.T) {
 		t.Errorf("zoneRoot(%q) = %q, %v; want example.xn--55qx5d.cn", domain, root, err)
 	}
 }
+
+// TestNormalizeLegacyIDNCanonicalForms keeps Unicode normalization and wildcard identity consistent.
+func TestNormalizeLegacyIDNCanonicalForms(t *testing.T) {
+	for _, raw := range []string{"api.bücher.de", "api.bu\u0308cher.de", "API.XN--BCHER-KVA.DE"} {
+		domain, err := normalizeLegacyDomain(raw)
+		if err != nil || domain != "api.xn--bcher-kva.de" {
+			t.Errorf("normalizeLegacyDomain(%q) = %q, %v; want api.xn--bcher-kva.de", raw, domain, err)
+		}
+	}
+	domain, err := normalizeLegacyDomain("*.bücher.de")
+	if err != nil || domain != "*.xn--bcher-kva.de" {
+		t.Errorf("normalizeLegacyDomain(*.bücher.de) = %q, %v; want *.xn--bcher-kva.de", domain, err)
+	}
+}
