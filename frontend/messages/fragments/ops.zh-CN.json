@@ -48,6 +48,11 @@
       "noNodesOverlay": "暂无节点，接入后将展示地理分布"
     },
     "map": {
+      "geolocation": "地理分布",
+      "viewMode": "地图视图",
+      "sourceRanking": "来源国家排行",
+      "noSources": "暂无来源国家数据",
+      "globeLabel": "点阵地球，可拖动旋转，方向键调整视角",
       "sourceRequests": "最近 24 小时来源请求 {count}",
       "presetPin": "预设落点",
       "requestsErrors": "请求量 {requests} · 错误数 {errors}",

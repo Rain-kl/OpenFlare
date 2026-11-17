@@ -12,6 +12,9 @@ import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
+import { DottedGlobe } from './dotted-globe';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { Progress } from '@/components/ui/progress';
 import { EmptyState } from '@/components/layout/empty';
 import type {
   DashboardNodeHealth,
@@ -271,7 +274,7 @@ function ensureWorldMapRegistered() {
   }
 }
 
-export function WorldStageMap({
+function FlatWorldMap({
   nodes,
   sourceCountries,
 }: {
@@ -670,6 +673,110 @@ export function WorldStageMap({
           />
         </div>
       )}
+    </div>
+  );
+}
+
+export function WorldStageMap(props: {
+  nodes: DashboardNodeHealth[];
+  sourceCountries: DistributionItem[];
+}) {
+  const t = useTranslations('dashboard.map');
+  const tn = useTranslations('nodes');
+  const [mode, setMode] = useState('3d');
+  const countries = [...props.sourceCountries]
+    .filter((item) => item.value > 0)
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 7);
+  const maximum = Math.max(1, ...countries.map((item) => item.value));
+  return (
+    <div className='flex h-full min-h-0 flex-col gap-3'>
+      <div className='flex items-center justify-between gap-2'>
+        <span className='text-sm font-medium'>{t('geolocation')}</span>
+        <ToggleGroup
+          type='single'
+          variant='outline'
+          size='sm'
+          value={mode}
+          onValueChange={(value) => {
+            if (value) setMode(value);
+          }}
+          aria-label={t('viewMode')}
+        >
+          <ToggleGroupItem value='3d'>3D</ToggleGroupItem>
+          <ToggleGroupItem value='2d'>2D</ToggleGroupItem>
+        </ToggleGroup>
+      </div>
+      <div className='grid min-h-0 flex-1 gap-4 sm:grid-cols-[minmax(0,1fr)_10rem]'>
+        <div className='relative min-h-[240px] min-w-0'>
+          {mode === '3d' ? (
+            <DottedGlobe
+              nodes={props.nodes.map((node, index) => {
+                const { coordinates, derivedFromGeo } = getNodeCoordinates(
+                  node,
+                  index,
+                );
+                return {
+                  id: node.id,
+                  name: node.name,
+                  coordinates,
+                  tone: getNodeTone(node),
+                  detail: [
+                    node.geo_name || node.name,
+                    ...(derivedFromGeo ? [] : [t('presetPin')]),
+                    t('requestsErrors', {
+                      requests: node.request_count.toLocaleString(
+                        getFormattingLocale(),
+                      ),
+                      errors: node.error_count.toLocaleString(
+                        getFormattingLocale(),
+                      ),
+                    }),
+                    t('eventsStatus', {
+                      events: node.active_event_count,
+                      status: getNodeStatusLabel(node.status, tn),
+                    }),
+                    t('openrestyStatus', {
+                      status: getOpenrestyStatusLabel(
+                        node.openresty_status,
+                        tn,
+                      ),
+                    }),
+                  ].join(' · '),
+                };
+              })}
+              countries={props.sourceCountries}
+            />
+          ) : (
+            <FlatWorldMap {...props} />
+          )}
+        </div>
+        <aside
+          className='flex flex-col justify-center gap-4 rounded-lg bg-muted/40 p-4'
+          aria-label={t('sourceRanking')}
+        >
+          {countries.length ? (
+            countries.map((country) => (
+              <div key={country.key} className='flex flex-col gap-2'>
+                <div className='flex items-center justify-between gap-2 text-xs'>
+                  <span className='truncate' title={country.key}>
+                    {country.key}
+                  </span>
+                  <span className='font-semibold tabular-nums'>
+                    {country.value.toLocaleString(getFormattingLocale())}
+                  </span>
+                </div>
+                <Progress
+                  value={(country.value / maximum) * 100}
+                  className='h-1'
+                />
+              </div>
+            ))
+          ) : (
+            <p className='text-xs text-muted-foreground'>{t('noSources')}</p>
+          )}
+        </aside>
+      </div>
     </div>
   );
 }

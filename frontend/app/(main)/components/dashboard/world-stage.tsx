@@ -292,7 +292,7 @@ export function WorldStage({
           <div className='flex min-w-0 items-center justify-center rounded-lg border border-dashed bg-muted/10 p-3'>
             <div
               ref={mapViewportRef}
-              className='relative aspect-[5/3] min-h-[260px] w-full max-w-[720px] overflow-hidden rounded-md bg-background/60 sm:min-h-0'
+              className='relative min-h-[520px] w-full sm:min-h-[400px] overflow-hidden rounded-md bg-background/60'
             >
               {shouldRenderMap ? (
                 <WorldStageMap

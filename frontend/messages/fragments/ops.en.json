@@ -48,6 +48,11 @@
       "noNodesOverlay": "No nodes yet. Geographic distribution will appear after nodes join."
     },
     "map": {
+      "geolocation": "Geo location",
+      "viewMode": "Map view",
+      "sourceRanking": "Top source countries",
+      "noSources": "No source country data",
+      "globeLabel": "Dotted globe. Drag to rotate or use arrow keys.",
       "sourceRequests": "Source requests in the last 24 hours {count}",
       "presetPin": "Preset pin",
       "requestsErrors": "Requests {requests} · errors {errors}",
