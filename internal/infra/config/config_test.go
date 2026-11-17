@@ -5,6 +5,22 @@ package config
 
 import "testing"
 
+func TestApplyDefaultsAppAddr(t *testing.T) {
+	cfg := &configModel{}
+	applyDefaults(cfg)
+
+	if cfg.App.Addr != ":3000" {
+		t.Fatalf("App.Addr = %q, want %q", cfg.App.Addr, ":3000")
+	}
+
+	custom := &configModel{App: appConfig{Addr: "127.0.0.1:8080"}}
+	applyDefaults(custom)
+
+	if custom.App.Addr != "127.0.0.1:8080" {
+		t.Fatalf("App.Addr = %q, want %q", custom.App.Addr, "127.0.0.1:8080")
+	}
+}
+
 func TestApplyEnvOverridesRedisMaintNotifications(t *testing.T) {
 	t.Setenv("REDIS_MAINT_NOTIFICATIONS", "true")
 

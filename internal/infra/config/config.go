@@ -111,6 +111,9 @@ func init() {
 }
 
 func applyDefaults(c *configModel) {
+	if strings.TrimSpace(c.App.Addr) == "" {
+		c.App.Addr = ":3000"
+	}
 	if c.App.SessionAge <= 0 {
 		c.App.SessionAge = 86400
 	}
