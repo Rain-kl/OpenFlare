@@ -25,7 +25,7 @@ ENV NEXT_PUBLIC_APP_BUILD_DATE=${BUILD_DATE}
 
 WORKDIR /app
 
-COPY frontend/package.json frontend/pnpm-lock.yaml ./
+COPY frontend/package.json frontend/pnpm-lock.yaml frontend/pnpm-workspace.yaml ./
 RUN pnpm install --frozen-lockfile
 
 COPY frontend/ ./
