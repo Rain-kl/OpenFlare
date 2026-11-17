@@ -88,7 +88,6 @@ export default function OpenFlareDashboardPage() {
           <WorldStage
             summary={overview.summary}
             traffic={overview.traffic}
-            capacity={overview.capacity}
             nodes={overview.nodes}
             sourceCountries={overview.distributions.source_countries}
           />

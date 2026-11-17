@@ -3,17 +3,9 @@
 import dynamic from 'next/dynamic';
 import { type ComponentType, useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import {
-  Activity,
-  Cpu,
-  Globe2,
-  HardDrive,
-  MemoryStick,
-  Network,
-  Server,
-  ShieldCheck,
-} from 'lucide-react';
+import { Activity, Globe2, Network, Server, ShieldCheck } from 'lucide-react';
 
+import { getFormattingLocale } from '@/i18n/format';
 import { EmptyState } from '@/components/layout/empty';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -25,7 +17,6 @@ import {
 } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import type {
-  DashboardCapacity,
   DashboardNodeHealth,
   DashboardSummary,
   DashboardTraffic,
@@ -41,7 +32,7 @@ const WorldStageMap = dynamic(
 );
 
 const LEGEND_ITEMS = [
-  { dot: 'bg-blue-500', key: 'legendSource' },
+  { dot: 'bg-primary', key: 'legendSource' },
   { dot: 'bg-emerald-500', key: 'legendHealthy' },
   { dot: 'bg-amber-500', key: 'legendPressure' },
   { dot: 'bg-destructive', key: 'legendUnhealthy' },
@@ -84,52 +75,19 @@ function SummaryMetric({
   );
 }
 
-function DetailMetric({
-  label,
-  value,
-  hint,
-  icon: Icon,
-  progress,
-}: {
-  label: string;
-  value: string;
-  hint: string;
-  icon: ComponentType<{ className?: string }>;
-  progress?: number;
-}) {
-  return (
-    <div className='flex min-w-0 flex-col gap-1 rounded-lg border border-dashed bg-background/60 px-3 py-2.5'>
-      <div className='flex items-start justify-between gap-3'>
-        <div className='min-w-0'>
-          <p className='truncate text-[11px] text-muted-foreground'>{label}</p>
-          <p className='mt-1 text-lg font-semibold tabular-nums leading-none tracking-tight'>
-            {value}
-          </p>
-        </div>
-        <Icon className='size-3.5 shrink-0 text-muted-foreground' />
-      </div>
-      {typeof progress === 'number' ? (
-        <Progress value={progress} aria-label={label} className='h-1' />
-      ) : null}
-      <p className='truncate text-[10px] text-muted-foreground'>{hint}</p>
-    </div>
-  );
-}
-
 export function WorldStage({
   summary,
   traffic,
-  capacity,
   nodes,
   sourceCountries,
 }: {
   summary: DashboardSummary;
   traffic: DashboardTraffic;
-  capacity: DashboardCapacity;
   nodes: DashboardNodeHealth[];
   sourceCountries: DistributionItem[];
 }) {
   const t = useTranslations('dashboard.world');
+  const tm = useTranslations('dashboard.map');
   const mapViewportRef = useRef<HTMLDivElement | null>(null);
   const [shouldRenderMap, setShouldRenderMap] = useState(false);
 
@@ -222,31 +180,11 @@ export function WorldStage({
     },
   ] as const;
 
-  const detailMetrics = [
-    {
-      label: t('avgCpu'),
-      value: formatPercent(capacity.average_cpu_usage_percent),
-      hint: t('highCount', { count: capacity.high_cpu_nodes }),
-      icon: Cpu,
-      progress: capacity.average_cpu_usage_percent,
-    },
-    {
-      label: t('avgMemory'),
-      value: formatPercent(capacity.average_memory_usage_percent),
-      hint: t('highCount', { count: capacity.high_memory_nodes }),
-      icon: MemoryStick,
-      progress: capacity.average_memory_usage_percent,
-    },
-    {
-      label: t('highStorage'),
-      value: formatCompactNumber(capacity.high_storage_nodes),
-      hint: t('offlinePending', {
-        offline: summary.offline_nodes,
-        pending: summary.pending_nodes,
-      }),
-      icon: HardDrive,
-    },
-  ] as const;
+  const countries = [...sourceCountries]
+    .filter((item) => item.key && item.value > 0)
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 7);
+  const maximum = Math.max(1, ...countries.map((item) => item.value));
 
   return (
     <Card className='overflow-hidden border-dashed shadow-none'>
@@ -288,11 +226,11 @@ export function WorldStage({
           ))}
         </div>
 
-        <div className='grid gap-4 xl:grid-cols-[minmax(0,1fr)_18rem] xl:items-stretch'>
-          <div className='flex min-w-0 items-center justify-center rounded-lg border border-dashed bg-muted/10 p-3'>
+        <div className='grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-stretch'>
+          <div className='min-w-0 rounded-lg border border-dashed bg-muted/10 p-3'>
             <div
               ref={mapViewportRef}
-              className='relative min-h-[520px] w-full sm:min-h-[400px] overflow-hidden rounded-md bg-background/60'
+              className='relative h-[360px] w-full overflow-hidden sm:h-[440px] lg:h-[480px]'
             >
               {shouldRenderMap ? (
                 <WorldStageMap
@@ -311,7 +249,7 @@ export function WorldStage({
 
               {shouldRenderMap && nodes.length === 0 ? (
                 <div className='pointer-events-none absolute inset-x-3 bottom-2 z-10'>
-                  <p className='rounded-md border border-dashed bg-background/90 px-2.5 py-1.5 text-[10px] text-muted-foreground backdrop-blur-sm'>
+                  <p className='text-center text-xs text-muted-foreground'>
                     {t('noNodesOverlay')}
                   </p>
                 </div>
@@ -319,11 +257,40 @@ export function WorldStage({
             </div>
           </div>
 
-          <div className='grid gap-2 sm:grid-cols-2 xl:grid-cols-1'>
-            {detailMetrics.map((metric) => (
-              <DetailMetric key={metric.label} {...metric} />
-            ))}
-          </div>
+          <aside
+            className='flex min-w-0 flex-col rounded-lg border border-dashed bg-muted/10 p-4'
+            aria-label={tm('sourceRanking')}
+          >
+            <h3 className='text-sm font-medium'>{tm('sourceRanking')}</h3>
+            {countries.length ? (
+              <ol className='flex flex-1 flex-col justify-center gap-5 py-6'>
+                {countries.map((country) => (
+                  <li key={country.key} className='flex min-w-0 flex-col gap-2'>
+                    <div className='flex items-center justify-between gap-3 text-sm'>
+                      <span className='min-w-0 truncate' title={country.key}>
+                        {country.key}
+                      </span>
+                      <span className='shrink-0 font-semibold tabular-nums'>
+                        {country.value.toLocaleString(getFormattingLocale())}
+                      </span>
+                    </div>
+                    <Progress
+                      value={(country.value / maximum) * 100}
+                      aria-label={country.key}
+                      className='h-1'
+                    />
+                  </li>
+                ))}
+              </ol>
+            ) : (
+              <EmptyState
+                title={tm('noSources')}
+                icon={Globe2}
+                iconSize='sm'
+                className='min-h-48 flex-1 px-2'
+              />
+            )}
+          </aside>
         </div>
       </CardContent>
     </Card>

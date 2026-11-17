@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { useTheme } from 'next-themes';
+import { useMapPalette } from './use-map-palette';
 import Link from 'next/link';
 import type { DistributionItem } from '@/lib/services/openflare';
 import world from './data/world-geo.json';
@@ -80,7 +80,7 @@ export function DottedGlobe({
   countries: DistributionItem[];
 }) {
   const t = useTranslations('dashboard.map');
-  const { resolvedTheme } = useTheme();
+  const palette = useMapPalette();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const drag = useRef<{ x: number; y: number; view: Coordinate } | null>(null);
   const [view, setView] = useState<Coordinate>([105, 20]);
@@ -90,7 +90,7 @@ export function DottedGlobe({
   );
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    if (!canvas || !palette) return;
     const draw = () => {
       const size = canvas.clientWidth,
         ratio = Math.min(window.devicePixelRatio || 1, 2);
@@ -100,14 +100,11 @@ export function DottedGlobe({
       if (!ctx || !size) return;
       ctx.scale(ratio, ratio);
       const center = size / 2,
-        radius = size * 0.39,
-        dark = resolvedTheme === 'dark';
-      for (const scale of [1.48, 1.25]) {
+        radius = size * 0.43;
+      for (const scale of [1.14, 1.07]) {
         ctx.beginPath();
         ctx.arc(center, center, radius * scale, 0, Math.PI * 2);
-        ctx.fillStyle = dark
-          ? 'rgba(148,163,184,0.025)'
-          : 'rgba(148,163,184,0.045)';
+        ctx.fillStyle = `${palette.border}30`;
         ctx.fill();
       }
       const gradient = ctx.createRadialGradient(
@@ -118,27 +115,20 @@ export function DottedGlobe({
         center,
         radius,
       );
-      gradient.addColorStop(0, dark ? '#16666c' : '#b3f5ed');
-      gradient.addColorStop(1, dark ? '#093d4c' : '#69b8c6');
+      gradient.addColorStop(0, palette.background);
+      gradient.addColorStop(1, palette.surface);
       ctx.beginPath();
       ctx.arc(center, center, radius, 0, Math.PI * 2);
       ctx.fillStyle = gradient;
-      ctx.shadowColor = 'rgba(40,170,175,0.2)';
-      ctx.shadowBlur = size * 0.05;
       ctx.fill();
-      ctx.shadowBlur = 0;
       const maximum = Math.max(1, ...sources.values());
       for (const dot of landDots) {
         const p = project(dot.coordinate, view);
         if (p.z <= 0) continue;
         const value = sources.get(dot.country) || 0;
-        ctx.globalAlpha = 0.45 + p.z * 0.55;
-        ctx.fillStyle =
-          value > 0
-            ? `rgba(0,160,160,${0.45 + (value / maximum) * 0.55})`
-            : dark
-              ? '#b9e9e5'
-              : '#ffffff';
+        ctx.globalAlpha =
+          value > 0 ? 0.5 + (value / maximum) * 0.5 : 0.25 + p.z * 0.4;
+        ctx.fillStyle = value > 0 ? palette.source : palette.land;
         ctx.beginPath();
         ctx.arc(
           center + p.x * radius,
@@ -155,10 +145,13 @@ export function DottedGlobe({
     const observer = new ResizeObserver(draw);
     observer.observe(canvas);
     return () => observer.disconnect();
-  }, [view, sources, resolvedTheme]);
+  }, [view, sources, palette]);
   return (
-    <div className='relative flex h-full items-center justify-center overflow-hidden'>
-      <div className='relative aspect-square w-full max-w-[520px]'>
+    <div
+      className='absolute inset-0 flex items-center justify-center overflow-hidden'
+      style={{ containerType: 'size' }}
+    >
+      <div className='relative size-[min(100cqw,100cqh)]'>
         <canvas
           ref={canvasRef}
           className='aspect-square w-full touch-none cursor-grab active:cursor-grabbing focus-visible:outline focus-visible:outline-ring'
@@ -214,8 +207,8 @@ export function DottedGlobe({
               title={`${node.name}\n${node.detail}`}
               className='absolute size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-background ring-4 ring-background/30 focus-visible:outline focus-visible:outline-ring'
               style={{
-                left: `${50 + p.x * 39}%`,
-                top: `${50 + p.y * 39}%`,
+                left: `${50 + p.x * 43}%`,
+                top: `${50 + p.y * 43}%`,
                 backgroundColor:
                   node.tone === 'healthy'
                     ? '#10b981'

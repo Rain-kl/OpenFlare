@@ -13,8 +13,8 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { DottedGlobe } from './dotted-globe';
+import { useMapPalette } from './use-map-palette';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { Progress } from '@/components/ui/progress';
 import { EmptyState } from '@/components/layout/empty';
 import type {
   DashboardNodeHealth,
@@ -108,10 +108,6 @@ type CountryRegionDatum = {
 
 let worldMapRegistrationAttempted = false;
 let worldMapRegistrationSucceeded = false;
-
-const baseWorldMapLayoutSizePercent = 118;
-const baseWorldMapZoom = 1;
-const worldMapAspectRatio = 5 / 3;
 
 function buildNodeDetailHref(id?: number | null) {
   if (!id) {
@@ -285,6 +281,7 @@ function FlatWorldMap({
   const tn = useTranslations('nodes');
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === 'dark';
+  const themePalette = useMapPalette();
   const router = useRouter();
   const chartContainerRef = useRef<HTMLDivElement | null>(null);
   const [mapReady, setMapReady] = useState(false);
@@ -346,9 +343,9 @@ function FlatWorldMap({
     () =>
       isDark
         ? {
-            areaColor: '#1e293b',
-            borderColor: 'rgba(148,163,184,0.32)',
-            labelColor: '#e2e8f0',
+            areaColor: themePalette?.surface ?? '#1e293b',
+            borderColor: themePalette?.border ?? 'rgba(148,163,184,0.32)',
+            labelColor: themePalette?.label ?? '#e2e8f0',
             healthyColor: '#34d399',
             warningColor: '#fbbf24',
             dangerColor: '#f87171',
@@ -357,9 +354,9 @@ function FlatWorldMap({
             dangerBorder: '#fca5a5',
           }
         : {
-            areaColor: '#e2e8f0',
-            borderColor: 'rgba(100,116,139,0.45)',
-            labelColor: '#18181b',
+            areaColor: themePalette?.surface ?? '#e2e8f0',
+            borderColor: themePalette?.border ?? 'rgba(100,116,139,0.45)',
+            labelColor: themePalette?.label ?? '#18181b',
             healthyColor: '#10b981',
             warningColor: '#f59e0b',
             dangerColor: '#ef4444',
@@ -367,7 +364,7 @@ function FlatWorldMap({
             warningBorder: '#fcd34d',
             dangerBorder: '#fca5a5',
           },
-    [isDark],
+    [isDark, themePalette],
   );
 
   const mapNodes = useMemo<MapNodeDatum[]>(
@@ -432,12 +429,13 @@ function FlatWorldMap({
         const intensity = Math.max(0.18, item.value / maxRequests);
         const areaOpacity = Number((0.14 + intensity * 0.58).toFixed(3));
         const borderOpacity = Number((0.22 + intensity * 0.48).toFixed(3));
-        const areaColor = isDark
-          ? `rgba(96, 165, 250, ${areaOpacity})`
-          : `rgba(59, 130, 246, ${areaOpacity})`;
-        const borderColor = isDark
-          ? `rgba(147, 197, 253, ${borderOpacity})`
-          : `rgba(59, 130, 246, ${borderOpacity})`;
+        const sourceColor = themePalette?.source ?? '#3b82f6';
+        const areaColor = `${sourceColor}${Math.round(areaOpacity * 255)
+          .toString(16)
+          .padStart(2, '0')}`;
+        const borderColor = `${sourceColor}${Math.round(borderOpacity * 255)
+          .toString(16)
+          .padStart(2, '0')}`;
 
         return {
           name: item.key,
@@ -454,29 +452,11 @@ function FlatWorldMap({
           },
         };
       });
-  }, [isDark, sourceCountries]);
+  }, [themePalette, sourceCountries]);
 
-  const responsiveMapScale = useMemo(() => {
-    const { width, height } = containerSize;
-    if (width <= 0 || height <= 0) {
-      return 1;
-    }
-
-    const expectedWidth = height * worldMapAspectRatio;
-    const fitWidth = Math.min(width, expectedWidth);
-    const widthScale = Math.min(Math.max(fitWidth / 180, 0.72), 1.08);
-    const heightScale = Math.min(Math.max(height / 252, 0.72), 1.08);
-
-    return Number(Math.min(widthScale, heightScale).toFixed(3));
-  }, [containerSize]);
-
-  const computedLayoutSize = useMemo(
-    () => `${Math.round(baseWorldMapLayoutSizePercent * responsiveMapScale)}%`,
-    [responsiveMapScale],
-  );
-  const computedZoom = useMemo(
-    () => Number((baseWorldMapZoom * responsiveMapScale).toFixed(3)),
-    [responsiveMapScale],
+  const computedLayoutSize = Math.min(
+    containerSize.width * 0.94,
+    containerSize.height * 1.8,
   );
 
   const mapOption = useMemo<EChartsCoreOption>(
@@ -545,10 +525,10 @@ function FlatWorldMap({
         silent: true,
         layoutCenter: ['50%', '50%'],
         layoutSize: computedLayoutSize,
-        zoom: computedZoom,
+        zoom: 1,
         scaleLimit: {
-          min: Math.max(Number((computedZoom * 0.78).toFixed(3)), 0.35),
-          max: Math.max(Number((computedZoom * 2.2).toFixed(3)), 1.4),
+          min: 0.8,
+          max: 2.5,
         },
         regions: countryRegions,
         itemStyle: {
@@ -586,10 +566,7 @@ function FlatWorldMap({
                 ? value[2]
                 : 1;
             const responsiveBase = 8 + Math.log10(size + 1) * 3.6;
-            return Math.max(
-              7,
-              Math.min(18, responsiveBase * Math.max(responsiveMapScale, 0.88)),
-            );
+            return Math.max(7, Math.min(18, responsiveBase));
           },
           label: {
             show: false,
@@ -617,17 +594,7 @@ function FlatWorldMap({
         },
       ],
     }),
-    [
-      computedLayoutSize,
-      computedZoom,
-      countryRegions,
-      isDark,
-      mapNodes,
-      mapPalette,
-      responsiveMapScale,
-      t,
-      tn,
-    ],
+    [computedLayoutSize, countryRegions, isDark, mapNodes, mapPalette, t, tn],
   );
 
   if (!mapReady) {
@@ -684,11 +651,6 @@ export function WorldStageMap(props: {
   const t = useTranslations('dashboard.map');
   const tn = useTranslations('nodes');
   const [mode, setMode] = useState('3d');
-  const countries = [...props.sourceCountries]
-    .filter((item) => item.value > 0)
-    .sort((a, b) => b.value - a.value)
-    .slice(0, 7);
-  const maximum = Math.max(1, ...countries.map((item) => item.value));
   return (
     <div className='flex h-full min-h-0 flex-col gap-3'>
       <div className='flex items-center justify-between gap-2'>
@@ -707,75 +669,45 @@ export function WorldStageMap(props: {
           <ToggleGroupItem value='2d'>2D</ToggleGroupItem>
         </ToggleGroup>
       </div>
-      <div className='grid min-h-0 flex-1 gap-4 sm:grid-cols-[minmax(0,1fr)_10rem]'>
-        <div className='relative min-h-[240px] min-w-0'>
-          {mode === '3d' ? (
-            <DottedGlobe
-              nodes={props.nodes.map((node, index) => {
-                const { coordinates, derivedFromGeo } = getNodeCoordinates(
-                  node,
-                  index,
-                );
-                return {
-                  id: node.id,
-                  name: node.name,
-                  coordinates,
-                  tone: getNodeTone(node),
-                  detail: [
-                    node.geo_name || node.name,
-                    ...(derivedFromGeo ? [] : [t('presetPin')]),
-                    t('requestsErrors', {
-                      requests: node.request_count.toLocaleString(
-                        getFormattingLocale(),
-                      ),
-                      errors: node.error_count.toLocaleString(
-                        getFormattingLocale(),
-                      ),
-                    }),
-                    t('eventsStatus', {
-                      events: node.active_event_count,
-                      status: getNodeStatusLabel(node.status, tn),
-                    }),
-                    t('openrestyStatus', {
-                      status: getOpenrestyStatusLabel(
-                        node.openresty_status,
-                        tn,
-                      ),
-                    }),
-                  ].join(' · '),
-                };
-              })}
-              countries={props.sourceCountries}
-            />
-          ) : (
-            <FlatWorldMap {...props} />
-          )}
-        </div>
-        <aside
-          className='flex flex-col justify-center gap-4 rounded-lg bg-muted/40 p-4'
-          aria-label={t('sourceRanking')}
-        >
-          {countries.length ? (
-            countries.map((country) => (
-              <div key={country.key} className='flex flex-col gap-2'>
-                <div className='flex items-center justify-between gap-2 text-xs'>
-                  <span className='truncate' title={country.key}>
-                    {country.key}
-                  </span>
-                  <span className='font-semibold tabular-nums'>
-                    {country.value.toLocaleString(getFormattingLocale())}
-                  </span>
-                </div>
-                <Progress
-                  value={(country.value / maximum) * 100}
-                  className='h-1'
-                />
-              </div>
-            ))
-          ) : (
-            <p className='text-xs text-muted-foreground'>{t('noSources')}</p>
-          )}
-        </aside>
+      <div className='relative min-h-0 flex-1'>
+        {mode === '3d' ? (
+          <DottedGlobe
+            nodes={props.nodes.map((node, index) => {
+              const { coordinates, derivedFromGeo } = getNodeCoordinates(
+                node,
+                index,
+              );
+              return {
+                id: node.id,
+                name: node.name,
+                coordinates,
+                tone: getNodeTone(node),
+                detail: [
+                  node.geo_name || node.name,
+                  ...(derivedFromGeo ? [] : [t('presetPin')]),
+                  t('requestsErrors', {
+                    requests: node.request_count.toLocaleString(
+                      getFormattingLocale(),
+                    ),
+                    errors: node.error_count.toLocaleString(
+                      getFormattingLocale(),
+                    ),
+                  }),
+                  t('eventsStatus', {
+                    events: node.active_event_count,
+                    status: getNodeStatusLabel(node.status, tn),
+                  }),
+                  t('openrestyStatus', {
+                    status: getOpenrestyStatusLabel(node.openresty_status, tn),
+                  }),
+                ].join(' · '),
+              };
+            })}
+            countries={props.sourceCountries}
+          />
+        ) : (
+          <FlatWorldMap {...props} />
+        )}
       </div>
     </div>
   );
