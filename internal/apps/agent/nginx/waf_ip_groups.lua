@@ -1,4 +1,5 @@
 local _M = {}
+local ip_matcher = require("waf.ip_matcher")
 
 local current_groups = { groups = {} }
 local current_version
@@ -95,7 +96,7 @@ local function adopt_shared_snapshot_if_changed()
     if type(version) ~= "string" or version == "" or version == current_version then return end
     local snapshot = decode_snapshot(shared:get(raw_snapshot_prefix .. version))
     if not snapshot then return end
-    -- Matchers are compiled lazily in waf.runtime (resty.ipmatcher / fallback index).
+    ip_matcher.prepare_groups(snapshot)
     current_groups = snapshot
     current_version = version
 end

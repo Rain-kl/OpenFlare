@@ -38,6 +38,13 @@ local pow_sessions = ngx.shared.openflare_pow_sessions
 local pow_config_dict = ngx.shared.openflare_pow_config
 local cjson = require "cjson.safe"
 
+function _M.init()
+    require("pow.config")
+    require("pow.page")
+end
+
+_M.prepare_config = policy.prepare
+
 local function session_cookie(value, ttl)
     local cookie = "__openflare_pow=" .. value .. "; Path=/; HttpOnly; SameSite=Lax; Max-Age=" .. tostring(ttl)
     if ngx.var.scheme == "https" then cookie = cookie .. "; Secure" end
@@ -317,11 +324,16 @@ return require("pow.runtime").check()
 //go:embed pow_challenge.lua
 var powChallengeLuaTemplate string
 
-var openRestyPowChallengeLua = strings.NewReplacer(
+//go:embed pow_page.lua
+var powPageLuaTemplate string
+
+var openRestyPowPageLua = strings.NewReplacer(
 	"__POW_EN__", powChallengeEnglish,
 	"__POW_ZH__", powChallengeChinese,
 	"__POW_DEFAULT_HTML__", defaultPoWPageJSON(),
-).Replace(powChallengeLuaTemplate)
+).Replace(powPageLuaTemplate)
+
+var openRestyPowChallengeLua = powChallengeLuaTemplate
 
 func defaultPoWPageJSON() string {
 	raw, _ := json.Marshal(openresty.DefaultPoWPageHTML("shield"))
@@ -450,57 +462,45 @@ ngx.say(cjson.encode({ok = true}))
 
 const openRestyPowPolicyLua = `local M = {}
 
-local function match_ip(remote_ip, ips)
-    if type(ips) ~= "table" or #ips == 0 then return false end
-    for _, ip in ipairs(ips) do
-        if ip == remote_ip then
-            return true
-        end
-    end
-    return false
+local ip_matcher = require "waf.ip_matcher"
+local ip_cache = setmetatable({}, { __mode = "k" })
+local wildcard_cache = setmetatable({}, { __mode = "k" })
+local path_rule_cache = setmetatable({}, { __mode = "k" })
+
+local function matcher_for_list(list)
+    local matcher = ip_cache[list]
+    if matcher then return matcher end
+    local entries = {}
+    for _, ip in ipairs(list.ips or {}) do entries[#entries + 1] = ip end
+    for _, cidr in ipairs(list.ip_cidrs or {}) do entries[#entries + 1] = cidr end
+    matcher = ip_matcher.compile(entries)
+    ip_cache[list] = matcher
+    return matcher
 end
 
-local function match_cidr(remote_ip, cidrs)
-    if type(cidrs) ~= "table" or #cidrs == 0 then return false end
-    for _, cidr in ipairs(cidrs) do
-        local m, err = ngx.re.match(cidr, "^(\\\\d{1,3}\\\\.\\\\d{1,3}\\\\.\\\\d{1,3}\\\\.\\\\d{1,3})/(\\\\d{1,2})$")
-        if m then
-            local mask_bits = tonumber(m[2])
-            if mask_bits and mask_bits >= 0 and mask_bits <= 32 then
-                local function ip_to_num(ip_str)
-                    local parts = {}
-                    for part in string.gmatch(ip_str, "%d+") do
-                        parts[#parts+1] = tonumber(part) or 0
-                    end
-                    if #parts ~= 4 then return 0 end
-                    return parts[1]*16777216 + parts[2]*65536 + parts[3]*256 + parts[4]
-                end
-                local remote_num = ip_to_num(remote_ip)
-                local net_num = ip_to_num(m[1])
-                if mask_bits == 0 then
-                    return true
-                end
-                local mask = math.floor(2^(32 - mask_bits))
-                mask = 4294967296 - mask
-                if bit.band(remote_num, mask) == bit.band(net_num, mask) then
-                    return true
-                end
-            end
-        end
+local function wildcard_pattern(value)
+    return "^" .. string.gsub(value, "([%^%$%(%)%%%.%[%]%+%-%?%*])", function(char)
+        if char == "*" then return ".*" end
+        return "%" .. char
+    end) .. "$"
+end
+
+local function wildcards_for_list(patterns)
+    local compiled = wildcard_cache[patterns]
+    if compiled then return compiled end
+    compiled = {}
+    for _, pattern in ipairs(patterns) do
+        compiled[#compiled + 1] = wildcard_pattern(string.lower(pattern))
     end
-    return false
+    wildcard_cache[patterns] = compiled
+    return compiled
 end
 
 local function match_path(uri, patterns)
     if type(patterns) ~= "table" or #patterns == 0 then return false end
-    for _, pattern in ipairs(patterns) do
-        local ok, match = pcall(ngx.re.match, uri, "^" .. ngx.re.gsub(pattern, "([%^%$%(%)%%%.%[%]%+%-%?])", function(c)
-            if c == "*" then return ".*" end
-            return "%" .. c
-        end) .. "$", "i")
-        if ok and match then
-            return true
-        end
+    local lower_uri = string.lower(uri)
+    for _, pattern in ipairs(wildcards_for_list(patterns)) do
+        if string.match(lower_uri, pattern) then return true end
     end
     return false
 end
@@ -508,7 +508,7 @@ end
 local function match_path_regex(uri, patterns)
     if type(patterns) ~= "table" or #patterns == 0 then return false end
     for _, pattern in ipairs(patterns) do
-        local ok, match = pcall(ngx.re.match, uri, pattern)
+        local ok, match = pcall(ngx.re.find, uri, pattern, "jo")
         if ok and match then
             return true
         end
@@ -528,8 +528,9 @@ end
 
 function M.match_any(remote_ip, ua, uri, list)
     if type(list) ~= "table" then return false end
-    if match_ip(remote_ip, list.ips) then return true end
-    if match_cidr(remote_ip, list.ip_cidrs) then return true end
+    local matcher = matcher_for_list(list)
+    local binary_ip = ngx.var and ngx.var.remote_addr == remote_ip and ngx.var.binary_remote_addr or nil
+    if matcher:match(remote_ip, binary_ip) then return true end
     if match_path(uri, list.paths) then return true end
     if match_path_regex(uri, list.path_regexes) then return true end
     if match_ua(ua, list.user_agents) then return true end
@@ -551,10 +552,11 @@ local function path_matches(uri, rules)
         if rule.type == "exact" and uri == value then return true end
         if rule.type == "prefix" and string.sub(uri, 1, #value) == value then return true end
         if rule.type == "wildcard" then
-            local pattern = "^" .. string.gsub(value, "([%^%$%(%)%%%.%[%]%+%-%?%*])", function(char)
-                if char == "*" then return ".*" end
-                return "%" .. char
-            end) .. "$"
+            local pattern = path_rule_cache[rule]
+            if not pattern then
+                pattern = wildcard_pattern(value)
+                path_rule_cache[rule] = pattern
+            end
             if string.match(uri, pattern) then return true end
         end
         if rule.type == "regex" then
@@ -563,6 +565,19 @@ local function path_matches(uri, rules)
         end
     end
     return false
+end
+
+function M.prepare(config)
+    for _, list in ipairs({config.whitelist or {}, config.blacklist or {}}) do
+        matcher_for_list(list)
+        if type(list.paths) == "table" then wildcards_for_list(list.paths) end
+    end
+    local rules = config.path_rules or {}
+    for _, list in ipairs({rules.whitelist or {}, rules.blacklist or {}}) do
+        for _, rule in ipairs(list) do
+            if rule.type == "wildcard" then path_rule_cache[rule] = wildcard_pattern(rule.value) end
+        end
+    end
 end
 
 function M.should_challenge(uri, rules)
@@ -582,6 +597,7 @@ func ManagedPowLuaFiles() []protocol.SupportFile {
 	return []protocol.SupportFile{
 		{Path: "pow/runtime.lua", Content: openRestyPowRuntimeLua},
 		{Path: "pow/config.lua", Content: openRestyPowConfigLua},
+		{Path: "pow/page.lua", Content: openRestyPowPageLua},
 		{Path: "pow/check.lua", Content: openRestyPowCheckLua},
 		{Path: "pow/challenge.lua", Content: openRestyPowChallengeLua},
 		{Path: "pow/verify.lua", Content: openRestyPowVerifyLua},

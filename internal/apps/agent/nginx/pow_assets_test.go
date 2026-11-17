@@ -39,6 +39,12 @@ ngx={var={host='<img src=x onerror=1>',openflare_waf_site="site",http_accept_lan
 `); err != nil {
 		t.Fatal(err)
 	}
+	if err := state.DoString("package.preload['pow.page'] = function()\n" + openRestyPowPageLua + "\nend\nrequire('pow.page')"); err != nil {
+		t.Fatal(err)
+	}
+	if err := state.DoString(`io.open = function() error("challenge request must not read files") end`); err != nil {
+		t.Fatal(err)
+	}
 	if err := state.DoString(openRestyPowChallengeLua); err != nil {
 		t.Fatalf("challenge.lua(custom page) error = %v", err)
 	}
@@ -129,6 +135,7 @@ ngx={var={openflare_waf_site=test_site,host="example.com",scheme="https"},
 func TestPoWPathPolicy(t *testing.T) {
 	state := lua.NewState()
 	t.Cleanup(state.Close)
+	preloadIPMatcher(t, state)
 	ngx := state.NewTable()
 	re := state.NewTable()
 	re.RawSetString("find", state.NewFunction(func(l *lua.LState) int {
@@ -196,6 +203,104 @@ func TestPoWPathPolicy(t *testing.T) {
 			state.Pop(1)
 			if got != tt.want {
 				t.Errorf("should_challenge(%q, %+v) = %t, want %t", tt.path, tt, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestPoWAddressAndLegacyPathPolicy(t *testing.T) {
+	state := lua.NewState()
+	t.Cleanup(state.Close)
+	preloadIPMatcher(t, state)
+	if err := state.DoString(`ngx = {var = {}, shared = {}, log = function() end}`); err != nil {
+		t.Fatal(err)
+	}
+	chunk, err := state.LoadString(openRestyPowPolicyLua)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := state.CallByParam(lua.P{Fn: chunk, NRet: 1, Protect: true}); err != nil {
+		t.Fatal(err)
+	}
+	policy := state.Get(-1)
+	state.Pop(1)
+	for _, tt := range []struct {
+		name, key, entry, ip, path string
+		want                       bool
+	}{
+		{name: "IPv4 CIDR", key: "ip_cidrs", entry: "192.0.2.0/24", ip: "192.0.2.1", want: true},
+		{name: "IPv4 miss", key: "ip_cidrs", entry: "192.0.2.0/24", ip: "198.51.100.1"},
+		{name: "IPv6 CIDR", key: "ip_cidrs", entry: "2001:db8::/32", ip: "2001:db8:1::1", want: true},
+		{name: "IPv6 miss", key: "ip_cidrs", entry: "2001:db8::/32", ip: "2001:db9::1"},
+		{name: "IPv6 exact canonical", key: "ips", entry: "2001:db8::1", ip: "2001:0db8:0:0:0:0:0:1", want: true},
+		{name: "IPv4 exact", key: "ips", entry: "192.0.2.1", ip: "192.0.2.1", want: true},
+		{name: "IPv4 zero prefix", key: "ip_cidrs", entry: "0.0.0.0/0", ip: "203.0.113.1", want: true},
+		{name: "address family isolation", key: "ip_cidrs", entry: "0.0.0.0/0", ip: "2001:db8::1"},
+		{name: "legacy wildcard", key: "paths", entry: "/admin/*", path: "/ADMIN/users", want: true},
+		{name: "legacy path literal", key: "paths", entry: "/file.json", path: "/fileXjson"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			list, entries := state.NewTable(), state.NewTable()
+			entries.Append(lua.LString(tt.entry))
+			list.RawSetString(tt.key, entries)
+			if err := state.CallByParam(lua.P{Fn: state.GetField(policy, "match_any"), NRet: 1, Protect: true},
+				lua.LString(tt.ip), lua.LString("test"), lua.LString(tt.path), list); err != nil {
+				t.Fatal(err)
+			}
+			got := lua.LVAsBool(state.Get(-1))
+			state.Pop(1)
+			if got != tt.want {
+				t.Errorf("match_any(ip=%q, path=%q, %s=%q) = %t, want %t", tt.ip, tt.path, tt.key, tt.entry, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestPoWConfigReadsOnlyAtWorkerInitialization(t *testing.T) {
+	state := lua.NewState()
+	t.Cleanup(state.Close)
+	state.SetGlobal("pow_config_source", lua.LString(openRestyPowConfigLua))
+	if err := state.DoString(`
+local reads, preparations = 0, 0
+local disk = {site = {enabled = true, config = {difficulty = 4}}}
+package.preload["cjson.safe"] = function() return {decode = function() return disk end} end
+package.preload["pow.policy"] = function() return {prepare = function() preparations = preparations + 1 end} end
+io.open = function()
+    reads = reads + 1
+    return {read = function() return "config" end, close = function() end}
+end
+local first = assert(loadstring(pow_config_source))()
+assert(reads == 1 and preparations == 1, "worker must load and prepare policies once")
+disk = {site = {enabled = false, config = {}}}
+for _ = 1, 20 do assert(first.get("site").enabled == true) end
+assert(reads == 1, "requests must not poll configuration files")
+local second = assert(loadstring(pow_config_source))()
+assert(second.get("site").enabled == false, "new worker must load the new published snapshot")
+assert(first.get("site").enabled == true, "old worker must retain its immutable snapshot")
+assert(reads == 2 and preparations == 2, "each worker must prepare its own snapshot")
+io.open = function() return nil, "missing", 2 end
+assert(assert(loadstring(pow_config_source))().get("site") == nil, "missing policy file must clear bindings in new worker")
+`); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestPoWConfigRejectsBrokenSnapshot(t *testing.T) {
+	for _, setup := range []string{
+		`io.open = function() return {read = function() return "invalid" end, close = function() end} end`,
+		`io.open = function() return nil, "permission denied", 13 end`,
+	} {
+		t.Run(setup, func(t *testing.T) {
+			state := lua.NewState()
+			t.Cleanup(state.Close)
+			if err := state.DoString(`
+package.preload["cjson.safe"] = function() return {decode = function() return nil, "invalid JSON" end} end
+package.preload["pow.policy"] = function() return {} end
+` + setup); err != nil {
+				t.Fatal(err)
+			}
+			if err := state.DoString(openRestyPowConfigLua); err == nil {
+				t.Errorf("load pow_config.json (%s) succeeded, want initialization error", setup)
 			}
 		})
 	}

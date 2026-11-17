@@ -1,4 +1,9 @@
 local _M = {}
+local ip_matcher = require("waf.ip_matcher")
+local compile_ip_matcher = ip_matcher.compile
+local rules_by_site, global_rules = {}, {}
+local prepare_rules
+local rules_prepared = false
 
 local rules_config
 local ip_groups_config
@@ -156,6 +161,7 @@ function _M.init(options)
         for _, group in pairs(groups) do
             if type(group) == "table" then group._matcher = nil end
         end
+        ip_matcher.prepare_groups(ip_groups_config)
     elseif not ip_groups_config and not ip_groups_runtime then
         ip_groups_runtime = options.ip_groups_runtime or require("waf.ip_groups")
         local initialized, init_error = ip_groups_runtime.init({ runtime_dir = runtime_dir })
@@ -165,6 +171,11 @@ function _M.init(options)
         pow_runtime = options.pow
     elseif not pow_runtime then
         pow_runtime = require("pow.runtime")
+    end
+    if pow_runtime.init then pow_runtime.init() end
+    if options.config or not rules_prepared then
+        prepare_rules(rules_config)
+        rules_prepared = true
     end
     if options.geo_lookup then
         geo_lookup = options.geo_lookup
@@ -185,7 +196,9 @@ end
 
 -- Task 7 can atomically replace the worker-local IP group snapshot through this seam.
 function _M.replace_ip_groups(snapshot)
-    ip_groups_config = snapshot or { groups = {} }
+    local replacement = snapshot or { groups = {} }
+    ip_matcher.prepare_groups(replacement)
+    ip_groups_config = replacement
 end
 
 local function list_contains(items, value)
@@ -195,180 +208,6 @@ local function list_contains(items, value)
         if string.upper(tostring(item)) == value then return true end
     end
     return false
-end
-
-local function parse_ipv4(value)
-    local a, b, c, d = string.match(value or "", "^(%d+)%.(%d+)%.(%d+)%.(%d+)$")
-    if not a then return nil end
-    a, b, c, d = tonumber(a), tonumber(b), tonumber(c), tonumber(d)
-    if a > 255 or b > 255 or c > 255 or d > 255 then return nil end
-    return ((a * 256 + b) * 256 + c) * 256 + d
-end
-
-local function split_ipv6_side(value)
-    local result = {}
-    if value == "" then return result end
-    for part in string.gmatch(value, "[^:]+") do
-        if string.find(part, ".", 1, true) then
-            local ipv4 = parse_ipv4(part)
-            if not ipv4 then return nil end
-            result[#result + 1] = math.floor(ipv4 / 65536)
-            result[#result + 1] = ipv4 % 65536
-        else
-            if #part > 4 or not string.match(part, "^[%x]+$") then return nil end
-            local number = tonumber(part, 16)
-            if not number or number > 65535 then return nil end
-            result[#result + 1] = number
-        end
-    end
-    return result
-end
-
-local function parse_ipv6(value)
-    value = string.lower(value or "")
-    local compressed_at = string.find(value, "::", 1, true)
-    if compressed_at and string.find(value, "::", compressed_at + 2, true) then return nil end
-    local left, right
-    if compressed_at then
-        left = split_ipv6_side(string.sub(value, 1, compressed_at - 1))
-        right = split_ipv6_side(string.sub(value, compressed_at + 2))
-    else
-        if string.sub(value, 1, 1) == ":" or string.sub(value, -1) == ":" then return nil end
-        left, right = split_ipv6_side(value), {}
-    end
-    if not left or not right then return nil end
-    local missing = 8 - #left - #right
-    if (compressed_at and missing < 1) or (not compressed_at and missing ~= 0) then return nil end
-    local result = {}
-    for _, number in ipairs(left) do result[#result + 1] = number end
-    for _ = 1, missing do result[#result + 1] = 0 end
-    for _, number in ipairs(right) do result[#result + 1] = number end
-    if #result ~= 8 then return nil end
-    return result
-end
-
-local function ipv6_key(groups)
-    return table.concat(groups, ":")
-end
-
-local function preparse_cidr(cidr)
-    local base, bits = string.match(cidr or "", "^([^/]+)/(%d+)$")
-    bits = tonumber(bits)
-    if not base or not bits then return nil end
-    local base_v4 = parse_ipv4(base)
-    if base_v4 then
-        if bits < 0 or bits > 32 then return nil end
-        if bits == 0 then return { kind = "v4", bits = 0, network = 0, size = 0 } end
-        local size = 2 ^ (32 - bits)
-        return { kind = "v4", bits = bits, network = base_v4 - (base_v4 % size), size = size }
-    end
-    local base_v6 = parse_ipv6(base)
-    if not base_v6 or bits < 0 or bits > 128 then return nil end
-    return { kind = "v6", bits = bits, groups = base_v6 }
-end
-
-local function ipv4_in_preparsed(ip_number, cidr)
-    if cidr.bits == 0 then return true end
-    return ip_number - (ip_number % cidr.size) == cidr.network
-end
-
-local function ipv6_in_preparsed(ip_groups, cidr)
-    local full_groups, remaining_bits = math.floor(cidr.bits / 16), cidr.bits % 16
-    for index = 1, full_groups do
-        if ip_groups[index] ~= cidr.groups[index] then return false end
-    end
-    if remaining_bits > 0 then
-        local size = 2 ^ (16 - remaining_bits)
-        local index = full_groups + 1
-        if math.floor(ip_groups[index] / size) ~= math.floor(cidr.groups[index] / size) then
-            return false
-        end
-    end
-    return true
-end
-
--- Prefer resty.ipmatcher (C radix). Fallback: exact hash + pre-parsed CIDR list only.
-local resty_ipmatcher
-local resty_ipmatcher_loaded = false
-
-local function load_resty_ipmatcher()
-    if resty_ipmatcher_loaded then return resty_ipmatcher end
-    resty_ipmatcher_loaded = true
-    local ok, mod = pcall(require, "resty.ipmatcher")
-    if ok and type(mod) == "table" and type(mod.new) == "function" then
-        resty_ipmatcher = mod
-    else
-        resty_ipmatcher = nil
-    end
-    return resty_ipmatcher
-end
-
-local empty_ip_matcher = {
-    empty = true,
-    match = function() return false end,
-}
-
-local function compile_fallback_ip_matcher(entries)
-    local exact, cidrs = {}, {}
-    for _, item in ipairs(entries) do
-        if string.find(item, "/", 1, true) then
-            local parsed = preparse_cidr(item)
-            if parsed then cidrs[#cidrs + 1] = parsed end
-        else
-            exact[item] = true
-            local v6 = parse_ipv6(item)
-            if v6 then exact["v6:" .. ipv6_key(v6)] = true end
-        end
-    end
-    return {
-        empty = false,
-        match = function(_, ip, _bin, ip_v4, ip_v6)
-            if exact[ip] then return true end
-            if ip_v6 and exact["v6:" .. ipv6_key(ip_v6)] then return true end
-            if not ip_v4 and not ip_v6 then
-                ip_v4 = parse_ipv4(ip)
-                if not ip_v4 then ip_v6 = parse_ipv6(ip) end
-            end
-            for _, cidr in ipairs(cidrs) do
-                if cidr.kind == "v4" and ip_v4 and ipv4_in_preparsed(ip_v4, cidr) then
-                    return true
-                end
-                if cidr.kind == "v6" and ip_v6 and ipv6_in_preparsed(ip_v6, cidr) then
-                    return true
-                end
-            end
-            return false
-        end,
-    }
-end
-
-local function compile_ip_matcher(entries)
-    local list = {}
-    for _, item in ipairs(array_or_empty(entries)) do
-        if type(item) == "string" and item ~= "" then
-            list[#list + 1] = item
-        end
-    end
-    if #list == 0 then return empty_ip_matcher end
-
-    local mod = load_resty_ipmatcher()
-    if mod then
-        local matcher, err = mod.new(list)
-        if matcher then
-            return {
-                empty = false,
-                match = function(_, ip, bin_ip)
-                    if bin_ip and matcher.match_bin then
-                        local ok = matcher:match_bin(bin_ip)
-                        if ok then return true end
-                    end
-                    return matcher:match(ip) == true
-                end,
-            }
-        end
-        warn_rate_limited("_ipmatcher_new_failed", "openflare waf ipmatcher.new failed: ", err)
-    end
-    return compile_fallback_ip_matcher(list)
 end
 
 local node_ip_matcher_cache = setmetatable({}, { __mode = "k" })
@@ -386,7 +225,7 @@ local function matcher_for_node_ip_config(config)
 end
 
 local function matcher_for_ip_group(group)
-    if type(group) ~= "table" then return empty_ip_matcher end
+    if type(group) ~= "table" then return compile_ip_matcher({}) end
     if group._matcher then return group._matcher end
     group._matcher = compile_ip_matcher(group.ip_list)
     return group._matcher
@@ -395,12 +234,7 @@ end
 local function matches_ip_values(config, ip)
     if type(ip) ~= "string" or ip == "" then return false end
     local bin_ip = ngx.var and ngx.var.binary_remote_addr or nil
-    local ip_v4, ip_v6
-    -- Parse client IP once for pure-Lua fallback CIDR/exact-v6 paths.
-    if not load_resty_ipmatcher() then
-        ip_v4 = parse_ipv4(ip)
-        if not ip_v4 then ip_v6 = parse_ipv6(ip) end
-    end
+    local ip_v4, ip_v6 = ip_matcher.parse(ip)
 
     local node_matcher = matcher_for_node_ip_config(config)
     if not node_matcher.empty and node_matcher:match(ip, bin_ip, ip_v4, ip_v6) then
@@ -510,6 +344,19 @@ local function ua_matches_custom_patterns(ua, patterns)
     return false
 end
 
+local ua_config_cache = setmetatable({}, { __mode = "k" })
+
+local function compile_ua_config(config)
+    local browsers, has_browsers = ua_label_set(config.browsers)
+    local operating_systems, has_os = ua_label_set(config.operating_systems)
+    local compiled = {
+        browsers = browsers, has_browsers = has_browsers,
+        operating_systems = operating_systems, has_os = has_os,
+    }
+    ua_config_cache[config] = compiled
+    return compiled
+end
+
 local function matches_ua_check(config)
     config = config or {}
     local ua = ua_trim(ngx.var.http_user_agent or "")
@@ -525,8 +372,12 @@ local function matches_ua_check(config)
     if config.block_custom_ua and ua_matches_custom_patterns(ua, config.custom_ua_patterns) then
         return false
     end
-    local browser_set, has_browsers = ua_label_set(config.browsers)
-    local os_set, has_os = ua_label_set(config.operating_systems)
+    local compiled = ua_config_cache[config]
+    if not compiled then
+        compiled = compile_ua_config(config)
+    end
+    local browser_set, has_browsers = compiled.browsers, compiled.has_browsers
+    local os_set, has_os = compiled.operating_systems, compiled.has_os
     if not has_browsers and not has_os then return true end
     local browser_ok = has_browsers and browser_set[browser] == true
     local os_ok = has_os and os_set[os_name] == true
@@ -832,12 +683,22 @@ local function render_block(config)
     return ngx.exit(status)
 end
 
+local graph_node_counts = setmetatable({}, { __mode = "k" })
+
+local function graph_node_count(graph)
+    local count = graph_node_counts[graph]
+    if count then return count end
+    count = 0
+    for _ in pairs(graph.nodes) do count = count + 1 end
+    graph_node_counts[graph] = count
+    return count
+end
+
 local function execute_graph(graph)
     if type(graph) ~= "table" or type(graph.nodes) ~= "table" or type(graph.entry) ~= "string" then
         return nil, "invalid graph"
     end
-    local node_count = 0
-    for _ in pairs(graph.nodes) do node_count = node_count + 1 end
+    local node_count = graph_node_count(graph)
     local current = graph.entry
     for _ = 1, node_count do
         local node = graph.nodes[current]
@@ -880,22 +741,44 @@ local function execute_graph(graph)
     return nil, "graph exceeded maximum steps"
 end
 
-local function active_rules(site)
-    local by_id, result = {}, {}
-    for _, rule in ipairs(array_or_empty(rules_config.rule_groups)) do
+prepare_rules = function(config)
+    local by_id = {}
+    global_rules, rules_by_site = {}, {}
+    node_ip_matcher_cache = setmetatable({}, { __mode = "k" })
+    ua_config_cache = setmetatable({}, { __mode = "k" })
+    graph_node_counts = setmetatable({}, { __mode = "k" })
+    for _, rule in ipairs(array_or_empty(config.rule_groups)) do
         by_id[tostring(rule.id)] = rule
-        if rule.enabled and rule.is_global then result[#result + 1] = rule end
+        if rule.enabled and rule.is_global then global_rules[#global_rules + 1] = rule end
+        local graph = rule.graph
+        if type(graph) == "table" and type(graph.nodes) == "table" then
+            graph_node_count(graph)
+            for _, node in pairs(graph.nodes) do
+                if node.type == "ip_match" then
+                    matcher_for_node_ip_config(node.config)
+                elseif node.type == "ua_check" then
+                    compile_ua_config(node.config or {})
+                elseif node.type == "pow" and pow_runtime.prepare_config then
+                    pow_runtime.prepare_config(node.config or {})
+                end
+            end
+        end
     end
-    for _, binding in ipairs(array_or_empty(rules_config.bindings)) do
-        if binding.site_name == site then
+    for _, binding in ipairs(array_or_empty(config.bindings)) do
+        if not rules_by_site[binding.site_name] then
+            local result = {}
+            for _, rule in ipairs(global_rules) do result[#result + 1] = rule end
             for _, id in ipairs(array_or_empty(binding.rule_group_ids)) do
                 local rule = by_id[tostring(id)]
                 if rule and rule.enabled and not rule.is_global then result[#result + 1] = rule end
             end
-            break
+            rules_by_site[binding.site_name] = result
         end
     end
-    return result
+end
+
+local function active_rules(site)
+    return rules_by_site[site] or global_rules
 end
 
 local function is_internal_pow_continuation()

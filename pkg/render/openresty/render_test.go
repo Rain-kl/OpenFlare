@@ -61,6 +61,9 @@ func TestRenderMainConfigPreservesExplicitRealIPHeader(t *testing.T) {
 
 func TestRenderOpenRestyUsesDedicatedWAFIPGroupSharedDict(t *testing.T) {
 	block := renderOpenRestyObservabilityTemplateBlock()
+	if strings.Contains(block, "lua_shared_dict openflare_observability") || strings.Contains(block, "log_by_lua") {
+		t.Fatalf("health-only observability must not allocate unused counters or invoke an empty log hook:\n%s", block)
+	}
 	if !strings.Contains(block, "lua_shared_dict openflare_waf_config 1m;") {
 		t.Fatal("expected general WAF coordination dictionary to remain available")
 	}

@@ -31,20 +31,10 @@ if not stored then
     return
 end
 
-local page = {html = cjson.decode([====[__POW_DEFAULT_HTML__]====]), widget = "progress"}
-local file = io.open("__OPENFLARE_POW_PAGE_CONFIG__", "r")
-if file then
-    local raw = file:read("*a")
-    file:close()
-    local decoded = cjson.decode(raw)
-    if type(decoded) == "table" and type(decoded.html) == "string" then page = decoded end
-end
+local page_config = require "pow.page"
+local page = page_config.page
 local lang = string.find(string.lower(ngx.var.http_accept_language or ""), "zh", 1, true) and "zh-CN" or "en"
-local translations = {
-    en = cjson.decode([====[__POW_EN__]====]),
-    ["zh-CN"] = cjson.decode([====[__POW_ZH__]====]),
-}
-local text = translations[lang]
+local text = page_config.translations[lang]
 local function escape(value)
     return (string.gsub(tostring(value or ""), "[&<>\"']", {
         ["&"] = "&amp;", ["<"] = "&lt;", [">"] = "&gt;", ['"'] = "&quot;", ["'"] = "&#39;",
