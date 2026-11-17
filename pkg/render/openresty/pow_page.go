@@ -28,10 +28,10 @@ var shieldPoWPage string
 
 // DefaultPoWPageHTML returns one of the built-in challenge templates.
 func DefaultPoWPageHTML(template string) string {
-	if template == "shield" {
-		return shieldPoWPage
+	if template == "classic" {
+		return classicPoWPage
 	}
-	return classicPoWPage
+	return shieldPoWPage
 }
 
 // ValidatePoWPageConfig validates the administrator's page configuration.
@@ -51,6 +51,9 @@ func ValidatePoWPageConfig(cfg PoWPageConfig) error {
 func powPageSupportFile(cfg PoWPageConfig) (SupportFile, error) {
 	if err := ValidatePoWPageConfig(cfg); err != nil {
 		return SupportFile{}, err
+	}
+	if cfg.Template == "" {
+		cfg.Template = "shield"
 	}
 	if cfg.Widget == "" {
 		cfg.Widget = "progress"

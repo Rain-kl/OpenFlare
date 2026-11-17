@@ -90,10 +90,10 @@ export function PoWPageTab({
                   if (template) setConfig((prev) => ({ ...prev, template }));
                 }}
               >
+                <ToggleGroupItem value='shield'>{t('shield')}</ToggleGroupItem>
                 <ToggleGroupItem value='classic'>
                   {t('classic')}
                 </ToggleGroupItem>
-                <ToggleGroupItem value='shield'>{t('shield')}</ToggleGroupItem>
               </ToggleGroup>
               <FieldDescription>{t('templateHelp')}</FieldDescription>
             </Field>

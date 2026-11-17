@@ -40,7 +40,7 @@ describe('PoW page preview', () => {
     'normalizes empty configuration %s',
     (raw) => {
       expect(readPoWPage(raw)).toEqual({
-        template: 'classic',
+        template: 'shield',
         widget: 'progress',
         html: '',
       });

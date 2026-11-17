@@ -324,7 +324,7 @@ var openRestyPowChallengeLua = strings.NewReplacer(
 ).Replace(powChallengeLuaTemplate)
 
 func defaultPoWPageJSON() string {
-	raw, _ := json.Marshal(openresty.DefaultPoWPageHTML("classic"))
+	raw, _ := json.Marshal(openresty.DefaultPoWPageHTML("shield"))
 	return string(raw)
 }
 

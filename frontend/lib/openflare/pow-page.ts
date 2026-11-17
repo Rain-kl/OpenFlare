@@ -10,7 +10,7 @@ export function readPoWPage(value?: string): PoWPageConfig {
     try {
       const parsed: Partial<PoWPageConfig> | null = JSON.parse(value);
       return {
-        template: parsed?.template === 'shield' ? 'shield' : 'classic',
+        template: parsed?.template === 'classic' ? 'classic' : 'shield',
         widget: parsed?.widget === 'turnstile' ? 'turnstile' : 'progress',
         html: typeof parsed?.html === 'string' ? parsed.html : '',
       };
@@ -18,7 +18,7 @@ export function readPoWPage(value?: string): PoWPageConfig {
       /* Use the built-in page when no valid configuration has been saved. */
     }
   }
-  return { template: 'classic', widget: 'progress', html: '' };
+  return { template: 'shield', widget: 'progress', html: '' };
 }
 
 export function previewPoWPage(

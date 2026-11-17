@@ -336,7 +336,7 @@ func getSeedConfigsPart2() []model.SystemConfig {
 func seedDefaultConfigs(t *testing.T, tx *gorm.DB) {
 	t.Helper()
 	defaultConfigs := append(getSeedConfigsPart1(), getSeedConfigsPart2()...)
-	defaultConfigs = append(defaultConfigs, model.SystemConfig{Key: model.ConfigKeyPoWPage, Value: `{"template":"classic","widget":"progress"}`, Type: "business"})
+	defaultConfigs = append(defaultConfigs, model.SystemConfig{Key: model.ConfigKeyPoWPage, Value: `{"template":"shield","widget":"progress"}`, Type: "business"})
 
 	if err := tx.Create(&defaultConfigs).Error; err != nil {
 		t.Fatalf("failed to seed default system configs: %v", err)
