@@ -35,6 +35,7 @@ func setupConfigVersionTestDB(t *testing.T) func() {
 	require.NoError(t, err)
 	require.NoError(t, sqliteDB.AutoMigrate(
 		&model.ProxyRoute{},
+		&model.OpenFlarePoWPolicy{},
 		&model.Zone{},
 		&model.ZoneDomain{},
 		&model.ConfigVersion{},

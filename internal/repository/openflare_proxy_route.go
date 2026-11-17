@@ -149,6 +149,9 @@ func DeleteProxyRouteAndUnbind(ctx context.Context, id uint) error {
 		if err := ClearZoneDomainProxyRouteBindingsTx(tx, id); err != nil {
 			return err
 		}
+		if err := tx.Where("route_id = ?", id).Delete(&model.OpenFlarePoWPolicy{}).Error; err != nil {
+			return err
+		}
 		return DeleteProxyRouteRecordTx(tx, id)
 	})
 }

@@ -43,6 +43,7 @@ func setupCoreChainTest(t *testing.T) (*gin.Engine, adminSeed, func()) {
 		&model.AccessToken{},
 		&model.Origin{},
 		&model.ProxyRoute{},
+		&model.OpenFlarePoWPolicy{},
 		&model.ConfigVersion{},
 		&model.OpenFlareWAFRuleGroup{},
 		&model.OpenFlareWAFRuleGroupBinding{},

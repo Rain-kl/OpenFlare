@@ -97,7 +97,8 @@
       "cap_challenge_difficulty": "CAPTCHA Сложность PoW (длина целевого префикса)",
       "cap_challenge_ttl_seconds": "CAPTCHA Время жизни вызова (секунды)",
       "cap_token_ttl_seconds": "CAPTCHA Срок действия токена подтверждения (секунды)",
-      "server_address": "URL сервера для ограничения источников запросов (Origin). Пустое значение разрешает любой источник."
+      "server_address": "URL сервера для ограничения источников запросов (Origin). Пустое значение разрешает любой источник.",
+      "pow_page": "Шаблон страницы PoW, стиль виджета и пользовательский HTML"
     },
     "templates": {
       "login_email": {

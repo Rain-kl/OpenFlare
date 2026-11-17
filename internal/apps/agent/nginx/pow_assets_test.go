@@ -4,10 +4,229 @@
 package nginx
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
+	"fmt"
+	"regexp"
+	"strings"
 	"testing"
 
 	lua "github.com/yuin/gopher-lua"
 )
+
+func TestPoWChallengeRendersCustomPageSafely(t *testing.T) {
+	state := lua.NewState()
+	t.Cleanup(state.Close)
+	if err := state.DoString(`
+local custom_html = '<HTML><BODY><h1>{{host}}</h1>{{widget}}<p>{{title}}</p></BODY></HTML>'
+package.preload["cjson.safe"]=function() return {
+    decode=function(value)
+        if value=="page" then return {html=custom_html,widget="turnstile"} end
+        return {title="<unsafe>",status="Working"}
+    end,
+    encode=function(value)
+        if value.data then stored_challenge=value end
+        return '{"marker":"</script><script>unsafe</script>"}'
+    end,
+} end
+io.open=function() return {read=function() return "page" end,close=function() end} end
+ngx={var={host='<img src=x onerror=1>',openflare_waf_site="site",http_accept_language="en"},
+    req={get_uri_args=function() return {redir="/admin?ok=1"} end},
+    ctx={openflare_pow_config={difficulty=2,session_ttl=120,challenge_ttl=60}},
+    shared={openflare_pow_config={},openflare_pow_challenges={set=function() return true end}},
+    worker={pid=function() return 1 end},now=function() return 1 end,md5=function() return "random" end,
+    header={},say=function(value) rendered_html=value end}
+`); err != nil {
+		t.Fatal(err)
+	}
+	if err := state.DoString(openRestyPowChallengeLua); err != nil {
+		t.Fatalf("challenge.lua(custom page) error = %v", err)
+	}
+	html := state.GetGlobal("rendered_html").String()
+	for _, want := range []string{"&lt;img src=x onerror=1&gt;", "&lt;unsafe&gt;", `<openflare-pow appearance="turnstile">`, `\u003c/script>`, "openflare-pow-config"} {
+		if !strings.Contains(html, want) {
+			t.Errorf("challenge.lua(custom page) HTML missing %q: %s", want, html)
+		}
+	}
+	if strings.Contains(html, "<img src=x") || strings.Contains(html, "<script>unsafe") {
+		t.Errorf("challenge.lua(custom page) rendered unescaped request or JSON data: %s", html)
+	}
+	stored := state.GetGlobal("stored_challenge").(*lua.LTable)
+	if stored.RawGetString("site").String() != "site" || stored.RawGetString("redir").String() != "/admin?ok=1" {
+		t.Errorf("challenge.lua() stored challenge = %v, want site-bound original path", stored)
+	}
+}
+
+func TestPoWVerificationBindsSiteAndPreventsReplay(t *testing.T) {
+	data := "test-challenge"
+	nonce := 0
+	var hash string
+	for {
+		sum := sha256.Sum256([]byte(fmt.Sprintf("%s%d", data, nonce)))
+		hash = hex.EncodeToString(sum[:])
+		if strings.HasPrefix(hash, "0") {
+			break
+		}
+		nonce++
+	}
+	for _, site := range []string{"site", "other-site"} {
+		t.Run(site, func(t *testing.T) {
+			state := lua.NewState()
+			t.Cleanup(state.Close)
+			state.SetGlobal("hash", state.NewFunction(func(l *lua.LState) int {
+				sum := sha256.Sum256([]byte(l.CheckString(1)))
+				l.Push(lua.LString(hex.EncodeToString(sum[:])))
+				return 1
+			}))
+			state.SetGlobal("test_nonce", lua.LNumber(nonce))
+			state.SetGlobal("test_response", lua.LString(hash))
+			state.SetGlobal("test_site", lua.LString(site))
+			if err := state.DoString(`
+local consumed=false
+package.preload["cjson.safe"]=function() return {
+ decode=function() return {data="test-challenge",difficulty=1,host="example.com",site="site",redir="/original",session_ttl=600} end,
+ encode=function(value) result_ok=value.ok;return "result" end,
+} end
+package.preload["resty.sha256"]=function() return {new=function() return {
+ update=function(self,value) self.value=value end, final=function(self) return hash(self.value) end,
+} end} end
+package.preload["resty.string"]=function() return {to_hex=function(value) return value end} end
+ngx={var={openflare_waf_site=test_site,host="example.com",scheme="https"},
+ req={get_uri_args=function() return {id="challenge",response=test_response,nonce=tostring(test_nonce),redir="https://evil.example"} end},
+ shared={openflare_pow_challenges={get=function() if not consumed then return "stored" end end,delete=function() consumed=true end},
+ openflare_pow_sessions={set=function() session_created=true end}},
+ worker={pid=function()return 1 end},now=function() return 1 end,sha1_bin=function()return "session" end,
+ header={},say=function()end,redirect=function(target)redirect_target=target end}
+`); err != nil {
+				t.Fatal(err)
+			}
+			if err := state.DoString(openRestyPowVerifyLua); err != nil {
+				t.Fatal(err)
+			}
+			if site != "site" {
+				if state.GetGlobal("session_created") != lua.LNil {
+					t.Error("verify(cross-site challenge) created a session")
+				}
+				return
+			}
+			if state.GetGlobal("session_created") != lua.LTrue {
+				t.Error("verify(valid SHA256 proof) did not create a session")
+			}
+			if got := state.GetGlobal("redirect_target").String(); got != "/original" {
+				t.Errorf("verify(untrusted redirect) target = %q, want /original", got)
+			}
+			if err := state.DoString(openRestyPowVerifyLua); err != nil {
+				t.Fatal(err)
+			}
+			ngx := state.GetGlobal("ngx").(*lua.LTable)
+			if got := ngx.RawGetString("status"); got != lua.LNumber(410) {
+				t.Errorf("verify(replayed proof) status = %v, want 410", got)
+			}
+		})
+	}
+}
+
+func TestPoWPathPolicy(t *testing.T) {
+	state := lua.NewState()
+	t.Cleanup(state.Close)
+	ngx := state.NewTable()
+	re := state.NewTable()
+	re.RawSetString("find", state.NewFunction(func(l *lua.LState) int {
+		pattern, err := regexp.Compile(l.CheckString(2))
+		if err != nil {
+			l.Push(lua.LNil)
+			return 1
+		}
+		match := pattern.FindStringIndex(l.CheckString(1))
+		if match == nil {
+			l.Push(lua.LNil)
+		} else {
+			l.Push(lua.LNumber(match[0] + 1))
+		}
+		return 1
+	}))
+	ngx.RawSetString("re", re)
+	state.SetGlobal("ngx", ngx)
+	chunk, err := state.LoadString(openRestyPowPolicyLua)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := state.CallByParam(lua.P{Fn: chunk, NRet: 1, Protect: true}); err != nil {
+		t.Fatal(err)
+	}
+	policy := state.Get(-1)
+	state.Pop(1)
+	tests := []struct {
+		path, mode, matchType, value, allowType, allowValue string
+		want                                                bool
+	}{
+		{path: "/", mode: "all", want: true},
+		{path: "/admin", mode: "blacklist", matchType: "exact", value: "/admin", want: true},
+		{path: "/administrator", mode: "blacklist", matchType: "exact", value: "/admin", want: false},
+		{path: "/admin/a", mode: "blacklist", matchType: "prefix", value: "/admin/", want: true},
+		{path: "/admin/a/b", mode: "blacklist", matchType: "wildcard", value: "/admin/*", want: true},
+		{path: "/admin/", mode: "blacklist", matchType: "wildcard", value: "/admin/*", want: true},
+		{path: "/fileXjson", mode: "blacklist", matchType: "wildcard", value: "/*.json", want: false},
+		{path: "/FILE.json", mode: "blacklist", matchType: "wildcard", value: "/file.*", want: false},
+		{path: "/admin/a", mode: "blacklist", matchType: "regex", value: `^/admin(?:/|$)`, want: true},
+		{path: "/administrator", mode: "blacklist", matchType: "regex", value: `^/admin(?:/|$)`, want: false},
+		{path: "/admin/health", mode: "blacklist", matchType: "prefix", value: "/admin/", allowType: "exact", allowValue: "/admin/health", want: false},
+		{path: "/assets/a.js", mode: "all", allowType: "wildcard", allowValue: "/assets/*", want: false},
+		{path: "/public", mode: "blacklist", matchType: "exact", value: "/admin", want: false},
+		{path: "/empty", mode: "blacklist", want: false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.path+tt.matchType+tt.allowType, func(t *testing.T) {
+			rules := state.NewTable()
+			rules.RawSetString("mode", lua.LString(tt.mode))
+			for _, item := range []struct{ key, kind, value string }{{"blacklist", tt.matchType, tt.value}, {"whitelist", tt.allowType, tt.allowValue}} {
+				list := state.NewTable()
+				if item.kind != "" {
+					rule := state.NewTable()
+					rule.RawSetString("type", lua.LString(item.kind))
+					rule.RawSetString("value", lua.LString(item.value))
+					list.Append(rule)
+				}
+				rules.RawSetString(item.key, list)
+			}
+			if err := state.CallByParam(lua.P{Fn: state.GetField(policy, "should_challenge"), NRet: 1, Protect: true}, lua.LString(tt.path), rules); err != nil {
+				t.Fatal(err)
+			}
+			got := lua.LVAsBool(state.Get(-1))
+			state.Pop(1)
+			if got != tt.want {
+				t.Errorf("should_challenge(%q, %+v) = %t, want %t", tt.path, tt, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestPoWStandalonePolicySkipsLegacyNode(t *testing.T) {
+	state := lua.NewState()
+	t.Cleanup(state.Close)
+	if err := state.DoString(`
+package.preload["pow.policy"]=function() return {} end
+package.preload["cjson.safe"]=function() return {} end
+ngx={shared={},ctx={openflare_pow_standalone={enabled=false}}}
+`); err != nil {
+		t.Fatal(err)
+	}
+	chunk, err := state.LoadString(openRestyPowRuntimeLua)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := state.CallByParam(lua.P{Fn: chunk, NRet: 1, Protect: true}); err != nil {
+		t.Fatal(err)
+	}
+	runtime := state.Get(-1)
+	state.Pop(1)
+	if err := state.CallByParam(lua.P{Fn: state.GetField(runtime, "evaluate"), NRet: 1, Protect: true}, state.NewTable()); err != nil {
+		t.Fatal(err)
+	}
+	if got := state.Get(-1); got != lua.LTrue {
+		t.Errorf("evaluate(legacy node with standalone disabled policy) = %v, want true", got)
+	}
+}
 
 func TestPowRuntimePassesConfigKeyToInternalChallenge(t *testing.T) {
 	state := lua.NewState()

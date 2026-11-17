@@ -2651,6 +2651,66 @@ definitions:
       window_started_at:
         type: string
     type: object
+  openresty.PoWConfig:
+    properties:
+      algorithm:
+        type: string
+      blacklist:
+        $ref: '#/definitions/openresty.PoWListConfig'
+      challenge_ttl:
+        type: integer
+      difficulty:
+        type: integer
+      path_rules:
+        $ref: '#/definitions/openresty.PoWPathRules'
+      session_ttl:
+        type: integer
+      whitelist:
+        $ref: '#/definitions/openresty.PoWListConfig'
+    type: object
+  openresty.PoWListConfig:
+    properties:
+      ip_cidrs:
+        items:
+          type: string
+        type: array
+      ips:
+        items:
+          type: string
+        type: array
+      path_regexes:
+        items:
+          type: string
+        type: array
+      paths:
+        items:
+          type: string
+        type: array
+      user_agents:
+        items:
+          type: string
+        type: array
+    type: object
+  openresty.PoWPathMatch:
+    properties:
+      type:
+        type: string
+      value:
+        type: string
+    type: object
+  openresty.PoWPathRules:
+    properties:
+      blacklist:
+        items:
+          $ref: '#/definitions/openresty.PoWPathMatch'
+        type: array
+      mode:
+        type: string
+      whitelist:
+        items:
+          $ref: '#/definitions/openresty.PoWPathMatch'
+        type: array
+    type: object
   option.geoIPLookupRequest:
     properties:
       ip:
@@ -2981,6 +3041,15 @@ definitions:
         type: string
       updated_at:
         type: string
+    type: object
+  pow.Policy:
+    properties:
+      config:
+        $ref: '#/definitions/openresty.PoWConfig'
+      enabled:
+        type: boolean
+      route_id:
+        type: integer
     type: object
   protocol.AgentNodeHealthEvent:
     properties:
@@ -10706,6 +10775,83 @@ paths:
       summary: 列出 Pages 部署文件
       tags:
       - openflare-pages
+  /api/v1/d/pow/policies:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 策略列表
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/pow.Policy'
+                  type: array
+              type: object
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "404":
+          description: 无权限
+          schema:
+            $ref: '#/definitions/response.Any'
+        "500":
+          description: 内部错误
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 列出独立 PoW 站点策略
+      tags:
+      - openflare-pow
+  /api/v1/d/pow/policies/{id}:
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: 站点 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: PoW 策略
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/pow.Policy'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 保存成功
+          schema:
+            $ref: '#/definitions/response.Any'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/response.Any'
+        "404":
+          description: 无权限或站点不存在
+          schema:
+            $ref: '#/definitions/response.Any'
+        "500":
+          description: 内部错误
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 保存独立 PoW 站点策略
+      tags:
+      - openflare-pow
   /api/v1/d/proxy-routes:
     get:
       description: 返回所有代理规则配置，需要管理员权限

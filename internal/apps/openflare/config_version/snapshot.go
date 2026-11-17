@@ -62,6 +62,8 @@ type snapshotRoute struct {
 	CachePolicy        string                           `json:"cache_policy,omitempty"`
 	CacheRules         []string                         `json:"cache_rules,omitempty"`
 	CustomHeaders      []customHeaderInput              `json:"custom_headers,omitempty"`
+	PoWEnabled         bool                             `json:"pow_enabled,omitempty"`
+	PoWConfig          *openrestyrender.PoWConfig       `json:"pow_config,omitempty"`
 	BasicAuthEnabled   bool                             `json:"basic_auth_enabled,omitempty"`
 	BasicAuthUsername  string                           `json:"basic_auth_username,omitempty"`
 	BasicAuthPassword  string                           `json:"basic_auth_password,omitempty"`
@@ -151,6 +153,8 @@ type openRestyConfigSnapshot struct {
 	SWOfflineEnabled           bool     `json:"sw_offline_enabled,omitempty"`
 	SWOfflineHTML              string   `json:"sw_offline_html,omitempty"`
 	SWOfflineDomains           []string `json:"sw_offline_domains,omitempty"`
+
+	PoWPage openrestyrender.PoWPageConfig `json:"pow_page,omitempty"`
 }
 
 type snapshotDocument struct {
@@ -182,6 +186,9 @@ func buildCurrentConfigBundle(ctx context.Context, requireRoutes bool) (*configB
 	}
 	snapshotRoutes, err := buildSnapshotRoutes(ctx, routes)
 	if err != nil {
+		return nil, err
+	}
+	if err := attachSnapshotPoWPolicies(ctx, snapshotRoutes); err != nil {
 		return nil, err
 	}
 	wafSnapshot, err := buildSnapshotWAFDocument(ctx, routes)
@@ -314,6 +321,32 @@ func buildSnapshotRoutes(ctx context.Context, routes []*model.ProxyRoute) ([]sna
 		})
 	}
 	return items, nil
+}
+
+func attachSnapshotPoWPolicies(ctx context.Context, routes []snapshotRoute) error {
+	policies, err := repository.ListOpenFlarePoWPolicies(ctx)
+	if err != nil {
+		return err
+	}
+	byRoute := make(map[uint]model.OpenFlarePoWPolicy, len(policies))
+	for _, policy := range policies {
+		byRoute[policy.RouteID] = policy
+	}
+	for index := range routes {
+		policy, ok := byRoute[routes[index].ID]
+		if !ok {
+			continue
+		}
+		var config openrestyrender.PoWConfig
+		if err := json.Unmarshal([]byte(policy.Config), &config); err != nil {
+			return fmt.Errorf("invalid PoW policy for route %d: %w", policy.RouteID, err)
+		}
+		if err := openrestyrender.ValidatePoWConfig(config); err != nil {
+			return fmt.Errorf("invalid PoW policy for route %d: %w", policy.RouteID, err)
+		}
+		routes[index].PoWEnabled, routes[index].PoWConfig = policy.Enabled, &config
+	}
+	return nil
 }
 
 func buildSnapshotWAFDocument(ctx context.Context, routes []*model.ProxyRoute) (snapshotWAFDocument, error) {
@@ -578,6 +611,7 @@ func buildOpenRestyConfigSnapshot(ctx context.Context) openRestyConfigSnapshot {
 		OriginErrorPageEnabled:     getBoolConfig(model.ConfigKeyOriginErrorPageEnabled, true),
 		OriginErrorPageStatusCodes: parseOriginErrorPageStatusCodes(getStringConfig(model.ConfigKeyOriginErrorPageStatusCodes, `["500-599"]`)),
 		OriginErrorPageHTML:        getStringConfig(model.ConfigKeyOriginErrorPageHTML, ""),
+		PoWPage:                    parsePoWPageConfig(ctx, getStringConfig(model.ConfigKeyPoWPage, "{}")),
 		OriginErrorPageGetOnly:     getBoolConfig(model.ConfigKeyOriginErrorPageGetOnly, false),
 		SWOfflineEnabled:           getBoolConfig(model.ConfigKeySWOfflineEnabled, false),
 		SWOfflineHTML:              getStringConfig(model.ConfigKeySWOfflineHTML, ""),
@@ -611,6 +645,19 @@ func getTrustedProxyCIDRsConfig(ctx context.Context) []string {
 		return []string{}
 	}
 	return parseTrustedProxyCIDRs(config.Value)
+}
+
+func parsePoWPageConfig(ctx context.Context, raw string) openrestyrender.PoWPageConfig {
+	var cfg openrestyrender.PoWPageConfig
+	err := json.Unmarshal([]byte(raw), &cfg)
+	if err == nil {
+		err = openrestyrender.ValidatePoWPageConfig(cfg)
+	}
+	if err != nil {
+		logger.ErrorF(ctx, "[OpenFlareConfig] decode PoW page configuration failed: error=%v", err)
+		return openrestyrender.PoWPageConfig{}
+	}
+	return cfg
 }
 
 func parseOriginErrorPageStatusCodes(raw string) []string {

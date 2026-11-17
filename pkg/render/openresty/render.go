@@ -51,6 +51,16 @@ func Render(doc Document, certificateFiles []SupportFile) (*Result, error) {
 	}
 	files := append([]SupportFile(nil), certificateFiles...)
 	files = append(files, SupportFile{Path: "waf_config.json", Content: wafConfig})
+	powPage, err := powPageSupportFile(doc.OpenRestyConfig.PoWPage)
+	if err != nil {
+		return nil, err
+	}
+	files = append(files, powPage)
+	powConfig, err := RenderPoWConfig(doc.Routes)
+	if err != nil {
+		return nil, err
+	}
+	files = append(files, SupportFile{Path: "pow_config.json", Content: powConfig})
 	if doc.OpenRestyConfig.OriginErrorPageEnabled {
 		files = append(files, originErrorPageSupportFile(doc.OpenRestyConfig))
 	}
@@ -108,7 +118,7 @@ func RenderRouteConfig(doc Document, certificateFiles []SupportFile) (string, er
 		displayName := resolveRouteSiteName(route)
 		cacheConfig := routeCacheConfig{Enabled: route.CacheEnabled, Policy: route.CachePolicy, Rules: route.CacheRules}
 		limitConfig := mergeRouteLimitConfig(route, doc.OpenRestyConfig)
-		powEnabled := getPoWConfigForRoute(route.ID, doc.WAF)
+		powEnabled := route.PoWConfig != nil || getPoWConfigForRoute(route.ID, doc.WAF)
 		if normalizeRouteUpstreamType(route.UpstreamType) == routeUpstreamTypePages {
 			if err := renderPagesRoute(&builder, route, displayName, serverNames, certificates, limitConfig, powEnabled, doc.OpenRestyConfig); err != nil {
 				return "", err
@@ -519,11 +529,12 @@ func renderAccessBlock(siteName string, powEnabled bool) string {
         if not string.find(package.path, "%s/?.lua", 1, true) then
             package.path = "%s/?.lua;%s/?/init.lua;" .. package.path
         end
+        require("pow.runtime").prepare()
         require("waf.runtime").check()
         if ngx.ctx.openflare_waf_blocked then
             return
         end
-        require("pow.runtime").check()
+        if require("pow.runtime").check() ~= true then return end
     }
 `, escapedSiteName, LuaDirPlaceholder, LuaDirPlaceholder, LuaDirPlaceholder)
 }
@@ -541,6 +552,7 @@ func renderAccessBlockWithSW(siteName string, powEnabled bool, _ ConfigSnapshot)
         if not string.find(package.path, "%s/?.lua", 1, true) then
             package.path = "%s/?.lua;%s/?/init.lua;" .. package.path
         end
+        require("pow.runtime").prepare()
         require("waf.runtime").check()
         if ngx.ctx.openflare_waf_blocked then
             return
@@ -554,11 +566,12 @@ func renderAccessBlockWithSW(siteName string, powEnabled bool, _ ConfigSnapshot)
         if not string.find(package.path, "%s/?.lua", 1, true) then
             package.path = "%s/?.lua;%s/?/init.lua;" .. package.path
         end
+        require("pow.runtime").prepare()
         require("waf.runtime").check()
         if ngx.ctx.openflare_waf_blocked then
             return
         end
-        require("pow.runtime").check()
+        if require("pow.runtime").check() ~= true then return end
         require("sw.runtime").check()
     }
 `, escapedSiteName, LuaDirPlaceholder, LuaDirPlaceholder, LuaDirPlaceholder)

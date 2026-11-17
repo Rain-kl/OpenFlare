@@ -28,5 +28,84 @@ used under the terms of the Apache 2 license.
 @licend  The above is the entire license notice
 for the JavaScript code in this page.
 */
-(()=>{var I=()=>navigator.hardwareConcurrency!==void 0?navigator.hardwareConcurrency:1;function _(e,n,s=5,o=null,i,u=Math.trunc(Math.max(I()/2,1))){console.debug("fast algo");let a="purejs";return window.isSecureContext&&(a="webcrypto"),(navigator.userAgent.includes("Firefox")||navigator.userAgent.includes("Goanna"))&&(console.log("Firefox detected, using pure-JS fallback"),a="purejs"),new Promise((E,x)=>{let M=`${e.basePrefix}/.within.website/x/cmd/anubis/static/js/worker/sha256-${a}.mjs?cacheBuster=${e.version}`,p=[],d=!1,b=()=>{console.log("PoW aborted"),h(),x(new DOMException("Aborted","AbortError"))},h=()=>{d||(d=!0,p.forEach(c=>c.terminate()),o?.removeEventListener("abort",b))};if(o!=null){if(o.aborted)return b();o.addEventListener("abort",b,{once:!0})}for(let c=0;c<u;c++){let g=new Worker(M);g.onmessage=m=>{typeof m.data=="number"?i?.(m.data):(h(),E(m.data))},g.onerror=m=>{h(),x(m)},g.postMessage({data:n,difficulty:s,nonce:c,threads:u}),p.push(g)}})}var j={fast:_,slow:_};var v=(e="",n={})=>{let s=new URL(e,window.location.href);return Object.entries(n).forEach(([o,i])=>s.searchParams.set(o,i)),s.toString()},L=e=>{let n=document.getElementById(e);return n===null?null:JSON.parse(n.textContent)},k=(e,n,s)=>v(`${s}/.within.website/x/cmd/anubis/static/img/${e}.webp`,{cacheBuster:n});var W=async()=>document.documentElement.lang,S=async e=>{let n=L("anubis_base_prefix");if(n!==null)try{return await(await fetch(`${n}/.within.website/x/cmd/anubis/static/locales/${e}.json`)).json()}catch(s){if(console.warn(`Failed to load translations for ${e}, falling back to English`),e!=="en")return await S("en");throw s}},C=()=>{let e=L("anubis_public_url");if(e!==null&&e&&window.location.href.startsWith(e)){let t=new URLSearchParams(window.location.search).get("redir");if(t){try{let u=new URL(t,window.location.href);if(u.protocol==="http:"||u.protocol==="https:")return t}catch(s){}}return window.location.href}return window.location.href},$={},D,A=async()=>{D=await W(),$=await S(D)},r=e=>$[`js_${e}`]||$[e]||e;(async()=>{await A();let e=[{name:"Web Workers",msg:r("web_workers_error"),value:window.Worker},{name:"Cookies",msg:r("cookies_error"),value:navigator.cookieEnabled}],n=document.getElementById("status"),s=document.getElementById("image"),o=document.getElementById("title"),i=document.getElementById("progress"),u=L("anubis_version"),a=L("anubis_base_prefix"),E=document.querySelector("details"),x=!1;E&&E.addEventListener("toggle",()=>{E.open&&(x=!0)});let M=({titleMsg:l,statusMsg:f,imageSrc:w})=>{o.textContent=l,n.textContent=f,s.src=w,i.style.display="none"};n.textContent=r("calculating");for(let{value:l,name:f,msg:w}of e)if(!l){M({titleMsg:`${r("missing_feature")} ${f}`,statusMsg:w,imageSrc:k("reject",u,a)});return}let{challenge:p,rules:d}=L("anubis_challenge"),b=j[d.algorithm];if(!b){M({titleMsg:r("challenge_error"),statusMsg:r("challenge_error_msg"),imageSrc:k("reject",u,a)});return}n.textContent=`${r("calculating_difficulty")} ${d.difficulty}, `,i.style.display="inline-block";let h=document.createTextNode(`${r("speed")} 0kH/s`);n.appendChild(h);let c=0,g=!1,m=Math.pow(16,-d.difficulty);try{let l=Date.now(),{hash:f,nonce:w}=await b({basePrefix:a,version:u},p.randomData,d.difficulty,null,t=>{let y=Date.now()-l;y-c>1e3&&(c=y,h.data=`${r("speed")} ${(t/y).toFixed(3)}kH/s`);let T=Math.pow(1-m,t),P=(1-Math.pow(T,2))*100;i["aria-valuenow"]=P,i.firstElementChild!==null&&(i.firstElementChild.style.width=`${P}%`),T<.1&&!g&&(n.append(document.createElement("br"),document.createTextNode(r("verification_longer"))),g=!0)}),H=Date.now();if(console.log({hash:f,nonce:w}),x){let y=function(){let T=C();window.location.replace(v(`${a}/.within.website/x/cmd/anubis/api/pass-challenge`,{id:p.id,response:f,nonce:w,redir:T,elapsedTime:H-l}))},t=document.getElementById("progress");t.style.display="flex",t.style.alignItems="center",t.style.justifyContent="center",t.style.height="2rem",t.style.borderRadius="1rem",t.style.cursor="pointer",t.style.background="#b16286",t.style.color="white",t.style.fontWeight="bold",t.style.outline="4px solid #b16286",t.style.outlineOffset="2px",t.style.width="min(20rem, 90%)",t.style.margin="1rem auto 2rem",t.textContent=r("finished_reading"),t.onclick=y,setTimeout(y,3e4)}else{let t=C();window.location.replace(v(`${a}/.within.website/x/cmd/anubis/api/pass-challenge`,{id:p.id,response:f,nonce:w,redir:t,elapsedTime:H-l}))}}catch(l){M({titleMsg:r("calculation_error"),statusMsg:`${r("calculation_error_msg")} ${l.message}`,imageSrc:k("reject",u,a)})}})();})();
-//# sourceMappingURL=main.mjs.map
+import { updateState } from './widget.mjs';
+
+const staticPrefix = '/.within.website/x/cmd/anubis/static/';
+
+export function solveChallenge(config, onProgress, signal) {
+  return new Promise((resolve, reject) => {
+    const workers = [];
+    const threads = config.algorithm === 'slow' ? 1 : Math.min(8, Math.max(1, Math.floor((navigator.hardwareConcurrency || 2) / 2)));
+    const implementation = window.isSecureContext && !/Firefox|Goanna/.test(navigator.userAgent) ? 'webcrypto' : 'purejs';
+    let finished = false;
+    const cleanup = () => {
+      workers.forEach((worker) => worker.terminate());
+      signal?.removeEventListener('abort', abort);
+    };
+    const finish = (callback, value) => {
+      if (finished) return;
+      finished = true;
+      cleanup();
+      callback(value);
+    };
+    const abort = () => finish(reject, new Error('Verification timed out. Reload to try again.'));
+    if (signal?.aborted) return abort();
+    signal?.addEventListener('abort', abort, { once: true });
+    try {
+      for (let nonce = 0; nonce < threads; nonce++) {
+        const worker = new Worker(`${staticPrefix}js/worker/sha256-${implementation}.mjs`);
+        workers.push(worker);
+        worker.onmessage = ({ data }) => typeof data === 'number' ? onProgress(data) : finish(resolve, data);
+        worker.onerror = () => finish(reject, new Error('Verification worker failed. Reload to try again.'));
+        worker.postMessage({ data: config.randomData, difficulty: config.difficulty, nonce, threads });
+      }
+    } catch (error) {
+      finish(reject, error);
+    }
+  });
+}
+
+export async function startVerification(config) {
+  const controller = new AbortController();
+  const stop = () => controller.abort();
+  window.addEventListener('pagehide', stop, { once: true });
+  const timeout = setTimeout(stop, (config.challengeTTL || 300) * 1000);
+  let text = {};
+  const message = (key, fallback) => text[key] || fallback;
+  try {
+    const localeResponse = await fetch(`${staticPrefix}locales/${config.lang}.json`);
+    if (localeResponse.ok) text = await localeResponse.json();
+    if (!window.Worker) throw new Error(message('js_web_workers_error', 'Web Workers are required.'));
+    if (!navigator.cookieEnabled) throw new Error(message('js_cookies_error', 'Cookies are required.'));
+    updateState({ status: 'working', progress: 0, message: message('js_calculating', 'Verifying your browser…'), retryLabel: message('try_again', 'Try again') });
+    const started = performance.now();
+    const result = await solveChallenge(config, (hashes) => {
+      const probability = Math.pow(1 - Math.pow(16, -config.difficulty), hashes);
+      updateState({ status: 'working', progress: Math.min(99, (1 - probability * probability) * 100),
+        hashes, elapsed: performance.now() - started,
+        message: message('js_calculating', 'Verifying your browser…') });
+    }, controller.signal);
+    updateState({ status: 'verifying', message: message('js_verifying', 'Checking the result…') });
+    const params = new URLSearchParams({ id: config.id, response: result.hash, nonce: String(result.nonce) });
+    const response = await fetch(`/.within.website/x/cmd/anubis/api/pass-challenge?${params}`, {
+      credentials: 'same-origin', cache: 'no-store', signal: controller.signal,
+    });
+    const payload = await response.json();
+    if (!response.ok || !payload.ok) throw new Error(message('js_verification_failed', 'Verification failed. Reload to try again.'));
+    clearTimeout(timeout);
+    updateState({ status: 'success', progress: 100, message: message('js_success', 'Success!') });
+    setTimeout(() => window.location.reload(), 650);
+  } catch (error) {
+    updateState({ status: 'error', message: error.message || message('js_calculation_error', 'Verification failed.') });
+  } finally {
+    clearTimeout(timeout);
+    window.removeEventListener('pagehide', stop);
+    controller.abort();
+  }
+}
+
+const boot = document.getElementById('openflare-pow-config');
+if (boot) {
+  try { await startVerification(JSON.parse(boot.textContent)); }
+  catch { updateState({ status: 'error', message: 'Invalid verification configuration.' }); }
+}

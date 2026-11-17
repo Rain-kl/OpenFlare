@@ -137,6 +137,14 @@ export const searchData: SearchItemSource[] = [
     keywordKey: 'search.keywords.console-waf',
   },
   {
+    id: 'console-pow',
+    titleKey: 'nav.pow',
+    descriptionKey: 'search.items.powDesc',
+    url: '/pow',
+    category: 'page',
+    keywordKey: 'search.keywords.console-pow',
+  },
+  {
     id: 'console-ip-groups',
     titleKey: 'nav.ipGroups',
     descriptionKey: 'search.items.ipGroupsDesc',

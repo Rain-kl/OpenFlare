@@ -6,6 +6,7 @@ export { ConfigVersionService } from './config-version.service';
 export { ApplyLogService } from './apply-log.service';
 export { DashboardService } from './dashboard.service';
 export { WafService } from './waf.service';
+export * from './pow';
 export { ZoneDomainService, ZoneService, zoneQueryKey } from './zone.service';
 export { TlsCertificateService } from './tls-certificate.service';
 export { DnsAccountService } from './dns-account.service';

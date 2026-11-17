@@ -97,7 +97,8 @@
       "cap_challenge_difficulty": "人机验证 PoW 难度（目标前缀长度）",
       "cap_challenge_ttl_seconds": "人机验证难题有效时间（秒）",
       "cap_token_ttl_seconds": "人机验证兑换凭证有效时间（秒）",
-      "server_address": "服务器地址（用于跨域源控制，不设定则允许任意源）"
+      "server_address": "服务器地址（用于跨域源控制，不设定则允许任意源）",
+      "pow_page": "PoW 页面模板、组件样式与自定义 HTML"
     },
     "templates": {
       "login_email": {

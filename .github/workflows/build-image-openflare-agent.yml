@@ -9,6 +9,7 @@ on:
         type: string
   push:
     tags: ["v*"]
+    branches: ["canary"]
 
 permissions:
   contents: read
@@ -52,7 +53,9 @@ jobs:
 
           OWNER="${GITHUB_REPOSITORY_OWNER,,}"
 
-          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+          if [[ "${GITHUB_REF}" == refs/heads/canary ]]; then
+            VERSION="canary"
+          elif [[ "${GITHUB_REF}" == refs/tags/* ]]; then
             VERSION="${GITHUB_REF_NAME}"
           elif [[ -n "$INPUT_VERSION" ]]; then
             VERSION="$INPUT_VERSION"
@@ -134,7 +137,9 @@ jobs:
 
           OWNER="${GITHUB_REPOSITORY_OWNER,,}"
 
-          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+          if [[ "${GITHUB_REF}" == refs/heads/canary ]]; then
+            VERSION="canary"
+          elif [[ "${GITHUB_REF}" == refs/tags/* ]]; then
             VERSION="${GITHUB_REF_NAME}"
           elif [[ -n "$INPUT_VERSION" ]]; then
             VERSION="$INPUT_VERSION"
@@ -180,15 +185,18 @@ jobs:
             exit 1
           fi
 
-          if [[ "${VERSION}" =~ (alpha|beta|rc) ]]; then
-            FLOATING_TAG="beta"
-          else
-            FLOATING_TAG="latest"
+          tags=(-t "${IMAGE}:${VERSION}")
+          if [[ "${VERSION}" != "canary" ]]; then
+            if [[ "${VERSION}" =~ (alpha|beta|rc) ]]; then
+              FLOATING_TAG="beta"
+            else
+              FLOATING_TAG="latest"
+            fi
+            tags+=(-t "${IMAGE}:${FLOATING_TAG}")
           fi
 
           docker buildx imagetools create \
-            -t "${IMAGE}:${VERSION}" \
-            -t "${IMAGE}:${FLOATING_TAG}" \
+            "${tags[@]}" \
             "${references[@]}"
         env:
           IMAGE: ${{ env.IMAGE }}

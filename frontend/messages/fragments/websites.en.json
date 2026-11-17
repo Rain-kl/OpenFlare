@@ -430,12 +430,12 @@
     "cacheHintNone": "The current policy does not need extra path rules.",
     "cachePlaceholderNone": "No extra rules for the current policy",
     "auth": "Authentication",
-    "authDesc": "Configure Basic Auth to block unauthorized access. Configure PoW protection in a WAF rule group.",
+    "authDesc": "Configure Basic Auth to block unauthorized access. Configure PoW independently under Security → PoW protection.",
     "authSaved": "Authentication settings saved",
     "authFormInvalid": "Check the authentication form",
     "authMode": "Authentication mode",
     "authNone": "No authentication",
-    "powHint": "PoW protection can only be enabled in a WAF rule group and bound to a site.",
+    "powHint": "Configure PoW independently under Security → PoW protection.",
     "username": "Username",
     "password": "Password",
     "wafDesc": "Global rule groups always apply. Here you can add custom rule groups for the current website.",
@@ -501,7 +501,7 @@
   },
   "responses": {
     "title": "Response pages",
-    "subtitle": "Configure origin error pages and offline pages.",
+    "subtitle": "Configure origin error, offline and PoW challenge pages.",
     "loadingPermission": "Loading permission information...",
     "loadingConfig": "Loading response page settings...",
     "loadingPage": "Loading response pages...",
@@ -579,6 +579,7 @@
     "restoreTitle": "Restore default HTML?",
     "restoreErrorDesc": "This clears the editor. After saving, the server built-in default template is used. This action does not save automatically.",
     "restoreOfflineDesc": "This clears the editor. After saving, the built-in default template is used. This action does not save automatically.",
-    "confirmRestore": "Restore"
+    "confirmRestore": "Restore",
+    "powPage": "PoW challenge"
   }
 }

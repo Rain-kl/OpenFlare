@@ -17,6 +17,7 @@ func RegisterV1Routes(apiV1Router *gin.RouterGroup) {
 	registerProxyRouteRoutes(group)
 	registerNodeRoutes(group)
 	registerWAFRoutes(group)
+	registerPoWRoutes(group)
 	registerTLSRoutes(group)
 	registerCloudflareRoutes(group)
 	registerZoneRoutes(group)

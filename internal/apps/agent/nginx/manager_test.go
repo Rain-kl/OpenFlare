@@ -813,14 +813,11 @@ func TestManagedPowLuaFilesUseInternalChallengeFlow(t *testing.T) {
 	if strings.Contains(openRestyPowRuntimeLua, "ngx.redirect(") {
 		t.Fatal("expected pow runtime lua to avoid external redirects for challenge rendering")
 	}
-	if !strings.Contains(openRestyPowChallengeLua, `<h1 id="title" class="centered-div">`) {
-		t.Fatal("expected challenge html to include Anubis-compatible title node")
+	if !strings.Contains(openRestyPowChallengeLua, `<openflare-pow appearance="`) {
+		t.Fatal("expected challenge renderer to support the reusable PoW component")
 	}
-	if !strings.Contains(openRestyPowChallengeLua, `<div id="progress" role="progressbar" aria-labelledby="status"><div class="bar-inner"></div></div>`) {
-		t.Fatal("expected challenge html to include Anubis-compatible progress markup")
-	}
-	if !strings.Contains(openRestyPowChallengeLua, `<script id="anubis_public_url" type="application/json">"__openflare_internal__"</script>`) {
-		t.Fatal("expected challenge html to force Anubis frontend to reuse the current URL as redir target")
+	if !strings.Contains(openRestyPowChallengeLua, `openflare-pow-config`) {
+		t.Fatal("expected challenge renderer to inject verification boot data")
 	}
 	if !strings.Contains(openRestyPowRuntimeLua, `pow_sessions:set(session_key, "1", session_ttl)`) {
 		t.Fatal("expected pow runtime lua to refresh the PoW session TTL on each valid request")

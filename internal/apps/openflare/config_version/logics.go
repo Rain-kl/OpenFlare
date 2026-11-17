@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
 	"slices"
 	"sort"
 	"strconv"
@@ -443,7 +444,9 @@ func snapshotPagesDeploymentEqual(left, right *openrestyrender.PagesDeployment) 
 }
 
 func snapshotRoutePolicyEqual(left, right snapshotRoute) bool {
-	return left.EnableHTTPS == right.EnableHTTPS &&
+	return left.PoWEnabled == right.PoWEnabled &&
+		reflect.DeepEqual(left.PoWConfig, right.PoWConfig) &&
+		left.EnableHTTPS == right.EnableHTTPS &&
 		left.EnableHTTP2 == right.EnableHTTP2 &&
 		left.RedirectHTTP == right.RedirectHTTP &&
 		left.LimitConnPerServer == right.LimitConnPerServer &&
@@ -539,6 +542,9 @@ func diffOpenRestyOptionDetails(left openRestyConfigSnapshot, right openRestyCon
 	appendIfChanged("OriginErrorPageEnabled", strconv.FormatBool(left.OriginErrorPageEnabled), strconv.FormatBool(right.OriginErrorPageEnabled))
 	appendIfChanged("OriginErrorPageStatusCodes", encodeOriginErrorPageStatusCodes(left.OriginErrorPageStatusCodes), encodeOriginErrorPageStatusCodes(right.OriginErrorPageStatusCodes))
 	appendIfChanged("OriginErrorPageHTML", left.OriginErrorPageHTML, right.OriginErrorPageHTML)
+	leftPoWPage, _ := json.Marshal(left.PoWPage)
+	rightPoWPage, _ := json.Marshal(right.PoWPage)
+	appendIfChanged("PoWPage", string(leftPoWPage), string(rightPoWPage))
 	appendIfChanged("OriginErrorPageGetOnly", strconv.FormatBool(left.OriginErrorPageGetOnly), strconv.FormatBool(right.OriginErrorPageGetOnly))
 	appendIfChanged("SWOfflineEnabled", strconv.FormatBool(left.SWOfflineEnabled), strconv.FormatBool(right.SWOfflineEnabled))
 	appendIfChanged("SWOfflineHTML", left.SWOfflineHTML, right.SWOfflineHTML)
@@ -621,6 +627,7 @@ func openRestyOptionKeys() []string {
 		"OriginErrorPageEnabled",
 		"OriginErrorPageStatusCodes",
 		"OriginErrorPageHTML",
+		"PoWPage",
 		"OriginErrorPageGetOnly",
 		"SWOfflineEnabled",
 		"SWOfflineHTML",

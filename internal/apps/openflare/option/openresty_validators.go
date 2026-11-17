@@ -67,6 +67,7 @@ var openRestyOptionValidators = map[string]func(key, value string) error{
 	model.ConfigKeyOriginErrorPageEnabled:                validateBooleanOption,
 	model.ConfigKeyOriginErrorPageStatusCodes:            validateOriginErrorPageStatusCodes,
 	model.ConfigKeyOriginErrorPageHTML:                   validateOriginErrorPageHTML,
+	model.ConfigKeyPoWPage:                               validatePoWPageOption,
 	model.ConfigKeyOriginErrorPageGetOnly:                validateBooleanOption,
 	model.ConfigKeySWOfflineEnabled:                      validateBooleanOption,
 	model.ConfigKeySWOfflineHTML:                         validateSWOfflineHTML,
@@ -272,6 +273,19 @@ func validateOriginErrorPageHTML(key, value string) error {
 		return fmt.Errorf("%s must not exceed %d bytes (256 KiB)", key, maxOriginErrorPageHTMLBytes)
 	}
 	return nil
+}
+
+func validatePoWPageOption(key, value string) error {
+	var cfg openrestyrender.PoWPageConfig
+	decoder := json.NewDecoder(strings.NewReader(value))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&cfg); err != nil {
+		return fmt.Errorf("%s must be a valid PoW page configuration: %w", key, err)
+	}
+	if !json.Valid([]byte(value)) || strings.TrimSpace(value) == "null" {
+		return fmt.Errorf("%s must be a JSON object", key)
+	}
+	return openrestyrender.ValidatePoWPageConfig(cfg)
 }
 
 func validateSWOfflineHTML(key, value string) error {

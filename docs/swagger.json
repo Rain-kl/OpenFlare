@@ -10439,6 +10439,132 @@
                 }
             }
         },
+        "/api/v1/d/pow/policies": {
+            "get": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "openflare-pow"
+                ],
+                "summary": "列出独立 PoW 站点策略",
+                "responses": {
+                    "200": {
+                        "description": "策略列表",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/pow.Policy"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "未登录",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    },
+                    "404": {
+                        "description": "无权限",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    },
+                    "500": {
+                        "description": "内部错误",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/d/pow/policies/{id}": {
+            "put": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "openflare-pow"
+                ],
+                "summary": "保存独立 PoW 站点策略",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "站点 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "PoW 策略",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/pow.Policy"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "保存成功",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    },
+                    "400": {
+                        "description": "参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    },
+                    "401": {
+                        "description": "未登录",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    },
+                    "404": {
+                        "description": "无权限或站点不存在",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    },
+                    "500": {
+                        "description": "内部错误",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/d/proxy-routes": {
             "get": {
                 "security": [
@@ -19008,6 +19134,98 @@
                 }
             }
         },
+        "openresty.PoWConfig": {
+            "type": "object",
+            "properties": {
+                "algorithm": {
+                    "type": "string"
+                },
+                "blacklist": {
+                    "$ref": "#/definitions/openresty.PoWListConfig"
+                },
+                "challenge_ttl": {
+                    "type": "integer"
+                },
+                "difficulty": {
+                    "type": "integer"
+                },
+                "path_rules": {
+                    "$ref": "#/definitions/openresty.PoWPathRules"
+                },
+                "session_ttl": {
+                    "type": "integer"
+                },
+                "whitelist": {
+                    "$ref": "#/definitions/openresty.PoWListConfig"
+                }
+            }
+        },
+        "openresty.PoWListConfig": {
+            "type": "object",
+            "properties": {
+                "ip_cidrs": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "ips": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "path_regexes": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "paths": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "user_agents": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "openresty.PoWPathMatch": {
+            "type": "object",
+            "properties": {
+                "type": {
+                    "type": "string"
+                },
+                "value": {
+                    "type": "string"
+                }
+            }
+        },
+        "openresty.PoWPathRules": {
+            "type": "object",
+            "properties": {
+                "blacklist": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/openresty.PoWPathMatch"
+                    }
+                },
+                "mode": {
+                    "type": "string"
+                },
+                "whitelist": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/openresty.PoWPathMatch"
+                    }
+                }
+            }
+        },
         "option.geoIPLookupRequest": {
             "type": "object",
             "properties": {
@@ -19511,6 +19729,20 @@
                 },
                 "updated_at": {
                     "type": "string"
+                }
+            }
+        },
+        "pow.Policy": {
+            "type": "object",
+            "properties": {
+                "config": {
+                    "$ref": "#/definitions/openresty.PoWConfig"
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "route_id": {
+                    "type": "integer"
                 }
             }
         },

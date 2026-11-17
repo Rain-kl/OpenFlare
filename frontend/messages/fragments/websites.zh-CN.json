@@ -430,12 +430,12 @@
     "cacheHintNone": "当前策略无需额外路径规则。",
     "cachePlaceholderNone": "当前策略无需额外规则",
     "auth": "认证配置",
-    "authDesc": "配置 Basic Auth 限制未授权访问。PoW 防护请在 WAF 规则组中配置。",
+    "authDesc": "配置 Basic Auth 限制未授权访问。PoW 防护在“安全性 → PoW 防护”中独立配置。",
     "authSaved": "认证配置已保存",
     "authFormInvalid": "请检查认证配置表单",
     "authMode": "认证模式",
     "authNone": "无认证",
-    "powHint": "PoW 防护仅支持在 WAF 规则组中启用并绑定站点。",
+    "powHint": "PoW 防护在安全性菜单的“PoW 防护”中独立配置。",
     "username": "账号",
     "password": "密码",
     "wafDesc": "全局规则组始终生效；这里可以为当前网站叠加自定义规则组。",
@@ -501,7 +501,7 @@
   },
   "responses": {
     "title": "响应页面",
-    "subtitle": "配置源站错误页与离线页。",
+    "subtitle": "配置源站错误页、离线页与 PoW 挑战页。",
     "loadingPermission": "加载权限信息...",
     "loadingConfig": "加载响应页面配置...",
     "loadingPage": "加载响应页面...",
@@ -579,6 +579,7 @@
     "restoreTitle": "恢复默认 HTML？",
     "restoreErrorDesc": "将清空编辑器内容，保存后使用服务端内置默认模板。此操作不会自动保存。",
     "restoreOfflineDesc": "将清空编辑器内容，保存后使用内置默认模板。此操作不会自动保存。",
-    "confirmRestore": "确认恢复"
+    "confirmRestore": "确认恢复",
+    "powPage": "PoW 挑战页"
   }
 }

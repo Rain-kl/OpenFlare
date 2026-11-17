@@ -1,4 +1,5 @@
 import { CircleHelp, Settings2 } from 'lucide-react';
+import Link from 'next/link';
 import { useLocale, useTranslations } from 'next-intl';
 import { useMemo, useState } from 'react';
 
@@ -78,6 +79,7 @@ function PropertyFields({
   onChange: (node: WAFRuleNode) => void;
 }) {
   const t = useTranslations('waf.editor');
+  const tp = useTranslations('pow');
   const locale = useLocale();
   const { countryOptions, regionOptions } = useMemo(
     () =>
@@ -417,6 +419,9 @@ function PropertyFields({
   if (node.type === 'pow')
     return (
       <FieldGroup>
+        <Button variant='link' asChild>
+          <Link href='/pow'>{tp('legacyLink')}</Link>
+        </Button>
         <DisplayNameField node={node} onChange={onChange} />
         <Field>
           <FieldLabel htmlFor={`${node.id}-algorithm`}>

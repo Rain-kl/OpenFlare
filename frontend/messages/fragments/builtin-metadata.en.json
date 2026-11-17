@@ -97,7 +97,8 @@
       "cap_challenge_difficulty": "CAPTCHA PoW difficulty (target prefix length)",
       "cap_challenge_ttl_seconds": "CAPTCHA challenge lifetime (seconds)",
       "cap_token_ttl_seconds": "CAPTCHA verification token lifetime (seconds)",
-      "server_address": "Server URL used to restrict allowed origins; leave empty to allow any origin"
+      "server_address": "Server URL used to restrict allowed origins; leave empty to allow any origin",
+      "pow_page": "PoW page template, widget style and custom HTML"
     },
     "templates": {
       "login_email": {

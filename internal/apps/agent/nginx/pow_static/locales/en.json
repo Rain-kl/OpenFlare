@@ -62,5 +62,7 @@
   "js_iterations": "iterations",
   "js_finished_reading": "I've finished reading, continue →",
   "js_calculation_error": "Calculation error!",
-  "js_calculation_error_msg": "Failed to calculate challenge:"
+  "js_calculation_error_msg": "Failed to calculate challenge:",
+  "js_verifying": "Checking the result…",
+  "js_verification_failed": "Verification failed. Reload to try again."
 }

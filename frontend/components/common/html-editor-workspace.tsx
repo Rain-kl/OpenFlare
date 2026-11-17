@@ -23,6 +23,7 @@ type HtmlEditorWorkspaceProps = {
   footerHint?: React.ReactNode;
   showPreviewLink?: boolean;
   previewTitle?: string;
+  previewSandbox?: string;
 };
 
 /**
@@ -41,6 +42,7 @@ export function HtmlEditorWorkspace({
   ),
   showPreviewLink = true,
   previewTitle = undefined,
+  previewSandbox = '',
 }: HtmlEditorWorkspaceProps) {
   const rt = useTranslations('runtime');
   previewTitle ??= rt('live_origin_error_page_preview_a2a12823');
@@ -156,7 +158,7 @@ export function HtmlEditorWorkspace({
           <div className='flex-1 min-h-0 overflow-hidden bg-background'>
             <iframe
               title={previewTitle}
-              sandbox=''
+              sandbox={previewSandbox}
               srcDoc={previewSrcDoc}
               className='h-full w-full border-0 bg-background'
             />

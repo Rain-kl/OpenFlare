@@ -14,7 +14,7 @@ OpenFlare 是新一代分布式反向代理与边缘安全网关。它将传统 
 4. [Zone 域名迁移](./zone-domain-migration.md)：从旧托管域名/路由内嵌域名升级到 Zone 模型（goose 自动导入），含备份、验收与回滚说明。
 5. [Pages 静态托管使用](./pages-usage.md)：了解静态项目 ZIP 上传限制、SPA Fallback、以及内置 API 反向代理配置。
 6. [内网穿透与隧道使用](./tunnel-usage.md)：部署 Relay 与 Client，实现安全、无公网 IP 反向穿透。
-7. [WAF 安全防护使用](./waf-usage.md)：配置 WAF 规则组，掌握 IP 黑白名单、自动/订阅 IP 组、地域限制与 PoW CC 防护。
+7. [WAF 安全防护使用](./waf-usage.md)：配置 WAF 规则组，掌握 IP 黑白名单、自动/订阅 IP 组和地域限制。PoW CC 防护见 [独立 PoW 使用指南](./pow-usage.md)。
 8. [WAF 自动 IP 组语法](./waf-ip-group-expr.md)：编写自动 IP 组 Expr 规则，了解关键字含义和预设规则。
 9. [Uptime Kuma 监控同步](./uptime-kuma.md)：配置并使用 Uptime Kuma 自动差分同步和监控范围控制。
 10. [SSO 登录配置](./sso.md)：配置 OIDC 实现第三方单点登录（SSO）接入。

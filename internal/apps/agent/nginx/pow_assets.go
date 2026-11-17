@@ -5,10 +5,12 @@ package nginx
 
 import (
 	"embed"
+	"encoding/json"
 	"path/filepath"
 	"strings"
 
 	"github.com/Rain-kl/Wavelet/internal/apps/agent/protocol"
+	openresty "github.com/Rain-kl/Wavelet/pkg/render/openresty"
 )
 
 //go:embed pow_static
@@ -44,7 +46,8 @@ end
 
 -- evaluate is called by a DAG pow node. true continues along its next edge;
 -- false means the challenge flow has taken ownership of the request.
-function _M.evaluate(config)
+function _M.evaluate(config, standalone)
+    if not standalone and ngx.ctx.openflare_pow_standalone then return true end
     config = config or {}
     ngx.ctx.openflare_pow_config = config
 
@@ -54,6 +57,8 @@ function _M.evaluate(config)
     local uri = ngx.var.uri or ""
     local ua = ngx.var.http_user_agent or ""
     local remote_ip = ngx.var.remote_addr or ""
+
+    if config.path_rules and not policy.should_challenge(uri, config.path_rules) then return true end
 
     if policy.match_any(remote_ip, ua, uri, config.whitelist or {}) then return true end
     local blacklist = config.blacklist or {}
@@ -76,9 +81,15 @@ function _M.evaluate(config)
     end
 
     local config_key = "_request_config:" .. (ngx.var.request_id or ngx.md5(host .. uri .. tostring(ngx.now())))
-    pow_config_dict:set(config_key, cjson.encode(config), config.challenge_ttl or 300)
+    local stored, err = pow_config_dict:set(config_key, cjson.encode(config), config.challenge_ttl or 300)
+    if not stored then
+        ngx.log(ngx.ERR, "openflare pow request configuration storage failed: ", err)
+        ngx.status = 503
+        ngx.say("Verification is temporarily unavailable")
+        return false
+    end
     local challenge_args = {
-        redir = ngx.var.scheme .. "://" .. host .. uri .. (ngx.var.args and ("?" .. ngx.var.args) or ""),
+        redir = ngx.var.request_uri or (uri .. (ngx.var.args and ("?" .. ngx.var.args) or "")),
         host = host,
         openflare_pow_config_key = config_key,
     }
@@ -87,10 +98,17 @@ function _M.evaluate(config)
     return false
 end
 
--- Compatibility entrypoint for old rendered routes. PoW selection now belongs
--- exclusively to WAF graph nodes, so this function intentionally does nothing.
+-- Resolve standalone policies before WAF executes legacy PoW nodes.
+function _M.prepare()
+    local policy = require("pow.config").get(ngx.var.openflare_waf_site or "")
+    ngx.ctx.openflare_pow_standalone = policy
+    return policy
+end
+
 function _M.check()
-    return true
+    local policy = ngx.ctx.openflare_pow_standalone or _M.prepare()
+    if type(policy) ~= "table" or not policy.enabled then return true end
+    return _M.evaluate(policy.config, true)
 end
 
 return _M
@@ -296,131 +314,19 @@ end
 return require("pow.runtime").check()
 `
 
-var openRestyPowChallengeLua = `local cjson = require "cjson.safe"
+//go:embed pow_challenge.lua
+var powChallengeLuaTemplate string
 
-local pow_challenges = ngx.shared.openflare_pow_challenges
-local pow_config_dict = ngx.shared.openflare_pow_config
+var openRestyPowChallengeLua = strings.NewReplacer(
+	"__POW_EN__", powChallengeEnglish,
+	"__POW_ZH__", powChallengeChinese,
+	"__POW_DEFAULT_HTML__", defaultPoWPageJSON(),
+).Replace(powChallengeLuaTemplate)
 
-local function generate_entropy()
-    local pieces = {
-        tostring(ngx.now()),
-        tostring(ngx.worker.pid()),
-        tostring(math.random()),
-        ngx.var.remote_addr or "",
-        ngx.var.http_user_agent or "",
-        ngx.var.request_id or "",
-    }
-    return table.concat(pieces, ":")
-end
-
-local args = ngx.req.get_uri_args()
-local host = args["host"] or ngx.var.host or ""
-local redir = args["redir"] or ""
-
-local config = ngx.ctx.openflare_pow_config
-local config_key = args["openflare_pow_config_key"] or ""
-if type(config) ~= "table" and config_key ~= "" then
-    local config_raw = pow_config_dict:get(config_key)
-    if config_raw then
-        config = cjson.decode(config_raw)
-    end
-end
-if config_key ~= "" then pow_config_dict:delete(config_key) end
-if type(config) ~= "table" then
-    ngx.status = 403
-    ngx.say("PoW graph node was not evaluated for this request")
-    return
-end
-local difficulty = config.difficulty or 4
-local algorithm = config.algorithm or "fast"
-local challenge_ttl = config.challenge_ttl or 300
-local session_ttl = config.session_ttl or 600
-
--- Generate challenge data without depending on ngx.random_bytes, which is not
--- available in every OpenResty runtime build.
-local entropy = generate_entropy()
-local challenge_id = ngx.md5(entropy .. ":id")
-local challenge_data = ngx.md5(entropy .. ":data-a") .. ngx.md5(entropy .. ":data-b")
-
--- Store challenge
-local challenge_info = cjson.encode({
-    data = challenge_data,
-    difficulty = difficulty,
-    host = host,
-    redir = redir,
-    session_ttl = session_ttl
-})
-pow_challenges:set(challenge_id, challenge_info, challenge_ttl)
-
-local static_prefix = "/.within.website/x/cmd/anubis/static/"
-local accept_lang = ngx.var.http_accept_language or ""
-local lang = "en"
-if string.find(accept_lang, "zh") then
-    lang = "zh-CN"
-end
-
-local translations = {
-    en = cjson.decode([==[` + powChallengeEnglish + `]==]),
-    ["zh-CN"] = cjson.decode([==[` + powChallengeChinese + `]==])
+func defaultPoWPageJSON() string {
+	raw, _ := json.Marshal(openresty.DefaultPoWPageHTML("classic"))
+	return string(raw)
 }
-local text = translations[lang] or translations.en
-local t_title = text.title
-local t_status = text.status
-local t_protected = text.protected
-local t_why = text.why
-local t_why_desc = text.why_description
-local t_noscript = text.noscript
-
-ngx.header.content_type = "text/html; charset=utf-8"
-ngx.say([[<!DOCTYPE html>
-<html lang="]] .. lang .. [[">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="robots" content="noindex,nofollow">
-<title>]] .. t_title .. [[</title>
-<link rel="stylesheet" href="]] .. static_prefix .. [[css/xess.css">
-<style>
-body,html{height:100%;display:flex;justify-content:center;align-items:center;margin-left:auto;margin-right:auto}
-.centered-div{text-align:center}
-#status{font-variant-numeric:tabular-nums}
-#progress{display:none;width:min(20rem,90%);height:2rem;border-radius:1rem;overflow:hidden;margin:1rem 0 2rem;outline-offset:2px;outline:#b16286 solid 4px}
-.bar-inner{background-color:#b16286;height:100%;width:0;transition:width .25s ease-in}
-</style>
-<script id="anubis_version" type="application/json">"openflare-pow"</script>
-<script id="anubis_challenge" type="application/json">]] .. cjson.encode({
-    challenge = {
-        id = challenge_id,
-        randomData = challenge_data,
-        method = algorithm
-    },
-    rules = {
-        difficulty = difficulty,
-        algorithm = algorithm
-    }
-}) .. [[</script>
-<script id="anubis_base_prefix" type="application/json">""</script>
-<script id="anubis_public_url" type="application/json">"__openflare_internal__"</script>
-</head>
-<body id="top">
-<main>
-<h1 id="title" class="centered-div">]] .. t_title .. [[</h1>
-<div class="centered-div">
-<img id="image" style="width:100%;max-width:256px;" src="]] .. static_prefix .. [[img/pensive.webp?cacheBuster=openflare-pow">
-<p id="status">]] .. t_status .. [[</p>
-<p>]] .. t_protected .. [[</p>
-<div id="progress" role="progressbar" aria-labelledby="status"><div class="bar-inner"></div></div>
-<details>
-<summary>]] .. t_why .. [[</summary>
-<p>]] .. t_why_desc .. [[</p>
-</details>
-<noscript><p>]] .. t_noscript .. [[</p></noscript>
-</div>
-</main>
-<script type="module" src="]] .. static_prefix .. [[js/main.mjs"></script>
-</body>
-</html>]])
-`
 
 const openRestyPowVerifyLua = `local cjson = require "cjson.safe"
 
@@ -450,7 +356,7 @@ if challenge_id == "" or response == "" or nonce_str == "" then
 end
 
 local nonce = tonumber(nonce_str)
-if not nonce then
+if not nonce or nonce < 0 or nonce > 9007199254740991 or nonce ~= math.floor(nonce) then
     ngx.status = 400
     ngx.header.content_type = "application/json"
     ngx.say(cjson.encode({error = "invalid nonce"}))
@@ -478,6 +384,13 @@ local challenge_data = challenge_info.data or ""
 local difficulty = challenge_info.difficulty or 4
 local host = challenge_info.host or ngx.var.host or ""
 local session_ttl = challenge_info.session_ttl or 600
+
+if host ~= (ngx.var.host or "") or (challenge_info.site and challenge_info.site ~= site) then
+    ngx.status = 403
+    ngx.header.content_type = "application/json"
+    ngx.say(cjson.encode({error = "challenge site mismatch"}))
+    return
+end
 
 -- Compute SHA-256(challenge_data + nonce)
 local calc_string = challenge_data .. tostring(math.floor(nonce))
@@ -526,7 +439,9 @@ end
 ngx.header["Set-Cookie"] = cookie
 
 if redir ~= "" then
-    return ngx.redirect(redir)
+    local target = challenge_info.redir or "/"
+    if string.sub(target, 1, 1) ~= "/" or string.sub(target, 1, 2) == "//" or string.find(target, "[\\\r\n]") then target = "/" end
+    return ngx.redirect(target)
 end
 
 ngx.header.content_type = "application/json"
@@ -536,7 +451,7 @@ ngx.say(cjson.encode({ok = true}))
 const openRestyPowPolicyLua = `local M = {}
 
 local function match_ip(remote_ip, ips)
-    if not ips or #ips == 0 then return false end
+    if type(ips) ~= "table" or #ips == 0 then return false end
     for _, ip in ipairs(ips) do
         if ip == remote_ip then
             return true
@@ -546,7 +461,7 @@ local function match_ip(remote_ip, ips)
 end
 
 local function match_cidr(remote_ip, cidrs)
-    if not cidrs or #cidrs == 0 then return false end
+    if type(cidrs) ~= "table" or #cidrs == 0 then return false end
     for _, cidr in ipairs(cidrs) do
         local m, err = ngx.re.match(cidr, "^(\\\\d{1,3}\\\\.\\\\d{1,3}\\\\.\\\\d{1,3}\\\\.\\\\d{1,3})/(\\\\d{1,2})$")
         if m then
@@ -577,7 +492,7 @@ local function match_cidr(remote_ip, cidrs)
 end
 
 local function match_path(uri, patterns)
-    if not patterns or #patterns == 0 then return false end
+    if type(patterns) ~= "table" or #patterns == 0 then return false end
     for _, pattern in ipairs(patterns) do
         local ok, match = pcall(ngx.re.match, uri, "^" .. ngx.re.gsub(pattern, "([%^%$%(%)%%%.%[%]%+%-%?])", function(c)
             if c == "*" then return ".*" end
@@ -591,7 +506,7 @@ local function match_path(uri, patterns)
 end
 
 local function match_path_regex(uri, patterns)
-    if not patterns or #patterns == 0 then return false end
+    if type(patterns) ~= "table" or #patterns == 0 then return false end
     for _, pattern in ipairs(patterns) do
         local ok, match = pcall(ngx.re.match, uri, pattern)
         if ok and match then
@@ -602,7 +517,7 @@ local function match_path_regex(uri, patterns)
 end
 
 local function match_ua(ua, patterns)
-    if not patterns or #patterns == 0 then return false end
+    if type(patterns) ~= "table" or #patterns == 0 then return false end
     for _, pattern in ipairs(patterns) do
         if ua and string.find(ua, pattern, 1, true) then
             return true
@@ -612,7 +527,7 @@ local function match_ua(ua, patterns)
 end
 
 function M.match_any(remote_ip, ua, uri, list)
-    if not list then return false end
+    if type(list) ~= "table" then return false end
     if match_ip(remote_ip, list.ips) then return true end
     if match_cidr(remote_ip, list.ip_cidrs) then return true end
     if match_path(uri, list.paths) then return true end
@@ -622,17 +537,51 @@ function M.match_any(remote_ip, ua, uri, list)
 end
 
 function M.has_entries(list)
-    if not list then return false end
-    return (#(list.ips or {}) + #(list.ip_cidrs or {}) + #(list.paths or {}) + #(list.path_regexes or {}) + #(list.user_agents or {})) > 0
+    if type(list) ~= "table" then return false end
+    for _, value in pairs(list) do
+        if type(value) == "table" and #value > 0 then return true end
+    end
+    return false
+end
+
+local function path_matches(uri, rules)
+    if type(rules) ~= "table" then return false end
+    for _, rule in ipairs(rules) do
+        local value = rule.value
+        if rule.type == "exact" and uri == value then return true end
+        if rule.type == "prefix" and string.sub(uri, 1, #value) == value then return true end
+        if rule.type == "wildcard" then
+            local pattern = "^" .. string.gsub(value, "([%^%$%(%)%%%.%[%]%+%-%?%*])", function(char)
+                if char == "*" then return ".*" end
+                return "%" .. char
+            end) .. "$"
+            if string.match(uri, pattern) then return true end
+        end
+        if rule.type == "regex" then
+            local from = ngx.re.find(uri, value, "jo")
+            if from then return true end
+        end
+    end
+    return false
+end
+
+function M.should_challenge(uri, rules)
+    if path_matches(uri, rules.whitelist) then return false end
+    if rules.mode == "blacklist" then return path_matches(uri, rules.blacklist) end
+    return true
 end
 
 return M
 `
 
+//go:embed pow_config.lua
+var openRestyPowConfigLua string
+
 // ManagedPowLuaFiles returns embedded Lua assets for proof-of-work challenges.
 func ManagedPowLuaFiles() []protocol.SupportFile {
 	return []protocol.SupportFile{
 		{Path: "pow/runtime.lua", Content: openRestyPowRuntimeLua},
+		{Path: "pow/config.lua", Content: openRestyPowConfigLua},
 		{Path: "pow/check.lua", Content: openRestyPowCheckLua},
 		{Path: "pow/challenge.lua", Content: openRestyPowChallengeLua},
 		{Path: "pow/verify.lua", Content: openRestyPowVerifyLua},

@@ -1,12 +1,5 @@
 import { useTranslations } from 'next-intl';
-import {
-  Ban,
-  Fingerprint,
-  Globe2,
-  ScanSearch,
-  Shield,
-  ShieldCheck,
-} from 'lucide-react';
+import { Ban, Fingerprint, Globe2, ScanSearch, Shield } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 
@@ -21,7 +14,6 @@ const items = [
   { type: 'geo_match' as const, icon: Globe2 },
   { type: 'ua_check' as const, icon: ScanSearch },
   { type: 'security_check' as const, icon: Shield },
-  { type: 'pow' as const, icon: ShieldCheck },
   { type: 'block' as const, icon: Ban },
 ] satisfies { type: AddableNodeType; icon: typeof Fingerprint }[];
 

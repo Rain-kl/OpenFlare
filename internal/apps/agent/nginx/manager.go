@@ -933,8 +933,7 @@ func (m *Manager) writeCertFiles(certFiles []protocol.SupportFile) error {
 	return m.writeManagedCertFiles(certFiles)
 }
 
-// writePowConfig persists legacy pow_config.json for backward compatibility.
-// PoW runtime loads site config from waf_config.json; pow_config.json is deprecated.
+// writePowConfig persists independent site PoW policies in pow_config.json.
 func (m *Manager) writePowConfig(supportFiles []protocol.SupportFile) error {
 	if m.RuntimeConfigDir == "" {
 		return nil
@@ -1466,6 +1465,7 @@ func (m *Manager) managedPowLuaFiles() []protocol.SupportFile {
 	runtimeConfigDir := filepath.ToSlash(strings.TrimSpace(m.RuntimeConfigDir))
 	for index := range files {
 		files[index].Content = strings.ReplaceAll(files[index].Content, RuntimeConfigDirPlaceholder, runtimeConfigDir)
+		files[index].Content = strings.ReplaceAll(files[index].Content, "__OPENFLARE_POW_PAGE_CONFIG__", filepath.ToSlash(filepath.Join(m.NginxCertDir, openrestyrender.PoWPageSupportPath)))
 	}
 	return files
 }

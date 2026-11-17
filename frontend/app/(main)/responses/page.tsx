@@ -14,13 +14,15 @@ import { OptionService } from '@/lib/services/openflare';
 
 import { ErrorPageTab } from './components/error-page-tab';
 import { OfflinePageTab } from './components/offline-page-tab';
+import { PoWPageTab } from './components/pow-page-tab';
 import { useTranslations } from 'next-intl';
 
 import { OPTIONS_QUERY_KEY, optionsToMap } from './components/shared';
 
-type ResponseTab = 'error' | 'offline';
+type ResponseTab = 'error' | 'offline' | 'pow';
 
 function resolveTab(tabParam: string | null): ResponseTab {
+  if (tabParam === 'pow') return 'pow';
   if (tabParam === 'offline') {
     return 'offline';
   }
@@ -141,6 +143,9 @@ function ResponsesPageContent() {
           >
             {t('offlinePage')}
           </TabsTrigger>
+          <TabsTrigger value='pow' className='px-0 pb-2 text-xs font-semibold'>
+            {t('powPage')}
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value='error' className='focus-visible:outline-none'>
@@ -149,6 +154,10 @@ function ResponsesPageContent() {
 
         <TabsContent value='offline' className='focus-visible:outline-none'>
           <OfflinePageTab optionMap={optionMap} />
+        </TabsContent>
+
+        <TabsContent value='pow' className='focus-visible:outline-none'>
+          <PoWPageTab optionMap={optionMap} />
         </TabsContent>
       </Tabs>
     </div>

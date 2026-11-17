@@ -22,6 +22,7 @@ func setupProxyRouteTestDB(t *testing.T) func() {
 	require.NoError(t, err)
 	require.NoError(t, sqliteDB.AutoMigrate(
 		&model.ProxyRoute{},
+		&model.OpenFlarePoWPolicy{},
 		&model.Origin{},
 		&model.Zone{},
 		&model.ZoneDomain{},

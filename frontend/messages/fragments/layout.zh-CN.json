@@ -31,7 +31,8 @@
       "configVersions": "版本发布",
       "accessLogs": "访问日志",
       "performance": "性能调优",
-      "applyLogs": "应用日志"
+      "applyLogs": "应用日志",
+      "pow": "PoW 防护"
     },
     "groups": {
       "admin": "管理",
@@ -117,7 +118,8 @@
         "storageDesc": "查看、检索与清理上传到对象存储中的文件 (管理员专属)",
         "databaseDesc": "监控数据库表大小、分页浏览物理表内容并支持交互式 SQL (管理员专属)",
         "pushDesc": "配置与下发邮件、Lark 和 Telegram 渠道通知推送 (管理员专属)",
-        "logsDesc": "查看系统日志与后台异步任务执行日志 (管理员专属)"
+        "logsDesc": "查看系统日志与后台异步任务执行日志 (管理员专属)",
+        "powDesc": "独立配置 PoW 站点策略与触发路径"
       }
     },
     "error": {

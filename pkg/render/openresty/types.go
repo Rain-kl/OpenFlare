@@ -143,6 +143,20 @@ type PoWConfig struct {
 	ChallengeTTL int           `json:"challenge_ttl"`
 	Whitelist    PoWListConfig `json:"whitelist"`
 	Blacklist    PoWListConfig `json:"blacklist"`
+	PathRules    *PoWPathRules `json:"path_rules,omitempty"`
+}
+
+// PoWPathRules selects normalized paths, with whitelist bypasses taking precedence.
+type PoWPathRules struct {
+	Mode      string         `json:"mode"`
+	Whitelist []PoWPathMatch `json:"whitelist,omitempty"`
+	Blacklist []PoWPathMatch `json:"blacklist,omitempty"`
+}
+
+// PoWPathMatch matches a path using exact, prefix, wildcard or regex semantics.
+type PoWPathMatch struct {
+	Type  string `json:"type"`
+	Value string `json:"value"`
 }
 
 // DefaultPoWConfig returns the canonical PoW defaults used when pow_enabled is
@@ -336,6 +350,8 @@ type ConfigSnapshot struct {
 	SWOfflineHTML string `json:"sw_offline_html,omitempty"`
 	// SWOfflineDomains restricts the offline fallback to matching HTTPS routes.
 	SWOfflineDomains []string `json:"sw_offline_domains,omitempty"`
+
+	PoWPage PoWPageConfig `json:"pow_page,omitempty"`
 }
 
 // DefaultTrustedProxyCIDRs returns Cloudflare's published IPv4 and IPv6
