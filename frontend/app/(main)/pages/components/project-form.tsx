@@ -3,7 +3,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useTranslations } from 'next-intl';
 import { useMemo } from 'react';
-import { useForm, type UseFormReturn } from 'react-hook-form';
+import { useForm, useWatch, type UseFormReturn } from 'react-hook-form';
 import { z } from 'zod';
 
 import { Input } from '@/components/ui/input';
@@ -137,8 +137,14 @@ export function ProjectFormFields({
   idPrefix = '',
 }: ProjectFormFieldsProps) {
   const t = useTranslations('pages');
-  const spaEnabled = form.watch('spa_fallback_enabled');
-  const apiEnabled = form.watch('api_proxy_enabled');
+  const spaEnabled = useWatch({
+    control: form.control,
+    name: 'spa_fallback_enabled',
+  });
+  const apiEnabled = useWatch({
+    control: form.control,
+    name: 'api_proxy_enabled',
+  });
   const fieldId = (name: string) => (idPrefix ? `${idPrefix}-${name}` : name);
 
   return (
