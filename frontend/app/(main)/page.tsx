@@ -1,15 +1,12 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { LayoutDashboard, RefreshCw } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
 import { EmptyStateWithBorder } from '@/components/layout/empty';
 import { ErrorInline } from '@/components/layout/error';
 import { LoadingStateWithBorder } from '@/components/layout/loading';
-import { Button } from '@/components/ui/button';
 import { DashboardService } from '@/lib/services/openflare';
-import { formatDateTime } from '@/lib/utils';
 
 import {
   SourceDistributionChart,
@@ -35,37 +32,7 @@ export default function OpenFlareDashboardPage() {
   const overview = overviewQuery.data;
 
   return (
-    <div className='py-6 px-1 space-y-6'>
-      <div className='flex flex-wrap items-center justify-between gap-3'>
-        <div className='flex items-center gap-2'>
-          <LayoutDashboard className='size-5 text-primary' />
-          <h1 className='text-2xl font-semibold tracking-tight'>
-            {t('title')}
-          </h1>
-        </div>
-        <div className='flex items-center gap-2 text-xs text-muted-foreground'>
-          {overview?.generated_at ? (
-            <span>
-              {t('generatedAt', {
-                time: formatDateTime(overview.generated_at),
-              })}
-            </span>
-          ) : null}
-          <Button
-            variant='outline'
-            size='sm'
-            className='h-8'
-            onClick={() => overviewQuery.refetch()}
-            disabled={overviewQuery.isFetching}
-          >
-            <RefreshCw
-              className={`size-3.5 mr-1.5 ${overviewQuery.isFetching ? 'animate-spin' : ''}`}
-            />
-            {t('refresh')}
-          </Button>
-        </div>
-      </div>
-
+    <div className='flex w-full flex-col gap-6 py-6 px-1'>
       {overviewQuery.isLoading ? (
         <LoadingStateWithBorder
           title={t('loadingTitle')}
@@ -86,7 +53,6 @@ export default function OpenFlareDashboardPage() {
       ) : (
         <>
           <WorldStage
-            summary={overview.summary}
             traffic={overview.traffic}
             nodes={overview.nodes}
             sourceCountries={overview.distributions.source_countries}

@@ -20,6 +20,12 @@
       "unhealthyOffline": "С ошибками: {unhealthy} · не в сети: {offline}"
     },
     "world": {
+      "uniqueIps": "Уникальные IP",
+      "uniqueIpsHint": "За 24 часа · без повторов между узлами",
+      "requests4xx": "Запросы 4xx",
+      "requests5xx": "Запросы 5xx",
+      "requestShare": "{rate} всех запросов",
+      "averageQps": "Средний QPS {qps}",
       "title": "Глобальный обзор",
       "description": "Расположение узлов, география запросов и текущее состояние системы.",
       "legendSource": "Источник",

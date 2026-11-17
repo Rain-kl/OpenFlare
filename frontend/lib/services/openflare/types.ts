@@ -1151,6 +1151,7 @@ export interface DashboardSummary {
 
 export interface DashboardTraffic {
   request_count: number;
+  status_4xx_count?: number;
   unique_visitors: number;
   error_count: number;
   estimated_qps: number;

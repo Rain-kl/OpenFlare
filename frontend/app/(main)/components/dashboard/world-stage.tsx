@@ -3,28 +3,27 @@
 import dynamic from 'next/dynamic';
 import { type ComponentType, useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { Activity, Globe2, Network, Server, ShieldCheck } from 'lucide-react';
+import {
+  Activity,
+  CircleAlert,
+  Globe2,
+  LayoutDashboard,
+  ServerCrash,
+  Users,
+} from 'lucide-react';
 
 import { getFormattingLocale } from '@/i18n/format';
 import { EmptyState } from '@/components/layout/empty';
-import { Badge } from '@/components/ui/badge';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import type {
   DashboardNodeHealth,
-  DashboardSummary,
   DashboardTraffic,
   DistributionItem,
 } from '@/lib/services/openflare';
 import { cn } from '@/lib/utils';
 
-import { formatCompactNumber, formatPercent } from './dashboard-utils';
+import { formatCompactNumber } from './dashboard-utils';
 
 const WorldStageMap = dynamic(
   () => import('./world-stage-map').then((module) => module.WorldStageMap),
@@ -43,14 +42,12 @@ function SummaryMetric({
   value,
   hint,
   icon: Icon,
-  progress,
   className,
 }: {
   label: string;
   value: string;
   hint: string;
   icon: ComponentType<{ className?: string }>;
-  progress?: number;
   className?: string;
 }) {
   return (
@@ -67,25 +64,21 @@ function SummaryMetric({
       <span className='text-xl font-semibold tabular-nums leading-none tracking-tight'>
         {value}
       </span>
-      {typeof progress === 'number' ? (
-        <Progress value={progress} aria-label={label} className='h-1' />
-      ) : null}
       <span className='truncate text-[10px] text-muted-foreground'>{hint}</span>
     </div>
   );
 }
 
 export function WorldStage({
-  summary,
   traffic,
   nodes,
   sourceCountries,
 }: {
-  summary: DashboardSummary;
   traffic: DashboardTraffic;
   nodes: DashboardNodeHealth[];
   sourceCountries: DistributionItem[];
 }) {
+  const td = useTranslations('dashboard');
   const t = useTranslations('dashboard.world');
   const tm = useTranslations('dashboard.map');
   const mapViewportRef = useRef<HTMLDivElement | null>(null);
@@ -119,64 +112,44 @@ export function WorldStage({
     };
   }, [shouldRenderMap]);
 
-  const onlineRate =
-    summary.total_nodes > 0
-      ? (summary.online_nodes / summary.total_nodes) * 100
-      : 0;
-  const healthyNodes = Math.max(
-    0,
-    summary.online_nodes - summary.unhealthy_nodes,
-  );
-  const healthyRate =
-    summary.total_nodes > 0 ? (healthyNodes / summary.total_nodes) * 100 : 0;
-  const geoConfiguredNodes = nodes.filter(
-    (node) =>
-      typeof node.geo_latitude === 'number' &&
-      typeof node.geo_longitude === 'number',
-  ).length;
-
-  const mapModeLabel =
-    sourceCountries.length > 0
-      ? t('modeVisitorSource')
-      : geoConfiguredNodes > 0
-        ? t('modeNodeCoords')
-        : t('modeCoverage');
-
+  const status4xxCount =
+    traffic.status_4xx_count ?? (traffic.request_count === 0 ? 0 : undefined);
+  const requestRate = (count: number | undefined) => {
+    if (count === undefined) return '—';
+    const rate = traffic.request_count > 0 ? count / traffic.request_count : 0;
+    return rate.toLocaleString(getFormattingLocale(), {
+      style: 'percent',
+      maximumFractionDigits: 2,
+    });
+  };
   const headlineMetrics = [
-    {
-      label: t('onlineCoverage'),
-      value: formatPercent(onlineRate),
-      hint: t('onlineHint', {
-        online: summary.online_nodes,
-        total: summary.total_nodes,
-      }),
-      icon: Server,
-      progress: onlineRate,
-    },
-    {
-      label: t('runHealth'),
-      value: formatPercent(healthyRate),
-      hint: t('unhealthyCount', { count: summary.unhealthy_nodes }),
-      icon: ShieldCheck,
-      progress: healthyRate,
-    },
     {
       label: t('requests24h'),
       value: formatCompactNumber(traffic.request_count),
-      hint: t('qpsReported', {
-        qps: traffic.estimated_qps.toFixed(1),
-        count: traffic.reported_nodes,
+      hint: t('averageQps', {
+        qps: traffic.estimated_qps.toLocaleString(getFormattingLocale(), {
+          maximumFractionDigits: 2,
+        }),
       }),
       icon: Activity,
     },
     {
-      label: t('nodeCoords'),
-      value: formatCompactNumber(geoConfiguredNodes),
-      hint:
-        geoConfiguredNodes > 0
-          ? t('sourceCountries', { count: sourceCountries.length })
-          : t('fallbackPins'),
-      icon: Network,
+      label: t('uniqueIps'),
+      value: formatCompactNumber(traffic.unique_visitors),
+      hint: t('uniqueIpsHint'),
+      icon: Users,
+    },
+    {
+      label: t('requests4xx'),
+      value: formatCompactNumber(status4xxCount),
+      hint: t('requestShare', { rate: requestRate(status4xxCount) }),
+      icon: CircleAlert,
+    },
+    {
+      label: t('requests5xx'),
+      value: formatCompactNumber(traffic.error_count),
+      hint: t('requestShare', { rate: requestRate(traffic.error_count) }),
+      icon: ServerCrash,
     },
   ] as const;
 
@@ -187,24 +160,15 @@ export function WorldStage({
   const maximum = Math.max(1, ...countries.map((item) => item.value));
 
   return (
-    <Card className='overflow-hidden border-dashed shadow-none'>
-      <CardHeader className='gap-3 space-y-0 pb-3'>
-        <div className='flex flex-wrap items-start justify-between gap-x-4 gap-y-3'>
-          <div className='min-w-0'>
-            <CardTitle className='flex items-center gap-1.5 text-sm font-semibold'>
-              <Globe2 className='size-4 shrink-0 text-primary' />
-              {t('title')}
-              <Badge
-                variant='outline'
-                className='ml-1 text-[10px] font-normal text-muted-foreground'
-              >
-                {mapModeLabel}
-              </Badge>
-            </CardTitle>
-            <CardDescription className='mt-1 text-xs'>
-              {t('description')}
-            </CardDescription>
-          </div>
+    <Card className='gap-3 overflow-hidden border-dashed shadow-none'>
+      <CardHeader className='gap-0'>
+        <div className='flex flex-wrap items-center justify-between gap-x-4 gap-y-2'>
+          <CardTitle className='flex items-center gap-2'>
+            <LayoutDashboard className='size-5 shrink-0 text-primary' />
+            <h1 className='text-2xl font-semibold tracking-tight'>
+              {td('title')}
+            </h1>
+          </CardTitle>
           <div className='flex flex-wrap items-center gap-x-3 gap-y-1 rounded-full border border-dashed bg-muted/15 px-3 py-1.5'>
             {LEGEND_ITEMS.map((item) => (
               <span
@@ -220,7 +184,7 @@ export function WorldStage({
       </CardHeader>
 
       <CardContent className='flex flex-col gap-4 pt-0'>
-        <div className='grid gap-3 sm:grid-cols-2 xl:grid-cols-4'>
+        <div className='grid grid-cols-2 gap-3 xl:grid-cols-4'>
           {headlineMetrics.map((metric) => (
             <SummaryMetric key={metric.label} {...metric} />
           ))}

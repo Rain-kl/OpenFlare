@@ -187,3 +187,32 @@ func TestGetOverviewStructure(t *testing.T) {
 	assert.InDelta(t, 55.0, overview.Capacity.AverageCPUUsagePercent, 1e-9)
 	assert.Equal(t, 1, overview.Traffic.ReportedNodes)
 }
+
+func TestOverviewTrafficCountsUseSameWindow(t *testing.T) {
+	cleanup := setupDashboardTestDB(t)
+	t.Cleanup(cleanup)
+	ctx := context.Background()
+	now := time.Now()
+	logs := []*model.OpenFlareAccessLog{
+		{NodeID: "edge-a", LoggedAt: now.Add(-time.Minute), RemoteAddr: "192.0.2.1", StatusCode: 200},
+		{NodeID: "edge-b", LoggedAt: now.Add(-time.Minute), RemoteAddr: "192.0.2.1", StatusCode: 399},
+		// Include the oldest partial hour of the rolling 24-hour window.
+		{NodeID: "edge-a", LoggedAt: now.Add(-24*time.Hour + time.Minute), RemoteAddr: "192.0.2.2", StatusCode: 400},
+		{NodeID: "edge-b", LoggedAt: now.Add(-time.Minute), RemoteAddr: "192.0.2.2", StatusCode: 499},
+		{NodeID: "edge-a", LoggedAt: now.Add(-time.Minute), RemoteAddr: "", StatusCode: 500},
+		{NodeID: "edge-b", LoggedAt: now.Add(-time.Minute), RemoteAddr: "192.0.2.1", StatusCode: 599},
+		{NodeID: "edge-a", LoggedAt: now.Add(-25 * time.Hour), RemoteAddr: "192.0.2.3", StatusCode: 404},
+		{NodeID: "edge-a", LoggedAt: now.Add(time.Hour), RemoteAddr: "192.0.2.4", StatusCode: 403},
+	}
+	if err := repository.InsertOpenFlareAccessLogsBatch(ctx, logs); err != nil {
+		t.Fatalf("InsertOpenFlareAccessLogsBatch() error = %v", err)
+	}
+	view, err := buildOverviewView(ctx)
+	if err != nil {
+		t.Fatalf("buildOverviewView() error = %v", err)
+	}
+	got := view.Traffic
+	if got.RequestCount != 6 || got.UniqueVisitors != 2 || got.Status4xxCount != 2 || got.ErrorCount != 2 {
+		t.Errorf("buildOverviewView(mixed status/window logs).Traffic = %+v, want requests=6, unique IPs=2, 4xx=2, 5xx=2", got)
+	}
+}

@@ -20,6 +20,12 @@
       "unhealthyOffline": "Unhealthy {unhealthy} · offline {offline}"
     },
     "world": {
+      "uniqueIps": "Unique IPs",
+      "uniqueIpsHint": "Last 24 hours · deduplicated across nodes",
+      "requests4xx": "4xx requests",
+      "requests5xx": "5xx requests",
+      "requestShare": "{rate} of all requests",
+      "averageQps": "Average QPS {qps}",
       "title": "Global stage",
       "description": "Summarizes node distribution, source-country heat, and recent runtime status.",
       "legendSource": "Source",

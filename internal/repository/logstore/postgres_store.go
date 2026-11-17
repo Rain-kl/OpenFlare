@@ -200,16 +200,18 @@ func (s *gormLogStore) Count(ctx context.Context, query model.OpenFlareAccessLog
 func (s *gormLogStore) TrafficSummary(ctx context.Context, query model.OpenFlareAccessLogQuery) (model.OpenFlareAccessLogTrafficSummary, error) {
 	f := toNodeAccessLogFilter(query)
 	var out struct {
-		RequestCount  int64
-		ErrorCount    int64
-		UniqueIPCount int64
-		BytesSent     int64
-		RequestLength int64
-		NodeCount     int64
+		RequestCount   int64
+		Status4xxCount int64 `gorm:"column:status_4xx_count"`
+		ErrorCount     int64
+		UniqueIPCount  int64
+		BytesSent      int64
+		RequestLength  int64
+		NodeCount      int64
 	}
 	q := applyNodeAccessLogFilter(s.db.WithContext(ctx).Model(&analyticsmodel.NodeAccessLog{}), f)
 	err := q.Select(`
         COUNT(*) AS request_count,
+        COUNT(*) FILTER (WHERE status_code >= 400 AND status_code < 500) AS status_4xx_count,
         COUNT(*) FILTER (WHERE status_code >= 500) AS error_count,
         ` + distinctNonEmptyCountSQL(s.db, "remote_addr") + ` AS unique_ip_count,
         COALESCE(SUM(bytes_sent),0) AS bytes_sent,
@@ -219,12 +221,13 @@ func (s *gormLogStore) TrafficSummary(ctx context.Context, query model.OpenFlare
 		return model.OpenFlareAccessLogTrafficSummary{}, err
 	}
 	return model.OpenFlareAccessLogTrafficSummary{
-		RequestCount:  out.RequestCount,
-		ErrorCount:    out.ErrorCount,
-		UniqueIPCount: out.UniqueIPCount,
-		BytesSent:     out.BytesSent,
-		RequestLength: out.RequestLength,
-		NodeCount:     out.NodeCount,
+		RequestCount:   out.RequestCount,
+		Status4xxCount: out.Status4xxCount,
+		ErrorCount:     out.ErrorCount,
+		UniqueIPCount:  out.UniqueIPCount,
+		BytesSent:      out.BytesSent,
+		RequestLength:  out.RequestLength,
+		NodeCount:      out.NodeCount,
 	}, nil
 }
 

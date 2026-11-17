@@ -168,6 +168,7 @@ func TrafficSummaryNodeAccessLogs(ctx context.Context, filter NodeAccessLogFilte
 	sql := fmt.Sprintf(`
 SELECT
 	count() AS request_count,
+	countIf(status_code >= 400 AND status_code < 500) AS status_4xx_count,
 	countIf(status_code >= 500) AS error_count,
 	uniqExactIf(remote_addr, remote_addr != '') AS unique_ips,
 	sum(bytes_sent) AS bytes_sent,
@@ -175,19 +176,20 @@ SELECT
 	uniqExactIf(node_id, node_id != '') AS node_count
 FROM %s
 WHERE %s`, tableName, clause)
-	var requestCount, errorCount, uniqueIPs, bytesSent, requestLength, nodeCount uint64
+	var requestCount, status4xxCount, errorCount, uniqueIPs, bytesSent, requestLength, nodeCount uint64
 	if err := conn.QueryRow(ctx, sql, args...).Scan(
-		&requestCount, &errorCount, &uniqueIPs, &bytesSent, &requestLength, &nodeCount,
+		&requestCount, &status4xxCount, &errorCount, &uniqueIPs, &bytesSent, &requestLength, &nodeCount,
 	); err != nil {
 		return NodeAccessLogTrafficSummary{}, fmt.Errorf("traffic summary node access logs: %w", err)
 	}
 	return NodeAccessLogTrafficSummary{
-		RequestCount:  safeInt64Count(requestCount),
-		ErrorCount:    safeInt64Count(errorCount),
-		UniqueIPCount: safeInt64Count(uniqueIPs),
-		BytesSent:     safeInt64Count(bytesSent),
-		RequestLength: safeInt64Count(requestLength),
-		NodeCount:     safeInt64Count(nodeCount),
+		RequestCount:   safeInt64Count(requestCount),
+		Status4xxCount: safeInt64Count(status4xxCount),
+		ErrorCount:     safeInt64Count(errorCount),
+		UniqueIPCount:  safeInt64Count(uniqueIPs),
+		BytesSent:      safeInt64Count(bytesSent),
+		RequestLength:  safeInt64Count(requestLength),
+		NodeCount:      safeInt64Count(nodeCount),
 	}, nil
 }
 

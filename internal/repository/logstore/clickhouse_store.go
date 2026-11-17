@@ -141,12 +141,13 @@ func (s *clickhouseLogStore) TrafficSummary(ctx context.Context, query model.Ope
 		return model.OpenFlareAccessLogTrafficSummary{}, err
 	}
 	return model.OpenFlareAccessLogTrafficSummary{
-		RequestCount:  row.RequestCount,
-		ErrorCount:    row.ErrorCount,
-		UniqueIPCount: row.UniqueIPCount,
-		BytesSent:     row.BytesSent,
-		RequestLength: row.RequestLength,
-		NodeCount:     row.NodeCount,
+		RequestCount:   row.RequestCount,
+		Status4xxCount: row.Status4xxCount,
+		ErrorCount:     row.ErrorCount,
+		UniqueIPCount:  row.UniqueIPCount,
+		BytesSent:      row.BytesSent,
+		RequestLength:  row.RequestLength,
+		NodeCount:      row.NodeCount,
 	}, nil
 }
 

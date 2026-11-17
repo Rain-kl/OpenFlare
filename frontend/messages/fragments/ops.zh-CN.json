@@ -20,6 +20,12 @@
       "unhealthyOffline": "异常 {unhealthy} · 离线 {offline}"
     },
     "world": {
+      "uniqueIps": "独立 IP",
+      "uniqueIpsHint": "最近 24 小时 · 全节点 IP 去重",
+      "requests4xx": "4xx 请求",
+      "requests5xx": "5xx 请求",
+      "requestShare": "占全部请求 {rate}",
+      "averageQps": "平均 QPS {qps}",
       "title": "全球态势板",
       "description": "汇总节点分布、来源国家热度与最近窗口运行状态。",
       "legendSource": "来源",

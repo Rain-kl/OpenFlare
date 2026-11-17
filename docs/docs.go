@@ -16072,6 +16072,9 @@ const docTemplate = `{
                 "request_count": {
                     "type": "integer"
                 },
+                "status_4xx_count": {
+                    "type": "integer"
+                },
                 "unique_visitors": {
                     "type": "integer"
                 }

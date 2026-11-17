@@ -70,12 +70,13 @@ type NodeAccessLogRegionCount struct {
 
 // NodeAccessLogTrafficSummary is a window-level access log traffic summary.
 type NodeAccessLogTrafficSummary struct {
-	RequestCount  int64
-	ErrorCount    int64
-	UniqueIPCount int64
-	BytesSent     int64
-	RequestLength int64
-	NodeCount     int64
+	RequestCount   int64
+	Status4xxCount int64
+	ErrorCount     int64
+	UniqueIPCount  int64
+	BytesSent      int64
+	RequestLength  int64
+	NodeCount      int64
 }
 
 // NodeAccessLogValueCount is a grouped value count (status_code, host, ...).

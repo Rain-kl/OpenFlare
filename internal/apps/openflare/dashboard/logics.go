@@ -26,6 +26,7 @@ type Summary struct {
 // Traffic is the dashboard traffic section.
 type Traffic struct {
 	RequestCount   int64   `json:"request_count"`
+	Status4xxCount int64   `json:"status_4xx_count"`
 	UniqueVisitors int64   `json:"unique_visitors"`
 	ErrorCount     int64   `json:"error_count"`
 	EstimatedQPS   float64 `json:"estimated_qps"`
@@ -153,6 +154,7 @@ func buildOverviewView(ctx context.Context) (*OverviewView, error) {
 		Until: now,
 	}); sumErr == nil {
 		view.Traffic.RequestCount = summary.RequestCount
+		view.Traffic.Status4xxCount = summary.Status4xxCount
 		view.Traffic.ErrorCount = summary.ErrorCount
 		view.Traffic.UniqueVisitors = summary.UniqueIPCount
 		view.Traffic.ReportedNodes = int(summary.NodeCount)
@@ -271,10 +273,12 @@ func applyTrafficTotalsFromTrend(traffic *Traffic, points []observability.Traffi
 		return
 	}
 	traffic.RequestCount = 0
+	traffic.Status4xxCount = 0
 	traffic.ErrorCount = 0
 	// Do not sum hourly unique visitors — that overcounts. UV must come from TrafficSummary.
 	for _, point := range points {
 		traffic.RequestCount += point.RequestCount
+		traffic.Status4xxCount += point.Status4xxCount
 		traffic.ErrorCount += point.ErrorCount
 	}
 	if traffic.RequestCount > 0 && traffic.ReportedNodes == 0 {
