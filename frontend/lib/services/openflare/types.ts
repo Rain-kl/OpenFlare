@@ -205,6 +205,7 @@ export type ProxyRouteConfigSection =
   | 'proxy'
   | 'cache'
   | 'waf'
+  | 'pow'
   | 'auth';
 
 export interface ProxyRouteCustomHeader {

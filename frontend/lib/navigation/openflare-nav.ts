@@ -41,7 +41,6 @@ export const openflareSecurityNavGroup: OpenFlareNavGroup = {
   icon: ShieldCheck,
   items: [
     { titleKey: 'waf', url: '/waf' },
-    { titleKey: 'pow', url: '/pow' },
     { titleKey: 'ipGroups', url: '/ip-groups' },
     { titleKey: 'rateLimits', url: '/rate-limits' },
   ],

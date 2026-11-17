@@ -19,6 +19,7 @@ const proxyRouteConfigSectionKeys = [
   'proxy',
   'cache',
   'waf',
+  'pow',
   'auth',
 ] as const satisfies ReadonlyArray<ProxyRouteConfigSection>;
 
@@ -48,6 +49,11 @@ export function getProxyRouteConfigSections(t: TranslateFn) {
       key: 'waf' as const,
       label: t('sections.waf'),
       description: t('sections.wafDesc'),
+    },
+    {
+      key: 'pow' as const,
+      label: t('sections.pow'),
+      description: t('sections.powDesc'),
     },
     {
       key: 'auth' as const,

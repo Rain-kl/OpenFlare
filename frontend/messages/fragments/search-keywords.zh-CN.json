@@ -29,8 +29,7 @@
         "admin-files": "admin|管理员|存储|文件|files|upload|s3",
         "admin-database": "admin|管理员|数据库|database|sql|query|gorm",
         "admin-push": "admin|管理员|推送|通知|push|mail|telegram|lark",
-        "admin-logs": "admin|管理员|日志|logs|system log|terminal",
-        "console-pow": "pow|PoW|人机验证|算力|挑战|黑白名单"
+        "admin-logs": "admin|管理员|日志|logs|system log|terminal"
       }
     }
   }

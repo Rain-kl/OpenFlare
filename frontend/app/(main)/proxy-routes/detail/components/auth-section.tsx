@@ -9,7 +9,6 @@ import { z } from 'zod';
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -162,7 +161,6 @@ export function AuthSection({
                     <SelectItem value='basic'>Basic Auth</SelectItem>
                   </SelectContent>
                 </Select>
-                <FormDescription>{t('powHint')}</FormDescription>
                 <FormMessage />
               </FormItem>
             )}

@@ -31,8 +31,7 @@
       "configVersions": "Releases",
       "accessLogs": "Access Logs",
       "performance": "Performance",
-      "applyLogs": "Apply Logs",
-      "pow": "PoW protection"
+      "applyLogs": "Apply Logs"
     },
     "groups": {
       "admin": "Admin",
@@ -118,8 +117,7 @@
         "storageDesc": "Browse, search, and clean files in object storage (admin only)",
         "databaseDesc": "Monitor table size, browse physical tables, and run interactive SQL (admin only)",
         "pushDesc": "Configure email, Lark, and Telegram notification channels (admin only)",
-        "logsDesc": "View system logs and background task execution logs (admin only)",
-        "powDesc": "Independent site PoW policies and path triggers"
+        "logsDesc": "View system logs and background task execution logs (admin only)"
       }
     },
     "error": {

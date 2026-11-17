@@ -1,11 +1,8 @@
 {
   "pow": {
-    "title": "PoW protection",
-    "description": "Configure independent proof-of-work protection, clearance lifetime and path rules for each site.",
     "pageSettings": "Challenge page",
-    "policySettings": "Site protection",
-    "site": "Select site",
-    "sitePolicy": "Site PoW policy",
+    "policySettings": "Rule PoW settings",
+    "sitePolicy": "PoW protection",
     "independentHelp": "Saving gives this independent policy control of the site. Legacy WAF PoW nodes are skipped; other WAF rules continue to run.",
     "enabled": "Enable PoW verification",
     "algorithm": "Computation mode",
@@ -35,11 +32,7 @@
     "saved": "PoW policy saved. Publish a configuration version to apply it.",
     "saveFailed": "Save failed",
     "loading": "Loading PoW configuration…",
-    "forbidden": "Access denied",
-    "forbiddenHelp": "Only administrators can configure PoW protection.",
     "loadFailed": "Failed to load PoW configuration",
-    "noSites": "No sites yet",
-    "noSitesHelp": "Create and bind a site to configure its PoW protection.",
     "pageHelp": "Page layouts are independent of the verification runtime. Built-in templates can be customized.",
     "pageStyle": "Built-in page style",
     "classic": "Classic",
@@ -62,7 +55,7 @@
     "previewWhyDescription": "Your browser completes a computation to help the site identify automated abuse. Your visit continues automatically afterward.",
     "previewNoscript": "Enable JavaScript and reload this page.",
     "previewSuccess": "Verification successful",
-    "legacyLink": "PoW is managed independently. Open site protection settings.",
+    "legacyLink": "Configure protection in the rule details PoW tab",
     "unconfiguredHelp": "No independent policy has been saved. Existing WAF PoW nodes still apply. Saving gives these controls ownership of the site’s PoW protection."
   }
 }

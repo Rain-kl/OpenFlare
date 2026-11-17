@@ -1,6 +1,6 @@
 # 独立 PoW 模块设计
 
-PoW 由独立的站点策略、页面模板、浏览器运行时和组件组成。业务接口位于 `internal/apps/openflare/pow`，策略持久化在 `of_pow_policies`，通过 `internal/repository` 读写。每个站点一条策略，以 `route_id` 为主键；删除站点时在同一事务中清理策略。
+PoW 由独立的站点策略、页面模板、浏览器运行时和组件组成。业务接口位于 `internal/apps/openflare/pow`，策略持久化在 `of_pow_policies`，通过 `internal/repository` 读写。配置入口位于规则详情的独立「PoW」标签页，直接使用当前规则的策略。每个站点一条策略，以 `route_id` 为主键；删除站点时在同一事务中清理策略。
 
 ## 配置与发布
 

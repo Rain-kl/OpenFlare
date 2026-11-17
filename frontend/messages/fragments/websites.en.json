@@ -430,12 +430,11 @@
     "cacheHintNone": "The current policy does not need extra path rules.",
     "cachePlaceholderNone": "No extra rules for the current policy",
     "auth": "Authentication",
-    "authDesc": "Configure Basic Auth to block unauthorized access. Configure PoW independently under Security → PoW protection.",
+    "authDesc": "Configure Basic Auth to block unauthorized access.",
     "authSaved": "Authentication settings saved",
     "authFormInvalid": "Check the authentication form",
     "authMode": "Authentication mode",
     "authNone": "No authentication",
-    "powHint": "Configure PoW independently under Security → PoW protection.",
     "username": "Username",
     "password": "Password",
     "wafDesc": "Global rule groups always apply. Here you can add custom rule groups for the current website.",
@@ -466,7 +465,9 @@
       "waf": "WAF",
       "wafDesc": "Bind WAF rule groups and view the policies that apply to this site.",
       "auth": "Authentication",
-      "authDesc": "Configure basic authentication so visitors must enter a username and password."
+      "authDesc": "Configure basic authentication so visitors must enter a username and password.",
+      "pow": "PoW",
+      "powDesc": "Configure PoW verification and path triggers for this rule."
     },
     "validation": {
       "enterDomain": "Enter a domain",

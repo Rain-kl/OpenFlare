@@ -6,6 +6,7 @@ export const proxyRouteFormIds: Record<ProxyRouteConfigSection, string> = {
   proxy: 'proxy-route-proxy-form',
   cache: 'proxy-route-cache-form',
   waf: 'proxy-route-waf-form',
+  pow: 'proxy-route-pow-form',
   auth: 'proxy-route-auth-form',
 };
 

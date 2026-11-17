@@ -1,11 +1,8 @@
 {
   "pow": {
-    "title": "PoW 防护",
-    "description": "为每个站点独立配置工作量证明校验、有效期和路径触发规则。",
     "pageSettings": "挑战页设置",
-    "policySettings": "站点防护设置",
-    "site": "选择站点",
-    "sitePolicy": "站点 PoW 策略",
+    "policySettings": "规则 PoW 设置",
+    "sitePolicy": "PoW 防护",
     "independentHelp": "保存后，该站点由独立 PoW 策略控制，旧 WAF PoW 节点自动跳过；其他 WAF 规则继续执行。",
     "enabled": "启用 PoW 校验",
     "algorithm": "计算模式",
@@ -35,11 +32,7 @@
     "saved": "PoW 策略已保存，请前往版本发布使配置生效",
     "saveFailed": "保存失败",
     "loading": "加载 PoW 配置…",
-    "forbidden": "权限不足",
-    "forbiddenHelp": "只有管理员可以配置 PoW 防护。",
     "loadFailed": "加载 PoW 配置失败",
-    "noSites": "暂无站点",
-    "noSitesHelp": "创建并绑定站点后，即可在这里配置 PoW 防护。",
     "pageHelp": "页面布局与验证运行时独立，内置模板可自由修改。",
     "pageStyle": "内置页面风格",
     "classic": "现有风格",
@@ -62,7 +55,7 @@
     "previewWhyDescription": "浏览器将完成一项计算，以帮助网站识别自动化的恶意访问。完成后将自动继续访问。",
     "previewNoscript": "请启用 JavaScript 后重新加载页面。",
     "previewSuccess": "验证成功",
-    "legacyLink": "PoW 已独立管理，前往站点防护设置",
+    "legacyLink": "在规则详情的 PoW 标签页中配置防护",
     "unconfiguredHelp": "尚未保存独立策略；该站点仍沿用已有 WAF PoW 节点。保存后将由这里的开关与路径规则接管。"
   }
 }

@@ -24,6 +24,7 @@ import { CacheSection } from './components/cache-section';
 import { DomainSection } from './components/domain-section';
 import { LimitsSection } from './components/limits-section';
 import { ProxySection } from './components/proxy-section';
+import { PoWSection } from './components/pow-section';
 import { RouteHeader } from './components/route-header';
 import { WafSection } from './components/waf-section';
 
@@ -160,6 +161,9 @@ export function ProxyRouteDetailPageClient() {
         </TabsContent>
         <TabsContent value='auth' className='focus-visible:outline-none'>
           <AuthSection {...sectionProps} />
+        </TabsContent>
+        <TabsContent value='pow' className='focus-visible:outline-none'>
+          <PoWSection route={route} />
         </TabsContent>
       </Tabs>
     </div>

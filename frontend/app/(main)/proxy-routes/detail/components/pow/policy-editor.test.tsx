@@ -7,8 +7,11 @@ import {
   defaultPoWConfig,
   type PoWPathRules,
 } from '@/lib/services/openflare';
-import messages from '@/messages/fragments/pow.zh-CN.json';
+import mainZh from '@/messages/zh-CN.json';
+import powZh from '@/messages/fragments/pow.zh-CN.json';
 import { PolicyEditor } from './policy-editor';
+
+const messages = { ...mainZh, ...powZh };
 
 it.each<PoWPathRules>([
   { mode: 'all' },

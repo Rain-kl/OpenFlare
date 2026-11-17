@@ -420,7 +420,7 @@ function PropertyFields({
     return (
       <FieldGroup>
         <Button variant='link' asChild>
-          <Link href='/pow'>{tp('legacyLink')}</Link>
+          <Link href='/proxy-routes'>{tp('legacyLink')}</Link>
         </Button>
         <DisplayNameField node={node} onChange={onChange} />
         <Field>

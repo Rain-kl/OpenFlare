@@ -29,8 +29,7 @@
         "admin-files": "admin|files|upload|s3",
         "admin-database": "admin|database|sql|query|gorm",
         "admin-push": "admin|push|mail|telegram|lark",
-        "admin-logs": "admin|logs|system log|terminal",
-        "console-pow": "pow|verification|challenge|proof of work|allowlist|blocklist"
+        "admin-logs": "admin|logs|system log|terminal"
       }
     }
   }

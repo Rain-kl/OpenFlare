@@ -142,7 +142,7 @@ export function PoWPageTab({
                 {t('useBuiltin')}
               </Button>
               <Button variant='link' asChild>
-                <Link href='/pow'>{t('policySettings')}</Link>
+                <Link href='/proxy-routes'>{t('policySettings')}</Link>
               </Button>
             </div>
           </FieldGroup>
