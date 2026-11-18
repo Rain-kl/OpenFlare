@@ -81,7 +81,8 @@ local function render_page(path, invalid)
         file:close()
     end
     ngx.header["Content-Type"] = "text/html; charset=utf-8"
-    ngx.header["Referrer-Policy"] = "no-referrer"
+    -- A no-referrer policy makes a navigation POST send Origin: null.
+    ngx.header["Referrer-Policy"] = "strict-origin"
     ngx.header["Content-Security-Policy"] = "form-action 'self'; frame-ancestors 'none'; base-uri 'none'"
     if invalid then
         ngx.status = ngx.HTTP_FORBIDDEN
