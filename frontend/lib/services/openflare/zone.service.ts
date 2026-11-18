@@ -1,5 +1,6 @@
 import { OpenFlareBaseService } from './base.service';
 import type {
+  ZoneDomainCleanupResult,
   ZoneDomainItem,
   ZoneDomainMutationPayload,
   ZoneItem,
@@ -58,5 +59,10 @@ export class ZoneDomainService extends OpenFlareBaseService {
   }
   static deleteById(zoneId: number, id: number): Promise<void> {
     return this.post<void>(`/${zoneId}/domains/${id}/delete`);
+  }
+  static cleanupUnlinked(zoneId: number): Promise<ZoneDomainCleanupResult> {
+    return this.post<ZoneDomainCleanupResult>(
+      `/${zoneId}/domains/cleanup-unlinked`,
+    );
   }
 }

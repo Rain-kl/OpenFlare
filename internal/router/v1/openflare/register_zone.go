@@ -19,6 +19,7 @@ func registerZoneRoutes(apiGroup *gin.RouterGroup) {
 	zoneGroup.POST("/:id/update", zone.UpdateHandler)
 	zoneGroup.POST("/:id/delete", zone.DeleteHandler)
 	zoneGroup.POST("/:id/domains", zone.CreateDomainHandler)
+	zoneGroup.POST("/:id/domains/cleanup-unlinked", zone.CleanupUnlinkedDomainsHandler)
 	zoneGroup.POST("/:id/domains/:domainId/update", zone.UpdateDomainHandler)
 	zoneGroup.POST("/:id/domains/:domainId/delete", zone.DeleteDomainHandler)
 }

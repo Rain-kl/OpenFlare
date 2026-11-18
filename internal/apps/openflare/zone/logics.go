@@ -37,6 +37,11 @@ type Overview struct {
 	Domains []model.ZoneDomain `json:"domains"`
 }
 
+// CleanupUnlinkedDomainsResult reports how many unlinked domains were deleted from a Zone.
+type CleanupUnlinkedDomainsResult struct {
+	DeletedCount int64 `json:"deleted_count"`
+}
+
 // ListItem is a Zone list row with denormalized domain count for the UI.
 type ListItem struct {
 	ID          uint      `json:"id"`
@@ -225,6 +230,20 @@ func UpdateDomain(ctx context.Context, zoneID, id uint, input DomainInput) (*mod
 	return item, nil
 }
 
+func deleteUnboundDomain(ctx context.Context, item *model.ZoneDomain, member *model.CFPointingMember) (bool, error) {
+	if member != nil {
+		if delErr := cf.DeleteManagedRecord(ctx, member.ID); delErr != nil {
+			logger.WarnF(ctx, "[Zone] delete managed Cloudflare record failed for domain %s (member_id=%d): %v", item.Domain, member.ID, delErr)
+		}
+	}
+	deleted, err := repository.DeleteUnlinkedZoneDomain(ctx, item.ZoneID, item.ID)
+	if err != nil {
+		logger.ErrorF(ctx, "[Zone] delete unlinked domain failed: zone_id=%d domain_id=%d error=%v", item.ZoneID, item.ID, err)
+		return false, err
+	}
+	return deleted, nil
+}
+
 // DeleteDomain removes a Zone domain that is not bound to a proxy route.
 func DeleteDomain(ctx context.Context, zoneID, id uint) error {
 	item, err := repository.GetZoneDomainByZoneAndID(ctx, zoneID, id)
@@ -238,16 +257,49 @@ func DeleteDomain(ctx context.Context, zoneID, id uint) error {
 	if cfErr != nil && !errors.Is(cfErr, gorm.ErrRecordNotFound) {
 		return cfErr
 	}
-	if member != nil {
-		if delErr := cf.DeleteManagedRecord(ctx, member.ID); delErr != nil {
-			logger.WarnF(ctx, "[Zone] delete managed Cloudflare record failed for domain %s (member_id=%d): %v", item.Domain, member.ID, delErr)
+	deleted, err := deleteUnboundDomain(ctx, item, member)
+	if err != nil {
+		return err
+	}
+	if !deleted {
+		return errors.New(errDomainBoundToRoute)
+	}
+	return nil
+}
+
+// CleanupUnlinkedDomains deletes every domain in a Zone that is not bound to a proxy route.
+func CleanupUnlinkedDomains(ctx context.Context, zoneID uint) (*CleanupUnlinkedDomainsResult, error) {
+	if _, err := repository.GetZoneByID(ctx, zoneID); err != nil {
+		return nil, err
+	}
+	domains, err := repository.ListUnlinkedZoneDomainsByZoneID(ctx, zoneID)
+	if err != nil {
+		return nil, err
+	}
+	domainIDs := make([]uint, len(domains))
+	for i := range domains {
+		domainIDs[i] = domains[i].ID
+	}
+	members, err := repository.ListCFPointingMembersByZoneDomainIDs(ctx, domainIDs)
+	if err != nil {
+		return nil, err
+	}
+	memberByDomainID := make(map[uint]*model.CFPointingMember, len(members))
+	for i := range members {
+		member := members[i]
+		memberByDomainID[member.ZoneDomainID] = &member
+	}
+	var deletedCount int64
+	for i := range domains {
+		deleted, delErr := deleteUnboundDomain(ctx, &domains[i], memberByDomainID[domains[i].ID])
+		if delErr != nil {
+			return nil, delErr
 		}
-		if delMemberErr := repository.DeleteCFPointingMember(ctx, member); delMemberErr != nil {
-			logger.ErrorF(ctx, "[Zone] delete Cloudflare pointing member failed: member_id=%d error=%v", member.ID, delMemberErr)
-			return delMemberErr
+		if deleted {
+			deletedCount++
 		}
 	}
-	return repository.DeleteZoneDomain(ctx, item)
+	return &CleanupUnlinkedDomainsResult{DeletedCount: deletedCount}, nil
 }
 
 // Delete removes a Zone that has no remaining domains.

@@ -4432,6 +4432,11 @@ definitions:
       name:
         type: string
     type: object
+  zone.CleanupUnlinkedDomainsResult:
+    properties:
+      deleted_count:
+        type: integer
+    type: object
   zone.DomainInput:
     properties:
       cert_id:
@@ -12476,6 +12481,40 @@ paths:
       security:
       - SessionCookie: []
       summary: 更新 Zone 域名
+      tags:
+      - openflare-zone
+  /api/v1/d/zones/{id}/domains/cleanup-unlinked:
+    post:
+      description: 删除指定 Zone 下所有未关联代理路由的域名及关联的 Cloudflare 指向成员，需要管理员权限
+      parameters:
+      - description: Zone ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 清理结果
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/zone.CleanupUnlinkedDomainsResult'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Any'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Any'
+      security:
+      - SessionCookie: []
+      summary: 一键清理未关联路由的 Zone 域名
       tags:
       - openflare-zone
   /api/v1/d/zones/{id}/overview:

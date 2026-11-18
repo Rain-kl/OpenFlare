@@ -1333,6 +1333,10 @@ export interface ZoneDomainMutationPayload {
   cert_id: number | null;
 }
 
+export interface ZoneDomainCleanupResult {
+  deleted_count: number;
+}
+
 export interface ZoneOverview {
   zone: ZoneItem;
   domains: ZoneDomainItem[];

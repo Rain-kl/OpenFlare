@@ -13120,6 +13120,64 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/d/zones/{id}/domains/cleanup-unlinked": {
+            "post": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "description": "删除指定 Zone 下所有未关联代理路由的域名及关联的 Cloudflare 指向成员，需要管理员权限",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "openflare-zone"
+                ],
+                "summary": "一键清理未关联路由的 Zone 域名",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Zone ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "清理结果",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/zone.CleanupUnlinkedDomainsResult"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/response.Any"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/d/zones/{id}/domains/{domainId}/delete": {
             "post": {
                 "security": [
@@ -21821,6 +21879,14 @@ const docTemplate = `{
                 },
                 "name": {
                     "type": "string"
+                }
+            }
+        },
+        "zone.CleanupUnlinkedDomainsResult": {
+            "type": "object",
+            "properties": {
+                "deleted_count": {
+                    "type": "integer"
                 }
             }
         },

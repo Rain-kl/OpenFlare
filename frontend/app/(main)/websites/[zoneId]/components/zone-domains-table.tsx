@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Eye, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -34,6 +34,7 @@ import {
 } from '@/components/ui/tooltip';
 import {
   ZoneDomainService,
+  zoneQueryKey,
   type ProxyRouteItem,
   type TlsCertificateItem,
   type ZoneDomainItem,
@@ -64,18 +65,49 @@ export function ZoneDomainsTable({
   const t = useTranslations('websites');
   const tc = useTranslations('common');
   const tp = useTranslations('proxyRoutes');
+  const queryClient = useQueryClient();
   const [createOpen, setCreateOpen] = useState(false);
+  const [cleanupOpen, setCleanupOpen] = useState(false);
   const [deleting, setDeleting] = useState<ZoneDomainItem | null>(null);
+
+  const unlinkedCount = useMemo(
+    () => domains.filter((domain) => !domain.proxy_route_id).length,
+    [domains],
+  );
+
+  const refreshZoneQueries = async () => {
+    await Promise.all([
+      onChanged(),
+      queryClient.invalidateQueries({ queryKey: zoneQueryKey }),
+    ]);
+  };
 
   const remove = useMutation({
     mutationFn: (id: number) => ZoneDomainService.deleteById(zoneId, id),
     onSuccess: async () => {
       toast.success(t('domainDeleted'));
       setDeleting(null);
-      await onChanged();
+      await refreshZoneQueries();
     },
     onError: (error) =>
       toast.error(error instanceof Error ? error.message : t('deleteFailed')),
+  });
+
+  const cleanupUnlinked = useMutation({
+    mutationFn: () => ZoneDomainService.cleanupUnlinked(zoneId),
+    onSuccess: async (result) => {
+      toast.success(
+        result.deleted_count > 0
+          ? t('unlinkedDomainsCleaned', { count: result.deleted_count })
+          : t('noUnlinkedDomains'),
+      );
+      setCleanupOpen(false);
+      await refreshZoneQueries();
+    },
+    onError: (error) =>
+      toast.error(
+        error instanceof Error ? error.message : t('cleanupUnlinkedFailed'),
+      ),
   });
 
   const certificateMap = useMemo(
@@ -90,7 +122,19 @@ export function ZoneDomainsTable({
 
   return (
     <>
-      <div className='mb-3 flex justify-end'>
+      <div className='mb-3 flex flex-wrap items-center justify-end gap-2'>
+        <Button
+          variant='outline'
+          size='sm'
+          className='h-7 text-xs'
+          disabled={unlinkedCount === 0 || cleanupUnlinked.isPending}
+          onClick={() => setCleanupOpen(true)}
+        >
+          <Trash2 className='mr-1 size-3.5' />
+          {unlinkedCount > 0
+            ? t('cleanupUnlinkedCount', { count: unlinkedCount })
+            : t('cleanupUnlinked')}
+        </Button>
         <Button
           variant='secondary'
           size='sm'
@@ -270,6 +314,40 @@ export function ZoneDomainsTable({
               }}
             >
               {remove.isPending ? t('deleting') : t('confirmDelete')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={cleanupOpen}
+        onOpenChange={(open) => {
+          if (!cleanupUnlinked.isPending) {
+            setCleanupOpen(open);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('cleanupUnlinkedTitle')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('cleanupUnlinkedDesc', { count: unlinkedCount })}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={cleanupUnlinked.isPending}>
+              {tc('cancel')}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              disabled={cleanupUnlinked.isPending || unlinkedCount === 0}
+              onClick={(event) => {
+                event.preventDefault();
+                cleanupUnlinked.mutate();
+              }}
+            >
+              {cleanupUnlinked.isPending
+                ? t('cleaningUnlinked')
+                : t('confirmCleanupUnlinked')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

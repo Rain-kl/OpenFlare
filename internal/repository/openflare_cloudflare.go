@@ -149,6 +149,18 @@ func GetCFPointingMemberByZoneDomainID(ctx context.Context, zoneDomainID uint) (
 	return &item, nil
 }
 
+// ListCFPointingMembersByZoneDomainIDs returns pointing members for the requested ZoneDomain IDs.
+func ListCFPointingMembersByZoneDomainIDs(ctx context.Context, zoneDomainIDs []uint) ([]model.CFPointingMember, error) {
+	if len(zoneDomainIDs) == 0 {
+		return []model.CFPointingMember{}, nil
+	}
+	var items []model.CFPointingMember
+	if err := db.DB(ctx).Where("zone_domain_id IN ?", zoneDomainIDs).Find(&items).Error; err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 // CreateCFPointingMember creates a member.
 func CreateCFPointingMember(ctx context.Context, item *model.CFPointingMember) error {
 	return db.DB(ctx).Create(item).Error

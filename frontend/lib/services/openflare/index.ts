@@ -133,6 +133,7 @@ export type {
   AcmeAccountItem,
   DnsAccountItem,
   DnsAccountMutationPayload,
+  ZoneDomainCleanupResult,
   ZoneDomainItem,
   ZoneDomainMutationPayload,
   ZoneItem,

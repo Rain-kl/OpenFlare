@@ -5,15 +5,21 @@ package zone
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/Rain-kl/Wavelet/internal/repository"
+	"github.com/Rain-kl/Wavelet/internal/shared/response"
 	"github.com/Rain-kl/Wavelet/internal/testhelper"
 
 	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/model"
+	"github.com/gin-gonic/gin"
 	"github.com/glebarez/sqlite"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
@@ -210,4 +216,93 @@ func TestGetStatsAggregatesZoneHosts(t *testing.T) {
 
 	_, err = GetStats(ctx, zone.ID, "1h")
 	require.EqualError(t, err, errStatsRangeInvalid)
+}
+
+func TestCleanupUnlinkedDomains(t *testing.T) {
+	ctx := setupZoneDB(t)
+
+	zoneA, err := Create(ctx, Input{Domain: "example.com"})
+	require.NoError(t, err)
+	zoneB, err := Create(ctx, Input{Domain: "other.com"})
+	require.NoError(t, err)
+
+	bound, err := CreateDomain(ctx, zoneA.ID, DomainInput{Domain: "app.example.com"})
+	require.NoError(t, err)
+	routeID := uint(17)
+	bound.ProxyRouteID = &routeID
+	require.NoError(t, repository.SaveZoneDomain(ctx, bound))
+
+	unlinkedOne, err := CreateDomain(ctx, zoneA.ID, DomainInput{Domain: "old1.example.com"})
+	require.NoError(t, err)
+	unlinkedTwo, err := CreateDomain(ctx, zoneA.ID, DomainInput{Domain: "old2.example.com"})
+	require.NoError(t, err)
+	otherUnlinked, err := CreateDomain(ctx, zoneB.ID, DomainInput{Domain: "idle.other.com"})
+	require.NoError(t, err)
+
+	require.NoError(t, repository.CreateCFPointingMember(ctx, &model.CFPointingMember{
+		GroupID:      1,
+		ZoneDomainID: unlinkedOne.ID,
+	}))
+
+	result, err := CleanupUnlinkedDomains(ctx, zoneA.ID)
+	require.NoError(t, err)
+	require.Equal(t, int64(2), result.DeletedCount)
+
+	remainingA, err := repository.ListZoneDomainsByZoneID(ctx, zoneA.ID)
+	require.NoError(t, err)
+	require.Len(t, remainingA, 1)
+	require.Equal(t, bound.ID, remainingA[0].ID)
+
+	_, err = repository.GetCFPointingMemberByZoneDomainID(ctx, unlinkedOne.ID)
+	require.Error(t, err)
+	_, err = repository.GetZoneDomainByZoneAndID(ctx, zoneA.ID, unlinkedTwo.ID)
+	require.Error(t, err)
+
+	remainingB, err := repository.ListZoneDomainsByZoneID(ctx, zoneB.ID)
+	require.NoError(t, err)
+	require.Len(t, remainingB, 1)
+	require.Equal(t, otherUnlinked.ID, remainingB[0].ID)
+
+	secondRun, err := CleanupUnlinkedDomains(ctx, zoneA.ID)
+	require.NoError(t, err)
+	require.Equal(t, int64(0), secondRun.DeletedCount)
+
+	_, err = CleanupUnlinkedDomains(ctx, 999999)
+	require.ErrorIs(t, err, gorm.ErrRecordNotFound)
+}
+
+func TestCleanupUnlinkedDomainsHandler(t *testing.T) {
+	ctx := setupZoneDB(t)
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	router.Use(response.ErrorHandlerMiddleware())
+	router.POST("/zones/:id/domains/cleanup-unlinked", CleanupUnlinkedDomainsHandler)
+
+	zone, err := Create(ctx, Input{Domain: "example.com"})
+	require.NoError(t, err)
+	bound, err := CreateDomain(ctx, zone.ID, DomainInput{Domain: "app.example.com"})
+	require.NoError(t, err)
+	routeID := uint(8)
+	bound.ProxyRouteID = &routeID
+	require.NoError(t, repository.SaveZoneDomain(ctx, bound))
+	_, err = CreateDomain(ctx, zone.ID, DomainInput{Domain: "unused.example.com"})
+	require.NoError(t, err)
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, fmt.Sprintf("/zones/%d/domains/cleanup-unlinked", zone.ID), nil)
+	router.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	var body struct {
+		ErrorMsg string                       `json:"error_msg"`
+		Data     CleanupUnlinkedDomainsResult `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
+	require.Empty(t, body.ErrorMsg)
+	require.Equal(t, int64(1), body.Data.DeletedCount)
+
+	missingRec := httptest.NewRecorder()
+	missingReq := httptest.NewRequest(http.MethodPost, "/zones/99999/domains/cleanup-unlinked", nil)
+	router.ServeHTTP(missingRec, missingReq)
+	require.Equal(t, http.StatusNotFound, missingRec.Code)
 }

@@ -251,3 +251,26 @@ func DeleteDomainHandler(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, response.OKNil())
 }
+
+// CleanupUnlinkedDomainsHandler removes all Zone domains not bound to a proxy route.
+// @Summary 一键清理未关联路由的 Zone 域名
+// @Description 删除指定 Zone 下所有未关联代理路由的域名及关联的 Cloudflare 指向成员，需要管理员权限
+// @Tags openflare-zone
+// @Produce json
+// @Security SessionCookie
+// @Param id path int true "Zone ID"
+// @Success 200 {object} response.Any{data=zone.CleanupUnlinkedDomainsResult} "清理结果"
+// @Failure 400 {object} response.Any
+// @Failure 404 {object} response.Any
+// @Router /api/v1/d/zones/{id}/domains/cleanup-unlinked [post]
+func CleanupUnlinkedDomainsHandler(c *gin.Context) {
+	zoneID, ok := apiutil.IDParam(c)
+	if !ok {
+		return
+	}
+	result, err := CleanupUnlinkedDomains(c.Request.Context(), zoneID)
+	if abort(c, err, errZoneNotFound) {
+		return
+	}
+	c.JSON(http.StatusOK, response.OK(result))
+}

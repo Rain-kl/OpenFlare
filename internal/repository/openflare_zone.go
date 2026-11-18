@@ -67,6 +67,15 @@ func ListZoneDomainsByZoneID(ctx context.Context, zoneID uint) ([]model.ZoneDoma
 	return domains, nil
 }
 
+// ListUnlinkedZoneDomainsByZoneID returns domains under a zone not bound to any proxy route.
+func ListUnlinkedZoneDomainsByZoneID(ctx context.Context, zoneID uint) ([]model.ZoneDomain, error) {
+	var domains []model.ZoneDomain
+	if err := db.DB(ctx).Where("zone_id = ? AND proxy_route_id IS NULL", zoneID).Order("domain asc").Find(&domains).Error; err != nil {
+		return nil, err
+	}
+	return domains, nil
+}
+
 // CountZoneDomainsByZoneID counts domains under a zone.
 func CountZoneDomainsByZoneID(ctx context.Context, zoneID uint) (int64, error) {
 	var count int64
@@ -107,6 +116,31 @@ func DeleteZoneDomain(ctx context.Context, domain *model.ZoneDomain) error {
 		}
 		return tx.Delete(domain).Error
 	})
+}
+
+// DeleteUnlinkedZoneDomain atomically deletes a domain only while it belongs to zoneID
+// and remains unbound from any proxy route. Returns false if nothing matched.
+func DeleteUnlinkedZoneDomain(ctx context.Context, zoneID, id uint) (bool, error) {
+	conn := db.DB(ctx)
+	if conn == nil {
+		return false, errors.New(errDatabaseNotInitialized)
+	}
+	var deleted bool
+	err := conn.Transaction(func(tx *gorm.DB) error {
+		res := tx.Where("id = ? AND zone_id = ? AND proxy_route_id IS NULL", id, zoneID).Delete(&model.ZoneDomain{})
+		if res.Error != nil {
+			return res.Error
+		}
+		if res.RowsAffected == 0 {
+			return nil
+		}
+		if err := tx.Where("zone_domain_id = ?", id).Delete(&model.CFPointingMember{}).Error; err != nil {
+			return err
+		}
+		deleted = true
+		return nil
+	})
+	return deleted, err
 }
 
 // ListZoneDomainsByRouteID returns the domains bound to a proxy route.
