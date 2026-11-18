@@ -3,9 +3,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useMapPalette } from './use-map-palette';
 import Link from 'next/link';
-import type { DistributionItem } from '@/lib/services/openflare';
+import type { Coordinate, CountryHeat } from './country-heat';
 import world from './data/world-geo.json';
-type Coordinate = [number, number];
 type GlobeNode = {
   id: number;
   name: string;
@@ -28,7 +27,12 @@ function inside(point: Coordinate, ring: number[][]) {
   return result;
 }
 // Sample the bundled polygons once, including their holes.
+const landCenters = new Map<
+  string,
+  { coordinate: Coordinate; count: number }
+>();
 const landDots = world.features.flatMap((feature) => {
+  const country = feature.properties.name;
   const polygons = (
     feature.geometry.type === 'Polygon'
       ? [feature.geometry.coordinates]
@@ -51,8 +55,20 @@ const landDots = world.features.flatMap((feature) => {
           inside(coordinate, ring) &&
           !polygon.slice(1).some((hole) => inside(coordinate, hole))
         )
-          dots.push({ coordinate, country: feature.properties.name });
+          dots.push({ coordinate, country });
       }
+    }
+    // Use the main landmass so overseas territories cannot set the initial view.
+    if (dots.length > (landCenters.get(country)?.count ?? 0)) {
+      const sum: Coordinate = [0, 0];
+      for (const { coordinate } of dots) {
+        sum[0] += coordinate[0];
+        sum[1] += coordinate[1];
+      }
+      landCenters.set(country, {
+        coordinate: [sum[0] / dots.length, sum[1] / dots.length],
+        count: dots.length,
+      });
     }
     return dots;
   });
@@ -74,20 +90,24 @@ function project([lon, lat]: Coordinate, [longitude, latitude]: Coordinate) {
 }
 export function DottedGlobe({
   nodes,
-  countries,
+  countryHeat,
 }: {
   nodes: GlobeNode[];
-  countries: DistributionItem[];
+  countryHeat: Map<string, CountryHeat>;
 }) {
   const t = useTranslations('dashboard.map');
   const palette = useMapPalette();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const drag = useRef<{ x: number; y: number; view: Coordinate } | null>(null);
-  const [view, setView] = useState<Coordinate>([105, 20]);
-  const sources = useMemo(
-    () => new Map(countries.map((c) => [c.key, c.value])),
-    [countries],
-  );
+  const [manualView, setManualView] = useState<Coordinate | null>(null);
+  const initialView = useMemo<Coordinate>(() => {
+    for (const { name, coordinate } of countryHeat.values()) {
+      const center = landCenters.get(name)?.coordinate ?? coordinate;
+      if (center) return center;
+    }
+    return [105, 20];
+  }, [countryHeat]);
+  const view = manualView ?? initialView;
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas || !palette) return;
@@ -121,31 +141,48 @@ export function DottedGlobe({
       ctx.arc(center, center, radius, 0, Math.PI * 2);
       ctx.fillStyle = gradient;
       ctx.fill();
-      const maximum = Math.max(1, ...sources.values());
       for (const dot of landDots) {
         const p = project(dot.coordinate, view);
         if (p.z <= 0) continue;
-        const value = sources.get(dot.country) || 0;
-        ctx.globalAlpha =
-          value > 0 ? 0.5 + (value / maximum) * 0.5 : 0.25 + p.z * 0.4;
-        ctx.fillStyle = value > 0 ? palette.source : palette.land;
+        const heat = countryHeat.get(dot.country);
+        ctx.globalAlpha = heat
+          ? 0.48 + heat.intensity * 0.52
+          : 0.25 + p.z * 0.4;
+        ctx.fillStyle = heat ? palette.source : palette.land;
+        const dotScale = heat ? 1.25 + heat.intensity * 0.8 : 1;
         ctx.beginPath();
         ctx.arc(
           center + p.x * radius,
           center + p.y * radius,
-          Math.max(0.55, size * 0.0021 * (0.5 + p.z * 0.5)),
+          dotScale * Math.max(0.55, size * 0.0021 * (0.5 + p.z * 0.5)),
           0,
           Math.PI * 2,
         );
         ctx.fill();
       }
       ctx.globalAlpha = 1;
+      for (const { name, coordinate, intensity } of countryHeat.values()) {
+        if (!coordinate || landCenters.has(name)) continue;
+        const p = project(coordinate, view);
+        if (p.z <= 0) continue;
+        ctx.beginPath();
+        ctx.arc(
+          center + p.x * radius,
+          center + p.y * radius,
+          2.5 + intensity * 3,
+          0,
+          Math.PI * 2,
+        );
+        ctx.strokeStyle = palette.source;
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+      }
     };
     draw();
     const observer = new ResizeObserver(draw);
     observer.observe(canvas);
     return () => observer.disconnect();
-  }, [view, sources, palette]);
+  }, [view, countryHeat, palette]);
   return (
     <div
       className='absolute inset-0 flex items-center justify-center overflow-hidden'
@@ -165,7 +202,7 @@ export function DottedGlobe({
           onPointerMove={(e) => {
             const start = drag.current;
             if (start)
-              setView([
+              setManualView([
                 start.view[0] - (e.clientX - start.x) * 0.4,
                 Math.max(
                   -75,
@@ -189,10 +226,13 @@ export function DottedGlobe({
             const change = delta[e.key];
             if (change) {
               e.preventDefault();
-              setView(([lon, lat]) => [
-                lon + change[0],
-                Math.max(-75, Math.min(75, lat + change[1])),
-              ]);
+              setManualView((previous) => {
+                const [lon, lat] = previous ?? initialView;
+                return [
+                  lon + change[0],
+                  Math.max(-75, Math.min(75, lat + change[1])),
+                ];
+              });
             }
           }}
         />

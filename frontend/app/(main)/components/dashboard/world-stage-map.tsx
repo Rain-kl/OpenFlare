@@ -4,7 +4,7 @@ import { getFormattingLocale } from '@/i18n/format';
 import ReactEChartsCore from 'echarts-for-react/lib/core';
 import type { EChartsCoreOption } from 'echarts/core';
 import * as echarts from 'echarts/core';
-import { MapChart, ScatterChart } from 'echarts/charts';
+import { ScatterChart } from 'echarts/charts';
 import { GeoComponent, TooltipComponent } from 'echarts/components';
 import { CanvasRenderer } from 'echarts/renderers';
 import { useTheme } from 'next-themes';
@@ -13,6 +13,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { DottedGlobe } from './dotted-globe';
+import { buildCountryHeat, type CountryHeat } from './country-heat';
 import { useMapPalette } from './use-map-palette';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { EmptyState } from '@/components/layout/empty';
@@ -28,13 +29,7 @@ import {
 import countryCentroidsJson from './data/country-centroids.json';
 import worldGeoJson from './data/world-geo.json';
 
-echarts.use([
-  GeoComponent,
-  TooltipComponent,
-  MapChart,
-  ScatterChart,
-  CanvasRenderer,
-]);
+echarts.use([GeoComponent, TooltipComponent, ScatterChart, CanvasRenderer]);
 
 const fallbackCoordinates = [
   [-122.4194, 37.7749],
@@ -87,21 +82,6 @@ type MapNodeDatum = {
     itemStyle: {
       borderColor: string;
       borderWidth: number;
-    };
-  };
-};
-
-type CountryRegionDatum = {
-  name: string;
-  value: number;
-  itemStyle: {
-    areaColor: string;
-    borderColor: string;
-  };
-  emphasis: {
-    itemStyle: {
-      areaColor: string;
-      borderColor: string;
     };
   };
 };
@@ -272,10 +252,10 @@ function ensureWorldMapRegistered() {
 
 function FlatWorldMap({
   nodes,
-  sourceCountries,
+  countryHeat,
 }: {
   nodes: DashboardNodeHealth[];
-  sourceCountries: DistributionItem[];
+  countryHeat: Map<string, CountryHeat>;
 }) {
   const t = useTranslations('dashboard.map');
   const tn = useTranslations('nodes');
@@ -417,50 +397,44 @@ function FlatWorldMap({
     [mapPalette, nodes],
   );
 
-  const countryRegions = useMemo<CountryRegionDatum[]>(() => {
-    const maxRequests = Math.max(
-      1,
-      ...sourceCountries.map((item) => item.value || 0),
-    );
-
-    return sourceCountries
-      .filter((item) => item.key && item.value > 0)
-      .map((item) => {
-        const intensity = Math.max(0.18, item.value / maxRequests);
-        const areaOpacity = Number((0.14 + intensity * 0.58).toFixed(3));
-        const borderOpacity = Number((0.22 + intensity * 0.48).toFixed(3));
-        const sourceColor = themePalette?.source ?? '#3b82f6';
-        const areaColor = `${sourceColor}${Math.round(areaOpacity * 255)
-          .toString(16)
-          .padStart(2, '0')}`;
-        const borderColor = `${sourceColor}${Math.round(borderOpacity * 255)
-          .toString(16)
-          .padStart(2, '0')}`;
-
-        return {
-          name: item.key,
-          value: item.value,
-          itemStyle: {
-            areaColor,
-            borderColor,
-          },
-          emphasis: {
-            itemStyle: {
-              areaColor,
-              borderColor,
-            },
-          },
-        };
-      });
-  }, [themePalette, sourceCountries]);
-
   const computedLayoutSize = Math.min(
     containerSize.width * 0.94,
     containerSize.height * 1.8,
   );
 
-  const mapOption = useMemo<EChartsCoreOption>(
-    () => ({
+  const mapOption = useMemo<EChartsCoreOption>(() => {
+    const sourceColor = themePalette?.source ?? '#3b82f6';
+    const sourceTooltip = (name: string, value: number) =>
+      `<strong>${name}</strong><br />${t('sourceRequests', {
+        count: value.toLocaleString(getFormattingLocale()),
+      })}`;
+    const countryRegions = [...countryHeat.values()]
+      .filter((item) => item.hasBoundary)
+      .map(({ name, value, intensity }) => {
+        const opacity = Math.round((0.24 + intensity * 0.72) * 255)
+          .toString(16)
+          .padStart(2, '0');
+        return {
+          name,
+          itemStyle: { areaColor: `${sourceColor}${opacity}` },
+          tooltip: { show: true, formatter: () => sourceTooltip(name, value) },
+        };
+      });
+    const sourceMarkers = [...countryHeat.values()].flatMap((item) =>
+      !item.hasBoundary && item.coordinate
+        ? [
+            {
+              name: item.name,
+              value: item.coordinate,
+              symbolSize: 7 + item.intensity * 9,
+              tooltip: {
+                formatter: () => sourceTooltip(item.name, item.value),
+              },
+            },
+          ]
+        : [],
+    );
+    return {
       animation: false,
       backgroundColor: 'transparent',
       tooltip: {
@@ -476,24 +450,7 @@ function FlatWorldMap({
           fontSize: 12,
         },
         formatter: (params: unknown) => {
-          const payload = params as {
-            data?: MapNodeDatum | CountryRegionDatum;
-            seriesType?: string;
-            name?: string;
-          };
-          const data = payload.data;
-          if (
-            payload.seriesType !== 'scatter' &&
-            data &&
-            'value' in data &&
-            typeof data.value === 'number'
-          ) {
-            return [
-              `<div style="font-weight:600;margin-bottom:6px;">${payload.name ?? data.name}</div>`,
-              `<div>${t('sourceRequests', { count: data.value.toLocaleString(getFormattingLocale()) })}</div>`,
-            ].join('');
-          }
-
+          const { data } = params as { data?: MapNodeDatum };
           if (!data || !('requestCount' in data)) {
             return '';
           }
@@ -522,7 +479,7 @@ function FlatWorldMap({
       geo: {
         map: 'world',
         roam: true,
-        silent: true,
+        tooltip: { show: false },
         layoutCenter: ['50%', '50%'],
         layoutSize: computedLayoutSize,
         zoom: 1,
@@ -542,14 +499,16 @@ function FlatWorldMap({
       },
       series: [
         {
-          type: 'map',
-          map: 'world',
-          geoIndex: 0,
-          data: countryRegions,
-          silent: true,
-          z: 1,
-          emphasis: {
-            disabled: true,
+          type: 'scatter',
+          coordinateSystem: 'geo',
+          data: sourceMarkers,
+          z: 2,
+          tooltip: { show: true },
+          itemStyle: {
+            color: sourceColor,
+            borderColor: sourceColor,
+            borderWidth: 1.5,
+            opacity: 0.85,
           },
         },
         {
@@ -557,6 +516,7 @@ function FlatWorldMap({
           coordinateSystem: 'geo',
           data: mapNodes,
           z: 3,
+          tooltip: { show: true },
           progressive: 64,
           large: true,
           largeThreshold: 24,
@@ -593,9 +553,17 @@ function FlatWorldMap({
           },
         },
       ],
-    }),
-    [computedLayoutSize, countryRegions, isDark, mapNodes, mapPalette, t, tn],
-  );
+    };
+  }, [
+    computedLayoutSize,
+    countryHeat,
+    isDark,
+    mapNodes,
+    mapPalette,
+    t,
+    themePalette,
+    tn,
+  ]);
 
   if (!mapReady) {
     return (
@@ -651,6 +619,10 @@ export function WorldStageMap(props: {
   const t = useTranslations('dashboard.map');
   const tn = useTranslations('nodes');
   const [mode, setMode] = useState('3d');
+  const countryHeat = useMemo(
+    () => buildCountryHeat(props.sourceCountries),
+    [props.sourceCountries],
+  );
   return (
     <div className='flex h-full min-h-0 flex-col gap-3'>
       <div className='flex items-center justify-between gap-2'>
@@ -703,10 +675,10 @@ export function WorldStageMap(props: {
                 ].join(' · '),
               };
             })}
-            countries={props.sourceCountries}
+            countryHeat={countryHeat}
           />
         ) : (
-          <FlatWorldMap {...props} />
+          <FlatWorldMap nodes={props.nodes} countryHeat={countryHeat} />
         )}
       </div>
     </div>
