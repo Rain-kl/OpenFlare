@@ -1,69 +1,5 @@
 # AGENTS.md
 
-Behavioral guidelines to reduce common LLM coding mistakes. Merge with project-specific instructions as needed.
-
-**Tradeoff:** These guidelines bias toward caution over speed. For trivial tasks, use judgment.
-
-## 1. Think Before Coding
-
-**Don't assume. Don't hide confusion. Surface tradeoffs.**
-
-Before implementing:
-- State your assumptions explicitly. If uncertain, ask.
-- If multiple interpretations exist, present them - don't pick silently.
-- If a simpler approach exists, say so. Push back when warranted.
-- If something is unclear, stop. Name what's confusing. Ask.
-
-## 2. Simplicity First
-
-**Minimum code that solves the problem. Nothing speculative.**
-
-- No features beyond what was asked.
-- No abstractions for single-use code.
-- No "flexibility" or "configurability" that wasn't requested.
-- No error handling for impossible scenarios.
-- If you write 200 lines and it could be 50, rewrite it.
-
-Ask yourself: "Would a senior engineer say this is overcomplicated?" If yes, simplify.
-
-## 3. Surgical Changes
-
-**Touch only what you must. Clean up only your own mess.**
-
-When editing existing code:
-- Don't "improve" adjacent code, comments, or formatting.
-- Don't refactor things that aren't broken.
-- Match existing style, even if you'd do it differently.
-- If you notice unrelated dead code, mention it - don't delete it.
-
-When your changes create orphans:
-- Remove imports/variables/functions that YOUR changes made unused.
-- Don't remove pre-existing dead code unless asked.
-
-The test: Every changed line should trace directly to the user's request.
-
-## 4. Goal-Driven Execution
-
-**Define success criteria. Loop until verified.**
-
-Transform tasks into verifiable goals:
-- "Add validation" → "Write tests for invalid inputs, then make them pass"
-- "Fix the bug" → "Write a test that reproduces it, then make it pass"
-- "Refactor X" → "Ensure tests pass before and after"
-
-For multi-step tasks, state a brief plan:
-```
-1. [Step] → verify: [check]
-2. [Step] → verify: [check]
-3. [Step] → verify: [check]
-```
-
-Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
-
----
-
-**These guidelines are working if:** fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.
-
 ## Skills（匹配任务时必读）
 
 | Skill | 何时使用 |
@@ -82,10 +18,8 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 
 ## 硬性约束
 
-- 禁止删除 `frontend/node_modules`。
 - `pkg/util/` 保持纯净：禁止导入 Gin、GORM、sessions 等 HTTP/Web/DB 框架（会话选项在 `internal/apps/oauth/session.go`）。
 - 测试临时目录只用 `t.TempDir()`，禁止硬编码相对路径写源码树。
-- HTTP 路由仅在 `internal/router/router.go` 注册；`Serve()` 只挂路由与中间件，禁止进程级初始化（如 `SyncEvents`、`InitLogWriter`）。
 - API 变更后：`make swagger`；开发完成：`make code-check`；提交前：`make format`。
 - 缓存/文件管理复用平台实现，业务包禁止自建缓存目录或旁路存储后端。
 - 文件摄取走 `upload.Ingest`（`PolicyCreate` / `PolicyDedupNewRecord` / `PolicyResolveExisting`）；删除走 `upload.Remove` / `upload.RemoveOwned`。禁止业务直接 `repository.CreateUpload` / `SoftDeleteUpload` 或 `db.Create(&model.Upload{})`。
@@ -97,7 +31,7 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 - 核心业务（如 `oauth`、`user`）禁止直接 import push/custom_events；经 `internal/listener` 发域事件，push 在 bootstrap 订阅。
 - 依赖任务/推送注册的测试须显式 `bootstrap.RegisterTasks()` / `RegisterPushDomainEvents()` 等，不依赖 `init()`。
 - API 错误必须 `response.Abort*` + `ErrorHandlerMiddleware`；禁止 Handler 直接 `c.JSON(..., response.Err(...))` 或用 HTTP 200 表示失败。
-
+- 根据单次任务工作量动态调整测试力度,不要改个文案就去跑全量测试。
 ### 文档与 Changelog
 
 - 内容变更同步**中文文档**（不同步英文）。
@@ -109,9 +43,15 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 - **后端**：Go 1.25+、Gin、GORM、PostgreSQL、可选 ClickHouse、Redis、Asynq、Cobra、Viper、Swaggo、OTel、Zap、AWS SDK v2、Snowflake IDs
 - **前端**：Next.js App Router、TypeScript、Tailwind、pnpm、shadcn/ui
 
-## Git
 
-Conventional Commits：`<type>(<scope>): <subject>`（例：`feat(auth): support email login`）。
+## Git 提交规范
+
+每次完成一个功能点开发或修复一个问题后，务必提交 Git commit , 禁止推送远程仓库。
+遵循 Conventional Commits：`<type>(<scope>): <subject>`（例：`feat(auth): support email login`）。
+若涉及非琐碎改动（技术选型/架构重构/核心改动/踩坑复盘），必须将对应的 Agent Note（`.agents/notes/...`）与代码同批原子提交。
+- **改动范围约束**：仅允许提交自己明确修改的文件，严禁提交非本次任务修改的文件（杜绝盲目 `git add .` 或 `git commit -a` 卷入无关变动）。
+- **工作区保护**：严禁随意还原、丢弃或覆盖他人或当前工作区正在施工的文件。
+- **测试容错与告知**：若工作区正在施工的文件导致全局测试失败，仅验证本次修改相关的测试用例，跳过受无关施工影响的测试并明确告知跳过原因。
 
 ---
 

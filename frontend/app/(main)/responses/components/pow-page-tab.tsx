@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Loader2, Save } from 'lucide-react';
@@ -109,9 +108,6 @@ export function PoWPageTab({
                 </ToggleGroupItem>
               </ToggleGroup>
             </Field>
-            <Button variant='link' className='self-start px-0' asChild>
-              <Link href='/proxy-routes'>{t('policySettings')}</Link>
-            </Button>
           </FieldGroup>
         </CardContent>
       </Card>

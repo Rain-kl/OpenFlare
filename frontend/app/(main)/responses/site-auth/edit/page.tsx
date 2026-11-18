@@ -20,7 +20,7 @@ export default function SiteAuthPageEditPage() {
         <ResponsePageHtmlEditor
           optionKey={SITE_AUTH_HTML_KEY}
           savedHTML={html}
-          defaultHTML={defaultSiteAuthHTML}
+          template={defaultSiteAuthHTML}
           maxBytes={SITE_AUTH_HTML_MAX_BYTES}
           title={t('siteAuthEdit')}
           backPath='/responses?tab=site-auth'

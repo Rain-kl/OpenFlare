@@ -1,13 +1,13 @@
 ---
-name: "release-guide"
-description: "Wavelet 项目专用：根据自上一个正式版本 Tag 以来的提交记录，整理生成规范的 Version Bump Commit Message，用于触发自动双语 Release。"
+name: "wv-release-guide"
+description: "项目专用：根据自上一个正式版本 Tag 以来的提交记录，整理生成规范的 Version Bump Commit Message，用于触发自动双语 Release。"
 ---
 
 # Release Commit Message Guide
 
 ## 目标
 
-当用户准备发布 Wavelet 新版本时，本 Skill 负责：
+当用户准备发布新版本时，本 Skill 负责：
 
 1. 根据上一正式版本 Tag 以来的提交，整理面向用户的发版说明；
 2. 新建 **独立的** `chore(release): vX.Y.Z` 提交（可附带将 `docs/changelog` 从 `[unreleased]` 落版）。

@@ -25,7 +25,14 @@ export default function PoWPageEditPage() {
           <ResponsePageHtmlEditor
             optionKey={POW_PAGE_KEY}
             savedHTML={config.html ?? ''}
-            defaultHTML={powTemplates[config.template]}
+            template={{
+              defaultId: config.template,
+              options: (['shield', 'classic'] as const).map((id) => ({
+                id,
+                label: t(id),
+                html: powTemplates[id],
+              })),
+            }}
             maxBytes={POW_HTML_MAX_BYTES}
             title={t('editPage')}
             backPath='/responses?tab=pow'

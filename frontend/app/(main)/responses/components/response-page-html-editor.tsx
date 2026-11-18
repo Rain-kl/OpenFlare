@@ -26,13 +26,25 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 import { useSaveResponsePageOption } from './use-save-response-page-option';
 
 type PageEditorProps = {
   optionKey: string;
   savedHTML: string;
-  defaultHTML: string;
+  template:
+    | string
+    | {
+        defaultId: string;
+        options: { id: string; label: string; html: string }[];
+      };
   maxBytes: number;
   title: string;
   backPath: string;
@@ -49,7 +61,7 @@ type PageEditorProps = {
 export function ResponsePageHtmlEditor({
   optionKey,
   savedHTML,
-  defaultHTML,
+  template,
   maxBytes,
   title,
   backPath,
@@ -65,6 +77,13 @@ export function ResponsePageHtmlEditor({
   const t = useTranslations('responses');
   const tc = useTranslations('common');
   const [draft, setDraft] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string>();
+  const templates = typeof template === 'string' ? undefined : template;
+  const templateId = selectedId ?? templates?.defaultId;
+  const templateHTML =
+    typeof template === 'string'
+      ? template
+      : template.options.find(({ id }) => id === templateId)?.html;
   const html = draft ?? savedHTML;
   const valueToSave = html.trim() ? html : '';
   const save = useSaveResponsePageOption(optionKey, savedMessage);
@@ -105,12 +124,35 @@ export function ResponsePageHtmlEditor({
         footerHint={previewHint ?? null}
         toolbarRight={
           <>
+            {templates && (
+              <div className='flex items-center gap-1.5'>
+                <span className='hidden text-[11px] text-muted-foreground sm:inline'>
+                  {t('builtinTemplates')}
+                </span>
+                <Select value={templateId} onValueChange={setSelectedId}>
+                  <SelectTrigger
+                    aria-label={t('selectTemplate')}
+                    className='h-7 w-40 bg-background text-[11px]'
+                  >
+                    <SelectValue placeholder={t('selectTemplate')} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {templates.options.map(({ id, label }) => (
+                      <SelectItem key={id} value={id} className='text-xs'>
+                        {label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <Button
               type='button'
               variant='ghost'
               size='sm'
               className='h-7 px-2 text-[11px]'
-              onClick={() => setDraft(defaultHTML)}
+              disabled={templateHTML === undefined}
+              onClick={() => setDraft(templateHTML ?? null)}
             >
               <Sparkles className='size-3.5' />
               {t('loadTemplate')}
