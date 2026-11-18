@@ -80,7 +80,7 @@ export function ZoneCertificatesPanel({
 
   return (
     <div className='space-y-4'>
-      <Card className='shadow-none'>
+      <Card>
         <CardHeader className='flex flex-row items-start justify-between gap-3 space-y-0'>
           <div>
             <CardTitle className='text-base'>{t('zoneCertsTitle')}</CardTitle>

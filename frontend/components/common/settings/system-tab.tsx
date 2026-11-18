@@ -227,7 +227,7 @@ export function SystemTab({ configs, systemConfigsQuery }: SystemTabProps) {
   return (
     <div className='space-y-8'>
       {/* 通用设置 */}
-      <Card className='border border-dashed shadow-sm'>
+      <Card>
         <CardHeader className='border-b border-dashed pb-4'>
           <div className='flex items-center gap-2'>
             <div className='rounded-lg bg-primary/10 p-1.5 text-primary'>
@@ -363,7 +363,7 @@ export function SystemTab({ configs, systemConfigsQuery }: SystemTabProps) {
       </Card>
 
       {/* SMTP 邮件设置 */}
-      <Card className='border border-dashed shadow-sm'>
+      <Card>
         <CardHeader className='border-b border-dashed pb-4'>
           <div className='flex items-center gap-2'>
             <div className='p-1.5 rounded-lg bg-primary/10 text-primary'>

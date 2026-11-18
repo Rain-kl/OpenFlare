@@ -117,7 +117,7 @@ export function TableBrowser({
   };
 
   return (
-    <Card className='border-border/40 bg-card/50 backdrop-blur-sm shadow-sm'>
+    <Card>
       <CardHeader className='pb-3 border-b border-dashed flex flex-col md:flex-row md:items-center md:justify-between gap-4'>
         <div className='space-y-0.5'>
           <CardTitle className='text-sm font-semibold'>
@@ -161,7 +161,7 @@ export function TableBrowser({
         ) : tableData && tableData.columns.length > 0 ? (
           <div className='space-y-4'>
             {/* 数据表格区域 */}
-            <div className='border rounded-md overflow-x-auto max-w-full bg-background/50 relative'>
+            <div className='border border-dashed rounded-lg overflow-x-auto max-w-full bg-background relative'>
               {loadingData && (
                 <div className='absolute inset-0 bg-background/40 backdrop-blur-[1px] flex items-center justify-center z-10'>
                   <RefreshCw className='size-5 text-primary animate-spin' />

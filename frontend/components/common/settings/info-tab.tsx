@@ -62,7 +62,7 @@ export function InfoTab() {
 
   return (
     <div className='grid grid-cols-1 gap-4 lg:grid-cols-2'>
-      <Card className='border border-dashed shadow-sm'>
+      <Card>
         <CardHeader className='border-b border-dashed pb-4'>
           <div className='flex items-start justify-between gap-4'>
             <div className='flex items-center gap-2'>

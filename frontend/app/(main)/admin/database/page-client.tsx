@@ -31,7 +31,7 @@ import services from '@/lib/services';
 import type { DBOverview } from '@/lib/services/db-manage';
 
 const sectionFallback = (
-  <div className='h-48 animate-pulse rounded-lg border border-border/40 bg-muted/20' />
+  <div className='h-48 animate-pulse rounded-lg border border-dashed bg-muted/20' />
 );
 
 const TableBrowser = dynamic(
@@ -138,7 +138,7 @@ export function DatabasePageClient() {
   const renderOverviewSkeleton = () => (
     <div className='grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4'>
       {Array.from({ length: 6 }).map((_, i) => (
-        <Card key={i} className='border-border/40 bg-card/50'>
+        <Card key={i}>
           <CardHeader className='pb-2'>
             <Skeleton className='h-4 w-16' />
           </CardHeader>
@@ -193,7 +193,7 @@ export function DatabasePageClient() {
         : overview && (
             <div className='grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4'>
               {/* 卡片1: 数据库类型 */}
-              <Card className='shadow-sm border-border/40 bg-card/50 backdrop-blur-sm hover:border-primary/20 transition-all duration-300'>
+              <Card>
                 <CardHeader className='flex flex-row items-center justify-between pb-2 space-y-0'>
                   <CardDescription className='text-[10px] font-medium'>
                     {t('dbType')}
@@ -208,7 +208,7 @@ export function DatabasePageClient() {
               </Card>
 
               {/* 卡片2: 数据库版本 */}
-              <Card className='shadow-sm border-border/40 bg-card/50 backdrop-blur-sm hover:border-primary/20 transition-all duration-300 col-span-1 md:col-span-2 lg:col-span-1'>
+              <Card className='col-span-1 md:col-span-2 lg:col-span-1'>
                 <CardHeader className='flex flex-row items-center justify-between pb-2 space-y-0'>
                   <CardDescription className='text-[10px] font-medium'>
                     {t('versionInfo')}
@@ -226,7 +226,7 @@ export function DatabasePageClient() {
               </Card>
 
               {/* 卡片3: 数据库名称 */}
-              <Card className='shadow-sm border-border/40 bg-card/50 backdrop-blur-sm hover:border-primary/20 transition-all duration-300'>
+              <Card>
                 <CardHeader className='flex flex-row items-center justify-between pb-2 space-y-0'>
                   <CardDescription className='text-[10px] font-medium'>
                     {t('nameOrPath')}
@@ -246,7 +246,7 @@ export function DatabasePageClient() {
               </Card>
 
               {/* 卡片4: 数据库大小 */}
-              <Card className='shadow-sm border-border/40 bg-card/50 backdrop-blur-sm hover:border-primary/20 transition-all duration-300'>
+              <Card>
                 <CardHeader className='flex flex-row items-center justify-between pb-2 space-y-0'>
                   <CardDescription className='text-[10px] font-medium'>
                     {t('dbSize')}
@@ -259,7 +259,7 @@ export function DatabasePageClient() {
               </Card>
 
               {/* 卡片5: 表数量 */}
-              <Card className='shadow-sm border-border/40 bg-card/50 backdrop-blur-sm hover:border-primary/20 transition-all duration-300'>
+              <Card>
                 <CardHeader className='flex flex-row items-center justify-between pb-2 space-y-0'>
                   <CardDescription className='text-[10px] font-medium'>
                     {t('physicalTables')}
@@ -274,7 +274,7 @@ export function DatabasePageClient() {
               </Card>
 
               {/* 卡片6: 连接数 */}
-              <Card className='shadow-sm border-border/40 bg-card/50 backdrop-blur-sm hover:border-primary/20 transition-all duration-300'>
+              <Card>
                 <CardHeader className='flex flex-row items-center justify-between pb-2 space-y-0'>
                   <CardDescription className='text-[10px] font-medium'>
                     {t('activeConnections')}
@@ -301,7 +301,7 @@ export function DatabasePageClient() {
       <CacheManager refreshTrigger={refreshTrigger} />
 
       {/* 4. 底部功能卡片区 */}
-      <Card className='border-border/40 bg-card/50 backdrop-blur-sm shadow-sm'>
+      <Card>
         <CardHeader className='pb-3 border-b border-dashed'>
           <CardTitle className='text-sm font-semibold'>
             {t('featureArea')}

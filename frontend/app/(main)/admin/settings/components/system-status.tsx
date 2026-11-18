@@ -202,7 +202,7 @@ export function SystemStatusManager() {
           </div>
         </div>
 
-        <div className='flex items-center flex-wrap gap-4 bg-muted/30 p-1.5 rounded-lg border border-border/40 backdrop-blur-sm'>
+        <div className='flex items-center flex-wrap gap-4 bg-muted/30 p-1.5 rounded-lg border border-dashed'>
           <div className='flex items-center gap-2 px-1'>
             <Switch
               id='auto-refresh'
@@ -249,7 +249,7 @@ export function SystemStatusManager() {
           {/* 主网格排版 */}
           <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'>
             {/* 1. 服务概览 */}
-            <Card className='shadow-sm border-border/40 bg-card/50 backdrop-blur-md hover:border-primary/20 transition-all duration-300'>
+            <Card>
               <CardHeader className='flex flex-row items-center justify-between pb-2 space-y-0'>
                 <div className='space-y-0.5'>
                   <CardTitle className='text-sm font-semibold'>
@@ -286,7 +286,7 @@ export function SystemStatusManager() {
             </Card>
 
             {/* 2. 内存统计 */}
-            <Card className='shadow-sm border-border/40 bg-card/50 backdrop-blur-md hover:border-primary/20 transition-all duration-300'>
+            <Card>
               <CardHeader className='flex flex-row items-center justify-between pb-2 space-y-0'>
                 <div className='space-y-0.5'>
                   <CardTitle className='text-sm font-semibold'>
@@ -340,7 +340,7 @@ export function SystemStatusManager() {
             </Card>
 
             {/* 3. 堆/栈详情 */}
-            <Card className='shadow-sm border-border/40 bg-card/50 backdrop-blur-md hover:border-primary/20 transition-all duration-300'>
+            <Card>
               <CardHeader className='flex flex-row items-center justify-between pb-2 space-y-0'>
                 <div className='space-y-0.5'>
                   <CardTitle className='text-sm font-semibold'>
@@ -397,7 +397,7 @@ export function SystemStatusManager() {
             </Card>
 
             {/* 4. 底层组件与结构体 */}
-            <Card className='shadow-sm border-border/40 bg-card/50 backdrop-blur-md hover:border-primary/20 transition-all duration-300'>
+            <Card>
               <CardHeader className='flex flex-row items-center justify-between pb-2 space-y-0'>
                 <div className='space-y-0.5'>
                   <CardTitle className='text-sm font-semibold'>
@@ -454,7 +454,7 @@ export function SystemStatusManager() {
             </Card>
 
             {/* 5. 垃圾回收与分配计数 */}
-            <Card className='shadow-sm border-border/40 bg-card/50 backdrop-blur-md hover:border-primary/20 transition-all duration-300 md:col-span-2'>
+            <Card className='md:col-span-2'>
               <CardHeader className='flex flex-row items-center justify-between pb-2 space-y-0'>
                 <div className='space-y-0.5'>
                   <CardTitle className='text-sm font-semibold'>

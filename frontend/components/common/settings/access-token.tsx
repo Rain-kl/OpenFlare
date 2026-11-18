@@ -227,7 +227,7 @@ export function AccessTokenMain() {
         </div>
       </div>
 
-      <Card className='border border-dashed shadow-sm'>
+      <Card>
         <CardHeader className='border-b border-dashed pb-4'>
           <CardTitle className='text-base font-semibold'>
             {ta('listTitle')}
@@ -246,7 +246,7 @@ export function AccessTokenMain() {
               {(accessTokensQuery.data ?? []).map((token) => (
                 <div
                   key={token.id}
-                  className='flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-xl border border-dashed p-4 bg-card hover:bg-muted/10 transition-all duration-300 shadow-sm'
+                  className='flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-xl border border-dashed p-4 bg-card hover:bg-muted/10 transition-colors'
                 >
                   <div className='space-y-1'>
                     <div className='flex items-center gap-2'>

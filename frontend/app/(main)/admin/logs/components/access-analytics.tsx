@@ -167,7 +167,7 @@ export function AccessAnalytics() {
     <div className='space-y-6'>
       {/* Overview Cards */}
       <div className='grid gap-4 sm:grid-cols-2 lg:grid-cols-3'>
-        <Card className='bg-card/25 border-border/40'>
+        <Card>
           <CardHeader className='flex flex-row items-center justify-between pb-2 space-y-0'>
             <CardTitle className='text-sm font-semibold tracking-tight'>
               {t('totalRequests7d')}
@@ -183,7 +183,7 @@ export function AccessAnalytics() {
             </p>
           </CardContent>
         </Card>
-        <Card className='bg-card/25 border-border/40'>
+        <Card>
           <CardHeader className='flex flex-row items-center justify-between pb-2 space-y-0'>
             <CardTitle className='text-sm font-semibold tracking-tight'>
               {t('activeBrowserTypes')}
@@ -199,7 +199,7 @@ export function AccessAnalytics() {
             </p>
           </CardContent>
         </Card>
-        <Card className='bg-card/25 border-border/40 sm:col-span-2 lg:col-span-1'>
+        <Card className='sm:col-span-2 lg:col-span-1'>
           <CardHeader className='flex flex-row items-center justify-between pb-2 space-y-0'>
             <CardTitle className='text-sm font-semibold tracking-tight'>
               {t('activeUsers')}
@@ -218,7 +218,7 @@ export function AccessAnalytics() {
       </div>
 
       {/* Access Trend Chart */}
-      <Card className='bg-card/20 border-border/40'>
+      <Card>
         <CardHeader className='flex flex-row items-center justify-between'>
           <div>
             <CardTitle className='text-base font-bold'>
@@ -307,7 +307,7 @@ export function AccessAnalytics() {
       {/* Two Columns for Ranking Statistics */}
       <div className='grid gap-6 md:grid-cols-2'>
         {/* Browser Rankings */}
-        <Card className='bg-card/20 border-border/40 flex flex-col h-full'>
+        <Card className='flex flex-col h-full'>
           <CardHeader>
             <CardTitle className='text-base font-bold flex items-center gap-1.5'>
               <Globe className='size-4.5 text-muted-foreground' />
@@ -364,7 +364,7 @@ export function AccessAnalytics() {
         </Card>
 
         {/* Top Users */}
-        <Card className='bg-card/20 border-border/40 flex flex-col h-full'>
+        <Card className='flex flex-col h-full'>
           <CardHeader>
             <CardTitle className='text-base font-bold flex items-center gap-1.5'>
               <Users className='size-4.5 text-muted-foreground' />

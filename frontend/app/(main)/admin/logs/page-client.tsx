@@ -7,7 +7,7 @@ import { useTranslations } from 'next-intl';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const tabFallback = (
-  <div className='h-64 animate-pulse rounded-lg border border-border/40 bg-muted/20' />
+  <div className='h-64 animate-pulse rounded-lg border border-dashed bg-muted/20' />
 );
 
 const AccessAnalytics = dynamic(

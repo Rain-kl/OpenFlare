@@ -44,7 +44,7 @@ export function NodeKpiCard({
   icon?: LucideIcon;
 }) {
   return (
-    <div className='rounded-xl border bg-card/60 px-4 py-3.5 backdrop-blur-sm'>
+    <div className='rounded-xl border border-dashed bg-card px-4 py-3.5'>
       <div className='flex items-center gap-2 text-xs text-muted-foreground'>
         {Icon ? <Icon className='size-3.5 opacity-70' /> : null}
         <span>{label}</span>
@@ -70,7 +70,7 @@ export function NodeSectionCard({
   className?: string;
 }) {
   return (
-    <Card className={cn('border shadow-none', className)}>
+    <Card className={className}>
       <CardHeader
         className={cn(
           'pb-3',

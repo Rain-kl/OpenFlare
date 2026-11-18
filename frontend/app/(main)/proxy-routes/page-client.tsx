@@ -142,7 +142,7 @@ export function ProxyRoutesPageClient() {
         </div>
       </div>
 
-      <Card className='border-border/40 shadow-sm'>
+      <Card>
         <CardHeader className='pb-3'>
           <div className='flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between'>
             <CardTitle className='text-sm font-semibold'>

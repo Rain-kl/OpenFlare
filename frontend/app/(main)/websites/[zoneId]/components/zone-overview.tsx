@@ -244,7 +244,7 @@ function MetricTrendCard({
   valueFormatter?: (value: number) => string;
 }) {
   return (
-    <Card className='overflow-hidden border shadow-none'>
+    <Card className='overflow-hidden'>
       <CardContent className='p-0'>
         <div className='grid gap-0 md:grid-cols-[minmax(140px,200px)_1fr]'>
           <div className='flex flex-col justify-between gap-3 border-b p-4 md:border-b-0 md:border-r'>

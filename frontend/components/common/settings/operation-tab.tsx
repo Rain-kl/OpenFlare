@@ -201,7 +201,7 @@ export function OperationTab({
   return (
     <div className='space-y-6'>
       {/* 文件访问白名单设置 */}
-      <Card className='border border-dashed shadow-sm'>
+      <Card>
         <CardHeader className='border-b border-dashed pb-4'>
           <div className='flex items-center gap-2'>
             <div className='p-1.5 rounded-lg bg-primary/10 text-primary'>
@@ -255,7 +255,7 @@ export function OperationTab({
             </div>
 
             {/* 当前白名单列表 */}
-            <div className='rounded-xl border border-dashed p-4 bg-card hover:bg-muted/10 hover:border-primary/30 transition-all duration-300 shadow-sm space-y-3'>
+            <div className='rounded-xl border border-dashed p-4 bg-card hover:bg-muted/10 hover:border-primary/30 transition-colors space-y-3'>
               <div className='flex items-center gap-2'>
                 <ShieldAlert className='size-4 text-primary' />
                 <span className='font-medium text-sm text-foreground'>
@@ -298,7 +298,7 @@ export function OperationTab({
       </Card>
 
       {/* 日志保留时间设置 */}
-      <Card className='border border-dashed shadow-sm'>
+      <Card>
         <CardHeader className='border-b border-dashed pb-4'>
           <div className='flex items-center gap-2'>
             <div className='p-1.5 rounded-lg bg-primary/10 text-primary'>

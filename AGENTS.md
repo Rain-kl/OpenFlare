@@ -198,6 +198,7 @@ Swagger：`@Success 200` 用具体类型或 `response.Any`；每个可能 Abort 
 
 - shadcn 用 `variant` + CSS 变量；业务 `className` 不硬编码颜色/背景/阴影。
 - 变体不足时扩展组件 variant，不写一次性颜色。
+- 卡片与内容分区统一采用**虚线外框、无阴影扁平设计**（`Pages` 与 `/admin/demo` 风格）：`frontend/components/ui/card.tsx` 已默认 `border-dashed shadow-none`，业务直接使用 `<Card>` 即可；**禁止**在卡片或列表项容器上添加 `shadow-sm`/`shadow-md` 等投影、`backdrop-blur-*` 毛玻璃或实线立体边框（`Dialog`、`Sheet`、`Popover` 等浮层除外）。自定义列表项/空状态/分块容器同样使用 `border border-dashed` 且不加阴影。
 
 ### 页面结构
 
@@ -207,7 +208,7 @@ Swagger：`@Success 200` 用具体类型或 `response.Any`；每个可能 Abort 
 - 图标：Lucide 直接放标题容器，`size-5 text-primary`；禁止背景卡片/边框包裹。
 - 标题：仅 `h1 className="text-2xl font-semibold tracking-tight"`。
 - 多 Tab：各 Tab 独立文件；`page.tsx` 只管 Tabs 状态与触发器；禁止 `page.tsx` 仅转发同名空壳。
-- 单文件 > ~600 行或状态过重时拆局部 `components/`；跨页复用放 `frontend/components/common/`。标杆：`/admin/database`。
+- 单文件 > ~600 行或状态过重时拆局部 `components/`；跨页复用放 `frontend/components/common/`。目录拆分参考：`/admin/database`；视觉与卡片风格以 `Pages` 与 `/admin/demo` 为准。
 
 ### 组件放置
 

@@ -305,7 +305,7 @@ export function SecurityTab({ configs, systemConfigsQuery }: SecurityTabProps) {
   return (
     <div className='space-y-6'>
       {/* 系统登录与注册控制 */}
-      <Card className='border border-dashed shadow-sm'>
+      <Card>
         <CardHeader className='border-b border-dashed pb-4'>
           <div className='flex items-center gap-2'>
             <div className='p-1.5 rounded-lg bg-primary/10 text-primary'>
@@ -330,7 +330,7 @@ export function SecurityTab({ configs, systemConfigsQuery }: SecurityTabProps) {
               return (
                 <div
                   key={item.key}
-                  className='flex items-center justify-between gap-4 rounded-xl border border-dashed p-4 bg-card hover:bg-muted/10 hover:border-primary/30 transition-all duration-300 shadow-sm'
+                  className='flex items-center justify-between gap-4 rounded-xl border border-dashed p-4 bg-card hover:bg-muted/10 hover:border-primary/30 transition-colors'
                 >
                   <div className='space-y-1'>
                     <div className='flex items-center gap-2'>
@@ -357,7 +357,7 @@ export function SecurityTab({ configs, systemConfigsQuery }: SecurityTabProps) {
             })}
 
             {/* 登录状态保持时间 (选择后立即更改) */}
-            <div className='flex items-center justify-between gap-4 rounded-xl border border-dashed p-4 bg-card hover:bg-muted/10 hover:border-primary/30 transition-all duration-300 shadow-sm md:col-span-2'>
+            <div className='flex items-center justify-between gap-4 rounded-xl border border-dashed p-4 bg-card hover:bg-muted/10 hover:border-primary/30 transition-colors md:col-span-2'>
               <div className='space-y-1 pr-4'>
                 <div className='flex items-center gap-2'>
                   <Clock className='size-4 text-primary' />
@@ -417,7 +417,7 @@ export function SecurityTab({ configs, systemConfigsQuery }: SecurityTabProps) {
       </Card>
 
       {/* 认证源配置管理 */}
-      <Card className='border border-dashed shadow-sm'>
+      <Card>
         <CardHeader className='border-b border-dashed pb-4 flex flex-row items-center justify-between gap-4'>
           <div className='flex items-center gap-2'>
             <div className='p-1.5 rounded-lg bg-primary/10 text-primary'>
@@ -454,7 +454,7 @@ export function SecurityTab({ configs, systemConfigsQuery }: SecurityTabProps) {
             (authSourcesQuery.data ?? []).map((source) => (
               <div
                 key={source.id}
-                className='flex items-center justify-between rounded-xl border border-dashed p-4 bg-card hover:bg-muted/10 transition-all duration-300 shadow-sm'
+                className='flex items-center justify-between rounded-xl border border-dashed p-4 bg-card hover:bg-muted/10 transition-colors'
               >
                 <div className='space-y-1.5'>
                   <div className='flex items-center gap-2'>
@@ -546,7 +546,7 @@ export function SecurityTab({ configs, systemConfigsQuery }: SecurityTabProps) {
       </Card>
 
       {/* 人机验证配置 (Cap CAPTCHA) */}
-      <Card className='border border-dashed shadow-sm'>
+      <Card>
         <CardHeader className='border-b border-dashed pb-4 flex flex-row items-center justify-between gap-4'>
           <div className='flex items-center gap-2'>
             <div className='p-1.5 rounded-lg bg-primary/10 text-primary'>

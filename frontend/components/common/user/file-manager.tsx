@@ -261,7 +261,7 @@ export function UserFileManager() {
           {files.map((file) => (
             <Card
               key={file.id}
-              className='group border border-border/40 hover:border-border/80 bg-card/60 hover:bg-card/95 transition-all duration-300 shadow-xs hover:shadow-md overflow-hidden relative flex flex-col h-full'
+              className='group hover:bg-muted/20 transition-colors overflow-hidden relative flex flex-col h-full'
             >
               {/* 文件预览/图标区 */}
               <div className='h-36 bg-muted/30 border-b border-dashed relative flex items-center justify-center overflow-hidden p-2 group-hover:bg-muted/10 transition-colors'>
@@ -270,7 +270,7 @@ export function UserFileManager() {
                     fileId={file.id}
                     alt={file.file_name}
                     quality='medium'
-                    className='max-h-full max-w-full object-contain rounded-md shadow-xs transition-transform duration-350 group-hover:scale-103'
+                    className='max-h-full max-w-full object-contain rounded-md transition-transform duration-350 group-hover:scale-103'
                     fallbackClassName='min-h-full w-full rounded-md'
                   />
                 ) : (

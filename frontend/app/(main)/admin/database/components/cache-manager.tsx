@@ -134,7 +134,7 @@ export function CacheManager({ refreshTrigger }: CacheManagerProps) {
   }, [refreshTrigger, fetchCacheStatus]);
 
   return (
-    <Card className='border-border/40 bg-card/50 backdrop-blur-sm shadow-sm'>
+    <Card>
       <CardHeader className='pb-3 border-b border-dashed flex flex-col md:flex-row md:items-center md:justify-between gap-4'>
         <div className='space-y-0.5'>
           <div className='flex items-center gap-2'>
@@ -177,7 +177,7 @@ export function CacheManager({ refreshTrigger }: CacheManagerProps) {
               </p>
               <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
                 {/* 已占空间 */}
-                <div className='p-4 rounded-xl border border-border/40 bg-background/30 backdrop-blur-xs hover:border-primary/20 transition-all duration-300'>
+                <div className='p-4 rounded-lg border border-dashed bg-background'>
                   <p className='text-[10px] text-muted-foreground font-medium mb-1'>
                     {t('usedSpace')}
                   </p>
@@ -186,7 +186,7 @@ export function CacheManager({ refreshTrigger }: CacheManagerProps) {
                   </p>
                 </div>
                 {/* Key数量 */}
-                <div className='p-4 rounded-xl border border-border/40 bg-background/30 backdrop-blur-xs hover:border-primary/20 transition-all duration-300'>
+                <div className='p-4 rounded-lg border border-dashed bg-background'>
                   <p className='text-[10px] text-muted-foreground font-medium mb-1'>
                     {t('cacheKeysCount')}
                   </p>
@@ -200,7 +200,7 @@ export function CacheManager({ refreshTrigger }: CacheManagerProps) {
               </div>
 
               {/* 存储路径 */}
-              <div className='p-4 rounded-xl border border-border/40 bg-background/30 backdrop-blur-xs hover:border-primary/20 transition-all duration-300'>
+              <div className='p-4 rounded-lg border border-dashed bg-background'>
                 <p className='text-[10px] text-muted-foreground font-medium mb-1.5'>
                   {t('cacheBaseDirectory')}
                 </p>
@@ -222,7 +222,7 @@ export function CacheManager({ refreshTrigger }: CacheManagerProps) {
             </div>
 
             {/* 右边：配置区 (3/5 cols) */}
-            <div className='lg:col-span-3 border-t lg:border-t-0 lg:border-l border-border/40 pt-6 lg:pt-0 lg:pl-6 space-y-4'>
+            <div className='lg:col-span-3 border-t lg:border-t-0 lg:border-l border-dashed pt-6 lg:pt-0 lg:pl-6 space-y-4'>
               <p className='text-xs font-semibold text-muted-foreground uppercase tracking-wider'>
                 {t('policyConfig')}
               </p>
@@ -267,7 +267,7 @@ export function CacheManager({ refreshTrigger }: CacheManagerProps) {
                   </div>
                 </div>
 
-                <div className='flex items-start justify-between p-4 rounded-xl border border-border/40 bg-background/20'>
+                <div className='flex items-start justify-between p-4 rounded-lg border border-dashed bg-background'>
                   <div className='space-y-1 pr-4'>
                     <Label
                       htmlFor='lruEnabled'

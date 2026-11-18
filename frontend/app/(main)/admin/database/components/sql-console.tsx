@@ -151,7 +151,7 @@ export function SQLConsole({ dbType, onClose }: SQLConsoleProps) {
       {/* 类似于 VS Code 的单个整体编辑器+结果区域，固定高度，有分水岭拖拽调整大小 */}
       <div
         ref={containerRef}
-        className='w-full border border-border/40 bg-card/60 backdrop-blur-md rounded-lg overflow-hidden flex flex-col shadow-sm h-[calc(100vh-140px)] min-h-[500px]'
+        className='w-full border border-dashed bg-card rounded-lg overflow-hidden flex flex-col h-[calc(100vh-140px)] min-h-[500px]'
       >
         {/* 顶部编辑工具栏 */}
         <div className='flex items-center justify-between px-4 py-2 border-b bg-muted/40 shrink-0 gap-4 flex-wrap'>

@@ -17,7 +17,7 @@ import services from '@/lib/services';
 import type { SystemConfig } from '@/lib/services/admin';
 
 const tabFallback = (
-  <div className='h-64 animate-pulse rounded-lg border border-border/40 bg-muted/20' />
+  <div className='h-64 animate-pulse rounded-lg border border-dashed bg-muted/20' />
 );
 
 const SecurityTab = dynamic(
